@@ -1,11 +1,20 @@
-# See config.example.yml for documentation.
-object_base: orig/GUNE5D
-object: sys/main.dol
-hash: 7CBA77AA496EB0FC5FFEC60EFD9680AA9635D679
-symbols: config/GUNE5D/symbols.txt
-splits: config/GUNE5D/splits.txt
-# Change this to match the linker version.
-# See config.example.yml for a list.
-mw_comment_version: 11
+# config/GUNE5D/config.yml
 
-modules: []
+# Main DOL
+name: main
+object_base: orig/GUNE5D           # where dtk looks for disc files (or a .iso/.rvz in this dir)
+object: sys/main.dol               # path inside the disc/extract
+hash: 7cba77aa496eb0fc5ffec60efd9680aa9635d679
+
+# Outputs that dtk will create on first analysis
+symbols: config/GUNE5D/symbols.txt
+splits:  config/GUNE5D/splits.txt
+
+# Leave these defaults unless you know you need to change them
+detect_objects: true
+detect_strings: true
+write_asm: true
+fill_gaps: true
+symbols_known: false
+
+# mw_comment_version: 8   # set if you want .comment sections (8/10/11/14 per linker), otherwise omit
