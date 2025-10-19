@@ -1,0 +1,32 @@
+INIT_O_FILES :=                                     \
+    $(OBJ_DIR)/asm/sections/.init.o
+
+EXTAB_O_FILES :=                                    \
+    $(OBJ_DIR)/asm/sections/extab.o
+
+EXTABINDEX_O_FILES :=                               \
+    $(OBJ_DIR)/asm/sections/extabindex.o
+
+TEXT_O_FILES :=                                     \
+    $(OBJ_DIR)/asm/sections/.text.o
+
+CTORS_O_FILES :=                                    \
+    $(OBJ_DIR)/asm/sections/.ctors.o
+
+DTORS_O_FILES :=                                    \
+    $(OBJ_DIR)/asm/sections/.dtors.o
+
+RODATA_O_FILES :=                                   \
+    $(OBJ_DIR)/asm/sections/.rodata.o
+
+DATA_O_FILES :=                                     \
+    $(OBJ_DIR)/asm/sections/.data.o
+
+BSS_O_FILES :=                                      \
+    $(OBJ_DIR)/asm/sections/.bss.o
+
+SDATA_O_FILES :=                                    \
+    $(OBJ_DIR)/asm/sections/.sdata.o
+
+DATA9_O_FILES :=                                    \
+    $(OBJ_DIR)/asm/sections/.data9.o
