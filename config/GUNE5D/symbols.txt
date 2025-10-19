@@ -1,1 +1,6 @@
-// Intentionally empty. Initial analysis will generate this automatically.
+0x800051FC __start
+0x8000CF40 DBInitComm
+0x80067F88 main
+0x800EC6BC VIGetTvFormat
+0x80104000 OSInit
+0x8010BC30 __PADDisableRecalibration
