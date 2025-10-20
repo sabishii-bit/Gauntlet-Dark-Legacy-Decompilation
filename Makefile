@@ -75,11 +75,11 @@ LD      := $(WINE) tools/mwcc_compiler/2.0/mwldeppc.exe
 PPROC   := python3 tools/postprocess.py
 
 # Options
-INCLUDES := -ir src -ir include -Iinclude -Iinclude/inline -Iinclude/bink \
+#INCLUDES := -ir src -ir include -Iinclude -Iinclude/inline -Iinclude/bink \
   -Iinclude/dolphin -Iinclude/CodeWarrior -Iinclude/rwsdk \
   $(foreach dir,$(SRC_DIRS),-I$(dir))
 
-ASFLAGS := -mgekko -I include --strip-local-absolute -gdwarf-2
+ASFLAGS := -mgekko -I include -I asm/include -I asm/sections --strip-local-absolute -gdwarf-2
 ifeq ($(VERBOSE),0)
   ASFLAGS += -W
 endif
@@ -87,7 +87,7 @@ LDFLAGS := -maxerrors 1 -nostdlib
 ifeq ($(GENERATE_MAP),1)
   LDFLAGS += -map $(MAP)
 endif
-CFLAGS  := -g -DGAMECUBE -Cpp_exceptions off -proc gekko -fp hard -fp_contract on -O4,p -maxerrors 1 \
+#CFLAGS  := -g -DGAMECUBE -Cpp_exceptions off -proc gekko -fp hard -fp_contract on -O4,p -maxerrors 1 \
            -pragma "check_header_flags off" -RTTI off -pragma "force_active on" \
            -str reuse,pool,readonly -char unsigned -enum int -use_lmw_stmw on -inline off -nostdinc -i- $(INCLUDES)
 PPROCFLAGS := -fsymbol-fixup
