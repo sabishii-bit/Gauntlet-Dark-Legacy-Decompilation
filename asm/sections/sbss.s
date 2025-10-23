@@ -5177,4 +5177,4 @@ lbl_80345710:
 
 .global lbl_80345714
 lbl_80345714:
-	.skip 0xC
+	.skip 0x4

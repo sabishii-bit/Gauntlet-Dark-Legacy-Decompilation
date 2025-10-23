@@ -135,7 +135,7 @@ $(DOL): $(ELF)
 
 clean:
 	rm -f $(DOL) $(ELF) $(MAP) baserom.dump main.dump
-	rm -rf obj build
+	rm -rf obj
 
 $(ELF): $(O_FILES) $(LDSCRIPT)
 	@echo " LINK    "$@

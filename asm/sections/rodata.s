@@ -1,6 +1,6 @@
 .include "macros.s"
 
-.section .rodata, "a"  # 0x80110720 - 0x80118100 ; 0x000079E0
+.section .rodata, "wa"  # 0x80110720 - 0x80118100 ; 0x000079E0
 
 
 .global lbl_80110720
