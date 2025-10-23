@@ -37,9 +37,9 @@ CPP_FILES := $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.cpp))
 LDSCRIPT := asm/ldscript.lcf
 
 # Outputs
-DOL     := $(BUILD_DIR)/main.dol
+DOL     := $(BUILD_DIR)/GUNE5D/main.dol
 ELF     := $(DOL:.dol=.elf)
-MAP     := $(BUILD_DIR)/GWWE01.map
+MAP     := $(BUILD_DIR)/GUNE5D/GUNE5D.map
 
 include obj_files.mk
 
@@ -117,7 +117,7 @@ setup:
 	@if [ -d build/ ]; then \
 	    rm -rf build/; \
 	fi
-	@mkdir -p build
+	@mkdir -p build/GUNE5D
 	@chmod -R +x tools/
 	@echo "Finished adjusting."
 
@@ -135,7 +135,7 @@ $(DOL): $(ELF)
 
 clean:
 	rm -f $(DOL) $(ELF) $(MAP) baserom.dump main.dump
-	rm -rf obj
+	rm -rf obj build
 
 $(ELF): $(O_FILES) $(LDSCRIPT)
 	@echo " LINK    "$@

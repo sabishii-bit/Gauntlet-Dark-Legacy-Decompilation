@@ -1,6 +1,6 @@
 .include "macros.s"
 
-.section .sdata2, "wa"  # 0x80345720 - 0x80349720 ; 0x00004000
+.section .sdata2, "a"  # 0x80345720 - 0x80349720 ; 0x00004000
 
 
 .global lbl_80345720
