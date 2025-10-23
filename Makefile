@@ -34,7 +34,7 @@ BUILD_DIR := build
 S_FILES := $(foreach dir,$(ASM_DIRS),$(wildcard $(dir)/*.s))
 C_FILES := $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.c))
 CPP_FILES := $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.cpp))
-LDSCRIPT := ldscript.lcf
+LDSCRIPT := asm/ldscript.lcf
 
 # Outputs
 DOL     := $(BUILD_DIR)/main.dol
@@ -45,7 +45,7 @@ include obj_files.mk
 
 O_FILES := $(INIT_O_FILES) $(EXTAB_O_FILES) $(EXTABINDEX_O_FILES) $(TEXT_O_FILES) \
 		   $(CTORS_O_FILES) $(DTORS_O_FILES) $(RODATA_O_FILES) $(DATA_O_FILES)    \
-		   $(BSS_O_FILES) $(SDATA_O_FILES) $(DATA9_O_FILES)
+		   $(BSS_O_FILES) $(SDATA_O_FILES) $(SBSS_O_FILES) $(SDATA2_O_FILES)
 
 #-------------------------------------------------------------------------------
 # Tools
@@ -67,6 +67,10 @@ else
   export WINEDEBUG ?= -all
   # Default devkitPPC path
   DEVKITPPC ?= /opt/devkitpro/devkitPPC
+endif
+# Windows devkitPPC path (MSYS2)
+ifeq ($(WINDOWS),1)
+  DEVKITPPC ?= /c/devkitPro/devkitPPC
 endif
 AS      := $(DEVKITPPC)/bin/powerpc-eabi-as
 OBJCOPY := $(DEVKITPPC)/bin/powerpc-eabi-objcopy
@@ -91,7 +95,7 @@ endif
            -pragma "check_header_flags off" -RTTI off -pragma "force_active on" \
            -str reuse,pool,readonly -char unsigned -enum int -use_lmw_stmw on -inline off -nostdinc -i- $(INCLUDES)
 PPROCFLAGS := -fsymbol-fixup
-DTK := $(firstword $(wildcard tools/dtk/*))
+DTK := $(firstword $(wildcard tools/dtk.exe tools/dtk))
 
 #-------------------------------------------------------------------------------
 # Recipes
@@ -123,25 +127,22 @@ ALL_DIRS := $(OBJ_DIR) $(addprefix $(OBJ_DIR)/,$(SRC_DIRS) $(ASM_DIRS))
 # Make sure build directory exists before compiling anything
 DUMMY != mkdir -p $(ALL_DIRS)
 
-$(DOL): $(ELF) | $(DTK)
+$(DOL): $(ELF)
 	@echo " ELF2DOL "$@
 	$(QUIET) $(DTK) elf2dol $< $@
-	$(QUIET) $(DTK) shasum -c GWWE01.sha1
+	@echo " VERIFY  "$@
+	$(QUIET) $(DTK) shasum -c config/GUNE5D/build.sha1
 
 clean:
 	rm -f $(DOL) $(ELF) $(MAP) baserom.dump main.dump
 	rm -rf obj
-
-$(DTK): tools/dtk_version
-	@echo "DOWNLOAD "$@
-	$(QUIET) $(PYTHON) tools/download_dtk.py $< tools/dtk/
 
 $(ELF): $(O_FILES) $(LDSCRIPT)
 	@echo " LINK    "$@
 	$(QUIET) $(DTK) ar create obj/lib.a $(O_FILES)
 	$(QUIET) $(LD) $(LDFLAGS) -o $@ -lcf $(LDSCRIPT) obj/lib.a 1>&2
 
-$(OBJ_DIR)/%.o: %.s | $(DTK)
+$(OBJ_DIR)/%.o: %.s
 	@echo " AS      "$<
 	$(QUIET) mkdir -p $(dir $@)
 	$(QUIET) $(AS) $(ASFLAGS) -o $@ $<

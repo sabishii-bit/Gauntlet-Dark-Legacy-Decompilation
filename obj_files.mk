@@ -1,32 +1,35 @@
 INIT_O_FILES :=                                     \
-    $(OBJ_DIR)/asm/sections/.init.o
+    $(OBJ_DIR)/asm/sections/init.o
 
 EXTAB_O_FILES :=                                    \
-    $(OBJ_DIR)/asm/sections/extab.o
+    $(OBJ_DIR)/asm/sections/extab_.o
 
 EXTABINDEX_O_FILES :=                               \
-    $(OBJ_DIR)/asm/sections/extabindex.o
+    $(OBJ_DIR)/asm/sections/extabindex_.o
 
 TEXT_O_FILES :=                                     \
-    $(OBJ_DIR)/asm/sections/.text.o
+    $(OBJ_DIR)/asm/sections/text.o
 
 CTORS_O_FILES :=                                    \
-    $(OBJ_DIR)/asm/sections/.ctors.o
+    $(OBJ_DIR)/asm/sections/ctors.o
 
 DTORS_O_FILES :=                                    \
-    $(OBJ_DIR)/asm/sections/.dtors.o
+    $(OBJ_DIR)/asm/sections/dtors.o
 
 RODATA_O_FILES :=                                   \
-    $(OBJ_DIR)/asm/sections/.rodata.o
+    $(OBJ_DIR)/asm/sections/rodata.o
 
 DATA_O_FILES :=                                     \
-    $(OBJ_DIR)/asm/sections/.data.o
+    $(OBJ_DIR)/asm/sections/data.o
 
 BSS_O_FILES :=                                      \
-    $(OBJ_DIR)/asm/sections/.bss.o
+    $(OBJ_DIR)/asm/sections/bss.o
 
 SDATA_O_FILES :=                                    \
-    $(OBJ_DIR)/asm/sections/.sdata.o
+    $(OBJ_DIR)/asm/sections/sdata.o
 
-DATA9_O_FILES :=                                    \
-    $(OBJ_DIR)/asm/sections/.data9.o
+SBSS_O_FILES :=                                     \
+    $(OBJ_DIR)/asm/sections/sbss.o
+
+SDATA2_O_FILES :=                                   \
+    $(OBJ_DIR)/asm/sections/sdata2.o
