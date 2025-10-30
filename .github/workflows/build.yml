@@ -35,9 +35,12 @@ jobs:
         uv run https://raw.githubusercontent.com/MestreLion/git-tools/refs/tags/v2022.12/git-restore-mtime \
             --merge --commit-time
 
-    # Copy MWCC compilers from container to workspace
+    # Copy tools from container to workspace
     - name: Prepare
-      run: cp -r /tools/mwcc_compiler tools/
+      run: |
+        cp -r /tools/mwcc_compiler tools/
+        cp /tools/dtk tools/dtk
+        chmod +x tools/dtk
 
     # Cache build artifacts
     - name: Cache build
