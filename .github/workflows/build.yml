@@ -55,7 +55,8 @@ jobs:
     # Build the project using Makefile
     - name: Build
       env:
-        WINEPREFIX: ${{ github.workspace }}/.wine
+        HOME: /tmp
+        WINEPREFIX: /tmp/.wine
       run: make
 
     # Upload build artifacts
