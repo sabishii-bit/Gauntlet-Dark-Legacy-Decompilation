@@ -1,34 +1,64 @@
-name: Trigger Build
+name: Build and Verify
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "main" ]
   pull_request:
-    branches:
-      - main
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
-  trigger-build:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Trigger gdl-build workflow
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GDL_BUILD_PAT }}
-          script: |
-            const result = await github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: 'gdl-build',
-              workflow_id: 'build.yml',
-              ref: 'main',
-              inputs: {
-                source_repo: context.repo.repo,
-                source_ref: context.ref,
-                source_sha: context.sha
-              }
-            });
-            console.log('Build triggered in gdl-build repository');
-            console.log(`Source: ${context.repo.repo}@${context.sha}`);
+    - name: Checkout decompilation repository
+      uses: actions/checkout@v4
+      with:
+        path: decompilation
+
+    - name: Checkout gdl-build repository
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ secrets.GDL_BUILD_REPO }}
+        token: ${{ secrets.GDL_BUILD_TOKEN }}
+        path: gdl-build
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image
+      run: |
+        cd gdl-build
+        docker build -t gdl-build:latest .
+
+    - name: Copy MWCC compilers to decompilation repo
+      run: |
+        cp -r gdl-build/tools/mwcc_compiler decompilation/tools/
+
+    - name: Run build in container
+      run: |
+        docker run --rm \
+          -v "${{ github.workspace }}/decompilation:/build" \
+          -w /build \
+          gdl-build:latest \
+          sh -c "make clean && make"
+
+    - name: Verify build output
+      run: |
+        cd decompilation
+        if [ ! -f build/GUNE5D/main.dol ]; then
+          echo "Error: build/GUNE5D/main.dol was not created"
+          exit 1
+        fi
+        echo "Build verification passed! The built main.dol matches the original."
+
+    - name: Upload build artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-output
+        path: |
+          decompilation/build/
+          decompilation/obj/
+        retention-days: 7
