@@ -6,6 +6,7 @@ on:
 
 jobs:
   build:
+    name: Build (${{ matrix.version }})
     # This is a *private* build container from gdl-build repository.
     # Contains MWCC compilers and original game files.
     container: ghcr.io/${{ github.repository_owner }}/gdl-build:main
