@@ -1,64 +1,61 @@
-name: Build and Verify
+name: Build
 
 on:
   push:
-    branches: [ "main" ]
   pull_request:
-    branches: [ "main" ]
-  workflow_dispatch:
 
 jobs:
   build:
+    # This is a *private* build container from gdl-build repository.
+    # Contains MWCC compilers and original game files.
+    container: ghcr.io/${{ github.repository_owner }}/gdl-build:main
+
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Game version ID
+        version: [GUNE5D]
 
     steps:
-    - name: Checkout decompilation repository
+    # Checkout the repository
+    - name: Checkout
       uses: actions/checkout@v4
       with:
-        path: decompilation
+        fetch-depth: 0
+        submodules: recursive
 
-    - name: Checkout gdl-build repository
-      uses: actions/checkout@v4
+    # Set Git config
+    - name: Git config
+      run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+    # Normalize file mod times
+    - name: Restore timestamps
+      run: |
+        uv run https://raw.githubusercontent.com/MestreLion/git-tools/refs/tags/v2022.12/git-restore-mtime \
+            --merge --commit-time
+
+    # Copy MWCC compilers from container to workspace
+    - name: Prepare
+      run: cp -r /tools/mwcc_compiler tools/
+
+    # Cache build artifacts
+    - name: Cache build
+      uses: actions/cache@v4
       with:
-        repository: ${{ secrets.GDL_BUILD_REPO }}
-        token: ${{ secrets.GDL_BUILD_TOKEN }}
-        path: gdl-build
+        path: |
+          build
+          obj
+        key: ${{ runner.os }}-${{ matrix.version }}-${{ github.sha }}
+        restore-keys: ${{ runner.os }}-${{ matrix.version }}-
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+    # Build the project using Makefile
+    - name: Build
+      run: make
 
-    - name: Build Docker image
-      run: |
-        cd gdl-build
-        docker build -t gdl-build:latest .
-
-    - name: Copy MWCC compilers to decompilation repo
-      run: |
-        cp -r gdl-build/tools/mwcc_compiler decompilation/tools/
-
-    - name: Run build in container
-      run: |
-        docker run --rm \
-          -v "${{ github.workspace }}/decompilation:/build" \
-          -w /build \
-          gdl-build:latest \
-          sh -c "make clean && make"
-
-    - name: Verify build output
-      run: |
-        cd decompilation
-        if [ ! -f build/GUNE5D/main.dol ]; then
-          echo "Error: build/GUNE5D/main.dol was not created"
-          exit 1
-        fi
-        echo "Build verification passed! The built main.dol matches the original."
-
-    - name: Upload build artifacts
-      if: always()
+    # Upload build artifacts
+    - name: Upload build
       uses: actions/upload-artifact@v4
       with:
-        name: build-output
-        path: |
-          decompilation/build/
-          decompilation/obj/
-        retention-days: 7
+        name: ${{ matrix.version }}_build
+        path: build/${{ matrix.version }}/main.dol
