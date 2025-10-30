@@ -1,0 +1,34 @@
+name: Trigger Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  trigger-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger gdl-build workflow
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GDL_BUILD_PAT }}
+          script: |
+            const result = await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: 'gdl-build',
+              workflow_id: 'build.yml',
+              ref: 'main',
+              inputs: {
+                source_repo: context.repo.repo,
+                source_ref: context.ref,
+                source_sha: context.sha
+              }
+            });
+            console.log('Build triggered in gdl-build repository');
+            console.log(`Source: ${context.repo.repo}@${context.sha}`);
