@@ -22,6 +22,9 @@ endif
 # Files
 #-------------------------------------------------------------------------------
 
+# Used for elf2dol
+TARGET_COL := wii
+
 OBJ_DIR := obj
 
 SRC_DIRS := src
@@ -77,6 +80,11 @@ OBJCOPY := $(DEVKITPPC)/bin/powerpc-eabi-objcopy
 CC      := $(WINE) tools/mwcc_compiler/2.0/mwcceppc.exe
 LD      := $(WINE) tools/mwcc_compiler/2.0/mwldeppc.exe
 PPROC   := python3 tools/postprocess.py
+GLBLASM := python3 tools/inlineasm/globalasm.py
+# ELF2DOL := tools/elf2dol  # Unused - using DTK for elf2dol conversion instead
+SHA1SUM := sha1sum
+ASMDIFF := ./tools/asmdiff.sh
+
 
 # Options
 #INCLUDES := -ir src -ir include -Iinclude -Iinclude/inline -Iinclude/bink \
@@ -127,6 +135,8 @@ ALL_DIRS := $(OBJ_DIR) $(addprefix $(OBJ_DIR)/,$(SRC_DIRS) $(ASM_DIRS))
 # Make sure build directory exists before compiling anything
 DUMMY != mkdir -p $(ALL_DIRS)
 
+.PHONY: tools
+
 $(DOL): $(ELF)
 	@echo " ELF2DOL "$@
 	$(QUIET) $(DTK) elf2dol $< $@
@@ -135,26 +145,38 @@ $(DOL): $(ELF)
 
 clean:
 	rm -f $(DOL) $(ELF) $(MAP) baserom.dump main.dump
-	rm -rf obj
+	rm -rf .pragma obj
+	$(MAKE) -C tools clean
+
+tools:
+	$(MAKE) -C tools
+
+inspect:
+ifeq ($(WINDOWS),1)
+	$(CC) $(CFLAGS) -o inspect.s -S $(subst \,/,$(subst C:\,/c/,$(INSPECT)))
+else
+	$(CC) $(CFLAGS) -o inspect.s -S $(INSPECT)
+endif
+	python3 tools/inspect_postprocess.py inspect.s
 
 $(ELF): $(O_FILES) $(LDSCRIPT)
 	@echo " LINK    "$@
-	$(QUIET) $(DTK) ar create obj/lib.a $(O_FILES)
-	$(QUIET) $(LD) $(LDFLAGS) -o $@ -lcf $(LDSCRIPT) obj/lib.a 1>&2
+	$S$(LD) $(LDFLAGS) -o $@ -lcf $(LDSCRIPT) $(O_FILES) 1>&2
+	$Ssudo chown $(USER):$(USER) $@ && chmod 644 $@
+# The Metrowerks linker doesn't generate physical addresses in the ELF program headers. This fixes it somehow.
+	$S$(OBJCOPY) $@ $@
 
 $(OBJ_DIR)/%.o: %.s
 	@echo " AS      "$<
-	$(QUIET) mkdir -p $(dir $@)
-	$(QUIET) $(AS) $(ASFLAGS) -o $@ $<
-	$(QUIET) $(DTK) elf fixup $@ $@
+	$S$(AS) $(ASFLAGS) -o $@ $<
+	$S$(PPROC) $(PPROCFLAGS) $@
 
 $(OBJ_DIR)/%.o: %.c
 	@echo " CC      "$<
-	$(QUIET) mkdir -p $(dir $@)
-	$(QUIET) $(CC) $(CFLAGS) -c -o $@ $< 1>&2
+	$S$(CC) $(CFLAGS) -c -o $@ $< 1>&2
 
 $(OBJ_DIR)/%.o: %.cpp
 	@echo " CXX     "$<
-	$(QUIET) mkdir -p $(dir $@)
-	$(QUIET) $(CC) $(CFLAGS) -c -o $@ $(OBJ_DIR)/$*.cpp 1>&2
-	$(QUIET) $(PPROC) $(PPROCFLAGS) $@
+	$S$(GLBLASM) -s $< $(OBJ_DIR)/$*.cpp 1>&2
+	$S$(CC) $(CFLAGS) -c -o $@ $(OBJ_DIR)/$*.cpp 1>&2
+	$S$(PPROC) $(PPROCFLAGS) $@
