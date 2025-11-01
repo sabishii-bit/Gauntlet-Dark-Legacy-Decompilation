@@ -162,7 +162,6 @@ endif
 $(ELF): $(O_FILES) $(LDSCRIPT)
 	@echo " LINK    "$@
 	$S$(LD) $(LDFLAGS) -o $@ -lcf $(LDSCRIPT) $(O_FILES) 1>&2
-	$Ssudo chown $(USER):$(USER) $@ && chmod 644 $@
 # The Metrowerks linker doesn't generate physical addresses in the ELF program headers. This fixes it somehow.
 	$S$(OBJCOPY) $@ $@
 
