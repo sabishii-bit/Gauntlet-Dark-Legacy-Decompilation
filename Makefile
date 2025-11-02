@@ -99,9 +99,19 @@ LDFLAGS := -maxerrors 1 -nostdlib
 ifeq ($(GENERATE_MAP),1)
   LDFLAGS += -map $(MAP)
 endif
-CFLAGS  := -g -DGAMECUBE -Cpp_exceptions off -proc gekko -fp hard -fp_contract on -O4,p -maxerrors 1 \
-           -pragma "check_header_flags off" -RTTI off -pragma "force_active on" \
-           -str reuse,pool,readonly -char unsigned -enum int -use_lmw_stmw on -inline off -nostdinc -i- $(INCLUDES)
+CFLAGS  := -g -DGAMECUBE \
+           -nodefaults \
+           -proc gekko \
+           -fp hard -fp_contract on \
+           -O4,p \
+           -Cpp_exceptions off -RTTI off \
+           -enum int -inline auto \
+           -msgstyle gcc -maxerrors 1 \
+           -pragma "check_header_flags off" \
+           -pragma "force_active on" \
+           -str reuse,pool,readonly \
+           -char unsigned -use_lmw_stmw on \
+           -nostdinc -i- $(INCLUDES)
 PPROCFLAGS := -fsymbol-fixup
 DTK := $(firstword $(wildcard tools/dtk.exe tools/dtk))
 
