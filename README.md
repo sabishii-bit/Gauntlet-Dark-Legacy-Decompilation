@@ -4,7 +4,7 @@ This project contains a WIP decompilation of Gauntlet Dark Legacy (NTSC-U) for t
 
 It builds the following DOL:
 
-main.dol: sha1: 7CBA77AA496EB0FC5FFEC60EFD9680AA9635D679
+main.dol: sha1: `7CBA77AA496EB0FC5FFEC60EFD9680AA9635D679`
 
 ## Building with Docker
 
