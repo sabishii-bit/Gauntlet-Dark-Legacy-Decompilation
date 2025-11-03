@@ -14,6 +14,9 @@ VERBOSE ?= 1
 # If GENERATE_MAP set to 1, tells LDFLAGS to generate a mapfile, which makes linking take several minutes.
 GENERATE_MAP ?= 0
 
+# Compiler version
+MWCC_VERSION ?= 1.2.5
+
 ifeq ($(VERBOSE),0)
   QUIET := @
 endif
@@ -77,8 +80,8 @@ ifeq ($(WINDOWS),1)
 endif
 AS      := $(DEVKITPPC)/bin/powerpc-eabi-as
 OBJCOPY := $(DEVKITPPC)/bin/powerpc-eabi-objcopy
-CC      := $(WINE) tools/mwcc_compiler/2.0/mwcceppc.exe
-LD      := $(WINE) tools/mwcc_compiler/2.0/mwldeppc.exe
+CC      := $(WINE) tools/mwcc_compiler/$(MWCC_VERSION)/mwcceppc.exe
+LD      := $(WINE) tools/mwcc_compiler/$(MWCC_VERSION)/mwldeppc.exe
 PPROC   := python3 tools/postprocess.py
 GLBLASM := python3 tools/inlineasm/globalasm.py
 # ELF2DOL := tools/elf2dol  # Unused - using DTK for elf2dol conversion instead
@@ -126,11 +129,8 @@ all: setup $(DOL)
 # Setting up conditions for building.
 setup:
 	@echo "Adjusting project to handle build requirements..."
-	@if [ -f tools/mwcc_compiler/2.0/lmgr326b.dll ]; then \
-	    mv tools/mwcc_compiler/2.0/lmgr326b.dll tools/mwcc_compiler/2.0/LMGR326B.dll; \
-	fi
-	@if [ -f tools/mwcc_compiler/2.7/lmgr326b.dll ]; then \
-	    mv tools/mwcc_compiler/2.7/lmgr326b.dll tools/mwcc_compiler/2.7/LMGR326B.dll; \
+	@if [ -f tools/mwcc_compiler/$(MWCC_VERSION)/lmgr326b.dll ]; then \
+	    mv tools/mwcc_compiler/$(MWCC_VERSION)/lmgr326b.dll tools/mwcc_compiler/$(MWCC_VERSION)/LMGR326B.dll; \
 	fi
 	@if [ -d build/ ]; then \
 	    rm -rf build/; \
