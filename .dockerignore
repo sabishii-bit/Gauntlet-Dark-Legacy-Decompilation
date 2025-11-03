@@ -1,0 +1,27 @@
+# Build artifacts
+build/
+obj/
+.pragma/
+*.dol
+*.elf
+*.map
+*.dump
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Docker
+Dockerfile
+.dockerignore
+
+# CI/CD
+.github/
+
+# Documentation (keep tools/mwcc_compiler/README.md)
+README.md
+docs/
