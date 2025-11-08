@@ -17,7 +17,6 @@ You must have the CodeWarrior MWCC compiler files in place before building:
 1. Obtain CodeWarrior 1.2.5 (mwcceppc.exe and mwldeppc.exe)
 2. Create the directory: `tools/mwcc_compiler/1.2.5/`
 3. Place the compiler executables in that directory
-4. See [tools/mwcc_compiler/README.md](tools/mwcc_compiler/README.md) for details
 
 ### Build the Docker image:
 ```bash
