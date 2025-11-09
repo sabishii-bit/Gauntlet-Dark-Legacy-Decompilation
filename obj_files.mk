@@ -8,7 +8,7 @@ EXTABINDEX_O_FILES :=                               \
     $(OBJ_DIR)/asm/sections/extabindex_.o
 
 TEXT_O_FILES :=                                     \
-    $(OBJ_DIR)/src/text.o
+    $(OBJ_DIR)/asm/sections/text.o
 
 CTORS_O_FILES :=                                    \
     $(OBJ_DIR)/asm/sections/ctors.o
