@@ -30,9 +30,11 @@ TARGET_COL := wii
 
 OBJ_DIR := obj
 
-SRC_DIRS := src
+SRC_DIRS := src				\
+			src/Game
 
-ASM_DIRS := asm asm/sections
+ASM_DIRS := asm 			\
+			asm/sections
 
 BUILD_DIR := build
 
@@ -90,8 +92,8 @@ ASMDIFF := ./tools/asmdiff.sh
 
 
 # Options
-INCLUDES := -ir src -ir include -Iinclude -Iinclude/inline -Iinclude/bink \
-  -Iinclude/dolphin -Iinclude/CodeWarrior -Iinclude/rwsdk \
+INCLUDES := -ir src -ir include -Iinclude -Iinclude/Game \
+  -Iinclude/dolphin -Iinclude/CodeWarrior \
   $(foreach dir,$(SRC_DIRS),-I$(dir))
 
 ASFLAGS := -mgekko -I include -I asm/include -I asm/sections --strip-local-absolute -gdwarf-2

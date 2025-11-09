@@ -1,0 +1,19 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/include/**",
+                "${workspaceFolder}/src/**"
+            ],
+            "defines": [
+                "GAMECUBE"
+            ],
+            "compilerPath": "",
+            "cStandard": "c11",
+            "cppStandard": "c++98",
+            "intelliSenseMode": "gcc-x64"
+        }
+    ],
+    "version": 4
+}
