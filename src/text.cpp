@@ -4476,37 +4476,7 @@
 #pragma GLOBAL_ASM("asm/sections/text.s", "func_800A20F8")
 #pragma GLOBAL_ASM("asm/sections/text.s", "func_800A2194")
 #pragma GLOBAL_ASM("asm/sections/text.s", "func_800A21E8")
-//#pragma GLOBAL_ASM("asm/sections/text.s", "func_800A2278")
-#include "func_800A2278.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-s32 func_800A2278(s32 arg0, s32 arg1);
-#ifdef __cplusplus
-}
-#endif
-
-s32 func_800A2278(s32 arg0, s32 arg1) {
-    u8* entry = lbl_80275AE0 + (u32)arg0 * STRIDE_ENTRY;
-    s32 idx   = READ_S32(entry, OFF_UNK_C);
-
-    // keep this after the lwz so slwi schedules at 0x14
-    u32 off2  = (u32)arg1 << 1;
-
-    u8* rec   = entry + (u32)idx * REC_SIZE;
-
-    // lha -> sign-extend to s32
-    s32 ret   = (s32)READ_S16(rec, OFF_UNK_DEE + off2);
-    if (ret >= 0)
-        return ret;
-
-    // fallback table
-    u8*  tbase = (u8*)lbl_80124C70;
-    u32  off4  = (u32)arg1 << 2;
-    u8*  ptr   = tbase + off4;
-    return *(s32*)ptr;
-}
+#pragma GLOBAL_ASM("asm/sections/text.s", "func_800A2278")
 #pragma GLOBAL_ASM("asm/sections/text.s", "func_800A22C4")
 #pragma GLOBAL_ASM("asm/sections/text.s", "func_800A22DC")
 #pragma GLOBAL_ASM("asm/sections/text.s", "func_800A2398")
