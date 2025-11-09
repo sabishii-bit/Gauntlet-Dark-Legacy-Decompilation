@@ -1,3 +1,9 @@
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef signed short  s16;
 typedef signed int    s32;
 typedef unsigned int  u32;
@@ -7,11 +13,17 @@ typedef unsigned char u8;
 #define READ_S32(base, off) (*(s32*)((u8*)(base) + (u32)(off)))
 
 enum {
-    STRIDE_ENTRY = 0x335C,  /* one “entry” stride inside lbl_80275AE0 */
-    OFF_UNK_C    = 0x000C,  /* s32 at +0xC */
-    REC_SIZE     = 0x00F0,  /* inner record size multiplied by unkC */
-    OFF_UNK_DEE  = 0x0DEE,  /* base of a s16 table inside the entry */
+    STRIDE_ENTRY = 0x335C,
+    OFF_UNK_C    = 0x000C,
+    REC_SIZE     = 0x00F0,
+    OFF_UNK_DEE  = 0x0DEE,
 };
 
-extern u8  lbl_80275AE0[]; /* big array of entries */
-extern s32 lbl_80124C70[]; /* fallback table */
+extern u8  lbl_80275AE0[]; /* defined in ASM (.bss/.data/etc.) */
+extern s32 lbl_80124C70[]; /* defined in ASM (.rodata/.sdata2/etc.) */
+
+s32 func_800A2278(s32 arg0, s32 arg1);
+
+#ifdef __cplusplus
+}
+#endif
