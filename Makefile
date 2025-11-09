@@ -34,7 +34,8 @@ SRC_DIRS := src				\
 			src/Game
 
 ASM_DIRS := asm 			\
-			asm/sections
+			asm/sections	\
+			asm/Game
 
 BUILD_DIR := build
 
@@ -96,7 +97,7 @@ INCLUDES := -ir src -ir include -Iinclude -Iinclude/Game \
   -Iinclude/dolphin -Iinclude/CodeWarrior \
   $(foreach dir,$(SRC_DIRS),-I$(dir))
 
-ASFLAGS := -mgekko -I include -I asm/include -I asm/sections --strip-local-absolute -gdwarf-2
+ASFLAGS := -mgekko -I include -I asm/include -I asm/sections -I asm/Game --strip-local-absolute -gdwarf-2
 ifeq ($(VERBOSE),0)
   ASFLAGS += -W
 endif
