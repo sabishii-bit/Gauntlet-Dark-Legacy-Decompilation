@@ -18,15 +18,37 @@ import re
 from pathlib import Path
 
 
-def get_asm_functions(fileText):
+def get_asm_functions(fileText, include_global_labels=False):
     """
     Extract all function labels from assembly file.
-    Filters out data labels (like lbl_*) and only returns function labels.
+
+    Args:
+        fileText: The assembly file content
+        include_global_labels: If True, include lbl_* labels that have .global declarations
+
+    Returns:
+        List of function labels (with colons)
     """
+    # Find all labels
     labelRegex = r"\b.+:"
     matches = re.findall(labelRegex, fileText)
-    # Filter out data labels (lbl_*) and only keep function labels
-    return list(filter(lambda x: "lbl_" not in x, matches))
+
+    if not include_global_labels:
+        # Filter out all data labels (lbl_*)
+        return list(filter(lambda x: "lbl_" not in x, matches))
+
+    # Find all .global declarations
+    global_regex = r"\.global\s+(\w+)"
+    global_labels = set(re.findall(global_regex, fileText))
+
+    # Filter: keep non-lbl labels OR lbl labels that are declared .global
+    result = []
+    for label in matches:
+        label_name = label.rstrip(":")
+        if "lbl_" not in label or label_name in global_labels:
+            result.append(label)
+
+    return result
 
 
 def generate_cpp_with_pragmas(asm_path, functions, relative_asm_path=None):
@@ -72,6 +94,7 @@ def main():
 Examples:
   python pragmagen.py asm/game/functions.s src/game/functions.cpp
   python pragmagen.py asm/game/functions.s src/game/functions.cpp --relative-path asm/game/functions.s
+  python pragmagen.py asm/game/functions.s src/game/functions.cpp --include-global-labels
         """
     )
 
@@ -91,6 +114,12 @@ Examples:
         default=None
     )
 
+    parser.add_argument(
+        "-g", "--include-global-labels",
+        help="Include lbl_* labels that have .global declarations",
+        action="store_true"
+    )
+
     args = parser.parse_args()
 
     # Read input assembly file
@@ -103,7 +132,7 @@ Examples:
     asm_text = asm_path.read_text()
 
     # Extract all function labels
-    functions = get_asm_functions(asm_text)
+    functions = get_asm_functions(asm_text, args.include_global_labels)
 
     if not functions:
         print(f"Warning: No functions found in {asm_path}")
