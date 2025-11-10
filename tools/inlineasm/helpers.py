@@ -14,7 +14,7 @@ def hashString(string):
 (?:^|(?:^\s+))
 Included before the pragma search in order to match the beginning of a line
 or the beginning + any whitespace. Ignore the result of this capture.
-Used to enforce that are no comments or anything else before the pragma.
+Used to enforce that there are no comments or anything else before the pragma.
 
 (#pragma\sGLOBAL_ASM\((.*?)\))
 1st Match = entire pragma line
@@ -28,42 +28,50 @@ def getPragmaMatches(fileText):
     return matches
 
 
-# Arguments are processed outside of the regex to keep it simple
-# and support any changes we may make in the future
-
-
 def getPragmaArgs(argString):
     args = argString.split(",")
     args = map(lambda s: s.split("\"")[1], args)
     return list(args)
 
 
-labelRegex = r"\b.+:"
+# --- Label and ASM helpers ---
+
+labelRegex = r"^\s*([A-Za-z_\.][A-Za-z0-9_\.]*):"
 
 
 def getLabels(fileText):
-    matches = re.findall(labelRegex, fileText)
+    """Return all labels (functions and globals) from ASM text."""
+    matches = []
+    for line in fileText.splitlines():
+        m = re.match(labelRegex, line)
+        if m:
+            matches.append(m.group(1) + ":")
     return matches
 
 
-def getAsmFunctions(fileText):
-    matches = getLabels(fileText)
-    return list(filter(lambda x: "lbl_" not in x, matches))
+def getAsmSymbols(fileText):
+    """Return ALL symbol labels (no filtering of lbl_)."""
+    return getLabels(fileText)
 
 
-def getAsmFunctionBlock(fileText, label):
+def getAsmBlock(fileText, label):
+    """
+    Collect lines after `label` up to (but not including) the next label or EOF.
+    Does not rely on blank lines to terminate.
+    """
     data = []
     found = False
     for line in fileText.splitlines():
-        if ":" in line:
-            match = re.match(labelRegex, line)
-            if match and match.group(0) == label:
+        m = re.match(labelRegex, line)
+        if m:
+            current = m.group(1) + ":"
+            if not found and current == label:
                 found = True
                 continue
+            elif found:
+                break  # stop at next label
         if found:
             data.append(line.strip())
-            if len(line) == 0:
-                break
     return data
 
 
@@ -83,7 +91,7 @@ def blockToBytes(block):
 
 
 def bytesToString(byteLine):
-    return "opword" + " " + byteLine
+    return "opword " + byteLine
 
 
 funcTemplate = """extern "C" {
@@ -107,7 +115,6 @@ def writeCode(source, funcName, codeBytes, isGlobal, noSig):
     if not isGlobal:
         t = t.replace("asm void", "asm static void")
     source += t + "\n"
-
     return source
 
 
