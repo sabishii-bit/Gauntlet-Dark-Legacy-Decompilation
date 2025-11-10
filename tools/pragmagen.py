@@ -51,6 +51,61 @@ def get_asm_functions(fileText, include_global_labels=False):
     return result
 
 
+def wrap_functions_with_if0(asm_text, functions):
+    """
+    Wrap global function blocks with .if 0 and .endif directives.
+    Wraps both the .global declaration and the function implementation.
+
+    Args:
+        asm_text: The assembly file content
+        functions: List of function labels to wrap
+
+    Returns:
+        Modified assembly text with functions wrapped
+    """
+    lines = asm_text.split('\n')
+    result = []
+    func_names = {func.rstrip(':'): func for func in functions}
+
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+
+        # Check if this line contains a .global declaration for one of our functions
+        global_match = re.match(r'\.global\s+(\w+)', line.strip())
+        if global_match:
+            func_name = global_match.group(1)
+            if func_name in func_names:
+                # Insert .if 0 before the .global declaration
+                result.append('.if 0')
+
+                # Add the .global line
+                result.append(line)
+                i += 1
+
+                # Find the end of this function (next .global or end of file)
+                while i < len(lines):
+                    current_line = lines[i]
+                    result.append(current_line)
+                    i += 1
+
+                    # Check if we hit the next .global
+                    if re.match(r'\.global\s+', current_line.strip()):
+                        # Back up one line since we need to process this .global
+                        i -= 1
+                        result.pop()
+                        break
+
+                # Insert .endif after the function
+                result.append('.endif')
+                continue
+
+        result.append(line)
+        i += 1
+
+    return '\n'.join(result)
+
+
 def generate_cpp_with_pragmas(asm_path, functions, relative_asm_path=None):
     """
     Generate C++ file content with #pragma GLOBAL_ASM directives for each function.
@@ -95,6 +150,7 @@ Examples:
   python pragmagen.py asm/game/functions.s src/game/functions.cpp
   python pragmagen.py asm/game/functions.s src/game/functions.cpp --relative-path asm/game/functions.s
   python pragmagen.py asm/game/functions.s src/game/functions.cpp --include-global-labels
+  python pragmagen.py asm/game/functions.s src/game/functions.cpp --wrap-asm asm/game/functions_wrapped.s
         """
     )
 
@@ -118,6 +174,13 @@ Examples:
         "-g", "--include-global-labels",
         help="Include lbl_* labels that have .global declarations",
         action="store_true"
+    )
+
+    parser.add_argument(
+        "-w", "--wrap-asm",
+        help="Wrap global function blocks in the assembly file with .if 0/.endif directives",
+        metavar="OUTPUT_ASM",
+        default=None
     )
 
     args = parser.parse_args()
@@ -164,6 +227,17 @@ Examples:
 
     print(f"\nGenerated C++ file: {output_path}")
     print(f"Total pragmas: {len(functions)}")
+
+    # Optionally wrap functions in assembly file with .if 0/.endif
+    if args.wrap_asm:
+        wrapped_asm = wrap_functions_with_if0(asm_text, functions)
+        wrapped_path = Path(args.wrap_asm)
+
+        # Create parent directories if they don't exist
+        wrapped_path.parent.mkdir(parents=True, exist_ok=True)
+        wrapped_path.write_text(wrapped_asm)
+
+        print(f"Generated wrapped assembly file: {wrapped_path}")
 
     return 0
 

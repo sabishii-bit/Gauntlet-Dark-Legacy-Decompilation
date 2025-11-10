@@ -8,8 +8,8 @@ EXTABINDEX_O_FILES :=                               \
     $(OBJ_DIR)/asm/sections/extabindex_.o
 
 TEXT_O_FILES :=                                     \
-    $(OBJ_DIR)/src/Game/func_800A2278.o             \
-    $(OBJ_DIR)/asm/sections/text.o
+    $(OBJ_DIR)/src/text.o                           \
+    $(OBJ_DIR)/asm/sections/text_func_wrap.o
 
 CTORS_O_FILES :=                                    \
     $(OBJ_DIR)/asm/sections/ctors.o
