@@ -32,8 +32,6 @@ compile_commands.json
 
 # Miscellaneous
 /*.txt
-*.exe
-*/mwcc_compiler/
-CLAUDE.md
-/gdl-build/
-/.claude/
+.claude
+decomp-toolkit
+tools/mwcc_compiler
