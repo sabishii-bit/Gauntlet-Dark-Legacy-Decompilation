@@ -5,5 +5,6 @@ symbols: config/GUNE5D/symbols.txt
 splits: config/GUNE5D/splits.txt
 
 mw_comment_version: 8
+scrub_extab: true
 
 modules: []

@@ -1,5 +1,5 @@
-#ifndef BFBB_TYPES_H
-#define BFBB_TYPES_H
+#ifndef GDL_TYPES_H
+#define GDL_TYPES_H
 
 #ifdef GAMECUBE
 typedef char int8;
