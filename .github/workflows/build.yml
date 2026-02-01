@@ -2,21 +2,19 @@ name: Build
 
 on:
   push:
+    branches:
+      - main
+      - develop
   pull_request:
 
 jobs:
   build:
-    name: Build (${{ matrix.version }})
+    name: Build GUNE5D
     # This is a *private* build container from gdl-build repository.
     # Contains MWCC compilers and original game files.
     container: ghcr.io/${{ github.repository_owner }}/gdl-build:main
 
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # Game version ID
-        version: [GUNE5D]
 
     steps:
     # Checkout the repository
@@ -36,12 +34,13 @@ jobs:
         uv run https://raw.githubusercontent.com/MestreLion/git-tools/refs/tags/v2022.12/git-restore-mtime \
             --merge --commit-time
 
-    # Copy tools from container to workspace
-    - name: Prepare
+    # Copy tools and original files from container to workspace
+    - name: Prepare build environment
       run: |
         cp -r /tools/mwcc_compiler tools/
         cp /tools/dtk tools/dtk
         chmod +x tools/dtk
+        cp -r /orig/GUNE5D orig/
 
     # Cache build artifacts
     - name: Cache build
@@ -49,20 +48,47 @@ jobs:
       with:
         path: |
           build
-          obj
-        key: ${{ runner.os }}-${{ matrix.version }}-${{ github.sha }}
-        restore-keys: ${{ runner.os }}-${{ matrix.version }}-
+        key: ${{ runner.os }}-gune5d-${{ github.sha }}
+        restore-keys: ${{ runner.os }}-gune5d-
 
-    # Build the project using Makefile
+    # Configure the project
+    - name: Configure
+      run: python configure.py -v GUNE5D
+
+    # Build the project using ninja
     - name: Build
       env:
         HOME: /tmp
         WINEPREFIX: /tmp/.wine
-      run: make
+      run: ninja
+
+    # Verify SHA1 hash matches
+    - name: Verify build
+      run: |
+        echo "Verifying build against expected SHA1..."
+        sha1sum -c config/GUNE5D/build.sha1
+        if [ $? -eq 0 ]; then
+          echo "✅ Build matches! SHA1 hash verified."
+        else
+          echo "❌ Build does not match expected SHA1!"
+          exit 1
+        fi
 
     # Upload build artifacts
     - name: Upload build
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.version }}_build
-        path: build/${{ matrix.version }}/main.dol
+        name: GUNE5D_build
+        path: |
+          build/GUNE5D/main.dol
+          build/GUNE5D/main.elf
+
+    # Upload build report (if it exists)
+    - name: Upload build report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build_report
+        path: |
+          build/GUNE5D/config.json
+          objdiff.json

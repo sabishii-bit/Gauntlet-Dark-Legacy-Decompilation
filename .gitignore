@@ -35,3 +35,4 @@ compile_commands.json
 .claude
 decomp-toolkit
 tools/mwcc_compiler
+gdl-build
