@@ -37,6 +37,15 @@ jobs:
         cp -r /tools/mwcc_compiler tools/
         cp -r /orig/GUNE5D orig/
 
+    # Copy custom dtk from container
+    - name: Install custom dtk
+      run: |
+        mkdir -p build/tools
+        cp /tools/dtk build/tools/dtk
+        chmod +x build/tools/dtk
+        echo "Custom dtk installed:"
+        ls -lh build/tools/dtk
+
     # Cache build artifacts
     - name: Cache build
       uses: actions/cache@v4
@@ -46,22 +55,9 @@ jobs:
         key: ${{ runner.os }}-gune5d-${{ github.sha }}
         restore-keys: ${{ runner.os }}-gune5d-
 
-    # Copy custom dtk AFTER cache restore to ensure it's not overwritten
-    - name: Install custom dtk
-      run: |
-        echo "Checking if custom dtk exists in container..."
-        ls -la /tools/dtk || echo "ERROR: /tools/dtk not found!"
-        mkdir -p build/tools
-        echo "Copying custom dtk from container..."
-        cp -v /tools/dtk build/tools/dtk
-        chmod +x build/tools/dtk
-        echo "Verifying copied dtk..."
-        ls -la build/tools/dtk
-        echo "Custom dtk installed successfully"
-
-    # Configure the project
+    # Configure the project with custom dtk path
     - name: Configure
-      run: python configure.py -v GUNE5D
+      run: python configure.py -v GUNE5D --dtk build/tools/dtk
 
     # Build the project using ninja
     - name: Build
