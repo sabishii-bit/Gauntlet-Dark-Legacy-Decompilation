@@ -52,7 +52,7 @@ def dtk_url(tag: str) -> str:
     if arch == "amd64":
         arch = "x86_64"
 
-    repo = "https://github.com/encounter/decomp-toolkit"
+    repo = "https://github.com/sabishii-bit/decomp-toolkit"
     return f"{repo}/releases/download/{tag}/dtk-{system}-{arch}{suffix}"
 
 
