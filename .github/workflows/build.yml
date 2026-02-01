@@ -49,9 +49,15 @@ jobs:
     # Copy custom dtk AFTER cache restore to ensure it's not overwritten
     - name: Install custom dtk
       run: |
+        echo "Checking if custom dtk exists in container..."
+        ls -la /tools/dtk || echo "ERROR: /tools/dtk not found!"
         mkdir -p build/tools
-        cp /tools/dtk build/tools/dtk
+        echo "Copying custom dtk from container..."
+        cp -v /tools/dtk build/tools/dtk
         chmod +x build/tools/dtk
+        echo "Verifying copied dtk..."
+        ls -la build/tools/dtk
+        echo "Custom dtk installed successfully"
 
     # Configure the project
     - name: Configure
