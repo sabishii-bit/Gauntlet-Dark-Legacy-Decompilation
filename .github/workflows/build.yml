@@ -35,8 +35,9 @@ jobs:
     - name: Prepare build environment
       run: |
         cp -r /tools/mwcc_compiler tools/
-        cp /tools/dtk tools/dtk
-        chmod +x tools/dtk
+        mkdir -p build/tools
+        cp /tools/dtk build/tools/dtk
+        chmod +x build/tools/dtk
         cp -r /orig/GUNE5D orig/
 
     # Cache build artifacts
