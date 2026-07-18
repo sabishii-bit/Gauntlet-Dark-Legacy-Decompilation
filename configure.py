@@ -231,11 +231,11 @@ elif args.warn == "error":
     cflags_base.append("-W error")
 
 # Metrowerks library flags
+# Note: no -gccinc; the GC/1.x compilers used for the runtime don't support it.
 cflags_runtime = [
     *cflags_base,
     "-use_lmw_stmw on",
     "-str reuse,pool,readonly",
-    "-gccinc",
     "-common off",
     "-inline auto",
 ]
@@ -287,12 +287,12 @@ config.warn_missing_source = False
 config.libs = [
     {
         "lib": "Runtime.PPCEABI.H",
-        "mw_version": config.linker_version,
+        "mw_version": "GC/1.2.5",
         "cflags": cflags_runtime,
         "progress_category": "sdk",  # str | List[str]
         "objects": [
-            Object(NonMatching, "Runtime.PPCEABI.H/global_destructor_chain.c"),
-            Object(NonMatching, "Runtime.PPCEABI.H/__init_cpp_exceptions.cpp"),
+            Object(Matching, "Runtime.PPCEABI.H/__mem.c"),
+            Object(Matching, "Runtime.PPCEABI.H/__va_arg.c"),
         ],
     },
 ]

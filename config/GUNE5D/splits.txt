@@ -11,3 +11,9 @@ Sections:
 	.sdata      type:data align:32
 	.sbss       type:bss align:8
 	.sdata2     type:rodata align:16
+
+Runtime.PPCEABI.H/__va_arg.c:
+	.text       start:0x800E3080 end:0x800E3174
+
+Runtime.PPCEABI.H/__mem.c:
+	.init       start:0x80005078 end:0x800051BC
