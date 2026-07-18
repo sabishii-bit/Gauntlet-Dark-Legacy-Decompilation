@@ -1,305 +1,161 @@
-Gauntlet Dark Legacy Decompilation
-===================================
+Gauntlet Dark Legacy  
+[![Build Status]][actions]
+=============
 
-A work-in-progress decompilation of Gauntlet Dark Legacy for GameCube.
+[Build Status]: https://github.com/sabishii-bit/Gauntlet-Dark-Legacy-Decompilation/actions/workflows/build.yml/badge.svg
+[actions]: https://github.com/sabishii-bit/Gauntlet-Dark-Legacy-Decompilation/actions/workflows/build.yml
+<!--
+decomp.dev progress badges — enable once the project is registered on https://decomp.dev
+and CI uploads a progress report.
+[Code Progress]: https://decomp.dev/sabishii-bit/Gauntlet-Dark-Legacy-Decompilation.svg?mode=shield&measure=code&label=Code
+[Data Progress]: https://decomp.dev/sabishii-bit/Gauntlet-Dark-Legacy-Decompilation.svg?mode=shield&measure=data&label=Data
+[progress]: https://decomp.dev/sabishii-bit/Gauntlet-Dark-Legacy-Decompilation
+-->
 
-This project uses [decomp-toolkit](https://github.com/encounter/decomp-toolkit).
+A work-in-progress decompilation of **Gauntlet Dark Legacy** for the Nintendo GameCube, built with
+[decomp-toolkit](https://github.com/encounter/decomp-toolkit) and the
+[dtk-template](https://github.com/encounter/dtk-template) project structure.
 
+This repository does **not** contain any game assets or assembly whatsoever. An existing copy of the game is required.
 
-## Building
+Supported versions:
 
-### Dependencies
+- `GUNE5D`: Rev 0 (USA)
 
-- Python 3.8+
-- Ninja build system
-- Metrowerks CodeWarrior compilers (see [tools/mwcc_compiler/](tools/mwcc_compiler/))
+Dependencies
+============
 
-### Setup
+Windows
+--------
 
-1. Extract your game disc and place `main.dol` at:
+On Windows, it's **highly recommended** to use native tooling. WSL or msys2 are **not** required.  
+When running under WSL, [objdiff](#diffing) is unable to get filesystem notifications for automatic rebuilds.
+
+- Install [Python](https://www.python.org/downloads/) and add it to `%PATH%`.
+- Download [ninja](https://github.com/ninja-build/ninja/releases) and add it to `%PATH%`.
+  - Quick install via pip: `pip install ninja`
+
+macOS / Linux
+--------------
+
+- Install [ninja](https://github.com/ninja-build/ninja/wiki/Pre-built-Ninja-packages).
+
+[wibo](https://github.com/decompals/wibo), a minimal 32-bit Windows binary wrapper, will be automatically downloaded and used to run the CodeWarrior compilers.
+
+All other tools (compilers, objdiff-cli, sjiswrap, etc.) are downloaded automatically during the build. See [docs/dependencies.md](docs/dependencies.md) for details.
+
+Building
+========
+
+- Clone the repository:
+
+  ```sh
+  git clone https://github.com/sabishii-bit/Gauntlet-Dark-Legacy-Decompilation.git
+  ```
+
+- Copy your game's disc image into `orig/GUNE5D/`.
+  - Supported formats: ISO (GCM), RVZ, WIA, WBFS, CISO, NFS, GCZ, TGC
+  - Alternatively, place extracted files directly (e.g. `orig/GUNE5D/sys/main.dol`).
+  - After the initial build, the disc image can be deleted to save space (objects are extracted to the filesystem).
+
+- Configure, using the custom dtk build bundled with this repository:
+
+  ```sh
+  python configure.py --dtk tools/dtk.exe
+  ```
+
+  > **Note:** This project uses a custom [decomp-toolkit](https://github.com/encounter/decomp-toolkit) fork
+  > (based on v1.8.3) at [tools/dtk.exe](tools/dtk.exe). If `--dtk` is omitted, upstream dtk is downloaded
+  > and used instead. CI uses the custom build.
+
+- Build:
+
+  ```sh
+  ninja
+  ```
+
+The build is verified against [config/GUNE5D/build.sha1](config/GUNE5D/build.sha1).
+
+### A note on the target hash
+
+The retail DOL's `extab` (exception table) section contains uninitialized compiler data that a fresh link
+cannot reproduce. The build therefore targets an **extab-cleaned** DOL (`clean_extab: true` in
+[config/GUNE5D/config.yml](config/GUNE5D/config.yml)):
+
+- `config.yml` verifies your *input* DOL against the original disc hash (`7cba77aa...`).
+- `build.sha1` verifies the *output* DOL against the cleaned hash (`540bed0b...`), equivalent to running
+  `dtk extab clean` on the original.
+
+Diffing
+=======
+
+Once the initial build succeeds, an `objdiff.json` should exist in the project root.
+
+Download the latest release from [encounter/objdiff](https://github.com/encounter/objdiff). Under project settings, set `Project directory`. The configuration should be loaded automatically.
+
+Select an object from the left sidebar to begin diffing. Changes to the project will rebuild automatically: changes to source files, headers, `configure.py`, `splits.txt` or `symbols.txt`.
+
+Decompilation workflow
+======================
+
+1. **Pick a function.** Split assembly is written under `build/GUNE5D/asm/`. Every `.s` file corresponds to
+   one original translation unit — all functions in a file must eventually live together in one source file.
+2. **Define the split.** Add the file and its address ranges to
+   [config/GUNE5D/splits.txt](config/GUNE5D/splits.txt), and name symbols in
+   [config/GUNE5D/symbols.txt](config/GUNE5D/symbols.txt).
+   See [docs/splits.md](docs/splits.md) and [docs/symbols.md](docs/symbols.md).
+3. **Write the source.** Create the matching C/C++ file under `src/` and register it in
+   [configure.py](configure.py) under `config.libs`, starting as `NonMatching`:
+
+   ```python
+   Object(NonMatching, "Game/example.c"),
    ```
-   orig/GUNE5D/sys/main.dol
-   ```
 
-2. Configure and build:
-   ```bash
-   python configure.py -v GUNE5D
-   ninja
-   ```
+4. **Match it.** Reconfigure, build, and compare against the original in objdiff. Iterate until the diff is
+   clean. [decomp.me](https://decomp.me) is useful for collaborating on tough functions.
+5. **Mark it `Matching`.** Rebuild — the object is now linked into the DOL, and the final hash check
+   confirms the match is byte-perfect.
 
-3. Verify the build matches:
-   ```bash
-   # The build will automatically verify against config/GUNE5D/build.sha1
-   # If successful, you'll see: "Build succeeded!"
-   ```
+To link non-matching code for testing (final hash will not match):
 
-## Decompilation Workflow
-
-### Understanding the Project Structure
-
-When you run `python configure.py`, decomp-toolkit (dtk) analyzes the original DOL and:
-
-1. **Splits it into assembly files** in `build/GUNE5D/asm/`
-2. **Determines the original link order** by analyzing exception tables (extab)
-3. **Generates `build/GUNE5D/config.json`** containing the complete link order
-4. **Creates auto-generated object files** that will be replaced as you decompile
-
-### How Link Order and Matching Work
-
-**Key Concept:** Each auto-generated `.s` file represents **one original compilation unit** (object file) from the game.
-
-When you write source code and mark it as `Matching`, the build system:
-- Compiles your C/C++ code to an object file
-- Compares function addresses and symbols with auto-generated objects
-- **Replaces** the matching auto-generated object in the link order
-- Links everything in the original order to produce a bit-perfect binary
-
-**Example:**
-```
-Original link order (from config.json):
-  [auto_fn_8000CF40.o, auto_fn_8000CFA0.o, auto_fn_8000D1E0.o, ...]
-
-After you decompile and mark Game/math.c as Matching:
-  [auto_fn_8000CF40.o, Game/math.o, auto_fn_8000D1E0.o, ...]
-                        ^^^^^^^^^^^^
-                        Replaced!
-```
-
-### Step-by-Step: Decompiling a Function
-
-#### 1. Find a Function to Decompile
-
-Browse the auto-generated assembly files:
-
-```bash
-# List all split functions
-ls build/GUNE5D/asm/
-
-# View a specific function
-cat build/GUNE5D/asm/auto_fn_8000D034_text.s
-```
-
-Each file contains one or more functions. Check which functions are in a file:
-
-```bash
-grep -E "^\.fn" build/GUNE5D/asm/auto_fn_8000D034_text.s
-```
-
-**Important:** All functions in the same `.s` file were compiled together in the original game and must be decompiled together in the same source file.
-
-#### 2. Create Your Source File
-
-Create a C/C++ file under `src/`. You can organize however you want:
-
-```bash
-mkdir -p src/Game
-touch src/Game/math.c
-```
-
-Write your decompiled code:
-
-```c
-// src/Game/math.c
-#include "types.h"
-
-// Function at 0x8000D034
-float CalculateDistance(Vec3* a, Vec3* b, Vec3* c, Vec3* d, float threshold) {
-    // Your reverse-engineered code here
-}
-```
-
-#### 3. Configure the Object in `configure.py`
-
-Edit [configure.py](configure.py) and add your source file to `config.libs`:
-
-```python
-config.libs = [
-    # Existing libraries...
-    {
-        "lib": "Runtime.PPCEABI.H",
-        "mw_version": config.linker_version,
-        "cflags": cflags_runtime,
-        "progress_category": "sdk",
-        "objects": [
-            Object(NonMatching, "Runtime.PPCEABI.H/global_destructor_chain.c"),
-            Object(NonMatching, "Runtime.PPCEABI.H/__init_cpp_exceptions.cpp"),
-        ],
-    },
-
-    # Your game code
-    {
-        "lib": "Game",                   # Files go in src/Game/
-        "mw_version": "GC/1.2.5n",       # Compiler version
-        "cflags": cflags_base,           # Compiler flags
-        "progress_category": "game",     # Progress tracking category
-        "objects": [
-            Object(NonMatching, "Game/math.c"),  # Start as NonMatching
-        ],
-    },
-]
-```
-
-**Understanding `config.libs`:**
-- **`lib`**: Subdirectory name under `src/` (e.g., `"Game"` → `src/Game/`)
-- **`mw_version`**: Which Metrowerks compiler version to use
-- **`cflags`**: Compiler flags (optimization level, etc.)
-- **`objects`**: List of source files with their matching status
-
-**Object Status Types:**
-- `NonMatching`: Doesn't match yet, excluded from final build by default
-- `Matching`: Assembly matches perfectly, included in final build
-- `Equivalent`: Functionally equivalent but different assembly (rare)
-
-#### 4. Build and Compare
-
-Reconfigure and build:
-
-```bash
-python configure.py -v GUNE5D
+```sh
+python configure.py --dtk tools/dtk.exe --non-matching
 ninja
 ```
 
-This compiles your C code to `build/GUNE5D/obj/Game/math.o`.
+To print decompilation progress:
 
-#### 5. Use objdiff to Match
-
-Open objdiff and load the project (`objdiff.json` is auto-generated):
-
-```bash
-# On Windows
-objdiff
-
-# On Linux with GUI
-objdiff
+```sh
+python configure.py progress
 ```
 
-Select your function (`fn_8000D034` or `CalculateDistance` if you renamed it) to see:
-- **Left pane:** Original assembly from the game
-- **Right pane:** Your decompiled code's assembly
-- **Diff view:** Highlighted differences
-
-#### 6. Iterate Until Matching
-
-Adjust your C code based on the assembly differences. Common techniques:
-
-- **Reorder operations** (especially floating-point math)
-- **Use specific types** (signed vs unsigned, int vs long)
-- **Adjust loop conditions** (do-while vs while)
-- **Match register allocation** (declare variables in specific order)
-- **Use inline assembly** for stubborn instructions (last resort)
-
-Useful resources:
-- [decomp.me](https://decomp.me) - Collaborate on matches online
-- [Discord: GameCube Decompilation](https://discord.gg/hKx3FJJgrV) - Ask for help in `#dtk`
-
-#### 7. Mark as Matching
-
-Once objdiff shows 100% match (green), update [configure.py](configure.py):
-
-```python
-Object(Matching, "Game/math.c"),  # Changed from NonMatching!
-```
-
-Rebuild to verify:
-
-```bash
-python configure.py -v GUNE5D
-ninja
-```
-
-If the final SHA-1 hash still matches, your decompilation is correct!
-
-#### 8. Rename Symbols (Optional)
-
-Give functions meaningful names in `config/GUNE5D/symbols.txt`:
-
-```
-CalculateDistance = .text:0x8000D034; // type:function size:0x1AC
-```
-
-Reconfigure to apply the rename:
-
-```bash
-python configure.py -v GUNE5D
-ninja
-```
-
-### Building with Non-Matching Code
-
-To include non-matching code in the build (useful for testing):
-
-```bash
-python configure.py -v GUNE5D --non-matching
-ninja
-```
-
-This links both `Matching` and `NonMatching` objects, but the final hash won't match.
-
-### Understanding One File = One Object
-
-**Critical Rule:** Each source file must correspond to **exactly one** original compilation unit.
-
-If `auto_fn_8000D034_text.s` contains three functions (at 0x8000D034, 0x8000D100, 0x8000D200), your source file must also contain all three:
-
-```c
-// src/Game/math.c - All functions from auto_fn_8000D034_text.s
-void fn_8000D034() { /* ... */ }
-void fn_8000D100() { /* ... */ }
-void fn_8000D200() { /* ... */ }
-```
-
-When compiled, your `math.o` will replace `auto_fn_8000D034_text.o` in the link order.
-
-To check which functions belong together:
-
-```bash
-grep -E "^\.fn" build/GUNE5D/asm/auto_fn_8000D034_text.s
-```
-
-## Project Structure
+Project structure
+=================
 
 ```
 .
-├── config/              # Configuration for GUNE5D
-│   └── GUNE5D/
-│       ├── config.yml   # Main configuration
-│       ├── symbols.txt  # Symbol names and addresses
-│       ├── splits.txt   # Section definitions
-│       └── build.sha1   # Expected hash for verification
-├── src/                 # Your decompiled C/C++ source code
-│   └── Game/
-├── include/             # Header files
-├── build/               # Build artifacts (generated, not committed)
-│   └── GUNE5D/
-│       ├── asm/         # Auto-generated assembly files
-│       ├── obj/         # Compiled object files
-│       ├── config.json  # Link order determined by dtk
-│       ├── main.dol     # Final built DOL
-│       └── main.elf     # Intermediate ELF
-├── orig/                # Original game files (not committed)
-│   └── GUNE5D/
-│       └── sys/
-│           └── main.dol
-├── tools/               # Build system scripts
-│   ├── project.py       # Main build script
-│   ├── configure.py     # Configuration generator
-│   └── mwcc_compiler/   # Metrowerks compilers
-├── configure.py         # Project configuration script
-└── build.ninja          # Generated build file
+├── config/GUNE5D/      # dtk configuration: config.yml, symbols.txt, splits.txt, build.sha1
+├── docs/               # Documentation for symbols, splits, common BSS, CI, etc.
+├── include/            # Header files
+├── orig/GUNE5D/        # Original game files (not committed)
+├── research/           # Reference material (e.g. Xbox build symbols for struct matching)
+├── src/                # Decompiled source code (created as work progresses)
+├── tools/              # Build scripts, custom dtk.exe, local compiler copies
+├── configure.py        # Project configuration; generates build.ninja and objdiff.json
+└── build/GUNE5D/       # Build artifacts (generated, not committed)
 ```
 
-## Useful Commands
+Continuous integration
+======================
 
-| Command | Description |
-|---------|-------------|
-| `python configure.py -v GUNE5D` | Configure and build |
-| `ninja` | Build the project |
-| `ninja -t clean` | Clean build artifacts |
-| `python configure.py -v GUNE5D progress` | Show decompilation progress |
-| `python configure.py --non-matching` | Include non-matching code in build |
+Every push is built by [GitHub Actions](.github/workflows/build.yml) inside a private container that
+provides the compilers and original game files, then verified against `build.sha1`.
+See [docs/github_actions.md](docs/github_actions.md) for how this is set up.
 
-## Advanced: .ctors Patching
+Resources
+=========
 
-This project includes automatic `.ctors` (constructor) section patching for cases where the linker's file order doesn't match the original. See [decomp-toolkit/CTORS_PATCHING.md](decomp-toolkit/CTORS_PATCHING.md) for technical details.
-
-The patching is fully automatic - just build normally and it applies when needed.
+- [docs/getting_started.md](docs/getting_started.md) — dtk-template workflow overview
+- [docs/comment_section.md](docs/comment_section.md), [docs/common_bss.md](docs/common_bss.md) — matching esoterica
+- [decomp.me](https://decomp.me) — collaborate on matches online
+- [GC/Wii Decompilation Discord](https://discord.gg/hKx3FJJgrV) — ask in `#dtk`

@@ -52,7 +52,7 @@ def dtk_url(tag: str) -> str:
     if arch == "amd64":
         arch = "x86_64"
 
-    repo = "https://github.com/sabishii-bit/decomp-toolkit"
+    repo = "https://github.com/encounter/decomp-toolkit"
     return f"{repo}/releases/download/{tag}/dtk-{system}-{arch}{suffix}"
 
 
@@ -78,8 +78,14 @@ def sjiswrap_url(tag: str) -> str:
 
 
 def wibo_url(tag: str) -> str:
+    uname = platform.uname()
+    arch = uname.machine.lower()
+    system = uname.system.lower()
+    if system == "darwin":
+        arch = "macos"
+
     repo = "https://github.com/decompals/wibo"
-    return f"{repo}/releases/download/{tag}/wibo"
+    return f"{repo}/releases/download/{tag}/wibo-{arch}"
 
 
 TOOLS: Dict[str, Callable[[str], str]] = {
