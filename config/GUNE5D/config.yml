@@ -1,10 +1,19 @@
+# See config.example.yml for documentation.
 object_base: orig/GUNE5D
 object: sys/main.dol
 hash: 7CBA77AA496EB0FC5FFEC60EFD9680AA9635D679
+extract_objects: true
+
 symbols: config/GUNE5D/symbols.txt
 splits: config/GUNE5D/splits.txt
 
+# CodeWarrior for GameCube 1.0+
 mw_comment_version: 8
-scrub_extab: true
+
+# The DOL's extab section contains uninitialized compiler data, so the build
+# targets an extab-cleaned DOL (see build.sha1, generated via `dtk extab clean`).
+# `hash` above remains the original DOL's hash; cleaning happens in-memory
+# after verification.
+clean_extab: true
 
 modules: []

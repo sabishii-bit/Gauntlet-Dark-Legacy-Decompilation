@@ -29,7 +29,7 @@ from tools.project import (
 # Game versions
 DEFAULT_VERSION = 0
 VERSIONS = [
-    "GUNE5D"
+    "GUNE5D",  # 0
 ]
 
 parser = argparse.ArgumentParser()
@@ -106,7 +106,7 @@ parser.add_argument(
     "--ninja",
     metavar="BINARY",
     type=Path,
-    help="path to ninja binary (optional)"
+    help="path to ninja binary (optional)",
 )
 parser.add_argument(
     "--verbose",
@@ -156,12 +156,12 @@ if not config.non_matching:
     config.asm_dir = None
 
 # Tool versions
-config.binutils_tag = "2.42-1"
-config.compilers_tag = "20250812"
-config.dtk_tag = "v1.6.2"
-config.objdiff_tag = "v3.0.0-beta.14"
-config.sjiswrap_tag = "v1.2.1"
-config.wibo_tag = "0.7.0"
+config.binutils_tag = "2.42-2"
+config.compilers_tag = "20251118"
+config.dtk_tag = "v1.8.3"
+config.objdiff_tag = "v3.6.1"
+config.sjiswrap_tag = "v1.2.2"
+config.wibo_tag = "1.0.3"
 
 # Project
 config.config_path = Path("config") / config.version / "config.yml"
@@ -199,7 +199,6 @@ cflags_base = [
     "-enum int",
     "-fp hardware",
     "-Cpp_exceptions off",
-    # "-W all",
     "-O4,p",
     "-inline auto",
     '-pragma "cats off"',
@@ -248,7 +247,7 @@ cflags_rel = [
     "-sdata2 0",
 ]
 
-config.linker_version = "GC/1.2.5n"
+config.linker_version = "GC/1.3.2"
 
 
 # Helper function for Dolphin libraries
@@ -266,7 +265,7 @@ def DolphinLib(lib_name: str, objects: List[Object]) -> Dict[str, Any]:
 def Rel(lib_name: str, objects: List[Object]) -> Dict[str, Any]:
     return {
         "lib": lib_name,
-        "mw_version": "GC/1.0",
+        "mw_version": "GC/1.3.2",
         "cflags": cflags_rel,
         "progress_category": "game",
         "objects": objects,
@@ -311,6 +310,7 @@ def link_order_callback(module_id: int, objects: List[str]) -> List[str]:
     if module_id == 0:  # DOL
         return objects + ["dummy.c"]
     return objects
+
 
 # Uncomment to enable the link order callback.
 # config.link_order_callback = link_order_callback
