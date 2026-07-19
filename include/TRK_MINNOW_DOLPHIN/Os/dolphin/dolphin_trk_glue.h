@@ -29,6 +29,8 @@ typedef struct DBCommTable {
 void UnreserveEXI2Port();
 void ReserveEXI2Port();
 UARTError TRKWriteUARTN(const void*, u32);
+DSError TRK_WriteUARTN(const void* data, u32 length);
+DSError TRK_ReadUARTN(void* data, u32 length);
 void TRKLoadContext(OSContext* ctx, u32 r4);
 int InitMetroTRKCommTable(int hwId);
 
