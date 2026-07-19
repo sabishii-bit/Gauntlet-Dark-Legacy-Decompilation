@@ -58,15 +58,11 @@ Building
   - Alternatively, place extracted files directly (e.g. `orig/GUNE5D/sys/main.dol`).
   - After the initial build, the disc image can be deleted to save space (objects are extracted to the filesystem).
 
-- Configure, using the custom dtk build bundled with this repository:
+- Configure:
 
   ```sh
-  python configure.py --dtk tools/dtk.exe
+  python configure.py
   ```
-
-  > **Note:** This project uses a custom [decomp-toolkit](https://github.com/encounter/decomp-toolkit) fork
-  > (based on v1.8.3) at [tools/dtk.exe](tools/dtk.exe). If `--dtk` is omitted, upstream dtk is downloaded
-  > and used instead. CI uses the custom build.
 
 - Build:
 
@@ -119,7 +115,7 @@ Decompilation workflow
 To link non-matching code for testing (final hash will not match):
 
 ```sh
-python configure.py --dtk tools/dtk.exe --non-matching
+python configure.py --non-matching
 ninja
 ```
 
