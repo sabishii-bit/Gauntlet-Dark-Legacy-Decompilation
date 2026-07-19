@@ -1,15 +1,25 @@
-Gauntlet Dark Legacy  
+Gauntlet Dark Legacy \
 [![Build Status]][actions]
+[![Code Progress]][progress]
+[![Data Progress]][progress]
+[![Linked Progress]][progress]
 =============
+
+[<img src="https://decomp.dev/sabishii-bit/Gauntlet-Dark-Legacy-Decompilation.svg?w=512&h=256" width="512" height="256">][progress]
 
 [Build Status]: https://github.com/sabishii-bit/Gauntlet-Dark-Legacy-Decompilation/actions/workflows/build.yml/badge.svg
 [actions]: https://github.com/sabishii-bit/Gauntlet-Dark-Legacy-Decompilation/actions/workflows/build.yml
-<!--
-decomp.dev progress badges — enable once the project is registered on https://decomp.dev
-and CI uploads a progress report.
-[Code Progress]: https://decomp.dev/sabishii-bit/Gauntlet-Dark-Legacy-Decompilation.svg?mode=shield&measure=code&label=Code
-[Data Progress]: https://decomp.dev/sabishii-bit/Gauntlet-Dark-Legacy-Decompilation.svg?mode=shield&measure=data&label=Data
+[Code Progress]: https://decomp.dev/sabishii-bit/Gauntlet-Dark-Legacy-Decompilation.svg?mode=shield&measure=code&label=Code&category=all
+[Data Progress]: https://decomp.dev/sabishii-bit/Gauntlet-Dark-Legacy-Decompilation.svg?mode=shield&measure=complete_data&label=Data&category=all
+[Linked Progress]: https://decomp.dev/sabishii-bit/Gauntlet-Dark-Legacy-Decompilation.svg?mode=shield&measure=complete_code&label=Linked%20Code&category=all
 [progress]: https://decomp.dev/sabishii-bit/Gauntlet-Dark-Legacy-Decompilation
+
+<!--
+The progress badges and graphic above are served by https://decomp.dev.
+They stay blank until the repository is registered there: sign in at
+decomp.dev with GitHub and add this project. CI already uploads the
+`report.json` progress report on every build of the default branch, which
+decomp.dev ingests automatically once the project is registered.
 -->
 
 A work-in-progress decompilation of **Gauntlet Dark Legacy** for the Nintendo GameCube, built with
@@ -18,9 +28,11 @@ A work-in-progress decompilation of **Gauntlet Dark Legacy** for the Nintendo Ga
 
 This repository does **not** contain any game assets or assembly whatsoever. An existing copy of the game is required.
 
-Supported versions:
+It builds `main.dol`:
 
-- `GUNE5D`: Rev 0 (USA)
+| Version    | Game ID  | SHA-1                                      |
+| ---------- | -------- | ------------------------------------------ |
+| Rev 0 (USA) | `GUNE5D` | `7cba77aa496eb0fc5ffec60efd9680aa9635d679` |
 
 Dependencies
 ============
