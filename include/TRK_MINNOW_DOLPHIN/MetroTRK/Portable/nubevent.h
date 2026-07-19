@@ -16,7 +16,7 @@ typedef struct TRKEvent {
     MessageBufferID msgBufID;
 } TRKEvent;
 
-typedef struct TRKEventQueue  {
+typedef struct TRKEventQueue {
     int _00;
     int count;
     int next;

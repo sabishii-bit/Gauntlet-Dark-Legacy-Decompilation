@@ -1,7 +1,6 @@
 #ifndef METROTRK_PORTABLE_SERPOLL_H
 #define METROTRK_PORTABLE_SERPOLL_H
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif

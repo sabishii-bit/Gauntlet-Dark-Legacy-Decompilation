@@ -5,10 +5,10 @@ extern "C" {
 #endif
 
 /* macros for FPR saving and restoring */
-#define SAVE_FPR(reg)    _savefpr_##reg
+#define SAVE_FPR(reg) _savefpr_##reg
 #define RESTORE_FPR(reg) _restfpr_##reg
 
-#define ENTRY_SAVE_FPR(reg)    entry SAVE_FPR(reg)
+#define ENTRY_SAVE_FPR(reg) entry SAVE_FPR(reg)
 #define ENTRY_RESTORE_FPR(reg) entry RESTORE_FPR(reg)
 
 #define save_restore_reg r11
@@ -62,12 +62,12 @@ void RESTORE_FPR(30)(void);
 void RESTORE_FPR(31)(void);
 
 static const u32 __constants[] = {
-	0x00000000, 0x00000000, 0x41F00000, 0x00000000, 0x41E00000, 0x00000000,
+    0x00000000, 0x00000000, 0x41F00000, 0x00000000, 0x41E00000, 0x00000000,
 };
 
-ASM u32 __cvt_fp2unsigned(register f64 d)
-{
-#ifdef __MWERKS__ // clang-format off
+ASM u32 __cvt_fp2unsigned(register f64 d) {
+#ifdef __MWERKS__
+    // clang-format off
 		nofralloc
 		stwu    r1,-16(r1)
 		lis     r4, __constants@h
@@ -93,11 +93,13 @@ ASM u32 __cvt_fp2unsigned(register f64 d)
 @exit:
 		addi    r1,r1,16
 		blr
-#endif // clang-format on
+    // clang-format on
+#endif
 }
 
-ASM static void __save_fpr(void) {
-#ifdef __MWERKS__ // clang-format off
+ASM static void __save_fpr(void){
+#ifdef __MWERKS__
+    // clang-format off
 	nofralloc
 	ENTRY_SAVE_FPR(14)
 		stfd    fp14,-144(save_restore_reg)
@@ -136,11 +138,13 @@ ASM static void __save_fpr(void) {
 	ENTRY_SAVE_FPR(31)
 		stfd    fp31,-8(save_restore_reg)
 		blr
-#endif // clang-format on
+// clang-format on
+#endif
 }
 
-ASM static void __restore_fpr(void) {
-#ifdef __MWERKS__ // clang-format off
+ASM static void __restore_fpr(void){
+#ifdef __MWERKS__
+    // clang-format off
 	nofralloc
 	ENTRY_RESTORE_FPR(14)
 		lfd     fp14,-144(save_restore_reg)
@@ -179,11 +183,13 @@ ASM static void __restore_fpr(void) {
 	ENTRY_RESTORE_FPR(31)
 		lfd     fp31,-8(save_restore_reg)
 		blr
-#endif // clang-format on
+// clang-format on
+#endif
 }
 
-ASM void __div2u(void) {
-#ifdef __MWERKS__ // clang-format off
+ASM void __div2u(void){
+#ifdef __MWERKS__
+    // clang-format off
 	nofralloc
 	cmpwi   cr0,r3,0
 	cntlzw  r0,r3
@@ -253,11 +259,13 @@ lab9:
 	li      r4,0
 	li      r3,0
 	blr
-#endif // clang-format on
+// clang-format on
+#endif
 }
 
-ASM void __div2i(void) {
-#ifdef __MWERKS__ // clang-format off
+ASM void __div2i(void){
+#ifdef __MWERKS__
+    // clang-format off
 	nofralloc
 	stwu    r1,-16(r1)
 	rlwinm. r9,r3,0,0,0
@@ -352,11 +360,13 @@ lab9:
 func_end:
 	addi    r1,r1,16
 	blr
-#endif // clang-format on
+// clang-format on
+#endif
 }
 
-ASM void __mod2u(void) {
-#ifdef __MWERKS__ // clang-format off
+ASM void __mod2u(void){
+#ifdef __MWERKS__
+    // clang-format off
 	nofralloc
 	cmpwi   cr0,r3,0
 	cntlzw  r0,r3
@@ -424,11 +434,13 @@ lab8:
 	blr
 lab9:
 	blr
-#endif // clang-format on
+// clang-format on
+#endif
 }
 
-ASM void __shl2i(void) {
-#ifdef __MWERKS__ // clang-format off
+ASM void __shl2i(void){
+#ifdef __MWERKS__
+    // clang-format off
 	nofralloc
 	subfic  r8,r5,32
 	subic   r9,r5,32
@@ -439,11 +451,13 @@ ASM void __shl2i(void) {
 	or      r3,r3,r10
 	slw     r4,r4,r5
 	blr
-#endif // clang-format on
+// clang-format on
+#endif
 }
 
-ASM void __shr2u(void) {
-#ifdef __MWERKS__ // clang-format off
+ASM void __shr2u(void){
+#ifdef __MWERKS__
+    // clang-format off
 	nofralloc
 	subfic  r8,r5,32
 	subic   r9,r5,32
@@ -454,11 +468,13 @@ ASM void __shr2u(void) {
 	or      r4,r4,r10
 	srw     r3,r3,r5
 	blr
-#endif // clang-format on
+// clang-format on
+#endif
 }
 
-ASM void __shr2i(void) {
-#ifdef __MWERKS__ // clang-format off
+ASM void __shr2i(void){
+#ifdef __MWERKS__
+    // clang-format off
 	nofralloc
 	subfic  r8, r5, 0x20
 	addic.  r9, r5, -0x20
@@ -471,12 +487,13 @@ ASM void __shr2i(void) {
 around:
 	sraw    r3, r3, r5
 	blr
-#endif // clang-format on
+// clang-format on
+#endif
 }
 
-ASM void __cvt_sll_flt(void)
-{
-#ifdef __MWERKS__ // clang-format off
+ASM void __cvt_sll_flt(void){
+#ifdef __MWERKS__
+    // clang-format off
 	nofralloc
 	stwu    r1,-16(r1)
 	rlwinm. r5,r3,0,0,0
@@ -527,12 +544,13 @@ func_end:
 	frsp    fp1,fp1
 	addi    r1,r1,16
 	blr
-#endif // clang-format on
+// clang-format on
+#endif
 }
 
-ASM void __cvt_dbl_usll(void)
-{
-#ifdef __MWERKS__ // clang-format off
+ASM void __cvt_dbl_usll(void) {
+#ifdef __MWERKS__
+    // clang-format off
 	nofralloc
 	stwu    r1,-16(r1)
 	stfd    f1,8(r1)
@@ -592,7 +610,8 @@ positive:
 func_end:
 	addi    r1,r1,16
 	blr
-#endif // clang-format on
+    // clang-format on
+#endif
 }
 
 #ifdef __cplusplus

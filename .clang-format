@@ -1,147 +1,35 @@
+# Formatting rules for decompiled sources.
+#
+# Kept deliberately minimal and aligned with GC/Wii decomp community style
+# (zeldaret/tww, doldecomp/melee): attached braces, 4-space indent, wide
+# lines. Imported reference sources then need little or no reformatting.
+#
+# Inline-asm functions (MWCC `asm`/`nofralloc` syntax) are not valid C to
+# clang-format — every asm body must stay wrapped in
+# `// clang-format off` ... `// clang-format on`.
 ---
-Language:        Cpp
-AccessModifierOffset: -4
-AlignAfterOpenBracket: Align
-AlignConsecutiveMacros: false
-AlignConsecutiveAssignments: false
-AlignConsecutiveBitFields: false
-AlignConsecutiveDeclarations: false
-AlignEscapedNewlines: Right
-AlignOperands:   Align
-AlignTrailingComments: false
-AllowAllArgumentsOnNextLine: true
-AllowAllConstructorInitializersOnNextLine: true
-AllowAllParametersOfDeclarationOnNextLine: false
-AllowShortEnumsOnASingleLine: true
-AllowShortBlocksOnASingleLine: Never
-AllowShortCaseLabelsOnASingleLine: false
-AllowShortFunctionsOnASingleLine: None
-AllowShortLambdasOnASingleLine: All
+Language: Cpp
+Standard: c++03
+BasedOnStyle: LLVM
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 120
+
+BreakBeforeBraces: Attach
+PointerAlignment: Left
+AllowShortFunctionsOnASingleLine: InlineOnly
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false
-AlwaysBreakAfterDefinitionReturnType: None
-AlwaysBreakAfterReturnType: None
-AlwaysBreakBeforeMultilineStrings: false
-AlwaysBreakTemplateDeclarations: MultiLine
-BinPackArguments: true
-BinPackParameters: true
-BraceWrapping:
-  AfterCaseLabel:  true
-  AfterClass:      true
-  AfterControlStatement: Always
-  AfterEnum:       true
-  AfterFunction:   true
-  AfterNamespace:  true
-  AfterObjCDeclaration: true
-  AfterStruct:     true
-  AfterUnion:      true
-  AfterExternBlock: false
-  BeforeCatch:     true
-  BeforeElse:      true
-  BeforeLambdaBody: false
-  BeforeWhile:     false
-  IndentBraces:    false
-  SplitEmptyFunction: true
-  SplitEmptyRecord: true
-  SplitEmptyNamespace: true
-BreakBeforeBinaryOperators: None
-BreakBeforeBraces: Custom
-BreakBeforeInheritanceComma: false
-BreakInheritanceList: BeforeColon
-BreakBeforeTernaryOperators: false
-BreakConstructorInitializersBeforeComma: false
-BreakConstructorInitializers: BeforeColon
-BreakAfterJavaFieldAnnotations: false
-BreakStringLiterals: false
-ColumnLimit:     100
-CommentPragmas:  '^ IWYU pragma:'
-CompactNamespaces: false
-ConstructorInitializerAllOnOneLineOrOnePerLine: false
-ConstructorInitializerIndentWidth: 4
-ContinuationIndentWidth: 4
-Cpp11BracedListStyle: false
-DeriveLineEnding: true
-DerivePointerAlignment: false
-DisableFormat:   false
-ExperimentalAutoDetectBinPacking: false
-FixNamespaceComments: true
-ForEachMacros:
-  - foreach
-  - Q_FOREACH
-  - BOOST_FOREACH
-IncludeBlocks:   Preserve
-IncludeCategories:
-  - Regex:           '.*'
-    Priority:        1
-    SortPriority:    0
-  - Regex:           '^(<|"(gtest|gmock|isl|json)/)'
-    Priority:        3
-    SortPriority:    0
-  - Regex:           '.*'
-    Priority:        1
-    SortPriority:    0
-IncludeIsMainRegex: '(Test)?$'
-IncludeIsMainSourceRegex: ''
 IndentCaseLabels: false
-IndentCaseBlocks: false
-IndentGotoLabels: true
-IndentPPDirectives: None
-IndentExternBlock: AfterExternBlock
-IndentWidth:     4
-IndentWrappedFunctionNames: false
-InsertTrailingCommas: None
-JavaScriptQuotes: Leave
-JavaScriptWrapImports: true
+
+# Decomp sources are matched against original binaries; don't let the
+# formatter rearrange things that carry meaning for matching or research.
+ReflowComments: false
+SortIncludes: false
+BreakStringLiterals: false
 KeepEmptyLinesAtTheStartOfBlocks: false
-MacroBlockBegin: ''
-MacroBlockEnd:   ''
 MaxEmptyLinesToKeep: 1
-NamespaceIndentation: All
-ObjCBinPackProtocolList: Auto
-ObjCBlockIndentWidth: 4
-ObjCBreakBeforeNestedBlockParam: true
-ObjCSpaceAfterProperty: true
-ObjCSpaceBeforeProtocolList: true
-PenaltyBreakAssignment: 2
-PenaltyBreakBeforeFirstCallParameter: 30
-PenaltyBreakComment: 10
-PenaltyBreakFirstLessLess: 0
-PenaltyBreakString: 10
-PenaltyBreakTemplateDeclaration: 10
-PenaltyExcessCharacter: 100
-PenaltyReturnTypeOnItsOwnLine: 60
-PointerAlignment: Left
-ReflowComments:  false
-SortIncludes:    false
-SortUsingDeclarations: true
-SpaceAfterCStyleCast: false
-SpaceAfterLogicalNot: false
-SpaceAfterTemplateKeyword: true
-SpaceBeforeAssignmentOperators: true
-SpaceBeforeCpp11BracedList: false
-SpaceBeforeCtorInitializerColon: true
-SpaceBeforeInheritanceColon: true
-SpaceBeforeParens: ControlStatements
-SpaceBeforeRangeBasedForLoopColon: true
-SpaceInEmptyBlock: false
-SpaceInEmptyParentheses: false
-SpacesBeforeTrailingComments: 1
-SpacesInAngles:  false
-SpacesInConditionalStatement: false
-SpacesInContainerLiterals: false
-SpacesInCStyleCastParentheses: false
-SpacesInParentheses: false
-SpacesInSquareBrackets: false
-SpaceBeforeSquareBrackets: false
-Standard:        c++03
-StatementMacros:
-  - Q_UNUSED
-  - QT_REQUIRE_VERSION
-TabWidth:        4
-UseCRLF:         false
-UseTab:          Never
-WhitespaceSensitiveMacros:
-  - STRINGIZE
-  - PP_STRINGIZE
-  - BOOST_PP_STRINGIZE
+CommentPragmas: '^ (IWYU pragma:|clang-format)'
 ...
