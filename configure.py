@@ -354,6 +354,7 @@ config.libs = [
             Object(Matching, "TRK_MINNOW_DOLPHIN/Portable/msgbuf.c"),
             Object(Matching, "TRK_MINNOW_DOLPHIN/Portable/serpoll.c"),
             Object(Matching, "TRK_MINNOW_DOLPHIN/Portable/dispatch.c"),
+            Object(Matching, "TRK_MINNOW_DOLPHIN/Portable/msghndlr.c"),
             Object(Matching, "TRK_MINNOW_DOLPHIN/Portable/usr_put.c"),
         ],
     },

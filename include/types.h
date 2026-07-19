@@ -47,4 +47,10 @@ typedef unsigned long size_t;
 
 #define SECTION_INIT DECL_SECT(".init")
 
+#ifdef __MWERKS__
+#define ATTRIBUTE_ALIGN(n) __attribute__((aligned(n)))
+#else
+#define ATTRIBUTE_ALIGN(n)
+#endif
+
 #endif
