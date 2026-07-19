@@ -25,6 +25,7 @@ typedef volatile f32 vf32;
 typedef volatile f64 vf64;
 
 typedef int BOOL;
+typedef unsigned int uint;
 typedef unsigned long size_t;
 
 #define TRUE 1
@@ -37,9 +38,13 @@ typedef unsigned long size_t;
 #ifdef __MWERKS__
 #define DECL_SECT(name) __declspec(section name)
 #define WEAKFUNC __declspec(weak)
+#define ASM asm
 #else
 #define DECL_SECT(name)
 #define WEAKFUNC
+#define ASM
 #endif
+
+#define SECTION_INIT DECL_SECT(".init")
 
 #endif
