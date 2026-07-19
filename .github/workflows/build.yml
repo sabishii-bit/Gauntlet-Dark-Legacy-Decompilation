@@ -81,6 +81,16 @@ jobs:
           build/GUNE5D/main.dol
           build/GUNE5D/main.elf
 
+    # Upload the progress report. decomp.dev ingests this artifact to serve
+    # the progress badges/graphic in the README (once the repo is registered
+    # at https://decomp.dev). The artifact name must end in `_report`.
+    - name: Upload progress report
+      if: success() || failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: GUNE5D_report
+        path: build/GUNE5D/report.json
+
     # Upload build report (if it exists)
     - name: Upload build report
       if: always()
