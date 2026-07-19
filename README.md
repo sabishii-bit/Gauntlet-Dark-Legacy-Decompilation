@@ -42,7 +42,7 @@ macOS / Linux
 
 [wibo](https://github.com/decompals/wibo), a minimal 32-bit Windows binary wrapper, will be automatically downloaded and used to run the CodeWarrior compilers.
 
-All other tools (compilers, objdiff-cli, sjiswrap, etc.) are downloaded automatically during the build. See [docs/dependencies.md](docs/dependencies.md) for details.
+All other tools (compilers, objdiff-cli, sjiswrap, etc.) are downloaded automatically during the build.
 
 Building
 ========
@@ -99,7 +99,6 @@ Decompilation workflow
 2. **Define the split.** Add the file and its address ranges to
    [config/GUNE5D/splits.txt](config/GUNE5D/splits.txt), and name symbols in
    [config/GUNE5D/symbols.txt](config/GUNE5D/symbols.txt).
-   See [docs/splits.md](docs/splits.md) and [docs/symbols.md](docs/symbols.md).
 3. **Write the source.** Create the matching C/C++ file under `src/` and register it in
    [configure.py](configure.py) under `config.libs`, starting as `NonMatching`:
 
@@ -131,27 +130,17 @@ Project structure
 ```
 .
 ├── config/GUNE5D/      # dtk configuration: config.yml, symbols.txt, splits.txt, build.sha1
-├── docs/               # Documentation for symbols, splits, common BSS, CI, etc.
 ├── include/            # Header files
 ├── orig/GUNE5D/        # Original game files (not committed)
 ├── research/           # Reference material (e.g. Xbox build symbols for struct matching)
 ├── src/                # Decompiled source code (created as work progresses)
-├── tools/              # Build scripts, custom dtk.exe, local compiler copies
+├── tools/              # Build scripts
 ├── configure.py        # Project configuration; generates build.ninja and objdiff.json
 └── build/GUNE5D/       # Build artifacts (generated, not committed)
 ```
 
-Continuous integration
-======================
-
-Every push is built by [GitHub Actions](.github/workflows/build.yml) inside a private container that
-provides the compilers and original game files, then verified against `build.sha1`.
-See [docs/github_actions.md](docs/github_actions.md) for how this is set up.
-
 Resources
 =========
 
-- [docs/getting_started.md](docs/getting_started.md) — dtk-template workflow overview
-- [docs/comment_section.md](docs/comment_section.md), [docs/common_bss.md](docs/common_bss.md) — matching esoterica
 - [decomp.me](https://decomp.me) — collaborate on matches online
 - [GC/Wii Decompilation Discord](https://discord.gg/hKx3FJJgrV) — ask in `#dtk`
