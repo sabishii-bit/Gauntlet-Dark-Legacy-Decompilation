@@ -37,27 +37,21 @@ jobs:
         cp -r /tools/mwcc_compiler tools/
         cp -r /orig/GUNE5D orig/
 
-    # Copy custom dtk from container
-    - name: Install custom dtk
-      run: |
-        mkdir -p build/tools
-        cp /tools/dtk build/tools/dtk
-        chmod +x build/tools/dtk
-        echo "Custom dtk installed:"
-        ls -lh build/tools/dtk
-
     # Cache build artifacts
+    # (v2: cache key bumped after retiring the container's wine-wrapped dtk 1.8.0,
+    # which wrote stale split state into cached build dirs)
     - name: Cache build
       uses: actions/cache@v4
       with:
         path: |
           build
-        key: ${{ runner.os }}-gune5d-${{ github.sha }}
-        restore-keys: ${{ runner.os }}-gune5d-
+        key: ${{ runner.os }}-gune5d-v2-${{ github.sha }}
+        restore-keys: ${{ runner.os }}-gune5d-v2-
 
-    # Configure the project with custom dtk path
+    # Configure the project. decomp-toolkit (dtk) is downloaded automatically
+    # as a native Linux binary at the version pinned in configure.py (dtk_tag).
     - name: Configure
-      run: python configure.py -v GUNE5D --dtk build/tools/dtk
+      run: python configure.py -v GUNE5D
 
     # Build the project using ninja
     - name: Build
