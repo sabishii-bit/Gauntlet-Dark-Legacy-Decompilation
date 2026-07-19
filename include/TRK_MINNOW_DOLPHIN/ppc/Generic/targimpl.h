@@ -123,16 +123,16 @@ typedef ProcessorState_PPC_6xx_7xx ProcessorState_PPC;
 extern ProcessorState_PPC gTRKCPUState;
 
 typedef struct TRKState {
-	u32 gpr[32];           // _00
-	u32 lr;                // _80
-	u32 ctr;               // _84
-	u32 xer;               // _88
-	u32 msr;               // _8C
-	u32 dar;               // _90
-	u32 dsisr;             // _94
-	BOOL isStopped;        // _98
-	BOOL inputActivated;   // _9C
-	void* inputPendingPtr; // _A0
+    u32 gpr[32];           // _00
+    u32 lr;                // _80
+    u32 ctr;               // _84
+    u32 xer;               // _88
+    u32 msr;               // _8C
+    u32 dar;               // _90
+    u32 dsisr;             // _94
+    BOOL isStopped;        // _98
+    BOOL inputActivated;   // _9C
+    void* inputPendingPtr; // _A0
 } TRKState;
 extern TRKState gTRKState;
 

@@ -98,9 +98,9 @@ lbl_800052FC:
 #endif
 }
 
-ASM static void __init_registers(void)
-{
+ASM static void __init_registers(void) {
 #ifdef __MWERKS__
+    // clang-format off
     nofralloc
     lis r1,  _stack_addr@h
     ori r1, r1,  _stack_addr@l
@@ -109,26 +109,24 @@ ASM static void __init_registers(void)
     lis r13, _SDA_BASE_@h
     ori r13, r13, _SDA_BASE_@l
     blr
+    // clang-format on
 #endif
 }
 
-inline static void __copy_rom_section(void* dst, const void* src, u32 size)
-{
+inline static void __copy_rom_section(void* dst, const void* src, u32 size) {
     if (size && (dst != src)) {
         memcpy(dst, src, size);
         __flush_cache(dst, size);
     }
 }
 
-inline static void __init_bss_section(void* dst, u32 size)
-{
+inline static void __init_bss_section(void* dst, u32 size) {
     if (size) {
         memset(dst, 0, size);
     }
 }
 
-void __init_data(void)
-{
+void __init_data(void) {
     __rom_copy_info* dci;
     __bss_init_info* bii;
 
@@ -149,8 +147,9 @@ void __init_data(void)
     }
 }
 
-ASM void __init_hardware() {
-#ifdef __MWERKS__ // clang-format off
+ASM void __init_hardware(){
+#ifdef __MWERKS__
+    // clang-format off
     nofralloc
     mfmsr r0
     ori r0,r0,0x2000
@@ -160,12 +159,13 @@ ASM void __init_hardware() {
     bl __OSCacheInit
     mtlr r31
     blr
-#endif // clang-format on
+// clang-format on
+#endif
 }
 
-ASM void __flush_cache(void* addr, u32 size)
-{
+ASM void __flush_cache(void* addr, u32 size) {
 #ifdef __MWERKS__
+    // clang-format off
     nofralloc
     lis r5, 0xFFFFFFF1@h
     ori r5, r5, 0xFFFFFFF1@l
@@ -181,5 +181,6 @@ loop:
     bge loop
     isync
     blr
+    // clang-format on
 #endif
 }

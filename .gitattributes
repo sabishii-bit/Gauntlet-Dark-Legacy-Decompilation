@@ -11,3 +11,10 @@
 
 # decomp-toolkit writes files with LF
 config/**/*.txt  text eol=lf
+
+# Source files: LF everywhere so Windows checkouts, clang-format, and Linux CI agree
+*.c   text eol=lf
+*.cpp text eol=lf
+*.h   text eol=lf
+*.s   text eol=lf
+.clang-format text eol=lf

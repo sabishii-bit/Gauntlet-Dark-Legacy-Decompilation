@@ -36,5 +36,4 @@ int InitMetroTRKCommTable(int hwId);
 }
 #endif
 
-
 #endif /* OS_DOLPHIN_DOLPHIN_TRK_GLUE_H */
