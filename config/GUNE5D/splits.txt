@@ -12,8 +12,45 @@ Sections:
 	.sbss       type:bss align:8
 	.sdata2     type:rodata align:16
 
+TRK_MINNOW_DOLPHIN/Portable/mainloop.c:
+	.text       start:0x800DE928 end:0x800DEA90
+
+TRK_MINNOW_DOLPHIN/Portable/nubevent.c:
+	.text       start:0x800DEA90 end:0x800DECEC
+
+TRK_MINNOW_DOLPHIN/Portable/nubinit.c:
+	.text       start:0x800DECEC end:0x800DEE80
+	.rodata     start:0x80117848 end:0x80117868
+
+TRK_MINNOW_DOLPHIN/Portable/mutex_TRK.c:
+	.text       start:0x800E103C end:0x800E1054
+
 Runtime.PPCEABI.H/__va_arg.c:
 	.text       start:0x800E3080 end:0x800E3174
 
+Runtime.PPCEABI.H/global_destructor_chain.c:
+	.text       start:0x800E3174 end:0x800E31D4
+	.dtors      start:0x80110708 end:0x8011070C
+	.sbss       start:0x80345318 end:0x80345320
+
+Runtime.PPCEABI.H/runtime.c:
+	.text       start:0x800E4D34 end:0x800E5320
+	.rodata     start:0x801179B0 end:0x801179C8
+
+Runtime.PPCEABI.H/__init_cpp_exceptions.cpp:
+	.text       start:0x800E5320 end:0x800E539C
+	.ctors      start:0x801106E0 end:0x801106E4
+	.dtors      start:0x80110700 end:0x80110708
+	.sdata      start:0x80344068 end:0x80344070
+
+TRK_MINNOW_DOLPHIN/Portable/mem_TRK.c:
+	.init       start:0x80003100 end:0x80003124
+
+TRK_MINNOW_DOLPHIN/ppc/Generic/exception.s: comment:0
+	.init       start:0x80003124 end:0x80005058
+
 Runtime.PPCEABI.H/__mem.c:
 	.init       start:0x80005078 end:0x800051BC
+
+dolphin/os/__start.c:
+	.init       start:0x800051BC end:0x80005440

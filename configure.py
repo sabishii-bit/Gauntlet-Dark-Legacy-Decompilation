@@ -247,6 +247,40 @@ cflags_rel = [
     "-sdata2 0",
 ]
 
+# MetroTRK debugger stub flags.
+# Matches GC/1.1p1; note: no -inline option (default), which is required
+# to keep intra-TU calls (e.g. TRKHandleRequestEvent) out-of-line, and
+# -common on (TRK globals are common symbols; also changes codegen for
+# accesses to globals defined in the same TU).
+cflags_trk = [
+    "-nodefaults",
+    "-proc gekko",
+    "-align powerpc",
+    "-enum int",
+    "-fp hardware",
+    "-Cpp_exceptions off",
+    "-O4,p",
+    '-pragma "cats off"',
+    '-pragma "warn_notinlined off"',
+    "-maxerrors 1",
+    "-nosyspath",
+    "-RTTI off",
+    "-fp_contract on",
+    "-multibyte",
+    "-i include",
+    f"-i build/{config.version}/include",
+    f"-DBUILD_VERSION={version_num}",
+    f"-DVERSION_{config.version}",
+    "-DNDEBUG=1",
+    "-use_lmw_stmw on",
+    "-rostr",
+    "-str reuse",
+    "-common on",
+    "-char signed",
+    "-sdata 0",
+    "-sdata2 0",
+]
+
 config.linker_version = "GC/1.3.2"
 
 
@@ -293,6 +327,29 @@ config.libs = [
         "objects": [
             Object(Matching, "Runtime.PPCEABI.H/__mem.c"),
             Object(Matching, "Runtime.PPCEABI.H/__va_arg.c"),
+            Object(Matching, "Runtime.PPCEABI.H/global_destructor_chain.c"),
+            Object(Matching, "Runtime.PPCEABI.H/__init_cpp_exceptions.cpp"),
+            Object(Matching, "Runtime.PPCEABI.H/runtime.c"),
+        ],
+    },
+    DolphinLib(
+        "os",
+        [
+            Object(Matching, "dolphin/os/__start.c"),
+        ],
+    ),
+    {
+        "lib": "TRK_MINNOW_DOLPHIN",
+        "mw_version": "GC/1.1p1",
+        "cflags": cflags_trk,
+        "progress_category": "sdk",
+        "objects": [
+            Object(Matching, "TRK_MINNOW_DOLPHIN/Portable/mem_TRK.c"),
+            Object(Matching, "TRK_MINNOW_DOLPHIN/ppc/Generic/exception.s"),
+            Object(Matching, "TRK_MINNOW_DOLPHIN/Portable/mainloop.c"),
+            Object(Matching, "TRK_MINNOW_DOLPHIN/Portable/nubevent.c"),
+            Object(Matching, "TRK_MINNOW_DOLPHIN/Portable/nubinit.c"),
+            Object(Matching, "TRK_MINNOW_DOLPHIN/Portable/mutex_TRK.c"),
         ],
     },
 ]
