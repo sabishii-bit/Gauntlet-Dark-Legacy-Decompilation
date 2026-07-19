@@ -136,6 +136,76 @@ To print decompilation progress:
 python configure.py progress
 ```
 
+Xbox debug symbols
+==================
+
+[research/xbox_symbols/](research/xbox_symbols/) contains ~3,500 type definitions (structs, enums,
+unions — with exact field offsets and sizes) extracted from leaked PDB debug symbols of the **Xbox**
+version of the game. Because Midway shared the game codebase across platforms, these layouts carry
+over to the GameCube binary.
+
+> [!NOTE]
+> **Verified:** decompiling `AtreeFindNode`/`AtreeMatch` in the GUNE5D DOL shows every field offset,
+> struct size, and array stride matching the PDB definitions of `atree`, `anode`, `anodeinfo`,
+> `atreelist`, and `atreeinfo` exactly (11/11 offsets checked — e.g. `atree.nanodes` @ 0x3C,
+> `sizeof(anode)` = 0x28, `atreeinfo.offset` @ 0x20).
+
+Workflow when decompiling game code:
+
+1. **Look up the types.** Find candidate structs in
+   [research/xbox_symbols/type_index.txt](research/xbox_symbols/type_index.txt), then read their
+   definitions in the mapped header. Portable game types live in `game.h`, `graphics.h`, `math.h`,
+   `audio.h`, `misc.h`, `ps2.h`, and `util.h`. Ignore `d3d.h`, `xbox.h`, and `windows_*.h` — those
+   are Xbox platform types that don't exist on GameCube.
+2. **Verify before trusting.** Compare the disassembly's field offsets and array strides against the
+   PDB layout (both platforms are 32-bit little/big-endian with the same pointer size, so layouts
+   generally match — but compiler padding, bitfields, and any embedded platform types can differ).
+3. **Port the struct** into a header under `include/`, keeping the original names and commenting
+   each field with its offset.
+4. **Reuse the names.** The PDB preserves original naming conventions (`atree`, `anodeinfo`,
+   `enemy`, `smworld_t`, …) — use them for functions and globals in
+   [config/GUNE5D/symbols.txt](config/GUNE5D/symbols.txt) and when writing source, instead of
+   inventing new ones.
+5. **Import the structs into Ghidra** (see below) so its decompiler renders named field accesses —
+   this makes reconstructing the C source dramatically faster.
+6. **Decompile with types applied.** Retype the function's parameters/locals in Ghidra's decompiler
+   (see below). Raw pointer math like `*(int*)(param + 0x3c)` becomes `tree->nanodes`, and the
+   pseudocode reads close to the original source.
+7. **Write and match the source.** Use the typed pseudocode to write the C file, then re-enter the
+   [decompilation workflow](#decompilation-workflow) at step 3: register the TU in `configure.py`,
+   build, and iterate in objdiff until it matches.
+8. **Feed names back.** Once a function/global is confirmed, record its name in
+   [config/GUNE5D/symbols.txt](config/GUNE5D/symbols.txt) *and* rename it in Ghidra, so the build
+   system, objdiff, and the Ghidra database stay in sync.
+
+### Importing the structs into Ghidra
+
+The dump headers are **not directly parseable** — they contain duplicate definitions, repeated
+`enum __unnamed` blocks, and cross-file dependencies. Always curate a small scratch header first:
+
+1. **Curate a mini-header.** Copy just the structs you need (plus their dependencies) from the
+   `research/xbox_symbols/` headers into a scratch `.h` file. Work bottom-up: for `atree` you also
+   want `anode`, `anodeinfo`, and `animinfo`. Replace pointers to types you don't care about yet
+   with `void*`, and unknown trailing regions with `char unkXX[N];` padding — you can refine later.
+   Keep the `// Offset=... Size=...` comments; they're valid C comments and serve as documentation.
+2. **Parse it:** in the CodeBrowser, **File -> Parse C Source…**, add your scratch header to
+   *Source files to parse*, clear the profile's include paths if it complains, and hit
+   **Parse to Program**. The types appear in the *Data Type Manager* under your program's category.
+   - Alternative for one or two structs: in the *Data Type Manager*, right-click the program ->
+     **New -> Structure**, and enter fields manually using the offsets from the dump.
+3. **Sanity-check sizes.** Hover the new type in the Data Type Manager — its size must equal the
+   `Size=0x..` in the dump comment (`atree` = 0x48, `anode` = 0x28, `anodeinfo` = 0x3C). If it's
+   off, a field type or padding is wrong.
+4. **Apply the types.** In the decompiler view, click a function parameter or local, press
+   **Ctrl+L** (*Retype Variable*), and enter e.g. `atree *`. Or right-click the function ->
+   **Edit Function Signature** and set the full prototype
+   (`void * AtreeFindNode(atree * tree, char * name, int len)`). Field accesses, array strides,
+   and nested structs then render by name throughout the decompilation.
+
+This exact procedure was used to verify the Atree family: after retyping one parameter, the
+decompiler output collapsed into `strncmp(tree->anodeinfo[i].mbdesc, name, len)`-style code that
+can be transcribed into a source file almost directly.
+
 Project structure
 =================
 
