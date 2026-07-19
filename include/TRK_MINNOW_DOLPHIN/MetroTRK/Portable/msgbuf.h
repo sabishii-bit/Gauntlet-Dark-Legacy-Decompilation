@@ -7,9 +7,33 @@
 extern "C" {
 #endif
 
+#define kMessageBufferSize TRKMSGBUF_SIZE
+#define NUM_BUFFERS 3
+
+typedef struct TRKMsgBufs {
+    TRKBuffer buffers[NUM_BUFFERS];
+} TRKMsgBufs;
+
+extern TRKMsgBufs gTRKMsgBufs;
+
+DSError TRKInitializeMessageBuffers(void);
+DSError TRKGetFreeBuffer(int* bufferIndexPtr, TRKBuffer** destBufPtr);
+void TRKReleaseBuffer(int index);
+void TRKResetBuffer(TRKBuffer* buf, u8 keepData);
+DSError TRKAppendBuffer(TRKBuffer* buf, const void* data, size_t length);
+DSError TRKReadBuffer(TRKBuffer* buf, void* data, size_t length);
+DSError TRKMessageSend(TRKBuffer* msg);
 DSError TRKSetBufferPosition(TRKBuffer* msg, u32 pos);
-void* TRKGetBuffer(int);
-void TRKResetBuffer(TRKBuffer* msg, BOOL keepData);
+TRKBuffer* TRKGetBuffer(int index);
+
+static inline DSError TRKAppendBuffer1_ui8(TRKBuffer* buffer, const u8 data) {
+    if (buffer->position >= kMessageBufferSize) {
+        return DS_MessageBufferOverflow;
+    }
+    buffer->data[buffer->position++] = data;
+    buffer->length++;
+    return DS_NoError;
+}
 
 DSError TRKAppendBuffer1_ui16(TRKBuffer* buffer, const u16 data);
 DSError TRKAppendBuffer1_ui32(TRKBuffer* buffer, const u32 data);
