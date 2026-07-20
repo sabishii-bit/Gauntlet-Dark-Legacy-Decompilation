@@ -53,6 +53,11 @@ TRK_MINNOW_DOLPHIN/Portable/notify.c:
 TRK_MINNOW_DOLPHIN/ppc/Generic/flush_cache.c:
 	.text       start:0x800E112C end:0x800E1164
 
+TRK_MINNOW_DOLPHIN/ppc/Generic/targimpl.c:
+	.text       start:0x800E1164 end:0x800E2740
+	.rodata     start:0x80117868 end:0x801178B4
+	.data       start:0x80238318 end:0x80238348
+
 TRK_MINNOW_DOLPHIN/Portable/mem_TRK.c:
 	.init       start:0x80003100 end:0x80003124
 

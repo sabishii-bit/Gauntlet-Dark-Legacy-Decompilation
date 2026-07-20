@@ -360,6 +360,7 @@ config.libs = [
             Object(Matching, "TRK_MINNOW_DOLPHIN/Portable/notify.c"),
             Object(Matching, "TRK_MINNOW_DOLPHIN/Portable/main_TRK.c"),
             Object(Matching, "TRK_MINNOW_DOLPHIN/ppc/Generic/flush_cache.c"),
+            Object(Matching, "TRK_MINNOW_DOLPHIN/ppc/Generic/targimpl.c"),
             Object(Matching, "TRK_MINNOW_DOLPHIN/Os/dolphin/dolphin_trk.c"),
             Object(Matching, "TRK_MINNOW_DOLPHIN/Os/dolphin/dolphin_trk_glue.c"),
             Object(Matching, "TRK_MINNOW_DOLPHIN/Portable/usr_put.c"),
