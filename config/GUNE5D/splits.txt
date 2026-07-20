@@ -67,6 +67,10 @@ TRK_MINNOW_DOLPHIN/Os/dolphin/dolphin_trk.c:
 TRK_MINNOW_DOLPHIN/Portable/main_TRK.c:
 	.text       start:0x800E2CA4 end:0x800E2CF4
 
+TRK_MINNOW_DOLPHIN/Os/dolphin/dolphin_trk_glue.c:
+	.text       start:0x800E2CF4 end:0x800E304C
+	.data       start:0x80238388 end:0x802383A4
+
 Runtime.PPCEABI.H/__va_arg.c:
 	.text       start:0x800E3080 end:0x800E3174
 
