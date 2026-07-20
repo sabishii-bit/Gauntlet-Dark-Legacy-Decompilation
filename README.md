@@ -205,24 +205,3 @@ The dump headers are **not directly parseable** — they contain duplicate defin
 This exact procedure was used to verify the Atree family: after retyping one parameter, the
 decompiler output collapsed into `strncmp(tree->anodeinfo[i].mbdesc, name, len)`-style code that
 can be transcribed into a source file almost directly.
-
-Project structure
-=================
-
-```
-.
-├── config/GUNE5D/      # dtk configuration: config.yml, symbols.txt, splits.txt, build.sha1
-├── include/            # Header files
-├── orig/GUNE5D/        # Original game files (not committed)
-├── research/           # Reference material (e.g. Xbox build symbols for struct matching)
-├── src/                # Decompiled source code (created as work progresses)
-├── tools/              # Build scripts
-├── configure.py        # Project configuration; generates build.ninja and objdiff.json
-└── build/GUNE5D/       # Build artifacts (generated, not committed)
-```
-
-Resources
-=========
-
-- [decomp.me](https://decomp.me) — collaborate on matches online
-- [GC/Wii Decompilation Discord](https://discord.gg/hKx3FJJgrV) — ask in `#dtk`
