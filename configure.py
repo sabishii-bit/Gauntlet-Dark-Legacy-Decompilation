@@ -277,6 +277,7 @@ cflags_trk = [
     "-str reuse",
     "-common on",
     "-char signed",
+    "-pool off",
     "-sdata 0",
     "-sdata2 0",
 ]
@@ -360,6 +361,7 @@ config.libs = [
             Object(Matching, "TRK_MINNOW_DOLPHIN/Portable/main_TRK.c"),
             Object(Matching, "TRK_MINNOW_DOLPHIN/ppc/Generic/flush_cache.c"),
             Object(Matching, "TRK_MINNOW_DOLPHIN/Os/dolphin/dolphin_trk.c"),
+            Object(Matching, "TRK_MINNOW_DOLPHIN/Os/dolphin/dolphin_trk_glue.c"),
             Object(Matching, "TRK_MINNOW_DOLPHIN/Portable/usr_put.c"),
         ],
     },
