@@ -47,6 +47,26 @@ TRK_MINNOW_DOLPHIN/Portable/support.c:
 TRK_MINNOW_DOLPHIN/Portable/mutex_TRK.c:
 	.text       start:0x800E103C end:0x800E1054
 
+TRK_MINNOW_DOLPHIN/Portable/notify.c:
+	.text       start:0x800E1054 end:0x800E112C
+
+TRK_MINNOW_DOLPHIN/ppc/Generic/flush_cache.c:
+	.text       start:0x800E112C end:0x800E1164
+
+TRK_MINNOW_DOLPHIN/Portable/mem_TRK.c:
+	.init       start:0x80003100 end:0x80003124
+
+TRK_MINNOW_DOLPHIN/ppc/Generic/exception.s: comment:0
+	.init       start:0x80003124 end:0x80005058
+
+TRK_MINNOW_DOLPHIN/Os/dolphin/dolphin_trk.c:
+	.init       start:0x80005058 end:0x80005078
+	.text       start:0x800E2740 end:0x800E2934
+	.data       start:0x80238348 end:0x80238384
+
+TRK_MINNOW_DOLPHIN/Portable/main_TRK.c:
+	.text       start:0x800E2CA4 end:0x800E2CF4
+
 Runtime.PPCEABI.H/__va_arg.c:
 	.text       start:0x800E3080 end:0x800E3174
 
@@ -64,12 +84,6 @@ Runtime.PPCEABI.H/__init_cpp_exceptions.cpp:
 	.ctors      start:0x801106E0 end:0x801106E4
 	.dtors      start:0x80110700 end:0x80110708
 	.sdata      start:0x80344068 end:0x80344070
-
-TRK_MINNOW_DOLPHIN/Portable/mem_TRK.c:
-	.init       start:0x80003100 end:0x80003124
-
-TRK_MINNOW_DOLPHIN/ppc/Generic/exception.s: comment:0
-	.init       start:0x80003124 end:0x80005058
 
 Runtime.PPCEABI.H/__mem.c:
 	.init       start:0x80005078 end:0x800051BC
