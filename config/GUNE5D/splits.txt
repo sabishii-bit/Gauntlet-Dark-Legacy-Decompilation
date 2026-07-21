@@ -94,6 +94,14 @@ Runtime.PPCEABI.H/__init_cpp_exceptions.cpp:
 	.dtors      start:0x80110700 end:0x80110708
 	.sdata      start:0x80344068 end:0x80344070
 
+dolphin/os/OSArena.c:
+	.text       start:0x80105818 end:0x80105838
+	.sdata      start:0x80344118 end:0x8034411C
+	.sbss       start:0x80345608 end:0x8034560C
+
+dolphin/os/OSTime.c:
+	.text       start:0x80109DDC end:0x80109E60
+
 Runtime.PPCEABI.H/__mem.c:
 	.init       start:0x80005078 end:0x800051BC
 
