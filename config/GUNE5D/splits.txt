@@ -136,6 +136,15 @@ dolphin/os/OSMemory.c:
 dolphin/os/OSMutex.c:
 	.text       start:0x80107718 end:0x80107A78
 
+dolphin/os/OSReboot.c:
+	.text       start:0x80107A78 end:0x80107C90
+	.bss        start:0x80342D80 end:0x80342DA0
+	.sbss       start:0x80345628 end:0x80345638
+
+dolphin/os/OSReset.c:
+	.text       start:0x80107C90 end:0x80108064
+	.sbss       start:0x80345638 end:0x80345640
+
 dolphin/os/OSTime.c:
 	.text       start:0x80109DDC end:0x80109E60
 
