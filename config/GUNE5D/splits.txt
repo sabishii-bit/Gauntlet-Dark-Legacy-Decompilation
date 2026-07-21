@@ -99,6 +99,10 @@ dolphin/os/OSArena.c:
 	.sdata      start:0x80344118 end:0x8034411C
 	.sbss       start:0x80345608 end:0x8034560C
 
+dolphin/os/OSContext.c:
+	.text       start:0x80105F18 end:0x80106780
+	.data       start:0x8023C338 end:0x8023C510
+
 dolphin/os/OSTime.c:
 	.text       start:0x80109DDC end:0x80109E60
 
