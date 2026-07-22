@@ -114,6 +114,13 @@ dolphin/dvd/dvdfs.c:
 	.sdata      start:0x80344098 end:0x803440A0
 	.sbss       start:0x803454F8 end:0x80345518
 
+dolphin/dvd/dvd.c:
+	.text       start:0x800F8D7C end:0x800FB130
+	.data       start:0x8023AA18 end:0x8023AB2C
+	.bss        start:0x80341040 end:0x80341118
+	.sdata      start:0x803440A0 end:0x803440A8
+	.sbss       start:0x80345518 end:0x80345560
+
 dolphin/mtx/mtx.c:
 	.text       start:0x80103BE4 end:0x80103D60
 	.sdata      start:0x80344108 end:0x80344110

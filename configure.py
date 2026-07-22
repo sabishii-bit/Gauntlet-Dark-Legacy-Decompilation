@@ -359,6 +359,7 @@ config.libs = [
         [
             Object(Matching, "dolphin/dvd/dvdlow.c"),
             Object(Matching, "dolphin/dvd/dvdfs.c"),
+            Object(Matching, "dolphin/dvd/dvd.c"),
         ],
     ),
     DolphinLib(
