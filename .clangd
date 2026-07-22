@@ -1,0 +1,45 @@
+# clangd configuration: tame diagnostics on MWCC/CodeWarrior extensions that
+# are required for matching and that clang can never fully parse.
+# (`// clang-format off` only affects the formatter, not these diagnostics.)
+
+CompileFlags:
+  Add:
+    # Parse __declspec(section "...") instead of erroring; then silence the
+    # "unknown/ignored attribute" warnings clang emits for the CW-specific
+    # 'section' argument.
+    - -fdeclspec
+    - -Wno-unknown-attributes
+    - -Wno-ignored-attributes
+    # K&R-style calls like stateCheckID2(executing) are deliberate.
+    - -Wno-deprecated-non-prototype
+
+Diagnostics:
+  Suppress:
+    # MWCC address bindings: `volatile u32 __DIRegs[] : 0xCC006000;`
+    - invalid_token_after_toplevel_declarator
+    - expected_either
+    - warn_tentative_incomplete_array
+    # MWCC cast-as-lvalue: `*((u32*)input)++ = ...;`
+    - typecheck_lvalue_casts_not_supported
+
+---
+
+# Files containing MWCC `asm` functions (asm as a function specifier is a
+# CodeWarrior extension; clang's recovery cascades into bogus type errors).
+If:
+  PathMatch:
+    - src/dolphin/base/PPCArch\.c
+    - src/dolphin/db/db\.c
+    - src/dolphin/mtx/.*
+    - src/Runtime\.PPCEABI\.H/.*
+    - src/TRK_MINNOW_DOLPHIN/.*
+
+Diagnostics:
+  Suppress:
+    - unknown_typename
+    - undeclared_var_use
+    - undeclared_var_use_suggest
+    - expected_expression
+    - expected_semi_declaration
+    - ext_implicit_function_decl
+    - implicit_function_declaration
