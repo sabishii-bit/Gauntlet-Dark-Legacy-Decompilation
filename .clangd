@@ -21,6 +21,8 @@ Diagnostics:
     - warn_tentative_incomplete_array
     # MWCC cast-as-lvalue: `*((u32*)input)++ = ...;`
     - typecheck_lvalue_casts_not_supported
+    - init_conversion_failed
+    - -Wimplicit-function-declaration
 
 ---
 
