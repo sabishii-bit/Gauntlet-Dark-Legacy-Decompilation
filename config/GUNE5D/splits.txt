@@ -102,6 +102,12 @@ dolphin/db/db.c:
 	.data       start:0x8023A720 end:0x8023A738
 	.sbss       start:0x80345488 end:0x80345490
 
+dolphin/dvd/dvdlow.c:
+	.text       start:0x800F76C0 end:0x800F8514
+	.bss        start:0x80340F58 end:0x80341028
+	.sdata      start:0x80344090 end:0x80344094
+	.sbss       start:0x803454B0 end:0x803454F8
+
 dolphin/mtx/mtx.c:
 	.text       start:0x80103BE4 end:0x80103D60
 	.sdata      start:0x80344108 end:0x80344110
