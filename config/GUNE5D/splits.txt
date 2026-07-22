@@ -220,6 +220,14 @@ dolphin/si/SISamplingRate.c:
 	.data       start:0x8023C990 end:0x8023CA23
 	.sbss       start:0x80345700 end:0x80345708
 
+dolphin/exi/EXIBios.c:
+	.text       start:0x8010EBBC end:0x80110458
+	.bss        start:0x80343A30 end:0x80343AF0
+
+dolphin/exi/EXIUart.c:
+	.text       start:0x80110458 end:0x801106D0
+	.sbss       start:0x80345708 end:0x80345718
+
 Runtime.PPCEABI.H/__mem.c:
 	.init       start:0x80005078 end:0x800051BC
 
