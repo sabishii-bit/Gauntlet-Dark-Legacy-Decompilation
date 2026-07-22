@@ -344,6 +344,13 @@ config.libs = [
         ],
     ),
     DolphinLib(
+        "pad",
+        [
+            Object(Matching, "dolphin/pad/PADClamp.c"),
+            Object(Matching, "dolphin/pad/Pad.c"),
+        ],
+    ),
+    DolphinLib(
         "os",
         [
             Object(Matching, "dolphin/os/__start.c"),

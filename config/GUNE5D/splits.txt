@@ -198,6 +198,17 @@ dolphin/os/OSTime.c:
 Runtime.PPCEABI.H/__ppc_eabi_init.c:
 	.text       start:0x80109E60 end:0x80109EF4
 
+dolphin/pad/PADClamp.c:
+	.text       start:0x80109EF4 end:0x8010A12C
+	.sdata      start:0x80344130 end:0x80344138
+
+dolphin/pad/Pad.c:
+	.text       start:0x8010A12C end:0x8010BCAC
+	.data       start:0x8023C870 end:0x8023C880
+	.bss        start:0x803437E0 end:0x80343830
+	.sdata      start:0x80344138 end:0x80344158
+	.sbss       start:0x80345670 end:0x80345698
+
 Runtime.PPCEABI.H/__mem.c:
 	.init       start:0x80005078 end:0x800051BC
 
