@@ -354,15 +354,13 @@ config.libs = [
             Object(Matching, "dolphin/db/db.c"),
         ],
     ),
-    {
-        "lib": "dvd",
-        "mw_version": "GC/1.2.5n",
-        "cflags": cflags_inline1,
-        "progress_category": "sdk",
-        "objects": [
+    DolphinLib(
+        "dvd",
+        [
             Object(Matching, "dolphin/dvd/dvdlow.c"),
+            Object(Matching, "dolphin/dvd/dvdfs.c"),
         ],
-    },
+    ),
     DolphinLib(
         "mtx",
         [
