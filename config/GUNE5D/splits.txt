@@ -94,6 +94,11 @@ Runtime.PPCEABI.H/__init_cpp_exceptions.cpp:
 	.dtors      start:0x80110700 end:0x80110708
 	.sdata      start:0x80344068 end:0x80344070
 
+dolphin/os/OS.c:
+	.text       start:0x80103ECC end:0x80104764
+	.data       start:0x8023BB30 end:0x8023BCF0
+	.sbss       start:0x803455D0 end:0x803455F0
+
 dolphin/os/OSAlarm.c:
 	.text       start:0x80104764 end:0x80104E0C
 	.sbss       start:0x803455F0 end:0x803455F8
@@ -173,6 +178,9 @@ dolphin/os/OSThread.c:
 
 dolphin/os/OSTime.c:
 	.text       start:0x80109DDC end:0x80109E60
+
+Runtime.PPCEABI.H/__ppc_eabi_init.c:
+	.text       start:0x80109E60 end:0x80109EF4
 
 Runtime.PPCEABI.H/__mem.c:
 	.init       start:0x80005078 end:0x800051BC
