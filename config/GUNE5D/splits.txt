@@ -121,6 +121,21 @@ dolphin/dvd/dvd.c:
 	.sdata      start:0x803440A0 end:0x803440A8
 	.sbss       start:0x80345518 end:0x80345560
 
+dolphin/dvd/dvdqueue.c:
+	.text       start:0x800FB130 end:0x800FB328
+	.bss        start:0x80341118 end:0x80341138
+
+dolphin/dvd/dvderror.c:
+	.text       start:0x800FB328 end:0x800FB4C0
+	.data       start:0x8023AB30 end:0x8023AB78
+
+dolphin/dvd/fstload.c:
+	.text       start:0x800FB4C0 end:0x800FB700
+	.data       start:0x8023AB78 end:0x8023ABE8
+	.bss        start:0x80341138 end:0x803411A8
+	.sdata      start:0x803440A8 end:0x803440B8
+	.sbss       start:0x80345560 end:0x80345570
+
 dolphin/mtx/mtx.c:
 	.text       start:0x80103BE4 end:0x80103D60
 	.sdata      start:0x80344108 end:0x80344110
