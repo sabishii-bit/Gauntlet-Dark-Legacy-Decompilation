@@ -14,8 +14,10 @@ typedef struct DBInterface {
     /* 0xC */ u32 exceptionReturn;
 } DBInterface;
 
-DBInterface* __DBInterface;
+// Tentative globals link in reverse declaration order (-common):
+// __DBInterface ends up at 0x80345488, DBVerbose at 0x8034548C.
 BOOL DBVerbose;
+DBInterface* __DBInterface;
 
 #define OSPhysicalToCached(paddr) ((void*)((u32)(paddr) + 0x80000000))
 #define OSCachedToPhysical(caddr) ((u32)(caddr)-0x80000000)
