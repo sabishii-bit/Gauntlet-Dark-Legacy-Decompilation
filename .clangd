@@ -43,3 +43,6 @@ Diagnostics:
     - expected_semi_declaration
     - ext_implicit_function_decl
     - implicit_function_declaration
+    # MWCC allows function-to-void* conversion in C++:
+    # `static void* const ref = __init_cpp_exceptions;`
+    - init_conversion_failed
