@@ -350,6 +350,20 @@ config.libs = [
             Object(Matching, "dolphin/pad/Pad.c"),
         ],
     ),
+    {
+        # SI is built with an inline nesting depth of 1: SIGetResponse inlines
+        # SIGetResponseRaw but keeps the nested SIGetStatus as a call.
+        "lib": "si",
+        "mw_version": "GC/1.2.5n",
+        "cflags": [
+            flag if flag != "-inline auto" else "-inline auto,level=1" for flag in cflags_base
+        ],
+        "progress_category": "sdk",
+        "objects": [
+            Object(Matching, "dolphin/si/SIBios.c"),
+            Object(Matching, "dolphin/si/SISamplingRate.c"),
+        ],
+    },
     DolphinLib(
         "os",
         [
