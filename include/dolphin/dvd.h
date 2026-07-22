@@ -97,6 +97,18 @@ DVDLowCallback DVDLowClearCallback(void);
 u32 DVDLowGetCoverStatus(void);
 void __DVDLowSetWAType(u32 type, u32 seekLoc);
 
+// dvdfs.c
+void __DVDFSInit(void);
+s32 DVDConvertPathToEntrynum(const char* pathPtr);
+BOOL DVDFastOpen(s32 entrynum, DVDFileInfo* fileInfo);
+BOOL DVDOpen(char* fileName, DVDFileInfo* fileInfo);
+BOOL DVDClose(DVDFileInfo* fileInfo);
+BOOL DVDGetCurrentDir(char* path, u32 maxlen);
+BOOL DVDChangeDir(char* dirName);
+BOOL DVDReadAsyncPrio(DVDFileInfo* fileInfo, void* addr, s32 length, s32 offset,
+                      DVDCallback callback, s32 prio);
+s32 DVDReadPrio(DVDFileInfo* fileInfo, void* addr, s32 length, s32 offset, s32 prio);
+
 // dvd.c
 BOOL DVDInit(void);
 DVDDiskID* DVDGetCurrentDiskID(void);
