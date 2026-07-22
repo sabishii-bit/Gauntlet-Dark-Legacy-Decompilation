@@ -335,6 +335,15 @@ config.libs = [
         ],
     },
     DolphinLib(
+        "mtx",
+        [
+            Object(Matching, "dolphin/mtx/mtx.c"),
+            Object(Matching, "dolphin/mtx/mtxvec.c"),
+            Object(Matching, "dolphin/mtx/mtx44.c"),
+            Object(Matching, "dolphin/mtx/vec.c"),
+        ],
+    ),
+    DolphinLib(
         "os",
         [
             Object(Matching, "dolphin/os/__start.c"),

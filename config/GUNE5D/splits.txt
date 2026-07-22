@@ -94,6 +94,22 @@ Runtime.PPCEABI.H/__init_cpp_exceptions.cpp:
 	.dtors      start:0x80110700 end:0x80110708
 	.sdata      start:0x80344068 end:0x80344070
 
+dolphin/mtx/mtx.c:
+	.text       start:0x80103BE4 end:0x80103D60
+	.sdata      start:0x80344108 end:0x80344110
+	.sdata2     start:0x803496F0 end:0x803496F8
+
+dolphin/mtx/mtxvec.c:
+	.text       start:0x80103D60 end:0x80103DB4
+
+dolphin/mtx/mtx44.c:
+	.text       start:0x80103DB4 end:0x80103E4C
+	.sdata2     start:0x803496F8 end:0x80349708
+
+dolphin/mtx/vec.c:
+	.text       start:0x80103E4C end:0x80103ECC
+	.sdata2     start:0x80349708 end:0x80349710
+
 dolphin/os/OS.c:
 	.text       start:0x80103ECC end:0x80104764
 	.data       start:0x8023BB30 end:0x8023BCF0
