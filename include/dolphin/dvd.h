@@ -110,7 +110,7 @@ BOOL DVDReadAsyncPrio(DVDFileInfo* fileInfo, void* addr, s32 length, s32 offset,
 s32 DVDReadPrio(DVDFileInfo* fileInfo, void* addr, s32 length, s32 offset, s32 prio);
 
 // dvd.c
-BOOL DVDInit(void);
+void DVDInit(void);
 DVDDiskID* DVDGetCurrentDiskID(void);
 
 #ifdef __cplusplus
