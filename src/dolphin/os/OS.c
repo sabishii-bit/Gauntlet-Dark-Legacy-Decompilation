@@ -236,8 +236,9 @@ static void OSExceptionInit(void) {
     u8* handlerStart;
     u32 handlerSize;
     __OSException exc2;
-    u32 dbIntSize;
     u8* destAddr;
+    u32 dbIntSize;
+    u8* destAddr2;
 
     opCodeAddr = (u32*)__OSEVSetNumber;
     oldOpCode = *opCodeAddr;
@@ -277,11 +278,11 @@ static void OSExceptionInit(void) {
             }
         }
 
-        destAddr = (void*)OSPhysicalToCached(*location);
-        memcpy(destAddr, handlerStart, handlerSize);
-        DCFlushRangeNoSync(destAddr, handlerSize);
+        destAddr2 = (void*)OSPhysicalToCached(*location);
+        memcpy(destAddr2, handlerStart, handlerSize);
+        DCFlushRangeNoSync(destAddr2, handlerSize);
         __sync();
-        ICInvalidateRange(destAddr, handlerSize);
+        ICInvalidateRange(destAddr2, handlerSize);
     }
     OSExceptionTable = (void*)OSPhysicalToCached(0x3000);
 
