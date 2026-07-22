@@ -284,6 +284,14 @@ cflags_trk = [
 
 config.linker_version = "GC/1.3.2"
 
+# The SI and EXI libraries are built with an inline nesting depth of 1:
+# e.g. SIGetResponse inlines SIGetResponseRaw but keeps the nested
+# SIGetStatus as a call; EXIGetID keeps EXIClearInterrupts calls inside
+# inlined __EXIAttach/EXIUnlock bodies.
+cflags_inline1 = [
+    flag if flag != "-inline auto" else "-inline auto,level=1" for flag in cflags_base
+]
+
 
 # Helper function for Dolphin libraries
 def DolphinLib(lib_name: str, objects: List[Object]) -> Dict[str, Any]:
@@ -351,17 +359,23 @@ config.libs = [
         ],
     ),
     {
-        # SI is built with an inline nesting depth of 1: SIGetResponse inlines
-        # SIGetResponseRaw but keeps the nested SIGetStatus as a call.
         "lib": "si",
         "mw_version": "GC/1.2.5n",
-        "cflags": [
-            flag if flag != "-inline auto" else "-inline auto,level=1" for flag in cflags_base
-        ],
+        "cflags": cflags_inline1,
         "progress_category": "sdk",
         "objects": [
             Object(Matching, "dolphin/si/SIBios.c"),
             Object(Matching, "dolphin/si/SISamplingRate.c"),
+        ],
+    },
+    {
+        "lib": "exi",
+        "mw_version": "GC/1.2.5n",
+        "cflags": cflags_inline1,
+        "progress_category": "sdk",
+        "objects": [
+            Object(Matching, "dolphin/exi/EXIBios.c"),
+            Object(Matching, "dolphin/exi/EXIUart.c"),
         ],
     },
     DolphinLib(
