@@ -343,6 +343,18 @@ config.libs = [
         ],
     },
     DolphinLib(
+        "base",
+        [
+            Object(Matching, "dolphin/base/PPCArch.c"),
+        ],
+    ),
+    DolphinLib(
+        "db",
+        [
+            Object(Matching, "dolphin/db/db.c"),
+        ],
+    ),
+    DolphinLib(
         "mtx",
         [
             Object(Matching, "dolphin/mtx/mtx.c"),
