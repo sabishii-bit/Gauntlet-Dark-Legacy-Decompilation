@@ -331,12 +331,14 @@ config.libs = [
             Object(Matching, "Runtime.PPCEABI.H/global_destructor_chain.c"),
             Object(Matching, "Runtime.PPCEABI.H/__init_cpp_exceptions.cpp"),
             Object(Matching, "Runtime.PPCEABI.H/runtime.c"),
+            Object(Matching, "Runtime.PPCEABI.H/__ppc_eabi_init.c"),
         ],
     },
     DolphinLib(
         "os",
         [
             Object(Matching, "dolphin/os/__start.c"),
+            Object(NonMatching, "dolphin/os/OS.c"),
             Object(Matching, "dolphin/os/OSAlarm.c"),
             Object(Matching, "dolphin/os/OSAlloc.c"),
             Object(Matching, "dolphin/os/OSArena.c"),
