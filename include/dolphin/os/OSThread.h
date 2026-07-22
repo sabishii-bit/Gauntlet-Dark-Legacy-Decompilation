@@ -60,16 +60,17 @@ struct OSThread {
     /* 0x2FC */ OSThreadLink linkActive;
     /* 0x304 */ u8* stackBase;
     /* 0x308 */ u32* stackEnd;
-};
+    /* 0x30C */ s32 error;
+}; // size 0x310
 
 void OSInitThreadQueue(OSThreadQueue* queue);
 OSThread* OSGetCurrentThread(void);
 void OSSleepThread(OSThreadQueue* queue);
 void OSWakeupThread(OSThreadQueue* queue);
-void OSDisableScheduler(void);
-void OSEnableScheduler(void);
-OSPriority __OSGetEffectivePriority(OSThread* thread);
-void __OSPromoteThread(OSThread* thread, OSPriority priority);
+long OSDisableScheduler(void);
+long OSEnableScheduler(void);
+long __OSGetEffectivePriority(OSThread* thread);
+void __OSPromoteThread(OSThread* thread, long priority);
 void __OSReschedule(void);
 
 void OSInitMutex(OSMutex* mutex);
