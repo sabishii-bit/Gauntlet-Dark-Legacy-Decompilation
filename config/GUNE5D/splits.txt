@@ -152,6 +152,10 @@ dolphin/gx/GXAttr.c:
 	.data       start:0x8023ABE8 end:0x8023AD04
 	.sdata      start:0x803440C0 end:0x803440D0
 
+dolphin/gx/GXMisc.c:
+	.text       start:0x800FDE50 end:0x800FE1F8
+	.sbss       start:0x803455A8 end:0x803455C0
+
 dolphin/mtx/mtx.c:
 	.text       start:0x80103BE4 end:0x80103D60
 	.sdata      start:0x80344108 end:0x80344110
