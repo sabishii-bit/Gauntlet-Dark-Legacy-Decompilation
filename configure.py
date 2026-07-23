@@ -343,6 +343,12 @@ config.libs = [
         ],
     },
     DolphinLib(
+        "vi",
+        [
+            Object(NonMatching, "dolphin/vi/vi.c"),
+        ],
+    ),
+    DolphinLib(
         "base",
         [
             Object(Matching, "dolphin/base/PPCArch.c"),
