@@ -94,6 +94,10 @@ Runtime.PPCEABI.H/__init_cpp_exceptions.cpp:
 	.dtors      start:0x80110700 end:0x80110708
 	.sdata      start:0x80344068 end:0x80344070
 
+dolphin/vi/vi.c:
+	.text       start:0x800EAE2C end:0x800EC738
+	.ctors      start:0x801106E8 end:0x801106EC
+
 dolphin/base/PPCArch.c:
 	.text       start:0x800EFCB0 end:0x800EFD14
 

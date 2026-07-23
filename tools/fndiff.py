@@ -46,7 +46,11 @@ def parse(objfile: Path):
             ins = BRANCH_RE.sub(r"\1\2 <tgt>", ins)
             funcs[cur].append(ins.strip())
         elif "R_PPC" in line:
-            funcs[cur].append("    " + line.strip().split(maxsplit=1)[1])
+            rel = line.strip().split(maxsplit=1)[1]
+            # dtk suffixes local symbol names with their address; strip so
+            # target "changed_80345368" pairs with our "changed"
+            rel = re.sub(r"_80[0-9A-Fa-f]{6}(?=$|\+)", "", rel)
+            funcs[cur].append("    " + rel)
     return funcs
 
 
