@@ -159,6 +159,11 @@ dolphin/gx/GXMisc.c:
 dolphin/gx/GXGeometry.c:
 	.text       start:0x800FE1F8 end:0x800FE5B0
 
+dolphin/gx/GXFrameBuf.c:
+	.text       start:0x800FE5B0 end:0x800FEDA4
+	.data       start:0x8023AD08 end:0x8023ADF8
+	.sdata2     start:0x80349698 end:0x803496A0
+
 dolphin/mtx/mtx.c:
 	.text       start:0x80103BE4 end:0x80103D60
 	.sdata      start:0x80344108 end:0x80344110
