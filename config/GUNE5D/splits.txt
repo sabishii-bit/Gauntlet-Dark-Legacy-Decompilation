@@ -136,6 +136,13 @@ dolphin/dvd/fstload.c:
 	.sdata      start:0x803440A8 end:0x803440B8
 	.sbss       start:0x80345560 end:0x80345570
 
+dolphin/gx/GXInit.c:
+	.text       start:0x800FB92C end:0x800FCA18
+	.bss        start:0x803411B8 end:0x80341730
+	.sdata      start:0x803440B8 end:0x803440BC
+	.sbss       start:0x80345578 end:0x80345588
+	.sdata2     start:0x80349678 end:0x80349698
+
 dolphin/mtx/mtx.c:
 	.text       start:0x80103BE4 end:0x80103D60
 	.sdata      start:0x80344108 end:0x80344110

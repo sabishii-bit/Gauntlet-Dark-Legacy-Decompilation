@@ -365,6 +365,18 @@ config.libs = [
             Object(Matching, "dolphin/dvd/fstload.c"),
         ],
     ),
+    {
+        # cflags_base plus the gx source dir on the include path, so the gx
+        # TUs can `#include "__gx.h"` (MWCC -nosyspath doesn't search the
+        # source file's own directory).
+        "lib": "gx",
+        "mw_version": "GC/1.2.5n",
+        "cflags": [*cflags_base, "-i src/dolphin/gx"],
+        "progress_category": "sdk",
+        "objects": [
+            Object(Matching, "dolphin/gx/GXInit.c"),
+        ],
+    },
     DolphinLib(
         "mtx",
         [
