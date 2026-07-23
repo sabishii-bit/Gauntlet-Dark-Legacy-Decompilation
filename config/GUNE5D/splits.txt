@@ -96,7 +96,9 @@ Runtime.PPCEABI.H/__init_cpp_exceptions.cpp:
 
 dolphin/vi/vi.c:
 	.text       start:0x800EAE2C end:0x800EC738
-	.ctors      start:0x801106E8 end:0x801106EC
+	.data       start:0x80238808 end:0x80238AD0
+	.bss        start:0x803290E0 end:0x80329228
+	.sbss       start:0x80345340 end:0x80345390
 
 dolphin/base/PPCArch.c:
 	.text       start:0x800EFCB0 end:0x800EFD14
