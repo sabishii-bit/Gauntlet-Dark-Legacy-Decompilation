@@ -143,6 +143,10 @@ dolphin/gx/GXInit.c:
 	.sbss       start:0x80345578 end:0x80345588
 	.sdata2     start:0x80349678 end:0x80349698
 
+dolphin/gx/GXFifo.c:
+	.text       start:0x800FCA18 end:0x800FD038
+	.sbss       start:0x80345588 end:0x803455A8
+
 dolphin/mtx/mtx.c:
 	.text       start:0x80103BE4 end:0x80103D60
 	.sdata      start:0x80344108 end:0x80344110

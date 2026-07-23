@@ -375,6 +375,7 @@ config.libs = [
         "progress_category": "sdk",
         "objects": [
             Object(Matching, "dolphin/gx/GXInit.c"),
+            Object(Matching, "dolphin/gx/GXFifo.c"),
         ],
     },
     DolphinLib(
