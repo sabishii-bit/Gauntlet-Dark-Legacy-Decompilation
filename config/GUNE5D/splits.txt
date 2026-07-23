@@ -192,6 +192,10 @@ dolphin/gx/GXTransform.c:
 	.text       start:0x80101328 end:0x801018F0
 	.sdata2     start:0x803496E0 end:0x803496F0
 
+dolphin/gx/GXPerf.c:
+	.text       start:0x801018F0 end:0x80102198
+	.data       start:0x8023AE80 end:0x8023AF6C
+
 dolphin/mtx/mtx.c:
 	.text       start:0x80103BE4 end:0x80103D60
 	.sdata      start:0x80344108 end:0x80344110
