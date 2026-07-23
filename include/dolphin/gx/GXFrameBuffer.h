@@ -33,6 +33,7 @@ extern GXRenderModeObj GXPal264IntAa;
 extern GXRenderModeObj GXPal528IntDf;
 extern GXRenderModeObj GXPal528Int;
 extern GXRenderModeObj GXPal528IntAa;
+extern GXRenderModeObj GXEurgb60Hz480IntDf;
 
 void GXAdjustForOverscan(GXRenderModeObj *rmin, GXRenderModeObj *rmout, u16 hor, u16 ver);
 void GXSetDispCopySrc(u16 left, u16 top, u16 wd, u16 ht);
