@@ -1,0 +1,163 @@
+#include "types.h"
+#include "dolphin/gx.h"
+
+#include "__gx.h"
+
+void GXSetChanAmbColor(GXChannelID chan, GXColor amb_color)
+{
+    u32 reg = 0;
+    u32 colIdx;
+    u32 alpha;
+
+    switch (chan) {
+    case GX_COLOR0:
+        alpha = gx->ambColor[0] & 0xFF;
+        SET_REG_FIELD(0x23E, reg, 8, 0, alpha);
+        SET_REG_FIELD(0x23F, reg, 8, 8, amb_color.b);
+        SET_REG_FIELD(0x240, reg, 8, 16, amb_color.g);
+        SET_REG_FIELD(0x241, reg, 8, 24, amb_color.r);
+        colIdx = 0;
+        break;
+    case GX_COLOR1:
+        alpha = gx->ambColor[1] & 0xFF;
+        SET_REG_FIELD(0x247, reg, 8, 0, alpha);
+        SET_REG_FIELD(0x248, reg, 8, 8, amb_color.b);
+        SET_REG_FIELD(0x249, reg, 8, 16, amb_color.g);
+        SET_REG_FIELD(0x24A, reg, 8, 24, amb_color.r);
+        colIdx = 1;
+        break;
+    case GX_ALPHA0:
+        reg = gx->ambColor[0];
+        SET_REG_FIELD(0x250, reg, 8, 0, amb_color.a);
+        colIdx = 0;
+        break;
+    case GX_ALPHA1:
+        reg = gx->ambColor[1];
+        SET_REG_FIELD(0x256, reg, 8, 0, amb_color.a);
+        colIdx = 1;
+        break;
+    case GX_COLOR0A0:
+        SET_REG_FIELD(0x25B, reg, 8, 0, amb_color.a);
+        SET_REG_FIELD(0x25C, reg, 8, 8, amb_color.b);
+        SET_REG_FIELD(0x25D, reg, 8, 16, amb_color.g);
+        SET_REG_FIELD(0x25E, reg, 8, 24, amb_color.r);
+        colIdx = 0;
+        break;
+    case GX_COLOR1A1:
+        SET_REG_FIELD(0x263, reg, 8, 0, amb_color.a);
+        SET_REG_FIELD(0x264, reg, 8, 8, amb_color.b);
+        SET_REG_FIELD(0x265, reg, 8, 16, amb_color.g);
+        SET_REG_FIELD(0x266, reg, 8, 24, amb_color.r);
+        colIdx = 1;
+        break;
+    default:
+        return;
+    }
+
+    GX_WRITE_XF_REG(colIdx + 10, reg);
+    gx->bpSent = 1;
+    gx->ambColor[colIdx] = reg;
+}
+
+void GXSetChanMatColor(GXChannelID chan, GXColor mat_color)
+{
+    u32 reg = 0;
+    u32 alpha;
+    u32 colIdx;
+
+    switch (chan) {
+    case GX_COLOR0:
+        alpha = gx->matColor[0] & 0xFF;
+        SET_REG_FIELD(0x28F, reg, 8, 0, alpha);
+        SET_REG_FIELD(0x290, reg, 8, 8, mat_color.b);
+        SET_REG_FIELD(0x291, reg, 8, 16, mat_color.g);
+        SET_REG_FIELD(0x292, reg, 8, 24, mat_color.r);
+        colIdx = 0;
+        break;
+    case GX_COLOR1:
+        alpha = gx->matColor[1] & 0xFF;
+        SET_REG_FIELD(0x298, reg, 8, 0, alpha);
+        SET_REG_FIELD(0x299, reg, 8, 8, mat_color.b);
+        SET_REG_FIELD(0x29A, reg, 8, 16, mat_color.g);
+        SET_REG_FIELD(0x29B, reg, 8, 24, mat_color.r);
+        colIdx = 1;
+        break;
+    case GX_ALPHA0:
+        reg = gx->matColor[0];
+        SET_REG_FIELD(0x2A1, reg, 8, 0, mat_color.a);
+        colIdx = 0;
+        break;
+    case GX_ALPHA1:
+        reg = gx->matColor[1];
+        SET_REG_FIELD(0x2A7, reg, 8, 0, mat_color.a);
+        colIdx = 1;
+        break;
+    case GX_COLOR0A0:
+        SET_REG_FIELD(0x2AC, reg, 8, 0, mat_color.a);
+        SET_REG_FIELD(0x2AD, reg, 8, 8, mat_color.b);
+        SET_REG_FIELD(0x2AE, reg, 8, 16, mat_color.g);
+        SET_REG_FIELD(0x2AF, reg, 8, 24, mat_color.r);
+        colIdx = 0;
+        break;
+    case GX_COLOR1A1:
+        SET_REG_FIELD(0x2B4, reg, 8, 0, mat_color.a);
+        SET_REG_FIELD(0x2B5, reg, 8, 8, mat_color.b);
+        SET_REG_FIELD(0x2B6, reg, 8, 16, mat_color.g);
+        SET_REG_FIELD(0x2B7, reg, 8, 24, mat_color.r);
+        colIdx = 1;
+        break;
+    default:
+        return;
+    }
+
+    GX_WRITE_XF_REG(colIdx + 12, reg);
+    gx->bpSent = 1;
+    gx->matColor[colIdx] = reg;
+}
+
+void GXSetNumChans(u8 nChans)
+{
+    SET_REG_FIELD(0x2D8, gx->genMode, 3, 4, nChans);
+    GX_WRITE_XF_REG(9, nChans);
+    gx->dirtyState |= 4;
+}
+
+void GXSetChanCtrl(GXChannelID chan, GXBool enable, GXColorSrc amb_src,
+                   GXColorSrc mat_src, u32 light_mask, GXDiffuseFn diff_fn,
+                   GXAttnFn attn_fn)
+{
+    u32 reg;
+    u32 idx;
+
+    if (chan == 4) {
+        idx = 0;
+    } else if (chan == 5) {
+        idx = 1;
+    } else {
+        idx = chan;
+    }
+
+    reg = 0;
+    SET_REG_FIELD(0x302, reg, 1, 1, enable);
+    SET_REG_FIELD(0x303, reg, 1, 0, mat_src);
+    SET_REG_FIELD(0x304, reg, 1, 6, amb_src);
+    SET_REG_FIELD(0x305, reg, 1, 2, (light_mask & GX_LIGHT0) != 0);
+    SET_REG_FIELD(0x306, reg, 1, 3, (light_mask & GX_LIGHT1) != 0);
+    SET_REG_FIELD(0x307, reg, 1, 4, (light_mask & GX_LIGHT2) != 0);
+    SET_REG_FIELD(0x308, reg, 1, 5, (light_mask & GX_LIGHT3) != 0);
+    SET_REG_FIELD(0x309, reg, 1, 11, (light_mask & GX_LIGHT4) != 0);
+    SET_REG_FIELD(0x30A, reg, 1, 12, (light_mask & GX_LIGHT5) != 0);
+    SET_REG_FIELD(0x30B, reg, 1, 13, (light_mask & GX_LIGHT6) != 0);
+    SET_REG_FIELD(0x30C, reg, 1, 14, (light_mask & GX_LIGHT7) != 0);
+    SET_REG_FIELD(0x30E, reg, 2, 7, (attn_fn == 0) ? 0 : diff_fn);
+    SET_REG_FIELD(0x30F, reg, 1, 9, (attn_fn != 2));
+    SET_REG_FIELD(0x310, reg, 1, 10, (attn_fn != 0));
+
+    GX_WRITE_XF_REG(idx + 14, reg);
+    gx->bpSent = 1;
+    if (chan == GX_COLOR0A0) {
+        GX_WRITE_XF_REG(16, reg);
+    } else if (chan == GX_COLOR1A1) {
+        GX_WRITE_XF_REG(17, reg);
+    }
+}
