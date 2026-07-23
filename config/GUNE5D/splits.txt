@@ -147,6 +147,11 @@ dolphin/gx/GXFifo.c:
 	.text       start:0x800FCA18 end:0x800FD038
 	.sbss       start:0x80345588 end:0x803455A8
 
+dolphin/gx/GXAttr.c:
+	.text       start:0x800FD038 end:0x800FDE50
+	.data       start:0x8023ABE8 end:0x8023AD04
+	.sdata      start:0x803440C0 end:0x803440D0
+
 dolphin/mtx/mtx.c:
 	.text       start:0x80103BE4 end:0x80103D60
 	.sdata      start:0x80344108 end:0x80344110
