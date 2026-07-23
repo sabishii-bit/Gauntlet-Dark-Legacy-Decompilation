@@ -188,6 +188,10 @@ dolphin/gx/GXPixel.c:
 dolphin/gx/GXStubs.c:
 	.text       start:0x80101324 end:0x80101328
 
+dolphin/gx/GXTransform.c:
+	.text       start:0x80101328 end:0x801018F0
+	.sdata2     start:0x803496E0 end:0x803496F0
+
 dolphin/mtx/mtx.c:
 	.text       start:0x80103BE4 end:0x80103D60
 	.sdata      start:0x80344108 end:0x80344110
