@@ -384,6 +384,8 @@ config.libs = [
             Object(Matching, "dolphin/gx/GXTexture.c"),
             Object(Matching, "dolphin/gx/GXBump.c"),
             Object(Matching, "dolphin/gx/GXTev.c"),
+            Object(Matching, "dolphin/gx/GXPixel.c"),
+            Object(Matching, "dolphin/gx/GXStubs.c"),
         ],
     },
     DolphinLib(
