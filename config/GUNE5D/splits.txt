@@ -176,6 +176,10 @@ dolphin/gx/GXTexture.c:
 dolphin/gx/GXBump.c:
 	.text       start:0x800FFEB8 end:0x8010028C
 
+dolphin/gx/GXTev.c:
+	.text       start:0x8010028C end:0x80100BDC
+	.data       start:0x8023AE38 end:0x8023AE60
+
 dolphin/mtx/mtx.c:
 	.text       start:0x80103BE4 end:0x80103D60
 	.sdata      start:0x80344108 end:0x80344110
