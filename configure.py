@@ -362,6 +362,7 @@ config.libs = [
         "progress_category": "game",
         "objects": [
             Object(NonMatching, "game/sndvoice.c"),
+            Object(Matching, "game/gpads.c"),
         ],
     },
     DolphinLib(
