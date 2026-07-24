@@ -355,6 +355,16 @@ config.libs = [
             Object(Matching, "dolphin/ar/arq.c"),
         ],
     ),
+    {
+        "lib": "ax",
+        "mw_version": "GC/1.2.5n",
+        "cflags": [*cflags_base, "-i src/dolphin/ax"],
+        "progress_category": "sdk",
+        "objects": [
+            Object(Matching, "dolphin/ax/AX.c"),
+            Object(Matching, "dolphin/ax/AXAlloc.c"),
+        ],
+    },
     DolphinLib(
         "base",
         [
