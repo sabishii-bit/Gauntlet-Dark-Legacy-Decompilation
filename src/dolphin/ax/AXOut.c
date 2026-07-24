@@ -1,0 +1,210 @@
+#include "types.h"
+#include "dolphin/ax.h"
+#include "dolphin/dsp.h"
+
+#include "__ax.h"
+
+typedef struct _AXPROFILE {
+    /* 0x00 */ u64 axFrameStart;
+    /* 0x08 */ u64 auxProcessingStart;
+    /* 0x10 */ u64 auxProcessingEnd;
+    /* 0x18 */ u64 userCallbackStart;
+    /* 0x20 */ u64 userCallbackEnd;
+    /* 0x28 */ u64 axFrameEnd;
+    /* 0x30 */ u32 axNumVoices;
+} AXPROFILE;
+
+s64 OSGetTime(void);
+void DCFlushRange(void* addr, u32 nBytes);
+
+typedef void (*AIDCallback)(void);
+AIDCallback AIRegisterDMACallback(AIDCallback callback);
+void AIInitDMA(u32 start_addr, u32 length);
+void AIStartDMA(void);
+
+extern u16 axDspSlave[];
+extern u16 axDspSlaveLength;
+
+u32 __AXGetNumVoices(void);
+u32 __AXGetCurrentProfile(void);
+
+static s16 __AXOutBuffer[2][320];
+static long __AXOutSBuffer[160];
+AXPROFILE __AXLocalProfile;
+DSPTaskInfo task;
+u16 ax_dram_image[8192];
+
+volatile static unsigned long __AXOutFrame;
+volatile static unsigned long __AXOutDspReady;
+volatile static long long __AXOsTime;
+static void (*__AXUserFrameCallback)();
+volatile static int __AXDSPInitFlag;
+static int __AXDSPDoneFlag;
+volatile static unsigned long __AXOutExtra;
+
+static void __AXDSPInitCallback(void* task);
+static void __AXDSPResumeCallback(void* task);
+static void __AXDSPDoneCallback(void* task);
+
+void __AXOutNewFrame(u32 lessDspCycles)
+{
+    u32 cl;
+    AXPROFILE* profile;
+    u8* src;
+    u8* dest;
+    u32 i;
+
+    __AXLocalProfile.axFrameStart = OSGetTime();
+    __AXSyncPBs(lessDspCycles);
+    __AXPrintStudio();
+    cl = __AXGetCommandListAddress();
+
+    DSPSendMailToDSP(0xBABE0180);
+    do {
+    } while (DSPCheckMailToDSP() != 0U);
+
+    DSPSendMailToDSP(cl);
+    do {
+    } while (DSPCheckMailToDSP() != 0U);
+
+    __AXServiceCallbackStack();
+    __AXLocalProfile.auxProcessingStart = OSGetTime();
+    __AXProcessAux();
+    __AXLocalProfile.auxProcessingEnd = OSGetTime();
+    __AXLocalProfile.userCallbackStart = OSGetTime();
+
+    if (__AXUserFrameCallback) {
+        __AXUserFrameCallback();
+    }
+
+    __AXLocalProfile.userCallbackEnd = OSGetTime();
+    __AXNextFrame(__AXOutSBuffer, &__AXOutBuffer[__AXOutFrame][0]);
+    __AXOutFrame += 1;
+    __AXOutFrame &= 1;
+
+    AIInitDMA((u32) &__AXOutBuffer[__AXOutFrame][0], 0x280);
+
+    __AXLocalProfile.axFrameEnd = OSGetTime();
+    __AXLocalProfile.axNumVoices = __AXGetNumVoices();
+    profile = (void*) __AXGetCurrentProfile();
+
+    if (profile) {
+        i = 56;
+        dest = (u8*) profile;
+        src = (u8*) &__AXLocalProfile;
+
+        while (i != 0) {
+            *dest = *src;
+            dest++;
+            src++;
+            i--;
+        }
+    }
+}
+
+void __AXOutAiCallback(void)
+{
+    if (__AXOutDspReady == 0) {
+        __AXOsTime = OSGetTime();
+    }
+
+    if (__AXOutDspReady == 1) {
+        __AXOutDspReady = 0;
+        __AXOutNewFrame(0);
+        return;
+    }
+
+    __AXOutDspReady = 2;
+    DSPAssertTask(&task);
+}
+
+static void __AXDSPInitCallback(void* task)
+{
+    __AXDSPInitFlag = 1;
+}
+
+static void __AXDSPResumeCallback(void* task)
+{
+    if (__AXOutDspReady == 2) {
+        __AXOutDspReady = 0;
+        __AXOutNewFrame((u32) (OSGetTime() - __AXOsTime) / 4);
+        return;
+    }
+    __AXOutDspReady = 1U;
+}
+
+static void __AXDSPDoneCallback(void* task)
+{
+    __AXDSPDoneFlag = 1;
+}
+
+void __AXOutInitDSP(void)
+{
+    task.iram_mmem_addr = axDspSlave;
+    task.iram_length = axDspSlaveLength;
+    task.iram_addr = 0;
+    task.dram_mmem_addr = ax_dram_image;
+    task.dram_length = 0x2000;
+    task.dram_addr = 0;
+    task.dsp_init_vector = 0x10;
+    task.dsp_resume_vector = 0x30;
+    task.init_cb = __AXDSPInitCallback;
+    task.res_cb = __AXDSPResumeCallback;
+    task.done_cb = __AXDSPDoneCallback;
+    task.req_cb = NULL;
+    task.priority = 0;
+    __AXDSPInitFlag = 0;
+    __AXDSPDoneFlag = 0;
+    if (DSPCheckInit() == 0) {
+        DSPInit();
+    }
+    DSPAddTask(&task);
+    do {
+    } while (__AXDSPInitFlag == 0);
+}
+
+#define BUFFER_MEMSET(buffer, size)                                           \
+    {                                                                         \
+        u32* p = (u32*) &buffer;                                              \
+        int i;                                                                \
+        for (i = 0; i < size; i++) {                                          \
+            *p = 0;                                                           \
+            p++;                                                              \
+        }                                                                     \
+    }
+
+void __AXOutInit(void)
+{
+    u32* p;
+    int i;
+
+    __AXOutFrame = 0;
+    __AXOutExtra = 0;
+
+    p = (u32*) &__AXOutBuffer;
+    for (i = 0; i < 0x140; i++) {
+        *p = 0;
+        p++;
+    }
+    DCFlushRange(__AXOutBuffer, sizeof(__AXOutBuffer));
+
+    p = (u32*) &__AXOutSBuffer;
+    for (i = 0; i < 0xA0; i++) {
+        *p = 0;
+        p++;
+    }
+    DCFlushRange(__AXOutSBuffer, sizeof(__AXOutSBuffer));
+
+    __AXOutInitDSP();
+    AIRegisterDMACallback(__AXOutAiCallback);
+    __AXNextFrame(__AXOutSBuffer, &__AXOutBuffer[1][0]);
+    __AXOutDspReady = 1;
+    __AXUserFrameCallback = NULL;
+    AIInitDMA((u32) &__AXOutBuffer[__AXOutFrame][0], sizeof(__AXOutBuffer[0]));
+    AIStartDMA();
+}
+
+void AXRegisterCallback(void (*callback)())
+{
+    __AXUserFrameCallback = callback;
+}

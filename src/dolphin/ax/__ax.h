@@ -28,11 +28,19 @@ u32 __AXGetCommandListAddress(void);
 void __AXNextFrame(void* sbuffer, void* buffer);
 extern u32 __AXClMode;
 
+/* AXOut.c */
+void __AXOutNewFrame(u32 lessDspCycles);
+void __AXOutAiCallback(void);
+void __AXOutInitDSP(void);
+
 /* AXSPB.c */
 u32 __AXGetStudio(void);
+void __AXPrintStudio(void);
+void __AXDepopVoice(AXPB* pb);
 
 /* AXVPB.c */
 void* __AXGetPBs(void);
+void __AXSyncPBs(u32 lessDspCycles);
 
 /* AXOut.c */
 void __AXOutInit(void);
