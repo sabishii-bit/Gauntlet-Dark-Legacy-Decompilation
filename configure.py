@@ -390,6 +390,7 @@ config.libs = [
         "objects": [
             Object(Matching, "zlib/adler32.c"),
             Object(Matching, "zlib/uncompr.c"),
+            Object(Matching, "zlib/zutil.c"),
         ],
     },
     {
