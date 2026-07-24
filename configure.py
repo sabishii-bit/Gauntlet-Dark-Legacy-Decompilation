@@ -379,6 +379,7 @@ config.libs = [
             Object(Matching, "game/texPalette.c"),
             Object(NonMatching, "game/gcontrolpads.c", cflags=cflags_demo),
             Object(NonMatching, "game/vsprintf.c", cflags=cflags_demo),
+            Object(NonMatching, "game/pbutils.c", cflags=cflags_demo),
         ],
     },
     {
