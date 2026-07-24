@@ -520,6 +520,8 @@ config.libs = [
             Object(Matching, "TRK_MINNOW_DOLPHIN/Portable/main_TRK.c"),
             Object(Matching, "TRK_MINNOW_DOLPHIN/ppc/Generic/flush_cache.c"),
             Object(Matching, "TRK_MINNOW_DOLPHIN/ppc/Generic/targimpl.c"),
+            Object(Matching, "TRK_MINNOW_DOLPHIN/ppc/Generic/mpc_7xx_603e.c"),
+            Object(Matching, "TRK_MINNOW_DOLPHIN/Os/dolphin/targcont.c"),
             Object(Matching, "TRK_MINNOW_DOLPHIN/Os/dolphin/dolphin_trk.c"),
             Object(Matching, "TRK_MINNOW_DOLPHIN/Os/dolphin/dolphin_trk_glue.c"),
             Object(Matching, "TRK_MINNOW_DOLPHIN/Portable/usr_put.c"),
