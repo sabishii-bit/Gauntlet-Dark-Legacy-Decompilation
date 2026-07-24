@@ -349,6 +349,12 @@ config.libs = [
         ],
     ),
     DolphinLib(
+        "ar",
+        [
+            Object(Matching, "dolphin/ar/ar.c"),
+        ],
+    ),
+    DolphinLib(
         "base",
         [
             Object(Matching, "dolphin/base/PPCArch.c"),

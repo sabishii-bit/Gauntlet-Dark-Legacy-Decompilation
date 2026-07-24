@@ -100,6 +100,10 @@ dolphin/vi/vi.c:
 	.bss        start:0x803290E0 end:0x80329228
 	.sbss       start:0x80345340 end:0x80345390
 
+dolphin/ar/ar.c:
+	.text       start:0x800EC738 end:0x800ED2BC
+	.sbss       start:0x80345390 end:0x803453B0
+
 dolphin/base/PPCArch.c:
 	.text       start:0x800EFCB0 end:0x800EFD14
 
