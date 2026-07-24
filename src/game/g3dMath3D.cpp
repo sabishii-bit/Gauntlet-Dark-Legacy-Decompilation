@@ -118,6 +118,16 @@ long mathStub3(void)
     return 0;
 }
 
+/* Dead at link (mwld strips unreferenced statics) but present at compile
+   time: orders the TU's .sdata2 literal pool the way the original's
+   stripped functions did (1.0, 0.0, -1.0 before InvBasis introduces eps). */
+static void poolOrder(vec4& v)
+{
+    v.x = 1.0f;
+    v.y = 0.0f;
+    v.z = -1.0f;
+}
+
 /* 0x800ADECC */
 void vec3Clamp(vec4& d, vec4& v, f32 lo, f32 hi)
 {
@@ -157,44 +167,46 @@ void mat44InvBasis(mat44& d, vec4& r0, vec4& r1, vec4& r2)
 {
     vec4 t;
     mat44 w;
+    u8 pad[8]; /* unused, matches original frame */
     int i, j;
+    f32 neg = -1.0f;
 
-    t.x = r0.x * -1.0f;
-    t.y = r0.y * -1.0f;
-    t.z = r0.z * -1.0f;
-    t.w = r0.w * -1.0f;
-    if (t.z * t.z + t.x * t.x + t.y * t.y < 0.00000000000001f) {
+    t.x = r0.x * neg;
+    t.y = r0.y * neg;
+    t.z = r0.z * neg;
+    t.w = r0.w * neg;
+    if (t.x * t.x + t.y * t.y + t.z * t.z >= 0.00000000000001f) {
+        PSVECNormalize((Vec*) &t, (Vec*) w.m[0]);
+    } else {
         w.m[0][2] = 0.0f;
         w.m[0][1] = 0.0f;
         w.m[0][0] = 0.0f;
-    } else {
-        PSVECNormalize((Vec*) &t, (Vec*) w.m[0]);
     }
     w.m[0][3] = t.w;
 
-    t.x = r1.x * -1.0f;
-    t.y = r1.y * -1.0f;
-    t.z = r1.z * -1.0f;
-    t.w = r1.w * -1.0f;
-    if (t.z * t.z + t.x * t.x + t.y * t.y < 0.00000000000001f) {
+    t.x = r1.x * neg;
+    t.y = r1.y * neg;
+    t.z = r1.z * neg;
+    t.w = r1.w * neg;
+    if (t.x * t.x + t.y * t.y + t.z * t.z >= 0.00000000000001f) {
+        PSVECNormalize((Vec*) &t, (Vec*) w.m[1]);
+    } else {
         w.m[1][2] = 0.0f;
         w.m[1][1] = 0.0f;
         w.m[1][0] = 0.0f;
-    } else {
-        PSVECNormalize((Vec*) &t, (Vec*) w.m[1]);
     }
     w.m[1][3] = t.w;
 
-    t.x = r2.x * -1.0f;
-    t.y = r2.y * -1.0f;
-    t.z = r2.z * -1.0f;
-    t.w = r2.w * -1.0f;
-    if (t.z * t.z + t.x * t.x + t.y * t.y < 0.00000000000001f) {
+    t.x = r2.x * neg;
+    t.y = r2.y * neg;
+    t.z = r2.z * neg;
+    t.w = r2.w * neg;
+    if (t.x * t.x + t.y * t.y + t.z * t.z >= 0.00000000000001f) {
+        PSVECNormalize((Vec*) &t, (Vec*) w.m[2]);
+    } else {
         w.m[2][2] = 0.0f;
         w.m[2][1] = 0.0f;
         w.m[2][0] = 0.0f;
-    } else {
-        PSVECNormalize((Vec*) &t, (Vec*) w.m[2]);
     }
     w.m[2][3] = t.w;
 
@@ -203,6 +215,9 @@ void mat44InvBasis(mat44& d, vec4& r0, vec4& r1, vec4& r2)
     w.m[3][0] = 0.0f;
     w.m[3][3] = 1.0f;
 
+    /* NOTE: near-match residual (16 normalized lines) -- the original
+       materializes &w twice across the transpose loops where ours CSEs one
+       copy; pure register-web coloring, semantically identical. */
     for (i = 0; i < 4; i++) {
         d.m[i][i] = w.m[i][i];
         for (j = i + 1; j < 4; j++) {
@@ -216,10 +231,12 @@ void mat44InvBasis(mat44& d, vec4& r0, vec4& r1, vec4& r2)
 /* 0x800AE244 */
 void mat44LookAt(mat44& m, vec4& p, vec4& zd, vec4& yd)
 {
-    mat44 t;
     mat44 w;
+    u8 pad0[0x40]; /* unused, matches original frame */
     vec4 vc;
-    vec4 vz;
+    mat44 t;
+    u8 pad1[0x20]; /* unused, matches original frame */
+    f32 sum;
 
     memset(&w, 0, 0x40);
     w.m[3][3] = 1.0f;
@@ -228,8 +245,8 @@ void mat44LookAt(mat44& m, vec4& p, vec4& zd, vec4& yd)
     w.m[0][0] = 1.0f;
     sceSamp0OuterProduct((f32*) &vc, (f32*) &yd, (f32*) &zd);
     sceSamp0Normalize(w.m[0], (f32*) &vc);
-    sceSamp0Normalize((f32*) &vz, (f32*) &zd);
-    sceSamp0OuterProduct(w.m[1], (f32*) &vz, w.m[0]);
+    sceSamp0Normalize(w.m[2], (f32*) &zd);
+    sceSamp0OuterProduct(w.m[1], w.m[2], w.m[0]);
     PSMTXCopy((MtxPtr) &w, (MtxPtr) &w);
     memcpy(w.m[3], w.m[3], 0x10);
     w.m[3][0] += p.x;
@@ -238,9 +255,12 @@ void mat44LookAt(mat44& m, vec4& p, vec4& zd, vec4& yd)
     w.m[3][3] += p.w;
     sceSamp0CopyMatrix((f32*) &t, (f32*) &w);
     sceSamp0TransposeMatrix((f32*) &m, (f32*) &w);
-    m.m[3][0] = -(w.m[3][0] * t.m[0][0] + w.m[3][1] * t.m[0][1] + w.m[3][2] * t.m[0][2]);
-    m.m[3][1] = -(w.m[3][0] * t.m[1][0] + w.m[3][1] * t.m[1][1] + w.m[3][2] * t.m[1][2]);
-    m.m[3][2] = -(w.m[3][0] * t.m[2][0] + w.m[3][1] * t.m[2][1] + w.m[3][2] * t.m[2][2]);
+    sum = t.m[3][0] * t.m[0][0] + t.m[3][1] * t.m[0][1] + t.m[3][2] * t.m[0][2];
+    m.m[3][0] = -sum;
+    sum = t.m[3][0] * t.m[1][0] + t.m[3][1] * t.m[1][1] + t.m[3][2] * t.m[1][2];
+    m.m[3][1] = -sum;
+    sum = t.m[3][0] * t.m[2][0] + t.m[3][1] * t.m[2][1] + t.m[3][2] * t.m[2][2];
+    m.m[3][2] = -sum;
     m.m[2][3] = 0.0f;
     m.m[1][3] = 0.0f;
     m.m[0][3] = 0.0f;
@@ -251,12 +271,17 @@ void mat44LookAt(mat44& m, vec4& p, vec4& zd, vec4& yd)
 void mat44InvRigid(mat44& d, mat44& s)
 {
     mat44 t;
+    u8 pad[0xA0]; /* unused, matches original frame */
+    f32 sum;
 
     sceSamp0CopyMatrix((f32*) &t, (f32*) &s);
     sceSamp0TransposeMatrix((f32*) &d, (f32*) &s);
-    d.m[3][0] = -(t.m[3][0] * t.m[0][0] + t.m[3][1] * t.m[0][1] + t.m[3][2] * t.m[0][2]);
-    d.m[3][1] = -(t.m[3][0] * t.m[1][0] + t.m[3][1] * t.m[1][1] + t.m[3][2] * t.m[1][2]);
-    d.m[3][2] = -(t.m[3][0] * t.m[2][0] + t.m[3][1] * t.m[2][1] + t.m[3][2] * t.m[2][2]);
+    sum = t.m[3][0] * t.m[0][0] + t.m[3][1] * t.m[0][1] + t.m[3][2] * t.m[0][2];
+    d.m[3][0] = -sum;
+    sum = t.m[3][0] * t.m[1][0] + t.m[3][1] * t.m[1][1] + t.m[3][2] * t.m[1][2];
+    d.m[3][1] = -sum;
+    sum = t.m[3][0] * t.m[2][0] + t.m[3][1] * t.m[2][1] + t.m[3][2] * t.m[2][2];
+    d.m[3][2] = -sum;
     d.m[2][3] = 0.0f;
     d.m[1][3] = 0.0f;
     d.m[0][3] = 0.0f;
@@ -276,8 +301,8 @@ void mat44Mult(mat44& d, mat44& a, mat44& b)
     memcpy(t.m[3], b.m[3], 0x10);
     for (i = 0; i < 4; i++) {
         for (j = 0; j < 4; j++) {
-            d.m[i][j] = a.m[j][0] * t.m[i][0] + a.m[j][1] * t.m[i][1] + a.m[j][2] * t.m[i][2] +
-                        a.m[j][3] * t.m[i][3];
+            d.m[i][j] = a.m[0][j] * t.m[i][0] + a.m[1][j] * t.m[i][1] + a.m[2][j] * t.m[i][2] +
+                        a.m[3][j] * t.m[i][3];
         }
     }
 }
@@ -285,8 +310,9 @@ void mat44Mult(mat44& d, mat44& a, mat44& b)
 /* 0x800AE580 */
 void vec4ApplyTransBody(vec4& d, mat44& m, vec3& v)
 {
+    u8 pad0[8]; /* unused, matches original frame */
     vec3 t;
-    u8 pad[0x58]; /* unused, matches original frame */
+    u8 pad1[0x50]; /* unused, matches original frame */
 
     memcpy(&t, &v, 0xC);
     d.x = m.m[0][0] * t.x + m.m[1][0] * t.y + m.m[2][0] * t.z + m.m[3][0];
