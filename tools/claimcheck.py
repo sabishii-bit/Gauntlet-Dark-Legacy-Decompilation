@@ -121,8 +121,7 @@ def main():
     claims = parse_splits()
     problems = 0
     for u in units:
-        u = re.sub(r"\.(c|cpp)$", "", u.replace("\\", "/"))
-        problems += check_unit(u, claims)
+        problems += check_unit(u.replace("\\", "/"), claims)
     return 1 if problems else 0
 
 

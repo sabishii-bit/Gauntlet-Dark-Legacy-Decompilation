@@ -36,8 +36,9 @@ def run(cmd, **kw):
 def flip(unit_c: str) -> bool:
     cfg = REPO / "configure.py"
     text = cfg.read_text(encoding="utf-8")
-    non = f'Object(NonMatching, "{unit_c}")'
-    mat = f'Object(Matching, "{unit_c}")'
+    # Object("...unit...") may carry extra kwargs (cflags=, mw_version=)
+    non = f'Object(NonMatching, "{unit_c}"'
+    mat = f'Object(Matching, "{unit_c}"'
     if non in text:
         cfg.write_text(text.replace(non, mat), encoding="utf-8", newline="\n")
         print(f"flipped {unit_c} -> Matching")
@@ -65,8 +66,7 @@ def main():
         if not unit_c.endswith((".c", ".cpp")):
             unit_c += ".c"
 
-        unit = re.sub(r"\.(c|cpp)$", "", unit_c)
-        r = run([PY, "tools/claimcheck.py", unit])
+        r = run([PY, "tools/claimcheck.py", unit_c])
         if r.returncode:
             print("BLOCKED: fix section claims before flipping (see above)")
             return 1
