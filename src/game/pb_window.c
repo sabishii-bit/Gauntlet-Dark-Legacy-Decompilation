@@ -19,13 +19,19 @@ void mat44Mult__FR5mat44R5mat44R5mat44(void* d, void* a, void* b);
 #define mat44LookAt mat44LookAt__FR5mat44R4vec4R4vec4R4vec4
 #define mat44InvRigid mat44InvRigid__FR5mat44R5mat44
 #define mat44Mult mat44Mult__FR5mat44R5mat44R5mat44
-double atan(double x);
-double atan2(double y, double x);
-double sin(double x);
-double cos(double x);
+float atan(float x);
+float atan2(float y, float x);
+float sin(float x);
+float cos(float x);
 void ErrorPrintf(const char* fmt, ...);
 void __as__4vec4FRC4vec4(void* d, const void* s);   /* vec4::operator= */
+void __as__4vec3FRC4vec3(void* d, const void* s);   /* vec3::operator= */
 void __as__5mat44FRC5mat44(void* d, const void* s); /* mat44::operator= */
+void vec3Scale__FR4vec3R4vec3f(void* d, void* v, f32 s);
+void OSReport(const char* fmt, ...); /* placeholder: real callee fn_800BC2EC */
+void pbDebugPrintf(const char* fmt, ...);
+
+
 
 typedef struct PBWINDOW {
     u16 flags;                /* 0x000 */
@@ -90,6 +96,51 @@ typedef struct MTXPACKET2 {
 
 extern f32 gClip2NpcDefault[4]; /* DAT_801284f8 */
 
+/* positional light node */
+typedef struct PBLIGHT {
+    f32 color[4];          /* 0x00 (scaled by 128 into the packet) */
+    f32 pos[4];            /* 0x10 */
+    f32 radius;            /* 0x20 */
+    f32 intensity;         /* 0x24 */
+    struct PBLIGHT* next;  /* 0x28 */
+} PBLIGHT;
+
+typedef struct PBLIGHTPKT {
+    f32 pos[3];    /* 0x00 */
+    f32 invR2;     /* 0x0C */
+    f32 color[3];  /* 0x10 */
+    f32 intensity; /* 0x1C */
+} PBLIGHTPKT; /* 0x20 */
+
+typedef struct PBLIGHTBLOCK {
+    u8 unk0[0x98];
+    f32 ambient;        /* 0x98 */
+    s32 dirCount;       /* 0x9C */
+    s32 posCount;       /* 0xA0 */
+    f32 ambientRow[4];  /* 0xA4 */
+    PBLIGHT* posHead;   /* 0xB4 */
+    u8 unkB8[4];        /* 0xB8 */
+    u8 dirBase[0x20];   /* 0xBC (dir nodes, stride 0x20, vec at +0x10) */
+    PBLIGHTPKT pkt[12]; /* 0xDC */
+    f32 radius[12];     /* 0x25C */
+} PBLIGHTBLOCK;
+
+extern int gPbDebugCam;      /* DAT_80345158 */
+extern int gPbDebugCamTimer; /* DAT_8034515c */
+extern int gWinDebug[];      /* DAT_80343fb8 (PBWINDEBUG image) */
+typedef struct PBSCREEN {
+    u32 flags;   /* 0x00 */
+    u8 pad[0x1C];
+    s32 w;       /* 0x20 */
+    s32 h;       /* 0x24 */
+    u8 pad2[8];
+    s32 w2;      /* 0x30 */
+    s32 h2;      /* 0x34 */
+    f32 xoff;    /* 0x38 */
+    f32 yoff;    /* 0x3C */
+    s32 dirty;   /* 0x40 */
+} PBSCREEN;
+
 typedef struct PBWINLIST {
     PBWINDOW* windows; /* 0x0 */
     int count;         /* 0x4 */
@@ -121,7 +172,7 @@ extern f32 gUpVector[];             /* DAT_802c9b88's up? placeholder */
 void pbCloseWindow(void);
 void pbSetDefaultWindow(void);
 void pbUpdateMatricies(void);
-void debugScissor(int packet);
+static void debugScissor(u32* packet);
 void pbProjCalc(void);
 void pbWinSetup(void);
 void pbCameraUpdate(void);
@@ -175,9 +226,41 @@ void pbUpdateMatricies(void)
     mat44Mult(w->world_clip, w->clipport, w->world_npc);
 }
 
-/* 0x800C838C: TODO (debug scissor packet writer) */
-void debugScissor(int packet)
+/* 0x800C838C: debug window scissor override */
+static void debugScissor(u32* packet)
 {
+    u32 x0, x1, y0, y1;
+    u32 v;
+
+    if (gWinDebug[0] != 0) {
+        if (gWinDebug[2] == 0) {
+            f32 scale = *(f32*) &gWinDebug[3];
+            if ((double) scale != 0.0f) {
+                if (gWinDebug[0] != 0) {
+                    f32 t = (f32) (0.5 * (1.0 - (double) scale));
+                    if (0.0 != (double) scale) {
+                        PBSCREEN* sc = (PBSCREEN*) gWinGlobals->screen;
+                        f32 w = (f32) sc->w;
+                        f32 h = (f32) sc->h;
+                        x0 = (u32) (w * t);
+                        x1 = (int) (w * (1.0f - t));
+                        y0 = (u32) (h * t);
+                        y1 = (int) (h * (1.0f - t));
+                    }
+                }
+            }
+        } else {
+            x0 = 0;
+            y0 = 0;
+            x1 = ((PBSCREEN*) gWinGlobals->screen)->w;
+            y1 = ((PBSCREEN*) gWinGlobals->screen)->h;
+        }
+        v = x0 | (x1 << 0x10);
+        packet[0x70] = v;
+        packet[0x71] = y0 | (y1 << 0x10);
+        packet[0x74] = v;
+        packet[0x75] = y0 | (y1 << 0x10);
+    }
 }
 
 /* 0x800C84CC: TODO (projection/viewport/clipport calculator) */
@@ -193,9 +276,63 @@ void pbWinSetup(void)
 /* 0x800C92B8 handled below as setupMatrices */
 static void setupMatrices(MTXPACKET2* p0, MTXPACKET* p1, MTXPACKET* p2);
 
-/* 0x800C9448: TODO (pos lights + camera pitch/yaw update) */
+/* 0x800C9448: positional light packets + camera pitch/yaw */
 void pbCameraUpdate(void)
 {
+    PBWINGLOBALS* g = gWinGlobals;
+    int ri;
+    int pi;
+    PBLIGHT* l;
+    PBLIGHTPKT* pk;
+    int count;
+    f32 one;
+    f32 fz, fx;
+    u8 pad0[4]; /* unused, matches original frame */
+    volatile float y;
+    u8 pad1[0xC]; /* unused, matches original frame */
+
+    count = 0;
+    ri = 0;
+    pi = 0;
+    one = 1.0f;
+    for (l = ((PBLIGHTBLOCK*) g->lights)->posHead; l != 0; l = l->next) {
+        pk = (PBLIGHTPKT*) ((u8*) g->lights + pi + 0xDC);
+        __as__4vec3FRC4vec3(pk->pos, l->pos);
+        vec3Scale__FR4vec3R4vec3f(pk->color, l->color, 128.0f);
+        pk->invR2 = one / (l->radius * l->radius);
+        pk->intensity = l->intensity * ((PBLIGHTBLOCK*) g->lights)->ambient;
+        *(f32*) ((u8*) g->lights + ri + 0x25C) = l->radius;
+        count++;
+        ri += 4;
+        pi += 0x20;
+    }
+    ((PBLIGHTBLOCK*) g->lights)->posCount = count;
+
+    fx = g->current->cam_look[0];
+    fz = g->current->cam_look[2];
+    fx = fx * fx;
+    fz = fz * fz;
+    one = fx + fz;
+    if (one > 0.0f) {
+        double gg = __frsqrte((double) one);
+        gg = 0.5 * gg * (3.0 - gg * gg * one);
+        gg = 0.5 * gg * (3.0 - gg * gg * one);
+        gg = 0.5 * gg * (3.0 - gg * gg * one);
+        y = (float) (one * (0.5 * gg * (3.0 - gg * gg * one)));
+        one = y;
+    }
+    g->current->cam_pitch = atan(g->current->cam_look[1] / one);
+    g->current->cam_yaw = atan2(g->current->cam_look[0], g->current->cam_look[2]);
+    g->current->cam_pitch = (f32) (0.31830988614222805 * (double) g->current->cam_pitch);
+    g->current->cam_yaw = (f32) (0.15915494307111402 * (double) g->current->cam_yaw);
+    if (gPbDebugCam != 0) {
+        gPbDebugCamTimer = gPbDebugCamTimer + 1;
+        if (gPbDebugCamTimer > 0x14) {
+            gPbDebugCamTimer = 0;
+            pbDebugPrintf("___ cam pitch yaw ___ %4.2Lf  %4.2Lf\n",
+                          (double) g->current->cam_pitch, (double) g->current->cam_yaw);
+        }
+    }
 }
 
 /* 0x800C9638 */
