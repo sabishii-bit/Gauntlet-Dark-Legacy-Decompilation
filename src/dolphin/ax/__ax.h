@@ -23,7 +23,16 @@ void __AXProcessAux(void);
 
 /* AXCL.c */
 void __AXClInit(void);
+u32 __AXGetCommandListCycles(void);
+u32 __AXGetCommandListAddress(void);
+void __AXNextFrame(void* sbuffer, void* buffer);
 extern u32 __AXClMode;
+
+/* AXSPB.c */
+u32 __AXGetStudio(void);
+
+/* AXVPB.c */
+void* __AXGetPBs(void);
 
 /* AXOut.c */
 void __AXOutInit(void);
