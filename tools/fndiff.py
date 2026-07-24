@@ -7,6 +7,13 @@ Usage:
   python tools/fndiff.py dolphin/dvd/dvd.c              # all mismatching functions
   python tools/fndiff.py dolphin/dvd/dvd.c DVDInit      # specific function(s)
   python tools/fndiff.py dolphin/si/SIBios.c -l         # just list match status
+  python tools/fndiff.py zlib/infblock.c --ops          # opcode-cluster view
+
+--ops collapses each function to its opcode stream (registers, operands and
+relocs ignored) and prints only the structurally inserted/deleted/replaced
+clusters. Use it to separate real shape differences (missing statements,
+moved blocks, extra calls) from register-renumber noise -- this view is what
+located infblock's missing t<19 clamp and stripped error-path frees.
 
 Run from the repo root after `ninja build/GUNE5D/src/<unit>.o`.
 """
@@ -54,9 +61,26 @@ def parse(objfile: Path):
     return funcs
 
 
+def opcodes(lines):
+    """Instruction lines only (no relocs), reduced to the mnemonic."""
+    return [ln.split()[0] for ln in lines if ln and not ln.startswith("    ")]
+
+
+def ops_diff(name, t, b):
+    to, bo = opcodes(t), opcodes(b)
+    sm = difflib.SequenceMatcher(None, to, bo, autojunk=False)
+    clusters = [x for x in sm.get_opcodes() if x[0] != "equal"]
+    print(f"==== {name}: target {len(to)} insns, ours {len(bo)}"
+          + (" (opcode streams identical -- diffs are register/reloc only)"
+             if not clusters else ""))
+    for tag, i1, i2, j1, j2 in clusters:
+        print(f"  {tag:7} T[{i1}:{i2}]={to[i1:i2]}  O[{j1}:{j2}]={bo[j1:j2]}")
+
+
 def main():
-    args = [a for a in sys.argv[1:] if a != "-l"]
+    args = [a for a in sys.argv[1:] if a not in ("-l", "--ops")]
     list_only = "-l" in sys.argv
+    ops_only = "--ops" in sys.argv
     if not args:
         print(__doc__)
         return 1
@@ -88,6 +112,9 @@ def main():
             continue
         if list_only:
             print(f"DIFF {name}")
+            continue
+        if ops_only:
+            ops_diff(name, t, b)
             continue
         print("=" * 20, name)
         for line in difflib.unified_diff(t, b, "target", "base", lineterm="", n=2):
