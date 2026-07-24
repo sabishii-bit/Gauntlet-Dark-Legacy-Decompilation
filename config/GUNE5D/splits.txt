@@ -22,6 +22,7 @@ zlib/infcodes.c:
 	extabindex  start:0x8000B9B0 end:0x8000B9D4
 	.text       start:0x800B05A4 end:0x800B0F70
 	.rodata     start:0x80115AE8 end:0x80115B20
+	.data       start:0x801278E8 end:0x80127910
 
 zlib/inffast.c:
 	.text       start:0x800B0F70 end:0x800B135C
