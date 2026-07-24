@@ -12,6 +12,11 @@ Sections:
 	.sbss       type:bss align:8
 	.sdata2     type:rodata align:16
 
+zlib/zutil.c:
+	extab       start:0x80007618 end:0x80007620
+	extabindex  start:0x8000B974 end:0x8000B980
+	.text       start:0x800AF574 end:0x800AF59C
+
 game/pbutils.c:
 	extab       start:0x80007D60 end:0x80007D80
 	extabindex  start:0x8000C460 end:0x8000C490
