@@ -12,6 +12,16 @@ Sections:
 	.sbss       type:bss align:8
 	.sdata2     type:rodata align:16
 
+dolphin/demo/DEMOInit.c:
+	extab       start:0x80007DF8 end:0x80007E20
+	extabindex  start:0x8000C544 end:0x8000C580
+	.text       start:0x800CB600 end:0x800CBC4C
+	.rodata     start:0x80116BD8 end:0x80116D70
+	.bss        start:0x802C9C08 end:0x802C9C48
+	.sdata      start:0x80343FC0 end:0x80343FC8
+	.sbss       start:0x80345168 end:0x80345188
+	.sdata2     start:0x80349100 end:0x80349120
+
 TRK_MINNOW_DOLPHIN/Portable/mainloop.c:
 	.text       start:0x800DE928 end:0x800DEA90
 

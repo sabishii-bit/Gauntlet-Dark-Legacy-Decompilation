@@ -240,6 +240,17 @@ cflags_runtime = [
     "-inline auto",
 ]
 
+# Dolphin demo library (DEMOInit.c): base flags but without peephole
+# (keeps stmw prologues; a trailing -O4 would not clear the ,p), with
+# readonly strings (large strings -> .rodata, <=8-byte -> .sdata2), and
+# with C++ exceptions on (the DOL carries extab/extabindex entries for
+# this TU's functions).
+cflags_demo = [
+    *[("-O4" if flag == "-O4,p" else flag) for flag in cflags_base],
+    "-Cpp_exceptions on",
+    "-str reuse,readonly",
+]
+
 # REL flags
 cflags_rel = [
     *cflags_base,
@@ -366,6 +377,15 @@ config.libs = [
             Object(NonMatching, "game/registry.c"),
             Object(Matching, "game/gutil.c"),
             Object(Matching, "game/texPalette.c"),
+        ],
+    },
+    {
+        "lib": "demo",
+        "mw_version": "GC/1.2.5n",
+        "cflags": cflags_demo,
+        "progress_category": "game",
+        "objects": [
+            Object(Matching, "dolphin/demo/DEMOInit.c"),
         ],
     },
     DolphinLib(
