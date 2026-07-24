@@ -1,9 +1,9 @@
 #include "types.h"
 #include "dolphin/pad.h"
 
-/* GameCube control-pad query layer (Xbox counterpart: gcontrolpads.obj /
- * gcontrolpadmanager: GetActivePadCount, GetAnalogInput, ButtonIsPressed,
- * SetRumble). Names are provisional. */
+/* GameCube control-pad query layer. Function names are the real ones from
+ * the Xbox build's gcontrolpads.obj (shell3D.pdb); on Xbox these are thin C
+ * wrappers over gcontrolpadmanager, on GameCube they are the implementation. */
 
 typedef struct GPADMANAGER {
     /* 0x00 */ int count;
@@ -17,11 +17,11 @@ extern GPADMANAGER gPadManager;
 PADStatus* G3DGetPadStatusBuffer(void);
 void G3DAnalogToStickXY(f32* x, f32* y, int rawX, int rawY);
 
-void G3DSetPadRumble(int pad, int rumble)
+void G3DSetRumble(int pad, int rumble)
 {
 }
 
-void G3DGetPadStickXY(f32* x, f32* y, int pad, int stick)
+void G3DGetControlPadAnalogStick(f32* x, f32* y, int pad, int stick)
 {
     PADStatus* s = &gPadManager.status[gPadManager.map[pad]];
 
@@ -32,7 +32,7 @@ void G3DGetPadStickXY(f32* x, f32* y, int pad, int stick)
     }
 }
 
-f32 G3DGetPadAnalogInput(int pad, int axis)
+f32 G3DGetControlPadAnalog(int pad, int axis)
 {
     PADStatus* s = &gPadManager.status[gPadManager.map[pad]];
     f32 v;
@@ -95,7 +95,7 @@ f32 G3DGetPadAnalogInput(int pad, int axis)
     return v;
 }
 
-int G3DPadButtonIsPressed(int pad, int button)
+int G3DControlPadButtonPressed(int pad, int button)
 {
     PADStatus* s = &gPadManager.status[gPadManager.map[pad]];
 
@@ -232,7 +232,7 @@ int G3DGetActivePadCount(void)
     return gPadManager.count;
 }
 
-int G3DPadIsActive(int pad)
+int G3DIsPadEnabled(int pad)
 {
     if (pad < gPadManager.count) {
         goto active;
