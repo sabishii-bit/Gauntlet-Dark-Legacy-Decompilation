@@ -395,6 +395,7 @@ config.libs = [
             Object(Matching, "zlib/inffast.c"),
             Object(Matching, "zlib/infcodes.c"),
             Object(Matching, "zlib/infblock.c"),
+            Object(Matching, "zlib/inflate.c"),
             Object(Matching, "zlib/inftrees.c"),
         ],
     },

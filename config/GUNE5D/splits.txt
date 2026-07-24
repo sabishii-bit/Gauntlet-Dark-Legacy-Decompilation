@@ -35,6 +35,14 @@ zlib/inffast.c:
 	.text       start:0x800B0F70 end:0x800B135C
 	.rodata     start:0x80115B20 end:0x80115B58
 
+zlib/inflate.c:
+	extab       start:0x80007658 end:0x80007678
+	extabindex  start:0x8000B9D4 end:0x8000BA04
+	.text       start:0x800B135C end:0x800B1C08
+	.rodata     start:0x80115B58 end:0x80115BC8
+	.data       start:0x80127910 end:0x80127948
+	.sdata2     start:0x80348A78 end:0x80348A80
+
 zlib/inftrees.c:
 	extab       start:0x80007678 end:0x800076A0
 	extabindex  start:0x8000BA04 end:0x8000BA40
