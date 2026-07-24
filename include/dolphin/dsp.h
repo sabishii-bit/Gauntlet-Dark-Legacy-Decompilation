@@ -32,7 +32,6 @@ u32 DSPCheckMailFromDSP(void);
 u32 DSPReadCPUToDSPMbox(void);
 u32 DSPReadMailFromDSP(void);
 void DSPSendMailToDSP(u32 mail);
-void DSPAssertInt(void);
 void DSPInit(void);
 int DSPCheckInit(void);
 void DSPReset(void);
