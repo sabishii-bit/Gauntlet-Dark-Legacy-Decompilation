@@ -680,7 +680,7 @@ int vsprintf(char* str, const char* fmt, va_list ap)
                     } while (_ulong);
                     break;
                 default:
-                    t = (char*) "bug in vsprintf: bad base.";
+                    t = (char*) "bug in vsprintf: bad base";
                     size = strlen(t);
                     goto emit;
                 }
