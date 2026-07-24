@@ -121,6 +121,11 @@ dolphin/ax/AXAux.c:
 	.bss        start:0x80329340 end:0x8032C040
 	.sbss       start:0x803453E0 end:0x80345410
 
+dolphin/ax/AXCL.c:
+	.text       start:0x800EDD30 end:0x800EE1A0
+	.bss        start:0x8032C040 end:0x8032C640
+	.sbss       start:0x80345410 end:0x80345420
+
 dolphin/base/PPCArch.c:
 	.text       start:0x800EFCB0 end:0x800EFD14
 
