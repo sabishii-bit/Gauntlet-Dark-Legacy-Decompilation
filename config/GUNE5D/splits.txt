@@ -376,6 +376,10 @@ dolphin/pad/Pad.c:
 	.sdata      start:0x80344138 end:0x80344158
 	.sbss       start:0x80345670 end:0x80345698
 
+dolphin/ai/ai.c:
+	.text       start:0x8010C074 end:0x8010C91C
+	.sbss       start:0x80345698 end:0x803456D8
+
 dolphin/si/SIBios.c:
 	.text       start:0x8010D3D4 end:0x8010EAB4
 	.data       start:0x8023C8C0 end:0x8023C990
