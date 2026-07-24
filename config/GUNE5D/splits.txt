@@ -108,6 +108,14 @@ dolphin/ar/arq.c:
 	.text       start:0x800ED2BC end:0x800ED650
 	.sbss       start:0x803453B0 end:0x803453D8
 
+dolphin/ax/AX.c:
+	.text       start:0x800ED650 end:0x800ED684
+
+dolphin/ax/AXAlloc.c:
+	.text       start:0x800ED684 end:0x800EDA24
+	.bss        start:0x80329228 end:0x80329328
+	.sbss       start:0x803453D8 end:0x803453E0
+
 dolphin/base/PPCArch.c:
 	.text       start:0x800EFCB0 end:0x800EFD14
 
