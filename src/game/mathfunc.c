@@ -24,10 +24,10 @@ void sceSamp0RotCameraMatrix(SAMPMATRIX m, SAMPVECTOR p, SAMPVECTOR zd, SAMPVECT
     Mtx w;
     SAMPVECTOR vc;
     SAMPVECTOR vx;
-    SAMPVECTOR vz;
     SAMPVECTOR vy;
-    Mtx t;
+    SAMPVECTOR vz;
     u8 pad1[0x18]; /* unused, matches original frame */
+    Mtx t;
 
     PSMTXIdentity(MTX(w));
 
@@ -38,6 +38,10 @@ void sceSamp0RotCameraMatrix(SAMPMATRIX m, SAMPVECTOR p, SAMPVECTOR zd, SAMPVECT
     } else {
         vx[0] = vx[1] = vx[2] = 0.0f;
     }
+    /* NOTE: near-match residual -- the original schedules these column
+       stores pipelined with the next length computation via an f1/f0/f1
+       temp rotation; ours picks f0 for the third pair (39 lines of pure
+       register-rotation cascade, semantically identical). */
     w[0][0] = vx[0];
     w[1][0] = vx[1];
     w[2][0] = vx[2];
