@@ -19,6 +19,8 @@ double atan2(double y, double x);
 double sin(double x);
 double cos(double x);
 void ErrorPrintf(const char* fmt, ...);
+void __as__4vec4FRC4vec4(void* d, const void* s);   /* vec4::operator= */
+void __as__5mat44FRC5mat44(void* d, const void* s); /* mat44::operator= */
 
 typedef struct PBWINDOW {
     u16 flags;                /* 0x000 */
@@ -62,6 +64,26 @@ typedef struct PBWINDOW {
     f32 clip2screen[2][4];    /* 0x380 */
     f32 screen2clip[2][4];    /* 0x3A0 */
 } PBWINDOW; /* 0x3C0 */
+
+/* VU1NEWMTXPACKET heritage: matrix packet as consumed by the renderer */
+typedef struct MTXPACKET {
+    u32 hdr[4];            /* 0x00 */
+    f32 mtx[4][4];         /* 0x10 */
+    f32 clip2npc[4];       /* 0x50 */
+    f32 npc2screen[2][4];  /* 0x60 */
+    f32 clip2screen[2][4]; /* 0x80 */
+} MTXPACKET;
+
+/* main window packet variant with a larger header */
+typedef struct MTXPACKET2 {
+    u32 hdr[8];            /* 0x00 */
+    f32 mtx[4][4];         /* 0x20 */
+    f32 clip2npc[4];       /* 0x60 */
+    f32 npc2screen[2][4];  /* 0x70 */
+    f32 clip2screen[2][4]; /* 0x90 */
+} MTXPACKET2;
+
+extern f32 gClip2NpcDefault[4]; /* DAT_801284f8 */
 
 typedef struct PBWINLIST {
     PBWINDOW* windows; /* 0x0 */
@@ -159,7 +181,7 @@ void pbWinSetup(void)
 }
 
 /* 0x800C92B8 handled below as setupMatrices */
-static void setupMatrices(f32* p0, f32* p1, f32* p2);
+static void setupMatrices(MTXPACKET2* p0, MTXPACKET* p1, MTXPACKET* p2);
 
 /* 0x800C9448: TODO (pos lights + camera pitch/yaw update) */
 void pbCameraUpdate(void)
@@ -201,10 +223,10 @@ void MBWindowClip(f32 w, f32 h, f32 nearz, f32 farz)
     PBWINGLOBALS* g = gWinGlobals;
 
     if (w == 0.0) {
-        w = 1024.0f;
+        w = 4095.0f;
     }
     if (h == 0.0) {
-        h = 1024.0f;
+        h = 4095.0f;
     }
     g->current->near_z = nearz;
     g->current->far_z = farz;
@@ -240,51 +262,133 @@ void MBWindowViewport(f32 l, f32 r, f32 t, f32 b)
 
 /* shared body of MBSetCurrentWindow / pbInitWindow */
 
-/* 0x800C97DC */
+/* 0x800C97DC: selects/initializes the current window; the viewport/
+   projection/camera resets are written out inline (Midway paste style). */
 void MBSetCurrentWindow(void)
 {
-    if (gWinGlobals->list == 0) {
-        gWinGlobals->list = &gDefaultWinList;
+    PBWINGLOBALS* g = gWinGlobals;
+
+    if (g->list == 0) {
+        g->list = &gDefaultWinList;
     }
-    gWinGlobals->list->windows = gWindows;
-    gWinGlobals->list->count = 1;
-    gWinGlobals->list->unk8 = 0;
-    gWinGlobals->list->unkC = 0;
-    if (gWinGlobals->list->count < 1) {
-        ErrorPrintf("MBSetCurrentWindow: Bad window i...");
-    } else {
+    g->list->windows = gWindows;
+    g->list->count = 1;
+    g->list->unk8 = 0;
+    g->list->unkC = 0;
+    if (gWinGlobals->list->count > 0) {
         gWinGlobals->current = gWinGlobals->list->windows;
         gCurWindowMirror = gWinGlobals->list->windows;
+    } else {
+        ErrorPrintf("MBSetCurrentWindow: Bad window index %d\n");
     }
     if (gWinGlobals->current == 0) {
         gWinGlobals->current = gWinGlobals->list->windows;
     }
-    MBWindowViewport(0.0f, 0.0f, 0.0f, 0.0f);
-    MBWindowProjection(0.0f, 1.0f);
-    MBWindowClip(0.0f, 0.0f, 1.0f, 0.0f);
-    pbInitCamera(0, 0);
+    /* MBWindowViewport(0,0,0,0) */
+    g = gWinGlobals;
+    g->current->left = 0.0f;
+    g->current->right = 0.0f;
+    g->current->top = 0.0f;
+    g->current->bottom = 0.0f;
+    g->current->proj_dirty = 1;
+    /* MBWindowProjection(90, 1) */
+    g = gWinGlobals;
+    g->current->aspect = 1.0f;
+    g->current->view_angle_horiz = 90.0f;
+    g->current->proj_dirty = 1;
+    MBWindowClip(2047.0f, 2047.0f, 1.0f, 65536.0f);
+    /* camera defaults: pos 0, look -z, up +y */
+    g = gWinGlobals;
+    g->current->cam_pos[0] = 0.0f;
+    g->current->cam_pos[1] = 0.0f;
+    g->current->cam_pos[2] = 0.0f;
+    g->current->cam_pos[3] = 0.0f;
+    g->current->cam_look[0] = 0.0f;
+    g->current->cam_look[1] = 0.0f;
+    g->current->cam_look[2] = -1.0f;
+    g->current->cam_look[3] = 0.0f;
+    g->current->cam_up[0] = 0.0f;
+    g->current->cam_up[1] = 1.0f;
+    g->current->cam_up[2] = 0.0f;
+    g->current->cam_up[3] = 1.0f;
 }
 
-/* 0x800C9978 */
+/* 0x800C9978: unconditional variant of the window init/reset */
 void pbInitWindow(void)
 {
-    gWinGlobals->list = &gDefaultWinList;
-    gWinGlobals->list->windows = gWindows;
-    gWinGlobals->list->count = 1;
-    gWinGlobals->list->unk8 = 0;
-    gWinGlobals->list->unkC = 0;
-    if (gWinGlobals->list->count < 1) {
-        ErrorPrintf("MBSetCurrentWindow: Bad window i...");
-    } else {
+    PBWINGLOBALS* g = gWinGlobals;
+
+    g->list = &gDefaultWinList;
+    g->list->windows = gWindows;
+    g->list->count = 1;
+    g->list->unk8 = 0;
+    g->list->unkC = 0;
+    if (gWinGlobals->list->count > 0) {
         gWinGlobals->current = gWinGlobals->list->windows;
         gCurWindowMirror = gWinGlobals->list->windows;
+    } else {
+        ErrorPrintf("MBSetCurrentWindow: Bad window index %d\n");
     }
     if (gWinGlobals->current == 0) {
         gWinGlobals->current = gWinGlobals->list->windows;
     }
+    /* MBWindowViewport(0,0,0,0) */
+    g = gWinGlobals;
+    g->current->left = 0.0f;
+    g->current->right = 0.0f;
+    g->current->top = 0.0f;
+    g->current->bottom = 0.0f;
+    g->current->proj_dirty = 1;
+    /* MBWindowProjection(90, 1) */
+    g = gWinGlobals;
+    g->current->aspect = 1.0f;
+    g->current->view_angle_horiz = 90.0f;
+    g->current->proj_dirty = 1;
+    MBWindowClip(2047.0f, 2047.0f, 1.0f, 65536.0f);
+    /* camera defaults: pos 0, look -z, up +y */
+    g = gWinGlobals;
+    g->current->cam_pos[0] = 0.0f;
+    g->current->cam_pos[1] = 0.0f;
+    g->current->cam_pos[2] = 0.0f;
+    g->current->cam_pos[3] = 0.0f;
+    g->current->cam_look[0] = 0.0f;
+    g->current->cam_look[1] = 0.0f;
+    g->current->cam_look[2] = -1.0f;
+    g->current->cam_look[3] = 0.0f;
+    g->current->cam_up[0] = 0.0f;
+    g->current->cam_up[1] = 1.0f;
+    g->current->cam_up[2] = 0.0f;
+    g->current->cam_up[3] = 1.0f;
 }
 
 /* 0x800C92B8 */
-static void setupMatrices(f32* p0, f32* p1, f32* p2)
+static void setupMatrices(MTXPACKET2* p0, MTXPACKET* p1, MTXPACKET* p2)
 {
+    PBWINGLOBALS* g = gWinGlobals;
+    PBWINDOW* w;
+
+    w = g->current;
+    mat44Mult(w->world_npc, w->projection, w->camera);
+    w = g->current;
+    mat44Mult(w->world_screen, w->viewport, w->world_npc);
+    w = g->current;
+    mat44Mult(w->world_clip, w->clipport, w->world_npc);
+    __as__4vec4FRC4vec4(p0->clip2npc, g->current->clip2npc);
+    __as__4vec4FRC4vec4(p1->clip2npc, g->current->clip2npc);
+    __as__4vec4FRC4vec4(p2->clip2npc, gClip2NpcDefault);
+    __as__4vec4FRC4vec4(p0->npc2screen[0], g->current->npc2screen[0]);
+    __as__4vec4FRC4vec4(p1->npc2screen[0], g->current->npc2screen[0]);
+    __as__4vec4FRC4vec4(p2->npc2screen[0], g->current->npc2screen[0]);
+    __as__4vec4FRC4vec4(p0->npc2screen[1], g->current->npc2screen[1]);
+    __as__4vec4FRC4vec4(p1->npc2screen[1], g->current->npc2screen[1]);
+    __as__4vec4FRC4vec4(p2->npc2screen[1], g->current->npc2screen[1]);
+    __as__4vec4FRC4vec4(p0->clip2screen[0], g->current->clip2screen[0]);
+    __as__4vec4FRC4vec4(p1->clip2screen[0], g->current->clip2screen[0]);
+    __as__4vec4FRC4vec4(p2->clip2screen[0], g->current->npc2screen[0]);
+    __as__4vec4FRC4vec4(p0->clip2screen[1], g->current->clip2screen[1]);
+    __as__4vec4FRC4vec4(p1->clip2screen[1], g->current->clip2screen[1]);
+    __as__4vec4FRC4vec4(p2->clip2screen[1], g->current->npc2screen[1]);
+    __as__5mat44FRC5mat44(p0->mtx, g->current->world_clip);
+    __as__5mat44FRC5mat44(p1->mtx, g->current->world_clip);
+    __as__5mat44FRC5mat44(p2->mtx, g->current->world_npc);
 }
