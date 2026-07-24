@@ -377,6 +377,7 @@ config.libs = [
             Object(NonMatching, "game/registry.c"),
             Object(Matching, "game/gutil.c"),
             Object(Matching, "game/texPalette.c"),
+            Object(NonMatching, "game/gcontrolpads.c", cflags=cflags_demo),
         ],
     },
     {
