@@ -21,7 +21,7 @@ VERSION = "GUNE5D"
 OBJDUMP = Path("build/binutils/powerpc-eabi-objdump.exe")
 
 BRANCH_RE = re.compile(
-    r"\b(b|bl|ba|bla|beq|bne|bgt|blt|bge|ble|bso|bns|bdnz|bdz)([+-]?)\s+[0-9a-f]+\s*$"
+    r"\b(b|bl|ba|bla|beq|bne|bgt|blt|bge|ble|bso|bns|bdnz|bdz)([+-]?)\s+(cr\d,)?[0-9a-f]+\s*$"
 )
 
 
@@ -43,7 +43,7 @@ def parse(objfile: Path):
         m = re.match(r"^\s+[0-9a-f]+:\s+(?:[0-9a-f]{2} ){4}\s*(.+)$", line)
         if m:
             ins = re.sub(r"<[^>]+>", "", m.group(1).strip())
-            ins = BRANCH_RE.sub(r"\1\2 <tgt>", ins)
+            ins = BRANCH_RE.sub(lambda m: f"{m.group(1)}{m.group(2)} {m.group(3) or ''}<tgt>", ins)
             funcs[cur].append(ins.strip())
         elif "R_PPC" in line:
             rel = line.strip().split(maxsplit=1)[1]
