@@ -1,6 +1,11 @@
 #include "types.h"
 #include "dolphin/ax.h"
 
+int OSDisableInterrupts(void);
+void OSRestoreInterrupts(int level);
+void AISetStreamVolLeft(u8 vol);
+void AISetStreamVolRight(u8 vol);
+
 /* GameCube platform voice mixer (Midway) - sits over AX. No Xbox counterpart
  * module (Xbox uses DirectSound); names here are provisional. */
 
@@ -142,37 +147,53 @@ static s32 sndPanCurve[128] = {
     -2, -2, -2, -1, -1, -1, 0, 0,
 };
 
+static u8 sndStreamVolTable[50] = {
+    0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x02, 0x02, 0x02,
+    0x02, 0x03, 0x03, 0x04, 0x04, 0x05, 0x05, 0x06, 0x07, 0x08,
+    0x09, 0x0A, 0x0B, 0x0C, 0x0E, 0x10, 0x12, 0x14, 0x16, 0x19,
+    0x1C, 0x20, 0x24, 0x28, 0x2D, 0x32, 0x39, 0x40, 0x47, 0x50,
+    0x5A, 0x65, 0x71, 0x7F, 0x8F, 0xA0, 0xB4, 0xCA, 0xE3, 0xFF,
+};
+
 static SNDVOICE sndVoice[64];
 
-static u32 sndUnk0;
-static u32 sndUnk1;
+static s32 sndStreamVolCur;
+static s32 sndStreamVolTarget;
 static u32 sndMixEnabled;
 
 static u16 sndDbToMix(s32 db)
 {
-    if (db < -0x387) {
+    if (db <= -0x388) {
         return 0;
-    } else if (db < 0x3C) {
-        return sndDbTable[db + 0x387];
+    } else if (db >= 0x3C) {
+        return 0xFF64;
     }
-    return 0xFF64;
+    return sndDbTable[db + 0x388];
 }
 
 void sndVoiceInit(void)
 {
     int i;
     SNDVOICE* v;
+    s32 volL;
+    s32 volR;
+    s32 panL;
+    s32 panR;
 
-    v = sndVoice;
+    volL = sndVolCurve[0x40];
+    volR = sndPanCurve[0x40];
+    panL = sndPanCurve[0];
+    panR = sndVolCurve[0];
     for (i = 0; i < 64; i++) {
+        v = &sndVoice[i];
         v->flags = 0x50000000;
         v->vol = 0;
         v->auxA = -960;
         v->auxB = -960;
-        v->volL = sndVolCurve[0x40];
-        v->volR = sndPanCurve[0x40];
-        v->panL = sndPanCurve[0];
-        v->panR = sndVolCurve[0];
+        v->volL = volL;
+        v->volR = volR;
+        v->panL = panL;
+        v->panR = panR;
         v->master = 0;
         v->volIdx = 0x40;
         v->panIdx = 0x7F;
@@ -186,10 +207,9 @@ void sndVoiceInit(void)
         v->mix[4] = 0;
         v->mix[2] = 0;
         v->mix[0] = 0;
-        v++;
     }
-    sndUnk0 = 0;
-    sndUnk1 = 0;
+    sndStreamVolCur = 0;
+    sndStreamVolTarget = 0;
     sndMixEnabled = 1;
 }
 
@@ -197,6 +217,9 @@ void sndVoiceSetParams(AXVPB* p, u32 flags, s32 vol, s32 auxA, s32 auxB,
                        s32 volIdx, s32 panIdx, s32 master)
 {
     SNDVOICE* v = &sndVoice[p->index];
+    int old;
+    u16 ctrl;
+    u8 unused[0xB0];
 
     v->voice = p;
     v->flags = flags & 7;
@@ -211,35 +234,96 @@ void sndVoiceSetParams(AXVPB* p, u32 flags, s32 vol, s32 auxA, s32 auxB,
     v->panL = sndPanCurve[v->panIdx];
     v->panR = sndVolCurve[v->panIdx];
 
-    if ((v->flags & 4) == 0) {
-        v->mix[0] = sndDbToMix(vol);
-    } else {
+    if (v->flags & 4) {
         v->mix[0] = 0;
+    } else {
+        v->mix[0] = sndDbToMix(vol);
     }
 
     if (sndMixEnabled == 1) {
         v->mix[2] = sndDbToMix(v->master + v->volL + v->panL);
         v->mix[4] = sndDbToMix(v->master + v->volR + v->panL);
         v->mix[6] = sndDbToMix(v->master + v->panR);
-        if ((v->flags & 1) == 0) {
-            v->mix[8] = sndDbToMix(v->master + v->auxA + v->volL + v->panL);
-            v->mix[10] = sndDbToMix(v->master + v->auxA + v->volR + v->panL);
-            v->mix[12] = sndDbToMix(v->master + v->auxA + v->panR - 0x3C);
-        } else {
+        if (v->flags & 1) {
             v->mix[8] = sndDbToMix(v->auxA + v->volL + v->panL);
             v->mix[10] = sndDbToMix(v->auxA + v->volR + v->panL);
             v->mix[12] = sndDbToMix(v->auxA + v->panR - 0x3C);
-        }
-        if ((v->flags & 2) == 0) {
-            v->mix[14] = sndDbToMix(v->master + v->auxB + v->volL + v->panL);
-            v->mix[16] = sndDbToMix(v->master + v->auxB + v->volR + v->panL);
-            v->mix[18] = sndDbToMix(v->master + v->auxB + v->panR - 0x3C);
         } else {
+            v->mix[8] = sndDbToMix(v->master + v->auxA + v->volL + v->panL);
+            v->mix[10] = sndDbToMix(v->master + v->auxA + v->volR + v->panL);
+            v->mix[12] = sndDbToMix(v->master + v->auxA + v->panR - 0x3C);
+        }
+        if (v->flags & 2) {
             v->mix[14] = sndDbToMix(v->auxB + v->volL + v->panL);
             v->mix[16] = sndDbToMix(v->auxB + v->volR + v->panL);
             v->mix[18] = sndDbToMix(v->auxB + v->panR - 0x3C);
+        } else {
+            v->mix[14] = sndDbToMix(v->master + v->auxB + v->volL + v->panL);
+            v->mix[16] = sndDbToMix(v->master + v->auxB + v->volR + v->panL);
+            v->mix[18] = sndDbToMix(v->master + v->auxB + v->panR - 0x3C);
+        }
+    } else {
+        v->mix[2] = sndDbToMix(v->master + v->panL);
+        v->mix[4] = sndDbToMix(v->master + v->panL);
+        v->mix[6] = sndDbToMix(v->master + v->panR);
+        if (v->flags & 1) {
+            v->mix[8] = sndDbToMix(v->auxA + v->panL);
+            v->mix[10] = sndDbToMix(v->auxA + v->panL);
+            v->mix[12] = sndDbToMix(v->auxA + v->panR - 0x3C);
+        } else {
+            v->mix[8] = sndDbToMix(v->master + v->auxA + v->panL);
+            v->mix[10] = sndDbToMix(v->master + v->auxA + v->panL);
+            v->mix[12] = sndDbToMix(v->master + v->auxA + v->panR - 0x3C);
+        }
+        if (v->flags & 2) {
+            v->mix[14] = sndDbToMix(v->auxB + v->panL);
+            v->mix[16] = sndDbToMix(v->auxB + v->panL);
+            v->mix[18] = sndDbToMix(v->auxB + v->panR - 0x3C);
+        } else {
+            v->mix[14] = sndDbToMix(v->master + v->auxB + v->panL);
+            v->mix[16] = sndDbToMix(v->master + v->auxB + v->panL);
+            v->mix[18] = sndDbToMix(v->master + v->auxB + v->panR - 0x3C);
         }
     }
+
+    old = OSDisableInterrupts();
+    p->pb.ve.currentVolume = v->mix[0];
+    p->pb.ve.currentDelta = 0;
+    p->pb.mix.vL = v->mix[2];
+    p->pb.mix.vDeltaL = 0;
+    p->pb.mix.vR = v->mix[4];
+    p->pb.mix.vDeltaR = 0;
+    p->pb.mix.vAuxAL = v->mix[8];
+    p->pb.mix.vDeltaAuxAL = 0;
+    p->pb.mix.vAuxAR = v->mix[10];
+    p->pb.mix.vDeltaAuxAR = 0;
+    p->pb.mix.vAuxBL = v->mix[14];
+    p->pb.mix.vDeltaAuxBL = 0;
+    p->pb.mix.vAuxBR = v->mix[16];
+    p->pb.mix.vDeltaAuxBR = 0;
+    p->pb.mix.vAuxBS = v->mix[18];
+    p->pb.mix.vDeltaAuxBS = 0;
+    p->pb.mix.vS = v->mix[6];
+    p->pb.mix.vDeltaS = 0;
+    p->pb.mix.vAuxAS = v->mix[12];
+    p->pb.mix.vDeltaAuxAS = 0;
+    ctrl = 0;
+    if (p->pb.mix.vAuxAL != 0 || p->pb.mix.vAuxAR != 0 ||
+        p->pb.mix.vAuxAS != 0)
+    {
+        ctrl |= 1;
+    }
+    if (p->pb.mix.vAuxBL != 0 || p->pb.mix.vAuxBR != 0 ||
+        p->pb.mix.vAuxBS != 0)
+    {
+        ctrl |= 2;
+    }
+    if (p->pb.mix.vS != 0 || p->pb.mix.vAuxAS != 0 || p->pb.mix.vAuxBS != 0) {
+        ctrl |= 4;
+    }
+    p->pb.mixerCtrl = ctrl;
+    p->sync |= 0x212;
+    OSRestoreInterrupts(old);
 }
 
 void sndVoiceSetVolume(AXVPB* p, s32 vol)
@@ -297,4 +381,179 @@ void sndVoiceSetMaster(AXVPB* p, s32 master)
 
     v->master = master;
     v->flags |= 0x40000000;
+}
+
+void sndVoiceUpdateAll(void)
+{
+    SNDVOICE* v;
+    AXVPB* p;
+    int i;
+    int mixDirty;
+    int volDirty;
+    u16 cur;
+    u16 ctrl;
+    u8 unused[0x78];
+
+    for (i = 0; i < 64; i++) {
+        v = &sndVoice[i];
+        volDirty = 0;
+        mixDirty = 0;
+        p = v->voice;
+        if (p != NULL) {
+            if (v->flags & 0x20000000) {
+                v->mix[0] = v->mix[1];
+                v->flags &= ~0x20000000;
+                volDirty = 1;
+            }
+            if (v->flags & 0x10000000) {
+                if (v->flags & 4) {
+                    v->mix[1] = 0;
+                } else {
+                    v->mix[1] = sndDbToMix(v->vol);
+                }
+                volDirty = 1;
+                v->flags &= ~0x10000000;
+                v->flags |= 0x20000000;
+            }
+            if (v->flags & 0x80000000) {
+                mixDirty = 1;
+                v->mix[2] = v->mix[3];
+                v->mix[4] = v->mix[5];
+                v->mix[6] = v->mix[7];
+                v->mix[8] = v->mix[9];
+                v->mix[10] = v->mix[11];
+                v->mix[12] = v->mix[13];
+                v->mix[14] = v->mix[15];
+                v->mix[16] = v->mix[17];
+                v->mix[18] = v->mix[19];
+                v->flags &= ~0x80000000;
+            }
+            if (v->flags & 0x40000000) {
+                if (sndMixEnabled == 1) {
+                    v->mix[3] = sndDbToMix(v->master + v->volL + v->panL);
+                    v->mix[5] = sndDbToMix(v->master + v->volR + v->panL);
+                    v->mix[7] = sndDbToMix(v->master + v->panR - 0x3C);
+                    if (v->flags & 1) {
+                        v->mix[9] = sndDbToMix(v->auxA + v->volL + v->panL);
+                        v->mix[11] = sndDbToMix(v->auxA + v->volR + v->panL);
+                        v->mix[13] = sndDbToMix(v->auxA + v->panR - 0x3C);
+                    } else {
+                        v->mix[9] =
+                            sndDbToMix(v->master + v->auxA + v->volL + v->panL);
+                        v->mix[11] =
+                            sndDbToMix(v->master + v->auxA + v->volR + v->panL);
+                        v->mix[13] =
+                            sndDbToMix(v->master + v->auxA + v->panR - 0x3C);
+                    }
+                    if (v->flags & 2) {
+                        v->mix[15] = sndDbToMix(v->auxB + v->volL + v->panL);
+                        v->mix[17] = sndDbToMix(v->auxB + v->volR + v->panL);
+                        v->mix[19] = sndDbToMix(v->auxB + v->panR - 0x3C);
+                    } else {
+                        v->mix[15] =
+                            sndDbToMix(v->master + v->auxB + v->volL + v->panL);
+                        v->mix[17] =
+                            sndDbToMix(v->master + v->auxB + v->volR + v->panL);
+                        v->mix[19] =
+                            sndDbToMix(v->master + v->auxB + v->panR - 0x3C);
+                    }
+                } else {
+                    v->mix[3] = sndDbToMix(v->master + v->panL);
+                    v->mix[5] = sndDbToMix(v->master + v->panL);
+                    v->mix[7] = sndDbToMix(v->master + v->panR - 0x3C);
+                    if (v->flags & 1) {
+                        v->mix[9] = sndDbToMix(v->auxA + v->panL);
+                        v->mix[11] = sndDbToMix(v->auxA + v->panL);
+                        v->mix[13] = sndDbToMix(v->auxA + v->panR - 0x3C);
+                    } else {
+                        v->mix[9] = sndDbToMix(v->master + v->auxA + v->panL);
+                        v->mix[11] = sndDbToMix(v->master + v->auxA + v->panL);
+                        v->mix[13] =
+                            sndDbToMix(v->master + v->auxA + v->panR - 0x3C);
+                    }
+                    if (v->flags & 2) {
+                        v->mix[15] = sndDbToMix(v->auxB + v->panL);
+                        v->mix[17] = sndDbToMix(v->auxB + v->panL);
+                        v->mix[19] = sndDbToMix(v->auxB + v->panR - 0x3C);
+                    } else {
+                        v->mix[15] = sndDbToMix(v->master + v->auxB + v->panL);
+                        v->mix[17] = sndDbToMix(v->master + v->auxB + v->panL);
+                        v->mix[19] =
+                            sndDbToMix(v->master + v->auxB + v->panR - 0x3C);
+                    }
+                }
+                mixDirty = 1;
+                v->flags &= ~0x40000000;
+                v->flags |= 0x80000000;
+            }
+            if (volDirty && p != NULL) {
+                cur = v->mix[0];
+                p->pb.ve.currentVolume = cur;
+                p->pb.ve.currentDelta = (v->mix[1] - v->mix[0]) / 0xA0;
+                p->sync |= 0x200;
+            }
+            if (mixDirty && p != NULL) {
+                p->pb.mix.vL = v->mix[2];
+                p->pb.mix.vDeltaL = (v->mix[3] - v->mix[2]) / 0xA0;
+                p->pb.mix.vR = v->mix[4];
+                p->pb.mix.vDeltaR = (v->mix[5] - v->mix[4]) / 0xA0;
+                p->pb.mix.vAuxAL = v->mix[8];
+                p->pb.mix.vDeltaAuxAL = (v->mix[9] - v->mix[8]) / 0xA0;
+                p->pb.mix.vAuxAR = v->mix[10];
+                p->pb.mix.vDeltaAuxAR = (v->mix[11] - v->mix[10]) / 0xA0;
+                p->pb.mix.vAuxBL = v->mix[14];
+                p->pb.mix.vDeltaAuxBL = (v->mix[15] - v->mix[14]) / 0xA0;
+                p->pb.mix.vAuxBR = v->mix[16];
+                p->pb.mix.vDeltaAuxBR = (v->mix[17] - v->mix[16]) / 0xA0;
+                p->pb.mix.vAuxBS = v->mix[18];
+                p->pb.mix.vDeltaAuxBS = (v->mix[19] - v->mix[18]) / 0xA0;
+                p->pb.mix.vS = v->mix[6];
+                p->pb.mix.vDeltaS = (v->mix[7] - v->mix[6]) / 0xA0;
+                ctrl = 0;
+                p->pb.mix.vAuxAS = v->mix[12];
+                p->pb.mix.vDeltaAuxAS = (v->mix[13] - v->mix[12]) / 0xA0;
+                if ((cur = p->pb.mix.vAuxAL) != 0 ||
+                    (cur = p->pb.mix.vAuxAR) != 0 ||
+                    (cur = p->pb.mix.vAuxAS) != 0)
+                {
+                    ctrl |= 1;
+                }
+                if ((cur = p->pb.mix.vAuxBL) != 0 ||
+                    (cur = p->pb.mix.vAuxBR) != 0 ||
+                    (cur = p->pb.mix.vAuxBS) != 0)
+                {
+                    ctrl |= 2;
+                }
+                if ((cur = p->pb.mix.vS) != 0 ||
+                    (cur = p->pb.mix.vAuxAS) != 0 ||
+                    (cur = p->pb.mix.vAuxBS) != 0)
+                {
+                    ctrl |= 4;
+                }
+                if ((cur = p->pb.mix.vDeltaL) != 0 ||
+                    (cur = p->pb.mix.vDeltaR) != 0 ||
+                    (cur = p->pb.mix.vDeltaS) != 0 ||
+                    (cur = p->pb.mix.vDeltaAuxAL) != 0 ||
+                    (cur = p->pb.mix.vDeltaAuxAR) != 0 ||
+                    (cur = p->pb.mix.vDeltaAuxAS) != 0 ||
+                    (cur = p->pb.mix.vDeltaAuxBL) != 0 ||
+                    (cur = p->pb.mix.vDeltaAuxBR) != 0 ||
+                    (cur = p->pb.mix.vDeltaAuxBS) != 0)
+                {
+                    ctrl |= 8;
+                }
+                p->pb.mixerCtrl = ctrl;
+                p->sync |= 0x12;
+            }
+        }
+    }
+    if (sndStreamVolTarget > sndStreamVolCur) {
+        sndStreamVolCur += 1;
+        AISetStreamVolLeft(sndStreamVolTable[sndStreamVolCur]);
+        AISetStreamVolRight(sndStreamVolTable[sndStreamVolCur]);
+    } else if (sndStreamVolTarget < sndStreamVolCur) {
+        sndStreamVolCur -= 1;
+        AISetStreamVolLeft(sndStreamVolTable[sndStreamVolCur]);
+        AISetStreamVolRight(sndStreamVolTable[sndStreamVolCur]);
+    }
 }
