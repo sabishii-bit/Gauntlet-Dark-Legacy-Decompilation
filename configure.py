@@ -364,6 +364,7 @@ config.libs = [
             Object(NonMatching, "game/sndvoice.c"),
             Object(Matching, "game/gpads.c"),
             Object(NonMatching, "game/registry.c"),
+            Object(Matching, "game/gutil.c"),
         ],
     },
     DolphinLib(
