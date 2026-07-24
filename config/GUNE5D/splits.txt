@@ -17,6 +17,10 @@ zlib/zutil.c:
 	extabindex  start:0x8000B974 end:0x8000B980
 	.text       start:0x800AF574 end:0x800AF59C
 
+zlib/inffast.c:
+	.text       start:0x800B0F70 end:0x800B135C
+	.rodata     start:0x80115B20 end:0x80115B58
+
 zlib/infutil.c:
 	extab       start:0x800076A0 end:0x800076A8
 	extabindex  start:0x8000BA40 end:0x8000BA4C
