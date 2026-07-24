@@ -52,9 +52,26 @@ def parse(objfile):
     }
 
 
+# Full symbol normalization: blank every reloc target name (keeping the reloc
+# type and any addend). Used to separate "wrong code" from "same bytes, only
+# the symbol NAMES differ" (dtk generic lbl/jumptable vs our real static
+# names) -- those score "OK~" and the link/sha1 is the true arbiter.
+FULL_SYM = re.compile(r"^(    R_PPC_\S+\s+)(.+?)(\+0x[0-9A-Fa-f]+)?$")
+
+
+def full_norm(lines):
+    return [FULL_SYM.sub(lambda m: m.group(1) + "<sym>" + (m.group(3) or ""), ln)
+            if ln.startswith("    R_PPC") else ln
+            for ln in lines]
+
+
 VERSION = "GUNE5D"
 REPO = Path(__file__).resolve().parent.parent
 DEFAULT_MW = "GC/1.2.5n"
+# Probe compiles under every compiler this game has actually used (zlib lib is
+# GC/1.2.5, everything else so far GC/1.2.5n -- see game-code-frontier notes).
+# This is a lookup across proven versions, not an archive sweep.
+PROBE_MW = ["GC/1.2.5n", "GC/1.2.5"]
 
 # Flags shared by every known GDL TU family.
 COMMON = [
@@ -120,7 +137,11 @@ def compile_one(mwcc: Path, flags, src: Path, out_o: Path):
 
 
 def score(target_fns, base_fns, only_fn=None):
-    """{fn: 'OK' | int diffcount | 'L+n' | 'MISS'} for target functions."""
+    """{fn: 'OK' | 'OK~' | int diffcount | 'L+n' | 'MISS'} for target functions.
+
+    'OK~' = instructions identical and reloc addends identical; only reloc
+    symbol NAMES differ (usually dtk lbl/jumptable vs our real names).
+    """
     res = {}
     for name, t in target_fns.items():
         if only_fn and name != only_fn:
@@ -130,6 +151,8 @@ def score(target_fns, base_fns, only_fn=None):
             res[name] = "MISS"
         elif t == b:
             res[name] = "OK"
+        elif full_norm(t) == full_norm(b):
+            res[name] = "OK~"
         elif len(t) != len(b):
             res[name] = f"L{len(b) - len(t):+d}"
         else:
@@ -142,6 +165,8 @@ def total_key(row):
     for v in row.values():
         if v == "OK":
             continue
+        elif v == "OK~":
+            tot += 1
         elif isinstance(v, int):
             tot += v
         elif isinstance(v, str) and v.startswith("L"):
@@ -213,7 +238,9 @@ def main():
     ap.add_argument("--dir", help="sweep: directory of candidate .c files")
     ap.add_argument("--preset", default="demo", help="sweep: preset name (default demo)")
     ap.add_argument("--matrix", action="store_true", help="probe: full flag cartesian instead of named presets")
-    ap.add_argument("--mw", default=DEFAULT_MW, help=f"compiler version dir (default {DEFAULT_MW})")
+    ap.add_argument("--mw", default=None,
+                    help=f"compiler version dir (probe default: all of {PROBE_MW}; "
+                         f"sweep default: {DEFAULT_MW})")
     ap.add_argument("--show", action="store_true", help="print the best candidate's remaining diff (needs --fn)")
     ap.add_argument("-j", type=int, default=8, help="parallel jobs (default 8)")
     args = ap.parse_args()
@@ -228,10 +255,12 @@ def main():
         print(f"function {args.fn} not in target object; has: {', '.join(target_fns)}")
         return 1
 
-    mwcc = REPO / "build" / "compilers" / args.mw / "mwcceppc.exe"
-    if not mwcc.exists():
-        print(f"missing compiler: {mwcc}")
-        return 1
+    def compiler(mw):
+        p = REPO / "build" / "compilers" / mw / "mwcceppc.exe"
+        if not p.exists():
+            print(f"missing compiler: {p}")
+            sys.exit(1)
+        return p
 
     if args.mode == "probe":
         src = Path(args.src) if args.src else REPO / "src" / f"{unit}.c"
@@ -239,16 +268,25 @@ def main():
             print(f"missing source: {src}")
             return 1
         presets = matrix_presets() if args.matrix else PRESETS
-        jobs = [(name, mwcc, flags, src) for name, flags in presets.items()]
+        mws = [args.mw] if args.mw else PROBE_MW
+        jobs, job_info = [], {}
+        for mw in mws:
+            mwcc = compiler(mw)
+            tag = mw.split("/")[-1]
+            for name, flags in presets.items():
+                label = f"{name}@{tag}" if len(mws) > 1 else name
+                jobs.append((label, mwcc, flags, src))
+                job_info[label] = (mwcc, flags)
         results = run_jobs(jobs, target_fns, args.fn, args.j)
         best = print_table(results, target_fns, args.fn)
         if args.show and args.fn and best:
             print("=" * 60)
-            show_best_diff(mwcc, presets[best], src, target_fns, args.fn)
+            show_best_diff(*job_info[best], src, target_fns, args.fn)
     else:  # sweep
         if not args.dir:
             print("sweep needs --dir with candidate .c files")
             return 1
+        mwcc = compiler(args.mw or DEFAULT_MW)
         flags = PRESETS[args.preset]
         cands = sorted(Path(args.dir).glob("*.c"))
         if not cands:
