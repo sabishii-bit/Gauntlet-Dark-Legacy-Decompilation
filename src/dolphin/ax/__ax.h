@@ -39,8 +39,10 @@ void __AXPrintStudio(void);
 void __AXDepopVoice(AXPB* pb);
 
 /* AXVPB.c */
-void* __AXGetPBs(void);
+AXPB* __AXGetPBs(void);
 void __AXSyncPBs(u32 lessDspCycles);
+void __AXServiceVPB(AXVPB* pvpb);
+u32 __AXGetNumVoices(void);
 
 /* AXOut.c */
 void __AXOutInit(void);

@@ -136,6 +136,16 @@ dolphin/ax/AXSPB.c:
 	.bss        start:0x80330E60 end:0x80330EA0
 	.sbss       start:0x80345440 end:0x80345464
 
+dolphin/ax/AXVPB.c:
+	.text       start:0x800EECD0 end:0x800EFC68
+	.data       start:0x80238AD0 end:0x80238B80
+	.bss        start:0x80330EA0 end:0x80340CA0
+	.sbss       start:0x80345468 end:0x80345478
+
+dolphin/ax/AXProf.c:
+	.text       start:0x800EFC68 end:0x800EFCB0
+	.sbss       start:0x80345478 end:0x80345488
+
 dolphin/base/PPCArch.c:
 	.text       start:0x800EFCB0 end:0x800EFD14
 
