@@ -68,18 +68,33 @@ static int fpclassify(double d)
         double d;
         struct {
             u32 hi;
-            u32 lo;
+            int lo;
         } i;
     } u;
 
     u.d = d;
-    if ((u.i.hi & 0x7ff00000) == 0x7ff00000) {
-        return (u.i.hi & 0x000fffff) == 0 && u.i.lo == 0 ? FP_INFINITE : FP_NAN;
+    switch (u.i.hi & 0x7ff00000) {
+    case 0x7ff00000:
+        if ((u.i.hi & 0x000fffff) == 0) {
+            if (u.i.lo == 0) {
+                goto infinite;
+            }
+        }
+        return FP_NAN;
+    infinite:
+        return FP_INFINITE;
+    case 0:
+        if ((u.i.hi & 0x000fffff) == 0) {
+            if (u.i.lo == 0) {
+                goto zero;
+            }
+        }
+        return FP_SUBNORMAL;
+    zero:
+        return FP_ZERO;
+    default:
+        return FP_NORMAL;
     }
-    if ((int) (u.i.hi & 0x7ff00000) < 0x7ff00000 && (u.i.hi & 0x7ff00000) == 0) {
-        return (u.i.hi & 0x000fffff) == 0 && u.i.lo == 0 ? FP_ZERO : FP_SUBNORMAL;
-    }
-    return FP_NORMAL;
 }
 
 static char* sRound(double fract, int* exp, char* start, char* end, char ch, char* signp);
@@ -99,14 +114,13 @@ static char* exponent(char* p, int exp, int fmtch)
     char* t;
     char expbuf[MAXEXP];
 
-    *p = fmtch;
+    *p++ = fmtch;
     if (exp < 0) {
-        p[1] = '-';
         exp = -exp;
+        *p++ = '-';
     } else {
-        p[1] = '+';
+        *p++ = '+';
     }
-    p += 2;
     t = expbuf + MAXEXP;
     if (exp > 9) {
         do {
@@ -126,33 +140,18 @@ static char* sRound(double fract, int* exp, char* start, char* end, char ch, cha
 {
     double tmp;
 
-    if (fract == 0.0) {
-        tmp = (double) to_digit(ch);
-    } else {
+    if (fract) {
         modf(fract * 10.0, &tmp);
-    }
-    if (tmp <= 4.0) {
-        /* ``"%.3f", (double)-0.0004'' gives you a negative 0. */
-        if (*signp == '-') {
-            for (;; --end) {
-                if (*end == '.') {
-                    --end;
-                }
-                if (*end != '0') {
-                    break;
-                }
-                if (end == start) {
-                    *signp = 0;
-                }
-            }
-        }
     } else {
+        tmp = to_digit(ch);
+    }
+    if (tmp > 4.0) {
         for (;; --end) {
             if (*end == '.') {
                 --end;
             }
             if (++*end <= '9') {
-                return start;
+                break;
             }
             *end = '0';
             if (end == start) {
@@ -164,6 +163,20 @@ static char* sRound(double fract, int* exp, char* start, char* end, char ch, cha
                     --start;
                 }
                 break;
+            }
+        }
+    }
+    /* ``"%.3f", (double)-0.0004'' gives you a negative 0. */
+    else if (*signp == '-') {
+        for (;; --end) {
+            if (*end == '.') {
+                --end;
+            }
+            if (*end != '0') {
+                break;
+            }
+            if (end == start) {
+                *signp = 0;
             }
         }
     }
@@ -182,49 +195,201 @@ static int cvt(double value, int prec, int flags, char* sign, int ch, char* star
     double tmp;
 
     dotrim = expcnt = gformat = 0;
-    if (value >= 0.0) {
-        *sign = 0;
-        fract = value;
-    } else {
-        fract = -value;
+    if (value < 0.0) {
         *sign = '-';
+        value = -value;
+    } else {
+        *sign = 0;
     }
 
-    fract = modf(fract, &integer);
-    t = ++startp;
+    fract = modf(value, &integer);
 
     /* get an extra slot for rounding. */
-    p = endp;
-    if (fract < 1.0) {
-        --p;
-    } else {
-        for (--p; integer != 0.0; ++expcnt) {
+    t = ++startp;
+
+    /*
+     * get integer portion of value; put into the end of the buffer; the
+     * .01 is added for modf(356.0 / 10, &integer) returning .59999999...
+     */
+    if (value >= 1.0) {
+        for (p = endp - 1; integer; ++expcnt) {
             tmp = modf(integer / 10.0, &integer);
-            *p-- = to_char((int) (10.0 * (tmp + 0.005)));
+            *p-- = to_char((int) (10.0 * (0.01 + tmp)));
         }
+    } else {
+        p = endp - 1;
     }
 
     switch (ch) {
     case 'f':
-    case 'F':
-        goto f_fmt;
+        /* reverse integer into beginning of buffer */
+        if (expcnt) {
+            for (; ++p < endp; *t++ = *p)
+                ;
+        } else {
+            *t++ = '0';
+        }
+        /*
+         * if precision required or alternate flag set, add in a
+         * decimal point.
+         */
+        if (prec || (flags & ALT)) {
+            *t++ = '.';
+        }
+        /* if requires more precision and some fraction left */
+        if (fract) {
+            if (prec) {
+                do {
+                    fract = modf(fract * 10.0, &tmp);
+                    *t++ = to_char((int) tmp);
+                } while (--prec && fract);
+            }
+            if (fract) {
+                startp = sRound(fract, (int*) 0, startp, t - 1, '\0', sign);
+            }
+        }
+        for (; prec; --prec) {
+            *t++ = '0';
+        }
+        break;
     case 'e':
     case 'E':
-        goto e_fmt;
+    eformat:
+        if (expcnt) {
+            *t++ = *++p;
+            if (prec || (flags & ALT)) {
+                *t++ = '.';
+            }
+            /* if requires more precision and some integer left */
+            for (; prec && ++p < endp; --prec) {
+                *t++ = *p;
+            }
+            /*
+             * if done precision and more of the integer component,
+             * round using it; adjust fract so we don't re-round
+             * later.
+             */
+            if (!prec && ++p < endp) {
+                fract = 0.0;
+                startp = sRound((double) 0, &expcnt, startp, t - 1, *p, sign);
+            }
+            /* adjust expcnt for digit in front of decimal */
+            --expcnt;
+        } else if (fract) {
+            /* until first fractional digit, decrement exponent */
+            expcnt = -1;
+            for (;;) {
+                fract = modf(fract * 10.0, &tmp);
+                if (tmp) {
+                    break;
+                }
+                --expcnt;
+            }
+            *t++ = to_char((int) tmp);
+            if (prec || (flags & ALT)) {
+                *t++ = '.';
+            }
+        } else {
+            *t++ = '0';
+            if (prec || (flags & ALT)) {
+                *t++ = '.';
+            }
+        }
+        /* if requires more precision and some fraction left */
+        if (fract) {
+            if (prec) {
+                do {
+                    fract = modf(fract * 10.0, &tmp);
+                    *t++ = to_char((int) tmp);
+                } while (--prec && fract);
+            }
+            if (fract) {
+                startp = sRound(fract, &expcnt, startp, t - 1, '\0', sign);
+            }
+        }
+        /* if requires more precision */
+        for (; prec; --prec) {
+            *t++ = '0';
+        }
+        /* unless alternate flag, trim any g/G format trailing 0's */
+        if (gformat && !(flags & ALT)) {
+            while (t > startp && *--t == '0')
+                ;
+            if (*t == '.') {
+                --t;
+            }
+            ++t;
+        }
+        t = exponent(t, expcnt, ch);
+        break;
     case 'g':
     case 'G':
-        goto g_fmt;
-    default:
-        goto done;
+        /* a precision of 0 is treated as a precision of 1. */
+        if (!prec) {
+            ++prec;
+        }
+        /*
+         * ``The style used depends on the value converted; style e
+         * will be used only if the exponent resulting from the
+         * conversion is less than -4 or greater than the precision.''
+         *	-- ANSI X3.159-1989
+         */
+        if (expcnt > prec || (!expcnt && fract && fract < 0.0001)) {
+            --prec;
+            ch -= 2; /* G->E, g->e */
+            gformat = 1;
+            goto eformat;
+        }
+        /*
+         * reverse integer into beginning of buffer,
+         * note, decrement precision
+         */
+        if (expcnt) {
+            for (; ++p < endp; *t++ = *p, --prec)
+                ;
+        } else {
+            *t++ = '0';
+        }
+        /*
+         * if precision required or alternate flag set, add in a
+         * decimal point.
+         */
+        if (prec || (flags & ALT)) {
+            dotrim = 1;
+            *t++ = '.';
+        } else {
+            dotrim = 0;
+        }
+        /* if requires more precision and some fraction left */
+        if (fract) {
+            if (prec) {
+                do {
+                    fract = modf(fract * 10.0, &tmp);
+                    *t++ = to_char((int) tmp);
+                } while (!tmp);
+                while (--prec && fract) {
+                    fract = modf(fract * 10.0, &tmp);
+                    *t++ = to_char((int) tmp);
+                }
+            }
+            if (fract) {
+                startp = sRound(fract, (int*) 0, startp, t - 1, '\0', sign);
+            }
+        }
+        /* alternate format, adds 0's for precision, else trim 0's */
+        if (flags & ALT) {
+            for (; prec; --prec) {
+                *t++ = '0';
+            }
+        } else if (dotrim) {
+            while (t > startp && *--t == '0')
+                ;
+            if (*t != '.') {
+                ++t;
+            }
+        }
     }
-f_fmt:
-    goto done;
-e_fmt:
-    goto done;
-g_fmt:
-    goto done;
-done:
-    return (int) (t - startp);
+    return t - startp;
 }
 
 int vsprintf(char* str, const char* fmt, va_list ap)
@@ -246,10 +411,11 @@ int vsprintf(char* str, const char* fmt, va_list ap)
     u32 _ulong;
     char sign;
     char softsign;
-    char* digs;
+    char unused[4];
+    char* digs = 0;
     char* t;
-    char ox[2];
     char buf[BUF];
+    char ox[2];
     char blanks[PADSIZE] = "                ";
     char zeroes[PADSIZE] = "0000000000000000";
     double _double;
@@ -300,22 +466,17 @@ int vsprintf(char* str, const char* fmt, va_list ap)
             sign = '+';
             goto rflag;
         case '.':
-            ch = *fmt++;
-            if (ch == '*') {
-                prec = va_arg(ap, int);
-                if (prec < 0) {
-                    prec = -1;
-                }
+            if ((ch = *fmt++) == '*') {
+                n = va_arg(ap, int);
+                prec = n < 0 ? -1 : n;
                 goto rflag;
             }
-            prec = 0;
+            n = 0;
             while (is_digit(ch)) {
-                prec = to_digit(ch) + prec * 10;
+                n = 10 * n + to_digit(ch);
                 ch = *fmt++;
             }
-            if (prec < 0) {
-                prec = -1;
-            }
+            prec = n < 0 ? -1 : n;
             goto reswitch;
         case '0':
             flags |= ZEROPAD;
@@ -329,11 +490,12 @@ int vsprintf(char* str, const char* fmt, va_list ap)
         case '7':
         case '8':
         case '9':
-            width = 0;
+            n = 0;
             do {
-                width = to_digit(ch) + width * 10;
+                n = 10 * n + to_digit(ch);
                 ch = *fmt++;
             } while (is_digit(ch));
+            width = n;
             goto reswitch;
         case 'L':
             flags |= LONGDBL;
@@ -411,28 +573,36 @@ int vsprintf(char* str, const char* fmt, va_list ap)
         case 'o':
             _ulong = UARG();
             base = 0;
-            break;
+            goto nosign;
         case 'p':
             _ulong = (u32) va_arg(ap, void*);
             digs = (char*) "0123456789abcdef";
             flags |= HEXPREFIX;
             base = 2;
             ch = 'x';
-            break;
+            goto nosign;
         case 's':
-            t = va_arg(ap, char*);
-            if (t == 0) {
+            if ((t = va_arg(ap, char*)) == 0) {
                 t = (char*) "(null)";
             }
-            if (prec < 0) {
-                size = strlen(t);
-            } else {
+            if (prec >= 0) {
+                /*
+                 * can't use strlen; can only look for the
+                 * NUL in the first `prec' characters, and
+                 * strlen() will go further.
+                 */
                 char* p = memchr(t, 0, prec);
 
-                size = prec;
-                if (p != 0 && (size = p - t, prec < p - t)) {
+                if (p != 0) {
+                    size = p - t;
+                    if (size > prec) {
+                        size = prec;
+                    }
+                } else {
                     size = prec;
                 }
+            } else {
+                size = strlen(t);
             }
             sign = '\0';
             goto emit;
@@ -442,11 +612,11 @@ int vsprintf(char* str, const char* fmt, va_list ap)
         case 'u':
             _ulong = UARG();
             base = 1;
-            break;
+            goto nosign;
         case 'b':
             _ulong = UARG();
             base = 3;
-            break;
+            goto nosign;
         case 'X':
             digs = (char*) "0123456789ABCDEF";
             goto hex;
@@ -455,68 +625,79 @@ int vsprintf(char* str, const char* fmt, va_list ap)
         hex:
             _ulong = UARG();
             base = 2;
+            /* leading 0x/X only if non-zero */
             if ((flags & ALT) && _ulong != 0) {
                 flags |= HEXPREFIX;
             }
+            /* unsigned conversions */
+        nosign:
+            sign = '\0';
+            /*
+             * ``... diouXx conversions ... if a precision is
+             * specified, the 0 flag will be ignored.''
+             *	-- ANSI X3.159-1989
+             */
+        number:
+            if ((dprec = prec) >= 0) {
+                flags &= ~ZEROPAD;
+            }
+            /*
+             * ``The result of converting a zero value with an
+             * explicit precision of zero is no characters.''
+             *	-- ANSI X3.159-1989
+             */
+            t = buf + BUF;
+            if (_ulong != 0 || prec != 0) {
+                switch (base) {
+                case 0: /* octal */
+                    do {
+                        *--t = to_char(_ulong & 7);
+                        _ulong >>= 3;
+                    } while (_ulong);
+                    /* handle octal leading 0 */
+                    if ((flags & ALT) && *t != '0') {
+                        *--t = '0';
+                    }
+                    break;
+                case 1: /* decimal */
+                    /* many numbers are 1 digit */
+                    while (_ulong >= 10) {
+                        *--t = to_char(_ulong % 10);
+                        _ulong /= 10;
+                    }
+                    *--t = to_char(_ulong);
+                    break;
+                case 2: /* hex */
+                    do {
+                        *--t = digs[_ulong & 15];
+                        _ulong >>= 4;
+                    } while (_ulong);
+                    break;
+                case 3: /* binary */
+                    do {
+                        *--t = to_char(_ulong & 1);
+                        _ulong >>= 1;
+                    } while (_ulong);
+                    break;
+                default:
+                    t = (char*) "bug in vsprintf: bad base.";
+                    size = strlen(t);
+                    goto emit;
+                }
+            }
+            size = buf + BUF - t;
             break;
-        default:
+        default: /* "%?" prints ?, unless ? is NUL */
             if (ch == '\0') {
                 goto done;
             }
-            buf[0] = ch;
+            /* pretend it was %c with argument ch */
             t = buf;
-            sign = '\0';
+            *t = ch;
             size = 1;
-            goto emit;
-        }
-        sign = '\0';
-
-    number:
-        if (prec >= 0) {
-            flags &= ~ZEROPAD;
-        }
-        dprec = prec;
-        t = buf + BUF;
-        if (_ulong == 0 && prec == 0) {
-            size = 0;
-            goto emit0;
-        }
-        switch (base) {
-        case 0: /* octal */
-            do {
-                *--t = to_char(_ulong & 7);
-                _ulong >>= 3;
-            } while (_ulong);
-            if ((flags & ALT) && *t != '0') {
-                *--t = '0';
-            }
+            sign = '\0';
             break;
-        case 1: /* decimal */
-            while (_ulong >= 10) {
-                *--t = to_char(_ulong % 10);
-                _ulong /= 10;
-            }
-            *--t = to_char(_ulong);
-            break;
-        case 2: /* hex */
-            do {
-                *--t = digs[_ulong & 15];
-                _ulong >>= 4;
-            } while (_ulong);
-            break;
-        case 3: /* binary */
-            do {
-                *--t = to_char(_ulong & 1);
-                _ulong >>= 1;
-            } while (_ulong);
-            break;
-        default:
-            t = (char*) "bug in vsprintf: bad base.";
-            size = strlen(t);
-            goto emit;
         }
-    emit0:
-        size = buf + BUF - t;
 
     emit:
         fieldsz = size + fpprec;
@@ -546,7 +727,11 @@ int vsprintf(char* str, const char* fmt, va_list ap)
         if (flags & LADJUST) {
             PAD(width - realsz, blanks);
         }
-        cnt += width > realsz ? width : realsz;
+        if (width > realsz) {
+            realsz = width;
+        }
+        *str = '\0';
+        cnt += realsz;
     }
 done:
     *str = '\0';
