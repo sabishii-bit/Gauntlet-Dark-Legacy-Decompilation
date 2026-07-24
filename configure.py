@@ -381,6 +381,7 @@ config.libs = [
             Object(NonMatching, "game/vsprintf.c", cflags=cflags_demo),
             Object(NonMatching, "game/pbutils.c", cflags=cflags_demo),
             Object(NonMatching, "game/mathfunc.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
+            Object(NonMatching, "game/g3dMath3D.cpp", cflags=cflags_demo, mw_version="GC/1.2.5"),
         ],
     },
     {
