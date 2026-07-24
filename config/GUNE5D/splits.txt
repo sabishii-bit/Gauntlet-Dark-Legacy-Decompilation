@@ -71,6 +71,11 @@ game/pbutils.c:
 	.sdata      start:0x80343FB0 end:0x80343FB8
 	.sbss       start:0x80345138 end:0x80345154
 
+game/pb_window.c:
+	extab       start:0x80007D80 end:0x80007DC0
+	extabindex  start:0x8000C490 end:0x8000C4F0
+	.text       start:0x800C8294 end:0x800C9B08
+
 zlib/uncompr.c:
 	extab       start:0x80007DC0 end:0x80007DC8
 	extabindex  start:0x8000C4F0 end:0x8000C4FC
