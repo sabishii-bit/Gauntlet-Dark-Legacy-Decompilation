@@ -12,6 +12,13 @@ Sections:
 	.sbss       type:bss align:8
 	.sdata2     type:rodata align:16
 
+game/gcontrolpads.c:
+	extab       start:0x80007DE8 end:0x80007DF8
+	extabindex  start:0x8000C52C end:0x8000C544
+	.text       start:0x800CB060 end:0x800CB600
+	.data       start:0x80128670 end:0x801286D0
+	.sdata2     start:0x803490D8 end:0x80349100
+
 dolphin/demo/DEMOInit.c:
 	extab       start:0x80007DF8 end:0x80007E20
 	extabindex  start:0x8000C544 end:0x8000C580
