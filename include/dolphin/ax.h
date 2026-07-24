@@ -178,6 +178,35 @@ typedef struct _AXSPB {
 #define AX_MAX_VOICES 64
 #define AX_PRIORITY_STACKS 32
 
+#define AX_SRC_TYPE_NONE 0
+#define AX_SRC_TYPE_LINEAR 1
+#define AX_SRC_TYPE_4TAP_8K 2
+#define AX_SRC_TYPE_4TAP_12K 3
+#define AX_SRC_TYPE_4TAP_16K 4
+
+#define AX_SYNC_FLAG_COPYALL (1 << 31)
+#define AX_SYNC_FLAG_COPYADPCMLOOP (1 << 20)
+#define AX_SYNC_FLAG_COPYRATIO (1 << 19)
+#define AX_SYNC_FLAG_COPYSRC (1 << 18)
+#define AX_SYNC_FLAG_COPYADPCM (1 << 17)
+#define AX_SYNC_FLAG_COPYCURADDR (1 << 16)
+#define AX_SYNC_FLAG_COPYENDADDR (1 << 15)
+#define AX_SYNC_FLAG_COPYLOOPADDR (1 << 14)
+#define AX_SYNC_FLAG_COPYLOOP (1 << 13)
+#define AX_SYNC_FLAG_COPYADDR (1 << 12)
+#define AX_SYNC_FLAG_COPYFIR (1 << 11)
+#define AX_SYNC_FLAG_SWAPVOL (1 << 10)
+#define AX_SYNC_FLAG_COPYVOL (1 << 9)
+#define AX_SYNC_FLAG_COPYDPOP (1 << 8)
+#define AX_SYNC_FLAG_COPYUPDATE (1 << 7)
+#define AX_SYNC_FLAG_COPYTSHIFT (1 << 6)
+#define AX_SYNC_FLAG_COPYITD (1 << 5)
+#define AX_SYNC_FLAG_COPYAXPBMIX (1 << 4)
+#define AX_SYNC_FLAG_COPYTYPE (1 << 3)
+#define AX_SYNC_FLAG_COPYSTATE (1 << 2)
+#define AX_SYNC_FLAG_COPYMXRCTRL (1 << 1)
+#define AX_SYNC_FLAG_COPYSELECT (1 << 0)
+
 typedef void (*AXVoiceCallback)(void*);
 typedef void (*AXAuxCallback)(void* data, void* context);
 typedef void (*AXUserCallback)(void);
