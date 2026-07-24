@@ -392,6 +392,9 @@ dolphin/pad/Pad.c:
 	.sdata      start:0x80344138 end:0x80344158
 	.sbss       start:0x80345670 end:0x80345698
 
+game/gutil.c:
+	.text       start:0x8010BCAC end:0x8010BDE0
+
 dolphin/ai/ai.c:
 	.text       start:0x8010C074 end:0x8010C91C
 	.sbss       start:0x80345698 end:0x803456D8
