@@ -11,6 +11,7 @@ void* memcpy(void* dst, const void* src, unsigned long n);
 }
 
 typedef float f32;
+typedef unsigned char u8;
 
 class vec3 {
   public:
@@ -25,7 +26,6 @@ class vec4 {
     f32 x, y, z, w;
     vec4() {}
     void operator=(const vec4& o);
-    vec4 normalize();
 };
 
 class mat44 {
@@ -39,17 +39,23 @@ class mat44 {
 class Math3D_B {
   public:
     static f32 DotProduct(vec3& a, vec3& b);
-    static vec4 CrossProduct(vec4& a, vec4& b);
 };
 
-vec3 operator/(vec3& v, f32 s);
-vec4 operator/(vec4& v, f32 s);
-vec3 operator*(vec3& a, vec3& b);
-vec4 operator*(vec4& a, vec4& b);
-vec4 operator-(vec4& a, vec4& b);
-vec4 operator+(vec4& a, vec4& b);
-vec3 operator*(vec3& v, f32 s);
-vec4 operator*(vec4& v, f32 s);
+/* The GCN port rewrites the Xbox by-value operators as void dst-first
+   helpers; callers routinely pass the same object as dst and src (the
+   serialized per-component codegen follows from that aliasing).
+   These names are invented -- no 3-arg forms exist in the Xbox PDB. */
+void vec4Normalize(vec4& d, vec4& v);
+void vec4Cross(vec4& d, vec4& a, vec4& b);
+void vec3Div(vec3& d, vec3& v, f32 s);
+void vec4Div(vec4& d, vec4& v, f32 s);
+void vec3Mul(vec3& d, vec3& a, vec3& b);
+void vec4Mul(vec4& d, vec4& a, vec4& b);
+void vec4Sub(vec4& d, vec4& a, vec4& b);
+void vec4Add(vec4& d, vec4& a, vec4& b);
+void vec3Scale(vec3& d, vec3& v, f32 s);
+void vec4Scale(vec4& d, vec4& v, f32 s);
+void vec4FTOI(long* d, vec4& v);
 
 /* 0x800AE67C */
 void mat44::operator=(const mat44& o)
@@ -66,129 +72,110 @@ void mat44::identity()
 }
 
 /* 0x800AE70C */
-vec4 vec4::normalize()
+void vec4Normalize(vec4& d, vec4& v)
 {
-    vec4 r;
+    u8 pad[8]; /* unused, matches original frame */
 
-    if (x * x + y * y + z * z < 0.00001f) {
-        r.x = r.y = r.z = 0.0f;
+    if (v.x * v.x + v.y * v.y + v.z * v.z >= 0.00000000000001f) {
+        PSVECNormalize((Vec*) &v, (Vec*) &d);
     } else {
-        PSVECNormalize((Vec*) this, (Vec*) &r);
+        d.x = d.y = d.z = 0.0f;
     }
-    r.w = w;
-    return r;
+    d.w = v.w;
 }
 
 /* 0x800AE790 */
-vec4 Math3D_B::CrossProduct(vec4& a, vec4& b)
+void vec4Cross(vec4& d, vec4& a, vec4& b)
 {
-    vec4 r;
+    vec4 pad; /* unused, matches original frame */
 
-    PSVECCrossProduct((Vec*) &a, (Vec*) &b, (Vec*) &r);
-    r.w = 1.0f;
-    return r;
+    PSVECCrossProduct((Vec*) &a, (Vec*) &b, (Vec*) &d);
+    d.w = 1.0f;
 }
 
 /* 0x800AE7D0 */
 f32 Math3D_B::DotProduct(vec3& a, vec3& b)
 {
-    return a.y * b.y + a.x * b.x + a.z * b.z;
+    return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
 /* 0x800AE7F8 */
-vec3 operator/(vec3& v, f32 s)
+void vec3Div(vec3& d, vec3& v, f32 s)
 {
-    vec3 r;
-
-    r.x = v.x / s;
-    r.y = v.y / s;
-    r.z = v.z / s;
-    return r;
+    d.x = v.x / s;
+    d.y = v.y / s;
+    d.z = v.z / s;
 }
 
 /* 0x800AE820 */
-vec4 operator/(vec4& v, f32 s)
+void vec4Div(vec4& d, vec4& v, f32 s)
 {
-    vec4 r;
-
-    r.x = v.x / s;
-    r.y = v.y / s;
-    r.z = v.z / s;
-    r.w = v.w / s;
-    return r;
+    d.x = v.x / s;
+    d.y = v.y / s;
+    d.z = v.z / s;
+    d.w = v.w / s;
 }
 
 /* 0x800AE854 */
-vec3 operator*(vec3& a, vec3& b)
+void vec3Mul(vec3& d, vec3& a, vec3& b)
 {
-    vec3 r;
-
-    r.x = a.x * b.x;
-    r.y = a.y * b.y;
-    r.z = a.z * b.z;
-    return r;
+    d.x = a.x * b.x;
+    d.y = a.y * b.y;
+    d.z = a.z * b.z;
 }
 
 /* 0x800AE888 */
-vec4 operator*(vec4& a, vec4& b)
+void vec4Mul(vec4& d, vec4& a, vec4& b)
 {
-    vec4 r;
-
-    r.x = a.x * b.x;
-    r.y = a.y * b.y;
-    r.z = a.z * b.z;
-    r.w = a.w * b.w;
-    return r;
+    d.x = a.x * b.x;
+    d.y = a.y * b.y;
+    d.z = a.z * b.z;
+    d.w = a.w * b.w;
 }
 
 /* 0x800AE8CC */
-vec4 operator-(vec4& a, vec4& b)
+void vec4Sub(vec4& d, vec4& a, vec4& b)
 {
-    vec4 r;
-
-    r.x = a.x - b.x;
-    r.y = a.y - b.y;
-    r.z = a.z - b.z;
-    r.w = a.w - b.w;
-    return r;
+    d.x = a.x - b.x;
+    d.y = a.y - b.y;
+    d.z = a.z - b.z;
+    d.w = a.w - b.w;
 }
 
 /* 0x800AE910 */
-vec4 operator+(vec4& a, vec4& b)
+void vec4Add(vec4& d, vec4& a, vec4& b)
 {
-    vec4 r;
-
-    r.x = a.x + b.x;
-    r.y = a.y + b.y;
-    r.z = a.z + b.z;
-    r.w = a.w + b.w;
-    return r;
+    d.x = a.x + b.x;
+    d.y = a.y + b.y;
+    d.z = a.z + b.z;
+    d.w = a.w + b.w;
 }
 
 /* 0x800AE954 */
-vec3 operator*(vec3& v, f32 s)
+void vec3Scale(vec3& d, vec3& v, f32 s)
 {
-    vec3 r;
-
-    r.x = v.x * s;
-    r.y = v.y * s;
-    r.z = v.z * s;
-    return r;
+    d.x = v.x * s;
+    d.y = v.y * s;
+    d.z = v.z * s;
 }
 
 /* 0x800AE97C */
-vec4 operator*(vec4& v, f32 s)
+void vec4Scale(vec4& d, vec4& v, f32 s)
 {
-    vec4 r;
-
-    r.x = v.x * s;
-    r.y = v.y * s;
-    r.z = v.z * s;
-    r.w = v.w * s;
-    return r;
+    d.x = v.x * s;
+    d.y = v.y * s;
+    d.z = v.z * s;
+    d.w = v.w * s;
 }
 
-/* 0x800AE9B0: FTOI vec4 -- name unknown yet, not in chunk 1 */
+/* 0x800AE9B0 (invented name; float->int vec4 convert, dst-first) */
+void vec4FTOI(long* d, vec4& v)
+{
+    d[0] = (long) v.x;
+    d[1] = (long) v.y;
+    d[2] = (long) v.z;
+    d[3] = (long) v.w;
+}
 
 /* 0x800AEA0C */
 void vec3::operator=(const vec3& o)
