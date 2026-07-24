@@ -381,6 +381,15 @@ config.libs = [
         ],
     },
     {
+        "lib": "zlib",
+        "mw_version": "GC/1.2.5n",
+        "cflags": cflags_demo,
+        "progress_category": "game",
+        "objects": [
+            Object(Matching, "zlib/adler32.c"),
+        ],
+    },
+    {
         "lib": "demo",
         "mw_version": "GC/1.2.5n",
         "cflags": cflags_demo,
