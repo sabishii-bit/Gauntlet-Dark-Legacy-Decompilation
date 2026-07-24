@@ -19,6 +19,11 @@ game/pbutils.c:
 	.sdata      start:0x80343FB0 end:0x80343FB8
 	.sbss       start:0x80345138 end:0x80345154
 
+zlib/uncompr.c:
+	extab       start:0x80007DC0 end:0x80007DC8
+	extabindex  start:0x8000C4F0 end:0x8000C4FC
+	.text       start:0x800C9B08 end:0x800C9BD0
+
 game/vsprintf.c:
 	extab       start:0x80007DC8 end:0x80007DE8
 	extabindex  start:0x8000C4FC end:0x8000C52C
