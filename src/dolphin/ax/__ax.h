@@ -15,9 +15,15 @@ void __AXRemoveFromStack(AXVPB* p);
 
 /* AXAux.c */
 void __AXAuxInit(void);
+void __AXGetAuxAInput(u32* p);
+void __AXGetAuxAOutput(u32* p);
+void __AXGetAuxBInput(u32* p);
+void __AXGetAuxBOutput(u32* p);
+void __AXProcessAux(void);
 
 /* AXCL.c */
 void __AXClInit(void);
+extern u32 __AXClMode;
 
 /* AXOut.c */
 void __AXOutInit(void);
