@@ -389,7 +389,7 @@ config.libs = [
         "progress_category": "game",
         "objects": [
             Object(Matching, "zlib/adler32.c"),
-            Object(NonMatching, "zlib/uncompr.c"),
+            Object(Matching, "zlib/uncompr.c"),
         ],
     },
     {

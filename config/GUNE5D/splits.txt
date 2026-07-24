@@ -23,6 +23,7 @@ zlib/uncompr.c:
 	extab       start:0x80007DC0 end:0x80007DC8
 	extabindex  start:0x8000C4F0 end:0x8000C4FC
 	.text       start:0x800C9B08 end:0x800C9BD0
+	.sdata2     start:0x80349088 end:0x80349090
 
 game/vsprintf.c:
 	extab       start:0x80007DC8 end:0x80007DE8
