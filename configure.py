@@ -356,6 +356,17 @@ config.libs = [
         ],
     ),
     {
+        "lib": "dsp",
+        "mw_version": "GC/1.2.5n",
+        "cflags": [*cflags_base, "-i src/dolphin/dsp"],
+        "progress_category": "sdk",
+        "objects": [
+            Object(Matching, "dolphin/dsp/dsp.c"),
+            Object(Matching, "dolphin/dsp/dsp_debug.c"),
+            Object(Matching, "dolphin/dsp/dsp_task.c"),
+        ],
+    },
+    {
         "lib": "ax",
         "mw_version": "GC/1.2.5n",
         "cflags": [*cflags_base, "-i src/dolphin/ax"],

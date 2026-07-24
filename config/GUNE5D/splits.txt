@@ -154,6 +154,19 @@ dolphin/db/db.c:
 	.data       start:0x8023A720 end:0x8023A738
 	.sbss       start:0x80345488 end:0x80345490
 
+dolphin/dsp/dsp.c:
+	.text       start:0x800F6BA8 end:0x800F6DEC
+	.data       start:0x8023A738 end:0x8023A770
+	.sbss       start:0x80345490 end:0x80345498
+
+dolphin/dsp/dsp_debug.c:
+	.text       start:0x800F6DEC end:0x800F6E3C
+
+dolphin/dsp/dsp_task.c:
+	.text       start:0x800F6E3C end:0x800F76C0
+	.data       start:0x8023A770 end:0x8023A8B0
+	.sbss       start:0x80345498 end:0x803454B0
+
 dolphin/dvd/dvdlow.c:
 	.text       start:0x800F76C0 end:0x800F8514
 	.bss        start:0x80340F58 end:0x80341028
