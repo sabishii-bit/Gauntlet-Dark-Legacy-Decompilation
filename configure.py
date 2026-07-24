@@ -393,6 +393,7 @@ config.libs = [
             Object(Matching, "zlib/zutil.c"),
             Object(Matching, "zlib/infutil.c"),
             Object(Matching, "zlib/inffast.c"),
+            Object(Matching, "zlib/infcodes.c"),
             Object(Matching, "zlib/inftrees.c"),
         ],
     },
