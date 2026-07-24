@@ -355,6 +355,12 @@ config.libs = [
             Object(Matching, "dolphin/ar/arq.c"),
         ],
     ),
+    DolphinLib(
+        "ai",
+        [
+            Object(Matching, "dolphin/ai/ai.c"),
+        ],
+    ),
     {
         "lib": "dsp",
         "mw_version": "GC/1.2.5n",
