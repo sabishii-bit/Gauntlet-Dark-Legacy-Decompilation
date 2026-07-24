@@ -384,7 +384,7 @@ config.libs = [
     },
     {
         "lib": "zlib",
-        "mw_version": "GC/1.2.5n",
+        "mw_version": "GC/1.2.5",
         "cflags": cflags_demo,
         "progress_category": "game",
         "objects": [
@@ -393,6 +393,7 @@ config.libs = [
             Object(Matching, "zlib/zutil.c"),
             Object(Matching, "zlib/infutil.c"),
             Object(Matching, "zlib/inffast.c"),
+            Object(Matching, "zlib/inftrees.c"),
         ],
     },
     {

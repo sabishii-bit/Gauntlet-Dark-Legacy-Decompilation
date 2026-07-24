@@ -21,6 +21,15 @@ zlib/inffast.c:
 	.text       start:0x800B0F70 end:0x800B135C
 	.rodata     start:0x80115B20 end:0x80115B58
 
+zlib/inftrees.c:
+	extab       start:0x80007678 end:0x800076A0
+	extabindex  start:0x8000BA04 end:0x8000BA40
+	.text       start:0x800B1C08 end:0x800B263C
+	.rodata     start:0x80115BC8 end:0x80115C58
+	.data       start:0x80127948 end:0x80127B60
+	.bss        start:0x802953C0 end:0x80296450
+	.sbss       start:0x80344DC0 end:0x80344DD8
+
 zlib/infutil.c:
 	extab       start:0x800076A0 end:0x800076A8
 	extabindex  start:0x8000BA40 end:0x8000BA4C
