@@ -355,6 +355,15 @@ config.libs = [
             Object(Matching, "dolphin/ar/arq.c"),
         ],
     ),
+    {
+        "lib": "game",
+        "mw_version": "GC/1.2.5n",
+        "cflags": cflags_base,
+        "progress_category": "game",
+        "objects": [
+            Object(NonMatching, "game/sndvoice.c"),
+        ],
+    },
     DolphinLib(
         "ai",
         [
