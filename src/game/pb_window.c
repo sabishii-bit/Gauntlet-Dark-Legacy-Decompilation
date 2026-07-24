@@ -6,14 +6,19 @@
 
 #include "types.h"
 
+#pragma dont_inline on
+
 typedef float f32;
 
 void sceSamp0Normalize(f32* v0, f32* v1);
 void sceSamp0RotCameraMatrix(f32* m, f32* p, f32* zd, f32* yd);
 void sceSamp0CopyMatrix34(f32* m0, f32* m1);
-void mat44LookAt(void* m, void* p, void* zd, void* yd);
-void mat44InvRigid(void* d, void* s);
-void mat44Mult(void* d, void* a, void* b);
+void mat44LookAt__FR5mat44R4vec4R4vec4R4vec4(void* m, void* p, void* zd, void* yd);
+void mat44InvRigid__FR5mat44R5mat44(void* d, void* s);
+void mat44Mult__FR5mat44R5mat44R5mat44(void* d, void* a, void* b);
+#define mat44LookAt mat44LookAt__FR5mat44R4vec4R4vec4R4vec4
+#define mat44InvRigid mat44InvRigid__FR5mat44R5mat44
+#define mat44Mult mat44Mult__FR5mat44R5mat44R5mat44
 double atan(double x);
 double atan2(double y, double x);
 double sin(double x);
@@ -106,8 +111,8 @@ typedef struct PBWINGLOBALS {
 } PBWINGLOBALS;
 
 extern PBWINGLOBALS* gWinGlobals;   /* DAT_80344fc0 */
-extern PBWINDOW* gCurWindowMirror;  /* DAT_80343f10 (points at mirror slot) */
-extern u8 gWinDefault[];            /* DAT_80345154 */
+extern PBWINDOW** gCurWindowMirror; /* DAT_80343f10 (points at mirror slot) */
+extern u32 gWinDefault;             /* DAT_80345154 (SDA-addressed) */
 extern PBWINLIST gDefaultWinList;   /* DAT_802c9b78 */
 extern PBWINDOW gWindows[];         /* DAT_802c93f8 */
 extern f32 gCameraMtx[4][4];        /* DAT_802c9b88 */
@@ -131,37 +136,42 @@ void pbInitWindow(void);
 /* 0x800C8294 */
 void pbCloseWindow(void)
 {
-    if (gWinGlobals->unk44 != 0) {
+    PBWINGLOBALS* g = gWinGlobals;
+
+    if (g->unk44 != 0) {
         return;
     }
-    gWinGlobals->unk44 = gWinDefault;
+    g->unk44 = &gWinDefault;
 }
 
 /* 0x800C82B0 */
 void pbSetDefaultWindow(void)
 {
-    gWinGlobals->unk44 = gWinDefault;
+    gWinGlobals->unk44 = &gWinDefault;
 }
 
 /* 0x800C82C0 */
 void pbUpdateMatricies(void)
 {
+    PBWINGLOBALS* g;
     PBWINDOW* w;
 
     pbProjCalc();
+    g = gWinGlobals;
     /* pbCameraCalc, written out (original pastes the body) */
-    sceSamp0Normalize(gWinGlobals->current->cam_look, gWinGlobals->current->cam_look);
-    w = gWinGlobals->current;
+    sceSamp0Normalize(g->current->cam_look, g->current->cam_look);
+    w = g->current;
     mat44LookAt(w->camera, w->cam_pos, w->cam_look, w->cam_up);
-    w = gWinGlobals->current;
+    w = g->current;
     sceSamp0RotCameraMatrix((f32*) gCameraMtx, w->cam_pos, w->cam_look, w->cam_up);
-    mat44InvRigid(gWinGlobals->current->icamera, gWinGlobals->current->camera);
-    gWinGlobals->current->cam_dirty = 0;
-    w = gWinGlobals->current;
+    mat44InvRigid(g->current->icamera, g->current->camera);
+    g->current->cam_dirty = 0;
+    g = gWinGlobals;
+    w = g->current;
     mat44Mult(w->world_npc, w->projection, w->camera);
-    w = gWinGlobals->current;
+    w = g->current;
     mat44Mult(w->world_screen, w->viewport, w->world_npc);
-    w = gWinGlobals->current;
+    w = g->current;
     mat44Mult(w->world_clip, w->clipport, w->world_npc);
 }
 
@@ -275,14 +285,16 @@ void MBSetCurrentWindow(void)
     g->list->count = 1;
     g->list->unk8 = 0;
     g->list->unkC = 0;
-    if (gWinGlobals->list->count > 0) {
-        gWinGlobals->current = gWinGlobals->list->windows;
-        gCurWindowMirror = gWinGlobals->list->windows;
-    } else {
+    g = gWinGlobals;
+    if (g->list->count <= 0) {
         ErrorPrintf("MBSetCurrentWindow: Bad window index %d\n");
+    } else {
+        g->current = g->list->windows;
+        *gCurWindowMirror = g->list->windows;
     }
-    if (gWinGlobals->current == 0) {
-        gWinGlobals->current = gWinGlobals->list->windows;
+    g = gWinGlobals;
+    if (g->current == 0) {
+        g->current = g->list->windows;
     }
     /* MBWindowViewport(0,0,0,0) */
     g = gWinGlobals;
@@ -323,14 +335,16 @@ void pbInitWindow(void)
     g->list->count = 1;
     g->list->unk8 = 0;
     g->list->unkC = 0;
-    if (gWinGlobals->list->count > 0) {
-        gWinGlobals->current = gWinGlobals->list->windows;
-        gCurWindowMirror = gWinGlobals->list->windows;
-    } else {
+    g = gWinGlobals;
+    if (g->list->count <= 0) {
         ErrorPrintf("MBSetCurrentWindow: Bad window index %d\n");
+    } else {
+        g->current = g->list->windows;
+        *gCurWindowMirror = g->list->windows;
     }
-    if (gWinGlobals->current == 0) {
-        gWinGlobals->current = gWinGlobals->list->windows;
+    g = gWinGlobals;
+    if (g->current == 0) {
+        g->current = g->list->windows;
     }
     /* MBWindowViewport(0,0,0,0) */
     g = gWinGlobals;
