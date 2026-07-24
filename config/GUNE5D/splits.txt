@@ -160,6 +160,10 @@ dolphin/db/db.c:
 	.data       start:0x8023A720 end:0x8023A738
 	.sbss       start:0x80345488 end:0x80345490
 
+game/gpads.c:
+	.text       start:0x800F6AD4 end:0x800F6BA8
+	.bss        start:0x80340EE0 end:0x80340F58
+
 dolphin/dsp/dsp.c:
 	.text       start:0x800F6BA8 end:0x800F6DEC
 	.data       start:0x8023A738 end:0x8023A770
