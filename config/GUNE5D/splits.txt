@@ -104,6 +104,10 @@ dolphin/ar/ar.c:
 	.text       start:0x800EC738 end:0x800ED2BC
 	.sbss       start:0x80345390 end:0x803453B0
 
+dolphin/ar/arq.c:
+	.text       start:0x800ED2BC end:0x800ED650
+	.sbss       start:0x803453B0 end:0x803453D8
+
 dolphin/base/PPCArch.c:
 	.text       start:0x800EFCB0 end:0x800EFD14
 
