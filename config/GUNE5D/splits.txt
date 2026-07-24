@@ -211,6 +211,9 @@ dolphin/dvd/fstload.c:
 	.sdata      start:0x803440A8 end:0x803440B8
 	.sbss       start:0x80345560 end:0x80345570
 
+game/registry.c:
+	.text       start:0x800FB700 end:0x800FB92C
+
 dolphin/gx/GXInit.c:
 	.text       start:0x800FB92C end:0x800FCA18
 	.bss        start:0x803411B8 end:0x80341730
