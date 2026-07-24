@@ -28,6 +28,7 @@ void __as__4vec4FRC4vec4(void* d, const void* s);   /* vec4::operator= */
 void __as__4vec3FRC4vec3(void* d, const void* s);   /* vec3::operator= */
 void __as__5mat44FRC5mat44(void* d, const void* s); /* mat44::operator= */
 void vec3Scale__FR4vec3R4vec3f(void* d, void* v, f32 s);
+void identity__5mat44Fv(void* m); /* mat44::identity */
 void OSReport(const char* fmt, ...); /* placeholder: real callee fn_800BC2EC */
 void pbDebugPrintf(const char* fmt, ...);
 
@@ -125,6 +126,9 @@ typedef struct PBLIGHTBLOCK {
     f32 radius[12];     /* 0x25C */
 } PBLIGHTBLOCK;
 
+extern f32 gVpScaleY;        /* FLOAT_80345160 */
+extern f32 gProjD3D[4][4];   /* DAT_802c9bc8 */
+extern f32 gScreenAspect;    /* DAT_8025ee70 */
 extern int gPbDebugCam;      /* DAT_80345158 */
 extern int gPbDebugCamTimer; /* DAT_8034515c */
 extern int gWinDebug[];      /* DAT_80343fb8 (PBWINDEBUG image) */
@@ -263,9 +267,201 @@ static void debugScissor(u32* packet)
     }
 }
 
-/* 0x800C84CC: TODO (projection/viewport/clipport calculator) */
+/* 0x800C84CC: rebuilds scissor, projection, viewport, clipport,
+   clip_screen and the screen-space quads from the window parameters.
+   NOTE: writes the matrices through &gWindows[0] directly (the original
+   assumes the current window is the first one). */
 void pbProjCalc(void)
 {
+    PBWINGLOBALS* g = gWinGlobals;
+    PBWINDOW* w = gWindows;
+    volatile f32 sw, sh;
+    volatile f32 pl, pr, pt, pb;
+    volatile f32 vpcx, vpcy;
+    volatile f32 f;
+    f32 pf;
+    volatile f32 fov, cw, ch;
+    volatile f32 zA, zB;
+    volatile f32 nz, fz;
+    volatile f32 fw, fh;
+    volatile f32 ratio;
+    volatile f32 at;
+    volatile f32 sn, cn, sn2, cn2;
+    volatile f32 vpsx, vpsy;
+    volatile f32 sx, sy;
+    volatile f32 cpx, cpy;
+    f32 one;
+
+    sw = (f32) ((PBSCREEN*) g->screen)->w;
+    sh = (f32) ((PBSCREEN*) g->screen)->h;
+
+    pf = 0.0f;
+    if (g->current->left < 0.0f) {
+        pf = sw;
+    }
+    pl = g->current->left + pf;
+    pf = 0.0f;
+    if (g->current->right < 0.0f) {
+        goto skipR; /* original goto-form; the pair survives no-peephole */
+    }
+    pf = sw;
+skipR:
+    pr = pf - g->current->right;
+    pf = 0.0f;
+    if (g->current->top < 0.0f) {
+        goto skipT; /* original bug: label sits before the assignment, so
+                       the top edge always wraps by the screen height */
+    }
+skipT:
+    pf = sh;
+    pt = g->current->top + pf;
+    pf = 0.0f;
+    if (g->current->bottom < 0.0f) {
+        goto skipB;
+    }
+    pf = sh;
+skipB:
+    pb = pf - g->current->bottom;
+
+    fov = g->current->view_angle_horiz;
+    cw = g->current->clip_width;
+    ch = g->current->clip_height;
+    zA = (f32) ((PBSCREEN*) g->screen)->w2;
+    zB = (f32) ((PBSCREEN*) g->screen)->h2;
+    fz = g->current->far_z;
+    nz = g->current->near_z;
+
+    g->current->scissor[0] = ((int) pl << 5) | (g->current->scissor[0] & 0x1f);
+    g->current->scissor[1] = ((int) pr << 5) | (g->current->scissor[1] & 0x1f);
+    g->current->scissor[2] = ((int) pt << 5) | (g->current->scissor[2] & 0x1f);
+    g->current->scissor[3] = ((int) pb << 5) | (g->current->scissor[3] & 0x1f);
+
+    if (gWinDebug[0] != 0) {
+        f32 sc1 = (f32) (0.5 * (1.0 - (double) *(f32*) &gWinDebug[3]));
+        if (0.0 != (double) *(f32*) &gWinDebug[3]) {
+            pl = (f32) ((PBSCREEN*) g->screen)->w * sc1;
+            pr = (f32) ((PBSCREEN*) g->screen)->w * (1.0f - sc1);
+            pt = (f32) ((PBSCREEN*) g->screen)->h * sc1;
+            pb = (f32) ((PBSCREEN*) g->screen)->h * (1.0f - sc1);
+        }
+        if (0.0 != (double) *(f32*) &gWinDebug[4]) {
+            cw = (f32) ((double) (f32) ((PBSCREEN*) g->screen)->w * (double) *(f32*) &gWinDebug[4]);
+            ch = (f32) ((PBSCREEN*) g->screen)->h * *(f32*) &gWinDebug[4];
+        }
+    }
+
+    fw = pr - pl;
+    fh = pb - pt;
+    vpcx = 0.5f * ((pl + pr) - sw) + ((PBSCREEN*) g->screen)->xoff;
+    vpcy = 0.5f * ((pt + pb) - sh) + ((PBSCREEN*) g->screen)->yoff;
+    ratio = (g->current->aspect * fw) / fh;
+    if ((((PBSCREEN*) g->screen)->flags & 2) != 0) {
+        ratio = ratio * 2.0f;
+    }
+
+    f = (f32) (0.008726646261111111 * (double) fov);
+    sn = sin(f);
+    cn = cos(f);
+    f = sn / cn;
+    ratio = f / ratio;
+    at = atan(ratio);
+    sn2 = sin(at);
+    cn2 = cos(at);
+    f = 1.0f / f;
+    ratio = 1.0f / ratio;
+    w->hva_sin_x = sn;
+    w->hva_cos_x = cn;
+    w->hva_sin_y = sn2;
+    w->hva_cos_y = cn2;
+    identity__5mat44Fv(w->projection);
+    w->projection[0][0] = f;
+    w->projection[1][1] = -ratio;
+    w->projection[2][2] = (nz + fz) / (fz - nz);
+    w->projection[2][3] = 1.0f;
+    w->projection[3][2] = ((-2.0f * nz) * fz) / (fz - nz);
+    w->projection[3][3] = 0.0f;
+
+    vpsx = 0.5f * fw;
+    vpsy = 0.5f * fh;
+    f = 0.5f * (zA - zB);
+    zA = 0.5f * (zA + zB);
+
+    sx = vpsx;
+    sy = vpsy;
+    if (gWinDebug[0] != 0 && gWinDebug[0] == 2) {
+        sx = vpsx * *(f32*) &gWinDebug[8];
+        sy = vpsy * *(f32*) &gWinDebug[9];
+        vpcx = vpsx * -(2.0f * *(f32*) &gWinDebug[10] - (*(f32*) &gWinDebug[8] - 1.0f)) + vpcx;
+        vpcy = vpsy * -(2.0f * *(f32*) &gWinDebug[11] - (*(f32*) &gWinDebug[9] - 1.0f)) + vpcy;
+    }
+    identity__5mat44Fv(w->viewport);
+    w->viewport[0][0] = sx;
+    w->viewport[1][1] = sy;
+    w->viewport[2][2] = f;
+    w->viewport[3][0] = vpcx;
+    w->viewport[3][1] = vpcy;
+    w->viewport[3][2] = zA;
+    w->npc2screen[0][0] = sx;
+    w->npc2screen[0][1] = sy;
+    w->npc2screen[0][2] = f;
+    one = 1.0f;
+    w->npc2screen[0][3] = one;
+    w->npc2screen[1][0] = vpcx;
+    w->npc2screen[1][1] = vpcy;
+    w->npc2screen[1][2] = zA;
+    w->npc2screen[1][3] = 0.0f;
+
+    cpx = fw / cw;
+    cpy = fh / ch;
+    identity__5mat44Fv(w->clipport);
+    w->clipport[0][0] = cpx;
+    w->clipport[1][1] = cpy;
+    w->clipport[2][2] = one;
+    w->npc2clip[0] = cpx;
+    w->npc2clip[1] = cpy;
+    w->npc2clip[2] = one;
+    one = 1.0f;
+    w->npc2clip[3] = one;
+    w->clip2npc[0] = one / cpx;
+    w->clip2npc[1] = one / cpy;
+    w->clip2npc[2] = one / w->clipport[2][2];
+    w->clip2npc[3] = one;
+    identity__5mat44Fv(w->clip_screen);
+    w->clip_screen[0][0] = sx / cpx;
+    w->clip_screen[1][1] = sy / cpy;
+    w->clip_screen[2][2] = f / w->clipport[2][2];
+    w->clip_screen[3][0] = vpcx;
+    w->clip_screen[3][1] = vpcy;
+    w->clip_screen[3][2] = zA;
+    w->clip2screen[0][0] = sx / cpx;
+    w->clip2screen[0][1] = sy / cpy;
+    w->clip2screen[0][2] = f / w->clipport[2][2];
+    w->clip2screen[0][3] = 1.0f;
+    w->clip2screen[1][0] = vpcx;
+    w->clip2screen[1][1] = vpcy;
+    w->clip2screen[1][2] = zA;
+    w->clip2screen[1][3] = 0.0f;
+    mat44Mult(w->view_screen, w->viewport, w->projection);
+    gVpScaleY = sy / (((448.0f * gScreenAspect) / gScreenAspect) * 0.5f);
+
+    gProjD3D[3][3] = 0.0f;
+    gProjD3D[3][1] = 0.0f;
+    gProjD3D[3][0] = 0.0f;
+    gProjD3D[2][1] = 0.0f;
+    gProjD3D[2][0] = 0.0f;
+    gProjD3D[1][3] = 0.0f;
+    gProjD3D[1][2] = 0.0f;
+    gProjD3D[1][0] = 0.0f;
+    gProjD3D[0][3] = 0.0f;
+    gProjD3D[0][2] = 0.0f;
+    gProjD3D[0][1] = 0.0f;
+    gProjD3D[0][0] = w->projection[0][0];
+    gProjD3D[1][1] = -w->projection[1][1];
+    gProjD3D[2][2] = w->far_z / (w->far_z - w->near_z);
+    gProjD3D[3][2] = -1.0f;
+    gProjD3D[2][3] = (w->near_z * w->far_z) / (w->far_z - w->near_z);
+    w->proj_dirty = 0;
+    ((PBSCREEN*) g->screen)->dirty = 0;
 }
 
 /* 0x800C8E4C: TODO (per-frame window packet setup) */
