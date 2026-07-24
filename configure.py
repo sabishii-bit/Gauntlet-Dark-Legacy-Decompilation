@@ -365,6 +365,7 @@ config.libs = [
             Object(Matching, "game/gpads.c"),
             Object(NonMatching, "game/registry.c"),
             Object(Matching, "game/gutil.c"),
+            Object(Matching, "game/texPalette.c"),
         ],
     },
     DolphinLib(

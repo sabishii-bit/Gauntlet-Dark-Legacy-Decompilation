@@ -395,6 +395,10 @@ dolphin/pad/Pad.c:
 game/gutil.c:
 	.text       start:0x8010BCAC end:0x8010BDE0
 
+game/texPalette.c:
+	.text       start:0x8010BDE0 end:0x8010C074
+	.data       start:0x8023C880 end:0x8023C8C0
+
 dolphin/ai/ai.c:
 	.text       start:0x8010C074 end:0x8010C91C
 	.sbss       start:0x80345698 end:0x803456D8
