@@ -99,6 +99,11 @@ dolphin/demo/DEMOInit.c:
 	.sbss       start:0x80345168 end:0x80345188
 	.sdata2     start:0x80349100 end:0x80349120
 
+game/mathfunc.c:
+	extab       start:0x80007F28 end:0x80007F78
+	extabindex  start:0x8000C70C end:0x8000C784
+	.text       start:0x800D190C end:0x800D1E04
+
 TRK_MINNOW_DOLPHIN/Portable/mainloop.c:
 	.text       start:0x800DE928 end:0x800DEA90
 
