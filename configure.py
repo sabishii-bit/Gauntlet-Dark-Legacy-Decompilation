@@ -382,6 +382,7 @@ config.libs = [
         "cflags": cflags_base,
         "progress_category": "game",
         "objects": [
+            Object(NonMatching, "game/g3d/auxanim.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/sys/main.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/sys/memcard.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/g3d/sndvoice.c"),

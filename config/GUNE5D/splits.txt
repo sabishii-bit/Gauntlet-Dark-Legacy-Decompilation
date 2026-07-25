@@ -12,6 +12,13 @@ Sections:
 	.sbss       type:bss align:8
 	.sdata2     type:rodata align:16
 
+game/g3d/auxanim.c:
+	extab       start:0x80005838 end:0x80005878
+	extabindex  start:0x80008CA4 end:0x80008D04
+	.text       start:0x800183FC end:0x80019090
+	.rodata     start:0x80111640 end:0x801116EC
+	.sdata2     start:0x803459B8 end:0x803459F0
+
 game/sys/main.c:
 	extab       start:0x80006618 end:0x80006648
 	extabindex  start:0x8000A174 end:0x8000A1BC
