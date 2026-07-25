@@ -34,6 +34,11 @@ void pbDebugPrintf(const char* fmt, ...);
 
 
 
+typedef struct FIX115 {
+    u16 i : 11;
+    u16 f : 5;
+} FIX115;
+
 typedef struct PBWINDOW {
     u16 flags;                /* 0x000 */
     u8 cam_dirty;             /* 0x002 */
@@ -41,7 +46,7 @@ typedef struct PBWINDOW {
     u32 pad;                  /* 0x004 */
     f32 clip_width;           /* 0x008 */
     f32 clip_height;          /* 0x00C */
-    u16 scissor[4];           /* 0x010 (12.4 fixed) */
+    FIX115 scissor[4];        /* 0x010 (11.5 fixed) */
     f32 cam_pos[4];           /* 0x018 */
     f32 cam_look[4];          /* 0x028 */
     f32 cam_up[4];            /* 0x038 */
@@ -126,12 +131,23 @@ typedef struct PBLIGHTBLOCK {
     f32 radius[12];     /* 0x25C */
 } PBLIGHTBLOCK;
 
-extern f32 gVpScaleY;        /* FLOAT_80345160 */
-extern f32 gProjD3D[4][4];   /* DAT_802c9bc8 */
-extern f32 gScreenAspect;    /* DAT_8025ee70 */
+extern f32 gVpScaleY;        /* lbl_80345160 */
 extern int gPbDebugCam;      /* DAT_80345158 */
 extern int gPbDebugCamTimer; /* DAT_8034515c */
-extern int gWinDebug[];      /* DAT_80343fb8 (PBWINDEBUG image) */
+typedef struct PBWINDEBUG {
+    s32 mode;     /* 0x00 */
+    s32 unk04;    /* 0x04 */
+    s32 clipOff;  /* 0x08 */
+    f32 zoom;     /* 0x0C */
+    f32 clipzoom; /* 0x10 */
+    u8 unk14[0xC];
+    f32 zoomx;    /* 0x20 */
+    f32 zoomy;    /* 0x24 */
+    f32 zoomcx;   /* 0x28 */
+    f32 zoomcy;   /* 0x2C */
+} PBWINDEBUG;
+extern PBWINDEBUG* gWinDebug; /* lbl_80343FB8 (SDA pointer) */
+extern f32 gScreenData[];     /* lbl_8025EE64 ([3] = aspect @8025EE70) */
 typedef struct PBSCREEN {
     u32 flags;   /* 0x00 */
     u8 pad[0x1C];
@@ -170,6 +186,19 @@ extern PBWINDOW** gCurWindowMirror; /* DAT_80343f10 (points at mirror slot) */
 extern u32 gWinDefault;             /* DAT_80345154 (SDA-addressed) */
 extern PBWINLIST gDefaultWinList;   /* DAT_802c9b78 */
 extern PBWINDOW gWindows[];         /* DAT_802c93f8 */
+typedef struct PBWINSTATIC {
+    PBWINDOW win;        /* 0x000 */
+    u32 hdr0[4];         /* 0x3C0 802C97B8 */
+    u32 hdr1[4];         /* 0x3D0 */
+    u32 quad0[40];       /* 0x3E0 802C97D8 */
+    u32 quad1[40];       /* 0x480 802C9878 */
+    u32 pkt[0x78];       /* 0x520 802C9918 default matrix packet */
+    f32 lightInv[4][4];  /* 0x700 802C9AF8 */
+    f32 lightRows[4][4]; /* 0x740 802C9B38 */
+    PBWINLIST list;      /* 0x780 gDefaultWinList */
+    f32 camera[4][4];    /* 0x790 gCameraMtx */
+    f32 projD3D[4][4];   /* 0x7D0 */
+} PBWINSTATIC;
 extern f32 gCameraMtx[4][4];        /* DAT_802c9b88 */
 extern f32 gUpVector[];             /* DAT_802c9b88's up? placeholder */
 
@@ -179,7 +208,17 @@ void pbUpdateMatricies(void);
 static void debugScissor(u32* packet);
 void pbProjCalc(void);
 void pbWinSetup(void);
-void pbCameraUpdate(void);
+void pbCameraUpdate();
+static void setupMatrices(MTXPACKET2* p0, MTXPACKET* p1, MTXPACKET* p2);
+void fn_800C5B3C(void);
+u32* fn_800C3680(void);
+extern int lbl_80345028;     /* use-allocated-packet flag */
+extern int lbl_80343F38;     /* cleared at end of pbWinSetup */
+extern int lbl_80344DAC;     /* packet buffer end (sbss) */
+extern int lbl_80344DB0;     /* packet buffer base (sbss) */
+extern f32 lbl_801284D8[];   /* default dir-light node (vec at +0x10) */
+void mat44InvBasis__FR5mat44R4vec4R4vec4R4vec4(void* m, void* a, void* b, void* c);
+void mat44SetRows__FR5mat44R4vec4R4vec4R4vec4R4vec4(void* m, void* a, void* b, void* c, void* d);
 void pbCameraCalc(void);
 void pbInitCamera(f32* pos, f32* look);
 void MBWindowClip(f32 w, f32 h, f32 nearz, f32 farz);
@@ -236,11 +275,11 @@ static void debugScissor(u32* packet)
     u32 x0, x1, y0, y1;
     u32 v;
 
-    if (gWinDebug[0] != 0) {
-        if (gWinDebug[2] == 0) {
-            f32 scale = *(f32*) &gWinDebug[3];
+    if (gWinDebug->mode != 0) {
+        if (gWinDebug->clipOff == 0) {
+            f32 scale = gWinDebug->zoom;
             if ((double) scale != 0.0f) {
-                if (gWinDebug[0] != 0) {
+                if (gWinDebug->mode != 0) {
                     f32 t = (f32) (0.5 * (1.0 - (double) scale));
                     if (0.0 != (double) scale) {
                         PBSCREEN* sc = (PBSCREEN*) gWinGlobals->screen;
@@ -267,61 +306,158 @@ static void debugScissor(u32* packet)
     }
 }
 
+#pragma dont_inline off
+/* debug zoom: shrinks the port rect / clip size (inlined into pbProjCalc) */
+static void debugZoomAdjust(volatile f32* l, volatile f32* r, volatile f32* t,
+                            volatile f32* b, volatile f32* w, volatile f32* h)
+{
+    PBWINGLOBALS* g = gWinGlobals;
+    PBWINDEBUG* d = gWinDebug;
+    if (d->mode != 0) {
+        f32 sc = (f32) (0.5 * (1.0 - (double) d->zoom));
+        if (0.0 != (double) d->zoom) {
+            *l = (f32) ((PBSCREEN*) g->screen)->w * sc;
+            *r = (f32) ((PBSCREEN*) g->screen)->w * (1.0f - sc);
+            *t = (f32) ((PBSCREEN*) g->screen)->h * sc;
+            *b = (f32) ((PBSCREEN*) g->screen)->h * (1.0f - sc);
+        }
+        {
+            f32* pz = &d->clipzoom;
+            if (0.0 != (double) *pz) {
+                *w = (f32) ((PBSCREEN*) g->screen)->w * *pz;
+                *h = (f32) ((PBSCREEN*) g->screen)->h * *pz;
+            }
+        }
+    }
+}
+
+/* camera matrices for the current window */
+static void calcMatrices(PBWINSTATIC* ws)
+{
+    PBWINGLOBALS* g = gWinGlobals;
+
+    sceSamp0Normalize(g->current->cam_look, g->current->cam_look);
+    mat44LookAt(g->current->camera, g->current->cam_pos, g->current->cam_look, g->current->cam_up);
+    sceSamp0RotCameraMatrix((f32*) ws->camera, g->current->cam_pos, g->current->cam_look, g->current->cam_up);
+    mat44InvRigid(g->current->icamera, g->current->camera);
+    g->current->cam_dirty = 0;
+}
+
+/* the two small quad packets + hand-off to setupMatrices */
+static inline void setupClipMtxPkt(PBWINSTATIC* ws, u32* p)
+{
+    ws->hdr0[0] = 0x3000000A;
+    ws->hdr0[1] = (u32) ws->quad0;
+    ws->hdr0[2] = 0x01000404;
+    ws->hdr0[3] = 0x10000000;
+    ws->quad0[0] = 0;
+    ws->quad0[1] = 0;
+    ws->quad0[2] = 0;
+    ws->quad0[3] = 0x6C090000;
+    ws->hdr1[0] = 0x3000000A;
+    ws->hdr1[1] = (u32) ws->quad1;
+    ws->hdr1[2] = 0x01000404;
+    ws->hdr1[3] = 0x10000000;
+    ws->quad1[0] = 0;
+    ws->quad1[1] = 0;
+    ws->quad1[2] = 0;
+    ws->quad1[3] = 0x6C090000;
+    setupMatrices((MTXPACKET2*) p, (MTXPACKET*) ws->quad0, (MTXPACKET*) ws->quad1);
+}
+
+/* pbProjCalc keeps every float local in one scratch array (PS2-era layout);
+   the array is address-taken (debugZoomAdjust), which is what forces the
+   reload-per-statement codegen of the original. */
+#define fov    vp[0]
+#define ang    vp[1]
+#define sn     vp[2]
+#define cn     vp[3]
+#define tanh2  vp[4]
+#define invt   vp[5]
+#define at     vp[6]
+#define sn2    vp[7]
+#define cn2    vp[8]
+#define ratio2 vp[9]
+#define invr2  vp[10]
+#define proj00 vp[11]
+#define proj11 vp[12]
+#define projZB vp[13]
+#define projZA vp[14]
+#define vpsx   vp[15]
+#define vpsy   vp[16]
+#define zC     vp[17]
+#define vpx    vp[18]
+#define vpy    vp[19]
+#define zD     vp[20]
+#define cs00   vp[21]
+#define cs11   vp[22]
+#define cs22   vp[23]
+#define cs30   vp[24]
+#define cs31   vp[25]
+#define cs32   vp[26]
+#define cpx    vp[27]
+#define cpy    vp[28]
+#define cpz    vp[29]
+#define sw     vp[33]
+#define sh     vp[34]
+#define pl     vp[35]
+#define pr     vp[36]
+#define pt     vp[37]
+#define pb     vp[38]
+#define fw     vp[39]
+#define fh     vp[40]
+#define cw     vp[41]
+#define ch     vp[42]
+#define vpcx   vp[43]
+#define vpcy   vp[44]
+#define ratio  vp[45]
+#define zA     vp[46]
+#define zB     vp[47]
+#define fz     vp[48]
+#define nz     vp[49]
+
 /* 0x800C84CC: rebuilds scissor, projection, viewport, clipport,
-   clip_screen and the screen-space quads from the window parameters.
-   NOTE: writes the matrices through &gWindows[0] directly (the original
-   assumes the current window is the first one). */
+   clip_screen and the screen-space quads from the window parameters. */
 void pbProjCalc(void)
 {
     PBWINGLOBALS* g = gWinGlobals;
-    PBWINDOW* w = gWindows;
-    volatile f32 sw, sh;
-    volatile f32 pl, pr, pt, pb;
-    volatile f32 vpcx, vpcy;
-    volatile f32 f;
-    f32 pf;
-    volatile f32 fov, cw, ch;
-    volatile f32 zA, zB;
-    volatile f32 nz, fz;
-    volatile f32 fw, fh;
-    volatile f32 ratio;
-    volatile f32 at;
-    volatile f32 sn, cn, sn2, cn2;
-    volatile f32 vpsx, vpsy;
-    volatile f32 sx, sy;
-    volatile f32 cpx, cpy;
-    f32 one;
+    PBWINSTATIC* ws = (PBWINSTATIC*) gWindows;
+    f32 v[50];
+    u8 argpad[12]; /* three more f32 locals in the original (never touched) */
+    f32* vp = v;
+    f32 f, t;
 
     sw = (f32) ((PBSCREEN*) g->screen)->w;
     sh = (f32) ((PBSCREEN*) g->screen)->h;
 
-    pf = 0.0f;
+    f = 0.0f;
     if (g->current->left < 0.0f) {
-        pf = sw;
+        f = sw;
     }
-    pl = g->current->left + pf;
-    pf = 0.0f;
-    if (g->current->right < 0.0f) {
-        goto skipR; /* original goto-form; the pair survives no-peephole */
+    pl = g->current->left + f;
+
+    t = g->current->right;
+    if (t < 0.0f) {
+        f = 0.0f;
+    } else {
+        f = sw;
     }
-    pf = sw;
-skipR:
-    pr = pf - g->current->right;
-    pf = 0.0f;
-    if (g->current->top < 0.0f) {
-        goto skipT; /* original bug: label sits before the assignment, so
-                       the top edge always wraps by the screen height */
+    pr = f - t;
+
+    t = g->current->top;
+    f = 0.0f;
+    if (t < 0.0f) {
+        f = sh;
     }
-skipT:
-    pf = sh;
-    pt = g->current->top + pf;
-    pf = 0.0f;
-    if (g->current->bottom < 0.0f) {
-        goto skipB;
+    pt = t + f;
+
+    t = g->current->bottom;
+    if (t < 0.0f) {
+        f = 0.0f;
+    } else {
+        f = sh;
     }
-    pf = sh;
-skipB:
-    pb = pf - g->current->bottom;
+    pb = f - t;
 
     fov = g->current->view_angle_horiz;
     cw = g->current->clip_width;
@@ -331,149 +467,343 @@ skipB:
     fz = g->current->far_z;
     nz = g->current->near_z;
 
-    g->current->scissor[0] = ((int) pl << 5) | (g->current->scissor[0] & 0x1f);
-    g->current->scissor[1] = ((int) pr << 5) | (g->current->scissor[1] & 0x1f);
-    g->current->scissor[2] = ((int) pt << 5) | (g->current->scissor[2] & 0x1f);
-    g->current->scissor[3] = ((int) pb << 5) | (g->current->scissor[3] & 0x1f);
+    g->current->scissor[0].i = (s32) pl;
+    g->current->scissor[1].i = (s32) pr;
+    g->current->scissor[2].i = (s32) pt;
+    g->current->scissor[3].i = (s32) pb;
 
-    if (gWinDebug[0] != 0) {
-        f32 sc1 = (f32) (0.5 * (1.0 - (double) *(f32*) &gWinDebug[3]));
-        if (0.0 != (double) *(f32*) &gWinDebug[3]) {
-            pl = (f32) ((PBSCREEN*) g->screen)->w * sc1;
-            pr = (f32) ((PBSCREEN*) g->screen)->w * (1.0f - sc1);
-            pt = (f32) ((PBSCREEN*) g->screen)->h * sc1;
-            pb = (f32) ((PBSCREEN*) g->screen)->h * (1.0f - sc1);
-        }
-        if (0.0 != (double) *(f32*) &gWinDebug[4]) {
-            cw = (f32) ((double) (f32) ((PBSCREEN*) g->screen)->w * (double) *(f32*) &gWinDebug[4]);
-            ch = (f32) ((PBSCREEN*) g->screen)->h * *(f32*) &gWinDebug[4];
-        }
+    if (gWinDebug->mode != 0) {
+        debugZoomAdjust(&pl, &pr, &pt, &pb, &cw, &ch);
     }
 
     fw = pr - pl;
     fh = pb - pt;
-    vpcx = 0.5f * ((pl + pr) - sw) + ((PBSCREEN*) g->screen)->xoff;
-    vpcy = 0.5f * ((pt + pb) - sh) + ((PBSCREEN*) g->screen)->yoff;
+    vpcx = 0.5f * ((pl + pr) - sw);
+    vpcy = 0.5f * ((pt + pb) - sh);
+    vpcx = vpcx + ((PBSCREEN*) g->screen)->xoff;
+    vpcy = vpcy + ((PBSCREEN*) g->screen)->yoff;
     ratio = (g->current->aspect * fw) / fh;
     if ((((PBSCREEN*) g->screen)->flags & 2) != 0) {
         ratio = ratio * 2.0f;
     }
 
-    f = (f32) (0.008726646261111111 * (double) fov);
-    sn = sin(f);
-    cn = cos(f);
-    f = sn / cn;
-    ratio = f / ratio;
-    at = atan(ratio);
+    ang = (f32) (0.008726646261111111 * (double) fov);
+    sn = sin(ang);
+    cn = cos(ang);
+    tanh2 = sn / cn;
+    ratio2 = tanh2 / ratio;
+    at = atan(ratio2);
     sn2 = sin(at);
     cn2 = cos(at);
-    f = 1.0f / f;
-    ratio = 1.0f / ratio;
-    w->hva_sin_x = sn;
-    w->hva_cos_x = cn;
-    w->hva_sin_y = sn2;
-    w->hva_cos_y = cn2;
-    identity__5mat44Fv(w->projection);
-    w->projection[0][0] = f;
-    w->projection[1][1] = -ratio;
-    w->projection[2][2] = (nz + fz) / (fz - nz);
-    w->projection[2][3] = 1.0f;
-    w->projection[3][2] = ((-2.0f * nz) * fz) / (fz - nz);
-    w->projection[3][3] = 0.0f;
+    invt = 1.0f / tanh2;
+    invr2 = 1.0f / ratio2;
+    proj00 = invt;
+    proj11 = invr2;
+    f = nz;
+    t = fz;
+    projZB = ((-2.0f * f) * t) / (t - f);
+    t = fz;
+    f = nz;
+    projZA = (f + t) / (t - f);
+
+    g->current->hva_sin_x = sn;
+    g->current->hva_cos_x = cn;
+    g->current->hva_sin_y = sn2;
+    g->current->hva_cos_y = cn2;
+    identity__5mat44Fv(g->current->projection);
+    g->current->projection[0][0] = proj00;
+    g->current->projection[1][1] = -proj11;
+    g->current->projection[2][2] = projZA;
+    g->current->projection[2][3] = 1.0f;
+    g->current->projection[3][2] = projZB;
+    g->current->projection[3][3] = 0.0f;
 
     vpsx = 0.5f * fw;
     vpsy = 0.5f * fh;
-    f = 0.5f * (zA - zB);
-    zA = 0.5f * (zA + zB);
+    zC = 0.5f * (zA - zB);
+    vpx = vpcx;
+    vpy = vpcy;
+    zD = 0.5f * (zA + zB);
 
-    sx = vpsx;
-    sy = vpsy;
-    if (gWinDebug[0] != 0 && gWinDebug[0] == 2) {
-        sx = vpsx * *(f32*) &gWinDebug[8];
-        sy = vpsy * *(f32*) &gWinDebug[9];
-        vpcx = vpsx * -(2.0f * *(f32*) &gWinDebug[10] - (*(f32*) &gWinDebug[8] - 1.0f)) + vpcx;
-        vpcy = vpsy * -(2.0f * *(f32*) &gWinDebug[11] - (*(f32*) &gWinDebug[9] - 1.0f)) + vpcy;
+    if (gWinDebug->mode != 0 && gWinDebug->mode == 2) {
+        f32 t1 = vpsx;
+        f32 t2 = vpsy;
+        vpsx = t1 * gWinDebug->zoomx;
+        vpsy = vpsy * gWinDebug->zoomy;
+        {
+            f32 ex = (gWinDebug->zoomx - 1.0f) - 2.0f * gWinDebug->zoomcx;
+            f32 ey = (gWinDebug->zoomy - 1.0f) - 2.0f * gWinDebug->zoomcy;
+            vpx = vpx + t1 * ex;
+            vpy = vpy + t2 * ey;
+        }
     }
-    identity__5mat44Fv(w->viewport);
-    w->viewport[0][0] = sx;
-    w->viewport[1][1] = sy;
-    w->viewport[2][2] = f;
-    w->viewport[3][0] = vpcx;
-    w->viewport[3][1] = vpcy;
-    w->viewport[3][2] = zA;
-    w->npc2screen[0][0] = sx;
-    w->npc2screen[0][1] = sy;
-    w->npc2screen[0][2] = f;
-    one = 1.0f;
-    w->npc2screen[0][3] = one;
-    w->npc2screen[1][0] = vpcx;
-    w->npc2screen[1][1] = vpcy;
-    w->npc2screen[1][2] = zA;
-    w->npc2screen[1][3] = 0.0f;
+
+    identity__5mat44Fv(g->current->viewport);
+    g->current->viewport[0][0] = vpsx;
+    g->current->viewport[1][1] = vpsy;
+    g->current->viewport[2][2] = zC;
+    g->current->viewport[3][0] = vpx;
+    g->current->viewport[3][1] = vpy;
+    g->current->viewport[3][2] = zD;
+    g->current->npc2screen[0][0] = vpsx;
+    g->current->npc2screen[0][1] = vpsy;
+    g->current->npc2screen[0][2] = zC;
+    g->current->npc2screen[0][3] = 1.0f;
+    g->current->npc2screen[1][0] = vpx;
+    g->current->npc2screen[1][1] = vpy;
+    g->current->npc2screen[1][2] = zD;
+    g->current->npc2screen[1][3] = 0.0f;
 
     cpx = fw / cw;
     cpy = fh / ch;
-    identity__5mat44Fv(w->clipport);
-    w->clipport[0][0] = cpx;
-    w->clipport[1][1] = cpy;
-    w->clipport[2][2] = one;
-    w->npc2clip[0] = cpx;
-    w->npc2clip[1] = cpy;
-    w->npc2clip[2] = one;
-    one = 1.0f;
-    w->npc2clip[3] = one;
-    w->clip2npc[0] = one / cpx;
-    w->clip2npc[1] = one / cpy;
-    w->clip2npc[2] = one / w->clipport[2][2];
-    w->clip2npc[3] = one;
-    identity__5mat44Fv(w->clip_screen);
-    w->clip_screen[0][0] = sx / cpx;
-    w->clip_screen[1][1] = sy / cpy;
-    w->clip_screen[2][2] = f / w->clipport[2][2];
-    w->clip_screen[3][0] = vpcx;
-    w->clip_screen[3][1] = vpcy;
-    w->clip_screen[3][2] = zA;
-    w->clip2screen[0][0] = sx / cpx;
-    w->clip2screen[0][1] = sy / cpy;
-    w->clip2screen[0][2] = f / w->clipport[2][2];
-    w->clip2screen[0][3] = 1.0f;
-    w->clip2screen[1][0] = vpcx;
-    w->clip2screen[1][1] = vpcy;
-    w->clip2screen[1][2] = zA;
-    w->clip2screen[1][3] = 0.0f;
-    mat44Mult(w->view_screen, w->viewport, w->projection);
-    gVpScaleY = sy / (((448.0f * gScreenAspect) / gScreenAspect) * 0.5f);
+    cpz = 1.0f;
+    identity__5mat44Fv(g->current->clipport);
+    g->current->clipport[0][0] = cpx;
+    g->current->clipport[1][1] = cpy;
+    g->current->clipport[2][2] = cpz;
+    g->current->npc2clip[0] = cpx;
+    g->current->npc2clip[1] = cpy;
+    g->current->npc2clip[2] = cpz;
+    g->current->npc2clip[3] = 1.0f;
+    g->current->clip2npc[0] = 1.0f / cpx;
+    g->current->clip2npc[1] = 1.0f / cpy;
+    g->current->clip2npc[2] = 1.0f / cpz;
+    g->current->clip2npc[3] = 1.0f;
 
-    gProjD3D[3][3] = 0.0f;
-    gProjD3D[3][1] = 0.0f;
-    gProjD3D[3][0] = 0.0f;
-    gProjD3D[2][1] = 0.0f;
-    gProjD3D[2][0] = 0.0f;
-    gProjD3D[1][3] = 0.0f;
-    gProjD3D[1][2] = 0.0f;
-    gProjD3D[1][0] = 0.0f;
-    gProjD3D[0][3] = 0.0f;
-    gProjD3D[0][2] = 0.0f;
-    gProjD3D[0][1] = 0.0f;
-    gProjD3D[0][0] = w->projection[0][0];
-    gProjD3D[1][1] = -w->projection[1][1];
-    gProjD3D[2][2] = w->far_z / (w->far_z - w->near_z);
-    gProjD3D[3][2] = -1.0f;
-    gProjD3D[2][3] = (w->near_z * w->far_z) / (w->far_z - w->near_z);
-    w->proj_dirty = 0;
+    cs00 = vpsx / cpx;
+    cs11 = vpsy / cpy;
+    cs22 = zC / cpz;
+    cs30 = vpx;
+    cs31 = vpy;
+    cs32 = zD;
+    identity__5mat44Fv(g->current->clip_screen);
+    g->current->clip_screen[0][0] = cs00;
+    g->current->clip_screen[1][1] = cs11;
+    g->current->clip_screen[2][2] = cs22;
+    g->current->clip_screen[3][0] = cs30;
+    g->current->clip_screen[3][1] = cs31;
+    g->current->clip_screen[3][2] = cs32;
+    g->current->clip2screen[0][0] = cs00;
+    g->current->clip2screen[0][1] = cs11;
+    g->current->clip2screen[0][2] = cs22;
+    g->current->clip2screen[0][3] = 1.0f;
+    g->current->clip2screen[1][0] = cs30;
+    g->current->clip2screen[1][1] = cs31;
+    g->current->clip2screen[1][2] = cs32;
+    g->current->clip2screen[1][3] = 0.0f;
+
+    mat44Mult(g->current->view_screen, g->current->viewport, g->current->projection);
+
+    gVpScaleY = vpsy / (((448.0f * gScreenData[3]) / gScreenData[3]) * 0.5f);
+
+    ws->projD3D[3][3] = 0.0f;
+    ws->projD3D[3][1] = 0.0f;
+    ws->projD3D[3][0] = 0.0f;
+    ws->projD3D[2][1] = 0.0f;
+    ws->projD3D[2][0] = 0.0f;
+    ws->projD3D[1][3] = 0.0f;
+    ws->projD3D[1][2] = 0.0f;
+    ws->projD3D[1][0] = 0.0f;
+    ws->projD3D[0][3] = 0.0f;
+    ws->projD3D[0][2] = 0.0f;
+    ws->projD3D[0][1] = 0.0f;
+    ws->projD3D[0][0] = g->current->projection[0][0];
+    ws->projD3D[1][1] = -g->current->projection[1][1];
+    ws->projD3D[2][2] = g->current->far_z / (g->current->far_z - g->current->near_z);
+    ws->projD3D[3][2] = -1.0f;
+    ws->projD3D[2][3] = (g->current->near_z * g->current->far_z) / (g->current->far_z - g->current->near_z);
+    g->current->proj_dirty = 0;
     ((PBSCREEN*) g->screen)->dirty = 0;
 }
 
-/* 0x800C8E4C: TODO (per-frame window packet setup) */
+#undef fov
+#undef ang
+#undef sn
+#undef cn
+#undef tanh2
+#undef invt
+#undef at
+#undef sn2
+#undef cn2
+#undef ratio2
+#undef invr2
+#undef proj00
+#undef proj11
+#undef projZB
+#undef projZA
+#undef vpsx
+#undef vpsy
+#undef zC
+#undef vpx
+#undef vpy
+#undef zD
+#undef cs00
+#undef cs11
+#undef cs22
+#undef cs30
+#undef cs31
+#undef cs32
+#undef cpx
+#undef cpy
+#undef cpz
+#undef sw
+#undef sh
+#undef pl
+#undef pr
+#undef pt
+#undef pb
+#undef fw
+#undef fh
+#undef cw
+#undef ch
+#undef vpcx
+#undef vpcy
+#undef ratio
+#undef zA
+#undef zB
+#undef fz
+#undef nz
+
+/* 0x800C8E4C: builds the frame's matrix packet (GIF-tag heritage),
+   scissor words, directional light matrices, camera matrices and the two
+   small quad packets, then hands everything to setupMatrices. */
 void pbWinSetup(void)
 {
-}
+    PBWINGLOBALS* g = gWinGlobals;
+    PBWINSTATIC* ws = (PBWINSTATIC*) gWindows;
+    u32* p;
+    void* fb = g->framebuf;
+    f32* dirs[3];
+    int i;
+    int n;
+    int x0, x1, y0, y1;
+    int w, h;
+    PBLIGHTBLOCK* lb;
 
-/* 0x800C92B8 handled below as setupMatrices */
-static void setupMatrices(MTXPACKET2* p0, MTXPACKET* p1, MTXPACKET* p2);
+    fn_800C5B3C();
+    if (lbl_80345028 != 0) {
+        p = fn_800C3680();
+    } else {
+        p = ws->pkt;
+    }
+
+    p[0] = 0x7000001D;
+    p[1] = 0;
+    p[2] = 0x11000000;
+    p[3] = 0x03000000;
+    p[4] = 0x02000000;
+    p[5] = 0x01000404;
+    p[6] = 0;
+    p[7] = 0x6C110000;
+
+    p[0x4C] = 0x64010000;
+    p[0x4D] = ((u32*) fb)[8];
+    p[0x4E] = (&lbl_80344DAC - &lbl_80344DB0) >> 3;
+    p[0x4F] = 0x17000000;
+    p[0x50] = 0;
+    p[0x51] = 0;
+    p[0x52] = 0;
+    p[0x53] = 0x50000009;
+    p[0x54] = 0x8008;
+    p[0x55] = 0x10000000;
+    p[0x57] = 0xE;
+    p[0x56] = 0;
+    p[0x59] = 0;
+    p[0x58] = 0;
+    p[0x5D] = 0xFFFFFF;
+    p[0x5C] = 0;
+    p[0x60] = 0x71603524;
+    p[0x61] = 0x60712435;
+    p[0x65] = 0;
+    p[0x64] = 0;
+    p[0x69] = 0;
+    p[0x68] = 0;
+    p[0x6D] = 0;
+    p[0x6C] = 0;
+    p[0x5B] = 0x22;
+    p[0x5A] = 0;
+    p[0x5F] = 0x3D;
+    p[0x5E] = 0;
+    p[0x63] = 0x44;
+    p[0x62] = 0;
+    p[0x67] = 0x49;
+    p[0x66] = 0;
+    p[0x6B] = 0x4A;
+    p[0x6A] = 0;
+    p[0x6F] = 0x4B;
+    p[0x6E] = 0;
+    p[0x73] = 0x40;
+    p[0x72] = 0;
+    p[0x77] = 0x41;
+    p[0x76] = 0;
+
+    h = ((PBSCREEN*) g->screen)->h;
+    w = ((PBSCREEN*) g->screen)->w;
+    x0 = (s32) g->current->left;
+    x1 = (s32) ((f32) w - g->current->right);
+    y0 = (s32) g->current->top;
+    y1 = (s32) ((f32) h - g->current->bottom);
+    if ((s32) g->current->left < 0) {
+        x0 = 0;
+    }
+    if (x0 > w) {
+        x0 = w;
+    }
+    if (x1 < x0) {
+        x1 = x0;
+    }
+    if (x1 > w) {
+        x1 = w;
+    }
+    if (y0 < 0) {
+        y0 = 0;
+    }
+    if (y0 > h) {
+        y0 = h;
+    }
+    if (y1 < y0) {
+        y1 = y0;
+    }
+    if (y1 > h) {
+        y1 = h;
+    }
+    p[0x70] = x0 | (x1 << 16);
+    p[0x71] = y0 | (y1 << 16);
+    p[0x74] = x0 | (x1 << 16);
+    p[0x75] = y0 | (y1 << 16);
+
+    if (gWinDebug->mode != 0) {
+        debugScissor(p);
+    }
+
+    pbProjCalc();
+
+    g = gWinGlobals;
+    lb = (PBLIGHTBLOCK*) g->lights;
+    i = 0;
+    n = lb->dirCount;
+    for (; i < n; i++) {
+        dirs[i] = (f32*) ((u8*) lb + 0xBC + i * 0x20);
+    }
+    for (; i < 3; i++) {
+        dirs[i] = lbl_801284D8;
+    }
+    mat44InvBasis__FR5mat44R4vec4R4vec4R4vec4(p + 0x2C, dirs[0] + 4, dirs[1] + 4, dirs[2] + 4);
+    mat44SetRows__FR5mat44R4vec4R4vec4R4vec4R4vec4(p + 0x3C, dirs[0], dirs[1], dirs[2],
+                                                   ((PBLIGHTBLOCK*) g->lights)->ambientRow);
+    sceSamp0CopyMatrix34((f32*) ws->lightRows, (f32*) (p + 0x2C));
+    __as__5mat44FRC5mat44(ws->lightInv, p + 0x3C);
+
+    pbCameraUpdate(p);
+    calcMatrices(ws);
+    setupClipMtxPkt(ws, p);
+    lbl_80343F38 = 0;
+}
+#pragma dont_inline on
+
 
 /* 0x800C9448: positional light packets + camera pitch/yaw */
-void pbCameraUpdate(void)
+void pbCameraUpdate()
 {
     PBWINGLOBALS* g = gWinGlobals;
     int ri;
