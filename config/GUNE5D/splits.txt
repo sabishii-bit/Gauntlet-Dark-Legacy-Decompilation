@@ -267,8 +267,18 @@ MSL/string.c:
 	.text       start:0x800E7E84 end:0x800E81A8
 	.sdata      start:0x80344078 end:0x80344080
 
+MSL/time.c:
+	.text       start:0x800E81A8 end:0x800E81E0
+
+MSL/uart_console_io.c:
+	.text       start:0x800E81E0 end:0x800E8360
+	.sbss       start:0x80345338 end:0x80345340
+
 MSL/wchar_io.c:
 	.text       start:0x800E8360 end:0x800E83E0
+
+MSL/get_time.c:
+	.text       start:0x800E83E0 end:0x800E8424
 
 dolphin/vi/vi.c:
 	.text       start:0x800EAE2C end:0x800EC738
