@@ -17,10 +17,17 @@ void fn_80042F98(void);        /* post-error recovery, gated by lbl_80344A5C */
 
 extern u8 lbl_80344A5C;        /* error-screen-shown flag (other TU) */
 extern u8 lbl_8025EDE8[];      /* shared scratch DVDFileInfo (.bss) */
+extern u8 lbl_8028CB30[];      /* file slot table: records @+1440+i*88, buffers @+1528+i*16416 */
 extern u8 lbl_80344DB8;        /* dvd-busy flag */
 extern u8 lbl_80115860[];      /* disc error strings block */
 
 u8 G3DIsPadEnabled(int idx);
+void G3DGetControlPadAnalogStick(f32* x, f32* y, int pad, int stick);
+f32 G3DGetControlPadAnalog(int pad, int axis);
+u8 G3DControlPadButtonPressed(int pad, int button);
+
+extern u32 lbl_80127798[];     /* PS2 button bit per G3D button index (16) */
+extern u32 lbl_801277D8[];     /* G3D button ids for the pressure bytes (12) */
 void G3DSetRumble(int idx, f32 small, f32 big);
 int G3DGetActivePadCount(void);
 
@@ -303,10 +310,52 @@ int sceClose(int fd)
     return 0;
 }
 
-/* 0x800AF02C: sceOpen(path, flags, ...) varargs (0x18C) - TODO */
+/* 0x800AF02C: sceOpen(path, flags, ...) - open through the slot table,
+ * handle is record-pointer >> 1 */
 int sceOpen(const char* path, int flags, ...)
 {
-    return -1;
+    SCEFILE* f;
+    u8* base;
+    int off;
+    u8* fi;
+    int i;
+    int r;
+    u8 rbuf[64];
+
+    base = lbl_8028CB30;
+    if (!(flags & 1)) {
+        return -1;
+    }
+    i = 0;
+    if (*(base + 1440) != 0) {
+        i = 1;
+    }
+    if (i == 1) {
+        return -1;
+    }
+    f = (SCEFILE*) (base + 1440 + i * 88);
+    if (*(u32*) &f & 1) {
+        return -1;
+    }
+    f->buf = base + 1528 + i * 16416;
+
+    off = (int) (((u32) &rbuf[31] & ~31) - (u32) &rbuf[0]);
+    fi = f->fileInfo;
+    do {
+        r = DVDOpen(path, fi);
+        if (r == 0) {
+            fn_800AEBF4(lbl_8025EDE8, rbuf + off, 32, 0);
+        }
+    } while (r == 0);
+
+    f->pad0[0] = 1;
+    f->open = 1;
+    f->bufOff = (((u32) f->buf + 31) & ~31) - (u32) f->buf;
+    f->chunk = 16384;
+    f->pos = 0;
+    f->cursor = 0;
+    f->winOff = 0;
+    return (u32) f >> 1;
 }
 
 /* --- pad API ---------------------------------------------------------- */
@@ -398,10 +447,32 @@ int fn_800AF2D4(void)
     return 0;
 }
 
-/* 0x800AF2DC: scePadRead (0x180) - TODO */
-int scePadRead(int port, int slot, void* data)
+/* 0x800AF2DC: scePadRead - build a PS2 DualShock2 report from G3D pad state */
+int scePadRead(int port, int slot, u8* data)
 {
-    return 0;
+    s32 bits = 0;
+    int i;
+    int idx = slot + port * 4;
+    f32 x, y;
+
+    data[0] = 0;
+    data[1] = 116;
+    for (i = 0; i < 16; i++) {
+        if (G3DControlPadButtonPressed(idx, i)) {
+            bits |= lbl_80127798[i];
+        }
+    }
+    data[2] = ~bits;
+    data[3] = ~(bits >> 8);
+    G3DGetControlPadAnalogStick(&x, &y, idx, 0);
+    data[4] = (s32) (-127.0f * G3DGetControlPadAnalog(idx, 2) + 128.0f);
+    data[5] = (s32) (-127.0f * G3DGetControlPadAnalog(idx, 3) + 128.0f);
+    data[6] = (s32) (127.0f * x + 128.0f);
+    data[7] = (s32) (-127.0f * y + 128.0f);
+    for (i = 8; i < 20; i++) {
+        data[i] = G3DControlPadButtonPressed(idx, lbl_801277D8[i - 8]) ? 255 : 0;
+    }
+    return 32;
 }
 
 int scePadPortOpen(int port, int slot, void* data)
