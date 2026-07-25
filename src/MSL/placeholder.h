@@ -3,8 +3,8 @@
 
 #include <platform.h>
 
-#include <m2c_macros.h> // IWYU pragma: export
-#include <dolphin/os.h>
+void OSReport(const char*, ...);
+void OSPanic(const char* file, int line, const char* msg, ...);
 
 /// A label in a jump table
 typedef void (*jmp_t)(void);
