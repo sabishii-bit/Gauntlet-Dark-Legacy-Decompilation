@@ -467,6 +467,8 @@ config.libs = [
         "progress_category": "sdk",
         "objects": [
             Object(Matching, "MSL/abort_exit.c"),
+            Object(Matching, "MSL/ansi_fp.c"),
+            Object(NonMatching, "MSL/bsearch.c"),
             Object(Matching, "MSL/buffer_io.c"),
             Object(Matching, "MSL/critical_regions.c"),
             Object(Matching, "MSL/direct_io.c"),

@@ -213,6 +213,14 @@ MSL/abort_exit.c:
 	.bss        start:0x80328EC8 end:0x803290C8
 	.sbss       start:0x80345320 end:0x80345334
 
+MSL/ansi_fp.c:
+	.text       start:0x800E555C end:0x800E5910
+	.rodata     start:0x801179C8 end:0x80117A50
+	.sdata2     start:0x80349438 end:0x80349460
+
+MSL/bsearch.c:
+	.text       start:0x800E5910 end:0x800E5A04
+
 MSL/buffer_io.c:
 	.text       start:0x800E5A04 end:0x800E5B04
 
