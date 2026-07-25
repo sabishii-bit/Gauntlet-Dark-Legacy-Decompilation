@@ -7,6 +7,18 @@
 
 s32 DVDConvertPathToEntrynum(const char* path);
 int DVDClose(void* fileInfo);
+int DVDReadAsyncPrio(void* fileInfo, void* buf, int len, int offset, void* cb, int prio);
+int DVDOpen(const char* path, void* fileInfo);
+int DVDGetCommandBlockStatus(void* block);
+
+void fn_8006B540(char* msg);   /* disc-error message display */
+void fn_800DD604(void);        /* frame yield while waiting on DVD */
+void fn_80042F98(void);        /* post-error recovery, gated by lbl_80344A5C */
+
+extern u8 lbl_80344A5C;        /* error-screen-shown flag (other TU) */
+extern u8 lbl_8025EDE8[];      /* shared scratch DVDFileInfo (.bss) */
+extern u8 lbl_80344DB8;        /* dvd-busy flag */
+extern u8 lbl_80115860[];      /* disc error strings block */
 
 u8 G3DIsPadEnabled(int idx);
 void G3DSetRumble(int idx, f32 small, f32 big);
@@ -75,10 +87,31 @@ u8 sceFileExists(const char* path)
     return DVDConvertPathToEntrynum(path) >= 0;
 }
 
-/* 0x800AEAD0: DVDOpen + retry, then aligned read (0xC4) - TODO */
+/* 0x800AEAD0: file size probe - open with retry, take length, close */
 int fn_800AEAD0(const char* path)
 {
-    return 0;
+    u8 fi[0x3C]; /* DVDFileInfo */
+    u8 bufo[64];
+    u8 bufc[64];
+    int off = (int) (((u32) &bufo[31] & ~31) - (u32) &bufo);
+    int r;
+    int size;
+
+    do {
+        r = DVDOpen(path, fi);
+        if (r == 0) {
+            fn_800AEBF4(lbl_8025EDE8, bufo + off, 32, 0);
+        }
+    } while (r == 0);
+    size = *(u32*) (fi + 0x34); /* DVDFileInfo.length */
+    off = (int) (((u32) &bufc[31] & ~31) - (u32) &bufc);
+    do {
+        r = DVDClose(fi);
+        if (r == 0) {
+            fn_800AEBF4(lbl_8025EDE8, bufc + off, 32, 0);
+        }
+    } while (r == 0);
+    return size;
 }
 
 int sceLseek(int fd, int offset, int whence)
@@ -105,10 +138,72 @@ int sceWrite(int fd, const void* buf, int len)
     return 0;
 }
 
-/* 0x800AEBF4: synchronous DVD read with disc-error UI (0x15C) - TODO */
+/* 0x800AEBF4: synchronous DVD read with disc-error UI (0x15C) */
 int fn_800AEBF4(void* fileInfo, void* buf, int len, int offset)
 {
-    return 0;
+    char* msg = 0;
+    char* base = (char*) lbl_80115860;
+    int status;
+
+    lbl_80344A5C = 0;
+    lbl_80344DB8 = 0;
+    if (DVDReadAsyncPrio(fileInfo, buf, len, offset, 0, 2) == 0) {
+        lbl_80344DB8 = 1;
+        switch (DVDGetCommandBlockStatus(fileInfo)) {
+        case -1:
+            msg = base + 176;
+            break;
+        case 5:
+            msg = base + 304;
+            break;
+        case 4:
+        case 6:
+            msg = base + 336;
+            break;
+        case 11:
+            msg = base + 388;
+            break;
+        }
+        if (msg != 0) {
+            fn_8006B540(msg);
+        }
+    }
+    do {
+        status = DVDGetCommandBlockStatus(fileInfo);
+        if (status != 3) {
+            if (status >= 3 || status < 0) {
+                char* msg2;
+
+                lbl_80344DB8 = 1;
+                msg2 = 0;
+                switch (status) {
+                case -1:
+                    msg2 = base + 176;
+                    break;
+                case 5:
+                    msg2 = base + 304;
+                    break;
+                case 4:
+                case 6:
+                    msg2 = base + 336;
+                    break;
+                case 11:
+                    msg2 = base + 388;
+                    break;
+                }
+                if (msg2 != 0) {
+                    fn_8006B540(msg2);
+                }
+            }
+        } else {
+            lbl_80344DB8 = 1;
+        }
+        fn_800DD604();
+    } while (status != 0);
+    if (lbl_80344A5C != 0) {
+        fn_80042F98();
+    }
+    return len;
 }
 
 /* 0x800AED50: sceRead (0x260) - TODO */
@@ -119,10 +214,21 @@ int sceRead(int fd, void* buf, int len)
 
 int sceClose(int fd)
 {
+    u8 buf[76];
+    /* 32-byte-aligned offset into buf for the dummy retry read */
+    int off = (int) (((u32) &buf[31] & ~31) - (u32) &buf[0]);
     SCEFILE* f = SCEHANDLE(fd);
+    int r;
 
-    while (DVDClose(f->fileInfo) == 0) {
-    }
+    do {
+        r = DVDClose(f->fileInfo);
+        if (r == 0) {
+            /* PARKED 3-insn residual: target keeps off (subf) in r29 and
+               rebuilds buf+off at the callsite; ours folds to the aligned
+               pointer. Tried cast-transit, &buf[off], inlined helper. */
+            fn_800AEBF4(lbl_8025EDE8, buf + off, 32, 0);
+        }
+    } while (r == 0);
     f->open = 0;
     return 0;
 }
