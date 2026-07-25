@@ -10,12 +10,12 @@ Usage (from repo root):
   python tools/gdl/fnsurvey.py 0x800D1E04 0x800D5260
   python tools/gdl/fnsurvey.py 0x800D1E04 0x800D5260 --heads 8
   python tools/gdl/fnsurvey.py 0x800D1E04 0x800D5260 --calls AudioQueUpdate
+  python tools/gdl/fnsurvey.py --callers fn_800D2568   # whole-DOL reverse index
 """
 
 import re
 import subprocess
 import sys
-from collections import defaultdict
 from pathlib import Path
 
 VERSION = "GUNE5D"
@@ -78,6 +78,16 @@ def main():
         i = args.index("--calls")
         calls_filter = args[i + 1]
         del args[i:i + 2]
+    if args and args[0] == "--callers":
+        target = args[1]
+        pat = re.compile(r"R_PPC_REL24\s+" + re.escape(target) + r"(\+|$)")
+        for obj in sorted(OBJDIR.rglob("*.o")):
+            out = subprocess.run([str(OBJDUMP), "-r", str(obj)],
+                                 capture_output=True, text=True).stdout
+            n = sum(1 for line in out.splitlines() if pat.search(line.rstrip()))
+            if n:
+                print(f"{obj.relative_to(OBJDIR)}  x{n}")
+        return 0
     if len(args) < 2:
         print(__doc__)
         return 1
