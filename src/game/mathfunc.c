@@ -16,7 +16,14 @@ typedef float SAMPMATRIX[4][4];
 #define VEC(v) ((Vec*) (v))
 
 /* g3dMath3D's vec3 copy (12 bytes); real C++ name pending that TU */
-void fn_800AEA0C(void* dst, const void* src);
+/* vec3::operator= from g3dMath3D.cpp (mangled name callable from C) */
+void __as__4vec3FRC4vec3(void* dst, const void* src);
+
+/* static helper, always inlined then stripped -- pools 0.0f first */
+static void sceSamp0ZeroVector(SAMPVECTOR v)
+{
+    v[0] = v[1] = v[2] = 0.0f;
+}
 
 void sceSamp0RotCameraMatrix(SAMPMATRIX m, SAMPVECTOR p, SAMPVECTOR zd, SAMPVECTOR yd)
 {
@@ -33,24 +40,20 @@ void sceSamp0RotCameraMatrix(SAMPMATRIX m, SAMPVECTOR p, SAMPVECTOR zd, SAMPVECT
 
     /* x = normalize(yd x zd) (sceSamp0Normalize written out) */
     PSVECCrossProduct(VEC(yd), VEC(zd), VEC(vc));
-    if (vc[0] * vc[0] + vc[1] * vc[1] + vc[2] * vc[2] >= 0.00001f) {
+    if (vc[0] * vc[0] + vc[1] * vc[1] + vc[2] * vc[2] >= 1e-14f) {
         PSVECNormalize(VEC(vc), VEC(vx));
     } else {
-        vx[0] = vx[1] = vx[2] = 0.0f;
+        sceSamp0ZeroVector(vx);
     }
-    /* NOTE: near-match residual -- the original schedules these column
-       stores pipelined with the next length computation via an f1/f0/f1
-       temp rotation; ours picks f0 for the third pair (39 lines of pure
-       register-rotation cascade, semantically identical). */
     w[0][0] = vx[0];
     w[1][0] = vx[1];
     w[2][0] = vx[2];
 
     /* z = normalize(zd) */
-    if (zd[0] * zd[0] + zd[1] * zd[1] + zd[2] * zd[2] >= 0.00001f) {
+    if (zd[0] * zd[0] + zd[1] * zd[1] + zd[2] * zd[2] >= 1e-14f) {
         PSVECNormalize(VEC(zd), VEC(vz));
     } else {
-        vz[0] = vz[1] = vz[2] = 0.0f;
+        sceSamp0ZeroVector(vz);
     }
     w[0][2] = vz[0];
     w[1][2] = vz[1];
@@ -68,9 +71,9 @@ void sceSamp0RotCameraMatrix(SAMPMATRIX m, SAMPVECTOR p, SAMPVECTOR zd, SAMPVECT
     w[2][3] += p[2];
     PSMTXCopy(MTX(w), MTX(t));
     PSMTXTranspose(MTX(t), MTX(m));
-    m[0][3] = -(w[0][3] * w[0][0] + w[1][3] * w[1][0] + w[2][3] * w[2][0]);
-    m[1][3] = -(w[0][3] * w[0][1] + w[1][3] * w[1][1] + w[2][3] * w[2][1]);
-    m[2][3] = -(w[0][3] * w[0][2] + w[1][3] * w[1][2] + w[2][3] * w[2][2]);
+    m[0][3] = -(t[0][3] * t[0][0] + t[1][3] * t[1][0] + t[2][3] * t[2][0]);
+    m[1][3] = -(t[0][3] * t[0][1] + t[1][3] * t[1][1] + t[2][3] * t[2][1]);
+    m[2][3] = -(t[0][3] * t[0][2] + t[1][3] * t[1][2] + t[2][3] * t[2][2]);
 }
 
 void sceSamp0MulMatrix(SAMPMATRIX m, SAMPMATRIX m1, SAMPMATRIX m2)
@@ -82,7 +85,7 @@ void sceSamp0ApplyMatrix(SAMPVECTOR v0, SAMPMATRIX m, SAMPVECTOR v1)
 {
     SAMPVECTOR t;
 
-    fn_800AEA0C(t, v1);
+    __as__4vec3FRC4vec3(t, v1);
     v0[0] = m[0][0] * t[0] + m[1][0] * t[1] + m[2][0] * t[2];
     v0[1] = m[0][1] * t[0] + m[1][1] * t[1] + m[2][1] * t[2];
     v0[2] = m[0][2] * t[0] + m[1][2] * t[1] + m[2][2] * t[2];
@@ -119,7 +122,7 @@ void sceSamp0CopyMatrix(SAMPMATRIX m0, SAMPMATRIX m1)
     SAMPMATRIX t1;
 
     PSMTXCopy(MTX(m1), MTX(m0));
-    fn_800AEA0C(m0[3], m1[3]);
+    __as__4vec3FRC4vec3(m0[3], m1[3]);
 }
 
 void sceSamp0CopyMatrix34(SAMPMATRIX m0, SAMPMATRIX m1)
@@ -129,10 +132,10 @@ void sceSamp0CopyMatrix34(SAMPMATRIX m0, SAMPMATRIX m1)
 
 void sceSamp0Normalize(SAMPVECTOR v0, SAMPVECTOR v1)
 {
-    if (v1[0] * v1[0] + v1[1] * v1[1] + v1[2] * v1[2] >= 0.00001f) {
+    if (v1[0] * v1[0] + v1[1] * v1[1] + v1[2] * v1[2] >= 1e-14f) {
         PSVECNormalize(VEC(v1), VEC(v0));
     } else {
-        v0[0] = v0[1] = v0[2] = 0.0f;
+        sceSamp0ZeroVector(v0);
     }
 }
 
