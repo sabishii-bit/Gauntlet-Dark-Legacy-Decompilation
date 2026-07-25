@@ -459,6 +459,11 @@ dolphin/card/CARDDir.c:
 dolphin/card/CARDCheck.c:
 	.text       start:0x800F2B48 end:0x800F3AB0
 
+dolphin/card/CARDMount.c:
+	.text       start:0x800F3AB0 end:0x800F4560
+	.data       start:0x8023A6E0 end:0x8023A720
+	.sdata      start:0x80344088 end:0x8034408A
+
 dolphin/db/db.c:
 	.text       start:0x800F69E8 end:0x800F6AD4
 	.data       start:0x8023A720 end:0x8023A738

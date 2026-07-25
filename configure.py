@@ -602,6 +602,7 @@ config.libs = [
             Object(Matching, "dolphin/card/CARDBlock.c"),
             Object(Matching, "dolphin/card/CARDDir.c"),
             Object(Matching, "dolphin/card/CARDCheck.c"),
+            Object(Matching, "dolphin/card/CARDMount.c"),
         ],
     },
     DolphinLib(
