@@ -253,6 +253,16 @@ MSL/printf.c:
 	.sdata      start:0x80344070 end:0x80344072
 	.sdata2     start:0x80349460 end:0x80349468
 
+MSL/qsort.c:
+	.text       start:0x800E7BB4 end:0x800E7D1C
+
+MSL/signal.c:
+	.text       start:0x800E7D1C end:0x800E7DD0
+	.bss        start:0x803290C8 end:0x803290E0
+
+MSL/strfind.c:
+	.text       start:0x800E7DD0 end:0x800E7E84
+
 MSL/string.c:
 	.text       start:0x800E7E84 end:0x800E81A8
 	.sdata      start:0x80344078 end:0x80344080
