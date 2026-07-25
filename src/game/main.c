@@ -41,6 +41,98 @@ void AXInit(void);
 void sndVoiceInit(void);
 
 void pbPulseTime(void);
+void fn_800209E0(int x, int y, int flags, u32 color, const char* fmt, ...);
+void fn_800BF1A8(int arg);
+void fn_800BF208(int arg);
+void fn_800D9FEC(const char* name);
+
+extern char* lbl_8011CD58[];   /* movie_list1 (7) */
+extern char* lbl_8011CD74[];   /* movie_list2 (26) */
+extern s32 lbl_803449C0;       /* movie_list1 index */
+extern s32 lbl_80343C60;       /* movie_list2 index */
+extern u32 lbl_80344620;       /* pad buttons (held) */
+extern u64 lbl_803445C8;       /* pad buttons 64-bit */
+extern s32 lbl_80343C58;       /* keep-running flag */
+
+void fn_800B27C4(void);
+void fn_800DD760(void);
+void fn_800DDE2C(void (*handler)(char**, int));
+void fn_800DDE24(void (*printer)(const char*));
+u32 pbGetTime(void);
+void srand(unsigned int seed);
+s64 OSGetTime(void);
+void fn_800684D4(const char* name);
+void fn_8005A260(void* a, void* b, int c, int d);
+void fn_800B38D0(const char* name, int x, int y);
+void fn_800B6ED8(void);
+void fn_800B8A38(int arg);
+void fn_80033C5C(void);
+void fn_800BC2EC(const char* fmt, ...);
+void fn_80053420(void);
+void fn_80074548(void);
+void fn_80020DA8(void);
+u32 fn_800BF258(void);
+void fn_800330D4(void);
+void fn_80010EB0(int w, int h);
+void fn_800A8490(int arg);
+void fn_800533E4(void);
+void fn_8005403C(int arg);
+void fn_80014AE8(int screen);
+void fn_8002F040(void);
+void fn_8008BC50(void);
+void fn_80032B84(void);
+void fn_80042398(void);
+void fn_8006B85C(void);
+int fn_80070C24(void);
+void fn_800154C8(void);
+void fn_80017D70(int arg);
+int fn_800A825C(void);
+void fn_80010DF4(int arg);
+void fn_8006FF1C(void);
+void fn_8006799C(int arg);
+int fn_800DDE08(int arg);
+void fn_80054230(void);
+int fn_8001BC88(void);
+void fn_800B582C(void* a, void* b);
+int fn_8001C478(void);
+void fn_800229D0(void);
+void fn_8006FE30(void);
+void fn_8006E51C(void);
+void fn_80052134(void);
+void fn_800C0394(void);
+void fn_80042394(void);
+
+extern char lbl_80113028[];    /* string table (soulsave.. boot strings) */
+extern char lbl_80126A98[];    /* version string */
+extern u8 lbl_80127D00[];
+extern u8 lbl_80127D60[];
+extern u32 lbl_80343EF0;       /* boot clear color */
+extern s32 lbl_803449C4;       /* boot step */
+extern u8* lbl_80344F48;
+extern s32 lbl_80344F40;
+extern u32 lbl_803472BC;
+extern u32 lbl_803472C4;
+extern s32 lbl_803449B0;       /* save-pending flag */
+extern u8 pbMeasureLoad;
+extern s32 lbl_80344568;
+extern s32 lbl_803449A0;
+extern s32 lbl_80343B00;
+extern s32 lbl_8034477C;       /* game state id */
+extern s32 lbl_80344A80;
+extern s32 lbl_803449BC;
+extern s32 lbl_803443A0;
+extern s32 lbl_80343C5C;
+extern s32 lbl_803444E0;
+extern s32 lbl_8034475C;
+extern s32 lbl_80344F80;
+extern u32 lbl_803449AC;
+extern u8 lbl_803441F0;
+extern s64 lbl_80344278;       /* OSTime snapshot */
+extern u32 lbl_803449CC;
+
+extern char* lbl_80344800;      /* debug print list base */
+extern char* lbl_803449B4;
+extern s32 lbl_803449B8;        /* debug print y cursor */
 void fn_800BE968(void);
 void fn_800D6234(void);
 
@@ -137,4 +229,237 @@ void main_init(void)
     AIInit(0);
     AXInit();
     sndVoiceInit();
+}
+
+/* report handler: prints levels 0/1 centered-ish in white */
+void fn_80068408(char** msg, int level)
+{
+    switch (level) {
+    case 0:
+    case 1:
+        fn_800209E0(320, 24, 0, 0x00FFFFFF, *msg);
+        break;
+    case 2:
+        break;
+    }
+}
+
+/* debug print-line callback: NULL resets; first line yellow, then white */
+void fn_8006845C(const char* str)
+{
+    if (str == 0) {
+        lbl_803449B4 = lbl_80344800;
+        lbl_803449B8 = 24;
+        return;
+    }
+    {
+        s32 y = lbl_803449B8;
+        fn_800209E0(16, y, 0, (y == 24) ? 0x00FFFF00 : 0x00FFFFFF, str);
+    }
+    lbl_803449B8 += 12;
+}
+
+void test_movies(void)
+{
+    fn_800BF1A8(1);
+    while (lbl_80343C58 != 0) {
+        if (lbl_803449C0 >= 0) {
+            fn_800D9FEC(lbl_8011CD58[lbl_803449C0]);
+            fn_800BF208(1);
+            if (lbl_80344620 & 0x10000000) {
+                lbl_803449C0--;
+            } else {
+                lbl_803449C0++;
+            }
+            if ((u32) lbl_803449C0 >= 7) {
+                lbl_803449C0 = -1;
+                lbl_80343C60 = 0;
+            } else if (lbl_803449C0 < 0) {
+                lbl_80343C60 = 24;
+            }
+        } else {
+            if (lbl_80343C60 < 0) {
+                lbl_80343C60 = 0;
+            }
+            fn_800D9FEC(lbl_8011CD74[lbl_80343C60]);
+            fn_800BF208(1);
+            if (lbl_80344620 & 0x10000000) {
+                lbl_80343C60--;
+            } else {
+                lbl_80343C60++;
+            }
+            if ((u32) lbl_80343C60 >= 26) {
+                lbl_80343C60 = -1;
+                lbl_803449C0 = 0;
+            } else if (lbl_80343C60 < 0) {
+                lbl_803449C0 = 5;
+            }
+        }
+        if (lbl_80344620 & 0x00040000) {
+            break;
+        }
+        if (lbl_803445C8 & 4) {
+            break;
+        }
+    }
+}
+
+void main(void)
+{
+    char* st = lbl_80113028;
+
+    main_init();
+    fn_800B27C4();
+    fn_800DD760();
+    fn_800DDE2C(fn_80068408);
+    fn_800DDE24(fn_8006845C);
+    pbPulseTime();
+    lbl_80343EF0 = 0xFF;
+    lbl_803449C4 = 0;
+    fn_800684D4(st + 48);
+    fn_8005A260(&lbl_803472BC, 0, 0, -1);
+    fn_800B38D0(st + 60, 0, 0);
+    fn_800B38D0(st + 76, 256, 0);
+    fn_800B38D0(st + 92, 0, 256);
+    fn_800B38D0(st + 108, 256, 256);
+    fn_800B6ED8();
+    fn_800B6ED8();
+    fn_800B8A38(0);
+    fn_80033C5C();
+    fn_800BC2EC(st + 124, lbl_80126A98);
+    fn_80053420();
+    fn_80074548();
+    fn_80020DA8();
+    fn_800BC2EC(st + 156, fn_800BF258(), lbl_80344F48,
+                lbl_80344F48 + (lbl_80344F40 / 4) * 4);
+    fn_800330D4();
+    if (lbl_80344620 & 0x02000000) {
+        lbl_80343C58 = 1;
+    } else {
+        lbl_80343C58 = 0;
+    }
+    if (lbl_80343C58 != 0) {
+        test_movies();
+    }
+    if (lbl_803449B0 != 0) {
+        u32 tmp;
+        u8 pad[16]; /* unused, matches original frame */
+
+        fn_80010EB0(1024, 1024);
+        fn_8005A260(&lbl_803472C4, &tmp, 1, -1);
+        fn_800A8490(2);
+    } else {
+        fn_800BC2EC(st + 208);
+        fn_800533E4();
+        fn_8005403C(1);
+        fn_80014AE8(-1);
+    }
+    fn_800BC2EC(st + 236, fn_800BF258());
+    lbl_80343EF0 = 0x00FF0000;
+    pbMeasureLoad = 1;
+
+    for (;;) {
+        pbPulseTime();
+        srand(pbGetTime() >> 3);
+        lbl_80344568 = 0;
+        lbl_803449C4 = 2;
+        fn_8002F040();
+        fn_8008BC50();
+        lbl_803449C4 = 3;
+        fn_80032B84();
+        if (lbl_803449A0 == 0) {
+            fn_80042398();
+        }
+        lbl_803449C4 = 11;
+        fn_8006B85C();
+        lbl_803449C4 = 4;
+        if (fn_80070C24() != 0) {
+            lbl_80344568 = 1;
+        }
+        lbl_803449C4 = 5;
+        fn_800154C8();
+        fn_80017D70(1);
+        if (lbl_803449B0 != 0) {
+            lbl_803449C4 = 6;
+            if (fn_800A825C() != 0) {
+                lbl_80343B00 = -1;
+                fn_800B8A38(0);
+                fn_80010DF4(0);
+                fn_800BC2EC(st + 208);
+                fn_80020DA8();
+                fn_800533E4();
+                fn_8005403C(1);
+                fn_80014AE8(0x8004);
+                lbl_803449B0 = 0;
+            }
+            fn_8006FF1C();
+        } else {
+            lbl_803449C4 = 7;
+            fn_8006799C(0);
+            lbl_803449C4 = 8;
+            if (fn_800DDE08(32) == 0) {
+                fn_80054230();
+            }
+            lbl_803449C4 = 9;
+            if (fn_8001BC88() == 0) {
+                s32 state = lbl_8034477C;
+
+                if (state == 0x8009 || state == 0x400B || state == 0x4012) {
+                    fn_800B582C(lbl_80127D00, lbl_80127D60);
+                } else if (state == 0x4013 || state == 0x400D || state == 0x4017) {
+                    if (fn_8001C478() == 0) {
+                        fn_800229D0();
+                    }
+                } else if (lbl_80344A80 == 1) {
+                    if (lbl_803449BC == 0) {
+                        fn_8006FE30();
+                        lbl_803449BC = 1;
+                    }
+                    fn_8006FF1C();
+                } else if (state & 0x8000) {
+                    lbl_80344A80 = 0;
+                    lbl_803449BC = 0;
+                    fn_800229D0();
+                } else {
+                    lbl_803449BC = 0;
+                    if (lbl_803443A0 != 0) {
+                        lbl_80344A80 = 0;
+                        if (fn_8001C478() == 0) {
+                            fn_800229D0();
+                        }
+                    } else if (lbl_80343C5C == 0) {
+                        lbl_80344A80 = 0;
+                        lbl_803444E0 = 0;
+                        fn_800229D0();
+                    } else {
+                        lbl_803444E0 = 0;
+                        lbl_80344A80 = 2;
+                        fn_8006E51C();
+                    }
+                }
+            }
+            fn_80052134();
+        }
+        if (lbl_8034475C != 0) {
+            fn_800C0394();
+        }
+        lbl_80344F80 = (lbl_80344568 != 0) ? 0 : 1;
+        fn_80042394();
+        fn_800B6ED8();
+        fn_800BE968();
+        lbl_803449AC++;
+        /* PARKED 1-bit residual: target compares this u8 with cmplwi;
+           every source form tried emits cmpwi (same semantics for a
+           zero-extended byte vs 0). Plus one reloc-name split on the
+           OSTime store (lbl_80344278+4 vs lbl_8034427C; same address). */
+        if (lbl_803441F0 != 0) {
+            if (lbl_803449AC > 1) {
+                if (lbl_803449AC == 2) {
+                    lbl_80344278 = OSGetTime();
+                } else {
+                    lbl_803449CC++;
+                }
+            }
+        }
+    }
 }
