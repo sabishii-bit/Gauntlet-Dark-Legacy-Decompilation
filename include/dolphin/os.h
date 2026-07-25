@@ -13,8 +13,23 @@
 extern "C" {
 #endif
 
+/* release build: SDK asserts compile out */
+#define ASSERTLINE(line, cond) ((void) 0)
+#define ASSERTMSGLINE(line, cond, msg) ((void) 0)
+#define ASSERTMSG1LINE(line, cond, msg, arg1) ((void) 0)
+#define ASSERTMSG2LINE(line, cond, msg, arg1, arg2) ((void) 0)
+#define OSSetErrorHandler_UNUSED_
+
 typedef s64 OSTime;
 typedef u32 OSTick;
+
+#define OS_BASE_CACHED 0x80000000
+#define __OSBusClock (*(u32*) (OS_BASE_CACHED | 0x00F8))
+#define OS_BUS_CLOCK __OSBusClock
+#define OS_TIMER_CLOCK (OS_BUS_CLOCK / 4)
+#define OSSecondsToTicks(sec) ((sec) * (OS_TIMER_CLOCK))
+#define OSMillisecondsToTicks(msec) ((msec) * (OS_TIMER_CLOCK / 1000))
+#define OSMicrosecondsToTicks(usec) ((usec) * (OS_TIMER_CLOCK / 8) / 125000)
 
 typedef struct OSAlarm OSAlarm;
 typedef void (*OSAlarmHandler)(OSAlarm* alarm, OSContext* context);
