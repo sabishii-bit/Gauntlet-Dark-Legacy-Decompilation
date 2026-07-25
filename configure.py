@@ -349,6 +349,16 @@ config.libs = [
             Object(Matching, "Runtime.PPCEABI.H/__va_arg.c"),
             Object(Matching, "Runtime.PPCEABI.H/global_destructor_chain.c"),
             Object(Matching, "Runtime.PPCEABI.H/__init_cpp_exceptions.cpp"),
+            Object(
+                Matching,
+                "Runtime.PPCEABI.H/NMWException.cpp",
+                extra_cflags=["-Cpp_exceptions on", "-RTTI on", "-str reuse,nopool"],
+            ),
+            Object(
+                Matching,
+                "Runtime.PPCEABI.H/ExceptionPPC.cpp",
+                extra_cflags=["-Cpp_exceptions on", "-RTTI on", "-str reuse,nopool"],
+            ),
             Object(Matching, "Runtime.PPCEABI.H/runtime.c"),
             Object(Matching, "Runtime.PPCEABI.H/__ppc_eabi_init.c"),
         ],
@@ -663,6 +673,30 @@ config.progress_categories = [
     ProgressCategory("sdk", "SDK Code"),
 ]
 config.progress_each_module = args.verbose
+
+# Post-compile fixup for the C++ exception runtime TUs: reproduces the
+# original CodeWarrior link-time weak-function dead-stripping that mwld's
+# CLI cannot perform (see tools/fix_exception_objects.py).
+exc_nmw_obj = f"build/{config.version}/src/Runtime.PPCEABI.H/NMWException.o"
+exc_ppc_obj = f"build/{config.version}/src/Runtime.PPCEABI.H/ExceptionPPC.o"
+exc_stamp = f"build/{config.version}/src/Runtime.PPCEABI.H/exception_fixup.stamp"
+config.custom_build_rules = [
+    {
+        "name": "fix_exception_objects",
+        "command": f"$python tools/fix_exception_objects.py {exc_nmw_obj} {exc_ppc_obj} $out",
+        "description": "FIXUP $out",
+    },
+]
+config.custom_build_steps = {
+    "post-compile": [
+        {
+            "rule": "fix_exception_objects",
+            "inputs": [exc_nmw_obj, exc_ppc_obj],
+            "implicit": ["tools/fix_exception_objects.py"],
+            "outputs": [exc_stamp],
+        },
+    ],
+}
 # Optional extra arguments to `objdiff-cli report generate`
 config.progress_report_args = [
     # Marks relocations as mismatching if the target value is different
