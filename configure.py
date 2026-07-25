@@ -475,6 +475,7 @@ config.libs = [
             Object(Matching, "MSL/mbstring.c"),
             Object(Matching, "MSL/wchar_io.c"),
             Object(Matching, "MSL/ctype.c"),
+            Object(NonMatching, "MSL/math1.c"),
             Object(Matching, "MSL/mem.c"),
             Object(Matching, "MSL/misc_io.c"),
             Object(Matching, "MSL/printf.c"),

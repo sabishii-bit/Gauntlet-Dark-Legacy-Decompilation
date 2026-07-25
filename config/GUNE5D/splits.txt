@@ -280,6 +280,9 @@ MSL/wchar_io.c:
 MSL/get_time.c:
 	.text       start:0x800E83E0 end:0x800E8424
 
+MSL/math1.c:
+	.text       start:0x800E8424 end:0x800EA674
+
 dolphin/vi/vi.c:
 	.text       start:0x800EAE2C end:0x800EC738
 	.data       start:0x80238808 end:0x80238AD0
