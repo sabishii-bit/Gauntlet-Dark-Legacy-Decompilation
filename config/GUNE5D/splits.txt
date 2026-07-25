@@ -470,6 +470,21 @@ dolphin/card/CARDFormat.c:
 dolphin/card/CARDOpen.c:
 	.text       start:0x800F4D50 end:0x800F5304
 
+dolphin/card/CARDCreate.c:
+	.text       start:0x800F5304 end:0x800F569C
+
+dolphin/card/CARDRead.c:
+	.text       start:0x800F569C end:0x800F5B14
+
+dolphin/card/CARDWrite.c:
+	.text       start:0x800F5B14 end:0x800F5E90
+
+dolphin/card/CARDDelete.c:
+	.text       start:0x800F5E90 end:0x800F6200
+
+dolphin/card/CARDStat.c:
+	.text       start:0x800F6200 end:0x800F66E0
+
 dolphin/db/db.c:
 	.text       start:0x800F69E8 end:0x800F6AD4
 	.data       start:0x8023A720 end:0x8023A738
