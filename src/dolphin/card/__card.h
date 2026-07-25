@@ -4,6 +4,9 @@
 #include <dolphin/card.h>
 #include <dolphin/exi.h>
 
+#define TRUNC(n, a) (((u32) (n)) & ~((a) - 1))
+#define OFFSET(n, a) (((u32) (n)) & ((a) - 1))
+
 // CARDStatEx.c
 long __CARDGetStatusEx(long chan, long fileNo, struct CARDDir * dirent);
 long __CARDSetStatusExAsync(long chan, long fileNo, struct CARDDir * dirent, void (* callback)(long, long));
