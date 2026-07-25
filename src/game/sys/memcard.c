@@ -93,6 +93,7 @@ s32 fn_8006AFE0(const char* msg, s32* state, s32 count);
 void getSaveFileName(char* dst, s32 fileNo);
 int fn_800696E8(void);
 void fn_8006AF44(u8* buf);
+void fn_8006AEA8(void);
 
 /* does the numbered/dir save exist on the mounted card? */
 int fn_80068728(void)
@@ -245,6 +246,45 @@ void init_all_dir_info(void)
     lbl_803449DC = 0;
     lbl_803449E0 = -1;
     lbl_803449D8 = 0;
+}
+
+/* load preferences with a full transaction (Xbox: InitPreferences).
+ * Same shape as check_prefs_loaded but the transaction body is inlined
+ * (AEA8 + dir alloc + 697D0) rather than calling 696E8.
+ * PARKED 78/78: only the three flag-reset constants (0/1) land in r4/r0
+ * swapped vs r0/r4 (dead-before-call, pure register coloring). */
+int fn_80069540(void)
+{
+    int ret = 0;
+    u8 pad[24]; /* unused, matches original frame */
+
+    if (lbl_803449D0 == 0) {
+        lbl_803449EC = 0;
+        lbl_803449D0 = 1;
+        lbl_803449F8 = 0;
+        fn_800BC2EC(lbl_801131E8);
+        while (fn_800BF168() == 0) {
+            fn_80067B0C(-1);
+        }
+        fn_8006AEA8();
+        lbl_80344A04 = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x2D44C0);
+        if ((u8) fn_800697D0()) {
+            lbl_80274E80 = *(GameOpts*) ((u8*) lbl_80343C74 + 8);
+            ret = 1;
+        } else {
+            ret = 0;
+        }
+        fn_800DC1A0();
+        fn_800DC280();
+        OSSetCurrentHeap(lbl_80344A08);
+        OSDestroyHeap(lbl_80344A0C);
+        fn_800D3874(fn_800BF524() - 0x310000, (void*) 0x310000);
+        fn_800DDDE8(64);
+        fn_800BC2EC(lbl_801131C0);
+        lbl_803449EC = 0;
+        lbl_80274E80.data[2] = (OSGetSoundMode() == 0) ? 0 : 1;
+    }
+    return ret;
 }
 
 /* slot -2 = game options, -1 = directory info, else numbered save */
