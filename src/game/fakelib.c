@@ -26,8 +26,13 @@ void G3DGetControlPadAnalogStick(f32* x, f32* y, int pad, int stick);
 f32 G3DGetControlPadAnalog(int pad, int axis);
 u8 G3DControlPadButtonPressed(int pad, int button);
 
-extern u32 lbl_80127798[];     /* PS2 button bit per G3D button index (16) */
-extern u32 lbl_801277D8[];     /* G3D button ids for the pressure bytes (12) */
+/* PS2 button bit per G3D button index */
+static u32 sce_button_bits[16] = {
+    0x8000, 0x2000, 0x1000, 0x4000, 0x0040, 0x0080, 0x0020, 0x0010,
+    0x0200, 0x0008, 0x0000, 0x0000, 0x0000, 0x0000, 0x0800, 0x0400,
+};
+/* G3D button ids for the DualShock2 pressure bytes */
+static u32 sce_pressure_ids[12] = { 1, 0, 2, 3, 7, 6, 4, 5, 10, 12, 11, 13 };
 void G3DSetRumble(int idx, f32 small, f32 big);
 int G3DGetActivePadCount(void);
 
@@ -459,7 +464,7 @@ int scePadRead(int port, int slot, u8* data)
     data[1] = 116;
     for (i = 0; i < 16; i++) {
         if (G3DControlPadButtonPressed(idx, i)) {
-            bits |= lbl_80127798[i];
+            bits |= sce_button_bits[i];
         }
     }
     data[2] = ~bits;
@@ -470,7 +475,7 @@ int scePadRead(int port, int slot, u8* data)
     data[6] = (s32) (127.0f * x + 128.0f);
     data[7] = (s32) (-127.0f * y + 128.0f);
     for (i = 8; i < 20; i++) {
-        data[i] = G3DControlPadButtonPressed(idx, lbl_801277D8[i - 8]) ? 255 : 0;
+        data[i] = G3DControlPadButtonPressed(idx, sce_pressure_ids[i - 8]) ? 255 : 0;
     }
     return 32;
 }

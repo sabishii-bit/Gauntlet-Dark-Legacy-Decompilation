@@ -37,6 +37,15 @@ def main():
 
     obj = Path(f"build/{VERSION}/obj/{unit}.o")
     if not obj.exists():
+        # dtk merges runs of tiny fns into auto_03_* objects and names auto
+        # units after their first fn; try the common variants before giving up
+        for cand in (f"auto_03_{unit}_text", f"auto_{unit}_text",
+                     f"auto_03_{unit.replace('fn_', '')}_text"):
+            c = Path(f"build/{VERSION}/obj/{cand}.o")
+            if c.exists():
+                obj = c
+                break
+    if not obj.exists():
         print(f"missing {obj} (run ninja once so dtk extracts it)")
         return 1
     out = subprocess.run([str(OBJDUMP), "-dr", str(obj)],
