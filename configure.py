@@ -596,7 +596,7 @@ config.libs = [
         "cflags": [*cflags_base, "-i src/dolphin/card"],
         "progress_category": "sdk",
         "objects": [
-            Object(NonMatching, "dolphin/card/CARDBios.c"),
+            Object(Matching, "dolphin/card/CARDBios.c"),
         ],
     },
     DolphinLib(
