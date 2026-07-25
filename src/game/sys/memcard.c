@@ -8,6 +8,7 @@
 int sprintf(char* dst, const char* fmt, ...);
 char* strcpy(char* dst, const char* src);
 char* strncpy(char* dst, const char* src, u32 n);
+int strcmp(const char* a, const char* b);
 void* memcpy(void* dst, const void* src, u32 n);
 
 int sceOpen(const char* path, int flags, ...);
@@ -53,9 +54,12 @@ typedef struct GameOpts {
 } GameOpts;
 
 extern u8 lbl_80274578[];      /* dir-info table: 8 entries stride 16 */
+extern u8 lbl_8025EE80[];      /* loaded VMU/dir buffer (dir @+0x156F8) */
 extern GameOpts lbl_80274E80;  /* game options */
-extern GameOpts* lbl_80343C74; /* staged options in the save heap */
-extern char lbl_803472D8[];    /* default dir name (sdata) */
+extern GameOpts* lbl_80343C74; /* staged save record ptr (opts@+8, data@+0xA1C8) */
+extern char lbl_803472D8[8];   /* default dir name (sdata, SDA21) */
+extern char lbl_803472E0[8];   /* dir name variant (sdata, SDA21) */
+extern char lbl_803472E8[8];   /* replacement dir name (sdata, SDA21) */
 extern char lbl_8011D550[];    /* prompt message */
 extern s32 lbl_803449F0;
 extern s32 lbl_803449D0;       /* prefs_loaded */
@@ -167,6 +171,66 @@ int fn_80068728(void)
         }
     }
     return result;
+}
+
+/* load a save-data block from the staged record into the dir buffer, then
+ * normalize the 8 directory entry names (Xbox: get_vmu_directory-ish).
+ * PARKED 116/116 (opcodes match): DST address-expr scheduling (mulli/add
+ * order + 0x156F8 constant split) and the loop's register coloring differ;
+ * functionally exact. */
+int fn_800687FC(int a, int b)
+{
+    u8* base = lbl_8025EE80;
+    int i = 1; /* transaction flag, then reused as the dir-scan counter */
+    int bit = b + a * 4;
+    s32 off;
+    u8 pad[16]; /* unused, matches original frame */
+
+    if (lbl_80343C78 & (1 << bit)) {
+        if ((u8) fn_800696E8() != 1) {
+            i = 0;
+        }
+        if (i) {
+            memcpy(base + 0x10000 + a * 132 + b * 132 + 22264,
+                   (u8*) lbl_80343C74 + 41416, 128);
+        }
+        fn_800DC1A0();
+        fn_800DC280();
+        OSSetCurrentHeap(lbl_80344A08);
+        OSDestroyHeap(lbl_80344A0C);
+        fn_8006AF44((u8*) 0x310000);
+        fn_800DDDE8(64);
+        fn_800BC2EC(lbl_801131C0);
+        lbl_803449EC = 0;
+        if (i) {
+            lbl_80343C78 &= ~(1 << bit);
+        }
+    } else {
+        memcpy(base + 0x10000 + a * 132 + b * 132 + 22264,
+               (u8*) lbl_80343C74 + 41416, 128);
+    }
+    if (i == 0) {
+        return -1;
+    }
+    {
+        u8* dir = base + 0x10000 + a * 132 + b * 132 + 22264;
+
+        for (i = 0, off = 0; i < 8; i++, off += 16) {
+            u8* e = dir + off;
+
+            if (*(s32*) e == -1 || (s8) e[8] == 0) {
+                strcpy((char*) (e + 8), lbl_803472D8);
+            } else {
+                char* nm = (char*) (e + 8);
+
+                if (strcmp(nm, lbl_803472D8) == 0 ||
+                    strcmp(nm, lbl_803472E0) == 0) {
+                    strcpy(nm, lbl_803472E8);
+                }
+            }
+        }
+    }
+    return i;
 }
 
 /* map card state to a save result code; the result!=0 / -2 arms are
