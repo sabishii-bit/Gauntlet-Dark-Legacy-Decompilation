@@ -12,6 +12,11 @@ Sections:
 	.sbss       type:bss align:8
 	.sdata2     type:rodata align:16
 
+game/main.c:
+	extab       start:0x80006618 end:0x80006648
+	extabindex  start:0x8000A174 end:0x8000A1BC
+	.text       start:0x80067AE0 end:0x800684D4
+
 game/g3dMath3D.cpp:
 	extab       start:0x80007538 end:0x800075B8
 	extabindex  start:0x8000B824 end:0x8000B8E4
