@@ -32,6 +32,18 @@ extern void* lbl_80344A08;
 extern u8* lbl_80344A00;
 extern u8* lbl_803449FC;
 extern char lbl_8011D2A0[];    /* insert-card message */
+extern char lbl_80113548[];    /* "/opening.bnr" */
+extern s32 lbl_80343C6C;
+extern s32 lbl_80344A24;
+extern s32 lbl_80344A20;
+extern s32 lbl_80344A10[2];    /* per-(port+slot) cached handles */
+
+int sceOpen(const char* path, int flags, ...);
+int sceLseek(int fd, int offset, int whence);
+int sceRead(int fd, void* buf, int len);
+int sceClose(int fd);
+s32 fn_8006AFE0(s32 x, s32* state, s32 mode);
+s32 fn_800DD10C(void);
 void fn_800D3874(u32 aramOffset, void* buf);
 void fn_800D3970(u32 dst, u32 src, u32 len);
 void fn_800D39E8(u32 dst, u32 src, u32 len);
@@ -91,6 +103,25 @@ s32 saveFileSize(void)
     return 128272;
 }
 
+/* cached per-(port+slot) handle, created on first use */
+s32 fn_80068DB0(s32 port, s32 slot)
+{
+    s32* p;
+    u8 ok;
+
+    p = &lbl_80344A10[port];
+    p = &p[slot];
+    if (*p >= 0) {
+        return *p;
+    }
+    ok = (0 <= port && port <= 1);
+    if (!ok) {
+        return -1;
+    }
+    *p = fn_800DD10C();
+    return *p;
+}
+
 /* slot -2 = game options, -1 = directory info, else numbered save */
 void getSaveFileName(char* dst, s32 fileNo)
 {
@@ -123,6 +154,22 @@ void fn_8006A9DC(int arg)
     }
 }
 
+/* load /opening.bnr (0x1960-byte BNR1) through the PS2 file shim */
+u8* fn_8006AE1C(void)
+{
+    s32 size;
+    u8* buf;
+    s32 fd;
+
+    fd = sceOpen(lbl_80113548, 1);
+    size = sceLseek(fd, 0, 2);
+    buf = (u8*) OSAllocFromHeap(__OSCurrHeap, 6496);
+    sceLseek(fd, 0, 0);
+    sceRead(fd, buf, size);
+    sceClose(fd);
+    return buf;
+}
+
 /* begin save transaction: pull the staging block from ARAM and build the
  * save work heap inside it.
  * PARKED ~15-line residual: target computes heap-hi as (buf-0x310000)+r30
@@ -150,6 +197,24 @@ void fn_8006AF44(u8* buf)
     u8* b = buf;
 
     fn_800D3874(off - (u32) b, b);
+}
+
+s32 fn_8006AF7C(s32 x)
+{
+    s32 r = fn_8006AFE0(x, &lbl_80343C6C, 2);
+
+    switch (r) {
+    case 0:
+        return 1;
+    case 1:
+        lbl_80344A24 = 0;
+        r = 0;
+        lbl_80344A18 = -1;
+        lbl_80344A14 = -1;
+        lbl_80344A20 = 0;
+        break;
+    }
+    return r;
 }
 
 /* swap the 3.2MB save cache blocks in ARAM (0x9E0000 <-> 0xCF0000) */
