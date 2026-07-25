@@ -590,6 +590,15 @@ config.libs = [
             Object(Matching, "dolphin/exi/EXIUart.c"),
         ],
     },
+    {
+        "lib": "card",
+        "mw_version": "GC/1.2.5n",
+        "cflags": cflags_base,
+        "progress_category": "sdk",
+        "objects": [
+            Object(NonMatching, "dolphin/card/CARDBios.c"),
+        ],
+    },
     DolphinLib(
         "os",
         [
