@@ -78,6 +78,38 @@ def main():
         i = args.index("--calls")
         calls_filter = args[i + 1]
         del args[i:i + 2]
+    if args and args[0] == "--external":
+        # for every fn in [lo,hi): list callers whose owning fn lies OUTSIDE
+        # the range -- finds a region's public API in one pass
+        lo, hi = int(args[1], 16), int(args[2], 16)
+        addr_of = {}
+        for m in re.finditer(
+                r"^(\S+) = \.text:0x([0-9A-Fa-f]+); // type:function",
+                SYMBOLS.read_text(encoding="utf-8"), re.M):
+            addr_of[m.group(1)] = int(m.group(2), 16)
+        targets = {n for n, a in addr_of.items() if lo <= a < hi}
+        pat = re.compile(r"R_PPC_REL24\s+(\S+?)(?:\+\S+)?$")
+        ext = {}
+        for obj in sorted(OBJDIR.rglob("*.o")):
+            out = subprocess.run([str(OBJDUMP), "-dr", str(obj)],
+                                 capture_output=True, text=True).stdout
+            cur = None
+            for line in out.splitlines():
+                m = re.match(r"^[0-9a-f]+ <(\S+)>:", line)
+                if m:
+                    cur = m.group(1)
+                    continue
+                m = pat.search(line.rstrip())
+                if m and m.group(1) in targets and cur:
+                    a = addr_of.get(cur)
+                    if a is None or not (lo <= a < hi):
+                        ext.setdefault(m.group(1), set()).add(cur)
+        for t in sorted(targets, key=lambda n: addr_of[n]):
+            if t in ext:
+                callers = sorted(ext[t])
+                print(f"0x{addr_of[t]:08X} {t}  <-  {', '.join(callers[:8])}"
+                      + (f" (+{len(callers)-8})" if len(callers) > 8 else ""))
+        return 0
     if args and args[0] == "--callers":
         targets = args[1:]
         pats = {t: re.compile(r"R_PPC_REL24\s+" + re.escape(t) + r"(\+|$)")
