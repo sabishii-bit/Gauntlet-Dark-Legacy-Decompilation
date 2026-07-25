@@ -205,7 +205,7 @@ extern f32 gUpVector[];             /* DAT_802c9b88's up? placeholder */
 void pbCloseWindow(void);
 void pbSetDefaultWindow(void);
 void pbUpdateMatricies(void);
-static void debugScissor(u32* packet);
+static void debugScissor(u32* p);
 void pbProjCalc(void);
 void pbWinSetup(void);
 void pbCameraUpdate();
@@ -270,39 +270,46 @@ void pbUpdateMatricies(void)
 }
 
 /* 0x800C838C: debug window scissor override */
-static void debugScissor(u32* packet)
+static void debugScissor(u32* p)
 {
-    u32 x0, x1, y0, y1;
-    u32 v;
+    PBWINGLOBALS* g = gWinGlobals;
+    int x0, x1, y0, y1;
+    f32 s1, s2;
+    f32 fx0, fx1, fy0, fy1;
 
     if (gWinDebug->mode != 0) {
-        if (gWinDebug->clipOff == 0) {
-            f32 scale = gWinDebug->zoom;
-            if ((double) scale != 0.0f) {
-                if (gWinDebug->mode != 0) {
-                    f32 t = (f32) (0.5 * (1.0 - (double) scale));
-                    if (0.0 != (double) scale) {
-                        PBSCREEN* sc = (PBSCREEN*) gWinGlobals->screen;
-                        f32 w = (f32) sc->w;
-                        f32 h = (f32) sc->h;
-                        x0 = (u32) (w * t);
-                        x1 = (int) (w * (1.0f - t));
-                        y0 = (u32) (h * t);
-                        y1 = (int) (h * (1.0f - t));
-                    }
-                }
-            }
-        } else {
+        if (gWinDebug->clipOff != 0) {
             x0 = 0;
             y0 = 0;
-            x1 = ((PBSCREEN*) gWinGlobals->screen)->w;
-            y1 = ((PBSCREEN*) gWinGlobals->screen)->h;
+            x1 = ((PBSCREEN*) g->screen)->w;
+            y1 = ((PBSCREEN*) g->screen)->h;
+        } else {
+            if (gWinDebug->zoom) {
+                if (gWinDebug->mode != 0) {
+                    s1 = (f32) (0.5 * (1.0 - (double) gWinDebug->zoom));
+                    if (0.0 != (double) gWinDebug->zoom) {
+                        f32 fw1, fw2, fh1, fh2;
+                        s2 = 1.0f - s1;
+                        fw1 = (f32) ((PBSCREEN*) g->screen)->w;
+                        fw2 = (f32) ((PBSCREEN*) g->screen)->w;
+                        fh1 = (f32) ((PBSCREEN*) g->screen)->h;
+                        fh2 = (f32) ((PBSCREEN*) g->screen)->h;
+                        fx0 = fw1 * s1;
+                        fx1 = fw2 * s2;
+                        fy0 = fh1 * s1;
+                        fy1 = fh2 * s2;
+                    }
+                }
+                x0 = (s32) fx0;
+                x1 = (s32) fx1;
+                y0 = (s32) fy0;
+                y1 = (s32) fy1;
+            }
         }
-        v = x0 | (x1 << 0x10);
-        packet[0x70] = v;
-        packet[0x71] = y0 | (y1 << 0x10);
-        packet[0x74] = v;
-        packet[0x75] = y0 | (y1 << 0x10);
+        p[0x70] = x0 | (x1 << 16);
+        p[0x71] = y0 | (y1 << 16);
+        p[0x74] = x0 | (x1 << 16);
+        p[0x75] = y0 | (y1 << 16);
     }
 }
 
