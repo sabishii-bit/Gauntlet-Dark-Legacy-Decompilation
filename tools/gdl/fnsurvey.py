@@ -79,14 +79,22 @@ def main():
         calls_filter = args[i + 1]
         del args[i:i + 2]
     if args and args[0] == "--callers":
-        target = args[1]
-        pat = re.compile(r"R_PPC_REL24\s+" + re.escape(target) + r"(\+|$)")
+        targets = args[1:]
+        pats = {t: re.compile(r"R_PPC_REL24\s+" + re.escape(t) + r"(\+|$)")
+                for t in targets}
+        hits = {t: [] for t in targets}
         for obj in sorted(OBJDIR.rglob("*.o")):
             out = subprocess.run([str(OBJDUMP), "-r", str(obj)],
                                  capture_output=True, text=True).stdout
-            n = sum(1 for line in out.splitlines() if pat.search(line.rstrip()))
-            if n:
-                print(f"{obj.relative_to(OBJDIR)}  x{n}")
+            lines = [l.rstrip() for l in out.splitlines()]
+            for t, pat in pats.items():
+                n = sum(1 for line in lines if pat.search(line))
+                if n:
+                    hits[t].append((obj.relative_to(OBJDIR), n))
+        for t in targets:
+            tag = ", ".join(f"{o}x{n}" if n > 1 else str(o) for o, n in hits[t])
+            print(f"{t}: {len(hits[t])} caller objs  [{tag}]" if hits[t]
+                  else f"{t}: no callers")
         return 0
     if len(args) < 2:
         print(__doc__)
@@ -134,9 +142,9 @@ def main():
         if drefs:
             print(f"    data:  {', '.join(uniq(drefs))}")
         if heads:
-            lines = [l for l in block.splitlines() if re.match(r"^\s*[0-9a-f]+:", l)]
-            for l in lines[:heads]:
-                ins = re.sub(r"^\s*[0-9a-f]+:\s*(?:[0-9a-f]{2} ){4}\s*", "  ", l)
+            lines = [ln for ln in block.splitlines() if re.match(r"^\s*[0-9a-f]+:", ln)]
+            for ln in lines[:heads]:
+                ins = re.sub(r"^\s*[0-9a-f]+:\s*(?:[0-9a-f]{2} ){4}\s*", "  ", ln)
                 print(f"   {ins}")
     return 0
 
