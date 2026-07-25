@@ -382,7 +382,7 @@ config.libs = [
             Object(NonMatching, "game/pbutils.c", cflags=cflags_demo),
             Object(Matching, "game/mathfunc.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/pb_window.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
-            Object(Matching, "game/g3dMath3D.cpp", cflags=cflags_demo, mw_version="GC/1.2.5"),
+            Object(NonMatching, "game/g3dMath3D.cpp", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/fakelib.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
         ],
     },
