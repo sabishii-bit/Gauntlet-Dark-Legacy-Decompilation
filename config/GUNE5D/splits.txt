@@ -347,6 +347,12 @@ MSL/s_tan.c:
 	.text       start:0x800EA5F0 end:0x800EA674
 	.sdata2     start:0x80349630 end:0x80349638
 
+MSL/atanf.c:
+	.text       start:0x800EA674 end:0x800EAAC4
+	.rodata     start:0x80118038 end:0x801180F0
+	.data       start:0x802387A8 end:0x802387B0
+	.sdata2     start:0x80349638 end:0x80349660
+
 MSL/sincos.c:
 	.text       start:0x800EAAC4 end:0x800EAE2C
 	.ctors      start:0x801106E8 end:0x801106EC
