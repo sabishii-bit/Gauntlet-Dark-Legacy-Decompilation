@@ -7,6 +7,8 @@
 
 int sprintf(char* dst, const char* fmt, ...);
 char* strcpy(char* dst, const char* src);
+char* strncpy(char* dst, const char* src, u32 n);
+void* memcpy(void* dst, const void* src, u32 n);
 
 int sceOpen(const char* path, int flags, ...);
 int sceLseek(int fd, int offset, int whence);
@@ -94,6 +96,48 @@ void getSaveFileName(char* dst, s32 fileNo);
 int fn_800696E8(void);
 void fn_8006AF44(u8* buf);
 void fn_8006AEA8(void);
+
+void fn_8006A534(void);
+
+/* write a dir record + save-data block back to the card (Xbox: saveSave).
+ * Both the if and else branches carry the full teardown (duplicated source).
+ * PARKED 79/80: one extra addi copying `row` into its preserved register
+ * (MWCC computes the row sum in a temp then moves it; pure regalloc). */
+int fn_800685EC(int a, int b, int c, const char* name, u32 v0, u32 v1)
+{
+    u8* row = lbl_80274578 + a * 132 + b * 132;
+    u8* rec;
+    int result;
+
+    rec = row + c * 16;
+    strncpy((char*) (rec + 8), name, 8);
+    *(u32*) rec = v0;
+    *(u32*) (rec + 4) = v1;
+    result = ((u8) fn_800696E8() == 1) ? 1 : 0;
+    if (result) {
+        memcpy(row, (u8*) lbl_80343C74 + 41416, 128);
+        fn_8006A534();
+        lbl_80343C78 |= 0xFFFFFFFF;
+        fn_800DC1A0();
+        fn_800DC280();
+        OSSetCurrentHeap(lbl_80344A08);
+        OSDestroyHeap(lbl_80344A0C);
+        fn_8006AF44((u8*) 0x310000);
+        fn_800DDDE8(64);
+        fn_800BC2EC(lbl_801131C0);
+        lbl_803449EC = 0;
+    } else {
+        fn_800DC1A0();
+        fn_800DC280();
+        OSSetCurrentHeap(lbl_80344A08);
+        OSDestroyHeap(lbl_80344A0C);
+        fn_8006AF44((u8*) 0x310000);
+        fn_800DDDE8(64);
+        fn_800BC2EC(lbl_801131C0);
+        lbl_803449EC = 0;
+    }
+    return result;
+}
 
 /* does the numbered/dir save exist on the mounted card? */
 int fn_80068728(void)
@@ -188,8 +232,9 @@ s32 fn_80068DB0(s32 port, s32 slot)
 /* load game options from the card once (Xbox: check_prefs_loaded) */
 void check_prefs_loaded(void)
 {
-    GameOpts* opts = &lbl_80274E80;
     char* st = lbl_801131C0;
+    GameOpts* opts = &lbl_80274E80;
+    u8 pad[16]; /* unused, matches original frame */
 
     if (fn_80069164(0, 0, 0) == 0) {
         return;
@@ -199,7 +244,7 @@ void check_prefs_loaded(void)
     }
     lbl_803449D0 = 1;
     if ((u8) fn_800696E8()) {
-        *opts = *lbl_80343C74;
+        *opts = *(GameOpts*) ((u8*) lbl_80343C74 + 8);
     }
     fn_800DC1A0();
     fn_800DC280();
