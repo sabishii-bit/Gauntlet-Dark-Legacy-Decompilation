@@ -137,31 +137,33 @@ def check_unit(unit, claims):
         rel = relocs.get(sec, set())
         skipped = 0
         shown = 0
+        secbad = 0
         for i in range(0, n, 4):
             if i in rel:
                 skipped += 1
                 continue
             a = bytes(ours[i:i + 4])
-            b = orig[i:i + 4]
+            b = orig[i:i + len(a)]
             if a != b:
-                bad += 1
+                secbad += 1
                 if shown < 8:
                     va = lo + i
-                    fa = struct.unpack(">f", a.ljust(4, b"\0"))[0] if len(a) == 4 else 0
-                    fb = struct.unpack(">f", b.ljust(4, b"\0"))[0] if len(b) == 4 else 0
+                    fa = struct.unpack(">f", a.ljust(4, b"\0"))[0]
+                    fb = struct.unpack(">f", b.ljust(4, b"\0"))[0]
                     print(f"[{unit}] {sec}+0x{i:X} (VA 0x{va:08X}): "
                           f"ours {a.hex()} ({fa!r}) != dol {b.hex()} ({fb!r})")
                     shown += 1
-        if bad and shown >= 8:
+        if secbad and shown >= 8:
             print(f"[{unit}] {sec}: ... more mismatches suppressed")
         tail = orig[n:]
         tailpad = all(c == 0 for c in tail)
-        status = "OK" if not bad else "MISMATCH"
+        if not tailpad:
+            secbad += 1
+        status = "OK" if not secbad else "MISMATCH"
         extra = f", {skipped} reloc words skipped" if skipped else ""
         slack = f", 0x{len(orig)-n:X} claim slack{'(zero)' if tailpad else '(NONZERO!)'}" if len(orig) > n else ""
-        if not tailpad:
-            bad += 1
         print(f"[{unit}] {sec}: {status} 0x{n:X} bytes compared{extra}{slack}")
+        bad += secbad
     return bad
 
 
