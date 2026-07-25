@@ -192,17 +192,19 @@ void DoTexModSub(TEXMOD* tm)
 {
     short scr;
     int mode;
+    u32 rate;
     float scale;
     float sign;
     float v;
 
-    if (tm->tex >= 0 && (tm->rate < 1 || InfFrame == (InfFrame / tm->rate) * tm->rate)) {
+    rate = tm->rate;
+    if (tm->tex >= 0 && ((int)rate <= 0 || InfFrame % rate == 0)) {
         tm->counter++;
         mode = tm->frames;
         if (mode < 0) {
             mode = -mode;
         }
-        if (mode <= tm->counter) {
+        if (tm->counter >= mode) {
             tm->counter = 0;
         }
         mode = tm->src;
@@ -216,22 +218,23 @@ void DoTexModSub(TEXMOD* tm)
             }
             v = CalcTexScroll((float)(tm->counter - tm->unk4e), 0.0f, sign, tm->counter, (float*)0);
             lbl_802C2E28[scr].y1 = scale * v;
-        } else if (mode < -3) {
-            if (mode == -6) {
+        } else {
+            if (mode < -3) {
+                if (mode == -6) {
+                    return;
+                }
+            } else if (mode < -1) {
+                scr = tm->scrollIdx;
+                sign = (float)tm->frames;
+                scale = 1.0f;
+                if ((float)tm->frames < 0.0f) {
+                    sign = -sign;
+                    scale = -1.0f;
+                }
+                v = CalcTexScroll((float)(tm->counter - tm->unk4e), 0.0f, sign, tm->counter, (float*)0);
+                lbl_802C2E28[scr].y0 = scale * v;
                 return;
             }
-        } else if (mode < -1) {
-            scr = tm->scrollIdx;
-            sign = (float)tm->frames;
-            scale = 1.0f;
-            if ((float)tm->frames < 0.0f) {
-                sign = -sign;
-                scale = -1.0f;
-            }
-            v = CalcTexScroll((float)(tm->counter - tm->unk4e), 0.0f, sign, tm->counter, (float*)0);
-            lbl_802C2E28[scr].y0 = scale * v;
-            return;
-        } else {
             if (tm->tex >= 0) {
                 void* p = fn_800BA024(mode + tm->counter);
                 fn_800B9F88(tm->tex, p);
@@ -243,15 +246,14 @@ void DoTexModSub(TEXMOD* tm)
 void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
 {
     int mode;
+    int f;
     float lo;
     float out;
     float v;
-    int iv;
 
     if (tm != 0) {
         mode = tm->src;
         if (mode == -4) {
-            lo = (float)(tm->unk4e);
             v = (float)(frame - tm->unk4e);
             lo = (float)(tm->frames);
             if (v <= 0.0f || lo <= 0.0) {
@@ -261,36 +263,36 @@ void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
             } else {
                 lo = 1.0f;
             }
-            iv = (int)((float)(1.0 - lo) * 255.0);
-            fn_800BA6C0(ctx, iv, 1);
-        } else if (mode < -4) {
-            if (mode == -6) {
-                return;
-            }
-            if (mode > -7) {
-                v = (float)(frame - tm->unk4e);
-                lo = (float)(tm->frames);
-                if (v <= 0.0f || lo <= 0.0) {
-                    lo = 0.0f;
-                } else if ((float)(frame - tm->unk4e) < lo) {
-                    lo = (float)(frame - tm->unk4e) / lo;
-                } else {
-                    lo = 1.0f;
+            mode = (int)((float)(1.0 - lo) * 255.0);
+            fn_800BA6C0(ctx, mode, 1);
+        } else {
+            if (mode < -4) {
+                if (mode == -6) {
+                    return;
                 }
-                fn_800BA6C0(ctx, (int)(lo * 255.0), 1);
+                if (mode > -7) {
+                    v = (float)(frame - tm->unk4e);
+                    lo = (float)(tm->frames);
+                    if (v <= 0.0f || lo <= 0.0) {
+                        lo = 0.0f;
+                    } else if ((float)(frame - tm->unk4e) < lo) {
+                        lo = (float)(frame - tm->unk4e) / lo;
+                    } else {
+                        lo = 1.0f;
+                    }
+                    fn_800BA6C0(ctx, (int)(lo * 255.0), 1);
+                    return;
+                }
+            } else if (mode == -2) {
+                v = CalcTexScroll((float)(frame - tm->unk4e), (float)tm->rate, (float)tm->frames, frame, &out);
+                fn_800BA1BC(out, v, 1.0f, 0.0f, ctx, 1);
+                return;
+            } else if (mode < -2) {
+                v = CalcTexScroll((float)(frame - tm->unk4e), (float)tm->rate, (float)tm->frames, frame, &out);
+                fn_800BA1BC(1.0f, 0.0f, out, v, ctx, 1);
                 return;
             }
-        } else if (mode == -2) {
-            v = CalcTexScroll((float)(frame - tm->unk4e), (float)tm->rate, (float)tm->frames, frame, &out);
-            fn_800BA1BC(out, v, 1.0f, 0.0f, ctx, 1);
-            return;
-        } else if (mode < -2) {
-            v = CalcTexScroll((float)(frame - tm->unk4e), (float)tm->rate, (float)tm->frames, frame, &out);
-            fn_800BA1BC(1.0f, 0.0f, out, v, ctx, 1);
-            return;
-        }
-        {
-            int f = frame - tm->unk4e;
+            f = frame - tm->unk4e;
             if (f < 0) {
                 f = 0;
             } else {
