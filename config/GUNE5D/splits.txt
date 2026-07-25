@@ -17,6 +17,11 @@ game/main.c:
 	extabindex  start:0x8000A174 end:0x8000A1BC
 	.text       start:0x80067AE0 end:0x800684D4
 
+game/memcard.c:
+	extab       start:0x80006650 end:0x80006720
+	extabindex  start:0x8000A1C8 end:0x8000A300
+	.text       start:0x800685EC end:0x8006B540
+
 game/g3dMath3D.cpp:
 	extab       start:0x80007538 end:0x800075B8
 	extabindex  start:0x8000B824 end:0x8000B8E4
