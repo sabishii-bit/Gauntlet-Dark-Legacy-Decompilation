@@ -73,6 +73,21 @@ void OSWakeupThread(OSThreadQueue* queue);
 
 void OSRegisterResetFunction(OSResetFunctionInfo* info);
 
+u16 OSGetFontEncode(void);
+
+typedef struct OSSramEx {
+    u8 flashID[2][12];
+    u32 wirelessKeyboardID;
+    u16 wirelessPadID[4];
+    u8 dvdErrorCode;
+    u8 _padding0;
+    u8 flashIDCheckSum[2];
+    u8 _padding1[4];
+} OSSramEx;
+
+OSSramEx* __OSLockSramEx(void);
+int __OSUnlockSramEx(int commit);
+
 #ifdef __cplusplus
 }
 #endif
