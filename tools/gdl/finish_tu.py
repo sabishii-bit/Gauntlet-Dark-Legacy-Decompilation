@@ -34,9 +34,10 @@ def run(cmd, **kw):
 
 
 def flip(unit_c: str) -> bool:
+    import re as _re
     cfg = REPO / "configure.py"
     text = cfg.read_text(encoding="utf-8")
-    # Object("...unit...") may carry extra kwargs (cflags=, mw_version=)
+    # single-line form: Object(NonMatching, "unit", kwargs...)
     non = f'Object(NonMatching, "{unit_c}"'
     mat = f'Object(Matching, "{unit_c}"'
     if non in text:
@@ -44,6 +45,21 @@ def flip(unit_c: str) -> bool:
         print(f"flipped {unit_c} -> Matching")
         return True
     if mat in text:
+        print(f"{unit_c} already Matching")
+        return True
+    # multi-line form:
+    #   Object(
+    #       NonMatching,
+    #       "unit",
+    #       extra_cflags=[...],
+    #   )
+    pat = _re.compile(r'(Object\(\s*)NonMatching(,\s*"' + _re.escape(unit_c) + '")')
+    if pat.search(text):
+        cfg.write_text(pat.sub(r"\1Matching\2", text, count=1),
+                       encoding="utf-8", newline="\n")
+        print(f"flipped {unit_c} -> Matching (multi-line form)")
+        return True
+    if _re.search(r'Object\(\s*Matching,\s*"' + _re.escape(unit_c) + '"', text):
         print(f"{unit_c} already Matching")
         return True
     print(f"ERROR: {unit_c} not found in configure.py")
