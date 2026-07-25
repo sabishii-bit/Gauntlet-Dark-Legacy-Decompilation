@@ -474,6 +474,8 @@ config.libs = [
             Object(Matching, "MSL/wchar_io.c"),
             Object(Matching, "MSL/ctype.c"),
             Object(Matching, "MSL/mem.c"),
+            Object(Matching, "MSL/misc_io.c"),
+            Object(Matching, "MSL/printf.c"),
             Object(Matching, "MSL/mem_funcs.c"),
             Object(Matching, "MSL/string.c"),
         ],

@@ -47,7 +47,7 @@ def parse(objfile: Path):
     for line in out.splitlines():
         m = re.match(r"^[0-9a-f]+ <(.+)>:$", line)
         if m:
-            cur = m.group(1)
+            cur = re.sub(r"_80[0-9A-Fa-f]{6}$", "", m.group(1))
             funcs[cur] = []
             continue
         if cur is None:

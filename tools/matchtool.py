@@ -46,10 +46,13 @@ LOCAL_SYM = re.compile(
 
 def parse(objfile):
     fns = _parse(objfile)
-    return {
-        name: [LOCAL_SYM.sub("<local>", ln) if "R_PPC" in ln else ln for ln in lines]
-        for name, lines in fns.items()
-    }
+    # dtk suffixes local FUNCTION names with their address too; strip so the
+    # target "long2str_800E74B8" pairs with our static "long2str"
+    out = {}
+    for name, lines in fns.items():
+        name = re.sub(r"_80[0-9A-Fa-f]{6}$", "", name)
+        out[name] = [LOCAL_SYM.sub("<local>", ln) if "R_PPC" in ln else ln for ln in lines]
+    return out
 
 
 # Full symbol normalization: blank every reloc target name (keeping the reloc
