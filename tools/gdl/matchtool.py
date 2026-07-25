@@ -12,10 +12,10 @@ Modes:
           them, optionally for a single --fn. Use when iterating source shapes.
 
 Usage (from repo root):
-  python tools/matchtool.py probe game/gcontrolpads
-  python tools/matchtool.py probe game/foo --matrix --mw GC/1.2.5n
-  python tools/matchtool.py sweep game/foo --dir W:/scratch/variants --preset demo --fn BarFn
-  python tools/matchtool.py sweep game/foo --dir variants --preset demo --fn BarFn --show
+  python tools/gdl/matchtool.py probe game/gcontrolpads
+  python tools/gdl/matchtool.py probe game/foo --matrix --mw GC/1.2.5n
+  python tools/gdl/matchtool.py sweep game/foo --dir W:/scratch/variants --preset demo --fn BarFn
+  python tools/gdl/matchtool.py sweep game/foo --dir variants --preset demo --fn BarFn --show
 
 Scoring: per function, count of differing normalized instruction lines vs the
 target ("OK" = byte-shape identical incl. reloc targets; "L+n" = length differs
@@ -50,7 +50,8 @@ def parse(objfile):
     # target "long2str_800E74B8" pairs with our static "long2str"
     out = {}
     for name, lines in fns.items():
-        name = re.sub(r"_80[0-9A-Fa-f]{6}$", "", name)
+        if not name.startswith("fn_"):
+            name = re.sub(r"_80[0-9A-Fa-f]{6}$", "", name)
         out[name] = [LOCAL_SYM.sub("<local>", ln) if "R_PPC" in ln else ln for ln in lines]
     return out
 
@@ -69,7 +70,7 @@ def full_norm(lines):
 
 
 VERSION = "GUNE5D"
-REPO = Path(__file__).resolve().parent.parent
+REPO = Path(__file__).resolve().parent.parent.parent
 DEFAULT_MW = "GC/1.2.5n"
 # Probe compiles under every compiler this game has actually used (zlib lib is
 # GC/1.2.5, everything else so far GC/1.2.5n -- see game-code-frontier notes).

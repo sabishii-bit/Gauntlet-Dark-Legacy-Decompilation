@@ -12,7 +12,7 @@ splits. Scores: 1.000 = identical opcode stream (registers/relocs ignored;
 real flag/codegen differences still show as <1).
 
 Usage:
-  python tools/refscan.py W:/path/ref/printf.c auto_03_800E539C \\
+  python tools/gdl/refscan.py W:/path/ref/printf.c auto_03_800E539C \\
       -i W:/path/ref [--cflags "..."] [--mw GC/1.2.5] [--min 0.5]
 
 Target may be a unit path (game/foo) or an auto object stem (auto_03_...).

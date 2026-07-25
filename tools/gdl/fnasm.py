@@ -2,9 +2,9 @@
 """Compact target-asm dump for one function, from the dtk-extracted object.
 
 Usage:
-  python tools/fnasm.py game/pb_window pbProjCalc          # whole function
-  python tools/fnasm.py game/pb_window pbProjCalc 40:120   # insn index slice
-  python tools/fnasm.py game/pb_window                     # list functions
+  python tools/gdl/fnasm.py game/pb_window pbProjCalc          # whole function
+  python tools/gdl/fnasm.py game/pb_window pbProjCalc 40:120   # insn index slice
+  python tools/gdl/fnasm.py game/pb_window                     # list functions
 
 Output is one line per instruction: function-relative hex offset, mnemonic,
 operands, with any relocation folded onto the same line ("@sym"). Branch

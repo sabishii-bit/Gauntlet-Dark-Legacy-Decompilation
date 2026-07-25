@@ -5,9 +5,9 @@ emits against the ranges claimed for that unit in splits.txt. Catches the
 link silently shifts every later section (see infcodes, 6aeec7b).
 
 Usage (from repo root):
-  python tools/claimcheck.py zlib/inflate            # one unit
-  python tools/claimcheck.py zlib/inflate game/pbutils
-  python tools/claimcheck.py --matching              # every Matching unit in configure.py
+  python tools/gdl/claimcheck.py zlib/inflate            # one unit
+  python tools/gdl/claimcheck.py zlib/inflate game/pbutils
+  python tools/gdl/claimcheck.py --matching              # every Matching unit in configure.py
 
 Exit code 1 if any hard problem found (unclaimed emitted section, or object
 bigger than its claim).
@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 
 VERSION = "GUNE5D"
-REPO = Path(__file__).resolve().parent.parent
+REPO = Path(__file__).resolve().parent.parent.parent
 OBJDUMP = REPO / "build" / "binutils" / "powerpc-eabi-objdump.exe"
 SPLITS = REPO / "config" / VERSION / "splits.txt"
 
