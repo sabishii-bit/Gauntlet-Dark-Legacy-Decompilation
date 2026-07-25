@@ -15,7 +15,12 @@ clusters. Use it to separate real shape differences (missing statements,
 moved blocks, extra calls) from register-renumber noise -- this view is what
 located infblock's missing t<19 clamp and stripped error-path frees.
 
-Run from the repo root after `ninja build/GUNE5D/src/<unit>.o`.
+--count prints one summary line per function (target/base insn counts, total
+diff lines, and "real" diff lines excluding reloc-name-only noise) -- use it
+as the per-iteration score instead of piping through grep -c.
+
+The base object is rebuilt via ninja automatically whenever the source file
+is newer (pass --no-build to skip). This prevents analyzing stale objects.
 """
 
 import difflib
@@ -78,9 +83,12 @@ def ops_diff(name, t, b):
 
 
 def main():
-    args = [a for a in sys.argv[1:] if a not in ("-l", "--ops")]
+    flags = ("-l", "--ops", "--count", "--no-build")
+    args = [a for a in sys.argv[1:] if a not in flags]
     list_only = "-l" in sys.argv
     ops_only = "--ops" in sys.argv
+    count_only = "--count" in sys.argv
+    no_build = "--no-build" in sys.argv
     if not args:
         print(__doc__)
         return 1
@@ -89,6 +97,21 @@ def main():
     unit = re.sub(r"\.(c|cpp)$", "", unit)
     target_o = Path(f"build/{VERSION}/obj/{unit}.o")
     base_o = Path(f"build/{VERSION}/src/{unit}.o")
+
+    # rebuild the base object if the source is newer (stale-object trap)
+    if not no_build:
+        src = next((Path(f"src/{unit}{ext}") for ext in (".c", ".cpp")
+                    if Path(f"src/{unit}{ext}").exists()), None)
+        if src and (not base_o.exists()
+                    or src.stat().st_mtime > base_o.stat().st_mtime):
+            r = subprocess.run(["ninja", str(base_o)], capture_output=True, text=True)
+            if r.returncode != 0:
+                print(f"NINJA FAILED rebuilding {base_o}:")
+                tail = (r.stdout + r.stderr).splitlines()
+                print(chr(10).join(tail[-15:]))
+                return 1
+            print(f"(rebuilt {base_o.name})")
+
     for p in (target_o, base_o):
         if not p.exists():
             print(f"missing: {p} (run ninja / check unit path)")
@@ -112,6 +135,14 @@ def main():
             continue
         if list_only:
             print(f"DIFF {name}")
+            continue
+        if count_only:
+            diff = [l for l in difflib.unified_diff(t, b, lineterm="", n=0)
+                    if l[:1] in "+-" and l[:3] not in ("+++", "---")]
+            real = [l for l in diff if "R_PPC" not in l]
+            ti = sum(1 for l in t if "R_PPC" not in l)
+            bi = sum(1 for l in b if "R_PPC" not in l)
+            print(f"DIFF {name}  insns {ti}/{bi}  lines {len(diff)}  real {len(real)}")
             continue
         if ops_only:
             ops_diff(name, t, b)
