@@ -22,6 +22,8 @@ game/fakelib.c:
 	extab       start:0x800075B8 end:0x80007618
 	extabindex  start:0x8000B8E4 end:0x8000B974
 	.text       start:0x800AEA54 end:0x800AF574
+	.data       start:0x80127798 end:0x80127870
+	.sdata2     start:0x80348A50 end:0x80348A78
 
 zlib/zutil.c:
 	extab       start:0x80007618 end:0x80007620

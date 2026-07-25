@@ -438,7 +438,13 @@ int fn_800AF24C(void)
 
 int scePadSetActDirect(int port, int slot, u8* act)
 {
-    G3DSetRumble(slot + port * 4, (f32) (act[0] != 0), (f32) act[1] / 255.0f);
+    /* PARKED pool residual: target sdata2 = [s32-magic, 255.0f, u32-magic];
+       ours pools 255.0f first regardless of source form (literal vs int vs
+       cast-int divisor, temp order). 2 words swapped, text matches. */
+    f32 on = (f32) (act[0] != 0);
+    f32 str = (f32) act[1] / 255.0f;
+
+    G3DSetRumble(slot + port * 4, on, str);
     return 1;
 }
 
