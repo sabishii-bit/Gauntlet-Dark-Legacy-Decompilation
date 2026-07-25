@@ -195,13 +195,31 @@ def run_jobs(jobs, target_fns, only_fn, workers):
     return results
 
 
-def print_table(results, target_fns, only_fn):
+def print_table(results, target_fns, only_fn, brief=False):
     fns = [n for n in target_fns if not only_fn or n == only_fn]
-    short = {n: (n if len(n) <= 18 else n[:17] + "~") for n in fns}
     ok_rows = sorted(
         ((label, r) for label, r in results.items() if isinstance(r, dict)),
         key=lambda kv: total_key(kv[1]),
     )
+    if brief and ok_rows:
+        # best row only; list just the non-OK cells, plus how many other
+        # candidate rows tie it (identical cell dict)
+        best_label, best = ok_rows[0]
+        ties = sum(1 for _, r in ok_rows[1:] if r == best)
+        bad = {n: best.get(n, "-") for n in fns
+               if str(best.get(n, "-")) not in ("OK", "OK~")}
+        okc = sum(1 for n in fns if str(best.get(n, "-")) == "OK")
+        okt = sum(1 for n in fns if str(best.get(n, "-")) == "OK~")
+        parts = [f"{n}={v}" for n, v in bad.items()]
+        print(f"best {best_label}  OK:{okc} OK~:{okt} bad:{len(bad)}"
+              + (f" ties:{ties}" if ties else ""))
+        if parts:
+            print("  " + "  ".join(parts))
+        for label, r in results.items():
+            if not isinstance(r, dict):
+                print(f"  {label}: {r}")
+        return best_label
+    short = {n: (n if len(n) <= 18 else n[:17] + "~") for n in fns}
     width = max((len(label) for label in results), default=8) + 2
     print(f"{'':{width}}" + "".join(f"{short[n]:>20}" for n in fns))
     for label, r in ok_rows:
@@ -242,6 +260,7 @@ def main():
                     help=f"compiler version dir (probe default: all of {PROBE_MW}; "
                          f"sweep default: {DEFAULT_MW})")
     ap.add_argument("--show", action="store_true", help="print the best candidate's remaining diff (needs --fn)")
+    ap.add_argument("--brief", action="store_true", help="print only the best row's non-OK cells (token-cheap)")
     ap.add_argument("-j", type=int, default=8, help="parallel jobs (default 8)")
     args = ap.parse_args()
 
@@ -278,7 +297,7 @@ def main():
                 jobs.append((label, mwcc, flags, src))
                 job_info[label] = (mwcc, flags)
         results = run_jobs(jobs, target_fns, args.fn, args.j)
-        best = print_table(results, target_fns, args.fn)
+        best = print_table(results, target_fns, args.fn, args.brief)
         if args.show and args.fn and best:
             print("=" * 60)
             show_best_diff(*job_info[best], src, target_fns, args.fn)
@@ -294,7 +313,7 @@ def main():
             return 1
         jobs = [(c.stem, mwcc, flags, c) for c in cands]
         results = run_jobs(jobs, target_fns, args.fn, args.j)
-        best = print_table(results, target_fns, args.fn)
+        best = print_table(results, target_fns, args.fn, args.brief)
         if args.show and args.fn and best:
             print("=" * 60)
             show_best_diff(mwcc, flags, Path(args.dir) / f"{best}.c", target_fns, args.fn)
