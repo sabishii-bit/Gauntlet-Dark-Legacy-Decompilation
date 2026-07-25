@@ -162,7 +162,15 @@ def score(target_fns, base_fns, only_fn=None):
         elif len(t) != len(b):
             res[name] = f"L{len(b) - len(t):+d}"
         else:
-            res[name] = sum(1 for x, y in zip(t, b) if x != y)
+            # +/- lines from a real diff, excluding reloc-name lines -- same
+            # semantics as fndiff --count's "real" column. (A positional zip
+            # here counted every line after one moved insn: BF4 showed 81
+            # where the true diff was 14.)
+            import difflib
+            d = [l for l in difflib.unified_diff(t, b, lineterm="", n=0)
+                 if l[:1] in "+-" and l[:3] not in ("+++", "---")
+                 and "R_PPC" not in l]
+            res[name] = len(d) if d else "OK~"
     return res
 
 
