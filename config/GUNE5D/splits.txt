@@ -347,6 +347,16 @@ MSL/s_tan.c:
 	.text       start:0x800EA5F0 end:0x800EA674
 	.sdata2     start:0x80349630 end:0x80349638
 
+MSL/sincos.c:
+	.text       start:0x800EAAC4 end:0x800EAE2C
+	.ctors      start:0x801106E8 end:0x801106EC
+	.rodata     start:0x801180F0 end:0x80118100
+	.data       start:0x802387B0 end:0x802387C0
+	.sdata2     start:0x80349660 end:0x80349678
+
+MSL/trigf_data.c:
+	.data       start:0x802387C0 end:0x80238808
+
 dolphin/vi/vi.c:
 	.text       start:0x800EAE2C end:0x800EC738
 	.data       start:0x80238808 end:0x80238AD0
