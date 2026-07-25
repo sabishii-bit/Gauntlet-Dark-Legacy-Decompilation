@@ -19,7 +19,6 @@ On failure it points at doldiff/claimcheck instead of leaving you to
 archaeology (see the two red commits of 2026-07-24 this replaces).
 """
 
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -77,15 +76,31 @@ def main():
             if r.returncode:
                 print(f"BLOCKED by {u}: fix section claims before flipping (see above)")
                 return 1
+            r = run([PY, "tools/gdl/datadiff.py", u.rsplit(".", 1)[0]])
+            if r.returncode:
+                print(f"BLOCKED by {u}: data bytes differ from DOL (see above); "
+                      "wrong constants or emission order never link green")
+                return 1
 
+        cfg_snapshot = (REPO / "configure.py").read_text(encoding="utf-8")
         for u in units:
             if not flip(u):
                 return 1
+
+    def unflip():
+        # a red build must not leave Matching flips behind: a later plain
+        # `git add -A` would commit a red-linking configure.py (see the
+        # g3dMath3D incident, 2026-07-25)
+        if not verify_only:
+            (REPO / "configure.py").write_text(cfg_snapshot, encoding="utf-8",
+                                               newline="\n")
+            print("(rolled configure.py flips back)")
 
     r = run([PY, "configure.py"], capture_output=True, text=True)
     if r.returncode:
         print("configure.py FAILED:")
         print((r.stderr or r.stdout)[-2000:])
+        unflip()
         return 1
 
     OK_FILE.unlink(missing_ok=True)  # never trust a stale ok
@@ -96,9 +111,11 @@ def main():
         print("\nRED BUILD (ninja exit %d) -- nothing committed." % r.returncode)
         print("diagnose with: python tools/gdl/doldiff.py"
               "  |  python tools/gdl/claimcheck.py --matching")
+        unflip()
         return 1
     if not OK_FILE.exists():
         print("\nRED: ninja exited 0 but build/%s/ok was not produced?!" % VERSION)
+        unflip()
         return 1
 
     print("\nGREEN: sha1 verified.")
