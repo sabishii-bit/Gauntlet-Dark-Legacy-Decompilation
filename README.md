@@ -115,7 +115,7 @@ project-specific tooling in [`tools/gdl/`](tools/gdl/). The core philosophy, lea
   loses statement boundaries, storage classes, and evaluation order, which are exactly the things
   that decide whether MWCC reproduces the bytes.
 - **Hunt for reference source before writing anything.** Large parts of this DOL are library code
-  with public or sibling-decomp source (Dolphin SDK via the melee decomp, MSL C runtime, zlib 1.0.4,
+  with public or sibling-decomp source (Dolphin SDK, MSL C runtime, zlib 1.0.4,
   fdlibm math, PS2-SDK-derived Midway code). One `find` in a reference tree can turn a day of
   matching into an hour. See [Reference material](#reference-material).
 - **Only the linked DOL hash is truth.** The per-function tools are deliberately blind to some
@@ -265,7 +265,7 @@ Adopted after measuring attempt-to-progress ratios across sessions:
 Reference material
 ------------------
 
-- **melee decomp** (sibling repo, expected at `W:/Repositories/melee`): Dolphin SDK sources under
+- **melee decomp**: Dolphin SDK sources under
   `extern/dolphin/src/`, MSL C runtime under `src/MSL/` (GDL's MSL is a slightly newer revision —
   expect function-order and small body deltas), MetroTRK, runtime.
 - **Xbox `shell3D.pdb`** (`research/xbox_symbols/`): the Xbox build of this same game, cracked into

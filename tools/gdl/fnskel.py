@@ -26,7 +26,7 @@ REPO = Path(__file__).resolve().parent.parent.parent
 OBJDUMP = REPO / "build/binutils/powerpc-eabi-objdump.exe"
 
 CONDBR = {"beq", "bne", "blt", "bge", "bgt", "ble", "bso", "bns", "bdnz", "bdz"}
-INV = {"beq": "!=", "bne": "==", "blt": ">=", "bge": "<", "bgt": "<=", "ble": ">"}
+TAKEN = {"beq": "==", "bne": "!=", "blt": "<", "bge": ">=", "bgt": ">", "ble": "<="}
 
 
 def parse(objfile, want):
@@ -223,12 +223,12 @@ def main():
                        if k in ("r14", "r15") or (k[0] == "r" and k[1:].isdigit() and int(k[1:]) >= 14)}
 
         # --- compare + branch pairs
-        elif op in ("cmpwi", "cmplwi") and i + 1 < n and rows[i+1]["op"] in INV:
+        elif op in ("cmpwi", "cmplwi") and i + 1 < n and rows[i+1]["op"] in TAKEN:
             br = rows[i + 1]
             m = re.search(r"\+0x([0-9a-f]+)>", br["args"])
             tgt = f"L{int(m.group(1), 16):x}" if m else "L?"
             v = content.get(A[-2] if len(A) > 2 else A[0], A[-2] if len(A) > 2 else A[0])
-            line = f"if ({v} {INV[br['op']]} {A[-1]}) goto {tgt};   // {op} {args}; {br['op']}"
+            line = f"if ({v} {TAKEN[br['op']]} {A[-1]}) goto {tgt};   // {op} {args}; {br['op']}"
             eaten = 2
         elif op == "blr":
             line = "return;  // r3 = " + content.get("r3", "?")
