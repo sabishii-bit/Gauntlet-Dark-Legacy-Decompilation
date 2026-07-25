@@ -454,6 +454,9 @@ config.libs = [
         "db",
         [
             Object(Matching, "dolphin/db/db.c"),
+            Object(NonMatching, "dolphin/db/odenotstub.c", mw_version="GC/1.2.5"),
+            Object(Matching, "dolphin/db/AmcExi2Stubs.c", mw_version="GC/1.2.5"),
+            Object(Matching, "dolphin/db/odemustubs.c", mw_version="GC/1.2.5"),
         ],
     ),
     DolphinLib(

@@ -23,6 +23,7 @@ Diagnostics:
     - typecheck_lvalue_casts_not_supported
     - init_conversion_failed
     - -Wimplicit-function-declaration
+    - expected_expression
 
 ---
 

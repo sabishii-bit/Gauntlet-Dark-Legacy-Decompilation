@@ -506,6 +506,17 @@ dolphin/ai/ai.c:
 	.text       start:0x8010C074 end:0x8010C91C
 	.sbss       start:0x80345698 end:0x803456D8
 
+dolphin/db/odenotstub.c:
+	.text       start:0x8010C91C end:0x8010D39C
+	.sdata      start:0x80344158 end:0x80344159
+	.sbss       start:0x803456D8 end:0x803456F0
+
+dolphin/db/AmcExi2Stubs.c:
+	.text       start:0x8010D39C end:0x8010D3CC
+
+dolphin/db/odemustubs.c:
+	.text       start:0x8010D3CC end:0x8010D3D4
+
 dolphin/si/SIBios.c:
 	.text       start:0x8010D3D4 end:0x8010EAB4
 	.data       start:0x8023C8C0 end:0x8023C990
