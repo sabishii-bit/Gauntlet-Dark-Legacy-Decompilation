@@ -12,6 +12,13 @@ char* strcpy(char* dst, const char* src);
 extern char lbl_801131C0[];
 
 extern s32 lbl_80344A18;   /* card state */
+extern u32 lbl_80343C78;   /* directory refresh flags */
+extern s32 lbl_803449F4;   /* update counter (wraps at 60) */
+
+u32 fn_800BF524(void);
+void fn_800D3874(u32 aramOffset, void* buf);
+void fn_800D3970(u32 dst, u32 src, u32 len);
+void fn_800D39E8(u32 dst, u32 src, u32 len);
 extern s32 lbl_80344A14;
 
 /* fixed size of a Gauntlet save in bytes */
@@ -59,4 +66,39 @@ s32 fn_800689CC(void)
         return -2;
     }
     return -1;
+}
+
+void set_directory_refresh_flags(u32 flags)
+{
+    lbl_80343C78 |= flags;
+}
+
+/* 60-frame wrap counter */
+void fn_80068A28(void)
+{
+    lbl_803449F4++;
+    if (lbl_803449F4 > 60) {
+        lbl_803449F4 = 0;
+    }
+}
+
+void fn_8006AF44(u8* buf)
+{
+    u32 off = fn_800BF524();
+    u8* b = buf;
+
+    fn_800D3874(off - (u32) b, b);
+}
+
+/* swap the 3.2MB save cache blocks in ARAM (0x9E0000 <-> 0xCF0000) */
+void fn_8006B188(void)
+{
+    fn_800D3970(fn_800BF524() - 0x310000, 0xCF0000, 0x310000);
+    fn_800D39E8(0x9E0000, fn_800BF524() - 0x310000, 0x310000);
+}
+
+void fn_8006B1CC(void)
+{
+    fn_800D3970(fn_800BF524() - 0x310000, 0x9E0000, 0x310000);
+    fn_800D39E8(0xCF0000, fn_800BF524() - 0x310000, 0x310000);
 }
