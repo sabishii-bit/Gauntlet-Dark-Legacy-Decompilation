@@ -11,6 +11,7 @@ Steps:
 
 Usage (from repo root):
   python tools/finish_tu.py zlib/inflate.c -m "Match zlib/inflate.c"
+  python tools/finish_tu.py MSL/a.c MSL/b.c -m "..."  # batch: flip all, ONE build+commit
   python tools/finish_tu.py zlib/inflate.c            # verify only, no commit
   python tools/finish_tu.py --verify                  # no flip; just build+check
 
@@ -57,22 +58,26 @@ def main():
         msg = sys.argv[sys.argv.index("-m") + 1]
     verify_only = "--verify" in sys.argv
 
-    unit_c = None
     if not verify_only:
         if not args:
             print(__doc__)
             return 1
-        unit_c = args[0].replace("\\", "/")
-        if not unit_c.endswith((".c", ".cpp")):
-            unit_c += ".c"
+        units = []
+        for a in args:
+            u = a.replace("\\", "/")
+            if not u.endswith((".c", ".cpp")):
+                u += ".c"
+            units.append(u)
 
-        r = run([PY, "tools/claimcheck.py", unit_c])
-        if r.returncode:
-            print("BLOCKED: fix section claims before flipping (see above)")
-            return 1
+        for u in units:
+            r = run([PY, "tools/claimcheck.py", u])
+            if r.returncode:
+                print(f"BLOCKED by {u}: fix section claims before flipping (see above)")
+                return 1
 
-        if not flip(unit_c):
-            return 1
+        for u in units:
+            if not flip(u):
+                return 1
 
     r = run([PY, "configure.py"], capture_output=True, text=True)
     if r.returncode:
