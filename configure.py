@@ -598,6 +598,7 @@ config.libs = [
         "objects": [
             Object(Matching, "dolphin/card/CARDBios.c"),
             Object(Matching, "dolphin/card/CARDUnlock.c"),
+            Object(Matching, "dolphin/card/CARDRdwr.c"),
         ],
     },
     DolphinLib(
