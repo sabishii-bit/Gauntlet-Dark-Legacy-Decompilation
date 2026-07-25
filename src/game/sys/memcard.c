@@ -42,8 +42,15 @@ int sceOpen(const char* path, int flags, ...);
 int sceLseek(int fd, int offset, int whence);
 int sceRead(int fd, void* buf, int len);
 int sceClose(int fd);
-s32 fn_8006AFE0(s32 x, s32* state, s32 mode);
+s32 fn_8006AFE0(const char* msg, s32* state, s32 count);
 s32 fn_800DD10C(void);
+s32 fn_800DDABC(int pad);
+int fn_800DDB68(int pad, u32 mask);
+int fn_800DDBF0(int pad, u32 mask);
+void fn_800DD604(void);
+int fn_800DDE08(int flag);
+void fn_800DDDE8(int flag);
+void fn_80067B0C(int flags);
 void fn_800D3874(u32 aramOffset, void* buf);
 void fn_800D3970(u32 dst, u32 src, u32 len);
 void fn_800D39E8(u32 dst, u32 src, u32 len);
@@ -56,6 +63,55 @@ extern s32 lbl_80344A14;
 
 
 
+
+/* modal save-prompt menu: pages the save cache out of ARAM every 30
+ * frames so the service pump (movie music etc.) keeps running */
+s32 fn_8006AFE0(const char* msg, s32* state, s32 count)
+{
+    s32 sel = 0;
+    s32 timer = 30;
+    u8 had;
+
+    fn_800D3970(fn_800BF524() - 0x310000, 0x9E0000, 0x310000);
+    fn_800D39E8(0xCF0000, fn_800BF524() - 0x310000, 0x310000);
+    had = fn_800DDE08(64);
+    if (had) {
+        fn_800DDDE8(64);
+    }
+    for (;;) {
+        s32 stick;
+
+        fn_8006B210(msg, (int) state, count, sel);
+        stick = fn_800DDABC(-1);
+        if (fn_800DDB68(-1, 4) != 0 || stick > 0) {
+            if (++sel >= count) {
+                sel = 0;
+            }
+        } else if (fn_800DDB68(-1, 8) != 0 || stick < 0) {
+            if (--sel < 0) {
+                sel = count - 1;
+            }
+        }
+        fn_800DD604();
+        if (--timer <= 0) {
+            timer = 30;
+            fn_800D3970(fn_800BF524() - 0x310000, 0xCF0000, 0x310000);
+            fn_800D39E8(0x9E0000, fn_800BF524() - 0x310000, 0x310000);
+            fn_80067B0C(-1);
+            fn_800D3970(fn_800BF524() - 0x310000, 0x9E0000, 0x310000);
+            fn_800D39E8(0xCF0000, fn_800BF524() - 0x310000, 0x310000);
+        }
+        if (fn_800DDBF0(-1, 256) != 0) {
+            break;
+        }
+    }
+    fn_800D3970(fn_800BF524() - 0x310000, 0xCF0000, 0x310000);
+    fn_800D39E8(0x9E0000, fn_800BF524() - 0x310000, 0x310000);
+    if (had) {
+        fn_800DDDF8(64);
+    }
+    return sel;
+}
 
 /* forward */
 void fn_8006B188(void);
@@ -199,9 +255,9 @@ void fn_8006AF44(u8* buf)
     fn_800D3874(off - (u32) b, b);
 }
 
-s32 fn_8006AF7C(s32 x)
+s32 fn_8006AF7C(const char* msg)
 {
-    s32 r = fn_8006AFE0(x, &lbl_80343C6C, 2);
+    s32 r = fn_8006AFE0(msg, &lbl_80343C6C, 2);
 
     switch (r) {
     case 0:
