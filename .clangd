@@ -24,6 +24,7 @@ Diagnostics:
     - init_conversion_failed
     - -Wimplicit-function-declaration
     - expected_expression
+    - main_returns_nonint
 
 ---
 
