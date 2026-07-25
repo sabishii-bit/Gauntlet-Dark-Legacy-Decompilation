@@ -450,6 +450,12 @@ dolphin/card/CARDUnlock.c:
 dolphin/card/CARDRdwr.c:
 	.text       start:0x800F2248 end:0x800F24E0
 
+dolphin/card/CARDBlock.c:
+	.text       start:0x800F24E0 end:0x800F28E4
+
+dolphin/card/CARDDir.c:
+	.text       start:0x800F28E4 end:0x800F2B48
+
 dolphin/db/db.c:
 	.text       start:0x800F69E8 end:0x800F6AD4
 	.data       start:0x8023A720 end:0x8023A738
