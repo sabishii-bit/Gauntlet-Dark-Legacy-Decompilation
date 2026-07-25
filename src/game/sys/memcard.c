@@ -39,7 +39,29 @@ void fn_800DDDE8(int flag);
 void fn_800DDDF8(int flag);
 void fn_80067B0C(int flags);
 void fn_8006B210(const char* msg, int a, int b, int c);
-void fn_800697D0(void);
+s32 fn_80069164(s32 a, s32 b, s32 c);
+u8 fn_8006A82C(s32 chan, const char* msg, s32* fileNo);
+void fn_800DC180(void);
+void fn_800DC1A0(void);
+void OSDestroyHeap(void* heap);
+u32 OSGetSoundMode(void);
+
+typedef struct GameOpts {
+    u32 data[8];               /* 32-byte options block; [2] = stereo flag */
+} GameOpts;
+
+extern u8 lbl_80274578[];      /* dir-info table: 8 entries stride 16 */
+extern GameOpts lbl_80274E80;  /* game options */
+extern GameOpts* lbl_80343C74; /* staged options in the save heap */
+extern char lbl_803472D8[];    /* default dir name (sdata) */
+extern char lbl_8011D550[];    /* prompt message */
+extern s32 lbl_803449F0;
+extern s32 lbl_803449D0;       /* prefs_loaded */
+extern s32 lbl_803449D4;
+extern u8 lbl_803449D8;
+extern s32 lbl_803449DC;
+extern s32 lbl_803449E0;
+int fn_800697D0(void);
 
 /* string block: cache-transaction logs @0/40, "BASLUS-20047GameOpts"@80,
  * "BASLUS-20047DirInfo"@104, "BASLUS-20047save%04d"@124 */
@@ -68,6 +90,39 @@ extern u8* lbl_803449FC;       /* file buffer */
 void fn_8006B188(void);
 void fn_8006B1CC(void);
 s32 fn_8006AFE0(const char* msg, s32* state, s32 count);
+void getSaveFileName(char* dst, s32 fileNo);
+int fn_800696E8(void);
+void fn_8006AF44(u8* buf);
+
+/* does the numbered/dir save exist on the mounted card? */
+int fn_80068728(void)
+{
+    int result = 0;
+    s32 x = 0;
+    char name[64];
+    s32 fileNo;
+    u8 r;
+
+    if (lbl_80344A18 == 3 && *(&lbl_80344A14) == 1) {
+        fileNo = -1;
+        if (fn_80069164(0, 0, 0) <= 0) {
+            r = 0;
+        } else {
+            u8 ok = (0 <= x && x <= 1);
+
+            if (!ok) {
+                r = 0;
+            } else {
+                getSaveFileName(name, fileNo);
+                r = fn_8006A82C(0, lbl_8011D550, &fileNo);
+            }
+        }
+        if (r != 0) {
+            result = 1;
+        }
+    }
+    return result;
+}
 
 /* map card state to a save result code; the result!=0 / -2 arms are
  * statically dead (result starts at 0) but present in the original.
@@ -129,6 +184,69 @@ s32 fn_80068DB0(s32 port, s32 slot)
     return *p;
 }
 
+/* load game options from the card once (Xbox: check_prefs_loaded) */
+void check_prefs_loaded(void)
+{
+    GameOpts* opts = &lbl_80274E80;
+    char* st = lbl_801131C0;
+
+    if (fn_80069164(0, 0, 0) == 0) {
+        return;
+    }
+    if (lbl_803449D0 != 0) {
+        return;
+    }
+    lbl_803449D0 = 1;
+    if ((u8) fn_800696E8()) {
+        *opts = *lbl_80343C74;
+    }
+    fn_800DC1A0();
+    fn_800DC280();
+    OSSetCurrentHeap(lbl_80344A08);
+    OSDestroyHeap(lbl_80344A0C);
+    fn_8006AF44((u8*) 0x310000);
+    fn_800DDDE8(64);
+    fn_800BC2EC(st);
+    lbl_803449EC = 0;
+    opts->data[2] = (OSGetSoundMode() == 0) ? 0 : 1;
+}
+
+/* reset the dir-info table and card state (Xbox: init_all_dir_info) */
+void init_all_dir_info(void)
+{
+    s32 off;
+    s32 zero;
+    s32 fill;
+    u8* base;
+    int i;
+    u8 pad[40]; /* unused, matches original frame */
+
+    zero = 0;
+    i = zero;
+    off = zero;
+    base = lbl_80274578;
+    fill = -1;
+    for (; i < 8; i++, off += 16) {
+        u8* e = base + off;
+
+        *(s32*) e = fill;
+        *(s32*) (e + 4) = fill;
+        strcpy((char*) (e + 8), lbl_803472D8);
+    }
+    *(s32*) (base + 128) = zero;
+    lbl_803449F0 = 0x10000 - 1400;
+    fn_800DC180();
+    lbl_80344A24 = 0;
+    lbl_80344A20 = 0;
+    lbl_80344A18 = -1;
+    lbl_80344A14 = -1;
+    lbl_80344A10[0] = -1;
+    lbl_803449D4 = 0;
+    lbl_803449DC = 0;
+    lbl_803449E0 = -1;
+    lbl_803449D8 = 0;
+}
+
 /* slot -2 = game options, -1 = directory info, else numbered save */
 void getSaveFileName(char* dst, s32 fileNo)
 {
@@ -151,7 +269,7 @@ void set_directory_refresh_flags(u32 flags)
 /* begin save cache transaction: wait for the loader, pull the staging
  * block, build the save heap, allocate workArea + file + directory
  * buffers, then scan the card directory */
-void fn_800696E8(void)
+int fn_800696E8(void)
 {
     u8* buf;
     u32 size;
@@ -176,7 +294,7 @@ void fn_800696E8(void)
     fn_800DC1F4(lbl_80344A00 + 8192, 8192, 18);
     fn_800DC280();
     lbl_80344A04 = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x2D44C0);
-    fn_800697D0();
+    return fn_800697D0();
 }
 
 /* idle callback while the card is out: page the save cache out of ARAM,
