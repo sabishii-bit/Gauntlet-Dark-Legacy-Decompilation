@@ -29,12 +29,19 @@ int G3DGetActivePadCount(void);
  * +0x1C embedded DVDFileInfo (length lands at +0x50). */
 typedef struct SCEFILE {
     u8 open;        /* 0x00 */
-    u8 pad[0x17];
+    u8 pad0[3];
+    u8* buf;        /* 0x04 cache buffer */
+    u32 bufOff;     /* 0x08 window offset inside buf */
+    u32 chunk;      /* 0x0C window size */
+    u32 winOff;     /* 0x10 window start (file offset) */
+    u32 cursor;     /* 0x14 read cursor (file offset) */
     s32 pos;        /* 0x18 */
     u8 fileInfo[0x34]; /* 0x1C DVDFileInfo head */
     u32 size;       /* 0x50 (DVDFileInfo.length) */
     u8 rest[0x8];
 } SCEFILE;
+
+void* memcpy(void* dst, const void* src, u32 n);
 
 #define SCEHANDLE(fd) ((SCEFILE*) ((fd) << 1))
 
@@ -206,10 +213,73 @@ int fn_800AEBF4(void* fileInfo, void* buf, int len, int offset)
     return len;
 }
 
-/* 0x800AED50: sceRead (0x260) - TODO */
+/* 0x800AED50: buffered read through the 32-aligned cache window */
 int sceRead(int fd, void* buf, int len)
 {
-    return 0;
+    SCEFILE* f = SCEHANDLE(fd);
+    u32 a = f->pos & ~31;
+    s32 span = (((len + 31) + f->pos) & ~31) - a;
+    s32 copied;
+
+    if (a < f->winOff || a >= f->winOff + f->chunk) {
+        f->winOff = a;
+    } else {
+        span -= (s32) (f->cursor - a);
+        a = f->cursor;
+    }
+
+    if (span > 0) {
+        s32 space = f->winOff + f->chunk - a;
+        s32 n = (span < space) ? span : space;
+
+        if (a != f->cursor) {
+            f->cursor = a;
+        }
+        if (n > 0) {
+            if (fn_800AEBF4(f->fileInfo, f->buf + (f->bufOff + a - f->winOff), n,
+                            f->cursor) != n) {
+                return -1;
+            }
+        }
+        span -= n;
+        f->cursor += n;
+    }
+
+    copied = f->winOff + f->chunk - f->pos;
+    if (len < copied) {
+        copied = len;
+    }
+    memcpy(buf, f->buf + (f->bufOff + f->pos - f->winOff), copied);
+    f->pos += copied;
+    len -= copied;
+
+    while (span > f->chunk) {
+        f->winOff = f->cursor;
+        if (fn_800AEBF4(f->fileInfo, f->buf + f->bufOff, f->chunk, f->cursor) !=
+            f->chunk) {
+            return -1;
+        }
+        f->cursor += f->chunk;
+        f->pos += f->chunk;
+        memcpy((u8*) buf + copied, f->buf + f->bufOff, f->chunk);
+        span -= f->chunk;
+        len -= f->chunk;
+        copied += f->chunk;
+    }
+
+    if (span > 0) {
+        f->winOff = f->cursor;
+        if (fn_800AEBF4(f->fileInfo, f->buf + f->bufOff, span, f->cursor) != span) {
+            return -1;
+        }
+        f->cursor += span;
+        if (len > 0) {
+            memcpy((u8*) buf + copied, f->buf + f->bufOff, len);
+            copied += len;
+            f->pos += len;
+        }
+    }
+    return copied;
 }
 
 int sceClose(int fd)
