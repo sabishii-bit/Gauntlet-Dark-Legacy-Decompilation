@@ -382,6 +382,7 @@ config.libs = [
         "cflags": cflags_base,
         "progress_category": "game",
         "objects": [
+            Object(NonMatching, "game/main.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/sndvoice.c"),
             Object(Matching, "game/gpads.c"),
             Object(NonMatching, "game/registry.c"),
