@@ -6,9 +6,9 @@ a GCN TU is anchored, neighbors in the module usually name the neighboring GCN
 functions too.
 
 Usage (from repo root):
-  python tools/xbmod.py <pattern>            # find symbols, show their module
-  python tools/xbmod.py --module gcontrolpads   # list a module's code symbols in order
-  python tools/xbmod.py --modules            # list all module names
+  python tools/gdl/xbmod.py <pattern>            # find symbols, show their module
+  python tools/gdl/xbmod.py --module gcontrolpads   # list a module's code symbols in order
+  python tools/gdl/xbmod.py --modules            # list all module names
 """
 
 import argparse

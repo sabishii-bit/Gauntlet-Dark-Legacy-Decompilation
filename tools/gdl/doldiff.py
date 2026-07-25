@@ -14,8 +14,8 @@ project actually needs:
   Pass --all to show it anyway.
 
 Usage (from repo root):
-  python tools/doldiff.py            # summary of real differences
-  python tools/doldiff.py --all      # include the expected clean_extab diff
+  python tools/gdl/doldiff.py            # summary of real differences
+  python tools/gdl/doldiff.py --all      # include the expected clean_extab diff
 
 Exit code 0 if only expected diffs remain, 1 otherwise.
 """
@@ -27,7 +27,7 @@ from bisect import bisect_right
 from pathlib import Path
 
 VERSION = "GUNE5D"
-REPO = Path(__file__).resolve().parent.parent
+REPO = Path(__file__).resolve().parent.parent.parent
 ORIG = REPO / "orig" / VERSION / "sys" / "main.dol"
 BUILT = REPO / "build" / VERSION / "main.dol"
 SYMBOLS = REPO / "config" / VERSION / "symbols.txt"
@@ -110,7 +110,7 @@ def main():
         print(f"HEADER: bss/entry {ho[3:]} -> {hn[3:]}")
     if header_bad:
         print("=> a section changed size: some unit emits data its splits don't claim."
-              " Run: python tools/claimcheck.py --matching")
+              " Run: python tools/gdl/claimcheck.py --matching")
 
     sym_addrs, sym_names = load_symbols()
     units = load_units()

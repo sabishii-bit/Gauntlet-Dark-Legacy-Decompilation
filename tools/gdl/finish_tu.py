@@ -10,10 +10,10 @@ Steps:
   5. only if green and -m given: git add -A && git commit
 
 Usage (from repo root):
-  python tools/finish_tu.py zlib/inflate.c -m "Match zlib/inflate.c"
-  python tools/finish_tu.py MSL/a.c MSL/b.c -m "..."  # batch: flip all, ONE build+commit
-  python tools/finish_tu.py zlib/inflate.c            # verify only, no commit
-  python tools/finish_tu.py --verify                  # no flip; just build+check
+  python tools/gdl/finish_tu.py zlib/inflate.c -m "Match zlib/inflate.c"
+  python tools/gdl/finish_tu.py MSL/a.c MSL/b.c -m "..."  # batch: flip all, ONE build+commit
+  python tools/gdl/finish_tu.py zlib/inflate.c            # verify only, no commit
+  python tools/gdl/finish_tu.py --verify                  # no flip; just build+check
 
 On failure it points at doldiff/claimcheck instead of leaving you to
 archaeology (see the two red commits of 2026-07-24 this replaces).
@@ -25,7 +25,7 @@ import sys
 from pathlib import Path
 
 VERSION = "GUNE5D"
-REPO = Path(__file__).resolve().parent.parent
+REPO = Path(__file__).resolve().parent.parent.parent
 OK_FILE = REPO / "build" / VERSION / "ok"
 PY = sys.executable or "python"
 
@@ -73,7 +73,7 @@ def main():
             units.append(u)
 
         for u in units:
-            r = run([PY, "tools/claimcheck.py", u])
+            r = run([PY, "tools/gdl/claimcheck.py", u])
             if r.returncode:
                 print(f"BLOCKED by {u}: fix section claims before flipping (see above)")
                 return 1
@@ -94,8 +94,8 @@ def main():
     print(tail)
     if r.returncode != 0:
         print("\nRED BUILD (ninja exit %d) -- nothing committed." % r.returncode)
-        print("diagnose with: python tools/doldiff.py"
-              "  |  python tools/claimcheck.py --matching")
+        print("diagnose with: python tools/gdl/doldiff.py"
+              "  |  python tools/gdl/claimcheck.py --matching")
         return 1
     if not OK_FILE.exists():
         print("\nRED: ninja exited 0 but build/%s/ok was not produced?!" % VERSION)

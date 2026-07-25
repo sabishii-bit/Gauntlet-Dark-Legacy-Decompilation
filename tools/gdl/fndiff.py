@@ -4,10 +4,10 @@ DOL by dtk) and the base object (our compile), with addresses and branch
 targets normalized so only real codegen differences survive.
 
 Usage:
-  python tools/fndiff.py dolphin/dvd/dvd.c              # all mismatching functions
-  python tools/fndiff.py dolphin/dvd/dvd.c DVDInit      # specific function(s)
-  python tools/fndiff.py dolphin/si/SIBios.c -l         # just list match status
-  python tools/fndiff.py zlib/infblock.c --ops          # opcode-cluster view
+  python tools/gdl/fndiff.py dolphin/dvd/dvd.c              # all mismatching functions
+  python tools/gdl/fndiff.py dolphin/dvd/dvd.c DVDInit      # specific function(s)
+  python tools/gdl/fndiff.py dolphin/si/SIBios.c -l         # just list match status
+  python tools/gdl/fndiff.py zlib/infblock.c --ops          # opcode-cluster view
 
 --ops collapses each function to its opcode stream (registers, operands and
 relocs ignored) and prints only the structurally inserted/deleted/replaced
@@ -47,7 +47,9 @@ def parse(objfile: Path):
     for line in out.splitlines():
         m = re.match(r"^[0-9a-f]+ <(.+)>:$", line)
         if m:
-            cur = re.sub(r"_80[0-9A-Fa-f]{6}$", "", m.group(1))
+            cur = m.group(1)
+            if not cur.startswith("fn_"):
+                cur = re.sub(r"_80[0-9A-Fa-f]{6}$", "", cur)
             funcs[cur] = []
             continue
         if cur is None:
