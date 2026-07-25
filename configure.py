@@ -466,7 +466,12 @@ config.libs = [
         "cflags": [*cflags_runtime, "-i src/MSL"],
         "progress_category": "sdk",
         "objects": [
+            Object(Matching, "MSL/abort_exit.c"),
             Object(Matching, "MSL/buffer_io.c"),
+            Object(Matching, "MSL/critical_regions.c"),
+            Object(Matching, "MSL/direct_io.c"),
+            Object(Matching, "MSL/mbstring.c"),
+            Object(Matching, "MSL/wchar_io.c"),
             Object(Matching, "MSL/ctype.c"),
             Object(Matching, "MSL/mem.c"),
             Object(Matching, "MSL/mem_funcs.c"),
