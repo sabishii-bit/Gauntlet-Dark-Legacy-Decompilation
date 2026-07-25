@@ -129,8 +129,10 @@ def matrix_presets():
 
 
 def compile_one(mwcc: Path, flags, src: Path, out_o: Path):
+    # the unit's own directory is always searchable (local headers)
+    extra = ["-i", str(src.parent)]
     r = subprocess.run(
-        [str(mwcc)] + COMMON + flags + ["-c", str(src), "-o", str(out_o)],
+        [str(mwcc)] + COMMON + flags + extra + ["-c", str(src), "-o", str(out_o)],
         capture_output=True, text=True, cwd=str(REPO),
     )
     return r.returncode, (r.stderr or r.stdout)

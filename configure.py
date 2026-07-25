@@ -460,6 +460,19 @@ config.libs = [
             Object(Matching, "dolphin/db/odemustubs.c", mw_version="GC/1.2.5"),
         ],
     ),
+    {
+        "lib": "MSL_C",
+        "mw_version": "GC/1.2.5",
+        "cflags": [*cflags_runtime, "-i src/MSL"],
+        "progress_category": "sdk",
+        "objects": [
+            Object(Matching, "MSL/buffer_io.c"),
+            Object(Matching, "MSL/ctype.c"),
+            Object(Matching, "MSL/mem.c"),
+            Object(Matching, "MSL/mem_funcs.c"),
+            Object(Matching, "MSL/string.c"),
+        ],
+    },
     DolphinLib(
         "dvd",
         [
