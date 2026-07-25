@@ -17,3 +17,5 @@ mw_comment_version: 8
 clean_extab: true
 
 modules: []
+block_relocations:
+- source: ".data:0x801FD3C0"

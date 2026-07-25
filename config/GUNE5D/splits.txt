@@ -280,8 +280,72 @@ MSL/wchar_io.c:
 MSL/get_time.c:
 	.text       start:0x800E83E0 end:0x800E8424
 
-MSL/math1.c:
-	.text       start:0x800E8424 end:0x800EA674
+MSL/w_fabs.c:
+	.text       start:0x800E8424 end:0x800E842C
+
+MSL/s_ldexp.c:
+	.text       start:0x800E842C end:0x800E844C
+
+MSL/e_rem_pio2.c:
+	.text       start:0x800E844C end:0x800E8840
+	.rodata     start:0x80117D60 end:0x80117EE8
+	.sdata2     start:0x80349468 end:0x803494C0
+
+MSL/s_fpclassify.c:
+	.text       start:0x800E8840 end:0x800E88C0
+
+MSL/k_cos.c:
+	.text       start:0x800E88C0 end:0x800E89B8
+	.sdata2     start:0x803494C0 end:0x80349508
+
+MSL/k_rem_pio2.c:
+	.text       start:0x800E89B8 end:0x800E9A5C
+	.rodata     start:0x80117EE8 end:0x80117F38
+	.sdata2     start:0x80349508 end:0x80349548
+
+MSL/k_sin.c:
+	.text       start:0x800E9A5C end:0x800E9B00
+	.sdata2     start:0x80349548 end:0x80349580
+
+MSL/k_tan.c:
+	.text       start:0x800E9B00 end:0x800E9D20
+	.rodata     start:0x80117F38 end:0x80117FA0
+	.sdata2     start:0x80349580 end:0x803495B8
+
+MSL/s_atan.c:
+	.text       start:0x800E9D20 end:0x800E9F60
+	.rodata     start:0x80117FA0 end:0x80118038
+	.sdata2     start:0x803495B8 end:0x803495E0
+
+MSL/s_copysign.c:
+	.text       start:0x800E9F60 end:0x800E9F8C
+
+MSL/s_cos.c:
+	.text       start:0x800E9F8C end:0x800EA06C
+	.sdata2     start:0x803495E0 end:0x803495E8
+
+MSL/s_floor.c:
+	.text       start:0x800EA06C end:0x800EA1D8
+	.sdata2     start:0x803495E8 end:0x803495F8
+
+MSL/s_frexp.c:
+	.text       start:0x800EA1D8 end:0x800EA274
+	.sdata2     start:0x803495F8 end:0x80349600
+
+MSL/s_scalbn.c:
+	.text       start:0x800EA274 end:0x800EA3EC
+	.sdata2     start:0x80349600 end:0x80349628
+
+MSL/s_modf.c:
+	.text       start:0x800EA3EC end:0x800EA50C
+
+MSL/s_sin.c:
+	.text       start:0x800EA50C end:0x800EA5F0
+	.sdata2     start:0x80349628 end:0x80349630
+
+MSL/s_tan.c:
+	.text       start:0x800EA5F0 end:0x800EA674
+	.sdata2     start:0x80349630 end:0x80349638
 
 dolphin/vi/vi.c:
 	.text       start:0x800EAE2C end:0x800EC738
