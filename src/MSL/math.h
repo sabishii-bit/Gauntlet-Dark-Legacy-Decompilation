@@ -3,7 +3,10 @@
 
 #include <platform.h>
 
-#include <MetroTRK/intrinsics.h>
+#ifdef __MWERKS__
+extern double __fabs(double);
+#pragma cplusplus off
+#endif
 
 #define MSL_HI(x) *(int*) &x
 #define MSL_LO(x) *(1 + (int*) &x)
