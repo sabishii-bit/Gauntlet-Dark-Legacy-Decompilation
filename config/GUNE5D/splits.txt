@@ -464,6 +464,9 @@ dolphin/card/CARDMount.c:
 	.data       start:0x8023A6E0 end:0x8023A720
 	.sdata      start:0x80344088 end:0x8034408A
 
+dolphin/card/CARDFormat.c:
+	.text       start:0x800F4560 end:0x800F4D50
+
 dolphin/db/db.c:
 	.text       start:0x800F69E8 end:0x800F6AD4
 	.data       start:0x8023A720 end:0x8023A738
