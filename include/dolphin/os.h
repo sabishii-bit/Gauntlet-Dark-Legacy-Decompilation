@@ -24,6 +24,10 @@ typedef s64 OSTime;
 typedef u32 OSTick;
 
 #define OS_BASE_CACHED 0x80000000
+#define OSRoundUp32B(x) (((u32) (x) + 31) & ~31)
+#define OSRoundDown32B(x) ((u32) (x) & ~31)
+#define OSPhysicalToCached(paddr) ((void*) ((u32) (paddr) + OS_BASE_CACHED))
+#define OSCachedToPhysical(caddr) ((u32) (caddr) - OS_BASE_CACHED)
 #define __OSBusClock (*(u32*) (OS_BASE_CACHED | 0x00F8))
 #define OS_BUS_CLOCK __OSBusClock
 #define OS_TIMER_CLOCK (OS_BUS_CLOCK / 4)
