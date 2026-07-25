@@ -57,6 +57,13 @@ void* memcpy(void* dst, const void* src, u32 n);
 
 #define SCEHANDLE(fd) ((SCEFILE*) ((fd) << 1))
 
+/* unreferenced, stripped at link; its codegen pools the s32->f32 magic
+ * double ahead of scePadSetActDirect's 255.0f literal (target pool order) */
+static f32 sceIntToF32(s32 x)
+{
+    return (f32) x;
+}
+
 /* --- misc PS2 kernel stubs (exact identities TBD) ------------------- */
 
 void fn_800AEA54(void)
@@ -438,9 +445,6 @@ int fn_800AF24C(void)
 
 int scePadSetActDirect(int port, int slot, u8* act)
 {
-    /* PARKED pool residual: target sdata2 = [s32-magic, 255.0f, u32-magic];
-       ours pools 255.0f first regardless of source form (literal vs int vs
-       cast-int divisor, temp order). 2 words swapped, text matches. */
     f32 on = (f32) (act[0] != 0);
     f32 str = (f32) act[1] / 255.0f;
 
