@@ -208,12 +208,26 @@ Runtime.PPCEABI.H/__init_cpp_exceptions.cpp:
 	.dtors      start:0x80110700 end:0x80110708
 	.sdata      start:0x80344068 end:0x80344070
 
+MSL/abort_exit.c:
+	.text       start:0x800E539C end:0x800E555C
+	.bss        start:0x80328EC8 end:0x803290C8
+	.sbss       start:0x80345320 end:0x80345334
+
 MSL/buffer_io.c:
 	.text       start:0x800E5A04 end:0x800E5B04
+
+MSL/critical_regions.c:
+	.text       start:0x800E5B04 end:0x800E5B08
 
 MSL/ctype.c:
 	.text       start:0x800E5B08 end:0x800E5B58
 	.rodata     start:0x80117A50 end:0x80117D50
+
+MSL/direct_io.c:
+	.text       start:0x800E5B58 end:0x800E5E34
+
+MSL/mbstring.c:
+	.text       start:0x800E5E34 end:0x800E5E70
 
 MSL/mem.c:
 	.text       start:0x800E5E70 end:0x800E5FBC
@@ -224,6 +238,9 @@ MSL/mem_funcs.c:
 MSL/string.c:
 	.text       start:0x800E7E84 end:0x800E81A8
 	.sdata      start:0x80344078 end:0x80344080
+
+MSL/wchar_io.c:
+	.text       start:0x800E8360 end:0x800E83E0
 
 dolphin/vi/vi.c:
 	.text       start:0x800EAE2C end:0x800EC738

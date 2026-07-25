@@ -52,10 +52,13 @@ def flip(unit_c: str) -> bool:
 
 
 def main():
-    args = [a for a in sys.argv[1:] if not a.startswith("-")]
+    argv = sys.argv[1:]
     msg = None
-    if "-m" in sys.argv:
-        msg = sys.argv[sys.argv.index("-m") + 1]
+    if "-m" in argv:
+        i = argv.index("-m")
+        msg = argv[i + 1]
+        argv = argv[:i] + argv[i + 2:]
+    args = [a for a in argv if not a.startswith("-")]
     verify_only = "--verify" in sys.argv
 
     if not verify_only:
