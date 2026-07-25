@@ -593,7 +593,7 @@ config.libs = [
     {
         "lib": "card",
         "mw_version": "GC/1.2.5n",
-        "cflags": cflags_base,
+        "cflags": [*cflags_base, "-i src/dolphin/card"],
         "progress_category": "sdk",
         "objects": [
             Object(NonMatching, "dolphin/card/CARDBios.c"),
