@@ -215,9 +215,12 @@ void mat44InvBasis(mat44& d, vec4& r0, vec4& r1, vec4& r2)
     w.m[3][0] = 0.0f;
     w.m[3][3] = 1.0f;
 
-    /* NOTE: near-match residual (16 normalized lines) -- the original
-       materializes &w twice across the transpose loops where ours CSEs one
-       copy; pure register-web coloring, semantically identical. */
+    /* PARKED near-match: 16 register-only bytes in the transpose loop.
+       Five webs {i, &w+r4, &d+r4, &w+r3, &d+r3}: target colors i FIRST
+       (r7..r11 = i,baseB,destB,baseA,destA), ours colors i LAST. Tried:
+       register hint, for-scoped decls, decl-first, early i=0 (goes
+       nonvolatile r29 - much worse). i's web is IV-renumbered late in our
+       compile; unknown what kept the original's web early. */
     for (i = 0; i < 4; i++) {
         d.m[i][i] = w.m[i][i];
         for (j = i + 1; j < 4; j++) {

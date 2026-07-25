@@ -288,7 +288,12 @@ def main():
         return p
 
     if args.mode == "probe":
-        src = Path(args.src) if args.src else REPO / "src" / f"{unit}.c"
+        if args.src:
+            src = Path(args.src)
+        else:
+            src = REPO / "src" / f"{unit}.c"
+            if not src.exists() and (REPO / "src" / f"{unit}.cpp").exists():
+                src = REPO / "src" / f"{unit}.cpp"
         if not src.exists():
             print(f"missing source: {src}")
             return 1
