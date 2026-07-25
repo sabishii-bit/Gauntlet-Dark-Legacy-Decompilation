@@ -12,23 +12,23 @@ Sections:
 	.sbss       type:bss align:8
 	.sdata2     type:rodata align:16
 
-game/main.c:
+game/sys/main.c:
 	extab       start:0x80006618 end:0x80006648
 	extabindex  start:0x8000A174 end:0x8000A1BC
 	.text       start:0x80067AE0 end:0x800684D4
 
-game/memcard.c:
+game/sys/memcard.c:
 	extab       start:0x80006650 end:0x80006720
 	extabindex  start:0x8000A1C8 end:0x8000A300
 	.text       start:0x800685EC end:0x8006B540
 
-game/g3dMath3D.cpp:
+game/g3d/g3dMath3D.cpp:
 	extab       start:0x80007538 end:0x800075B8
 	extabindex  start:0x8000B824 end:0x8000B8E4
 	.text       start:0x800ADE30 end:0x800AEA54
 	.sdata2     start:0x80348A40 end:0x80348A50
 
-game/fakelib.c:
+game/ps2/fakelib.c:
 	extab       start:0x800075B8 end:0x80007618
 	extabindex  start:0x8000B8E4 end:0x8000B974
 	.text       start:0x800AEA54 end:0x800AF574
@@ -81,14 +81,14 @@ zlib/infutil.c:
 	.text       start:0x800B263C end:0x800B27C4
 	.data       start:0x80127B60 end:0x80127BA8
 
-game/pbutils.c:
+game/pb/pbutils.c:
 	extab       start:0x80007D60 end:0x80007D80
 	extabindex  start:0x8000C460 end:0x8000C490
 	.text       start:0x800C8044 end:0x800C8294
 	.sdata      start:0x80343FB0 end:0x80343FB8
 	.sbss       start:0x80345138 end:0x80345154
 
-game/pb_window.c:
+game/pb/pb_window.c:
 	extab       start:0x80007D80 end:0x80007DC0
 	extabindex  start:0x8000C490 end:0x8000C4F0
 	.text       start:0x800C8294 end:0x800C9B08
@@ -99,7 +99,7 @@ zlib/uncompr.c:
 	.text       start:0x800C9B08 end:0x800C9BD0
 	.sdata2     start:0x80349088 end:0x80349090
 
-game/vsprintf.c:
+game/crt/vsprintf.c:
 	extab       start:0x80007DC8 end:0x80007DE8
 	extabindex  start:0x8000C4FC end:0x8000C52C
 	.text       start:0x800C9BD0 end:0x800CAEE8
@@ -110,7 +110,7 @@ game/vsprintf.c:
 zlib/adler32.c:
 	.text       start:0x800CAEE8 end:0x800CB060
 
-game/gcontrolpads.c:
+game/g3d/gcontrolpads.c:
 	extab       start:0x80007DE8 end:0x80007DF8
 	extabindex  start:0x8000C52C end:0x8000C544
 	.text       start:0x800CB060 end:0x800CB600
@@ -127,7 +127,7 @@ dolphin/demo/DEMOInit.c:
 	.sbss       start:0x80345168 end:0x80345188
 	.sdata2     start:0x80349100 end:0x80349120
 
-game/mathfunc.c:
+game/ps2/mathfunc.c:
 	extab       start:0x80007F28 end:0x80007F78
 	extabindex  start:0x8000C70C end:0x8000C784
 	.text       start:0x800D190C end:0x800D1E04
@@ -503,7 +503,7 @@ dolphin/db/db.c:
 	.data       start:0x8023A720 end:0x8023A738
 	.sbss       start:0x80345488 end:0x80345490
 
-game/gpads.c:
+game/g3d/gpads.c:
 	.text       start:0x800F6AD4 end:0x800F6BA8
 	.bss        start:0x80340EE0 end:0x80340F58
 
@@ -554,7 +554,7 @@ dolphin/dvd/fstload.c:
 	.sdata      start:0x803440A8 end:0x803440B8
 	.sbss       start:0x80345560 end:0x80345570
 
-game/registry.c:
+game/sys/registry.c:
 	.text       start:0x800FB700 end:0x800FB92C
 
 dolphin/gx/GXInit.c:
@@ -617,7 +617,7 @@ dolphin/gx/GXPerf.c:
 	.text       start:0x801018F0 end:0x80102198
 	.data       start:0x8023AE80 end:0x8023AF6C
 
-game/sndvoice.c:
+game/g3d/sndvoice.c:
 	.text       start:0x80102198 end:0x80103BE4
 
 dolphin/mtx/mtx.c:
@@ -735,10 +735,10 @@ dolphin/pad/Pad.c:
 	.sdata      start:0x80344138 end:0x80344158
 	.sbss       start:0x80345670 end:0x80345698
 
-game/gutil.c:
+game/sys/gutil.c:
 	.text       start:0x8010BCAC end:0x8010BDE0
 
-game/texPalette.c:
+game/sys/texPalette.c:
 	.text       start:0x8010BDE0 end:0x8010C074
 	.data       start:0x8023C880 end:0x8023C8C0
 
