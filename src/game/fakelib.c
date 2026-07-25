@@ -314,7 +314,8 @@ int sceClose(int fd)
         if (r == 0) {
             /* PARKED 3-insn residual: target keeps off (subf) in r29 and
                rebuilds buf+off at the callsite; ours folds to the aligned
-               pointer. Tried cast-transit, &buf[off], inlined helper. */
+               pointer. Tried cast-transit, &buf[off], inlined helper,
+               struct-field off (worse). */
             fn_800AEBF4(lbl_8025EDE8, buf + off, 32, 0);
         }
     } while (r == 0);
