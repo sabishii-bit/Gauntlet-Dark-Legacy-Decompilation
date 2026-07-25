@@ -492,6 +492,7 @@ config.libs = [
             Object(Matching, "MSL/s_modf.c"),
             Object(Matching, "MSL/s_sin.c"),
             Object(Matching, "MSL/s_tan.c"),
+            Object(Matching, "MSL/atanf.c"),
             Object(Matching, "MSL/sincos.c"),
             Object(Matching, "MSL/trigf_data.c"),
             Object(Matching, "MSL/mem.c"),
