@@ -1,29 +1,11 @@
 #include "types.h"
 #include "dolphin/ax.h"
+#include "game/sndvoice.h"
 
 int OSDisableInterrupts(void);
 void OSRestoreInterrupts(int level);
 void AISetStreamVolLeft(u8 vol);
 void AISetStreamVolRight(u8 vol);
-
-/* GameCube platform voice mixer (Midway) - sits over AX. No Xbox counterpart
- * module (Xbox uses DirectSound); names here are provisional. */
-
-typedef struct SNDVOICE {
-    /* 0x00 */ AXVPB* voice;
-    /* 0x04 */ u32 flags;
-    /* 0x08 */ s32 vol;
-    /* 0x0C */ s32 auxA;
-    /* 0x10 */ s32 auxB;
-    /* 0x14 */ s32 volIdx;
-    /* 0x18 */ s32 panIdx;
-    /* 0x1C */ s32 master;
-    /* 0x20 */ s32 volL;
-    /* 0x24 */ s32 volR;
-    /* 0x28 */ s32 panL;
-    /* 0x2C */ s32 panR;
-    /* 0x30 */ u16 mix[20];
-} SNDVOICE;
 
 static u16 sndDbTable[966] = {
     0x0000, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001,
@@ -155,7 +137,7 @@ static u8 sndStreamVolTable[50] = {
     0x5A, 0x65, 0x71, 0x7F, 0x8F, 0xA0, 0xB4, 0xCA, 0xE3, 0xFF,
 };
 
-static SNDVOICE sndVoice[64];
+static SndVoice sndVoice[64];
 
 static s32 sndStreamVolCur;
 static s32 sndStreamVolTarget;
@@ -174,7 +156,7 @@ static u16 sndDbToMix(s32 db)
 void sndVoiceInit(void)
 {
     int i;
-    SNDVOICE* v;
+    SndVoice* v;
     s32 volL;
     s32 volR;
     s32 panL;
@@ -216,7 +198,7 @@ void sndVoiceInit(void)
 void sndVoiceSetParams(AXVPB* p, u32 flags, s32 vol, s32 auxA, s32 auxB,
                        s32 volIdx, s32 panIdx, s32 master)
 {
-    SNDVOICE* v = &sndVoice[p->index];
+    SndVoice* v = &sndVoice[p->index];
     int old;
     u16 ctrl;
     u8 unused[0xB0];
@@ -328,7 +310,7 @@ void sndVoiceSetParams(AXVPB* p, u32 flags, s32 vol, s32 auxA, s32 auxB,
 
 void sndVoiceSetVolume(AXVPB* p, s32 vol)
 {
-    SNDVOICE* v = &sndVoice[p->index];
+    SndVoice* v = &sndVoice[p->index];
 
     if (vol < 0) {
         vol = 0;
@@ -345,7 +327,7 @@ void sndVoiceSetVolume(AXVPB* p, s32 vol)
 
 void sndVoiceSetPan(AXVPB* p, s32 pan)
 {
-    SNDVOICE* v = &sndVoice[p->index];
+    SndVoice* v = &sndVoice[p->index];
 
     if (pan < 0) {
         pan = 0;
@@ -362,14 +344,14 @@ void sndVoiceSetPan(AXVPB* p, s32 pan)
 
 void sndVoiceStop(AXVPB* p)
 {
-    SNDVOICE* v = &sndVoice[p->index];
+    SndVoice* v = &sndVoice[p->index];
 
     v->flags |= 0x10000004;
 }
 
 void sndVoiceStart(AXVPB* p)
 {
-    SNDVOICE* v = &sndVoice[p->index];
+    SndVoice* v = &sndVoice[p->index];
 
     v->flags &= ~4;
     v->flags |= 0x10000000;
@@ -377,7 +359,7 @@ void sndVoiceStart(AXVPB* p)
 
 void sndVoiceSetMaster(AXVPB* p, s32 master)
 {
-    SNDVOICE* v = &sndVoice[p->index];
+    SndVoice* v = &sndVoice[p->index];
 
     v->master = master;
     v->flags |= 0x40000000;
@@ -385,7 +367,7 @@ void sndVoiceSetMaster(AXVPB* p, s32 master)
 
 void sndVoiceUpdateAll(void)
 {
-    SNDVOICE* v;
+    SndVoice* v;
     AXVPB* p;
     int i;
     int mixDirty;
