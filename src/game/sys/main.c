@@ -77,7 +77,7 @@ void fn_80010EB0(int w, int h);
 void fn_800A8490(int arg);
 void fn_800533E4(void);
 void fn_8005403C(int arg);
-void fn_80014AE8(int screen);
+void init_attract_mode(int screen);
 void fn_8002F040(void);
 void fn_8008BC50(void);
 void fn_80032B84(void);
@@ -352,7 +352,7 @@ void main(void)
         fn_800BC2EC(st + 208);
         fn_800533E4();
         fn_8005403C(1);
-        fn_80014AE8(-1);
+        init_attract_mode(-1);
     }
     fn_800BC2EC(st + 236, fn_800BF258());
     lbl_80343EF0 = 0x00FF0000;
@@ -389,7 +389,7 @@ void main(void)
                 fn_80020DA8();
                 fn_800533E4();
                 fn_8005403C(1);
-                fn_80014AE8(0x8004);
+                init_attract_mode(0x8004);
                 lbl_803449B0 = 0;
             }
             fn_8006FF1C();
