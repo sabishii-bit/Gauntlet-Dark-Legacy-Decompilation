@@ -30,7 +30,7 @@ extern void fn_800BF97C(); /* read into buffer */
 extern int fn_800BEA84(); /* decompress helper */
 extern int fn_800BE9F8(); /* section lookup within blob */
 extern int fn_800BC590(); /* ErrorPrintf-style logger (returns varargs cursor) */
-extern int fn_80018068(); /* audio bank lookup by name */
+extern int AudioFindSound(); /* audio bank lookup by name */
 extern int fn_80057F44(); /* world registration hook (prior slice) */
 extern int sprintf(char* buf, const char* fmt, ...);
 extern int ErrorPrintf(const char* fmt, ...);

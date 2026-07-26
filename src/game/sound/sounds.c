@@ -20,7 +20,7 @@
  *   InitNameAudio, AudioAmbientUpdate, AudioSecretProc,
  *   AudioMusicVolUpdate, AudioSetupLevelStreams, AudioBuildMusicName */
 
-/* --- sound-engine callees (game/audio/sndfx.c, 0x8001xxxx) --- */
+/* --- sound-engine callees (game/audio/sndfx.c + audio.c, 0x8001xxxx) --- */
 extern f32 sndFxQueAddEx(int a, int b, f32 c, f32 d, int e, int f, int g);
 extern void sndFxQueEmpty(void);
 extern int sndFxUpdate(int a);
@@ -28,20 +28,20 @@ extern void sndFxResetVoices(void);
 extern void sndFxPlay3DTracked(int a, int b, int c, int d);
 extern int sndFxPlayHandle(int a, int b, int c);
 extern void sndFxPlay3D(int a, int b, int c, int d);
-extern void fn_800160F0(int a, int b);
-extern void fn_8001618C(int a, int b);
-extern int fn_80016354(int a);
-extern int fn_8001640C(int a);
-extern void fn_800164EC(int a);
-extern void fn_800165A0(int a);
-extern void fn_80016720(void);
-extern int fn_800167EC(int a);
-extern void fn_80016F30(char* a, char* b, int c);
-extern void fn_80017500(int a, int b, int c);
-extern void fn_800176D8(void);
-extern int fn_80017B18(int a);
-extern void fn_80017DE4(void);
-extern int fn_80018068(char* a, int b, int c);
+extern void AudioSetTrackPan(int a, int b);
+extern void AudioSetTrackVolMusic(int a, int b);
+extern int AudioMaskByEvent(int a);
+extern int AudioSoundExists(int a);
+extern void AudioKillByEvent(int a);
+extern void AudioKillBySound(int a);
+extern void AudioKillMask(void);
+extern int AudioAng(int a);
+extern void AudioBankLoadName(char* a, char* b, int c);
+extern void AudioStreamPlay(int a, int b, int c);
+extern void AudioStreamStop(void);
+extern int AudioSysUpdate(int a);
+extern void audio_init(void);
+extern int AudioFindSound(char* a, int b, int c);
 extern int fn_80057A6C(int a);
 extern void fn_80067B0C(int a);
 extern void fn_800C031C(void* a, void* b, void* c, int d);
@@ -187,12 +187,12 @@ void AudioFootstep(int sel)
 
 void AudioStopAll(void)
 {
-    fn_80016720();
+    AudioKillMask();
 }
 
 void AudioPlayEvt101IfIdle(int arg)
 {
-    if (fn_8001640C(101) == 0) {
+    if (AudioSoundExists(101) == 0) {
         sndFxPlay3D(101, arg, 127, 22);
     }
 }
@@ -214,19 +214,19 @@ void AudioPlayEvt103(int arg)
 
 void AudioPlayEvt102(void)
 {
-    fn_800165A0(102);
+    AudioKillBySound(102);
 }
 
 void AudioPlayEvt102Follow(int arg)
 {
     int h;
 
-    if (fn_8001640C(102) == 0) {
+    if (AudioSoundExists(102) == 0) {
         sndFxPlay3DTracked(102, arg, 127, 111);
     }
-    h = fn_80016354(111);
+    h = AudioMaskByEvent(111);
     if (h != 0) {
-        fn_800160F0(h, fn_800167EC(arg));
+        AudioSetTrackPan(h, AudioAng(arg));
     }
 }
 
@@ -234,7 +234,7 @@ void AudioBuildStreamName(char* name, int flag)
 {
     sprintf(sStreamNameBuf, "%s", name);
     strcat(sStreamNameBuf, ".ads");
-    fn_80017500(lbl_80343B4C & 0xFFFF, 0, flag);
+    AudioStreamPlay(lbl_80343B4C & 0xFFFF, 0, flag);
 }
 
 void AudioClampMusicVol(f32 delta, f32 val)
@@ -253,16 +253,16 @@ void AudioClampMusicVol(f32 delta, f32 val)
 
 void AudioSetEvt1(int arg)
 {
-    int h = fn_80016354(1);
+    int h = AudioMaskByEvent(1);
 
     if (h != 0) {
-        fn_8001618C(h, arg);
+        AudioSetTrackVolMusic(h, arg);
     }
 }
 
 void AudioStopMusicA(void)
 {
-    fn_800164EC(1);
+    AudioKillByEvent(1);
 }
 
 void ShopMusicStart(void)
@@ -270,9 +270,9 @@ void ShopMusicStart(void)
     signed char ch;
     int h;
 
-    fn_800165A0(0xC0000);
+    AudioKillBySound(0xC0000);
     if (sSelectStreamHandle >= 0) {
-        fn_800176D8();
+        AudioStreamStop();
     }
     sSelectStreamHandle = -1;
     sSelectStreamState = -1;
@@ -283,7 +283,7 @@ void ShopMusicStart(void)
     sprintf((char*)sSpeechNameBuf, "SHOP_%c", ch);
     AudioRegisterNameBanks((char*)sSpeechNameBuf, 0);
     sprintf((char*)sSpeechNameBuf, "S_SHOP_%c", ch);
-    h = fn_80018068((char*)sSpeechNameBuf, -1, 1);
+    h = AudioFindSound((char*)sSpeechNameBuf, -1, 1);
     if (h >= 0) {
         sndFxPlayHandle(h, lbl_80343B4C, 1);
     }
@@ -291,7 +291,7 @@ void ShopMusicStart(void)
 
 void AudioStopMusicB(void)
 {
-    fn_800164EC(1);
+    AudioKillByEvent(1);
 }
 
 void MapMusicStart(void)
@@ -300,9 +300,9 @@ void MapMusicStart(void)
     signed char ch = (signed char)fn_80057A6C(0);
     int h;
 
-    fn_800165A0(0xC0000);
+    AudioKillBySound(0xC0000);
     if (sSelectStreamHandle >= 0) {
-        fn_800176D8();
+        AudioStreamStop();
     }
     sSelectStreamHandle = -1;
     sSelectStreamState = -1;
@@ -315,7 +315,7 @@ void MapMusicStart(void)
     sprintf(buf, "MAP_%c", ch);
     AudioRegisterNameBanks(buf, 0);
     sprintf(buf, "S_MAP_%c", (signed char)fn_80057A6C(0));
-    h = fn_80018068(buf, -1, 1);
+    h = AudioFindSound(buf, -1, 1);
     if (h >= 0) {
         sndFxPlayHandle(h, lbl_80343B4C, 1);
     }
@@ -338,7 +338,7 @@ void AudioSelect(int track)
         sndFxPlayHandle(0xC0000, lbl_80343B4C, 1);
         break;
     default:
-        fn_800165A0(0xC0000);
+        AudioKillBySound(0xC0000);
         break;
     }
     sCurSelectTrack = track;
@@ -347,7 +347,7 @@ void AudioSelect(int track)
 void AudioStopSelect(void)
 {
     if (sSelectStreamHandle >= 0) {
-        fn_800176D8();
+        AudioStreamStop();
     }
     sSelectStreamHandle = -1;
     sSelectStreamState = -1;
@@ -396,16 +396,16 @@ void AudioRegisterNameBanks(char* name, int flag)
             continue;
         }
         sprintf(nbuf, "PLAYER%d", i + 1);
-        fn_80016F30(nbuf, lbl_801200B0[*(s32*)(p + 8)], mode);
+        AudioBankLoadName(nbuf, lbl_801200B0[*(s32*)(p + 8)], mode);
     }
-    fn_80016F30("LEVELS", name, mode);
+    AudioBankLoadName("LEVELS", name, mode);
     if (sMusicTrackHi == 13) {
-        fn_80016F30("VOICE2", "TOWAMB", mode);
+        AudioBankLoadName("VOICE2", "TOWAMB", mode);
     } else {
-        fn_80016F30("VOICE2", "VOICE2", mode);
+        AudioBankLoadName("VOICE2", "VOICE2", mode);
     }
     if (flag == 0) {
-        while (fn_80017B18(1) != 0) {
+        while (AudioSysUpdate(1) != 0) {
             fn_80067B0C(-1);
         }
     }
@@ -422,7 +422,7 @@ void AudioInit(void)
     int i;
 
     sAudioInitFlag = 0;
-    fn_80017DE4();
+    audio_init();
     InitNameAudio();
     for (i = 0; i < 45; i++) {
         sActiveTrackId[i] = -1;
