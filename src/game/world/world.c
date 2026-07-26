@@ -138,7 +138,7 @@ extern u8      lbl_80127D60[]; /* node template / name data (.data) */
 /* g3d node API (dolphin/g3d region 0x800BAxxx-0x800BExxx) */
 extern void  fn_800BA368();  /* set node flag / show */
 extern void  fn_800BA2C4();  /* clear node flag / hide */
-extern void  fn_800D12F0(void*); /* free particle system */
+extern void  MBRemovePsys(void*); /* free particle system */
 extern void  fn_800B7758(void);
 extern void  fn_8001267C(void*, void*, s32); /* close/abort file read */
 extern void  fn_800B79AC();
@@ -197,7 +197,7 @@ void BGLoadWorldFile(s32* h) {
  * (0x00400000). */
 s32 WorldPsysDeActivate(WorldObj* o) {
     if (o->flags & 0x00800000) {
-        fn_800D12F0(o->node);
+        MBRemovePsys(o->node);
         o->flags &= ~0x00800000;
         o->flags |= 0x00400000;
     }

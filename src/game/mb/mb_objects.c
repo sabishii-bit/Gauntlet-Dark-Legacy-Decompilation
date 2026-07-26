@@ -51,7 +51,7 @@ extern void qsort(void* base, u32 num, u32 size,
 extern void mbBlitGetPage(void);
 extern void mbBlitSetPage(void);
 extern void pbSendObjTextures(void);                   /* 0x800C3AFC */
-extern void fn_800CBC4C(void* obj, MBObjEntry* e);     /* GX special dispatch */
+extern void MBDrawPsys(void* obj, MBObjEntry* e);     /* GX special dispatch */
 extern void fn_800C38C0(MBObjEntry* e, MBObject* obj, int f); /* GX draw object */
 extern void fn_800C1148(int a, int b, void* c);        /* debug bbox draw */
 
@@ -254,7 +254,7 @@ static void DrawSortObjectsSub(int start, MBObjEntry* base, int count) {
             /* nothing */
         } else if (t == 14) {
             if (lbl_80343F9C != 0) {
-                fn_800CBC4C(e->obj, e);
+                MBDrawPsys(e->obj, e);
             }
         } else if (t == 2) {
             pbSendObjTextures();

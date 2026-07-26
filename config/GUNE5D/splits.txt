@@ -286,6 +286,11 @@ dolphin/demo/DEMOInit.c:
 	.sbss       start:0x80345168 end:0x80345188
 	.sdata2     start:0x80349100 end:0x80349120
 
+game/mb/mb_particle.c:
+	extab       start:0x80007E20 end:0x80007F28
+	extabindex  start:0x8000C580 end:0x8000C70C
+	.text       start:0x800CBC4C end:0x800D190C
+
 game/ps2/mathfunc.c:
 	extab       start:0x80007F28 end:0x80007F78
 	extabindex  start:0x8000C70C end:0x8000C784
