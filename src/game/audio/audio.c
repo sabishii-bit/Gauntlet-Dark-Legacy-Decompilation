@@ -66,7 +66,7 @@ extern int   strncmp(const char* a, const char* b, u32 n);
 extern void  fn_80067B0C(s32 a);       /* per-frame service pump */
 extern f32   fn_800BDA98(void* vec);   /* 3D distance/attenuation helper */
 extern void  sndFxInitVoices(void);    /* sndfx.c (0x80015C48): reset voices */
-extern void  fn_800BC590(const char* fmt, ...); /* fatal/debug printer */
+extern void  FatalErrorf(const char* fmt, ...); /* fatal/debug printer */
 extern void  fn_800CEAF0(s32 a, void* out, s32 arg, s32 b, s32 c, void* v);
 
 /* lower-slice (sndfx.c) killers used when tearing tracks down */
@@ -508,7 +508,7 @@ s32 AudioSetMode(char* modeName)
             }
         }
         if (gAudioBankTbl == 0) {
-            fn_800BC590(lbl_80111304, modeName);
+            FatalErrorf(lbl_80111304, modeName);
         }
         result = 0;
         for (i = 0; i < gAudioBankTbl[4]; i++) {
@@ -1101,7 +1101,7 @@ void AudioSysSync(s32 dt)
     sAudioReady = sndSysUpdate((f32)dt);
     if (sAudioReady == -2) {
         sAudioErrFlags |= 1;
-        fn_800BC590(lbl_8011149C);
+        FatalErrorf(lbl_8011149C);
     }
 }
 

@@ -158,11 +158,11 @@ extern void  fn_800B79AC(s32, s32);  /* model-load finish                      *
 extern void  fn_8001267C(void*, s32, s32); /* close/abort file read            */
 extern void  fn_800B8E20(void*, void*);
 extern G3DNode* fn_800BB29C(void*, void*, s32); /* create child display node    */
-extern void  fn_800BB614(void*, f32*, s32);     /* fetch node world state       */
+extern void  GetWorldMat(void*, f32*, s32);     /* fetch node world state       */
 extern void  fn_800BA784(void*, s32, s32);
 extern void  fn_800BA56C(void*, s32, s32, s32);
 extern void  fn_800CEAF0(s32, void*, void*, s32, void*, void*); /* spawn psys   */
-extern void  fn_800BE8F4(void*, void*);
+extern void  CopyMat4(void*, void*);
 extern void  fn_8000F628(void*);
 extern s32   fn_8000F72C(void*, f32*, s32, s32, s32, s32, f32); /* sample anim  */
 extern void  fn_800BD254(void*, f32*);  /* apply anim rotation (variant A)      */
@@ -263,7 +263,7 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim) {
 
     if ((mode & 0xFFF) == 0) {
         /* No keyframes: reset to the template pose. */
-        fn_800BE8F4(lbl_80127D60, node);
+        CopyMat4(lbl_80127D60, node);
         fn_8000F628(panim);
     } else {
         nframes = wa->nframes;
@@ -311,7 +311,7 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim) {
                 wa->curframe = (f32)(wa->nframes - 1);
                 if ((obj->flags & 0x100F0000) == 0x00050000) {
                     f32 m[16];
-                    fn_800BB614(obj->nodeptr, m, 0);
+                    GetWorldMat(obj->nodeptr, m, 0);
                     fn_80055E04(obj, m + 12);
                 }
             } else {                          /* one-shot: stop at start */
@@ -336,7 +336,7 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim) {
                 wa->curframe = 0.0f;
                 if ((obj->flags & 0x100F0000) == 0x00050000) {
                     f32 m[16];
-                    fn_800BB614(obj->nodeptr, m, 0);
+                    GetWorldMat(obj->nodeptr, m, 0);
                     fn_80055E04(obj, m + 12);
                 }
             } else {                          /* one-shot: clamp at end */
@@ -374,7 +374,7 @@ struct mbnode* FindWorldAnimNode(f32* point, f32 maxdist) {
             continue;
         }
         obj = &wobjs[wa->objidx];
-        fn_800BB614(obj->nodeptr, m, 0);
+        GetWorldMat(obj->nodeptr, m, 0);
         dx = m[13] - point[1];
         dy = m[12] - point[0];
         dz = m[14] - point[2];

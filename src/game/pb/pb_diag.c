@@ -74,7 +74,7 @@ extern void fn_800C008C(u32 rgba, int x, int y, const char* fmt, ...);
 extern void fn_800A110C(void);
 extern void fn_800A17D4(void);
 extern void fn_800C0310(void);
-extern void fn_800BA820(void);
+extern void MBTreeInit(void);
 extern void DebugCamInit(void); /* newcam.c: init the pb-diag debug camera */
 extern void* fn_800B8B04(const char* name, int arg);
 extern int strlen(const char* s);
@@ -163,7 +163,7 @@ void pbInitDiag(int mode) {
     fn_800A110C();
     fn_800A17D4();
     fn_800C0310();
-    fn_800BA820();
+    MBTreeInit();
     DebugCamInit();
     fp[92] = 0.0f;
     fp[93] = 0.0f;

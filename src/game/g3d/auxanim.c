@@ -43,18 +43,18 @@ extern int texmod_scrollidx;
 extern int InfFrame;
 extern SCROLL lbl_802C2E28[64];
 
-extern void* fn_800BA024(int handle);
-extern void fn_800B9F88(int handle, void* p);
+extern void* MBRomTexPtr(int handle);
+extern void MBSetRomTexture(int handle, void* p);
 extern int fn_800B8B64(char* name, int* p, int a, int b, int c);
 extern int fn_800B8B04(char* name, int* p);
-extern void fn_800B9EBC(int a, int b);
+extern void MBCopyTexture(int a, int b);
 extern void fn_800BA084(void);
 extern void fn_800BA368(int a, int b, int c);
 extern void fn_800BA2C4(int a, int b, int c);
 extern void MBSetObject(void* obj, int objid);
 extern void fn_800BA6C0(int a, int b, int c);
 extern void fn_800BA56C(int a, int b, int c, int d);
-extern void fn_800BA1BC(float a, float b, float c, float d, int handle, int flag);
+extern void MBTreeSetUVScaleAdd(float a, float b, float c, float d, int handle, int flag);
 extern int fn_800B8E94(OANIM* node, int a, int b, int c);
 extern void FatalError(char* msg, int code);
 extern void ErrorPrintf(char* fmt, ...);
@@ -76,8 +76,8 @@ void DoSpecialTexmods(void)
         if ((int)rate <= 0 || InfFrame % rate == 0) {
             tex = tm->tex;
             if (tex >= 0) {
-                p = fn_800BA024(tm->src + tm->counter);
-                fn_800B9F88(tex, p);
+                p = MBRomTexPtr(tm->src + tm->counter);
+                MBSetRomTexture(tex, p);
             }
             c = tm->counter + 1;
             tm->counter = c;
@@ -151,15 +151,15 @@ void InitTexMod(TEXMOD* tm, int texidx)
         if (mode < 0) {
             if (mode < -3) {
                 if (mode == -6) {
-                    fn_800BA024(tex);
+                    MBRomTexPtr(tex);
                     fn_800B8B04(tm->name2, 0);
                 }
             } else if (mode == -1) {
                 mode = fn_800B8B04(tm->name2, 0);
-                fn_800B9EBC(mode, tex);
+                MBCopyTexture(mode, tex);
                 tm->src = mode;
             } else if (mode < -1 && tm->flag == -1) {
-                t = fn_800BA024(tex);
+                t = MBRomTexPtr(tex);
                 if ((*(u16*)((int)t + 2) & 0x40) != 0) {
                     tm->scrollIdx = *(short*)((int)t + 8);
                 } else {
@@ -182,8 +182,8 @@ void InitTexMod(TEXMOD* tm, int texidx)
             if ((mode & 0xffff0000) == 0) {
                 tm->src = mode & 0xffff | texidx << 0x10;
             }
-            p = fn_800BA024(tm->src);
-            fn_800B9F88(tex, p);
+            p = MBRomTexPtr(tm->src);
+            MBSetRomTexture(tex, p);
         }
     }
 }
@@ -236,8 +236,8 @@ void DoTexModSub(TEXMOD* tm)
                 return;
             }
             if (tm->tex >= 0) {
-                void* p = fn_800BA024(mode + tm->counter);
-                fn_800B9F88(tm->tex, p);
+                void* p = MBRomTexPtr(mode + tm->counter);
+                MBSetRomTexture(tm->tex, p);
             }
         }
     }
@@ -285,11 +285,11 @@ void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
                 }
             } else if (mode == -2) {
                 v = CalcTexScroll((float)(frame - tm->unk4e), (float)tm->rate, (float)tm->frames, frame, &out);
-                fn_800BA1BC(out, v, 1.0f, 0.0f, ctx, 1);
+                MBTreeSetUVScaleAdd(out, v, 1.0f, 0.0f, ctx, 1);
                 return;
             } else if (mode < -2) {
                 v = CalcTexScroll((float)(frame - tm->unk4e), (float)tm->rate, (float)tm->frames, frame, &out);
-                fn_800BA1BC(1.0f, 0.0f, out, v, ctx, 1);
+                MBTreeSetUVScaleAdd(1.0f, 0.0f, out, v, ctx, 1);
                 return;
             }
             f = frame - tm->unk4e;

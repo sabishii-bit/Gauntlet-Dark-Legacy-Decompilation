@@ -96,7 +96,7 @@ extern void* fn_80012F78(void* dst, void* src, s32 a);
 extern void* fn_800BB29C(void* p, void* tbl, s32 a);
 extern void fn_800BAD94(void* a, void* b);
 extern void calc_wizard_pos(f32* out);
-extern void fn_800BE8F4(void* p);
+extern void CopyMat4(void* p);
 extern void fn_8002C53C(void* p);
 extern void calc_good_wiz_attn(s32 reset, s32 force);
 extern s32 hide_rune_stones(void* p);

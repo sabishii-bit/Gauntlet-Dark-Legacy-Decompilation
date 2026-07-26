@@ -30,7 +30,7 @@ extern void* fn_800BB29C(void* parent, void* name, int count); /* render-node/tr
 extern void FatalError(const char* msg, int code);
 extern void ErrorPrintf(const char* fmt, ...);
 extern int fn_800B5704(void* p, f32 f);                /* float-triple valid test */
-extern void fn_800BE8F4(void* mtx, MBObjEntry* e);     /* fill entry transform */
+extern void CopyMat4(void* mtx, MBObjEntry* e);     /* fill entry transform */
 extern void qsort(void* base, u32 num, u32 size,
                   int (*cmp)(const void*, const void*));
 extern void mbBlitGetPage(void);
@@ -264,7 +264,7 @@ int AddPsysObject(void* mtx, MBObject* obj) {
         return 0;
     }
     e = &mbPsysObjects[mbNumPsysObjects++];
-    fn_800BE8F4(mtx, e);
+    CopyMat4(mtx, e);
     e->key = 0.0f;
     e->obj = obj;
     e->page = lbl_802A4B30[1];
@@ -281,7 +281,7 @@ int AddDistObject(void* mtx, MBObject* obj, f32 dist) {
         dist = 536870912.0f;
     }
     e = &mbDistObjects[mbNumDistObjects++];
-    fn_800BE8F4(mtx, e);
+    CopyMat4(mtx, e);
     e->key = dist + obj->zsort_add;
     e->obj = obj;
     e->page = lbl_802A4B30[1];
@@ -303,7 +303,7 @@ int AddSortObject(void* mtx, MBObject* obj, f32 key) {
         key = 536870912.0f;
     }
     e = &mbSortObjects[mbNumSortObjects++];
-    fn_800BE8F4(mtx, e);
+    CopyMat4(mtx, e);
     e->key = key + obj->zsort_add;
     e->obj = obj;
     e->page = lbl_802A4B30[1];

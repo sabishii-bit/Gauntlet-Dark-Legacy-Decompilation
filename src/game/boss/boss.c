@@ -76,10 +76,10 @@ extern int g8E8;                /* 0x803448E8 */
 extern void fn_8002C53C(int obj);
 extern void* CritterTypeLoaded(int a, int b);
 extern void* CritterNewInst(int a, int b, void* obj);
-extern void* fn_800BE8F4(void* a, void* b);
+extern void* CopyMat4(void* a, void* b);
 extern void* PlaceItem();
 extern void fn_800BDE08(void);
-extern f64  fn_800BCCE8(f64 a);
+extern f64  Random(f64 a);
 
 /* ------------------------------------------------------------------ */
 /* forward decls (address order)                                      */
