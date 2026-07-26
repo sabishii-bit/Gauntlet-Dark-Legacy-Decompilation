@@ -57,6 +57,11 @@ game/ui/message.c:
 	.data       start:0x80124E58 end:0x80126A98
 	.sdata2     start:0x80348618 end:0x8034861C
 
+game/pb/pb_diag.c:
+	extab       start:0x80007430 end:0x80007490
+	extabindex  start:0x8000B698 end:0x8000B728
+	.text       start:0x800A573C end:0x800A87C8
+
 game/g3d/g3dMath3D.cpp:
 	extab       start:0x80007538 end:0x800075B8
 	extabindex  start:0x8000B824 end:0x8000B8E4
