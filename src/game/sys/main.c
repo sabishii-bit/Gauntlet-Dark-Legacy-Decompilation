@@ -82,7 +82,7 @@ void fn_8002F040(void);
 void fn_8008BC50(void);
 void ControlsUpdate(void);
 void fn_80042398(void);
-void fn_8006B85C(void);
+void ScreenSaver(void);
 int fn_80070C24(void);
 void fn_800154C8(void);
 void AudioSysSync(int arg);
@@ -371,7 +371,7 @@ void main(void)
             fn_80042398();
         }
         lbl_803449C4 = 11;
-        fn_8006B85C();
+        ScreenSaver();
         lbl_803449C4 = 4;
         if (fn_80070C24() != 0) {
             lbl_80344568 = 1;

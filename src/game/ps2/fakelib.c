@@ -11,7 +11,7 @@ int DVDReadAsyncPrio(void* fileInfo, void* buf, int len, int offset, void* cb, i
 int DVDOpen(const char* path, void* fileInfo);
 int DVDGetCommandBlockStatus(void* block);
 
-void fn_8006B540(char* msg);   /* disc-error message display */
+void ScrollMessageBox(char* msg);   /* disc-error message display (MESSAGE.OBJ) */
 void sysHandleReset(void);        /* frame yield while waiting on DVD */
 void fn_80042F98(void);        /* post-error recovery, gated by lbl_80344A5C */
 
@@ -191,7 +191,7 @@ int fn_800AEBF4(void* fileInfo, void* buf, int len, int offset)
             break;
         }
         if (msg != 0) {
-            fn_8006B540(msg);
+            ScrollMessageBox(msg);
         }
     }
     do {
@@ -218,7 +218,7 @@ int fn_800AEBF4(void* fileInfo, void* buf, int len, int offset)
                     break;
                 }
                 if (msg2 != 0) {
-                    fn_8006B540(msg2);
+                    ScrollMessageBox(msg2);
                 }
             }
         } else {
