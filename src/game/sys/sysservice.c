@@ -53,8 +53,8 @@ void G3DReadControlPadStates(void);
 void sndTestStopAll(void);
 void MBEndFrame(void);
 void fn_80031854(void);
-void* memset(void* p, int c, u32 n);
-int  sprintf(char* buf, const char* fmt, ...);
+void* memset(void* p, u32 n, int c);
+int  sprintf();
 
 /* PAD_ERR codes */
 #define PAD_ERR_NONE          0
@@ -76,11 +76,19 @@ int  sprintf(char* buf, const char* fmt, ...);
 #define SF_RESET_RDY     0x00000800 /* subsystems idle, safe to reset */
 #define SF_RECALIB       0x00001000 /* pads need recalibration        */
 
+/* Inline flag query. The shipped build inlines sysTestFlags() (which returns
+ * a byte-wide boolean), so each test materialises the flag into 0/1 and then
+ * compares. Reproduced here as the byte-cast ternary the inliner emitted. */
+#define SYS_FLAG(f) ((u8)((gSysFlags & (f)) ? TRUE : FALSE))
+
 /* --- forward declarations (DOL call order) --- */
 BOOL       sysPollResetButton(void);
 void       sysFadeToBlack(void);
 BOOL       sysResetReady(void);
 BOOL       padUpdate(void);
+void       sysClearFlags(u32 mask);
+void       sysSetFlags(u32 mask);
+BOOL       sysTestFlags(u32 mask);
 
 /* --- state (real addresses in .sdata/.sbss/.bss) --- */
 static u32   gSysFlags;             /* 0x803452E0 */
@@ -99,8 +107,8 @@ static s32   gMsgMaxLen;            /* 0x80344038 max chars per line */
 static s32   gAssertFrames;         /* 0x80344800 frames spent in assert pump */
 
 /* pad-manager block @0x80321AD8 (fields kept separate for readability) */
-static s32       gPadResetHoldTimer[4]; /* 0x80321B1C */
-static s32       gPadStartHoldTimer[4]; /* 0x80321B2C */
+static u32       gPadResetHoldTimer[4]; /* 0x80321B1C */
+static u32       gPadStartHoldTimer[4]; /* 0x80321B2C */
 static PADStatus gPadStatusBuf[2][4];   /* double-buffered PADStatus arrays */
 static s32       gPadTimerA[2];         /* 0x803452E8 */
 static s32       gPadTimerB[2];         /* 0x803452F0 */
@@ -231,47 +239,50 @@ void sysResetService(void) {
 /* 0x800DD604 - immediate reset (button/combo detected outside the pump) */
 void sysHandleReset(void) {
     s32 i;
+    u8 unused[8];
 
-    if (gSysFlags & SF_NO_RESET) {
+    if (SYS_FLAG(SF_NO_RESET)) {
         return;
     }
     sysPollResetButton();
-    if (!(gSysFlags & (SF_RESET_TRIGGER | SF_RESET_HELD))) {
-        return;
-    }
-    if (gMsgCallback) {
-        gMsgCallback("RESET INVOKED..");
-    }
-    sndTestStopAll();
-    fn_80031854();
-    VISetBlack(TRUE);
-    for (i = 3; i != 0; i--) {
-        DEMOSwapBuffers();
-        DEMODoneRender();
-        VIFlush();
-        VIWaitForRetrace();
-    }
-    AISetStreamPlayState(0);
-    if (DVDCheckDisk() == 0) {
-        OSResetSystem(1, 0x80000000, FALSE);
-    } else {
-        OSResetSystem(0, 0x80000000, FALSE);
+    if (SYS_FLAG(SF_RESET_TRIGGER) || SYS_FLAG(SF_RESET_HELD)) {
+        if (gMsgCallback) {
+            gMsgCallback("RESET INVOKED..");
+        }
+        sndTestStopAll();
+        fn_80031854();
+        i = 3;
+        VISetBlack(TRUE);
+        do {
+            DEMOSwapBuffers();
+            DEMODoneRender();
+            VIFlush();
+            VIWaitForRetrace();
+        } while (--i != 0);
+        AISetStreamPlayState(0);
+        if (DVDCheckDisk() != 0) {
+            OSResetSystem(0, 0x80000000, FALSE);
+        } else {
+            OSResetSystem(1, 0x80000000, FALSE);
+        }
     }
 }
 
 /* 0x800DD708 - blank the screen over three frames and mute streaming audio */
 void sysFadeToBlack(void) {
     s32 i;
+    u8 unused[48];
 
     sndTestStopAll();
     fn_80031854();
+    i = 3;
     VISetBlack(TRUE);
-    for (i = 3; i != 0; i--) {
+    do {
         DEMOSwapBuffers();
         DEMODoneRender();
         VIFlush();
         VIWaitForRetrace();
-    }
+    } while (--i != 0);
     AISetStreamPlayState(0);
 }
 
@@ -284,8 +295,8 @@ void padInit(void) {
         gPadTimerB[i] = 0;
         gPadTimerA[i] = 0;
     }
-    memset(gPadCur, 0, sizeof(PADStatus) * 4);
-    memset(gPadPrev, 0, sizeof(PADStatus) * 4);
+    memset(gPadCur, sizeof(PADStatus) * 4, 0);
+    memset(gPadPrev, sizeof(PADStatus) * 4, 0);
     for (i = 0; i < 4; i++) {
         gPadResetHoldTimer[i] = 0;
         gPadCur[i].err = PAD_ERR_NOT_READY;
@@ -298,6 +309,7 @@ BOOL sysPollResetButton(void) {
     BOOL fire = FALSE;
     s32 state;
     s32 i;
+    u8 unused[8];
 
     state = OSGetResetButtonState();
     if (state != gLastResetBtnState) {
@@ -310,7 +322,7 @@ BOOL sysPollResetButton(void) {
         }
         gLastResetBtnState = state;
     }
-    if (gSysFlags & SF_RESET_TRIGGER) {
+    if (SYS_FLAG(SF_RESET_TRIGGER) == TRUE) {
         fire = TRUE;
     }
     gSysFlags &= ~SF_RESET_HELD;
@@ -380,14 +392,15 @@ BOOL padUpdate(void) {
 s32 padMenuStickY(u32 padMask) {
     s32 i;
 
-    for (i = 0; i < 4 && padMask != 0; i++, padMask >>= 1) {
+    for (i = 0; padMask != 0 && i < 4; i++, padMask >>= 1) {
         if (padMask & 1) {
             if (gPadCur[i].err == PAD_ERR_NONE && gPadPrev[i].err == PAD_ERR_NONE) {
                 if (gPadCur[i].stickY > 50) {
                     if (gPadPrev[i].stickY < 50) {
                         return -1;
                     }
-                } else if (gPadCur[i].stickY < -50) {
+                }
+                if (gPadCur[i].stickY < -50) {
                     if (gPadPrev[i].stickY > -50) {
                         return 1;
                     }
@@ -399,37 +412,41 @@ s32 padMenuStickY(u32 padMask) {
 }
 
 /* 0x800DDB68 - TRUE if any selected pad newly pressed a button in `button` */
-BOOL padButtonPressed(u32 padMask, u16 button) {
+BOOL padButtonPressed(u32 padMask, int button) {
+    BOOL found = FALSE;
     s32 i;
 
-    for (i = 0; i < 4 && padMask != 0; i++, padMask >>= 1) {
+    for (i = 0; padMask != 0 && i < 4; i++, padMask >>= 1) {
         if (padMask & 1) {
             if (gPadCur[i].err == PAD_ERR_NONE && gPadPrev[i].err == PAD_ERR_NONE) {
                 u16 pressed = gPadCur[i].button & (gPadPrev[i].button ^ gPadCur[i].button);
                 if (button & pressed) {
-                    return TRUE;
+                    found = TRUE;
+                    break;
                 }
             }
         }
     }
-    return FALSE;
+    return found;
 }
 
 /* 0x800DDBF0 - TRUE if any selected pad newly released a button in `button` */
-BOOL padButtonReleased(u32 padMask, u16 button) {
+BOOL padButtonReleased(u32 padMask, int button) {
+    BOOL found = FALSE;
     s32 i;
 
-    for (i = 0; i < 4 && padMask != 0; i++, padMask >>= 1) {
+    for (i = 0; padMask != 0 && i < 4; i++, padMask >>= 1) {
         if (padMask & 1) {
             if (gPadCur[i].err == PAD_ERR_NONE && gPadPrev[i].err == PAD_ERR_NONE) {
                 u16 released = gPadPrev[i].button & (gPadPrev[i].button ^ gPadCur[i].button);
                 if (button & released) {
-                    return TRUE;
+                    found = TRUE;
+                    break;
                 }
             }
         }
     }
-    return FALSE;
+    return found;
 }
 
 /* 0x800DDC78 - current-frame PADStatus buffer */
@@ -440,35 +457,39 @@ PADStatus* G3DGetPadStatusBuffer(void) {
 /* 0x800DDC80 - format an assert into the two message lines and block on reset */
 void sysAssertFailed(const char* msg, const char* file, int line) {
     char buf[0x100];
+    char* dst;
     s32 i;
+    u8 unused[8];
 
-    if (gSysFlags & SF_ASSERT) {
+    if (SYS_FLAG(SF_ASSERT)) {
         return;
     }
 
     sprintf(buf, "Assert Failed: File:%s Line:%d", file, line);
+    dst = gMsgLines[0];
     for (i = 0; i < gMsgMaxLen - 1; i++) {
-        gMsgLines[0][i] = buf[i];
+        dst[i] = buf[i];
         if (buf[i] == 0) {
             i = gMsgMaxLen;
         }
     }
-    gMsgLines[0][i] = 0;
+    dst[i] = 0;
 
     sprintf(buf, "Message: %s Press RESET to continue.", msg);
+    dst = gMsgLines[1];
     for (i = 0; i < gMsgMaxLen - 1; i++) {
-        gMsgLines[1][i] = buf[i];
+        dst[i] = buf[i];
         if (buf[i] == 0) {
             i = gMsgMaxLen;
         }
     }
-    gMsgLines[1][i] = 0;
+    dst[i] = 0;
 
-    if (gSysFlags & SF_ASSERT) {
+    if (SYS_FLAG(SF_ASSERT)) {
         return;
     }
     gSysFlags |= SF_ASSERT;
-    while (gSysFlags & SF_ASSERT) {
+    while (SYS_FLAG(SF_ASSERT) == TRUE) {
         gAssertFrames++;
         sysResetService();
         MBEndFrame();
