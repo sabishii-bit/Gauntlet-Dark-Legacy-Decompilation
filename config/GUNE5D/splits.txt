@@ -23,6 +23,10 @@ game/ui/auxscreen.c:
 	extab       start:0x80005878 end:0x800058C0
 	extabindex  start:0x80008D04 end:0x80008D70
 	.text       start:0x80019090 end:0x8001A960
+game/ui/btext.c:
+	extab       start:0x80005970 end:0x80005A68
+	extabindex  start:0x80008E78 end:0x80008FEC
+	.text       start:0x8001EAE0 end:0x8002109C
 
 game/sys/main.c:
 	extab       start:0x80006618 end:0x80006648
