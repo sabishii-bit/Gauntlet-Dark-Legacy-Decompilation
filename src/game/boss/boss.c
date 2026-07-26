@@ -64,7 +64,7 @@ extern void fn_8002C53C(int obj);
 extern int  fn_8003F81C(int a, int b);
 extern void* fn_8003E048(int a, int b, void* obj);
 extern void* fn_800BE8F4(void* a, void* b);
-extern void* fn_80063928();
+extern void* PlaceItem();
 extern void fn_800BDE08(void);
 extern f64  fn_800BCCE8(f64 a);
 
