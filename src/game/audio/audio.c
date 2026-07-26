@@ -61,7 +61,7 @@ extern int   sprintf(char* buf, const char* fmt, ...);
 extern int   strncmp(const char* a, const char* b, u32 n);
 extern void  fn_80067B0C(s32 a);       /* per-frame service pump */
 extern f32   fn_800BDA98(void* vec);   /* 3D distance/attenuation helper */
-extern void  fn_80015C48(void);        /* sndfx.c: reset track helpers */
+extern void  sndFxInitVoices(void);    /* sndfx.c: reset track helpers */
 extern void  fn_800BC590(void);        /* debug print flush */
 extern void  MBNewWorldPsys(void* out, s32 a, void* in, s32 b, s32 c, s32 d);
 
@@ -742,7 +742,7 @@ void audio_init(void)
         sndTestAcquire(0);
     }
     gAudioCmdPending = 0;
-    fn_80015C48();
+    sndFxInitVoices();
     gAudioBusyFlag = 1;
     AudioSetMode(0);
     gAudioStreamState = 0;
