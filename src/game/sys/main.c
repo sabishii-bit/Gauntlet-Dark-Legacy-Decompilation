@@ -66,7 +66,7 @@ void fn_8005A260(void* a, void* b, int c, int d);
 void fn_800B38D0(const char* name, int x, int y);
 void fn_800B6ED8(void);
 void fn_800B8A38(int arg);
-void fn_80033C5C(void);
+void ReadControls(void);
 void fn_800BC2EC(const char* fmt, ...);
 void fn_80053420(void);
 void fn_80074548(void);
@@ -80,7 +80,7 @@ void fn_8005403C(int arg);
 void init_attract_mode(int screen);
 void fn_8002F040(void);
 void fn_8008BC50(void);
-void fn_80032B84(void);
+void ControlsUpdate(void);
 void fn_80042398(void);
 void fn_8006B85C(void);
 int fn_80070C24(void);
@@ -325,7 +325,7 @@ void main(void)
     fn_800B6ED8();
     fn_800B6ED8();
     fn_800B8A38(0);
-    fn_80033C5C();
+    ReadControls();
     fn_800BC2EC(st + 124, lbl_80126A98);
     fn_80053420();
     fn_80074548();
@@ -366,7 +366,7 @@ void main(void)
         fn_8002F040();
         fn_8008BC50();
         lbl_803449C4 = 3;
-        fn_80032B84();
+        ControlsUpdate();
         if (lbl_803449A0 == 0) {
             fn_80042398();
         }
