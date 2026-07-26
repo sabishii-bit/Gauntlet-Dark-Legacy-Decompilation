@@ -385,6 +385,7 @@ config.libs = [
             Object(NonMatching, "game/g3d/auxanim.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/sys/main.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/sys/memcard.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
+            Object(NonMatching, "game/sys/cardutil.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/g3d/sndvoice.c"),
             Object(Matching, "game/g3d/gpads.c"),
             Object(NonMatching, "game/sys/registry.c"),

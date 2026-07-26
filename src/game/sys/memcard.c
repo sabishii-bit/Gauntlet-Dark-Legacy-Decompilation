@@ -30,22 +30,22 @@ void fn_800D3874(u32 aramOffset, void* buf);
 void fn_800D38F8(u32 dst, u32 len);
 void fn_800D3970(u32 dst, u32 src, u32 len);
 void fn_800D39E8(u32 dst, u32 src, u32 len);
-void fn_800DC1F4(void* buf, u32 size, int arg);
-void fn_800DC280(void);
-s32 fn_800DD10C(void);
-s32 fn_800DDABC(int pad);
-int fn_800DDB68(int pad, u32 mask);
-int fn_800DDBF0(int pad, u32 mask);
-void fn_800DD604(void);
-int fn_800DDE08(int flag);
-void fn_800DDDE8(int flag);
-void fn_800DDDF8(int flag);
+void cardStart(void* buf, u32 size, int arg);
+void cardWaitResult(void);
+s32 cardGetFreeBytes(void);
+s32 padMenuStickY(int pad);
+int padButtonPressed(int pad, u32 mask);
+int padButtonReleased(int pad, u32 mask);
+void sysHandleReset(void);
+int sysTestFlags(int flag);
+void sysClearFlags(int flag);
+void sysSetFlags(int flag);
 void fn_80067B0C(int flags);
 void fn_8006B210(const char* msg, int a, int b, int c);
 s32 fn_80069164(s32 a, s32 b, s32 c);
 u8 fn_8006A82C(s32 chan, const char* msg, s32* fileNo);
-void fn_800DC180(void);
-void fn_800DC1A0(void);
+void cardInit(void);
+void cardExit(void);
 void OSDestroyHeap(void* heap);
 u32 OSGetSoundMode(void);
 
@@ -122,21 +122,21 @@ int fn_800685EC(int a, int b, int c, const char* name, u32 v0, u32 v1)
         memcpy(row, (u8*) lbl_80343C74 + 41416, 128);
         fn_8006A534();
         lbl_80343C78 |= 0xFFFFFFFF;
-        fn_800DC1A0();
-        fn_800DC280();
+        cardExit();
+        cardWaitResult();
         OSSetCurrentHeap(lbl_80344A08);
         OSDestroyHeap(lbl_80344A0C);
         fn_8006AF44((u8*) 0x310000);
-        fn_800DDDE8(64);
+        sysClearFlags(64);
         fn_800BC2EC(lbl_801131C0);
         lbl_803449EC = 0;
     } else {
-        fn_800DC1A0();
-        fn_800DC280();
+        cardExit();
+        cardWaitResult();
         OSSetCurrentHeap(lbl_80344A08);
         OSDestroyHeap(lbl_80344A0C);
         fn_8006AF44((u8*) 0x310000);
-        fn_800DDDE8(64);
+        sysClearFlags(64);
         fn_800BC2EC(lbl_801131C0);
         lbl_803449EC = 0;
     }
@@ -194,12 +194,12 @@ int fn_800687FC(int a, int b)
             memcpy(base + 0x10000 + a * 132 + b * 132 + 22264,
                    (u8*) lbl_80343C74 + 41416, 128);
         }
-        fn_800DC1A0();
-        fn_800DC280();
+        cardExit();
+        cardWaitResult();
         OSSetCurrentHeap(lbl_80344A08);
         OSDestroyHeap(lbl_80344A0C);
         fn_8006AF44((u8*) 0x310000);
-        fn_800DDDE8(64);
+        sysClearFlags(64);
         fn_800BC2EC(lbl_801131C0);
         lbl_803449EC = 0;
         if (i) {
@@ -289,7 +289,7 @@ s32 fn_80068DB0(s32 port, s32 slot)
     if (!ok) {
         return -1;
     }
-    *p = fn_800DD10C();
+    *p = cardGetFreeBytes();
     return *p;
 }
 
@@ -310,12 +310,12 @@ void check_prefs_loaded(void)
     if ((u8) fn_800696E8()) {
         *opts = *(GameOpts*) ((u8*) lbl_80343C74 + 8);
     }
-    fn_800DC1A0();
-    fn_800DC280();
+    cardExit();
+    cardWaitResult();
     OSSetCurrentHeap(lbl_80344A08);
     OSDestroyHeap(lbl_80344A0C);
     fn_8006AF44((u8*) 0x310000);
-    fn_800DDDE8(64);
+    sysClearFlags(64);
     fn_800BC2EC(st);
     lbl_803449EC = 0;
     opts->data[2] = (OSGetSoundMode() == 0) ? 0 : 1;
@@ -345,7 +345,7 @@ void init_all_dir_info(void)
     }
     *(s32*) (base + 128) = zero;
     lbl_803449F0 = 0x10000 - 1400;
-    fn_800DC180();
+    cardInit();
     lbl_80344A24 = 0;
     lbl_80344A20 = 0;
     lbl_80344A18 = -1;
@@ -383,12 +383,12 @@ int fn_80069540(void)
         } else {
             ret = 0;
         }
-        fn_800DC1A0();
-        fn_800DC280();
+        cardExit();
+        cardWaitResult();
         OSSetCurrentHeap(lbl_80344A08);
         OSDestroyHeap(lbl_80344A0C);
         fn_800D3874(fn_800BF524() - 0x310000, (void*) 0x310000);
-        fn_800DDDE8(64);
+        sysClearFlags(64);
         fn_800BC2EC(lbl_801131C0);
         lbl_803449EC = 0;
         lbl_80274E80.data[2] = (OSGetSoundMode() == 0) ? 0 : 1;
@@ -432,7 +432,7 @@ int fn_800696E8(void)
         fn_80067B0C(-1);
     }
     size = 0x310000;
-    fn_800DDDF8(64);
+    sysSetFlags(64);
     buf = (u8*) fn_800BF524();
     fn_800D38F8((u32) buf - 0x310000, size);
     lo = buf - 0x310000;
@@ -440,8 +440,8 @@ int fn_800696E8(void)
     lbl_80344A08 = OSSetCurrentHeap(lbl_80344A0C);
     lbl_80344A00 = (u8*) OSAllocFromHeap(__OSCurrHeap, 8192);
     lbl_803449FC = (u8*) OSAllocFromHeap(__OSCurrHeap, 0xA000);
-    fn_800DC1F4(lbl_80344A00 + 8192, 8192, 18);
-    fn_800DC280();
+    cardStart(lbl_80344A00 + 8192, 8192, 18);
+    cardWaitResult();
     lbl_80344A04 = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x2D44C0);
     return fn_800697D0();
 }
@@ -486,7 +486,7 @@ void fn_8006AEA8(void)
     u8* lo;
     u8 pad[8]; /* unused, matches original frame */
 
-    fn_800DDDF8(64);
+    sysSetFlags(64);
     buf = (u8*) fn_800BF524();
     fn_800D38F8((u32) (buf - 0x310000), 0x310000);
     lo = buf - 0x310000;
@@ -494,8 +494,8 @@ void fn_8006AEA8(void)
     lbl_80344A08 = OSSetCurrentHeap(lbl_80344A0C);
     lbl_80344A00 = (u8*) OSAllocFromHeap(__OSCurrHeap, 8192);
     lbl_803449FC = (u8*) OSAllocFromHeap(__OSCurrHeap, 0xA000);
-    fn_800DC1F4(lbl_80344A00 + 8192, 8192, 18);
-    fn_800DC280();
+    cardStart(lbl_80344A00 + 8192, 8192, 18);
+    cardWaitResult();
 }
 
 void fn_8006AF44(u8* buf)
@@ -534,25 +534,25 @@ s32 fn_8006AFE0(const char* msg, s32* state, s32 count)
 
     fn_800D3970(fn_800BF524() - 0x310000, 0x9E0000, 0x310000);
     fn_800D39E8(0xCF0000, fn_800BF524() - 0x310000, 0x310000);
-    had = fn_800DDE08(64);
+    had = sysTestFlags(64);
     if (had) {
-        fn_800DDDE8(64);
+        sysClearFlags(64);
     }
     for (;;) {
         s32 stick;
 
         fn_8006B210(msg, (int) state, count, sel);
-        stick = fn_800DDABC(-1);
-        if (fn_800DDB68(-1, 4) != 0 || stick > 0) {
+        stick = padMenuStickY(-1);
+        if (padButtonPressed(-1, 4) != 0 || stick > 0) {
             if (++sel >= count) {
                 sel = 0;
             }
-        } else if (fn_800DDB68(-1, 8) != 0 || stick < 0) {
+        } else if (padButtonPressed(-1, 8) != 0 || stick < 0) {
             if (--sel < 0) {
                 sel = count - 1;
             }
         }
-        fn_800DD604();
+        sysHandleReset();
         if (--timer <= 0) {
             timer = 30;
             fn_800D3970(fn_800BF524() - 0x310000, 0xCF0000, 0x310000);
@@ -561,14 +561,14 @@ s32 fn_8006AFE0(const char* msg, s32* state, s32 count)
             fn_800D3970(fn_800BF524() - 0x310000, 0x9E0000, 0x310000);
             fn_800D39E8(0xCF0000, fn_800BF524() - 0x310000, 0x310000);
         }
-        if (fn_800DDBF0(-1, 256) != 0) {
+        if (padButtonReleased(-1, 256) != 0) {
             break;
         }
     }
     fn_800D3970(fn_800BF524() - 0x310000, 0xCF0000, 0x310000);
     fn_800D39E8(0x9E0000, fn_800BF524() - 0x310000, 0x310000);
     if (had) {
-        fn_800DDDF8(64);
+        sysSetFlags(64);
     }
     return sel;
 }

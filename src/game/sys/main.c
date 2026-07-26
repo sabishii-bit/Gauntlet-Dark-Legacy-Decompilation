@@ -55,9 +55,9 @@ extern u64 lbl_803445C8;       /* pad buttons 64-bit */
 extern s32 lbl_80343C58;       /* keep-running flag */
 
 void fn_800B27C4(void);
-void fn_800DD760(void);
-void fn_800DDE2C(void (*handler)(char**, int));
-void fn_800DDE24(void (*printer)(const char*));
+void padInit(void);
+void sysSetResetCallback(void (*handler)(char**, int));
+void sysSetMsgCallback(void (*printer)(const char*));
 u32 pbGetTime(void);
 void srand(unsigned int seed);
 s64 OSGetTime(void);
@@ -90,7 +90,7 @@ int fn_800A825C(void);
 void fn_80010DF4(int arg);
 void fn_8006FF1C(void);
 void fn_8006799C(int arg);
-int fn_800DDE08(int arg);
+int sysTestFlags(int arg);
 void fn_80054230(void);
 int fn_8001BC88(void);
 void fn_800B582C(void* a, void* b);
@@ -310,9 +310,9 @@ void main(void)
 
     main_init();
     fn_800B27C4();
-    fn_800DD760();
-    fn_800DDE2C(fn_80068408);
-    fn_800DDE24(fn_8006845C);
+    padInit();
+    sysSetResetCallback(fn_80068408);
+    sysSetMsgCallback(fn_8006845C);
     pbPulseTime();
     lbl_80343EF0 = 0xFF;
     lbl_803449C4 = 0;
@@ -397,7 +397,7 @@ void main(void)
             lbl_803449C4 = 7;
             fn_8006799C(0);
             lbl_803449C4 = 8;
-            if (fn_800DDE08(32) == 0) {
+            if (sysTestFlags(32) == 0) {
                 fn_80054230();
             }
             lbl_803449C4 = 9;

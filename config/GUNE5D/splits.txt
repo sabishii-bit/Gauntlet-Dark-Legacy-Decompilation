@@ -204,6 +204,11 @@ game/ps2/mathfunc.c:
 	.text       start:0x800D190C end:0x800D1E04
 	.sdata2     start:0x803492B0 end:0x803492B8
 
+game/sys/cardutil.c:
+	extab       start:0x80008560 end:0x800085F0
+	extabindex  start:0x8000CCB8 end:0x8000CD90
+	.text       start:0x800DC180 end:0x800DD180
+
 TRK_MINNOW_DOLPHIN/Portable/mainloop.c:
 	.text       start:0x800DE928 end:0x800DEA90
 
