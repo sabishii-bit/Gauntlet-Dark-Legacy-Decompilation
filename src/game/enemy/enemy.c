@@ -1,4 +1,4 @@
-#include "types.h"
+#include "game/enemy.h"
 
 /* Gauntlet Dark Legacy enemy module (Xbox ENEMY.OBJ / enemy.c).
  *
@@ -95,9 +95,9 @@
  * file exists to carry the symbol map and keep the tree green.
  */
 
-/* --- enemy record array + counts (module data) --- */
-extern u8 gEnemies[];      /* 0x80251C18 active enemy records, stride 0x394 */
-extern s32 gNumEnemies;    /* 0x80344744 number of active enemy slots       */
+/* --- enemy record array + counts (module data) ---
+ * gEnemies[25] @0x80251C18 (stride 0x394) and gNumEnemies @0x80344744 are
+ * declared by "game/enemy.h" (the reconstructed Enemy struct header). */
 
 /* forward decls for the cross-referenced enemy entry points */
 s32 find_enemy_slot(s32 type, s32 level);
@@ -105,12 +105,27 @@ void kill_enemy(s32 index);
 void uncouple_enemy(s32 index);
 
 /* uncouple_enemy: detach enemy `index` from its generator's spawn list.
- * (Structural sketch; body substituted from the original DOL bytes.) */
+ * The prev_enemy/next_enemy relink below is transcribed from the verified GC
+ * asm (uncouple_enemy @0x8004F2D8) and exercises the reconstructed Enemy
+ * fields; the generator-record fixup (item*) is left as a comment because the
+ * item struct belongs to another module.  NonMatching: shipped bytes come from
+ * the original DOL. */
 void uncouple_enemy(s32 index) {
-    (void)index;
-    /* unlink prev/next spawn-list indices, decrement the generator's live
-     * count, and emit "Enemy has non generator generator" if the parent slot
-     * is not actually a generator. */
+    Enemy* e = &gEnemies[index];
+
+    if (e->prev_enemy >= 0) {
+        gEnemies[e->prev_enemy].next_enemy = e->next_enemy;
+        e->prev_enemy = -1;
+    }
+    if (e->next_enemy >= 0) {
+        gEnemies[e->next_enemy].prev_enemy = e->prev_enemy;
+        e->next_enemy = -1;
+    }
+    if (e->algorithm == E_DOG) {
+        e->algorithm = -e->algorithm;
+    }
+    /* then: decrement the generator's live count via e->generator and emit
+     * "Enemy has non generator generator" if the parent is not a generator. */
 }
 
 /* find_enemy_slot: return a free/recyclable enemy slot for a new spawn.
