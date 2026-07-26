@@ -119,6 +119,11 @@ game/world/newcam.c:
 	extabindex  start:0x8000A3CC end:0x8000A4B0
 	.text       start:0x8006DC2C end:0x80070A60
 
+game/ui/select.c:
+	extab       start:0x80006C80 end:0x80006D00
+	extabindex  start:0x8000AB10 end:0x8000ABD0
+	.text       start:0x8008C52C end:0x800911C8
+
 game/shop/shopquery.c:
 	.text       start:0x8009C228 end:0x8009C2CC
 
