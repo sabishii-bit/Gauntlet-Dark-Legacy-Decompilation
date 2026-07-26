@@ -16,9 +16,9 @@ u8 pbMeasureLoad = 0;
 static long sCPUBase;
 static long sTime;
 static long sCPUTime;
-static long sLoadBase;
+static u32 sLoadBase;
 static u32 sSeed;
-static long sSeconds;
+long sSeconds;
 
 int rand(void)
 {
@@ -94,20 +94,18 @@ long pbGetCPUTime(void)
 
 u32 pbPulseTime(void)
 {
-    u32 ret;
-
     sSeconds = OSGetTime() / (s64) (*(u32*) 0x800000F8 / 4 / 1000);
     sTime = sSeconds * 300000;
     sCPUTime = ((u64) (u32) sSeconds * 15720 + 500) / 1000;
     if (pbMeasureLoad) {
+        u32 load;
         if (sLoadBase == 0) {
             sLoadBase = sSeconds;
         }
-        /* NOTE: ret is intentionally left uninitialized when load
-         * measurement is off; the original returns whatever the division
-         * left in r3 (shape-forced, matches retail). */
-        ret = (sSeconds - sLoadBase) * 3;
-        pbLoad = ret / 0x32;
+        load = (sSeconds - sLoadBase) * 3;
+        pbLoad = load / 0x32;
+        return load;
     }
-    return ret;
+    /* Non-measure path falls off the end: hands back whatever residue is in
+     * r3 (matches retail's uninitialized return). */
 }
