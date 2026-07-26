@@ -23,7 +23,7 @@ u32 strlen(const char* s);
 
 /* command dispatch to the sound/resource server: id + in/out param blocks */
 s32 fn_800D4BF4(s32 id, void* in, void* out);   /* server message dispatch */
-void fn_8001B830(void);                          /* extra init */
+void HealthMeterInit(void);                      /* fn_8001B830 */
 s32 fn_800D6234(void);                           /* per-frame poll */
 void fn_800D3184(void);                          /* service queue */
 
@@ -51,6 +51,7 @@ typedef struct SndState {
     /* 0x8A8 */ s32 msgbuf[0x100];
     /* 0xCA8 */ s32 out[8];
     /* 0xCC8 */ s32 in[8];
+    /* 0xCE8 */ s32 voice[14];
 } SndState;
 
 extern SndState gSndState;
@@ -88,7 +89,7 @@ typedef struct BigState {
 } BigState;
 extern BigState gBig;   /* lbl_80240FD0 */
 
-extern s32 lbl_8034437C;
+extern s32 gBossDead;   /* lbl_8034437C */
 extern s32 lbl_8034466C;
 extern s32 lbl_80344668;
 extern u16 lbl_80344664;
@@ -100,6 +101,11 @@ extern s32 lbl_80344650;
 extern f32 lbl_8034464C;
 extern f32 lbl_80346470;
 extern s32 lbl_80240E30[];
+
+/* nodes[0x20]/defer and msgbuf are separate bss objects (dtk-labelled) when
+ * accessed as top-level arrays (folded own-symbol address). */
+extern s32 lbl_8024C508[];  /* nodes[0x20] @0x8024C508 (== gSndState+0x428) */
+extern s32 lbl_8024C988[];  /* msgbuf[0x100] @0x8024C988 (== gSndState+0x8A8) */
 
 s32 sndSysFlush(void);         /* fn_8004318C */
 void sndSysClear(void);        /* fn_80043250 */
@@ -131,8 +137,8 @@ void sndSysInit(void)
     lbl_80344654 = -1;
     lbl_80344650 = 0;
     lbl_8034464C = lbl_80346470;
-    lbl_8034437C = 0;
-    fn_8001B830();
+    gBossDead = 0;
+    HealthMeterInit();
 }
 
 /* 0x80042394 */
@@ -215,10 +221,8 @@ s32 sndCmd16(s32 a)
 /* 0x80042588  register a deferred slot */
 s32 sndDeferSlot(s32 a)
 {
-    SndState* s = &g;
-
-    s->msgbuf[sCount2++] = 0x55ab;
-    s->msgbuf[sCount2++] = a | 0xffff0000;
+    lbl_8024C988[sCount2++] = 0x55ab;
+    lbl_8024C988[sCount2++] = a | 0xffff0000;
     sndSysFlush();
     return 0;
 }
@@ -274,24 +278,22 @@ s32 sndCmd8(char* name, s32 b, s32 c)
 
     memset(s->in, 0, 0x20);
     if (name == 0) {
-        return -1;
+        rv = -1;
+    } else if (sBankLock == 0) {
+        strncpy(s->name, name, 0x3ff);
+        s->in[0] = (s32)s;
+        s->in[1] = strlen(s->name) + 1;
+        s->in[2] = b;
+        s->in[3] = c;
+        sndSysSync();
+        if (sMode != 0) {
+            memset(s->out, 0, 0x20);
+        } else {
+            sndSysFlush();
+            fn_800D4BF4(0x8, s->in, s->out);
+        }
+        rv = s->out[0];
     }
-    if (sBankLock != 0) {
-        return rv;
-    }
-    strncpy(s->name, name, 0x3ff);
-    s->in[0] = (s32)s;
-    s->in[1] = strlen(s->name) + 1;
-    s->in[2] = b;
-    s->in[3] = c;
-    sndSysSync();
-    if (sMode != 0) {
-        memset(s->out, 0, 0x20);
-    } else {
-        sndSysFlush();
-        fn_800D4BF4(0x8, s->in, s->out);
-    }
-    rv = s->out[0];
     return rv;
 }
 
@@ -340,10 +342,8 @@ s32 sndCmdD(void)
 }
 
 /* 0x80042940  register callback pair */
-s32 sndRegisterPair(s32 count, s32* items, s32 tag)
+s32 sndRegisterPair(s32* items, s32 count, s32 tag)
 {
-    SndState* s = &g;
-
     s32 i;
 
     if (sCount2 >= 0x100) {
@@ -353,9 +353,9 @@ s32 sndRegisterPair(s32 count, s32* items, s32 tag)
         return 0;
     }
     for (i = 0; i < count; i++) {
-        s->msgbuf[sCount2++] = items[i];
+        lbl_8024C988[sCount2++] = items[i];
     }
-    s->defer[sCount1++] = tag;
+    lbl_8024C508[sCount1++] = tag;
     sndSysFlush();
     return count;
 }
@@ -363,10 +363,11 @@ s32 sndRegisterPair(s32 count, s32* items, s32 tag)
 /* 0x800429F4 */
 s32 sndRegisterList(s32* items, s32 count)
 {
+    volatile s32 _fpad[2];
     s32 i;
 
     for (i = 0; i < count; i++) {
-        g.msgbuf[sCount2++] = items[i];
+        lbl_8024C988[sCount2++] = items[i];
     }
     sndSysFlush();
     return count;
@@ -376,6 +377,7 @@ s32 sndRegisterList(s32* items, s32 count)
 s32 sndCmd4(char* name, s32 b, s32 c, s32* outp)
 {
     SndState* s = &g;
+    volatile s32 _fpad[2];
 
     if (sHeldNode != 0) {
         return -1;
@@ -393,12 +395,14 @@ s32 sndCmd4(char* name, s32 b, s32 c, s32* outp)
         sndSysFlush();
         fn_800D4BF4(0x4, s->in, s->out);
     }
-    if (s->out[0] < 0) {
-        return s->out[0];
+    {
+        s32 r = s->out[0];
+        if (r >= 0) {
+            outp[1] = s->out[1];
+            sHeldNode = (Node*)outp;
+        }
+        return r;
     }
-    outp[1] = s->out[1];
-    sHeldNode = (Node*)outp;
-    return s->out[0];
 }
 
 /* 0x80042B3C  cmd 0x7 */
@@ -574,6 +578,7 @@ void sndTestStopAll(void)
 s32 sndTestAcquire(void)
 {
     SndState* s = &g;
+    volatile s32 _fpad[2];
 
     s32 i;
 
@@ -581,14 +586,14 @@ s32 sndTestAcquire(void)
         sSndActive = 1;
         ARGetBaseAddress();
         for (i = 0; i < 14; i++) {
-            sVoice[i] = AXAcquireVoice(0x1f, 0, 0);
-            sndVoiceSetParams(sVoice[i], 0, 0, -0x3e8, -0x3e8, 0x40, 0x40, 0);
+            s->voice[i] = AXAcquireVoice(0x1f, 0, 0);
+            sndVoiceSetParams(s->voice[i], 0, 0, -0x3e8, -0x3e8, 0x40, 0x40, 0);
         }
         AXRegisterCallback(sndTestAXCallback);
     }
     sReset = 0;
-    memset(s->in, 0, 0x20);
     sPending = 0;
+    memset(s->in, 0, 0x20);
     s->in[1] = 0x40000;
     s->in[2] = 0x18000;
     s->in[3] = 0x100;
