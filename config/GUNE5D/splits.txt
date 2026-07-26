@@ -207,6 +207,11 @@ game/sys/ml_mem.c:
 	extabindex  start:0x8000C0B8 end:0x8000C178
 	.text       start:0x800BE964 end:0x800BFC80
 
+game/pb/pb_global.c:
+	extab       start:0x80007C20 end:0x80007C30
+	extabindex  start:0x8000C280 end:0x8000C298
+	.text       start:0x800C33FC end:0x800C3674
+
 game/pb/pb_objregs.c:
 	extab       start:0x80007C68 end:0x80007CE0
 	extabindex  start:0x8000C2EC end:0x8000C3A0

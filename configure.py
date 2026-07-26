@@ -395,6 +395,7 @@ config.libs = [
             Object(NonMatching, "game/crt/vsprintf.c", cflags=cflags_demo),
             Object(NonMatching, "game/pb/pbutils.c", cflags=cflags_demo),
             Object(NonMatching, "game/pb/pb_objregs.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
+            Object(NonMatching, "game/pb/pb_global.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(Matching, "game/ps2/mathfunc.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/pb/pb_window.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/g3d/g3dMath3D.cpp", cflags=cflags_demo, mw_version="GC/1.2.5"),
