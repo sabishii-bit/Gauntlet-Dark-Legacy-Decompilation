@@ -2,35 +2,34 @@
 
 char* strstr(const char* str, const char* pat)
 {
-    const unsigned char* s;
-    const unsigned char* p;
-    unsigned long c;
-    unsigned long ch;
+    register const unsigned char* s;
+    register const unsigned char* p;
+    register unsigned long c;
+    register unsigned long ch;
 
+    s = (const unsigned char*) str - 1;
+    p = (const unsigned char*) pat - 1;
     if (pat == 0) {
         return (char*) str;
     }
-    s = (const unsigned char*) str - 1;
-    p = (const unsigned char*) pat - 1;
     c = *++p;
     if (c == 0) {
         return (char*) str;
     }
     while ((ch = *++s) != 0) {
         if (ch == c) {
-            const unsigned char* s2 = s - 1;
-            const unsigned char* p2 = p - 1;
-            unsigned long a;
-            unsigned long b;
+            register unsigned long b;
+            register const unsigned char* s2 = s - 1;
+            register const unsigned char* p2 = p - 1;
 
             do {
-                a = *++s2;
+                ch = *++s2;
                 b = *++p2;
-                if (a != b) {
+                if (ch != b) {
                     break;
                 }
-            } while (a != 0);
-            if (a == b || b == 0) {
+            } while (ch != 0);
+            if (b == 0) {
                 return (char*) s;
             }
         }
