@@ -5,6 +5,7 @@
  */
 
 #include "types.h"
+#include "game/pbwindow.h"
 
 #pragma dont_inline on
 
@@ -34,53 +35,7 @@ void pbDebugPrintf(const char* fmt, ...);
 
 
 
-typedef struct FIX115 {
-    u16 i : 11;
-    u16 f : 5;
-} FIX115;
-
-typedef struct PBWINDOW {
-    u16 flags;                /* 0x000 */
-    u8 cam_dirty;             /* 0x002 */
-    u8 proj_dirty;            /* 0x003 */
-    u32 pad;                  /* 0x004 */
-    f32 clip_width;           /* 0x008 */
-    f32 clip_height;          /* 0x00C */
-    FIX115 scissor[4];        /* 0x010 (11.5 fixed) */
-    f32 cam_pos[4];           /* 0x018 */
-    f32 cam_look[4];          /* 0x028 */
-    f32 cam_up[4];            /* 0x038 */
-    f32 cam_pitch;            /* 0x048 */
-    f32 cam_yaw;              /* 0x04C */
-    f32 view_angle_horiz;     /* 0x050 */
-    f32 aspect;               /* 0x054 */
-    f32 near_z;               /* 0x058 */
-    f32 far_z;                /* 0x05C */
-    f32 hva_sin_x;            /* 0x060 */
-    f32 hva_cos_x;            /* 0x064 */
-    f32 hva_sin_y;            /* 0x068 */
-    f32 hva_cos_y;            /* 0x06C */
-    f32 left;                 /* 0x070 */
-    f32 right;                /* 0x074 */
-    f32 top;                  /* 0x078 */
-    f32 bottom;               /* 0x07C */
-    f32 projection[4][4];     /* 0x080 */
-    f32 viewport[4][4];       /* 0x0C0 */
-    f32 view_screen[4][4];    /* 0x100 */
-    f32 clipport[4][4];       /* 0x140 */
-    f32 view_clip[4][4];      /* 0x180 */
-    f32 clip_screen[4][4];    /* 0x1C0 */
-    f32 camera[4][4];         /* 0x200 */
-    f32 icamera[4][4];        /* 0x240 */
-    f32 world_npc[4][4];      /* 0x280 */
-    f32 world_screen[4][4];   /* 0x2C0 */
-    f32 world_clip[4][4];     /* 0x300 */
-    f32 npc2clip[4];          /* 0x340 */
-    f32 clip2npc[4];          /* 0x350 */
-    f32 npc2screen[2][4];     /* 0x360 */
-    f32 clip2screen[2][4];    /* 0x380 */
-    f32 screen2clip[2][4];    /* 0x3A0 */
-} PBWINDOW; /* 0x3C0 */
+/* PBWINDOW / FIX115 now live in include/game/pbwindow.h */
 
 /* VU1NEWMTXPACKET heritage: matrix packet as consumed by the renderer */
 typedef struct MTXPACKET {
@@ -161,45 +116,10 @@ typedef struct PBSCREEN {
     s32 dirty;   /* 0x40 */
 } PBSCREEN;
 
-typedef struct PBWINLIST {
-    PBWINDOW* windows; /* 0x0 */
-    int count;         /* 0x4 */
-    int unk8;          /* 0x8 */
-    int unkC;          /* 0xC */
-} PBWINLIST;
-
-typedef struct PBWINGLOBALS {
-    void* unk00;        /* 0x00 */
-    PBWINDOW* current;  /* 0x04 */
-    void* framebuf;     /* 0x08 */
-    void* unk0C;        /* 0x0C */
-    void* screen;       /* 0x10 */
-    void* unk14;        /* 0x14 */
-    PBWINLIST* list;    /* 0x18 */
-    void* lights;       /* 0x1C */
-    u8 unk20[0x24];     /* 0x20 */
-    void* unk44;        /* 0x44 */
-} PBWINGLOBALS;
-
-extern PBWINGLOBALS* gWinGlobals;   /* DAT_80344fc0 */
-extern PBWINDOW** gCurWindowMirror; /* DAT_80343f10 (points at mirror slot) */
+/* PBWINLIST / PBWINGLOBALS / PBWINSTATIC and the gWinGlobals / gCurWindowMirror
+ * / gDefaultWinList / gWindows / gCameraMtx externs now live in
+ * include/game/pbwindow.h */
 extern u32 gWinDefault;             /* DAT_80345154 (SDA-addressed) */
-extern PBWINLIST gDefaultWinList;   /* DAT_802c9b78 */
-extern PBWINDOW gWindows[];         /* DAT_802c93f8 */
-typedef struct PBWINSTATIC {
-    PBWINDOW win;        /* 0x000 */
-    u32 hdr0[4];         /* 0x3C0 802C97B8 */
-    u32 hdr1[4];         /* 0x3D0 */
-    u32 quad0[40];       /* 0x3E0 802C97D8 */
-    u32 quad1[40];       /* 0x480 802C9878 */
-    u32 pkt[0x78];       /* 0x520 802C9918 default matrix packet */
-    f32 lightInv[4][4];  /* 0x700 802C9AF8 */
-    f32 lightRows[4][4]; /* 0x740 802C9B38 */
-    PBWINLIST list;      /* 0x780 gDefaultWinList */
-    f32 camera[4][4];    /* 0x790 gCameraMtx */
-    f32 projD3D[4][4];   /* 0x7D0 */
-} PBWINSTATIC;
-extern f32 gCameraMtx[4][4];        /* DAT_802c9b88 */
 extern f32 gUpVector[];             /* DAT_802c9b88's up? placeholder */
 
 void pbCloseWindow(void);
