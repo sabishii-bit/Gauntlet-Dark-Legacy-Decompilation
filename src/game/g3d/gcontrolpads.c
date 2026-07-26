@@ -185,11 +185,16 @@ int G3DControlPadButtonPressed(int pad, int button)
     }
 }
 
-/* NOTE: near-match (6/7 fns in this TU are exact). The original keeps the
- * two dead reset-request masks (melee DEMOPadRead heritage, PADReset call
- * removed) flowing as register copies of a single zero; MWCC 1.2.5n
- * rematerializes the constant instead. See gcontrolpads notes in the
- * project memory before re-attempting. */
+/* NOTE: near-match (6/7 fns in this TU are exact). Control flow now matches
+ * the target: maskA (the no-controller reset request) is only set on
+ * PAD_ERR_NO_CONTROLLER, while maskB accumulates every counted pad -- both
+ * dead here (melee DEMOPadRead heritage, PADReset call removed by Midway).
+ * Residual is register-allocation only: the target materializes a single
+ * zero in r29 and copies it (mr/addi) to maskB/count/i/off, whereas MWCC
+ * 1.2.5n rematerializes the constant (3x li). #pragma opt_propagation off +
+ * a u8[8] frame pad reproduces the 3-nonvolatile layout and matching frame
+ * (residual ~20), but the copies themselves are a genuine 1.2.5n wall. See
+ * gcontrolpads notes in project memory before re-attempting. */
 void G3DReadControlPadStates(void)
 {
     u32 maskA;
@@ -206,7 +211,7 @@ void G3DReadControlPadStates(void)
         bit = 0x80000000 >> i;
         err = gPadManager.status[i].err;
         if (err == PAD_ERR_NO_CONTROLLER) {
-            goto add;
+            goto add_maskA;
         } else if (err < PAD_ERR_NO_CONTROLLER) {
             if (err >= PAD_ERR_TRANSFER) {
                 goto add;
@@ -218,8 +223,9 @@ void G3DReadControlPadStates(void)
             }
             goto add;
         }
-    add:
+    add_maskA:
         maskA |= bit;
+    add:
         maskB |= bit;
         gPadManager.map[gPadManager.count] = i;
         gPadManager.count++;
