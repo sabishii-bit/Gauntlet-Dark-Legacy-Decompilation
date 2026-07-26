@@ -400,6 +400,7 @@ config.libs = [
             Object(Matching, "game/shop/shopquery.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/ui/message.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/ui/auxscreen.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
+            Object(NonMatching, "game/ui/btext.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
         ],
     },
     {
