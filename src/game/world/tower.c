@@ -1,4 +1,5 @@
 #include "types.h"
+#include "game/player.h"
 
 /* Gauntlet Dark Legacy - TOWER module (Xbox TOWER.OBJ), region
  * 0x800A18E8-0x800A4870 in the GC build (between game/sound/sounds.c and
@@ -65,7 +66,10 @@ extern void  ErrorPrintf(const char* fmt, ...);
  * (this array is shared game-wide - shop/sound/auxscreen/message also use it -
  *  so it is left as lbl_80275AE0 rather than renamed here.)
  */
-extern u8 lbl_80275AE0[4][0x335C];
+/* Typed view of the shared player-record array (kept as lbl_80275AE0: the
+ * symbol is referenced by the Matching shopquery.c, so it must not be renamed;
+ * the Player layout is defined in game/player.h). */
+extern Player lbl_80275AE0[4];
 
 /* tower/sumner state (r13 small-data globals) */
 extern void* sSumnerObj;   /* live Sumner (good wizard) object handle   */
