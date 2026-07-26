@@ -36,7 +36,7 @@ extern f32 lbl_80344594;  /* float frame delta */
 extern void* lbl_803448D8;
 extern void* lbl_80344BD4;
 extern void* lbl_80344BEC;
-extern void* lbl_80344974;
+extern void* sItemFile1Buf;
 extern s32 lbl_803449A4;
 extern s32 lbl_803445C8;
 extern s32 lbl_803445CC;
@@ -205,7 +205,7 @@ void DoGoodWizard(void)
         break;
 
     case 1:
-        AtreeMatch(lbl_80344974, "WIZARD", 1);
+        AtreeMatch(sItemFile1Buf, "WIZARD", 1);
         *(void**)(lbl_8023DFD0 + 1520) =
             fn_80012F78(lbl_8023DFD0 + 1520, (void*)0x88001880, 0);
         *(u16*)(lbl_8023DFD0 + 1576) = 1;
