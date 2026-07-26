@@ -101,6 +101,11 @@ game/sys/memcard.c:
 	extabindex  start:0x8000A1C8 end:0x8000A300
 	.text       start:0x800685EC end:0x8006B540
 
+game/ui/screensaver.c:
+	extab       start:0x80006720 end:0x800067A8
+	extabindex  start:0x8000A300 end:0x8000A3CC
+	.text       start:0x8006B540 end:0x8006DC2C
+
 game/shop/shopquery.c:
 	.text       start:0x8009C228 end:0x8009C2CC
 
