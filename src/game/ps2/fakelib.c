@@ -12,7 +12,7 @@ int DVDOpen(const char* path, void* fileInfo);
 int DVDGetCommandBlockStatus(void* block);
 
 void fn_8006B540(char* msg);   /* disc-error message display */
-void fn_800DD604(void);        /* frame yield while waiting on DVD */
+void sysHandleReset(void);        /* frame yield while waiting on DVD */
 void fn_80042F98(void);        /* post-error recovery, gated by lbl_80344A5C */
 
 extern u8 lbl_80344A5C;        /* error-screen-shown flag (other TU) */
@@ -224,7 +224,7 @@ int fn_800AEBF4(void* fileInfo, void* buf, int len, int offset)
         } else {
             lbl_80344DB8 = 1;
         }
-        fn_800DD604();
+        sysHandleReset();
     } while (status != 0);
     if (lbl_80344A5C != 0) {
         fn_80042F98();
