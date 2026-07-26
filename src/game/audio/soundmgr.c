@@ -5,7 +5,7 @@
  *
  * A set of small "screen/query" helpers that marshal a 32-byte parameter
  * block and dispatch a numeric command to the audio/resource server via
- * fn_800D4BF4.  Also owns a deferred-callback list and the sound-test AX
+ * dcsHandleRequest.  Also owns a deferred-callback list and the sound-test AX
  * voice bank (14 voices).  Names describe observed behaviour; exact Midway
  * identifiers are unconfirmed.
  *
@@ -22,10 +22,10 @@ char* strncpy(char* dst, const char* src, u32 n);
 u32 strlen(const char* s);
 
 /* command dispatch to the sound/resource server: id + in/out param blocks */
-s32 fn_800D4BF4(s32 id, void* in, void* out);   /* server message dispatch */
+s32 dcsHandleRequest(s32 id, void* in, void* out);   /* server message dispatch */
 void HealthMeterInit(void);                      /* fn_8001B830 */
 s32 fn_800D6234(void);                           /* per-frame poll */
-void fn_800D3184(void);                          /* service queue */
+void dcsServiceQueue(void);                          /* service queue */
 
 /* GameCube audio (sndvoice.c / AX / AR) */
 void sndVoiceStart(s32 voice);
@@ -193,7 +193,7 @@ s32 sndCmd17(s32 a, s32 b)
         memset(s->out, 0, 0x20);
     } else {
         sndSysFlush();
-        fn_800D4BF4(0x17, s->in, s->out);
+        dcsHandleRequest(0x17, s->in, s->out);
     }
     return s->out[0];
 }
@@ -213,7 +213,7 @@ s32 sndCmd16(s32 a)
         memset(s->out, 0, 0x20);
     } else {
         sndSysFlush();
-        fn_800D4BF4(0x16, s->in, s->out);
+        dcsHandleRequest(0x16, s->in, s->out);
     }
     return s->out[0];
 }
@@ -238,7 +238,7 @@ s32 sndCmdB(void)
         memset(s->out, 0, 0x20);
     } else {
         sndSysFlush();
-        fn_800D4BF4(0xb, s->in, s->out);
+        dcsHandleRequest(0xb, s->in, s->out);
     }
     return 0;
 }
@@ -261,7 +261,7 @@ s32 sndCmdA(s32 a, s32 b, s32 c, Node* cb)
         memset(s->out, 0, 0x20);
     } else {
         sndSysFlush();
-        fn_800D4BF4(0xa, s->in, s->out);
+        dcsHandleRequest(0xa, s->in, s->out);
     }
     {
         s32 r = s->out[0];
@@ -290,7 +290,7 @@ s32 sndCmd8(char* name, s32 b, s32 c)
             memset(s->out, 0, 0x20);
         } else {
             sndSysFlush();
-            fn_800D4BF4(0x8, s->in, s->out);
+            dcsHandleRequest(0x8, s->in, s->out);
         }
         rv = s->out[0];
     }
@@ -309,7 +309,7 @@ s32 sndCmdC(void)
         memset(s->out, 0, 0x20);
     } else {
         sndSysFlush();
-        fn_800D4BF4(0xc, s->in, s->out);
+        dcsHandleRequest(0xc, s->in, s->out);
     }
     return s->out[0];
 }
@@ -325,7 +325,7 @@ s32 sndCmdD(void)
         memset(s->out, 0, 0x20);
     } else {
         sndSysFlush();
-        fn_800D4BF4(0xd, s->in, s->out);
+        dcsHandleRequest(0xd, s->in, s->out);
     }
     memset(s->msgbuf, 0, 0x400);
     sCount2 = 0;
@@ -393,7 +393,7 @@ s32 sndCmd4(char* name, s32 b, s32 c, s32* outp)
         memset(s->out, 0, 0x20);
     } else {
         sndSysFlush();
-        fn_800D4BF4(0x4, s->in, s->out);
+        dcsHandleRequest(0x4, s->in, s->out);
     }
     {
         s32 r = s->out[0];
@@ -419,7 +419,7 @@ s32 sndCmd7(s32 a, u16* w1, u16* w2)
             memset(s->out, 0, 0x20);
         } else {
             sndSysFlush();
-            fn_800D4BF4(0x7, s->in, s->out);
+            dcsHandleRequest(0x7, s->in, s->out);
         }
         r = s->out[0];
         *w1 = s->out[1];
@@ -442,7 +442,7 @@ s32 sndCmd6(void)
         memset(s->out, 0, 0x20);
     } else {
         sndSysFlush();
-        fn_800D4BF4(0x6, s->in, s->out);
+        dcsHandleRequest(0x6, s->in, s->out);
     }
     return 0;
 }
@@ -460,7 +460,7 @@ s32 sndCmd18(s32 a)
             memset(s->out, 0, 0x20);
         } else {
             sndSysFlush();
-            fn_800D4BF4(0x18, s->in, s->out);
+            dcsHandleRequest(0x18, s->in, s->out);
         }
         return s->out[0];
     }
@@ -480,7 +480,7 @@ s32 sndCmd1(void)
         memset(s->out, 0, 0x20);
     } else {
         sndSysFlush();
-        fn_800D4BF4(0x1, s->in, s->out);
+        dcsHandleRequest(0x1, s->in, s->out);
     }
     memset(s->msgbuf, 0, 0x400);
     sCount2 = 0;
@@ -526,7 +526,7 @@ s32 sndSysUpdate(void)
                 memset(s->out, 0, 0x20);
             } else {
                 sndSysFlush();
-                fn_800D4BF4(0x2, s->in, s->out);
+                dcsHandleRequest(0x2, s->in, s->out);
             }
         }
     }
@@ -545,7 +545,7 @@ s32 sndCmd3(s32 a)
         memset(s->out, 0, 0x20);
     } else {
         sndSysFlush();
-        fn_800D4BF4(0x3, s->in, s->out);
+        dcsHandleRequest(0x3, s->in, s->out);
     }
     return 0;
 }
@@ -602,7 +602,7 @@ s32 sndTestAcquire(void)
         memset(s->out, 0, 0x20);
     } else {
         sndSysFlush();
-        fn_800D4BF4(0x13, s->in, s->out);
+        dcsHandleRequest(0x13, s->in, s->out);
     }
     return 0;
 }
@@ -611,7 +611,7 @@ s32 sndTestAcquire(void)
 void sndTestAXCallback(void)
 {
     sndVoiceUpdateAll();
-    fn_800D3184();
+    dcsServiceQueue();
 }
 
 /* 0x8004318C  flush the deferred callback list */
@@ -626,7 +626,7 @@ s32 sndSysFlush(void)
         s32 i;
 
         s->msgbuf[sCount2] = 0;
-        fn_800D4BF4(0x11, s->msgbuf, e);
+        dcsHandleRequest(0x11, s->msgbuf, e);
         sCount2 = 0;
         ret = 1;
         n = e[0];
@@ -683,7 +683,7 @@ void sndSysSync(void)
             memset(s->out, 0, 0x20);
         } else {
             sndSysFlush();
-            fn_800D4BF4(0xc, s->in, s->out);
+            dcsHandleRequest(0xc, s->in, s->out);
         }
         /* command 0xd */
         memset(s->in, 0, 0x20);
@@ -692,7 +692,7 @@ void sndSysSync(void)
             memset(s->out, 0, 0x20);
         } else {
             sndSysFlush();
-            fn_800D4BF4(0xd, s->in, s->out);
+            dcsHandleRequest(0xd, s->in, s->out);
         }
         sndSysClear();
         sInSync = 0;
