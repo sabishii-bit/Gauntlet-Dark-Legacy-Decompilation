@@ -69,7 +69,7 @@ void fn_800B8A38(int arg);
 void ReadControls(void);
 void fn_800BC2EC(const char* fmt, ...);
 void fn_80053420(void);
-void fn_80074548(void);
+void OptionsSetup(void);
 void fn_80020DA8(void);
 u32 fn_800BF258(void);
 void fn_800330D4(void);
@@ -328,7 +328,7 @@ void main(void)
     ReadControls();
     fn_800BC2EC(st + 124, lbl_80126A98);
     fn_80053420();
-    fn_80074548();
+    OptionsSetup();
     fn_80020DA8();
     fn_800BC2EC(st + 156, fn_800BF258(), lbl_80344F48,
                 lbl_80344F48 + (lbl_80344F40 / 4) * 4);
