@@ -110,7 +110,7 @@ extern s32 sAudioTimeoutErrs;
 extern s32 sAudioSuspend;
 extern s32 sAudioReady;
 extern s32 sAudioMute;
-extern f32 sMusicFadeBase;
+extern volatile f32 sMusicFadeBase;
 extern u32 pbLoad;
 extern const char sAudioWatchdogName[];
 extern const char sAudioTimeoutMsg[];
@@ -240,11 +240,10 @@ f32 sndFxQueAddEx(int mode, int soundId, f32 vol, f32 param, int pri, int track,
         u8* bt = (u8*)sAudioBankTable;
         s16* desc = (s16*)(*(u8**)(bt + 16) + (soundId >> 16) * 44);
         int di = (soundId & 0xFFF) + desc[19];
-        u8* bd = *(u8**)(bt + 20) + di * 28;
         if (vol <= 0.0) {
-            vol = 60.0f * *(f32*)(bd + 20);
+            vol = 60.0f * *(f32*)(*(u8**)(bt + 20) + di * 28 + 20);
         }
-        *(f32*)(bd + 24) = acc;
+        *(f32*)(*(u8**)(bt + 20) + di * 28 + 24) = acc;
     }
     sAudioQueBusy = 1;
     {
@@ -291,15 +290,14 @@ int sndFxQueUpdate(void)
         for (mode = 0; mode < 2; mode++) {
             int n = sAudioQueCount[mode];
             f32* fade;
-            QueSlot* slots;
 
             if (n <= 0) {
                 continue;
             }
             did = 1;
             fade = &sAudioQueFade[mode];
-            slots = lbl_8023D398[mode];
             if (*fade == 0.0) {
+                QueSlot* slots = lbl_8023D398[mode];
                 if (slots[0].soundId >= 0) {
                     sndFxStartVoice(-1, slots[0].soundId, slots[0].f4, 0,
                                     slots[0].f8, slots[0].fC);
@@ -307,12 +305,13 @@ int sndFxQueUpdate(void)
                 *fade = (f32)pbLoad + slots[0].f10;
             } else if ((f32)pbLoad >= *fade) {
                 /* shift remaining requests down */
+                QueSlot* slots = lbl_8023D398[mode];
                 int j;
                 for (j = 1; j < n; j++) {
                     slots[j - 1] = slots[j];
                 }
                 *fade = 0.0f;
-                sAudioQueCount[mode] = n - 1;
+                sAudioQueCount[mode] = sAudioQueCount[mode] - 1;
             }
         }
     }
