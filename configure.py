@@ -407,6 +407,7 @@ config.libs = [
             Object(NonMatching, "game/pb/pb_diag.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/audio/soundmgr.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/sys/ml_mem.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
+            Object(NonMatching, "game/mb/mb_blit.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
         ],
     },
     {
