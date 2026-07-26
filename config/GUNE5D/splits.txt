@@ -137,6 +137,11 @@ game/sound/sounds.c:
 	extabindex  start:0x8000B458 end:0x8000B5C0
 	.text       start:0x800A00A0 end:0x800A18E8
 
+game/world/tower.c:
+	extab       start:0x800073A0 end:0x80007410
+	extabindex  start:0x8000B5C0 end:0x8000B668
+	.text       start:0x800A18E8 end:0x800A4870
+
 game/ui/message.c:
 	extab       start:0x80007410 end:0x80007430
 	extabindex  start:0x8000B668 end:0x8000B698
