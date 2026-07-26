@@ -21,10 +21,13 @@ typedef struct PolyVert {
     f32 x;            /* +0x00 model-space position */
     f32 y;            /* +0x04 */
     f32 z;            /* +0x08 */
-    u8  _0C[0x0C];    /* +0x0C scratch: projected screen x/y/z, clip */
+    f32 sClip;        /* +0x0C projection scratch */
+    u16 sx;           /* +0x10 projected screen x */
+    u16 sy;           /* +0x12 projected screen y */
+    u32 sz;           /* +0x14 projected screen z / clip flag */
     s16 u;            /* +0x18 texcoord u (fixed point) */
     s16 v;            /* +0x1A texcoord v */
-    s16 flags;        /* +0x1C 1 = active vertex */
+    u16 flags;        /* +0x1C 1 = active vertex */
     u8  _1E[0x02];
 } PolyVert;           /* 0x20 */
 
@@ -37,10 +40,10 @@ typedef struct PolyHeader {
 
 typedef struct PolyInstance {
     s16 type;                  /* +0x00 vertex count (3=tri, 4=quad) */
-    s16 _02;                   /* +0x02 flags (nonzero = hidden) */
+    u16 _02;                   /* +0x02 flags (nonzero = hidden) */
     s32 tex;                   /* +0x04 texture id, -1 = none */
     u32 color;                 /* +0x08 packed ARGB (low half = u scale) */
-    s16 texW;                  /* +0x0C */
+    u16 texW;                  /* +0x0C */
     s16 span;                  /* +0x0E draw-span advance */
     s32 vertBase;              /* +0x10 first vertex index in the arena */
     PolyVert* verts;           /* +0x14 */
@@ -62,12 +65,18 @@ typedef struct PolyContext {
 } PolyContext;
 
 /* --- externs --- */
+typedef struct TexInfo {
+    u8  _00[0x0A];
+    u16 w;            /* +0x0A texture width (fixed point) */
+    u16 h;            /* +0x0C texture height */
+} TexInfo;
+
 void* memset(void* p, int c, u32 n);
 void ErrorPrintf(const char* fmt, ...);
 PolyContext* fn_800BB29C(s32 a, void* cfg, s32 n); /* MB hash/context create */
-void fn_800BA024(s32 tex);                          /* texture bind/lookup */
+TexInfo* fn_800BA024(s32 tex);                      /* texture bind/lookup */
 void fn_800BDC60(PolyVert* v, void* out, void* xf); /* xform vertex */
-u32  __cvt_fp2unsigned(f32 x);
+u32  __cvt_fp2unsigned(f64 x);
 void mbBlitGetPage(void);
 void mbBlitSetPage(void);
 void SetTevStages(s32 n);
@@ -85,6 +94,7 @@ void GXBegin(s32 prim, s32 fmt, s32 count);
 extern u8 lbl_80127D60[0x40];   /* hash config for fn_800BB29C */
 extern void* gWinGlobals;       /* window/projection globals */
 extern PolyVert lbl_80343F5C[]; /* shared screen-vertex scratch */
+extern const f32 lbl_801177B8[2][4][2]; /* per-type UV template (tri/quad) */
 
 /* --- pool (real addresses in .bss/.sbss) --- */
 static PolyInstance gPolyHash[128];   /* 0x80321C30 (0x1200) */
@@ -106,6 +116,7 @@ void PolyXfrmVerts(PolyVert* verts, s32 count);
 /* 0x800DDE34 - reset the instance pool and (optionally) build the hash ctx */
 void MBInitPolys(BOOL useHash) {
     PolyContext* ctx;
+    u8 unused[8];
 
     memset(gPolyHash, 0, sizeof(gPolyHash));
     gPolyHash[0].type = -1;
@@ -116,8 +127,9 @@ void MBInitPolys(BOOL useHash) {
     if (useHash) {
         ctx = fn_800BB29C(0, lbl_80127D60, 10);
         if (ctx != NULL) {
+            PolyHeader* h = MBCreatePolyHeader(256);
             ctx->flags = 0;
-            ctx->header = MBCreatePolyHeader(256);
+            ctx->header = h;
             ctx->node = NULL;
         }
         gPolyCtx = ctx;
@@ -149,8 +161,10 @@ PolyInstance* MBNewPoly(PolyContext* ctx, s32 type, s32 tex, f32* verts) {
     PolyHeader* header;
     PolyInstance* inst;
     PolyInstance* tail;
+    PolyVert* dv;
     s32 free;
     s32 i;
+    u8 unused[8];
 
     if (type < 3 || type > 4) {
         return NULL;
@@ -201,27 +215,28 @@ PolyInstance* MBNewPoly(PolyContext* ctx, s32 type, s32 tex, f32* verts) {
     }
 
     /* append to the header's instance list */
-    if (header->head == NULL) {
-        header->head = inst;
-        inst->prev = NULL;
-    } else {
+    if (header->head != NULL) {
         tail = header->head;
         while (tail->next != NULL) {
             tail = tail->next;
         }
         tail->next = inst;
         inst->prev = tail;
+    } else {
+        header->head = inst;
+        inst->prev = NULL;
     }
     inst->next = NULL;
     inst->header = header;
+    dv = inst->verts;
     inst->type = (s16)type;
 
     if (verts != NULL) {
         for (i = 0; i < type; i++) {
-            inst->verts[i].x = verts[i * 3 + 0];
-            inst->verts[i].y = verts[i * 3 + 1];
-            inst->verts[i].z = verts[i * 3 + 2];
-            inst->verts[i].flags = 1;
+            dv[i].x = verts[i * 3 + 0];
+            dv[i].y = verts[i * 3 + 1];
+            dv[i].z = verts[i * 3 + 2];
+            dv[i].flags = 1;
         }
     }
     MBPolyInstUpdateTex(inst, tex);
@@ -281,24 +296,25 @@ void MBPolyInstUpdateVerts(PolyInstance* inst, s32 count, f32* src) {
 void MBPolyInstUpdateTex(PolyInstance* inst, s32 tex) {
     s32 n = inst->type;
     PolyVert* v = inst->verts;
+    TexInfo* t;
     s32 i;
+    u8 unused[8];
 
-    if (tex < 0) {
+    if (tex >= 0) {
+        inst->tex = tex;
+        t = fn_800BA024(tex);
+        /* map each vertex against the per-type UV template, scaled by the
+           bound texture's dimensions into fixed-point texcoords. */
+        for (i = 0; i < n; i++) {
+            v[i].u = (s16)((f64)t->w * (16.0 * lbl_801177B8[n - 3][i][0]) + 0.5);
+            v[i].v = (s16)((f64)t->h * (16.0 * lbl_801177B8[n - 3][i][1]) + 0.5);
+        }
+    } else {
         inst->tex = -1;
         for (i = 0; i < n; i++) {
             v[i].u = 0;
             v[i].v = 0;
         }
-        return;
-    }
-
-    inst->tex = tex;
-    fn_800BA024(tex);
-    /* map each vertex against the per-type UV template, biased by the
-       instance's texture-window size (low half of colour / texW). */
-    for (i = 0; i < n; i++) {
-        v[i].u = (s16)((f32)(u16)inst->color * 1.0f);
-        v[i].v = (s16)((f32)inst->texW * 1.0f);
     }
 }
 
@@ -383,17 +399,34 @@ s32 DoPolyInstSub(PolyInstance* inst, s32 useScratch) {
 
 /* 0x800DE804 - project a header's vertex arena to screen space */
 void PolyXfrmVerts(PolyVert* verts, s32 count) {
-    u8 out[0x20];
+    PolyVert* v;
     s32 i;
+    void* wg = gWinGlobals;
+    f32 out[4];
+    f32 scale;
+    u32 sx;
+    u32 sy;
 
     for (i = 0; i < count; i++) {
-        PolyVert* v = &verts[i];
+        v = &verts[i];
         if (v->flags == 0) {
             continue;
         }
-        fn_800BDC60(v, out, gWinGlobals);
-        /* perspective divide + viewport map, clipping behind the eye;
-           results (screen x/y/z) land in the vertex scratch fields. */
-        (void)__cvt_fp2unsigned(0.0f);
+        v->sClip = 1.0f;
+        fn_800BDC60(v, out, (u8*)((void**)wg)[1] + 704);
+        if (out[3] <= 0.0) {
+            v->sz = 0;
+            continue;
+        }
+        scale = (f32)(1.0 / out[3]);
+        sx = (u32)(16.0 * (out[0] * scale));
+        sy = (u32)(16.0 * (out[1] * scale));
+        if ((u32)(16.0 * (out[0] * scale)) >= 0x10000 || sy >= 0x10000) {
+            v->sz = 0;
+        } else {
+            v->sx = sx;
+            v->sy = sy;
+            v->sz = (u32)(out[2] * scale);
+        }
     }
 }
