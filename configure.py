@@ -390,6 +390,7 @@ config.libs = [
             Object(NonMatching, "game/mb/mb_poly.c", cflags=cflags_demo),
             Object(NonMatching, "game/mb/mb_particle.c", cflags=cflags_demo),
             Object(NonMatching, "game/mb/mb_main.c", cflags=cflags_demo),
+            Object(NonMatching, "game/mb/mb_model.c", cflags=cflags_demo),
             Object(NonMatching, "game/g3d/sndvoice.c", mw_version="GC/1.2.5n"),
             Object(Matching, "game/g3d/gpads.c", mw_version="GC/1.2.5n"),
             Object(NonMatching, "game/sys/registry.c", mw_version="GC/1.2.5n"),
