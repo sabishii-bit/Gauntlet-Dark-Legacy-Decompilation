@@ -362,6 +362,16 @@ game/audio/adstream.c:
 	extabindex  start:0x8000C9F4 end:0x8000CACC
 	.text       start:0x800D6234 end:0x800D7CFC
 
+game/g3d/g3dpad.c:
+	extab       start:0x800081A8 end:0x800081B8
+	extabindex  start:0x8000CACC end:0x8000CAE4
+	.text       start:0x800D7CFC end:0x800D860C
+
+game/movie/movieplayer.c:
+	extab       start:0x800081B8 end:0x80008560
+	extabindex  start:0x8000CAE4 end:0x8000CCB8
+	.text       start:0x800D860C end:0x800DC180
+
 game/sys/cardutil.c:
 	extab       start:0x80008560 end:0x800085F0
 	extabindex  start:0x8000CCB8 end:0x8000CD90
