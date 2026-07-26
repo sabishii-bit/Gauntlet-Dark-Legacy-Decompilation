@@ -250,6 +250,11 @@ game/pb/pb_global.c:
 	extabindex  start:0x8000C280 end:0x8000C298
 	.text       start:0x800C33FC end:0x800C3674
 
+game/pb/pb_objects.c:
+	extab       start:0x80007C30 end:0x80007C68
+	extabindex  start:0x8000C298 end:0x8000C2EC
+	.text       start:0x800C3674 end:0x800C3F58
+
 game/pb/pb_objregs.c:
 	extab       start:0x80007C68 end:0x80007CE0
 	extabindex  start:0x8000C2EC end:0x8000C3A0
