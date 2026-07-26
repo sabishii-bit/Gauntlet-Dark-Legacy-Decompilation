@@ -12,6 +12,11 @@ Sections:
 	.sbss       type:bss align:8
 	.sdata2     type:rodata align:16
 
+game/audio/sndfx.c:
+	extab       start:0x800056E8 end:0x80005748
+	extabindex  start:0x80008AAC end:0x80008B3C
+	.text       start:0x800150CC end:0x800160F0
+
 game/g3d/auxanim.c:
 	extab       start:0x80005838 end:0x80005878
 	extabindex  start:0x80008CA4 end:0x80008D04

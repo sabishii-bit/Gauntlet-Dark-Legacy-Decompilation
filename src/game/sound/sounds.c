@@ -9,7 +9,8 @@
  * AudioSelect/ShopMusicStart/MapMusicStart/BGMusicStart are real Xbox-PDB
  * names (confident from string+call evidence); the remaining Audio-prefixed
  * names are descriptive (exact Midway identifiers unconfirmed).
- * Cross-region audio-core callees (fn_8001xxxx) are left as fn_XXXX externs.
+ * The sound-engine callees now carry sndFx* names (game/audio/sndfx.c,
+ * 0x8001xxxx); helpers still in the unmapped tail keep fn_XXXX externs.
  *
  * NonMatching residuals (parked, structurally correct):
  *   AudioWithName        - prologue register-allocation cascade (ops clean)
@@ -19,14 +20,14 @@
  *   InitNameAudio, AudioAmbientUpdate, AudioSecretProc,
  *   AudioMusicVolUpdate, AudioSetupLevelStreams, AudioBuildMusicName */
 
-/* --- audio-core callees (AUDIO.OBJ / audio-core region 0x8001xxxx) --- */
-extern f32 fn_800151A8(int a, int b, f32 c, f32 d, int e, int f, int g);
-extern void fn_80015394(void);
-extern int fn_800153D4(int a);
-extern void fn_80015660(void);
-extern void fn_800156DC(int a, int b, int c, int d);
-extern int fn_80015834(int a, int b, int c);
-extern void fn_80015ADC(int a, int b, int c, int d);
+/* --- sound-engine callees (game/audio/sndfx.c, 0x8001xxxx) --- */
+extern f32 sndFxQueAddEx(int a, int b, f32 c, f32 d, int e, int f, int g);
+extern void sndFxQueEmpty(void);
+extern int sndFxUpdate(int a);
+extern void sndFxResetVoices(void);
+extern void sndFxPlay3DTracked(int a, int b, int c, int d);
+extern int sndFxPlayHandle(int a, int b, int c);
+extern void sndFxPlay3D(int a, int b, int c, int d);
 extern void fn_800160F0(int a, int b);
 extern void fn_8001618C(int a, int b);
 extern int fn_80016354(int a);
@@ -94,7 +95,7 @@ void AudioWelcome(int pidx, int flag)
     if (flag != 0) {
         AudioWithName(0xC0084, pidx, 10.0f, -1, -1);
     } else if (lbl_80344370 <= 2) {
-        fn_800151A8(1, 0xC0084, -1.0f, 10.0f, 224, extra, 2);
+        sndFxQueAddEx(1, 0xC0084, -1.0f, 10.0f, 224, extra, 2);
     }
 }
 
@@ -105,7 +106,7 @@ void AudioWelcomeBack(int pidx, int flag)
     if (flag != 0) {
         AudioWithName(0xC0083, pidx, 10.0f, -1, -1);
     } else if (lbl_80344370 <= 2) {
-        fn_800151A8(1, 0xC0083, -1.0f, 10.0f, 224, extra, 2);
+        sndFxQueAddEx(1, 0xC0083, -1.0f, 10.0f, 224, extra, 2);
     }
 }
 
@@ -137,7 +138,7 @@ void AudioWithName(int id, int pidx, f32 vol, int s4, int s5)
 
     if (id >= 0) {
         if (((lbl_80344370 > 2) ? 0.0f
-                                : fn_800151A8(1, id, -1.0f, vol, 224, track, 2)) != 0.0f) {
+                                : sndFxQueAddEx(1, id, -1.0f, vol, 224, track, 2)) != 0.0f) {
             vol = -1.0f;
         } else {
             return;
@@ -145,7 +146,7 @@ void AudioWithName(int id, int pidx, f32 vol, int s4, int s5)
     }
     if (a >= 0) {
         if (((lbl_80344370 > 2) ? 0.0f
-                                : fn_800151A8(1, a, -1.0f, vol, 224, track, 2)) != 0.0f) {
+                                : sndFxQueAddEx(1, a, -1.0f, vol, 224, track, 2)) != 0.0f) {
             vol = -1.0f;
         } else {
             return;
@@ -153,7 +154,7 @@ void AudioWithName(int id, int pidx, f32 vol, int s4, int s5)
     }
     if (b >= 0) {
         if (((lbl_80344370 > 2) ? 0.0f
-                                : fn_800151A8(1, b, -1.0f, vol, 224, track, 2)) != 0.0f) {
+                                : sndFxQueAddEx(1, b, -1.0f, vol, 224, track, 2)) != 0.0f) {
             vol = -1.0f;
         } else {
             return;
@@ -161,14 +162,14 @@ void AudioWithName(int id, int pidx, f32 vol, int s4, int s5)
     }
     if (s4 >= 0) {
         if (((lbl_80344370 > 2) ? 0.0f
-                                : fn_800151A8(1, s4, -1.0f, vol, 224, track, 2)) != 0.0f) {
+                                : sndFxQueAddEx(1, s4, -1.0f, vol, 224, track, 2)) != 0.0f) {
             vol = -1.0f;
         } else {
             return;
         }
     }
     if (s5 >= 0 && lbl_80344370 <= 2) {
-        fn_800151A8(1, s5, -1.0f, vol, 224, track, 2);
+        sndFxQueAddEx(1, s5, -1.0f, vol, 224, track, 2);
     }
 }
 
@@ -181,7 +182,7 @@ void AudioFootstep(int sel)
     } else {
         id = (sel & 1) ? 24 : 23;
     }
-    fn_80015ADC(id, 0, 127, 4);
+    sndFxPlay3D(id, 0, 127, 4);
 }
 
 void AudioStopAll(void)
@@ -192,23 +193,23 @@ void AudioStopAll(void)
 void AudioPlayEvt101IfIdle(int arg)
 {
     if (fn_8001640C(101) == 0) {
-        fn_80015ADC(101, arg, 127, 22);
+        sndFxPlay3D(101, arg, 127, 22);
     }
 }
 
 void AudioPlayEvt101(int arg)
 {
-    fn_80015ADC(101, arg, 127, 22);
+    sndFxPlay3D(101, arg, 127, 22);
 }
 
 void AudioPlayEvt104(int arg)
 {
-    fn_80015ADC(104, arg, 224, 12);
+    sndFxPlay3D(104, arg, 224, 12);
 }
 
 void AudioPlayEvt103(int arg)
 {
-    fn_80015ADC(103, arg, 224, 13);
+    sndFxPlay3D(103, arg, 224, 13);
 }
 
 void AudioPlayEvt102(void)
@@ -221,7 +222,7 @@ void AudioPlayEvt102Follow(int arg)
     int h;
 
     if (fn_8001640C(102) == 0) {
-        fn_800156DC(102, arg, 127, 111);
+        sndFxPlay3DTracked(102, arg, 127, 111);
     }
     h = fn_80016354(111);
     if (h != 0) {
@@ -284,7 +285,7 @@ void ShopMusicStart(void)
     sprintf((char*)sSpeechNameBuf, "S_SHOP_%c", ch);
     h = fn_80018068((char*)sSpeechNameBuf, -1, 1);
     if (h >= 0) {
-        fn_80015834(h, lbl_80343B4C, 1);
+        sndFxPlayHandle(h, lbl_80343B4C, 1);
     }
 }
 
@@ -316,7 +317,7 @@ void MapMusicStart(void)
     sprintf(buf, "S_MAP_%c", (signed char)fn_80057A6C(0));
     h = fn_80018068(buf, -1, 1);
     if (h >= 0) {
-        fn_80015834(h, lbl_80343B4C, 1);
+        sndFxPlayHandle(h, lbl_80343B4C, 1);
     }
 }
 
@@ -334,7 +335,7 @@ void AudioSelect(int track)
      * (peephole-off single-case switch); MWCC folds our bge -> 1-insn diff. */
     switch (track) {
     case 1:
-        fn_80015834(0xC0000, lbl_80343B4C, 1);
+        sndFxPlayHandle(0xC0000, lbl_80343B4C, 1);
         break;
     default:
         fn_800165A0(0xC0000);
@@ -356,10 +357,10 @@ void BGMusicStart(void)
 {
     int v = (sMusicTrackHi << 8) | (sMusicTrackLo & 0xFF);
 
-    while (fn_800153D4(1) != 0) {
+    while (sndFxUpdate(1) != 0) {
         fn_80067B0C(-1);
     }
-    fn_80015660();
+    sndFxResetVoices();
     sCurSelectTrack = 0;
     AudioRegisterNameBanks(*(char**)(gCurLevel + 100), 0);
     sSelectStreamHandle = v;
@@ -383,7 +384,7 @@ void AudioRegisterNameBanks(char* name, int flag)
     int st;
 
     if (flag == 0) {
-        fn_80015394();
+        sndFxQueEmpty();
     }
     for (i = 0; i < 4; i++) {
         p = &lbl_80275AE0[i * 13148];
@@ -412,7 +413,7 @@ void AudioRegisterNameBanks(char* name, int flag)
 
 void AudioSelectReset(void)
 {
-    fn_80015660();
+    sndFxResetVoices();
     sCurSelectTrack = 0;
 }
 
