@@ -187,6 +187,11 @@ game/mb/mb_blit.c:
 	.text       start:0x800B2988 end:0x800B53B0
 	.ctors      start:0x801106E4 end:0x801106E8
 
+game/mb/mb_objects.c:
+	extab       start:0x80007880 end:0x80007900
+	extabindex  start:0x8000BD10 end:0x8000BDD0
+	.text       start:0x800B90A4 end:0x800B9E4C
+
 game/sys/ml_mem.c:
 	extab       start:0x80007AF0 end:0x80007B70
 	extabindex  start:0x8000C0B8 end:0x8000C178

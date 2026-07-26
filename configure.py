@@ -418,6 +418,7 @@ config.libs = [
             Object(NonMatching, "game/sys/ml_mem.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/mb/mb_blit.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/enemy/enemy.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
+            Object(NonMatching, "game/mb/mb_objects.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/game/gamemain.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
         ],
     },
