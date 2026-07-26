@@ -1,5 +1,4 @@
 #include "types.h"
-#include "game/mbobject.h"
 
 /* Midway "MB" 3D object list / billboard layer (GCN mb_objects.obj region,
  * .text 0x800B90A4-0x800B9E4C). This module maintains the per-frame draw
@@ -20,10 +19,26 @@
  * Status: NonMatching (billboard-matrix helpers + MBSetupObject stubbed).
  */
 
-/* MBObjEntry (0x4C deferred-draw queue entry) and MBObject (the 0x80 mbnode
- * scene-graph node) are defined in include/game/mbobject.h. In this TU the
- * node's OBJECT_NODE payload (+0x70) is a resolved rom object/texture pointer,
- * reached via obj->data.romobj. */
+/* One deferred-draw queue entry. Size 0x4C. */
+typedef struct MBObjEntry {
+    /* 0x00 */ f32 mtx[16];        /* transform (4x4) */
+    /* 0x40 */ f32 key;            /* sort key: camera distance / explicit z */
+    /* 0x44 */ struct MBObject* obj;
+    /* 0x48 */ u32 page;           /* blit / texture page */
+} MBObjEntry;
+
+/* A drawable object node. Only the touched fields are named. */
+typedef struct MBObject {
+    /* 0x00 */ u8 _pad0[0x52];
+    /* 0x52 */ s8 drawType;        /* 2 = normal, 0xC/0xE = special dispatch */
+    /* 0x53 */ u8 flag53;
+    /* 0x54 */ f32 f54;            /* per-object sort-key bias */
+    /* 0x58 */ u8 _pad58[0x08];
+    /* 0x60 */ u32 flags;          /* draw/category flag bits */
+    /* 0x64 */ u8 _pad64[0x08];
+    /* 0x6C */ s32 objid;          /* rom object index, or -1 */
+    /* 0x70 */ void* romTex;       /* resolved rom texture pointer */
+} MBObject;
 
 /* ---- externs (resolved via symbols.txt) ---- */
 extern void* fn_800BB29C(void* parent, void* name, int count); /* render-node/tree alloc */
@@ -119,14 +134,14 @@ MBObject* MBNewObject(s32 objid, void* name, void* parent, u32 flags) {
             u8* mgr = gWinGlobals;
             if (objid < 0) {
                 FatalError(str_BadMBSetObject, 0x800000);
-                obj->index = objid;
-                obj->data.romobj = 0;
+                obj->objid = objid;
+                obj->romTex = 0;
             } else {
                 void** table = *(void***)(mgr + 0x30);
-                obj->index = objid;
-                obj->data.romobj = (u8*)*(void**)((u8*)table[(objid >> 16) * 4 + 1] + 0x54) +
+                obj->objid = objid;
+                obj->romTex = (u8*)*(void**)((u8*)table[(objid >> 16) * 4 + 1] + 0x54) +
                               ((objid << 6) & 0x003FFFC0);
-                obj->type = 2;
+                obj->drawType = 2;
                 obj->flags &= ~1u;
             }
             obj->flags |= flags;
@@ -140,14 +155,14 @@ void MBSetObject(MBObject* obj, s32 objid) {
     u8* mgr = gWinGlobals;
     if (objid < 0) {
         FatalError(str_BadMBSetObject, 0x800000);
-        obj->index = objid;
-        obj->data.romobj = 0;
+        obj->objid = objid;
+        obj->romTex = 0;
     } else {
         void** table = *(void***)(mgr + 0x30);
-        obj->index = objid;
-        obj->data.romobj = (u8*)*(void**)((u8*)table[(objid >> 16) * 4 + 1] + 0x54) +
+        obj->objid = objid;
+        obj->romTex = (u8*)*(void**)((u8*)table[(objid >> 16) * 4 + 1] + 0x54) +
                       ((objid << 6) & 0x003FFFC0);
-        obj->type = 2;
+        obj->drawType = 2;
         obj->flags &= ~1u;
     }
 }
@@ -159,7 +174,7 @@ void MBSetObject(MBObject* obj, s32 objid) {
 /* Returns 0 = cull, 1 = draw immediately, 2 = defer to a sort queue. */
 int MBDrawObjectTest(MBObject* obj, void* cam, int allowDefer) {
     int cull;
-    cull = !fn_800B5704((u8*)cam + 48, *(f32*)((u8*)obj->data.romobj + 4));
+    cull = !fn_800B5704((u8*)cam + 48, *(f32*)((u8*)obj->romTex + 4));
     if (gWinDebug[0] != 0 && gWinDebug[1] != 0) {
         cull = 0;
     }
@@ -170,8 +185,8 @@ int MBDrawObjectTest(MBObject* obj, void* cam, int allowDefer) {
         return 2;
     }
     if (allowDefer != 0 && (obj->flags & 0x00000800)) {
-        if (obj->alpha != 0 || (obj->flags & 0x40800000) ||
-            (*(u32*)((u8*)obj->data.romobj + 8) & 1)) {
+        if (obj->flag53 != 0 || (obj->flags & 0x40800000) ||
+            (*(u32*)((u8*)obj->romTex + 8) & 1)) {
             return 2;
         }
     }
@@ -234,7 +249,7 @@ static void DrawSortObjectsSub(int start, MBObjEntry* base, int count) {
     int i;
     MBObjEntry* e = &base[start];
     for (i = start; i < count; i++, e++) {
-        s8 t = e->obj->type;
+        s8 t = e->obj->drawType;
         if (t == 12) {
             /* nothing */
         } else if (t == 14) {
@@ -282,7 +297,7 @@ int AddDistObject(void* mtx, MBObject* obj, f32 dist) {
     }
     e = &mbDistObjects[mbNumDistObjects++];
     fn_800BE8F4(mtx, e);
-    e->key = dist + obj->zsort_add;
+    e->key = dist + obj->f54;
     e->obj = obj;
     e->page = lbl_802A4B30[1];
     if (e->obj->flags & 0x00400000) {
@@ -304,7 +319,7 @@ int AddSortObject(void* mtx, MBObject* obj, f32 key) {
     }
     e = &mbSortObjects[mbNumSortObjects++];
     fn_800BE8F4(mtx, e);
-    e->key = key + obj->zsort_add;
+    e->key = key + obj->f54;
     e->obj = obj;
     e->page = lbl_802A4B30[1];
     if (e->obj->flags & 0x00100400) {
