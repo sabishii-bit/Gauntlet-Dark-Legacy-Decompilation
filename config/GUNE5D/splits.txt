@@ -31,6 +31,11 @@ game/boss/boss.c:
 	.bss        start:0x8023E608 end:0x8023E880
 	.sbss       start:0x80344378 end:0x803443A8
 
+game/boss/bosscam.c:
+	extab       start:0x80005908 end:0x80005970
+	extabindex  start:0x80008DDC end:0x80008E78
+	.text       start:0x8001BC88 end:0x8001EAE0
+
 game/ui/btext.c:
 	extab       start:0x80005970 end:0x80005A68
 	extabindex  start:0x80008E78 end:0x80008FEC
