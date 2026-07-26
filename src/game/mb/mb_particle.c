@@ -3,98 +3,45 @@
  *
  * The engine's general particle-system module: emitters that spawn, animate
  * and draw sprite particles (fireworks, flames, sparks, "FIREWORK" preset,
- * etc.). A particle system ("psys") is described by a 0x130-byte descriptor
- * that hangs off a scene node at node->psys (node + 0x70). MBInitPsys builds a
- * 120000-byte block pool (allocPsysMem / freePsysMem) plus per-psys index and
- * usage arrays, and validates the built-in preset table (initPresetList).
+ * etc.). A particle system ("psys") is described by a 0x130-byte Psys
+ * descriptor that hangs off a scene node at mbnode->data.psys (mbnode + 0x70).
+ * MBInitPsys builds a 120000-byte block pool (allocPsysMem / freePsysMem) plus
+ * per-psys index and usage arrays, and validates the built-in preset table
+ * (initPresetList).
  *
  * Creation path: MBNewPsysDefault / MBNewWorldPsys / MBNewPsysDescrip build a
  * scene node (createPsysNode -> allocPsys) and apply a descriptor blob
  * (setWorldParms). MBPsysSet* apply individual attributes (guarded so they are
- * rejected once drawing has begun). MBPsysStartFrame advances the global clock,
- * frees queued psys and spawns deferred world/firework/flame effects.
+ * rejected once emitting has begun: e_phase > 1). MBPsysStartFrame advances the
+ * global clock, frees queued psys and spawns deferred world/firework/flame
+ * effects.
  *
  * Per frame MBDrawPsys runs the emitter state machine (delay/emit/active/fade/
- * dead, node->psys + 0x37), emits new particles by calling the mode-selected
- * getNewPos / getNewDir generators wired by setupNewPMode, advances live
- * particles through the getPPos* integrators and submits each sprite through
+ * dead, psys->e_phase @ 0x37), emits new particles by calling the mode-selected
+ * pos_func / dir_func generators wired by setupNewPMode, advances live
+ * particles through the ppos_func integrators and submits each sprite through
  * DrawPsysSub (GX quads). MBDrawPsysTest is the visibility pre-cull.
  *
- * Text range 0x800CBC4C..0x800D190C. Names come from the Xbox shell3D PDB
- * (MB_PARTICLE.OBJ); GC function order is scrambled relative to the Xbox
- * source. NonMatching - kept for symbol mapping / documentation. The large
- * bodies (MBDrawPsys, DrawPsysSub, setWorldParms, setupNewPMode) are
+ * Structs come from include/game/psys.h (Psys/PsysParm/PsysDescrip/PsysMem*)
+ * and include/game/mbobject.h (MBObject scene node), both offset-verified from
+ * the Xbox shell3D PDB against this TU's GC asm.
+ *
+ * Text range 0x800CBC4C..0x800D190C. GC function order is scrambled relative to
+ * the Xbox source. The small integrators / generators / setters are exact
+ * reconstructions from the target asm (many byte-matching); the large bodies
+ * (MBDrawPsys, DrawPsysSub, setWorldParms, setupNewPMode, MBNewPsysDescrip) are
  * documented reconstructions of the observed call/flow shape, not exact math.
+ * Functions that touch the module-global block are NonMatching on the global
+ * access alone (target reaches them through a pooled absolute base at
+ * 0x80128710; our statics land in the SDA).
  *
  * Uncertain PDB assignments (behaviorally inferred, not string-anchored):
  *   MBPsysSetDebugNode (0x800CEA18), MBPsysSetERate4 (0x800D0E3C),
  *   MBPsysSetEVolume  (0x800D0EB0).
  */
 #include "types.h"
-
-/* --- geometry --- */
-typedef struct PVec {
-    f32 x;
-    f32 y;
-    f32 z;
-} PVec;
-
-/* --- particle-system descriptor (node->psys, 0x130 bytes) --- */
-typedef struct Psys {
-    s32   id;            /* +0x00 unique id */
-    char* worldName;     /* +0x04 world-psys name / owner */
-    u16*  ring;          /* +0x08 particle ring buffer (packed pos|dir idx) */
-    PVec* dirPool;       /* +0x0C direction slots */
-    PVec* posPool;       /* +0x10 position slots */
-    s8*   dirUsed;       /* +0x14 dir slot usage */
-    s8*   posUsed;       /* +0x18 pos slot usage */
-    u8    _1C[0x08];     /* +0x1C ring read/write cursors */
-    u32   flags;         /* +0x2c state flags (bit1 world) */
-    u8    _30[0x02];     /* +0x2e particle count */
-    u16   emitTime;      /* +0x3a emit duration (frames) */
-    u16   emitRepeat;    /* +0x3c repeat count */
-    u8    _3E[0x02];
-    f32   pTime;         /* +0x40 particle lifetime */
-    PVec  gravDir;       /* +0x44 emit-space direction basis */
-    u8    _50[0x30];     /* +0x50 rect extents / matrix rows */
-    f32   speed;         /* +0x84 particle speed */
-    u8    _88[0x10];     /* +0x88 texture handle / ptr */
-    f32   grav;          /* +0x98 gravity */
-    u8    _9C[0x44];     /* +0x9c drag / colour scratch */
-    f32   colEnv[4];     /* +0xd0 colour/alpha envelope keyframes */
-    f32   param[5][4];   /* +0xe0 per-particle parameter gradient */
-    u8    _130[0x08];
-} Psys;
-
-/* --- scene node (the object the API operates on) --- */
-typedef struct Node {
-    u8     _00[0x28];
-    struct Node* child;  /* +0x28 attached child node */
-    u8     _2C[0x34];
-    u32    renderFlags;  /* +0x60 GX render flags */
-    u8     _64[0x0C];
-    Psys*  psys;         /* +0x70 particle descriptor */
-    u8     _74[0x04];
-    struct Node* owner;  /* +0x78 world owner node */
-} Node;
-
-/* --- world-psys descriptor blob (setWorldParms input) --- */
-typedef struct WorldParm {
-    s32 type;            /* +0x00 preset id (>= 0x100) */
-    s32 parent;          /* +0x04 */
-    u32 flagMask2;       /* +0x08 */
-    u32 flagMask3;       /* +0x0c */
-    u32 mask;            /* +0x10 field-present mask */
-    /* variable payload follows */
-} WorldParm;
-
-/* --- block-pool free node --- */
-typedef struct MemBlk {
-    s32 size;            /* +0x00 <0 == allocated */
-    struct MemBlk* next; /* +0x04 */
-    struct MemBlk* prev; /* +0x08 */
-    s32 tag;             /* +0x0c owner id */
-} MemBlk;
+#include "game/psys.h"
+#include "game/mbobject.h"
 
 /* --- externs (other TUs) --- */
 void* memset(void* p, int c, u32 n);
@@ -103,18 +50,18 @@ u32   pbRand(void);
 void* AllocMem(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7, f64 f8,
                s32 size, void* tag, s32 a, s32 b, s32 c, s32 d, s32 e, s32 g);
 s32   fn_800B8B04(const char* name, s32* out);   /* texture-by-name lookup */
-Node* fn_800BB29C(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7, f64 f8,
-                  f32 depth, void* verts, s32 flag, s32 tex, void* v2,
-                  s32 a, s32 b, s32 c);            /* scene-node create */
-void  fn_800BAEAC(Node* node, s32 mode);           /* scene-node free */
-void  fn_800B9B5C(void* fn, Node* node);           /* traverse visitor call */
-BOOL  fn_800B5704(f64 radius, void* bounds);       /* frustum/sphere cull */
-f64   fn_800B71AC(f64 x);                          /* rsqrt / normalize */
-f64   fn_800BCB44(f64 a, f64 b);                   /* hypot accumulate */
-void  fn_800B512C(s32 tex);                        /* bind texture page */
-void  fn_800B4CA0(u32 a, u32 b);                   /* set blend/tev mode */
-void  fn_800C7914(void* a, void* b);               /* project helper */
-void  fn_800AEA0C(u32 a, u32 b);                   /* copy vec */
+MBObject* fn_800BB29C(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
+                      f64 f8, f32 depth, void* verts, s32 flag, s32 tex,
+                      void* v2, s32 a, s32 b, s32 c);      /* scene-node create */
+void  fn_800BAEAC(MBObject* node, s32 mode);              /* scene-node free */
+int   AddPsysObject(void* fn, MBObject* node);            /* traverse visitor */
+BOOL  fn_800B5704(f64 radius, void* bounds);              /* frustum/sphere cull */
+f64   fn_800B71AC(f64 x);                                 /* rsqrt / normalize */
+f64   fn_800BCB44(f64 a, f64 b);                          /* hypot accumulate */
+void  fn_800B512C(s32 tex);                               /* bind texture page */
+void  fn_800B4CA0(u32 a, u32 b);                          /* set blend/tev mode */
+void  fn_800C7914(void* a, void* b);                      /* project helper */
+void  fn_800AEA0C(u32 a, u32 b);                          /* copy vec */
 void  sceSamp0MultVec(void* out, const f32* m, const f32* v);
 void  GXSetChanMatColor(s32 chan, void* color);
 void  GXBegin(s32 prim, s32 fmt, s32 count);
@@ -128,157 +75,161 @@ void  pbBlitSetDrawRegs(s32 a, s32 b, s32 c);
 
 extern void* gWinGlobals;
 extern f32   gVpScaleY;
+extern f32   psysInfo[];     /* per-parm scale/min/max config table */
 
 /* --- TU-owned globals (real addresses in .data/.bss/.sbss) --- */
-static s32   gPsysActive;      /* 0x80128710 live psys count */
-static Psys* gPsysList;        /* 0x80128714 all-psys list head */
-static s32   gPsysRemoved;     /* 0x80128718 freed-this-frame count */
-static Node* gPsysRmQueue;     /* 0x8012871c remove queue head */
-static s32   gPsysIdCounter;   /* 0x80128720 next psys id */
-static s32   gPsysFrame;       /* 0x80128724 global frame counter */
-static f32   gPsysFrameFrac;   /* 0x80128728 sub-frame time */
-static s32   gPoolTotal;       /* 0x8012873c bytes free in block pool */
-static s32   gPoolCount;       /* 0x80128740 free block count */
-static MemBlk* gPoolBase;      /* 0x80128748 pool base */
-static MemBlk* gPoolFree;      /* 0x80128754 free-list cursor */
-static s32   gDefTexA;         /* 0x8012872c "particle2_a" texture */
-static s32   gDefTexXp;        /* 0x80128730 "particle2_xp" texture */
-static s16   gPosSlot;         /* 0x80128766 shared pos slot cache */
-static s16   gDirSlot;         /* 0x80128764 shared dir slot cache */
+static s32       gPsysActive;      /* 0x80128710 live psys count */
+static Psys*     gPsysList;        /* 0x80128714 all-psys list head */
+static s32       gPsysRemoved;     /* 0x80128718 freed-this-frame count */
+static MBObject* gPsysRmQueue;     /* 0x8012871c remove queue head */
+static s32       gPsysIdCounter;   /* 0x80128720 next psys id */
+static s32       gPsysFrame;       /* 0x80128724 global frame counter */
+static f32       gPsysFrameFrac;   /* 0x80128728 sub-frame time */
+static s32       gDefTexA;         /* 0x8012872c "particle2_a" texture */
+static s32       gDefTexXp;        /* 0x80128730 "particle2_xp" texture */
+static s32       gPoolTotal;       /* 0x8012873c bytes free in block pool */
+static s32       gPoolCount;       /* 0x80128740 free block count */
+static PsysMemBlock* gPoolBase;    /* 0x80128748 pool base */
+static PsysMemBlock* gPoolFree;    /* 0x80128754 free-list cursor */
+static s16       gDirSlot;         /* 0x80128764 shared dir slot cache */
+static s16       gPosSlot;         /* 0x80128766 shared pos slot cache */
 
-extern s32   gPsysDisabled;    /* 0x80128768 traverse filter / disable id */
+extern s32   gPsysDisabled;        /* 0x80128768 traverse filter / disable id */
 
 /* --- forward decls (behavioural helpers, static in the PDB) --- */
-static void getPPosLinear(f64 t, Psys* p, PVec* out, PVec* dir, PVec* org);
-static void getPPosSpeed(f64 t, Psys* p, PVec* out, PVec* dir, PVec* org);
-static void getPPosGrav(f64 t, Psys* p, PVec* out, PVec* dir, PVec* org);
-static void getPPosSpeedGrav(f64 t, Psys* p, PVec* out, PVec* dir, PVec* org);
-static s32  getNewPosRectShare(Psys* p, Node* node, s32 z);
-static s32  getNewPosRectUnique(Psys* p, Node* node, s32 z);
-static s32  getNewPosFrame(Psys* p, Node* node);
+static void getPPosLinear(Psys* p, f32* out, f32* dir, f32* org, f32 t);
+static void getPPosSpeed(Psys* p, f32* out, f32* dir, f32* org, f32 t);
+static void getPPosGrav(Psys* p, f32* out, f32* dir, f32* org, f32 t);
+static void getPPosSpeedGrav(Psys* p, f32* out, f32* dir, f32* org, f32 t);
+static s32  getNewPosRectShare(Psys* p, MBObject* node, s32 z);
+static s32  getNewPosRectUnique(Psys* p, MBObject* node, s32 z);
+static s32  getNewPosFrame(Psys* p, MBObject* node);
 static s32  getNewPosSingle2(void);
-static s32  getNewPosSingle1(Psys* p, Node* node);
-static void getNewDirConeShare(Psys* p, Node* node, s32 z);
-static void getNewDirConeUnique(Psys* p, Node* node, s32 z);
-static void getNewDirSphere(Psys* p, Node* node, s32 z);
-static s32  getNewDirFrame(Psys* p, Node* node);
+static s32  getNewPosSingle1(Psys* p, MBObject* node);
+static void getNewDirConeShare(Psys* p, MBObject* node, s32 z);
+static void getNewDirConeUnique(Psys* p, MBObject* node, s32 z);
+static void getNewDirSphere(Psys* p, MBObject* node, s32 z);
+static s32  getNewDirFrame(Psys* p, MBObject* node);
 static s32  getNewDirSingle2(void);
-static s32  getNewDirSingle1(Psys* p, Node* node);
-static void getOrthoVecs(PVec* a, PVec* b, PVec* dir);
-static void getCurrentDir(Psys* p, Node* node, PVec* out);
+static s32  getNewDirSingle1(Psys* p, MBObject* node);
+static void getOrthoVecs(f32* a, f32* b, f32* dir);
+static void getCurrentDir(Psys* p, MBObject* node, f32* out);
 static f64  getSinCos(f64 ang, f32* sinOut);
 static void DrawPsysSub(void);
 static void setupNewPMode(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
                           f64 f7, f64 f8, Psys* p);
 static void setupParms(Psys* p);
 static void setWorldParms(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
-                          f64 f7, f64 f8, Node* node, Psys* p, WorldParm* wp,
-                          f32* over, s32 a, s32 b, s32 c, s32 d);
+                          f64 f7, f64 f8, MBObject* node, Psys* p,
+                          PsysDescrip* wp, f32* over, s32 a, s32 b, s32 c,
+                          s32 d);
 static Psys* allocPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
                        f64 f8, s32 fromArena, s32 a, s32 b, s32 c, s32 d,
                        s32 e, s32 g);
-static MemBlk* listFindHandle(s32 id, s32 base);
+static s32* listFindHandle(s32 id, s32 base);
 static void freePsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                     f64 f8, Node* node);
+                     f64 f8, MBObject* node);
 static void* allocPsysMem(s32 size, s32 tag);
 static void  freePsysMem(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
                          f64 f8, void* blk);
 static void initPresetList(void);
-static void setPTimeVal(f64 sec, Psys* p);
+static void setPTimeVal(f32 sec, Psys* p);
 
-Node* createPsysNode(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                     f64 f8, f32* verts, f32 depth, s32 flag, s32 tex,
-                     s32 a, s32 b, s32 c, s32 d);
-Node* MBNewPsysDescrip(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                       f64 f8, void* a, f32 depth, s32 flag, s32 tex, s32 b,
-                       s32 c, s32 d, s32 e);
-Node* MBPsysFirework(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                     f64 f8, f32* verts, f32 depth, s32 a, s32 b, s32 c,
-                     s32 d, s32 e, s32 g);
-Node* MBPsysFlame(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                  f64 f8, s32 a, s32 tex, f32* verts, s32 b, s32 c, s32 d,
-                  s32 e, s32 g);
+MBObject* createPsysNode(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
+                         f64 f8, f32* verts, f32 depth, s32 flag, s32 tex,
+                         s32 a, s32 b, s32 c, s32 d);
+MBObject* MBNewPsysDescrip(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
+                           f64 f7, f64 f8, void* a, f32 depth, s32 flag,
+                           s32 tex, s32 b, s32 c, s32 d, s32 e);
+MBObject* MBPsysFirework(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
+                         f64 f8, f32* verts, f32 depth, s32 a, s32 b, s32 c,
+                         s32 d, s32 e, s32 g);
+MBObject* MBPsysFlame(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
+                      f64 f8, s32 a, s32 tex, f32* verts, s32 b, s32 c, s32 d,
+                      s32 e, s32 g);
 
 /* ======================================================================= *
- *  Emit-mode integrators (node->psys[0x1b], per live particle over time)  *
+ *  Emit-mode integrators (psys->ppos_func, per live particle over time)   *
  * ======================================================================= */
 
 /* 0x800CCE58 - constant velocity: pos = t*dir + org */
-static void getPPosLinear(f64 t, Psys* p, PVec* out, PVec* dir, PVec* org) {
-    out->x = (f32)(dir->x * t + org->x);
-    out->y = (f32)(dir->y * t + org->y);
-    out->z = (f32)(dir->z * t + org->z);
+static void getPPosLinear(Psys* p, f32* out, f32* dir, f32* org, f32 t) {
+    out[0] = dir[0] * t + org[0];
+    out[1] = dir[1] * t + org[1];
+    out[2] = dir[2] * t + org[2];
 }
 
 /* 0x800CCDD0 - speed-scaled velocity */
-static void getPPosSpeed(f64 t, Psys* p, PVec* out, PVec* dir, PVec* org) {
-    out->x = (f32)(t * (p->speed * dir->x) + org->x);
-    out->y = (f32)(t * (p->speed * dir->y) + org->y);
-    out->z = (f32)(t * (p->speed * dir->z) + org->z);
+static void getPPosSpeed(Psys* p, f32* out, f32* dir, f32* org, f32 t) {
+    out[0] = t * (p->p_speed * dir[0]) + org[0];
+    out[1] = t * (p->p_speed * dir[1]) + org[1];
+    out[2] = t * (p->p_speed * dir[2]) + org[2];
 }
 
 /* 0x800CCE1C - gravity on Y */
-static void getPPosGrav(f64 t, Psys* p, PVec* out, PVec* dir, PVec* org) {
-    out->x = (f32)(dir->x * t + org->x);
-    out->y = (f32)(t * ((f32)(p->grav * t + dir->y)) + org->y);
-    out->z = (f32)(dir->z * t + org->z);
+static void getPPosGrav(Psys* p, f32* out, f32* dir, f32* org, f32 t) {
+    out[0] = dir[0] * t + org[0];
+    out[1] = t * (p->p_gravity * t + dir[1]) + org[1];
+    out[2] = dir[2] * t + org[2];
 }
 
 /* 0x800CCD7C - speed-scaled velocity + gravity on Y */
-static void getPPosSpeedGrav(f64 t, Psys* p, PVec* out, PVec* dir, PVec* org) {
-    out->x = (f32)(t * (p->speed * dir->x) + org->x);
-    out->y = (f32)(t * ((f32)(p->grav * t + p->speed * dir->y)) + org->y);
-    out->z = (f32)(t * (p->speed * dir->z) + org->z);
+static void getPPosSpeedGrav(Psys* p, f32* out, f32* dir, f32* org, f32 t) {
+    out[0] = t * (p->p_speed * dir[0]) + org[0];
+    out[1] = t * (p->p_gravity * t + p->p_speed * dir[1]) + org[1];
+    out[2] = t * (p->p_speed * dir[2]) + org[2];
 }
 
 /* ======================================================================= *
- *  New-position generators (node->psys[0x1a], initial spawn positions)    *
+ *  New-position generators (psys->pos_func, initial spawn positions)      *
  * ======================================================================= */
 
 /* fill a slot with a random point inside the emit rect, model->world xformed */
-static void randRectPos(Psys* p, Node* node, PVec* slot) {
-    f32* m = (f32*)&p->_50;    /* rect extents + 3x3 basis + origin */
+static void randRectPos(Psys* p, MBObject* node, f32* slot) {
+    f32* m = p->e_vol;         /* rect extents + 3x3 basis + origin */
     f64 rx = (f64)m[0] * (pbRand() & 0x7fff);
     f64 ry = (f64)m[1] * (pbRand() & 0x7fff);
     f32 rz = (f32)((f64)m[2] * (pbRand() & 0x7fff));
-    slot->x = m[15] + rz * m[8] + (f32)(rx * m[3] + ry * m[6]);
-    slot->y = m[16] + rz * m[9] + (f32)(rx * m[4] + ry * m[7]);
-    slot->z = m[17] + rz * m[10] + (f32)(rx * m[5] + ry * m[8]);
+    slot[0] = m[15] + rz * m[8] + (f32)(rx * m[3] + ry * m[6]);
+    slot[1] = m[16] + rz * m[9] + (f32)(rx * m[4] + ry * m[7]);
+    slot[2] = m[17] + rz * m[10] + (f32)(rx * m[5] + ry * m[8]);
 }
 
 /* 0x800CCE8C - cycling (shared) rect position */
-static s32 getNewPosRectShare(Psys* p, Node* node, s32 z) {
-    s32 idx = (s16)p->_1C[4];   /* ring read cursor at +0x20 */
+static s32 getNewPosRectShare(Psys* p, MBObject* node, s32 z) {
+    s32 idx = (s16)p->pos_next;
     if (idx < 0) {
         return -1;
     }
-    randRectPos(p, node, &p->posPool[idx]);
+    randRectPos(p, node, p->init_pos_lst[idx]);
     return idx;
 }
 
 /* 0x800CD02C - unique (free-slot) rect position */
-static s32 getNewPosRectUnique(Psys* p, Node* node, s32 z) {
-    s32 count = (s16)p->_30[0];
+static s32 getNewPosRectUnique(Psys* p, MBObject* node, s32 z) {
+    s32 count = (s16)p->dir_max;
     s32 idx = (s32)((pbRand() & 0x7fff) % (count ? count : 1));
-    while (p->posUsed[idx] == -1) {
+    while (p->pos_use_lst[idx] == 0xff) {
         idx = (idx == 0) ? count - 1 : idx - 1;
     }
-    p->posUsed[idx]++;
-    randRectPos(p, node, &p->posPool[idx]);
+    p->pos_use_lst[idx]++;
+    randRectPos(p, node, p->init_pos_lst[idx]);
     return idx;
 }
 
 /* 0x800CD254 - one shared position per frame (from node origin) */
-static s32 getNewPosFrame(Psys* p, Node* node) {
+static s32 getNewPosFrame(Psys* p, MBObject* node) {
     s32 idx;
     if (gPosSlot >= 0) {
         return gPosSlot;
     }
-    idx = (s16)p->_1C[4];
+    idx = (s16)p->pos_next;
     if (idx < 0) {
         return idx;
     }
-    p->posPool[idx] = *(PVec*)&node->_2C[4];
+    p->init_pos_lst[idx][0] = node->mat[3][0];
+    p->init_pos_lst[idx][1] = node->mat[3][1];
+    p->init_pos_lst[idx][2] = node->mat[3][2];
     gPosSlot = (s16)idx;
     return idx;
 }
@@ -289,41 +240,55 @@ static s32 getNewPosSingle2(void) {
 }
 
 /* 0x800CD2F4 - single static position (node origin), computed once */
-static s32 getNewPosSingle1(Psys* p, Node* node) {
-    *((void**)((u8*)p + 0x68)) = (void*)getNewPosSingle2; /* swap to trivial */
-    p->flags &= 0xfff7;
-    p->posPool[0] = *(PVec*)&node->_2C[4];
+static s32 getNewPosSingle1(Psys* p, MBObject* node) {
+    f32* slot;
+    p->pos_func = (PsysPosFunc)getNewPosSingle2;   /* swap to trivial */
+    p->flags &= ~8;
+    slot = p->init_pos_lst[0];
+    slot[0] = node->mat[3][0];
+    slot[1] = node->mat[3][1];
+    slot[2] = node->mat[3][2];
     return 0;
 }
 
 /* ======================================================================= *
- *  New-direction generators (node->psys[0x19])                            *
+ *  New-direction generators (psys->dir_func)                              *
  * ======================================================================= */
 
 /* 0x800CD9F8 - two orthonormal vectors spanning the plane normal to dir */
-static void getOrthoVecs(PVec* a, PVec* b, PVec* dir) {
-    f64 x = dir->x, y = dir->y, z = dir->z;
-    if (x < 1.0 && y < 1.0 && z != 0.0) {
-        a->x = (f32)-z; a->y = 0.0f; a->z = (f32)x;
-        b->x = (f32)(y * x); b->y = -(f32)(x * x + z * z); b->z = (f32)(y * z);
+static void getOrthoVecs(f32* a, f32* b, f32* dir) {
+    f32 x = dir[0], y = dir[1], z = dir[2];
+    if (x < 0.1 && y < 0.1 && z != 0.0) {
+        a[0] = -z; a[1] = 0.0f; a[2] = x;
+        b[0] = y * x; b[1] = -(z * z) - x * x; b[2] = y * z;
     } else {
-        a->x = (f32)y; a->y = (f32)-x; a->z = 0.0f;
-        b->x = (f32)(z * x); b->y = (f32)(z * y); b->z = -(f32)(y * y + x * x);
+        a[0] = y; a[1] = -x; a[2] = 0.0f;
+        b[0] = z * x; b[1] = z * y; b[2] = -(x * x) - y * y;
     }
 }
 
-/* 0x800CDA94 - transform the psys base direction by the node basis, normalize */
-static void getCurrentDir(Psys* p, Node* node, PVec* out) {
-    f32* b = (f32*)&p->gravDir;    /* basis columns live off +0x44 */
-    f64 dx = b[0] * out[1].x + b[1] * out[0].x + b[2] * out[0].y;
-    f64 dy = b[0] * out[1].y + b[1] * out[0].z + b[2] * out[1].x;
-    f64 dz = b[0] * out[1].z + b[1] * out[0].y + b[2] * out[0].z;
-    f64 mag = dz * dz + (f32)(dx * dx + (f32)(dy * dy));
-    f32 s = (mag < 1.0e-8 || mag > 1.0e8) ? (f32)(p->speed * fn_800B71AC(mag)) : p->speed;
-    out->x = (f32)(dx * s);
-    out->y = (f32)(dy * s);
-    out->z = (f32)(dz * s);
+/* 0x800CDA94 - transform the psys base direction by the node basis, normalize.
+ * Never inlined in the target (bl getCurrentDir from every caller). */
+#pragma dont_inline on
+static void getCurrentDir(Psys* p, MBObject* node, f32* out) {
+    f32 dx = p->e_dir[0] * node->mat[0][0] + p->e_dir[1] * node->mat[1][0] +
+             p->e_dir[2] * node->mat[2][0];
+    f32 dy = p->e_dir[0] * node->mat[0][1] + p->e_dir[1] * node->mat[1][1] +
+             p->e_dir[2] * node->mat[2][1];
+    f32 dz = p->e_dir[0] * node->mat[0][2] + p->e_dir[1] * node->mat[1][2] +
+             p->e_dir[2] * node->mat[2][2];
+    f32 mag = dx * dx + dy * dy + dz * dz;
+    f32 s;
+    if (mag < 0.7 || mag > 1.3) {
+        s = p->p_speed * (f32)fn_800B71AC(mag);
+    } else {
+        s = p->p_speed;
+    }
+    out[0] = dx * s;
+    out[1] = dy * s;
+    out[2] = dz * s;
 }
+#pragma dont_inline off
 
 /* 0x800CDB74 - fast sin/cos polynomial; returns cos, writes sin */
 static f64 getSinCos(f64 ang, f32* sinOut) {
@@ -335,81 +300,81 @@ static f64 getSinCos(f64 ang, f32* sinOut) {
 }
 
 /* 0x800CD330 - cycling (shared) cone direction */
-static void getNewDirConeShare(Psys* p, Node* node, s32 z) {
-    PVec dir, ux, uy;
+static void getNewDirConeShare(Psys* p, MBObject* node, s32 z) {
+    f32 dir[3], ux[3], uy[3];
     f32 sn, cs2;
     f64 cs;
-    s32 idx = (s16)p->_1C[0];
+    s32 idx = (s16)p->dir_next;
     if (idx < 0) {
         return;
     }
-    getCurrentDir(p, node, &dir);
-    getOrthoVecs(&ux, &uy, &dir);
-    cs = getSinCos((f64)(f32)(p->pTime * (pbRand() & 0x7fff)), &sn);
+    getCurrentDir(p, node, dir);
+    getOrthoVecs(ux, uy, dir);
+    cs = getSinCos((f64)(f32)(p->e_angle * (pbRand() & 0x7fff)), &sn);
     cs2 = (f32)getSinCos((f64)(f32)(pbRand() & 0x7fff), &sn);
     if (pbRand() & 4) {
         cs2 = -cs2;
     }
-    p->dirPool[idx].x = cs2 * uy.x + sn * dir.x + (f32)(cs * ux.x);
-    p->dirPool[idx].y = cs2 * uy.y + sn * dir.y + (f32)(cs * ux.y);
-    p->dirPool[idx].z = cs2 * uy.z + sn * dir.z + (f32)(cs * ux.z);
+    p->init_dir_lst[idx][0] = cs2 * uy[0] + sn * dir[0] + (f32)(cs * ux[0]);
+    p->init_dir_lst[idx][1] = cs2 * uy[1] + sn * dir[1] + (f32)(cs * ux[1]);
+    p->init_dir_lst[idx][2] = cs2 * uy[2] + sn * dir[2] + (f32)(cs * ux[2]);
 }
 
 /* 0x800CD4DC - unique (free-slot) cone direction */
-static void getNewDirConeUnique(Psys* p, Node* node, s32 z) {
-    PVec dir, ux, uy;
+static void getNewDirConeUnique(Psys* p, MBObject* node, s32 z) {
+    f32 dir[3], ux[3], uy[3];
     f32 sn, cs2;
     f64 cs;
-    s32 count = (s16)p->_30[0];
+    s32 count = (s16)p->dir_max;
     s32 idx = (s32)((pbRand() & 0x7fff) % (count ? count : 1));
-    while (p->dirUsed[idx] == -1) {
+    while (p->dir_use_lst[idx] == 0xff) {
         idx = (idx == 0) ? count - 1 : idx - 1;
     }
-    p->dirUsed[idx]++;
-    getCurrentDir(p, node, &dir);
-    getOrthoVecs(&ux, &uy, &dir);
-    cs = getSinCos((f64)(f32)(p->pTime * (pbRand() & 0x7fff)), &sn);
+    p->dir_use_lst[idx]++;
+    getCurrentDir(p, node, dir);
+    getOrthoVecs(ux, uy, dir);
+    cs = getSinCos((f64)(f32)(p->e_angle * (pbRand() & 0x7fff)), &sn);
     cs2 = (f32)getSinCos((f64)(f32)(pbRand() & 0x7fff), &sn);
     if (pbRand() & 4) {
         cs2 = -cs2;
     }
-    p->dirPool[idx].x = cs2 * uy.x + sn * dir.x + (f32)(cs * ux.x);
-    p->dirPool[idx].y = cs2 * uy.y + sn * dir.y + (f32)(cs * ux.y);
-    p->dirPool[idx].z = cs2 * uy.z + sn * dir.z + (f32)(cs * ux.z);
+    p->init_dir_lst[idx][0] = cs2 * uy[0] + sn * dir[0] + (f32)(cs * ux[0]);
+    p->init_dir_lst[idx][1] = cs2 * uy[1] + sn * dir[1] + (f32)(cs * ux[1]);
+    p->init_dir_lst[idx][2] = cs2 * uy[2] + sn * dir[2] + (f32)(cs * ux[2]);
 }
 
 /* 0x800CD718 - random spherical direction (unit cube rejection + normalize) */
-static void getNewDirSphere(Psys* p, Node* node, s32 z) {
-    PVec* slot;
+static void getNewDirSphere(Psys* p, MBObject* node, s32 z) {
+    f32* slot;
     f64 dx, dy, dz, len;
-    s32 count = (s16)p->_30[0];
+    s32 count = (s16)p->dir_max;
     s32 idx = (s32)((pbRand() & 0x7fff) % (count ? count : 1));
-    while (p->dirUsed[idx] == -1) {
+    while (p->dir_use_lst[idx] == 0xff) {
         idx = (idx == 0) ? count - 1 : idx - 1;
     }
-    p->dirUsed[idx]++;
-    slot = &p->dirPool[idx];
+    p->dir_use_lst[idx]++;
+    slot = p->init_dir_lst[idx];
     dx = (f32)((pbRand() & 0x7fff) * 6.1e-5 - 1.0);
     dy = (f32)((pbRand() & 0x7fff) * 6.1e-5 - 1.0);
     dz = (f32)((pbRand() & 0x7fff) * 6.1e-5 - 1.0);
     len = fn_800BCB44(fn_800BCB44(dx, dz), dy);
     if (len <= 1.0) {
-        slot->x = (f32)dx; slot->y = (f32)dy; slot->z = (f32)dz;
+        slot[0] = (f32)dx; slot[1] = (f32)dy; slot[2] = (f32)dz;
     } else {
         len = 1.0 / len;
-        slot->x = (f32)(dx * len); slot->y = (f32)(dy * len); slot->z = (f32)(dz * len);
+        slot[0] = (f32)(dx * len); slot[1] = (f32)(dy * len); slot[2] = (f32)(dz * len);
     }
 }
 
 /* 0x800CD90C - cycling (frame) direction */
-static s32 getNewDirFrame(Psys* p, Node* node) {
+static s32 getNewDirFrame(Psys* p, MBObject* node) {
     s32 idx = gDirSlot;
     if (idx < 0) {
-        idx = (s16)p->_1C[0];
+        idx = (s16)p->dir_next;
         if (idx < 0) {
             return idx;
         }
-        getCurrentDir(p, node, &p->dirPool[idx]);
+        getCurrentDir(p, node, p->init_dir_lst[idx]);
         gDirSlot = (s16)idx;
     }
     return idx;
@@ -421,10 +386,10 @@ static s32 getNewDirSingle2(void) {
 }
 
 /* 0x800CD9B8 - single static direction, computed once */
-static s32 getNewDirSingle1(Psys* p, Node* node) {
-    *((void**)((u8*)p + 0x64)) = (void*)getNewDirSingle2; /* swap to trivial */
-    p->flags &= 0xfff7;
-    getCurrentDir(p, node, p->dirPool);
+static s32 getNewDirSingle1(Psys* p, MBObject* node) {
+    p->dir_func = (PsysDirFunc)getNewDirSingle2;   /* swap to trivial */
+    p->flags &= ~8;
+    getCurrentDir(p, node, p->init_dir_lst[0]);
     return 0;
 }
 
@@ -432,67 +397,61 @@ static s32 getNewDirSingle1(Psys* p, Node* node) {
  *  Drawing                                                                *
  * ======================================================================= */
 
-/* 0x800CC8F4 - project one particle sprite and submit a GX quad */
+/* 0x800CC8F4 - project one particle sprite and submit a GX quad.
+ * Documented flow: cull against the psys screen-rect, back-project two
+ * corners, then GXBegin(GX_QUADS) and stream 4 verts to the FIFO. */
 static void DrawPsysSub(void) {
-    /* Shape reconstruction: cull against the psys screen-rect, back-project
-     * two corners, then GXBegin(GX_QUADS) and stream 4 verts to the FIFO. */
-    PVec eye;
+    f32 eye[3];
     f32 corner[4];
-    fn_800AEA0C((u32)&eye, (u32)corner);
-    sceSamp0MultVec(corner, (f32*)&gWinGlobals, (f32*)&eye);
+    fn_800AEA0C((u32)eye, (u32)corner);
+    sceSamp0MultVec(corner, (f32*)&gWinGlobals, eye);
     GXBegin(0x98, 0, 4);
 }
 
 /* 0x800CBC4C - per-frame emitter state machine + particle draw pass.
- * Runs the emitter phase machine (node->psys + 0x37: 0 delay .. 8 dead),
- * emits new particles via psys[0x1a]/[0x19], ages the ring through
- * psys[0x1b] and draws each live particle with DrawPsysSub. */
+ * Documented flow: run the emitter phase machine (psys->e_phase: 0 delay .. 8
+ * dead), emit new particles via pos_func/dir_func, age the ring through
+ * ppos_func and draw each live particle with DrawPsysSub. Giant (NonMatching). */
 void MBDrawPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                Node* node) {
-    Psys* p = node->psys;
-    s32 phase = (s32)*((s8*)p + 0x37);
-    s32 dt = gPsysFrame - *((s32*)p + 0x24);
+                MBObject* node) {
+    Psys* p = (Psys*)node->data.psys;
+    s32 phase = p->e_phase;
+    s32 dt = gPsysFrame - p->e_last_time;
     if ((u32)dt > 0xf) {
         dt = 1;
     }
     gDirSlot = -1;
     gPosSlot = -1;
-    switch (phase) {
-    case 0:
+    if (phase == 0) {
         setupParms(p);
         setupNewPMode(f1, f2, f3, f4, f5, f6, f7, 0.0, p);
-        *((s8*)p + 0x37) = 2;
-        /* on death the psys unlinks itself from the id chain */
+        p->e_phase = 2;
         (void)listFindHandle(p->id, (s32)&gPsysRmQueue);
-        break;
-    default:
-        break;
     }
-    /* age + emit + draw loop (shape only) */
-    if (p->ring != NULL) {
+    if (p->p_lst != NULL) {
         DrawPsysSub();
     }
 }
 
-/* 0x800CDBE0 - visibility pre-cull; sets psys+0x82 draw flag */
-BOOL MBDrawPsysTest(Node* node, void* draw) {
-    Psys* p = node->psys;
-    u16 vis;
-    if (*((s8*)p + 0x37) < 6) {
-        vis = (u16)fn_800B5704((f64)p->grav /* +0xa4 radius */, (u8*)draw + 0x30);
-    } else {
+/* 0x800CDBE0 - visibility pre-cull; sets psys->e_isvis draw flag */
+BOOL MBDrawPsysTest(MBObject* node, void* draw) {
+    Psys* p = (Psys*)node->data.psys;
+    s32 vis;
+    if (p->e_phase >= 6) {
         vis = 1;
+    } else {
+        vis = fn_800B5704((f64)p->max_dist, (u8*)draw + 0x30);
     }
-    *((u16*)((u8*)p + 0x82)) = vis;
-    if (vis == 0 && *((s16*)((u8*)p + 0x80)) != 0) {
+    p->e_isvis = vis;
+    if (vis == 0 && p->p_nactive != 0) {
         vis = 1;
     }
     return vis != 0;
 }
 
 /* 0x800CDC5C - MBTraversePsys visitor: guard non-psys / filtered nodes */
-s32 MBTraversePsys(Node* node, void* fn) {
-    Psys* p = node->psys;
+s32 MBTraversePsys(MBObject* node, void* fn) {
+    Psys* p = (Psys*)node->data.psys;
     if (p == NULL || gPsysDisabled != 0) {
         if (p == NULL) {
             ErrorPrintf("MBTraversePsys: PSYS node with psys=0");
@@ -502,7 +461,7 @@ s32 MBTraversePsys(Node* node, void* fn) {
             return 0;
         }
     }
-    fn_800B9B5C(fn, node);
+    AddPsysObject(fn, node);
     return 0;
 }
 
@@ -510,36 +469,28 @@ s32 MBTraversePsys(Node* node, void* fn) {
  *  Emitter setup                                                          *
  * ======================================================================= */
 
-/* 0x800CE758 - recompute per-emit interpolation rates for a psys */
+/* 0x800CE758 - recompute per-emit interpolation rates for a psys.
+ * Documented reconstruction (NonMatching). */
 static void setupParms(Psys* p) {
-    f32* env = p->colEnv;
-    f32* g = &p->param[0][0];
-    s32 i;
-    if (p->emitTime == 0) {
-        p->emitTime = 1;
+    if (p->e_life == 0) {
+        p->e_life = 1;
     }
-    for (i = 0; i < 4; i++) {
-        env[i] = env[i];
-    }
-    (void)g;
-    if (*((s32*)((u8*)p + 0x8c)) == 0) {
-        *((s32*)((u8*)p + 0x8c)) = gDefTexA;
+    if (p->p_tex == NULL) {
+        p->p_tex = (struct ROMTEX*)gDefTexA;
     }
 }
 
 /* 0x800CDCE4 - choose spawn generators + size the ring/index/usage buffers.
- * Wires psys[0x19]=getNewDir*, psys[0x1a]=getNewPos*, psys[0x1b]=getPPos*
- * based on the emit distribution and animation flags, then carves the
- * per-psys buffers out of the block pool (or the world arena). */
+ * Wires dir_func/pos_func/ppos_func based on the emit distribution and
+ * animation flags, then carves the per-psys buffers out of the block pool (or
+ * the world arena). Giant (NonMatching); documented flow. */
 static void setupNewPMode(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
                           f64 f7, f64 f8, Psys* p) {
     void* posFn;
     void* dirFn;
     void* ppFn;
-    s32   dirMode = (s32)p->_30[1];   /* distribution: single/frame/sphere/cone */
-    s32   posMode = (s32)p->_30[1];
-    s32   count = (s16)p->_30[0];
-    s32   posN = count, dirN = count;
+    s32   mode = (s32)p->dir_bits;   /* distribution: single/frame/sphere/cone */
+    s32   count = (s16)p->dir_max;
     s32   ringBytes;
     void* buf;
     s32   shared = (p->flags & 0x80) != 0;
@@ -547,34 +498,30 @@ static void setupNewPMode(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
     if (count < 1) {
         count = 1;
     }
-
-    /* --- direction generator: single / frame / sphere / cone(unique|share) --- */
-    switch (dirMode) {
+    switch (mode) {
     case 0:  dirFn = shared ? (void*)getNewDirFrame : (void*)getNewDirSingle1; break;
     case 2:  dirFn = (void*)getNewDirSphere; break;
     case 4:  dirFn = (void*)getNewDirConeUnique; break;
     default: dirFn = (void*)getNewDirConeShare; break;
     }
-    /* --- position generator: single / frame / rect(unique|share) --- */
-    switch (posMode) {
+    switch (mode) {
     case 0:  posFn = shared ? (void*)getNewPosFrame : (void*)getNewPosSingle1; break;
     case 2:  posFn = (void*)getNewPosRectUnique; break;
     default: posFn = (void*)getNewPosRectShare; break;
     }
-    /* --- per-particle integrator selected by (speed?, gravity?) --- */
-    if (p->speed != 0.0f) {
-        ppFn = (p->grav != 0.0f) ? (void*)getPPosSpeedGrav : (void*)getPPosSpeed;
+    if (p->p_speed != 0.0f) {
+        ppFn = (p->p_gravity != 0.0f) ? (void*)getPPosSpeedGrav : (void*)getPPosSpeed;
     } else {
-        ppFn = (p->grav != 0.0f) ? (void*)getPPosGrav : (void*)getPPosLinear;
+        ppFn = (p->p_gravity != 0.0f) ? (void*)getPPosGrav : (void*)getPPosLinear;
     }
 
     p->flags |= 4 | 8;
-    *((void**)((u8*)p + 0x64)) = posFn;   /* [0x19] */
-    *((void**)((u8*)p + 0x68)) = dirFn;   /* [0x1a] */
-    *((void**)((u8*)p + 0x6c)) = ppFn;    /* [0x1b] */
+    p->dir_func = (PsysDirFunc)dirFn;
+    p->pos_func = (PsysPosFunc)posFn;
+    p->ppos_func = (PsysPPosFunc)ppFn;
 
-    ringBytes = count * 2 + posN * 0xc + dirN * 0xc;
-    if (p->worldName == NULL) {
+    ringBytes = count * 2 + count * 0xc + count * 0xc;
+    if (p->worldname == NULL) {
         buf = allocPsysMem(ringBytes, p->id);
     } else {
         buf = AllocMem(f1, f2, f3, f4, f5, f6, f7, f8, ringBytes, 0,
@@ -582,13 +529,13 @@ static void setupNewPMode(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
     }
     if (buf == NULL) {
         ErrorPrintf("No mem for psys id=%d", p->id);
-        p->ring = NULL;
+        p->p_lst = NULL;
         return;
     }
     memset(buf, 0, ringBytes);
-    p->ring = (u16*)buf;
-    p->posPool = (PVec*)((u8*)buf + count * 2);
-    p->dirPool = (PVec*)((u8*)p->posPool + posN * 0xc);
+    p->p_lst = (u16*)buf;
+    p->init_pos_lst = (f32(*)[3])((u8*)buf + count * 2);
+    p->init_dir_lst = (f32(*)[3])((u8*)p->init_pos_lst + count * 0xc);
 }
 
 /* ======================================================================= *
@@ -596,33 +543,33 @@ static void setupNewPMode(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
  * ======================================================================= */
 
 /* 0x800CEBC0 - apply a WORLDPSYS descriptor blob to a live psys node.
- * Walks the wp->mask bitfield, applying each present attribute (emit time,
- * counts, lifetime, colour envelope, speed, gravity, textures, flags)
- * with the same clamping the individual MBPsysSet* setters use. */
+ * Walks the wp->fields_used bitfield, applying each present attribute (emit
+ * time, counts, lifetime, colour envelope, speed, gravity, textures, flags)
+ * with the same clamping the individual MBPsysSet* setters use. Giant
+ * (NonMatching); documented flow. */
 static void setWorldParms(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
-                          f64 f7, f64 f8, Node* node, Psys* p, WorldParm* wp,
-                          f32* over, s32 a, s32 b, s32 c, s32 d) {
-    u32* fld = (u32*)wp;
-    if (wp->type < 0x100) {
+                          f64 f7, f64 f8, MBObject* node, Psys* p,
+                          PsysDescrip* wp, f32* over, s32 a, s32 b, s32 c,
+                          s32 d) {
+    if (wp->pversion < 0x100) {
         ErrorPrintf("setWorldParms: WORLDPSYS type is bad");
         return;
     }
-    if (wp->mask & 0x2) {
-        p->_30[0] = (u8)fld[5];
+    if (wp->fields_used & 0x2) {
+        p->dir_max = (u16)wp->max_directions;
     }
-    if (wp->mask & 0x10) {
-        p->emitTime = (u16)fld[8];
-        p->emitRepeat = (u16)fld[9];
+    if (wp->fields_used & 0x10) {
+        p->e_life = (u16)wp->e_lifefade[0];
+        p->e_fade = (u16)wp->e_lifefade[1];
     }
-    if (wp->mask & 0x40) {
-        setPTimeVal((f64)(f32)fld[0xe], p);
+    if (wp->fields_used & 0x40) {
+        setPTimeVal(wp->e_angle, p);
     }
-    if (wp->mask & 0x2000) {
-        p->speed = (f32)(255.0 * (f64)(f32)fld[0x25]);
+    if (wp->fields_used & 0x2000) {
+        p->p_speed = (f32)(wp->p_speed * (1.0 / 30.0));
     }
-    if (wp->mask & 0x4000) {
-        s32 tex = fn_800B8B04((char*)(fld + 0x10), 0);
-        *((s32*)((u8*)p + 0x88)) = tex;
+    if (wp->fields_used & 0x4000) {
+        p->p_texidx = fn_800B8B04(wp->p_texname1, 0);
     }
     (void)node; (void)over;
 }
@@ -676,14 +623,14 @@ s32 MBPsysSetDebugNode(s32 node, s32 remove) {
  * ======================================================================= */
 
 /* 0x800CEAF0 - create a named world psys node and apply a descriptor */
-Node* MBNewWorldPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                     f64 f8, f32* verts, f32 depth, WorldParm* wp, s32 tex,
-                     char* name, f32* over, s32 a, s32 g) {
-    Node* node = createPsysNode(f1, f2, f3, f4, f5, f6, f7, f8, verts, depth,
-                                (name != NULL), tex, 0, 0, 0, 0);
+MBObject* MBNewWorldPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
+                         f64 f8, f32* verts, f32 depth, PsysDescrip* wp,
+                         s32 tex, char* name, f32* over, s32 a, s32 g) {
+    MBObject* node = createPsysNode(f1, f2, f3, f4, f5, f6, f7, f8, verts, depth,
+                                    (name != NULL), tex, 0, 0, 0, 0);
     if (node != NULL) {
-        Psys* p = node->psys;
-        p->worldName = (name != NULL && *name != '\0') ? name : NULL;
+        Psys* p = (Psys*)node->data.psys;
+        p->worldname = (name != NULL && *name != '\0') ? name : NULL;
         if (wp != NULL) {
             setWorldParms(f1, f2, f3, f4, f5, f6, f7, f8, node, p, wp, over,
                           0, 0, 0, 0);
@@ -696,55 +643,55 @@ Node* MBNewWorldPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
 }
 
 /* 0x800CFB38 - build a psys node from a preset descriptor */
-Node* MBNewPsysDescrip(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                       f64 f8, void* wp, f32 depth, s32 flag, s32 tex, s32 b,
-                       s32 c, s32 d, s32 e) {
-    Node* node = createPsysNode(f1, f2, f3, f4, f5, f6, f7, f8, 0, depth, flag,
-                                tex, 0, 0, 0, 0);
+MBObject* MBNewPsysDescrip(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
+                           f64 f7, f64 f8, void* wp, f32 depth, s32 flag,
+                           s32 tex, s32 b, s32 c, s32 d, s32 e) {
+    MBObject* node = createPsysNode(f1, f2, f3, f4, f5, f6, f7, f8, 0, depth,
+                                    flag, tex, 0, 0, 0, 0);
     if (node != NULL && wp != NULL) {
-        setWorldParms(f1, f2, f3, f4, f5, f6, f7, f8, node, node->psys,
-                      (WorldParm*)wp, 0, 0, 0, 0, 0);
+        setWorldParms(f1, f2, f3, f4, f5, f6, f7, f8, node,
+                      (Psys*)node->data.psys, (PsysDescrip*)wp, 0, 0, 0, 0, 0);
     }
     return node;
 }
 
 /* 0x800CFA84 - firework preset (deferred build through MBNewPsysDescrip) */
-Node* MBPsysFirework(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                     f64 f8, f32* verts, f32 depth, s32 a, s32 b, s32 c,
-                     s32 d, s32 e, s32 g) {
+MBObject* MBPsysFirework(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
+                         f64 f8, f32* verts, f32 depth, s32 a, s32 b, s32 c,
+                         s32 d, s32 e, s32 g) {
     return MBNewPsysDescrip(f1, f2, f3, f4, f5, f6, f7, f8, verts, depth, 0,
                             a, b, c, d, e);
 }
 
 /* 0x800CF8EC - flame preset */
-Node* MBPsysFlame(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                  f64 f8, s32 a, s32 tex, f32* verts, s32 b, s32 c, s32 d,
-                  s32 e, s32 g) {
+MBObject* MBPsysFlame(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
+                      f64 f8, s32 a, s32 tex, f32* verts, s32 b, s32 c, s32 d,
+                      s32 e, s32 g) {
     return MBNewPsysDescrip(f1, f2, f3, f4, f5, f6, f7, f8, verts, (f32)a, 0,
                             tex, b, c, d, e);
 }
 
 /* 0x800D079C - default psys node (no descriptor), stores render flags */
-Node* MBNewPsysDefault(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                       f64 f8, f32* verts, f32 depth, s32 flags, s32 tex,
-                       s32 a, s32 b, s32 c, s32 d) {
-    Node* node;
+MBObject* MBNewPsysDefault(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
+                           f64 f7, f64 f8, f32* verts, f32 depth, s32 flags,
+                           s32 tex, s32 a, s32 b, s32 c, s32 d) {
+    MBObject* node;
     if (depth == 0.0f) {
         depth = 1.0f;   /* default draw depth (0x80344eb8) */
     }
     node = createPsysNode(f1, f2, f3, f4, f5, f6, f7, f8, verts, depth, 0, tex,
                           a, b, c, d);
     if (node != NULL) {
-        node->renderFlags = flags;
+        node->flags = flags;
     }
     return node;
 }
 
 /* 0x800D07FC - create a scene node + attach a fresh psys descriptor */
-Node* createPsysNode(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                     f64 f8, f32* verts, f32 depth, s32 flag, s32 tex,
-                     s32 a, s32 b, s32 c, s32 d) {
-    Node* node;
+MBObject* createPsysNode(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
+                         f64 f8, f32* verts, f32 depth, s32 flag, s32 tex,
+                         s32 a, s32 b, s32 c, s32 d) {
+    MBObject* node;
     Psys* p;
     if (gPsysDisabled == -1) {
         return NULL;
@@ -756,12 +703,12 @@ Node* createPsysNode(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
     }
     p = allocPsys(f1, f2, f3, f4, f5, f6, f7, f8, flag, 0, 0, tex, 0, 0, 0);
     if (p == NULL) {
-        node->psys = NULL;
+        node->data.psys = NULL;
         fn_800BAEAC(node, 1);
         return NULL;
     }
-    node->psys = p;
-    p->worldName = (char*)node;   /* back-link */
+    node->data.psys = p;
+    p->node = (struct mbnode*)node;   /* back-link */
     if (tex != 0) {
         if (tex == -1) {
             p->flags |= 0x80;
@@ -771,8 +718,8 @@ Node* createPsysNode(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
             p->flags |= 0xc0;
         }
     }
-    *((s32*)p + 0x24) = gPsysFrame;
-    *((s8*)p + 0x37) = 0;
+    p->e_last_time = gPsysFrame;
+    p->e_phase = 0;
     return node;
 }
 
@@ -794,10 +741,10 @@ static Psys* allocPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
     memset(p, 0, 0x130);
     gPsysActive++;
     p->id = gPsysIdCounter;
-    p->emitTime = 300;
-    p->emitRepeat = 300;
-    p->speed = 1.0f;
-    p->_30[0] = 0x14;
+    p->e_life = 300;
+    p->e_fade = 300;
+    p->p_speed = 1.0f;
+    p->dir_max = 0x14;
     if (gDefTexA == 0 || gDefTexXp == 0) {
         s32 ta = fn_800B8B04("particle2_a", 0);
         s32 tx = fn_800B8B04("particle2_xp", 0);
@@ -808,150 +755,150 @@ static Psys* allocPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
 }
 
 /* ======================================================================= *
- *  Per-attribute setters (rejected once phase >= 2, "draw begun")         *
+ *  Per-attribute setters (rejected once emitting has begun: e_phase > 1)  *
  * ======================================================================= */
 
-/* 0x800D0B14 - MBPsysSetPTex: bind particle texture by handle */
-void MBPsysSetPTex(Node* node, u32 tex) {
-    Psys* p = node->psys;
-    *((u32*)((u8*)p + 0x88)) = tex;
-    *((s32*)((u8*)p + 0x8c)) = tex;   /* resolved page ptr */
+/* 0x800D0B14 - MBPsysSetPTex: bind particle texture by handle.
+ * Documented reconstruction (NonMatching; target resolves p_tex through the
+ * gWinGlobals texture table via a packed page|sub index). */
+void MBPsysSetPTex(MBObject* node, u32 tex) {
+    Psys* p = (Psys*)node->data.psys;
+    p->p_texidx = tex;
+    p->p_tex = (struct ROMTEX*)tex;   /* resolved page ptr */
 }
 
 /* 0x800D0B44 - MBPsysScalePParm: multiply a parameter gradient by a scalar */
-void MBPsysScalePParm(f64 s, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                      f64 f8, Node* node, s32 parm, s32 a, s32 b, s32 c,
-                      s32 d, s32 e, s32 g) {
-    Psys* p = node->psys;
-    if (*((s8*)p + 0x37) >= 2) {
-        ErrorPrintf("Setting PSYS attribute after draw begins", parm);
-        return;
-    }
-    if (parm >= 5) {
-        ErrorPrintf("MBPsysSetPParm: parm %d too big", parm);
-        return;
-    }
-    p->param[parm][0] = (f32)(p->param[parm][0] * s);
-    p->param[parm][1] = (f32)(p->param[parm][1] * s);
-    p->param[parm][2] = (f32)(p->param[parm][2] * s);
-    p->param[parm][3] = (f32)(p->param[parm][3] * s);
-}
-
-/* 0x800D0BD8 - MBPsysSetPParm: set a 4-key parameter gradient (clamped) */
-void MBPsysSetPParm(f64 v0, f64 v1, f64 v2, f64 v3, f64 f5, f64 f6, f64 f7,
-                    f64 f8, Node* node, s32 parm, s32 a, s32 b, s32 c, s32 d,
-                    s32 e, s32 g) {
-    Psys* p = node->psys;
-    if (*((s8*)p + 0x37) >= 2) {
-        ErrorPrintf("Setting PSYS attribute after draw begins", parm);
-        return;
-    }
-    if (parm >= 5) {
-        ErrorPrintf("MBPsysSetPParm: parm %d too big", parm);
-        return;
-    }
-    p->param[parm][0] = (f32)v0;
-    p->param[parm][1] = (f32)v1;
-    p->param[parm][2] = (f32)v2;
-    p->param[parm][3] = (f32)v3;
-}
-
-/* 0x800D0D8C - lifetime helper: seconds -> lifetime frames (clamped) */
-static void setPTimeVal(f64 sec, Psys* p) {
-    if (sec < 0.0) {
-        p->pTime = 1.0f;
-    } else if (sec < 1.0) {
-        p->pTime = 0.0f;
-    } else if (sec < 60.0) {
-        p->pTime = (f32)((30.0 * sec) / 1.0);
-    } else {
-        p->pTime = 1.0f;
-    }
-}
-
-/* 0x800D0CF0 - MBPsysSetPTime: particle lifetime */
-void MBPsysSetPTime(f64 sec, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                    f64 f8, Node* node, s32 a, s32 b, s32 c, s32 d, s32 e,
-                    s32 g, s32 h) {
-    Psys* p = node->psys;
-    if (*((s8*)p + 0x37) >= 2) {
+void MBPsysScalePParm(f32 s, MBObject* node, s32 parm) {
+    Psys* p = (Psys*)node->data.psys;
+    if (p->e_phase > 1) {
         ErrorPrintf("Setting PSYS attribute after draw begins");
         return;
     }
-    setPTimeVal(sec, p);
+    if (parm >= 5) {
+        ErrorPrintf("MBPsysSetPParm: parm %d too big", parm);
+        return;
+    }
+    p->p_parms[parm].i.life_start *= s;
+    p->p_parms[parm].i.life_end   *= s;
+    p->p_parms[parm].i.fade_start *= s;
+    p->p_parms[parm].i.fade_end   *= s;
+}
+
+/* 0x800D0BD8 - MBPsysSetPParm: set a 4-key parameter gradient (scaled+clamped).
+ * Documented reconstruction (NonMatching; scale/min/max come from psysInfo,
+ * reached in the target through a pooled absolute base). */
+void MBPsysSetPParm(f32 v0, f32 v1, f32 v2, f32 v3, MBObject* node, s32 parm) {
+    Psys* p = (Psys*)node->data.psys;
+    f32* base = psysInfo;
+    f32* info;
+    f32 scale, mn, mx;
+    f32 a;
+    if (p->e_phase > 1) {
+        ErrorPrintf("Setting PSYS attribute after draw begins");
+        return;
+    }
+    if (parm >= 5) {
+        ErrorPrintf("MBPsysSetPParm: parm %d too big", parm);
+        return;
+    }
+    info = base + parm * 4;
+    scale = info[55];
+    mn = info[56];
+    mx = info[57];
+    a = v0 * scale; if (a < mn) a = mn; else if (a > mx) a = mx;
+    p->p_parms[parm].i.life_start = a;
+    a = v1 * scale; if (a < mn) a = mn; else if (a > mx) a = mx;
+    p->p_parms[parm].i.life_end = a;
+    a = v2 * scale; if (a < mn) a = mn; else if (a > mx) a = mx;
+    p->p_parms[parm].i.fade_start = a;
+    a = v3 * scale; if (a < mn) a = mn; else if (a > mx) a = mx;
+    p->p_parms[parm].i.fade_end = a;
+}
+
+/* 0x800D0D8C - lifetime helper: emission cone angle (deg -> half-angle rad) */
+static void setPTimeVal(f32 sec, Psys* p) {
+    if (sec < 0.0f) {
+        p->e_angle = -1.0f;
+    } else if (sec < 1.0f) {
+        p->e_angle = 0.0f;
+    } else if (sec < 359.0f) {
+        p->e_angle = (f32)(3.141592654 * sec / 360.0);
+    } else {
+        p->e_angle = -1.0f;
+    }
+}
+
+/* 0x800D0CF0 - MBPsysSetPTime: emission cone angle (writes e_angle) */
+void MBPsysSetPTime(f32 sec, MBObject* node) {
+    Psys* p = (Psys*)node->data.psys;
+    if (p->e_phase > 1) {
+        ErrorPrintf("Setting PSYS attribute after draw begins");
+    } else {
+        setPTimeVal(sec, p);
+    }
 }
 
 /* 0x800D0DEC - MBPsysSetPSpeed: particle speed multiplier */
-void MBPsysSetPSpeed(f64 v, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                     f64 f8, Node* node, s32 a, s32 b, s32 c, s32 d, s32 e,
-                     s32 g, s32 h) {
-    Psys* p = node->psys;
-    if (*((s8*)p + 0x37) >= 2) {
+void MBPsysSetPSpeed(f64 v, MBObject* node) {
+    Psys* p = (Psys*)node->data.psys;
+    if (p->e_phase > 1) {
         ErrorPrintf("Setting PSYS attribute after draw begins");
-        return;
-    }
-    p->speed = (f32)(255.0 * v);
-}
-
-/* 0x800D0E3C - MBPsysSetERate4: colour/rate envelope (4 keys).
- * NOTE: PDB name inferred (4-value envelope at psys+0xd0). */
-void MBPsysSetERate4(f64 v0, f64 v1, f64 v2, f64 v3, f64 f5, f64 f6, f64 f7,
-                     f64 f8, Node* node, s32 a, s32 b, s32 c, s32 d, s32 e,
-                     s32 g, s32 h) {
-    Psys* p = node->psys;
-    if (*((s8*)p + 0x37) >= 2) {
-        ErrorPrintf("Setting PSYS attribute after draw begins");
-        return;
-    }
-    p->colEnv[0] = (f32)(255.0 * v0);
-    p->colEnv[1] = (f32)(255.0 * v1);
-    p->colEnv[2] = (f32)(255.0 * v2);
-    p->colEnv[3] = (f32)(255.0 * v3);
-}
-
-/* 0x800D0EB0 - MBPsysSetEVolume: emission count base+range (bytes, clamped).
- * NOTE: PDB name inferred (byte fields psys+0x60/0x61). */
-void MBPsysSetEVolume(f64 base, f64 range, f64 f3, f64 f4, f64 f5, f64 f6,
-                      f64 f7, f64 f8, Node* node, s32 a, s32 b, s32 c, s32 d,
-                      s32 e, s32 g, s32 h) {
-    Psys* p = node->psys;
-    f64 v;
-    if (*((s8*)p + 0x37) >= 2) {
-        ErrorPrintf("Setting PSYS attribute after draw begins");
-        return;
-    }
-    v = 255.0 * base;
-    if (v < 1.0) v = 1.0; else if (v > 255.0) v = 255.0;
-    *((s8*)p + 0x60) = (s8)(s32)v;
-    v = 255.0 * range;
-    if (v < 0.0) v = 0.0; else if (v > 255.0) v = 255.0;
-    *((s8*)p + 0x61) = (s8)(s32)v;
-}
-
-/* 0x800D0F68 - MBPsysSetETime: emit duration + repeat (with forever flag) */
-void MBPsysSetETime(f64 dur, f64 rep, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                    f64 f8, Node* node, s32 a, s32 b, s32 c, s32 d, s32 e,
-                    s32 g, s32 h) {
-    Psys* p = node->psys;
-    f64 v;
-    if (*((s8*)p + 0x37) >= 2) {
-        ErrorPrintf("Setting PSYS attribute after draw begins", p);
-        return;
-    }
-    v = 255.0 * dur;
-    if (v < 1.0) v = 1.0; else if (v > 32767.0) v = 32767.0;
-    p->emitTime = (u16)(s32)v;
-    v = 255.0 * rep;
-    if (v < 0.0) v = 0.0; else if (v > 32767.0) v = 32767.0;
-    p->emitRepeat = (u16)(s32)v;
-    p->flags &= 0xfffe;
-    if (dur >= 0.0) {
-        if (rep < 0.0) {
-            p->emitRepeat = 0xffff;
-            p->flags |= 2;
-        }
     } else {
-        p->emitTime = 0xffff;
+        p->p_speed = (f32)(v * (1.0 / 30.0));
+    }
+}
+
+/* 0x800D0E3C - MBPsysSetERate4: emission-rate envelope (4 keys).
+ * NOTE: PDB name inferred (4-value envelope at psys+0xd0). */
+void MBPsysSetERate4(f64 v0, f64 v1, f64 v2, f64 v3, MBObject* node) {
+    Psys* p = (Psys*)node->data.psys;
+    if (p->e_phase > 1) {
+        ErrorPrintf("Setting PSYS attribute after draw begins");
+    } else {
+        p->e_rate.i.life_start = (f32)(v0 * (1.0 / 30.0));
+        p->e_rate.i.life_end   = (f32)(v1 * (1.0 / 30.0));
+        p->e_rate.i.fade_start = (f32)(v2 * (1.0 / 30.0));
+        p->e_rate.i.fade_end   = (f32)(v3 * (1.0 / 30.0));
+    }
+}
+
+/* 0x800D0EB0 - MBPsysSetEVolume: particle life/fade base+range (bytes, clamped).
+ * NOTE: PDB name inferred (byte fields psys+0x60/0x61). */
+void MBPsysSetEVolume(f64 base, f64 range, MBObject* node) {
+    Psys* p = (Psys*)node->data.psys;
+    f64 v;
+    if (p->e_phase > 1) {
+        ErrorPrintf("Setting PSYS attribute after draw begins");
+        return;
+    }
+    v = 30.0 * base;
+    v = (v < 1.0) ? 1.0 : (v > 255.0) ? 255.0 : v;
+    p->p_life = (s32)v;
+    v = 30.0 * range;
+    v = (v < 0.0) ? 0.0 : (v > 255.0) ? 255.0 : v;
+    p->p_fade = (s32)v;
+}
+
+/* 0x800D0F68 - MBPsysSetETime: emit duration + fade (with forever flag) */
+void MBPsysSetETime(f64 dur, f64 rep, MBObject* node) {
+    Psys* p = (Psys*)node->data.psys;
+    f64 v;
+    if (p->e_phase > 1) {
+        ErrorPrintf("Setting PSYS attribute after draw begins");
+        return;
+    }
+    v = 30.0 * dur;
+    v = (v < 1.0) ? 1.0 : (v > 65535.0) ? 65535.0 : v;
+    p->e_life = (s32)v;
+    v = 30.0 * rep;
+    v = (v < 0.0) ? 0.0 : (v > 65535.0) ? 65535.0 : v;
+    p->e_fade = (s32)v;
+    p->flags &= ~1;
+    if (dur < 0.0) {
+        p->e_life = 0xffff;
+        p->flags |= 2;
+    } else if (rep < 0.0) {
+        p->e_fade = 0xffff;
         p->flags |= 2;
     }
 }
@@ -960,14 +907,15 @@ void MBPsysSetETime(f64 dur, f64 rep, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
  *  Per-frame driver, removal, and pool management                         *
  * ======================================================================= */
 
-/* 0x800D1074 - advance the clock, free queued psys, spawn deferred effects */
+/* 0x800D1074 - advance the clock, free queued psys, spawn deferred effects.
+ * Documented reconstruction (NonMatching). */
 void MBPsysStartFrame(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
                       f64 f8) {
-    Node* node = gPsysRmQueue;
+    MBObject* node = gPsysRmQueue;
     gPsysFrame++;
     gPsysFrameFrac = 0.0f;
     while (node != NULL) {
-        Node* next = node->child;   /* +0x24 chain */
+        MBObject* next = node->child;
         freePsys(f1, f2, f3, f4, f5, f6, f7, f8, node);
         node = next;
     }
@@ -977,69 +925,74 @@ void MBPsysStartFrame(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
 }
 
 /* 0x800D12F0 - MBRemovePsys: mark a psys node for removal */
-void MBRemovePsys(Node* node) {
+void MBRemovePsys(MBObject* node) {
     if (node != NULL) {
-        if (*((s8*)node + 0x52) != 0x0e) {
-            node = node->owner;
+        if (node->type != 0x0e) {
+            node = node->child;
         }
-        if (node == NULL || *((s8*)node + 0x52) != 0x0e) {
+        if (node == NULL || node->type != 0x0e) {
             ErrorPrintf("MBRemovePsys: Non psys node");
-        } else if (*((u8*)node->psys + 0x37) < 6) {
-            *((u8*)node->psys + 0x37) = 6;
+        } else {
+            Psys* p = (Psys*)node->data.psys;
+            if (p->e_phase < 6) {
+                p->e_phase = 6;
+            }
         }
     }
 }
 
 /* 0x800D1364 - listFindHandle: walk an id chain to a matching link slot */
-static MemBlk* listFindHandle(s32 id, s32 base) {
+static s32* listFindHandle(s32 id, s32 base) {
     s32* link = (s32*)(base + 4);
-    s32 cur;
-    while ((cur = *link) != 0 && cur != id) {
+    u32 cur;
+    while ((cur = *link) != 0 && cur != (u32)id) {
         link = (s32*)(cur + 0x24);
     }
-    return (MemBlk*)link;
+    return link;
 }
 
-/* 0x800D138C - freePsys: release a psys node's buffers back to the pool */
+/* 0x800D138C - freePsys: release a psys node's buffers back to the pool.
+ * Documented reconstruction (NonMatching). */
 static void freePsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                     f64 f8, Node* node) {
+                     f64 f8, MBObject* node) {
     if (node->child != NULL) {
-        node->child->psys = NULL;   /* +0x28 -> +0x70 */
+        node->child->data.psys = NULL;
         fn_800BAEAC(node->child, 1);
         node->child = NULL;
     }
     if (*((s32*)node + 1) == 0) {   /* not world-owned */
-        if (*((void**)node + 2) != NULL) {
-            freePsysMem(f1, f2, f3, f4, f5, f6, f7, f8, *((void**)node + 2));
-            *((void**)node + 2) = NULL;
+        Psys* p = (Psys*)node->data.psys;
+        if (p != NULL) {
+            freePsysMem(f1, f2, f3, f4, f5, f6, f7, f8, p);
+            node->data.psys = NULL;
         }
         freePsysMem(f1, f2, f3, f4, f5, f6, f7, f8, node);
     }
 }
 
-/* 0x800D1404 - allocPsysMem: first-fit split allocator over the block pool */
+/* 0x800D1404 - allocPsysMem: first-fit split allocator over the block pool.
+ * Documented reconstruction (NonMatching). */
 static void* allocPsysMem(s32 size, s32 tag) {
     u32 need;
-    MemBlk* b;
+    PsysMemBlock* b;
     if (size <= 0 || size > gPoolTotal) {
         return NULL;
     }
     need = (size + 0x1f) & 0xfffffff0;
     b = gPoolFree;
     do {
-        if ((s32)need <= b->size) {
-            b->tag = tag;
-            if ((u32)(b->size - need) < 0x131) {
+        if ((s32)need <= b->bytes) {
+            b->id = tag;
+            if ((u32)(b->bytes - need) < 0x131) {
                 gPoolFree = b->next ? b->next : gPoolBase;
-                b->size = -b->size;
+                b->bytes = -b->bytes;
                 gPoolCount--;
-                gPoolTotal -= (-b->size);
+                gPoolTotal -= (-b->bytes);
                 return b + 1;
             }
-            /* split */
             gPoolTotal -= need;
             gPoolCount--;
-            b->size = -(s32)need;
+            b->bytes = -(s32)need;
             return b + 1;
         }
         b = b->next ? b->next : gPoolBase;
@@ -1047,21 +1000,23 @@ static void* allocPsysMem(s32 size, s32 tag) {
     return NULL;
 }
 
-/* 0x800D1530 - freePsysMem: return a block, coalescing neighbours */
+/* 0x800D1530 - freePsysMem: return a block, coalescing neighbours.
+ * Documented reconstruction (NonMatching). */
 static void freePsysMem(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
                         f64 f8, void* mem) {
-    MemBlk* b = (MemBlk*)mem - 1;
-    if (b->size >= 0) {
-        ErrorPrintf("freePsysMem: bad free block. Error=%d", b->size);
+    PsysMemBlock* b = (PsysMemBlock*)mem - 1;
+    if (b->bytes >= 0) {
+        ErrorPrintf("freePsysMem: bad free block. Error=%d", b->bytes);
         return;
     }
-    b->size = -b->size;
-    gPoolTotal += b->size;
+    b->bytes = -b->bytes;
+    gPoolTotal += b->bytes;
     gPoolCount++;
     gPoolFree = b;
 }
 
-/* 0x800D1724 - initPresetList: checksum + validate the built-in preset table */
+/* 0x800D1724 - initPresetList: checksum + validate the built-in preset table.
+ * Documented reconstruction (NonMatching). */
 static void initPresetList(void) {
     u32* preset = (u32*)0x801287fc;   /* 9 x 0x138-byte presets */
     s32 i;
@@ -1076,10 +1031,11 @@ static void initPresetList(void) {
     }
 }
 
-/* 0x800D1800 - MBInitPsys: build the 120000-byte block pool + index arrays */
+/* 0x800D1800 - MBInitPsys: build the 120000-byte block pool + index arrays.
+ * Documented reconstruction (NonMatching). */
 void MBInitPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
                 f64 f8) {
-    MemBlk* base;
+    PsysMemBlock* base;
     gPsysActive = 0;
     gPsysList = NULL;
     gPsysRmQueue = NULL;
@@ -1089,13 +1045,13 @@ void MBInitPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
     gPsysFrameFrac = 1.0f;
     gPoolTotal = 120000;
     gPoolCount = 1;
-    base = (MemBlk*)AllocMem(f1, f2, f3, f4, f5, f6, f7, f8, 120000, 0, 0, 0,
-                             0, 0, 0, 0);
+    base = (PsysMemBlock*)AllocMem(f1, f2, f3, f4, f5, f6, f7, f8, 120000, 0, 0,
+                                   0, 0, 0, 0, 0);
     gPoolBase = base;
     gPoolFree = base;
-    base->size = gPoolTotal;
+    base->bytes = gPoolTotal;
     base->next = NULL;
     base->prev = NULL;
-    base->tag = 0;
+    base->id = 0;
     initPresetList();
 }
