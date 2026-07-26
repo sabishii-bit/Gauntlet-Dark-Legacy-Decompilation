@@ -35,6 +35,7 @@ game/ui/btext.c:
 	extab       start:0x80005970 end:0x80005A68
 	extabindex  start:0x80008E78 end:0x80008FEC
 	.text       start:0x8001EAE0 end:0x8002109C
+
 game/audio/soundmgr.c:
 	extab       start:0x80005F28 end:0x80005FF8
 	extabindex  start:0x8000970C end:0x80009844
