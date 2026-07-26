@@ -4,16 +4,14 @@
 void qsort(void* base, size_t nmemb, size_t size,
            int (*cmp)(const void*, const void*))
 {
+    size_t k;
+    size_t n;
+    size_t j;
     unsigned char* b = (unsigned char*) base;
     unsigned char* pk;
     unsigned char* pir;
-    unsigned char* pj;
     unsigned char* pc;
-    size_t n;
-    size_t k;
-    size_t j;
-    size_t i;
-    char t;
+    unsigned char* pj;
 
     if (nmemb < 2) {
         return;
@@ -27,12 +25,14 @@ void qsort(void* base, size_t nmemb, size_t size,
             k--;
             pk -= size;
         } else {
-            unsigned char* x = pir - 1;
-            unsigned char* y = pk - 1;
+            signed char* x = (signed char*) (pir - 1);
+            signed char* y = (signed char*) (pk - 1);
+            size_t i;
+            int t;
             for (i = size + 1; --i != 0;) {
-                t = (char) y[1];
+                t = y[1];
                 y[1] = x[1];
-                x[1] = (unsigned char) t;
+                x[1] = t;
                 y++;
                 x++;
             }
@@ -48,17 +48,22 @@ void qsort(void* base, size_t nmemb, size_t size,
             j *= 2;
             pc = pj;
             pj = b + size * (j - 1);
-            if (j < n && cmp(pj, pj + size) < 0) {
-                pj += size;
-                j++;
+            if (j < n) {
+                unsigned char* pn = pj + size;
+                if (cmp(pj, pn) < 0) {
+                    pj = pn;
+                    j++;
+                }
             }
             if (cmp(pc, pj) < 0) {
-                unsigned char* x = pj - 1;
-                unsigned char* y = pc - 1;
+                signed char* x = (signed char*) (pj - 1);
+                signed char* y = (signed char*) (pc - 1);
+                size_t i;
+                int t;
                 for (i = size + 1; --i != 0;) {
-                    t = (char) y[1];
+                    t = y[1];
                     y[1] = x[1];
-                    x[1] = (unsigned char) t;
+                    x[1] = t;
                     y++;
                     x++;
                 }
