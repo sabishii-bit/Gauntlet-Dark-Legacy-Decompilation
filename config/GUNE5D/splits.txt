@@ -41,6 +41,11 @@ game/audio/soundmgr.c:
 	extabindex  start:0x8000970C end:0x80009844
 	.text       start:0x8004229C end:0x800433EC
 
+game/world/gauntworld.c:
+	extab       start:0x80006388 end:0x800064C0
+	extabindex  start:0x80009D9C end:0x80009F70
+	.text       start:0x80058078 end:0x800631AC
+
 game/sys/main.c:
 	extab       start:0x80006618 end:0x80006648
 	extabindex  start:0x8000A174 end:0x8000A1BC

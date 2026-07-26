@@ -58,7 +58,7 @@ extern u8 lbl_80124458[];
 extern s32 sActiveTrackId[]; /* active-track id array (45 entries) */
 extern char lbl_801200B0[][4]; /* 4-char class name table */
 extern char sStreamNameBuf[];    /* stream-name scratch buffer */
-extern u8* lbl_8034483C;       /* current-level descriptor pointer */
+extern u8* gCurLevel;       /* current-level descriptor pointer */
 extern s32 lbl_80344370;   /* audio mode (<=2 => attract/menu path) */
 extern s32 sAudioInitFlag;
 extern s32 sCurSelectTrack;
@@ -361,7 +361,7 @@ void BGMusicStart(void)
     }
     fn_80015660();
     sCurSelectTrack = 0;
-    AudioRegisterNameBanks(*(char**)(lbl_8034483C + 100), 0);
+    AudioRegisterNameBanks(*(char**)(gCurLevel + 100), 0);
     sSelectStreamHandle = v;
     sCurMusicVol = lbl_80343B4C;
     sSelectStreamState = 0;
