@@ -24,7 +24,7 @@ u32 strlen(const char* s);
 /* command dispatch to the sound/resource server: id + in/out param blocks */
 s32 dcsHandleRequest(s32 id, void* in, void* out);   /* server message dispatch */
 void HealthMeterInit(void);                      /* fn_8001B830 */
-s32 fn_800D6234(void);                           /* per-frame poll */
+s32 adsPoll(void);                               /* ADSTREAM per-frame poll (fn_800D6234) */
 void dcsServiceQueue(void);                          /* service queue */
 
 /* GameCube audio (sndvoice.c / AX / AR) */
@@ -502,7 +502,7 @@ s32 sndSysUpdate(void)
     SndState* s = &g;
     volatile s32 _fpad[2];
 
-    fn_800D6234();
+    adsPoll();
     if (sReset != 0) {
         Node* held = sHeldNode;
         sHeldNode = 0;

@@ -404,6 +404,7 @@ config.libs = [
             Object(NonMatching, "game/audio/buffile.c", cflags=cflags_demo),
             Object(NonMatching, "game/audio/dcsdrv.c", cflags=cflags_demo),
             Object(NonMatching, "game/audio/mempool.c", cflags=cflags_demo),
+            Object(NonMatching, "game/audio/adstream.c", cflags=cflags_demo),
             Object(NonMatching, "game/pb/pb_window.c", cflags=cflags_demo),
             Object(NonMatching, "game/g3d/g3dMath3D.cpp", cflags=cflags_demo),
             Object(NonMatching, "game/ps2/fakelib.c", cflags=cflags_demo),
