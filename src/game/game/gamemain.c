@@ -15,8 +15,9 @@
  * .data9 (0x80346810..0x80346CB4) and whose switch jump tables are
  * contiguous in .data (0x8011C16C..0x8011C7xx).  That single TU starts
  * before this file's window (>=0x8004C3E4) and continues past it
- * (fn_80058078 is a 0x1C3C-byte function in the same unit), so THIS
- * file is only the [0x80050054, 0x80058078) slice of the real TU.
+ * (ResolveWorldData @0x80058078 is a 0x1C3C-byte function in the same
+ * unit; see game/world/gauntworld.c), so THIS file is only the
+ * [0x80050054, 0x80058078) slice of the real TU.
  *
  * Frontier game code, no reference source: wired NonMatching.  The bytes
  * are supplied from the DOL (asm) -- this source documents the function
