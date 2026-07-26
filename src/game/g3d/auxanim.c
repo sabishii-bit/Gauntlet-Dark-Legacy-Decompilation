@@ -51,7 +51,7 @@ extern void fn_800B9EBC(int a, int b);
 extern void fn_800BA084(void);
 extern void fn_800BA368(int a, int b, int c);
 extern void fn_800BA2C4(int a, int b, int c);
-extern void fn_800B92B0(int a, int b);
+extern void MBSetObject(void* obj, int objid);
 extern void fn_800BA6C0(int a, int b, int c);
 extern void fn_800BA56C(int a, int b, int c, int d);
 extern void fn_800BA1BC(float a, float b, float c, float d, int handle, int flag);
@@ -394,7 +394,7 @@ void DoObjAnimation(OANIM* nodes, int ctx, int idx, int frame)
         } else {
             tex = (node->tex + frame) - start;
         }
-        fn_800B92B0(ctx, tex);
+        MBSetObject((void*)ctx, tex);
     }
 }
 
