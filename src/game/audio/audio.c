@@ -26,16 +26,20 @@
  * AudioTrackRegister, ...) are behavioural: exact Midway identifiers for these
  * are unconfirmed but they map 1:1 onto AUDIO.OBJ by call-graph and data use.
  *
- * NonMatching: original DOL bytes are linked (dtk substitutes); this source is a
- * readable structural reconstruction, not byte-exact.  A few large bodies
- * (AudioLoadRom, AudioLoadPart, AudioSetMode) are given as faithful skeletons.
+ * NonMatching: original DOL bytes are linked (dtk substitutes).  Most bodies are
+ * now full reconstructions from the target asm; ~20 functions are byte-identical
+ * (a few only modulo compiler float-pool constant names).  The remaining diffs
+ * are register-allocation, addressing-mode (indexed vs displacement) or shared-
+ * rodata string-pool residuals that a NonMatching TU cannot resolve.  The one
+ * large body left as a documented stub is AudioLoadRom (0x508, an unrolled
+ * LE->BE descriptor-tree byte-swap).
  */
 
 /* ---- message driver (game/audio/soundmgr.c) ---- */
 extern s32  sndRegisterList(void* list, s32 kind);
 extern void sndCmd1(void);
 extern void sndCmd3(s32 a);
-extern s32  sndCmd4(void* a, s32 b, void* c, s32 d, void* e, void* f, s32 g);
+extern s32  sndCmd4();   /* DCS async load request; arg shape varies by caller */
 extern void sndCmd6(void);
 extern s32  sndCmd7(s16 a, u16* b, u16* c);
 extern s32  sndCmd8(u16* a, s32 b, s32 c);
@@ -51,8 +55,8 @@ extern void sndTestAcquire(s32 v);
 extern s32  sndSysFrameCallback(void);
 
 /* ---- support / other TUs ---- */
-extern void* AllocFile(const char* name, s32 flag);
-extern s32   FileMap(const char* name, void* a, s32 b, s32 c, void* d, void* e, void* f);
+extern void* AllocFile(const char* name, void* param);
+extern s32   FileMap();  /* variadic-ish DCS file mapper; arg shape varies by caller */
 extern void  FreeHiMem(s32 which);
 extern void  FatalError(const char* fmt, s32 a);
 extern void  ErrorPrintf(const char* fmt, ...);
@@ -61,34 +65,77 @@ extern int   sprintf(char* buf, const char* fmt, ...);
 extern int   strncmp(const char* a, const char* b, u32 n);
 extern void  fn_80067B0C(s32 a);       /* per-frame service pump */
 extern f32   fn_800BDA98(void* vec);   /* 3D distance/attenuation helper */
-extern void  sndFxInitVoices(void);    /* sndfx.c: reset track helpers */
-extern void  fn_800BC590(void);        /* debug print flush */
-extern void  MBNewWorldPsys(void* out, s32 a, void* in, s32 b, s32 c, s32 d);
+extern void  sndFxInitVoices(void);    /* sndfx.c (0x80015C48): reset voices */
+extern void  fn_800BC590(const char* fmt, ...); /* fatal/debug printer */
+extern void  fn_800CEAF0(s32 a, void* out, s32 arg, s32 b, s32 c, void* v);
 
 /* lower-slice (sndfx.c) killers used when tearing tracks down */
 extern s32 AudioKillMask(s32 mask);
 
-/* ---- module state (shared with sndfx.c) ---- */
-extern s32  pbLoad;              /* frame timestamp (ticks) */
-extern s32  sAudioInitFlag;      /* lbl_...: 1 while a driver op is mid-flight */
-extern s32  sFlags;              /* lbl_803445C8/sFlags packed config */
+/* ---- module state (names taken verbatim from GUNE5D symbols.txt so the
+ *      reloc stream matches; shared with sndfx.c / soundmgr.c) ---- */
+extern volatile u32 pbLoad;      /* frame timestamp (ticks); re-read each use */
+extern s32  sAudioInitFlag;      /* 0x80344308: 1 while audio is paused/muted */
+extern s32  sFlags;              /* 0x803445CC: packed config flags */
+extern s32  lbl_803445C8;        /* 0x803445C8: companion config word */
 
-extern s32  gAudioDisabled;      /* lbl_803442A0: nonzero => audio muted/off */
-extern s32  gAudioStreamBusy;    /* lbl_803442A4 */
-extern s32  gAudioHiMemLock;     /* lbl_803442A8 */
-extern s32  gAudioBusyFlag;      /* lbl_803442FC */
-extern s32  gAudioCmdPending;    /* lbl_80344300: outstanding sndCmd count */
-extern s32  gAudioSpin;          /* lbl_803442B4: busy-wait scratch */
-extern u8*  gAudioRom;           /* lbl_803442B0: loaded audatps2.rom root */
-extern s32* gAudioBankTbl;       /* lbl_80344304: current mode's bank table */
-extern s32  gAudioBankErrs;      /* lbl_803442C8 */
-extern s32  gAudioStreamState;   /* lbl_803442C0 */
-extern s32  gAudioStreamResp;    /* lbl_803442D0 */
-extern s32  gMusicVol;           /* lbl_80343B4C: 0..255 music volume */
-extern s32  gSfxVol;             /* lbl_80343B48: 0..255 sfx volume */
-extern s32  sMusicField2F4;      /* stream loop counter */
+extern s32  sAudioSuspend;       /* 0x803442A0: nonzero => audio suspended/off */
+extern s32  lbl_803442A4;        /* 0x803442A4: stream-active flag */
+extern s32  lbl_803442A8;        /* 0x803442A8: hi-mem service lock */
+extern s32  sAudioOverride;      /* 0x803442AC */
+extern s32  sAudioQueBusy;       /* 0x803442FC: reentrancy guard for list ops */
+extern s32  sAudioMute;          /* 0x80344300: pending/blocked command flag */
+extern s32  lbl_803442B4;        /* 0x803442B4: busy-wait scratch accumulator */
+extern u8*  sAudioBankTable;     /* 0x803442B0: loaded audatps2.rom root */
+extern s32* gAudioBankTbl;       /* 0x80344304: current mode's bank table */
+extern s32  lbl_803442C8;        /* 0x803442C8: bank load-error count */
+extern s32  lbl_803442CC;        /* 0x803442CC: reset error count */
+extern s32  lbl_803442C4;        /* 0x803442C4: soft-reset count */
+extern s32  sAudioErrFlags;      /* 0x803442C0: error/status bitfield */
+extern s32  sAudioReady;         /* 0x803442D0: last sndSysUpdate response */
+extern s32  sAudioTimeoutAcc;    /* 0x803442B8 */
+extern s32  sAudioTimeoutErrs;   /* 0x803442BC */
+extern s32  lbl_803442EC;        /* 0x803442EC */
+extern s32  lbl_803442F0;        /* 0x803442F0 */
+extern s32  lbl_803442D4;        /* 0x803442D4 */
+extern s32  sAudioQueCount[2];   /* 0x803442E4 */
+extern f32  sAudioQueFade[2];    /* 0x803442DC */
+extern s32  lbl_80343B4C;        /* music volume, 0..255 */
+extern s32  lbl_80343B48;        /* sfx volume, 0..255 */
+extern s32  sMusicField2F4;      /* 0x803442F4: one-shot stream end counter */
+extern s32  lbl_803449A8;        /* 0x803449A8: extra suspend companion flag */
+extern const char lbl_803459B0[]; /* "ALL" (default startup mode) */
+extern const char lbl_803459A0[]; /* "streams" (stream file group) */
+extern const char lbl_80345990[]; /* "audio" (bank file group) */
+extern const char lbl_80345998[]; /* "%s.vbk" (bank filename format) */
+extern const u8 lbl_80111348[];   /* 0xB4-byte AllocFile load descriptor */
 
-/* per-track table: 12 entries, stride 20 (lbl_8023DD28) */
+/* sdata2 constants */
+extern const f32 lbl_80345930;   /* 0.0f */
+extern const f32 lbl_80345940;   /* 60.0f (seconds -> frames) */
+extern const f32 lbl_80345950;   /* 1.0f */
+extern const f32 lbl_80345960;   /* 20.0f (pan projection scale) */
+extern const f64 lbl_803459A8;   /* 400000000.0 (reset spin budget) */
+
+/* shared .rodata format/message strings (owned by another TU; referenced by
+ * label so the reloc stream matches the original) */
+extern const char sAudioTimeoutMsg[];       /* "Audio Play Timeout" */
+extern const char sAudioBankNotLoadedMsg[]; /* "AUDIO: BANK %s NOT LOADED. SOUND:%s\n" */
+extern const char lbl_80111304[];           /* "AUDIO: UNABLE TO FIND MODE %s" */
+extern const char lbl_80111324[];           /* "RESETTING AUDIO AND TRYING AGAIN" */
+extern const char lbl_801113FC[];           /* "aud_stream_stop failed: %d" */
+extern const char lbl_80111418[];           /* "AudioStreamStop: Timeout" */
+extern const char lbl_80111434[];           /* "DCS Audio Bank load failed:%s (%d): %d" */
+extern const char lbl_8011145C[];           /* "AudioUnloadPart skipped bank, still in use\n" */
+extern const char lbl_80111488[];           /* "Audio Reset Error\n" */
+extern const char lbl_8011149C[];           /* "Audio Busy = -2" */
+extern const char lbl_801114AC[];           /* "AUDIO sfx volume can't be less than 0  (%d)\n" */
+extern const char lbl_801114DC[];           /* "AUDIO sfx volume can't be greater than %d  (%d)\n" */
+extern const char lbl_80111510[];           /* "AUDIO music volume can't be less than 0  (%d)\n" */
+extern const char lbl_80111540[];           /* "AUDIO music volume can't be greater than %d  (%d)\n" */
+extern const char lbl_80111574[];           /* "UNABLE TO FIND SOUND: %s\n" */
+
+/* per-track table: 12 entries, stride 20 (sAudioChanUpdate, 0x8023DD28) */
 typedef struct AudTrack {
     /* 0x00 */ s32 soundId;   /* bank<<16 | sound */
     /* 0x04 */ s32 event;     /* event/tid; 0 = free slot */
@@ -96,23 +143,29 @@ typedef struct AudTrack {
     /* 0x0C */ s32 startTick;
     /* 0x10 */ s32 instId;
 } AudTrack;
-extern AudTrack gAudioTracks[12];   /* lbl_8023DD28 */
+extern AudTrack sAudioChanUpdate[12];   /* 0x8023DD28 */
 
-/* 32-entry secondary voice table, stride 48 (lbl_8023D728) */
-extern u8 gAudioKillTbl[32 * 48];   /* lbl_8023D728 */
+/* 32-entry kill/voice table, stride 48 (gAudioKillTbl, 0x8023D728) */
+extern u8 gAudioKillTbl[32 * 48];   /* 0x8023D728 */
 
-/* 12-slot spatial voice descriptor table, stride 32 (lbl_8023D218) */
-extern s32 gAudioVoiceDesc[12][8];  /* lbl_8023D218 */
+/* 12-slot spatial voice descriptor table, stride 32 (gAudioVoiceDesc, 0x8023D218) */
+extern s32 gAudioVoiceDesc[12][8];  /* 0x8023D218 */
 
-/* large driver-state block; opaque here (lbl_8023D200) */
-extern u8 gAudioState[];            /* lbl_8023D200 */
+/* driver-state block; sub-tables above are addressed relative to it in the
+ * original but carry their own labels (0x8023D200) */
+extern u8 sAudioState[];            /* 0x8023D200 */
+
+/* listener/camera transform array; listener basis at [0], position at +300 */
+extern f32 gCameras[];              /* 0x8023F8D0 */
 
 /* forward decls */
 s32  AudioLoadPart(s32 bankIdx, s32 partIdx, s32 waitLevel, s32 flag);
 void AudioStreamStop(void);
 void AudioClearTracks(void);
 s32  AudioUnloadPart(char* bankName);
-void AudioSetMode(char* modeName);
+s32  AudioSetMode(char* modeName);
+void AudioReset(s32 force);
+void AudioLoadComplete(s32* slot);
 
 /* command opcodes issued through sndRegisterList */
 #define SND_LIST_VOL  0x55AB
@@ -126,12 +179,12 @@ void AudioSetMode(char* modeName);
 s32 AudioSetTrackPan(s32 handle, s32 pan)
 {
     s32 param[2];
-    s32 wasBusy = gAudioBusyFlag;
+    s32 wasBusy = sAudioQueBusy;
 
     if (sAudioInitFlag != 0) {
         pan = 127;
     }
-    if (gAudioCmdPending != 0) {
+    if (sAudioMute != 0) {
         return 0;
     }
     if ((handle & 0x1FFF) == 0) {
@@ -139,12 +192,12 @@ s32 AudioSetTrackPan(s32 handle, s32 pan)
     }
     param[0] = SND_LIST_PAN;
     param[1] = (handle << 16) | (pan & 0xFFFF);
-    gAudioBusyFlag = 1;
-    if (gAudioDisabled == 0) {
+    sAudioQueBusy = 1;
+    if (sAudioSuspend == 0) {
         sndRegisterList(param, 2);
     }
     if (wasBusy == 0) {
-        gAudioBusyFlag = 0;
+        sAudioQueBusy = 0;
     }
     return 0;
 }
@@ -152,15 +205,18 @@ s32 AudioSetTrackPan(s32 handle, s32 pan)
 s32 AudioSetTrackVolMusic(s32 handle, s32 vol)
 {
     s32 param[2];
-    s32 wasBusy = gAudioBusyFlag;
-    s32 v = (vol * gMusicVol) >> 8;
+    s32 wasBusy = sAudioQueBusy;
+    s32 t = (vol * lbl_80343B4C) >> 8;
+    s32 v;
 
-    if (v < 0) {
+    if (t < 0) {
         v = 0;
-    } else if (v > 255) {
+    } else if (t > 255) {
         v = 255;
+    } else {
+        v = t;
     }
-    if (gAudioCmdPending != 0) {
+    if (sAudioMute != 0) {
         return 0;
     }
     if ((handle & 0x1FFF) == 0) {
@@ -168,12 +224,12 @@ s32 AudioSetTrackVolMusic(s32 handle, s32 vol)
     }
     param[0] = SND_LIST_VOL;
     param[1] = (handle << 16) | (v & 0xFF);
-    gAudioBusyFlag = 1;
-    if (gAudioDisabled == 0) {
+    sAudioQueBusy = 1;
+    if (sAudioSuspend == 0) {
         sndRegisterList(param, 2);
     }
     if (wasBusy == 0) {
-        gAudioBusyFlag = 0;
+        sAudioQueBusy = 0;
     }
     return 0;
 }
@@ -181,15 +237,18 @@ s32 AudioSetTrackVolMusic(s32 handle, s32 vol)
 s32 AudioSetTrackVolSfx(s32 handle, s32 vol)
 {
     s32 param[2];
-    s32 wasBusy = gAudioBusyFlag;
-    s32 v = (vol * gSfxVol) >> 8;
+    s32 wasBusy = sAudioQueBusy;
+    s32 t = (vol * lbl_80343B48) >> 8;
+    s32 v;
 
-    if (v < 0) {
+    if (t < 0) {
         v = 0;
-    } else if (v > 255) {
+    } else if (t > 255) {
         v = 255;
+    } else {
+        v = t;
     }
-    if (gAudioCmdPending != 0) {
+    if (sAudioMute != 0) {
         return 0;
     }
     if ((handle & 0x1FFF) == 0) {
@@ -197,12 +256,12 @@ s32 AudioSetTrackVolSfx(s32 handle, s32 vol)
     }
     param[0] = SND_LIST_VOL;
     param[1] = (handle << 16) | (v & 0xFF);
-    gAudioBusyFlag = 1;
-    if (gAudioDisabled == 0) {
+    sAudioQueBusy = 1;
+    if (sAudioSuspend == 0) {
         sndRegisterList(param, 2);
     }
     if (wasBusy == 0) {
-        gAudioBusyFlag = 0;
+        sAudioQueBusy = 0;
     }
     return 0;
 }
@@ -213,11 +272,11 @@ s32 AudioSetTrackVolSfx(s32 handle, s32 vol)
 
 s32 AudioMaskByInstance(s32 instId)
 {
-    s32 mask = 0;
     s32 i;
+    s32 mask = 0;
 
     for (i = 0; i < 12; i++) {
-        if (gAudioTracks[i].instId == instId && gAudioTracks[i].event != 0) {
+        if (sAudioChanUpdate[i].instId == instId && sAudioChanUpdate[i].event != 0) {
             mask |= (1 << i);
         }
     }
@@ -226,11 +285,11 @@ s32 AudioMaskByInstance(s32 instId)
 
 s32 AudioMaskByEvent(s32 event)
 {
-    s32 mask = 0;
     s32 i;
+    s32 mask = 0;
 
     for (i = 0; i < 12; i++) {
-        if (gAudioTracks[i].event == event) {
+        if (sAudioChanUpdate[i].event == event) {
             mask |= (1 << i);
         }
     }
@@ -242,9 +301,9 @@ s32 AudioSoundPlaying(s32 soundId)
     s32 i;
 
     for (i = 0; i < 12; i++) {
-        if (gAudioTracks[i].soundId == soundId) {
-            f32 age = (f32)(pbLoad - gAudioTracks[i].startTick);
-            if (age < gAudioTracks[i].dur) {
+        if (sAudioChanUpdate[i].soundId == soundId) {
+            /* field +8 holds the absolute expiry tick */
+            if ((f32)pbLoad < sAudioChanUpdate[i].dur) {
                 return 1;
             }
         }
@@ -254,18 +313,21 @@ s32 AudioSoundPlaying(s32 soundId)
 
 s32 AudioSoundExists(s32 soundId)
 {
-    /* two-table scan: 12 x stride20 @ +0xB28, then 32 x stride48 @ +0x528 */
+    /* two-table scan, both addressed off sAudioState: the 12 x 20 channel table
+     * (sAudioChanUpdate, +2856) then the 32 x 48 voice table (gAudioKillTbl,
+     * +1320).  Returns the stored handle of the first live match. */
     s32 i;
-    s32* a = (s32*)(gAudioState + 0xB28);
-    for (i = 0; i < 12; i++, a += 5) {
-        if (a[0] == soundId && a[1] != 0) {
-            return a[3];  /* handle at +0xB38 base */
+
+    for (i = 0; i < 12; i++) {
+        if (*(s32*)(sAudioState + i * 20 + 2856) == soundId
+            && *(s32*)(sAudioState + i * 20 + 2860) != 0) {
+            return *(s32*)(sAudioState + i * 20 + 2872);
         }
     }
-    a = (s32*)(gAudioState + 0x528);
-    for (i = 0; i < 32; i++, a += 12) {
-        if (a[0] == soundId && a[1] != 0) {
-            return a[5];
+    for (i = 0; i < 32; i++) {
+        if (*(s32*)(sAudioState + i * 48 + 1320) == soundId
+            && *(s32*)(sAudioState + i * 48 + 1324) != 0) {
+            return *(s32*)(sAudioState + i * 48 + 1340);
         }
     }
     return 0;
@@ -273,11 +335,11 @@ s32 AudioSoundExists(s32 soundId)
 
 s32 AudioMaskBySound(s32 soundId)
 {
-    s32 mask = 0;
     s32 i;
+    s32 mask = 0;
 
     for (i = 0; i < 12; i++) {
-        if (gAudioTracks[i].soundId == soundId && gAudioTracks[i].event != 0) {
+        if (sAudioChanUpdate[i].soundId == soundId && sAudioChanUpdate[i].event != 0) {
             mask |= (1 << i);
         }
     }
@@ -295,17 +357,16 @@ s32 AudioKillByEvent(s32 event)
     s32* k;
 
     for (i = 0; i < 12; i++) {
-        if (gAudioTracks[i].event == event) {
+        if (sAudioChanUpdate[i].event == event) {
             mask |= (1 << i);
         }
     }
     if (mask != 0) {
         AudioKillMask(mask);
     }
-    k = (s32*)gAudioKillTbl;
-    for (i = 0; i < 32; i++, k += 12) {
-        if (k[1] == event) {
-            k[5] = 0;  /* clear +20 */
+    for (i = 0; i < 32; i++) {
+        if (event == *(s32*)(gAudioKillTbl + i * 48 + 4)) {
+            *(s32*)(gAudioKillTbl + i * 48 + 20) = 0;
         }
     }
     return mask;
@@ -318,43 +379,42 @@ s32 AudioKillBySound(s32 soundId)
     s32* k;
 
     for (i = 0; i < 12; i++) {
-        if (gAudioTracks[i].soundId == soundId && gAudioTracks[i].event != 0) {
+        if (sAudioChanUpdate[i].soundId == soundId && sAudioChanUpdate[i].event != 0) {
             mask |= (1 << i);
         }
     }
     if (mask != 0) {
         AudioKillMask(mask);
     }
-    k = (s32*)gAudioKillTbl;
-    for (i = 0; i < 32; i++, k += 12) {
-        if (k[0] == soundId && k[1] != 0) {
-            k[5] = 0;
+    for (i = 0; i < 32; i++) {
+        if (soundId == *(s32*)(gAudioKillTbl + i * 48 + 0)
+            && *(s32*)(gAudioKillTbl + i * 48 + 4) != 0) {
+            *(s32*)(gAudioKillTbl + i * 48 + 20) = 0;
         }
     }
     return mask;
 }
 
-s32 AudioKillByBank(s32 bankId)
+/* AudioKillByBank: unlike the by-event/by-sound killers this one does not
+ * return the mask (the original discards it after the stop request). */
+void AudioKillByBank(s32 bankId)
 {
     s32 mask = 0;
     s32 i;
-    s32* k;
 
     for (i = 0; i < 12; i++) {
-        if ((gAudioTracks[i].soundId >> 16) == bankId) {
+        if ((sAudioChanUpdate[i].soundId >> 16) == bankId) {
             mask |= (1 << i);
         }
     }
     if (mask != 0) {
         AudioKillMask(mask);
     }
-    k = (s32*)gAudioKillTbl;
-    for (i = 0; i < 32; i++, k += 12) {
-        if ((k[0] >> 16) == bankId) {
-            k[5] = 0;
+    for (i = 0; i < 32; i++) {
+        if ((*(s32*)(gAudioKillTbl + i * 48 + 0) >> 16) == bankId) {
+            *(s32*)(gAudioKillTbl + i * 48 + 20) = 0;
         }
     }
-    return mask;
 }
 
 /* AudioKillMask (lbl_80016720): register a stop-list for the masked tracks and
@@ -362,26 +422,26 @@ s32 AudioKillByBank(s32 bankId)
 s32 AudioKillMask(s32 mask)
 {
     s32 param[2];
-    s32 wasBusy = gAudioBusyFlag;
+    s32 wasBusy = sAudioQueBusy;
     s32 i;
 
-    if (gAudioCmdPending == 0) {
+    if (sAudioMute == 0) {
         if ((mask & 0x1FFF) == 0) {
             return 0;
         }
         param[0] = SND_LIST_STOP;
         param[1] = mask << 16;
-        gAudioBusyFlag = 1;
-        if (gAudioDisabled == 0) {
+        sAudioQueBusy = 1;
+        if (sAudioSuspend == 0) {
             sndRegisterList(param, 2);
         }
         for (i = 0; i < 12; i++) {
             if (mask & (1 << i)) {
-                gAudioTracks[i].event = 0;
+                sAudioChanUpdate[i].event = 0;
             }
         }
         if (wasBusy == 0) {
-            gAudioBusyFlag = 0;
+            sAudioQueBusy = 0;
         }
     }
     return 0;
@@ -391,27 +451,32 @@ s32 AudioKillMask(s32 mask)
 /* 3D pan from listener-relative position (AudioAng)                */
 /* ---------------------------------------------------------------- */
 
-extern f32 gListenerPos[3];   /* lbl_8023F8D0 + 0x12C.. (listener xyz) */
-extern f32 gListenerMat[];    /* lbl_8023F8D0 (orientation basis) */
-extern f32 gAudioPanScale;    /* lbl_80345960 */
-
+/* AudioAng: project a world position onto the listener's right axis and map it
+ * to a pan value in [-256,255] (127 = centre).  The source is flattened onto
+ * the ground plane, normalised against a 20-unit reference distance, and the
+ * X/Z cross term picks the left/right sign. */
 s32 AudioAng(f32* pos)
 {
     f32 rel[3];
-    f32 dot, side;
+    f32 dist;
+    f32 dot;
+    f64 scale;
     s32 pan;
 
     if (sAudioInitFlag != 0 || pos == 0) {
         return 127;
     }
-    rel[0] = pos[0] - gListenerMat[75];
-    rel[1] = pos[1] - gListenerMat[76];
-    rel[2] = pos[2] - gListenerMat[77];
-    fn_800BDA98(rel);
-    dot = gListenerMat[0] * rel[0] + gListenerMat[1] * rel[1]
-        + gListenerMat[2] * rel[2];
-    side = dot / gAudioPanScale;
-    pan = (s32)(side * 255.0f);
+    rel[0] = pos[0] - gCameras[75];
+    rel[1] = pos[1] - gCameras[76];
+    rel[2] = pos[2] - gCameras[77];
+    rel[1] = lbl_80345930;                    /* 0.0f: flatten to ground plane */
+    dist = fn_800BDA98(rel) / lbl_80345960;   /* normalise by 20.0f */
+    dot = rel[0] * gCameras[1] + rel[1] * gCameras[2] + rel[2] * gCameras[3];
+    scale = (1.0 >= dist) ? (f64)dist : 1.0;  /* clamp normalised distance */
+    pan = (s32)(127.5 * dot * scale + 127.5);
+    if (gCameras[3] * rel[0] > gCameras[1] * rel[2]) {
+        pan = -pan;
+    }
     if (pan < -256) {
         pan = -256;
     } else if (pan > 255) {
@@ -424,54 +489,57 @@ s32 AudioAng(f32* pos)
 /* mode / ROM loading                                               */
 /* ---------------------------------------------------------------- */
 
-/* AudioSetMode: select the named audio mode, load its startup parts, retrying
- * once through a driver reset ("RESETTING AUDIO AND TRYING AGAIN"). */
-void AudioSetMode(char* modeName)
+/* AudioSetMode: select the named audio mode from the ROM's mode table (stride
+ * 9364), load its startup parts and, if any part fails, reset the driver and
+ * retry once ("RESETTING AUDIO AND TRYING AGAIN").  Returns nonzero on success. */
+s32 AudioSetMode(char* modeName)
 {
     s32 attempt;
-    s32 loaded;
+    s32 result;
     s32 i;
-    s32 modeCount;
+    s32 offset;
 
     gAudioBankTbl = 0;
     for (attempt = 0; attempt < 2; attempt++) {
-        modeCount = *(s32*)(gAudioRom + 0);
-        for (i = 0; i < modeCount; i++) {
-            s32* modes = *(s32**)(gAudioRom + 12);
-            if (strncmp((char*)(modes + i * 2341), modeName, 16) == 0) {
-                gAudioBankTbl = (s32*)((char*)modes + i * 9364);
+        for (i = 0, offset = 0; i < *(s32*)(sAudioBankTable + 0); i++, offset += 9364) {
+            if (strncmp((char*)(*(u8**)(sAudioBankTable + 12) + offset), modeName, 16) == 0) {
+                gAudioBankTbl = (s32*)(*(u8**)(sAudioBankTable + 12) + offset);
                 break;
             }
         }
         if (gAudioBankTbl == 0) {
-            ErrorPrintf("AUDIO: UNABLE TO FIND MODE %s", modeName);
+            fn_800BC590(lbl_80111304, modeName);
         }
-        loaded = 0;
-        if (gAudioBankTbl != 0) {
-            s32 partCount = gAudioBankTbl[4];
-            for (i = 0; i < partCount; i++) {
-                loaded = AudioLoadPart(i, 0, 0, 0);
-                if (loaded == 0) {
-                    break;
-                }
+        result = 0;
+        for (i = 0; i < gAudioBankTbl[4]; i++) {
+            result = AudioLoadPart(i, 0, 0, 0);
+            if (result == 0) {
+                break;
             }
         }
-        if (loaded != 0) {
-            return;
+        if (result != 0) {
+            return result;
         }
-        ErrorPrintf("RESETTING AUDIO AND TRYING AGAIN");
+        ErrorPrintf(lbl_80111324);
         sndTestAcquire(0);
     }
+    return result;
 }
 
-/* AudioLoadRom: pull audatps2.rom into hi-mem and byte-swap its little-endian
- * descriptor tree (banks/parts/sounds) into GameCube big-endian in place. */
+/* AudioLoadRom: load the "audio" ROM group (via a 0xB4-byte load descriptor at
+ * lbl_80111348) into hi-mem, then byte-reverse every u32 field of its little-
+ * endian descriptor tree into GameCube big-endian in place.
+ *
+ * PARKED GIANT (0x508 bytes / 322 insns): the body is an almost fully unrolled
+ * sequence of the 4-byte reversal idiom seen in AudioSetListenerPos -- root
+ * header words at +0/+4/+8/+12, then a walk of the bank (stride 44), part and
+ * sound tables swapping each field, rebasing the root's file offsets to absolute
+ * pointers.  The original bytes stay linked (NonMatching); the exact field
+ * roster is not reconstructed here. */
 void AudioLoadRom(void)
 {
-    gAudioRom = (u8*)AllocFile("audatps2.rom", 0);
-    /* header + bank/part/sound tables are swapped word-by-word and the file
-     * offsets in the root header are rebased to absolute pointers; the full
-     * traversal is preserved in the original bytes (NonMatching). */
+    sAudioBankTable = (u8*)AllocFile((char*)lbl_80345990, (void*)lbl_80111348);
+    /* ... 322-insn in-place LE->BE descriptor-tree swap omitted (see above) ... */
 }
 
 /* ---------------------------------------------------------------- */
@@ -479,141 +547,339 @@ void AudioLoadRom(void)
 /* ---------------------------------------------------------------- */
 
 /* AudioBankLoadName: (re)load bank "bankName"'s part "partName" at priority
- * mode; waits out any in-flight load and unloads a stale copy first. */
+ * mode.  Resolves both names to indices; if the requested part is already the
+ * loaded one it returns 2, otherwise it drains any in-flight load, unloads the
+ * previous occupant and kicks the async loader. */
 s32 AudioBankLoadName(char* bankName, char* partName, s32 mode)
 {
-    if (gAudioDisabled != 0) {
+    s32 bankIdx;
+    s32 partIdx;
+    s32 foundPart;
+    s32 i;
+    u8* bankEntry;
+
+    if (sAudioSuspend != 0) {
         return 1;
     }
-    /* locate bank slot by name, then part index by name, then kick the async
-     * loader (AudioLoadPart) after freeing the previous occupant. */
+    for (bankIdx = 0; bankIdx < gAudioBankTbl[4]; bankIdx++) {
+        if (strncmp((char*)((u8*)gAudioBankTbl + bankIdx * 292 + 20), bankName, 16) == 0) {
+            break;
+        }
+    }
+    if (bankIdx == gAudioBankTbl[4]) {
+        sAudioSuspend = 1;
+        bankIdx = -1;
+    }
+    bankEntry = (u8*)gAudioBankTbl + bankIdx * 292 + 20;
+    for (partIdx = 0, i = 0; partIdx < *(s32*)(bankEntry + 24); partIdx++, i += 4) {
+        u8* romBank = *(u8**)(sAudioBankTable + 16)
+                      + *(s32*)(bankEntry + i + 28) * 44;
+        if (strncmp((char*)(romBank + 16), partName, 16) == 0) {
+            break;
+        }
+    }
+    if (partIdx == *(s32*)(bankEntry + 24)) {
+        sAudioSuspend = 1;
+        partIdx = -1;
+    }
+    foundPart = partIdx;
+    if (*(s32*)(bankEntry + 284) == partIdx) {
+        return 2;
+    }
+    for (;;) {
+        if (sAudioSuspend != 0) {
+            break;
+        }
+        lbl_803442A8 = 0;
+        sndSysUpdate(lbl_80345950);
+        if (sAudioMute != 0) {
+            s32 j;
+            lbl_803442B4++;
+            for (j = 10000; j != 0; j--) {
+            }
+        } else {
+            lbl_803442B4 = 0;
+        }
+        if (sAudioMute == 0) {
+            break;
+        }
+        lbl_803442A8 = 0;
+        FreeHiMem(1);
+    }
+    if (*(s32*)(bankEntry + 284) == partIdx) {
+        return 2;
+    }
     AudioUnloadPart(bankName);
-    return AudioLoadPart(0, mode, 0, 0);
+    return AudioLoadPart(bankIdx, foundPart, mode, 0);
 }
 
-/* AudioBankQueueName: like AudioBankLoadName but only queues (no wait). */
+/* AudioBankQueueName: resolve bankName -> bank index and partName -> part index
+ * within the current mode's bank table, then queue the load via AudioLoadPart. */
 s32 AudioBankQueueName(char* bankName, char* partName, s32 arg)
 {
-    if (gAudioDisabled != 0) {
+    s32 bankIdx;
+    s32 partIdx;
+    s32 foundBank;
+    s32 i;
+    u8* bankEntry;
+
+    if (sAudioSuspend != 0) {
         return 1;
     }
-    return AudioLoadPart(0, 0, arg, 0);
+    for (bankIdx = 0; bankIdx < gAudioBankTbl[4]; bankIdx++) {
+        if (strncmp((char*)((u8*)gAudioBankTbl + bankIdx * 292 + 20), bankName, 16) == 0) {
+            break;
+        }
+    }
+    if (bankIdx == gAudioBankTbl[4]) {
+        sAudioSuspend = 1;
+        bankIdx = -1;
+    }
+    bankEntry = (u8*)gAudioBankTbl + bankIdx * 292 + 20;
+    foundBank = bankIdx;
+    for (partIdx = 0, i = 0; partIdx < *(s32*)(bankEntry + 24); partIdx++, i += 4) {
+        u8* romBank = *(u8**)(sAudioBankTable + 16)
+                      + *(s32*)(bankEntry + i + 28) * 44;
+        if (strncmp((char*)(romBank + 16), partName, 16) == 0) {
+            break;
+        }
+    }
+    if (partIdx == *(s32*)(bankEntry + 24)) {
+        sAudioSuspend = 1;
+        partIdx = -1;
+    }
+    return AudioLoadPart(foundBank, partIdx, arg, 0);
 }
 
-/* AudioLoadPart: async DCS part loader.  Maps the part file, issues sndCmd4,
- * and spins for completion; on repeated failure it FatalErrors. */
+/* AudioLoadPart: async DCS part loader.  Grabs a free queue slot, resolves the
+ * part's ROM bank (returning 2 early if it is already resident), maps its .vbk
+ * file, issues sndCmd4 with an AudioLoadComplete callback (retrying up to 10000
+ * times, then FatalError), and -- for waitLevel < 2 -- drains until the load
+ * finishes.  Returns 1 (or 2 already-loaded), 0 on failure. */
 s32 AudioLoadPart(s32 bankIdx, s32 partIdx, s32 waitLevel, s32 flag)
 {
     char name[256];
-    s32 handle;
+    s32 mapPtr;
+    s32 mapSz1;
+    s32 mapSz2;
     s32 slot;
+    s32 off;
+    s32 result;
+    s32 savedBusy;
+    s32 expected;
+    s32 retry;
+    s32 resp;
+    u8* bankEntry;
+    u8* romBank;
+    u8* queueSlot;
+    u16 handle;
 
-    if (gAudioDisabled != 0) {
+    if (sAudioSuspend != 0) {
         return 0;
     }
-    if (gAudioStreamBusy == 0) {
+    if (lbl_803442A4 == 0) {
         AudioStreamStop();
+    }
+    slot = 0;
+    for (off = 0; off < 4 * 36; off += 36, slot++) {
+        if (*(s32*)(sAudioState + off + 1176) < 0) {
+            break;
+        }
+    }
+    if (slot >= 4) {
+        slot = -1;
+    }
+    if (slot < 0) {
+        return 0;
     }
     if (partIdx < 0) {
         partIdx = 0;
     }
-    sprintf(name, "%s", (char*)(gAudioRom + 0));
-    slot = FileMap(name, name, 256, 0, &handle, &handle, &handle);
-    if (slot == 0) {
-        ErrorPrintf("Audio Play Timeout", name);
-        return 0;
+    result = 1;
+    bankEntry = (u8*)gAudioBankTbl + bankIdx * 292 + 20;
+    romBank = *(u8**)(sAudioBankTable + 16)
+              + *(s32*)(bankEntry + partIdx * 4 + 28) * 44;
+    handle = *(u16*)(romBank + 42);
+    if (handle != 0 && handle != 0xFFFF) {
+        /* already resident */
+        *(s32*)(bankEntry + 284) = partIdx;
+        *(s32*)(bankEntry + 288) = *(u16*)(romBank + 42);
+        return 1;
     }
-    /* store completion callback (AudioLoadComplete), bump pending count, issue
-     * sndCmd4; loop up to 10000 frames waiting for the slot to go ready. */
-    gAudioCmdPending++;
-    sndCmd4(name, 0, 0, 0, 0, 0, waitLevel);
-    (void)bankIdx;
-    (void)flag;
-    return 1;
+    *(s16*)(romBank + 40) = -1;
+    *(s16*)(romBank + 42) = 0;
+    savedBusy = sAudioQueBusy;
+    sAudioQueBusy = 1;
+    sprintf(name, lbl_80345998, (char*)romBank);   /* "%s.vbk" */
+    if (FileMap((char*)lbl_80345990, name, &mapPtr, 256, &mapSz1, &mapSz2) == 0) {
+        ErrorPrintf("Audio Bank bad file: %s", name);
+    } else {
+        queueSlot = sAudioState + slot * 36;
+        *(s32*)(queueSlot + 1176) = bankIdx;
+        *(s32*)(queueSlot + 1180) = partIdx;
+        *(s32*)(queueSlot + 1184) = flag;
+        *(void**)(queueSlot + 1200) = (void*)AudioLoadComplete;
+        *(void**)(queueSlot + 1204) = queueSlot + 1176;
+        retry = 0;
+        for (;;) {
+            expected = sAudioMute + 1;
+            sAudioMute = expected;
+            resp = sndCmd4(&mapPtr, mapSz1, mapSz2, queueSlot + 1188, waitLevel);
+            if (resp >= 0) {
+                break;
+            }
+            ErrorPrintf("aud_load_bank failed: %d", resp);
+            retry++;
+            if (retry > 10000) {
+                FatalError("aud_load_bank failed", 0x8000);
+            }
+        }
+        if (waitLevel < 2) {
+            while (expected == sAudioMute) {
+                if (sAudioSuspend != 0) {
+                    break;
+                }
+                lbl_803442A8 = 0;
+                sndSysUpdate(lbl_80345950);
+                if (sAudioMute != 0) {
+                    s32 j;
+                    lbl_803442B4++;
+                    for (j = 10000; j != 0; j--) {
+                    }
+                } else {
+                    lbl_803442B4 = 0;
+                }
+                if (expected != sAudioMute) {
+                    break;
+                }
+                lbl_803442A8 = 0;
+                FreeHiMem(1);
+            }
+            if (*(s16*)(romBank + 40) < 0) {
+                result = 0;
+            }
+        }
+    }
+    sAudioQueBusy = savedBusy;
+    return result;
 }
 
 /* AudioLoadComplete (lbl_800177C0): DCS load-done / error callback stored in the
- * queue slot by AudioLoadPart. */
+ * queue slot by AudioLoadPart.  slot+16 -> a {bankIdx, partIdx, retryCount}
+ * descriptor; on success it records the returned voice handle in both the mode
+ * bank table (+284/+288) and the ROM bank (+40/+42); on failure it retries up
+ * to 5 times, then suspends audio. */
 void AudioLoadComplete(s32* slot)
 {
-    s32* part = (s32*)slot[4];
+    s32* desc = *(s32**)((u8*)slot + 16);
+    u8* bankEntry = (u8*)gAudioBankTbl + desc[0] * 292 + 20;
+    u8* romBank = *(u8**)(sAudioBankTable + 16)
+                  + *(s32*)(bankEntry + desc[1] * 4 + 28) * 44;
 
-    if (part[1] == 0) {
-        ErrorPrintf("DCS Audio Bank load failed:%s (%d): %d",
-                    slot[0], part[2]);
-        gAudioBankErrs++;
-        gAudioCmdPending--;
+    if (slot[1] != 0) {
+        ErrorPrintf(lbl_80111434, romBank + 16, desc[2], slot[1]);
+        lbl_803442C8++;
+        *(s16*)(romBank + 40) = -2;
+        lbl_803442B4 = 0;
+        sAudioMute--;
+        if (desc[2] < 5) {
+            AudioLoadPart(desc[0], desc[1], 2, desc[2] + 1);
+        } else {
+            sAudioSuspend = 1;
+            lbl_803442A4 = 1;
+        }
+    } else {
+        u16 h0;
+        u16 h1;
+        *(s32*)(bankEntry + 284) = desc[1];
+        *(s16*)(romBank + 40) = (s16)slot[2];
+        sndCmd7(*(s16*)(romBank + 40), &h0, &h1);
+        *(u16*)(romBank + 42) = h0;
+        *(s32*)(bankEntry + 288) = *(u16*)(romBank + 42);
+        lbl_803442B4 = 0;
+        sAudioMute--;
     }
-    *slot = -1;
+    desc[0] = -1;
 }
 
-/* AudioDeferSlot (lbl_800174C4): register a deferred completion slot. */
+/* AudioDeferSlot (lbl_800174C4): register a deferred completion slot, unless
+ * audio is suspended or a stream is already active. */
 void AudioDeferSlot(void* cb, s32 arg)
 {
+    if (sAudioSuspend != 0) {
+        return;
+    }
+    if (lbl_803442A4 != 0) {
+        return;
+    }
     sndDeferSlot(cb, arg);
-    (void)arg;
 }
 
 /* ---------------------------------------------------------------- */
 /* streaming                                                        */
 /* ---------------------------------------------------------------- */
 
-extern s32 AudioStreamEndCbLoop(void);
-extern s32 AudioStreamEndCbOnce(void);
+extern void AudioStreamEndCbLoop(void);
+extern void AudioStreamEndCbOnce(void);
 
-/* AudioStreamPlay: map the .ads stream file and start it (looping or one-shot). */
+/* AudioStreamPlay: locate the stream in the "streams" file group, hand its
+ * mapped block to the driver (sndCmd8), install the loop/one-shot end callback
+ * and start playback.  Returns 1 on success, -1 on any failure, 0 if audio is
+ * suspended or a stream is already running. */
 s32 AudioStreamPlay(u16 id, s32 loopMode, s32 vol)
 {
-    char name[256];
-    s32 mapped, resp, h;
+    s32 dataPtr;
+    s32 sz1;
+    s32 sz2;
+    s32 result = -1;
+    s32 resp;
 
-    if (gAudioDisabled != 0 || gAudioStreamBusy != 0) {
+    if (sAudioSuspend != 0) {
         return 0;
     }
-    mapped = FileMap((char*)(gAudioState + 0x418), name, 256, 0, &resp, &resp, &resp);
-    if (mapped == 0) {
-        ErrorPrintf("aud_stream_map failed: %s", (char*)(gAudioState + 0x418));
+    if (lbl_803442A4 != 0) {
         return 0;
     }
-    resp = sndCmd8((u16*)name, 0, 0);
-    if (resp == -4) {
-        ErrorPrintf("aud_stream_start no-mem: %s", (char*)(gAudioState + 0x418));
-        return 0;
+    if (FileMap((char*)lbl_803459A0, (char*)(sAudioState + 1048), &dataPtr, 256,
+                &sz1, &sz2) == 0) {
+        ErrorPrintf("Audio Stream bad file: %s", (char*)(sAudioState + 1048));
+    } else {
+        resp = sndCmd8((u16*)&dataPtr, sz1, sz2);
+        if (resp == -4) {
+            ErrorPrintf("Audio Stream no buffer memory: %s", (char*)(sAudioState + 1048));
+        } else if (resp < 0) {
+            ErrorPrintf("Audio Stream bad file: %s", (char*)(sAudioState + 1048));
+        } else {
+            sndCmdB();
+            *(void**)(sAudioState + 12) =
+                (loopMode != 0) ? (void*)AudioStreamEndCbLoop : (void*)AudioStreamEndCbOnce;
+            if (loopMode >= 2) {
+                loopMode = 0;
+            }
+            resp = sndCmdA(id, (loopMode != 0) ? 1 : 0, vol, sAudioState);
+            if (resp >= -1) {
+                sndSysSetBit0(1);
+                result = 1;
+            } else {
+                ErrorPrintf("Audio Stream Err: %s", (char*)(sAudioState + 1048));
+            }
+        }
     }
-    if (resp < 0) {
-        ErrorPrintf("aud_stream_map failed: %s", (char*)(gAudioState + 0x418));
-        return 0;
-    }
-    sndCmdB();
-    *(void**)(gAudioState + 12) =
-        (loopMode != 0) ? (void*)AudioStreamEndCbLoop : (void*)AudioStreamEndCbOnce;
-    if (loopMode >= 2) {
-        loopMode = 0;
-    }
-    h = sndCmdA(id, (loopMode != 0) ? 1 : 0, vol, gAudioState);
-    if (h >= -1) {
-        sndSysSetBit0(1);
-        sndSysSetBit1(0);
-        return 1;
-    }
-    ErrorPrintf("aud_stream_play failed: %s", (char*)(gAudioState + 0x418));
     sndSysSetBit1(0);
-    return 0;
+    return result;
 }
 
-s32 AudioStreamEndCbLoop(void)
+void AudioStreamEndCbLoop(void)
 {
     sndSysSetBit0(0);
     sndSysSetBit1(1);
-    return 0;
 }
 
-s32 AudioStreamEndCbOnce(void)
+void AudioStreamEndCbOnce(void)
 {
     sMusicField2F4++;
     sndSysSetBit0(0);
     sndSysSetBit1(0);
-    return 0;
 }
 
 /* AudioStreamStop: stop the current stream, waiting out the driver with a 900ms
@@ -623,10 +889,10 @@ void AudioStreamStop(void)
     s32 resp;
     s32 start = pbLoad;
 
-    if (gAudioDisabled != 0) {
+    if (sAudioSuspend != 0) {
         return;
     }
-    if (gAudioStreamBusy != 0) {
+    if (lbl_803442A4 != 0) {
         sndSysSetBit0(0);
         return;
     }
@@ -637,17 +903,21 @@ void AudioStreamStop(void)
     if (resp < 0) {
         sndSysSetBit0(0);
         if (resp != -2) {
-            ErrorPrintf("aud_stream_stop failed: %d", resp);
+            ErrorPrintf(lbl_801113FC, resp);
         }
     }
     while (sndSysFrameCallback() != 0) {
+        s32 j;
         fn_80067B0C(-1);
         if ((u32)((pbLoad - start) << 1) > 900) {
-            ErrorPrintf("AudioStreamStop: Timeout");
+            ErrorPrintf(lbl_80111418);
             sndSysSetBit0(0);
-            break;
+        } else {
+            for (j = 10000; j != 0; j--) {
+                /* let the driver drain a little before re-polling */
+            }
         }
-        gAudioHiMemLock = 0;
+        lbl_803442A8 = 0;
     }
 }
 
@@ -655,35 +925,81 @@ void AudioStreamStop(void)
 /* track table reset + part unload                                  */
 /* ---------------------------------------------------------------- */
 
-/* AudioClearTracks: mark every bank part not-loaded and every sound not-playing,
- * then flush the driver (sndCmd6). */
+/* AudioClearTracks: mark every mode bank's part slots not-loaded (+304/+308 = -1)
+ * and every ROM bank's active-sound counters cleared (+40/+42 = 0), then flush
+ * the driver (sndCmd6). */
 void AudioClearTracks(void)
 {
     s32 i;
+    s32 j;
 
-    if (gAudioDisabled != 0) {
+    if (sAudioSuspend != 0) {
         return;
     }
-    /* bank table: parts [+304]/[+308] = -1 for each of gAudioBankTbl[+16] banks */
-    /* sound table: [+40]/[+42] = 0 for each of gAudioRom sounds */
     for (i = 0; i < gAudioBankTbl[4]; i++) {
-        s32* bank = gAudioBankTbl + 5 + i * 73;
-        bank[71] = -1;
-        bank[72] = -1;
+        *(s32*)((u8*)gAudioBankTbl + i * 292 + 304) = -1;
+        *(s32*)((u8*)gAudioBankTbl + i * 292 + 308) = -1;
+    }
+    for (j = 0; j < *(s32*)(sAudioBankTable + 4); j++) {
+        *(u16*)(*(u8**)(sAudioBankTable + 16) + j * 44 + 40) = 0;
+        *(u16*)(*(u8**)(sAudioBankTable + 16) + j * 44 + 42) = 0;
     }
     sndCmd6();
 }
 
-/* AudioUnloadPart: free the DCS part currently held by named bank, unless still
- * referenced by another loaded bank. */
+/* AudioUnloadPart: free the ROM bank currently held by the named mode bank's
+ * loaded part -- but only if no other loaded mode bank still points at the same
+ * ROM bank (otherwise it is left in place and a "still in use" note is logged).
+ * Either way the mode bank's part slot (+284/+288) is reset to -1. */
 s32 AudioUnloadPart(char* bankName)
 {
-    if (gAudioDisabled != 0) {
+    s32 i;
+    s32 j;
+    s32 partId;
+    s32 romBankId;
+    u8* bankEntry;
+    u8* romBank;
+    u16 handle;
+
+    if (sAudioSuspend != 0) {
         return 0;
     }
-    /* locate bank by name; if its held part is shared by another bank, skip: */
-    bulletproof_printf("AudioUnloadPart skipped bank, still in use\n");
-    (void)bankName;
+    for (i = 0; i < gAudioBankTbl[4]; i++) {
+        if (strncmp((char*)((u8*)gAudioBankTbl + i * 292 + 20), bankName, 16) == 0) {
+            break;
+        }
+    }
+    if (i == gAudioBankTbl[4]) {
+        sAudioSuspend = 1;
+        i = -1;
+    }
+    bankEntry = (u8*)gAudioBankTbl + i * 292 + 20;
+    partId = *(s32*)(bankEntry + 284);
+    if (partId < 0) {
+        return 0;
+    }
+    romBankId = *(s32*)(bankEntry + partId * 4 + 28);
+    romBank = *(u8**)(sAudioBankTable + 16) + romBankId * 44;
+    handle = *(u16*)(romBank + 42);
+    if (handle != 0 && handle != 0xFFFF) {
+        for (j = gAudioBankTbl[4] - 1; j >= 0; j--) {
+            if (j != i) {
+                u8* other = (u8*)gAudioBankTbl + j * 292 + 20;
+                if (romBankId == *(s32*)(other + *(s32*)(other + 284) * 4 + 28)) {
+                    bulletproof_printf(lbl_8011145C);
+                    break;
+                }
+            }
+        }
+        if (j < 0) {
+            AudioKillByBank(romBankId);
+            sndCmd18(*(s16*)(romBank + 40));
+            *(s16*)(romBank + 40) = 0;
+            *(s16*)(romBank + 42) = 0;
+        }
+    }
+    *(s32*)(bankEntry + 284) = -1;
+    *(s32*)(bankEntry + 288) = -1;
     return 0;
 }
 
@@ -695,33 +1011,97 @@ s32 AudioUnloadPart(char* bankName)
  * command count (used as a "still busy?" poll). */
 s32 AudioSysUpdate(s32 dt)
 {
-    f32 t;
+    s32 j;
 
-    if (gAudioDisabled != 0) {
+    if (sAudioSuspend != 0) {
         return 0;
     }
-    t = (f32)dt;
-    gAudioHiMemLock = 0;
-    sndSysUpdate(t);
-    if (gAudioCmdPending != 0) {
-        gAudioSpin += dt;
+    lbl_803442A8 = 0;
+    sndSysUpdate((f32)dt);
+    if (sAudioMute != 0) {
+        lbl_803442B4 += dt;
+        for (j = 10000; j != 0; j--) {
+            /* short busy-wait while a command is still pending */
+        }
     } else {
-        gAudioSpin = 0;
+        lbl_803442B4 = 0;
     }
-    return gAudioCmdPending;
+    return sAudioMute;
+}
+
+/* AudioReset: recover the driver after an error/timeout.  Clears the error
+ * accumulators, re-acquires the driver and reloads the current mode's parts;
+ * if the driver stays busy past the spin budget it logs "Audio Reset Error". */
+void AudioReset(s32 force)
+{
+    s32 i = 0;
+    s32 j;
+
+    if (sAudioSuspend != 0) {
+        return;
+    }
+    if (force == 0 && sAudioErrFlags == 0 && lbl_803442CC == 0 && lbl_803442C8 == 0) {
+        return;
+    }
+    if (force == 0) {
+        lbl_803442C4++;
+    }
+    sAudioErrFlags = 0;
+    lbl_803442CC = 0;
+    sAudioTimeoutAcc = 0;
+    lbl_803442C8 = 0;
+    sAudioTimeoutErrs = 0;
+    sAudioQueBusy = 1;
+    sndCmd1();
+    AudioClearTracks();
+
+    for (;;) {
+        if (sndSysUpdate(lbl_80345930) == 1) {
+            break;
+        }
+        i++;
+        if ((f64)i > 400000000.0) {
+            lbl_803442CC++;
+            ErrorPrintf(lbl_80111488);
+            return;
+        }
+        for (j = 10000; j != 0; j--) {
+            /* spin while the driver drains */
+        }
+    }
+
+    sAudioMute = 0;
+    sndFxInitVoices();
+    sAudioQueCount[0] = 0;
+    sAudioQueBusy = 1;
+    sAudioQueCount[1] = 0;
+    sAudioQueFade[0] = lbl_80345930;
+    sAudioQueFade[1] = lbl_80345930;
+    lbl_803442EC = 0;
+    lbl_803442D4 = 0;
+    sAudioQueBusy = 0;
+    sndSysSetBit0(0);
+    sndSysSetBit1(0);
+    *(s32*)(sAudioState + 4) = 0;
+    lbl_803442F0 = -1;
+    for (i = 0; i < gAudioBankTbl[4]; i++) {
+        s32 part = *(s32*)((u8*)gAudioBankTbl + i * 292 + 304);
+        if (AudioLoadPart(i, part, 0, 0) == 0) {
+            lbl_803442C8++;
+        }
+    }
 }
 
 /* AudioSysSync: drive one update and latch a -2 ("busy") response. */
 void AudioSysSync(s32 dt)
 {
-    if (gAudioDisabled != 0) {
+    if (sAudioSuspend != 0) {
         return;
     }
-    gAudioStreamResp = sndSysUpdate((f32)dt);
-    if (gAudioStreamResp == -2) {
-        ErrorPrintf("Audio Busy = -2");
-        gAudioStreamState |= 1;
-        fn_800BC590();
+    sAudioReady = sndSysUpdate((f32)dt);
+    if (sAudioReady == -2) {
+        sAudioErrFlags |= 1;
+        fn_800BC590(lbl_8011149C);
     }
 }
 
@@ -733,37 +1113,52 @@ void AudioSysSync(s32 dt)
  * selects the boot mode and enables SFX. */
 void audio_init(void)
 {
-    gAudioBusyFlag = 1;
+    s32 wasBusy;
+
+    sAudioQueBusy = 1;
     if ((sFlags & 0x20) != 0) {
-        gAudioDisabled = 1;
-        gAudioStreamBusy = 1;
+        sAudioSuspend = 1;
+        lbl_803442A4 = 1;
+        lbl_803449A8 = 1;
     }
-    if (gAudioDisabled == 0) {
+    if (sAudioSuspend == 0) {
         sndTestAcquire(0);
     }
-    gAudioCmdPending = 0;
+    sAudioMute = 0;
     sndFxInitVoices();
-    gAudioBusyFlag = 1;
-    AudioSetMode(0);
-    gAudioStreamState = 0;
-    gAudioBankErrs = 0;
-    if (gAudioDisabled == 0) {
+    wasBusy = sAudioQueBusy;
+    sAudioQueBusy = 1;
+    sAudioQueCount[0] = 0;
+    sAudioQueCount[1] = 0;
+    sAudioQueFade[0] = lbl_80345930;
+    sAudioQueFade[1] = lbl_80345930;
+    lbl_803442EC = 0;
+    if (wasBusy == 0) {
+        sAudioQueBusy = 0;
+    }
+    AudioSetMode((char*)lbl_803459B0);
+    sAudioErrFlags = 0;
+    lbl_803442C8 = 0;
+    lbl_803442CC = 0;
+    sAudioReady = 0;
+    lbl_803442D4 = 0;
+    if (sAudioSuspend == 0) {
         sndSysSetBit0(0);
         sndSysSetBit1(0);
+        *(s32*)(sAudioState + 4) = 0;
+        sndCmd3(sAudioInitFlag == 0 ? 1 : 0);
     }
-    *(s32*)(gAudioState + 4) = 0;
-    sndCmd3(sAudioInitFlag == 0 ? 1 : 0);
-    gAudioBusyFlag = 0;
+    sAudioQueBusy = 0;
 }
 
 /* AudioSetEnabled: flip the master enable and tell the driver. */
 s32 AudioSetEnabled(s32 enable)
 {
-    if (gAudioDisabled != 0) {
+    if (sAudioSuspend != 0) {
         return 1;
     }
-    sAudioInitFlag = (enable == 0) ? 1 : 0;
-    sndCmd3(sAudioInitFlag);
+    sAudioInitFlag = !enable;
+    sndCmd3(enable);
     return 1;
 }
 
@@ -773,26 +1168,26 @@ s32 AudioSetEnabled(s32 enable)
 
 s32 AudioSetVolSfx(s32 vol)
 {
-    gSfxVol = vol;
+    lbl_80343B48 = vol;
     if (vol < 0) {
-        ErrorPrintf("AUDIO sfx volume can't be less than 0  (%d)\n", vol);
-        gSfxVol = 0;
+        ErrorPrintf(lbl_801114AC, vol);
+        lbl_80343B48 = 0;
     } else if (vol > 255) {
-        ErrorPrintf("AUDIO sfx volume can't be greater than %d  (%d)\n", 255, vol);
-        gSfxVol = 255;
+        ErrorPrintf(lbl_801114DC, 255, vol);
+        lbl_80343B48 = 255;
     }
     return 1;
 }
 
 s32 AudioSetVolMusic(s32 vol)
 {
-    gMusicVol = vol;
+    lbl_80343B4C = vol;
     if (vol < 0) {
-        ErrorPrintf("AUDIO music volume can't be less than 0  (%d)\n", vol);
-        gMusicVol = 0;
+        ErrorPrintf(lbl_80111510, vol);
+        lbl_80343B4C = 0;
     } else if (vol > 255) {
-        ErrorPrintf("AUDIO music volume can't be greater than %d  (%d)\n", 255, vol);
-        gMusicVol = 255;
+        ErrorPrintf(lbl_80111540, 255, vol);
+        lbl_80343B4C = 255;
     }
     return 1;
 }
@@ -807,17 +1202,16 @@ void AudioEmptyCb2(void) {}
 /* AudioGetSoundVol: fetch a sound instance's stored volume by packed id. */
 f32 AudioGetSoundVol(s32 packedId)
 {
-    s32* sound = (s32*)(*(u8**)(gAudioRom + 16) + (packedId >> 16) * 44);
-    f32* inst  = (f32*)(*(u8**)(gAudioRom + 20)
-                 + ((packedId & 0xFFF) + *(s16*)((u8*)sound + 38)) * 28);
-    return inst[5];
+    u8* bank = *(u8**)(sAudioBankTable + 16) + (packedId >> 16) * 44;
+    u8* snd  = *(u8**)(sAudioBankTable + 20)
+               + ((packedId & 0xFFF) + *(s16*)(bank + 38)) * 28;
+    return *(f32*)(snd + 20);
 }
 
 /* AudioFindSound: resolve a sound handle by name across all loaded banks. */
 s32 AudioFindSound(char* name, s32 maxLen, s32 warn)
 {
     s32 b, s;
-    s32 bankCount;
 
     if (*name == 0) {
         return -1;
@@ -825,62 +1219,70 @@ s32 AudioFindSound(char* name, s32 maxLen, s32 warn)
     if (maxLen <= 0) {
         maxLen = 15;
     }
-    bankCount = *(s32*)(gAudioRom + 4);
-    for (b = 0; b < bankCount; b++) {
-        s32* bank = (s32*)(*(u8**)(gAudioRom + 16) + b * 44);
-        s32 sndCount = *(s16*)((u8*)bank + 36);
-        for (s = 0; s < sndCount; s++) {
-            s32* snd = (s32*)(*(u8**)(gAudioRom + 20)
-                       + (*(s16*)((u8*)bank + 38) + s) * 28);
+    for (b = 0; b < *(s32*)(sAudioBankTable + 4); b++) {
+        u8* bank = *(u8**)(sAudioBankTable + 16) + b * 44;
+        for (s = 0; s < *(s16*)(bank + 36); s++) {
+            u8* snd = *(u8**)(sAudioBankTable + 20)
+                      + (*(s16*)(bank + 38) + s) * 28;
             if (strncmp((char*)snd, name, maxLen) == 0) {
-                return snd[4];
+                return *(s32*)(snd + 16);
             }
         }
     }
     if (warn != 0 && (sFlags & 0x10) == 0) {
-        ErrorPrintf("UNABLE TO FIND SOUND: %s\n", name);
+        ErrorPrintf(lbl_80111574, name);
     }
     return -1;
 }
 
-/* AudioTrackRegister: register (or refresh) a spatial voice descriptor slot and
- * compute its expiry tick from the sound's duration. */
+/* AudioTrackRegister: fill (or find-and-fill) a spatial voice descriptor slot
+ * with the sound's resolved index, listener params and an expiry tick computed
+ * from the sound's duration in seconds (dur * 60 frames + now). */
 void AudioTrackRegister(s32 slot, s32 packedId, s32 a, s32 b, s32 c)
 {
     s32* d;
     f32 dur;
-    s32* snd;
+    u8* snd;
 
     if (slot >= 0) {
         d = gAudioVoiceDesc[slot];
-        snd = (s32*)(*(u8**)(gAudioRom + 16) + (packedId >> 16) * 44);
-        d[0] = (packedId & 0xFFF) + *(s16*)((u8*)snd + 38);
+        snd = *(u8**)(sAudioBankTable + 16) + (packedId >> 16) * 44;
+        d[0] = (packedId & 0xFFF) + *(s16*)(snd + 38);
         d[1] = d[0];
         d[2] = packedId;
         d[3] = pbLoad;
         d[4] = a;
         d[5] = b;
         d[6] = c;
-        snd = (s32*)(*(u8**)(gAudioRom + 20) + d[0] * 28);
-        dur = ((f32*)snd)[5];
-        d[7] = (dur > 0.0f) ? (s32)((f32)pbLoad + dur) : -1;
+        snd = *(u8**)(sAudioBankTable + 20) + d[0] * 28;
+        dur = *(f32*)(snd + 20);
+        if (dur > lbl_80345930) {
+            d[7] = (s32)(lbl_80345940 * dur + (f32)pbLoad);
+        } else {
+            d[7] = -1;
+        }
     } else {
         s32 i;
-        for (i = 0; i < 12; i++) {
+        /* free-slot rescan (the shipped table start index leaves this path
+         * effectively inert, but the body is preserved verbatim) */
+        for (i = 12; i < 12; i++) {
             d = gAudioVoiceDesc[i];
             if (d[0] < 0) {
-                /* re-init a free slot the same way */
-                snd = (s32*)(*(u8**)(gAudioRom + 16) + (packedId >> 16) * 44);
-                d[0] = (packedId & 0xFFF) + *(s16*)((u8*)snd + 38);
+                snd = *(u8**)(sAudioBankTable + 16) + (packedId >> 16) * 44;
+                d[0] = (packedId & 0xFFF) + *(s16*)(snd + 38);
                 d[1] = d[0];
                 d[2] = packedId;
                 d[3] = pbLoad;
                 d[4] = a;
                 d[5] = b;
                 d[6] = c;
-                snd = (s32*)(*(u8**)(gAudioRom + 20) + d[0] * 28);
-                dur = ((f32*)snd)[5];
-                d[7] = (dur > 0.0f) ? (s32)((f32)pbLoad + dur) : -1;
+                snd = *(u8**)(sAudioBankTable + 20) + d[0] * 28;
+                dur = *(f32*)(snd + 20);
+                if (dur > lbl_80345930) {
+                    d[7] = (s32)(lbl_80345940 * dur + (f32)pbLoad);
+                } else {
+                    d[7] = -1;
+                }
                 break;
             }
         }
@@ -890,18 +1292,27 @@ void AudioTrackRegister(s32 slot, s32 packedId, s32 a, s32 b, s32 c)
 /* AudioIsActive: true when audio is not muted. */
 s32 AudioIsActive(void)
 {
-    return (gAudioDisabled != 0) ? 0 : 1;
+    return (sAudioSuspend != 0) ? 0 : 1;
 }
 
-/* AudioSetListenerPos: byte-swap a vec3 and hand it to the 3D transform. */
-void AudioSetListenerPos(s32* out, s32 unused, f32* pos)
+/* AudioSetListenerPos: byte-reverse each float of the incoming vec3 (PS2
+ * little-endian -> GameCube big-endian) and hand it to the 3D transform
+ * builder, then flag the listener slot dirty (+96 |= 1). */
+void AudioSetListenerPos(s32* out, s32 arg, f32* pos)
 {
     f32 v[3];
     s32 i;
 
     for (i = 0; i < 3; i++) {
-        v[i] = pos[i];   /* original performs an explicit LE<->BE swap here */
+        union { f32 f; u8 b[4]; } in;
+        union { f32 f; u8 b[4]; } sw;
+        in.f = pos[i];
+        sw.b[0] = in.b[3];
+        sw.b[1] = in.b[2];
+        sw.b[2] = in.b[1];
+        sw.b[3] = in.b[0];
+        v[i] = sw.f;
     }
-    MBNewWorldPsys(out, 0, v, 1, 0, unused);
+    fn_800CEAF0(0, out, arg, 1, 0, v);
     out[24] |= 1;
 }
