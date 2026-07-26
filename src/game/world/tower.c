@@ -82,7 +82,7 @@ void TowerInit(void) {
     /* clears sumner handles, timers (-1), speech floats, hint state */
 }
 
-/* Resolve the current world object handle (fn_8006F678 + fn_800668F8). */
+/* Resolve the current world object handle (newcam GetPlayerAvgPos + fn_800668F8). */
 void towerUpdateCurWorldObj(void) {
 }
 
