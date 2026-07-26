@@ -408,6 +408,7 @@ config.libs = [
             Object(NonMatching, "game/world/btricol.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/boss/boss.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/world/gauntworld.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
+            Object(NonMatching, "game/world/camera.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/boss/bosscam.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/pb/pb_diag.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/audio/soundmgr.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
