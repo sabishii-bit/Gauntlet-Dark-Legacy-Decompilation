@@ -94,10 +94,10 @@ extern void fn_80057024(void);
 extern int  NextAttractWave(void);
 extern void fn_8002CF78(int a);
 extern void fn_8002C640(void);
-extern void fn_800176D8(void);
-extern int  fn_80017B18(void* a);
-extern void fn_80017BAC(int a);
-extern void fn_8001802C(void);
+extern void AudioStreamStop(void);      /* was fn_800176D8 */
+extern int  AudioSysUpdate(int a);      /* was fn_80017B18 */
+extern void AudioReset(int a);          /* was fn_80017BAC */
+extern void AudioEmptyCb1(void);        /* was fn_8001802C */
 extern void fn_800B8DD0(void* dst, void* name, int a, int b);
 extern int  fn_800B8B04(char* name, int flag);
 extern int  fn_800B38D0(int a, int b);
@@ -761,9 +761,9 @@ void init_attract_mode(int screen) {
 
     /* tear down current screen */
     fn_80031110(-1);
-    fn_80017BAC(cur_screen_id);
+    AudioReset(cur_screen_id);
     cur_screen_id = 0;
-    fn_8001802C();
+    AudioEmptyCb1();
     fn_800BC4E4();
 
     if (fn_80031504(0x400000) != 0 && fn_80031504(0x800000) != 0) {
