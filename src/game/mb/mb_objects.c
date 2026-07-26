@@ -9,31 +9,15 @@
  *   - dist queue  (alpha objects sorted back-to-front by camera distance)
  *   - sort queue  (alpha objects sorted back-to-front by explicit key)
  *
- * Each queue is a fixed array of 256 entries (MBObjEntry, 0x4C bytes:
- * a 4x4 transform, a float sort key, the owning MBObject*, and a blit page).
- * MBSetupObject decides, from an object's flags, whether it draws immediately
- * or is deferred into the dist/sort queue; MBEndFrame later flushes the queues
- * via MBDrawPsysObjects / MBDrawDistObjects / MBDrawSortObjects, each of which
- * qsort()s by CmpDist and hands the run to DrawSortObjectsSub.
+ * Each queue is a fixed array of MBObjEntry (0x4C bytes: a 4x4 transform, a
+ * float sort key, the owning MBObject*, and a blit page). MBSetupObject decides,
+ * from an object's flags, whether it draws immediately or is deferred into the
+ * dist/sort queue; MBEndFrame later flushes the queues via MBDrawPsysObjects /
+ * MBDrawDistObjects / MBDrawSortObjects, each of which qsort()s by CmpDist and
+ * hands the run to DrawSortObjectsSub.
  *
- * Function names are from shell3D.pdb (mb_objects.obj). Reverse Xbox source
- * order maps cleanly here; the four billboard-matrix helpers (TopFaceMat,
- * FaceCamMat, InitFrontFaceYaw, QuickYawMat) are assigned by that reverse
- * order and are the only tentative names -- all four are pure-math and are
- * stubbed below. Behaviourally-anchored names (string / flag / queue-count
- * evidence) are firm: MBInitObjects, MBNewObject, MBSetObject,
- * MBDrawObjectTest, MBSetupObject, MBDraw{Psys,Dist,Sort}Objects,
- * DrawSortObjectsSub, Add{Psys,Dist,Sort}Object, InitSortObjects, CmpDist.
- *
- * Status: NonMatching (documentation slice; symbols mapped in symbols.txt,
- * DOL still built from the original bytes). Queue-management bodies are
- * reconstructed; the billboard-matrix helpers and the low-level GX draw
- * dispatch (via fn_800C3AFC/fn_800C38C0/fn_800CBC4C) are stubbed.
+ * Status: NonMatching (billboard-matrix helpers + MBSetupObject stubbed).
  */
-
-#pragma dont_inline on
-
-#define MB_OBJ_QUEUE_MAX 256
 
 /* One deferred-draw queue entry. Size 0x4C. */
 typedef struct MBObjEntry {
@@ -48,7 +32,8 @@ typedef struct MBObject {
     /* 0x00 */ u8 _pad0[0x52];
     /* 0x52 */ s8 drawType;        /* 2 = normal, 0xC/0xE = special dispatch */
     /* 0x53 */ u8 flag53;
-    /* 0x54 */ u8 _pad54[0x0C];
+    /* 0x54 */ f32 f54;            /* per-object sort-key bias */
+    /* 0x58 */ u8 _pad58[0x08];
     /* 0x60 */ u32 flags;          /* draw/category flag bits */
     /* 0x64 */ u8 _pad64[0x08];
     /* 0x6C */ s32 objid;          /* rom object index, or -1 */
@@ -56,24 +41,24 @@ typedef struct MBObject {
 } MBObject;
 
 /* ---- externs (resolved via symbols.txt) ---- */
-extern void* fn_800BB29C(int a, void* name, int b);   /* render-node/tree alloc */
+extern void* fn_800BB29C(void* parent, void* name, int count); /* render-node/tree alloc */
 extern void FatalError(const char* msg, int code);
 extern void ErrorPrintf(const char* fmt, ...);
-extern int fn_800B5704(void* v);                      /* float-triple valid test */
-extern void fn_800BE8F4(MBObject* obj, MBObjEntry* e); /* fill entry transform */
+extern int fn_800B5704(void* p, f32 f);                /* float-triple valid test */
+extern void fn_800BE8F4(void* mtx, MBObjEntry* e);     /* fill entry transform */
 extern void qsort(void* base, u32 num, u32 size,
                   int (*cmp)(const void*, const void*));
-extern void* mbBlitGetPage(void);
-extern void mbBlitSetPage(void* p);
-extern void fn_800CBC4C(int a, MBObjEntry* e);         /* GX special dispatch */
-extern void fn_800C3AFC(void);                          /* GX draw begin */
+extern void mbBlitGetPage(void);
+extern void mbBlitSetPage(void);
+extern void pbSendObjTextures(void);                   /* 0x800C3AFC */
+extern void fn_800CBC4C(void* obj, MBObjEntry* e);     /* GX special dispatch */
 extern void fn_800C38C0(MBObjEntry* e, MBObject* obj, int f); /* GX draw object */
-extern void fn_800C1148(int a, int b, void* c);         /* debug bbox draw */
+extern void fn_800C1148(int a, int b, void* c);        /* debug bbox draw */
 
 /* module data (see symbols.txt) */
-extern MBObjEntry mbPsysObjects[MB_OBJ_QUEUE_MAX];   /* 0x802A61B8 */
-extern MBObjEntry mbDistObjects[MB_OBJ_QUEUE_MAX];   /* 0x802AADB8 */
-extern MBObjEntry mbSortObjects[MB_OBJ_QUEUE_MAX];   /* 0x802AF9B8 */
+extern MBObjEntry mbPsysObjects[256];                /* 0x802A61B8 */
+extern MBObjEntry mbDistObjects[256];                /* 0x802AADB8 */
+extern MBObjEntry mbSortObjects[256];                /* 0x802AF9B8 */
 extern s32 mbNumPsysObjects;                          /* 0x80344E9C */
 extern s32 mbNumDistObjects;                          /* 0x80344EA0 */
 extern s32 mbNumSortObjects;                          /* 0x80344EA4 */
@@ -85,14 +70,16 @@ extern void* lbl_80344EB4;
 extern void* lbl_80344EB0;
 extern void* lbl_80344EAC;
 extern void* lbl_80344EA8;
-extern void* lbl_80127D60;   /* tree ctor argument blob */
+extern u8 lbl_80127D60[0x40];   /* tree ctor argument blob (.data) */
 
 /* shared globals owned by other MB TUs */
-extern u32 gWinDebug;                 /* 0x80343FB8 : [0]=hide-objs [1]=... */
-extern s32 lbl_80343F9C;              /* draw-bbox enable */
-extern s32 lbl_80344E90;              /* debug flag (DrawSortObjectsSub) */
+extern s32* gWinDebug;               /* 0x80343FB8 : ptr; [0]=hide-objs [1]=... */
+extern s32 lbl_80343F9C;              /* 0xE-dispatch enable */
+extern s32 lbl_80344E90;              /* debug-bbox enable (DrawSortObjectsSub) */
 extern u8* gWinGlobals;               /* 0x80344FC0 : window/model-mgr context */
-extern u32 lbl_802A4B30;             /* current blit page block */
+extern u32 lbl_802A4B30[6];           /* current blit page block (.bss 0x18) */
+extern s32 lbl_802C29F8[12];          /* profiler counters (.bss 0x30) */
+extern u8 lbl_80116020[0x16];         /* debug bbox arg blob (.rodata) */
 
 extern const char str_BadMBSetObject[];    /* "Bad MBSetObject"          */
 extern const char str_TooManyPsys[];       /* "TOO MANY PSYS OBJECTS: %d" */
@@ -110,12 +97,12 @@ static int CmpDist(const void* a, const void* b);
 /* Allocate (or clear) the six render trees that objects are attached to. */
 void MBInitObjects(int enable) {
     if (enable) {
-        lbl_80344EBC = fn_800BB29C(0, &lbl_80127D60, 1);
-        lbl_80344EB8 = fn_800BB29C(0, &lbl_80127D60, 1);
-        lbl_80344EB4 = fn_800BB29C(0, &lbl_80127D60, 1);
-        lbl_80344EB0 = fn_800BB29C(0, &lbl_80127D60, 7);
-        lbl_80344EAC = fn_800BB29C(0, &lbl_80127D60, 8);
-        lbl_80344EA8 = fn_800BB29C(0, &lbl_80127D60, 8);
+        lbl_80344EBC = fn_800BB29C(0, lbl_80127D60, 1);
+        lbl_80344EB8 = fn_800BB29C(0, lbl_80127D60, 1);
+        lbl_80344EB4 = fn_800BB29C(0, lbl_80127D60, 1);
+        lbl_80344EB0 = fn_800BB29C(0, lbl_80127D60, 7);
+        lbl_80344EAC = fn_800BB29C(0, lbl_80127D60, 8);
+        lbl_80344EA8 = fn_800BB29C(0, lbl_80127D60, 8);
         *(u32*)((u8*)lbl_80344EB8 + 0x60) |= 4;
         *(u32*)((u8*)lbl_80344EBC + 0x60) |= 4;
         *(u32*)((u8*)lbl_80344EB0 + 0x60) |= 4;
@@ -131,42 +118,29 @@ void MBInitObjects(int enable) {
     }
 }
 
-/* Resolve an objid to its rom texture pointer via the model manager. */
-static void* MBRomTex(s32 objid) {
-    u8* mgr = gWinGlobals;
-    void** table;
-    if (objid < 0) {
-        FatalError(str_BadMBSetObject, 0x800000);
-        return 0;
-    }
-    table = *(void***)(mgr + 0x30);
-    table = (void**)((u8*)table[(objid >> 16) * 4 + 1] + 0x54);
-    return (u8*)table + (((u32)objid << 6) & 0x00FFFFC0);
-}
-
-/* Create a new object node in tree A/B (by flag bit 18) and bind it. */
-MBObject* MBNewObject(s32 objid, int unused, int isTemp, u32 flags) {
-    void* tree;
+/* Create a new object node under a parent tree and bind it to a rom object. */
+MBObject* MBNewObject(s32 objid, void* name, void* parent, u32 flags) {
     MBObject* obj;
 
-    if (isTemp) {
-        tree = (flags & 0x00002000) ? lbl_80344EB8 : lbl_80344EBC;
-    } else {
-        tree = 0;
+    if (parent == 0) {
+        parent = (flags & 0x00002000) ? lbl_80344EBC : lbl_80344EB8;
     }
 
     if (objid == -1) {
-        obj = (MBObject*)fn_800BB29C((int)tree, &lbl_80127D60, 1);
+        obj = (MBObject*)fn_800BB29C(parent, name, 1);
     } else {
-        obj = (MBObject*)fn_800BB29C((int)tree, &lbl_80127D60, 2);
+        obj = (MBObject*)fn_800BB29C(parent, name, 2);
         if (obj != 0) {
+            u8* mgr = gWinGlobals;
             if (objid < 0) {
                 FatalError(str_BadMBSetObject, 0x800000);
                 obj->objid = objid;
                 obj->romTex = 0;
             } else {
+                void** table = *(void***)(mgr + 0x30);
                 obj->objid = objid;
-                obj->romTex = MBRomTex(objid);
+                obj->romTex = (u8*)*(void**)((u8*)table[(objid >> 16) * 4 + 1] + 0x54) +
+                              ((objid << 6) & 0x003FFFC0);
                 obj->drawType = 2;
                 obj->flags &= ~1u;
             }
@@ -178,13 +152,16 @@ MBObject* MBNewObject(s32 objid, int unused, int isTemp, u32 flags) {
 
 /* Rebind an existing object node to a different rom object. */
 void MBSetObject(MBObject* obj, s32 objid) {
+    u8* mgr = gWinGlobals;
     if (objid < 0) {
         FatalError(str_BadMBSetObject, 0x800000);
         obj->objid = objid;
         obj->romTex = 0;
     } else {
+        void** table = *(void***)(mgr + 0x30);
         obj->objid = objid;
-        obj->romTex = MBRomTex(objid);
+        obj->romTex = (u8*)*(void**)((u8*)table[(objid >> 16) * 4 + 1] + 0x54) +
+                      ((objid << 6) & 0x003FFFC0);
         obj->drawType = 2;
         obj->flags &= ~1u;
     }
@@ -196,39 +173,37 @@ void MBSetObject(MBObject* obj, s32 objid) {
 
 /* Returns 0 = cull, 1 = draw immediately, 2 = defer to a sort queue. */
 int MBDrawObjectTest(MBObject* obj, void* cam, int allowDefer) {
-    int valid;
-    valid = fn_800B5704((u8*)obj->romTex + 4);
-    if (((u32*)&gWinDebug)[0] != 0 && ((u32*)&gWinDebug)[1] != 0) {
-        valid = 0;
+    int cull;
+    cull = !fn_800B5704((u8*)cam + 48, *(f32*)((u8*)obj->romTex + 4));
+    if (gWinDebug[0] != 0 && gWinDebug[1] != 0) {
+        cull = 0;
     }
-    if (valid == 0) {
+    if (cull) {
         return 0;
     }
     if (obj->flags & 0x00100400) {
         return 2;
     }
     if (allowDefer != 0 && (obj->flags & 0x00000800)) {
-        if (obj->flag53 == 0 && !(obj->flags & 0x40800000) &&
-            (((u8*)obj->romTex)[8] & 1)) {
+        if (obj->flag53 != 0 || (obj->flags & 0x40800000) ||
+            (*(u32*)((u8*)obj->romTex + 8) & 1)) {
             return 2;
         }
-        return 2;
     }
     return 1;
 }
 
-/* Transform an object into view space, bump the frame profiler counters,
- * and route it to the correct deferred queue (or draw path). */
+/* Transform an object into view space and route it to the correct queue. */
 void MBSetupObject(MBObject* obj, void* mtx, void* cam) {
     (void)obj;
     (void)mtx;
     (void)cam;
     /* NonMatching: profiler bookkeeping + matrix transform + AddDistObject /
-     * AddSortObject routing; body reconstructed from bytes, stubbed here. */
+     * AddSortObject routing; stubbed. */
 }
 
 /* =====================================================================
- * Billboard matrix helpers (pure math; names tentative, bodies stubbed)
+ * Billboard matrix helpers (pure math; bodies stubbed)
  * ===================================================================== */
 
 void TopFaceMat(void* dst, void* src, void* cam) {
@@ -252,40 +227,43 @@ void QuickYawMat(void* dst, f32 yaw) {
  * ===================================================================== */
 
 void MBDrawPsysObjects(void) {
-    void* page = mbBlitGetPage();
+    mbBlitGetPage();
     DrawSortObjectsSub(0, mbPsysObjects, mbNumPsysObjects);
-    mbBlitSetPage(page);
+    mbBlitSetPage();
 }
 
 void MBDrawDistObjects(void) {
-    qsort(mbDistObjects, mbNumDistObjects, sizeof(MBObjEntry), CmpDist);
-    DrawSortObjectsSub(0, mbDistObjects, mbNumDistObjects);
+    s32 n = mbNumDistObjects;
+    qsort(mbDistObjects, n, sizeof(MBObjEntry), CmpDist);
+    DrawSortObjectsSub(0, mbDistObjects, n);
 }
 
 void MBDrawSortObjects(void) {
-    qsort(mbSortObjects, mbNumSortObjects, sizeof(MBObjEntry), CmpDist);
-    DrawSortObjectsSub(0, mbSortObjects, mbNumSortObjects);
+    s32 n = mbNumSortObjects;
+    qsort(mbSortObjects, n, sizeof(MBObjEntry), CmpDist);
+    DrawSortObjectsSub(0, mbSortObjects, n);
 }
 
 /* Draw a run of queue entries, dispatching on each object's drawType. */
 static void DrawSortObjectsSub(int start, MBObjEntry* base, int count) {
     int i;
-    MBObjEntry* e = base;
+    MBObjEntry* e = &base[start];
     for (i = start; i < count; i++, e++) {
         s8 t = e->obj->drawType;
-        if (t == 0xC) {
+        if (t == 12) {
             /* nothing */
-        } else if (t == 0xE) {
-            if (lbl_80344E90 != 0) {
-                fn_800CBC4C(0, e);
+        } else if (t == 14) {
+            if (lbl_80343F9C != 0) {
+                fn_800CBC4C(e->obj, e);
             }
         } else if (t == 2) {
-            fn_800C3AFC();
-            lbl_802A4B30 = e->page;
+            pbSendObjTextures();
+            lbl_802A4B30[1] = e->page;
             fn_800C38C0(e, e->obj, 0);
+            lbl_802C29F8[7]++;
         }
-        if (lbl_80343F9C != 0) {
-            fn_800C1148(0, 0, 0);
+        if (lbl_80344E90 != 0) {
+            fn_800C1148(0, 0, lbl_80116020);
         }
     }
 }
@@ -294,43 +272,64 @@ static void DrawSortObjectsSub(int start, MBObjEntry* base, int count) {
  * Deferred-queue insertion
  * ===================================================================== */
 
-void AddPsysObject(void* mtx, MBObject* obj) {
+int AddPsysObject(void* mtx, MBObject* obj) {
     MBObjEntry* e;
     if (mbNumPsysObjects >= 0xFF) {
         ErrorPrintf(str_TooManyPsys, mbNumPsysObjects);
-        return;
+        return 0;
     }
     e = &mbPsysObjects[mbNumPsysObjects++];
-    fn_800BE8F4(obj, e);
-    e->key = 1.0f;
+    fn_800BE8F4(mtx, e);
+    e->key = 0.0f;
     e->obj = obj;
-    e->page = *((u32*)&lbl_802A4B30 + 1);
+    e->page = lbl_802A4B30[1];
+    return 1;
 }
 
-void AddDistObject(f32 dist, MBObject* obj) {
+int AddDistObject(void* mtx, MBObject* obj, f32 dist) {
     MBObjEntry* e;
     if (mbNumDistObjects >= 0xFF) {
         ErrorPrintf(str_TooManyAlphaDist, mbNumDistObjects);
-        return;
+        return 0;
+    }
+    if (dist > 536870912.0f) {
+        dist = 536870912.0f;
     }
     e = &mbDistObjects[mbNumDistObjects++];
-    fn_800BE8F4(obj, e);
-    e->key = dist;
+    fn_800BE8F4(mtx, e);
+    e->key = dist + obj->f54;
     e->obj = obj;
-    e->page = *((u32*)&lbl_802A4B30 + 1);
+    e->page = lbl_802A4B30[1];
+    if (e->obj->flags & 0x00400000) {
+        e->key *= 1e-05;
+    } else if (e->obj->flags & 0x00080000) {
+        e->key *= 0.001;
+    }
+    return 1;
 }
 
-void AddSortObject(f32 key, MBObject* obj) {
+int AddSortObject(void* mtx, MBObject* obj, f32 key) {
     MBObjEntry* e;
-    if (mbNumSortObjects >= 0xFF) {
+    if (mbNumSortObjects >= 1023) {
         ErrorPrintf(str_TooManyAlphaSort, mbNumSortObjects);
-        return;
+        return 0;
+    }
+    if (key > 536870912.0f) {
+        key = 536870912.0f;
     }
     e = &mbSortObjects[mbNumSortObjects++];
-    fn_800BE8F4(obj, e);
-    e->key = key;
+    fn_800BE8F4(mtx, e);
+    e->key = key + obj->f54;
     e->obj = obj;
-    e->page = *((u32*)&lbl_802A4B30 + 1);
+    e->page = lbl_802A4B30[1];
+    if (e->obj->flags & 0x00100400) {
+        e->key = e->key - 30000.0;
+    } else if (e->obj->flags & 0x00400000) {
+        e->key = e->key - 20000.0;
+    } else if (e->obj->flags & 0x00080000) {
+        e->key = e->key - 10000.0;
+    }
+    return 1;
 }
 
 /* Reset the three deferred queues at the start of a frame. */
@@ -343,7 +342,7 @@ void InitSortObjects(void) {
 /* qsort comparator: back-to-front by key. */
 static int CmpDist(const void* a, const void* b) {
     f32 d = ((const MBObjEntry*)b)->key - ((const MBObjEntry*)a)->key;
-    if (d < 0.0f) return -1;
-    if (d > 0.0f) return 1;
+    if (d > 0.0) return 1;
+    if (d < 0.0) return -1;
     return 0;
 }
