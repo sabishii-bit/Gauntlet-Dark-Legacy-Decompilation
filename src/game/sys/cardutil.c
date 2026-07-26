@@ -8,9 +8,23 @@
  * writes back a result. Address range 0x800DC180..0x800DD180.
  *
  * NOTE: NonMatching - the directory-management handlers (cardDoWrite/DoLoad/
- * DoDelete) share the savegame-directory layout that lives in memcard.c and
- * are left as stubs; everything else is byte-exact. Function order follows the
- * DOL (same-TU inlining depends on it).
+ * DoDelete) are fully reconstructed from the target asm; they operate on the
+ * shared savegame-directory table (an array of CardDirEntry) whose buffer is
+ * handed in from memcard.c. Their icon/banner-offset bookkeeping keeps regalloc
+ * residuals, so the TU stays NonMatching; the other handlers are byte-exact.
+ * Function order follows the DOL (same-TU inlining depends on it).
+ *
+ * PARKED light-match residuals (do not re-hunt):
+ *   cardExit/cardWaitResult - target reserves an extra 8-byte parameter frame
+ *     (frame 0x18 vs 0x10); documented "+8 param-frame wall".
+ *   cardStart - opcode stream identical to target; register-numbering only.
+ *   cardSubmitCommand - target recomputes &M.mutex at the unlock instead of
+ *     caching it, so it needs one fewer saved register (CSE/regalloc).
+ *   cardThreadMain - 133/133 insns; remaining diffs are mr-vs-`addi r,r,0`
+ *     move selection and record-form compares (regalloc), no source lever.
+ *   cardDoWrite/cardDoLoad - stack slots aligned; residual is icon-offset
+ *     strength-reduction + regalloc; gCardBuf overlay shows as a `...bss.0`
+ *     reloc in fndiff (false positive, byte-identical).
  */
 #include "types.h"
 
@@ -31,8 +45,31 @@ s32 OSResumeThread(OSThread* t);
 void VIWaitForRetrace(void);
 
 /* --- dolphin/card --- */
-typedef struct CARDStat { u8 _[0x6C]; } CARDStat;
-typedef struct CARDFileInfo { u8 _[0x14]; } CARDFileInfo;
+typedef struct CARDStat {
+    char fileName[0x20];   /* 0x00 */
+    u32 length;            /* 0x20 */
+    u32 time;              /* 0x24 */
+    u8 gameName[4];        /* 0x28 */
+    u8 company[2];         /* 0x2c */
+    u8 bannerFormat;       /* 0x2e */
+    u8 _pad0;              /* 0x2f */
+    u32 iconAddr;          /* 0x30 */
+    u16 iconFormat;        /* 0x34 */
+    u16 iconSpeed;         /* 0x36 */
+    u32 commentAddr;       /* 0x38 */
+    u32 offsetBanner;      /* 0x3c */
+    u32 offsetBannerTlut;  /* 0x40 */
+    u32 offsetIcon[8];     /* 0x44 */
+    u32 offsetIconTlut;    /* 0x64 */
+    u32 offsetData;        /* 0x68 */
+} CARDStat;                /* 0x6c */
+typedef struct CARDFileInfo {
+    s32 chan;              /* 0x00 */
+    s32 fileNo;            /* 0x04 */
+    s32 offset;            /* 0x08 */
+    s32 length;            /* 0x0c */
+    u16 iBlock;            /* 0x10 */
+} CARDFileInfo;            /* 0x14 */
 
 s32 CARDInit(void);
 s32 CARDMount(s32 chan, void* workArea, void* detachCallback);
@@ -53,7 +90,7 @@ s32 CARDRename(s32 chan, const char* old, const char* new_);
 s32 CARDFastDelete(s32 chan, s32 fileNo);
 u32 CARDGetXferredBytes(s32 chan);
 
-s32 DVDGetCurrentDiskID(void);
+u8* DVDGetCurrentDiskID(void);
 
 void* memset(void* p, int c, u32 n);
 void* memcpy(void* d, const void* s, u32 n);
@@ -95,9 +132,25 @@ typedef struct CardMgr {
     s32 xferBytes;        /* +0x40 CARDGetXferredBytes snapshot */
     s32 totalXfer;        /* +0x44 total bytes of active transfer */
     OSMutex mutex2;       /* +0x48 transfer lock */
-    void* dir;            /* +0x60 savegame directory table */
-    s32 cancelFlag;       /* +0x64 */
+    void* dir;            /* +0x60 savegame directory table (array of CardDirEntry) */
+    s32 dirCount;         /* +0x64 live entries in dir[]; also read by cardLock */
 } CardMgr;
+
+/* One in-RAM savegame-directory entry (0x5B40 bytes). The dir table that
+ * memcard.c hands to cardDoLoad is an array of these. The first 0x5A00 bytes
+ * are the icon/banner/comment/save-data workspace; the metadata trailer keeps
+ * the CARD fileNo, a copy of the CARDStat, and the recomputed icon offsets. */
+typedef struct CardDirEntry {
+    u8 data[0x5A00];      /* 0x0000 icon+banner+comment+save workspace */
+    u8 comment[0x40];     /* 0x5A00 32x2 comment block */
+    s32 fileNo;           /* 0x5A40 CARD file number */
+    CARDStat stat;        /* 0x5A44 status snapshot (0x6C) */
+    u32 dataOffset;       /* 0x5AB0 running icon-data offset */
+    u32 iconOffset[8];    /* 0x5AB4 per-frame image offset */
+    u32 _gap[6];          /* 0x5AD4 */
+    u32 iconTlut[8];      /* 0x5AEC per-frame tlut index */
+    u8 _tail[0x34];       /* 0x5B0C pad to stride */
+} CardDirEntry;           /* 0x5B40 */
 
 /* gCardBuf-based overlay: the control block lives just past the work area. */
 typedef struct CardMgrBuf {
@@ -112,8 +165,8 @@ static CardMgr gCardMgr;    /* @0x80321A70 */
 #define M (((CardMgrBuf*)gCardBuf)->mgr)
 
 /* handlers */
-static s32 cardDoWrite(s32 chan, s32 fileNo, void* data);
-static s32 cardDoLoad(s32 chan, void* data);
+static s32 cardDoWrite(s32 chan, CARDStat* stat, void* data);
+static s32 cardDoLoad(s32 chan, void* dirBuf);
 static s32 cardDoDelete(s32 chan, s32 fileNo);
 static s32 cardDoMount(s32 chan, void* workArea);
 static s32 cardSubmitCommand(s32 chan, s32 cmdType, s32 param1, void* param2, s32 param3);
@@ -156,13 +209,13 @@ static void* cardThreadMain(void* arg) {
             break;
         case CARDCMD_UNMOUNT:
             OSLockMutex(&M.mutex2);
-            M.cancelFlag = 0;
+            M.dirCount = 0;
             OSUnlockMutex(&M.mutex2);
             res = CARDUnmount(chan);
             break;
         case CARDCMD_FORMAT:
             OSLockMutex(&M.mutex2);
-            M.cancelFlag = 0;
+            M.dirCount = 0;
             OSUnlockMutex(&M.mutex2);
             M.totalXfer = 0xA000;
             res = CARDFormat(chan);
@@ -182,7 +235,7 @@ static void* cardThreadMain(void* arg) {
             if (res >= 0) {
                 res = CARDFastOpen(chan, fileNo, &info);
                 if (res >= 0) {
-                    M.totalXfer = *(s32*)((u8*)&stat + 0x20);
+                    M.totalXfer = stat.length;
                     res = CARDRead(&info, data, M.totalXfer, 0);
                     CARDClose(&info);
                 }
@@ -190,7 +243,9 @@ static void* cardThreadMain(void* arg) {
             break;
         }
         case CARDCMD_WRITE:
-            res = cardDoWrite(chan, fileNo, data);
+            /* the WRITE command carries a CARDStat* in the param1 ("fileNo")
+             * slot; the payload buffer travels in param2. */
+            res = cardDoWrite(chan, (CARDStat*)fileNo, data);
             break;
         case CARDCMD_QUIT:
             quit = TRUE;
@@ -266,32 +321,327 @@ static s32 cardSubmitCommand(s32 chan, s32 cmdType, s32 param1, void* param2, s3
     return ret;
 }
 
-/* 0x800DC6A4 - create/overwrite a save file and write its payload */
-static s32 cardDoWrite(s32 chan, s32 fileNo, void* data) {
-    (void)fileNo; (void)chan;
-    /* strncpy name, CARDCreate/CARDOpen, CARDWrite, CARDSetStatus, cleanup */
-    return CARDWrite((CARDFileInfo*)gCardBuf, data, M.totalXfer, 0);
-}
+/* 0x800DC6A4 - create/overwrite a save file (atomically, via a "~name" temp)
+ * and refresh the in-RAM directory cache. `stat` describes the file, `data`
+ * is the payload buffer (icon/banner/comment/save-data laid out per stat). */
+static s32 cardDoWrite(s32 chan, CARDStat* stat, void* data) {
+    CARDFileInfo info;
+    char name[0x21];
+    char tmpName[0x21];
+    s32 existingFileNo;
+    s32 newFileNo;
+    s32 reopened;
+    s32 res;
+    u8* e;
+    u8* end;
+    int i;
 
-/* 0x800DCAC0 - load a save, verifying the current disc id, cleaning stale copies */
-static s32 cardDoLoad(s32 chan, void* data) {
-    (void)DVDGetCurrentDiskID();
-    (void)data;
+    reopened = 0;
+    strncpy(name, stat->fileName, 0x20);
+    name[0x20] = 0;
+    if (strlen(name) >= 0x20) {
+        return -12;
+    }
+    if (name[0] == 0x7e) {
+        return -128;
+    }
+    tmpName[0] = 0x7e;
+    strncpy(tmpName + 1, stat->fileName, 0x1f);
+    tmpName[0x20] = 0;
+
+    /* remember any pre-existing copy so we can delete it after the temp write */
+    existingFileNo = -1;
+    if (CARDOpen(chan, name, &info) == 0) {
+        existingFileNo = info.fileNo;
+        CARDClose(&info);
+    }
+
+    M.totalXfer = stat->length + 0x8000;
+    if (existingFileNo >= 0 && existingFileNo < 0x7f) {
+        M.totalXfer += 0x4000;
+    }
+
+    res = CARDCreate(chan, tmpName, stat->length, &info);
+    if (res < 0) {
+        /* no room for the temp: fall back to overwriting in place if possible */
+        if (existingFileNo >= 0) {
+            res = CARDOpen(chan, name, &info);
+            if (res == 0) {
+                reopened = 1;
+            }
+        }
+        if (!reopened) {
+            return res;
+        }
+    }
+
+    newFileNo = info.fileNo;
+    res = CARDWrite(&info, data, stat->length, 0);
+    CARDClose(&info);
+    if (res < 0) {
+        return res;
+    }
+    res = CARDSetStatus(chan, newFileNo, stat);
+    if (res < 0) {
+        return res;
+    }
+
+    if (!reopened) {
+        /* commit the temp: drop the old copy, then rename "~name" -> "name" */
+        if (existingFileNo >= 0 && existingFileNo < 0x7f) {
+            res = CARDFastDelete(chan, existingFileNo);
+            if (res < 0) {
+                return res;
+            }
+        }
+        res = CARDRename(chan, tmpName, name);
+        if (res < 0) {
+            return res;
+        }
+    }
+
+    if (M.dir == NULL) {
+        return CARDFreeBlocks(chan, &M.freeBytes, &M.freeFiles);
+    }
+
+    OSLockMutex(&M.mutex2);
+    if (existingFileNo == -1) {
+        e = (u8*)M.dir + M.dirCount * 0x5b40;
+        M.dirCount++;
+    } else {
+        end = (u8*)M.dir + M.dirCount * 0x5b40;
+        for (e = (u8*)M.dir; e < end; e += 0x5b40) {
+            if (*(s32*)(e + 0x5a40) == existingFileNo) {
+                break;
+            }
+        }
+        if (e == end) {
+            M.dirCount++;
+        }
+    }
+
+    memset(e + 0x5a00, 0, 0x40);
+    if (stat->commentAddr <= stat->length - 0x40) {
+        memmove(e + 0x5a00, (u8*)data + stat->commentAddr, 0x40);
+    }
+    *(u32*)(e + 0x5ab0) = 0;
+    if (stat->bannerFormat != 0 || stat->iconFormat != 0) {
+        s32 iconCount;
+        s32 ciCount;
+        int spShift;
+        int fmtShift;
+
+        memmove(e, (u8*)data + stat->iconAddr, stat->offsetData - stat->iconAddr);
+        DCFlushRange(e, stat->offsetData - stat->iconAddr);
+
+        iconCount = 0;
+        ciCount = 0;
+        spShift = 0;
+        fmtShift = 0;
+        for (i = 0; i < 8; i++) {
+            s32 sp = (stat->iconSpeed >> spShift) & 3;
+            if (sp == 0) {
+                break;
+            }
+            *(u32*)(e + 0x5ab4 + i * 4) = *(u32*)(e + 0x5ab0);
+            *(u32*)(e + 0x5aec + i * 4) = ciCount;
+            *(u32*)(e + 0x5ab0) += sp << 2;
+            if ((stat->iconFormat >> fmtShift) & 3) {
+                ciCount++;
+                fmtShift += 2;
+            }
+            iconCount++;
+            spShift += 2;
+        }
+        if ((stat->bannerFormat & 4) == 4 && iconCount > 2) {
+            int k;
+            for (k = 0; k < iconCount - 2; k++) {
+                s32 sp = (stat->iconSpeed >> ((iconCount - 2 - k) * 2)) & 3;
+                *(u32*)(e + 0x5ab4 + (iconCount + k) * 4) = *(u32*)(e + 0x5ab0);
+                *(u32*)(e + 0x5aec + (iconCount + k) * 4) =
+                    *(u32*)(e + 0x5aec + (iconCount - 2 - k) * 4);
+                *(u32*)(e + 0x5ab0) += sp << 2;
+            }
+        }
+    }
+
+    memcpy(e + 0x5a44, stat, 0x6c);
+    *(s32*)(e + 0x5a40) = newFileNo;
+    OSUnlockMutex(&M.mutex2);
     return CARDFreeBlocks(chan, &M.freeBytes, &M.freeFiles);
 }
 
-/* 0x800DCEC4 - delete a save file and refresh free space */
-static s32 cardDoDelete(s32 chan, s32 fileNo) {
-    s32 res = CARDFastDelete(chan, fileNo);
-    CARDFreeBlocks(chan, &M.freeBytes, &M.freeFiles);
+/* 0x800DCAC0 - (re)build the in-RAM directory: scan every CARD file, keep the
+ * ones belonging to the current disc, salvage/purge orphaned "~name" temps,
+ * and cache each save's icon/banner block into its directory entry. */
+static s32 cardDoLoad(s32 chan, void* dirBuf) {
+    CARDFileInfo info;
+    char tmpName[0x24];
+    char tmpTilde[0x24];
+    u8* diskID;
+    CARDStat* st;
+    s32 res;
+    s32 fileNo;
+    u8* e;
+    int i;
+
+    diskID = DVDGetCurrentDiskID();
+    OSLockMutex(&M.mutex2);
+    M.dir = dirBuf;
+    M.dirCount = 0;
+    OSUnlockMutex(&M.mutex2);
+    if (dirBuf == NULL) {
+        return 0;
+    }
+    memset(dirBuf, 0, 0x2d44c0);
+
+    res = 0;
+    for (fileNo = 0; fileNo < 0x7f; fileNo++) {
+        e = (u8*)M.dir + M.dirCount * 0x5b40;
+        st = (CARDStat*)(e + 0x5a44);
+        if (CARDGetStatus(chan, fileNo, st) < 0) {
+            continue;
+        }
+        if (memcmp(st->gameName, diskID, 4) != 0) {
+            continue;
+        }
+        if (memcmp(st->company, diskID + 4, 2) != 0) {
+            continue;
+        }
+
+        if (st->fileName[0] == 0x7e) {
+            /* orphaned temp: try to promote it, otherwise delete it */
+            strncpy(tmpTilde, st->fileName, 0x20);
+            tmpTilde[0x20] = 0;
+            strncpy(tmpName, tmpTilde + 1, 0x20);
+            tmpName[0x20] = 0;
+            if (st->commentAddr <= st->length - 0x40 &&
+                CARDRename(chan, tmpTilde, tmpName) == 0) {
+                fileNo--;
+                continue;
+            }
+            res = CARDFastDelete(chan, fileNo);
+            if (res < 0) {
+                return res;
+            }
+            res = CARDFreeBlocks(chan, &M.freeBytes, &M.freeFiles);
+            if (res < 0) {
+                return res;
+            }
+            continue;
+        }
+
+        memset(e + 0x5a00, 0, 0x40);
+        if (st->commentAddr <= st->length - 0x40) {
+            s32 base;
+            s32 len;
+            s32 t = CARDFastOpen(chan, fileNo, &info);
+            if (t < 0) {
+                return t;
+            }
+            base = st->commentAddr & ~0x1ff;
+            len = ((st->commentAddr + 0x40) - base + 0x1ff) & ~0x1ff;
+            res = CARDRead(&info, e, len, base);
+            CARDClose(&info);
+            if (res < 0) {
+                return res;
+            }
+            memmove(e + 0x5a00, e + (st->commentAddr & 0x1ff), 0x40);
+        }
+
+        if ((st->bannerFormat != 0 || st->iconFormat != 0) &&
+            st->offsetData <= st->length && st->iconAddr < st->offsetData) {
+            s32 iconCount;
+            s32 ciCount;
+            int spShift;
+            int fmtShift;
+            s32 base;
+            s32 len;
+            s32 t = CARDFastOpen(chan, fileNo, &info);
+            if (t < 0) {
+                return t;
+            }
+            base = st->iconAddr & ~0x1ff;
+            len = ((st->offsetData - base) + 0x1ff) & ~0x1ff;
+            res = CARDRead(&info, e, len, base);
+            CARDClose(&info);
+            if (res < 0) {
+                return res;
+            }
+            memmove(e, e + (st->iconAddr & 0x1ff), st->offsetData - st->iconAddr);
+            DCFlushRange(e, st->offsetData - st->iconAddr);
+
+            *(u32*)(e + 0x5ab0) = 0;
+            iconCount = 0;
+            ciCount = 0;
+            spShift = 0;
+            fmtShift = 0;
+            for (i = 0; i < 8; i++) {
+                s32 sp = (st->iconSpeed >> spShift) & 3;
+                if (sp == 0) {
+                    break;
+                }
+                *(u32*)(e + 0x5ab4 + i * 4) = *(u32*)(e + 0x5ab0);
+                *(u32*)(e + 0x5aec + i * 4) = ciCount;
+                *(u32*)(e + 0x5ab0) += sp << 2;
+                if ((st->iconFormat >> fmtShift) & 3) {
+                    ciCount++;
+                    fmtShift += 2;
+                }
+                iconCount++;
+                spShift += 2;
+            }
+            if ((st->bannerFormat & 4) == 4 && iconCount > 2) {
+                int k;
+                for (k = 0; k < iconCount - 2; k++) {
+                    s32 sp = (st->iconSpeed >> ((iconCount - 2 - k) * 2)) & 3;
+                    *(u32*)(e + 0x5ab4 + (iconCount + k) * 4) = *(u32*)(e + 0x5ab0);
+                    *(u32*)(e + 0x5aec + (iconCount + k) * 4) =
+                        *(u32*)(e + 0x5aec + (iconCount - 2 - k) * 4);
+                    *(u32*)(e + 0x5ab0) += sp << 2;
+                }
+            }
+        }
+
+        *(s32*)(e + 0x5a40) = fileNo;
+        OSLockMutex(&M.mutex2);
+        M.dirCount++;
+        OSUnlockMutex(&M.mutex2);
+    }
     return res;
+}
+
+/* 0x800DCEC4 - delete a save file, compact its slot out of the in-RAM
+ * directory cache, and refresh free space. */
+static s32 cardDoDelete(s32 chan, s32 fileNo) {
+    s32 res;
+    u8* e;
+
+    M.totalXfer = 0x4000;
+    res = CARDFastDelete(chan, fileNo);
+    if (res < 0) {
+        return res;
+    }
+    if (M.dir != NULL) {
+        for (e = (u8*)M.dir; e < (u8*)M.dir + M.dirCount * 0x5b40; e += 0x5b40) {
+            if (*(s32*)(e + 0x5a40) == fileNo) {
+                OSLockMutex(&M.mutex2);
+                memmove(e, e + 0x5b40,
+                        ((u8*)M.dir + M.dirCount * 0x5b40) - (e + 0x5b40));
+                M.dirCount--;
+                DCStoreRange(e, ((u8*)M.dir + M.dirCount * 0x5b40) - e);
+                OSUnlockMutex(&M.mutex2);
+            }
+        }
+    }
+    return CARDFreeBlocks(chan, &M.freeBytes, &M.freeFiles);
 }
 
 /* 0x800DCFC0 - mount, decode the return code, cache free space */
 static s32 cardDoMount(s32 chan, void* workArea) {
     s32 res;
     OSLockMutex(&M.mutex2);
-    M.cancelFlag = 0;
+    M.dirCount = 0;
     OSUnlockMutex(&M.mutex2);
     M.freeFiles = 0;
     M.freeBytes = 0;
@@ -335,5 +685,5 @@ s32 cardGetFreeBytes(void) { return gCardMgr.freeBytes; }
 void cardUnlock(void) { OSUnlockMutex(&gCardMgr.mutex2); }
 s32 cardLock(void) {
     OSLockMutex(&gCardMgr.mutex2);
-    return gCardMgr.cancelFlag;
+    return gCardMgr.dirCount;
 }
