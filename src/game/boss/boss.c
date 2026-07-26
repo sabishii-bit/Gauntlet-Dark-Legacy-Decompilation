@@ -31,10 +31,23 @@ void* gBossObj;         /* 0x803443A0 (8-byte record: ptr + unk) */
 int   gBoss3A4;         /* 0x803443A4 */
 
 /* ------------------------------------------------------------------ */
-/* boss-owned bss (addresses in comments).  NOTE: the exact intra-.bss  */
-/* ordering the original TU used is not yet reproduced (MWCC/-common      */
-/* anchors gSpewItems at offset 0 here), which is the sole residual      */
-/* keeping AddBoss from a byte match -- see AddBoss below.               */
+/* boss-owned bss (addresses in comments).                              */
+/*                                                                      */
+/* .bss ANCHOR RESIDUAL (blocks AddBoss/StartSpewItem/ProcessSpewItems/ */
+/* HealthMeterUpdate/HealthMeterStart/BossDeath): the target lays this   */
+/* block out in pure DECLARATION order (HealthMeterBG @ .bss+0,          */
+/* gSpewItems @ +0x6c, gBossPos @ +0x26c=620) and MWCC -O4 addresses the */
+/* whole block from HealthMeterBG as the base register -- e.g. AddBoss   */
+/* stores gBossPos at HealthMeterBG+620.  With -common off MWCC allocates */
+/* .bss by FIRST-REFERENCE order (referenced globals first in use order, */
+/* unreferenced last in reverse decl order).  Because BossSpewCoins (fn  */
+/* #1) is still a stub, the first real .bss touch is gSpewItems in        */
+/* ProcessSpewItems, so gSpewItems lands at offset 0 and HealthMeterBG    */
+/* later -- wrong base, wrong offsets.  The GATE is reconstructing        */
+/* BossSpewCoins: its target references HealthMeterBG (ADDR16) at +0x30,  */
+/* BEFORE any other .bss global, which is what pins HealthMeterBG to      */
+/* offset 0 and pools the block in decl order.  Until BossSpewCoins is    */
+/* byte-matched, none of the gSpewItems/gBossPos-relative fns can match.  */
 /* ------------------------------------------------------------------ */
 typedef struct SpewItem {
     /* 0x0 */ void* obj;
@@ -61,8 +74,8 @@ extern int g8EC;                /* 0x803448EC */
 extern int g8E8;                /* 0x803448E8 */
 
 extern void fn_8002C53C(int obj);
-extern int  fn_8003F81C(int a, int b);
-extern void* fn_8003E048(int a, int b, void* obj);
+extern void* CritterTypeLoaded(int a, int b);
+extern void* CritterNewInst(int a, int b, void* obj);
 extern void* fn_800BE8F4(void* a, void* b);
 extern void* PlaceItem();
 extern void fn_800BDE08(void);
@@ -131,8 +144,8 @@ void AddBoss(void* obj) {
     gBossPos[0] = *(f32*)((int)obj + 0x30);
     gBossPos[1] = *(f32*)((int)obj + 0x34);
     gBossPos[2] = *(f32*)((int)obj + 0x38);
-    if (fn_8003F81C(4, 0)) {
-        gBossObj = fn_8003E048(4, 0, obj);
+    if (CritterTypeLoaded(4, 0)) {
+        gBossObj = CritterNewInst(4, 0, obj);
     }
 }
 
