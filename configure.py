@@ -550,7 +550,7 @@ config.libs = [
             Object(Matching, "MSL/ctype.c"),
             Object(Matching, "MSL/w_fabs.c"),
             Object(Matching, "MSL/s_ldexp.c"),
-            Object(NonMatching, "MSL/e_rem_pio2.c"),
+            Object(Matching, "MSL/e_rem_pio2.c"),
             Object(Matching, "MSL/s_fpclassify.c"),
             Object(Matching, "MSL/k_cos.c"),
             Object(Matching, "MSL/k_rem_pio2.c"),
