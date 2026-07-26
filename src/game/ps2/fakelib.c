@@ -13,7 +13,7 @@ int DVDGetCommandBlockStatus(void* block);
 
 void ScrollMessageBox(char* msg);   /* disc-error message display (MESSAGE.OBJ) */
 void sysHandleReset(void);        /* frame yield while waiting on DVD */
-void fn_80042F98(void);        /* post-error recovery, gated by lbl_80344A5C */
+void sndTestStartAll(void);    /* post-error recovery, gated by lbl_80344A5C */
 
 extern u8 lbl_80344A5C;        /* error-screen-shown flag (other TU) */
 extern u8 lbl_8025EDE8[];      /* shared scratch DVDFileInfo (.bss) */
@@ -227,7 +227,7 @@ int fn_800AEBF4(void* fileInfo, void* buf, int len, int offset)
         sysHandleReset();
     } while (status != 0);
     if (lbl_80344A5C != 0) {
-        fn_80042F98();
+        sndTestStartAll();
     }
     return len;
 }
