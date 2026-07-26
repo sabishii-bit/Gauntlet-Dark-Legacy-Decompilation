@@ -215,12 +215,20 @@ void mat44InvBasis(mat44& d, vec4& r0, vec4& r1, vec4& r2)
     w.m[3][0] = 0.0f;
     w.m[3][3] = 1.0f;
 
-    /* PARKED near-match: 16 register-only bytes in the transpose loop.
-       Five webs {i, &w+r4, &d+r4, &w+r3, &d+r3}: target colors i FIRST
-       (r7..r11 = i,baseB,destB,baseA,destA), ours colors i LAST. Tried:
-       register hint, for-scoped decls, decl-first, early i=0 (goes
-       nonvolatile r29 - much worse). i's web is IV-renumbered late in our
-       compile; unknown what kept the original's web early. */
+    /* PARKED near-match: transpose loop is byte-identical in shape (153/153
+       insns, structure matches) EXCEPT one register-coloring tie -- the whole
+       32-line residual is a single global shift. Five equal-lifetime webs
+       {i, &w+r4, &d+r4, &w+r3, &d+r3}: target colors i FIRST (r7..r11 =
+       i,baseB,destB,baseA,destA); ours colors i LAST (r11), shifting the four
+       pointer webs down to r7..r10 (their internal order baseB<destB<baseA<
+       destA is preserved in both). i's web is IV-renumbered late in our
+       compile; unknown what kept the original's web early.
+       DEAD-ENDS (do not retry): register hint; for-scoped decls; decl-first;
+       early i=0 (goes nonvolatile r29 - much worse); decl-order swap int j,i
+       (no change); explicit row pointers f32* wi/di (compiler folds back to
+       same IVs, no change). Two identical A/Bs => source-restructure axis is
+       dead. Per-TU cflags override rejected: would recompile the 30 already-
+       matching fns and risk them. This is the sole residual blocking the flip. */
     for (i = 0; i < 4; i++) {
         d.m[i][i] = w.m[i][i];
         for (j = i + 1; j < 4; j++) {
