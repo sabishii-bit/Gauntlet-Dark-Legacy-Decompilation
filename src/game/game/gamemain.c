@@ -51,6 +51,55 @@
 /*                                      type table @0x80257680, printing*/
 /*                                      "Enemy type %d has bad subtype  */
 /*                                      %d" on a bad descriptor.        */
+/*                                                                      */
+/* Additional identities recovered this pass (behaviour + Xbox PDB      */
+/* GAMEMAIN.OBJ / gauntworld.obj rosters + on-target strings + call     */
+/* graph; cross-file refs retrofitted in main.c / sounds.c / attract.c  */
+/* / auxscreen.c):                                                       */
+/*                                                                      */
+/*   0x80053420  game_init_data     -- second-stage game/audio init;    */
+/*                                      main() calls game_init_once then */
+/*                                      this; prints "Initializing       */
+/*                                      Audio.../Loading Audio.../        */
+/*                                      Loading Game." around AudioInit. */
+/*   0x80054D18  next_world         -- advance to the next world; picks  */
+/*                                      the next enabled world entry and  */
+/*                                      re-resolves (NextWorldLevel +     */
+/*                                      ResolveWorldData).                */
+/*   0x8005674C  world_update       -- per-frame world update dispatched  */
+/*                                      from game_main: boss state,       */
+/*                                      DoGoodWizard, ProcessSpewItems,   */
+/*                                      world animation / effects.        */
+/*   0x800575CC  PrintWorldMemSizes -- debug dump of per-category memory  */
+/*                                      (OTHER/WORLD/WORLDNODES/ITEMS/    */
+/*                                      WEAPONS/ENEMIES/TOTAL) via         */
+/*                                      mlmMemUsed.                        */
+/*   0x80057978  GetEnemySubtype    -- switch(type) -> subtype code;      */
+/*                                      jumptable @0x8011C794; called by   */
+/*                                      GetEnemyTypes.                     */
+/*   0x800579E0  InLevel            -- compares a 4-char level tag        */
+/*                                      against the current level id;      */
+/*                                      returns bool (utility, called      */
+/*                                      widely).                           */
+/*   0x80057A6C  LevelLetter        -- returns the world/level display     */
+/*                                      letter ('T'->'G' remap); sounds.c  */
+/*                                      builds "MAP_%c"/"S_MAP_%c" banks.  */
+/*   0x80057C14  NextAttractWave    -- advance the attract-mode wave/      */
+/*                                      world (called from attract.c).     */
+/*   0x80057D94  PrevWorldLevel     -- previous level matching a wave      */
+/*                                      mask, wrapping to the prev world.  */
+/*   0x80057E6C  NextWorldLevel     -- next level matching a wave mask,    */
+/*                                      wrapping to the next world.        */
+/*                                                                      */
+/* Parked giants (documented, not yet decompiled):                      */
+/*   0x80054230  game_main          0xAAC  top state machine.            */
+/*   0x800522E8  do_stats_display   0x10FC FINAL STATS (tally/disp        */
+/*                                         helpers inlined here).          */
+/*   0x8005351C  fn_8005351C        0x4F4  world/level entry orchestrator */
+/*                                         (only caller: game_main).       */
+/*   0x80057024  fn_80057024        0x5A8  world initializer (enemies/    */
+/*                                         effects/critters; attract +     */
+/*                                         level start).                   */
 /* ------------------------------------------------------------------ */
 
 void game_main(void);
@@ -59,3 +108,15 @@ void LoadTowerAndSelect(s32 arg0);
 s32  init_next_level(s32 arg0);
 void init_thermometer(void);
 void GetEnemyTypes(void);
+
+/* Recovered this pass (bodies still supplied from asm; NonMatching). */
+void game_init_data(void);
+s32  next_world(void);
+void world_update(void);
+void PrintWorldMemSizes(void);
+s32  GetEnemySubtype(s32 type);
+s32  InLevel(const char* tag);
+s32  LevelLetter(s32 arg0);
+s32  NextAttractWave(s32 level);
+s32  PrevWorldLevel(s32 waveMask);
+s32  NextWorldLevel(s32 waveMask);

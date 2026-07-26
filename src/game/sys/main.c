@@ -68,7 +68,7 @@ void fn_800B6ED8(void);
 void fn_800B8A38(int arg);
 void ReadControls(void);
 void fn_800BC2EC(const char* fmt, ...);
-void fn_80053420(void);
+void game_init_data(void);
 void OptionsSetup(void);
 void fn_80020DA8(void);
 u32 fn_800BF258(void);
@@ -327,7 +327,7 @@ void main(void)
     fn_800B8A38(0);
     ReadControls();
     fn_800BC2EC(st + 124, lbl_80126A98);
-    fn_80053420();
+    game_init_data();
     OptionsSetup();
     fn_80020DA8();
     fn_800BC2EC(st + 156, fn_800BF258(), lbl_80344F48,

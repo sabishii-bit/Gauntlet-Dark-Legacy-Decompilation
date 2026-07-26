@@ -91,7 +91,7 @@ extern void fn_8005638C(int a);
 extern int init_next_level_8005638C(int a);
 extern int  fn_8005A260(void* a, void* b, int c, int d);
 extern void fn_80057024(void);
-extern int  fn_80057C14(void);
+extern int  NextAttractWave(void);
 extern void fn_8002CF78(int a);
 extern void fn_8002C640(void);
 extern void fn_800176D8(void);
