@@ -97,7 +97,7 @@ static s32   gLastResetBtnState;    /* 0x803452D4 */
 static u32   gPadErrMask;           /* 0x803452D0 mask of active pads */
 static u32   gLastFrameTicks;       /* 0x803452E4 */
 static u32   gFrameDeltaTicks;      /* 0x803452D8 */
-static s32   sSeconds;              /* 0x80345150 monotonically-updated seconds */
+extern long  sSeconds;              /* 0x80345150 monotonically-updated seconds (owned by pb/pbutils.c) */
 
 static void (*gMsgCallback)(const char*);  /* 0x803452CC on-screen message sink */
 static void (*gSysResetCallback)(void);    /* reset notification hook */
