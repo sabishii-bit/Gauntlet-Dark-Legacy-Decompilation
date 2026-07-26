@@ -225,6 +225,11 @@ game/mb/mb_blit.c:
 	.text       start:0x800B2988 end:0x800B53B0
 	.ctors      start:0x801106E4 end:0x801106E8
 
+game/mb/mb_main.c:
+	extab       start:0x800077D0 end:0x800077E0
+	extabindex  start:0x8000BC08 end:0x8000BC20
+	.text       start:0x800B6ED8 end:0x800B7758
+
 game/mb/mb_objects.c:
 	extab       start:0x80007880 end:0x80007900
 	extabindex  start:0x8000BD10 end:0x8000BDD0
