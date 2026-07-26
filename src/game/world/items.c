@@ -1,4 +1,5 @@
 #include "types.h"
+#include "game/item.h"
 
 /* Gauntlet item / world-object system (Xbox ITEMS.OBJ), region
  * 0x800631AC-0x80067AE0 -- the whole gap between gauntworld.c and main.c.
