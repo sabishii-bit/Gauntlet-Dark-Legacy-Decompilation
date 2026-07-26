@@ -134,7 +134,7 @@ extern char* lbl_80344800;      /* debug print list base */
 extern char* lbl_803449B4;
 extern s32 lbl_803449B8;        /* debug print y cursor */
 void fn_800BE968(void);
-void fn_800D6234(void);
+void adsPoll(void);             /* ADSTREAM per-frame poll (fn_800D6234) */
 
 /* main globals block: DVDFileInfo @0, ortho Mtx44 @60, viewport @124 */
 extern u8 lbl_8025EDE8[];
@@ -170,7 +170,7 @@ void fn_80067B0C(int flags)
         fn_800BE968();
     }
     if (flags & 4) {
-        fn_800D6234();
+        adsPoll();
     }
 }
 

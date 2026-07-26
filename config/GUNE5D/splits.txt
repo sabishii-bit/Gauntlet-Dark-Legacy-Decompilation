@@ -322,6 +322,11 @@ game/audio/mempool.c:
 	extabindex  start:0x8000C958 end:0x8000C9F4
 	.text       start:0x800D5260 end:0x800D621C
 
+game/audio/adstream.c:
+	extab       start:0x80008118 end:0x800081A8
+	extabindex  start:0x8000C9F4 end:0x8000CACC
+	.text       start:0x800D6234 end:0x800D7CFC
+
 game/sys/cardutil.c:
 	extab       start:0x80008560 end:0x800085F0
 	extabindex  start:0x8000CCB8 end:0x8000CD90
