@@ -15,9 +15,14 @@
  *
  * Status: NonMatching wired skeleton (stubs). Full bodies not reconstructed.
  */
+#include "types.h"
+
+extern int MBWorldSphereVisible(f32* a, f32* b, f32* c);
 
 /* 0x800BB5F4 */
-void PointVisible(void) {}
+int PointVisible(f32* a, f32* b, f32* c) {
+    return MBWorldSphereVisible(a, b, c);
+}
 
 /* 0x800BB614 */
 void GetWorldMat(void) {}

@@ -15,6 +15,11 @@
  *
  * Status: NonMatching wired skeleton (stubs). Full bodies not reconstructed.
  */
+#include "types.h"
+
+extern void srand(u32 seed);
+extern u32 pbRand(void);
+extern u32 lbl_80344F08; /* sRandom */
 
 /* 0x800BCAAC */
 void fn_800BCAAC(void) {}
@@ -23,13 +28,21 @@ void fn_800BCAAC(void) {}
 void fn_800BCB44(void) {}
 
 /* 0x800BCCA8 */
-void RandInt(void) {}
+u32 RandInt(u32 n) {
+    lbl_80344F08 = pbRand();
+    return lbl_80344F08 % n;
+}
 
 /* 0x800BCCE8 */
-void Random(void) {}
+f32 Random(f32 scale) {
+    lbl_80344F08 = pbRand();
+    return (lbl_80344F08 & 0x7FFF) * scale / 32767.0;
+}
 
 /* 0x800BCD48 */
-void Randomize(void) {}
+void Randomize(u32 seed) {
+    srand(seed);
+}
 
 /* 0x800BCD68 */
 void fn_800BCD68(void) {}
