@@ -75,7 +75,7 @@ int  fn_8001FF1C(int a, int b, int* c);
 int  fn_800B63B0(int a);
 void fn_800B3414(void* box, int flag);
 void fn_800B3D6C(void* box);
-void fn_80022734(int a, int* b, int* c, int d);
+void get_screen_pos(int a, int* b, int* c, int d);
 
 /* --- forward decls (address order) --- */
 void msgUpdate(void);

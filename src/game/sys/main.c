@@ -95,7 +95,7 @@ void fn_80054230(void);
 int fn_8001BC88(void);
 void fn_800B582C(void* a, void* b);
 int fn_8001C478(void);
-void fn_800229D0(void);
+void do_camera(void);
 void fn_8006FE30(void);
 void fn_8006E51C(void);
 void fn_80052134(void);
@@ -408,7 +408,7 @@ void main(void)
                     fn_800B582C(lbl_80127D00, lbl_80127D60);
                 } else if (state == 0x4013 || state == 0x400D || state == 0x4017) {
                     if (fn_8001C478() == 0) {
-                        fn_800229D0();
+                        do_camera();
                     }
                 } else if (lbl_80344A80 == 1) {
                     if (lbl_803449BC == 0) {
@@ -419,18 +419,18 @@ void main(void)
                 } else if (state & 0x8000) {
                     lbl_80344A80 = 0;
                     lbl_803449BC = 0;
-                    fn_800229D0();
+                    do_camera();
                 } else {
                     lbl_803449BC = 0;
                     if (lbl_803443A0 != 0) {
                         lbl_80344A80 = 0;
                         if (fn_8001C478() == 0) {
-                            fn_800229D0();
+                            do_camera();
                         }
                     } else if (lbl_80343C5C == 0) {
                         lbl_80344A80 = 0;
                         lbl_803444E0 = 0;
-                        fn_800229D0();
+                        do_camera();
                     } else {
                         lbl_803444E0 = 0;
                         lbl_80344A80 = 2;

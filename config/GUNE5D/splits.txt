@@ -51,6 +51,11 @@ game/world/btricol.c:
 	extabindex  start:0x80008FEC end:0x80009010
 	.text       start:0x8002109C end:0x80022734
 
+game/world/camera.c:
+	extab       start:0x80005A80 end:0x80005B00
+	extabindex  start:0x80009010 end:0x800090D0
+	.text       start:0x80022734 end:0x8002951C
+
 game/audio/soundmgr.c:
 	extab       start:0x80005F28 end:0x80005FF8
 	extabindex  start:0x8000970C end:0x80009844
