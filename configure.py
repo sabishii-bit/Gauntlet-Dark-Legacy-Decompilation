@@ -541,7 +541,7 @@ config.libs = [
             Object(Matching, "MSL/mem.c"),
             Object(Matching, "MSL/misc_io.c"),
             Object(Matching, "MSL/printf.c"),
-            Object(NonMatching, "MSL/qsort.c"),
+            Object(Matching, "MSL/qsort.c"),
             Object(Matching, "MSL/signal.c"),
             Object(NonMatching, "MSL/strfind.c"),
             Object(Matching, "MSL/time.c"),
