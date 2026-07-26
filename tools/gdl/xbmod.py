@@ -16,7 +16,8 @@ import re
 import sys
 from pathlib import Path
 
-TXT = Path(__file__).resolve().parent.parent / "research" / "xbox_symbols" / "functions_by_module.txt"
+# tools/gdl/xbmod.py -> parent(gdl).parent(tools).parent(repo root) / research/...
+TXT = Path(__file__).resolve().parent.parent.parent / "research" / "xbox_symbols" / "functions_by_module.txt"
 
 MOD_RE = re.compile(r"^== \.\\Release\\(.+?) \(")
 SYM_RE = re.compile(r"^\[(\d{4}):([0-9A-Fa-f]{8})\]\s+([0-9A-Fa-f]+)\s+([GLD])\s+(.*)$")
