@@ -136,7 +136,7 @@ extern void fn_800B3414(void* blit, s32 a);
 extern void fn_800A0E70(void);
 extern void AudioEmptyCb2(void);
 extern void fn_800A0E94(void);
-extern void fn_80054D18(void);
+extern void next_world(void);
 extern void fn_80053D08(s32 a, s32 b, s32 c);
 extern void setup_player_display(s32 i);
 extern s32 fn_8005638C(s32 a);
@@ -586,7 +586,7 @@ s32 init_mapscreen(s32 timer, s32 movie)
 
     AudioEmptyCb2();
     fn_800A0E94();
-    fn_80054D18();
+    next_world();
     lbl_8034477C = 16399;
     fn_80053D08(-2, 1, -1);
     for (i = 0; i < 4; i++) {

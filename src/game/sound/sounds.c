@@ -42,7 +42,7 @@ extern void AudioStreamStop(void);
 extern int AudioSysUpdate(int a);
 extern void audio_init(void);
 extern int AudioFindSound(char* a, int b, int c);
-extern int fn_80057A6C(int a);
+extern int LevelLetter(int a);
 extern void fn_80067B0C(int a);
 extern void fn_800C031C(void* a, void* b, void* c, int d);
 extern int sprintf(char* buf, const char* fmt, ...);
@@ -276,7 +276,7 @@ void ShopMusicStart(void)
     }
     sSelectStreamHandle = -1;
     sSelectStreamState = -1;
-    ch = (signed char)fn_80057A6C(0);
+    ch = (signed char)LevelLetter(0);
     if (ch >= 76) {
         ch = 65;
     }
@@ -297,7 +297,7 @@ void AudioStopMusicB(void)
 void MapMusicStart(void)
 {
     char* buf = (char*)sSpeechNameBuf;
-    int ch = fn_80057A6C(0);
+    int ch = LevelLetter(0);
     int h;
 
     AudioKillBySound(0xC0000);
@@ -314,7 +314,7 @@ void MapMusicStart(void)
     }
     sprintf(buf, "MAP_%c", (signed char)ch);
     AudioRegisterNameBanks(buf, 0);
-    sprintf(buf, "S_MAP_%c", (signed char)fn_80057A6C(0));
+    sprintf(buf, "S_MAP_%c", (signed char)LevelLetter(0));
     h = AudioFindSound(buf, -1, 1);
     if (h >= 0) {
         sndFxPlayHandle(h, lbl_80343B4C, 1);
