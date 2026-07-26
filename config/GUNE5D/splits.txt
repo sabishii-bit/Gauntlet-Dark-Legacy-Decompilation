@@ -114,6 +114,11 @@ game/ui/screensaver.c:
 	extabindex  start:0x8000A300 end:0x8000A3CC
 	.text       start:0x8006B540 end:0x8006DC2C
 
+game/world/newcam.c:
+	extab       start:0x800067A8 end:0x80006840
+	extabindex  start:0x8000A3CC end:0x8000A4B0
+	.text       start:0x8006DC2C end:0x80070A60
+
 game/shop/shopquery.c:
 	.text       start:0x8009C228 end:0x8009C2CC
 

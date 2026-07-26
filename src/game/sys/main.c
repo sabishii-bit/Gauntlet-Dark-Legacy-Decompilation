@@ -83,7 +83,7 @@ void fn_8008BC50(void);
 void ControlsUpdate(void);
 void fn_80042398(void);
 void ScreenSaver(void);
-int fn_80070C24(void);
+int DoOptions(void);
 void fn_800154C8(void);
 void AudioSysSync(int arg);
 int fn_800A825C(void);
@@ -97,7 +97,7 @@ void fn_800B582C(void* a, void* b);
 int fn_8001C478(void);
 void do_camera(void);
 void fn_8006FE30(void);
-void fn_8006E51C(void);
+void UpdateCam(void);
 void fn_80052134(void);
 void fn_800C0394(void);
 void fn_80042394(void);
@@ -373,7 +373,7 @@ void main(void)
         lbl_803449C4 = 11;
         ScreenSaver();
         lbl_803449C4 = 4;
-        if (fn_80070C24() != 0) {
+        if (DoOptions() != 0) {
             lbl_80344568 = 1;
         }
         lbl_803449C4 = 5;
@@ -434,7 +434,7 @@ void main(void)
                     } else {
                         lbl_803444E0 = 0;
                         lbl_80344A80 = 2;
-                        fn_8006E51C();
+                        UpdateCam();
                     }
                 }
             }

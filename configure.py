@@ -414,6 +414,7 @@ config.libs = [
             Object(NonMatching, "game/boss/boss.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/world/gauntworld.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/world/camera.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
+            Object(NonMatching, "game/world/newcam.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/world/world.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/world/items.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/world/dyngrid.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
