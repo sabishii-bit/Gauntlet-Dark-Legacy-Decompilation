@@ -71,6 +71,14 @@ game/audio/soundmgr.c:
 	extabindex  start:0x8000970C end:0x80009844
 	.text       start:0x8004229C end:0x800433EC
 
+game/world/dyngrid.c:
+	.text       start:0x800433EC end:0x80043A78
+
+game/world/dynobjgrid.c:
+	extab       start:0x80005FF8 end:0x80006018
+	extabindex  start:0x80009844 end:0x80009874
+	.text       start:0x80043A78 end:0x800444C0
+
 game/enemy/enemy.c:
 	extab       start:0x800060C8 end:0x800061D8
 	extabindex  start:0x8000997C end:0x80009B14

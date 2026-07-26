@@ -1,0 +1,246 @@
+#include "types.h"
+
+/* game/world/dyngrid.c  (Xbox PDB module DYNGRID.OBJ)
+ *
+ * Fixed 64x64 spatial grid used to accelerate "what enemies / items are near
+ * point P" queries.  Each cell holds the head index of a per-cell singly
+ * linked list (one list of enemies, one of items); objects thread themselves
+ * through their cell via a link field.  Rebuilt every frame by SetupDynGrid.
+ *
+ * This static enemy/item grid ("enegrid" here) is distinct from the dynamic
+ * world-object grid in dynobjgrid.c (the authentic "dyngrid").
+ *
+ * .text range: 0x800433EC - 0x80043A78 (6 functions), wired NonMatching so the
+ * tree stays green while the real Xbox-PDB symbols are mapped.  dtk substitutes
+ * the original DOL bytes for this range.
+ *
+ * Function map (GC addr -> DYNGRID.OBJ name, all high confidence; GC emits in
+ * reverse Xbox source order, and InitDynGrid lands last at 0x80043A04 with an
+ * exact 0x71/0x74 size match, confirming the module):
+ *   0x800433EC NextGridEnemy   - advance enemy iterator, return next index/-1
+ *   0x80043490 StartEnemyGrid  - seed enemy iterator from a center + radius
+ *   0x800435EC NextGridItem    - advance item iterator, return next index/-1
+ *   0x80043694 StartItemGrid   - seed item iterator from a center + radius
+ *   0x800437F0 SetupDynGrid    - clear grid, relink all enemies then items
+ *                                (PlaceEnemyInGrid/PlaceItemInGrid inlined)
+ *   0x80043A04 InitDynGrid     - derive grid origin/scale from world bounds
+ *
+ * DynGridX/DynGridZ and the two Place* helpers present in the Xbox build were
+ * inlined by the GC compiler and have no standalone GC address.  The static
+ * grid's own origin/scale (enegrid_*) are DYNGRID-local; the authentic
+ * dyngrid_width / dyngrid_invwidth names belong to dynobjgrid.
+ */
+
+/* --- grid geometry --- */
+typedef struct DynGridCell {
+    s16 item;  /* head index into the item list for this cell (-1 == empty) */
+    s16 enemy; /* head index into the enemy list for this cell (-1 == empty) */
+} DynGridCell;
+
+#define DYNGRID_DIM 64
+
+/* Objects stored in the grid.  Only the fields the grid touches are modelled;
+ * real strides are 0xF0 (enemy) and 0x394 (item). */
+typedef struct GridEnemy {
+    void* def;    /* +0x00 owner/def ptr; *(s32*)def == -1 means retired */
+    u8 _04[0x30];
+    f32 x;        /* +0x34 */
+    u8 _38[0x04];
+    f32 z;        /* +0x3C */
+    u8 _40[0x84];
+    s16 alive;    /* +0xC4 (-1 == not in play) */
+    u8 _c6[0x0C];
+    s16 link;     /* +0xD2 next enemy in this cell */
+} GridEnemy;
+
+typedef struct GridItem {
+    u8 _00[0x34];
+    f32 x;        /* +0x34 */
+    u8 _38[0x04];
+    f32 z;        /* +0x3C */
+    u8 _40[0x74];
+    s32 active;   /* +0xB4 (0 == slot unused) */
+    u8 _b8[0x144];
+    s16 link;     /* +0x1FC next item in this cell */
+} GridItem;
+
+/* World bounds record owned elsewhere (lbl_8028CA8C, 0xA4 bytes). */
+typedef struct WorldBounds {
+    u8 _00[0x18];
+    f32 min_x;    /* +0x18 */
+    u8 _1c[0x04];
+    f32 min_z;    /* +0x20 */
+    f32 max_x;    /* +0x24 */
+    u8 _28[0x04];
+    f32 max_z;    /* +0x2C */
+    u8 _30[0x74];
+} WorldBounds;
+
+/* External object pools / counts (owned by the enemy & item managers). */
+extern GridEnemy* ene_pool; /* lbl_80344950 */
+extern s32 ene_pool_num;    /* lbl_8034494C */
+extern GridItem itm_pool[]; /* lbl_80251C18 */
+extern s32 itm_pool_num;    /* lbl_80344744 */
+extern WorldBounds gWorldBounds; /* lbl_8028CA8C */
+
+/* Tuning constants that live in the module's read-only pool. */
+extern const f32 kGridZero;       /* lbl_803466A0 == 0.0f */
+extern const f32 kGridExtentMul;  /* lbl_803466A4 */
+extern const f64 kGridDim;        /* lbl_803466A8 == 64.0 */
+
+/* --- module state (DYNGRID.OBJ file-locals) ---
+ * Declared extern here so this documentation TU emits only .text; the real
+ * storage lives at the fixed addresses recorded in symbols.txt and dtk
+ * substitutes the original bytes for the claimed .text range. */
+extern DynGridCell enegrid[DYNGRID_DIM][DYNGRID_DIM]; /* lbl_8024CE00 */
+
+extern s32 itm_x, itm_z;                 /* current item iterator cell */
+extern s32 itm_min_x, itm_min_z;         /* item query bbox (cells) */
+extern s32 itm_max_x, itm_max_z;
+extern s32 itm_idx;                      /* current item list index */
+
+extern s32 ene_x, ene_z;                 /* current enemy iterator cell */
+extern s32 ene_min_x, ene_min_z;         /* enemy query bbox (cells) */
+extern s32 ene_max_x, ene_max_z;
+extern s32 ene_idx;                      /* current enemy list index */
+
+extern f32 enegrid_ene_pad;              /* radius margin for enemy queries */
+extern f32 enegrid_itm_pad;              /* radius margin for item queries */
+extern f32 enegrid_z0;                   /* grid origin Z (world min Z) */
+extern f32 enegrid_x0;                   /* grid origin X (world min X) */
+extern f32 enegrid_invwidth;             /* cells per world unit */
+extern f32 enegrid_width;                /* grid physical size */
+
+static s32 clampcell(s32 v)
+{
+    if (v < 0)
+        v = 0;
+    if (v >= DYNGRID_DIM)
+        v = DYNGRID_DIM - 1;
+    return v;
+}
+
+/* Advance the enemy iterator to the next occupied cell/object; return the
+ * enemy index, or -1 when the query bbox is exhausted. */
+s32 NextGridEnemy(void)
+{
+    while (ene_idx < 0) {
+        if (++ene_x > ene_max_x) {
+            ene_x = ene_min_x;
+            if (++ene_z > ene_max_z)
+                return -1;
+        }
+        ene_idx = enegrid[ene_z][ene_x].enemy;
+    }
+    {
+        s32 idx = ene_idx;
+        ene_idx = ene_pool[idx].link;
+        return idx;
+    }
+}
+
+/* Seed the enemy iterator for a circular query at pos (x=pos[0], z=pos[2])
+ * with radius r, then load the first candidate cell. */
+s32 StartEnemyGrid(f32* pos, f32 r)
+{
+    f32 pad = (r > kGridZero) ? r + enegrid_ene_pad : -r;
+
+    ene_min_x = clampcell((s32)((pos[0] - pad - enegrid_x0) * enegrid_invwidth));
+    ene_min_z = clampcell((s32)((pos[2] - pad - enegrid_z0) * enegrid_invwidth));
+    ene_max_x = clampcell((s32)((pos[0] + pad - enegrid_x0) * enegrid_invwidth));
+    ene_max_z = clampcell((s32)((pos[2] + pad - enegrid_z0) * enegrid_invwidth));
+
+    ene_x = ene_min_x;
+    ene_z = ene_min_z;
+    ene_idx = enegrid[ene_z][ene_x].enemy;
+    return ene_idx;
+}
+
+/* Item counterparts of the two enemy iterators above. */
+s32 NextGridItem(void)
+{
+    while (itm_idx < 0) {
+        if (++itm_x > itm_max_x) {
+            itm_x = itm_min_x;
+            if (++itm_z > itm_max_z)
+                return -1;
+        }
+        itm_idx = enegrid[itm_z][itm_x].item;
+    }
+    {
+        s32 idx = itm_idx;
+        itm_idx = itm_pool[idx].link;
+        return idx;
+    }
+}
+
+s32 StartItemGrid(f32* pos, f32 r)
+{
+    f32 pad = (r > kGridZero) ? r + enegrid_itm_pad : -r;
+
+    itm_min_x = clampcell((s32)((pos[0] - pad - enegrid_x0) * enegrid_invwidth));
+    itm_min_z = clampcell((s32)((pos[2] - pad - enegrid_z0) * enegrid_invwidth));
+    itm_max_x = clampcell((s32)((pos[0] + pad - enegrid_x0) * enegrid_invwidth));
+    itm_max_z = clampcell((s32)((pos[2] + pad - enegrid_z0) * enegrid_invwidth));
+
+    itm_x = itm_min_x;
+    itm_z = itm_min_z;
+    itm_idx = enegrid[itm_z][itm_x].item;
+    return itm_idx;
+}
+
+/* Rebuild the whole grid for this frame: wipe all cells, then push every live
+ * enemy and item onto the head of its cell's list.  (PlaceEnemyInGrid and
+ * PlaceItemInGrid were inlined into this function by the GC compiler.) */
+void SetupDynGrid(void)
+{
+    s32 i, cx, cz;
+
+    for (cz = 0; cz < DYNGRID_DIM; cz++) {
+        for (cx = 0; cx < DYNGRID_DIM; cx++) {
+            enegrid[cz][cx].item = -1;
+            enegrid[cz][cx].enemy = -1;
+        }
+    }
+
+    for (i = 0; i < ene_pool_num; i++) {
+        GridEnemy* e = &ene_pool[i];
+        if (e->alive == -1)
+            continue;
+        if (*(s32*)e->def == -1)
+            continue;
+        cx = clampcell((s32)((e->x - enegrid_x0) * enegrid_invwidth));
+        cz = clampcell((s32)((e->z - enegrid_z0) * enegrid_invwidth));
+        e->link = enegrid[cz][cx].enemy;
+        enegrid[cz][cx].enemy = (s16)i;
+    }
+
+    for (i = 0; i < itm_pool_num; i++) {
+        GridItem* it = &itm_pool[i];
+        if (!it->active)
+            continue;
+        cx = clampcell((s32)((it->x - enegrid_x0) * enegrid_invwidth));
+        cz = clampcell((s32)((it->z - enegrid_z0) * enegrid_invwidth));
+        it->link = enegrid[cz][cx].item;
+        enegrid[cz][cx].item = (s16)i;
+    }
+}
+
+/* Derive grid origin and world->cell scale from the current world bounds.
+ * pads are the per-object-class query margins. */
+void InitDynGrid(f32 item_pad, f32 enemy_pad)
+{
+    f32 ext_x, ext_z, ext;
+
+    enegrid_x0 = gWorldBounds.min_x;
+    enegrid_z0 = gWorldBounds.min_z;
+
+    ext_x = gWorldBounds.max_x - enegrid_x0;
+    ext_z = gWorldBounds.max_z - enegrid_z0;
+    ext = (ext_x > ext_z) ? ext_x : ext_z;
+
+    enegrid_itm_pad = item_pad;
+    enegrid_ene_pad = enemy_pad;
+    enegrid_width = ext * kGridExtentMul;
+    enegrid_invwidth = (f32)(kGridDim / enegrid_width);
+}
