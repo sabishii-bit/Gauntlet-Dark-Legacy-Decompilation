@@ -101,9 +101,9 @@ extern s32   lbl_80344D84;
 extern s32   lbl_80344D88;
 extern FInfo* lbl_80344D7C;    /* world file read handle */
 extern void* lbl_80344D8C;     /* default parent node */
-extern void* lbl_80344D90;     /* scene root */
-extern void* lbl_80344D94;     /* scene root */
-extern WorldObj* lbl_80344D9C; /* current world object array base */
+extern void* world_root1;     /* scene root */
+extern void* world_root0;     /* scene root */
+extern WorldObj* world_objects; /* current world object array base */
 extern void* lbl_80344DA0;
 extern void* lbl_80344DA4;
 extern void* lbl_80344EB8;     /* default parent node */
@@ -279,8 +279,8 @@ void fn_800A9398(s32 a) {
 
 /* fn_800A8E30: reset world module state. */
 void fn_800A8E30(void) {
-    lbl_80344D94 = 0;
-    lbl_80344D90 = 0;
+    world_root0 = 0;
+    world_root1 = 0;
     lbl_80344DA4 = 0;
     lbl_80344DA0 = 0;
     lbl_8028C9A8.f360 = -1;
@@ -296,28 +296,28 @@ void NewWorld(void* parent) {
     if (parent == 0) {
         parent = lbl_80344EB8;
     }
-    lbl_80344D94 = fn_800BB29C(parent, lbl_80127D60, 1);
-    lbl_80344D90 = fn_800BB29C(parent, lbl_80127D60, 1);
+    world_root0 = fn_800BB29C(parent, lbl_80127D60, 1);
+    world_root1 = fn_800BB29C(parent, lbl_80127D60, 1);
 }
 
 WorldObj* FindWorldObject(WorldObj* node, char* name);
 
 /* FindWORLDOBJ: find an object by name from the current world root. */
 WorldObj* FindWORLDOBJ(char* name) {
-    WorldObj* node = lbl_80344D9C;
+    WorldObj* node = world_objects;
     while (node != 0) {
         if (strcmp(name, node->name) == 0) {
             break;
         } else {
             if (node->sibling >= 0) {
-                WorldObj* r = FindWorldObject(&lbl_80344D9C[node->sibling], name);
+                WorldObj* r = FindWorldObject(&world_objects[node->sibling], name);
                 if (r != 0) {
                     node = r;
                     break;
                 }
             }
             if (node->child >= 0) {
-                node = &lbl_80344D9C[node->child];
+                node = &world_objects[node->child];
             } else {
                 node = 0;
                 break;
@@ -333,12 +333,12 @@ WorldObj* FindWorldObject(WorldObj* node, char* name) {
         if (strcmp(name, node->name) == 0)
             return node;
         if (node->sibling >= 0) {
-            WorldObj* r = FindWorldObject(&lbl_80344D9C[node->sibling], name);
+            WorldObj* r = FindWorldObject(&world_objects[node->sibling], name);
             if (r != 0)
                 return r;
         }
         if (node->child >= 0) {
-            node = &lbl_80344D9C[node->child];
+            node = &world_objects[node->child];
         } else {
             return 0;
         }
@@ -384,18 +384,18 @@ void ToggleWorldDisplay(void) {
     } else {
         WorldDisplay = 1;
     }
-    if (lbl_80344D94 != 0) {
+    if (world_root0 != 0) {
         if (WorldDisplay & 1) {
-            fn_800BA2C4(lbl_80344D94, 2, 0);
+            fn_800BA2C4(world_root0, 2, 0);
         } else {
-            fn_800BA368(lbl_80344D94, 2, 0);
+            fn_800BA368(world_root0, 2, 0);
         }
     }
-    if (lbl_80344D90 != 0) {
+    if (world_root1 != 0) {
         if (WorldDisplay & 2) {
-            fn_800BA2C4(lbl_80344D90, 2, 0);
+            fn_800BA2C4(world_root1, 2, 0);
         } else {
-            fn_800BA368(lbl_80344D90, 2, 0);
+            fn_800BA368(world_root1, 2, 0);
         }
     }
 }
