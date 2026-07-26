@@ -119,21 +119,21 @@ int fn_800AEAD0(const char* path)
     u8 fi[0x3C]; /* DVDFileInfo */
     u8 bufo[64];
     u8 bufc[64];
-    int off = (int) (((u32) &bufo[31] & ~31) - (u32) &bufo);
     int r;
     int size;
 
     do {
         r = DVDOpen(path, fi);
         if (r == 0) {
+            int off = (int) (((u32) &bufo[31] & ~31) - (u32) &bufo);
             fn_800AEBF4(lbl_8025EDE8, bufo + off, 32, 0);
         }
     } while (r == 0);
     size = *(u32*) (fi + 0x34); /* DVDFileInfo.length */
-    off = (int) (((u32) &bufc[31] & ~31) - (u32) &bufc);
     do {
         r = DVDClose(fi);
         if (r == 0) {
+            int off = (int) (((u32) &bufc[31] & ~31) - (u32) &bufc);
             fn_800AEBF4(lbl_8025EDE8, bufc + off, 32, 0);
         }
     } while (r == 0);
@@ -304,18 +304,17 @@ int sceRead(int fd, void* buf, int len)
 int sceClose(int fd)
 {
     u8 buf[76];
-    /* 32-byte-aligned offset into buf for the dummy retry read */
-    int off = (int) (((u32) &buf[31] & ~31) - (u32) &buf[0]);
     SCEFILE* f = SCEHANDLE(fd);
     int r;
 
     do {
         r = DVDClose(f->fileInfo);
         if (r == 0) {
-            /* PARKED 3-insn residual: target keeps off (subf) in r29 and
-               rebuilds buf+off at the callsite; ours folds to the aligned
-               pointer. Tried cast-transit, &buf[off], inlined helper,
-               struct-field off (worse). */
+            /* off declared INSIDE the loop body: MWCC's LICM hoists only the
+               subf (aligned-base -> r29) and keeps the base+off add at the
+               callsite inside the loop, matching Midway. Declaring off in the
+               outer scope folds base+off -> aligned and hoists it whole. */
+            int off = (int) (((u32) &buf[31] & ~31) - (u32) &buf[0]);
             fn_800AEBF4(lbl_8025EDE8, buf + off, 32, 0);
         }
     } while (r == 0);
@@ -352,11 +351,11 @@ int sceOpen(const char* path, int flags, ...)
     }
     f->buf = base + 1528 + i * 16416;
 
-    off = (int) (((u32) &rbuf[31] & ~31) - (u32) &rbuf[0]);
     fi = f->fileInfo;
     do {
         r = DVDOpen(path, fi);
         if (r == 0) {
+            off = (int) (((u32) &rbuf[31] & ~31) - (u32) &rbuf[0]);
             fn_800AEBF4(lbl_8025EDE8, rbuf + off, 32, 0);
         }
     } while (r == 0);
