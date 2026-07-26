@@ -101,8 +101,8 @@ void DelSpecialTexmod(int idx)
 
 int AddSpecialTexmod(int texidx1, char* name1, int texidx2, char* name2, int frames, int rate)
 {
-    int slot;
     TEXMOD* tm;
+    int slot;
 
     for (slot = 0; slot < special_texmod_num; slot++) {
         if (special_texmods[slot].tex < 0) {
@@ -160,8 +160,10 @@ void InitTexMod(TEXMOD* tm, int texidx)
                 tm->src = mode;
             } else if (mode < -1 && tm->flag == -1) {
                 t = fn_800BA024(tex);
-                scrIdx = texmod_scrollidx;
-                if ((*(u16*)((int)t + 2) & 0x40) == 0) {
+                if ((*(u16*)((int)t + 2) & 0x40) != 0) {
+                    tm->scrollIdx = *(short*)((int)t + 8);
+                } else {
+                    scrIdx = texmod_scrollidx;
                     if (scrIdx < 0x40) {
                         texmod_scrollidx = scrIdx + 1;
                         *(u16*)((int)t + 2) |= 0x40;
@@ -174,8 +176,6 @@ void InitTexMod(TEXMOD* tm, int texidx)
                     } else {
                         ErrorPrintf("> Max %d scrolling textures", scrIdx);
                     }
-                } else {
-                    tm->scrollIdx = *(short*)((int)t + 8);
                 }
             }
         } else {
@@ -311,50 +311,45 @@ void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
 float CalcTexScroll(float t, float lo, float hi, int frame, float* out)
 {
     float result;
-    int islt;
+    int gt;
     float ret;
     float d4;
     float d5;
+    double dret;
+    int ih;
 
-    islt = lo <= hi;
-    if (!islt) {
+    gt = 0;
+    if (lo > hi) {
         lo = hi;
+        gt = 1;
     }
     if (0.0 == lo) {
-        ret = (float)((float)(frame - (frame / (int)hi) * (int)hi) / hi);
+        ih = (int)hi;
+        ret = (float)((float)(frame % ih) / hi);
         result = 0.0f;
     } else {
-        if (0.0 < t) {
-            if (lo <= t) {
-                if (islt) {
-                    if (hi <= t) {
-                        if ((float)(hi + lo) <= t) {
-                            ret = 1.0f;
-                            d5 = (float)(hi * (float)(1.0 / lo));
-                        } else {
-                            d5 = (float)(hi * (float)(1.0 / lo));
-                            ret = (float)((float)(1.0 / lo) * (float)(t - hi));
-                        }
-                    } else {
-                        d4 = (float)(t - lo) / (float)(hi - lo);
-                        d5 = (float)(hi * (float)(1.0 / lo));
-                        ret = 1.0 - d5;
-                        d5 = (float)(d4 * (d5 - 1.0) + 1.0);
-                        ret = (float)(d4 * -ret + ret);
-                    }
-                } else {
-                    ret = 0.0f;
-                    d5 = 1.0f;
-                }
-            } else {
-                d5 = 1.0f;
-                d4 = (float)(hi * (float)(1.0 / lo));
-                ret = 2.0 * -d4;
-                ret = (float)((float)(t * (float)(1.0 / lo)) * ((1.0 - d4) - ret) + ret);
-            }
-        } else {
+        if (t <= 0.0) {
             ret = 0.0f;
             d5 = ret;
+        } else if (t < lo) {
+            d5 = 1.0f;
+            d4 = (float)(hi * (float)(1.0 / lo));
+            ret = (float)((float)(t * (float)(1.0 / lo)) * ((1.0 - d4) - 2.0 * -d4) + 2.0 * -d4);
+        } else if (gt) {
+            ret = 0.0f;
+            d5 = 1.0f;
+        } else if (t < hi) {
+            d4 = (float)(t - lo) / (float)(hi - lo);
+            d5 = (float)(hi * (float)(1.0 / lo));
+            dret = 1.0 - d5;
+            d5 = (float)(d4 * (d5 - 1.0) + 1.0);
+            ret = (float)(d4 * -dret + dret);
+        } else if (t < hi + lo) {
+            ret = (float)((float)(1.0 / lo) * (float)(t - hi));
+            d5 = (float)(hi * (float)(1.0 / lo));
+        } else {
+            ret = 1.0f;
+            d5 = (float)(hi * (float)(1.0 / lo));
         }
         result = (float)(d5 - ret);
     }
