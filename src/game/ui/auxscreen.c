@@ -138,7 +138,7 @@ extern void AudioEmptyCb2(void);
 extern void fn_800A0E94(void);
 extern void fn_80054D18(void);
 extern void fn_80053D08(s32 a, s32 b, s32 c);
-extern void fn_80075D18(s32 i);
+extern void setup_player_display(s32 i);
 extern s32 fn_8005638C(s32 a);
 extern void* fn_8005A260(char* name, s32 a, s32 b, s32 c);
 extern void* fn_800B38D0(void* base, s32 a, s32 b);
@@ -590,7 +590,7 @@ s32 init_mapscreen(s32 timer, s32 movie)
     lbl_8034477C = 16399;
     fn_80053D08(-2, 1, -1);
     for (i = 0; i < 4; i++) {
-        fn_80075D18(i);
+        setup_player_display(i);
     }
     rv = fn_8005638C(sLastWorldLevel);
 
