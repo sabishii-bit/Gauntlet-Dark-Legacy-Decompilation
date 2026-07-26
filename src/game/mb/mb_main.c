@@ -75,7 +75,7 @@ extern void fn_800C1170(int a, void* b, int c);
 extern void fn_800C2F50(f32 w, f32 h);
 extern void fn_800B9E4C(void);
 extern void fn_800B8AB8(void);
-extern void fn_800BA820(void);
+extern void MBTreeInit(void);
 extern void fn_800BC23C(void);
 extern void fn_800B6D38(int a, int b, int c);   /* mb_font/mb_lights reset */
 extern void fn_800B6D64(void);
@@ -188,7 +188,7 @@ void MBInit(void) {
     mbInitInvSqrtTable();
     fn_800C2F50(512.0f, 384.0f);
     fn_800B8AB8();
-    fn_800BA820();
+    MBTreeInit();
     fn_800BC23C();
     fn_800B6D64();
     fn_800B6C94();

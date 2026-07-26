@@ -41,8 +41,8 @@ long long __shl2i(int hi, int lo, int shift);
 void* AllocMem32(u32 size);
 void pbSetTexture(void* texObj);                     /* pb_objregs.c */
 extern void fn_800C6AB4(int);                        /* pb_objregs.c */
-extern void* fn_800BA024(int, int);                  /* pb model helper */
-extern void fn_800BC590(char* fmt, int, int, int, int, void*); /* dbg printf */
+extern void* MBRomTexPtr(int, int);                  /* pb model helper */
+extern void FatalErrorf(char* fmt, int, int, int, int, void*); /* dbg printf */
 
 /* ------------------------------------------------------------------ */
 /* module structs (offsets verified against the disassembly)           */
@@ -310,7 +310,7 @@ void fn_800C72DC(void) {
         for (t = 0; t < *(u16*)(desc + 0x7e); t++) {
             s32 key = (*(u16*)(desc + 0x7c) << 16) | (u16)(*(u16*)(desc + 0x7c) + t);
             if (fn_800C7558(key) == 0) {
-                fn_800BC590(lbl_80116AC0, 0x200, m + 1, t + 1,
+                FatalErrorf(lbl_80116AC0, 0x200, m + 1, t + 1,
                             *(u16*)(*(u8**)(e + 0x4) + 0x7e), *(void**)(mgr + m * 0x10 + 0x4));
                 loaded++;
             }
@@ -338,7 +338,7 @@ int fn_800C73E0(s32 key) {
 /* Ensure a texture's TLUT is resident, loading it if necessary, and bind it
  * to the texture object (GXInitTexObjTlut). Returns non-zero on success. */
 int fn_800C7558(s32 key) {
-    void* palette = fn_800BA024(key >> 12, key);
+    void* palette = MBRomTexPtr(key >> 12, key);
     s32 region;
     if (palette == 0)
         return 0;

@@ -74,7 +74,7 @@ typedef struct TexInfo {
 void* memset(void* p, int c, u32 n);
 void ErrorPrintf(const char* fmt, ...);
 PolyContext* fn_800BB29C(s32 a, void* cfg, s32 n); /* MB hash/context create */
-TexInfo* fn_800BA024(s32 tex);                      /* texture bind/lookup */
+TexInfo* MBRomTexPtr(s32 tex);                      /* texture bind/lookup */
 void fn_800BDC60(PolyVert* v, void* out, void* xf); /* xform vertex */
 u32  __cvt_fp2unsigned(f64 x);
 void mbBlitGetPage(void);
@@ -302,7 +302,7 @@ void MBPolyInstUpdateTex(PolyInstance* inst, s32 tex) {
 
     if (tex >= 0) {
         inst->tex = tex;
-        t = fn_800BA024(tex);
+        t = MBRomTexPtr(tex);
         /* map each vertex against the per-type UV template, scaled by the
            bound texture's dimensions into fixed-point texcoords. */
         for (i = 0; i < n; i++) {

@@ -72,7 +72,7 @@ extern f32 dyngrid_invwidth; /* 1.0 / cell size */
 /* Allocator / helpers owned by other modules. */
 extern void* AllocMem(s32 size);
 extern void* memset(void* p, s32 c, s32 n);
-extern void fn_800BB614(void* a, void* b, s32 c);
+extern void GetWorldMat(void* a, void* b, s32 c);
 extern void FatalError(const char* msg, ...);
 extern const char aGridError[]; /* lbl_80112360 == "GRID ERROR" */
 extern s32 fn_8000DFEC();
@@ -173,7 +173,7 @@ void CreateDynobjGrid(void)
         d = &dynobj_list[i];
         o = &gWorldInfo.objs[d->obj_idx];
         if (o->flags & 0x01000000)
-            fn_800BB614(o->prep, d, 0);
+            GetWorldMat(o->prep, d, 0);
         d->mark = 0;
         if (o->flags & 0x01000000)
             p = d->bbox;

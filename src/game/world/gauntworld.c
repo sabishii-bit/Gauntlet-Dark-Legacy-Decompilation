@@ -90,7 +90,7 @@ extern int   FileSize(const char* dev, const char* path);
 extern void* AllocMem(int size);
 extern void* AllocFile();
 extern void  MLMReadFile(const char* dev, const char* path, int size, void* dst);
-extern int   fn_800BC590(const char* fmt, ...);  /* ErrorPrintf-style logger  */
+extern int   FatalErrorf(const char* fmt, ...);  /* ErrorPrintf-style logger  */
 extern int   fn_80057F44();                      /* world-registry hook       */
 extern int   sprintf(char* buf, const char* fmt, ...);
 extern int   ErrorPrintf(const char* fmt, ...);
@@ -147,7 +147,7 @@ void ResolveWorldData(int worldlevel)
             }
             /* loaded flag lives beside the type table */
             if (sWorldLevelTable[i * 0xB + 0x4] == 0) {
-                fn_800BC590("No world data %s\n", &sWorldLevelTable[i]);
+                FatalErrorf("No world data %s\n", &sWorldLevelTable[i]);
                 break;
             }
             /* set up the realm WAD and pull its sections */
@@ -202,10 +202,10 @@ static void ResolveWorldDataPointers(void)
     const float SENTINEL    = -1.0f;/* f30 */
 
     if (gWorldData->cameras == 0) {
-        fn_800BC590("World Data %s has no cameras\n", nameBuf);
+        FatalErrorf("World Data %s has no cameras\n", nameBuf);
     }
     if (gWorldData->audio == 0) {
-        fn_800BC590("World Data %s has no audio\n", nameBuf);
+        FatalErrorf("World Data %s has no audio\n", nameBuf);
     }
 
     sCurLevelHasCameras = -1;
@@ -319,9 +319,9 @@ void LoadWorldData(void)
  * addr        size    role / evidence (real callees; "strings")
  * --------------------------------------------------------------------------
  * 80058078  0x1C3C  ResolveWorldData  [named]  MBSetupWad, MBGetFromWad,
- *                    ResolveWorldDataPointers, fn_800BC590
+ *                    ResolveWorldDataPointers, FatalErrorf
  * 80059CB4  0x03E4  ResolveWorldDataPointers  [named, local]  AudioFindSound,
- *                    sprintf, fn_800BC590
+ *                    sprintf, FatalErrorf
  * 8005A098  0x0154  LoadWorldData  [named]  FileExists, FileSize, AllocMem,
  *                    MLMReadFile, ErrorPrintf, sprintf, fn_80057F44;
  *                    "No world data file: %s", "%s.wad", "wdata"
@@ -331,16 +331,16 @@ void LoadWorldData(void)
  *                    InitTexMods, strcmp, fn_8001267C, fn_800B7B24.  Widely
  *                    called (attract/main/auxscreen/items).  "anim","static"
  * 8005A338  0x0080  fn_ : dispatch transform (fn_8005A588, fn_8005A65C,
- *                    fn_800BB614, fn_800BE8F4)
- * 8005A3B8  0x004C  fn_ : release/unload world object (fn_800BB704,
- *                    fn_800BE8F4).  Called by auxscreen.
+ *                    GetWorldMat, CopyMat4)
+ * 8005A3B8  0x004C  fn_ : release/unload world object (UnparentMatrix,
+ *                    CopyMat4).  Called by auxscreen.
  * 8005A404  0x0184  fn_ : matrix/vector transform helper (fn_800BDE80)
  * 8005A588  0x00D4  fn_ : matrix/vector transform helper (fn_800BDE80)
  * 8005A65C  0x00D4  fn_ : place-offset transform: copies/adds a vec3 to a
  *                    dst, or transforms via fn_800BDE80 by a mode flag
  * 8005A730  0x0008  fn_ : stub, returns 1
  * 8005A738  0x0130  fn_ : per-instance text draw (DrawTextKeepScale,
- *                    fn_8005A868, fn_800BCCA8, strcpy)
+ *                    fn_8005A868, RandInt, strcpy)
  * 8005A868  0x03A8  fn_ : text/gfx draw (DrawTextKeepScale, fn_8003xxxx mtx,
  *                    fn_8009D42C/58, fn_8009EF04)
  * 8005AC10  0x00D0  fn_ : accessor (no calls; lbl_803445C8/8034477C)

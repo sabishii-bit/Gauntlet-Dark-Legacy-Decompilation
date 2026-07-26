@@ -28,13 +28,13 @@ extern void pbProjCalc();
 extern void pbCameraCalc();
 extern void pbInitCamera();
 extern void vec4ApplyTrans__FR4vec4R4vec4R5mat44(f32* dst, f32* src, f32* m);
-extern void* fn_800BE8C8();
+extern void* CopyMat3();
 
 /* 0x800B582C - MBCameraUpdate : per-frame MB camera / projection setup. */
 void MBCameraUpdate(void)
 {
     pbInitCamera();
-    fn_800BE8C8();
+    CopyMat3();
 }
 
 /* 0x800B5554 - MBWorldToScreen : project a world point to screen space. */

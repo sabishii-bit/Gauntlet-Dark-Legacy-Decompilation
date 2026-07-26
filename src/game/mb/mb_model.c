@@ -57,9 +57,9 @@ extern void  fn_800C7884(int a);            /* MB texture-region reset */
 extern void  fn_800B6C04(int slot);         /* MB lock helper */
 extern void  fn_800B6C20(void);             /* MB unlock helper */
 extern void  fn_800B6BC0(void);             /* MB reset helper */
-extern void  fn_800BA820(void);             /* mb_objects reset */
+extern void  MBTreeInit(void);             /* mb_objects reset */
 extern void  fn_800B9E4C(void);             /* mb_objects init */
-extern void* fn_800BC590(void* def, void* name); /* object-def build */
+extern void* FatalErrorf(void* def, void* name); /* object-def build */
 
 extern int   strncmp(const char*, const char*, u32);
 extern int   strcmp(const char*, const char*);
@@ -264,7 +264,7 @@ void MBOX_ResetUnlockedModels(void) {
     fn_800C7884(0);
     FreeUnlockedMem();
     fn_800B6C20();
-    fn_800BA820();
+    MBTreeInit();
     fn_800B9E4C();
     MBInitPsys();
     lbl_80344E8C = lbl_802A5D0C[0];
@@ -350,7 +350,7 @@ int MBOX_ReallyFindObject(const char* name, int a, int b, int create) {
     def = bsearch(nm, g, (u32)lbl_80344E8C, 0x40, objcmp);
     if (def == 0 && create) {
         strcpy(nm, name);
-        fn_800BC590(g, nm);
+        FatalErrorf(g, nm);
     }
     (void)a;
     (void)b;
