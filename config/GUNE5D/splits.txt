@@ -225,6 +225,21 @@ game/mb/mb_blit.c:
 	.text       start:0x800B2988 end:0x800B53B0
 	.ctors      start:0x801106E4 end:0x801106E8
 
+game/mb/mb_camera.c:
+	extab       start:0x80007768 end:0x80007798
+	extabindex  start:0x8000BB6C end:0x8000BBB4
+	.text       start:0x800B53B4 end:0x800B5AA8
+
+game/mb/mb_font.c:
+	extab       start:0x80007798 end:0x800077C8
+	extabindex  start:0x8000BBB4 end:0x8000BBFC
+	.text       start:0x800B5AA8 end:0x800B6CDC
+
+game/mb/mb_lights.c:
+	extab       start:0x800077C8 end:0x800077D0
+	extabindex  start:0x8000BBFC end:0x8000BC08
+	.text       start:0x800B6CDC end:0x800B6ED8
+
 game/mb/mb_main.c:
 	extab       start:0x800077D0 end:0x800077E0
 	extabindex  start:0x8000BC08 end:0x8000BC20
