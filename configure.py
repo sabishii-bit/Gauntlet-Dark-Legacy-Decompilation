@@ -411,6 +411,7 @@ config.libs = [
             Object(NonMatching, "game/audio/sndfx.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/sound/sounds_evt.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/sound/sounds.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
+            Object(NonMatching, "game/world/tower.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/ui/attract.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/ui/message.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/ui/screensaver.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
