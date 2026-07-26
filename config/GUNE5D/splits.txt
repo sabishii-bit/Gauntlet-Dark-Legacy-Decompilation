@@ -287,6 +287,26 @@ game/ps2/mathfunc.c:
 	.text       start:0x800D190C end:0x800D1E04
 	.sdata2     start:0x803492B0 end:0x803492B8
 
+game/audio/dcs.c:
+	extab       start:0x80007F78 end:0x80008068
+	extabindex  start:0x8000C784 end:0x8000C8EC
+	.text       start:0x800D1E04 end:0x800D4308
+
+game/audio/buffile.c:
+	extab       start:0x80008068 end:0x80008098
+	extabindex  start:0x8000C8EC end:0x8000C934
+	.text       start:0x800D4308 end:0x800D4960
+
+game/audio/dcsdrv.c:
+	extab       start:0x80008098 end:0x800080B0
+	extabindex  start:0x8000C934 end:0x8000C958
+	.text       start:0x800D4960 end:0x800D5260
+
+game/audio/mempool.c:
+	extab       start:0x800080B0 end:0x80008118
+	extabindex  start:0x8000C958 end:0x8000C9F4
+	.text       start:0x800D5260 end:0x800D621C
+
 game/sys/cardutil.c:
 	extab       start:0x80008560 end:0x800085F0
 	extabindex  start:0x8000CCB8 end:0x8000CD90

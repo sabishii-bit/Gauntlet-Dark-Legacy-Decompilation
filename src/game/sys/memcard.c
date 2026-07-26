@@ -26,10 +26,10 @@ extern void* __OSCurrHeap;
 u32 fn_800BF524(void);
 int fn_800BF168(void);
 void fn_800BC2EC(const char* fmt, ...);
-void fn_800D3874(u32 aramOffset, void* buf);
-void fn_800D38F8(u32 dst, u32 len);
-void fn_800D3970(u32 dst, u32 src, u32 len);
-void fn_800D39E8(u32 dst, u32 src, u32 len);
+void dcsAramReadTop(u32 aramOffset, void* buf);
+void dcsAramWriteTop(u32 dst, u32 len);
+void dcsAramWrite(u32 dst, u32 src, u32 len);
+void dcsAramRead(u32 dst, u32 src, u32 len);
 void cardStart(void* buf, u32 size, int arg);
 void cardWaitResult(void);
 s32 cardGetFreeBytes(void);
@@ -387,7 +387,7 @@ int fn_80069540(void)
         cardWaitResult();
         OSSetCurrentHeap(lbl_80344A08);
         OSDestroyHeap(lbl_80344A0C);
-        fn_800D3874(fn_800BF524() - 0x310000, (void*) 0x310000);
+        dcsAramReadTop(fn_800BF524() - 0x310000, (void*) 0x310000);
         sysClearFlags(64);
         fn_800BC2EC(lbl_801131C0);
         lbl_803449EC = 0;
@@ -434,7 +434,7 @@ int fn_800696E8(void)
     size = 0x310000;
     sysSetFlags(64);
     buf = (u8*) fn_800BF524();
-    fn_800D38F8((u32) buf - 0x310000, size);
+    dcsAramWriteTop((u32) buf - 0x310000, size);
     lo = buf - 0x310000;
     lbl_80344A0C = OSCreateHeap(lo, lo + size);
     lbl_80344A08 = OSSetCurrentHeap(lbl_80344A0C);
@@ -488,7 +488,7 @@ void fn_8006AEA8(void)
 
     sysSetFlags(64);
     buf = (u8*) fn_800BF524();
-    fn_800D38F8((u32) (buf - 0x310000), 0x310000);
+    dcsAramWriteTop((u32) (buf - 0x310000), 0x310000);
     lo = buf - 0x310000;
     lbl_80344A0C = OSCreateHeap(lo, lo + size);
     lbl_80344A08 = OSSetCurrentHeap(lbl_80344A0C);
@@ -503,7 +503,7 @@ void fn_8006AF44(u8* buf)
     u32 off = fn_800BF524();
     u8* b = buf;
 
-    fn_800D3874(off - (u32) b, b);
+    dcsAramReadTop(off - (u32) b, b);
 }
 
 s32 fn_8006AF7C(const char* msg)
@@ -532,8 +532,8 @@ s32 fn_8006AFE0(const char* msg, s32* state, s32 count)
     s32 timer = 30;
     u8 had;
 
-    fn_800D3970(fn_800BF524() - 0x310000, 0x9E0000, 0x310000);
-    fn_800D39E8(0xCF0000, fn_800BF524() - 0x310000, 0x310000);
+    dcsAramWrite(fn_800BF524() - 0x310000, 0x9E0000, 0x310000);
+    dcsAramRead(0xCF0000, fn_800BF524() - 0x310000, 0x310000);
     had = sysTestFlags(64);
     if (had) {
         sysClearFlags(64);
@@ -555,18 +555,18 @@ s32 fn_8006AFE0(const char* msg, s32* state, s32 count)
         sysHandleReset();
         if (--timer <= 0) {
             timer = 30;
-            fn_800D3970(fn_800BF524() - 0x310000, 0xCF0000, 0x310000);
-            fn_800D39E8(0x9E0000, fn_800BF524() - 0x310000, 0x310000);
+            dcsAramWrite(fn_800BF524() - 0x310000, 0xCF0000, 0x310000);
+            dcsAramRead(0x9E0000, fn_800BF524() - 0x310000, 0x310000);
             fn_80067B0C(-1);
-            fn_800D3970(fn_800BF524() - 0x310000, 0x9E0000, 0x310000);
-            fn_800D39E8(0xCF0000, fn_800BF524() - 0x310000, 0x310000);
+            dcsAramWrite(fn_800BF524() - 0x310000, 0x9E0000, 0x310000);
+            dcsAramRead(0xCF0000, fn_800BF524() - 0x310000, 0x310000);
         }
         if (padButtonReleased(-1, 256) != 0) {
             break;
         }
     }
-    fn_800D3970(fn_800BF524() - 0x310000, 0xCF0000, 0x310000);
-    fn_800D39E8(0x9E0000, fn_800BF524() - 0x310000, 0x310000);
+    dcsAramWrite(fn_800BF524() - 0x310000, 0xCF0000, 0x310000);
+    dcsAramRead(0x9E0000, fn_800BF524() - 0x310000, 0x310000);
     if (had) {
         sysSetFlags(64);
     }
@@ -576,12 +576,12 @@ s32 fn_8006AFE0(const char* msg, s32* state, s32 count)
 /* swap the 3.2MB save cache blocks in ARAM (0x9E0000 <-> 0xCF0000) */
 void fn_8006B188(void)
 {
-    fn_800D3970(fn_800BF524() - 0x310000, 0xCF0000, 0x310000);
-    fn_800D39E8(0x9E0000, fn_800BF524() - 0x310000, 0x310000);
+    dcsAramWrite(fn_800BF524() - 0x310000, 0xCF0000, 0x310000);
+    dcsAramRead(0x9E0000, fn_800BF524() - 0x310000, 0x310000);
 }
 
 void fn_8006B1CC(void)
 {
-    fn_800D3970(fn_800BF524() - 0x310000, 0x9E0000, 0x310000);
-    fn_800D39E8(0xCF0000, fn_800BF524() - 0x310000, 0x310000);
+    dcsAramWrite(fn_800BF524() - 0x310000, 0x9E0000, 0x310000);
+    dcsAramRead(0xCF0000, fn_800BF524() - 0x310000, 0x310000);
 }
