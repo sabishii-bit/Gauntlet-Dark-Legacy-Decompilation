@@ -41,9 +41,9 @@ extern s32 lbl_803449A4;
 extern s32 lbl_803445C8;
 extern s32 lbl_803445CC;
 extern s32 lbl_8034481C;
-extern s32 lbl_80344820;
+extern s32 sLastWorldLevel;
 extern s32 lbl_8034477C;
-extern void* lbl_8034483C;
+extern void* gCurLevel;
 
 /* ------------------------------------------------------------------ */
 /* Aux-screen owned .sdata (tunables) and .sbss (state) globals        */
@@ -424,8 +424,8 @@ void init_gamemovie(s32 type)
             fn_800D9FEC("garm");
             movieactive = 0;
             movie_state = 2;
-        } else if (*((s8*)lbl_8034483C + 52) != 0) {
-            fn_800D9FEC((char*)lbl_8034483C + 52);
+        } else if (*((s8*)gCurLevel + 52) != 0) {
+            fn_800D9FEC((char*)gCurLevel + 52);
             movieactive = 0;
         }
     }
@@ -556,7 +556,7 @@ s32 do_mapscreen(s32 skip)
         }
         break;
     case 3:
-        fn_800A11E4(*(void**)((u8*)lbl_8034483C + 100), 1);
+        fn_800A11E4(*(void**)((u8*)gCurLevel + 100), 1);
         map_load_state++;
         break;
     case 4:
@@ -592,7 +592,7 @@ s32 init_mapscreen(s32 timer, s32 movie)
     for (i = 0; i < 4; i++) {
         fn_80075D18(i);
     }
-    rv = fn_8005638C(lbl_80344820);
+    rv = fn_8005638C(sLastWorldLevel);
 
     map_load_timer = timer;
     map_load_progress = 0;
