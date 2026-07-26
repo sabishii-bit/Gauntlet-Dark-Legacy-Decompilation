@@ -573,7 +573,7 @@ config.libs = [
             Object(Matching, "MSL/printf.c"),
             Object(Matching, "MSL/qsort.c"),
             Object(Matching, "MSL/signal.c"),
-            Object(NonMatching, "MSL/strfind.c"),
+            Object(Matching, "MSL/strfind.c"),
             Object(Matching, "MSL/time.c"),
             Object(Matching, "MSL/uart_console_io.c"),
             Object(Matching, "MSL/get_time.c"),
