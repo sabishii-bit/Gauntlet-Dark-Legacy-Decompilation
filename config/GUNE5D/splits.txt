@@ -117,6 +117,11 @@ game/pb/pb_diag.c:
 	extabindex  start:0x8000B698 end:0x8000B728
 	.text       start:0x800A573C end:0x800A87C8
 
+game/world/world.c:
+	extab       start:0x80007490 end:0x80007520
+	extabindex  start:0x8000B728 end:0x8000B800
+	.text       start:0x800A87C8 end:0x800AB8E0
+
 game/g3d/g3dMath3D.cpp:
 	extab       start:0x80007538 end:0x800075B8
 	extabindex  start:0x8000B824 end:0x8000B8E4
