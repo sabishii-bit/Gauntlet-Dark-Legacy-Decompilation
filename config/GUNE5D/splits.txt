@@ -230,6 +230,11 @@ game/mb/mb_main.c:
 	extabindex  start:0x8000BC08 end:0x8000BC20
 	.text       start:0x800B6ED8 end:0x800B7758
 
+game/mb/mb_model.c:
+	extab       start:0x800077E0 end:0x80007880
+	extabindex  start:0x8000BC20 end:0x8000BD10
+	.text       start:0x800B7758 end:0x800B90A4
+
 game/mb/mb_objects.c:
 	extab       start:0x80007880 end:0x80007900
 	extabindex  start:0x8000BD10 end:0x8000BDD0

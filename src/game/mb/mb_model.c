@@ -1,0 +1,366 @@
+#include "types.h"
+
+/* Midway "MB" model-buffer library model loader (GCN MB_MODEL.CPP TU,
+ * .text 0x800B7758-0x800B90A4). This is the objects.ngc / textures.ngc
+ * resource loader for the MB (model-buffer) graphics system: it reads the
+ * per-world geometry ("objects") and texture ("textures") archives off the
+ * disc, allocates model memory from the MLM (ml_mem) arena, sets up the
+ * loaded model data (version-checked ngc blocks), and maintains the
+ * object-definition and texture-definition lookup tables (binary searched
+ * by name / index).
+ *
+ * TU identity: PDB module MB_MODEL.OBJ, plus the rodata watermark strings
+ * "objects.ngc"/"textures.ngc" (0x80115DA8/0x80115DB4) and the assert text
+ * lbl_80115F24 (0x80115F24). Real names taken from the
+ * Xbox PDB (MBOX_* prefix). GCN .text order is the reverse of the Xbox
+ * source order; seven small Xbox helpers/getters (strCopyFix,
+ * MBOX_GetObject{Def,Name,Radius}, MBLoadTexturesWait, MBOX_GetTextureName,
+ * MBOX_FindObject) are inlined away on GCN, leaving 24 functions.
+ *
+ * cflags_demo (-O4 no-peephole, -Cpp_exceptions on, -str reuse,readonly):
+ * dtk attributes 20 extabindex entries here (one per LR-saving function; the
+ * 4 leaf functions BGLoadObjects/BGLoadTextures/MBBackgroundLoading/texidxcmp
+ * have none), confirming exceptions-on.
+ *
+ * Status: NonMatching, 15 of 24 functions byte-exact (BGLoadObjects,
+ * BGLoadTextures, MBBackgroundLoading, MBOX_LoadModel, MBOX_AllocModel,
+ * MBOX_LockModels, MBOX_ResetModels, MBOX_FindTexture, MBOX_FindTexture_Err,
+ * MBOX_NewObject, MBOX_SetObject, MBOX_FindObject, objcmp, texcmp,
+ * texidxcmp). Parked (bodies are behavioural skeletons pending full
+ * model/texture-def struct + ngc-format reconstruction): the giant
+ * SetupModel (0xAB8, inlined ngc parser), the two background/synchronous
+ * file loaders (MBOX_BGLoadModelDone/Start, MBOX_LoadModelFixed), the MLM
+ * allocator (MBOX_AllocModelMem), the table walkers (MBOX_FindTexture_Sub,
+ * MBOX_GetTexDef, MBOX_ReallyFindObject) and MBOX_ResetUnlockedModels.
+ */
+
+/* ---- externs: sibling-TU functions (resolved via symbols.txt) ---- */
+extern int   StartFileRead(const char* name, void* buf, int a, int b, int c, int d);
+extern int   FileSize(const char* dir, const char* name);
+extern int   MLMReadFile(const char* name, void* buf, int size);
+extern void* AllocMem(int size);
+extern void* GetMemBase(void);
+extern int   BytesFree(void);
+extern void  LockMem(void);
+extern void  FreeUnlockedMem(void);
+extern void  FatalError(const char* fmt, ...);
+extern void  ErrorPrintf(const char* fmt, ...);
+extern void  bulletproof_printf(const char* fmt, ...);
+extern int   MBNewObject(int idx, int a, int b, int c);
+extern int   MBSetObject(void* def, int idx);
+extern void  MBInitPsys(void);
+extern u32   pbGetCPUTime(void);
+extern void  pbSetTime(int t);
+
+extern int   fn_800C7214(void* p);          /* MB file/texture post-load */
+extern void  fn_800C7884(int a);            /* MB texture-region reset */
+extern void  fn_800B6C04(int slot);         /* MB lock helper */
+extern void  fn_800B6C20(void);             /* MB unlock helper */
+extern void  fn_800B6BC0(void);             /* MB reset helper */
+extern void  fn_800BA820(void);             /* mb_objects reset */
+extern void  fn_800B9E4C(void);             /* mb_objects init */
+extern void* fn_800BC590(void* def, void* name); /* object-def build */
+
+extern int   strncmp(const char*, const char*, u32);
+extern int   strcmp(const char*, const char*);
+extern char* strncpy(char*, const char*, u32);
+extern char* strcpy(char*, const char*);
+extern int   toupper(int);
+extern void* bsearch(const void*, const void*, u32, u32,
+                     int (*)(const void*, const void*));
+
+/* ---- MB_MODEL globals (resolved via symbols.txt / auto data objects) ---- */
+extern u8*  gWinGlobals;         /* 0x80344FC0 : MB/window manager context */
+extern s32  lbl_80344E88;        /* background-load state / index (-1 = idle) */
+extern s32  lbl_80344E8C;        /* current model/object-def count */
+extern s32  lbl_80344588;        /* bulletproof_printf channel arg */
+extern s32  mlmMemUsed;          /* 0x80344F44 : MLM bytes used by models */
+
+extern u8   lbl_802A5CF0[0x1C];  /* background-load context block */
+extern s32  lbl_802A5D0C[4];     /* per-slot model-count lock points */
+extern u8   lbl_802A5D1C[0x49C]; /* MBOX_LoadModelFixed scratch/header buf */
+
+extern const char lbl_80115DA8[]; /* "objects.ngc" */
+extern const char lbl_80115DB4[]; /* "textures.ngc" (+ pooled MBOX-loading log strings) */
+extern const char lbl_80115F24[]; /* pooled model-error strings ("bad version", "> max models") */
+extern const char lbl_80348C28[]; /* "static" */
+extern const char lbl_80348C30[]; /* "???" */
+
+/* forward declarations (GCN emit order = reverse Xbox source order) */
+static void  BGLoadTextures(void* rq);
+static void  BGLoadObjects(void* rq);
+int          MBOX_LoadModelFixed(const char* dir, int a, int b, int c, int type);
+static int   SetupModel(void* model, const char* name, int slot);
+int          MBOX_AllocModelMem(int objSize, int texSize, const char* dir);
+int          MBOX_FindTexture_Sub(const char* name, int p2, int lo, int hi, int flag);
+static int   texcmp(const void* a, const void* b);
+static int   texidxcmp(const void* a, const void* b);
+int          MBOX_ReallyFindObject(const char* name, int a, int b, int create);
+static int   objcmp(const void* a, const void* b);
+
+/* ---- 0x800B7758 : finish a pending background model load ---- */
+int MBOX_BGLoadModelDone(void) {
+    u8* g = gWinGlobals;
+    u32 t;
+
+    if (lbl_80344E88 < 0) {
+        return 0;
+    }
+    StartFileRead(lbl_80115DA8, (void*)&lbl_802A5CF0, 0, 0, 0, 0);
+    bulletproof_printf(lbl_80115DB4,
+                       lbl_80344E88, g, lbl_80344588);
+    SetupModel((void*)g, lbl_80115DA8, lbl_80344E88);
+    t = pbGetCPUTime();
+
+    StartFileRead(lbl_80115DB4, (void*)&lbl_802A5CF0, 0, 0, 0, 0);
+    bulletproof_printf(lbl_80115DB4,
+                       lbl_80344E88, g, lbl_80344588);
+    fn_800C7214((void*)g);
+    (void)t;
+
+    lbl_80344E88 = -1;
+    return 1;
+}
+
+/* ---- 0x800B79AC : begin the next background model load ---- */
+int MBOX_BGLoadModelStart(int slot) {
+    u8* g = gWinGlobals;
+    char* names = (char*)g;
+
+    pbSetTime(0);
+    if (lbl_80344E88 != 0) {
+        FatalError(lbl_80115F24);
+    }
+    FileSize((const char*)g, lbl_80115DA8);
+    FileSize((const char*)g, lbl_80115DB4);
+    MBOX_AllocModelMem(0, 0, (const char*)g);
+    bulletproof_printf(lbl_80115DB4, slot, g);
+
+    lbl_80344E88 = slot;
+    *(const char**)(names + 0x2cc) = lbl_80115DA8;
+    *(const char**)(names + 0x2d0) = lbl_80115DA8;
+    *(const char**)(names + 0x2d4) = lbl_80115DA8;
+    *(const char**)(names + 0x2d8) = lbl_80115DA8;
+    *(const char**)(names + 0x2dc) = lbl_80115DA8;
+    *(u32*)(names + 0x2e0) = pbGetCPUTime();
+    strncpy(names, lbl_80115DA8, 0x40);
+    lbl_80344E88 = slot;
+    return slot;
+}
+
+/* ---- 0x800B7AC8 / 0x800B7AE8 : per-chunk read-advance callbacks ---- */
+static void BGLoadTextures(void* rq) {
+    s32* r = (s32*)rq;
+    if (r[4] == 1) {
+        return;
+    }
+    r[1] = r[1] + r[2];
+}
+
+static void BGLoadObjects(void* rq) {
+    s32* r = (s32*)rq;
+    if (r[4] == 1) {
+        return;
+    }
+    r[1] = r[1] + r[2];
+}
+
+/* ---- 0x800B7B08 : is a background model load in progress? ---- */
+int MBBackgroundLoading(void) {
+    s32 n = lbl_80344E88;
+    if (n >= 0) {
+        return n + 1;
+    }
+    return 0;
+}
+
+/* ---- 0x800B7B24 : load a single model (default flags) ---- */
+int MBOX_LoadModel(const char* dir) {
+    return MBOX_LoadModelFixed(dir, 0, 0, 0, -1);
+}
+
+/* ---- 0x800B7B54 : load a single model file into a fixed slot ---- */
+int MBOX_LoadModelFixed(const char* dir, int a, int b, int c, int type) {
+    u8* g = gWinGlobals;
+    void* buf;
+    int r;
+
+    FileSize(dir, lbl_80115DA8);
+    FileSize(dir, lbl_80115DB4);
+    buf = (void*)(u32)MBOX_AllocModelMem(0, 0, dir);
+    strncpy((char*)&lbl_802A5D1C, dir, 0x1f);
+    if (strcmp(dir, lbl_80348C28) == 0) {
+        MLMReadFile(dir, buf, 0);
+        bulletproof_printf(lbl_80115DB4, a, dir);
+        r = SetupModel(buf, dir, a);
+        if (r == 2) {
+            ErrorPrintf(lbl_80115F24, a, dir);
+            fn_800C7214(buf);
+        }
+    } else {
+        MLMReadFile(dir, buf, 0);
+        ErrorPrintf(lbl_80115F24, a, dir);
+        fn_800C7214(buf);
+    }
+    (void)b;
+    (void)c;
+    (void)type;
+    (void)g;
+    return a;
+}
+
+/* ---- 0x800B7D44 : parse/verify a loaded ngc model block (giant) ---- */
+static int SetupModel(void* model, const char* name, int slot) {
+    /* NonMatching skeleton: the real body is a ~0xAB8 inlined ngc-format
+     * parser that walks the model header, validates the version word, and
+     * builds the GX display-list / vertex data. Parked. */
+    u8* g = gWinGlobals;
+    char nm[0x40];
+    strncpy(nm, name, 0x3f);
+    ErrorPrintf(lbl_80115F24,
+                slot, name, 0, 0);
+    (void)model;
+    (void)g;
+    return 0;
+}
+
+/* ---- 0x800B87FC : compute+allocate model memory for a named model ---- */
+int MBOX_AllocModel(const char* dir) {
+    int objSize = FileSize(dir, lbl_80115DA8);
+    int texSize = FileSize(dir, lbl_80115DB4);
+    return MBOX_AllocModelMem(objSize, texSize, dir);
+}
+
+/* ---- 0x800B8854 : allocate a model-memory block from the MLM arena ---- */
+int MBOX_AllocModelMem(int objSize, int texSize, const char* dir) {
+    u8* g = gWinGlobals;
+    void* base;
+    int size = objSize + texSize;
+
+    if (strcmp(dir, lbl_80348C28) == 0) {
+        size = objSize;
+    }
+    if (BytesFree() < size) {
+        FatalError(lbl_80115F24);
+    }
+    base = GetMemBase();
+    AllocMem(size);
+    mlmMemUsed = mlmMemUsed + size;
+    bulletproof_printf(lbl_80115DB4, size);
+    (void)g;
+    (void)base;
+    return size;
+}
+
+/* ---- 0x800B89EC : lock the current model set at a slot ---- */
+void MBOX_LockModels(int slot) {
+    LockMem();
+    fn_800B6C04(slot);
+    lbl_802A5D0C[slot] = lbl_80344E8C;
+}
+
+/* ---- 0x800B8A38 : free all models above the highest lock point ---- */
+void MBOX_ResetUnlockedModels(void) {
+    fn_800C7884(0);
+    FreeUnlockedMem();
+    fn_800B6C20();
+    fn_800BA820();
+    fn_800B9E4C();
+    MBInitPsys();
+    lbl_80344E8C = lbl_802A5D0C[0];
+}
+
+/* ---- 0x800B8AB8 : reset the whole model system ---- */
+void MBOX_ResetModels(void) {
+    u8* g = gWinGlobals;
+    fn_800B6BC0();
+    fn_800C7884(0);
+    lbl_80344E8C = 0;
+    (*(s32**)(g + 0x30))[0] = 0;
+    lbl_80344E88 = -1;
+}
+
+/* ---- 0x800B8B04 : find a texture def by name ---- */
+int MBOX_FindTexture(const char* name, int p2) {
+    return MBOX_FindTexture_Sub(name, p2, 0, lbl_80344E8C - 1, 0);
+}
+
+/* ---- 0x800B8B34 : find a texture def by name (error variant) ---- */
+int MBOX_FindTexture_Err(const char* name, int p2, int flag) {
+    return MBOX_FindTexture_Sub(name, p2, 0, lbl_80344E8C - 1, flag);
+}
+
+/* ---- 0x800B8B64 : binary-search the texture-def table by name ---- */
+int MBOX_FindTexture_Sub(const char* name, int p2, int lo, int hi, int flag) {
+    u8* g = gWinGlobals;
+    char key[0x20];
+    int i;
+
+    for (i = 0; name[i] != '\0' && i < 0x1f; i++) {
+        key[i] = (char)toupper(name[i]);
+    }
+    key[i] = '\0';
+    bsearch(key, g, (u32)(hi - lo + 1), 0x20, texcmp);
+    return -1;
+}
+
+/* ---- 0x800B8CE8 : texture-name comparator (30 chars) ---- */
+static int texcmp(const void* a, const void* b) {
+    return strncmp((const char*)a, (const char*)b, 0x1e);
+}
+
+/* ---- 0x800B8D0C : find a texture def by index ---- */
+int MBOX_GetTexDef(int idx) {
+    u8* g = gWinGlobals;
+    struct { s16 h; } key;
+    key.h = (s16)idx;
+    bsearch(&key, g, (u32)lbl_80344E8C, 0x20, texidxcmp);
+    return -1;
+}
+
+/* ---- 0x800B8DC0 : texture-index comparator ---- */
+static int texidxcmp(const void* a, const void* b) {
+    return ((const s16*)a)[0xf] - ((const s16*)b)[0xf];
+}
+
+/* ---- 0x800B8DD0 : register a new object def + create an MB object ---- */
+int MBOX_NewObject(const char* name, int p2, int p3, int p4) {
+    int idx = MBOX_ReallyFindObject(name, -1, -1, 1);
+    return MBNewObject(idx, p2, p3, p4);
+}
+
+/* ---- 0x800B8E20 : register/replace an object def + set an MB object ---- */
+int MBOX_SetObject(void* def, const char* name) {
+    int idx = MBOX_ReallyFindObject(name, -1, -1, 1);
+    return MBSetObject(def, idx);
+}
+
+/* ---- 0x800B8E68 : find an object def by name (no create) ---- */
+int MBOX_FindObject(const char* name) {
+    return MBOX_ReallyFindObject(name, -1, -1, 0);
+}
+
+/* ---- 0x800B8E94 : find-or-register an object def by name ---- */
+int MBOX_ReallyFindObject(const char* name, int a, int b, int create) {
+    u8* g = gWinGlobals;
+    char nm[0x10];
+    void* def;
+
+    strncpy(nm, name, 0xf);
+    def = bsearch(nm, g, (u32)lbl_80344E8C, 0x40, objcmp);
+    if (def == 0 && create) {
+        strcpy(nm, name);
+        fn_800BC590(g, nm);
+    }
+    (void)a;
+    (void)b;
+    return -1;
+}
+
+/* ---- 0x800B9068 : object-name comparator (15 chars, null-safe) ---- */
+static int objcmp(const void* a, const void* b) {
+    if (a == 0 || b == 0) {
+        return -1;
+    }
+    return strncmp((const char*)a, (const char*)b, 0xf);
+}
