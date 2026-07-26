@@ -80,9 +80,9 @@ game/world/dynobjgrid.c:
 	.text       start:0x80043A78 end:0x800444C0
 
 game/enemy/enemy.c:
-	extab       start:0x800060C8 end:0x800061D8
-	extabindex  start:0x8000997C end:0x80009B14
-	.text       start:0x8004A430 end:0x80050054
+	extab       start:0x80006018 end:0x800061D8
+	extabindex  start:0x80009874 end:0x80009B14
+	.text       start:0x800444C0 end:0x80050054
 
 game/game/gamemain.c:
 	extab       start:0x800061D8 end:0x80006388
