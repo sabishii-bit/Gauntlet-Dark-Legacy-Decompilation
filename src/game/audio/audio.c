@@ -63,7 +63,7 @@ extern void  fn_80067B0C(s32 a);       /* per-frame service pump */
 extern f32   fn_800BDA98(void* vec);   /* 3D distance/attenuation helper */
 extern void  fn_80015C48(void);        /* sndfx.c: reset track helpers */
 extern void  fn_800BC590(void);        /* debug print flush */
-extern void  fn_800CEAF0(void* out, s32 a, void* in, s32 b, s32 c, s32 d);
+extern void  MBNewWorldPsys(void* out, s32 a, void* in, s32 b, s32 c, s32 d);
 
 /* lower-slice (sndfx.c) killers used when tearing tracks down */
 extern s32 AudioKillMask(s32 mask);
@@ -902,6 +902,6 @@ void AudioSetListenerPos(s32* out, s32 unused, f32* pos)
     for (i = 0; i < 3; i++) {
         v[i] = pos[i];   /* original performs an explicit LE<->BE swap here */
     }
-    fn_800CEAF0(out, 0, v, 1, 0, unused);
+    MBNewWorldPsys(out, 0, v, 1, 0, unused);
     out[24] |= 1;
 }
