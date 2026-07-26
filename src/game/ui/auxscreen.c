@@ -124,7 +124,7 @@ extern s32 CaptionTextSub(s32 x, f32 w, s32 y, s32 page, s32 flags);
 extern s32 fn_8001ED24(char* a, char* b);
 extern s32 fn_8009FD84(void);
 extern s32 fn_80055F68(s32 a, s32 b);
-extern s32 fn_80017B18(s32 a);
+extern s32 AudioSysUpdate(s32 a);
 extern void* fn_800A11E4(void* p, s32 a);
 extern s32 sprintf(char* buf, const char* fmt, ...);
 extern s32 fn_800B8B64(char* name, s32 a, s32 b, s32 c);
@@ -134,7 +134,7 @@ extern void fn_800B290C(void* blit, s32 alpha);
 extern void fn_8001EBCC(s32 x, s32 y, char* s, f32 z);
 extern void fn_800B3414(void* blit, s32 a);
 extern void fn_800A0E70(void);
-extern void fn_80018030(void);
+extern void AudioEmptyCb2(void);
 extern void fn_800A0E94(void);
 extern void fn_80054D18(void);
 extern void fn_80053D08(s32 a, s32 b, s32 c);
@@ -560,7 +560,7 @@ s32 do_mapscreen(s32 skip)
         map_load_state++;
         break;
     case 4:
-        if (fn_80017B18(10) == 0) {
+        if (AudioSysUpdate(10) == 0) {
             map_load_state++;
         }
         break;
@@ -584,7 +584,7 @@ s32 init_mapscreen(s32 timer, s32 movie)
     s32 i;
     s32 rv;
 
-    fn_80018030();
+    AudioEmptyCb2();
     fn_800A0E94();
     fn_80054D18();
     lbl_8034477C = 16399;

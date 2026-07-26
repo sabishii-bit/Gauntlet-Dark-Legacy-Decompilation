@@ -22,6 +22,11 @@ game/audio/sndfx.c:
 	extabindex  start:0x80008AAC end:0x80008B3C
 	.text       start:0x800150CC end:0x800160F0
 
+game/audio/audio.c:
+	extab       start:0x80005748 end:0x80005838
+	extabindex  start:0x80008B3C end:0x80008CA4
+	.text       start:0x800160F0 end:0x800183FC
+
 game/g3d/auxanim.c:
 	extab       start:0x80005838 end:0x80005878
 	extabindex  start:0x80008CA4 end:0x80008D04

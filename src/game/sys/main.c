@@ -85,7 +85,7 @@ void fn_80042398(void);
 void fn_8006B85C(void);
 int fn_80070C24(void);
 void fn_800154C8(void);
-void fn_80017D70(int arg);
+void AudioSysSync(int arg);
 int fn_800A825C(void);
 void fn_80010DF4(int arg);
 void fn_8006FF1C(void);
@@ -378,7 +378,7 @@ void main(void)
         }
         lbl_803449C4 = 5;
         fn_800154C8();
-        fn_80017D70(1);
+        AudioSysSync(1);
         if (lbl_803449B0 != 0) {
             lbl_803449C4 = 6;
             if (fn_800A825C() != 0) {
