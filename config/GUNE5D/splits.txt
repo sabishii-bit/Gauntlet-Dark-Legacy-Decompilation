@@ -295,6 +295,26 @@ game/sys/ml_mem.c:
 	extabindex  start:0x8000C0B8 end:0x8000C178
 	.text       start:0x800BE964 end:0x800BFC80
 
+game/pb/dbgtext.c:
+	extab       start:0x80007B70 end:0x80007BA8
+	extabindex  start:0x8000C178 end:0x8000C1CC
+	.text       start:0x800BFC80 end:0x800C0ADC
+
+game/pb/pb_winglobals.c:
+	extab       start:0x80007BA8 end:0x80007BD8
+	extabindex  start:0x8000C1CC end:0x8000C214
+	.text       start:0x800C0ADC end:0x800C1174
+
+game/pb/pb_error.c:
+	extab       start:0x80007BD8 end:0x80007BF0
+	extabindex  start:0x8000C214 end:0x8000C238
+	.text       start:0x800C1174 end:0x800C151C
+
+game/pb/pb_frame.c:
+	extab       start:0x80007BF0 end:0x80007C20
+	extabindex  start:0x8000C238 end:0x8000C280
+	.text       start:0x800C151C end:0x800C33FC
+
 game/pb/pb_global.c:
 	extab       start:0x80007C20 end:0x80007C30
 	extabindex  start:0x8000C280 end:0x8000C298
