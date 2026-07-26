@@ -34,6 +34,7 @@
  */
 
 #include "types.h"
+#include "game/camera.h"
 
 typedef struct Vec3 {
     f32 x;
@@ -53,8 +54,7 @@ extern f32 shake_rad;       /* 0x8034448C */
 void fn_800B5554(f32* out_xy, void* world_pos);            /* screen projection (INT path) */
 void fn_800BB8E8(void* cam, int mode, short* out_xy, void* world_pos); /* per-camera projection */
 
-/* gCameras[6], stride 0x18C (already named at 0x8023F8D0) */
-extern u8 gCameras[];
+/* gCameras[6] is declared in game/camera.h (@0x8023F8D0, stride 0x18C). */
 
 /*
  * get_screen_pos -- project a world position to integer screen coordinates.
@@ -73,9 +73,9 @@ void get_screen_pos(int unused, int* xo, int* yo, void* world_pos) {
  * camera's viewport (gCameras[camIdx]) to float screen coordinates.
  */
 void get_actual_screen_pos(int camIdx, f32* xo, f32* yo, void* world_pos) {
-    void* cam = &gCameras[camIdx * 0x18C];
+    Camera* cam = &gCameras[camIdx];
     short scr[2];
-    fn_800BB8E8((char*)cam + 4, 0, scr, world_pos);
+    fn_800BB8E8(cam->mat, 0, scr, world_pos);
     *xo = (f32)scr[0];
     *yo = (f32)scr[1];
 }
