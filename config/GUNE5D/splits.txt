@@ -66,6 +66,11 @@ game/audio/soundmgr.c:
 	extabindex  start:0x8000970C end:0x80009844
 	.text       start:0x8004229C end:0x800433EC
 
+game/enemy/enemy.c:
+	extab       start:0x800060C8 end:0x800061D8
+	extabindex  start:0x8000997C end:0x80009B14
+	.text       start:0x8004A430 end:0x80050054
+
 game/game/gamemain.c:
 	extab       start:0x800061D8 end:0x80006388
 	extabindex  start:0x80009B14 end:0x80009D9C
