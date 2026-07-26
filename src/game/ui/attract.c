@@ -73,9 +73,9 @@ extern int  fn_8003130C(int pad);                 /* pad-active query    */
 extern int  fn_80031208(void);
 extern int  fn_80031110(int pad);
 extern int  fn_80055F68(int a, int b);            /* start/button check  */
-extern int  fn_8008FF58(void);
-extern void fn_8008FFB0(void);
-extern void fn_800907B4(int a);
+extern int  SelectLoadDone(void);
+extern void SelectLoadStart(void);
+extern void init_player_select(int a);
 extern int  fn_8006D7BC(void);
 extern void fn_800A17D4(void);
 extern void fn_80070A60(int a);
@@ -262,7 +262,7 @@ void do_titlescreen(void) {
         fn_800B2F8C(credit_text[i] != 0, 1.0f);
     }
 
-    if (fn_8008FF58() == 0 || fn_80055F68(1, 0) == 0) {
+    if (SelectLoadDone() == 0 || fn_80055F68(1, 0) == 0) {
         titlescreen_timeout = 0;
     }
 
@@ -324,7 +324,7 @@ void init_titlescreen(void) {
     lbl_8034426C = fn_800B8B04(base + 2296, 0);
     lbl_80344264 = MBCreateBlit(0, lbl_8034426C, 192, 0, 128, 128);
     bulletproof_printf(base + 2308);
-    fn_8008FFB0();
+    SelectLoadStart();
     bulletproof_printf(base + 2324);
     fn_80053C70();
     fn_800BBB70(lbl_803458CC);

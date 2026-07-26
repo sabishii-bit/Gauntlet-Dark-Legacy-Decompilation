@@ -89,8 +89,8 @@ s32 good_wiz_exit_timer;
 /* ------------------------------------------------------------------ */
 /* External subroutines                                                */
 /* ------------------------------------------------------------------ */
-extern s32 fn_8008C584(void* p);
-extern s32 fn_8008C53C(void* p);
+extern s32 GetBossBeatFlag(void* p);
+extern s32 GetBossNumRunes(void* p);
 extern void* AtreeMatch(void* atree, char* name, s32 flag);
 extern void* fn_80012F78(void* dst, void* src, s32 a);
 extern void* fn_800BB29C(void* p, void* tbl, s32 a);
@@ -172,8 +172,8 @@ void DoGoodWizard(void)
         }
     }
 
-    have = fn_8008C584(lbl_803448D8);
-    want = fn_8008C53C(lbl_803448D8);
+    have = GetBossBeatFlag(lbl_803448D8);
+    want = GetBossNumRunes(lbl_803448D8);
     if (have != (have & acc3542)) {
         if ((acc3542 & have) != 0) {
             quality = 1;
