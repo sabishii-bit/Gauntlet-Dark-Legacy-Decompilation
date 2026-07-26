@@ -399,6 +399,7 @@ config.libs = [
             Object(NonMatching, "game/crt/vsprintf.c", cflags=cflags_demo, mw_version="GC/1.2.5n"),
             Object(Matching, "game/pb/pbutils.c", cflags=cflags_demo, mw_version="GC/1.2.5n"),
             Object(NonMatching, "game/pb/pb_objregs.c", cflags=cflags_demo),
+            Object(NonMatching, "game/pb/pb_texture.c", cflags=cflags_demo, mw_version="GC/1.2.5n"),
             Object(Matching, "game/pb/pb_global.c", cflags=cflags_demo),
             Object(Matching, "game/ps2/mathfunc.c", cflags=cflags_demo),
             Object(NonMatching, "game/audio/dcs.c", cflags=cflags_demo),

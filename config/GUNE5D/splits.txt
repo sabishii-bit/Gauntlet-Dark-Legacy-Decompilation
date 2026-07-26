@@ -250,6 +250,11 @@ game/pb/pb_objregs.c:
 	extabindex  start:0x8000C2EC end:0x8000C3A0
 	.text       start:0x800C3F58 end:0x800C6AD4
 
+game/pb/pb_texture.c:
+	extab       start:0x80007CE0 end:0x80007D40
+	extabindex  start:0x8000C3A0 end:0x8000C430
+	.text       start:0x800C6AD4 end:0x800C79E4
+
 game/pb/pbutils.c:
 	extab       start:0x80007D60 end:0x80007D80
 	extabindex  start:0x8000C460 end:0x8000C490
