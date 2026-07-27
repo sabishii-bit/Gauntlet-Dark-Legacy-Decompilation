@@ -76,7 +76,7 @@ extern void fn_800C2F50(f32 w, f32 h);
 extern void fn_800B9E4C(void);
 extern void MBOX_ResetModels(void);
 extern void MBTreeInit(void);
-extern void fn_800BC23C(void);
+extern void MBWindowInit(void);
 extern void MBSetBGColor(int a, int b, int c);
 extern void MBInitLights(void);
 extern void fn_800B6C94(void);
@@ -264,7 +264,7 @@ void MBInit(void) {
     fn_800C2F50(512.0f, 384.0f);
     MBOX_ResetModels();
     MBTreeInit();
-    fn_800BC23C();
+    MBWindowInit();
     MBInitLights();
     fn_800B6C94();
     fn_800C5B1C();
