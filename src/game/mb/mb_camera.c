@@ -143,7 +143,6 @@ void MBCameraUpdate(f32* position, f32* matrix)
 /* 0x800B5554 - MBWorldToScreen : project a world point to screen space. */
 void MBWorldToScreen(f32* dst, f32* world)
 {
-    u8* viewport;
     f32 invW;
     f32 portWidth;
     f32 portHeight;
@@ -159,16 +158,15 @@ void MBWorldToScreen(f32* dst, f32* world)
     vec4ApplyTrans__FR4vec4R4vec4R5mat44(
         dst, world, (f32*)(*(u8**)(globals + 4) + 0x2C0));
 
-    viewport = *(u8**)(globals + 0x10);
     invW = lbl_80348B20 / dst[3];
-    portWidth = (f32)*(s32*)(viewport + 0x20);
-    portHeight = (f32)*(s32*)(viewport + 0x24);
+    portWidth = (f32)*(s32*)(*(u8**)(globals + 0x10) + 0x20);
+    portHeight = (f32)*(s32*)(*(u8**)(globals + 0x10) + 0x24);
     dst[0] = (lbl_80348B38 * portWidth + dst[0] * invW) -
-             *(f32*)(viewport + 0x38);
+             *(f32*)(*(u8**)(globals + 0x10) + 0x38);
     dst[1] = (lbl_80348B38 * portHeight + dst[1] * invW) -
-             *(f32*)(viewport + 0x3C);
-    dst[0] *= (f32)*(s32*)(viewport + 0x28) / portWidth;
-    dst[1] *= (f32)*(s32*)(viewport + 0x2C) / portHeight;
+             *(f32*)(*(u8**)(globals + 0x10) + 0x3C);
+    dst[0] *= (f32)*(s32*)(*(u8**)(globals + 0x10) + 0x28) / portWidth;
+    dst[1] *= (f32)*(s32*)(*(u8**)(globals + 0x10) + 0x2C) / portHeight;
     dst[2] = dst[3];
     dst[3] = lbl_80348B20;
 }

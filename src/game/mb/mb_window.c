@@ -124,17 +124,30 @@ void MBWindowTo3D(s16* scr, MBCamNode* node, f32* out, f32 depth) {
     out[2] = tmp[2] + node->pos[2];
 }
 
+/* Shared s16 screen clamp of MBWindowProject (defined before it so
+ * -inline auto folds it into both call sites). */
+static s16 ClampS16(f32 s) {
+    double v;
+
+    if (s < -32767.0) {
+        v = -32767.0;
+    } else if (s > 32767.0) {
+        v = 32767.0;
+    } else {
+        v = s;
+    }
+    return (s16)v;
+}
+
 /* 0x800BB8E8 - 3D world point -> screen (s16 x,y), optional eye-space out */
 void MBWindowProject(f32* pt, MBCamNode* node, f32* outEye, s16* outScr) {
     f32 rel[3];
-    u8 unused[8];
+    double unusedd;
     f32 eye[3];
     MBWINDOW* w = lbl_80344EE8;
     f32 persp;
     f32 sx;
     f32 sy;
-    double v;
-    double v2;
 
     rel[0] = pt[0] - node->pos[0];
     rel[1] = pt[1] - node->pos[1];
@@ -148,23 +161,8 @@ void MBWindowProject(f32* pt, MBCamNode* node, f32* outEye, s16* outScr) {
     sx = w->xscale * (eye[0] * persp) + w->xcenter;
     sy = w->yscale * (eye[1] * persp) + w->ycenter;
 
-    if (sx < -32767.0) {
-        v = -32767.0;
-    } else if (sx > 32767.0) {
-        v = 32767.0;
-    } else {
-        v = sx;
-    }
-    outScr[0] = (s16)v;
-
-    if (sy < -32767.0) {
-        v2 = -32767.0;
-    } else if (sy > 32767.0) {
-        v2 = 32767.0;
-    } else {
-        v2 = sy;
-    }
-    outScr[1] = (s16)v2;
+    outScr[0] = ClampS16(sx);
+    outScr[1] = ClampS16(sy);
 
     if (outEye != 0) {
         outEye[0] = eye[0];

@@ -143,6 +143,62 @@ fn_800C780C):
   renum/sched/assoc residual moved under any variant (2.x/3.x compilers are
   uniformly worse). Do not re-run compiler-version hunts by hand.
 
+## Register-web coloring laws (webs sweep, 2026-07)
+
+The parked "renum" family (opcode-identical streams, 2-6 nonvolatile webs
+rotated r28<->r31 / FPR analogs) is SOURCE SHAPE, not flags. Micro-repro
+corpus + compile harness: `research/webs/` (t/m/v/b/p/q series against the
+GC/1.2.5 + cflags_demo pipeline). Laws, in application order:
+
+- **Baseline coloring law**: MWCC assigns nonvolatile colors ASCENDING
+  (lowest saved reg first) in web-creation order = param copies in param
+  order, then call-crossing locals in order of first def (t01-t03 repros).
+  The TARGET coloring of a rotated fn is almost always exactly this
+  baseline — the rotation means OUR source's web-creation history deviates
+  somewhere, not that the target is exotic. Find the deviation; don't
+  permute blindly.
+- **Inlined-shared-helper law** (the big one): a block that is a verbatim
+  copy of a SIBLING function's body — or repeated twice inside one
+  function — was a `static` helper in the original, defined BEFORE its
+  callers and folded by `-inline auto`; mwld deadstripped the standalone
+  copy (our extra emitted static shows as ONLY-IN-BASE in fndiff — expected
+  and harmless). Open-coding that body compiles to the IDENTICAL opcode
+  stream but rotates the host function's web colors; routing through the
+  helper restores the baseline coloring. Tells:
+    * clone body == sibling body modulo `return -1` becoming
+      `idx = -1; <fallthrough>` — that rewrite IS the inliner's
+      return-value materialization;
+    * clones sharing one error-format string with the sibling;
+    * constant args folding the helper's interior range-check away (the
+      "no-check" variants of a clone family are still guts calls).
+  Fallen: MBNewObject+MBSetObject (SetObjectGuts), StartEnemyAtkFX /
+  StartGenFX / StartLevelUpFX / StartEnterFX / StartMagicPlayerFX /
+  fn_80093B04 + StartFXSub kept exact (StartFXSubGuts), MBWindowProject's
+  whole FPR-temp cluster (ClampS16, s16 clamp repeated for sx/sy).
+- **Delete-named-local law** (sharpened from "Named local vs CSE temp"):
+  ONE extra named pointer local anywhere can rotate OTHER webs' colors
+  fn-wide. If the target reloads a derived pointer after every store
+  through an alias (e.g. `*(u8**)(globals+0x10)` re-derefed after each
+  `dst[i] =`), the original had NO local for it — write the deref at every
+  use; CSE keeps the pre-store loads merged and the aliasing stores force
+  the reloads. Deleting the local un-rotated MBWorldToScreen to EXACT.
+- **Arg-position clamp ternary**: a surviving `bge L; b M; L: li; M:` around
+  a clamp feeding a call argument is `f(...,  x < K ? x : K)` written with
+  the LIMIT in the else arm and the value RE-DEREFED (`input[1] < 240 ?
+  input[1] : 240` — no named local, CSE merges the two loads). A named
+  local in the ternary adds a `mr`; if/goto/empty-else spellings FOLD to a
+  single inverted branch (dcsHandleRequest case 4).
+- **Negative results** (do not re-run): use-count asymmetry, `register`,
+  named temps for subexpressions (fold away before allocation),
+  reassociation of the stored expression, statement reorder within the
+  block, decl-order shuffles, state-first vs decl-init vs post-call
+  assignment — ALL color-neutral on these rotations. mwcc 1.2.5 `-help all`
+  exposes no allocator/web dump; the allocator stays black-box. Coloring is
+  a whole-function property: adding/removing ONE instruction ANYWHERE can
+  rotate webs two blocks away (research/webs p/q series), which is why
+  local grinding fails and structure-level levers (helper, local deletion)
+  are the only reliable ones.
+
 ## Additions (sfx refinement pass)
 
 - **Contiguous-case switch range emission**: `cmpwi hi; bge default; cmpwi lo;

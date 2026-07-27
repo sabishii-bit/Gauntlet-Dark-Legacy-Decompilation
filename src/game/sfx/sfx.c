@@ -511,39 +511,44 @@ s32 fn_80091AC0(f32* mat, s32 ene, s32 death)
 
 /* 0x80091B98 StartEnemyDeathFX -- body below the small clones (bigger). */
 
+/* Shared guts of the Start*FX family and StartFXSub. Defined before all of
+ * them so -inline auto folds it into each caller (the standalone copy is
+ * deadstripped by mwld). The inlinee's param/retval webs are what give the
+ * clones their target register coloring; open-coding the body compiles to
+ * the identical opcode stream but rotates the nonvolatile colors. */
+static s32 StartFXSubGuts(s32 type, f32* pos, u32 fla, u32 flb, f32 time)
+{
+    EffectPage* page = (EffectPage*)EffectInfo;
+    s32 idx = -1;
+    EffectHeader* h;
+
+    if (type < 0 || type >= MAXEFFECTTYPES) {
+        ErrorPrintf("Bad Effect type: %d", type);
+        return -1;
+    }
+    h = &page->info[type];
+    if (h->atree != NULL && (idx = StartFXTree(h->atree, pos, fla, flb, time)) >= 0) {
+        fn_800BA784(page->fx[idx].node, h->zmod, 1);
+        fn_800BA6C0(page->fx[idx].node, h->alpha, 1);
+        page->fx[idx].type = (fx_type)type;
+    }
+    return idx;
+}
+
 s32 StartEnemyAtkFX(f32* pos, s32 n)
 {
     EffectPage* page = (EffectPage*)EffectInfo;
-    u8 unused[8];
-    s32 idx;
-    s32 type;
-    EffectHeader* h;
 
     if (page->info[FX_ENEATK1 + n].atree == NULL) {
         return -1;
     }
-    idx = -1;
-    if (FX_ENEATK1 + n < 0 || (type = FX_ENEATK1 + n) >= MAXEFFECTTYPES) {
-        ErrorPrintf("Bad Effect type: %d", FX_ENEATK1 + n);
-        idx = -1;
-    } else {
-        h = &page->info[type];
-        if (h->atree != NULL && (idx = StartFXTree(h->atree, pos, 0, 0x800, 0.0f)) >= 0) {
-            fn_800BA784(page->fx[idx].node, h->zmod, 1);
-            fn_800BA6C0(page->fx[idx].node, h->alpha, 1);
-            page->fx[idx].type = (fx_type)type;
-        }
-    }
-    return idx;
+    return StartFXSubGuts(FX_ENEATK1 + n, pos, 0, 0x800, 0.0f);
 }
 
 s32 StartGenFX(f32* pos, s32 n)
 {
     EffectPage* page = (EffectPage*)EffectInfo;
-    s32 idx;
-    s32 type;
     s32 i;
-    EffectHeader* h;
 
     if (n < 1 || n > 3) {
         return -1;
@@ -552,37 +557,16 @@ s32 StartGenFX(f32* pos, s32 n)
     if (page->info[FX_GENFX1 + i].atree == NULL) {
         return -1;
     }
-    idx = -1;
-    if (n + 80 < 0 || (type = n + 80) >= MAXEFFECTTYPES) {
-        ErrorPrintf("Bad Effect type: %d", n + 80);
-        idx = -1;
-    } else {
-        h = &page->info[type];
-        if (h->atree != NULL && (idx = StartFXTree(h->atree, pos, 0, 0x800, 0.0f)) >= 0) {
-            fn_800BA784(page->fx[idx].node, h->zmod, 1);
-            fn_800BA6C0(page->fx[idx].node, h->alpha, 1);
-            page->fx[idx].type = (fx_type)type;
-        }
-    }
-    return idx;
+    return StartFXSubGuts(n + 80, pos, 0, 0x800, 0.0f);
 }
 
 /* 0x80091F34 fn_80091F34 / 0x800920E0 fn_800920E0 -- doc-only (gem/bag). */
 
 s32 StartEnterFX(f32* pos)
 {
-    EffectPage* page = (EffectPage*)EffectInfo;
-    EffectHeader* h = &page->info[FX_ENTER];
-    s32 idx = -1;
     u32 flb = 0x80880;
     u8 unused[8];
-
-    if (h->atree != NULL && (idx = StartFXTree(h->atree, pos, 0, flb, 0.0f)) >= 0) {
-        fn_800BA784(page->fx[idx].node, h->zmod, 1);
-        fn_800BA6C0(page->fx[idx].node, h->alpha, 1);
-        page->fx[idx].type = FX_ENTER;
-    }
-    return idx;
+    return StartFXSubGuts(FX_ENTER, pos, 0, flb, 0.0f);
 }
 
 s32 StartBlockFX(f32 time, s32 pnum)
@@ -621,25 +605,8 @@ s32 StartBlockFX(f32 time, s32 pnum)
 
 s32 StartLevelUpFX(f32* pos, s32 color)
 {
-    EffectPage* page = (EffectPage*)EffectInfo;
     u8 unused[8];
-    s32 idx = -1;
-    s32 type;
-    EffectHeader* h;
-
-    type = lbl_80122E60[color];
-    if (type < 0 || type >= MAXEFFECTTYPES) {
-        ErrorPrintf("Bad Effect type: %d", type);
-        idx = -1;
-    } else {
-        h = &page->info[type];
-        if (h->atree != NULL && (idx = StartFXTree(h->atree, pos, 0, 0x880800, 0.0f)) >= 0) {
-            fn_800BA784(page->fx[idx].node, h->zmod, 1);
-            fn_800BA6C0(page->fx[idx].node, h->alpha, 1);
-            page->fx[idx].type = (fx_type)type;
-        }
-    }
-    return idx;
+    return StartFXSubGuts(lbl_80122E60[color], pos, 0, 0x880800, 0.0f);
 }
 
 /* 0x80092794 fn_80092794 -- doc-only (shield family). */
@@ -647,26 +614,22 @@ s32 StartLevelUpFX(f32* pos, s32 color)
 s32 StartMagicHealFX(f32 scale, f32* pos)
 {
     EffectPage* page = (EffectPage*)EffectInfo;
-    u8 unused[16];
-    s32 idx = -1;
-    EffectHeader* h = &page->info[FX_MAGICHEAL];
+    u8 unused[8];
+    s32 idx;
     f32 s;
 
     s = 0.03125 * scale;
-    if (h->atree != NULL && (idx = StartFXTree(h->atree, pos, 0, 0x880, 0.0f)) >= 0) {
-        fn_800BA784(page->fx[idx].node, h->zmod, 1);
-        fn_800BA6C0(page->fx[idx].node, h->alpha, 1);
-        page->fx[idx].type = FX_MAGICHEAL;
-    }
+    idx = StartFXSubGuts(FX_MAGICHEAL, pos, 0, 0x880, 0.0f);
     if (s > 1.0) {
         s = 1.0f;
     }
     {
-        EffectPage* row = (EffectPage*)&page->info[idx * 20];
-        Effect* e = &row->fx[0];
+        Effect* e = (Effect*)&page->info[idx * 20];
+        struct mbnode* node = ((EffectPage*)e)->fx[0].node;
 
-        if (row->fx[0].node != NULL) {
-            fn_800BA368(row->fx[0].node, 8, 0);
+        e = (Effect*)((u8*)e + 2976);
+        if (node != NULL) {
+            fn_800BA368(node, 8, 0);
             e->node->scale[0] = s;
             e->node->scale[1] = s;
             e->node->scale[2] = s;
@@ -677,17 +640,8 @@ s32 StartMagicHealFX(f32 scale, f32* pos)
 
 s32 StartMagicPlayerFX(f32* pos)
 {
-    EffectPage* page = (EffectPage*)EffectInfo;
     u8 unused[8];
-    s32 idx = -1;
-    EffectHeader* h = &page->info[FX_START_MAGIC];
-
-    if (h->atree != NULL && (idx = StartFXTree(h->atree, pos, 0, 0x880, 0.0f)) >= 0) {
-        fn_800BA784(page->fx[idx].node, h->zmod, 1);
-        fn_800BA6C0(page->fx[idx].node, h->alpha, 1);
-        page->fx[idx].type = FX_START_MAGIC;
-    }
-    return idx;
+    return StartFXSubGuts(FX_START_MAGIC, pos, 0, 0x880, 0.0f);
 }
 
 /* 0x80092B58 fn_80092B58 / 0x80092DF4 fn_80092DF4 -- doc-only
@@ -699,22 +653,7 @@ s32 StartMagicPlayerFX(f32* pos)
 /* plain typed spawn at a position (no orientation) */
 s32 fn_80093B04(s32 type, f32* pos)
 {
-    EffectPage* page = (EffectPage*)EffectInfo;
-    s32 idx = -1;
-
-    if (type < 0 || type >= MAXEFFECTTYPES) {
-        ErrorPrintf("Bad Effect type: %d", type);
-        idx = -1;
-    } else {
-        EffectHeader* h = &page->info[type];
-
-        if (h->atree != NULL && (idx = StartFXTree(h->atree, pos, 0, 0x800, 0.0f)) >= 0) {
-            fn_800BA784(page->fx[idx].node, h->zmod, 1);
-            fn_800BA6C0(page->fx[idx].node, h->alpha, 1);
-            page->fx[idx].type = (fx_type)type;
-        }
-    }
-    return idx;
+    return StartFXSubGuts(type, pos, 0, 0x800, 0.0f);
 }
 
 /* 0x80093BC0 fn_80093BC0 -- doc-only (aimed launch, atan2). */

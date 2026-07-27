@@ -9,6 +9,11 @@
 # Solved by SOURCE SHAPE instead (see docs/matching-recipes.md "address
 # grouping laws"): pbTraverseDrawObjects, fn_800C780C, MBAddLight (stale),
 # StartDeathFX/StartBlockFX structural folds.
+# 2026-07 webs sweep: renum rotations fall to the INLINED-SHARED-HELPER and
+# DELETE-NAMED-LOCAL laws (docs/matching-recipes.md "Register-web coloring
+# laws"): MBNewObject, StartEnemyAtkFX/StartGenFX/StartLevelUpFX/StartEnterFX/
+# StartMagicPlayerFX/fn_80093B04, MBWorldToScreen all EXACT. Re-test remaining
+# renum entries against those two levers before grinding.
 # Class tags: remat=li-vs-copy of live zero; copy=surviving mr/fmr/addi copy;
 # renum=pure register renumber cluster; sched=scheduler tie; isel=instr-select tie.
 
@@ -16,7 +21,7 @@ regFind                    # unfolded-branch quirk (registry.c 3/4)
 sndVoiceUpdateAll          # r7<->r8 web swap (sndvoice 7/8)
 G3DReadControlPadStates    # remat, li x3 vs register copies (gcontrolpads 6/7)
 mat44InvBasis              # IV colored last-vs-first, 32-line shift (g3dMath3D 30/31)
-MBWindowProject            # renum, FPR cluster + v web split (mb_window)
+MBWindowProject            # renum, ClampS16 guts-inline matched all FPR temps (2026-07 webs); left: 1 fmr f0,f3 split on clamp#1 + rel/eye slot arrangement (49 lines)
 MBWindowZoom               # copy, z=zoom fmr survives in target (mb_window)
 fn_800BBA34                # renum, f0/f4 web swap in rect fill (mb_window setup)
 WorldDynCollide            # copy, target's extra addi r6 d-copy web (dynobjgrid)
@@ -40,8 +45,7 @@ HealthMeterUpdate          # gate=BossSpewCoins
 HealthMeterStart           # gate=BossSpewCoins
 BossDeath                  # gate=BossSpewCoins
 do_screen2d                # sched, 2 transposed SDA loads + 2 reloc-alias lines (lbl+4 vs sFlags — link-identical) (attract)
-dcsHandleRequest           # renum, param-web rotation r28/r29/r30 + state 2-step + clamp fold; insns 411/411 equal; state-first-decl = best form (202 lines); FLIP GATE for dcsdrv
-MBNewObject                # renum, obj<->flags-copy r30/r31 web swap; REGISTER_ONLY (mb_objects 17/18 flip gate); flag-proof + fl-copy/decl variants fail (2026-07)
+dcsHandleRequest           # renum+copy, param rotation r28/r29/r30 + state addi-via-r0 mr; clamp bge/b FIXED (input[1]<240?:240 arg-ternary, no local); ops 412/411; state first/second/decl-init + SetStreamName guts all color-neutral (2026-07 webs); FLIP GATE for dcsdrv
 fn_800B290C                # renum, leaf temp-color tie r0/r4/r5 (mb_blit SetAlpha head fn)
 fn_800B27C4                # renum, tpms/1000 web order + f0/f1 conv tie (mb_blit pad-test driver)
 pbRenderNode               # copy+renum, uninit MBSetupObject arg4 materialized fmr f1,f31 + fl&1 CSE'd vs per-site clrlwi + frame +8 (pb_tree)
@@ -50,14 +54,8 @@ UpdateFXStreak             # sched+renum, quad-block fwd/p1 double-fmadd hoist o
 fn_8009190C                # sched, tail addr-math interleave around mat-null beq (sfx.c, 12 lines)
 StartDeathFX               # renum only now (77/77; e=&page->fx[idx] fixed the 2976 fold 2026-07); head mr-placement + rotation remain
 fn_80091AC0                # assoc, (page+idx*240)+2976 vs page+(idx*240+2976); 6 lines; flag-proof + spelling-proof (flagsweep 2026-07)
-StartEnemyAtkFX            # renum, idx/h/t1/t2 coloring rotation vs StartFXSub scheme; insns equal (sfx.c)
-StartGenFX                 # renum, same rotation; insns 64/64 (sfx.c)
-StartEnterFX               # renum, same rotation; 22 lines (sfx.c)
 StartBlockFX               # renum only now (74/74; e-form fixed the fold 2026-07); tail lwz-hoist + rotation remain
-StartLevelUpFX             # renum, same rotation (sfx.c)
-StartMagicHealFX           # renum, same rotation; insns 62/62 (sfx.c)
-StartMagicPlayerFX         # renum, same rotation; 22 lines (sfx.c)
-fn_80093B04                # renum, idx/h/t1/t2 rotation identical-shape clone of StartFXSub which matches; 26 lines (sfx.c)
+StartMagicHealFX           # renum, 6 lines left: row-add temp r4-vs-r27 (e single-web form); guts-inline killed the rest (2026-07 webs)
 
 # controls.c (game/game, CONTROLS.OBJ) - opcode streams aligned, residual classes noted:
 assign_controller          # renum, p/plyr r6<->r7 web swap; opcode-identical after %4+ptr forms (controls)
