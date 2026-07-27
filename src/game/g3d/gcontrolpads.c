@@ -1,5 +1,6 @@
 #include "types.h"
 #include "dolphin/pad.h"
+#include "game/g3dpad.h"
 
 /* GameCube control-pad query layer. Function names are the real ones from
  * the Xbox build's gcontrolpads.obj (shell3D.pdb); on Xbox these are thin C
@@ -15,7 +16,6 @@ typedef struct GPADMANAGER {
 extern GPADMANAGER gPadManager;
 
 PADStatus* G3DGetPadStatusBuffer(void);
-void G3DAnalogToStickXY(f32* x, f32* y, int rawX, int rawY);
 
 void G3DSetRumble(int pad, int rumble)
 {

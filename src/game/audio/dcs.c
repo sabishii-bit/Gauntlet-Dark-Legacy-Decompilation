@@ -12,62 +12,121 @@
  * The ARAM helpers dcsAram* are also called cross-TU by game/sys/memcard.c
  * (save data is parked in the top of ARAM).
  *
- * NonMatching: reconstruction scaffold - names/behaviour identified by
- * scouting; bodies not yet reconstructed.  Extracted bytes are linked from
- * the DOL.
+ * NonMatching: partial reconstruction. The public ABI, bank query/reset,
+ * load polling, ARAM transfer path, callbacks, and stream flag are translated;
+ * the voice/bank decoding core is still linked from the extracted DOL.
  */
 #include "types.h"
+#include "game/dcs.h"
+
+typedef void (*ARQCallback)(u32 request);
+
+typedef struct ARQRequest {
+    struct ARQRequest* next;
+    u32 owner;
+    u32 type;
+    u32 priority;
+    u32 source;
+    u32 destination;
+    u32 length;
+    ARQCallback callback;
+} ARQRequest;
+
+typedef struct DcsBankData {
+    u32 handle;
+    u32 size;
+} DcsBankData;
+
+typedef struct DcsStream {
+    u8 _pad[28];
+    u32 oneShot;
+} DcsStream;
+
+extern u8 lbl_802F5F60[];
+extern DcsBankData dcsBankData[];
+extern s32 lbl_803451F8;
+extern s32 dcsResetPending;
+extern volatile u8 dcsSampleBusy;
+extern volatile u8 dcsAramBusy;
+extern ARQRequest dcsAramReq;
+
+extern u32 pool_new(void* list);
+extern void DCFlushRange(void* address, u32 length);
+extern void DCInvalidateRange(void* address, u32 length);
+extern void ARQPostRequest(ARQRequest* request, u32 owner, u32 type,
+                           u32 priority, u32 source, u32 destination,
+                           u32 length, ARQCallback callback);
 
 /* 0x800D1E04  trigger/refresh a channel; -> dcsVoiceStart */
-void dcsChannelPlay(void) {
+void dcsChannelPlay(s32 value) {
 }
 
 /* 0x800D1ED0  recompute per-channel voice state each tick */
-void update_chinfo(void) {
+s32 update_chinfo(u32 channels) {
 }
 
 /* 0x800D1FFC  push volume/pan to a channel voice */
-void dcsChannelSetVolPan(void) {
+s32 dcsChannelSetVolPan(u32 channels, s16 pan) {
 }
 
 /* 0x800D21B4  volume/pan variant */
-void dcsChannelSetVolPan2(void) {
+s32 dcsChannelSetVolPan2(u32 channels, s32 volume) {
 }
 
 /* 0x800D2314  reset the sample allocator (-> pool_new) */
-void dcsAllocReset(void) {
+void dcsAllocReset(s32* high, s32* current, s32* low) {
+    *high = pool_new(lbl_802F5F60);
 }
 
 /* 0x800D2350  look up bank handle/size in dcsBankData */
-void dcsBankQuery(void) {
+s32 dcsBankQuery(s32 bank, s32* handle, s32* size) {
+    s32 result = 1;
+    s32 index = bank - 1;
+
+    if (bank != 0) {
+        *handle = (index + 1) * 0x1000 + 1;
+        *size = dcsBankData[index].size;
+        return result;
+    }
+    *handle = 0;
+    *size = 0;
+    return 0;
 }
 
 /* 0x800D23A0  start playback on a channel */
-void dcsVoiceStart(void) {
+s32 dcsVoiceStart(u32 sample, s32 volumePan, s32 priority) {
 }
 
 /* 0x800D2534  poll: any bank/stream still loading? */
-void AudioStillLoading(void) {
+s32 AudioStillLoading(void) {
+    s32 loading;
+
+    while ((loading = lbl_803451F8) != 0) {
+        AudioQueUpdate(loading);
+    }
+    return 1;
 }
 
 /* 0x800D2568  wrapper -> AudioQueUpdate */
 void dcsQuePoll(void) {
+    AudioQueUpdate(lbl_803451F8);
 }
 
 /* 0x800D258C  service the queued sample/duck requests */
-void AudioQueUpdate(void) {
+s32 AudioQueUpdate(s32 bank) {
 }
 
 /* 0x800D285C  open file, read bank header/calls/vags */
-void dcsBankLoad(void) {
+s32 dcsBankLoad(void* bank, s32 mode) {
 }
 
 /* 0x800D29D4  set dcsResetPending */
 void dcsRequestReset(void) {
+    dcsResetPending = 1;
 }
 
 /* 0x800D29E0  free a loaded bank (-> pool_dispose) */
-void dcsBankUnload(void) {
+s32 dcsBankUnload(void* bank) {
 }
 
 /* 0x800D2A68  read VAG sample table, upload to ARAM (readVags) */
@@ -107,27 +166,63 @@ void dcsSampleAllocUpload(void) {
 }
 
 /* 0x800D3874  ARQ read from top of ARAM (memcard uses) */
-void dcsAramReadTop(void) {
+void dcsAramCallback(u32 request);
+
+void dcsAramReadTop(void* destination, u32 length) {
+    u32 aramSource;
+
+    dcsAramBusy = 1;
+    aramSource = 0x1000000 - length;
+    DCFlushRange(destination, length);
+    ARQPostRequest(&dcsAramReq, 0, 1, 1, aramSource, (u32)destination,
+                   length, dcsAramCallback);
+    while (dcsAramBusy != 0) {
+    }
+    DCInvalidateRange(destination, length);
 }
 
 /* 0x800D38F8  ARQ write to top of ARAM (memcard uses) */
-void dcsAramWriteTop(void) {
+void dcsAramWriteTop(void* source, u32 length) {
+    u32 aramDestination;
+
+    dcsAramBusy = 1;
+    aramDestination = 0x1000000 - length;
+    DCFlushRange(source, length);
+    ARQPostRequest(&dcsAramReq, 0, 0, 1, (u32)source, aramDestination,
+                   length, dcsAramCallback);
+    while (dcsAramBusy != 0) {
+    }
 }
 
 /* 0x800D3970  ARQ MRAM->ARAM copy (memcard uses) */
-void dcsAramWrite(void) {
+void dcsAramWrite(void* source, u32 aramDestination, u32 length) {
+    dcsAramBusy = 1;
+    DCFlushRange(source, length);
+    ARQPostRequest(&dcsAramReq, 0, 0, 1, (u32)source, aramDestination,
+                   length, dcsAramCallback);
+    while (dcsAramBusy != 0) {
+    }
 }
 
 /* 0x800D39E8  ARQ ARAM->MRAM copy (memcard uses) */
-void dcsAramRead(void) {
+void dcsAramRead(u32 aramSource, void* destination, u32 length) {
+    dcsAramBusy = 1;
+    DCFlushRange(destination, length);
+    ARQPostRequest(&dcsAramReq, 0, 1, 1, aramSource, (u32)destination,
+                   length, dcsAramCallback);
+    while (dcsAramBusy != 0) {
+    }
+    DCInvalidateRange(destination, length);
 }
 
 /* 0x800D3A70  ARQ completion cb; clears dcsAramBusy */
-void dcsAramCallback(void) {
+void dcsAramCallback(u32 request) {
+    dcsAramBusy = 0;
 }
 
 /* 0x800D3A7C  ARQ completion cb; clears dcsSampleBusy */
-void dcsSampleCallback(void) {
+void dcsSampleCallback(u32 request) {
+    dcsSampleBusy = 0;
 }
 
 /* 0x800D3A88  start an AX voice (src/state/vol/pan) */
@@ -159,6 +254,15 @@ void VagParseHeader(void) {
 }
 
 /* 0x800D42E4  set stream loop/one-shot flag */
-void dcsSetStreamFlag(void) {
-}
+void dcsSetStreamFlag(DcsStream* stream, s32 looping) {
+    u32 oneShot;
 
+    if (stream != 0) {
+        if (looping != 0) {
+            oneShot = 0;
+        } else {
+            oneShot = 1;
+        }
+        stream->oneShot = oneShot;
+    }
+}

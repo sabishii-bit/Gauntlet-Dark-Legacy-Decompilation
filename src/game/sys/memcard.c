@@ -15,6 +15,7 @@
  * Functions are kept in address order (same-TU inlining depends on it).
  */
 #include "types.h"
+#include "game/dcs.h"
 
 /* ---- libc ------------------------------------------------------------- */
 int sprintf(char* dst, const char* fmt, ...);
@@ -76,12 +77,6 @@ int sysTestFlags(int flag);
 void sysClearFlags(int flag);
 void sysSetFlags(int flag);
 void sysResetService(void);
-
-/* ---- ARAM save-cache DMA (game, still fn_) --------------------------- */
-void fn_800D3874(u32 aramOffset, void* buf);   /* ARAM -> main            */
-void fn_800D38F8(u32 dst, u32 len);            /* clear ARAM window       */
-void fn_800D3970(u32 dst, u32 src, u32 len);   /* main -> ARAM            */
-void fn_800D39E8(u32 dst, u32 src, u32 len);   /* ARAM -> main            */
 
 /* ---- pads (game) ------------------------------------------------------ */
 s32 padMenuStickY(int pad);
@@ -202,7 +197,7 @@ void pageSaveCacheOut(void);
 s32 saveMenuPrompt(const char* msg, char** options, s32 count);
 void getSaveFileName(char* dst, s32 fileNo);
 u8 beginSaveCacheTransaction(void);
-void restoreSaveCache(u8* buf);
+void restoreSaveCache(u32 size);
 void beginSaveTransaction(void);
 u8 loadGauntletSave(void);
 int writeGauntletSave(void);
@@ -240,7 +235,7 @@ int add_vmu_file(int a, int b, int c, const char* name, u32 v0, u32 v1)
         cardWaitResult();
         OSSetCurrentHeap(lbl_80344A08);
         OSDestroyHeap(lbl_80344A0C);
-        restoreSaveCache((u8*) 0x310000);
+        restoreSaveCache(0x310000);
         sysClearFlags(64);
         bulletproof_printf(lbl_801131C0);
         lbl_803449EC = 0;
@@ -249,7 +244,7 @@ int add_vmu_file(int a, int b, int c, const char* name, u32 v0, u32 v1)
         cardWaitResult();
         OSSetCurrentHeap(lbl_80344A08);
         OSDestroyHeap(lbl_80344A0C);
-        restoreSaveCache((u8*) 0x310000);
+        restoreSaveCache(0x310000);
         sysClearFlags(64);
         bulletproof_printf(lbl_801131C0);
         lbl_803449EC = 0;
@@ -312,7 +307,7 @@ int get_vmu_directory(int a, int b)
         cardWaitResult();
         OSSetCurrentHeap(lbl_80344A08);
         OSDestroyHeap(lbl_80344A0C);
-        restoreSaveCache((u8*) 0x310000);
+        restoreSaveCache(0x310000);
         sysClearFlags(64);
         bulletproof_printf(lbl_801131C0);
         lbl_803449EC = 0;
@@ -417,7 +412,7 @@ int saveLoad(int port, int slot, int fileNo, void* dst)
     cardWaitResult();
     OSSetCurrentHeap(lbl_80344A08);
     OSDestroyHeap(lbl_80344A0C);
-    fn_800D3874(GetHiMemCacheTop() - 0x310000, (void*) 0x310000);
+    dcsAramReadTop((void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
     sysClearFlags(64);
     bulletproof_printf(lbl_801131C0);
     lbl_803449EC = 0;
@@ -454,7 +449,7 @@ int saveSave(int port, int slot, int fileNo, void* src)
     cardWaitResult();
     OSSetCurrentHeap(lbl_80344A08);
     OSDestroyHeap(lbl_80344A0C);
-    fn_800D3874(GetHiMemCacheTop() - 0x310000, (void*) 0x310000);
+    dcsAramReadTop((void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
     sysClearFlags(64);
     bulletproof_printf(lbl_801131C0);
     lbl_803449EC = 0;
@@ -509,7 +504,7 @@ void check_prefs_loaded(void)
     cardWaitResult();
     OSSetCurrentHeap(lbl_80344A08);
     OSDestroyHeap(lbl_80344A0C);
-    restoreSaveCache((u8*) 0x310000);
+    restoreSaveCache(0x310000);
     sysClearFlags(64);
     bulletproof_printf(st);
     lbl_803449EC = 0;
@@ -590,7 +585,7 @@ int MemCardCreateGaunt(int port, int slot)
     cardWaitResult();
     OSSetCurrentHeap(lbl_80344A08);
     OSDestroyHeap(lbl_80344A0C);
-    fn_800D3874(GetHiMemCacheTop() - 0x310000, (void*) 0x310000);
+    dcsAramReadTop((void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
     sysClearFlags(64);
     bulletproof_printf(lbl_801131C0);
     lbl_803449EC = 0;
@@ -639,7 +634,7 @@ s32 saveMount(s32 port, s32 slot, s32 doFormat)
     } while (retry);
 
     sysSetFlags(64);
-    fn_800D38F8(GetHiMemCacheTop() - 0x310000, 0x310000);
+    dcsAramWriteTop((void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
     lbl_80344A0C = OSCreateHeap((void*) (GetHiMemCacheTop() - 0x310000),
                                 (void*) (GetHiMemCacheTop()));
     lbl_80344A08 = OSSetCurrentHeap(lbl_80344A0C);
@@ -708,7 +703,7 @@ s32 saveMount(s32 port, s32 slot, s32 doFormat)
     cardWaitResult();
     OSSetCurrentHeap(lbl_80344A08);
     OSDestroyHeap(lbl_80344A0C);
-    fn_800D3874(GetHiMemCacheTop() - 0x310000, (void*) 0x310000);
+    dcsAramReadTop((void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
     sysClearFlags(64);
     lbl_80343C78 |= 0xFFFFFFFF;
 
@@ -757,7 +752,7 @@ int InitPreferences(void)
         cardWaitResult();
         OSSetCurrentHeap(lbl_80344A08);
         OSDestroyHeap(lbl_80344A0C);
-        fn_800D3874(GetHiMemCacheTop() - 0x310000, (void*) 0x310000);
+        dcsAramReadTop((void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
         sysClearFlags(64);
         bulletproof_printf(lbl_801131C0);
         lbl_803449EC = 0;
@@ -806,7 +801,7 @@ u8 beginSaveCacheTransaction(void)
     size = 0x310000;
     sysSetFlags(64);
     buf = (u8*) GetHiMemCacheTop();
-    fn_800D38F8((u32) buf - 0x310000, size);
+    dcsAramWriteTop(buf - 0x310000, size);
     lo = buf - 0x310000;
     lbl_80344A0C = OSCreateHeap(lo, lo + size);
     lbl_80344A08 = OSSetCurrentHeap(lbl_80344A0C);
@@ -1257,7 +1252,7 @@ u8 vmu_exists(s32 chan, const char* name, s32* fileNoOut)
 
     sysSetFlags(64);
     workArea = (u8*) (GetHiMemCacheTop() - 0x310000);
-    fn_800D38F8((u32) workArea, 0x310000);
+    dcsAramWriteTop(workArea, 0x310000);
     lbl_80344A0C = OSCreateHeap(workArea, workArea + 0x310000);
     lbl_80344A08 = OSSetCurrentHeap(lbl_80344A0C);
     lbl_80344A00 = (u8*) OSAllocFromHeap(__OSCurrHeap, 8192);
@@ -1300,7 +1295,7 @@ u8 vmu_exists(s32 chan, const char* name, s32* fileNoOut)
     cardWaitResult();
     OSSetCurrentHeap(lbl_80344A08);
     OSDestroyHeap(lbl_80344A0C);
-    fn_800D3874(GetHiMemCacheTop() - 0x310000, (void*) 0x310000);
+    dcsAramReadTop((void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
     sysClearFlags(64);
     return found;
 }
@@ -1466,7 +1461,7 @@ void beginSaveTransaction(void)
 
     sysSetFlags(64);
     buf = (u8*) GetHiMemCacheTop();
-    fn_800D38F8((u32) (buf - 0x310000), 0x310000);
+    dcsAramWriteTop(buf - 0x310000, 0x310000);
     lo = buf - 0x310000;
     lbl_80344A0C = OSCreateHeap(lo, lo + size);
     lbl_80344A08 = OSSetCurrentHeap(lbl_80344A0C);
@@ -1477,12 +1472,12 @@ void beginSaveTransaction(void)
 }
 
 /* restoreSaveCache - page the save cache back from ARAM into main memory */
-void restoreSaveCache(u8* buf)
+void restoreSaveCache(u32 size)
 {
-    u32 off = GetHiMemCacheTop();
-    u8* b = buf;
+    u32 top = GetHiMemCacheTop();
+    u8* transferSize = (u8*)size;
 
-    fn_800D3874(off - (u32) b, b);
+    dcsAramReadTop((void*)(top - (u32)transferSize), (u32)transferSize);
 }
 
 /* memCardErrorPrompt - one modal card-error menu; resets state on cancel */
@@ -1515,8 +1510,8 @@ s32 saveMenuPrompt(const char* msg, char** options, s32 count)
     s32 timer = 30;
     u8 had;
 
-    fn_800D3970(GetHiMemCacheTop() - 0x310000, 0x9E0000, 0x310000);
-    fn_800D39E8(0xCF0000, GetHiMemCacheTop() - 0x310000, 0x310000);
+    dcsAramWrite((void*)(GetHiMemCacheTop() - 0x310000), 0x9E0000, 0x310000);
+    dcsAramRead(0xCF0000, (void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
     had = sysTestFlags(64);
     if (had) {
         sysClearFlags(64);
@@ -1538,18 +1533,18 @@ s32 saveMenuPrompt(const char* msg, char** options, s32 count)
         sysHandleReset();
         if (--timer <= 0) {
             timer = 30;
-            fn_800D3970(GetHiMemCacheTop() - 0x310000, 0xCF0000, 0x310000);
-            fn_800D39E8(0x9E0000, GetHiMemCacheTop() - 0x310000, 0x310000);
+            dcsAramWrite((void*)(GetHiMemCacheTop() - 0x310000), 0xCF0000, 0x310000);
+            dcsAramRead(0x9E0000, (void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
             fn_80067B0C(-1);
-            fn_800D3970(GetHiMemCacheTop() - 0x310000, 0x9E0000, 0x310000);
-            fn_800D39E8(0xCF0000, GetHiMemCacheTop() - 0x310000, 0x310000);
+            dcsAramWrite((void*)(GetHiMemCacheTop() - 0x310000), 0x9E0000, 0x310000);
+            dcsAramRead(0xCF0000, (void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
         }
         if (padButtonReleased(-1, 256) != 0) {
             break;
         }
     }
-    fn_800D3970(GetHiMemCacheTop() - 0x310000, 0xCF0000, 0x310000);
-    fn_800D39E8(0x9E0000, GetHiMemCacheTop() - 0x310000, 0x310000);
+    dcsAramWrite((void*)(GetHiMemCacheTop() - 0x310000), 0xCF0000, 0x310000);
+    dcsAramRead(0x9E0000, (void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
     if (had) {
         sysSetFlags(64);
     }
@@ -1559,15 +1554,15 @@ s32 saveMenuPrompt(const char* msg, char** options, s32 count)
 /* pageSaveCacheIn - swap the save cache back in (0xCF0000 -> main -> 0x9E0000) */
 void pageSaveCacheIn(void)
 {
-    fn_800D3970(GetHiMemCacheTop() - 0x310000, 0xCF0000, 0x310000);
-    fn_800D39E8(0x9E0000, GetHiMemCacheTop() - 0x310000, 0x310000);
+    dcsAramWrite((void*)(GetHiMemCacheTop() - 0x310000), 0xCF0000, 0x310000);
+    dcsAramRead(0x9E0000, (void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
 }
 
 /* pageSaveCacheOut - swap the save cache out (0x9E0000 -> main -> 0xCF0000) */
 void pageSaveCacheOut(void)
 {
-    fn_800D3970(GetHiMemCacheTop() - 0x310000, 0x9E0000, 0x310000);
-    fn_800D39E8(0xCF0000, GetHiMemCacheTop() - 0x310000, 0x310000);
+    dcsAramWrite((void*)(GetHiMemCacheTop() - 0x310000), 0x9E0000, 0x310000);
+    dcsAramRead(0xCF0000, (void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
 }
 
 /*

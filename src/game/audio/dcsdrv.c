@@ -8,6 +8,7 @@
  * NonMatching: reconstruction scaffold.
  */
 #include "types.h"
+#include "game/dcs.h"
 
 typedef struct DcsDriverState {
     void* streamFile;
@@ -37,9 +38,6 @@ extern s32 sReset;
 void mathStub1b__Fv();
 void mathStub0__Fv();
 u32 pool_init(u32 size);
-void AudioStillLoading(void);
-void dcsBankUnload(void* bank);
-s32 dcsBankLoad(void* bank, s32 mode);
 void AdsSetVolumeDirect(void* ads, s32 volume);
 void AdsKeyVoices(void* ads);
 u32 AdsGetStatus(void* ads);
@@ -52,19 +50,9 @@ void* memset(void* dst, s32 value, u32 size);
 void* memcpy(void* dst, const void* src, u32 size);
 char* strcpy(char* dst, const char* src);
 char* strcat(char* dst, const char* src);
-void dcsRequestReset(void);
-void dcsAllocReset(s32* high, s32* current, s32* low);
 u32 AdsGetMode(void* ads);
 void AdsSetMode(void* ads, u32 mode);
-void dcsQuePoll(void);
-s32 dcsBankQuery(s32 bank, s32* a, s32* b);
-void AudioQueUpdate(s32 value);
-void update_chinfo(s32 channel);
 void AdsSetVolume(void* ads, s32 volume);
-void dcsChannelSetVolPan2(s32 channel, s32 value);
-void dcsChannelSetVolPan(s32 channel, s32 value);
-s32 dcsChannelPlay(s32 value);
-s32 dcsVoiceStart(s32 a, s32 b, s32 c);
 void AdsInit(s32 memory, s32 block, s32 mode);
 void* AdsNew(s32 size);
 s32 AdsOpen(void* ads, void* desc);
