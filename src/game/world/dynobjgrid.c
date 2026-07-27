@@ -10,6 +10,15 @@
  * GC .text order (reverse of the Xbox source order): WorldDynCollide,
  * NextDynGrid, CreateDynobjGrid, InitDynobjGrid.  CalcMaxObjSize and
  * InitDynobjList were inlined into InitDynobjGrid by the GC compiler.
+ *
+ * MATCH STATUS (parked residuals, all regalloc/copy-quirk class - do not
+ * regrind without a new allocator lever):
+ *  - InitDynobjGrid: 1 insn (target mr r3,r8 copy of zeroed total; ours
+ *    const-propagates to li 0 - the gcontrolpads remat-vs-copy quirk).
+ *  - WorldDynCollide: target keeps an extra addi r6,r3,0 copy web for d +
+ *    nonvolatile color rotation (r28..r31); opcode stream otherwise exact.
+ *  - CreateDynobjGrid: r27/r28 web rotation through the rasterize loops.
+ *  - NextDynGrid: still a stub (255-insn DDA, see notes below).
  */
 
 /* A per-object record tracked by the grid (0x44 bytes). */
@@ -164,6 +173,7 @@ void CreateDynobjGrid(void)
     WorldObj* o;
     DynObj* d;
     f32* p;
+    u8 unused[24];
 
     memset(dyngrid_list, 0, (dyngrid_index + 1) * 4);
     memset(dyngrid, 0, dyngridsize * 2);
@@ -222,10 +232,10 @@ void InitDynobjGrid(void)
     dynobj_count = *gWorldInfo.objlisthdr >> 22;
     dynobj_list = (DynObj*)AllocMem(dynobj_count * 68);
 
-    total = 0;
     hdr = *gWorldInfo.objlisthdr;
     count = hdr >> 22;
     ofs = hdr & 0x3FFFFF;
+    total = 0;
     for (i = total; i < count; i++) {
         objidx = *(s16*)((u8*)gWorldInfo.objlistpool + ofs);
         ofs += 2;
