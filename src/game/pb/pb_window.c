@@ -30,8 +30,7 @@ void __as__4vec3FRC4vec3(void* d, const void* s);   /* vec3::operator= */
 void __as__5mat44FRC5mat44(void* d, const void* s); /* mat44::operator= */
 void vec3Scale__FR4vec3R4vec3f(void* d, void* v, f32 s);
 void identity__5mat44Fv(void* m); /* mat44::identity */
-void OSReport(const char* fmt, ...); /* placeholder: real callee fn_800BC2EC */
-void pbDebugPrintf(const char* fmt, ...);
+void bulletproof_printf(const char* fmt, ...);
 
 
 
@@ -87,8 +86,8 @@ typedef struct PBLIGHTBLOCK {
 } PBLIGHTBLOCK;
 
 extern f32 gVpScaleY;        /* lbl_80345160 */
-extern int gPbDebugCam;      /* DAT_80345158 */
-extern int gPbDebugCamTimer; /* DAT_8034515c */
+extern int lbl_80345158;
+extern int lbl_8034515C;
 typedef struct PBWINDEBUG {
     s32 mode;     /* 0x00 */
     s32 unk04;    /* 0x04 */
@@ -778,12 +777,13 @@ void pbCameraUpdate()
     g->current->cam_yaw = atan2(g->current->cam_look[0], g->current->cam_look[2]);
     g->current->cam_pitch = (f32) (0.31830988614222805 * (double) g->current->cam_pitch);
     g->current->cam_yaw = (f32) (0.15915494307111402 * (double) g->current->cam_yaw);
-    if (gPbDebugCam != 0) {
-        gPbDebugCamTimer = gPbDebugCamTimer + 1;
-        if (gPbDebugCamTimer > 0x14) {
-            gPbDebugCamTimer = 0;
-            pbDebugPrintf("___ cam pitch yaw ___ %4.2Lf  %4.2Lf\n",
-                          (double) g->current->cam_pitch, (double) g->current->cam_yaw);
+    if (lbl_80345158 != 0) {
+        lbl_8034515C = lbl_8034515C + 1;
+        if (lbl_8034515C > 0x14) {
+            lbl_8034515C = 0;
+            bulletproof_printf("___ cam pitch yaw ___ %4.2Lf  %4.2Lf\n",
+                               (double) g->current->cam_pitch,
+                               (double) g->current->cam_yaw);
         }
     }
 }

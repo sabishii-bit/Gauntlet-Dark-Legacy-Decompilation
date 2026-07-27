@@ -8,6 +8,7 @@ Usage:
   python tools/gdl/fndiff.py dolphin/dvd/dvd.c DVDInit      # specific function(s)
   python tools/gdl/fndiff.py dolphin/si/SIBios.c -l         # just list match status
   python tools/gdl/fndiff.py zlib/infblock.c --ops          # opcode-cluster view
+  python tools/gdl/fndiff.py game/g3d/sndvoice.c --classify # semantic-risk class
 
 --ops collapses each function to its opcode stream (registers, operands and
 relocs ignored) and prints only the structurally inserted/deleted/replaced
@@ -19,10 +20,18 @@ located infblock's missing t<19 clamp and stripped error-path frees.
 diff lines, and "real" diff lines excluding reloc-name-only noise) -- use it
 as the per-iteration score instead of piping through grep -c.
 
+--classify deliberately uses conservative categories for native-port work:
+EXACT, RELOCATION_ONLY, REGISTER_ONLY, SCHEDULE_CANDIDATE, OPERAND_DIFF, and
+STRUCTURAL. BASE_ONLY identifies a source helper absent from the target object;
+TARGET_ONLY identifies an original function absent from our object. Only the
+first three establish that instruction order and all non-register operands
+agree. SCHEDULE_CANDIDATE is a review queue, not proof of semantic equivalence.
+
 The base object is rebuilt via ninja automatically whenever the source file
 is newer (pass --no-build to skip). This prevents analyzing stale objects.
 """
 
+from collections import Counter
 import difflib
 import re
 import subprocess
@@ -33,37 +42,88 @@ VERSION = "GUNE5D"
 OBJDUMP = Path("build/binutils/powerpc-eabi-objdump.exe")
 
 BRANCH_RE = re.compile(
-    r"\b(b|bl|ba|bla|beq|bne|bgt|blt|bge|ble|bso|bns|bdnz|bdz)([+-]?)\s+(cr\d,)?[0-9a-f]+\s*$"
+    r"\b(b|bl|ba|bla|beq|bne|bgt|blt|bge|ble|bso|bns|bdnz|bdz)"
+    r"([+-]?)\s+(cr\d,)?([0-9a-f]+)\s*$"
 )
+REGISTER_RE = re.compile(r"\b(?:r(?:[12]?\d|3[01])|f(?:[12]?\d|3[01])|cr[0-7])\b")
+PRIVATE_DATA_RE = re.compile(r"^\.{3}(?:rodata|data)\.\d+$")
+
+
+def compiler_private_aliases_from_symbols(symbol_table):
+    """Map compiler-private data labels to named symbols at the same location."""
+    locations = {}
+    for line in symbol_table.splitlines():
+        fields = line.split()
+        if len(fields) < 4 or not re.fullmatch(r"[0-9a-fA-F]+", fields[0]):
+            continue
+        section, name = fields[-3], fields[-1]
+        if section == "*UND*" or name.startswith(".") and not PRIVATE_DATA_RE.match(name):
+            continue
+        locations.setdefault((section, fields[0].lower()), []).append(name)
+
+    aliases = {}
+    for names in locations.values():
+        named = [name for name in names if not PRIVATE_DATA_RE.match(name)]
+        if len(named) != 1:
+            continue
+        for name in names:
+            if PRIVATE_DATA_RE.match(name):
+                aliases[name] = named[0]
+    return aliases
+
+
+def compiler_private_aliases(objfile: Path):
+    out = subprocess.run(
+        [str(OBJDUMP), "-t", str(objfile)], capture_output=True, text=True
+    ).stdout
+    return compiler_private_aliases_from_symbols(out)
 
 
 def parse(objfile: Path):
     """Return {function_name: [normalized instruction/reloc lines]}."""
+    aliases = compiler_private_aliases(objfile)
     out = subprocess.run(
         [str(OBJDUMP), "-dr", str(objfile)], capture_output=True, text=True
     ).stdout
     funcs = {}
     cur = None
+    cur_start = 0
     for line in out.splitlines():
-        m = re.match(r"^[0-9a-f]+ <(.+)>:$", line)
+        m = re.match(r"^([0-9a-f]+) <(.+)>:$", line)
         if m:
-            cur = m.group(1)
+            cur_start = int(m.group(1), 16)
+            cur = m.group(2)
             if not cur.startswith("fn_"):
                 cur = re.sub(r"_80[0-9A-Fa-f]{6}$", "", cur)
             funcs[cur] = []
             continue
         if cur is None:
             continue
-        m = re.match(r"^\s+[0-9a-f]+:\s+(?:[0-9a-f]{2} ){4}\s*(.+)$", line)
+        m = re.match(r"^\s+([0-9a-f]+):\s+(?:[0-9a-f]{2} ){4}\s*(.+)$", line)
         if m:
-            ins = re.sub(r"<[^>]+>", "", m.group(1).strip())
-            ins = BRANCH_RE.sub(lambda m: f"{m.group(1)}{m.group(2)} {m.group(3) or ''}<tgt>", ins)
+            ins = re.sub(r"<[^>]+>", "", m.group(2).strip())
+
+            def normalize_branch(branch_match):
+                target = int(branch_match.group(4), 16) - cur_start
+                return (
+                    f"{branch_match.group(1)}{branch_match.group(2)} "
+                    f"{branch_match.group(3) or ''}<fn+0x{target:x}>"
+                )
+
+            ins = BRANCH_RE.sub(normalize_branch, ins)
             funcs[cur].append(ins.strip())
         elif "R_PPC" in line:
             rel = line.strip().split(maxsplit=1)[1]
             # dtk suffixes local symbol names with their address; strip so
             # target "changed_80345368" pairs with our "changed"
             rel = re.sub(r"_80[0-9A-Fa-f]{6}(?=$|\+)", "", rel)
+            for private, named in aliases.items():
+                rel = re.sub(
+                    rf"(?<=\s){re.escape(private)}(?=$|[+-])", named, rel
+                )
+            if rel.startswith("R_PPC_REL24") and funcs[cur]:
+                funcs[cur][-1] = re.sub(r"<fn\+0x-?[0-9a-f]+>", "<reloc>",
+                                        funcs[cur][-1])
             funcs[cur].append("    " + rel)
     return funcs
 
@@ -71,6 +131,83 @@ def parse(objfile: Path):
 def opcodes(lines):
     """Instruction lines only (no relocs), reduced to the mnemonic."""
     return [ln.split()[0] for ln in lines if ln and not ln.startswith("    ")]
+
+
+def instruction_lines(lines):
+    return [ln for ln in lines if ln and not ln.startswith("    ")]
+
+
+def relocation_signature(line):
+    """Normalize compiler-private labels while preserving public/call targets."""
+    fields = line.split(maxsplit=1)
+    reloc_type = fields[0] if fields else line.strip()
+    symbol = fields[1] if len(fields) > 1 else ""
+    if reloc_type == "R_PPC_REL24":
+        return reloc_type, symbol
+    local = re.fullmatch(r"(?:lbl|jumptable|@\d+)([+-].+)?", symbol)
+    if local:
+        symbol = "<local>" + (local.group(1) or "")
+    return reloc_type, symbol
+
+
+def relocation_signatures(lines):
+    """Relocations in instruction order, retaining semantically relevant targets."""
+    result = []
+    for line in lines:
+        if line.startswith("    "):
+            result.append(relocation_signature(line.strip()))
+    return result
+
+
+def erase_registers(line):
+    """Keep opcodes, immediates, offsets and addressing modes; erase register colors."""
+    return REGISTER_RE.sub("<reg>", line)
+
+
+def semantic_tokens(lines):
+    """Tokens suitable for conservative source-vs-target shape comparison."""
+    result = []
+    for line in lines:
+        if line.startswith("    "):
+            result.append(("reloc", relocation_signature(line.strip())))
+        else:
+            result.append(("insn", erase_registers(line)))
+    return result
+
+
+def classify_function(target_lines, base_lines):
+    """Classify a residual by increasing semantic risk.
+
+    REGISTER_ONLY requires identical instruction/relocation order and identical
+    non-register operands. SCHEDULE_CANDIDATE requires the same multiset of
+    register-erased operations, but does not claim reordered side effects are safe.
+    """
+    if target_lines == base_lines:
+        return "EXACT"
+
+    target_ins = instruction_lines(target_lines)
+    base_ins = instruction_lines(base_lines)
+    target_relocs = relocation_signatures(target_lines)
+    base_relocs = relocation_signatures(base_lines)
+
+    if target_ins == base_ins and target_relocs == base_relocs:
+        return "RELOCATION_ONLY"
+
+    target_sem = semantic_tokens(target_lines)
+    base_sem = semantic_tokens(base_lines)
+    if target_sem == base_sem:
+        return "REGISTER_ONLY"
+
+    target_ops = opcodes(target_lines)
+    base_ops = opcodes(base_lines)
+    if target_ops == base_ops:
+        return "OPERAND_DIFF"
+
+    if (len(target_ins) == len(base_ins)
+            and Counter(target_sem) == Counter(base_sem)):
+        return "SCHEDULE_CANDIDATE"
+
+    return "STRUCTURAL"
 
 
 def ops_diff(name, t, b):
@@ -85,11 +222,12 @@ def ops_diff(name, t, b):
 
 
 def main():
-    flags = ("-l", "--ops", "--count", "--no-build")
+    flags = ("-l", "--ops", "--count", "--classify", "--no-build")
     args = [a for a in sys.argv[1:] if a not in flags]
     list_only = "-l" in sys.argv
     ops_only = "--ops" in sys.argv
     count_only = "--count" in sys.argv
+    classify_only = "--classify" in sys.argv
     no_build = "--no-build" in sys.argv
     if not args:
         print(__doc__)
@@ -127,13 +265,25 @@ def main():
     for name in names:
         t, b = target.get(name), base.get(name)
         if t == b:
-            if list_only or args[1:]:
+            if classify_only:
+                print(f"EXACT               {name}")
+            elif list_only or args[1:]:
                 print(f"OK   {name}")
             continue
         if t is None or b is None:
+            if classify_only:
+                category = "BASE_ONLY" if t is None else "TARGET_ONLY"
+                print(f"{category:<19} {name}")
+                continue
             side = "target" if t is None else "base"
             print(f"ONLY-IN-{'BASE' if t is None else 'TARGET'}  {name}"
                   f"  (extra {side} fns are usually deadstripped statics)")
+            continue
+        if classify_only:
+            category = classify_function(t, b)
+            ti = len(instruction_lines(t))
+            bi = len(instruction_lines(b))
+            print(f"{category:<19} {name}  insns {ti}/{bi}")
             continue
         if list_only:
             print(f"DIFF {name}")
