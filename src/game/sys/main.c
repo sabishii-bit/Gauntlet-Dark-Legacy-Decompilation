@@ -41,10 +41,10 @@ void AXInit(void);
 void sndVoiceInit(void);
 
 void pbPulseTime(void);
-void fn_800209E0(int x, int y, int flags, u32 color, const char* fmt, ...);
-void fn_800BF1A8(int arg);
-void fn_800BF208(int arg);
-void fn_800D9FEC(const char* name);
+void DrawText(int x, int y, int flags, u32 color, const char* fmt, ...);
+void LockMem(int arg);
+void FreeUnlockedMem(int arg);
+void PlayVQMovie(const char* name);
 
 extern char* lbl_8011CD58[];   /* movie_list1 (7) */
 extern char* lbl_8011CD74[];   /* movie_list2 (26) */
@@ -61,55 +61,55 @@ void sysSetMsgCallback(void (*printer)(const char*));
 u32 pbGetTime(void);
 void srand(unsigned int seed);
 s64 OSGetTime(void);
-void fn_800684D4(const char* name);
+void game_init_once(const char* name);
 void fn_8005A260(void* a, void* b, int c, int d);
-void fn_800B38D0(const char* name, int x, int y);
-void fn_800B6ED8(void);
-void fn_800B8A38(int arg);
+void MBNewBlit(const char* name, int x, int y);
+void MBEndFrame(void);
+void MBOX_ResetUnlockedModels(int arg);
 void ReadControls(void);
-void fn_800BC2EC(const char* fmt, ...);
+void bulletproof_printf(const char* fmt, ...);
 void game_init_data(void);
 void OptionsSetup(void);
-void fn_80020DA8(void);
-u32 fn_800BF258(void);
+void FontInit(void);
+u32 BytesFree(void);
 void fn_800330D4(void);
 void fn_80010EB0(int w, int h);
-void fn_800A8490(int arg);
+void pbInitDiag(int arg);
 void fn_800533E4(void);
 void fn_8005403C(int arg);
 void init_attract_mode(int screen);
 void fn_8002F040(void);
 void fn_8008BC50(void);
 void ControlsUpdate(void);
-void fn_80042398(void);
+void sndSysStub1(void);
 void ScreenSaver(void);
 int DoOptions(void);
-void fn_800154C8(void);
+void sndFxQueUpdate(void);
 void AudioSysSync(int arg);
-int fn_800A825C(void);
+int pbDiagDrawMenu(void);
 void fn_80010DF4(int arg);
 void fn_8006FF1C(void);
 void fn_8006799C(int arg);
 int sysTestFlags(int arg);
-void fn_80054230(void);
-int fn_8001BC88(void);
-void fn_800B582C(void* a, void* b);
-int fn_8001C478(void);
+void game_main(void);
+int TriggerCamUpdate(void);
+void MBCameraUpdate(void* a, void* b);
+int BossCameraUpdate(void);
 void do_camera(void);
 void fn_8006FE30(void);
 void UpdateCam(void);
 void fn_80052134(void);
 void fn_800C0394(void);
-void fn_80042394(void);
+void sndSysStub0(void);
 
 extern char lbl_80113028[];    /* string table (soulsave.. boot strings) */
 extern char lbl_80126A98[];    /* version string */
 extern u8 lbl_80127D00[];
 extern u8 lbl_80127D60[];
-extern u32 lbl_80343EF0;       /* boot clear color */
+extern u32 gErrorCode;         /* boot clear color */
 extern s32 lbl_803449C4;       /* boot step */
-extern u8* lbl_80344F48;
-extern s32 lbl_80344F40;
+extern u8* mlmMemBase;
+extern s32 mlmMemLimit;
 extern u32 lbl_803472BC;
 extern u32 lbl_803472C4;
 extern s32 lbl_803449B0;       /* save-pending flag */
@@ -120,7 +120,7 @@ extern s32 lbl_80343B00;
 extern s32 lbl_8034477C;       /* game state id */
 extern s32 lbl_80344A80;
 extern s32 lbl_803449BC;
-extern s32 lbl_803443A0;
+extern u32 gBossObj;
 extern s32 lbl_80343C5C;
 extern s32 lbl_803444E0;
 extern s32 lbl_8034475C;
@@ -133,14 +133,14 @@ extern u32 lbl_803449CC;
 extern char* lbl_80344800;      /* debug print list base */
 extern char* lbl_803449B4;
 extern s32 lbl_803449B8;        /* debug print y cursor */
-void fn_800BE968(void);
+void serve_io(void);
 void adsPoll(void);             /* ADSTREAM per-frame poll (fn_800D6234) */
 
 /* main globals block: DVDFileInfo @0, ortho Mtx44 @60, viewport @124 */
 extern u8 lbl_8025EDE8[];
 extern char lbl_8011304C[]; /* "check.txt" */
 
-extern f32 lbl_80344594;
+extern f32 sMusicFadeBase;
 extern f64 lbl_803471B8;
 extern f32 lbl_80344980;
 extern f32 lbl_80344984;
@@ -152,7 +152,7 @@ extern u32 lbl_803472B0;  /* tev kcolor */
 /* peak tracker over the frame meter (Xbox data: vb_last_print) */
 void fn_80067AE0(f32 t, f32 v)
 {
-    f32 x = (f32) (lbl_803471B8 + (lbl_80344594 + t));
+    f32 x = (f32) (lbl_803471B8 + (sMusicFadeBase + t));
 
     if (x > lbl_80344980) {
         lbl_80344980 = x;
@@ -167,24 +167,22 @@ void fn_80067B0C(int flags)
         pbPulseTime();
     }
     if (flags & 2) {
-        fn_800BE968();
+        serve_io();
     }
     if (flags & 4) {
         adsPoll();
     }
 }
 
-void main_init(void)
+void main_init(high)
+register u32 high;
 {
-    u8* g;
     f32 ident[3][4];
     u32 clear;
-    u32 kcolor;
+    u8* g;
 
-    /* PARKED 1-insn residual: our g init takes a temp (addi r0 + mr r30)
-       where the target's lands in r30 directly; decl-init, statement,
-       register, and direct-ref forms all tried. */
-    g = lbl_8025EDE8;
+    high = 0x80260000;
+    g = (u8*)(high - 0x1218);
     DEMOInit(0);
     while (DVDOpen(lbl_8011304C, g) == 0) {
     }
@@ -206,8 +204,8 @@ void main_init(void)
     GXSetVtxDesc(9, 1);
     GXSetVtxDesc(11, 1);
     GXSetTexCoordGen2(1, 1, 5, 60, 0, 125);
-    kcolor = lbl_803472B0;
-    GXSetTevKColor(0, &kcolor);
+    *(u32*)((u8*)ident - 8) = lbl_803472B0;
+    GXSetTevKColor(0, (u8*)ident - 8);
     GXSetTevKAlphaSel(1, 28);
     GXSetTevOrder(2, 255, 255, 4);
     GXSetTevOp(2, 4);
@@ -231,41 +229,16 @@ void main_init(void)
     sndVoiceInit();
 }
 
-/* report handler: prints levels 0/1 centered-ish in white */
-void fn_80068408(char** msg, int level)
-{
-    switch (level) {
-    case 0:
-    case 1:
-        fn_800209E0(320, 24, 0, 0x00FFFFFF, *msg);
-        break;
-    case 2:
-        break;
-    }
-}
-
-/* debug print-line callback: NULL resets; first line yellow, then white */
-void fn_8006845C(const char* str)
-{
-    if (str == 0) {
-        lbl_803449B4 = lbl_80344800;
-        lbl_803449B8 = 24;
-        return;
-    }
-    {
-        s32 y = lbl_803449B8;
-        fn_800209E0(16, y, 0, (y == 24) ? 0x00FFFF00 : 0x00FFFFFF, str);
-    }
-    lbl_803449B8 += 12;
-}
+void fn_80068408(char** msg, int level);
+void fn_8006845C(const char* str);
 
 void test_movies(void)
 {
-    fn_800BF1A8(1);
+    LockMem(1);
     while (lbl_80343C58 != 0) {
         if (lbl_803449C0 >= 0) {
-            fn_800D9FEC(lbl_8011CD58[lbl_803449C0]);
-            fn_800BF208(1);
+            PlayVQMovie(lbl_8011CD58[lbl_803449C0]);
+            FreeUnlockedMem(1);
             if (lbl_80344620 & 0x10000000) {
                 lbl_803449C0--;
             } else {
@@ -281,8 +254,8 @@ void test_movies(void)
             if (lbl_80343C60 < 0) {
                 lbl_80343C60 = 0;
             }
-            fn_800D9FEC(lbl_8011CD74[lbl_80343C60]);
-            fn_800BF208(1);
+            PlayVQMovie(lbl_8011CD74[lbl_80343C60]);
+            FreeUnlockedMem(1);
             if (lbl_80344620 & 0x10000000) {
                 lbl_80343C60--;
             } else {
@@ -314,24 +287,24 @@ void main(void)
     sysSetResetCallback(fn_80068408);
     sysSetMsgCallback(fn_8006845C);
     pbPulseTime();
-    lbl_80343EF0 = 0xFF;
+    gErrorCode = 0xFF;
     lbl_803449C4 = 0;
-    fn_800684D4(st + 48);
+    game_init_once(st + 48);
     fn_8005A260(&lbl_803472BC, 0, 0, -1);
-    fn_800B38D0(st + 60, 0, 0);
-    fn_800B38D0(st + 76, 256, 0);
-    fn_800B38D0(st + 92, 0, 256);
-    fn_800B38D0(st + 108, 256, 256);
-    fn_800B6ED8();
-    fn_800B6ED8();
-    fn_800B8A38(0);
+    MBNewBlit(st + 60, 0, 0);
+    MBNewBlit(st + 76, 256, 0);
+    MBNewBlit(st + 92, 0, 256);
+    MBNewBlit(st + 108, 256, 256);
+    MBEndFrame();
+    MBEndFrame();
+    MBOX_ResetUnlockedModels(0);
     ReadControls();
-    fn_800BC2EC(st + 124, lbl_80126A98);
+    bulletproof_printf(st + 124, lbl_80126A98);
     game_init_data();
     OptionsSetup();
-    fn_80020DA8();
-    fn_800BC2EC(st + 156, fn_800BF258(), lbl_80344F48,
-                lbl_80344F48 + (lbl_80344F40 / 4) * 4);
+    FontInit();
+    bulletproof_printf(st + 156, BytesFree(), mlmMemBase,
+                       mlmMemBase + (mlmMemLimit / 4) * 4);
     fn_800330D4();
     if (lbl_80344620 & 0x02000000) {
         lbl_80343C58 = 1;
@@ -347,15 +320,15 @@ void main(void)
 
         fn_80010EB0(1024, 1024);
         fn_8005A260(&lbl_803472C4, &tmp, 1, -1);
-        fn_800A8490(2);
+        pbInitDiag(2);
     } else {
-        fn_800BC2EC(st + 208);
+        bulletproof_printf(st + 208);
         fn_800533E4();
         fn_8005403C(1);
         init_attract_mode(-1);
     }
-    fn_800BC2EC(st + 236, fn_800BF258());
-    lbl_80343EF0 = 0x00FF0000;
+    bulletproof_printf(st + 236, BytesFree());
+    gErrorCode = 0x00FF0000;
     pbMeasureLoad = 1;
 
     for (;;) {
@@ -368,7 +341,7 @@ void main(void)
         lbl_803449C4 = 3;
         ControlsUpdate();
         if (lbl_803449A0 == 0) {
-            fn_80042398();
+            sndSysStub1();
         }
         lbl_803449C4 = 11;
         ScreenSaver();
@@ -377,16 +350,16 @@ void main(void)
             lbl_80344568 = 1;
         }
         lbl_803449C4 = 5;
-        fn_800154C8();
+        sndFxQueUpdate();
         AudioSysSync(1);
         if (lbl_803449B0 != 0) {
             lbl_803449C4 = 6;
-            if (fn_800A825C() != 0) {
+            if (pbDiagDrawMenu() != 0) {
                 lbl_80343B00 = -1;
-                fn_800B8A38(0);
+                MBOX_ResetUnlockedModels(0);
                 fn_80010DF4(0);
-                fn_800BC2EC(st + 208);
-                fn_80020DA8();
+                bulletproof_printf(st + 208);
+                FontInit();
                 fn_800533E4();
                 fn_8005403C(1);
                 init_attract_mode(0x8004);
@@ -398,16 +371,16 @@ void main(void)
             fn_8006799C(0);
             lbl_803449C4 = 8;
             if (sysTestFlags(32) == 0) {
-                fn_80054230();
+                game_main();
             }
             lbl_803449C4 = 9;
-            if (fn_8001BC88() == 0) {
+            if (TriggerCamUpdate() == 0) {
                 s32 state = lbl_8034477C;
 
                 if (state == 0x8009 || state == 0x400B || state == 0x4012) {
-                    fn_800B582C(lbl_80127D00, lbl_80127D60);
+                    MBCameraUpdate(lbl_80127D00, lbl_80127D60);
                 } else if (state == 0x4013 || state == 0x400D || state == 0x4017) {
-                    if (fn_8001C478() == 0) {
+                    if (BossCameraUpdate() == 0) {
                         do_camera();
                     }
                 } else if (lbl_80344A80 == 1) {
@@ -422,9 +395,9 @@ void main(void)
                     do_camera();
                 } else {
                     lbl_803449BC = 0;
-                    if (lbl_803443A0 != 0) {
+                    if (gBossObj != 0) {
                         lbl_80344A80 = 0;
-                        if (fn_8001C478() == 0) {
+                        if (BossCameraUpdate() == 0) {
                             do_camera();
                         }
                     } else if (lbl_80343C5C == 0) {
@@ -444,9 +417,9 @@ void main(void)
             fn_800C0394();
         }
         lbl_80344F80 = (lbl_80344568 != 0) ? 0 : 1;
-        fn_80042394();
-        fn_800B6ED8();
-        fn_800BE968();
+        sndSysStub0();
+        MBEndFrame();
+        serve_io();
         lbl_803449AC++;
         /* PARKED 1-bit residual: target compares this u8 with cmplwi;
            every source form tried emits cmpwi (same semantics for a
@@ -462,4 +435,32 @@ void main(void)
             }
         }
     }
+}
+
+/* report handler: prints levels 0/1 centered-ish in white */
+void fn_80068408(char** msg, int level)
+{
+    switch (level) {
+    case 0:
+    case 1:
+        DrawText(320, 24, 0, 0x00FFFFFF, *msg);
+        break;
+    case 2:
+        break;
+    }
+}
+
+/* debug print-line callback: NULL resets; first line yellow, then white */
+void fn_8006845C(const char* str)
+{
+    if (str == 0) {
+        lbl_803449B4 = lbl_80344800;
+        lbl_803449B8 = 24;
+        return;
+    }
+    {
+        s32 y = lbl_803449B8;
+        DrawText(16, y, 0, (y == 24) ? 0x00FFFF00 : 0x00FFFFFF, str);
+    }
+    lbl_803449B8 += 12;
 }

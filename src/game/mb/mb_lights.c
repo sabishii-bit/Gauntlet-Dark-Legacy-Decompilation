@@ -50,7 +50,7 @@ typedef struct MBWinGlobals {
 
 extern MBWinGlobals* gWinGlobals;    /* 0x80344FC0 */
 
-extern void vec3Normalize(f32* v);   /* 0x800BDA98 */
+extern void fn_800BDA98(f32* v);
 extern void ErrorPrintf(const char* fmt, ...);
 
 /* light_default_dir @0x80115D70 : {-0.3f, -1.4f, 1.0f} */
@@ -91,16 +91,13 @@ void MBInitLights(void)
 int MBAddLight(f32* dir, f32* color, f32 intensity)
 {
     MBWinGlobals* wg = gWinGlobals;
-    MBScene* scene = wg->lights;
-    int count = scene->lightCount;
     int idx;
 
-    if (count >= 3) {
+    if (wg->lights->lightCount >= 3) {
         ErrorPrintf("Too many lights");
         return -1;
     }
-    scene->lightCount = count + 1;
-    idx = count;
+    idx = wg->lights->lightCount++;
 
     if (color) {
         wg->lights->lights[idx].color[0] = color[0] * intensity;
@@ -122,6 +119,6 @@ int MBAddLight(f32* dir, f32* color, f32 intensity)
         wg->lights->lights[idx].dir[2] = light_default_dir[2];
     }
 
-    vec3Normalize(wg->lights->lights[idx].dir);
+    fn_800BDA98(wg->lights->lights[idx].dir);
     return idx;
 }

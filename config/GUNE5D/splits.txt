@@ -239,11 +239,13 @@ game/mb/mb_lights.c:
 	extab       start:0x800077C8 end:0x800077D0
 	extabindex  start:0x8000BBFC end:0x8000BC08
 	.text       start:0x800B6CDC end:0x800B6ED8
+	.rodata     start:0x80115D70 end:0x80115D90
 
 game/mb/mb_main.c:
 	extab       start:0x800077D0 end:0x800077E0
 	extabindex  start:0x8000BC08 end:0x8000BC20
 	.text       start:0x800B6ED8 end:0x800B7758
+	.sdata2     start:0x80348B90 end:0x80348C28
 
 game/mb/mb_model.c:
 	extab       start:0x800077E0 end:0x80007880
