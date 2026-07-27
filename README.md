@@ -109,10 +109,6 @@ Decompilation workflow
 The sections below document the full matching process used in this repository, including the
 project-specific tooling in [`tools/gdl/`](tools/gdl/). The core philosophy, learned the hard way:
 
-- **Byte matching and engine reconstruction are separate milestones.** Matching remains the
-  strongest available evidence for a GameCube translation, but register allocation, instruction
-  scheduling, and section layout are not native-port requirements. Complete readable units may be
-  tracked as `Equivalent` while the default build continues to link their original objects.
 - **Read the target assembly first.** For any function beyond ~50 instructions, a full read of the
   dtk-generated assembly (frame layout, register homes, branch structure) beats hypothesis-driven
   iteration by roughly 10x. Decompiler output (Ghidra) is used for *semantics only* — it deliberately
@@ -137,7 +133,6 @@ dtk-template / third-party). Run everything from the repository root.
 | ---- | ------- |
 | `matchtool.py` | Compile a unit against **both proven compilers × all flag presets in parallel** and print a score table per function (`OK` = byte-exact, `OK~` = only reloc *names* differ, `L±n` = length delta, `n` = word diffs). `--brief` prints only the best row's non-OK cells. `--fn X` narrows to one function, `--show` prints the best candidate's diff, `--matrix` runs a full cartesian flag sweep. |
 | `fndiff.py` | Per-function disassembly diff of target vs our build, addresses/branch targets normalized. `--count` prints one summary line per function (`insns T/B lines N real M` — `real` excludes reloc-name-only noise; `real 0` means "rename symbols, code is done"). `--ops` collapses to opcode clusters. `--classify` conservatively separates exact, relocation-only, register-only, scheduling candidates, operand differences, and structural differences for semantic review. Auto-rebuilds the object via ninja when the source is newer. |
-| `semantic_progress.py` | Reports and validates reconstructed/native-port progress independently of byte matching. Reads `config/GUNE5D/semantic_progress.toml`, verifies `Equivalent`/`Matching` configuration, builds source objects, rejects missing target functions, and enforces the stricter residual classes required by `structurally_verified`. |
 | `fnasm.py` | Compact target-asm reader: one line per instruction, relocations folded inline (`@sym(RELOC)`), branch targets as function-relative `->off` so branch adjacency is visible at a glance. Reads the dtk-extracted object, so it works before any source exists and can never show stale data. Supports index slicing (`fnasm.py unit fn 40:120`). |
 | `fnskel.py` | Conservative C-skeleton generator (MWCC-aware, **not** a decompiler). Emits frame/param analysis, block labels, and C-ish lines *only* where the idiom is certain — conversion transits, bool-from-compare, symbol materializations, call-arg summaries — leaving everything else as `##` asm lines. Output is deliberately non-compilable: storage classes and statement grouping are whole-TU properties a local pattern matcher cannot see, and a plausible-but-wrong skeleton is worse than none. |
 | `refscan.py` | Reference-source scanner: compiles an external reference TU (e.g. a melee MSL/SDK file) with mwcc, opcode-normalizes its functions, and fuzzy-aligns them against the functions of any target object (including unclaimed `auto_*` regions). Scores of `1.000` identify functions and TU boundaries before a single line of our source exists. |
@@ -180,39 +175,6 @@ The end-to-end process for one translation unit:
 7. **Finish.** `python tools/gdl/finish_tu.py <unit.c> -m "Match <unit>"` — claim check, flip,
    full build, SHA-1 verify, commit. If it reports RED, diagnose with `doldiff.py` /
    `claimcheck.py --matching`; the DOL diff attributes every byte to a unit and symbol.
-
-Semantic reconstruction and native-port progress
-------------------------------------------------
-
-Byte matching is optional once a unit has a complete, reviewable implementation. These units use
-`Object(Equivalent, ...)` in `configure.py`:
-
-- The default configuration treats `Equivalent` as false, links the extracted original object,
-  and must still pass the canonical DOL SHA-1.
-- `python configure.py --non-matching` treats `Equivalent` as true and links reconstructed source,
-  providing an integration build for the future native engine.
-- `config/GUNE5D/semantic_progress.toml` records evidence and one of three independent statuses:
-  `reconstructed`, `structurally_verified`, or `native_ready`.
-
-`structurally_verified` is intentionally strict: every target function must be present, and the
-only permitted residuals are relocation names or register coloring. Scheduling candidates,
-different operands, and structural changes remain review work even when the C looks plausible.
-Validate all claims with:
-
-```sh
-python tools/gdl/semantic_progress.py --check
-```
-
-Before promoting new `Equivalent` units, verify both link modes and restore the canonical
-configuration automatically:
-
-```sh
-python tools/gdl/semantic_progress.py --check --verify-builds
-```
-
-This status does not alter matching percentages and cannot make the default hash gate pass
-artificially. It answers a different question: how much of the engine has a complete source
-implementation suitable for continued portability work?
 
 Compilers and flag families
 ---------------------------

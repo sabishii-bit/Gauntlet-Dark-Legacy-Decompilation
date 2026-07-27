@@ -117,7 +117,7 @@ parser.add_argument(
     "--non-matching",
     dest="non_matching",
     action="store_true",
-    help="builds equivalent (but non-matching) or modded objects",
+    help="builds non-matching or modded objects",
 )
 parser.add_argument(
     "--warn",
@@ -326,9 +326,8 @@ def Rel(lib_name: str, objects: List[Object]) -> Dict[str, Any]:
     }
 
 
-Matching = True                   # Object matches and should be linked
-NonMatching = False               # Object does not match and should not be linked
-Equivalent = config.non_matching  # Object should be linked when configured with --non-matching
+Matching = True      # Object matches and should be linked
+NonMatching = False  # Object does not match and should not be linked
 
 
 # Object is only matching for specific versions
@@ -401,13 +400,13 @@ config.libs = [
             Object(NonMatching, "game/ps2/ml_error.c", cflags=cflags_demo),
             Object(Matching, "game/ps2/ml_ffsincos.c", cflags=cflags_demo),
             Object(NonMatching, "game/ps2/ml_fmath.c", cflags=cflags_demo),
-            Object(Equivalent, "game/g3d/sndvoice.c", mw_version="GC/1.2.5n"),
+            Object(NonMatching, "game/g3d/sndvoice.c", mw_version="GC/1.2.5n"),
             Object(Matching, "game/g3d/gpads.c", mw_version="GC/1.2.5n"),
             Object(Matching, "game/sys/registry.c", mw_version="GC/1.2.5n"),
             Object(Matching, "game/sys/gutil.c", mw_version="GC/1.2.5n"),
             Object(Matching, "game/sys/texPalette.c", mw_version="GC/1.2.5n"),
             Object(Matching, "game/g3d/gcontrolpads.c", cflags=cflags_demo, mw_version="GC/1.2.5n"),
-            Object(Equivalent, "game/crt/vsprintf.c", cflags=cflags_demo, mw_version="GC/1.2.5n"),
+            Object(NonMatching, "game/crt/vsprintf.c", cflags=cflags_demo, mw_version="GC/1.2.5n"),
             Object(Matching, "game/pb/pbutils.c", cflags=cflags_demo, mw_version="GC/1.2.5n"),
             Object(NonMatching, "game/pb/pb_objects.c", cflags=cflags_demo, mw_version="GC/1.2.5n"),
             Object(NonMatching, "game/pb/pb_objregs.c", cflags=cflags_demo),
@@ -425,9 +424,9 @@ config.libs = [
             Object(NonMatching, "game/audio/adstream.c", cflags=cflags_demo),
             Object(NonMatching, "game/g3d/g3dpad.c", cflags=cflags_demo),
             Object(NonMatching, "game/movie/movieplayer.c", cflags=cflags_demo),
-            Object(Equivalent, "game/pb/pb_window.c", cflags=cflags_demo),
-            Object(Equivalent, "game/g3d/g3dMath3D.cpp", cflags=cflags_demo),
-            Object(Equivalent, "game/ps2/fakelib.c", cflags=cflags_demo),
+            Object(NonMatching, "game/pb/pb_window.c", cflags=cflags_demo),
+            Object(NonMatching, "game/g3d/g3dMath3D.cpp", cflags=cflags_demo),
+            Object(NonMatching, "game/ps2/fakelib.c", cflags=cflags_demo),
             Object(Matching, "game/shop/shopquery.c", cflags=cflags_demo),
             Object(NonMatching, "game/audio/sndfx.c", cflags=cflags_demo),
             Object(NonMatching, "game/sound/sounds_evt.c", cflags=cflags_demo),
@@ -738,7 +737,7 @@ config.libs = [
 # This is called once per module, with the module ID and the current link order.
 #
 # For example, this adds "dummy.c" to the end of the DOL link order if configured with --non-matching.
-# "dummy.c" *must* be configured as a Matching (or Equivalent) object in order to be linked.
+# "dummy.c" *must* be configured as a Matching object in order to be linked.
 def link_order_callback(module_id: int, objects: List[str]) -> List[str]:
     # Don't modify the link order for matching builds
     if not config.non_matching:
