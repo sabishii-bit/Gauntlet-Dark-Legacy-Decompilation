@@ -9,6 +9,14 @@ Usage:
   python tools/gdl/fndiff.py dolphin/si/SIBios.c -l         # just list match status
   python tools/gdl/fndiff.py zlib/infblock.c --ops          # opcode-cluster view
   python tools/gdl/fndiff.py game/g3d/sndvoice.c --classify # semantic-risk class
+  python tools/gdl/fndiff.py game/mb/mb_window.c --clean    # noise-free + hints
+
+--clean is the recommended iteration view: pool-name reloc noise (@N vs lbl_
+for identical constants) is normalized away, every function ALWAYS ends with
+a "== name: STATUS, N real diff lines" summary (so empty output can never be
+mistaken for success), and mechanical hints are printed (frame delta -> the
+dead-pad size to try). "MATCH (pool-name noise only)" = byte-identical after
+link.
 
 --ops collapses each function to its opcode stream (registers, operands and
 relocs ignored) and prints only the structurally inserted/deleted/replaced
@@ -210,6 +218,62 @@ def classify_function(target_lines, base_lines):
     return "STRUCTURAL"
 
 
+FRAME_RE = re.compile(r"stwu\s+r1,-(\d+)\(r1\)")
+
+
+def normalized_reloc_lines(lines):
+    """Lines with reloc symbols collapsed to their signature: pool-name noise
+    (@N vs lbl_ for identical constants) diffs to nothing."""
+    out = []
+    for ln in lines:
+        if ln.startswith("    "):
+            rt, sym = relocation_signature(ln.strip())
+            out.append(f"    {rt} {sym}")
+        else:
+            out.append(ln)
+    return out
+
+
+def frame_size(lines):
+    for ln in lines:
+        m = FRAME_RE.search(ln)
+        if m:
+            return int(m.group(1))
+    return None
+
+
+def clean_diff(name, t, b):
+    """Noise-free diff + always-printed summary + mechanical hints.
+
+    Empty output can never mean success: every function ends with a '==' line.
+    """
+    tn, bn = normalized_reloc_lines(t), normalized_reloc_lines(b)
+    raw = [l for l in difflib.unified_diff(t, b, lineterm="", n=0)
+           if l[:1] in "+-" and l[:3] not in ("+++", "---")]
+    diff = list(difflib.unified_diff(tn, bn, "target", "base", lineterm="", n=2))
+    real = sum(1 for l in diff if l[:1] in "+-" and l[:3] not in ("+++", "---"))
+    noise = len(raw) - real if len(raw) > real else 0
+
+    if real:
+        print("=" * 20, name)
+        for line in diff:
+            print(line)
+
+    hints = []
+    tf, bf = frame_size(t), frame_size(b)
+    if tf is not None and bf is not None and tf != bf:
+        delta = tf - bf
+        hints.append(f"frame delta {delta:+d} -> try `u8 unused[{abs(delta)}]`"
+                     if delta > 0 else
+                     f"frame delta {delta:+d} -> our frame is BIGGER; drop {-delta}B of pad/locals")
+    cat = classify_function(t, b)
+    status = "MATCH (pool-name noise only)" if real == 0 and raw else \
+             "EXACT" if real == 0 else cat
+    hint_s = ("  HINT: " + "; ".join(hints)) if hints else ""
+    noise_s = f" (+{noise} pool-name lines suppressed)" if noise else ""
+    print(f"== {name}: {status}, {real} real diff lines{noise_s}{hint_s}")
+
+
 def ops_diff(name, t, b):
     to, bo = opcodes(t), opcodes(b)
     sm = difflib.SequenceMatcher(None, to, bo, autojunk=False)
@@ -222,13 +286,14 @@ def ops_diff(name, t, b):
 
 
 def main():
-    flags = ("-l", "--ops", "--count", "--classify", "--no-build")
+    flags = ("-l", "--ops", "--count", "--classify", "--no-build", "--clean")
     args = [a for a in sys.argv[1:] if a not in flags]
     list_only = "-l" in sys.argv
     ops_only = "--ops" in sys.argv
     count_only = "--count" in sys.argv
     classify_only = "--classify" in sys.argv
     no_build = "--no-build" in sys.argv
+    clean = "--clean" in sys.argv
     if not args:
         print(__doc__)
         return 1
@@ -267,6 +332,8 @@ def main():
         if t == b:
             if classify_only:
                 print(f"EXACT               {name}")
+            elif clean:
+                print(f"== {name}: EXACT, 0 real diff lines")
             elif list_only or args[1:]:
                 print(f"OK   {name}")
             continue
@@ -298,6 +365,9 @@ def main():
             continue
         if ops_only:
             ops_diff(name, t, b)
+            continue
+        if clean:
+            clean_diff(name, t, b)
             continue
         print("=" * 20, name)
         for line in difflib.unified_diff(t, b, "target", "base", lineterm="", n=2):
