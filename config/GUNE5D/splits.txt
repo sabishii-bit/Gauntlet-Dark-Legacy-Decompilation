@@ -66,6 +66,11 @@ game/world/camera.c:
 	extabindex  start:0x80009010 end:0x800090D0
 	.text       start:0x80022734 end:0x8002951C
 
+game/game/controls.c:
+	extab       start:0x80005C10 end:0x80005CE0
+	extabindex  start:0x80009268 end:0x800093A0
+	.text       start:0x8003101C end:0x80034CFC
+
 game/audio/soundmgr.c:
 	extab       start:0x80005F28 end:0x80005FF8
 	extabindex  start:0x8000970C end:0x80009844

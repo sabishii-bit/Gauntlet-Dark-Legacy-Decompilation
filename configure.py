@@ -460,6 +460,7 @@ config.libs = [
             Object(NonMatching, "game/enemy/enemy.c", cflags=cflags_demo),
             Object(NonMatching, "game/mb/mb_objects.c", cflags=cflags_demo),
             Object(NonMatching, "game/game/gamemain.c", cflags=cflags_demo),
+            Object(NonMatching, "game/game/controls.c", cflags=cflags_demo),
         ],
     },
     {

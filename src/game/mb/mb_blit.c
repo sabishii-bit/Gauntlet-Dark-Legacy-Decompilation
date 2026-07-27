@@ -23,7 +23,7 @@
  * orchestration, animated lighting, render-state caching, and texture binding
  * are translated. The two raw GX vertex emitters (DrawBlitFlatQuad/DrawBlit)
  * remain as the principal untranslated paths. The TU begins at fn_800B27C4
- * (boot pad-test driver) — the head run 0x800B27C4-0x800B2988 (pad test +
+ * (boot pad-test driver) - the head run 0x800B27C4-0x800B2988 (pad test +
  * four tiny color setters) is now part of this file/claim.
  *
  * Key data (see symbols.txt):

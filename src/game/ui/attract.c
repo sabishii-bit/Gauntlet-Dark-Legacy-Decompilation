@@ -66,12 +66,12 @@ extern void AudioStreamStop(void);
 extern int  AudioSysUpdate(int a);
 extern void sndFxInit(int a, int b);
 extern int  sndVoiceStart(int a, int b);          /* fn_800150CC (sndfx) */
-extern int  fn_80031504(int mask);                /* pad-held query      */
-extern int  fn_80031540(int mask);                /* pad-pressed query   */
-extern int  fn_800312D0(void);                    /* any-pad-pressed     */
-extern int  fn_8003130C(int pad);                 /* pad-active query    */
-extern int  fn_80031208(void);
-extern int  fn_80031110(int pad);
+extern int  any_level(int mask);                /* pad-held query      */
+extern int  any(int mask);                /* pad-pressed query   */
+extern int  start_no_assignment(void);                    /* any-pad-pressed     */
+extern int  new_start(int pad);                 /* pad-active query    */
+extern int  controls_first_active_player(void);
+extern int  controls_remove_active_player(int pad);
 extern int  fn_80055F68(int a, int b);            /* start/button check  */
 extern int  SelectLoadDone(void);
 extern void SelectLoadStart(void);
@@ -354,7 +354,7 @@ void do_credits(void) {
         return;
     }
 
-    if (fn_80031504(0x400000) != 0 && fn_80031504(0x800000) != 0) {
+    if (any_level(0x400000) != 0 && any_level(0x800000) != 0) {
         DrawText(292, 340, fontFlag, 0xFFFF80, lbl_80111238, lbl_80126A98);
     }
 
@@ -682,7 +682,7 @@ int do_movie(void) {
     }
     lbl_80344218 = 32;
     for (i = 0; i < 4; i++) {
-        if (fn_8003130C(i) != 0 || (ATTRACT_FLAGS64 & 4) != 0) {
+        if (new_start(i) != 0 || (ATTRACT_FLAGS64 & 4) != 0) {
             lbl_80344298 = 2;
         }
     }
@@ -761,13 +761,13 @@ void init_attract_mode(int screen) {
     }
 
     /* tear down current screen */
-    fn_80031110(-1);
+    controls_remove_active_player(-1);
     AudioReset(cur_screen_id);
     cur_screen_id = 0;
     AudioEmptyCb1();
     fn_800BC4E4();
 
-    if (fn_80031504(0x400000) != 0 && fn_80031504(0x800000) != 0) {
+    if (any_level(0x400000) != 0 && any_level(0x800000) != 0) {
         screen = 0x8000;
     }
 
@@ -815,7 +815,7 @@ static char* attract_screen_name(int kind) {
     }
 }
 
-/* reset_attract_mode  (ATTRACT.OBJ) — clear all sequencer state */
+/* reset_attract_mode  (ATTRACT.OBJ) - clear all sequencer state */
 void reset_attract_mode(void) {
     lbl_80343B04 = -1;
     lbl_803441F4 = 0;
@@ -836,16 +836,16 @@ static int attract_check_input(int block) {
         return 0;
     }
     if (lbl_80344590 > lbl_80345920 && sMusicFadeBase > lbl_80345928) {
-        if (fn_80031540(0xF000000) != 0) {
+        if (any(0xF000000) != 0) {
             ret = 2;
         } else if (block == 0) {
-            ret = fn_800312D0();
+            ret = start_no_assignment();
         }
     }
     if (ret != 0) {
         lbl_80344794 = 1;
-    } else if (fn_80031540(0x100000) != 0 || fn_80031540(0x200000) != 0 ||
-               fn_80031540(0x400000) != 0 || fn_80031540(0x800000) != 0) {
+    } else if (any(0x100000) != 0 || any(0x200000) != 0 ||
+               any(0x400000) != 0 || any(0x800000) != 0) {
         lbl_80344298 = 1;
     }
     return ret;
