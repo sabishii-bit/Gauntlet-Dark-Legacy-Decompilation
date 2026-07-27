@@ -51,11 +51,15 @@ typedef struct MemList {
 typedef struct MemPoolLists {
     MemList primary;
     MemList secondary;
+    s32 alignmentShift;
 } MemPoolLists;
 
 extern MemListNode* lbl_8031EB00[];
 
 void list_verify(MemList* list);
+void list_insert(MemList* list, MemListNode* node);
+void list_remove(MemList* list, MemListNode* node);
+void list_append(MemList* list, MemListNode* node);
 
 /* 0x800D5260  no-op hook called on list-verify failure */
 #pragma dont_inline on
@@ -169,7 +173,39 @@ s32 pool_garbage_collect(MemPoolLists* pool,
 }
 
 /* 0x800D54A4  free a block (list_remove) */
-void pool_free(void) {
+void pool_free(MemPoolLists* pool, MemListNode* node) {
+    s32 owner;
+
+    owner = fn_800AF1D0();
+    if (owner != lbl_8034525C) {
+        if (lbl_8034525C != 0) {
+            printf(lbl_80349300);
+            printf(lbl_801172A0);
+        }
+        fn_800AF1B8(lbl_80345258);
+        lbl_8034525C = owner;
+    }
+
+    lbl_80345260++;
+    list_verify(&pool->secondary);
+    if (node == node->next) {
+        pool->secondary.head = NULL;
+    } else {
+        if (pool->secondary.head == node) {
+            pool->secondary.head = node->next;
+        }
+        node->next->prev = node->prev;
+        node->prev->next = node->next;
+    }
+    list_verify(&pool->secondary);
+    list_remove(&pool->secondary, node);
+    pool->secondary.head = node;
+
+    if (--lbl_80345260 <= 0) {
+        fn_800AF1C0(lbl_80345258);
+        lbl_8034525C = 0;
+        lbl_80345260 = 0;
+    }
 }
 
 /* 0x800D55A8  first-fit allocate (list_append) */
@@ -181,11 +217,177 @@ void pool_alloc_at(void) {
 }
 
 /* 0x800D5B38  dispose then reallocate */
-void pool_dispose_and_alloc(void) {
+s32 pool_dispose_and_alloc(MemPoolLists* pool, MemListNode* node, s32 size) {
+    char* strings;
+    s32 owner;
+    MemListNode* head;
+    u32 alignmentMask;
+    u32 alignedSize;
+    u32 blockSize;
+    s32 result;
+    u32 totalSize;
+    u32 lastSize;
+    MemListNode* freeNode;
+
+    result = 0;
+    totalSize = 0;
+    lastSize = 0;
+    strings = lbl_801172A0;
+    if (node->flags != 0) {
+        printf(strings + 32);
+        printf(strings + 196, node->flags);
+        return 0;
+    }
+    if (size == 0) {
+        printf(strings + 32);
+        printf(strings + 248);
+        return 0;
+    }
+
+    owner = fn_800AF1D0();
+    if (owner != lbl_8034525C) {
+        if (lbl_8034525C != 0) {
+            printf(lbl_80349300);
+            printf(strings);
+        }
+        fn_800AF1B8(lbl_80345258);
+        lbl_8034525C = owner;
+    }
+    lbl_80345260++;
+
+    alignmentMask = (1 << pool->alignmentShift) - 1;
+    alignedSize = (size + alignmentMask) & ~alignmentMask;
+    head = pool->primary.head;
+    freeNode = head;
+    if (head != NULL) {
+        do {
+            blockSize = freeNode->key;
+            if (blockSize >= alignedSize) {
+                node->key = alignedSize;
+                node->flags = freeNode->flags;
+                list_append(&pool->primary, freeNode);
+                if (freeNode->key > alignedSize) {
+                    freeNode->flags += alignedSize;
+                    freeNode->key -= alignedSize;
+                    list_insert(&pool->primary, freeNode);
+                } else {
+                    freeNode->flags = 0;
+                }
+                list_remove(&pool->secondary, node);
+                pool->secondary.head = node;
+                result = alignedSize;
+                break;
+            }
+            freeNode = freeNode->next;
+            lastSize = blockSize;
+            totalSize += blockSize;
+        } while (freeNode != head);
+    }
+
+    if (result == 0) {
+        printf(strings + 32);
+        printf(strings + 284, alignedSize, lastSize, totalSize);
+    }
+
+    if (--lbl_80345260 <= 0) {
+        fn_800AF1C0(lbl_80345258);
+        lbl_8034525C = 0;
+        lbl_80345260 = 0;
+    }
+    return result;
 }
 
 /* 0x800D5D2C  dispose a block */
-void pool_dispose(void) {
+s32 pool_dispose(MemPoolLists* pool, u32 address, u32 size,
+                 s32 alignment) {
+    char* strings;
+    volatile u8 scratch[8];
+    MemListNode* node;
+    MemListNode* next;
+    MemListNode* candidate;
+    s32 owner;
+    s32 i;
+    s32 result;
+    MemListNode* freeNode;
+
+    strings = lbl_801172A0;
+    (void)scratch;
+    result = 0;
+    owner = fn_800AF1D0();
+    if (owner != lbl_8034525C) {
+        if (lbl_8034525C != 0) {
+            printf(lbl_80349300);
+            printf(strings);
+        }
+        fn_800AF1B8(lbl_80345258);
+        lbl_8034525C = owner;
+    }
+    lbl_80345260++;
+
+    node = pool->secondary.head;
+    if (node != NULL) {
+        do {
+            next = node->next;
+            node->next = NULL;
+            node->prev = NULL;
+            node->flags = 0;
+            node = next;
+            if (node == NULL) {
+                break;
+            }
+        } while (next != pool->secondary.head);
+    }
+    freeNode = NULL;
+    pool->secondary.head = NULL;
+
+    node = pool->primary.head;
+    if (node != NULL) {
+        next = node->next;
+        while (next != NULL && next != pool->primary.head) {
+            node->flags = 0;
+            node = next;
+            next = next->next;
+        }
+    } else {
+        for (i = 0; i < (s32)lbl_80345254; i++) {
+            candidate = &((MemListNode*)lbl_80345250)[i];
+            if (candidate->flags == 0) {
+                freeNode = candidate;
+                break;
+            }
+        }
+        if (freeNode == NULL) {
+            printf(strings + 32);
+            printf(strings + 44);
+        }
+        node = freeNode;
+    }
+
+    if (node == NULL) {
+        pool->primary.head = NULL;
+    } else {
+        node->flags = address;
+        node->key = size;
+        node->next = node;
+        node->prev = node;
+        pool->primary.head = node;
+        pool->alignmentShift = 1;
+        while ((1 << pool->alignmentShift) < alignment) {
+            pool->alignmentShift++;
+        }
+        if ((1 << pool->alignmentShift) > alignment) {
+            printf(lbl_80349300);
+            printf(strings + 336, 1 << pool->alignmentShift);
+        }
+        result = 1;
+    }
+
+    if (--lbl_80345260 <= 0) {
+        fn_800AF1C0(lbl_80345258);
+        lbl_8034525C = 0;
+        lbl_80345260 = 0;
+    }
+    return result;
 }
 
 /* 0x800D5F38  carve arena from AllocMem, clear */
