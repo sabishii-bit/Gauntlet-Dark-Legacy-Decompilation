@@ -37,27 +37,27 @@
  *   0x80091700 DmgFxAdd           (G) dmgdebug node: COLCIR sphere or COLARC fan
  *                                     (arcs = (int)(acosf(mindp)*180/pi/15))         [high]
  *   0x800918AC SfxSetLight        (G) lightrad + lightcolor (default light_color)    [high] BODY
- *   0x8009190C fn_8009190C            StartFXSub+CopyMat3 variant (attract caller)
- *   0x8009198C fn_8009198C            Start* (ErrorPrintf+Tree+zmod/alpha+parent)
- *   0x80091AC0 fn_80091AC0            Start* via StartFXSub + CopyMat3
- *   0x80091B98 fn_80091B98            Start* + atan2 aim + node yaw (fn_800BE4F4)
- *   0x80091D50 fn_80091D50            Start*
- *   0x80091E34 fn_80091E34            Start*
- *   0x80091F34 fn_80091F34            Start*
+ *   0x8009190C fn_8009190C            typed spawn from matrix (attract caller)      [high] BODY (parked: sched tie 12)
+ *   0x8009198C StartDeathFX       (G) FX_DEATH_HEALTH/EXP + reparent + minendtime   [high] BODY (parked: 1-insn fold)
+ *   0x80091AC0 fn_80091AC0            per-enemy hit/death fx via page tables        [high] BODY (parked: assoc tie 6)
+ *   0x80091B98 StartEnemyDeathFX  (G) FX_ENEDEATH1 + launch vel + morph->ENEDEATH2  [high]
+ *   0x80091D50 StartEnemyAtkFX    (G) FX_ENEATK1+n                                  [high] BODY (parked: renum)
+ *   0x80091E34 StartGenFX         (G) FX_GENFX1..3 (n=1..3)                         [high] BODY (parked: renum)
+ *   0x80091F34 fn_80091F34            Start* (gem family?)
  *   0x800920E0 fn_800920E0            Start* + Random + atan2 (firework-like)
- *   0x800922A0 fn_800922A0            Start*
- *   0x8009233C fn_8009233C            Start* + gPlayerRecords (combo/levelup family)
+ *   0x800922A0 StartEnterFX       (G) FX_ENTER, flb 0x80880                         [high] BODY (parked: renum)
+ *   0x8009233C StartBlockFX       (G) FX_BLOCK + per-class frame + player reparent  [high] BODY (parked: 1-insn fold)
  *   0x80092464 fn_80092464            Start* + frame-range select (fn_800BA42C)
- *   0x800926BC fn_800926BC            Start*
+ *   0x800926BC StartLevelUpFX     (G) FX_LEVELUP_* via color table 0x80122E60       [high] BODY (parked: renum)
  *   0x80092794 fn_80092794            Start* via Sub + launch helper fn_80093E50
- *   0x800929C8 fn_800929C8            Start*
- *   0x80092AC0 fn_80092AC0            Start*
+ *   0x800929C8 StartMagicHealFX   (G) FX_MAGICHEAL + scale/32 clamp                 [high] BODY (parked: renum)
+ *   0x80092AC0 StartMagicPlayerFX (G) FX_START_MAGIC, flb 0x880                     [high] BODY (parked: renum)
  *   0x80092B58 fn_80092B58            Start* + atan2
  *   0x80092DF4 fn_80092DF4            Start* via Sub + fn_80093E50
  *   0x80092FC0 SuicideExplosion   (G) big multi-part explosion (enemy.c caller)      [med-high]
  *   0x800933BC StartExplosion     (G) largest Start*: MBPsysFlame + debris + Random  [high]
  *   0x80093918 fn_80093918            Start* + gPlayerRecords + atan2 (shield-like)
- *   0x80093B04 fn_80093B04            Start*
+ *   0x80093B04 fn_80093B04            plain typed spawn (~StartFXNoLoop)            [high] BODY (parked: renum)
  *   0x80093BC0 fn_80093BC0            Start* + atan2
  *   0x80093D08 SfxSetHitTarget    (G) targetnode + speed, flags|=0x40000000          [high] BODY
  *   0x80093D38 SfxSetOwner        (G) owner s16                                      [high] BODY
@@ -75,22 +75,22 @@
  *   0x80094868 ScaleFX            (G) node flags|=8 + scale[3]                       [high] BODY
  *   0x800948E8 StartFXMat         (G) StartFXSub(type, mat+12, 0, 0x800) + CopyMat3  [high] BODY
  *   0x80094954 StartFXSub         (G) EffectInfo[type] -> StartFXTree + zmod/alpha   [high] BODY
- *   0x80094A04 StartFXTree        (G) core spawn: FindEffectIdx + atree build        [high]
+ *   0x80094A04 StartFXTree        (G) core spawn: FindEffectIdx + atree build        [high] BODY
  *   0x80094BE0 ProcessEffects     (G) 0x2414 giant per-frame driver                        doc-only
  *   0x80096FF4 SfxSkipItem        (L) item-vs-effect skip policy switch(def->type)   [high] BODY
- *   0x8009716C UpdateFXStreak     (L) streak poly update
+ *   0x8009716C UpdateFXStreak     (L) streak poly update                        [high] BODY (parked: quad sched tie)
  *   0x80097394 FindEffectIdx      (L) oldest-slot allocator                          [high] BODY
  *   0x80097474 SfxGetNode         (G) Effects[i].node                                [high] BODY
  *   0x8009748C PlaceEffectOnFloor (G) floor probe + snap matrix                      [high] BODY
  *   0x80097540 ChangeEffect       (G) swap live fx to a new def                      [high] BODY
  *   0x80097644 SfxDeleteParented  (G) delete fx parented under a node                [high] BODY
  *   0x800976C0 SfxDeleteParentedSub (L) recursive child/sibling walk                 [high] BODY
- *   0x80097790 DeleteEffect       (G) full teardown (msgPost, streak, childfx)             doc-only
+ *   0x80097790 DeleteEffect       (G) full teardown (msgPost, atree, childfx)   [high] BODY
  *   0x800979D4 ZeroEffect         (L) reset dynamics fields of a slot                [high] BODY
  *   0x80097AA4 InitEffects        (G) 0xBAC: parse fx defs, resolve atrees                 doc-only
  *   0x80098650 ClearCustomEffect  (G) EffectInfo[type].atree = 0                     [high] BODY
  *   0x8009867C InitCustomEffect   (G) -> InitCustomEffectSub(..., 1)                 [high] BODY
- *   0x800986A0 InitCustomEffectSub(L) register a custom fx def                             doc-only
+ *   0x800986A0 InitCustomEffectSub(L) register a custom fx def                  [high] BODY
  *
  * Xbox SFX.OBJ functions with no separate GC body (inlined or dropped):
  *   InitEffect, DmgFxNodeAdd (inlined into both Add twins), DmgFxUpdate,
@@ -110,6 +110,7 @@
  */
 
 #include "types.h"
+#include "game/camera.h"
 #include "game/effect.h"
 
 /* --- partial MB scene-node view (offsets verified in this TU's asm) --- */
@@ -143,6 +144,21 @@ struct anode {
     struct mbnode* node;
 };
 
+/* def record hanging off the inline atree's animinfo (frame counts) */
+struct fxanimdef {
+    /* 0x00 */ u8 _00[32];
+    /* 0x20 */ s16 nframes;
+    /* 0x22 */ s16 rate;
+};
+
+/* animinfo view of Effect.atree+4 (StartFXTree play-state fields) */
+struct fxanim {
+    /* 0x00 */ struct fxanimdef* def; /* = Effect+0x1C */
+    /* 0x04 */ u8 _04[48];
+    /* 0x34 */ s16 oneshot;           /* = Effect+0x50 */
+    /* 0x36 */ s16 _36;
+};
+
 /* Some functions address the live pool THROUGH the def table (the original
  * emits EffectInfo+0xBA0-anchored code there): EffectInfo[248] is directly
  * followed by Effects[] in .bss, and those functions treat the pair as one
@@ -152,6 +168,16 @@ typedef struct EffectPage {
     Effect fx[64];          /* == Effects (at +0xBA0)   */
 } EffectPage;
 #define EFFECTS_POOL ((Effect*)&EffectInfo[248])
+
+/* view of the fx .bss page with the per-enemy fx-type tables that sit
+ * between the 218 def rows and the live pool (the original addresses both
+ * tables and the pool as EffectInfo-relative field offsets) */
+typedef struct EnemyFxPage {
+    EffectHeader info[218]; /* 0x000                  */
+    s32 deathfx[45];        /* +0xA38 (2616) per-enemy death fx type */
+    s32 hitfx[45];          /* +0xAEC (2796) per-enemy hit fx type   */
+    Effect fx[64];          /* +0xBA0 == Effects      */
+} EnemyFxPage;
 /* per-element form that keeps EffectInfo+idx*240 as the CSE base so the
  * +0xBA0 pool offset folds into each store displacement (target shape) */
 #define EFFECTS_POOL_AT(i) ((Effect*)((u8*)EffectInfo + (i) * 240 + 2976))
@@ -187,20 +213,51 @@ extern void fn_800BAD94(struct mbnode* node, struct mbnode* parent);   /* repare
 extern void fn_800BE6F4(struct mbnode* node, f32 ang);                 /* rotate yaw      */
 extern void fn_800BE648(struct mbnode* node, f32 ang);                 /* rotate pitch    */
 extern void MBRemovePolyInst(struct polyinst* p);
+extern void MBPolyInstUpdateVerts(struct polyinst* p, s32 nverts, f32* verts);
+extern void fn_800BAEAC(struct mbnode* node, s32 flag);               /* node destroy    */
+extern f32 fn_800BDA98(f32* v);                                       /* normalize, ret len */
+extern int msgPost(int idx, int param, char* str);
 extern u32 fn_8000D4B8(f32 rad1, f32 rad2, f32 drop, f32* pos, f32* outnrm, s32 a, s32 b); /* floor probe */
 extern void fn_800115D0(void* atree);                                  /* atree release   */
 extern struct anode* fn_80012F78(struct atreeheader* hdr, void* atree, s32 a, s32 b); /* atree build */
+extern struct anode* fn_80012F9C(struct atreeheader* hdr, void* atree, s32 a, u32 flb, s32 b); /* atree build (flags) */
+extern struct mbnode* fn_800BB29C(struct mbnode* parent, f32* mat, s32 flag); /* new node under parent */
+extern struct mbnode* lbl_80344EBC; /* fx scene root (flag 0x2000)     */
+extern struct mbnode* lbl_80344BD4; /* fx scene root (flag 0x800)      */
+extern struct mbnode* lbl_80344EB8; /* default fx scene root           */
+extern void fn_800BA42C(struct mbnode* node, s32 frame, s32 recurse); /* set anim frame  */
+extern s32 lbl_80285B04[];  /* per-enemy hit-fx type table   (.bss)    */
+extern s32 lbl_80285A50[];  /* per-enemy death-fx type table (.bss)    */
+extern s32 lbl_80122E60[4]; /* levelup fx type by player color (.data) */
+extern s32 lbl_8011A178[];  /* block-fx frame by player class  (.data) */
+extern struct atreeheader* AtreeMatch(void* buf, char* name, s32 flag);
+extern int strcmp(const char*, const char*);
+extern int sprintf(char*, const char*, ...);
+
+/* item-archive buffers searched by InitCustomEffectSub (owned by items.c) */
+extern void* sWeaponsBuf;   /* 0x80344970 */
+extern void* sPowerupsBuf;  /* 0x8034496C */
+extern void* sGoodWizObj;   /* 0x80344978 */
+extern void* sItemFile1Buf; /* 0x80344974 */
+extern s32 lbl_8034489C;    /* in-world flag gating the boss rename    */
+extern s32 gBossType;       /* current boss id (35 = STUMPL 'Q' skin)  */
+extern s32 lbl_80344BD8;    /* count of registered custom fx defs      */
+extern u8 lbl_80275AE0[];   /* player-record array, stride 0x335C      */
+extern f32 lbl_80344584;    /* current game time (min-endtime gate)    */
+extern s32 lbl_80343DF0;    /* running effect-id counter               */
+extern s32 lbl_80344890;    /* tracked live-fx slot A (cleared on del) */
+extern s32 lbl_80344894;    /* tracked live-fx slot B (cleared on del) */
 
 /* forward decls (GC address order puts users first) */
 void DoProcessSkinFX(SkinFx* fx, struct mbnode* node, struct mbnode* geo);
 void DmgFxNodeUpdate(struct mbnode* node, s32 absolute, f32 a, f32 b, f32 c, f32 d);
 s32 StartFXSub(s32 type, f32* pos, u32 fla, u32 flb, f32 time);
 s32 StartFXTree(struct atreeheader* hdr, f32* pos, u32 fla, u32 flb, f32 time);
-void DeleteEffect(s32 idx, s32 mode);
+s32 DeleteEffect(s32 idx, s32 mode);
 static s32 FindEffectIdx(void);
 static void ZeroEffect(s32 idx);
 static s32 SfxDeleteParentedSub(s32 idx, struct mbnode* node, s32 fxnum, s32 mode);
-void InitCustomEffectSub(s16* a, u32* b, u32* c, s32 d, s32 e);
+s32 InitCustomEffectSub(void* hdr, char* name, s32 zmod, s32 alpha, s32 err);
 
 /* ======================================================================
  * skin FX -- 6-float record {endframe, frame, rate, base, loops, alpha}
@@ -353,8 +410,317 @@ void SfxSetLight(s32 idx, f32* color, f32 rad)
     }
 }
 
-/* 0x8009190C..0x80093BC0: the Start* spawn family -- doc-only this pass
- * (see the map above). All funnel into StartFXSub/StartFXTree. */
+/* ======================================================================
+ * Start* spawn family (0x8009190C..0x80093BC0).  GC file order is the
+ * REVERSE of the Xbox SFX.OBJ roster; names below are pinned by the fx_type
+ * constants each body hardcodes (see the map above).  All funnel into
+ * StartFXSub/StartFXTree.
+ * ==================================================================== */
+
+/* start an fx from a full matrix: spawn at mat row3, then orient the node */
+s32 fn_8009190C(f32* mat, s32 type)
+{
+    s32 ret = -1;
+    s32 idx;
+
+    if (type >= 0) {
+        idx = StartFXSub(type, mat + 12, 0, 0x800, 0.0f);
+        ret = idx;
+        if (idx >= 0) {
+            if (mat != NULL) {
+                CopyMat3(mat, Effects[idx].node);
+            }
+        }
+    }
+    return ret;
+}
+
+s32 StartDeathFX(struct mbnode* parent, s32 kind, u32 fla)
+{
+    EffectPage* page = (EffectPage*)EffectInfo;
+    s32 idx;
+    s32 type;
+    s32 t;
+    EffectHeader* h;
+
+    if (kind == 2) {
+        t = FX_DEATH_EXP;
+    } else {
+        t = FX_DEATH_HEALTH;
+    }
+    idx = -1;
+    if (t < 0 || (type = t) >= MAXEFFECTTYPES) {
+        ErrorPrintf("Bad Effect type: %d", type);
+        idx = -1;
+    } else {
+        h = &page->info[type];
+        if (h->atree != NULL && (idx = StartFXTree(h->atree, NULL, 0, fla | 0x800, 10.0f)) >= 0) {
+            fn_800BA784(page->fx[idx].node, h->zmod, 1);
+            fn_800BA6C0(page->fx[idx].node, h->alpha, 1);
+            page->fx[idx].type = (fx_type)type;
+        }
+    }
+    if (idx >= 0) {
+        u8* p = (u8*)page + idx * 240;
+        struct anode* root;
+
+        fn_800BAD94(*(struct mbnode**)(p + 2996), parent);
+        root = ATREE_ROOT((Effect*)((s32)p + 2976));
+        if (root != NULL) {
+            fn_800BA368(root->node, 0x10, 0);
+        }
+    }
+    page->fx[idx].minendtime = 0.5 + lbl_80344584;
+    return idx;
+}
+
+/* generic hit/death fx for an enemy kind, from the per-enemy type tables */
+s32 fn_80091AC0(f32* mat, s32 ene, s32 death)
+{
+    EnemyFxPage* page = (EnemyFxPage*)EffectInfo;
+    s32 ret = -1;
+    s32 type;
+    s32 idx;
+
+    if (ene < 0) {
+        ene = 0;
+    }
+    if (death != 0) {
+        s32 t = page->deathfx[ene];
+
+        type = t;
+        if (t < 0 && (ene < 0 || ene == 1 || ene == 4)) {
+            type = FX_GENDEST;
+        }
+    } else {
+        type = page->hitfx[ene];
+    }
+    if (type >= 0) {
+        idx = StartFXSub(type, mat + 12, 0, 0x800, 0.0f);
+        ret = idx;
+        if (idx >= 0) {
+            /* PARKED at 6-line association tie: target forms
+             * (page + idx*240) + 2976, MWCC canonicalizes ours to
+             * page + (idx*240 + 2976) regardless of spelling. */
+            Effect* e = &page->fx[idx];
+
+            if (mat != NULL) {
+                CopyMat3(mat, e->node);
+            }
+        }
+    }
+    return ret;
+}
+
+/* 0x80091B98 StartEnemyDeathFX -- body below the small clones (bigger). */
+
+s32 StartEnemyAtkFX(f32* pos, s32 n)
+{
+    EffectPage* page = (EffectPage*)EffectInfo;
+    u8 unused[8];
+    s32 idx;
+    s32 type;
+    EffectHeader* h;
+
+    if (page->info[FX_ENEATK1 + n].atree == NULL) {
+        return -1;
+    }
+    idx = -1;
+    if (FX_ENEATK1 + n < 0 || (type = FX_ENEATK1 + n) >= MAXEFFECTTYPES) {
+        ErrorPrintf("Bad Effect type: %d", FX_ENEATK1 + n);
+        idx = -1;
+    } else {
+        h = &page->info[type];
+        if (h->atree != NULL && (idx = StartFXTree(h->atree, pos, 0, 0x800, 0.0f)) >= 0) {
+            fn_800BA784(page->fx[idx].node, h->zmod, 1);
+            fn_800BA6C0(page->fx[idx].node, h->alpha, 1);
+            page->fx[idx].type = (fx_type)type;
+        }
+    }
+    return idx;
+}
+
+s32 StartGenFX(f32* pos, s32 n)
+{
+    EffectPage* page = (EffectPage*)EffectInfo;
+    s32 idx;
+    s32 type;
+    s32 i;
+    EffectHeader* h;
+
+    if (n < 1 || n > 3) {
+        return -1;
+    }
+    i = n - 1;
+    if (page->info[FX_GENFX1 + i].atree == NULL) {
+        return -1;
+    }
+    idx = -1;
+    if (n + 80 < 0 || (type = n + 80) >= MAXEFFECTTYPES) {
+        ErrorPrintf("Bad Effect type: %d", n + 80);
+        idx = -1;
+    } else {
+        h = &page->info[type];
+        if (h->atree != NULL && (idx = StartFXTree(h->atree, pos, 0, 0x800, 0.0f)) >= 0) {
+            fn_800BA784(page->fx[idx].node, h->zmod, 1);
+            fn_800BA6C0(page->fx[idx].node, h->alpha, 1);
+            page->fx[idx].type = (fx_type)type;
+        }
+    }
+    return idx;
+}
+
+/* 0x80091F34 fn_80091F34 / 0x800920E0 fn_800920E0 -- doc-only (gem/bag). */
+
+s32 StartEnterFX(f32* pos)
+{
+    EffectPage* page = (EffectPage*)EffectInfo;
+    EffectHeader* h = &page->info[FX_ENTER];
+    s32 idx = -1;
+    u32 flb = 0x80880;
+    u8 unused[8];
+
+    if (h->atree != NULL && (idx = StartFXTree(h->atree, pos, 0, flb, 0.0f)) >= 0) {
+        fn_800BA784(page->fx[idx].node, h->zmod, 1);
+        fn_800BA6C0(page->fx[idx].node, h->alpha, 1);
+        page->fx[idx].type = FX_ENTER;
+    }
+    return idx;
+}
+
+s32 StartBlockFX(f32 time, s32 pnum)
+{
+    EffectPage* page = (EffectPage*)EffectInfo;
+    EffectHeader* h = &page->info[FX_BLOCK];
+    s32 idx = -1;
+    u32 flb = 0x80980;
+    u8 unused[8];
+
+    if (h->atree != NULL && (idx = StartFXTree(h->atree, NULL, 0, flb, time)) >= 0) {
+        fn_800BA784(page->fx[idx].node, h->zmod, 1);
+        fn_800BA6C0(page->fx[idx].node, h->alpha, 1);
+        page->fx[idx].type = FX_BLOCK;
+    }
+    if (idx >= 0) {
+        fn_800BA42C(page->fx[idx].node,
+                    lbl_8011A178[*(s32*)(lbl_80275AE0 + pnum * 0x335C + 4)], 1);
+        fn_800BA6C0(page->fx[idx].node, 0x40, 1);
+        if (idx >= 0) {
+            u8* p = (u8*)page + idx * 240;
+            struct anode* root;
+
+            fn_800BAD94(*(struct mbnode**)(p + 2996),
+                        *(struct mbnode**)(lbl_80275AE0 + pnum * 0x335C + 0x74));
+            root = ATREE_ROOT((Effect*)((s32)p + 2976));
+            if (root != NULL) {
+                fn_800BA368(root->node, 0x10, 0);
+            }
+        }
+    }
+    return idx;
+}
+
+/* 0x80092464 fn_80092464 -- doc-only (combo family). */
+
+s32 StartLevelUpFX(f32* pos, s32 color)
+{
+    EffectPage* page = (EffectPage*)EffectInfo;
+    u8 unused[8];
+    s32 idx = -1;
+    s32 type;
+    EffectHeader* h;
+
+    type = lbl_80122E60[color];
+    if (type < 0 || type >= MAXEFFECTTYPES) {
+        ErrorPrintf("Bad Effect type: %d", type);
+        idx = -1;
+    } else {
+        h = &page->info[type];
+        if (h->atree != NULL && (idx = StartFXTree(h->atree, pos, 0, 0x880800, 0.0f)) >= 0) {
+            fn_800BA784(page->fx[idx].node, h->zmod, 1);
+            fn_800BA6C0(page->fx[idx].node, h->alpha, 1);
+            page->fx[idx].type = (fx_type)type;
+        }
+    }
+    return idx;
+}
+
+/* 0x80092794 fn_80092794 -- doc-only (shield family). */
+
+s32 StartMagicHealFX(f32 scale, f32* pos)
+{
+    EffectPage* page = (EffectPage*)EffectInfo;
+    u8 unused[16];
+    s32 idx = -1;
+    EffectHeader* h = &page->info[FX_MAGICHEAL];
+    f32 s;
+
+    s = 0.03125 * scale;
+    if (h->atree != NULL && (idx = StartFXTree(h->atree, pos, 0, 0x880, 0.0f)) >= 0) {
+        fn_800BA784(page->fx[idx].node, h->zmod, 1);
+        fn_800BA6C0(page->fx[idx].node, h->alpha, 1);
+        page->fx[idx].type = FX_MAGICHEAL;
+    }
+    if (s > 1.0) {
+        s = 1.0f;
+    }
+    {
+        EffectPage* row = (EffectPage*)&page->info[idx * 20];
+        Effect* e = &row->fx[0];
+
+        if (row->fx[0].node != NULL) {
+            fn_800BA368(row->fx[0].node, 8, 0);
+            e->node->scale[0] = s;
+            e->node->scale[1] = s;
+            e->node->scale[2] = s;
+        }
+    }
+    return idx;
+}
+
+s32 StartMagicPlayerFX(f32* pos)
+{
+    EffectPage* page = (EffectPage*)EffectInfo;
+    u8 unused[8];
+    s32 idx = -1;
+    EffectHeader* h = &page->info[FX_START_MAGIC];
+
+    if (h->atree != NULL && (idx = StartFXTree(h->atree, pos, 0, 0x880, 0.0f)) >= 0) {
+        fn_800BA784(page->fx[idx].node, h->zmod, 1);
+        fn_800BA6C0(page->fx[idx].node, h->alpha, 1);
+        page->fx[idx].type = FX_START_MAGIC;
+    }
+    return idx;
+}
+
+/* 0x80092B58 fn_80092B58 / 0x80092DF4 fn_80092DF4 -- doc-only
+ * (throw-magic / magic family, atan2 launch). */
+
+/* 0x80092FC0 SuicideExplosion / 0x800933BC StartExplosion /
+ * 0x80093918 fn_80093918 -- doc-only giants this pass. */
+
+/* plain typed spawn at a position (no orientation) */
+s32 fn_80093B04(s32 type, f32* pos)
+{
+    EffectPage* page = (EffectPage*)EffectInfo;
+    s32 idx = -1;
+
+    if (type < 0 || type >= MAXEFFECTTYPES) {
+        ErrorPrintf("Bad Effect type: %d", type);
+        idx = -1;
+    } else {
+        EffectHeader* h = &page->info[type];
+
+        if (h->atree != NULL && (idx = StartFXTree(h->atree, pos, 0, 0x800, 0.0f)) >= 0) {
+            fn_800BA784(page->fx[idx].node, h->zmod, 1);
+            fn_800BA6C0(page->fx[idx].node, h->alpha, 1);
+            page->fx[idx].type = (fx_type)type;
+        }
+    }
+    return idx;
+}
+
+/* 0x80093BC0 fn_80093BC0 -- doc-only (aimed launch, atan2). */
 
 void SfxSetHitTarget(f32 speed, s32 idx, struct mbnode* target)
 {
@@ -504,8 +870,64 @@ s32 StartFXSub(s32 type, f32* pos, u32 fla, u32 flb, f32 time)
     return idx;
 }
 
-/* 0x80094A04 StartFXTree -- doc-only: FindEffectIdx slot, atree build
- * (fn_80012F9C), node hookup, flag/blend init. Core spawn path. */
+/* core spawn: allocate a slot, build the atree, hang a node under the
+ * selected scene root, then set lifetime from `time` or the def's frames */
+s32 StartFXTree(struct atreeheader* hdr, f32* pos, u32 fla, u32 flb, f32 time)
+{
+    s32 idx;
+    Effect* e;
+    struct fxanim* ai;
+    struct mbnode* parent;
+    s32 n;
+
+    if (hdr == NULL) {
+        return -1;
+    }
+    idx = FindEffectIdx();
+    e = &Effects[idx];
+    ATREE_ROOT(e) = fn_80012F9C(hdr, &e->atree[0], 0, flb, 0);
+    if (ATREE_ROOT(e) == NULL) {
+        return -1;
+    }
+
+    if (flb & 0x2000) {
+        parent = lbl_80344EBC;
+    } else if (flb & 0x800) {
+        parent = lbl_80344BD4;
+    } else {
+        parent = lbl_80344EB8;
+    }
+    e->node = fn_800BB29C(parent, lbl_80127D60, 1);
+    if (e->node == NULL) {
+        fn_800115D0(&e->atree[0]);
+        return -1;
+    }
+    fn_800BAD94(ATREE_ROOT(e)->node, e->node);
+
+    ai = (struct fxanim*)&e->atree[4];
+    if (time > 0.0) {
+        e->endtime = lbl_80344584 + time;
+        ai->oneshot = 1;
+    } else {
+        n = ai->def->nframes;
+        if (n == 0) {
+            ai->oneshot = 1;
+            n = 30;
+        }
+        e->endtime = 0.00111111 * ((f32)n * (f32)ai->def->rate) + lbl_80344584;
+    }
+    if (fla & 0x20000000) {
+        ai->oneshot = 0;
+    }
+    e->maxtime = e->endtime - lbl_80344584;
+    e->flags = fla;
+    if (pos != NULL) {
+        e->node->pos[0] = pos[0];
+        e->node->pos[1] = pos[1];
+        e->node->pos[2] = pos[2];
+    }
+    return idx;
+}
 
 /* 0x80094BE0 ProcessEffects -- 0x2414 doc-only giant: per-frame walk of
  * Effects[0..NumEffects): motion integration (vel/pyrvel/weight/drag), floor
@@ -601,7 +1023,79 @@ static s32 SfxSkipItem(struct fxitem* item, u32 a, u32 b)
     return ret;
 }
 
-/* 0x8009716C UpdateFXStreak -- doc-only this pass. */
+/* rebuild the streak quad (tail pair at -back, head pair at +fwd) and push
+ * the 4 verts into the streak poly instance.
+ * PARKED at a quad-block schedule tie (insns 138/138, frame + array layout
+ * exact): target hoists the double fmadd p1 chain differently and colors
+ * w[0]/w[1] reloads into f29/f28 where ours picks p1x/p1y. */
+static void UpdateFXStreak(Effect* e, f32* pos)
+{
+    f32 quad[12];
+    f32 v[3];
+    f32 w[3];
+    f64 unused[2];
+    f32 side;
+    f32 tail;
+    f32 back;
+    f32 t;
+    f32 len;
+    f64 fwd;
+    f32 wx, wy, wz;
+    f32 p0x, p0y, p0z;
+    f32 p1x, p1y, p1z;
+
+    t = e->maxtime - (e->endtime - lbl_80344584);
+    side = (f32)(0.8 * e->streakscale);
+    tail = (f32)(0.1 * e->streakscale);
+    back = t;
+    if (t > (f32)(0.4999999995 * e->streakscale)) {
+        back = (f32)(0.4999999995 * e->streakscale);
+    }
+
+    v[0] = e->vel[0];
+    v[1] = e->vel[1];
+    v[2] = e->vel[2];
+    fn_800BDA98(v);
+
+    w[0] = v[1] * gCameras[0].mat[2][2] - v[2] * gCameras[0].mat[2][1];
+    w[1] = v[2] * gCameras[0].mat[2][0] - v[0] * gCameras[0].mat[2][2];
+    w[2] = v[0] * gCameras[0].mat[2][1] - v[1] * gCameras[0].mat[2][0];
+    len = fn_800BDA98(w);
+
+    if (len < 0.0f && len > -0.25) {
+        len = -0.25f;
+    } else if (len >= 0.0f && len < 0.25) {
+        len = 0.25f;
+    }
+    w[0] *= len;
+    w[1] *= len;
+    w[2] *= len;
+
+    wx = w[0];
+    wy = w[1];
+    wz = w[2];
+    p0x = e->vel[0] * -back + pos[0];
+    p0y = e->vel[1] * -back + pos[1];
+    p0z = e->vel[2] * -back + pos[2];
+    fwd = 0.0333333333 * e->streakfwdmul;
+    p1x = e->vel[0] * fwd + pos[0];
+    p1y = e->vel[1] * fwd + pos[1];
+    p1z = e->vel[2] * fwd + pos[2];
+
+    quad[0] = wx * tail + p0x;
+    quad[1] = wy * tail + p0y;
+    quad[2] = wz * tail + p0z;
+    quad[3] = wx * side + p1x;
+    quad[4] = wy * side + p1y;
+    quad[5] = wz * side + p1z;
+    quad[6] = wx * -side + p1x;
+    quad[7] = wy * -side + p1y;
+    quad[8] = wz * -side + p1z;
+    quad[9] = wx * -tail + p0x;
+    quad[10] = wy * -tail + p0y;
+    quad[11] = wz * -tail + p0z;
+    MBPolyInstUpdateVerts(e->streak, 4, quad);
+}
 
 static s32 FindEffectIdx(void)
 {
@@ -716,8 +1210,89 @@ static s32 SfxDeleteParentedSub(s32 idx, struct mbnode* node, s32 fxnum, s32 mod
     return 0;
 }
 
-/* 0x80097790 DeleteEffect -- doc-only this pass: msgPost death message,
- * childfx recursion, streak removal, atree release, ZeroEffect. */
+s32 DeleteEffect(s32 idx, s32 mode)
+{
+    Effect* e;
+    struct mbnode* n;
+    s16 cfx;
+
+    if (idx < 0 || idx >= 64) {
+        return -1;
+    }
+    e = &Effects[idx];
+
+    if (mode == 0) {
+        if (e->minendtime > 0.0 && lbl_80344584 < e->minendtime) {
+            return idx;
+        }
+    }
+
+    if (e->hitcount == 0) {
+        switch (e->type) {
+        case FX_MAGIC_FIRE:
+        case FX_MAGIC_ELEC:
+        case FX_MAGIC_LIGHT:
+        case FX_MAGIC_ACID:
+            if (e->owner >= 1 && e->owner <= 4) {
+                msgPost(18, e->owner - 1, (char*)(lbl_80275AE0 + (e->owner - 1) * 13148 + 84));
+            }
+            break;
+        }
+    }
+
+    if (idx == lbl_80344894) {
+        lbl_80344894 = -1;
+    }
+    if (idx == lbl_80344890) {
+        lbl_80344890 = -1;
+    }
+
+    if (e->endtime > 0.0f) {
+        cfx = e->childfx;
+        if (cfx >= 0) {
+            DeleteEffect(cfx, 1);
+            e->childfx = -1;
+        }
+    }
+
+    if (ATREE_ROOT(e) != NULL) {
+        fn_800115D0(&e->atree[0]);
+    }
+
+    if ((n = e->node) != NULL) {
+        if (n->child != NULL) {
+            SfxDeleteParented(n, 0, -1);
+        }
+        fn_800BAEAC(e->node, 1);
+    }
+
+    e->type = FX_NONE;
+    e->hitcount = 0;
+    e->node = NULL;
+    e->childfx = -1;
+    e->endtime = 0.0f;
+    e->fxfade = 0.0f;
+    e->morphtime = 0.0f;
+    e->webtime = 0.0f;
+    e->maxtime = 0.0f;
+    e->flags = 0;
+    e->damagetype = DMG_NORMAL;
+    e->damageradius = 0.0f;
+    e->damage = 0.0f;
+    e->hitscale = 1.0f;
+    e->mindp = -1.0f;
+    e->owner = 0;
+    e->dmgdebug = NULL;
+    e->targetnode = NULL;
+    e->additem = NULL;
+    e->id = lbl_80343DF0++;
+    if (lbl_80343DF0 >= 32512) {
+        lbl_80343DF0 = 256;
+    }
+    e->lightrad = 0.0f;
+    ZeroEffect(idx);
+    return -1;
+}
 
 static void ZeroEffect(s32 idx)
 {
@@ -765,10 +1340,74 @@ void ClearCustomEffect(s32 type)
     EffectInfo[type].atree = NULL;
 }
 
-void InitCustomEffect(s16* a, u32* b, u32* c, s32 d)
+void InitCustomEffect(void* hdr, char* name, s32 zmod, s32 alpha)
 {
-    InitCustomEffectSub(a, b, c, d, 1);
+    InitCustomEffectSub(hdr, name, zmod, alpha, 1);
 }
 
-/* 0x800986A0 InitCustomEffectSub -- doc-only: registers a custom fx def
- * (FX_CUSTOM1..FX_CUSTOM_LAST) into EffectInfo. */
+/* register a custom fx def into a free FX_CUSTOM1..FX_CUSTOM_LAST slot */
+s32 InitCustomEffectSub(void* hdr, char* name, s32 zmod, s32 alpha, s32 err)
+{
+    char buf[32];
+    EffectHeader* page = EffectInfo;
+    struct atreeheader* atree = NULL;
+    s32 i;
+    s32 n;
+    s32 idx;
+
+    if (name == NULL || name[0] == '\0') {
+        return -1;
+    }
+
+    if (lbl_8034489C != 0 && gBossType >= 0) {
+        switch (gBossType) {
+        case 35:
+            if (strcmp(name, "STUMPL") == 0) {
+                sprintf(buf, "%sQ", name);
+                name = buf;
+            }
+            break;
+        }
+    }
+
+    if (hdr != NULL) {
+        atree = AtreeMatch(hdr, name, 0);
+    }
+    if (atree == NULL && sWeaponsBuf != NULL) {
+        atree = AtreeMatch(sWeaponsBuf, name, 0);
+    }
+    if (atree == NULL && sPowerupsBuf != NULL) {
+        atree = AtreeMatch(sPowerupsBuf, name, 0);
+    }
+    if (atree == NULL && sGoodWizObj != NULL) {
+        atree = AtreeMatch(sGoodWizObj, name, 0);
+    }
+    if (atree == NULL && sItemFile1Buf != NULL) {
+        atree = AtreeMatch(sItemFile1Buf, name, 0);
+    }
+    if (atree == NULL) {
+        if (err != 0) {
+            ErrorPrintf("Unable to find effect '%s'", name);
+        }
+        return -1;
+    }
+
+    n = lbl_80344BD8;
+    for (i = 0; i < n; i++) {
+        if (*(struct atreeheader**)((u8*)page + i * 12 + 1164) == NULL) {
+            break;
+        }
+    }
+    if (i >= n) {
+        if (n >= 121) {
+            ErrorPrintf("> Max = %d custon effects", n);
+            return -1;
+        }
+        lbl_80344BD8++;
+    }
+    idx = i + 97;
+    page[idx].atree = atree;
+    page[idx].zmod = zmod;
+    page[idx].alpha = alpha;
+    return idx;
+}
