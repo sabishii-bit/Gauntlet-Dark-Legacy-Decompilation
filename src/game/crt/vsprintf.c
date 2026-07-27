@@ -398,7 +398,7 @@ int vsprintf(char* str, const char* fmt, va_list ap)
     int ch;
     int cnt;
     char* fmark;
-    u32 flags;
+    int flags;
     int fieldsz;
     int width;
     int prec;
