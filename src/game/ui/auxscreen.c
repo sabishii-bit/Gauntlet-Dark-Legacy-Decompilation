@@ -112,7 +112,7 @@ extern void fn_800A110C(void);
 extern void fn_800A17D4(void);
 extern void fn_800B8A38(s32 a);
 extern void delete_map_blits(void);
-extern s32 fn_8003104C(s32 flag);
+extern s32 active_player_edge(s32 flag);
 extern void fn_800B3D6C(void* blit);
 extern void fn_800748BC(s32 i);
 extern f32 atan2(f32 y, f32 x);
@@ -385,7 +385,7 @@ s32 do_gamemovie(void)
     if (movieactive == 0) {
         return movie_state;
     }
-    if (fn_8003104C(0x02000000) != 0 && movie_state == 1) {
+    if (active_player_edge(0x02000000) != 0 && movie_state == 1) {
         kill_gamemovie = 1;
     }
     if (kill_gamemovie != 0) {

@@ -52,7 +52,7 @@ BOOL PADRecalibrate(u32 mask);
 void G3DReadControlPadStates(void);
 void sndTestStopAll(void);
 void MBEndFrame(void);
-void fn_80031854(void);
+void vibrators_off(void);
 void* memset(void* p, u32 n, int c);
 int  sprintf();
 
@@ -250,7 +250,7 @@ void sysHandleReset(void) {
             gMsgCallback("RESET INVOKED..");
         }
         sndTestStopAll();
-        fn_80031854();
+        vibrators_off();
         i = 3;
         VISetBlack(TRUE);
         do {
@@ -274,7 +274,7 @@ void sysFadeToBlack(void) {
     u8 unused[48];
 
     sndTestStopAll();
-    fn_80031854();
+    vibrators_off();
     i = 3;
     VISetBlack(TRUE);
     do {

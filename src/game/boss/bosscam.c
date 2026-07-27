@@ -98,11 +98,11 @@ extern const f32 lbl_80345C28;        /* .sdata2 pooled float literal */
 extern u8 lbl_8023E880[0x40];         /* .bss look-at matrix / target buffer */
 extern u8 lbl_80127D40[];             /* rotation-axis constant */
 extern const f64 lbl_80345B88;        /* base heading (radians) */
-extern void fn_80032814(void);
+extern void DisablePlayerControls(void);
 extern void fn_800BDE08(void* axis, f32* out, f32 angle);
 extern void fn_800BDD7C(f32* a, f32* b, f32 angle);
 extern void LookInDirection(f32* mtx, void* target);
-extern void fn_80031854(void);
+extern void vibrators_off(void);
 
 /* PointViewDist frustum-test state */
 extern f32* lbl_80344EE8;             /* pointer to the active view/frustum */
@@ -169,7 +169,7 @@ void TriggerCameraActivate(s32 p1, f32* p2, f32* p3, s32 duration, s32 p5, s32 p
         lbl_803443B4 = 2;
     }
     if (lbl_803443B4 == 2) {
-        fn_80032814();
+        DisablePlayerControls();
     }
     lbl_803443B8 = p5;
     lbl_803443C0 = p6;
@@ -180,7 +180,7 @@ void TriggerCameraActivate(s32 p1, f32* p2, f32* p3, s32 duration, s32 p5, s32 p
     *(f32*)(buf + 52) = p2[1];
     *(f32*)(buf + 56) = p2[2];
     LookInDirection(mtx, buf);
-    fn_80031854();
+    vibrators_off();
 }
 s32 CameraLimitPlayerDpos(s32 player, f32* dpos, s32 arg) {
     s32 ret = 1;

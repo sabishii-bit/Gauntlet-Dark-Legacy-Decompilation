@@ -107,7 +107,7 @@ int TextMLines(const char* text);
 void mbBlitProject(void* blit, int w);
 void mbBlitCalcWidth(void* blit, int x, int y, f32 z);
 void DrawTextSub(int a, const char* text, int color, f32 s1, int f, f32 s2, int g);
-void fn_80031854(void);
+void vibrators_off(void);
 void fn_800B6B80(void);
 void fn_800B5D20(int a);
 void fn_800B5CCC(int a);
@@ -1593,7 +1593,7 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
     win = gWinGlobals;
     savedBusy = (void*) lbl_80344568;
     sysResetService();
-    fn_80031854();
+    vibrators_off();
     lbl_80344568 = 1;
     lbl_80344A30++;
     msgUpdate();
