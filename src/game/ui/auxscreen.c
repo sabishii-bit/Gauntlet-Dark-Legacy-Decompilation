@@ -106,7 +106,7 @@ extern void fn_8009C710(s32 speech);
 extern s32 CaptionText(char* a, char* b, s32 line, s32 page, s32 flags);
 extern s32 fn_800629B0(void);
 extern s32 fn_800153D4(s32 a);
-extern void StartFXMat(void* p, f32 f, s32 a, s32 b);
+extern void SetSkinFX(void* fx, s32 frames, f32 rate, f32 base, f32 loops); /* was mislabeled StartFXMat */
 extern void fn_800D9FEC(char* name);
 extern void fn_800A110C(void);
 extern void fn_800A17D4(void);
