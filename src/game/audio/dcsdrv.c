@@ -36,7 +36,7 @@ extern s32 sReset;
 
 void mathStub1b__Fv();
 void mathStub0__Fv();
-void pool_init(s32 size);
+u32 pool_init(u32 size);
 void AudioStillLoading(void);
 void dcsBankUnload(void* bank);
 s32 dcsBankLoad(void* bank, s32 mode);
