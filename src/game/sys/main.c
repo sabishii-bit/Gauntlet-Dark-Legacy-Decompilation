@@ -174,18 +174,15 @@ void fn_80067B0C(int flags)
     }
 }
 
-extern u8 lbl_8025EDE8[0x3C];
-
-/* NOTE: was 99.91% with a literal 0x8025EDE8 address (no reloc) — that form
- * can never flip (the target relocs lbl_8025EDE8). Symbol form is correct at
- * a 9-line prologue-schedule residual (addi-via-r0 + mr vs post-stmw addi). */
-void main_init(g)
-register u8* g;
+void main_init(high)
+register u32 high;
 {
     f32 ident[3][4];
     u32 clear;
+    u8* g;
 
-    g = lbl_8025EDE8;
+    high = 0x80260000;
+    g = (u8*)(high - 0x1218);
     DEMOInit(0);
     while (DVDOpen(lbl_8011304C, g) == 0) {
     }
