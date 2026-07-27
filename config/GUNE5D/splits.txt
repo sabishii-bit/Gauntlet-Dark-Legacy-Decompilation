@@ -406,6 +406,7 @@ game/audio/buffile.c:
 	extab       start:0x80008068 end:0x80008098
 	extabindex  start:0x8000C8EC end:0x8000C934
 	.text       start:0x800D4308 end:0x800D4960
+	.rodata     start:0x801171B0 end:0x80117268
 
 game/audio/dcsdrv.c:
 	extab       start:0x80008098 end:0x800080B0
