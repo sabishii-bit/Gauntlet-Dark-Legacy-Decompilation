@@ -17,7 +17,8 @@
  * MBDrawDistObjects / MBDrawSortObjects, each of which qsort()s by CmpDist and
  * hands the run to DrawSortObjectsSub.
  *
- * Status: NonMatching (billboard-matrix helpers + MBSetupObject stubbed).
+ * Status: NonMatching (all functions translated; FaceCamMat and QuickYawMat
+ * retain instruction-scheduling differences).
  */
 
 /* MBObjEntry (0x4C deferred-draw queue entry) and MBObject (the 0x80 mbnode
@@ -35,10 +36,19 @@ extern void qsort(void* base, u32 num, u32 size,
                   int (*cmp)(const void*, const void*));
 extern void mbBlitGetPage(void);
 extern void mbBlitSetPage(void);
-extern void pbSendObjTextures(void);                   /* 0x800C3AFC */
+extern void pbSendObjTextures(MBObject* obj);          /* 0x800C3AFC */
 extern void MBDrawPsys(void* obj, MBObjEntry* e);     /* GX special dispatch */
 extern void fn_800C38C0(MBObjEntry* e, MBObject* obj, int f); /* GX draw object */
 extern void fn_800C1148(int a, int b, void* c);        /* debug bbox draw */
+extern f32 fn_800BDA98(f32* vec);
+extern void vec4ApplyTrans__FR4vec4R4vec4R5mat44(f32* dst, f32* src,
+                                                  f32* mtx);
+extern void fn_800BD428(f32* vec, f32* yaw, f32* pitch);
+extern void fn_800BE4F4(f32* mtx, f32 yaw);
+extern void fn_800BE448(f32* mtx, f32 pitch);
+extern f32 atan2(f32 y, f32 x);
+extern f64 __sin(f64 angle);
+extern f64 __cos(f64 angle);
 
 /* module data (see symbols.txt) */
 extern MBObjEntry mbPsysObjects[256];                /* 0x802A61B8 */
@@ -62,9 +72,20 @@ extern s32* gWinDebug;               /* 0x80343FB8 : ptr; [0]=hide-objs [1]=... 
 extern s32 lbl_80343F9C;              /* 0xE-dispatch enable */
 extern s32 lbl_80344E90;              /* debug-bbox enable (DrawSortObjectsSub) */
 extern u8* gWinGlobals;               /* 0x80344FC0 : window/model-mgr context */
-extern u32 lbl_802A4B30[6];           /* current blit page block (.bss 0x18) */
+extern s32 lbl_802A4B30[6];           /* current blit page block (.bss 0x18) */
 extern s32 lbl_802C29F8[12];          /* profiler counters (.bss 0x30) */
 extern u8 lbl_80116020[0x16];         /* debug bbox arg blob (.rodata) */
+extern u8* lbl_80344EE8;
+extern f32 lbl_80344E94;
+extern f32 lbl_80344E98;
+extern f32 lbl_80343EC0;
+extern f32 lbl_80343EC4;
+extern const f64 lbl_80348C38;
+extern const f64 lbl_80348C40;
+extern const f32 lbl_80348C50;
+extern const f64 lbl_80348C58;
+extern const f64 lbl_80348C60;
+extern const f64 lbl_80348C68;
 
 extern const char str_BadMBSetObject[];    /* "Bad MBSetObject"          */
 extern const char str_TooManyPsys[];       /* "TOO MANY PSYS OBJECTS: %d" */
@@ -74,6 +95,8 @@ extern const char str_TooManyAlphaSort[];  /* "TOO MANY ALPHA SORT OBJECTS: %d" 
 /* internal helpers (same TU) */
 static void DrawSortObjectsSub(int start, MBObjEntry* base, int count);
 static int CmpDist(const void* a, const void* b);
+int AddDistObject(void* mtx, MBObject* obj, f32 dist);
+int AddSortObject(void* mtx, MBObject* obj, f32 key);
 
 /* =====================================================================
  * Object list init / node creation
@@ -180,32 +203,154 @@ int MBDrawObjectTest(MBObject* obj, void* cam, int allowDefer) {
 }
 
 /* Transform an object into view space and route it to the correct queue. */
-void MBSetupObject(MBObject* obj, void* mtx, void* cam) {
-    (void)obj;
-    (void)mtx;
-    (void)cam;
-    /* NonMatching: profiler bookkeeping + matrix transform + AddDistObject /
-     * AddSortObject routing; stubbed. */
+void MBSetupObject(MBObject* obj, MBObjEntry* entry, int allowDefer,
+                   f32 sortOverride, f32 zadd) {
+    f32 fade;
+    f32 key;
+
+    lbl_802C29F8[0]++;
+    lbl_802C29F8[5]++;
+    if (lbl_802A4B30[1] == 0) {
+        lbl_802C29F8[6]++;
+    }
+    if ((obj->flags & 0x00100400) != 0) {
+        f32 transformed[4];
+
+        vec4ApplyTrans__FR4vec4R4vec4R5mat44(
+            transformed, &entry->mtx[12],
+            (f32*)(*(u8**)(gWinGlobals + 4) + 0x2C0));
+        if ((obj->flags & 0x00100000) != 0) {
+            fade = (f32)(transformed[3] * (lbl_80348C38 / lbl_80343EC4));
+        } else {
+            fade = (f32)(transformed[3] * (lbl_80348C38 / lbl_80343EC0));
+        }
+        if (fade < lbl_80348C38) {
+            if (fade < lbl_80348C40) {
+                obj->alpha = 0;
+            } else {
+                obj->alpha = (u8)(s32)fade;
+            }
+            AddDistObject(entry, obj, transformed[3] + zadd);
+            return;
+        }
+        obj->alpha = 0xFF;
+    }
+    if (allowDefer != 0 && (obj->flags & 0x800) != 0 &&
+        (obj->alpha != 0 || (obj->flags & 0x40800000) != 0 ||
+         (*(u32*)((u8*)obj->data.romobj + 8) & 1) != 0)) {
+        f32 sortTransformed[4];
+
+        vec4ApplyTrans__FR4vec4R4vec4R5mat44(
+            sortTransformed, &entry->mtx[12],
+            (f32*)(*(u8**)(gWinGlobals + 4) + 0x2C0));
+        if (lbl_80348C40 == sortOverride) {
+            key = sortTransformed[3];
+        } else {
+            key = sortOverride;
+        }
+        AddSortObject(entry, obj, key + zadd);
+    } else {
+        pbSendObjTextures(obj);
+        fn_800C38C0(entry, obj, 0);
+    }
 }
 
 /* =====================================================================
  * Billboard matrix helpers (pure math; bodies stubbed)
  * ===================================================================== */
 
-void TopFaceMat(void* dst, void* src, void* cam) {
-    (void)dst; (void)src; (void)cam;
+void TopFaceMat(f32* mtx) {
+    u8 pad[16];
+    f32 side[3];
+    f32 dx = *(f32*)(lbl_80344EE8 + 0x94) - mtx[12];
+    f32 dy = *(f32*)(lbl_80344EE8 + 0x98) - mtx[13];
+    f32 dz = *(f32*)(lbl_80344EE8 + 0x9C) - mtx[14];
+    f32 length;
+
+    side[0] = dy * mtx[10] - dz * mtx[9];
+    side[1] = dz * mtx[8] - dx * mtx[10];
+    side[2] = dx * mtx[9] - dy * mtx[8];
+    length = fn_800BDA98(side);
+    if (length < 0.01) {
+        mtx[4] = 0.0f;
+        mtx[5] = 1.0f;
+        mtx[6] = 0.0f;
+        mtx[0] = mtx[5] * mtx[10] - mtx[6] * mtx[9];
+        mtx[1] = mtx[6] * mtx[8] - mtx[4] * mtx[10];
+        mtx[2] = mtx[4] * mtx[9] - mtx[5] * mtx[8];
+    } else {
+        mtx[0] = side[0];
+        mtx[1] = side[1];
+        mtx[2] = side[2];
+        mtx[4] = mtx[9] * mtx[2] - mtx[10] * mtx[1];
+        mtx[5] = mtx[10] * mtx[0] - mtx[8] * mtx[2];
+        mtx[6] = mtx[8] * mtx[1] - mtx[9] * mtx[0];
+    }
 }
 
-void FaceCamMat(void* dst, void* src, void* cam) {
-    (void)dst; (void)src; (void)cam;
+void FaceCamMat(f32* mtx, f32 limit) {
+    f32 toCamera[3];
+    f32 yaw;
+    f32 pitch;
+    f32 hole;
+    f32 cameraYaw;
+    f32 cameraPitch;
+    u8 pad[8];
+
+    toCamera[0] = *(f32*)(lbl_80344EE8 + 0x94) - mtx[12];
+    toCamera[1] = *(f32*)(lbl_80344EE8 + 0x98) - mtx[13];
+    toCamera[2] = *(f32*)(lbl_80344EE8 + 0x9C) - mtx[14];
+    if (limit == lbl_80348C50) {
+        goto no_pitch;
+    } else {
+        fn_800BD428(&mtx[8], &yaw, &pitch);
+        fn_800BD428(toCamera, &cameraYaw, &cameraPitch);
+        cameraYaw -= yaw;
+        cameraPitch -= pitch;
+        if (limit > lbl_80348C50) {
+            if (cameraPitch > limit) {
+                cameraPitch = limit;
+            } else if (cameraPitch < -limit) {
+                cameraPitch = -limit;
+            }
+        }
+        fn_800BE4F4(mtx, cameraYaw);
+        fn_800BE448(mtx, cameraPitch);
+        return;
+    }
+no_pitch:
+    {
+        yaw = atan2(mtx[8], mtx[10]);
+        cameraYaw = atan2(toCamera[0], toCamera[2]) - yaw;
+        fn_800BE4F4(mtx, cameraYaw);
+    }
 }
 
-void InitFrontFaceYaw(void* cam) {
-    (void)cam;
+void InitFrontFaceYaw(f32* cam) {
+    f32 pitch;
+    f32 yaw;
+
+    fn_800BD428(cam, &yaw, &pitch);
+    lbl_80344E98 = (f32)__sin(3.141592653589793 + yaw);
+    lbl_80344E94 = (f32)__cos(3.141592653589793 + yaw);
 }
 
-void QuickYawMat(void* dst, f32 yaw) {
-    (void)dst; (void)yaw;
+void QuickYawMat(f32* mtx) {
+    u8 pad[16];
+    f32 objectYaw = atan2(mtx[8], mtx[10]);
+    f32 cameraYaw = atan2(*(f32*)(lbl_80344EE8 + 0x84),
+                          *(f32*)(lbl_80344EE8 + 0x8C));
+    f32 yaw = (f32)(lbl_80348C58 + cameraYaw) - objectYaw;
+    f64 result;
+
+    if (yaw > lbl_80348C58) {
+        result = yaw - lbl_80348C60;
+    } else if (yaw <= lbl_80348C68) {
+        result = lbl_80348C60 + yaw;
+    } else {
+        result = yaw;
+    }
+    fn_800BE4F4(mtx, (f32)result);
 }
 
 /* =====================================================================
@@ -243,7 +388,7 @@ static void DrawSortObjectsSub(int start, MBObjEntry* base, int count) {
                 MBDrawPsys(e->obj, e);
             }
         } else if (t == 2) {
-            pbSendObjTextures();
+            pbSendObjTextures(e->obj);
             lbl_802A4B30[1] = e->page;
             fn_800C38C0(e, e->obj, 0);
             lbl_802C29F8[7]++;
