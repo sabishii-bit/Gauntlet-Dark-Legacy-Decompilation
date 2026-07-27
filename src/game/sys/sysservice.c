@@ -435,16 +435,21 @@ BOOL padButtonReleased(u32 padMask, int button) {
     BOOL found = FALSE;
     s32 i;
 
-    for (i = 0; padMask != 0 && i < 4; i++, padMask >>= 1) {
-        if (padMask & 1) {
-            if (gPadCur[i].err == PAD_ERR_NONE && gPadPrev[i].err == PAD_ERR_NONE) {
-                u16 released = gPadPrev[i].button & (gPadPrev[i].button ^ gPadCur[i].button);
-                if (button & released) {
-                    found = TRUE;
-                    break;
-                }
+    i = 0;
+    while (padMask != 0 && i < 4) {
+        /* Shipped control flow skips the loop update on an unselected bit. */
+        if (!(padMask & 1)) {
+            continue;
+        }
+        if (gPadCur[i].err == PAD_ERR_NONE && gPadPrev[i].err == PAD_ERR_NONE) {
+            u16 released = gPadPrev[i].button & (gPadPrev[i].button ^ gPadCur[i].button);
+            if (button & released) {
+                found = TRUE;
+                break;
             }
         }
+        padMask >>= 1;
+        i++;
     }
     return found;
 }
