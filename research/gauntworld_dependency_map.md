@@ -104,3 +104,21 @@ because MWCC materializes a redundant address copy before saving the two
 composite-data bases.  Its calls, fields, branches, relocations, and resource
 ownership are otherwise reconstructed; retain the native-readable structure
 unless a general scheduling technique removes that residual.
+
+## MB scene-tree follow-up
+
+The second dependency edge established the shared 0x80-byte MB tree-node tail:
+render attributes at `0x40..0x6A`, parent at `0x74`, first child at `0x78`,
+and next sibling at `0x7C`.  The translated propagation family now covers:
+
+- flag set and clear;
+- color-add and packed color;
+- Z modification and inverse alpha;
+- alternate texture, ambient-add, and UV indices;
+- UV scale/add slot ownership;
+- last-sibling and previous-sibling navigation.
+
+Propagation mode `2` means “walk this sibling chain,” while a nonzero mode also
+recurses into a first child unless that child has flag `0x10`.  This is the
+scene-graph rule gauntworld and items rely on when hiding, showing, recoloring,
+or retargeting an object subtree.
