@@ -15,9 +15,10 @@
  * Function order follows the DOL (same-TU inlining depends on it).
  *
  * PARKED light-match residuals (do not re-hunt):
- *   cardExit/cardWaitResult - target reserves an extra 8-byte parameter frame
+ *   cardWaitResult - target reserves an extra 8-byte parameter frame
  *     (frame 0x18 vs 0x10); documented "+8 param-frame wall".
- *   cardStart - opcode stream identical to target; register-numbering only.
+ *   cardStart - instruction stream now matches; fndiff only reports the
+ *     private `...bss.0` alias used for gCardBuf.
  *   cardSubmitCommand - target recomputes &M.mutex at the unlock instead of
  *     caching it, so it needs one fewer saved register (CSE/regalloc).
  *   cardThreadMain - 133/133 insns; remaining diffs are mr-vs-`addi r,r,0`
@@ -178,6 +179,7 @@ s32 cardInit(void) {
 
 /* 0x800DC1A0 - post the quit command and wait for the worker to acknowledge */
 void cardExit(void) {
+    u8 unused[8];
     cardSubmitCommand(0, CARDCMD_QUIT, 0, NULL, 0);
     do {
         VIWaitForRetrace();
@@ -265,6 +267,7 @@ static void* cardThreadMain(void* arg) {
 
 /* 0x800DC1F4 - init sync objects, spawn the worker, wait until it's idle */
 void cardStart(s32 chan, s32 fileNo, void* data) {
+    u8 unused[8];
     OSInitMutex(&M.mutex);
     OSInitMutex(&M.mutex2);
     OSInitCond(&M.cond);

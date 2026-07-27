@@ -82,7 +82,7 @@ extern s32 lbl_80344500;    /* request mode */
 extern f32 lbl_803444E8;    /* blend ratio (compared vs 0.9) */
 
 /* --- external projection / math helpers (G3D / pb layer) --- */
-void fn_800B5554(f32* out_xy, void* world_pos);                        /* screen projection (INT path) */
+void MBWorldToScreen(f32* out_xy, void* world_pos);                   /* screen projection (INT path) */
 void fn_800BB8E8(void* cam, int mode, short* out_xy, void* world_pos); /* per-camera projection */
 f32  fn_800BD3E8(f32 rad);                                            /* angle wrap/reduce for sin/cos */
 extern f64 sin(f64 x);
@@ -106,9 +106,10 @@ static f32 cam_wrap_pi(f32 a) {
  * arg0 is passed but unused by the projection path.
  */
 void get_screen_pos(int unused, int* xo, int* yo, void* world_pos) {
+    u8 frame_pad[8];
     f32 sp[2];
     (void)unused;
-    fn_800B5554(sp, world_pos);
+    MBWorldToScreen(sp, world_pos);
     *xo = (int)sp[0];
     *yo = (int)sp[1];
 }

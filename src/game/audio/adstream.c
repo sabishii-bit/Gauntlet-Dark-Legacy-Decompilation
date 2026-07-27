@@ -223,14 +223,13 @@ void AdsQuit(void) {
 
 /* 0x800D7AD0  compute the global block/frame sizing config from
  * (base, frameBytes, blocks): bytes-per-frame, half-frame, ring cursors,
- * samples.  Xbox: AdsInit.
- * NEAR-MATCH: opcode-stream identical, one r0<->r4 coloring tie on the
- * frameBytes*blocks product vs the reloaded lbl_80345280 (regalloc-only). */
+ * samples.  Xbox: AdsInit. */
 s32 AdsInit(s32 base, s32 frameBytes, s32 blocks) {
     lbl_80345280 = frameBytes;
+    frameBytes *= blocks;
     lbl_80345278 = base;
     lbl_80345284 = lbl_80345280 >> 1;
-    lbl_8034527C = base + frameBytes * blocks;
+    lbl_8034527C = base + frameBytes;
     lbl_80345290 = (lbl_80345284 >> 4) * 14;
     lbl_8034528C = lbl_80345290 << 1;
     return 1;

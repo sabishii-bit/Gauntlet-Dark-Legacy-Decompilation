@@ -85,9 +85,10 @@ extern void mbInitBlitEntry(void);
 extern void mbBlitUpdateEntry(void* e);
 
 /* ---- async-load primitives (other TUs) ---- */
-extern int  fn_800B79AC(void* name, int a);
+extern int  MBOX_BGLoadModelStart(void* name, int a);
 extern int  fn_800B7758(void);
 extern void fn_8005403C(int a);
+extern char lbl_80348024[7];
 
 /* ============================================================
  * NonMatching stubs.
@@ -246,7 +247,7 @@ void SelectLoadStart(void)
 {
     if (lbl_80343DD4 < 0) {
         lbl_80344BC0 = 0;
-        lbl_80343DD4 = fn_800B79AC(0, -1);
+        lbl_80343DD4 = MBOX_BGLoadModelStart(lbl_80348024, -1);
     }
 }
 
