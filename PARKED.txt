@@ -23,8 +23,7 @@ pbObjTexSub                # isel, slwi/mr/rlwimi vs clrlwi/rlwimi x3 (pb_object
 fn_800C37C4                # sched, buf r5<->r6 (pb_objects pool-init hook)
 fn_800C7214                # renum+sched, r8<->r10 (pb_texture)
 fn_800C780C                # isel, lwzx +4 fold vs add+disp (pb_texture)
-vsprintf                   # sched, 9-line head spill + ch/fmark web (crt)
-cvt                        # sched, 2-line epilogue mtlr/addi tie (crt)
+vsprintf                   # sched, ~26-line head spill + ch/fmark web (crt; GC/1.2.5 — cvt went EXACT on unpin from 1.2.5n)
 bsearch                    # regalloc (MSL)
 
 # GATED (not walls — blocked on another reconstruction; see file comments):
