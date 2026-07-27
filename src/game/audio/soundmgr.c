@@ -1,4 +1,5 @@
 #include "types.h"
+#include "game/dcs.h"
 
 /*
  * Sound / message-dispatch client (early game TU, text 0x8004229C-0x800433EC).
@@ -25,7 +26,6 @@ u32 strlen(const char* s);
 s32 dcsHandleRequest(s32 id, void* in, void* out);   /* server message dispatch */
 void HealthMeterInit(void);                      /* fn_8001B830 */
 s32 adsPoll(void);                               /* ADSTREAM per-frame poll (fn_800D6234) */
-void dcsServiceQueue(void);                          /* service queue */
 
 /* GameCube audio (sndvoice.c / AX / AR) */
 void sndVoiceStart(s32 voice);

@@ -44,21 +44,41 @@ typedef struct DcsStream {
     u32 oneShot;
 } DcsStream;
 
+typedef struct DcsSampleData {
+    u32 aramAddress;
+    u8 _pad04[0x1C];
+    u32 sampleRate;
+    u32 length;
+    u16 coefficients[16];
+    u16 predScale;
+    u16 _pad4A;
+} DcsSampleData;
+
 typedef struct DcsChannelInfo {
     s16 volume;
     s16 pan;
     u16 duck;
     u16 _pad06;
-    u32 _unk08;
+    s32 priority;
     s32 sample;
-    u32 _unk10;
+    DcsSampleData* sampleData;
 } DcsChannelInfo;
 
 extern u8 lbl_802F5F60[];
+extern DcsSampleData lbl_802C9F60[];
+extern s32 lbl_802C9ED8[];
+extern u16 lbl_802EFF5E[];
+extern u16 lbl_802F0F60[];
 extern DcsBankData dcsBankData[];
 extern DcsChannelInfo ch_info[12];
 extern AXVPB* sVoice[14];
+extern s32 lbl_80343FF8;
 extern s32 lbl_803451F8;
+extern s32 lbl_80345200;
+extern s32 lbl_8034520C;
+extern u32 lbl_80345214;
+extern s32 lbl_80345220;
+extern u32 lbl_80345234;
 extern s32 dcsResetPending;
 extern volatile u8 dcsSampleBusy;
 extern volatile u8 dcsAramBusy;
@@ -66,6 +86,10 @@ extern ARQRequest dcsAramReq;
 
 extern u32 pool_new(void* list);
 extern void* pool_alloc(void* list, void* node);
+extern void pool_free(void* pool, void* node);
+extern void dcsMemLockTag(s32 slot, u32 tag);
+extern s32 dcsMemLock(void);
+extern s32 dcsMemUnlock(s32 channel);
 extern void ResetAllocTot(void);
 extern void DCFlushRange(void* address, u32 length);
 extern void DCInvalidateRange(void* address, u32 length);
@@ -79,14 +103,101 @@ void dcsChannelPlay(s32 value) {
 
 /* 0x800D1ED0  recompute per-channel voice state each tick */
 s32 update_chinfo(u32 channels) {
+    s32 channel = 0;
+    s32 adjustment;
+    s32 i;
+
+    channels &= 0xFFF;
+    dcsMemLockTag(0, channels);
+    dcsMemLock();
+    while (channels != 0) {
+        if ((channels & 1) != 0) {
+            if (ch_info[channel].duck != 0) {
+                adjustment =
+                    -(s32)ch_info[channel].duck * lbl_80343FF8;
+                adjustment >>= 8;
+                lbl_8034520C += adjustment;
+                for (i = 0; i < 12; i++) {
+                    if (dcsVoiceInUse(i)) {
+                        ch_info[i].volume -= adjustment;
+                        dcsVoiceUpdate(i);
+                    }
+                }
+                ch_info[channel].duck = 0;
+            }
+            ch_info[channel].sample = -1;
+            lbl_80345234 &= ~(1 << channel);
+            AXSetVoiceState(sVoice[channel], 0);
+        }
+        channel++;
+        channels >>= 1;
+    }
+    return 0;
 }
 
 /* 0x800D1FFC  push volume/pan to a channel voice */
 s32 dcsChannelSetVolPan(u32 channels, s16 pan) {
+    s32 channel = 0;
+
+    channels &= 0xFFF;
+    while (channels != 0) {
+        if ((channels & 1) != 0) {
+            s16 delta = pan - ch_info[channel].pan;
+
+            if (delta != 0) {
+                if (delta > 0x100) {
+                    delta -= 0x200;
+                }
+                if (delta < -0x100) {
+                    delta += 0x200;
+                }
+                if (delta != 0) {
+                    if (delta < -8) {
+                        delta = -8;
+                    }
+                    if (delta > 8) {
+                        delta = 8;
+                    }
+                    ch_info[channel].pan += delta;
+                    if (ch_info[channel].pan > 0x1FF) {
+                        ch_info[channel].pan -= 0x400;
+                    }
+                    if (ch_info[channel].pan < -0x200) {
+                        ch_info[channel].pan += 0x400;
+                    }
+                    dcsVoiceUpdate(channel);
+                }
+            }
+        }
+        channels >>= 1;
+        channel++;
+    }
+    return 0;
 }
 
 /* 0x800D21B4  volume/pan variant */
 s32 dcsChannelSetVolPan2(u32 channels, s32 volume) {
+    s32 channel = 0;
+    s32 desired = volume - lbl_8034520C;
+
+    channels &= 0xFFF;
+    while (channels != 0) {
+        s32 delta = desired - ch_info[channel].volume;
+
+        if ((channels & 1) != 0 && delta != 0) {
+            if (delta < -8) {
+                delta = -8;
+            }
+            if (delta > 8) {
+                delta = 8;
+            }
+            ch_info[channel].volume += delta;
+            dcsVoiceUpdate(channel);
+        }
+        channels >>= 1;
+        channel++;
+    }
+    return 0;
 }
 
 /* 0x800D2314  reset the sample allocator (-> pool_new) */
@@ -111,6 +222,49 @@ s32 dcsBankQuery(s32 bank, s32* handle, s32* size) {
 
 /* 0x800D23A0  start playback on a channel */
 s32 dcsVoiceStart(u32 sample, s32 volumePan, s32 priority) {
+    s32 channel = -1;
+    s32 bank = (s32)sample >> 12;
+    s32 callIndex =
+        (sample & 0xFFF) + lbl_802C9ED8[bank * 2];
+
+    if (callIndex > 0 && callIndex <= lbl_80345200) {
+        u16 sequence = lbl_802EFF5E[callIndex];
+        u16* call = &lbl_802F0F60[sequence];
+        u16* end = (u16*)lbl_802F5F60;
+        s32 adjustment;
+        s32 i;
+
+        while (call < end && (*call & 0x8000) == 0) {
+            call++;
+        }
+        channel = dcsVoicePlay(priority);
+        if (channel >= 0) {
+            DcsChannelInfo* info = &ch_info[channel];
+
+            info->volume =
+                (s16)(((volumePan >> 16) * (u32)call[1]) / 0x7F) -
+                (s16)lbl_8034520C;
+            info->pan = (s16)volumePan;
+            info->duck = 0;
+            info->priority = ((u32)priority << 16) | call[3];
+            info->sample = -1;
+            if (call[2] != 0) {
+                adjustment = (u32)call[2] * lbl_80343FF8;
+                adjustment >>= 8;
+                lbl_8034520C += adjustment;
+                for (i = 0; i < 12; i++) {
+                    if (dcsVoiceInUse(i)) {
+                        ch_info[i].volume -= adjustment;
+                        dcsVoiceUpdate(i);
+                    }
+                }
+            }
+            info->duck = call[2];
+            info->sample = sequence;
+            dcsVoiceSetupAdpcm(channel);
+        }
+    }
+    return channel;
 }
 
 /* 0x800D2534  poll: any bank/stream still loading? */
@@ -159,14 +313,148 @@ void dcsBankCheckSamples(void) {
 
 /* 0x800D3184  service the channel queue */
 void dcsServiceQueue(void) {
+    s32 channel;
+
+    for (channel = 0; channel < 12; channel++) {
+        if ((lbl_80345234 & (1 << channel)) != 0) {
+            AXPBADDR* addr = &sVoice[channel]->pb.addr;
+            u32 end = ((u32)addr->endAddressHi << 16) + addr->endAddressLo;
+            u32 current =
+                ((u32)addr->currentAddressHi << 16) + addr->currentAddressLo;
+
+            if (end - current < 0xC0) {
+                dcsVoiceSetupAdpcm(channel);
+            }
+        }
+    }
 }
 
 /* 0x800D321C  assign+start a voice for a sample */
-void dcsVoicePlay(void) {
+s32 dcsVoicePlay(s32 priority) {
+    s32 first = lbl_80345220;
+    s32 bestPriority = -1;
+    s32 replace = 1;
+    s32 selected = -1;
+    s32 channel;
+    s32 adjustment;
+    s32 inUse;
+
+    do {
+        channel = lbl_80345220;
+        inUse = 0;
+        if (ch_info[channel].sample >= 0 || ch_info[channel].duck != 0) {
+            inUse = 1;
+        } else if (sVoice[channel]->pb.state != 0) {
+            inUse = 1;
+        }
+        if (!inUse) {
+            selected = channel;
+            replace = 0;
+            break;
+        }
+
+        if (bestPriority < ch_info[channel].priority) {
+            bestPriority = ch_info[channel].priority;
+            if (bestPriority <= priority) {
+                selected = channel;
+            }
+        }
+
+        lbl_80345220++;
+        if (lbl_80345220 >= 12) {
+            lbl_80345220 = 0;
+        }
+    } while (lbl_80345220 != first);
+
+    if (selected >= 0 && replace) {
+        dcsMemUnlock(selected);
+        lbl_80345234 &= ~(1 << lbl_80345220);
+        if (ch_info[selected].duck != 0) {
+            adjustment = -(s32)ch_info[selected].duck * lbl_80343FF8;
+            adjustment >>= 8;
+            lbl_8034520C += adjustment;
+            for (channel = 0; channel < 12; channel++) {
+                if (dcsVoiceInUse(channel)) {
+                    ch_info[channel].volume -= adjustment;
+                    dcsVoiceUpdate(channel);
+                }
+            }
+        }
+    }
+    return selected;
 }
 
 /* 0x800D33B8  configure AX ADPCM voice for a sample */
-void dcsVoiceSetupAdpcm(void) {
+s32 dcsVoiceSetupAdpcm(s32 channel) {
+    DcsChannelInfo* info = &ch_info[channel];
+    s32 sample = info->sample;
+    s32 adjustment;
+    s32 i;
+
+    info->sample = -1;
+    if (sample < 0) {
+        if (info->duck != 0) {
+            adjustment = -(s32)info->duck * lbl_80343FF8;
+            adjustment >>= 8;
+            lbl_8034520C += adjustment;
+            for (i = 0; i < 12; i++) {
+                if (dcsVoiceInUse(i)) {
+                    ch_info[i].volume -= adjustment;
+                    dcsVoiceUpdate(i);
+                }
+            }
+        }
+        info->duck = 0;
+    } else {
+        u16 call = lbl_802F0F60[sample];
+        DcsSampleData* data = &lbl_802C9F60[call & 0xFFF];
+        AXPBADPCM adpcm;
+        AXPBADDR addr;
+        u32 start;
+        u32 end;
+
+        info->sampleData = data;
+        for (i = 0; i < 8; i++) {
+            adpcm.a[i][0] = data->coefficients[i * 2];
+            adpcm.a[i][1] = data->coefficients[i * 2 + 1];
+        }
+        adpcm.gain = 0;
+        adpcm.pred_scale = data->predScale;
+        adpcm.yn1 = 0;
+        adpcm.yn2 = 0;
+        AXSetVoiceAdpcm(sVoice[channel], &adpcm);
+
+        start = data->aramAddress * 2 + 2;
+        end = (data->aramAddress + data->length) * 2 - 1;
+        addr.loopFlag = 0;
+        addr.format = 0;
+        addr.loopAddressHi = start >> 16;
+        addr.loopAddressLo = start;
+        addr.endAddressHi = end >> 16;
+        addr.endAddressLo = end;
+        addr.currentAddressHi = start >> 16;
+        addr.currentAddressLo = start;
+        AXSetVoiceAddr(sVoice[channel], &addr);
+        AXSetVoiceSrcType(sVoice[channel], AX_SRC_TYPE_LINEAR);
+
+        if (dcsVoiceStartAx(channel) != 0) {
+            pool_free(lbl_802F5F60, data);
+            if ((call & 0x2000) != 0) {
+                while ((lbl_802F0F60[sample] & 0x4000) == 0) {
+                    sample--;
+                }
+            } else if ((call & 0x8000) != 0) {
+                sample = -1;
+            } else {
+                sample++;
+            }
+            info->sample = sample;
+            if (sample >= 0 || info->duck != 0) {
+                lbl_80345234 |= 1 << channel;
+            }
+        }
+    }
+    return 0;
 }
 
 /* 0x800D3608  begin streaming a sample into ARAM */
@@ -256,7 +544,56 @@ void dcsSampleCallback(u32 request) {
 }
 
 /* 0x800D3A88  start an AX voice (src/state/vol/pan) */
-void dcsVoiceStartAx(void) {
+s32 dcsVoiceStartAx(s32 channel) {
+    DcsChannelInfo* info = &ch_info[channel];
+    DcsSampleData* data = info->sampleData;
+    s32 volume = info->volume;
+    u16 master;
+    u16 excess;
+    s32 scaled;
+    s32 pan;
+    s32 sign;
+    f32 ratio;
+    s32 whole;
+    AXPBSRC src;
+
+    if (volume < 0) {
+        volume = 0;
+    }
+    scaled = volume * 0x3FFF / 0xFF;
+    excess = (u16)scaled;
+    master = excess;
+    if ((u16)scaled > 0x3FFF) {
+        excess -= 0x3FFF - master;
+        master = 0x3FFF;
+    }
+    if (excess > 0x3FFF) {
+        master -= 0x3FFF - excess;
+    }
+
+    pan = 0x100 - ((info->pan + 0x100) & 0x1FF);
+    sign = pan >> 31;
+    pan = (sign ^ pan) - sign;
+    sndVoiceSetVolume(sVoice[channel], pan >> 1);
+    pan = 0x100 - ((info->pan + 0x180) & 0x1FF);
+    sign = pan >> 31;
+    pan = (sign ^ pan) - sign;
+    sndVoiceSetPan(sVoice[channel], pan >> 1);
+    dcsVoiceSetMaster(channel, master, master);
+
+    ratio = (f32)(((data->sampleRate << lbl_80345214) * 48000) >> 12) /
+            32000.0f;
+    whole = (s32)ratio;
+    src.ratioHi = whole;
+    src.ratioLo = (u16)(65536.0 * (ratio - (f32)whole));
+    src.currentAddressFrac = 0;
+    src.last_samples[0] = 0;
+    src.last_samples[1] = 0;
+    src.last_samples[2] = 0;
+    src.last_samples[3] = 0;
+    AXSetVoiceSrc(sVoice[channel], &src);
+    AXSetVoiceState(sVoice[channel], 1);
+    return 1;
 }
 
 /* 0x800D3C40  set voice master volume */
