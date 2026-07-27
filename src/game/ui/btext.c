@@ -230,21 +230,24 @@ char* GetStringTextSub(StrList* p, s32 msg, s32 idx, u32* fontOut)
     return (char*)(p->textData + off);
 }
 
+static inline char* find_newline(const char* s)
+{
+    while (*s != '\0') {
+        if (*s == '\n') {
+            return (char*)s;
+        }
+        s++;
+    }
+    return 0;
+}
+
 /* Count newline-separated lines in a string (non-destructive, capped at 16). */
 s32 TextMLines(const char* s)
 {
     s32 n = 0;
 
     for (;;) {
-        while (*s != '\0') {
-            if (*s != '\n') {
-                s++;
-                continue;
-            }
-            goto found;
-        }
-        s = 0;
-    found:
+        s = find_newline(s);
         if (s == 0 || n >= 0xF) {
             break;
         }
