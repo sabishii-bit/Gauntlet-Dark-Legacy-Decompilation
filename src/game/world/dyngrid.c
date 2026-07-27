@@ -79,13 +79,13 @@ extern GridEnemy* sItems;        /* shared item/enemy pool base (items.c) */
 extern s32 lbl_8034494C;         /* enemy pool count */
 extern GridItem gEnemies[];      /* item pool base (0x80251C18) */
 extern s32 gNumEnemies;          /* item pool count */
-extern WorldBounds lbl_8028CA8C; /* world bounds */
+extern WorldBounds gWorldInfo; /* world bounds */
 
 #define ene_pool sItems
 #define ene_pool_num lbl_8034494C
 #define itm_pool gEnemies
 #define itm_pool_num gNumEnemies
-#define gWorldBounds lbl_8028CA8C
+#define gWorldBounds gWorldInfo
 
 /* Tuning constants that live in the module's read-only pool. */
 extern const f32 lbl_803466A0;   /* 0.0f */
@@ -154,6 +154,7 @@ void StartEnemyGrid(f32* pos, f32 r)
 {
     int mnx, mnz;
     f32 pad;
+    u8 unused[16];
 
     if (r > kGridZero)
         pad = enegrid_ene_pad + r;
@@ -196,6 +197,7 @@ void StartItemGrid(f32* pos, f32 r)
 {
     int mnx, mnz;
     f32 pad;
+    u8 unused[16];
 
     if (r > kGridZero)
         pad = enegrid_itm_pad + r;
@@ -217,17 +219,27 @@ void StartItemGrid(f32* pos, f32 r)
  * PlaceItemInGrid were inlined into this function by the GC compiler.) */
 void SetupDynGrid(void)
 {
-    DynGridCell (*grid)[DYNGRID_DIM] = enegrid;
-    s32 i, cx, cz;
+    s32 i, cx;
+    u8 unused[32];
+    register DynGridCell (*grid)[DYNGRID_DIM] = enegrid;
+    DynGridCell* row;
+    DynGridCell* cell;
+    register s32 cz;
 
-    for (cz = 0; cz < DYNGRID_DIM; cz++) {
+    cz = 0;
+    while (cz < DYNGRID_DIM) {
+        row = grid[cz];
         for (cx = 0; cx < DYNGRID_DIM; cx++) {
-            grid[cz][cx].item = -1;
-            grid[cz][cx].enemy = -1;
+            cell = &row[cx];
+            cell->item = -1;
+            cell->enemy = -1;
         }
+        cz++;
     }
 
     for (i = 0; i < ene_pool_num; i++) {
+        s16 old;
+        s16* slot;
         GridEnemy* e = &ene_pool[i];
         if (e->alive == -1)
             continue;
@@ -235,18 +247,29 @@ void SetupDynGrid(void)
             continue;
         cx = clampcell((int)((e->x - enegrid_x0) * enegrid_invwidth));
         cz = clampcell((int)((e->z - enegrid_z0) * enegrid_invwidth));
-        e->link = grid[cz][cx].enemy;
-        grid[cz][cx].enemy = (s16)i;
+        slot = &grid[cz][cx].enemy;
+        old = *slot;
+        *slot = (s16)i;
+        e->link = old;
     }
 
+    {
+    f32 itemX0 = enegrid_x0;
+    f32 itemInv = enegrid_invwidth;
+    f32 itemZ0 = enegrid_z0;
     for (i = 0; i < itm_pool_num; i++) {
+        s16 old;
+        s16* slot;
         GridItem* it = &itm_pool[i];
         if (!it->active)
             continue;
-        cx = clampcell((int)((it->x - enegrid_x0) * enegrid_invwidth));
-        cz = clampcell((int)((it->z - enegrid_z0) * enegrid_invwidth));
-        it->link = grid[cz][cx].item;
-        grid[cz][cx].item = (s16)i;
+        cx = clampcell((int)((it->x - itemX0) * itemInv));
+        cz = clampcell((int)((it->z - itemZ0) * itemInv));
+        slot = &grid[cz][cx].item;
+        old = *slot;
+        *slot = (s16)i;
+        it->link = old;
+    }
     }
 }
 

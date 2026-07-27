@@ -27,7 +27,7 @@
 
 /* ---- MB_MAIN globals (resolved via symbols.txt / auto data objects) ---- */
 extern u8* gWinGlobals;          /* 0x80344FC0 : window/model-mgr context ptr */
-extern u32 sSeconds_80345150;    /* pbutils frame-time counter (owned by pbutils) */
+extern u32 sSeconds;             /* pbutils frame-time counter (owned by pbutils) */
 
 extern u32 lbl_80344E80;         /* LastFrame : sSeconds latch for the frame gate */
 extern s32 lbl_80344E6C;         /* CPU-time history write cursor (0..0x7F) */
@@ -67,22 +67,97 @@ extern void fn_800C3674(void);
 extern void fn_800C1624(void);
 extern void fn_800AF1D8(int a);
 extern void fn_800C1148(int a, int b, const char* s);
-extern void fn_800C702C(void);
+extern void pbResetTextures(void);
 extern void fn_800C79E4(void);
 extern void fn_800C5B1C(void);
 extern void fn_800C0AA4(int layer);
 extern void fn_800C1170(int a, void* b, int c);
 extern void fn_800C2F50(f32 w, f32 h);
 extern void fn_800B9E4C(void);
-extern void fn_800B8AB8(void);
+extern void MBOX_ResetModels(void);
 extern void MBTreeInit(void);
 extern void fn_800BC23C(void);
-extern void fn_800B6D38(int a, int b, int c);   /* mb_font/mb_lights reset */
-extern void fn_800B6D64(void);
+extern void MBSetBGColor(int a, int b, int c);
+extern void MBInitLights(void);
 extern void fn_800B6C94(void);
 extern void fn_800B5D90(void);
 
 extern f64 sqrt(f64 x);
+extern f64 __frsqrte(f64 x);
+
+typedef union MBFloatBits {
+    u32 u;
+    f32 f;
+} MBFloatBits;
+
+extern u8 __float_nan[];
+extern u8 __float_huge[];
+
+static inline int mbNonzero(f64 x)
+{
+    return x != 0.0;
+}
+
+static inline f64 mbSqrt(f64 x)
+{
+    register f64 guess;
+
+    if (x > 0.0) {
+        guess = __frsqrte(x);
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        return x * guess;
+    }
+    if (x == 0.0) {
+        return 0.0;
+    }
+    if (mbNonzero(x)) {
+        return *(f32*)__float_nan;
+    }
+    return *(f32*)__float_huge;
+}
+
+#define MB_SQRT(result, value)                                                   \
+    do {                                                                         \
+        f64 x = (value);                                                         \
+        f64 guess;                                                               \
+        if (x > 0.0) {                                                          \
+            guess = __frsqrte(x);                                                \
+            guess = 0.5 * guess * (3.0 - guess * guess * x);                    \
+            guess = 0.5 * guess * (3.0 - guess * guess * x);                    \
+            guess = 0.5 * guess * (3.0 - guess * guess * x);                    \
+            (result) = 0.5 * guess * (3.0 - guess * guess * x);                 \
+            (result) = x * (result);                                             \
+        } else if (x == 0.0) {                                                  \
+            (result) = 0.0;                                                      \
+        } else {                                                                 \
+            asm { opword 0xFC082800 }                                            \
+            if (x != 0.0) {                                                      \
+                (result) = *(f32*)__float_nan;                                   \
+            } else {                                                             \
+                (result) = *(f32*)__float_huge;                                  \
+            }                                                                    \
+        }                                                                        \
+    } while (0)
+
+static inline f32 mbSqrtFAccurate(f32 x)
+{
+    f64 g0, g1, g2, g3, g4;
+    volatile f32 y;
+
+    if (x > 0.0f) {
+        g0 = __frsqrte((f64)x);
+        g1 = 0.5 * g0 * (3.0 - g0 * g0 * x);
+        g2 = 0.5 * g1 * (3.0 - g1 * g1 * x);
+        g3 = 0.5 * g2 * (3.0 - g2 * g2 * x);
+        g4 = 0.5 * g3 * (3.0 - g3 * g3 * x);
+        y = (f32)(x * g4);
+        return y;
+    }
+    return x;
+}
 
 /* forward decls for this TU */
 void mbInitInvSqrtTable(void);
@@ -95,10 +170,10 @@ void MBEndFrame(void) {
 
     DEMOSwapBuffers();
     /* pace to the frame boundary (~0x22 ticks since the last present) */
-    while ((u32)(sSeconds_80345150 - lbl_80344E80) < 0x22) {
+    while ((u32)(sSeconds - lbl_80344E80) < 0x22) {
         pbPulseTime();
     }
-    lbl_80344E80 = sSeconds_80345150;
+    lbl_80344E80 = sSeconds;
 
     if (*(s32*)(*(u8**)(wg + 0x10) + 0x10) == 1) {
         fn_800B5D90();
@@ -154,7 +229,7 @@ void MBEndFrame(void) {
     fn_800C0AA4(0x14);
     fn_800C0AA4(0x15);
 
-    fn_800C702C();
+    pbResetTextures();
     InitFrontFaceYaw(lbl_80344EE8 + 0x84);
     fn_800C79E4();
     fn_800B5D90();
@@ -176,7 +251,7 @@ void MBInit(void) {
     if (lbl_80344E74) {
         pbInitGlobal();
         fn_800C1170(0x145, &lbl_80344DA8, 0);
-        fn_800B6D38(0, 0, 0);
+        MBSetBGColor(0, 0, 0);
         lbl_80344E74 = 0;
     } else {
         pbCloseGlobal();
@@ -187,12 +262,19 @@ void MBInit(void) {
     fn_800B9E4C();
     mbInitInvSqrtTable();
     fn_800C2F50(512.0f, 384.0f);
-    fn_800B8AB8();
+    MBOX_ResetModels();
     MBTreeInit();
     fn_800BC23C();
-    fn_800B6D64();
+    MBInitLights();
     fn_800B6C94();
     fn_800C5B1C();
+}
+
+/* Dead at link; fixes the original TU's first-use order for the shared 1.0
+   double literal before the two lookup/table routines below. */
+static f64 mbPoolOrder(f64 x)
+{
+    return x + 1.0;
 }
 
 /* mbInvSqrtLookup @0x800B71AC : fast 1/sqrt(x) via the piecewise-scaled
@@ -227,19 +309,30 @@ void mbInitInvSqrtTable(void) {
     int i;
 
     for (i = 1; i <= 200; i++) {
-        *p++ = (f32)(1.0 / sqrt(0.05 * (f64)i));
+        f64 root;
+        MB_SQRT(root, 0.05 * (f32)i);
+        *p++ = (f32)(1.0 / root);
+    }
+    {
+        int j;
+        for (j = 1; j <= 200; j++) {
+            *p++ = (f32)(1.0 / mbSqrtFAccurate((f32)j));
+        }
     }
     for (i = 1; i <= 200; i++) {
-        *p++ = (f32)(1.0 / sqrt((f64)i));
+        f64 root;
+        MB_SQRT(root, 20.0 * (f32)i);
+        *p++ = (f32)(1.0 / root);
     }
     for (i = 1; i <= 200; i++) {
-        *p++ = (f32)(1.0 / sqrt(20.0 * (f64)i));
+        f64 root;
+        MB_SQRT(root, 500.0 * (f32)i);
+        *p++ = (f32)(1.0 / root);
     }
     for (i = 1; i <= 200; i++) {
-        *p++ = (f32)(1.0 / sqrt(500.0 * (f64)i));
-    }
-    for (i = 1; i <= 200; i++) {
-        *p++ = (f32)(1.0 / sqrt(10000.0 * (f64)i));
+        f64 root;
+        MB_SQRT(root, 10000.0 * (f32)i);
+        *p++ = (f32)(1.0 / root);
     }
     *p = 1e-5f;
 }
