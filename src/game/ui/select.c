@@ -57,6 +57,14 @@ extern s32 lbl_80343DD4;   /* async load handle      */
 extern s32 lbl_803449A0;   /* select mode flag       */
 extern u8  lbl_80275AE0[]; /* 4-player array, stride 0x335C */
 
+typedef struct SelectSlot {
+    u8 _pad[108];
+    s32 state;
+    u8 _tail[120];
+} SelectSlot;
+
+extern SelectSlot lbl_80121950[];
+
 /* ---- audio / front-end (other TUs) ---- */
 extern void AudioWelcome(void);
 extern void AudioWelcomeBack(void);
@@ -86,7 +94,7 @@ extern void mbBlitUpdateEntry(void* e);
 
 /* ---- async-load primitives (other TUs) ---- */
 extern int  MBOX_BGLoadModelStart(void* name, int a);
-extern int  fn_800B7758(void);
+extern int  MBOX_BGLoadModelDone(void);
 extern void fn_8005403C(int a);
 extern char lbl_80348024[7];
 
@@ -202,8 +210,9 @@ void fn_8008FA70(void)
 {
 }
 
-void fn_8008FC5C(void)
+void fn_8008FC5C(s32 slot)
 {
+    lbl_80121950[slot].state = 0;
 }
 
 void fn_8008FC78(void)
@@ -231,15 +240,26 @@ void fn_8008FED4(void)
  * finished, 2 once already complete. */
 int SelectLoadDone(void)
 {
+    int result;
+
     if (lbl_80344BC0 != 0) {
-        return 2;
+        goto already_done;
     }
-    if (fn_800B7758() == 0) {
-        return 0;
+    if (MBOX_BGLoadModelDone() == 0) {
+        goto loading;
     }
     fn_8005403C(2);
     lbl_80344BC0 = 1;
-    return 1;
+    result = 1;
+    goto done;
+
+loading:
+    result = 0;
+    goto done;
+already_done:
+    result = 2;
+done:
+    return result;
 }
 
 /* Begin the async tower/geometry load for the select scene. */

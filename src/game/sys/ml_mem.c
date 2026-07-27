@@ -323,7 +323,7 @@ void InitMemHandler(void)
 
 int FileSystemReading(void)
 {
-    if (mlmFileHandles[0].state != 0) {
+    if (mlmFileHandles[0].done != 0) {
         return 0;
     }
     return 1;
@@ -331,7 +331,7 @@ int FileSystemReading(void)
 
 int FileSystemBusy(void)
 {
-    if (mlmFileHandles[0].state == -1) {
+    if (mlmFileHandles[0].done == -1) {
         return 0;
     }
     return 1;

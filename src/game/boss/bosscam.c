@@ -142,7 +142,7 @@ extern const f64 lbl_80345C50;
 extern const f64 lbl_80345B90;
 extern const f64 lbl_80345BE0;
 extern const f64 lbl_80345BA8;         /* 0.5 */
-extern f64 cos(f64);
+extern f32 cos(f32);
 
 /* forward decls for the in-file functions used before their definitions */
 void CamLimitPlayerDpos(void* camera, u8* ps, f32* dpos, s32 arg);

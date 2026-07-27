@@ -207,9 +207,9 @@ void InitDynobjGrid(void)
 {
     s32 i;
     s32 count;
-    s32 total;
-    s32 n;
     s32 ofs;
+    s32 n;
+    s32 total;
     u32 hdr;
     s16 objidx;
     u8 unused[48];
@@ -226,7 +226,7 @@ void InitDynobjGrid(void)
     hdr = *gWorldInfo.objlisthdr;
     count = hdr >> 22;
     ofs = hdr & 0x3FFFFF;
-    for (i = 0; i < count; i++) {
+    for (i = total; i < count; i++) {
         objidx = *(s16*)((u8*)gWorldInfo.objlistpool + ofs);
         ofs += 2;
         dynobj_list[i].obj_idx = objidx;
