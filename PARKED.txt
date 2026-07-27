@@ -26,3 +26,11 @@ fn_800C780C                # isel, lwzx +4 fold vs add+disp (pb_texture)
 vsprintf                   # sched, 9-line head spill + ch/fmark web (crt)
 cvt                        # sched, 2-line epilogue mtlr/addi tie (crt)
 bsearch                    # regalloc (MSL)
+
+# GATED (not walls — blocked on another reconstruction; see file comments):
+AddBoss                    # gate=BossSpewCoins pins boss .bss anchor (boss.c)
+StartSpewItem              # gate=BossSpewCoins
+ProcessSpewItems           # gate=BossSpewCoins
+HealthMeterUpdate          # gate=BossSpewCoins
+HealthMeterStart           # gate=BossSpewCoins
+BossDeath                  # gate=BossSpewCoins
