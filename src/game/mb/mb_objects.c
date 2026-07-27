@@ -30,7 +30,7 @@
 extern void* fn_800BB29C(void* parent, void* name, int count); /* render-node/tree alloc */
 extern void FatalError(const char* msg, int code);
 extern void ErrorPrintf(const char* fmt, ...);
-extern int fn_800B5704(void* p, f32 f);                /* float-triple valid test */
+extern int MBWorldSphereVisible3(void* p, f32 f);       /* mb_camera.c */
 extern void CopyMat4(void* mtx, MBObjEntry* e);     /* fill entry transform */
 extern void qsort(void* base, u32 num, u32 size,
                   int (*cmp)(const void*, const void*));
@@ -179,7 +179,7 @@ void MBSetObject(MBObject* obj, s32 objid) {
 /* Returns 0 = cull, 1 = draw immediately, 2 = defer to a sort queue. */
 int MBDrawObjectTest(MBObject* obj, void* cam, int allowDefer) {
     int cull;
-    cull = !fn_800B5704((u8*)cam + 48, *(f32*)((u8*)obj->data.romobj + 4));
+    cull = !MBWorldSphereVisible3((u8*)cam + 48, *(f32*)((u8*)obj->data.romobj + 4));
     if (gWinDebug[0] != 0 && gWinDebug[1] != 0) {
         cull = 0;
     }
