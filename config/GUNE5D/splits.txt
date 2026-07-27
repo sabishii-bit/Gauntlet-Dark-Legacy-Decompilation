@@ -124,6 +124,16 @@ game/ui/select.c:
 	extabindex  start:0x8000AB10 end:0x8000ABD0
 	.text       start:0x8008C52C end:0x800911C8
 
+game/sfx/sfx.c:
+	extab       start:0x80006D00 end:0x80006EB0
+	extabindex  start:0x8000ABD0 end:0x8000AE58
+	.text       start:0x800911C8 end:0x800988A4
+
+game/shop/shop.c:
+	extab       start:0x80006EB0 end:0x80006F18
+	extabindex  start:0x8000AE58 end:0x8000AEF4
+	.text       start:0x800988A4 end:0x8009C228
+
 game/shop/shopquery.c:
 	.text       start:0x8009C228 end:0x8009C2CC
 
