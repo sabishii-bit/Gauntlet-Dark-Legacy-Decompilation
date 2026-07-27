@@ -13,6 +13,14 @@
 struct iteminfo;
 struct mbnode;
 
+/* Camera/lookout waypoint record.  Only the two link fields at the tail have
+ * been identified so far; the preceding camera parameters remain opaque. */
+typedef struct LookoutParam {
+    /* 0x00 */ u8  data[0x68];
+    /* 0x68 */ s16 next;
+    /* 0x6A */ s16 id;
+} LookoutParam; /* 0x6C */
+
 /* An OBJGRP is the transform / node handle shared by every placed object.   */
 typedef struct OBJGRP {
     /* 0x00 */ f32 worldmat[4][4];
@@ -81,7 +89,8 @@ extern void* sWeaponsBuf;
 extern s32   sPowerupsHandle;
 extern void* sPowerupsBuf;
 extern s32   sItemFile0Handle;
-extern void* sItemFile0Buf;
+extern void* sGoodWizObj;        /* level-zero item resource buffer */
+#define sItemFile0Buf sGoodWizObj
 extern s32   sItemFile1Handle;
 extern void* sItemFile1Buf;
 extern s32   sItemRandSeed;
@@ -107,16 +116,16 @@ void* PlaceItem(char* name, void* a, void* b);
 void  SetItem(Item* item, s32 flag, void* a, void* b);
 void  MatchTransporters(void);
 void  AddLocatorInstList(void* list, s32 count);
-s32   FindLookoutParam(s32 id);
+LookoutParam* FindLookoutParam(s32 id);
 s32   FindClosestWaypoint(f32* pos);
-s32   NextWaypoint(s32 idx);
+LookoutParam* NextWaypoint(LookoutParam* waypoint);
 s32   ClosestStartPos(f32* pos);
 void  ShowCameras(s32 on);
 void  ShowMilestones(s32 on);
 void  GetMilestonePos(s32 idx, f32* out);
 void  update_player_milestone(void);
 void  RuneCamActivate(s32 idx);
-void  WindowCamActivate(s32 idx, s32 sub);
+void  WindowCamActivate(s32 idx);
 void  SumnerCamActivate(s32 idx, s32 sub);
 void  CrystalCamActivate(void);
 

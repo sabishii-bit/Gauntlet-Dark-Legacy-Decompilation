@@ -82,3 +82,25 @@ world-object transform helpers, a constant-result helper, an active-object
 scan, and an item-state query.  These functions deliberately reuse the shared
 `OBJGRP` and `Item` layouts from `include/game/item.h`; no duplicate anonymous
 layout was added.
+
+## Items follow-up
+
+Following the first dependency edge into `game/world/items` established the
+shared 0x6C-byte `LookoutParam` record.  Its next-link is at `0x68` and its
+lookup id is at `0x6A`; both `FindLookoutParam` and `NextWaypoint` return record
+pointers.  The older integer-return declarations were ABI-inaccurate.
+
+The same pass recovered the milestone-position accessor, the four scripted
+camera activation paths, the two item resource names, and the item runtime
+reset.  This confirms that the item subsystem bridges three important
+gauntworld responsibilities:
+
+- level and boss-specific model/animation resources;
+- linked lookout/waypoint navigation;
+- crystal, Sumner, window, and rune camera triggers.
+
+`LoadItems` is fully translated and one instruction longer than the target
+because MWCC materializes a redundant address copy before saving the two
+composite-data bases.  Its calls, fields, branches, relocations, and resource
+ownership are otherwise reconstructed; retain the native-readable structure
+unless a general scheduling technique removes that residual.
