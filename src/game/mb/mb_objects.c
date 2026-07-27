@@ -126,41 +126,11 @@ void MBInitObjects(int enable) {
     }
 }
 
-/* Create a new object node under a parent tree and bind it to a rom object. */
-MBObject* MBNewObject(s32 objid, void* name, void* parent, u32 flags) {
-    MBObject* obj;
-
-    if (parent == 0) {
-        parent = (flags & 0x00002000) ? lbl_80344EBC : lbl_80344EB8;
-    }
-
-    if (objid == -1) {
-        obj = (MBObject*)fn_800BB29C(parent, name, 1);
-    } else {
-        obj = (MBObject*)fn_800BB29C(parent, name, 2);
-        if (obj != 0) {
-            u8* mgr = gWinGlobals;
-            if (objid < 0) {
-                FatalError(str_BadMBSetObject, 0x800000);
-                obj->index = objid;
-                obj->data.romobj = 0;
-            } else {
-                void** table = *(void***)(mgr + 0x30);
-                table = (void**)table[(objid >> 16) * 4 + 1];
-                obj->index = objid;
-                obj->data.romobj = (u8*)*(void**)((u8*)table + 0x54) +
-                              ((objid << 6) & 0x003FFFC0);
-                obj->type = 2;
-                obj->flags &= ~1u;
-            }
-            obj->flags |= flags;
-        }
-    }
-    return obj;
-}
-
-/* Rebind an existing object node to a different rom object. */
-void MBSetObject(MBObject* obj, s32 objid) {
+/* Bind an object node to a rom object (shared guts of MBNewObject /
+ * MBSetObject; defined before both so -inline auto folds it into each —
+ * the inlinee's param webs are what give MBNewObject its obj=r31/flags=r30
+ * coloring; open-coding the body rotates them). */
+static void SetObjectGuts(MBObject* obj, s32 objid) {
     u8* mgr = gWinGlobals;
     if (objid < 0) {
         FatalError(str_BadMBSetObject, 0x800000);
@@ -175,6 +145,31 @@ void MBSetObject(MBObject* obj, s32 objid) {
         obj->type = 2;
         obj->flags &= ~1u;
     }
+}
+
+/* Create a new object node under a parent tree and bind it to a rom object. */
+MBObject* MBNewObject(s32 objid, void* name, void* parent, u32 flags) {
+    MBObject* obj;
+
+    if (parent == 0) {
+        parent = (flags & 0x00002000) ? lbl_80344EBC : lbl_80344EB8;
+    }
+
+    if (objid == -1) {
+        obj = (MBObject*)fn_800BB29C(parent, name, 1);
+    } else {
+        obj = (MBObject*)fn_800BB29C(parent, name, 2);
+        if (obj != 0) {
+            SetObjectGuts(obj, objid);
+            obj->flags |= flags;
+        }
+    }
+    return obj;
+}
+
+/* Rebind an existing object node to a different rom object. */
+void MBSetObject(MBObject* obj, s32 objid) {
+    SetObjectGuts(obj, objid);
 }
 
 /* =====================================================================
