@@ -353,10 +353,16 @@ int fn_800C7558(s32 key) {
 
 /* Return the 1-based index (1..2) of the first flag bit set in
  * (mask & desc->flags[idx]), or 0 if none. */
+typedef struct TEXDESCENT {
+    /* 0x0 */ u32 key;
+    /* 0x4 */ u8* desc;
+    /* 0x8 */ u32 unk8;
+    /* 0xC */ u32 unkC;
+} TEXDESCENT; /* 0x10-stride entry of the tbl */
+
 int fn_800C780C(s32 id, s32 idx, u32 mask) {
-    /* NonMatching residual: MWCC 1.2.5n folds the +4 member offset into an
-     * indexed lwzx; the target uses add + displacement-4 load (open wall). */
-    u8* p = *(u8**)((u8*)gWinGlobals->tbl + id * 0x10 + 0x4);
+    TEXDESCENT* t = (TEXDESCENT*)gWinGlobals->tbl;
+    u8* p = t[id].desc;
     u8* flags = *(u8**)(p + 0x78);
     s32 i;
     u32 bit;

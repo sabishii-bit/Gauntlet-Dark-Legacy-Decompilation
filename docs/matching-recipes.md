@@ -101,6 +101,48 @@ hardcoded-address body inside a Matching TU to real C, the replacement must
 be BYTE-EXACT before it can land — draft it, fndiff it, and only swap it in
 at 0 real diff lines.
 
+## Address-grouping laws (walls sweep, 2026-07)
+
+The "isel wall" family (target `add base,idx` + big-displacement vs our
+`addi idx,const` + lwzx/stwx) is SOURCE SHAPE, not flags. Empirical laws
+(micro-repros in the walls session; killed pbTraverseDrawObjects and
+fn_800C780C):
+
+- **Flag semantics correction**: in `-O4,p` the `,p` means `-opt speed` —
+  NOT peephole. Plain `-O4` already includes peephole+schedule+functions
+  (`mwcceppc -help all` is authoritative). All "no-peephole family" tells in
+  older notes are really "no-speed family" tells.
+- **Typed-local subscript law**: `T* t = (T*)ptr_expr; x = t[i].field;`
+  emits `add rT,base,idx ; lwz field-disp(rT)` (the target form). The SAME
+  access with the cast inline under the subscript
+  (`((T*)ptr_expr)[i].field`) or through an address-of transit
+  (`T* e = &t[i]; e->field`) re-associates and folds the constant into the
+  index (lwzx). Absorb casts in a typed-local ASSIGNMENT, keep subscript +
+  field in ONE expression.
+- **Sibling-symbol pooling law**: same-section TU-local globals are
+  addressed off ONE materialized base with constant deltas (bss pooling).
+  If target shows `lis/addi symA` + accesses at symA+bigconst that really
+  belong to the NEXT array, do NOT write `(char*)symA + bigconst` byte
+  math — declare the real sibling arrays (`mat44 matrix_stack[64];
+  u32 node_flags[64]; u32 view_flag[N];`) and index them naturally; the
+  compiler emits the symA-relative form itself, and RMW `|=` keeps the
+  displacement. Byte-math spellings let copy-prop re-fold RMW addressing
+  into lwzx/stwx. (Requires the arrays DEFINED in-TU: extern kills pooling.)
+- **&arr[i] into a struct field**: `Effect* e = &page->fx[idx];` fixes the
+  "+2976 fold" (field-array offset rides as addi/disp, insn counts align).
+  A trailing single-use `p += const` still gets dissolved by copy-prop —
+  that residual is flag-proof; accept or pragma.
+- **Scoped `#pragma opt_propagation off`** (melee precedent: pragmas ship in
+  matched source, `#pragma push/pop` scoping) reproduces prop-blocked shapes
+  when no source spelling works — verify the WHOLE fn stays byte-identical;
+  prop-off usually changes nothing else. It does NOT beat the address
+  canonicalizer (fn_80091AC0-class assoc ties are pragma-proof too).
+- **Flag axis is CLOSED for parked walls**: `tools/gdl/flagsweep.py` sweeps
+  every -opt suboption, -proc, -sym, -inline, -schedule and 7 archive
+  compiler versions against the dtk target object in one run. No parked
+  renum/sched/assoc residual moved under any variant (2.x/3.x compilers are
+  uniformly worse). Do not re-run compiler-version hunts by hand.
+
 ## Additions (sfx refinement pass)
 
 - **Contiguous-case switch range emission**: `cmpwi hi; bge default; cmpwi lo;

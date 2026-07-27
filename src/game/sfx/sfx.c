@@ -461,11 +461,11 @@ s32 StartDeathFX(struct mbnode* parent, s32 kind, u32 fla)
         }
     }
     if (idx >= 0) {
-        u8* p = (u8*)page + idx * 240;
+        Effect* e = &page->fx[idx];
         struct anode* root;
 
-        fn_800BAD94(*(struct mbnode**)(p + 2996), parent);
-        root = ATREE_ROOT((Effect*)((s32)p + 2976));
+        fn_800BAD94(e->node, parent);
+        root = ATREE_ROOT(e);
         if (root != NULL) {
             fn_800BA368(root->node, 0x10, 0);
         }
@@ -499,9 +499,6 @@ s32 fn_80091AC0(f32* mat, s32 ene, s32 death)
         idx = StartFXSub(type, mat + 12, 0, 0x800, 0.0f);
         ret = idx;
         if (idx >= 0) {
-            /* PARKED at 6-line association tie: target forms
-             * (page + idx*240) + 2976, MWCC canonicalizes ours to
-             * page + (idx*240 + 2976) regardless of spelling. */
             Effect* e = &page->fx[idx];
 
             if (mat != NULL) {
@@ -606,12 +603,12 @@ s32 StartBlockFX(f32 time, s32 pnum)
                     lbl_8011A178[*(s32*)(lbl_80275AE0 + pnum * 0x335C + 4)], 1);
         fn_800BA6C0(page->fx[idx].node, 0x40, 1);
         if (idx >= 0) {
-            u8* p = (u8*)page + idx * 240;
+            Effect* e = &page->fx[idx];
             struct anode* root;
 
-            fn_800BAD94(*(struct mbnode**)(p + 2996),
+            fn_800BAD94(e->node,
                         *(struct mbnode**)(lbl_80275AE0 + pnum * 0x335C + 0x74));
-            root = ATREE_ROOT((Effect*)((s32)p + 2976));
+            root = ATREE_ROOT(e);
             if (root != NULL) {
                 fn_800BA368(root->node, 0x10, 0);
             }
