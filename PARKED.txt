@@ -1,6 +1,14 @@
 # Functions parked on register-allocator/copy-quirk residuals (opcode-complete,
 # 3-attempt cap reached). Re-test this whole list if a new allocator lever is
 # ever found (flag, pragma, compiler variant). One name per line; '#' comments.
+# 2026-07 walls sweep (tools/gdl/flagsweep.py): every remaining entry tested
+# against -opt {nostrength,noschedule,nopeephole,space,speed,noprop,
+# nolifetimes,nocse}, -proc 750/603e, -sym on, -inline variants, -schedule
+# on/off, and compilers 1.1p1/1.2.5/1.3.2/2.0p1/2.5/2.6/2.7 on class
+# representatives: NO residual moved (isel/assoc+renum+sched all flag-proof).
+# Solved by SOURCE SHAPE instead (see docs/matching-recipes.md "address
+# grouping laws"): pbTraverseDrawObjects, fn_800C780C, MBAddLight (stale),
+# StartDeathFX/StartBlockFX structural folds.
 # Class tags: remat=li-vs-copy of live zero; copy=surviving mr/fmr/addi copy;
 # renum=pure register renumber cluster; sched=scheduler tie; isel=instr-select tie.
 
@@ -16,13 +24,11 @@ CreateDynobjGrid           # renum, r27/r28 rotation through rasterize loops
 InitDynobjGrid             # remat, mr r3,r8 i=total zero-copy
 DmgFxNodeUpdate            # isel+sched, commutative-fmul order (sfx.c)
 pbPulseTime                # renum, tbms r30-vs-r31 (pbutils 7/8)
-MBAddLight                 # copy, idx=count hoisted-vs-sunk (mb_lights 3/4)
 MBSetFontAlpha             # sched (mb_font)
 MBFontMsgSetAlpha          # sched (mb_font)
-pbObjTexSub                # isel, slwi/mr/rlwimi vs clrlwi/rlwimi x3 (pb_objects)
+pbObjTexSub                # isel, slwi/mr/rlwimi vs clrlwi/rlwimi x3 (pb_objects); flag-proof (flagsweep 2026-07)
 fn_800C37C4                # sched, buf r5<->r6 (pb_objects pool-init hook)
 fn_800C7214                # renum+sched, r8<->r10 (pb_texture)
-fn_800C780C                # isel, lwzx +4 fold vs add+disp (pb_texture)
 vsprintf                   # sched, ~26-line head spill + ch/fmark web (crt; GC/1.2.5 — cvt went EXACT on unpin from 1.2.5n)
 bsearch                    # regalloc (MSL)
 
@@ -35,20 +41,19 @@ HealthMeterStart           # gate=BossSpewCoins
 BossDeath                  # gate=BossSpewCoins
 do_screen2d                # sched, 2 transposed SDA loads + 2 reloc-alias lines (lbl+4 vs sFlags — link-identical) (attract)
 dcsHandleRequest           # renum, param-web rotation r28/r29/r30 + state 2-step + clamp fold; insns 411/411 equal; state-first-decl = best form (202 lines); FLIP GATE for dcsdrv
-MBNewObject                # renum, obj<->flags-copy r30/r31 web swap; REGISTER_ONLY (mb_objects 17/18 flip gate)
+MBNewObject                # renum, obj<->flags-copy r30/r31 web swap; REGISTER_ONLY (mb_objects 17/18 flip gate); flag-proof + fl-copy/decl variants fail (2026-07)
 fn_800B290C                # renum, leaf temp-color tie r0/r4/r5 (mb_blit SetAlpha head fn)
 fn_800B27C4                # renum, tpms/1000 web order + f0/f1 conv tie (mb_blit pad-test driver)
-pbTraverseDrawObjects      # isel, |=2 flags-stack add+disp vs lwzx (pb_tree; 4 more lines = bss.0 reloc cosmetic)
 pbRenderNode               # copy+renum, uninit MBSetupObject arg4 materialized fmr f1,f31 + fl&1 CSE'd vs per-site clrlwi + frame +8 (pb_tree)
 CameraFace                 # renum+sched, mask temp r5-fresh vs r3-inplace cluster (pb_tree)
 UpdateFXStreak             # sched+renum, quad-block fwd/p1 double-fmadd hoist order + p1x/p1y<->w0/w1 web swap; insns 138/138, frame+array layout exact (sfx.c)
 fn_8009190C                # sched, tail addr-math interleave around mat-null beq (sfx.c, 12 lines)
-StartDeathFX               # isel, 1-insn fold: target keeps addi e,base,2976 + lwz 24(e), ours folds to lwz 3000(base); insns 77/76 + renum (sfx.c)
-fn_80091AC0                # sched/assoc, (page+idx*240)+2976 vs page+(idx*240+2976) canonicalization; 6 lines (sfx.c)
+StartDeathFX               # renum only now (77/77; e=&page->fx[idx] fixed the 2976 fold 2026-07); head mr-placement + rotation remain
+fn_80091AC0                # assoc, (page+idx*240)+2976 vs page+(idx*240+2976); 6 lines; flag-proof + spelling-proof (flagsweep 2026-07)
 StartEnemyAtkFX            # renum, idx/h/t1/t2 coloring rotation vs StartFXSub scheme; insns equal (sfx.c)
 StartGenFX                 # renum, same rotation; insns 64/64 (sfx.c)
 StartEnterFX               # renum, same rotation; 22 lines (sfx.c)
-StartBlockFX               # isel, same 1-insn 2976-fold as StartDeathFX + renum; insns 74/73 (sfx.c)
+StartBlockFX               # renum only now (74/74; e-form fixed the fold 2026-07); tail lwz-hoist + rotation remain
 StartLevelUpFX             # renum, same rotation (sfx.c)
 StartMagicHealFX           # renum, same rotation; insns 62/62 (sfx.c)
 StartMagicPlayerFX         # renum, same rotation; 22 lines (sfx.c)

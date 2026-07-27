@@ -152,7 +152,8 @@ s32 lbl_80345130;          /* 0x80345130  cleared after each traverse */
 
 /* .bss: matrix stack, then flag stack + vis bitmask */
 mat44 matrix_stack[64];    /* 0x802C7CF8 */
-u32 node_flags[0x1C0];     /* 0x802C8CF8  [0..63] per-level flags, +0x100 vis bits */
+u32 node_flags[64];        /* 0x802C8CF8  per-level flag stack */
+u32 view_flag[0x180];      /* 0x802C8DF8  node-vis bitmask (MBNodeSetVis/IsVis) */
 
 /* ---- code ------------------------------------------------------------ */
 
@@ -184,7 +185,6 @@ s32 pbTraverseDrawObjects(PBTREENODE* node, PBTREENODE* stop, s32 mode)
 {
     PBTREENODE* up = 0;
     s32 l;
-    char* q;
 
     if (mode != 0) {
         up = node->parent;
@@ -208,14 +208,12 @@ s32 pbTraverseDrawObjects(PBTREENODE* node, PBTREENODE* stop, s32 mode)
             FatalError("PushMatrix: Too many levels", 0x800000);
         }
         l = matrix_level;
-        *(u32*)((char*)matrix_stack + 4096 + l * 4) =
-            *(u32*)((char*)matrix_stack + 4092 + l * 4);
+        node_flags[l] = node_flags[l - 1];
 
         if (node->flags & 8) {
             fn_800BE1E0(&matrix_stack[l - 1], node, &matrix_stack[l],
                         node->scale);
-            q = (char*)matrix_stack + matrix_level * 4;
-            *(u32*)(q + 4096) |= 2;
+            node_flags[matrix_level] |= 2;
         } else {
             MulMat4(&matrix_stack[l - 1], node, &matrix_stack[l]);
         }
@@ -261,7 +259,7 @@ void pbRenderNode(PBTREENODE* node)
     vec4 res;
     PBTREENODE* p;
     mat44* mat = &matrix_stack[matrix_level];
-    u32* fp = (u32*)((char*)matrix_stack + 4096 + matrix_level * 4);
+    u32* fp = &node_flags[matrix_level];
     u32 fl = *fp;
     PBWINGLOBALS* win = gWinGlobals;
 
@@ -292,8 +290,7 @@ void pbRenderNode(PBTREENODE* node)
         p = node->parent;
         if (p != 0) {
             if ((p->flags & 1) || p->type == 1) {
-                *(u32*)((char*)matrix_stack + 4352 + ((p->id >> 5) * 4)) |=
-                    1 << (p->id & 31);
+                view_flag[p->id >> 5] |= 1 << (p->id & 31);
             }
         }
         break;
