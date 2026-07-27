@@ -73,6 +73,7 @@ extern Player lbl_80275AE0[4];
 
 /* tower/sumner state (r13 small-data globals) */
 extern void* sSumnerObj;   /* live Sumner (good wizard) object handle   */
+extern s32 lbl_80344C64;   /* Sumner active/state latch                 */
 extern void* sGoodWizObj;  /* GWIZ animation/effect object              */
 
 /* ===================================================================== */
@@ -268,6 +269,7 @@ void SumnerAnimate(void) {
 /* Tear down the live Sumner object. */
 void SumnerEnd(void) {
     sSumnerObj = 0;
+    lbl_80344C64 = 0;
 }
 
 /* Create the good-wizard (GWIZ) object, bind its animation tree, position it

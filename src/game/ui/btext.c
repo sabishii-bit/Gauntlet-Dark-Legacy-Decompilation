@@ -125,7 +125,7 @@ s32 GetScrollListMsg(s32 list, s32 sub, s32 idx)
 f32 RestoreDrawStringScale(void)
 {
     DrawStringScale = OldStringScale;
-    return OldStringScale;
+    return DrawStringScale;
 }
 
 /* Set the current text scale, returning the previous value. */

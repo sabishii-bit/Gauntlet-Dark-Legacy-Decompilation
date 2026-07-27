@@ -113,9 +113,11 @@ u32 MBSetFontColor(u32 rgb)
 int MBSetFontAlpha(u32 alpha)
 {
     u32 old = lbl_80344E54;
+    alpha >>= 1;
     lbl_80344E54 = old & 0x00FFFFFF;
-    lbl_80344E54 = lbl_80344E54 | ((128 - (alpha >> 1)) << 24);
-    return (128 - (old >> 24)) << 1;
+    old = 128 - (old >> 24);
+    lbl_80344E54 = lbl_80344E54 | ((128 - alpha) << 24);
+    return old << 1;
 }
 
 /* 0x800B63F4 - MBSetFontScale : set glyph x/y scale (positive only) */
