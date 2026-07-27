@@ -145,6 +145,18 @@ typedef struct AudTrack {
 } AudTrack;
 extern AudTrack sAudioChanUpdate[12];   /* 0x8023DD28 */
 
+typedef struct AudioRomBankEntry {
+    u8 _pad00[38];
+    s16 firstSound;
+    u8 _pad28[4];
+} AudioRomBankEntry;
+
+typedef struct AudioRomSoundEntry {
+    u8 _pad00[20];
+    f32 volume;
+    u8 _pad18[4];
+} AudioRomSoundEntry;
+
 /* 32-entry kill/voice table, stride 48 (gAudioKillTbl, 0x8023D728) */
 extern u8 gAudioKillTbl[32 * 48];   /* 0x8023D728 */
 
@@ -178,26 +190,27 @@ void AudioLoadComplete(s32* slot);
 
 s32 AudioSetTrackPan(s32 handle, s32 pan)
 {
+    volatile u8 unused[8];
     s32 param[2];
     s32 wasBusy = sAudioQueBusy;
 
+    (void)unused;
     if (sAudioInitFlag != 0) {
         pan = 127;
     }
-    if (sAudioMute != 0) {
-        return 0;
-    }
-    if ((handle & 0x1FFF) == 0) {
-        return 0;
-    }
-    param[0] = SND_LIST_PAN;
-    param[1] = (handle << 16) | (pan & 0xFFFF);
-    sAudioQueBusy = 1;
-    if (sAudioSuspend == 0) {
-        sndRegisterList(param, 2);
-    }
-    if (wasBusy == 0) {
-        sAudioQueBusy = 0;
+    if (sAudioMute == 0) {
+        if ((handle & 0x1FFF) == 0) {
+            return 0;
+        }
+        param[0] = SND_LIST_PAN;
+        param[1] = (handle << 16) | (pan & 0xFFFF);
+        sAudioQueBusy = 1;
+        if (sAudioSuspend == 0) {
+            sndRegisterList(param, 2);
+        }
+        if (wasBusy == 0) {
+            sAudioQueBusy = 0;
+        }
     }
     return 0;
 }
@@ -205,10 +218,12 @@ s32 AudioSetTrackPan(s32 handle, s32 pan)
 s32 AudioSetTrackVolMusic(s32 handle, s32 vol)
 {
     s32 param[2];
+    volatile u8 unused[8];
     s32 wasBusy = sAudioQueBusy;
     s32 t = (vol * lbl_80343B4C) >> 8;
     s32 v;
 
+    (void)unused;
     if (t < 0) {
         v = 0;
     } else if (t > 255) {
@@ -216,20 +231,19 @@ s32 AudioSetTrackVolMusic(s32 handle, s32 vol)
     } else {
         v = t;
     }
-    if (sAudioMute != 0) {
-        return 0;
-    }
-    if ((handle & 0x1FFF) == 0) {
-        return 0;
-    }
-    param[0] = SND_LIST_VOL;
-    param[1] = (handle << 16) | (v & 0xFF);
-    sAudioQueBusy = 1;
-    if (sAudioSuspend == 0) {
-        sndRegisterList(param, 2);
-    }
-    if (wasBusy == 0) {
-        sAudioQueBusy = 0;
+    if (sAudioMute == 0) {
+        if ((handle & 0x1FFF) == 0) {
+            return 0;
+        }
+        param[0] = SND_LIST_VOL;
+        param[1] = (handle << 16) | (v & 0xFF);
+        sAudioQueBusy = 1;
+        if (sAudioSuspend == 0) {
+            sndRegisterList(param, 2);
+        }
+        if (wasBusy == 0) {
+            sAudioQueBusy = 0;
+        }
     }
     return 0;
 }
@@ -237,10 +251,12 @@ s32 AudioSetTrackVolMusic(s32 handle, s32 vol)
 s32 AudioSetTrackVolSfx(s32 handle, s32 vol)
 {
     s32 param[2];
+    volatile u8 unused[8];
     s32 wasBusy = sAudioQueBusy;
     s32 t = (vol * lbl_80343B48) >> 8;
     s32 v;
 
+    (void)unused;
     if (t < 0) {
         v = 0;
     } else if (t > 255) {
@@ -248,20 +264,19 @@ s32 AudioSetTrackVolSfx(s32 handle, s32 vol)
     } else {
         v = t;
     }
-    if (sAudioMute != 0) {
-        return 0;
-    }
-    if ((handle & 0x1FFF) == 0) {
-        return 0;
-    }
-    param[0] = SND_LIST_VOL;
-    param[1] = (handle << 16) | (v & 0xFF);
-    sAudioQueBusy = 1;
-    if (sAudioSuspend == 0) {
-        sndRegisterList(param, 2);
-    }
-    if (wasBusy == 0) {
-        sAudioQueBusy = 0;
+    if (sAudioMute == 0) {
+        if ((handle & 0x1FFF) == 0) {
+            return 0;
+        }
+        param[0] = SND_LIST_VOL;
+        param[1] = (handle << 16) | (v & 0xFF);
+        sAudioQueBusy = 1;
+        if (sAudioSuspend == 0) {
+            sndRegisterList(param, 2);
+        }
+        if (wasBusy == 0) {
+            sAudioQueBusy = 0;
+        }
     }
     return 0;
 }
@@ -1202,10 +1217,17 @@ void AudioEmptyCb2(void) {}
 /* AudioGetSoundVol: fetch a sound instance's stored volume by packed id. */
 f32 AudioGetSoundVol(s32 packedId)
 {
-    u8* bank = *(u8**)(sAudioBankTable + 16) + (packedId >> 16) * 44;
-    u8* snd  = *(u8**)(sAudioBankTable + 20)
-               + ((packedId & 0xFFF) + *(s16*)(bank + 38)) * 28;
-    return *(f32*)(snd + 20);
+    AudioRomBankEntry* banks;
+    u8* root;
+    AudioRomSoundEntry* sounds;
+    s32 soundIndex = packedId & 0xFFF;
+
+    root = sAudioBankTable;
+    banks = *(AudioRomBankEntry**)(root + 16);
+    sounds = *(AudioRomSoundEntry**)(root + 20);
+    soundIndex += banks[packedId >> 16].firstSound;
+
+    return sounds[soundIndex].volume;
 }
 
 /* AudioFindSound: resolve a sound handle by name across all loaded banks. */
