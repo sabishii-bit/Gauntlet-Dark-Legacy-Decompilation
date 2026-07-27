@@ -211,4 +211,10 @@ typedef void (*AXVoiceCallback)(void*);
 typedef void (*AXAuxCallback)(void* data, void* context);
 typedef void (*AXUserCallback)(void);
 
+void AXSetVoiceSrcType(AXVPB* voice, u32 type);
+void AXSetVoiceState(AXVPB* voice, u16 state);
+void AXSetVoiceAddr(AXVPB* voice, AXPBADDR* addr);
+void AXSetVoiceAdpcm(AXVPB* voice, AXPBADPCM* adpcm);
+void AXSetVoiceSrc(AXVPB* voice, AXPBSRC* src);
+
 #endif
