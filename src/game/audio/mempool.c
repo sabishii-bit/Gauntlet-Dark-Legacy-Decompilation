@@ -16,28 +16,39 @@
  */
 #include "types.h"
 
+extern s32 lbl_80345248;
+extern u32 lbl_8031EAF0[];
+
+void mathStub1__Fv();
+
 /* 0x800D5260  no-op hook called on list-verify failure */
 void listVerifyHook(void) {
 }
 
 /* 0x800D5264  memlock acquire stub (returns 1) */
-void dcsMemLock(void) {
+s32 dcsMemLock(void) {
+    return 1;
 }
 
 /* 0x800D526C  memlock release stub (returns 1) */
-void dcsMemUnlock(void) {
+s32 dcsMemUnlock(void) {
+    return 1;
 }
 
 /* 0x800D5274  memlock try stub (returns 1) */
-void dcsMemTryLock(void) {
+s32 dcsMemTryLock(void) {
+    return 1;
 }
 
 /* 0x800D527C  return current lock owner */
-void dcsMemLockOwner(void) {
+s32 dcsMemLockOwner(void) {
+    return lbl_80345248;
 }
 
 /* 0x800D5284  tag a lock table slot + timestamp */
-void dcsMemLockTag(void) {
+void dcsMemLockTag(s32 slot, u32 tag) {
+    lbl_8031EAF0[slot + 2] |= tag;
+    mathStub1__Fv(slot | 0x1600);
 }
 
 /* 0x800D52C4  create/register a pool block */
@@ -91,4 +102,3 @@ void list_verify(void) {
 /* 0x800D621C  tiny pool accessor */
 void pool_query(void) {
 }
-
