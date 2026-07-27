@@ -1,0 +1,28 @@
+# Functions parked on register-allocator/copy-quirk residuals (opcode-complete,
+# 3-attempt cap reached). Re-test this whole list if a new allocator lever is
+# ever found (flag, pragma, compiler variant). One name per line; '#' comments.
+# Class tags: remat=li-vs-copy of live zero; copy=surviving mr/fmr/addi copy;
+# renum=pure register renumber cluster; sched=scheduler tie; isel=instr-select tie.
+
+regFind                    # unfolded-branch quirk (registry.c 3/4)
+sndVoiceUpdateAll          # r7<->r8 web swap (sndvoice 7/8)
+G3DReadControlPadStates    # remat, li x3 vs register copies (gcontrolpads 6/7)
+mat44InvBasis              # IV colored last-vs-first, 32-line shift (g3dMath3D 30/31)
+MBWindowProject            # renum, FPR cluster + v web split (mb_window)
+MBWindowZoom               # copy, z=zoom fmr survives in target (mb_window)
+fn_800BBA34                # renum, f0/f4 web swap in rect fill (mb_window setup)
+WorldDynCollide            # copy, target's extra addi r6 d-copy web (dynobjgrid)
+CreateDynobjGrid           # renum, r27/r28 rotation through rasterize loops
+InitDynobjGrid             # remat, mr r3,r8 i=total zero-copy
+DmgFxNodeUpdate            # isel+sched, commutative-fmul order (sfx.c)
+pbPulseTime                # renum, tbms r30-vs-r31 (pbutils 7/8)
+MBAddLight                 # copy, idx=count hoisted-vs-sunk (mb_lights 3/4)
+MBSetFontAlpha             # sched (mb_font)
+MBFontMsgSetAlpha          # sched (mb_font)
+pbObjTexSub                # isel, slwi/mr/rlwimi vs clrlwi/rlwimi x3 (pb_objects)
+fn_800C37C4                # sched, buf r5<->r6 (pb_objects pool-init hook)
+fn_800C7214                # renum+sched, r8<->r10 (pb_texture)
+fn_800C780C                # isel, lwzx +4 fold vs add+disp (pb_texture)
+vsprintf                   # sched, 9-line head spill + ch/fmark web (crt)
+cvt                        # sched, 2-line epilogue mtlr/addi tie (crt)
+bsearch                    # regalloc (MSL)
