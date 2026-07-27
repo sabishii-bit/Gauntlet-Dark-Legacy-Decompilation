@@ -16,6 +16,10 @@ s32 AudioQueUpdate(s32 bank);
 s32 dcsBankLoad(void* bank, s32 mode);
 void dcsRequestReset(void);
 s32 dcsBankUnload(void* bank);
+void dcsVoiceSetMaster(s32 channel, s32 left, s32 right);
+void dcsVoiceUpdate(s32 channel);
+s32 dcsVoiceInUse(s32 channel);
+s32 dcsSampleStream(void* sample, u32 uploadArg);
 
 void dcsAramReadTop(void* destination, u32 length);
 void dcsAramWriteTop(void* source, u32 length);

@@ -20,18 +20,44 @@
  * +0x000/+0x204/+0x408), built once by G3DInitStickCurve, guarded by
  * lbl_803452A4.
  *
- * NonMatching: the hardware status pump and initialization path are translated.
- * The analog response-curve builder/converter remain to be reconstructed;
- * extracted bytes still link from the DOL for the whole TU.
+ * NonMatching: all four functions are translated. The response-curve math and
+ * status pump retain compiler-layout differences, so extracted bytes still
+ * link from the DOL for the whole TU.
  */
 #include "types.h"
 #include "dolphin/pad.h"
 #include "dolphin/vi/vifuncs.h"
 #include "game/g3dpad.h"
 
+extern f64 __frsqrte(f64 value);
+
+static inline f32 g3dSqrt(f32 value)
+{
+    volatile f32 result;
+
+    if (value > 0.0f) {
+        f64 guess = __frsqrte((f64)value);
+        guess = 0.5 * guess * (3.0 - guess * guess * value);
+        guess = 0.5 * guess * (3.0 - guess * guess * value);
+        guess = 0.5 * guess * (3.0 - guess * guess * value);
+        result = (f32)(value * guess);
+        return result;
+    }
+    return value;
+}
+
 extern u32 lbl_80345298;
 extern u32 lbl_8034529C;
 extern u32 lbl_803452A0;
+extern s32 lbl_803452A4;
+
+typedef struct G3DStickCurve {
+    f32 magnitude[129];
+    f32 x[129];
+    f32 y[129];
+} G3DStickCurve;
+
+extern G3DStickCurve lbl_80320C80;
 
 typedef struct G3DPadState {
     PADStatus status;
@@ -70,22 +96,90 @@ extern G3DPadHardwareState lbl_8032128C;
  * vector.  Zero-input shortcut writes 0.0f to both outputs; otherwise it takes
  * the octant (sign + |x|<=>|y| swap flags in r9), interpolates the per-axis
  * response curve from lbl_80320C80, and renormalises the magnitude with an
- * frsqrte + two Newton-Raphson refinement steps.  Called by gcontrolpads.c
- * (G3DGetControlPadAnalogStick).  Hard FP - parked NonMatching.
+ * frsqrte + three Newton-Raphson refinement steps. Called by gcontrolpads.c
+ * (G3DGetControlPadAnalogStick).
  */
 void G3DAnalogToStickXY(f32* outX, f32* outY, int rawX, int rawY) {
+    s32 flags = 0;
+    s32 tmp;
+    s32 index;
+    s32 minor;
+    f32 magnitude;
+    f32 scale;
+
+    if (rawX == 0 && rawY == 0) {
+        *outX = 0.0f;
+        *outY = 0.0f;
+        return;
+    }
+
+    if (rawY < 0) {
+        flags |= 1;
+        rawY = -rawY;
+    }
+    if (rawX < 0) {
+        flags |= 2;
+        rawX = -rawX;
+    }
+    if (rawY > rawX) {
+        tmp = rawX;
+        rawX = rawY;
+        rawY = tmp;
+        flags |= 4;
+    }
+
+    index = (s32)(128.0f * (1.0f / 256.0f +
+                            (f32)rawY / (f32)rawX));
+    minor = (s32)((f32)index * (1.0f / 128.0f) * (f32)rawX);
+    magnitude = g3dSqrt((f32)(rawX * rawX + minor * minor));
+    scale = magnitude / lbl_80320C80.magnitude[index];
+    *outX = scale * lbl_80320C80.x[index];
+    *outY = scale * lbl_80320C80.y[index];
+
+    if ((flags & 4) != 0) {
+        f32 swap = *outY;
+        *outY = *outX;
+        *outX = swap;
+    }
+    if ((flags & 2) != 0) {
+        *outX = -*outX;
+    }
+    if ((flags & 1) != 0) {
+        *outY = -*outY;
+    }
 }
 
 /*
  * 0x800D7F44  G3DInitStickCurve(void)
  * Build the analog->stick response table lbl_80320C80 once (guarded by the
  * lbl_803452A4 init-once flag): a 128-entry curve for each of three parallel
- * f32 arrays.  FP-heavy - parked NonMatching.
+ * f32 arrays.
  */
-#pragma dont_inline on
 void G3DInitStickCurve(void) {
+    s32 i;
+    G3DStickCurve* curve = &lbl_80320C80;
+
+    if (lbl_803452A4 == 0) {
+        lbl_803452A4 = 1;
+        curve->magnitude[0] = 72.0f;
+        curve->x[0] = 1.0f;
+        curve->y[0] = 0.0f;
+
+        for (i = 1; i <= 128; i++) {
+            f32 ratio = (f32)i * (1.0f / 128.0f);
+            f32 divisor = 1.25f + ratio;
+            s32 x = (s32)(0.5f + 90.0f / divisor);
+            s32 y = (s32)(0.5f + (90.0f * ratio) / divisor);
+            f32 magnitude = g3dSqrt((f32)(x * x + y * y));
+            f32 storedMagnitude;
+
+            curve->magnitude[i] = magnitude;
+            storedMagnitude = curve->magnitude[i];
+            curve->x[i] = (f32)x / storedMagnitude;
+            curve->y[i] = (f32)y / storedMagnitude;
+        }
+    }
 }
-#pragma dont_inline off
 
 /*
  * 0x800D811C  G3DUpdatePadStatus(void)
@@ -239,6 +333,7 @@ void G3DUpdatePadStatus(void) {
  * One-time pad init: VIGetTvFormat, PADRecalibrate + PADReset on all pads, and
  * G3DInitStickCurve() to build the analog response table.
  */
+#pragma dont_inline on
 void G3DInitPadStatus(u32 mask, s32 recalibrate) {
     u32 resetMask;
 
@@ -262,3 +357,4 @@ void G3DInitPadStatus(u32 mask, s32 recalibrate) {
     }
     G3DInitStickCurve();
 }
+#pragma dont_inline off

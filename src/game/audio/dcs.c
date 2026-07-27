@@ -17,7 +17,9 @@
  * the voice/bank decoding core is still linked from the extracted DOL.
  */
 #include "types.h"
+#include "dolphin/ax.h"
 #include "game/dcs.h"
+#include "game/sndvoice.h"
 
 typedef void (*ARQCallback)(u32 request);
 
@@ -42,8 +44,20 @@ typedef struct DcsStream {
     u32 oneShot;
 } DcsStream;
 
+typedef struct DcsChannelInfo {
+    s16 volume;
+    s16 pan;
+    u16 duck;
+    u16 _pad06;
+    u32 _unk08;
+    s32 sample;
+    u32 _unk10;
+} DcsChannelInfo;
+
 extern u8 lbl_802F5F60[];
 extern DcsBankData dcsBankData[];
+extern DcsChannelInfo ch_info[12];
+extern AXVPB* sVoice[14];
 extern s32 lbl_803451F8;
 extern s32 dcsResetPending;
 extern volatile u8 dcsSampleBusy;
@@ -51,6 +65,8 @@ extern volatile u8 dcsAramBusy;
 extern ARQRequest dcsAramReq;
 
 extern u32 pool_new(void* list);
+extern void* pool_alloc(void* list, void* node);
+extern void ResetAllocTot(void);
 extern void DCFlushRange(void* address, u32 length);
 extern void DCInvalidateRange(void* address, u32 length);
 extern void ARQPostRequest(ARQRequest* request, u32 owner, u32 type,
@@ -84,7 +100,7 @@ s32 dcsBankQuery(s32 bank, s32* handle, s32* size) {
     s32 index = bank - 1;
 
     if (bank != 0) {
-        *handle = (index + 1) * 0x1000 + 1;
+        *handle = (index + result) * 0x1000 + result;
         *size = dcsBankData[index].size;
         return result;
     }
@@ -154,15 +170,29 @@ void dcsVoiceSetupAdpcm(void) {
 }
 
 /* 0x800D3608  begin streaming a sample into ARAM */
-void dcsSampleStream(void) {
+s32 dcsSampleAllocUpload(void* sample, s32 arg);
+s32 dcsSampleUpload(void* state, u32 uploadArg);
+
+s32 dcsSampleStream(void* sample, u32 uploadArg) {
+    s32 result;
+    u32* state = (u32*)((u8*)sample + 16);
+    u8 pad[8];
+
+    dcsSampleAllocUpload(sample, 0);
+    pool_alloc(lbl_802F5F60, sample);
+    result = dcsSampleUpload(state, uploadArg);
+    state[0] = 0;
+    state[1] = 0;
+    ResetAllocTot();
+    return result;
 }
 
 /* 0x800D3674  ARQ post MRAM->ARAM for sample data */
-void dcsSampleUpload(void) {
+s32 dcsSampleUpload(void* state, u32 uploadArg) {
 }
 
 /* 0x800D374C  alloc ARAM + ARQ upload */
-void dcsSampleAllocUpload(void) {
+s32 dcsSampleAllocUpload(void* sample, s32 arg) {
 }
 
 /* 0x800D3874  ARQ read from top of ARAM (memcard uses) */
@@ -230,15 +260,74 @@ void dcsVoiceStartAx(void) {
 }
 
 /* 0x800D3C40  set voice master volume */
-void dcsVoiceSetMaster(void) {
+#pragma dont_inline on
+void dcsVoiceSetMaster(s32 channel, s32 left, s32 right) {
+    s32 master;
+    u32 bit;
+
+    if ((u32)left == 0x3FFF) {
+        master = 0;
+    } else if (left == 0) {
+        master = -1000;
+    } else {
+        bit = 0x2000;
+        master = -30;
+        while ((left & bit) == 0) {
+            bit >>= 1;
+            master -= 30;
+        }
+        master += ((bit >> 1) + (left - bit) * 30) / bit;
+    }
+    sndVoiceSetMaster(sVoice[channel], master);
 }
+#pragma dont_inline off
 
 /* 0x800D3CCC  refresh voice vol/pan/master */
-void dcsVoiceUpdate(void) {
+void dcsVoiceUpdate(s32 channel) {
+    DcsChannelInfo* info = &ch_info[channel];
+    s32 volume = info->volume;
+    u16 master;
+    u16 excess;
+    s32 scaled;
+    s32 pan;
+    s32 sign;
+
+    if (volume < 0) {
+        volume = 0;
+    }
+    scaled = volume * 0x3FFF / 0xFF;
+    excess = (u16)scaled;
+    master = excess;
+    if ((u16)scaled > 0x3FFF) {
+        excess -= 0x3FFF - master;
+        master = 0x3FFF;
+    }
+    if (excess > 0x3FFF) {
+        master -= 0x3FFF - excess;
+    }
+
+    pan = 0x100 - ((info->pan + 0x100) & 0x1FF);
+    sign = pan >> 31;
+    pan = (sign ^ pan) - sign;
+    sndVoiceSetVolume(sVoice[channel], pan >> 1);
+    pan = 0x100 - ((info->pan + 0x180) & 0x1FF);
+    sign = pan >> 31;
+    pan = (sign ^ pan) - sign;
+    sndVoiceSetPan(sVoice[channel], pan >> 1);
+    dcsVoiceSetMaster(channel, master, master);
 }
 
 /* 0x800D3DC4  is this channel/voice active? (voiceInUse) */
-void dcsVoiceInUse(void) {
+s32 dcsVoiceInUse(s32 channel) {
+    DcsChannelInfo* info = &ch_info[channel];
+    s32 result = 0;
+
+    if (info->sample >= 0 || info->duck != 0) {
+        result = 1;
+    } else if (sVoice[channel]->pb.state != 0) {
+        result = 1;
+    }
+    return result;
 }
 
 /* 0x800D3E24  read+validate a BANK file header */

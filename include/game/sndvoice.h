@@ -46,4 +46,16 @@ typedef struct SndVoice {
                                      /*   [16/17] mix.vAuxBR [18/19] mix.vAuxBS    */
 } SndVoice; /* sizeof == 0x58 */
 
+typedef struct _AXVPB AXVPB;
+
+void sndVoiceInit(void);
+void sndVoiceSetParams(AXVPB* voice, u32 flags, s32 vol, s32 auxA, s32 auxB,
+                       s32 volIdx, s32 panIdx, s32 master);
+void sndVoiceSetVolume(AXVPB* voice, s32 volume);
+void sndVoiceSetPan(AXVPB* voice, s32 pan);
+void sndVoiceStop(AXVPB* voice);
+void sndVoiceStart(AXVPB* voice);
+void sndVoiceSetMaster(AXVPB* voice, s32 master);
+void sndVoiceUpdateAll(void);
+
 #endif /* _GAME_SNDVOICE_H_ */
