@@ -116,17 +116,13 @@ void MBCameraUpdate(f32* position, f32* matrix)
         do {
             f32* src = (f32*)((u8*)matrix + srcOffset);
             f32* dst = (f32*)((u8*)view3 + dstOffset);
-            int dstColumn = 0;
-            int srcRow = 0;
-            int count = 3;
+            f32 z = lbl_80348B3C;
+            int col;
 
-            do {
-                *(f32*)((u8*)dst + dstColumn) =
-                    *(f32*)((u8*)src + srcRow);
-                srcRow += 16;
-                dstColumn += 4;
-            } while (--count != 0);
-            dst[3] = lbl_80348B3C;
+            for (col = 0; col < 3; col++) {
+                dst[col] = src[col * 4];
+            }
+            dst[3] = z;
             row++;
             *(f32*)((u8*)view3 + srcOffset + 48) =
                 *(f32*)((u8*)position + srcOffset);
