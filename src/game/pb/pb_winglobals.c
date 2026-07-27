@@ -1,148 +1,384 @@
-/* mb_window.c -- Midway "MB" high-level window / 3D-projection TU.
+/* pb_winglobals.c -- Midway "pb" window-list / marker TU (provisional
+ * identity; all fns keep fn_ names -- several are referenced by name from
+ * the Matching pb_global.c).
  *
- * Xbox counterpart: mb_window.obj (shell3D.pdb: MBWindowSetAng / MBWindowInit
- * / MBWindowZoom / MBWindowProject / MBPointOnScreen / MBWindowTo3D /
- * MBInitWindows / MBWindowSetRegion). The GameCube build keeps a reduced,
- * reordered set plus the pb-module init/reset/close stubs; the function count
- * and static split differ from Xbox, so all internals keep fn_ names (several
- * are referenced by name from the Matching pb_global.c and must stay fn_).
+ * Manages the 12-slot window/marker pool hanging off gWinGlobals->ctx
+ * (default backing store lbl_802C4750, 0x650 bytes = 0x28C header +
+ * 12 * 0x50 entries): alloc (fn_800C0ADC) / free (fn_800C0BD4) with a
+ * free list at ctx+0xB8 and an active list at ctx+0xB4, plus the
+ * projection-defaults block (gWinGlobals->proj = lbl_802C4DA0) and the
+ * per-frame texture-timestamp flip (fn_800C1004).
  *
- * .text 0x800C0ADC-0x800C1174. Identified by the sdata2 pool seam
- * (0x80348EF8..0x80348F08 is this TU's; dbgtext ends at 0x80348EF4) and the
- * C++ vec4::operator= call (__as__4vec4FRC4vec4). Compiled -Cpp_exceptions on
- * (cflags_demo).
- *
- * NonMatching: structural skeletons only.
+ * .text 0x800C0ADC-0x800C1174. Compiled -Cpp_exceptions on (cflags_demo).
  */
 
 #include "types.h"
 
-/* current-window view (offsets from the disassembly) */
-typedef struct MBWin {
-    u8  _pad00[128];
-    f32 f128; /* 0x80 */
-    f32 f132; /* 0x84 */
-    f32 f136; /* 0x88 */
-    f32 f140; /* 0x8C */
-} MBWin;
-
-typedef struct WinGlobals {
-    u8    _pad00[0x1C];
-    MBWin* cur;    /* 0x1C : current window */
-    u8    _pad20[0x08];
-    void* m40;     /* 0x28 */
-    u8    _pad2C[0x0C];
-    void* m56;     /* 0x38 */
-} WinGlobals;
-
-extern WinGlobals* gWinGlobals;
-
-extern u32 lbl_80343EE0;
-extern u32 lbl_80343F04;
-extern u32 lbl_80343F78;
-extern u32 lbl_80343F7C;
-extern u32 lbl_802C4750;
-extern u32 lbl_802C4DA0;
-extern u32 lbl_80344F88;
-
-void __as__4vec4FRC4vec4(void* dst, const void* src); /* vec4::operator= */
-void fn_800C0BD4(f32, f32);
-void fn_800C0CF4(void);
-void fn_800C0E0C(void);
-s32  fn_800C1004(void);
+void __as__4vec4FRC4vec4(f32* dst, f32* src); /* vec4::operator= */
 void mbBlitStub51E0(void);
-void* fn_800C5B3C(void);
+void fn_800C5B3C(void);
 void fn_800AF554(s32 unused, u16 flags, void* data);
 
-/* MBWindowSetAng-family: sets the window orientation from two angles. */
-void fn_800C0ADC(f32 a, f32 b, s32 mode)
+/* pool entry, 0x50 bytes */
+typedef struct PbWGWin {
+    f32 v0[4];             /* 0x00 : vec4 */
+    f32 v1[4];             /* 0x10 : vec4 */
+    f32 f20;               /* 0x20 */
+    f32 f24;               /* 0x24 */
+    struct PbWGWin* next;  /* 0x28 */
+    u32 id;                /* 0x2C */
+    u8  _pad30[0x20];
+} PbWGWin;
+
+/* window-pool context (*gWinGlobals->ctx; default = lbl_802C4750) */
+typedef struct PbWGCtx {
+    u8   _pad00[0x78];
+    f32  f78;              /* 0x78 */
+    s32  m7c;              /* 0x7C */
+    f32  f80, f84, f88, f8c, f90, f94, f98; /* 0x80 */
+    s32  m9c;              /* 0x9C */
+    s32  ma0;              /* 0xA0 */
+    f32  fa4, fa8, fac, fb0;                /* 0xA4 */
+    PbWGWin* active;       /* 0xB4 */
+    PbWGWin* free;         /* 0xB8 */
+    f32  fbc, fc0, fc4, fc8, fcc, fd0, fd4, fd8; /* 0xBC */
+    u8   _paddc[0x1b0];
+    PbWGWin wins[12];      /* 0x28C */
+} PbWGCtx;
+
+/* projection defaults block (*gWinGlobals->proj; default = lbl_802C4DA0) */
+typedef struct PbWGProj {
+    f32 f00;               /* 0x00 */
+    f32 f04;               /* 0x04 */
+    s32 m08;               /* 0x08 */
+    s32 m0c;               /* 0x0C */
+    u32 m10;               /* 0x10 */
+    u32 m14;               /* 0x14 */
+} PbWGProj;
+
+/* texture bank views (shared shape with pb_objregs/pb_texture) */
+typedef struct PbWGBank {
+    u8   _pad00[0x48];
+    s32  nslots;           /* 0x48 */
+    u8   _pad4c[0x2c];
+    u8*  stamps;           /* 0x78 : 8 bytes per slot */
+} PbWGBank;
+
+typedef struct PbWGBankRef {   /* 16 bytes */
+    s32 m0;                /* 0x00 : count (in refs[0]) / busy flag */
+    PbWGBank* bank;        /* 0x04 */
+    u8  _pad8[8];
+} PbWGBankRef;
+
+/* *gWinGlobals view used by this TU */
+typedef struct PbWGGlobals {
+    u8    _pad00[0x1c];
+    PbWGCtx* ctx;          /* 0x1C */
+    u8    _pad20[0x08];
+    u32* volatile hook28;  /* 0x28 */
+    u8    _pad2c[0x04];
+    PbWGBankRef* banks;    /* 0x30 */
+    u8    _pad34[0x04];
+    PbWGProj* volatile proj; /* 0x38 */
+} PbWGGlobals;
+
+extern PbWGGlobals* gWinGlobals;
+
+extern s32 lbl_80343EE0;       /* window id counter */
+extern u32 lbl_80343F04;       /* projection default +0x10 */
+extern u32 lbl_80343F0C;       /* projection default +0x14 */
+extern s32 lbl_80343F78;       /* texture-stamp flip index */
+extern s32 lbl_80343F7C;       /* previous flip index */
+extern u8 lbl_802C4750[];      /* default window ctx (0x650) */
+extern u32 lbl_802C4DA0[];     /* default projection block */
+extern u32 lbl_80344F88[2];    /* default hook28 block */
+extern u32 lbl_803450F4[];     /* per-flip source values */
+extern u32 lbl_803450FC[];     /* per-flip current values */
+
+s32 fn_800C0BD4(u32 sel);
+void fn_800C0CF4(void);
+void fn_800C0E0C(void);
+void fn_800C1004(void);
+
+/* Allocate a window/marker from the free list (recycling the oldest if
+ * empty), assign it a rolling id, and record its two vectors + uv. */
+s32 fn_800C0ADC(f32* a, f32* b, f32 c, f32 d)
 {
-    MBWin* w = gWinGlobals->cur;
-    (void)a;
-    (void)b;
-    (void)mode;
-    (void)w;
-    fn_800C0BD4(a, b);
-    __as__4vec4FRC4vec4(0, (const void*)&lbl_80343EE0);
+    PbWGGlobals* g = gWinGlobals;
+    PbWGWin** head;
+    PbWGWin* w;
+    u32 id;
+
+    if (g->ctx->free == 0) {
+        fn_800C0BD4(0);
+    }
+    head = &g->ctx->free;
+    w = *head;
+    *head = w->next;
+    lbl_80343EE0 = lbl_80343EE0 - 1;
+    if (lbl_80343EE0 == 0) {
+        lbl_80343EE0 = 0xFFF1;
+    }
+    id = (lbl_80343EE0 << 16) + (s32)((u8*)w - ((u8*)g->ctx + 0x28C)) / 80;
+    w->id = id;
+    w->next = g->ctx->active;
+    g->ctx->active = w;
+    __as__4vec4FRC4vec4(w->v0, b);
+    __as__4vec4FRC4vec4(w->v1, a);
+    w->f20 = c;
+    w->f24 = d;
+    return id;
 }
 
-void fn_800C0BD4(f32 a, f32 b)
+/* Release a window by id (or the oldest active one when sel == 0) back
+ * onto the free list. */
+s32 fn_800C0BD4(u32 sel)
 {
-    MBWin* w = gWinGlobals->cur;
-    (void)a;
-    (void)b;
-    (void)w;
+    PbWGGlobals* g = gWinGlobals;
+    PbWGWin* t;
+    PbWGWin** head;
+    PbWGWin* cur;
+    PbWGWin* prev;
+
+    if (sel != 0) {
+        PbWGCtx* ctx;
+        PbWGWin* w;
+        if ((sel & 0xFFFF) > 12) {
+            return 1;
+        }
+        ctx = g->ctx;
+        w = (PbWGWin*)((u8*)ctx + (sel & 0xFFFF) * 0x50 + 0x28C);
+        t = w;
+        if (w->id != sel) {
+            return 1;
+        }
+        head = &ctx->active;
+        if (ctx->active == t) {
+            *head = t->next;
+        } else {
+            cur = ctx->active;
+            while (cur != 0 && cur->next != t) {
+                cur = cur->next;
+            }
+            if (cur == 0) {
+                return 1;
+            }
+            cur->next = t->next;
+        }
+    } else {
+        PbWGWin* w;
+        head = &g->ctx->active;
+        w = *head;
+        if (w != 0) {
+            t = w->next;
+            if (t == 0) {
+                *head = 0;
+                t = w;
+            } else {
+                while (t->next != 0) {
+                    w = t;
+                    t = t->next;
+                }
+                w->next = 0;
+            }
+        } else {
+            return 1;
+        }
+    }
+    t->id = 0;
+    t->next = g->ctx->free;
+    g->ctx->free = t;
+    return 0;
 }
 
+/* Reset all 12 pool entries and rebuild the free list (reversed). */
 void fn_800C0CF4(void)
 {
-    MBWin* w = gWinGlobals->cur;
-    (void)w;
+    PbWGGlobals* g = gWinGlobals;
+    s32 n;
+    u8* off;
+    u32 prev;
+
+#define CTXI (*(u32*)&g->ctx)
+    off = 0;
+    prev = 0;
+    for (n = 12; n != 0; n--) {
+        *(f32*)(CTXI + (u32)(off + 0x28C)) = 1.0f;
+        *(f32*)(CTXI + (u32)(off + 0x290)) = 1.0f;
+        *(f32*)(CTXI + (u32)(off + 0x294)) = 1.0f;
+        *(f32*)(CTXI + (u32)(off + 0x298)) = 0.0f;
+        *(f32*)(CTXI + (u32)(off + 0x29C)) = 0.0f;
+        *(f32*)(CTXI + (u32)(off + 0x2A0)) = 0.0f;
+        *(f32*)(CTXI + (u32)(off + 0x2A4)) = 0.0f;
+        *(f32*)(CTXI + (u32)(off + 0x2A8)) = 0.0f;
+        *(f32*)(CTXI + (u32)(off + 0x2AC)) = 0.0f;
+        *(f32*)(CTXI + (u32)(off + 0x2B0)) = 1.0f;
+        *(u32*)(CTXI + (u32)(off + 0x2B4)) = prev;
+        *(u32*)(CTXI + (u32)(off + 0x2B8)) = 0;
+        prev = CTXI + (u32)(off + 0x28C);
+        off += 0x50;
+    }
+    g->ctx->free = (PbWGWin*)prev;
+    g->ctx->active = 0;
+    g->ctx->ma0 = 0;
+#undef CTXI
 }
 
-/* set two floats on the current window */
-void fn_800C0DDC(f32 x, f32 y)
+/* Set the current window's first UV pair. */
+void fn_800C0DDC(f32 a, f32 b)
 {
-    gWinGlobals->cur->f128 = x;
-    gWinGlobals->cur->f132 = y;
+    PbWGGlobals* g = gWinGlobals;
+    g->ctx->f80 = a;
+    g->ctx->f84 = b;
 }
 
-void fn_800C0DF4(f32 x, f32 y)
+/* Set the current window's second UV pair. */
+void fn_800C0DF4(f32 a, f32 b)
 {
-    gWinGlobals->cur->f136 = x;
-    gWinGlobals->cur->f140 = y;
+    PbWGGlobals* g = gWinGlobals;
+    g->ctx->f88 = a;
+    g->ctx->f8c = b;
 }
 
+/* Reset the whole window context to defaults. */
 void fn_800C0E0C(void)
 {
+    PbWGGlobals* g = gWinGlobals;
+
+    g->ctx->f78 = -2048.0f;
+    g->ctx->m9c = 0;
+    g->ctx->fa4 = 1.0f;
+    g->ctx->fa8 = 1.0f;
+    g->ctx->fac = 1.0f;
+    g->ctx->fb0 = 0.0f;
+    g->ctx->fbc = 1.0f;
+    g->ctx->fc0 = 1.0f;
+    g->ctx->fc4 = 1.0f;
+    g->ctx->fc8 = 0.0f;
+    g->ctx->fcc = 1.0f;
+    g->ctx->fd0 = 0.0f;
+    g->ctx->fd4 = 0.0f;
+    g->ctx->fd8 = 0.0f;
     fn_800C0CF4();
+    g->ctx->f84 = 0.0f;
+    g->ctx->f80 = 1.0f;
+    g->ctx->f8c = 0.0f;
+    g->ctx->f88 = 1.0f;
+    g->ctx->f94 = 0.0f;
+    g->ctx->f90 = 1.0f;
+    g->ctx->f98 = 1.0f;
+    g->ctx->m7c = 1;
 }
 
-/* pb-module close stub (referenced from pb_global.c -- keep fn_) */
+/* Install the default window ctx if unset, then reset it
+ * (referenced from pb_global.c -- keep fn_). */
 void fn_800C0F04(void)
 {
+    PbWGGlobals* g = gWinGlobals;
+    if (g->ctx == 0) {
+        g->ctx = (PbWGCtx*)lbl_802C4750;
+    }
     fn_800C0E0C();
 }
 
-/* pb-module init stub (referenced from pb_global.c -- keep fn_) */
+/* Force the default window ctx and reset it
+ * (referenced from pb_global.c -- keep fn_). */
 void fn_800C0F40(void)
 {
+    gWinGlobals->ctx = (PbWGCtx*)lbl_802C4750;
     fn_800C0E0C();
 }
 
-/* pb-module close stub (referenced from pb_global.c -- keep fn_) */
+/* Install the default projection block if unset
+ * (referenced from pb_global.c -- keep fn_). */
 void fn_800C0F70(void)
 {
-    if (gWinGlobals->m56) {
+    PbWGGlobals* g = gWinGlobals;
+    if (g->proj) {
         return;
     }
-    gWinGlobals->m56 = &lbl_802C4DA0;
+    asm {}
+    g->proj = (PbWGProj*)lbl_802C4DA0;
 }
 
-/* pb-module init stub (referenced from pb_global.c -- keep fn_) */
+/* Force the default projection block and reset it
+ * (referenced from pb_global.c -- keep fn_). */
 void fn_800C0F90(void)
 {
-    gWinGlobals->m56 = &lbl_802C4DA0;
+    PbWGGlobals* g = gWinGlobals;
+    g->proj = (PbWGProj*)lbl_802C4DA0;
+    g->proj->f00 = 1.0f;
+    g->proj->f04 = 1.0f;
+    g->proj->m08 = 0x800;
+    g->proj->m0c = 0x800;
+    g->proj->m10 = lbl_80343F04;
+    g->proj->m14 = lbl_80343F0C;
 }
 
 void fn_800C0FE4(void)
 {
 }
 
-/* pb-module close stub (referenced from pb_global.c -- keep fn_) */
+/* Install the default hook28 block if unset
+ * (referenced from pb_global.c -- keep fn_). */
 void fn_800C0FE8(void)
 {
-    if (gWinGlobals->m40) {
+    PbWGGlobals* g = gWinGlobals;
+    if (g->hook28) {
         return;
     }
-    gWinGlobals->m40 = &lbl_80344F88;
+    asm {}
+    g->hook28 = lbl_80344F88;
 }
 
-s32 fn_800C1004(void)
+/* Advance the per-frame texture-stamp flip and clear the matching bit
+ * out of every loaded bank's slot stamps (u64 per slot). */
+void fn_800C1004(void)
 {
-    return (s32)gWinGlobals;
+    PbWGGlobals* g = gWinGlobals;
+    s32 t;
+    s32 i;
+
+    t = lbl_80343F78 + 1;
+    lbl_80343F7C = lbl_80343F78;
+    lbl_80343F78 = t;
+    if (t >= 2) {
+        lbl_80343F78 = 0;
+    }
+    if (lbl_80343F78 >= 0) {
+        u32 b = 1 << lbl_80343F78;
+        u32 m = ~(((b & 0xFF) << 16) | ((b & 0xFF) << 24) |
+                  ((b & 0xFF) << 8) | (b & 0xFF));
+        u32 mm[2];
+        u64 mk;
+        s32 off = 0;
+        mm[0] = m;
+        mm[1] = mm[0];
+        mk = *(u64*)mm;
+        for (i = 0; i < g->banks[0].m0; i++) {
+            u8* p = (u8*)g->banks + off;
+            s32 busy = *(s32*)(p + 0x10);
+            p += 4;
+            if (busy == 0) {
+                PbWGBank* bank = *(PbWGBank**)p;
+                u32 nslots = bank->nslots;
+                if (nslots != 0) {
+                    u8* stamps = bank->stamps;
+                    s32 so = 0;
+                    u32 k;
+                    for (k = (nslots + 7) >> 3; k != 0; k--) {
+                        *(u64*)(stamps + so) &= mk;
+                        so += 8;
+                    }
+                }
+            }
+            off += 0x10;
+        }
+    }
+    lbl_803450FC[lbl_80343F78] = lbl_803450F4[lbl_80343F78];
 }
 
+/* Per-frame window maintenance driver. */
 void fn_800C1120(void)
 {
     mbBlitStub51E0();
