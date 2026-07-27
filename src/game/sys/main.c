@@ -101,6 +101,22 @@ void UpdateCam(void);
 void fn_80052134(void);
 void fn_800C0394(void);
 void sndSysStub0(void);
+void fn_800520CC(void);
+void fn_8002EFE8(void);
+void InitMemHandler(void);
+void fn_8008BC54(s32 arg);
+void AdsAllocBuffer(void);
+void fn_800C73E0(void);
+int sprintf(char* buf, const char* fmt, ...);
+void fn_800BC418(int a, int b);
+void dbgTextInit(void);
+void MBInit(void);
+void FontEndFrame(void);
+void FontInitDefault(void);
+void AudioLoadRom(void);
+void InitControls(void);
+void MBWindowZoom(f32 zoom);
+void fn_800C1170(int a, void* b, int c);
 
 extern char lbl_80113028[];    /* string table (soulsave.. boot strings) */
 extern char lbl_80126A98[];    /* version string */
@@ -112,6 +128,10 @@ extern u8* mlmMemBase;
 extern s32 mlmMemLimit;
 extern u32 lbl_803472BC;
 extern u32 lbl_803472C4;
+extern u32 lbl_803472CC;
+extern u32 lbl_803449C8;
+extern f32 lbl_803472D4;       /* boot window zoom */
+extern u32 lbl_80344DA8;
 extern s32 lbl_803449B0;       /* save-pending flag */
 extern u8 pbMeasureLoad;
 extern s32 lbl_80344568;
@@ -463,4 +483,37 @@ void fn_8006845C(const char* str)
         DrawText(16, y, 0, (y == 24) ? 0x00FFFF00 : 0x00FFFFFF, str);
     }
     lbl_803449B8 += 12;
+}
+
+/* 0x800684D4  one-time boot bring-up: memory, mb/pb, fonts, audio rom,
+ * controls. Final fn of the main.c TU (map gap 0x800684D4-0x800685EC). */
+void game_init_once(const char* name)
+{
+    char buf[36];
+    char* st = lbl_80113028;
+
+    fn_800520CC();
+    fn_8002EFE8();
+    bulletproof_printf(st + 264);
+    InitMemHandler();
+    fn_8008BC54(*(s32*)name);
+    AdsAllocBuffer();
+    fn_800C73E0();
+    sprintf(buf, st + 288, mlmMemLimit / 1024, mlmMemLimit / 0x100000);
+    bulletproof_printf(buf);
+    fn_800BC418(2, -1);
+    dbgTextInit();
+    MBInit();
+    bulletproof_printf(st + 316);
+    fn_8005A260(&lbl_803472CC, &lbl_803449C8, 1, -1);
+    FontEndFrame();
+    FontInitDefault();
+    bulletproof_printf(st + 328);
+    AudioLoadRom();
+    bulletproof_printf(st + 348);
+    InitControls();
+    MBWindowZoom(lbl_803472D4);
+    fn_8005403C(0);
+    fn_800C1170(325, &lbl_80344DA8, 0);
+    bulletproof_printf(st + 376, BytesFree());
 }

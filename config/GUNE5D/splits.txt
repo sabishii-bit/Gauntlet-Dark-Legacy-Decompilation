@@ -100,9 +100,9 @@ game/world/items.c:
 	.text       start:0x800631AC end:0x80067AE0
 
 game/sys/main.c:
-	extab       start:0x80006618 end:0x80006648
-	extabindex  start:0x8000A174 end:0x8000A1BC
-	.text       start:0x80067AE0 end:0x800684D4
+	extab       start:0x80006618 end:0x80006650
+	extabindex  start:0x8000A174 end:0x8000A1C8
+	.text       start:0x80067AE0 end:0x800685EC
 
 game/sys/memcard.c:
 	extab       start:0x80006650 end:0x80006720
@@ -170,6 +170,13 @@ game/world/world.c:
 	extabindex  start:0x8000B728 end:0x8000B800
 	.text       start:0x800A87C8 end:0x800AB8E0
 
+game/anim/action.c:
+	extab       start:0x80007520 end:0x80007538
+	extabindex  start:0x8000B800 end:0x8000B824
+	.text       start:0x800AB8E0 end:0x800ADE30
+	.data       start:0x80126F48 end:0x80127798
+	.sdata2     start:0x803489A0 end:0x80348A40
+
 game/g3d/g3dMath3D.cpp:
 	extab       start:0x80007538 end:0x800075B8
 	extabindex  start:0x8000B824 end:0x8000B8E4
@@ -230,9 +237,9 @@ zlib/infutil.c:
 	.data       start:0x80127B60 end:0x80127BA8
 
 game/mb/mb_blit.c:
-	extab       start:0x800076B0 end:0x80007768
-	extabindex  start:0x8000BA58 end:0x8000BB6C
-	.text       start:0x800B2988 end:0x800B53B0
+	extab       start:0x800076A8 end:0x80007768
+	extabindex  start:0x8000BA4C end:0x8000BB6C
+	.text       start:0x800B27C4 end:0x800B53B0
 	.ctors      start:0x801106E4 end:0x801106E8
 
 game/mb/mb_camera.c:
@@ -350,6 +357,17 @@ game/pb/pb_texture.c:
 	extabindex  start:0x8000C3A0 end:0x8000C430
 	.text       start:0x800C6AD4 end:0x800C79E4
 
+game/pb/pb_tree.cpp:
+	extab       start:0x80007D40 end:0x80007D60
+	extabindex  start:0x8000C430 end:0x8000C460
+	.text       start:0x800C79E4 end:0x800C8044
+	.rodata     start:0x80116AE0 end:0x80116B28
+	.data       start:0x80128428 end:0x801284A8
+	.bss        start:0x802C7CF8 end:0x802C93F8
+	.sdata      start:0x80343F90 end:0x80343FB0
+	.sbss       start:0x80345120 end:0x80345138
+	.sdata2     start:0x80348FE8 end:0x80349018
+
 game/pb/pbutils.c:
 	extab       start:0x80007D60 end:0x80007D80
 	extabindex  start:0x8000C460 end:0x8000C490
@@ -426,7 +444,7 @@ game/audio/dcsdrv.c:
 game/audio/mempool.c:
 	extab       start:0x800080B0 end:0x80008118
 	extabindex  start:0x8000C958 end:0x8000C9F4
-	.text       start:0x800D5260 end:0x800D621C
+	.text       start:0x800D5260 end:0x800D6234
 
 game/audio/adstream.c:
 	extab       start:0x80008118 end:0x800081A8

@@ -36,3 +36,8 @@ BossDeath                  # gate=BossSpewCoins
 do_screen2d                # sched, 2 transposed SDA loads + 2 reloc-alias lines (lbl+4 vs sFlags — link-identical) (attract)
 dcsHandleRequest           # renum, param-web rotation r28/r29/r30 + state 2-step + clamp fold; insns 411/411 equal; state-first-decl = best form (202 lines); FLIP GATE for dcsdrv
 MBNewObject                # renum, obj<->flags-copy r30/r31 web swap; REGISTER_ONLY (mb_objects 17/18 flip gate)
+fn_800B290C                # renum, leaf temp-color tie r0/r4/r5 (mb_blit SetAlpha head fn)
+fn_800B27C4                # renum, tpms/1000 web order + f0/f1 conv tie (mb_blit pad-test driver)
+pbTraverseDrawObjects      # isel, |=2 flags-stack add+disp vs lwzx (pb_tree; 4 more lines = bss.0 reloc cosmetic)
+pbRenderNode               # copy+renum, uninit MBSetupObject arg4 materialized fmr f1,f31 + fl&1 CSE'd vs per-site clrlwi + frame +8 (pb_tree)
+CameraFace                 # renum+sched, mask temp r5-fresh vs r3-inplace cluster (pb_tree)
