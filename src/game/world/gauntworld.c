@@ -1,4 +1,5 @@
 #include "types.h"
+#include "game/item.h"
 
 /* ==========================================================================
  * game/world/gauntworld.c  (NonMatching documentation slice)
@@ -94,6 +95,20 @@ extern int   FatalErrorf(const char* fmt, ...);  /* ErrorPrintf-style logger  */
 extern int   fn_80057F44();                      /* world-registry hook       */
 extern int   sprintf(char* buf, const char* fmt, ...);
 extern int   ErrorPrintf(const char* fmt, ...);
+extern int   strcmp(const char* lhs, const char* rhs);
+extern s32   MBOX_LoadModel(const char* name);
+extern s32   MBOX_AllocModel(const char* name);
+extern void  InitTexMods(void* data, s32 model);
+extern void  fn_8001267C(void* data, s32 model, s32 index);
+extern void  CopyMat4(f32* src, f32* dst);
+extern int   GetWorldMat(void* node, f32* matrix, f32* offset);
+extern void  UnparentMatrix(f32* matrix, void* node);
+extern void  fn_800BDE80(f32* src, f32* dst, f32* matrix);
+extern u8    lbl_80237BA0[];
+extern f32   lbl_80127D60[16];
+extern s32   lbl_8034494C;
+extern char  lbl_80346D08[5];
+extern char  lbl_80346D10[7];
 
 /* ---- module data (real names from symbols.txt) --------------------------- */
 extern s32   sWorldLevelTable[]; /* 0x8011C3C0 base; adjacent world tables    */
@@ -312,6 +327,228 @@ void LoadWorldData(void)
     gCurLevel  = 0;
     fn_80057F44();                 /* prime the world registry */
     sWorldDataConst = 0xD00;
+}
+
+/* --------------------------------------------------------------------------
+ * Model + animation loading boundary.
+ *
+ * These two helpers are the point where the world runtime acquires an MB
+ * model and its optional "anim" sidecar.  Keeping the sidecar pointer visible
+ * to callers lets the item subsystem initialize texture modifiers after the
+ * model handle has been established.
+ */
+
+s32 fn_8005A1EC(const char* name, void** outData)
+{
+    s32 model = MBOX_AllocModel(name);
+
+    if (outData != 0) {
+        if (FileExists(name, lbl_80346D08)) {
+            *outData = AllocMem(FileSize(name, lbl_80346D08));
+        } else {
+            *outData = 0;
+        }
+    }
+
+    return model;
+}
+
+s32 fn_8005A260(const char* name, void** outData, s32 initTexMods, s32 model)
+{
+    s32 result;
+
+    if (model < 0) {
+        result = MBOX_LoadModel(name);
+    } else {
+        result = model;
+    }
+
+    if (outData != 0) {
+        if (FileExists(name, lbl_80346D08)) {
+            if (strcmp(name, lbl_80346D10) != 0) {
+                *outData = AllocFile(name, lbl_80346D08);
+            } else {
+                *outData = lbl_80237BA0;
+            }
+            fn_8001267C(*outData, result, -1);
+        } else {
+            *outData = 0;
+        }
+
+        if (*outData != 0 && initTexMods != 0) {
+            InitTexMods(*outData, result);
+        }
+    }
+
+    return result;
+}
+
+/* --------------------------------------------------------------------------
+ * Runtime object transforms.
+ *
+ * These helpers operate on the shared OBJGRP layout also used by Item.  Keeping
+ * them here establishes the world-runtime -> MB scene-graph boundary without
+ * duplicating the layout as anonymous byte offsets.
+ */
+
+void fn_8005A588(OBJGRP* group, f32* offset);
+void fn_8005A65C(OBJGRP* group, f32* offset);
+
+void fn_8005A338(OBJGRP* group, f32* collOffset, f32* attnOffset)
+{
+    if (group != 0 && group->node != 0) {
+        GetWorldMat(group->node, &group->worldmat[0][0], 0);
+        fn_8005A65C(group, collOffset);
+        fn_8005A588(group, attnOffset);
+    } else if (group != 0) {
+        CopyMat4(lbl_80127D60, &group->worldmat[0][0]);
+    }
+}
+
+void fn_8005A3B8(OBJGRP* group)
+{
+    if (group != 0 && group->node != 0) {
+        CopyMat4(&group->worldmat[0][0], (f32*)group->node);
+        UnparentMatrix((f32*)group->node,
+                       *(void**)((u8*)group->node + 0x74));
+    }
+}
+
+void fn_8005A404(OBJGRP* group, f32* collOffset, f32* attnOffset)
+{
+    f32 coll[3];
+    f32 attn[3];
+
+    if (collOffset == 0 || (group->flags & 1) != 0) {
+        group->coll_pos[0] = group->worldmat[3][0];
+        group->coll_pos[1] = group->worldmat[3][1];
+        group->coll_pos[2] = group->worldmat[3][2];
+    } else if ((group->flags & 2) != 0) {
+        group->coll_pos[0] = group->worldmat[3][0] + collOffset[0];
+        group->coll_pos[1] = group->worldmat[3][1] + collOffset[1];
+        group->coll_pos[2] = group->worldmat[3][2] + collOffset[2];
+    } else {
+        fn_800BDE80(collOffset, coll, &group->worldmat[0][0]);
+        group->coll_pos[0] = group->worldmat[3][0] + coll[0];
+        group->coll_pos[1] = group->worldmat[3][1] + coll[1];
+        group->coll_pos[2] = group->worldmat[3][2] + coll[2];
+    }
+
+    if (attnOffset == 0 || (group->flags & 1) != 0) {
+        group->attn_pos[0] = group->worldmat[3][0];
+        group->attn_pos[1] = group->worldmat[3][1];
+        group->attn_pos[2] = group->worldmat[3][2];
+    } else if ((group->flags & 2) != 0) {
+        group->attn_pos[0] = group->worldmat[3][0] + attnOffset[0];
+        group->attn_pos[1] = group->worldmat[3][1] + attnOffset[1];
+        group->attn_pos[2] = group->worldmat[3][2] + attnOffset[2];
+    } else {
+        fn_800BDE80(attnOffset, attn, &group->worldmat[0][0]);
+        group->attn_pos[0] = group->worldmat[3][0] + attn[0];
+        group->attn_pos[1] = group->worldmat[3][1] + attn[1];
+        group->attn_pos[2] = group->worldmat[3][2] + attn[2];
+    }
+}
+
+void fn_8005A588(OBJGRP* group, f32* offset)
+{
+    f32 transformed[3];
+
+    if (offset == 0 || (group->flags & 1) != 0) {
+        group->attn_pos[0] = group->worldmat[3][0];
+        group->attn_pos[1] = group->worldmat[3][1];
+        group->attn_pos[2] = group->worldmat[3][2];
+    } else if ((group->flags & 2) != 0) {
+        group->attn_pos[0] = group->worldmat[3][0] + offset[0];
+        group->attn_pos[1] = group->worldmat[3][1] + offset[1];
+        group->attn_pos[2] = group->worldmat[3][2] + offset[2];
+    } else {
+        fn_800BDE80(offset, transformed, &group->worldmat[0][0]);
+        group->attn_pos[0] = group->worldmat[3][0] + transformed[0];
+        group->attn_pos[1] = group->worldmat[3][1] + transformed[1];
+        group->attn_pos[2] = group->worldmat[3][2] + transformed[2];
+    }
+}
+
+void fn_8005A65C(OBJGRP* group, f32* offset)
+{
+    f32 transformed[3];
+
+    if (offset == 0 || (group->flags & 1) != 0) {
+        group->coll_pos[0] = group->worldmat[3][0];
+        group->coll_pos[1] = group->worldmat[3][1];
+        group->coll_pos[2] = group->worldmat[3][2];
+    } else if ((group->flags & 2) != 0) {
+        group->coll_pos[0] = group->worldmat[3][0] + offset[0];
+        group->coll_pos[1] = group->worldmat[3][1] + offset[1];
+        group->coll_pos[2] = group->worldmat[3][2] + offset[2];
+    } else {
+        fn_800BDE80(offset, transformed, &group->worldmat[0][0]);
+        group->coll_pos[0] = group->worldmat[3][0] + transformed[0];
+        group->coll_pos[1] = group->worldmat[3][1] + transformed[1];
+        group->coll_pos[2] = group->worldmat[3][2] + transformed[2];
+    }
+}
+
+int fn_8005A730(void)
+{
+    return 1;
+}
+
+/* Item-pool queries used by the world dispatcher and camera/UI code. */
+Item* fn_8005B558(s32 id)
+{
+    s32 i;
+    s32 count = lbl_8034494C;
+
+    for (i = 0; i < count; i++) {
+        Item* item = &sItems[i];
+        if (item->active != -1 && item->info->type == 9 &&
+            id == *(s16*)&item->data[0]) {
+            return item;
+        }
+    }
+    return 0;
+}
+
+s32 fn_8005B8B0(void* owner)
+{
+    s32 result = 0;
+    Item* item = *(Item**)((u8*)owner + 0x8AC);
+    Item* linked;
+    s16 active;
+
+    if (item == 0) {
+        return result;
+    }
+    if (item->info->type != 0xB) {
+        return result;
+    }
+    linked = *(Item**)&item->data[8];
+    active = linked->active;
+    if (active != -1) {
+        if (linked->minoff == 0 && (active & 0x4000) != 0) {
+            return (s32)linked;
+        }
+    }
+    return result;
+}
+
+s32 fn_800629B0(void)
+{
+    s32 result = 0;
+    Item* item = sItems;
+    s32 count = lbl_8034494C;
+    s32 i;
+
+    for (i = 0; i < count; i++) {
+        if (item->active != -1 && item->info->type == 1 &&
+            item->info->item.subtype == 1) {
+            result = 1;
+        }
+        item++;
+    }
+    return result;
 }
 
 /* ==========================================================================
