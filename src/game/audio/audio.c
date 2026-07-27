@@ -632,29 +632,31 @@ s32 AudioBankLoadName(char* bankName, char* partName, s32 mode)
  * within the current mode's bank table, then queue the load via AudioLoadPart. */
 s32 AudioBankQueueName(char* bankName, char* partName, s32 arg)
 {
-    s32 bankIdx;
+    s32 bankOffset;
     s32 partIdx;
+    s32 bankIndex;
     s32 foundBank;
-    s32 i;
     u8* bankEntry;
 
     if (sAudioSuspend != 0) {
         return 1;
     }
-    for (bankIdx = 0; bankIdx < gAudioBankTbl[4]; bankIdx++) {
-        if (strncmp((char*)((u8*)gAudioBankTbl + bankIdx * 292 + 20), bankName, 16) == 0) {
+    for (bankIndex = 0, bankOffset = bankIndex; bankIndex < gAudioBankTbl[4];
+         bankIndex++, bankOffset += 292) {
+        if (strncmp((char*)((u8*)gAudioBankTbl + bankOffset + 20), bankName, 16) == 0) {
             break;
         }
     }
-    if (bankIdx == gAudioBankTbl[4]) {
+    if (bankIndex == gAudioBankTbl[4]) {
         sAudioSuspend = 1;
-        bankIdx = -1;
+        bankIndex = -1;
     }
-    bankEntry = (u8*)gAudioBankTbl + bankIdx * 292 + 20;
-    foundBank = bankIdx;
-    for (partIdx = 0, i = 0; partIdx < *(s32*)(bankEntry + 24); partIdx++, i += 4) {
+    bankEntry = (u8*)gAudioBankTbl + bankIndex * 292 + 20;
+    foundBank = bankIndex;
+    for (partIdx = 0, bankOffset = 0; partIdx < *(s32*)(bankEntry + 24);
+         partIdx++, bankOffset += 4) {
         u8* romBank = *(u8**)(sAudioBankTable + 16)
-                      + *(s32*)(bankEntry + i + 28) * 44;
+                      + *(s32*)(bankEntry + bankOffset + 28) * 44;
         if (strncmp((char*)(romBank + 16), partName, 16) == 0) {
             break;
         }

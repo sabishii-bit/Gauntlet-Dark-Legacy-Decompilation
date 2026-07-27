@@ -144,8 +144,9 @@ void MBSetObject(MBObject* obj, s32 objid) {
         obj->data.romobj = 0;
     } else {
         void** table = *(void***)(mgr + 0x30);
+        table = (void**)table[(objid >> 16) * 4 + 1];
         obj->index = objid;
-        obj->data.romobj = (u8*)*(void**)((u8*)table[(objid >> 16) * 4 + 1] + 0x54) +
+        obj->data.romobj = (u8*)*(void**)((u8*)table + 0x54) +
                       ((objid << 6) & 0x003FFFC0);
         obj->type = 2;
         obj->flags &= ~1u;

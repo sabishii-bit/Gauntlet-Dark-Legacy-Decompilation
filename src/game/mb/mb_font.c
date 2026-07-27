@@ -136,10 +136,11 @@ void MBSetFontScaleSpace(f32 sx, f32 sy)
 int MBFontMsgSetAlpha(MBTextMsg* m, u32 alpha)
 {
     u32 old = m->color;
-    int ret = (old >> 23) & 0x1FE;
+    alpha = 128 - (alpha >> 1);
     m->color = old & 0x00FFFFFF;
-    m->color = m->color | ((128 - (alpha >> 1)) << 24);
-    return ret;
+    old = (old >> 23) & 0x1FE;
+    m->color = m->color | (alpha << 24);
+    return old;
 }
 
 /* ==== message lock / save-restore stack ==== */

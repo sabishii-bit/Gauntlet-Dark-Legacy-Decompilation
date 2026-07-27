@@ -24,7 +24,8 @@ extern void* memset(void* dst, int c, u32 n);
 
 /* ---- diagnostics (ML_ERROR / PB_ERROR, other TUs) ---- */
 extern void bulletproof_printf(char* fmt, ...);
-extern void FatalError(char* fmt, ...);
+extern void FatalError(char* fmt, int code);
+extern void FatalErrorf(const char* fmt, ...);
 extern int gErrorCode;
 
 /* ---- CRT / MSL string + printf (other TUs) ---- */
@@ -338,7 +339,7 @@ int FileSystemBusy(void)
 
 void LockMem(int slot)
 {
-    if (slot > 7) {
+    if (slot >= 8) {
         FatalError("Too Many Mem locks", 0x800000);
     }
     mlmLockStack[slot] = mlmMemUsed;
@@ -365,9 +366,9 @@ void* GetMemBase(void)
 {
     if (mlmMemReserved != 0) {
         gErrorCode = 0xe0e000;
-        bulletproof_printf("GetMemBase() called while mem reserved\n");
+        FatalErrorf("GetMemBase() called while mem reserved\n");
     }
-    return mlmMemBase + (mlmMemUsed >> 2) * 4;
+    return mlmMemBase + (mlmMemUsed / 4) * 4;
 }
 
 void* AllocMem(u32 size)

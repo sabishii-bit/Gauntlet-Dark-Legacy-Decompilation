@@ -369,14 +369,15 @@ static void BossCameraStart(void) {
     *(f32*)((u8*)gGameCamera + 256) = lbl_80345BA0;
 }
 static f32 GetPlayerViewDist(void* mtx) {
+    f32 d;
     f32 best = lbl_80345BA4;
     f32 pt[3];
+    u8 frame_pad[12];
     s32 i;
 
     for (i = 0; i < 4; i++) {
         u8* ps = &lbl_80275AE0[i * 0x335C];
         if (*(s32*)(ps + 0xE8) == 1) {
-            f32 d;
             pt[0] = *(f32*)(ps + 0x54) + *(f32*)(ps + 0x888);
             pt[1] = *(f32*)(ps + 0x58) + *(f32*)(ps + 0x88C);
             pt[2] = *(f32*)(ps + 0x5C) + *(f32*)(ps + 0x890);
