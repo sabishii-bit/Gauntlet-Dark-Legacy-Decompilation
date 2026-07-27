@@ -22,9 +22,9 @@
  * linked-list management, coordinate conversion, window rescaling, draw-list
  * orchestration, animated lighting, render-state caching, and texture binding
  * are translated. The two raw GX vertex emitters (DrawBlitFlatQuad/DrawBlit)
- * remain as the principal untranslated paths. The whole MB_BLIT TU actually
- * begins at fn_800B27C4 (a timer helper below this region); this file covers
- * 0x800B2988 upward.
+ * remain as the principal untranslated paths. The TU begins at fn_800B27C4
+ * (boot pad-test driver) — the head run 0x800B27C4-0x800B2988 (pad test +
+ * four tiny color setters) is now part of this file/claim.
  *
  * Key data (see symbols.txt):
  *   blitPool[384]      @0x80296478  main blit pool (0x38 each)
@@ -162,6 +162,83 @@ void mbBlitCvtCoord(MBBLIT* b, f64 depth);
 void mbBlitCalcY(MBBLIT* b, s32 y);
 void mbBlitCalcClip(MBBLIT* b, f32 xScale, f32 yScale);
 void mbBlitCalcX(MBBLIT* b, s32* width, s32* height);
+void mbBlitPadTest(s32* manager);
+extern void G3DInitPadStatus(int a, int b);
+extern void G3DUpdatePadStatus(void);
+extern s64 OSGetTime(void);
+
+/* ------------------------------------------------------------------ *
+ * TU head 0x800B27C4-0x800B2988 (previously an unclaimed map gap).
+ * fn_800B27C4 keeps its fn_ name: it is called by Matching main.c.
+ * The four small setters keep fn_ names too (declared as extern fn_
+ * by a dozen UI/game TUs); Xbox MB_BLIT.OBJ identities by struct
+ * offset + roster: fn_800B28EC=MBBlitSetColor4, fn_800B290C=
+ * MBBlitSetAlpha (fade amount), fn_800B2940=MBBlitSetColor
+ * (brightness grey), fn_800B2980=MBBlitGetTex.
+ * ------------------------------------------------------------------ */
+
+/* 0x800B27C4  boot-time pad service + pad-test screen: reset the pad
+ * manager count, init/poll G3D pad status, then show the blit pad-test
+ * twice with a 500 ms busy-wait before each (bus-clock ms timing). */
+void fn_800B27C4(void)
+{
+    u8* mgr = lbl_80296450;
+    f32 deadline;
+    u32 tpms;
+
+    *(s32*)(mgr + 12) = 0;
+    G3DInitPadStatus(0, 0);
+    G3DUpdatePadStatus();
+
+    tpms = (*(u32*)0x800000F8 >> 2) / 1000;
+    deadline = (f32)(u32)(OSGetTime() / tpms) + 500.0f;
+    tpms = (*(u32*)0x800000F8 >> 2) / 1000;
+    while ((f32)(u32)(OSGetTime() / tpms) < deadline) {
+    }
+    mbBlitPadTest((s32*)(mgr + 12));
+
+    deadline += 500.0f;
+    tpms = (*(u32*)0x800000F8 >> 2) / 1000;
+    while ((f32)(u32)(OSGetTime() / tpms) < deadline) {
+    }
+    mbBlitPadTest((s32*)(mgr + 12));
+}
+
+/* 0x800B28EC  set all four corner colors (= MBBlitSetColor4); flag 0x10
+ * marks per-corner colors active. */
+void fn_800B28EC(MBBLIT* b, u32 c0, u32 c1, u32 c2, u32 c3)
+{
+    b->flags |= 0x10;
+    b->color0 = c0;
+    b->color1 = c1;
+    b->color2 = c2;
+    b->color3 = c3;
+}
+
+/* 0x800B290C  set blit fade (= MBBlitSetAlpha): fade 0..255 maps to GX
+ * alpha 128..1 in color0's top byte; clears the per-corner flag. */
+void fn_800B290C(MBBLIT* b, u32 fade)
+{
+    fade = 128 - (fade >> 1);
+    b->flags &= ~0x10;
+    b->color0 &= 0x00FFFFFF;
+    b->color0 |= fade << 24;
+}
+
+/* 0x800B2940  set blit brightness (= MBBlitSetColor): 0..255 maps to a
+ * grey 0x010101..0x808080 in color0's RGB; clears the per-corner flag. */
+void fn_800B2940(MBBLIT* b, u32 bright)
+{
+    b->flags &= ~0x10;
+    b->color0 &= 0xFF000000;
+    b->color0 |= ((bright >> 1) & 0x007F7F7F) + 0x00010101;
+}
+
+/* 0x800B2980  return the blit's texture handle (= MBBlitGetTex). */
+s32 fn_800B2980(MBBLIT* b)
+{
+    return b->tex;
+}
 
 void mbBlitCalcRect(MBBLIT* b, s32* x, s32* y, f32* depth) {
     MBWindow* window = gWinGlobals;

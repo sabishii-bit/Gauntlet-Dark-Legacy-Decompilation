@@ -69,7 +69,7 @@ extern u8 lbl_80127D60[0x40];   /* tree ctor argument blob (.data) */
 
 /* shared globals owned by other MB TUs */
 extern s32* gWinDebug;               /* 0x80343FB8 : ptr; [0]=hide-objs [1]=... */
-extern s32 lbl_80343F9C;              /* 0xE-dispatch enable */
+extern s32 draw_psys_on;              /* 0xE-dispatch enable */
 extern s32 lbl_80344E90;              /* debug-bbox enable (DrawSortObjectsSub) */
 extern u8* gWinGlobals;               /* 0x80344FC0 : window/model-mgr context */
 extern s32 lbl_802A4B30[6];           /* current blit page block (.bss 0x18) */
@@ -396,7 +396,7 @@ static void DrawSortObjectsSub(int start, MBObjEntry* base, int count) {
         if (t == 12) {
             /* nothing */
         } else if (t == 14) {
-            if (lbl_80343F9C != 0) {
+            if (draw_psys_on != 0) {
                 MBDrawPsys(e->obj, e);
             }
         } else if (t == 2) {

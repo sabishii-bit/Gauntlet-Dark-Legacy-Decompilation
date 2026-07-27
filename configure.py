@@ -382,6 +382,7 @@ config.libs = [
         "progress_category": "game",
         "objects": [
             Object(NonMatching, "game/g3d/auxanim.c", cflags=cflags_demo),
+            Object(NonMatching, "game/anim/action.c", cflags=cflags_demo),
             Object(Matching, "game/sys/main.c", cflags=cflags_demo),
             Object(NonMatching, "game/sys/memcard.c", cflags=cflags_demo),
             Object(NonMatching, "game/sys/cardutil.c", cflags=cflags_demo),
@@ -411,6 +412,7 @@ config.libs = [
             Object(NonMatching, "game/pb/pb_objects.c", cflags=cflags_demo, mw_version="GC/1.2.5n"),
             Object(NonMatching, "game/pb/pb_objregs.c", cflags=cflags_demo),
             Object(NonMatching, "game/pb/pb_texture.c", cflags=cflags_demo, mw_version="GC/1.2.5n"),
+            Object(NonMatching, "game/pb/pb_tree.cpp", cflags=cflags_demo, mw_version="GC/1.2.5n"),
             Object(NonMatching, "game/pb/dbgtext.c", cflags=cflags_demo),
             Object(NonMatching, "game/pb/pb_winglobals.c", cflags=cflags_demo),
             Object(Matching, "game/pb/pb_error.c", cflags=cflags_demo),

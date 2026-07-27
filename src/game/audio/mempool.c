@@ -730,3 +730,9 @@ void list_verify(MemList* list) {
         } while (node != list->head);
     }
 }
+
+/* 0x800D621C  qsort comparator for pool_garbage_collect: order block
+ * entries by start offset (flags word). Final fn of MEMPOOL.OBJ. */
+s32 pool_query(const void* lhs, const void* rhs) {
+    return (s32)((*(MemListNode**)lhs)->flags - (*(MemListNode**)rhs)->flags);
+}
