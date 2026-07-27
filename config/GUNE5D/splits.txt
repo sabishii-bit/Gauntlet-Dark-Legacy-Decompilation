@@ -259,6 +259,7 @@ game/mb/mb_struct.c:
 	extab       start:0x80007900 end:0x80007918
 	extabindex  start:0x8000BDD0 end:0x8000BDF4
 	.text       start:0x800B9E4C end:0x800BA084
+	.rodata     start:0x80116098 end:0x801160B0
 
 game/mb/mb_tree.c:
 	extab       start:0x80007918 end:0x800079A0
@@ -284,6 +285,8 @@ game/ps2/ml_ffsincos.c:
 	extab       start:0x80007A20 end:0x80007A30
 	extabindex  start:0x8000BF80 end:0x8000BF98
 	.text       start:0x800BC8D8 end:0x800BCAAC
+	.rodata     start:0x80116198 end:0x801161B0
+	.sdata2     start:0x80348D60 end:0x80348DA0
 
 game/ps2/ml_fmath.c:
 	extab       start:0x80007A30 end:0x80007AF0

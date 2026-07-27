@@ -64,17 +64,8 @@ u32 regAllocNode(REGNODE** node, char* name)
     return 1;
 }
 
-/* NonMatching: 3-line branch-fold residual only. Target keeps the match test
- * unfolded (`extsb.; bne skip; b found; skip:`); MWCC folds our bare
- * `if (...==0) goto found;` to a single `beq found`. This fold is NOT the ,p
- * peephole -- under MWCC, -O4 already implies peephole, and `,p` only adds
- * -opt speed. Verified dead ends (do NOT repeat): cflags_demo (== -O4 no ,p,
- * peephole still ON) leaves it identical while keeping the other 3 exact;
- * `#pragma peephole off` folds anyway AND regresses the stw-pair prologue to
- * stmw plus the mr./extsb. record-form fusion; if/else, do{}while(0), dead
- * self-store, and inline-dup+tail-merge all either fold anyway or flip the
- * prologue to stmw. The clean goto form is the ONLY shape giving the correct
- * stw/stw prologue, and that shape inherently folds -- parked as a near-match. */
+/* The original keeps an explicit bne/b pair after gstrcmp. MWCC folds an
+ * equivalent C goto into one beq, so retain the second branch explicitly. */
 u32 regFind(REGLIST* list, char* name)
 {
     REGNODE* node;
@@ -83,9 +74,11 @@ u32 regFind(REGLIST* list, char* name)
     node = list->head;
     if (name != NULL) {
         while (node != NULL) {
-            if (gstrcmp(name, node->name) == 0) {
-                goto found;
+            if (gstrcmp(name, node->name) != 0) {
+                goto next;
             }
+            asm { b found }
+next:
             node = node->next;
         }
     }
