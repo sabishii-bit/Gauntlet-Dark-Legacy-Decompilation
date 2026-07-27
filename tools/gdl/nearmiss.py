@@ -69,6 +69,11 @@ def main():
         unit = u.get("name", "").removeprefix("main/")
         if args.grep and args.grep not in unit:
             continue
+        # Matching (linked) TUs are byte-proven by the link itself: any <100%
+        # fuzzy inside them is reloc-name scoring noise, NOT a near-miss.
+        # Editing their source based on fuzzy% BREAKS REAL DOL BYTES.
+        if u.get("metadata", {}).get("complete"):
+            continue
         for f in u.get("functions", []):
             pct = f.get("fuzzy_match_percent", 0.0)
             if pct >= args.min and pct < 100.0:

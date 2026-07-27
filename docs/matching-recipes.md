@@ -89,3 +89,14 @@ InitDynobjGrid's i=total. 3 attempts max, then PARKED.txt.
   report.json is the per-fn truth, `--clean`'s summary the per-iteration one.
 - `...bss.0` relocs (out-of-bounds array access) and `@N` vs `lbl_` pool
   names are byte-identical after link — cosmetic.
+
+## Matching (linked) TUs are OFF-LIMITS to fuzzy-driven edits
+
+A TU flagged `Matching` in configure.py LINKS INTO THE DOL — the green sha1
+is the byte-proof. Functions inside it that score <100% fuzzy are reloc-name
+noise (literal-vs-reloc, @N-vs-lbl), not near-misses. "Improving" their
+source changes real DOL bytes and reds the link. nearmiss.py excludes them
+automatically (metadata.complete). If you want to upgrade an asm-shell or a
+hardcoded-address body inside a Matching TU to real C, the replacement must
+be BYTE-EXACT before it can land — draft it, fndiff it, and only swap it in
+at 0 real diff lines.
