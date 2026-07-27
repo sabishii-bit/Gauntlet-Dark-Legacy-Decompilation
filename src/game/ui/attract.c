@@ -108,7 +108,7 @@ extern void fn_800B2F8C(int a, float b);
 extern int  fn_800B3AFC(int a, int b, int c, int d, int e, int f);
 extern void fn_800B3D6C(int a);
 extern void fn_800B5AA8(int a, int b);
-extern void fn_800BBB70(float a);
+extern void MBWindowZoom(float a);
 extern void fn_800BC2EC(void* a, ...);
 extern void fn_800BC4E4(void);
 extern void fn_800C7864(int a);
@@ -327,7 +327,7 @@ void init_titlescreen(void) {
     SelectLoadStart();
     bulletproof_printf(base + 2324);
     fn_80053C70();
-    fn_800BBB70(lbl_803458CC);
+    MBWindowZoom(lbl_803458CC);
     lbl_80344270 = 0;
     lbl_80344274 = 30;
     fn_800B290C(lbl_80344264, 255);
