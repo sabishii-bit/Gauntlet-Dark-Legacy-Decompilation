@@ -146,8 +146,9 @@ MBObject* MBNewObject(s32 objid, void* name, void* parent, u32 flags) {
                 obj->data.romobj = 0;
             } else {
                 void** table = *(void***)(mgr + 0x30);
+                table = (void**)table[(objid >> 16) * 4 + 1];
                 obj->index = objid;
-                obj->data.romobj = (u8*)*(void**)((u8*)table[(objid >> 16) * 4 + 1] + 0x54) +
+                obj->data.romobj = (u8*)*(void**)((u8*)table + 0x54) +
                               ((objid << 6) & 0x003FFFC0);
                 obj->type = 2;
                 obj->flags &= ~1u;
@@ -314,13 +315,20 @@ void FaceCamMat(f32* mtx, f32 limit) {
                 cameraPitch = -limit;
             }
         }
-        fn_800BE4F4(mtx, cameraYaw);
-        fn_800BE448(mtx, cameraPitch);
+        {
+            f32 a = cameraYaw;
+            fn_800BE4F4(mtx, a);
+        }
+        {
+            f32 b = cameraPitch;
+            fn_800BE448(mtx, b);
+        }
         return;
     }
 no_pitch:
     {
-        yaw = atan2(mtx[8], mtx[10]);
+        f32 mz = mtx[10];
+        yaw = atan2(mtx[8], mz);
         cameraYaw = atan2(toCamera[0], toCamera[2]) - yaw;
         fn_800BE4F4(mtx, cameraYaw);
     }
@@ -337,9 +345,10 @@ void InitFrontFaceYaw(f32* cam) {
 
 void QuickYawMat(f32* mtx) {
     u8 pad[16];
-    f32 objectYaw = atan2(mtx[8], mtx[10]);
-    f32 cameraYaw = atan2(*(f32*)(lbl_80344EE8 + 0x84),
-                          *(f32*)(lbl_80344EE8 + 0x8C));
+    f32 mz = mtx[10];
+    f32 objectYaw = atan2(mtx[8], mz);
+    f32 cz = *(f32*)(lbl_80344EE8 + 0x8C);
+    f32 cameraYaw = atan2(*(f32*)(lbl_80344EE8 + 0x84), cz);
     f32 yaw = (f32)(lbl_80348C58 + cameraYaw) - objectYaw;
     f64 result;
 
@@ -350,7 +359,10 @@ void QuickYawMat(f32* mtx) {
     } else {
         result = yaw;
     }
-    fn_800BE4F4(mtx, (f32)result);
+    {
+        f32 fy = (f32)result;
+        fn_800BE4F4(mtx, fy);
+    }
 }
 
 /* =====================================================================

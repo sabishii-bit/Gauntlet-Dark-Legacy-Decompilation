@@ -36,3 +36,4 @@ HealthMeterStart           # gate=BossSpewCoins
 BossDeath                  # gate=BossSpewCoins
 do_screen2d                # sched, 2 transposed SDA loads + 2 reloc-alias lines (lbl+4 vs sFlags — link-identical) (attract)
 dcsHandleRequest           # renum, param-web rotation r28/r29/r30 + state 2-step + clamp fold; insns 411/411 equal; state-first-decl = best form (202 lines); FLIP GATE for dcsdrv
+MBNewObject                # renum, obj<->flags-copy r30/r31 web swap; REGISTER_ONLY (mb_objects 17/18 flip gate)
