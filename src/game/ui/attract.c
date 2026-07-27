@@ -99,7 +99,7 @@ extern int  AudioSysUpdate(int a);      /* was fn_80017B18 */
 extern void AudioReset(int a);          /* was fn_80017BAC */
 extern void AudioEmptyCb1(void);        /* was fn_8001802C */
 extern void fn_800B8DD0(void* dst, void* name, int a, int b);
-extern int  fn_800B8B04(char* name, int flag);
+extern int  MBOX_FindTexture(const char* name, int flag);
 extern int  fn_800B38D0(int a, int b);
 extern void fn_800B3414(int handle, int a);
 extern void fn_800B290C(int handle, int alpha);
@@ -321,7 +321,7 @@ void init_titlescreen(void) {
         mbBlitCvtCoord(lbl_8023D1F0[i], lbl_80343B3C);
     }
 
-    lbl_8034426C = fn_800B8B04(base + 2296, 0);
+    lbl_8034426C = MBOX_FindTexture(base + 2296, 0);
     lbl_80344264 = MBCreateBlit(0, lbl_8034426C, 192, 0, 128, 128);
     bulletproof_printf(base + 2308);
     SelectLoadStart();
@@ -479,6 +479,7 @@ void init_credits(void) {
 /* Per-frame handler for the scrolling 2D info screens.                */
 /* ================================================================== */
 void do_screen2d(void) {
+    u8 unused[8];
     char* base = lbl_80110900;
     int delta;
     int state;
@@ -505,7 +506,7 @@ void do_screen2d(void) {
         }
     }
 
-    fn_800B8B04(base + 2400, 0);
+    MBOX_FindTexture(base + 2400, 0);
     state = lbl_80344298;
     delta = lbl_8034457C;
     lbl_8034422C += delta;

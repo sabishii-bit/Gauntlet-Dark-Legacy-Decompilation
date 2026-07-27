@@ -52,7 +52,7 @@ void fn_800C0E0C(void);
 s32  fn_800C1004(void);
 void mbBlitStub51E0(void);
 void* fn_800C5B3C(void);
-void fn_800AF554(void);
+void fn_800AF554(s32 unused, u16 flags, void* data);
 
 /* MBWindowSetAng-family: sets the window orientation from two angles. */
 void fn_800C0ADC(f32 a, f32 b, s32 mode)
@@ -150,9 +150,9 @@ void fn_800C1120(void)
     fn_800C1004();
 }
 
-void fn_800C1148(void)
+void fn_800C1148(s32 unused, s32 flags, void* data)
 {
-    fn_800AF554();
+    fn_800AF554(unused, flags, data);
 }
 
 void fn_800C116C(void)

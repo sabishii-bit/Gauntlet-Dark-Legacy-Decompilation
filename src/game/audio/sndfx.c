@@ -390,6 +390,7 @@ int sndFxPlayHandle(int soundId, int p2, int flags)
 /* fn_80015870: positioned play with distance attenuation and pan. */
 int sndFxPlay3DAtten(int soundId, Vec3* pos, int p2, int flags)
 {
+    u8 frame_pad[8];
     f32 atten;
     int pan;
 
