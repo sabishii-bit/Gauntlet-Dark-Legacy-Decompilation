@@ -179,6 +179,7 @@ void dcsMain(void)
 /* 0x800D4BF4  dispatch a numeric request (id,in,out) */
 void dcsHandleRequest(u32 request, s32* input, s32* output)
 {
+    DcsDriverState* state;
     s32 resultOffset;
     u32 index;
     s32 i;
@@ -187,7 +188,6 @@ void dcsHandleRequest(u32 request, s32* input, s32* output)
     s32 result;
     s32 opcode;
     u32 mode;
-    DcsDriverState* state;
 
     state = DCS_DRIVER_STATE;
     memset(output, 0, 32);
