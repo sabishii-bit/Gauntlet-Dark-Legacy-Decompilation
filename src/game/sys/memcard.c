@@ -120,7 +120,8 @@ typedef struct GameOpts {
 
 extern u8 lbl_80274578[];          /* dir-info tables: stride 132 (8x16 +4) */
 extern u8 lbl_8025EE80[];          /* VMU/dir working buffer (dir @+0x156F8)*/
-extern GameOpts lbl_80274E80;      /* live game options                     */
+extern u8 optglobals[0xA0];        /* options TU globals; prefs at +0x80 */
+#define gameOpts (*(GameOpts*)&optglobals[0x80])
 extern u8* lbl_80343C74;           /* staged save record (opts@+8, dir@+0xA1C8)*/
 extern char lbl_803472D8[8];       /* default dir name (sdata, SDA21)       */
 extern char lbl_803472E0[8];       /* dir name variant (sdata, SDA21)       */
@@ -440,7 +441,7 @@ int saveSave(int port, int slot, int fileNo, void* src)
     beginSaveTransaction();
     lbl_80344A04 = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x2D44C0);
     loadGauntletSave();
-    *(GameOpts*) ((u8*) lbl_80343C74 + 8) = lbl_80274E80;
+    *(GameOpts*) ((u8*) lbl_80343C74 + 8) = gameOpts;
     memcpy((u8*) lbl_80343C74 + fileNo * 5172 + 40, src, 5172);
     memcpy((u8*) lbl_80343C74 + 41416, lbl_80274578, 128);
     writeGauntletSave();
@@ -487,7 +488,7 @@ s32 saveGetFreeBytes(s32 port, s32 slot)
 void check_prefs_loaded(void)
 {
     char* st = lbl_801131C0;
-    GameOpts* opts = &lbl_80274E80;
+    GameOpts* opts = &gameOpts;
     u8 pad[16]; /* unused, matches original frame */
 
     if (saveMount(0, 0, 0) == 0) {
@@ -576,7 +577,7 @@ int MemCardCreateGaunt(int port, int slot)
     beginSaveTransaction();
     lbl_80344A04 = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x2D44C0);
     loadGauntletSave();
-    *(GameOpts*) ((u8*) lbl_80343C74 + 8) = lbl_80274E80;
+    *(GameOpts*) ((u8*) lbl_80343C74 + 8) = gameOpts;
     memcpy((u8*) lbl_80343C74 + 41416, lbl_80274578, 128);
     memset((u8*) lbl_80343C74 + 40, 0, 0x10000 - 24160);
     writeGauntletSave();
@@ -743,7 +744,7 @@ int InitPreferences(void)
         beginSaveTransaction();
         lbl_80344A04 = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x2D44C0);
         if ((u8) loadGauntletSave()) {
-            lbl_80274E80 = *(GameOpts*) ((u8*) lbl_80343C74 + 8);
+            gameOpts = *(GameOpts*) ((u8*) lbl_80343C74 + 8);
             ret = 1;
         } else {
             ret = 0;
@@ -756,7 +757,7 @@ int InitPreferences(void)
         sysClearFlags(64);
         bulletproof_printf(lbl_801131C0);
         lbl_803449EC = 0;
-        lbl_80274E80.data[2] = (OSGetSoundMode() == 0) ? 0 : 1;
+        gameOpts.data[2] = (OSGetSoundMode() == 0) ? 0 : 1;
     }
     return ret;
 }
