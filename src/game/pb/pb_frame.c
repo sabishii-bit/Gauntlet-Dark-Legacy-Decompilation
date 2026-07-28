@@ -144,17 +144,18 @@ void fn_800C1624(void)
 {
     WinGlobals* g = gWinGlobals;
     MBScreen* s = g->screen;
-    s32* q = &s->m14;
-    s32 v;
+    s32* q;
 
-    if (s->m10 == 0 && *q == 0) {
-        *q = s->m18;
+    if (s->m10 == 0) {
+        q = &s->m14;
+        if (*q == 0) {
+            *q = s->m18;
+        }
     }
     s = g->screen;
     q = &s->m14;
-    v = *q;
-    if (v != 0) {
-        pbFrameMode(v, 1);
+    if (*q != 0) {
+        pbFrameMode(*q, 1);
         g->screen->m14 = 0;
         if (lbl_80343EFC->m10 != 0) {
             fn_800C2C74();
