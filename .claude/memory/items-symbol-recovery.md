@@ -46,3 +46,26 @@ The complete old-to-new map and evidence are in
   `ItemVisible` needs the raw `minplayers` value for the `> 10` test and the
   copied value for subtracting ten; that recovers the target `r3 -> r5`
   materialization and leaves only boolean-return coloring.
+
+## Item-instance / WOBJ continuation (2026-07-28)
+
+- When a BSS blob is accessed at fixed 600-byte intervals, test a
+  struct-of-arrays interpretation before accepting anonymous byte offsets.
+  `RegisterItemWobj` exposed five consecutive 150-float arrays at offsets
+  `0x000`, `0x258`, `0x4B0`, `0x708`, and `0x960`, plus the target-pointer
+  array at `0x7220`. Typed fields recovered the target's `add` + `lfsu` /
+  `stfsx` addressing pattern.
+- Pay attention to parameter widths even when the caller already extends the
+  register. Declaring the WOBJ trigger type as `s16` removed MWCC's otherwise
+  redundant `extsh`; writing the count test as
+  `if (++sNumItemWobjs >= 150)` recovered the target compare-before-store
+  schedule. Together these brought the routine to 139/139 instructions.
+- Use the Xbox PDB for serialized input records, then verify every field against
+  the GC loads before adopting it. The 0x3C `iteminst` layout explains all
+  `AddItemInstList` offsets and constrains `SetItem`'s real second argument to
+  an instance pointer rather than the old integer “flag” placeholder.
+- A target opcode sequence can expose dead retail logic. `LinkItemTriggers`
+  contains five instructions that compare candidate `next_id` with current
+  `id`, then immediately overwrites CR0 with the loop comparison. Keep this
+  documented, but do not add PPC inline assembly merely to reproduce a
+  semantically dead comparison when native portability is the project goal.

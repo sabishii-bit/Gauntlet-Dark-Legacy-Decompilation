@@ -316,7 +316,7 @@ extern s32 gFrameTicks;   /* frame delta (int) */
 extern s32 lbl_80344578;   /* vb elapsed */
 extern f32 lbl_80344590;   /* frame delta (float) */
 extern f32 sMusicFadeBase;
-extern s32 lbl_803448F0;   /* total sum-coin count */
+extern s32 sVisibleSumCoinCount;   /* total visible sum-coin count */
 extern s32 sMusicTrackHi;   /* music track */
 extern s32 sMusicTrackLo;
 extern s32 lbl_803448AC;
@@ -731,7 +731,7 @@ static void show_crystals(Player* p) {
         (f64)p->got_timer > 0.0) {
         i = p->index;
         p->got_timer = p->got_timer - lbl_80344590;
-        total = lbl_803448F0;
+        total = sVisibleSumCoinCount;
         type = p->got_type;
         if (type < 0x200) {
             if (type < 0x100) {

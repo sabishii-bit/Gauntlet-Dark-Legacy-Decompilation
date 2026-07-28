@@ -25,7 +25,9 @@ cross-reference sets.
 | `fn_80063D40` | `SafeRockActivate` | ITEMS.OBJ PDB and reactivation |
 | `fn_80063F10` | `CollectSafeRocks` | GC-only behavior; sole caller activates returned rocks |
 | `fn_80064154` | `AddItemSub` | ITEMS.OBJ PDB and item finalization |
+| `fn_80064390` | `LinkItemTriggers` | GC behavior; validates trigger IDs and builds successor chains |
 | `fn_80065D98` | `ItemVisible` | ITEMS.OBJ PDB and player-count gate |
+| `fn_80065E28` | `RegisterItemWobj` | GC behavior; registers the five parallel item-WOBJ runtime arrays |
 | `fn_80066080` | `update_player_milestone` | ITEMS.OBJ PDB; player milestone-history update |
 | `fn_80067904` | `InitLighting` | LIGHTS.OBJ PDB |
 | `fn_8006799C` | `DoLighting` | LIGHTS.OBJ PDB |
@@ -48,6 +50,7 @@ cross-reference sets.
 | `lbl_80112D20` | `sUnableToAddItemFmt` | DOL string |
 | `lbl_80112D38` | `sSafeRockBoss41ObjectName` | `"G5BIGDIRT"` |
 | `lbl_80112D44` | `sSafeRockBoss44ObjectName` | `"H4NSFFXL_PURPLE"` |
+| `lbl_80112D54` | `sNewItemBadIndex` | `"NewItem: bad index"` fatal-error string |
 | `lbl_80112D68` | `sBadItemFloorPosFmt` | DOL string |
 | `lbl_80112D98` | `sMaxItemsError` | `"> MAX ITEMS"` error block |
 | `lbl_80112E24` | `sTransporterNoDestFmt` | DOL string |
@@ -56,6 +59,7 @@ cross-reference sets.
 | `lbl_8011C8A8` | `sArrowObjectNames` | `add_arrow` name table |
 | `lbl_80124D14` | `crystal_order` | ITEMS.OBJ PDB |
 | `lbl_802577F0` | `sItemRuntime` | item WOBJ arrays and shared load scratch |
+| `lbl_8025EA10` | `sItemWobjTargets` | 150-entry item-WOBJ target-pointer table |
 | `lbl_80258400` | `sPlayerStartPositions` | 14 position vectors |
 | `lbl_802584A8` | `sLookoutParams` | lookout/waypoint records |
 | `lbl_80258D18` | `sSumnerCameras` | `SumnerCamActivate` table |
@@ -64,6 +68,7 @@ cross-reference sets.
 | `lbl_8025B604` | `sMilestones` | milestone records |
 | `lbl_803448E0` | `sUnusedResetState` | reset-only GC state |
 | `lbl_803448E4` | `sCrystalCamera` | `CrystalCamActivate` pointer |
+| `lbl_803448F0` | `sVisibleSumCoinCount` | visible type-1/subtype-1 item count built by `AddItemInstList` |
 | `lbl_803448F4` | `sShownMilestones` | current milestone overlay state |
 | `lbl_803448F8` | `sShownCameras` | current camera overlay state |
 | `lbl_803448FC` | `sLastPlayerStart` | highest valid player-start index |
@@ -144,6 +149,32 @@ flags before shifting the history, and then applies the five-bit
 The reconstructed body is instruction-count identical to the 0x1EC-byte
 target. Residual differences are register coloring, two equivalent
 three-instruction node-address forms, and adjacent load scheduling.
+
+## Item-instance and trigger pipeline
+
+`iteminst` is now typed from the Xbox PDB and verified against every access in
+`AddItemInstList`: it is a 0x3C-byte compact placement record with the
+definition index at `+0x00`, position at `+0x18`, Euler rotation at `+0x24`,
+and twelve type-specific parameter bytes at `+0x30`.
+
+`AddItemInstList` expands those records into the 0xF0-byte live `Item` pool.
+Its reconstructed body has the target's exact 100-instruction count. It seeds
+the item RNG, reserves 500 spare entries, builds each placement matrix, calls
+`SetItem`, counts visible sum-coins, finalizes the pool, matches transporters,
+and invokes `LinkItemTriggers`.
+
+`LinkItemTriggers` identifies the type-5 fields in `Item.data`: flags at
+`+0x04`, trigger ID at `+0x06`, successor ID at `+0x07`, and successor pointer
+at `+0x08`. The translation reproduces all functional target operations. The
+retail code also contains a five-instruction comparison of a candidate's
+successor ID with the current trigger ID whose condition result is immediately
+discarded; the portable translation intentionally omits that dead comparison
+and is 156 instructions versus the target's 161.
+
+`RegisterItemWobj` reveals the item-WOBJ storage as five parallel 150-entry
+float arrays (X, node Y, secondary X, Z, and value) followed by a 150-entry
+target-pointer table at runtime offset `0x7220`. Its translation is
+instruction-count identical at 139 instructions.
 | `lbl_80344EB8` | `gSceneRoot` | default MB scene root |
 | `lbl_80347180` | `sOne` | `1.0f` |
 | `lbl_80347184` | `sNegativeHalf` | `-0.5f` |
