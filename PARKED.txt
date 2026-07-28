@@ -204,3 +204,16 @@ MBDrawSysText              # sched, 18 lines: same msg-record scheduling cluster
 MBNewFont                  # renum, 56 lines: def/i2 r30<->r31 param-vs-late-web color swap + dst/max
                            # singles; fnt/blit decl-swap fixed 30 lines; 189/189 REGISTER_ONLY; j-counter
                            # and i-position shuffles neutral/worse (mb_font)
+
+# screensaver.c (game/ui, real MESSAGE.OBJ) - NonMatching TU; body-fill pass 2026-07-27.
+# EXACT: fn_8006C5DC, fn_8006D7BC, fn_8006D7D8, fn_8006D7E4. The three below are
+# semantically-correct structural bodies capped on the .bss-pool/CSE quirk family:
+fn_8006C60C                # bss-pool/CSE: all 4 stores pool off lbl_80274600 base; target keeps store1
+                           # as indexed stwx while store2 (lbl_80274610 = base+idx*4+16) recomputes
+                           # base+idx*4 -- compiler CSEs the two into one add+stw pair instead. 20 lines.
+fn_8006C4D0                # renum + base-const assoc: 4 handle-free loops off lbl_80274600 (+928/992/736/592).
+                           # Base held-in-nonvolatile shape reproduced, but full r26..r31 web renumber +
+                           # (base+stride)+const vs (stride+const)+base reassociation on loop 4. 89 lines.
+fn_8006D458                # addressing: adjacent SDA transition handles lbl_80343C8C/90 + C94/98 emit
+                           # SDA lwz for the even ones, base+lwzu pointer-walk for the odd (+8 frame for the
+                           # held base). Separate-scalar spelling gives all-SDA. 38 lines.
