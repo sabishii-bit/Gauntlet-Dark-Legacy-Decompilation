@@ -22,6 +22,26 @@ typedef struct WorldCollisionResult {
     f32 normal[3];
 } WorldCollisionResult;
 
+typedef struct Vec3 {
+    f32 x;
+    f32 y;
+    f32 z;
+} Vec3;
+
+typedef struct CollisionPoint {
+    f32 x;
+    f32 y;
+    f32 z;
+    f32 _unused;
+} CollisionPoint;
+
+typedef struct FloorCollisionResult {
+    u8 _pad00[0x34];
+    f32 floorY;
+    u8 _pad38[0xC];
+    s32 current;
+} FloorCollisionResult;
+
 extern s32 lbl_80344188;
 extern f32 lbl_80344190;
 extern f32 lbl_80344194;
@@ -31,8 +51,12 @@ extern f32 lbl_80345728;
 extern f32 lbl_8034572C;
 extern f32 lbl_80345740;
 extern f32 lbl_80345744;
+extern f32 lbl_80345748;
+extern f32 lbl_8034574C;
+extern f32 lbl_80345750;
 extern f32 lbl_8023CA50[];
 extern WorldCollisionResult lbl_8023CA40;
+extern FloorCollisionResult lbl_8023CAE0;
 
 u32 WorldCollide(f32 radius, void* from, void* to, f32* result,
                  s32 flags, s32 mode);
@@ -143,10 +167,63 @@ u32 FastWallCollide(void* from, void* to, f32* normal, s32 mode) {
     return 0;
 }
 
+f32 FloorPos(f32 fallback, f32 radius, Vec3* position, s32 mode) {
+    u8 unused[8];
+    CollisionPoint to;
+    CollisionPoint from;
+    s32 hit;
+
+    lbl_8023CAE0.current = hit = 0;
+    from.x = position->x;
+    from.y = position->y;
+    from.z = position->z;
+    to.x = position->x;
+    to.y = position->y;
+    to.z = position->z;
+    from.y += lbl_80345748;
+    to.y += lbl_8034574C;
+    lbl_80344188 = 7;
+    lbl_80344188 |= 0x10;
+    lbl_80344194 = lbl_80345750;
+    lbl_80344190 = lbl_80345724;
+    if (WorldCollide(radius, &from, &to, (f32*)&lbl_8023CAE0, 0x23C,
+                     mode) != 0) {
+        hit = 1;
+    }
+    if (hit != 0) {
+        return lbl_8023CAE0.floorY;
+    }
+    return fallback;
+}
+
+u32 FloorCollide(f32 radius, f32 yFrom, f32 yTo, Vec3* position,
+                 FloorCollisionResult* result, s32 useExtra, s32 mode) {
+    CollisionPoint from;
+    CollisionPoint to;
+
+    if (result == 0) {
+        result = &lbl_8023CAE0;
+    }
+    result->current = 0;
+    from.x = position->x;
+    from.y = position->y;
+    from.z = position->z;
+    to.x = position->x;
+    to.y = position->y;
+    to.z = position->z;
+    from.y += yFrom;
+    to.y += yTo;
+    lbl_80344188 = 7;
+    if (useExtra != 0) {
+        lbl_80344188 |= 0x10;
+    }
+    lbl_80344194 = lbl_80345750;
+    lbl_80344190 = lbl_80345724;
+    return WorldCollide(radius, &from, &to, (f32*)result, 0x23C, mode);
+}
+
 #define STUB(address, name) void name(void) {}
 
-STUB(0x8000D3C4, FloorPos)
-STUB(0x8000D4B8, FloorCollide)
 u32 WorldCollide(f32 radius, void* from, void* to, f32* result,
                  s32 flags, s32 mode) {
     return 0;
