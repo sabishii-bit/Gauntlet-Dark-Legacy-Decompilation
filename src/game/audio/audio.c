@@ -8,8 +8,8 @@
  * helpers in game/sound/sounds.c.  The lower slice of the same module (the
  * sndFx / sndVoice track helpers, text 0x800150CC-0x800160F0) is a separate TU
  * (sndfx.c) that shares this module's state (the 12-entry track table
- * lbl_8023DD28, the disable flag lbl_803442A0, the pending-command counter
- * lbl_80344300, and the loaded-ROM root lbl_803442B0).
+ * sAudioChanUpdate, the disable flag sAudioSuspend, the pending-command counter
+ * sAudioMute, and the loaded-ROM root sAudioBankTable).
  *
  * Module identity is confirmed from the retained AUDIO.OBJ debug strings:
  *   "AUDIO: UNABLE TO FIND MODE %s"      -> AudioSetMode
@@ -67,7 +67,7 @@ extern void  fn_80067B0C(s32 a);       /* per-frame service pump */
 extern f32   NormalVector(void* vec);  /* normalize vector, return approximate length */
 extern void  sndFxInitVoices(void);    /* sndfx.c (0x80015C48): reset voices */
 extern void  FatalErrorf(const char* fmt, ...); /* fatal/debug printer */
-extern void  fn_800CEAF0(s32 a, void* out, s32 arg, s32 b, s32 c, void* v);
+extern void  MBNewWorldPsys(s32 a, void* out, s32 arg, s32 b, s32 c, void* v);
 
 /* lower-slice (sndfx.c) killers used when tearing tracks down */
 extern s32 AudioKillMask(s32 mask);
@@ -432,7 +432,7 @@ void AudioKillByBank(s32 bankId)
     }
 }
 
-/* AudioKillMask (lbl_80016720): register a stop-list for the masked tracks and
+/* AudioKillMask (AudioKillMask): register a stop-list for the masked tracks and
  * free their slots.  Defined in this TU but also referenced by sndfx.c. */
 s32 AudioKillMask(s32 mask)
 {
@@ -781,7 +781,7 @@ s32 AudioLoadPart(s32 bankIdx, s32 partIdx, s32 waitLevel, s32 flag)
     return result;
 }
 
-/* AudioLoadComplete (lbl_800177C0): DCS load-done / error callback stored in the
+/* AudioLoadComplete (AudioLoadComplete): DCS load-done / error callback stored in the
  * queue slot by AudioLoadPart.  slot+16 -> a {bankIdx, partIdx, retryCount}
  * descriptor; on success it records the returned voice handle in both the mode
  * bank table (+284/+288) and the ROM bank (+40/+42); on failure it retries up
@@ -819,7 +819,7 @@ void AudioLoadComplete(s32* slot)
     desc[0] = -1;
 }
 
-/* AudioDeferSlot (lbl_800174C4): register a deferred completion slot, unless
+/* AudioDeferSlot (AudioDeferSlot): register a deferred completion slot, unless
  * audio is suspended or a stream is already active. */
 void AudioDeferSlot(void* cb, s32 arg)
 {
@@ -1337,6 +1337,6 @@ void AudioSetListenerPos(s32* out, s32 arg, f32* pos)
         sw.b[3] = in.b[0];
         v[i] = sw.f;
     }
-    fn_800CEAF0(0, out, arg, 1, 0, v);
+    MBNewWorldPsys(0, out, arg, 1, 0, v);
     out[24] |= 1;
 }

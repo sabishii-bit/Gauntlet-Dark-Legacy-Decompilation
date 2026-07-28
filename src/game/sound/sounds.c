@@ -66,7 +66,7 @@ extern s32 sActiveTrackId[]; /* active-track id array (45 entries) */
 extern char lbl_801200B0[][4]; /* 4-char class name table */
 extern char sStreamNameBuf[];    /* stream-name scratch buffer */
 extern u8* gCurLevel;       /* current-level descriptor pointer */
-extern s32 lbl_80344370;   /* audio mode (<=2 => attract/menu path) */
+extern s32 good_wiz_state;   /* audio mode (<=2 => attract/menu path) */
 extern s32 sAudioInitFlag;
 extern s32 sCurSelectTrack;
 extern s32 sCurMusicVol;
@@ -100,7 +100,7 @@ void AudioWelcome(int pidx, int flag)
 
     if (flag != 0) {
         AudioWithName(0xC0084, pidx, 10.0f, -1, -1);
-    } else if (lbl_80344370 <= 2) {
+    } else if (good_wiz_state <= 2) {
         sndFxQueAddEx(1, 0xC0084, -1.0f, 10.0f, 224, extra, 2);
     }
 }
@@ -111,7 +111,7 @@ void AudioWelcomeBack(int pidx, int flag)
 
     if (flag != 0) {
         AudioWithName(0xC0083, pidx, 10.0f, -1, -1);
-    } else if (lbl_80344370 <= 2) {
+    } else if (good_wiz_state <= 2) {
         sndFxQueAddEx(1, 0xC0083, -1.0f, 10.0f, 224, extra, 2);
     }
 }
@@ -143,7 +143,7 @@ void AudioWithName(int id, int pidx, f32 vol, int s4, int s5)
     }
 
     if (id >= 0) {
-        if (((lbl_80344370 > 2) ? 0.0f
+        if (((good_wiz_state > 2) ? 0.0f
                                 : sndFxQueAddEx(1, id, -1.0f, vol, 224, track, 2)) != 0.0f) {
             vol = -1.0f;
         } else {
@@ -151,7 +151,7 @@ void AudioWithName(int id, int pidx, f32 vol, int s4, int s5)
         }
     }
     if (a >= 0) {
-        if (((lbl_80344370 > 2) ? 0.0f
+        if (((good_wiz_state > 2) ? 0.0f
                                 : sndFxQueAddEx(1, a, -1.0f, vol, 224, track, 2)) != 0.0f) {
             vol = -1.0f;
         } else {
@@ -159,7 +159,7 @@ void AudioWithName(int id, int pidx, f32 vol, int s4, int s5)
         }
     }
     if (b >= 0) {
-        if (((lbl_80344370 > 2) ? 0.0f
+        if (((good_wiz_state > 2) ? 0.0f
                                 : sndFxQueAddEx(1, b, -1.0f, vol, 224, track, 2)) != 0.0f) {
             vol = -1.0f;
         } else {
@@ -167,14 +167,14 @@ void AudioWithName(int id, int pidx, f32 vol, int s4, int s5)
         }
     }
     if (s4 >= 0) {
-        if (((lbl_80344370 > 2) ? 0.0f
+        if (((good_wiz_state > 2) ? 0.0f
                                 : sndFxQueAddEx(1, s4, -1.0f, vol, 224, track, 2)) != 0.0f) {
             vol = -1.0f;
         } else {
             return;
         }
     }
-    if (s5 >= 0 && lbl_80344370 <= 2) {
+    if (s5 >= 0 && good_wiz_state <= 2) {
         sndFxQueAddEx(1, s5, -1.0f, vol, 224, track, 2);
     }
 }

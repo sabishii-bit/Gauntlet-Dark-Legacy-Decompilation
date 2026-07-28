@@ -24,8 +24,8 @@ u32 strlen(const char* s);
 
 /* command dispatch to the sound/resource server: id + in/out param blocks */
 s32 dcsHandleRequest(s32 id, void* in, void* out);   /* server message dispatch */
-void HealthMeterInit(void);                      /* fn_8001B830 */
-s32 adsPoll(void);                               /* ADSTREAM per-frame poll (fn_800D6234) */
+void HealthMeterInit(void);                      /* HealthMeterInit */
+s32 adsPoll(void);                               /* ADSTREAM per-frame poll (adsPoll) */
 
 /* GameCube audio (sndvoice.c / AX / AR) */
 void sndVoiceStart(s32 voice);
@@ -55,23 +55,23 @@ typedef struct SndState {
 } SndState;
 
 extern SndState gSndState;
-extern s32 sVoice[14];   /* lbl_8024CDC8 */
+extern s32 sVoice[14];   /* sVoice */
 #define g gSndState
 
 /* small state (sdata/sbss) */
-extern u8  sSndActive;      /* lbl_80344670 */
-extern s32 sBankLock;       /* lbl_80344674 */
-extern s32 sMode;           /* lbl_80344678 */
-extern Node* sHeldNode;     /* lbl_8034467C */
-extern Node* sFrameCb;      /* lbl_80344680 */
-extern s32 sCount1;         /* lbl_80344684 */
-extern s32 sCount2;         /* lbl_80344688 */
-extern s32 sInSync;         /* lbl_8034468C */
-extern s32 sFramePend;      /* lbl_80344690 */
-extern s32 sConfig;         /* lbl_80344694 */
-extern s32 sPending;        /* lbl_80344698 */
-extern s32 sReset;          /* lbl_8034469C */
-extern s32 sFlags;          /* lbl_803445CC */
+extern u8  sSndActive;      /* sSndActive */
+extern s32 sBankLock;       /* sBankLock */
+extern s32 sMode;           /* sMode */
+extern Node* sHeldNode;     /* sHeldNode */
+extern Node* sFrameCb;      /* sFrameCb */
+extern s32 sCount1;         /* sCount1 */
+extern s32 sCount2;         /* sCount2 */
+extern s32 sInSync;         /* sInSync */
+extern s32 sFramePend;      /* sFramePend */
+extern s32 sConfig;         /* sConfig */
+extern s32 sPending;        /* sPending */
+extern s32 sReset;          /* sReset */
+extern s32 sFlags;          /* sFlags */
 
 /*
  * The init state is a single aggregate the compiler anchors on: sndSysInit
@@ -87,9 +87,9 @@ typedef struct BigState {
     /* 0x0B034 */ s32 arrB034[9][6];
     /* 0x0B10C */ u8 _end[4];
 } BigState;
-extern BigState gBig;   /* lbl_80240FD0 */
+extern BigState gBig;   /* gBig */
 
-extern s32 gBossDead;   /* lbl_8034437C */
+extern s32 gBossDead;   /* gBossDead */
 extern s32 lbl_8034466C;
 extern s32 lbl_80344668;
 extern u16 lbl_80344664;
@@ -107,10 +107,10 @@ extern s32 lbl_80240E30[];
 extern s32 lbl_8024C508[];  /* nodes[0x20] @0x8024C508 (== gSndState+0x428) */
 extern s32 lbl_8024C988[];  /* msgbuf[0x100] @0x8024C988 (== gSndState+0x8A8) */
 
-s32 sndSysFlush(void);         /* fn_8004318C */
-void sndSysClear(void);        /* fn_80043250 */
-void sndSysSync(void);         /* fn_800432EC */
-void sndTestAXCallback(void);  /* fn_80043168 */
+s32 sndSysFlush(void);         /* sndSysFlush */
+void sndSysClear(void);        /* sndSysClear */
+void sndSysSync(void);         /* sndSysSync */
+void sndTestAXCallback(void);  /* sndTestAXCallback */
 
 /* 0x8004229C */
 void sndSysInit(void)

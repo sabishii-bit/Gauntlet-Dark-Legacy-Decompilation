@@ -63,7 +63,7 @@ typedef struct GridItem {
     u8 _1fe[0x196]; /* pad to stride 0x394 */
 } GridItem;
 
-/* World bounds record owned elsewhere (lbl_8028CA8C, 0xA4 bytes). */
+/* World bounds record owned elsewhere (gWorldInfo, 0xA4 bytes). */
 typedef struct WorldBounds {
     u8 _00[0x18];
     f32 min_x;    /* +0x18 */
@@ -99,7 +99,7 @@ extern const f64 lbl_803466A8;   /* 64.0 */
 #define kGridDim lbl_803466A8
 
 /* --- module state (DYNGRID.OBJ file-locals) --- */
-extern DynGridCell enegrid[DYNGRID_DIM][DYNGRID_DIM]; /* lbl_8024CE00 */
+extern DynGridCell enegrid[DYNGRID_DIM][DYNGRID_DIM]; /* enegrid */
 
 extern s32 itm_x, itm_z;                 /* current item iterator cell */
 extern s32 itm_min_x, itm_min_z;         /* item query bbox (cells) */

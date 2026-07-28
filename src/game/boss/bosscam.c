@@ -111,7 +111,7 @@ extern s32 gPointViewClipFlags;       /* .sbss 0x803443CC  per-plane clip bits *
 extern const f32 lbl_80345BA4;        /* +INF sentinel for the running minimum */
 extern const f64 lbl_80345B98;        /* clip threshold (0.0) */
 
-extern void fn_80070968(void* camera);
+extern void CamReset(void* camera);
 
 /* Player array (stride 0x335C) and boss gating state used by the dpos clamps */
 extern u8 gPlayers[];             /* base of the 4 player structs */
@@ -124,10 +124,10 @@ extern f32 lbl_8023E8C0[3];           /* scratch view-space point */
 
 extern s32 fn_800629B0(void);
 extern s32 fn_8006DC2C(void* ps, f32* dpos, s32 arg);
-extern s32 fn_80025CEC(s32 a, f32* dpos);
+extern s32 camera_debug_supervisor(s32 a, f32* dpos);
 extern void MulBodyVecMat4(f32* in, f32* out, void* mtx);
 extern void MulVecMat4(f32* in, f32* out, void* mtx);
-extern void fn_8006EF98(f32* a, f32* b, f32* c);
+extern void CalcFrustrumNormals(f32* a, f32* b, f32* c);
 extern void fn_8006DC64(void* camera, u8* ps, f32* dpos, s32 arg);
 
 /* level / camera-pose state and math libs */
@@ -197,7 +197,7 @@ s32 CameraLimitPlayerDpos(s32 player, f32* dpos, s32 arg) {
     } else if (lbl_80344A80 == 2) {
         ret = fn_8006DC2C(ps, dpos, arg);
     } else {
-        ret = fn_80025CEC(*(s32*)ps, dpos);
+        ret = camera_debug_supervisor(*(s32*)ps, dpos);
         dpos[1] = savedY;
     }
     return ret;
@@ -217,7 +217,7 @@ void CamLimitPlayerDpos(void* camera, u8* ps, f32* dpos, s32 arg) {
     u8* cam = (u8*)camera;
 
     if (lbl_80343C5C != 0) {
-        fn_8006EF98((f32*)(cam + 224), (f32*)(cam + 164), (f32*)(cam + 64));
+        CalcFrustrumNormals((f32*)(cam + 224), (f32*)(cam + 164), (f32*)(cam + 64));
         fn_8006DC64(camera, ps, dpos, arg);
         return;
     }
@@ -447,7 +447,7 @@ static void GetActualAvgVec(f32* out) { (void)out; }
 void GameCameraInit(void) {
     gGameCamera = gGameCameraData;
     lbl_803443A8 = 0;
-    fn_80070968(gGameCamera);
+    CamReset(gGameCamera);
     lbl_803444C0 = lbl_80345C28;
     lbl_803444C4 = lbl_80345C28;
 }

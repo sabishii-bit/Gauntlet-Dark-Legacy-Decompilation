@@ -104,7 +104,7 @@ extern void ErrorPrintf(const char* fmt, ...);
 extern void* memset(void* p, int c, u32 n);
 
 extern void* MBNewNode(int a, const char* name, int b);   /* render-node alloc */
-extern int fn_800B8B34(int name, int a, int b);              /* texture-by-name lookup */
+extern int MBOX_FindTexture_Err(int name, int a, int b);              /* texture-by-name lookup */
 
 extern MBBLIT blitPool[MB_BLIT_POOL_MAX];
 extern u8 tempBlitPool[MB_TEMPBLIT_MAX * 0x38];
@@ -510,13 +510,13 @@ MBBLIT* MBCreateBlit(MBNODE* node, int tex, int x, int y, int w, int h) {
 
 /* MBNewBlit(name, x, y): look up texture by name, create an auto-sized blit. */
 MBBLIT* MBNewBlit(int name, int x, int y) {
-    int tex = fn_800B8B34(name, 0, 1);
+    int tex = MBOX_FindTexture_Err(name, 0, 1);
     return MBCreateBlit(0, tex, x, y, -1, -1);
 }
 
 /* MBNewBlit variant with explicit width/height. */
 MBBLIT* mbNewBlitSized(int name, int x, int y, int w, int h) {
-    int tex = fn_800B8B34(name, 0, 1);
+    int tex = MBOX_FindTexture_Err(name, 0, 1);
     return MBCreateBlit(0, tex, x, y, w, h);
 }
 

@@ -103,34 +103,34 @@ void Randomize(u32 seed) {
 }
 
 /* 0x800BCD68 */
-void fn_800BCD68(void) {}
+void ExtractYPR(void) {}
 
 /* 0x800BCED8 */
-void fn_800BCED8(void) {}
+void ExtractPYR(void) {}
 
 /* 0x800BD050 */
 void CreateYPRMatrix(void) {}
 
 /* 0x800BD154 */
-void fn_800BD154(void) {}
+void CreateRYPMatrix(void) {}
 
 /* 0x800BD254 */
-void fn_800BD254(void) {}
+void CreatePYRMatrix(void) {}
 
 /* 0x800BD360 */
-void fn_800BD360(void) {}
+void AddAngle(void) {}
 
 /* 0x800BD3A4 */
-void fn_800BD3A4(void) {}
+void SubAngle(void) {}
 
 /* 0x800BD3E8 */
 void FixAngle(void) {}
 
 /* 0x800BD428 */
-void fn_800BD428(void) {}
+void GetYawPitch(void) {}
 
 /* 0x800BD488 */
-void fn_800BD488(void) {}
+void CreateDirMatrix(void) {}
 
 /* 0x800BD7C4 */
 void ReflectVector2D(const f32* vector, const f32* normal, f32* out)

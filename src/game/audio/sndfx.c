@@ -10,7 +10,7 @@
  * and per-frame servicing, and is called by sounds.c and 20+ gameplay TUs
  * (sndFxPlay3D alone has 36 caller objects).  The full engine TU continues
  * past this slice into 0x800160F0-0x800183FC (voice/track helpers
- * fn_800160F0..fn_80018xxx, still auto).
+ * AudioSetTrackPan..fn_80018xxx, still auto).
  *
  * The sndFx* names are DESCRIPTIVE (exact Midway identifiers unconfirmed).  The
  * `Audio*` prefix is already taken by SOUNDS.OBJ and AUDIO.OBJ, and this module
@@ -210,7 +210,7 @@ static inline int sndFxComputePan(Vec3* pos)
     return pan;
 }
 
-/* fn_800150CC: one-time audio-core init (resets state, starts driver). */
+/* sndFxInit: one-time audio-core init (resets state, starts driver). */
 void sndFxInit(void* a, void* b)
 {
     lbl_80344290 = a;
@@ -234,13 +234,13 @@ void sndFxInit(void* a, void* b)
     fn_80053A10(1);
 }
 
-/* fn_8001516C: enqueue helper (default mode 0). */
+/* sndFxQueAdd: enqueue helper (default mode 0). */
 f32 sndFxQueAdd(int soundId, f32 vol, f32 param, int pri, int track, int flags)
 {
     return sndFxQueAddEx(0, soundId, vol, param, pri, track, flags);
 }
 
-/* fn_800151A8: enqueue a sound request with volume/priority/track; returns the
+/* sndFxQueAddEx: enqueue a sound request with volume/priority/track; returns the
  * effective volume (0.0 = rejected). */
 f32 sndFxQueAddEx(int mode, int soundId, f32 vol, f32 param, int pri, int track, int flags)
 {
@@ -306,7 +306,7 @@ f32 sndFxQueAddEx(int mode, int soundId, f32 vol, f32 param, int pri, int track,
     return vol;
 }
 
-/* fn_80015394: empty the pending request queue. */
+/* sndFxQueEmpty: empty the pending request queue. */
 void sndFxQueEmpty(void)
 {
     int busy = sAudioQueBusy;
@@ -322,7 +322,7 @@ void sndFxQueEmpty(void)
     }
 }
 
-/* fn_800154C8: process both pending queues, starting the queued voices. */
+/* sndFxQueUpdate: process both pending queues, starting the queued voices. */
 int sndFxQueUpdate(void)
 {
     int did = 0;
@@ -364,7 +364,7 @@ int sndFxQueUpdate(void)
     return did;
 }
 
-/* fn_800153D4: per-frame audio service (drives the driver + queues). */
+/* sndFxUpdate: per-frame audio service (drives the driver + queues). */
 int sndFxUpdate(int frames)
 {
     int i;
@@ -396,7 +396,7 @@ int sndFxUpdate(int frames)
     return 0;
 }
 
-/* fn_80015660: stop everything and reinitialise the voice tables. */
+/* sndFxResetVoices: stop everything and reinitialise the voice tables. */
 void sndFxResetVoices(void)
 {
     int busy;
@@ -418,7 +418,7 @@ void sndFxResetVoices(void)
     sAudioQueBusy = 0;
 }
 
-/* fn_800156DC: play a positioned 3D sound (pan from position). */
+/* sndFxPlay3DTracked: play a positioned 3D sound (pan from position). */
 int sndFxPlay3DTracked(int soundId, Vec3* pos, int p2, int flags)
 {
     if (sndFxPaused()) {
@@ -427,13 +427,13 @@ int sndFxPlay3DTracked(int soundId, Vec3* pos, int p2, int flags)
     return sndFxStartVoice(-1, soundId, p2, pos, sndFxComputePan(pos), flags);
 }
 
-/* fn_80015834: play a sound (voice handle result). */
+/* sndFxPlayHandle: play a sound (voice handle result). */
 int sndFxPlayHandle(int soundId, int p2, int flags)
 {
     return sndFxStartVoice(-1, soundId, p2, 0, 127, flags);
 }
 
-/* fn_80015870: positioned play with distance attenuation and pan. */
+/* sndFxPlay3DAtten: positioned play with distance attenuation and pan. */
 int sndFxPlay3DAtten(int soundId, Vec3* pos, int p2, int flags)
 {
     u8 frame_pad[8];
@@ -462,7 +462,7 @@ int sndFxPlay3DAtten(int soundId, Vec3* pos, int p2, int flags)
     return sndFxStartVoice(-1, soundId, (int)(p2 * atten), pos, pan, flags);
 }
 
-/* fn_80015A78: play a sound with explicit id/params (no positioning). */
+/* sndFxPlayEx: play a sound with explicit id/params (no positioning). */
 int sndFxPlayEx(int soundId, int p1, int pan, int flags)
 {
     if (sndFxPaused()) {
@@ -474,7 +474,7 @@ int sndFxPlayEx(int soundId, int p1, int pan, int flags)
     return sndFxStartVoice(-1, soundId, pan, 0, p1, flags);
 }
 
-/* fn_80015ADC: play a positioned 3D sound (pan from position). */
+/* sndFxPlay3D: play a positioned 3D sound (pan from position). */
 int sndFxPlay3D(int soundId, Vec3* pos, int p2, int flags)
 {
     int pan;
@@ -489,7 +489,7 @@ int sndFxPlay3D(int soundId, Vec3* pos, int p2, int flags)
     return sndFxStartVoice(-1, soundId, p2, pos, pan, flags);
 }
 
-/* fn_80015C48: (re)initialise voice, channel and track tables. */
+/* sndFxInitVoices: (re)initialise voice, channel and track tables. */
 void sndFxInitVoices(void)
 {
     SndFxState* st = (SndFxState*)sAudioState;
@@ -519,7 +519,7 @@ void sndFxInitVoices(void)
     }
 }
 
-/* fn_80015CF4: core voice start.  Looks up the bank/sound, allocates a free
+/* sndFxStartVoice: core voice start.  Looks up the bank/sound, allocates a free
  * voice slot and registers it with the driver (update callback =
  * sndFxVoiceUpdateCb).  Returns the 16-bit voice sequence id. */
 int sndFxStartVoice(int handle, int soundId, int p2, Vec3* pos, int pan, int flags)
@@ -607,7 +607,7 @@ have_slot:
     return seq & 0xFFFF;
 }
 
-/* fn_80015F6C: per-voice frame update callback (driver-invoked).  Recomputes
+/* sndFxVoiceUpdateCb: per-voice frame update callback (driver-invoked).  Recomputes
  * spatial parameters for each of the 12 driver channels the voice occupies. */
 void sndFxVoiceUpdateCb(void* v)
 {

@@ -41,42 +41,42 @@ typedef struct DiagMenu {
 /* pad / control state block (PB_DIAG `buttons`, 0x8028C388) */
 extern u32 buttons[];
 
-/* window globals pointer (owned by pb_window, lbl_80344FC0) */
+/* window globals pointer (owned by pb_window, gWinGlobals) */
 extern WinGlobals* gWinGlobals;
 
-/* diag config block (this TU's .data, lbl_80126AA0, 0x170 bytes) */
+/* diag config block (this TU's .data, gDiagData, 0x170 bytes) */
 extern f32 gDiagData[];
 
 /* menu-B highlight table + current index */
-extern s32 gDiagMenuList[];     /* lbl_8028C438 */
-extern s32 gDiagMenuIdx;        /* lbl_80343E64 */
+extern s32 gDiagMenuList[];     /* gDiagMenuList */
+extern s32 gDiagMenuIdx;        /* gDiagMenuIdx */
 
 /* diag state (sdata/sbss, owned by this TU) */
-extern s32 gDiagTurbo;          /* lbl_80343E60 */
-extern void* gDiagWhiteObj;     /* lbl_80344CD0 */
-extern s32 gDiag_D4;            /* lbl_80344CD4 */
-extern s32 gDiag_D8;            /* lbl_80344CD8 */
-extern s32 gDiag_DC;            /* lbl_80344CDC */
-extern s32 gDiagListSel;        /* lbl_80344D18 (menu-A highlight index) */
-extern s32 gDiag_E0;            /* lbl_80344CE0 */
-extern s32 gDiag_E4;            /* lbl_80344CE4 */
-extern s32 gDiagRepeatDelay;    /* lbl_80344CE8 */
-extern s32 gDiagRepeatRate;     /* lbl_80344CEC */
-extern s32 gDiag_F0;            /* lbl_80344CF0 */
-extern s32 gDiag_F4;            /* lbl_80344CF4 */
-extern s32 gDiag_FC;            /* lbl_80344CFC */
-extern s32 gDiag_D00;           /* lbl_80344D00 */
-extern s32 gDiag_D04;           /* lbl_80344D04 */
-extern s32 gDiag_D08;           /* lbl_80344D08 */
+extern s32 gDiagTurbo;          /* gDiagTurbo */
+extern void* gDiagWhiteObj;     /* gDiagWhiteObj */
+extern s32 gDiag_D4;            /* gDiag_D4 */
+extern s32 gDiag_D8;            /* gDiag_D8 */
+extern s32 gDiag_DC;            /* gDiag_DC */
+extern s32 gDiagListSel;        /* gDiagListSel (menu-A highlight index) */
+extern s32 gDiag_E0;            /* gDiag_E0 */
+extern s32 gDiag_E4;            /* gDiag_E4 */
+extern s32 gDiagRepeatDelay;    /* gDiagRepeatDelay */
+extern s32 gDiagRepeatRate;     /* gDiagRepeatRate */
+extern s32 gDiag_F0;            /* gDiag_F0 */
+extern s32 gDiag_F4;            /* gDiag_F4 */
+extern s32 gDiag_FC;            /* gDiag_FC */
+extern s32 gDiag_D00;           /* gDiag_D00 */
+extern s32 gDiag_D04;           /* gDiag_D04 */
+extern s32 gDiag_D08;           /* gDiag_D08 */
 
 /* --- text / draw primitives + subsystem init (other TUs) --- */
 extern void fn_800C008C(u32 rgba, int x, int y, const char* fmt, ...);
-extern void fn_800A110C(void);
-extern void fn_800A17D4(void);
+extern void AudioStopSelect(void);
+extern void AudioSelectReset(void);
 extern void fn_800C0310(void);
 extern void MBTreeInit(void);
 extern void DebugCamInit(void); /* newcam.c: init the pb-diag debug camera */
-extern void* fn_800B8B04(const char* name, int arg);
+extern void* MBOX_FindTexture(const char* name, int arg);
 extern int strlen(const char* s);
 
 void pbResetDiag(void);
@@ -160,8 +160,8 @@ void pbInitDiag(int mode) {
     f32* dp = gDiagData;
     f32* fp = (f32*)buttons;
 
-    fn_800A110C();
-    fn_800A17D4();
+    AudioStopSelect();
+    AudioSelectReset();
     fn_800C0310();
     MBTreeInit();
     DebugCamInit();
@@ -174,7 +174,7 @@ void pbInitDiag(int mode) {
     gDiag_DC = 0;
     gDiag_E0 = mode;
     gDiag_E4 = -2;
-    gDiagWhiteObj = fn_800B8B04("aaawhite", 0);
+    gDiagWhiteObj = MBOX_FindTexture("aaawhite", 0);
     gDiag_D4 = 0;
     pbResetDiag();
 }

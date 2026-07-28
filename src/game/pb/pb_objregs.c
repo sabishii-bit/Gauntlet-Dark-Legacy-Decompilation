@@ -307,11 +307,11 @@ extern PbORGlobals* gWinGlobals;
 extern f32 gScreenData[6];
 
 /* --- projection matrices (perspective computed by pbProjCalc) --- */
-extern f32 gPerspProjMtx[16];        /* lbl_802C9BC8 (bss) */
-extern f32 orthoProjMtx[16];         /* lbl_8025EE24 (main globals block) */
+extern f32 gPerspProjMtx[16];        /* gPerspProjMtx (bss) */
+extern f32 orthoProjMtx[16];         /* orthoProjMtx (main globals block) */
 
 /* --- cull-mode lookup table (indexed by state) --- */
-extern u32 sCullModeTable[4];        /* lbl_801283B0 (.data) */
+extern u32 sCullModeTable[4];        /* sCullModeTable (.data) */
 
 /* --- default texshift ("texsh_def") --- */
 extern f32 lbl_801283A0[4];

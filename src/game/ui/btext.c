@@ -93,7 +93,7 @@ extern void* gFontDefs[];       /* 0x80118B2C */
 /* ---- external primitives ---- */
 
 extern s32 MBFontHeight(s32 font);
-extern s32 fn_800B5B00(u8* str);                 /* 0x800B5B00 - measure/blit one line */
+extern s32 MBFontStringWidth(u8* str);                 /* 0x800B5B00 - measure/blit one line */
 extern u32 MBSetFont(u32 font);                  /* 0x800B6358 - returns previous */
 extern void MBSetFontColor(u32 color);           /* 0x800B6368 */
 extern u32 MBSetFontFlags(u32 flags);            /* 0x800B63B0 */
@@ -334,7 +334,7 @@ s32 StringTextWidthSub(f32 scale, StrList* p, s32 msg, s32 idx)
                 ls = *(u8**)((s32)buf1 + off);
                 prev = MBSetFont(color);
                 MBSetFontScaleSpace(lh, 0.0f);
-                w = fn_800B5B00(ls);
+                w = MBFontStringWidth(ls);
                 if (prev != color) {
                     MBSetFont(prev);
                 }
@@ -357,7 +357,7 @@ s32 StringTextWidthSub(f32 scale, StrList* p, s32 msg, s32 idx)
             ls = *(u8**)((s32)buf2 + off);
             prev = MBSetFont(color);
             MBSetFontScaleSpace(lh, 0.0f);
-            w = fn_800B5B00(ls);
+            w = MBFontStringWidth(ls);
             if (prev != color) {
                 MBSetFont(prev);
             }
@@ -634,7 +634,7 @@ s32 DrawNormalText(f32 scale, u8* str, s32 color)
     s32 w;
 
     MBSetFontScaleSpace(scale, 0.0f);
-    w = fn_800B5B00(str);
+    w = MBFontStringWidth(str);
     if (prev != (color & 0xff)) {
         MBSetFont(prev);
     }

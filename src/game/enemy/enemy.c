@@ -139,7 +139,7 @@ extern s32 fn_8004D030(s32 index, s32 ticks);       /* set dead_end/turn timer *
 extern void fn_8004F1DC(Enemy* e);                  /* garm2 (type 27) death hook */
 
 /* --- cross-module callees --- */
-extern f32 fn_800BCB44(f32 x, f32 z);               /* 2D magnitude */
+extern f32 fqdist(f32 x, f32 z);               /* 2D magnitude */
 extern f32 NormalVector(f32* vector);
 extern void fn_8005A65C(f32* worldmat, f32* coll_offset); /* refresh coll_pos */
 extern s32 DeleteEffect(s32 idx, s32 mode);         /* sfx.c 0x80097790 */
@@ -248,7 +248,7 @@ f32 closest_enemy(f32 width, f32 range, f32* position, f32* direction,
                     goto next_enemy;
                 }
                 {
-                    f32 horizontal = fn_800BCB44(delta[0], delta[2]);
+                    f32 horizontal = fqdist(delta[0], delta[2]);
                     f32 cone = horizontal * (distance * spread + width);
                     f32 dot = delta[0] * direction[0] +
                               delta[2] * direction[2];
@@ -320,7 +320,7 @@ void do_enemy_move(s32 index)
     e->trans[0] += e->pushed[0] * lbl_80344590;
     e->trans[1] += e->pushed[1] * lbl_80344590;
     e->trans[2] += e->pushed[2] * lbl_80344590;
-    if (fn_800BCB44(e->trans[0], e->trans[2]) > 0.001) {
+    if (fqdist(e->trans[0], e->trans[2]) > 0.001) {
         e->moved = 1;
     } else {
         e->moved = 0;
@@ -1807,7 +1807,7 @@ void move_logic08(s32 index)
  *                     - milestone-network navigation (shares the move_logic22 stack)
  *   turn_enemy_ang x5, fn_8004CD1C x5, do_enemy_move x5 - one move per sub-mode
  *   fn_80050394 x5   - AI-change transition per sub-mode
- *   fn_800BCB44 x4, fn_8004CE38 x3, fn_8004C8CC x3 - dist checks + corner probes
+ *   fqdist x4, fn_8004CE38 x3, fn_8004C8CC x3 - dist checks + corner probes
  *   do_ai x2         - the flee/chase bail-outs
  * Frame: 392 bytes, saves r25-r31 (_savefpr_25), pool base lbl_8011AF48 held in a
  * nonvolatile.  Uses the lbl_80250E00 + index*916 + 3608 anchor like the others.
@@ -2200,7 +2200,7 @@ void move_logic15(s32 index)
         return;
     }
     if (e->closest >= 0 && e->close_dist <= 0.8 * e->sight) {
-        f32 d = fn_800BCB44(gPlayers[e->closest][17] - e->objgrp.worldmat[3][0],
+        f32 d = fqdist(gPlayers[e->closest][17] - e->objgrp.worldmat[3][0],
                             gPlayers[e->closest][19] - e->objgrp.worldmat[3][2]);
         if (d <= 0.8 * e->sight) {
             e->algorithm = 0;
@@ -2258,7 +2258,7 @@ void move_logic15(s32 index)
         dy = *(f32*)(n + 0x34) - e->objgrp.worldmat[3][1];
         dx = *(f32*)(n + 0x30) - e->objgrp.worldmat[3][0];
         dz = *(f32*)(n + 0x38) - e->objgrp.worldmat[3][2];
-        if (fabsf_(dy) < 4.0 && fn_800BCB44(dx, dz) < 1.0) {
+        if (fabsf_(dy) < 4.0 && fqdist(dx, dz) < 1.0) {
             e->flag1 = *(s16*)(n + 0x68);
         }
     }
@@ -2834,7 +2834,7 @@ void move_logic22(s32 index)
     }
     {
         u8* node = sMilestones + e->flag1 * 104;
-        f32 dist = fn_800BCB44(*(f32*)(node + 0x30) - e->objgrp.worldmat[3][0],
+        f32 dist = fqdist(*(f32*)(node + 0x30) - e->objgrp.worldmat[3][0],
                                *(f32*)(node + 0x38) - e->objgrp.worldmat[3][2]);
         if (dist <= 1.5) {
             s32 old = e->flag1;

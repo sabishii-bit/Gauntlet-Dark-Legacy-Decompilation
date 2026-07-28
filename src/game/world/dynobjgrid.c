@@ -46,7 +46,7 @@ typedef struct WorldObj {
     s32 field38;            /* +0x38 */
 } WorldObj;
 
-/* World-bounds / world-object-list record (lbl_8028CA8C, 0xA4 bytes). */
+/* World-bounds / world-object-list record (gWorldInfo, 0xA4 bytes). */
 typedef struct WorldInfo {
     u8 _00[0x04];
     WorldObj* objs;    /* +0x04 world object array (stride 60) */
@@ -62,7 +62,7 @@ typedef struct WorldInfo {
     u8 _30[0x74];
 } WorldInfo;
 
-extern WorldInfo gWorldInfo; /* lbl_8028CA8C */
+extern WorldInfo gWorldInfo; /* gWorldInfo */
 
 /* --- module state --- */
 extern u16* dyngrid;         /* cell -> head entry index */

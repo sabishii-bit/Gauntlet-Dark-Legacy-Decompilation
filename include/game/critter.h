@@ -34,12 +34,12 @@
  *   id         0x002  sth   (gCritterNextID++, CritterEmptyInst)
  *   hdr        0x004  stw   (CritterHeader*; NULL == free slot; DelInst clears)
  *   state      0x008  lwz/stw (0/1/3 lifecycle; ProcessCritter)
- *   mtx        0x00C  arg   (fn_800BB614/fn_800BE8F4 world matrix, 3x4)
+ *   mtx        0x00C  arg   (GetWorldMat/CopyMat4 world matrix, 3x4)
  *   vel        0x03C  lfs   (per-frame delta added to pos in ProcessCritter)
  *   pos        0x05C  lfs   (world position; vel is accumulated into it)
  *   mbnode     0x06C  lwz   (scene/model node handle)
  *   anodes     0x0B4  lwz   (anode array base, stride 0x28; NewInst)
- *   anim       0x0C0  lwz   (anim-tree node; fn_800BA2C4, CritterGetNextMove)
+ *   anim       0x0C0  lwz   (anim-tree node; MBTreeClearFlags, CritterGetNextMove)
  *   curmove    0x118  lha   (current move index into hdr->moves[])
  *   nextmove   0x11A  lha   (next move index; CritterGetNextMove writes)
  *   rate       0x214  lfs   (move speed/timescale; CritterAnimate)
@@ -107,12 +107,12 @@ typedef struct Critter {
     void *anodes;             /* 0x0B4 anode array base (stride 0x28)          */
     u8  _res0B8[4];           /* 0x0B8                                        */
     void *subnodes;           /* 0x0BC aux node list head (node->next @0x50)   */
-    void *anim;               /* 0x0C0 anim-tree node (fn_800BA2C4 target)     */
+    void *anim;               /* 0x0C0 anim-tree node (MBTreeClearFlags target)     */
     void *shadow;             /* 0x0C4 attached transform obj (->0x30 pos)     */
     void *hitnode0;           /* 0x0C8 hit/attach node (hdr->0x56 index)       */
     void *hitnode1;           /* 0x0CC hit/attach node (hdr->0x58 index)       */
     void *obj_d0;             /* 0x0D0                                        */
-    void *emitter;            /* 0x0D4 particle/emitter handle (fn_800BAEAC)   */
+    void *emitter;            /* 0x0D4 particle/emitter handle (MBRemoveNode)   */
     s32  emitterset;          /* 0x0D8 emitter-present flag                    */
     void *hitnode2;           /* 0x0DC hit/attach node (hdr->0x5A index)       */
     u8  _blk0E0[0x38];        /* 0x0E0 .. 0x118                              */
@@ -135,7 +135,7 @@ typedef struct Critter {
     u8  childcnt;             /* 0x44E spawned child count                    */
     u8  alivecnt;             /* 0x44F live child count (ProcessCritter)       */
     u8  healthbar[0x48];      /* 0x450 health-bar object (AtreeDelete)         */
-    void *damageflash;        /* 0x498 damage-flash object (fn_800BA408)       */
+    void *damageflash;        /* 0x498 damage-flash object (MBTreeSetScale)       */
     u8  _blk49C[0x10];        /* 0x49C .. 0x4AC                             */
     f32 unk4AC;               /* 0x4AC (init 0)                              */
     f32 health;               /* 0x4B0 current hp                             */
@@ -153,7 +153,7 @@ typedef struct Critter {
     s16 unkAC6;               /* 0xAC6 (init 0)                              */
     f32 unkAC8;               /* 0xAC8 (init 0)                              */
     u8  _blkACC[8];           /* 0xACC .. 0xAD4                            */
-    void *particle;           /* 0xAD4 particle handle (fn_80067248)           */
+    void *particle;           /* 0xAD4 particle handle (FindClosestWaypoint)           */
     struct Critter *next;     /* 0xAD8 sibling in active critter list          */
     struct Critter *parent;   /* 0xADC parent critter (NULL if root)           */
 } Critter;                    /* size 0xAE0 (2784) */

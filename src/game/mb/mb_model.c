@@ -54,7 +54,7 @@ extern void  pbSetTime(int t);
 
 extern int   fn_800C7214(void* p);          /* MB file/texture post-load */
 extern void  fn_800C7884(int a);            /* MB texture-region reset */
-extern void  fn_800B6C04(int slot);         /* MB lock helper */
+extern void  MBLockFonts(int slot);         /* MB lock helper */
 extern void  fn_800B6C20(void);             /* MB unlock helper */
 extern void  fn_800B6BC0(void);             /* MB reset helper */
 extern void  MBTreeInit(void);             /* mb_objects reset */
@@ -255,7 +255,7 @@ int MBOX_AllocModelMem(int objSize, int texSize, const char* dir) {
 /* ---- 0x800B89EC : lock the current model set at a slot ---- */
 void MBOX_LockModels(int slot) {
     LockMem();
-    fn_800B6C04(slot);
+    MBLockFonts(slot);
     lbl_802A5D0C[slot] = lbl_80344E8C;
 }
 

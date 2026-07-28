@@ -57,7 +57,7 @@ void MBRemoveNodeChild(MBTreeNode* node);
 MBTreeNode* MBNodeLastSibling(MBTreeNode* node);
 MBTreeNode* MBNodePrevNode(MBTreeNode* node);
 void MBNodeInsert(MBTreeNode* node, MBTreeNode* parent);
-extern void fn_800D12F0(MBTreeNode* node);
+extern void MBRemovePsys(MBTreeNode* node);
 extern void* AllocMem(u32 size);
 extern void FatalError(const char* text, s32 errorCode);
 extern void CopyMat4(const f32* src, f32* dst);
@@ -538,7 +538,7 @@ MBTreeNode* MBRemoveNode(MBTreeNode* node, s32 remove_children)
             node->next = 0;
             MBNodeInsert(node, lbl_80344EDC);
         }
-        fn_800D12F0(node);
+        MBRemovePsys(node);
         return 0;
     }
 
@@ -634,7 +634,7 @@ void MBRemoveNodeChild(MBTreeNode* node)
                 node->next = 0;
                 MBNodeInsert(node, parent);
             }
-            fn_800D12F0(node);
+            MBRemovePsys(node);
         } else {
             node->type = 0;
             node->child = 0;

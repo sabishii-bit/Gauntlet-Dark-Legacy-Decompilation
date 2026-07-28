@@ -14,7 +14,7 @@
  * camfacemat.  On GC the tiny statics (init_geo_traverse/PushMatrix/PopMatrix)
  * are inlined into the two traversal fns ("PushMatrix: Too many levels" now
  * lives in pbTraverseDrawObjects), leaving 4 fns:
- *   fn_800C79E4 = pbTreeTraverse   (kept fn_ name: called by MATCHING mb_main.c)
+ *   pbTreeTraverse = pbTreeTraverse   (kept fn_ name: called by MATCHING mb_main.c)
  *   0x800C7A70  = pbTraverseDrawObjects (recursive walker, Push/Pop inlined)
  *   0x800C7C4C  = pbRenderNode     (type switch, jumptable_80128468)
  *   0x800C7EB0  = CameraFace       (billboard modes, FaceCamMat/TopFaceMat)
@@ -116,7 +116,7 @@ extern char* lbl_80344EE8;      /* current MB window (mb_window.c) */
 extern PBTREENODE* lbl_80344ECC; /* tree root (mb_tree.c) */
 
 /* this TU's fns (definitions below, target emission order) */
-void fn_800C79E4(void); /* = pbTreeTraverse */
+void pbTreeTraverse(void); /* = pbTreeTraverse */
 s32 pbTraverseDrawObjects(PBTREENODE* node, PBTREENODE* stop, s32 mode);
 void pbRenderNode(PBTREENODE* node);
 void CameraFace(u32 flags);
@@ -157,7 +157,7 @@ u32 view_flag[0x180];      /* 0x802C8DF8  node-vis bitmask (MBNodeSetVis/IsVis) 
 /* 0x800C79E4  pbTreeTraverse: per-frame render traversal entry.  Seeds the
  * matrix stack from the current window camera, resets the traversal state,
  * then walks the whole tree from the root. */
-void fn_800C79E4(void)
+void pbTreeTraverse(void)
 {
     InitSortObjects();
     CopyMat4(lbl_80344EE8 + 228, matrix_stack);

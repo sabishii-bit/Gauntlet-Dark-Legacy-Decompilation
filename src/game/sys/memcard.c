@@ -109,8 +109,8 @@ void mbBlitCalcWidth(void* blit, int x, int y, f32 z);
 void DrawTextSub(int a, const char* text, int color, f32 s1, int f, f32 s2, int g);
 void vibrators_off(void);
 void fn_800B6B80(void);
-void fn_800B5D20(int a);
-void fn_800B5CCC(int a);
+void MBLockMessages(int a);
+void MBUnlockMessages(int a);
 void fn_800B2940(void* blit, int a);
 
 /* ---- data: in-memory directory + options ----------------------------- */
@@ -1633,7 +1633,7 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
     lbl_80344A30++;
     msgUpdate();
     fn_800B6B80();
-    fn_800B5D20(lbl_80344A30 - 1);
+    MBLockMessages(lbl_80344A30 - 1);
 
     if (gWinGlobals != 0 && *(void**) ((u8*) win + 48) != 0) {
         extra = (u8*) *(void**) ((u8*) win + 48) + 4;
@@ -1702,7 +1702,7 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
     if (blit != 0) {
         MBRemoveBlit(blit);
     }
-    fn_800B5CCC(lbl_80344A30 - 1);
+    MBUnlockMessages(lbl_80344A30 - 1);
     gGameBusy = (s32) savedBusy;
     lbl_80344A30--;
 }

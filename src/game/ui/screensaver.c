@@ -24,20 +24,20 @@
  *   0x8006C1D4 ScreenSaverStartWeap     (L) set up one weapon (called 4x from Start)  [high]
  *   0x8006C2C8 draw_fullscreen_inventory(G) interactive 4-player inventory loop       [high]
  *   0x8006C644 draw_inventory_panel     (G) one player's panel ("window_empty")       [high]
- *   0x8006C3A0 fn_8006C3A0                  inventory sub (draws via draw_inventory_panel)
- *   0x8006C4D0 fn_8006C4D0                  inventory blit teardown
- *   0x8006C5DC fn_8006C5DC                  small inventory helper
- *   0x8006C60C fn_8006C60C                  small inventory helper
- *   0x8006CCB8 fn_8006CCB8                  per-slot panel piece draw (~animate_panel_piece)
- *   0x8006D0A4 fn_8006D0A4                  panel text/blit helper
- *   0x8006D18C fn_8006D18C                  per-slot numeric stat draw (~print_n_of_m)
- *   0x8006D29C fn_8006D29C                  blit-entry setup
- *   0x8006D458 fn_8006D458                  blit teardown
- *   0x8006D4E8 fn_8006D4E8                  green-circle screen-transition build
- *   0x8006D7BC fn_8006D7BC                  transition-active getter (lbl_80343C94)
- *   0x8006D7D8 fn_8006D7D8                  transition clear
- *   0x8006D7E4 fn_8006D7E4                  returns 0
- *   0x8006D7EC fn_8006D7EC                  4-player interactive dialog (~ControllerMessageBox)
+ *   0x8006C3A0 draw_panels                  inventory sub (draws via draw_inventory_panel)
+ *   0x8006C4D0 end_inventory_panel                  inventory blit teardown
+ *   0x8006C5DC init_inventory_panel                  small inventory helper
+ *   0x8006C60C init_panel_blits                  small inventory helper
+ *   0x8006CCB8 animate_panel_piece                  per-slot panel piece draw (~animate_panel_piece)
+ *   0x8006D0A4 disp_piece                  panel text/blit helper
+ *   0x8006D18C print_n_of_m                  per-slot numeric stat draw (~print_n_of_m)
+ *   0x8006D29C ServeFireScroll                  blit-entry setup
+ *   0x8006D458 EndFireScroll                  blit teardown
+ *   0x8006D4E8 StartFireScroll                  green-circle screen-transition build
+ *   0x8006D7BC FireScrollActive                  transition-active getter (lbl_80343C94)
+ *   0x8006D7D8 FireScrollReset                  transition clear
+ *   0x8006D7E4 ticks_for_firescroll                  returns 0
+ *   0x8006D7EC ControllerMessageBox                  4-player interactive dialog (~ControllerMessageBox)
  */
 
 #include "types.h"
@@ -65,7 +65,7 @@ void mbInitBlitEntry(void* blit, u32 pos, int a);   /* 0x800B2988 */
 void ClearAllPlayerControls(int a);   /* 0x80032A80 */
 
 /* ---- shared front-end state (small data / bss, other TUs) ---- */
-extern int gWinGlobals;         /* lbl_80344FC0 */
+extern int gWinGlobals;         /* gWinGlobals */
 extern u8 lbl_80344A5C;
 extern u8 lbl_80344A5D;
 extern int gGameBusy;
@@ -85,7 +85,7 @@ extern int lbl_80344A3C;        /* wipe Y anchor */
 extern int lbl_80344A40;        /* wipe progress accumulator */
 extern int lbl_80344A44;        /* inventory-panels-built flag */
 extern int lbl_80344578;        /* frame-time delta */
-extern u32 sFlags;              /* lbl_803445CC global mode flags */
+extern u32 sFlags;              /* sFlags global mode flags */
 extern u32 lbl_80240FB0;        /* pad state A */
 extern u32 lbl_80240FC0;        /* pad state B */
 
@@ -172,7 +172,7 @@ void draw_fullscreen_inventory(void)
 
 /* ---- small inventory-slot helpers ---- */
 
-void fn_8006C5DC(int idx)
+void init_inventory_panel(int idx)
 {
     lbl_80274600[idx] = 2;
     lbl_80274610[idx] = 0;
@@ -188,7 +188,7 @@ void fn_8006C5DC(int idx)
  *   +992 (0x3E0)  arrH[4][12]  handles   (stride 48)
  * The two int arrays lbl_80274600[4]/lbl_80274610[4] sit at +0/+16.
  */
-void fn_8006C60C(int idx)
+void init_panel_blits(int idx)
 {
     lbl_80274600[idx] = 0;
     *(int*)((u8*)lbl_80274600 + idx * 4 + 16) = 0;
@@ -197,7 +197,7 @@ void fn_8006C60C(int idx)
 }
 
 /* Free (MBRemoveBlit) and null every blit handle in one player's panel. */
-void fn_8006C4D0(int player)
+void end_inventory_panel(int player)
 {
     u8* base = (u8*)lbl_80274600;
     void** p;
@@ -227,10 +227,10 @@ void fn_8006C4D0(int player)
 /*
  * Build the four players' inventory panels once (guarded by lbl_80344A44),
  * then (re)draw them every call. The one-time build labels each player/slot
- * ("s1 plyr" ...) and creates the text/icon blits via fn_8006D0A4, caching
+ * ("s1 plyr" ...) and creates the text/icon blits via disp_piece, caching
  * handles into the arrG/arrH tables. Suppressed while a wipe is active.
  */
-void fn_8006C3A0(void)
+void draw_panels(void)
 {
     int p;
 
@@ -246,7 +246,7 @@ void fn_8006C3A0(void)
 }
 
 /* Per-slot panel piece draw (~animate_panel_piece). Giant; skeleton. */
-void fn_8006CCB8(void)
+void animate_panel_piece(void)
 {
 }
 
@@ -254,13 +254,13 @@ void fn_8006CCB8(void)
  * Panel text/blit helper: lays out one label string into a temp blit,
  * positions it, and returns the blit handle (or NULL). Skeleton.
  */
-void* fn_8006D0A4(void)
+void* disp_piece(void)
 {
     return 0;
 }
 
 /* Per-slot numeric stat draw (~print_n_of_m: "n / m"). Skeleton. */
-void fn_8006D18C(void)
+void print_n_of_m(void)
 {
 }
 
@@ -268,12 +268,12 @@ void fn_8006D18C(void)
  * Build the green-circle screen-transition blits (allocates lbl_80343C94 /
  * lbl_80343C8C ... and seeds the wipe anchors). Giant; skeleton.
  */
-void fn_8006D4E8(void)
+void StartFireScroll(void)
 {
 }
 
 /* Tear down all screen-transition blits (green-circle wipe cleanup). */
-void fn_8006D458(void)
+void EndFireScroll(void)
 {
     if (lbl_80344A34) { lbl_80344A34 = MBRemoveBlit(lbl_80344A34); }
     if (lbl_80343C8C) { lbl_80343C8C = MBRemoveBlit(lbl_80343C8C); }
@@ -285,9 +285,9 @@ void fn_8006D458(void)
 /*
  * Advance the green-circle screen-wipe one frame. Returns 1 while the wipe
  * is still growing (progress < 0x15), 0 once it finishes (and tears the
- * blits down via fn_8006D458).
+ * blits down via EndFireScroll).
  */
-int fn_8006D29C(void)
+int ServeFireScroll(void)
 {
     int t;
     u32 pos;
@@ -316,13 +316,13 @@ int fn_8006D29C(void)
         return 1;
     }
 
-    fn_8006D458();
+    EndFireScroll();
     return 0;
 }
 
 /* ---- transition-flag accessors (lbl_80343C94) ---- */
 
-int fn_8006D7BC(void)
+int FireScrollActive(void)
 {
     if (lbl_80343C94) {
         return 1;
@@ -330,12 +330,12 @@ int fn_8006D7BC(void)
     return 0;
 }
 
-void fn_8006D7D8(void)
+void FireScrollReset(void)
 {
     lbl_80343C94 = 0;
 }
 
-int fn_8006D7E4(void)
+int ticks_for_firescroll(void)
 {
     return 0;
 }
@@ -345,7 +345,7 @@ int fn_8006D7E4(void)
  * modal loop drawing the prompt and polling all four pads until one accepts
  * or cancels, returning the chosen option. Giant; skeleton.
  */
-int fn_8006D7EC(void)
+int ControllerMessageBox(void)
 {
     return 0;
 }

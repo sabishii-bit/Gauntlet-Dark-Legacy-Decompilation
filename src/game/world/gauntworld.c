@@ -1016,18 +1016,18 @@ void fn_800606FC(void)
  *                    MLMReadFile, ErrorPrintf, sprintf, fn_80057F44;
  *                    "No world data file: %s", "%s.wad", "wdata"
  * 8005A1EC  0x0074  fn_ : load "anim" WAD file (FileExists/FileSize/AllocMem,
- *                    fn_800B87FC); returns handle.  "anim"
+ *                    MBOX_AllocModel); returns handle.  "anim"
  * 8005A260  0x00D8  fn_ : load a level asset file ("anim"/"static"), AllocFile,
- *                    InitTexMods, strcmp, fn_8001267C, fn_800B7B24.  Widely
+ *                    InitTexMods, strcmp, fn_8001267C, MBOX_LoadModel.  Widely
  *                    called (attract/main/auxscreen/items).  "anim","static"
  * 8005A338  0x0080  fn_ : dispatch transform (fn_8005A588, fn_8005A65C,
  *                    GetWorldMat, CopyMat4)
  * 8005A3B8  0x004C  fn_ : release/unload world object (UnparentMatrix,
  *                    CopyMat4).  Called by auxscreen.
- * 8005A404  0x0184  fn_ : matrix/vector transform helper (fn_800BDE80)
- * 8005A588  0x00D4  fn_ : matrix/vector transform helper (fn_800BDE80)
+ * 8005A404  0x0184  fn_ : matrix/vector transform helper (WorldVector)
+ * 8005A588  0x00D4  fn_ : matrix/vector transform helper (WorldVector)
  * 8005A65C  0x00D4  fn_ : place-offset transform: copies/adds a vec3 to a
- *                    dst, or transforms via fn_800BDE80 by a mode flag
+ *                    dst, or transforms via WorldVector by a mode flag
  * 8005A730  0x0008  fn_ : stub, returns 1
  * 8005A738  0x0130  fn_ : per-instance text draw (DrawTextKeepScale,
  *                    fn_8005A868, RandInt, strcpy)
@@ -1039,28 +1039,28 @@ void fn_800606FC(void)
  *                    "TRIG:","%s(%d)","%s:%s:%d(%d)"
  * 8005AF98  0x0200  fn_ : recursive name lookup in a tree (self, strcmp)
  * 8005B198  0x00DC  fn_ : iterate enemy grid (StartEnemyGrid/NextGridEnemy,
- *                    fn_800BDA98)
+ *                    NormalVector)
  * 8005B274  0x02E4  fn_ : iterate enemy grid + object op (StartEnemyGrid/
- *                    NextGridEnemy, fn_800BCB44, fn_800BDA98)
+ *                    NextGridEnemy, fqdist, NormalVector)
  * 8005B558  0x0060  fn_ : accessor (sNumItems/80344950)
  * 8005B5B8  0x02F8  fn_ : spawn/attach world object (FindWORLDOBJ, ErrorPrintf,
- *                    fn_800A1A9C/1D00/2698, fn_800B8DD0, MBTreeSetFlags/AEAC,
+ *                    WorldOpen/1D00/2698, MBOX_NewObject, MBTreeSetFlags/AEAC,
  *                    sprintf)
  * 8005B8B0  0x004C  fn_ : small accessor (no calls)
  * 8005B8FC  0x008C  fn_ : post message (msgPost; gGameMode/8034481C)
  * 8005B988  0x0094  fn_ : run texmods for a world (DoSpecialTexmods, DoTexMods,
  *                    fn_800606FC, SetupPlayerTexMods)
  * 8005BA1C  0x07C0  fn_ : object/enemy setup by name (AtreeMatch, msgPost,
- *                    strcmp, fn_8005C1DC, fn_800674F4, fn_8009190C)
+ *                    strcmp, fn_8005C1DC, AtreeMatchAnyHeader, fn_8009190C)
  * 8005C1DC  0x0E70  fn_ : big item/object spawn dispatcher (AtreeMatch,
  *                    AudioPlayEvt101, MBSetObject, many fn_8009xxxx).
  *                    "CHICKEN","APPLE","CHESTG3","CHESTG1","BADMEAT","GAPPLE",
  *                    "BOSSGEN","L1","ROOT","BAREXP0","BARPOI0","%s_D"
  * 8005D04C  0x0078  fn_ : wrapper -> fn_8005D0C4
  * 8005D0C4  0x0148  fn_ : enemy-grid op (StartEnemyGrid/NextGridEnemy,
- *                    MBTreeSetFlags, fn_800BCB44)
+ *                    MBTreeSetFlags, fqdist)
  * 8005D20C  0x01CC  fn_ : dispatch (fn_8005D3D8, fn_8005F0F4, fn_80062FF0)
- * 8005D3D8  0x01F0  fn_ : (fn_8004E6F8; lbl_80346FC8)
+ * 8005D3D8  0x01F0  fn_ : (damage_enemy; lbl_80346FC8)
  * 8005D5C8  0x0168  fn_ : accessor (no calls; lbl_80346FC8)
  * 8005D730  0x0720  fn_ : per-object update (fn_8005E90C, fn_8007xxxx anim,
  *                    fn_8009Dxxxx, msgPost, strcmp)
@@ -1074,15 +1074,15 @@ void fn_800606FC(void)
  * 8005EE18  0x0194  fn_ : (fn_8009D91C)
  * 8005EFAC  0x0148  fn_ : enemy-grid op (StartEnemyGrid/NextGridEnemy,
  *                    fn_8005F0F4)
- * 8005F0F4  0x0A54  fn_ : big per-object worker (fn_8005FDA8, fn_800A20F8,
- *                    fn_800BCB44, fn_800BD938)
- * 8005FB48  0x0260  fn_ : (fn_8002FA70, fn_8005FDA8, fn_800BCB44)
- * 8005FDA8  0x01B8  fn_ : (FatalError, CTriListCollide, fn_800BDB1C/DD00/DE80).
+ * 8005F0F4  0x0A54  fn_ : big per-object worker (fn_8005FDA8, towerAllPlayersMetBossReq,
+ *                    fqdist, NormalVector2D)
+ * 8005FB48  0x0260  fn_ : (fn_8002FA70, fn_8005FDA8, fqdist)
+ * 8005FDA8  0x01B8  fn_ : (FatalError, CTriListCollide, MulBodyVecMat4/DD00/DE80).
  *                    "COL_OBJECT Item: idx < 0"
  * 8005FF60  0x01B4  fn_ : (ErrorPrintf, fn_80055CB8).
  *                    "Special trigger has no target"
  * 80060114  0x05E8  fn_ : spawn enemy from world data (CritterNewInst,
- *                    generate_enemy, atan2, UpdateObjWorldMat, fn_800B5704).
+ *                    generate_enemy, atan2, UpdateObjWorldMat, MBWorldSphereVisible3).
  *                    "Bad EnemyInfo: type %s subtype %d not loaded",
  *                    "EnemyInfo didn't generate %s(ai=%d, reason=%s)"
  * 800606FC  0x22B4  fn_ : GIANT per-frame world update dispatcher (AudioStopAll,
@@ -1095,5 +1095,5 @@ void fn_800606FC(void)
  * 80062A00  0x05F0  fn_ : particle-system update (WorldPsysActivate/DeActivate,
  *                    did_generate, fn_8009D100..694, MBTreeClearFlags/368/6C0)
  * 80062FF0  0x01BC  fn_ : enemy-grid op (StartEnemyGrid/NextGridEnemy,
- *                    fn_800BCB44)
+ *                    fqdist)
  * ========================================================================== */
