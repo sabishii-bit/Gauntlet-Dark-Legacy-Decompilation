@@ -126,13 +126,13 @@
  * BACK-SLICE MATCH STATUS (2026-07-27 extension pass):
  * BYTE-EXACT (0 real diff lines): SetupPlayerTexMods, DoPlayerTexMods,
  * PlayerModel, kill_got_it, init_got_it, add_got_it, mini_inventory_setup.
- * These prove the model_slot[]/got_it[] static layouts (their displacements
+ * These prove the player_multiple_models[]/got_it[] static layouts (their displacements
  * link off in-TU statics, so they land exact pre-flip).
  * BSS-POOLING GATE (opcode-identical, displacement-only): GetPlayerPos,
  * GetPlayerColPos, PlayerSelecting, new_player, change_player,
  * player_can_be_damaged, all_players_go_to_same_level and every other fn
  * touching gPlayerRecords: the TARGET pools all player-record accesses off
- * lbl_80274EA0 (.bss block base, -0xC40 from the records), so our
+ * potionicon_tab (.bss block base, -0xC40 from the records), so our
  * extern-based displacements differ by construction until the flip-time
  * .bss claim; gPlayerRecords itself must stay extern gPlayers
  * (Matching shopquery pin).  NOT a per-fn matching failure -- do not grind.
@@ -156,8 +156,8 @@
  *   0x80275900 key_blit[4][4]      key icons
  *   0x80275940 crystal_blit[4][8]  crystal icons (welcome display)
  *   0x802759C0 rune_blit[4][12]    rune-stone icons
- *   0x80275A80 frame_blit[4][6]    portrait frame set (own symbol lbl_80275A80)
- *   (interior of lbl_80274EA0 / lbl_802757E0 -- .bss unclaimed, extern here)
+ *   0x80275A80 frame_blit[4][6]    portrait frame set (own symbol frame_blit)
+ *   (interior of potionicon_tab / tb_info -- .bss unclaimed, extern here)
  *
  * Player-record field offsets confirmed by this slice (extends player.h map):
  *   0x010 respawn char, 0x074 scene node, 0x0DC saved pos[3], 0x10C magic power,
@@ -193,8 +193,8 @@ extern Player gPlayers[]; /* gPlayerRecords[4], stride 0x335C */
  * every access off the FIRST symbol (potionicon_tab @0x80274EA0) with folded
  * constant deltas (sibling-symbol pooling law), so the arrays are DEFINED
  * here with the exact layout; the DOL-splitter names for the block are
- * lbl_80274EA0 / lbl_802753B4 / lbl_80275534 / gDefaultPlayerPosition / lbl_802757E0 /
- * lbl_80275A80.  pad_* regions belong to PLAYER fns beyond this slice
+ * potionicon_tab / player_multiple_models / lbl_80275534 / gDefaultPlayerPosition / tb_info /
+ * frame_blit.  pad_* regions belong to PLAYER fns beyond this slice
  * (mini-inventory tables, got_it state, tb_info) -- refine when wired.
  * NonMatching TU: these never link; the DOL keeps the original .bss.
  */
@@ -227,7 +227,7 @@ typedef struct PlayerModelSlot {
     /* 0x44 */ u32 sfx_arena_max;  /* sfx arena budget (0x18000) */
     /* 0x48 */ char* sfx_buf;      /* sfx file buffer */
 } PlayerModelSlot;
-static PlayerModelSlot model_slot[4]; /* 0x514 (0x802753B4) */
+static PlayerModelSlot player_multiple_models[4]; /* 0x514 (0x802753B4) */
 
 /* AppendItemToLevel template (0x802754E4, 0x50 bytes incl. name buf) */
 static s32  item_tmpl[10];         /* 0x644 (0x802754E4) type/count/flag/pos + trailer */
@@ -334,13 +334,13 @@ extern s32 lbl_80344A30;
 extern s32 lbl_80344A44;
 extern s32 opt_restart_request;
 extern u32 opt_force_player;   /* demo-message once flags */
-extern s32 lbl_80344AFC;   /* key texture id */
-extern s32 lbl_80344B00;
-extern void* lbl_80344B04; /* it_blit */
-extern s32 lbl_80344B0C;   /* speech round-robin counter */
+extern s32 key_blit_idx;   /* key texture id */
+extern s32 alpha;
+extern void* it_blit; /* it_blit */
+extern s32 firstgetidx;   /* speech round-robin counter */
 extern s32 lbl_80344B10;   /* welcome-speech delay */
-extern s32 lbl_80344B14;   /* magic color cycle counter */
-extern s32 lbl_80344B1C;   /* welcome_timer */
+extern s32 randpottype;   /* magic color cycle counter */
+extern s32 welcome_timer;   /* welcome_timer */
 extern s32 lbl_80344B24;   /* "it" player */
 extern void* lbl_80344B2C; /* world root node */
 extern s32 lbl_80344C4C;
@@ -384,8 +384,8 @@ extern void* MBNewTempBlit(void* tex, s32 x, s32 y, s32 w, s32 h);
 extern void* MBRemoveBlit(void* blit);
 extern void mbBlitInit3414(void* blit, s32 hide);
 extern void mbInitBlitEntry(void* blit, u32 frames, s32 frame);
-extern void fn_800B2940(void* blit, u32 rgb);
-extern void fn_800B290C(void* blit, s32 alpha);
+extern void MBBlitSetColor(void* blit, u32 rgb);
+extern void MBBlitSetAlpha(void* blit, s32 alpha);
 extern void mbBlitCalcWidth(void* blit, s32 x, s32 y, f64 z);
 extern void mbBlitProject(void* blit, s32 w, s32 h);
 extern void mbBlitCvtCoord(void* blit, f64 z);
@@ -416,7 +416,7 @@ extern void fn_8005A338(f32* mat, f32* fwd, f32* pos);
 extern void UpdateObjWorldMat(f32* mat);
 extern f32 get_actual_screen_pos(s32 a, f32* out1, f32* out2, f32* pos);
 extern void fn_8002C53C(f32* mat);
-extern s32 fn_8002F818(u32 flags);
+extern s32 DamageColor(u32 flags);
 extern void fn_800C02F4(u32 rgb);
 extern void fn_800C0ADC(f32 a, f32 b);
 
@@ -433,20 +433,20 @@ extern void ControllerMessageBox(s32 a, s32 msg, s32 b, s32 c);
 extern void CrystalCamActivate(void);
 extern void fn_8009D610(s32 mode, f32* pos);
 extern void AudioAmbientUpdate(void);
-extern void fn_8009FE4C(s32 player);
+extern void AudioPlayerBreath(s32 player);
 extern void fn_8009FEA0(s32 player);
 extern void fn_8009FEFC(s32 player);
-extern void fn_8009CADC(s32 player, s32 a);
-extern void fn_8009F028(u32 color, f32* pos, s32 heal, s32 d);
+extern void AudioExp(s32 player, s32 a);
+extern void AudioPotion(u32 color, f32* pos, s32 heal, s32 d);
 extern void update_player_milestone(void);
 extern void fn_8005ACE0(void);
 extern void fn_8005DE50(void* p, s32* req);
 extern void update_class_spec(s32 player);
 
 /* sfx */
-extern s32 fn_80092794(f32 scale, f32 power, f32* pos, u32 flags, s16 player, s32 d);
-extern s32 fn_80092DF4(f32 scale, f32 power, f32* pos, u32 flags, s16 player, s32 d);
-extern void fn_80092B58(f32 a, f32 b, f32 c, f32 d, f32* pos, f32* vel, u32 flags, s32 p, s32 col);
+extern s32 StartShieldFX(f32 scale, f32 power, f32* pos, u32 flags, s16 player, s32 d);
+extern s32 StartMagicFX(f32 scale, f32 power, f32* pos, u32 flags, s16 player, s32 d);
+extern void StartThrowMagicFX(f32 a, f32 b, f32 c, f32 d, f32* pos, f32* vel, u32 flags, s32 p, s32 col);
 extern s32 StartLevelUpFX(f32 scale, f32 power, s32 a, u32 flags, s16 player, s32 d);
 extern s32 StartMagicHealFX(f32* pos);
 extern s32 PlaceEffectOnFloor(s32 fx, f32* pos);
@@ -547,7 +547,7 @@ extern void PlayerMotion_SetAnimState(void* p);
 /* enemy/anim */
 extern void DoPlayerAction(void* p);
 extern void PlayerCheckMovingFloor(void* p);
-extern void fn_80089120(void* p);
+extern void PlayerDoWeapTrail(void* p);
 
 /* ------------------------------------------------------------------ */
 /* attachment ops                                                      */
@@ -706,14 +706,14 @@ void WritePlayerInfo(s32 pnum) {
 
         if (pnum < 0) {
             ShowRuneStones();
-            if (lbl_80344B04 != NULL) {
-                MBRemoveBlit(lbl_80344B04);
-                lbl_80344B04 = NULL;
+            if (it_blit != NULL) {
+                MBRemoveBlit(it_blit);
+                it_blit = NULL;
             }
             if (lbl_80344B24 >= 0 && (lbl_80344824 & (1 << lbl_80344B24))) {
-                lbl_80344B04 = MBNewBlit("IT", lbl_80120238[lbl_80344B24] + 0x22, -349);
-                mbBlitProject(lbl_80344B04, 0x20, 0x20);
-                mbBlitCvtCoord(lbl_80344B04, 64000.0f);
+                it_blit = MBNewBlit("IT", lbl_80120238[lbl_80344B24] + 0x22, -349);
+                mbBlitProject(it_blit, 0x20, 0x20);
+                mbBlitCvtCoord(it_blit, 64000.0f);
             }
         }
     }
@@ -727,7 +727,7 @@ static void show_crystals(Player* p) {
     s32 i;
     void* tex;
 
-    if (lbl_80344B1C < 1 && options_state == 0 && gGameMode == 0x4010 &&
+    if (welcome_timer < 1 && options_state == 0 && gGameMode == 0x4010 &&
         (f64)p->got_timer > 0.0) {
         i = p->index;
         p->got_timer = p->got_timer - lbl_80344590;
@@ -770,7 +770,7 @@ void ShowRuneStones(void) {
     void* blit;
     s32 state;
 
-    if (lbl_80344B1C < 1 || options_state != 0) {
+    if (welcome_timer < 1 || options_state != 0) {
         for (i = 0; i < 4; i++) {
             for (j = 0; j < 8; j++) {
                 blit = crystal_blit[i][j];
@@ -780,9 +780,9 @@ void ShowRuneStones(void) {
             }
         }
     } else {
-        lbl_80344B1C -= gFrameTicks;
-        if (lbl_80344B1C < 0) {
-            lbl_80344B1C = 0;
+        welcome_timer -= gFrameTicks;
+        if (welcome_timer < 0) {
+            welcome_timer = 0;
         }
         for (i = 0; i < 4; i++) {
             Player* p = P(i);
@@ -861,7 +861,7 @@ static void write_health_and_items(s32 i) {
             hidden = 0;
         }
     }
-    if (show_gold && lbl_80344B00 == 0) {
+    if (show_gold && alpha == 0) {
         write_gold(i, 1);
         if (frame_blit[i][5] != NULL) {
             s32 w;
@@ -915,9 +915,9 @@ static void write_health_and_items(s32 i) {
         }
     }
 tail:
-    if (p->state != 2 && p->display_mode != 0 && lbl_80344B00 == 0) {
+    if (p->state != 2 && p->display_mode != 0 && alpha == 0) {
         if (p->item_body_lo > 0) {
-            blit = MBNewTempBlit((void*)lbl_80344AFC, lbl_80120238[i] + 8, 0x143, -1, -1);
+            blit = MBNewTempBlit((void*)key_blit_idx, lbl_80120238[i] + 8, 0x143, -1, -1);
             mbBlitCvtCoord(blit, 64000.0f);
             sprintf(buf2, "%d", p->item_body_lo);
             DrawTextKeepScale(0.8f, lbl_80120238[i] + 0x1A, 0x147, 4, rgb, buf2);
@@ -1119,8 +1119,8 @@ static void draw_power_meter(s32 i) {
             mbBlitProject(pm_blit[i][0], w << 1, 0);
             mbBlitCalcWidth(pm_blit[i][1], pm_frame_x + i * 0x80, pm_frame_y,
                             (f32)pm_frame_z);
-            fn_800B2940(pm_blit[i][0], rgb);
-            fn_800B2940(pm_blit[i][1], rgb2);
+            MBBlitSetColor(pm_blit[i][0], rgb);
+            MBBlitSetColor(pm_blit[i][1], rgb2);
         }
     } else if (state < 3) {
         j = (p->meter_timer << 9) / 0x78;
@@ -1129,12 +1129,12 @@ static void draw_power_meter(s32 i) {
         }
         if (j < 0x100) {
             mbBlitInit3414(pm_blit[i][3], 0);
-            fn_800B290C(pm_blit[i][3], 0xFF - j);
+            MBBlitSetAlpha(pm_blit[i][3], 0xFF - j);
         } else {
             p->meter_timer = 0;
         }
-        fn_800B2940(pm_blit[i][0], 0xFF0000);
-        fn_800B2940(pm_blit[i][1], 0xFF0000);
+        MBBlitSetColor(pm_blit[i][0], 0xFF0000);
+        MBBlitSetColor(pm_blit[i][1], 0xFF0000);
     }
     p->meter_timer = p->meter_timer + gFrameTicks;
 }
@@ -1160,9 +1160,9 @@ void setup_player_display(s32 i) {
     mbInitBlitEntry(frame_blit[i][1], frames, 0);
     mbBlitInit3414(frame_blit[i][1], 0);
     if (P(i)->state == 0) {
-        fn_800B2940(frame_blit[i][1], lbl_801201E8[cls]);
+        MBBlitSetColor(frame_blit[i][1], lbl_801201E8[cls]);
     } else {
-        fn_800B2940(frame_blit[i][1], lbl_801201D8[cls]);
+        MBBlitSetColor(frame_blit[i][1], lbl_801201D8[cls]);
     }
     frames = (u32)MBOX_FindTexture_Err("S4_FRAME", NULL, 1);
     mbInitBlitEntry(frame_blit[i][2], frames, 0);
@@ -1319,7 +1319,7 @@ s32 AddExp(s32 pnum, s32 amount, s32 mode) {
     }
     if (res != 0) {
         if (amount < 0) {
-            fn_8009CADC(pnum, -1);
+            AudioExp(pnum, -1);
         } else if (amount > 0) {
             f32* pos = p->col_pos;
             s32 fx;
@@ -1446,7 +1446,7 @@ void start_magic(s32 pnum, f32* pos, u32 flags, s32 mode) {
     } else {
         p = P(pnum);
         power = (f32)(p->magic_power * sMusicFadeBase);
-        if (pnum == fn_8002F818(flags)) {
+        if (pnum == DamageColor(flags)) {
             power = (f32)(power * 1.1);
             scale = (f32)(scale + 0.1);
         }
@@ -1456,9 +1456,9 @@ void start_magic(s32 pnum, f32* pos, u32 flags, s32 mode) {
     }
     color = flags & 0xF;
     if (color == 0) {
-        color = (lbl_80344B14 % 4) + 1;
+        color = (randpottype % 4) + 1;
         flags |= color;
-        lbl_80344B14++;
+        randpottype++;
     }
     flags |= 0x200;
     if (pnum < 0) {
@@ -1466,17 +1466,17 @@ void start_magic(s32 pnum, f32* pos, u32 flags, s32 mode) {
     }
     if (mode < 2) {
         if (mode == 1) {
-            fx = fn_80092794((f32)(25.0 * scale), (f32)(0.25 * power), pos, flags | 0x200,
+            fx = StartShieldFX((f32)(25.0 * scale), (f32)(0.25 * power), pos, flags | 0x200,
                              (s16)pnum, mode);
             MBNodeSetParent(*(void**)(lbl_80285BCC + fx * 0xF0), p->node);
             if (pnum >= 0) {
-                fn_8009F028(color, pos, 1, mode);
+                AudioPotion(color, pos, 1, mode);
             }
         } else {
-            fx = fn_80092DF4((f32)(40.0 * scale), power, pos, flags | 0x200, (s16)pnum, mode);
+            fx = StartMagicFX((f32)(40.0 * scale), power, pos, flags | 0x200, (s16)pnum, mode);
             PlaceEffectOnFloor(fx, NULL);
             if (pnum >= 0) {
-                fn_8009F028(color, pos, 0, mode);
+                AudioPotion(color, pos, 0, mode);
             }
         }
     } else {
@@ -1488,7 +1488,7 @@ void start_magic(s32 pnum, f32* pos, u32 flags, s32 mode) {
         vel[0] = (f32)(p->mat[8] * 0.707) * h;
         vel[1] = 0.707f * h;
         vel[2] = (f32)(p->mat[10] * 0.707) * h;
-        fn_80092B58(100.0f, (f32)(40.0 * scale), (f32)(0.75 * power), 1.5, vpos, vel,
+        StartThrowMagicFX(100.0f, (f32)(40.0 * scale), (f32)(0.75 * power), 1.5, vpos, vel,
                     flags | 0x200, pnum, color + 7);
     }
     if (p != NULL && p->level > 0x4A && mode != 1) {
@@ -1764,14 +1764,14 @@ void do_players(void) {
                     }
                     if (!any) {
                         PlayerProcessScale(p);
-                        fn_80089120(p);
+                        PlayerDoWeapTrail(p);
                         do_exit(p, loaded);
                         break;
                     }
                 }
                 if (p->idle_timer > 599) {
                     p->idle_timer = p->idle_timer - 600;
-                    fn_8009FE4C(i);
+                    AudioPlayerBreath(i);
                 }
                 /* fallthrough */
             case 1:
@@ -1843,7 +1843,7 @@ void do_players(void) {
                     p->fall_frames = 0;
                 }
                 PlayerProcessScale(p);
-                fn_80089120(p);
+                PlayerDoWeapTrail(p);
                 do_weakening(p, it == i);
                 break;
             case 5:
@@ -1888,7 +1888,7 @@ void do_players(void) {
                 PF(PF(p, 0x6C8, u8*), 0x38, u32) = p->beacon_pos[2];
                 PF(PF(p, 0x6C8, u8*), 0x34, u32) = p->pos[1];
                 PlayerProcessScale(p);
-                fn_80089120(p);
+                PlayerDoWeapTrail(p);
                 if (p->count_920 < 1 && p->anim_208 != 0x7E) {
                     inactivate_player(i);
                 }
@@ -1909,7 +1909,7 @@ void do_players(void) {
             PlayerProcessPowerups(p, gGameMode, NULL);
             PlayerMotion_SetAnimState(p);
             PlayerProcessScale(p);
-            fn_80089120(p);
+            PlayerDoWeapTrail(p);
             if (!(p->hud_flags2 & 0x20)) {
                 UpdateObjWorldMat(p->mat);
             }
@@ -1927,8 +1927,8 @@ void do_players(void) {
             }
         }
     }
-    j = lbl_80344B0C % 4;
-    lbl_80344B0C++;
+    j = firstgetidx % 4;
+    firstgetidx++;
     for (i = 0; i < 4; i++) {
         s32 k = (j + i) % 4;
 
@@ -2005,7 +2005,7 @@ extern u32 lbl_80240E68[];
 extern s32 lbl_80344828;      /* hidden-characters-allowed count */
 extern s32 sWeaponsBuf;      /* weapons-in-hand enabled */
 extern void* gSceneRoot;    /* HUD camera parent */
-extern s32 lbl_80344B08;      /* got_max_player_sizes once-flag */
+extern s32 got_max_player_sizes;      /* got_max_player_sizes once-flag */
 extern s32 lbl_80344B28;      /* INVENTORY file handle */
 extern void* sPowerupsBuf;    /* global atree bank */
 extern void* lbl_80344BD4;    /* mikey camera parent */
@@ -2028,7 +2028,7 @@ typedef struct HiddenChar {
     /* 0x10 */ char code[16];  /* model/dir override tag */
     /* 0x20 */ s32 unlocked;   /* available without cheat */
 } HiddenChar;
-extern HiddenChar lbl_80120618[27];
+extern HiddenChar Hidden[27];
 
 /* powerup-cheat table (0x801209E4, stride 0x14, 27 entries) */
 typedef struct PupCheat {
@@ -2037,7 +2037,7 @@ typedef struct PupCheat {
     /* 0x0C */ f32 value;
     /* 0x10 */ u32 mask;
 } PupCheat;
-extern PupCheat lbl_801209E4[27];
+extern PupCheat Cheats[27];
 
 /* mini-inventory label table (0x8011FCE8, stride 0xC) */
 extern s32 lbl_8011FCE8[];    /* [i*3+0] type, [i*3+1] mask, [i*3+2] name ptr */
@@ -2082,24 +2082,24 @@ extern u32 PrevWorldLevel(s32 a);
 extern void SetSkinFX(f32 scale, f32* v, s32 color, s32 n, s32 one);
 extern void fn_8002C49C(f32* mat);
 extern void YawMat3(f32* mat, f32 ang);
-extern void fn_8009F198(s32 player);
+extern void AudioHeartBeat(s32 player);
 extern s32 fn_8005B8FC(void* p);
 extern f32 fqdist(f32 dx, f32 dz);
 extern void fn_8009190C(f32* pos, s32 amount);
-extern s32 fn_8002F5D8(f32 armor, f32* dmg, u32* flags, u32 shield);
+extern s32 ModifyDamage(f32 armor, f32* dmg, u32* flags, u32 shield);
 extern f64 atan2(f64 x, f64 z);
 extern void StartBlockFX(f32 dmg, s32 player);
 extern void fn_8009FFF4(s32 kind, s32 player);
-extern void fn_8009F9E8(s32 player);
-extern void fn_8009F960(s32 player);
-extern void fn_8009F7D8(s32 player);
-extern void fn_8009F250(s32 player);
-extern void fn_8009F2DC(f32 dmg, s32 player, s32 kind);
+extern void AudioPlayerPain(s32 player);
+extern void AudioPlayerPoison(s32 player);
+extern void AudioPlayerSeverePain(s32 player);
+extern void AudioPlayerDies(s32 player);
+extern void AudioPlayerHit(f32 dmg, s32 player, s32 kind);
 extern s32 do_vibe(s32 player, s32 lvl, s32 n);
 extern void AtreeDelete(void** h);
 extern s32 fn_80012F78(void* atree, void* out, s32 a, s32 flags);
 extern void fn_80011104(void** h, s32 a, s32 b);
-extern void fn_80091F34(f32* pos, s32 n);
+extern void StartGemFX(f32* pos, s32 n);
 extern s32* PlaceItem(s32 a, s32 b, char* name, f32* mat);
 extern s32* AddItem(s32* tmpl, f32* pos, s32 a, s32 b);
 extern void AddItemSub(s32* item);
@@ -2123,13 +2123,13 @@ extern void* MBNewObject(s32 node, f32* mat, void* c, u32 flags);
 extern void MBPsysSetDebugNode(s32 node, s32 a);
 extern s32 AddSpecialTexmod(s32 model, char* fmt, char* code, char* d, s32 e, s32 f);
 extern void* MBCreateBlit(s32 a, u32 tex, s32 x, s32 y, s32 w, s32 h);
-extern s32 fn_800B2980(void* blit);
+extern s32 MBBlitGetTex(void* blit);
 extern void mbBlitCalcRect(void* blit, s32* x, s32* y, f32* z);
 extern void mbBlitCalcY(void* blit, s32 y);
 extern void DrawGlowText(f32 scale, s32 x, s32 y, char* text);
-extern void fn_8009D42C(void);
-extern void fn_8009D3D4(void);
-extern void fn_8009D458(void);
+extern void AudioCursorH(void);
+extern void AudioCursorSelect(void);
+extern void AudioCursorV(void);
 extern void StartEnemyGrid(f32 pad, f32* pos);
 extern s32 NextGridEnemy(void);
 extern s32 PointVisible(f32 r, s32* pos);
@@ -2148,7 +2148,7 @@ extern void DoTexMods(void* modelbuf);
 extern s32 fn_8001267C(u16* anim, u32 arena, s32 old);
 extern void fn_8005A404(f32* mat, f32* fwd, f32* pos);
 extern void ShopLoadData(s32 file);
-extern void fn_8009F118(s32 player);
+extern void AudioPlayerXray(s32 player);
 extern void get_player_pos(void);
 extern void CreateYPRMatrix(f32* out, f32* rec, u8* c);
 extern s32 InLevel(s32* entry);
@@ -2301,7 +2301,7 @@ static s32 do_weakening(void* vp, s32 active) {
         PF(p, 0x1F6, s16) = t;
         if (t < 1) {
             if (sMusicTrackHi != 0xD && (PF(p, 0x120, u32) & 0x110000) == 0) {
-                fn_8009F198(p->index);
+                AudioHeartBeat(p->index);
             }
             if (p->health >= 100.0f) {
                 PF(p, 0x1F6, s16) = 0x78;
@@ -2466,7 +2466,7 @@ extern u8 lbl_801201C4;       /* weakening default period */
  * Apply damage to player i.  flags carry the damage-kind mask (0x600 =
  * directional/back-stab family, 0x10160 = heavy, 0x8000 = scripted,
  * 0x200 = front-arc-checked); dir is the attacker facing for the
- * front-arc test.  Armor absorbs via fn_8002F5D8, grunts/gore route
+ * front-arc test.  Armor absorbs via ModifyDamage, grunts/gore route
  * through the sfx TU, and the death path posts msg 0xD, drops the meter
  * and got-it entries, and parks state 8 (dying).
  */
@@ -2502,7 +2502,7 @@ void damage_player(s32 i, f32 dmg_in, u32 flags, f32* dir) {
             dmg = dmg * PF(gCurLevel, 0xA4, f32);
         }
     }
-    fn_8002F5D8(STAT_ARMOR(p), &dmg, &fl, PF(p, 0x120, u32));
+    ModifyDamage(STAT_ARMOR(p), &dmg, &fl, PF(p, 0x120, u32));
     if ((fl & 0x40000000) && (PF(p, 0x124, u32) & 1)) {
         dmg = 0.0f;
     }
@@ -2619,23 +2619,23 @@ void damage_player(s32 i, f32 dmg_in, u32 flags, f32* dir) {
             s32 kind = (s32)dmg;
             if (kind == 2) {
                 if (dmg > 0.0f) {
-                    fn_8009F9E8(i);
+                    AudioPlayerPain(i);
                 }
                 PF(p, 0x8D0, f32) = 0.0f;
             } else if (kind == 3) {
-                fn_8009F960(i);
+                AudioPlayerPoison(i);
                 PF(p, 0x8D0, f32) = 0.0f;
             } else if (kind != 0) {
                 if (hp_old - hp_new < 0x3D) {
                     if (PF(p, 0x8D0, f32) >= 45.0) {
                         PF(p, 0x8D0, f32) -= 45.0;
                         if (dmg > 0.0f) {
-                            fn_8009F9E8(i);
+                            AudioPlayerPain(i);
                         }
                     }
                 } else {
                     if (dmg > 0.0f) {
-                        fn_8009F9E8(i);
+                        AudioPlayerPain(i);
                     }
                     PF(p, 0x8D0, f32) = 0.0f;
                 }
@@ -2651,18 +2651,18 @@ void damage_player(s32 i, f32 dmg_in, u32 flags, f32* dir) {
                     kind2 = 2;
                 }
                 if (dmg > 0.0f) {
-                    fn_8009F2DC(dmg, i, kind2);
+                    AudioPlayerHit(dmg, i, kind2);
                 }
                 PF(p, 0x1F0, s16) = 0x1E;
             }
         } else if (dmg >= 1.0) {
             if (dmg > 0.0f) {
-                fn_8009F7D8(i);
+                AudioPlayerSeverePain(i);
             }
         }
     } else {
         /* death */
-        fn_8009F250(i);
+        AudioPlayerDies(i);
         p->state = 8;
         PF(p, 0x1920, s32) = 4;
         p->health = 0.0f;
@@ -2670,9 +2670,9 @@ void damage_player(s32 i, f32 dmg_in, u32 flags, f32* dir) {
         kill_got_it(i);
         if (lbl_80344B24 == i) {
             lbl_80344B24 = -1;
-            if (lbl_80344B04 != NULL) {
-                MBRemoveBlit(lbl_80344B04);
-                lbl_80344B04 = NULL;
+            if (it_blit != NULL) {
+                MBRemoveBlit(it_blit);
+                it_blit = NULL;
             }
         }
     }
@@ -3542,11 +3542,11 @@ void load_player_geo(s32 i, void* vp) {
         set_hidden_player(p);
     }
     if (HIDDEN_CODE(p) == NULL) {
-        if (p->character == model_slot[i].cur_class &&
-            p->class_id == model_slot[i].cur_pad &&
-            model_slot[i].cur_override == 0 &&
-            p->level / 10 == model_slot[i].cur_tier) {
-            PF(p, 0x7F4, void*) = model_slot[i].arena;
+        if (p->character == player_multiple_models[i].cur_class &&
+            p->class_id == player_multiple_models[i].cur_pad &&
+            player_multiple_models[i].cur_override == 0 &&
+            p->level / 10 == player_multiple_models[i].cur_tier) {
+            PF(p, 0x7F4, void*) = player_multiple_models[i].arena;
         } else {
             PF(p, 0x7F4, u32) = load_player_model(i, p, -1, NULL);
         }
@@ -3571,7 +3571,7 @@ void load_player_geo(s32 i, void* vp) {
     strncpy((char*)p + 0x6C0, tbuf, 8);
     p->node = MBNewNode(lbl_80344B2C, gIdentityMatrix, 1);
     PF(p, 0x78, s32) = 0;
-    n = fn_80011BBC(model_slot[i].model_buf, (char*)(lbl_801200B0 + p->char_type * 4),
+    n = fn_80011BBC(player_multiple_models[i].model_buf, (char*)(lbl_801200B0 + p->char_type * 4),
                     (u8*)p + 0x7C, tbuf, 0x800);
     PF(p, 0x7C, s32) = n;
     if (PF(p, 0x7C, s32) == 0) {
@@ -3621,7 +3621,7 @@ void load_player_geo(s32 i, void* vp) {
         PF(p, 0x7F8, s32) = -1;
         if (p->char_type == 7) {
             *(u32*)(PF(p, 0x6E0, u8*) + 0x60) |= 0x4000000;
-            PF(p, 0x7F8, s32) = AddSpecialTexmod(PF(p, 0x7F4, s32), "%s%s", (char*)model_slot[i].sfx_arena,
+            PF(p, 0x7F8, s32) = AddSpecialTexmod(PF(p, 0x7F4, s32), "%s%s", (char*)player_multiple_models[i].sfx_arena,
                                             "", 5, 1);
         }
     }
@@ -3712,7 +3712,7 @@ s32 set_hidden_player(void* vp) {
                     if (any(0x40000000) != 0) {
                         pick++;
                         if (pick >= 0 && pick < 27) {
-                            saveMenuPrompt(lbl_80120618[pick].name, NULL, 1);
+                            saveMenuPrompt(Hidden[pick].name, NULL, 1);
                         }
                         if (pick >= 27) {
                             pick = (rand() & 0xFF) % 27;
@@ -3772,32 +3772,32 @@ s32 set_hidden_player(void* vp) {
     }
     if (HIDDEN_CODE(p) == NULL) {
         for (j = 0; j < 27; j++) {
-            if ((strncmp(nm, lbl_80120618[j].name, 6) == 0 &&
-                 (lbl_80120618[j].unlocked == 0 || lbl_80344828 > 1)) ||
+            if ((strncmp(nm, Hidden[j].name, 6) == 0 &&
+                 (Hidden[j].unlocked == 0 || lbl_80344828 > 1)) ||
                 (match && pick == j)) {
-                p->class_id = lbl_80120618[j].class_id;
-                p->character = lbl_80120618[j].char_type;
-                HIDDEN_CODE(p) = lbl_80120618[j].code;
+                p->class_id = Hidden[j].class_id;
+                p->character = Hidden[j].char_type;
+                HIDDEN_CODE(p) = Hidden[j].code;
                 return 1;
             }
         }
         for (j = 0; j < 27; j++) {
-            if (strncmp(nm, lbl_801209E4[j].name, 6) == 0 || (pups & (1 << j))) {
-                switch (lbl_801209E4[j].type) {
+            if (strncmp(nm, Cheats[j].name, 6) == 0 || (pups & (1 << j))) {
+                switch (Cheats[j].type) {
                 case 1:
-                    p->gold = (s32)lbl_801209E4[j].value;
+                    p->gold = (s32)Cheats[j].value;
                     break;
                 case 2:
-                    PF(p, 0x1EB8, s32) = (s32)lbl_801209E4[j].value;
+                    PF(p, 0x1EB8, s32) = (s32)Cheats[j].value;
                     break;
                 case 4:
-                    PF(p, 0x1EBC, s32) = (s32)lbl_801209E4[j].value;
+                    PF(p, 0x1EBC, s32) = (s32)Cheats[j].value;
                     break;
                 default:
-                    PlayerAddPowerup(lbl_801209E4[j].value, 1.0f, p,
-                                     lbl_801209E4[j].type, lbl_801209E4[j].mask);
-                    if (lbl_801209E4[j].type == 9) {
-                        PF(p, 0x124, u32) |= lbl_801209E4[j].mask;
+                    PlayerAddPowerup(Cheats[j].value, 1.0f, p,
+                                     Cheats[j].type, Cheats[j].mask);
+                    if (Cheats[j].type == 9) {
+                        PF(p, 0x124, u32) |= Cheats[j].mask;
                     }
                     break;
                 }
@@ -3821,20 +3821,20 @@ s32 load_player_model(s32 i, void* vp, s32 alt, char* name) {
     s32 pad;
 
     pad = p->class_id;
-    arena = load_player_model_sub(i, p, name, &model_slot[i]);
+    arena = load_player_model_sub(i, p, name, &player_multiple_models[i]);
     if (pad < 0 || pad > 3) {
         pad = i;
     }
     sprintf(tbuf, "players\\%s\\sfx%s", lbl_8012006C[p->char_type], lbl_801200F4[pad]);
-    sfx = MBOX_LoadModelFixed(tbuf, (u32)model_slot[i].sfx_arena, 0, NULL,
-                              model_slot[i].sfx_max);
-    model_slot[i].sfx_arena = (void*)sfx;
-    MLMReadFile(tbuf, "rb", model_slot[i].sfx_buf_max, model_slot[i].sfx_buf);
-    model_slot[i].sfx_remap = fn_8001267C((u16*)model_slot[i].sfx_buf, sfx,
-                                          model_slot[i].sfx_remap);
-    InitTexMods(model_slot[i].model_buf, (u32)model_slot[i].arena);
-    InitTexMods(model_slot[i].anim_buf, (u32)model_slot[i].arena);
-    InitTexMods(model_slot[i].sfx_buf, (u32)model_slot[i].sfx_arena);
+    sfx = MBOX_LoadModelFixed(tbuf, (u32)player_multiple_models[i].sfx_arena, 0, NULL,
+                              player_multiple_models[i].sfx_max);
+    player_multiple_models[i].sfx_arena = (void*)sfx;
+    MLMReadFile(tbuf, "rb", player_multiple_models[i].sfx_buf_max, player_multiple_models[i].sfx_buf);
+    player_multiple_models[i].sfx_remap = fn_8001267C((u16*)player_multiple_models[i].sfx_buf, sfx,
+                                          player_multiple_models[i].sfx_remap);
+    InitTexMods(player_multiple_models[i].model_buf, (u32)player_multiple_models[i].arena);
+    InitTexMods(player_multiple_models[i].anim_buf, (u32)player_multiple_models[i].arena);
+    InitTexMods(player_multiple_models[i].sfx_buf, (u32)player_multiple_models[i].sfx_arena);
     return arena;
 }
 
@@ -3884,19 +3884,19 @@ s32 load_player_model_sub(s32 i, void* vp, char* name, void* vslot) {
 
 /* Re-register the model texmods after a video mode change.            */
 void SetupPlayerTexMods(s32 i) {
-    if (model_slot[i].cur_class >= 0) {
-        DoTexMods(model_slot[i].model_buf);
-        DoTexMods(model_slot[i].anim_buf);
-        DoTexMods(model_slot[i].sfx_buf);
+    if (player_multiple_models[i].cur_class >= 0) {
+        DoTexMods(player_multiple_models[i].model_buf);
+        DoTexMods(player_multiple_models[i].anim_buf);
+        DoTexMods(player_multiple_models[i].sfx_buf);
     }
 }
 
 /* Apply the per-slot model texmods (items.c per-frame).               */
 void DoPlayerTexMods(s32 i) {
-    if (model_slot[i].cur_class >= 0) {
-        InitTexMods(model_slot[i].model_buf, (u32)model_slot[i].arena);
-        InitTexMods(model_slot[i].anim_buf, (u32)model_slot[i].arena);
-        InitTexMods(model_slot[i].sfx_buf, (u32)model_slot[i].sfx_arena);
+    if (player_multiple_models[i].cur_class >= 0) {
+        InitTexMods(player_multiple_models[i].model_buf, (u32)player_multiple_models[i].arena);
+        InitTexMods(player_multiple_models[i].anim_buf, (u32)player_multiple_models[i].arena);
+        InitTexMods(player_multiple_models[i].sfx_buf, (u32)player_multiple_models[i].sfx_arena);
     }
 }
 
@@ -3910,7 +3910,7 @@ void init_players(void) {
     u32 tex;
 
     lbl_80344B24 = -1;
-    lbl_80344B04 = NULL;
+    it_blit = NULL;
     for (i = 0; i < 4; i++) {
         create_player_blits(i);
     }
@@ -3932,9 +3932,9 @@ void init_players(void) {
             got_it[i].blit1 = NULL;
         }
     }
-    lbl_80344B1C = 0;
-    lbl_80344B00 = 0;
-    lbl_80344AFC = (s32)MBOX_FindTexture("KEY_ICON", NULL);
+    welcome_timer = 0;
+    alpha = 0;
+    key_blit_idx = (s32)MBOX_FindTexture("KEY_ICON", NULL);
     for (i = 0; i < 5; i++) {
         tex = (u32)MBOX_FindTexture(lbl_8011FCD4[i], NULL);
         potionicon_tab[i] = (void*)tex;
@@ -3983,7 +3983,7 @@ static void create_player_blits(s32 i) {
         b = MBNewBlit((char*)lbl_8011FC48[j * 5 + 1], i * 0x80 + lbl_8011FC48[j * 5 + 2],
                       (u32)lbl_8011FC48[j * 5 + 3]);
         pm_blit[i][j] = b;
-        lbl_8011FC48[j * 5] = fn_800B2980(b);
+        lbl_8011FC48[j * 5] = MBBlitGetTex(b);
         mbBlitInit3414(b, 1);
         mbBlitCvtCoord(b, (f32)-lbl_8011FC48[j * 5 + 4]);
     }
@@ -4041,7 +4041,7 @@ void setup_player_models(void) {
 
     GetMaxPlayerModelSize();
     for (i = 0; i < 4; i++) {
-        s = &model_slot[i];
+        s = &player_multiple_models[i];
         free0 = BytesFree();
         bulletproof_printf("Player %d -- MEM %d\n", i, free0);
         sprintf(tbuf, "PLAYER %d", i);
@@ -4066,11 +4066,11 @@ static void GetMaxPlayerModelSize(void) {
     s32 i;
     u8 unused[16];
 
-    if (lbl_80344B08 != 0) {
+    if (got_max_player_sizes != 0) {
         return;
     }
     for (i = 0; i < 4; i++) {
-        s = &model_slot[i];
+        s = &player_multiple_models[i];
         s->model_max = 0xB800;
         s->model_buf_max = 0x4D800;
         s->arena_max = 0xB000;
@@ -4080,45 +4080,45 @@ static void GetMaxPlayerModelSize(void) {
         s->sfx_arena_max = 0x18000;
     }
     for (i = 1; i < 4; i++) {
-        s = &model_slot[i];
-        if ((s32)s->model_max > (s32)model_slot[0].model_max) {
-            model_slot[0].model_max = s->model_max;
+        s = &player_multiple_models[i];
+        if ((s32)s->model_max > (s32)player_multiple_models[0].model_max) {
+            player_multiple_models[0].model_max = s->model_max;
         }
-        if ((s32)s->model_buf_max > (s32)model_slot[0].model_buf_max) {
-            model_slot[0].model_buf_max = s->model_buf_max;
+        if ((s32)s->model_buf_max > (s32)player_multiple_models[0].model_buf_max) {
+            player_multiple_models[0].model_buf_max = s->model_buf_max;
         }
-        if ((s32)s->arena_max > (s32)model_slot[0].arena_max) {
-            model_slot[0].arena_max = s->arena_max;
+        if ((s32)s->arena_max > (s32)player_multiple_models[0].arena_max) {
+            player_multiple_models[0].arena_max = s->arena_max;
         }
-        if ((s32)s->anim_max > (s32)model_slot[0].anim_max) {
-            model_slot[0].anim_max = s->anim_max;
+        if ((s32)s->anim_max > (s32)player_multiple_models[0].anim_max) {
+            player_multiple_models[0].anim_max = s->anim_max;
         }
-        if ((s32)s->sfx_max > (s32)model_slot[0].sfx_max) {
-            model_slot[0].sfx_max = s->sfx_max;
+        if ((s32)s->sfx_max > (s32)player_multiple_models[0].sfx_max) {
+            player_multiple_models[0].sfx_max = s->sfx_max;
         }
-        if ((s32)s->sfx_buf_max > (s32)model_slot[0].sfx_buf_max) {
-            model_slot[0].sfx_buf_max = s->sfx_buf_max;
+        if ((s32)s->sfx_buf_max > (s32)player_multiple_models[0].sfx_buf_max) {
+            player_multiple_models[0].sfx_buf_max = s->sfx_buf_max;
         }
-        if ((s32)s->sfx_arena_max > (s32)model_slot[0].sfx_arena_max) {
-            model_slot[0].sfx_arena_max = s->sfx_arena_max;
+        if ((s32)s->sfx_arena_max > (s32)player_multiple_models[0].sfx_arena_max) {
+            player_multiple_models[0].sfx_arena_max = s->sfx_arena_max;
         }
     }
     for (i = 1; i < 4; i++) {
-        s = &model_slot[i];
-        s->model_max = model_slot[0].model_max;
-        s->model_buf_max = model_slot[0].model_buf_max;
-        s->arena_max = model_slot[0].arena_max;
-        s->anim_max = model_slot[0].anim_max;
-        s->sfx_max = model_slot[0].sfx_max;
-        s->sfx_buf_max = model_slot[0].sfx_buf_max;
-        s->sfx_arena_max = model_slot[0].sfx_arena_max;
+        s = &player_multiple_models[i];
+        s->model_max = player_multiple_models[0].model_max;
+        s->model_buf_max = player_multiple_models[0].model_buf_max;
+        s->arena_max = player_multiple_models[0].arena_max;
+        s->anim_max = player_multiple_models[0].anim_max;
+        s->sfx_max = player_multiple_models[0].sfx_max;
+        s->sfx_buf_max = player_multiple_models[0].sfx_buf_max;
+        s->sfx_arena_max = player_multiple_models[0].sfx_arena_max;
     }
-    lbl_80344B08 = 1;
+    got_max_player_sizes = 1;
 }
 
 /* Player slot i's texture arena handle.                               */
 void* PlayerModel(s32 i) {
-    return model_slot[i].arena;
+    return player_multiple_models[i].arena;
 }
 
 /* ------------------------------------------------------------------ */
@@ -4278,7 +4278,7 @@ void PlayerProcessMikeyPUP(void* vp) {
     fn_80011104((void**)((u8*)p + 0x96C), 0, 0);
     t = PF(p, 0xA1C, s16);
     if (t < 0x3C && t == (t / 10) * 10) {
-        fn_80091F34((f32*)((u8*)p + 0xA04), rand() % 4 + 1);
+        StartGemFX((f32*)((u8*)p + 0xA04), rand() % 4 + 1);
     }
     PF(p, 0xA1C, s16) = t + 1;
     slot = -1;
@@ -4430,7 +4430,7 @@ static s32 do_see_thru(void* vp) {
                 MBNodeSetParent(*(void**)lbl_8025ECB8[i][0], lbl_8025ECA8[i]);
                 MBNodeSetParent((void*)lbl_8025EC68[i], lbl_8025ECA8[i]);
                 MBNodeSetParent(*(void**)(chest + 100), lbl_8025ECA8[i]);
-                fn_8009F118(i);
+                AudioPlayerXray(i);
             }
             MBTreeClearFlags((void*)lbl_8025EC68[i], 1, 0);
         }
@@ -4664,43 +4664,43 @@ void check_player_atts(void* vp, s32 chartype, s32* stats) {
 void SetPlayerWindows(s32 on) {
     s32 i;
     s32 j;
-    s32 alpha = (on != 0) ? 0xFF : 0;
+    s32 blit_alpha = (on != 0) ? 0xFF : 0;
 
     for (i = 0; i < 4; i++) {
         for (j = 0; j < 6; j++) {
             if (frame_blit[i][j] != NULL) {
-                fn_800B290C(frame_blit[i][j], alpha);
+                MBBlitSetAlpha(frame_blit[i][j], blit_alpha);
             }
         }
         for (j = 0; j < 12; j++) {
             if (rune_blit[i][j] != NULL) {
-                fn_800B290C(rune_blit[i][j], alpha);
+                MBBlitSetAlpha(rune_blit[i][j], blit_alpha);
             }
         }
         for (j = 0; j < 8; j++) {
             if (crystal_blit[i][j] != NULL) {
-                fn_800B290C(crystal_blit[i][j], alpha);
+                MBBlitSetAlpha(crystal_blit[i][j], blit_alpha);
             }
         }
         for (j = 0; j < 4; j++) {
             if (key_blit[i][j] != NULL) {
-                fn_800B290C(key_blit[i][j], alpha);
+                MBBlitSetAlpha(key_blit[i][j], blit_alpha);
             }
         }
         if (rune13_blit[i] != NULL) {
-            fn_800B290C(rune13_blit[i], alpha);
+            MBBlitSetAlpha(rune13_blit[i], blit_alpha);
         }
         if (hod_blit[i] != NULL) {
-            fn_800B290C(hod_blit[i], alpha);
+            MBBlitSetAlpha(hod_blit[i], blit_alpha);
         }
         if (quest_blit[i] != NULL) {
-            fn_800B290C(quest_blit[i], alpha);
+            MBBlitSetAlpha(quest_blit[i], blit_alpha);
         }
         for (j = 0; j < 7; j++) {
-            fn_800B290C(pm_blit[i][j], alpha);
+            MBBlitSetAlpha(pm_blit[i][j], blit_alpha);
         }
     }
-    lbl_80344B00 = on;
+    alpha = on;
 }
 
 /* ------------------------------------------------------------------ */
@@ -4937,7 +4937,7 @@ void mini_inventory_update(s32 i) {
     if (tb->state == 1) {
         if (PUP_STRENGTH(p, tb->sel) == 0.0 ||
             (lbl_80240E38[i * 0xF] & 0x10000000)) {
-            fn_8009D42C();
+            AudioCursorH();
             moved = 1;
             sel = mini_inventory_find_previous_selectable_item(i);
             if (sel == -1) {
@@ -4949,7 +4949,7 @@ void mini_inventory_update(s32 i) {
         }
         held = lbl_80240E38[i * 0xF];
         if (held & 0x20000000) {
-            fn_8009D42C();
+            AudioCursorH();
             moved = 1;
             sel = mini_inventory_find_next_selectable_item(i);
             if (sel == -1) {
@@ -4961,7 +4961,7 @@ void mini_inventory_update(s32 i) {
             }
         }
         if (held & 0x40000000) {
-            fn_8009D3D4();
+            AudioCursorSelect();
             if (PUP_DIRTY(p, tb->sel) == 2) {
                 PUP_DIRTY(p, tb->sel) = 3;
             } else {
@@ -4969,13 +4969,13 @@ void mini_inventory_update(s32 i) {
             }
         }
         if ((held & 0x80000000) && tb->state == 1) {
-            fn_8009D458();
+            AudioCursorV();
             tb->state = 3;
             moved = 1;
             tb->slide = 0;
         }
     } else if ((lbl_80240E38[i * 0xF] & 0x40000000) != 0) {
-        fn_8009D458();
+        AudioCursorV();
         if (tb->state == 0) {
             if (tb->sel == -1 && (sel = mini_inventory_find_previous_selectable_item(i)) >= 0) {
                 tb->sel = sel;

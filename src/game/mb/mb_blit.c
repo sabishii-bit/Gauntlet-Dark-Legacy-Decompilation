@@ -173,9 +173,9 @@ extern s64 OSGetTime(void);
  * fn_800B27C4 keeps its fn_ name: it is called by Matching main.c.
  * The four small setters keep fn_ names too (declared as extern fn_
  * by a dozen UI/game TUs); Xbox MB_BLIT.OBJ identities by struct
- * offset + roster: fn_800B28EC=MBBlitSetColor4, fn_800B290C=
- * MBBlitSetAlpha (fade amount), fn_800B2940=MBBlitSetColor
- * (brightness grey), fn_800B2980=MBBlitGetTex.
+ * offset + roster: MBBlitSetColor4=MBBlitSetColor4, MBBlitSetAlpha=
+ * MBBlitSetAlpha (fade amount), MBBlitSetColor=MBBlitSetColor
+ * (brightness grey), MBBlitGetTex=MBBlitGetTex.
  * ------------------------------------------------------------------ */
 
 /* 0x800B27C4  boot-time pad service + pad-test screen: reset the pad
@@ -207,7 +207,7 @@ void fn_800B27C4(void)
 
 /* 0x800B28EC  set all four corner colors (= MBBlitSetColor4); flag 0x10
  * marks per-corner colors active. */
-void fn_800B28EC(MBBLIT* b, u32 c0, u32 c1, u32 c2, u32 c3)
+void MBBlitSetColor4(MBBLIT* b, u32 c0, u32 c1, u32 c2, u32 c3)
 {
     b->flags |= 0x10;
     b->color0 = c0;
@@ -218,7 +218,7 @@ void fn_800B28EC(MBBLIT* b, u32 c0, u32 c1, u32 c2, u32 c3)
 
 /* 0x800B290C  set blit fade (= MBBlitSetAlpha): fade 0..255 maps to GX
  * alpha 128..1 in color0's top byte; clears the per-corner flag. */
-void fn_800B290C(MBBLIT* b, u32 fade)
+void MBBlitSetAlpha(MBBLIT* b, u32 fade)
 {
     u32 v;
     b->flags &= ~0x10;
@@ -229,7 +229,7 @@ void fn_800B290C(MBBLIT* b, u32 fade)
 
 /* 0x800B2940  set blit brightness (= MBBlitSetColor): 0..255 maps to a
  * grey 0x010101..0x808080 in color0's RGB; clears the per-corner flag. */
-void fn_800B2940(MBBLIT* b, u32 bright)
+void MBBlitSetColor(MBBLIT* b, u32 bright)
 {
     b->flags &= ~0x10;
     b->color0 &= 0xFF000000;
@@ -237,7 +237,7 @@ void fn_800B2940(MBBLIT* b, u32 bright)
 }
 
 /* 0x800B2980  return the blit's texture handle (= MBBlitGetTex). */
-s32 fn_800B2980(MBBLIT* b)
+s32 MBBlitGetTex(MBBLIT* b)
 {
     return b->tex;
 }

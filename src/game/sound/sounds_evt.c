@@ -404,12 +404,12 @@ void fn_8009D37C(void)
     sndFxPlayHandle(19, 224, 3);
 }
 
-void fn_8009D3A8(void)
+void AudioMenuExit(void)
 {
     sndFxPlayHandle(16, 127, 3);
 }
 
-void fn_8009D3D4(void)
+void AudioCursorSelect(void)
 {
     sndFxPlayHandle(17, 127, 3);
 }
@@ -419,12 +419,12 @@ void fn_8009D400(void)
     sndFxPlayHandle(15, 127, 3);
 }
 
-void fn_8009D42C(void)
+void AudioCursorH(void)
 {
     sndFxPlayHandle(14, 127, 3);
 }
 
-void fn_8009D458(void)
+void AudioCursorV(void)
 {
     sndFxPlayHandle(13, 127, 3);
 }
@@ -883,7 +883,7 @@ void fn_8009EF4C(int pos)
     sndFxPlay3DAtten(60, pos, 127, 120);
 }
 
-void fn_8009F118(int pidx)
+void AudioPlayerXray(int pidx)
 {
     sndFxPlay3D(81, (int)(&gPlayers[pidx * 13148] + 84), 127, 60);
 }
@@ -933,7 +933,7 @@ void fn_8009EFCC(int pidx, int a, int b)
     sndFxPlay3DAtten(id, (int)(&gPlayers[pidx * 13148] + 68), 127, 125);
 }
 
-void fn_8009F028(int a, int pos, int c)
+void AudioPotion(int a, int pos, int c)
 {
     sndFxPlay3D(lbl_801239B4[c][a], pos, 127, 15);
 }
@@ -947,7 +947,7 @@ void fn_8009F340(int pos)
     }
 }
 
-void fn_8009F250(int pidx)
+void AudioPlayerDies(int pidx)
 {
     u8* player = &gPlayers[pidx * 13148];
 
@@ -963,7 +963,7 @@ void fn_8009F250(int pidx)
     }
 }
 
-void fn_8009F2DC(int pidx, int a)
+void AudioPlayerHit(int pidx, int a)
 {
     u8* player = &gPlayers[pidx * 13148];
 
@@ -1041,7 +1041,7 @@ void fn_8009FD84(void)
     }
 }
 
-void fn_8009FE4C(int pidx)
+void AudioPlayerBreath(int pidx)
 {
     AudioWithName(-1, pidx, 5.0f, sMusicTrackHi == 13 ? 0x30014 : 0x2000C, -1);
 }
@@ -1192,7 +1192,7 @@ void fn_8009F748(int pidx)
     }
 }
 
-void fn_8009F7D8(int pidx)
+void AudioPlayerSeverePain(int pidx)
 {
     u8* player = &gPlayers[pidx * 13148];
     int id = lbl_80123624[*(int*)(player + 8)];
@@ -1207,7 +1207,7 @@ void fn_8009F7D8(int pidx)
     }
 }
 
-void fn_8009F960(int pidx)
+void AudioPlayerPoison(int pidx)
 {
     u8* player = &gPlayers[pidx * 13148];
 
@@ -1225,7 +1225,7 @@ void fn_8009F960(int pidx)
     }
 }
 
-void fn_8009F198(int pidx)
+void AudioHeartBeat(int pidx)
 {
     u8* player = &gPlayers[pidx * 13148];
     f32 v = *(f32*)(player + 7860);
@@ -1242,7 +1242,7 @@ void fn_8009F198(int pidx)
     }
 }
 
-void fn_8009F9E8(int pidx)
+void AudioPlayerPain(int pidx)
 {
     u8* player = &gPlayers[pidx * 13148];
 
@@ -1339,7 +1339,7 @@ void fn_8009D7E4(int a, int pos)
     }
 }
 
-void fn_8009CADC(int pidx, int flag)
+void AudioExp(int pidx, int flag)
 {
     if (flag > 0) {
         AudioWithName(-1, pidx, 3.0f, 0x20010, 0x1003D);

@@ -78,7 +78,7 @@ extern void TitleMenuEnd(void);
 extern s32  TitleMenu(s32 y);
 extern void TitleMenuInit(s32 sel);
 extern void fn_8009D350(int a);
-extern void fn_8009D3D4(void);
+extern void AudioCursorSelect(void);
 extern void fn_80053B20(void);
 extern void fn_80053C70(void);
 extern void fn_80054E68(int a);
@@ -93,7 +93,7 @@ extern void AudioReset(int a);          /* was AudioReset */
 extern void AudioEmptyCb1(void);        /* was AudioEmptyCb1 */
 extern void MBOX_NewObject(void* dst, void* name, int a, int b);
 extern int  MBOX_FindTexture(const char* name, int flag);
-extern void fn_800B290C(int handle, int alpha);
+extern void MBBlitSetAlpha(int handle, int alpha);
 extern void MBFontMsgSetAlpha(int a, int b);
 extern void MBWindowZoom(float a);
 extern void fn_800BC4E4(void);
@@ -240,7 +240,7 @@ void do_titlescreen(void) {
     alpha = (titlescreen_timeout < 60)
               ? (titlescreen_timeout * 255) / 60
               : 255;
-    fn_800B290C(cur_screen_id, alpha);
+    MBBlitSetAlpha(cur_screen_id, alpha);
 
     for (i = 0; i < 4; i++) {
         mbBlitCvtCoord(credit_text[i] != 0, 1.0f);
@@ -314,7 +314,7 @@ void init_titlescreen(void) {
     MBWindowZoom(lbl_803458CC);
     lbl_80344270 = 0;
     lbl_80344274 = 30;
-    fn_800B290C(lbl_80344264, 255);
+    MBBlitSetAlpha(lbl_80344264, 255);
     bulletproof_printf(base + 2336);
 }
 

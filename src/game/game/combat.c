@@ -287,9 +287,9 @@ void fn_8002F014(void)
 STUB(0x8002F040, fn_8002F040)
 STUB(0x8002F2D4, fn_8002F2D4)
 STUB(0x8002F44C, fn_8002F44C)
-STUB(0x8002F5D8, fn_8002F5D8)
+STUB(0x8002F5D8, ModifyDamage)
 
-s32 fn_8002F818(s32 type)
+s32 DamageColor(s32 type)
 {
     switch (type & 0xF) {
     default:

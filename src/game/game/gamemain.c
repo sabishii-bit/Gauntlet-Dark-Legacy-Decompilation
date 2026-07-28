@@ -182,7 +182,7 @@ extern s32   lbl_8034482C;
 extern s32   lbl_80344828;
 extern s32   lbl_80344758;
 extern s32   lbl_80344B84;
-extern s32   lbl_80344B00;
+extern s32   alpha;
 extern s32   lbl_80344784;
 extern s32   lbl_80344DA4;
 extern s32   lbl_80344DA0;
@@ -231,7 +231,7 @@ extern void* MBOX_FindTexture(const char* name, s32 arg1);
 extern void* MBCreateBlit(s32 a, void* tex, s32 c, s32 d, s32 e, s32 f);
 extern void  mbBlitProject(void* blit, s32 a, s32 b);
 extern void  mbBlitCvtCoord(void* blit, f32 c);
-extern void  fn_800B290C(void* blit, s32 a);
+extern void  MBBlitSetAlpha(void* blit, s32 a);
 extern s32   fn_80093BC0(s32 a, s32 b, s32 c, s32 d, s32 e, s32 f, s32 g, f32 h);
 extern void  SfxSetDamage(s32 a, s32 b, s32 c, f32 d, f32 e, f32 f);
 extern void  ScaleFX(s32 a, f32 b, f32 c, f32 d);
@@ -652,7 +652,7 @@ void game_init_data(void)
     lbl_80344758 = 0;
     lbl_80344B84 = -1;
     reset_sel_menu();
-    lbl_80344B00 = 0;
+    alpha = 0;
     reset_attract_mode();
     ControlsUpdate();
     bulletproof_printf(msgs + 92);   /* "Initializing Audio..." */
@@ -685,7 +685,7 @@ void fn_80053A68(s32 arg0)
     }
     mbBlitProject(lbl_803447B0, 0, sz);
     mbBlitCvtCoord(lbl_803447B0, coord);
-    fn_800B290C(lbl_803447B0, 0);
+    MBBlitSetAlpha(lbl_803447B0, 0);
     mbBlitInit3414(lbl_803447B0, 0);
 }
 

@@ -1032,7 +1032,7 @@ void fn_800606FC(void)
  * 8005A738  0x0130  fn_ : per-instance text draw (DrawTextKeepScale,
  *                    fn_8005A868, RandInt, strcpy)
  * 8005A868  0x03A8  fn_ : text/gfx draw (DrawTextKeepScale, fn_8003xxxx mtx,
- *                    fn_8009D42C/58, fn_8009EF04)
+ *                    AudioCursorH/58, fn_8009EF04)
  * 8005AC10  0x00D0  fn_ : accessor (no calls; gControllerButtons/8034477C)
  * 8005ACE0  0x02B8  fn_ : DEBUG draw of world-object info (DrawText, sprintf,
  *                    get_screen_pos).  "ROT:","BRID:","DOOR:","ELEV:","LIFT:",

@@ -115,7 +115,7 @@ extern void UpdateObjWorldMat(void* p);
 extern int   sprintf(char* buf, const char* fmt, ...);
 extern void  ErrorPrintf(const char* fmt, ...);
 extern void* MBNewBlit(char* name, int x, int flags);
-extern void  fn_800B290C(void* blit, int a);
+extern void  MBBlitSetAlpha(void* blit, int a);
 extern char  lbl_80345B60;                /* meter-name suffix (named) */
 extern char  lbl_80345B64;                /* meter-name suffix (blank) */
 extern int   lbl_80343B70;                /* blit layer/flags */
@@ -134,7 +134,7 @@ extern char str_BOSSKEY2[];               /* .rodata effect name */
 
 extern void mbBlitProject(void* blit, int alpha, int c);
 extern void mbBlitSetupVerts(void* blit, f32 a, f32 b, f32 c, f32 d);
-extern void fn_800B2940(void* blit, u32 color);
+extern void MBBlitSetColor(void* blit, u32 color);
 extern u32  gFrameTicks;                 /* meter approach rate */
 
 /* ------------------------------------------------------------------ */
@@ -467,9 +467,9 @@ void HealthMeterUpdate(f32 v, int meter) {
         void* blit = *(void**)((char*)HealthMeterBG + off + meter * 8);
         if (blit != 0) {
             if (*(s16*)((char*)gBossObj + 0xac4) < 1) {
-                fn_800B2940(blit, 0xffffffff);
+                MBBlitSetColor(blit, 0xffffffff);
             } else {
-                fn_800B2940(blit, 0xff8080ff);
+                MBBlitSetColor(blit, 0xff8080ff);
             }
         }
     }
@@ -493,14 +493,14 @@ int HealthMeterStart(f32 v, char* name, int n, int p, int x, int y, int flag) {
             sprintf(buf, sBossStr.bgFmt, name,
                     (*name == 0) ? &lbl_80345B64 : &lbl_80345B60, i + 1);
             HealthMeterBG[num][i] = MBNewBlit(buf, HealthMeterX + i * 256, lbl_80343B70);
-            fn_800B290C(HealthMeterBG[num][i], 112);
+            MBBlitSetAlpha(HealthMeterBG[num][i], 112);
         }
     }
     for (i = 0; i < n; i++) {
         sprintf(buf, sBossStr.fgFmt, name,
                 (*name == 0) ? &lbl_80345B64 : &lbl_80345B60, i + 1);
         HealthMeterFG[num][i] = MBNewBlit(buf, HealthMeterX + i * 256, lbl_80343B70);
-        fn_800B290C(HealthMeterFG[num][i], 112);
+        MBBlitSetAlpha(HealthMeterFG[num][i], 112);
     }
     HealthMeterNPieces[num] = n;
     HealthMeterMaxValue[num] = v;

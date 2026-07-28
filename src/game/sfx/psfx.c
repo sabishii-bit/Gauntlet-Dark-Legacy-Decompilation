@@ -12,7 +12,7 @@
 
 #define STUB(address, name) void name(void) {}
 
-STUB(0x80089120, fn_80089120)
+STUB(0x80089120, PlayerDoWeapTrail)
 STUB(0x80089350, fn_80089350)
 STUB(0x800898DC, fn_800898DC)
 STUB(0x80089EA8, fn_80089EA8)

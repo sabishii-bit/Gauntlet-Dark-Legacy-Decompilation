@@ -129,7 +129,7 @@ typedef struct Player {
     /* 0x00FC */ f32 att_magic;
     /* 0x0100 */ f32 att_speed;
     /* 0x0104 */ f32 stat_damage;    /* derived stats (PlayerUpdateAtts) [player.c] */
-    /* 0x0108 */ f32 stat_armor;     /* absorbs in damage_player via fn_8002F5D8 */
+    /* 0x0108 */ f32 stat_armor;     /* absorbs in damage_player via ModifyDamage */
     /* 0x010C */ f32 magic_power;    /* potion magic power/radius (= derived magic stat) */
     /* 0x0110 */ f32 light_range;    /* derived speed stat (front slice used as light range) */
     /* 0x0114 */ f32 stat_missile_dmg;  /* missile stats; magic-based for classes 2/6 */

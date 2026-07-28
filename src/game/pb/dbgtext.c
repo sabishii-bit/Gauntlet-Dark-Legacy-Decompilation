@@ -35,7 +35,7 @@ u32* MBDrawSysText(s32 x, s32 y, char* text);        /* mb_font.c */
 void* MBNewTempQuad(void);                           /* mb_blit.c */
 s32 mbBlitCalcWidth(void*);                          /* mb_blit.c */
 void mbBlitProject(void*);                           /* mb_blit.c */
-void fn_800B2940(void*);
+void MBBlitSetColor(void*);
 void dbgTextPrintfPx(s32 color, s32 x, s32 line, char* fmt, ...);
 void fn_800C03E0(s32 mode);
 
@@ -279,7 +279,7 @@ void fn_800C03E0(s32 mode)
     MBNewTempQuad();
     mbBlitCalcWidth(0);
     mbBlitProject(0);
-    fn_800B2940(0);
+    MBBlitSetColor(0);
 }
 
 /* Latch a graph slot: move its accumulator to the display field. */

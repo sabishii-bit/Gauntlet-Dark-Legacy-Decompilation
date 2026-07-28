@@ -111,7 +111,7 @@ void vibrators_off(void);
 void fn_800B6B80(void);
 void MBLockMessages(int a);
 void MBUnlockMessages(int a);
-void fn_800B2940(void* blit, int a);
+void MBBlitSetColor(void* blit, int a);
 
 /* ---- data: in-memory directory + options ----------------------------- */
 typedef struct GameOpts {
@@ -1679,7 +1679,7 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
     } else {
         mbBlitProject(quad, boxW);
         mbBlitCalcWidth(quad, x, y, lbl_80347378);
-        fn_800B2940(quad, -1);
+        MBBlitSetColor(quad, -1);
     }
 
     strcpy((char*) gTextFormatBuf, msg);
