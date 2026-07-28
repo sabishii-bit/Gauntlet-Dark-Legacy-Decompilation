@@ -156,13 +156,15 @@ typedef struct NcPlayer {
 extern NcPlayer  lbl_80275AE0[4];   /* the 4 player records (game/player.h Player[]) */
 extern f32       lbl_802757D4[3];   /* default position when no player is valid */
 extern NcCamera  lbl_80274AA0;      /* DebugCamera instance */
+extern NcCamera* lbl_80344A6C;      /* live standard-camera pointer (frustum query) */
 extern NcCamera* lbl_80344A68;      /* DebugCam: pointer to the live debug camera */
 extern s32       lbl_80344A7C;      /* debug-camera active flag */
 extern s32       lbl_80344A90;      /* StdCam freeze flag */
 extern void*     gCurLevel;         /* level record; +0x60 = active CAMERA* (bounds) */
 
-/* NEWCAM projection-parameter block (half-FOV tangents at +0x1C / +0x20). */
-extern u8 lbl_80344EE8[];
+/* NEWCAM projection-parameter block: the live MB window pointer (mb_window.c
+ * .sbss), half-FOV tangents at +0x1C / +0x20, view matrix at +0x64. */
+extern f32* lbl_80344EE8;
 /* seed vector for YawVec3 (a fixed unit direction). */
 extern const u8 lbl_80127D30[];
 
@@ -173,6 +175,398 @@ extern void YawVec3(const void* seed, Vec3* out, f32 angle);
 /* transform a point through the current matrix stack (dst <- M * src). */
 extern void fn_800B5554(Vec3* dst, const Vec3* src);
 extern void fn_800B53B4(Vec3* dst, const Vec3* src);
+
+/* frustum point-clip test core (fn_8006DC64); the public entry fn_8006DC2C is
+ * a thin wrapper that supplies the live standard-camera pointer. */
+extern void fn_8006DC64(NcCamera* cam, s32 arg1, f32* pt, s32 mode);
+
+/* MB window/camera projection layer (mb_camera.c / mb_window.c / pb_window.c). */
+extern void MBCameraUpdate(f32* position, f32* matrix);
+extern void MBWindowZoom(f32 zoom);
+extern void MBWindowProjection(f32 angle, f32 aspect);
+
+/* MB scene-tree node ops + the level-arrow blit factory (world/items.c). */
+extern s32  add_arrow(s32 kind, s32 refresh, s32 useAngles, f32* angles,
+                      f32* look, f32* pos);
+extern void MBTreeSetAlpha(void* node, s32 a, s32 b);
+extern void MBTreeClearFlags(void* node, s32 a, s32 b);
+extern void MBRemoveNode(void* node, s32 a);
+
+extern void* lbl_80344A78;          /* the debug-overlay arrow node handle */
+extern f32   lbl_80127D40[];        /* default arrow angle vector */
+typedef struct NcBlk16 { u32 w[4]; } NcBlk16;
+extern const NcBlk16 lbl_801137C0;  /* 16-byte zero look template */
+
+/* copy a 3x3 (row-major) basis; fn_800BD428 derives a look basis from 3 vecs. */
+extern void CopyMat3(f32* src, f32* dst);
+extern void fn_800BD428(f32* a, f32* b, f32* c);
+
+/* normalize a Vec3 in place, returning its original length (ps2/ml_fmath.c). */
+extern f32 SlowNormalVector(f32* vector);
+
+extern s32 lbl_80343CE0;   /* slow-motion / time-scaling enable */
+extern f32 lbl_80344590;   /* time scale (frame delta) */
+extern s32 lbl_80343CEC;   /* interpolation frame count (divisor) */
+extern s32 lbl_80343CF8;   /* active marker index (also the 3D selector) */
+
+/*
+ * fn_80070144 -- step the camera yaw (0xEC) and pitch (0x104) toward the given
+ * targets over lbl_80343CEC frames.  On a marker change it seeds the per-frame
+ * yaw/pitch rates (shortest-arc wrapped) and resets the frame accumulator
+ * (0x1AC); each subsequent call advances yaw/pitch by rate*step (wrapping to
+ * [-PI,PI]) until the accumulator reaches the frame count.  Returns 1 while
+ * still interpolating, 0 when done.  [caller: fn_8006DF34]
+ */
+s32 fn_80070144(f32 targetYaw, f32 targetPitch, NcCamera* cam) {
+    u8* c = (u8*)cam;
+    f32 step;
+    f64 d;
+    s32 result;
+
+    if (lbl_80343CE0 != 0) {
+        if (lbl_80344590 <= 0.0) {
+            step = 1.0f;
+        } else {
+            step = 30.0 * lbl_80344590;
+        }
+    } else {
+        step = 1.0f;
+    }
+
+    if (lbl_80343CF8 != *(s32*)(c + 0x1A8)) {
+        *(s32*)(c + 0x1A8) = lbl_80343CF8;
+
+        d = (f32)(targetYaw - *(f32*)(c + 0xEC));
+        if (d > 3.141592654) {
+            d = d - 6.283185308;
+        } else if (d <= -3.141592654) {
+            d = 6.283185308 + d;
+        }
+        *(f32*)(c + 0xF0) = d / (f64)lbl_80343CEC;
+
+        d = (f32)(targetPitch - *(f32*)(c + 0x104));
+        if (d > 3.141592654) {
+            d = d - 6.283185308;
+        } else if (d <= -3.141592654) {
+            d = 6.283185308 + d;
+        }
+        *(f32*)(c + 0x108) = d / (f64)lbl_80343CEC;
+
+        *(f32*)(c + 0x1AC) = 0.0f;
+    }
+
+    if ((f32)(f64)lbl_80343CEC <= *(f32*)(c + 0x1AC)) {
+        result = 0;
+    } else {
+        d = *(f32*)(c + 0xF0) * step + *(f32*)(c + 0xEC);
+        if (d > 3.141592654) {
+            d = d - 6.283185308;
+        } else if (d <= -3.141592654) {
+            d = 6.283185308 + d;
+        }
+        *(f32*)(c + 0xEC) = d;
+
+        d = *(f32*)(c + 0x108) * step + *(f32*)(c + 0x104);
+        if (d > 3.141592654) {
+            d = d - 6.283185308;
+        } else if (d <= -3.141592654) {
+            d = 6.283185308 + d;
+        }
+        *(f32*)(c + 0x104) = d;
+
+        *(f32*)(c + 0x1AC) = *(f32*)(c + 0x1AC) + step;
+        result = 1;
+    }
+    return result;
+}
+extern const f32 lbl_80127D20[3];  /* up ref: general */
+/* lbl_80127D40 (up ref: looking up) declared above for fn_8006EC18 */
+extern const f32 lbl_80127D50[3];  /* up ref: looking down */
+extern const f32 lbl_80127D60[];   /* default identity-ish basis */
+
+/*
+ * fn_80070340 -- build an orthonormal look basis into mat[0..2]=right,
+ * mat[4..6]=up, mat[8..10]=forward from the forward direction in dir.  Degenerate
+ * (near-zero) forward copies a default basis; a near-vertical forward selects an
+ * up reference by sign, otherwise a general up reference; then two cross products
+ * (with a re-normalize) orthonormalize the basis.  [5 internal callers]
+ */
+void fn_80070340(f32* dir, f32* mat) {
+    f32* m = mat;
+    f32* up = m + 4;
+    f32* fwd = m + 8;
+    f32 len;
+
+    m[8] = dir[0];
+    m[9] = dir[1];
+    m[10] = dir[2];
+    len = SlowNormalVector(fwd);
+    if (len < 0.001) {
+        CopyMat3((f32*)lbl_80127D60, m);
+    } else {
+        if (fwd[0] * fwd[0] + fwd[2] * fwd[2] < 0.0001) {
+            if (fwd[1] > 0.0f) {
+                up[0] = lbl_80127D40[0];
+                up[1] = lbl_80127D40[1];
+                up[2] = lbl_80127D40[2];
+            } else {
+                up[0] = lbl_80127D50[0];
+                up[1] = lbl_80127D50[1];
+                up[2] = lbl_80127D50[2];
+            }
+        } else {
+            up[0] = lbl_80127D20[0];
+            up[1] = lbl_80127D20[1];
+            up[2] = lbl_80127D20[2];
+        }
+        m[0] = up[1] * fwd[2] - up[2] * fwd[1];
+        m[1] = up[2] * fwd[0] - up[0] * fwd[2];
+        m[2] = up[0] * fwd[1] - up[1] * fwd[0];
+        SlowNormalVector(m);
+        up[0] = fwd[1] * m[2] - fwd[2] * m[1];
+        up[1] = fwd[2] * m[0] - fwd[0] * m[2];
+        up[2] = fwd[0] * m[1] - fwd[1] * m[0];
+    }
+}
+
+void CamReset(NcCamera* cam);   /* defined below; forward decl for early callers */
+
+/* per-mode camera updaters + the combat camera-tick hook (game/game/combat.c). */
+extern void fn_8006F16C(s32 arg);
+extern void fn_8006DF34(NcCamera* cam);
+extern void fn_8006E654(void);
+extern void fn_8002A5C0(s32 mode);
+
+extern s32       lbl_80344568;   /* master camera-disable flag */
+extern void*     lbl_8034457C;   /* camera-enable gate (nonzero to run) */
+extern s32       lbl_8034477C;   /* camera-path mode selector (0x4010 = scripted) */
+extern s32       lbl_803447BC;   /* scripted-path sub-state */
+
+/*
+ * UpdateCam -- top-level per-frame camera dispatcher.  Runs only when the
+ * camera is enabled; lazily kick-starts the standard camera, drives the
+ * scripted-path state machine (fn_8002A5C0) when active, and otherwise ticks
+ * the live standard camera (fn_8006DF34) or, on the freeze->unfreeze edge,
+ * re-pushes the MB projection.  Always returns 1.  [caller: game/sys/main]
+ */
+s32 UpdateCam(void) {
+    s32 done;
+
+    if (lbl_80344568 != 0 || lbl_8034457C == 0) {
+        return 1;
+    }
+    if (lbl_80344A6C == 0) {
+        fn_8006F16C(0);
+    }
+    if (lbl_8034477C != 0x4010) {
+        done = 1;
+    } else {
+        if (lbl_803447BC > 2) {
+            lbl_803447BC = 2;
+        }
+        fn_8002A5C0(lbl_803447BC);
+        if (lbl_803447BC == 1) {
+            fn_8006E654();
+        }
+        done = lbl_803447BC > 0;
+    }
+    if (done != 0) {
+        return 1;
+    }
+    if (lbl_80344A90 != 0) {
+        lbl_80344A90 = 0;
+        MBCameraUpdate((f32*)((u8*)lbl_80344A6C + 0x30), (f32*)lbl_80344A6C);
+        MBWindowZoom(*(f32*)((u8*)lbl_80344A6C + 0x10C));
+        if (*(f32*)((u8*)lbl_80344A6C + 0x110) > 0.0) {
+            MBWindowProjection(
+                0.31830988614222805 * (180.0 * *(f32*)((u8*)lbl_80344A6C + 0x10C)),
+                1.0 / *(f32*)((u8*)lbl_80344A6C + 0x110));
+        }
+        return 1;
+    }
+    fn_8006DF34(lbl_80344A6C);
+    return 1;
+}
+
+/*
+ * Marker/waypoint record (0x28 stride) scanned by the nearest-selectors below.
+ * Only the fields the selectors touch are named.  Array base lbl_80258E04.
+ */
+typedef struct NcMarker {
+    u8    flag;       /* 0x00 nonzero = record disabled */
+    u8    _01[3];
+    f32   x;          /* 0x04 */
+    f32   y;          /* 0x08 */
+    f32   z;          /* 0x0C */
+    u8    _10[0x24 - 0x10];
+    void* node;       /* 0x24 scene node handle */
+} NcMarker;           /* 0x28 */
+
+extern NcMarker lbl_80258E04[];  /* marker records */
+extern s32 lbl_80344918;         /* marker count */
+extern s32 lbl_80343CF4;         /* current selection (2D XZ selector) */
+extern s32 lbl_80343CF8;         /* current selection (3D selector) */
+
+/* fast 2D (XZ) distance approximation (ps2/ml_fmath.c). */
+extern f32 fqdist(f32 x, f32 y);
+
+/*
+ * fn_8006FBAC -- pick the enabled marker nearest (in the XZ plane) to pos,
+ * with hysteresis: the previously-selected marker is kept unless the new best
+ * is at least ~1.5x closer (bestDist <= 0.667 * selectedDist).  Returns the
+ * chosen record (NULL if none).  [caller: bosscam]
+ */
+void* fn_8006FBAC(f32* pos) {
+    u8 unused[16];
+    f32 bestDist = 0.0f;
+    s32 i;
+    s32 best = -1;
+
+    if (lbl_80344918 <= 0) {
+        return NULL;
+    }
+    for (i = 0; i < lbl_80344918; i++) {
+        NcMarker* m = &lbl_80258E04[i];
+        if (m->flag == 0 && i != lbl_80343CF4) {
+            f32 d = fqdist(pos[0] - m->x, pos[2] - m->z);
+            if (best < 0 || d < bestDist) {
+                bestDist = d;
+                best = i;
+            }
+        }
+    }
+    if (lbl_80343CF4 < 0) {
+        lbl_80343CF4 = best;
+    } else {
+        NcMarker* m = &lbl_80258E04[lbl_80343CF4];
+        f32 selDist = fqdist(pos[0] - m->x, pos[2] - m->z);
+        if (bestDist <= 0.667 * selDist) {
+            lbl_80343CF4 = best;
+        }
+    }
+    return &lbl_80258E04[lbl_80343CF4];
+}
+
+/*
+ * fn_8006FCDC -- 3D counterpart of fn_8006FBAC: pick the enabled marker nearest
+ * (full 3D squared distance) to pos, with the same hysteresis (kept unless the
+ * new best is ~1.5x closer: bestDist <= 4/9 * selectedDist).  When it switches,
+ * it fades the previously-selected marker's node (MBTreeSetAlpha).  [internal]
+ */
+void* fn_8006FCDC(f32* pos) {
+    u8 unused[8];
+    s32 best = -1;
+    f32 bestDist = 0.0f;
+    s32 sel;
+    s32 i;
+
+    if (lbl_80344918 <= 0) {
+        return NULL;
+    }
+    sel = lbl_80343CF8;
+    for (i = 0; i < lbl_80344918; i++) {
+        NcMarker* m = &lbl_80258E04[i];
+        if (m->flag == 0 && i != sel) {
+            f32 dy = pos[1] - m->y;
+            f32 dx = pos[0] - m->x;
+            f32 dz = pos[2] - m->z;
+            f32 d = dy * dy + dx * dx + dz * dz;
+            if (best < 0 || d < bestDist) {
+                bestDist = d;
+                best = i;
+            }
+        }
+    }
+    if (sel < 0) {
+        lbl_80343CF8 = best;
+    } else {
+        NcMarker* m = &lbl_80258E04[sel];
+        f32 dy = pos[1] - m->y;
+        f32 dx = pos[0] - m->x;
+        f32 dz = pos[2] - m->z;
+        f32 selDist = dy * dy + dx * dx + dz * dz;
+        if (bestDist <= 0.4444444444444444 * selDist) {
+            MBTreeSetAlpha(m->node, 100, 0);
+            lbl_80343CF8 = best;
+        }
+    }
+    return &lbl_80258E04[lbl_80343CF8];
+}
+
+/*
+ * fn_8006FE30 -- initialise/refresh the debug camera projection.  Lazily wires
+ * DebugCam to the static DebugCamera instance (once), copies the MB window's
+ * view basis and eye position into the camera, mirrors them into the camera's
+ * history/target rows, and rebuilds the look basis.  [caller: game/sys/main]
+ */
+void fn_8006FE30(void) {
+    if (lbl_80344A7C == 0) {
+        lbl_80344A68 = &lbl_80274AA0;
+        CamReset(lbl_80344A68);
+        lbl_80344A7C = 1;
+    }
+    CopyMat3((f32*)((u8*)lbl_80344EE8 + 100), (f32*)lbl_80344A68);
+    ((f32*)lbl_80344A68)[0xc] = *(f32*)((u8*)lbl_80344EE8 + 0x94);
+    ((f32*)lbl_80344A68)[0xd] = *(f32*)((u8*)lbl_80344EE8 + 0x98);
+    ((f32*)lbl_80344A68)[0xe] = *(f32*)((u8*)lbl_80344EE8 + 0x9c);
+    ((f32*)lbl_80344A68)[0x38] = ((f32*)lbl_80344A68)[8];
+    ((f32*)lbl_80344A68)[0x39] = ((f32*)lbl_80344A68)[9];
+    ((f32*)lbl_80344A68)[0x3a] = ((f32*)lbl_80344A68)[0xa];
+    ((f32*)lbl_80344A68)[0x29] = ((f32*)lbl_80344A68)[0xc];
+    ((f32*)lbl_80344A68)[0x2a] = ((f32*)lbl_80344A68)[0xd];
+    ((f32*)lbl_80344A68)[0x2b] = ((f32*)lbl_80344A68)[0xe];
+    ((f32*)lbl_80344A68)[0x3d] = 0.0f;
+    fn_800BD428((f32*)lbl_80344A68 + 0x38, (f32*)lbl_80344A68 + 0x3b,
+                (f32*)lbl_80344A68 + 0x41);
+}
+
+/*
+ * fn_8006EC18 -- toggle the debug-overlay level arrow.  Non-zero idx shows it
+ * (creating the arrow node once, then clearing its draw flags each call); zero
+ * idx removes it.  [caller: game/world/items.c]
+ */
+void fn_8006EC18(s32 idx) {
+    f32 pos[17];
+    NcBlk16 look = lbl_801137C0;
+
+    if (idx != 0) {
+        if (lbl_80344A78 == 0) {
+            lbl_80344A78 = (void*)add_arrow(2, 1, 0, lbl_80127D40, (f32*)&look, pos);
+            MBTreeSetAlpha(lbl_80344A78, 0, 0);
+        }
+        MBTreeClearFlags(lbl_80344A78, 2, 0);
+    } else {
+        if (lbl_80344A78 != 0) {
+            MBRemoveNode(lbl_80344A78, 1);
+            lbl_80344A78 = 0;
+        }
+    }
+}
+
+/*
+ * fn_8006ECD4 -- push the live standard camera into the MB window/projection
+ * layer: update the MB camera from the camera basis, zoom the window by the
+ * camera FOV field, and (when the projection distance is positive) set the MB
+ * projection to the FOV in degrees and the inverse distance.  [caller: bosscam]
+ */
+void fn_8006ECD4(void) {
+    MBCameraUpdate((f32*)((u8*)lbl_80344A6C + 0x30), (f32*)lbl_80344A6C);
+    MBWindowZoom(*(f32*)((u8*)lbl_80344A6C + 0x10C));
+    if (*(f32*)((u8*)lbl_80344A6C + 0x110) > 0.0) {
+        MBWindowProjection(
+            0.31830988614222805 * (180.0 * *(f32*)((u8*)lbl_80344A6C + 0x10C)),
+            1.0 / *(f32*)((u8*)lbl_80344A6C + 0x110));
+    }
+}
+
+/*
+ * fn_8006DC2C -- public frustum point-clip query.  Loads the live standard
+ * camera (lbl_80344A6C) and forwards the caller's arguments to the clip core.
+ * [caller: bosscam]
+ */
+void fn_8006DC2C(s32 arg1, f32* pt, s32 mode) {
+    fn_8006DC64(lbl_80344A6C, arg1, pt, mode);
+}
 
 /*
  * CamReset -- reset a camera object to its default working state.  Zeroes the
@@ -185,6 +579,7 @@ extern void fn_800B53B4(Vec3* dst, const Vec3* src);
  * explicitly rather than via memset; the constant defaults (field yaw <-
  * lbl_80347508, field_1AC/10C <- lbl_8034750C) are preserved symbolically here.
  */
+#pragma dont_inline on
 void CamReset(NcCamera* cam) {
     u8* p = (u8*)cam;
     s32 i;
@@ -201,6 +596,7 @@ void CamReset(NcCamera* cam) {
     /* clear the module-wide current/freeze state */
     lbl_80344A90 = 0;      /* unfreeze */
 }
+#pragma dont_inline off
 
 /*
  * StdCamFreeze -- freeze the standard camera (stop it from tracking players)
@@ -232,68 +628,66 @@ void DebugCamInit(void) {
  * default position (lbl_802757D4) is used.  bmax/bmin, when non-NULL, receive
  * the bounding box (meaningful only for mode>0).  [callers: bosscam, tower]
  */
-void GetPlayerAvgPos(Vec3* avg, Vec3* bmax, Vec3* bmin, s32 mode) {
-    Vec3 vmax, vmin;
-    f32* src;
+void GetPlayerAvgPos(f32* avg, f32* outMin, f32* outMax, s32 mode) {
+    f32 box[6];        /* box[0..2] = running max, box[3..5] = running min */
     f32 count;
     s32 i, k;
 
-    avg->x = avg->y = avg->z = 0.0f;
-    vmin.x = vmin.y = vmin.z = 1.0e18f;    /* lbl_803474B0 */
-    vmax.x = vmax.y = vmax.z = -1.0e18f;   /* lbl_803474B4 */
+    avg[0] = 0.0f; avg[1] = 0.0f; avg[2] = 0.0f;
     count = 0.0f;
+    box[0] = -1e20f; box[1] = -1e20f; box[2] = -1e20f;  /* lbl_803474B0 max */
+    box[3] =  1e20f; box[4] =  1e20f; box[5] =  1e20f;  /* lbl_803474B4 min */
 
     for (i = 0; i < 4; i++) {
         NcPlayer* pl = &lbl_80275AE0[i];
-        if (pl->state != 1) {
-            continue;
-        }
-        src = (pl->ncflags & 0x20) ? pl->altpos : pl->campos;
-        if (mode == 0) {
-            avg->x += src[0];
-            avg->y += src[1];
-            avg->z += src[2];
-        } else {
-            f32* mx = &vmax.x;
-            f32* mn = &vmin.x;
-            for (k = 0; k < 3; k++) {
-                if (mx[k] < src[k]) mx[k] = src[k];
-                if (mn[k] > src[k]) mn[k] = src[k];
+        if (pl->state == 1) {
+            f32* src = (pl->ncflags & 0x20) ? pl->altpos : pl->campos;
+            if (mode == 0) {
+                avg[0] = src[0] + avg[0];
+                avg[1] = src[1] + avg[1];
+                avg[2] = src[2] + avg[2];
+            } else {
+                for (k = 0; k < 3; k++) {
+                    f32 v = src[k];
+                    box[3 + k] = (box[3 + k] < v) ? box[3 + k] : v;  /* min */
+                    box[k]     = (box[k] > v)     ? box[k]     : v;  /* max */
+                }
             }
+            count += 1.0;      /* double literal: count promoted, frsp back */
         }
-        count += 1.0f;
     }
 
-    if (count == 0.0f) {
-        avg->x = lbl_802757D4[0];
-        avg->y = lbl_802757D4[1];
-        avg->z = lbl_802757D4[2];
-    } else if (mode == 0) {
-        f32 s = 1.0f / count;
-        avg->x *= s;
-        avg->y *= s;
-        avg->z *= s;
+    if (count == 0.0) {        /* no valid players: use the default position */
+        avg[0] = lbl_802757D4[0];
+        avg[1] = lbl_802757D4[1];
+        avg[2] = lbl_802757D4[2];
     } else {
-        avg->x = (vmax.x + vmin.x) * 0.5f;
-        avg->y = (vmax.y + vmin.y) * 0.5f;
-        avg->z = (vmax.z + vmin.z) * 0.5f;
-    }
-
-    if (bmax) {
-        bmax->x = vmax.x; bmax->y = vmax.y; bmax->z = vmax.z;
-    }
-    if (bmin) {
-        bmin->x = vmin.x; bmin->y = vmin.y; bmin->z = vmin.z;
-    }
-
-    if (mode == 2 && gCurLevel != 0) {
-        f32* bounds = *(f32**)((u8*)gCurLevel + 0x60);   /* level->camera */
-        if (bounds != 0) {
-            f32* a = &avg->x;
+        f32 s = 1.0 / count;   /* double reciprocal */
+        if (mode == 0) {
+            avg[0] = avg[0] * s;
+            avg[1] = avg[1] * s;
+            avg[2] = avg[2] * s;
+        } else {
             for (k = 0; k < 3; k++) {
-                if (a[k] < bounds[3 + k]) a[k] = bounds[3 + k];   /* +0x0C low */
-                if (a[k] > bounds[6 + k]) a[k] = bounds[6 + k];   /* +0x18 high */
+                avg[k] = 0.5 * (box[3 + k] + box[k]);   /* double 0.5 midpoint */
             }
+        }
+    }
+
+    if (outMin != 0) {
+        outMin[0] = box[3]; outMin[1] = box[4]; outMin[2] = box[5];
+    }
+    if (outMax != 0) {
+        outMax[0] = box[0]; outMax[1] = box[1]; outMax[2] = box[2];
+    }
+
+    if (mode == 2 && gCurLevel != 0 && *(void**)((u8*)gCurLevel + 0x60) != 0) {
+        for (k = 0; k < 3; k++) {
+            f32* cam = *(f32**)((u8*)gCurLevel + 0x60);   /* level->camera */
+            f32 v = avg[k];
+            if (v < cam[3 + k]) v = cam[3 + k];           /* +0x0C low */
+            else if (v > cam[6 + k]) v = cam[6 + k];      /* +0x18 high */
+            avg[k] = v;
         }
     }
 }
@@ -372,8 +766,8 @@ void CalcFrustrumNormals(const Vec3* look, f32 fov, Vec3* out) {
     Vec3 tl, tr, bl, br; /* frustum corner directions */
 
     YawVec3(lbl_80127D30, &seed, fov);
-    tanH = (f32)tan((f64)(*(f32*)(lbl_80344EE8 + 0x1C) * -fov));
-    tanV = (f32)tan((f64)(*(f32*)(lbl_80344EE8 + 0x20) * -fov));
+    tanH = (f32)tan((f64)(*(f32*)((u8*)lbl_80344EE8 + 0x1C) * -fov));
+    tanV = (f32)tan((f64)(*(f32*)((u8*)lbl_80344EE8 + 0x20) * -fov));
 
     /* seed scaled by tanH gives the horizontal frustum spread; look.y +/- ...
      * gives the vertical spread.  Corners = look +/- spreads. */
