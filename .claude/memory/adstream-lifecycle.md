@@ -1,10 +1,11 @@
 # `adstream.c` lifecycle notes
 
-Four GameCube streaming-audio functions are now byte-exact:
+Five GameCube streaming-audio functions are now byte-exact:
 
 - `AdsClose` (28 instructions)
 - `AdsDelete` (21 instructions)
 - `AdsNew` (55 instructions)
+- `AdsOpen` (47 instructions)
 - `adsLockCallback` (10 instructions)
 
 Recovered `ADSTREAM` fields include the `FileBuf` handle at `+4`, work buffer
@@ -32,3 +33,8 @@ Codegen techniques:
   allocation.
 - Spell the occupied-stream test as an explicit zero/one branch, not a C
   boolean assignment; the target retains `cmplwi/li/beq/li`.
+- `AdsOpen` has two distinct paths: reuse the existing `FileBuf` with
+  `FileBufOpen`, or allocate one with `FileBufStart` and register it through
+  `dcsSetStreamFlag`. A stream in status `0x2000` clears that bit from the
+  global mask, resets its status, and rewinds `gAddrSpuNext` by
+  `sizeVoiceLoop * blocks`; other successful reopens increment `endCount`.
