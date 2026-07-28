@@ -216,7 +216,9 @@ typedef struct Player {
     /* 0x223A */ u8  pad_223A[0x10EA];
     /* 0x3324 */ s32 level;          /* character level 1..99 [player.c] */
     /* 0x3328 */ s32 intower;        /* set while active in tower [player.c] */
-    /* 0x332C */ u8  pad_332C[0xC];
+    /* 0x332C */ s32 world_text_active; /* overhead text state [gauntworld] */
+    /* 0x3330 */ s32 world_name_len;    /* capped display-name length [gauntworld] */
+    /* 0x3334 */ s32 world_name_tail;   /* displaced sixth char or '@' [gauntworld] */
     /* 0x3338 */ s32 motion_state;   /* motion/tower-exit state [player.c] */
     /* 0x333C */ u8  pad_333C[4];
     /* 0x3340 */ s32 meter_flash;    /* power-meter flash state [player.c] */

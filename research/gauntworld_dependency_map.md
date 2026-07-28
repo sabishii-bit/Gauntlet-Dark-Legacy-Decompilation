@@ -83,6 +83,13 @@ scan, and an item-state query.  These functions deliberately reuse the shared
 `OBJGRP` and `Item` layouts from `include/game/item.h`; no duplicate anonymous
 layout was added.
 
+The next slice extends that boundary with the per-player world-name
+initializer, the texture-mod update fan-out, a type-4 item relinker, and a
+nearest-live-item query over `StartEnemyGrid`/`NextGridEnemy`.  The last helper
+establishes the mixed-register ABI
+`(f32 radius, f32* position, Item** result) -> f32 distance` and confirms that
+the queried position is the first three floats of `OBJGRP.coll_pos`.
+
 ## Items follow-up
 
 Following the first dependency edge into `game/world/items` established the
