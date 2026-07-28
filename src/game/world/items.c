@@ -165,6 +165,21 @@ extern f64   __frsqrte(f64 value);
 extern s32   add_arrow(s32 kind, s32 one, s32 alt, f32* a, f32* b, f32* pos);
 extern void  fn_8006EC18(s32 idx);                        /* newcam hook */
 extern s32   AtreeMatch(void* tree, char* name, s32 flag);
+extern f32   fn_800BD3E8(f64 ang);                        /* angle wrap */
+extern void  fn_800BD050(f32* mtx, f32* angles);          /* mtx from angles */
+extern f64   fn_8000D3C4(f64 y, f32 r, f32* pos, s32 mode); /* ground probe */
+extern s32   MBOX_NewObject(char* name, f32* mtx, s32 a, s32 b);
+extern void  fn_800BA6C0(s32 handle, s32 pri, s32 b);
+extern s32   fn_800B8E94(char* name, s32 a, s32 b, s32 c);/* find texture */
+extern void* fn_800B92B0(void* node, s32 tex);
+extern char* strcat(char* dst, const char* src);
+extern char* lbl_8011C8A8[];   /* arrow blit names by kind */
+extern char  lbl_80346F78[];   /* "L1" */
+extern char  lbl_80346F7C[];   /* "ROOT" */
+extern char  lbl_80347128[];   /* "%s%d" health-tier fmt */
+extern f64   lbl_80347020;     /* pi (rounded) */
+extern f64   lbl_80346FB0;     /* 0.5 */
+extern f32   lbl_80346FFC;
 extern s32   lbl_803448F4;   /* milestone shown idx */
 extern s32   lbl_803448F8;   /* cameras shown idx */
 extern s32   lbl_8034491C;   /* milestone count */
@@ -924,6 +939,48 @@ s32 ShowCameras(s32 idx)
         fn_8006EC18(lbl_803448F8);
     }
     return lbl_803448F8;
+}
+
+/* 0x80067050 - create a floor/level arrow blit; kind indexes the name table,
+ * angles (optional) orient it, look supplies the aim point. */
+s32 add_arrow(s32 kind, s32 refresh, s32 useAngles, f32* angles, f32* look, f32* pos)
+{
+    f32 ang2[3];
+    f32 tmp[16];
+    s32 handle = 0;
+    f32* mtx;
+
+    if ((mtx = pos) == NULL) {
+        mtx = tmp;
+    }
+    if (angles != NULL) {
+        if (useAngles != 0) {
+            ang2[0] = angles[0];
+            ang2[1] = angles[1];
+            ang2[2] = angles[2];
+            ang2[1] = ang2[1] + lbl_80347020;
+            ang2[1] = fn_800BD3E8(ang2[1]);
+            ang2[0] = -ang2[0];
+            ang2[0] = fn_800BD3E8(ang2[0]);
+            fn_800BD050(mtx, ang2);
+            angles = ang2;
+        }
+        fn_800BD050(mtx, angles);
+        mtx[12] = look[0];
+        mtx[13] = look[1];
+        mtx[14] = look[2];
+    }
+    if (kind == 0) {
+        mtx[13] = lbl_80346FB0 + fn_8000D3C4(mtx[13], lbl_80346FFC, mtx + 12, 0);
+    }
+    if (refresh != 0) {
+        handle = MBOX_NewObject(lbl_8011C8A8[kind], mtx, 0, 0);
+        fn_800BA6C0(handle, 100, 0);
+        if (refresh == 2) {
+            fn_800BA368((void*)handle, 2, 0);
+        }
+    }
+    return handle;
 }
 
 /* 0x80067248 - closest waypoint to pos within maxDist (all != 0 scans every
