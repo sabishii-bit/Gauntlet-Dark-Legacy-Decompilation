@@ -12,7 +12,7 @@ Usage (from repo root):
   python tools/gdl/nearmiss.py --grep sfx     # one TU family
   python tools/gdl/nearmiss.py --parked skip  # hide fns listed in PARKED.txt
 
-PARKED.txt (repo root, optional): one function name per line (comments with
+research/PARKED.txt (optional): one function name per line (comments with
 '#'), the residuals already diagnosed as allocator-quirk walls. Default is to
 mark them [PARKED] rather than hide, so the queue stays honest.
 """
@@ -26,7 +26,7 @@ from pathlib import Path
 VERSION = "GUNE5D"
 REPO = Path(__file__).resolve().parent.parent.parent
 REPORT = REPO / "build" / VERSION / "report.json"
-PARKED = REPO / "PARKED.txt"
+PARKED = REPO / "research" / "PARKED.txt"
 
 
 def load_parked():
