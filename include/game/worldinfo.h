@@ -14,13 +14,13 @@
  * disassembly of the world/collision/item/camera consumers and matched the
  * Xbox layout exactly (no GC deltas).  Verified field offsets (base gWorldInfo):
  *   +0x04 wobjs   (obj array, stride 0x3C)   world.o, items.o
- *   +0x08 ctris                              auto_fn_8000DFEC (collision)
- *   +0x0C gridrow                            auto_fn_8000D578 (collision)
+ *   +0x08 ctris                              WorldObjCollide
+ *   +0x0C gridrow                            WorldCollide
  *   +0x18 worldmin[3] (lfs)                  camera.o, dyngrid.o, dynobjgrid.o
  *   +0x24 worldmax[3] (lfs)                  dyngrid.o, dynobjgrid.o
- *   +0x48 gridsize / +0x4C invgridsize (lfs) auto_fn_8000DD00 (collision)
- *   +0x50 gridnumx / +0x54 gridnumz          auto_fn_8000DD00
- *   +0x58 checknum / +0x5C coltrichecked     auto_fn_8000D578 / 8000E3B8
+ *   +0x48 gridsize / +0x4C invgridsize (lfs) NextGrid
+ *   +0x50 gridnumx / +0x54 gridnumz          NextGrid
+ *   +0x58 checknum / +0x5C coltrichecked     WorldCollide / CTriListCollide
  *   +0x60 nwobjs                             items.o
  *   +0x68 iteminfo +0x6C iteminst +0x70 locators
  *   +0x74 niteminfos +0x78 niteminsts +0x7C nlocators   items.o

@@ -221,7 +221,7 @@ extern void MBPolyInstSetColorAlpha(struct polyinst* p, u32 color, s32 alpha);
 extern void MBRemoveNode(struct mbnode* node, s32 flag);               /* node destroy    */
 extern f32 NormalVector(f32* v);                                      /* normalize, ret len */
 extern int msgPost(int idx, int param, char* str);
-extern u32 fn_8000D4B8(f32 rad1, f32 rad2, f32 drop, f32* pos, f32* outnrm, s32 a, s32 b); /* floor probe */
+extern u32 FloorCollide(f32 rad1, f32 rad2, f32 drop, f32* pos, f32* outnrm, s32 a, s32 b); /* floor probe */
 extern void fn_800115D0(void* atree);                                  /* atree release   */
 extern struct anode* fn_80012F78(struct atreeheader* hdr, void* atree, s32 a, s32 b); /* atree build */
 extern struct anode* fn_80012F9C(struct atreeheader* hdr, void* atree, s32 a, u32 flb, s32 b); /* atree build (flags) */
@@ -1260,7 +1260,7 @@ void PlaceEffectOnFloor(s32 idx, f32* mat)
     if (mat == NULL) {
         mat = (f32*)e->node;
     }
-    if (fn_8000D4B8(e->colrad + 1.0, e->colrad + 5.0, -10.0f, mat + 12, NULL, 1, 0)) {
+    if (FloorCollide(e->colrad + 1.0, e->colrad + 5.0, -10.0f, mat + 12, NULL, 1, 0)) {
         CopyMat4(lbl_8023CAE0, mat);
         mat[13] += 0.1;
     } else {

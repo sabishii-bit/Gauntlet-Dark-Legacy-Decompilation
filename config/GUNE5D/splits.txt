@@ -12,6 +12,26 @@ Sections:
 	.sbss       type:bss align:8
 	.sdata2     type:rodata align:16
 
+game/world/worldcol.c:
+	extab       start:0x800054E0 end:0x80005548
+	extabindex  start:0x800087A0 end:0x8000883C
+	.text       start:0x8000CF40 end:0x8000E8E8
+
+game/anim/anim.c:
+	extab       start:0x80005548 end:0x80005580
+	extabindex  start:0x8000883C end:0x80008890
+	.text       start:0x8000E8E8 end:0x8000F628
+
+game/anim/anim_play.c:
+	extab       start:0x80005580 end:0x80005590
+	extabindex  start:0x80008890 end:0x800088A8
+	.text       start:0x8000F628 end:0x80010A4C
+
+game/anim/atree.c:
+	extab       start:0x80005590 end:0x80005678
+	extabindex  start:0x800088A8 end:0x80008A04
+	.text       start:0x80010A4C end:0x800137BC
+
 game/ui/attract.c:
 	extab       start:0x80005678 end:0x800056E8
 	extabindex  start:0x80008A04 end:0x80008AAC
@@ -66,10 +86,20 @@ game/world/camera.c:
 	extabindex  start:0x80009010 end:0x800090D0
 	.text       start:0x80022734 end:0x8002951C
 
+game/game/combat.c:
+	extab       start:0x80005B00 end:0x80005C10
+	extabindex  start:0x800090D0 end:0x80009268
+	.text       start:0x8002951C end:0x8003101C
+
 game/game/controls.c:
 	extab       start:0x80005C10 end:0x80005CE0
 	extabindex  start:0x80009268 end:0x800093A0
 	.text       start:0x8003101C end:0x80034CFC
+
+game/enemy/critter.c:
+	extab       start:0x80005CE0 end:0x80005F28
+	extabindex  start:0x800093A0 end:0x8000970C
+	.text       start:0x80034CFC end:0x8004229C
 
 game/audio/soundmgr.c:
 	extab       start:0x80005F28 end:0x80005FF8
@@ -133,6 +163,26 @@ game/game/player.c:
 	extab       start:0x80006900 end:0x80006B30
 	extabindex  start:0x8000A5D0 end:0x8000A918
 	.text       start:0x800745D0 end:0x8008091C
+
+game/game/pmotion.c:
+	extab       start:0x80006B30 end:0x80006BE8
+	extabindex  start:0x8000A918 end:0x8000AA2C
+	.text       start:0x8008091C end:0x80089120
+
+game/sfx/psfx.c:
+	extab       start:0x80006BE8 end:0x80006C50
+	extabindex  start:0x8000AA2C end:0x8000AAC8
+	.text       start:0x80089120 end:0x8008BC50
+
+game/sys/psx2.c:
+	extab       start:0x80006C50 end:0x80006C60
+	extabindex  start:0x8000AAC8 end:0x8000AAE0
+	.text       start:0x8008BC50 end:0x8008BF88
+
+game/sys/recorder.c:
+	extab       start:0x80006C60 end:0x80006C80
+	extabindex  start:0x8000AAE0 end:0x8000AB10
+	.text       start:0x8008BF88 end:0x8008C52C
 
 game/ui/select.c:
 	extab       start:0x80006C80 end:0x80006D00

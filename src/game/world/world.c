@@ -163,8 +163,8 @@ extern void  MBTreeSetZsortAdd(void*, s32, s32);
 extern void  MBTreeSetAltTex(void*, s32, s32, s32);
 extern void  fn_800CEAF0(s32, void*, void*, s32, void*, void*); /* spawn psys   */
 extern void  CopyMat4(void*, void*);
-extern void  fn_8000F628(void*);
-extern s32   fn_8000F72C(void*, f32*, s32, s32, s32, s32, f32); /* sample anim  */
+extern void  ZeroAnimData(void*);
+extern s32   CalcAnimData(void*, f32*, s32, s32, s32, s32, f32); /* sample anim  */
 extern void  fn_800BD254(void*, f32*);  /* apply anim rotation (variant A)      */
 extern void  fn_800BD154(void*, f32*);  /* apply anim rotation (variant B)      */
 extern void  fn_80055E04(WorldObj*, f32*);
@@ -186,7 +186,7 @@ extern void* AllocMem(s32);
  * Allocates and initialises one WorldInfo's runtime data from a just-loaded,
  * endian-fixed world block, and returns the wobjs array base (stored by the
  * callers into lbl_80344D9C / lbl_80344D98).  From the region survey it calls
- * InitDynobjGrid, AllocMem, fn_8000E994, fn_8000F678, fn_80011DCC and
+ * InitDynobjGrid, AllocMem, SetupAnimHeader, InitAnimData, fn_80011DCC and
  * bulletproof_printf(lbl_80115244 = "---- ALLOC World Data [%dK]\n", ...), and
  * dispatches object set-up through jumptable_80126C30.  It fills wobjs, ctris,
  * the collision grid (gridrow/grid/gridsize/gridnum*), world bounds, item and
@@ -222,7 +222,7 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim) {
     s32 mode;
     s32 nframes;
     f32 dt = lbl_80344590;
-    f32 xf[16]; /* sampled transform (pos @16, scale @32) from fn_8000F72C */
+    f32 xf[16]; /* sampled transform (pos @16, scale @32) from CalcAnimData */
 
     if (data == NULL) {
         return 0;
@@ -264,10 +264,10 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim) {
     if ((mode & 0xFFF) == 0) {
         /* No keyframes: reset to the template pose. */
         CopyMat4(lbl_80127D60, node);
-        fn_8000F628(panim);
+        ZeroAnimData(panim);
     } else {
         nframes = wa->nframes;
-        if (fn_8000F72C(panim, xf, 0, mode, 0, nframes, wa->curframe) != 0) {
+        if (CalcAnimData(panim, xf, 0, mode, 0, nframes, wa->curframe) != 0) {
             /* Rotation. */
             if (mode & 7) {
                 if (mode & 0x8000) {

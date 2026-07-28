@@ -84,8 +84,8 @@ extern void* memset(void* p, s32 c, s32 n);
 extern void GetWorldMat(void* a, void* b, s32 c);
 extern void FatalError(const char* msg, s32 code);
 extern const char aGridError[]; /* lbl_80112360 == "GRID ERROR" */
-extern s32 fn_8000DFEC();
-extern s32 fn_8000DCD8();
+extern s32 WorldObjCollide();
+extern s32 ExitCollisionEarly();
 
 s32 NextDynGrid(s32* cellx, s32* cellz, f32 vx, f32 vy, f32 vz, f32 r,
                 s32 ix, s32 iy, s32 iz, s32 iy2);
@@ -124,15 +124,15 @@ s32 WorldDynCollide(u32 objmask, u32 sidemask, f32 x, f32 y, f32 z, f32 f4,
                     side |= o->link->side;
                 if ((o->flags & objmask) && !(side & sidemask) &&
                     !(o->flags & 0x10000000) && o->field38 >= 0) {
-                    fn_8000DFEC(o, o->field36, 0, r);
-                    ret = fn_8000DCD8();
+                    WorldObjCollide(o, o->field36, 0, r);
+                    ret = ExitCollisionEarly();
                     if (ret)
                         return ret;
                 }
             }
             head = ((u16*)e)[1];
         }
-        ret = fn_8000DCD8();
+        ret = ExitCollisionEarly();
         if (ret)
             return ret;
         ret = NextDynGrid(&cx, &cz, vx, vy, vz, r, (s32)x, (s32)y, (s32)z, (s32)y);

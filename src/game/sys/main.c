@@ -73,13 +73,13 @@ void OptionsSetup(void);
 void FontInit(void);
 u32 BytesFree(void);
 void ControlsUpdate(void);
-void fn_80010EB0(int w, int h);
+void AtreeInitLists(int w, int h);
 void pbInitDiag(int arg);
 void fn_800533E4(void);
 void fn_8005403C(int arg);
 void init_attract_mode(int screen);
 void fn_8002F040(void);
-void fn_8008BC50(void);
+void LoadVU1GameLogic(void);
 void PlayerControls(void);
 void sndSysStub1(void);
 void ScreenSaver(void);
@@ -104,7 +104,7 @@ void sndSysStub0(void);
 void fn_800520CC(void);
 void fn_8002EFE8(void);
 void InitMemHandler(void);
-void fn_8008BC54(s32 arg);
+void init_psx2(s32 arg);
 void AdsAllocBuffer(void);
 void fn_800C73E0(void);
 int sprintf(char* buf, const char* fmt, ...);
@@ -338,7 +338,7 @@ void main(void)
         u32 tmp;
         u8 pad[16]; /* unused, matches original frame */
 
-        fn_80010EB0(1024, 1024);
+        AtreeInitLists(1024, 1024);
         fn_8005A260(&lbl_803472C4, &tmp, 1, -1);
         pbInitDiag(2);
     } else {
@@ -357,7 +357,7 @@ void main(void)
         lbl_80344568 = 0;
         lbl_803449C4 = 2;
         fn_8002F040();
-        fn_8008BC50();
+        LoadVU1GameLogic();
         lbl_803449C4 = 3;
         PlayerControls();
         if (lbl_803449A0 == 0) {
@@ -496,7 +496,7 @@ void game_init_once(const char* name)
     fn_8002EFE8();
     bulletproof_printf(st + 264);
     InitMemHandler();
-    fn_8008BC54(*(s32*)name);
+    init_psx2(*(s32*)name);
     AdsAllocBuffer();
     fn_800C73E0();
     sprintf(buf, st + 288, mlmMemLimit / 1024, mlmMemLimit / 0x100000);

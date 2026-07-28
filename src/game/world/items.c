@@ -192,7 +192,7 @@ extern void  fn_8006EC18(s32 idx);                        /* newcam hook */
 extern s32   AtreeMatch(void* tree, char* name, s32 flag);
 extern f32   fn_800BD3E8(f64 ang);                        /* angle wrap */
 extern void  fn_800BD050(f32* mtx, f32* angles);          /* mtx from angles */
-extern f64   fn_8000D3C4(f64 y, f32 r, f32* pos, s32 mode); /* ground probe */
+extern f64   FloorPos(f64 y, f32 r, f32* pos, s32 mode); /* ground probe */
 extern s32   MBOX_NewObject(char* name, f32* mtx, s32 a, s32 b);
 extern void  MBTreeSetAlpha(s32 handle, s32 pri, s32 b);
 extern s32   fn_800B8E94(char* name, s32 a, s32 b, s32 c);/* find texture */
@@ -243,7 +243,7 @@ void fn_80064154(Item* item)
     position[1] = item->objgrp.worldmat[3][1];
     position[2] = item->objgrp.worldmat[3][2];
     item->objgrp.worldmat[3][1] =
-        lbl_80346F48 + fn_8000D3C4(position[1], lbl_80346F3C,
+        lbl_80346F48 + FloorPos(position[1], lbl_80346F3C,
                                    position, 0);
 
     current = &lbl_8023CAE0.current;
@@ -1228,7 +1228,7 @@ s32 add_arrow(s32 kind, s32 refresh, s32 useAngles, f32* angles, f32* look, f32*
         mtx[14] = look[2];
     }
     if (kind == 0) {
-        mtx[13] = lbl_80346FB0 + fn_8000D3C4(mtx[13], lbl_80346FFC, mtx + 12, 0);
+        mtx[13] = lbl_80346FB0 + FloorPos(mtx[13], lbl_80346FFC, mtx + 12, 0);
     }
     if (refresh != 0) {
         handle = MBOX_NewObject(lbl_8011C8A8[kind], mtx, 0, 0);

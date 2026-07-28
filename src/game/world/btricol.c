@@ -7,7 +7,7 @@
  * PDB) is first here and PointLineDist2D (near the front of the PDB) is last.
  *
  * The two public entry points -- TriLineCol and BTriLineCol -- are exported
- * (called from the world/collision code at fn_8000E3B8); everything else
+ * (called from the world/collision code at CTriListCollide); everything else
  * (the vector-frame transforms and the point/line distance helpers) is static.
  *
  * NOTE: this TU is wired NonMatching.  The bodies below are faithful, compiling
