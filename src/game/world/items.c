@@ -150,7 +150,29 @@ extern void  MBInitLights(void);
 extern void  MBAddLight(double val, void* a, f32* b);
 extern void  MBSetAmbient(double val, f32* p);
 extern void  fn_8006799C(s32 flag);
+extern void  fn_800C0CF4(void);
+extern void  fn_800C0DF4(double a, double b);
+extern void  fn_800C0DDC(double a, double b);
+extern volatile f32 sMusicFadeBase;
+extern f32   lbl_8034718C;
+extern f64   lbl_80347190;
+extern f64   lbl_80347198;
+extern f64   lbl_803471A0;
+extern f64   lbl_803471A8;
+extern f64   lbl_803471B0;
 extern s32     lbl_80124D14[14];
+extern f64   __frsqrte(f64 value);
+extern s32   add_arrow(s32 kind, s32 one, s32 alt, f32* a, f32* b, f32* pos);
+extern void  fn_8006EC18(s32 idx);                        /* newcam hook */
+extern s32   AtreeMatch(void* tree, char* name, s32 flag);
+extern s32   lbl_803448F4;   /* milestone shown idx */
+extern s32   lbl_803448F8;   /* cameras shown idx */
+extern s32   lbl_8034491C;   /* milestone count */
+extern s32   lbl_80344918;   /* camera count */
+extern u8    lbl_8025B604[]; /* milestone table (stride 0x68: pos@0, handle@0x60) */
+extern u8    lbl_80258E04[]; /* camera table (stride 0x28: type@0, a@4, b@0x14, handle@0x24) */
+extern void* lbl_80251364[45]; /* wad atree headers */
+extern f32   lbl_80346EE4;   /* waypoint dist epsilon */
 extern f32     lbl_802757D4[3];
 extern f32     lbl_80344B18;
 extern s32     lbl_80344914;
@@ -184,6 +206,84 @@ Item* NewItemPtr(void)
     it->ctriidx = -1;
     it->gridnext = gridnext;
     return it;
+}
+
+/* 0x8006799C - per-frame ambient light fade toward the level target. */
+void fn_8006799C(s32 flag)
+{
+    u8 unused[16];
+    f32 a;
+    u8 unused2[8];
+    f64 step;
+    f64 lit;
+
+    fn_800C0CF4();
+    if (gCurLevel != NULL && (*(u32*)gCurLevel & 8)) {
+        lbl_80344988 = lbl_8034718C;
+        lbl_80344984 = lbl_8034718C;
+    } else {
+        if (lbl_80347190 != lbl_80344984 && sMusicFadeBase > lbl_80344980) {
+            lbl_80344984 = (f32)(lbl_80344984 * lbl_80347198);
+            a = lbl_80344984;
+            *(u32*)&a &= 0x7FFFFFFF;
+            if (a < lbl_803471A0) {
+                lbl_80344984 = lbl_80347188;
+            }
+        }
+    }
+    if (lbl_80344984 != lbl_80344988) {
+        if (lbl_80344984 - lbl_80344988 < lbl_803471A8) {
+            step = lbl_803471A8;
+        } else if (lbl_80344984 - lbl_80344988 > lbl_803471A0) {
+            step = lbl_803471A0;
+        } else {
+            step = lbl_80344984 - lbl_80344988;
+        }
+        lbl_80344988 = lbl_80344988 + (f32)step;
+    }
+    if (lbl_80344998 * lbl_8034499C + lbl_80344988 < lbl_80347190) {
+        lit = lbl_80347190;
+    } else if (lbl_80344998 * lbl_8034499C + lbl_80344988 > lbl_803471B0) {
+        lit = lbl_803471B0;
+    } else {
+        lit = lbl_80344998 * lbl_8034499C + lbl_80344988;
+    }
+    MBSetAmbient((f32)lit, NULL);
+    fn_800C0DF4(lbl_80347180, lbl_80344988);
+    fn_800C0DDC(lbl_80347180, lbl_80344988);
+}
+
+/* 0x800674F4 - match name against the weapon/powerup/item atrees, then all
+ * wad headers when alsoWads is set. */
+static u32 AtreeMatchAnyHeader(char* name, s32 alsoWads)
+{
+    u32 r = 0;
+
+    if (name == NULL || *name == 0) {
+        return 0;
+    } else {
+        if (sGoodWizObj != NULL) {
+            r = AtreeMatch(sGoodWizObj, name, 0);
+        }
+        if (r == 0 && sPowerupsBuf != NULL) {
+            r = AtreeMatch(sPowerupsBuf, name, 0);
+        }
+        if (r == 0 && sItemFile1Buf != NULL) {
+            r = AtreeMatch(sItemFile1Buf, name, 0);
+        }
+        if (r == 0 && alsoWads != 0) {
+            s32 i;
+            for (i = 0; i < 45; i++) {
+                if (lbl_80251364[i] != NULL) {
+                    r = AtreeMatch(lbl_80251364[i], name, 0);
+                    if (r != 0) {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    return r;
 }
 
 /* (re)build the level lights and ambient from the current level record. */
@@ -682,9 +782,10 @@ s32 RandItemIdx(s32 n, s32 mod, s32 advance) {
     } else {
         result = 0;
     }
-    if (advance != 0) {
-        sItemRandSeed += 439;
+    if (advance == 0) {
+        return (s32)result;
     }
+    sItemRandSeed += 439;
     return (s32)result;
 }
 
@@ -745,6 +846,117 @@ LookoutParam* FindLookoutParam(s32 id)
 
     ErrorPrintf(lbl_80112D04, id, lbl_80344900);
     return 0;
+}
+
+/* 0x80066E6C - show/hide the level milestone arrows for player idx. */
+s32 ShowMilestones(s32 idx)
+{
+    s32 old = lbl_803448F4;
+    u8* base;
+    s32 off;
+    s32 i;
+
+    if (idx < 0) {
+        return old;
+    }
+    lbl_803448F4 = idx;
+    if (idx != old) {
+        base = lbl_8025B604;
+        for (i = 0, off = 0; i < lbl_8034491C; i++, off += 0x68) {
+            u8* elem = base + off;
+            if (lbl_803448F4 != 0) {
+                if (*(u32*)(elem + 0x60) == 0) {
+                    *(s32*)(elem + 0x60) = add_arrow(1, 1, 1, NULL, NULL,
+                                                     (f32*)elem);
+                }
+                fn_800BA2C4((void*)*(s32*)(elem + 0x60), 2, 0);
+            } else {
+                if (*(u32*)(elem + 0x60) != 0) {
+                    fn_800BAEAC(*(s32*)(elem + 0x60), 1);
+                    *(s32*)(elem + 0x60) = 0;
+                }
+            }
+        }
+    }
+    return lbl_803448F4;
+}
+
+/* 0x80066F48 - show/hide the trigger-camera arrows for player idx. */
+s32 ShowCameras(s32 idx)
+{
+    s32 old = lbl_803448F8;
+    u8* base;
+    s32 off;
+    s32 i;
+    f32 tmp[17];
+
+    if (idx < 0) {
+        return old;
+    }
+    lbl_803448F8 = idx;
+    if (idx != old) {
+        base = lbl_80258E04;
+        for (i = 0, off = 0; i < lbl_80344918; i++, off += 0x28) {
+            u8* elem = base + off;
+            s32 alt = 0;
+            s32 kind = 1;
+            if (*(u8*)elem == 1) {
+                alt = 1;
+                kind = 3;
+            } else if (*(u8*)elem == 2) {
+                kind = 2;
+            }
+            if (lbl_803448F8 != 0) {
+                if (*(u32*)(elem + 0x24) == 0) {
+                    *(s32*)(elem + 0x24) = add_arrow(kind, 1, alt,
+                                                     (f32*)(elem + 0x14),
+                                                     (f32*)(elem + 0x04),
+                                                     tmp);
+                }
+                fn_800BA2C4((void*)*(s32*)(elem + 0x24), 2, 0);
+            } else {
+                if (*(u32*)(elem + 0x24) != 0) {
+                    fn_800BAEAC(*(s32*)(elem + 0x24), 1);
+                    *(s32*)(elem + 0x24) = 0;
+                }
+            }
+        }
+        fn_8006EC18(lbl_803448F8);
+    }
+    return lbl_803448F8;
+}
+
+/* 0x80067248 - closest waypoint to pos within maxDist (all != 0 scans every
+ * node; otherwise only chained ones). */
+LookoutParam* FindClosestWaypoint(f64 maxDist, f32* pos, s32 all)
+{
+    LookoutParam* w = lbl_802584A8;
+    LookoutParam* result = NULL;
+    volatile f32 root;
+    s32 i;
+    u8 unused[16];
+
+    for (i = 0; i < lbl_80344900; i++, w++) {
+        if (all != 0 || (w->next >= 0 && w->next != i)) {
+            f32 dy = w->pos[1] - pos[1];
+            f32 dx = w->pos[0] - pos[0];
+            f32 dz = w->pos[2] - pos[2];
+            f64 d2 = dz * dz + dx * dx + dy * dy;
+            if (d2 > lbl_80346EE4) {
+                f64 guess = __frsqrte(d2);
+                guess = 0.5 * guess * (3.0 - guess * guess * d2);
+                guess = 0.5 * guess * (3.0 - guess * guess * d2);
+                guess = 0.5 * guess * (3.0 - guess * guess * d2);
+                root = (f32)(d2 * (0.5 * guess * (3.0 - guess * guess * d2)));
+                d2 = root;
+            }
+            if (d2 < maxDist) {
+                result = w;
+                maxDist = d2;
+            }
+        }
+    }
+    return result;
 }
 
 LookoutParam* NextWaypoint(LookoutParam* waypoint)

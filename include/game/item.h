@@ -16,7 +16,9 @@ struct mbnode;
 /* Camera/lookout waypoint record.  Only the two link fields at the tail have
  * been identified so far; the preceding camera parameters remain opaque. */
 typedef struct LookoutParam {
-    /* 0x00 */ u8  data[0x68];
+    /* 0x00 */ u8  data[0x30];
+    /* 0x30 */ f32 pos[3];
+    /* 0x3C */ u8  data2[0x68 - 0x3C];
     /* 0x68 */ s16 next;
     /* 0x6A */ s16 id;
 } LookoutParam; /* 0x6C */
@@ -117,11 +119,11 @@ void  SetItem(Item* item, s32 flag, void* a, void* b);
 void  MatchTransporters(void);
 void  AddLocatorInstList(void* list, s32 count);
 LookoutParam* FindLookoutParam(s32 id);
-s32   FindClosestWaypoint(f32* pos);
+LookoutParam* FindClosestWaypoint(f64 maxDist, f32* pos, s32 all);
 LookoutParam* NextWaypoint(LookoutParam* waypoint);
 s32   ClosestStartPos(f32* pos);
-void  ShowCameras(s32 on);
-void  ShowMilestones(s32 on);
+s32   ShowCameras(s32 idx);
+s32   ShowMilestones(s32 idx);
 void  GetMilestonePos(s32 idx, f32* out);
 void  update_player_milestone(void);
 void  RuneCamActivate(s32 idx);
