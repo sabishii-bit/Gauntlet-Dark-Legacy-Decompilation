@@ -8,7 +8,7 @@
 
 typedef void* voidpf;
 
-void* gAlloc(u32 size);
+void* AllocHiMem(u32 size);
 
 void zcfree(voidpf opaque, voidpf ptr)
 {
@@ -16,5 +16,5 @@ void zcfree(voidpf opaque, voidpf ptr)
 
 voidpf zcalloc(voidpf opaque, u32 items, u32 size)
 {
-    return gAlloc(items * size);
+    return AllocHiMem(items * size);
 }

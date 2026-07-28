@@ -5,7 +5,7 @@
  * Two layers in one TU:
  *   1. A bump/stack allocator carved out of one big OS heap block:
  *      - low allocations grow  mlmMemUsed  upward   (AllocMem/AllocMem32/AllocFile)
- *      - high allocations grow mlmMemLimit downward (gAlloc == AllocHiMem)
+ *      - high allocations grow mlmMemLimit downward (AllocHiMem)
  *      - a lock stack lets callers pin/unwind the low watermark (LockMem/...)
  *   2. An async file reader with WAD-directory + zlib(uncompress) support,
  *      serviced a chunk at a time by serve_io()/do_threaded_io().
@@ -323,18 +323,20 @@ void InitMemHandler(void)
 
 int FileSystemReading(void)
 {
-    if (mlmFileHandles[0].done != 0) {
-        return 0;
-    }
-    return 1;
+    int reading = 0;
+
+    if (mlmFileHandles[0].done == 0)
+        reading = 1;
+    return reading;
 }
 
 int FileSystemBusy(void)
 {
-    if (mlmFileHandles[0].done == -1) {
-        return 0;
-    }
-    return 1;
+    int busy = 0;
+
+    if (mlmFileHandles[0].done != -1)
+        busy = 1;
+    return busy;
 }
 
 void LockMem(int slot)
@@ -377,73 +379,71 @@ void* AllocMem(u32 size)
 
     if (mlmMemReserved != 0) {
         gErrorCode = 0xa0a000;
-        bulletproof_printf("AllocMem() called while mem reserved\n");
+        FatalErrorf("AllocMem() called while mem reserved\n");
     }
     if (size & 0xf) {
         size += 0x10 - (size & 0xf);
     }
-    result = mlmMemBase + (mlmMemUsed >> 2) * 4;
+    result = mlmMemBase + (mlmMemUsed / 4) * 4;
     mlmMemUsed += size;
-    if (mlmMemLimit < mlmMemUsed) {
+    if (mlmMemUsed > mlmMemLimit) {
         gErrorCode = 0xc0c000;
-        bulletproof_printf("AllocMem failed %d bytes (exceeds by %d)\n",
-                           size, mlmMemUsed - mlmMemLimit);
+        FatalErrorf("AllocMem failed %d bytes (exceeds by %d)\n",
+                    size, mlmMemUsed - mlmMemLimit);
     }
     return result;
 }
 
 void* AllocMem32(int size)
 {
+    u8 unused[8];
     u32 aligned;
     int pad;
-    u32 total;
     void* result;
 
     aligned = (mlmMemUsed + 0x1f) & 0xffffffe0;
     pad = aligned - mlmMemUsed;
-    total = size + pad;
-    if (mlmMemLimit - mlmMemUsed < (int)total) {
+    size += pad;
+    if (mlmMemLimit - mlmMemUsed < size) {
         return NULL;
     }
     if (mlmMemReserved != 0) {
         gErrorCode = 0xa0a000;
-        bulletproof_printf("AllocMem() called while mem reserved\n");
-    }
-    if (total & 0xf) {
-        total += 0x10 - (total & 0xf);
-    }
-    result = mlmMemBase + (mlmMemUsed >> 2) * 4;
-    mlmMemUsed += total;
-    if (mlmMemLimit < (int)mlmMemUsed) {
-        gErrorCode = 0xc0c000;
-        bulletproof_printf("AllocMem failed %d bytes (exceeds by %d)\n",
-                           total, mlmMemUsed - mlmMemLimit);
-    }
-    return (u8*)result + pad;
-}
-
-/* AllocHiMem: kept as gAlloc for zlib's zcalloc wrapper */
-void* gAlloc(u32 size)
-{
-    u32 tmp;
-    int taken;
-
-    if (mlmMemReserved != 0) {
-        gErrorCode = 0x808000;
-        bulletproof_printf("AllocMem() called while mem reserved\n");
+        FatalErrorf("AllocMem() called while mem reserved\n");
     }
     if (size & 0xf) {
         size += 0x10 - (size & 0xf);
     }
-    if (mlmMemLimit < (int)(mlmMemUsed + size)) {
+    result = mlmMemBase + (mlmMemUsed / 4) * 4;
+    mlmMemUsed += size;
+    if (mlmMemUsed > mlmMemLimit) {
+        gErrorCode = 0xc0c000;
+        FatalErrorf("AllocMem failed %d bytes (exceeds by %d)\n",
+                    size, mlmMemUsed - mlmMemLimit);
+    }
+    return (u8*)result + pad;
+}
+
+void* AllocHiMem(u32 size)
+{
+    u32 tmp;
+
+    if (mlmMemReserved != 0) {
+        gErrorCode = 0x808000;
+        FatalErrorf("AllocMem() called while mem reserved\n");
+    }
+    if (size & 0xf) {
+        size += 0x10 - (size & 0xf);
+    }
+    if ((int)(mlmMemUsed + size) > mlmMemLimit) {
         gErrorCode = 0x909000;
-        bulletproof_printf("AllocHiMem failed %d bytes (exceeds by %d)\n",
-                           size, (mlmMemUsed + size) - mlmMemLimit);
+        FatalErrorf("AllocHiMem failed %d bytes (exceeds by %d)\n",
+                    size, (mlmMemUsed + size) - mlmMemLimit);
     }
     tmp = ((u32)mlmMemBase + mlmMemLimit) - size;
-    taken = size + (tmp - (tmp & 0xffffff80));
-    mlmMemLimit -= taken;
-    alloctot += taken;
+    size += tmp - (tmp & 0xffffff80);
+    mlmMemLimit -= size;
+    alloctot += size;
     return mlmMemBase + mlmMemLimit;
 }
 

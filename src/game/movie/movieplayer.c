@@ -35,7 +35,7 @@
 /* --- externs: allocator + alloc-balance counter (ml_mem.c) --- */
 extern s32 lbl_803452AC;
 extern void ResetAllocTot(void);
-extern void* gAlloc(u32 size);
+extern void* AllocHiMem(u32 size);
 extern void* memcpy(void* dst, const void* src, u32 n);
 extern void* memset(void* dst, int c, u32 n);
 
@@ -236,7 +236,7 @@ void fn_800D967C(int param_1, int param_2) {
         (param_1, *(u32*)(param_2 + 4), *(u32*)(param_2 + 0xc));
 }
 
-/* allocator (gAlloc + ResetAllocTot/__unexpected) */
+/* allocator (AllocHiMem + ResetAllocTot/__unexpected) */
 void fn_800D96B0(void) {
 }
 
@@ -718,4 +718,3 @@ u32* DTextInitColorRamp(u32* p) {
     p[6] = 0;
     return p;
 }
-
