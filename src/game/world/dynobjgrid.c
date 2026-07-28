@@ -18,7 +18,7 @@
  *  - WorldDynCollide: target keeps an extra addi r6,r3,0 copy web for d +
  *    nonvolatile color rotation (r28..r31); opcode stream otherwise exact.
  *  - CreateDynobjGrid: r27/r28 web rotation through the rasterize loops.
- *  - NextDynGrid: still a stub (255-insn DDA, see notes below).
+ *  - NextDynGrid: complete semantic translation (255 target insns).
  */
 
 /* A per-object record tracked by the grid (0x44 bytes). */
@@ -82,7 +82,7 @@ extern f32 dyngrid_invwidth; /* 1.0 / cell size */
 extern void* AllocMem(s32 size);
 extern void* memset(void* p, s32 c, s32 n);
 extern void GetWorldMat(void* a, void* b, s32 c);
-extern void FatalError(const char* msg, ...);
+extern void FatalError(const char* msg, s32 code);
 extern const char aGridError[]; /* lbl_80112360 == "GRID ERROR" */
 extern s32 fn_8000DFEC();
 extern s32 fn_8000DCD8();
@@ -144,23 +144,99 @@ s32 WorldDynCollide(u32 objmask, u32 sidemask, f32 x, f32 y, f32 z, f32 f4,
 /* DDA step: advance (*cellx,*cellz) to the next grid cell the swept segment
  * crosses, returning 1 while still inside the grid and 0 once it leaves.
  *
- * NOT YET MATCHED (255-insn DDA).  Structure recovered from the target asm:
- *   - Branches on whether vx == 0 (lbl_803466B0) to pick the stepping axis;
- *     each axis picks the +/- direction from the sign of vy / vz and steps
- *     *cellz by +/-1 (f8 = +/-r).
- *   - The next cell boundary in world space is (cell+1)*dyngrid_width + min,
- *     evaluated with the classic MWCC signed-int->double magic (xoris #0x8000
- *     over 0x43300000 : lbl_803466C0) applied to the cell coords and the
- *     ix/iy/iz integer positions passed in from WorldDynCollide.
- *   - Uses 2.0f (lbl_803466B8) and 0.0 (lbl_803466B0); FatalError(aGridError)
- *     fires when a computed index leaves [0, num_dyngrid*).
- * These constants (0.0d, 2.0f, the conversion magic) also set the .sdata2 pool
- * order that InitDynobjGrid's 2.0d (lbl_803466C8) tails, so a byte-exact flip
- * of the whole TU is gated on reconstructing this body. */
+ * The integer coordinates are the truncated start/end components prepared by
+ * WorldDynCollide.  Keeping them as integers is intentional: the original
+ * uses MWCC's signed-int-to-double sequence at each boundary calculation. */
 s32 NextDynGrid(s32* cellx, s32* cellz, f32 vx, f32 vy, f32 vz, f32 r,
                 s32 ix, s32 iy, s32 iz, s32 iy2)
 {
-    return 0;
+    s32 x;
+    s32 z;
+    s32 forward;
+    f32 edge;
+    f32 candidate;
+    f32 step;
+    f32 delta;
+    u8 unused[8];
+
+    x = *cellx;
+    z = *cellz;
+
+    if (vx == 0.0) {
+        if (vy >= 0.0) {
+            step = r;
+            forward = 1;
+            z++;
+        } else {
+            step = -r;
+            forward = 0;
+            z--;
+        }
+        edge = (f32)(x + 1) * dyngrid_width + gWorldInfo.min_x;
+    } else {
+        if (vz >= 0.0) {
+            step = r;
+            forward = 1;
+            z++;
+        } else {
+            step = -r;
+            forward = 0;
+            z--;
+        }
+        edge = (f32)(x + 1) * dyngrid_width + gWorldInfo.min_x;
+        vy = vz * (edge - (f32)ix);
+    }
+
+    if (z >= 0 && z < num_dyngridz) {
+        candidate = (f32)iz + vy + 2.0f * step;
+        if (forward) {
+            if (candidate > (f32)iy2)
+                candidate = (f32)iy2;
+            if (z <= (s32)((candidate - gWorldInfo.min_z) * dyngrid_invwidth)) {
+                *cellz = z;
+                return 1;
+            }
+        } else {
+            if (candidate < (f32)iy2)
+                candidate = (f32)iy2;
+            if (z >= (s32)((candidate - gWorldInfo.min_z) * dyngrid_invwidth)) {
+                *cellz = z;
+                return 1;
+            }
+        }
+    }
+
+    if (edge > (f32)iy)
+        return 0;
+    if (x + 1 >= num_dyngridx)
+        return 0;
+
+    if (vx == 0.0 || edge - (f32)ix < 2.0f * r) {
+        edge = (f32)iz;
+    } else {
+        edge += dyngrid_width;
+        delta = (f32)ix + 2.0f * r;
+        delta = edge - delta;
+        if (delta > 0.0)
+            edge = delta * vz + (f32)iz;
+        else
+            edge = (f32)iz;
+    }
+
+    if ((forward && edge > (f32)iy2) ||
+        (!forward && edge < (f32)iy2)) {
+        edge = (f32)iy2;
+    }
+
+    z = (s32)((edge - gWorldInfo.min_z) * dyngrid_invwidth);
+    if (z >= num_dyngridz || z < 0)
+        return 0;
+
+    *cellx = x + 1;
+    *cellz = z;
+    if (x + 1 < 0 || z < 0)
+        FatalError(aGridError, 0x800000);
+    return 1;
 }
 
 /* Per-frame rebuild: clear the entry pool and grid, then rasterize each live
