@@ -35,19 +35,16 @@ typedef float f32;
 class vec3 {
   public:
     f32 x, y, z;
-    vec3() {}
 };
 
 class vec4 {
   public:
     f32 x, y, z, w;
-    vec4() {}
 };
 
 class mat44 {
   public:
     f32 m[4][4];
-    mat44() {}
 };
 
 /* g3dMath3D.cpp (C++ linkage) */
@@ -257,11 +254,17 @@ s32 pbTraverseDrawObjects(PBTREENODE* node, PBTREENODE* stop, s32 mode)
 void pbRenderNode(PBTREENODE* node)
 {
     vec4 res;
+    u8 unused[12];
     PBTREENODE* p;
-    mat44* mat = &matrix_stack[matrix_level];
-    u32* fp = &node_flags[matrix_level];
-    u32 fl = *fp;
-    PBWINGLOBALS* win = gWinGlobals;
+    u32* fp;
+    u32 fl;
+    PBWINGLOBALS* win;
+    mat44* mat;
+
+    mat = &matrix_stack[matrix_level];
+    fp = &node_flags[matrix_level];
+    fl = *fp;
+    win = gWinGlobals;
 
     switch (node->type) {
     case 3:
@@ -270,13 +273,13 @@ void pbRenderNode(PBTREENODE* node)
         }
         vec4ApplyTrans(res, *(vec4*)((char*)mat + 48),
                        *(mat44*)(win->cur + 704));
-        alpha_tree_dist = res.z;
+        alpha_tree_dist = res.w;
         alpha_tree_dist_add = 0.0f;
         clear_alpha_dist = 1;
         break;
 
     case 2:
-        if (!MBDrawObjectTest(node, mat, fl & 1)) {
+        if (!MBDrawObjectTest(node, mat, (fl << 31) >> 31)) {
             skiped_nodes++;
             break;
         }
@@ -360,7 +363,7 @@ void CameraFace(u32 flags)
     mat44* mat = &matrix_stack[matrix_level];
     u32 fl = *(u32*)((char*)node_flags + matrix_level * 4);
 
-    switch (flags & 0x0F000000) {
+    switch (u32 mode = flags & 0x0F000000) {
     case 0x01000000:
         FaceCamMat(mat, 0.0f);
         break;

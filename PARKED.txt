@@ -18,6 +18,14 @@
 # renum=pure register renumber cluster; sched=scheduler tie; isel=instr-select tie.
 
 # SOLVED 2026-07-26/27 (removed from list):
+#   pbRenderNode -> dominance-CSE arg-spelling split ((fl<<31)>>31 at the
+#     dominating site) + decl/statement order split + res.w + u8 unused[12];
+#     pb_tree.cpp Matching (040dd4a)
+#   CameraFace -> C++ decl-in-switch-condition (switch (u32 mode = flags &
+#     0x0F000000)) pins the mask temp; pb_tree.cpp Matching (040dd4a)
+#   MBWindowSetAng -> mulf inlined-helper (fmuls const-first canonicalization
+#     escape) + drop unused[8] inline-slot compensation; EXACT (40c1244)
+
 #   regFind -> asm { b found } insert; registry.c Matching (d9db9f5)
 #   G3DReadControlPadStates -> asm-block escape; gcontrolpads.c Matching (f73a4d7)
 #   FaceCamMat -> feq inlined-helper defeats fcmpu const canonicalization;
@@ -36,8 +44,13 @@ sndVoiceUpdateAll          # r7<->r8 web swap (sndvoice 7/8); target skips r7 fo
                            # color-neutral (reaching-def span theory falsified); naming the
                            # 9 pair reloads via cur = STRUCTURAL blowup (1550). volDirty
                            # block + chains already exact. 3-cap reached again.
-MBWindowProject            # renum, ClampS16 guts-inline matched all FPR temps (2026-07 webs); left: 1 fmr f0,f3 split on clamp#1 + rel/eye slot arrangement (49 lines)
-MBWindowZoom               # copy, z=zoom fmr survives in target (mb_window)
+MBWindowProject            # renum, ClampS16 guts-inline matched all FPR temps; 41 lines (was 67/49-class): unusedd
+                           # double->u8[4] fixed the rel slot; left: eye slot -4 (extra 4B temp home below eye) +
+                           # clamp#1 fmr f0,f3 param-copy split (double-param ClampS16 = no-op) + offset cascade (mb_window)
+MBWindowZoom               # copy, z=zoom fmr survives in target; 29 lines (was 31; muld fixed const-order both arms).
+                           # 2026-07-27b negatives: fident identity + ZoomArm value-param helper both get the param
+                           # copy cleaned post-inline (zoom-lives-on interference does NOT preserve it); whole-arm
+                           # helper also breaks else-arm arg-eval order (ratio must eval AFTER tan - g/magic in r30/r31) (mb_window)
 fn_800BBA34                # renum, f0/f4 web swap in rect fill (mb_window setup)
 WorldDynCollide            # copy, target's extra addi r6 d-copy web (dynobjgrid)
 CreateDynobjGrid           # renum, r27/r28 rotation through rasterize loops
@@ -48,11 +61,16 @@ MBSetFontAlpha             # sched (mb_font)
 MBFontMsgSetAlpha          # sched (mb_font)
 pbObjTexSub                # isel, slwi/mr/rlwimi vs clrlwi/rlwimi x3 (pb_objects); flag-proof (flagsweep 2026-07)
 pbSendObjTextures          # sched+copy, name-ternary loads late (r0-vs-r4, result-web no-coalesce: named/goto/self-ternary/empty-else all worse or fold)
-                           # + obj param-copy addi-vs-mr; 16 lines, insns 111/111 (pb_objects, 2026-07-27)
+                           # + obj param-copy addi-vs-mr; 16 lines, insns 111/111; 2026-07-27b: named-name local DOES hoist
+                           # the loads right but adds mr r0,r4 (no-coalesce); if+goto folds to bne + copy; goto variant
+                           # flips param copy to mr-form - combo never all-green; 3-cap re-reached (pb_objects)
 pbSendObjTexturesSub       # UNPARKED before listing: EXACT 2026-07-27 (decl order list-first + count re-deref-in-cond sinks the mr) (pb_objects)
 fn_800C38C0                # renum+remat, 9th-arg zero LICM'd li r28,0 preheader vs per-iter li r0,0 (park-family zero-web) +
-                           # obj/a/v1c & pcount/prim/stride rotation; insns 105/105; decl shuffles neutral; nil-local/varargs tested (pb_objects pbDrawObject, 2026-07-27)
-fn_800C37C4                # sched, buf r5<->r6 (pb_objects pool-init hook)
+                           # {obj,a,v25} 3-cycle (params involved - no decl lever); packed slot 28 FIXED via 4+4 pad split
+                           # (74->58, a66d7ef); insns 105/105 (pb_objects pbDrawObject, 2026-07-27)
+fn_800C37C4                # remat+sched, off-IV init li r3,0 vs addi r3,r6,0 copy-of-live-zero + buf r5<->r6;
+                           # EXACT sibling fn_800C36F8 (same loop) proves source; chain-assign folds (+8 frame),
+                           # hoisted i=0 dissolves; 3-cap 2026-07-27 (pb_objects)
 fn_800C7214                # renum+sched, r8<->r10 (pb_texture)
 vsprintf                   # sched, 26 lines / 665 insns, ONE emission-order divergence: target emits the two
                            # switch-lowering frame-cache inits (jumptable base->436(r1), 0x7ff00000 case-cmp->440(r1))
@@ -76,15 +94,12 @@ HealthMeterUpdate          # gate=BossSpewCoins
 HealthMeterStart           # gate=BossSpewCoins
 BossDeath                  # gate=BossSpewCoins
 do_screen2d                # sched, 2 transposed SDA loads + 2 reloc-alias lines (lbl+4 vs sFlags — link-identical) (attract)
-dcsHandleRequest           # renum+copy, param rotation r28/r29/r30 + state addi-via-r0 mr; clamp bge/b FIXED (input[1]<240?:240 arg-ternary, no local); ops 412/411; state first/second/decl-init + SetStreamName guts all color-neutral (2026-07 webs); FLIP GATE for dcsdrv
+dcsHandleRequest           # renum+copy, param rotation r28/r29/r30 + state addi-via-r0 mr; ops 412/411; state
+                           # first/second/after-memset + bankSize-vs-ternary + SetStreamName guts all measured 2026-07-27b:
+                           # 1ad1d5d form (bankSize local, no helper) = 202 real lines = BEST; helper+ternary combo = 351
+                           # (reverted, 2e6702b); rotation+2-step are spelling-proof; FLIP GATE for dcsdrv
 fn_800B290C                # renum, leaf temp-color tie r0/r4/r5 (mb_blit SetAlpha head fn)
 fn_800B27C4                # renum, tpms/1000 web order + f0/f1 conv tie (mb_blit pad-test driver)
-pbRenderNode               # renum+PRE, 93 lines (was 108): f31 SOLVED 2026-07-27 (arg4 = alpha_tree_dist, already
-                           # in f1 from the compare - NOT an uninit local; frame now matches) + ErrorPrintf polarity
-                           # fixed (calls when dist>=0). Residual: (fl&1) PRE-hoisted into r29 vs per-site clrlwi
-                           # (pragma common_subs off is worse) + slwi slot + downstream renumber (pb_tree)
-CameraFace                 # renum+sched, mask temp r5-fresh vs r3-inplace + fl r4-reuse webs; 28 lines; named-mode
-                           # local and commuted operand tested 2026-07-27 (worse/no-op) (pb_tree)
 UpdateFXStreak             # NOT pure sched: quad block has fmadd-vs-fmadds + frsp-count + lfd placement diffs =
                            # f32-vs-double INTERMEDIATE structure in one quad expression (see recipes: double
                            # literals/intermediates); needs FP respelling pass, not renum (insns 138/138) (sfx.c)
@@ -130,7 +145,6 @@ fn_800C1624                # sched, 2 lines only now (was 17; q-pointer restruct
                            # in the m14-guard block; 3 spellings tied (pb_frame)
 fn_800C31C4                # renum, dead li r3,0 remat + r3/r4/r5 rotation; 48 lines (pb_frame)
 fn_800C32D0                # renum, same class as fn_800C31C4 (pb_frame)
-FaceCamMat                 # isel, ONE fcmpu operand order (var-first vs const-first on == sZero); 7 source forms tried; THE 2-byte gate on the mb_objects flip (pool owned + byte-exact, all other fns EXACT)
 
 # options.c (game/ui, OPTIONS.OBJ 0x80070A60-0x800745D0) - 2026-07 wiring pass:
 finish_optmenu             # isel, optglobals.stack zero-loop: sym+64-addend base + stw 0() vs sym+0 + stw 64(); 3 spellings tried (options)

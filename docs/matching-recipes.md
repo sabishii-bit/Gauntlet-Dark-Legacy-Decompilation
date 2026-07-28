@@ -280,3 +280,60 @@ GC/1.2.5 + cflags_demo pipeline). Laws, in application order:
 - **A mid-loop that no hand-written loop reproduces may be an AUTO-INLINED
   call to a sibling fn** (DeleteEffect inlines SfxDeleteParented(n,0,-1) —
   the inliner's param copy-init `addi rX,rY,0` is the tell).
+
+## Additions (gates session, 2026-07-27)
+
+- **MWCC CSE is DOMINANCE-ONLY — no sibling-arm PRE** (verified, pbRenderNode):
+  identical exprs unify only when one USE SITE dominates the others. Three
+  `fl & 1` call-args (site 1 dominating sibling if/else arms 2,3) hoist into
+  ONE clrlwi + copies; respell SITE 1 as `(fl << 31) >> 31` (distinct IR,
+  lowers late to the same clrlwi) and leave the SIBLING pair as `fl & 1` —
+  neither arm dominates the other, so each keeps a per-site clrlwi and the
+  hoist vanishes. `fl % 2` (u32) lowers to AND EARLY and unifies with `& 1`;
+  the shift-pair does not. Any two IDENTICAL spellings still unify.
+- **Decl order sets web colors, statement order sets the schedule**
+  (pbRenderNode EXACT): when a nonvolatile cluster is rotated but the opcode
+  stream is aligned, split decls from inits — list the DECLS in target color
+  order (descending r31->r27 in decl order) and keep the INIT STATEMENTS in
+  the order the target schedules them. Generalizes dcsdrv's "state-first
+  decl". Params and CSE base temps keep their own slots (node=r31,
+  base=r30 stayed fixed while fp/fl/win/mat rotated).
+- **decl-in-switch-condition pins the switch-expr temp** (C++ only; CameraFace
+  EXACT, THE pb_tree flip gate): `switch (u32 mode = flags & 0x0F000000)`
+  keeps the mask compute at the switch site in a FRESH reg (target shape:
+  rlwinm r5,r3 after the address adds), where `switch (expr)` lets the
+  compute coalesce into the dying source reg and the scheduler hoists it to
+  the fn head (in-place rlwinm r3,r3 at slot 1), rotating every downstream
+  volatile. A separate `u32 mode = ...;` decl costs +8 frame (home slot) AND
+  still coalesces+hoists - only the condition-decl form works.
+- **Inlined-helper canonicalization escape works for fmuls/fmul too**
+  (MBWindowSetAng EXACT): `x * 0.5f` canonicalizes const-first
+  (`fmuls fD,f0,fX`); routing through `static f32 mulf(f32 a, f32 b)
+  { return a*b; }` (and `static double muld(double,double)` for double
+  contexts) restores param/text order (`fmuls fD,fX,f0`). Compensate the
+  8-byte inline param-slot frame cost (drop an existing pad). Same law as
+  feq for fcmpu.
+- **Inlined identity/param copies do NOT survive a post-inline cleanup**
+  (negatives, MBWindowZoom): `static f32 fident(f32 x){return x;}` for
+  `z = fident(zoom)` and a value-param helper wrapping a whole arm both got
+  their param copy propagated away even though zoom stays live afterwards -
+  the DeleteEffect "inliner param-copy survives" tell is NOT reproducible
+  on demand. The z=zoom fmr class stays parked.
+- **C++ global array of a ctor-class emits .ctors + a sinit** — pb_tree's
+  `mat44 matrix_stack[64]` with `mat44() {}` produced a 4-byte .ctors section
+  claimcheck rejects. Empty ctors exist only for mangling-compatible class
+  layout; delete them (class name alone fixes the mangling) before flipping
+  any C++ TU with class-type globals.
+- **fn_800C37C4-class remat context flip**: an EXACT sibling (fn_800C36F8,
+  same loop, li+li zero inits) proves the loop source; the same loop in the
+  richer fn emits li+addi-copy (`addi r3,r6,0` from the live i=0) purely from
+  surrounding context. Chain-assign `off = i = 0` const-folds back to li+li
+  (+8 frame for the named off); a hoisted separate `i = 0;` statement
+  dissolves. No source spelling reaches the emission choice - park family.
+- **dcsHandleRequest param rotation is spelling-proof**: state-first vs
+  state-after-memset, bankSize-local vs clamp-arg-ternary, SetStreamName guts
+  helper - all leave the input/output/request rotation (r28/r29/r30 vs
+  baseline param order) and the `addi r0,rX,LO + mr r31,r0` state 2-step
+  intact; the helper+ternary combo committed earlier was a NET REGRESSION
+  (351 vs 202 real lines) and was reverted to the 1ad1d5d form. On any
+  "improved" quirk claim, re-measure the WHOLE fn, not the local site.

@@ -176,30 +176,20 @@ void dcsMain(void)
     }
 }
 
-/* Shared stream-name setup guts of request cases 4 and 8 (defined before
- * dcsHandleRequest so -inline auto folds it into both case bodies). */
-static void SetStreamName(DcsDriverState* state, s32* input) {
-    memcpy(state->streamName, (void*)input[0],
-           input[1] < 240 ? input[1] : 240);
-    strcpy(state->streamPath, lbl_80117294);
-    strcat(state->streamPath, state->streamName);
-    state->streamFile = state->streamPath;
-    state->streamArg0 = input[2];
-    state->streamArg1 = input[3];
-}
-
 /* 0x800D4BF4  dispatch a numeric request (id,in,out) */
 void dcsHandleRequest(u32 request, s32* input, s32* output)
 {
-    DcsDriverState* state = DCS_DRIVER_STATE;
+    DcsDriverState* state;
     s32 resultOffset;
     u32 index;
     s32 i;
+    s32 bankSize;
     s32 value;
     s32 result;
     s32 opcode;
     u32 mode;
 
+    state = DCS_DRIVER_STATE;
     memset(output, 0, 32);
 
     switch (request) {
@@ -239,7 +229,16 @@ void dcsHandleRequest(u32 request, s32* input, s32* output)
         break;
 
     case 4:
-        SetStreamName(state, input);
+        bankSize = input[1];
+        if (bankSize >= 240) {
+            bankSize = 240;
+        }
+        memcpy(state->streamName, (void*)input[0], bankSize);
+        strcpy(state->streamPath, lbl_80117294);
+        strcat(state->streamPath, state->streamName);
+        state->streamFile = state->streamPath;
+        state->streamArg0 = input[2];
+        state->streamArg1 = input[3];
         output[0] = 0;
         output[1] = 1;
         sPending = -1;
@@ -348,7 +347,14 @@ void dcsHandleRequest(u32 request, s32* input, s32* output)
         break;
 
     case 8:
-        SetStreamName(state, input);
+        value = input[1];
+        memcpy(state->streamName, (void*)input[0],
+               value < 240 ? value : 240);
+        strcpy(state->streamPath, lbl_80117294);
+        strcat(state->streamPath, state->streamName);
+        state->streamFile = state->streamPath;
+        state->streamArg0 = input[2];
+        state->streamArg1 = input[3];
         if (lbl_80345240 == 0) {
             AdsInit(0x9DC000, 0x2000, 2);
             lbl_80345240 = AdsNew(0x40000);
