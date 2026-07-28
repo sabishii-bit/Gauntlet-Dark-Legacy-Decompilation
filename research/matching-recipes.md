@@ -12,7 +12,7 @@ file authoritative — worker prompts cite it instead of restating recipes.
 3. Apply recipes below; rebuild happens automatically (stale objects are
    guarded — if ninja fails, fndiff says so loudly).
 4. HARD CAP: 3 attempts on any register/schedule-only residual, then add the
-   fn to `PARKED.txt` with a one-line class note and move on.
+   fn to `research/PARKED.txt` with a one-line class note and move on.
 5. Ghidra MCP (`decompile_function` on the GC DOL) is the fastest semantic
    source for missing bodies — transcribe its structure, then match-polish.
    Its casts and odd expressions are often LITERAL source (uninitialized
@@ -147,7 +147,7 @@ fn_800C780C):
 
 The parked "renum" family (opcode-identical streams, 2-6 nonvolatile webs
 rotated r28<->r31 / FPR analogs) is SOURCE SHAPE, not flags. Micro-repro
-corpus + compile harness: `research/webs/` (t/m/v/b/p/q series against the
+corpus + compile harness: research/webs/ (DELETED post-extraction; recover from git history if ever needed) (t/m/v/b/p/q series against the
 GC/1.2.5 + cflags_demo pipeline). Laws, in application order:
 
 - **Baseline coloring law**: MWCC assigns nonvolatile colors ASCENDING
@@ -195,7 +195,7 @@ GC/1.2.5 + cflags_demo pipeline). Laws, in application order:
   assignment — ALL color-neutral on these rotations. mwcc 1.2.5 `-help all`
   exposes no allocator/web dump; the allocator stays black-box. Coloring is
   a whole-function property: adding/removing ONE instruction ANYWHERE can
-  rotate webs two blocks away (research/webs p/q series), which is why
+  rotate webs two blocks away (webs p/q series, git history), which is why
   local grinding fails and structure-level levers (helper, local deletion)
   are the only reliable ones.
 ## Additions (law-pass session, 2026-07-27)
