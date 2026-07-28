@@ -246,3 +246,31 @@ fn_8008E3BC                # renum+remat (select.c), ops 76/78: welcome-back set
                            # change_player + matched fn_80090C34 varargs + audio dispatch), semantics
                            # correct; residual = scan-fallback CSEs pl(r31) instead of reloading base
                            # (same class as parked fn_8008FE70) + idx/pl r30<->r31 swap (select)
+# ---- game/ui/btext.c (BTEXT.OBJ) - 19/45 byte-exact; rest register/sched + variadic skeletons ----
+FindStringMessageSub       # REGISTER_ONLY, 6 lines: 32/32 exact; scratch-reg pick in
+                           # (nameData + *(nameOff+off)) add (r0/r3 vs r5/r0); for-loop +
+                           # byte-offset access + off-first decl fixed 49->6 (btext)
+FindStringMessageListSub   # REGISTER_ONLY, 32 lines: 38/38 exact; list*68/base/i/off web
+                           # coloring (r28-31 rotation); re-derive-base subscript form matched
+                           # the +3-insn structure (no cached p local) (btext)
+GetScrollText              # REGISTER_ONLY, 24 lines: 35/35 exact; p/e web color (r8/r7 vs
+                           # r7/r4) - PickList open-code kept r0-staging but rotates dest reg (btext)
+GetStringListText          # OPERAND_DIFF, 12 lines: 45/45; e pointer web r7 vs r4 (list-ptr l
+                           # pushes e down); inverted-ternary layout otherwise exact (btext)
+StringTextHeightSub        # REGISTER_ONLY, ~150 lines: 111/112, opcode stream matches; full
+                           # nonvolatile renumber across the 3-arm measure loop (btext)
+StringTextWidthSub         # REGISTER_ONLY, ~160 lines: 121/118, opcode stream matches; renumber
+                           # + 2 buf-array home slots (btext)
+FontHeight                 # SCHEDULE, 8 lines: 22/22; epilogue LR-restore interleave + fmuls
+                           # converted*scale operand order (mulf helper flips order but +8 frame,
+                           # net worse - no pad to absorb) (btext)
+TextHeightMLines           # frame+16 + fmuls order, 46/46 (btext)
+DrawTextMLines             # register/frame, 54/53: streams match; fmuls order + one extra
+                           # nonvolatile (r23) + lines[] home offset (btext)
+DrawGlowText/MLines        # register/sched, streams match (86/87, 59/57): glow-config full body,
+                           # renumber residual (btext)
+# Variadic Draw* wrappers + big loader = shape-only skeletons (vararg FP-save ABI + whole-TU
+# .sdata2 pool ordering are future work; NonMatching TU does not link):
+#   DrawText DrawStringText DrawStringTextMLines DrawStringTextMulti DrawScrollText
+#   DrawScrollListText DrawStringTextSub DrawTextSub SetScrollLevelMsgList
+#   LoadFonts FontInit FontInitDefault FontInitSpecial StringInitSub
