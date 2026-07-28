@@ -79,6 +79,15 @@ extern s32 lbl_8034520C;
 extern u32 lbl_80345214;
 extern s32 lbl_80345220;
 extern u32 lbl_80345234;
+extern s32 lbl_80345204;
+extern s32 lbl_80345224;
+extern u32 lbl_80345228;
+extern u32 lbl_8034522C;
+extern u32 lbl_80345230;
+extern u32 lbl_80129588[];
+extern char lbl_80116F58[];
+extern char lbl_80117080[];
+extern int printf(const char* format, ...);
 extern s32 dcsResetPending;
 extern volatile u8 dcsSampleBusy;
 extern volatile u8 dcsAramBusy;
@@ -87,6 +96,13 @@ extern ARQRequest dcsAramReq;
 extern u32 pool_new(void* list);
 extern void* pool_alloc(void* list, void* node);
 extern void pool_free(void* pool, void* node);
+extern void pool_dispose(void* pool, s32 handle, void* base, s32 size);
+extern void pool_dispose_and_alloc(void* pool, void* node, u32 size, s32 arg, void* pool2);
+extern void* pool_alloc_at(void* pool, void* node, u32 size, u32 arg, void* pool2);
+extern ARQRequest dcsSampleReq;
+extern u32 BytesFree(void);
+extern void* AllocHiMem(u32 size, u32 tag);
+extern s32 lbl_80345208;
 extern void dcsMemLockTag(s32 slot, u32 tag);
 extern s32 dcsMemLock(void);
 extern s32 dcsMemUnlock(s32 channel);
@@ -97,8 +113,28 @@ extern void ARQPostRequest(ARQRequest* request, u32 owner, u32 type,
                            u32 priority, u32 source, u32 destination,
                            u32 length, ARQCallback callback);
 
+s32 dcsVoiceStart(u32 sample, s32 volumePan, s32 priority);
+
 /* 0x800D1E04  trigger/refresh a channel; -> dcsVoiceStart */
 void dcsChannelPlay(s32 value) {
+    if (value != lbl_80345228) {
+        lbl_80345230 = 0;
+        lbl_80345228 = value;
+        if ((value & 0xfdc0000) != 0 || lbl_8034522C == 15) {
+            lbl_8034522C = 0;
+        } else if ((value & 0xf0f00000) == lbl_80129588[lbl_8034522C]) {
+            lbl_8034522C++;
+        }
+    } else {
+        if (++lbl_80345230 > 15) {
+            if (lbl_8034522C == 15) {
+                lbl_80345214 = (u32)__cntlzw(lbl_80345214) >> 5;
+                dcsVoiceStart(0x1001, 0x7f7f, 0xff);
+            }
+            lbl_8034522C = 0;
+            lbl_80345230 = 0;
+        }
+    }
 }
 
 /* 0x800D1ED0  recompute per-channel voice state each tick */
@@ -297,6 +333,20 @@ void dcsRequestReset(void) {
 
 /* 0x800D29E0  free a loaded bank (-> pool_dispose) */
 s32 dcsBankUnload(void* bank) {
+    u32* p = (u32*)bank;
+    s32 i;
+
+    if (p[0] != 0) {
+        pool_dispose(lbl_802F5F60, p[0], (void*)p[1], 0x40);
+    }
+    lbl_80345208 = 0;
+    lbl_80343FF8 = p[7];
+    lbl_8034520C = 0;
+    dcsResetPending = 0;
+    for (i = 0; i < 12; i++) {
+        ch_info[i].sample = -1;
+    }
+    return 0;
 }
 
 /* 0x800D2A68  read VAG sample table, upload to ARAM (readVags) */
@@ -308,7 +358,29 @@ void dcsReadCalls(void) {
 }
 
 /* 0x800D30B4  validate sample indices (callFixup) */
-void dcsBankCheckSamples(void) {
+s32 dcsBankCheckSamples(int param_9, int param_10) {
+    u16* puVar4;
+    int iVar5;
+
+    for (iVar5 = lbl_80345224; iVar5 < lbl_80345204; iVar5++) {
+        puVar4 = &lbl_802F0F60[iVar5];
+        if ((int)(*puVar4 & 0xfff) >= param_9) {
+            if ((int)((*puVar4 & 0xfff) + param_10) > 0xfff) {
+                printf(lbl_80116F58);
+                printf(lbl_80117080);
+                param_10 = 0;
+            }
+            if (param_10 == 0) {
+                *puVar4 |= 0xfff;
+            } else {
+                *puVar4 += param_10;
+            }
+        }
+        if ((*puVar4 & 0x8000) != 0) {
+            iVar5 += 3;
+        }
+    }
+    return 0;
 }
 
 /* 0x800D3184  service the channel queue */
@@ -476,11 +548,59 @@ s32 dcsSampleStream(void* sample, u32 uploadArg) {
 }
 
 /* 0x800D3674  ARQ post MRAM->ARAM for sample data */
+void dcsSampleCallback(u32 request);
+
 s32 dcsSampleUpload(void* state, u32 uploadArg) {
+    u32* p = (u32*)state;
+    u32* node = p - 4;
+
+    if (uploadArg == 0) {
+        pool_dispose_and_alloc(lbl_802F5F60, node, p[1], 0, lbl_802F5F60);
+    } else {
+        pool_alloc_at(lbl_802F5F60, node, p[1], uploadArg, lbl_802F5F60);
+    }
+    if (*node == 0) {
+        return 0xfffffffe;
+    }
+    DCFlushRange((void*)p[0], p[1]);
+    dcsSampleBusy = 1;
+    ARQPostRequest(&dcsSampleReq, 0, 0, 1, p[0], *node, p[1], dcsSampleCallback);
+    while (dcsSampleBusy != 0) {
+    }
+    return 0;
 }
 
 /* 0x800D374C  alloc ARAM + ARQ upload */
 s32 dcsSampleAllocUpload(void* sample, s32 arg) {
+    s32 found = 0;
+    s32 channel;
+    u32* p = (u32*)sample;
+    u32* puVar8 = p + 4;
+
+    for (channel = 0; channel < 12; channel++) {
+        if (dcsVoiceInUse(channel) != 0 &&
+            ch_info[channel].sampleData == (DcsSampleData*)sample) {
+            found = 1;
+            break;
+        }
+    }
+    if (found) {
+        return 0xffffffff;
+    }
+    if (BytesFree() < ((p[1] + 0x3f) & 0xffffffc0)) {
+        return 0xfffffffe;
+    }
+    *puVar8 = (u32)AllocHiMem((p[1] + 0x3f) & 0xffffffc0, p[1]);
+    puVar8[1] = (p[1] + 0x3f) & 0xffffffc0;
+    puVar8[2] = (u32)puVar8;
+    puVar8[3] = (u32)puVar8;
+    DCFlushRange((void*)*puVar8, p[1]);
+    dcsSampleBusy = 1;
+    ARQPostRequest(&dcsSampleReq, 0, 1, 1, p[0], *puVar8, p[1], dcsSampleCallback);
+    while (dcsSampleBusy != 0) {
+    }
+    DCInvalidateRange((void*)*puVar8, p[1]);
+    return 0;
 }
 
 /* 0x800D3874  ARQ read from top of ARAM (memcard uses) */
