@@ -63,6 +63,23 @@ typedef struct {
 #define AUDIO_VOICES(st) ((AudioVoice*)((u8*)(st) + 1320))
 #define AUDIO_NUM_VOICES 32
 
+/* Struct view of the audio-core state block (sAudioState) for the init
+ * sweeps: channel records at +24, track slots at +1176, the voice table at
+ * +1320 and the per-channel update queue at +2860. */
+typedef struct SndFxChan { s32 f0, f4, f8, fC, f10, f14, f18, f1C; } SndFxChan;
+typedef struct SndFxTrack { s32 f0; u8 _p[32]; } SndFxTrack;
+typedef struct SndFxQue20 { s32 f0; u8 _p[16]; } SndFxQue20;
+
+typedef struct SndFxState {
+    u8 _pad0[24];
+    SndFxChan chan[12];   /* +24   */
+    u8 _pad1[768];        /* +408  */
+    SndFxTrack trk[4];    /* +1176 */
+    AudioVoice voice[32]; /* +1320 */
+    u8 _pad2[4];          /* +2856 */
+    SndFxQue20 que[12];   /* +2860 */
+} SndFxState;
+
 /* One deferred-request slot; 16 per mode, at lbl_8023D398[mode][slot]. */
 typedef struct {
     s32 soundId; /* +0  */
@@ -282,6 +299,7 @@ int sndFxQueUpdate(void)
 {
     int did = 0;
     int mode;
+    u8 unused[8];
 
     if (sAudioSuspend != 0) {
         return 0;
@@ -403,7 +421,10 @@ int sndFxPlay3DAtten(int soundId, Vec3* pos, int p2, int flags)
     if (pos == 0) {
         atten = 1.0f;
     } else {
-        f32 t = 1.4 - fn_8006366C(pos) / 50.0;
+        f32 t;
+        f64 d;
+        d = fn_8006366C(pos) / 50.0;
+        t = 1.4 - d;
         atten = t < 0.0 ? 0.0 : t > 1.0 ? 1.0 : t;
     }
     if (atten <= 0.0) {
@@ -443,34 +464,30 @@ int sndFxPlay3D(int soundId, Vec3* pos, int p2, int flags)
 /* fn_80015C48: (re)initialise voice, channel and track tables. */
 void sndFxInitVoices(void)
 {
-    u8* st = sAudioState;
-    u8* c;
-    u8* p;
+    SndFxState* st = (SndFxState*)sAudioState;
+    SndFxChan* c;
     int i;
 
-    for (i = 0; i < 12 * 20; i += 20) {
-        p = st + i;
-        *(s32*)(p + 2860) = 0;
-    }
-    for (i = 0; i < 32 * 48; i += 48) {
-        p = st + i;
-        *(s32*)(p + 1324) = 0;
-    }
-    for (i = 0; i < 4 * 36; i += 36) {
-        p = st + i;
-        *(s32*)(p + 1176) = -1;
-    }
-    c = st + 24;
     for (i = 0; i < 12; i++) {
-        *(s32*)(c + 0) = -1;
-        *(s32*)(c + 4) = -1;
-        *(s32*)(c + 8) = 0;
-        *(s32*)(c + 12) = 0;
-        *(s32*)(c + 16) = 0;
-        *(s32*)(c + 20) = 127;
-        *(s32*)(c + 24) = 0;
-        *(s32*)(c + 28) = -1;
-        c += 32;
+        st->que[i].f0 = 0;
+    }
+    for (i = 0; i < 32; i++) {
+        st->voice[i].flags = 0;
+    }
+    for (i = 0; i < 4; i++) {
+        st->trk[i].f0 = -1;
+    }
+    c = st->chan;
+    for (i = 0; i < 12; i++) {
+        c->f0 = -1;
+        c->f4 = -1;
+        c->f8 = 0;
+        c->fC = 0;
+        c->f10 = 0;
+        c->f14 = 127;
+        c->f18 = 0;
+        c->f1C = -1;
+        c++;
     }
 }
 

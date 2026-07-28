@@ -47,6 +47,11 @@ pbPulseTime                # renum, tbms r30-vs-r31 (pbutils 7/8)
 MBSetFontAlpha             # sched (mb_font)
 MBFontMsgSetAlpha          # sched (mb_font)
 pbObjTexSub                # isel, slwi/mr/rlwimi vs clrlwi/rlwimi x3 (pb_objects); flag-proof (flagsweep 2026-07)
+pbSendObjTextures          # sched+copy, name-ternary loads late (r0-vs-r4, result-web no-coalesce: named/goto/self-ternary/empty-else all worse or fold)
+                           # + obj param-copy addi-vs-mr; 16 lines, insns 111/111 (pb_objects, 2026-07-27)
+pbSendObjTexturesSub       # UNPARKED before listing: EXACT 2026-07-27 (decl order list-first + count re-deref-in-cond sinks the mr) (pb_objects)
+fn_800C38C0                # renum+remat, 9th-arg zero LICM'd li r28,0 preheader vs per-iter li r0,0 (park-family zero-web) +
+                           # obj/a/v1c & pcount/prim/stride rotation; insns 105/105; decl shuffles neutral; nil-local/varargs tested (pb_objects pbDrawObject, 2026-07-27)
 fn_800C37C4                # sched, buf r5<->r6 (pb_objects pool-init hook)
 fn_800C7214                # renum+sched, r8<->r10 (pb_texture)
 vsprintf                   # sched, 26 lines / 665 insns, ONE emission-order divergence: target emits the two
@@ -143,3 +148,9 @@ LevelToExp                 # isel, lis+add materialized 0x28550 vs our addis-on-
 ExpToLevel                 # isel+renum, same 0x28550 lis hoisted out of ctr-loop + r4-r7 rotation; loop shape exact (player)
 WritePlayerInfo            # renum, p/i r27<->r28 web swap; comma-init order tried; opcode stream aligned (player)
 PlayerSetParent            # spill-shape, target stack-homes 3 fsubs deltas across calls (no saved FPRs); scalars/d[3]/VecSub-inline all register-home them; 48-52 lines (player)
+# moderate_iso round (2026-07-27):
+mbBlitCalcRect             # isel, fmul result-slot f0-vs-f1 tie after /32.0 reciprocal fix; 6 lines (mb_blit)
+mbBlitCalcWidth            # frame, +8 stack-slot base (local-home elision for window/value; temps identical); 40 offset-only lines, insns 69/69 (mb_blit)
+sndFxPlay3DAtten           # renum, FPR const-pair f0<->f2 swap on 1.4-d/50 chain; 8 lines (sndfx)
+sndFxInitVoices            # isel, stwx+idx-fold vs add+2860/1324/1176-disp on strength-reduced IVs; struct-view/e-form/raw-view all tied; 22 lines (sndfx)
+sndFxQueUpdate             # renum, did<->IV1 r28/r29 + volatile drift; opcode-identical 102/102; 30 lines (sndfx)

@@ -144,6 +144,7 @@ extern f32 floorf(f32 value);
 extern PADStatus* G3DGetPadStatusBuffer(void);
 extern void __dl__FPv(void* object);
 extern u8 lbl_80296450[];
+extern const char lbl_80127D60[]; /* render-node name block used by MBInitBlits */
 extern MBTextureDef* MBRomTexPtr(s32 texture);
 extern u32 __cvt_fp2unsigned(f32 value);
 extern MBWindow* gWinGlobals;
@@ -219,10 +220,11 @@ void fn_800B28EC(MBBLIT* b, u32 c0, u32 c1, u32 c2, u32 c3)
  * alpha 128..1 in color0's top byte; clears the per-corner flag. */
 void fn_800B290C(MBBLIT* b, u32 fade)
 {
-    fade = 128 - (fade >> 1);
+    u32 v;
     b->flags &= ~0x10;
+    v = 128 - (fade >> 1);
     b->color0 &= 0x00FFFFFF;
-    b->color0 |= fade << 24;
+    b->color0 |= v << 24;
 }
 
 /* 0x800B2940  set blit brightness (= MBBlitSetColor): 0..255 maps to a
@@ -242,7 +244,8 @@ s32 fn_800B2980(MBBLIT* b)
 
 void mbBlitCalcRect(MBBLIT* b, s32* x, s32* y, f32* depth) {
     MBWindow* window = gWinGlobals;
-    f32 round;
+    f64 round;
+    f32 fr;
     s32 coord;
     s32 value;
 
@@ -253,10 +256,11 @@ void mbBlitCalcRect(MBBLIT* b, s32* x, s32* y, f32* depth) {
         } else {
             round = -0.5;
         }
+        fr = (f32)round;
         if ((b->flags & 0x40) != 0) {
             value = coord << 4;
         } else {
-            value = (s32)(round + (f32)coord / window->scale->x);
+            value = (s32)(fr + (f32)coord / window->scale->x);
         }
         *x = value;
     }
@@ -267,34 +271,35 @@ void mbBlitCalcRect(MBBLIT* b, s32* x, s32* y, f32* depth) {
         } else {
             round = -0.5;
         }
+        fr = (f32)round;
         if ((b->flags & 0x40) != 0) {
             value = coord << 4;
         } else {
-            value = (s32)(round + (f32)coord / window->scale->y);
+            value = (s32)(fr + (f32)coord / window->scale->y);
         }
         *y = value;
     }
     if (depth != 0) {
-        *depth = (f32)((f64)(f32)b->depth * 0.03125);
+        *depth = (f32)b->depth / 32.0;
     }
 }
 
 void mbBlitCalcWidth(MBBLIT* b, s32 x, s32 y, f64 depth) {
     MBWindow* window = gWinGlobals;
-    s16 value;
+    s32 value;
 
     if ((b->flags & 0x40) != 0) {
         value = x << 4;
     } else {
-        value = (s16)(x * window->scale->x);
+        value = x * window->scale->x;
     }
-    b->x = value;
+    b->x = (s16)value;
     if ((b->flags & 0x40) != 0) {
         value = y << 4;
     } else {
-        value = (s16)(y * window->scale->y);
+        value = y * window->scale->y;
     }
-    b->y = value;
+    b->y = (s16)value;
     if (depth >= 0.0) {
         b->depth = (u32)(f32)(s32)(32.0 * depth);
     }
@@ -567,12 +572,13 @@ void* MBNewTempQuad(int a, int b) {
 /* Initialise the whole blit system + default render nodes. */
 void MBInitBlits(int makeNodes) {
     MBNODE* n;
+    u8 unused[8];
     memset(blitPool, 0, MB_BLIT_POOL_MAX * 0x38);
     blitPool[0].tex = -1;
     blitCount = 0;
 
     if (makeNodes) {
-        n = (MBNODE*)fn_800BB29C(0, (const char*)0x80127D60, 13);
+        n = (MBNODE*)fn_800BB29C(0, lbl_80127D60, 13);
         if (n != 0) {
             n->flags = 0;
             n->blits = 0;
@@ -580,7 +586,7 @@ void MBInitBlits(int makeNodes) {
         }
         gDiag_DEC = n;
         n->flags |= 4;
-        n = (MBNODE*)fn_800BB29C(0, (const char*)0x80127D60, 13);
+        n = (MBNODE*)fn_800BB29C(0, lbl_80127D60, 13);
         if (n != 0) {
             n->flags = 0;
             n->blits = 0;
@@ -588,7 +594,7 @@ void MBInitBlits(int makeNodes) {
         }
         defaultBlitList = n;
         n->flags |= 4;
-        n = (MBNODE*)fn_800BB29C(0, (const char*)0x80127D60, 13);
+        n = (MBNODE*)fn_800BB29C(0, lbl_80127D60, 13);
         if (n != 0) {
             n->flags = 0;
             n->blits = 0;
@@ -1043,8 +1049,10 @@ void* g3dcolorDtor(void* object, s16 shouldDelete) {
 
 void* mbBlitColorArrayDtor(void* object, s16 shouldDelete) {
     if (object != 0) {
-        __destroy_arr((u8*)object + 4, (ConstructorDestructor*)g3dcolorDtor,
-                      1, 4);
+        if (object != 0) {
+            __destroy_arr((u8*)object + 4,
+                          (ConstructorDestructor*)g3dcolorDtor, 1, 4);
+        }
         if (shouldDelete > 0) {
             __dl__FPv(object);
         }
@@ -1053,36 +1061,29 @@ void* mbBlitColorArrayDtor(void* object, s16 shouldDelete) {
 }
 
 void mbBlitPadTest(s32* manager) {
-    s32 statusOffset = 0;
-    s32 player = 0;
-    s32 remaining = 4;
     u32 disconnected = 0;
     u32 present = 0;
-    PADStatus* statuses;
+    s32 i;
+    u8 unused[8];
 
     manager[0] = 0;
-    statuses = G3DGetPadStatusBuffer();
-    manager[2] = (s32)statuses;
-    do {
-        s8 error = *(s8*)((u8*)statuses + statusOffset + 10);
-        u32 bit = 0x80000000U >> player;
+    manager[2] = (s32)G3DGetPadStatusBuffer();
+    for (i = 0; i < 4; i++) {
+        u32 bit = 0x80000000U >> i;
+        s8 err = ((s8*)manager[2])[i * 12 + 10];
 
-        if (error == -1) {
+        switch (err) {
+        case -1:
             disconnected |= bit;
-        } else if (error < -1) {
-            if (error < -3) {
-                goto next;
-            }
-        } else if (error >= 1) {
-            goto next;
+        case -3:
+        case -2:
+        case 0:
+            present |= bit;
+            manager[manager[0] + 3] = i;
+            manager[0]++;
+            break;
         }
-        present |= bit;
-        manager[manager[0] + 3] = player;
-        manager[0]++;
-next:
-        player++;
-        statusOffset += sizeof(PADStatus);
-    } while (--remaining != 0);
+    }
 }
 
 void mbBlitStaticInit(void) {
