@@ -82,10 +82,6 @@ extern f32 lbl_80343EC0;
 extern f32 lbl_80343EC4;
 extern const f64 lbl_80348C38;
 extern const f64 lbl_80348C40;
-extern const f32 lbl_80348C50;
-extern const f64 lbl_80348C58;
-extern const f64 lbl_80348C60;
-extern const f64 lbl_80348C68;
 
 extern const char str_BadMBSetObject[];    /* "Bad MBSetObject"          */
 extern const char str_TooManyPsys[];       /* "TOO MANY PSYS OBJECTS: %d" */
@@ -296,14 +292,14 @@ void FaceCamMat(f32* mtx, f32 limit) {
     toCamera[0] = *(f32*)(lbl_80344EE8 + 0x94) - mtx[12];
     toCamera[1] = *(f32*)(lbl_80344EE8 + 0x98) - mtx[13];
     toCamera[2] = *(f32*)(lbl_80344EE8 + 0x9C) - mtx[14];
-    if (limit == lbl_80348C50) {
+    if (0.0f == limit) {
         goto no_pitch;
     } else {
         fn_800BD428(&mtx[8], &yaw, &pitch);
         fn_800BD428(toCamera, &cameraYaw, &cameraPitch);
         cameraYaw -= yaw;
         cameraPitch -= pitch;
-        if (limit > lbl_80348C50) {
+        if (limit > 0.0f) {
             if (cameraPitch > limit) {
                 cameraPitch = limit;
             } else if (cameraPitch < -limit) {
@@ -334,8 +330,8 @@ void InitFrontFaceYaw(f32* cam) {
     f32 yaw;
 
     fn_800BD428(cam, &yaw, &pitch);
-    lbl_80344E98 = (f32)__sin(3.141592653589793 + yaw);
-    lbl_80344E94 = (f32)__cos(3.141592653589793 + yaw);
+    lbl_80344E98 = (f32)__sin(3.141592654 + yaw);
+    lbl_80344E94 = (f32)__cos(3.141592654 + yaw);
 }
 
 void QuickYawMat(f32* mtx) {
@@ -344,13 +340,13 @@ void QuickYawMat(f32* mtx) {
     f32 objectYaw = atan2(mtx[8], mz);
     f32 cz = *(f32*)(lbl_80344EE8 + 0x8C);
     f32 cameraYaw = atan2(*(f32*)(lbl_80344EE8 + 0x84), cz);
-    f32 yaw = (f32)(lbl_80348C58 + cameraYaw) - objectYaw;
+    f32 yaw = (f32)(3.141592654 + cameraYaw) - objectYaw;
     f64 result;
 
-    if (yaw > lbl_80348C58) {
-        result = yaw - lbl_80348C60;
-    } else if (yaw <= lbl_80348C68) {
-        result = lbl_80348C60 + yaw;
+    if (yaw > 3.141592654) {
+        result = yaw - 6.283185308;
+    } else if (yaw <= -3.141592654) {
+        result = 6.283185308 + yaw;
     } else {
         result = yaw;
     }
@@ -480,7 +476,7 @@ void InitSortObjects(void) {
 /* qsort comparator: back-to-front by key. */
 static int CmpDist(const void* a, const void* b) {
     f32 d = ((const MBObjEntry*)b)->key - ((const MBObjEntry*)a)->key;
-    if (d > 0.0) return 1;
-    if (d < 0.0) return -1;
+    if (d > 0.0f) return 1;
+    if (d < 0.0f) return -1;
     return 0;
 }
