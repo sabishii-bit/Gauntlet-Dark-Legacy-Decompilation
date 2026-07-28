@@ -26,6 +26,7 @@ cross-reference sets.
 | `fn_80063F10` | `CollectSafeRocks` | GC-only behavior; sole caller activates returned rocks |
 | `fn_80064154` | `AddItemSub` | ITEMS.OBJ PDB and item finalization |
 | `fn_80065D98` | `ItemVisible` | ITEMS.OBJ PDB and player-count gate |
+| `fn_80066080` | `update_player_milestone` | ITEMS.OBJ PDB; player milestone-history update |
 | `fn_80067904` | `InitLighting` | LIGHTS.OBJ PDB |
 | `fn_8006799C` | `DoLighting` | LIGHTS.OBJ PDB |
 | `fn_8006EC18` | `CurTransmitterBlink` | NEWCAM.OBJ PDB and debug-arrow behavior |
@@ -98,6 +99,8 @@ cross-reference sets.
 | `lbl_80347020` | `sPi` | π |
 | `lbl_80347118` | `ITEM_ACTIVE_DIST` | ITEMS.OBJ PDB; value 1000 |
 | `lbl_80347128` | `sItemHealthTextureFmt` | `"%s%d"` |
+| `lbl_80347148` | `sMilestoneHeightTolerance` | vertical milestone acceptance threshold |
+| `lbl_80347150` | `sMilestoneDistanceTolerance` | horizontal milestone acceptance threshold |
 | `lbl_80347160` | `sInvalidPlayerStartY` | `-100000.0` sentinel |
 | `lbl_80347168` | `sGoodWizardChestName` | `"CHESTSG"` |
 | `lbl_80347170` | `sSeeThroughObjectName` | `"SEETHRU"` |
@@ -128,6 +131,19 @@ cross-reference sets.
 | `lbl_80344998` | `sLevelAmbient` | current level ambient value |
 | `lbl_8034499C` | `sLevelAmbientScale` | ambient multiplier |
 | `lbl_80344B18` | `gPlayerStartYaw` | selected start orientation |
+
+## Player milestone ABI
+
+`update_player_milestone` takes the active `Player*` in `r3`; its former
+zero-argument declaration was an ABI error. The routine reads the player index
+at `+0x0000` and maintains a five-entry `s32 milestone[5]` history at
+`+0x0A34`. It queries `ShowMilestones(-1)`, clears the old milestone-node
+flags before shifting the history, and then applies the five-bit
+`sShownMilestones` visibility mask to the retained node handles.
+
+The reconstructed body is instruction-count identical to the 0x1EC-byte
+target. Residual differences are register coloring, two equivalent
+three-instruction node-address forms, and adjacent load scheduling.
 | `lbl_80344EB8` | `gSceneRoot` | default MB scene root |
 | `lbl_80347180` | `sOne` | `1.0f` |
 | `lbl_80347184` | `sNegativeHalf` | `-0.5f` |
@@ -138,4 +154,3 @@ cross-reference sets.
 | `lbl_803471A0` | `sAmbientBrightenStep` | `0.05` |
 | `lbl_803471A8` | `sAmbientDarkenStep` | `-0.25` |
 | `lbl_803471B0` | `sAmbientMaximum` | `1.0` |
-
