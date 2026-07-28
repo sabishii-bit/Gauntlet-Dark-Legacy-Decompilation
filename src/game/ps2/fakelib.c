@@ -113,8 +113,8 @@ u8 sceFileExists(const char* path)
     return DVDConvertPathToEntrynum(path) >= 0;
 }
 
-/* 0x800AEAD0: file size probe - open with retry, take length, close */
-int fn_800AEAD0(const char* path)
+/* File size probe - open with retry, take length, close. */
+int sceFileSize(const char* path)
 {
     u8 fi[0x3C]; /* DVDFileInfo */
     u8 bufo[64];
@@ -196,34 +196,47 @@ int fn_800AEBF4(void* fileInfo, void* buf, int len, int offset)
     }
     do {
         status = DVDGetCommandBlockStatus(fileInfo);
-        if (status != 3) {
-            if (status >= 3 || status < 0) {
-                char* msg2;
-
-                lbl_80344DB8 = 1;
-                msg2 = 0;
-                switch (status) {
-                case -1:
-                    msg2 = base + 176;
-                    break;
-                case 5:
-                    msg2 = base + 304;
-                    break;
-                case 4:
-                case 6:
-                    msg2 = base + 336;
-                    break;
-                case 11:
-                    msg2 = base + 388;
-                    break;
-                }
-                if (msg2 != 0) {
-                    ScrollMessageBox(msg2);
-                }
-            }
-        } else {
-            lbl_80344DB8 = 1;
+        if (status == 3) {
+            goto dvd_busy;
         }
+        /* Keep the busy block between the range tests and error dispatch.
+         * This is the source layout MWCC uses for the original block order. */
+        if (status >= 3 || status < 0) {
+            goto dvd_error;
+        }
+        goto dvd_done;
+
+    dvd_busy:
+        lbl_80344DB8 = 1;
+        goto dvd_done;
+
+    dvd_error:
+        {
+            char* msg2;
+
+            lbl_80344DB8 = 1;
+            msg2 = 0;
+            switch (status) {
+            case -1:
+                msg2 = base + 176;
+                break;
+            case 5:
+                msg2 = base + 304;
+                break;
+            case 4:
+            case 6:
+                msg2 = base + 336;
+                break;
+            case 11:
+                msg2 = base + 388;
+                break;
+            }
+            if (msg2 != 0) {
+                ScrollMessageBox(msg2);
+            }
+        }
+
+    dvd_done:
         sysHandleReset();
     } while (status != 0);
     if (lbl_80344A5C != 0) {
@@ -372,22 +385,22 @@ int sceOpen(const char* path, int flags, ...)
 
 /* --- pad API ---------------------------------------------------------- */
 
-int fn_800AF1B8(void)
+int WaitSema(int sema)
 {
     return 0;
 }
 
-int fn_800AF1C0(void)
+int SignalSema(int sema)
 {
     return 0;
 }
 
-int fn_800AF1C8(void)
+int CreateSema(void* param)
 {
     return 0;
 }
 
-int fn_800AF1D0(void)
+int GetThreadId(void)
 {
     return 0;
 }
@@ -400,12 +413,12 @@ void fn_800AF1DC(void)
 {
 }
 
-int fn_800AF1E0(void)
+int DIntr(void)
 {
     return 0;
 }
 
-int fn_800AF1E8(void)
+int EIntr(void)
 {
     return 0;
 }
@@ -438,7 +451,7 @@ int scePadGetState(int port, int slot)
     return 0;
 }
 
-int fn_800AF24C(void)
+int scePadSetActAlign(void)
 {
     return 1;
 }
@@ -521,7 +534,7 @@ int sceMtapGetConnection(int port)
 
 /* --- tail stubs -------------------------------------------------------- */
 
-int fn_800AF538(void)
+int sceMtapInit(void)
 {
     return 1;
 }

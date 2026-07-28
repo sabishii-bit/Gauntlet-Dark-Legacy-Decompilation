@@ -63,8 +63,8 @@ int sceOpen(const char* path, int flags, ...);
 int sceLseek(int fd, int offset, int whence);
 int sceWrite(int fd, const void* data, int length);
 int sceClose(int fd);
-void fn_800AF1B8(s32 value);
-void fn_800AF1C0(s32 value);
+void WaitSema(s32 sema);
+void SignalSema(s32 sema);
 void ClearMemLocks(void);
 void fn_800C1174();
 void fn_800C1498(void);
@@ -82,7 +82,7 @@ void bulletproof_printf(const char* format, ...)
 
     base = lbl_802C38C8;
     if (lbl_80344EF8 != 0) {
-        fn_800AF1B8(lbl_80344EF8);
+        WaitSema(lbl_80344EF8);
     }
 
     va_start(args, format);
@@ -100,7 +100,7 @@ void bulletproof_printf(const char* format, ...)
     }
 
     if (lbl_80344EF8 != 0) {
-        fn_800AF1C0(lbl_80344EF8);
+        SignalSema(lbl_80344EF8);
     }
 }
 

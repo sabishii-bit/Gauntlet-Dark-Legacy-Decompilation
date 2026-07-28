@@ -105,8 +105,8 @@ extern void fn_800B69DC(f32 sx, f32 sy);
 extern void fn_800C116C(s32 code, char* file);
 extern void fn_800C2618(void);
 extern void fn_800C2C74(void);
-extern void fn_800AF1E0(void);
-extern void fn_800AF1E8(void);
+extern void DIntr(void);
+extern void EIntr(void);
 extern u32 fn_800AF55C(void);
 
 /* Latch a frame buffer + publish its packet pointers
@@ -160,10 +160,10 @@ void fn_800C1624(void)
         if (lbl_80343EFC->m10 != 0) {
             fn_800C2C74();
         }
-        fn_800AF1E0();
+        DIntr();
         fn_800C151C(1);
         fn_800C151C(0);
-        fn_800AF1E8();
+        EIntr();
     } else if (s->m48 != 0) {
         pbFrameMode(s->m10, 0);
     }

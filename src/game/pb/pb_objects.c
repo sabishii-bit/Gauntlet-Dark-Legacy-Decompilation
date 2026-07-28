@@ -29,7 +29,7 @@
 
 /* --- shared pb-global block (see pb_global.c) --- */
 typedef struct PBObjPool {
-    void* buf;        /* 0x00 : aligned scratch buffer (fn_800AF1C8 result) */
+    void* buf;        /* 0x00 : aligned scratch buffer (CreateSema result) */
     u8** freehead;    /* 0x04 : head of the 0x800-stride free list */
 } PBObjPool;
 
@@ -55,7 +55,7 @@ extern u8 lbl_802C52D8[0x158]; /* secondary object block storage */
 extern u8 lbl_802913C0[0x2000];/* object push-buffer pool (8 x 0x800 nodes) */
 extern u8 lbl_802913C0_hi[];   /* == lbl_802933C0, upper half of the pool */
 
-extern u8 lbl_80128178[0x18];  /* semaphore/param block for fn_800AF1C8 */
+extern u8 lbl_80128178[0x18];  /* semaphore parameter block */
 extern u32 lbl_802913C0_ptr;
 
 /* --- object-debug control (0x801281AC in .data, ptr held in lbl_80343F40) --- */
@@ -83,10 +83,10 @@ extern char lbl_80348F3C[];    /* "busy" */
 extern char lbl_80348F44[];    /* "idle" */
 
 /* --- externs into other TUs / the SDK --- */
-extern void fn_800AF1B8(void* p);      /* push-buffer flush/lock */
-extern void fn_800AF1E0(void);         /* disable-irq / begin */
-extern void fn_800AF1E8(void);         /* restore-irq / end */
-extern void* fn_800AF1C8(void* param); /* aligned alloc / semaphore create */
+extern void WaitSema(void* sema);
+extern void DIntr(void);
+extern void EIntr(void);
+extern void* CreateSema(void* param);
 
 extern void pbSetupPosLights(f32 extra, int, void*, void*); /* pb_objregs pos-light setup */
 extern void fn_800C5598(int, u32, int, int, u32, int, void*, void*, void*); /* pb_objregs primitive emit */
@@ -127,11 +127,11 @@ void* fn_800C3680(void)
     } else {
         PBGlobal* g = gWinGlobals;
         u8** head;
-        fn_800AF1B8(g->objPool->buf);
-        fn_800AF1E0();
+        WaitSema(g->objPool->buf);
+        DIntr();
         head = g->objPool->freehead;
         g->objPool->freehead = (u8**)head[0];
-        fn_800AF1E8();
+        EIntr();
         return head;
     }
 }
@@ -145,7 +145,7 @@ void fn_800C36F8(void)
 
     g = gWinGlobals;
     if (lbl_80343F28 == -1) {
-        lbl_80343F28 = (int)fn_800AF1C8(lbl_80128178);
+        lbl_80343F28 = (int)CreateSema(lbl_80128178);
     }
     g->objPool->buf = (void*)lbl_80343F28;
     g->objPool->freehead = (u8**)lbl_802913C0;
@@ -178,7 +178,7 @@ void fn_800C37C4(void)
     gWinGlobals->objPool = (PBObjPool*)lbl_802C52C0;
     g = gWinGlobals;
     if (lbl_80343F28 == -1) {
-        lbl_80343F28 = (int)fn_800AF1C8(lbl_80128178);
+        lbl_80343F28 = (int)CreateSema(lbl_80128178);
     }
     g->objPool->buf = (void*)lbl_80343F28;
     g->objPool->freehead = (u8**)lbl_802913C0;
