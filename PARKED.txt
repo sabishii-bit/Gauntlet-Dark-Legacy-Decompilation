@@ -202,6 +202,38 @@ do_enemy_move              # STRUCTURAL-COMPLETE 905/905, frame+fields+pooling e
                            # temp renum ~7 lines. int-transit, cast-transit, opt_propagation off all tested.
 kill_enemy                 # renum, 4 lines: one-case-switch value lwz r3-vs-r0 (s32-cast + named-local
                            # spellings neutral); rest byte-aligned incl zero-web r29 (enemy.c)
+# enemy.c move_logic dispatcher handlers (w_logic_iso, 2026-07-27) - 13/24 real bodies:
+move_logic23               # 82/82 opcode-exact; parked 1 lfs (sight-load) schedule + dy FPR renum in the
+                           # imp height-check block (shared by 28). SCHEDULE, 20 lines (enemy.c)
+move_logic28               # 112/112 opcode-exact; same height-block sight-load schedule as 23 (enemy.c)
+move_logic24               # 96/97; parked 1 fmr, the alg20/normalize `f64 a=e->ang` FPR split-vs-direct
+                           # (do_enemy_move alg20 class); branch-stuck + decl-reorder fixed all else (enemy.c)
+move_logic21               # 119/120; same normalize fmr class as 24 (enemy.c)
+move_logic03               # 133/134; same normalize fmr; outer if/else places algorithm=0 guard at fn end,
+                           # spd-init sunk past guards (both fixed) (enemy.c)
+move_logic02               # 145/145 insns; parked pool-anchor head addressing (do_enemy_move class): e
+                           # temp-r4+copy vs direct, other's +3608 fold, distance-block schedule. 44 lines.
+                           # byte-offset `op` for other is WORSE on SHORT fns (op-web rotation) (enemy.c)
+move_logic04               # 146/146; same 02 addressing class (ang-=pi/4 + reset=2 body-delta clean) (enemy.c)
+move_logic12               # 149/150; 02 class BUT gen byte-math read (anchor+idx*916+4264) collapses the
+                           # nonvolatile cascade 103->38; other byte-offset still worse. 38 lines (enemy.c)
+move_logic30               # 155/155; LONG fn: byte-offset `op` for other REMOVES the +3608 addi and
+                           # collapses the address-shift cascade 101->38 (opposite of short 02/04); r+20
+                           # fold + <=0 timers fixed; parked distance schedule + it/anchor reg (enemy.c)
+move_logic31               # 158/159; update_vel(e,k) static helper (inlined) keeps k-mul unfolded + named
+                           # vx/vz block the fmadds fusion; ((f32*)lbl_80250E40)[type] sibling-pools the
+                           # speed table (fold +64); algo/prev_ai byte-math; parked e-materialize + 12/13
+                           # dispatch range-vs-explicit form. 45 lines (enemy.c)
+move_logic01               # 160/160; 02 e-temp addressing amplified through a register-heavy head (stuck/
+                           # dead0/it/e); stuck-before-e decl + it-load-late fixed nonvolatiles; float-abs
+                           # via *(u32*)&d&=0x7FFFFFFF; parked addressing cascade ~150 lines (enemy.c)
+move_logic19               # 194/194 insns, gEnemies-direct (NO anchor); real skeleton state machine w/
+                           # gotos; parked mode1 switch-dispatch block placement (bge;b vs blt fold) +
+                           # dead_end/counter1 timer branch polarity. 26 lines (enemy.c)
+move_logic00               # 244-insn base wander w/ 9-dir sin/cos search loop + fn_8004C8CC clearance
+                           # probe + fabsf_ helper; STRUCTURAL (correct C), head aligned; parked flee-head
+                           # addressing + heavy search-loop scheduling (frsp/fmadds/abs order). ~280 lines.
+                           # REMAINING move_logic (not yet written): 05 06 07 08 10 13 14 15 16 18 20 22 29
 generate_enemy             # renum, 241/242: imp/mask/otype 3-cycle (r24/r25/r26) + tbl/anchor lis order
                            # swap (r27/r28) + one cmplwi-vs-stw sched slot + animidx mr copy; structure,
                            # tables, spew-param-reuse, switch layout all aligned (enemy.c)
