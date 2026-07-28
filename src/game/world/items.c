@@ -68,7 +68,13 @@ typedef struct ItemStrings {
     char file1Format[1];
 } ItemStrings;
 
+typedef struct ItemSceneContext {
+    u8    _pad00[0x44];
+    void* current;
+} ItemSceneContext;
+
 extern ItemRuntime    lbl_802577F0;
+extern f32            lbl_80258400[14][3];
 extern LookoutParam   lbl_802584A8[];
 extern TriggerCamera* lbl_80258D18[3][14];
 extern TriggerCamera* lbl_80258DC0[17];
@@ -87,6 +93,10 @@ extern void*          lbl_80344EB8;
 extern void*          lbl_8034497C;
 extern f32            lbl_80127D60[16];
 extern f32            lbl_80346EE4;
+extern f32            lbl_80346F3C;
+extern f64            lbl_80346F48;
+extern f32            lbl_80346EE0;
+extern f64            lbl_80346FC0;
 extern s32            lbl_8034494C;
 extern s32            gMaxItems;
 extern s32            gNextItemIdx;
@@ -97,6 +107,10 @@ extern s32            lbl_80344924;
 extern s32            lbl_80344920;
 extern s32            lbl_80344958;
 extern s32            lbl_80344954;
+extern iteminfo*       lbl_80344930;
+extern s32             lbl_80344934;
+extern s32             lbl_80344938;
+extern s32             lbl_8034493C;
 extern u32            pbLoad;
 extern s32            lbl_80344764;
 extern u32            lbl_8034477C;
@@ -119,17 +133,28 @@ extern void  fn_80064154(Item* item);
 extern void  fn_800115D0(void* p);
 extern void  fn_800BAEAC(s32 handle, s32 flag);
 extern s32   fn_800BA2C4(void* node, s32 a, s32 b);
+extern void  fn_800BAD94(void* node, void* parent);
+extern void  fn_8005A3B8(OBJGRP* group);
 extern void  AddItemWobj(Item* item);
 extern s32   PlayerSelecting(s32 idx);
 extern s32   gNumEnemies;
 extern u8    gEnemies[];
 extern u8    lbl_80275AE0[];
+extern ItemSceneContext lbl_8023CAE0;
+extern s64   lbl_803445C8;
+extern char  lbl_80112D68[];
+extern char  lbl_80112FF4[0xB];
+extern char  lbl_80346FF4[8];
+extern char  lbl_80347168[8];
+extern char  lbl_80347170[8];
 extern s32   WorldOpen(s32 handle);
 extern char  lbl_80112E24[];
 extern char  lbl_80112D20[];
 extern char  lbl_80112FC8[];
 extern s32   sMusicTrackHi;
 extern int   strcmp(const char* a, const char* b);
+
+static u32 AtreeMatchAnyHeader(char* name, s32 alsoWads);
 
 extern s32     lbl_803448FC;
 extern double  lbl_80347160;
@@ -196,6 +221,142 @@ extern s32     lbl_80344914;
 /* ------------------------------------------------------------------ */
 /* item pool                                                          */
 /* ------------------------------------------------------------------ */
+
+void fn_80064154(Item* item)
+{
+    u8 unused_before[4];
+    f32 position[3];
+    u8 unused_after[4];
+    void** current;
+
+    if (item == 0) {
+        return;
+    }
+    if (item->objgrp.node == 0) {
+        return;
+    }
+    if ((item->info->item.colflags & 1) != 0) {
+        return;
+    }
+
+    position[0] = item->objgrp.worldmat[3][0];
+    position[1] = item->objgrp.worldmat[3][1];
+    position[2] = item->objgrp.worldmat[3][2];
+    item->objgrp.worldmat[3][1] =
+        lbl_80346F48 + fn_8000D3C4(position[1], lbl_80346F3C,
+                                   position, 0);
+
+    current = &lbl_8023CAE0.current;
+    if (*current == 0 && (lbl_803445C8 & 0x10) != 0) {
+        ErrorPrintf(lbl_80112D68, item->info->item.desc,
+                    position[0], position[1], position[2]);
+    }
+
+    if (*current != 0 && *(void**)((u8*)*current + 0x28) != 0 &&
+        (*(u32*)((u8*)*current + 0x10) & 0x1000) != 0) {
+        fn_800BAD94(item->objgrp.node, *(void**)((u8*)*current + 0x28));
+    }
+
+    fn_8005A3B8(&item->objgrp);
+    switch (item->info->type) {
+    case 5:
+        break;
+    default:
+        goto done;
+    }
+    {
+        void* linked;
+        void* scene;
+
+        if ((*(s16*)&item->data[4] & 0x400) == 0) {
+            goto done;
+        }
+        linked = *(void**)&item->data[0];
+        if (linked == 0) {
+            goto done;
+        }
+        scene = *current;
+        if (scene == 0) {
+            goto done;
+        }
+        if (linked != scene && linked != *(void**)((u8*)scene + 0x18)) {
+            goto done;
+        }
+        *(s16*)&item->data[4] |= 0x100;
+    }
+done:
+    return;
+}
+
+void InitItemInfoData(void)
+{
+    u8* runtime = (u8*)&lbl_802577F0;
+    iteminfo* infos = gWorldInfo.iteminfo;
+    s32 info_count = gWorldInfo.niteminfos;
+    s32 i;
+    s32 offset;
+
+    lbl_80344930 = 0;
+    lbl_8034493C = 0;
+    lbl_80344938 = 0;
+    lbl_80344934 = 0;
+
+    if (sGoodWizObj != 0 || sItemFile1Buf != 0 || sPowerupsBuf != 0) {
+        for (i = 0, offset = 0; i < info_count; i++, offset += 0x50) {
+            iteminfo* info = (iteminfo*)((u8*)infos + offset);
+            s32 also_wads;
+
+            if (info->type == 3) {
+                also_wads = 1;
+            } else {
+                also_wads = 0;
+            }
+            info->item.atreeheader = (void*)AtreeMatchAnyHeader(
+                info->item.desc, also_wads);
+            if (info->type == 2 && info->item.subtype == 0x2F) {
+                lbl_80344930 = info;
+            }
+        }
+
+        if (sGoodWizObj != 0) {
+            lbl_8034493C = AtreeMatch(sGoodWizObj, lbl_80347168, 0);
+            lbl_80344938 = AtreeMatch(sPowerupsBuf, lbl_80112FF4, 0);
+            lbl_80344934 = AtreeMatch(sPowerupsBuf, lbl_80346FF4, 0);
+        }
+    }
+
+    {
+        s32 overlay_offset = 0;
+
+        i = 0;
+        offset = 0;
+        do {
+            u8* player_runtime;
+            u8* overlay_runtime;
+            s32* node_slot;
+            s32 zero;
+
+            player_runtime = runtime + offset;
+            *(void**)(player_runtime + 0x74B8) =
+                fn_800BB29C(lbl_8034497C, 0, 4);
+            zero = 0;
+            overlay_runtime = runtime + overlay_offset;
+            *(s32*)(player_runtime + 0x74A8) = zero;
+            *(s32*)(overlay_runtime + 0x74C8) = zero;
+            *(s32*)(player_runtime + 0x7478) =
+                MBOX_NewObject(lbl_80347170, 0, (s32)lbl_8034497C,
+                               0x04200000);
+            node_slot = (s32*)(player_runtime + 0x7478);
+            fn_800BA368((void*)*node_slot, 1, 0);
+            *(s16*)(*node_slot + 0x68) = -800;
+            i++;
+            overlay_offset += 0x48;
+            *(s32*)(player_runtime + 0x7498) = zero;
+            offset += 4;
+            *(s32*)(player_runtime + 0x7488) = zero;
+        } while (i < 4);
+    }
+}
 
 /* allocate the next free item slot, scanning from gNextItemIdx. */
 Item* NewItemPtr(void)
@@ -863,6 +1024,51 @@ struct mbnode* ItemGetNode(s32 idx) {
 /* ------------------------------------------------------------------ */
 /* milestone, lookout, and trigger-camera boundary                    */
 /* ------------------------------------------------------------------ */
+
+s32 ClosestStartPos(f32* position)
+{
+    f64 zero;
+    f64 minimum_y;
+    f32 best_distance;
+    s32 i;
+    s32 result;
+    u8 unused[8];
+
+    best_distance = lbl_80346EE0;
+    zero = lbl_80346FC0;
+    minimum_y = lbl_80347160;
+    result = 0;
+    i = 0;
+
+    do {
+        f32* candidate = lbl_80258400[i];
+        f32* candidate_y = candidate + 1;
+
+        if ((f64)*candidate_y <= minimum_y) {
+            goto next_start;
+        }
+        if (WorldOpen(lbl_80124D14[i]) == 0) {
+            goto next_start;
+        }
+        {
+            f32 dx = candidate[0] - position[0];
+            f32 dy = *candidate_y - position[1];
+            f32 dz = candidate[2] - position[2];
+            f32 distance = dx * dx + dy * dy + dz * dz;
+
+            if (best_distance < zero ||
+                distance < best_distance) {
+                best_distance = distance;
+                result = i;
+            }
+        }
+
+next_start:
+        i++;
+    } while (i < 14);
+
+    return result;
+}
 
 void SetPlayerStartPos(s32 idx)
 {
