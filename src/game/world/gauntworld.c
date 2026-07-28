@@ -111,7 +111,7 @@ extern void  DoTexMods(void* data);
 extern void  DoSpecialTexmods(void);
 extern void  SetupPlayerTexMods(s32 player);
 extern void  fn_800606FC(void);
-extern s32   fn_8005D0C4(s16 id, f32* position);
+extern s32   fn_8005D0C4(s32 id, f32* position);
 extern f32   NormalVector(f32* vector);
 extern u8    lbl_80237BA0[];
 extern f32   lbl_80127D60[16];
@@ -667,6 +667,299 @@ void fn_8005D04C(void)
     }
 }
 
+/* forward decls for later-defined callees */
+extern f32 fqdist(f32 x, f32 y);
+extern void MBTreeSetFlags(void* node, s32 flags, s32 value);
+extern int fn_8005EE18(Item* item, s32 arg);
+extern f32 fn_8005F0F4(Item* item, f32 a, f32 b, s32 c, f32* pos, s32 d);
+extern void fn_8009D91C(f32* pos);
+
+s32 fn_8005D0C4(s32 id, f32* position)
+{
+    f32 dy;
+    f32 best = 2.0f;
+    s32 best_idx = -1;
+    s32 idx;
+    u8 unused[24];
+
+    if (id != 33 && id != 32 && id != 29) {
+        return -1;
+    }
+
+    StartEnemyGrid(-1.0f, position);
+    while ((idx = NextGridEnemy()) >= 0) {
+        Item* item = &sItems[idx];
+        f32 d;
+        f32 ady;
+
+        if (item->active == -1) {
+            continue;
+        }
+        if (item->active & 0x8100) {
+            continue;
+        }
+        if (item->minoff != 0) {
+            continue;
+        }
+        if (item->info->type != 1) {
+            continue;
+        }
+
+        {
+            f32 dx = item->objgrp.worldmat[3][0] - position[0];
+            f32 dz = item->objgrp.worldmat[3][2] - position[2];
+            dy = item->objgrp.worldmat[3][1] - position[1];
+            d = fqdist(dx, dz);
+        }
+        if (d < best) {
+            ady = dy;
+            *(u32*)&ady &= 0x7FFFFFFF;
+            if (ady < 3.0f) {
+                best = d;
+                best_idx = idx;
+            }
+        }
+    }
+
+    if (best_idx >= 0) {
+        sItems[best_idx].minoff = 10;
+        MBTreeSetFlags(sItems[best_idx].objgrp.node, 2, 0);
+    }
+    return best_idx;
+}
+
+Item* fn_8005ED44(f32 radius, s32 a2, f32* position, s32 a4, s32 a5, s32 a6)
+{
+    Item* item;
+    f32 best_dist = 100000.0f;
+    s32 idx;
+    Item* best = 0;
+
+    StartEnemyGrid(radius, position);
+    while ((idx = NextGridEnemy()) >= 0) {
+        item = &sItems[idx];
+        if (fn_8005EE18(item, a6) != 0) {
+            f32 d = fn_8005F0F4(item, radius, radius, a2, position, a4);
+            if (d >= 0.0 && d < best_dist) {
+                best_dist = d;
+                best = item;
+                if (a5 == 0) {
+                    break;
+                }
+            }
+        }
+    }
+    return best;
+}
+
+int fn_8005EE18(Item* item, s32 arg)
+{
+    int result = 0;
+    iteminfo* info = item->info;
+    s32* sub = (s32*)info + 1;
+
+    switch (info->type) {
+    case 1:
+        if (item->activetime <= 0) {
+            if (*(u32*)&item->data[0xC] == 0) {
+                if (*sub == 4) {
+                    result = 1;
+                }
+            } else {
+                result = 0;
+            }
+        } else {
+            result = 0;
+        }
+        break;
+    case 2:
+    case 7:
+        result = 1;
+        break;
+    case 3:
+        if (item->data[6] != 0) {
+            result = 1;
+        }
+        break;
+    case 4:
+        result = 1;
+        break;
+    case 10:
+        switch (*sub) {
+        case 0x1E:
+            break;
+        case 0x28:
+        case 0x31:
+        case 0x33:
+        case 0x35:
+            result = 0;
+            break;
+        case 0x29:
+            if (*(s16*)&item->data[2] > 0) {
+                result = 1;
+            }
+            break;
+        case 0x34:
+            if (arg >= 0 && (item->active & 1) == 0) {
+                fn_8009D91C(&item->objgrp.worldmat[3][0]);
+                item->active |= 1;
+            }
+            result = 0;
+            break;
+        default:
+            result = 1;
+            break;
+        }
+        break;
+    case 8:
+        if (*sub == 5 &&
+            (item->action == 1 || item->action == 2)) {
+            item->daction = 3;
+            result = 1;
+        }
+        break;
+    case 5:
+        if (*sub == 0x1F) {
+            result = 1;
+        }
+        break;
+    }
+    return result;
+}
+
+Item* fn_8005EFAC(f32 radius, s32 a2, f32* position, s32 a4, s32 a5)
+{
+    Item* item;
+    f32 best_dist = 100000.0f;
+    f32 scaled = radius * 1.5;
+    s32 idx;
+    Item* best = 0;
+
+    StartEnemyGrid(radius, position);
+    while ((idx = NextGridEnemy()) >= 0) {
+        s32 reject;
+        item = &sItems[idx];
+        reject = 0;
+        switch (item->info->type) {
+        case 13:
+            reject = 1;
+            break;
+        case 1:
+            if (*(u32*)&item->data[0xC] != 0) {
+                reject = 1;
+            }
+            break;
+        case 8:
+            if ((item->action == 2 || item->action == 4) &&
+                (item->active & 1)) {
+            } else {
+                reject = 1;
+            }
+            break;
+        }
+        if (reject != 0) {
+            continue;
+        }
+        {
+            f32 d = fn_8005F0F4(item, radius, scaled, a2, position, a4);
+            if (d >= 0.0 && d < best_dist) {
+                best_dist = d;
+                best = item;
+                if (a5 == 0) {
+                    break;
+                }
+            }
+        }
+    }
+    return best;
+}
+
+Item* fn_80062FF0(f32 radius, f32* position, s32 type, f32* out1, f32* out2)
+{
+    u8 unused[40];
+    Item* item;
+    f32 min_flagged = 100000.0f;
+    f32 min_all = 100000.0f;
+    Item* best = 0;
+    s32 idx;
+
+    StartEnemyGrid(radius, position);
+    while ((idx = NextGridEnemy()) >= 0) {
+        iteminfo* info;
+        s16 active;
+        s32 reject;
+        f32 d;
+
+        item = &sItems[idx];
+        active = item->active;
+        if (active == -1) {
+            continue;
+        }
+        if (active & 0x8100) {
+            continue;
+        }
+        info = item->info;
+        if (info->item.coltype == 0) {
+            continue;
+        }
+        if (type != 0) {
+            if (info->type != type) {
+                continue;
+            }
+            if (type == 4 && (*(u32*)&item->data[8] & 1)) {
+                continue;
+            }
+        }
+        if (info->type == -1) {
+            continue;
+        }
+        if (item->minoff != 0) {
+            continue;
+        }
+        reject = 0;
+        switch (info->type) {
+        case 13:
+            reject = 1;
+            break;
+        case 1:
+            if (*(u32*)&item->data[0xC] != 0) {
+                reject = 1;
+            }
+            break;
+        case 8:
+            if ((item->action == 2 || item->action == 4) &&
+                (active & 1)) {
+            } else {
+                reject = 1;
+            }
+            break;
+        }
+        if (reject != 0) {
+            continue;
+        }
+        d = fqdist(item->objgrp.coll_pos[0] - position[0],
+                   item->objgrp.coll_pos[2] - position[2]);
+        d = d - item->info->item.radius;
+        if (d < min_all) {
+            min_all = d;
+        }
+        if ((item->active & 0x40) || (item->active & 0x4000)) {
+            if (d < min_flagged) {
+                min_flagged = d;
+                best = item;
+            }
+        }
+    }
+
+    if (out1 != 0) {
+        *out1 = min_flagged;
+    }
+    if (out2 != 0) {
+        *out2 = min_all;
+    }
+    return best;
+}
+
 s32 fn_800629B0(void)
 {
     s32 result = 0;
@@ -682,6 +975,33 @@ s32 fn_800629B0(void)
         item++;
     }
     return result;
+}
+
+/* --------------------------------------------------------------------------
+ * Giant functions (light-touch skeletons).  Full bodies deferred; defined
+ * last so no earlier caller auto-inlines these stubs (their `bl` is kept).
+ *   fn_8005F0F4  0x0A54  big per-object distance/worker
+ *   fn_8005C1DC  0x0E70  item/object spawn dispatcher
+ *   fn_8005DE50  0x0ABC  big object state machine
+ *   fn_800606FC  0x22B4  per-frame world update dispatcher
+ */
+f32 fn_8005F0F4(Item* item, f32 a, f32 b, s32 c, f32* pos, s32 d)
+{
+    return 0.0f;
+}
+
+s32 fn_8005C1DC(Item* item, f32 a, s32 b)
+{
+    return 0;
+}
+
+s32 fn_8005DE50(void* a, void* b)
+{
+    return 0;
+}
+
+void fn_800606FC(void)
+{
 }
 
 /* ==========================================================================
