@@ -17,10 +17,25 @@
 # Class tags: remat=li-vs-copy of live zero; copy=surviving mr/fmr/addi copy;
 # renum=pure register renumber cluster; sched=scheduler tie; isel=instr-select tie.
 
-regFind                    # unfolded-branch quirk (registry.c 3/4)
-sndVoiceUpdateAll          # r7<->r8 web swap (sndvoice 7/8)
-G3DReadControlPadStates    # remat, li x3 vs register copies (gcontrolpads 6/7)
-mat44InvBasis              # IV colored last-vs-first, 32-line shift (g3dMath3D 30/31)
+# SOLVED 2026-07-26/27 (removed from list):
+#   regFind -> asm { b found } insert; registry.c Matching (d9db9f5)
+#   G3DReadControlPadStates -> asm-block escape; gcontrolpads.c Matching (f73a4d7)
+#   FaceCamMat -> feq inlined-helper defeats fcmpu const canonicalization;
+#     mb_objects.c Matching (3cb2401)
+#   mat44InvBasis -> transposeGuts inlined-helper restores IV-first coloring;
+#     g3dMath3D.cpp Matching (5142efd; also fixed vec4Cross w=0.0f pool bug that
+#     fndiff's pool-name normalizer had hidden -- doldiff caught it)
+
+sndVoiceUpdateAll          # r7<->r8 web swap (sndvoice 7/8); target skips r7 for ALL
+                           # mixDirty pair temps (main r6/scratch r8; final pair r8/r9 after
+                           # ctrl li r6,0) then takes r7 at the chain lhz 338(r5) -- an
+                           # invisible web occupies r7 over [9e0,b5c) only. 2026-07-27
+                           # negatives: sndMixDelta inlined helper (cur,next) = opcode-equal
+                           # but COLOR-NEUTRAL (+8B frame per inline site, compensate pad);
+                           # sync-through-cur u32 range extension = opcode-neutral,
+                           # color-neutral (reaching-def span theory falsified); naming the
+                           # 9 pair reloads via cur = STRUCTURAL blowup (1550). volDirty
+                           # block + chains already exact. 3-cap reached again.
 MBWindowProject            # renum, ClampS16 guts-inline matched all FPR temps (2026-07 webs); left: 1 fmr f0,f3 split on clamp#1 + rel/eye slot arrangement (49 lines)
 MBWindowZoom               # copy, z=zoom fmr survives in target (mb_window)
 fn_800BBA34                # renum, f0/f4 web swap in rect fill (mb_window setup)
@@ -44,6 +59,8 @@ vsprintf                   # sched, 26 lines / 665 insns, ONE emission-order div
                            # spellings, inner-scope decls (copies stay in-loop, back-edge moves), p-workcopy identity
                            # all worse; int flags confirmed right (u32 = +2). No grouping-law pattern in the diff.
                            # Cache-group placement is compiler-internal - no source spelling reaches it. (crt; GC/1.2.5)
+                           # +2026-07-27b: pre-loop NON-loop block scope around blanks/zeroes decls = identical 26
+                           # (copies emit at same preheader spot; scope is invisible to the cache group). CONFIRMED PARKED.
 bsearch                    # regalloc (MSL)
 
 # GATED (not walls — blocked on another reconstruction; see file comments):

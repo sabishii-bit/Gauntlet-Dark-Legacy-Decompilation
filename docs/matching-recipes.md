@@ -232,6 +232,40 @@ GC/1.2.5 + cflags_demo pipeline). Laws, in application order:
   `li i,0 ; li off,0` + tail `addi i,1 ; addi off,16` = `for (i = 0, off = 0;
   ...; i++, off += 0x10)` — decl-init `off = 0` flips the init order.
 
+## Additions (stuck-TU flip session, 2026-07-27)
+
+- **Inlined-helper canonicalization escape** (verified, flipped mb_objects):
+  MWCC canonicalizes a float compare const-first (`fcmpu f0,fX`) whenever one
+  operand is a visible constant (`sZero == limit` and all 7 direct spellings).
+  Routing the compare through a tiny inlined static
+  (`static int feq(f32 a, f32 b) { return a == b; }`, defined before the
+  caller) makes BOTH operands opaque locals inside the inlinee — operand
+  order then follows param order (`feq(limit, sZero)` emits
+  `fcmpu cr0,fLIMIT,fZERO`). The `if (feq(...))` boolean folds back to the
+  bare fcmpu/beq; the standalone static deadstrips.
+- **Helper-extraction recolors loop IVs** (verified, flipped g3dMath3D):
+  mat44InvBasis's transpose loop open-coded colors the outer IV LAST (r11,
+  after the four address webs); the identical loop inside a static
+  `transposeGuts(mat44&,mat44&)` inlined into the caller colors the IV FIRST
+  (r7) = target. Same law as the inlined-shared-helper rule: the inlinee's
+  own locals restart web-creation order. Also: unused `int i, j` decls left
+  in the caller still hold 8 frame bytes — deleting them needs the old pad
+  back.
+- **Inlined-helper params are NOT a universal recolorer** (negative,
+  sndVoiceUpdateAll): a value-param helper (`sndMixDelta(u16 cur, u16 next)`)
+  inlined 9x reproduced the opcode stream exactly but left every web color
+  unchanged, and each inline site added an 8-byte param-slot frame cost
+  (compensate the dead pad before judging the diff). The helper lever works
+  when the OPEN-CODED copy created extra/different webs (guts-style bodies,
+  loops); it does nothing for a pure scratch-temp color tie.
+- **fndiff "MATCH (pool-name noise only)" can hide a wrong-constant bug**:
+  vec4Cross scored 0 real diff lines while loading the WRONG pool entry
+  (our `@16` = 1.0f vs target `lbl_80348A44` = 0.0f) — the normalizer
+  equates @N/lbl_ names without comparing symbol addresses. Only doldiff
+  (post-link bytes) catches it: g3dMath3D's first flip attempt went RED on
+  exactly one addend byte. On any red flip where every fn shows 0 real
+  diffs, objdump the SDA21/pool relocs and check the referenced VALUES.
+
 ## Additions (sfx refinement pass)
 
 - **Contiguous-case switch range emission**: `cmpwi hi; bge default; cmpwi lo;
