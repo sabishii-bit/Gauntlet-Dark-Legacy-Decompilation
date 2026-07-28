@@ -80,6 +80,9 @@ extern ADSTREAM gADS;
 
 extern void* AllocMem(u32 size);
 extern s32 FileBufClose(void* file);
+extern s32 FileBufOpen(void* file, void* desc);
+extern void* FileBufStart(void* desc);
+extern void dcsSetStreamFlag(void* stream, s32 looping);
 extern void* memset(void* p, int c, u32 n);
 
 /* Mark a stream's volume dirty (inlined helper). */
@@ -223,7 +226,28 @@ void AdsClose(ADSTREAM* s) {
 
 /* 0x800D78B8  open the stream file (FileBufOpen/FileBufStart) and register it
  * (dcsSetStreamFlag).  Xbox: AdsOpen. */
-void AdsOpen(void) {
+s32 AdsOpen(ADSTREAM* s, void* desc) {
+    s32 result = -1;
+
+    if (s->file != 0) {
+        if (FileBufOpen(s->file, desc) >= 0) {
+            if (s->status == 0x2000) {
+                lbl_80345288 &= ~0x2000;
+                s->status = 0;
+                gAddrSpuNext -= sizeVoiceLoop * s->blocks;
+            } else {
+                s->endCount++;
+            }
+            result = 1;
+        }
+    } else {
+        s->file = FileBufStart(desc);
+        if (s->file != 0) {
+            dcsSetStreamFlag(s->file, 1);
+            result = 1;
+        }
+    }
+    return result;
 }
 
 /* 0x800D7974  clear a stream slot (memset 0x13C) and drop its global flag bit.
