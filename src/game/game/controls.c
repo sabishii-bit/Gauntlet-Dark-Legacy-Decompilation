@@ -86,7 +86,7 @@ extern s32 fn_800AF208(void);
 extern s32 scePadSetActAlign(void);
 extern s32 fn_800AF2D4(void);
 extern s32 sceMtapInit(void);
-extern void sysResetService(void);     /* fn_800DD180 */
+extern void sysResetService(void);     /* sysResetService */
 
 /* ------------------------------------------------------------------ */
 /* data                                                                */

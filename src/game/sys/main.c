@@ -154,7 +154,7 @@ extern char* lbl_80344800;      /* debug print list base */
 extern char* lbl_803449B4;
 extern s32 lbl_803449B8;        /* debug print y cursor */
 void serve_io(void);
-void adsPoll(void);             /* ADSTREAM per-frame poll (fn_800D6234) */
+void adsPoll(void);             /* ADSTREAM per-frame poll (adsPoll) */
 
 /* main globals block: DVDFileInfo @0, ortho Mtx44 @60, viewport @124 */
 extern u8 lbl_8025EDE8[];

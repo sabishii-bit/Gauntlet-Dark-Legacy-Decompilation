@@ -45,7 +45,7 @@ struct PolyHeader;
 /* Xbox: enum MBNODE_TYPE. The mbnode "type" byte (+0x52) selects both the
  * scene-graph behaviour and, for leaf nodes, which member of MBNodeData is
  * live. Verified in DrawSortObjectsSub (type read via lbz+extsb, compared to
- * 2 / 12 / 14) and in the fn_800BB29C(...) node-alloc calls across the MB TUs
+ * 2 / 12 / 14) and in the MBNewNode(...) node-alloc calls across the MB TUs
  * (blit=13, object=2, poly=10). */
 typedef enum MBNodeType {
     MB_EMPTY_NODE        = 0,
@@ -193,7 +193,7 @@ typedef struct MBObject {
  * One deferred alpha-sort draw-queue entry. GC-only (no Xbox PDB struct):
  * the psys/dist/sort queues in mb_objects.c are fixed arrays of this record.
  * GC-verified in AddDistObject: array stride 76 (0x4C); key@0x40 (float),
- * obj@0x44, page@0x48; fn_800BE8F4(mtx, e) fills the 0x40-byte transform.
+ * obj@0x44, page@0x48; CopyMat4(mtx, e) fills the 0x40-byte transform.
  */
 typedef struct MBObjEntry {
     /* 0x00 */ f32 mtx[16];          /* 4x4 transform */

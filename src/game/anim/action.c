@@ -75,7 +75,7 @@ s32 e_actpri[33] = {
  * only while below the 28-cap; jumptable_801270EC + inner jumptables
  * 0x80126FCC/80127020/80127088).  Sequences enemy anim actions, attaches /
  * detaches action SFX (SfxSetParent / SfxDeleteParented / the sfx starter
- * fn_80091D50), steps animation via fn_80011104, special-cases gCurLevel.
+ * StartEnemyAtkFX), steps animation via fn_80011104, special-cases gCurLevel.
  * SKELETON - full reconstruction pending. */
 void DoEnemyAction(void* enemy)
 {

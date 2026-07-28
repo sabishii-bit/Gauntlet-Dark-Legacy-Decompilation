@@ -5,7 +5,7 @@
  * node's children accumulating world position/transform), and UnparentMatrix
  * (recursive tree walk that transposes + multiplies out the parent transform).
  * All operate on the MB node struct (+0x30 pos, +0x60 flags, +0x74 link) via the
- * mat44 helpers in ml_fmath (MulMat4 MulMat4, fn_800BE7E4 transpose,
+ * mat44 helpers in ml_fmath (MulMat4 MulMat4, InvertMat4 transpose,
  * CopyMat4 CopyMat4).
  *
  * Range 0x800BB5F4..0x800BB804 (3 fns), between mb_tree.c and mb_window.c. Uses

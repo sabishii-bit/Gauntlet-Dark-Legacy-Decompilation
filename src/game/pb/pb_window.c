@@ -85,7 +85,7 @@ typedef struct PBLIGHTBLOCK {
     f32 radius[12];     /* 0x25C */
 } PBLIGHTBLOCK;
 
-extern f32 gVpScaleY;        /* lbl_80345160 */
+extern f32 gVpScaleY;        /* gVpScaleY */
 extern int lbl_80345158;
 extern int lbl_8034515C;
 typedef struct PBWINDEBUG {
@@ -100,8 +100,8 @@ typedef struct PBWINDEBUG {
     f32 zoomcx;   /* 0x28 */
     f32 zoomcy;   /* 0x2C */
 } PBWINDEBUG;
-extern PBWINDEBUG* gWinDebug; /* lbl_80343FB8 (SDA pointer) */
-extern f32 gScreenData[];     /* lbl_8025EE64 ([3] = aspect @8025EE70) */
+extern PBWINDEBUG* gWinDebug; /* gWinDebug (SDA pointer) */
+extern f32 gScreenData[];     /* gScreenData ([3] = aspect @8025EE70) */
 typedef struct PBSCREEN {
     u32 flags;   /* 0x00 */
     u8 pad[0x1C];

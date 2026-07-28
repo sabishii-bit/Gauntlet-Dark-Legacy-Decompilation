@@ -45,8 +45,8 @@ extern SCROLL lbl_802C2E28[64];
 
 extern void* MBRomTexPtr(int handle);
 extern void MBSetRomTexture(int handle, void* p);
-extern int fn_800B8B64(char* name, int* p, int a, int b, int c);
-extern int fn_800B8B04(char* name, int* p);
+extern int MBOX_FindTexture_Sub(char* name, int* p, int a, int b, int c);
+extern int MBOX_FindTexture(char* name, int* p);
 extern void MBCopyTexture(int a, int b);
 extern void MBClearTexscroll(void);
 extern void MBTreeSetFlags(int a, int b, int c);
@@ -117,8 +117,8 @@ int AddSpecialTexmod(int texidx1, char* name1, int texidx2, char* name2, int fra
         slot = special_texmod_num++;
     }
     tm = &special_texmods[slot];
-    tm->tex = fn_800B8B64(name1, 0, texidx1, texidx1, 1);
-    tm->src = fn_800B8B64(name2, 0, texidx2, texidx2, 1);
+    tm->tex = MBOX_FindTexture_Sub(name1, 0, texidx1, texidx1, 1);
+    tm->src = MBOX_FindTexture_Sub(name2, 0, texidx2, texidx2, 1);
     tm->frames = (short)frames;
     tm->unk4e = 0;
     tm->rate = rate;
@@ -140,7 +140,7 @@ void InitTexMod(TEXMOD* tm, int texidx)
     if (tm->tex >= 0) {
         tex = (u32)tm->tex & 0xffff | texidx << 0x10;
     } else {
-        tex = fn_800B8B64(tm->name1, 0, texidx, texidx, 1);
+        tex = MBOX_FindTexture_Sub(tm->name1, 0, texidx, texidx, 1);
     }
     if (tex == 0) {
         ErrorPrintf("TEXMOD with 0 texidx, tex:%s srx:%s", tm->name1, tm->name2);
@@ -152,10 +152,10 @@ void InitTexMod(TEXMOD* tm, int texidx)
             if (mode < -3) {
                 if (mode == -6) {
                     MBRomTexPtr(tex);
-                    fn_800B8B04(tm->name2, 0);
+                    MBOX_FindTexture(tm->name2, 0);
                 }
             } else if (mode == -1) {
-                mode = fn_800B8B04(tm->name2, 0);
+                mode = MBOX_FindTexture(tm->name2, 0);
                 MBCopyTexture(mode, tex);
                 tm->src = mode;
             } else if (mode < -1 && tm->flag == -1) {

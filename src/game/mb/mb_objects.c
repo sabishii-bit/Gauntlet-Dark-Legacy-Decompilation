@@ -43,7 +43,7 @@ extern void fn_800C1148(int a, int b, void* c);        /* debug bbox draw */
 extern f32 NormalVector(f32* vec);
 extern void vec4ApplyTrans__FR4vec4R4vec4R5mat44(f32* dst, f32* src,
                                                   f32* mtx);
-extern void fn_800BD428(f32* vec, f32* yaw, f32* pitch);
+extern void GetYawPitch(f32* vec, f32* yaw, f32* pitch);
 extern void YawMat3(f32* mtx, f32 yaw);
 extern void PitchMat3(f32* mtx, f32 pitch);
 extern f32 atan2(f32 y, f32 x);
@@ -303,8 +303,8 @@ void FaceCamMat(f32* mtx, f32 limit) {
     if (feq(limit, sZero)) {
         goto no_pitch;
     } else {
-        fn_800BD428(&mtx[8], &yaw, &pitch);
-        fn_800BD428(toCamera, &cameraYaw, &cameraPitch);
+        GetYawPitch(&mtx[8], &yaw, &pitch);
+        GetYawPitch(toCamera, &cameraYaw, &cameraPitch);
         cameraYaw -= yaw;
         cameraPitch -= pitch;
         if (limit > sZero) {
@@ -338,7 +338,7 @@ void InitFrontFaceYaw(f32* cam) {
     f32 pitch;
     f32 yaw;
 
-    fn_800BD428(cam, &yaw, &pitch);
+    GetYawPitch(cam, &yaw, &pitch);
     lbl_80344E98 = (f32)__sin(3.141592654 + yaw);
     lbl_80344E94 = (f32)__cos(3.141592654 + yaw);
 }

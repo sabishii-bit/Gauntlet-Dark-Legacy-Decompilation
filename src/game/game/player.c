@@ -311,18 +311,18 @@ extern s32 options_state;
 extern s32 lbl_80344298;
 extern s32 lbl_80344824;   /* active-player mask */
 extern s32 lbl_80344760;
-extern u32 lbl_803445CC;   /* sFlags: pause/movie */
+extern u32 sFlags;   /* sFlags: pause/movie */
 extern s32 gFrameTicks;   /* frame delta (int) */
 extern s32 lbl_80344578;   /* vb elapsed */
 extern f32 lbl_80344590;   /* frame delta (float) */
-extern f32 lbl_80344594;
+extern f32 sMusicFadeBase;
 extern s32 lbl_803448F0;   /* total sum-coin count */
-extern s32 lbl_803448D8;   /* music track */
-extern s32 lbl_803448D4;
+extern s32 sMusicTrackHi;   /* music track */
+extern s32 sMusicTrackLo;
 extern s32 lbl_803448AC;
 extern s32 lbl_803448A8;
 extern s32 lbl_8034489C;
-extern u8* lbl_8034483C;   /* gCurLevel */
+extern u8* gCurLevel;   /* gCurLevel */
 extern s32 lbl_8034481C;
 extern s32 lbl_80344804;   /* any player needs pad */
 extern s32 gScriptedCameraState;
@@ -332,8 +332,8 @@ extern s32 lbl_80344770;
 extern s32 lbl_80344A28;
 extern s32 lbl_80344A30;
 extern s32 lbl_80344A44;
-extern s32 lbl_80344AF0;
-extern u32 lbl_80344AF8;   /* demo-message once flags */
+extern s32 opt_restart_request;
+extern u32 opt_force_player;   /* demo-message once flags */
 extern s32 lbl_80344AFC;   /* key texture id */
 extern s32 lbl_80344B00;
 extern void* lbl_80344B04; /* it_blit */
@@ -352,7 +352,7 @@ extern s32 lbl_80344CC4;
 extern s32 lbl_803449A0;
 extern s32 gGameBusy;
 extern s32 lbl_803443B4;
-extern s32 lbl_8034439C;
+extern s32 gBossType;
 extern s32 lbl_803444E4;
 extern s32 lbl_803444F4;
 extern s32 lbl_803444F8;
@@ -362,7 +362,7 @@ extern f32 lbl_80344504;
 extern s32 lbl_80344508;
 extern s32 lbl_8034450C;
 extern s32 lbl_80344510;
-extern f32 lbl_80344F60;
+extern f32 dbgTextFlagA;
 extern s32 lbl_80344E44;   /* HUD button texture ids */
 extern s32 lbl_80344E48;
 extern s32 lbl_80343D70;
@@ -386,9 +386,9 @@ extern void mbBlitInit3414(void* blit, s32 hide);
 extern void mbInitBlitEntry(void* blit, u32 frames, s32 frame);
 extern void fn_800B2940(void* blit, u32 rgb);
 extern void fn_800B290C(void* blit, s32 alpha);
-extern void mbBlitCalcWidth(void* blit, s32 x, s32 y, f32 z);
+extern void mbBlitCalcWidth(void* blit, s32 x, s32 y, f64 z);
 extern void mbBlitProject(void* blit, s32 w, s32 h);
-extern void mbBlitCvtCoord(void* blit, f32 z);
+extern void mbBlitCvtCoord(void* blit, f64 z);
 extern void mbBlitUpdateEntry(void* blit, u32 mask, u32 set);
 extern void* MBRomTexPtr(u32 tex);
 extern f32 MBSetFontZ(f32 z);
@@ -408,7 +408,7 @@ extern void MBTreeClearFlags(void* node, s32 mask, s32 set);
 extern void* MBTreeSetFlags(void* node, s32 mask, s32 set);
 extern void MBTreeSetScale(f32 r, f32 g, f32 b, void* node);
 extern void WorldVector(f32* vector, f32* out, f32* matrix);
-extern f32 fn_800BD938(f32* v);
+extern f32 NormalVector2D(f32* v);
 extern s32 MBBackgroundLoading(void);
 
 /* math / world */
@@ -429,7 +429,7 @@ extern s32 sumnerSpeechActive(void);
 extern f32 msgUpdate(void);
 extern s32 msgPost(s32 code, s32 player, u32 arg);
 extern s32 FindStringMessageListSub(s32 list, char* name);
-extern void fn_8006D7EC(s32 a, s32 msg, s32 b, s32 c);
+extern void ControllerMessageBox(s32 a, s32 msg, s32 b, s32 c);
 extern void CrystalCamActivate(void);
 extern void fn_8009D610(s32 mode, f32* pos);
 extern void AudioAmbientUpdate(void);
@@ -441,7 +441,7 @@ extern void fn_8009F028(u32 color, f32* pos, s32 heal, s32 d);
 extern void update_player_milestone(void);
 extern void fn_8005ACE0(void);
 extern void fn_8005DE50(void* p, s32* req);
-extern void fn_80090450(s32 player);
+extern void update_class_spec(s32 player);
 
 /* sfx */
 extern s32 fn_80092794(f32 scale, f32 power, f32* pos, u32 flags, s16 player, s32 d);
@@ -937,7 +937,7 @@ tail:
             mbBlitInit3414(pm_blit[i][j], 1);
         }
     } else {
-        if (gGameMode == 0x4010 && p->quest_state != 0 && lbl_803448D8 != 0xD) {
+        if (gGameMode == 0x4010 && p->quest_state != 0 && sMusicTrackHi != 0xD) {
             mbBlitInit3414(quest_blit[i], 0);
         } else {
             mbBlitInit3414(quest_blit[i], 1);
@@ -966,7 +966,7 @@ static void debug_player_pos(s32 i) {
     if (gGameMode == 0x4010) {
         fn_800C02F4(0x80FF80);
         get_actual_screen_pos(0, &out2, out1, P(i)->col_pos);
-        lbl_80344F60 = 1;
+        dbgTextFlagA = 1;
         name = P(i)->floor_name;
         if (name == NULL || lbl_80240E50[i * 0xF] == 0.0f) {
             name = "NO FLOOR";
@@ -1295,8 +1295,8 @@ s32 AddExp(s32 pnum, s32 amount, s32 mode) {
         amount = amount * (s32)(0.01 * (f32)delta);
         mode = -2;
     } else {
-        f32 dist = PF(lbl_8034483C, 0x9C, f32);
-        f32 fac = PF(lbl_8034483C, 0xA0, f32);
+        f32 dist = PF(gCurLevel, 0x9C, f32);
+        f32 fac = PF(gCurLevel, 0xA0, f32);
 
         if (dist > 0.0f) {
             if ((f32)p->level > dist) {
@@ -1304,7 +1304,7 @@ s32 AddExp(s32 pnum, s32 amount, s32 mode) {
             }
         }
         amount = (s32)((f32)amount * fac);
-        if (lbl_803445CC & 0x10) {
+        if (sFlags & 0x10) {
             amount = (s32)((f32)amount * 5.0);
         }
     }
@@ -1442,10 +1442,10 @@ void start_magic(s32 pnum, f32* pos, u32 flags, s32 mode) {
     p = NULL;
     if (pnum < 0) {
         scale = 0.8f;
-        power = (f32)(20.0 * lbl_80344594);
+        power = (f32)(20.0 * sMusicFadeBase);
     } else {
         p = P(pnum);
-        power = (f32)(p->magic_power * lbl_80344594);
+        power = (f32)(p->magic_power * sMusicFadeBase);
         if (pnum == fn_8002F818(flags)) {
             power = (f32)(power * 1.1);
             scale = (f32)(scale + 0.1);
@@ -1516,35 +1516,35 @@ void do_players(void) {
     loaded = 0;
     it = -1;
     best = 9999.0f;
-    if (lbl_803445CC & 0x10) {
-        lbl_80344AF8 = 0xFFFFFFFF;
+    if (sFlags & 0x10) {
+        opt_force_player = 0xFFFFFFFF;
     }
-    if (gGameMode == 0x4010 && (s32)lbl_80344AF8 >= 0) {
+    if (gGameMode == 0x4010 && (s32)opt_force_player >= 0) {
         if (gScriptedCameraState == 0 && lbl_803447B8 == 0) {
             lbl_80344B10 += gFrameTicks;
             if (lbl_80344B10 > 0) {
                 if (lbl_803449A0 == 0) {
-                    if (lbl_803448D8 == 0xD) {
+                    if (sMusicTrackHi == 0xD) {
                         if (lbl_80344C60 != 0) {
-                            fn_8006D7EC(-1, FindStringMessageListSub(0, "WelcomeMessage"), -1, -1);
+                            ControllerMessageBox(-1, FindStringMessageListSub(0, "WelcomeMessage"), -1, -1);
                             lbl_80344C90 = 6;
                             lbl_80344C54 = 1;
-                            lbl_80344C5C = lbl_80344594;
+                            lbl_80344C5C = sMusicFadeBase;
                             CrystalCamActivate();
                         }
                         if (lbl_803448AC == 6 && lbl_803448A8 == 1) {
-                            fn_8006D7EC(-1, FindStringMessageListSub(0, "GarmMessage"), -1, -1);
+                            ControllerMessageBox(-1, FindStringMessageListSub(0, "GarmMessage"), -1, -1);
                         }
                     }
-                    lbl_80344AF8 = 0xFFFFFFFF;
-                } else if (lbl_803448D8 == 0xD) {
-                    if (lbl_80344C4C == 1 && !(lbl_80344AF8 & 1)) {
-                        fn_8006D7EC(-1, FindStringMessageListSub(0, "DemoWelcome"), 0, -1);
-                        lbl_80344AF8 |= 1;
+                    opt_force_player = 0xFFFFFFFF;
+                } else if (sMusicTrackHi == 0xD) {
+                    if (lbl_80344C4C == 1 && !(opt_force_player & 1)) {
+                        ControllerMessageBox(-1, FindStringMessageListSub(0, "DemoWelcome"), 0, -1);
+                        opt_force_player |= 1;
                     }
-                } else if (lbl_803448D8 != 0xC && (lbl_80344AF8 & 2)) {
-                    fn_8006D7EC(-1, FindStringMessageListSub(0, "DemoLevel"), 0, -1);
-                    lbl_80344AF8 &= ~2;
+                } else if (sMusicTrackHi != 0xC && (opt_force_player & 2)) {
+                    ControllerMessageBox(-1, FindStringMessageListSub(0, "DemoLevel"), 0, -1);
+                    opt_force_player &= ~2;
                 }
             }
         } else {
@@ -1605,14 +1605,14 @@ void do_players(void) {
             }
             WritePlayerInfo(-1);
         }
-        if (lbl_803447B8 == 0 || lbl_8034481C != 0 || lbl_80344AF0 != 0) {
+        if (lbl_803447B8 == 0 || lbl_8034481C != 0 || opt_restart_request != 0) {
             lbl_80344804 = 0;
             for (i = 0, p = P(0); i < 4; i++, p++) {
                 f32 mag;
                 f32 len;
 
                 mag = (f32)(0.5 * p->light_range);
-                len = fn_800BD938(p->light_vel);
+                len = NormalVector2D(p->light_vel);
                 if (len > mag) {
                     len = mag;
                 }
@@ -1645,7 +1645,7 @@ void do_players(void) {
             lbl_803444F4 = 1;
             lbl_803444E4 = 0;
             loaded = all_players_go_to_same_level();
-            if (!(lbl_803445CC & 4)) {
+            if (!(sFlags & 4)) {
                 dbgTextPrintfCol(2, 2, "TRANSMITTER: CT=%02X, C1=%02X, C2=%02X, RATIO=%4.2f",
                                  lbl_80344508, lbl_80344510, lbl_8034450C, lbl_80344504);
             }
@@ -1676,7 +1676,7 @@ void do_players(void) {
             gGameMode == 0x4016) {
             continue;
         }
-        if (lbl_803447B8 == 0 || lbl_8034481C != 0 || lbl_80344AF0 != 0) {
+        if (lbl_803447B8 == 0 || lbl_8034481C != 0 || opt_restart_request != 0) {
         common:
             if (p->count_91C != 0) {
                 p->count_91C = p->count_91C - 1;
@@ -1731,7 +1731,7 @@ void do_players(void) {
                 } else if (lbl_802575BC == 0 ||
                            (gGameMode != 0x400B && gGameMode != 0x400D &&
                             gGameMode != 0x400F && gGameMode != 0x4016)) {
-                    fn_80090450(i);
+                    update_class_spec(i);
                     WritePlayerInfo(i);
                 }
                 for (j = 0; j < 4; j++) {
@@ -1779,7 +1779,7 @@ void do_players(void) {
                     p->intower = 1;
                     PF(p, 0xC28 + p->character * 0x1C, f32) =
                         PF(p, 0xC28 + p->character * 0x1C, f32) + (f32)gFrameTicks;
-                    if (PF(lbl_8034483C, 0, u32) & 8) {
+                    if (PF(gCurLevel, 0, u32) & 8) {
                         fn_800C0ADC(lbl_80343D74, lbl_80343D70);
                     }
                 }
@@ -1789,13 +1789,13 @@ void do_players(void) {
                     } else {
                         if (p->quest_state == 1) {
                             p->quest_state = 2;
-                            towerClearRuneNear(i, lbl_803448D8);
+                            towerClearRuneNear(i, sMusicTrackHi);
                         }
                         p->pulse_7FC = 2.0f;
                     }
                 }
                 fn_8002C53C(p->mat);
-                if ((lbl_803448D8 != 0xD || sumnerSpeechActive() == 0) && lbl_803443B4 == 0 &&
+                if ((sMusicTrackHi != 0xD || sumnerSpeechActive() == 0) && lbl_803443B4 == 0 &&
                     lbl_80344A30 == 0 && lbl_80344CC4 == 0 && p->name_timer > 0 &&
                     gGameBusy == 0 && lbl_80344770 == 0) {
                     char name[8 + 1];
@@ -1818,7 +1818,7 @@ void do_players(void) {
                 if (p->prev_state != 1) {
                     MBTreeClearFlags(p->node, 2, 0);
                     if (PF(p, 0x6C8, void*) != NULL) {
-                        if (lbl_803448D8 == 0xC && lbl_803448D4 == 8) {
+                        if (sMusicTrackHi == 0xC && sMusicTrackLo == 8) {
                             MBTreeSetFlags(PF(p, 0x6C8, void*), 2, 1);
                         } else {
                             MBTreeSetFlags(PF(p, 0x6C8, void*), 2, 0);
@@ -1827,11 +1827,11 @@ void do_players(void) {
                 }
                 update_player_milestone();
                 PlayerProcessPowerups(p, 0, NULL);
-                if ((lbl_803445CC & 0x10) && lbl_802575B0 != 0 && i == 0 && lbl_8034439C < 0) {
+                if ((sFlags & 0x10) && lbl_802575B0 != 0 && i == 0 && gBossType < 0) {
                     fn_8005ACE0();
                 }
                 PlayerMotion();
-                if (p->fall_time > 0.0 && p->fall_time + 2.0 < lbl_80344594) {
+                if (p->fall_time > 0.0 && p->fall_time + 2.0 < sMusicFadeBase) {
                     if (p->fall_frames < 0x2D) {
                         if (p->fall_frames > 0x1D) {
                             fn_8009FEA0(i);
@@ -1980,13 +1980,13 @@ extern s32 gGameOptions;      /* NoDamage? cheat (1 = no damage, 2.. = invuln) *
 extern s32 lbl_80257594;      /* Unlimited? cheat (3 = unlimited turbo) */
 extern s32 lbl_802575A8;      /* Access? cheat (levels open) */
 extern s32 lbl_80257630[4];   /* per-player targeting state cleared at init */
-extern s32 lbl_80344370;      /* cutscene/no-damage global */
-extern s32 lbl_80344398;      /* boss floor index */
+extern s32 good_wiz_state;      /* cutscene/no-damage global */
+extern s32 gBoss398;      /* boss floor index */
 extern s32 lbl_80251CCC[];    /* floor records, stride 0xE5 words */
-extern s32 lbl_80344744;      /* enemy count */
+extern s32 gNumEnemies;      /* enemy count */
 extern s32 lbl_80251F44[];    /* enemy records target field, stride 0xE5 words */
 extern s32 lbl_8012028C[];    /* bigape powerup table, stride 5 words */
-extern u8* lbl_80344950;      /* gItems base (stride 0xF0) */
+extern u8* sItems;      /* gItems base (stride 0xF0) */
 extern s32 lbl_8028CAF4;      /* floor tree table (stride 0x50) */
 extern void* sKeyringAtree;    /* see-thru tree (low) */
 extern void* sDeathIconAtree;    /* see-thru tree (high) */
@@ -2003,15 +2003,15 @@ extern u32 lbl_80240E60[];
 extern u32 lbl_80240E64[];
 extern u32 lbl_80240E68[];
 extern s32 lbl_80344828;      /* hidden-characters-allowed count */
-extern s32 lbl_80344970;      /* weapons-in-hand enabled */
+extern s32 sWeaponsBuf;      /* weapons-in-hand enabled */
 extern void* gSceneRoot;    /* HUD camera parent */
 extern s32 lbl_80344B08;      /* got_max_player_sizes once-flag */
 extern s32 lbl_80344B28;      /* INVENTORY file handle */
-extern void* lbl_8034496C;    /* global atree bank */
+extern void* sPowerupsBuf;    /* global atree bank */
 extern void* lbl_80344BD4;    /* mikey camera parent */
 extern s32 lbl_80344BEC;      /* exit FX color */
-extern s32 lbl_80344820;      /* secret-exit destination */
-extern s32 lbl_80344848;      /* town level id */
+extern s32 sLastWorldLevel;      /* secret-exit destination */
+extern s32 sWorldDataConst;      /* town level id */
 extern s32 lbl_80344B84;      /* battle-tower level id */
 extern s32 lbl_80344588;      /* frame parity counter */
 extern s32 lbl_80344DA4;      /* world loaded */
@@ -2058,7 +2058,6 @@ extern s32 strncmp(const char* a, const char* b, u32 n);
 extern void* memset(void* p, int c, u32 n);
 extern void* memcpy(void* d, const void* s, u32 n);
 extern f64 __fabs(f64 x);
-extern int fn_800C9BD0(char* buf, const char* fmt, ...);   /* sprintf variant */
 extern void FatalError(const char* fmt, ...);
 extern void FatalErrorf(const char* fmt, ...);
 extern int bulletproof_printf(const char* fmt, ...);
@@ -2074,81 +2073,76 @@ extern void MBTreeSetAmbientAdd(void* node, s32 frame, s32 mode);
 extern void MBTreeSetAltTex(void* node, s32 a, s32 b, s32 c);
 extern void MBTreeSetAlpha(void* node, s32 mask, s32 set);
 extern void MBRemoveNode(void* node, s32 a);
-extern s32 fn_80091210(f32* v, void* node, s32 a);
-extern s32 fn_8006D7BC(void);
+extern s32 ProcessSkinFX(f32* v, void* node, s32 a);
+extern s32 FireScrollActive(void);
 extern void fn_8009D258(f32* pos);
-extern void fn_800A1994(void);
-extern u32 fn_80057E6C(s32 a);
-extern u32 fn_80057D94(s32 a);
-extern void fn_800911C8(f32 scale, f32* v, s32 color, s32 n, s32 one);
+extern void towerRuneNearAudio(void);
+extern u32 NextWorldLevel(s32 a);
+extern u32 PrevWorldLevel(s32 a);
+extern void SetSkinFX(f32 scale, f32* v, s32 color, s32 n, s32 one);
 extern void fn_8002C49C(f32* mat);
 extern void YawMat3(f32* mat, f32 ang);
 extern void fn_8009F198(s32 player);
 extern s32 fn_8005B8FC(void* p);
-extern f32 fn_800BCB44(f32 dx, f32 dz);
+extern f32 fqdist(f32 dx, f32 dz);
 extern void fn_8009190C(f32* pos, s32 amount);
 extern s32 fn_8002F5D8(f32 armor, f32* dmg, u32* flags, u32 shield);
-extern f64 fn_800EA944(f64 x, f64 z);
-extern void fn_8009233C(f32 dmg, s32 player);
+extern f64 atan2(f64 x, f64 z);
+extern void StartBlockFX(f32 dmg, s32 player);
 extern void fn_8009FFF4(s32 kind, s32 player);
 extern void fn_8009F9E8(s32 player);
 extern void fn_8009F960(s32 player);
 extern void fn_8009F7D8(s32 player);
 extern void fn_8009F250(s32 player);
 extern void fn_8009F2DC(f32 dmg, s32 player, s32 kind);
-extern s32 fn_80031938(s32 player, s32 lvl, s32 n);
+extern s32 do_vibe(s32 player, s32 lvl, s32 n);
 extern void AtreeDelete(void** h);
 extern s32 fn_80012F78(void* atree, void* out, s32 a, s32 flags);
 extern void fn_80011104(void** h, s32 a, s32 b);
 extern void fn_80091F34(f32* pos, s32 n);
-extern s32* fn_80063928(s32 a, s32 b, char* name, f32* mat);
-extern s32* fn_80063A44(s32* tmpl, f32* pos, s32 a, s32 b);
+extern s32* PlaceItem(s32 a, s32 b, char* name, f32* mat);
+extern s32* AddItem(s32* tmpl, f32* pos, s32 a, s32 b);
 extern void AddItemSub(s32* item);
-extern s32 fn_800675F8(s32 item, s32 a, s32 b);
-extern void fn_800A0C00(void);
-extern void fn_800A1E6C(s32 player, s32 track, s32 sub);
-extern void fn_8008FC5C(s32 player);
-extern s32 fn_8008FE70(s32 player);
+extern s32 RandItemIdx(s32 item, s32 a, s32 b);
+extern void AudioPlayEvt102(void);
+extern void playerGiveGargItem(s32 player, s32 track, s32 sub);
+extern void sel_set_inactive(s32 player);
+extern s32 other_players_next_level(s32 player);
 extern void LoadPlyrData(s32 player, s32 chartype, void* flag);
-extern void fn_80031110(s32 player);
+extern void controls_remove_active_player(s32 player);
 extern void fn_80030C84(void* p);
-extern void fn_800E80D4(char* dst, char* src);
-extern s32 fn_800E5B08(s32 c);
-extern void fn_800E8090(char* dst, char* src, s32 n);
+extern void strcpy(char* dst, char* src);
+extern s32 toupper(s32 c);
+extern void strncpy(char* dst, char* src, s32 n);
 extern void* MBNewNode(void* parent, f32* mat, s32 a);
 extern s32 fn_80011BBC(void* modelbuf, char* name, void* atree_out, char* tmp, s32 size);
-extern void fn_800ADD24(void* atree, void* animctx, s32 bank);
+extern void InitActions(void* atree, void* animctx, s32 bank);
 extern s32 MBOX_ReallyFindObject(char* name, s32 a, s32 b, s32 dir);
 extern s32* AtreeFindMbidxNode(void* atree, s32 idx);
-extern void* fn_800B91C0(s32 node, f32* mat, void* c, u32 flags);
-extern void fn_800CEA18(s32 node, s32 a);
-extern s32 fn_800184E8(s32 model, char* fmt, char* code, char* d, s32 e, s32 f);
-extern u32 fn_800B8B34(char* name, s32* out, s32 b);
-extern void* fn_800B3AFC(s32 a, u32 tex, s32 x, s32 y, s32 w, s32 h);
-extern void fn_800B2F8C(f32 z, void* blit);
+extern void* MBNewObject(s32 node, f32* mat, void* c, u32 flags);
+extern void MBPsysSetDebugNode(s32 node, s32 a);
+extern s32 AddSpecialTexmod(s32 model, char* fmt, char* code, char* d, s32 e, s32 f);
+extern void* MBCreateBlit(s32 a, u32 tex, s32 x, s32 y, s32 w, s32 h);
 extern s32 fn_800B2980(void* blit);
-extern void fn_800B2988(void* blit, u32 tex, s32 b);
-extern void fn_800B2D4C(void* blit, s32* x, s32* y, f32* z);
-extern void fn_800B3014(void* blit, s32 y);
-extern void fn_800B3288(void* blit, s32 alpha, s32 b);
-extern void fn_800B2E78(f32 z, void* blit, s32 x, s32 y);
-extern void fn_8001EBCC(f32 scale, s32 x, s32 y, char* text);
+extern void mbBlitCalcRect(void* blit, s32* x, s32* y, f32* z);
+extern void mbBlitCalcY(void* blit, s32 y);
+extern void DrawGlowText(f32 scale, s32 x, s32 y, char* text);
 extern void fn_8009D42C(void);
 extern void fn_8009D3D4(void);
 extern void fn_8009D458(void);
-extern void fn_80043490(f32 pad, f32* pos);
-extern s32 fn_800433EC(void);
-extern s32 fn_800BB5F4(f32 r, s32* pos);
-extern s32 fn_80068A4C(s32 a, s32 b, s32 c, void* buf, s32* size);
-extern s32 fn_80068BEC(s32 a, s32 b, s32 c, void* buf, s32 size);
-extern s32 fn_80069540(s32 a, s32 b);
-extern s32 fn_8006AF7C(char* msg, ...);
-extern s32 fn_8006AFE0(char* prompt, s32* colors, s32 n);
-extern s32 fn_80074548(s32 a, s32 b);
+extern void StartEnemyGrid(f32 pad, f32* pos);
+extern s32 NextGridEnemy(void);
+extern s32 PointVisible(f32 r, s32* pos);
+extern s32 saveLoad(s32 a, s32 b, s32 c, void* buf, s32* size);
+extern s32 saveSave(s32 a, s32 b, s32 c, void* buf, s32 size);
+extern s32 InitPreferences(s32 a, s32 b);
+extern s32 memCardErrorPrompt(char* msg, ...);
+extern s32 saveMenuPrompt(char* prompt, s32* colors, s32 n);
+extern s32 OptionsSetup(s32 a, s32 b);
 extern void ControlsUpdate(s32 a, s32* b, s32 c);
-extern void fn_80033C5C(void);
-extern s32 fn_80031504(u32 button);
-extern s32 fn_80031540(u32 button);
+extern void ReadControls(void);
+extern s32 any_level(u32 button);
+extern s32 any(u32 button);
 extern s32 InitTexMods(void* modelbuf, u32 arena);
 extern void DoTexMods(void* modelbuf);
 extern s32 fn_8001267C(u16* anim, u32 arena, s32 old);
@@ -2157,11 +2151,11 @@ extern void ShopLoadData(s32 file);
 extern void fn_8009F118(s32 player);
 extern void get_player_pos(void);
 extern void CreateYPRMatrix(f32* out, f32* rec, u8* c);
-extern s32 fn_800579E0(s32* entry);
-extern u32 MBOX_FindTexture2(char* name, s32* out); /* fn_800B8B04 */
-extern void fn_800184B8(s32 sfx);
+extern s32 InLevel(s32* entry);
+extern u32 MBOX_FindTexture2(char* name, s32* out); /* MBOX_FindTexture */
+extern void DelSpecialTexmod(s32 sfx);
 extern void ErrorPrintf(const char* fmt, ...);
-extern void fn_80097644(u8* node, s32 a, s32 player);
+extern void SfxDeleteParented(u8* node, s32 a, s32 player);
 extern void ClearPlyrData(s32 player);
 
 /* per-char save-stat block view: p + 0xA90 + character*0x18 */
@@ -2218,7 +2212,7 @@ void PlayerProcessScale(void* vp) {
     } else if (PF(p, 0x95A, s16) != 0) {
         PF(p, 0x95A, s16) = 0;
     }
-    if (fn_80091210((f32*)((u8*)p + 0x7DC), p->node, 0) == 0 &&
+    if (ProcessSkinFX((f32*)((u8*)p + 0x7DC), p->node, 0) == 0 &&
         *(s16*)(p->node + 0x5C) < -1) {
         MBTreeSetAltTex(p->node, -1, 0, 1);
         MBTreeSetAmbientAdd(p->node, 0, 1);
@@ -2238,14 +2232,14 @@ static void do_exit(void* vp, s32 dest) {
     Player* p = vp;
     s16 t;
 
-    if (fn_8006D7BC() != 0) {
+    if (FireScrollActive() != 0) {
         return;
     }
     if (PF(p, 0x1F2, s16) == 0 && dest != 0) {
         PF(p, 0x1F2, s16) = (lbl_8034481C == 0) ? 0x32 : 0;
         if (lbl_803447B4 == 0) {
             fn_8009D258(p->pos);
-            fn_800A1994();
+            towerRuneNearAudio();
             lbl_803447B4 = 1;
         }
         PF(p, 0x8B8, f32) = PF(p, 0x8B4, f32);
@@ -2254,19 +2248,19 @@ static void do_exit(void* vp, s32 dest) {
         } else if (lbl_8034481C >= 0xD) {
             PF(p, 0x830, s32) = lbl_80344B84;
         } else if (lbl_8034481C == 0xC) {
-            PF(p, 0x830, s32) = lbl_80344848;
+            PF(p, 0x830, s32) = sWorldDataConst;
         } else if (lbl_8034481C >= 3) {
             PF(p, 0x830, s32) = ((lbl_8034481C - 3) & 0xFF) | 0xC00;
         } else if (lbl_8034481C == 2) {
-            PF(p, 0x830, s32) = (dest < 0) ? lbl_80344820 : dest;
+            PF(p, 0x830, s32) = (dest < 0) ? sLastWorldLevel : dest;
         } else if (lbl_8034481C == 1) {
-            PF(p, 0x830, s32) = (dest < 0) ? (s32)fn_80057E6C(1) : dest;
+            PF(p, 0x830, s32) = (dest < 0) ? (s32)NextWorldLevel(1) : dest;
         } else if (lbl_8034481C == -1) {
-            PF(p, 0x830, s32) = (dest < 0) ? (s32)fn_80057D94(1) : dest;
+            PF(p, 0x830, s32) = (dest < 0) ? (s32)PrevWorldLevel(1) : dest;
         } else {
             PF(p, 0x830, s32) = dest;
         }
-        fn_800911C8(1.5f, (f32*)((u8*)p + 0x7DC), lbl_80344BEC, 10, 1);
+        SetSkinFX(1.5f, (f32*)((u8*)p + 0x7DC), lbl_80344BEC, 10, 1);
     }
     t = PF(p, 0x1F2, s16) - gFrameTicks;
     PF(p, 0x1F2, s16) = t;
@@ -2292,7 +2286,7 @@ static s32 do_weakening(void* vp, s32 active) {
     s16 t;
 
     if (PF(p, 0xA30, s32) != 0) {
-        if (p->state == 1 && (lbl_803445CC & 4) == 0 && lbl_803448D8 != 0xC) {
+        if (p->state == 1 && (sFlags & 4) == 0 && sMusicTrackHi != 0xC) {
             PF(p, 0xA2C, s32) += gFrameTicks;
             if (PF(p, 0xA2C, s32) >= PF(p, 0xA30, s32)) {
                 PF(p, 0xA2C, s32) -= PF(p, 0xA30, s32);
@@ -2306,7 +2300,7 @@ static s32 do_weakening(void* vp, s32 active) {
         t = PF(p, 0x1F6, s16) - gFrameTicks;
         PF(p, 0x1F6, s16) = t;
         if (t < 1) {
-            if (lbl_803448D8 != 0xD && (PF(p, 0x120, u32) & 0x110000) == 0) {
+            if (sMusicTrackHi != 0xD && (PF(p, 0x120, u32) & 0x110000) == 0) {
                 fn_8009F198(p->index);
             }
             if (p->health >= 100.0f) {
@@ -2401,7 +2395,7 @@ void do_heal_players(void* vp, f32 amount) {
     q = P(0);
     for (i = 0; i < 4; i++, q++) {
         if (i != p->index && q->state == 1) {
-            d = fn_800BCB44(p->pos[0] - q->pos[0], p->pos[2] - q->pos[2]);
+            d = fqdist(p->pos[0] - q->pos[0], p->pos[2] - q->pos[2]);
             if (d < p->magic_power) {
                 cap = 0.5 * (q->level - 1) + 30.0;
                 if (cap > 9999.0f) {
@@ -2499,13 +2493,13 @@ void damage_player(s32 i, f32 dmg_in, u32 flags, f32* dir) {
         invuln = (invuln >= 1 && dmg == 999999.0f) ? 1 : 0;
     }
     if ((fl & 0x8000) == 0) {
-        if (invuln > 2 || p->state == 4 || lbl_80344370 != 0 ||
-            (lbl_8034439C >= 0 && lbl_80344398 >= 0 &&
-             lbl_80251CCC[lbl_80344398 * 0xE5] != 1)) {
+        if (invuln > 2 || p->state == 4 || good_wiz_state != 0 ||
+            (gBossType >= 0 && gBoss398 >= 0 &&
+             lbl_80251CCC[gBoss398 * 0xE5] != 1)) {
             return;
         }
         if (dmg > 1.0) {
-            dmg = dmg * PF(lbl_8034483C, 0xA4, f32);
+            dmg = dmg * PF(gCurLevel, 0xA4, f32);
         }
     }
     fn_8002F5D8(STAT_ARMOR(p), &dmg, &fl, PF(p, 0x120, u32));
@@ -2517,7 +2511,7 @@ void damage_player(s32 i, f32 dmg_in, u32 flags, f32* dir) {
         if ((hf & 0x600) == 0) {
             /* front hit: "ouch" speech occasionally */
             if (dmg > 40.0f && (fl & 0x10160) && (hf & 0x2000) == 0 &&
-                lbl_80344594 > 5.0) {
+                sMusicFadeBase > 5.0) {
                 msgPost(0x7D, p->index, (u32)&p->name);
             }
         } else {
@@ -2527,7 +2521,7 @@ void damage_player(s32 i, f32 dmg_in, u32 flags, f32* dir) {
             } else if (dir == NULL) {
                 dmg = 0.0f;
             } else {
-                red = fn_800EA944(dir[0], dir[2]) - PF(p, 0x894, f32);
+                red = atan2(dir[0], dir[2]) - PF(p, 0x894, f32);
                 if (red > 3.141592653589793) {
                     red = red - 6.283185307179586;
                 } else if (red <= -3.141592653589793) {
@@ -2546,7 +2540,7 @@ void damage_player(s32 i, f32 dmg_in, u32 flags, f32* dir) {
                 } else if (clank > 1.0) {
                     clank = 1.0;
                 }
-                fn_8009233C((f32)clank, p->index);
+                StartBlockFX((f32)clank, p->index);
                 PF(p, 0x1FE, s16) = (s16)(s32)(5.0 * clank);
                 p->hud_flags |= 0x2000;
             }
@@ -2579,19 +2573,19 @@ void damage_player(s32 i, f32 dmg_in, u32 flags, f32* dir) {
             }
             if (dmg > 0.0f) {
                 if (fl & 0x800) {
-                    PF(p, 0x898, f32) = 1.0f + lbl_80344594;
+                    PF(p, 0x898, f32) = 1.0f + sMusicFadeBase;
                 }
                 if (fl & 0x1000) {
-                    PF(p, 0x898, f32) = 4.0f + lbl_80344594;
+                    PF(p, 0x898, f32) = 4.0f + sMusicFadeBase;
                 }
                 if (fl & 0x10040) {
-                    fn_80031938(i, 3, 0x1E);
+                    do_vibe(i, 3, 0x1E);
                 } else if (fl & 0x120) {
-                    fn_80031938(i, 2, 0x14);
+                    do_vibe(i, 2, 0x14);
                 } else if (fl & 0x90) {
-                    fn_80031938(i, 1, 0xF);
+                    do_vibe(i, 1, 0xF);
                 } else {
-                    fn_80031938(i, 0, 10);
+                    do_vibe(i, 0, 10);
                 }
             }
         }
@@ -2730,14 +2724,14 @@ static void player_dies(s32 i) {
         }
     }
     keys = PF(p, 0x1EB8, s32);
-    if (keys > 0 && lbl_803448D8 != 0xD) {
+    if (keys > 0 && sMusicTrackHi != 0xD) {
         CopyMat4(gIdentityMatrix, m);
         m[12] = death_pos[0];
         m[13] = death_pos[1];
         m[14] = death_pos[2];
         CopyMat4(p->mat, m);
-        if (lbl_8034439C < 0) {
-            chest = fn_80063928(1, 2, (keys == 1) ? "KEY" : "KEYRING", m);
+        if (gBossType < 0) {
+            chest = PlaceItem(1, 2, (keys == 1) ? "KEY" : "KEYRING", m);
             if (chest != NULL) {
                 chest[0x38] = keys;
             }
@@ -2745,7 +2739,7 @@ static void player_dies(s32 i) {
     }
     PF(p, 0x1EB8, s32) = 0;
     remove_player_geo(i);
-    fn_800A0C00();
+    AudioPlayEvt102();
     for (j = 0; j < 11; j++) {
         memset((u8*)p + 0x130 + j * 0x10, 0, 0x10);
     }
@@ -2774,12 +2768,12 @@ void kill_player(s32 i) {
 void inactivate_player(s32 i) {
     Player* p = P(i);
 
-    if (lbl_803448D8 == 0xD) {
+    if (sMusicTrackHi == 0xD) {
         p->state = 1;
         PlayerRestoreState(p);
         return;
     }
-    fn_800A1E6C(i, lbl_803448D8, lbl_803448D4);
+    playerGiveGargItem(i, sMusicTrackHi, sMusicTrackLo);
     p->state = 0xB;
     p->motion_state = 1;
     setup_player_display(i);
@@ -2802,7 +2796,7 @@ void abort_player(s32 i) {
     p->state = 0;
     p->motion_state = 0;
     PF(p, 0x333C, s32) = 0;
-    fn_80031110(i);
+    controls_remove_active_player(i);
     PF(p, 0x1F4, s16) = 0xB4;
     if (p->node != NULL) {
         player_dies(i);
@@ -2840,16 +2834,16 @@ void remove_player_geo(s32 i) {
     u8* kid;
 
     if (PF(p, 0x6D0, s32) != 0) {
-        fn_800CEA18(PF(p, 0x6D0, s32), 1);
+        MBPsysSetDebugNode(PF(p, 0x6D0, s32), 1);
     }
     if (PF(p, 0x6CC, s32) != 0) {
-        fn_800CEA18(PF(p, 0x6CC, s32), 1);
+        MBPsysSetDebugNode(PF(p, 0x6CC, s32), 1);
     }
     if (PF(p, 0x6D4, s32) != 0) {
-        fn_800CEA18(PF(p, 0x6D4, s32), 1);
+        MBPsysSetDebugNode(PF(p, 0x6D4, s32), 1);
     }
     if (PF(p, 0x7F8, s32) >= 0) {
-        fn_800184B8(PF(p, 0x7F8, s32));
+        DelSpecialTexmod(PF(p, 0x7F8, s32));
     }
     if (PF(p, 0x6E0, void*) != NULL) {
         MBRemoveNode(PF(p, 0x6E0, void*), 0);
@@ -2908,7 +2902,7 @@ void remove_player_geo(s32 i) {
             MBNodeSetParent(kid, *(void**)(p->node + 0x74));
         }
     }
-    fn_80097644(p->node, 1, i);
+    SfxDeleteParented(p->node, 1, i);
     AtreeDelete((void**)((u8*)p + 0x7C));
     if (p->node != NULL) {
         if (*(s32*)(p->node + 0x78) != 0) {
@@ -2959,7 +2953,7 @@ void new_player(s32 i) {
     p->motion_state = 0;
     PF(p, 0xA8B, u8) = 0xFF;
     PF(p, 0x3358, s32) = -1;
-    fn_8008FC5C(i);
+    sel_set_inactive(i);
 }
 
 /* Reset a record to new-character defaults; full also wipes both save */
@@ -3029,7 +3023,7 @@ s32 activate_player(s32 i) {
     s32 j;
 
     p->state = 1;
-    PF(p, 0x830, s32) = fn_8008FE70(i);
+    PF(p, 0x830, s32) = other_players_next_level(i);
     del_player_blits(i);
     LoadPlyrData(i, p->character, (void*)1);
     if (gGameMode == 0x4010) {
@@ -3037,7 +3031,7 @@ s32 activate_player(s32 i) {
         if (lbl_803447B8 == 0) {
             PlayerAddPowerup(0.0f, 5.0f, p, 9, 4);
         }
-        for (j = 0; j < lbl_80344744; j++) {
+        for (j = 0; j < gNumEnemies; j++) {
             lbl_80251F44[j * 0xE5] = 0;
         }
         if (lbl_803447B4 != 0 || lbl_803447D0 > 9 || gGameMode == 0x4016) {
@@ -3072,12 +3066,12 @@ void load_player(s32 i) {
     s32 j;
     f32 m[16];
 
-    if (lbl_803449A0 != 0 && lbl_803448D8 != 0xD) {
+    if (lbl_803449A0 != 0 && sMusicTrackHi != 0xD) {
         /* cheat build: force the level stamped on the current level */
-        if ((f32)p->level != PF(lbl_8034483C, 0x9C, f32)) {
-            lbl_80344AF8 |= 2;
+        if ((f32)p->level != PF(gCurLevel, 0x9C, f32)) {
+            opt_force_player |= 2;
         }
-        lvl = (s32)PF(lbl_8034483C, 0x9C, f32);
+        lvl = (s32)PF(gCurLevel, 0x9C, f32);
         p->exp = (lvl < 0x3D) ? (lvl - 1) * (lvl * 0x1E + 1000)
                               : (lvl - 0x3C) * 0x11F8 + 0x28550;
         p->level = lvl;
@@ -3228,16 +3222,16 @@ s32 PlayerLoadSaveFile(s32 i, s32 slot) {
     PF(p, 0x3358, s32) = slot;
     do {
         size[0] = 0x1434;
-        ok = fn_80068A4C(PF(p, 0x3348, s32), PF(p, 0x3350, s32), PF(p, 0x3358, s32),
+        ok = saveLoad(PF(p, 0x3348, s32), PF(p, 0x3350, s32), PF(p, 0x3358, s32),
                          (u8*)p + 0xA80, size);
-        if (ok == 0 && fn_8006AF7C("Game load failed...", 0) == 0) {
+        if (ok == 0 && memCardErrorPrompt("Game load failed...", 0) == 0) {
             break;
         }
     } while (ok == 0);
     if (ok != 0) {
-        j = fn_80069540(PF(p, 0x3348, s32), PF(p, 0x3350, s32));
+        j = InitPreferences(PF(p, 0x3348, s32), PF(p, 0x3350, s32));
         if (j != 0) {
-            fn_80074548(j, PF(p, 0x3350, s32));
+            OptionsSetup(j, PF(p, 0x3350, s32));
         }
     }
     player_get_from_save(p, -1);
@@ -3259,9 +3253,9 @@ s32 PlayerWriteSaveFile(s32 i, s32 slot) {
     PF(p, 0x3358, s32) = slot;
     player_store_in_save(p, slot);
     do {
-        ok = fn_80068BEC(PF(p, 0x3348, s32), PF(p, 0x3350, s32), PF(p, 0x3358, s32),
+        ok = saveSave(PF(p, 0x3348, s32), PF(p, 0x3350, s32), PF(p, 0x3358, s32),
                          (u8*)p + 0xA80, 0x1434);
-        if (ok == 0 && fn_8006AF7C("Game save failed...", 0) == 0) {
+        if (ok == 0 && memCardErrorPrompt("Game save failed...", 0) == 0) {
             break;
         }
     } while (ok == 0);
@@ -3319,8 +3313,8 @@ void PlayerSaveState(void* vp, s32 full) {
         return;
     }
     player_store_in_save(p, full);
-    if (full != 0 && !(lbl_803448D8 == 5 && lbl_803448D4 == 1) &&
-        !(lbl_803448D8 == 6 && lbl_803448D4 == 1)) {
+    if (full != 0 && !(sMusicTrackHi == 5 && sMusicTrackLo == 1) &&
+        !(sMusicTrackHi == 6 && sMusicTrackLo == 1)) {
         memcpy((u8*)p + 0x1ECC, (u8*)p + 0xA80, 0x1434);
     }
     PF(p, 0xA8B, u8) = 0;
@@ -3561,20 +3555,20 @@ void load_player_geo(s32 i, void* vp) {
     }
     pad = p->class_id;
     LoadPlyrData(i, p->character, NULL);
-    if (lbl_80344970 != 0) {
+    if (sWeaponsBuf != 0) {
         fn_80030C84(p);
     }
     cls = p->character;
     if (HIDDEN_CODE(p) == NULL) {
-        fn_800E80D4(name, lbl_80120104[pad]);
+        strcpy(name, lbl_80120104[pad]);
     } else {
-        fn_800E80D4(name, HIDDEN_CODE(p));
+        strcpy(name, HIDDEN_CODE(p));
         for (c = name; *c != 0; c++) {
-            *c = (char)fn_800E5B08(*c);
+            *c = (char)toupper(*c);
         }
     }
-    fn_800C9BD0(tbuf, "%s%s%s", lbl_801200B0 + cls * 4, name, "");
-    fn_800E8090((char*)p + 0x6C0, tbuf, 8);
+    sprintf(tbuf, "%s%s%s", lbl_801200B0 + cls * 4, name, "");
+    strncpy((char*)p + 0x6C0, tbuf, 8);
     p->node = MBNewNode(lbl_80344B2C, gIdentityMatrix, 1);
     PF(p, 0x78, s32) = 0;
     n = fn_80011BBC(model_slot[i].model_buf, (char*)(lbl_801200B0 + p->char_type * 4),
@@ -3584,50 +3578,50 @@ void load_player_geo(s32 i, void* vp) {
         FatalErrorf("Player Atree %s not found", lbl_801200B0 + p->char_type * 4);
     }
     MBNodeSetParent(*(void**)PF(p, 0x7C, s32*), p->node);
-    fn_800ADD24((u8*)p + 0x7C, (u8*)p + 0x210, 0x80126C68);
+    InitActions((u8*)p + 0x7C, (u8*)p + 0x210, 0x80126C68);
     if (gGameMode != 0x4012 && gGameMode != 0x400D &&
         gGameMode != 0x400F && gGameMode != 0x4016) {
         LoadPlyrData(i, p->character, (void*)1);
     }
     PF(p, 0x744, s32) = 0;
     /* attachment nodes */
-    fn_800C9BD0(tbuf, "%s%s", (char*)p + 0x6C0, lbl_80120184[cls]);
+    sprintf(tbuf, "%s%s", (char*)p + 0x6C0, lbl_80120184[cls]);
     n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
     nd = AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
     PF(p, 0x6D0, s32) = (nd == NULL) ? 0 : *nd;
-    fn_800C9BD0(tbuf, "%s%s", (char*)p + 0x6C0, lbl_80120144[cls]);
+    sprintf(tbuf, "%s%s", (char*)p + 0x6C0, lbl_80120144[cls]);
     n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
     nd = AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
     PF(p, 0x6CC, s32) = (nd == NULL) ? 0 : *nd;
-    fn_800C9BD0(tbuf, "%sCFGLOW", (char*)p + 0x6C0);
+    sprintf(tbuf, "%sCFGLOW", (char*)p + 0x6C0);
     n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), -1);
     nd = (n < 0) ? NULL : AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
     PF(p, 0x6D8, s32) = (nd == NULL) ? 0 : *nd;
     if (nd != NULL) {
         MBTreeSetFlags((void*)*nd, 0x800810, 0);
     }
-    fn_800C9BD0(tbuf, "%sHEAD", (char*)p + 0x6C0);
+    sprintf(tbuf, "%sHEAD", (char*)p + 0x6C0);
     n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
     nd = AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
     PF(p, 0x6D4, s32) = (nd == NULL) ? 0 : *nd;
-    fn_800C9BD0(tbuf, "%sTORSO", (char*)p + 0x6C0);
+    sprintf(tbuf, "%sTORSO", (char*)p + 0x6C0);
     n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
     nd = AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
     PF(p, 0x6DC, s32) = (nd == NULL) ? 0 : *nd;
     /* weapon */
-    if (lbl_80344970 != 0) {
+    if (sWeaponsBuf != 0) {
         tier = (p->level >= 0x32) ? 2 : (p->level >= 10) ? 1 : 0;
         if (lbl_80120598[p->character] == 0 && p->character < 8 && HIDDEN_CODE(p) == NULL) {
-            fn_800C9BD0(tbuf, "WEAP %s HD%d", lbl_80120104[pad], tier + 1);
+            sprintf(tbuf, "WEAP %s HD%d", lbl_80120104[pad], tier + 1);
         } else {
-            fn_800C9BD0(tbuf, "WEAP_HOLD", cls, tier);
+            sprintf(tbuf, "WEAP_HOLD", cls, tier);
         }
         n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
-        PF(p, 0x6E0, void*) = fn_800B91C0(n, NULL, (void*)PF(p, 0x6D0, s32), 0x810);
+        PF(p, 0x6E0, void*) = MBNewObject(n, NULL, (void*)PF(p, 0x6D0, s32), 0x810);
         PF(p, 0x7F8, s32) = -1;
         if (p->char_type == 7) {
             *(u32*)(PF(p, 0x6E0, u8*) + 0x60) |= 0x4000000;
-            PF(p, 0x7F8, s32) = fn_800184E8(PF(p, 0x7F4, s32), "%s%s", (char*)model_slot[i].sfx_arena,
+            PF(p, 0x7F8, s32) = AddSpecialTexmod(PF(p, 0x7F4, s32), "%s%s", (char*)model_slot[i].sfx_arena,
                                             "", 5, 1);
         }
     }
@@ -3649,19 +3643,19 @@ void load_player_geo(s32 i, void* vp) {
     PF(p, 0xA14, s32) = 0;
     /* shadow */
     n = MBOX_ReallyFindObject("SHADOWL1", PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
-    PF(p, 0x6C8, void*) = fn_800B91C0(n, gIdentityMatrix, NULL, 0x880);
+    PF(p, 0x6C8, void*) = MBNewObject(n, gIdentityMatrix, NULL, 0x880);
     *(s16*)(PF(p, 0x6C8, u8*) + 0x68) = -0x24;
     PF(p, 0x7FC, f32) = 0.0f;
     if (PF(p, 0x6D0, s32) != 0) {
-        fn_800CEA18(PF(p, 0x6D0, s32), 0);
+        MBPsysSetDebugNode(PF(p, 0x6D0, s32), 0);
     } else if (PF(p, 0x6CC, s32) != 0) {
-        fn_800CEA18(PF(p, 0x6CC, s32), 0);
+        MBPsysSetDebugNode(PF(p, 0x6CC, s32), 0);
     } else if (PF(p, 0x6D4, s32) != 0) {
-        fn_800CEA18(PF(p, 0x6D4, s32), 0);
+        MBPsysSetDebugNode(PF(p, 0x6D4, s32), 0);
     }
     MBTreeSetFlags(p->node, 2, 0);
     if (PF(p, 0x6C8, s32) != 0) {
-        if (lbl_803448D8 == 0xC && lbl_803448D4 == 8) {
+        if (sMusicTrackHi == 0xC && sMusicTrackLo == 8) {
             MBTreeSetFlags(PF(p, 0x6C8, void*), 2, 1);
         } else {
             MBTreeSetFlags(PF(p, 0x6C8, void*), 2, 0);
@@ -3692,45 +3686,45 @@ s32 set_hidden_player(void* vp) {
     /* the interactive cheat menu (start+trigger names) */
     if ((strncmp(nm, "CHEATS", 6) == 0 || strncmp(nm, "SELECT", 6) == 0 ||
          strncmp(nm, "WORLDS", 6) == 0) &&
-        fn_80031504(0x100000) != 0 && fn_80031504(0x400000) != 0) {
-        if (fn_8006AFE0("Access?", NULL, 2) == 0) {
-            if (fn_8006AFE0("Levels?", NULL, 2) == 0) {
+        any_level(0x100000) != 0 && any_level(0x400000) != 0) {
+        if (saveMenuPrompt("Access?", NULL, 2) == 0) {
+            if (saveMenuPrompt("Levels?", NULL, 2) == 0) {
                 lbl_802575A8 = 1;
             }
-            if (fn_8006AFE0("Unlimited?", NULL, 2) == 0) {
+            if (saveMenuPrompt("Unlimited?", NULL, 2) == 0) {
                 lbl_80257594 = 3;
             }
-            if (fn_8006AFE0("NoDamage?", NULL, 2) == 0) {
+            if (saveMenuPrompt("NoDamage?", NULL, 2) == 0) {
                 gGameOptions = 1;
             }
-            if (fn_8006AFE0("Shards?", NULL, 2) == 0) {
+            if (saveMenuPrompt("Shards?", NULL, 2) == 0) {
                 PF(p, 0x1EC8, u16) = 0xFFFF;
             }
-            if (fn_8006AFE0("Runes?", NULL, 2) == 0) {
+            if (saveMenuPrompt("Runes?", NULL, 2) == 0) {
                 PF(p, 0x1ECA, u16) = 0xFFFF;
             }
-            if (fn_8006AFE0("Cheats?", NULL, 2) == 0) {
+            if (saveMenuPrompt("Cheats?", NULL, 2) == 0) {
                 pups = 0xFFFFFFFF;
             }
-            if (fn_8006AFE0("Select a character?", NULL, 2) == 0) {
+            if (saveMenuPrompt("Select a character?", NULL, 2) == 0) {
                 /* d-pad browse through the hidden character list */
-                while (fn_80031540(0x80000000) == 0) {
-                    if (fn_80031540(0x40000000) != 0) {
+                while (any(0x80000000) == 0) {
+                    if (any(0x40000000) != 0) {
                         pick++;
                         if (pick >= 0 && pick < 27) {
-                            fn_8006AFE0(lbl_80120618[pick].name, NULL, 1);
+                            saveMenuPrompt(lbl_80120618[pick].name, NULL, 1);
                         }
                         if (pick >= 27) {
                             pick = (rand() & 0xFF) % 27;
-                            fn_8006AFE0("Rand??", NULL, 1);
+                            saveMenuPrompt("Rand??", NULL, 1);
                             break;
                         }
                     }
                     ControlsUpdate(0, NULL, 0);
-                    fn_80033C5C();
+                    ReadControls();
                 }
             }
-            if (fn_8006AFE0("Worlds?", NULL, 2) == 0) {
+            if (saveMenuPrompt("Worlds?", NULL, 2) == 0) {
                 for (j = 0; j < 16; j++) {
                     memset((u8*)p + 0x1CD0 + p->character * 0xE, 0xFF, 0xE);
                     memset(CHAR_ITEMS(p, j) + 0x1E, 0xFF, 0x20);
@@ -3738,11 +3732,11 @@ s32 set_hidden_player(void* vp) {
                     *(u16*)(CHAR_ITEMS(p, p->character) + 0x18) = 0xFFFF;
                 }
             }
-            fn_8006AFE0("Mike and Bob say, Thank You for Playing!", NULL, 1);
+            saveMenuPrompt("Mike and Bob say, Thank You for Playing!", NULL, 1);
         }
     }
     /* one-shot cheat names */
-    if (fn_80031504(0x100000) != 0 && fn_80031504(0x400000) != 0) {
+    if (any_level(0x100000) != 0 && any_level(0x400000) != 0) {
         if (strncmp(nm, "RANDOM", 6) == 0) {
             match = 1;
             pick = (rand() & 0xFF) % 27;
@@ -3831,7 +3825,7 @@ s32 load_player_model(s32 i, void* vp, s32 alt, char* name) {
     if (pad < 0 || pad > 3) {
         pad = i;
     }
-    fn_800C9BD0(tbuf, "players\\%s\\sfx%s", lbl_8012006C[p->char_type], lbl_801200F4[pad]);
+    sprintf(tbuf, "players\\%s\\sfx%s", lbl_8012006C[p->char_type], lbl_801200F4[pad]);
     sfx = MBOX_LoadModelFixed(tbuf, (u32)model_slot[i].sfx_arena, 0, NULL,
                               model_slot[i].sfx_max);
     model_slot[i].sfx_arena = (void*)sfx;
@@ -3858,13 +3852,13 @@ s32 load_player_model_sub(s32 i, void* vp, char* name, void* vslot) {
     pad = p->class_id;
     if (name == NULL) {
         if (lbl_80120598[cls] == 0) {
-            fn_800C9BD0(tbuf, "players\\%s\\%s", lbl_8012006C[cls], lbl_801200F4[pad]);
+            sprintf(tbuf, "players\\%s\\%s", lbl_8012006C[cls], lbl_801200F4[pad]);
         } else {
-            fn_800C9BD0(tbuf, "players\\%s\\%s%d0", lbl_8012006C[cls],
+            sprintf(tbuf, "players\\%s\\%s%d0", lbl_8012006C[cls],
                         lbl_801200F4[pad], tier);
         }
     } else {
-        fn_800C9BD0(tbuf, "players\\%s\\%s", lbl_8012006C[cls], name);
+        sprintf(tbuf, "players\\%s\\%s", lbl_8012006C[cls], name);
     }
     arena = MBOX_LoadModelFixed(tbuf, (u32)slot->arena, 0, NULL, slot->model_max);
     if ((s32)slot->anim_max < 1) {
@@ -3878,7 +3872,7 @@ s32 load_player_model_sub(s32 i, void* vp, char* name, void* vslot) {
     slot->cur_pad = pad;
     slot->cur_tier = tier;
     slot->cur_override = (s32)name;
-    fn_800C9BD0(tbuf, "players\\%s\\anim", lbl_8012006C[p->char_type]);
+    sprintf(tbuf, "players\\%s\\anim", lbl_8012006C[p->char_type]);
     if ((s32)slot->model_buf_max < 1) {
         slot->anim_buf = AllocFile(tbuf, "rb", slot->model_buf_max, NULL);
     } else {
@@ -3956,34 +3950,34 @@ static void create_player_blits(s32 i) {
     void* b;
     s32 j;
 
-    frame_blit[i][0] = fn_800B3AFC(0, 0, lx, 0x130, 0x80, -1);
-    frame_blit[i][1] = fn_800B3AFC(0, 0, lx, 0x140, 0x80, -1);
-    frame_blit[i][2] = fn_800B3AFC(0, 0, lx, 0x140, 0x80, -1);
-    frame_blit[i][3] = fn_800B3AFC(0, 0, lx, 0x158, 0x94, -1);
-    frame_blit[i][4] = fn_800B3AFC(0, 0, lx + 8, 0x148, 0x14, 0x14);
-    frame_blit[i][5] = fn_800B3AFC(0, 0, lx, 0x148, 0x14, 0x14);
+    frame_blit[i][0] = MBCreateBlit(0, 0, lx, 0x130, 0x80, -1);
+    frame_blit[i][1] = MBCreateBlit(0, 0, lx, 0x140, 0x80, -1);
+    frame_blit[i][2] = MBCreateBlit(0, 0, lx, 0x140, 0x80, -1);
+    frame_blit[i][3] = MBCreateBlit(0, 0, lx, 0x158, 0x94, -1);
+    frame_blit[i][4] = MBCreateBlit(0, 0, lx + 8, 0x148, 0x14, 0x14);
+    frame_blit[i][5] = MBCreateBlit(0, 0, lx, 0x148, 0x14, 0x14);
     for (j = 0; j < 6; j++) {
         mbBlitInit3414(frame_blit[i][j], 1);
-        fn_800B2F8C(0.1f, frame_blit[i][j]);
+        mbBlitCvtCoord(frame_blit[i][j], 0.1f);
     }
     for (j = 0; j < 12; j++) {
-        fn_800C9BD0(tbuf, "SM_RUNE_%s_%02d", lbl_801205D8[j / 3], j % 3 + 1);
-        tex = fn_800B8B34(tbuf, NULL, 1);
-        rune_blit[i][j] = fn_800B3AFC(0, tex, lx + j * 8 + j / 3 + 0xF, 0x132, -1, -1);
+        sprintf(tbuf, "SM_RUNE_%s_%02d", lbl_801205D8[j / 3], j % 3 + 1);
+        tex = (u32)MBOX_FindTexture_Err(tbuf, NULL, 1);
+        rune_blit[i][j] = MBCreateBlit(0, tex, lx + j * 8 + j / 3 + 0xF, 0x132, -1, -1);
         mbBlitInit3414(rune_blit[i][j], 1);
-        fn_800B2F8C(0.1f, rune_blit[i][j]);
+        mbBlitCvtCoord(rune_blit[i][j], 0.1f);
     }
     for (j = 0; j < 8; j++) {
-        fn_800C9BD0(tbuf, "SM_KEY_%s", lbl_801205F8[j]);
-        tex = fn_800B8B34(tbuf, NULL, 1);
-        crystal_blit[i][j] = fn_800B3AFC(0, tex, lx + j * 12 + 0xC, 300, -1, -1);
+        sprintf(tbuf, "SM_KEY_%s", lbl_801205F8[j]);
+        tex = (u32)MBOX_FindTexture_Err(tbuf, NULL, 1);
+        crystal_blit[i][j] = MBCreateBlit(0, tex, lx + j * 12 + 0xC, 300, -1, -1);
         mbBlitInit3414(crystal_blit[i][j], 1);
-        fn_800B2F8C(0.1f, crystal_blit[i][j]);
+        mbBlitCvtCoord(crystal_blit[i][j], 0.1f);
     }
     for (j = 0; j < 4; j++) {
-        key_blit[i][j] = fn_800B3AFC(0, 0, lx + 0x1A, j * 3 + 0x142, -1, -1);
+        key_blit[i][j] = MBCreateBlit(0, 0, lx + 0x1A, j * 3 + 0x142, -1, -1);
         mbBlitInit3414(key_blit[i][j], 1);
-        fn_800B2F8C(0.1f, key_blit[i][j]);
+        mbBlitCvtCoord(key_blit[i][j], 0.1f);
     }
     for (j = 0; j < 7; j++) {
         b = MBNewBlit((char*)lbl_8011FC48[j * 5 + 1], i * 0x80 + lbl_8011FC48[j * 5 + 2],
@@ -3991,7 +3985,7 @@ static void create_player_blits(s32 i) {
         pm_blit[i][j] = b;
         lbl_8011FC48[j * 5] = fn_800B2980(b);
         mbBlitInit3414(b, 1);
-        fn_800B2F8C((f32)-lbl_8011FC48[j * 5 + 4], b);
+        mbBlitCvtCoord(b, (f32)-lbl_8011FC48[j * 5 + 4]);
     }
     PF(P(i), 0x3340, s32) = 0;
     rx = lbl_80120240[i];
@@ -4005,23 +3999,23 @@ static void create_player_blits(s32 i) {
     tb_info[i].tex1 = 0xF9F1;
     tb_info[i].tex2 = 0xF9F2;
     tb_info[i].label = NULL;
-    rune13_blit[i] = fn_800B3AFC(0, 0, rx - 0xE, -0x143, -1, -1);
-    tex = fn_800B8B34("BTMBK_LEVL", NULL, 1);
-    fn_800B2988(rune13_blit[i], tex, 0);
+    rune13_blit[i] = MBCreateBlit(0, 0, rx - 0xE, -0x143, -1, -1);
+    tex = (u32)MBOX_FindTexture_Err("BTMBK_LEVL", NULL, 1);
+    mbInitBlitEntry(rune13_blit[i], tex, 0);
     mbBlitInit3414(rune13_blit[i], 1);
-    fn_800B2F8C(0.1f, rune13_blit[i]);
+    mbBlitCvtCoord(rune13_blit[i], 0.1f);
     if (lbl_803447C0 != 0) {
         mbBlitUpdateEntry(rune13_blit[i], -1, 0x100);
     }
     PF(P(i), 0x954, s16) = 0;
-    hod_blit[i] = fn_800B3AFC(0, 0, lx + 8, 0x154, 0x10, 0x10);
-    tex = fn_800B8B34("HODICON", NULL, 1);
-    fn_800B2988(hod_blit[i], tex, 0);
+    hod_blit[i] = MBCreateBlit(0, 0, lx + 8, 0x154, 0x10, 0x10);
+    tex = (u32)MBOX_FindTexture_Err("HODICON", NULL, 1);
+    mbInitBlitEntry(hod_blit[i], tex, 0);
     mbBlitInit3414(hod_blit[i], 1);
-    fn_800B2F8C(0.1f, hod_blit[i]);
-    quest_blit[i] = fn_800B3AFC(0, 0, lx + 0x68, 0x152, 0x10, 0x10);
+    mbBlitCvtCoord(hod_blit[i], 0.1f);
+    quest_blit[i] = MBCreateBlit(0, 0, lx + 0x68, 0x152, 0x10, 0x10);
     mbBlitInit3414(quest_blit[i], 1);
-    fn_800B2F8C(0.1f, quest_blit[i]);
+    mbBlitCvtCoord(quest_blit[i], 0.1f);
     P(i)->node = NULL;
     P(i)->index = i;
 }
@@ -4050,7 +4044,7 @@ void setup_player_models(void) {
         s = &model_slot[i];
         free0 = BytesFree();
         bulletproof_printf("Player %d -- MEM %d\n", i, free0);
-        fn_800C9BD0(tbuf, "PLAYER %d", i);
+        sprintf(tbuf, "PLAYER %d", i);
         s->arena = (void*)MBOX_LoadModelFixed(tbuf, s->model_max, (s32)s->arena_max,
                                               tbuf, 0);
         s->cur_class = -1;
@@ -4240,7 +4234,7 @@ void PlayerProcessMikeyPUP(void* vp) {
             if (PUP_DIRTY(p, slot) != 2) {
                 return;
             }
-            atree = AtreeMatch(lbl_8034496C, "MIKEYPUP_ON", 1);
+            atree = AtreeMatch(sPowerupsBuf, "MIKEYPUP_ON", 1);
             PF(p, 0x96C, s32) = fn_80012F78(atree, (u8*)p + 0x96C, 0, 0);
             PF(p, 0x9A4, s16) = 1;
             PF(p, 0xA14, void*) = MBNewNode(lbl_80344BD4, gIdentityMatrix, 1);
@@ -4304,7 +4298,7 @@ void AppendBigapePowerupsToScene(void) {
     s32 i;
 
     for (i = 0; i < lbl_80343DAC; i++) {
-        if (fn_800579E0(&lbl_8012028C[i * 5]) != 0) {
+        if (InLevel(&lbl_8012028C[i * 5]) != 0) {
             AppendItemToLevel(*(f32*)&lbl_8012028C[i * 5 + 2],
                               *(f32*)&lbl_8012028C[i * 5 + 3],
                               *(f32*)&lbl_8012028C[i * 5 + 4],
@@ -4327,7 +4321,7 @@ void AppendItemToLevel(f32 x, f32 y, f32 z, char* name) {
     *(f32*)&item_tmpl[6] = 0.0f;
     *(f32*)&item_tmpl[7] = 0.0f;
     item_tmpl2[0] = 0;
-    fn_800C9BD0(item_name, "%s", name);
+    sprintf(item_name, "%s", name);
     item_tmpl2[1] = 0;
     *(s16*)&item_tmpl2[1] = 0;
     *(u16*)((u8*)&item_tmpl2[1] + 2) = 0xFFFF;
@@ -4336,8 +4330,8 @@ void AppendItemToLevel(f32 x, f32 y, f32 z, char* name) {
     *(s16*)&item_tmpl2[3] = 0;
     *((s16*)&item_tmpl2[3] + 1) = 0x1E;
     item_tmpl2[0] = (s32)item_name;
-    item_tmpl2[4] = (s32)AtreeMatch(lbl_8034496C, item_name, 0);
-    item = fn_80063A44(item_tmpl, NULL, 0, -1);
+    item_tmpl2[4] = (s32)AtreeMatch(sPowerupsBuf, item_name, 0);
+    item = AddItem(item_tmpl, NULL, 0, -1);
     *((u8*)item + 0xCD) = 0;
     MBTreeClearFlags((void*)item[0x19], 2, 0);
     if (*(s32*)item[0] == 1) {
@@ -4363,13 +4357,13 @@ static s32 do_see_thru(void* vp) {
     s32 floor_id;
     s32 j;
 
-    if (lbl_80344950 == NULL) {
+    if (sItems == NULL) {
         return 0;
     }
     j = (s32)ClosestChest(p);
     if (j >= 0) {
-        chest = lbl_80344950 + j * 0xF0;
-        if (!fn_800BB5F4(0.5f * *(f32*)(*(u8**)chest + 0xC), (s32*)(chest + 0x44))) {
+        chest = sItems + j * 0xF0;
+        if (!PointVisible(0.5f * *(f32*)(*(u8**)chest + 0xC), (s32*)(chest + 0x44))) {
             chest = NULL;
         }
     }
@@ -4379,7 +4373,7 @@ static s32 do_see_thru(void* vp) {
         floor_id = *(s16*)(chest + 0xDC);
         fl = (s32*)(lbl_8028CAF4 + floor_id * 0x50);
         while (*fl == -1) {
-            floor_id = *(s16*)((u8*)fl + fn_800675F8(j, fl[1], 0) * 2 + 8);
+            floor_id = *(s16*)((u8*)fl + RandItemIdx(j, fl[1], 0) * 2 + 8);
             fl = (s32*)(lbl_8028CAF4 + floor_id * 0x50);
         }
         tree = sDeathIconAtree;
@@ -4473,9 +4467,9 @@ static f32 ClosestChest(void* vp) {
     f32 d;
     f32 best = 250000.0f;
 
-    fn_80043490(60.0f, p->pos);
-    while ((j = fn_800433EC()) >= 0) {
-        it = lbl_80344950 + j * 0xF0;
+    StartEnemyGrid(60.0f, p->pos);
+    while ((j = NextGridEnemy()) >= 0) {
+        it = sItems + j * 0xF0;
         if (*(s16*)(it + 0xC4) == -1) {
             continue;
         }
@@ -4519,7 +4513,7 @@ s32 player_get_powerup_state(f32 dt, void* vp, s32 type, u32 mask) {
         r = (s32)*tp;
         if (r < 0) {
             r = 1;
-        } else if (lbl_803448D8 != 0xD) {
+        } else if (sMusicTrackHi != 0xD) {
             if (dt < 0.0f) {
                 *tp = 0.0f;
             } else {
@@ -4725,26 +4719,26 @@ static void do_got_it(void) {
         if (g->state == 2) {
             /* sliding up into place */
             if (g->blit1 != NULL) {
-                fn_800B2D4C(g->blit1, NULL, &y[0], NULL);
+                mbBlitCalcRect(g->blit1, NULL, &y[0], NULL);
                 y[0] -= gFrameTicks;
                 if (y[0] < 0x131) {
                     y[0] = 0x130;
                     g->state++;
                     g->timer = 0x5A;
                 }
-                fn_800B3014(g->blit1, y[0]);
-                fn_800B3014(g->blit2, y[0] + 0x10);
+                mbBlitCalcY(g->blit1, y[0]);
+                mbBlitCalcY(g->blit2, y[0] + 0x10);
             }
         } else if (g->state == 4) {
             /* sliding down out */
             if (g->blit1 != NULL) {
-                fn_800B2D4C(g->blit1, NULL, &y[0], NULL);
+                mbBlitCalcRect(g->blit1, NULL, &y[0], NULL);
                 y[0] += gFrameTicks;
                 if (y[0] > 399) {
                     g->state = -1;
                 }
-                fn_800B3014(g->blit1, y[0]);
-                fn_800B3014(g->blit2, y[0] + 0x10);
+                mbBlitCalcY(g->blit1, y[0]);
+                mbBlitCalcY(g->blit2, y[0] + 0x10);
             }
         } else if (g->state == 3) {
             /* holding */
@@ -4765,11 +4759,11 @@ static void do_got_it(void) {
         } else if (g->state == 1) {
             /* create the pair */
             x = lbl_80120238[g->player];
-            fn_800C9BD0(buf, "%d", g->count);
+            sprintf(buf, "%d", g->count);
             switch (g->type) {
             case 1:
                 g->blit1 = MBNewBlit(buf, x, 0);
-                if (lbl_803448D8 == 0xC) {
+                if (sMusicTrackHi == 0xC) {
                     g->blit2 = MBNewBlit("COINHUD", x, 0);
                 } else if (g->count < 0xB) {
                     g->blit2 = MBNewBlit("KEY", x, 0);
@@ -4826,12 +4820,12 @@ static void do_got_it(void) {
                 return;
             }
             if (g->blit1 != NULL) {
-                fn_800B3288(g->blit1, 0x80, 0);
-                fn_800B2E78(0.15f, g->blit1, x, 0x180);
+                mbBlitProject(g->blit1, 0x80, 0);
+                mbBlitCalcWidth(g->blit1, x, 0x180, 0.15f);
             }
             if (g->blit2 != NULL) {
-                fn_800B3288(g->blit2, 0x80, 0);
-                fn_800B2E78(0.16f, g->blit2, x, 400);
+                mbBlitProject(g->blit2, 0x80, 0);
+                mbBlitCalcWidth(g->blit2, x, 400, 0.16f);
             }
             g->state++;
         }
@@ -5052,7 +5046,7 @@ void mini_inventory_draw_label(s32 i) {
     st = PUP_DIRTY(P(i), tb->sel);
     y = tb->y_top + (0x67 - tb->slide);
     if (st == 2) {
-        fn_8001EBCC(0.09f, tb->x_right + 0xC, y, (char*)tb->label);
+        DrawGlowText(0.09f, tb->x_right + 0xC, y, (char*)tb->label);
     } else if (st == 1 || st == 3) {
         DrawTextKeepScale(0.09f, tb->x_right + 0xC, y, 6, 0xFFFFFF, (char*)tb->label);
     }

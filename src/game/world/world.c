@@ -128,10 +128,10 @@ extern s32    lbl_80344D80;
 extern s32    lbl_80344D84;
 extern s32    lbl_80344D88;
 extern void*  lbl_80344D8C;     /* default parent node                         */
-extern void*  lbl_80344D90;     /* scene root 2                                */
-extern void*  lbl_80344D94;     /* scene root 1                                */
+extern void*  world_root1;     /* scene root 2                                */
+extern void*  world_root0;     /* scene root 1                                */
 extern WorldObj* lbl_80344D98;  /* secondary world object array base           */
-extern WorldObj* lbl_80344D9C;  /* current world object array base             */
+extern WorldObj* world_objects;  /* current world object array base             */
 extern void*  lbl_80344DA0;     /* secondary loaded world block                */
 extern void*  lbl_80344DA4;     /* primary loaded world block                  */
 extern void*  gSceneRoot;     /* default parent node                         */
@@ -152,21 +152,21 @@ extern char   lbl_803487B0[];   /* "PSYS"                                      *
 /* --- external API --- */
 extern void  MBTreeSetFlags();          /* set node display flag / show           */
 extern void  MBTreeClearFlags();          /* clear node display flag / hide         */
-extern void  fn_800D12F0(void*);     /* free particle system                   */
-extern void  fn_800B7758(void);      /* model-load start                       */
-extern void  fn_800B79AC(s32, s32);  /* model-load finish                      */
+extern void  MBRemovePsys(void*);     /* free particle system                   */
+extern void  MBOX_BGLoadModelDone(void);      /* model-load start                       */
+extern void  MBOX_BGLoadModelStart(s32, s32);  /* model-load finish                      */
 extern void  fn_8001267C(void*, s32, s32); /* close/abort file read            */
-extern void  fn_800B8E20(void*, void*);
+extern void  MBOX_SetObject(void*, void*);
 extern G3DNode* MBNewNode(void*, void*, s32); /* create child display node    */
 extern void  GetWorldMat(void*, f32*, s32);     /* fetch node world state       */
 extern void  MBTreeSetZsortAdd(void*, s32, s32);
 extern void  MBTreeSetAltTex(void*, s32, s32, s32);
-extern void  fn_800CEAF0(s32, void*, void*, s32, void*, void*); /* spawn psys   */
+extern void  MBNewWorldPsys(s32, void*, void*, s32, void*, void*); /* spawn psys   */
 extern void  CopyMat4(void*, void*);
 extern void  ZeroAnimData(void*);
 extern s32   CalcAnimData(void*, f32*, s32, s32, s32, s32, f32); /* sample anim  */
-extern void  fn_800BD254(void*, f32*);  /* apply anim rotation (variant A)      */
-extern void  fn_800BD154(void*, f32*);  /* apply anim rotation (variant B)      */
+extern void  CreatePYRMatrix(void*, f32*);  /* apply anim rotation (variant A)      */
+extern void  CreateRYPMatrix(void*, f32*);  /* apply anim rotation (variant B)      */
 extern void  fn_80055E04(WorldObj*, f32*);
 extern void  ErrorPrintf(const char*, ...);
 extern void  bulletproof_printf(const char*, ...);
@@ -176,8 +176,8 @@ extern char* strcpy(char*, const char*);
 extern s32   FileSize(void*, const char*);
 extern s32   FileExists(const char*, const char*);
 extern FInfo* StartFileRead(void*, const char*, s32, s32, void*, void*);
-extern void* fn_800B8B64(void*, s32, s32, s32, s32);
-extern s32   fn_800B87FC(const char*);
+extern void* MBOX_FindTexture_Sub(void*, s32, s32, s32, s32);
+extern s32   MBOX_AllocModel(const char*);
 extern s32   BytesFree(void);
 extern void* AllocMem(s32);
 
@@ -185,7 +185,7 @@ extern void* AllocMem(s32);
  *
  * Allocates and initialises one WorldInfo's runtime data from a just-loaded,
  * endian-fixed world block, and returns the wobjs array base (stored by the
- * callers into lbl_80344D9C / lbl_80344D98).  From the region survey it calls
+ * callers into world_objects / lbl_80344D98).  From the region survey it calls
  * InitDynobjGrid, AllocMem, SetupAnimHeader, InitAnimData, fn_80011DCC and
  * bulletproof_printf(lbl_80115244 = "---- ALLOC World Data [%dK]\n", ...), and
  * dispatches object set-up through jumptable_80126C30.  It fills wobjs, ctris,
@@ -271,9 +271,9 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim) {
             /* Rotation. */
             if (mode & 7) {
                 if (mode & 0x8000) {
-                    fn_800BD254(node, xf);
+                    CreatePYRMatrix(node, xf);
                 } else {
-                    fn_800BD154(node, xf);
+                    CreateRYPMatrix(node, xf);
                 }
             }
             /* Translation = object origin + sampled offset. */
@@ -393,8 +393,8 @@ struct mbnode* FindWorldAnimNode(f32* point, f32 maxdist) {
 /* ResetWorlds: clear both worlds' runtime state (Xbox PDB name; InitWorlds is
  * the sibling candidate for this slot - both zero the same fields). */
 void ResetWorlds(void) {
-    lbl_80344D94 = 0;
-    lbl_80344D90 = 0;
+    world_root0 = 0;
+    world_root1 = 0;
     lbl_80344DA4 = 0;
     lbl_80344DA0 = 0;
     gWorldInfo.model = -1;
@@ -410,8 +410,8 @@ void NewWorld(void* parent) {
     if (parent == 0) {
         parent = gSceneRoot;
     }
-    lbl_80344D94 = MBNewNode(parent, gIdentityMatrix, 1);
-    lbl_80344D90 = MBNewNode(parent, gIdentityMatrix, 1);
+    world_root0 = MBNewNode(parent, gIdentityMatrix, 1);
+    world_root1 = MBNewNode(parent, gIdentityMatrix, 1);
 }
 
 /* WorldSaveInitState: init each world, snapshot every object's parent link and
@@ -424,7 +424,7 @@ void WorldSaveInitState(void) {
     if (lbl_80344DA4 != 0) {
         WorldObj* wobjs;
         s32 count = *(s32*)lbl_80344DA4;
-        lbl_80344D9C = InitWorldInfo(&gWorldInfo);
+        world_objects = InitWorldInfo(&gWorldInfo);
         memBase = mlmMemUsed;
         lbl_80344D74 = AllocMem(count * 4);
         lbl_80344D78 = AllocMem(count * 12);
@@ -436,19 +436,19 @@ void WorldSaveInitState(void) {
             lbl_80344D78[i * 3 + 2] = wobjs[i].pos[2];
         }
         bulletproof_printf(lbl_801151D8, (mlmMemUsed - memBase) >> 10);
-        lbl_80344D8C = lbl_80344D94;
-        CreateWorldNode(lbl_80344D9C, lbl_80344D9C, 0);
-        MBTreeSetFlags(lbl_80344D94, 0x1000, 1);
+        lbl_80344D8C = world_root0;
+        CreateWorldNode(world_objects, world_objects, 0);
+        MBTreeSetFlags(world_root0, 0x1000, 1);
         WorldDisplay = 1;
     } else {
-        lbl_80344D9C = 0;
+        world_objects = 0;
     }
 
     if (lbl_80344DA0 != 0) {
         lbl_80344D98 = InitWorldInfo(&gWorldInfo2);
-        lbl_80344D8C = lbl_80344D90;
+        lbl_80344D8C = world_root1;
         CreateWorldNode(lbl_80344D98, lbl_80344D98, 0);
-        MBTreeSetAltTex(lbl_80344D90, -2, gWorldInfo.whitetex, 1);
+        MBTreeSetAltTex(world_root1, -2, gWorldInfo.whitetex, 1);
         WorldDisplay = 2;
     } else {
         lbl_80344D98 = 0;
@@ -496,18 +496,18 @@ void ToggleWorldDisplay(void) {
     } else {
         WorldDisplay = 1;
     }
-    if (lbl_80344D94 != 0) {
+    if (world_root0 != 0) {
         if (WorldDisplay & 1) {
-            MBTreeClearFlags(lbl_80344D94, 2, 0);
+            MBTreeClearFlags(world_root0, 2, 0);
         } else {
-            MBTreeSetFlags(lbl_80344D94, 2, 0);
+            MBTreeSetFlags(world_root0, 2, 0);
         }
     }
-    if (lbl_80344D90 != 0) {
+    if (world_root1 != 0) {
         if (WorldDisplay & 2) {
-            MBTreeClearFlags(lbl_80344D90, 2, 0);
+            MBTreeClearFlags(world_root1, 2, 0);
         } else {
-            MBTreeSetFlags(lbl_80344D90, 2, 0);
+            MBTreeSetFlags(world_root1, 2, 0);
         }
     }
 }
@@ -535,12 +535,12 @@ s32 StartLoadWorldAnim(void* dir) {
 
 /* WorldLoadModelStart: kick off the world model load. */
 void WorldLoadModelStart(void) {
-    fn_800B7758();
+    MBOX_BGLoadModelDone();
 }
 
 /* WorldLoadModelDone: finish the world model load using the loaded handle. */
 void WorldLoadModelDone(s32 a) {
-    fn_800B79AC(a, gWorldInfo.model);
+    MBOX_BGLoadModelStart(a, gWorldInfo.model);
 }
 
 /* StartWorldLoad: multi-file "worlds"/"anim" load state machine. */
@@ -587,7 +587,7 @@ s32 StartWorldLoad(s32 arg) {
         break;
     case 4:
         gWorldInfo.whitetex =
-            (s32)fn_800B8B64(&buf[48], 0, gWorldInfo.model, gWorldInfo.model, 1);
+            (s32)MBOX_FindTexture_Sub(&buf[48], 0, gWorldInfo.model, gWorldInfo.model, 1);
         world_load_state = 5;
         /* fall through */
     case 5:
@@ -616,7 +616,7 @@ s32 LoadWorldDone(char* name) {
     lbl_80344D80 = 0;
     if (name != 0 && FileExists(name, lbl_803487A0) != 0) {
         freeBefore = BytesFree();
-        gWorldInfo.model = fn_800B87FC(name);
+        gWorldInfo.model = MBOX_AllocModel(name);
         lbl_80344D80 += freeBefore - BytesFree();
         memBase = mlmMemUsed;
         bulletproof_printf(lbl_80115214, name, memBase);
@@ -660,20 +660,20 @@ static void sSetupWorldHeader(void* hdr) {
  * (real=4): the target uses a single `node`-holding return register plus a
  * bne/b split on the strcmp; parked per the 3-attempt regalloc cap. */
 WorldObj* FindWORLDOBJ(char* name) {
-    WorldObj* node = lbl_80344D9C;
+    WorldObj* node = world_objects;
     while (node != 0) {
         if (strcmp(name, node->desc) == 0) {
             break;
         } else {
             if (node->childidx >= 0) {
-                WorldObj* r = FindWorldObject(&lbl_80344D9C[node->childidx], name);
+                WorldObj* r = FindWorldObject(&world_objects[node->childidx], name);
                 if (r != 0) {
                     node = r;
                     break;
                 }
             }
             if (node->nextidx >= 0) {
-                node = &lbl_80344D9C[node->nextidx];
+                node = &world_objects[node->nextidx];
             } else {
                 node = 0;
                 break;
@@ -689,12 +689,12 @@ WorldObj* FindWorldObject(WorldObj* node, char* name) {
         if (strcmp(name, node->desc) == 0)
             return node;
         if (node->childidx >= 0) {
-            WorldObj* r = FindWorldObject(&lbl_80344D9C[node->childidx], name);
+            WorldObj* r = FindWorldObject(&world_objects[node->childidx], name);
             if (r != 0)
                 return r;
         }
         if (node->nextidx >= 0) {
-            node = &lbl_80344D9C[node->nextidx];
+            node = &world_objects[node->nextidx];
         } else {
             return 0;
         }
@@ -723,7 +723,7 @@ void CreateWorldNode(WorldObj* base, WorldObj* obj, void* parent) {
         } else if (obj->nodeptr == (struct mbnode*)1 ||
                    (obj->flags & 0x80000000)) {
             obj->nodeptr = NewWorldObject(obj, parent);
-            fn_800B8E20(obj->nodeptr, obj);
+            MBOX_SetObject(obj->nodeptr, obj);
             obj->flags |= 0x80000000;
         } else {
             obj->nodeptr = NewWorldObject(obj, parent);
@@ -746,7 +746,7 @@ void CreateWorldNode(WorldObj* base, WorldObj* obj, void* parent) {
  * (0x00400000). */
 s32 WorldPsysDeActivate(WorldObj* o) {
     if (o->flags & 0x00800000) {
-        fn_800D12F0(o->nodeptr);
+        MBRemovePsys(o->nodeptr);
         o->flags &= ~0x00800000;
         o->flags |= 0x00400000;
     }
@@ -799,7 +799,7 @@ s32 WorldPsysActivate(WorldObj* obj) {
         pos[2] = -ct->pos[2];
         posp = pos;
     }
-    fn_800CEAF0(0, obj->nodeptr, &gWorldInfo.worldpsys[idx],
+    MBNewWorldPsys(0, obj->nodeptr, &gWorldInfo.worldpsys[idx],
                 obj->flags & 0x1000, obj, posp);
     obj->flags &= ~0x00400000;
     obj->flags |= 0x00800000;

@@ -42,10 +42,6 @@ typedef struct ScreenListEntry {
 /* Called functions (project-internal; kept as raw addresses / names). */
 /* ------------------------------------------------------------------ */
 extern void FreeHiMem(int a);
-extern void DrawText(int a, int b, int c, int d, const char* fmt, ...);
-extern void DrawTextKeepScale(void);
-extern void DrawGlowText(void);
-extern void DrawGlowTextMLines(int a, int b, void* c, float d);
 extern void FontInitSpecial(void* a, int b);
 extern int  MBNewBlit(void* a, int b, int c);
 extern int  MBCreateBlit(int a, int b, int c, int d, int e, int f);
@@ -65,7 +61,7 @@ extern long long OSGetTime(void);
 extern void AudioStreamStop(void);
 extern int  AudioSysUpdate(int a);
 extern void sndFxInit(int a, int b);
-extern int  sndVoiceStart(int a, int b);          /* fn_800150CC (sndfx) */
+extern int  sndVoiceStart(int a, int b);          /* sndFxInit (sndfx) */
 extern int  any_level(int mask);                /* pad-held query      */
 extern int  any(int mask);                /* pad-pressed query   */
 extern int  start_no_assignment(void);                    /* any-pad-pressed     */
@@ -76,8 +72,7 @@ extern int  fn_80055F68(int a, int b);            /* start/button check  */
 extern int  SelectLoadDone(void);
 extern void SelectLoadStart(void);
 extern void init_player_select(int a);
-extern int  fn_8006D7BC(void);
-extern void fn_800A17D4(void);
+extern int  FireScrollActive(void);
 extern s32  HintMenu(s32 type);
 extern void TitleMenuEnd(void);
 extern s32  TitleMenu(s32 y);
@@ -87,39 +82,28 @@ extern void fn_8009D3D4(void);
 extern void fn_80053B20(void);
 extern void fn_80053C70(void);
 extern void fn_80054E68(int a);
-extern void fn_8005638C(int a);
+extern void init_next_level(int a);
 extern int init_next_level_8005638C(int a);
 extern int  LoadModel(void* a, void* b, int c, int d);
 extern void fn_80057024(void);
 extern int  NextAttractWave(void);
 extern void fn_8002CF78(int a);
 extern void fn_8002C640(void);
-extern void AudioStreamStop(void);      /* was fn_800176D8 */
-extern int  AudioSysUpdate(int a);      /* was fn_80017B18 */
-extern void AudioReset(int a);          /* was fn_80017BAC */
-extern void AudioEmptyCb1(void);        /* was fn_8001802C */
-extern void fn_800B8DD0(void* dst, void* name, int a, int b);
+extern void AudioReset(int a);          /* was AudioReset */
+extern void AudioEmptyCb1(void);        /* was AudioEmptyCb1 */
+extern void MBOX_NewObject(void* dst, void* name, int a, int b);
 extern int  MBOX_FindTexture(const char* name, int flag);
-extern int  fn_800B38D0(int a, int b);
-extern void fn_800B3414(int handle, int a);
 extern void fn_800B290C(int handle, int alpha);
-extern void fn_800B2988(int a, int b, int c, int d, int e);
-extern void fn_800B2F8C(int a, float b);
-extern int  fn_800B3AFC(int a, int b, int c, int d, int e, int f);
-extern void fn_800B3D6C(int a);
-extern void fn_800B5AA8(int a, int b);
+extern void MBFontMsgSetAlpha(int a, int b);
 extern void MBWindowZoom(float a);
-extern void fn_800BC2EC(void* a, ...);
 extern void fn_800BC4E4(void);
 extern void fn_800C7864(int a);
 extern int  fn_800C7874(void);
-extern void fn_800D9FEC(int a);
-extern void fn_80094BE0(void);
-extern int  fn_8001EBCC(int x, int y, void* str, float scale);   /* btext */
-extern int  fn_8001EAE0(int x, int y, void* str, float scale);   /* btext */
-extern void* fn_800209E0(int x, int y, void* str, int color, int a, void* p);
-extern void* fn_800209BC(int x, int y, void* str, int color, int a, void* p);
-extern void fn_80020D44(void* a, int b);
+extern void PlayVQMovie(int a);
+extern int  DrawGlowText(int x, int y, void* str, float scale);   /* btext */
+extern int  DrawGlowTextMLines(int x, int y, void* str, float scale);   /* btext */
+extern void* DrawText();
+extern void* DrawTextKeepScale();
 
 /* forward decls (project style) */
 void init_attract_mode(int screen);
@@ -259,7 +243,7 @@ void do_titlescreen(void) {
     fn_800B290C(cur_screen_id, alpha);
 
     for (i = 0; i < 4; i++) {
-        fn_800B2F8C(credit_text[i] != 0, 1.0f);
+        mbBlitCvtCoord(credit_text[i] != 0, 1.0f);
     }
 
     if (SelectLoadDone() == 0 || fn_80055F68(1, 0) == 0) {
@@ -267,9 +251,9 @@ void do_titlescreen(void) {
     }
 
     /* "Press Start" prompt + logo, then poll for Start to leave. */
-    fn_8001EBCC(-256, 320, credit_text[0x228 / 4], 1.0f);
-    if (fn_8006D7BC() == 0) {
-        fn_800B3414(cur_screen_id, 1);
+    DrawGlowText(-256, 320, credit_text[0x228 / 4], 1.0f);
+    if (FireScrollActive() == 0) {
+        mbBlitInit3414(cur_screen_id, 1);
     }
     if (titlescreen_timeout > 1800) {
         TitleMenuEnd();
@@ -292,7 +276,7 @@ void init_titlescreen(void) {
     if (lbl_80343B38 < 0) {
         fn_80053B20();
         sndFxInit(0x8009, -1);
-        fn_800B8DD0(base + 2232, gIdentityMatrix, 0, 0);
+        MBOX_NewObject(base + 2232, gIdentityMatrix, 0, 0);
         bulletproof_printf(base + 2244);
         lbl_80343B38 = LoadModel((void*)lbl_803458B4, 0, 1, -1);
     } else {
@@ -397,16 +381,16 @@ int scroll_credits(void) {
             alive = 0;
             continue;
         }
-        line = fn_800209E0(32, 13, credit_text[idx + 337], 383 - y,
+        line = DrawText(32, 13, credit_text[idx + 337], 383 - y,
                            0xFF, (void*)0);
         if (line == 0) {
             continue;
         }
         if (384 - y < 16) {
-            fn_800B5AA8((int)line, (384 - y) << 4);
+            MBFontMsgSetAlpha((int)line, (384 - y) << 4);
         }
         if (y < 16) {
-            fn_800B5AA8((int)line, (16 - y) << 4);
+            MBFontMsgSetAlpha((int)line, (16 - y) << 4);
         }
     }
 
@@ -416,16 +400,16 @@ int scroll_credits(void) {
         if (y < 0 || y >= 384) {
             continue;
         }
-        line = fn_800209BC(32, 13, credit_text[idx + 429], 383 - y,
+        line = DrawTextKeepScale(32, 13, credit_text[idx + 429], 383 - y,
                            0xFF, (void*)0);
         if (line == 0) {
             continue;
         }
         if (384 - y < 16) {
-            fn_800B5AA8((int)line, (384 - y) << 4);
+            MBFontMsgSetAlpha((int)line, (384 - y) << 4);
         }
         if (y < 16) {
-            fn_800B5AA8((int)line, (16 - y) << 4);
+            MBFontMsgSetAlpha((int)line, (16 - y) << 4);
         }
     }
 
@@ -458,7 +442,7 @@ void init_credits(void) {
     lbl_80343B10 = -1;
     lbl_80343B08 = -1;
     sndFxInit(0x8000, -1);
-    fn_800B8DD0(base + 2232, gIdentityMatrix, 0, 0);
+    MBOX_NewObject(base + 2232, gIdentityMatrix, 0, 0);
     init_next_level_8005638C(-1);
     lbl_80344258 = LoadModel((void*)lbl_803458D4, 0, 1, -1);
     FontInitSpecial((void*)lbl_803458D4, 8);
@@ -559,7 +543,7 @@ int init_screen2d(int a, int slot) {
     lbl_80343B10 = -1;
     lbl_80343B08 = -1;
     sndFxInit(0x8004, -2);
-    fn_800B8DD0(lbl_801111B8, gIdentityMatrix, 0, 0);
+    MBOX_NewObject(lbl_801111B8, gIdentityMatrix, 0, 0);
 
     if (slot == 0) {
         lbl_803441FC = 1;
@@ -618,10 +602,10 @@ int do_flyby(void) {
     if (attract_state != ATTRACT_RUN) {
         long long t = OSGetTime();
         (void)t;
-        fn_800A17D4();
+        AudioSelectReset();
         fn_8002C640();
         if (attract_music != 0) {
-            fn_800B3D6C(attract_music);
+            MBRemoveBlit(attract_music);
             attract_music = 0;
         }
         init_attract_mode(-1);
@@ -632,10 +616,10 @@ int do_flyby(void) {
     if (screen2d_timer > 60) {
         attract_check_input(0);
     }
-    fn_80094BE0();
+    ProcessEffects();
     ProcessEffects();
     fn_800C7874();
-    fn_8001EBCC(-256, 320, credit_text[0x8A0 / 4], 1.0f);
+    DrawGlowText(-256, 320, credit_text[0x8A0 / 4], 1.0f);
     return 0;
 }
 
@@ -720,7 +704,7 @@ int init_movie(int a, int idx) {
     }
     lbl_80344298 = 0;
     lbl_80344210 = 10;
-    fn_800D9FEC(lbl_8034428C);
+    PlayVQMovie(lbl_8034428C);
     lbl_80344298 = 1;
     lbl_80344210 = 99;
     return 1;

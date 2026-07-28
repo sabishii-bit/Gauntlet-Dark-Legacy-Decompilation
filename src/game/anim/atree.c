@@ -127,7 +127,6 @@ extern void InitTexMod(TEXMOD* tm, int texidx);
 extern int strncpy(char* dst, const char* src, u32 n);
 extern void* MBRemoveNode(void* obj, int flag);
 extern void MBNodeSetParent(void* child, void* parent);
-extern void* fn_800E8090(void* p, int a, int b);
 
 /* intra-TU forward declarations (address-order names retained) */
 anode* fn_800132F0(anode* node);
@@ -162,7 +161,7 @@ static s32 atree_handles[24];
 static u8 atree_scroll[24][16];
 static void* whichatree[24];
 
-extern u32 lbl_80343ef0;
+extern u32 gErrorCode;
 
 #define STUB(address, name) void name(void) {}
 
@@ -811,7 +810,7 @@ animdata* AnimDataNodeNew(void)
     }
     if (i >= AnimDataNum) {
         if (AnimDataNum >= AnimDataMax) {
-            lbl_80343ef0 = 0xFFFF00;
+            gErrorCode = 0xFFFF00;
             FatalError("Too Many AnimDataNodes", 0x804060);
         }
         AnimDataNum++;

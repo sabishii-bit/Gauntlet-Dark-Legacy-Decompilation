@@ -38,7 +38,7 @@
  *                                          a mode selector + default fallback;
  *                                          leaf, called by bosscam x4 / tower x2.
  *   0x8006F8F0 CamGetPlayerAvgPos    MED   player-center in camera space (matrix
- *                                          transform via fn_800B5554/B53B4),
+ *                                          transform via MBWorldToScreen/B53B4),
  *                                          clamped to level camera bounds, returns
  *                                          found-bool; used by the mode-updaters
  *                                          + gamemain/boss (camera look-at target).
@@ -85,7 +85,7 @@
  *   0x8006F418 fn_8006F418          0x260 cam sub-update (DoShake/MBWindowProjection)
  *   0x8006F678 GetPlayerAvgPos      0x278 world-space player avg/min/max [bosscam,tower]
  *   0x8006F8F0 CamGetPlayerAvgPos   0x2BC camera-space player center [gamemain,boss,int]
- *   0x8006FBAC fn_8006FBAC          0x130 calls fn_800BCB44 [bosscam]
+ *   0x8006FBAC fn_8006FBAC          0x130 calls fqdist [bosscam]
  *   0x8006FCDC fn_8006FCDC          0x154 calls MBTreeSetAlpha [internal]
  *   0x8006FE30 fn_8006FE30          0xEC  camera+projection setup (CamReset + proj
  *                                          params lbl_80344EE8) [game/sys/main]
@@ -94,7 +94,7 @@
  *                                          DoShake [game/sys/main x2]
  *                                          (candidate: DebugCamUpdate)
  *   0x80070144 fn_80070144          0x1FC pure matrix/vector math (no calls) [fn_8006DF34]
- *   0x80070340 fn_80070340          0x1AC shared cam helper (fn_800BD9B0/BE8C8);
+ *   0x80070340 fn_80070340          0x1AC shared cam helper (SlowNormalVector/BE8C8);
  *                                          5 internal callers (all mode-updaters)
  *   0x800704EC DebugCamControlInputs 0x444 input -> debug cam motion (sin/cos) [fn_8006FF1C]
  *   0x80070930 DebugCamInit         0x38  DebugCam=&DebugCamera; CamReset [pb_diag]
@@ -173,8 +173,8 @@ extern double tan(double);
 /* rotate/derive a unit vector from a constant seed. */
 extern void YawVec3(const void* seed, Vec3* out, f32 angle);
 /* transform a point through the current matrix stack (dst <- M * src). */
-extern void fn_800B5554(Vec3* dst, const Vec3* src);
-extern void fn_800B53B4(Vec3* dst, const Vec3* src);
+extern void MBWorldToScreen(Vec3* dst, const Vec3* src);
+extern void MBWorldToScreen3D(Vec3* dst, const Vec3* src);
 
 /* frustum point-clip test core (fn_8006DC64); the public entry fn_8006DC2C is
  * a thin wrapper that supplies the live standard-camera pointer. */
@@ -197,9 +197,9 @@ extern f32   lbl_80127D40[];        /* default arrow angle vector */
 typedef struct NcBlk16 { u32 w[4]; } NcBlk16;
 extern const NcBlk16 lbl_801137C0;  /* 16-byte zero look template */
 
-/* copy a 3x3 (row-major) basis; fn_800BD428 derives a look basis from 3 vecs. */
+/* copy a 3x3 (row-major) basis; GetYawPitch derives a look basis from 3 vecs. */
 extern void CopyMat3(f32* src, f32* dst);
-extern void fn_800BD428(f32* a, f32* b, f32* c);
+extern void GetYawPitch(f32* a, f32* b, f32* c);
 
 /* normalize a Vec3 in place, returning its original length (ps2/ml_fmath.c). */
 extern f32 SlowNormalVector(f32* vector);
@@ -516,7 +516,7 @@ void fn_8006FE30(void) {
     ((f32*)lbl_80344A68)[0x2a] = ((f32*)lbl_80344A68)[0xd];
     ((f32*)lbl_80344A68)[0x2b] = ((f32*)lbl_80344A68)[0xe];
     ((f32*)lbl_80344A68)[0x3d] = 0.0f;
-    fn_800BD428((f32*)lbl_80344A68 + 0x38, (f32*)lbl_80344A68 + 0x3b,
+    GetYawPitch((f32*)lbl_80344A68 + 0x38, (f32*)lbl_80344A68 + 0x3b,
                 (f32*)lbl_80344A68 + 0x41);
 }
 
@@ -717,13 +717,13 @@ s32 CamGetPlayerAvgPos(Vec3* out, s32 flags) {
         }
         count++;
         if (flags & 0x2) {                 /* include world position (0x44) */
-            if (flags & 0x1) fn_800B5554(&tmp, (Vec3*)pl->pos);
+            if (flags & 0x1) MBWorldToScreen(&tmp, (Vec3*)pl->pos);
             else { tmp.x = pl->pos[0]; tmp.y = pl->pos[1]; tmp.z = pl->pos[2]; }
             { f32* mx = &vmax.x; f32* mn = &vmin.x; f32* t = &tmp.x;
               for (k = 0; k < 3; k++) { if (mx[k] < t[k]) mx[k] = t[k]; if (mn[k] > t[k]) mn[k] = t[k]; } }
         }
         if (flags & 0x4) {                 /* include follow position (0x54) */
-            if (flags & 0x1) fn_800B5554(&tmp, (Vec3*)pl->campos);
+            if (flags & 0x1) MBWorldToScreen(&tmp, (Vec3*)pl->campos);
             else { tmp.x = pl->campos[0]; tmp.y = pl->campos[1]; tmp.z = pl->campos[2]; }
             { f32* mx = &vmax.x; f32* mn = &vmin.x; f32* t = &tmp.x;
               for (k = 0; k < 3; k++) { if (mx[k] < t[k]) mx[k] = t[k]; if (mn[k] > t[k]) mn[k] = t[k]; } }
@@ -735,7 +735,7 @@ s32 CamGetPlayerAvgPos(Vec3* out, s32 flags) {
     tmp.y = (vmax.y + vmin.y) * 0.5f;
     tmp.z = (vmax.z + vmin.z) * 0.5f;
 
-    if (flags & 0x1) fn_800B53B4(out, &tmp);
+    if (flags & 0x1) MBWorldToScreen3D(out, &tmp);
     else { out->x = tmp.x; out->y = tmp.y; out->z = tmp.z; }
 
     if (gCurLevel != 0) {                  /* clamp to level camera bounds */

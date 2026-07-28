@@ -45,7 +45,7 @@ extern s32 gBossType;
 extern s32 lbl_80344768;
 extern s32 lbl_803447B4;
 extern f32 lbl_80240E30[]; /* control-pad state array, stride 15 f32 */
-extern f32 sMusicFadeBase; /* lbl_80344594 */
+extern f32 sMusicFadeBase; /* sMusicFadeBase */
 
 /* ------------------------------------------------------------------ */
 /* extern functions                                                    */

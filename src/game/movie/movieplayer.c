@@ -19,7 +19,7 @@
  * DText debug-overlay helpers).  The little-endian file readers
  * (ReadU16LE/ReadU32LE/ReadF32LE, Xbox pb_objregs.obj
  * _2/_4/f32Little2NativeEndian) are TU-local here, used only to parse the
- * PC-endian .avi container.  PlayVQMovie (fn_800D9FEC) is the public entry,
+ * PC-endian .avi container.  PlayVQMovie (PlayVQMovie) is the public entry,
  * called by test_movies (0x80049210 region) via the 0x800BF1A8/0x800BF208
  * movie API.
  *

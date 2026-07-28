@@ -57,7 +57,7 @@ extern double lbl_803485F8;   /* 0.0 */
 extern double lbl_80348608;   /* 2.0 */
 extern double lbl_80348598;   /* 10.0 - tower-message cooldown reset delta */
 
-extern void fn_8006D7EC(int who, int msg, int slot, int flag);
+extern void ControllerMessageBox(int who, int msg, int slot, int flag);
 extern f32  lbl_8028C2A8[];   /* garg-item "need items" message cooldown timers */
 
 /* lbl_8028C288: tower-message state block.  The crystal-message cooldown
@@ -747,7 +747,7 @@ void TowerNeedGargItemsMsg(int who, int slot) {
 
     if (*cd < sMusicFadeBase) {
         int msg = FindStringMessageListSub_8001FC4C(0, lbl_80114D50);
-        fn_8006D7EC(who, msg, slot, -1);
+        ControllerMessageBox(who, msg, slot, -1);
         *cd = lbl_80348598 + sMusicFadeBase;
     }
 }
@@ -761,10 +761,10 @@ void TowerNeedCrystalsMsg(int who, int slot) {
 
         if (lbl_803449A0 != 0) {
             msg = FindStringMessageListSub_8001FC4C(0, lbl_80114D60);
-            fn_8006D7EC(who, msg, 0, -1);
+            ControllerMessageBox(who, msg, 0, -1);
         } else {
             msg = FindStringMessageListSub_8001FC4C(0, lbl_80114D6C);
-            fn_8006D7EC(who, msg, slot, -1);
+            ControllerMessageBox(who, msg, slot, -1);
         }
         *cd = lbl_80348598 + sMusicFadeBase;
     }

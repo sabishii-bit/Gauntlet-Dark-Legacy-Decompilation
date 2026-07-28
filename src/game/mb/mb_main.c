@@ -68,7 +68,7 @@ extern void fn_800C1624(void);
 extern void fn_800AF1D8(int a);
 extern void fn_800C1148(int a, int b, const char* s);
 extern void pbResetTextures(void);
-extern void fn_800C79E4(void);
+extern void pbTreeTraverse(void);
 extern void pbInitDORegs(void);
 extern void fn_800C0AA4(int layer);
 extern void fn_800C1170(int a, void* b, int c);
@@ -231,7 +231,7 @@ void MBEndFrame(void) {
 
     pbResetTextures();
     InitFrontFaceYaw(lbl_80344EE8 + 0x84);
-    fn_800C79E4();
+    pbTreeTraverse();
     fn_800B5D90();
     MBResetBlits();
     pbGetCPUTime();

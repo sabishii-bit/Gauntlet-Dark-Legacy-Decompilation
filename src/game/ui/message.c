@@ -46,7 +46,7 @@ extern int gMsgIndex;                   /* lbl_80344C98 */
 extern int g3B4;                        /* lbl_803443B4 */
 extern int g7C0;                        /* lbl_803447C0 */
 extern int gA30;                        /* lbl_80344A30 */
-extern int gA98;                        /* lbl_80344A98 */
+extern int gA98;                        /* options_state */
 extern int gC9C;                        /* lbl_80344C9C */
 extern int gCA0;                        /* lbl_80344CA0 */
 extern int gCA4;                        /* lbl_80344CA4 */
@@ -62,19 +62,19 @@ extern int gCCC;                        /* lbl_80344CCC */
 extern int g298;                        /* lbl_80344298 */
 
 /* --- text library --- */
-int  fn_8001EDD0(int a, int b, int c);
-int  fn_8001F020(int a, int b, float scale);
-int  fn_8001F234(int a, int b, int c, int d, int e, int f, int g, int h, int i);
-int  fn_8001F48C(int a, int b, int c, int d, int e, int f);
-int  fn_8001F93C(int a, int b, int c, int d, int e, int f, int g, int h);
-int  fn_8001FBCC(void);
-int  fn_8001FBDC(void);
-int  fn_8001FD9C(int a, int b, int c, int d);
-int  fn_8001FE50(int a, int b);
-int  fn_8001FF1C(int a, int b, int* c);
-int  fn_800B63B0(int a);
-void fn_800B3414(void* box, int flag);
-void fn_800B3D6C(void* box);
+int  StringTextHeight(int a, int b, int c);
+int  StringTextWidth(int a, int b, float scale);
+int  DrawStringTextMLines(int a, int b, int c, int d, int e, int f, int g, int h, int i);
+int  DrawStringTextMulti(int a, int b, int c, int d, int e, int f);
+int  DrawStringText(int a, int b, int c, int d, int e, int f, int g, int h);
+int  RestoreDrawStringScale(void);
+int  SetDrawStringScale(void);
+int  GetStringListText(int a, int b, int c, int d);
+int  GetStringListMsg(int a, int b);
+int  GetStringText(int a, int b, int* c);
+int  MBSetFontFlags(int a);
+void mbBlitInit3414(void* box, int flag);
+void MBRemoveBlit(void* box);
 void get_screen_pos(int a, int* b, int* c, int d);
 
 /* --- forward decls (address order) --- */
@@ -349,7 +349,7 @@ static MsgDesc gMsgDescTable[256] = {
     {0, 0, 0, 0, 0, 0, 0},
 };
 
-/* fn_800A4870 */
+/* msgUpdate */
 void msgUpdate(void)
 {
     void** boxes = gMsgBoxes;
@@ -382,7 +382,7 @@ void msgUpdate(void)
     if (gA98 != 0 || gA30 > 0 || g3B4 != 0) {
         box = boxes[gMsgIndex];
         if (box != 0) {
-            fn_800B3414(box, 1);
+            mbBlitInit3414(box, 1);
         }
         return;
     }
@@ -391,7 +391,7 @@ void msgUpdate(void)
             msgDraw();
             box = boxes[gMsgIndex];
             if (box != 0) {
-                fn_800B3414(box, 0);
+                mbBlitInit3414(box, 0);
             }
         }
         return;
@@ -407,13 +407,13 @@ void msgUpdate(void)
         msgDraw();
         box = boxes[gMsgIndex];
         if (box != 0) {
-            fn_800B3414(box, 0);
+            mbBlitInit3414(box, 0);
         }
         return;
     }
     for (i = 0; i < 3; i++) {
         if (boxes[i] != 0) {
-            fn_800B3D6C(boxes[i]);
+            MBRemoveBlit(boxes[i]);
             boxes[i] = 0;
         }
     }
@@ -422,7 +422,7 @@ void msgUpdate(void)
     gC9C = 0;
 }
 
-/* fn_800A4A38 - TODO: priority-insert / validation body (~387 insns).
+/* msgPost - TODO: priority-insert / validation body (~387 insns).
  * Validates a message vs its descriptor + world state (via msgWorldFlags),
  * then inserts it into gMsgBoxes[] by priority. Stubbed for now. */
 int msgPost(int idx, int param, char* str)
@@ -431,13 +431,13 @@ int msgPost(int idx, int param, char* str)
     return 0;
 }
 
-/* fn_800A5044 - TODO: message renderer (~314 insns), draws the active
+/* msgDraw - TODO: message renderer (~314 insns), draws the active
  * message box with the fn_8001Fxxx text library. Stubbed for now. */
 void msgDraw(void)
 {
 }
 
-/* fn_800A552C */
+/* msgInit */
 void msgInit(void)
 {
     int i;
@@ -454,17 +454,17 @@ void msgInit(void)
     gCC8 = 256;
 }
 
-/* fn_800A557C */
+/* msgWidth */
 int msgWidth(int p0, int idx)
 {
     int a, b, c;
     int fc;
     int w;
 
-    w = fn_8001F020(gMsgDescTable[idx].type, gMsgDescTable[idx].param, 1.0f);
+    w = StringTextWidth(gMsgDescTable[idx].type, gMsgDescTable[idx].param, 1.0f);
     if (idx == 50 || idx == 89 || idx == 93) {
-        a = fn_8001F020(3, gWorlds[gCurWorld].fC, 1.0f);
-        b = fn_8001F020(2, gCurWorld, 1.0f);
+        a = StringTextWidth(3, gWorlds[gCurWorld].fC, 1.0f);
+        b = StringTextWidth(2, gCurWorld, 1.0f);
         c = a + 12;
         c = c + b;
         if (g3E8 == 1) {
@@ -476,9 +476,9 @@ int msgWidth(int p0, int idx)
     } else if (idx == 101) {
         if (g3E8 == 1) {
             fc = gWorlds[gCurWorld].fC;
-            a = fn_8001F020(2, gCurWorld, 1.0f);
-            b = fn_8001F020(3, fc, 1.0f);
-            c = fn_8001F020(24, 1, 1.0f);
+            a = StringTextWidth(2, gCurWorld, 1.0f);
+            b = StringTextWidth(3, fc, 1.0f);
+            c = StringTextWidth(24, 1, 1.0f);
             c = a + b + c + 20;
             if (c > w) {
                 w = c;
@@ -488,7 +488,7 @@ int msgWidth(int p0, int idx)
     return w;
 }
 
-/* fn_800A56BC */
+/* msgWorldFlags */
 int msgWorldFlags(int who, int worldMask)
 {
     int i;

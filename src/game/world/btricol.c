@@ -31,8 +31,8 @@ typedef struct ColFrame {
 extern f32 gColQueryLine[8]; /* [0..2] = p0, [4..6] = p1 */
 
 /* PSVEC-style helpers in the g3d math library. */
-extern f32  fn_800BCB44(f32 a, f32 b, f32 c, f32 d, f32 e, f32 f);
-extern void fn_800BD9B0(Vec* out, Vec* a, Vec* b);
+extern f32  fqdist(f32 a, f32 b, f32 c, f32 d, f32 e, f32 f);
+extern void SlowNormalVector(Vec* out, Vec* a, Vec* b);
 
 /* forward decls (address order) */
 f32         TriLineCol(Vec* tri, Vec* out, f32 radius);
@@ -161,7 +161,7 @@ static f32 LineLineDist3D2D(Vec* a0, Vec* a1, Vec* outA, f32* outTa,
     db.x = b1->x - b0->x;
     db.y = b1->y - b0->y;
     db.z = b1->z - b0->z;
-    fn_800BD9B0(&tmp, &da, &db);
+    SlowNormalVector(&tmp, &da, &db);
     (void)PointLineDist2D(a0, a1, &da, outA);
     return LineLineDist(a0, a1, b0, b1, outA, outB);
 }

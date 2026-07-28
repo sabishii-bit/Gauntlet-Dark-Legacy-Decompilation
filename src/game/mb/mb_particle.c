@@ -49,19 +49,19 @@ void  ErrorPrintf(const char* fmt, ...);
 u32   pbRand(void);
 void* AllocMem(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7, f64 f8,
                s32 size, void* tag, s32 a, s32 b, s32 c, s32 d, s32 e, s32 g);
-s32   fn_800B8B04(const char* name, s32* out);   /* texture-by-name lookup */
+s32   MBOX_FindTexture(const char* name, s32* out);   /* texture-by-name lookup */
 MBObject* MBNewNode(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
                       f64 f8, f32 depth, void* verts, s32 flag, s32 tex,
                       void* v2, s32 a, s32 b, s32 c);      /* scene-node create */
 void  MBRemoveNode(MBObject* node, s32 mode);              /* scene-node free */
 int   AddPsysObject(void* fn, MBObject* node);            /* traverse visitor */
-BOOL  fn_800B5704(f64 radius, void* bounds);              /* frustum/sphere cull */
-f64   fn_800B71AC(f64 x);                                 /* rsqrt / normalize */
-f64   fn_800BCB44(f64 a, f64 b);                          /* hypot accumulate */
-void  fn_800B512C(s32 tex);                               /* bind texture page */
-void  fn_800B4CA0(u32 a, u32 b);                          /* set blend/tev mode */
+BOOL  MBWorldSphereVisible3(f64 radius, void* bounds);              /* frustum/sphere cull */
+f64   mbInvSqrtLookup(f64 x);                                 /* rsqrt / normalize */
+f64   fqdist(f64 a, f64 b);                          /* hypot accumulate */
+void  pbBlitSetTexture(s32 tex);                               /* bind texture page */
+void  pbBlitSetDrawRegs(u32 a, u32 b);                          /* set blend/tev mode */
 void  fn_800C7914(void* a, void* b);                      /* project helper */
-void  fn_800AEA0C(u32 a, u32 b);                          /* copy vec */
+void  __as__4vec3FRC4vec3(u32 a, u32 b);                          /* copy vec */
 void  sceSamp0MultVec(void* out, const f32* m, const f32* v);
 void  GXSetChanMatColor(s32 chan, void* color);
 void  GXBegin(s32 prim, s32 fmt, s32 count);
@@ -71,7 +71,6 @@ void  SetCullMode(s32 mode);
 void  SetPerspectiveMode(s32 mode);
 void  SetViewportHeight(f32 h);
 void  pbBlitSetTexture(s32 tex);
-void  pbBlitSetDrawRegs(s32 a, s32 b, s32 c);
 
 extern void* gWinGlobals;
 extern f32   gVpScaleY;
@@ -280,7 +279,7 @@ static void getCurrentDir(Psys* p, MBObject* node, f32* out) {
     f32 mag = dx * dx + dy * dy + dz * dz;
     f32 s;
     if (mag < 0.7 || mag > 1.3) {
-        s = p->p_speed * (f32)fn_800B71AC(mag);
+        s = p->p_speed * (f32)mbInvSqrtLookup(mag);
     } else {
         s = p->p_speed;
     }
@@ -357,7 +356,7 @@ static void getNewDirSphere(Psys* p, MBObject* node, s32 z) {
     dx = (f32)((pbRand() & 0x7fff) * 6.1e-5 - 1.0);
     dy = (f32)((pbRand() & 0x7fff) * 6.1e-5 - 1.0);
     dz = (f32)((pbRand() & 0x7fff) * 6.1e-5 - 1.0);
-    len = fn_800BCB44(fn_800BCB44(dx, dz), dy);
+    len = fqdist(fqdist(dx, dz), dy);
     if (len <= 1.0) {
         slot[0] = (f32)dx; slot[1] = (f32)dy; slot[2] = (f32)dz;
     } else {
@@ -403,7 +402,7 @@ static s32 getNewDirSingle1(Psys* p, MBObject* node) {
 static void DrawPsysSub(void) {
     f32 eye[3];
     f32 corner[4];
-    fn_800AEA0C((u32)eye, (u32)corner);
+    __as__4vec3FRC4vec3((u32)eye, (u32)corner);
     sceSamp0MultVec(corner, (f32*)&gWinGlobals, eye);
     GXBegin(0x98, 0, 4);
 }
@@ -440,7 +439,7 @@ BOOL MBDrawPsysTest(MBObject* node, void* draw) {
     if (p->e_phase >= 6) {
         vis = 1;
     } else {
-        vis = fn_800B5704((f64)p->max_dist, (u8*)draw + 0x30);
+        vis = MBWorldSphereVisible3((f64)p->max_dist, (u8*)draw + 0x30);
     }
     p->e_isvis = vis;
     if (vis == 0 && p->p_nactive != 0) {
@@ -569,7 +568,7 @@ static void setWorldParms(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
         p->p_speed = (f32)(wp->p_speed * (1.0 / 30.0));
     }
     if (wp->fields_used & 0x4000) {
-        p->p_texidx = fn_800B8B04(wp->p_texname1, 0);
+        p->p_texidx = MBOX_FindTexture(wp->p_texname1, 0);
     }
     (void)node; (void)over;
 }
@@ -746,8 +745,8 @@ static Psys* allocPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
     p->p_speed = 1.0f;
     p->dir_max = 0x14;
     if (gDefTexA == 0 || gDefTexXp == 0) {
-        s32 ta = fn_800B8B04("particle2_a", 0);
-        s32 tx = fn_800B8B04("particle2_xp", 0);
+        s32 ta = MBOX_FindTexture("particle2_a", 0);
+        s32 tx = MBOX_FindTexture("particle2_xp", 0);
         gDefTexA = ta;
         gDefTexXp = tx;
     }

@@ -23,7 +23,7 @@
  * BOUNDARY EVIDENCE (OPTIONS | PLAYER at 0x800745D0):
  *  - extabindex run 0x8000A4B0..0x8000A5D0 covers exactly fns 0x80070A60..
  *    0x80074548(OptionsSetup); init_prefs (0x80074598, leaf) is the last
- *    OPTIONS fn; fn_800745D0 onward are Player-struct parent/grab ops called
+ *    OPTIONS fn; PlayerAttacking onward are Player-struct parent/grab ops called
  *    from critter.c (0x8003BAFC/0x8003CA98) and PlayerMotion (0x80081504).
  *  - sdata2 seam: options pool ends 0x80347600 (int-magic double); 0x80347608
  *    is "XRay" (PLAYER powerup name).
@@ -222,20 +222,20 @@ extern u32 lbl_80344620;    /* any-pad held mask */
 /* gamemain / world state */
 extern s32 gGameMode;    /* game state (0x8009 in-game, 0x4010 tower) */
 extern s32 lbl_803447B8;
-extern u32 lbl_803445CC;    /* pause/movie flags */
+extern u32 sFlags;    /* pause/movie flags */
 extern s32 lbl_803445D8;
 extern s32 lbl_80344578;    /* vb_elapsed */
-extern s32 lbl_80344820;
+extern s32 sLastWorldLevel;
 extern s32 lbl_80344824;    /* active-player mask */
-extern s32 lbl_80344848;
-extern s32 lbl_803448D8;
+extern s32 sWorldDataConst;
+extern s32 sMusicTrackHi;
 extern s32 lbl_80344A44;    /* fullscreen-inventory mode */
-extern u32 lbl_8034496C;    /* icon tint */
-extern s32 lbl_803443DC;    /* hint text line dy (auxscreen) */
-extern s32 lbl_803443E0;    /* auxscreen text dy override */
+extern u32 sPowerupsBuf;    /* icon tint */
+extern s32 gDrawTextY;    /* hint text line dy (auxscreen) */
+extern s32 gLineSpacing;    /* auxscreen text dy override */
 extern s32 lbl_803443E4;    /* auxscreen font override */
 extern f32 lbl_80343BC8;    /* highlight pulse amplitude */
-extern void* lbl_80344FC0;  /* current window/camera set */
+extern void* gWinGlobals;  /* current window/camera set */
 
 /* HUD arrow/button blit ids (shared) */
 extern s32 lbl_80344E2C;
@@ -262,8 +262,8 @@ extern void mbBlitProject(void* blit, s32 w, s32 h);
 extern void mbBlitCvtCoord(void* blit, f32 z);
 extern void fn_800B290C(void* blit, s32 alpha);
 extern s32 fn_800B2980(void* blit);
-extern void fn_800B2988(void* blit, s32 frames, s32 frame);
-extern s32 fn_800B5B00(char* text);
+extern void mbInitBlitEntry(void* blit, s32 frames, s32 frame);
+extern s32 MBFontStringWidth(char* text);
 extern void MBSetFont(s32 font);
 extern void MBSetFontColor(u32 rgb);
 extern s32 MBSetFontFlags(s32 flags);
@@ -284,8 +284,8 @@ extern void* fn_80012F78(void* tree, void* node, void* msg, s32 a, s32 b);
 extern void AtreeDelete(void* msg);
 extern void fn_80011104(void* msg, s32 a, s32 b, s32 x, s32 y);
 extern void CopyMat3(f32* dst, f32* src);
-extern void* fn_800BE448(void);
-extern s32 fn_8006D4E8(char* name, s32 a, s32 x, s32 y, s32 w, s32 h, s32 e, f32 z);
+extern void* PitchMat3(void);
+extern s32 StartFireScroll(char* name, s32 a, s32 x, s32 y, s32 w, s32 h, s32 e, f32 z);
 extern void MBBlitOrder(s32 scroll, void* blit);
 
 /* text (auxscreen/btext) */
@@ -325,10 +325,10 @@ extern void fn_8009EE2C(s32 which);
 extern void FatalError(char* text, s32 code);
 extern int sprintf(char* buf, const char* fmt, ...);
 extern void fn_800C25F0(s32 dx, s32 dy);       /* pb screen offset */
-extern s32 fn_8006D29C(void);                  /* screensaver poll */
-extern s32 fn_8006D7BC(void);                  /* screensaver active */
-extern void fn_8006D7E4(void);                 /* screensaver kick */
-extern void fn_8006C3A0(void);                 /* fullscreen inventory draw */
+extern s32 ServeFireScroll(void);                  /* screensaver poll */
+extern s32 FireScrollActive(void);                  /* screensaver active */
+extern void ticks_for_firescroll(void);                 /* screensaver kick */
+extern void draw_panels(void);                 /* fullscreen inventory draw */
 extern void draw_fullscreen_inventory(void);
 extern void controls_remove_active_player(s32 player);
 extern void ClearAllPlayerControls(s32 a);
@@ -554,7 +554,7 @@ void DeleteOptionBlits(void)
 
 s32 OptionsDone(void)
 {
-    if (fn_8006D7BC() != 0) {
+    if (FireScrollActive() != 0) {
         return 0;
     }
     if (options_state != 0) {
@@ -581,7 +581,7 @@ int DoOptions(void)
     skipBackSound = 0;
 
     /* menu clock: full speed, or (paused w/ button held) 2, else 0 */
-    if ((lbl_803445CC & 8) == 0) {
+    if ((sFlags & 8) == 0) {
         vb_elapsed_menu = lbl_80344578;
     } else if ((lbl_80240FB0 & 0x2000000) == 0 && (lbl_80240FC0 & 0x1000000) == 0) {
         vb_elapsed_menu = 0;
@@ -589,7 +589,7 @@ int DoOptions(void)
         vb_elapsed_menu = 2;
     }
 
-    saver = fn_8006D29C();
+    saver = ServeFireScroll();
 
     /* auto-open: any active player pressing START */
     if (options_state == 0 && options_lockout == 0 && opt_force_player < 0 &&
@@ -604,7 +604,7 @@ int DoOptions(void)
 
     if (lbl_803445D8 != 0 &&
         ((gGameMode != 0x4010 && gGameMode != 0x400C) || options_state != 0)) {
-        fn_8006D7E4();
+        ticks_for_firescroll();
     }
 
     if (options_state == 0) {
@@ -627,7 +627,7 @@ int DoOptions(void)
 
     /* fullscreen inventory view */
     if (lbl_80344A44 != 0) {
-        fn_8006C3A0();
+        draw_panels();
         choice = do_optmenu(m, 0);
         if (m->icon_node != NULL) {
             MBTreeSetFlags(m->icon_node, 2, 0);
@@ -654,7 +654,7 @@ int DoOptions(void)
 
     switch (options_state) {
     case 2: /* title menu */
-        if ((lbl_803445CC & 4) != 0) {
+        if ((sFlags & 4) != 0) {
             choice = 0xB;
         }
         if (choice == 1) {
@@ -1070,7 +1070,7 @@ int DoOptions(void)
             y = 0x70;
             for (i = 0; i < legend_hint_pass; i++) {
                 DrawScrollListText(1, 0xFFFFFF00, y, 0, 6, rgb, 2, legend_hint_index, i);
-                y = lbl_803443DC + 4;
+                y = gDrawTextY + 4;
             }
         } else if (hint_submenu < 0x29) {
             if (hint_submenu == 0x27) {
@@ -1080,7 +1080,7 @@ int DoOptions(void)
                 y = 0x70;
                 for (i = 0; i < boss_hint_pass; i++) {
                     DrawScrollListText(1, 0xFFFFFF00, y, 0, 6, rgb, 0, boss_hint_index, i);
-                    y = lbl_803443DC + 4;
+                    y = gDrawTextY + 4;
                 }
             }
         } else if (hint_submenu < 0x2B) {
@@ -1088,7 +1088,7 @@ int DoOptions(void)
             y = 0x70;
             for (i = 0; i < rune_hint_pass; i++) {
                 DrawScrollListText(1, 0xFFFFFF00, y, 0, 6, rgb, 1, rune - 1, i);
-                y = lbl_803443DC;
+                y = gDrawTextY;
             }
         }
         RestoreDrawStringScale();
@@ -1124,7 +1124,7 @@ s32 OptionsStart(s32 player, s32 b)
         start_optmenu(&optmenu_game, player);
         break;
     case 0x4010:
-        if (lbl_80344820 == lbl_80344848) {
+        if (sLastWorldLevel == sWorldDataConst) {
             start_optmenu(&optmenu_tower, player);
         } else {
             start_optmenu(&optmenu_tower_hints, player);
@@ -1134,7 +1134,7 @@ s32 OptionsStart(s32 player, s32 b)
                     break;
                 }
                 if (it->code == 0x26) {
-                    if (lbl_803448D8 == 0xC) {
+                    if (sMusicTrackHi == 0xC) {
                         it->value = -1;
                     } else {
                         it->value = 0;
@@ -1272,7 +1272,7 @@ static void do_controlsmenu(OPTMENU* m, s32 player)
             mbBlitProject(ctl_blits[i].blit, ctl_blits[i].w, ctl_blits[i].h);
         }
         SetDrawStringScale(OPTCTL_SCALE);
-        lbl_803443E0 = OPTCTL_DY;
+        gLineSpacing = OPTCTL_DY;
         for (i = 0; i < 16; i++) {
             s32 msg = GetStringListMsg(3, style);
             w = StringTextWidth(OPTCTL_SCALE, msg, i);
@@ -1291,7 +1291,7 @@ static void do_controlsmenu(OPTMENU* m, s32 player)
                            msg, i);
         }
         RestoreDrawStringScale();
-        lbl_803443E0 = 0;
+        gLineSpacing = 0;
     }
 }
 
@@ -1406,7 +1406,7 @@ s32 do_optmenu(OPTMENU* m, s32 allowNav)
     s32 code;
 
     /* menu clock (same policy as DoOptions) */
-    if ((lbl_803445CC & 8) == 0) {
+    if ((sFlags & 8) == 0) {
         vb_elapsed_menu = lbl_80344578;
     } else if ((lbl_80240FB0 & 0x2000000) == 0 && (lbl_80240FC0 & 0x1000000) == 0) {
         vb_elapsed_menu = 0;
@@ -1538,7 +1538,7 @@ s32 do_optmenu(OPTMENU* m, s32 allowNav)
 
 void show_optmenu(OPTMENU* m)
 {
-    void* winset = lbl_80344FC0;
+    void* winset = gWinGlobals;
     s32 idx;
     s32 itofs;
     s32 font2;
@@ -1828,13 +1828,13 @@ void show_optmenu(OPTMENU* m)
         *(u32*)((u8*)m->icon_node + 0x44) = m->icon_rgb;
         *(u32*)((u8*)m->icon_node + 0x48) = m->icon_rgb;
         CopyMat3((f32*)(*((u8**)winset + 1) + 0x240), (f32*)m->icon_node);
-        fn_800BE448();
+        PitchMat3();
         fn_80011104(m->msg, 0, 0, tx, ty);
     }
 
     /* burn blit animation */
     if (m->burn_blit != NULL) {
-        fn_800B2988(m->burn_blit, m->burn_frames, (m->time >> 3) % 5);
+        mbInitBlitEntry(m->burn_blit, m->burn_frames, (m->time >> 3) % 5);
     }
 
     /* button prompts */
@@ -1976,7 +1976,7 @@ static void end_optmenu(s32 dir, s32 mode)
          * top menu has no backdrop of its own */
         if (mode <= 0 && m->title_blit != NULL &&
             (mode < 0 || options_level < 0 || m2->blit_name == NULL)) {
-            s32 scroll = fn_8006D4E8(m->blit_name, -1, m->bx, m->by, m->bw, m->bh, 0, 0.0f);
+            s32 scroll = StartFireScroll(m->blit_name, -1, m->bx, m->by, m->bw, m->bh, 0, 0.0f);
             MBBlitOrder(scroll, m->title_blit);
             keepBlit = 0;
         }
@@ -2120,7 +2120,7 @@ void start_optmenu_nostack(OPTMENU* m, s32 sel)
     } else {
         m->icon_node = MBNewNode(0.0f, NULL, 0);
         node = MBTreeSetFlags(m->icon_node, 8, 0);
-        match = AtreeMatch(node, lbl_8034496C, "ICON_ARROW", 0);
+        match = AtreeMatch(node, sPowerupsBuf, "ICON_ARROW", 0);
         m->icon_node = fn_80012F78(node, match, m->msg, 0, 0);
         if (m->icon_node != NULL && *(void**)m->icon_node != NULL) {
             MBNodeSetParent(*(void**)m->icon_node, m->icon_node);
@@ -2151,7 +2151,7 @@ void start_optmenu_nostack(OPTMENU* m, s32 sel)
         MBSetFont(OPTMENU_FONT);
         MBSetFontScale(m->scale, m->scale);
         for (i = 0; i < m->num_items; i++) {
-            s32 tw = fn_800B5B00(m->items[i].text);
+            s32 tw = MBFontStringWidth(m->items[i].text);
             if (w < tw) {
                 w = tw;
             }

@@ -24,24 +24,24 @@
  *   0x8008C584 GetBossBeatFlag      (G) boss-req table getter, field 0x10=flags[high]
  *   0x8008C5CC do_player_select     (G) top-level select state machine         [high]
  *   0x8008E340 LimitSeltype         (L) clamp/wrap class index, skip locked    [high]
- *   0x8008E3BC fn_8008E3BC              welcome-back blit (AudioWelcome[Back])
+ *   0x8008E3BC init_player_change              welcome-back blit (AudioWelcome[Back])
  *   0x8008E4F4 do_sel_menu          (L) per-player class picker (16x from above)[high]
- *   0x8008F768 fn_8008F768              save-name compare helper (strncmp)
- *   0x8008F914 fn_8008F914              small select helper
- *   0x8008F984 fn_8008F984              save-slot text formatter ("SLOT %d")
- *   0x8008FA70 fn_8008FA70              load/save sub-menu state (jumptable)
- *   0x8008FC5C fn_8008FC5C              tiny select helper
- *   0x8008FC78 fn_8008FC78              select-blit serve/update
- *   0x8008FE70 fn_8008FE70              per-player select-state getter (+0x830)
- *   0x8008FED4 fn_8008FED4              small select helper
+ *   0x8008F768 setup_file_entries              save-name compare helper (strncmp)
+ *   0x8008F914 verify_vmu_file_ok              small select helper
+ *   0x8008F984 setup_vmu_entries              save-slot text formatter ("SLOT %d")
+ *   0x8008FA70 setup_sel_menu              load/save sub-menu state (jumptable)
+ *   0x8008FC5C sel_set_inactive              tiny select helper
+ *   0x8008FC78 sel_set_choice              select-blit serve/update
+ *   0x8008FE70 other_players_next_level              per-player select-state getter (+0x830)
+ *   0x8008FED4 check_active_players              small select helper
  *   0x8008FF58 SelectLoadDone        (G) async-load completion poll            [med]
  *   0x8008FFB0 SelectLoadStart       (G) kick off async tower/geo load         [med]
- *   0x8008FFF0 fn_8008FFF0              class-stat text draw (~update_class_attr)
- *   0x80090450 fn_80090450              class-spec draw (~update_class_spec)
+ *   0x8008FFF0 update_class_attr              class-stat text draw (~update_class_attr)
+ *   0x80090450 update_class_spec              class-spec draw (~update_class_spec)
  *   0x800907B4 init_player_select    (G) enter/init the select screen          [high]
- *   0x80090B6C fn_80090B6C              blit-init helper (mbBlitInit3414)
- *   0x80090C34 fn_80090C34              blit text printf (vsprintf/mbInitBlit)
- *   0x80090D6C fn_80090D6C              blit build/project helper (jumptable)
+ *   0x80090B6C hide_select_blits              blit-init helper (mbBlitInit3414)
+ *   0x80090C34 setup_tex              blit text printf (vsprintf/mbInitBlit)
+ *   0x80090D6C serve_blits              blit build/project helper (jumptable)
  */
 
 #include "types.h"
@@ -79,7 +79,7 @@ extern u8  lbl_80284878[]; /* 4 pages x 11 entries x 0xC blit table */
 
 extern s32  new_menu_accept(s32 plyr, s32 allow_start);
 extern void new_player(s32 i);
-void fn_80090C34(s32 id, s32 slot, s32 flags, s32 hide, char* fmt, ...);
+void setup_tex(s32 id, s32 slot, s32 flags, s32 hide, char* fmt, ...);
 
 typedef struct SelectSlot {
     u8 _pad[108];
@@ -215,7 +215,7 @@ static void do_sel_menu(int player)
     MBNewTempBlit(0, 0, 0, 0, 0);
 }
 
-void fn_8008E3BC(s32 idx, s32 arg1)
+void init_player_change(s32 idx, s32 arg1)
 {
     u8* pl = gPlayers + idx * 0x335C;
     int i;
@@ -244,7 +244,7 @@ gotv:
     change_player(idx, arg1);
     *(s32*)(pl + 0xF0) = saved;
 
-    fn_80090C34(idx, 2, 0, 0, lbl_801144A0, lbl_801200B0[arg1 & 7]);
+    setup_tex(idx, 2, 0, 0, lbl_801144A0, lbl_801200B0[arg1 & 7]);
 
     mbBlitProject(*(void**)((u8*)lbl_80284878 + idx * 132 + 24), -1, 320);
 
@@ -256,12 +256,12 @@ gotv:
     }
 }
 
-int fn_8008F768(const char* name)
+int setup_file_entries(const char* name)
 {
     return strncmp(name, (const char*)gPlayers, 8);
 }
 
-int fn_8008F914(u8* pl, s32 v)
+int verify_vmu_file_ok(u8* pl, s32 v)
 {
     int i;
     s32 a = *(s32*)(pl + 0x334C);
@@ -277,7 +277,7 @@ int fn_8008F914(u8* pl, s32 v)
     return 1;
 }
 
-void fn_8008F984(void)
+void setup_vmu_entries(void)
 {
     u8* base = lbl_80284878;
     char* buf = (char*)(base + 0x744);
@@ -307,21 +307,21 @@ end:
     *(s32*)(base + idx * 36 + 0x720) = 0;
 }
 
-void fn_8008FA70(void)
+void setup_sel_menu(void)
 {
 }
 
-void fn_8008FC5C(s32 slot)
+void sel_set_inactive(s32 slot)
 {
     lbl_80121950[slot].state = 0;
 }
 
-void fn_8008FC78(void)
+void sel_set_choice(void)
 {
     mbBlitProject(0, 0, 0);
 }
 
-s32 fn_8008FE70(s32 idx)
+s32 other_players_next_level(s32 idx)
 {
     int i;
     u8* p = gPlayers;
@@ -336,7 +336,7 @@ s32 fn_8008FE70(s32 idx)
     return *(s32*)(gPlayers + idx * 0x335C + 0x830);
 }
 
-int fn_8008FED4(void)
+int check_active_players(void)
 {
     int i;
     int count = 0;
@@ -387,7 +387,7 @@ void SelectLoadStart(void)
     }
 }
 
-void fn_8008FFF0(void)
+void update_class_attr(void)
 {
     GetStringText(0);
     DrawNormalText();
@@ -395,7 +395,7 @@ void fn_8008FFF0(void)
     MBNewTempBlit(0, 0, 0, 0, 0);
 }
 
-void fn_80090450(void)
+void update_class_spec(void)
 {
     mbBlitInit3414(0, 0);
     mbBlitProject(0, 0, 0);
@@ -413,7 +413,7 @@ void init_player_select(int mode)
     MBCreateBlit(0, 0, 0, 0, 0, 0);
 }
 
-void fn_80090B6C(s32 arg0, s32 flag)
+void hide_select_blits(s32 arg0, s32 flag)
 {
     s32 start, end;
     s32 pg, j;
@@ -440,7 +440,7 @@ void fn_80090B6C(s32 arg0, s32 flag)
     }
 }
 
-void fn_80090C34(s32 id, s32 slot, s32 flags, s32 hide, char* fmt, ...)
+void setup_tex(s32 id, s32 slot, s32 flags, s32 hide, char* fmt, ...)
 {
     va_list ap;
     void** entry;
@@ -461,7 +461,7 @@ void fn_80090C34(s32 id, s32 slot, s32 flags, s32 hide, char* fmt, ...)
     }
 }
 
-void fn_80090D6C(void)
+void serve_blits(void)
 {
     mbBlitInit3414(0, 0);
     mbBlitProject(0, 0, 0);

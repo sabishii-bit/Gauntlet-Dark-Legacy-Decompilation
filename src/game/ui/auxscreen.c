@@ -24,22 +24,22 @@ extern u8 gPlayers[];
 /* Big aux-screen scene object (blits + good-wizard model), engine owned. */
 extern u8 lbl_8023DFD0[];
 /* Base vec3 used to seed the averaged wizard position. */
-extern f32 lbl_8023E874[3];
+extern f32 gBossPos[3];
 /* .data tables referenced by the wizard/movie logic. */
 extern u8 gIdentityMatrix[];
 extern u8 lbl_80118250[];
 /* Per-frame time deltas (engine globals in the .sbss window). */
 extern s32 gFrameTicks;  /* integer frame delta */
 extern s32 lbl_80344578;  /* caption frame delta */
-extern f32 lbl_80344594;  /* float frame delta */
+extern f32 sMusicFadeBase;  /* float frame delta */
 /* Assorted engine handles read by DoGoodWizard/init_gamemovie. */
-extern void* lbl_803448D8;
+extern void* sMusicTrackHi;
 extern void* lbl_80344BD4;
 extern void* lbl_80344BEC;
 extern void* sItemFile1Buf;
 extern s32 lbl_803449A4;
 extern s32 gControllerButtons;
-extern s32 lbl_803445CC;
+extern s32 sFlags;
 extern s32 lbl_8034481C;
 extern s32 sLastWorldLevel;
 extern s32 gGameMode;
@@ -105,44 +105,44 @@ extern void fn_80011104(void* p, s32 a, s32 b);
 extern void fn_8009C710(s32 speech);
 extern s32 CaptionText(char* a, char* b, s32 line, s32 page, s32 flags);
 extern s32 fn_800629B0(void);
-extern s32 fn_800153D4(s32 a);
+extern s32 sndFxUpdate(s32 a);
 extern void SetSkinFX(void* fx, s32 frames, f32 rate, f32 base, f32 loops); /* was mislabeled StartFXMat */
-extern void fn_800D9FEC(char* name);
-extern void fn_800A110C(void);
-extern void fn_800A17D4(void);
-extern void fn_800B8A38(s32 a);
+extern void PlayVQMovie(char* name);
+extern void AudioStopSelect(void);
+extern void AudioSelectReset(void);
+extern void MBOX_ResetUnlockedModels(s32 a);
 extern void delete_map_blits(void);
 extern s32 active_player_edge(s32 flag);
-extern void fn_800B3D6C(void* blit);
+extern void MBRemoveBlit(void* blit);
 extern void del_player_blits(s32 i);
 extern f32 atan2(f32 y, f32 x);
-extern void fn_800BD254(void* mtx, void* v);
+extern void CreatePYRMatrix(void* mtx, void* v);
 extern void UpdateObjWorldMat(void* mtx);
-extern s32 fn_8001FE90(char* a, char* b, s32 line, s32* out);
-extern s32 fn_8001FD64(char* a, char* b, s32 line);
+extern s32 GetScrollText(char* a, char* b, s32 line, s32* out);
+extern s32 GetScrollScale(char* a, char* b, s32 line);
 extern s32 CaptionTextSub(s32 x, f32 w, s32 y, s32 page, s32 flags);
-extern s32 fn_8001ED24(char* a, char* b);
+extern s32 ScrollTextNum(char* a, char* b);
 extern s32 fn_8009FD84(void);
 extern s32 fn_80055F68(s32 a, s32 b);
 extern s32 AudioSysUpdate(s32 a);
-extern void* fn_800A11E4(void* p, s32 a);
+extern void* AudioRegisterNameBanks(void* p, s32 a);
 extern s32 sprintf(char* buf, const char* fmt, ...);
-extern s32 fn_800B8B64(char* name, s32 a, s32 b, s32 c);
-extern void* fn_800B3AFC(s32 a, s32 b, s32 c, s32 d, s32 e, s32 f);
-extern void fn_800B2F8C(void* blit, f32 z);
+extern s32 MBOX_FindTexture_Sub(char* name, s32 a, s32 b, s32 c);
+extern void* MBCreateBlit(s32 a, s32 b, s32 c, s32 d, s32 e, s32 f);
+extern void mbBlitCvtCoord(void* blit, f32 z);
 extern void fn_800B290C(void* blit, s32 alpha);
-extern void fn_8001EBCC(s32 x, s32 y, char* s, f32 z);
-extern void fn_800B3414(void* blit, s32 a);
-extern void fn_800A0E70(void);
+extern void DrawGlowText(s32 x, s32 y, char* s, f32 z);
+extern void mbBlitInit3414(void* blit, s32 a);
+extern void AudioStopMusicB(void);
 extern void AudioEmptyCb2(void);
-extern void fn_800A0E94(void);
+extern void MapMusicStart(void);
 extern void next_world(void);
 extern void fn_80053D08(s32 a, s32 b, s32 c);
 extern void setup_player_display(s32 i);
-extern s32 fn_8005638C(s32 a);
+extern s32 init_next_level(s32 a);
 extern void* LoadModel(char* name, s32 a, s32 b, s32 c);
-extern void* fn_800B38D0(void* base, s32 a, s32 b);
-extern void* fn_800B8B04(char* name, s32 a);
+extern void* MBNewBlit(void* base, s32 a, s32 b);
+extern void* MBOX_FindTexture(char* name, s32 a);
 extern void strcat(char* d, char* s);
 extern void fn_80053C70(void);
 
@@ -172,8 +172,8 @@ void DoGoodWizard(void)
         }
     }
 
-    have = GetBossBeatFlag(lbl_803448D8);
-    want = GetBossNumRunes(lbl_803448D8);
+    have = GetBossBeatFlag(sMusicTrackHi);
+    want = GetBossNumRunes(sMusicTrackHi);
     if (have != (have & acc3542)) {
         if ((acc3542 & have) != 0) {
             quality = 1;
@@ -194,12 +194,12 @@ void DoGoodWizard(void)
     switch (good_wiz_state) {
     case 0:
         if (wiz_mode == 42 || wiz_mode == 44) {
-            good_wiz_timer = 10.0f + lbl_80344594;
+            good_wiz_timer = 10.0f + sMusicFadeBase;
         } else {
-            good_wiz_timer = 5.0f + lbl_80344594;
+            good_wiz_timer = 5.0f + sMusicFadeBase;
         }
         good_wiz_state++;
-        if (lbl_80344594 >= good_wiz_timer) {
+        if (sMusicFadeBase >= good_wiz_timer) {
             good_wiz_state++;
         }
         break;
@@ -330,7 +330,7 @@ have_target:
     }
     delta = target - good_wiz_yaw;
     if (reset == 0) {
-        f32 lim = (f32)(1.5707963267948966 * (double)lbl_80344594);
+        f32 lim = (f32)(1.5707963267948966 * (double)sMusicFadeBase);
         if (delta > lim) {
             delta = lim;
         }
@@ -342,7 +342,7 @@ have_target:
     mtxbuf[0] = 0.0f;
     mtxbuf[1] = good_wiz_yaw;
     mtxbuf[2] = 0.0f;
-    fn_800BD254(base + 1416, mtxbuf);
+    CreatePYRMatrix(base + 1416, mtxbuf);
     UpdateObjWorldMat(base + 1416);
 }
 
@@ -355,9 +355,9 @@ void calc_wizard_pos(f32* out)
     f32 count = 1.0f;
     s32 i;
 
-    out[0] = lbl_8023E874[0];
-    out[1] = lbl_8023E874[1];
-    out[2] = lbl_8023E874[2];
+    out[0] = gBossPos[0];
+    out[1] = gBossPos[1];
+    out[2] = gBossPos[2];
 
     for (i = 0; i < 4; i++) {
         u8* p = arr + i * 0x335C;
@@ -407,25 +407,25 @@ void init_gamemovie(s32 type)
 {
     gGameMode = 16398;
     movieactive = 0;
-    fn_800A110C();
-    fn_800A17D4();
-    fn_800B8A38(2);
+    AudioStopSelect();
+    AudioSelectReset();
+    MBOX_ResetUnlockedModels(2);
     delete_map_blits();
     movie_state = 1;
     if (lbl_803449A4 == 0 &&
         (gControllerButtons & 0) == 0 &&
-        (lbl_803445CC & 16) == 0 &&
+        (sFlags & 16) == 0 &&
         lbl_8034481C == 0) {
         if (type == 44) {
-            fn_800D9FEC("victory");
+            PlayVQMovie("victory");
             movieactive = 0;
             movie_state = 2;
         } else if (type == 43) {
-            fn_800D9FEC("garm");
+            PlayVQMovie("garm");
             movieactive = 0;
             movie_state = 2;
         } else if (*((s8*)gCurLevel + 52) != 0) {
-            fn_800D9FEC((char*)gCurLevel + 52);
+            PlayVQMovie((char*)gCurLevel + 52);
             movieactive = 0;
         }
     }
@@ -444,19 +444,19 @@ void delete_map_blits(void)
 
     for (i = 0; i < 4; i++) {
         if (*(void**)(base + i * 4 + 64) != 0) {
-            fn_800B3D6C(*(void**)(base + i * 4 + 64));
-            fn_800B3D6C(*(void**)(base + i * 4 + 80));
+            MBRemoveBlit(*(void**)(base + i * 4 + 64));
+            MBRemoveBlit(*(void**)(base + i * 4 + 80));
         }
         *(void**)(base + i * 4 + 64) = 0;
         *(void**)(base + i * 4 + 80) = 0;
     }
     if (map_route_blit != 0) {
-        fn_800B3D6C(map_route_blit);
+        MBRemoveBlit(map_route_blit);
     }
     map_route_blit = 0;
     for (i = 0; i < 8; i++) {
         if (*(void**)(base + i * 4 + 96) != 0) {
-            fn_800B3D6C(*(void**)(base + i * 4 + 96));
+            MBRemoveBlit(*(void**)(base + i * 4 + 96));
         }
         *(void**)(base + i * 4 + 96) = 0;
     }
@@ -489,14 +489,14 @@ s32 CaptionText(char* a, char* b, s32 line, s32 page, s32 flags)
         caption_line = line;
         caption_page = 0;
     }
-    n = fn_8001FE90(a, b, caption_line, &tmp);
-    w = w * fn_8001FD64(a, b, caption_line);
+    n = GetScrollText(a, b, caption_line, &tmp);
+    w = w * GetScrollScale(a, b, caption_line);
     measured = CaptionTextSub(n, w, caption_page, flags, page);
     if (measured == 0) {
         return 0;
     }
     if (line < 0) {
-        s32 total = fn_8001ED24(a, b);
+        s32 total = ScrollTextNum(a, b);
         if (caption_line + 1 < total) {
             caption_timer = caption_timer - lbl_80344578;
             if (caption_timer <= 0) {
@@ -551,12 +551,12 @@ s32 do_mapscreen(s32 skip)
         }
         break;
     case 2:
-        if (fn_800153D4(10) == 0) {
+        if (sndFxUpdate(10) == 0) {
             map_load_state++;
         }
         break;
     case 3:
-        fn_800A11E4(*(void**)((u8*)gCurLevel + 100), 1);
+        AudioRegisterNameBanks(*(void**)((u8*)gCurLevel + 100), 1);
         map_load_state++;
         break;
     case 4:
@@ -585,14 +585,14 @@ s32 init_mapscreen(s32 timer, s32 movie)
     s32 rv;
 
     AudioEmptyCb2();
-    fn_800A0E94();
+    MapMusicStart();
     next_world();
     gGameMode = 16399;
     fn_80053D08(-2, 1, -1);
     for (i = 0; i < 4; i++) {
         setup_player_display(i);
     }
-    rv = fn_8005638C(sLastWorldLevel);
+    rv = init_next_level(sLastWorldLevel);
 
     map_load_timer = timer;
     map_load_progress = 0;
