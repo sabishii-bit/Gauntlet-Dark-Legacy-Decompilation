@@ -86,3 +86,4 @@ fn_800C0AA4                # isel, target dup base+off add (no-CSE) vs our singl
 fn_800C1624                # isel+sched, &m14 addi placement + second-read fold; 17 lines (pb_frame)
 fn_800C31C4                # renum, dead li r3,0 remat + r3/r4/r5 rotation; 48 lines (pb_frame)
 fn_800C32D0                # renum, same class as fn_800C31C4 (pb_frame)
+FaceCamMat                 # isel, ONE fcmpu operand order (var-first vs const-first on == sZero); 7 source forms tried; THE 2-byte gate on the mb_objects flip (pool owned + byte-exact, all other fns EXACT)
