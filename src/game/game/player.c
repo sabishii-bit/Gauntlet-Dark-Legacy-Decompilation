@@ -230,7 +230,7 @@ typedef struct PlayerModelSlot {
 static PlayerModelSlot model_slot[4]; /* 0x514 (0x802753B4) */
 
 /* AppendItemToLevel template (0x802754E4, 0x50 bytes incl. name buf) */
-static s32  item_tmpl[8];          /* 0x644 (0x802754E4) type/count/flag/pos */
+static s32  item_tmpl[10];         /* 0x644 (0x802754E4) type/count/flag/pos + trailer */
 static char item_name[0x14];       /* 0x66C (0x8027550C) item name buffer */
 static s32  item_tmpl2[5];         /* 0x680 (0x80275520) name ptr/flags/atree */
 
@@ -2016,8 +2016,7 @@ extern s32 lbl_80344B84;      /* battle-tower level id */
 extern s32 lbl_80344588;      /* frame parity counter */
 extern s32 lbl_80344DA4;      /* world loaded */
 extern s32 lbl_803447D0;      /* level-clear/exit progress state */
-extern s32 lbl_803447A8;      /* cleared at init_players */
-extern s32 lbl_803447AC;
+extern s32 lbl_803447A8[2];   /* cleared at init_players */
 extern f32 lbl_80344B20;      /* x-ray range (mask & 8 powerup strength) */
 extern s32 lbl_803447C0;      /* widescreen/mode flag (rune13 blit) */
 
@@ -2201,11 +2200,15 @@ extern void ClearPlyrData(s32 player);
 void PlayerProcessScale(void* vp) {
     Player* p = vp;
     f32 s;
+    f32 av;
+    u8 unused[8];
 
     s = PF(p, 0x7FC, f32);
     if (s != 0.0) {
         PF(p, 0x7FC, f32) = s * 0.995;
-        if (__fabs(PF(p, 0x7FC, f32)) < 0.01) {
+        av = PF(p, 0x7FC, f32);
+        *(u32*)&av &= 0x7FFFFFFF;
+        if (av < 0.01) {
             PF(p, 0x7FC, f32) = 0.0f;
         }
         MBTreeSetAmbientAdd(p->node, (s32)(100.0 * s), 1);
@@ -2344,20 +2347,22 @@ static s32 all_players_go_to_same_level(void) {
 
 /* Player index+1 if someone is riding a moving lift/platform.         */
 s32 PlayerOnMovingObject(void) {
-    Player* p = P(0);
     u8* obj;
+    u8* mo;
     u32 flags;
     s32 i;
 
     if (lbl_8034477C != 0x4010) {
         return 0;
     }
-    for (i = 0; i < 4; i++, p++) {
-        if (p->state == 1 && (obj = PF(p, 0x8DC, u8*)) != NULL &&
-            *(s32*)(obj + 0x28) != 0) {
+    for (i = 0; i < 4; i++) {
+        Player* p = P(i);
+        if (p->state == 1 && (obj = PF(p, 0x8C4, u8*)) != NULL &&
+            *(u32*)(obj + 0x28) != 0) {
+            mo = *(u8**)(obj + 0x18);
             flags = *(u32*)(obj + 0x10);
-            if (*(s32*)(obj + 0x18) != 0) {
-                flags |= *(u32*)(*(u8**)(obj + 0x18) + 0x10);
+            if (mo != NULL) {
+                flags |= *(u32*)(mo + 0x10);
             }
             if ((flags & 0x1000) && (flags & 0x8000000) && (flags & 0x300000)) {
                 return i + 1;
@@ -2369,13 +2374,13 @@ s32 PlayerOnMovingObject(void) {
 
 /* Another player (not i / not obj) currently riding something?        */
 s32 OtherPlayerOnOtherMovingObject(s32 i, u8* obj) {
-    Player* p = P(0);
     u8* o;
     s32 j;
 
-    for (j = 0; j < 4; j++, p++) {
-        if (j != i && p->state == 1 && (o = PF(p, 0x8DC, u8*)) != NULL && o != obj) {
-            if (*(s32*)(o + 0x28) != 0 && (*(u32*)(o + 0x10) & 0x4000)) {
+    for (j = 0; j < 4; j++) {
+        Player* p = P(j);
+        if (j != i && p->state == 1 && (o = PF(p, 0x8C4, u8*)) != NULL && o != obj) {
+            if (*(u32*)(o + 0x28) != 0 && (*(u32*)(o + 0x10) & 0x4000)) {
                 return 1;
             }
         }
@@ -2398,7 +2403,7 @@ void do_heal_players(void* vp, f32 amount) {
         if (i != p->index && q->state == 1) {
             d = fn_800BCB44(p->pos[0] - q->pos[0], p->pos[2] - q->pos[2]);
             if (d < p->magic_power) {
-                cap = 0.5f * (q->level - 1) + 30.0f;
+                cap = 0.5 * (q->level - 1) + 30.0;
                 if (cap > 9999.0f) {
                     cap = 9999.0f;
                 }
@@ -2419,7 +2424,7 @@ s32 heal_player(f32 amount, void* vp) {
     Player* p = vp;
     f32 cap;
 
-    cap = 0.5f * (p->level - 1) + 30.0f;
+    cap = 0.5 * (p->level - 1) + 30.0;
     if (cap > 9999.0f) {
         cap = 9999.0f;
     }
@@ -2427,11 +2432,11 @@ s32 heal_player(f32 amount, void* vp) {
         return 0;
     }
     p->health += amount;
-    if (p->health <= cap) {
-        return 2;
+    if (p->health > cap) {
+        p->health = cap;
+        return 1;
     }
-    p->health = cap;
-    return 1;
+    return 2;
 }
 
 /* Level-scaled maximum health (9999 cap).                             */
@@ -2439,7 +2444,7 @@ f32 player_max_health(void* vp) {
     Player* p = vp;
     f32 cap;
 
-    cap = 0.5f * (p->level - 1) + 30.0f;
+    cap = 0.5 * (p->level - 1) + 30.0;
     if (cap > 9999.0f) {
         cap = 9999.0f;
     }
@@ -3010,10 +3015,10 @@ void clear_player(s32 i, s32 full) {
     }
     for (j = 0; j < 16; j++) {
         LoadPlyrData(p->index, j, NULL);
-        CHAR_STATS(p, j)[2] = 0;
-        CHAR_STATS(p, j)[3] = 0;
-        CHAR_STATS(p, j)[4] = 0;
-        CHAR_STATS(p, j)[5] = 0;
+        *(f32*)&CHAR_STATS(p, j)[2] = 0.0f;
+        *(f32*)&CHAR_STATS(p, j)[3] = 0.0f;
+        *(f32*)&CHAR_STATS(p, j)[4] = 0.0f;
+        *(f32*)&CHAR_STATS(p, j)[5] = 0.0f;
     }
     check_player_atts(p, p->character, NULL);
 }
@@ -3268,20 +3273,23 @@ s32 PlayerWriteSaveFile(s32 i, s32 slot) {
 void PlayersRestoreHealth(void) {
     Player* p = P(0);
     f32 cap;
+    s32 chartype;
     s32 i;
+    u8 unused[8];
 
     for (i = 0; i < 4; i++, p++) {
         if (p->state == 8) {
             p->state = 1;
         }
-        if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
-            cap = 0.5f * (p->level - 1) + 30.0f;
+        chartype = p->character;
+        if (chartype == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
+            cap = 0.5 * (p->level - 1) + 30.0;
             if (cap > 9999.0f) {
                 cap = 9999.0f;
             }
             p->health = cap;
         } else {
-            p->health = *(f32*)&CHAR_STATS(p, p->character)[1];
+            p->health = *(f32*)&CHAR_STATS(p, chartype)[1];
         }
     }
 }
@@ -3292,7 +3300,7 @@ void PlayerRestoreState(void* vp) {
     f32 cap;
 
     if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
-        cap = 0.5f * (p->level - 1) + 30.0f;
+        cap = 0.5 * (p->level - 1) + 30.0;
         if (cap > 9999.0f) {
             cap = 9999.0f;
         }
@@ -3340,7 +3348,7 @@ void player_get_from_save(void* vp, s32 type) {
         PlayerUpdateAtts(p);
         p->level = 99;
         p->exp = 0x54218;
-        cap = 0.5f * (p->level - 1) + 30.0f;
+        cap = 0.5 * (p->level - 1) + 30.0;
         if (cap > 9999.0f) {
             cap = 9999.0f;
         }
@@ -3501,16 +3509,18 @@ void PlayerUpdateAtts(void* vp) {
 /* Zero the per-character bonus stats for all 16 characters.           */
 void set_player_default_atts(void* vp) {
     Player* p = vp;
+    s32 index = p->index;
+    s32 chartype = p->character;
     s32 j;
 
     for (j = 0; j < 16; j++) {
-        LoadPlyrData(p->index, j, NULL);
-        CHAR_STATS(p, j)[2] = 0;
-        CHAR_STATS(p, j)[3] = 0;
-        CHAR_STATS(p, j)[4] = 0;
-        CHAR_STATS(p, j)[5] = 0;
+        LoadPlyrData(index, j, NULL);
+        *(f32*)((u8*)p + j * 0x18 + 0xA98) = 0.0f;
+        *(f32*)((u8*)p + j * 0x18 + 0xA9C) = 0.0f;
+        *(f32*)((u8*)p + j * 0x18 + 0xAA0) = 0.0f;
+        *(f32*)((u8*)p + j * 0x18 + 0xAA4) = 0.0f;
     }
-    check_player_atts(p, p->character, NULL);
+    check_player_atts(p, chartype, NULL);
 }
 
 /* ------------------------------------------------------------------ */
@@ -3913,8 +3923,9 @@ void init_players(void) {
     for (i = 0; i < 4; i++) {
         lbl_80257630[i] = 0;
     }
-    lbl_803447A8 = 0;
-    lbl_803447AC = 0;
+    for (i = 0; i < 2; i++) {
+        lbl_803447A8[i] = 0;
+    }
     lbl_80344B2C = MBNewNode(lbl_80344EB8, lbl_80127D60, 1);
     for (i = 0; i < 24; i++) {
         got_it[i].state = 0;
@@ -4059,6 +4070,7 @@ void setup_player_models(void) {
 static void GetMaxPlayerModelSize(void) {
     PlayerModelSlot* s;
     s32 i;
+    u8 unused[16];
 
     if (lbl_80344B08 != 0) {
         return;
@@ -4075,25 +4087,25 @@ static void GetMaxPlayerModelSize(void) {
     }
     for (i = 1; i < 4; i++) {
         s = &model_slot[i];
-        if ((s32)model_slot[0].model_max < (s32)s->model_max) {
+        if ((s32)s->model_max > (s32)model_slot[0].model_max) {
             model_slot[0].model_max = s->model_max;
         }
-        if ((s32)model_slot[0].model_buf_max < (s32)s->model_buf_max) {
+        if ((s32)s->model_buf_max > (s32)model_slot[0].model_buf_max) {
             model_slot[0].model_buf_max = s->model_buf_max;
         }
-        if ((s32)model_slot[0].arena_max < (s32)s->arena_max) {
+        if ((s32)s->arena_max > (s32)model_slot[0].arena_max) {
             model_slot[0].arena_max = s->arena_max;
         }
-        if ((s32)model_slot[0].anim_max < (s32)s->anim_max) {
+        if ((s32)s->anim_max > (s32)model_slot[0].anim_max) {
             model_slot[0].anim_max = s->anim_max;
         }
-        if ((s32)model_slot[0].sfx_max < (s32)s->sfx_max) {
+        if ((s32)s->sfx_max > (s32)model_slot[0].sfx_max) {
             model_slot[0].sfx_max = s->sfx_max;
         }
-        if ((s32)model_slot[0].sfx_buf_max < (s32)s->sfx_buf_max) {
+        if ((s32)s->sfx_buf_max > (s32)model_slot[0].sfx_buf_max) {
             model_slot[0].sfx_buf_max = s->sfx_buf_max;
         }
-        if ((s32)model_slot[0].sfx_arena_max < (s32)s->sfx_arena_max) {
+        if ((s32)s->sfx_arena_max > (s32)model_slot[0].sfx_arena_max) {
             model_slot[0].sfx_arena_max = s->sfx_arena_max;
         }
     }
@@ -4508,10 +4520,10 @@ s32 player_get_powerup_state(f32 dt, void* vp, s32 type, u32 mask) {
         if (r < 0) {
             r = 1;
         } else if (lbl_803448D8 != 0xD) {
-            if (dt <= 0.0f) {
-                *tp -= dt;
-            } else {
+            if (dt < 0.0f) {
                 *tp = 0.0f;
+            } else {
+                *tp -= dt;
             }
             if (*tp <= 0.0f) {
                 PUP_STRENGTH(p, j) = 0.0f;
@@ -4576,28 +4588,28 @@ void PlayerAddPowerup(f32 duration, f32 strength, void* vp, s32 type, u32 mask) 
 void PlayerIncSpeed(void* vp, u32 amount) {
     Player* p = vp;
 
-    CHAR_STATS(p, p->character)[5] += (s32)amount;
+    *(f32*)&CHAR_STATS(p, p->character)[5] += (f32)(s32)amount;
     check_player_atts(p, p->character, NULL);
 }
 
 void PlayerIncMagic(void* vp, u32 amount) {
     Player* p = vp;
 
-    CHAR_STATS(p, p->character)[4] += (s32)amount;
+    *(f32*)&CHAR_STATS(p, p->character)[4] += (f32)(s32)amount;
     check_player_atts(p, p->character, NULL);
 }
 
 void PlayerIncArmor(void* vp, u32 amount) {
     Player* p = vp;
 
-    CHAR_STATS(p, p->character)[3] += (s32)amount;
+    *(f32*)&CHAR_STATS(p, p->character)[3] += (f32)(s32)amount;
     check_player_atts(p, p->character, NULL);
 }
 
 void PlayerIncFight(void* vp, u32 amount) {
     Player* p = vp;
 
-    CHAR_STATS(p, p->character)[2] += (s32)amount;
+    *(f32*)&CHAR_STATS(p, p->character)[2] += (f32)(s32)amount;
     check_player_atts(p, p->character, NULL);
 }
 
@@ -4656,9 +4668,9 @@ void check_player_atts(void* vp, s32 chartype, s32* stats) {
 
 /* Show (on != 0) or hide every per-player HUD blit.                   */
 void SetPlayerWindows(s32 on) {
-    s32 alpha = (on != 0) ? 0xFF : 0;
     s32 i;
     s32 j;
+    s32 alpha = (on != 0) ? 0xFF : 0;
 
     for (i = 0; i < 4; i++) {
         for (j = 0; j < 6; j++) {
