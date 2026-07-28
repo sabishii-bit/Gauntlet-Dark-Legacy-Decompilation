@@ -80,8 +80,6 @@ extern f32 lbl_80344E94;
 extern f32 lbl_80344E98;
 extern f32 lbl_80343EC0;
 extern f32 lbl_80343EC4;
-extern const f64 lbl_80348C38;
-extern const f64 lbl_80348C40;
 
 extern const char str_BadMBSetObject[];    /* "Bad MBSetObject"          */
 extern const char str_TooManyPsys[];       /* "TOO MANY PSYS OBJECTS: %d" */
@@ -99,6 +97,8 @@ int AddSortObject(void* mtx, MBObject* obj, f32 key);
  * ===================================================================== */
 
 /* Allocate (or clear) the six render trees that objects are attached to. */
+static const f32 sZero = 0.0f;
+
 void MBInitObjects(int enable) {
     if (enable) {
         lbl_80344EBC = fn_800BB29C(0, lbl_80127D60, 1);
@@ -123,7 +123,7 @@ void MBInitObjects(int enable) {
 }
 
 /* Bind an object node to a rom object (shared guts of MBNewObject /
- * MBSetObject; defined before both so -inline auto folds it into each —
+ * MBSetObject; defined before both so -inline auto folds it into each ---
  * the inlinee's param webs are what give MBNewObject its obj=r31/flags=r30
  * coloring; open-coding the body rotates them). */
 static void SetObjectGuts(MBObject* obj, s32 objid) {
@@ -212,12 +212,12 @@ void MBSetupObject(MBObject* obj, MBObjEntry* entry, int allowDefer,
             transformed, &entry->mtx[12],
             (f32*)(*(u8**)(gWinGlobals + 4) + 0x2C0));
         if ((obj->flags & 0x00100000) != 0) {
-            fade = (f32)(transformed[3] * (lbl_80348C38 / lbl_80343EC4));
+            fade = (f32)(transformed[3] * (255.0 / lbl_80343EC4));
         } else {
-            fade = (f32)(transformed[3] * (lbl_80348C38 / lbl_80343EC0));
+            fade = (f32)(transformed[3] * (255.0 / lbl_80343EC0));
         }
-        if (fade < lbl_80348C38) {
-            if (fade < lbl_80348C40) {
+        if (fade < 255.0) {
+            if (fade < 0.0) {
                 obj->alpha = 0;
             } else {
                 obj->alpha = (u8)(s32)fade;
@@ -235,7 +235,7 @@ void MBSetupObject(MBObject* obj, MBObjEntry* entry, int allowDefer,
         vec4ApplyTrans__FR4vec4R4vec4R5mat44(
             sortTransformed, &entry->mtx[12],
             (f32*)(*(u8**)(gWinGlobals + 4) + 0x2C0));
-        if (lbl_80348C40 == sortOverride) {
+        if (0.0 == sortOverride) {
             key = sortTransformed[3];
         } else {
             key = sortOverride;
@@ -264,9 +264,9 @@ void TopFaceMat(f32* mtx) {
     side[2] = dx * mtx[9] - dy * mtx[8];
     length = fn_800BDA98(side);
     if (length < 0.01) {
-        mtx[4] = 0.0f;
+        mtx[4] = sZero;
         mtx[5] = 1.0f;
-        mtx[6] = 0.0f;
+        mtx[6] = sZero;
         mtx[0] = mtx[5] * mtx[10] - mtx[6] * mtx[9];
         mtx[1] = mtx[6] * mtx[8] - mtx[4] * mtx[10];
         mtx[2] = mtx[4] * mtx[9] - mtx[5] * mtx[8];
@@ -292,14 +292,14 @@ void FaceCamMat(f32* mtx, f32 limit) {
     toCamera[0] = *(f32*)(lbl_80344EE8 + 0x94) - mtx[12];
     toCamera[1] = *(f32*)(lbl_80344EE8 + 0x98) - mtx[13];
     toCamera[2] = *(f32*)(lbl_80344EE8 + 0x9C) - mtx[14];
-    if (0.0f == limit) {
+    if (sZero == limit) {
         goto no_pitch;
     } else {
         fn_800BD428(&mtx[8], &yaw, &pitch);
         fn_800BD428(toCamera, &cameraYaw, &cameraPitch);
         cameraYaw -= yaw;
         cameraPitch -= pitch;
-        if (limit > 0.0f) {
+        if (limit > sZero) {
             if (cameraPitch > limit) {
                 cameraPitch = limit;
             } else if (cameraPitch < -limit) {
@@ -316,6 +316,7 @@ void FaceCamMat(f32* mtx, f32 limit) {
         }
         return;
     }
+
 no_pitch:
     {
         f32 mz = mtx[10];
@@ -414,7 +415,7 @@ int AddPsysObject(void* mtx, MBObject* obj) {
     }
     e = &mbPsysObjects[mbNumPsysObjects++];
     CopyMat4(mtx, e);
-    e->key = 0.0f;
+    e->key = sZero;
     e->obj = obj;
     e->page = lbl_802A4B30[1];
     return 1;
@@ -476,7 +477,7 @@ void InitSortObjects(void) {
 /* qsort comparator: back-to-front by key. */
 static int CmpDist(const void* a, const void* b) {
     f32 d = ((const MBObjEntry*)b)->key - ((const MBObjEntry*)a)->key;
-    if (d > 0.0f) return 1;
-    if (d < 0.0f) return -1;
+    if (d > 0.0) return 1;
+    if (d < 0.0) return -1;
     return 0;
 }
