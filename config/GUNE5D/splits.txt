@@ -278,6 +278,7 @@ game/mb/mb_objects.c:
 	extab       start:0x80007880 end:0x80007900
 	extabindex  start:0x8000BD10 end:0x8000BDD0
 	.text       start:0x800B90A4 end:0x800B9E4C
+	.sdata2     start:0x80348C48 end:0x80348CA0
 
 game/mb/mb_struct.c:
 	extab       start:0x80007900 end:0x80007918
