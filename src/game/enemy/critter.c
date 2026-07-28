@@ -1,101 +1,513 @@
 /*
- * critter.c -- GCN CRITTER.OBJ scaffold.
+ * critter.c -- GCN CRITTER.OBJ.
  *
- * This is the complete critter behavior/load object between CONTROLS.OBJ and
- * the sound-manager object.  Existing behaviorally verified names are kept;
- * remaining bodies stay address-named until their PDB roster assignments are
- * confirmed.
+ * The critter behavior/load object between CONTROLS.OBJ and the sound-manager
+ * object.  Critters are the large, scripted, multi-part creatures (golems,
+ * bosses, generals) distinct from the swarm-style Enemy record.
+ *
+ * Bodies are transcribed from the GC (GUNE5D) DOL asm (tools/gdl/fnasm.py) with
+ * Ghidra structure hints; function names are the pre-mapped CRITTER.OBJ roster.
+ * Functions not yet reconstructed are documented empty skeletons with real
+ * signatures (they keep the TU compiling; NonMatching does not link).
  *
  * .text       0x80034CFC..0x8004229C
  * extab       0x80005CE0..0x80005F28
  * extabindex  0x800093A0..0x8000970C
  */
+#include "types.h"
+#include "game/critter.h"
+#include "game/player.h"
 
-#define STUB(address, name) void name(void) {}
+/* -- module-local BigState siblings (bss, pooled off gBig) -- */
+extern f32   gBig[4];                 /* 0x80240FD0 per-player scratch flags    */
+extern void *lbl_80241060[4];         /* 0x80241060 loaded-file handle table    */
+extern u8    lbl_80241070[4][0x50];   /* 0x80241070 per-type header buffers      */
+extern Player lbl_80275AE0[4];        /* 0x80275AE0 player records (gPlayerRecords) */
 
-STUB(0x80034CFC, fn_80034CFC)
-STUB(0x80034F60, fn_80034F60)
-STUB(0x800351B0, fn_800351B0)
-STUB(0x80035408, fn_80035408)
-STUB(0x800358B0, fn_800358B0)
-STUB(0x800359F0, fn_800359F0)
-STUB(0x80035BC8, fn_80035BC8)
-STUB(0x80035D08, fn_80035D08)
-STUB(0x80035E48, fn_80035E48)
-STUB(0x80036138, fn_80036138)
-STUB(0x80036424, fn_80036424)
-STUB(0x80036740, fn_80036740)
-STUB(0x800367CC, fn_800367CC)
-STUB(0x800368DC, fn_800368DC)
-STUB(0x80036958, fn_80036958)
-STUB(0x80036A58, fn_80036A58)
-STUB(0x80036B5C, fn_80036B5C)
-STUB(0x80036C70, fn_80036C70)
-STUB(0x80036E00, fn_80036E00)
-STUB(0x80036FBC, fn_80036FBC)
-STUB(0x800371BC, fn_800371BC)
-STUB(0x800372A0, fn_800372A0)
-STUB(0x800374FC, fn_800374FC)
-STUB(0x80037734, fn_80037734)
-STUB(0x800378C8, fn_800378C8)
-STUB(0x80037A10, fn_80037A10)
-STUB(0x80037C08, fn_80037C08)
-STUB(0x80037D34, fn_80037D34)
-STUB(0x80037D44, fn_80037D44)
-STUB(0x80037E80, fn_80037E80)
-STUB(0x80037ED0, fn_80037ED0)
-STUB(0x80037F84, fn_80037F84)
-STUB(0x800380F0, fn_800380F0)
-STUB(0x800383A8, CritterDamage)
-STUB(0x80038D18, ProcessCritterList)
-STUB(0x80038DDC, ProcessCritter)
-STUB(0x8003946C, CritterDoKnockback)
-STUB(0x800395C8, CritterUpdateCounters)
-STUB(0x800396A4, CritterGolemAI)
-STUB(0x80039AD8, CritterBossAI)
-STUB(0x8003A73C, fn_8003A73C)
-STUB(0x8003A838, fn_8003A838)
-STUB(0x8003A9C4, fn_8003A9C4)
-STUB(0x8003AF4C, CritterRotate)
-STUB(0x8003B1CC, fn_8003B1CC)
-STUB(0x8003B300, fn_8003B300)
-STUB(0x8003B4CC, CritterGetNextMove)
-STUB(0x8003B67C, fn_8003B67C)
-STUB(0x8003B7D8, fn_8003B7D8)
-STUB(0x8003BAFC, fn_8003BAFC)
-STUB(0x8003BC28, fn_8003BC28)
-STUB(0x8003BDF4, fn_8003BDF4)
-STUB(0x8003C11C, fn_8003C11C)
-STUB(0x8003C40C, CritterAnimate)
-STUB(0x8003C6FC, CritterMoveDone)
-STUB(0x8003C8D4, fn_8003C8D4)
-STUB(0x8003C988, CritterFindMoveType)
-STUB(0x8003CA98, fn_8003CA98)
-STUB(0x8003D0A4, fn_8003D0A4)
-STUB(0x8003D7E0, CritterDoSfx)
-STUB(0x8003DC64, CritterDoParticle)
-STUB(0x8003DE70, fn_8003DE70)
-STUB(0x8003E048, CritterNewInst)
-STUB(0x8003E2E8, CritterEmptyInst)
-STUB(0x8003E3E8, CritterInitGeo)
-STUB(0x8003E7D0, CritterAddHealthMeter)
-STUB(0x8003E920, CritterInitInst)
-STUB(0x8003EA4C, CritterDelInst)
-STUB(0x8003EB8C, CritterUpdateSkinfx)
-STUB(0x8003EDC4, CritterRemoveColnodeSub)
-STUB(0x8003EEF8, CritterInitColnodes)
-STUB(0x8003F1F0, CritterAddAnimInsts)
-STUB(0x8003F3AC, CritterLoadFile)
-STUB(0x8003F414, CritterLoadDone)
-STUB(0x8003F5B4, CritterBGLoadFile)
-STUB(0x8003F5D4, CritterLoadStartNext)
-STUB(0x8003F784, CritterLoadAllTypes)
-STUB(0x8003F81C, CritterTypeLoaded)
-STUB(0x8003F83C, CritterAllocType)
-STUB(0x8003F9F4, CritterLoadFinish)
-STUB(0x8003FBD0, CritterInitAllMoves)
-STUB(0x8003FC4C, CritterInitMoves)
-STUB(0x8003FF98, fn_8003FF98)
-STUB(0x800400F0, CritterInitHeader)
+/* -- module-local sbss variables -- */
+extern void *lbl_80344648;            /* 0x80344648 pending callback context     */
+extern s32   lbl_80344644;            /* 0x80344644 pending callback flag        */
+extern s32   lbl_8034465C;            /* 0x8034465C active-player count           */
+extern s16   lbl_80344664;            /* 0x80344664 rolling tick counter          */
+extern s32   lbl_80344660;            /* 0x80344660 loaded-type count             */
+extern s32   lbl_8034466C;            /* 0x8034466C active critter count (gNumCritters) */
+extern f32   sMusicFadeBase;          /* 0x80344594 shared game-time / fade base   */
 
-#undef STUB
+/* -- external helpers -- */
+extern void *AllocFile(const char *name);
+extern void *NextWaypoint(void *player);
+extern void  AddExp(s32 player, s32 amount, s32 kind);
+extern void  HealthMeterUpdate(void *meter, f32 cur, f32 max);
+extern void *memset(void *dst, int c, u32 n);
+extern void  ErrorPrintf(const char *fmt, ...);
+extern void  MBRemoveNode(void *node, s32 kind);
+extern void  SfxDeleteParented(void *sfx, s32 a, s32 b);
+extern void  BossDeath(void);
+extern void  fn_8002C49C(void *mtx);
+extern void  fn_800115D0(void *handle);
+extern char  lbl_8011221C[];          /* 0x8011221C critter-overflow message      */
+extern void *gCurLevel;               /* current level record (->0xAC hp scale)   */
+
+/* -- CRITTER.OBJ internal roster (forward declarations) -- */
+void fn_80034CFC(void);
+void fn_80034F60(void);
+void fn_800351B0(void);
+void fn_80035408(void);
+void fn_800358B0(void);
+void fn_800359F0(void);
+void fn_80035BC8(void);
+void fn_80035D08(void);
+void fn_80035E48(void);
+void fn_80036138(void);
+void fn_80036424(void);
+void fn_80036740(s32 who, f32 amount);
+void fn_800367CC(void);
+void fn_800368DC(s32 slot, s32 id, f32 amount);
+void fn_80036958(void *player, f32 *out);
+void fn_80036A58(void);
+void fn_80036B5C(void);
+void fn_80036C70(void);
+void fn_80036E00(void);
+void fn_80036FBC(void);
+void fn_800371BC(void *critter, f32 *pos);
+void fn_800372A0(void);
+void fn_800374FC(void);
+void fn_80037734(void);
+void fn_800378C8(void);
+void fn_80037A10(void);
+void fn_80037C08(void);
+void fn_80037D34(s32 unused, void *ctx);
+void fn_80037D44(void);
+void fn_80037E80(void);
+void fn_80037ED0(f32 add);
+void fn_80037F84(void);
+void fn_800380F0(void);
+void CritterDamage(void);
+s32  ProcessCritter(Critter *c);
+s32  ProcessCritterList(void);
+void CritterDoKnockback(void);
+void CritterUpdateCounters(Critter *c);
+void CritterGolemAI(void);
+void CritterBossAI(void);
+void fn_8003A73C(void);
+void fn_8003A838(void);
+void fn_8003A9C4(void);
+void CritterRotate(void);
+void fn_8003B1CC(void);
+void fn_8003B300(void);
+void CritterGetNextMove(void);
+void fn_8003B67C(void);
+void fn_8003B7D8(void);
+void fn_8003BAFC(void);
+void fn_8003BC28(void);
+void fn_8003BDF4(void);
+void fn_8003C11C(void);
+void CritterAnimate(void);
+void CritterMoveDone(void);
+s32  fn_8003C8D4(Critter *a, Critter *b);
+void CritterFindMoveType(void);
+void fn_8003CA98(void);
+void fn_8003D0A4(void);
+void CritterDoSfx(void);
+void CritterDoParticle(void);
+void fn_8003DE70(void);
+void CritterNewInst(void);
+void CritterInitGeo(void);
+void CritterAddHealthMeter(void);
+void CritterInitInst(Critter *c, struct CritterHeader *hdr);
+Critter *CritterEmptyInst(void);
+void CritterDelInst(Critter *c);
+void CritterUpdateSkinfx(void);
+void CritterRemoveColnodeSub(void);
+void CritterInitColnodes(void);
+void CritterAddAnimInsts(void);
+s32  CritterLoadFile(const char *name);
+void CritterLoadDone(void);
+void CritterBGLoadFile(s32 *loader);
+void CritterLoadStartNext(void);
+void CritterLoadAllTypes(s32 arg);
+struct CritterHeader *CritterTypeLoaded(s32 type, s32 subtype);
+void CritterAllocType(void *hdr, void *move, s32 arg);
+void CritterLoadFinish(void);
+void CritterInitAllMoves(void);
+void CritterInitMoves(void *move);
+void fn_8003FF98(void);
+void CritterInitHeader(void *hdr, void *file);
+
+/* ==================================================================== */
+
+/* 0x80034CFC */ void fn_80034CFC(void) {}
+/* 0x80034F60 */ void fn_80034F60(void) {}
+/* 0x800351B0 */ void fn_800351B0(void) {}
+/* 0x80035408 */ void fn_80035408(void) {}
+/* 0x800358B0 */ void fn_800358B0(void) {}
+/* 0x800359F0 */ void fn_800359F0(void) {}
+/* 0x80035BC8 */ void fn_80035BC8(void) {}
+/* 0x80035D08 */ void fn_80035D08(void) {}
+/* 0x80035E48 */ void fn_80035E48(void) {}
+/* 0x80036138 */ void fn_80036138(void) {}
+/* 0x80036424 */ void fn_80036424(void) {}
+/* 0x80036740 -- award experience to one player (who >= 0) or all four active
+ * players (who < 0), by the integer part of `amount`. */
+void fn_80036740(s32 who, f32 amount)
+{
+    s32 lo;
+    s32 hi;
+    s32 i;
+
+    if (who < 0) {
+        lo = 0;
+        hi = 4;
+    } else {
+        hi = who + 1;
+        lo = who;
+    }
+    for (i = lo; i < hi; i++) {
+        if (lbl_80275AE0[i].state == 1) {
+            AddExp(i, (s32)amount, 0);
+        }
+    }
+}
+/* 0x800367CC */ void fn_800367CC(void) {}
+
+/* 0x800368DC -- add `amount` to a per-limb counter of the critter whose id
+ * matches `id`, then stamp the companion slot with the current game time. */
+void fn_800368DC(s32 slot, s32 id, f32 amount)
+{
+    s32 i;
+    Critter *c;
+    for (i = 0; i < lbl_8034466C; i++) {
+        c = &gCritterPool[i];
+        if (c->hdr != NULL && id == c->id) {
+            break;
+        }
+    }
+    if (i >= lbl_8034466C) {
+        return;
+    }
+    c->unk1BC[slot][0] += amount;
+    c->unk1BC[slot][1] = sMusicFadeBase;
+}
+
+/* 0x80036958 */ void fn_80036958(void *player, f32 *out) {}
+/* 0x80036A58 */ void fn_80036A58(void) {}
+/* 0x80036B5C */ void fn_80036B5C(void) {}
+/* 0x80036C70 */ void fn_80036C70(void) {}
+/* 0x80036E00 */ void fn_80036E00(void) {}
+/* 0x80036FBC */ void fn_80036FBC(void) {}
+/* 0x800371BC */ void fn_800371BC(void *critter, f32 *pos) {}
+/* 0x800372A0 */ void fn_800372A0(void) {}
+/* 0x800374FC */ void fn_800374FC(void) {}
+/* 0x80037734 */ void fn_80037734(void) {}
+/* 0x800378C8 */ void fn_800378C8(void) {}
+/* 0x80037A10 */ void fn_80037A10(void) {}
+/* 0x80037C08 */ void fn_80037C08(void) {}
+/* 0x80037D34 */
+void fn_80037D34(s32 unused, void *ctx)
+{
+    lbl_80344648 = ctx;
+    lbl_80344644 = 0;
+}
+/* 0x80037D44 */ void fn_80037D44(void) {}
+/* 0x80037E80 */ void fn_80037E80(void) {}
+/* 0x80037ED0 */ void fn_80037ED0(f32 add) {}
+/* 0x80037F84 */ void fn_80037F84(void) {}
+/* 0x800380F0 */ void fn_800380F0(void) {}
+/* 0x800383A8 */ void CritterDamage(void) {}
+/* 0x80038D18 -- per-frame critter list step: reset per-player scratch, count
+ * active players, then process every live critter, summing their results. */
+s32 ProcessCritterList(void)
+{
+    s32 activePlayers;
+    s32 i;
+    s32 total;
+
+    activePlayers = 0;
+    total = 0;
+    lbl_80344664++;
+    for (i = 0; i < 4; i++) {
+        if (lbl_80275AE0[i].state == 1) {
+            activePlayers++;
+        }
+        gBig[i] = 0.0f;
+    }
+    lbl_8034465C = activePlayers;
+
+    for (i = 0; i < lbl_8034466C; i++) {
+        if (gCritterPool[i].hdr != NULL) {
+            total += ProcessCritter(&gCritterPool[i]);
+        }
+    }
+    return total;
+}
+/* 0x80038DDC */ s32 ProcessCritter(Critter *c) { return 0; }
+/* 0x8003946C */ void CritterDoKnockback(void) {}
+/* 0x800395C8 */ void CritterUpdateCounters(Critter *c) {}
+/* 0x800396A4 */ void CritterGolemAI(void) {}
+/* 0x80039AD8 */ void CritterBossAI(void) {}
+/* 0x8003A73C */ void fn_8003A73C(void) {}
+/* 0x8003A838 */ void fn_8003A838(void) {}
+/* 0x8003A9C4 */ void fn_8003A9C4(void) {}
+/* 0x8003AF4C */ void CritterRotate(void) {}
+/* 0x8003B1CC */ void fn_8003B1CC(void) {}
+/* 0x8003B300 */ void fn_8003B300(void) {}
+/* 0x8003B4CC */ void CritterGetNextMove(void) {}
+/* 0x8003B67C */ void fn_8003B67C(void) {}
+/* 0x8003B7D8 */ void fn_8003B7D8(void) {}
+/* 0x8003BAFC */ void fn_8003BAFC(void) {}
+/* 0x8003BC28 */ void fn_8003BC28(void) {}
+/* 0x8003BDF4 */ void fn_8003BDF4(void) {}
+/* 0x8003C11C */ void fn_8003C11C(void) {}
+/* 0x8003C40C */ void CritterAnimate(void) {}
+/* 0x8003C6FC */ void CritterMoveDone(void) {}
+
+/* 0x8003C8D4 -- classify two critters' facing/positions into a 0/1/2 code by
+ * the relation encoded in a->curmove (0x56). */
+s32 fn_8003C8D4(Critter *a, Critter *b)
+{
+    s32 av;
+    s32 bv;
+    s32 result;
+
+    result = 1;
+    av = (s32)a->state;
+    bv = (s32)b->state;
+    switch ((s32)*(s16 *)((u8 *)a + 86)) {
+    case 0:
+        result = 0;
+        break;
+    case 20:
+        if ((bv & ~0xFF) > (av & ~0xFF)) {
+            result = 2;
+        }
+        break;
+    case 40:
+    default:
+        if (bv > av) {
+            result = 2;
+        }
+        break;
+    case 60:
+        if (bv >= av) {
+            result = 2;
+        }
+        break;
+    case 80:
+        if (bv > 0) {
+            result = 2;
+        }
+        break;
+    case 90:
+        result = 2;
+        break;
+    }
+    return result;
+}
+
+/* 0x8003C988 */ void CritterFindMoveType(void) {}
+/* 0x8003CA98 */ void fn_8003CA98(void) {}
+/* 0x8003D0A4 */ void fn_8003D0A4(void) {}
+/* 0x8003D7E0 */ void CritterDoSfx(void) {}
+/* 0x8003DC64 */ void CritterDoParticle(void) {}
+/* 0x8003DE70 */ void fn_8003DE70(void) {}
+/* 0x8003E048 */ void CritterNewInst(void) {}
+/* 0x8003E2E8 -- reserve the first free critter pool slot, wipe it, and stamp
+ * it with a fresh index + rolling unique id. */
+Critter *CritterEmptyInst(void)
+{
+    s32 i;
+    Critter *c;
+
+    for (i = 0; i < lbl_8034466C; i++) {
+        if (gCritterPool[i].hdr == NULL) {
+            break;
+        }
+    }
+    if (i >= 16) {
+        ErrorPrintf(lbl_8011221C, i);
+        return NULL;
+    }
+    if (i == lbl_8034466C) {
+        lbl_8034466C++;
+        if (lbl_8034466C > gCritterCountMax) {
+            gCritterCountMax = lbl_8034466C;
+        }
+    }
+    c = &gCritterPool[i];
+    memset(c, 0, sizeof(Critter));
+    c->index = (s16)i;
+    c->id = gCritterNextID;
+    gCritterNextID++;
+    if (gCritterNextID > 4095) {
+        gCritterNextID = 1;
+    }
+    return c;
+}
+/* 0x8003E3E8 */ void CritterInitGeo(void) {}
+/* 0x8003E7D0 */ void CritterAddHealthMeter(void) {}
+/* 0x8003E920 -- bind a fresh critter instance to its loaded header: reset move
+ * bookkeeping, scale starting health by the level, and zero the per-move and
+ * hit-node scratch tables. */
+void CritterInitInst(Critter *c, struct CritterHeader *hdr)
+{
+    s32 i;
+    u8 *h;
+
+    h = (u8 *)hdr;
+    c->hdr = hdr;
+    c->state = 0;
+    c->curmove = -1;
+    c->nextmove = 0;
+    c->unk11C = -1;
+    c->unk11E = -1;
+    c->unk120 = -1;
+    c->unk124 = -1;
+    c->unk126 = -1;
+    c->unk128 = -1;
+    c->unkABA = -1;
+    c->unkABC = -1;
+    c->unkABE = 0;
+    c->unkAC0 = -1;
+    c->pausecnt = 0;
+    c->unkAC6 = 0;
+    c->unkAC8 = 0.0f;
+    c->unk4AC = 0.0f;
+    c->health = *(f32 *)(h + 228) * *(f32 *)((u8 *)gCurLevel + 172);
+    for (i = 0; i < 4; i++) {
+        c->unk1BC[i][0] = 0.0f;
+        c->unk1BC[i][1] = 0.0f;
+        c->unk1BC[i][2] = 0.0f;
+        c->unk1BC[i][3] = 0.0f;
+    }
+    for (i = 0; i < 4; i++) {
+        c->unk4E0[i] = -1;
+    }
+    if ((s16)*(s16 *)(h + 272) > 0) {
+        memset(c->moveflags, 0, *(s16 *)(h + 272) * 4);
+    }
+    if ((s16)*(s16 *)(h + 276) > 0) {
+        memset(c->movestate, 0, *(s16 *)(h + 276) * 4);
+    }
+    if ((s16)*(s16 *)(h + 280) > 0) {
+        memset(c->hitnodes, 0, *(s16 *)(h + 280) * 92);
+    }
+}
+/* 0x8003EA4C -- tear down a critter instance: detach scene nodes, kill sfx,
+ * recurse into linked children, free colnode list, then clear the slot. */
+void CritterDelInst(Critter *c)
+{
+    void *node;
+
+    if (*(s16 *)((u8 *)*(void **)((u8 *)c->hdr + 288) + 32) == 4) {
+        fn_8002C49C(c->mtx);
+        if (c->parent == NULL) {
+            BossDeath();
+        }
+    }
+    if (c->next != NULL) {
+        CritterDelInst(c->next);
+        c->next = NULL;
+    }
+    if (c->emitter != NULL) {
+        MBRemoveNode(c->emitter, 1);
+    }
+    if (c->shadow != NULL) {
+        MBRemoveNode(c->shadow, 0);
+    }
+    SfxDeleteParented(c->anim, 1, -1);
+    if (*(u32 *)((u8 *)c + 216) != 0) {
+        MBRemoveNode(c->emitter, 2);
+    }
+    if (c->colhandle != NULL) {
+        fn_800115D0(&c->colhandle);
+    }
+    if (c->mbnode != NULL) {
+        MBRemoveNode(c->mbnode, 0);
+    }
+    c->anim = NULL;
+    while ((node = c->subnodes) != NULL) {
+        if (*(void **)node != NULL) {
+            fn_800115D0(node);
+        }
+        if (*(void **)((u8 *)node + 72) != NULL) {
+            MBRemoveNode(*(void **)((u8 *)node + 72), 1);
+        }
+        *(void **)((u8 *)node + 72) = NULL;
+        c->subnodes = *(void **)((u8 *)c->subnodes + 80);
+    }
+    c->hdr = NULL;
+    c->state = 0;
+}
+/* 0x8003EB8C */ void CritterUpdateSkinfx(void) {}
+/* 0x8003EDC4 */ void CritterRemoveColnodeSub(void) {}
+/* 0x8003EEF8 */ void CritterInitColnodes(void) {}
+/* 0x8003F1F0 */ void CritterAddAnimInsts(void) {}
+
+/* 0x8003F3AC -- allocate a load slot, read the file, and build its header. */
+s32 CritterLoadFile(const char *name)
+{
+    s32 idx;
+    idx = lbl_80344660++;
+    lbl_80241060[idx] = AllocFile(name);
+    CritterInitHeader(&lbl_80241070[idx], lbl_80241060[idx]);
+    return idx;
+}
+
+/* 0x8003F414 */ void CritterLoadDone(void) {}
+
+/* 0x8003F5B4 -- advance a background loader unless it has finished (state 2). */
+void CritterBGLoadFile(s32 *loader)
+{
+    if (loader[4] == 2) {
+        return;
+    }
+    loader[1] += loader[2];
+}
+
+/* 0x8003F5D4 */ void CritterLoadStartNext(void) {}
+
+/* 0x8003F784 -- for every loaded type/subtype header, register each of its
+ * moves via CritterAllocType. */
+void CritterLoadAllTypes(s32 arg)
+{
+    s32 type;
+    s32 sub;
+    u8 *hdr;
+
+    for (type = 0; type < lbl_80344660; type++) {
+        hdr = lbl_80241070[type];
+        if (*(s32 *)hdr != 0) {
+            for (sub = 0; sub < *(s32 *)(hdr + 16); sub++) {
+                CritterAllocType(hdr, *(u8 **)(hdr + 20) + sub * 320, arg);
+            }
+        }
+    }
+}
+
+/* 0x8003F81C */
+struct CritterHeader *CritterTypeLoaded(s32 type, s32 subtype)
+{
+    return gCritterHeaders[type][subtype];
+}
+
+/* 0x8003F83C */ void CritterAllocType(void *hdr, void *move, s32 arg) {}
+/* 0x8003F9F4 */ void CritterLoadFinish(void) {}
+
+/* 0x8003FBD0 -- initialize the move tables of every loaded type/subtype. */
+void CritterInitAllMoves(void)
+{
+    s32 type;
+    s32 sub;
+    u8 *hdr;
+
+    for (type = 0; type < lbl_80344660; type++) {
+        hdr = lbl_80241070[type];
+        for (sub = 0; sub < *(s32 *)(hdr + 16); sub++) {
+            CritterInitMoves(*(u8 **)(hdr + 20) + sub * 320);
+        }
+    }
+}
+
+/* 0x8003FC4C */ void CritterInitMoves(void *move) {}
+/* 0x8003FF98 */ void fn_8003FF98(void) {}
+/* 0x800400F0 */ void CritterInitHeader(void *hdr, void *file) {}
