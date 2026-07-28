@@ -118,6 +118,10 @@ typedef struct GameOpts {
     u32 data[8];                   /* 32-byte options block; [2] = stereo   */
 } GameOpts;
 
+typedef struct SaveFileBlock {
+    u32 w[1293];                   /* one 5172-byte per-file save data block */
+} SaveFileBlock;
+
 extern u8 lbl_80274578[];          /* dir-info tables: stride 132 (8x16 +4) */
 extern u8 lbl_8025EE80[];          /* VMU/dir working buffer (dir @+0x156F8)*/
 extern u8 optglobals[0xA0];        /* options TU globals; prefs at +0x80 */
@@ -222,6 +226,7 @@ int add_vmu_file(int a, int b, int c, const char* name, u32 v0, u32 v1)
     u8* row = lbl_80274578 + a * 132 + b * 132;
     u8* rec;
     int result;
+    u8 unused[8]; /* matches original frame */
 
     rec = row + c * 16;
     strncpy((char*) (rec + 8), name, 8);
@@ -256,13 +261,15 @@ int add_vmu_file(int a, int b, int c, const char* name, u32 v0, u32 v1)
 /* saveExists - does the numbered/dir save exist on the mounted card? */
 int saveExists(void)
 {
-    int result = 0;
+    s32 result = 0;
     s32 x = 0;
+    s32* pPresent = &lbl_80344A14;
     char name[64];
     s32 fileNo;
     u8 r;
+    char* saveName = lbl_8011D550;
 
-    if (lbl_80344A18 == 3 && lbl_80344A14 == 1) {
+    if (lbl_80344A18 == 3 && *pPresent == 1) {
         fileNo = -1;
         if (saveMount(0, 0, 0) <= 0) {
             r = 0;
@@ -273,7 +280,7 @@ int saveExists(void)
                 r = 0;
             } else {
                 getSaveFileName(name, fileNo);
-                r = vmu_exists(0, lbl_8011D550, &fileNo);
+                r = vmu_exists(0, saveName, &fileNo);
             }
         }
         if (r != 0) {
@@ -350,21 +357,23 @@ int get_vmu_directory(int a, int b)
  */
 s32 vmu_directory_exists(void)
 {
+    s32 state = lbl_80344A18;
     s32 result = 0;
     s32* p = &lbl_80344A14;
-    s32 state = lbl_80344A18;
+    s32 present;
 
     if (state == -1) {
         return result;
     }
-    if (*p == 1) {
+    present = *p;
+    if (present == 1) {
         result = (state == 3) ? 1 : -1;
         return result;
     }
     if (result != 0) {
         return result;
     }
-    if (*p == 1) {
+    if (present == 1) {
         return -2;
     }
     return -1;
@@ -385,26 +394,39 @@ void serve_memcard(void)
  */
 int saveLoad(int port, int slot, int fileNo, void* dst)
 {
+    char* rpool = lbl_801131C0;
+    u8 unused_hi[8];
     char name[64];
-    int ret;
+    u8 unused[80];
+    u8 ret;
+    u8 ok;
 
     if (saveMount(port, slot, 0) <= 0) {
         return 0;
     }
-    if (!(0 <= port && port <= 1)) {
+    ok = (0 <= port && port <= 1);
+    if (!ok) {
         return 0;
     }
-    getSaveFileName(name, fileNo);          /* build key (result unused) */
+    /* inlined getSaveFileName(name, fileNo) */
+    if (fileNo == -2) {
+        strcpy(name, rpool + 80);
+    } else if (fileNo == -1) {
+        strcpy(name, rpool + 104);
+    } else {
+        sprintf(name, rpool + 124, fileNo + 1);
+    }
     lbl_803449EC = 0;
     lbl_803449F8 = 0;
-    bulletproof_printf(lbl_801131E8);
+    bulletproof_printf(rpool + 40);
     while (FileSystemReading() != 0) {
         fn_80067B0C(-1);
     }
     beginSaveTransaction();
     lbl_80344A04 = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x2D44C0);
     if ((u8) loadGauntletSave()) {
-        memcpy(dst, (u8*) lbl_80343C74 + fileNo * 5172 + 40, 5172);
+        *(SaveFileBlock*) dst =
+            *(SaveFileBlock*) ((u8*) lbl_80343C74 + fileNo * 5172 + 40);
         ret = 1;
     } else {
         ret = 0;
@@ -415,7 +437,7 @@ int saveLoad(int port, int slot, int fileNo, void* dst)
     OSDestroyHeap(lbl_80344A0C);
     dcsAramReadTop((void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
     sysClearFlags(64);
-    bulletproof_printf(lbl_801131C0);
+    bulletproof_printf(rpool);
     lbl_803449EC = 0;
     return ret;
 }
@@ -426,15 +448,25 @@ int saveLoad(int port, int slot, int fileNo, void* dst)
  */
 int saveSave(int port, int slot, int fileNo, void* src)
 {
+    char* rpool = lbl_801131C0;
+    u8 unused_hi[16];
     char name[64];
+    u8 unused_lo[16];
 
     if (saveMount(port, slot, 0) <= 0) {
         return 0;
     }
-    getSaveFileName(name, fileNo);          /* build key (result unused) */
+    /* inlined getSaveFileName(name, fileNo) (key built, result unused) */
+    if (fileNo == -2) {
+        strcpy(name, rpool + 80);
+    } else if (fileNo == -1) {
+        strcpy(name, rpool + 104);
+    } else {
+        sprintf(name, rpool + 124, fileNo + 1);
+    }
     lbl_803449EC = 0;
     lbl_803449F8 = 0;
-    bulletproof_printf(lbl_801131E8);
+    bulletproof_printf(rpool + 40);
     while (FileSystemReading() != 0) {
         fn_80067B0C(-1);
     }
@@ -442,7 +474,8 @@ int saveSave(int port, int slot, int fileNo, void* src)
     lbl_80344A04 = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x2D44C0);
     loadGauntletSave();
     *(GameOpts*) ((u8*) lbl_80343C74 + 8) = gameOpts;
-    memcpy((u8*) lbl_80343C74 + fileNo * 5172 + 40, src, 5172);
+    *(SaveFileBlock*) ((u8*) lbl_80343C74 + fileNo * 5172 + 40) =
+        *(SaveFileBlock*) src;
     memcpy((u8*) lbl_80343C74 + 41416, lbl_80274578, 128);
     writeGauntletSave();
     lbl_80343C78 |= 0xFFFFFFFF;
@@ -452,7 +485,7 @@ int saveSave(int port, int slot, int fileNo, void* src)
     OSDestroyHeap(lbl_80344A0C);
     dcsAramReadTop((void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
     sysClearFlags(64);
-    bulletproof_printf(lbl_801131C0);
+    bulletproof_printf(rpool);
     lbl_803449EC = 0;
     return 1;
 }
@@ -470,6 +503,7 @@ s32 saveGetFreeBytes(s32 port, s32 slot)
 {
     s32* p;
     u8 ok;
+    u8 unused[16]; /* matches original frame */
 
     p = &lbl_80344A10[port];
     p = &p[slot];
@@ -520,7 +554,7 @@ void init_all_dir_info(void)
     s32 fill;
     u8* base;
     int i;
-    u8 pad[40]; /* unused, matches original frame */
+    u8 pad[48]; /* unused, matches original frame */
 
     zero = 0;
     i = zero;
@@ -738,7 +772,7 @@ int InitPreferences(void)
         lbl_803449D0 = 1;
         lbl_803449F8 = 0;
         bulletproof_printf(lbl_801131E8);
-        while (FileSystemReading() == 0) {
+        while (FileSystemReading() != 0) {
             fn_80067B0C(-1);
         }
         beginSaveTransaction();
