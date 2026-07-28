@@ -114,7 +114,7 @@ extern void fn_800B8A38(s32 a);
 extern void delete_map_blits(void);
 extern s32 active_player_edge(s32 flag);
 extern void fn_800B3D6C(void* blit);
-extern void fn_800748BC(s32 i);
+extern void del_player_blits(s32 i);
 extern f32 atan2(f32 y, f32 x);
 extern void fn_800BD254(void* mtx, void* v);
 extern void fn_8005A3B8(void* mtx);
@@ -461,7 +461,7 @@ void delete_map_blits(void)
         *(void**)(base + i * 4 + 96) = 0;
     }
     for (i = 0; i < 4; i++) {
-        fn_800748BC(i);
+        del_player_blits(i);
     }
 }
 
