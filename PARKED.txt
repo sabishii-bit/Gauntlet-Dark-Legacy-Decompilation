@@ -154,3 +154,6 @@ mbBlitCalcWidth            # frame, +8 stack-slot base (local-home elision for w
 sndFxPlay3DAtten           # renum, FPR const-pair f0<->f2 swap on 1.4-d/50 chain; 8 lines (sndfx)
 sndFxInitVoices            # isel, stwx+idx-fold vs add+2860/1324/1176-disp on strength-reduced IVs; struct-view/e-form/raw-view all tied; 22 lines (sndfx)
 sndFxQueUpdate             # renum, did<->IV1 r28/r29 + volatile drift; opcode-identical 102/102; 30 lines (sndfx)
+
+# playex_iso round (2026-07-27), player.c back slice:
+player_bss_pool_family     # bss-pool displacement class, NOT per-fn: GetPlayerPos/GetPlayerColPos/PlayerSelecting/new_player/change_player/player_can_be_damaged/all_players_go_to_same_level + every gPlayerRecords toucher; target pools off lbl_80274EA0 (-0xC40); opcode-identical; blocked on flip-time .bss claim (gPlayerRecords pinned extern by Matching shopquery)

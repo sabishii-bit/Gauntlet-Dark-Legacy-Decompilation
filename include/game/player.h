@@ -87,6 +87,18 @@ typedef struct PlayerCharSave {
 } PlayerCharSave;                    /* size 0xF0 */
 
 /*
+ * Active powerup slot (11 per player at +0x130).  GC-proven by
+ * player_get_powerup_state / PlayerAddPowerup / PlayerProcessMikeyPUP
+ * (type 9 mask 0x100000 = mikey, mask 8 = x-ray range feed).
+ */
+typedef struct PlayerPowerup {
+    /* 0x00 */ f32 strength;         /* 0 = free slot, < 0 = permanent-strength */
+    /* 0x04 */ s32 type;             /* powerup class (9 = flagged specials) */
+    /* 0x08 */ f32 timer;            /* remaining time, < 0 = permanent */
+    /* 0x0C */ u32 mask;             /* subtype mask */
+} PlayerPowerup;                     /* size 0x10 */
+
+/*
  * Fields marked [player.c] were offset-verified 2026-07-27 against the
  * PLAYER.OBJ front-slice target asm (displacement loads in the matched fns).
  */
@@ -111,12 +123,25 @@ typedef struct Player {
     /* 0x00DC */ f32 saved_pos[3];   /* pos saved across parent/grab [player.c] */
     /* 0x00E8 */ s32 state;          /* player state: 0=none 1=active 2=... (VERIFIED @232) */
     /* 0x00EC */ s32 prev_state;     /* last frame's state [player.c do_players] */
-    /* 0x00F0 */ u8  pad_00F0[0x1C];
-    /* 0x010C */ f32 magic_power;    /* potion magic power [player.c start_magic] */
-    /* 0x0110 */ f32 light_range;    /* beacon light range [player.c do_players] */
-    /* 0x0114 */ u8  pad_0114[0x10];
+    /* 0x00F0 */ char* hidden_code;  /* active hidden-char code ptr, cmp lbl_80343D6C [player.c] */
+    /* 0x00F4 */ f32 att_fight;      /* attribute norms 0..999 (check_player_atts) [player.c] */
+    /* 0x00F8 */ f32 att_armor;
+    /* 0x00FC */ f32 att_magic;
+    /* 0x0100 */ f32 att_speed;
+    /* 0x0104 */ f32 stat_damage;    /* derived stats (PlayerUpdateAtts) [player.c] */
+    /* 0x0108 */ f32 stat_armor;     /* absorbs in damage_player via fn_8002F5D8 */
+    /* 0x010C */ f32 magic_power;    /* potion magic power/radius (= derived magic stat) */
+    /* 0x0110 */ f32 light_range;    /* derived speed stat (front slice used as light range) */
+    /* 0x0114 */ f32 stat_missile_dmg;  /* missile stats; magic-based for classes 2/6 */
+    /* 0x0118 */ f32 stat_missile_spd;
+    /* 0x011C */ s32 field_11C;      /* cleared on load_player [player.c] */
+    /* 0x0120 */ u32 shield_flags;   /* 0x110000 masks the low-health siren [player.c] */
     /* 0x0124 */ u32 flags;          /* status flags; bit 0x400 tested (VERIFIED @292) */
-    /* 0x0128 */ u8  pad_0128[0xC8];
+    /* 0x0128 */ s32 field_128;      /* cleared with the powerup table [player.c] */
+    /* 0x012C */ s32 field_12C;
+    /* 0x0130 */ PlayerPowerup powerup[11];  /* active powerup slots [player.c] */
+    /* 0x01E0 */ u8  powerup_state[11];      /* 1 fresh, 2 use-requested, 3 used [player.c] */
+    /* 0x01EB */ u8  pad_01EB[5];
     /* 0x01F0 */ s16 timer_1F0;      /* generic countdowns, dec by frame delta [player.c] */
     /* 0x01F2 */ u8  pad_01F2[2];
     /* 0x01F4 */ s16 respawn_timer;  /* state-0 display rebuild delay [player.c] */
@@ -135,7 +160,7 @@ typedef struct Player {
     /* 0x0800 */ u8  pad_0800[0x28];
     /* 0x0828 */ f32 power_target;   /* power-meter target [player.c] */
     /* 0x082C */ f32 power_level;    /* power-meter shown level [player.c] */
-    /* 0x0830 */ u8  pad_0830[4];
+    /* 0x0830 */ s32 exit_dest;      /* next-level id picked by do_exit [player.c] */
     /* 0x0834 */ s32 quest_state;    /* quest icon: 0 off, 1 pending, 2 on [player.c] */
     /* 0x0838 */ f32 anchor_pos[3];  /* attach anchor (SetParent offset base) [player.c] */
     /* 0x0844 */ f32 anchor_fwd[3];  /* attach forward vector [player.c] */

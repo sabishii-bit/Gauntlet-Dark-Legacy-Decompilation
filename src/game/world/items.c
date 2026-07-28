@@ -35,7 +35,7 @@
 /* ------------------------------------------------------------------ */
 extern int   fn_8005A260(const char* name, void** out, int a, int b); /* LoadResource */
 extern void  InitTexMods(void* buf, int handle);                       /* fn_8007xxxx */
-extern void  fn_8007C230(int idx);                                     /* per-slot texmod */
+extern void  DoPlayerTexMods(int idx);                                     /* per-slot texmod */
 extern int   ErrorPrintf(const char* fmt, ...);
 extern int   sprintf(char* dst, const char* fmt, ...);
 extern int   FileExists(const char* dev, const char* path);
@@ -206,7 +206,7 @@ void SetupWeaponPowerupTexMods(void) {
         InitTexMods(sPowerupsBuf, sPowerupsHandle);
     }
     for (i = 0; i < 4; i++) {
-        fn_8007C230(i);
+        DoPlayerTexMods(i);
     }
 }
 
