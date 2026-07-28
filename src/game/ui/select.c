@@ -45,9 +45,21 @@
  */
 
 #include "types.h"
+#include "__va_arg.h"
 
 /* ---- boss-requirement table (this TU, .data 0x80121DD8, 12 x 0x24) ---- */
-extern u8 bossRuneReqTable[];
+typedef struct BossRuneReq {
+    s32 boss;      /* +0x00 */
+    s32 _04;
+    s32 _08;
+    s32 _0c;
+    s32 beatFlag;  /* +0x10 */
+    s32 numRunes;  /* +0x14 */
+    s32 _18;
+    s32 _1c;
+    s32 _20;
+} BossRuneReq;     /* 0x24 */
+extern BossRuneReq bossRuneReqTable[];
 
 /* ---- select-screen state (small data / bss, shared other TUs) ---- */
 extern s32 lbl_80344B7C;
@@ -55,7 +67,19 @@ extern s32 lbl_80344B80;
 extern s32 lbl_80344BC0;   /* load-in-progress flag */
 extern s32 lbl_80343DD4;   /* async load handle      */
 extern s32 lbl_803449A0;   /* select mode flag       */
+extern u32 lbl_80344824;   /* active-player bit mask */
+extern s32 lbl_80344A18;   /* per-(port+slot) card state (3=ready) */
+extern s32 lbl_80344A14;   /* per-(port+slot) card-present flag    */
+extern s32 lbl_80344610;   /* memcard slot sub-state */
+extern u8  lbl_80343DEC;   /* current card port/slot byte */
+extern char lbl_80114718[];/* save-slot format string A */
+extern char lbl_80114724[];/* save-slot format string B */
 extern u8  lbl_80275AE0[]; /* 4-player array, stride 0x335C */
+extern u8  lbl_80284878[]; /* 4 pages x 11 entries x 0xC blit table */
+
+extern s32  new_menu_accept(s32 plyr, s32 allow_start);
+extern void new_player(s32 i);
+void fn_80090C34(s32 id, s32 slot, s32 flags, s32 hide, char* fmt, ...);
 
 typedef struct SelectSlot {
     u8 _pad[108];
@@ -66,8 +90,11 @@ typedef struct SelectSlot {
 extern SelectSlot lbl_80121950[];
 
 /* ---- audio / front-end (other TUs) ---- */
-extern void AudioWelcome(void);
-extern void AudioWelcomeBack(void);
+extern void AudioWelcome(s32 pidx, s32 flag);
+extern void AudioWelcomeBack(s32 pidx, s32 flag);
+extern void change_player(s32 i, s32 type);
+extern char lbl_801200B0[][4]; /* 4-char class name table */
+extern char lbl_801144A0[];    /* welcome-back blit format string */
 extern void AudioSelectReset(void);
 extern void AudioStopSelect(void);
 extern void init_titlescreen(void);
@@ -79,7 +106,7 @@ extern int  saveFileSize(int a);
 
 /* ---- text / MB blit library (other TUs) ---- */
 extern int  sprintf(char* buf, const char* fmt, ...);
-extern int  vsprintf(char* buf, const char* fmt, void* ap);
+extern int  vsprintf(char* buf, const char* fmt, va_list ap);
 extern int  strncmp(const char* a, const char* b, int n);
 extern void DrawGlowText(void);
 extern void DrawNormalText(void);
@@ -87,10 +114,13 @@ extern void DrawTextKeepScale(void);
 extern char* GetStringText(int id);
 extern void* MBNewTempBlit(void* tex, int x, int y, int w, int h);
 extern int  MBCreateBlit(int a, int b, int c, int d, int e, int f);
-extern void mbBlitInit3414(int a, int b);
-extern void mbBlitProject(void* blit, int w, int h);
-extern void mbInitBlitEntry(void);
-extern void mbBlitUpdateEntry(void* e);
+extern void* MBOX_FindTexture_Err(char* name, s32* out, s32 err);
+extern void mbBlitInit3414(void* blit, s32 hide);
+extern void mbBlitProject(void* blit, s32 w, s32 h);
+extern void mbInitBlitEntry(void* blit, u32 frames, s32 frame);
+extern void mbBlitUpdateEntry(void* blit, u32 mask, u32 set);
+extern void fn_800B290C(void* blit, s32 alpha);
+extern void fn_800B28EC(void* blit, u32 a, u32 b, u32 c, u32 d);
 
 /* ---- async-load primitives (other TUs) ---- */
 extern int  MBOX_BGLoadModelStart(void* name, int a);
@@ -113,10 +143,9 @@ void reset_sel_menu(void)
 s32 GetBossNumRunes(s32 boss)
 {
     int i;
-    s32* e = (s32*)bossRuneReqTable;
-    for (i = 0; i < 13; i++, e += 9) {
-        if (e[0] == boss) {
-            return e[5]; /* +0x14: number of runes required */
+    for (i = 0; i < 13; i++) {
+        if (boss == bossRuneReqTable[i].boss) {
+            return bossRuneReqTable[i].numRunes;
         }
     }
     return 0;
@@ -125,10 +154,9 @@ s32 GetBossNumRunes(s32 boss)
 s32 GetBossBeatFlag(s32 boss)
 {
     int i;
-    s32* e = (s32*)bossRuneReqTable;
-    for (i = 0; i < 13; i++, e += 9) {
-        if (e[0] == boss) {
-            return e[4]; /* +0x10: rune "beat" flag mask */
+    for (i = 0; i < 13; i++) {
+        if (boss == bossRuneReqTable[i].boss) {
+            return bossRuneReqTable[i].beatFlag;
         }
     }
     return 0;
@@ -138,28 +166,30 @@ s32 GetBossBeatFlag(s32 boss)
  * select mode, skipping classes that are locked (bit 23 of +0xA8C). */
 static s32 LimitSeltype(u8* player, s32 idx, s32 step)
 {
-    if (lbl_803449A0 == 0) {
+    int flag;
+    if (lbl_803449A0 != 0) {
         if (idx < 4) {
-            return 7;
+            idx = 7;
+        } else if (idx > 7) {
+            idx = 4;
         }
-        if (idx > 7) {
-            return 4;
+    } else {
+        flag = 0;
+        while (flag == 0) {
+            if (idx > 16) {
+                idx = 0;
+            }
+            if (idx < 0) {
+                idx = 16;
+            }
+            flag = 1;
+            if (idx == 16 && (*(u16*)(player + 0xA8C) & 0x100) == 0) {
+                idx += step;
+                flag = 0;
+            }
         }
-        return idx;
     }
-    for (;;) {
-        if (idx > 16) {
-            idx = 0;
-        }
-        if (idx < 0) {
-            idx = 16;
-        }
-        if (idx == 16 && (*(u16*)(player + 0xA8C) & 0x100) == 0) {
-            idx += step;
-            continue;
-        }
-        return idx;
-    }
+    return idx;
 }
 
 static void do_sel_menu(int player);
@@ -173,7 +203,7 @@ void do_player_select(void)
     for (i = 0; i < 16; i++) {
         do_sel_menu(i);
     }
-    AudioWelcome();
+    AudioWelcome(0, 0);
 }
 
 static void do_sel_menu(int player)
@@ -185,11 +215,45 @@ static void do_sel_menu(int player)
     MBNewTempBlit(0, 0, 0, 0, 0);
 }
 
-void fn_8008E3BC(void)
+void fn_8008E3BC(s32 idx, s32 arg1)
 {
-    AudioWelcomeBack();
-    AudioWelcome();
-    mbBlitProject(0, 0, 0);
+    u8* pl = lbl_80275AE0 + idx * 0x335C;
+    int i;
+    u8* p;
+    s32 v;
+    s32 saved;
+    s32 wflag;
+
+    *(s32*)(pl + 0xE8) = 3;
+
+    p = lbl_80275AE0;
+    for (i = 0; i < 4; i++, p += 0x335C) {
+        if (i != idx) {
+            s32 st = *(s32*)(p + 0xE8);
+            if (st == 1 || (u32)(st - 4) <= 1) {
+                v = *(s32*)(p + 0x830);
+                goto gotv;
+            }
+        }
+    }
+    v = *(s32*)(lbl_80275AE0 + idx * 0x335C + 0x830);
+gotv:
+    *(s32*)(pl + 0x830) = v;
+
+    saved = *(s32*)(pl + 0xF0);
+    change_player(idx, arg1);
+    *(s32*)(pl + 0xF0) = saved;
+
+    fn_80090C34(idx, 2, 0, 0, lbl_801144A0, lbl_801200B0[arg1 & 7]);
+
+    mbBlitProject(*(void**)((u8*)lbl_80284878 + idx * 132 + 24), -1, 320);
+
+    wflag = *(u32*)(pl + 0xF0) ? 0 : 1;
+    if (*(s32*)(pl + 0x1EC0) == 0) {
+        AudioWelcomeBack(idx, wflag);
+    } else {
+        AudioWelcome(idx, wflag);
+    }
 }
 
 int fn_8008F768(const char* name)
@@ -197,13 +261,50 @@ int fn_8008F768(const char* name)
     return strncmp(name, (const char*)lbl_80275AE0, 8);
 }
 
-void fn_8008F914(void)
+int fn_8008F914(u8* pl, s32 v)
 {
+    int i;
+    s32 a = *(s32*)(pl + 0x334C);
+    s32 b = *(s32*)(pl + 0x3350);
+    for (i = 0; i < 4; i++) {
+        u8* p = lbl_80275AE0 + i * 0x335C;
+        if (p != pl && *(s32*)(p + 0xE8) != 0 &&
+            *(s32*)(p + 0x334C) == a && *(s32*)(p + 0x3350) == b &&
+            *(s32*)(p + 0x3358) == v) {
+            return 0;
+        }
+    }
+    return 1;
 }
 
-void fn_8008F984(char* buf, int slot)
+void fn_8008F984(void)
 {
-    sprintf(buf, " SLOT  %d", slot);
+    u8* base = lbl_80284878;
+    char* buf = (char*)(base + 0x744);
+    int idx = 0;
+    int n = 0;
+
+    if (lbl_80344A18 == 3) {
+        if (lbl_80344610 == 2) {
+            sprintf(buf, lbl_80114718, 1, (s8)lbl_80343DEC);
+        } else {
+            if (n > 0) {
+                goto end;
+            }
+            sprintf(buf, lbl_80114724, 1, 0);
+        }
+        *(u32*)(base + 0x720) = (u32)buf;
+        *(s32*)(base + 0x724) = 1000;
+        if (lbl_80344A14 == 1) {
+            *(s32*)(base + 0x740) = 0;
+        } else {
+            *(s32*)(base + 0x740) = -1;
+        }
+        *(s32*)(base + 0x728) = 4;
+        idx = 1;
+    }
+end:
+    *(s32*)(base + idx * 36 + 0x720) = 0;
 }
 
 void fn_8008FA70(void)
@@ -225,15 +326,30 @@ s32 fn_8008FE70(s32 idx)
     int i;
     u8* p = lbl_80275AE0;
     for (i = 0; i < 4; i++, p += 0x335C) {
-        if (i == idx) {
-            return *(s32*)(p + 0x830);
+        if (i != idx) {
+            s32 st = *(s32*)(p + 0xE8);
+            if (st == 1 || (u32)(st - 4) <= 1) {
+                return *(s32*)(p + 0x830);
+            }
         }
     }
     return *(s32*)(lbl_80275AE0 + idx * 0x335C + 0x830);
 }
 
-void fn_8008FED4(void)
+int fn_8008FED4(void)
 {
+    int i;
+    int count = 0;
+    u8* p;
+    new_menu_accept(-1, 1);
+    p = lbl_80275AE0;
+    for (i = 0; i < 4; i++, p += 0x335C) {
+        if (*(s32*)(p + 0xE8) == 0 && (lbl_80344824 & (1 << i))) {
+            new_player(i);
+            count++;
+        }
+    }
+    return count;
 }
 
 /* Poll the async tower/geometry load: 0 while loading, 1 when it just
@@ -297,17 +413,52 @@ void init_player_select(int mode)
     MBCreateBlit(0, 0, 0, 0, 0, 0);
 }
 
-void fn_80090B6C(void)
+void fn_80090B6C(s32 arg0, s32 flag)
 {
-    mbBlitInit3414(0, 0);
+    s32 start, end;
+    s32 pg, j;
+    if (arg0 < 0) {
+        start = 0;
+        end = 3;
+    } else {
+        start = end = arg0;
+    }
+    for (pg = start; pg <= end; pg++) {
+        u8* pagebase = (u8*)lbl_80284878 + pg * 132;
+        for (j = 0; j < 11; j++) {
+            u8* entry = pagebase + j * 12;
+            u32 h = *(u32*)entry;
+            if (h != 0) {
+                if (flag != 0 || (j > 1 && j < 9)) {
+                    mbBlitInit3414((void*)h, 1);
+                } else {
+                    mbBlitInit3414((void*)h, 0);
+                }
+                *(s32*)(entry + 4) = 0;
+            }
+        }
+    }
 }
 
-void fn_80090C34(char* fmt)
+void fn_80090C34(s32 id, s32 slot, s32 flags, s32 hide, char* fmt, ...)
 {
-    char buf[128];
-    vsprintf(buf, fmt, 0);
-    mbInitBlitEntry();
-    mbBlitProject(0, 0, 0);
+    va_list ap;
+    void** entry;
+    void* tex;
+    char buf[32];
+
+    va_start(ap, fmt);
+    vsprintf(buf, fmt, ap);
+    tex = MBOX_FindTexture_Err(buf, 0, 1);
+    entry = (void**)((u8*)lbl_80284878 + id * 132 + slot * 12);
+    mbInitBlitEntry(*entry, (u32)tex, 0);
+    mbBlitInit3414(*entry, hide);
+    mbBlitProject(*entry, -1, -1);
+    mbBlitUpdateEntry(*entry, -1, flags);
+    fn_800B290C(*entry, 0);
+    if (flags & 0x4000) {
+        fn_800B28EC(*entry, 0x80808080, 0x80808080, 0x80808080, 0x80808080);
+    }
 }
 
 void fn_80090D6C(void)
