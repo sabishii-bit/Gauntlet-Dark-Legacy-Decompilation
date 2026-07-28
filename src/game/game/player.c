@@ -546,7 +546,7 @@ extern void PlayerMotion_SetAnimState(void* p);
 
 /* enemy/anim */
 extern void DoPlayerAction(void* p);
-extern void fn_80088688(void* p);
+extern void PlayerCheckMovingFloor(void* p);
 extern void fn_80089120(void* p);
 
 /* ------------------------------------------------------------------ */
@@ -1714,7 +1714,7 @@ void do_players(void) {
                 }
                 break;
             case 2:
-                fn_80088688(p);
+                PlayerCheckMovingFloor(p);
                 for (j = 0; j < 4; j++) {
                     s32 st;
 
@@ -1724,7 +1724,7 @@ void do_players(void) {
                 }
                 break;
             case 3:
-                fn_80088688(p);
+                PlayerCheckMovingFloor(p);
                 if (MBBackgroundLoading() == 0 && lbl_8034477C != 0x4013 &&
                     lbl_8034477C != 0x4017) {
                     activate_player(i);
@@ -1872,7 +1872,7 @@ void do_players(void) {
                 break;
             case 8:
                 PlayerProcessPowerups(p, 0, NULL);
-                fn_80088688(p);
+                PlayerCheckMovingFloor(p);
                 if (p->count_920 > 0) {
                     p->anim_20C = 0x7E;
                     if (p->anim_208 == 0x7E) {
@@ -2110,7 +2110,7 @@ extern void fn_800A0C00(void);
 extern void fn_800A1E6C(s32 player, s32 track, s32 sub);
 extern void fn_8008FC5C(s32 player);
 extern s32 fn_8008FE70(s32 player);
-extern void fn_8008A928(s32 player, s32 chartype, void* flag);
+extern void LoadPlyrData(s32 player, s32 chartype, void* flag);
 extern void fn_80031110(s32 player);
 extern void fn_80030C84(void* p);
 extern void fn_800E80D4(char* dst, char* src);
@@ -2120,7 +2120,7 @@ extern void* MBNewNode(void* parent, f32* mat, s32 a);
 extern s32 fn_80011BBC(void* modelbuf, char* name, void* atree_out, char* tmp, s32 size);
 extern void fn_800ADD24(void* atree, void* animctx, s32 bank);
 extern s32 fn_800B8E94(char* name, s32 a, s32 b, s32 dir);
-extern s32* fn_800114E8(void* atree, s32 idx);
+extern s32* AtreeFindMbidxNode(void* atree, s32 idx);
 extern void* fn_800B91C0(s32 node, f32* mat, void* c, u32 flags);
 extern void fn_800CEA18(s32 node, s32 a);
 extern s32 fn_800184E8(s32 model, char* fmt, char* code, char* d, s32 e, s32 f);
@@ -2163,7 +2163,7 @@ extern u32 MBOX_FindTexture2(char* name, s32* out); /* fn_800B8B04 */
 extern void fn_800184B8(s32 sfx);
 extern void ErrorPrintf(const char* fmt, ...);
 extern void fn_80097644(u8* node, s32 a, s32 player);
-extern void fn_8008A898(s32 player);
+extern void ClearPlyrData(s32 player);
 
 /* per-char save-stat block view: p + 0xA90 + character*0x18 */
 #define CHAR_STATS(p, t) ((s32*)((u8*)(p) + 0xA90 + (t) * 0x18))
@@ -2914,7 +2914,7 @@ void remove_player_geo(s32 i) {
     }
     MBRemoveNode(PF(p, 0x6C8, void*), 0);
     PF(p, 0x6C8, void*) = NULL;
-    fn_8008A898(i);
+    ClearPlyrData(i);
 }
 
 /* ------------------------------------------------------------------ */
@@ -2937,7 +2937,7 @@ void change_player(s32 i, s32 type) {
     if (p->char_type > 7) {
         p->char_type -= 8;
     }
-    fn_8008A928(i, type, NULL);
+    LoadPlyrData(i, type, NULL);
     player_get_from_save(p, type);
     if ((lbl_8034477C == 0x4010 || lbl_8034477C == 0x400B) && p->node != NULL) {
         remove_player_geo(i);
@@ -3009,7 +3009,7 @@ void clear_player(s32 i, s32 full) {
         PF(p, 0x333C, s32) = 0;
     }
     for (j = 0; j < 16; j++) {
-        fn_8008A928(p->index, j, NULL);
+        LoadPlyrData(p->index, j, NULL);
         CHAR_STATS(p, j)[2] = 0;
         CHAR_STATS(p, j)[3] = 0;
         CHAR_STATS(p, j)[4] = 0;
@@ -3026,7 +3026,7 @@ s32 activate_player(s32 i) {
     p->state = 1;
     PF(p, 0x830, s32) = fn_8008FE70(i);
     del_player_blits(i);
-    fn_8008A928(i, p->character, (void*)1);
+    LoadPlyrData(i, p->character, (void*)1);
     if (lbl_8034477C == 0x4010) {
         load_player(i);
         if (lbl_803447B8 == 0) {
@@ -3480,7 +3480,7 @@ void PlayerUpdateAtts(void* vp) {
     Player* p = vp;
     f32* r = lbl_80343D7C;
 
-    fn_8008A928(p->index, p->character, NULL);
+    LoadPlyrData(p->index, p->character, NULL);
     if (p->character != 2 || HIDDEN_CODE(p) != lbl_80343D6C) {
         check_player_atts(p, p->character, NULL);
     }
@@ -3504,7 +3504,7 @@ void set_player_default_atts(void* vp) {
     s32 j;
 
     for (j = 0; j < 16; j++) {
-        fn_8008A928(p->index, j, NULL);
+        LoadPlyrData(p->index, j, NULL);
         CHAR_STATS(p, j)[2] = 0;
         CHAR_STATS(p, j)[3] = 0;
         CHAR_STATS(p, j)[4] = 0;
@@ -3550,7 +3550,7 @@ void load_player_geo(s32 i, void* vp) {
         PF(p, 0x7F4, u32) = load_player_model(i, p, i, HIDDEN_CODE(p));
     }
     pad = p->class_id;
-    fn_8008A928(i, p->character, NULL);
+    LoadPlyrData(i, p->character, NULL);
     if (lbl_80344970 != 0) {
         fn_80030C84(p);
     }
@@ -3577,32 +3577,32 @@ void load_player_geo(s32 i, void* vp) {
     fn_800ADD24((u8*)p + 0x7C, (u8*)p + 0x210, 0x80126C68);
     if (lbl_8034477C != 0x4012 && lbl_8034477C != 0x400D &&
         lbl_8034477C != 0x400F && lbl_8034477C != 0x4016) {
-        fn_8008A928(i, p->character, (void*)1);
+        LoadPlyrData(i, p->character, (void*)1);
     }
     PF(p, 0x744, s32) = 0;
     /* attachment nodes */
     fn_800C9BD0(tbuf, "%s%s", (char*)p + 0x6C0, lbl_80120184[cls]);
     n = fn_800B8E94(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
-    nd = fn_800114E8((void*)PF(p, 0x7C, s32), n);
+    nd = AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
     PF(p, 0x6D0, s32) = (nd == NULL) ? 0 : *nd;
     fn_800C9BD0(tbuf, "%s%s", (char*)p + 0x6C0, lbl_80120144[cls]);
     n = fn_800B8E94(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
-    nd = fn_800114E8((void*)PF(p, 0x7C, s32), n);
+    nd = AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
     PF(p, 0x6CC, s32) = (nd == NULL) ? 0 : *nd;
     fn_800C9BD0(tbuf, "%sCFGLOW", (char*)p + 0x6C0);
     n = fn_800B8E94(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), -1);
-    nd = (n < 0) ? NULL : fn_800114E8((void*)PF(p, 0x7C, s32), n);
+    nd = (n < 0) ? NULL : AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
     PF(p, 0x6D8, s32) = (nd == NULL) ? 0 : *nd;
     if (nd != NULL) {
         MBTreeSetFlags((void*)*nd, 0x800810, 0);
     }
     fn_800C9BD0(tbuf, "%sHEAD", (char*)p + 0x6C0);
     n = fn_800B8E94(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
-    nd = fn_800114E8((void*)PF(p, 0x7C, s32), n);
+    nd = AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
     PF(p, 0x6D4, s32) = (nd == NULL) ? 0 : *nd;
     fn_800C9BD0(tbuf, "%sTORSO", (char*)p + 0x6C0);
     n = fn_800B8E94(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
-    nd = fn_800114E8((void*)PF(p, 0x7C, s32), n);
+    nd = AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
     PF(p, 0x6DC, s32) = (nd == NULL) ? 0 : *nd;
     /* weapon */
     if (lbl_80344970 != 0) {
@@ -4622,7 +4622,7 @@ void check_player_atts(void* vp, s32 chartype, s32* stats) {
     if (stats == NULL) {
         stats = CHAR_STATS(p, chartype);
     }
-    fn_8008A928(p->index, chartype, NULL);
+    LoadPlyrData(p->index, chartype, NULL);
     cls = lbl_80282930[p->index];
 
     cap = PF(cls, 0x2C, f32);

@@ -1,0 +1,52 @@
+/*
+ * atree.c -- GCN ATREE.OBJ scaffold.
+ *
+ * The PDB function roster maps in reverse source order from DoTexMods through
+ * AtreeMatch.  The large construction tail remains address-named where GCN
+ * inlining prevents a one-to-one roster assignment.
+ *
+ * .text       0x80010A4C..0x800137BC
+ * extab       0x80005590..0x80005678
+ * extabindex  0x800088A8..0x80008A04
+ */
+
+#define STUB(address, name) void name(void) {}
+
+STUB(0x80010A4C, DoTexMods)
+STUB(0x80010AB0, FindTexMod)
+STUB(0x80010B4C, InitTexMods)
+STUB(0x80010BB8, AtreeFindNode)
+STUB(0x80010C74, AtreeFindNodeIdx)
+STUB(0x80010D14, AtreeHeaderFindSeq)
+STUB(0x80010D84, AtreeFindSeq)
+STUB(0x80010DF4, fn_80010DF4)
+STUB(0x80010E84, fn_80010E84)
+STUB(0x80010EB0, AtreeInitLists)
+STUB(0x80010FA0, AtreeListInit)
+STUB(0x8001101C, fn_8001101C)
+STUB(0x80011104, fn_80011104)
+STUB(0x80011134, fn_80011134)
+STUB(0x80011334, fn_80011334)
+STUB(0x800114E8, AtreeFindMbidxNode)
+STUB(0x800115D0, fn_800115D0)
+STUB(0x80011628, fn_80011628)
+STUB(0x800116EC, fn_800116EC)
+STUB(0x80011750, fn_80011750)
+STUB(0x800117EC, fn_800117EC)
+STUB(0x800119DC, fn_800119DC)
+STUB(0x80011A74, fn_80011A74)
+STUB(0x80011B6C, fn_80011B6C)
+STUB(0x80011BBC, fn_80011BBC)
+STUB(0x80011D1C, AtreeMatch)
+STUB(0x80011DCC, fn_80011DCC)
+STUB(0x8001267C, fn_8001267C)
+STUB(0x80012F78, fn_80012F78)
+STUB(0x80012F9C, fn_80012F9C)
+STUB(0x8001326C, fn_8001326C)
+STUB(0x800132F0, fn_800132F0)
+STUB(0x8001331C, fn_8001331C)
+STUB(0x80013390, fn_80013390)
+STUB(0x80013480, AtreeNodeInit)
+STUB(0x800136E4, AnimDataNodeNew)
+
+#undef STUB

@@ -757,7 +757,7 @@ s32 fn_800629B0(void)
  * 8005F0F4  0x0A54  fn_ : big per-object worker (fn_8005FDA8, fn_800A20F8,
  *                    fn_800BCB44, fn_800BD938)
  * 8005FB48  0x0260  fn_ : (fn_8002FA70, fn_8005FDA8, fn_800BCB44)
- * 8005FDA8  0x01B8  fn_ : (FatalError, fn_8000E3B8, fn_800BDB1C/DD00/DE80).
+ * 8005FDA8  0x01B8  fn_ : (FatalError, CTriListCollide, fn_800BDB1C/DD00/DE80).
  *                    "COL_OBJECT Item: idx < 0"
  * 8005FF60  0x01B4  fn_ : (ErrorPrintf, fn_80055CB8).
  *                    "Special trigger has no target"

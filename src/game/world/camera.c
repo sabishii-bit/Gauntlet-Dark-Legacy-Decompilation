@@ -28,7 +28,7 @@
  *   0x80027608 DoShake                  apply active shake offset to a position [global]  BODY
  *   0x80027838 ShakeCamera              trigger a shake (priority-gated)        [global]  BODY
  *   0x80027870 camera_orbit_update      orbit helper (-> camera_collide_step)   (local)   doc-only
- *   0x80027CA4 camera_collide_step      collision step (fn_8000E73C)            (local)   doc-only
+ *   0x80027CA4 camera_collide_step      collision step (PointLineColl)           (local)   doc-only
  *   0x80028394 camera_mode_spin         sin/cos mode (-> camera_approach_yaw)   (local)   doc-only
  *   0x80028560 camera_approach_yaw      rate-limit a cam yaw toward a target    (local)   BODY
  *   0x80028670 camera_mode_orbit        sin/cos orbit mode (-> camera_lerp_yaw) (local)   doc-only

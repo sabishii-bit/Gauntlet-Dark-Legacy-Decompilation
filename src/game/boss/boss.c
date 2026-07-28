@@ -109,7 +109,7 @@ extern s32         sMusicTrackHi;         /* 0x803448D8 world index */
 extern f32         lbl_80344590;          /* physics timestep */
 extern f32         lbl_80344880;          /* ground-probe height */
 
-extern f64  fn_8000D3C4(f64 a, f64 b, void* c, u32 d);   /* ground/collision query */
+extern f64  FloorPos(f64 a, f64 b, void* c, u32 d);   /* ground/collision query */
 extern void fn_8005A3B8(void* p);
 
 extern int   sprintf(char* buf, const char* fmt, ...);
@@ -349,7 +349,7 @@ void ProcessSpewItems(void) {
         h = 10.0f;
         lim = 0.5 * lbl_80344590;
         if (it->vy <= 0.0f) {
-            f64 g = fn_8000D3C4(lbl_80344880, 1.0f, (char*)obj + 0x34, 0);
+            f64 g = FloorPos(lbl_80344880, 1.0f, (char*)obj + 0x34, 0);
             h = *(f32*)((char*)obj + 0x38) - (f32)(1.0 + g);
             if (h < 0.1) {
                 *pvy = (f32)(0.4 * -*pvy);

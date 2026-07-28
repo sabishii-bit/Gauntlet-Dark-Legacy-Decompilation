@@ -131,8 +131,8 @@ extern f32 fn_800BCB44(f32 x, f32 z);               /* 2D magnitude */
 extern f32 NormalVector(f32* vector);
 extern void fn_8005A65C(f32* worldmat, f32* coll_offset); /* refresh coll_pos */
 extern s32 DeleteEffect(s32 idx, s32 mode);         /* sfx.c 0x80097790 */
-extern void* fn_8000D1E0(f32 rad, f32* from, f32* to, f32* hitnrm); /* world probe */
-extern s32 fn_8000D034(f32 rad, f32* pos, f32* trans, f32* hitnrm, f32* out);
+extern void* EnemyWallCollide(f32 rad, f32* from, f32* to, f32* hitnrm); /* world probe */
+extern s32 SlideAlongWall(f32 rad, f32* pos, f32* trans, f32* hitnrm, f32* out);
                                                     /* wall slide/deflect */
 extern s32 fn_8005D20C(s32 index, f32* oldc, f32* newc, s32 moved);
                                                     /* player collide + damage */
@@ -384,13 +384,13 @@ void do_enemy_move(s32 index)
                 rad2 = (f32)(rad * 1.5);
                 half[1] = oldpos[1] + e->trans[1];
                 half[2] = oldpos[2] + e->trans[2];
-                lbl_80344730 = fn_8000D1E0(rad2, oldpos, half, lbl_802510F4);
+                lbl_80344730 = EnemyWallCollide(rad2, oldpos, half, lbl_802510F4);
                 if (lbl_80344730 != 0) {
                     EnemyWorldDamage(e, lbl_80344730, oldpos, lbl_802510F4);
                     if (*(u32*)((u8*)lbl_80344730 + 16) & 0x38) {
                         result = 0;
                     } else if (!(e->ai_flags & 1)
-                               && fn_8000D034(rad2, oldpos, e->trans,
+                               && SlideAlongWall(rad2, oldpos, e->trans,
                                               lbl_802510F4, lbl_8023CA98[1]) < 0) {
                         result = 2;
                         e->trans[2] = 0.0f;
