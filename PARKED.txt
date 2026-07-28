@@ -34,7 +34,16 @@ MBFontMsgSetAlpha          # sched (mb_font)
 pbObjTexSub                # isel, slwi/mr/rlwimi vs clrlwi/rlwimi x3 (pb_objects); flag-proof (flagsweep 2026-07)
 fn_800C37C4                # sched, buf r5<->r6 (pb_objects pool-init hook)
 fn_800C7214                # renum+sched, r8<->r10 (pb_texture)
-vsprintf                   # sched, ~26-line head spill + ch/fmark web (crt; GC/1.2.5 — cvt went EXACT on unpin from 1.2.5n)
+vsprintf                   # sched, 26 lines / 665 insns, ONE emission-order divergence: target emits the two
+                           # switch-lowering frame-cache inits (jumptable base->436(r1), 0x7ff00000 case-cmp->440(r1))
+                           # BEFORE the blanks/zeroes decl-init copies; ours emits them at preheader end. Everything
+                           # else cascades deterministically: HA/LO coalesce (r3,r3) vs split (r3,r0), fmt/ap copy
+                           # mr<->addi form swap, copy-block pair temp r0-vs-r3, scan-ch web r21-vs-r22 (RA runs
+                           # post-schedule). EXHAUSTED 2026-07-27: both compilers identical output; flagsweep all
+                           # variants >=20; 15 decl-order/statement variants identical; register kw, scan/loop
+                           # spellings, inner-scope decls (copies stay in-loop, back-edge moves), p-workcopy identity
+                           # all worse; int flags confirmed right (u32 = +2). No grouping-law pattern in the diff.
+                           # Cache-group placement is compiler-internal - no source spelling reaches it. (crt; GC/1.2.5)
 bsearch                    # regalloc (MSL)
 
 # GATED (not walls — blocked on another reconstruction; see file comments):
@@ -48,12 +57,24 @@ do_screen2d                # sched, 2 transposed SDA loads + 2 reloc-alias lines
 dcsHandleRequest           # renum+copy, param rotation r28/r29/r30 + state addi-via-r0 mr; clamp bge/b FIXED (input[1]<240?:240 arg-ternary, no local); ops 412/411; state first/second/decl-init + SetStreamName guts all color-neutral (2026-07 webs); FLIP GATE for dcsdrv
 fn_800B290C                # renum, leaf temp-color tie r0/r4/r5 (mb_blit SetAlpha head fn)
 fn_800B27C4                # renum, tpms/1000 web order + f0/f1 conv tie (mb_blit pad-test driver)
-pbRenderNode               # copy+renum, uninit MBSetupObject arg4 materialized fmr f1,f31 + fl&1 CSE'd vs per-site clrlwi + frame +8 (pb_tree)
-CameraFace                 # renum+sched, mask temp r5-fresh vs r3-inplace cluster (pb_tree)
-UpdateFXStreak             # sched+renum, quad-block fwd/p1 double-fmadd hoist order + p1x/p1y<->w0/w1 web swap; insns 138/138, frame+array layout exact (sfx.c)
+pbRenderNode               # renum+PRE, 93 lines (was 108): f31 SOLVED 2026-07-27 (arg4 = alpha_tree_dist, already
+                           # in f1 from the compare - NOT an uninit local; frame now matches) + ErrorPrintf polarity
+                           # fixed (calls when dist>=0). Residual: (fl&1) PRE-hoisted into r29 vs per-site clrlwi
+                           # (pragma common_subs off is worse) + slwi slot + downstream renumber (pb_tree)
+CameraFace                 # renum+sched, mask temp r5-fresh vs r3-inplace + fl r4-reuse webs; 28 lines; named-mode
+                           # local and commuted operand tested 2026-07-27 (worse/no-op) (pb_tree)
+UpdateFXStreak             # NOT pure sched: quad block has fmadd-vs-fmadds + frsp-count + lfd placement diffs =
+                           # f32-vs-double INTERMEDIATE structure in one quad expression (see recipes: double
+                           # literals/intermediates); needs FP respelling pass, not renum (insns 138/138) (sfx.c)
 fn_8009190C                # sched, tail addr-math interleave around mat-null beq (sfx.c, 12 lines)
 StartDeathFX               # renum only now (77/77; e=&page->fx[idx] fixed the 2976 fold 2026-07); head mr-placement + rotation remain
 fn_80091AC0                # assoc, (page+idx*240)+2976 vs page+(idx*240+2976); 6 lines; flag-proof + spelling-proof (flagsweep 2026-07)
+fn_80091AC0                # assoc, (page+idx*240)+2976 vs page+(idx*240+2976); 6 lines; flag-proof + spelling-proof;
+                           # 2026-07-27: idx+K fold law inapplicable (mulli stride, no distribution); int-transit +
+                           # cross-stmt splits dissolve; CONFIRMED parked (sfx.c)
+StartEnemyAtkFX            # renum, idx/h/t1/t2 coloring rotation vs StartFXSub scheme; insns equal (sfx.c)
+StartGenFX                 # renum, same rotation; insns 64/64 (sfx.c)
+StartEnterFX               # renum, same rotation; 22 lines (sfx.c)
 StartBlockFX               # renum only now (74/74; e-form fixed the fold 2026-07); tail lwz-hoist + rotation remain
 StartMagicHealFX           # renum, 6 lines left: row-add temp r4-vs-r27 (e single-web form); guts-inline killed the rest (2026-07 webs)
 
@@ -78,12 +99,13 @@ fn_800C6350                # renum, tail {r5,r8} cond/t web swap; insns equal (p
 fn_800C64A4                # sched, default-arm clrrwi/stw 2-insn drift; insns equal (pb_objregs)
 pbSetDODrawRegs            # renum, loaded/val/bank0 rotation + clrlwi prologue slot; insns equal (pb_objregs)
 fn_800C0BD4                # copy+renum, lwzu w-copy + t/w addi survivor; multiset +1 mr (pb_winglobals free)
-fn_800C0CF4                # isel, (off+K) index+stfsx vs (ctx+off)+K disp fold; per-store multiset equal (pb_winglobals reset)
-fn_800C1004                # isel+renum, byte-replicate base pick (slwi24 vs rlwinm16) + p+4 fold + mask-pair webs (pb_winglobals flip)
+fn_800C1004                # renum ONLY now (71/71 REGISTER_ONLY, 52 lines; was isel+renum 65): replicate order,
+                           # signed-k guard, p+4 addi (q=p+1), comma-init all solved 2026-07-27; residual = one
+                           # volatile-coloring rotation (long webs r5.. vs target r7.., off/so low) (pb_winglobals flip)
 dbgTextInit                # renum, r0/r3 zero/color constant-web swap; 6 insns (dbgtext)
 fn_800C031C                # renum, off/cell {r4,r5,r7} rotation; multiset equal (dbgtext bind)
-fn_800C0AA4                # isel, target dup base+off add (no-CSE) vs our single; 13 lines (dbgtext latch)
-fn_800C1624                # isel+sched, &m14 addi placement + second-read fold; 17 lines (pb_frame)
+fn_800C1624                # sched, 2 lines only now (was 17; q-pointer restructure 2026-07-27): addi/lwz slot swap
+                           # in the m14-guard block; 3 spellings tied (pb_frame)
 fn_800C31C4                # renum, dead li r3,0 remat + r3/r4/r5 rotation; 48 lines (pb_frame)
 fn_800C32D0                # renum, same class as fn_800C31C4 (pb_frame)
 FaceCamMat                 # isel, ONE fcmpu operand order (var-first vs const-first on == sZero); 7 source forms tried; THE 2-byte gate on the mb_objects flip (pool owned + byte-exact, all other fns EXACT)

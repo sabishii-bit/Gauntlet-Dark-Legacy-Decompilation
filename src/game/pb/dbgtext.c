@@ -41,6 +41,13 @@ void fn_800C03E0(s32 mode);
 
 extern u32 lbl_802C45CC[];   /* debug-cell array base (.data) */
 extern u32 lbl_802C45C0[];   /* debug-graph state block (.data) */
+
+typedef struct DbgGraphCell {
+    u32 unk0;
+    u32 unk4;
+    u32 unk8;
+    u32 acc; /* per-slot accumulator, latched by fn_800C0AA4 */
+} DbgGraphCell; /* 16-byte graph slot */
 extern u32 lbl_80344F70;
 extern u32 lbl_80344F74;
 extern u32 lbl_80344F78;
@@ -278,16 +285,12 @@ void fn_800C03E0(s32 mode)
 /* Latch a graph slot: move its accumulator to the display field. */
 void fn_800C0AA4(s32 idx)
 {
-    u8* b = (u8*)lbl_802C45C0;
-    u32* p;
-    u32* q;
+    DbgGraphCell* p = (DbgGraphCell*)lbl_802C45C0;
 
     if (lbl_80344F80 == 0) {
         return;
     }
-    p = (u32*)(b + idx * 16);
-    q = (u32*)(b + idx * 16);
-    q[6] = p[3];
-    p[3] = 0;
-    q[4] = 0;
+    p[idx + 1].unk8 = p[idx].acc;
+    p[idx].acc = 0;
+    p[idx + 1].unk0 = 0;
 }

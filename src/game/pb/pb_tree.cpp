@@ -265,7 +265,7 @@ void pbRenderNode(PBTREENODE* node)
 
     switch (node->type) {
     case 3:
-        if (!(alpha_tree_dist >= 0.0)) {
+        if (alpha_tree_dist >= 0.0) {
             ErrorPrintf("ALPHATREE_NODE child of ALPHATREE_NODE");
         }
         vec4ApplyTrans(res, *(vec4*)((char*)mat + 48),
@@ -281,8 +281,8 @@ void pbRenderNode(PBTREENODE* node)
             break;
         }
         if (alpha_tree_dist >= 0.0) {
-            f32 unused;
-            MBSetupObject(node, mat, fl & 1, unused, alpha_tree_dist_add);
+            MBSetupObject(node, mat, fl & 1, alpha_tree_dist,
+                          alpha_tree_dist_add);
             alpha_tree_dist_add -= 1.0;
         } else {
             MBSetupObject(node, mat, fl & 1, 0.0f, 0.0f);

@@ -195,33 +195,36 @@ s32 fn_800C0BD4(u32 sel)
 void fn_800C0CF4(void)
 {
     PbWGGlobals* g = gWinGlobals;
-    s32 n;
-    u8* off;
+    s32 i;
     u32 prev;
 
-#define CTXI (*(u32*)&g->ctx)
-    off = 0;
+/* flat word-indexed view of the ctx page: word 163 = wins[0].v0[0] (0x28C).
+ * The constant lives in the SUBSCRIPT so it folds into the INDEX register
+ * (addi off+652 / stfsx), and every statement re-derefs g->ctx (pointer
+ * stores force the reload) -- the target's exact shape. */
+#define CTXF ((f32*)g->ctx)
+#define CTXW ((u32*)g->ctx)
     prev = 0;
-    for (n = 12; n != 0; n--) {
-        *(f32*)(CTXI + (u32)(off + 0x28C)) = 1.0f;
-        *(f32*)(CTXI + (u32)(off + 0x290)) = 1.0f;
-        *(f32*)(CTXI + (u32)(off + 0x294)) = 1.0f;
-        *(f32*)(CTXI + (u32)(off + 0x298)) = 0.0f;
-        *(f32*)(CTXI + (u32)(off + 0x29C)) = 0.0f;
-        *(f32*)(CTXI + (u32)(off + 0x2A0)) = 0.0f;
-        *(f32*)(CTXI + (u32)(off + 0x2A4)) = 0.0f;
-        *(f32*)(CTXI + (u32)(off + 0x2A8)) = 0.0f;
-        *(f32*)(CTXI + (u32)(off + 0x2AC)) = 0.0f;
-        *(f32*)(CTXI + (u32)(off + 0x2B0)) = 1.0f;
-        *(u32*)(CTXI + (u32)(off + 0x2B4)) = prev;
-        *(u32*)(CTXI + (u32)(off + 0x2B8)) = 0;
-        prev = CTXI + (u32)(off + 0x28C);
-        off += 0x50;
+    for (i = 0; i < 240; i += 20) {
+        CTXF[i + 163] = 1.0f;
+        CTXF[i + 164] = 1.0f;
+        CTXF[i + 165] = 1.0f;
+        CTXF[i + 166] = 0.0f;
+        CTXF[i + 167] = 0.0f;
+        CTXF[i + 168] = 0.0f;
+        CTXF[i + 169] = 0.0f;
+        CTXF[i + 170] = 0.0f;
+        CTXF[i + 171] = 0.0f;
+        CTXF[i + 172] = 1.0f;
+        CTXW[i + 173] = prev;
+        CTXW[i + 174] = 0;
+        prev = (u32)((u8*)g->ctx + i * 4 + 652);
     }
     g->ctx->free = (PbWGWin*)prev;
     g->ctx->active = 0;
     g->ctx->ma0 = 0;
-#undef CTXI
+#undef CTXF
+#undef CTXW
 }
 
 /* Set the current window's first UV pair. */
@@ -347,32 +350,33 @@ void fn_800C1004(void)
     }
     if (lbl_80343F78 >= 0) {
         u32 b = 1 << lbl_80343F78;
-        u32 m = ~(((b & 0xFF) << 16) | ((b & 0xFF) << 24) |
-                  ((b & 0xFF) << 8) | (b & 0xFF));
+        u32 m;
         u32 mm[2];
         u64 mk;
-        s32 off = 0;
+        s32 off;
+
+        m = ~(((b & 0xFF) << 24) | ((b & 0xFF) << 16) |
+              ((b & 0xFF) << 8) | (b & 0xFF));
         mm[0] = m;
         mm[1] = mm[0];
         mk = *(u64*)mm;
-        for (i = 0; i < g->banks[0].m0; i++) {
-            u8* p = (u8*)g->banks + off;
-            s32 busy = *(s32*)(p + 0x10);
-            p += 4;
+        for (i = 0, off = 0; i < g->banks[0].m0; i++, off += 0x10) {
+            s32* p = (s32*)((u8*)g->banks + off);
+            s32 busy = p[4];
+            s32* q = p + 1;
             if (busy == 0) {
-                PbWGBank* bank = *(PbWGBank**)p;
+                PbWGBank* bank = *(PbWGBank**)q;
                 u32 nslots = bank->nslots;
                 if (nslots != 0) {
                     u8* stamps = bank->stamps;
                     s32 so = 0;
-                    u32 k;
-                    for (k = (nslots + 7) >> 3; k != 0; k--) {
+                    s32 k;
+                    for (k = (nslots + 7) >> 3; k > 0; k--) {
                         *(u64*)(stamps + so) &= mk;
                         so += 8;
                     }
                 }
             }
-            off += 0x10;
         }
     }
     lbl_803450FC[lbl_80343F78] = lbl_803450F4[lbl_80343F78];

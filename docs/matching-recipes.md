@@ -198,6 +198,39 @@ GC/1.2.5 + cflags_demo pipeline). Laws, in application order:
   rotate webs two blocks away (research/webs p/q series), which is why
   local grinding fails and structure-level levers (helper, local deletion)
   are the only reliable ones.
+## Additions (law-pass session, 2026-07-27)
+
+- **`p[idx+K].field` displacement fold defeats CSE**: `p[idx+1].f8 = p[idx].f12`
+  emits TWO adds of the SAME value (add base,idx*S each) because the +K*S
+  constant folds into the ACCESS displacement, making the address expressions
+  differ pre-fold (dbgtext fn_800C0AA4 EXACT). POWER-OF-2 strides only —
+  mulli-based strides (240) re-canonicalize the constant into the index side
+  no matter the spelling (fn_80091AC0 stays parked).
+- **Constant in the SUBSCRIPT folds into the INDEX register**: target
+  `addi rX,iv,652 ; stfsx v,ctx,rX` = flat word-array subscript
+  `((f32*)g->ctx)[iv + 163]` (const inside the brackets). The struct/field
+  spelling and byte-math both give the (base+iv)+disp form instead. Combine
+  with per-statement `g->ctx` re-derefs when the target reloads the base
+  before every store (pointer stores force it) — pb_winglobals fn_800C0CF4
+  MATCHED this way. Respell address-of consts in the same byte terms
+  (`(u32)((u8*)g->ctx + i*4 + 652)`) so they CSE with the store indices.
+- **Same-block read folds, cross-block use materializes**: `q = &s->m14;
+  if (*q == 0) { *q = v; }` — the condition read emits as the FIELD form
+  (lwz 20(s)) while the addi survives for the cross-block store (pb_frame
+  fn_800C1624 17->2). A pointer INCREMENT (`p += 4`/`p++`) gets dissolved by
+  copy-prop; a SEPARATE pointer local (`q = p + 1`) with its use in the next
+  block keeps the addi (pb_winglobals fn_800C1004).
+- **OR-chain base pick is right-operand-first**: in a flat left-assoc
+  `a | b | c | d`, the SECOND term becomes the rlwinm base, then a, c, d as
+  rlwimi. Reorder terms (24,16,8,0 to get base 16) instead of grouping.
+- **fmr f1,f31 + stfd f31 on an "uninitialized" float arg** = the arg is a
+  live value already sitting in f1 (e.g. the global just compared:
+  `alpha_tree_dist`), not a garbage local. An uninit local's web spans from
+  fn ENTRY, crosses calls, and lands in a nonvolatile — the tell that the
+  reconstruction invented it (pbRenderNode).
+- **for-statement comma clauses order the inits/increments**: target
+  `li i,0 ; li off,0` + tail `addi i,1 ; addi off,16` = `for (i = 0, off = 0;
+  ...; i++, off += 0x10)` — decl-init `off = 0` flips the init order.
 
 ## Additions (sfx refinement pass)
 
