@@ -310,3 +310,9 @@ towerRuneNearAudio         # sched, 16 lines (was 24): insns 66/66 EXACT, bit/re
                            # while ours materializes it before mtctr (li r5,1); cascades to offset r5-vs-r3,
                            # base r4-vs-r5, char*240 mulli temp r3-vs-r4. Named-bit-local = 24 lines (worse);
                            # LICM form best. 3-cap reached (tower)
+fn_80065D98                # gate=return-via-r0-mr + minp two-reg split (volatile alloc, source-unreachable)
+fn_80063F10                # gate=count/it/off 3-way web rotation (structure byte-exact, decl-order/break tried)
+SetPlayerStartPos          # gate=store-block stfsu fusion + idx*12 reg + iarr assoc (schedule, ~35 lines)
+fn_80067904                # gate=tail f0/f1 swap on 188/184 sdata2 consts (FP renum, head exact)
+PlaceItem                  # gate=reload-addr r27 CSE + def/i/body web rotation + 8B frame (structure correct)
+LinkTriggerToCam           # gate=cam-ptr assoc (base+idx*40)+5652 vs base+(idx*40+5652) canonicalizer, cascades regalloc (~123 lines)

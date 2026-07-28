@@ -112,7 +112,7 @@ struct mbnode* ItemGetNode(s32 idx);
 Item* NewItemPtr(void);
 Item* AddItem(void* a, void* b);
 void  AddItemInstList(void);
-void* PlaceItem(char* name, void* a, void* b);
+Item* PlaceItem(s32 type, s32 level, char* name, void* matrix);
 void  SetItem(Item* item, s32 flag, void* a, void* b);
 void  MatchTransporters(void);
 void  AddLocatorInstList(void* list, s32 count);
