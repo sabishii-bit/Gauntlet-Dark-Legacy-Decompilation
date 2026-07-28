@@ -195,7 +195,9 @@ typedef struct Player {
     /* 0x095A */ u8  pad_095A[0xA];
     /* 0x0964 */ s16 hud_flags;      /* 0x20 = attached (lha in target) [player.c] */
     /* 0x0966 */ s16 hud_flags2;     /* 1 = info written, 2 = runes written [player.c] */
-    /* 0x0968 */ u8  pad_0968[0xF8];
+    /* 0x0968 */ u8  pad_0968[0xCC];
+    /* 0x0A34 */ s32 milestone[5];   /* recently visited milestone nodes [items.c] */
+    /* 0x0A48 */ u8  pad_0A48[0x18];
     /* 0x0A60 */ s32 display_mode;   /* HUD display mode (get_display_mode) [player.c] */
     /* 0x0A64 */ u8  pad_0A64[0x1C];
     /* 0x0A80 */ char name[8];       /* player name, underscore shown as space [player.c] */

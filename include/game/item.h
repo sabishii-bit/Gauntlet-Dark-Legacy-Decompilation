@@ -12,6 +12,7 @@
 
 struct iteminfo;
 struct mbnode;
+struct Player;
 
 /* Camera/lookout waypoint record.  Only the two link fields at the tail have
  * been identified so far; the preceding camera parameters remain opaque. */
@@ -125,7 +126,7 @@ s32   ClosestStartPos(f32* pos);
 s32   ShowCameras(s32 idx);
 s32   ShowMilestones(s32 idx);
 void  GetMilestonePos(s32 idx, f32* out);
-void  update_player_milestone(void);
+void  update_player_milestone(struct Player* player);
 void  RuneCamActivate(s32 idx);
 void  WindowCamActivate(s32 idx);
 void  SumnerCamActivate(s32 idx, s32 sub);

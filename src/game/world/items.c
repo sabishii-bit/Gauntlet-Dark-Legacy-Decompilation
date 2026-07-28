@@ -153,6 +153,17 @@ extern char  sUnableToAddItemFmt[];
 extern char  sTriggerCameraConflictFmt[];
 extern s32   sMusicTrackHi;
 extern int   strcmp(const char* a, const char* b);
+extern u8    gCameras[];
+extern f32   lbl_80346F50;
+extern f32   lbl_80347038;
+extern f32   lbl_8034709C;
+extern f64   lbl_80346FC8;
+extern f64   lbl_80347120;
+extern f64   sMilestoneHeightTolerance;
+extern f64   sMilestoneDistanceTolerance;
+extern s32   MBWorldSphereVisible3(f32* position, f32 radius);
+extern void  GetPlayerPos(s32 player, f32* position);
+extern f32   fqdist(f32 x, f32 y);
 
 static u32 AtreeMatchAnyHeader(char* name, s32 alsoWads);
 
@@ -695,6 +706,83 @@ s32 generate_now(Item* it, f32* pos, s32 a3, s32 a4)
     return 1;
 }
 
+double DistanceToClosestPlayer(f32* position)
+{
+    f64 best;
+    u8 unused[16];
+
+    best = lbl_80347038;
+    if ((s32)gGameMode == 0x8008) {
+        f32 sphere[4];
+        volatile f32 root;
+        f32 dy;
+        f32 dx;
+        f32 dz;
+        f64 distance;
+
+        sphere[0] = position[0];
+        sphere[1] = position[1];
+        sphere[2] = position[2];
+        sphere[3] = sItemZero;
+        dy = *(f32*)(gCameras + 0x38) - sphere[1];
+        dx = *(f32*)(gCameras + 0x34) - sphere[0];
+        dz = *(f32*)(gCameras + 0x3C) - sphere[2];
+        distance = dx * dx + dy * dy + dz * dz;
+        if (distance > sItemZero) {
+            f64 estimate = __frsqrte(distance);
+            estimate = sArrowFloorYOffset * estimate *
+                       (lbl_80346FC8 - estimate * estimate * distance);
+            estimate = sArrowFloorYOffset * estimate *
+                       (lbl_80346FC8 - estimate * estimate * distance);
+            estimate = sArrowFloorYOffset * estimate *
+                       (lbl_80346FC8 - estimate * estimate * distance);
+            root = (f32)(distance *
+                         (sArrowFloorYOffset * estimate *
+                          (lbl_80346FC8 - estimate * estimate * distance)));
+            distance = root;
+        }
+        if (distance < lbl_80347120 &&
+            MBWorldSphereVisible3(sphere, lbl_80346F50) != 0) {
+            best = lbl_8034709C;
+        }
+    } else {
+        u8* player = gPlayers;
+        s32 i;
+
+        for (i = 0; i < 4; i++, player += 0x335C) {
+            if (*(s32*)(player + 0xE8) == 1) {
+                volatile f32 root;
+                f32 dy = *(f32*)(player + 0x48) - position[1];
+                f32 dx = *(f32*)(player + 0x44) - position[0];
+                f32 dz = *(f32*)(player + 0x4C) - position[2];
+                f64 distance = dx * dx + dy * dy + dz * dz;
+
+                if (distance > sItemZero) {
+                    f64 estimate = __frsqrte(distance);
+                    estimate = sArrowFloorYOffset * estimate *
+                               (lbl_80346FC8 -
+                                estimate * estimate * distance);
+                    estimate = sArrowFloorYOffset * estimate *
+                               (lbl_80346FC8 -
+                                estimate * estimate * distance);
+                    estimate = sArrowFloorYOffset * estimate *
+                               (lbl_80346FC8 -
+                                estimate * estimate * distance);
+                    root = (f32)(distance *
+                                 (sArrowFloorYOffset * estimate *
+                                  (lbl_80346FC8 -
+                                   estimate * estimate * distance)));
+                    distance = root;
+                }
+                if (distance < best) {
+                    best = distance;
+                }
+            }
+        }
+    }
+    return best;
+}
+
 /* is this object claimed by a selecting player (ret 2) or a live enemy (1)? */
 s32 did_generate(void* owner, s32 checkEnemies)
 {
@@ -858,13 +946,15 @@ s32 SafeRockActive(s32 idx)
 s32 ItemVisible(Item* it)
 {
     s32 val  = gNumPlayers;
-    s32 minp = it->minplayers;
+    s32 raw_minp = it->minplayers;
+    s32 minp = raw_minp;
     s32 useEq = 0;
+    s32 visible;
 
     if (gGameMode & 0x8000) {
         val = 2;
     }
-    if (minp > 10) {
+    if (raw_minp > 10) {
         useEq = 1;
         minp -= 10;
     }
@@ -874,14 +964,18 @@ s32 ItemVisible(Item* it)
     }
     if (useEq) {
         if (val == minp) {
-            return 1;
+            visible = 1;
+        } else {
+            visible = 0;
         }
-        return 0;
+    } else {
+        if (val >= minp) {
+            visible = 1;
+        } else {
+            visible = 0;
+        }
     }
-    if (minp <= val) {
-        return 1;
-    }
-    return 0;
+    return visible;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1010,10 +1104,9 @@ s32 RandItemIdx(s32 n, s32 mod, s32 advance) {
     } else {
         result = 0;
     }
-    if (advance == 0) {
-        return (s32)result;
+    if (advance != 0) {
+        sItemRandSeed += 439;
     }
-    sItemRandSeed += 439;
     return (s32)result;
 }
 
@@ -1102,6 +1195,85 @@ void GetMilestonePos(s32 idx, f32* out)
     out[0] = *(f32*)(milestone + 0x3E44);
     out[1] = *(f32*)(milestone + 0x3E48);
     out[2] = *(f32*)(milestone + 0x3E4C);
+}
+
+void update_player_milestone(struct Player* player_ptr)
+{
+    u8* player = (u8*)player_ptr;
+    u8* runtime = (u8*)&sItemRuntime;
+    struct {
+        union {
+            f32 value;
+            u32 bits;
+        } absolute_y;
+        u8 unused1[12];
+        f32 position[3];
+    } locals;
+    s32 i;
+    s32 offset;
+    s32 j;
+    f64 distance_tolerance;
+    f64 height_tolerance;
+
+    GetPlayerPos(*(s32*)player, locals.position);
+    height_tolerance = sMilestoneHeightTolerance;
+    distance_tolerance = sMilestoneDistanceTolerance;
+    for (i = 0, offset = 0; i < sNumMilestones; i++, offset += 0x68) {
+        u8* milestone = runtime + offset;
+        f32 dy = locals.position[1] - *(f32*)(milestone + 0x3E48);
+        f32 dx = locals.position[0] - *(f32*)(milestone + 0x3E44);
+        f32 dz = locals.position[2] - *(f32*)(milestone + 0x3E4C);
+
+        locals.absolute_y.value = dy;
+        locals.absolute_y.bits &= 0x7FFFFFFF;
+        if ((f64)locals.absolute_y.value < height_tolerance &&
+            (f64)fqdist(dx, dz) < distance_tolerance &&
+            (*(s32*)(player + 0xA34) < 0 ||
+             (*(s32*)(player + 0xA34) >= 0 &&
+              *(s32*)(player + 0xA34) != i))) {
+            if (ShowMilestones(-1) != 0 && *(s32*)player == 0) {
+                for (j = 0; j < 5; j++) {
+                    s32 old = *(s32*)(player + 0xA34 + j * 4);
+
+                    if (old >= 0) {
+                        if (*(void**)(runtime + old * 0x68 + 0x3E74) !=
+                            NULL) {
+                            MBTreeClearFlags(
+                                *(void**)(runtime + old * 0x68 + 0x3E74),
+                                2, 0);
+                        }
+                    }
+                }
+            }
+            for (j = 4; j > 0; j--) {
+                *(s32*)(player + 0xA34 + j * 4) =
+                    *(s32*)(player + 0xA30 + j * 4);
+            }
+            *(s32*)(player + 0xA34) = i;
+        }
+    }
+    if (ShowMilestones(-1) != 0 && *(s32*)player == 0) {
+        for (i = 0; i < 5; i++) {
+            s32 milestone_index = *(s32*)(player + 0xA34 + i * 4);
+
+            if (milestone_index >= 0) {
+                if (*(void**)(runtime + milestone_index * 0x68 + 0x3E74) !=
+                    NULL) {
+                    if ((sShownMilestones & (1 << i)) != 0) {
+                        MBTreeClearFlags(
+                            *(void**)(runtime + milestone_index * 0x68 +
+                                     0x3E74),
+                            2, 0);
+                    } else {
+                        MBTreeSetFlags(
+                            *(void**)(runtime + milestone_index * 0x68 +
+                                     0x3E74),
+                            2, 0);
+                    }
+                }
+            }
+        }
+    }
 }
 
 LookoutParam* FindLookoutParam(s32 id)
@@ -1247,16 +1419,16 @@ LookoutParam* FindClosestWaypoint(f64 maxDist, f32* pos, s32 all)
 {
     LookoutParam* w = sLookoutParams;
     LookoutParam* result = NULL;
+    u8 unused[12];
     volatile f32 root;
     s32 i;
-    u8 unused[16];
 
     for (i = 0; i < sNumLookoutParams; i++, w++) {
         if (all != 0 || (w->next >= 0 && w->next != i)) {
             f32 dy = w->pos[1] - pos[1];
             f32 dx = w->pos[0] - pos[0];
             f32 dz = w->pos[2] - pos[2];
-            f64 d2 = dz * dz + dx * dx + dy * dy;
+            f64 d2 = dx * dx + dy * dy + dz * dz;
             if (d2 > sItemZero) {
                 f64 guess = __frsqrte(d2);
                 guess = 0.5 * guess * (3.0 - guess * guess * d2);

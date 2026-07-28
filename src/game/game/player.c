@@ -438,7 +438,7 @@ extern void fn_8009FEA0(s32 player);
 extern void fn_8009FEFC(s32 player);
 extern void AudioExp(s32 player, s32 a);
 extern void AudioPotion(u32 color, f32* pos, s32 heal, s32 d);
-extern void update_player_milestone(void);
+extern void update_player_milestone(Player* player);
 extern void fn_8005ACE0(void);
 extern void fn_8005DE50(void* p, s32* req);
 extern void update_class_spec(s32 player);
@@ -1825,7 +1825,7 @@ void do_players(void) {
                         }
                     }
                 }
-                update_player_milestone();
+                update_player_milestone(p);
                 PlayerProcessPowerups(p, 0, NULL);
                 if ((sFlags & 0x10) && lbl_802575B0 != 0 && i == 0 && gBossType < 0) {
                     fn_8005ACE0();
