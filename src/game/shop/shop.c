@@ -58,7 +58,7 @@
  * lbl_80344C00..lbl_80344C18 sbss cluster + lbl_803448xx and the coordinate
  * tables listed above; left under lbl_ names until pinned individually.
  *
- * gPlayerRecords = lbl_80275AE0 (shared [4][0x335C] progress array) is
+ * gPlayerRecords = gPlayers (shared [4][0x335C] progress array) is
  * referenced throughout; per project policy it stays lbl_ until the
  * coordinated rename.
  *

@@ -134,12 +134,12 @@ extern WorldObj* lbl_80344D98;  /* secondary world object array base           *
 extern WorldObj* lbl_80344D9C;  /* current world object array base             */
 extern void*  lbl_80344DA0;     /* secondary loaded world block                */
 extern void*  lbl_80344DA4;     /* primary loaded world block                  */
-extern void*  lbl_80344EB8;     /* default parent node                         */
+extern void*  gSceneRoot;     /* default parent node                         */
 extern s32    lbl_803447DC;     /* global animation pause/step flag            */
 extern float  lbl_80344590;     /* per-frame delta time (seconds)              */
 
 extern s32    mlmMemUsed;
-extern u8     lbl_80127D60[];   /* node template / name data (.data)           */
+extern u8     gIdentityMatrix[];   /* node template / name data (.data)           */
 extern char   lbl_801151D8[];   /* world save-state rodata blob                */
 extern char   lbl_80115214[];   /* printf fmt "----- WORLD %s, MEM: %d -> "    */
 extern char   lbl_80115230[];   /* printf fmt "%d  [WORLD=%dK]\n"              */
@@ -263,7 +263,7 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim) {
 
     if ((mode & 0xFFF) == 0) {
         /* No keyframes: reset to the template pose. */
-        CopyMat4(lbl_80127D60, node);
+        CopyMat4(gIdentityMatrix, node);
         ZeroAnimData(panim);
     } else {
         nframes = wa->nframes;
@@ -408,10 +408,10 @@ void ResetWorlds(void) {
 /* NewWorld: create the two scene-root display nodes. */
 void NewWorld(void* parent) {
     if (parent == 0) {
-        parent = lbl_80344EB8;
+        parent = gSceneRoot;
     }
-    lbl_80344D94 = MBNewNode(parent, lbl_80127D60, 1);
-    lbl_80344D90 = MBNewNode(parent, lbl_80127D60, 1);
+    lbl_80344D94 = MBNewNode(parent, gIdentityMatrix, 1);
+    lbl_80344D90 = MBNewNode(parent, gIdentityMatrix, 1);
 }
 
 /* WorldSaveInitState: init each world, snapshot every object's parent link and

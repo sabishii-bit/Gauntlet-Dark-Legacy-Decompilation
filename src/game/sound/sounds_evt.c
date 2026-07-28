@@ -93,7 +93,7 @@ extern s32 lbl_80124324[]; /* sound-id lookup table */
 extern s32 lbl_80124330[]; /* announcer-voice id rotation table B */
 extern s32 lbl_80124340[]; /* announcer-voice id rotation table A */
 extern s32 lbl_8028B610[][2]; /* [idx] -> {id1, id2} event-follow pairs */
-extern u8 lbl_80275AE0[];  /* player array, stride 0x335C (13148); pos at +84 */
+extern u8 gPlayers[];  /* player array, stride 0x335C (13148); pos at +84 */
 extern s32 sVoiceRotIdxA;  /* 0..3 announcer-voice rotation counter */
 extern s32 sVoiceRotIdxB;  /* 0..3 announcer-voice rotation counter */
 extern s32 good_wiz_state; /* <=2 => attract/menu path (announcer allowed) */
@@ -123,7 +123,7 @@ extern u8* gWorldData;
 
 int AudioFindPlayerSlot(int pidx, int class_, int type)
 {
-    u8* slot = &lbl_80275AE0[pidx * 13148] + 304;
+    u8* slot = &gPlayers[pidx * 13148] + 304;
     int i;
 
     for (i = 0; i < 11; i++) {
@@ -436,12 +436,12 @@ void fn_8009D484(void)
 
 void fn_8009D4B0(int pidx)
 {
-    sndFxPlay3D(80, (int)(&lbl_80275AE0[pidx * 13148] + 84), 224, 40);
+    sndFxPlay3D(80, (int)(&gPlayers[pidx * 13148] + 84), 224, 40);
 }
 
 void fn_8009D4F0(int pidx)
 {
-    sndFxPlay3D(89, (int)(&lbl_80275AE0[pidx * 13148] + 84), 224, 40);
+    sndFxPlay3D(89, (int)(&gPlayers[pidx * 13148] + 84), 224, 40);
 }
 
 void fn_8009D530(void)
@@ -451,12 +451,12 @@ void fn_8009D530(void)
 
 void fn_8009D560(int pidx)
 {
-    sndFxPlay3D(87, (int)(&lbl_80275AE0[pidx * 13148] + 84), 224, 40);
+    sndFxPlay3D(87, (int)(&gPlayers[pidx * 13148] + 84), 224, 40);
 }
 
 void fn_8009D5A0(int pidx)
 {
-    sndFxPlay3D(99, (int)(&lbl_80275AE0[pidx * 13148] + 84), 224, 40);
+    sndFxPlay3D(99, (int)(&gPlayers[pidx * 13148] + 84), 224, 40);
 }
 
 void fn_8009D5E0(int pos)
@@ -885,37 +885,37 @@ void fn_8009EF4C(int pos)
 
 void fn_8009F118(int pidx)
 {
-    sndFxPlay3D(81, (int)(&lbl_80275AE0[pidx * 13148] + 84), 127, 60);
+    sndFxPlay3D(81, (int)(&gPlayers[pidx * 13148] + 84), 127, 60);
 }
 
 void fn_8009F158(int pidx)
 {
-    sndFxPlay3D(82, (int)(&lbl_80275AE0[pidx * 13148] + 84), 224, 60);
+    sndFxPlay3D(82, (int)(&gPlayers[pidx * 13148] + 84), 224, 60);
 }
 
 void fn_8009F390(int pidx)
 {
-    sndFxPlay3D(5, (int)(&lbl_80275AE0[pidx * 13148] + 100), 127, 19);
+    sndFxPlay3D(5, (int)(&gPlayers[pidx * 13148] + 100), 127, 19);
 }
 
 void fn_8009F3D0(int pidx)
 {
-    sndFxPlay3D(93, (int)(&lbl_80275AE0[pidx * 13148] + 84), 224, 40);
+    sndFxPlay3D(93, (int)(&gPlayers[pidx * 13148] + 84), 224, 40);
 }
 
 void fn_8009F410(int pidx)
 {
-    sndFxPlay3D(92, (int)(&lbl_80275AE0[pidx * 13148] + 84), 224, 40);
+    sndFxPlay3D(92, (int)(&gPlayers[pidx * 13148] + 84), 224, 40);
 }
 
 void fn_8009F450(int pidx)
 {
-    sndFxPlay3D(91, (int)(&lbl_80275AE0[pidx * 13148] + 84), 224, 40);
+    sndFxPlay3D(91, (int)(&gPlayers[pidx * 13148] + 84), 224, 40);
 }
 
 void fn_8009F490(int pidx)
 {
-    sndFxPlay3D(90, (int)(&lbl_80275AE0[pidx * 13148] + 84), 224, 40);
+    sndFxPlay3D(90, (int)(&gPlayers[pidx * 13148] + 84), 224, 40);
 }
 
 void fn_8009EF7C(int a, int pos)
@@ -930,7 +930,7 @@ void fn_8009EFCC(int pidx, int a, int b)
 {
     int id = lbl_801239DC[a][b];
 
-    sndFxPlay3DAtten(id, (int)(&lbl_80275AE0[pidx * 13148] + 68), 127, 125);
+    sndFxPlay3DAtten(id, (int)(&gPlayers[pidx * 13148] + 68), 127, 125);
 }
 
 void fn_8009F028(int a, int pos, int c)
@@ -949,7 +949,7 @@ void fn_8009F340(int pos)
 
 void fn_8009F250(int pidx)
 {
-    u8* player = &lbl_80275AE0[pidx * 13148];
+    u8* player = &gPlayers[pidx * 13148];
 
     if (*(int*)(player + 232) == 1) {
         int id;
@@ -965,7 +965,7 @@ void fn_8009F250(int pidx)
 
 void fn_8009F2DC(int pidx, int a)
 {
-    u8* player = &lbl_80275AE0[pidx * 13148];
+    u8* player = &gPlayers[pidx * 13148];
 
     if (*(int*)(player + 232) == 1) {
         sndFxPlay3D(lbl_801237BC[a][pidx], (int)(player + 68), 127, 74);
@@ -1102,7 +1102,7 @@ void fn_8009F06C(int pos, int idx)
 
 void fn_8009F550(int pidx, int sel, int arg3)
 {
-    u8* player = &lbl_80275AE0[pidx * 13148];
+    u8* player = &gPlayers[pidx * 13148];
     s32* t = lbl_801232C8;
     int f8 = *(int*)(player + 8);
     int slot = (int)(player + 68);
@@ -1126,7 +1126,7 @@ void fn_8009F550(int pidx, int sel, int arg3)
 
 void fn_8009F860(int pidx, int arg2)
 {
-    u8* player = &lbl_80275AE0[pidx * 13148];
+    u8* player = &gPlayers[pidx * 13148];
     s32* t = lbl_801232C8;
 
     if (RandInt(4) == 0) {
@@ -1153,7 +1153,7 @@ void fn_8009F860(int pidx, int arg2)
 
 void fn_8009F638(int pidx)
 {
-    u8* player = &lbl_80275AE0[pidx * 13148];
+    u8* player = &gPlayers[pidx * 13148];
     int f284 = *(int*)(player + 284);
 
     if (f284 & 0x580000) {
@@ -1181,7 +1181,7 @@ void fn_8009F638(int pidx)
 
 void fn_8009F748(int pidx)
 {
-    u8* player = &lbl_80275AE0[pidx * 13148];
+    u8* player = &gPlayers[pidx * 13148];
 
     if (!(*(int*)(player + 292) & 0x400)) {
         if (lbl_80123644[*(int*)(player + 8)] >= 0) {
@@ -1194,7 +1194,7 @@ void fn_8009F748(int pidx)
 
 void fn_8009F7D8(int pidx)
 {
-    u8* player = &lbl_80275AE0[pidx * 13148];
+    u8* player = &gPlayers[pidx * 13148];
     int id = lbl_80123624[*(int*)(player + 8)];
 
     if (id >= 0) {
@@ -1209,7 +1209,7 @@ void fn_8009F7D8(int pidx)
 
 void fn_8009F960(int pidx)
 {
-    u8* player = &lbl_80275AE0[pidx * 13148];
+    u8* player = &gPlayers[pidx * 13148];
 
     if (*(int*)(player + 232) == 1) {
         if (!(*(int*)(player + 288) & 0x10000)) {
@@ -1227,7 +1227,7 @@ void fn_8009F960(int pidx)
 
 void fn_8009F198(int pidx)
 {
-    u8* player = &lbl_80275AE0[pidx * 13148];
+    u8* player = &gPlayers[pidx * 13148];
     f32 v = *(f32*)(player + 7860);
     int track = lbl_801232C8[pidx];
 
@@ -1244,7 +1244,7 @@ void fn_8009F198(int pidx)
 
 void fn_8009F9E8(int pidx)
 {
-    u8* player = &lbl_80275AE0[pidx * 13148];
+    u8* player = &gPlayers[pidx * 13148];
 
     if (*(int*)(player + 232) == 1) {
         int pan = AudioAng((int)(player + 68));
@@ -1300,7 +1300,7 @@ void fn_8009FFF4(int sel, int pidx)
 
 void fn_8009F4D0(int pidx)
 {
-    int f292 = *(int*)&lbl_80275AE0[pidx * 13148 + 292];
+    int f292 = *(int*)&gPlayers[pidx * 13148 + 292];
     int id;
 
     if (f292 & 0x10) {
@@ -1312,7 +1312,7 @@ void fn_8009F4D0(int pidx)
     } else {
         return;
     }
-    sndFxPlay3D(id, (int)&lbl_80275AE0[pidx * 13148 + 84], 224, 40);
+    sndFxPlay3D(id, (int)&gPlayers[pidx * 13148 + 84], 224, 40);
 }
 
 void fn_8009D7E4(int a, int pos)

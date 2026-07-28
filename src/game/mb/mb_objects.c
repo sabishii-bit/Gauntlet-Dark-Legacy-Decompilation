@@ -60,12 +60,12 @@ extern s32 mbNumSortObjects;                          /* 0x80344EA4 */
 
 /* mb_objects render trees (purpose unconfirmed -> kept as lbl_ names) */
 extern void* lbl_80344EBC;   /* tree A (flag bit 18 clear) */
-extern void* lbl_80344EB8;   /* tree B (flag bit 18 set)   */
+extern void* gSceneRoot;   /* tree B (flag bit 18 set)   */
 extern void* lbl_80344EB4;
 extern void* lbl_80344EB0;
 extern void* lbl_80344EAC;
 extern void* lbl_80344EA8;
-extern u8 lbl_80127D60[0x40];   /* tree ctor argument blob (.data) */
+extern u8 gIdentityMatrix[0x40];   /* tree ctor argument blob (.data) */
 
 /* shared globals owned by other MB TUs */
 extern s32* gWinDebug;               /* 0x80343FB8 : ptr; [0]=hide-objs [1]=... */
@@ -109,20 +109,20 @@ static int feq(f32 a, f32 b) {
 
 void MBInitObjects(int enable) {
     if (enable) {
-        lbl_80344EBC = MBNewNode(0, lbl_80127D60, 1);
-        lbl_80344EB8 = MBNewNode(0, lbl_80127D60, 1);
-        lbl_80344EB4 = MBNewNode(0, lbl_80127D60, 1);
-        lbl_80344EB0 = MBNewNode(0, lbl_80127D60, 7);
-        lbl_80344EAC = MBNewNode(0, lbl_80127D60, 8);
-        lbl_80344EA8 = MBNewNode(0, lbl_80127D60, 8);
-        *(u32*)((u8*)lbl_80344EB8 + 0x60) |= 4;
+        lbl_80344EBC = MBNewNode(0, gIdentityMatrix, 1);
+        gSceneRoot = MBNewNode(0, gIdentityMatrix, 1);
+        lbl_80344EB4 = MBNewNode(0, gIdentityMatrix, 1);
+        lbl_80344EB0 = MBNewNode(0, gIdentityMatrix, 7);
+        lbl_80344EAC = MBNewNode(0, gIdentityMatrix, 8);
+        lbl_80344EA8 = MBNewNode(0, gIdentityMatrix, 8);
+        *(u32*)((u8*)gSceneRoot + 0x60) |= 4;
         *(u32*)((u8*)lbl_80344EBC + 0x60) |= 4;
         *(u32*)((u8*)lbl_80344EB0 + 0x60) |= 4;
         *(u32*)((u8*)lbl_80344EAC + 0x60) |= 4;
         *(u32*)((u8*)lbl_80344EA8 + 0x60) |= 4;
     } else {
         lbl_80344EBC = 0;
-        lbl_80344EB8 = 0;
+        gSceneRoot = 0;
         lbl_80344EB4 = 0;
         lbl_80344EB0 = 0;
         lbl_80344EAC = 0;
@@ -156,7 +156,7 @@ MBObject* MBNewObject(s32 objid, void* name, void* parent, u32 flags) {
     MBObject* obj;
 
     if (parent == 0) {
-        parent = (flags & 0x00002000) ? lbl_80344EBC : lbl_80344EB8;
+        parent = (flags & 0x00002000) ? lbl_80344EBC : gSceneRoot;
     }
 
     if (objid == -1) {

@@ -114,14 +114,14 @@ extern void  fn_800606FC(void);
 extern s32   fn_8005D0C4(s32 id, f32* position);
 extern f32   NormalVector(f32* vector);
 extern u8    lbl_80237BA0[];
-extern f32   lbl_80127D60[16];
-extern s32   lbl_8034494C;
+extern f32   gIdentityMatrix[16];
+extern s32   sNumItems;
 extern s32   lbl_8034481C;
-extern s32   lbl_80344568;
+extern s32   gGameBusy;
 extern s32   lbl_80344770;
-extern s32   lbl_8034477C;
-extern s64   lbl_803445C8;
-extern Player lbl_80275AE0[4];
+extern s32   gGameMode;
+extern s64   gControllerButtons;
+extern Player gPlayers[4];
 extern char  lbl_80346D08[5];
 extern char  lbl_80346D10[7];
 
@@ -368,7 +368,7 @@ s32 fn_8005A1EC(const char* name, void** outData)
     return model;
 }
 
-s32 fn_8005A260(const char* name, void** outData, s32 initTexMods, s32 model)
+s32 LoadModel(const char* name, void** outData, s32 initTexMods, s32 model)
 {
     s32 result;
 
@@ -416,11 +416,11 @@ void fn_8005A338(OBJGRP* group, f32* collOffset, f32* attnOffset)
         fn_8005A65C(group, collOffset);
         fn_8005A588(group, attnOffset);
     } else if (group != 0) {
-        CopyMat4(lbl_80127D60, &group->worldmat[0][0]);
+        CopyMat4(gIdentityMatrix, &group->worldmat[0][0]);
     }
 }
 
-void fn_8005A3B8(OBJGRP* group)
+void UpdateObjWorldMat(OBJGRP* group)
 {
     if (group != 0 && group->node != 0) {
         CopyMat4(&group->worldmat[0][0], (f32*)group->node);
@@ -512,7 +512,7 @@ int fn_8005A730(void)
 
 void fn_8005AC10(s32 player)
 {
-    Player* record = &lbl_80275AE0[player];
+    Player* record = &gPlayers[player];
     s32 i;
 
     record->world_text_active = 0;
@@ -531,7 +531,7 @@ void fn_8005AC10(s32 player)
         record->world_name_tail = 0x40;
     }
 
-    if (lbl_8034477C == 0x400B && (lbl_803445C8 & 4) != 0) {
+    if (gGameMode == 0x400B && (gControllerButtons & 4) != 0) {
         record->state = 1;
     }
 }
@@ -570,7 +570,7 @@ f32 fn_8005B198(f32 radius, f32* position, Item** result)
 Item* fn_8005B558(s32 id)
 {
     s32 i;
-    s32 count = lbl_8034494C;
+    s32 count = sNumItems;
 
     for (i = 0; i < count; i++) {
         Item* item = &sItems[i];
@@ -620,7 +620,7 @@ s32 fn_8005B8FC(void* owner)
         result = *(s16*)&item->data[0];
     }
 
-    if ((lbl_8034477C & 0x8000) != 0 && result != 0) {
+    if ((gGameMode & 0x8000) != 0 && result != 0) {
         msgPost(0x61, *(s32*)owner, (char*)owner + 0x54);
     }
     return result;
@@ -630,7 +630,7 @@ void fn_8005B988(void)
 {
     s32 i;
 
-    if ((lbl_80344568 | lbl_80344770) == 0) {
+    if ((gGameBusy | lbl_80344770) == 0) {
         fn_800606FC();
         if (sGoodWizObj != 0) {
             DoTexMods(sGoodWizObj);
@@ -656,7 +656,7 @@ void fn_8005D04C(void)
     s32 i;
     Item* item;
 
-    for (i = 0; i < lbl_8034494C; i++) {
+    for (i = 0; i < sNumItems; i++) {
         item = &sItems[i];
 
         if (item->info != 0 && item->info->type == 4) {
@@ -964,7 +964,7 @@ s32 fn_800629B0(void)
 {
     s32 result = 0;
     Item* item = sItems;
-    s32 count = lbl_8034494C;
+    s32 count = sNumItems;
     s32 i;
 
     for (i = 0; i < count; i++) {
@@ -1033,7 +1033,7 @@ void fn_800606FC(void)
  *                    fn_8005A868, RandInt, strcpy)
  * 8005A868  0x03A8  fn_ : text/gfx draw (DrawTextKeepScale, fn_8003xxxx mtx,
  *                    fn_8009D42C/58, fn_8009EF04)
- * 8005AC10  0x00D0  fn_ : accessor (no calls; lbl_803445C8/8034477C)
+ * 8005AC10  0x00D0  fn_ : accessor (no calls; gControllerButtons/8034477C)
  * 8005ACE0  0x02B8  fn_ : DEBUG draw of world-object info (DrawText, sprintf,
  *                    get_screen_pos).  "ROT:","BRID:","DOOR:","ELEV:","LIFT:",
  *                    "TRIG:","%s(%d)","%s:%s:%d(%d)"
@@ -1042,12 +1042,12 @@ void fn_800606FC(void)
  *                    fn_800BDA98)
  * 8005B274  0x02E4  fn_ : iterate enemy grid + object op (StartEnemyGrid/
  *                    NextGridEnemy, fn_800BCB44, fn_800BDA98)
- * 8005B558  0x0060  fn_ : accessor (lbl_8034494C/80344950)
+ * 8005B558  0x0060  fn_ : accessor (sNumItems/80344950)
  * 8005B5B8  0x02F8  fn_ : spawn/attach world object (FindWORLDOBJ, ErrorPrintf,
  *                    fn_800A1A9C/1D00/2698, fn_800B8DD0, MBTreeSetFlags/AEAC,
  *                    sprintf)
  * 8005B8B0  0x004C  fn_ : small accessor (no calls)
- * 8005B8FC  0x008C  fn_ : post message (msgPost; lbl_8034477C/8034481C)
+ * 8005B8FC  0x008C  fn_ : post message (msgPost; gGameMode/8034481C)
  * 8005B988  0x0094  fn_ : run texmods for a world (DoSpecialTexmods, DoTexMods,
  *                    fn_800606FC, SetupPlayerTexMods)
  * 8005BA1C  0x07C0  fn_ : object/enemy setup by name (AtreeMatch, msgPost,
@@ -1065,9 +1065,9 @@ void fn_800606FC(void)
  * 8005D730  0x0720  fn_ : per-object update (fn_8005E90C, fn_8007xxxx anim,
  *                    fn_8009Dxxxx, msgPost, strcmp)
  * 8005DE50  0x0ABC  fn_ : big object state machine (FindStringMessageListSub,
- *                    fn_8005A3B8, many fn_8009/800A, msgPost, strcmp)
+ *                    UpdateObjWorldMat, many fn_8009/800A, msgPost, strcmp)
  * 8005E90C  0x0438  fn_ : create item instance (NewItemPtr_800642C8, SetItem,
- *                    fn_80064154, fn_8009DAF8, MBTreeSetFlags).  "AllCoins",
+ *                    AddItemSub, fn_8009DAF8, MBTreeSetFlags).  "AllCoins",
  *                    "PINEAPPLE"
  * 8005ED44  0x00D4  fn_ : enemy-grid op (StartEnemyGrid/NextGridEnemy,
  *                    fn_8005EE18, fn_8005F0F4)
@@ -1082,7 +1082,7 @@ void fn_800606FC(void)
  * 8005FF60  0x01B4  fn_ : (ErrorPrintf, fn_80055CB8).
  *                    "Special trigger has no target"
  * 80060114  0x05E8  fn_ : spawn enemy from world data (CritterNewInst,
- *                    generate_enemy, atan2, fn_8005A3B8, fn_800B5704).
+ *                    generate_enemy, atan2, UpdateObjWorldMat, fn_800B5704).
  *                    "Bad EnemyInfo: type %s subtype %d not loaded",
  *                    "EnemyInfo didn't generate %s(ai=%d, reason=%s)"
  * 800606FC  0x22B4  fn_ : GIANT per-frame world update dispatcher (AudioStopAll,
@@ -1090,10 +1090,10 @@ void fn_800606FC(void)
  *                    generate_enemy, fn_8005A338, fn_80060114, fn_80062A00,
  *                    fn_80062FF0, items fn_800631AC, +~40 more).
  *                    "CAN'T FIND LOOKPUT PARAM:%d".  [parked giant]
- * 800629B0  0x0050  fn_ : accessor (no calls; lbl_8034494C/80344950).
+ * 800629B0  0x0050  fn_ : accessor (no calls; sNumItems/80344950).
  *                    Called by auxscreen.
  * 80062A00  0x05F0  fn_ : particle-system update (WorldPsysActivate/DeActivate,
- *                    fn_80063854, fn_8009D100..694, MBTreeClearFlags/368/6C0)
+ *                    did_generate, fn_8009D100..694, MBTreeClearFlags/368/6C0)
  * 80062FF0  0x01BC  fn_ : enemy-grid op (StartEnemyGrid/NextGridEnemy,
  *                    fn_800BCB44)
  * ========================================================================== */

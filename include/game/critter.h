@@ -100,7 +100,7 @@ typedef struct Critter {
     u8  _res068[4];           /* 0x068                                        */
     void *mbnode;             /* 0x06C scene/model node handle                 */
     u8  _res070[4];           /* 0x070                                        */
-    void *colhandle;          /* 0x074 collision/link handle (fn_800115D0)     */
+    void *colhandle;          /* 0x074 collision/link handle (AtreeDelete)     */
     u8  sound[0x20];          /* 0x078 embedded sound/voice control block      */
     f32 animtimer;            /* 0x098 anim blend accumulator                  */
     u8  _blk09C[0x18];        /* 0x09C .. 0x0B4                               */
@@ -134,7 +134,7 @@ typedef struct Critter {
     s16 healthmtr;            /* 0x44C health-meter handle (>=0 == present)     */
     u8  childcnt;             /* 0x44E spawned child count                    */
     u8  alivecnt;             /* 0x44F live child count (ProcessCritter)       */
-    u8  healthbar[0x48];      /* 0x450 health-bar object (fn_800115D0)         */
+    u8  healthbar[0x48];      /* 0x450 health-bar object (AtreeDelete)         */
     void *damageflash;        /* 0x498 damage-flash object (fn_800BA408)       */
     u8  _blk49C[0x10];        /* 0x49C .. 0x4AC                             */
     f32 unk4AC;               /* 0x4AC (init 0)                              */

@@ -134,7 +134,7 @@ typedef struct OPTMENU {
     s32 font;        /* 0x80 override font handle */
     s32 num_items;   /* 0x84 counted lazily */
     void* icon_node; /* 0x88 selection-icon scene node */
-    u8 msg[0x48];    /* 0x8C message/anim block (fn_800115D0/fn_80012F78) */
+    u8 msg[0x48];    /* 0x8C message/anim block (AtreeDelete/fn_80012F78) */
     s32 icon_y;      /* 0xD4 icon y position latch */
     s32 icon_t;      /* 0xD8 icon glide timer */
     void* title_blit;/* 0xDC backdrop blit */
@@ -200,12 +200,12 @@ extern s32 rune_idx_table[13];       /* 0x8011F9F8 */
 extern CTLLABEL ctl_label_pos[16];   /* 0x8011FA38 */
 extern CTLBLIT ctl_blits[3];         /* 0x8011FAF8 */
 
-extern s32 lbl_80124D14[];           /* boss/legend-item id table (hint order) */
+extern s32 crystal_order[];           /* boss/legend-item id table (hint order) */
 
 /* player records (shared, world/save system) */
-extern u8 lbl_80275AE0[];            /* gPlayerRecords[4], stride 0x335C */
+extern u8 gPlayers[];            /* gPlayerRecords[4], stride 0x335C */
 #define PREC_STRIDE 0x335C
-#define PREC(i, off, T) (*(T*)(lbl_80275AE0 + (i) * PREC_STRIDE + (off)))
+#define PREC(i, off, T) (*(T*)(gPlayers + (i) * PREC_STRIDE + (off)))
 
 /* pad state (controls TU) */
 extern u32 lbl_80240E34[];  /* per-player, stride 0xF words */
@@ -220,7 +220,7 @@ extern u32 lbl_8034461C;    /* any-pad pressed mask */
 extern u32 lbl_80344620;    /* any-pad held mask */
 
 /* gamemain / world state */
-extern s32 lbl_8034477C;    /* game state (0x8009 in-game, 0x4010 tower) */
+extern s32 gGameMode;    /* game state (0x8009 in-game, 0x4010 tower) */
 extern s32 lbl_803447B8;
 extern u32 lbl_803445CC;    /* pause/movie flags */
 extern s32 lbl_803445D8;
@@ -281,7 +281,7 @@ extern void* MBRemoveNode(void* node, s32 a);
 extern void MBNodeSetParent(void* node, void* parent);
 extern void* AtreeMatch(void* tree, u32 rgb, char* name, s32 d);
 extern void* fn_80012F78(void* tree, void* node, void* msg, s32 a, s32 b);
-extern void fn_800115D0(void* msg);
+extern void AtreeDelete(void* msg);
 extern void fn_80011104(void* msg, s32 a, s32 b, s32 x, s32 y);
 extern void CopyMat3(f32* dst, f32* src);
 extern void* fn_800BE448(void);
@@ -457,7 +457,7 @@ static void next_general_hint(s32 advance);
  * AFTER them, so this cannot be compiler inlining) */
 #define REMOVE_OPTMENU(m)                                  \
     do {                                                   \
-        fn_800115D0((m)->msg);                             \
+        AtreeDelete((m)->msg);                             \
         if ((m)->icon_node != NULL) {                      \
             (m)->icon_node = MBRemoveNode((m)->icon_node, 1); \
         }                                                  \
@@ -593,7 +593,7 @@ int DoOptions(void)
 
     /* auto-open: any active player pressing START */
     if (options_state == 0 && options_lockout == 0 && opt_force_player < 0 &&
-        (lbl_8034477C != 0x4010 || lbl_803447B8 == 0)) {
+        (gGameMode != 0x4010 || lbl_803447B8 == 0)) {
         for (i = 0; i < 4; i++) {
             if (PREC(i, 0xE8, s32) == 1 && (lbl_80240E38[i * 0xF] & 0x40000) != 0 &&
                 OptionsStart(i, 0) != 0) {
@@ -603,7 +603,7 @@ int DoOptions(void)
     }
 
     if (lbl_803445D8 != 0 &&
-        ((lbl_8034477C != 0x4010 && lbl_8034477C != 0x400C) || options_state != 0)) {
+        ((gGameMode != 0x4010 && gGameMode != 0x400C) || options_state != 0)) {
         fn_8006D7E4();
     }
 
@@ -1119,7 +1119,7 @@ s32 OptionsStart(s32 player, s32 b)
         return options_state;
     }
     optmenu_nochoice = 0;
-    switch (lbl_8034477C) {
+    switch (gGameMode) {
     case 0x8009:
         start_optmenu(&optmenu_game, player);
         break;
@@ -1950,7 +1950,7 @@ static void end_optmenu(s32 dir, s32 mode)
     }
 
     m = og->stack[options_level];
-    fn_800115D0(m->msg);
+    AtreeDelete(m->msg);
     if (m->icon_node != NULL) {
         m->icon_node = MBRemoveNode(m->icon_node, 1);
     }
@@ -2026,7 +2026,7 @@ static s32 finish_optmenu(OPTMENU* m, s32 force)
 
 void remove_optmenu(OPTMENU* m)
 {
-    fn_800115D0(m->msg);
+    AtreeDelete(m->msg);
     if (m->icon_node != NULL) {
         m->icon_node = MBRemoveNode(m->icon_node, 1);
     }
@@ -2246,7 +2246,7 @@ static void next_rune_hint(s32 advance)
          * level index at record+0xC) */
         bit = 1 << (rune_idx_table[rune_hint_index] - 1);
         for (p = 0; p < 4; p++) {
-            u8* rec = &lbl_80275AE0[p * PREC_STRIDE];
+            u8* rec = &gPlayers[p * PREC_STRIDE];
             if (pass == 0 && (*(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDDC) & bit) != 0) {
                 pass = 1;
             }
@@ -2290,7 +2290,7 @@ static void next_legend_hint(s32 advance)
         i = n;
         off = n << 2;
         for (; i < 10; i++, off += 4) {
-            id = *(s32*)((u8*)lbl_80124D14 + off);
+            id = *(s32*)((u8*)crystal_order + off);
             if (WorldOpen(id) != 0 &&
                 (legend_hint_num != 0 || towerGetRuneNearStat(-1, id) == 0)) {
                 break;
@@ -2309,9 +2309,9 @@ static void next_legend_hint(s32 advance)
     }
     legend_hint_index = i;
 have_index:
-    bit = 1 << lbl_80124D14[legend_hint_index];
+    bit = 1 << crystal_order[legend_hint_index];
     for (p = 0; p < 4; p++) {
-        u8* rec = &lbl_80275AE0[p * PREC_STRIDE];
+        u8* rec = &gPlayers[p * PREC_STRIDE];
         if (pass == 0 && (*(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDE0) & bit) != 0) {
             pass = 1;
         }
@@ -2354,7 +2354,7 @@ static void next_boss_hint(s32 advance)
         i = n;
         off = n << 2;
         for (; i < 0xB; i++, off += 4) {
-            id = *(s32*)((u8*)lbl_80124D14 + off);
+            id = *(s32*)((u8*)crystal_order + off);
             if (WorldOpen(id) != 0 &&
                 (boss_hint_num != 0 || PlayerHasRune(-1, id) == 0)) {
                 break;
@@ -2373,9 +2373,9 @@ static void next_boss_hint(s32 advance)
     }
     boss_hint_index = i;
 have_index:
-    bit = 1 << lbl_80124D14[boss_hint_index];
+    bit = 1 << crystal_order[boss_hint_index];
     for (p = 0; p < 4; p++) {
-        u8* rec = &lbl_80275AE0[p * PREC_STRIDE];
+        u8* rec = &gPlayers[p * PREC_STRIDE];
         if (pass == 0 && (*(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDE4) & bit) != 0) {
             pass = 1;
         }

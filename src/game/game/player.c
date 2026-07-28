@@ -134,7 +134,7 @@
  * touching gPlayerRecords: the TARGET pools all player-record accesses off
  * lbl_80274EA0 (.bss block base, -0xC40 from the records), so our
  * extern-based displacements differ by construction until the flip-time
- * .bss claim; gPlayerRecords itself must stay extern lbl_80275AE0
+ * .bss claim; gPlayerRecords itself must stay extern gPlayers
  * (Matching shopquery pin).  NOT a per-fn matching failure -- do not grind.
  * All other back-slice bodies are faithful Ghidra transcriptions pending
  * match passes (biggest first: PlayerProcessPowerups (skeleton -- real body
@@ -145,7 +145,7 @@
  * .data 0x5C (jumptable), .rodata 0x104 (strings), .sdata2 0x198 (pool)
  * need claims when this TU flips to Matching.
  *
- * gPlayerRecords = lbl_80275AE0 ([4] x 0x335C player records; stays lbl_ --
+ * gPlayerRecords = gPlayers ([4] x 0x335C player records; stays lbl_ --
  * Matching shopquery.c references it).  HUD .bss layout (PLAYER.OBJ's own):
  *   0x80274EA0 potionicon_tab[5]   potion-type -> texture id
  *   0x80274EB4 hod_blit[4]         hand-of-death (shards&0x1000) icons
@@ -178,8 +178,8 @@
 /* player records                                                      */
 /* ------------------------------------------------------------------ */
 
-extern Player lbl_80275AE0[]; /* gPlayerRecords[4], stride 0x335C */
-#define gPlayerRecords lbl_80275AE0
+extern Player gPlayers[]; /* gPlayerRecords[4], stride 0x335C */
+#define gPlayerRecords gPlayers
 #define PREC_STRIDE 0x335C
 #define P(i)          (&gPlayerRecords[i])
 #define PF(p, off, T) (*(T*)((u8*)(p) + (off)))
@@ -193,7 +193,7 @@ extern Player lbl_80275AE0[]; /* gPlayerRecords[4], stride 0x335C */
  * every access off the FIRST symbol (potionicon_tab @0x80274EA0) with folded
  * constant deltas (sibling-symbol pooling law), so the arrays are DEFINED
  * here with the exact layout; the DOL-splitter names for the block are
- * lbl_80274EA0 / lbl_802753B4 / lbl_80275534 / lbl_802757D4 / lbl_802757E0 /
+ * lbl_80274EA0 / lbl_802753B4 / lbl_80275534 / gDefaultPlayerPosition / lbl_802757E0 /
  * lbl_80275A80.  pad_* regions belong to PLAYER fns beyond this slice
  * (mini-inventory tables, got_it state, tb_info) -- refine when wired.
  * NonMatching TU: these never link; the DOL keeps the original .bss.
@@ -283,7 +283,7 @@ extern u32 lbl_801201D8[];   /* class colors (in-game set) */
 extern u32 lbl_801201E8[];   /* class colors (dim set) */
 extern s32 lbl_8011FC48[];   /* +8 pm bar x/y/h, +0x1C pm frame x/y/h, +0x78 frames */
 extern f32 lbl_80127D00[];   /* zero vec */
-extern f32 lbl_80127D60[];   /* identity matrix */
+extern f32 gIdentityMatrix[];   /* identity matrix */
 
 #define pm_bar_x    (lbl_8011FC48[2])
 #define pm_bar_y    (lbl_8011FC48[3])
@@ -306,13 +306,13 @@ extern u32 lbl_80240E38[];
 extern f32 lbl_80240E50[];
 
 /* game/world state (.sbss/.sdata) */
-extern s32 lbl_8034477C;   /* game state */
+extern s32 gGameMode;   /* game state */
 extern s32 options_state;
 extern s32 lbl_80344298;
 extern s32 lbl_80344824;   /* active-player mask */
 extern s32 lbl_80344760;
 extern u32 lbl_803445CC;   /* sFlags: pause/movie */
-extern s32 lbl_8034457C;   /* frame delta (int) */
+extern s32 gFrameTicks;   /* frame delta (int) */
 extern s32 lbl_80344578;   /* vb elapsed */
 extern f32 lbl_80344590;   /* frame delta (float) */
 extern f32 lbl_80344594;
@@ -325,7 +325,7 @@ extern s32 lbl_8034489C;
 extern u8* lbl_8034483C;   /* gCurLevel */
 extern s32 lbl_8034481C;
 extern s32 lbl_80344804;   /* any player needs pad */
-extern s32 lbl_803447BC;
+extern s32 gScriptedCameraState;
 extern s32 lbl_803447B8;   /* paused */
 extern s32 lbl_803447B4;
 extern s32 lbl_80344770;
@@ -350,7 +350,7 @@ extern s32 lbl_80344C60;
 extern s32 lbl_80344C90;
 extern s32 lbl_80344CC4;
 extern s32 lbl_803449A0;
-extern s32 lbl_80344568;
+extern s32 gGameBusy;
 extern s32 lbl_803443B4;
 extern s32 lbl_8034439C;
 extern s32 lbl_803444E4;
@@ -413,7 +413,7 @@ extern s32 MBBackgroundLoading(void);
 
 /* math / world */
 extern void fn_8005A338(f32* mat, f32* fwd, f32* pos);
-extern void fn_8005A3B8(f32* mat);
+extern void UpdateObjWorldMat(f32* mat);
 extern f32 get_actual_screen_pos(s32 a, f32* out1, f32* out2, f32* pos);
 extern void fn_8002C53C(f32* mat);
 extern s32 fn_8002F818(u32 flags);
@@ -615,7 +615,7 @@ void PlayerSetParent(Player* p, void* parent, f32* pos) {
     p->saved_pos[1] = p->pos[1];
     p->saved_pos[2] = p->pos[2];
     MBNodeSetParent(p->node, parent);
-    CopyMat4(lbl_80127D60, p->node);
+    CopyMat4(gIdentityMatrix, p->node);
     *(f32*)(p->node + 0x30) = d[0];
     *(f32*)(p->node + 0x34) = d[1];
     *(f32*)(p->node + 0x38) = d[2];
@@ -630,7 +630,7 @@ void PlayerSetGrabbed(Player* p, void* parent, f32* pos) {
     p->saved_pos[1] = p->pos[1];
     p->saved_pos[2] = p->pos[2];
     MBNodeSetParent(p->node, parent);
-    CopyMat4(lbl_80127D60, p->node);
+    CopyMat4(gIdentityMatrix, p->node);
     if (pos != NULL) {
         *(f32*)(p->node + 0x30) = pos[0];
         *(f32*)(p->node + 0x34) = pos[1];
@@ -673,7 +673,7 @@ void WritePlayerInfo(s32 pnum) {
     Player* p;
     u8 unused[8];
 
-    if ((!(lbl_8034477C & 0x8000) || lbl_80344298 == 0) &&
+    if ((!(gGameMode & 0x8000) || lbl_80344298 == 0) &&
         (pnum < 0 || (lbl_80344824 & (1 << pnum)))) {
         if (pnum >= 0) {
             first = pnum;
@@ -727,7 +727,7 @@ static void show_crystals(Player* p) {
     s32 i;
     void* tex;
 
-    if (lbl_80344B1C < 1 && options_state == 0 && lbl_8034477C == 0x4010 &&
+    if (lbl_80344B1C < 1 && options_state == 0 && gGameMode == 0x4010 &&
         (f64)p->got_timer > 0.0) {
         i = p->index;
         p->got_timer = p->got_timer - lbl_80344590;
@@ -780,7 +780,7 @@ void ShowRuneStones(void) {
             }
         }
     } else {
-        lbl_80344B1C -= lbl_8034457C;
+        lbl_80344B1C -= gFrameTicks;
         if (lbl_80344B1C < 0) {
             lbl_80344B1C = 0;
         }
@@ -807,7 +807,7 @@ void ShowRuneStones(void) {
                         }
                     }
                 }
-                if (!(lbl_8034477C & 0x8000) && (state == 1 || state == 5)) {
+                if (!(gGameMode & 0x8000) && (state == 1 || state == 5)) {
                     for (j = 0; j < 12; j++) {
                         blit = rune_blit[i][j];
                         if (blit != NULL) {
@@ -840,7 +840,7 @@ static void write_health_and_items(s32 i) {
     if (lbl_80344A28 != 0 || lbl_802575B0 != 0) {
         hidden = 1;
     }
-    if (lbl_8034477C == 0x4010 && lbl_80344760 > 0 && p->state == 0xB &&
+    if (gGameMode == 0x4010 && lbl_80344760 > 0 && p->state == 0xB &&
         p->motion_state == 1) {
         u32 x = lbl_80120238[i];
 
@@ -851,8 +851,8 @@ static void write_health_and_items(s32 i) {
         DrawTextKeepScale(1.2f, x + 0x14, 0x164, 1, 0xFFFFFF, "Quit Game");
         show_gold = 0;
     }
-    if ((p->state == 5 || p->state == 0xB) && lbl_8034477C != 0x400D &&
-        lbl_8034477C != 0x4013 && lbl_8034477C != 0x4017 && !hidden) {
+    if ((p->state == 5 || p->state == 0xB) && gGameMode != 0x400D &&
+        gGameMode != 0x4013 && gGameMode != 0x4017 && !hidden) {
         hidden = 1;
         setup_player_display(i);
         if (p->state == 0xB) {
@@ -937,17 +937,17 @@ tail:
             mbBlitInit3414(pm_blit[i][j], 1);
         }
     } else {
-        if (lbl_8034477C == 0x4010 && p->quest_state != 0 && lbl_803448D8 != 0xD) {
+        if (gGameMode == 0x4010 && p->quest_state != 0 && lbl_803448D8 != 0xD) {
             mbBlitInit3414(quest_blit[i], 0);
         } else {
             mbBlitInit3414(quest_blit[i], 1);
         }
-        if ((u32)(lbl_8034477C - 0x400F) < 2 && (p->shards & 0x1000)) {
+        if ((u32)(gGameMode - 0x400F) < 2 && (p->shards & 0x1000)) {
             mbBlitInit3414(hod_blit[i], 0);
         } else {
             mbBlitInit3414(hod_blit[i], 1);
         }
-        if (lbl_8034477C == 0x4010) {
+        if (gGameMode == 0x4010) {
             draw_power_meter(i);
         }
     }
@@ -963,7 +963,7 @@ static void debug_player_pos(s32 i) {
     char* name;
     s32 oldflags;
 
-    if (lbl_8034477C == 0x4010) {
+    if (gGameMode == 0x4010) {
         fn_800C02F4(0x80FF80);
         get_actual_screen_pos(0, &out2, out1, P(i)->col_pos);
         lbl_80344F60 = 1;
@@ -1043,12 +1043,12 @@ static void draw_power_meter(s32 i) {
         p->power_target = 100.0f;
     }
     if (p->power_level <= p->power_target) {
-        p->power_level = p->power_level + (f32)lbl_8034457C;
+        p->power_level = p->power_level + (f32)gFrameTicks;
         if (p->power_target < p->power_level) {
             p->power_level = p->power_target;
         }
     } else {
-        p->power_level = p->power_level - (f32)(lbl_8034457C << 1);
+        p->power_level = p->power_level - (f32)(gFrameTicks << 1);
         if (p->power_level < p->power_target) {
             p->power_level = p->power_target;
         }
@@ -1136,7 +1136,7 @@ static void draw_power_meter(s32 i) {
         fn_800B2940(pm_blit[i][0], 0xFF0000);
         fn_800B2940(pm_blit[i][1], 0xFF0000);
     }
-    p->meter_timer = p->meter_timer + lbl_8034457C;
+    p->meter_timer = p->meter_timer + gFrameTicks;
 }
 
 /* Rebuild the 6 portrait-frame blits for a player's display mode. */
@@ -1204,7 +1204,7 @@ void setup_player_display(s32 i) {
         sprintf(buf, "S4_%s", &lbl_801200B0[chr * 4]);
         frames = (u32)MBOX_FindTexture_Err(buf, NULL, 1);
         mbInitBlitEntry(frame_blit[i][1], frames, 0);
-        if (!(lbl_8034477C & 0x8000)) {
+        if (!(gGameMode & 0x8000)) {
             s32 j;
 
             for (j = 0; j < 12; j++) {
@@ -1219,7 +1219,7 @@ void setup_player_display(s32 i) {
         mbInitBlitEntry(quest_blit[i], frames, 0);
     }
 done:
-    if (lbl_8034477C == 0x400B || lbl_8034477C == 0x4012) {
+    if (gGameMode == 0x400B || gGameMode == 0x4012) {
         mbBlitUpdateEntry(frame_blit[i][0], 0xFFFFFFFF, 0x4010);
         mbBlitUpdateEntry(frame_blit[i][2], 0xFFFFFFFF, 0x4010);
     } else {
@@ -1261,7 +1261,7 @@ s32 get_display_mode(s32 i) {
     default:
         return 0;
     }
-    if (lbl_8034477C == 0x4012) {
+    if (gGameMode == 0x4012) {
         return 5;
     }
     if (P(i)->node != NULL) {
@@ -1519,9 +1519,9 @@ void do_players(void) {
     if (lbl_803445CC & 0x10) {
         lbl_80344AF8 = 0xFFFFFFFF;
     }
-    if (lbl_8034477C == 0x4010 && (s32)lbl_80344AF8 >= 0) {
-        if (lbl_803447BC == 0 && lbl_803447B8 == 0) {
-            lbl_80344B10 += lbl_8034457C;
+    if (gGameMode == 0x4010 && (s32)lbl_80344AF8 >= 0) {
+        if (gScriptedCameraState == 0 && lbl_803447B8 == 0) {
+            lbl_80344B10 += gFrameTicks;
             if (lbl_80344B10 > 0) {
                 if (lbl_803449A0 == 0) {
                     if (lbl_803448D8 == 0xD) {
@@ -1551,8 +1551,8 @@ void do_players(void) {
             lbl_80344B10 = 0;
         }
     }
-    if (lbl_8034477C != 0x4012 && lbl_8034477C != 0x400D && lbl_8034477C != 0x400F &&
-        lbl_8034477C != 0x4016) {
+    if (gGameMode != 0x4012 && gGameMode != 0x400D && gGameMode != 0x400F &&
+        gGameMode != 0x4016) {
         msgUpdate();
         for (i = 0, p = P(0); i < 4; i++, p++) {
             if (p->state != 0) {
@@ -1571,7 +1571,7 @@ void do_players(void) {
                 }
             }
         }
-        if (lbl_80344568 != 0 || lbl_80344770 != 0) {
+        if (gGameBusy != 0 || lbl_80344770 != 0) {
             WritePlayerInfo(-1);
             return;
         }
@@ -1582,24 +1582,24 @@ void do_players(void) {
             }
             return;
         }
-        if (lbl_8034477C == 0x4010) {
+        if (gGameMode == 0x4010) {
             TowerCheckMessages(0);
         }
-        if (lbl_803447BC != 0) {
+        if (gScriptedCameraState != 0) {
             if (lbl_803447B8 != 0) {
                 for (i = 0, p = P(0); i < 4; i++, p++) {
                     if (p->count_91C != 0) {
                         p->count_91C = p->count_91C - 1;
                     }
                     if (p->state == 1 && p->platform != NULL) {
-                        if (lbl_8034477C == 0x4010) {
+                        if (gGameMode == 0x4010) {
                             p->intower = 1;
                         }
                         DoPlayerAction(p);
                     }
                     p->anim_20C = 0;
                     if (!(p->hud_flags2 & 0x20)) {
-                        fn_8005A3B8(p->mat);
+                        UpdateObjWorldMat(p->mat);
                     }
                 }
             }
@@ -1665,15 +1665,15 @@ void do_players(void) {
         }
     }
     for (i = 0, p = P(0); i < 4; i++, p++) {
-        if (lbl_8034477C == 0x400B || lbl_8034477C == 0x400F) {
+        if (gGameMode == 0x400B || gGameMode == 0x400F) {
             continue;
         }
         state = p->state;
         if (state == 2 || state == 3) {
             goto common;
         }
-        if (lbl_8034477C == 0x4012 || lbl_8034477C == 0x400D || lbl_8034477C == 0x400F ||
-            lbl_8034477C == 0x4016) {
+        if (gGameMode == 0x4012 || gGameMode == 0x400D || gGameMode == 0x400F ||
+            gGameMode == 0x4016) {
             continue;
         }
         if (lbl_803447B8 == 0 || lbl_8034481C != 0 || lbl_80344AF0 != 0) {
@@ -1682,22 +1682,22 @@ void do_players(void) {
                 p->count_91C = p->count_91C - 1;
             }
             if (p->timer_1F0 > 0) {
-                p->timer_1F0 = p->timer_1F0 - lbl_8034457C;
+                p->timer_1F0 = p->timer_1F0 - gFrameTicks;
             }
             if (p->timer_1FA > 0) {
-                p->timer_1FA = p->timer_1FA - lbl_8034457C;
+                p->timer_1FA = p->timer_1FA - gFrameTicks;
             }
             if (p->timer_1FC > 0) {
-                p->timer_1FC = p->timer_1FC - lbl_8034457C;
+                p->timer_1FC = p->timer_1FC - gFrameTicks;
             }
             if (p->timer_1FE > 0) {
-                p->timer_1FE = p->timer_1FE - lbl_8034457C;
+                p->timer_1FE = p->timer_1FE - gFrameTicks;
             }
             if (p->vibe_on == 1) {
                 if (p->vibe_timer2 == 0) {
-                    p->vibe_timer = p->vibe_timer + lbl_8034457C;
+                    p->vibe_timer = p->vibe_timer + gFrameTicks;
                 } else {
-                    p->vibe_timer2 = p->vibe_timer2 + lbl_8034457C;
+                    p->vibe_timer2 = p->vibe_timer2 + gFrameTicks;
                 }
             } else {
                 p->vibe_timer = 0;
@@ -1707,7 +1707,7 @@ void do_players(void) {
             switch (state) {
             case 0:
                 if (p->respawn_timer > 0) {
-                    p->respawn_timer = p->respawn_timer - lbl_8034457C;
+                    p->respawn_timer = p->respawn_timer - gFrameTicks;
                     if (p->respawn_timer < 1) {
                         setup_player_display(i);
                     }
@@ -1725,12 +1725,12 @@ void do_players(void) {
                 break;
             case 3:
                 PlayerCheckMovingFloor(p);
-                if (MBBackgroundLoading() == 0 && lbl_8034477C != 0x4013 &&
-                    lbl_8034477C != 0x4017) {
+                if (MBBackgroundLoading() == 0 && gGameMode != 0x4013 &&
+                    gGameMode != 0x4017) {
                     activate_player(i);
                 } else if (lbl_802575BC == 0 ||
-                           (lbl_8034477C != 0x400B && lbl_8034477C != 0x400D &&
-                            lbl_8034477C != 0x400F && lbl_8034477C != 0x4016)) {
+                           (gGameMode != 0x400B && gGameMode != 0x400D &&
+                            gGameMode != 0x400F && gGameMode != 0x4016)) {
                     fn_80090450(i);
                     WritePlayerInfo(i);
                 }
@@ -1775,10 +1775,10 @@ void do_players(void) {
                 }
                 /* fallthrough */
             case 1:
-                if (lbl_8034477C == 0x4010) {
+                if (gGameMode == 0x4010) {
                     p->intower = 1;
                     PF(p, 0xC28 + p->character * 0x1C, f32) =
-                        PF(p, 0xC28 + p->character * 0x1C, f32) + (f32)lbl_8034457C;
+                        PF(p, 0xC28 + p->character * 0x1C, f32) + (f32)gFrameTicks;
                     if (PF(lbl_8034483C, 0, u32) & 8) {
                         fn_800C0ADC(lbl_80343D74, lbl_80343D70);
                     }
@@ -1797,11 +1797,11 @@ void do_players(void) {
                 fn_8002C53C(p->mat);
                 if ((lbl_803448D8 != 0xD || sumnerSpeechActive() == 0) && lbl_803443B4 == 0 &&
                     lbl_80344A30 == 0 && lbl_80344CC4 == 0 && p->name_timer > 0 &&
-                    lbl_80344568 == 0 && lbl_80344770 == 0) {
+                    gGameBusy == 0 && lbl_80344770 == 0) {
                     char name[8 + 1];
                     f32 spos[2];
 
-                    p->name_timer = p->name_timer - lbl_8034457C;
+                    p->name_timer = p->name_timer - gFrameTicks;
                     if (p->name_timer < 1) {
                         p->name_timer = 0;
                     }
@@ -1847,7 +1847,7 @@ void do_players(void) {
                 do_weakening(p, it == i);
                 break;
             case 5:
-                if (lbl_8034477C == 0x4013 || lbl_8034477C == 0x4017) {
+                if (gGameMode == 0x4013 || gGameMode == 0x4017) {
                     if (p->node != NULL) {
                         MBTreeClearFlags(p->node, 2, 0);
                         DoPlayerAction(p);
@@ -1894,7 +1894,7 @@ void do_players(void) {
                 }
                 break;
             case 0xB:
-                if (lbl_8034477C == 0x4010 && p->motion_state == 1) {
+                if (gGameMode == 0x4010 && p->motion_state == 1) {
                     if (lbl_80240E38[i * 0xF] & 0x8000000) {
                         abort_player(i);
                     }
@@ -1906,24 +1906,24 @@ void do_players(void) {
             }
             p->prev_state = state;
         } else if (p->state == 1) {
-            PlayerProcessPowerups(p, lbl_8034477C, NULL);
+            PlayerProcessPowerups(p, gGameMode, NULL);
             PlayerMotion_SetAnimState(p);
             PlayerProcessScale(p);
             fn_80089120(p);
             if (!(p->hud_flags2 & 0x20)) {
-                fn_8005A3B8(p->mat);
+                UpdateObjWorldMat(p->mat);
             }
             PF(PF(p, 0x6C8, u8*), 0x30, u32) = p->pos[0];
             PF(PF(p, 0x6C8, u8*), 0x34, u32) = p->pos[1];
             PF(PF(p, 0x6C8, u8*), 0x38, u32) = p->pos[2];
         }
     }
-    if (lbl_8034477C != 0x400B && lbl_8034477C != 0x400D && lbl_8034477C != 0x4012 &&
-        lbl_8034477C != 0x400F && lbl_8034477C != 0x4016) {
+    if (gGameMode != 0x400B && gGameMode != 0x400D && gGameMode != 0x4012 &&
+        gGameMode != 0x400F && gGameMode != 0x4016) {
         for (i = 0, p = P(0); i < 4; i++, p++) {
             if (p->state != 0 && (p->hud_flags2 & 1) &&
                 !(p->hud_flags2 & 0x20)) {
-                fn_8005A3B8(p->mat);
+                UpdateObjWorldMat(p->mat);
             }
         }
     }
@@ -1933,7 +1933,7 @@ void do_players(void) {
         s32 k = (j + i) % 4;
 
         if (P(k)->speech_req != NULL) {
-            if (P(k)->state == 1 && lbl_8034477C == 0x4010) {
+            if (P(k)->state == 1 && gGameMode == 0x4010) {
                 fn_8005DE50(P(k), P(k)->speech_req);
                 for (j = 0; j < 4; j++) {
                     if (j != k && P(j)->speech_req == P(k)->speech_req) {
@@ -1950,12 +1950,12 @@ void do_players(void) {
             break;
         }
     }
-    if (i < 4 && lbl_8034477C != 0x4012) {
+    if (i < 4 && gGameMode != 0x4012) {
         fn_8009D610(0, P(i)->col_pos);
     } else {
         fn_8009D610(2, NULL);
     }
-    if (lbl_8034477C != 0x400D && lbl_8034477C != 0x4012 && lbl_8034477C != 0x4016 &&
+    if (gGameMode != 0x400D && gGameMode != 0x4012 && gGameMode != 0x4016 &&
         lbl_803447B8 == 0) {
         if (lbl_803444FC == 0 && lbl_803444F8 < 1) {
             lbl_80344500 = 0;
@@ -1976,7 +1976,7 @@ extern char* lbl_80343D6C;    /* active hidden-character code ptr (set_hidden_pl
 extern s32 lbl_80343D68;      /* mini-inventory label table count */
 extern s32 lbl_80343DAC;      /* bigape powerup table count */
 extern f32 lbl_80343D7C[];    /* att ranges: dmg lo/hi, armor, magic, speed, mdmg, mspd */
-extern s32 lbl_80257590;      /* NoDamage? cheat (1 = no damage, 2.. = invuln) */
+extern s32 gGameOptions;      /* NoDamage? cheat (1 = no damage, 2.. = invuln) */
 extern s32 lbl_80257594;      /* Unlimited? cheat (3 = unlimited turbo) */
 extern s32 lbl_802575A8;      /* Access? cheat (levels open) */
 extern s32 lbl_80257630[4];   /* per-player targeting state cleared at init */
@@ -1988,8 +1988,8 @@ extern s32 lbl_80251F44[];    /* enemy records target field, stride 0xE5 words *
 extern s32 lbl_8012028C[];    /* bigape powerup table, stride 5 words */
 extern u8* lbl_80344950;      /* gItems base (stride 0xF0) */
 extern s32 lbl_8028CAF4;      /* floor tree table (stride 0x50) */
-extern void* lbl_80344934;    /* see-thru tree (low) */
-extern void* lbl_80344938;    /* see-thru tree (high) */
+extern void* sKeyringAtree;    /* see-thru tree (low) */
+extern void* sDeathIconAtree;    /* see-thru tree (high) */
 extern s32 lbl_8025EC68[4];   /* see-thru: player tree node */
 extern s32 lbl_8025EC78[4];   /* see-thru: active floor id, -1 none */
 extern u8* lbl_8025EC88[4];   /* see-thru: chest item ptr */
@@ -2004,7 +2004,7 @@ extern u32 lbl_80240E64[];
 extern u32 lbl_80240E68[];
 extern s32 lbl_80344828;      /* hidden-characters-allowed count */
 extern s32 lbl_80344970;      /* weapons-in-hand enabled */
-extern void* lbl_80344EB8;    /* HUD camera parent */
+extern void* gSceneRoot;    /* HUD camera parent */
 extern s32 lbl_80344B08;      /* got_max_player_sizes once-flag */
 extern s32 lbl_80344B28;      /* INVENTORY file handle */
 extern void* lbl_8034496C;    /* global atree bank */
@@ -2097,13 +2097,13 @@ extern void fn_8009F7D8(s32 player);
 extern void fn_8009F250(s32 player);
 extern void fn_8009F2DC(f32 dmg, s32 player, s32 kind);
 extern s32 fn_80031938(s32 player, s32 lvl, s32 n);
-extern void fn_800115D0(void** h);
+extern void AtreeDelete(void** h);
 extern s32 fn_80012F78(void* atree, void* out, s32 a, s32 flags);
 extern void fn_80011104(void** h, s32 a, s32 b);
 extern void fn_80091F34(f32* pos, s32 n);
 extern s32* fn_80063928(s32 a, s32 b, char* name, f32* mat);
 extern s32* fn_80063A44(s32* tmpl, f32* pos, s32 a, s32 b);
-extern void fn_80064154(s32* item);
+extern void AddItemSub(s32* item);
 extern s32 fn_800675F8(s32 item, s32 a, s32 b);
 extern void fn_800A0C00(void);
 extern void fn_800A1E6C(s32 player, s32 track, s32 sub);
@@ -2118,7 +2118,7 @@ extern void fn_800E8090(char* dst, char* src, s32 n);
 extern void* MBNewNode(void* parent, f32* mat, s32 a);
 extern s32 fn_80011BBC(void* modelbuf, char* name, void* atree_out, char* tmp, s32 size);
 extern void fn_800ADD24(void* atree, void* animctx, s32 bank);
-extern s32 fn_800B8E94(char* name, s32 a, s32 b, s32 dir);
+extern s32 MBOX_ReallyFindObject(char* name, s32 a, s32 b, s32 dir);
 extern s32* AtreeFindMbidxNode(void* atree, s32 idx);
 extern void* fn_800B91C0(s32 node, f32* mat, void* c, u32 flags);
 extern void fn_800CEA18(s32 node, s32 a);
@@ -2156,7 +2156,7 @@ extern void fn_8005A404(f32* mat, f32* fwd, f32* pos);
 extern void ShopLoadData(s32 file);
 extern void fn_8009F118(s32 player);
 extern void get_player_pos(void);
-extern void fn_800BD050(f32* out, f32* rec, u8* c);
+extern void CreateYPRMatrix(f32* out, f32* rec, u8* c);
 extern s32 fn_800579E0(s32* entry);
 extern u32 MBOX_FindTexture2(char* name, s32* out); /* fn_800B8B04 */
 extern void fn_800184B8(s32 sfx);
@@ -2268,7 +2268,7 @@ static void do_exit(void* vp, s32 dest) {
         }
         fn_800911C8(1.5f, (f32*)((u8*)p + 0x7DC), lbl_80344BEC, 10, 1);
     }
-    t = PF(p, 0x1F2, s16) - lbl_8034457C;
+    t = PF(p, 0x1F2, s16) - gFrameTicks;
     PF(p, 0x1F2, s16) = t;
     if (t < 1) {
         PF(p, 0x1F2, s16) = 0;
@@ -2278,9 +2278,9 @@ static void do_exit(void* vp, s32 dest) {
         }
     } else if (PF(p, 0x8B8, f32) < 1.0 + 0.5 * PF(p, 0x854, f32) + p->pos[1]) {
         /* still above the hole floor: sink and spin */
-        p->pos[0] += 0.0f * (f32)lbl_8034457C;
-        p->pos[1] += -0.06f * (f32)lbl_8034457C;
-        p->pos[2] += 0.0f * (f32)lbl_8034457C;
+        p->pos[0] += 0.0f * (f32)gFrameTicks;
+        p->pos[1] += -0.06f * (f32)gFrameTicks;
+        p->pos[2] += 0.0f * (f32)gFrameTicks;
         YawMat3(p->mat, (f32)(0.5 * lbl_80344590));
         p->hud_flags |= 1;
     }
@@ -2293,7 +2293,7 @@ static s32 do_weakening(void* vp, s32 active) {
 
     if (PF(p, 0xA30, s32) != 0) {
         if (p->state == 1 && (lbl_803445CC & 4) == 0 && lbl_803448D8 != 0xC) {
-            PF(p, 0xA2C, s32) += lbl_8034457C;
+            PF(p, 0xA2C, s32) += gFrameTicks;
             if (PF(p, 0xA2C, s32) >= PF(p, 0xA30, s32)) {
                 PF(p, 0xA2C, s32) -= PF(p, 0xA30, s32);
             }
@@ -2303,7 +2303,7 @@ static s32 do_weakening(void* vp, s32 active) {
         return -1;
     }
     if (active != 0 && p->health <= 150.0f) {
-        t = PF(p, 0x1F6, s16) - lbl_8034457C;
+        t = PF(p, 0x1F6, s16) - gFrameTicks;
         PF(p, 0x1F6, s16) = t;
         if (t < 1) {
             if (lbl_803448D8 != 0xD && (PF(p, 0x120, u32) & 0x110000) == 0) {
@@ -2352,7 +2352,7 @@ s32 PlayerOnMovingObject(void) {
     u32 flags;
     s32 i;
 
-    if (lbl_8034477C != 0x4010) {
+    if (gGameMode != 0x4010) {
         return 0;
     }
     for (i = 0; i < 4; i++) {
@@ -2494,7 +2494,7 @@ void damage_player(s32 i, f32 dmg_in, u32 flags, f32* dir) {
         return;
     }
 
-    invuln = lbl_80257590;
+    invuln = gGameOptions;
     if (invuln < 2) {
         invuln = (invuln >= 1 && dmg == 999999.0f) ? 1 : 0;
     }
@@ -2699,7 +2699,7 @@ static void player_dies(s32 i) {
 
     fn_8002C49C(p->mat);
     if (lbl_8025ECB8[i][0] != NULL) {
-        fn_800115D0(&lbl_8025ECB8[i][0]);
+        AtreeDelete(&lbl_8025ECB8[i][0]);
     }
     MBTreeSetFlags((void*)lbl_8025EC68[i], 1, 0);
     /* restore the see-thru chest proxy to its tree */
@@ -2731,7 +2731,7 @@ static void player_dies(s32 i) {
     }
     keys = PF(p, 0x1EB8, s32);
     if (keys > 0 && lbl_803448D8 != 0xD) {
-        CopyMat4(lbl_80127D60, m);
+        CopyMat4(gIdentityMatrix, m);
         m[12] = death_pos[0];
         m[13] = death_pos[1];
         m[14] = death_pos[2];
@@ -2807,7 +2807,7 @@ void abort_player(s32 i) {
     if (p->node != NULL) {
         player_dies(i);
     }
-    if (lbl_8034477C & 0x4000) {
+    if (gGameMode & 0x4000) {
         setup_player_display(i);
         for (j = 0; j < 7; j++) {
             mbBlitInit3414(pm_blit[i][j], 1);
@@ -2856,13 +2856,13 @@ void remove_player_geo(s32 i) {
         PF(p, 0x6E0, void*) = NULL;
     }
     if (PF(p, 0x748, s32) != 0) {
-        fn_800115D0((void**)((u8*)p + 0x748));
+        AtreeDelete((void**)((u8*)p + 0x748));
     }
     if (PF(p, 0x790, s32) != 0) {
-        fn_800115D0((void**)((u8*)p + 0x790));
+        AtreeDelete((void**)((u8*)p + 0x790));
     }
     if (PF(p, 0x6E4, s32) != 0) {
-        fn_800115D0((void**)((u8*)p + 0x6E4));
+        AtreeDelete((void**)((u8*)p + 0x6E4));
     }
     if (PF(p, 0x730, void*) != NULL) {
         MBRemoveNode(PF(p, 0x730, void*), 0);
@@ -2889,11 +2889,11 @@ void remove_player_geo(s32 i) {
         PF(p, 0x968, void*) = NULL;
     }
     if (PF(p, 0x96C, s32) != 0) {
-        fn_800115D0((void**)((u8*)p + 0x96C));
+        AtreeDelete((void**)((u8*)p + 0x96C));
     }
     PF(p, 0xA1C, s16) = 0;
     if (PF(p, 0x96C, s32) != 0) {
-        fn_800115D0((void**)((u8*)p + 0x96C));
+        AtreeDelete((void**)((u8*)p + 0x96C));
     }
     if (PF(p, 0xA14, void*) != NULL) {
         MBRemoveNode(PF(p, 0xA14, void*), 1);
@@ -2909,7 +2909,7 @@ void remove_player_geo(s32 i) {
         }
     }
     fn_80097644(p->node, 1, i);
-    fn_800115D0((void**)((u8*)p + 0x7C));
+    AtreeDelete((void**)((u8*)p + 0x7C));
     if (p->node != NULL) {
         if (*(s32*)(p->node + 0x78) != 0) {
             ErrorPrintf("PLAYER OBJ NODE HAS KIDS AFTER ALL REMOVED\n");
@@ -2944,7 +2944,7 @@ void change_player(s32 i, s32 type) {
     }
     LoadPlyrData(i, type, NULL);
     player_get_from_save(p, type);
-    if ((lbl_8034477C == 0x4010 || lbl_8034477C == 0x400B) && p->node != NULL) {
+    if ((gGameMode == 0x4010 || gGameMode == 0x400B) && p->node != NULL) {
         remove_player_geo(i);
         load_player(i);
     }
@@ -3032,7 +3032,7 @@ s32 activate_player(s32 i) {
     PF(p, 0x830, s32) = fn_8008FE70(i);
     del_player_blits(i);
     LoadPlyrData(i, p->character, (void*)1);
-    if (lbl_8034477C == 0x4010) {
+    if (gGameMode == 0x4010) {
         load_player(i);
         if (lbl_803447B8 == 0) {
             PlayerAddPowerup(0.0f, 5.0f, p, 9, 4);
@@ -3040,7 +3040,7 @@ s32 activate_player(s32 i) {
         for (j = 0; j < lbl_80344744; j++) {
             lbl_80251F44[j * 0xE5] = 0;
         }
-        if (lbl_803447B4 != 0 || lbl_803447D0 > 9 || lbl_8034477C == 0x4016) {
+        if (lbl_803447B4 != 0 || lbl_803447D0 > 9 || gGameMode == 0x4016) {
             for (j = 0; j < 4; j++) {
                 if (lbl_803447B4 != 0 || P(j)->state == 5) {
                     if (P(j)->state - 4U < 2) {
@@ -3050,7 +3050,7 @@ s32 activate_player(s32 i) {
                 }
             }
         }
-        if (lbl_803447D0 < 10 && lbl_8034477C != 0x400B && lbl_8034477C != 0x400D) {
+        if (lbl_803447D0 < 10 && gGameMode != 0x400B && gGameMode != 0x400D) {
             fn_8002C53C(p->mat);
         } else {
             MBTreeSetFlags(p->node, 2, 0);
@@ -3192,12 +3192,12 @@ void load_player(s32 i) {
         }
     }
     PF(p, 0x8C4, s32) = 0;
-    if ((lbl_802575BC & 1) == 0 || lbl_8034477C != 0x400B) {
+    if ((lbl_802575BC & 1) == 0 || gGameMode != 0x400B) {
         setup_player_display(i);
     }
     if (lbl_80344DA4 != 0) {
         get_player_pos();
-        fn_800BD050(m, (f32*)((u8*)p + 0xC4), NULL);
+        CreateYPRMatrix(m, (f32*)((u8*)p + 0xC4), NULL);
         CopyMat3(m, p->mat);
         PF(p, 0x894, f32) = PF(p, 0xC8, f32);
         PF(p, 0x8B4, f32) = p->pos[1];
@@ -3205,7 +3205,7 @@ void load_player(s32 i) {
         PF(p, 0x880, f32) = p->pos[1];
         PF(p, 0x884, f32) = p->pos[2];
         if ((p->hud_flags & 0x20) == 0) {
-            fn_8005A3B8(p->mat);
+            UpdateObjWorldMat(p->mat);
             fn_8005A404(p->mat, p->anchor_fwd, p->anchor_pos);
         }
         *(f32*)(PF(p, 0x6C8, u8*) + 0x30) = *(f32*)(p->node + 0x30);
@@ -3575,7 +3575,7 @@ void load_player_geo(s32 i, void* vp) {
     }
     fn_800C9BD0(tbuf, "%s%s%s", lbl_801200B0 + cls * 4, name, "");
     fn_800E8090((char*)p + 0x6C0, tbuf, 8);
-    p->node = MBNewNode(lbl_80344B2C, lbl_80127D60, 1);
+    p->node = MBNewNode(lbl_80344B2C, gIdentityMatrix, 1);
     PF(p, 0x78, s32) = 0;
     n = fn_80011BBC(model_slot[i].model_buf, (char*)(lbl_801200B0 + p->char_type * 4),
                     (u8*)p + 0x7C, tbuf, 0x800);
@@ -3585,33 +3585,33 @@ void load_player_geo(s32 i, void* vp) {
     }
     MBNodeSetParent(*(void**)PF(p, 0x7C, s32*), p->node);
     fn_800ADD24((u8*)p + 0x7C, (u8*)p + 0x210, 0x80126C68);
-    if (lbl_8034477C != 0x4012 && lbl_8034477C != 0x400D &&
-        lbl_8034477C != 0x400F && lbl_8034477C != 0x4016) {
+    if (gGameMode != 0x4012 && gGameMode != 0x400D &&
+        gGameMode != 0x400F && gGameMode != 0x4016) {
         LoadPlyrData(i, p->character, (void*)1);
     }
     PF(p, 0x744, s32) = 0;
     /* attachment nodes */
     fn_800C9BD0(tbuf, "%s%s", (char*)p + 0x6C0, lbl_80120184[cls]);
-    n = fn_800B8E94(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
+    n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
     nd = AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
     PF(p, 0x6D0, s32) = (nd == NULL) ? 0 : *nd;
     fn_800C9BD0(tbuf, "%s%s", (char*)p + 0x6C0, lbl_80120144[cls]);
-    n = fn_800B8E94(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
+    n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
     nd = AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
     PF(p, 0x6CC, s32) = (nd == NULL) ? 0 : *nd;
     fn_800C9BD0(tbuf, "%sCFGLOW", (char*)p + 0x6C0);
-    n = fn_800B8E94(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), -1);
+    n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), -1);
     nd = (n < 0) ? NULL : AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
     PF(p, 0x6D8, s32) = (nd == NULL) ? 0 : *nd;
     if (nd != NULL) {
         MBTreeSetFlags((void*)*nd, 0x800810, 0);
     }
     fn_800C9BD0(tbuf, "%sHEAD", (char*)p + 0x6C0);
-    n = fn_800B8E94(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
+    n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
     nd = AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
     PF(p, 0x6D4, s32) = (nd == NULL) ? 0 : *nd;
     fn_800C9BD0(tbuf, "%sTORSO", (char*)p + 0x6C0);
-    n = fn_800B8E94(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
+    n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
     nd = AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
     PF(p, 0x6DC, s32) = (nd == NULL) ? 0 : *nd;
     /* weapon */
@@ -3622,7 +3622,7 @@ void load_player_geo(s32 i, void* vp) {
         } else {
             fn_800C9BD0(tbuf, "WEAP_HOLD", cls, tier);
         }
-        n = fn_800B8E94(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
+        n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
         PF(p, 0x6E0, void*) = fn_800B91C0(n, NULL, (void*)PF(p, 0x6D0, s32), 0x810);
         PF(p, 0x7F8, s32) = -1;
         if (p->char_type == 7) {
@@ -3648,8 +3648,8 @@ void load_player_geo(s32 i, void* vp) {
     PF(p, 0x96C, s32) = 0;
     PF(p, 0xA14, s32) = 0;
     /* shadow */
-    n = fn_800B8E94("SHADOWL1", PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
-    PF(p, 0x6C8, void*) = fn_800B91C0(n, lbl_80127D60, NULL, 0x880);
+    n = MBOX_ReallyFindObject("SHADOWL1", PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
+    PF(p, 0x6C8, void*) = fn_800B91C0(n, gIdentityMatrix, NULL, 0x880);
     *(s16*)(PF(p, 0x6C8, u8*) + 0x68) = -0x24;
     PF(p, 0x7FC, f32) = 0.0f;
     if (PF(p, 0x6D0, s32) != 0) {
@@ -3701,7 +3701,7 @@ s32 set_hidden_player(void* vp) {
                 lbl_80257594 = 3;
             }
             if (fn_8006AFE0("NoDamage?", NULL, 2) == 0) {
-                lbl_80257590 = 1;
+                gGameOptions = 1;
             }
             if (fn_8006AFE0("Shards?", NULL, 2) == 0) {
                 PF(p, 0x1EC8, u16) = 0xFFFF;
@@ -3760,7 +3760,7 @@ s32 set_hidden_player(void* vp) {
             /* plus the full unlock block (same as Worlds?) */
             lbl_802575A8 = 1;
             lbl_80257594 = 3;
-            lbl_80257590 = 1;
+            gGameOptions = 1;
             PF(p, 0x1EC8, u16) = 0xFFFF;
             PF(p, 0x1ECA, u16) = 0xFFFF;
             for (j = 0; j < 16; j++) {
@@ -3926,7 +3926,7 @@ void init_players(void) {
     for (i = 0; i < 2; i++) {
         lbl_803447A8[i] = 0;
     }
-    lbl_80344B2C = MBNewNode(lbl_80344EB8, lbl_80127D60, 1);
+    lbl_80344B2C = MBNewNode(gSceneRoot, gIdentityMatrix, 1);
     for (i = 0; i < 24; i++) {
         got_it[i].state = 0;
         if (got_it[i].blit2 != NULL) {
@@ -4164,14 +4164,14 @@ static void PlayerProcessSkinFX(void* vp, void* node) {
         src = (void**)&lbl_80240628[p->index * 2];
     } else {
         if (PF(p, 0x748, s32) != 0) {
-            fn_800115D0((void**)((u8*)p + 0x748));
+            AtreeDelete((void**)((u8*)p + 0x748));
         }
         src = NULL;
     }
     if (src != NULL) {
         if (PF(p, 0x748, s32) != 0 &&
             (*src == NULL || PF(p, 0x750, s32) != *((s32*)*src + 1))) {
-            fn_800115D0((void**)((u8*)p + 0x748));
+            AtreeDelete((void**)((u8*)p + 0x748));
         }
         if (PF(p, 0x748, s32) == 0 && *src != NULL) {
             PF(p, 0x748, s32) = fn_80012F78(*src, (u8*)p + 0x748, 0, 0x800);
@@ -4200,7 +4200,7 @@ static void PlayerProcessSkinFX(void* vp, void* node) {
         }
     }
     if (PF(p, 0x748, s32) != 0) {
-        if (lbl_8034477C == 0x4010 && (PF(p, 0x124, u32) & 0x80)) {
+        if (gGameMode == 0x4010 && (PF(p, 0x124, u32) & 0x80)) {
             MBTreeSetFlags(*(void**)PF(p, 0x748, s32*), 2, 0);
         } else {
             MBTreeClearFlags(*(void**)PF(p, 0x748, s32*), 2, 0);
@@ -4243,7 +4243,7 @@ void PlayerProcessMikeyPUP(void* vp) {
             atree = AtreeMatch(lbl_8034496C, "MIKEYPUP_ON", 1);
             PF(p, 0x96C, s32) = fn_80012F78(atree, (u8*)p + 0x96C, 0, 0);
             PF(p, 0x9A4, s16) = 1;
-            PF(p, 0xA14, void*) = MBNewNode(lbl_80344BD4, lbl_80127D60, 1);
+            PF(p, 0xA14, void*) = MBNewNode(lbl_80344BD4, gIdentityMatrix, 1);
             PF(p, 0xA18, s32) = 0;
             MBNodeSetParent(*(void**)PF(p, 0x96C, s32*), PF(p, 0xA14, void*));
             *(f32*)(PF(p, 0xA14, u8*) + 0x30) = p->col_pos[0];
@@ -4269,7 +4269,7 @@ void PlayerProcessMikeyPUP(void* vp) {
                     break;
                 }
             }
-            fn_800115D0((void**)((u8*)p + 0x96C));
+            AtreeDelete((void**)((u8*)p + 0x96C));
             MBRemoveNode(PF(p, 0xA14, void*), 1);
             PF(p, 0xA14, s32) = 0;
             PF(p, 0xA1C, s16) = 0;
@@ -4346,7 +4346,7 @@ void AppendItemToLevel(f32 x, f32 y, f32 z, char* name) {
     *(f32*)&item[0xD] = x;
     *(f32*)&item[0xE] = y;
     *(f32*)&item[0xF] = z;
-    fn_80064154(item);
+    AddItemSub(item);
 }
 
 /*
@@ -4382,11 +4382,11 @@ static s32 do_see_thru(void* vp) {
             floor_id = *(s16*)((u8*)fl + fn_800675F8(j, fl[1], 0) * 2 + 8);
             fl = (s32*)(lbl_8028CAF4 + floor_id * 0x50);
         }
-        tree = lbl_80344938;
+        tree = sDeathIconAtree;
         if (*fl != 4 && (*fl != 1 || fl[1] != 2 || *(s16*)(chest + 0xEC) < 2)) {
             tree = (void*)fl[0x13];
         } else if (*fl == 1) {
-            tree = lbl_80344934;
+            tree = sKeyringAtree;
         }
         for (j = 0; j < 4; j++) {
             if (j != i && lbl_8025EC88[j] == chest) {
@@ -4414,14 +4414,14 @@ static s32 do_see_thru(void* vp) {
                 *(s32*)(lbl_8025ECA8[i] + 0x30) = *(s32*)(*(u8**)(chest + 100) + 0x30);
                 *(s32*)(lbl_8025ECA8[i] + 0x34) = *(s32*)(*(u8**)(chest + 100) + 0x34);
                 *(s32*)(lbl_8025ECA8[i] + 0x38) = *(s32*)(*(u8**)(chest + 100) + 0x38);
-                CopyMat4(lbl_80127D60, *(f32**)(chest + 100));
+                CopyMat4(gIdentityMatrix, *(f32**)(chest + 100));
                 lbl_8025EC88[i] = chest;
                 fresh = 1;
             }
             if ((fresh && lbl_8025ECB8[i][0] == NULL) || floor_id != lbl_8025EC78[i]) {
                 lbl_8025EC78[i] = floor_id;
                 if (lbl_8025ECB8[i][0] != NULL) {
-                    fn_800115D0(&lbl_8025ECB8[i][0]);
+                    AtreeDelete(&lbl_8025ECB8[i][0]);
                 }
                 lbl_8025ECB8[i][0] = (void*)fn_80012F78(tree, &lbl_8025ECB8[i][0], 0, 0x80);
                 MBTreeSetFlags(*(void**)lbl_8025ECB8[i][0], 8, 0);
@@ -4444,7 +4444,7 @@ static s32 do_see_thru(void* vp) {
     if (lbl_8025EC78[i] == -1) {
         /* end_see_thru (inlined) */
         if (lbl_8025ECB8[i][0] != NULL) {
-            fn_800115D0(&lbl_8025ECB8[i][0]);
+            AtreeDelete(&lbl_8025ECB8[i][0]);
         }
         MBTreeSetFlags((void*)lbl_8025EC68[i], 1, 0);
         if (lbl_8025EC88[i] != NULL) {
@@ -4726,7 +4726,7 @@ static void do_got_it(void) {
             /* sliding up into place */
             if (g->blit1 != NULL) {
                 fn_800B2D4C(g->blit1, NULL, &y[0], NULL);
-                y[0] -= lbl_8034457C;
+                y[0] -= gFrameTicks;
                 if (y[0] < 0x131) {
                     y[0] = 0x130;
                     g->state++;
@@ -4739,7 +4739,7 @@ static void do_got_it(void) {
             /* sliding down out */
             if (g->blit1 != NULL) {
                 fn_800B2D4C(g->blit1, NULL, &y[0], NULL);
-                y[0] += lbl_8034457C;
+                y[0] += gFrameTicks;
                 if (y[0] > 399) {
                     g->state = -1;
                 }
@@ -4748,7 +4748,7 @@ static void do_got_it(void) {
             }
         } else if (g->state == 3) {
             /* holding */
-            g->timer -= lbl_8034457C;
+            g->timer -= gFrameTicks;
             if (g->timer < 1) {
                 g->state++;
             }
@@ -4921,7 +4921,7 @@ void UpdatePlayerWorldMat(void* vp, s32 anchor) {
     Player* p = vp;
 
     if ((p->hud_flags & 0x20) == 0) {
-        fn_8005A3B8(p->mat);
+        UpdateObjWorldMat(p->mat);
         if (anchor != 0) {
             fn_8005A404(p->mat, p->anchor_fwd, p->anchor_pos);
         }
@@ -4937,7 +4937,7 @@ void mini_inventory_update(s32 i) {
     s32 sel;
     s32 j;
 
-    if (lbl_8034477C != 0x4010 || lbl_80344568 != 0) {
+    if (gGameMode != 0x4010 || gGameBusy != 0) {
         return;
     }
     if (tb->state == 1) {
@@ -5006,7 +5006,7 @@ void mini_inventory_update(s32 i) {
     }
     if (tb->state == 2) {
         if (tb->slide < 0x80) {
-            tb->slide += lbl_8034457C * 4;
+            tb->slide += gFrameTicks * 4;
             if (tb->slide > 0x80) {
                 tb->slide = 0x80;
             }
@@ -5030,7 +5030,7 @@ void mini_inventory_update(s32 i) {
         }
     } else if (tb->state == 3) {
         if (tb->slide < 0x80) {
-            tb->slide += lbl_8034457C * 4;
+            tb->slide += gFrameTicks * 4;
             if (tb->slide > 0x80) {
                 tb->slide = 0x80;
             }

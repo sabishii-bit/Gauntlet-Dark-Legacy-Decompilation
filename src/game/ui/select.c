@@ -74,7 +74,7 @@ extern s32 lbl_80344610;   /* memcard slot sub-state */
 extern u8  lbl_80343DEC;   /* current card port/slot byte */
 extern char lbl_80114718[];/* save-slot format string A */
 extern char lbl_80114724[];/* save-slot format string B */
-extern u8  lbl_80275AE0[]; /* 4-player array, stride 0x335C */
+extern u8  gPlayers[]; /* 4-player array, stride 0x335C */
 extern u8  lbl_80284878[]; /* 4 pages x 11 entries x 0xC blit table */
 
 extern s32  new_menu_accept(s32 plyr, s32 allow_start);
@@ -209,7 +209,7 @@ void do_player_select(void)
 static void do_sel_menu(int player)
 {
     (void)player;
-    LimitSeltype(lbl_80275AE0, 4, 1);
+    LimitSeltype(gPlayers, 4, 1);
     DrawGlowText();
     DrawTextKeepScale();
     MBNewTempBlit(0, 0, 0, 0, 0);
@@ -217,7 +217,7 @@ static void do_sel_menu(int player)
 
 void fn_8008E3BC(s32 idx, s32 arg1)
 {
-    u8* pl = lbl_80275AE0 + idx * 0x335C;
+    u8* pl = gPlayers + idx * 0x335C;
     int i;
     u8* p;
     s32 v;
@@ -226,7 +226,7 @@ void fn_8008E3BC(s32 idx, s32 arg1)
 
     *(s32*)(pl + 0xE8) = 3;
 
-    p = lbl_80275AE0;
+    p = gPlayers;
     for (i = 0; i < 4; i++, p += 0x335C) {
         if (i != idx) {
             s32 st = *(s32*)(p + 0xE8);
@@ -236,7 +236,7 @@ void fn_8008E3BC(s32 idx, s32 arg1)
             }
         }
     }
-    v = *(s32*)(lbl_80275AE0 + idx * 0x335C + 0x830);
+    v = *(s32*)(gPlayers + idx * 0x335C + 0x830);
 gotv:
     *(s32*)(pl + 0x830) = v;
 
@@ -258,7 +258,7 @@ gotv:
 
 int fn_8008F768(const char* name)
 {
-    return strncmp(name, (const char*)lbl_80275AE0, 8);
+    return strncmp(name, (const char*)gPlayers, 8);
 }
 
 int fn_8008F914(u8* pl, s32 v)
@@ -267,7 +267,7 @@ int fn_8008F914(u8* pl, s32 v)
     s32 a = *(s32*)(pl + 0x334C);
     s32 b = *(s32*)(pl + 0x3350);
     for (i = 0; i < 4; i++) {
-        u8* p = lbl_80275AE0 + i * 0x335C;
+        u8* p = gPlayers + i * 0x335C;
         if (p != pl && *(s32*)(p + 0xE8) != 0 &&
             *(s32*)(p + 0x334C) == a && *(s32*)(p + 0x3350) == b &&
             *(s32*)(p + 0x3358) == v) {
@@ -324,7 +324,7 @@ void fn_8008FC78(void)
 s32 fn_8008FE70(s32 idx)
 {
     int i;
-    u8* p = lbl_80275AE0;
+    u8* p = gPlayers;
     for (i = 0; i < 4; i++, p += 0x335C) {
         if (i != idx) {
             s32 st = *(s32*)(p + 0xE8);
@@ -333,7 +333,7 @@ s32 fn_8008FE70(s32 idx)
             }
         }
     }
-    return *(s32*)(lbl_80275AE0 + idx * 0x335C + 0x830);
+    return *(s32*)(gPlayers + idx * 0x335C + 0x830);
 }
 
 int fn_8008FED4(void)
@@ -342,7 +342,7 @@ int fn_8008FED4(void)
     int count = 0;
     u8* p;
     new_menu_accept(-1, 1);
-    p = lbl_80275AE0;
+    p = gPlayers;
     for (i = 0; i < 4; i++, p += 0x335C) {
         if (*(s32*)(p + 0xE8) == 0 && (lbl_80344824 & (1 << i))) {
             new_player(i);

@@ -68,11 +68,11 @@ void ClearAllPlayerControls(int a);   /* 0x80032A80 */
 extern int gWinGlobals;         /* lbl_80344FC0 */
 extern u8 lbl_80344A5C;
 extern u8 lbl_80344A5D;
-extern int lbl_80344568;
+extern int gGameBusy;
 extern int lbl_80344A30;        /* modal-render depth */
 extern int lbl_80344E04;
 extern int lbl_80344A48;        /* screensaver idle timer */
-extern int lbl_8034477C;        /* game-mode flag */
+extern int gGameMode;        /* game-mode flag */
 
 /* ---- screen-transition blit handles + wipe state (green-circle wipe) ---- */
 extern void* lbl_80344A34;
@@ -133,7 +133,7 @@ void ScreenSaver(void)
 {
     int i;
 
-    if ((lbl_8034477C & 0x8000) != 0) {
+    if ((gGameMode & 0x8000) != 0) {
         return;
     }
     lbl_80344A48 += 1;

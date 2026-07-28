@@ -56,7 +56,7 @@ extern char* strcat(char* dst, const char* src);
 extern s32 lbl_801232C8[]; /* per-player name/track id table, stride 4 */
 extern char lbl_801232DC[6][8]; /* material names used by music cues */
 extern char lbl_80114A48[]; /* SOUNDS string table */
-extern u8 lbl_80275AE0[];  /* player array, stride 0x335C */
+extern u8 gPlayers[];  /* player array, stride 0x335C */
 extern u8 sSpeechNameBuf[];  /* scratch name buffer; aliases per-class speech id tables at offsets */
 extern u8 lbl_8028BCB8[];
 extern u8 lbl_8028BCC0[];
@@ -118,7 +118,7 @@ void AudioWelcomeBack(int pidx, int flag)
 
 void AudioWithName(int id, int pidx, f32 vol, int s4, int s5)
 {
-    u8* player = &lbl_80275AE0[pidx * 0x335C];
+    u8* player = &gPlayers[pidx * 0x335C];
     s32* T = (s32*)sSpeechNameBuf;
     int track;
     int flag;
@@ -433,7 +433,7 @@ void AudioRegisterNameBanks(char* name, int flag)
         sndFxQueEmpty();
     }
     for (i = 0; i < 4; i++) {
-        p = &lbl_80275AE0[i * 13148];
+        p = &gPlayers[i * 13148];
         st = *(s32*)(p + 232);
         if (st == 0) {
             continue;

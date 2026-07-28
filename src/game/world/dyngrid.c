@@ -78,13 +78,13 @@ typedef struct WorldBounds {
 /* External object pools / counts (owned by the enemy & item managers).  Named
  * by their real symbols.txt addresses; friendly aliases below. */
 extern GridEnemy* sItems;        /* shared item/enemy pool base (items.c) */
-extern s32 lbl_8034494C;         /* enemy pool count */
+extern s32 sNumItems;         /* enemy pool count */
 extern GridItem gEnemies[];      /* item pool base (0x80251C18) */
 extern s32 gNumEnemies;          /* item pool count */
 extern WorldBounds gWorldInfo; /* world bounds */
 
 #define ene_pool sItems
-#define ene_pool_num lbl_8034494C
+#define ene_pool_num sNumItems
 #define itm_pool gEnemies
 #define itm_pool_num gNumEnemies
 #define gWorldBounds gWorldInfo

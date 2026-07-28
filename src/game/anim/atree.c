@@ -419,7 +419,7 @@ anode* AtreeFindMbidxNode(anode* node, int mbidx)
     return NULL;
 }
 
-void fn_800115D0(anode** proot)
+void AtreeDelete(anode** proot)
 {
     anode* root;
     anode* node;

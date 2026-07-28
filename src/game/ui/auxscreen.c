@@ -20,16 +20,16 @@
 /* ------------------------------------------------------------------ */
 
 /* Player/team array, stride 0x335C (13148). Owned elsewhere. */
-extern u8 lbl_80275AE0[];
+extern u8 gPlayers[];
 /* Big aux-screen scene object (blits + good-wizard model), engine owned. */
 extern u8 lbl_8023DFD0[];
 /* Base vec3 used to seed the averaged wizard position. */
 extern f32 lbl_8023E874[3];
 /* .data tables referenced by the wizard/movie logic. */
-extern u8 lbl_80127D60[];
+extern u8 gIdentityMatrix[];
 extern u8 lbl_80118250[];
 /* Per-frame time deltas (engine globals in the .sbss window). */
-extern s32 lbl_8034457C;  /* integer frame delta */
+extern s32 gFrameTicks;  /* integer frame delta */
 extern s32 lbl_80344578;  /* caption frame delta */
 extern f32 lbl_80344594;  /* float frame delta */
 /* Assorted engine handles read by DoGoodWizard/init_gamemovie. */
@@ -38,11 +38,11 @@ extern void* lbl_80344BD4;
 extern void* lbl_80344BEC;
 extern void* sItemFile1Buf;
 extern s32 lbl_803449A4;
-extern s32 lbl_803445C8;
+extern s32 gControllerButtons;
 extern s32 lbl_803445CC;
 extern s32 lbl_8034481C;
 extern s32 sLastWorldLevel;
-extern s32 lbl_8034477C;
+extern s32 gGameMode;
 extern void* gCurLevel;
 
 /* ------------------------------------------------------------------ */
@@ -117,7 +117,7 @@ extern void fn_800B3D6C(void* blit);
 extern void del_player_blits(s32 i);
 extern f32 atan2(f32 y, f32 x);
 extern void fn_800BD254(void* mtx, void* v);
-extern void fn_8005A3B8(void* mtx);
+extern void UpdateObjWorldMat(void* mtx);
 extern s32 fn_8001FE90(char* a, char* b, s32 line, s32* out);
 extern s32 fn_8001FD64(char* a, char* b, s32 line);
 extern s32 CaptionTextSub(s32 x, f32 w, s32 y, s32 page, s32 flags);
@@ -140,7 +140,7 @@ extern void next_world(void);
 extern void fn_80053D08(s32 a, s32 b, s32 c);
 extern void setup_player_display(s32 i);
 extern s32 fn_8005638C(s32 a);
-extern void* fn_8005A260(char* name, s32 a, s32 b, s32 c);
+extern void* LoadModel(char* name, s32 a, s32 b, s32 c);
 extern void* fn_800B38D0(void* base, s32 a, s32 b);
 extern void* fn_800B8B04(char* name, s32 a);
 extern void strcat(char* d, char* s);
@@ -164,7 +164,7 @@ void DoGoodWizard(void)
     f32 pos[3];
 
     for (i = 0; i < 4; i++) {
-        u8* p = lbl_80275AE0 + i * 0x335C;
+        u8* p = gPlayers + i * 0x335C;
         if (*(s32*)(p + 232) == 1) {
             u8* slot = p + *(s32*)(p + 12) * 240;
             acc3542 |= *(u16*)(slot + 3542);
@@ -210,7 +210,7 @@ void DoGoodWizard(void)
             fn_80012F78(lbl_8023DFD0 + 1520, (void*)0x88001880, 0);
         *(u16*)(lbl_8023DFD0 + 1576) = 1;
         *(void**)(lbl_8023DFD0 + 1512) =
-            MBNewNode(lbl_80344BD4, lbl_80127D60, 1);
+            MBNewNode(lbl_80344BD4, gIdentityMatrix, 1);
         MBNodeSetParent(*(void**)(*(void**)(lbl_8023DFD0 + 1520)),
                     *(void**)(lbl_8023DFD0 + 1512));
         *(s32*)(lbl_8023DFD0 + 1516) = 0;
@@ -262,7 +262,7 @@ s32 hide_rune_stones(void* unused)
     s32 j;
 
     for (i = 0; i < 4; i++) {
-        u8* p = lbl_80275AE0 + i * 0x335C;
+        u8* p = gPlayers + i * 0x335C;
         if (*(s32*)(p + 232) == 1) {
             u8* slot = p + *(s32*)(p + 12) * 240;
             acc |= *(u16*)(slot + 3542);
@@ -293,7 +293,7 @@ void calc_good_wiz_attn(s32 reset, s32 force)
 
     if (force == 0) {
         if (good_wiz_plyr_attn >= 0) {
-            u8* p = lbl_80275AE0 + good_wiz_plyr_attn * 0x335C;
+            u8* p = gPlayers + good_wiz_plyr_attn * 0x335C;
             if (*(s32*)(p + 232) == 1) {
                 goto have_target;
             }
@@ -308,7 +308,7 @@ void calc_good_wiz_attn(s32 reset, s32 force)
                 }
                 good_wiz_plyr_attn = n;
                 {
-                    u8* p = lbl_80275AE0 + good_wiz_plyr_attn * 0x335C;
+                    u8* p = gPlayers + good_wiz_plyr_attn * 0x335C;
                     if (*(s32*)(p + 232) == 1) {
                         break;
                     }
@@ -323,7 +323,7 @@ void calc_good_wiz_attn(s32 reset, s32 force)
 
 have_target:
     {
-        u8* p = lbl_80275AE0 + good_wiz_plyr_attn * 0x335C;
+        u8* p = gPlayers + good_wiz_plyr_attn * 0x335C;
         f32 dx = *(f32*)(p + 68) - *(f32*)(base + 1464);
         f32 dz = *(f32*)(p + 76) - *(f32*)(base + 1472);
         target = atan2(dx, dz);
@@ -343,7 +343,7 @@ have_target:
     mtxbuf[1] = good_wiz_yaw;
     mtxbuf[2] = 0.0f;
     fn_800BD254(base + 1416, mtxbuf);
-    fn_8005A3B8(base + 1416);
+    UpdateObjWorldMat(base + 1416);
 }
 
 /* ================================================================== */
@@ -351,7 +351,7 @@ have_target:
 /* ================================================================== */
 void calc_wizard_pos(f32* out)
 {
-    u8* arr = lbl_80275AE0;
+    u8* arr = gPlayers;
     f32 count = 1.0f;
     s32 i;
 
@@ -405,7 +405,7 @@ s32 do_gamemovie(void)
 /* ================================================================== */
 void init_gamemovie(s32 type)
 {
-    lbl_8034477C = 16398;
+    gGameMode = 16398;
     movieactive = 0;
     fn_800A110C();
     fn_800A17D4();
@@ -413,7 +413,7 @@ void init_gamemovie(s32 type)
     delete_map_blits();
     movie_state = 1;
     if (lbl_803449A4 == 0 &&
-        (lbl_803445C8 & 0) == 0 &&
+        (gControllerButtons & 0) == 0 &&
         (lbl_803445CC & 16) == 0 &&
         lbl_8034481C == 0) {
         if (type == 44) {
@@ -523,7 +523,7 @@ s32 CaptionTextSub(s32 x, f32 w, s32 y, s32 page, s32 flags)
     (void)y;
     (void)page;
     (void)flags;
-    lbl_8034477C = 16398;
+    gGameMode = 16398;
     return 1;
 }
 
@@ -569,7 +569,7 @@ s32 do_mapscreen(s32 skip)
         break;
     }
 
-    map_load_progress += lbl_8034457C;
+    map_load_progress += gFrameTicks;
     (void)done;
     return 0;
 }
@@ -587,7 +587,7 @@ s32 init_mapscreen(s32 timer, s32 movie)
     AudioEmptyCb2();
     fn_800A0E94();
     next_world();
-    lbl_8034477C = 16399;
+    gGameMode = 16399;
     fn_80053D08(-2, 1, -1);
     for (i = 0; i < 4; i++) {
         setup_player_display(i);

@@ -69,7 +69,7 @@
  *                                          fn_8006DF34 by camera mode [game/sys/main]
  *   0x8006E654 fn_8006E654          0x5C4 mode-specific cam update; CamReset;
  *                                          pbUpdateMatricies/DoShake [dispatcher]
- *   0x8006EC18 fn_8006EC18          0xBC  toggle debug-overlay blit
+ *   0x8006EC18 CurTransmitterBlink          0xBC  toggle debug-overlay blit
  *                                          (handle lbl_80344A78) [game/world/items]
  *   0x8006ECD4 fn_8006ECD4          0x70  small projection helper
  *                                          (MBWindowProjection) [bosscam]
@@ -136,7 +136,7 @@ typedef struct NcCamera {
 
 /*
  * Player record view (subset the camera reads).  Full record is game/player.h
- * Player (0x335C, base lbl_80275AE0, stride 0x335C).  Local view keeps newcam
+ * Player (0x335C, base gPlayers, stride 0x335C).  Local view keeps newcam
  * self-contained; offsets verified against the target asm.
  */
 typedef struct NcPlayer {
@@ -153,8 +153,8 @@ typedef struct NcPlayer {
 } NcPlayer;            /* 0x335C */
 
 /* ----- module globals (NEWCAM.OBJ .bss/.data; label names from the disasm) --- */
-extern NcPlayer  lbl_80275AE0[4];   /* the 4 player records (game/player.h Player[]) */
-extern f32       lbl_802757D4[3];   /* default position when no player is valid */
+extern NcPlayer  gPlayers[4];   /* the 4 player records (game/player.h Player[]) */
+extern f32       gDefaultPlayerPosition[3];   /* default position when no player is valid */
 extern NcCamera  lbl_80274AA0;      /* DebugCamera instance */
 extern NcCamera* lbl_80344A6C;      /* live standard-camera pointer (frustum query) */
 extern NcCamera* lbl_80344A68;      /* DebugCam: pointer to the live debug camera */
@@ -280,9 +280,9 @@ s32 fn_80070144(f32 targetYaw, f32 targetPitch, NcCamera* cam) {
     return result;
 }
 extern const f32 lbl_80127D20[3];  /* up ref: general */
-/* lbl_80127D40 (up ref: looking up) declared above for fn_8006EC18 */
+/* lbl_80127D40 (up ref: looking up) declared above for CurTransmitterBlink */
 extern const f32 lbl_80127D50[3];  /* up ref: looking down */
-extern const f32 lbl_80127D60[];   /* default identity-ish basis */
+extern const f32 gIdentityMatrix[];   /* default identity-ish basis */
 
 /*
  * fn_80070340 -- build an orthonormal look basis into mat[0..2]=right,
@@ -302,7 +302,7 @@ void fn_80070340(f32* dir, f32* mat) {
     m[10] = dir[2];
     len = SlowNormalVector(fwd);
     if (len < 0.001) {
-        CopyMat3((f32*)lbl_80127D60, m);
+        CopyMat3((f32*)gIdentityMatrix, m);
     } else {
         if (fwd[0] * fwd[0] + fwd[2] * fwd[2] < 0.0001) {
             if (fwd[1] > 0.0f) {
@@ -337,10 +337,10 @@ extern void fn_8006DF34(NcCamera* cam);
 extern void fn_8006E654(void);
 extern void fn_8002A5C0(s32 mode);
 
-extern s32       lbl_80344568;   /* master camera-disable flag */
-extern void*     lbl_8034457C;   /* camera-enable gate (nonzero to run) */
-extern s32       lbl_8034477C;   /* camera-path mode selector (0x4010 = scripted) */
-extern s32       lbl_803447BC;   /* scripted-path sub-state */
+extern s32       gGameBusy;   /* master camera-disable flag */
+extern void*     gFrameTicks;   /* camera-enable gate (nonzero to run) */
+extern s32       gGameMode;   /* camera-path mode selector (0x4010 = scripted) */
+extern s32       gScriptedCameraState;   /* scripted-path sub-state */
 
 /*
  * UpdateCam -- top-level per-frame camera dispatcher.  Runs only when the
@@ -352,23 +352,23 @@ extern s32       lbl_803447BC;   /* scripted-path sub-state */
 s32 UpdateCam(void) {
     s32 done;
 
-    if (lbl_80344568 != 0 || lbl_8034457C == 0) {
+    if (gGameBusy != 0 || gFrameTicks == 0) {
         return 1;
     }
     if (lbl_80344A6C == 0) {
         fn_8006F16C(0);
     }
-    if (lbl_8034477C != 0x4010) {
+    if (gGameMode != 0x4010) {
         done = 1;
     } else {
-        if (lbl_803447BC > 2) {
-            lbl_803447BC = 2;
+        if (gScriptedCameraState > 2) {
+            gScriptedCameraState = 2;
         }
-        fn_8002A5C0(lbl_803447BC);
-        if (lbl_803447BC == 1) {
+        fn_8002A5C0(gScriptedCameraState);
+        if (gScriptedCameraState == 1) {
             fn_8006E654();
         }
-        done = lbl_803447BC > 0;
+        done = gScriptedCameraState > 0;
     }
     if (done != 0) {
         return 1;
@@ -390,7 +390,7 @@ s32 UpdateCam(void) {
 
 /*
  * Marker/waypoint record (0x28 stride) scanned by the nearest-selectors below.
- * Only the fields the selectors touch are named.  Array base lbl_80258E04.
+ * Only the fields the selectors touch are named.  Array base sTriggerCameras.
  */
 typedef struct NcMarker {
     u8    flag;       /* 0x00 nonzero = record disabled */
@@ -402,8 +402,8 @@ typedef struct NcMarker {
     void* node;       /* 0x24 scene node handle */
 } NcMarker;           /* 0x28 */
 
-extern NcMarker lbl_80258E04[];  /* marker records */
-extern s32 lbl_80344918;         /* marker count */
+extern NcMarker sTriggerCameras[];  /* marker records */
+extern s32 sNumTriggerCameras;         /* marker count */
 extern s32 lbl_80343CF4;         /* current selection (2D XZ selector) */
 extern s32 lbl_80343CF8;         /* current selection (3D selector) */
 
@@ -422,11 +422,11 @@ void* fn_8006FBAC(f32* pos) {
     s32 i;
     s32 best = -1;
 
-    if (lbl_80344918 <= 0) {
+    if (sNumTriggerCameras <= 0) {
         return NULL;
     }
-    for (i = 0; i < lbl_80344918; i++) {
-        NcMarker* m = &lbl_80258E04[i];
+    for (i = 0; i < sNumTriggerCameras; i++) {
+        NcMarker* m = &sTriggerCameras[i];
         if (m->flag == 0 && i != lbl_80343CF4) {
             f32 d = fqdist(pos[0] - m->x, pos[2] - m->z);
             if (best < 0 || d < bestDist) {
@@ -438,13 +438,13 @@ void* fn_8006FBAC(f32* pos) {
     if (lbl_80343CF4 < 0) {
         lbl_80343CF4 = best;
     } else {
-        NcMarker* m = &lbl_80258E04[lbl_80343CF4];
+        NcMarker* m = &sTriggerCameras[lbl_80343CF4];
         f32 selDist = fqdist(pos[0] - m->x, pos[2] - m->z);
         if (bestDist <= 0.667 * selDist) {
             lbl_80343CF4 = best;
         }
     }
-    return &lbl_80258E04[lbl_80343CF4];
+    return &sTriggerCameras[lbl_80343CF4];
 }
 
 /*
@@ -460,12 +460,12 @@ void* fn_8006FCDC(f32* pos) {
     s32 sel;
     s32 i;
 
-    if (lbl_80344918 <= 0) {
+    if (sNumTriggerCameras <= 0) {
         return NULL;
     }
     sel = lbl_80343CF8;
-    for (i = 0; i < lbl_80344918; i++) {
-        NcMarker* m = &lbl_80258E04[i];
+    for (i = 0; i < sNumTriggerCameras; i++) {
+        NcMarker* m = &sTriggerCameras[i];
         if (m->flag == 0 && i != sel) {
             f32 dy = pos[1] - m->y;
             f32 dx = pos[0] - m->x;
@@ -480,7 +480,7 @@ void* fn_8006FCDC(f32* pos) {
     if (sel < 0) {
         lbl_80343CF8 = best;
     } else {
-        NcMarker* m = &lbl_80258E04[sel];
+        NcMarker* m = &sTriggerCameras[sel];
         f32 dy = pos[1] - m->y;
         f32 dx = pos[0] - m->x;
         f32 dz = pos[2] - m->z;
@@ -490,7 +490,7 @@ void* fn_8006FCDC(f32* pos) {
             lbl_80343CF8 = best;
         }
     }
-    return &lbl_80258E04[lbl_80343CF8];
+    return &sTriggerCameras[lbl_80343CF8];
 }
 
 /*
@@ -521,11 +521,11 @@ void fn_8006FE30(void) {
 }
 
 /*
- * fn_8006EC18 -- toggle the debug-overlay level arrow.  Non-zero idx shows it
+ * CurTransmitterBlink -- toggle the debug-overlay level arrow.  Non-zero idx shows it
  * (creating the arrow node once, then clearing its draw flags each call); zero
  * idx removes it.  [caller: game/world/items.c]
  */
-void fn_8006EC18(s32 idx) {
+void CurTransmitterBlink(s32 idx) {
     f32 pos[17];
     NcBlk16 look = lbl_801137C0;
 
@@ -625,7 +625,7 @@ void DebugCamInit(void) {
  *
  * A player counts only if state==1; its source point is altpos (0xDC) when the
  * 0x964 bit26 flag is set, else campos (0x54).  When no player is valid the
- * default position (lbl_802757D4) is used.  bmax/bmin, when non-NULL, receive
+ * default position (gDefaultPlayerPosition) is used.  bmax/bmin, when non-NULL, receive
  * the bounding box (meaningful only for mode>0).  [callers: bosscam, tower]
  */
 void GetPlayerAvgPos(f32* avg, f32* outMin, f32* outMax, s32 mode) {
@@ -639,7 +639,7 @@ void GetPlayerAvgPos(f32* avg, f32* outMin, f32* outMax, s32 mode) {
     box[3] =  1e20f; box[4] =  1e20f; box[5] =  1e20f;  /* lbl_803474B4 min */
 
     for (i = 0; i < 4; i++) {
-        NcPlayer* pl = &lbl_80275AE0[i];
+        NcPlayer* pl = &gPlayers[i];
         if (pl->state == 1) {
             f32* src = (pl->ncflags & 0x20) ? pl->altpos : pl->campos;
             if (mode == 0) {
@@ -658,9 +658,9 @@ void GetPlayerAvgPos(f32* avg, f32* outMin, f32* outMax, s32 mode) {
     }
 
     if (count == 0.0) {        /* no valid players: use the default position */
-        avg[0] = lbl_802757D4[0];
-        avg[1] = lbl_802757D4[1];
-        avg[2] = lbl_802757D4[2];
+        avg[0] = gDefaultPlayerPosition[0];
+        avg[1] = gDefaultPlayerPosition[1];
+        avg[2] = gDefaultPlayerPosition[2];
     } else {
         f32 s = 1.0 / count;   /* double reciprocal */
         if (mode == 0) {
@@ -711,7 +711,7 @@ s32 CamGetPlayerAvgPos(Vec3* out, s32 flags) {
     count = 0;
 
     for (i = 0; i < 4; i++) {
-        NcPlayer* pl = &lbl_80275AE0[i];
+        NcPlayer* pl = &gPlayers[i];
         if ((pl->ncflags & 0x20) || !(pl->state == 1 || pl->state == 4)) {
             continue;
         }

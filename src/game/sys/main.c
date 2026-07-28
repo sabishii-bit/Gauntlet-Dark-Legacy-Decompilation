@@ -51,7 +51,7 @@ extern char* lbl_8011CD74[];   /* movie_list2 (26) */
 extern s32 lbl_803449C0;       /* movie_list1 index */
 extern s32 lbl_80343C60;       /* movie_list2 index */
 extern u32 lbl_80344620;       /* pad buttons (held) */
-extern u64 lbl_803445C8;       /* pad buttons 64-bit */
+extern u64 gControllerButtons;       /* pad buttons 64-bit */
 extern s32 lbl_80343C58;       /* keep-running flag */
 
 void fn_800B27C4(void);
@@ -62,7 +62,7 @@ u32 pbGetTime(void);
 void srand(unsigned int seed);
 s64 OSGetTime(void);
 void game_init_once(const char* name);
-void fn_8005A260(void* a, void* b, int c, int d);
+void LoadModel(void* a, void* b, int c, int d);
 void MBNewBlit(const char* name, int x, int y);
 void MBEndFrame(void);
 void MBOX_ResetUnlockedModels(int arg);
@@ -89,7 +89,7 @@ void AudioSysSync(int arg);
 int pbDiagDrawMenu(void);
 void fn_80010DF4(int arg);
 void fn_8006FF1C(void);
-void fn_8006799C(int arg);
+void DoLighting(int arg);
 int sysTestFlags(int arg);
 void game_main(void);
 int TriggerCamUpdate(void);
@@ -121,7 +121,7 @@ void fn_800C1170(int a, void* b, int c);
 extern char lbl_80113028[];    /* string table (soulsave.. boot strings) */
 extern char lbl_80126A98[];    /* version string */
 extern u8 lbl_80127D00[];
-extern u8 lbl_80127D60[];
+extern u8 gIdentityMatrix[];
 extern u32 gErrorCode;         /* boot clear color */
 extern s32 lbl_803449C4;       /* boot step */
 extern u8* mlmMemBase;
@@ -134,10 +134,10 @@ extern f32 lbl_803472D4;       /* boot window zoom */
 extern u32 lbl_80344DA8;
 extern s32 lbl_803449B0;       /* save-pending flag */
 extern u8 pbMeasureLoad;
-extern s32 lbl_80344568;
+extern s32 gGameBusy;
 extern s32 lbl_803449A0;
 extern s32 lbl_80343B00;
-extern s32 lbl_8034477C;       /* game state id */
+extern s32 gGameMode;       /* game state id */
 extern s32 lbl_80344A80;
 extern s32 lbl_803449BC;
 extern u32 gBossObj;
@@ -162,8 +162,8 @@ extern char lbl_8011304C[]; /* "check.txt" */
 
 extern f32 sMusicFadeBase;
 extern f64 lbl_803471B8;
-extern f32 lbl_80344980;
-extern f32 lbl_80344984;
+extern f32 AmbientSpecialTime;
+extern f32 AmbientSpecialValue;
 extern u32 lbl_80343C64;  /* copy-clear color */
 extern f32 lbl_803472B4;  /* 1.0f */
 extern f32 lbl_803472B8;  /* -1.0f */
@@ -174,9 +174,9 @@ void fn_80067AE0(f32 t, f32 v)
 {
     f32 x = (f32) (lbl_803471B8 + (sMusicFadeBase + t));
 
-    if (x > lbl_80344980) {
-        lbl_80344980 = x;
-        lbl_80344984 = v;
+    if (x > AmbientSpecialTime) {
+        AmbientSpecialTime = x;
+        AmbientSpecialValue = v;
     }
 }
 
@@ -291,7 +291,7 @@ void test_movies(void)
         if (lbl_80344620 & 0x00040000) {
             break;
         }
-        if (lbl_803445C8 & 4) {
+        if (gControllerButtons & 4) {
             break;
         }
     }
@@ -310,7 +310,7 @@ void main(void)
     gErrorCode = 0xFF;
     lbl_803449C4 = 0;
     game_init_once(st + 48);
-    fn_8005A260(&lbl_803472BC, 0, 0, -1);
+    LoadModel(&lbl_803472BC, 0, 0, -1);
     MBNewBlit(st + 60, 0, 0);
     MBNewBlit(st + 76, 256, 0);
     MBNewBlit(st + 92, 0, 256);
@@ -339,7 +339,7 @@ void main(void)
         u8 pad[16]; /* unused, matches original frame */
 
         AtreeInitLists(1024, 1024);
-        fn_8005A260(&lbl_803472C4, &tmp, 1, -1);
+        LoadModel(&lbl_803472C4, &tmp, 1, -1);
         pbInitDiag(2);
     } else {
         bulletproof_printf(st + 208);
@@ -354,7 +354,7 @@ void main(void)
     for (;;) {
         pbPulseTime();
         srand(pbGetTime() >> 3);
-        lbl_80344568 = 0;
+        gGameBusy = 0;
         lbl_803449C4 = 2;
         fn_8002F040();
         LoadVU1GameLogic();
@@ -367,7 +367,7 @@ void main(void)
         ScreenSaver();
         lbl_803449C4 = 4;
         if (DoOptions() != 0) {
-            lbl_80344568 = 1;
+            gGameBusy = 1;
         }
         lbl_803449C4 = 5;
         sndFxQueUpdate();
@@ -388,17 +388,17 @@ void main(void)
             fn_8006FF1C();
         } else {
             lbl_803449C4 = 7;
-            fn_8006799C(0);
+            DoLighting(0);
             lbl_803449C4 = 8;
             if (sysTestFlags(32) == 0) {
                 game_main();
             }
             lbl_803449C4 = 9;
             if (TriggerCamUpdate() == 0) {
-                s32 state = lbl_8034477C;
+                s32 state = gGameMode;
 
                 if (state == 0x8009 || state == 0x400B || state == 0x4012) {
-                    MBCameraUpdate(lbl_80127D00, lbl_80127D60);
+                    MBCameraUpdate(lbl_80127D00, gIdentityMatrix);
                 } else if (state == 0x4013 || state == 0x400D || state == 0x4017) {
                     if (BossCameraUpdate() == 0) {
                         do_camera();
@@ -436,7 +436,7 @@ void main(void)
         if (lbl_8034475C != 0) {
             fn_800C0394();
         }
-        lbl_80344F80 = (lbl_80344568 != 0) ? 0 : 1;
+        lbl_80344F80 = (gGameBusy != 0) ? 0 : 1;
         sndSysStub0();
         MBEndFrame();
         serve_io();
@@ -505,7 +505,7 @@ void game_init_once(const char* name)
     dbgTextInit();
     MBInit();
     bulletproof_printf(st + 316);
-    fn_8005A260(&lbl_803472CC, &lbl_803449C8, 1, -1);
+    LoadModel(&lbl_803472CC, &lbl_803449C8, 1, -1);
     FontEndFrame();
     FontInitDefault();
     bulletproof_printf(st + 328);

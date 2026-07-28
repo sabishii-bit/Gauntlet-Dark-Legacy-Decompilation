@@ -31,16 +31,16 @@ typedef struct World {
 } World;
 
 /* --- shared externs (owned by other TUs) --- */
-extern World gWorlds[];                 /* lbl_80275AE0, stride 0x335C */
+extern World gWorlds[];                 /* gPlayers, stride 0x335C */
 extern void* gMsgBoxes[4];              /* lbl_8028C378 */
 extern short gJumpTab120240[];          /* lbl_80120240 */
 
 /* small-data (sda/sbss) globals */
 extern int gCurWorld;                   /* lbl_80344CBC */
 extern int g3E8;                        /* lbl_803443E8 */
-extern int g77C;                        /* lbl_8034477C */
-extern int g568;                        /* lbl_80344568 */
-extern int g57C;                        /* lbl_8034457C */
+extern int g77C;                        /* gGameMode */
+extern int g568;                        /* gGameBusy */
+extern int g57C;                        /* gFrameTicks */
 extern int g770;                        /* lbl_80344770 */
 extern int gMsgIndex;                   /* lbl_80344C98 */
 extern int g3B4;                        /* lbl_803443B4 */

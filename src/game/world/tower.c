@@ -84,8 +84,8 @@ extern f32  lbl_80348600;     /* 0.5 */
 extern s32  lbl_80344C8C;
 extern s32  ExpToLevel(s32 exp);
 extern void DisablePlayerControls(void);
-extern f32  lbl_80127D60[];   /* identity matrix */
-extern void* lbl_80344EB8;    /* MB parent object */
+extern f32  gIdentityMatrix[];   /* identity matrix */
+extern void* gSceneRoot;    /* MB parent object */
 extern void* MBNewNode(void*, void*, int);
 extern void  MBNodeSetParent(void* node, void* parent);
 extern void  CopyMat4(f32* src, void* node);
@@ -93,8 +93,8 @@ extern s32   fn_80012F78(void* atree, void* out, s32 a, s32 flags);
 extern u8*   gCurLevel;       /* current-level descriptor pointer */
 extern s32   lbl_803448A8;    /* last recorded world */
 extern s32   lbl_803448AC;    /* last recorded level */
-extern s32   lbl_80344920;    /* rune-proximity world-object handle */
-extern s32   lbl_80344924;    /* shard-proximity world-object handle */
+extern s32   sSpecialItem13;    /* rune-proximity world-object handle */
+extern s32   sSpecialItem10;    /* shard-proximity world-object handle */
 extern void  fn_8009C3EC(void); /* play rune-near audio cue */
 extern void  fn_8009C378(void); /* play shard-near audio cue */
 
@@ -116,12 +116,12 @@ extern void  fn_8009C378(void); /* play shard-near audio cue */
  *   0x1ECA (7882)  cumulative shards bitmask
  *   0x2220-0x223A  crystal / garg-item / legend-item counters+masks
  * (this array is shared game-wide - shop/sound/auxscreen/message also use it -
- *  so it is left as lbl_80275AE0 rather than renamed here.)
+ *  so it is left as gPlayers rather than renamed here.)
  */
-/* Typed view of the shared player-record array (kept as lbl_80275AE0: the
+/* Typed view of the shared player-record array (kept as gPlayers: the
  * symbol is referenced by the Matching shopquery.c, so it must not be renamed;
  * the Player layout is defined in game/player.h). */
-extern Player lbl_80275AE0[4];
+extern Player gPlayers[4];
 
 /* tower/sumner state (r13 small-data globals) */
 extern s32 lbl_80343D6C;
@@ -153,7 +153,7 @@ extern s32 lbl_80344C90;
 extern void* sGoodWizObj;  /* GWIZ animation/effect object              */
 
 extern s32 lbl_80124C70[9];
-extern s32 lbl_80124D14[14];
+extern s32 crystal_order[14];
 extern s32 lbl_80124D4C[14];
 extern s32 lbl_80124D94[3];
 extern s32 lbl_80124DA0[9];
@@ -162,9 +162,9 @@ extern f32 lbl_8034858C;
 extern f32 lbl_80348590;
 
 #define PLAYER_AT(player, offset, type) \
-    (*(type*)((u8*)&lbl_80275AE0[(player)] + (offset)))
+    (*(type*)((u8*)&gPlayers[(player)] + (offset)))
 #define TOWER_SAVE(player) \
-    (&lbl_80275AE0[(player)].char_save[lbl_80275AE0[(player)].character])
+    (&gPlayers[(player)].char_save[gPlayers[(player)].character])
 
 /* ===================================================================== */
 
@@ -216,7 +216,7 @@ void towerRuneNearAudio(void) {
     if (sMusicTrackHi == 5 || sMusicTrackHi == 8) {
         return;
     }
-    obj = (u8*)lbl_80344920;
+    obj = (u8*)sSpecialItem13;
     if (obj != 0) {
         node = *(s32**)obj;
         if (node[0] == 1 && node[1] == 13) {
@@ -224,7 +224,7 @@ void towerRuneNearAudio(void) {
             s32 found;
 
             for (i = 0; i < 4; i++) {
-                Player* rec = &lbl_80275AE0[i];
+                Player* rec = &gPlayers[i];
 
                 if (rec->state != 0 &&
                     (rec->char_save[rec->character].rune_near & (1 << rune)) != 0) {
@@ -240,7 +240,7 @@ void towerRuneNearAudio(void) {
             return;
         }
     }
-    obj = (u8*)lbl_80344924;
+    obj = (u8*)sSpecialItem10;
     if (obj != 0) {
         node = *(s32**)obj;
         if (node[0] == 1 && node[1] == 10) {
@@ -285,7 +285,7 @@ int WorldOpen(int world) {
 
     requirement = lbl_80124D4C[world];
     for (player = 0; player < 4; player++) {
-        if (lbl_80275AE0[player].state != 0) {
+        if (gPlayers[player].state != 0) {
             s32 status = towerLevelStatus(player, requirement);
             s32 value;
 
@@ -315,7 +315,7 @@ int towerAwardWorldRunes(void) {
         return 0;
     }
     for (player = 0; player < 4; player++) {
-        if (lbl_80275AE0[player].state == 1) {
+        if (gPlayers[player].state == 1) {
             PLAYER_AT(player, 0x930, s32)++;
             PLAYER_AT(player, 0x928, s32) = rune + 0x200;
             PLAYER_AT(player, 0x92C, f32) = lbl_8034858C;
@@ -328,7 +328,7 @@ int towerAwardWorldRunes(void) {
         return 0;
     }
     for (player = 0; player < 4; player++) {
-        if (lbl_80275AE0[player].state == 1) {
+        if (gPlayers[player].state == 1) {
             PLAYER_AT(player, 0xA8C, u16) |= 1 << (rune - 8);
         }
     }
@@ -355,7 +355,7 @@ void towerRecordLevelBeaten(int level, int world) {
     lbl_803448AC = level;
     ResolveWorldData((level << 8) | (world & 0xFF), world);
     for (i = 0; i < 4; i++) {
-        Player* rec = &lbl_80275AE0[i];
+        Player* rec = &gPlayers[i];
         s32 state = rec->state;
 
         if (state == 1 || state == 4 || state == 5) {
@@ -412,7 +412,7 @@ int towerAllPlayersMetLevelReq(int level) {
         level = 2;
     }
     for (player = 0; player < 4; player++) {
-        if (lbl_80275AE0[player].state != 0) {
+        if (gPlayers[player].state != 0) {
             s32 value;
 
             if (PLAYER_AT(player, 0xF0, s32) == lbl_80343D6C) {
@@ -458,7 +458,7 @@ void towerAdvanceLevelRecord(int player, int level) {
         last = 3;
     }
     for (i = first; i <= last; i++) {
-        Player* record = &lbl_80275AE0[i];
+        Player* record = &gPlayers[i];
 
         if (record->state == 1 || record->state == 4) {
             s16* value = &((s16*)&TOWER_SAVE(i)->completion1)[level];
@@ -481,7 +481,7 @@ int towerAllPlayersMetBossReq(int level) {
     s32 best = 0;
 
     for (player = 0; player < 4; player++) {
-        if (lbl_80275AE0[player].state != 0) {
+        if (gPlayers[player].state != 0) {
             s32 value;
 
             if (PLAYER_AT(player, 0xF0, s32) == lbl_80343D6C) {
@@ -515,7 +515,7 @@ int towerAllPlayersMetBossReq(int level) {
 int towerLevelStatus(int player, int level) {
     s16 value;
 
-    if (lbl_80275AE0[player].state == 0) {
+    if (gPlayers[player].state == 0) {
         return 0;
     }
     if (PLAYER_AT(player, 0xF0, u32) == (u32)lbl_80343D6C) {
@@ -552,7 +552,7 @@ void towerAdvanceBossRecord(int player, int level) {
         last = 3;
     }
     for (i = first; i <= last; i++) {
-        Player* record = &lbl_80275AE0[i];
+        Player* record = &gPlayers[i];
 
         if (record->state == 1 || record->state == 4) {
             s16* value = &((s16*)&TOWER_SAVE(i)->completion2)[level];
@@ -601,8 +601,8 @@ void towerSetRuneNear(int player, int level) {
 setup:
     bit = 1 << level;
     for (; player <= last; player++) {
-        if (lbl_80275AE0[player].state == 1 ||
-            lbl_80275AE0[player].state == 4) {
+        if (gPlayers[player].state == 1 ||
+            gPlayers[player].state == 4) {
             TOWER_SAVE(player)->rune_near |= bit;
         }
     }
@@ -622,7 +622,7 @@ int towerGetRuneNearStat(int player, int level) {
 setup:
     bit = 1 << level;
     for (; player <= last; player++) {
-        if (lbl_80275AE0[player].state != 0 &&
+        if (gPlayers[player].state != 0 &&
             (TOWER_SAVE(player)->rune_near & bit) != 0) {
             return 1;
         }
@@ -644,8 +644,8 @@ void PlayerGiveRune(int player, int rune) {
 setup:
     bit = 1 << rune;
     for (; player <= last; player++) {
-        if (lbl_80275AE0[player].state == 1) {
-            lbl_80275AE0[player].runes |= bit;
+        if (gPlayers[player].state == 1) {
+            gPlayers[player].runes |= bit;
         }
     }
 }
@@ -663,9 +663,9 @@ int PlayerHasRune(int player, int rune) {
     last = player;
 setup:
     for (; player <= last; player++) {
-        if (lbl_80275AE0[player].state != 0) {
+        if (gPlayers[player].state != 0) {
             bits |= TOWER_SAVE(player)->rune_stones |
-                    lbl_80275AE0[player].runes;
+                    gPlayers[player].runes;
         }
     }
     if (rune < 0) {
@@ -699,9 +699,9 @@ void PlayerGiveShard(int player, int shard) {
 setup:
     bit = 1 << shard;
     for (; player <= last; player++) {
-        if (lbl_80275AE0[player].state == 1 ||
-            lbl_80275AE0[player].state == 4) {
-            lbl_80275AE0[player].shards |= bit;
+        if (gPlayers[player].state == 1 ||
+            gPlayers[player].state == 4) {
+            gPlayers[player].shards |= bit;
         }
     }
 }
@@ -719,9 +719,9 @@ int PlayerHasShard(int player, int shard) {
     last = player;
 setup:
     for (; player <= last; player++) {
-        if (lbl_80275AE0[player].state != 0) {
+        if (gPlayers[player].state != 0) {
             bits |= TOWER_SAVE(player)->rune_stones2 |
-                    lbl_80275AE0[player].shards;
+                    gPlayers[player].shards;
         }
     }
     if (shard < 0) {
@@ -790,7 +790,7 @@ void sumnerUpdatePresence(void) {
 
         lbl_80344C60 = 1;
         for (player = 0; player < 4; player++) {
-            Player* rec = &lbl_80275AE0[player];
+            Player* rec = &gPlayers[player];
 
             if (rec->state != 0) {
                 s32 k;
@@ -817,7 +817,7 @@ int GetWorldOrder(int worldId) {
     s32 i;
 
     for (i = 0; i < 14; i++) {
-        if (lbl_80124D14[i] == worldId) {
+        if (crystal_order[i] == worldId) {
             return i;
         }
     }
@@ -857,7 +857,7 @@ int sumnerCheckLevelUp(void) {
     if (lbl_80344C68 > lbl_803485F8) {
         return 0;
     }
-    for (i = 0, p = &lbl_80275AE0[0]; i < 4; i++, p++) {
+    for (i = 0, p = &gPlayers[0]; i < 4; i++, p++) {
         s->levelUpLevel[i] = 0;
         if (p->state != 0 && *(u32*)((u8*)p + 0xF0) != (u32)lbl_80343D6C) {
             int lvlOld = ExpToLevel(*(s32*)((u8*)p + p->character * 24 + 0x1EDC));
@@ -882,7 +882,7 @@ int sumnerCheckLevelUp(void) {
 
         if (atree != 0) {
             s->wizAtree = (void*)fn_80012F78(atree, &s->wizAtree, 0, 0xC00880);
-            lbl_80344C64 = (s32)MBNewNode(lbl_80344EB8, lbl_80127D60, 1);
+            lbl_80344C64 = (s32)MBNewNode(gSceneRoot, gIdentityMatrix, 1);
             MBNodeSetParent(*(void**)s->wizAtree, (void*)lbl_80344C64);
         }
     }
@@ -931,7 +931,7 @@ void SumnerInit(void) {
     s->gwizAtree =
         (void*)fn_80012F78((void*)AtreeMatch(sGoodWizObj, (char*)&lbl_80348610, 0),
                            &s->gwizAtree, 0, 2048);
-    sSumnerObj = MBNewNode(lbl_80344EB8, lbl_80127D60, 1);
+    sSumnerObj = MBNewNode(gSceneRoot, gIdentityMatrix, 1);
     MBNodeSetParent(*(void**)s->gwizAtree, sSumnerObj);
     lp = FindLookoutParam(0);
     if (lp != 0) {

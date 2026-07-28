@@ -91,7 +91,7 @@ void pbBlitSetDrawRegs(s32 a, s32 b, s32 c);
 void fn_800C7914(void* a, void* b);
 void GXBegin(s32 prim, s32 fmt, s32 count);
 
-extern u8 lbl_80127D60[0x40];   /* hash config for MBNewNode */
+extern u8 gIdentityMatrix[0x40];   /* hash config for MBNewNode */
 extern void* gWinGlobals;       /* window/projection globals */
 extern PolyVert lbl_80343F5C[]; /* shared screen-vertex scratch */
 extern const f32 lbl_801177B8[2][4][2]; /* per-type UV template (tri/quad) */
@@ -125,7 +125,7 @@ void MBInitPolys(BOOL useHash) {
     gPolyVertOffset = 0;
 
     if (useHash) {
-        ctx = MBNewNode(0, lbl_80127D60, 10);
+        ctx = MBNewNode(0, gIdentityMatrix, 10);
         if (ctx != NULL) {
             PolyHeader* h = MBCreatePolyHeader(256);
             ctx->flags = 0;

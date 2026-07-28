@@ -96,7 +96,7 @@ extern u32 lbl_803450F4[];     /* per-flip source values */
 extern u32 lbl_803450FC[];     /* per-flip current values */
 
 s32 fn_800C0BD4(u32 sel);
-void fn_800C0CF4(void);
+void pbResetWindowPool(void);
 void fn_800C0E0C(void);
 void fn_800C1004(void);
 
@@ -192,7 +192,7 @@ s32 fn_800C0BD4(u32 sel)
 }
 
 /* Reset all 12 pool entries and rebuild the free list (reversed). */
-void fn_800C0CF4(void)
+void pbResetWindowPool(void)
 {
     PbWGGlobals* g = gWinGlobals;
     s32 i;
@@ -228,7 +228,7 @@ void fn_800C0CF4(void)
 }
 
 /* Set the current window's first UV pair. */
-void fn_800C0DDC(f32 a, f32 b)
+void pbSetWindowUV0(f32 a, f32 b)
 {
     PbWGGlobals* g = gWinGlobals;
     g->ctx->f80 = a;
@@ -236,7 +236,7 @@ void fn_800C0DDC(f32 a, f32 b)
 }
 
 /* Set the current window's second UV pair. */
-void fn_800C0DF4(f32 a, f32 b)
+void pbSetWindowUV1(f32 a, f32 b)
 {
     PbWGGlobals* g = gWinGlobals;
     g->ctx->f88 = a;
@@ -262,7 +262,7 @@ void fn_800C0E0C(void)
     g->ctx->fd0 = 0.0f;
     g->ctx->fd4 = 0.0f;
     g->ctx->fd8 = 0.0f;
-    fn_800C0CF4();
+    pbResetWindowPool();
     g->ctx->f84 = 0.0f;
     g->ctx->f80 = 1.0f;
     g->ctx->f8c = 0.0f;

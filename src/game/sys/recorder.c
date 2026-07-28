@@ -23,14 +23,14 @@ static s32 sItemType[1024];
 static s16 sItemActive[1520];
 static f32 sSavedPlayerPos[4];
 
-extern Player lbl_80275AE0[4];
+extern Player gPlayers[4];
 extern void* lbl_8025EA10[];
 extern f32 lbl_8023F83C[3];
 extern f32 lbl_8023F848[7];
 extern f32 lbl_8023F864[7][3];
 
-extern s32 lbl_8034494C;
-extern s32 lbl_8034492C;
+extern s32 sNumItems;
+extern s32 sNumItemWobjs;
 extern s32 sLastWorldLevel;
 
 s32 lbl_80344B50 = 0;
@@ -84,7 +84,7 @@ void LoadAllRecords(void) {
     i = 0;
     activeOffset = 0;
     typeOffset = 0;
-    while (i < lbl_8034494C) {
+    while (i < sNumItems) {
         if (item->info == 0 ||
             item->info->type != *(s32*)((u8*)sItemType + typeOffset)) {
             item->active = -1;
@@ -115,7 +115,7 @@ void LoadAllRecords(void) {
         s32 playerIndex;
 
         for (playerIndex = 0;
-             playerIndex < lbl_8034492C;
+             playerIndex < sNumItemWobjs;
              playerIndex++) {
             ((u8*)lbl_8025EA10[playerIndex])[0x16] =
                 sPlayerByte16[playerIndex];
@@ -138,7 +138,7 @@ void SaveAllRecords_8008C0F4(s32 excludedItem, s32 recordArg, f32* playerPos) {
     lbl_80344B84 = sLastWorldLevel;
     SaveStage();
 
-    count = lbl_8034494C;
+    count = sNumItems;
     item = sItems;
     if (count < 0) {
         count = 0;
@@ -163,7 +163,7 @@ void SaveAllRecords_8008C0F4(s32 excludedItem, s32 recordArg, f32* playerPos) {
     }
     lbl_80344B78 = count;
 
-    count = lbl_8034492C;
+    count = sNumItemWobjs;
     if (count < 0) {
         count = 0;
     } else if (count > 150) {
@@ -189,17 +189,17 @@ void LoadStage(void) {
     s32 first = 1;
 
     for (i = 0; i < 4; i++) {
-        if (lbl_80275AE0[i].state == 1) {
+        if (gPlayers[i].state == 1) {
             if (first != 0) {
-                lbl_80275AE0[i].pos[0] = sSavedPlayerPos[0];
+                gPlayers[i].pos[0] = sSavedPlayerPos[0];
                 first = 0;
-                lbl_80275AE0[i].pos[1] = sSavedPlayerPos[1];
-                lbl_80275AE0[i].pos[2] = sSavedPlayerPos[2];
+                gPlayers[i].pos[1] = sSavedPlayerPos[1];
+                gPlayers[i].pos[2] = sSavedPlayerPos[2];
             } else {
                 get_player_pos(i, 2);
             }
         }
-        UpdatePlayerWorldMat(&lbl_80275AE0[i], 1);
+        UpdatePlayerWorldMat(&gPlayers[i], 1);
     }
 
     camera_mode_level(1);
