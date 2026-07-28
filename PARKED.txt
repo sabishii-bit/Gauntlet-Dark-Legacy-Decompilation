@@ -274,3 +274,39 @@ DrawGlowText/MLines        # register/sched, streams match (86/87, 59/57): glow-
 #   DrawText DrawStringText DrawStringTextMLines DrawStringTextMulti DrawScrollText
 #   DrawScrollListText DrawStringTextSub DrawTextSub SetScrollLevelMsgList
 #   LoadFonts FontInit FontInitDefault FontInitSpecial StringInitSub
+# tower.c (game/world, TOWER.OBJ) - 2026-07-27 body-fill pass:
+towerBossStatus            # copy, 5 lines: target holds value in r0 + mr r3,r0 before bgelr; ours coalesces
+                           # the lha straight into r3. Surviving-mr copy quirk (park-on-sight family);
+                           # inline double-access form adds an extsh. (worse). insns 18/19 (tower)
+towerSetRuneNear           # renum, r6<->r7 bit-vs-record-ptr web swap (slw bit r6-vs-r7); 14 lines. Same
+                           # class as towerRuneNearAudio bit-reg tie. Clear sibling fixed via andc-restructure
+                           # (defer ~); |= has no andc analog; inline-(1<<level) LICM form = WORSE (34 insns). 3-cap (tower)
+towerGetRuneNearStat       # renum, same r6<->r7 bit/ptr swap as towerSetRuneNear; 12 lines REGISTER_ONLY (tower)
+towerLevelStatus           # isel, 12 lines: completion2[level] addr form add-base-then-disp+lha (target) vs
+                           # addi-disp+lhax+extsh (ours) + F0/global compare load-order swap; same class as the
+                           # matched towerGetLevelRecord but extra logic rotates it (tower)
+sumnerCheckLevelUp         # renum, 63 lines: semantics EXACT vs Ghidra (per-player Exp->Level decade/99
+                           # cross detection into levelUpLevel[] scratch, stored-exp/presence writeback,
+                           # WIZARD summon block == SumnerInit shape at struct+0x5C). insns 112/113. Whole
+                           # residual = ONE p(record-ptr)<->i(counter) web swap (p r28-vs-r29) cascading
+                           # every 232/240/12(rN) access + branch offsets. Fixed: p++ pointer IV (kills 2nd
+                           # base + extra IV), lazy p-init in for (materialize after early-returns), p->exp
+                           # struct field (kills &field CSE into extra reg r24), u32 world compare (cmplw),
+                           # levelUpLevel[4]/wizAtree struct fields. Residual +1 insn = slot addi-vs-stwu
+                           # (s->levelUpLevel[i]=0 folds +76 into offset vs target base+off then stwu 76).
+                           # init/decl/increment-order all color-neutral (recipe negatives). 3-cap (tower)
+towerRecordLevelBeaten     # structural+renum, 59 lines: body semantics EXACT vs Ghidra (ResolveWorldData
+                           # packed arg, per-player level/boss-mask RMW w/ overflow, status-byte set).
+                           # Boss mask-block registers MATCH. Two residuals: (1) state check
+                           # `==1||==4||==5` MWCC range-ifies ==4||==5 (addi -4/cmplwi) vs target's 3 explicit
+                           # cmpwi; goto-to-body form fixes it but rotates the loop pointer (rec r4->r9, net
+                           # WORSE 94 lines); switch = range-grouping. (2) the range-check's addi r6,r6,-4
+                           # clobbers state in r6, cascading the LEVEL block's lvl-1/one/char coloring +1
+                           # (r11 vs r10). Store-order + branch-layout(!=0 overflow arm) + int-mask +
+                           # level_masks[] struct view all fixed. 3-cap (tower)
+towerRuneNearAudio         # sched, 16 lines (was 24): insns 66/66 EXACT, bit/rec/found all matched
+                           # (LICM-inline `& (1<<rune)` + goto found-flag). Residual = ONE scheduler
+                           # choice: target defers the shift's `1` to after mtctr (li r0,1, reuses r0)
+                           # while ours materializes it before mtctr (li r5,1); cascades to offset r5-vs-r3,
+                           # base r4-vs-r5, char*240 mulli temp r3-vs-r4. Named-bit-local = 24 lines (worse);
+                           # LICM form best. 3-cap reached (tower)
