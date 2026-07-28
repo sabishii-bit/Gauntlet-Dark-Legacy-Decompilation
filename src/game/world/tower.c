@@ -42,11 +42,61 @@ extern int   GetStringListText(int a, int b);
 extern int   FindStringMessageListSub_8001FC4C(int a, char* list);
 extern void  InitCustomEffect(char* name);
 extern void  TriggerCameraEnd(void);
-extern int   FindLookoutParam(int a);
+extern void* FindLookoutParam(int a);
 extern int   AudioSoundPlaying(int a);
 extern int   fn_80057BC8(int item);
 extern int   sprintf(char* buf, const char* fmt, ...);
 extern void  ErrorPrintf(const char* fmt, ...);
+extern void  GetPlayerAvgPos(f32* avg, f32* bmax, f32* bmin, int mode);
+extern int   ClosestStartPos(f32* pos);
+extern void  HintMenu(void);
+extern f32   sMusicFadeBase;
+
+extern s32 lbl_80343C10;
+extern double lbl_803485F8;   /* 0.0 */
+extern double lbl_80348608;   /* 2.0 */
+extern double lbl_80348598;   /* 10.0 - tower-message cooldown reset delta */
+
+extern void fn_8006D7EC(int who, int msg, int slot, int flag);
+extern f32  lbl_8028C2A8[];   /* garg-item "need items" message cooldown timers */
+
+/* lbl_8028C288: tower-message state block.  The crystal-message cooldown
+ * timers occupy the head; the GWIZ animation-tree instance handle lives at
+ * +0xA4.  (The garg-item cooldowns alias this block at +0x20 but keep their
+ * own symbol lbl_8028C2A8.) */
+typedef struct {
+    f32   cooldown[8];         /* 0x00 crystal "need crystals" msg cooldowns */
+    u8    _pad20[0x4C - 0x20]; /* 0x20 */
+    s32   levelUpLevel[4];     /* 0x4C per-player level-up scratch slots */
+    void* wizAtree;            /* 0x5C WIZARD (level-up) atree instance */
+    u8    _pad60[0xA4 - 0x60]; /* 0x60 */
+    void* gwizAtree;           /* 0xA4 GWIZ atree instance */
+} TowerMsgState;
+extern TowerMsgState lbl_8028C288;
+extern char lbl_80114D50[];   /* garg-item message-list string */
+extern char lbl_80114D60[];   /* crystals-needed message-list string */
+extern char lbl_80114D6C[];   /* demo-closed message-list string */
+extern s32  lbl_803449A0;     /* demo/full-game mode flag */
+extern f32  lbl_803485E8;     /* -1.0 */
+extern int  lbl_80348610;     /* "GWIZ" packed (sdata2, SDA-addressed) */
+extern int  lbl_803485A4;     /* "WIZARD" packed (sdata2, SDA-addressed) */
+extern f32  lbl_80348600;     /* 0.5 */
+extern s32  lbl_80344C8C;
+extern s32  ExpToLevel(s32 exp);
+extern void DisablePlayerControls(void);
+extern f32  lbl_80127D60[];   /* identity matrix */
+extern void* lbl_80344EB8;    /* MB parent object */
+extern void* fn_800BB29C(void*, void*, int);
+extern void  fn_800BAD94(void* node, void* parent);
+extern void  CopyMat4(f32* src, void* node);
+extern s32   fn_80012F78(void* atree, void* out, s32 a, s32 flags);
+extern u8*   gCurLevel;       /* current-level descriptor pointer */
+extern s32   lbl_803448A8;    /* last recorded world */
+extern s32   lbl_803448AC;    /* last recorded level */
+extern s32   lbl_80344920;    /* rune-proximity world-object handle */
+extern s32   lbl_80344924;    /* shard-proximity world-object handle */
+extern void  fn_8009C3EC(void); /* play rune-near audio cue */
+extern void  fn_8009C378(void); /* play shard-near audio cue */
 
 /* --- per-player progress record (gPlayerRecords[4], stride 0x335C) ---
  * Field offsets observed in this TU:
@@ -146,13 +196,59 @@ void TowerInit(void) {
     lbl_80344C88 = zero;
 }
 
-/* Resolve the current world object handle (newcam GetPlayerAvgPos + fn_800668F8). */
+/* Resolve the current world object handle (newcam GetPlayerAvgPos + ClosestStartPos). */
 void towerUpdateCurWorldObj(void) {
+    f32 pos[3];
+
+    if (lbl_80343C10 >= 0) {
+        GetPlayerAvgPos(pos, 0, 0, 0);
+        lbl_80343E48 = ClosestStartPos(pos);
+    }
 }
 
 /* Per-frame: if a rune/shard object (type1 sub13/sub10) is near and not yet
  * collected by any player, play the proximity audio cue. */
 void towerRuneNearAudio(void) {
+    u8* obj;
+    s32* node;
+    s32 i;
+
+    if (sMusicTrackHi == 5 || sMusicTrackHi == 8) {
+        return;
+    }
+    obj = (u8*)lbl_80344920;
+    if (obj != 0) {
+        node = *(s32**)obj;
+        if (node[0] == 1 && node[1] == 13) {
+            s32 rune = *(s32*)(obj + 224);
+            s32 found;
+
+            for (i = 0; i < 4; i++) {
+                Player* rec = &lbl_80275AE0[i];
+
+                if (rec->state != 0 &&
+                    (rec->char_save[rec->character].rune_near & (1 << rune)) != 0) {
+                    found = 1;
+                    goto checkRune;
+                }
+            }
+            found = 0;
+        checkRune:
+            if (found == 0) {
+                fn_8009C3EC();
+            }
+            return;
+        }
+    }
+    obj = (u8*)lbl_80344924;
+    if (obj != 0) {
+        node = *(s32**)obj;
+        if (node[0] == 1 && node[1] == 10) {
+            if (PlayerHasShard(-1, *(s16*)((u8*)node + 64)) == 0) {
+                fn_8009C378();
+            }
+        }
+    }
 }
 
 /* Is a world unlocked?  Checks cumulative rune/shard masks and per-player
@@ -252,8 +348,44 @@ int towerGetLevelFlag(u8* rec, int level) {
 
 /* Record level/boss completion across players (ResolveWorldData, sets
  * masks 0xDDC-0xDE2 and status byte 0x1CD0). */
-void towerRecordLevelBeaten(u8* dst, int world) {
-    (void)dst; (void)world;
+void towerRecordLevelBeaten(int level, int world) {
+    s32 i;
+
+    lbl_803448A8 = world;
+    lbl_803448AC = level;
+    ResolveWorldData((level << 8) | (world & 0xFF), world);
+    for (i = 0; i < 4; i++) {
+        Player* rec = &lbl_80275AE0[i];
+        s32 state = rec->state;
+
+        if (state == 1 || state == 4 || state == 5) {
+            s16 lvl = *(s16*)(gCurLevel + 0x90);
+
+            if (lvl > 0) {
+                int mask = 1 << (lvl - 1);
+
+                if ((rec->char_save[rec->character].level_masks[0] & mask) != 0) {
+                    rec->char_save[rec->character].level_masks[1] |= mask;
+                } else {
+                    rec->char_save[rec->character].level_masks[0] |= mask;
+                }
+            }
+            {
+                s16 boss = *(s16*)(gCurLevel + 0x92);
+
+                if (boss > 0) {
+                    int mask = 1 << boss;
+
+                    if ((rec->char_save[rec->character].level_masks[2] & mask) != 0) {
+                        rec->char_save[rec->character].level_masks[3] |= mask;
+                    } else {
+                        rec->char_save[rec->character].level_masks[2] |= mask;
+                    }
+                }
+            }
+            ((u8*)rec)[rec->character * 14 + level + 0x1CD0] |= (1 << world);
+        }
+    }
 }
 
 /* Set an inventory bit (field 0x2230/0x2232) for a player - garg/legend item. */
@@ -449,9 +581,9 @@ void towerClearRuneNear(int player, int level) {
     }
     last = player;
 setup:
-    mask = ~(1 << level);
+    mask = 1 << level;
     for (; player <= last; player++) {
-        TOWER_SAVE(player)->rune_near &= mask;
+        TOWER_SAVE(player)->rune_near &= ~mask;
     }
 }
 
@@ -611,12 +743,31 @@ setup:
 
 /* Cooldown-gated "you need gargoyle items" tower message. */
 void TowerNeedGargItemsMsg(int who, int slot) {
-    (void)who; (void)slot;
+    f32* cd = &lbl_8028C2A8[slot];
+
+    if (*cd < sMusicFadeBase) {
+        int msg = FindStringMessageListSub_8001FC4C(0, lbl_80114D50);
+        fn_8006D7EC(who, msg, slot, -1);
+        *cd = lbl_80348598 + sMusicFadeBase;
+    }
 }
 
 /* Cooldown-gated "you need N crystals" (or demo-closed) tower message. */
 void TowerNeedCrystalsMsg(int who, int slot) {
-    (void)who; (void)slot;
+    f32* cd = &lbl_8028C288.cooldown[slot];
+
+    if (*cd < sMusicFadeBase) {
+        int msg;
+
+        if (lbl_803449A0 != 0) {
+            msg = FindStringMessageListSub_8001FC4C(0, lbl_80114D60);
+            fn_8006D7EC(who, msg, 0, -1);
+        } else {
+            msg = FindStringMessageListSub_8001FC4C(0, lbl_80114D6C);
+            fn_8006D7EC(who, msg, slot, -1);
+        }
+        *cd = lbl_80348598 + sMusicFadeBase;
+    }
 }
 
 /* Per-frame tower message/state dispatcher.  Served by do_players; drives
@@ -634,6 +785,31 @@ void EnterTower(void) {
 /* Update the good-wizard presence/timer from per-player progress (field
  * 0xA90); sets the sumner appear/idle float. */
 void sumnerUpdatePresence(void) {
+    if (lbl_80344C4C == 0) {
+        s32 player;
+
+        lbl_80344C60 = 1;
+        for (player = 0; player < 4; player++) {
+            Player* rec = &lbl_80275AE0[player];
+
+            if (rec->state != 0) {
+                s32 k;
+
+                for (k = 0; k < 16; k++) {
+                    if (*(s32*)((u8*)rec + k * 24 + 0xA90) > 0) {
+                        lbl_80344C60 = 0;
+                    }
+                }
+            }
+        }
+    } else {
+        lbl_80344C60 = 0;
+    }
+    if (lbl_80344C60 != 0) {
+        lbl_80344C5C = lbl_80348588;
+    } else {
+        lbl_80344C5C = lbl_803485E8;
+    }
 }
 
 /* Map a world id to its ordering index via the 14-entry world-order table. */
@@ -670,7 +846,52 @@ void SumnerSpeechEnd(void) {
 /* Scan players for a level-up (score/level fields 0x1EC0/0x1EDC); if any
  * levelled up, summon the "WIZARD" congratulation.  Internal. */
 int sumnerCheckLevelUp(void) {
-    return 0;
+    TowerMsgState* s = &lbl_8028C288;
+    s32 count = 0;
+    Player* p;
+    s32 i;
+
+    if (lbl_80343E4C < 0) {
+        return 0;
+    }
+    if (lbl_80344C68 > lbl_803485F8) {
+        return 0;
+    }
+    for (i = 0, p = &lbl_80275AE0[0]; i < 4; i++, p++) {
+        s->levelUpLevel[i] = 0;
+        if (p->state != 0 && *(u32*)((u8*)p + 0xF0) != (u32)lbl_80343D6C) {
+            int lvlOld = ExpToLevel(*(s32*)((u8*)p + p->character * 24 + 0x1EDC));
+            int lvlNew = ExpToLevel(p->exp);
+
+            if (lvlNew >= 99 && lvlOld < 99) {
+                s->levelUpLevel[i] = lvlNew;
+                count++;
+            } else if (lvlOld / 10 != lvlNew / 10) {
+                s->levelUpLevel[i] = lvlNew;
+                count++;
+            }
+            *(s32*)((u8*)p + p->character * 24 + 0x1EDC) = p->exp;
+            *(s32*)((u8*)p + p->character * 24 + 0xA90) = p->exp;
+        }
+    }
+    if (count == 0) {
+        return 0;
+    }
+    if (lbl_80344C64 == 0) {
+        void* atree = (void*)AtreeMatch(sGoodWizObj, (char*)&lbl_803485A4, 0);
+
+        if (atree != 0) {
+            s->wizAtree = (void*)fn_80012F78(atree, &s->wizAtree, 0, 0xC00880);
+            lbl_80344C64 = (s32)fn_800BB29C(lbl_80344EB8, lbl_80127D60, 1);
+            fn_800BAD94(*(void**)s->wizAtree, (void*)lbl_80344C64);
+        }
+    }
+    lbl_80344C70 = 0;
+    lbl_80344C68 = lbl_80348600;
+    DisablePlayerControls();
+    lbl_80344C8C = 0;
+    CaptionTextReset();
+    return count;
 }
 
 /* Activate Sumner hint mode. */
@@ -680,7 +901,19 @@ void SumnerHintsActivate(void) {
 }
 
 /* Advance the Sumner animation / hint timer (music-fade aware). */
-void SumnerAnimate(void) {
+int SumnerAnimate(void) {
+    if (lbl_803485F8 == lbl_80344C58) {
+        lbl_80344C90 = 3;
+        lbl_80344C54 = 1;
+        lbl_80344C58 = lbl_80348608 + sMusicFadeBase;
+        return 0;
+    }
+    if (sMusicFadeBase < lbl_80344C58) {
+        return 0;
+    }
+    HintMenu();
+    lbl_80344C58 = lbl_80348588;
+    return 1;
 }
 
 /* Tear down the live Sumner object. */
@@ -692,6 +925,27 @@ void SumnerEnd(void) {
 /* Create the good-wizard (GWIZ) object, bind its animation tree, position it
  * at the lookout param, and reset tower/sumner state globals. */
 void SumnerInit(void) {
-    AtreeMatch(sGoodWizObj, "GWIZ", 0);
-    FindLookoutParam(0);
+    TowerMsgState* s = &lbl_8028C288;
+    void* lp;
+
+    s->gwizAtree =
+        (void*)fn_80012F78((void*)AtreeMatch(sGoodWizObj, (char*)&lbl_80348610, 0),
+                           &s->gwizAtree, 0, 2048);
+    sSumnerObj = fn_800BB29C(lbl_80344EB8, lbl_80127D60, 1);
+    fn_800BAD94(*(void**)s->gwizAtree, sSumnerObj);
+    lp = FindLookoutParam(0);
+    if (lp != 0) {
+        CopyMat4((f32*)lp, sSumnerObj);
+    }
+    lbl_80344C90 = 0;
+    lbl_80344C54 = 0;
+    lbl_80344C64 = 0;
+    lbl_80344C74 = 0;
+    lbl_80343E4C = 0;
+    lbl_80343E50 = -1;
+    lbl_80343E54 = -1;
+    lbl_80343E58 = -1;
+    lbl_80344C78 = 60;
+    lbl_80344C6C = -1;
+    lbl_80344C7C = 0;
 }
