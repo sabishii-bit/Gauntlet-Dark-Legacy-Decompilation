@@ -1,12 +1,14 @@
 # `worldcol.c` wrapper matching
 
-The first five world-collision entry points are byte-exact:
+The first seven world-collision entry points are byte-exact:
 
 - `CameraCollide`
 - `WeaponWallCollide`
 - `EnemyWallCollide`
 - `PlayerWallCollide`
 - `FastWallCollide`
+- `FloorPos`
+- `FloorCollide`
 
 Recovered interface details:
 
@@ -34,3 +36,12 @@ MWCC source-shaping techniques:
   `normal[2] = normal[1] = normal[0] = zero_constant`, makes MWCC load the
   shared zero once and emit three stores. Three independent expressions load
   the constant three times; a named float temporary can enlarge the frame.
+- The same assignment-web rule applies across a local and a global:
+  `result->current = hit = 0` made MWCC put zero directly in the long-lived
+  `hit` register and use it for the store. Separate initialization and store
+  produced a second `li r0,0`, leaving an otherwise exact `FloorPos` four
+  bytes too long.
+- The floor probes use two 16-byte collision-point locals while copying only
+  XYZ. Modeling the unused fourth float recovered their 16-byte stride,
+  correct stack offsets, and target frames. A further dead eight-byte local
+  accounts for `FloorPos`'s 80-byte frame.
