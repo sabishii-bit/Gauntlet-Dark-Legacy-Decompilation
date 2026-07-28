@@ -178,6 +178,8 @@ game/sys/psx2.c:
 	extab       start:0x80006C50 end:0x80006C60
 	extabindex  start:0x8000AAC8 end:0x8000AAE0
 	.text       start:0x8008BC50 end:0x8008BF88
+	.rodata     start:0x801142F0 end:0x801143F8
+	.sdata2     start:0x80347E70 end:0x80347E90
 
 game/sys/recorder.c:
 	extab       start:0x80006C60 end:0x80006C80
