@@ -60,6 +60,20 @@ typedef struct iteminfo {
     /* 0x04 */ iteminfodata item;
 } iteminfo; /* 0x50 */
 
+/* A placed item record embedded in WORLDINFO before it is expanded into an
+ * Item.  This is the Xbox PDB layout and matches the GC loader byte-for-byte. */
+typedef struct iteminst {
+    /* 0x00 */ s16 index;
+    /* 0x02 */ s8  minplayers;
+    /* 0x03 */ s8  flags;
+    /* 0x04 */ s16 ctriidx;
+    /* 0x06 */ s16 nctris;
+    /* 0x08 */ char desc[16];
+    /* 0x18 */ f32 pos[3];
+    /* 0x24 */ f32 pyr[3];
+    /* 0x30 */ u8  params[12];
+} iteminst; /* 0x3C */
+
 /* A live placed item instance.                                               */
 typedef struct Item {
     /* 0x00 */ iteminfo* info;
@@ -116,7 +130,7 @@ Item* NewItemPtr(void);
 Item* AddItem(void* a, void* b);
 void  AddItemInstList(void);
 Item* PlaceItem(s32 type, s32 level, char* name, void* matrix);
-void  SetItem(Item* item, s32 flag, void* a, void* b);
+void  SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix);
 void  MatchTransporters(void);
 void  AddLocatorInstList(void* list, s32 count);
 LookoutParam* FindLookoutParam(s32 id);

@@ -40,6 +40,7 @@ extern void  DoPlayerTexMods(int idx);                                     /* pe
 extern int   ErrorPrintf(const char* fmt, ...);
 extern int   sprintf(char* dst, const char* fmt, ...);
 extern int   FileExists(const char* dev, const char* path);
+extern void* AllocMem(u32 size);
 extern void  TriggerCameraActivate(s32 type, f32* eye, f32* target,
                                    s32 duration, s32 flags, s32 variant);
 extern char* LevelItemDesc(void);
@@ -58,8 +59,14 @@ typedef struct RuneCameraVariants {
 } RuneCameraVariants;
 
 typedef struct ItemRuntime {
-    u8   _pad0000[0xBB8];
+    /* 0x0000 */ f32 wobjX[150];
+    /* 0x0258 */ f32 wobjNodeY[150];
+    /* 0x04B0 */ f32 wobjX2[150];
+    /* 0x0708 */ f32 wobjZ[150];
+    /* 0x0960 */ f32 wobjValue[150];
     char itemPath[0x100];
+    u8   _pad0CB8[0x6568];
+    /* 0x7220 */ void* wobjTarget[150];
 } ItemRuntime;
 
 typedef struct ItemStrings {
@@ -101,6 +108,7 @@ extern s32            sNumItems;
 extern s32            gMaxItems;
 extern s32            gNextItemIdx;
 extern s32            sNumItemWobjs;
+extern s32            sVisibleSumCoinCount;
 extern s32            sUnusedItemState;
 extern s32            sUnusedResetState;
 extern s32            sSpecialItem10;
@@ -126,6 +134,9 @@ extern char           sSafeRockBoss41ObjectName[];
 extern char           sSafeRockBoss44ObjectName[];
 
 extern void  FatalError(const char* msg, s32 code);
+extern void  fn_8005412C(void);
+extern void  fn_80062A00(void);
+extern void  LinkItemTriggers(void);
 extern void* memset(void* dst, s32 val, u32 n);
 extern u32*  FindWORLDOBJ(const char* name);
 extern double DistanceToClosestPlayer(f32* pos);
@@ -210,6 +221,10 @@ extern s32   MBOX_ReallyFindObject(char* name, s32 a, s32 b, s32 c);
 extern void  MBSetObject(void* node, s32 object);
 extern char* strcat(char* dst, const char* src);
 extern s32   StartFXNoLoop(s32 type, f32* pos);
+extern void  CopyMat3(const f32* src, f32* dst);
+extern void  WPitchMat3(f32* matrix, f32 angle);
+extern void  WYawMat3(f32* matrix, f32 angle);
+extern void  WRollMat3(f32* matrix, f32 angle);
 extern char* sArrowObjectNames[];   /* arrow blit names by kind */
 extern char  sLevelOneSuffix[];   /* "L1" */
 extern char  sRootSuffix[];   /* "ROOT" */
@@ -228,6 +243,9 @@ extern f32   sItemZero;   /* waypoint dist epsilon */
 extern f32     gDefaultPlayerPosition[3];
 extern f32     gPlayerStartYaw;
 extern s32     CurTransmitter;
+extern char    sNewItemBadIndex[];
+
+s32 ItemVisible(Item* item);
 
 /* ------------------------------------------------------------------ */
 /* item pool                                                          */
@@ -396,6 +414,61 @@ Item* NewItemPtr(void)
     return it;
 }
 
+/* Expand the level's compact iteminst records into the live item pool. */
+void AddItemInstList(void)
+{
+    iteminst* instances = gWorldInfo.iteminst;
+    s32 instance_count = gWorldInfo.niteminsts;
+    s32 visible_sum_coins = 0;
+    s32 i;
+    s32 instance_offset;
+    f32 matrix[16];
+
+    sItemRandSeed = pbLoad;
+    fn_8005412C();
+    gMaxItems = instance_count + 500;
+    sItems = AllocMem(gMaxItems * sizeof(Item));
+
+    for (i = 0, instance_offset = 0; i < instance_count;
+         i++, instance_offset += sizeof(iteminst)) {
+        iteminst* instance = (iteminst*)((u8*)instances + instance_offset);
+        Item* item = NewItemPtr();
+
+        if (instance->index < 0) {
+            FatalError(sNewItemBadIndex, 0x800000);
+        }
+        CopyMat3(gIdentityMatrix, matrix);
+        {
+            f32 angle = instance->pyr[0];
+            WPitchMat3(matrix, angle);
+            angle = instance->pyr[1];
+            WYawMat3(matrix, angle);
+            angle = instance->pyr[2];
+            WRollMat3(matrix, angle);
+        }
+        matrix[12] = instance->pos[0];
+        matrix[13] = instance->pos[1];
+        matrix[14] = instance->pos[2];
+        SetItem(item, instance, &gWorldInfo.iteminfo[instance->index],
+                matrix);
+        if (item != NULL && item->info != NULL && item->info->type == 1 &&
+            item->info->item.subtype == 1 && ItemVisible(item)) {
+            visible_sum_coins++;
+        }
+    }
+    sVisibleSumCoinCount = visible_sum_coins;
+    fn_80062A00();
+    {
+        s32 item_offset;
+        for (i = 0, item_offset = 0; i < sNumItems;
+             i++, item_offset += sizeof(Item)) {
+            AddItemSub((Item*)((u8*)sItems + item_offset));
+        }
+    }
+    MatchTransporters();
+    LinkItemTriggers();
+}
+
 /* 0x8006799C - per-frame ambient light fade toward the level target. */
 void DoLighting(s32 flag)
 {
@@ -517,6 +590,92 @@ void MatchTransporters(void)
             }
             if (j >= sNumItems) {
                 ErrorPrintf(sTransporterNoDestFmt, ((s32*)p)[0x37], ((s32*)p)[0x38]);
+            }
+        }
+    }
+}
+
+/* Validate trigger identifiers and connect each trigger to its requested
+ * successor.  The link occupies item data +8; bits 0x40 and 0x200 distinguish
+ * special triggers and nodes that are link targets. */
+void LinkItemTriggers(void)
+{
+    char* strings = (char*)&sObjectsFile;
+    Item* item;
+    Item* other;
+    s32 i;
+    s32 j;
+    s32 duplicate_count;
+
+    item = sItems;
+    for (i = 0; i < sNumItems; i++, item++) {
+        if (item->active != -1 && item->info->type == 5) {
+            duplicate_count = 0;
+            other = sItems;
+            for (j = 0; j < sNumItems; j++, other++) {
+                if (j != i && other->active != -1 &&
+                    other->info->type == 5 &&
+                    (*(s16*)&other->data[4] & 0x40) ==
+                        (*(s16*)&item->data[4] & 0x40) &&
+                    *(s8*)&item->data[6] > 0) {
+                    if (*(s8*)&other->data[6] == *(s8*)&item->data[6]) {
+                        *(s8*)&other->data[6] = 0;
+                        duplicate_count++;
+                    }
+                }
+            }
+            if (duplicate_count > 0) {
+                if (*(s16*)&item->data[4] & 0x40) {
+                    ErrorPrintf(strings + 0x2EC,
+                                duplicate_count + 1,
+                                (s32)*(s8*)&item->data[6]);
+                } else {
+                    ErrorPrintf(strings + 0x310,
+                                duplicate_count + 1,
+                                (s32)*(s8*)&item->data[6]);
+                }
+            }
+        }
+    }
+
+    item = sItems;
+    for (i = 0; i < sNumItems; i++, item++) {
+        if (item->active != -1 && item->info->type == 5) {
+            s8 next_id = *(s8*)&item->data[7];
+
+            if (next_id != 0) {
+                other = sItems;
+                for (j = 0; j < sNumItems; j++, other++) {
+                    if (j != i && other->active != -1 &&
+                        other->info->type == 5 &&
+                        (*(s16*)&other->data[4] & 0x40) == 0 &&
+                        next_id == *(s8*)&other->data[6]) {
+                        Item* chain = other;
+                        s32 loop = 0;
+
+                        while (chain != NULL) {
+                            Item* next = *(Item**)&chain->data[8];
+                            if (next == item) {
+                                ErrorPrintf(strings + 0x32C,
+                                            (s32)next_id,
+                                            (s32)*(s8*)&other->data[7]);
+                                loop = 1;
+                                break;
+                            }
+                            chain = next;
+                        }
+                        if (!loop) {
+                            *(Item**)&item->data[8] = other;
+                            *(s16*)&other->data[4] |= 0x200;
+                        }
+                        break;
+                    }
+                }
+                if (j >= sNumItems) {
+                    ErrorPrintf(strings + 0x350,
+                                (s32)*(s8*)&item->data[6],
+                                (s32)*(s8*)&item->data[7]);
+                }
             }
         }
     }
@@ -976,6 +1135,70 @@ s32 ItemVisible(Item* it)
         }
     }
     return visible;
+}
+
+s32 RegisterItemWobj(void* target_ptr, s16 type, s32 x_grid, s32 z_grid,
+                     s32 value)
+{
+    ItemRuntime* runtime = &sItemRuntime;
+    u8* target = target_ptr;
+    char* strings = (char*)&sObjectsFile;
+    s32 trigger_type = (u8)type;
+    f32 x = (f32)(sItemFloorYOffset * (f32)x_grid);
+    f32 z = (f32)(sItemFloorYOffset * (f32)z_grid);
+    s32 i;
+    s32 offset;
+
+    if (*(void**)(target + 0x28) == NULL) {
+        ErrorPrintf(strings + 0x464, target);
+        return -1;
+    }
+
+    for (i = 0, offset = 0; i < sNumItemWobjs; i++, offset += 4) {
+        if (*(void**)((u8*)runtime->wobjTarget + offset) == target) {
+            s16 flags = *(s16*)(target + 0x14);
+            s32 old_type = (u8)flags;
+
+            if (old_type != trigger_type) {
+                if (old_type >= 27 && old_type <= 29 &&
+                    trigger_type >= 27 && trigger_type <= 29) {
+                    *(s16*)(target + 0x14) &= 0xFF00;
+                    *(s16*)(target + 0x14) |= 27;
+                } else {
+                    ErrorPrintf(strings + 0x480, target, old_type, trigger_type);
+                }
+            }
+            if (sZeroDouble ==
+                (f64)*(f32*)((u8*)runtime->wobjX2 + offset)) {
+                *(f32*)((u8*)runtime->wobjX2 + offset) = x;
+                *(f32*)((u8*)runtime->wobjX + offset) = x;
+            }
+            if (sZeroDouble ==
+                (f64)*(f32*)((u8*)runtime->wobjZ + offset)) {
+                *(f32*)((u8*)runtime->wobjZ + offset) = z;
+            }
+            if (*(f32*)((u8*)runtime->wobjValue + offset) <= sItemZero) {
+                *(f32*)((u8*)runtime->wobjValue + offset) = (f32)value;
+            }
+            return -1;
+        }
+    }
+
+    if (++sNumItemWobjs >= 150) {
+        FatalError(strings + 0x4B0, 0x800000);
+    }
+    {
+        void* node = *(void**)(target + 0x28);
+
+        runtime->wobjTarget[i] = target;
+        runtime->wobjNodeY[i] = *(f32*)((u8*)node + 0x34);
+        runtime->wobjX[i] = x;
+        runtime->wobjX2[i] = x;
+        runtime->wobjZ[i] = z;
+        runtime->wobjValue[i] = (f32)value;
+        *(s16*)(target + 0x14) = (s16)type;
+    }
+    return i;
 }
 
 /* ------------------------------------------------------------------ */

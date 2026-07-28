@@ -24,7 +24,7 @@ static s16 sItemActive[1520];
 static f32 sSavedPlayerPos[4];
 
 extern Player gPlayers[4];
-extern void* lbl_8025EA10[];
+extern void* sItemWobjTargets[];
 extern f32 lbl_8023F83C[3];
 extern f32 lbl_8023F848[7];
 extern f32 lbl_8023F864[7][3];
@@ -117,9 +117,9 @@ void LoadAllRecords(void) {
         for (playerIndex = 0;
              playerIndex < sNumItemWobjs;
              playerIndex++) {
-            ((u8*)lbl_8025EA10[playerIndex])[0x16] =
+            ((u8*)sItemWobjTargets[playerIndex])[0x16] =
                 sPlayerByte16[playerIndex];
-            ((u8*)lbl_8025EA10[playerIndex])[0x17] =
+            ((u8*)sItemWobjTargets[playerIndex])[0x17] =
                 sPlayerByte17[playerIndex];
         }
     }
@@ -175,7 +175,7 @@ void SaveAllRecords_8008C0F4(s32 excludedItem, s32 recordArg, f32* playerPos) {
         for (playerIndex = 0;
              playerIndex < count;
              playerIndex++) {
-            player = (u8*)lbl_8025EA10[playerIndex];
+            player = (u8*)sItemWobjTargets[playerIndex];
             sPlayerByte16[playerIndex] = player[0x16];
             sPlayerByte17[playerIndex] = player[0x17];
         }

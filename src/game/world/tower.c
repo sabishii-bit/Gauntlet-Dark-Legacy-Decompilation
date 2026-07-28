@@ -132,7 +132,7 @@ extern s32 lbl_80343E54;
 extern s32 lbl_80343E58;
 extern s32 sMusicTrackLo;
 extern s32 sMusicTrackHi;
-extern s32 lbl_803448F0;
+extern s32 sVisibleSumCoinCount;
 extern s32 lbl_80344C4C;
 extern void* sSumnerObj;   /* live Sumner (good wizard) object handle   */
 extern s32 lbl_80344C54;
@@ -319,7 +319,7 @@ int towerAwardWorldRunes(void) {
             PLAYER_AT(player, 0x930, s32)++;
             PLAYER_AT(player, 0x928, s32) = rune + 0x200;
             PLAYER_AT(player, 0x92C, f32) = lbl_8034858C;
-            if (PLAYER_AT(player, 0x930, s32) >= lbl_803448F0) {
+            if (PLAYER_AT(player, 0x930, s32) >= sVisibleSumCoinCount) {
                 awarded = 1;
             }
         }
