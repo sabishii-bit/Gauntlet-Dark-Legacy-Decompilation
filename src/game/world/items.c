@@ -173,6 +173,7 @@ extern void  fn_800BA6C0(s32 handle, s32 pri, s32 b);
 extern s32   fn_800B8E94(char* name, s32 a, s32 b, s32 c);/* find texture */
 extern void* fn_800B92B0(void* node, s32 tex);
 extern char* strcat(char* dst, const char* src);
+extern void  fn_80093B04(s32 type, f32* pos);
 extern char* lbl_8011C8A8[];   /* arrow blit names by kind */
 extern char  lbl_80346F78[];   /* "L1" */
 extern char  lbl_80346F7C[];   /* "ROOT" */
@@ -614,6 +615,56 @@ void LinkTriggerToCam(s32 idx, s32 type)
                 ErrorPrintf(lbl_80112FC8, i, cur, idx);
             }
             *(s16*)((u8*)p + 0xEE) = sidx;
+        }
+    }
+}
+
+/* 0x80063DB0 - retexture a damageable item by health tier (name + tier
+ * digit, falling back to name+"L1"/"ROOT"), blanking it at tier 0. */
+static void AddItemWobj(Item* it)
+{
+    char buf[32];
+    s16 tier;
+    s32 hp = it->health;
+    s32 base = it->info->item.hitpoints;
+
+    if (hp == 0) {
+        tier = 0;
+    } else if (hp > base) {
+        if (hp > base << 1) {
+            tier = 3;
+        } else {
+            tier = 2;
+        }
+    } else {
+        tier = 1;
+    }
+    if (tier != *(s16*)(it->data + 2)) {
+        s32 tex;
+        *(s16*)(it->data + 2) = tier;
+        sprintf(buf, lbl_80347128, it->info->item.desc,
+                *(s16*)(it->data + 2));
+        tex = fn_800B8E94(buf, -1, -1, -1);
+        if (tex < 0) {
+            strcat(buf, lbl_80346F78);
+            tex = fn_800B8E94(buf, -1, -1, -1);
+        }
+        if (tex < 0) {
+            strcat(buf, lbl_80346F7C);
+            tex = fn_800B8E94(buf, -1, -1, -1);
+        }
+        if (tex < 0) {
+            fn_800BA368(it->objgrp.node, 1, 1);
+            *(s16*)(it->data + 2) = -1;
+        } else {
+            fn_800B92B0(it->objgrp.node, tex);
+            if (tier == 0) {
+                *(u16*)((u8*)it + 0x62) &= ~1u;
+                it->armor = -1;
+            }
+        }
+        if (tier == 0) {
+            fn_80093B04(30, (f32*)((u8*)it + 0x34));
         }
     }
 }
