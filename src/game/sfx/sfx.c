@@ -212,8 +212,12 @@ extern void fn_800BA784(struct mbnode* node, s32 zmod, s32 recurse);   /* set z-
 extern void fn_800BAD94(struct mbnode* node, struct mbnode* parent);   /* reparent        */
 extern void fn_800BE6F4(struct mbnode* node, f32 ang);                 /* rotate yaw      */
 extern void fn_800BE648(struct mbnode* node, f32 ang);                 /* rotate pitch    */
+extern void fn_800BE4F4(struct mbnode* node, f32 yaw);                 /* set yaw         */
+extern f32 atan2(f32 y, f32 x); /* PS2-shim float-returning decl */
 extern void MBRemovePolyInst(struct polyinst* p);
 extern void MBPolyInstUpdateVerts(struct polyinst* p, s32 nverts, f32* verts);
+extern struct polyinst* MBNewPoly(void* ctx, s32 type, s32 tex, f32* verts);
+extern void MBPolyInstSetColorAlpha(struct polyinst* p, u32 color, s32 alpha);
 extern void fn_800BAEAC(struct mbnode* node, s32 flag);               /* node destroy    */
 extern f32 fn_800BDA98(f32* v);                                       /* normalize, ret len */
 extern int msgPost(int idx, int param, char* str);
@@ -222,6 +226,7 @@ extern void fn_800115D0(void* atree);                                  /* atree 
 extern struct anode* fn_80012F78(struct atreeheader* hdr, void* atree, s32 a, s32 b); /* atree build */
 extern struct anode* fn_80012F9C(struct atreeheader* hdr, void* atree, s32 a, u32 flb, s32 b); /* atree build (flags) */
 extern struct mbnode* fn_800BB29C(struct mbnode* parent, f32* mat, s32 flag); /* new node under parent */
+extern struct mbnode* MBOX_NewObject(const char* name, s32 p2, s32 p3, u32 p4); /* create MB object */
 extern struct mbnode* lbl_80344EBC; /* fx scene root (flag 0x2000)     */
 extern struct mbnode* lbl_80344BD4; /* fx scene root (flag 0x800)      */
 extern struct mbnode* lbl_80344EB8; /* default fx scene root           */
@@ -230,6 +235,10 @@ extern s32 lbl_80285B04[];  /* per-enemy hit-fx type table   (.bss)    */
 extern s32 lbl_80285A50[];  /* per-enemy death-fx type table (.bss)    */
 extern s32 lbl_80122E60[4]; /* levelup fx type by player color (.data) */
 extern s32 lbl_8011A178[];  /* block-fx frame by player class  (.data) */
+extern s32 lbl_80122D98[5]; /* fx type by index (.data)               */
+extern s32 lbl_80122DAC[];  /* fx type table A by index (.data)       */
+extern s32 lbl_80122DC0[];  /* fx type table B by index (.data)       */
+extern void fn_8009DB24(s32 evt, f32* pos); /* sounds_evt             */
 extern struct atreeheader* AtreeMatch(void* buf, char* name, s32 flag);
 extern int strcmp(const char*, const char*);
 extern int sprintf(char*, const char*, ...);
@@ -325,8 +334,63 @@ void DoProcessSkinFX(SkinFx* fx, struct mbnode* node, struct mbnode* geo)
  * DmgFx -- collision-volume debug visualizers ("COLCYL"/"COLCIR"/"COLARC")
  * ==================================================================== */
 
-/* 0x800913A0 DmgFxConeAdd -- doc-only (MBOX_NewObject "COLCYL" + NodeUpdate) */
-/* 0x80091488 DmgFxCircleAdd -- doc-only (MBOX_NewObject "COLCIR" + NodeUpdate) */
+/* new "COLCYL" debug cylinder node at pos, scaled/oriented by NodeUpdate */
+struct mbnode* DmgFxConeAdd(s32 objid, f32* pos, s32 alpha, f32 rx, f32 rz, f32 rotp, f32 roty)
+{
+    struct mbnode* node;
+    u32 flags = 0x401808;
+    f32 sx;
+    f32 sz;
+
+    sz = rz;
+    sx = rx;
+    if (rx == 0.0) {
+        sx = 0.01f;
+        flags |= 1;
+        sz = sx;
+    }
+    node = MBOX_NewObject("COLCYL", 0, objid, flags);
+    node->pos[0] = pos[0];
+    node->pos[1] = pos[1];
+    node->pos[2] = pos[2];
+    DmgFxNodeUpdate(node, 1, sx, sz, rotp, roty);
+    if (flags & 1) {
+        fn_800BA368(node, 1, 0);
+    }
+    if (alpha > 0) {
+        fn_800BA6C0(node, alpha, 0);
+    }
+    return node;
+}
+
+/* new "COLCIR" debug circle node (uniform x/z radius) at pos */
+struct mbnode* DmgFxCircleAdd(s32 objid, f32* pos, s32 alpha, f32 r, f32 rotp, f32 roty)
+{
+    struct mbnode* node;
+    u32 flags = 0x401808;
+    f32 sx;
+    f32 sz;
+
+    sz = r;
+    sx = r;
+    if (r == 0.0) {
+        sx = 0.01f;
+        flags |= 1;
+        sz = sx;
+    }
+    node = MBOX_NewObject("COLCIR", 0, objid, flags);
+    node->pos[0] = pos[0];
+    node->pos[1] = pos[1];
+    node->pos[2] = pos[2];
+    DmgFxNodeUpdate(node, 1, sx, sz, rotp, roty);
+    if (flags & 1) {
+        fn_800BA368(node, 1, 0);
+    }
+    if (alpha > 0) {
+        fn_800BA6C0(node, alpha, 0);
+    }
+    return node;
+}
 
 void DmgFxConeUpdate(struct mbnode* node, s32 absolute, f32 a, f32 b, f32 c, f32 d)
 {
@@ -560,7 +624,22 @@ s32 StartGenFX(f32* pos, s32 n)
     return StartFXSubGuts(n + 80, pos, 0, 0x800, 0.0f);
 }
 
-/* 0x80091F34 fn_80091F34 / 0x800920E0 fn_800920E0 -- doc-only (gem/bag). */
+/* gem/rune/garg pickup fx: special-cased constant types + generic default */
+s32 fn_80091F34(f32* pos, s32 sel)
+{
+    s32 ret;
+
+    if (sel == 0x400) {
+        ret = StartFXSubGuts(FX_GET_RUNE, pos, 0, 0x80880, 0.0f);
+    } else if (sel == 0x100) {
+        ret = StartFXSubGuts(FX_GET_GARG, pos, 0, 0x80880, 0.0f);
+    } else {
+        ret = StartFXSubGuts(sel + 69, pos, 0, 0x80880, 0.0f);
+    }
+    return ret;
+}
+
+/* 0x800920E0 fn_800920E0 -- doc-only (bag, Random + atan2). */
 
 s32 StartEnterFX(f32* pos)
 {
@@ -656,7 +735,35 @@ s32 fn_80093B04(s32 type, f32* pos)
     return StartFXSubGuts(type, pos, 0, 0x800, 0.0f);
 }
 
-/* 0x80093BC0 fn_80093BC0 -- doc-only (aimed launch, atan2). */
+/* aimed-launch spawn: guts + velocity/yaw + hit-fx fields */
+s32 fn_80093BC0(s32 type, f32* pos, f32* vel, u32 fla, s32 fxhit, s32 hit_audio, s32 wall_sound, f32 time)
+{
+    EffectPage* page = (EffectPage*)EffectInfo;
+    u8 unused[8];
+    s32 idx = StartFXSubGuts(type, pos, fla, 0x800, time);
+    Effect* e;
+
+    if (idx < 0) {
+        return -1;
+    }
+    e = &page->fx[idx];
+    if (vel != NULL) {
+        f32 vz = vel[2];
+        f32 ang = atan2(vel[0], vz);
+        e->vel[0] = vel[0];
+        e->vel[1] = vel[1];
+        e->vel[2] = vel[2];
+        if (e->node != NULL) {
+            fn_800BE4F4(e->node, ang);
+        }
+    }
+    e->weight = 0.0f;
+    e->colrad = 0.0f;
+    page->fx[idx].fxhit = fxhit;
+    page->fx[idx].hit_audio = hit_audio;
+    page->fx[idx].wall_sound = wall_sound;
+    return idx;
+}
 
 void SfxSetHitTarget(f32 speed, s32 idx, struct mbnode* target)
 {
@@ -696,7 +803,59 @@ void SfxSetMorph(f32 time, s32 idx, s32 morph1, s32 morph2)
     e->morphtime = time;
 }
 
-/* 0x80093D98 fn_80093D98 (~SfxSetStreak) / 0x80093E50 fn_80093E50 -- doc-only */
+/* attach a streak poly to an effect + set its color/alpha and streak params */
+void fn_80093D98(s32 idx, s32 tex, u32 color, s32 alpha, f32 scale, f32 fwdmul)
+{
+    Effect* e;
+
+    if (idx < 0) {
+        return;
+    }
+    e = &Effects[idx];
+    e->flags |= 0x40000;
+    e->streak = MBNewPoly(NULL, 4, tex, NULL);
+    if (e->streak != NULL) {
+        MBPolyInstSetColorAlpha(e->streak, color, alpha);
+    }
+    e->streakfwdmul = fwdmul;
+    if (scale > 0.0) {
+        e->streakscale = scale;
+    } else {
+        e->streakscale = e->colrad;
+    }
+}
+
+/* launch-velocity helper: set vel (+ yaw the node), pyrvel, weight, colrad */
+void fn_80093E50(s32 idx, f32* vel, f32* pyrvel, f32 weight, f32 colrad)
+{
+    Effect* e;
+
+    if (idx < 0) {
+        return;
+    }
+    e = &Effects[idx];
+    if (vel != NULL) {
+        f32 vz = vel[2];
+        f32 ang = atan2(vel[0], vz);
+        e->vel[0] = vel[0];
+        e->vel[1] = vel[1];
+        e->vel[2] = vel[2];
+        if (e->node != NULL) {
+            fn_800BE4F4(e->node, ang);
+        }
+    }
+    if (pyrvel != NULL) {
+        e->pyrvel[0] = pyrvel[0];
+        e->pyrvel[1] = pyrvel[1];
+        e->pyrvel[2] = pyrvel[2];
+    }
+    if (weight >= 0.0) {
+        e->weight = weight;
+    }
+    if (colrad >= 0.0) {
+        e->colrad = colrad;
+    }
+}
 
 void SfxSetDamage(f32 damage, f32 radius, f32 delay, s32 idx, s32 type, s32 owner)
 {
@@ -757,8 +916,37 @@ void SfxSetParent(s32 idx, struct mbnode* parent)
     }
 }
 
-/* 0x80094080..0x800945D0 fn_80094080/fn_80094164/fn_80094440/fn_800945D0:
- * remaining Start* bodies -- doc-only this pass. */
+/* start a table-selected fx at pos, then post its spawn sound event */
+s32 fn_80094080(f32* pos, s32 index)
+{
+    s32 idx = StartFXSubGuts(lbl_80122D98[index & 0xF], pos, 0, 0x880, 0.0f);
+
+    fn_8009DB24(5, pos);
+    return idx;
+}
+
+/* 0x80094164 fn_80094164 -- doc-only (Start*, big). */
+
+/* start a table-selected fx (table chosen by `which`) at pos.
+ * STRUCTURAL: two duplicated StartFXSubGuts inlines; residual is a
+ * duplicated-inline renum -- target GCSE-hoists EffectInfo to r31 before the
+ * branch (shared by both guts copies) where ours re-materializes it inside the
+ * fall-through, cascading the color assignment in both arms. mask-local hoist +
+ * beq layout matched; open-coded shared-page form was worse (95 vs 72). */
+s32 fn_80094440(f32* pos, u32 idx, s32 which)
+{
+    u32 m = idx & 0xF;
+    s32 ret;
+
+    if (which != 0) {
+        ret = StartFXSubGuts(lbl_80122DC0[m], pos, 0, 0x880, 0.0f);
+    } else {
+        ret = StartFXSubGuts(lbl_80122DAC[m], pos, 0, 0x880, 0.0f);
+    }
+    return ret;
+}
+
+/* 0x800945D0 fn_800945D0 -- doc-only (Start*, big, CopyMat3). */
 
 void ScaleFX(s32 idx, f32 sx, f32 sy, f32 sz)
 {
