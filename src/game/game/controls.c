@@ -6,7 +6,7 @@
  *
  * TU identity/boundary evidence:
  *  - Xbox PDB CONTROLS.OBJ carries the full roster (ReadControls,
- *    ControlsUpdate, joyReadPad/joyGetStatus, serve_mtap, MtapOpenPort,
+ *    PlayerControls, joyReadPad/joyGetStatus, serve_mtap, MtapOpenPort,
  *    the new_/any_ edge-query family, aiPad* data).  Every function in
  *    0x8003101C-0x80034CFC shares the same statics (lbl_802407xx pad
  *    arrays, lbl_80240E30 per-player structs, lbl_803445xx flag cluster,
@@ -20,11 +20,11 @@
  *
  * Names from the Xbox PDB (research/xbox_symbols/functions_by_module.txt).
  * NOTE two symbols are pinned by Matching main.c and keep their old names:
- *  - "ControlsUpdate" @0x80032B84 is really PlayerControls (per-frame
- *    master: ReadControls -> ControlsUpdate -> vibes -> CheckSpecials ->
+ *  - "PlayerControls" @0x80032B84 is really PlayerControls (per-frame
+ *    master: ReadControls -> PlayerControls -> vibes -> CheckSpecials ->
  *    serve_memcard; Xbox PlayerControls).
- *  - fn_800330D4 @0x800330D4 is really ControlsUpdate (edge/repeat-edge
- *    computation + serve_mtap; size 0x98C vs Xbox ControlsUpdate 0x907).
+ *  - ControlsUpdate @0x800330D4 is really PlayerControls (edge/repeat-edge
+ *    computation + serve_mtap; size 0x98C vs Xbox PlayerControls 0x907).
  *
  * GC-only helper fn_80034C88 (frsqrte Newton sqrt, same idiom as
  * g3dpad.c g3dSqrt) has no Xbox counterpart (x86 fsqrt) - keeps fn_ name.
@@ -43,7 +43,7 @@
  * new_ctrl, and_edges*, assigned_controller, ClearControls*,
  * ClearPlayerControl*, controls_remove_active_player*, serve_mtap,
  * get_button, fn_80034C88; * = bss/data reloc-name cosmetic only).
- * Parked residual classes in PARKED.txt.  fn_800330D4 body is complete
+ * Parked residual classes in PARKED.txt.  ControlsUpdate body is complete
  * but spill-pattern heavy (target saves r14-r31 with several loop webs
  * spilled; structure aligned).  Still skeletons: joyGetStatus (pad
  * connection state machine, phases 0/0x28-0x2A/0x46-0x4D/99 over
@@ -541,9 +541,9 @@ void ClearControls(void);
 void InitPlayerControls(void);
 void ClearAllPlayerControls(s32 code);
 void ClearPlayerControl(s32 plyr, s32 code);
-void ControlsUpdate(void);     /* really PlayerControls - see header */
+void PlayerControls(void);     /* really PlayerControls - see header */
 void InitJoyAng(void);
-void fn_800330D4(void);        /* really ControlsUpdate - see header */
+void ControlsUpdate(void);        /* really PlayerControls - see header */
 s32 CheckSpecials(s32 plyr, u32 lev);
 void ReadControls(void);
 void InitControls(void);
@@ -1129,10 +1129,10 @@ void ClearPlayerControl(s32 plyr, s32 code)
 }
 
 /* 0x80032B84  per-frame controls master (Xbox name: PlayerControls):
- * ReadControls -> fn_800330D4 (edge update) -> vibe timers -> per-player
+ * ReadControls -> ControlsUpdate (edge update) -> vibe timers -> per-player
  * CTL assembly (stick angle/mag from the JoyAng/JoyMag LUT or the staged
  * analog values) -> CheckSpecials -> edge debug print -> serve_memcard. */
-void ControlsUpdate(void)
+void PlayerControls(void)
 {
     int i;
     u8 unused[8];
@@ -1145,7 +1145,7 @@ void ControlsUpdate(void)
         }
     } else {
         lbl_803445E4 = 400;
-        fn_800330D4();
+        ControlsUpdate();
         for (i = 0; i < 4; i++) {
             if (lbl_80240E10[i * 2] != 0) {
                 s32 t = lbl_80240E10[i * 2 + 1] - 1;
@@ -1293,13 +1293,13 @@ void InitJoyAng(void)
         var = 0;                                      \
     }
 
-/* 0x800330D4  edge/repeat-edge computation (Xbox name: ControlsUpdate):
+/* 0x800330D4  edge/repeat-edge computation (Xbox name: PlayerControls):
  * consume ReadControls' staged levels ("updated" flag), map scheme turbo
  * buttons in (SpecialData rows), derive per-pad edges (per-direction
  * nibbles + 24 button bits) + auto-repeat edges (rep_speed ladder),
  * mirror the right-stick words, aggregate the all-player level/edge
  * words, and pump serve_mtap. */
-void fn_800330D4(void)
+void ControlsUpdate(void)
 {
     u32 oldlev[4];
     s32 step;
@@ -1561,7 +1561,7 @@ s32 CheckSpecials(s32 plyr, u32 lev)
 
 /* 0x80033C5C  top-level pad read: joyGetStatus every pad, assemble raw
  * levels + analog sticks (JoyAng/JoyMag lookup, fn_80034C88 sqrt,
- * atan2) into the staged arrays for fn_800330D4.
+ * atan2) into the staged arrays for ControlsUpdate.
  * SKELETON - full transcription pending. */
 void ReadControls(void)
 {

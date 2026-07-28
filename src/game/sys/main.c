@@ -72,7 +72,7 @@ void game_init_data(void);
 void OptionsSetup(void);
 void FontInit(void);
 u32 BytesFree(void);
-void fn_800330D4(void);
+void ControlsUpdate(void);
 void fn_80010EB0(int w, int h);
 void pbInitDiag(int arg);
 void fn_800533E4(void);
@@ -80,7 +80,7 @@ void fn_8005403C(int arg);
 void init_attract_mode(int screen);
 void fn_8002F040(void);
 void fn_8008BC50(void);
-void ControlsUpdate(void);
+void PlayerControls(void);
 void sndSysStub1(void);
 void ScreenSaver(void);
 int DoOptions(void);
@@ -325,7 +325,7 @@ void main(void)
     FontInit();
     bulletproof_printf(st + 156, BytesFree(), mlmMemBase,
                        mlmMemBase + (mlmMemLimit / 4) * 4);
-    fn_800330D4();
+    ControlsUpdate();
     if (lbl_80344620 & 0x02000000) {
         lbl_80343C58 = 1;
     } else {
@@ -359,7 +359,7 @@ void main(void)
         fn_8002F040();
         fn_8008BC50();
         lbl_803449C4 = 3;
-        ControlsUpdate();
+        PlayerControls();
         if (lbl_803449A0 == 0) {
             sndSysStub1();
         }
