@@ -437,6 +437,7 @@ config.libs = [
             Object(NonMatching, "game/sound/sounds.c", cflags=cflags_demo),
             Object(NonMatching, "game/world/tower.c", cflags=cflags_demo),
             Object(NonMatching, "game/ui/attract.c", cflags=cflags_demo),
+            Object(NonMatching, "game/ui/options.c", cflags=cflags_demo),
             Object(NonMatching, "game/ui/message.c", cflags=cflags_demo),
             Object(NonMatching, "game/ui/screensaver.c", cflags=cflags_demo),
             Object(NonMatching, "game/ui/auxscreen.c", cflags=cflags_demo),

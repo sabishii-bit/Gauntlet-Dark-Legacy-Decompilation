@@ -109,3 +109,14 @@ fn_800C1624                # sched, 2 lines only now (was 17; q-pointer restruct
 fn_800C31C4                # renum, dead li r3,0 remat + r3/r4/r5 rotation; 48 lines (pb_frame)
 fn_800C32D0                # renum, same class as fn_800C31C4 (pb_frame)
 FaceCamMat                 # isel, ONE fcmpu operand order (var-first vs const-first on == sZero); 7 source forms tried; THE 2-byte gate on the mb_objects flip (pool owned + byte-exact, all other fns EXACT)
+
+# options.c (game/ui, OPTIONS.OBJ 0x80070A60-0x800745D0) - 2026-07 wiring pass:
+finish_optmenu             # isel, optglobals.stack zero-loop: sym+64-addend base + stw 0() vs sym+0 + stw 64(); 3 spellings tried (options)
+start_optmenu              # isel, same optglobals+0x40-addend class at stack read+write sites; plus renum; opcodes/frame exact (options)
+end_optmenu                # renum, m<->off r26/r30 web swap; opcode streams identical 160/160 after og-transit + byte-off collapse loop (options)
+do_screenmenu              # sched+renum, one subfic slot + arrow-section reg reuse (tex/w/h vs x1/x2 colors); opcodes identical 170/170; needs scoped opt_propagation off (in source) (options)
+next_boss_hint             # sched+renum, 1-slot lwz drift + base/off r29/r30 swap + li/product r0/r3 swap; opcode-equal 100/100 (options)
+next_legend_hint           # sched+renum, same class as next_boss_hint (options)
+next_rune_hint             # sched+renum+remat, >1-arm index reload (i=rune_hint_index) propagated + tail base rotation; 96/94 (options)
+start_audioslider          # string-pool addends only (unclaimed .rodata; strings 520.. in target pool); opcode-exact (options)
+do_audiomenu               # sched, act->r8 addi copy + per-arm m->x load slot; 73/75 (options)

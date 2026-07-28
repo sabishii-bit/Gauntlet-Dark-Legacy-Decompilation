@@ -78,10 +78,10 @@ extern void SelectLoadStart(void);
 extern void init_player_select(int a);
 extern int  fn_8006D7BC(void);
 extern void fn_800A17D4(void);
-extern void fn_80070A60(int a);
-extern int  fn_80070B00(void);
-extern void fn_80070B3C(int a);
-extern void fn_80070BA4(int a);
+extern s32  HintMenu(s32 type);
+extern void TitleMenuEnd(void);
+extern s32  TitleMenu(s32 y);
+extern void TitleMenuInit(s32 sel);
 extern void fn_8009D350(int a);
 extern void fn_8009D3D4(void);
 extern void fn_80053B20(void);
@@ -190,7 +190,7 @@ int lbl_80344268;
 int lbl_8034426C;
 int lbl_80344270;
 int lbl_80344274;
-int lbl_80344AF8;
+extern s32 opt_force_player;
 int lbl_80344C4C;
 int lbl_803441F4;
 int lbl_803441F8;
@@ -245,7 +245,7 @@ void do_titlescreen(void) {
     int alpha;
 
     if (did_titlesound != 0) {
-        fn_80070B00();
+        TitleMenuEnd();
         AudioSelectReset();
         init_attract_mode(-1);
         attract_state = ATTRACT_RUN;
@@ -272,7 +272,7 @@ void do_titlescreen(void) {
         fn_800B3414(cur_screen_id, 1);
     }
     if (titlescreen_timeout > 1800) {
-        fn_80070B00();
+        TitleMenuEnd();
         fn_80053B20();
         did_titlesound = 1;
     }
@@ -304,7 +304,7 @@ void init_titlescreen(void) {
     lbl_803448AC = -1;
     lbl_803448A8 = -1;
     lbl_80344C4C = 0;
-    lbl_80344AF8 = 0;
+    opt_force_player = 0;
     fn_8002CF78(1);
     bulletproof_printf(base + 2264);
     AudioSelectReset();
