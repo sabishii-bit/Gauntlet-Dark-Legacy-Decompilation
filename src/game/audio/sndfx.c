@@ -89,10 +89,28 @@ typedef struct {
     f32 f10;     /* +16 */
 } QueSlot;
 
+/* Mode-relative view of the request queue (slots ride at st+mode*320+408). */
+typedef struct QueSlotView {
+    u8 _p[408];
+    s32 soundId; /* +408 */
+    s32 f4;      /* +412 */
+    s32 f8;      /* +416 */
+    s32 fC;      /* +420 */
+    f32 f10;     /* +424 */
+} QueSlotView;
+
+/* Sound-bank header + per-sound descriptor records. */
+typedef struct SndFxMode { u8 _p[320]; } SndFxMode;
+typedef struct V48 { u8 _p[48]; } V48;
+typedef struct VoiceView { u8 _p[1324]; s32 flags; } VoiceView;
+typedef struct SndBankHdr { u8 _p[16]; u8* tbl16; u8* tbl20; } SndBankHdr;
+typedef struct SndDesc44 { u8 _p[38]; s16 base; u16 _x40; u16 h42; } SndDesc44; /* 44 */
+typedef struct SndDescRec { u8 _p[20]; f32 vol; f32 fade; } SndDescRec; /* 28 */
+
 /* --- low-level sound driver (soundmgr.c) --- */
 extern void sndSysUpdate(f32 a);
 extern void sndCmdD(void);
-extern int sndRegisterPair(void* voice, int chans, s32* a, s32* b, s32* c, s32* d);
+extern int sndRegisterPair(s32* rec, int chans, void* out);
 
 /* --- other cross-region callees --- */
 extern void ErrorPrintf(const char* fmt, ...);
@@ -120,7 +138,7 @@ extern s32 sAudioQueCount[2];
 extern f32 sAudioQueFade[2];
 extern s32 lbl_803442EC;
 extern void* sAudioBankTable;
-extern s32 sAudioVoiceSeq;
+extern u16 sAudioVoiceSeq;
 extern s32 sAudioErrFlags;
 extern s32 sAudioTimeoutAcc;
 extern s32 sAudioTimeoutErrs;
@@ -231,6 +249,8 @@ f32 sndFxQueAddEx(int mode, int soundId, f32 vol, f32 param, int pri, int track,
     int n;
     int i;
     f32 acc;
+    QueSlot* q;
+    QueSlotView* sl;
 
     if (sndFxPaused()) {
         return 0.0f;
@@ -242,10 +262,13 @@ f32 sndFxQueAddEx(int mode, int soundId, f32 vol, f32 param, int pri, int track,
     if (n > 0) {
         acc = sAudioQueFade[mode];
         if (sAudioQueFade[mode] == 0.0) {
-            acc = (f32)pbLoad + *(f32*)(st + mode * 320 + 424);
+            sl = (QueSlotView*)&((SndFxMode*)st)[mode];
+            acc = (f32)pbLoad + sl->f10;
         }
+        sl = (QueSlotView*)&((SndFxMode*)st)[mode];
+        q = (QueSlot*)&sl->soundId;
         for (i = 1; i < n; i++) {
-            acc += *(f32*)(st + mode * 320 + 408 + i * 20 + 16);
+            acc += q[i].f10;
         }
         if (param >= 0.0 && acc - (f32)pbLoad > 60.0f * param) {
             return 0.0f;
@@ -254,24 +277,29 @@ f32 sndFxQueAddEx(int mode, int soundId, f32 vol, f32 param, int pri, int track,
         acc = (f32)pbLoad;
     }
     if (soundId >= 0) {
-        u8* bt = (u8*)sAudioBankTable;
-        s16* desc = (s16*)(*(u8**)(bt + 16) + (soundId >> 16) * 44);
-        int di = (soundId & 0xFFF) + desc[19];
+        SndBankHdr* bt = (SndBankHdr*)sAudioBankTable;
+        SndDesc44* dt;
+        SndDescRec* rt;
+        int di;
+        dt = (SndDesc44*)bt->tbl16;
+        di = (soundId & 0xFFF) + dt[soundId >> 16].base;
         if (vol <= 0.0) {
-            vol = 60.0f * *(f32*)(*(u8**)(bt + 20) + di * 28 + 20);
+            rt = (SndDescRec*)bt->tbl20;
+            vol = 60.0f * rt[di].vol;
         }
-        *(f32*)(*(u8**)(bt + 20) + di * 28 + 24) = acc;
+        rt = (SndDescRec*)bt->tbl20;
+        rt[di].fade = acc;
     }
     sAudioQueBusy = 1;
-    {
-        u8* slot = st + mode * 320 + 408 + n * 20;
-        *(s32*)(slot + 0) = soundId;
-        *(s32*)(slot + 4) = pri;
-        *(s32*)(slot + 8) = track;
-        *(s32*)(slot + 12) = flags;
-        *(f32*)(slot + 16) = vol;
-    }
-    sAudioQueCount[mode] = n + 1;
+    st += mode * 320;
+    q = (QueSlot*)st;
+    sl = (QueSlotView*)&q[n];
+    sl->soundId = soundId;
+    sl->f4 = pri;
+    sl->f8 = track;
+    sl->fC = flags;
+    sl->f10 = vol;
+    sAudioQueCount[mode]++;
     if (busy == 0) {
         sAudioQueBusy = 0;
     }
@@ -496,74 +524,85 @@ void sndFxInitVoices(void)
  * sndFxVoiceUpdateCb).  Returns the 16-bit voice sequence id. */
 int sndFxStartVoice(int handle, int soundId, int p2, Vec3* pos, int pan, int flags)
 {
-    u8* banks = (u8*)sAudioBankTable;
-    int bank = soundId >> 16;
-    int idx = soundId & 0xFFF;
-    AudioVoice* voices = AUDIO_VOICES(sAudioState);
+    SndFxState* stv = (SndFxState*)sAudioState;
     int prevBusy = sAudioQueBusy;
     int seq = 0;
     int slot;
-    s16* desc;
+    int di;
+    int fl;
+    s32 rec[3];
 
-    if (sAudioMute != 0 || sAudioReady < 0) {
+    if (sAudioMute == 0 && sAudioReady >= 0) {
+        u8* banks = (u8*)sAudioBankTable;
+        int bank = soundId >> 16;
+        SndDesc44* dt;
+        int h;
+
+        dt = (SndDesc44*)*(u8**)(banks + 16);
+        h = dt[bank].h42;
+        if (h == 0 || h == 0xFFFF) {
+            if (h == 0) {
+                ErrorPrintf(sAudioBankNotLoadedMsg,
+                            (u8*)dt + bank * 44 + 16,
+                            *(u8**)(banks + 20)
+                                + ((soundId & 0xFFF) + dt[bank].base) * 28);
+                dt = (SndDesc44*)((SndBankHdr*)sAudioBankTable)->tbl16;
+                dt[bank].h42 = 0xFFFF;
+            }
+            return 0;
+        }
+        di = (soundId & 0xFFF) + h;
+        if (handle >= 0) {
+            fl = (handle & 0x1FFF) | 0x8000;
+        } else {
+            fl = flags;
+        }
+        p2 = (p2 * lbl_80343B48) >> 8;
+        sAudioQueBusy = 1;
+        if (sAudioInitFlag != 0) {
+            pan = 127;
+        }
+        rec[0] = di;
+        rec[1] = (p2 << 16) | (pan & 0xFFFF);
+        rec[2] = fl;
+        for (slot = 0; slot < 32; slot++) {
+            switch (stv->voice[slot].flags) {
+            case 0:
+                goto have_slot;
+            }
+        }
+        slot = -1;
+have_slot:
+        if (slot >= 0 && sAudioSuspend == 0) {
+            if (pos != 0) {
+                pan = AudioAng(pos);
+            }
+            sAudioVoiceSeq += 1;
+            if (sAudioVoiceSeq > 16383) {
+                sAudioVoiceSeq = 1;
+            }
+            stv->voice[slot].update = (void*)sndFxVoiceUpdateCb;
+            stv->voice[slot].self = &stv->voice[slot];
+            stv->voice[slot].soundId = soundId;
+            stv->voice[slot].field8 = p2;
+            stv->voice[slot].pos = pos;
+            stv->voice[slot].field10 = pan;
+            stv->voice[slot].flags = flags;
+            stv->voice[slot].seq = sAudioVoiceSeq;
+            seq = stv->voice[slot].seq;
+            if (sndRegisterPair(rec, 3, &stv->voice[slot].pad[0]) <= 0) {
+                sAudioErrFlags |= 2;
+                stv->voice[slot].flags = 0;
+                stv->voice[slot].seq = 0;
+            }
+        }
+        if (prevBusy == 0) {
+            sAudioQueBusy = 0;
+        }
+    } else {
         if (handle < 0 && pos == 0) {
             sndFxQueAddEx(0, soundId, -1.0f, 2.0f, p2, pan, flags);
         }
-        return seq & 0xFFFF;
-    }
-    desc = (s16*)(*(u8**)(banks + 16) + bank * 44);
-    if (desc[21] == 0 || (u16)desc[21] == 0xFFFF) {
-        if (desc[21] == 0) {
-            ErrorPrintf(sAudioBankNotLoadedMsg,
-                        *(u8**)(banks + 16) + bank * 44 + 16,
-                        *(u8**)(banks + 20) + (idx + desc[19]) * 28);
-            desc[21] = (s16)0xFFFF;
-        }
-        return 0;
-    }
-    sAudioQueBusy = 1;
-    if (sAudioInitFlag != 0) {
-        pan = 127;
-    }
-    /* find a free voice slot */
-    slot = -1;
-    {
-        int i;
-        for (i = 0; i < AUDIO_NUM_VOICES; i++) {
-            if (voices[i].flags == 0) {
-                slot = i;
-                break;
-            }
-        }
-    }
-    if (slot >= 0 && sAudioSuspend == 0) {
-        int spatial = 0;
-        if (pos != 0) {
-            spatial = AudioAng(pos);
-        }
-        seq = ++sAudioVoiceSeq;
-        if ((u16)seq > 16383) {
-            sAudioVoiceSeq = 1;
-            seq = 1;
-        }
-        voices[slot].soundId = soundId;
-        voices[slot].flags = flags;
-        voices[slot].field8 = (p2 * lbl_80343B48) >> 8;
-        voices[slot].pos = pos;
-        voices[slot].field10 = spatial;
-        voices[slot].seq = seq;
-        voices[slot].update = (void*)sndFxVoiceUpdateCb;
-        voices[slot].self = &voices[slot].soundId;
-        if (sndRegisterPair(&voices[slot], 3, &voices[slot].field8,
-                            &voices[slot].seq, (s32*)&voices[slot].pad[0],
-                            &voices[slot].field2C) <= 0) {
-            sAudioErrFlags |= 2;
-            voices[slot].flags = 0;
-            voices[slot].update = 0;
-        }
-    }
-    if (prevBusy == 0) {
-        sAudioQueBusy = 0;
     }
     return seq & 0xFFFF;
 }
@@ -572,38 +611,37 @@ int sndFxStartVoice(int handle, int soundId, int p2, Vec3* pos, int pan, int fla
  * spatial parameters for each of the 12 driver channels the voice occupies. */
 void sndFxVoiceUpdateCb(void* v)
 {
-    u8* banks = (u8*)sAudioBankTable;
     s32* raw = *(s32**)((u8*)v + 16); /* driver hands back the voice record */
     int soundId = raw[0];
-    int chmask = (int)((u32) * (s32*)((u8*)v + 8) >> 16);
-    s16* desc;
-    int base;
+    int chmask = (int)(*(u32*)((u8*)v + 8) >> 16);
+    int boff;
     int active = 0;
     int ch;
+    int off;
     u8* work = sAudioChanUpdate;
 
-    desc = (s16*)(*(u8**)(banks + 16) + (soundId >> 16) * 44);
-    base = (soundId & 0xFFF) + desc[19];
-    *(f32*)(*(u8**)(banks + 20) + base * 28 + 24) = (f32)pbLoad;
-
-    for (ch = 0; ch < 12; ch++) {
+    boff = (((SndDesc44*)((SndBankHdr*)sAudioBankTable)->tbl16)[soundId >> 16].base
+            + (soundId & 0xFFF)) * 28;
+    ((SndDescRec*)&((SndBankHdr*)sAudioBankTable)->tbl20[boff])->fade = (f32)pbLoad;
+    for (ch = 0, off = 0; ch < 12; ch++, off += 20) {
         if (chmask & (1 << ch)) {
-            s32* chan = (s32*)(work + ch * 20);
+            s32* chan = (s32*)(work + off);
             chan[0] = soundId;
             chan[1] = raw[1];
-            *(f32*)&chan[2] =
-                60.0f * *(f32*)(*(u8**)(banks + 20) + base * 28 + 20) + (f32)pbLoad;
+            *(f32*)&chan[2] = 60.0f
+                * *(f32*)((((SndBankHdr*)sAudioBankTable)->tbl20 + 20) + boff)
+                + (f32)pbLoad;
             chan[3] = raw[3];
             chan[1] = raw[1];
             chan[4] = raw[5];
             AudioTrackRegister(ch, soundId, raw[2], raw[4], raw[1]);
             active = 1;
-            if (raw[5] != 0 && raw[1] == 0) {
+            if (raw[5] == 0 || raw[1] == 0) {
                 AudioKillMask(1 << ch);
             }
         }
     }
-    if (!active) {
+    if (active == 0) {
         AudioTrackRegister(-1, soundId, raw[2], raw[4], raw[1]);
     }
     raw[1] = 0;
