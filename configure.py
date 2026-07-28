@@ -472,7 +472,7 @@ config.libs = [
             Object(NonMatching, "game/game/pmotion.c", cflags=cflags_demo),
             Object(NonMatching, "game/sfx/psfx.c", cflags=cflags_demo),
             Object(Matching, "game/sys/psx2.c", cflags=cflags_demo),
-            Object(NonMatching, "game/sys/recorder.c", cflags=cflags_demo),
+            Object(Matching, "game/sys/recorder.c", cflags=cflags_demo),
         ],
     },
     {

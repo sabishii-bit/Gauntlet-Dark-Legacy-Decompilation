@@ -185,6 +185,8 @@ game/sys/recorder.c:
 	extab       start:0x80006C60 end:0x80006C80
 	extabindex  start:0x8000AAE0 end:0x8000AB10
 	.text       start:0x8008BF88 end:0x8008C52C
+	.bss        start:0x80282940 end:0x80284878
+	.sbss       start:0x80344B50 end:0x80344B90
 
 game/ui/select.c:
 	extab       start:0x80006C80 end:0x80006D00
