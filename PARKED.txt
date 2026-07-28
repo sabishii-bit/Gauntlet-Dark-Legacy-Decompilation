@@ -137,3 +137,9 @@ next_legend_hint           # sched+renum, same class as next_boss_hint (options)
 next_rune_hint             # sched+renum+remat, >1-arm index reload (i=rune_hint_index) propagated + tail base rotation; 96/94 (options)
 start_audioslider          # string-pool addends only (unclaimed .rodata; strings 520.. in target pool); opcode-exact (options)
 do_audiomenu               # sched, act->r8 addi copy + per-arm m->x load slot; 73/75 (options)
+
+# player.c (game/game, PLAYER.OBJ front slice 0x800745D0-0x80077BF0) - 2026-07 wiring pass:
+LevelToExp                 # isel, lis+add materialized 0x28550 vs our addis-on-product; 3 spellings tried (player)
+ExpToLevel                 # isel+renum, same 0x28550 lis hoisted out of ctr-loop + r4-r7 rotation; loop shape exact (player)
+WritePlayerInfo            # renum, p/i r27<->r28 web swap; comma-init order tried; opcode stream aligned (player)
+PlayerSetParent            # spill-shape, target stack-homes 3 fsubs deltas across calls (no saved FPRs); scalars/d[3]/VecSub-inline all register-home them; 48-52 lines (player)

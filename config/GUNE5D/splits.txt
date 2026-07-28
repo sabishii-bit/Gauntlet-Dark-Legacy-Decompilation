@@ -129,6 +129,11 @@ game/ui/options.c:
 	extabindex  start:0x8000A4B0 end:0x8000A5D0
 	.text       start:0x80070A60 end:0x800745D0
 
+game/game/player.c:
+	extab       start:0x80006900 end:0x80006988
+	extabindex  start:0x8000A5D0 end:0x8000A69C
+	.text       start:0x800745D0 end:0x80077BF0
+
 game/ui/select.c:
 	extab       start:0x80006C80 end:0x80006D00
 	extabindex  start:0x8000AB10 end:0x8000ABD0
