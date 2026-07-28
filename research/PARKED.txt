@@ -102,13 +102,13 @@ dcsHandleRequest           # renum+copy, param rotation r28/r29/r30 + state addi
                            # first/second/after-memset + bankSize-vs-ternary + SetStreamName guts all measured 2026-07-27b:
                            # 1ad1d5d form (bankSize local, no helper) = 202 real lines = BEST; helper+ternary combo = 351
                            # (reverted, 2e6702b); rotation+2-step are spelling-proof; FLIP GATE for dcsdrv
-fn_800B290C                # renum, leaf temp-color tie r0/r4/r5 (mb_blit SetAlpha head fn)
+MBBlitSetAlpha                # renum, leaf temp-color tie r0/r4/r5 (mb_blit SetAlpha head fn)
 fn_800B27C4                # renum, tpms/1000 web order + f0/f1 conv tie (mb_blit pad-test driver)
 UpdateFXStreak             # NOT pure sched: quad block has fmadd-vs-fmadds + frsp-count + lfd placement diffs =
                            # f32-vs-double INTERMEDIATE structure in one quad expression (see recipes: double
                            # literals/intermediates); needs FP respelling pass, not renum (insns 138/138) (sfx.c)
 fn_8009190C                # sched, tail addr-math interleave around mat-null beq (sfx.c, 12 lines)
-fn_80091F34                # renum (duplicated-inline guts, fn_80094440 class): STRUCTURAL-complete
+StartGemFX                # renum (duplicated-inline guts, fn_80094440 class): STRUCTURAL-complete
                            # 54 lines. 3-way guts chain (const FX_GET_RUNE/FX_GET_GARG fold the range
                            # check + sel+69 default); residual = target GCSE-hoists EffectInfo->r30 AND
                            # the 0x80880 flb before the branch (shared by all 3 inlines) vs ours per-arm
@@ -189,7 +189,7 @@ sndFxInitVoices            # isel, stwx+idx-fold vs add+2860/1324/1176-disp on s
 sndFxQueUpdate             # renum, did<->IV1 r28/r29 + volatile drift; opcode-identical 102/102; 30 lines (sndfx)
 
 # playex_iso round (2026-07-27), player.c back slice:
-player_bss_pool_family     # bss-pool displacement class, NOT per-fn: GetPlayerPos/GetPlayerColPos/PlayerSelecting/new_player/change_player/player_can_be_damaged/all_players_go_to_same_level + every gPlayerRecords toucher; target pools off lbl_80274EA0 (-0xC40); opcode-identical; blocked on flip-time .bss claim (gPlayerRecords pinned extern by Matching shopquery)
+player_bss_pool_family     # bss-pool displacement class, NOT per-fn: GetPlayerPos/GetPlayerColPos/PlayerSelecting/new_player/change_player/player_can_be_damaged/all_players_go_to_same_level + every gPlayerRecords toucher; target pools off potionicon_tab (-0xC40); opcode-identical; blocked on flip-time .bss claim (gPlayerRecords pinned extern by Matching shopquery)
 # enemy.c deepen round 2 (2026-07-27):
 do_enemy_move              # STRUCTURAL-COMPLETE 905/905, frame+fields+pooling exact; 4 park sites +
                            # cascade drift: (1) head assoc: ours addi r30,r3,3608 before add vs target

@@ -260,8 +260,8 @@ extern void mbBlitInit3414(void* blit, s32 hide);
 extern void mbBlitCalcWidth(void* blit, s32 x, s32 y, f32 z);
 extern void mbBlitProject(void* blit, s32 w, s32 h);
 extern void mbBlitCvtCoord(void* blit, f32 z);
-extern void fn_800B290C(void* blit, s32 alpha);
-extern s32 fn_800B2980(void* blit);
+extern void MBBlitSetAlpha(void* blit, s32 alpha);
+extern s32 MBBlitGetTex(void* blit);
 extern void mbInitBlitEntry(void* blit, s32 frames, s32 frame);
 extern s32 MBFontStringWidth(char* text);
 extern void MBSetFont(s32 font);
@@ -314,10 +314,10 @@ extern void OSSetSoundMode(s32 stereo);
 
 /* menu sounds (sounds_evt) */
 extern void fn_8009D350(void);
-extern void fn_8009D3A8(void);
-extern void fn_8009D3D4(void);
-extern void fn_8009D42C(void);
-extern void fn_8009D458(void);
+extern void AudioMenuExit(void);
+extern void AudioCursorSelect(void);
+extern void AudioCursorH(void);
+extern void AudioCursorV(void);
 extern void fn_8009D484(void);
 extern void fn_8009EE2C(s32 which);
 
@@ -666,7 +666,7 @@ int DoOptions(void)
                 return 1;
             }
         } else if (choice == 0xC) {
-            fn_8009D3D4();
+            AudioCursorSelect();
             start_optmenu(&optmenu_game, player);
         } else if (choice < 0xC && choice > 0xA) {
             optmenu_abortall = 1;
@@ -676,7 +676,7 @@ int DoOptions(void)
 
     case 3: /* in-game top menu */
         if (choice == 0xF) {
-            fn_8009D3D4();
+            AudioCursorSelect();
             while (options_level >= 0) {
                 end_optmenu(-1, 1);
             }
@@ -699,7 +699,7 @@ int DoOptions(void)
                 while (options_level >= 0) {
                     end_optmenu(-1, 1);
                 }
-                fn_8009D3D4();
+                AudioCursorSelect();
                 init_shop(1);
             }
         } else if (choice == 0x25) {
@@ -786,7 +786,7 @@ int DoOptions(void)
                     optglobals.music_vol = optglobals.music.val;
                 }
             } else if (item->code < 0x1A && (u32)(choice - 3) < 2) {
-                fn_8009D42C();
+                AudioCursorH();
                 item->value ^= 1;
                 optglobals.sound_mode = item->value;
                 OSSetSoundMode(optglobals.sound_mode == 1);
@@ -911,7 +911,7 @@ int DoOptions(void)
                     control_style = add + 4;
                 }
                 control_style = control_style % 3;
-                fn_8009D42C();
+                AudioCursorH();
             }
             break;
         }
@@ -1100,7 +1100,7 @@ int DoOptions(void)
     if ((u32)(choice + 2) < 2) {
         start_optmenu(NULL, player);
         if (skipBackSound == 0) {
-            fn_8009D3A8();
+            AudioMenuExit();
         }
     }
     return 1;
@@ -1146,7 +1146,7 @@ s32 OptionsStart(s32 player, s32 b)
         break;
     }
     if (options_state != 0) {
-        fn_8009D3D4();
+        AudioCursorSelect();
     }
     return options_state;
 }
@@ -1369,11 +1369,11 @@ static void position_audioslider(AUDIOSLIDER* s, s32 x, s32 y, s32 w, s32 h, s32
     mbBlitCalcWidth(s->slid, x + fill - 0x14, y + 2, -1.0f);
 
     alpha = active * 100;
-    fn_800B290C(s->ml, alpha);
-    fn_800B290C(s->mr, alpha);
-    fn_800B290C(s->empty, active * 0x96);
-    fn_800B290C(s->pink, active * 0xA0);
-    fn_800B290C(s->slid, alpha);
+    MBBlitSetAlpha(s->ml, alpha);
+    MBBlitSetAlpha(s->mr, alpha);
+    MBBlitSetAlpha(s->empty, active * 0x96);
+    MBBlitSetAlpha(s->pink, active * 0xA0);
+    MBBlitSetAlpha(s->slid, alpha);
 }
 
 /* ================================================================== */
@@ -1462,14 +1462,14 @@ s32 do_optmenu(OPTMENU* m, s32 allowNav)
             return 0;
         }
         if ((m->flags & 0x400) != 0) {
-            fn_8009D3D4();
+            AudioCursorSelect();
         }
         return m->items[m->sel].code;
     }
     if ((pressed & 0x8000000) != 0) {
         /* B / back */
         if ((m->flags & 0x800) != 0) {
-            fn_8009D3A8();
+            AudioMenuExit();
         }
         return -1;
     }
@@ -1493,7 +1493,7 @@ s32 do_optmenu(OPTMENU* m, s32 allowNav)
                     m->sel = 0;
                 }
             } while (m->sel != i && m->items[m->sel].value < 0);
-            fn_8009D458();
+            AudioCursorV();
             return 1;
         }
         if ((pressed & 0x40000030) != 0) {
@@ -1505,7 +1505,7 @@ s32 do_optmenu(OPTMENU* m, s32 allowNav)
                     m->sel = m->num_items - 1;
                 }
             } while (m->sel != i && m->items[m->sel].value < 0);
-            fn_8009D458();
+            AudioCursorV();
             return 1;
         }
     } else {
@@ -2189,7 +2189,7 @@ void start_optmenu_nostack(OPTMENU* m, s32 sel)
         m->burn_blit = NULL;
     } else {
         m->burn_blit = mbNewBlitSized(m->burn_name, m->ux, m->uy, m->uw, m->uh);
-        m->burn_frames = fn_800B2980(m->burn_blit);
+        m->burn_frames = MBBlitGetTex(m->burn_blit);
         mbBlitCvtCoord(m->title_blit, (f32)(OPTMENU_SCROLLZ - 1.0));
     }
 }

@@ -43,17 +43,17 @@
  *   0x80091B98 StartEnemyDeathFX  (G) FX_ENEDEATH1 + launch vel + morph->ENEDEATH2  [high]
  *   0x80091D50 StartEnemyAtkFX    (G) FX_ENEATK1+n                                  [high] BODY (parked: renum)
  *   0x80091E34 StartGenFX         (G) FX_GENFX1..3 (n=1..3)                         [high] BODY (parked: renum)
- *   0x80091F34 fn_80091F34            Start* (gem family?)
+ *   0x80091F34 StartGemFX            Start* (gem family?)
  *   0x800920E0 fn_800920E0            Start* + Random + atan2 (firework-like)
  *   0x800922A0 StartEnterFX       (G) FX_ENTER, flb 0x80880                         [high] BODY (parked: renum)
  *   0x8009233C StartBlockFX       (G) FX_BLOCK + per-class frame + player reparent  [high] BODY (parked: 1-insn fold)
  *   0x80092464 fn_80092464            Start* + frame-range select (MBTreeSetColor)
  *   0x800926BC StartLevelUpFX     (G) FX_LEVELUP_* via color table 0x80122E60       [high] BODY (parked: renum)
- *   0x80092794 fn_80092794            Start* via Sub + launch helper fn_80093E50
+ *   0x80092794 StartShieldFX            Start* via Sub + launch helper fn_80093E50
  *   0x800929C8 StartMagicHealFX   (G) FX_MAGICHEAL + scale/32 clamp                 [high] BODY (parked: renum)
  *   0x80092AC0 StartMagicPlayerFX (G) FX_START_MAGIC, flb 0x880                     [high] BODY (parked: renum)
- *   0x80092B58 fn_80092B58            Start* + atan2
- *   0x80092DF4 fn_80092DF4            Start* via Sub + fn_80093E50
+ *   0x80092B58 StartThrowMagicFX            Start* + atan2
+ *   0x80092DF4 StartMagicFX            Start* via Sub + fn_80093E50
  *   0x80092FC0 SuicideExplosion   (G) big multi-part explosion (enemy.c caller)      [med-high]
  *   0x800933BC StartExplosion     (G) largest Start*: MBPsysFlame + debris + Random  [high]
  *   0x80093918 fn_80093918            Start* + gPlayerRecords + atan2 (shield-like)
@@ -625,7 +625,7 @@ s32 StartGenFX(f32* pos, s32 n)
 }
 
 /* gem/rune/garg pickup fx: special-cased constant types + generic default */
-s32 fn_80091F34(f32* pos, s32 sel)
+s32 StartGemFX(f32* pos, s32 sel)
 {
     s32 ret;
 
@@ -688,7 +688,7 @@ s32 StartLevelUpFX(f32* pos, s32 color)
     return StartFXSubGuts(lbl_80122E60[color], pos, 0, 0x880800, 0.0f);
 }
 
-/* 0x80092794 fn_80092794 -- doc-only (shield family). */
+/* 0x80092794 StartShieldFX -- doc-only (shield family). */
 
 s32 StartMagicHealFX(f32 scale, f32* pos)
 {
@@ -723,7 +723,7 @@ s32 StartMagicPlayerFX(f32* pos)
     return StartFXSubGuts(FX_START_MAGIC, pos, 0, 0x880, 0.0f);
 }
 
-/* 0x80092B58 fn_80092B58 / 0x80092DF4 fn_80092DF4 -- doc-only
+/* 0x80092B58 StartThrowMagicFX / 0x80092DF4 StartMagicFX -- doc-only
  * (throw-magic / magic family, atan2 launch). */
 
 /* 0x80092FC0 SuicideExplosion / 0x800933BC StartExplosion /

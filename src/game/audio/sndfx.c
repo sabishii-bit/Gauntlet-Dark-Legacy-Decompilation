@@ -157,7 +157,7 @@ extern void* lbl_80344290;
 extern s32 gGameBusy;
 extern s32 lbl_8034481C;
 extern s32 lbl_803447D0;
-extern s32 lbl_80344B1C;
+extern s32 welcome_timer;
 extern s32 lbl_8034429C;
 extern s32 lbl_80344778;
 extern s32 lbl_80344774;
@@ -218,7 +218,7 @@ void sndFxInit(void* a, void* b)
     gGameBusy = 0;
     lbl_8034481C = 0;
     lbl_803447D0 = 0;
-    lbl_80344B1C = 0;
+    welcome_timer = 0;
     lbl_8034429C = 0;
     lbl_80344778 = 0;
     lbl_80344774 = 0;

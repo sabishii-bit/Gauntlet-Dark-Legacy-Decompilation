@@ -119,8 +119,8 @@ extern void mbBlitInit3414(void* blit, s32 hide);
 extern void mbBlitProject(void* blit, s32 w, s32 h);
 extern void mbInitBlitEntry(void* blit, u32 frames, s32 frame);
 extern void mbBlitUpdateEntry(void* blit, u32 mask, u32 set);
-extern void fn_800B290C(void* blit, s32 alpha);
-extern void fn_800B28EC(void* blit, u32 a, u32 b, u32 c, u32 d);
+extern void MBBlitSetAlpha(void* blit, s32 alpha);
+extern void MBBlitSetColor4(void* blit, u32 a, u32 b, u32 c, u32 d);
 
 /* ---- async-load primitives (other TUs) ---- */
 extern int  MBOX_BGLoadModelStart(void* name, int a);
@@ -455,9 +455,9 @@ void setup_tex(s32 id, s32 slot, s32 flags, s32 hide, char* fmt, ...)
     mbBlitInit3414(*entry, hide);
     mbBlitProject(*entry, -1, -1);
     mbBlitUpdateEntry(*entry, -1, flags);
-    fn_800B290C(*entry, 0);
+    MBBlitSetAlpha(*entry, 0);
     if (flags & 0x4000) {
-        fn_800B28EC(*entry, 0x80808080, 0x80808080, 0x80808080, 0x80808080);
+        MBBlitSetColor4(*entry, 0x80808080, 0x80808080, 0x80808080, 0x80808080);
     }
 }
 
