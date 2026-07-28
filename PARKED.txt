@@ -104,6 +104,21 @@ UpdateFXStreak             # NOT pure sched: quad block has fmadd-vs-fmadds + fr
                            # f32-vs-double INTERMEDIATE structure in one quad expression (see recipes: double
                            # literals/intermediates); needs FP respelling pass, not renum (insns 138/138) (sfx.c)
 fn_8009190C                # sched, tail addr-math interleave around mat-null beq (sfx.c, 12 lines)
+fn_80091F34                # renum (duplicated-inline guts, fn_80094440 class): STRUCTURAL-complete
+                           # 54 lines. 3-way guts chain (const FX_GET_RUNE/FX_GET_GARG fold the range
+                           # check + sel+69 default); residual = target GCSE-hoists EffectInfo->r30 AND
+                           # the 0x80880 flb before the branch (shared by all 3 inlines) vs ours per-arm
+                           # materialize -> color cascade. Same lever gap as fn_80094440 (sfx.c)
+fn_80094440                # renum (duplicated-inline guts): STRUCTURAL-complete 72 lines. two
+                           # StartFXSubGuts inlines (table DAC/DC0 by `which`); mask-local hoist + beq
+                           # layout matched; residual = target GCSE-hoists EffectInfo->r31 before the
+                           # branch (shared by both copies) vs ours per-arm materialize -> whole-fn color
+                           # cascade. open-coded shared-page form worse (95 vs 72) (sfx.c)
+fn_80093BC0                # assoc/CSE (mulli-240 stride family, fn_80091AC0 class): STRUCTURAL-complete
+                           # 30 lines. guts+velocity(atan2 yaw)+hit-fields body EXACT; residual = idx*240
+                           # kept in nonvolatile r22 (reused by hit block) vs target recompute -> e-pointer
+                           # renum r23-vs-r27 + mr/stfs sched. explicit-e/all-subscript both 30; early-return
+                           # + u8[8] frame fixed; flag+spelling-proof per recipe (sfx.c)
 StartDeathFX               # renum only now (77/77; e=&page->fx[idx] fixed the 2976 fold 2026-07); head mr-placement + rotation remain
 fn_80091AC0                # assoc, (page+idx*240)+2976 vs page+(idx*240+2976); 6 lines; flag-proof + spelling-proof (flagsweep 2026-07)
 fn_80091AC0                # assoc, (page+idx*240)+2976 vs page+(idx*240+2976); 6 lines; flag-proof + spelling-proof;
