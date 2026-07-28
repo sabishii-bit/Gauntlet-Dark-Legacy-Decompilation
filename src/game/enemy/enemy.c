@@ -128,7 +128,7 @@ extern void fn_8004F1DC(Enemy* e);                  /* garm2 (type 27) death hoo
 
 /* --- cross-module callees --- */
 extern f32 fn_800BCB44(f32 x, f32 z);               /* 2D magnitude */
-extern f32 fn_800BDA98(f32* vector);
+extern f32 NormalVector(f32* vector);
 extern void fn_8005A65C(f32* worldmat, f32* coll_offset); /* refresh coll_pos */
 extern s32 DeleteEffect(s32 idx, s32 mode);         /* sfx.c 0x80097790 */
 extern void* fn_8000D1E0(f32 rad, f32* from, f32* to, f32* hitnrm); /* world probe */
@@ -231,7 +231,7 @@ f32 closest_enemy(f32 width, f32 range, f32* position, f32* direction,
                 if ((f64)vertical > maximum_vertical) {
                     goto next_enemy;
                 }
-                distance = fn_800BDA98(delta) - enemy->rad;
+                distance = NormalVector(delta) - enemy->rad;
                 if (distance > range) {
                     goto next_enemy;
                 }

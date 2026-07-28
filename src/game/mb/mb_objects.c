@@ -40,12 +40,12 @@ extern void pbSendObjTextures(MBObject* obj);          /* 0x800C3AFC */
 extern void MBDrawPsys(void* obj, MBObjEntry* e);     /* GX special dispatch */
 extern void fn_800C38C0(MBObjEntry* e, MBObject* obj, int f); /* GX draw object */
 extern void fn_800C1148(int a, int b, void* c);        /* debug bbox draw */
-extern f32 fn_800BDA98(f32* vec);
+extern f32 NormalVector(f32* vec);
 extern void vec4ApplyTrans__FR4vec4R4vec4R5mat44(f32* dst, f32* src,
                                                   f32* mtx);
 extern void fn_800BD428(f32* vec, f32* yaw, f32* pitch);
-extern void fn_800BE4F4(f32* mtx, f32 yaw);
-extern void fn_800BE448(f32* mtx, f32 pitch);
+extern void YawMat3(f32* mtx, f32 yaw);
+extern void PitchMat3(f32* mtx, f32 pitch);
 extern f32 atan2(f32 y, f32 x);
 extern f64 __sin(f64 angle);
 extern f64 __cos(f64 angle);
@@ -270,7 +270,7 @@ void TopFaceMat(f32* mtx) {
     side[0] = dy * mtx[10] - dz * mtx[9];
     side[1] = dz * mtx[8] - dx * mtx[10];
     side[2] = dx * mtx[9] - dy * mtx[8];
-    length = fn_800BDA98(side);
+    length = NormalVector(side);
     if (length < 0.01) {
         mtx[4] = sZero;
         mtx[5] = 1.0f;
@@ -316,11 +316,11 @@ void FaceCamMat(f32* mtx, f32 limit) {
         }
         {
             f32 a = cameraYaw;
-            fn_800BE4F4(mtx, a);
+            YawMat3(mtx, a);
         }
         {
             f32 b = cameraPitch;
-            fn_800BE448(mtx, b);
+            PitchMat3(mtx, b);
         }
         return;
     }
@@ -330,7 +330,7 @@ no_pitch:
         f32 mz = mtx[10];
         yaw = atan2(mtx[8], mz);
         cameraYaw = atan2(toCamera[0], toCamera[2]) - yaw;
-        fn_800BE4F4(mtx, cameraYaw);
+        YawMat3(mtx, cameraYaw);
     }
 }
 
@@ -361,7 +361,7 @@ void QuickYawMat(f32* mtx) {
     }
     {
         f32 fy = (f32)result;
-        fn_800BE4F4(mtx, fy);
+        YawMat3(mtx, fy);
     }
 }
 

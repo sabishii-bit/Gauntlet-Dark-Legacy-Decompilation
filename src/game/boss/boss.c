@@ -84,7 +84,7 @@ extern void* CritterTypeLoaded(int a, int b);
 extern void* CritterNewInst(int a, int b, void* obj);
 extern void* CopyMat4(void* a, void* b);
 extern void* PlaceItem(s32 a, s32 b, char* name, void* mat);
-extern void fn_800BDE08(void* axis, f32* out, f32 angle);
+extern void YawVec3(void* axis, f32* out, f32 angle);
 extern f64  Random(f64 a);
 extern s32  StartFXSub(s32 type, f32* pos, u32 fla, u32 flb, f32 time);
 extern void SfxSetDamage(f32 damage, f32 radius, f32 delay, s32 idx, s32 type, s32 owner);
@@ -203,7 +203,7 @@ void BossSpewCoins(f32 v, f32* pos, f32* dir) {
         step = 2.0f * v * 0.25f;
         angle = -v + 0.5 * step;
         for (i = 0; i < 4; i++) {
-            fn_800BDE08(dir, lvec, angle);
+            YawVec3(dir, lvec, angle);
             StartSpewItem(lbl_801189E0.entries[i].c, 1, 9,
                           lbl_801189E0.entries[i].name,
                           lbl_801189E0.entries[i].a, lbl_801189E0.entries[i].b,
@@ -220,7 +220,7 @@ void BossSpewCoins(f32 v, f32* pos, f32* dir) {
                 vec[0] = dir[0] * (0.85 + Random(0.1f));
                 vec[1] = dir[1] * (0.85 + Random(0.1f));
                 vec[2] = dir[2] * (0.85 + Random(0.1f));
-                fn_800BDE08(dir, vec, angle);
+                YawVec3(dir, vec, angle);
                 if (gNumSpewItems < 32) {
                     CopyMat4(lbl_80127D60, mat);
                     mat[12] = pos[0];
@@ -251,7 +251,7 @@ void BossSpewCoins(f32 v, f32* pos, f32* dir) {
                 vec[0] = dir[0] * (0.8 + Random(0.1f));
                 vec[1] = dir[1] * (0.8 + Random(0.1f));
                 vec[2] = dir[2] * (0.8 + Random(0.1f));
-                fn_800BDE08(dir, vec, angle);
+                YawVec3(dir, vec, angle);
                 if (gNumSpewItems < 32) {
                     CopyMat4(lbl_80127D60, mat);
                     mat[12] = pos[0];
@@ -282,7 +282,7 @@ void BossSpewCoins(f32 v, f32* pos, f32* dir) {
                 vec[0] = dir[0] * (0.75 + Random(0.1f));
                 vec[1] = dir[1] * (0.75 + Random(0.1f));
                 vec[2] = dir[2] * (0.75 + Random(0.1f));
-                fn_800BDE08(vec, vec, angle);
+                YawVec3(vec, vec, angle);
                 if (gNumSpewItems < 32) {
                     CopyMat4(lbl_80127D60, mat);
                     mat[12] = pos[0];

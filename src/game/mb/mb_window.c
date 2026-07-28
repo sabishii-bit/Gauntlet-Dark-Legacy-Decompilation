@@ -85,8 +85,8 @@ extern f32 cos(f32);
 extern double tan(double);
 extern double __atan(double);
 
-extern void fn_800BDE80(f32* src, f32* dst, f32* matrix);  /* ml_fmath: apply mat */
-extern void fn_800BDEE4(f32* src, f32* dst, f32* matrix);  /* ml_fmath: apply mat^T */
+extern void WorldVector(f32* src, f32* dst, f32* matrix);  /* ml_fmath: apply mat */
+extern void BodyVector(f32* src, f32* dst, f32* matrix);   /* ml_fmath: apply mat^T */
 extern void MBCameraUpdate(f32* position, f32* matrix);    /* mb_camera.c */
 extern void CopyMat4(void* src, void* dst);                /* ml_fmath */
 extern void MBWindowProjection(f32 angle, f32 aspect);     /* pb_window.c */
@@ -118,7 +118,7 @@ void MBWindowTo3D(s16* scr, MBCamNode* node, f32* out, f32 depth) {
     in[0] = (((f32)scr[0] - w->xcenter) * depth) / w->xscale;
     in[1] = (((f32)scr[1] - w->ycenter) * depth) / w->yscale;
     in[2] = depth;
-    fn_800BDE80(in, tmp, node->mat);
+    WorldVector(in, tmp, node->mat);
     out[0] = tmp[0] + node->pos[0];
     out[1] = tmp[1] + node->pos[1];
     out[2] = tmp[2] + node->pos[2];
@@ -152,7 +152,7 @@ void MBWindowProject(f32* pt, MBCamNode* node, f32* outEye, s16* outScr) {
     rel[0] = pt[0] - node->pos[0];
     rel[1] = pt[1] - node->pos[1];
     rel[2] = pt[2] - node->pos[2];
-    fn_800BDEE4(rel, eye, node->mat);
+    BodyVector(rel, eye, node->mat);
 
     if (eye[2] < 3.0) {
         eye[2] = 3.0f;

@@ -99,8 +99,8 @@ extern u8 lbl_8023E880[0x40];         /* .bss look-at matrix / target buffer */
 extern u8 lbl_80127D40[];             /* rotation-axis constant */
 extern const f64 lbl_80345B88;        /* base heading (radians) */
 extern void DisablePlayerControls(void);
-extern void fn_800BDE08(void* axis, f32* out, f32 angle);
-extern void fn_800BDD7C(f32* a, f32* b, f32 angle);
+extern void YawVec3(void* axis, f32* out, f32 angle);
+extern void PitchVec3(f32* a, f32* b, f32 angle);
 extern void LookInDirection(f32* mtx, void* target);
 extern void vibrators_off(void);
 
@@ -125,8 +125,8 @@ extern f32 lbl_8023E8C0[3];           /* scratch view-space point */
 extern s32 fn_800629B0(void);
 extern s32 fn_8006DC2C(void* ps, f32* dpos, s32 arg);
 extern s32 fn_80025CEC(s32 a, f32* dpos);
-extern void fn_800BDB1C(f32* in, f32* out, void* mtx);
-extern void fn_800BDD00(f32* in, f32* out, void* mtx);
+extern void MulBodyVecMat4(f32* in, f32* out, void* mtx);
+extern void MulVecMat4(f32* in, f32* out, void* mtx);
 extern void fn_8006EF98(f32* a, f32* b, f32* c);
 extern void fn_8006DC64(void* camera, u8* ps, f32* dpos, s32 arg);
 
@@ -174,8 +174,8 @@ void TriggerCameraActivate(s32 p1, f32* p2, f32* p3, s32 duration, s32 p5, s32 p
     lbl_803443B8 = p5;
     lbl_803443C0 = p6;
     lbl_803443C4 = p1;
-    fn_800BDE08(lbl_80127D40, mtx, lbl_80345B88 - p3[1]);
-    fn_800BDD7C(mtx, mtx, p3[0]);
+    YawVec3(lbl_80127D40, mtx, lbl_80345B88 - p3[1]);
+    PitchVec3(mtx, mtx, p3[0]);
     *(f32*)(buf + 48) = p2[0];
     *(f32*)(buf + 52) = p2[1];
     *(f32*)(buf + 56) = p2[2];
@@ -225,14 +225,14 @@ void CamLimitPlayerDpos(void* camera, u8* ps, f32* dpos, s32 arg) {
         arg = 0;
     }
     radius0 = lbl_80345B90 * *(f32*)(ps + 2132);
-    fn_800BDB1C((f32*)(ps + 84), (f32*)(buf + 64), camera);
+    MulBodyVecMat4((f32*)(ps + 84), (f32*)(buf + 64), camera);
     radius0 = PointViewDist((f32*)(buf + 64), radius0);
 
     world[0] = *(f32*)(ps + 84) + dpos[0];
     world[1] = *(f32*)(ps + 88) + dpos[1];
     world[2] = *(f32*)(ps + 92) + dpos[2];
     radius1 = lbl_80345B90 * *(f32*)(ps + 2132);
-    fn_800BDB1C(world, (f32*)(buf + 64), camera);
+    MulBodyVecMat4(world, (f32*)(buf + 64), camera);
     dist = PointViewDist((f32*)(buf + 64), radius1);
     if (dist >= lbl_80345B98) return;
     if (dist >= radius0) return;
@@ -241,7 +241,7 @@ void CamLimitPlayerDpos(void* camera, u8* ps, f32* dpos, s32 arg) {
     planeLR = flags & 0x30;
     if (arg != 0 && !(planeLR != 0 && (flags & 0x300) != 0) && (flags & 1) == 0) {
         if (flags == 0) return;
-        fn_800BDB1C((f32*)(ps + 84), viewpt, camera);
+        MulBodyVecMat4((f32*)(ps + 84), viewpt, camera);
         dx = *(f32*)(buf + 64) - viewpt[0];
         dy = *(f32*)(buf + 68) - viewpt[1];
         dz = *(f32*)(buf + 72) - viewpt[2];
@@ -258,7 +258,7 @@ void CamLimitPlayerDpos(void* camera, u8* ps, f32* dpos, s32 arg) {
         *(f32*)(buf + 64) = viewpt[0] + dx;
         *(f32*)(buf + 68) = viewpt[1] + dy;
         *(f32*)(buf + 72) = viewpt[2] + dz;
-        fn_800BDD00((f32*)(buf + 64), world, camera);
+        MulVecMat4((f32*)(buf + 64), world, camera);
         dpos[0] = world[0] - *(f32*)(ps + 84);
         dpos[1] = world[1] - *(f32*)(ps + 88);
         dpos[2] = world[2] - *(f32*)(ps + 92);
@@ -382,7 +382,7 @@ static f32 GetPlayerViewDist(void* mtx) {
             pt[1] = *(f32*)(ps + 0x58) + *(f32*)(ps + 0x88C);
             pt[2] = *(f32*)(ps + 0x5C) + *(f32*)(ps + 0x890);
             d = *(f32*)(ps + 0x854);
-            fn_800BDB1C(pt, lbl_8023E8C0, mtx);
+            MulBodyVecMat4(pt, lbl_8023E8C0, mtx);
             d = PointViewDist(lbl_8023E8C0, d);
             if (d < best) best = d;
         }

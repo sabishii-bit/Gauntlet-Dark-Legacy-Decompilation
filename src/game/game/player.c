@@ -407,7 +407,7 @@ extern void CopyMat4(f32* src, void* node);
 extern void fn_800BA2C4(void* node, s32 mask, s32 set);
 extern void* fn_800BA368(void* node, s32 mask, s32 set);
 extern void fn_800BA408(f32 r, f32 g, f32 b, void* node);
-extern void fn_800BDE80(f32* mat, f32* out, f32* pos);
+extern void WorldVector(f32* vector, f32* out, f32* matrix);
 extern f32 fn_800BD938(f32* v);
 extern s32 MBBackgroundLoading(void);
 
@@ -1561,7 +1561,7 @@ void do_players(void) {
                 if (!sel) {
                     fn_8005A338(p->mat, p->anchor_fwd, p->anchor_pos);
                     if (p->platform != NULL && *p->platform != 0) {
-                        fn_800BDE80((f32*)(*p->platform + 0x30), p->beacon_pos,
+                        WorldVector((f32*)(*p->platform + 0x30), p->beacon_pos,
                                     p->mat);
                         p->beacon_pos[1] = 0.0f;
                         p->beacon_pos[0] = p->pos[0] + p->beacon_pos[0];
@@ -2083,7 +2083,7 @@ extern u32 fn_80057E6C(s32 a);
 extern u32 fn_80057D94(s32 a);
 extern void fn_800911C8(f32 scale, f32* v, s32 color, s32 n, s32 one);
 extern void fn_8002C49C(f32* mat);
-extern void fn_800BE4F4(f32 ang, f32* mat);
+extern void YawMat3(f32* mat, f32 ang);
 extern void fn_8009F198(s32 player);
 extern s32 fn_8005B8FC(void* p);
 extern f32 fn_800BCB44(f32 dx, f32 dz);
@@ -2278,7 +2278,7 @@ static void do_exit(void* vp, s32 dest) {
         p->pos[0] += 0.0f * (f32)lbl_8034457C;
         p->pos[1] += -0.06f * (f32)lbl_8034457C;
         p->pos[2] += 0.0f * (f32)lbl_8034457C;
-        fn_800BE4F4((f32)(0.5 * lbl_80344590), p->mat);
+        YawMat3(p->mat, (f32)(0.5 * lbl_80344590));
         p->hud_flags |= 1;
     }
 }

@@ -210,16 +210,16 @@ extern void fn_800BA56C(struct mbnode* node, s32 sel, s32 frame, s32 recurse); /
 extern void fn_800BA6C0(struct mbnode* node, s32 alpha, s32 recurse);  /* set base alpha  */
 extern void fn_800BA784(struct mbnode* node, s32 zmod, s32 recurse);   /* set z-bias      */
 extern void fn_800BAD94(struct mbnode* node, struct mbnode* parent);   /* reparent        */
-extern void fn_800BE6F4(struct mbnode* node, f32 ang);                 /* rotate yaw      */
-extern void fn_800BE648(struct mbnode* node, f32 ang);                 /* rotate pitch    */
-extern void fn_800BE4F4(struct mbnode* node, f32 yaw);                 /* set yaw         */
+extern void WYawMat3(struct mbnode* node, f32 ang);                    /* rotate yaw      */
+extern void WPitchMat3(struct mbnode* node, f32 ang);                  /* rotate pitch    */
+extern void YawMat3(struct mbnode* node, f32 yaw);                     /* set yaw         */
 extern f32 atan2(f32 y, f32 x); /* PS2-shim float-returning decl */
 extern void MBRemovePolyInst(struct polyinst* p);
 extern void MBPolyInstUpdateVerts(struct polyinst* p, s32 nverts, f32* verts);
 extern struct polyinst* MBNewPoly(void* ctx, s32 type, s32 tex, f32* verts);
 extern void MBPolyInstSetColorAlpha(struct polyinst* p, u32 color, s32 alpha);
 extern void fn_800BAEAC(struct mbnode* node, s32 flag);               /* node destroy    */
-extern f32 fn_800BDA98(f32* v);                                       /* normalize, ret len */
+extern f32 NormalVector(f32* v);                                      /* normalize, ret len */
 extern int msgPost(int idx, int param, char* str);
 extern u32 fn_8000D4B8(f32 rad1, f32 rad2, f32 drop, f32* pos, f32* outnrm, s32 a, s32 b); /* floor probe */
 extern void fn_800115D0(void* atree);                                  /* atree release   */
@@ -419,8 +419,8 @@ void DmgFxNodeUpdate(struct mbnode* node, s32 absolute, f32 rx, f32 rz, f32 rotp
     node->scale[2] = rz * 0.01;
     if (absolute != 0) {
         CopyMat3(lbl_80127D60, node);
-        fn_800BE6F4(node, roty);
-        fn_800BE648(node, rotp);
+        WYawMat3(node, roty);
+        WPitchMat3(node, rotp);
         sx = 1.0f;
         sy = 1.0f;
         sz = 1.0f;
@@ -754,7 +754,7 @@ s32 fn_80093BC0(s32 type, f32* pos, f32* vel, u32 fla, s32 fxhit, s32 hit_audio,
         e->vel[1] = vel[1];
         e->vel[2] = vel[2];
         if (e->node != NULL) {
-            fn_800BE4F4(e->node, ang);
+            YawMat3(e->node, ang);
         }
     }
     e->weight = 0.0f;
@@ -841,7 +841,7 @@ void fn_80093E50(s32 idx, f32* vel, f32* pyrvel, f32 weight, f32 colrad)
         e->vel[1] = vel[1];
         e->vel[2] = vel[2];
         if (e->node != NULL) {
-            fn_800BE4F4(e->node, ang);
+            YawMat3(e->node, ang);
         }
     }
     if (pyrvel != NULL) {
@@ -1179,12 +1179,12 @@ static void UpdateFXStreak(Effect* e, f32* pos)
     v[0] = e->vel[0];
     v[1] = e->vel[1];
     v[2] = e->vel[2];
-    fn_800BDA98(v);
+    NormalVector(v);
 
     w[0] = v[1] * gCameras[0].mat[2][2] - v[2] * gCameras[0].mat[2][1];
     w[1] = v[2] * gCameras[0].mat[2][0] - v[0] * gCameras[0].mat[2][2];
     w[2] = v[0] * gCameras[0].mat[2][1] - v[1] * gCameras[0].mat[2][0];
-    len = fn_800BDA98(w);
+    len = NormalVector(w);
 
     if (len < 0.0f && len > -0.25) {
         len = -0.25f;
