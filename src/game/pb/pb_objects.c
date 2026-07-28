@@ -219,13 +219,14 @@ int fn_800C38C0(void* a, u8* obj)
     int tex;
     int v25;
     int v24;
+    u8 unusedA[4];
     u32 packed;
     int pcount;
     u8* prim;
     int stride;
     PBObjSlot* t;
     u32 flags;
-    u8 unused[8];
+    u8 unusedB[4];
     PBGlobal* g = gWinGlobals;
 
     packed = *(u32*)(obj + 0x6c);

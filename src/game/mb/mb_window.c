@@ -142,7 +142,7 @@ static s16 ClampS16(f32 s) {
 /* 0x800BB8E8 - 3D world point -> screen (s16 x,y), optional eye-space out */
 void MBWindowProject(f32* pt, MBCamNode* node, f32* outEye, s16* outScr) {
     f32 rel[3];
-    double unusedd;
+    u8 unusedd[4];
     f32 eye[3];
     MBWINDOW* w = lbl_80344EE8;
     f32 persp;
@@ -219,6 +219,16 @@ MBWINDOW* fn_800BBA34(f32 ang, f32 hang) {
  * PARKED residual: target materializes z=zoom as fmr f30,f31 in the then
  * branch (copy survives); ours copy-propagates - the gcontrolpads
  * rematerialization/copy class. Structure otherwise exact. */
+/* fmuls operand-order escape: with both operands opaque params the inliner
+ * preserves text order (MWCC canonicalizes visible-const mults const-first). */
+static f32 mulf(f32 a, f32 b) {
+    return a * b;
+}
+
+static double muld(double a, double b) {
+    return a * b;
+}
+
 void MBWindowZoom(f32 zoom) {
     MBWinGlobals* g = gWinGlobals;
     MBWINDOW* w = lbl_80344EE8;
@@ -229,11 +239,11 @@ void MBWindowZoom(f32 zoom) {
     aspect = 0.75 * (w->height / (f32)g->disp->h);
     if (zoom > 0.0f) {
         z = zoom;
-        hang = 2.0 * __atan(aspect * tan(z * 0.5));
+        hang = 2.0 * __atan(aspect * tan(muld(z, 0.5)));
         MBWindowSetAng(z, hang);
     } else {
         z = -zoom;
-        hang = 2.0 * __atan(((f32)g->disp->h / (f32)g->disp->w) * tan(z * 0.5));
+        hang = 2.0 * __atan(((f32)g->disp->h / (f32)g->disp->w) * tan(muld(z, 0.5)));
         MBWindowSetAng(z, hang);
     }
     MBWindowProjection(0.31830988614222805 * (180.0 * zoom), lbl_80343EC8);
@@ -246,7 +256,6 @@ void MBWindowSetAng(f32 ang, f32 hang) {
     f32 half;
     f32 c;
     f32 s;
-    u8 unused[8];
 
     lbl_802A4B30[2] = 0;
     lbl_802A4B30[3] = 0;
@@ -270,10 +279,10 @@ void MBWindowSetAng(f32 ang, f32 hang) {
     w->xscale = (0.5 * w->width) * w->cotAng;
     w->yscale = (0.5 * w->height) * w->cotHang;
 
-    half = 0.5f * ang;
+    half = mulf(ang, 0.5f);
     s = sin(half);
     w->cotHalfAng = cos(half) / s;
-    half = 0.5f * hang;
+    half = mulf(hang, 0.5f);
     s = sin(half);
     w->cotHalfHang = cos(half) / s;
     w->unk14C = 1.0f;
