@@ -266,6 +266,19 @@ GC/1.2.5 + cflags_demo pipeline). Laws, in application order:
   exactly one addend byte. On any red flip where every fn shows 0 real
   diffs, objdump the SDA21/pool relocs and check the referenced VALUES.
 
+## Additions (light-touch swarm round, 2026-07)
+
+- **Scalar-vs-array extern controls SDA21 vs ADDR16** (sounds_evt): for a
+  global in r13/r2 range, `extern s32 lbl_X;` (scalar, or sized array) emits
+  the 1-insn SDA21 form; `extern s32 lbl_X[];` (unsized array) forces the
+  2-insn lis/addi ADDR16 pair with a hoisted base reg. When the target
+  loads a small-data global with one insn and ours uses two (or vice
+  versa), flip the extern's declaration shape before touching code.
+- **`(f32)(u32)` double-cast** for unsigned int → float conversions the
+  target does via the u32 path (do_ai): a plain `(f32)x` on a signed int
+  emits the xoris/stw magic-constant sequence; matching an unsigned
+  conversion needs the explicit `(u32)` intermediate.
+
 ## Additions (sfx refinement pass)
 
 - **Contiguous-case switch range emission**: `cmpwi hi; bge default; cmpwi lo;
