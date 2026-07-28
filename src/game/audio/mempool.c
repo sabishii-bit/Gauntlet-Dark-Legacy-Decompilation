@@ -4,7 +4,7 @@
  * Text 0x800D5260-0x800D621C.  A first-fit block pool carved out of an
  * AllocMem() arena, with an intrusive doubly-linked free/used list and a
  * garbage-collect (qsort-based coalesce).  All mutating ops run under an
- * interrupt-lock (OSDisableInterrupts via fn_800AF1D0/B8/C0) and print
+ * semaphore/thread-owner locking through the PS2 compatibility shim and print
  * "MEMLOCK is saving your skin!" if entered unlocked.  Debug: "pool_alloc
  * failed %d bytes", "No more free MemBlk's", "LIST Bad node".
  *
@@ -30,9 +30,9 @@ void mathStub1__Fv();
 void* AllocMem(u32 size);
 void* memset(void* dst, s32 value, u32 size);
 int printf(const char* format, ...);
-s32 fn_800AF1D0(void);
-void fn_800AF1B8(u32 state);
-void fn_800AF1C0(u32 state);
+s32 GetThreadId(void);
+void WaitSema(u32 sema);
+void SignalSema(u32 sema);
 void qsort(void* base, u32 count, u32 width,
            s32 (*compare)(const void*, const void*));
 s32 pool_query(const void* lhs, const void* rhs);
@@ -100,13 +100,13 @@ u32 pool_new(MemList* list) {
     MemListNode* node;
 
     result = 0;
-    owner = fn_800AF1D0();
+    owner = GetThreadId();
     if (owner != lbl_8034525C) {
         if (lbl_8034525C != 0) {
             printf(lbl_80349300);
             printf(lbl_801172A0);
         }
-        fn_800AF1B8(lbl_80345258);
+        WaitSema(lbl_80345258);
         lbl_8034525C = owner;
     }
 
@@ -121,7 +121,7 @@ u32 pool_new(MemList* list) {
     }
 
     if (--lbl_80345260 <= 0) {
-        fn_800AF1C0(lbl_80345258);
+        SignalSema(lbl_80345258);
         lbl_8034525C = 0;
         lbl_80345260 = 0;
     }
@@ -176,13 +176,13 @@ s32 pool_garbage_collect(MemPoolLists* pool,
 void pool_free(MemPoolLists* pool, MemListNode* node) {
     s32 owner;
 
-    owner = fn_800AF1D0();
+    owner = GetThreadId();
     if (owner != lbl_8034525C) {
         if (lbl_8034525C != 0) {
             printf(lbl_80349300);
             printf(lbl_801172A0);
         }
-        fn_800AF1B8(lbl_80345258);
+        WaitSema(lbl_80345258);
         lbl_8034525C = owner;
     }
 
@@ -202,7 +202,7 @@ void pool_free(MemPoolLists* pool, MemListNode* node) {
     pool->secondary.head = node;
 
     if (--lbl_80345260 <= 0) {
-        fn_800AF1C0(lbl_80345258);
+        SignalSema(lbl_80345258);
         lbl_8034525C = 0;
         lbl_80345260 = 0;
     }
@@ -227,13 +227,13 @@ MemListNode* pool_alloc(MemPoolLists* pool, MemListNode* node) {
         return NULL;
     }
 
-    owner = fn_800AF1D0();
+    owner = GetThreadId();
     if (owner != lbl_8034525C) {
         if (lbl_8034525C != 0) {
             printf(lbl_80349300);
             printf(strings);
         }
-        fn_800AF1B8(lbl_80345258);
+        WaitSema(lbl_80345258);
         lbl_8034525C = owner;
     }
     lbl_80345260++;
@@ -314,7 +314,7 @@ MemListNode* pool_alloc(MemPoolLists* pool, MemListNode* node) {
     }
 
     if (--lbl_80345260 <= 0) {
-        fn_800AF1C0(lbl_80345258);
+        SignalSema(lbl_80345258);
         lbl_8034525C = 0;
         lbl_80345260 = 0;
     }
@@ -357,13 +357,13 @@ s32 pool_alloc_at(MemPoolLists* pool, MemListNode* node, s32 size,
         return 0;
     }
 
-    owner = fn_800AF1D0();
+    owner = GetThreadId();
     if (owner != lbl_8034525C) {
         if (lbl_8034525C != 0) {
             printf(lbl_80349300);
             printf(strings);
         }
-        fn_800AF1B8(lbl_80345258);
+        WaitSema(lbl_80345258);
         lbl_8034525C = owner;
     }
     lbl_80345260++;
@@ -446,7 +446,7 @@ s32 pool_alloc_at(MemPoolLists* pool, MemListNode* node, s32 size,
     }
 
     if (--lbl_80345260 <= 0) {
-        fn_800AF1C0(lbl_80345258);
+        SignalSema(lbl_80345258);
         lbl_8034525C = 0;
         lbl_80345260 = 0;
     }
@@ -481,13 +481,13 @@ s32 pool_dispose_and_alloc(MemPoolLists* pool, MemListNode* node, s32 size) {
         return 0;
     }
 
-    owner = fn_800AF1D0();
+    owner = GetThreadId();
     if (owner != lbl_8034525C) {
         if (lbl_8034525C != 0) {
             printf(lbl_80349300);
             printf(strings);
         }
-        fn_800AF1B8(lbl_80345258);
+        WaitSema(lbl_80345258);
         lbl_8034525C = owner;
     }
     lbl_80345260++;
@@ -527,7 +527,7 @@ s32 pool_dispose_and_alloc(MemPoolLists* pool, MemListNode* node, s32 size) {
     }
 
     if (--lbl_80345260 <= 0) {
-        fn_800AF1C0(lbl_80345258);
+        SignalSema(lbl_80345258);
         lbl_8034525C = 0;
         lbl_80345260 = 0;
     }
@@ -550,13 +550,13 @@ s32 pool_dispose(MemPoolLists* pool, u32 address, u32 size,
     strings = lbl_801172A0;
     (void)scratch;
     result = 0;
-    owner = fn_800AF1D0();
+    owner = GetThreadId();
     if (owner != lbl_8034525C) {
         if (lbl_8034525C != 0) {
             printf(lbl_80349300);
             printf(strings);
         }
-        fn_800AF1B8(lbl_80345258);
+        WaitSema(lbl_80345258);
         lbl_8034525C = owner;
     }
     lbl_80345260++;
@@ -620,7 +620,7 @@ s32 pool_dispose(MemPoolLists* pool, u32 address, u32 size,
     }
 
     if (--lbl_80345260 <= 0) {
-        fn_800AF1C0(lbl_80345258);
+        SignalSema(lbl_80345258);
         lbl_8034525C = 0;
         lbl_80345260 = 0;
     }

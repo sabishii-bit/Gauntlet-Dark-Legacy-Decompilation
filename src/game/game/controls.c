@@ -83,9 +83,9 @@ extern s32 fn_800AF1F0(void);          /* scePad info/mode stub family */
 extern s32 fn_800AF1F8(void);
 extern s32 fn_800AF200(void);
 extern s32 fn_800AF208(void);
-extern s32 fn_800AF24C(void);
+extern s32 scePadSetActAlign(void);
 extern s32 fn_800AF2D4(void);
-extern s32 fn_800AF538(void);          /* sceMtapInit-alike */
+extern s32 sceMtapInit(void);
 extern void sysResetService(void);     /* fn_800DD180 */
 
 /* ------------------------------------------------------------------ */
@@ -1652,7 +1652,7 @@ void init_controls(void)
         lbl_803445EC = 0;
         ErrorPrintf("Disabling MTAP (load IRX failed)\n");
     } else {
-        lbl_803445EC = fn_800AF538();
+        lbl_803445EC = sceMtapInit();
     }
     if (lbl_803445EC == 0) {
         lbl_80344610[0] = 1;
