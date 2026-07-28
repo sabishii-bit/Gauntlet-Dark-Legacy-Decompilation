@@ -88,7 +88,7 @@ extern void fn_800AF1E0(void);         /* disable-irq / begin */
 extern void fn_800AF1E8(void);         /* restore-irq / end */
 extern void* fn_800AF1C8(void* param); /* aligned alloc / semaphore create */
 
-extern void fn_800C5C24(f32 extra, int, void*, void*); /* pb_objregs pos-light setup */
+extern void pbSetupPosLights(f32 extra, int, void*, void*); /* pb_objregs pos-light setup */
 extern void fn_800C5598(int, u32, int, int, u32, int, void*, void*, void*); /* pb_objregs primitive emit */
 extern int fn_800C7558(int handle);              /* pb_texture: resolve texture */
 extern void fn_800C1120(int);                    /* texture cache flush */
@@ -254,7 +254,7 @@ int fn_800C38C0(void* a, u8* obj)
         flags |= 0x20000;
     }
     if (lbl_80343F3C != 0) {
-        fn_800C5C24(*(f32*)(def + 4), 0, obj, a);
+        pbSetupPosLights(*(f32*)(def + 4), 0, obj, a);
     }
     fn_800C5598(0, tex, v25, v24, flags, hi, a, v1c, obj);
     pcount = *(int*)(def + 0xc) - 1;

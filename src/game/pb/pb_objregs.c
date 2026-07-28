@@ -13,10 +13,10 @@
  * SetMultiPassTextureParams / SetCullMode / SetPerspectiveMode /
  * SetViewportHeight / sSetGFXEnv / sFlushSubVertBuffer / sFlushVertBuffer /
  * sDrawGeom / pbSetDORegs.  GC-verified identities:
- *   fn_800C5B1C = pbInitDORegs   (kept fn_: referenced by Matching mb_main.c)
- *   fn_800C5B3C = pbResetDORegs  (kept fn_: referenced by mb_blit/pb_window)
- *   fn_800C5C24 = pbSetupPosLights (kept fn_: referenced by pb_objects.c)
- *   SetTevStages = SetMultiPassTextureParams, SetGfxEnv = sSetGFXEnv
+ *   pbInitDORegs = pbInitDORegs   (kept fn_: referenced by Matching mb_main.c)
+ *   pbResetDORegs = pbResetDORegs  (kept fn_: referenced by mb_blit/pb_window)
+ *   pbSetupPosLights = pbSetupPosLights (kept fn_: referenced by pb_objects.c)
+ *   SetMultiPassTextureParams = SetMultiPassTextureParams, sSetGFXEnv = sSetGFXEnv
  *   (existing provisional names kept to avoid cross-TU churn).
  */
 
@@ -107,7 +107,7 @@ static inline void emitVtxHead(PbVtx* v)
     GXColor4u8(v->c[0], v->c[1], v->c[2], v->c[3]);
 }
 
-/* GFX environment blob handed to SetGfxEnv */
+/* GFX environment blob handed to sSetGFXEnv */
 typedef struct PbGfxEnv {
     u32 m00;         /* 0x00 -> fn_800C7928 arg */
     u8  blendOn;     /* 0x04 */
@@ -384,7 +384,7 @@ void pbDrawVerts(s32 count, u8* verts)
 }
 
 /* Pixel/blend environment from a state blob (Xbox: sSetGFXEnv). */
-void SetGfxEnv(PbGfxEnv* e)
+void sSetGFXEnv(PbGfxEnv* e)
 {
     GXBool v;
 
@@ -491,7 +491,7 @@ void SetVertexFormat(s32 fmt)
 
 /* Configure the TEV stages for a texture pass mode
  * (Xbox: SetMultiPassTextureParams). */
-void SetTevStages(s32 stages)
+void SetMultiPassTextureParams(s32 stages)
 {
     s32 old = sNumTevStages;
     u32 n;
@@ -546,16 +546,16 @@ void fn_800C5598(void)
 {
 }
 
-void fn_800C5B3C(void);
+void pbResetDORegs(void);
 
 /* Public init entry: reset the DO register block (Xbox: pbInitDORegs). */
-void fn_800C5B1C(void)
+void pbInitDORegs(void)
 {
-    fn_800C5B3C();
+    pbResetDORegs();
 }
 
 /* Reset the draw-object register defaults (Xbox: pbResetDORegs). */
-void fn_800C5B3C(void)
+void pbResetDORegs(void)
 {
     PbDoRegs* p = lbl_80343F4C;
 
@@ -607,7 +607,7 @@ void fn_800C5B3C(void)
 
 /* Transform + range-cull the world's positional lights into lbl_802C71F8
  * (max 12) and point the DO regs at them (Xbox: pbSetupPosLights). */
-s32 fn_800C5C24(f32 extra, s32 a, s32 b, f32* m)
+s32 pbSetupPosLights(f32 extra, s32 a, s32 b, f32* m)
 {
     f32 inv[16];
     f32* out;

@@ -135,7 +135,7 @@ extern const char str_BlitOrderDiffNodes[];
 extern const char str_TooManyBlits[];
 extern const char str_DrawBlitNoTex[];
 extern void fn_800C36F8(void);
-extern void fn_800C5B3C(void);
+extern void pbResetDORegs(void);
 extern void fn_800C1120(s32);
 extern int fn_800C7558(s32 texture);
 extern int fn_800C780C(s32 id, s32 index, u32 mask);
@@ -782,7 +782,7 @@ s32 MBDrawBlits(MBNODE* node) {
     lbl_80343EA8 = -1;
     lbl_80343EAC = -1;
     fn_800C36F8();
-    fn_800C5B3C();
+    pbResetDORegs();
     return 0;
 }
 
@@ -1022,7 +1022,7 @@ void mbBlitSetPage(int page) {
     lbl_80343EA8 = -1;
     lbl_80343EAC = -1;
     fn_800C36F8();
-    fn_800C5B3C();
+    pbResetDORegs();
 }
 
 int mbBlitGetPage(void) {

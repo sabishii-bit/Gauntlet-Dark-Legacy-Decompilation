@@ -69,7 +69,7 @@ extern void fn_800AF1D8(int a);
 extern void fn_800C1148(int a, int b, const char* s);
 extern void pbResetTextures(void);
 extern void fn_800C79E4(void);
-extern void fn_800C5B1C(void);
+extern void pbInitDORegs(void);
 extern void fn_800C0AA4(int layer);
 extern void fn_800C1170(int a, void* b, int c);
 extern void fn_800C2F50(f32 w, f32 h);
@@ -267,7 +267,7 @@ void MBInit(void) {
     MBWindowInit();
     MBInitLights();
     fn_800B6C94();
-    fn_800C5B1C();
+    pbInitDORegs();
 }
 
 /* Dead at link; fixes the original TU's first-use order for the shared 1.0

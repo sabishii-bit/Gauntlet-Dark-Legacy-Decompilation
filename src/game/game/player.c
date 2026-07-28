@@ -2146,7 +2146,7 @@ extern s32 fn_80069540(s32 a, s32 b);
 extern s32 fn_8006AF7C(char* msg, ...);
 extern s32 fn_8006AFE0(char* prompt, s32* colors, s32 n);
 extern s32 fn_80074548(s32 a, s32 b);
-extern void fn_800330D4(s32 a, s32* b, s32 c);
+extern void ControlsUpdate(s32 a, s32* b, s32 c);
 extern void fn_80033C5C(void);
 extern s32 fn_80031504(u32 button);
 extern s32 fn_80031540(u32 button);
@@ -3716,7 +3716,7 @@ s32 set_hidden_player(void* vp) {
                             break;
                         }
                     }
-                    fn_800330D4(0, NULL, 0);
+                    ControlsUpdate(0, NULL, 0);
                     fn_80033C5C();
                 }
             }

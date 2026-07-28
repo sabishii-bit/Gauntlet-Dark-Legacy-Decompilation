@@ -129,7 +129,7 @@ void pbProjCalc(void);
 void pbWinSetup(void);
 void pbCameraUpdate();
 static void setupMatrices(MTXPACKET2* p0, MTXPACKET* p1, MTXPACKET* p2);
-void fn_800C5B3C(void);
+void pbResetDORegs(void);
 u32* fn_800C3680(void);
 extern int lbl_80345028;     /* use-allocated-packet flag */
 extern int lbl_80343F38;     /* cleared at end of pbWinSetup */
@@ -606,7 +606,7 @@ void pbWinSetup(void)
     int w, h;
     PBLIGHTBLOCK* lb;
 
-    fn_800C5B3C();
+    pbResetDORegs();
     if (lbl_80345028 != 0) {
         p = fn_800C3680();
     } else {

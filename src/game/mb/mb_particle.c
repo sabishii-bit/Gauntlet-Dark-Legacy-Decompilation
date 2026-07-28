@@ -65,7 +65,7 @@ void  fn_800AEA0C(u32 a, u32 b);                          /* copy vec */
 void  sceSamp0MultVec(void* out, const f32* m, const f32* v);
 void  GXSetChanMatColor(s32 chan, void* color);
 void  GXBegin(s32 prim, s32 fmt, s32 count);
-void  SetTevStages(s32 n);
+void  SetMultiPassTextureParams(s32 n);
 void  SetVertexFormat(s32 fmt);
 void  SetCullMode(s32 mode);
 void  SetPerspectiveMode(s32 mode);

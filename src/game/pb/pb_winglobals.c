@@ -16,7 +16,7 @@
 
 void __as__4vec4FRC4vec4(f32* dst, f32* src); /* vec4::operator= */
 void mbBlitStub51E0(void);
-void fn_800C5B3C(void);
+void pbResetDORegs(void);
 void fn_800AF554(s32 unused, u16 flags, void* data);
 
 /* pool entry, 0x50 bytes */
@@ -386,7 +386,7 @@ void fn_800C1004(void)
 void fn_800C1120(void)
 {
     mbBlitStub51E0();
-    fn_800C5B3C();
+    pbResetDORegs();
     fn_800C1004();
 }
 

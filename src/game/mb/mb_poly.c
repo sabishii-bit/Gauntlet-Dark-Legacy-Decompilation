@@ -79,7 +79,7 @@ void fn_800BDC60(PolyVert* v, void* out, void* xf); /* xform vertex */
 u32  __cvt_fp2unsigned(f64 x);
 void mbBlitGetPage(void);
 void mbBlitSetPage(void);
-void SetTevStages(s32 n);
+void SetMultiPassTextureParams(s32 n);
 void SetVertexFormat(s32 fmt);
 void SetCullMode(s32 mode);
 void SetPerspectiveMode(s32 mode);
@@ -371,7 +371,7 @@ s32 DoPolyInstSub(PolyInstance* inst, s32 useScratch) {
     if (inst->type < 3) {
         return 0;
     }
-    SetTevStages(0);
+    SetMultiPassTextureParams(0);
     SetVertexFormat(0);
     SetCullMode(0);
     SetPerspectiveMode(0);
