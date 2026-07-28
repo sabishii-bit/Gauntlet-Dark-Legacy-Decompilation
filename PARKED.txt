@@ -217,3 +217,17 @@ fn_8006C4D0                # renum + base-const assoc: 4 handle-free loops off l
 fn_8006D458                # addressing: adjacent SDA transition handles lbl_80343C8C/90 + C94/98 emit
                            # SDA lwz for the even ones, base+lwzu pointer-walk for the odd (+8 frame for the
                            # held base). Separate-scalar spelling gives all-SDA. 38 lines.
+fn_8008FE70                # renum (select.c), 18 lines: player-state scan getter, 25/25 insns opcode-exact
+                           # REGISTER_ONLY; i<->st volatile swap (r6/r4) + tail mulli/base reg rotation;
+                           # named-st-at-fn-scope and inlined-state-read both regress to 20 (select)
+fn_8008FED4                # renum (select.c), 12 lines: new_player-spawn loop, 33/33 opcode-exact
+                           # REGISTER_ONLY; count<->p nonvolatile swap (r28/r29); decl-order and
+                           # split-init both regress to 20 (select)
+fn_80090B6C                # copy+renum (select.c), ops 50->51: page/entry blit-init nested loop, body
+                           # correct; residual = one coalescing 'mr r3,r0' (loaded handle wants r3 direct)
+                           # + end/pagebase/entry nonvolatile permutation (r23/r26/r27); named-h/inline-
+                           # triple-load/folded-pagebase all >= or worse (select)
+fn_8008E3BC                # renum+remat (select.c), ops 76/78: welcome-back setup (inline player-scan +
+                           # change_player + matched fn_80090C34 varargs + audio dispatch), semantics
+                           # correct; residual = scan-fallback CSEs pl(r31) instead of reloading base
+                           # (same class as parked fn_8008FE70) + idx/pl r30<->r31 swap (select)
