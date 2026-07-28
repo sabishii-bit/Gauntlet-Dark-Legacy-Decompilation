@@ -95,7 +95,7 @@ struct WORLDPSYS {
     /* 0x07 */ u8 _pad7[0x138 - 7];
 };
 
-/* g3d display node (created by fn_800BB29C): translation @0x30, scale @0x40,
+/* g3d display node (created by MBNewNode): translation @0x30, scale @0x40,
  * flags @0x60.  WorldObj.nodeptr points at one of these. */
 typedef struct G3DNode {
     /* 0x00 */ u8  _pad0[48];
@@ -150,17 +150,17 @@ extern char   lbl_801152A0[];   /* "World obj with dynamic parent"            */
 extern char   lbl_803487B0[];   /* "PSYS"                                      */
 
 /* --- external API --- */
-extern void  fn_800BA368();          /* set node display flag / show           */
-extern void  fn_800BA2C4();          /* clear node display flag / hide         */
+extern void  MBTreeSetFlags();          /* set node display flag / show           */
+extern void  MBTreeClearFlags();          /* clear node display flag / hide         */
 extern void  fn_800D12F0(void*);     /* free particle system                   */
 extern void  fn_800B7758(void);      /* model-load start                       */
 extern void  fn_800B79AC(s32, s32);  /* model-load finish                      */
 extern void  fn_8001267C(void*, s32, s32); /* close/abort file read            */
 extern void  fn_800B8E20(void*, void*);
-extern G3DNode* fn_800BB29C(void*, void*, s32); /* create child display node    */
+extern G3DNode* MBNewNode(void*, void*, s32); /* create child display node    */
 extern void  GetWorldMat(void*, f32*, s32);     /* fetch node world state       */
-extern void  fn_800BA784(void*, s32, s32);
-extern void  fn_800BA56C(void*, s32, s32, s32);
+extern void  MBTreeSetZsortAdd(void*, s32, s32);
+extern void  MBTreeSetAltTex(void*, s32, s32, s32);
 extern void  fn_800CEAF0(s32, void*, void*, s32, void*, void*); /* spawn psys   */
 extern void  CopyMat4(void*, void*);
 extern void  fn_8000F628(void*);
@@ -322,7 +322,7 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim) {
         } else if ((s32)wa->curframe >= wa->nframes - 2) {
             if (obj->flags & 0x10000000) {
                 obj->flags &= ~0x10000000;
-                fn_800BA2C4(obj->nodeptr, 2, 0);
+                MBTreeClearFlags(obj->nodeptr, 2, 0);
             }
         }
     } else {
@@ -347,7 +347,7 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim) {
         } else if ((s32)wa->curframe <= 1) {
             if (obj->flags & 0x10000000) {
                 obj->flags &= ~0x10000000;
-                fn_800BA2C4(obj->nodeptr, 2, 0);
+                MBTreeClearFlags(obj->nodeptr, 2, 0);
             }
         }
     }
@@ -410,8 +410,8 @@ void NewWorld(void* parent) {
     if (parent == 0) {
         parent = lbl_80344EB8;
     }
-    lbl_80344D94 = fn_800BB29C(parent, lbl_80127D60, 1);
-    lbl_80344D90 = fn_800BB29C(parent, lbl_80127D60, 1);
+    lbl_80344D94 = MBNewNode(parent, lbl_80127D60, 1);
+    lbl_80344D90 = MBNewNode(parent, lbl_80127D60, 1);
 }
 
 /* WorldSaveInitState: init each world, snapshot every object's parent link and
@@ -438,7 +438,7 @@ void WorldSaveInitState(void) {
         bulletproof_printf(lbl_801151D8, (mlmMemUsed - memBase) >> 10);
         lbl_80344D8C = lbl_80344D94;
         CreateWorldNode(lbl_80344D9C, lbl_80344D9C, 0);
-        fn_800BA368(lbl_80344D94, 0x1000, 1);
+        MBTreeSetFlags(lbl_80344D94, 0x1000, 1);
         WorldDisplay = 1;
     } else {
         lbl_80344D9C = 0;
@@ -448,7 +448,7 @@ void WorldSaveInitState(void) {
         lbl_80344D98 = InitWorldInfo(&gWorldInfo2);
         lbl_80344D8C = lbl_80344D90;
         CreateWorldNode(lbl_80344D98, lbl_80344D98, 0);
-        fn_800BA56C(lbl_80344D90, -2, gWorldInfo.whitetex, 1);
+        MBTreeSetAltTex(lbl_80344D90, -2, gWorldInfo.whitetex, 1);
         WorldDisplay = 2;
     } else {
         lbl_80344D98 = 0;
@@ -498,16 +498,16 @@ void ToggleWorldDisplay(void) {
     }
     if (lbl_80344D94 != 0) {
         if (WorldDisplay & 1) {
-            fn_800BA2C4(lbl_80344D94, 2, 0);
+            MBTreeClearFlags(lbl_80344D94, 2, 0);
         } else {
-            fn_800BA368(lbl_80344D94, 2, 0);
+            MBTreeSetFlags(lbl_80344D94, 2, 0);
         }
     }
     if (lbl_80344D90 != 0) {
         if (WorldDisplay & 2) {
-            fn_800BA2C4(lbl_80344D90, 2, 0);
+            MBTreeClearFlags(lbl_80344D90, 2, 0);
         } else {
-            fn_800BA368(lbl_80344D90, 2, 0);
+            MBTreeSetFlags(lbl_80344D90, 2, 0);
         }
     }
 }
@@ -819,7 +819,7 @@ void* NewWorldObject(WorldObj* obj, WorldObj* parent) {
         p = lbl_80344D8C;
     else
         p = parent->nodeptr;
-    node = fn_800BB29C(p, 0, 1);
+    node = MBNewNode(p, 0, 1);
     node->x = obj->pos[0];
     node->y = obj->pos[1];
     node->z = obj->pos[2];
@@ -835,20 +835,20 @@ void* NewWorldObject(WorldObj* obj, WorldObj* parent) {
     }
     tmp = obj->parent;
     obj->parent = parent;
-    fn_800BA368(node, tmp, 0);
+    MBTreeSetFlags(node, tmp, 0);
     if (parent != 0) {
         if (parent->flags & 0x02000000) {
             obj->flags |= 0x02000000;
         }
     }
     if ((obj->flags & 1) && !(obj->flags & 0x1000)) {
-        fn_800BA368(node, 4, 0);
+        MBTreeSetFlags(node, 4, 0);
     }
     if (obj->flags & 0x8000) {
-        fn_800BA368(node, 1, 0);
+        MBTreeSetFlags(node, 1, 0);
     }
     if (obj->flags & 0x400) {
-        fn_800BA784(node, -2, 1);
+        MBTreeSetZsortAdd(node, -2, 1);
     }
     return node;
 }

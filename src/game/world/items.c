@@ -44,8 +44,8 @@ extern void  TriggerCameraActivate(s32 type, f32* eye, f32* target,
                                    s32 duration, s32 flags, s32 variant);
 extern char* fn_80057AB4(void);
 extern char* fn_80057AC0(void);
-extern void* fn_800BB29C(void* parent, f32* matrix, s32 flags);
-extern void  fn_800BA368(void* node, s32 flags, s32 value);
+extern void* MBNewNode(void* parent, f32* matrix, s32 flags);
+extern void  MBTreeSetFlags(void* node, s32 flags, s32 value);
 
 typedef struct TriggerCamera {
     /* 0x00 */ u8  _pad00[4];
@@ -131,9 +131,9 @@ extern u32*  FindWORLDOBJ(const char* name);
 extern double fn_8006366C(f32* pos);
 extern void  fn_80064154(Item* item);
 extern void  fn_800115D0(void* p);
-extern void  fn_800BAEAC(s32 handle, s32 flag);
-extern s32   fn_800BA2C4(void* node, s32 a, s32 b);
-extern void  fn_800BAD94(void* node, void* parent);
+extern void  MBRemoveNode(s32 handle, s32 flag);
+extern s32   MBTreeClearFlags(void* node, s32 a, s32 b);
+extern void  MBNodeSetParent(void* node, void* parent);
 extern void  fn_8005A3B8(OBJGRP* group);
 extern void  AddItemWobj(Item* item);
 extern s32   PlayerSelecting(s32 idx);
@@ -194,7 +194,7 @@ extern f32   fn_800BD3E8(f64 ang);                        /* angle wrap */
 extern void  fn_800BD050(f32* mtx, f32* angles);          /* mtx from angles */
 extern f64   fn_8000D3C4(f64 y, f32 r, f32* pos, s32 mode); /* ground probe */
 extern s32   MBOX_NewObject(char* name, f32* mtx, s32 a, s32 b);
-extern void  fn_800BA6C0(s32 handle, s32 pri, s32 b);
+extern void  MBTreeSetAlpha(s32 handle, s32 pri, s32 b);
 extern s32   fn_800B8E94(char* name, s32 a, s32 b, s32 c);/* find texture */
 extern void* fn_800B92B0(void* node, s32 tex);
 extern char* strcat(char* dst, const char* src);
@@ -254,7 +254,7 @@ void fn_80064154(Item* item)
 
     if (*current != 0 && *(void**)((u8*)*current + 0x28) != 0 &&
         (*(u32*)((u8*)*current + 0x10) & 0x1000) != 0) {
-        fn_800BAD94(item->objgrp.node, *(void**)((u8*)*current + 0x28));
+        MBNodeSetParent(item->objgrp.node, *(void**)((u8*)*current + 0x28));
     }
 
     fn_8005A3B8(&item->objgrp);
@@ -338,7 +338,7 @@ void InitItemInfoData(void)
 
             player_runtime = runtime + offset;
             *(void**)(player_runtime + 0x74B8) =
-                fn_800BB29C(lbl_8034497C, 0, 4);
+                MBNewNode(lbl_8034497C, 0, 4);
             zero = 0;
             overlay_runtime = runtime + overlay_offset;
             *(s32*)(player_runtime + 0x74A8) = zero;
@@ -347,7 +347,7 @@ void InitItemInfoData(void)
                 MBOX_NewObject(lbl_80347170, 0, (s32)lbl_8034497C,
                                0x04200000);
             node_slot = (s32*)(player_runtime + 0x7478);
-            fn_800BA368((void*)*node_slot, 1, 0);
+            MBTreeSetFlags((void*)*node_slot, 1, 0);
             *(s16*)(*node_slot + 0x68) = -800;
             i++;
             overlay_offset += 0x48;
@@ -525,7 +525,7 @@ void fn_80063ABC(Item* item, s32 flag)
                 *(u32*)(e + 0x6C) = 0;
             }
             if (*(u32*)(e + 0x64) != 0) {
-                fn_800BAEAC(*(u32*)(e + 0x64), 0);
+                MBRemoveNode(*(u32*)(e + 0x64), 0);
                 *(u32*)(e + 0x64) = 0;
             }
             *(s16*)(e + 0xC4) = -1;
@@ -540,7 +540,7 @@ void fn_80063ABC(Item* item, s32 flag)
                 *(u32*)(e + 0x6C) = 0;
             }
             if (*(u32*)(e + 0x64) != 0) {
-                fn_800BAEAC(*(u32*)(e + 0x64), 0);
+                MBRemoveNode(*(u32*)(e + 0x64), 0);
                 *(u32*)(e + 0x64) = 0;
             }
             *(s16*)(e + 0xC4) = -1;
@@ -556,7 +556,7 @@ void fn_80063ABC(Item* item, s32 flag)
         *(u32*)(e + 0x6C) = 0;
     }
     if (*(u32*)(e + 0x64) != 0) {
-        fn_800BAEAC(*(u32*)(e + 0x64), 0);
+        MBRemoveNode(*(u32*)(e + 0x64), 0);
         *(u32*)(e + 0x64) = 0;
     }
     *(s16*)(e + 0xC4) = -1;
@@ -626,13 +626,13 @@ void fn_80063C58(void)
     case 41:
         obj = FindWORLDOBJ(lbl_80112D38);
         if (obj != NULL && obj[10] != 0) {
-            fn_800BA368((void*)obj[10], 1, 0);
+            MBTreeSetFlags((void*)obj[10], 1, 0);
         }
         break;
     case 44:
         obj = FindWORLDOBJ(lbl_80112D44);
         if (obj != NULL && obj[10] != 0) {
-            fn_800BA368((void*)obj[10], 1, 0);
+            MBTreeSetFlags((void*)obj[10], 1, 0);
         }
         break;
     }
@@ -651,7 +651,7 @@ s32 fn_80063F10(s32* out, s32 max, s32 flag)
         if (it->info->type == 10 && *(s16*)((u8*)it + 0xDC) == 0x29) {
             out[count] = i;
             if (flag != 0) {
-                fn_800BA368(it->objgrp.node, 1, 1);
+                MBTreeSetFlags(it->objgrp.node, 1, 1);
                 *(s16*)((u8*)it + 0xDE) = -1;
             }
             count++;
@@ -815,7 +815,7 @@ static void AddItemWobj(Item* it)
             tex = fn_800B8E94(buf, -1, -1, -1);
         }
         if (tex < 0) {
-            fn_800BA368(it->objgrp.node, 1, 1);
+            MBTreeSetFlags(it->objgrp.node, 1, 1);
             *(s16*)(it->data + 2) = -1;
         } else {
             fn_800B92B0(it->objgrp.node, tex);
@@ -835,7 +835,7 @@ void fn_80063D40(s32 idx)
 {
     Item* it = &sItems[idx];
 
-    fn_800BA2C4(it->objgrp.node, 1, 1);
+    MBTreeClearFlags(it->objgrp.node, 1, 1);
     it->health = it->info->item.hitpoints * 3;
     *(s16*)((u8*)it + 0xDE) = 0;
     it->armor = (s8)it->info->item.armor;
@@ -942,8 +942,8 @@ void ResetItems(void)
 {
     f32* runtime = (f32*)&lbl_802577F0;
 
-    lbl_8034497C = fn_800BB29C(lbl_80344EB8, lbl_80127D60, 1);
-    fn_800BA368(lbl_8034497C, 4, 0);
+    lbl_8034497C = MBNewNode(lbl_80344EB8, lbl_80127D60, 1);
+    MBTreeSetFlags(lbl_8034497C, 4, 0);
 
     {
         f32 initial = lbl_80346EE4;
@@ -1141,10 +1141,10 @@ s32 ShowMilestones(s32 idx)
                     *(s32*)(elem + 0x60) = add_arrow(1, 1, 1, NULL, NULL,
                                                      (f32*)elem);
                 }
-                fn_800BA2C4((void*)*(s32*)(elem + 0x60), 2, 0);
+                MBTreeClearFlags((void*)*(s32*)(elem + 0x60), 2, 0);
             } else {
                 if (*(u32*)(elem + 0x60) != 0) {
-                    fn_800BAEAC(*(s32*)(elem + 0x60), 1);
+                    MBRemoveNode(*(s32*)(elem + 0x60), 1);
                     *(s32*)(elem + 0x60) = 0;
                 }
             }
@@ -1185,10 +1185,10 @@ s32 ShowCameras(s32 idx)
                                                      (f32*)(elem + 0x04),
                                                      tmp);
                 }
-                fn_800BA2C4((void*)*(s32*)(elem + 0x24), 2, 0);
+                MBTreeClearFlags((void*)*(s32*)(elem + 0x24), 2, 0);
             } else {
                 if (*(u32*)(elem + 0x24) != 0) {
-                    fn_800BAEAC(*(s32*)(elem + 0x24), 1);
+                    MBRemoveNode(*(s32*)(elem + 0x24), 1);
                     *(s32*)(elem + 0x24) = 0;
                 }
             }
@@ -1232,9 +1232,9 @@ s32 add_arrow(s32 kind, s32 refresh, s32 useAngles, f32* angles, f32* look, f32*
     }
     if (refresh != 0) {
         handle = MBOX_NewObject(lbl_8011C8A8[kind], mtx, 0, 0);
-        fn_800BA6C0(handle, 100, 0);
+        MBTreeSetAlpha(handle, 100, 0);
         if (refresh == 2) {
-            fn_800BA368((void*)handle, 2, 0);
+            MBTreeSetFlags((void*)handle, 2, 0);
         }
     }
     return handle;

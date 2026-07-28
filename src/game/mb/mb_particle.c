@@ -50,10 +50,10 @@ u32   pbRand(void);
 void* AllocMem(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7, f64 f8,
                s32 size, void* tag, s32 a, s32 b, s32 c, s32 d, s32 e, s32 g);
 s32   fn_800B8B04(const char* name, s32* out);   /* texture-by-name lookup */
-MBObject* fn_800BB29C(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
+MBObject* MBNewNode(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
                       f64 f8, f32 depth, void* verts, s32 flag, s32 tex,
                       void* v2, s32 a, s32 b, s32 c);      /* scene-node create */
-void  fn_800BAEAC(MBObject* node, s32 mode);              /* scene-node free */
+void  MBRemoveNode(MBObject* node, s32 mode);              /* scene-node free */
 int   AddPsysObject(void* fn, MBObject* node);            /* traverse visitor */
 BOOL  fn_800B5704(f64 radius, void* bounds);              /* frustum/sphere cull */
 f64   fn_800B71AC(f64 x);                                 /* rsqrt / normalize */
@@ -696,7 +696,7 @@ MBObject* createPsysNode(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
     if (gPsysDisabled == -1) {
         return NULL;
     }
-    node = fn_800BB29C(f1, f2, f3, f4, f5, f6, f7, f8, depth, verts, 0xe, tex,
+    node = MBNewNode(f1, f2, f3, f4, f5, f6, f7, f8, depth, verts, 0xe, tex,
                        verts, a, b, c);
     if (node == NULL) {
         return NULL;
@@ -704,7 +704,7 @@ MBObject* createPsysNode(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
     p = allocPsys(f1, f2, f3, f4, f5, f6, f7, f8, flag, 0, 0, tex, 0, 0, 0);
     if (p == NULL) {
         node->data.psys = NULL;
-        fn_800BAEAC(node, 1);
+        MBRemoveNode(node, 1);
         return NULL;
     }
     node->data.psys = p;
@@ -957,7 +957,7 @@ static void freePsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
                      f64 f8, MBObject* node) {
     if (node->child != NULL) {
         node->child->data.psys = NULL;
-        fn_800BAEAC(node->child, 1);
+        MBRemoveNode(node->child, 1);
         node->child = NULL;
     }
     if (*((s32*)node + 1) == 0) {   /* not world-owned */

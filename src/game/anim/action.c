@@ -27,7 +27,7 @@
  * SfxDeleteParented, gCurLevel checks; DoPlayerAction: player anim-action
  * sequencer over p->seq/p->nextSeq with PlayerAttackType classification,
  * three jumptables 0x80127174/80127384/80127540, atree frame stepping via
- * fn_80011134, mb_tree node color pokes fn_800BA2C4/fn_800BA368).
+ * fn_80011134, mb_tree node color pokes MBTreeClearFlags/MBTreeSetFlags).
  */
 #include "types.h"
 
@@ -85,7 +85,7 @@ void DoEnemyAction(void* enemy)
 /* 0x800AC068  player action sequencer (giant, 0x1B94): advances the player
  * action state (p+0x208 current seq, p+0x20C next seq, PlayerAttackType of
  * both), drives the atree animation (fn_80011134), pokes display-tree state
- * (fn_800BA2C4 / fn_800BA368), and draws the GC-only anim debug overlay
+ * (MBTreeClearFlags / MBTreeSetFlags), and draws the GC-only anim debug overlay
  * ("ACTION:%s NEXT:%s D:%s INT:%d RPT:%d DIDT:%d" via dbgTextPrintfCol,
  * name table lbl_80126C68).  Jumptables 0x80127174/0x80127384/0x80127540.
  * SKELETON - full reconstruction pending. */

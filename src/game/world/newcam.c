@@ -86,7 +86,7 @@
  *   0x8006F678 GetPlayerAvgPos      0x278 world-space player avg/min/max [bosscam,tower]
  *   0x8006F8F0 CamGetPlayerAvgPos   0x2BC camera-space player center [gamemain,boss,int]
  *   0x8006FBAC fn_8006FBAC          0x130 calls fn_800BCB44 [bosscam]
- *   0x8006FCDC fn_8006FCDC          0x154 calls fn_800BA6C0 [internal]
+ *   0x8006FCDC fn_8006FCDC          0x154 calls MBTreeSetAlpha [internal]
  *   0x8006FE30 fn_8006FE30          0xEC  camera+projection setup (CamReset + proj
  *                                          params lbl_80344EE8) [game/sys/main]
  *   0x8006FF1C fn_8006FF1C          0x228 debug-camera update path; "CAM Y" HUD;
