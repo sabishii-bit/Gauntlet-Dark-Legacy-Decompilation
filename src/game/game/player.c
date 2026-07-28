@@ -1,28 +1,32 @@
 /*
- * player.c -- GCN PLAYER.OBJ (shell3D.pdb module .\Release\PLAYER.OBJ), FRONT SLICE.
+ * player.c -- GCN PLAYER.OBJ (shell3D.pdb module .\Release\PLAYER.OBJ), FULL MODULE.
  *
  * Per-player game logic + the in-game player HUD: the parent/grab attachment
  * ops used by critters and PlayerMotion, the per-frame HUD writers (health,
  * gold, items, rune stones, power meter, "IT" tag), the experience/level
- * math, potion magic launch, and the master per-frame driver do_players().
+ * math, potion magic launch, the master per-frame driver do_players(), and
+ * (back slice) damage/death/lifecycle, the per-character save image, model
+ * loading, powerups, see-thru, got-it ticker and mini-inventory.
  *
- * SLICE (this file, wired 2026-07-27):
- * .text       0x800745D0..0x80077BF0  (22 GC functions)
- * extab       0x80006900..0x80006988  (17 entries x 8; 5 leaves have none)
- * extabindex  0x8000A5D0..0x8000A69C  (17 entries x 12)
+ * CLAIM (extended to the whole module 2026-07-27):
+ * .text       0x800745D0..0x8008091C  (92 GC functions)
+ * extab       0x80006900..0x80006B30  (70 entries x 8)
+ * extabindex  0x8000A5D0..0x8000A918  (70 entries x 12)
  *
- * FULL PLAYER.OBJ extends to 0x8008091C (get_player_pos = PMOTION.OBJ start);
- * later sessions extend the .text end. Not claimed yet: .data (potionicon_tab
- * tables at 0x80124C70.., blit pos tables 0x8011FC48..), .bss (HUD blit arrays
- * 0x80274EA0..0x80275AE0 + player records), .sdata (welcome/it globals
- * 0x80344AF0..), .sdata2 pool (0x80347608 "XRay" onward).
+ * Not claimed yet: .data (potionicon tables at 0x80124C70.., blit pos tables
+ * 0x8011FC48.., hidden-char table 0x80120618, pup-cheat table 0x801209E4),
+ * .bss (HUD/state block 0x80274EA0..0x80275AE0 + player records), .sdata
+ * (welcome/it globals 0x80344AF0..), .sdata2 pool (0x80347608 "XRay" onward).
  *
- * BOUNDARY EVIDENCE (front seam OPTIONS | PLAYER at 0x800745D0):
- *  - see options.c header (extabindex run + sdata2/sdata seams).
- *  - extab seam: options extab ends exactly 0x80006900 / extabindex 0x8000A5D0
- *    (last OPTIONS entry: fn 0x80074548 -> extab 0x800068F8).
- * BACK seam of this slice (0x80077BF0) is fn-boundary only -- the TU
- * continues (fn_80077BF0 belongs to PLAYER.OBJ; extab entry 0x80006988).
+ * BOUNDARY EVIDENCE:
+ *  - FRONT seam OPTIONS | PLAYER at 0x800745D0: see options.c header
+ *    (extabindex run + sdata2/sdata seams; last OPTIONS entry:
+ *    fn 0x80074548 -> extab 0x800068F8 / extabindex 0x8000A5D0).
+ *  - BACK seam PLAYER | PMOTION at 0x8008091C: extabindex is fn-address
+ *    ordered; the entry at 0x8000A918 is {fn 0x8008091C (get_player_pos,
+ *    PMOTION.OBJ's first fn), extab 0x80006B30} -- so PLAYER.OBJ's extab
+ *    run ends exactly at 0x80006B30 / extabindex at 0x8000A918.  All 53
+ *    back-slice extab entries are contiguous 8-byte records.
  *
  * GC function order does NOT match the Xbox PDB listing (Xbox /Gy reorder);
  * names anchored by behavior + strings + caller symmetry:
@@ -50,6 +54,62 @@
  *   0x80076684 start_magic         (G) potion-magic FX/sound launcher
  *   0x80076998 do_players          (G) per-frame master driver [gamemain]
  *
+ * BACK SLICE names (same rules; all Xbox-listed unless marked GC-only):
+ *   0x80077BF0 PlayerProcessScale      0x80077D04 PlayerSelecting
+ *   0x80077D38 do_exit (L)             0x80077FBC do_weakening (L)
+ *   0x80078108 all_players_go_to_same_level (L)
+ *   0x800781C0 PlayerOnMovingObject    0x80078260 OtherPlayerOnOtherMovingObject
+ *   0x800782D8 do_heal_players         0x800784E0 heal_player
+ *   0x8007857C player_max_health       0x800785CC damage_player
+ *   0x80078E0C player_can_be_damaged   0x80078E54 kill_player
+ *   0x80079100 inactivate_player       0x80079484 abort_player
+ *   0x80079770 GetPlayerColPos         0x8007979C GetPlayerPos
+ *   0x800797C8 remove_player_geo       0x80079A6C change_player
+ *   0x80079B38 new_player              0x80079BA0 clear_player
+ *   0x80079D94 activate_player         0x80079F44 load_player
+ *   0x8007A3B8 PlayerLoadSaveFile      0x8007A4D4 PlayerWriteSaveFile
+ *   0x8007A560 PlayersRestoreHealth    0x8007A614 PlayerRestoreState
+ *   0x8007A6DC PlayerSaveState         0x8007A7A4 player_get_from_save
+ *   0x8007AA4C player_store_in_save    0x8007AC58 player_save_controls
+ *   0x8007ACC8 PlayerUpdateAtts        0x8007AE68 set_player_default_atts
+ *   0x8007AEF0 load_player_geo ("PLAYER.OBJ NODE EXISTS BEFORE LOAD")
+ *   0x8007B558 set_hidden_player ("Access?".."Rand??" cheat strings)
+ *   0x8007BEC8 load_player_model ("players\\%s\\sfx%s")
+ *   0x8007C008 load_player_model_sub ("players\\%s\\%s(%d0)","..\\anim")
+ *   0x8007C1D8 SetupPlayerTexMods      0x8007C230 DoPlayerTexMods [items.c]
+ *   0x8007C298 init_players            0x8007C3FC create_player_blits (L, GC-only name)
+ *   0x8007C938 reset_players           0x8007C998 setup_player_models
+ *   0x8007CA8C GetMaxPlayerModelSize (L)  0x8007CC30 PlayerModel
+ *   0x8007CC48 PlayerProcessPowerups (GIANT 0x18F8; skeleton, see body note)
+ *   0x8007E540 PlayerProcessSkinFX (L)    0x8007E950 PlayerProcessMikeyPUP
+ *   0x8007EC24 AppendBigapePowerupsToScene  0x8007ECB0 AppendItemToLevel
+ *   0x8007EDE8 do_see_thru (L; end_see_thru inlined)
+ *   0x8007F32C ClosestChest (L)        0x8007F4A8 player_get_powerup_state
+ *   0x8007F580 PlayerAddPowerup        0x8007F704 PlayerIncSpeed
+ *   0x8007F760 PlayerIncMagic          0x8007F7BC PlayerIncArmor
+ *   0x8007F818 PlayerIncFight (Inc* stat index proven by 0xA98/9C/A0/A4
+ *   displacement scan; GC order is Xbox order REVERSED)
+ *   0x8007F874 check_player_atts (player_max_att auto-inlined x4)
+ *   0x8007FAB4 SetPlayerWindows        0x8007FC80 do_got_it (L)
+ *   0x80080158 kill_got_it             0x800801EC add_got_it
+ *   0x80080270 init_got_it             0x800802E4 UpdatePlayerWorldMat
+ *   0x8008033C mini_inventory_update   0x80080718 mini_inventory_draw_label
+ *   0x800807CC mini_inventory_find_previous_selectable_item
+ *   0x80080854 mini_inventory_find_next_selectable_item
+ *   0x800808D4 mini_inventory_setup ("INVENTORY")
+ *
+ * Xbox fns NOT present as GC symbols (auto-inlined into the hosts above,
+ * inlined-shared-helper law): player_dies + drop_keys (kill_player /
+ * inactivate_player / abort_player), end_see_thru (do_see_thru),
+ * player_max_att (check_player_atts x4), PlayerRestoreState's copy loop
+ * (inactivate_player), LevelDeltaExp, GetFight..GetMissileSpd accessors,
+ * PlayerProcessFamiliar / PlayerUsePowerup / DropMikey /
+ * player_find_powerup_from_typemask (PlayerProcessPowerups giant),
+ * SetDebugNode/clearDebugNode, hide_power_meter, write_health, WriteName,
+ * IncLevel/SetPlayerLevel/IncAtt, UserYes, CopyPlayer, def_char_type,
+ * save_player_atts/load_player_atts, anybody_playing, advance_ok,
+ * ReplaceTree, DropMikey (either inlined or hosted in other GC TUs).
+ *
  * MATCH STATUS (2026-07-27 wiring pass, cflags_demo probed best on both
  * compilers): BYTE-EXACT (reloc-name noise only): PlayerAttacking,
  * PlayerUnsetParent, PlayerUnsetGrabbed, PlayerSetGrabbed, PlayerGiveGold,
@@ -62,6 +122,24 @@
  * bodies are faithful Ghidra transcriptions pending match passes (biggest
  * first: do_players, write_health_and_items, draw_power_meter,
  * setup_player_display, start_magic).
+ *
+ * BACK-SLICE MATCH STATUS (2026-07-27 extension pass):
+ * BYTE-EXACT (0 real diff lines): SetupPlayerTexMods, DoPlayerTexMods,
+ * PlayerModel, kill_got_it, init_got_it, add_got_it, mini_inventory_setup.
+ * These prove the model_slot[]/got_it[] static layouts (their displacements
+ * link off in-TU statics, so they land exact pre-flip).
+ * BSS-POOLING GATE (opcode-identical, displacement-only): GetPlayerPos,
+ * GetPlayerColPos, PlayerSelecting, new_player, change_player,
+ * player_can_be_damaged, all_players_go_to_same_level and every other fn
+ * touching gPlayerRecords: the TARGET pools all player-record accesses off
+ * lbl_80274EA0 (.bss block base, -0xC40 from the records), so our
+ * extern-based displacements differ by construction until the flip-time
+ * .bss claim; gPlayerRecords itself must stay extern lbl_80275AE0
+ * (Matching shopquery pin).  NOT a per-fn matching failure -- do not grind.
+ * All other back-slice bodies are faithful Ghidra transcriptions pending
+ * match passes (biggest first: PlayerProcessPowerups (skeleton -- real body
+ * needed), set_hidden_player, damage_player, do_see_thru, load_player,
+ * load_player_geo, do_got_it, create_player_blits, mini_inventory_update).
  *
  * FLIP GATES (claimcheck): .bss 0xC40 (the HUD block below -- size exact),
  * .data 0x5C (jumptable), .rodata 0x104 (strings), .sdata2 0x198 (pool)
@@ -123,9 +201,68 @@ extern Player lbl_80275AE0[]; /* gPlayerRecords[4], stride 0x335C */
 static void* potionicon_tab[5];    /* 0x000 (0x80274EA0) potion type -> texture */
 static void* hod_blit[4];          /* 0x014 hand-of-death icons */
 static void* quest_blit[4];        /* 0x024 QUEST_ICON blits */
-static u8 hud_pad_034[0x4C0];      /* 0x034 (mini-inventory/got-it, later fns) */
-static char tbuf[0x20];            /* 0x4F4 (0x80275394) sprintf scratch */
-static u8 hud_pad_514[0x4CC];      /* 0x514 (0x802753B4.. tables, later fns) */
+static u8 hud_pad_034[0x4C0];      /* 0x034 (0x80274ED4, unmapped scratch) */
+static char tbuf[0x20];            /* 0x4F4 (0x80275394) sprintf/path scratch */
+
+/* per-player model arena slot (0x802753B4, stride 0x4C).  Xbox analogue:
+ * the player_multiple_models/got_max_player_sizes machinery. */
+typedef struct PlayerModelSlot {
+    /* 0x00 */ s32 cur_class;      /* loaded class id, -1 = empty */
+    /* 0x04 */ s32 cur_pad;        /* controller/costume index at load */
+    /* 0x08 */ s32 cur_tier;       /* level/10 weapon tier at load */
+    /* 0x0C */ s32 cur_override;   /* hidden-char name ptr at load (0 = none) */
+    /* 0x10 */ void* arena;        /* texture arena (PlayerModel() handle) */
+    /* 0x14 */ s32 anim_remap;     /* anim remap table (fn_8001267C), -1 */
+    /* 0x18 */ u32 model_max;      /* model arena byte budget   (0x0B800) */
+    /* 0x1C */ u32 model_buf_max;  /* model file byte budget    (0x4D800) */
+    /* 0x20 */ u32 arena_max;      /* texture arena byte budget (0x0B000) */
+    /* 0x24 */ char* model_buf;    /* model file buffer */
+    /* 0x28 */ u32 anim_max;       /* anim file byte budget     (0x01000) */
+    /* 0x2C */ s32 anim_remap2;    /* -1 */
+    /* 0x30 */ char* anim_buf;     /* anim file buffer */
+    /* 0x34 */ void* sfx_arena;    /* sfx model arena (0x2BC00 budget) */
+    /* 0x38 */ s32 sfx_remap;      /* -1 */
+    /* 0x3C */ u32 sfx_max;        /* sfx model budget (0x2BC00) */
+    /* 0x40 */ u32 sfx_buf_max;    /* sfx file budget  (0x0C000) */
+    /* 0x44 */ u32 sfx_arena_max;  /* sfx arena budget (0x18000) */
+    /* 0x48 */ char* sfx_buf;      /* sfx file buffer */
+} PlayerModelSlot;
+static PlayerModelSlot model_slot[4]; /* 0x514 (0x802753B4) */
+
+/* AppendItemToLevel template (0x802754E4, 0x50 bytes incl. name buf) */
+static s32  item_tmpl[8];          /* 0x644 (0x802754E4) type/count/flag/pos */
+static char item_name[0x14];       /* 0x66C (0x8027550C) item name buffer */
+static s32  item_tmpl2[5];         /* 0x680 (0x80275520) name ptr/flags/atree */
+
+/* got-it ticker entries (0x80275534, 24 entries) */
+typedef struct GotIt {
+    /* 0x00 */ s32 state;          /* 0 free, 1 fade-in, 2 hold, 3 wait, 4 out */
+    /* 0x04 */ s32 player;
+    /* 0x08 */ s32 type;           /* item class (1..10, 0xD, 0xF, 0x10) */
+    /* 0x0C */ s32 count;
+    /* 0x10 */ s32 timer;          /* hold countdown (0x5A) */
+    /* 0x14 */ void* blit1;        /* count text blit */
+    /* 0x18 */ void* blit2;        /* item icon blit */
+} GotIt;
+static GotIt got_it[24];           /* 0x694 (0x80275534) */
+
+static f32 death_pos[3];           /* 0x934 (0x802757D4) last death position */
+
+/* mini-inventory per-player box info (0x802757E0, "tb_info" on Xbox) */
+typedef struct TbInfo {
+    /* 0x00 */ s32 sel;            /* selected powerup slot, -1 none */
+    /* 0x04 */ s32 state;          /* 0 closed, 1 open, 2 sliding in, 3 out */
+    /* 0x08 */ s32 slide;          /* slide position 0..0x80 */
+    /* 0x0C */ s32 x_right;        /* label x (right anchor - 0x34) */
+    /* 0x10 */ s32 x_left;         /* box x (right anchor - 0x40) */
+    /* 0x14 */ s32 y_top;          /* 0x14F */
+    /* 0x18 */ s32 y_box;          /* 0x143 */
+    /* 0x1C */ s32 tex1;           /* 0xF9F1 */
+    /* 0x20 */ s32 tex2;           /* 0xF9F2 */
+    /* 0x24 */ char* label;        /* current powerup label */
+} TbInfo;
+static TbInfo tb_info[4];          /* 0x940 (0x802757E0) */
+
 static void* rune13_blit[4];       /* 0x9E0 (0x80275880) 13th-rune icons */
 static void* pm_blit[4][7];        /* 0x9F0 (0x80275890) power-meter septet */
 static void* key_blit[4][4];       /* 0xA60 (0x80275900) key icons */
@@ -315,19 +452,79 @@ extern s32 StartMagicHealFX(f32* pos);
 extern s32 PlaceEffectOnFloor(s32 fx, f32* pos);
 extern void SfxSetParent(s32 fx, void* node);
 
-/* this TU, beyond the slice (0x80077BF0..) */
-extern void fn_80077BF0(void* p);
-extern void fn_80077D38(void* p, s32 loaded);
-extern void fn_80077FBC(void* p, s32 it);
-extern s32 fn_80078108(void);
-extern void fn_80079100(s32 player);
-extern void fn_80079484(s32 player);
-extern void fn_80079D94(s32 player);
-extern void fn_8007CC48(void* p, s32 a, s32* b);
-extern void fn_8007E540(void* p, void* node);
-extern void fn_8007F874(void* p, s32 chartype, s32* c);
-extern void fn_8007FC80(void);
-extern void mini_inventory_update(s32 player);
+/* this TU, back slice (0x80077BF0..0x8008091C), forward decls */
+void PlayerProcessScale(void* p);
+static void do_exit(void* p, s32 dest);
+static s32 do_weakening(void* p, s32 active);
+static s32 all_players_go_to_same_level(void);
+void inactivate_player(s32 player);
+void abort_player(s32 player);
+s32 activate_player(s32 player);
+void PlayerProcessPowerups(void* p, s32 a, s32* b);
+static void PlayerProcessSkinFX(void* p, void* node);
+void check_player_atts(void* p, s32 chartype, s32* stats);
+static void do_got_it(void);
+void mini_inventory_update(s32 player);
+s32 heal_player(f32 amount, void* p);
+f32 player_max_health(void* p);
+s32 player_can_be_damaged(void* p);
+void kill_player(s32 player);
+void clear_player(s32 player, s32 full);
+void load_player(s32 player);
+void load_player_geo(s32 player, void* p);
+s32 set_hidden_player(void* p);
+s32 load_player_model(s32 player, void* p, s32 alt, char* name);
+s32 load_player_model_sub(s32 player, void* p, char* name, void* slot);
+void player_get_from_save(void* p, s32 chartype);
+void player_store_in_save(void* p, s32 chartype);
+void PlayerUpdateAtts(void* p);
+void set_player_default_atts(void* p);
+static void create_player_blits(s32 i);
+static void GetMaxPlayerModelSize(void);
+void PlayerProcessMikeyPUP(void* p);
+void AppendItemToLevel(f32 x, f32 y, f32 z, char* name);
+static s32 do_see_thru(void* p);
+static f32 ClosestChest(void* p);
+void PlayerAddPowerup(f32 duration, f32 strength, void* p, s32 type, u32 mask);
+void kill_got_it(s32 player);
+void SetPlayerWindows(s32 on);
+void PlayerRestoreState(void* p);
+void PlayerSaveState(void* p, s32 full);
+void mini_inventory_draw_label(s32 i);
+s32 mini_inventory_find_previous_selectable_item(s32 i);
+s32 mini_inventory_find_next_selectable_item(s32 i);
+void mini_inventory_setup(void);
+void init_got_it(void);
+void add_got_it(s32 player, s32 type, s32 count);
+void UpdatePlayerWorldMat(void* p, s32 anchor);
+void* PlayerModel(s32 i);
+void reset_players(void);
+void init_players(void);
+void setup_player_models(void);
+void SetupPlayerTexMods(s32 i);
+void DoPlayerTexMods(s32 i);
+void player_save_controls(s32 i);
+s32 PlayerLoadSaveFile(s32 i, s32 slot);
+s32 PlayerWriteSaveFile(s32 i, s32 slot);
+void PlayersRestoreHealth(void);
+void change_player(s32 i, s32 type);
+void new_player(s32 i);
+void damage_player(s32 i, f32 dmg, u32 flags, f32* dir);
+void do_heal_players(void* p, f32 amount);
+s32 PlayerOnMovingObject(void);
+s32 OtherPlayerOnOtherMovingObject(s32 i, u8* obj);
+void GetPlayerPos(s32 i, f32* out);
+void GetPlayerColPos(s32 i, f32* out);
+s32 PlayerSelecting(s32 i);
+s32 player_get_powerup_state(f32 dt, void* p, s32 type, u32 mask);
+void PlayerIncFight(void* p, u32 amount);
+void PlayerIncArmor(void* p, u32 amount);
+void PlayerIncMagic(void* p, u32 amount);
+void PlayerIncSpeed(void* p, u32 amount);
+void inactivate_player(s32 player);
+void abort_player(s32 player);
+void AppendBigapePowerupsToScene(void);
+void remove_player_geo(s32 i);
 
 /* player display (this slice, forward decls) */
 void setup_player_display(s32 i);
@@ -1159,7 +1356,7 @@ static s32 ModifyExp(Player* p, s32 delta) {
         while (need <= p->exp && p->level < 99) {
             res = 1;
             p->level = p->level + 1;
-            fn_8007F874(p, p->character, NULL);
+            check_player_atts(p, p->character, NULL);
             need = p->level;
             if (need + 1 <= 60) {
                 need = need * ((need + 1) * 30 + 1000);
@@ -1179,7 +1376,7 @@ static s32 ModifyExp(Player* p, s32 delta) {
             }
             res = -1;
             p->level = p->level - 1;
-            fn_8007F874(p, p->character, NULL);
+            check_player_atts(p, p->character, NULL);
         }
     }
     return res;
@@ -1447,7 +1644,7 @@ void do_players(void) {
             lbl_803444FC = 0;
             lbl_803444F4 = 1;
             lbl_803444E4 = 0;
-            loaded = fn_80078108();
+            loaded = all_players_go_to_same_level();
             if (!(lbl_803445CC & 4)) {
                 dbgTextPrintfCol(2, 2, "TRANSMITTER: CT=%02X, C1=%02X, C2=%02X, RATIO=%4.2f",
                                  lbl_80344508, lbl_80344510, lbl_8034450C, lbl_80344504);
@@ -1530,7 +1727,7 @@ void do_players(void) {
                 fn_80088688(p);
                 if (MBBackgroundLoading() == 0 && lbl_8034477C != 0x4013 &&
                     lbl_8034477C != 0x4017) {
-                    fn_80079D94(i);
+                    activate_player(i);
                 } else if (lbl_802575BC == 0 ||
                            (lbl_8034477C != 0x400B && lbl_8034477C != 0x400D &&
                             lbl_8034477C != 0x400F && lbl_8034477C != 0x4016)) {
@@ -1566,9 +1763,9 @@ void do_players(void) {
                         }
                     }
                     if (!any) {
-                        fn_80077BF0(p);
+                        PlayerProcessScale(p);
                         fn_80089120(p);
-                        fn_80077D38(p, loaded);
+                        do_exit(p, loaded);
                         break;
                     }
                 }
@@ -1629,7 +1826,7 @@ void do_players(void) {
                     }
                 }
                 update_player_milestone();
-                fn_8007CC48(p, 0, NULL);
+                PlayerProcessPowerups(p, 0, NULL);
                 if ((lbl_803445CC & 0x10) && lbl_802575B0 != 0 && i == 0 && lbl_8034439C < 0) {
                     fn_8005ACE0();
                 }
@@ -1645,9 +1842,9 @@ void do_players(void) {
                     p->fall_time = 0.0f;
                     p->fall_frames = 0;
                 }
-                fn_80077BF0(p);
+                PlayerProcessScale(p);
                 fn_80089120(p);
-                fn_80077FBC(p, it == i);
+                do_weakening(p, it == i);
                 break;
             case 5:
                 if (lbl_8034477C == 0x4013 || lbl_8034477C == 0x4017) {
@@ -1657,7 +1854,7 @@ void do_players(void) {
                         PF(PF(p, 0x6C8, u8*), 0x30, u32) = p->pos[0];
                         PF(PF(p, 0x6C8, u8*), 0x34, u32) = p->pos[1];
                         PF(PF(p, 0x6C8, u8*), 0x38, u32) = p->pos[2];
-                        fn_8007E540(p, PF(p, 0x6C8, void*));
+                        PlayerProcessSkinFX(p, PF(p, 0x6C8, void*));
                         if (p->character == 0xC) {
                             fn_800BA408(1.6f, 1.6f, 1.6f, p->node);
                         } else if (p->level < 99) {
@@ -1674,7 +1871,7 @@ void do_players(void) {
                 }
                 break;
             case 8:
-                fn_8007CC48(p, 0, NULL);
+                PlayerProcessPowerups(p, 0, NULL);
                 fn_80088688(p);
                 if (p->count_920 > 0) {
                     p->anim_20C = 0x7E;
@@ -1690,16 +1887,16 @@ void do_players(void) {
                 PF(PF(p, 0x6C8, u8*), 0x34, u32) = p->beacon_pos[1];
                 PF(PF(p, 0x6C8, u8*), 0x38, u32) = p->beacon_pos[2];
                 PF(PF(p, 0x6C8, u8*), 0x34, u32) = p->pos[1];
-                fn_80077BF0(p);
+                PlayerProcessScale(p);
                 fn_80089120(p);
                 if (p->count_920 < 1 && p->anim_208 != 0x7E) {
-                    fn_80079100(i);
+                    inactivate_player(i);
                 }
                 break;
             case 0xB:
                 if (lbl_8034477C == 0x4010 && p->motion_state == 1) {
                     if (lbl_80240E38[i * 0xF] & 0x8000000) {
-                        fn_80079484(i);
+                        abort_player(i);
                     }
                     if (lbl_80240E38[i * 0xF] & 0x2000000) {
                         p->motion_state = 0;
@@ -1709,9 +1906,9 @@ void do_players(void) {
             }
             p->prev_state = state;
         } else if (p->state == 1) {
-            fn_8007CC48(p, lbl_8034477C, NULL);
+            PlayerProcessPowerups(p, lbl_8034477C, NULL);
             PlayerMotion_SetAnimState(p);
-            fn_80077BF0(p);
+            PlayerProcessScale(p);
             fn_80089120(p);
             if (!(p->hud_flags2 & 0x20)) {
                 fn_8005A3B8(p->mat);
@@ -1764,7 +1961,3142 @@ void do_players(void) {
             lbl_80344500 = 0;
         }
         WritePlayerInfo(-1);
-        fn_8007FC80();
+        do_got_it();
         AudioAmbientUpdate();
     }
+}
+
+/* ================================================================== */
+/* BACK SLICE (0x80077BF0..0x8008091C) -- wired 2026-07-27.            */
+/* Faithful Ghidra transcriptions pending match passes; giants noted.  */
+/* ================================================================== */
+
+/* extern data (back slice) */
+extern char* lbl_80343D6C;    /* active hidden-character code ptr (set_hidden_player) */
+extern s32 lbl_80343D68;      /* mini-inventory label table count */
+extern s32 lbl_80343DAC;      /* bigape powerup table count */
+extern f32 lbl_80343D7C[];    /* att ranges: dmg lo/hi, armor, magic, speed, mdmg, mspd */
+extern s32 lbl_80257590;      /* NoDamage? cheat (1 = no damage, 2.. = invuln) */
+extern s32 lbl_80257594;      /* Unlimited? cheat (3 = unlimited turbo) */
+extern s32 lbl_802575A8;      /* Access? cheat (levels open) */
+extern s32 lbl_80257630[4];   /* per-player targeting state cleared at init */
+extern s32 lbl_80344370;      /* cutscene/no-damage global */
+extern s32 lbl_80344398;      /* boss floor index */
+extern s32 lbl_80251CCC[];    /* floor records, stride 0xE5 words */
+extern s32 lbl_80344744;      /* enemy count */
+extern s32 lbl_80251F44[];    /* enemy records target field, stride 0xE5 words */
+extern s32 lbl_8012028C[];    /* bigape powerup table, stride 5 words */
+extern u8* lbl_80344950;      /* gItems base (stride 0xF0) */
+extern s32 lbl_8028CAF4;      /* floor tree table (stride 0x50) */
+extern void* lbl_80344934;    /* see-thru tree (low) */
+extern void* lbl_80344938;    /* see-thru tree (high) */
+extern s32 lbl_8025EC68[4];   /* see-thru: player tree node */
+extern s32 lbl_8025EC78[4];   /* see-thru: active floor id, -1 none */
+extern u8* lbl_8025EC88[4];   /* see-thru: chest item ptr */
+extern s32 lbl_8025EC98[4];   /* see-thru: saved parent */
+extern u8* lbl_8025ECA8[4];   /* see-thru: proxy node */
+extern void* lbl_8025ECB8[4][0x12]; /* see-thru: overlay handle (stride 0x48) */
+extern u8* lbl_80282930[4];   /* per-player class record (att bases at +0x28..) */
+extern void* lbl_80240628[];  /* level-tier halo atrees [i*2], [i*2+1] */
+extern u32 lbl_80240E5C[];    /* pad config words, stride 0xF */
+extern u32 lbl_80240E60[];
+extern u32 lbl_80240E64[];
+extern u32 lbl_80240E68[];
+extern s32 lbl_80344828;      /* hidden-characters-allowed count */
+extern s32 lbl_80344970;      /* weapons-in-hand enabled */
+extern void* lbl_80344EB8;    /* HUD camera parent */
+extern s32 lbl_80344B08;      /* got_max_player_sizes once-flag */
+extern s32 lbl_80344B28;      /* INVENTORY file handle */
+extern void* lbl_8034496C;    /* global atree bank */
+extern void* lbl_80344BD4;    /* mikey camera parent */
+extern s32 lbl_80344BEC;      /* exit FX color */
+extern s32 lbl_80344820;      /* secret-exit destination */
+extern s32 lbl_80344848;      /* town level id */
+extern s32 lbl_80344B84;      /* battle-tower level id */
+extern s32 lbl_80344588;      /* frame parity counter */
+extern s32 lbl_80344DA4;      /* world loaded */
+extern s32 lbl_803447D0;      /* level-clear/exit progress state */
+extern s32 lbl_803447A8;      /* cleared at init_players */
+extern s32 lbl_803447AC;
+extern f32 lbl_80344B20;      /* x-ray range (mask & 8 powerup strength) */
+extern s32 lbl_803447C0;      /* widescreen/mode flag (rune13 blit) */
+
+/* hidden-character table (0x80120618, stride 0x24, 27 entries) */
+typedef struct HiddenChar {
+    /* 0x00 */ s32 class_id;
+    /* 0x04 */ s32 char_type;
+    /* 0x08 */ char name[8];   /* 6-char cheat name ("ICE600"..) */
+    /* 0x10 */ char code[16];  /* model/dir override tag */
+    /* 0x20 */ s32 unlocked;   /* available without cheat */
+} HiddenChar;
+extern HiddenChar lbl_80120618[27];
+
+/* powerup-cheat table (0x801209E4, stride 0x14, 27 entries) */
+typedef struct PupCheat {
+    /* 0x00 */ char name[8];
+    /* 0x08 */ s32 type;
+    /* 0x0C */ f32 value;
+    /* 0x10 */ u32 mask;
+} PupCheat;
+extern PupCheat lbl_801209E4[27];
+
+/* mini-inventory label table (0x8011FCE8, stride 0xC) */
+extern s32 lbl_8011FCE8[];    /* [i*3+0] type, [i*3+1] mask, [i*3+2] name ptr */
+
+extern char* lbl_80120104[];  /* per-pad player color names */
+extern char* lbl_801200F4[];  /* per-pad color dir names */
+extern char* lbl_8012006C[];  /* per-class dir names */
+extern char* lbl_80120184[];  /* per-class R_WRIST node names */
+extern char* lbl_80120144[];  /* per-class L_WRIST node names */
+extern s32 lbl_80120598[];    /* per-class weapon-variant flag */
+extern char* lbl_801205D8[];  /* rune world tags (4) */
+extern char* lbl_801205F8[];  /* crystal color tags (8) */
+extern char* lbl_8011FCD4[];  /* POTION_ICON_* names (5) */
+
+/* extern functions (back slice) */
+extern int rand(void);
+extern s32 strncmp(const char* a, const char* b, u32 n);
+extern void* memset(void* p, int c, u32 n);
+extern void* memcpy(void* d, const void* s, u32 n);
+extern f64 __fabs(f64 x);
+extern int fn_800C9BD0(char* buf, const char* fmt, ...);   /* sprintf variant */
+extern void FatalError(const char* fmt, ...);
+extern void FatalErrorf(const char* fmt, ...);
+extern int bulletproof_printf(const char* fmt, ...);
+extern s32 BytesFree(void);
+extern char* AllocMem(u32 size, s32 pool, char* tag);
+extern char* AllocFile(char* name, char* mode, u32 sizehint, char* buf);
+extern void MLMReadFile(char* name, char* mode, u32 size, char* buf);
+extern void* AtreeMatch(void* bank, char* name, s32 a);
+extern u32 MBOX_LoadModelFixed(char* name, u32 arena, s32 a, char* b, u32 c);
+extern void CopyMat3(f32* src, f32* dst);
+
+extern void fn_800BA4D0(void* node, s32 frame, s32 mode);
+extern void fn_800BA56C(void* node, s32 a, s32 b, s32 c);
+extern void fn_800BA6C0(void* node, s32 mask, s32 set);
+extern void fn_800BAEAC(void* node, s32 a);
+extern s32 fn_80091210(f32* v, void* node, s32 a);
+extern s32 fn_8006D7BC(void);
+extern void fn_8009D258(f32* pos);
+extern void fn_800A1994(void);
+extern u32 fn_80057E6C(s32 a);
+extern u32 fn_80057D94(s32 a);
+extern void fn_800911C8(f32 scale, f32* v, s32 color, s32 n, s32 one);
+extern void fn_8002C49C(f32* mat);
+extern void fn_800BE4F4(f32 ang, f32* mat);
+extern void fn_8009F198(s32 player);
+extern s32 fn_8005B8FC(void* p);
+extern f32 fn_800BCB44(f32 dx, f32 dz);
+extern void fn_8009190C(f32* pos, s32 amount);
+extern s32 fn_8002F5D8(f32 armor, f32* dmg, u32* flags, u32 shield);
+extern f64 fn_800EA944(f64 x, f64 z);
+extern void fn_8009233C(f32 dmg, s32 player);
+extern void fn_8009FFF4(s32 kind, s32 player);
+extern void fn_8009F9E8(s32 player);
+extern void fn_8009F960(s32 player);
+extern void fn_8009F7D8(s32 player);
+extern void fn_8009F250(s32 player);
+extern void fn_8009F2DC(f32 dmg, s32 player, s32 kind);
+extern s32 fn_80031938(s32 player, s32 lvl, s32 n);
+extern void fn_800115D0(void** h);
+extern s32 fn_80012F78(void* atree, void* out, s32 a, s32 flags);
+extern void fn_80011104(void** h, s32 a, s32 b);
+extern void fn_80091F34(f32* pos, s32 n);
+extern s32* fn_80063928(s32 a, s32 b, char* name, f32* mat);
+extern s32* fn_80063A44(s32* tmpl, f32* pos, s32 a, s32 b);
+extern void fn_80064154(s32* item);
+extern s32 fn_800675F8(s32 item, s32 a, s32 b);
+extern void fn_800A0C00(void);
+extern void fn_800A1E6C(s32 player, s32 track, s32 sub);
+extern void fn_8008FC5C(s32 player);
+extern s32 fn_8008FE70(s32 player);
+extern void fn_8008A928(s32 player, s32 chartype, void* flag);
+extern void fn_80031110(s32 player);
+extern void fn_80030C84(void* p);
+extern void fn_800E80D4(char* dst, char* src);
+extern s32 fn_800E5B08(s32 c);
+extern void fn_800E8090(char* dst, char* src, s32 n);
+extern void* fn_800BB29C(void* parent, f32* mat, s32 a);
+extern s32 fn_80011BBC(void* modelbuf, char* name, void* atree_out, char* tmp, s32 size);
+extern void fn_800ADD24(void* atree, void* animctx, s32 bank);
+extern s32 fn_800B8E94(char* name, s32 a, s32 b, s32 dir);
+extern s32* fn_800114E8(void* atree, s32 idx);
+extern void* fn_800B91C0(s32 node, f32* mat, void* c, u32 flags);
+extern void fn_800CEA18(s32 node, s32 a);
+extern s32 fn_800184E8(s32 model, char* fmt, char* code, char* d, s32 e, s32 f);
+extern u32 fn_800B8B34(char* name, s32* out, s32 b);
+extern void* fn_800B3AFC(s32 a, u32 tex, s32 x, s32 y, s32 w, s32 h);
+extern void fn_800B2F8C(f32 z, void* blit);
+extern s32 fn_800B2980(void* blit);
+extern void fn_800B2988(void* blit, u32 tex, s32 b);
+extern void fn_800B2D4C(void* blit, s32* x, s32* y, f32* z);
+extern void fn_800B3014(void* blit, s32 y);
+extern void fn_800B3288(void* blit, s32 alpha, s32 b);
+extern void fn_800B2E78(f32 z, void* blit, s32 x, s32 y);
+extern void fn_8001EBCC(f32 scale, s32 x, s32 y, char* text);
+extern void fn_8009D42C(void);
+extern void fn_8009D3D4(void);
+extern void fn_8009D458(void);
+extern void fn_80043490(f32 pad, f32* pos);
+extern s32 fn_800433EC(void);
+extern s32 fn_800BB5F4(f32 r, s32* pos);
+extern s32 fn_80068A4C(s32 a, s32 b, s32 c, void* buf, s32* size);
+extern s32 fn_80068BEC(s32 a, s32 b, s32 c, void* buf, s32 size);
+extern s32 fn_80069540(s32 a, s32 b);
+extern s32 fn_8006AF7C(char* msg, ...);
+extern s32 fn_8006AFE0(char* prompt, s32* colors, s32 n);
+extern s32 fn_80074548(s32 a, s32 b);
+extern void fn_800330D4(s32 a, s32* b, s32 c);
+extern void fn_80033C5C(void);
+extern s32 fn_80031504(u32 button);
+extern s32 fn_80031540(u32 button);
+extern s32 InitTexMods(void* modelbuf, u32 arena);
+extern void DoTexMods(void* modelbuf);
+extern s32 fn_8001267C(u16* anim, u32 arena, s32 old);
+extern void fn_8005A404(f32* mat, f32* fwd, f32* pos);
+extern void ShopLoadData(s32 file);
+extern void fn_8009F118(s32 player);
+extern void get_player_pos(void);
+extern void fn_800BD050(f32* out, f32* rec, u8* c);
+extern s32 fn_800579E0(s32* entry);
+extern u32 MBOX_FindTexture2(char* name, s32* out); /* fn_800B8B04 */
+extern void fn_800184B8(s32 sfx);
+extern void ErrorPrintf(const char* fmt, ...);
+extern void fn_80097644(u8* node, s32 a, s32 player);
+extern void fn_8008A898(s32 player);
+
+/* per-char save-stat block view: p + 0xA90 + character*0x18 */
+#define CHAR_STATS(p, t) ((s32*)((u8*)(p) + 0xA90 + (t) * 0x18))
+/* [0]=exp [1]=health [2]=fight [3]=armor [4]=magic [5]=speed (f32 bits) */
+
+/* per-char item block view: p + 0xDD0 + character*0xF0 */
+#define CHAR_ITEMS(p, t) ((u8*)(p) + 0xDD0 + (t) * 0xF0)
+/* +0 keys(s16) +2 potions(s16) +4 runes(u16) +6 shards(u16) +0xA pottypes +0x30 gold */
+
+/* powerup slot view: p + 0x130 + i*0x10 (11 slots) */
+#define PUP_STRENGTH(p, i) PF(p, 0x130 + (i) * 0x10, f32)
+#define PUP_TYPE(p, i)     PF(p, 0x134 + (i) * 0x10, s32)
+#define PUP_TIMER(p, i)    PF(p, 0x138 + (i) * 0x10, f32)
+#define PUP_MASK(p, i)     PF(p, 0x13C + (i) * 0x10, u32)
+#define PUP_DIRTY(p, i)    PF(p, 0x1E0 + (i), u8)
+
+/* attribute norms / derived stats */
+#define ATT_FIGHT(p)   PF(p, 0xF4, f32)
+#define ATT_ARMOR(p)   PF(p, 0xF8, f32)
+#define ATT_MAGIC(p)   PF(p, 0xFC, f32)
+#define ATT_SPEED(p)   PF(p, 0x100, f32)
+#define STAT_DMG(p)    PF(p, 0x104, f32)
+#define STAT_ARMOR(p)  PF(p, 0x108, f32)
+#define STAT_MAGIC(p)  PF(p, 0x10C, f32)
+#define STAT_SPEED(p)  PF(p, 0x110, f32)
+#define STAT_MDMG(p)   PF(p, 0x114, f32)
+#define STAT_MSPD(p)   PF(p, 0x118, f32)
+#define HIDDEN_CODE(p) PF(p, 0xF0, char*)
+
+/* ------------------------------------------------------------------ */
+/* per-frame processors                                                */
+/* ------------------------------------------------------------------ */
+
+/* Decay the shrink/grow potion scale back toward 1 and clamp tiny.    */
+void PlayerProcessScale(void* vp) {
+    Player* p = vp;
+    f32 s;
+
+    s = PF(p, 0x7FC, f32);
+    if (s != 0.0) {
+        PF(p, 0x7FC, f32) = s * 0.995;
+        if (__fabs(PF(p, 0x7FC, f32)) < 0.01) {
+            PF(p, 0x7FC, f32) = 0.0f;
+        }
+        fn_800BA4D0(p->node, (s32)(100.0 * s), 1);
+    }
+    if (PF(p, 0x7DC, f32) > 0.0f) {
+        PF(p, 0x95A, s16) = 1;
+    } else if (PF(p, 0x95A, s16) != 0) {
+        PF(p, 0x95A, s16) = 0;
+    }
+    if (fn_80091210((f32*)((u8*)p + 0x7DC), p->node, 0) == 0 &&
+        *(s16*)(p->node + 0x5C) < -1) {
+        fn_800BA56C(p->node, -1, 0, 1);
+        fn_800BA4D0(p->node, 0, 1);
+    }
+}
+
+/* Is player i on the character-select overlay?                        */
+s32 PlayerSelecting(s32 i) {
+    if (P(i)->state != 2 && P(i)->state != 3) {
+        return 0;
+    }
+    return 1;
+}
+
+/* Sink-and-spin exit sequence; dest chooses the next level.           */
+static void do_exit(void* vp, s32 dest) {
+    Player* p = vp;
+    s16 t;
+
+    if (fn_8006D7BC() != 0) {
+        return;
+    }
+    if (PF(p, 0x1F2, s16) == 0 && dest != 0) {
+        PF(p, 0x1F2, s16) = (lbl_8034481C == 0) ? 0x32 : 0;
+        if (lbl_803447B4 == 0) {
+            fn_8009D258(p->pos);
+            fn_800A1994();
+            lbl_803447B4 = 1;
+        }
+        PF(p, 0x8B8, f32) = PF(p, 0x8B4, f32);
+        if (lbl_8034481C >= 0x10000) {
+            PF(p, 0x830, s32) = lbl_8034481C - 0x10000;
+        } else if (lbl_8034481C >= 0xD) {
+            PF(p, 0x830, s32) = lbl_80344B84;
+        } else if (lbl_8034481C == 0xC) {
+            PF(p, 0x830, s32) = lbl_80344848;
+        } else if (lbl_8034481C >= 3) {
+            PF(p, 0x830, s32) = ((lbl_8034481C - 3) & 0xFF) | 0xC00;
+        } else if (lbl_8034481C == 2) {
+            PF(p, 0x830, s32) = (dest < 0) ? lbl_80344820 : dest;
+        } else if (lbl_8034481C == 1) {
+            PF(p, 0x830, s32) = (dest < 0) ? (s32)fn_80057E6C(1) : dest;
+        } else if (lbl_8034481C == -1) {
+            PF(p, 0x830, s32) = (dest < 0) ? (s32)fn_80057D94(1) : dest;
+        } else {
+            PF(p, 0x830, s32) = dest;
+        }
+        fn_800911C8(1.5f, (f32*)((u8*)p + 0x7DC), lbl_80344BEC, 10, 1);
+    }
+    t = PF(p, 0x1F2, s16) - lbl_8034457C;
+    PF(p, 0x1F2, s16) = t;
+    if (t < 1) {
+        PF(p, 0x1F2, s16) = 0;
+        if (p->state != 5) {
+            p->state = 5;
+            fn_8002C49C(p->mat);
+        }
+    } else if (PF(p, 0x8B8, f32) < 1.0 + 0.5 * PF(p, 0x854, f32) + p->pos[1]) {
+        /* still above the hole floor: sink and spin */
+        p->pos[0] += 0.0f * (f32)lbl_8034457C;
+        p->pos[1] += -0.06f * (f32)lbl_8034457C;
+        p->pos[2] += 0.0f * (f32)lbl_8034457C;
+        fn_800BE4F4((f32)(0.5 * lbl_80344590), p->mat);
+        p->hud_flags |= 1;
+    }
+}
+
+/* Health-drain warning beeps; returns -1 once health is gone.         */
+static s32 do_weakening(void* vp, s32 active) {
+    Player* p = vp;
+    s16 t;
+
+    if (PF(p, 0xA30, s32) != 0) {
+        if (p->state == 1 && (lbl_803445CC & 4) == 0 && lbl_803448D8 != 0xC) {
+            PF(p, 0xA2C, s32) += lbl_8034457C;
+            if (PF(p, 0xA2C, s32) >= PF(p, 0xA30, s32)) {
+                PF(p, 0xA2C, s32) -= PF(p, 0xA30, s32);
+            }
+        }
+    }
+    if (p->health < 1.0) {
+        return -1;
+    }
+    if (active != 0 && p->health <= 150.0f) {
+        t = PF(p, 0x1F6, s16) - lbl_8034457C;
+        PF(p, 0x1F6, s16) = t;
+        if (t < 1) {
+            if (lbl_803448D8 != 0xD && (PF(p, 0x120, u32) & 0x110000) == 0) {
+                fn_8009F198(p->index);
+            }
+            if (p->health >= 100.0f) {
+                PF(p, 0x1F6, s16) = 0x78;
+            } else if (p->health >= 50.0f) {
+                PF(p, 0x1F6, s16) = 0x3C;
+            } else {
+                PF(p, 0x1F6, s16) = 0x1E;
+            }
+        }
+    }
+    return 0;
+}
+
+/* All exiting players agree on a destination? 0 = no/blocked.         */
+static s32 all_players_go_to_same_level(void) {
+    Player* p = P(0);
+    s32 dest = 0;
+    s32 i;
+
+    if (lbl_803447D0 < 0xE && lbl_8034481C == 0) {
+        return 0;
+    }
+    for (i = 0; i < 4; i++, p++) {
+        if (p->state == 1) {
+            return 0;
+        }
+        if (p->state == 4) {
+            if (dest == 0) {
+                dest = fn_8005B8FC(p);
+            } else if (dest != fn_8005B8FC(p)) {
+                return 0;
+            }
+        }
+    }
+    return dest;
+}
+
+/* Player index+1 if someone is riding a moving lift/platform.         */
+s32 PlayerOnMovingObject(void) {
+    Player* p = P(0);
+    u8* obj;
+    u32 flags;
+    s32 i;
+
+    if (lbl_8034477C != 0x4010) {
+        return 0;
+    }
+    for (i = 0; i < 4; i++, p++) {
+        if (p->state == 1 && (obj = PF(p, 0x8DC, u8*)) != NULL &&
+            *(s32*)(obj + 0x28) != 0) {
+            flags = *(u32*)(obj + 0x10);
+            if (*(s32*)(obj + 0x18) != 0) {
+                flags |= *(u32*)(*(u8**)(obj + 0x18) + 0x10);
+            }
+            if ((flags & 0x1000) && (flags & 0x8000000) && (flags & 0x300000)) {
+                return i + 1;
+            }
+        }
+    }
+    return 0;
+}
+
+/* Another player (not i / not obj) currently riding something?        */
+s32 OtherPlayerOnOtherMovingObject(s32 i, u8* obj) {
+    Player* p = P(0);
+    u8* o;
+    s32 j;
+
+    for (j = 0; j < 4; j++, p++) {
+        if (j != i && p->state == 1 && (o = PF(p, 0x8DC, u8*)) != NULL && o != obj) {
+            if (*(s32*)(o + 0x28) != 0 && (*(u32*)(o + 0x10) & 0x4000)) {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+/* Heal-others potion: heal every other player in range of p.          */
+void do_heal_players(void* vp, f32 amount) {
+    Player* p = vp;
+    Player* q;
+    f32 cap;
+    f32 give;
+    f32 d;
+    s32 i;
+
+    give = 0.25f * amount;
+    q = P(0);
+    for (i = 0; i < 4; i++, q++) {
+        if (i != p->index && q->state == 1) {
+            d = fn_800BCB44(p->pos[0] - q->pos[0], p->pos[2] - q->pos[2]);
+            if (d < p->magic_power) {
+                cap = 0.5f * (q->level - 1) + 30.0f;
+                if (cap > 9999.0f) {
+                    cap = 9999.0f;
+                }
+                if (give <= 0.0f || q->health < cap) {
+                    q->health += give;
+                    if (q->health > cap) {
+                        q->health = cap;
+                    }
+                }
+            }
+        }
+    }
+    msgPost(0x93, p->index, (u32)p->pos);
+}
+
+/* Heal one player; 0 = already full, 1 = capped, 2 = healed.          */
+s32 heal_player(f32 amount, void* vp) {
+    Player* p = vp;
+    f32 cap;
+
+    cap = 0.5f * (p->level - 1) + 30.0f;
+    if (cap > 9999.0f) {
+        cap = 9999.0f;
+    }
+    if (amount > 0.0f && p->health >= cap) {
+        return 0;
+    }
+    p->health += amount;
+    if (p->health <= cap) {
+        return 2;
+    }
+    p->health = cap;
+    return 1;
+}
+
+/* Level-scaled maximum health (9999 cap).                             */
+f32 player_max_health(void* vp) {
+    Player* p = vp;
+    f32 cap;
+
+    cap = 0.5f * (p->level - 1) + 30.0f;
+    if (cap > 9999.0f) {
+        cap = 9999.0f;
+    }
+    return cap;
+}
+
+/* Vulnerability gate shared with damage_player.                       */
+s32 player_can_be_damaged(void* vp) {
+    Player* p = vp;
+
+    if ((PF(p, 0x208, s32) < 0x58 || PF(p, 0x208, s32) > 0x5A) &&
+        p->action < 0xB && (p->hud_flags & 0x10) == 0 && PF(p, 0x6B8, s32) == 0) {
+        return 1;
+    }
+    return 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* damage / death / lifecycle                                          */
+/* ------------------------------------------------------------------ */
+
+extern u8 lbl_801201C4;       /* weakening default period */
+
+/*
+ * Apply damage to player i.  flags carry the damage-kind mask (0x600 =
+ * directional/back-stab family, 0x10160 = heavy, 0x8000 = scripted,
+ * 0x200 = front-arc-checked); dir is the attacker facing for the
+ * front-arc test.  Armor absorbs via fn_8002F5D8, grunts/gore route
+ * through the sfx TU, and the death path posts msg 0xD, drops the meter
+ * and got-it entries, and parks state 8 (dying).
+ */
+void damage_player(s32 i, f32 dmg_in, u32 flags, f32* dir) {
+    Player* p = P(i);
+    f32 dmg = dmg_in;
+    u32 fl = flags;
+    s32 invuln;
+    s32 hp_new;
+    s32 hp_old;
+    f32 hp;
+    f64 red;
+    u16 hf;
+
+    if (p->state != 1 || lbl_803443B4 != 0 || (fl & 0x200) != 0) {
+        return;
+    }
+    if (player_can_be_damaged(p) == 0) {
+        return;
+    }
+
+    invuln = lbl_80257590;
+    if (invuln < 2) {
+        invuln = (invuln >= 1 && dmg == 999999.0f) ? 1 : 0;
+    }
+    if ((fl & 0x8000) == 0) {
+        if (invuln > 2 || p->state == 4 || lbl_80344370 != 0 ||
+            (lbl_8034439C >= 0 && lbl_80344398 >= 0 &&
+             lbl_80251CCC[lbl_80344398 * 0xE5] != 1)) {
+            return;
+        }
+        if (dmg > 1.0) {
+            dmg = dmg * PF(lbl_8034483C, 0xA4, f32);
+        }
+    }
+    fn_8002F5D8(STAT_ARMOR(p), &dmg, &fl, PF(p, 0x120, u32));
+    if ((fl & 0x40000000) && (PF(p, 0x124, u32) & 1)) {
+        dmg = 0.0f;
+    }
+    if (dmg > 0.05f) {
+        hf = p->hud_flags;
+        if ((hf & 0x600) == 0) {
+            /* front hit: "ouch" speech occasionally */
+            if (dmg > 40.0f && (fl & 0x10160) && (hf & 0x2000) == 0 &&
+                lbl_80344594 > 5.0) {
+                msgPost(0x7D, p->index, (u32)&p->name);
+            }
+        } else {
+            /* shielded/back arc */
+            if ((hf & 0x200) == 0) {
+                dmg = dmg * 0.25;
+            } else if (dir == NULL) {
+                dmg = 0.0f;
+            } else {
+                red = fn_800EA944(dir[0], dir[2]) - PF(p, 0x894, f32);
+                if (red > 3.141592653589793) {
+                    red = red - 6.283185307179586;
+                } else if (red <= -3.141592653589793) {
+                    red = red + 6.283185307179586;
+                }
+                if ((f32)red <= -1.5707963267948966 || (f32)red >= 1.5707963267948966) {
+                    dmg = dmg * 0.25;
+                } else {
+                    dmg = 0.0f;
+                }
+            }
+            if (dmg_in - dmg > 0.5 && PF(p, 0x1FE, s16) < 1) {
+                f64 clank = 0.75 * dmg;
+                if (clank < 0.1) {
+                    clank = 0.1;
+                } else if (clank > 1.0) {
+                    clank = 1.0;
+                }
+                fn_8009233C((f32)clank, p->index);
+                PF(p, 0x1FE, s16) = (s16)(s32)(5.0 * clank);
+                p->hud_flags |= 0x2000;
+            }
+            if ((fl & 0x10160) == 0) {
+                fl &= ~0x10;
+            } else {
+                fl = (fl & 0xFFFEFE9F) | 0x10;
+            }
+        }
+    }
+
+    hp = p->health;
+    if (dmg >= 0.0) {
+        if (invuln == 0 && (fl & 0x8000) == 0) {
+            p->health = hp - dmg;
+        }
+        PF(p, 0x8D0, f32) += dmg;
+        if (invuln < 2) {
+            if (fl & 0xF) {
+                PF(p, 0x8D4, u32) &= ~0xF;
+            }
+            if (dmg <= 0.5f) {
+                fl &= 0xFFFEFE8F;
+            }
+            PF(p, 0x8D4, u32) |= fl;
+            if (dir != NULL) {
+                PF(p, 0x8DC, f32) += dir[0];  /* hit push vec */
+                PF(p, 0x8E0, f32) += dir[1];
+                PF(p, 0x8E4, f32) += dir[2];
+            }
+            if (dmg > 0.0f) {
+                if (fl & 0x800) {
+                    PF(p, 0x898, f32) = 1.0f + lbl_80344594;
+                }
+                if (fl & 0x1000) {
+                    PF(p, 0x898, f32) = 4.0f + lbl_80344594;
+                }
+                if (fl & 0x10040) {
+                    fn_80031938(i, 3, 0x1E);
+                } else if (fl & 0x120) {
+                    fn_80031938(i, 2, 0x14);
+                } else if (fl & 0x90) {
+                    fn_80031938(i, 1, 0xF);
+                } else {
+                    fn_80031938(i, 0, 10);
+                }
+            }
+        }
+    } else {
+        /* negative damage heals */
+        p->health = hp - dmg;
+        if (fl & 0x8000) {
+            if (fl & 0xF) {
+                PF(p, 0x8D4, u32) &= ~0xF;
+            }
+            PF(p, 0x8D4, u32) |= fl;
+            if (dir != NULL) {
+                PF(p, 0x8DC, f32) += dir[0];
+                PF(p, 0x8E0, f32) += dir[1];
+                PF(p, 0x8E4, f32) += dir[2];
+            }
+        }
+    }
+
+    if (p->health >= 1.0) {
+        /* grunt tiers on crossing 150/50 hp; big-hit speech (msg 0xD) */
+        hp_old = (s32)(0.25 + hp);
+        hp_new = (s32)(0.25 + p->health);
+        if (hp_old >= 0x97 && hp_new <= 0x96) {
+            if (msgPost(0xD, i, (u32)&p->name) == 0) {
+                fn_8009FFF4(1, i);
+            }
+        } else if (hp_old >= 0x33 && hp_new <= 0x32) {
+            fn_8009FFF4((lbl_80344588 & 1) ? 3 : 2, i);
+        } else {
+            s32 kind = (s32)dmg;
+            if (kind == 2) {
+                if (dmg > 0.0f) {
+                    fn_8009F9E8(i);
+                }
+                PF(p, 0x8D0, f32) = 0.0f;
+            } else if (kind == 3) {
+                fn_8009F960(i);
+                PF(p, 0x8D0, f32) = 0.0f;
+            } else if (kind != 0) {
+                if (hp_old - hp_new < 0x3D) {
+                    if (PF(p, 0x8D0, f32) >= 45.0) {
+                        PF(p, 0x8D0, f32) -= 45.0;
+                        if (dmg > 0.0f) {
+                            fn_8009F9E8(i);
+                        }
+                    }
+                } else {
+                    if (dmg > 0.0f) {
+                        fn_8009F9E8(i);
+                    }
+                    PF(p, 0x8D0, f32) = 0.0f;
+                }
+            }
+        }
+        /* gore burst on heavy hit */
+        if (dmg >= 1.0 && (fl & 0x800) == 0) {
+            if (PF(p, 0x1F0, s16) < 1) {
+                s32 kind2 = 0;
+                if (fl & 0x20000) {
+                    kind2 = 1;
+                } else if (fl & 0x40000) {
+                    kind2 = 2;
+                }
+                if (dmg > 0.0f) {
+                    fn_8009F2DC(dmg, i, kind2);
+                }
+                PF(p, 0x1F0, s16) = 0x1E;
+            }
+        } else if (dmg >= 1.0) {
+            if (dmg > 0.0f) {
+                fn_8009F7D8(i);
+            }
+        }
+    } else {
+        /* death */
+        fn_8009F250(i);
+        p->state = 8;
+        PF(p, 0x1920, s32) = 4;
+        p->health = 0.0f;
+        PF(p, 0x828, f32) = 0.0f;
+        kill_got_it(i);
+        if (lbl_80344B24 == i) {
+            lbl_80344B24 = -1;
+            if (lbl_80344B04 != NULL) {
+                MBRemoveBlit(lbl_80344B04);
+                lbl_80344B04 = NULL;
+            }
+        }
+    }
+}
+
+/*
+ * player_dies teardown -- static on Xbox, auto-inlined on GC into
+ * kill_player / inactivate_player / abort_player (inlined-shared-helper
+ * law; the standalone copy deadstrips).  Stops motion, unhooks the
+ * grab proxy, clears got-it entries, and drops the keyring item.
+ */
+static void player_dies(s32 i) {
+    Player* p = P(i);
+    s32* chest;
+    s32 keys;
+    s32 j;
+    f32 m[16];
+
+    fn_8002C49C(p->mat);
+    if (lbl_8025ECB8[i][0] != NULL) {
+        fn_800115D0(&lbl_8025ECB8[i][0]);
+    }
+    fn_800BA368((void*)lbl_8025EC68[i], 1, 0);
+    /* restore the see-thru chest proxy to its tree */
+    if (lbl_8025EC88[i] != NULL) {
+        u8* ch = lbl_8025EC88[i];
+        u8* node = *(u8**)(ch + 100);
+        if (node != NULL) {
+            fn_800BAD94(node, (void*)lbl_8025EC98[i]);
+            fn_800BA6C0(node, 0, 1);
+            CopyMat3((f32*)lbl_8025ECA8[i], (f32*)node);
+            *(s32*)(node + 0x30) = *(s32*)(lbl_8025ECA8[i] + 0x30);
+            *(s32*)(node + 0x34) = *(s32*)(lbl_8025ECA8[i] + 0x34);
+            *(s32*)(node + 0x38) = *(s32*)(lbl_8025ECA8[i] + 0x38);
+        }
+    }
+    lbl_8025EC88[i] = NULL;
+    for (j = 0; j < 24; j++) {
+        if (got_it[j].player == i) {
+            got_it[j].state = 0;
+            if (got_it[j].blit1 != NULL) {
+                MBRemoveBlit(got_it[j].blit1);
+                got_it[j].blit1 = NULL;
+            }
+            if (got_it[j].blit2 != NULL) {
+                MBRemoveBlit(got_it[j].blit2);
+                got_it[j].blit2 = NULL;
+            }
+        }
+    }
+    keys = PF(p, 0x1EB8, s32);
+    if (keys > 0 && lbl_803448D8 != 0xD) {
+        CopyMat4(lbl_80127D60, m);
+        m[12] = death_pos[0];
+        m[13] = death_pos[1];
+        m[14] = death_pos[2];
+        CopyMat4(p->mat, m);
+        if (lbl_8034439C < 0) {
+            chest = fn_80063928(1, 2, (keys == 1) ? "KEY" : "KEYRING", m);
+            if (chest != NULL) {
+                chest[0x38] = keys;
+            }
+        }
+    }
+    PF(p, 0x1EB8, s32) = 0;
+    remove_player_geo(i);
+    fn_800A0C00();
+    for (j = 0; j < 11; j++) {
+        memset((u8*)p + 0x130 + j * 0x10, 0, 0x10);
+    }
+    PF(p, 0x1EC, s32) = 0;
+    PF(p, 0x124, u32) = 0;
+}
+
+/* Kill player i outright (health gone): teardown + dead-display.      */
+void kill_player(s32 i) {
+    Player* p = P(i);
+
+    if (p->state != 0) {
+        if (p->node != NULL) {
+            player_dies(i);
+        }
+        PF(p, 0x834, s32) = 0;
+        p->health = 0.0f;
+        p->state = 0xB;
+        p->motion_state = 1;
+        setup_player_display(i);
+    }
+}
+
+/* Park player i (level change / joined-late slot). In the tower the   */
+/* slot just goes back to selecting with saved-health restore.         */
+void inactivate_player(s32 i) {
+    Player* p = P(i);
+
+    if (lbl_803448D8 == 0xD) {
+        p->state = 1;
+        PlayerRestoreState(p);
+        return;
+    }
+    fn_800A1E6C(i, lbl_803448D8, lbl_803448D4);
+    p->state = 0xB;
+    p->motion_state = 1;
+    setup_player_display(i);
+    p->health = 0.0f;
+    if (p->node != NULL) {
+        death_pos[0] = p->pos[0];
+        death_pos[1] = p->pos[1];
+        death_pos[2] = p->pos[2];
+        player_dies(i);
+    }
+    setup_player_display(i);
+}
+
+/* Hard-drop player i out of the game (slot free).                     */
+void abort_player(s32 i) {
+    Player* p = P(i);
+    s32 j;
+
+    PF(p, 0x3328, s32) = 0;
+    p->state = 0;
+    p->motion_state = 0;
+    PF(p, 0x333C, s32) = 0;
+    fn_80031110(i);
+    PF(p, 0x1F4, s16) = 0xB4;
+    if (p->node != NULL) {
+        player_dies(i);
+    }
+    if (lbl_8034477C & 0x4000) {
+        setup_player_display(i);
+        for (j = 0; j < 7; j++) {
+            mbBlitInit3414(pm_blit[i][j], 1);
+        }
+    }
+    clear_player(i, 1);
+}
+
+/* Collision-probe position (offset 0x64).                             */
+void GetPlayerColPos(s32 i, f32* out) {
+    Player* p = P(i);
+
+    out[0] = p->col_pos[0];
+    out[1] = p->col_pos[1];
+    out[2] = p->col_pos[2];
+}
+
+/* World position (offset 0x44).                                       */
+void GetPlayerPos(s32 i, f32* out) {
+    Player* p = P(i);
+
+    out[0] = p->pos[0];
+    out[1] = p->pos[1];
+    out[2] = p->pos[2];
+}
+
+/* Tear down the in-world player geo (nodes, weapon, mikey, atree).    */
+void remove_player_geo(s32 i) {
+    Player* p = P(i);
+    u8* kid;
+
+    if (PF(p, 0x6D0, s32) != 0) {
+        fn_800CEA18(PF(p, 0x6D0, s32), 1);
+    }
+    if (PF(p, 0x6CC, s32) != 0) {
+        fn_800CEA18(PF(p, 0x6CC, s32), 1);
+    }
+    if (PF(p, 0x6D4, s32) != 0) {
+        fn_800CEA18(PF(p, 0x6D4, s32), 1);
+    }
+    if (PF(p, 0x7F8, s32) >= 0) {
+        fn_800184B8(PF(p, 0x7F8, s32));
+    }
+    if (PF(p, 0x6E0, void*) != NULL) {
+        fn_800BAEAC(PF(p, 0x6E0, void*), 0);
+        PF(p, 0x6E0, void*) = NULL;
+    }
+    if (PF(p, 0x748, s32) != 0) {
+        fn_800115D0((void**)((u8*)p + 0x748));
+    }
+    if (PF(p, 0x790, s32) != 0) {
+        fn_800115D0((void**)((u8*)p + 0x790));
+    }
+    if (PF(p, 0x6E4, s32) != 0) {
+        fn_800115D0((void**)((u8*)p + 0x6E4));
+    }
+    if (PF(p, 0x730, void*) != NULL) {
+        fn_800BAEAC(PF(p, 0x730, void*), 0);
+        PF(p, 0x730, void*) = NULL;
+    }
+    if (PF(p, 0x72C, void*) != NULL) {
+        fn_800BAEAC(PF(p, 0x72C, void*), 0);
+        PF(p, 0x72C, void*) = NULL;
+    }
+    if (PF(p, 0x734, void*) != NULL) {
+        fn_800BAEAC(PF(p, 0x734, void*), 0);
+        PF(p, 0x734, void*) = NULL;
+    }
+    if (PF(p, 0x73C, void*) != NULL) {
+        fn_800BAEAC(PF(p, 0x73C, void*), 0);
+        PF(p, 0x73C, void*) = NULL;
+    }
+    if (PF(p, 0x740, void*) != NULL) {
+        fn_800BAEAC(PF(p, 0x740, void*), 0);
+        PF(p, 0x740, void*) = NULL;
+    }
+    if (PF(p, 0x968, void*) != NULL) {
+        fn_800BAEAC(PF(p, 0x968, void*), 0);
+        PF(p, 0x968, void*) = NULL;
+    }
+    if (PF(p, 0x96C, s32) != 0) {
+        fn_800115D0((void**)((u8*)p + 0x96C));
+    }
+    PF(p, 0xA1C, s16) = 0;
+    if (PF(p, 0x96C, s32) != 0) {
+        fn_800115D0((void**)((u8*)p + 0x96C));
+    }
+    if (PF(p, 0xA14, void*) != NULL) {
+        fn_800BAEAC(PF(p, 0xA14, void*), 1);
+        PF(p, 0xA14, void*) = NULL;
+    }
+    if (PF(p, 0xA14, u8*) != NULL && *(s32*)(PF(p, 0xA14, u8*) + 0x78) != 0) {
+        ErrorPrintf("mikey objgrp OBJ NODE HAS KIDS AFTER ALL REMOVED\n");
+    }
+    /* orphan any remaining children back onto the world */
+    if (p->node != NULL && *(s32*)(p->node + 0x78) != 0) {
+        while ((kid = *(u8**)(*(u8**)(p->node + 0x78) + 0x7C)) != NULL) {
+            fn_800BAD94(kid, *(void**)(p->node + 0x74));
+        }
+    }
+    fn_80097644(p->node, 1, i);
+    fn_800115D0((void**)((u8*)p + 0x7C));
+    if (p->node != NULL) {
+        if (*(s32*)(p->node + 0x78) != 0) {
+            ErrorPrintf("PLAYER OBJ NODE HAS KIDS AFTER ALL REMOVED\n");
+        }
+        fn_800BAEAC(p->node, 1);
+        p->node = NULL;
+    }
+    fn_800BAEAC(PF(p, 0x6C8, void*), 0);
+    PF(p, 0x6C8, void*) = NULL;
+    fn_8008A898(i);
+}
+
+/* ------------------------------------------------------------------ */
+/* character switch / lifecycle                                        */
+/* ------------------------------------------------------------------ */
+
+/* Swap player i to character type; 0x10 = the active hidden char.     */
+void change_player(s32 i, s32 type) {
+    Player* p = P(i);
+
+    player_store_in_save(p, type);
+    if (type == 0x10) {
+        type = 2;
+        HIDDEN_CODE(p) = lbl_80343D6C;
+    } else {
+        HIDDEN_CODE(p) = NULL;
+    }
+    p->character = type;
+    p->char_type = type;
+    if (p->char_type > 7) {
+        p->char_type -= 8;
+    }
+    fn_8008A928(i, type, NULL);
+    player_get_from_save(p, type);
+    if ((lbl_8034477C == 0x4010 || lbl_8034477C == 0x400B) && p->node != NULL) {
+        remove_player_geo(i);
+        load_player(i);
+    }
+}
+
+/* Fresh slot -> character select.                                     */
+void new_player(s32 i) {
+    Player* p = P(i);
+
+    clear_player(i, 1);
+    p->state = 2;
+    p->motion_state = 0;
+    PF(p, 0xA8B, u8) = 0xFF;
+    PF(p, 0x3358, s32) = -1;
+    fn_8008FC5C(i);
+}
+
+/* Reset a record to new-character defaults; full also wipes both save */
+/* images and parks the slot.                                          */
+void clear_player(s32 i, s32 full) {
+    Player* p = P(i);
+    s32 cls;
+    s32 j;
+
+    PF(p, 0x1EBC, s32) = 0;
+    for (j = 0; j < 9; j++) {
+        PF(p, 0x3300 + j * 4, s32) = j & 3;
+    }
+    p->gold = lbl_803449A0 ? 0x9C4 : 0;
+    p->health = 100.0f;
+    PF(p, 0x1EC8, u16) = 0;
+    PF(p, 0x1ECA, u16) = 0;
+    PF(p, 0x334C, s32) = 0;
+    PF(p, 0x3350, s32) = 0;
+    PF(p, 0x3354, s32) = 0;
+    PF(p, 0x3358, s32) = -1;
+    HIDDEN_CODE(p) = NULL;
+    for (j = 0; j < 11; j++) {
+        memset((u8*)p + 0x130 + j * 0x10, 0, 0x10);
+    }
+    PF(p, 0x1EC, s32) = 0;
+    PF(p, 0x124, u32) = 0;
+    p->level = 1;
+    p->exp = 0;
+    cls = p->character;
+    if (cls == 2) {
+        cls = 4;
+    } else if (cls < 2) {
+        cls = (cls != 0 && cls > -1) ? 5 : 6;
+    } else if (cls < 4) {
+        cls = 7;
+    } else {
+        cls = 6;
+    }
+    p->char_type = cls;
+    p->character = p->char_type;
+    PF(p, 0x1EB8, s32) = 0;
+    PF(p, 0x828, f32) = 0.0f;
+    PF(p, 0x82C, f32) = 0.0f;
+    PF(p, 0x3330, s32) = 0;
+    PF(p, 0x3328, s32) = 0;
+    if (full != 0) {
+        memset((u8*)p + 0xA80, 0, 0x1434);
+        memset((u8*)p + 0x1ECC, 0, 0x1434);
+        p->state = 0;
+        p->motion_state = 0;
+        PF(p, 0x333C, s32) = 0;
+    }
+    for (j = 0; j < 16; j++) {
+        fn_8008A928(p->index, j, NULL);
+        CHAR_STATS(p, j)[2] = 0;
+        CHAR_STATS(p, j)[3] = 0;
+        CHAR_STATS(p, j)[4] = 0;
+        CHAR_STATS(p, j)[5] = 0;
+    }
+    check_player_atts(p, p->character, NULL);
+}
+
+/* Take player i live into the world (post-select).                    */
+s32 activate_player(s32 i) {
+    Player* p = P(i);
+    s32 j;
+
+    p->state = 1;
+    PF(p, 0x830, s32) = fn_8008FE70(i);
+    del_player_blits(i);
+    fn_8008A928(i, p->character, (void*)1);
+    if (lbl_8034477C == 0x4010) {
+        load_player(i);
+        if (lbl_803447B8 == 0) {
+            PlayerAddPowerup(0.0f, 5.0f, p, 9, 4);
+        }
+        for (j = 0; j < lbl_80344744; j++) {
+            lbl_80251F44[j * 0xE5] = 0;
+        }
+        if (lbl_803447B4 != 0 || lbl_803447D0 > 9 || lbl_8034477C == 0x4016) {
+            for (j = 0; j < 4; j++) {
+                if (lbl_803447B4 != 0 || P(j)->state == 5) {
+                    if (P(j)->state - 4U < 2) {
+                        PF(p, 0x830, s32) = PF(P(j), 0x830, s32);
+                    }
+                    p->state = 5;
+                }
+            }
+        }
+        if (lbl_803447D0 < 10 && lbl_8034477C != 0x400B && lbl_8034477C != 0x400D) {
+            fn_8002C53C(p->mat);
+        } else {
+            fn_800BA368(p->node, 2, 0);
+        }
+        lbl_80240E38[i * 0xF] &= ~0x40000;
+    }
+    return 1;
+}
+
+/*
+ * Rebuild the player world state after select/level load: cheat-level
+ * bump (AllChars), geo load, and the big live-gameplay block reset.
+ * Xbox analogue: load_player.
+ */
+void load_player(s32 i) {
+    Player* p = P(i);
+    u8* cls;
+    s32 lvl;
+    s32 j;
+    f32 m[16];
+
+    if (lbl_803449A0 != 0 && lbl_803448D8 != 0xD) {
+        /* cheat build: force the level stamped on the current level */
+        if ((f32)p->level != PF(lbl_8034483C, 0x9C, f32)) {
+            lbl_80344AF8 |= 2;
+        }
+        lvl = (s32)PF(lbl_8034483C, 0x9C, f32);
+        p->exp = (lvl < 0x3D) ? (lvl - 1) * (lvl * 0x1E + 1000)
+                              : (lvl - 0x3C) * 0x11F8 + 0x28550;
+        p->level = lvl;
+        set_player_default_atts(p);
+        check_player_atts(p, p->character, NULL);
+        p->health = 0.5f * (lvl - 1) + 30.0f;
+    }
+    p->node = NULL;
+    PF(p, 0x78, s32) = 0;
+    load_player_geo(i, p);
+    /* live-gameplay block reset (transcription abridged where the      */
+    /* target just zeroes fields; see Ghidra 0x80079F44 for the map)    */
+    PF(p, 0x800, s32) = 0;
+    PF(p, 0x804, s32) = 0;
+    for (j = 0; j < 8; j++) {
+        PF(p, 0x808 + j * 4, s32) = 0;
+    }
+    PF(p, 0x208, s32) = 0;
+    PF(p, 0x20C, s32) = 0;
+    PF(p, 0x204, s32) = 0;
+    cls = lbl_80282930[i];
+    PF(p, 0x910, f32) = 0.0f;
+    PF(p, 0x6B8, s32) = 0;
+    PF(p, 0x6BC, s32) = 0;
+    PF(p, 0x838, f32) = 0.0f;
+    PF(p, 0x83C, f32) = PF(cls, 0x50, f32);
+    PF(p, 0x840, f32) = 0.0f;
+    PF(p, 0x844, f32) = 0.0f;
+    PF(p, 0x848, f32) = PF(cls, 0x54, f32);
+    PF(p, 0x84C, f32) = 0.0f;
+    PF(p, 0x858, f32) = 0.0f;
+    PF(p, 0x85C, f32) = 0.0f;
+    PF(p, 0x860, f32) = 0.0f;
+    PF(p, 0x870, f32) = 0.0f;
+    PF(p, 0x874, f32) = 0.0f;
+    PF(p, 0x878, f32) = 0.0f;
+    PF(p, 0x888, f32) = 0.0f;
+    PF(p, 0x88C, f32) = 0.0f;
+    PF(p, 0x890, f32) = 0.0f;
+    PF(p, 0x898, f32) = 0.0f;
+    PF(p, 0x89C, f32) = 0.0f;
+    PF(p, 0x8D0, f32) = 0.0f;
+    PF(p, 0x8D4, u32) = 0;
+    PF(p, 0x8D8, s32) = 0;
+    PF(p, 0x8DC, f32) = 0.0f;
+    PF(p, 0x8E0, f32) = 0.0f;
+    PF(p, 0x8E4, f32) = 0.0f;
+    PF(p, 0x8E8, f32) = 0.0f;
+    PF(p, 0x8EC, f32) = 0.0f;
+    PF(p, 0x8A0, f32) = 0.68f;
+    PF(p, 0x8A4, f32) = 0.36f;
+    PF(p, 0x7DC, f32) = 0.0f;
+    PF(p, 0x95A, s16) = 0;
+    PF(p, 0x1F0, s16) = 0;
+    PF(p, 0x1F2, s16) = 0;
+    PF(p, 0x1F6, s16) = 0;
+    PF(p, 0x1F8, s16) = 0xF0;
+    PF(p, 0x200, s16) = 0;
+    PF(p, 0x202, s16) = 0;
+    PF(p, 0x8F4, s32) = 0;
+    PF(p, 0x8F8, s32) = 0;
+    PF(p, 0x900, u32) = 0;
+    PF(p, 0x8FC, f32) = 0.0f;
+    PF(p, 0x904, f32) = 0.0f;
+    PF(p, 0x908, s32) = 0;
+    PF(p, 0x90C, s32) = 0;
+    PF(p, 0x914, f32) = 0.0f;
+    PF(p, 0x918, s32) = 0;
+    PF(p, 0xA48, f32) = 10000.0f;
+    PF(p, 0xA4C, f32) = 10000.0f;
+    PF(p, 0xA50, f32) = 10000.0f;
+    PF(p, 0xA54, f32) = 10000.0f;
+    PF(p, 0x956, s16) = 0x10;
+    PF(p, 0x958, s16) = 0;
+    PF(p, 0x954, s16) = 0;
+    PF(p, 0x95C, s16) = 0;
+    PF(p, 0x950, s16) = 0;
+    PF(p, 0xA2C, s32) = 0;
+    PF(p, 0xA30, u32) = lbl_801201C4;
+    PF(p, 0x952, s16) = 0;
+    PF(p, 0x91C, s32) = PF(p, 0x920, s32);
+    PF(p, 0x8A8, s32) = 0;
+    PF(p, 0xA24, s32) = 0;
+    PF(p, 0xA28, f32) = 0.0f;
+    PF(p, 0xA68, s32) = 0;
+    PF(p, 0x93C, s32) = 0;
+    PF(p, 0x940, s32) = 0;
+    PF(p, 0x8B0, s32) = 0;
+    PF(p, 0xA58, f32) = 0.0f;
+    PF(p, 0xA5C, s32) = 0;
+    PF(p, 0x95E, s16) = 0;
+    PF(p, 0x960, s16) = 0;
+    PF(p, 0x962, s16) = 0;
+    PF(p, 0x964, s16) = 0;
+    PF(p, 0xA1C, s16) = 0;
+    PF(p, 0xA1E, s16) = 0;
+    PF(p, 0xA20, s16) = 0;
+    PF(p, 0x924, f32) = 0.0f;
+    PF(p, 0x92C, f32) = 0.75f;
+    PF(p, 0x930, s32) = 0;
+    for (j = 0; j < 5; j++) {
+        PF(p, 0xA34 + j * 4, s32) = -1;
+    }
+    PF(p, 0x11C, s32) = 0;
+    PF(p, 0x120, u32) = 0;
+    PF(p, 0x124, u32) = 0;
+    PF(p, 0x128, s32) = 0;
+    PF(p, 0x12C, s32) = 0;
+    for (j = 0; j < 11; j++) {
+        if (PUP_TYPE(p, j) == 9 && (PUP_MASK(p, j) & 8)) {
+            PUP_STRENGTH(p, j) = 0.0f;
+        }
+    }
+    PF(p, 0x8C4, s32) = 0;
+    if ((lbl_802575BC & 1) == 0 || lbl_8034477C != 0x400B) {
+        setup_player_display(i);
+    }
+    if (lbl_80344DA4 != 0) {
+        get_player_pos();
+        fn_800BD050(m, (f32*)((u8*)p + 0xC4), NULL);
+        CopyMat3(m, p->mat);
+        PF(p, 0x894, f32) = PF(p, 0xC8, f32);
+        PF(p, 0x8B4, f32) = p->pos[1];
+        PF(p, 0x87C, f32) = p->pos[0];
+        PF(p, 0x880, f32) = p->pos[1];
+        PF(p, 0x884, f32) = p->pos[2];
+        if ((p->hud_flags & 0x20) == 0) {
+            fn_8005A3B8(p->mat);
+            fn_8005A404(p->mat, p->anchor_fwd, p->anchor_pos);
+        }
+        *(f32*)(PF(p, 0x6C8, u8*) + 0x30) = *(f32*)(p->node + 0x30);
+        *(f32*)(PF(p, 0x6C8, u8*) + 0x34) = *(f32*)(p->node + 0x34);
+        *(f32*)(PF(p, 0x6C8, u8*) + 0x38) = *(f32*)(p->node + 0x38);
+    }
+}
+
+/* ------------------------------------------------------------------ */
+/* save image / per-character stats                                    */
+/* ------------------------------------------------------------------ */
+
+/* Memcard read into the save image, then unpack (msg on failure).     */
+s32 PlayerLoadSaveFile(s32 i, s32 slot) {
+    Player* p = P(i);
+    s32 size[2];
+    s32 ok;
+    s32 j;
+
+    PF(p, 0x3358, s32) = slot;
+    do {
+        size[0] = 0x1434;
+        ok = fn_80068A4C(PF(p, 0x3348, s32), PF(p, 0x3350, s32), PF(p, 0x3358, s32),
+                         (u8*)p + 0xA80, size);
+        if (ok == 0 && fn_8006AF7C("Game load failed...", 0) == 0) {
+            break;
+        }
+    } while (ok == 0);
+    if (ok != 0) {
+        j = fn_80069540(PF(p, 0x3348, s32), PF(p, 0x3350, s32));
+        if (j != 0) {
+            fn_80074548(j, PF(p, 0x3350, s32));
+        }
+    }
+    player_get_from_save(p, -1);
+    PF(p, 0xA8B, u8) = 1;
+    /* image -> backup */
+    memcpy((u8*)p + 0x1ECC, (u8*)p + 0xA80, 0x1434);
+    for (j = 0; j < 0x100; j++) {
+        PF(p, 0x1DB4 + j, u8) &= 0xF0;
+    }
+    change_player(i, p->character);
+    return ok;
+}
+
+/* Pack and memcard-write the save image (msg on failure).             */
+s32 PlayerWriteSaveFile(s32 i, s32 slot) {
+    Player* p = P(i);
+    s32 ok;
+
+    PF(p, 0x3358, s32) = slot;
+    player_store_in_save(p, slot);
+    do {
+        ok = fn_80068BEC(PF(p, 0x3348, s32), PF(p, 0x3350, s32), PF(p, 0x3358, s32),
+                         (u8*)p + 0xA80, 0x1434);
+        if (ok == 0 && fn_8006AF7C("Game save failed...", 0) == 0) {
+            break;
+        }
+    } while (ok == 0);
+    PF(p, 0xA8B, u8) = 1;
+    return ok;
+}
+
+/* Revive dying players and restore per-character health.              */
+void PlayersRestoreHealth(void) {
+    Player* p = P(0);
+    f32 cap;
+    s32 i;
+
+    for (i = 0; i < 4; i++, p++) {
+        if (p->state == 8) {
+            p->state = 1;
+        }
+        if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
+            cap = 0.5f * (p->level - 1) + 30.0f;
+            if (cap > 9999.0f) {
+                cap = 9999.0f;
+            }
+            p->health = cap;
+        } else {
+            p->health = *(f32*)&CHAR_STATS(p, p->character)[1];
+        }
+    }
+}
+
+/* Restore the level-start snapshot (image <- backup, then unpack).    */
+void PlayerRestoreState(void* vp) {
+    Player* p = vp;
+    f32 cap;
+
+    if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
+        cap = 0.5f * (p->level - 1) + 30.0f;
+        if (cap > 9999.0f) {
+            cap = 9999.0f;
+        }
+        p->health = cap;
+    } else {
+        memcpy((u8*)p + 0xA80, (u8*)p + 0x1ECC, 0x1434);
+        player_get_from_save(p, -1);
+    }
+}
+
+/* Snapshot the running state (pack, then backup <- image).            */
+void PlayerSaveState(void* vp, s32 full) {
+    Player* p = vp;
+
+    if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
+        return;
+    }
+    player_store_in_save(p, full);
+    if (full != 0 && !(lbl_803448D8 == 5 && lbl_803448D4 == 1) &&
+        !(lbl_803448D8 == 6 && lbl_803448D4 == 1)) {
+        memcpy((u8*)p + 0x1ECC, (u8*)p + 0xA80, 0x1434);
+    }
+    PF(p, 0xA8B, u8) = 0;
+}
+
+/* Unpack the per-character slots into the live fields.  type < 0      */
+/* re-reads the character stamped in the image.  The active hidden     */
+/* character instead gets the fixed lv99 loadout.                      */
+void player_get_from_save(void* vp, s32 type) {
+    Player* p = vp;
+    s32* st;
+    u8* it;
+    f32 cap;
+    s32 t;
+    s32 lv;
+
+    if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
+        /* hidden character: fixed loadout */
+        memcpy((u8*)p + 0xA80, (u8*)p + 0x1ECC, 0x1434);
+        p->class_id = 0;
+        ATT_FIGHT(p) = 0.9f;
+        ATT_ARMOR(p) = 0.9f;
+        ATT_MAGIC(p) = 0.9f;
+        ATT_SPEED(p) = 0.9f;
+        PlayerUpdateAtts(p);
+        p->level = 99;
+        p->exp = 0x54218;
+        cap = 0.5f * (p->level - 1) + 30.0f;
+        if (cap > 9999.0f) {
+            cap = 9999.0f;
+        }
+        p->health = cap;
+        p->gold = 5000;
+        PF(p, 0x1EBC, s32) = 9;
+        PF(p, 0x1EB8, s32) = 9;
+        PF(p, 0x1EC8, u16) = 0x7FE;
+        PF(p, 0x1ECA, u16) = 0x1FFF;
+        for (t = 0; t < 11; t++) {
+            memset((u8*)p + 0x130 + t * 0x10, 0, 0x10);
+        }
+        PF(p, 0x1EC, s32) = 0;
+        PF(p, 0x124, u32) = 0;
+        return;
+    }
+
+    t = type;
+    if (t < 0) {
+        t = PF(p, 0xA88, s16);
+    }
+    p->character = t;
+    p->class_id = PF(p, 0xA8A, s8);
+    st = CHAR_STATS(p, p->character);
+    PlayerUpdateAtts(p);
+    p->exp = st[0];
+    for (lv = 99; lv > 0; lv--) {
+        if (LevelToExp(lv) <= p->exp) {
+            break;
+        }
+    }
+    if (lv < 1) {
+        lv = 1;
+    }
+    p->level = lv;
+    p->health = *(f32*)&st[1];
+    it = CHAR_ITEMS(p, t);
+    p->gold = *(s32*)(it + 0x30);
+    PF(p, 0x1EBC, s32) = *(s16*)(it + 0x2);
+    PF(p, 0x1EB8, s32) = *(s16*)(it + 0x0);
+    PF(p, 0x1EC8, u16) = *(u16*)(it + 0x4);
+    PF(p, 0x1ECA, u16) = *(u16*)(it + 0x6);
+    if (*(f32*)&st[1] == 0.0f) {
+        clear_player(p->index, 0);
+    }
+    p->character = t;
+    p->char_type = t;
+    if (p->char_type > 7) {
+        p->char_type -= 8;
+    }
+    check_player_atts(p, t, NULL);
+    memcpy((u8*)p + 0x130, it + 0x34, 0xB0);
+    PF(p, 0x1EC, s32) = *(s16*)(it + 0xA);
+    PF(p, 0x11C, s32) = 0;
+    PF(p, 0x120, u32) = 0;
+    PF(p, 0x124, u32) = 0;
+    lbl_80240E5C[p->index * 0xF] = PF(p, 0x1DB0, u8);
+    lbl_80240E60[p->index * 0xF] = PF(p, 0x1DB1, u8);
+    lbl_80240E68[p->index * 0xF] = PF(p, 0x1DB2, u8);
+    lbl_80240E64[p->index * 0xF] = PF(p, 0x1DB3, u8);
+}
+
+/* Pack the live fields into the per-character slots + image header.   */
+void player_store_in_save(void* vp, s32 type) {
+    Player* p = vp;
+    s32* st;
+    u8* it;
+    s32 total;
+    s32 exp;
+    s32 lv;
+    s32 j;
+
+    if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
+        /* hidden char: park it, restore the base character, re-flag */
+        memcpy((u8*)p + 0xA80, (u8*)p + 0x1ECC, 0x1434);
+        HIDDEN_CODE(p) = NULL;
+        player_get_from_save(p, -1);
+        HIDDEN_CODE(p) = lbl_80343D6C;
+    }
+    st = CHAR_STATS(p, p->character);
+    it = CHAR_ITEMS(p, p->character);
+    st[0] = p->exp;
+    *(f32*)&st[1] = p->health;
+    *(s32*)(it + 0x30) = p->gold;
+    *(s16*)(it + 0x0) = (s16)PF(p, 0x1EB8, s32);
+    *(s16*)(it + 0x2) = (s16)PF(p, 0x1EBC, s32);
+    *(u16*)(it + 0x4) |= PF(p, 0x1EC8, u16);
+    *(u16*)(it + 0x6) |= PF(p, 0x1ECA, u16);
+    PF(p, 0xA88, s16) = (s16)p->character;
+    PF(p, 0xA8A, s8) = (s8)p->class_id;
+    /* total-level checksum across all 16 characters */
+    total = 0;
+    for (j = 0; j < 16; j++) {
+        exp = CHAR_STATS(p, j)[0];
+        for (lv = 99; lv > 0; lv--) {
+            if (lv < 0x3D) {
+                if ((lv - 1) * (lv * 0x1E + 1000) <= exp) {
+                    break;
+                }
+            } else if ((lv - 0x3C) * 0x11F8 + 0x28550 <= exp) {
+                break;
+            }
+        }
+        if (lv < 1) {
+            lv = 1;
+        }
+        total += lv;
+    }
+    PF(p, 0xA8E, s16) = (s16)total;
+    memcpy(it + 0x34, (u8*)p + 0x130, 0xB0);
+    *(s16*)(it + 0xA) = (s16)PF(p, 0x1EC, s32);
+    PF(p, 0x1DB0, u8) = (u8)lbl_80240E5C[p->index * 0xF];
+    PF(p, 0x1DB1, u8) = (u8)lbl_80240E60[p->index * 0xF];
+    PF(p, 0x1DB2, u8) = (u8)lbl_80240E68[p->index * 0xF];
+    PF(p, 0x1DB3, u8) = (u8)lbl_80240E64[p->index * 0xF];
+    if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
+        player_get_from_save(p, -1);
+    }
+}
+
+/* Copy the live pad config into both control-save byte sets.          */
+void player_save_controls(s32 i) {
+    Player* p = P(i);
+
+    PF(p, 0x1DB0, u8) = (u8)lbl_80240E5C[i * 0xF];
+    PF(p, 0x1DB1, u8) = (u8)lbl_80240E60[i * 0xF];
+    PF(p, 0x1DB2, u8) = (u8)lbl_80240E68[i * 0xF];
+    PF(p, 0x1DB3, u8) = (u8)lbl_80240E64[i * 0xF];
+    PF(p, 0x31FC, u8) = (u8)lbl_80240E5C[i * 0xF];
+    PF(p, 0x31FD, u8) = (u8)lbl_80240E60[i * 0xF];
+    PF(p, 0x31FE, u8) = (u8)lbl_80240E68[i * 0xF];
+    PF(p, 0x31FF, u8) = (u8)lbl_80240E64[i * 0xF];
+}
+
+/* Derive the combat stats from the attribute norms x class ranges.    */
+void PlayerUpdateAtts(void* vp) {
+    Player* p = vp;
+    f32* r = lbl_80343D7C;
+
+    fn_8008A928(p->index, p->character, NULL);
+    if (p->character != 2 || HIDDEN_CODE(p) != lbl_80343D6C) {
+        check_player_atts(p, p->character, NULL);
+    }
+    STAT_DMG(p)   = 0.01 * ATT_FIGHT(p) * (r[1] - r[0]) + r[0];
+    STAT_ARMOR(p) = 0.01 * ATT_ARMOR(p) * (r[3] - r[2]) + r[2];
+    STAT_MAGIC(p) = 0.01 * ATT_MAGIC(p) * (r[5] - r[4]) + r[4];
+    STAT_SPEED(p) = 0.01 * ATT_SPEED(p) * (r[7] - r[6]) + r[6];
+    if (p->char_type == 2 || p->char_type == 6) {
+        /* magic-missile classes scale missiles on magic */
+        STAT_MDMG(p) = 0.01 * ATT_MAGIC(p) * (r[9] - r[8]) + r[8];
+        STAT_MSPD(p) = 0.01 * ATT_MAGIC(p) * (r[11] - r[10]) + r[10];
+    } else {
+        STAT_MDMG(p) = 0.01 * ATT_FIGHT(p) * (r[9] - r[8]) + r[8];
+        STAT_MSPD(p) = 0.01 * ATT_FIGHT(p) * (r[11] - r[10]) + r[10];
+    }
+}
+
+/* Zero the per-character bonus stats for all 16 characters.           */
+void set_player_default_atts(void* vp) {
+    Player* p = vp;
+    s32 j;
+
+    for (j = 0; j < 16; j++) {
+        fn_8008A928(p->index, j, NULL);
+        CHAR_STATS(p, j)[2] = 0;
+        CHAR_STATS(p, j)[3] = 0;
+        CHAR_STATS(p, j)[4] = 0;
+        CHAR_STATS(p, j)[5] = 0;
+    }
+    check_player_atts(p, p->character, NULL);
+}
+
+/* ------------------------------------------------------------------ */
+/* geo / model loading                                                 */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Build the in-world player: scene node, atree, wrist/head/glow nodes,
+ * weapon and shadow.  FatalError if a node already exists.
+ */
+void load_player_geo(s32 i, void* vp) {
+    Player* p = vp;
+    char name[20];
+    char* c;
+    s32* nd;
+    s32 pad;
+    s32 cls;
+    s32 tier;
+    s32 n;
+
+    if (p->node != NULL) {
+        FatalError("PLAYER.OBJ NODE EXISTS BEFORE LOAD %x", 0x800000);
+    }
+    if (lbl_80344828 > 0) {
+        set_hidden_player(p);
+    }
+    if (HIDDEN_CODE(p) == NULL) {
+        if (p->character == model_slot[i].cur_class &&
+            p->class_id == model_slot[i].cur_pad &&
+            model_slot[i].cur_override == 0 &&
+            p->level / 10 == model_slot[i].cur_tier) {
+            PF(p, 0x7F4, void*) = model_slot[i].arena;
+        } else {
+            PF(p, 0x7F4, u32) = load_player_model(i, p, -1, NULL);
+        }
+    } else {
+        PF(p, 0x7F4, u32) = load_player_model(i, p, i, HIDDEN_CODE(p));
+    }
+    pad = p->class_id;
+    fn_8008A928(i, p->character, NULL);
+    if (lbl_80344970 != 0) {
+        fn_80030C84(p);
+    }
+    cls = p->character;
+    if (HIDDEN_CODE(p) == NULL) {
+        fn_800E80D4(name, lbl_80120104[pad]);
+    } else {
+        fn_800E80D4(name, HIDDEN_CODE(p));
+        for (c = name; *c != 0; c++) {
+            *c = (char)fn_800E5B08(*c);
+        }
+    }
+    fn_800C9BD0(tbuf, "%s%s%s", lbl_801200B0 + cls * 4, name, "");
+    fn_800E8090((char*)p + 0x6C0, tbuf, 8);
+    p->node = fn_800BB29C(lbl_80344B2C, lbl_80127D60, 1);
+    PF(p, 0x78, s32) = 0;
+    n = fn_80011BBC(model_slot[i].model_buf, (char*)(lbl_801200B0 + p->char_type * 4),
+                    (u8*)p + 0x7C, tbuf, 0x800);
+    PF(p, 0x7C, s32) = n;
+    if (PF(p, 0x7C, s32) == 0) {
+        FatalErrorf("Player Atree %s not found", lbl_801200B0 + p->char_type * 4);
+    }
+    fn_800BAD94(*(void**)PF(p, 0x7C, s32*), p->node);
+    fn_800ADD24((u8*)p + 0x7C, (u8*)p + 0x210, 0x80126C68);
+    if (lbl_8034477C != 0x4012 && lbl_8034477C != 0x400D &&
+        lbl_8034477C != 0x400F && lbl_8034477C != 0x4016) {
+        fn_8008A928(i, p->character, (void*)1);
+    }
+    PF(p, 0x744, s32) = 0;
+    /* attachment nodes */
+    fn_800C9BD0(tbuf, "%s%s", (char*)p + 0x6C0, lbl_80120184[cls]);
+    n = fn_800B8E94(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
+    nd = fn_800114E8((void*)PF(p, 0x7C, s32), n);
+    PF(p, 0x6D0, s32) = (nd == NULL) ? 0 : *nd;
+    fn_800C9BD0(tbuf, "%s%s", (char*)p + 0x6C0, lbl_80120144[cls]);
+    n = fn_800B8E94(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
+    nd = fn_800114E8((void*)PF(p, 0x7C, s32), n);
+    PF(p, 0x6CC, s32) = (nd == NULL) ? 0 : *nd;
+    fn_800C9BD0(tbuf, "%sCFGLOW", (char*)p + 0x6C0);
+    n = fn_800B8E94(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), -1);
+    nd = (n < 0) ? NULL : fn_800114E8((void*)PF(p, 0x7C, s32), n);
+    PF(p, 0x6D8, s32) = (nd == NULL) ? 0 : *nd;
+    if (nd != NULL) {
+        fn_800BA368((void*)*nd, 0x800810, 0);
+    }
+    fn_800C9BD0(tbuf, "%sHEAD", (char*)p + 0x6C0);
+    n = fn_800B8E94(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
+    nd = fn_800114E8((void*)PF(p, 0x7C, s32), n);
+    PF(p, 0x6D4, s32) = (nd == NULL) ? 0 : *nd;
+    fn_800C9BD0(tbuf, "%sTORSO", (char*)p + 0x6C0);
+    n = fn_800B8E94(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
+    nd = fn_800114E8((void*)PF(p, 0x7C, s32), n);
+    PF(p, 0x6DC, s32) = (nd == NULL) ? 0 : *nd;
+    /* weapon */
+    if (lbl_80344970 != 0) {
+        tier = (p->level >= 0x32) ? 2 : (p->level >= 10) ? 1 : 0;
+        if (lbl_80120598[p->character] == 0 && p->character < 8 && HIDDEN_CODE(p) == NULL) {
+            fn_800C9BD0(tbuf, "WEAP %s HD%d", lbl_80120104[pad], tier + 1);
+        } else {
+            fn_800C9BD0(tbuf, "WEAP_HOLD", cls, tier);
+        }
+        n = fn_800B8E94(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
+        PF(p, 0x6E0, void*) = fn_800B91C0(n, NULL, (void*)PF(p, 0x6D0, s32), 0x810);
+        PF(p, 0x7F8, s32) = -1;
+        if (p->char_type == 7) {
+            *(u32*)(PF(p, 0x6E0, u8*) + 0x60) |= 0x4000000;
+            PF(p, 0x7F8, s32) = fn_800184E8(PF(p, 0x7F4, s32), "%s%s", (char*)model_slot[i].sfx_arena,
+                                            "", 5, 1);
+        }
+    }
+    /* live combat fields */
+    PF(p, 0x72C, s32) = 0;
+    PF(p, 0x730, s32) = 0;
+    PF(p, 0x734, s32) = 0;
+    PF(p, 0x748, s32) = 0;
+    PF(p, 0x790, s32) = 0;
+    PF(p, 0x6E4, s32) = 0;
+    PF(p, 0x73C, s32) = 0;
+    PF(p, 0x738, s32) = -1;
+    PF(p, 0x740, s32) = 0;
+    PF(p, 0x968, s32) = 0;
+    PF(p, 0xA20, s16) = 0;
+    PF(p, 0xA1C, s16) = 0;
+    PF(p, 0xA1E, s16) = 0;
+    PF(p, 0x96C, s32) = 0;
+    PF(p, 0xA14, s32) = 0;
+    /* shadow */
+    n = fn_800B8E94("SHADOWL1", PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
+    PF(p, 0x6C8, void*) = fn_800B91C0(n, lbl_80127D60, NULL, 0x880);
+    *(s16*)(PF(p, 0x6C8, u8*) + 0x68) = -0x24;
+    PF(p, 0x7FC, f32) = 0.0f;
+    if (PF(p, 0x6D0, s32) != 0) {
+        fn_800CEA18(PF(p, 0x6D0, s32), 0);
+    } else if (PF(p, 0x6CC, s32) != 0) {
+        fn_800CEA18(PF(p, 0x6CC, s32), 0);
+    } else if (PF(p, 0x6D4, s32) != 0) {
+        fn_800CEA18(PF(p, 0x6D4, s32), 0);
+    }
+    fn_800BA368(p->node, 2, 0);
+    if (PF(p, 0x6C8, s32) != 0) {
+        if (lbl_803448D8 == 0xC && lbl_803448D4 == 8) {
+            fn_800BA368(PF(p, 0x6C8, void*), 2, 1);
+        } else {
+            fn_800BA368(PF(p, 0x6C8, void*), 2, 0);
+        }
+    }
+}
+
+/*
+ * Hidden-character/cheat name hook, called from load_player_geo when
+ * secret characters are enabled.  Compares p->name against the cheat
+ * strings ("Access?", "Unlimited?", "NoDamage?", "Shards?", "Runes?",
+ * "Cheats?", "Select a character?", "Worlds?"), the 27-entry hidden
+ * character table ("ICE600".."Rand??") and the 27-entry powerup-cheat
+ * table ("INVULN"..); sets p->hidden_code + class/char on a match.
+ */
+s32 set_hidden_player(void* vp) {
+    Player* p = vp;
+    char* nm = (char*)p + 0xA80;
+    s32 pick = -1;
+    u32 pups = 0;
+    s32 match = 0;
+    s32 j;
+
+    if (strncmp(nm, "ACCESS", 6) == 0) {
+        pick = 0x10;
+        match = 1;
+    }
+    /* the interactive cheat menu (start+trigger names) */
+    if ((strncmp(nm, "CHEATS", 6) == 0 || strncmp(nm, "SELECT", 6) == 0 ||
+         strncmp(nm, "WORLDS", 6) == 0) &&
+        fn_80031504(0x100000) != 0 && fn_80031504(0x400000) != 0) {
+        if (fn_8006AFE0("Access?", NULL, 2) == 0) {
+            if (fn_8006AFE0("Levels?", NULL, 2) == 0) {
+                lbl_802575A8 = 1;
+            }
+            if (fn_8006AFE0("Unlimited?", NULL, 2) == 0) {
+                lbl_80257594 = 3;
+            }
+            if (fn_8006AFE0("NoDamage?", NULL, 2) == 0) {
+                lbl_80257590 = 1;
+            }
+            if (fn_8006AFE0("Shards?", NULL, 2) == 0) {
+                PF(p, 0x1EC8, u16) = 0xFFFF;
+            }
+            if (fn_8006AFE0("Runes?", NULL, 2) == 0) {
+                PF(p, 0x1ECA, u16) = 0xFFFF;
+            }
+            if (fn_8006AFE0("Cheats?", NULL, 2) == 0) {
+                pups = 0xFFFFFFFF;
+            }
+            if (fn_8006AFE0("Select a character?", NULL, 2) == 0) {
+                /* d-pad browse through the hidden character list */
+                while (fn_80031540(0x80000000) == 0) {
+                    if (fn_80031540(0x40000000) != 0) {
+                        pick++;
+                        if (pick >= 0 && pick < 27) {
+                            fn_8006AFE0(lbl_80120618[pick].name, NULL, 1);
+                        }
+                        if (pick >= 27) {
+                            pick = (rand() & 0xFF) % 27;
+                            fn_8006AFE0("Rand??", NULL, 1);
+                            break;
+                        }
+                    }
+                    fn_800330D4(0, NULL, 0);
+                    fn_80033C5C();
+                }
+            }
+            if (fn_8006AFE0("Worlds?", NULL, 2) == 0) {
+                for (j = 0; j < 16; j++) {
+                    memset((u8*)p + 0x1CD0 + p->character * 0xE, 0xFF, 0xE);
+                    memset(CHAR_ITEMS(p, j) + 0x1E, 0xFF, 0x20);
+                    *(u16*)(CHAR_ITEMS(p, p->character) + 0xC) = 0xFFFF;
+                    *(u16*)(CHAR_ITEMS(p, p->character) + 0x18) = 0xFFFF;
+                }
+            }
+            fn_8006AFE0("Mike and Bob say, Thank You for Playing!", NULL, 1);
+        }
+    }
+    /* one-shot cheat names */
+    if (fn_80031504(0x100000) != 0 && fn_80031504(0x400000) != 0) {
+        if (strncmp(nm, "RANDOM", 6) == 0) {
+            match = 1;
+            pick = (rand() & 0xFF) % 27;
+            pups = rand();
+        }
+        if (strncmp(nm, "SECRET", 6) == 0) {
+            match = 1;
+            pick = 5;
+            pups = rand();
+        }
+        if (strncmp(nm, "ALLFUL", 6) == 0) {
+            match = 1;
+            pick = 1;
+            pups = rand();
+            /* plus the full unlock block (same as Worlds?) */
+            lbl_802575A8 = 1;
+            lbl_80257594 = 3;
+            lbl_80257590 = 1;
+            PF(p, 0x1EC8, u16) = 0xFFFF;
+            PF(p, 0x1ECA, u16) = 0xFFFF;
+            for (j = 0; j < 16; j++) {
+                memset((u8*)p + 0x1CD0 + p->character * 0xE, 0xFF, 0xE);
+                memset(CHAR_ITEMS(p, j) + 0x1E, 0xFF, 0x20);
+                *(u16*)(CHAR_ITEMS(p, p->character) + 0xC) = 0xFFFF;
+                *(u16*)(CHAR_ITEMS(p, p->character) + 0x18) = 0xFFFF;
+            }
+        }
+        if (strncmp(nm, "TOWER?", 6) == 0) {
+            match = 1;
+            pick = 0x17;
+            pups = rand();
+        }
+    }
+    if (HIDDEN_CODE(p) == NULL) {
+        for (j = 0; j < 27; j++) {
+            if ((strncmp(nm, lbl_80120618[j].name, 6) == 0 &&
+                 (lbl_80120618[j].unlocked == 0 || lbl_80344828 > 1)) ||
+                (match && pick == j)) {
+                p->class_id = lbl_80120618[j].class_id;
+                p->character = lbl_80120618[j].char_type;
+                HIDDEN_CODE(p) = lbl_80120618[j].code;
+                return 1;
+            }
+        }
+        for (j = 0; j < 27; j++) {
+            if (strncmp(nm, lbl_801209E4[j].name, 6) == 0 || (pups & (1 << j))) {
+                switch (lbl_801209E4[j].type) {
+                case 1:
+                    p->gold = (s32)lbl_801209E4[j].value;
+                    break;
+                case 2:
+                    PF(p, 0x1EB8, s32) = (s32)lbl_801209E4[j].value;
+                    break;
+                case 4:
+                    PF(p, 0x1EBC, s32) = (s32)lbl_801209E4[j].value;
+                    break;
+                default:
+                    PlayerAddPowerup(lbl_801209E4[j].value, 1.0f, p,
+                                     lbl_801209E4[j].type, lbl_801209E4[j].mask);
+                    if (lbl_801209E4[j].type == 9) {
+                        PF(p, 0x124, u32) |= lbl_801209E4[j].mask;
+                    }
+                    break;
+                }
+            }
+        }
+        return 0;
+    }
+    if (HIDDEN_CODE(p) == lbl_80343D6C) {
+        p->char_type = 2;
+        p->character = 2;
+        return 0;
+    }
+    return 1;
+}
+
+/* Load the class model + sfx model set into player slot i.            */
+s32 load_player_model(s32 i, void* vp, s32 alt, char* name) {
+    Player* p = vp;
+    u32 arena;
+    u32 sfx;
+    s32 pad;
+
+    pad = p->class_id;
+    arena = load_player_model_sub(i, p, name, &model_slot[i]);
+    if (pad < 0 || pad > 3) {
+        pad = i;
+    }
+    fn_800C9BD0(tbuf, "players\\%s\\sfx%s", lbl_8012006C[p->char_type], lbl_801200F4[pad]);
+    sfx = MBOX_LoadModelFixed(tbuf, (u32)model_slot[i].sfx_arena, 0, NULL,
+                              model_slot[i].sfx_max);
+    model_slot[i].sfx_arena = (void*)sfx;
+    MLMReadFile(tbuf, "rb", model_slot[i].sfx_buf_max, model_slot[i].sfx_buf);
+    model_slot[i].sfx_remap = fn_8001267C((u16*)model_slot[i].sfx_buf, sfx,
+                                          model_slot[i].sfx_remap);
+    InitTexMods(model_slot[i].model_buf, (u32)model_slot[i].arena);
+    InitTexMods(model_slot[i].anim_buf, (u32)model_slot[i].arena);
+    InitTexMods(model_slot[i].sfx_buf, (u32)model_slot[i].sfx_arena);
+    return arena;
+}
+
+/* Load one class model + anim set into a model slot.                  */
+s32 load_player_model_sub(s32 i, void* vp, char* name, void* vslot) {
+    Player* p = vp;
+    PlayerModelSlot* slot = vslot;
+    u32 arena;
+    s32 cls;
+    s32 tier;
+    s32 pad;
+
+    cls = p->character;
+    tier = p->level / 10;
+    pad = p->class_id;
+    if (name == NULL) {
+        if (lbl_80120598[cls] == 0) {
+            fn_800C9BD0(tbuf, "players\\%s\\%s", lbl_8012006C[cls], lbl_801200F4[pad]);
+        } else {
+            fn_800C9BD0(tbuf, "players\\%s\\%s%d0", lbl_8012006C[cls],
+                        lbl_801200F4[pad], tier);
+        }
+    } else {
+        fn_800C9BD0(tbuf, "players\\%s\\%s", lbl_8012006C[cls], name);
+    }
+    arena = MBOX_LoadModelFixed(tbuf, (u32)slot->arena, 0, NULL, slot->model_max);
+    if ((s32)slot->anim_max < 1) {
+        slot->model_buf = AllocFile(tbuf, "rb", slot->anim_max, NULL);
+    } else {
+        MLMReadFile(tbuf, "rb", slot->anim_max, slot->model_buf);
+    }
+    slot->anim_remap2 = fn_8001267C((u16*)slot->model_buf, arena, slot->anim_remap2);
+    slot->anim_remap = (s32)arena;
+    slot->cur_class = cls;
+    slot->cur_pad = pad;
+    slot->cur_tier = tier;
+    slot->cur_override = (s32)name;
+    fn_800C9BD0(tbuf, "players\\%s\\anim", lbl_8012006C[p->char_type]);
+    if ((s32)slot->model_buf_max < 1) {
+        slot->anim_buf = AllocFile(tbuf, "rb", slot->model_buf_max, NULL);
+    } else {
+        MLMReadFile(tbuf, "rb", slot->model_buf_max, slot->anim_buf);
+    }
+    slot->sfx_remap = fn_8001267C((u16*)slot->anim_buf, arena, slot->sfx_remap);
+    return arena;
+}
+
+/* Re-register the model texmods after a video mode change.            */
+void SetupPlayerTexMods(s32 i) {
+    if (model_slot[i].cur_class >= 0) {
+        DoTexMods(model_slot[i].model_buf);
+        DoTexMods(model_slot[i].anim_buf);
+        DoTexMods(model_slot[i].sfx_buf);
+    }
+}
+
+/* Apply the per-slot model texmods (items.c per-frame).               */
+void DoPlayerTexMods(s32 i) {
+    if (model_slot[i].cur_class >= 0) {
+        InitTexMods(model_slot[i].model_buf, (u32)model_slot[i].arena);
+        InitTexMods(model_slot[i].anim_buf, (u32)model_slot[i].arena);
+        InitTexMods(model_slot[i].sfx_buf, (u32)model_slot[i].sfx_arena);
+    }
+}
+
+/* ------------------------------------------------------------------ */
+/* init / HUD blit creation                                            */
+/* ------------------------------------------------------------------ */
+
+/* One-time init: per-player HUD blits, got-it table, icon textures.   */
+void init_players(void) {
+    s32 i;
+    u32 tex;
+
+    lbl_80344B24 = -1;
+    lbl_80344B04 = NULL;
+    for (i = 0; i < 4; i++) {
+        create_player_blits(i);
+    }
+    for (i = 0; i < 4; i++) {
+        lbl_80257630[i] = 0;
+    }
+    lbl_803447A8 = 0;
+    lbl_803447AC = 0;
+    lbl_80344B2C = fn_800BB29C(lbl_80344EB8, lbl_80127D60, 1);
+    for (i = 0; i < 24; i++) {
+        got_it[i].state = 0;
+        if (got_it[i].blit2 != NULL) {
+            MBRemoveBlit(got_it[i].blit2);
+            got_it[i].blit2 = NULL;
+        }
+        if (got_it[i].blit1 != NULL) {
+            MBRemoveBlit(got_it[i].blit1);
+            got_it[i].blit1 = NULL;
+        }
+    }
+    lbl_80344B1C = 0;
+    lbl_80344B00 = 0;
+    lbl_80344AFC = (s32)MBOX_FindTexture("KEY_ICON", NULL);
+    for (i = 0; i < 5; i++) {
+        tex = (u32)MBOX_FindTexture(lbl_8011FCD4[i], NULL);
+        potionicon_tab[i] = (void*)tex;
+    }
+}
+
+/* Create every per-player HUD blit set (portrait frames, runes,       */
+/* crystals, keys, power meter, rune13, HOD, quest, tb_info).          */
+static void create_player_blits(s32 i) {
+    u16 lx = lbl_80120238[i];
+    u16 rx;
+    u32 tex;
+    void* b;
+    s32 j;
+
+    frame_blit[i][0] = fn_800B3AFC(0, 0, lx, 0x130, 0x80, -1);
+    frame_blit[i][1] = fn_800B3AFC(0, 0, lx, 0x140, 0x80, -1);
+    frame_blit[i][2] = fn_800B3AFC(0, 0, lx, 0x140, 0x80, -1);
+    frame_blit[i][3] = fn_800B3AFC(0, 0, lx, 0x158, 0x94, -1);
+    frame_blit[i][4] = fn_800B3AFC(0, 0, lx + 8, 0x148, 0x14, 0x14);
+    frame_blit[i][5] = fn_800B3AFC(0, 0, lx, 0x148, 0x14, 0x14);
+    for (j = 0; j < 6; j++) {
+        mbBlitInit3414(frame_blit[i][j], 1);
+        fn_800B2F8C(0.1f, frame_blit[i][j]);
+    }
+    for (j = 0; j < 12; j++) {
+        fn_800C9BD0(tbuf, "SM_RUNE_%s_%02d", lbl_801205D8[j / 3], j % 3 + 1);
+        tex = fn_800B8B34(tbuf, NULL, 1);
+        rune_blit[i][j] = fn_800B3AFC(0, tex, lx + j * 8 + j / 3 + 0xF, 0x132, -1, -1);
+        mbBlitInit3414(rune_blit[i][j], 1);
+        fn_800B2F8C(0.1f, rune_blit[i][j]);
+    }
+    for (j = 0; j < 8; j++) {
+        fn_800C9BD0(tbuf, "SM_KEY_%s", lbl_801205F8[j]);
+        tex = fn_800B8B34(tbuf, NULL, 1);
+        crystal_blit[i][j] = fn_800B3AFC(0, tex, lx + j * 12 + 0xC, 300, -1, -1);
+        mbBlitInit3414(crystal_blit[i][j], 1);
+        fn_800B2F8C(0.1f, crystal_blit[i][j]);
+    }
+    for (j = 0; j < 4; j++) {
+        key_blit[i][j] = fn_800B3AFC(0, 0, lx + 0x1A, j * 3 + 0x142, -1, -1);
+        mbBlitInit3414(key_blit[i][j], 1);
+        fn_800B2F8C(0.1f, key_blit[i][j]);
+    }
+    for (j = 0; j < 7; j++) {
+        b = MBNewBlit((char*)lbl_8011FC48[j * 5 + 1], i * 0x80 + lbl_8011FC48[j * 5 + 2],
+                      (u32)lbl_8011FC48[j * 5 + 3]);
+        pm_blit[i][j] = b;
+        lbl_8011FC48[j * 5] = fn_800B2980(b);
+        mbBlitInit3414(b, 1);
+        fn_800B2F8C((f32)-lbl_8011FC48[j * 5 + 4], b);
+    }
+    PF(P(i), 0x3340, s32) = 0;
+    rx = lbl_80120240[i];
+    tb_info[i].sel = -1;
+    tb_info[i].y_top = -1;
+    tb_info[i].state = 0;
+    tb_info[i].x_right = rx - 0x34;
+    tb_info[i].y_top = 0x14F;
+    tb_info[i].x_left = rx - 0x40;
+    tb_info[i].y_box = 0x143;
+    tb_info[i].tex1 = 0xF9F1;
+    tb_info[i].tex2 = 0xF9F2;
+    tb_info[i].label = NULL;
+    rune13_blit[i] = fn_800B3AFC(0, 0, rx - 0xE, -0x143, -1, -1);
+    tex = fn_800B8B34("BTMBK_LEVL", NULL, 1);
+    fn_800B2988(rune13_blit[i], tex, 0);
+    mbBlitInit3414(rune13_blit[i], 1);
+    fn_800B2F8C(0.1f, rune13_blit[i]);
+    if (lbl_803447C0 != 0) {
+        mbBlitUpdateEntry(rune13_blit[i], -1, 0x100);
+    }
+    PF(P(i), 0x954, s16) = 0;
+    hod_blit[i] = fn_800B3AFC(0, 0, lx + 8, 0x154, 0x10, 0x10);
+    tex = fn_800B8B34("HODICON", NULL, 1);
+    fn_800B2988(hod_blit[i], tex, 0);
+    mbBlitInit3414(hod_blit[i], 1);
+    fn_800B2F8C(0.1f, hod_blit[i]);
+    quest_blit[i] = fn_800B3AFC(0, 0, lx + 0x68, 0x152, 0x10, 0x10);
+    mbBlitInit3414(quest_blit[i], 1);
+    fn_800B2F8C(0.1f, quest_blit[i]);
+    P(i)->node = NULL;
+    P(i)->index = i;
+}
+
+/* Wipe all four records (keeps index + controller binding).           */
+void reset_players(void) {
+    Player* p;
+    s32 i;
+
+    for (i = 0; i < 4; i++) {
+        p = P(i);
+        memset(p, 0, 0x335C);
+        p->class_id = i;
+        p->index = i;
+    }
+}
+
+/* Allocate the per-player model arenas and file buffers.              */
+void setup_player_models(void) {
+    PlayerModelSlot* s;
+    s32 i;
+    s32 free0;
+
+    GetMaxPlayerModelSize();
+    for (i = 0; i < 4; i++) {
+        s = &model_slot[i];
+        free0 = BytesFree();
+        bulletproof_printf("Player %d -- MEM %d\n", i, free0);
+        fn_800C9BD0(tbuf, "PLAYER %d", i);
+        s->arena = (void*)MBOX_LoadModelFixed(tbuf, s->model_max, (s32)s->arena_max,
+                                              tbuf, 0);
+        s->cur_class = -1;
+        s->cur_override = 0;
+        s->model_buf = AllocMem(s->model_buf_max, (s32)s->arena_max, tbuf);
+        s->anim_remap = -1;
+        s->anim_buf = AllocMem(s->anim_max, (s32)s->arena_max, tbuf);
+        s->anim_remap2 = -1;
+        s->sfx_arena = (void*)MBOX_LoadModelFixed(tbuf, s->sfx_max, (s32)s->sfx_arena_max,
+                                                  tbuf, 0);
+        s->sfx_buf = AllocMem(s->sfx_buf_max, (s32)s->sfx_arena_max, tbuf);
+        s->sfx_remap = -1;
+    }
+}
+
+/* Fill/level the per-slot arena budgets (once).                       */
+static void GetMaxPlayerModelSize(void) {
+    PlayerModelSlot* s;
+    s32 i;
+
+    if (lbl_80344B08 != 0) {
+        return;
+    }
+    for (i = 0; i < 4; i++) {
+        s = &model_slot[i];
+        s->model_max = 0xB800;
+        s->model_buf_max = 0x4D800;
+        s->arena_max = 0xB000;
+        s->anim_max = 0x1000;
+        s->sfx_max = 0x2BC00;
+        s->sfx_buf_max = 0xC000;
+        s->sfx_arena_max = 0x18000;
+    }
+    for (i = 1; i < 4; i++) {
+        s = &model_slot[i];
+        if ((s32)model_slot[0].model_max < (s32)s->model_max) {
+            model_slot[0].model_max = s->model_max;
+        }
+        if ((s32)model_slot[0].model_buf_max < (s32)s->model_buf_max) {
+            model_slot[0].model_buf_max = s->model_buf_max;
+        }
+        if ((s32)model_slot[0].arena_max < (s32)s->arena_max) {
+            model_slot[0].arena_max = s->arena_max;
+        }
+        if ((s32)model_slot[0].anim_max < (s32)s->anim_max) {
+            model_slot[0].anim_max = s->anim_max;
+        }
+        if ((s32)model_slot[0].sfx_max < (s32)s->sfx_max) {
+            model_slot[0].sfx_max = s->sfx_max;
+        }
+        if ((s32)model_slot[0].sfx_buf_max < (s32)s->sfx_buf_max) {
+            model_slot[0].sfx_buf_max = s->sfx_buf_max;
+        }
+        if ((s32)model_slot[0].sfx_arena_max < (s32)s->sfx_arena_max) {
+            model_slot[0].sfx_arena_max = s->sfx_arena_max;
+        }
+    }
+    for (i = 1; i < 4; i++) {
+        s = &model_slot[i];
+        s->model_max = model_slot[0].model_max;
+        s->model_buf_max = model_slot[0].model_buf_max;
+        s->arena_max = model_slot[0].arena_max;
+        s->anim_max = model_slot[0].anim_max;
+        s->sfx_max = model_slot[0].sfx_max;
+        s->sfx_buf_max = model_slot[0].sfx_buf_max;
+        s->sfx_arena_max = model_slot[0].sfx_arena_max;
+    }
+    lbl_80344B08 = 1;
+}
+
+/* Player slot i's texture arena handle.                               */
+void* PlayerModel(s32 i) {
+    return model_slot[i].arena;
+}
+
+/* ------------------------------------------------------------------ */
+/* powerups                                                            */
+/* ------------------------------------------------------------------ */
+
+/*
+ * GIANT (0x18F8) -- documented skeleton.  Per-frame powerup master:
+ * walks all 11 slots ticking timers, runs the per-type processors --
+ * levitation/anti-death node juggling (fn_80012F78 overlays via
+ * lbl_80282930 class colors), reflect-shot, x-ray (do_see_thru),
+ * growth/shrink, invisibility/invuln node alpha (fn_800BA408 family),
+ * mikey (PlayerProcessMikeyPUP), skin FX (PlayerProcessSkinFX), timed
+ * expiry sounds (fn_8009D4F0/fn_8009D560/fn_8009D5A0) and the HUD
+ * mini-inventory dirty flags (PUP_DIRTY).  On Xbox this decomposes
+ * into PlayerProcessPowerups + PlayerProcessFamiliar + PlayerUsePowerup
+ * + DropMikey + player_find_powerup_from_typemask (all inlined here).
+ * Real body next session -- transcribe from Ghidra 0x8007CC48.
+ */
+void PlayerProcessPowerups(void* vp, s32 state, s32* c) {
+    (void)vp;
+    (void)state;
+    (void)c;
+}
+
+/* Level-tier halo/glow overlay (25+/80+ levels, gold at 99).          */
+static void PlayerProcessSkinFX(void* vp, void* node) {
+    Player* p = vp;
+    void** src;
+    s32 fresh = 0;
+    s32 h;
+
+    (void)node;
+    if (p->level >= 0x50) {
+        src = (void**)&lbl_80240628[p->index * 2 + 1];
+    } else if (p->level >= 0x1E) {
+        src = (void**)&lbl_80240628[p->index * 2];
+    } else {
+        if (PF(p, 0x748, s32) != 0) {
+            fn_800115D0((void**)((u8*)p + 0x748));
+        }
+        src = NULL;
+    }
+    if (src != NULL) {
+        if (PF(p, 0x748, s32) != 0 &&
+            (*src == NULL || PF(p, 0x750, s32) != *((s32*)*src + 1))) {
+            fn_800115D0((void**)((u8*)p + 0x748));
+        }
+        if (PF(p, 0x748, s32) == 0 && *src != NULL) {
+            PF(p, 0x748, s32) = fn_80012F78(*src, (u8*)p + 0x748, 0, 0x800);
+            fn_800BA368(*(void**)PF(p, 0x748, s32*), 0x10, 0);
+            fn_800BAD94(*(void**)PF(p, 0x748, s32*), p->node);
+            fn_800BA6C0(*(void**)PF(p, 0x748, s32*), 0, 1);
+            fresh = 1;
+        }
+    }
+    if (fresh && (h = PF(p, 0x748, s32)) != 0) {
+        u8* cls = lbl_80282930[p->index];
+        if (p->level < 99) {
+            *(s32*)(h + 0x10) = *(s32*)(cls + 0x164);
+            *(s32*)(h + 0x14) = *(s32*)(cls + 0x168);
+            *(s32*)(h + 0x18) = *(s32*)(cls + 0x16C);
+            *(s32*)(*(u8**)h + 0x30) = *(s32*)(cls + 0x164);
+            *(s32*)(*(u8**)h + 0x34) = *(s32*)(cls + 0x168);
+            *(s32*)(*(u8**)h + 0x38) = *(s32*)(cls + 0x16C);
+        } else {
+            *(f32*)(h + 0x10) = 1.5 * *(f32*)(cls + 0x164);
+            *(f32*)(h + 0x14) = 1.5 * *(f32*)(cls + 0x168);
+            *(f32*)(h + 0x18) = 1.5 * *(f32*)(cls + 0x16C);
+            *(f32*)(*(u8**)h + 0x30) = 1.5 * *(f32*)(cls + 0x164);
+            *(f32*)(*(u8**)h + 0x34) = 1.5 * *(f32*)(cls + 0x168);
+            *(f32*)(*(u8**)h + 0x38) = 1.5 * *(f32*)(cls + 0x16C);
+        }
+    }
+    if (PF(p, 0x748, s32) != 0) {
+        if (lbl_8034477C == 0x4010 && (PF(p, 0x124, u32) & 0x80)) {
+            fn_800BA368(*(void**)PF(p, 0x748, s32*), 2, 0);
+        } else {
+            fn_800BA2C4(*(void**)PF(p, 0x748, s32*), 2, 0);
+            fn_80011104((void**)((u8*)p + 0x748), (PF(p, 0x900, u32) & 0x10000000) != 0,
+                        (PF(p, 0x900, u32) & 0x10000000) ? 2 : 0);
+        }
+    }
+}
+
+/* Mikey powerup: hatch/despawn state machine + orbit anim.            */
+void PlayerProcessMikeyPUP(void* vp) {
+    Player* p = vp;
+    s16 t = PF(p, 0xA1C, s16);
+    void* atree;
+    s32 slot;
+    s32 j;
+
+    if (t != 2) {
+        if (t < 2) {
+            if (t == 0) {
+                return;
+            }
+            if (t < 0) {
+                return;
+            }
+            /* t == 1: hatch */
+            slot = -1;
+            for (j = 0; j < 11; j++) {
+                if (PUP_TYPE(p, j) == 9 && PUP_MASK(p, j) == 0x100000) {
+                    slot = j;
+                    break;
+                }
+            }
+            if (slot < 0) {
+                return;
+            }
+            if (PUP_DIRTY(p, slot) != 2) {
+                return;
+            }
+            atree = AtreeMatch(lbl_8034496C, "MIKEYPUP_ON", 1);
+            PF(p, 0x96C, s32) = fn_80012F78(atree, (u8*)p + 0x96C, 0, 0);
+            PF(p, 0x9A4, s16) = 1;
+            PF(p, 0xA14, void*) = fn_800BB29C(lbl_80344BD4, lbl_80127D60, 1);
+            PF(p, 0xA18, s32) = 0;
+            fn_800BAD94(*(void**)PF(p, 0x96C, s32*), PF(p, 0xA14, void*));
+            *(f32*)(PF(p, 0xA14, u8*) + 0x30) = p->col_pos[0];
+            *(f32*)(PF(p, 0xA14, u8*) + 0x34) = p->col_pos[1];
+            *(f32*)(PF(p, 0xA14, u8*) + 0x38) = p->col_pos[2];
+            CopyMat4((f32*)PF(p, 0xA14, void*), (f32*)((u8*)p + 0x9B4));
+            PF(p, 0x9F4, s32) = *(s32*)(PF(p, 0xA14, u8*) + 0x30);
+            PF(p, 0x9F8, s32) = *(s32*)(PF(p, 0xA14, u8*) + 0x34);
+            PF(p, 0x9FC, s32) = *(s32*)(PF(p, 0xA14, u8*) + 0x38);
+            PF(p, 0xA04, s32) = PF(p, 0x9F4, s32);
+            PF(p, 0xA08, s32) = PF(p, 0x9F8, s32);
+            PF(p, 0xA0C, s32) = PF(p, 0x9FC, s32);
+            PF(p, 0xA1C, s16) = 2;
+            PUP_DIRTY(p, slot) = 1;
+            return;
+        }
+        if (t == 300) {
+            /* despawn */
+            slot = -1;
+            for (j = 0; j < 11; j++) {
+                if (PUP_TYPE(p, j) == 9 && PUP_MASK(p, j) == 0x100000) {
+                    slot = j;
+                    break;
+                }
+            }
+            fn_800115D0((void**)((u8*)p + 0x96C));
+            fn_800BAEAC(PF(p, 0xA14, void*), 1);
+            PF(p, 0xA14, s32) = 0;
+            PF(p, 0xA1C, s16) = 0;
+            if (slot >= 0) {
+                PUP_DIRTY(p, slot) = 1;
+            }
+            return;
+        }
+    }
+    /* live: tick anim + sparkles */
+    fn_800BA2C4(*(void**)PF(p, 0x96C, s32*), 2, 0);
+    fn_80011104((void**)((u8*)p + 0x96C), 0, 0);
+    t = PF(p, 0xA1C, s16);
+    if (t < 0x3C && t == (t / 10) * 10) {
+        fn_80091F34((f32*)((u8*)p + 0xA04), rand() % 4 + 1);
+    }
+    PF(p, 0xA1C, s16) = t + 1;
+    slot = -1;
+    for (j = 0; j < 11; j++) {
+        if (PUP_TYPE(p, j) == 9 && PUP_MASK(p, j) == 0x100000) {
+            slot = j;
+            break;
+        }
+    }
+    if (slot >= 0 && PUP_DIRTY(p, slot) == 2) {
+        PF(p, 0xA1C, s16) = 300;
+    }
+}
+
+/* Drop the big-ape unlock powerups into the level.                    */
+void AppendBigapePowerupsToScene(void) {
+    s32 i;
+
+    for (i = 0; i < lbl_80343DAC; i++) {
+        if (fn_800579E0(&lbl_8012028C[i * 5]) != 0) {
+            AppendItemToLevel(*(f32*)&lbl_8012028C[i * 5 + 2],
+                              *(f32*)&lbl_8012028C[i * 5 + 3],
+                              *(f32*)&lbl_8012028C[i * 5 + 4],
+                              (char*)lbl_8012028C[i * 5 + 1]);
+        }
+    }
+}
+
+/* Instantiate a named pickup item at x/y/z via the item template.     */
+void AppendItemToLevel(f32 x, f32 y, f32 z, char* name) {
+    s32* item;
+
+    item_tmpl[0] = 1;
+    item_tmpl[1] = 9;
+    *(s16*)&item_tmpl[2] = 1;
+    *((s16*)&item_tmpl[2] + 1) = 0;
+    *(f32*)&item_tmpl[3] = 0.6f;
+    *(f32*)&item_tmpl[4] = 0.5f;
+    *(f32*)&item_tmpl[5] = 0.0f;
+    *(f32*)&item_tmpl[6] = 0.0f;
+    *(f32*)&item_tmpl[7] = 0.0f;
+    item_tmpl2[0] = 0;
+    fn_800C9BD0(item_name, "%s", name);
+    item_tmpl2[1] = 0;
+    *(s16*)&item_tmpl2[1] = 0;
+    *(u16*)((u8*)&item_tmpl2[1] + 2) = 0xFFFF;
+    *(s16*)&item_tmpl2[2] = 0;
+    *((s16*)&item_tmpl2[2] + 1) = 0x10;
+    *(s16*)&item_tmpl2[3] = 0;
+    *((s16*)&item_tmpl2[3] + 1) = 0x1E;
+    item_tmpl2[0] = (s32)item_name;
+    item_tmpl2[4] = (s32)AtreeMatch(lbl_8034496C, item_name, 0);
+    item = fn_80063A44(item_tmpl, NULL, 0, -1);
+    *((u8*)item + 0xCD) = 0;
+    fn_800BA2C4((void*)item[0x19], 2, 0);
+    if (*(s32*)item[0] == 1) {
+        *(s16*)&item[0x3B] = 0x3C;
+    }
+    *(f32*)&item[0xD] = x;
+    *(f32*)&item[0xE] = y;
+    *(f32*)&item[0xF] = z;
+    fn_80064154(item);
+}
+
+/*
+ * X-ray/see-thru: pick the tree containing the closest visible chest
+ * and swap the player onto the transparent variant; end_see_thru is
+ * the state == -1 restore block (inlined, Xbox local).
+ */
+static s32 do_see_thru(void* vp) {
+    Player* p = vp;
+    s32 i = p->index;
+    u8* chest = NULL;
+    void* tree;
+    s32* fl;
+    s32 floor_id;
+    s32 j;
+
+    if (lbl_80344950 == NULL) {
+        return 0;
+    }
+    j = (s32)ClosestChest(p);
+    if (j >= 0) {
+        chest = lbl_80344950 + j * 0xF0;
+        if (!fn_800BB5F4(0.5f * *(f32*)(*(u8**)chest + 0xC), (s32*)(chest + 0x44))) {
+            chest = NULL;
+        }
+    }
+    if (chest == NULL) {
+        lbl_8025EC78[i] = -1;
+    } else {
+        floor_id = *(s16*)(chest + 0xDC);
+        fl = (s32*)(lbl_8028CAF4 + floor_id * 0x50);
+        while (*fl == -1) {
+            floor_id = *(s16*)((u8*)fl + fn_800675F8(j, fl[1], 0) * 2 + 8);
+            fl = (s32*)(lbl_8028CAF4 + floor_id * 0x50);
+        }
+        tree = lbl_80344938;
+        if (*fl != 4 && (*fl != 1 || fl[1] != 2 || *(s16*)(chest + 0xEC) < 2)) {
+            tree = (void*)fl[0x13];
+        } else if (*fl == 1) {
+            tree = lbl_80344934;
+        }
+        for (j = 0; j < 4; j++) {
+            if (j != i && lbl_8025EC88[j] == chest) {
+                tree = NULL;
+            }
+        }
+        if (tree == NULL) {
+            lbl_8025EC78[i] = -1;
+        } else {
+            s32 fresh = 0;
+            if (lbl_8025EC88[i] != chest) {
+                u8* old = lbl_8025EC88[i];
+                if (old != NULL && *(s32*)(old + 100) != 0) {
+                    fn_800BAD94(*(void**)(old + 100), (void*)lbl_8025EC98[i]);
+                    fn_800BA6C0(*(void**)(old + 100), 0, 1);
+                    CopyMat3((f32*)lbl_8025ECA8[i], *(f32**)(old + 100));
+                    *(s32*)(*(u8**)(old + 100) + 0x30) = *(s32*)(lbl_8025ECA8[i] + 0x30);
+                    *(s32*)(*(u8**)(old + 100) + 0x34) = *(s32*)(lbl_8025ECA8[i] + 0x34);
+                    *(s32*)(*(u8**)(old + 100) + 0x38) = *(s32*)(lbl_8025ECA8[i] + 0x38);
+                }
+                fn_800BA6C0(*(void**)(chest + 100), 0xC0, 1);
+                lbl_8025EC98[i] = *(s32*)(*(u8**)(chest + 100) + 0x74);
+                fn_800BAD94(lbl_8025ECA8[i], (void*)lbl_8025EC98[i]);
+                CopyMat3(*(f32**)(chest + 100), (f32*)lbl_8025ECA8[i]);
+                *(s32*)(lbl_8025ECA8[i] + 0x30) = *(s32*)(*(u8**)(chest + 100) + 0x30);
+                *(s32*)(lbl_8025ECA8[i] + 0x34) = *(s32*)(*(u8**)(chest + 100) + 0x34);
+                *(s32*)(lbl_8025ECA8[i] + 0x38) = *(s32*)(*(u8**)(chest + 100) + 0x38);
+                CopyMat4(lbl_80127D60, *(f32**)(chest + 100));
+                lbl_8025EC88[i] = chest;
+                fresh = 1;
+            }
+            if ((fresh && lbl_8025ECB8[i][0] == NULL) || floor_id != lbl_8025EC78[i]) {
+                lbl_8025EC78[i] = floor_id;
+                if (lbl_8025ECB8[i][0] != NULL) {
+                    fn_800115D0(&lbl_8025ECB8[i][0]);
+                }
+                lbl_8025ECB8[i][0] = (void*)fn_80012F78(tree, &lbl_8025ECB8[i][0], 0, 0x80);
+                fn_800BA368(*(void**)lbl_8025ECB8[i][0], 8, 0);
+                *(f32*)((u8*)*(void**)lbl_8025ECB8[i][0] + 0x40) = 1.001f;
+                *(f32*)((u8*)*(void**)lbl_8025ECB8[i][0] + 0x44) = 1.001f;
+                *(f32*)((u8*)*(void**)lbl_8025ECB8[i][0] + 0x48) = 1.001f;
+                fresh = 1;
+            }
+            if (fresh) {
+                fn_800BAD94((void*)lbl_8025EC68[i], NULL);
+                fn_800BAD94(*(void**)(chest + 100), NULL);
+                fn_800BAD94(*(void**)lbl_8025ECB8[i][0], lbl_8025ECA8[i]);
+                fn_800BAD94((void*)lbl_8025EC68[i], lbl_8025ECA8[i]);
+                fn_800BAD94(*(void**)(chest + 100), lbl_8025ECA8[i]);
+                fn_8009F118(i);
+            }
+            fn_800BA2C4((void*)lbl_8025EC68[i], 1, 0);
+        }
+    }
+    if (lbl_8025EC78[i] == -1) {
+        /* end_see_thru (inlined) */
+        if (lbl_8025ECB8[i][0] != NULL) {
+            fn_800115D0(&lbl_8025ECB8[i][0]);
+        }
+        fn_800BA368((void*)lbl_8025EC68[i], 1, 0);
+        if (lbl_8025EC88[i] != NULL) {
+            u8* old = lbl_8025EC88[i];
+            if (*(s32*)(old + 100) != 0) {
+                fn_800BAD94(*(void**)(old + 100), (void*)lbl_8025EC98[i]);
+                fn_800BA6C0(*(void**)(old + 100), 0, 1);
+                CopyMat3((f32*)lbl_8025ECA8[i], *(f32**)(old + 100));
+                *(s32*)(*(u8**)(old + 100) + 0x30) = *(s32*)(lbl_8025ECA8[i] + 0x30);
+                *(s32*)(*(u8**)(old + 100) + 0x34) = *(s32*)(lbl_8025ECA8[i] + 0x34);
+                *(s32*)(*(u8**)(old + 100) + 0x38) = *(s32*)(lbl_8025ECA8[i] + 0x38);
+            }
+        }
+        lbl_8025EC88[i] = NULL;
+    }
+    return 0;
+}
+
+/* Index of the closest openable chest to p (squared/NR distance).     */
+static f32 ClosestChest(void* vp) {
+    Player* p = vp;
+    u8* it;
+    s32 j;
+    s32 st;
+    f32 dx, dy, dz;
+    f32 d;
+    f32 best = 250000.0f;
+
+    fn_80043490(60.0f, p->pos);
+    while ((j = fn_800433EC()) >= 0) {
+        it = lbl_80344950 + j * 0xF0;
+        if (*(s16*)(it + 0xC4) == -1) {
+            continue;
+        }
+        if (*(s32*)*(u8**)it != 2) {
+            continue;
+        }
+        if (*(u8*)(it + 0xCD) != 0 || *(u8*)(it + 0xC8) != 0) {
+            continue;
+        }
+        st = *(s32*)(lbl_8028CAF4 + *(s16*)(it + 0xDC) * 0x50);
+        if (st != -1 && st != 4 && st != 1) {
+            continue;
+        }
+        dx = *(f32*)(it + 0x34) - p->pos[0];
+        dy = *(f32*)(it + 0x38) - p->pos[1];
+        dz = *(f32*)(it + 0x3C) - p->pos[2];
+        d = dz * dz + dx * dx + dy * dy;
+        if (d < best) {
+            best = d;
+        }
+    }
+    return best;
+}
+
+/* Query (and tick) the slot holding powerup type/mask.  Returns the   */
+/* remaining state: 0 gone, 1 permanent, else the ticking timer.       */
+s32 player_get_powerup_state(f32 dt, void* vp, s32 type, u32 mask) {
+    Player* p = vp;
+    f32* tp;
+    s32 j;
+    s32 r = 0;
+
+    for (j = 0; j < 11; j++) {
+        if (PUP_STRENGTH(p, j) != 0.0 &&
+            PUP_TYPE(p, j) == type && (PUP_MASK(p, j) & mask)) {
+            break;
+        }
+    }
+    if (j < 11) {
+        tp = &PUP_TIMER(p, j);
+        r = (s32)*tp;
+        if (r < 0) {
+            r = 1;
+        } else if (lbl_803448D8 != 0xD) {
+            if (dt <= 0.0f) {
+                *tp -= dt;
+            } else {
+                *tp = 0.0f;
+            }
+            if (*tp <= 0.0f) {
+                PUP_STRENGTH(p, j) = 0.0f;
+            }
+        }
+    }
+    return r;
+}
+
+/* Add/extend a powerup slot.  mask & 8 also drives the x-ray range.   */
+void PlayerAddPowerup(f32 duration, f32 strength, void* vp, s32 type, u32 mask) {
+    Player* p = vp;
+    f32 str;
+    f32 w;
+    f32 best;
+    s32 j;
+    s32 pick = 0;
+
+    str = strength * PF(lbl_80282930[p->index], 0x58, f32);
+    for (j = 0; j < 11; j++) {
+        if (PUP_TYPE(p, j) == type && PUP_MASK(p, j) == mask) {
+            if (duration > 0.0) {
+                PUP_TIMER(p, j) += duration;
+            }
+            if (PUP_STRENGTH(p, j) >= 0.0f && str > 0.0) {
+                PUP_STRENGTH(p, j) += 0.25 * str;
+            } else if (str < 0.0) {
+                PUP_STRENGTH(p, j) = str;
+            }
+            if (mask & 8) {
+                lbl_80344B20 = PUP_STRENGTH(p, j);
+            }
+            return;
+        }
+    }
+    /* find the weakest/free slot */
+    best = 1000000.0f;
+    for (j = 0; j < 11; j++) {
+        w = PUP_STRENGTH(p, j);
+        if (w < 0.0f) {
+            w = (PUP_TYPE(p, j) == type) ? 999999.0f : 1000000.0f;
+        }
+        if (best == 2000000.0f || w == 0.0 || (w >= 0.0 && w < best)) {
+            pick = j;
+            best = w;
+        }
+        if (best == 0.0) {
+            break;
+        }
+    }
+    PUP_STRENGTH(p, pick) = str;
+    PUP_TYPE(p, pick) = type;
+    PUP_TIMER(p, pick) = duration;
+    PUP_MASK(p, pick) = mask;
+    if (mask & 8) {
+        lbl_80344B20 = str;
+    }
+    PUP_DIRTY(p, pick) = 1;
+}
+
+/* Attribute bump helpers (per-character bonus + norm recompute).      */
+void PlayerIncSpeed(void* vp, u32 amount) {
+    Player* p = vp;
+
+    CHAR_STATS(p, p->character)[5] += (s32)amount;
+    check_player_atts(p, p->character, NULL);
+}
+
+void PlayerIncMagic(void* vp, u32 amount) {
+    Player* p = vp;
+
+    CHAR_STATS(p, p->character)[4] += (s32)amount;
+    check_player_atts(p, p->character, NULL);
+}
+
+void PlayerIncArmor(void* vp, u32 amount) {
+    Player* p = vp;
+
+    CHAR_STATS(p, p->character)[3] += (s32)amount;
+    check_player_atts(p, p->character, NULL);
+}
+
+void PlayerIncFight(void* vp, u32 amount) {
+    Player* p = vp;
+
+    CHAR_STATS(p, p->character)[2] += (s32)amount;
+    check_player_atts(p, p->character, NULL);
+}
+
+/*
+ * Recompute the four attribute norms: class base + 5/level (capped by
+ * the class max) + per-character bonus, clamped to 999.  The repeated
+ * min(cap, base + (level-1)*5) is the auto-inlined player_max_att.
+ */
+void check_player_atts(void* vp, s32 chartype, s32* stats) {
+    Player* p = vp;
+    u8* cls;
+    f32 cap;
+    f32 v;
+
+    if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
+        ATT_FIGHT(p) = 0.9f;
+        ATT_ARMOR(p) = 0.9f;
+        ATT_MAGIC(p) = 0.9f;
+        ATT_SPEED(p) = 0.9f;
+        return;
+    }
+    if (stats == NULL) {
+        stats = CHAR_STATS(p, chartype);
+    }
+    fn_8008A928(p->index, chartype, NULL);
+    cls = lbl_80282930[p->index];
+
+    cap = PF(cls, 0x2C, f32);
+    v = PF(cls, 0x28, f32) + (f32)((p->level - 1) * 5);
+    if (v < cap) {
+        cap = v;
+    }
+    ATT_FIGHT(p) = (cap + stats[2] < 999.0) ? cap + stats[2] : 999.0;
+
+    cap = PF(cls, 0x3C, f32);
+    v = PF(cls, 0x38, f32) + (f32)((p->level - 1) * 5);
+    if (v < cap) {
+        cap = v;
+    }
+    ATT_ARMOR(p) = (cap + stats[3] < 999.0) ? cap + stats[3] : 999.0;
+
+    cap = PF(cls, 0x44, f32);
+    v = PF(cls, 0x40, f32) + (f32)((p->level - 1) * 5);
+    if (v < cap) {
+        cap = v;
+    }
+    ATT_MAGIC(p) = (cap + stats[4] < 999.0) ? cap + stats[4] : 999.0;
+
+    cap = PF(cls, 0x34, f32);
+    v = PF(cls, 0x30, f32) + (f32)((p->level - 1) * 5);
+    if (v < cap) {
+        cap = v;
+    }
+    ATT_SPEED(p) = (cap + stats[5] < 999.0) ? cap + stats[5] : 999.0;
+}
+
+/* Show (on != 0) or hide every per-player HUD blit.                   */
+void SetPlayerWindows(s32 on) {
+    s32 alpha = (on != 0) ? 0xFF : 0;
+    s32 i;
+    s32 j;
+
+    for (i = 0; i < 4; i++) {
+        for (j = 0; j < 6; j++) {
+            if (frame_blit[i][j] != NULL) {
+                fn_800B290C(frame_blit[i][j], alpha);
+            }
+        }
+        for (j = 0; j < 12; j++) {
+            if (rune_blit[i][j] != NULL) {
+                fn_800B290C(rune_blit[i][j], alpha);
+            }
+        }
+        for (j = 0; j < 8; j++) {
+            if (crystal_blit[i][j] != NULL) {
+                fn_800B290C(crystal_blit[i][j], alpha);
+            }
+        }
+        for (j = 0; j < 4; j++) {
+            if (key_blit[i][j] != NULL) {
+                fn_800B290C(key_blit[i][j], alpha);
+            }
+        }
+        if (rune13_blit[i] != NULL) {
+            fn_800B290C(rune13_blit[i], alpha);
+        }
+        if (hod_blit[i] != NULL) {
+            fn_800B290C(hod_blit[i], alpha);
+        }
+        if (quest_blit[i] != NULL) {
+            fn_800B290C(quest_blit[i], alpha);
+        }
+        for (j = 0; j < 7; j++) {
+            fn_800B290C(pm_blit[i][j], alpha);
+        }
+    }
+    lbl_80344B00 = on;
+}
+
+/* ------------------------------------------------------------------ */
+/* got-it ticker                                                       */
+/* ------------------------------------------------------------------ */
+
+/* Per-frame got-it slide/hold/fade state machine + blit creation.     */
+static void do_got_it(void) {
+    char buf[36];
+    GotIt* g;
+    s32 y[3];
+    u32 x;
+    s32 i;
+
+    for (i = 0, g = got_it; i < 24; i++, g++) {
+        if (g->state == 2) {
+            /* sliding up into place */
+            if (g->blit1 != NULL) {
+                fn_800B2D4C(g->blit1, NULL, &y[0], NULL);
+                y[0] -= lbl_8034457C;
+                if (y[0] < 0x131) {
+                    y[0] = 0x130;
+                    g->state++;
+                    g->timer = 0x5A;
+                }
+                fn_800B3014(g->blit1, y[0]);
+                fn_800B3014(g->blit2, y[0] + 0x10);
+            }
+        } else if (g->state == 4) {
+            /* sliding down out */
+            if (g->blit1 != NULL) {
+                fn_800B2D4C(g->blit1, NULL, &y[0], NULL);
+                y[0] += lbl_8034457C;
+                if (y[0] > 399) {
+                    g->state = -1;
+                }
+                fn_800B3014(g->blit1, y[0]);
+                fn_800B3014(g->blit2, y[0] + 0x10);
+            }
+        } else if (g->state == 3) {
+            /* holding */
+            g->timer -= lbl_8034457C;
+            if (g->timer < 1) {
+                g->state++;
+            }
+        } else if (g->state < 0) {
+            if (g->state > -2) {
+                g->state = 0;
+                if (g->blit1 != NULL) {
+                    MBRemoveBlit(g->blit1);
+                    g->blit1 = NULL;
+                    MBRemoveBlit(g->blit2);
+                    g->blit2 = NULL;
+                }
+            }
+        } else if (g->state == 1) {
+            /* create the pair */
+            x = lbl_80120238[g->player];
+            fn_800C9BD0(buf, "%d", g->count);
+            switch (g->type) {
+            case 1:
+                g->blit1 = MBNewBlit(buf, x, 0);
+                if (lbl_803448D8 == 0xC) {
+                    g->blit2 = MBNewBlit("COINHUD", x, 0);
+                } else if (g->count < 0xB) {
+                    g->blit2 = MBNewBlit("KEY", x, 0);
+                } else {
+                    g->blit2 = MBNewBlit("KEYS", x, 0);
+                }
+                break;
+            case 2:
+                g->blit1 = MBNewBlit(buf, x, 0);
+                g->blit2 = MBNewBlit((g->count < 2) ? "KEY" : "KEY_RING", x, 0);
+                break;
+            case 3:
+                g->blit1 = MBNewBlit(buf, x, 0);
+                if (g->count >= 100) {
+                    g->blit2 = MBNewBlit("MEAT", x, 0);
+                } else if (g->count < -99) {
+                    g->blit2 = MBNewBlit("BADMEAT", x, 0);
+                } else if (g->count < 0) {
+                    g->blit2 = MBNewBlit("BADFRUIT", x, 0);
+                } else {
+                    g->blit2 = MBNewBlit("FRUIT", x, 0);
+                }
+                break;
+            case 4:
+                g->blit1 = MBNewBlit(buf, x, 0);
+                g->blit2 = MBNewBlit("MAGIC", x, 0);
+                break;
+            case 5:
+            case 6:
+            case 7:
+            case 8:
+            case 9:
+                g->blit1 = MBNewBlit(buf, x, 0);
+                g->blit2 = MBNewBlit("SPECIALS", x, 0);
+                break;
+            case 10:
+                g->blit1 = MBNewBlit(buf, x, 0);
+                g->blit2 = MBNewBlit("RUNESTONE", x, 0);
+                break;
+            case 0xD:
+                g->blit1 = MBNewBlit(buf, x, 0);
+                g->blit2 = MBNewBlit("LEGEND", x, 0);
+                break;
+            case 0xF:
+                g->blit1 = MBNewBlit(buf, x, 0);
+                g->blit2 = MBNewBlit("CRYSTAL", x, 0);
+                break;
+            case 0x10:
+                g->blit1 = MBNewBlit(buf, x, 0);
+                g->blit2 = MBNewBlit("GOLDNICON", x, 0);
+                break;
+            default:
+                g->state = 0;
+                return;
+            }
+            if (g->blit1 != NULL) {
+                fn_800B3288(g->blit1, 0x80, 0);
+                fn_800B2E78(0.15f, g->blit1, x, 0x180);
+            }
+            if (g->blit2 != NULL) {
+                fn_800B3288(g->blit2, 0x80, 0);
+                fn_800B2E78(0.16f, g->blit2, x, 400);
+            }
+            g->state++;
+        }
+    }
+}
+
+/* Free every got-it entry belonging to player i.                      */
+void kill_got_it(s32 i) {
+    s32 j;
+
+    for (j = 0; j < 24; j++) {
+        if (i == got_it[j].player) {
+            got_it[j].state = 0;
+            if (got_it[j].blit1 != NULL) {
+                MBRemoveBlit(got_it[j].blit1);
+                got_it[j].blit1 = NULL;
+            }
+            if (got_it[j].blit2 != NULL) {
+                MBRemoveBlit(got_it[j].blit2);
+                got_it[j].blit2 = NULL;
+            }
+        }
+    }
+}
+
+/* Queue a got-it ticker entry (accepted types only).                  */
+void add_got_it(s32 player, s32 type, s32 count) {
+    GotIt* g = got_it;
+    s32 j;
+
+    for (j = 0; j < 24; j++, g++) {
+        if (g->state == 0) {
+            break;
+        }
+    }
+    if (j >= 24) {
+        return;
+    }
+    if (type != 0xD) {
+        if (type < 0xD) {
+            if (type >= 0xB) {
+                return;
+            }
+            if (type < 1) {
+                return;
+            }
+        } else {
+            if (type >= 0x11) {
+                return;
+            }
+            if (type < 0xF) {
+                return;
+            }
+        }
+    }
+    g->state = 1;
+    g->player = player;
+    g->type = type;
+    g->count = count;
+    g->timer = 0;
+}
+
+/* Reset the got-it table (level load).                                */
+void init_got_it(void) {
+    GotIt* g = got_it;
+    s32 j;
+
+    for (j = 0; j < 24; j++, g++) {
+        g->state = 0;
+        if (g->blit2 != NULL) {
+            MBRemoveBlit(g->blit2);
+            g->blit2 = NULL;
+        }
+        if (g->blit1 != NULL) {
+            MBRemoveBlit(g->blit1);
+            g->blit1 = NULL;
+        }
+    }
+}
+
+/* ------------------------------------------------------------------ */
+/* world matrix / mini-inventory                                       */
+/* ------------------------------------------------------------------ */
+
+/* Recompute the world matrix unless attached; anchor when asked.      */
+void UpdatePlayerWorldMat(void* vp, s32 anchor) {
+    Player* p = vp;
+
+    if ((p->hud_flags & 0x20) == 0) {
+        fn_8005A3B8(p->mat);
+        if (anchor != 0) {
+            fn_8005A404(p->mat, p->anchor_fwd, p->anchor_pos);
+        }
+    }
+}
+
+/* Pad-driven mini-inventory: cycle selection, use, open/close.        */
+void mini_inventory_update(s32 i) {
+    Player* p = P(i);
+    TbInfo* tb = &tb_info[i];
+    u32 held;
+    s32 moved = 0;
+    s32 sel;
+    s32 j;
+
+    if (lbl_8034477C != 0x4010 || lbl_80344568 != 0) {
+        return;
+    }
+    if (tb->state == 1) {
+        if (PUP_STRENGTH(p, tb->sel) == 0.0 ||
+            (lbl_80240E38[i * 0xF] & 0x10000000)) {
+            fn_8009D42C();
+            moved = 1;
+            sel = mini_inventory_find_previous_selectable_item(i);
+            if (sel == -1) {
+                tb->state = 3;
+                tb->slide = 0;
+            } else {
+                tb->sel = sel;
+            }
+        }
+        held = lbl_80240E38[i * 0xF];
+        if (held & 0x20000000) {
+            fn_8009D42C();
+            moved = 1;
+            sel = mini_inventory_find_next_selectable_item(i);
+            if (sel == -1) {
+                tb->sel = -1;
+                tb->state = 3;
+                tb->slide = 0;
+            } else {
+                tb->sel = sel;
+            }
+        }
+        if (held & 0x40000000) {
+            fn_8009D3D4();
+            if (PUP_DIRTY(p, tb->sel) == 2) {
+                PUP_DIRTY(p, tb->sel) = 3;
+            } else {
+                PUP_DIRTY(p, tb->sel) = 2;
+            }
+        }
+        if ((held & 0x80000000) && tb->state == 1) {
+            fn_8009D458();
+            tb->state = 3;
+            moved = 1;
+            tb->slide = 0;
+        }
+    } else if ((lbl_80240E38[i * 0xF] & 0x40000000) != 0) {
+        fn_8009D458();
+        if (tb->state == 0) {
+            if (tb->sel == -1 && (sel = mini_inventory_find_previous_selectable_item(i)) >= 0) {
+                tb->sel = sel;
+                for (j = 0; j < lbl_80343D68; j++) {
+                    tb->label = (char*)lbl_8011FCE8[j * 3 + 2];
+                    if (lbl_8011FCE8[j * 3 + 1] ==
+                            (lbl_8011FCE8[j * 3 + 1] & (s32)PUP_MASK(p, tb->sel)) &&
+                        PUP_TYPE(p, tb->sel) == lbl_8011FCE8[j * 3]) {
+                        break;
+                    }
+                }
+                if (j >= lbl_80343D68) {
+                    tb->label = (char*)lbl_8011FCE8[(lbl_80343D68 - 1) * 3 + 2];
+                }
+            }
+            if (tb->sel >= 0) {
+                tb->state = 2;
+                moved = 1;
+                tb->slide = 0;
+            }
+        }
+    }
+    if (tb->state == 2) {
+        if (tb->slide < 0x80) {
+            tb->slide += lbl_8034457C * 4;
+            if (tb->slide > 0x80) {
+                tb->slide = 0x80;
+            }
+        } else {
+            tb->state = 1;
+        }
+    } else if (tb->state == 1) {
+        mini_inventory_draw_label(i);
+        if (moved) {
+            for (j = 0; j < lbl_80343D68; j++) {
+                tb->label = (char*)lbl_8011FCE8[j * 3 + 2];
+                if (lbl_8011FCE8[j * 3 + 1] ==
+                        (lbl_8011FCE8[j * 3 + 1] & (s32)PUP_MASK(p, tb->sel)) &&
+                    PUP_TYPE(p, tb->sel) == lbl_8011FCE8[j * 3]) {
+                    break;
+                }
+            }
+            if (j >= lbl_80343D68) {
+                tb->label = (char*)lbl_8011FCE8[(lbl_80343D68 - 1) * 3 + 2];
+            }
+        }
+    } else if (tb->state == 3) {
+        if (tb->slide < 0x80) {
+            tb->slide += lbl_8034457C * 4;
+            if (tb->slide > 0x80) {
+                tb->slide = 0x80;
+            }
+        } else {
+            tb->state = 0;
+        }
+    }
+}
+
+/* Draw the selected-powerup label + remaining-time bar.               */
+void mini_inventory_draw_label(s32 i) {
+    TbInfo* tb = &tb_info[i];
+    u8 st;
+    s32 y;
+
+    if (tb->label == NULL) {
+        return;
+    }
+    st = PUP_DIRTY(P(i), tb->sel);
+    y = tb->y_top + (0x67 - tb->slide);
+    if (st == 2) {
+        fn_8001EBCC(0.09f, tb->x_right + 0xC, y, (char*)tb->label);
+    } else if (st == 1 || st == 3) {
+        DrawTextKeepScale(0.09f, tb->x_right + 0xC, y, 6, 0xFFFFFF, (char*)tb->label);
+    }
+}
+
+/* Previous slot (wrapping) holding a live powerup, or -1.             */
+s32 mini_inventory_find_previous_selectable_item(s32 i) {
+    s32 sel = tb_info[i].sel;
+    s32 n = 0;
+
+    if (sel >= 0) {
+        sel--;
+    }
+    if (sel == -1) {
+        sel = 9;
+    }
+    while (n < 10) {
+        if (PUP_STRENGTH(P(i), sel) != 0.0) {
+            return sel;
+        }
+        sel--;
+        n++;
+        if (sel == -1) {
+            sel = 9;
+        }
+    }
+    return -1;
+}
+
+/* Next slot (wrapping) holding a live powerup, or -1.                 */
+s32 mini_inventory_find_next_selectable_item(s32 i) {
+    s32 sel = tb_info[i].sel + 1;
+    s32 n = 0;
+
+    if (sel > 9) {
+        sel = 0;
+    }
+    while (n < 10) {
+        if (PUP_STRENGTH(P(i), sel) != 0.0) {
+            return sel;
+        }
+        sel++;
+        n++;
+        if (sel > 9) {
+            sel = 0;
+        }
+    }
+    return -1;
+}
+
+/* Load the INVENTORY overlay file once.                               */
+void mini_inventory_setup(void) {
+    s32 f;
+
+    lbl_80344B28 = 0;
+    f = (s32)MBOX_LoadModelFixed("INVENTORY", 0, 0, NULL, 0xFFFFFFFF);
+    lbl_80344B28 = f;
+    ShopLoadData(f);
 }

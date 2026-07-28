@@ -332,7 +332,7 @@ extern void fn_8006C3A0(void);                 /* fullscreen inventory draw */
 extern void draw_fullscreen_inventory(void);
 extern void controls_remove_active_player(s32 player);
 extern void ClearAllPlayerControls(s32 a);
-extern void fn_8007AC58(s32 player);           /* player vibe test */
+extern void player_save_controls(s32 player);           /* player vibe test */
 extern void init_player_select(s32 mode);
 extern void init_shop(s32 mode);
 extern s32 WorldOpen(s32 world);
@@ -864,7 +864,7 @@ int DoOptions(void)
             start_optmenu(&optmenu_screen, player);
         } else if (choice < 0x22) {
             if (choice == -1) {
-                fn_8007AC58(player);
+                player_save_controls(player);
             } else if (choice > -2 && choice > 0x20) {
                 control_style = lbl_80240E5C[player * 0xF];
                 start_optmenu(&optmenu_controls, player);

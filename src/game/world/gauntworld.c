@@ -596,7 +596,7 @@ s32 fn_800629B0(void)
  * 8005B8B0  0x004C  fn_ : small accessor (no calls)
  * 8005B8FC  0x008C  fn_ : post message (msgPost; lbl_8034477C/8034481C)
  * 8005B988  0x0094  fn_ : run texmods for a world (DoSpecialTexmods, DoTexMods,
- *                    fn_800606FC, fn_8007C1D8)
+ *                    fn_800606FC, SetupPlayerTexMods)
  * 8005BA1C  0x07C0  fn_ : object/enemy setup by name (AtreeMatch, msgPost,
  *                    strcmp, fn_8005C1DC, fn_800674F4, fn_8009190C)
  * 8005C1DC  0x0E70  fn_ : big item/object spawn dispatcher (AtreeMatch,
