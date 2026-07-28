@@ -374,6 +374,20 @@ GC/1.2.5 + cflags_demo pipeline). Laws, in application order:
   the case body is real code (turn_enemy_ang hit-dispatch vs sndFxStartVoice
   slot-loop, still parked).
 
+## Enemy targeting and generator seams (2026-07-28)
+
+- Express floating-point rejection branches directly (`if (x > limit) goto
+  next`) when the target uses plain `bgt`/`blt`.  Inverting the condition and
+  nesting the accepted body can make MWCC preserve unordered/NaN semantics
+  with an extra `cror`.
+- When a byte field is loaded, conditionally changed, and then its owner is
+  reloaded for another field, repeating the typed owner expression can produce
+  the target `lbzu field(base)` plus `stb 0(base)`.  A cached derived pointer
+  tends to produce separate `addi` or displacement-form load/store pairs.
+- A count-preserving `for (i = 0; i < count; i++)` can recover `mtctr/bdnz`
+  even when the loop also advances a large record pointer.  Mutating `count`
+  directly instead selects `addic./bne` and changes the volatile-register web.
+
 ## Additions (10-worker Opus body-fill batch)
 
 - **Anchor-control catalog (4 routes now)**: first-use-order referencer fn

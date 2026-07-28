@@ -5,9 +5,10 @@
  * ENEMY.OBJ is a single very large translation unit.  On the GameCube build it
  * occupies one contiguous .text run, 0x800444C0 - 0x80050054, sitting between
  * dynobjgrid.c (ends 0x800444C0) and gamemain.c (starts 0x80050054).  This file
- * carries the whole TU NonMatching so the tree stays green while the symbol map
- * is filled in; dtk substitutes the original DOL bytes for the .text range, so
- * byte-matching is out of scope for this pass.
+ * remains wired NonMatching while its large bodies are recovered incrementally;
+ * dtk substitutes the original DOL bytes until the complete object is ready.
+ * Per-function byte matching is used throughout so each recovered slice can be
+ * verified independently.
  *
  * Data used throughout:
  *   gEnemies        0x80251C18  active enemy records, stride 0x394 (916) bytes.
@@ -126,6 +127,9 @@ extern void fn_8004F1DC(Enemy* e);                  /* garm2 (type 27) death hoo
 
 /* --- cross-module callees --- */
 extern f32 fn_800BCB44(f32 x, f32 z);               /* 2D magnitude */
+extern f32 fn_800BDA98(f32* vector);
+extern void StartItemGrid(f32 radius, f32* position);
+extern s32 NextGridItem(void);
 extern void fn_8005A65C(f32* worldmat, f32* coll_offset); /* refresh coll_pos */
 extern s32 DeleteEffect(s32 idx, s32 mode);         /* sfx.c 0x80097790 */
 extern void* fn_8000D1E0(f32 rad, f32* from, f32* to, f32* hitnrm); /* world probe */
@@ -143,6 +147,14 @@ extern s32 lbl_8034457C;      /* frame ticks (game speed units this frame) */
 extern f32 lbl_80344590;      /* knockback integration scale */
 extern f32 lbl_80344720;      /* current retreat/turn base angle */
 extern void* lbl_80344730;    /* last worldobj hit by an enemy move */
+extern s32 lbl_80344728;
+extern s32 lbl_8034495C;
+extern f32 lbl_80346820;
+extern f64 lbl_80346878;
+extern f32 lbl_803468F0;
+extern f64 lbl_80346A20;
+extern f64 lbl_80346810;
+extern f64 lbl_80346818;
 extern f32 lbl_80275AE0[][3287]; /* 0x80275AE0: 0x335C generator records */
 extern f32 lbl_8023CA98[][4];
 extern f32 lbl_8011BED8[];  /* 0x8011BED8 per-type turn-rate table */ /* wall-slide scratch; [1] = output vector */
@@ -180,6 +192,82 @@ static void enemy_bss_order(void)
     lbl_802512B0[0] = 0;
     lbl_80251364[0] = 0;
     gEnemies[0].type = E_SCORP;
+}
+
+f32 closest_enemy(f32 width, f32 range, f32* position, f32* direction,
+                  f32* offset, s32* enemy_index, s32 flags)
+{
+    s32 best_index;
+    u8 unused_before[4];
+    f32 delta[3];
+    u8 unused_after[12];
+    f32 best_x;
+    f32 best_y;
+    f32 best_z;
+    f32 best_distance;
+    f32 spread;
+    f64 maximum_vertical;
+    s32 allow_death;
+
+    best_index = -1;
+    best_distance = range;
+    spread = (lbl_80346810 - width) / range;
+    StartItemGrid(range, position);
+    maximum_vertical = lbl_80346818;
+    allow_death = flags & 0x80000;
+    while ((flags = NextGridItem()) >= 0) {
+        Enemy* enemy = &gEnemies[flags];
+
+        if (enemy->state == ACTIVE || enemy->state == SLEEP) {
+            if (enemy->type != E_IT &&
+                (enemy->type != E_DEATH || allow_death != 0)) {
+                f32 vertical;
+                f32 distance;
+
+                delta[0] = enemy->objgrp.coll_pos[0] - position[0];
+                delta[1] = enemy->objgrp.coll_pos[1] - position[1];
+                delta[2] = enemy->objgrp.coll_pos[2] - position[2];
+                vertical = delta[1];
+                *(u32*)&vertical &= 0x7FFFFFFF;
+                if ((f64)vertical > maximum_vertical) {
+                    goto next_enemy;
+                }
+                distance = fn_800BDA98(delta) - enemy->rad;
+                if (distance > range) {
+                    goto next_enemy;
+                }
+                {
+                    f32 horizontal = fn_800BCB44(delta[0], delta[2]);
+                    f32 cone = horizontal * (distance * spread + width);
+                    f32 dot = delta[0] * direction[0] +
+                              delta[2] * direction[2];
+
+                    if (dot < cone) {
+                        goto next_enemy;
+                    }
+                    if (distance < best_distance) {
+                        best_distance = distance;
+                        best_x = delta[0];
+                        best_y = delta[1];
+                        best_z = delta[2];
+                        best_index = flags;
+                    }
+                }
+            }
+        }
+next_enemy:
+        ;
+    }
+
+    if (best_index >= 0) {
+        offset[0] = best_x;
+        offset[1] = best_y;
+        offset[2] = best_z;
+    }
+    if (enemy_index != 0) {
+        *enemy_index = best_index;
+    }
+    return best_distance;
 }
 
 void do_enemy_move(s32 index)
@@ -1547,6 +1635,8 @@ extern void SfxDeleteParented(struct mbnode* n, s32 a, s32 b);
 extern void fn_800115D0(void* atree);               /* free anim tree */
 extern s32 lbl_803443B4;      /* level-teardown-in-progress flag */
 extern s32 lbl_80344734;      /* node-delete reentry guard */
+extern s32 ErrorPrintf(const char* fmt, ...);
+extern char lbl_80112468[];
 
 /* kill_enemy @0x8004EFE4.  Drop the carried item (or place a "GARG<level>"
  * egg for gargoyles), then tear the enemy down: health/state clear, grid
@@ -1860,6 +1950,20 @@ placed:
     return slot;
 }
 
+typedef struct EnemyGeneratorInfo {
+    s32 type;
+} EnemyGeneratorInfo;
+
+typedef struct EnemyGenerator {
+    EnemyGeneratorInfo* info;
+    u8 _pad004[0xDA];
+    s8 live_count;
+    u8 _pad0DF[2];
+    s8 first_enemy;
+    u8 _pad0E2;
+    s8 flag_e3;
+} EnemyGenerator;
+
 /* uncouple_enemy: detach enemy `index` from its generator's spawn list.
  * The prev_enemy/next_enemy relink below is transcribed from the verified GC
  * asm (uncouple_enemy @0x8004F2D8) and exercises the reconstructed Enemy
@@ -1878,17 +1982,77 @@ void uncouple_enemy(s32 index) {
         e->next_enemy = -1;
     }
     if (e->algorithm == E_DOG) {
+        lbl_80344748 = -1;
         e->algorithm = -e->algorithm;
     }
-    /* then: decrement the generator's live count via e->generator and emit
-     * "Enemy has non generator generator" if the parent is not a generator. */
+    if (e->generator != 0) {
+        if (((EnemyGenerator*)e->generator)->first_enemy == index) {
+            ((EnemyGenerator*)e->generator)->first_enemy =
+                (s8)e->prev_enemy;
+        }
+        if (e->algorithm == 15) {
+            ((EnemyGenerator*)e->generator)->flag_e3 = 0;
+            ((EnemyGenerator*)e->generator)->live_count = 0;
+        }
+        if (((EnemyGenerator*)e->generator)->info->type == 3) {
+            if (((EnemyGenerator*)e->generator)->live_count > 0) {
+                ((EnemyGenerator*)e->generator)->live_count--;
+            }
+        } else {
+            ErrorPrintf(lbl_80112468, e->generator);
+        }
+        e->generator = 0;
+    }
 }
 
 /* find_enemy_slot: return a free/recyclable enemy slot for a new spawn.
  * Recycles the least-important live enemy through kill_enemy when the array is
  * full; returns -1 when the request cannot be satisfied. */
 s32 find_enemy_slot(s32 type, s32 level) {
-    (void)type;
-    (void)level;
-    return -1;
+    Enemy* enemy = gEnemies;
+    s32 best_visible = 1;
+    s32 index = 0;
+    s32 best_index = 0;
+    s32 count = gNumEnemies;
+    f32 best_distance = lbl_80346820;
+
+    for (index = 0; index < count; index++, enemy++) {
+        s32 enemy_state = enemy->state;
+
+        if (enemy_state == INACTIVE) {
+            return index;
+        }
+        if (enemy->type != E_IT) {
+            f32 distance = enemy->actual_dist;
+            s32 visible = enemy->visactive;
+
+            if (enemy_state == DYING || enemy_state == SLEEP ||
+                enemy->birth_style != 0) {
+                distance *= lbl_80346878;
+            } else if (visible == 0) {
+                distance += lbl_80346A20;
+            }
+            if (distance > best_distance) {
+                best_distance = distance;
+                best_index = index;
+                best_visible = visible;
+            }
+        }
+    }
+
+    lbl_8034495C = 1;
+    if (type < E_NTYPES && level < best_visible) {
+        return -1;
+    }
+    if (best_visible != 0) {
+        lbl_80344728++;
+    }
+    kill_enemy(best_index);
+    {
+        f32 reset_distance = lbl_803468F0;
+
+        gEnemies[best_index].close_dist = reset_distance;
+        gEnemies[best_index].actual_dist = reset_distance;
+    }
+    return best_index;
 }
