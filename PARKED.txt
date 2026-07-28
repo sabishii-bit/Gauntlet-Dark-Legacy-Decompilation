@@ -86,13 +86,17 @@ vsprintf                   # sched, 26 lines / 665 insns, ONE emission-order div
                            # (copies emit at same preheader spot; scope is invisible to the cache group). CONFIRMED PARKED.
 bsearch                    # regalloc (MSL)
 
-# GATED (not walls — blocked on another reconstruction; see file comments):
-AddBoss                    # gate=BossSpewCoins pins boss .bss anchor (boss.c)
-StartSpewItem              # gate=BossSpewCoins
-ProcessSpewItems           # gate=BossSpewCoins
-HealthMeterUpdate          # gate=BossSpewCoins
-HealthMeterStart           # gate=BossSpewCoins
-BossDeath                  # gate=BossSpewCoins
+# GATE RESOLVED (BossSpewCoins reconstructed + boss_bss_order helper pins
+# HealthMeterBG @ .bss+0; sBossStr in-TU restores .rodata sibling-pooling):
+#   AddBoss            EXACT (only cosmetic ...bss.0-vs-HealthMeterBG reloc name)
+#   StartSpewItem      EXACT (only cosmetic ...bss.0 reloc name)
+#   BossDeath          OPERAND_DIFF 10 -> parked below (rune-off IV renum)
+#   BossSpewCoins/ProcessSpewItems/HealthMeterStart/HealthMeterUpdate -> parked below
+BossSpewCoins              # GATE fn; body byte-correct, gSpewItems pools off HealthMeterBG+108 (verified); renum: target uses r24-r31 (extra strength-red IV) vs r25-r31, lbl_801189E0 base re-materialized in type-42 branch (167)
+ProcessSpewItems           # renum: target holds obj in a nonvolatile, ours strength-reduces &obj->0x38 instead; pointer-web rotation (198)
+HealthMeterStart           # renum + LICM: fmt address (sBossStr.bgFmt=r30+64) LICM-hoisted into an extra nonvolatile vs target's per-iter addi (154)
+HealthMeterUpdate          # blit-projection FP-form + extra f31 nonvolatile; value-approach aligned; int->float conversion scheduling residual (293)
+BossDeath                  # renum: rune-loop off IV colored r26 vs target r30 (r30 shared with deact coff); OPERAND_DIFF 10
 do_screen2d                # sched, 2 transposed SDA loads + 2 reloc-alias lines (lbl+4 vs sFlags — link-identical) (attract)
 dcsHandleRequest           # renum+copy, param rotation r28/r29/r30 + state addi-via-r0 mr; ops 412/411; state
                            # first/second/after-memset + bankSize-vs-ternary + SetStreamName guts all measured 2026-07-27b:
