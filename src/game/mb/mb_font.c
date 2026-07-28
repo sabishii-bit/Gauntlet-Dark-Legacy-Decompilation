@@ -19,9 +19,9 @@
  *
  * cflags_demo (-O4 no-peephole, -Cpp_exceptions on, -str reuse,readonly).
  *
- * Status: NonMatching. The current-font setters and the lock/unlock stack are
- * reconstructed bodies; the rasteriser / drawtext / font-registration giants and
- * the reset/init cluster are documented stubs (call/flow shape only). Several
+ * Status: NonMatching. The current-font setters, string width/height helpers,
+ * and lock/unlock stack are reconstructed bodies; the rasteriser and remaining
+ * reset/init cluster are documented stubs (call/flow shape only). Several
  * mid-TU helpers whose Xbox name is not uniquely pinned are left as fn_.
  */
 #include "types.h"
@@ -67,6 +67,14 @@ typedef struct MBTextMsg {
 
 extern MBTextMsg lbl_8029F494[]; /* drawtext message records (44B each) */
 extern char lbl_8029E474[];      /* drawtext character buffer */
+extern s32 mbfont_space[35];     /* fallback width for a space, per font */
+
+typedef struct MBFont {
+    s32 height;   /* 0x0 */
+    u8* cells;    /* 0x4  maxCode+1 blit entries, 36B each */
+    s32 count;    /* 0x8 */
+    u32 flags;    /* 0xC  bit0 = remap punctuation/extended chars */
+} MBFont;
 
 extern void FatalError(const char* msg, u32 code);
 extern void ErrorPrintf(const char* fmt, ...);
@@ -87,7 +95,7 @@ extern void  DrawBlit();
 extern s32   mbBlitCalcX();
 
 /* forward decls for internal helpers */
-static int fn_800B5B00(const char* s);
+int MBFontStringWidth(const char* s);
 
 /* ==== current-font attribute setters ==== */
 
@@ -195,22 +203,69 @@ void MBLockFonts(int level)
 
 /* ==== internal helpers ==== */
 
-/* 0x800B5AD8 - resolve a font index (<0 = current), return its descriptor */
-void* mbFontFromIndex(int idx)
+/* 0x800B5AD8 - return the selected font's pixel height. */
+int MBFontHeight(int idx)
 {
     if (idx < 0) idx = lbl_80344E14;
-    return ((void**)lbl_802A4AA4[idx])[0];
+    return *(s32*)lbl_802A4AA4[idx];
 }
 
-/* 0x800B5B00 - pixel width of string `s` in the current font (called by
- * MBDrawText/SysText for centred placement).  NonMatching stub: shape only. */
-#pragma dont_inline on
-static int fn_800B5B00(const char* s)
+/* 0x800B5B00 - pixel width of a string in the current font. */
+int MBFontStringWidth(const char* s)
 {
-    mbBlitCalcX();
-    return (int)s;
+    s32* space = mbfont_space;
+    int width = 0;
+    int x;
+    MBFont* font;
+    int ch;
+
+    if (lbl_80344E14 < 0) {
+        lbl_80344E14 = 0;
+    }
+    font = *(MBFont**)((u8*)&space[lbl_80344E14] + 26332);
+
+    while (*(u8*)s != 0) {
+        ch = *(u8*)s;
+        switch (ch) {
+        case '*':
+            if ((u8)s[1] < 'A' || (u8)s[1] > 'Z') {
+                goto add_width;
+            }
+            s++;
+            x = (s32)(lbl_80344E5C *
+                      (f32)(*(MBFont**)((u8*)&space[lbl_80344E14] +
+                                       26332))->height);
+            goto add_width;
+        default:
+            break;
+        }
+
+        if (font->flags & 1) {
+            if (ch >= 128) {
+                ch = *(u8*)++s;
+            } else if (ch >= '0' && ch <= '9') {
+                /* Numeric glyphs are already in the remapped range. */
+            } else if (ch == '.') {
+                ch = 58;
+            } else if (ch == '-') {
+                ch = 59;
+            } else {
+                goto add_width;
+            }
+        }
+
+        mbBlitCalcX(font->cells + ch * 36, &x, 0);
+        x = (s32)((f32)x * lbl_80344E5C);
+        if (x == 0 && ch == ' ') {
+            x = (s32)(lbl_80344E5C * (f32)space[lbl_80344E14]);
+        }
+
+    add_width:
+        width += x;
+        s++;
+    }
+    return width;
 }
-#pragma dont_inline off
 
 /* ==== drawtext queue ==== */
 
@@ -229,7 +284,7 @@ MBTextMsg* MBDrawSysText(int x, int y, const char* s)
         return 0;
     }
     if (x < 0) {
-        x = -x - (fn_800B5B00(s) >> 1);
+        x = -x - (MBFontStringWidth(s) >> 1);
     }
     if (y < 0 || y >= 384) {
         return 0;
@@ -275,7 +330,7 @@ MBTextMsg* MBDrawText(int x, int y, const char* s)
         return 0;
     }
     if (x < 0) {
-        x = -x - (fn_800B5B00(s) >> 1);
+        x = -x - (MBFontStringWidth(s) >> 1);
     }
     if (y < 0 || y >= 384) {
         return 0;
@@ -331,24 +386,16 @@ typedef struct MBFontDef {    /* MBNewFont input descriptor */
     MBGlyphDef* glyphs; /* 0x8 */
 } MBFontDef;
 
-typedef struct MBFont {       /* registered font record (16B) */
-    s32 height;   /* 0x0 */
-    u8* cells;    /* 0x4  maxCode+1 blit entries, 36B each */
-    s32 count;    /* 0x8 */
-    u32 flags;    /* 0xC  bit0 = additive */
-} MBFont;
-
 typedef struct MBTexHdr { u8 _p[32]; u16 w; u16 h; } MBTexHdr;
 typedef struct MBBlitCell { u8 _p[32]; u16 w; u16 h; } MBBlitCell;
 
 extern MBTexHdr* MBOX_FindTexture_Err(char* name, MBTexHdr** out, s32 err);
-extern char* lbl_8029E3C8[35];  /* per-font name pointers */
 
 /* 0x800B65F4 - MBNewFont : register a font.  Finds the texture, sizes the
  * glyph-cell table from the highest glyph code, builds one projected blit
  * entry per glyph (u/v from the texture dimensions) and stores the font in
  * the font table.  Returns the new font index. */
-int MBNewFont(MBFontDef* def, char* name, int nglyphs, int perRow)
+int MBNewFont(MBFontDef* def, int space, int nglyphs, int perRow)
 {
     MBTexHdr* tex = 0;
     f32 su = 0.125f;
@@ -406,7 +453,7 @@ int MBNewFont(MBFontDef* def, char* name, int nglyphs, int perRow)
     if (lbl_80344E14 < 0) {
         lbl_80344E14 = lbl_80344E10;
     }
-    lbl_8029E3C8[lbl_80344E10] = name;
+    mbfont_space[lbl_80344E10] = space;
     lbl_802A4AA4[lbl_80344E10] = fnt;
     lbl_80344E10 = lbl_80344E10 + 1;
     if (lbl_80344E10 >= 35) {
