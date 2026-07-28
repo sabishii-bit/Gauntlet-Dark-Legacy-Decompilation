@@ -171,3 +171,36 @@ sndFxQueUpdate             # renum, did<->IV1 r28/r29 + volatile drift; opcode-i
 
 # playex_iso round (2026-07-27), player.c back slice:
 player_bss_pool_family     # bss-pool displacement class, NOT per-fn: GetPlayerPos/GetPlayerColPos/PlayerSelecting/new_player/change_player/player_can_be_damaged/all_players_go_to_same_level + every gPlayerRecords toucher; target pools off lbl_80274EA0 (-0xC40); opcode-identical; blocked on flip-time .bss claim (gPlayerRecords pinned extern by Matching shopquery)
+# enemy.c deepen round 2 (2026-07-27):
+do_enemy_move              # STRUCTURAL-COMPLETE 905/905, frame+fields+pooling exact; 4 park sites +
+                           # cascade drift: (1) head assoc: ours addi r30,r3,3608 before add vs target
+                           # add-then-addi (mulli-stride canonicalization, fn_80091AC0 family; &gEnemies[idx]
+                           # spelling instead folds 3608 into first-block displacements); (2) other=&gEnemies[n]
+                           # fused addi r27,r3,3608 vs target addi+addi-copy (copy family); (3) alg20 a=e->ang
+                           # split lfs f0+fmr f1 vs direct lfs f2 in BOTH alg20 blocks (volatile split-vs-direct
+                           # tie; nested-scope decl-init neutral); (4) player-alg7-20 coll_ip CSE kept in r4 vs
+                           # target reload (their guard load r3 clobbered by ABS srawi scratch); + halfstep FPR
+                           # temp renum ~7 lines. int-transit, cast-transit, opt_propagation off all tested.
+kill_enemy                 # renum, 4 lines: one-case-switch value lwz r3-vs-r0 (s32-cast + named-local
+                           # spellings neutral); rest byte-aligned incl zero-web r29 (enemy.c)
+generate_enemy             # renum, 241/242: imp/mask/otype 3-cycle (r24/r25/r26) + tbl/anchor lis order
+                           # swap (r27/r28) + one cmplwi-vs-stw sched slot + animidx mr copy; structure,
+                           # tables, spew-param-reuse, switch layout all aligned (enemy.c)
+sndFxQueAddEx              # isel/assoc, 78 lines (was 105): bank-desc + store blocks EXACT via subscript-form
+                           # typed locals (dt[i].base / rt[di].vol dissolve frame-free); residual = acc-read
+                           # +424 fold + q-init addi-vs-add const order (mulli-320 stride family, fn_80091AC0
+                           # class) + frame +8 (q/sl surviving-pointer homes that BUY the matched store block) (sndfx)
+sndFxStartVoice            # isel+renum, 94 lines (was 255): real body landed (bank-h42 gate, handle-flags,
+                           # stack rec, slot search, seq readback, tail else-block); residual = slot-loop
+                           # lwzx-vs-add+lwz1324 + mr-IV init + folded goto-pair (switch/continue/view-cast
+                           # all tied) + seq-bump lhz reload vs clrlwi reuse (u16-temp spellings cascade worse) (sndfx)
+sndFxVoiceUpdateCb         # isel+assoc, 92 lines (was 126): 97/97 insns, kill-cond fixed (||), banks
+                           # global reloaded per-use, boff byte-product hoisted; residual = fade/vol
+                           # stfsx/lfsx index-side folds (byte-offset assoc family) + boff eval order +
+                           # prologue lis pair order + call-arg mr-vs-addi (sndfx)
+MBDrawText                 # sched, 18 lines: msg-record base/lis + counter-inc/store interleave (n-temp
+                           # neutral); 88/88 insns, body EXACT otherwise (mb_font)
+MBDrawSysText              # sched, 18 lines: same msg-record scheduling cluster; 81/81 (mb_font)
+MBNewFont                  # renum, 56 lines: def/i2 r30<->r31 param-vs-late-web color swap + dst/max
+                           # singles; fnt/blit decl-swap fixed 30 lines; 189/189 REGISTER_ONLY; j-counter
+                           # and i-position shuffles neutral/worse (mb_font)

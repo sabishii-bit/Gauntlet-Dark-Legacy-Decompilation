@@ -337,3 +337,39 @@ GC/1.2.5 + cflags_demo pipeline). Laws, in application order:
   intact; the helper+ternary combo committed earlier was a NET REGRESSION
   (351 vs 202 real lines) and was reverted to the 1ad1d5d form. On any
   "improved" quirk claim, re-measure the WHOLE fn, not the local site.
+## Additions (deepen round 2, 2026-07-27)
+
+- **MWCC .bss layout law** (verified, enemy.c): referenced bss symbols are
+  allocated in FIRST-USE order (order of first reference across the TU's
+  function list), then unreferenced ones in REVERSE declaration order. To pin
+  a pool anchor (e.g. lbl_80250E00 @0 with gEnemies at +0xE18) add an
+  unreferenced `static void xxx_bss_order(void)` BEFORE the real functions
+  that touches every array in address order - mwld strips it, the order
+  stays. dtk resolves the section-relative relocs to the anchor name.
+- **fmul const-first canonicalization escape**: our GC/1.2.5 emits double
+  `x * K` const-first (fmul rD,K,x) from `x = x * K;` but keeps VAR-first
+  (target form) from the compound `x *= K;` (turn_enemy_ang rate *= 3.0).
+- **Loop-condition assignment reuses the test load**: target body using the
+  condition's loaded value (mr max,r0 / mulli off the same reg) = source
+  spelled `for (...; i < n && (cc = p->f) != 0; ...)` - the plain re-deref
+  `p->f` in the body RELOADS instead (MBNewFont both loops).
+- **Static stubs auto-inline**: a small placeholder static gets folded into
+  its callers and poisons their bodies - wrap with `#pragma dont_inline
+  on/off` to keep the `bl` (mb_font fn_800B5B00).
+- **u16-vs-int compare artifact**: `int h = <lhz field>; if (h == 0xFFFF)`
+  emits addis r0,rH,0 + cmplwi 65535 (same family: s32 == 0x8007 in
+  generate_enemy). A u16-typed h gives plain cmplwi instead - wrong.
+- **Param-reuse tell**: call result copied back into a param's saved home
+  (addi r22,r7,0 ... addi r22,r3,0) = the param variable was reassigned
+  (`spew = fn(type, level, spew)`); same for pan reused as the AudioAng
+  result and `p2 = (p2 * scale) >> 8` (sndFxStartVoice).
+- **Frame slots empirics** (do_enemy_move, QueAddEx): an FPR-homed named f32
+  (rad2) holds a 4-byte slot at its DECL position; block-scope re-decls STACK
+  (no overlay); pointer locals whose init SURVIVES (producing add/addi forms)
+  hold slots, while subscript-form typed views (`dt[i].field`) produce the
+  same add+disp code slot-free - prefer subscript form, and if a surviving
+  pointer local is unavoidable count its 4 bytes.
+- **One-case switch folds when the case body is a goto** (`case 0: goto X`
+  threads to a single beq) - it only reproduces the unfolded beq/b pair when
+  the case body is real code (turn_enemy_ang hit-dispatch vs sndFxStartVoice
+  slot-loop, still parked).

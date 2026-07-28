@@ -40,17 +40,33 @@ extern f32 lbl_80344E5C;      /* font scale x */
 extern f32 lbl_80344E60;      /* font space scale y */
 extern f32 lbl_80344E64;      /* font space scale x */
 extern s32 lbl_80343EB0;      /* message_lock_level */
+extern s32 lbl_80344E1C;      /* saved message_count (hide/restore) */
+extern s32 lbl_80344E24;      /* saved textbuf_count (hide/restore) */
+extern s32 lbl_80344E28;      /* fonts-changed flag */
 
 extern s32 lbl_8029F474[8];   /* saved message_count per lock level */
 extern s32 lbl_802A4A84[8];   /* saved textbuf_count per lock level */
 extern s32 lbl_8029E454[];    /* saved font_count per font-lock level */
 extern void* lbl_802A4AA4[];  /* fonts[] : per-font descriptor pointers */
 
-/* per-drawtext message record; +0x28 holds the packed colour */
+/* per-drawtext message record (44 bytes) */
 typedef struct MBTextMsg {
-    u8 _pad[0x28];
+    u32 flags;    /* 0x00 (0x02000000 = marked; bit0 = hidden) */
+    s32 x;        /* 0x04 */
+    s32 y;        /* 0x08 */
+    f32 z;        /* 0x0C */
+    char* text;   /* 0x10 -> slice of the char buffer lbl_8029E474 */
+    f32 xspace;   /* 0x14 */
+    f32 xscale;   /* 0x18 */
+    f32 yspace;   /* 0x1C */
+    f32 yscale;   /* 0x20 */
+    s16 font;     /* 0x24 */
+    s16 seq;      /* 0x26 */
     u32 color;    /* 0x28 */
 } MBTextMsg;
+
+extern MBTextMsg lbl_8029F494[]; /* drawtext message records (44B each) */
+extern char lbl_8029E474[];      /* drawtext character buffer */
 
 extern void FatalError(const char* msg, u32 code);
 extern void ErrorPrintf(const char* fmt, ...);
@@ -63,7 +79,7 @@ extern void* memset(void* p, int c, u32 n);
 extern void* memcpy(void* d, const void* s, u32 n);
 extern void  mbInitBlitEntry();
 extern void  mbBlitProject();
-extern void  mbBlitSetupVerts();
+extern void  mbBlitSetupVerts(void* e, f32 u1, f32 u2, f32 v1, f32 v2);
 extern void  mbBlitCalcClip();
 extern void  mbBlitGetPage();
 extern void  mbBlitSetPage();
@@ -71,7 +87,7 @@ extern void  DrawBlit();
 extern s32   mbBlitCalcX();
 
 /* forward decls for internal helpers */
-static void* fn_800B5B00(void);
+static int fn_800B5B00(const char* s);
 
 /* ==== current-font attribute setters ==== */
 
@@ -186,33 +202,101 @@ void* mbFontFromIndex(int idx)
     return ((void**)lbl_802A4AA4[idx])[0];
 }
 
-/* 0x800B5B00 - build/queue a glyph string blit (called by MBDrawText/SysText).
- * NonMatching stub: shape only. */
-static void* fn_800B5B00(void)
+/* 0x800B5B00 - pixel width of string `s` in the current font (called by
+ * MBDrawText/SysText for centred placement).  NonMatching stub: shape only. */
+#pragma dont_inline on
+static int fn_800B5B00(const char* s)
 {
     mbBlitCalcX();
-    return (void*)0;
+    return (int)s;
 }
+#pragma dont_inline off
 
 /* ==== drawtext queue ==== */
 
-/* 0x800B6444 - MBDrawSysText : queue a system-font string. NonMatching stub. */
-void MBDrawSysText(const char* s)
+/* 0x800B6444 - MBDrawSysText : queue a string in the system font (font 0,
+ * unit scale), silently dropping it when out of bounds or buffer-full. */
+MBTextMsg* MBDrawSysText(int x, int y, const char* s)
 {
-    strlen(s);
-    fn_800B5B00();
-    strcpy((char*)0, s);
+    int len;
+    MBTextMsg* m;
+
+    if (lbl_80344E20 >= 499) {
+        return 0;
+    }
+    len = strlen(s) + 1;
+    if (lbl_80344E18 + len >= 4095) {
+        return 0;
+    }
+    if (x < 0) {
+        x = -x - (fn_800B5B00(s) >> 1);
+    }
+    if (y < 0 || y >= 384) {
+        return 0;
+    }
+    if (x < 0 || x >= 512) {
+        return 0;
+    }
+    m = &lbl_8029F494[lbl_80344E20];
+    lbl_80344E20 = lbl_80344E20 + 1;
+    m->x = x;
+    m->y = y;
+    m->z = lbl_80344E4C;
+    m->font = 0;
+    m->yspace = 1.0f;
+    m->xspace = 1.0f;
+    m->yscale = 1.0f;
+    m->xscale = 1.0f;
+    m->text = lbl_8029E474 + lbl_80344E18;
+    m->color = lbl_80344E54;
+    m->flags = lbl_80344E50;
+    m->seq = -1;
+    strcpy(m->text, s);
+    lbl_80344E18 += len;
+    return m;
 }
 
-/* 0x800B6588 - MBDrawText : queue a string, bounds-check the message/char
- * buffers ("TOO MANY DRAWTEXT ..."). NonMatching stub. */
-void MBDrawText(const char* s)
+/* 0x800B6588 - MBDrawText : queue a string at (x, y).  Negative x centres
+ * the string (half its pixel width left of -x).  Bounds-check the message
+ * and character buffers, then fill the next message record from the
+ * current-font state and copy the text into the character buffer. */
+MBTextMsg* MBDrawText(int x, int y, const char* s)
 {
-    if (lbl_80344E18 >= 0) ErrorPrintf("TOO MANY DRAWTEXT MESSAGES: %d", lbl_80344E18);
-    if (lbl_80344E20 >= 0) ErrorPrintf("TOO MANY DRAWTEXT CHARACTERS: %d", lbl_80344E20);
-    strlen(s);
-    fn_800B5B00();
-    strcpy((char*)0, s);
+    int len;
+    MBTextMsg* m;
+
+    if (lbl_80344E20 >= 499) {
+        ErrorPrintf("TOO MANY DRAWTEXT MESSAGES: %d", lbl_80344E20);
+        return 0;
+    }
+    len = strlen(s) + 1;
+    if (lbl_80344E18 + len >= 4095) {
+        ErrorPrintf("TOO MANY DRAWTEXT CHARACTERS: %d");
+        return 0;
+    }
+    if (x < 0) {
+        x = -x - (fn_800B5B00(s) >> 1);
+    }
+    if (y < 0 || y >= 384) {
+        return 0;
+    }
+    m = &lbl_8029F494[lbl_80344E20];
+    lbl_80344E20 = lbl_80344E20 + 1;
+    m->x = x;
+    m->y = y;
+    m->z = lbl_80344E4C;
+    m->font = lbl_80344E14;
+    m->xspace = lbl_80344E64;
+    m->yspace = lbl_80344E60;
+    m->xscale = lbl_80344E5C;
+    m->yscale = lbl_80344E58;
+    m->text = lbl_8029E474 + lbl_80344E18;
+    m->color = lbl_80344E54;
+    m->flags = lbl_80344E50;
+    m->seq = -1;
+    strcpy(m->text, s);
+    lbl_80344E18 += len;
+    return m;
 }
 
 /* ==== rasteriser ==== */
@@ -224,7 +308,7 @@ void MBRenderText(void)
     mbBlitGetPage();
     mbInitBlitEntry();
     mbBlitProject();
-    mbBlitSetupVerts();
+    mbBlitSetupVerts((void*)0, 0.0f, 0.0f, 0.0f, 0.0f);
     mbBlitCalcClip();
     DrawBlit();
     mbBlitSetPage();
@@ -234,24 +318,136 @@ void MBRenderText(void)
 
 /* 0x800B66E8 - MBNewFont : register a font (MBCreateBlit); "Too many fonts" /
  * "MBNewFont: MBNewBlit failed". NonMatching stub. */
-int MBNewFont(void)
+typedef struct MBGlyphDef {   /* one entry of the caller's glyph table (16B) */
+    s32 code;   /* 0x0  glyph index in the font (0 terminates) */
+    s32 w;      /* 0x4  pixel width */
+    s32 u;      /* 0x8  texture x */
+    s32 v;      /* 0xC  texture y */
+} MBGlyphDef;
+
+typedef struct MBFontDef {    /* MBNewFont input descriptor */
+    char* texname;      /* 0x0 */
+    u32 flags;          /* 0x4  low byte = glyph height; 0x100 = additive */
+    MBGlyphDef* glyphs; /* 0x8 */
+} MBFontDef;
+
+typedef struct MBFont {       /* registered font record (16B) */
+    s32 height;   /* 0x0 */
+    u8* cells;    /* 0x4  maxCode+1 blit entries, 36B each */
+    s32 count;    /* 0x8 */
+    u32 flags;    /* 0xC  bit0 = additive */
+} MBFont;
+
+typedef struct MBTexHdr { u8 _p[32]; u16 w; u16 h; } MBTexHdr;
+typedef struct MBBlitCell { u8 _p[32]; u16 w; u16 h; } MBBlitCell;
+
+extern MBTexHdr* MBOX_FindTexture_Err(char* name, MBTexHdr** out, s32 err);
+extern char* lbl_8029E3C8[35];  /* per-font name pointers */
+
+/* 0x800B65F4 - MBNewFont : register a font.  Finds the texture, sizes the
+ * glyph-cell table from the highest glyph code, builds one projected blit
+ * entry per glyph (u/v from the texture dimensions) and stores the font in
+ * the font table.  Returns the new font index. */
+int MBNewFont(MBFontDef* def, char* name, int nglyphs, int perRow)
 {
-    if (lbl_80344E10 >= 3) {
-        FatalError("Too many fonts", 0);
-        return -1;
+    MBTexHdr* tex = 0;
+    f32 su = 0.125f;
+    f32 sv = su;
+    MBFont* fnt;
+    void* blit;
+    MBGlyphDef* g;
+    u8* dst;
+    MBBlitCell* c;
+    int i;
+    int maxCode;
+    int size;
+    int cc;
+
+    blit = MBCreateBlit(0, MBOX_FindTexture_Err(def->texname, &tex, 1),
+                        0, 0, -1, -1);
+    if (blit == 0) {
+        FatalError("MBNewFont: MBNewBlit failed", 0x800000);
     }
-    if (MBCreateBlit() == (void*)0) {
-        FatalError("MBNewFont: MBNewBlit failed", 0);
+    if (tex != 0) {
+        su = 1.0 / tex->w;
+        sv = 1.0 / tex->h;
     }
-    AllocMem();
-    return lbl_80344E10;
+    maxCode = 0;
+    g = def->glyphs;
+    for (i = 0; i < nglyphs && (cc = g->code) != 0; i++, g++) {
+        if (cc > maxCode) {
+            maxCode = cc;
+        }
+    }
+    fnt = (MBFont*)AllocMem(16);
+    memset(fnt, 0, 16);
+    maxCode++;
+    size = maxCode * 36;
+    fnt->cells = (u8*)AllocMem(size);
+    fnt->count = maxCode;
+    memset(fnt->cells, 0, size);
+    if (def->flags & 0x100) {
+        fnt->flags |= 1;
+    }
+    fnt->height = def->flags & 0xFF;
+    g = def->glyphs;
+    for (i = 0; i < nglyphs && (cc = g->code) != 0; i++, g++) {
+        dst = fnt->cells + cc * 36;
+        memcpy(dst, blit, 36);
+        mbInitBlitEntry(dst, -1, i / perRow);
+        mbBlitProject(dst, g->w, fnt->height);
+        c = (MBBlitCell*)dst;
+        c->w = g->w;
+        c->h = fnt->height;
+        mbBlitSetupVerts(dst, g->u * su, su * (f32)(g->u + g->w),
+                          g->v * sv, sv * (f32)(g->v + fnt->height));
+    }
+    MBRemoveBlit(blit);
+    if (lbl_80344E14 < 0) {
+        lbl_80344E14 = lbl_80344E10;
+    }
+    lbl_8029E3C8[lbl_80344E10] = name;
+    lbl_802A4AA4[lbl_80344E10] = fnt;
+    lbl_80344E10 = lbl_80344E10 + 1;
+    if (lbl_80344E10 >= 35) {
+        FatalError("Too many fonts", 0x800000);
+    }
+    return lbl_80344E10 - 1;
 }
 
-/* ==== reset / init / query cluster (NonMatching stubs) ==== */
+/* ==== reset / init / query cluster ==== */
 
-/* 0x800B5D90 - MBHideMarkedMessages (tentative) */
+/* Shared current-font attribute reset (static, auto-inlined into the four
+ * resetters below; the standalone copy is deadstripped by mwld). */
+static void MBResetFontAttrs(void)
+{
+    lbl_80344E20 = 0;
+    lbl_80344E18 = 0;
+    lbl_80344E14 = -1;
+    lbl_80344E60 = 1.0f;
+    lbl_80344E64 = 1.0f;
+    lbl_80344E58 = 1.0f;
+    lbl_80344E5C = 1.0f;
+    lbl_80344E50 = 0;
+    lbl_80344E4C = 0.25f;
+    lbl_80344E54 = 0x80808080;
+}
+
+/* 0x800B5D90 - stash the live message/textbuf counts, then restore the
+ * lock-level snapshot (or clear when unlocked). */
 void fn_800B5D90(void)
 {
+    int lock = lbl_80343EB0;
+
+    lbl_80344E1C = lbl_80344E18;
+    lbl_80344E24 = lbl_80344E20;
+    if (lock < 0) {
+        lbl_80344E20 = 0;
+        lbl_80344E18 = 0;
+        return;
+    }
+    lbl_80344E18 = lbl_8029F474[lock];
+    lbl_80344E20 = lbl_802A4A84[lock];
 }
 
 /* 0x800B69DC - MBInitFonts (tentative) */
@@ -259,27 +455,53 @@ void fn_800B69DC(void)
 {
 }
 
-/* 0x800B6B08 - MBResetFontData (tentative) */
+/* 0x800B6B08 - full font reset: drop all fonts + lock saves, mark changed. */
 void fn_800B6B08(void)
 {
+    int i;
+
+    lbl_80344E10 = 0;
+    for (i = 0; i < 8; i++) {
+        lbl_8029E454[i] = 0;
+    }
+    lbl_80344E28 = 1;
+    MBResetFontAttrs();
 }
 
-/* 0x800B6B80 - MB text query (tentative) */
+/* 0x800B6B80 - flag pass over the live messages: any marked message
+ * (0x02000000) is hidden (bit 0). */
 void fn_800B6B80(void)
 {
+    int i;
+
+    for (i = 0; i < lbl_80344E20; i++) {
+        if (lbl_8029F494[i].flags & 0x02000000) {
+            lbl_8029F494[i].flags |= 1;
+        }
+    }
 }
 
-/* 0x800B6BC0 - MBResetFonts (tentative) */
+/* 0x800B6BC0 - reset the current-font attributes only. */
 void fn_800B6BC0(void)
 {
+    MBResetFontAttrs();
 }
 
-/* 0x800B6C20 - MBResetUnlockedFonts (tentative) */
-void fn_800B6C20(void)
+/* 0x800B6C20 - unlock fonts to `level`: restore the saved font count (mark
+ * changed if it differs), reset attributes and drop the message lock. */
+void fn_800B6C20(int level)
 {
+    if (lbl_80344E10 != lbl_8029E454[level]) {
+        lbl_80344E10 = lbl_8029E454[level];
+        lbl_80344E28 = 1;
+    }
+    MBResetFontAttrs();
+    lbl_80343EB0 = -1;
 }
 
-/* 0x800B6C94 - MBFontUpdateWindow (tentative) */
+/* 0x800B6C94 - full attribute reset + message unlock. */
 void fn_800B6C94(void)
 {
+    MBResetFontAttrs();
+    lbl_80343EB0 = -1;
 }
