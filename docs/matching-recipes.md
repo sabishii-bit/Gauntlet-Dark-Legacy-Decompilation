@@ -373,3 +373,30 @@ GC/1.2.5 + cflags_demo pipeline). Laws, in application order:
   threads to a single beq) - it only reproduces the unfolded beq/b pair when
   the case body is real code (turn_enemy_ang hit-dispatch vs sndFxStartVoice
   slot-loop, still parked).
+
+## Additions (10-worker Opus body-fill batch)
+
+- **Anchor-control catalog (4 routes now)**: first-use-order referencer fn
+  (enemy), deadstripped `x_bss_order()` toucher static (boss), static-vs-
+  external LINKAGE segregation (btext), in-TU .rodata string-pool struct
+  (boss — extern pools kill sibling-pooling).
+- **Offset-induction vs pointer-increment** is a per-loop source choice;
+  typed struct-array views reload a global base per match-arm where
+  pointer-increment CSEs it (select).
+- **`flag=0; while(test-first)`** preserves the flag init that do-while
+  collapses (`li; b test`).
+- **va_list/local declaration order** controls buffer-vs-va_list frame slots.
+- **atan2 second-arg-as-local** flips arg load order (generalizes QuickYawMat).
+- **dont_inline for target-kept `bl`s**: helpers defined before callers
+  auto-inline; the pragma preserves the call (movieplayer readers).
+- **Per-path explicit returns** trigger MWCC conditional-constant propagation.
+- **ctr-contention**: when two countdown loops compete for ctr, spell the
+  intended winner as `for` (movieplayer LZ).
+- **Defer `~` to use site** (`mask=1<<n; x&=~mask`) flips to andc coloring
+  (tower).
+- **Struct assignment (not memcpy) for large block copies** (memcard 5172B).
+- **throw()-family tell**: `bl __unexpected` landing pads + r31 FP frame =
+  C++ exception-spec fns — unreproducible in a .c TU; the TU needs .cpp
+  conversion (movieplayer queued).
+- **Ghidra double-params on int fns** = ABI noise from float-using callees,
+  not real float forwarding (items).
