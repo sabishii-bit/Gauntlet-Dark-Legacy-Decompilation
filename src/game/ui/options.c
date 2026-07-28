@@ -274,11 +274,11 @@ extern void* MBDrawText(s32 x, s32 y, char* text);
 extern void MBWorldToScreen3D(f32* pos, f32* out);
 
 /* scene node helpers */
-extern void* fn_800BB29C(f32 a, f32* b, s32 c);
-extern void fn_800BA2C4(void* node, s32 a, s32 b);
-extern void* fn_800BA368(void* node, s32 a, s32 b);
-extern void* fn_800BAEAC(void* node, s32 a);
-extern void fn_800BAD94(void* node, void* parent);
+extern void* MBNewNode(f32 a, f32* b, s32 c);
+extern void MBTreeClearFlags(void* node, s32 a, s32 b);
+extern void* MBTreeSetFlags(void* node, s32 a, s32 b);
+extern void* MBRemoveNode(void* node, s32 a);
+extern void MBNodeSetParent(void* node, void* parent);
 extern void* AtreeMatch(void* tree, u32 rgb, char* name, s32 d);
 extern void* fn_80012F78(void* tree, void* node, void* msg, s32 a, s32 b);
 extern void fn_800115D0(void* msg);
@@ -459,7 +459,7 @@ static void next_general_hint(s32 advance);
     do {                                                   \
         fn_800115D0((m)->msg);                             \
         if ((m)->icon_node != NULL) {                      \
-            (m)->icon_node = fn_800BAEAC((m)->icon_node, 1); \
+            (m)->icon_node = MBRemoveNode((m)->icon_node, 1); \
         }                                                  \
         if ((m)->title_blit != NULL) {                     \
             (m)->title_blit = MBRemoveBlit((m)->title_blit); \
@@ -630,7 +630,7 @@ int DoOptions(void)
         fn_8006C3A0();
         choice = do_optmenu(m, 0);
         if (m->icon_node != NULL) {
-            fn_800BA368(m->icon_node, 2, 0);
+            MBTreeSetFlags(m->icon_node, 2, 0);
         }
         if (m->burn_blit != NULL) {
             mbBlitInit3414(m->burn_blit, 1);
@@ -1568,7 +1568,7 @@ void show_optmenu(OPTMENU* m)
     fade = 0;
 
     if (m->icon_node != NULL) {
-        fn_800BA2C4(m->icon_node, 2, 0);
+        MBTreeClearFlags(m->icon_node, 2, 0);
     }
     if (m->burn_blit != NULL) {
         mbBlitInit3414(m->burn_blit, 0);
@@ -1952,7 +1952,7 @@ static void end_optmenu(s32 dir, s32 mode)
     m = og->stack[options_level];
     fn_800115D0(m->msg);
     if (m->icon_node != NULL) {
-        m->icon_node = fn_800BAEAC(m->icon_node, 1);
+        m->icon_node = MBRemoveNode(m->icon_node, 1);
     }
     if (m->burn_blit != NULL) {
         m->burn_blit = MBRemoveBlit(m->burn_blit);
@@ -2028,7 +2028,7 @@ void remove_optmenu(OPTMENU* m)
 {
     fn_800115D0(m->msg);
     if (m->icon_node != NULL) {
-        m->icon_node = fn_800BAEAC(m->icon_node, 1);
+        m->icon_node = MBRemoveNode(m->icon_node, 1);
     }
     if (m->title_blit != NULL) {
         m->title_blit = MBRemoveBlit(m->title_blit);
@@ -2118,12 +2118,12 @@ void start_optmenu_nostack(OPTMENU* m, s32 sel)
     if (m->icon == 0) {
         m->icon_node = NULL;
     } else {
-        m->icon_node = fn_800BB29C(0.0f, NULL, 0);
-        node = fn_800BA368(m->icon_node, 8, 0);
+        m->icon_node = MBNewNode(0.0f, NULL, 0);
+        node = MBTreeSetFlags(m->icon_node, 8, 0);
         match = AtreeMatch(node, lbl_8034496C, "ICON_ARROW", 0);
         m->icon_node = fn_80012F78(node, match, m->msg, 0, 0);
         if (m->icon_node != NULL && *(void**)m->icon_node != NULL) {
-            fn_800BAD94(*(void**)m->icon_node, m->icon_node);
+            MBNodeSetParent(*(void**)m->icon_node, m->icon_node);
         }
     }
     if (m->icon_node != NULL) {

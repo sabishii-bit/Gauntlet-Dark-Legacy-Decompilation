@@ -75,7 +75,8 @@ typedef struct MLFILE {
     /* 0x128 */ int compSize;
 } MLFILE; /* 0x12C */
 
-extern MLFILE mlmFileHandles[1];
+extern MLFILE finfo_list[1];
+extern MLFILE temp_finfo;
 extern int mlmCurFileSlot;
 extern int mlmServeTimeout;
 extern int mlmCloseRes;
@@ -106,9 +107,9 @@ void serve_io(void)
 
     served = 0;
     for (i = 0; i < 1 && served == 0; i++) {
-        if (mlmFileHandles[mlmCurFileSlot].state != -1 &&
-            mlmFileHandles[mlmCurFileSlot].state != 1) {
-            served = do_threaded_io(&mlmFileHandles[mlmCurFileSlot]);
+        if (finfo_list[mlmCurFileSlot].done != -1 &&
+            finfo_list[mlmCurFileSlot].done != 1) {
+            served = do_threaded_io(&finfo_list[mlmCurFileSlot]);
         }
         mlmCurFileSlot++;
         if (mlmCurFileSlot > 0) {
@@ -200,13 +201,13 @@ MLFILE* StartFileRead(char* wad, char* name, int compress, char* dest)
         gErrorCode = 0xff;
         bulletproof_printf("Temporary high memory in use by %s\n", name);
     }
-    slot = (mlmFileHandles[0].state != -1);
+    slot = (finfo_list[0].state != -1);
     if (slot == 1) {
         gErrorCode = 0xff;
         bulletproof_printf("Too many open files (%d)\n", 1);
         return NULL;
     }
-    f = &mlmFileHandles[slot];
+    f = &finfo_list[slot];
     get_path(path, wad, name);
     strcpy(full, path);
     fd = sceOpen(full, 1);
@@ -317,7 +318,7 @@ void InitMemHandler(void)
             mlmLockStack[i] = 0;
         }
     }
-    mlmFileHandles[0].state = -1;
+    finfo_list[0].state = -1;
     alloctot = 0;
 }
 
@@ -325,7 +326,7 @@ int FileSystemReading(void)
 {
     int reading = 0;
 
-    if (mlmFileHandles[0].done == 0)
+    if (finfo_list[0].done == 0)
         reading = 1;
     return reading;
 }
@@ -334,7 +335,7 @@ int FileSystemBusy(void)
 {
     int busy = 0;
 
-    if (mlmFileHandles[0].done != -1)
+    if (finfo_list[0].done != -1)
         busy = 1;
     return busy;
 }
@@ -563,9 +564,10 @@ int MLMReadFile(char* wad, char* name, int maxLen, void* dest)
     int read;
 
     read = xReadFileSection(wad, name, maxLen, dest);
-    if (maxLen > 0 && maxLen < read) {
+    if (maxLen > 0 && read > maxLen) {
         gErrorCode = 0x80;
-        bulletproof_printf("File read overflowed %s size %d\n", name, read);
+        FatalErrorf("File read overflowed: %s size:%d max:%d",
+                    temp_finfo.name, read, maxLen);
     }
     return read;
 }

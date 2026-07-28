@@ -48,12 +48,12 @@ extern void MBSetRomTexture(int handle, void* p);
 extern int fn_800B8B64(char* name, int* p, int a, int b, int c);
 extern int fn_800B8B04(char* name, int* p);
 extern void MBCopyTexture(int a, int b);
-extern void fn_800BA084(void);
-extern void fn_800BA368(int a, int b, int c);
-extern void fn_800BA2C4(int a, int b, int c);
+extern void MBClearTexscroll(void);
+extern void MBTreeSetFlags(int a, int b, int c);
+extern void MBTreeClearFlags(int a, int b, int c);
 extern void MBSetObject(void* obj, int objid);
-extern void fn_800BA6C0(int a, int b, int c);
-extern void fn_800BA56C(int a, int b, int c, int d);
+extern void MBTreeSetAlpha(int a, int b, int c);
+extern void MBTreeSetAltTex(int a, int b, int c, int d);
 extern void MBTreeSetUVScaleAdd(float a, float b, float c, float d, int handle, int flag);
 extern int fn_800B8E94(OANIM* node, int a, int b, int c);
 extern void FatalError(char* msg, int code);
@@ -264,7 +264,7 @@ void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
                 lo = 1.0f;
             }
             mode = (int)((float)(1.0 - lo) * 255.0);
-            fn_800BA6C0(ctx, mode, 1);
+            MBTreeSetAlpha(ctx, mode, 1);
         } else {
             if (mode < -4) {
                 if (mode == -6) {
@@ -280,7 +280,7 @@ void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
                     } else {
                         lo = 1.0f;
                     }
-                    fn_800BA6C0(ctx, (int)(lo * 255.0), 1);
+                    MBTreeSetAlpha(ctx, (int)(lo * 255.0), 1);
                     return;
                 }
             } else if (mode == -2) {
@@ -303,7 +303,7 @@ void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
                     f = tm->frames - 1;
                 }
             }
-            fn_800BA56C(ctx, (u32)tm->tex & 0xffff, mode + f, 1);
+            MBTreeSetAltTex(ctx, (u32)tm->tex & 0xffff, mode + f, 1);
         }
     }
 }
@@ -363,7 +363,7 @@ void ResetTexmods(void)
 {
     texmod_scrollidx = 0;
     special_texmod_num = 0;
-    fn_800BA084();
+    MBClearTexscroll();
 }
 
 void DoObjAnimation(OANIM* nodes, int ctx, int idx, int frame)
@@ -375,9 +375,9 @@ void DoObjAnimation(OANIM* nodes, int ctx, int idx, int frame)
 
     node = &nodes[idx];
     if (node->tex < 0) {
-        fn_800BA368(ctx, 1, 0);
+        MBTreeSetFlags(ctx, 1, 0);
     } else {
-        fn_800BA2C4(ctx, 1, 0);
+        MBTreeClearFlags(ctx, 1, 0);
         start = node->start;
         end = start + node->frames - 1;
         if (frame < start || frame > end) {

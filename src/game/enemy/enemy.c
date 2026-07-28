@@ -138,8 +138,8 @@ extern s32 fn_8005D20C(s32 index, f32* oldc, f32* newc, s32 moved);
                                                     /* player collide + damage */
 extern void fn_800BD050(f32* mat, f32* pyr);        /* pyr -> rotation matrix */
 extern void CopyMat3(f32* src, f32* dst);           /* 0x800BE8C8 */
-extern void fn_800BA368(struct mbnode* n, s32 a, s32 b); /* node show/update */
-extern void fn_800BA2C4(struct mbnode* n, s32 a, s32 b); /* node update */
+extern void MBTreeSetFlags(struct mbnode* n, s32 a, s32 b); /* node show/update */
+extern void MBTreeClearFlags(struct mbnode* n, s32 a, s32 b); /* node update */
 
 /* --- module data shared with other enemy helpers --- */
 extern s32 lbl_8034457C;      /* frame ticks (game speed units this frame) */
@@ -661,9 +661,9 @@ void do_enemy_move(s32 index)
             *(f32*)((u8*)e->shadow + 52) = e->objgrp.worldmat[3][1];
             *(f32*)((u8*)e->shadow + 56) = e->objgrp.worldmat[3][2];
             if (e->action == 1) {
-                fn_800BA368(e->shadow, 2, 0);
+                MBTreeSetFlags(e->shadow, 2, 0);
             } else {
-                fn_800BA2C4(e->shadow, 2, 0);
+                MBTreeClearFlags(e->shadow, 2, 0);
             }
         }
     }
@@ -1629,7 +1629,7 @@ extern struct item* PlaceItem(s32 a, s32 b, char* name, s32 c);
 extern void fn_800920E0(f32* pos, struct item* ip, f32 z); /* toss carried item */
 extern void fn_80064154(struct item* ip);           /* commit placed item */
 extern void fn_8002C49C(f32* worldmat);             /* release grid slot */
-extern void fn_800BAEAC(struct mbnode* n, s32 a);   /* delete scene node */
+extern void MBRemoveNode(struct mbnode* n, s32 a);   /* delete scene node */
 extern void SfxDeleteParented(struct mbnode* n, s32 a, s32 b);
 extern void fn_800115D0(void* atree);               /* free anim tree */
 extern s32 lbl_803443B4;      /* level-teardown-in-progress flag */
@@ -1672,7 +1672,7 @@ void kill_enemy(s32 index)
             fn_800920E0(e->objgrp.attn_pos, item, 0.0f);
         } else {
             *((u8*)item + 205) = 0;
-            fn_800BA2C4(*(struct mbnode**)((u8*)item + 100), 2, 0);
+            MBTreeClearFlags(*(struct mbnode**)((u8*)item + 100), 2, 0);
             if (**(s32**)item == 1) {
                 *(s16*)((u8*)item + 236) = 60;
             }
@@ -1689,7 +1689,7 @@ void kill_enemy(s32 index)
     e->state = 0;
     fn_8002C49C(&e->objgrp.worldmat[0][0]);
     if (e->shadow != 0) {
-        fn_800BAEAC(e->shadow, 0);
+        MBRemoveNode(e->shadow, 0);
         e->shadow = 0;
     }
     if (e->specialfx >= 0) {
@@ -1700,7 +1700,7 @@ void kill_enemy(s32 index)
     }
     fn_800115D0(&e->atree);
     lbl_80344734 = 1;
-    fn_800BAEAC(e->objgrp.node, 0);
+    MBRemoveNode(e->objgrp.node, 0);
     lbl_80344734 = 0;
     e->objgrp.node = 0;
     uncouple_enemy(index);
@@ -1928,9 +1928,9 @@ s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
             }
             d = (d + 1) % ndirs;
         } while (d != start);
-        fn_800BA368(e->objgrp.node, 2, 0);
+        MBTreeSetFlags(e->objgrp.node, 2, 0);
         if (e->shadow != 0) {
-            fn_800BA368(e->shadow, 2, 0);
+            MBTreeSetFlags(e->shadow, 2, 0);
         }
         e->state = 0;
         return -3;

@@ -724,7 +724,7 @@ s32 fn_800629B0(void)
  *                    NextGridEnemy, fn_800BCB44, fn_800BDA98)
  * 8005B558  0x0060  fn_ : accessor (lbl_8034494C/80344950)
  * 8005B5B8  0x02F8  fn_ : spawn/attach world object (FindWORLDOBJ, ErrorPrintf,
- *                    fn_800A1A9C/1D00/2698, fn_800B8DD0, fn_800BA368/AEAC,
+ *                    fn_800A1A9C/1D00/2698, fn_800B8DD0, MBTreeSetFlags/AEAC,
  *                    sprintf)
  * 8005B8B0  0x004C  fn_ : small accessor (no calls)
  * 8005B8FC  0x008C  fn_ : post message (msgPost; lbl_8034477C/8034481C)
@@ -738,7 +738,7 @@ s32 fn_800629B0(void)
  *                    "BOSSGEN","L1","ROOT","BAREXP0","BARPOI0","%s_D"
  * 8005D04C  0x0078  fn_ : wrapper -> fn_8005D0C4
  * 8005D0C4  0x0148  fn_ : enemy-grid op (StartEnemyGrid/NextGridEnemy,
- *                    fn_800BA368, fn_800BCB44)
+ *                    MBTreeSetFlags, fn_800BCB44)
  * 8005D20C  0x01CC  fn_ : dispatch (fn_8005D3D8, fn_8005F0F4, fn_80062FF0)
  * 8005D3D8  0x01F0  fn_ : (fn_8004E6F8; lbl_80346FC8)
  * 8005D5C8  0x0168  fn_ : accessor (no calls; lbl_80346FC8)
@@ -747,7 +747,7 @@ s32 fn_800629B0(void)
  * 8005DE50  0x0ABC  fn_ : big object state machine (FindStringMessageListSub,
  *                    fn_8005A3B8, many fn_8009/800A, msgPost, strcmp)
  * 8005E90C  0x0438  fn_ : create item instance (NewItemPtr_800642C8, SetItem,
- *                    fn_80064154, fn_8009DAF8, fn_800BA368).  "AllCoins",
+ *                    fn_80064154, fn_8009DAF8, MBTreeSetFlags).  "AllCoins",
  *                    "PINEAPPLE"
  * 8005ED44  0x00D4  fn_ : enemy-grid op (StartEnemyGrid/NextGridEnemy,
  *                    fn_8005EE18, fn_8005F0F4)
@@ -773,7 +773,7 @@ s32 fn_800629B0(void)
  * 800629B0  0x0050  fn_ : accessor (no calls; lbl_8034494C/80344950).
  *                    Called by auxscreen.
  * 80062A00  0x05F0  fn_ : particle-system update (WorldPsysActivate/DeActivate,
- *                    fn_80063854, fn_8009D100..694, fn_800BA2C4/368/6C0)
+ *                    fn_80063854, fn_8009D100..694, MBTreeClearFlags/368/6C0)
  * 80062FF0  0x01BC  fn_ : enemy-grid op (StartEnemyGrid/NextGridEnemy,
  *                    fn_800BCB44)
  * ========================================================================== */

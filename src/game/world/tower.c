@@ -86,8 +86,8 @@ extern s32  ExpToLevel(s32 exp);
 extern void DisablePlayerControls(void);
 extern f32  lbl_80127D60[];   /* identity matrix */
 extern void* lbl_80344EB8;    /* MB parent object */
-extern void* fn_800BB29C(void*, void*, int);
-extern void  fn_800BAD94(void* node, void* parent);
+extern void* MBNewNode(void*, void*, int);
+extern void  MBNodeSetParent(void* node, void* parent);
 extern void  CopyMat4(f32* src, void* node);
 extern s32   fn_80012F78(void* atree, void* out, s32 a, s32 flags);
 extern u8*   gCurLevel;       /* current-level descriptor pointer */
@@ -882,8 +882,8 @@ int sumnerCheckLevelUp(void) {
 
         if (atree != 0) {
             s->wizAtree = (void*)fn_80012F78(atree, &s->wizAtree, 0, 0xC00880);
-            lbl_80344C64 = (s32)fn_800BB29C(lbl_80344EB8, lbl_80127D60, 1);
-            fn_800BAD94(*(void**)s->wizAtree, (void*)lbl_80344C64);
+            lbl_80344C64 = (s32)MBNewNode(lbl_80344EB8, lbl_80127D60, 1);
+            MBNodeSetParent(*(void**)s->wizAtree, (void*)lbl_80344C64);
         }
     }
     lbl_80344C70 = 0;
@@ -931,8 +931,8 @@ void SumnerInit(void) {
     s->gwizAtree =
         (void*)fn_80012F78((void*)AtreeMatch(sGoodWizObj, (char*)&lbl_80348610, 0),
                            &s->gwizAtree, 0, 2048);
-    sSumnerObj = fn_800BB29C(lbl_80344EB8, lbl_80127D60, 1);
-    fn_800BAD94(*(void**)s->gwizAtree, sSumnerObj);
+    sSumnerObj = MBNewNode(lbl_80344EB8, lbl_80127D60, 1);
+    MBNodeSetParent(*(void**)s->gwizAtree, sSumnerObj);
     lp = FindLookoutParam(0);
     if (lp != 0) {
         CopyMat4((f32*)lp, sSumnerObj);

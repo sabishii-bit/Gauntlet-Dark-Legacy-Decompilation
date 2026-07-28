@@ -47,7 +47,7 @@
  *   0x800920E0 fn_800920E0            Start* + Random + atan2 (firework-like)
  *   0x800922A0 StartEnterFX       (G) FX_ENTER, flb 0x80880                         [high] BODY (parked: renum)
  *   0x8009233C StartBlockFX       (G) FX_BLOCK + per-class frame + player reparent  [high] BODY (parked: 1-insn fold)
- *   0x80092464 fn_80092464            Start* + frame-range select (fn_800BA42C)
+ *   0x80092464 fn_80092464            Start* + frame-range select (MBTreeSetColor)
  *   0x800926BC StartLevelUpFX     (G) FX_LEVELUP_* via color table 0x80122E60       [high] BODY (parked: renum)
  *   0x80092794 fn_80092794            Start* via Sub + launch helper fn_80093E50
  *   0x800929C8 StartMagicHealFX   (G) FX_MAGICHEAL + scale/32 clamp                 [high] BODY (parked: renum)
@@ -203,13 +203,13 @@ extern s32 lbl_80344BF4;                       /* skinfx frame base B */
 extern void ErrorPrintf(const char* fmt, ...);
 extern void CopyMat3(f32* src, void* dst);
 extern void CopyMat4(f32* src, void* dst);
-extern void fn_800BA368(struct mbnode* node, u32 flags, s32 recurse);  /* show/flag set   */
-extern void fn_800BA2C4(struct mbnode* node, u32 flags, s32 recurse);  /* flag set var.   */
-extern void fn_800BA4D0(struct mbnode* node, s32 alpha, s32 recurse);  /* set alpha       */
-extern void fn_800BA56C(struct mbnode* node, s32 sel, s32 frame, s32 recurse); /* set frame */
-extern void fn_800BA6C0(struct mbnode* node, s32 alpha, s32 recurse);  /* set base alpha  */
-extern void fn_800BA784(struct mbnode* node, s32 zmod, s32 recurse);   /* set z-bias      */
-extern void fn_800BAD94(struct mbnode* node, struct mbnode* parent);   /* reparent        */
+extern void MBTreeSetFlags(struct mbnode* node, u32 flags, s32 recurse);  /* show/flag set   */
+extern void MBTreeClearFlags(struct mbnode* node, u32 flags, s32 recurse);  /* flag set var.   */
+extern void MBTreeSetAmbientAdd(struct mbnode* node, s32 alpha, s32 recurse);  /* set alpha       */
+extern void MBTreeSetAltTex(struct mbnode* node, s32 sel, s32 frame, s32 recurse); /* set frame */
+extern void MBTreeSetAlpha(struct mbnode* node, s32 alpha, s32 recurse);  /* set base alpha  */
+extern void MBTreeSetZsortAdd(struct mbnode* node, s32 zmod, s32 recurse);   /* set z-bias      */
+extern void MBNodeSetParent(struct mbnode* node, struct mbnode* parent);   /* reparent        */
 extern void WYawMat3(struct mbnode* node, f32 ang);                    /* rotate yaw      */
 extern void WPitchMat3(struct mbnode* node, f32 ang);                  /* rotate pitch    */
 extern void YawMat3(struct mbnode* node, f32 yaw);                     /* set yaw         */
@@ -218,19 +218,19 @@ extern void MBRemovePolyInst(struct polyinst* p);
 extern void MBPolyInstUpdateVerts(struct polyinst* p, s32 nverts, f32* verts);
 extern struct polyinst* MBNewPoly(void* ctx, s32 type, s32 tex, f32* verts);
 extern void MBPolyInstSetColorAlpha(struct polyinst* p, u32 color, s32 alpha);
-extern void fn_800BAEAC(struct mbnode* node, s32 flag);               /* node destroy    */
+extern void MBRemoveNode(struct mbnode* node, s32 flag);               /* node destroy    */
 extern f32 NormalVector(f32* v);                                      /* normalize, ret len */
 extern int msgPost(int idx, int param, char* str);
 extern u32 fn_8000D4B8(f32 rad1, f32 rad2, f32 drop, f32* pos, f32* outnrm, s32 a, s32 b); /* floor probe */
 extern void fn_800115D0(void* atree);                                  /* atree release   */
 extern struct anode* fn_80012F78(struct atreeheader* hdr, void* atree, s32 a, s32 b); /* atree build */
 extern struct anode* fn_80012F9C(struct atreeheader* hdr, void* atree, s32 a, u32 flb, s32 b); /* atree build (flags) */
-extern struct mbnode* fn_800BB29C(struct mbnode* parent, f32* mat, s32 flag); /* new node under parent */
+extern struct mbnode* MBNewNode(struct mbnode* parent, f32* mat, s32 flag); /* new node under parent */
 extern struct mbnode* MBOX_NewObject(const char* name, s32 p2, s32 p3, u32 p4); /* create MB object */
 extern struct mbnode* lbl_80344EBC; /* fx scene root (flag 0x2000)     */
 extern struct mbnode* lbl_80344BD4; /* fx scene root (flag 0x800)      */
 extern struct mbnode* lbl_80344EB8; /* default fx scene root           */
-extern void fn_800BA42C(struct mbnode* node, s32 frame, s32 recurse); /* set anim frame  */
+extern void MBTreeSetColor(struct mbnode* node, s32 frame, s32 recurse); /* set anim frame  */
 extern s32 lbl_80285B04[];  /* per-enemy hit-fx type table   (.bss)    */
 extern s32 lbl_80285A50[];  /* per-enemy death-fx type table (.bss)    */
 extern s32 lbl_80122E60[4]; /* levelup fx type by player color (.data) */
@@ -318,11 +318,11 @@ void DoProcessSkinFX(SkinFx* fx, struct mbnode* node, struct mbnode* geo)
         } else {
             sel = -4;
         }
-        fn_800BA56C(node, sel, base + (s32)fx->frame, 1);
-        fn_800BA4D0(node, (s32)fx->alpha, 1);
+        MBTreeSetAltTex(node, sel, base + (s32)fx->frame, 1);
+        MBTreeSetAmbientAdd(node, (s32)fx->alpha, 1);
     } else {
-        fn_800BA56C(node, -1, 0, 1);
-        fn_800BA4D0(node, 0, 1);
+        MBTreeSetAltTex(node, -1, 0, 1);
+        MBTreeSetAmbientAdd(node, 0, 1);
     }
 
     if (geo != NULL) {
@@ -355,10 +355,10 @@ struct mbnode* DmgFxConeAdd(s32 objid, f32* pos, s32 alpha, f32 rx, f32 rz, f32 
     node->pos[2] = pos[2];
     DmgFxNodeUpdate(node, 1, sx, sz, rotp, roty);
     if (flags & 1) {
-        fn_800BA368(node, 1, 0);
+        MBTreeSetFlags(node, 1, 0);
     }
     if (alpha > 0) {
-        fn_800BA6C0(node, alpha, 0);
+        MBTreeSetAlpha(node, alpha, 0);
     }
     return node;
 }
@@ -384,10 +384,10 @@ struct mbnode* DmgFxCircleAdd(s32 objid, f32* pos, s32 alpha, f32 r, f32 rotp, f
     node->pos[2] = pos[2];
     DmgFxNodeUpdate(node, 1, sx, sz, rotp, roty);
     if (flags & 1) {
-        fn_800BA368(node, 1, 0);
+        MBTreeSetFlags(node, 1, 0);
     }
     if (alpha > 0) {
-        fn_800BA6C0(node, alpha, 0);
+        MBTreeSetAlpha(node, alpha, 0);
     }
     return node;
 }
@@ -440,9 +440,9 @@ void DmgFxNodeUpdate(struct mbnode* node, s32 absolute, f32 rx, f32 rz, f32 rotp
         if (sz != 0.0) {
             node->scale[2] /= sz;
         }
-        fn_800BA2C4(node, 1, 0);
+        MBTreeClearFlags(node, 1, 0);
     } else {
-        fn_800BA368(node, 1, 0);
+        MBTreeSetFlags(node, 1, 0);
     }
 }
 
@@ -519,8 +519,8 @@ s32 StartDeathFX(struct mbnode* parent, s32 kind, u32 fla)
     } else {
         h = &page->info[type];
         if (h->atree != NULL && (idx = StartFXTree(h->atree, NULL, 0, fla | 0x800, 10.0f)) >= 0) {
-            fn_800BA784(page->fx[idx].node, h->zmod, 1);
-            fn_800BA6C0(page->fx[idx].node, h->alpha, 1);
+            MBTreeSetZsortAdd(page->fx[idx].node, h->zmod, 1);
+            MBTreeSetAlpha(page->fx[idx].node, h->alpha, 1);
             page->fx[idx].type = (fx_type)type;
         }
     }
@@ -528,10 +528,10 @@ s32 StartDeathFX(struct mbnode* parent, s32 kind, u32 fla)
         Effect* e = &page->fx[idx];
         struct anode* root;
 
-        fn_800BAD94(e->node, parent);
+        MBNodeSetParent(e->node, parent);
         root = ATREE_ROOT(e);
         if (root != NULL) {
-            fn_800BA368(root->node, 0x10, 0);
+            MBTreeSetFlags(root->node, 0x10, 0);
         }
     }
     page->fx[idx].minendtime = 0.5 + lbl_80344584;
@@ -592,8 +592,8 @@ static s32 StartFXSubGuts(s32 type, f32* pos, u32 fla, u32 flb, f32 time)
     }
     h = &page->info[type];
     if (h->atree != NULL && (idx = StartFXTree(h->atree, pos, fla, flb, time)) >= 0) {
-        fn_800BA784(page->fx[idx].node, h->zmod, 1);
-        fn_800BA6C0(page->fx[idx].node, h->alpha, 1);
+        MBTreeSetZsortAdd(page->fx[idx].node, h->zmod, 1);
+        MBTreeSetAlpha(page->fx[idx].node, h->alpha, 1);
         page->fx[idx].type = (fx_type)type;
     }
     return idx;
@@ -657,23 +657,23 @@ s32 StartBlockFX(f32 time, s32 pnum)
     u8 unused[8];
 
     if (h->atree != NULL && (idx = StartFXTree(h->atree, NULL, 0, flb, time)) >= 0) {
-        fn_800BA784(page->fx[idx].node, h->zmod, 1);
-        fn_800BA6C0(page->fx[idx].node, h->alpha, 1);
+        MBTreeSetZsortAdd(page->fx[idx].node, h->zmod, 1);
+        MBTreeSetAlpha(page->fx[idx].node, h->alpha, 1);
         page->fx[idx].type = FX_BLOCK;
     }
     if (idx >= 0) {
-        fn_800BA42C(page->fx[idx].node,
+        MBTreeSetColor(page->fx[idx].node,
                     lbl_8011A178[*(s32*)(lbl_80275AE0 + pnum * 0x335C + 4)], 1);
-        fn_800BA6C0(page->fx[idx].node, 0x40, 1);
+        MBTreeSetAlpha(page->fx[idx].node, 0x40, 1);
         if (idx >= 0) {
             Effect* e = &page->fx[idx];
             struct anode* root;
 
-            fn_800BAD94(e->node,
+            MBNodeSetParent(e->node,
                         *(struct mbnode**)(lbl_80275AE0 + pnum * 0x335C + 0x74));
             root = ATREE_ROOT(e);
             if (root != NULL) {
-                fn_800BA368(root->node, 0x10, 0);
+                MBTreeSetFlags(root->node, 0x10, 0);
             }
         }
     }
@@ -708,7 +708,7 @@ s32 StartMagicHealFX(f32 scale, f32* pos)
 
         e = (Effect*)((u8*)e + 2976);
         if (node != NULL) {
-            fn_800BA368(node, 8, 0);
+            MBTreeSetFlags(node, 8, 0);
             e->node->scale[0] = s;
             e->node->scale[1] = s;
             e->node->scale[2] = s;
@@ -909,9 +909,9 @@ void SfxSetMat(s32 idx, f32* mat, f32* pos)
 void SfxSetParent(s32 idx, struct mbnode* parent)
 {
     if (idx >= 0) {
-        fn_800BAD94(Effects[idx].node, parent);
+        MBNodeSetParent(Effects[idx].node, parent);
         if (ATREE_ROOT(&Effects[idx]) != NULL) {
-            fn_800BA368(ATREE_ROOT(&Effects[idx])->node, 0x10, 0);
+            MBTreeSetFlags(ATREE_ROOT(&Effects[idx])->node, 0x10, 0);
         }
     }
 }
@@ -953,7 +953,7 @@ void ScaleFX(s32 idx, f32 sx, f32 sy, f32 sz)
     Effect* e = &Effects[idx];
 
     if (e->node != NULL) {
-        fn_800BA368(e->node, 8, 0);
+        MBTreeSetFlags(e->node, 8, 0);
         e->node->scale[0] = sx;
         e->node->scale[1] = sy;
         e->node->scale[2] = sz;
@@ -987,8 +987,8 @@ s32 StartFXSub(s32 type, f32* pos, u32 fla, u32 flb, f32 time)
     }
     h = &page->info[type];
     if (h->atree != NULL && (idx = StartFXTree(h->atree, pos, fla, flb, time)) >= 0) {
-        fn_800BA784(page->fx[idx].node, h->zmod, 1);
-        fn_800BA6C0(page->fx[idx].node, h->alpha, 1);
+        MBTreeSetZsortAdd(page->fx[idx].node, h->zmod, 1);
+        MBTreeSetAlpha(page->fx[idx].node, h->alpha, 1);
         page->fx[idx].type = (fx_type)type;
     }
     return idx;
@@ -1021,12 +1021,12 @@ s32 StartFXTree(struct atreeheader* hdr, f32* pos, u32 fla, u32 flb, f32 time)
     } else {
         parent = lbl_80344EB8;
     }
-    e->node = fn_800BB29C(parent, lbl_80127D60, 1);
+    e->node = MBNewNode(parent, lbl_80127D60, 1);
     if (e->node == NULL) {
         fn_800115D0(&e->atree[0]);
         return -1;
     }
-    fn_800BAD94(ATREE_ROOT(e)->node, e->node);
+    MBNodeSetParent(ATREE_ROOT(e)->node, e->node);
 
     ai = (struct fxanim*)&e->atree[4];
     if (time > 0.0) {
@@ -1290,13 +1290,13 @@ void ChangeEffect(s32 idx, s32 type, u32 newflags)
             oldframe = n->frame;
             fn_800115D0(&e->atree[0]);
             ATREE_ROOT(e) = fn_80012F78(h->atree, &e->atree[0], 0, 0);
-            fn_800BAD94(ATREE_ROOT(e)->node, e->node);
-            fn_800BA784(e->node, h->zmod, 1);
-            fn_800BA6C0(e->node, h->alpha, 1);
+            MBNodeSetParent(ATREE_ROOT(e)->node, e->node);
+            MBTreeSetZsortAdd(e->node, h->zmod, 1);
+            MBTreeSetAlpha(e->node, h->alpha, 1);
             if (oldframe != 0) {
-                fn_800BA4D0(e->node, oldframe, 1);
+                MBTreeSetAmbientAdd(e->node, oldframe, 1);
             }
-            fn_800BA368(e->node, newflags, 1);
+            MBTreeSetFlags(e->node, newflags, 1);
         }
     }
 }
@@ -1387,7 +1387,7 @@ s32 DeleteEffect(s32 idx, s32 mode)
         if (n->child != NULL) {
             SfxDeleteParented(n, 0, -1);
         }
-        fn_800BAEAC(e->node, 1);
+        MBRemoveNode(e->node, 1);
     }
 
     e->type = FX_NONE;

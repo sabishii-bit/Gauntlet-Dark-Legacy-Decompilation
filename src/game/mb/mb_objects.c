@@ -27,7 +27,7 @@
  * reached via obj->data.romobj. */
 
 /* ---- externs (resolved via symbols.txt) ---- */
-extern void* fn_800BB29C(void* parent, void* name, int count); /* render-node/tree alloc */
+extern void* MBNewNode(void* parent, void* name, int count); /* render-node/tree alloc */
 extern void FatalError(const char* msg, int code);
 extern void ErrorPrintf(const char* fmt, ...);
 extern int MBWorldSphereVisible3(void* p, f32 f);       /* mb_camera.c */
@@ -109,12 +109,12 @@ static int feq(f32 a, f32 b) {
 
 void MBInitObjects(int enable) {
     if (enable) {
-        lbl_80344EBC = fn_800BB29C(0, lbl_80127D60, 1);
-        lbl_80344EB8 = fn_800BB29C(0, lbl_80127D60, 1);
-        lbl_80344EB4 = fn_800BB29C(0, lbl_80127D60, 1);
-        lbl_80344EB0 = fn_800BB29C(0, lbl_80127D60, 7);
-        lbl_80344EAC = fn_800BB29C(0, lbl_80127D60, 8);
-        lbl_80344EA8 = fn_800BB29C(0, lbl_80127D60, 8);
+        lbl_80344EBC = MBNewNode(0, lbl_80127D60, 1);
+        lbl_80344EB8 = MBNewNode(0, lbl_80127D60, 1);
+        lbl_80344EB4 = MBNewNode(0, lbl_80127D60, 1);
+        lbl_80344EB0 = MBNewNode(0, lbl_80127D60, 7);
+        lbl_80344EAC = MBNewNode(0, lbl_80127D60, 8);
+        lbl_80344EA8 = MBNewNode(0, lbl_80127D60, 8);
         *(u32*)((u8*)lbl_80344EB8 + 0x60) |= 4;
         *(u32*)((u8*)lbl_80344EBC + 0x60) |= 4;
         *(u32*)((u8*)lbl_80344EB0 + 0x60) |= 4;
@@ -160,9 +160,9 @@ MBObject* MBNewObject(s32 objid, void* name, void* parent, u32 flags) {
     }
 
     if (objid == -1) {
-        obj = (MBObject*)fn_800BB29C(parent, name, 1);
+        obj = (MBObject*)MBNewNode(parent, name, 1);
     } else {
-        obj = (MBObject*)fn_800BB29C(parent, name, 2);
+        obj = (MBObject*)MBNewNode(parent, name, 2);
         if (obj != 0) {
             SetObjectGuts(obj, objid);
             obj->flags |= flags;

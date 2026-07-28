@@ -21,9 +21,9 @@
 
 typedef struct MBTreeNode {
     /* 0x00 */ u8 _pad00[0x40];
-    /* 0x40 */ f32 colorAdd[3];
+    /* 0x40 */ f32 scale[3];
     /* 0x4C */ u8 _pad4C[4];
-    /* 0x50 */ s16 id;
+    /* 0x50 */ u16 id;
     /* 0x52 */ s8 type;
     /* 0x53 */ u8 invAlpha;
     /* 0x54 */ f32 zMod;
@@ -46,22 +46,55 @@ extern MBTreeNode* lbl_80344ECC;
 extern MBTreeNode* lbl_80344ED0;
 extern MBTreeNode* lbl_80344EDC;
 extern MBTreeNode* lbl_80344EE0;
+extern s32 lbl_80344EC8;
 extern u8 lbl_802C2A28[];
 extern const f32 lbl_80348CA0;
+extern f32 lbl_80127D60[16];
+extern f32 light_color[4];
+extern void* gWinGlobals;
 
-void fn_800BB164(MBTreeNode* node);
-MBTreeNode* fn_800BB55C(MBTreeNode* node);
-MBTreeNode* fn_800BB588(MBTreeNode* node);
-void fn_800BB4CC(MBTreeNode* node, MBTreeNode* parent);
+void MBRemoveNodeChild(MBTreeNode* node);
+MBTreeNode* MBNodeLastSibling(MBTreeNode* node);
+MBTreeNode* MBNodePrevNode(MBTreeNode* node);
+void MBNodeInsert(MBTreeNode* node, MBTreeNode* parent);
 extern void fn_800D12F0(MBTreeNode* node);
+extern void* AllocMem(u32 size);
+extern void FatalError(const char* text, s32 errorCode);
+extern void CopyMat4(const f32* src, f32* dst);
+void MBNodeInit(MBTreeNode* node, s32 type);
+MBTreeNode* MBCreateNode(void);
 
 /* 0x800BA084 */
-void fn_800BA084(void) {}
+void MBClearTexscroll(void)
+{
+    u8* globals = gWinGlobals;
+    s32 i;
+    s32 offset;
+
+    for (i = 0, offset = 0;
+         i < **(s32**)(globals + 0x30);
+         i++, offset += 0x10) {
+        u8* record = *(u8**)(globals + 0x30) + offset;
+
+        if (*(s32*)(record + 0x10) == 0) {
+            u8** model = (u8**)(record + 4);
+            u32 j;
+            s32 vertex_offset;
+
+            for (j = 0, vertex_offset = 0;
+                 j < *(u32*)(*model + 0x48);
+                 j++, vertex_offset += 0x10) {
+                u8* vertices = *(u8**)(*model + 0x58);
+                *(u16*)(vertices + vertex_offset + 2) &= ~0x40;
+            }
+        }
+    }
+}
 
 #pragma dont_inline on
 
 /* 0x800BA0FC */
-void fn_800BA0FC(MBTreeNode* node, s32 index, s32 recurse)
+void MBTreeClearUVScaleAdd(MBTreeNode* node, s32 index, s32 recurse)
 {
     MBTreeNode* child;
 
@@ -75,7 +108,7 @@ outer_body:
     }
     if (recurse != 0 && (child = node->child) != 0 &&
         (child->flags & 0x10) == 0) {
-        fn_800BA0FC(child, index, 2);
+        MBTreeClearUVScaleAdd(child, index, 2);
     }
     if (recurse != 2) {
         goto done;
@@ -102,7 +135,7 @@ done:
 void MBTreeSetUVScaleAdd(void) {}
 
 /* 0x800BA2C4 */
-void fn_800BA2C4(MBTreeNode* node, u32 flags, s32 recurse)
+void MBTreeClearFlags(MBTreeNode* node, u32 flags, s32 recurse)
 {
     MBTreeNode* child;
 
@@ -111,7 +144,7 @@ outer_body:
     node->flags &= ~flags;
     if (recurse != 0 && (child = node->child) != 0 &&
         (child->flags & 0x10) == 0) {
-        fn_800BA2C4(child, flags, 2);
+        MBTreeClearFlags(child, flags, 2);
     }
     if (recurse != 2) {
         goto done;
@@ -135,7 +168,7 @@ done:
 }
 
 /* 0x800BA368 */
-void fn_800BA368(MBTreeNode* node, u32 flags, s32 recurse)
+void MBTreeSetFlags(MBTreeNode* node, u32 flags, s32 recurse)
 {
     MBTreeNode* child;
 
@@ -144,7 +177,7 @@ outer_body:
     node->flags |= flags;
     if (recurse != 0 && (child = node->child) != 0 &&
         (child->flags & 0x10) == 0) {
-        fn_800BA368(child, flags, 2);
+        MBTreeSetFlags(child, flags, 2);
     }
     if (recurse != 2) {
         goto done;
@@ -168,19 +201,19 @@ done:
 }
 
 /* 0x800BA408 */
-void fn_800BA408(MBTreeNode* node, f32 r, f32 g, f32 b)
+void MBTreeSetScale(MBTreeNode* node, f32 r, f32 g, f32 b)
 {
     if (node == 0) {
         return;
     }
     node->flags |= 8;
-    node->colorAdd[0] = r;
-    node->colorAdd[1] = g;
-    node->colorAdd[2] = b;
+    node->scale[0] = r;
+    node->scale[1] = g;
+    node->scale[2] = b;
 }
 
 /* 0x800BA42C */
-void fn_800BA42C(MBTreeNode* node, u32 color, s32 recurse)
+void MBTreeSetColor(MBTreeNode* node, u32 color, s32 recurse)
 {
     MBTreeNode* child;
 
@@ -190,7 +223,7 @@ outer_body:
     node->flags |= 0x100;
     if (recurse != 0 && (child = node->child) != 0 &&
         (child->flags & 0x10) == 0) {
-        fn_800BA42C(child, color, 2);
+        MBTreeSetColor(child, color, 2);
     }
     if (recurse != 2) {
         goto done;
@@ -214,7 +247,7 @@ done:
 }
 
 /* 0x800BA4D0 */
-void fn_800BA4D0(MBTreeNode* node, s32 value, s32 recurse)
+void MBTreeSetAmbientAdd(MBTreeNode* node, s32 value, s32 recurse)
 {
     MBTreeNode* child;
 
@@ -223,7 +256,7 @@ outer_body:
     node->ambientAdd = (s16)value;
     if (recurse != 0 && (child = node->child) != 0 &&
         (child->flags & 0x10) == 0) {
-        fn_800BA4D0(child, value, 2);
+        MBTreeSetAmbientAdd(child, value, 2);
     }
     if (recurse != 2) {
         goto done;
@@ -247,7 +280,7 @@ done:
 }
 
 /* 0x800BA56C */
-void fn_800BA56C(MBTreeNode* node, s32 index, s32 texture, s32 recurse)
+void MBTreeSetAltTex(MBTreeNode* node, s32 index, s32 texture, s32 recurse)
 {
     MBTreeNode* child;
 
@@ -257,7 +290,7 @@ outer_body:
     node->altTex = texture;
     if (recurse != 0 && (child = node->child) != 0 &&
         (child->flags & 0x10) == 0) {
-        fn_800BA56C(child, index, texture, 2);
+        MBTreeSetAltTex(child, index, texture, 2);
     }
     if (recurse != 2) {
         goto done;
@@ -281,7 +314,7 @@ done:
 }
 
 /* 0x800BA614 */
-void fn_800BA614(MBTreeNode* node, f32 value, s32 recurse)
+void MBTreeSetZMod(MBTreeNode* node, f32 value, s32 recurse)
 {
     MBTreeNode* child;
 
@@ -290,7 +323,7 @@ outer_body:
     node->zMod = value;
     if (recurse != 0 && (child = node->child) != 0 &&
         (child->flags & 0x10) == 0) {
-        fn_800BA614(child, value, 2);
+        MBTreeSetZMod(child, value, 2);
     }
     if (recurse != 2) {
         goto done;
@@ -314,13 +347,13 @@ done:
 }
 
 /* 0x800BA6B4 */
-s32 fn_800BA6B4(MBTreeNode* node)
+s32 MBTreeGetAlpha(MBTreeNode* node)
 {
     return 0xFF - node->invAlpha;
 }
 
 /* 0x800BA6C0 */
-void fn_800BA6C0(MBTreeNode* node, s32 alpha, s32 recurse)
+void MBTreeSetAlpha(MBTreeNode* node, s32 alpha, s32 recurse)
 {
     MBTreeNode* child;
 
@@ -334,7 +367,7 @@ outer_body:
     }
     if (recurse != 0 && (child = node->child) != 0 &&
         (child->flags & 0x10) == 0) {
-        fn_800BA6C0(child, alpha, 2);
+        MBTreeSetAlpha(child, alpha, 2);
     }
     if (recurse != 2) {
         goto done;
@@ -358,7 +391,7 @@ done:
 }
 
 /* 0x800BA784 */
-void fn_800BA784(MBTreeNode* node, s32 index, s32 recurse)
+void MBTreeSetZsortAdd(MBTreeNode* node, s32 index, s32 recurse)
 {
     MBTreeNode* child;
 
@@ -367,7 +400,7 @@ outer_body:
     node->uvIndex = (s16)index;
     if (recurse != 0 && (child = node->child) != 0 &&
         (child->flags & 0x10) == 0) {
-        fn_800BA784(child, index, 2);
+        MBTreeSetZsortAdd(child, index, 2);
     }
     if (recurse != 2) {
         goto done;
@@ -396,7 +429,7 @@ done:
 void MBTreeInit(void) {}
 
 /* 0x800BACF8 - MBNodeOrder: move node immediately before sibling. */
-void fn_800BACF8(MBTreeNode* node, MBTreeNode* sibling)
+void MBNodeOrder(MBTreeNode* node, MBTreeNode* sibling)
 {
     MBTreeNode* parent;
     MBTreeNode* current;
@@ -429,7 +462,7 @@ void fn_800BACF8(MBTreeNode* node, MBTreeNode* sibling)
 void fn_800BAD90(void) {}
 
 /* 0x800BAD94 - MBNodeSetParent */
-void fn_800BAD94(MBTreeNode* node, MBTreeNode* new_parent)
+void MBNodeSetParent(MBTreeNode* node, MBTreeNode* new_parent)
 {
     MBTreeNode* old_parent;
     MBTreeNode* previous;
@@ -439,7 +472,7 @@ void fn_800BAD94(MBTreeNode* node, MBTreeNode* new_parent)
     root = lbl_80344ECC;
     if (old_parent == 0 || old_parent != new_parent) {
         if (old_parent == 0 || old_parent->child != node) {
-            previous = fn_800BB588(node);
+            previous = MBNodePrevNode(node);
             if (previous != 0)
                 previous->next = node->next;
         } else {
@@ -451,7 +484,7 @@ void fn_800BAD94(MBTreeNode* node, MBTreeNode* new_parent)
         if (new_parent == 0) {
             root = node;
             if (lbl_80344ECC != 0) {
-                previous = fn_800BB55C(lbl_80344ECC);
+                previous = MBNodeLastSibling(lbl_80344ECC);
                 previous->next = node;
                 root = lbl_80344ECC;
             }
@@ -459,7 +492,7 @@ void fn_800BAD94(MBTreeNode* node, MBTreeNode* new_parent)
             new_parent->child = node;
             root = lbl_80344ECC;
         } else {
-            previous = fn_800BB55C(new_parent->child);
+            previous = MBNodeLastSibling(new_parent->child);
             previous->next = node;
             root = lbl_80344ECC;
         }
@@ -468,7 +501,7 @@ void fn_800BAD94(MBTreeNode* node, MBTreeNode* new_parent)
 }
 
 /* 0x800BAEAC - MBRemoveNode */
-MBTreeNode* fn_800BAEAC(MBTreeNode* node, s32 remove_children)
+MBTreeNode* MBRemoveNode(MBTreeNode* node, s32 remove_children)
 {
     MBTreeNode* parent;
     MBTreeNode* previous;
@@ -482,13 +515,13 @@ MBTreeNode* fn_800BAEAC(MBTreeNode* node, s32 remove_children)
 
     if (node->flags & 0x10000000) {
         *(f32*)(lbl_802C2A28 + (u32)node->uvScaleAddIndex * 16) = lbl_80348CA0;
-        fn_800BA0FC(node, -1, 0);
+        MBTreeClearUVScaleAdd(node, -1, 0);
     }
 
     parent = node->parent;
     lbl_80344ED0 = parent;
     if (remove_children) {
-        fn_800BB164(node->child);
+        MBRemoveNodeChild(node->child);
         node->child = 0;
     }
 
@@ -496,14 +529,14 @@ MBTreeNode* fn_800BAEAC(MBTreeNode* node, s32 remove_children)
         parent = node->parent;
         if (parent == 0 || parent != lbl_80344EDC) {
             if (parent == 0 || parent->child != node) {
-                previous = fn_800BB588(node);
+                previous = MBNodePrevNode(node);
                 if (previous != 0)
                     previous->next = node->next;
             } else {
                 parent->child = node->next;
             }
             node->next = 0;
-            fn_800BB4CC(node, lbl_80344EDC);
+            MBNodeInsert(node, lbl_80344EDC);
         }
         fn_800D12F0(node);
         return 0;
@@ -574,17 +607,17 @@ MBTreeNode* fn_800BAEAC(MBTreeNode* node, s32 remove_children)
 }
 
 /* 0x800BB164 */
-void fn_800BB164(MBTreeNode* node)
+void MBRemoveNodeChild(MBTreeNode* node)
 {
     MBTreeNode* next;
     MBTreeNode* parent;
 
     while (node != 0) {
         if (node->child != 0)
-            fn_800BB164(node->child);
+            MBRemoveNodeChild(node->child);
         if (node->flags & 0x10000000) {
             *(f32*)(lbl_802C2A28 + (u32)node->uvScaleAddIndex * 16) = lbl_80348CA0;
-            fn_800BA0FC(node, -1, 1);
+            MBTreeClearUVScaleAdd(node, -1, 1);
         }
         parent = lbl_80344EDC;
         next = node->next;
@@ -592,14 +625,14 @@ void fn_800BB164(MBTreeNode* node)
             MBTreeNode* old_parent = node->parent;
             if (old_parent == 0 || old_parent != lbl_80344EDC) {
                 if (old_parent == 0 || old_parent->child != node) {
-                    MBTreeNode* previous = fn_800BB588(node);
+                    MBTreeNode* previous = MBNodePrevNode(node);
                     if (previous != 0)
                         previous->next = node->next;
                 } else {
                     old_parent->child = node->next;
                 }
                 node->next = 0;
-                fn_800BB4CC(node, parent);
+                MBNodeInsert(node, parent);
             }
             fn_800D12F0(node);
         } else {
@@ -614,16 +647,87 @@ void fn_800BB164(MBTreeNode* node)
 }
 
 /* 0x800BB29C */
-void fn_800BB29C(void) {}
+MBTreeNode* MBNewNode(MBTreeNode* parent, const f32* matrix, s32 type)
+{
+    u8 unused[8];
+    MBTreeNode* node;
+
+    if (matrix == 0)
+        matrix = lbl_80127D60;
+    if (type == 0)
+        type = 1;
+
+    node = lbl_80344EE0;
+    if (node != 0) {
+        lbl_80344EE0 = node->next;
+    } else {
+        node = AllocMem(0x80);
+        node->id = lbl_80344EC8;
+        lbl_80344EC8++;
+        if (lbl_80344EC8 >= 0x3000)
+            FatalError("Too many nodes", 0x804000);
+    }
+
+    if (node != 0) {
+        MBNodeInit(node, type);
+        CopyMat4(matrix, (f32*)node);
+        node->parent = parent;
+        if (parent == 0) {
+            if (lbl_80344ECC == 0)
+                lbl_80344ECC = node;
+            else
+                MBNodeLastSibling(lbl_80344ECC)->next = node;
+        } else if (parent->child == 0) {
+            parent->child = node;
+        } else {
+            MBNodeLastSibling(parent->child)->next = node;
+        }
+    }
+    return node;
+}
 
 /* 0x800BB3AC */
-void fn_800BB3AC(void) {}
+void MBNodeInit(MBTreeNode* node, s32 type)
+{
+    node->type = type;
+    CopyMat4(lbl_80127D60, (f32*)node);
+    node->scale[0] = light_color[0];
+    node->scale[1] = light_color[1];
+    node->scale[2] = light_color[2];
+    node->flags = 0;
+    node->color = 0;
+    node->invAlpha = 0;
+    node->uvIndex = 0;
+    *(u32*)node->_pad6C = 0;
+    node->parent = 0;
+    node->child = 0;
+    node->next = 0;
+    node->zMod = lbl_80348CA0;
+    node->ambientAdd = 0;
+    node->texIndex = -1;
+    node->altTex = 0;
+}
 
 /* 0x800BB448 */
-void fn_800BB448(void) {}
+MBTreeNode* MBCreateNode(void)
+{
+    MBTreeNode* node;
+
+    if (lbl_80344EE0 != 0) {
+        node = lbl_80344EE0;
+        lbl_80344EE0 = node->next;
+    } else {
+        node = AllocMem(0x80);
+        node->id = lbl_80344EC8;
+        lbl_80344EC8++;
+        if (lbl_80344EC8 >= 0x3000)
+            FatalError("Too many nodes", 0x804000);
+    }
+    return node;
+}
 
 /* 0x800BB4CC */
-void fn_800BB4CC(MBTreeNode* node, MBTreeNode* parent)
+void MBNodeInsert(MBTreeNode* node, MBTreeNode* parent)
 {
     MBTreeNode* tail;
     MBTreeNode* next;
@@ -658,7 +762,7 @@ void fn_800BB4CC(MBTreeNode* node, MBTreeNode* parent)
 }
 
 /* 0x800BB55C */
-MBTreeNode* fn_800BB55C(MBTreeNode* node)
+MBTreeNode* MBNodeLastSibling(MBTreeNode* node)
 {
     MBTreeNode* result = node;
     MBTreeNode* next;
@@ -670,7 +774,7 @@ MBTreeNode* fn_800BB55C(MBTreeNode* node)
 }
 
 /* 0x800BB588 */
-MBTreeNode* fn_800BB588(MBTreeNode* node)
+MBTreeNode* MBNodePrevNode(MBTreeNode* node)
 {
     MBTreeNode* current;
 

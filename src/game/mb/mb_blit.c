@@ -103,7 +103,7 @@ extern void FatalError(const char* msg, int code);
 extern void ErrorPrintf(const char* fmt, ...);
 extern void* memset(void* p, int c, u32 n);
 
-extern void* fn_800BB29C(int a, const char* name, int b);   /* render-node alloc */
+extern void* MBNewNode(int a, const char* name, int b);   /* render-node alloc */
 extern int fn_800B8B34(int name, int a, int b);              /* texture-by-name lookup */
 
 extern MBBLIT blitPool[MB_BLIT_POOL_MAX];
@@ -578,7 +578,7 @@ void MBInitBlits(int makeNodes) {
     blitCount = 0;
 
     if (makeNodes) {
-        n = (MBNODE*)fn_800BB29C(0, lbl_80127D60, 13);
+        n = (MBNODE*)MBNewNode(0, lbl_80127D60, 13);
         if (n != 0) {
             n->flags = 0;
             n->blits = 0;
@@ -586,7 +586,7 @@ void MBInitBlits(int makeNodes) {
         }
         gDiag_DEC = n;
         n->flags |= 4;
-        n = (MBNODE*)fn_800BB29C(0, lbl_80127D60, 13);
+        n = (MBNODE*)MBNewNode(0, lbl_80127D60, 13);
         if (n != 0) {
             n->flags = 0;
             n->blits = 0;
@@ -594,7 +594,7 @@ void MBInitBlits(int makeNodes) {
         }
         defaultBlitList = n;
         n->flags |= 4;
-        n = (MBNODE*)fn_800BB29C(0, lbl_80127D60, 13);
+        n = (MBNODE*)MBNewNode(0, lbl_80127D60, 13);
         if (n != 0) {
             n->flags = 0;
             n->blits = 0;

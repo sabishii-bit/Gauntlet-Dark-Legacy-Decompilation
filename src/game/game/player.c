@@ -402,11 +402,11 @@ extern s32 DrawText(f32 scale, s32 x, s32 y, s32 font, u32 rgb, char* fmt, ...);
 extern void dbgTextPrintfCol(s32 x, s32 line, char* fmt, ...);
 
 /* scene nodes */
-extern void fn_800BAD94(void* node, void* parent);
+extern void MBNodeSetParent(void* node, void* parent);
 extern void CopyMat4(f32* src, void* node);
-extern void fn_800BA2C4(void* node, s32 mask, s32 set);
-extern void* fn_800BA368(void* node, s32 mask, s32 set);
-extern void fn_800BA408(f32 r, f32 g, f32 b, void* node);
+extern void MBTreeClearFlags(void* node, s32 mask, s32 set);
+extern void* MBTreeSetFlags(void* node, s32 mask, s32 set);
+extern void MBTreeSetScale(f32 r, f32 g, f32 b, void* node);
 extern void WorldVector(f32* vector, f32* out, f32* matrix);
 extern f32 fn_800BD938(f32* v);
 extern s32 MBBackgroundLoading(void);
@@ -582,7 +582,7 @@ void PlayerUnsetParent(Player* p) {
     *(f32*)(p->node + 0x30) = p->pos[0];
     *(f32*)(p->node + 0x34) = p->pos[1];
     *(f32*)(p->node + 0x38) = p->pos[2];
-    fn_800BAD94(p->node, lbl_80344B2C);
+    MBNodeSetParent(p->node, lbl_80344B2C);
     p->hud_flags &= ~0x20;
     p->obj_flags &= ~0x4000;
 }
@@ -599,7 +599,7 @@ void PlayerUnsetGrabbed(Player* p, s32 restore) {
     *(f32*)(p->node + 0x30) = p->pos[0];
     *(f32*)(p->node + 0x34) = p->pos[1];
     *(f32*)(p->node + 0x38) = p->pos[2];
-    fn_800BAD94(p->node, lbl_80344B2C);
+    MBNodeSetParent(p->node, lbl_80344B2C);
     p->hud_flags &= ~0x20;
 }
 
@@ -614,7 +614,7 @@ void PlayerSetParent(Player* p, void* parent, f32* pos) {
     p->saved_pos[0] = p->pos[0];
     p->saved_pos[1] = p->pos[1];
     p->saved_pos[2] = p->pos[2];
-    fn_800BAD94(p->node, parent);
+    MBNodeSetParent(p->node, parent);
     CopyMat4(lbl_80127D60, p->node);
     *(f32*)(p->node + 0x30) = d[0];
     *(f32*)(p->node + 0x34) = d[1];
@@ -629,7 +629,7 @@ void PlayerSetGrabbed(Player* p, void* parent, f32* pos) {
     p->saved_pos[0] = p->pos[0];
     p->saved_pos[1] = p->pos[1];
     p->saved_pos[2] = p->pos[2];
-    fn_800BAD94(p->node, parent);
+    MBNodeSetParent(p->node, parent);
     CopyMat4(lbl_80127D60, p->node);
     if (pos != NULL) {
         *(f32*)(p->node + 0x30) = pos[0];
@@ -1468,7 +1468,7 @@ void start_magic(s32 pnum, f32* pos, u32 flags, s32 mode) {
         if (mode == 1) {
             fx = fn_80092794((f32)(25.0 * scale), (f32)(0.25 * power), pos, flags | 0x200,
                              (s16)pnum, mode);
-            fn_800BAD94(*(void**)(lbl_80285BCC + fx * 0xF0), p->node);
+            MBNodeSetParent(*(void**)(lbl_80285BCC + fx * 0xF0), p->node);
             if (pnum >= 0) {
                 fn_8009F028(color, pos, 1, mode);
             }
@@ -1744,9 +1744,9 @@ void do_players(void) {
                 break;
             case 4:
                 if (p->prev_state != 4) {
-                    fn_800BA2C4(p->node, 2, 0);
+                    MBTreeClearFlags(p->node, 2, 0);
                     if (PF(p, 0x6C8, void*) != NULL) {
-                        fn_800BA368(PF(p, 0x6C8, void*), 2, 0);
+                        MBTreeSetFlags(PF(p, 0x6C8, void*), 2, 0);
                     }
                 }
                 if (loaded != 0 || lbl_803447B4 != 0) {
@@ -1816,12 +1816,12 @@ void do_players(void) {
                     DrawTextKeepScale(0.5f, -(s32)spos[0], (s32)spos[1], 7, 0xFFFFFF, name);
                 }
                 if (p->prev_state != 1) {
-                    fn_800BA2C4(p->node, 2, 0);
+                    MBTreeClearFlags(p->node, 2, 0);
                     if (PF(p, 0x6C8, void*) != NULL) {
                         if (lbl_803448D8 == 0xC && lbl_803448D4 == 8) {
-                            fn_800BA368(PF(p, 0x6C8, void*), 2, 1);
+                            MBTreeSetFlags(PF(p, 0x6C8, void*), 2, 1);
                         } else {
-                            fn_800BA368(PF(p, 0x6C8, void*), 2, 0);
+                            MBTreeSetFlags(PF(p, 0x6C8, void*), 2, 0);
                         }
                     }
                 }
@@ -1849,25 +1849,25 @@ void do_players(void) {
             case 5:
                 if (lbl_8034477C == 0x4013 || lbl_8034477C == 0x4017) {
                     if (p->node != NULL) {
-                        fn_800BA2C4(p->node, 2, 0);
+                        MBTreeClearFlags(p->node, 2, 0);
                         DoPlayerAction(p);
                         PF(PF(p, 0x6C8, u8*), 0x30, u32) = p->pos[0];
                         PF(PF(p, 0x6C8, u8*), 0x34, u32) = p->pos[1];
                         PF(PF(p, 0x6C8, u8*), 0x38, u32) = p->pos[2];
                         PlayerProcessSkinFX(p, PF(p, 0x6C8, void*));
                         if (p->character == 0xC) {
-                            fn_800BA408(1.6f, 1.6f, 1.6f, p->node);
+                            MBTreeSetScale(1.6f, 1.6f, 1.6f, p->node);
                         } else if (p->level < 99) {
-                            fn_800BA2C4(p->node, 8, 0);
+                            MBTreeClearFlags(p->node, 8, 0);
                             *(f32*)(p->node + 0x40) = 1.0f;
                             *(f32*)(p->node + 0x44) = 1.0f;
                             *(f32*)(p->node + 0x48) = 1.0f;
                         } else {
-                            fn_800BA408(1.2f, 1.2f, 1.2f, p->node);
+                            MBTreeSetScale(1.2f, 1.2f, 1.2f, p->node);
                         }
                     }
                 } else if (p->node != NULL) {
-                    fn_800BA368(p->node, 2, 0);
+                    MBTreeSetFlags(p->node, 2, 0);
                 }
                 break;
             case 8:
@@ -2071,10 +2071,10 @@ extern void* AtreeMatch(void* bank, char* name, s32 a);
 extern u32 MBOX_LoadModelFixed(char* name, u32 arena, s32 a, char* b, u32 c);
 extern void CopyMat3(f32* src, f32* dst);
 
-extern void fn_800BA4D0(void* node, s32 frame, s32 mode);
-extern void fn_800BA56C(void* node, s32 a, s32 b, s32 c);
-extern void fn_800BA6C0(void* node, s32 mask, s32 set);
-extern void fn_800BAEAC(void* node, s32 a);
+extern void MBTreeSetAmbientAdd(void* node, s32 frame, s32 mode);
+extern void MBTreeSetAltTex(void* node, s32 a, s32 b, s32 c);
+extern void MBTreeSetAlpha(void* node, s32 mask, s32 set);
+extern void MBRemoveNode(void* node, s32 a);
 extern s32 fn_80091210(f32* v, void* node, s32 a);
 extern s32 fn_8006D7BC(void);
 extern void fn_8009D258(f32* pos);
@@ -2116,7 +2116,7 @@ extern void fn_80030C84(void* p);
 extern void fn_800E80D4(char* dst, char* src);
 extern s32 fn_800E5B08(s32 c);
 extern void fn_800E8090(char* dst, char* src, s32 n);
-extern void* fn_800BB29C(void* parent, f32* mat, s32 a);
+extern void* MBNewNode(void* parent, f32* mat, s32 a);
 extern s32 fn_80011BBC(void* modelbuf, char* name, void* atree_out, char* tmp, s32 size);
 extern void fn_800ADD24(void* atree, void* animctx, s32 bank);
 extern s32 fn_800B8E94(char* name, s32 a, s32 b, s32 dir);
@@ -2208,7 +2208,7 @@ void PlayerProcessScale(void* vp) {
         if (__fabs(PF(p, 0x7FC, f32)) < 0.01) {
             PF(p, 0x7FC, f32) = 0.0f;
         }
-        fn_800BA4D0(p->node, (s32)(100.0 * s), 1);
+        MBTreeSetAmbientAdd(p->node, (s32)(100.0 * s), 1);
     }
     if (PF(p, 0x7DC, f32) > 0.0f) {
         PF(p, 0x95A, s16) = 1;
@@ -2217,8 +2217,8 @@ void PlayerProcessScale(void* vp) {
     }
     if (fn_80091210((f32*)((u8*)p + 0x7DC), p->node, 0) == 0 &&
         *(s16*)(p->node + 0x5C) < -1) {
-        fn_800BA56C(p->node, -1, 0, 1);
-        fn_800BA4D0(p->node, 0, 1);
+        MBTreeSetAltTex(p->node, -1, 0, 1);
+        MBTreeSetAmbientAdd(p->node, 0, 1);
     }
 }
 
@@ -2696,14 +2696,14 @@ static void player_dies(s32 i) {
     if (lbl_8025ECB8[i][0] != NULL) {
         fn_800115D0(&lbl_8025ECB8[i][0]);
     }
-    fn_800BA368((void*)lbl_8025EC68[i], 1, 0);
+    MBTreeSetFlags((void*)lbl_8025EC68[i], 1, 0);
     /* restore the see-thru chest proxy to its tree */
     if (lbl_8025EC88[i] != NULL) {
         u8* ch = lbl_8025EC88[i];
         u8* node = *(u8**)(ch + 100);
         if (node != NULL) {
-            fn_800BAD94(node, (void*)lbl_8025EC98[i]);
-            fn_800BA6C0(node, 0, 1);
+            MBNodeSetParent(node, (void*)lbl_8025EC98[i]);
+            MBTreeSetAlpha(node, 0, 1);
             CopyMat3((f32*)lbl_8025ECA8[i], (f32*)node);
             *(s32*)(node + 0x30) = *(s32*)(lbl_8025ECA8[i] + 0x30);
             *(s32*)(node + 0x34) = *(s32*)(lbl_8025ECA8[i] + 0x34);
@@ -2847,7 +2847,7 @@ void remove_player_geo(s32 i) {
         fn_800184B8(PF(p, 0x7F8, s32));
     }
     if (PF(p, 0x6E0, void*) != NULL) {
-        fn_800BAEAC(PF(p, 0x6E0, void*), 0);
+        MBRemoveNode(PF(p, 0x6E0, void*), 0);
         PF(p, 0x6E0, void*) = NULL;
     }
     if (PF(p, 0x748, s32) != 0) {
@@ -2860,27 +2860,27 @@ void remove_player_geo(s32 i) {
         fn_800115D0((void**)((u8*)p + 0x6E4));
     }
     if (PF(p, 0x730, void*) != NULL) {
-        fn_800BAEAC(PF(p, 0x730, void*), 0);
+        MBRemoveNode(PF(p, 0x730, void*), 0);
         PF(p, 0x730, void*) = NULL;
     }
     if (PF(p, 0x72C, void*) != NULL) {
-        fn_800BAEAC(PF(p, 0x72C, void*), 0);
+        MBRemoveNode(PF(p, 0x72C, void*), 0);
         PF(p, 0x72C, void*) = NULL;
     }
     if (PF(p, 0x734, void*) != NULL) {
-        fn_800BAEAC(PF(p, 0x734, void*), 0);
+        MBRemoveNode(PF(p, 0x734, void*), 0);
         PF(p, 0x734, void*) = NULL;
     }
     if (PF(p, 0x73C, void*) != NULL) {
-        fn_800BAEAC(PF(p, 0x73C, void*), 0);
+        MBRemoveNode(PF(p, 0x73C, void*), 0);
         PF(p, 0x73C, void*) = NULL;
     }
     if (PF(p, 0x740, void*) != NULL) {
-        fn_800BAEAC(PF(p, 0x740, void*), 0);
+        MBRemoveNode(PF(p, 0x740, void*), 0);
         PF(p, 0x740, void*) = NULL;
     }
     if (PF(p, 0x968, void*) != NULL) {
-        fn_800BAEAC(PF(p, 0x968, void*), 0);
+        MBRemoveNode(PF(p, 0x968, void*), 0);
         PF(p, 0x968, void*) = NULL;
     }
     if (PF(p, 0x96C, s32) != 0) {
@@ -2891,7 +2891,7 @@ void remove_player_geo(s32 i) {
         fn_800115D0((void**)((u8*)p + 0x96C));
     }
     if (PF(p, 0xA14, void*) != NULL) {
-        fn_800BAEAC(PF(p, 0xA14, void*), 1);
+        MBRemoveNode(PF(p, 0xA14, void*), 1);
         PF(p, 0xA14, void*) = NULL;
     }
     if (PF(p, 0xA14, u8*) != NULL && *(s32*)(PF(p, 0xA14, u8*) + 0x78) != 0) {
@@ -2900,7 +2900,7 @@ void remove_player_geo(s32 i) {
     /* orphan any remaining children back onto the world */
     if (p->node != NULL && *(s32*)(p->node + 0x78) != 0) {
         while ((kid = *(u8**)(*(u8**)(p->node + 0x78) + 0x7C)) != NULL) {
-            fn_800BAD94(kid, *(void**)(p->node + 0x74));
+            MBNodeSetParent(kid, *(void**)(p->node + 0x74));
         }
     }
     fn_80097644(p->node, 1, i);
@@ -2909,10 +2909,10 @@ void remove_player_geo(s32 i) {
         if (*(s32*)(p->node + 0x78) != 0) {
             ErrorPrintf("PLAYER OBJ NODE HAS KIDS AFTER ALL REMOVED\n");
         }
-        fn_800BAEAC(p->node, 1);
+        MBRemoveNode(p->node, 1);
         p->node = NULL;
     }
-    fn_800BAEAC(PF(p, 0x6C8, void*), 0);
+    MBRemoveNode(PF(p, 0x6C8, void*), 0);
     PF(p, 0x6C8, void*) = NULL;
     fn_8008A898(i);
 }
@@ -3048,7 +3048,7 @@ s32 activate_player(s32 i) {
         if (lbl_803447D0 < 10 && lbl_8034477C != 0x400B && lbl_8034477C != 0x400D) {
             fn_8002C53C(p->mat);
         } else {
-            fn_800BA368(p->node, 2, 0);
+            MBTreeSetFlags(p->node, 2, 0);
         }
         lbl_80240E38[i * 0xF] &= ~0x40000;
     }
@@ -3565,7 +3565,7 @@ void load_player_geo(s32 i, void* vp) {
     }
     fn_800C9BD0(tbuf, "%s%s%s", lbl_801200B0 + cls * 4, name, "");
     fn_800E8090((char*)p + 0x6C0, tbuf, 8);
-    p->node = fn_800BB29C(lbl_80344B2C, lbl_80127D60, 1);
+    p->node = MBNewNode(lbl_80344B2C, lbl_80127D60, 1);
     PF(p, 0x78, s32) = 0;
     n = fn_80011BBC(model_slot[i].model_buf, (char*)(lbl_801200B0 + p->char_type * 4),
                     (u8*)p + 0x7C, tbuf, 0x800);
@@ -3573,7 +3573,7 @@ void load_player_geo(s32 i, void* vp) {
     if (PF(p, 0x7C, s32) == 0) {
         FatalErrorf("Player Atree %s not found", lbl_801200B0 + p->char_type * 4);
     }
-    fn_800BAD94(*(void**)PF(p, 0x7C, s32*), p->node);
+    MBNodeSetParent(*(void**)PF(p, 0x7C, s32*), p->node);
     fn_800ADD24((u8*)p + 0x7C, (u8*)p + 0x210, 0x80126C68);
     if (lbl_8034477C != 0x4012 && lbl_8034477C != 0x400D &&
         lbl_8034477C != 0x400F && lbl_8034477C != 0x4016) {
@@ -3594,7 +3594,7 @@ void load_player_geo(s32 i, void* vp) {
     nd = (n < 0) ? NULL : fn_800114E8((void*)PF(p, 0x7C, s32), n);
     PF(p, 0x6D8, s32) = (nd == NULL) ? 0 : *nd;
     if (nd != NULL) {
-        fn_800BA368((void*)*nd, 0x800810, 0);
+        MBTreeSetFlags((void*)*nd, 0x800810, 0);
     }
     fn_800C9BD0(tbuf, "%sHEAD", (char*)p + 0x6C0);
     n = fn_800B8E94(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
@@ -3649,12 +3649,12 @@ void load_player_geo(s32 i, void* vp) {
     } else if (PF(p, 0x6D4, s32) != 0) {
         fn_800CEA18(PF(p, 0x6D4, s32), 0);
     }
-    fn_800BA368(p->node, 2, 0);
+    MBTreeSetFlags(p->node, 2, 0);
     if (PF(p, 0x6C8, s32) != 0) {
         if (lbl_803448D8 == 0xC && lbl_803448D4 == 8) {
-            fn_800BA368(PF(p, 0x6C8, void*), 2, 1);
+            MBTreeSetFlags(PF(p, 0x6C8, void*), 2, 1);
         } else {
-            fn_800BA368(PF(p, 0x6C8, void*), 2, 0);
+            MBTreeSetFlags(PF(p, 0x6C8, void*), 2, 0);
         }
     }
 }
@@ -3915,7 +3915,7 @@ void init_players(void) {
     }
     lbl_803447A8 = 0;
     lbl_803447AC = 0;
-    lbl_80344B2C = fn_800BB29C(lbl_80344EB8, lbl_80127D60, 1);
+    lbl_80344B2C = MBNewNode(lbl_80344EB8, lbl_80127D60, 1);
     for (i = 0; i < 24; i++) {
         got_it[i].state = 0;
         if (got_it[i].blit2 != NULL) {
@@ -4124,7 +4124,7 @@ void* PlayerModel(s32 i) {
  * walks all 11 slots ticking timers, runs the per-type processors --
  * levitation/anti-death node juggling (fn_80012F78 overlays via
  * lbl_80282930 class colors), reflect-shot, x-ray (do_see_thru),
- * growth/shrink, invisibility/invuln node alpha (fn_800BA408 family),
+ * growth/shrink, invisibility/invuln node alpha (MBTreeSetScale family),
  * mikey (PlayerProcessMikeyPUP), skin FX (PlayerProcessSkinFX), timed
  * expiry sounds (fn_8009D4F0/fn_8009D560/fn_8009D5A0) and the HUD
  * mini-inventory dirty flags (PUP_DIRTY).  On Xbox this decomposes
@@ -4163,9 +4163,9 @@ static void PlayerProcessSkinFX(void* vp, void* node) {
         }
         if (PF(p, 0x748, s32) == 0 && *src != NULL) {
             PF(p, 0x748, s32) = fn_80012F78(*src, (u8*)p + 0x748, 0, 0x800);
-            fn_800BA368(*(void**)PF(p, 0x748, s32*), 0x10, 0);
-            fn_800BAD94(*(void**)PF(p, 0x748, s32*), p->node);
-            fn_800BA6C0(*(void**)PF(p, 0x748, s32*), 0, 1);
+            MBTreeSetFlags(*(void**)PF(p, 0x748, s32*), 0x10, 0);
+            MBNodeSetParent(*(void**)PF(p, 0x748, s32*), p->node);
+            MBTreeSetAlpha(*(void**)PF(p, 0x748, s32*), 0, 1);
             fresh = 1;
         }
     }
@@ -4189,9 +4189,9 @@ static void PlayerProcessSkinFX(void* vp, void* node) {
     }
     if (PF(p, 0x748, s32) != 0) {
         if (lbl_8034477C == 0x4010 && (PF(p, 0x124, u32) & 0x80)) {
-            fn_800BA368(*(void**)PF(p, 0x748, s32*), 2, 0);
+            MBTreeSetFlags(*(void**)PF(p, 0x748, s32*), 2, 0);
         } else {
-            fn_800BA2C4(*(void**)PF(p, 0x748, s32*), 2, 0);
+            MBTreeClearFlags(*(void**)PF(p, 0x748, s32*), 2, 0);
             fn_80011104((void**)((u8*)p + 0x748), (PF(p, 0x900, u32) & 0x10000000) != 0,
                         (PF(p, 0x900, u32) & 0x10000000) ? 2 : 0);
         }
@@ -4231,9 +4231,9 @@ void PlayerProcessMikeyPUP(void* vp) {
             atree = AtreeMatch(lbl_8034496C, "MIKEYPUP_ON", 1);
             PF(p, 0x96C, s32) = fn_80012F78(atree, (u8*)p + 0x96C, 0, 0);
             PF(p, 0x9A4, s16) = 1;
-            PF(p, 0xA14, void*) = fn_800BB29C(lbl_80344BD4, lbl_80127D60, 1);
+            PF(p, 0xA14, void*) = MBNewNode(lbl_80344BD4, lbl_80127D60, 1);
             PF(p, 0xA18, s32) = 0;
-            fn_800BAD94(*(void**)PF(p, 0x96C, s32*), PF(p, 0xA14, void*));
+            MBNodeSetParent(*(void**)PF(p, 0x96C, s32*), PF(p, 0xA14, void*));
             *(f32*)(PF(p, 0xA14, u8*) + 0x30) = p->col_pos[0];
             *(f32*)(PF(p, 0xA14, u8*) + 0x34) = p->col_pos[1];
             *(f32*)(PF(p, 0xA14, u8*) + 0x38) = p->col_pos[2];
@@ -4258,7 +4258,7 @@ void PlayerProcessMikeyPUP(void* vp) {
                 }
             }
             fn_800115D0((void**)((u8*)p + 0x96C));
-            fn_800BAEAC(PF(p, 0xA14, void*), 1);
+            MBRemoveNode(PF(p, 0xA14, void*), 1);
             PF(p, 0xA14, s32) = 0;
             PF(p, 0xA1C, s16) = 0;
             if (slot >= 0) {
@@ -4268,7 +4268,7 @@ void PlayerProcessMikeyPUP(void* vp) {
         }
     }
     /* live: tick anim + sparkles */
-    fn_800BA2C4(*(void**)PF(p, 0x96C, s32*), 2, 0);
+    MBTreeClearFlags(*(void**)PF(p, 0x96C, s32*), 2, 0);
     fn_80011104((void**)((u8*)p + 0x96C), 0, 0);
     t = PF(p, 0xA1C, s16);
     if (t < 0x3C && t == (t / 10) * 10) {
@@ -4327,7 +4327,7 @@ void AppendItemToLevel(f32 x, f32 y, f32 z, char* name) {
     item_tmpl2[4] = (s32)AtreeMatch(lbl_8034496C, item_name, 0);
     item = fn_80063A44(item_tmpl, NULL, 0, -1);
     *((u8*)item + 0xCD) = 0;
-    fn_800BA2C4((void*)item[0x19], 2, 0);
+    MBTreeClearFlags((void*)item[0x19], 2, 0);
     if (*(s32*)item[0] == 1) {
         *(s16*)&item[0x3B] = 0x3C;
     }
@@ -4388,16 +4388,16 @@ static s32 do_see_thru(void* vp) {
             if (lbl_8025EC88[i] != chest) {
                 u8* old = lbl_8025EC88[i];
                 if (old != NULL && *(s32*)(old + 100) != 0) {
-                    fn_800BAD94(*(void**)(old + 100), (void*)lbl_8025EC98[i]);
-                    fn_800BA6C0(*(void**)(old + 100), 0, 1);
+                    MBNodeSetParent(*(void**)(old + 100), (void*)lbl_8025EC98[i]);
+                    MBTreeSetAlpha(*(void**)(old + 100), 0, 1);
                     CopyMat3((f32*)lbl_8025ECA8[i], *(f32**)(old + 100));
                     *(s32*)(*(u8**)(old + 100) + 0x30) = *(s32*)(lbl_8025ECA8[i] + 0x30);
                     *(s32*)(*(u8**)(old + 100) + 0x34) = *(s32*)(lbl_8025ECA8[i] + 0x34);
                     *(s32*)(*(u8**)(old + 100) + 0x38) = *(s32*)(lbl_8025ECA8[i] + 0x38);
                 }
-                fn_800BA6C0(*(void**)(chest + 100), 0xC0, 1);
+                MBTreeSetAlpha(*(void**)(chest + 100), 0xC0, 1);
                 lbl_8025EC98[i] = *(s32*)(*(u8**)(chest + 100) + 0x74);
-                fn_800BAD94(lbl_8025ECA8[i], (void*)lbl_8025EC98[i]);
+                MBNodeSetParent(lbl_8025ECA8[i], (void*)lbl_8025EC98[i]);
                 CopyMat3(*(f32**)(chest + 100), (f32*)lbl_8025ECA8[i]);
                 *(s32*)(lbl_8025ECA8[i] + 0x30) = *(s32*)(*(u8**)(chest + 100) + 0x30);
                 *(s32*)(lbl_8025ECA8[i] + 0x34) = *(s32*)(*(u8**)(chest + 100) + 0x34);
@@ -4412,21 +4412,21 @@ static s32 do_see_thru(void* vp) {
                     fn_800115D0(&lbl_8025ECB8[i][0]);
                 }
                 lbl_8025ECB8[i][0] = (void*)fn_80012F78(tree, &lbl_8025ECB8[i][0], 0, 0x80);
-                fn_800BA368(*(void**)lbl_8025ECB8[i][0], 8, 0);
+                MBTreeSetFlags(*(void**)lbl_8025ECB8[i][0], 8, 0);
                 *(f32*)((u8*)*(void**)lbl_8025ECB8[i][0] + 0x40) = 1.001f;
                 *(f32*)((u8*)*(void**)lbl_8025ECB8[i][0] + 0x44) = 1.001f;
                 *(f32*)((u8*)*(void**)lbl_8025ECB8[i][0] + 0x48) = 1.001f;
                 fresh = 1;
             }
             if (fresh) {
-                fn_800BAD94((void*)lbl_8025EC68[i], NULL);
-                fn_800BAD94(*(void**)(chest + 100), NULL);
-                fn_800BAD94(*(void**)lbl_8025ECB8[i][0], lbl_8025ECA8[i]);
-                fn_800BAD94((void*)lbl_8025EC68[i], lbl_8025ECA8[i]);
-                fn_800BAD94(*(void**)(chest + 100), lbl_8025ECA8[i]);
+                MBNodeSetParent((void*)lbl_8025EC68[i], NULL);
+                MBNodeSetParent(*(void**)(chest + 100), NULL);
+                MBNodeSetParent(*(void**)lbl_8025ECB8[i][0], lbl_8025ECA8[i]);
+                MBNodeSetParent((void*)lbl_8025EC68[i], lbl_8025ECA8[i]);
+                MBNodeSetParent(*(void**)(chest + 100), lbl_8025ECA8[i]);
                 fn_8009F118(i);
             }
-            fn_800BA2C4((void*)lbl_8025EC68[i], 1, 0);
+            MBTreeClearFlags((void*)lbl_8025EC68[i], 1, 0);
         }
     }
     if (lbl_8025EC78[i] == -1) {
@@ -4434,12 +4434,12 @@ static s32 do_see_thru(void* vp) {
         if (lbl_8025ECB8[i][0] != NULL) {
             fn_800115D0(&lbl_8025ECB8[i][0]);
         }
-        fn_800BA368((void*)lbl_8025EC68[i], 1, 0);
+        MBTreeSetFlags((void*)lbl_8025EC68[i], 1, 0);
         if (lbl_8025EC88[i] != NULL) {
             u8* old = lbl_8025EC88[i];
             if (*(s32*)(old + 100) != 0) {
-                fn_800BAD94(*(void**)(old + 100), (void*)lbl_8025EC98[i]);
-                fn_800BA6C0(*(void**)(old + 100), 0, 1);
+                MBNodeSetParent(*(void**)(old + 100), (void*)lbl_8025EC98[i]);
+                MBTreeSetAlpha(*(void**)(old + 100), 0, 1);
                 CopyMat3((f32*)lbl_8025ECA8[i], *(f32**)(old + 100));
                 *(s32*)(*(u8**)(old + 100) + 0x30) = *(s32*)(lbl_8025ECA8[i] + 0x30);
                 *(s32*)(*(u8**)(old + 100) + 0x34) = *(s32*)(lbl_8025ECA8[i] + 0x34);

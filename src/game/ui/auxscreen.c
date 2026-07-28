@@ -93,14 +93,14 @@ extern s32 GetBossBeatFlag(void* p);
 extern s32 GetBossNumRunes(void* p);
 extern void* AtreeMatch(void* atree, char* name, s32 flag);
 extern void* fn_80012F78(void* dst, void* src, s32 a);
-extern void* fn_800BB29C(void* p, void* tbl, s32 a);
-extern void fn_800BAD94(void* a, void* b);
+extern void* MBNewNode(void* p, void* tbl, s32 a);
+extern void MBNodeSetParent(void* a, void* b);
 extern void calc_wizard_pos(f32* out);
 extern void CopyMat4(void* p);
 extern void fn_8002C53C(void* p);
 extern void calc_good_wiz_attn(s32 reset, s32 force);
 extern s32 hide_rune_stones(void* p);
-extern void fn_800BA6C0(void* p, s32 alpha, s32 a);
+extern void MBTreeSetAlpha(void* p, s32 alpha, s32 a);
 extern void fn_80011104(void* p, s32 a, s32 b);
 extern void fn_8009C710(s32 speech);
 extern s32 CaptionText(char* a, char* b, s32 line, s32 page, s32 flags);
@@ -210,8 +210,8 @@ void DoGoodWizard(void)
             fn_80012F78(lbl_8023DFD0 + 1520, (void*)0x88001880, 0);
         *(u16*)(lbl_8023DFD0 + 1576) = 1;
         *(void**)(lbl_8023DFD0 + 1512) =
-            fn_800BB29C(lbl_80344BD4, lbl_80127D60, 1);
-        fn_800BAD94(*(void**)(*(void**)(lbl_8023DFD0 + 1520)),
+            MBNewNode(lbl_80344BD4, lbl_80127D60, 1);
+        MBNodeSetParent(*(void**)(*(void**)(lbl_8023DFD0 + 1520)),
                     *(void**)(lbl_8023DFD0 + 1512));
         *(s32*)(lbl_8023DFD0 + 1516) = 0;
         if (wiz_mode - 42 > 1) {
