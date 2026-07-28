@@ -13,7 +13,7 @@
  * likely", "AdsPutBuffer EOF -- %d bytes UNSENT", "AdsPutBuffer overrun! %d
  * bytes UNSENT", "DCS: ".
  *
- * The single global stream lives at gAdsStream (lbl_80320B00, 0x13C bytes);
+ * The single global stream lives at gADS (0x80320B00, 0x13C bytes);
  * per-voice AX handles come from sVoice (the dcs.c voice pool).  The global
  * stream-config words (block/frame sizing, ring cursors) live in the .sbss
  * block lbl_80345268..lbl_80345298 (kept in their auto data split - referenced
@@ -26,9 +26,9 @@
  * names are flagged in the per-function comments.  adsPoll is the per-frame
  * entry called by main.c and soundmgr.c.
  *
- * NonMatching: reconstruction scaffold - names/behaviour identified by
- * scouting; bodies not yet reconstructed.  Extracted bytes are linked from
- * the DOL.
+ * NonMatching: the lifecycle/allocation helpers are reconstructed; the large
+ * pipeline movers and command processor remain scaffolds. Extracted bytes are
+ * linked from the DOL.
  */
 #include "types.h"
 
@@ -38,14 +38,25 @@
  */
 typedef struct ADSTREAM {
     /* 0x00 */ u32 mode;               /* mode/flag bits */
-    /* 0x04 */ u8 _pad04[0x3C - 0x04];
+    /* 0x04 */ void* file;              /* FileBuf handle */
+    /* 0x08 */ void* buffer;            /* stream work/ring buffer */
+    /* 0x0C */ u8 _pad0C[4];
+    /* 0x10 */ s32 ringSize;
+    /* 0x14 */ s32 ringUsed;
+    /* 0x18 */ u8 _pad18[0x24 - 0x18];
+    /* 0x24 */ void* ringPtr;
+    /* 0x28 */ s32 ringRead;
+    /* 0x2C */ s32 ringWrite;
+    /* 0x30 */ u8 _pad30[0x3C - 0x30];
     /* 0x3C */ s32 vol;                /* pending volume */
     /* 0x40 */ s32 volDirty;           /* "volume changed" flag */
     /* 0x44 */ s32 keyCount;           /* voice-keying counter */
     /* 0x48 */ s32 loopCount;          /* loop/refill counter */
     /* 0x4C */ s32 endCount;           /* end-of-stream counter */
     /* 0x50 */ s32 status;             /* 0 / 0x1000 (playing) / 0x2000 */
-    /* 0x54 */ u8 _pad54[0x13C - 0x54];
+    /* 0x54 */ u8 _pad54[0x64 - 0x54];
+    /* 0x64 */ s32 blocks;
+    /* 0x68 */ u8 _pad68[0x13C - 0x68];
 } ADSTREAM;
 
 /*
@@ -55,16 +66,21 @@ typedef struct ADSTREAM {
  * to the exact addresses).
  */
 extern u8 lbl_80345268;    /* 0x80345268  "voices ready" gate flag */
-extern void* lbl_8034526C; /* 0x8034526C  the AllocMem work buffer */
+extern void* gBuf;         /* 0x8034526C  the AllocMem work buffer */
 extern s32 lbl_80345274;   /* 0x80345274  pending command code */
-extern s32 lbl_80345278;   /* 0x80345278  ring base cursor */
-extern s32 lbl_8034527C;   /* 0x8034527C  ring end cursor */
-extern u32 lbl_80345280;   /* 0x80345280  bytes per frame */
-extern u32 lbl_80345284;   /* 0x80345284  half-frame bytes */
-extern s32 lbl_8034528C;   /* 0x8034528C  samples per frame x2 */
-extern s32 lbl_80345290;   /* 0x80345290  samples per frame */
+extern s32 gAddrSpuNext;   /* 0x80345278  ring base cursor */
+extern s32 gAddrSpuTop;    /* 0x8034527C  ring end cursor */
+extern u32 sizeVoiceLoop;  /* 0x80345280  bytes per frame */
+extern u32 halfVoiceLoop;  /* 0x80345284  half-frame bytes */
+extern s32 sShortenedSizeVoiceLoop; /* 0x8034528C samples per frame x2 */
+extern s32 sShortenedHalfVoiceLoop; /* 0x80345290 samples per frame */
+extern s32 lbl_80345270;   /* largest stream allocation seen */
+extern u32 lbl_80345288;   /* global ADS flags */
+extern ADSTREAM gADS;
 
 extern void* AllocMem(u32 size);
+extern s32 FileBufClose(void* file);
+extern void* memset(void* p, int c, u32 n);
 
 /* Mark a stream's volume dirty (inlined helper). */
 static void adsMarkVol(ADSTREAM* s, s32 vol) {
@@ -111,8 +127,10 @@ void adsFeed(void) {
  * (lbl_80345274), walks the voices (dcsMemLockOwner / AXSetVoiceState) and
  * dispatches start/stop/loop by stream state (+0x50: 0/0x1000/0x2000).
  * Xbox: _AdsThread (no real thread on GCN - runs synchronously). */
+#pragma dont_inline on
 void _AdsThread(void) {
 }
+#pragma dont_inline off
 
 /* 0x800D6D80  return stream->status (+0x50).  Xbox: AdsGetStatus. */
 s32 AdsGetStatus(ADSTREAM* s) {
@@ -193,7 +211,14 @@ void AdsStart(void) {
 
 /* 0x800D7848  close the stream file (FileBufClose) and release its ring space.
  * Xbox: AdsClose. */
-void AdsClose(void) {
+void AdsClose(ADSTREAM* s) {
+    if (s->file != 0) {
+        FileBufClose(s->file);
+        s->file = 0;
+    }
+    s->ringSize += s->ringUsed;
+    s->ringUsed = 0;
+    gAddrSpuNext -= sizeVoiceLoop * s->blocks;
 }
 
 /* 0x800D78B8  open the stream file (FileBufOpen/FileBufStart) and register it
@@ -203,18 +228,63 @@ void AdsOpen(void) {
 
 /* 0x800D7974  clear a stream slot (memset 0x13C) and drop its global flag bit.
  * Xbox: AdsDelete. */
-void AdsDelete(void) {
+s32 AdsDelete(ADSTREAM* s) {
+    s32 result = 0;
+
+    if (s->buffer == 0) {
+        result = -1;
+    }
+    lbl_80345288 &= ~0x2000;
+    memset(s, 0, sizeof(ADSTREAM));
+    return result;
 }
 
 /* 0x800D79C8  allocate/init the global stream from the work buffer, memset the
  * 0x13C struct and set the ring pointers/size.  Xbox: AdsNew. */
-void AdsNew(void) {
+ADSTREAM* AdsNew(s32 size) {
+    ADSTREAM* result = 0;
+    ADSTREAM* s = &gADS;
+    s32 active;
+    s32 minimum;
+
+    lbl_80345288 &= ~0x2000;
+    minimum = sizeVoiceLoop << 2;
+    active = 0;
+    if (s->buffer != 0) {
+        active = 1;
+    }
+    if (active >= 1) {
+        goto done;
+    }
+    if (size < minimum) {
+        goto done;
+    }
+    memset(s, 0, sizeof(ADSTREAM));
+    if (size > lbl_80345270) {
+        if (gBuf != 0) {
+            lbl_80345270 = size;
+            s->buffer = gBuf;
+        }
+    } else {
+        s->buffer = gBuf;
+    }
+    if (s->buffer != 0) {
+        s->ringSize = size;
+        result = s;
+        s->ringPtr = s->buffer;
+        s->ringWrite = 0;
+        s->ringRead = 0;
+        s->file = 0;
+    }
+
+done:
+    return result;
 }
 
 /* 0x800D7AA4  allocate the 0x40000-byte ADS work buffer via AllocMem.
  * Xbox: AdsAllocBuffer. */
 void AdsAllocBuffer(void) {
-    lbl_8034526C = AllocMem(0x40000);
+    gBuf = AllocMem(0x40000);
 }
 
 /* 0x800D7ACC  empty.  Xbox: AdsQuit. */
@@ -225,19 +295,22 @@ void AdsQuit(void) {
  * (base, frameBytes, blocks): bytes-per-frame, half-frame, ring cursors,
  * samples.  Xbox: AdsInit. */
 s32 AdsInit(s32 base, s32 frameBytes, s32 blocks) {
-    lbl_80345280 = frameBytes;
+    sizeVoiceLoop = frameBytes;
     frameBytes *= blocks;
-    lbl_80345278 = base;
-    lbl_80345284 = lbl_80345280 >> 1;
-    lbl_8034527C = base + frameBytes;
-    lbl_80345290 = (lbl_80345284 >> 4) * 14;
-    lbl_8034528C = lbl_80345290 << 1;
+    gAddrSpuNext = base;
+    halfVoiceLoop = sizeVoiceLoop >> 1;
+    gAddrSpuTop = base + frameBytes;
+    sShortenedHalfVoiceLoop = (halfVoiceLoop >> 4) * 14;
+    sShortenedSizeVoiceLoop = sShortenedHalfVoiceLoop << 1;
     return 1;
 }
 
 /* 0x800D7B14  DCS mem-lock completion callback: latches a command
  * (lbl_80345274) and runs _AdsThread.  Xbox: (lock callback - behavioural). */
-void adsLockCallback(void) {
+s32 adsLockCallback(s32 command) {
+    lbl_80345274 = command;
+    _AdsThread();
+    return 1;
 }
 
 /* 0x800D7B3C  parse the ".ss" header: match the "SShd"/"SSbd" chunk tags

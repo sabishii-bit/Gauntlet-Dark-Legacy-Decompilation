@@ -43,7 +43,7 @@ void AdsKeyVoices(void* ads);
 u32 AdsGetStatus(void* ads);
 void AdsQuit(void);
 void AdsClose(void* ads);
-void AdsDelete(void* ads);
+s32 AdsDelete(void* ads);
 s32 AdsStart(void* ads);
 int printf(const char* format, ...);
 void* memset(void* dst, s32 value, u32 size);
