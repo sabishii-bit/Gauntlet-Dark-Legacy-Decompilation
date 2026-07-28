@@ -68,8 +68,7 @@ typedef struct G3DPadState {
     u32 repeatCounter;
 } G3DPadState;
 
-typedef struct G3DPadHardwareState {
-    G3DPadState pad[4];
+typedef struct G3DPadAggregate {
     u16 buttons;
     s8 stickX;
     s8 stickY;
@@ -80,12 +79,17 @@ typedef struct G3DPadHardwareState {
     u8 analogA;
     u8 analogB;
     s8 error;
-    u8 _pad6B;
+    u8 _pad0B;
     u16 previous;
     u16 pressed;
     u16 released;
     u16 repeat;
     u8 _tail[8];
+} G3DPadAggregate;
+
+typedef struct G3DPadHardwareState {
+    G3DPadState pad[4];
+    G3DPadAggregate aggregate;
 } G3DPadHardwareState;
 
 extern G3DPadHardwareState lbl_8032128C;
@@ -100,16 +104,15 @@ extern G3DPadHardwareState lbl_8032128C;
  * (G3DGetControlPadAnalogStick).
  */
 void G3DAnalogToStickXY(f32* outX, f32* outY, int rawX, int rawY) {
-    s32 flags = 0;
-    s32 tmp;
-    s32 index;
-    s32 minor;
+    G3DStickCurve* curve = &lbl_80320C80;
+    u8 flags;
     f32 magnitude;
     f32 scale;
+    s32 index;
 
     if (rawX == 0 && rawY == 0) {
-        *outX = 0.0f;
         *outY = 0.0f;
+        *outX = 0.0f;
         return;
     }
 
@@ -122,19 +125,19 @@ void G3DAnalogToStickXY(f32* outX, f32* outY, int rawX, int rawY) {
         rawX = -rawX;
     }
     if (rawY > rawX) {
-        tmp = rawX;
-        rawX = rawY;
-        rawY = tmp;
+        s32 tmp = rawY;
+        rawY = rawX;
+        rawX = tmp;
         flags |= 4;
     }
 
     index = (s32)(128.0f * (1.0f / 256.0f +
                             (f32)rawY / (f32)rawX));
-    minor = (s32)((f32)index * (1.0f / 128.0f) * (f32)rawX);
-    magnitude = g3dSqrt((f32)(rawX * rawX + minor * minor));
-    scale = magnitude / lbl_80320C80.magnitude[index];
-    *outX = scale * lbl_80320C80.x[index];
-    *outY = scale * lbl_80320C80.y[index];
+    rawY = (s32)((f32)index * (1.0f / 128.0f) * (f32)rawX);
+    magnitude = g3dSqrt((f32)(rawX * rawX + rawY * rawY));
+    scale = magnitude / curve->magnitude[index];
+    *outX = scale * curve->x[index];
+    *outY = scale * curve->y[index];
 
     if ((flags & 4) != 0) {
         f32 swap = *outY;
@@ -148,6 +151,16 @@ void G3DAnalogToStickXY(f32* outX, f32* outY, int rawX, int rawY) {
         *outY = -*outY;
     }
 }
+
+/*
+ * Seed MWCC's private literal pool in the order used by the retail object.
+ * These helpers are unreferenced and therefore dead-stripped from the DOL.
+ */
+static f32 g3dCurveInitialMagnitude(void) { return 72.0f; }
+static f32 g3dCurveInitialAxis(void) { return 1.0f; }
+static f32 g3dCurveHalf(void) { return 0.5f; }
+static f32 g3dCurveScale(void) { return 90.0f; }
+static f32 g3dCurveBias(void) { return 1.25f; }
 
 /*
  * 0x800D7F44  G3DInitStickCurve(void)
@@ -166,13 +179,16 @@ void G3DInitStickCurve(void) {
         curve->y[0] = 0.0f;
 
         for (i = 1; i <= 128; i++) {
-            f32 ratio = (f32)i * (1.0f / 128.0f);
-            f32 divisor = 1.25f + ratio;
-            s32 x = (s32)(0.5f + 90.0f / divisor);
-            s32 y = (s32)(0.5f + (90.0f * ratio) / divisor);
-            f32 magnitude = g3dSqrt((f32)(x * x + y * y));
+            f32 ratio = (f32)i;
+            s32 x;
+            s32 y;
+            f32 magnitude;
             f32 storedMagnitude;
 
+            ratio *= (1.0f / 128.0f);
+            x = (s32)(0.5f + 90.0f / (1.25f + ratio));
+            y = (s32)(0.5f + (90.0f * ratio) / (1.25f + ratio));
+            magnitude = g3dSqrt((f32)(x * x + y * y));
             curve->magnitude[i] = magnitude;
             storedMagnitude = curve->magnitude[i];
             curve->x[i] = (f32)x / storedMagnitude;
@@ -189,6 +205,7 @@ void G3DInitStickCurve(void) {
  */
 void G3DUpdatePadStatus(void) {
     PADStatus status[4];
+    G3DPadAggregate* aggregate;
     u32 resetMask;
     u32 channelBit;
     s32 i;
@@ -196,25 +213,32 @@ void G3DUpdatePadStatus(void) {
     PADRead(status);
     PADClamp(status);
 
-    lbl_8032128C.error = PAD_ERR_NO_CONTROLLER;
+    aggregate = &lbl_8032128C.aggregate;
+    aggregate->error = PAD_ERR_NO_CONTROLLER;
     resetMask = 0;
     for (i = 0; i < 4; i++) {
         channelBit = PAD_CHAN0_BIT >> i;
-        if (status[i].err == PAD_ERR_NO_CONTROLLER) {
-            resetMask |= channelBit;
-        } else if (status[i].err < PAD_ERR_NO_CONTROLLER) {
-            if (status[i].err == PAD_ERR_TRANSFER) {
-                lbl_803452A0 |= channelBit;
-                if (lbl_8032128C.error == PAD_ERR_NO_CONTROLLER) {
-                    lbl_8032128C.error = PAD_ERR_TRANSFER;
-                }
-            } else if (status[i].err > -4 &&
-                       lbl_8032128C.error == PAD_ERR_NO_CONTROLLER) {
-                lbl_8032128C.error = PAD_ERR_NOT_READY;
-            }
-        } else if (status[i].err < 1) {
+        switch (status[i].err) {
+        case PAD_ERR_NONE:
             lbl_803452A0 |= channelBit;
-            lbl_8032128C.error = PAD_ERR_NONE;
+            aggregate->error = PAD_ERR_NONE;
+            break;
+        case PAD_ERR_TRANSFER:
+            lbl_803452A0 |= channelBit;
+            if (aggregate->error == PAD_ERR_NO_CONTROLLER) {
+                aggregate->error = PAD_ERR_TRANSFER;
+            }
+            break;
+        case PAD_ERR_NO_CONTROLLER:
+            resetMask |= channelBit;
+            break;
+        case PAD_ERR_NOT_READY:
+            if (aggregate->error == PAD_ERR_NO_CONTROLLER) {
+                aggregate->error = PAD_ERR_NOT_READY;
+            }
+            break;
+        default:
+            break;
         }
     }
     if (lbl_803452A0 != 0) {
@@ -224,23 +248,22 @@ void G3DUpdatePadStatus(void) {
         PADReset(resetMask);
     }
 
-    lbl_8032128C.previous = lbl_8032128C.buttons;
-    lbl_8032128C.buttons = 0;
-    lbl_8032128C.stickX = 0;
-    lbl_8032128C.stickY = 0;
-    lbl_8032128C.substickX = 0;
-    lbl_8032128C.substickY = 0;
-    lbl_8032128C.triggerLeft = 0;
-    lbl_8032128C.triggerRight = 0;
-    lbl_8032128C.analogA = 0;
-    lbl_8032128C.analogB = 0;
-    lbl_8032128C.pressed = 0;
-    lbl_8032128C.released = 0;
-    lbl_8032128C.repeat = 0;
+    aggregate->previous = aggregate->buttons;
+    aggregate->repeat = 0;
+    aggregate->released = 0;
+    aggregate->pressed = 0;
+    aggregate->buttons = 0;
+    aggregate->substickY = 0;
+    aggregate->substickX = 0;
+    aggregate->stickY = 0;
+    aggregate->stickX = 0;
+    aggregate->triggerRight = 0;
+    aggregate->triggerLeft = 0;
+    aggregate->analogB = 0;
+    aggregate->analogA = 0;
 
     for (i = 0; i < 4; i++) {
         G3DPadState* pad = &lbl_8032128C.pad[i];
-        u16 changed;
 
         pad->status.err = status[i].err;
         if (pad->status.err != PAD_ERR_TRANSFER) {
@@ -268,61 +291,67 @@ void G3DUpdatePadStatus(void) {
                 pad->status.button |= PAD_BUTTON_UP;
             }
 
-            changed = pad->previous ^ pad->status.button;
-            pad->pressed = pad->status.button & changed;
-            pad->released = pad->previous & changed;
+            pad->pressed =
+                pad->status.button & (pad->previous ^ pad->status.button);
+            pad->released =
+                pad->previous & (pad->previous ^ pad->status.button);
             pad->repeat = pad->status.button & pad->previous & 0x1F7F;
-            if (pad->repeat == 0) {
-                pad->repeatCounter = 0;
-            } else {
+            if (pad->repeat != 0) {
                 pad->repeatCounter++;
-                if (pad->repeatCounter < lbl_80345298 ||
-                    pad->repeatCounter % lbl_8034529C != 0) {
+                if (pad->repeatCounter < lbl_80345298) {
+                    pad->repeat = 0;
+                } else if (pad->repeatCounter % lbl_8034529C != 0) {
                     pad->repeat = 0;
                 }
+            } else {
+                pad->repeatCounter = 0;
             }
             pad->repeat |= pad->pressed;
 
-            lbl_8032128C.buttons |= pad->status.button;
-            lbl_8032128C.pressed |= pad->pressed;
-            lbl_8032128C.released |= pad->released;
-            lbl_8032128C.repeat |= pad->repeat;
+            aggregate->pressed |= pad->pressed;
+            aggregate->released |= pad->released;
+            aggregate->buttons |= pad->status.button;
+            aggregate->repeat |= pad->repeat;
 
-            if ((lbl_8032128C.stickX < 0 ? -lbl_8032128C.stickX
-                                         : lbl_8032128C.stickX) <
-                (pad->status.stickX < 0 ? -pad->status.stickX
-                                        : pad->status.stickX)) {
-                lbl_8032128C.stickX = pad->status.stickX;
+            if (((aggregate->stickX ^ ((s32)aggregate->stickX >> 31)) -
+                 ((s32)aggregate->stickX >> 31)) <
+                ((pad->status.stickX ^ ((s32)pad->status.stickX >> 31)) -
+                 ((s32)pad->status.stickX >> 31))) {
+                aggregate->stickX = pad->status.stickX;
             }
-            if ((lbl_8032128C.stickY < 0 ? -lbl_8032128C.stickY
-                                         : lbl_8032128C.stickY) <
-                (pad->status.stickY < 0 ? -pad->status.stickY
-                                        : pad->status.stickY)) {
-                lbl_8032128C.stickY = pad->status.stickY;
+            if (((aggregate->stickY ^ ((s32)aggregate->stickY >> 31)) -
+                 ((s32)aggregate->stickY >> 31)) <
+                ((pad->status.stickY ^ ((s32)pad->status.stickY >> 31)) -
+                 ((s32)pad->status.stickY >> 31))) {
+                aggregate->stickY = pad->status.stickY;
             }
-            if ((lbl_8032128C.substickX < 0 ? -lbl_8032128C.substickX
-                                            : lbl_8032128C.substickX) <
-                (pad->status.substickX < 0 ? -pad->status.substickX
-                                           : pad->status.substickX)) {
-                lbl_8032128C.substickX = pad->status.substickX;
+            if (((aggregate->substickX ^
+                  ((s32)aggregate->substickX >> 31)) -
+                 ((s32)aggregate->substickX >> 31)) <
+                ((pad->status.substickX ^
+                  ((s32)pad->status.substickX >> 31)) -
+                 ((s32)pad->status.substickX >> 31))) {
+                aggregate->substickX = pad->status.substickX;
             }
-            if ((lbl_8032128C.substickY < 0 ? -lbl_8032128C.substickY
-                                            : lbl_8032128C.substickY) <
-                (pad->status.substickY < 0 ? -pad->status.substickY
-                                           : pad->status.substickY)) {
-                lbl_8032128C.substickY = pad->status.substickY;
+            if (((aggregate->substickY ^
+                  ((s32)aggregate->substickY >> 31)) -
+                 ((s32)aggregate->substickY >> 31)) <
+                ((pad->status.substickY ^
+                  ((s32)pad->status.substickY >> 31)) -
+                 ((s32)pad->status.substickY >> 31))) {
+                aggregate->substickY = pad->status.substickY;
             }
-            if (lbl_8032128C.triggerLeft < pad->status.triggerLeft) {
-                lbl_8032128C.triggerLeft = pad->status.triggerLeft;
+            if (aggregate->triggerLeft < pad->status.triggerLeft) {
+                aggregate->triggerLeft = pad->status.triggerLeft;
             }
-            if (lbl_8032128C.triggerRight < pad->status.triggerRight) {
-                lbl_8032128C.triggerRight = pad->status.triggerRight;
+            if (aggregate->triggerRight < pad->status.triggerRight) {
+                aggregate->triggerRight = pad->status.triggerRight;
             }
-            if (lbl_8032128C.analogA < pad->status.analogA) {
-                lbl_8032128C.analogA = pad->status.analogA;
+            if (aggregate->analogA < pad->status.analogA) {
+                aggregate->analogA = pad->status.analogA;
             }
-            if (lbl_8032128C.analogB < pad->status.analogB) {
-                lbl_8032128C.analogB = pad->status.analogB;
+            if (aggregate->analogB < pad->status.analogB) {
+                aggregate->analogB = pad->status.analogB;
             }
         }
     }
