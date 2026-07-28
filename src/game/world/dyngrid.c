@@ -1,4 +1,5 @@
 #include "types.h"
+#include "game/dyngrid.h"
 
 /* game/world/dyngrid.c  (Xbox PDB module DYNGRID.OBJ)
  *
@@ -13,11 +14,12 @@
  * .text range: 0x800433EC - 0x80043A78 (6 functions).
  *
  * Function map (GC addr -> DYNGRID.OBJ name; GC emits in reverse Xbox source
- * order):
- *   0x800433EC NextGridEnemy   - advance enemy iterator, return next index/-1
- *   0x80043490 StartEnemyGrid  - seed enemy iterator from a center + radius
- *   0x800435EC NextGridItem    - advance item iterator, return next index/-1
- *   0x80043694 StartItemGrid   - seed item iterator from a center + radius
+ * order).  Despite their names, the first pair walks sItems and the second
+ * walks gEnemies; this is verified from both the link fields and callers:
+ *   0x800433EC NextGridEnemy   - advance sItems iterator, return index/-1
+ *   0x80043490 StartEnemyGrid  - seed sItems iterator from center + radius
+ *   0x800435EC NextGridItem    - advance gEnemies iterator, return index/-1
+ *   0x80043694 StartItemGrid   - seed gEnemies iterator from center + radius
  *   0x800437F0 SetupDynGrid    - clear grid, relink all enemies then items
  *                                (PlaceEnemyInGrid/PlaceItemInGrid inlined)
  *   0x80043A04 InitDynGrid     - derive grid origin/scale from world bounds
@@ -125,8 +127,7 @@ static int clampcell(int v)
     return v;
 }
 
-/* Advance the enemy iterator to the next occupied cell/object; return the
- * enemy index, or -1 when the query bbox is exhausted. */
+/* Advance the historically Enemy-named iterator over sItems. */
 s32 NextGridEnemy(void)
 {
     s32 idx;
@@ -150,7 +151,7 @@ s32 NextGridEnemy(void)
 
 /* Seed the enemy iterator for a circular query at pos (x=pos[0], z=pos[2])
  * with radius r, then load the first candidate cell. */
-void StartEnemyGrid(f32* pos, f32 r)
+void StartEnemyGrid(f32 r, f32* pos)
 {
     int mnx, mnz;
     f32 pad;
@@ -171,7 +172,7 @@ void StartEnemyGrid(f32* pos, f32 r)
     ene_idx = enegrid[mnz][mnx].enemy;
 }
 
-/* Item counterparts of the two enemy iterators above. */
+/* Historically Item-named counterpart; this one walks gEnemies. */
 s32 NextGridItem(void)
 {
     s32 idx;
@@ -193,7 +194,7 @@ s32 NextGridItem(void)
     return -1;
 }
 
-void StartItemGrid(f32* pos, f32 r)
+void StartItemGrid(f32 r, f32* pos)
 {
     int mnx, mnz;
     f32 pad;

@@ -1,4 +1,5 @@
 #include "types.h"
+#include "game/dyngrid.h"
 #include "game/item.h"
 #include "game/player.h"
 
@@ -111,8 +112,6 @@ extern void  DoSpecialTexmods(void);
 extern void  SetupPlayerTexMods(s32 player);
 extern void  fn_800606FC(void);
 extern s32   fn_8005D0C4(s16 id, f32* position);
-extern void  StartEnemyGrid(f32 radius, f32* position);
-extern s32   NextGridEnemy(void);
 extern f32   fn_800BDA98(f32* vector);
 extern u8    lbl_80237BA0[];
 extern f32   lbl_80127D60[16];

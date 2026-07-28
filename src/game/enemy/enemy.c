@@ -1,4 +1,5 @@
 #include "game/enemy.h"
+#include "game/dyngrid.h"
 
 /* Gauntlet Dark Legacy enemy module (Xbox ENEMY.OBJ / enemy.c).
  *
@@ -128,8 +129,6 @@ extern void fn_8004F1DC(Enemy* e);                  /* garm2 (type 27) death hoo
 /* --- cross-module callees --- */
 extern f32 fn_800BCB44(f32 x, f32 z);               /* 2D magnitude */
 extern f32 fn_800BDA98(f32* vector);
-extern void StartItemGrid(f32 radius, f32* position);
-extern s32 NextGridItem(void);
 extern void fn_8005A65C(f32* worldmat, f32* coll_offset); /* refresh coll_pos */
 extern s32 DeleteEffect(s32 idx, s32 mode);         /* sfx.c 0x80097790 */
 extern void* fn_8000D1E0(f32 rad, f32* from, f32* to, f32* hitnrm); /* world probe */

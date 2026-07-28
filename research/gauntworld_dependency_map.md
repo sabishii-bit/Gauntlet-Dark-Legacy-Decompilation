@@ -136,3 +136,37 @@ Propagation mode `2` means “walk this sibling chain,” while a nonzero mode a
 recurses into a first child unless that child has flag `0x10`.  This is the
 scene-graph rule gauntworld and items rely on when hiding, showing, recoloring,
 or retargeting an object subtree.
+
+The lifecycle half of the same TU is now mapped from the Xbox PDB and
+semantically translated:
+
+- `fn_800BACF8` = `MBNodeOrder`
+- `fn_800BAD94` = `MBNodeSetParent`
+- `fn_800BAEAC` = `MBRemoveNode`
+- `fn_800BB164` = recursive child removal (`MBRemoveNodeChild`)
+- `fn_800BB4CC` = node insertion/attachment
+
+`MBRemoveNode` is a particularly broad dependency: gauntworld, items, enemy,
+player, sfx, particles, and several UI paths all use it.  Type-14 nodes with a
+non-null field at `0x70` are not returned directly to the normal free list;
+they are first moved under the special root at `lbl_80344EDC` and released
+through `fn_800D12F0`.  Ordinary nodes are detached while preserving/promoting
+their children, cleared, and pushed onto the free list at `lbl_80344EE0`.
+
+## Grid dependency correction
+
+The fixed candidate grid at `0x800433EC..0x80043A78` has misleading retail API
+names.  Caller and link-field verification establishes:
+
+- `StartEnemyGrid` / `NextGridEnemy` iterate `sItems` (stride `0xF0`);
+- `StartItemGrid` / `NextGridItem` iterate `gEnemies` (stride `0x394`).
+
+The shared declaration is now `include/game/dyngrid.h`, with the pool contract
+documented explicitly.  This resolves the apparent contradiction between
+gauntworld's nearest-item query and enemy's nearest-enemy query.
+
+The adjacent dynamic world-object grid also no longer has a one-cell traversal
+stub.  `NextDynGrid` is fully translated and opcode-identical to the 255-insn
+retail function (relocation-label spelling aside).  It performs the swept DDA
+used by `WorldDynCollide`, so native collision queries can now advance across
+the complete set of crossed grid cells.
