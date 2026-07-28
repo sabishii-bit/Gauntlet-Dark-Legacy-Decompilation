@@ -35,9 +35,23 @@
 /* --- externs: allocator + alloc-balance counter (ml_mem.c) --- */
 extern s32 lbl_803452AC;
 extern void ResetAllocTot(void);
-extern void* AllocHiMem(u32 size);
+extern void* AllocHiMem(u32 size, u32 tag);
 extern void* memcpy(void* dst, const void* src, u32 n);
 extern void* memset(void* dst, int c, u32 n);
+
+/* --- GX / data-cache maintenance (present the decoded VQ texture) --- */
+extern void DCInvalidateRange(void* addr, u32 nBytes);
+extern void DCFlushRange(void* addr, u32 nBytes);
+extern void GXInvalidateTexAll(void);
+
+/* --- audio stream pump (soundmgr / adstream) --- */
+extern void adsPoll(void);
+extern s32 sndCmd17(s32 a, s32 b);
+extern u8* lbl_803452B0;
+
+/* --- PS2-shim file IO (sceLseek/sceRead the .avi container) --- */
+extern int sceLseek(int fd, int offset, int whence);
+extern int sceRead(int fd, void* data, int length);
 
 /* --- vtables (.data) + subsystem refcounts (.sbss) + colour ramps (.bss) --- */
 extern u32 lbl_801296A4[];
@@ -69,6 +83,8 @@ u32 fn_800D8BCC(u32* p1, int p3, char* p4, int mode, int p5, u32 p6);
 u32 fn_800D8F28(int* p1, int p3, char* p4, int p5, u32 p6);
 u32 fn_800D91B4(u32* p1, int p3, char* p4, int p5, u32 p6);
 u32 fn_800D9A14(u32* p1, u8* p2, int p3, u8 p4);
+void fn_800DBE98(u32 param_1, u8* param_2);
+int fn_800DB2F4(int param_1, u8* param_2, u32 param_3, u32 param_4);
 
 /* --- little-endian container readers (parse the PC-format .avi header) ---
  * Defined at file-end in the original (callers see only a prototype), so they
@@ -153,22 +169,415 @@ void fn_800D8784(void) {
 }
 
 /* VQ texture/tile decode into a GX tex obj (ReadU16LE/ReadF32LE, DCFlush/Invalidate, GXInvalidateTexAll) */
-u32 fn_800D87FC(u32* p1, int p3, char* p4, int mode, int p5, u32 p6) {
+u32 fn_800D87FC(u32* param_1, int param_2, char* param_3, int param_4, int param_5, u32 param_6) {
+    u8 bVar1;
+    u8 bVar2;
+    u8 bVar3;
+    u16 uVar7;
+    int iVar4;
+    u32 uVar6;
+    u32 uVar9;
+    u8* pbVar8;
+    u8* pbVar10;
+    int iVar11;
+    u32 uVar12;
+    u32* puVar13;
+    u32* puVar14;
+    u32 uVar15;
+    u32 uVar16;
+    u32 uVar17;
+    u32 uVar18;
+    u8* pbVar19;
+    int iVar20;
+    int iVar21;
+
+    uVar7 = ReadU16LE((u8*)param_1[6]);
+    uVar6 = uVar7;
+    iVar4 = ReadF32LE((u8*)(param_1[6] + 4));
+    iVar20 = param_1[6] + 8;
+    pbVar8 = (u8*)(iVar20 + param_1[0xb]);
+    pbVar19 = pbVar8 + uVar6 * 0xc;
+    DCInvalidateRange((void*)param_6, *param_1 * param_1[1] * 2);
+    if (param_4 == 1) {
+        fn_800D860C((u32)param_1, pbVar8, uVar6);
+        goto present;
+    } else {
+        if (param_4 < 1) {
+            if (-1 < param_4) {
+                fn_800D86C8((u32)param_1, pbVar8, uVar6);
+                goto present;
+            }
+        } else if (param_4 < 3) {
+            bVar3 = *((u8*)param_1 + 0x39);
+            bVar1 = *(u8*)(param_1 + 0xe);
+            bVar2 = *((u8*)param_1 + 0x37);
+            iVar11 = 0;
+            pbVar10 = pbVar8;
+            for (iVar21 = 0; iVar21 < (int)(uVar6 << 2); iVar21 = iVar21 + 1) {
+                fn_800DBE98((u32)param_1, pbVar10);
+                *(u16*)(pbVar8 + iVar11) =
+                    (u16)(((u32)pbVar10[2] >> (8 - bVar2 & 0x3f)) << *(u8*)(param_1 + 0xd)) |
+                    (u16)(((u32)*pbVar10 >> (8 - bVar1 & 0x3f)) << *((u8*)param_1 + 0x36)) |
+                    (u16)(((u32)pbVar10[1] >> (8 - bVar3 & 0x3f)) << *((u8*)param_1 + 0x35));
+                pbVar10 = pbVar10 + 3;
+                iVar11 = iVar11 + 2;
+            }
+            goto present;
+        }
+        return 0xffffffff;
+    }
+present:
+    if (*(int*)(param_5 + 8) < 0) {
+        iVar11 = -1;
+        uVar15 = param_1[1] - 1;
+    } else {
+        uVar15 = 0;
+        iVar11 = 1;
+    }
+    if (uVar6 < 0x101) {
+        *param_1 = *param_1 << 1;
+        for (uVar6 = 0; (int)uVar6 < (int)param_1[1]; uVar6 = uVar6 + 2) {
+            uVar12 = param_1[10];
+            puVar13 = (u32*)(param_6 + (uVar15 & 0xfffffffc) * *param_1 + (uVar15 & 3) * 8);
+            puVar14 = puVar13 + iVar11 * 2;
+            uVar16 = 0;
+            do {
+                uVar9 = (int)uVar16 >> 3;
+                if ((1 << (uVar9 & 7) &
+                     (u32)*(u8*)(iVar20 + ((int)uVar6 >> 2) * uVar12 + ((int)uVar16 >> 6))) != 0) {
+                    bVar3 = *pbVar19;
+                    pbVar19 = pbVar19 + 1;
+                    *puVar13 = *(u32*)(pbVar8 + (u32)bVar3 * 8);
+                    *puVar14 = *(u32*)(pbVar8 + (u32)bVar3 * 8 + 4);
+                }
+                iVar4 = (uVar16 & 4) * 6 + 4;
+                uVar16 = uVar16 + 4;
+                puVar13 = (u32*)((int)puVar13 + iVar4);
+                puVar14 = (u32*)((int)puVar14 + iVar4);
+            } while ((int)uVar16 < (int)*param_1);
+            uVar15 = uVar15 + iVar11 * 2;
+        }
+        uVar6 = *param_1;
+        *param_1 = (int)uVar6 >> 1;
+    } else {
+        uVar6 = iVar4 + 7;
+        uVar12 = *pbVar19;
+        *param_1 = *param_1 << 1;
+        pbVar10 = pbVar19 + 1;
+        pbVar19 = pbVar19 + ((int)uVar6 >> 3);
+        uVar6 = 0;
+        for (uVar16 = 0; (int)uVar16 < (int)param_1[1]; uVar16 = uVar16 + 2) {
+            uVar9 = param_1[10];
+            puVar13 = (u32*)(param_6 + (uVar15 & 0xfffffffc) * *param_1 + (uVar15 & 3) * 8);
+            puVar14 = puVar13 + iVar11 * 2;
+            uVar17 = 0;
+            do {
+                uVar18 = (int)uVar17 >> 3;
+                if ((1 << (uVar18 & 7) &
+                     (u32)*(u8*)(iVar20 + ((int)uVar16 >> 2) * uVar9 + ((int)uVar17 >> 6))) != 0) {
+                    bVar3 = *pbVar19;
+                    uVar18 = uVar6 & 0x3f;
+                    uVar6 = uVar6 + 1;
+                    *puVar13 = *(u32*)(pbVar8 + (((int)uVar12 >> uVar18 & 1U) << 8 | (u32)bVar3) * 8);
+                    pbVar19 = pbVar19 + 1;
+                    *puVar14 = *(u32*)(pbVar8 + (((int)uVar12 >> uVar18 & 1U) << 8 | (u32)bVar3) * 8 + 4);
+                    if ((uVar6 & 0xff) == 8) {
+                        uVar12 = *pbVar10;
+                        uVar6 = 0;
+                        pbVar10 = pbVar10 + 1;
+                    }
+                }
+                iVar4 = (uVar17 & 4) * 6 + 4;
+                uVar17 = uVar17 + 4;
+                puVar13 = (u32*)((int)puVar13 + iVar4);
+                puVar14 = (u32*)((int)puVar14 + iVar4);
+            } while ((int)uVar17 < (int)*param_1);
+            uVar15 = uVar15 + iVar11 * 2;
+        }
+        uVar6 = *param_1;
+        *param_1 = (int)uVar6 >> 1;
+    }
+    DCFlushRange((void*)param_6, *param_1 * param_1[1] * 2);
+    GXInvalidateTexAll();
+    param_1[7] = param_1[7] + 1;
     return 0;
 }
 
 /* VQ tile decode variant (ReadU16LE, DCFlush/Invalidate, GXInvalidateTexAll) */
-u32 fn_800D8BCC(u32* p1, int p3, char* p4, int mode, int p5, u32 p6) {
+u32 fn_800D8BCC(u32* param_1, int param_2, char* param_3, int param_4, int param_5, u32 param_6) {
+    u8 bVar1;
+    u8 bVar2;
+    u8 bVar3;
+    u32 uVar4;
+    u16 uVar7;
+    u8* pbVar6;
+    u8* pbVar8;
+    u32 uVar9;
+    u32 uVar10;
+    int iVar11;
+    u32 uVar12;
+    u32 uVar13;
+    int iVar14;
+    int iVar15;
+    u32* puVar16;
+    u32* puVar17;
+    u8* pbVar18;
+
+    uVar7 = ReadU16LE((u8*)param_1[6]);
+    uVar9 = uVar7;
+    pbVar8 = (u8*)(param_1[6] + 4);
+    pbVar18 = pbVar8 + uVar9 * 0xc;
+    DCInvalidateRange((void*)param_6, *param_1 * param_1[1] * 2);
+    if (param_4 == 1) {
+        fn_800D860C((u32)param_1, pbVar8, uVar9);
+        goto present;
+    } else {
+        if (param_4 < 1) {
+            if (-1 < param_4) {
+                fn_800D86C8((u32)param_1, pbVar8, uVar9);
+                goto present;
+            }
+        } else if (param_4 < 3) {
+            bVar3 = *((u8*)param_1 + 0x39);
+            bVar1 = *(u8*)(param_1 + 0xe);
+            bVar2 = *((u8*)param_1 + 0x37);
+            iVar14 = 0;
+            pbVar6 = pbVar8;
+            for (iVar11 = 0; iVar11 < (int)(uVar9 << 2); iVar11 = iVar11 + 1) {
+                fn_800DBE98((u32)param_1, pbVar6);
+                *(u16*)(pbVar8 + iVar14) =
+                    (u16)(((u32)pbVar6[2] >> (8 - bVar2 & 0x3f)) << *(u8*)(param_1 + 0xd)) |
+                    (u16)(((u32)*pbVar6 >> (8 - bVar1 & 0x3f)) << *((u8*)param_1 + 0x36)) |
+                    (u16)(((u32)pbVar6[1] >> (8 - bVar3 & 0x3f)) << *((u8*)param_1 + 0x35));
+                pbVar6 = pbVar6 + 3;
+                iVar14 = iVar14 + 2;
+            }
+            goto present;
+        }
+        return 0xffffffff;
+    }
+present:
+    if (*(int*)(param_5 + 8) < 0) {
+        iVar14 = -1;
+        uVar12 = param_1[1] - 1;
+    } else {
+        uVar12 = 0;
+        iVar14 = 1;
+    }
+    if (uVar9 < 0x101) {
+        *param_1 = *param_1 << 1;
+        for (iVar11 = 0; iVar11 < (int)param_1[1]; iVar11 = iVar11 + 2) {
+            uVar9 = 0;
+            puVar16 = (u32*)(param_6 + (uVar12 & 0xfffffffc) * *param_1 + (uVar12 & 3) * 8);
+            puVar17 = puVar16 + iVar14 * 2;
+            do {
+                bVar3 = *pbVar18;
+                uVar10 = uVar9 & 4;
+                uVar9 = uVar9 + 4;
+                iVar15 = uVar10 * 6 + 4;
+                *puVar16 = *(u32*)(pbVar8 + (u32)bVar3 * 8);
+                puVar16 = (u32*)((int)puVar16 + iVar15);
+                pbVar18 = pbVar18 + 1;
+                *puVar17 = *(u32*)(pbVar8 + (u32)bVar3 * 8 + 4);
+                puVar17 = (u32*)((int)puVar17 + iVar15);
+            } while ((int)uVar9 < (int)*param_1);
+            uVar12 = uVar12 + iVar14 * 2;
+        }
+        uVar9 = *param_1;
+        *param_1 = (int)uVar9 >> 1;
+    } else {
+        uVar13 = *param_1;
+        pbVar6 = pbVar18 + 1;
+        uVar10 = *pbVar18;
+        uVar9 = ((int)uVar13 >> 1) * param_1[1];
+        uVar9 = (int)uVar9 >> 1;
+        *param_1 = uVar13 << 1;
+        pbVar18 = pbVar18 + ((int)uVar9 >> 3);
+        uVar9 = 0;
+        for (iVar11 = 0; iVar11 < (int)param_1[1]; iVar11 = iVar11 + 2) {
+            uVar13 = 0;
+            puVar16 = (u32*)(param_6 + (uVar12 & 0xfffffffc) * *param_1 + (uVar12 & 3) * 8);
+            puVar17 = puVar16 + iVar14 * 2;
+            do {
+                bVar3 = *pbVar18;
+                uVar4 = uVar9 & 0x3f;
+                uVar9 = uVar9 + 1;
+                *puVar16 = *(u32*)(pbVar8 + (((int)uVar10 >> uVar4 & 1U) << 8 | (u32)bVar3) * 8);
+                pbVar18 = pbVar18 + 1;
+                *puVar17 = *(u32*)(pbVar8 + (((int)uVar10 >> uVar4 & 1U) << 8 | (u32)bVar3) * 8 + 4);
+                if ((uVar9 & 0xff) == 8) {
+                    uVar10 = *pbVar6;
+                    uVar9 = 0;
+                    pbVar6 = pbVar6 + 1;
+                }
+                iVar15 = (uVar13 & 4) * 6 + 4;
+                uVar13 = uVar13 + 4;
+                puVar16 = (u32*)((int)puVar16 + iVar15);
+                puVar17 = (u32*)((int)puVar17 + iVar15);
+            } while ((int)uVar13 < (int)*param_1);
+            uVar12 = uVar12 + iVar14 * 2;
+        }
+        uVar9 = *param_1;
+        *param_1 = (int)uVar9 >> 1;
+    }
+    DCFlushRange((void*)param_6, *param_1 * param_1[1] * 2);
+    GXInvalidateTexAll();
+    param_1[7] = param_1[7] + 1;
     return 0;
 }
 
 /* VQ chunk -> buffer copy (ReadU16LE/ReadF32LE, memcpy) */
-u32 fn_800D8F28(int* p1, int p3, char* p4, int p5, u32 p6) {
+u32 fn_800D8F28(int* param_1, int param_2, char* param_3, int param_4, u32 param_5) {
+    u16 uVar4;
+    int iVar1;
+    u32 uVar2;
+    u32 uVar3;
+    int iVar5;
+    int iVar6;
+    u32 uVar7;
+    u32 uVar8;
+    u8* pbVar9;
+    u8* pbVar10;
+    int iVar11;
+    int iVar12;
+
+    uVar4 = ReadU16LE((u8*)param_1[6]);
+    uVar2 = uVar4;
+    iVar1 = ReadF32LE((u8*)(param_1[6] + 4));
+    iVar12 = param_1[6] + 8;
+    iVar11 = iVar12 + param_1[0xb];
+    pbVar9 = (u8*)(iVar11 + uVar2 * 0xc);
+    iVar6 = 0;
+    for (iVar5 = 0; iVar5 < (int)uVar2; iVar5 = iVar5 + 1) {
+        pbVar10 = (u8*)(iVar11 + iVar6);
+        fn_800DBE98((u32)param_1, pbVar10);
+        fn_800DBE98((u32)param_1, pbVar10 + 3);
+        fn_800DBE98((u32)param_1, pbVar10 + 6);
+        fn_800DBE98((u32)param_1, pbVar10 + 9);
+        iVar6 = iVar6 + 0xc;
+    }
+    if (*(int*)(param_4 + 8) < 0) {
+        iVar5 = *param_1 * -3;
+        param_5 = param_5 + *param_1 * (param_1[1] - 1) * 3;
+    } else {
+        iVar5 = *param_1 * 3;
+    }
+    if (uVar2 < 0x101) {
+        for (uVar2 = 0; (int)uVar2 < param_1[1]; uVar2 = uVar2 + 2) {
+            iVar1 = param_1[10];
+            for (iVar6 = 0; iVar6 < *param_1; iVar6 = iVar6 + 2) {
+                if ((1 << (iVar6 >> 2 & 7) &
+                     (u32)*(u8*)(iVar12 + ((int)uVar2 >> 2) * iVar1 + (iVar6 >> 5))) != 0) {
+                    uVar7 = iVar11 + (u32)*pbVar9 * 0xc;
+                    pbVar9 = pbVar9 + 1;
+                    memcpy((void*)param_5, (void*)uVar7, 6);
+                    memcpy((void*)(param_5 + iVar5), (void*)(uVar7 + 6), 6);
+                }
+                param_5 = param_5 + 6;
+            }
+            param_5 = param_5 + iVar5;
+        }
+    } else {
+        uVar2 = iVar1 + 7;
+        uVar7 = *pbVar9;
+        pbVar10 = pbVar9 + ((int)uVar2 >> 3);
+        uVar8 = 0;
+        pbVar9 = pbVar9 + 1;
+        for (uVar2 = 0; (int)uVar2 < param_1[1]; uVar2 = uVar2 + 2) {
+            iVar1 = param_1[10];
+            for (iVar6 = 0; iVar6 < *param_1; iVar6 = iVar6 + 2) {
+                uVar3 = iVar6 >> 2;
+                if ((1 << (uVar3 & 7) &
+                     (u32)*(u8*)(iVar12 + ((int)uVar2 >> 2) * iVar1 + (iVar6 >> 5))) != 0) {
+                    uVar3 = iVar11 + (((int)uVar7 >> (uVar8 & 0x3f) & 1U) << 8 | (u32)*pbVar10) * 0xc;
+                    pbVar10 = pbVar10 + 1;
+                    memcpy((void*)param_5, (void*)uVar3, 6);
+                    memcpy((void*)(param_5 + iVar5), (void*)(uVar3 + 6), 6);
+                    uVar8 = uVar8 + 1;
+                    if ((uVar8 & 0xff) == 8) {
+                        uVar7 = *pbVar9;
+                        uVar8 = 0;
+                        pbVar9 = pbVar9 + 1;
+                    }
+                }
+                param_5 = param_5 + 6;
+            }
+            param_5 = param_5 + iVar5;
+        }
+    }
+    param_1[7] = param_1[7] + 1;
     return 0;
 }
 
 /* VQ chunk -> buffer copy (ReadU16LE, memcpy) */
-u32 fn_800D91B4(u32* p1, int p3, char* p4, int p5, u32 p6) {
+u32 fn_800D91B4(u32* param_1, int param_2, char* param_3, int param_4, u32 param_5) {
+    u16 uVar2;
+    u32 uVar1;
+    int iVar3;
+    int iVar4;
+    int iVar5;
+    u32 uVar6;
+    u32 uVar7;
+    u8* pbVar8;
+    u8* pbVar9;
+    int iVar10;
+
+    uVar2 = ReadU16LE((u8*)param_1[6]);
+    uVar1 = uVar2;
+    iVar10 = param_1[6] + 4;
+    pbVar8 = (u8*)(iVar10 + uVar1 * 0xc);
+    iVar3 = 0;
+    for (iVar5 = 0; iVar5 < (int)uVar1; iVar5 = iVar5 + 1) {
+        pbVar9 = (u8*)(iVar10 + iVar3);
+        fn_800DBE98((u32)param_1, pbVar9);
+        fn_800DBE98((u32)param_1, pbVar9 + 3);
+        fn_800DBE98((u32)param_1, pbVar9 + 6);
+        fn_800DBE98((u32)param_1, pbVar9 + 9);
+        iVar3 = iVar3 + 0xc;
+    }
+    if (*(int*)(param_4 + 8) < 0) {
+        iVar3 = *param_1 * -3;
+        param_5 = param_5 + *param_1 * (param_1[1] - 1) * 3;
+    } else {
+        iVar3 = *param_1 * 3;
+    }
+    if (uVar1 < 0x101) {
+        for (iVar5 = 0; iVar5 < (int)param_1[1]; iVar5 = iVar5 + 2) {
+            for (iVar4 = 0; iVar4 < (int)*param_1; iVar4 = iVar4 + 2) {
+                uVar1 = iVar10 + (u32)*pbVar8 * 0xc;
+                pbVar8 = pbVar8 + 1;
+                memcpy((void*)param_5, (void*)uVar1, 6);
+                memcpy((void*)(param_5 + iVar3), (void*)(uVar1 + 6), 6);
+                param_5 = param_5 + 6;
+            }
+            param_5 = param_5 + iVar3;
+        }
+    } else {
+        uVar1 = *param_1;
+        uVar6 = *pbVar8;
+        uVar7 = 0;
+        uVar1 = ((int)uVar1 >> 1) * param_1[1];
+        uVar1 = (int)uVar1 >> 1;
+        pbVar9 = pbVar8 + ((int)uVar1 >> 3);
+        pbVar8 = pbVar8 + 1;
+        for (iVar5 = 0; iVar5 < (int)param_1[1]; iVar5 = iVar5 + 2) {
+            for (iVar4 = 0; iVar4 < (int)*param_1; iVar4 = iVar4 + 2) {
+                uVar1 = iVar10 + (((int)uVar6 >> (uVar7 & 0x3f) & 1U) << 8 | (u32)*pbVar9) * 0xc;
+                pbVar9 = pbVar9 + 1;
+                memcpy((void*)param_5, (void*)uVar1, 6);
+                memcpy((void*)(param_5 + iVar3), (void*)(uVar1 + 6), 6);
+                uVar7 = uVar7 + 1;
+                if ((uVar7 & 0xff) == 8) {
+                    uVar6 = *pbVar8;
+                    uVar7 = 0;
+                    pbVar8 = pbVar8 + 1;
+                }
+                param_5 = param_5 + 6;
+            }
+            param_5 = param_5 + iVar3;
+        }
+    }
+    param_1[7] = param_1[7] + 1;
     return 0;
 }
 
@@ -240,7 +649,50 @@ void fn_800D967C(int param_1, int param_2) {
 void fn_800D96B0(void) {
 }
 
-void fn_800D9874(void) {
+u32 fn_800D9874(u32 param_1, int param_2) {
+    int uVar1;
+    u32 iVar2;
+    int iVar3;
+    int uVar4;
+
+    iVar3 = *(int*)(param_2 + 4);
+    iVar2 = *(u32*)(param_2 + 0xc);
+    uVar1 = *(int*)(iVar3 + 4);
+    uVar4 = *(int*)(iVar3 + 8);
+    if (uVar1 % 4 != 0 || uVar4 % 4 != 0) {
+        return 0xfffffffe;
+    }
+    if (*(int*)(iVar3 + 0x10) != 0x5644564d || *(u16*)(iVar3 + 0xe) != 0x18) {
+        return 0xfffffffe;
+    }
+    if (iVar2 == 0) {
+        return 0;
+    }
+    if (*(int*)(iVar2 + 4) != uVar1 ||
+        (*(int*)(iVar2 + 8) != uVar4 && *(int*)(iVar2 + 8) != -uVar4)) {
+        return 0xfffffffe;
+    }
+    switch (*(int*)(iVar2 + 0x10)) {
+    case 0:
+        if (*(u16*)(iVar2 + 0xe) != 0x18 && *(u16*)(iVar2 + 0xe) != 0x10) {
+            return 0xfffffffe;
+        }
+        break;
+    case 3:
+        if (*(u16*)(iVar2 + 0xe) != 0x10) {
+            return 0xfffffffe;
+        }
+        break;
+    case 0x32595559:
+    case 0x59565955:
+        if (*(u16*)(iVar2 + 0xe) != 0x10) {
+            return 0xfffffffe;
+        }
+        break;
+    default:
+        return 0xfffffffe;
+    }
+    return 0;
 }
 
 u32 fn_800D99AC(u32 a, int* src, u8* dst) {
@@ -347,8 +799,10 @@ int fn_800D9C34(int p) {
 }
 #pragma dont_inline off
 
-void fn_800D9C5C(void) {
+#pragma dont_inline on
+void fn_800D9C5C(int* p, int n) {
 }
+#pragma dont_inline off
 
 void fn_800D9CF4(void) {
 }
@@ -433,7 +887,30 @@ void fn_800D9DF0(char* param_1, int param_2, u8* param_3, int* param_4) {
 }
 
 /* per-frame audio pump during playback (adsPoll, sndCmd17) */
-void fn_800D9F20(void) {
+void fn_800D9F20(int param_1) {
+    u32 uVar1;
+    u32 uVar2;
+
+    if (*(u8*)(param_1 + 0x14) != 0) {
+        adsPoll();
+        uVar1 = *(u32*)(param_1 + 8);
+        if (uVar1 != 0) {
+            uVar1 = sndCmd17((*(int*)(param_1 + 4) + *(int*)(param_1 + 0x10)) - uVar1, uVar1);
+            *(u32*)(param_1 + 8) = *(u32*)(param_1 + 8) - uVar1;
+        }
+        if (*(u32*)(param_1 + 8) == 0) {
+            uVar2 = *(int*)(lbl_803452B0 + 0x108) - *(int*)(param_1 + 0xc);
+            if (0xc000 < uVar2) {
+                uVar2 = 0xc000;
+            }
+            *(u32*)(param_1 + 0x10) = uVar2;
+            if ((u8)fn_800DB2F4((int)(lbl_803452B0 + 0x20), *(u8**)(param_1 + 4),
+                                *(u32*)(param_1 + 0xc), *(u32*)(param_1 + 0x10))) {
+                *(u32*)(param_1 + 8) = *(u32*)(param_1 + 0x10);
+                *(int*)(param_1 + 0xc) = *(int*)(param_1 + 0xc) + *(int*)(param_1 + 0x10);
+            }
+        }
+    }
 }
 
 /* 0x800D9FEC top-level VQ movie playback loop: sets up GX/TEV, decodes+presents each frame (DEMODoneRender/DEMOSwapBuffers), polls pads (G3DGetPadStatusBuffer) to allow skipping, pumps audio (adsPoll/sndCmd17). Xbox: PlayVQMovie. Called by test_movies. */
@@ -554,8 +1031,10 @@ u32* fn_800DB0F8(u32* p) {
 }
 
 /* operator delete[] (weak, emitted into this TU) */
-void __dla__FPv(void) {
+#pragma dont_inline on
+void __dla__FPv(void* p) {
 }
+#pragma dont_inline off
 
 /* operator delete (weak, emitted into this TU) */
 void __dl__FPv(void) {
@@ -610,10 +1089,69 @@ u32* fn_800DB36C(int p) {
 void fn_800DB3D4(void) {
 }
 
-void fn_800DB82C(void) {
+void fn_800DB82C(u32* param_1, int param_2, u32 param_3) {
+    int iVar2;
+
+    param_1[0xb] = sceLseek(param_2, 0, 2);
+    sceLseek(param_2, param_3, 0);
+    param_1[10] = param_3;
+    param_1[7] = (param_1[6] - 0x2000) & 0xfffff800;
+    sceRead(param_2, (void*)param_1[0], param_1[7]);
+    param_1[0x14] = param_1[0x16];
+    param_1[0x16] = *(u32*)param_1[0x16];
+    *(u32*)param_1[0x14] = 0;
+    *(u32*)(param_1[0x14] + 8) = 0;
+    iVar2 = ReadF32LE((u8*)(param_1[0] + 4));
+    *(int*)(param_1[0x14] + 4) = iVar2 + 8;
+    *(u32*)(param_1[0x14] + 4) =
+        *(u32*)(param_1[0x14] + 4) + (*(u32*)(param_1[0x14] + 4) & 1);
+    *(u32*)(param_1[0x14] + 0x20) = 0;
+    *(u32*)(param_1[0x14] + 0x24) = 0;
+    *(u32*)(param_1[0x14] + 0x18) = 0;
+    param_1[0xd] = 0;
+    *(u8*)(param_1 + 0x13) = 0;
 }
 
-void fn_800DB91C(void) {
+u8 fn_800DB91C(u32* param_1, u32 param_2, u32 param_3) {
+    int iVar3;
+    int iVar4;
+    u8 unused[24];
+
+    __dla__FPv((void*)param_1[1]);
+    param_1[1] = 0;
+    param_1[0] = 0;
+    __dla__FPv((void*)param_1[3]);
+    param_1[3] = 0;
+    param_1[2] = 0;
+    __dla__FPv((void*)param_1[0x15]);
+    param_1[6] = 0;
+    param_1[5] = 0;
+    param_1[4] = 0;
+    param_1[8] = 0;
+    param_1[9] = 0;
+    param_1[0x16] = 0;
+    param_1[0x14] = 0;
+    param_1[0x15] = 0;
+    if ((param_3 & 0xff) != 0) {
+        fn_800D9C5C((int*)(param_1 + 0xf), 0x40000);
+    }
+    param_1[6] = param_2 & 0xfffff800;
+    lbl_803452AC++;
+    param_1[1] = (u32)AllocHiMem(param_1[6] + 0x20, param_1[6]);
+    iVar3 = lbl_803452AC;
+    lbl_803452AC++;
+    param_1[3] = (u32)AllocHiMem(0x10020, iVar3);
+    param_1[0] = param_1[1] + 0x20 & 0xffffffe0;
+    param_1[2] = param_1[3] + 0x20 & 0xffffffe0;
+    iVar3 = lbl_803452AC;
+    lbl_803452AC++;
+    param_1[0x15] = (u32)AllocHiMem(0x2800, iVar3);
+    param_1[0x16] = param_1[0x15];
+    for (iVar4 = 0; iVar4 < 255; iVar4++) {
+        *(u32*)(param_1[0x15] + iVar4 * 0x28) = param_1[0x15] + (iVar4 + 1) * 0x28;
+    }
+    *(u32*)(param_1[0x15] + iVar4 * 0x28) = 0;
+    return param_1[0] != 0;
 }
 
 void fn_800DBA80(void) {
