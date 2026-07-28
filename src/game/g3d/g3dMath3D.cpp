@@ -161,6 +161,23 @@ void mat44SetRows(mat44& m, vec4& r0, vec4& r1, vec4& r2, vec4& r3)
     memcpy(m.m[3], &r3, 0x10);
 }
 
+/* In-place transpose guts: static + defined-before so -inline auto folds it
+   into mat44InvBasis; the inlinee's own i/j locals restore the target's
+   IV-first web coloring (register-web coloring laws). */
+static void transposeGuts(mat44& d, mat44& w)
+{
+    int i, j;
+
+    for (i = 0; i < 4; i++) {
+        d.m[i][i] = w.m[i][i];
+        for (j = i + 1; j < 4; j++) {
+            f32 a = w.m[i][j];
+            d.m[i][j] = w.m[j][i];
+            d.m[j][i] = a;
+        }
+    }
+}
+
 /* 0x800ADFE0: negate the three basis rows, normalize each (guarded),
    assemble with 0,0,0,1 bottom row, then transpose in place. */
 void mat44InvBasis(mat44& d, vec4& r0, vec4& r1, vec4& r2)
@@ -168,7 +185,6 @@ void mat44InvBasis(mat44& d, vec4& r0, vec4& r1, vec4& r2)
     vec4 t;
     mat44 w;
     u8 pad[8]; /* unused, matches original frame */
-    int i, j;
     f32 neg = -1.0f;
 
     t.x = r0.x * neg;
@@ -215,28 +231,11 @@ void mat44InvBasis(mat44& d, vec4& r0, vec4& r1, vec4& r2)
     w.m[3][0] = 0.0f;
     w.m[3][3] = 1.0f;
 
-    /* PARKED near-match: transpose loop is byte-identical in shape (153/153
-       insns, structure matches) EXCEPT one register-coloring tie -- the whole
-       32-line residual is a single global shift. Five equal-lifetime webs
-       {i, &w+r4, &d+r4, &w+r3, &d+r3}: target colors i FIRST (r7..r11 =
-       i,baseB,destB,baseA,destA); ours colors i LAST (r11), shifting the four
-       pointer webs down to r7..r10 (their internal order baseB<destB<baseA<
-       destA is preserved in both). i's web is IV-renumbered late in our
-       compile; unknown what kept the original's web early.
-       DEAD-ENDS (do not retry): register hint; for-scoped decls; decl-first;
-       early i=0 (goes nonvolatile r29 - much worse); decl-order swap int j,i
-       (no change); explicit row pointers f32* wi/di (compiler folds back to
-       same IVs, no change). Two identical A/Bs => source-restructure axis is
-       dead. Per-TU cflags override rejected: would recompile the 30 already-
-       matching fns and risk them. This is the sole residual blocking the flip. */
-    for (i = 0; i < 4; i++) {
-        d.m[i][i] = w.m[i][i];
-        for (j = i + 1; j < 4; j++) {
-            f32 a = w.m[i][j];
-            d.m[i][j] = w.m[j][i];
-            d.m[j][i] = a;
-        }
-    }
+    /* Transpose through the inlined static helper: open-coding this loop
+       colors i LAST (r11) and shifts the four address webs down; the
+       inlinee's own i/j webs give the target's IV-first coloring (r7..r11 =
+       i,baseB,destB,baseA,destA). Register-web coloring laws, 2026-07-27. */
+    transposeGuts(d, w);
 }
 
 /* 0x800AE244 */
@@ -365,7 +364,7 @@ void vec4Cross(vec4& d, vec4& a, vec4& b)
     vec4 pad; /* unused, matches original frame */
 
     PSVECCrossProduct((Vec*) &a, (Vec*) &b, (Vec*) &d);
-    d.w = 1.0f;
+    d.w = 0.0f; /* target pools lbl_80348A44 (0.0f), not 1.0f */
 }
 
 /* 0x800AE7D0 */

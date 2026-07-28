@@ -99,6 +99,14 @@ int AddSortObject(void* mtx, MBObject* obj, f32 key);
 /* Allocate (or clear) the six render trees that objects are attached to. */
 static const f32 sZero = 0.0f;
 
+/* Inlined equality helper: both params are opaque locals inside the inlinee,
+ * so MWCC keeps the var-first fcmpu operand order the target has (it would
+ * canonicalize a visible-const compare const-first). mwld deadstrips the
+ * standalone copy. */
+static int feq(f32 a, f32 b) {
+    return a == b;
+}
+
 void MBInitObjects(int enable) {
     if (enable) {
         lbl_80344EBC = fn_800BB29C(0, lbl_80127D60, 1);
@@ -292,7 +300,7 @@ void FaceCamMat(f32* mtx, f32 limit) {
     toCamera[0] = *(f32*)(lbl_80344EE8 + 0x94) - mtx[12];
     toCamera[1] = *(f32*)(lbl_80344EE8 + 0x98) - mtx[13];
     toCamera[2] = *(f32*)(lbl_80344EE8 + 0x9C) - mtx[14];
-    if (sZero == limit) {
+    if (feq(limit, sZero)) {
         goto no_pitch;
     } else {
         fn_800BD428(&mtx[8], &yaw, &pitch);
