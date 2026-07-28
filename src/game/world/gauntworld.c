@@ -1,5 +1,6 @@
 #include "types.h"
 #include "game/item.h"
+#include "game/player.h"
 
 /* ==========================================================================
  * game/world/gauntworld.c  (NonMatching documentation slice)
@@ -104,9 +105,24 @@ extern void  CopyMat4(f32* src, f32* dst);
 extern int   GetWorldMat(void* node, f32* matrix, f32* offset);
 extern void  UnparentMatrix(f32* matrix, void* node);
 extern void  fn_800BDE80(f32* src, f32* dst, f32* matrix);
+extern int   msgPost(s32 code, s32 owner, char* data);
+extern void  DoTexMods(void* data);
+extern void  DoSpecialTexmods(void);
+extern void  SetupPlayerTexMods(s32 player);
+extern void  fn_800606FC(void);
+extern s32   fn_8005D0C4(s16 id, f32* position);
+extern void  StartEnemyGrid(f32 radius, f32* position);
+extern s32   NextGridEnemy(void);
+extern f32   fn_800BDA98(f32* vector);
 extern u8    lbl_80237BA0[];
 extern f32   lbl_80127D60[16];
 extern s32   lbl_8034494C;
+extern s32   lbl_8034481C;
+extern s32   lbl_80344568;
+extern s32   lbl_80344770;
+extern s32   lbl_8034477C;
+extern s64   lbl_803445C8;
+extern Player lbl_80275AE0[4];
 extern char  lbl_80346D08[5];
 extern char  lbl_80346D10[7];
 
@@ -495,6 +511,62 @@ int fn_8005A730(void)
     return 1;
 }
 
+void fn_8005AC10(s32 player)
+{
+    Player* record = &lbl_80275AE0[player];
+    s32 i;
+
+    record->world_text_active = 0;
+    record->world_name_len = 0;
+    for (i = 0; i < 7; i++) {
+        if (record->name[i] != 0) {
+            record->world_name_len++;
+        }
+    }
+
+    if (record->world_name_len >= 5) {
+        record->world_name_len = 5;
+        record->world_name_tail = (s8)record->name[record->world_name_len];
+        record->name[record->world_name_len] = 0;
+    } else {
+        record->world_name_tail = 0x40;
+    }
+
+    if (lbl_8034477C == 0x400B && (lbl_803445C8 & 4) != 0) {
+        record->state = 1;
+    }
+}
+
+f32 fn_8005B198(f32 radius, f32* position, Item** result)
+{
+    f32 delta[3];
+    f32 best_distance = -1.0f;
+    Item* item;
+    Item* best_item = 0;
+    s32 index;
+
+    StartEnemyGrid(radius, position);
+    while ((index = NextGridEnemy()) >= 0) {
+        item = &sItems[index];
+
+        if (item->active != -1 && item->minoff == 0) {
+            f32 distance;
+
+            delta[0] = item->objgrp.coll_pos[0] - position[0];
+            delta[1] = item->objgrp.coll_pos[1] - position[1];
+            delta[2] = item->objgrp.coll_pos[2] - position[2];
+            distance = fn_800BDA98(delta);
+            if (best_distance < 0.0f || distance < best_distance) {
+                best_item = item;
+                best_distance = distance;
+            }
+        }
+    }
+
+    *result = best_item;
+    return best_distance;
+}
+
 /* Item-pool queries used by the world dispatcher and camera/UI code. */
 Item* fn_8005B558(s32 id)
 {
@@ -532,6 +604,68 @@ s32 fn_8005B8B0(void* owner)
         }
     }
     return result;
+}
+
+s32 fn_8005B8FC(void* owner)
+{
+    s32 result = 0;
+    Item* item;
+
+    if (lbl_8034481C != 0) {
+        result = -1;
+    }
+
+    item = *(Item**)((u8*)owner + 0x8AC);
+    if (item != 0 && item->info->type == 9 &&
+        item->info->item.subtype != 0x32) {
+        result = *(s16*)&item->data[0];
+    }
+
+    if ((lbl_8034477C & 0x8000) != 0 && result != 0) {
+        msgPost(0x61, *(s32*)owner, (char*)owner + 0x54);
+    }
+    return result;
+}
+
+void fn_8005B988(void)
+{
+    s32 i;
+
+    if ((lbl_80344568 | lbl_80344770) == 0) {
+        fn_800606FC();
+        if (sGoodWizObj != 0) {
+            DoTexMods(sGoodWizObj);
+        }
+        if (sItemFile1Buf != 0) {
+            DoTexMods(sItemFile1Buf);
+        }
+        if (sWeaponsBuf != 0) {
+            DoTexMods(sWeaponsBuf);
+        }
+        if (sPowerupsBuf != 0) {
+            DoTexMods(sPowerupsBuf);
+        }
+        for (i = 0; i < 4; i++) {
+            SetupPlayerTexMods(i);
+        }
+        DoSpecialTexmods();
+    }
+}
+
+void fn_8005D04C(void)
+{
+    s32 i;
+    Item* item;
+
+    for (i = 0; i < lbl_8034494C; i++) {
+        item = &sItems[i];
+
+        if (item->info != 0 && item->info->type == 4) {
+            *(s16*)&item->data[0x12] =
+                fn_8005D0C4(*(s16*)&item->data[0],
+                             &item->objgrp.worldmat[3][0]);
+        }
+    }
 }
 
 s32 fn_800629B0(void)
