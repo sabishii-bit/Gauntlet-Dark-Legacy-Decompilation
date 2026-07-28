@@ -59,6 +59,12 @@ extern u8 lbl_80128178[0x18];  /* semaphore/param block for fn_800AF1C8 */
 extern u32 lbl_802913C0_ptr;
 
 /* --- object-debug control (0x801281AC in .data, ptr held in lbl_80343F40) --- */
+/* dbg2 is a 0x10-stride slot array; f0 of the NEXT slot is the busy word the
+ * draw/texture paths test (base + idx*0x10 + 0x10). */
+typedef struct PBObjSlot {
+    int f0, f4, f8, fc;
+} PBObjSlot;
+
 typedef struct PBObjDebug {
     int state;      /* 0x00 : current PB_ODB_* state */
     u8 _pad04[0x30];
@@ -82,11 +88,11 @@ extern void fn_800AF1E0(void);         /* disable-irq / begin */
 extern void fn_800AF1E8(void);         /* restore-irq / end */
 extern void* fn_800AF1C8(void* param); /* aligned alloc / semaphore create */
 
-extern void* fn_800C5C24(int, void*, void*);     /* pb_objregs geometry setup */
-extern void* fn_800C5598(int, ...);              /* pb_objregs primitive emit */
+extern void fn_800C5C24(f32 extra, int, void*, void*); /* pb_objregs pos-light setup */
+extern void fn_800C5598(int, u32, int, int, u32, int, void*, void*, void*); /* pb_objregs primitive emit */
 extern int fn_800C7558(int handle);              /* pb_texture: resolve texture */
 extern void fn_800C1120(int);                    /* texture cache flush */
-extern int fn_800C1148(char* prompt, int, int, char* opts); /* debug pad query */
+extern int fn_800C1148(int, int, char* prompt); /* debug pad query */
 extern void FatalError(const char* msg, int code);
 extern void bulletproof_printf(const char* fmt, ...);
 extern u32 pbGetTime(void);
@@ -98,11 +104,11 @@ void fn_800C379C(void);
 void fn_800C37C4(void);
 void fn_800C3880(void);
 void fn_800C38A0(void);
-int fn_800C38C0(void* a, void* obj);
+int fn_800C38C0(void* a, u8* obj);
 static u32 pbObjTexSub(void* obj, int lo, int hi, u32* flags);
-int pbSendObjTextures(void* obj);
-static int pbSendObjTexturesSub(int idx, void* def);
-void pbDebugObjSStep(void* obj, int state);
+int pbSendObjTextures(u8* obj);
+static int pbSendObjTexturesSub(int idx, u8* def);
+void pbDebugObjSStep(u8* obj, int state);
 
 /* Reset the per-frame object counter. */
 void fn_800C3674(void)
@@ -205,36 +211,41 @@ void fn_800C38A0(void)
 
 /* Draw one object: resolve the texture-shift, then emit its primitives via the
  * pb_objregs geometry path. */
-int fn_800C38C0(void* a, void* objv)
+int fn_800C38C0(void* a, u8* obj)
 {
-    u8* obj = (u8*)objv;
-    u8* def = *(u8**)(obj + 0x70);
-    u32 packed = *(u32*)(obj + 0x6c);
-    PBGlobal* g = gWinGlobals;
-    u8* slot;
-    u32 flags;
-    u32 tex;
+    u8* def;
     int hi;
-    int i;
-    s16 pcount;
-    s16 v14;
-    s16 v16;
-    void* v1c;
+    u8* v1c;
+    int tex;
+    int v25;
+    int v24;
+    u32 packed;
+    int pcount;
     u8* prim;
+    int stride;
+    PBObjSlot* t;
+    u32 flags;
+    u8 unused[8];
+    PBGlobal* g = gWinGlobals;
 
+    packed = *(u32*)(obj + 0x6c);
     if (packed == 0) {
         return 0;
     }
     hi = packed >> 16;
-    slot = (u8*)g->dbg2 + ((packed << 20 >> 20) & 0xfffff);
-    if (*(int*)(slot + 0x10) != 0) {
+    t = (PBObjSlot*)g->dbg2;
+    def = *(u8**)(obj + 0x70);
+    if (t[(packed >> 16) + 1].f0 != 0) {
         return 0;
     }
     if (*(int*)(def + 0xc) == 0) {
         return 0;
     }
-    flags = *(u32*)(obj + 0x60) & 0x1091D7C0;
+    flags = *(u32*)(obj + 0x60) & 0x1090D7C0;
     tex = pbObjTexSub(obj, *(u16*)(def + 0x12), hi, &flags);
+    v25 = *(s16*)(def + 0x16);
+    v1c = *(u8**)(def + 0x1c);
+    v24 = *(u16*)(def + 0x14);
     if (*(u32*)(def + 8) & 0x100) {
         flags |= 0x20000;
     }
@@ -242,25 +253,23 @@ int fn_800C38C0(void* a, void* objv)
         flags |= 0x20000;
     }
     if (lbl_80343F3C != 0) {
-        fn_800C5C24(0, obj, a);
+        fn_800C5C24(*(f32*)(def + 4), 0, obj, a);
     }
-    v14 = *(u16*)(def + 0x14);
-    v16 = *(s16*)(def + 0x16);
-    v1c = *(void**)(def + 0x1c);
-    fn_800C5598(0, tex, v16, v14, flags, hi, a, v1c);
+    fn_800C5598(0, tex, v25, v24, flags, hi, a, v1c, obj);
     pcount = *(int*)(def + 0xc) - 1;
-    if (pcount == 0) {
-        return 0;
+    if (pcount != 0) {
+        prim = *(u8**)(def + 0x18);
+        stride = *(u16*)(def + 0x10);
+        do {
+            u32 tx;
+            v1c += stride << 4;
+            tx = pbObjTexSub(obj, *(u16*)(prim + 2), hi, &flags);
+            stride = *(u16*)(prim + 0);
+            fn_800C5598(0, tx, *(s16*)(prim + 6), *(u16*)(prim + 4), flags, hi,
+                        0, v1c, 0);
+            prim += 8;
+        } while (--pcount != 0);
     }
-    prim = *(u8**)(def + 0x18);
-    v16 = *(u16*)(def + 0x10);
-    do {
-        v1c = (u8*)v1c + (v16 << 4);
-        tex = pbObjTexSub(obj, *(u16*)(prim + 2), hi, &flags);
-        fn_800C5598(0, tex, *(s16*)(prim + 6), *(u16*)(prim + 4), flags, hi, 0, v1c);
-        v16 = *(u16*)(prim + 0);
-        prim += 8;
-    } while (--pcount != 0);
     return 0;
 }
 
@@ -292,35 +301,28 @@ static u32 pbObjTexSub(void* objv, int lo, int hi, u32* flags)
 
 /* Upload an object's textures, retrying once via a cache flush; fatal if the
  * texture set will not fit a page. */
-int pbSendObjTextures(void* objv)
+int pbSendObjTextures(u8* obj)
 {
-    u8* obj = (u8*)objv;
-    PBObjDebug* d;
-    int tex;
-    int shift;
+    int tex = 1;
+    int shift = -1;
     int isTexShift;
-    s16 t;
 
-    d = lbl_80343F40;
-    d->step = 2;
-    d->obj = obj;
-    if (*(void**)(*(u8**)(obj + 0x70) + 0x2c) == 0) {
-        d->defName = lbl_801167A4;
-    }
+    lbl_80343F40->step = 2;
+    lbl_80343F40->obj = obj;
+    lbl_80343F40->defName = *(char**)(*(u8**)(obj + 0x70) + 0x2c)
+                                ? *(char**)(*(u8**)(obj + 0x70) + 0x2c)
+                                : lbl_801167A4;
     if (lbl_80343F40->state != 0) {
         pbDebugObjSStep(obj, 2);
     }
 
-    shift = -1;
-    isTexShift = 1;
-    t = *(s16*)(obj + 0x5c);
-    switch (t) {
+    switch (*(s16*)(obj + 0x5c)) {
+    case -1:
+        isTexShift = 1;
+        break;
     case -2:
         shift = *(int*)(obj + 0x58);
         isTexShift = 0;
-        break;
-    case -1:
-        isTexShift = 1;
         break;
     case -4:
         shift = *(int*)(obj + 0x58);
@@ -336,8 +338,7 @@ int pbSendObjTextures(void* objv)
         break;
     }
 
-    tex = 0;
-    if ((shift + 0x10000) != 0xffff) {
+    if ((u32)(shift + 0x10000) != 0xffff) {
         tex = fn_800C7558(shift);
         if (tex == 0) {
             fn_800C1120(0);
@@ -350,7 +351,7 @@ int pbSendObjTextures(void* objv)
         if (tex == 0) {
             tex = 1;
             fn_800C1120(0);
-            if ((shift + 0x10000) != 0xffff) {
+            if ((u32)(shift + 0x10000) != 0xffff) {
                 tex = fn_800C7558(shift);
             }
             if (tex != 0) {
@@ -370,49 +371,44 @@ int pbSendObjTextures(void* objv)
 }
 
 /* Confirm every texture referenced by an object def is resident. */
-static int pbSendObjTexturesSub(int idx, void* defv)
+static int pbSendObjTexturesSub(int idx, u8* def)
 {
-    u8* def = (u8*)defv;
-    u8* slot;
-    int count;
     u8* list;
+    int tt;
     int hi;
-    s16 tt;
+    int count;
+    PBObjSlot* t;
 
-    slot = (u8*)gWinGlobals->dbg2 + idx * 0x10;
-    if (*(int*)(slot + 0x10) != 0) {
+    t = (PBObjSlot*)gWinGlobals->dbg2;
+    if (t[idx + 1].f0 != 0) {
+        return 1;
+    }
+    if (*(int*)(def + 0xc) == 0) {
         return 1;
     }
     count = *(int*)(def + 0xc);
-    if (count == 0) {
-        return 1;
-    }
     tt = *(u16*)(def + 0x12);
-    list = *(u8**)(def + 0x18);
     hi = idx << 16;
-    for (;;) {
-        int r;
+    list = *(u8**)(def + 0x18);
+    do {
         if (tt < 0) {
             tt = 0;
         }
-        r = fn_800C7558(tt | hi);
-        if (r == 0) {
+        tt |= hi;
+        if (fn_800C7558(tt) == 0) {
             return 0;
         }
         tt = *(u16*)(list + 2);
         list += 8;
-        if (--count == 0) {
-            return 1;
-        }
-    }
+    } while (--count != 0);
+    return 1;
 }
 
 /* Interactive object-draw debug single-stepper. */
-void pbDebugObjSStep(void* objv, int state)
+void pbDebugObjSStep(u8* obj, int state)
 {
-    u8* obj = (u8*)objv;
     char* names = lbl_801165B8;
-    void** nameTab = &lbl_80128190[state];
+    void** nameTab;
     u32 t0;
     int held;
 
@@ -421,44 +417,43 @@ void pbDebugObjSStep(void* objv, int state)
         if (lbl_80343F40->state < 4) {
             return;
         }
-        break;
     case 3:
         if (lbl_80343F40->state < 3) {
             return;
         }
-        break;
     case 4:
         if (lbl_80343F40->state < 2) {
             return;
         }
-        break;
-    default:
+    case 5:
         break;
     }
 
+    t0 = pbGetTime();
+    nameTab = &lbl_80128190[state];
     for (;;) {
-        t0 = pbGetTime();
         do {
-            held = fn_800C1148(names + 0x218, 1, 0, 0);
+            held = fn_800C1148(1, 0, names + 0x218);
             if (held == 0) {
                 return;
             }
-        } while ((pbGetTime() - t0) <= 0x23c34600);
+        } while ((u32)(pbGetTime() - t0) <= 0x23C34600);
         t0 = pbGetTime();
         bulletproof_printf(names + 0x230);
         bulletproof_printf(names + 0x24c,
-                           (state <= 6) ? *(char**)nameTab : lbl_80348F38);
+                           (state <= 6) ? *(char**)nameTab : "???");
         bulletproof_printf(names + 0x25c, obj);
         bulletproof_printf(names + 0x270, *(void**)(obj + 0x6c));
-        if (*(void**)(*(u8**)(obj + 0x70) + 0x2c) != 0) {
-            bulletproof_printf(names + 0x284);
+        if (*(char**)(*(u8**)(obj + 0x70) + 0x2c) != 0) {
+            bulletproof_printf(names + 0x284,
+                               *(char**)(*(u8**)(obj + 0x70) + 0x2c));
         }
         bulletproof_printf(names + 0x294);
-        bulletproof_printf(names + 0x2ac, (held & 0x10) ? lbl_80348F3C : lbl_80348F44);
-        bulletproof_printf(names + 0x2bc, (held & 0x08) ? lbl_80348F3C : lbl_80348F44);
-        bulletproof_printf(names + 0x2cc, (held & 0x04) ? lbl_80348F3C : lbl_80348F44);
-        bulletproof_printf(names + 0x2dc, (held & 0x02) ? lbl_80348F3C : lbl_80348F44);
-        bulletproof_printf(names + 0x2ec, (held & 0x01) ? lbl_80348F3C : lbl_80348F44);
+        bulletproof_printf(names + 0x2ac, (held & 0x10) ? "busy" : "idle");
+        bulletproof_printf(names + 0x2bc, (held & 0x08) ? "busy" : "idle");
+        bulletproof_printf(names + 0x2cc, (held & 0x04) ? "busy" : "idle");
+        bulletproof_printf(names + 0x2dc, (held & 0x02) ? "busy" : "idle");
+        bulletproof_printf(names + 0x2ec, (held & 0x01) ? "busy" : "idle");
         bulletproof_printf(names + 0x2fc);
     }
 }

@@ -60,7 +60,8 @@
  *                                  Global (weapon/targeting callers).
  *   do_enemy_move     0x80044664 - central per-enemy move + collision commit,
  *                                  called by every move_logicNN and do_enemies
- *                                  (28 callers). Local.
+ *                                  (28 callers). Local. REAL BODY BELOW
+ *                                  (829/905 insns, Ghidra-driven draft).
  *   do_enemy_collide  0x80045488 - collision core called by do_enemy_move;
  *                                  drives the EnemyCollide* helpers. Local.
  *   EnemyWorldDamage  0x80045FE4 - enemy-vs-world-object damage/push
@@ -103,6 +104,432 @@
 s32 find_enemy_slot(s32 type, s32 level);
 void kill_enemy(s32 index);
 void uncouple_enemy(s32 index);
+void do_enemy_move(s32 index);
+
+/* --- same-TU statics not yet reconstructed (extern until written) --- */
+extern s32 do_enemy_collide(s32 index);
+extern void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm);
+extern void fn_80046140(s32 index);                 /* generator-contact retreat */
+extern s32 fn_8004646C(f32 rad, f32 hht, s32 index, f32* oldc, f32* newc,
+                       f32* newc2, s32* hitWorld);  /* enemy-vs-enemy probe */
+extern s32 fn_80046680(f32 rad, s32 index, s32 b, f32* oldc,
+                       f32* newc);                  /* generator-contact probe */
+extern s32 fn_8004CFAC(f32* pos, f32* target);      /* turn direction (route) */
+extern s32 fn_8004D030(s32 index, s32 ticks);       /* set dead_end/turn timer */
+
+/* --- cross-module callees --- */
+extern f32 fn_800BCB44(f32 x, f32 z);               /* 2D magnitude */
+extern void fn_8005A65C(f32* worldmat, f32* coll_offset); /* refresh coll_pos */
+extern s32 fn_80097790(s32 fx, s32 b);              /* special-fx move tick */
+extern void* fn_8000D1E0(f32* from, f32* to, f32* hitnrm); /* world probe */
+extern s32 fn_8000D034(f32 rad, f32* pos, f32* trans, f32* hitnrm, f32* out);
+                                                    /* wall slide/deflect */
+extern s32 fn_8005D20C(s32 index, f32* oldc, f32* newc, s32 moved);
+                                                    /* player collide + damage */
+extern void fn_800BD050(f32* mat, f32* pyr);        /* pyr -> rotation matrix */
+extern void fn_800BE8C8(f32* mat, f32* worldmat);   /* apply to objgrp matrix */
+extern void fn_800BA368(struct mbnode* n, s32 a, s32 b); /* node show/update */
+extern void fn_800BA2C4(struct mbnode* n, s32 a, s32 b); /* node update */
+
+/* --- module data shared with other enemy helpers --- */
+extern s32 lbl_8034457C;      /* frame ticks (game speed units this frame) */
+extern f32 lbl_80344590;      /* knockback integration scale */
+extern f32 lbl_80344720;      /* current retreat/turn base angle */
+extern void* lbl_80344730;    /* last worldobj hit by an enemy move */
+extern u8 gGenerators[];      /* 0x80275AE0: four 0x335C generator records */
+extern f32 lbl_802510F4[3];   /* world-probe hit normal (module scratch) */
+extern f32 lbl_8023CAA8[3];   /* wall-slide output vector (module scratch) */
+
+/* do_enemy_move @0x80044664 (LOCAL; 28 callers: every move_logicNN + the
+ * milestone/AI helpers).  Commits the enemy's per-frame translation
+ * (e->trans, plus scaled knockback e->pushed), then resolves, in order:
+ * generator contact (full revert + retreat), enemy-vs-enemy contact
+ * (half-step or push transfer, wall deflection via the world probe),
+ * player contact (full revert + per-algorithm turn logic), then rebuilds
+ * the object matrix from pyr and services the shadow node and the
+ * stuck-walk watchdog.  Transcribed from the GC asm/decompile (905 insns);
+ * NonMatching draft - structure and field usage verified against
+ * include/game/enemy.h offsets. */
+void do_enemy_move(s32 index)
+{
+    Enemy* e = &gEnemies[index];
+    s32 alg = e->algorithm;
+    f32 rad = e->rad;
+    f32 hht = e->hht;
+    s32 blocked = 0;
+    s32 hitWorld;
+    s32 collide;
+    s32 result;
+    Enemy* other;
+    f32* gen;
+    f32 oldpos[3];
+    f32 oldc[3];
+    f32 newc[3];
+    f32 half[3];
+    f32 mat[16];
+
+    /* stun freeze + knockback integration */
+    if (e->stun_timer > 0) {
+        e->stun_timer -= lbl_8034457C;
+        e->trans[0] = 0.0f;
+        e->trans[1] = 0.0f;
+        e->trans[2] = 0.0f;
+    }
+    if (e->action >= 28) {
+        e->trans[0] = 0.0f;
+        e->trans[1] = 0.0f;
+        e->trans[2] = 0.0f;
+    }
+    e->trans[0] += e->pushed[0] * lbl_80344590;
+    e->trans[1] += e->pushed[1] * lbl_80344590;
+    e->trans[2] += e->pushed[2] * lbl_80344590;
+    if (fn_800BCB44(e->trans[0], e->trans[2]) > 0.001) {
+        e->moved = 1;
+    } else {
+        e->moved = 0;
+    }
+
+    collide = do_enemy_collide(index);
+
+    /* commit the move to the world matrix + collision point */
+    oldpos[0] = e->objgrp.worldmat[3][0];
+    oldpos[1] = e->objgrp.worldmat[3][1];
+    oldpos[2] = e->objgrp.worldmat[3][2];
+    e->objgrp.worldmat[3][0] += e->trans[0];
+    e->objgrp.worldmat[3][1] += e->trans[1];
+    e->objgrp.worldmat[3][2] += e->trans[2];
+    oldc[0] = e->objgrp.coll_pos[0];
+    oldc[1] = e->objgrp.coll_pos[1];
+    oldc[2] = e->objgrp.coll_pos[2];
+    newc[0] = oldc[0] + e->trans[0];
+    newc[1] = oldc[1] + e->trans[1];
+    newc[2] = oldc[2] + e->trans[2];
+
+    /* generator contact: full revert + retreat toward the generator */
+    if (e->visactive != 0) {
+        e->coll_pnum = fn_80046680((f32)(0.5 + rad), index, 0, oldc, newc);
+    } else {
+        e->coll_pnum = -1;
+    }
+    if (e->coll_pnum >= 0) {
+        e->coll_enenum = -1;
+        e->coll_ip = 0;
+        e->moved = 0;
+        e->objgrp.worldmat[3][0] = oldpos[0];
+        e->objgrp.worldmat[3][1] = oldpos[1];
+        e->objgrp.worldmat[3][2] = oldpos[2];
+        e->trans[0] = 0.0f;
+        e->trans[1] = 0.0f;
+        e->trans[2] = 0.0f;
+        fn_8005A65C(&e->objgrp.worldmat[0][0], e->coll_offset);
+        gen = (f32*)(gGenerators + e->coll_pnum * 0x335C + 0x44);
+        e->route = fn_8004CFAC(&e->objgrp.worldmat[3][0], gen);
+        fn_80046140(index);
+    } else {
+        hitWorld = 0;
+        if (e->type == E_DEATH && e->specialfx >= 0) {
+            e->specialfx = fn_80097790(e->specialfx, 0);
+        }
+        if (e->attack_timer > 0) {
+            s32 t = e->attack_timer - lbl_8034457C;
+            e->attack_timer = t;
+            if (t <= 0) {
+                e->attack_timer = 0;
+            }
+        }
+        if (collide == 0) {
+            e->coll_enenum = fn_8004646C(rad, hht, index, oldc, newc, newc, &hitWorld);
+        } else {
+            e->coll_enenum = fn_8004646C(rad, hht, index, oldc, newc, newc, 0);
+        }
+        if (e->coll_enenum >= 0) {
+            /* hit another enemy */
+            e->coll_ip = 0;
+            other = 0;
+            if (e->coll_enenum < 0x10000) {
+                gEnemies[e->coll_enenum].coll_enenum = index;
+                other = &gEnemies[e->coll_enenum];
+            }
+            if (hitWorld != 0) {
+                /* the probe clipped the move against the world: retry the
+                 * clipped translation against world objects */
+                e->trans[0] = newc[0] - e->objgrp.coll_pos[0];
+                e->trans[1] = newc[1] - e->objgrp.coll_pos[1];
+                e->trans[2] = newc[2] - e->objgrp.coll_pos[2];
+                half[0] = oldpos[0] + e->trans[0];
+                rad = (f32)(rad * 1.5);
+                half[1] = oldpos[1] + e->trans[1];
+                half[2] = oldpos[2] + e->trans[2];
+                lbl_80344730 = fn_8000D1E0(oldpos, half, lbl_802510F4);
+                if (lbl_80344730 == 0) {
+                    result = 0;
+                } else {
+                    EnemyWorldDamage((Enemy*)e, lbl_80344730, oldpos, lbl_802510F4);
+                    if ((*(u32*)((u8*)lbl_80344730 + 0x10) & 0x38) == 0) {
+                        if ((e->ai_flags & 1) == 0
+                            && fn_8000D034(rad, oldpos, e->trans,
+                                           lbl_802510F4, lbl_8023CAA8) < 0) {
+                            result = 2;
+                            e->trans[2] = 0.0f;
+                            e->trans[0] = 0.0f;
+                        } else {
+                            result = 1;
+                        }
+                    } else {
+                        result = 0;
+                    }
+                }
+                if (result == 0) {
+                    /* free half-step along the clipped translation */
+                    e->objgrp.worldmat[3][0] = oldpos[0] + 0.5 * e->trans[0];
+                    e->objgrp.worldmat[3][1] = oldpos[1] + 0.5 * e->trans[1];
+                    e->objgrp.worldmat[3][2] = oldpos[2] + 0.5 * e->trans[2];
+                } else {
+                    hitWorld = 0;
+                }
+            }
+            if (hitWorld == 0) {
+                if (other == 0 || e->pushmag2 <= 1.0 || e->action < 28) {
+                    /* blocked: full revert */
+                    e->moved = 0;
+                    blocked = 1;
+                    e->objgrp.worldmat[3][0] = oldpos[0];
+                    e->objgrp.worldmat[3][1] = oldpos[1];
+                    e->objgrp.worldmat[3][2] = oldpos[2];
+                    e->trans[0] = 0.0f;
+                    e->trans[1] = 0.0f;
+                    e->trans[2] = 0.0f;
+                } else {
+                    /* being knocked back: transfer half the push */
+                    other->pushed[0] = 0.5 * e->pushed[0] + other->pushed[0];
+                    other->pushed[1] = 0.5 * e->pushed[1] + other->pushed[1];
+                    other->pushed[2] = 0.5 * e->pushed[2] + other->pushed[2];
+                    other->trans[0] = 0.5 * e->trans[0];
+                    other->trans[1] = 0.5 * e->trans[1];
+                    other->trans[2] = 0.5 * e->trans[2];
+                }
+            }
+            fn_8005A65C(&e->objgrp.worldmat[0][0], e->coll_offset);
+            if (other != 0 && alg == 0) {
+                e->route = fn_8004CFAC(&e->objgrp.worldmat[3][0],
+                                       &other->objgrp.worldmat[3][0]);
+                if (e->dead_end < 1) {
+                    e->dead_end = 0x3C;
+                    if (e->daction == 3 || e->daction == 4) {
+                        e->daction = 0;
+                    }
+                }
+            } else if (other != 0
+                       && (alg == 7 || alg == 8 || alg == 10 || alg == 20)) {
+                if (e->route == 0 || abs(e->route) > 2) {
+                    e->route = fn_8004CFAC(&e->objgrp.worldmat[3][0],
+                                           &other->objgrp.worldmat[3][0]);
+                    e->collided = 0;
+                }
+                if (alg == 7) {
+                    if (abs(e->route) < 3) {
+                        e->collided++;
+                        fn_8004D030(index, 15);
+                    } else {
+                        fn_8004D030(index, 50);
+                        e->ang = lbl_80344720;
+                        e->pyr[1] = lbl_80344720;
+                        e->collided = 0;
+                        e->route = 0;
+                    }
+                    if (e->collided > 6) {
+                        e->route *= -2;
+                        e->collided = 0;
+                    }
+                } else if (alg == 8) {
+                    if (abs(e->route) < 3) {
+                        e->collided++;
+                        fn_8004D030(index, 10);
+                    } else {
+                        fn_8004D030(index, 60);
+                        e->ang = lbl_80344720;
+                        e->pyr[1] = lbl_80344720;
+                        e->collided = 0;
+                        e->route = 0;
+                    }
+                    if (e->collided > 6) {
+                        e->route *= -2;
+                        e->collided = 0;
+                    }
+                } else if (alg == 10) {
+                    if (abs(e->route) < 3) {
+                        e->collided++;
+                        fn_8004D030(index, 15);
+                    } else {
+                        fn_8004D030(index, 50);
+                        e->ang = lbl_80344720;
+                        e->pyr[1] = lbl_80344720;
+                        e->collided = 0;
+                        e->route = 0;
+                    }
+                    if (e->collided > 6) {
+                        e->route *= -2;
+                        e->collided = 0;
+                    }
+                } else if (alg == 20) {
+                    if (abs(e->route) < 3) {
+                        e->collided++;
+                        fn_8004D030(index, 10);
+                    } else {
+                        f64 a;
+                        fn_8004D030(index, 30);
+                        e->ang = 3.14159265358979 + lbl_80344720;
+                        a = e->ang;
+                        if (a > 3.14159265358979) {
+                            a -= 6.28318530717958;
+                        } else if (a <= -3.14159265358979) {
+                            a += 6.28318530717958;
+                        }
+                        e->ang = a;
+                        e->pyr[1] = a;
+                        e->collided = 0;
+                        e->route = 0;
+                    }
+                    if (e->collided > 6) {
+                        e->route *= -2;
+                        e->collided = 0;
+                    }
+                }
+            } else {
+                if (e->dead_end < 1) {
+                    e->dead_end = 0x14;
+                }
+            }
+            e->area = 2;
+        }
+        if (blocked == 0
+            && fn_8005D20C(index, oldc, newc, e->moved) != 0) {
+            /* hit a player: full revert + per-algorithm turn logic */
+            e->moved = 0;
+            blocked = 1;
+            e->objgrp.worldmat[3][0] = oldpos[0];
+            e->objgrp.worldmat[3][1] = oldpos[1];
+            e->objgrp.worldmat[3][2] = oldpos[2];
+            e->trans[0] = 0.0f;
+            e->trans[1] = 0.0f;
+            e->trans[2] = 0.0f;
+            fn_8005A65C(&e->objgrp.worldmat[0][0], e->coll_offset);
+            if (alg == 0) {
+                if (*(s32*)((u8*)e->coll_ip + 0x64) != 0) {
+                    e->route = fn_8004CFAC(&e->objgrp.worldmat[3][0],
+                                           (f32*)((u8*)e->coll_ip + 0x34));
+                }
+                if (e->dead_end < 1) {
+                    e->dead_end = 0x3C;
+                    if (e->daction == 3 || e->daction == 4) {
+                        e->daction = 0;
+                    }
+                }
+            } else if (alg == 7 || alg == 8 || alg == 10 || alg == 20) {
+                if (*(s32*)((u8*)e->coll_ip + 0x64) == 0) {
+                    if (e->dead_end < 1) {
+                        e->dead_end = 0x14;
+                    }
+                } else {
+                    if (e->route == 0 || abs(e->route) > 2) {
+                        e->route = fn_8004CFAC(&e->objgrp.worldmat[3][0],
+                                               (f32*)((u8*)e->coll_ip + 0x34));
+                        e->collided = 0;
+                    }
+                    if (alg == 7 || alg == 8 || alg == 10) {
+                        if (abs(e->route) < 3) {
+                            e->collided++;
+                            fn_8004D030(index, 15);
+                        } else {
+                            fn_8004D030(index, 15);
+                            e->ang = lbl_80344720;
+                            e->pyr[1] = lbl_80344720;
+                            e->collided = 0;
+                            e->route = 0;
+                        }
+                        if (e->collided > 6) {
+                            e->route *= -2;
+                            e->collided = 0;
+                        }
+                    } else if (alg == 20) {
+                        if (abs(e->route) < 3) {
+                            e->collided++;
+                            fn_8004D030(index, 15);
+                        } else {
+                            f64 a;
+                            fn_8004D030(index, 15);
+                            e->ang = 3.14159265358979 + lbl_80344720;
+                            a = e->ang;
+                            if (a > 3.14159265358979) {
+                                a -= 6.28318530717958;
+                            } else if (a <= -3.14159265358979) {
+                                a += 6.28318530717958;
+                            }
+                            e->ang = a;
+                            e->pyr[1] = a;
+                            e->collided = 0;
+                            e->route = 0;
+                        }
+                        if (e->collided > 6) {
+                            e->route *= -2;
+                            e->collided = 0;
+                        }
+                    }
+                }
+            } else {
+                if (e->dead_end < 1) {
+                    e->dead_end = 0x14;
+                }
+            }
+            e->area = 3;
+        }
+        if (blocked == 0) {
+            if (alg == 0 && e->dead_end < 1) {
+                e->route = 1;
+                e->collided = 0;
+            } else if (alg == 2 || alg == 4) {
+                e->play--;
+                if (e->play < 1) {
+                    e->count = 0;
+                }
+            }
+        }
+    }
+
+    /* rebuild the object matrix + service the shadow node */
+    if (e->state != 0) {
+        if (e->pushmag2 > 0.1) {
+            e->pyr[1] = e->pushang;
+        }
+        fn_800BD050(mat, e->pyr);
+        fn_800BE8C8(mat, &e->objgrp.worldmat[0][0]);
+        if (e->shadow != 0) {
+            *(f32*)((u8*)e->shadow + 0x30) = e->objgrp.worldmat[3][0];
+            *(f32*)((u8*)e->shadow + 0x34) = e->objgrp.worldmat[3][1];
+            *(f32*)((u8*)e->shadow + 0x38) = e->objgrp.worldmat[3][2];
+            if (e->action == 1) {
+                fn_800BA368(e->shadow, 2, 0);
+            } else {
+                fn_800BA2C4(e->shadow, 2, 0);
+            }
+        }
+    }
+
+    /* stuck-walk watchdog */
+    if (e->moved == 0
+        && (e->action == 3 || e->action == 4 || e->action == 0)) {
+        e->stopped += (s16)lbl_8034457C;
+    } else {
+        e->stopped = 0;
+    }
+    if (e->stopped > 0xB4) {
+        e->stopped = 0;
+    }
+    if (e->stopped > 0x3C && (e->daction == 3 || e->daction == 4)
+        && alg != 18 && e->type != E_GOLEM) {
+        e->daction = 0;
+    }
+}
 
 /* uncouple_enemy: detach enemy `index` from its generator's spawn list.
  * The prev_enemy/next_enemy relink below is transcribed from the verified GC
