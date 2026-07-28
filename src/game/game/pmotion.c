@@ -22,8 +22,8 @@
 /* player records                                                      */
 /* ------------------------------------------------------------------ */
 
-extern Player lbl_80275AE0[]; /* gPlayerRecords[4], stride 0x335C */
-#define gPlayerRecords lbl_80275AE0
+extern Player gPlayers[]; /* gPlayerRecords[4], stride 0x335C */
+#define gPlayerRecords gPlayers
 #define PREC_STRIDE 0x335C
 #define PF(p, off, T) (*(T*)((u8*)(p) + (off)))
 
@@ -31,9 +31,9 @@ extern Player lbl_80275AE0[]; /* gPlayerRecords[4], stride 0x335C */
 /* extern globals (.sbss/.sdata runtime state)                         */
 /* ------------------------------------------------------------------ */
 
-extern s32 lbl_8034477C;   /* game state (0x4010 = in-game) */
+extern s32 gGameMode;   /* game state (0x4010 = in-game) */
 extern f32 lbl_8034458C;   /* frame delta (float) */
-extern s32 lbl_8034457C;   /* frame delta (int) */
+extern s32 gFrameTicks;   /* frame delta (int) */
 extern s32 lbl_803447B8;   /* pause/menu depth */
 extern s32 lbl_803447E4;   /* hit-something flag */
 extern void* lbl_80344B2C; /* world root node */
@@ -73,7 +73,7 @@ extern void MBTreeSetAlpha(void* node, s32 alpha, s32 mode);
 extern void* fn_8005B8B0(Player* p);
 extern s32 PointVisible(f32 y, f32* pos);
 extern void fn_8009C98C(f32* pos);
-extern f32 lbl_8023CAE0[]; /* transporter table (0x34 = target height) */
+extern f32 gFloorCollisionResult[]; /* transporter table (0x34 = target height) */
 
 /* Player-motion transform context (arg to PlayerNewFloor / collision fns):
  * a 3x3-ish orient block at 0x10 and the current floor WorldObj* at 0x44. */
@@ -275,7 +275,7 @@ s32 DoTransporter(Player* p, f32* pos, f32* out, f32 a) {
     s32 timer = PF(p, 0x940, s32);
 
     if (timer > 0) {
-        s32 t = timer - lbl_8034457C * 2;
+        s32 t = timer - gFrameTicks * 2;
         PF(p, 0x940, s32) = t;
         if (t < 0) {
             PF(p, 0x940, s32) = 0;
@@ -294,7 +294,7 @@ s32 DoTransporter(Player* p, f32* pos, f32* out, f32 a) {
             FloorCollide(a, 4.0f, -10.0f, local, NULL, 0, 1);
             out[0] = local[0] - pos[0];
             out[2] = local[2] - pos[2];
-            out[1] = lbl_8023CAE0[13] - PF(p, 0x48, f32);
+            out[1] = gFloorCollisionResult[13] - PF(p, 0x48, f32);
             PF(p, 0x93C, s32) = 1;
             msgPost(9, p->index, (u32)&p->col_pos);
             return 2;
@@ -338,11 +338,11 @@ void DoExit(Player* p) {
 
     if (!exiting && sumnerSpeechActive() == 0 && lbl_803443B4 == 0) {
         if (lbl_80344808 != 0) {
-            p->idle_timer += lbl_8034457C;
+            p->idle_timer += gFrameTicks;
         } else if (fn_8005B8FC(p) != 0) {
             if (lbl_80344804 != 0 ||
                 0.0 == (f64)lbl_80240E30[p->index * 15 + 8]) {
-                p->idle_timer += lbl_8034457C;
+                p->idle_timer += gFrameTicks;
             }
         } else {
             p->idle_timer = 0;
@@ -432,7 +432,7 @@ STUB(0x80088068, PlayerCollideFloor)
 
 int PlayerCheckMovingFloor(Player* p) {
     f32 drop = -(3.0 + (f64)PF(p, 0x854, f32));
-    if (lbl_8034477C == 0x4010) {
+    if (gGameMode == 0x4010) {
         PF(p, 0x8C4, u32) = FloorCollide(PF(p, 0x850, f32), 0.0f, drop,
             (f32*)((u8*)p + 0x44), NULL, 1, 0);
         PF(p, 0x964, s16) |= 1;

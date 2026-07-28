@@ -49,7 +49,7 @@ extern MBTreeNode* lbl_80344EE0;
 extern s32 lbl_80344EC8;
 extern u8 lbl_802C2A28[];
 extern const f32 lbl_80348CA0;
-extern f32 lbl_80127D60[16];
+extern f32 gIdentityMatrix[16];
 extern f32 light_color[4];
 extern void* gWinGlobals;
 
@@ -653,7 +653,7 @@ MBTreeNode* MBNewNode(MBTreeNode* parent, const f32* matrix, s32 type)
     MBTreeNode* node;
 
     if (matrix == 0)
-        matrix = lbl_80127D60;
+        matrix = gIdentityMatrix;
     if (type == 0)
         type = 1;
 
@@ -690,7 +690,7 @@ MBTreeNode* MBNewNode(MBTreeNode* parent, const f32* matrix, s32 type)
 void MBNodeInit(MBTreeNode* node, s32 type)
 {
     node->type = type;
-    CopyMat4(lbl_80127D60, (f32*)node);
+    CopyMat4(gIdentityMatrix, (f32*)node);
     node->scale[0] = light_color[0];
     node->scale[1] = light_color[1];
     node->scale[2] = light_color[2];

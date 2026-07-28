@@ -89,7 +89,7 @@ extern void fn_80053C70(void);
 extern void fn_80054E68(int a);
 extern void fn_8005638C(int a);
 extern int init_next_level_8005638C(int a);
-extern int  fn_8005A260(void* a, void* b, int c, int d);
+extern int  LoadModel(void* a, void* b, int c, int d);
 extern void fn_80057024(void);
 extern int  NextAttractWave(void);
 extern void fn_8002CF78(int a);
@@ -130,7 +130,7 @@ static char* attract_screen_name(int kind);
 
 /* 64-bit attract flag word at 0x803445C8 (its low half aliases sFlags).
  * Masked tests compile to the and/and/xor/xor/or. long-long idiom. */
-#define ATTRACT_FLAGS64 lbl_803445C8
+#define ATTRACT_FLAGS64 gControllerButtons
 
 /* ------------------------------------------------------------------ */
 /* Module state (real globals live in .sdata/.sbss; kept file-local    */
@@ -152,7 +152,7 @@ extern int  lbl_80118200[];
 extern char lbl_80111238[];
 extern char lbl_80126A98[];
 extern char lbl_80110900[];
-extern char lbl_80127D60[];
+extern char gIdentityMatrix[];
 extern char lbl_80118188[];
 extern char lbl_801111B8[];
 extern char lbl_80111278[];
@@ -219,10 +219,10 @@ int lbl_80344298;
 int lbl_80344204;
 unsigned int lbl_80344208;
 int lbl_80344218;
-int lbl_8034457C;
-int lbl_80344568;
+int gFrameTicks;
+int gGameBusy;
 int lbl_80344578;
-long long lbl_803445C8;
+long long gControllerButtons;
 int lbl_80344778;
 int lbl_80344794;
 int lbl_803447C0;
@@ -292,9 +292,9 @@ void init_titlescreen(void) {
     if (lbl_80343B38 < 0) {
         fn_80053B20();
         sndFxInit(0x8009, -1);
-        fn_800B8DD0(base + 2232, lbl_80127D60, 0, 0);
+        fn_800B8DD0(base + 2232, gIdentityMatrix, 0, 0);
         bulletproof_printf(base + 2244);
-        lbl_80343B38 = fn_8005A260((void*)lbl_803458B4, 0, 1, -1);
+        lbl_80343B38 = LoadModel((void*)lbl_803458B4, 0, 1, -1);
     } else {
         sndFxInit(0x8009, -3);
     }
@@ -358,16 +358,16 @@ void do_credits(void) {
         DrawText(292, 340, fontFlag, 0xFFFF80, lbl_80111238, lbl_80126A98);
     }
 
-    if (lbl_80344568 == 0) {
+    if (gGameBusy == 0) {
         done = scroll_credits();
-        lbl_80344778 += lbl_8034457C;
+        lbl_80344778 += gFrameTicks;
     }
 
     if (AudioSysUpdate(0x186A0) != 0) {
         done = -1;
     }
 
-    if (lbl_80344298 == 0 && lbl_80344568 == 0) {
+    if (lbl_80344298 == 0 && gGameBusy == 0) {
         flags = ATTRACT_FLAGS64;
         if ((flags & 4) == 0 &&
             done >= 0 && (lbl_80344778 >= 5400 || done != 0)) {
@@ -458,9 +458,9 @@ void init_credits(void) {
     lbl_80343B10 = -1;
     lbl_80343B08 = -1;
     sndFxInit(0x8000, -1);
-    fn_800B8DD0(base + 2232, lbl_80127D60, 0, 0);
+    fn_800B8DD0(base + 2232, gIdentityMatrix, 0, 0);
     init_next_level_8005638C(-1);
-    lbl_80344258 = fn_8005A260((void*)lbl_803458D4, 0, 1, -1);
+    lbl_80344258 = LoadModel((void*)lbl_803458D4, 0, 1, -1);
     FontInitSpecial((void*)lbl_803458D4, 8);
     AudioSelectReset();
     lbl_80344298 = 0;
@@ -508,7 +508,7 @@ void do_screen2d(void) {
 
     MBOX_FindTexture(base + 2400, 0);
     state = lbl_80344298;
-    delta = lbl_8034457C;
+    delta = gFrameTicks;
     lbl_8034422C += delta;
 
     if (state != 0) {
@@ -520,7 +520,7 @@ void do_screen2d(void) {
     }
 
     lbl_80344228 -= delta;
-    if (state == 0 && lbl_80344568 == 0 && (ATTRACT_FLAGS64 & 4) == 0 &&
+    if (state == 0 && gGameBusy == 0 && (ATTRACT_FLAGS64 & 4) == 0 &&
         lbl_80344234 != 0 && lbl_80344228 <= 0) {
         lbl_80344298 = 1;
     }
@@ -559,7 +559,7 @@ int init_screen2d(int a, int slot) {
     lbl_80343B10 = -1;
     lbl_80343B08 = -1;
     sndFxInit(0x8004, -2);
-    fn_800B8DD0(lbl_801111B8, lbl_80127D60, 0, 0);
+    fn_800B8DD0(lbl_801111B8, gIdentityMatrix, 0, 0);
 
     if (slot == 0) {
         lbl_803441FC = 1;
@@ -574,7 +574,7 @@ int init_screen2d(int a, int slot) {
     lbl_80344238 = lbl_80343B14;
     so = slot * 320;
     p = base + so + 232;
-    lbl_80344224 = fn_8005A260(p + lbl_80344238 * 80, 0, 0, -1);
+    lbl_80344224 = LoadModel(p + lbl_80344238 * 80, 0, 0, -1);
     if (*(int*)(base + so + lbl_80344238 * 80 + 288) >= 0) {
         FontInitSpecial((void*)lbl_803458DC, 8);
     }
@@ -653,10 +653,10 @@ int do_movie(void) {
         return 1;
     }
 
-    if (lbl_80344568 == 0 && (ATTRACT_FLAGS64 & 8) == 0 && lbl_80344298 == 0) {
+    if (gGameBusy == 0 && (ATTRACT_FLAGS64 & 8) == 0 && lbl_80344298 == 0) {
         lbl_80344298 = 1;
         flag = 2;
-        lbl_80344778 += lbl_8034457C;
+        lbl_80344778 += gFrameTicks;
     }
 
     if (lbl_80344298 != 0) {
@@ -673,7 +673,7 @@ int do_movie(void) {
         return 1;
     }
 
-    if (lbl_80344298 == 0 && lbl_80344568 == 0 && flag == 2) {
+    if (lbl_80344298 == 0 && gGameBusy == 0 && flag == 2) {
         lbl_80344298 = 1;
     }
     lbl_80344218 = 31;

@@ -144,7 +144,7 @@ extern f32 floorf(f32 value);
 extern PADStatus* G3DGetPadStatusBuffer(void);
 extern void __dl__FPv(void* object);
 extern u8 lbl_80296450[];
-extern const char lbl_80127D60[]; /* render-node name block used by MBInitBlits */
+extern const char gIdentityMatrix[]; /* render-node name block used by MBInitBlits */
 extern MBTextureDef* MBRomTexPtr(s32 texture);
 extern u32 __cvt_fp2unsigned(f32 value);
 extern MBWindow* gWinGlobals;
@@ -578,7 +578,7 @@ void MBInitBlits(int makeNodes) {
     blitCount = 0;
 
     if (makeNodes) {
-        n = (MBNODE*)MBNewNode(0, lbl_80127D60, 13);
+        n = (MBNODE*)MBNewNode(0, gIdentityMatrix, 13);
         if (n != 0) {
             n->flags = 0;
             n->blits = 0;
@@ -586,7 +586,7 @@ void MBInitBlits(int makeNodes) {
         }
         gDiag_DEC = n;
         n->flags |= 4;
-        n = (MBNODE*)MBNewNode(0, lbl_80127D60, 13);
+        n = (MBNODE*)MBNewNode(0, gIdentityMatrix, 13);
         if (n != 0) {
             n->flags = 0;
             n->blits = 0;
@@ -594,7 +594,7 @@ void MBInitBlits(int makeNodes) {
         }
         defaultBlitList = n;
         n->flags |= 4;
-        n = (MBNODE*)MBNewNode(0, lbl_80127D60, 13);
+        n = (MBNODE*)MBNewNode(0, gIdentityMatrix, 13);
         if (n != 0) {
             n->flags = 0;
             n->blits = 0;

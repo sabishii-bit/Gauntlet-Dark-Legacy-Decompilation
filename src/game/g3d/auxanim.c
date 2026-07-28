@@ -55,7 +55,7 @@ extern void MBSetObject(void* obj, int objid);
 extern void MBTreeSetAlpha(int a, int b, int c);
 extern void MBTreeSetAltTex(int a, int b, int c, int d);
 extern void MBTreeSetUVScaleAdd(float a, float b, float c, float d, int handle, int flag);
-extern int fn_800B8E94(OANIM* node, int a, int b, int c);
+extern int MBOX_ReallyFindObject(OANIM* node, int a, int b, int c);
 extern void FatalError(char* msg, int code);
 extern void ErrorPrintf(char* fmt, ...);
 
@@ -427,7 +427,7 @@ void InitOAnimList(OANIMHDR* hdr, int arg)
     i = 0;
     while (i < hdr->count) {
         if (*p != '\0') {
-            ((OANIM*)p)->tex = fn_800B8E94((OANIM*)p, arg, arg, -1);
+            ((OANIM*)p)->tex = MBOX_ReallyFindObject((OANIM*)p, arg, arg, -1);
             if (((OANIM*)p)->tex == -1) {
                 ErrorPrintf("InitOAnimList: Unable to find %s (%d)", p, i);
             }

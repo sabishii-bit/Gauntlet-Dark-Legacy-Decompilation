@@ -52,7 +52,7 @@ extern f32 lbl_8023F864[]; /* reticle world-position vec3 array (stride 3) */
 void CopyMat4(f32* src, f32* dst);
 extern f64 __frsqrte(f64 x);
 extern f64 atan2(f64 y, f64 x);
-void fn_800BD3E8(f64 angle);
+void FixAngle(f64 angle);
 
 /* in-TU forward references */
 void fn_8002C680(s32 camIdx, s32 flag);
@@ -233,7 +233,7 @@ void fn_8002C8A8(f32* a, f32* b)
     if (dy >= 0.0) {
         ang = -ang;
     }
-    fn_800BD3E8(ang);
+    FixAngle(ang);
 }
 STUB(0x8002C9A8, fn_8002C9A8)
 STUB(0x8002CF78, fn_8002CF78)

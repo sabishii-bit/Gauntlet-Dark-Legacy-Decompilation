@@ -109,7 +109,7 @@ void fn_800BCD68(void) {}
 void fn_800BCED8(void) {}
 
 /* 0x800BD050 */
-void fn_800BD050(void) {}
+void CreateYPRMatrix(void) {}
 
 /* 0x800BD154 */
 void fn_800BD154(void) {}
@@ -124,7 +124,7 @@ void fn_800BD360(void) {}
 void fn_800BD3A4(void) {}
 
 /* 0x800BD3E8 */
-void fn_800BD3E8(void) {}
+void FixAngle(void) {}
 
 /* 0x800BD428 */
 void fn_800BD428(void) {}

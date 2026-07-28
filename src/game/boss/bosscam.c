@@ -114,7 +114,7 @@ extern const f64 lbl_80345B98;        /* clip threshold (0.0) */
 extern void fn_80070968(void* camera);
 
 /* Player array (stride 0x335C) and boss gating state used by the dpos clamps */
-extern u8 lbl_80275AE0[];             /* base of the 4 player structs */
+extern u8 gPlayers[];             /* base of the 4 player structs */
 extern s32 gBossDead;
 extern s32 gBossDying;
 extern s32 gBossType;
@@ -184,7 +184,7 @@ void TriggerCameraActivate(s32 p1, f32* p2, f32* p3, s32 duration, s32 p5, s32 p
 }
 s32 CameraLimitPlayerDpos(s32 player, f32* dpos, s32 arg) {
     s32 ret = 1;
-    u8* ps = &lbl_80275AE0[player * 0x335C];
+    u8* ps = &gPlayers[player * 0x335C];
     f32 savedY = dpos[1];
 
     if (lbl_803443A8 != 0) {
@@ -376,7 +376,7 @@ static f32 GetPlayerViewDist(void* mtx) {
     s32 i;
 
     for (i = 0; i < 4; i++) {
-        u8* ps = &lbl_80275AE0[i * 0x335C];
+        u8* ps = &gPlayers[i * 0x335C];
         if (*(s32*)(ps + 0xE8) == 1) {
             pt[0] = *(f32*)(ps + 0x54) + *(f32*)(ps + 0x888);
             pt[1] = *(f32*)(ps + 0x58) + *(f32*)(ps + 0x88C);

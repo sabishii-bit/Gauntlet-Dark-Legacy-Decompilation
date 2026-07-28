@@ -119,7 +119,7 @@ extern int fn_800BC418(int a, int b);
 extern void fn_80053D08(void* a, int b, int c);
 extern void bulletproof_printf(const char* fmt, ...);
 extern void fn_80053A10(int a);
-extern f32 fn_8006366C(Vec3* a);     /* distance from listener */
+extern f32 DistanceToClosestPlayer(Vec3* a);     /* distance from listener */
 extern f32 NormalVector(Vec3* a);    /* normalize vector, return approximate length */
 extern int AudioAng(Vec3* pos);      /* position -> spatial descriptor */
 extern void AudioKillMask(int mask); /* stop voices by channel mask */
@@ -152,9 +152,9 @@ extern const char sAudioTimeoutMsg[];
 extern const char sAudioBankNotLoadedMsg[];
 
 /* raw driver-side globals kept as lbl_ (shared broadly, unnamed) */
-extern s32 lbl_8034477C; /* audio enable/pause flags (bit 0x8000 = paused) */
+extern s32 gGameMode; /* audio enable/pause flags (bit 0x8000 = paused) */
 extern void* lbl_80344290;
-extern s32 lbl_80344568;
+extern s32 gGameBusy;
 extern s32 lbl_8034481C;
 extern s32 lbl_803447D0;
 extern s32 lbl_80344B1C;
@@ -176,7 +176,7 @@ f32 sndFxQueAddEx(int mode, int soundId, f32 vol, f32 param, int pri, int track,
 int sndFxQueUpdate(void);
 
 /* Is audio currently silenced (paused and not overridden)? */
-#define sndFxPaused() ((lbl_8034477C & 0x8000) && sAudioOverride == 0)
+#define sndFxPaused() ((gGameMode & 0x8000) && sAudioOverride == 0)
 
 /* Horizontal stereo pan (-256..255) for a world position, relative to the
  * listener transform. */
@@ -214,8 +214,8 @@ static inline int sndFxComputePan(Vec3* pos)
 void sndFxInit(void* a, void* b)
 {
     lbl_80344290 = a;
-    lbl_8034477C = (s32)a;
-    lbl_80344568 = 0;
+    gGameMode = (s32)a;
+    gGameBusy = 0;
     lbl_8034481C = 0;
     lbl_803447D0 = 0;
     lbl_80344B1C = 0;
@@ -451,7 +451,7 @@ int sndFxPlay3DAtten(int soundId, Vec3* pos, int p2, int flags)
     } else {
         f32 t;
         f64 d;
-        d = fn_8006366C(pos) / 50.0;
+        d = DistanceToClosestPlayer(pos) / 50.0;
         t = 1.4 - d;
         atten = t < 0.0 ? 0.0 : t > 1.0 ? 1.0 : t;
     }

@@ -70,8 +70,8 @@ extern s32 shake_delay;     /* 0x80344488 */
 extern f32 shake_rad;       /* 0x8034448C */
 
 /* --- shared globals referenced by this window (names kept from codebase) --- */
-extern s32 lbl_8034457C;    /* integer frame delta (shared w/ auxscreen.c) */
-extern s32 lbl_80344568;    /* shake pause flag A (shared w/ sndfx.c) */
+extern s32 gFrameTicks;    /* integer frame delta (shared w/ auxscreen.c) */
+extern s32 gGameBusy;    /* shake pause flag A (shared w/ sndfx.c) */
 extern s32 lbl_80344770;    /* shake pause flag B */
 extern s32 lbl_80343BD8;    /* camera-active gate (checked by do_camera too) */
 
@@ -84,7 +84,7 @@ extern f32 lbl_803444E8;    /* blend ratio (compared vs 0.9) */
 /* --- external projection / math helpers (G3D / pb layer) --- */
 void MBWorldToScreen(f32* out_xy, void* world_pos);                   /* screen projection (INT path) */
 void MBWindowProject(void* cam, int mode, short* out_xy, void* world_pos); /* per-camera projection */
-f32  fn_800BD3E8(f32 rad);                                            /* angle wrap/reduce for sin/cos */
+f32  FixAngle(f32 rad);                                            /* angle wrap/reduce for sin/cos */
 extern f64 sin(f64 x);
 extern f64 cos(f64 x);
 
@@ -161,16 +161,16 @@ void DoShake(Vec3* posA, Vec3* posB) {
     if (!shaking) {
         return;
     }
-    if (lbl_80344568 | lbl_80344770) {
+    if (gGameBusy | lbl_80344770) {
         return;
     }
 
-    shake_delay -= lbl_8034457C;
+    shake_delay -= gFrameTicks;
     if (shake_delay < 0) {
         shaking = 0;
         shake_priority = 0;
     }
-    shake_count -= lbl_8034457C;
+    shake_count -= gFrameTicks;
     if (shake_count < 0) {
         shake_count = 0;
     }
@@ -180,7 +180,7 @@ void DoShake(Vec3* posA, Vec3* posB) {
         if (shake_count > 0) {
             break;
         }
-        angle = fn_800BD3E8((f32)(SHAKE_FREQ * (f64)shake_delay));
+        angle = FixAngle((f32)(SHAKE_FREQ * (f64)shake_delay));
         posB->x += shake_rad * (f32)cos(angle);
         posB->z += shake_rad * (f32)sin(angle);
         break;
@@ -188,7 +188,7 @@ void DoShake(Vec3* posA, Vec3* posB) {
         if (shake_count > 0) {
             break;
         }
-        angle = fn_800BD3E8((f32)(SHAKE_FREQ * (f64)shake_delay));
+        angle = FixAngle((f32)(SHAKE_FREQ * (f64)shake_delay));
         posA->x += shake_rad * (f32)cos(angle);
         posA->z += shake_rad * (f32)sin(angle);
         break;
@@ -196,7 +196,7 @@ void DoShake(Vec3* posA, Vec3* posB) {
         if (shake_count > 0) {
             break;
         }
-        angle = fn_800BD3E8((f32)(SHAKE_FREQ * (f64)shake_delay));
+        angle = FixAngle((f32)(SHAKE_FREQ * (f64)shake_delay));
         posB->x += shake_rad * (f32)cos(angle);
         posB->z += shake_rad * (f32)sin(angle);
         posA->x += shake_rad * (f32)cos(angle);
@@ -238,7 +238,7 @@ void camera_request_change(s32 value, s32 mode) {
 f32 camera_approach_yaw(void* cam, f32 target) {
     f32 cur = CAM_F32(cam, CAM_YAW_OFF);
     f32 delta = cam_wrap_pi(target - cur);
-    f32 step = (f32)(CAM_TURN_RATE_2DEG * (f64)lbl_8034457C);
+    f32 step = (f32)(CAM_TURN_RATE_2DEG * (f64)gFrameTicks);
     f32 out;
 
     if (delta >= 0.0f) {
@@ -264,7 +264,7 @@ f32 camera_lerp_yaw(f32 current, f32 target) {
     if (mag <= (f32)CAM_TURN_RATE_1DEG) {
         return cam_wrap_pi(target);
     }
-    step = (f32)(CAM_TURN_RATE_1DEG * (f64)lbl_8034457C);
+    step = (f32)(CAM_TURN_RATE_1DEG * (f64)gFrameTicks);
     if (delta >= 0.0f) {
         out = (f32)(current + step);
     } else {

@@ -103,14 +103,14 @@ typedef struct BossSpewData {
 } BossSpewData;                 /* 0x118 */
 
 extern BossSpewData lbl_801189E0;         /* 0x801189E0 spew tables */
-extern f32         lbl_80127D60[16];      /* item matrix template */
+extern f32         gIdentityMatrix[16];      /* item matrix template */
 extern s32         lbl_8034476C;          /* coin count multiplier */
 extern s32         sMusicTrackHi;         /* 0x803448D8 world index */
 extern f32         lbl_80344590;          /* physics timestep */
 extern f32         lbl_80344880;          /* ground-probe height */
 
 extern f64  FloorPos(f64 a, f64 b, void* c, u32 d);   /* ground/collision query */
-extern void fn_8005A3B8(void* p);
+extern void UpdateObjWorldMat(void* p);
 
 extern int   sprintf(char* buf, const char* fmt, ...);
 extern void  ErrorPrintf(const char* fmt, ...);
@@ -127,7 +127,7 @@ extern int  InitCustomEffect(int buf, char* name, int c, int d);
 extern int  SfxSetMorph(f32 a, int blit, int e2, int d);
 extern void fn_8009F340(f32* pos);
 extern void mbBlitInit3414(void* blit, int a);
-extern u8   lbl_80275AE0[];               /* per-slot item/rune records (0x335c) */
+extern u8   gPlayers[];               /* per-slot item/rune records (0x335c) */
 extern int  sItemFile1Buf;                /* 0x80344974 */
 extern char str_BOSSKEY;                  /* .sdata2 effect name */
 extern char str_BOSSKEY2[];               /* .rodata effect name */
@@ -135,7 +135,7 @@ extern char str_BOSSKEY2[];               /* .rodata effect name */
 extern void mbBlitProject(void* blit, int alpha, int c);
 extern void mbBlitSetupVerts(void* blit, f32 a, f32 b, f32 c, f32 d);
 extern void fn_800B2940(void* blit, u32 color);
-extern u32  lbl_8034457C;                 /* meter approach rate */
+extern u32  gFrameTicks;                 /* meter approach rate */
 
 /* ------------------------------------------------------------------ */
 /* forward decls (address order)                                      */
@@ -222,7 +222,7 @@ void BossSpewCoins(f32 v, f32* pos, f32* dir) {
                 vec[2] = dir[2] * (0.85 + Random(0.1f));
                 YawVec3(dir, vec, angle);
                 if (gNumSpewItems < 32) {
-                    CopyMat4(lbl_80127D60, mat);
+                    CopyMat4(gIdentityMatrix, mat);
                     mat[12] = pos[0];
                     mat[13] = pos[1];
                     mat[14] = pos[2];
@@ -253,7 +253,7 @@ void BossSpewCoins(f32 v, f32* pos, f32* dir) {
                 vec[2] = dir[2] * (0.8 + Random(0.1f));
                 YawVec3(dir, vec, angle);
                 if (gNumSpewItems < 32) {
-                    CopyMat4(lbl_80127D60, mat);
+                    CopyMat4(gIdentityMatrix, mat);
                     mat[12] = pos[0];
                     mat[13] = pos[1];
                     mat[14] = pos[2];
@@ -284,7 +284,7 @@ void BossSpewCoins(f32 v, f32* pos, f32* dir) {
                 vec[2] = dir[2] * (0.75 + Random(0.1f));
                 YawVec3(vec, vec, angle);
                 if (gNumSpewItems < 32) {
-                    CopyMat4(lbl_80127D60, mat);
+                    CopyMat4(gIdentityMatrix, mat);
                     mat[12] = pos[0];
                     mat[13] = pos[1];
                     mat[14] = pos[2];
@@ -365,7 +365,7 @@ void ProcessSpewItems(void) {
         }
         clampAxis(pvx, lim);
         clampAxis(pvz, lim);
-        fn_8005A3B8((char*)it->obj + 4);
+        UpdateObjWorldMat((char*)it->obj + 4);
     }
 }
 
@@ -375,7 +375,7 @@ int StartSpewItem(f32 a, int b, int c, char* name, int e, int f, void* pos, void
     if (gNumSpewItems >= 32) {
         return -1;
     }
-    CopyMat4(lbl_80127D60, mat);
+    CopyMat4(gIdentityMatrix, mat);
     mat[12] = ((f32*)pos)[0];
     mat[13] = ((f32*)pos)[1];
     mat[14] = ((f32*)pos)[2];
@@ -409,13 +409,13 @@ void HealthMeterUpdate(f32 v, int meter) {
         v = 0.0f;
     }
     if (HealthMeterValue[meter] > v) {
-        f32 nv = HealthMeterValue[meter] - (f32)(lbl_8034457C * 3);
+        f32 nv = HealthMeterValue[meter] - (f32)(gFrameTicks * 3);
         HealthMeterValue[meter] = nv;
         if (nv < v) {
             HealthMeterValue[meter] = v;
         }
     } else if (HealthMeterValue[meter] < v) {
-        f32 nv = HealthMeterValue[meter] + (f32)(lbl_8034457C * 3);
+        f32 nv = HealthMeterValue[meter] + (f32)(gFrameTicks * 3);
         HealthMeterValue[meter] = nv;
         if (v < nv) {
             HealthMeterValue[meter] = v;
@@ -524,7 +524,7 @@ void BossDeath(void) {
     StartGoodWizard();
     gBossDead = 1;
     for (i = 0, off = 0; i < 4; i++, off += 0x335c) {
-        int state = *(int*)((char*)lbl_80275AE0 + off + 232);
+        int state = *(int*)((char*)gPlayers + off + 232);
         if (state == 1 || state == 8) {
             PlayerGiveRune(i, GetWorldOrder(sMusicTrackHi));
         }

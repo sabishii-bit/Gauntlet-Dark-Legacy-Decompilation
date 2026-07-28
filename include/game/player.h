@@ -6,11 +6,11 @@
 /*
  * Player record  --  the per-player game/save state.
  *
- * GC base global : lbl_80275AE0  (.bss @ 0x80275AE0), an array [4] of Player,
+ * GC base global : gPlayers  (.bss @ 0x80275AE0), an array [4] of Player,
  *                  stride 0x335C.  Candidate name: gPlayerRecords.
  *                  (The DOL splitter broke the 0xCD70 = 4*0x335C array into the
- *                  BSS chunks lbl_80275AE0 / lbl_802764D1 / lbl_80278B8B; the
- *                  base of the whole array is lbl_80275AE0.)
+ *                  BSS chunks gPlayers / lbl_802764D1 / lbl_80278B8B; the
+ *                  base of the whole array is gPlayers.)
  *
  * Name source    : research/xbox_symbols/misc.h -- the Xbox (shell3D.pdb) dump.
  *                  The Xbox in-game record is `struct player` (0x6140) and its

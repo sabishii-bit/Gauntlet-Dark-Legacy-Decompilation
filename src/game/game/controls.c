@@ -563,13 +563,13 @@ void nuke_ctrls(void)
 
 /* 0x8003104C  does any ACTIVE player (gPlayers stride 0x335C) have a
  * new edge under mask?  (auxscreen: accept-button query) */
-extern u8 lbl_80275AE0[4][0x335C]; /* gPlayers */
+extern u8 gPlayers[4][0x335C]; /* gPlayers */
 s32 active_player_edge(u32 mask)
 {
     int i;
 
     for (i = 0; i < 4; i++) {
-        if (*(s32*)(lbl_80275AE0[i] + 0xE8) != 0 && (mask & lbl_80240E30[i].edges) != 0) {
+        if (*(s32*)(gPlayers[i] + 0xE8) != 0 && (mask & lbl_80240E30[i].edges) != 0) {
             return 1;
         }
     }

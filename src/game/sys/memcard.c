@@ -182,7 +182,7 @@ extern double lbl_803472F8;        /* int->double magic bias (0x43300000..) */
 extern void* gWinGlobals;
 extern u8 gTextWorkBuf[0x800];
 extern u8 gTextFormatBuf[0x404];
-extern s32 lbl_80344568;
+extern s32 gGameBusy;
 extern s32 lbl_80344A30;
 extern u8 lbl_80344A5C;
 extern u8 lbl_80344A5D;
@@ -1626,10 +1626,10 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
     lbl_80344A5C = 1;
     lbl_80344A5D = 1;
     win = gWinGlobals;
-    savedBusy = (void*) lbl_80344568;
+    savedBusy = (void*) gGameBusy;
     sysResetService();
     vibrators_off();
-    lbl_80344568 = 1;
+    gGameBusy = 1;
     lbl_80344A30++;
     msgUpdate();
     fn_800B6B80();
@@ -1703,6 +1703,6 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
         MBRemoveBlit(blit);
     }
     fn_800B5CCC(lbl_80344A30 - 1);
-    lbl_80344568 = (s32) savedBusy;
+    gGameBusy = (s32) savedBusy;
     lbl_80344A30--;
 }

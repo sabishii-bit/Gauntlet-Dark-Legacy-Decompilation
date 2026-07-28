@@ -48,7 +48,7 @@ typedef struct MBWINDOW {
     /* 0x060 */ f32 farZ;         /* 16776960.0f */
     /* 0x064 */ MBCamNode cam;    /* default camera node */
     /* 0x0A0 */ u8 unkA0[0xE4 - 0xA0];
-    /* 0x0E4 */ f32 mat4[16];     /* 4x4, CopyMat4'd from lbl_80127D60 */
+    /* 0x0E4 */ f32 mat4[16];     /* 4x4, CopyMat4'd from gIdentityMatrix */
     /* 0x124 */ u8 unk124[0x128 - 0x124];
     /* 0x128 */ s32 unk128;
     /* 0x12C */ f32 unk12C;       /* 32.0f */
@@ -101,7 +101,7 @@ extern s32 lbl_80343F04;                /* default screen w (640) */
 extern s32 lbl_80343F0C;                /* default screen h (448) */
 extern f32 lbl_80343EC8;                /* projection aspect (1.0f) */
 extern f32 lbl_80127D00[];              /* default camera position */
-extern f32 lbl_80127D60[];              /* identity matrix */
+extern f32 gIdentityMatrix[];              /* identity matrix */
 
 MBWINDOW* fn_800BBA34(f32 ang, f32 hang);
 void MBWindowSetAng(f32 ang, f32 hang);
@@ -210,7 +210,7 @@ MBWINDOW* fn_800BBA34(f32 ang, f32 hang) {
     w->unk10 = 1.0f;
     w->unk134 = 1.0f;
     w->unk138 = -0.5f;
-    CopyMat4(lbl_80127D60, w->mat4);
+    CopyMat4(gIdentityMatrix, w->mat4);
     return w;
 }
 
@@ -404,7 +404,7 @@ void MBWindowInit(void) {
         lbl_80344EE8->index = i;
         lbl_80344EE8->active = 0;
         fn_800BBA34(0.78539818525314331f, 0.58904862403869629f);
-        MBCameraUpdate(lbl_80127D00, lbl_80127D60);
+        MBCameraUpdate(lbl_80127D00, gIdentityMatrix);
     }
     lbl_80344EE8 = lbl_802C3228;
     lbl_80344EE8->active = 1;

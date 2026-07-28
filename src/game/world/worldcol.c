@@ -56,7 +56,7 @@ extern f32 lbl_8034574C;
 extern f32 lbl_80345750;
 extern f32 lbl_8023CA50[];
 extern WorldCollisionResult lbl_8023CA40;
-extern FloorCollisionResult lbl_8023CAE0;
+extern FloorCollisionResult gFloorCollisionResult;
 
 u32 WorldCollide(f32 radius, void* from, void* to, f32* result,
                  s32 flags, s32 mode);
@@ -173,7 +173,7 @@ f32 FloorPos(f32 fallback, f32 radius, Vec3* position, s32 mode) {
     CollisionPoint from;
     s32 hit;
 
-    lbl_8023CAE0.current = hit = 0;
+    gFloorCollisionResult.current = hit = 0;
     from.x = position->x;
     from.y = position->y;
     from.z = position->z;
@@ -186,12 +186,12 @@ f32 FloorPos(f32 fallback, f32 radius, Vec3* position, s32 mode) {
     lbl_80344188 |= 0x10;
     lbl_80344194 = lbl_80345750;
     lbl_80344190 = lbl_80345724;
-    if (WorldCollide(radius, &from, &to, (f32*)&lbl_8023CAE0, 0x23C,
+    if (WorldCollide(radius, &from, &to, (f32*)&gFloorCollisionResult, 0x23C,
                      mode) != 0) {
         hit = 1;
     }
     if (hit != 0) {
-        return lbl_8023CAE0.floorY;
+        return gFloorCollisionResult.floorY;
     }
     return fallback;
 }
@@ -202,7 +202,7 @@ u32 FloorCollide(f32 radius, f32 yFrom, f32 yTo, Vec3* position,
     CollisionPoint to;
 
     if (result == 0) {
-        result = &lbl_8023CAE0;
+        result = &gFloorCollisionResult;
     }
     result->current = 0;
     from.x = position->x;

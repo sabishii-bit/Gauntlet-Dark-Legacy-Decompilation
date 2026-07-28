@@ -22,7 +22,7 @@
 extern f32   gBig[4];                 /* 0x80240FD0 per-player scratch flags    */
 extern void *lbl_80241060[4];         /* 0x80241060 loaded-file handle table    */
 extern u8    lbl_80241070[4][0x50];   /* 0x80241070 per-type header buffers      */
-extern Player lbl_80275AE0[4];        /* 0x80275AE0 player records (gPlayerRecords) */
+extern Player gPlayers[4];        /* 0x80275AE0 player records (gPlayerRecords) */
 
 /* -- module-local sbss variables -- */
 extern void *lbl_80344648;            /* 0x80344648 pending callback context     */
@@ -44,7 +44,7 @@ extern void  MBRemoveNode(void *node, s32 kind);
 extern void  SfxDeleteParented(void *sfx, s32 a, s32 b);
 extern void  BossDeath(void);
 extern void  fn_8002C49C(void *mtx);
-extern void  fn_800115D0(void *handle);
+extern void  AtreeDelete(void *handle);
 extern char  lbl_8011221C[];          /* 0x8011221C critter-overflow message      */
 extern void *gCurLevel;               /* current level record (->0xAC hp scale)   */
 
@@ -163,7 +163,7 @@ void fn_80036740(s32 who, f32 amount)
         lo = who;
     }
     for (i = lo; i < hi; i++) {
-        if (lbl_80275AE0[i].state == 1) {
+        if (gPlayers[i].state == 1) {
             AddExp(i, (s32)amount, 0);
         }
     }
@@ -226,7 +226,7 @@ s32 ProcessCritterList(void)
     total = 0;
     lbl_80344664++;
     for (i = 0; i < 4; i++) {
-        if (lbl_80275AE0[i].state == 1) {
+        if (gPlayers[i].state == 1) {
             activePlayers++;
         }
         gBig[i] = 0.0f;
@@ -419,7 +419,7 @@ void CritterDelInst(Critter *c)
         MBRemoveNode(c->emitter, 2);
     }
     if (c->colhandle != NULL) {
-        fn_800115D0(&c->colhandle);
+        AtreeDelete(&c->colhandle);
     }
     if (c->mbnode != NULL) {
         MBRemoveNode(c->mbnode, 0);
@@ -427,7 +427,7 @@ void CritterDelInst(Critter *c)
     c->anim = NULL;
     while ((node = c->subnodes) != NULL) {
         if (*(void **)node != NULL) {
-            fn_800115D0(node);
+            AtreeDelete(node);
         }
         if (*(void **)((u8 *)node + 72) != NULL) {
             MBRemoveNode(*(void **)((u8 *)node + 72), 1);

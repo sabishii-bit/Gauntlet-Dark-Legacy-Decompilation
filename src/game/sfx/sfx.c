@@ -57,7 +57,7 @@
  *   0x80092FC0 SuicideExplosion   (G) big multi-part explosion (enemy.c caller)      [med-high]
  *   0x800933BC StartExplosion     (G) largest Start*: MBPsysFlame + debris + Random  [high]
  *   0x80093918 fn_80093918            Start* + gPlayerRecords + atan2 (shield-like)
- *   0x80093B04 fn_80093B04            plain typed spawn (~StartFXNoLoop)            [high] BODY (parked: renum)
+ *   0x80093B04 StartFXNoLoop            plain typed spawn (~StartFXNoLoop)            [high] BODY (parked: renum)
  *   0x80093BC0 fn_80093BC0            Start* + atan2
  *   0x80093D08 SfxSetHitTarget    (G) targetnode + speed, flags|=0x40000000          [high] BODY
  *   0x80093D38 SfxSetOwner        (G) owner s16                                      [high] BODY
@@ -102,8 +102,8 @@
  *   EffectInfo[218].bss  0x80285018   resolved def table (EffectHeader[218])
  *   NumEffects     .sbss 0x80344BDC   pool high-water mark
  *   light_color    .data 0x80127D10   {1,1,1,0} default SfxSetLight color (PDB name)
- *   lbl_80127D60   .data              4x4 identity matrix (MB lib, shared)
- *   lbl_8034457C   .sbss              integer frame delta (shared w/ camera.c etc)
+ *   gIdentityMatrix   .data              4x4 identity matrix (MB lib, shared)
+ *   gFrameTicks   .sbss              integer frame delta (shared w/ camera.c etc)
  *   lbl_80344BF0/BF4 .sbss            skinfx special frame-base values (InitEffects)
  *   "COLCYL"/"COLCIR"/"COLARC"        debug object names in the sdata2 pool
  *   "Bad Effect type: %d" 0x80114790  StartFXSub/Start* error format
@@ -193,9 +193,9 @@ extern Effect Effects[64];                     /* 0x80285BB8 */
 extern EffectHeader EffectInfo[248];           /* 0x80285018 (0xBA0: 248 slots) */
 extern s32 NumEffects;                         /* 0x80344BDC */
 extern f32 light_color[4];                     /* 0x80127D10 */
-extern f32 lbl_80127D60[16];                   /* identity matrix */
-extern f32 lbl_8023CAE0[16];                   /* floor-probe result matrix */
-extern u32 lbl_8034457C;                       /* frame delta */
+extern f32 gIdentityMatrix[16];                   /* identity matrix */
+extern f32 gFloorCollisionResult[16];                   /* floor-probe result matrix */
+extern u32 gFrameTicks;                       /* frame delta */
 extern s32 lbl_80344BF0;                       /* skinfx frame base A */
 extern s32 lbl_80344BF4;                       /* skinfx frame base B */
 
@@ -222,14 +222,14 @@ extern void MBRemoveNode(struct mbnode* node, s32 flag);               /* node d
 extern f32 NormalVector(f32* v);                                      /* normalize, ret len */
 extern int msgPost(int idx, int param, char* str);
 extern u32 FloorCollide(f32 rad1, f32 rad2, f32 drop, f32* pos, f32* outnrm, s32 a, s32 b); /* floor probe */
-extern void fn_800115D0(void* atree);                                  /* atree release   */
+extern void AtreeDelete(void* atree);                                  /* atree release   */
 extern struct anode* fn_80012F78(struct atreeheader* hdr, void* atree, s32 a, s32 b); /* atree build */
 extern struct anode* fn_80012F9C(struct atreeheader* hdr, void* atree, s32 a, u32 flb, s32 b); /* atree build (flags) */
 extern struct mbnode* MBNewNode(struct mbnode* parent, f32* mat, s32 flag); /* new node under parent */
 extern struct mbnode* MBOX_NewObject(const char* name, s32 p2, s32 p3, u32 p4); /* create MB object */
 extern struct mbnode* lbl_80344EBC; /* fx scene root (flag 0x2000)     */
 extern struct mbnode* lbl_80344BD4; /* fx scene root (flag 0x800)      */
-extern struct mbnode* lbl_80344EB8; /* default fx scene root           */
+extern struct mbnode* gSceneRoot; /* default fx scene root           */
 extern void MBTreeSetColor(struct mbnode* node, s32 frame, s32 recurse); /* set anim frame  */
 extern s32 lbl_80285B04[];  /* per-enemy hit-fx type table   (.bss)    */
 extern s32 lbl_80285A50[];  /* per-enemy death-fx type table (.bss)    */
@@ -251,7 +251,7 @@ extern void* sItemFile1Buf; /* 0x80344974 */
 extern s32 lbl_8034489C;    /* in-world flag gating the boss rename    */
 extern s32 gBossType;       /* current boss id (35 = STUMPL 'Q' skin)  */
 extern s32 lbl_80344BD8;    /* count of registered custom fx defs      */
-extern u8 lbl_80275AE0[];   /* player-record array, stride 0x335C      */
+extern u8 gPlayers[];   /* player-record array, stride 0x335C      */
 extern f32 lbl_80344584;    /* current game time (min-endtime gate)    */
 extern s32 lbl_80343DF0;    /* running effect-id counter               */
 extern s32 lbl_80344890;    /* tracked live-fx slot A (cleared on del) */
@@ -285,7 +285,7 @@ void SetSkinFX(SkinFx* fx, s32 base, s32 frames, s32 loops, f32 rate)
 s32 ProcessSkinFX(SkinFx* fx, struct mbnode* node, struct mbnode* geo)
 {
     if (fx->endframe > 0.0f) {
-        fx->frame += fx->rate * (f32)(lbl_8034457C >> 1);
+        fx->frame += fx->rate * (f32)(gFrameTicks >> 1);
         if (fx->frame >= fx->endframe) {
             if (fx->loops != 0) {
                 fx->frame = 0.0f;
@@ -418,7 +418,7 @@ void DmgFxNodeUpdate(struct mbnode* node, s32 absolute, f32 rx, f32 rz, f32 rotp
     node->scale[1] = rx * 0.01;
     node->scale[2] = rz * 0.01;
     if (absolute != 0) {
-        CopyMat3(lbl_80127D60, node);
+        CopyMat3(gIdentityMatrix, node);
         WYawMat3(node, roty);
         WPitchMat3(node, rotp);
         sx = 1.0f;
@@ -663,14 +663,14 @@ s32 StartBlockFX(f32 time, s32 pnum)
     }
     if (idx >= 0) {
         MBTreeSetColor(page->fx[idx].node,
-                    lbl_8011A178[*(s32*)(lbl_80275AE0 + pnum * 0x335C + 4)], 1);
+                    lbl_8011A178[*(s32*)(gPlayers + pnum * 0x335C + 4)], 1);
         MBTreeSetAlpha(page->fx[idx].node, 0x40, 1);
         if (idx >= 0) {
             Effect* e = &page->fx[idx];
             struct anode* root;
 
             MBNodeSetParent(e->node,
-                        *(struct mbnode**)(lbl_80275AE0 + pnum * 0x335C + 0x74));
+                        *(struct mbnode**)(gPlayers + pnum * 0x335C + 0x74));
             root = ATREE_ROOT(e);
             if (root != NULL) {
                 MBTreeSetFlags(root->node, 0x10, 0);
@@ -730,7 +730,7 @@ s32 StartMagicPlayerFX(f32* pos)
  * 0x80093918 fn_80093918 -- doc-only giants this pass. */
 
 /* plain typed spawn at a position (no orientation) */
-s32 fn_80093B04(s32 type, f32* pos)
+s32 StartFXNoLoop(s32 type, f32* pos)
 {
     return StartFXSubGuts(type, pos, 0, 0x800, 0.0f);
 }
@@ -1019,11 +1019,11 @@ s32 StartFXTree(struct atreeheader* hdr, f32* pos, u32 fla, u32 flb, f32 time)
     } else if (flb & 0x800) {
         parent = lbl_80344BD4;
     } else {
-        parent = lbl_80344EB8;
+        parent = gSceneRoot;
     }
-    e->node = MBNewNode(parent, lbl_80127D60, 1);
+    e->node = MBNewNode(parent, gIdentityMatrix, 1);
     if (e->node == NULL) {
-        fn_800115D0(&e->atree[0]);
+        AtreeDelete(&e->atree[0]);
         return -1;
     }
     MBNodeSetParent(ATREE_ROOT(e)->node, e->node);
@@ -1261,10 +1261,10 @@ void PlaceEffectOnFloor(s32 idx, f32* mat)
         mat = (f32*)e->node;
     }
     if (FloorCollide(e->colrad + 1.0, e->colrad + 5.0, -10.0f, mat + 12, NULL, 1, 0)) {
-        CopyMat4(lbl_8023CAE0, mat);
+        CopyMat4(gFloorCollisionResult, mat);
         mat[13] += 0.1;
     } else {
-        CopyMat3(lbl_80127D60, mat);
+        CopyMat3(gIdentityMatrix, mat);
     }
 }
 
@@ -1288,7 +1288,7 @@ void ChangeEffect(s32 idx, s32 type, u32 newflags)
             n = root->node;
             newflags |= n->flags & 0x890;
             oldframe = n->frame;
-            fn_800115D0(&e->atree[0]);
+            AtreeDelete(&e->atree[0]);
             ATREE_ROOT(e) = fn_80012F78(h->atree, &e->atree[0], 0, 0);
             MBNodeSetParent(ATREE_ROOT(e)->node, e->node);
             MBTreeSetZsortAdd(e->node, h->zmod, 1);
@@ -1358,7 +1358,7 @@ s32 DeleteEffect(s32 idx, s32 mode)
         case FX_MAGIC_LIGHT:
         case FX_MAGIC_ACID:
             if (e->owner >= 1 && e->owner <= 4) {
-                msgPost(18, e->owner - 1, (char*)(lbl_80275AE0 + (e->owner - 1) * 13148 + 84));
+                msgPost(18, e->owner - 1, (char*)(gPlayers + (e->owner - 1) * 13148 + 84));
             }
             break;
         }
@@ -1380,7 +1380,7 @@ s32 DeleteEffect(s32 idx, s32 mode)
     }
 
     if (ATREE_ROOT(e) != NULL) {
-        fn_800115D0(&e->atree[0]);
+        AtreeDelete(&e->atree[0]);
     }
 
     if ((n = e->node) != NULL) {
@@ -1429,7 +1429,7 @@ static void ZeroEffect(s32 idx)
     e->pyrvel[1] = 0.0f;
     e->pyrvel[2] = 0.0f;
     if (e->node != NULL && !(e->flags & 0x20000)) {
-        CopyMat3(lbl_80127D60, e->node);
+        CopyMat3(gIdentityMatrix, e->node);
     }
     e->colrad = 1.0f;
     e->weight = 0.0f;

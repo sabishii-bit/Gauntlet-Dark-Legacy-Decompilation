@@ -9,7 +9,7 @@ extern struct {
     /* 0x4 */ s32 unk4;
 } lbl_80122F8C[];
 
-extern u8 lbl_80275AE0[]; /* player array, stride 0x335C */
+extern u8 gPlayers[]; /* player array, stride 0x335C */
 
 s32 ItemDefValid(u8* p)
 {
@@ -24,7 +24,7 @@ s32 ItemDefValid(u8* p)
 s32 PlayerItemState(s32 pidx, u8* cursor)
 {
     s32 st = *(s32*)(cursor + 0x44);
-    u8* pl = lbl_80275AE0 + pidx * 0x335C;
+    u8* pl = gPlayers + pidx * 0x335C;
 
     if (st == 2) {
         goto ret;

@@ -134,7 +134,7 @@ typedef struct Row36 {
 } Row36;                           /* size 0x24 (36) */
 extern Row36 lbl_8011AF48[];       /* 44-entry, stride 36 lookup table   */
 extern s32  lbl_80257640[];        /* 4-entry threshold table            */
-extern s32  lbl_80257590[];        /* prefs/config block                 */
+extern s32  gGameOptions[];        /* prefs/config block                 */
 extern s32  lbl_802577CC[];        /* 8 keys                             */
 extern s8*  lbl_8025776C[];        /* 8 parallel object pointers         */
 
@@ -143,7 +143,7 @@ extern s32   lbl_80343C0C;
 extern s32   lbl_80344A2C;
 extern s32   lbl_8034476C;
 extern s32   lbl_80344768;
-extern s32   lbl_80344764;
+extern s32   gNumPlayers;
 extern s32   lbl_80344760;
 extern s32   lbl_80343C10;
 extern s32   lbl_80343DD4;
@@ -154,16 +154,16 @@ extern s32   lbl_8034471C;
 extern s32   lbl_80344738;
 extern void* lbl_803447B0;
 extern s32   gBossType;            /* 0x8034439C */
-extern s32   lbl_8034477C;
+extern s32   gGameMode;
 extern s32   lbl_80344740;
 extern s32   lbl_80344748;
 extern s32   lbl_80344750;
 extern s32   lbl_8034474C;
 extern s32   lbl_8034473C;
-extern s32   lbl_80344EB8;
+extern s32   gSceneRoot;
 extern s32   gNumEnemies;          /* 0x80344744 */
 extern f32   lbl_80346820;
-extern s32   lbl_80127D60[];       /* node template (ADDR16) */
+extern s32   gIdentityMatrix[];       /* node template (ADDR16) */
 
 static char sBossGenName[] = "BOSSGEN";   /* 0x80346AA4 (.sdata) */
 
@@ -192,7 +192,7 @@ extern void  AnimInit(void);
 extern void  fn_80010DF4(s32 arg0);
 extern void  AudioRegisterMenu(void);
 extern void  AudioResetInput(void);
-extern void  fn_80067904(s32 arg0);
+extern void  InitLighting(s32 arg0);
 extern void  reset_sel_menu(void);
 extern void  reset_attract_mode(void);
 extern void  bulletproof_printf(const char* fmt, ...);
@@ -268,9 +268,9 @@ extern s32   mlmMemUsed;
 extern void  ErrorPrintf(const char* fmt, ...);
 
 /* fn_800521E8 / fn_8005412C externs. */
-extern s32   lbl_80344568;
+extern s32   gGameBusy;
 extern s32   lbl_80344774;
-extern s32   lbl_8034457C;
+extern s32   gFrameTicks;
 extern s32   lbl_80344778;
 extern s32   lbl_803441F8;
 extern f32   lbl_80346AB8;
@@ -279,7 +279,7 @@ extern void  SetDrawStringScale(f32 s);
 extern void* DrawStringText(s32 a, s32 b, s32 c, s32 d, s32 e, ...);
 extern void  RestoreDrawStringScale(void);
 extern void  init_attract_mode(s32 mode);
-extern u8    lbl_80275AE0[];       /* world descriptor array, stride 13148 */
+extern u8    gPlayers[];       /* world descriptor array, stride 13148 */
 extern f32   lbl_803447D4;
 extern f32   lbl_803447D8;
 extern s32   lbl_803447DC;
@@ -407,10 +407,10 @@ void fn_8005207C(s32 arg0, s32 arg1, s32 arg2)
         arg1 = 4;
     }
     lbl_80344768 = arg1;
-    if (lbl_80257590[3] == 0) {
-        lbl_80344764 = arg0;
+    if (gGameOptions[3] == 0) {
+        gNumPlayers = arg0;
     } else {
-        lbl_80344764 = lbl_80257590[3];
+        gNumPlayers = gGameOptions[3];
     }
     lbl_80344760 = arg2;
 }
@@ -424,18 +424,18 @@ void fn_800520C8(void)
 /* 0x800520CC -- reset the prefs/config block, then load prefs. */
 void fn_800520CC(void)
 {
-    lbl_80257590[0] = 0;
-    lbl_80257590[1] = 0;
-    lbl_80257590[2] = 3;
-    lbl_80257590[6] = 0;
-    lbl_80257590[7] = 1;
-    lbl_80257590[8] = 0;
-    lbl_80257590[3] = 0;
-    lbl_80257590[4] = 0;
-    lbl_80257590[5] = 0;
-    lbl_80257590[9] = 512;
-    lbl_80257590[10] = 0;
-    lbl_80257590[11] = 0;
+    gGameOptions[0] = 0;
+    gGameOptions[1] = 0;
+    gGameOptions[2] = 3;
+    gGameOptions[6] = 0;
+    gGameOptions[7] = 1;
+    gGameOptions[8] = 0;
+    gGameOptions[3] = 0;
+    gGameOptions[4] = 0;
+    gGameOptions[5] = 0;
+    gGameOptions[9] = 512;
+    gGameOptions[10] = 0;
+    gGameOptions[11] = 0;
     init_prefs();
 }
 
@@ -555,13 +555,13 @@ void* fn_80057ACC(s32 key)
 }
 
 /* 0x80057AB4 -- accessor: current-level record + 8. */
-void* fn_80057AB4(void)
+void* LevelItemDesc(void)
 {
     return gCurLevel + 8;
 }
 
 /* 0x80057AC0 -- accessor: world-data record + 4. */
-void* fn_80057AC0(void)
+void* WorldItemDesc(void)
 {
     return gWorldData + 4;
 }
@@ -646,9 +646,9 @@ void game_init_data(void)
     lbl_8034482C = 0;
     lbl_80344828 = 1;
     ControlsUpdate();
-    fn_80067904(0);
+    InitLighting(0);
     lbl_80344A2C = 0;
-    lbl_8034477C = 0x8002;
+    gGameMode = 0x8002;
     lbl_80344758 = 0;
     lbl_80344B84 = -1;
     reset_sel_menu();
@@ -753,14 +753,14 @@ s32 fn_80055E60(s32 arg0)
 /* 0x800521E8 -- animate the loading-timer HUD, arm attract on timeout. */
 void fn_800521E8(void)
 {
-    s32 flag = lbl_80344568;
+    s32 flag = gGameBusy;
     s32 oldTimer = lbl_80344774;
     s32 newTimer;
     s32 idx;
     void* txt;
     u8 unused[16];
 
-    lbl_80344774 = oldTimer + lbl_8034457C;
+    lbl_80344774 = oldTimer + gFrameTicks;
     newTimer = lbl_80344774;
     idx = (newTimer - 60) >> 3;
     if (oldTimer < 60 && newTimer >= 60) {
@@ -779,7 +779,7 @@ void fn_800521E8(void)
         return;
     }
     {
-        s32 remaining = lbl_80344778 - lbl_8034457C;
+        s32 remaining = lbl_80344778 - gFrameTicks;
         lbl_80344778 = remaining;
         if (remaining > 0) {
             return;
@@ -798,7 +798,7 @@ void fn_800521E8(void)
 /* 0x8005412C -- categorise the loaded worlds and update the flow globals. */
 void fn_8005412C(void)
 {
-    u8* base = lbl_80275AE0;
+    u8* base = gPlayers;
     s32 count1 = 0;
     s32 count2 = 0;
     s32 count3 = 0;
@@ -948,7 +948,7 @@ void fn_800510A4(void)
         e[119] = 0;                      /* +0x1DC */
         e += 229;
     }
-    lbl_8034473C = (s32)MBNewNode(lbl_80344EB8, lbl_80127D60, 1);
+    lbl_8034473C = (s32)MBNewNode(gSceneRoot, gIdentityMatrix, 1);
     gNumEnemies = *(s16*)((u8*)gCurLevel + 142);
     lbl_80344740 = 0;
     lbl_80344748 = -1;
@@ -983,7 +983,7 @@ s32 fn_80051FDC(const char* name)
 /* 0x80053C70 -- pick Atree list sizes from the current game-mode id. */
 void fn_80053C70(void)
 {
-    switch (lbl_8034477C) {
+    switch (gGameMode) {
     case 0x8002:
     case 0x400F:
     case 0x8004:
