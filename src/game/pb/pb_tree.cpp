@@ -102,10 +102,10 @@ void MBRenderText(void);
 /* ps2/ml_fmath.c matrix helpers */
 void MulMat4(mat44* a, void* b, mat44* dst);
 void CopyMat4(void* src, void* dst);
-void fn_800BDF48(void* pyr, void* mat, mat44* dst);
-void fn_800BE030(mat44* mat, vec3* out);
-void fn_800BE1E0(mat44* a, void* b, mat44* dst, f32* scale);
-void fn_800BE79C(mat44* dst, mat44* a, vec3* v);
+void MulMat3(void* pyr, void* mat, mat44* dst);
+void ExtractScaleMat4(mat44* mat, vec3* out);
+void MulMat4Scale(mat44* a, void* b, mat44* dst, f32* scale);
+void ScaleMat3Vec3(mat44* dst, mat44* a, vec3* v);
 
 /* ps2/ml_error.c */
 void FatalError(const char* text, s32 errorCode);
@@ -208,8 +208,8 @@ s32 pbTraverseDrawObjects(PBTREENODE* node, PBTREENODE* stop, s32 mode)
         node_flags[l] = node_flags[l - 1];
 
         if (node->flags & 8) {
-            fn_800BE1E0(&matrix_stack[l - 1], node, &matrix_stack[l],
-                        node->scale);
+            MulMat4Scale(&matrix_stack[l - 1], node, &matrix_stack[l],
+                         node->scale);
             node_flags[matrix_level] |= 2;
         } else {
             MulMat4(&matrix_stack[l - 1], node, &matrix_stack[l]);
@@ -378,11 +378,11 @@ void CameraFace(u32 flags)
         break;
     case 0x04000000:
         if (fl & 2) {
-            fn_800BE030(mat, &tmp);
-            fn_800BDF48(camfacemat, win->cur + 576, mat);
-            fn_800BE79C(mat, mat, &tmp);
+            ExtractScaleMat4(mat, &tmp);
+            MulMat3(camfacemat, win->cur + 576, mat);
+            ScaleMat3Vec3(mat, mat, &tmp);
         } else {
-            fn_800BDF48(camfacemat, win->cur + 576, mat);
+            MulMat3(camfacemat, win->cur + 576, mat);
         }
         break;
     case 0x05000000:

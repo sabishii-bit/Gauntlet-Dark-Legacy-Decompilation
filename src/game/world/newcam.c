@@ -163,13 +163,13 @@ extern void*     gCurLevel;         /* level record; +0x60 = active CAMERA* (bou
 
 /* NEWCAM projection-parameter block (half-FOV tangents at +0x1C / +0x20). */
 extern u8 lbl_80344EE8[];
-/* seed vector for fn_800BDE08 (a fixed unit direction). */
+/* seed vector for YawVec3 (a fixed unit direction). */
 extern const u8 lbl_80127D30[];
 
 /* ----- external helpers (G3D math layer) ----- */
 extern double tan(double);
 /* rotate/derive a unit vector from a constant seed. */
-extern void fn_800BDE08(const void* seed, Vec3* out);
+extern void YawVec3(const void* seed, Vec3* out, f32 angle);
 /* transform a point through the current matrix stack (dst <- M * src). */
 extern void fn_800B5554(Vec3* dst, const Vec3* src);
 extern void fn_800B53B4(Vec3* dst, const Vec3* src);
@@ -371,7 +371,7 @@ void CalcFrustrumNormals(const Vec3* look, f32 fov, Vec3* out) {
     f32 tanH, tanV;
     Vec3 tl, tr, bl, br; /* frustum corner directions */
 
-    fn_800BDE08(lbl_80127D30, &seed);
+    YawVec3(lbl_80127D30, &seed, fov);
     tanH = (f32)tan((f64)(*(f32*)(lbl_80344EE8 + 0x1C) * -fov));
     tanV = (f32)tan((f64)(*(f32*)(lbl_80344EE8 + 0x20) * -fov));
 

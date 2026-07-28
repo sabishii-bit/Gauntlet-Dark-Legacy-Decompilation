@@ -20,7 +20,7 @@
 extern int MBWorldSphereVisible(f32* a, f32* b, f32* c);
 extern void CopyMat4(void* src, f32* dst);
 extern void MulMat4(void* a, f32* b, f32* dst);
-extern void fn_800BE7E4(void* src, f32* dst);
+extern void InvertMat4(void* src, f32* dst);
 
 typedef struct MBUtilNode {
     /* 0x00 */ f32 matrix[16];
@@ -75,7 +75,7 @@ void UnparentMatrix(f32* matrix, MBUtilNode* node)
         if ((parent = node->next) != NULL) {
             UnparentMatrix(matrix, parent->next);
             if ((parent->flags & 4) == 0) {
-                fn_800BE7E4(parent, inverseParent);
+                InvertMat4(parent, inverseParent);
                 MulMat4(inverseParent, matrix, matrix);
             } else {
                 matrix[12] -= parent->matrix[12];
@@ -85,7 +85,7 @@ void UnparentMatrix(f32* matrix, MBUtilNode* node)
         }
 
         if ((node->flags & 4) == 0) {
-            fn_800BE7E4(node, inverseNode);
+            InvertMat4(node, inverseNode);
             MulMat4(inverseNode, matrix, matrix);
         } else {
             matrix[12] -= node->matrix[12];

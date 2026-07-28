@@ -13,19 +13,77 @@
  * helpers are left fn_ pending exact per-function verification. Calls the g3dMath3D
  * C++ mat44 primitives. cflags_demo, C++ exceptions on.
  *
- * Status: NonMatching wired skeleton (stubs). Full bodies not reconstructed.
+ * Status: NonMatching. Core vector/matrix primitives are translated; the
+ * Euler extraction/construction block remains stubbed.
  */
+#include "game/ml_fmath.h"
 #include "types.h"
 
 extern void srand(u32 seed);
 extern u32 pbRand(void);
 extern u32 lbl_80344F08; /* sRandom */
+extern f64 sqrt(f64 x);
+extern f64 __frsqrte(f64 x);
+extern f32 sin(f32 x);
+extern f32 cos(f32 x);
+extern void sceSamp0TransposeMatrix(f32* dst, const f32* src);
+extern void sceSamp0CopyMatrix34(f32* dst, const f32* src);
+extern void mat44Mult__FR5mat44R5mat44R5mat44(f32* dst, f32* lhs, f32* rhs);
+extern void __as__5mat44FRC5mat44(f32* dst, const f32* src);
 
-/* 0x800BCAAC */
-void fn_800BCAAC(void) {}
+/* 0x800BCAAC - piecewise square-root approximation */
+f32 smallsqrt(f32 value)
+{
+    if (value <= 0.0001)
+        return 0.0f;
+    if (value > 0.5)
+        return (f32)(0.5858 * (value - 0.5) + 0.7071);
+    if (value > 0.25)
+        return (f32)(0.8284 * value + 0.2929);
+    if (value <= 0.125)
+        return (f32)(2.8284 * value);
+    return (f32)(1.1716 * value + 0.2071);
+}
 
-/* 0x800BCB44 */
-void fn_800BCB44(void) {}
+/* 0x800BCB44 - fast two-dimensional distance approximation */
+f32 fqdist(f32 x, f32 y)
+{
+    f32 lo;
+
+    if (x < 0.0)
+        x = -x;
+    if (y < 0.0)
+        y = -y;
+    if (x < 0.0001)
+        return y;
+    if (y < 0.0001)
+        return x;
+
+    lo = x;
+    if (y <= x) {
+        lo = y;
+        y = x;
+    }
+
+    if (0.5 * y < lo) {
+        if (0.75 * y < lo) {
+            if (0.875 * y < lo)
+                return (f32)(0.414 * lo + y);
+            return (f32)(0.376 * lo + y);
+        }
+        if (0.625 * y < lo)
+            return (f32)(0.333 * lo + y);
+        return (f32)(0.287 * lo + y);
+    }
+    if (0.25 * y < lo) {
+        if (0.375 * y < lo)
+            return (f32)(0.236 * lo + y);
+        return (f32)(0.181 * lo + y);
+    }
+    if (0.125 * y < lo)
+        return (f32)(0.124 * lo + y);
+    return (f32)(0.064 * lo + y);
+}
 
 /* 0x800BCCA8 */
 u32 RandInt(u32 n) {
@@ -75,88 +133,462 @@ void fn_800BD428(void) {}
 void fn_800BD488(void) {}
 
 /* 0x800BD7C4 */
-void fn_800BD7C4(void) {}
+void ReflectVector2D(const f32* vector, const f32* normal, f32* out)
+{
+    f32 scale = (f32)(2.0 * -(vector[0] * normal[0] +
+                              vector[2] * normal[2]));
+    out[0] = vector[0] + normal[0] * scale;
+    out[2] = vector[2] + normal[2] * scale;
+}
 
 /* 0x800BD804 */
-void fn_800BD804(void) {}
+void ReflectVector(const f32* vector, const f32* normal, f32* out)
+{
+    f32 scale =
+        (f32)(2.0 * -(vector[0] * normal[0] + vector[1] * normal[1] +
+                      vector[2] * normal[2]));
+    out[0] = vector[0] + normal[0] * scale;
+    out[1] = vector[1] + normal[1] * scale;
+    out[2] = vector[2] + normal[2] * scale;
+}
 
 /* 0x800BD860 */
-void fn_800BD860(void) {}
+f32 SlowNormalVector2D(f32* vector)
+{
+    f64 length = vector[0] * vector[0] + vector[2] * vector[2];
+    f32 scale = 1.0f;
+    volatile f32 root;
+
+    if (length > 0.0) {
+        f64 guess = __frsqrte(length);
+        guess = 0.5 * guess * (3.0 - length * guess * guess);
+        guess = 0.5 * guess * (3.0 - length * guess * guess);
+        guess = 0.5 * guess * (3.0 - length * guess * guess);
+        root = (f32)(length *
+                     (0.5 * guess * (3.0 - length * guess * guess)));
+        length = root;
+    }
+    if (length > 0.0)
+        scale = (f32)(1.0 / length);
+    vector[0] *= scale;
+    vector[1] = 0.0f;
+    vector[2] *= scale;
+    return (f32)length;
+}
 
 /* 0x800BD938 */
-void fn_800BD938(void) {}
+f32 NormalVector2D(f32* vector)
+{
+    f32 length = fqdist(vector[0], vector[2]);
+    f32 scale = 1.0f;
+
+    if ((f64)length <= 0.0)
+        scale = 1.0f;
+    else
+        scale = (f32)(1.0 / length);
+    vector[0] *= scale;
+    vector[1] = 0.0f;
+    vector[2] *= scale;
+    return length;
+}
 
 /* 0x800BD9B0 */
-void fn_800BD9B0(void) {}
+f32 SlowNormalVector(f32* vector)
+{
+    f64 length = vector[2] * vector[2] + vector[0] * vector[0] +
+                 vector[1] * vector[1];
+    f32 scale = 1.0f;
+    volatile f32 root;
+
+    if (length > 0.0) {
+        f64 guess = __frsqrte(length);
+        guess = 0.5 * guess * (3.0 - length * guess * guess);
+        guess = 0.5 * guess * (3.0 - length * guess * guess);
+        guess = 0.5 * guess * (3.0 - length * guess * guess);
+        root = (f32)(length *
+                     (0.5 * guess * (3.0 - length * guess * guess)));
+        length = root;
+    }
+    if (length > 0.0)
+        scale = (f32)(1.0 / length);
+    vector[0] *= scale;
+    vector[1] *= scale;
+    vector[2] *= scale;
+    return (f32)length;
+}
 
 /* 0x800BDA98 */
-void fn_800BDA98(void) {}
+f32 NormalVector(f32* vector)
+{
+    f32 length = fqdist(fqdist(vector[0], vector[2]), vector[1]);
+    f32 scale = 1.0f;
+
+    if ((f64)length <= 0.0)
+        scale = 1.0f;
+    else
+        scale = (f32)(1.0 / length);
+    vector[0] *= scale;
+    vector[1] *= scale;
+    vector[2] *= scale;
+    return length;
+}
 
 /* 0x800BDB1C */
-void fn_800BDB1C(void) {}
+void MulBodyVecMat4(const f32* vector, f32* out, const f32* matrix)
+{
+    f32 x = vector[0] - matrix[12];
+    f32 y = vector[1] - matrix[13];
+    f32 z = vector[2] - matrix[14];
+
+    out[0] = x * matrix[0] + y * matrix[1] + z * matrix[2];
+    out[1] = x * matrix[4] + y * matrix[5] + z * matrix[6];
+    out[2] = x * matrix[8] + y * matrix[9] + z * matrix[10];
+}
 
 /* 0x800BDB98 */
-void fn_800BDB98(void) {}
+void MulVec4Mat3(const f32* vector, f32* out, const f32* matrix)
+{
+    f32 x = vector[0];
+    f32 y = vector[1];
+    f32 z = vector[2];
+
+    out[0] = x * matrix[0] + y * matrix[4] + z * matrix[8];
+    out[1] = x * matrix[1] + y * matrix[5] + z * matrix[9];
+    out[2] = x * matrix[2] + y * matrix[6] + z * matrix[10];
+}
 
 /* 0x800BDBFC */
-void fn_800BDBFC(void) {}
+void MulVecMat3(const f32* vector, f32* out, const f32* matrix)
+{
+    f32 x = vector[0];
+    f32 y = vector[1];
+    f32 z = vector[2];
+
+    out[0] = x * matrix[0] + y * matrix[4] + z * matrix[8];
+    out[1] = x * matrix[1] + y * matrix[5] + z * matrix[9];
+    out[2] = x * matrix[2] + y * matrix[6] + z * matrix[10];
+}
 
 /* 0x800BDC60 */
-void fn_800BDC60(void) {}
+void MulVec4Mat4(const f32* vector, f32* out, const f32* matrix)
+{
+    f32 x = vector[0];
+    f32 y = vector[1];
+    f32 z = vector[2];
+
+    out[0] = x * matrix[0] + y * matrix[4] + z * matrix[8] + matrix[12];
+    out[1] = x * matrix[1] + y * matrix[5] + z * matrix[9] + matrix[13];
+    out[2] = x * matrix[2] + y * matrix[6] + z * matrix[10] + matrix[14];
+    out[3] = x * matrix[3] + y * matrix[7] + z * matrix[11] + matrix[15];
+}
 
 /* 0x800BDD00 */
-void fn_800BDD00(void) {}
+void MulVecMat4(const f32* vector, f32* out, const f32* matrix)
+{
+    f32 x = vector[0];
+    f32 y = vector[1];
+    f32 z = vector[2];
 
-/* 0x800BDD7C */
-void fn_800BDD7C(void) {}
+    out[0] = x * matrix[0] + y * matrix[4] + z * matrix[8] + matrix[12];
+    out[1] = x * matrix[1] + y * matrix[5] + z * matrix[9] + matrix[13];
+    out[2] = x * matrix[2] + y * matrix[6] + z * matrix[10] + matrix[14];
+}
 
-/* 0x800BDE08 */
-void fn_800BDE08(void) {}
+/* Pitch a unit direction vector while preserving its yaw. */
+void PitchVec3(const f32* vector, f32* out, f32 angle)
+{
+    u8 unused[8];
+    f32 x = vector[0];
+    f32 y = vector[1];
+    f32 z = vector[2];
+    f32 c = (f32)cos(angle);
+    f32 s = (f32)sin(angle);
+
+    out[0] = s * (x * y) + x * c;
+    out[1] = y * c + s * (-(x * x + z * z));
+    out[2] = s * (y * z) + z * c;
+}
+
+/* Rotate a vector around the world Y axis. */
+void YawVec3(const f32* vector, f32* out, f32 angle)
+{
+    u8 unused[8];
+    f32 x = vector[0];
+    f32 z = vector[2];
+    f32 c = (f32)cos(angle);
+    f32 s = (f32)sin(angle);
+
+    out[0] = x * c - z * s;
+    out[1] = vector[1];
+    out[2] = z * c + x * s;
+}
 
 /* 0x800BDE80 */
-void fn_800BDE80(void) {}
+void WorldVector(const f32* vector, f32* out, const f32* matrix)
+{
+    f32 x = vector[0];
+    f32 y = vector[1];
+    f32 z = vector[2];
+
+    out[0] = x * matrix[0] + y * matrix[4] + z * matrix[8];
+    out[1] = x * matrix[1] + y * matrix[5] + z * matrix[9];
+    out[2] = x * matrix[2] + y * matrix[6] + z * matrix[10];
+}
 
 /* 0x800BDEE4 */
-void fn_800BDEE4(void) {}
+void BodyVector(const f32* vector, f32* out, const f32* matrix)
+{
+    f32 x = vector[0];
+    f32 y = vector[1];
+    f32 z = vector[2];
 
-/* 0x800BDF48 */
-void fn_800BDF48(void) {}
+    out[0] = x * matrix[0] + y * matrix[1] + z * matrix[2];
+    out[1] = x * matrix[4] + y * matrix[5] + z * matrix[6];
+    out[2] = x * matrix[8] + y * matrix[9] + z * matrix[10];
+}
 
-/* 0x800BE030 */
-void fn_800BE030(void) {}
+/* Multiply the rotational 3x3 portions of two column-major mat44s. */
+void MulMat3(f32* lhs, f32* rhs, f32* out)
+{
+    rhs[15] = lhs[15] = 0.0f;
 
-/* 0x800BE1E0 */
-void fn_800BE1E0(void) {}
+    out[0] = lhs[0] * rhs[0] + lhs[1] * rhs[4] + lhs[2] * rhs[8];
+    out[1] = lhs[0] * rhs[1] + lhs[1] * rhs[5] + lhs[2] * rhs[9];
+    out[2] = lhs[0] * rhs[2] + lhs[1] * rhs[6] + lhs[2] * rhs[10];
+    out[4] = lhs[4] * rhs[0] + lhs[5] * rhs[4] + lhs[6] * rhs[8];
+    out[5] = lhs[4] * rhs[1] + lhs[5] * rhs[5] + lhs[6] * rhs[9];
+    out[6] = lhs[4] * rhs[2] + lhs[5] * rhs[6] + lhs[6] * rhs[10];
+    out[8] = lhs[8] * rhs[0] + lhs[9] * rhs[4] + lhs[10] * rhs[8];
+    out[9] = lhs[8] * rhs[1] + lhs[9] * rhs[5] + lhs[10] * rhs[9];
+    out[10] = lhs[8] * rhs[2] + lhs[9] * rhs[6] + lhs[10] * rhs[10];
+}
+
+/* Recover the scale carried by each basis vector of a mat44. */
+void ExtractScaleMat4(const f32* matrix, f32* out)
+{
+    out[0] = (f32)sqrt(matrix[0] * matrix[0] + matrix[4] * matrix[4] +
+                       matrix[8] * matrix[8]);
+    out[1] = (f32)sqrt(matrix[1] * matrix[1] + matrix[5] * matrix[5] +
+                       matrix[9] * matrix[9]);
+    out[2] = (f32)sqrt(matrix[2] * matrix[2] + matrix[6] * matrix[6] +
+                       matrix[10] * matrix[10]);
+}
+
+/* Compose two transforms, scaling the basis of rhs before multiplication. */
+void MulMat4Scale(f32* lhs, f32* rhs, f32* out, f32* scale)
+{
+    s32 row;
+    s32 column;
+
+    lhs[15] = rhs[15] = scale[3] = 0.0f;
+    for (row = 0; row < 3; row++) {
+        for (column = 0; column < 3; column++) {
+            out[row * 4 + column] =
+                lhs[0 * 4 + column] * rhs[row * 4 + 0] * scale[row] +
+                lhs[1 * 4 + column] * rhs[row * 4 + 1] * scale[row] +
+                lhs[2 * 4 + column] * rhs[row * 4 + 2] * scale[row];
+        }
+    }
+    for (column = 0; column < 3; column++) {
+        out[12 + column] =
+            lhs[column] * rhs[12] + lhs[4 + column] * rhs[13] +
+            lhs[8 + column] * rhs[14] + lhs[12 + column];
+    }
+}
 
 /* 0x800BE360 */
-void MulMat4(void) {}
+void MulMat4(f32* lhs, f32* rhs, f32* out)
+{
+    lhs[15] = 0.0f;
+    rhs[15] = 0.0f;
+    mat44Mult__FR5mat44R5mat44R5mat44(out, lhs, rhs);
+}
 
-/* 0x800BE3A0 */
-void fn_800BE3A0(void) {}
+/* Post-multiply by a roll rotation. */
+void RollMat3(f32* matrix, f32 angle)
+{
+    u8 unused[16];
+    f32 magnitude = angle;
+    s32 i;
 
-/* 0x800BE448 */
-void fn_800BE448(void) {}
+    *(u32*)&magnitude &= 0x7FFFFFFF;
+    if ((f64)magnitude < 0.0001)
+        return;
+    {
+        f32 s = sin(angle);
+        f32 c = cos(angle);
+        for (i = 0; i < 3; i++) {
+            f32 a = matrix[i];
+            f32 b = matrix[4 + i];
+            matrix[4 + i] = c * b + s * a;
+            matrix[i] = c * a - s * b;
+        }
+    }
+}
 
-/* 0x800BE4F4 */
-void fn_800BE4F4(void) {}
+/* Post-multiply by a pitch rotation. */
+void PitchMat3(f32* matrix, f32 angle)
+{
+    u8 unused[16];
+    f32 magnitude = angle;
+    s32 i;
 
-/* 0x800BE5A0 */
-void fn_800BE5A0(void) {}
+    *(u32*)&magnitude &= 0x7FFFFFFF;
+    if ((f64)magnitude < 0.0001)
+        return;
+    {
+        f32 s = sin(angle);
+        f32 c = cos(angle);
+        for (i = 0; i < 3; i++) {
+            f32 a = matrix[4 + i];
+            f32 b = matrix[8 + i];
+            matrix[8 + i] = c * b + s * a;
+            matrix[4 + i] = c * a - s * b;
+        }
+    }
+}
 
-/* 0x800BE648 */
-void fn_800BE648(void) {}
+/* Post-multiply by a yaw rotation. */
+void YawMat3(f32* matrix, f32 angle)
+{
+    f32 magnitude = angle;
+    s32 i;
 
-/* 0x800BE6F4 */
-void fn_800BE6F4(void) {}
+    *(u32*)&magnitude &= 0x7FFFFFFF;
+    if ((f64)magnitude < 0.0001)
+        return;
+    {
+        f32 s = sin(angle);
+        f32 c = cos(angle);
+        for (i = 0; i < 3; i++) {
+            f32 a = matrix[i];
+            f32 b = matrix[8 + i];
+            matrix[8 + i] = c * b + s * a;
+            matrix[i] = c * a - s * b;
+        }
+    }
+}
+
+/* Pre-multiply by a roll rotation. */
+void WRollMat3(f32* matrix, f32 angle)
+{
+    u8 unused[16];
+    f32 magnitude = angle;
+    s32 row;
+
+    *(u32*)&magnitude &= 0x7FFFFFFF;
+    if ((f64)magnitude < 0.0001)
+        return;
+    {
+        f32 s = sin(angle);
+        f32 c = cos(angle);
+        for (row = 0; row < 3; row++) {
+            f32* v = matrix + row * 4;
+            f32 a = v[0];
+            f32 b = v[1];
+            v[1] = c * b + s * a;
+            v[0] = c * a - s * b;
+        }
+    }
+}
+
+/* Pre-multiply by a pitch rotation. */
+void WPitchMat3(f32* matrix, f32 angle)
+{
+    u8 unused[16];
+    f32 magnitude = angle;
+    s32 row;
+
+    *(u32*)&magnitude &= 0x7FFFFFFF;
+    if ((f64)magnitude < 0.0001)
+        return;
+    {
+        f32 s = sin(angle);
+        f32 c = cos(angle);
+        for (row = 0; row < 3; row++) {
+            f32* v = matrix + row * 4;
+            f32 a = v[1];
+            f32 b = v[2];
+            v[2] = c * b + s * a;
+            v[1] = c * a - s * b;
+        }
+    }
+}
+
+/* Pre-multiply by a yaw rotation. */
+void WYawMat3(f32* matrix, f32 angle)
+{
+    u8 unused[16];
+    f32 magnitude = angle;
+    s32 row;
+
+    *(u32*)&magnitude &= 0x7FFFFFFF;
+    if ((f64)magnitude < 0.0001)
+        return;
+    {
+        f32 s = sin(angle);
+        f32 c = cos(angle);
+        for (row = 0; row < 3; row++) {
+            f32* v = matrix + row * 4;
+            f32 a = v[0];
+            f32 b = v[2];
+            v[2] = c * b + s * a;
+            v[0] = c * a - s * b;
+        }
+    }
+}
 
 /* 0x800BE79C */
-void fn_800BE79C(void) {}
+void ScaleMat3Vec3(const f32* matrix, f32* out, const f32* scale)
+{
+    const f32 (*src)[4] = (const f32 (*)[4])matrix;
+    f32 (*dst)[4] = (f32 (*)[4])out;
+    s32 row;
+    s32 column;
 
-/* 0x800BE7E4 */
-void fn_800BE7E4(void) {}
+    for (row = 0; row < 3; row++) {
+        for (column = 0; column < 3; column++)
+            dst[row][column] = src[row][column] * scale[column];
+    }
+}
+
+/* Invert an orthonormal affine transform. */
+void InvertMat4(const f32* matrix, f32* out)
+{
+    sceSamp0TransposeMatrix(out, matrix);
+    out[3] = 0.0f;
+    out[7] = 0.0f;
+    out[11] = 0.0f;
+    out[12] = (f32)(-1.0 * (matrix[12] * matrix[0] +
+                            matrix[13] * matrix[1] +
+                            matrix[14] * matrix[2]));
+    out[13] = (f32)(-1.0 * (matrix[12] * matrix[4] +
+                            matrix[13] * matrix[5] +
+                            matrix[14] * matrix[6]));
+    out[14] = (f32)(-1.0 * (matrix[12] * matrix[8] +
+                            matrix[13] * matrix[9] +
+                            matrix[14] * matrix[10]));
+    out[15] = 0.0f;
+}
 
 /* 0x800BE8C8 */
-void CopyMat3(void) {}
+void CopyMat3(const f32* src, f32* dst)
+{
+    sceSamp0CopyMatrix34(dst, src);
+}
 
 /* 0x800BE8F4 */
-void CopyMat4(void) {}
+void CopyMat4(const f32* src, f32* dst)
+{
+    __as__5mat44FRC5mat44(dst, src);
+}
+
+/* 0x800BE920 */
+s32 Round(f32 value)
+{
+    if (value >= 0.0)
+        value += 0.5;
+    else
+        value += -0.5;
+    return (s32)value;
+}

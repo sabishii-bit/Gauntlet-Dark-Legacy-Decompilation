@@ -105,14 +105,14 @@ extern void  fn_8001267C(void* data, s32 model, s32 index);
 extern void  CopyMat4(f32* src, f32* dst);
 extern int   GetWorldMat(void* node, f32* matrix, f32* offset);
 extern void  UnparentMatrix(f32* matrix, void* node);
-extern void  fn_800BDE80(f32* src, f32* dst, f32* matrix);
+extern void  WorldVector(f32* src, f32* dst, f32* matrix);
 extern int   msgPost(s32 code, s32 owner, char* data);
 extern void  DoTexMods(void* data);
 extern void  DoSpecialTexmods(void);
 extern void  SetupPlayerTexMods(s32 player);
 extern void  fn_800606FC(void);
 extern s32   fn_8005D0C4(s16 id, f32* position);
-extern f32   fn_800BDA98(f32* vector);
+extern f32   NormalVector(f32* vector);
 extern u8    lbl_80237BA0[];
 extern f32   lbl_80127D60[16];
 extern s32   lbl_8034494C;
@@ -443,7 +443,7 @@ void fn_8005A404(OBJGRP* group, f32* collOffset, f32* attnOffset)
         group->coll_pos[1] = group->worldmat[3][1] + collOffset[1];
         group->coll_pos[2] = group->worldmat[3][2] + collOffset[2];
     } else {
-        fn_800BDE80(collOffset, coll, &group->worldmat[0][0]);
+        WorldVector(collOffset, coll, &group->worldmat[0][0]);
         group->coll_pos[0] = group->worldmat[3][0] + coll[0];
         group->coll_pos[1] = group->worldmat[3][1] + coll[1];
         group->coll_pos[2] = group->worldmat[3][2] + coll[2];
@@ -458,7 +458,7 @@ void fn_8005A404(OBJGRP* group, f32* collOffset, f32* attnOffset)
         group->attn_pos[1] = group->worldmat[3][1] + attnOffset[1];
         group->attn_pos[2] = group->worldmat[3][2] + attnOffset[2];
     } else {
-        fn_800BDE80(attnOffset, attn, &group->worldmat[0][0]);
+        WorldVector(attnOffset, attn, &group->worldmat[0][0]);
         group->attn_pos[0] = group->worldmat[3][0] + attn[0];
         group->attn_pos[1] = group->worldmat[3][1] + attn[1];
         group->attn_pos[2] = group->worldmat[3][2] + attn[2];
@@ -478,7 +478,7 @@ void fn_8005A588(OBJGRP* group, f32* offset)
         group->attn_pos[1] = group->worldmat[3][1] + offset[1];
         group->attn_pos[2] = group->worldmat[3][2] + offset[2];
     } else {
-        fn_800BDE80(offset, transformed, &group->worldmat[0][0]);
+        WorldVector(offset, transformed, &group->worldmat[0][0]);
         group->attn_pos[0] = group->worldmat[3][0] + transformed[0];
         group->attn_pos[1] = group->worldmat[3][1] + transformed[1];
         group->attn_pos[2] = group->worldmat[3][2] + transformed[2];
@@ -498,7 +498,7 @@ void fn_8005A65C(OBJGRP* group, f32* offset)
         group->coll_pos[1] = group->worldmat[3][1] + offset[1];
         group->coll_pos[2] = group->worldmat[3][2] + offset[2];
     } else {
-        fn_800BDE80(offset, transformed, &group->worldmat[0][0]);
+        WorldVector(offset, transformed, &group->worldmat[0][0]);
         group->coll_pos[0] = group->worldmat[3][0] + transformed[0];
         group->coll_pos[1] = group->worldmat[3][1] + transformed[1];
         group->coll_pos[2] = group->worldmat[3][2] + transformed[2];
@@ -554,7 +554,7 @@ f32 fn_8005B198(f32 radius, f32* position, Item** result)
             delta[0] = item->objgrp.coll_pos[0] - position[0];
             delta[1] = item->objgrp.coll_pos[1] - position[1];
             delta[2] = item->objgrp.coll_pos[2] - position[2];
-            distance = fn_800BDA98(delta);
+            distance = NormalVector(delta);
             if (best_distance < 0.0f || distance < best_distance) {
                 best_item = item;
                 best_distance = distance;

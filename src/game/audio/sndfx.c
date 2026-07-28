@@ -120,7 +120,7 @@ extern void fn_80053D08(void* a, int b, int c);
 extern void bulletproof_printf(const char* fmt, ...);
 extern void fn_80053A10(int a);
 extern f32 fn_8006366C(Vec3* a);     /* distance from listener */
-extern f32 fn_800BDA98(Vec3* a);     /* xz-plane vector length */
+extern f32 NormalVector(Vec3* a);    /* normalize vector, return approximate length */
 extern int AudioAng(Vec3* pos);      /* position -> spatial descriptor */
 extern void AudioKillMask(int mask); /* stop voices by channel mask */
 extern void AudioTrackRegister(int a, int b, int c, int d, int e); /* per-channel apply */
@@ -196,7 +196,7 @@ static inline int sndFxComputePan(Vec3* pos)
     rel.y = pos->y - L->py;
     rel.z = pos->z - L->pz;
     rel.y = 0.0f;
-    len = fn_800BDA98(&rel) / 20.0f;
+    len = NormalVector(&rel) / 20.0f;
     dot = rel.x * L->m4 + rel.y * L->m8 + rel.z * L->m12;
     pan = (int)(127.5 * dot * (1.0 < len ? 1.0 : len) + 127.5);
     if (L->m12 * rel.x > L->m4 * rel.z) {

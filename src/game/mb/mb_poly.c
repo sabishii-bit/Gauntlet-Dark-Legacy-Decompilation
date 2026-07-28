@@ -75,7 +75,7 @@ void* memset(void* p, int c, u32 n);
 void ErrorPrintf(const char* fmt, ...);
 PolyContext* fn_800BB29C(s32 a, void* cfg, s32 n); /* MB hash/context create */
 TexInfo* MBRomTexPtr(s32 tex);                      /* texture bind/lookup */
-void fn_800BDC60(PolyVert* v, void* out, void* xf); /* xform vertex */
+void MulVec4Mat4(PolyVert* v, void* out, void* xf); /* xform vertex */
 u32  __cvt_fp2unsigned(f64 x);
 void mbBlitGetPage(void);
 void mbBlitSetPage(void);
@@ -413,7 +413,7 @@ void PolyXfrmVerts(PolyVert* verts, s32 count) {
             continue;
         }
         v->sClip = 1.0f;
-        fn_800BDC60(v, out, (u8*)((void**)wg)[1] + 704);
+        MulVec4Mat4(v, out, (u8*)((void**)wg)[1] + 704);
         if (out[3] <= 0.0) {
             v->sz = 0;
             continue;

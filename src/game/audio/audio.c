@@ -64,7 +64,7 @@ extern void  bulletproof_printf(const char* fmt, ...);
 extern int   sprintf(char* buf, const char* fmt, ...);
 extern int   strncmp(const char* a, const char* b, u32 n);
 extern void  fn_80067B0C(s32 a);       /* per-frame service pump */
-extern f32   fn_800BDA98(void* vec);   /* 3D distance/attenuation helper */
+extern f32   NormalVector(void* vec);  /* normalize vector, return approximate length */
 extern void  sndFxInitVoices(void);    /* sndfx.c (0x80015C48): reset voices */
 extern void  FatalErrorf(const char* fmt, ...); /* fatal/debug printer */
 extern void  fn_800CEAF0(s32 a, void* out, s32 arg, s32 b, s32 c, void* v);
@@ -485,7 +485,7 @@ s32 AudioAng(f32* pos)
     rel[1] = pos[1] - gCameras[76];
     rel[2] = pos[2] - gCameras[77];
     rel[1] = lbl_80345930;                    /* 0.0f: flatten to ground plane */
-    dist = fn_800BDA98(rel) / lbl_80345960;   /* normalise by 20.0f */
+    dist = NormalVector(rel) / lbl_80345960;  /* normalise by 20.0f */
     dot = rel[0] * gCameras[1] + rel[1] * gCameras[2] + rel[2] * gCameras[3];
     scale = (1.0 >= dist) ? (f64)dist : 1.0;  /* clamp normalised distance */
     pan = (s32)(127.5 * dot * scale + 127.5);

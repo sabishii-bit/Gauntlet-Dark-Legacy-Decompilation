@@ -50,7 +50,7 @@ typedef struct MBWinGlobals {
 
 extern MBWinGlobals* gWinGlobals;    /* 0x80344FC0 */
 
-extern void fn_800BDA98(f32* v);
+extern f32 NormalVector(f32* v);
 extern void ErrorPrintf(const char* fmt, ...);
 
 /* light_default_dir @0x80115D70 : {-0.3f, -1.4f, 1.0f} */
@@ -119,6 +119,6 @@ int MBAddLight(f32* dir, f32* color, f32 intensity)
         wg->lights->lights[idx].dir[2] = light_default_dir[2];
     }
 
-    fn_800BDA98(wg->lights->lights[idx].dir);
+    NormalVector(wg->lights->lights[idx].dir);
     return idx;
 }
