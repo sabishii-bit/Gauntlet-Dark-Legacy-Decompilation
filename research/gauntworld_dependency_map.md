@@ -112,6 +112,13 @@ composite-data bases.  Its calls, fields, branches, relocations, and resource
 ownership are otherwise reconstructed; retain the native-readable structure
 unless a general scheduling technique removes that residual.
 
+The item boundary now also includes the complete item-info/atree
+initialization pass, the floor-probe and scene-parenting helper at
+`0x80064154`, and the exact nearest-open start-position query.  These establish
+that placed items are snapped with a `(height, radius, position, mode)` ground
+probe, may be parented under the current scene root when its `0x1000` flag is
+set, and use the same 14-entry world-open table as tower progression.
+
 ## MB scene-tree follow-up
 
 The second dependency edge established the shared 0x80-byte MB tree-node tail:
