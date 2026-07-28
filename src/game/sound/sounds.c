@@ -18,7 +18,9 @@
  *   AudioSelect          - 1-insn: peephole-off unfolded switch (bge/b)
  * Not yet decompiled (covered by original bytes; symbols mapped):
  *   InitNameAudio, AudioAmbientUpdate, AudioSecretProc,
- *   AudioMusicVolUpdate, AudioSetupLevelStreams, AudioBuildMusicName */
+ *   AudioSetupLevelStreams
+ * AudioMusicVolUpdate is opcode-identical; AudioBuildMusicName is fully
+ * translated with a three-instruction pointer/prologue codegen residual. */
 
 /* --- sound-engine callees (game/audio/sndfx.c + audio.c, 0x8001xxxx) --- */
 extern f32 sndFxQueAddEx(int a, int b, f32 c, f32 d, int e, int f, int g);
@@ -42,6 +44,8 @@ extern void AudioStreamStop(void);
 extern int AudioSysUpdate(int a);
 extern void audio_init(void);
 extern int AudioFindSound(char* a, int b, int c);
+extern int AudioIsActive(void);
+extern void AudioDeferSlot(void* cb, int arg);
 extern int LevelLetter(int a);
 extern void fn_80067B0C(int a);
 extern void fn_800C031C(void* a, void* b, void* c, int d);
@@ -50,6 +54,8 @@ extern char* strcat(char* dst, const char* src);
 
 /* --- module data --- */
 extern s32 lbl_801232C8[]; /* per-player name/track id table, stride 4 */
+extern char lbl_801232DC[6][8]; /* material names used by music cues */
+extern char lbl_80114A48[]; /* SOUNDS string table */
 extern u8 lbl_80275AE0[];  /* player array, stride 0x335C */
 extern u8 sSpeechNameBuf[];  /* scratch name buffer; aliases per-class speech id tables at offsets */
 extern u8 lbl_8028BCB8[];
@@ -344,6 +350,46 @@ void AudioSelect(int track)
     sCurSelectTrack = track;
 }
 
+void AudioMusicVolUpdate(void)
+{
+    int target;
+    int current;
+    int delta;
+
+    if (AudioIsActive() == 0) {
+        return;
+    }
+    if (sSelectStreamHandle < 0) {
+        return;
+    }
+    AudioSetupLevelStreams();
+    if (sMusicSubState == 1 && sMusicSubIndex != sSelectStreamState &&
+        *(s16*)(*(u8**)(gCurLevel + 100) + 40) > 1) {
+        target = sCurMusicVol;
+        if (target > 3) {
+            target -= 3;
+        }
+    } else if (sMusicFadeBase < sMusicFadeCur) {
+        target = (s32)((f32)lbl_80343B4C * sMusicVolScale);
+    } else {
+        target = lbl_80343B4C;
+    }
+
+    current = sCurMusicVol;
+    if (target == current) {
+        return;
+    }
+    delta = target - current;
+    if (delta > 8) {
+        target = current + 8;
+    }
+    if (delta < -8) {
+        target = current - 8;
+    }
+    sCurMusicVol = target;
+    AudioDeferSlot((void*)(s32)((f32)target * *(f32*)(gCurLevel + 148)), target);
+}
+
 void AudioStopSelect(void)
 {
     if (sSelectStreamHandle >= 0) {
@@ -407,6 +453,65 @@ void AudioRegisterNameBanks(char* name, int flag)
     if (flag == 0) {
         while (AudioSysUpdate(1) != 0) {
             fn_80067B0C(-1);
+        }
+    }
+}
+
+typedef struct MusicCuePair {
+    s32 rotate;
+    s32 stop;
+} MusicCuePair;
+
+void AudioBuildMusicName(void)
+{
+    char* buf;
+    char* strings;
+    char* material;
+    MusicCuePair best = { -1, -1 };
+    u32 i;
+    int off;
+
+    buf = (char*)sSpeechNameBuf;
+    strings = lbl_80114A48;
+    for (i = 0, off = 0; i < 6; i++, off += 8) {
+        s32* cue;
+        int found;
+
+        material = (char*)lbl_801232DC + off;
+        if (material[0] == '*') {
+            sprintf(buf, strings + 692, material + 1);
+        } else if (*(s32*)(gCurLevel + 68) >= 0) {
+            sprintf(buf, strings + 704, material, (s8)LevelLetter(0));
+        } else {
+            sprintf(buf, strings + 716, material, (s8)LevelLetter(0));
+        }
+        found = AudioFindSound(buf, -1, 0);
+        cue = (s32*)(buf + off);
+        cue[16] = found;
+        if (*(cue += 16) < 0) {
+            continue;
+        }
+
+        if (material[0] == '*') {
+            sprintf(buf, strings + 728, material + 1);
+        } else if (*(s32*)(gCurLevel + 68) >= 0) {
+            sprintf(buf, strings + 740, material, (s8)LevelLetter(0));
+        } else {
+            sprintf(buf, strings + 756, material, (s8)LevelLetter(0));
+        }
+        cue[1] = AudioFindSound(buf, -1, 0);
+        {
+            s32* stop = &cue[1];
+            if (best.rotate < 0) {
+                s32 rotate = cue[0];
+                if (rotate >= 0) {
+                    s32 stopValue = *stop;
+                    if (stopValue >= 0) {
+                        best.rotate = rotate;
+                        best.stop = stopValue;
+                    }
+                }
+            }
         }
     }
 }
