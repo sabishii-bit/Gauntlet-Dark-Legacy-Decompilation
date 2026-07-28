@@ -2,7 +2,7 @@
 
 /* BTEXT.OBJ - bitmap/box text + SCROLLS message system (GameCube port).
  *
- * Text drawing on top of the G3D box-text primitives (mbFontFromIndex,
+ * Text drawing on top of the G3D box-text primitives (MBFontHeight,
  * MBSetFont*, MBDrawText, MBNewFont) plus the "SCROLLS<level>" message-resource
  * loader (chunk tags FONT/TEXT/TOFF/STRS/LOFF/LIST/DEFS/SDEF/LDEF).  Function
  * names come from the Xbox shell3D.pdb BTEXT.OBJ roster, mapped to PPC by
@@ -92,7 +92,7 @@ extern void* gFontDefs[];       /* 0x80118B2C */
 
 /* ---- external primitives ---- */
 
-extern s32 mbFontFromIndex(s32 font);            /* 0x800B5AD8 - font pixel metric */
+extern s32 MBFontHeight(s32 font);
 extern s32 fn_800B5B00(u8* str);                 /* 0x800B5B00 - measure/blit one line */
 extern u32 MBSetFont(u32 font);                  /* 0x800B6358 - returns previous */
 extern void MBSetFontColor(u32 color);           /* 0x800B6368 */
@@ -148,7 +148,7 @@ void DrawGlowTextMLines(f32 scale, s32 x, s32 y, s32* str)
     s32 off;
     void* lines[16];
 
-    lh = (s32)((f32)(s32)mbFontFromIndex(glow_font) * scale);
+    lh = (s32)((f32)MBFontHeight(glow_font) * scale);
     n = FixMLineText(str, (s32*)gTextWorkBuf, (s32)lines);
     if (y < 0) {
         y = -(y + (n * lh) / 2);
@@ -189,7 +189,7 @@ void DrawGlowText(f32 scale, s32 x, s32 y, u8* str)
     MBSetFontAlpha(0);
     MBDrawText(x, y, str);
     MBSetFontScaleSpace(1.0f, 1.0f);
-    gDrawTextY = y + (s32)((f32)(s32)mbFontFromIndex(glow_font) * scale);
+    gDrawTextY = y + (s32)((f32)MBFontHeight(glow_font) * scale);
 }
 
 /* ==== 0x8001ED24 ScrollTextNum ==== */
@@ -247,7 +247,7 @@ s32 StringTextHeightSub(f32 scale, StrList* p, s32 msg, s32 idx, s32 spacing)
         spacing = gLineSpacing;
     }
     lh = (f32)(scale * (f32)e->scale);
-    fh = (s32)((f32)(s32)mbFontFromIndex(p->fontDesc[e->font].color) * lh);
+    fh = (s32)((f32)MBFontHeight(p->fontDesc[e->font].color) * lh);
     if (idx < 0) {
         total = 0;
         for (line = 0; line < e->count; line++) {
@@ -607,7 +607,7 @@ void* StringInitSub(s32 mode, StrList* p)
 /* ==== 0x80020764 TextHeightMLines ==== */
 s32 TextHeightMLines(f32 scale, s32 font, char* str)
 {
-    s32 fh = mbFontFromIndex(font);
+    s32 fh = MBFontHeight(font);
     s32 n = 0;
 
     for (;;) {
@@ -624,7 +624,7 @@ s32 TextHeightMLines(f32 scale, s32 font, char* str)
 /* ==== 0x8002081C FontHeight ==== */
 s32 FontHeight(f32 scale, s32 font)
 {
-    return (s32)((f32)(s32)mbFontFromIndex(font) * scale);
+    return (s32)((f32)MBFontHeight(font) * scale);
 }
 
 /* ==== 0x80020874 DrawNormalText ==== */
@@ -646,7 +646,7 @@ void DrawTextSub(f32 scale, f32 shScale, s32 x, s32 y, u32 flags, u32 color, u8*
 
 s32 DrawTextMLines(f32 scale, s32 x, s32 y, u32 font, u32 color, s32* str)
 {
-    s32 lh = (s32)((f32)(s32)mbFontFromIndex(font) * scale);
+    s32 lh = (s32)((f32)MBFontHeight(font) * scale);
     s32 n;
     s32 i;
     s32 off;
