@@ -64,25 +64,23 @@ float CalcTexScroll(float t, float lo, float hi, int frame, float* out);
 void DoSpecialTexmods(void)
 {
     int i;
-    TEXMOD* tm;
     void* p;
     u32 rate;
     int tex;
     int c;
 
     for (i = 0; i < special_texmod_num; i++) {
-        tm = &special_texmods[i];
-        rate = tm->rate;
+        rate = special_texmods[i].rate;
         if ((int)rate <= 0 || InfFrame % rate == 0) {
-            tex = tm->tex;
+            tex = special_texmods[i].tex;
             if (tex >= 0) {
-                p = MBRomTexPtr(tm->src + tm->counter);
+                p = MBRomTexPtr(special_texmods[i].src + special_texmods[i].counter);
                 MBSetRomTexture(tex, p);
             }
-            c = tm->counter + 1;
-            tm->counter = c;
-            if (c >= tm->frames) {
-                tm->counter = 0;
+            c = special_texmods[i].counter + 1;
+            special_texmods[i].counter = c;
+            if (c >= special_texmods[i].frames) {
+                ((volatile TEXMOD*)&special_texmods[i])->counter = 0;
             }
         }
     }
@@ -366,28 +364,31 @@ void ResetTexmods(void)
     MBClearTexscroll();
 }
 
+static u32 ObjAnimDefaultTex(OANIM* node, int start, int end)
+{
+    if (start == end) {
+        return node->tex;
+    }
+    return 0;
+}
+
 void DoObjAnimation(OANIM* nodes, int ctx, int idx, int frame)
 {
-    OANIM* node;
     int start;
     int end;
     u32 tex;
 
-    node = &nodes[idx];
-    if (node->tex < 0) {
+    nodes = &nodes[idx];
+    if (nodes->tex < 0) {
         MBTreeSetFlags(ctx, 1, 0);
     } else {
         MBTreeClearFlags(ctx, 1, 0);
-        start = node->start;
-        end = start + node->frames - 1;
+        start = nodes->start;
+        end = start + nodes->frames - 1;
         if (frame < start || frame > end) {
-            if (start == end) {
-                tex = node->tex;
-            } else {
-                tex = 0;
-            }
+            tex = ObjAnimDefaultTex(nodes, start, end);
         } else {
-            tex = (node->tex + frame) - start;
+            tex = (nodes->tex + frame) - start;
         }
         MBSetObject((void*)ctx, tex);
     }
