@@ -744,15 +744,15 @@ void FontSetShadowColor(s32 color)
 /* ==== 0x80020D44 FontInitSpecial (variadic forwarder; skeleton) ==== */
 void LoadFonts(s32 mode, void* def, void* def2);
 
-void FontInitSpecial(void)
+void FontInitSpecial(void* def, void* def2)
 {
-    LoadFonts(0xd, 0, 0);
+    LoadFonts(0xd, def, def2);
 }
 
 /* ==== 0x80020D70 FontInitDefault (skeleton) ==== */
 void FontInitDefault(void)
 {
-    LoadFonts(0, gFontDefs8x8, gFontDefs);
+    LoadFonts(0, gFontDefs8x8[0], gFontDefs[0]);
 }
 
 /* ==== 0x80020DA8 FontInit (skeleton) ==== */
@@ -765,7 +765,7 @@ void FontInit(void)
         StringInitSub(gScrollModes[i], &gScrollMsgList[i]);
     }
     for (i = 1; i < 0xd; i++) {
-        LoadFonts(i, gFontDefs8x8, gFontDefs);
+        LoadFonts(i, gFontDefs8x8[i], gFontDefs[i]);
     }
     gFontsInited = 1;
 }
