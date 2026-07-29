@@ -205,3 +205,16 @@ The complete old-to-new map and evidence are in
   addition to calling `towerGetLevelFlag`. Restoring that read recovered the
   target loop exactly enough to remove a large structural diff, even though
   the accumulated value is not subsequently tested in retail code.
+- Nested switches have their own recoverable lexical order. SetItem's type-1
+  subtype bodies occur as `10,14,2,15,13` in address order, even though the
+  jump table is indexed numerically. Reordering only those bodies and
+  reloading the subtype through `item->info` removed more than one hundred
+  meaningful diff lines.
+- Give fixed-size small-data strings an explicit array bound. Declaring the
+  five-byte `"%s%d"` format as `char[5]` lets MWCC select the retail
+  `EMB_SDA21` reference; an incomplete `char[]` extern instead produced a
+  full `lis`/`addi` address construction.
+- When a late type dispatch has three sparse values, use a switch and preserve
+  target body order. SetItem's final dispatch is lexically `2,8,1`; that form
+  recovered the target compare tree, whereas an equivalent `if/else if`
+  chain emitted sequential inequality tests.
