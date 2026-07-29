@@ -257,9 +257,9 @@ void StartGoodWizard(void)
 s32 hide_rune_stones(void* unused)
 {
     s32 result = 1;
+    s32 j;
     s32 acc = 0;
     s32 i;
-    s32 j;
 
     for (i = 0; i < 4; i++) {
         u8* p = gPlayers + i * 0x335C;
