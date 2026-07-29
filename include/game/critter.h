@@ -141,7 +141,7 @@ typedef struct Critter {
     f32 health;               /* 0x4B0 current hp                             */
     u8  _blk4B4[0x2C];        /* 0x4B4 .. 0x4E0                            */
     s16 unk4E0[4];            /* 0x4E0 four ids (init -1)                     */
-    u8  _blk4E8[0x10];        /* 0x4E8 .. 0x4F8                            */
+    f32 timed[4];              /* 0x4E8 expiry times paired with unk4E0 ids  */
     u8  hitnodes[0x5C0];      /* 0x4F8 collision/sfx nodes (16 x 0x5C,         */
                               /*       hdr->0x118 count)                       */
     s16 unkAB8;               /* 0xAB8                                        */
