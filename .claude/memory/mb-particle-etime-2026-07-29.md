@@ -34,3 +34,20 @@ it as returning `f64` and then cast the result. Correcting the imported
 prototype removes the conversion and matches retail. Before trying expression
 or scheduling changes around a call result, compare the declaration against
 the defining TU.
+
+## `listFindHandle`
+
+`listFindHandle` is exact (40 bytes). Its body was already correct and differed
+only by the `r4`/`r5` allocation of two short-lived locals. Declaring the loaded
+chain value before the link pointer:
+
+```c
+u32 cur;
+s32* link = (s32*)(base + 4);
+```
+
+produces the retail allocation (`cur` in `r4`, `link` in `r5`). For compact
+leaf functions with a pure register permutation, try reversing adjacent local
+declarations before introducing artificial uses or volatile storage. MWCC's
+allocation direction is sensitive to the local lifetimes and is not uniform
+across every function, so validate each case with `fndiff`.
