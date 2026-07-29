@@ -24,3 +24,13 @@ else if (rep < 0.0f) { ... }
 This is a useful diagnostic: an unexplained eight-byte frame excess plus a
 float/double constant-load mismatch can indicate wrong ABI parameter types,
 even when the arithmetic body correctly promotes those parameters to double.
+
+## `getCurrentDir`
+
+`getCurrentDir` is also exact (224 bytes). Its only structural mismatch was an
+extra `frsp` after `mbInvSqrtLookup`. The defining TU already proves that
+`mbInvSqrtLookup(f64)` returns `f32`; this consumer had independently declared
+it as returning `f64` and then cast the result. Correcting the imported
+prototype removes the conversion and matches retail. Before trying expression
+or scheduling changes around a call result, compare the declaration against
+the defining TU.
