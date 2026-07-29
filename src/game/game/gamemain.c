@@ -806,12 +806,13 @@ s32 WorldExplosion(s32 arg0)
 /* 0x800521E8 -- animate the loading-timer HUD, arm attract on timeout. */
 void fn_800521E8(void)
 {
+    s32 idx;
     s32 flag = gGameBusy;
     s32 oldTimer = lbl_80344774;
     s32 newTimer;
-    s32 idx;
     void* txt;
-    u8 unused[16];
+    u8* textData;
+    u8 unused[8];
 
     lbl_80344774 = oldTimer + gFrameTicks;
     newTimer = lbl_80344774;
@@ -827,7 +828,8 @@ void fn_800521E8(void)
     SetDrawStringScale(lbl_80346AB8);
     txt = DrawStringText(-256, 120, 6, 0xFFFFFF, 169, 0);
     RestoreDrawStringScale();
-    ((u8*)((void**)txt)[4])[idx] = 0;   /* ((u8*)txt->f16)[idx] = 0 */
+    textData = ((void**)txt)[4];
+    textData[idx] = 0;
     if (flag != 0) {
         return;
     }
