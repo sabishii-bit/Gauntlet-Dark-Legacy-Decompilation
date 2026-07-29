@@ -25,6 +25,8 @@ typedef struct LookoutParam {
 } LookoutParam; /* 0x6C */
 
 /* An OBJGRP is the transform / node handle shared by every placed object.   */
+#ifndef GAME_OBJGRP_DEFINED
+#define GAME_OBJGRP_DEFINED
 typedef struct OBJGRP {
     /* 0x00 */ f32 worldmat[4][4];
     /* 0x40 */ f32 attn_pos[4];
@@ -32,6 +34,7 @@ typedef struct OBJGRP {
     /* 0x60 */ struct mbnode* node;
     /* 0x64 */ s32 flags;
 } OBJGRP; /* 0x68 */
+#endif
 
 /* Per-type static item description (loaded from the item-info resource).     */
 typedef struct iteminfodata {
