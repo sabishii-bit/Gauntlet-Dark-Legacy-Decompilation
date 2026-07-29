@@ -83,9 +83,11 @@ extern int mlmCloseRes;
 extern int mlmReadRes;
 extern int mlmLastFileSize;
 
-extern char* mlmRootPath;
-extern char mlmPathFmtWad[]; /* "%s/%s" style */
-extern char mlmPathFmt[];    /* "%s"          */
+extern char mlmRootPath[];
+extern const char mlmPathFmtWad[6]; /* "%s/%s" */
+extern const char mlmPathFmt[3];    /* "%s"    */
+extern const char mlmExtDefault[5]; /* ".ps2"  */
+extern const char mlmPathSeparator[];
 
 /* forward decls (address order kept) */
 int do_threaded_io(MLFILE* f);
@@ -105,8 +107,9 @@ void serve_io(void)
     int i;
     int served;
 
+    i = 0;
     served = 0;
-    for (i = 0; i < 1 && served == 0; i++) {
+    while (i++ < 1 && served == 0) {
         if (finfo_list[mlmCurFileSlot].done != -1 &&
             finfo_list[mlmCurFileSlot].done != 1) {
             served = do_threaded_io(&finfo_list[mlmCurFileSlot]);
@@ -467,18 +470,18 @@ void get_path(char* out, char* wad, char* name)
 {
     char tmp[256];
 
-    if (wad == NULL) {
-        sprintf(tmp, mlmPathFmt, name);
-    } else {
+    if (wad != NULL) {
         sprintf(tmp, mlmPathFmtWad, wad, name);
+    } else {
+        sprintf(tmp, mlmPathFmt, name);
     }
     if (!(name[0] == 'W' && name[1] == 'A' && name[2] == 'D') &&
         strrchr(tmp, '.') == NULL) {
-        strcat(tmp, ".wad");
+        strcat(tmp, mlmExtDefault);
     }
     strcpy(out, mlmRootPath);
     if (tmp[0] != '/') {
-        strcat(out, "/");
+        strcat(out, mlmPathSeparator);
     }
     strcat(out, tmp);
 }
@@ -503,6 +506,7 @@ int FileMap(char* wad, char* name, int base, void* dest, u32* sizeOut)
 
 int FileSize(char* wad, char* name)
 {
+    u8 unused[8];
     char full[256];
     u32 size;
 
