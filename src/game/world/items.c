@@ -809,29 +809,21 @@ Item* PlaceItem(s32 type, s32 level, char* name, void* matrix)
     s32 i;
     Item* item;
     iteminfo* d;
-    iteminfo** defs;
     iteminfo* def;
 
-    defs = &gWorldInfo.iteminfo;
-    def = *defs;
+    def = gWorldInfo.iteminfo;
 
-    for (i = 0; i < gWorldInfo.niteminfos; i++) {
+    for (i = 0; i < gWorldInfo.niteminfos; i++, def++) {
         iteminfodata* body = &def->item;
         if (strcmp(name, body->desc) != 0) {
-            goto next;
+            continue;
         }
         if (type != def->type) {
-            goto next;
+            continue;
         }
-        if (level <= 0) {
+        if (level <= 0 || level == body->subtype) {
             goto found;
         }
-        if (level != body->subtype) {
-            goto next;
-        }
-        goto found;
-next:
-        def++;
     }
     i = -1;
 found:
@@ -840,7 +832,7 @@ found:
         return NULL;
     }
 
-    d = &(*defs)[i];
+    d = &gWorldInfo.iteminfo[i];
     item = NewItemPtr();
     if (matrix != NULL) {
         SetItem(item, 0, d, matrix);

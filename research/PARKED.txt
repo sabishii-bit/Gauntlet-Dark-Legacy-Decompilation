@@ -382,3 +382,4 @@ FindClosestWaypoint  # renum: extern-SDA f64 (sArrowFloorYOffset) flips invarian
 SetItemGeo  # renum-tail: mr. fusion vs cmpwi+addi return-materialization after ItemFindMBObjectL1 inline; 17 real, 1-insn delta (3 A/Bs)
 AddItemWobj  # renum-tail: same mr.-fusion residual as SetItemGeo at ItemFindMBObjectL1 return join; 13 real, 1-insn
 SetPlayerStartPos  # sched/peephole: stfsu @LO fusion vs lis+addi+stfs for gDefaultPlayerPosition store block, 31 real (dst-local, unsized-extern, scoped-pragma all failed; pragma poisons whole tail)
+PlaceItem  # renum: defs/body r27-r30 LICM pair + bne/b-vs-beq threading, 45 real (continue-form, ||-guard, delete-local all identical)
