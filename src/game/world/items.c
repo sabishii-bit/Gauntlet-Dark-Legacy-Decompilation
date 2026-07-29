@@ -13,10 +13,9 @@
  * anchored 1:1 to the PDB.  The front half (the item-spawn / collision block)
  * was re-ordered in the GC source and is named behaviourally / by string.
  *
- * Wired NonMatching: the DOL links from the dtk-extracted asm object, so this
- * translation unit exists to map symbols and document behaviour.  The small,
- * unambiguous loader/init/accessor functions are reconstructed below; the
- * SetItem giant (0x1468) and the file-parse bodies are left to the asm.
+ * Wired NonMatching: the DOL links from the dtk-extracted asm object while
+ * reconstruction continues.  The complete retail function range is mapped
+ * below, including the large SetItem constructor and serialized file loaders.
  *
  * NAMED (real Xbox-PDB names; string / call-graph / struct anchored):
  *   front (behavioural):  PlaceItem, AddItem, NewItemPtr, MatchTransporters,
@@ -146,6 +145,11 @@ extern s32            gNumPlayers;
 extern u32            gGameMode;
 extern s32            gGameOptions[12];
 extern char           sMaxItemsError[];
+extern s32            lbl_803448BC;
+extern s32            lbl_803449A0;
+extern s32            lbl_80344C60;
+extern f32            lbl_8025EA04[3];
+extern s32            lbl_8011BD40[];
 
 extern s32            gGameBusy;
 extern s32            gScriptedCameraState;
@@ -167,6 +171,24 @@ extern s32   generate_enemy(f32* pos, s32 type, s32 level, f32* dir,
 extern s32   fn_8004F404(s32 enemy_index, f32* position);
 extern void  WorldVector(const f32* vector, f32* out, const f32* matrix);
 extern void  AddBoss(f32* matrix);
+extern s32   fn_80051FDC(char* desc);
+extern s32   fn_80050FB0(s32 type, s32 level);
+extern char* fn_80051F64(s32 type);
+extern void* CritterTypeLoaded(s32 type, s32 load);
+extern s16*  fn_80055CB8(void* wobj);
+extern s32   fn_80057B30(char* name);
+extern s32   towerGetLevelFlag(void* player, s32 flag);
+extern s32   towerAllPlayersMetBossReq(s32 flag);
+extern s32   AudioFindSound(char* name, s32 length, s32 load);
+extern s32   FindWorldAnimNode(f32* point, f32 maxdist);
+extern void* AtreeFindMbidxNode(void* tree, s32 mbidx);
+extern u32   RandInt(u32 limit);
+extern s32   stricmp(const char* a, const char* b);
+extern u32   strlen(const char* text);
+extern s32   toupper(s32 c);
+extern char* strcpy(char* dst, const char* src);
+extern char* strncpy(char* dst, const char* src, u32 count);
+extern f64   atan2(f64 y, f64 x);
 extern void* memset(void* dst, s32 val, u32 n);
 extern u32*  FindWORLDOBJ(const char* name);
 extern double DistanceToClosestPlayer(f32* pos);
@@ -177,6 +199,8 @@ extern s32   MBTreeClearFlags(void* node, s32 a, s32 b);
 extern void  MBNodeSetParent(void* node, void* parent);
 extern void  UpdateObjWorldMat(OBJGRP* group);
 extern void  AddItemWobj(Item* item);
+extern s32   RegisterItemWobj(void* target_ptr, s16 type, s32 x_grid,
+                              s32 z_grid, s32 value);
 extern s32   PlayerSelecting(s32 idx);
 extern u8    gPlayers[];
 extern ItemSceneContext gFloorCollisionResult;
@@ -251,6 +275,8 @@ extern void  MBSetObject(void* node, s32 object);
 extern char* strcat(char* dst, const char* src);
 extern s32   StartFXNoLoop(s32 type, f32* pos);
 extern void  CopyMat3(const f32* src, f32* dst);
+extern void  CopyMat4(const f32* src, f32* dst);
+extern void  MBTreeSetZMod(f32 value, void* node, s32 enable);
 extern void  WPitchMat3(f32* matrix, f32 angle);
 extern void  WYawMat3(f32* matrix, f32 angle);
 extern void  WRollMat3(f32* matrix, f32 angle);
@@ -284,6 +310,7 @@ extern char    sNewItemBadIndex[];
 extern char    sSetItemFailedFmt[];
 
 s32 ItemVisible(Item* item);
+void SetItemGeo(Item* item, void* atree_header, char* name, u32 flags);
 
 /* ------------------------------------------------------------------ */
 /* item pool                                                          */
@@ -1328,6 +1355,589 @@ static void generate_single(Item* item, s32 algorithm, s32 important)
     enemy->birth_pos[1] = enemy->objgrp.worldmat[3][1];
     enemy->birth_pos[2] = enemy->objgrp.worldmat[3][2];
     (*(s8*)&data[2])++;
+}
+
+/*
+ * Construct one live item from a serialized placement and its static
+ * descriptor.  The Item.data union is interpreted by info->type below.
+ */
+void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
+{
+    char name[36];
+    char child_name[32];
+    char* strings = (char*)&sObjectsFile;
+    u8* params = instance != NULL ? instance->params : NULL;
+    void* atree_header;
+    s32 attach_geometry = 1;
+    s32 type;
+    s32 subtype;
+    s32 item_index = (s32)(item - sItems);
+    s32 i;
+
+    /* Random descriptors contain a count and an array of s16 info indices. */
+    while (info->type == -1) {
+        s32 count = *(s32*)((u8*)info + 4);
+        s32 choice;
+
+        if (count != 0) {
+            u32 seed = (sItemRandSeed >> 5) + item_index;
+            choice = seed - (seed / (u32)count) * count;
+        } else {
+            choice = 0;
+        }
+        sItemRandSeed += 439;
+        info = &gWorldInfo.iteminfo[
+            *(s16*)((u8*)info + 8 + choice * sizeof(s16))];
+    }
+
+    type = info->type;
+    subtype = info->item.subtype;
+
+    if (type == 1) {
+        if (subtype == 12) {
+            ErrorPrintf(strings + 0x38C, matrix[12], matrix[13], matrix[14]);
+            item->active = -1;
+            return;
+        }
+        if (subtype == 2 && instance != NULL &&
+            *(s16*)&instance->params[0] > 1) {
+            iteminfo* candidate = gWorldInfo.iteminfo;
+            s32 found = -1;
+
+            for (i = 0; i < gWorldInfo.niteminfos; i++, candidate++) {
+                if (strcmp(sKeyringName, candidate->item.desc) == 0 &&
+                    candidate->type == 1 &&
+                    candidate->item.subtype == 2) {
+                    found = i;
+                    break;
+                }
+            }
+            info = &gWorldInfo.iteminfo[found];
+            type = info->type;
+            subtype = info->item.subtype;
+        } else if (subtype == 15 && sMusicTrackHi == 13 &&
+                   (lbl_803449A0 != 0 ||
+                    towerAllPlayersMetBossReq(1) != 0)) {
+            item->active = -1;
+            return;
+        }
+    }
+
+    item->info = info;
+    item->coll_offset[0] = info->item.coloffset[0];
+    item->coll_offset[1] = info->item.coloffset[1] + 1.0f;
+    item->coll_offset[2] = info->item.coloffset[2];
+    item->visrad =
+        2.0f * (info->item.xdim < info->item.zdim ?
+                info->item.zdim : info->item.xdim);
+    item->objgrp.flags = 0;
+    {
+        f32 x = item->coll_offset[0];
+        f32 z = item->coll_offset[2];
+        if (x < 0.0f) {
+            x = -x;
+        }
+        if (z < 0.0f) {
+            z = -z;
+        }
+        if ((f64)(x + z) < 0.01) {
+            item->objgrp.flags = 2;
+        }
+    }
+    item->ctriidx = instance != NULL ? instance->ctriidx : -1;
+    item->nctris = instance != NULL ? instance->nctris : 0;
+    item->active = info->item.activetype;
+    item->activetime = 0;
+    item->action = 0;
+    item->paction = 0;
+    item->daction = 0;
+    item->minplayers = instance != NULL ? instance->minplayers : 0;
+    if (instance != NULL && (instance->flags & 1)) {
+        item->active |= 0x40;
+    }
+    item->playermask = 0;
+    item->opener = -1;
+    item->minoff = !ItemVisible(item);
+    item->armor = (s8)info->item.armor;
+    item->health = info->item.hitpoints;
+
+    atree_header = info->item.atreeheader;
+    if (instance == NULL || instance->desc[0] == '\0') {
+        strcpy(name, info->item.desc);
+    } else {
+        strncpy(name, instance->desc, sizeof(instance->desc));
+    }
+
+#define DATA_S16(off) (*(s16*)&item->data[(off)])
+#define DATA_U16(off) (*(u16*)&item->data[(off)])
+#define DATA_S32(off) (*(s32*)&item->data[(off)])
+#define DATA_U32(off) (*(u32*)&item->data[(off)])
+#define DATA_F32(off) (*(f32*)&item->data[(off)])
+#define DATA_S8(off)  (*(s8*)&item->data[(off)])
+#define DATA_U8(off)  (*(u8*)&item->data[(off)])
+#define PARAM_S16(off, fallback) \
+    (instance != NULL ? *(s16*)&params[(off)] : (fallback))
+#define PARAM_S32(off, fallback) \
+    (instance != NULL ? *(s32*)&params[(off)] : (fallback))
+
+    switch (type) {
+    case 1:
+        DATA_S32(0) = *(s32*)((u8*)info + 0x3C);
+        DATA_S32(4) = *(s16*)((u8*)info + 0x40);
+        DATA_F32(8) = (f32)*(s16*)((u8*)info + 0x4A);
+        DATA_S32(12) = 0;
+        DATA_S16(16) = 0;
+        switch (subtype) {
+        case 2:
+            if (instance != NULL) {
+                DATA_S32(4) = *(s16*)&params[0];
+            }
+            if (DATA_S32(4) < 1) {
+                DATA_S32(4) = 1;
+            }
+            break;
+        case 10:
+            lbl_8025EA04[0] = matrix[12];
+            lbl_8025EA04[1] = matrix[13];
+            lbl_8025EA04[2] = matrix[14];
+            sSpecialItem10 = (s32)item;
+            break;
+        case 13:
+            sSpecialItem13 = (s32)item;
+            break;
+        case 14:
+            if (instance != NULL) {
+                DATA_S32(4) = *(s16*)&params[0];
+            }
+            break;
+        case 15:
+            DATA_S32(4) =
+                ((s32*)((u8*)sArrowObjectNames + 0x10))[DATA_S32(4)];
+            break;
+        }
+        break;
+
+    case 2:
+        DATA_S16(0) = PARAM_S16(0, -1);
+        DATA_S16(2) = 0;
+        DATA_F32(4) = (f32)atan2(matrix[8], matrix[10]);
+        DATA_S32(8) = 0;
+        DATA_S32(12) = 0;
+        DATA_S16(16) = PARAM_S16(4, 0);
+        break;
+
+    case 3:
+    {
+        s32 enemy_type;
+        s32 count_index;
+        s32 count;
+
+        item->visrad *= 4.0f;
+        DATA_U8(2) = 0;
+        DATA_U8(3) = (u8)PARAM_S16(4, 0);
+        DATA_U8(11) = (u8)PARAM_S16(6, 0);
+        DATA_U8(4) = 0;
+        DATA_U8(7) = (u8)PARAM_S16(2, 0);
+        enemy_type = fn_80051FDC(info->item.desc);
+        DATA_S16(0) = (s16)enemy_type;
+
+        if (DATA_S16(0) == 3) {
+            iteminfo* candidate = gWorldInfo.iteminfo;
+            for (i = 0; i < gWorldInfo.niteminfos; i++, candidate++) {
+                if (strcmp("LOW", candidate->item.desc) == 0 &&
+                    candidate->type == type &&
+                    (subtype < 1 || subtype == candidate->item.subtype)) {
+                    item->info = candidate;
+                    break;
+                }
+            }
+        }
+        if (gGameOptions[10] != 0 || DATA_S8(7) < 0) {
+            DATA_S8(7) = (s8)lbl_8011BD40[DATA_S16(0)];
+        }
+        DATA_S8(6) = (s8)PARAM_S16(0, 1);
+        if (DATA_S8(6) < 1) {
+            ErrorPrintf(strings + 0x424, DATA_S8(6),
+                        matrix[12], matrix[13], matrix[14]);
+            DATA_S8(6) = 1;
+        }
+        DATA_S8(5) = -1;
+        DATA_F32(12) = 0.0f;
+        DATA_S16(8) = 0;
+        DATA_U8(10) = 0;
+        DATA_F32(16) = (f32)atan2(matrix[8], matrix[10]);
+        item->activetime = 40;
+        item->health *= DATA_S8(6);
+
+        count_index = DATA_S8(6) - 1;
+        if (count_index < 0) {
+            count_index = 0;
+        } else if (count_index > 2) {
+            count_index = 2;
+        }
+        if (DATA_U8(3) == 0) {
+            DATA_U8(3) = *((u8*)sArrowObjectNames + 0x30 + count_index);
+        }
+        if (DATA_U8(11) == 0) {
+            DATA_U8(11) = *((u8*)sArrowObjectNames + 0x3C + count_index);
+        }
+        DATA_U8(3) = (u8)(DATA_U8(3) *
+                           *(f32*)(gCurLevel + 0xD4));
+        DATA_U8(11) = (u8)(DATA_U8(11) *
+                            *(f32*)(gCurLevel + 0xD0));
+        item->health = (s16)(item->health *
+                              *(f32*)(gCurLevel + 0xCC));
+        if (sMusicTrackHi == 5) {
+            strcpy(item->info->item.desc, "CAT");
+            DATA_S16(0) = -2;
+            DATA_S8(6) = 2;
+        } else if (sMusicTrackHi == 6) {
+            strcpy(item->info->item.desc, "HEL");
+            DATA_S16(0) = -3;
+            DATA_S8(6) = 3;
+        }
+        DATA_S16(0) =
+            (s16)fn_80050FB0(DATA_S16(0), DATA_S8(2));
+        if (stricmp(name, "BOSSGEN") != 0) {
+            count = DATA_S8(6);
+            if (DATA_S16(0) < -1) {
+                sprintf(name, strings + 0x17C, count);
+            } else {
+                sprintf(name, strings + 0x18C,
+                        fn_80051F64(DATA_S16(0)), count);
+            }
+        }
+        atree_header = (void*)AtreeMatchAnyHeader(name, 1);
+        break;
+    }
+
+    case 4:
+    {
+        void* loaded = NULL;
+        attach_geometry = 0;
+        DATA_U8(2) = (u8)PARAM_S16(0, 1);
+        DATA_S8(3) = (s8)PARAM_S16(2, -1);
+        DATA_S16(0) = (s16)fn_80051FDC(info->item.desc);
+        DATA_F32(4) = (f32)atan2(matrix[8], matrix[10]);
+        DATA_S32(8) = 0;
+        DATA_F32(12) =
+            instance != NULL ? *(f32*)&params[4] : 0.0f;
+        DATA_S16(16) = PARAM_S16(8, 0);
+        if (gGameOptions[10] != 0 || DATA_S8(3) < 0) {
+            DATA_S8(3) = (s8)lbl_8011BD40[DATA_S16(0)];
+        }
+        DATA_S16(0) =
+            (s16)fn_80050FB0(DATA_S16(0), DATA_U8(2));
+
+        if (DATA_S16(0) == 32) {
+            loaded = CritterTypeLoaded(7, 0);
+            if (loaded) {
+                void* header;
+                item->active &= ~1;
+                header = *(void**)((u8*)loaded + 0x120);
+                atree_header = (void*)AtreeMatch(
+                    *(void**)((u8*)header + 0x28),
+                    strings + 0x3A8, 1);
+                attach_geometry = 1;
+            }
+            DATA_U8(2) = 1;
+        } else if (DATA_S16(0) == 29) {
+            void* header = gWadAtreeHeaders[29];
+            if (header == NULL) {
+                loaded = CritterTypeLoaded(3, 0);
+                if (loaded) {
+                    header = *(void**)((u8*)loaded + 0x120);
+                    header = *(void**)((u8*)header + 0x28);
+                }
+            }
+            if (header != NULL) {
+                item->active &= ~1;
+                atree_header =
+                    (void*)AtreeMatch(header, strings + 0x3B4, 1);
+                attach_geometry = 1;
+            }
+            DATA_U8(2) = 1;
+        } else if (DATA_S16(0) == 30 &&
+                   gWadAtreeHeaders[30] != NULL) {
+            item->active &= ~1;
+            if (DATA_S8(2) == 0 || DATA_S8(2) == 1) {
+                if (DATA_S8(2) == 1) {
+                    DATA_U32(8) |= 1;
+                }
+                atree_header = (void*)AtreeMatch(
+                    gWadAtreeHeaders[30], strings + 0x3C0, 1);
+                DATA_U8(2) = 1;
+                attach_geometry = 1;
+            } else if (DATA_S8(2) == 2 || DATA_S8(2) == 3) {
+                if (DATA_S8(2) == 3) {
+                    DATA_U32(8) |= 1;
+                }
+                atree_header = (void*)AtreeMatch(
+                    gWadAtreeHeaders[30], strings + 0x3D0, 1);
+                DATA_U8(2) = 2;
+                attach_geometry = 1;
+            }
+        }
+        break;
+    }
+
+    case 5:
+    {
+        u8* wobj = NULL;
+        u16 trigger_flags = 0;
+        s32 wobj_index = PARAM_S16(0, -1);
+
+        if (instance == NULL) {
+            DATA_S32(0) = 0;
+            DATA_U16(4) = 0;
+            DATA_F32(8) = 0.0f;
+            DATA_U8(6) = 0;
+            DATA_U8(7) = 0;
+        } else {
+            switch (subtype) {
+            case 20: trigger_flags = 0x10; break;
+            case 21: trigger_flags = 8; break;
+            case 22: trigger_flags = 0x12; break;
+            case 23: trigger_flags = 10; break;
+            case 25: trigger_flags = 0x804; break;
+            case 26: trigger_flags = 2; break;
+            case 27: trigger_flags = 0x80C; break;
+            case 28: trigger_flags = 9; break;
+            case 29: trigger_flags = 10; break;
+            default:
+                trigger_flags = PARAM_S16(2, 0) | 8;
+                break;
+            }
+            if (wobj_index >= 0) {
+                if (wobj_index < gWorldInfo.nwobjs) {
+                    wobj = (u8*)gWorldInfo.wobjs + wobj_index * 0x3C;
+                    if (*(void**)(wobj + 0x28) == NULL) {
+                        ErrorPrintf(strings + 0x3FC, wobj);
+                        wobj = NULL;
+                    }
+                } else {
+                    ErrorPrintf(strings + 0x3E0,
+                                gWorldInfo.nwobjs, wobj_index);
+                }
+            }
+            DATA_S32(0) = (s32)wobj;
+            if (wobj != NULL) {
+                if (*(u32*)(wobj + 0x10) & 0x800) {
+                    *(u32*)(wobj + 0x10) |= 0x10000000;
+                }
+                RegisterItemWobj(
+                    wobj, (s16)(subtype | ((trigger_flags & 0xFF) << 8)),
+                    *(s16*)&params[8], *(s16*)&params[10],
+                    *(s8*)&params[5]);
+                wobj[0x17] = 0;
+                wobj[0x16] = 0;
+                *(u32*)(wobj + 0x10) |= 0x100000;
+            }
+            DATA_U16(4) =
+                trigger_flags | (PARAM_S16(2, 0) & 0xFF00);
+            if (params[4] == 0xFF) {
+                DATA_F32(8) = 0.01f;
+            } else {
+                DATA_F32(8) = 0.5f * params[4];
+            }
+            DATA_U8(6) = params[6];
+            DATA_U8(7) = params[7];
+        }
+        DATA_S32(12) = 0;
+        DATA_S16(16) = 0;
+        DATA_S16(18) = -1;
+
+        if (wobj != NULL && sMusicTrackHi == 13 &&
+            (DATA_U8(6) == 104 || DATA_U8(6) == 199)) {
+            u32 flags = 0;
+            s32 player;
+            for (player = 0; player < 4; player++) {
+                u8* p = gPlayers + player * 13148;
+                if (*(s32*)(p + 0xE8) != 0) {
+                    flags |= towerGetLevelFlag(p, 8);
+                }
+            }
+            if (flags & 1) {
+                s16* anim = fn_80055CB8(wobj);
+                wobj[0x17] = '/';
+                wobj[0x16] = '/';
+                *(u32*)(wobj + 0x10) |= 0xA00000;
+                if (anim != NULL) {
+                    *((f32*)anim + 2) = (f32)(anim[1] - 1);
+                }
+            }
+        }
+        break;
+    }
+
+    case 7:
+        lbl_803448BC++;
+        break;
+
+    case 8:
+    {
+        s32 scaled;
+        DATA_F32(0) = instance != NULL ?
+                      (f32)PARAM_S16(0, 0) : 0.0f;
+        if (DATA_F32(0) == 0.0f) {
+            DATA_F32(0) =
+                (f32)*(s16*)((u8*)info + 0x40);
+        }
+        DATA_S16(4) = PARAM_S16(2, 0);
+        if (DATA_S16(4) != 0) {
+            *(s16*)((u8*)info + 0x48) =
+                (s16)(DATA_S16(4) * -3);
+        }
+        DATA_F32(0) *= *(f32*)(gCurLevel + 0xDC);
+        item->health = (s16)(item->health *
+                              *(f32*)(gCurLevel + 0xCC));
+        scaled = *(s16*)((u8*)info + 0x48) * 2;
+        if (scaled < 0) {
+            scaled = -scaled;
+            scaled = (scaled >> 1) + (s32)RandInt((u32)scaled);
+        }
+        item->activetime =
+            (s16)(scaled * *(f32*)(gCurLevel + 0xD8));
+        break;
+    }
+
+    case 9:
+        if (instance != NULL && PARAM_S32(0, 0) == 0) {
+            DATA_S16(0) = (s16)fn_80057B30((char*)&params[4]);
+        } else {
+            DATA_S16(0) = -1;
+        }
+        DATA_S32(4) = 0;
+        item->active &= ~1;
+        item->active |= 0x40;
+        break;
+
+    case 10:
+        DATA_S16(0) = PARAM_S16(0, 0);
+        DATA_S16(2) = PARAM_S16(2, 1);
+        if (DATA_S16(0) < 1) {
+            DATA_S16(0) = (s16)subtype;
+        }
+        if (DATA_S16(0) == 40 || DATA_S16(0) == 49 ||
+            (DATA_S16(0) > 50 && DATA_S16(0) < 54)) {
+            item->active |= 0x40;
+        }
+        if (DATA_S16(0) == 41) {
+            item->health *= DATA_S16(2);
+            sprintf(name, "%s%d", info->item.desc, DATA_S16(2));
+        }
+        DATA_S16(4) = 0;
+        DATA_S16(6) = 0;
+        DATA_F32(8) = 0.0f;
+        DATA_F32(12) = 0.0f;
+        DATA_F32(16) = 0.0f;
+        break;
+
+    case 11:
+        DATA_S32(0) = PARAM_S32(0, 0);
+        DATA_S32(4) = PARAM_S32(4, 0);
+        DATA_S32(8) = 0;
+        break;
+
+    case 12:
+        if (instance == NULL || PARAM_S32(0, -1) < 0) {
+            DATA_S32(0) = 0;
+            DATA_F32(4) = 0.0f;
+        } else {
+            DATA_S32(0) =
+                (s32)((u8*)gWorldInfo.wobjs +
+                      PARAM_S32(0, 0) * 0x3C);
+            DATA_S32(4) = PARAM_S32(4, 0);
+        }
+        DATA_F32(8) =
+            instance != NULL ? *(f32*)&params[8] : 0.0f;
+        DATA_F32(12) = 0.0f;
+        if (subtype != 2) {
+            attach_geometry = 0;
+        }
+        break;
+
+    case 13:
+        DATA_F32(0) =
+            instance != NULL ? *(f32*)&params[0] : 0.0f;
+        DATA_S16(12) = (s16)PARAM_S32(4, 0);
+        if (instance == NULL || DATA_S16(12) != 0) {
+            DATA_S32(4) = -1;
+        } else {
+            for (i = 0; i < (s32)strlen(instance->desc); i++) {
+                instance->desc[i] = (char)toupper(instance->desc[i]);
+            }
+            DATA_S32(4) =
+                AudioFindSound(instance->desc,
+                               sizeof(instance->desc), 1);
+        }
+        DATA_S16(14) = 0;
+        DATA_S16(16) = PARAM_S16(8, 0);
+        DATA_S16(18) = PARAM_S16(10, 0);
+        strncpy(item->info->item.desc, instance->desc, 16);
+        DATA_S32(8) = FindWorldAnimNode(&matrix[12], lbl_8034709C);
+        attach_geometry = 0;
+        item->active |= 0x40;
+        break;
+    }
+
+    if (*(void**)item->atree != NULL) {
+        AtreeDelete(item->atree);
+        *(void**)item->atree = NULL;
+    }
+
+    if (attach_geometry &&
+        (instance == NULL || (instance->flags & 2) == 0)) {
+        u32 flags = 0;
+        if (instance != NULL && (instance->flags & 4)) {
+            flags = 0x80000;
+        }
+        SetItemGeo(item, atree_header, name, flags);
+    } else if (item->objgrp.node == NULL) {
+        item->objgrp.node =
+            MBNewNode(sItemsRootNode, gIdentityMatrix, 1);
+    } else {
+        *((u8*)item->objgrp.node + 0x52) = 1;
+    }
+
+    CopyMat4(matrix, (f32*)item->objgrp.node);
+    CopyMat4(matrix, &item->objgrp.worldmat[0][0]);
+    if (item->minoff) {
+        MBTreeSetFlags(item->objgrp.node, 2, 0);
+    }
+    UpdateObjWorldMat(&item->objgrp);
+    fn_8005A404(&item->objgrp.worldmat[0][0],
+                item->coll_offset, item->coll_offset);
+    MBTreeSetZMod(20.0f, item->objgrp.node, 1);
+
+    if (type == 2 && *(void**)item->atree != NULL) {
+        sprintf(child_name, "%sNULL1", name);
+        i = MBOX_ReallyFindObject(child_name, sItemFile0Handle,
+                                  sItemFile0Handle, -1);
+        if (i >= 0) {
+            void* node = AtreeFindMbidxNode(*(void**)item->atree, i);
+            if (node != NULL) {
+                DATA_S32(8) = *(s32*)node;
+                MBTreeSetFlags(*(void**)node, 1, 0);
+            }
+        }
+    } else if (type == 8) {
+        *((u8*)item + 0x83) |= 4;
+    } else if (type == 1 && subtype == 15 &&
+               sMusicTrackHi == 13 && lbl_80344C60 != 0) {
+        item->active |= 0x800;
+        MBTreeSetAlpha((s32)item->objgrp.node, 255, 1);
+    }
+
+#undef DATA_S16
+#undef DATA_U16
+#undef DATA_S32
+#undef DATA_U32
+#undef DATA_F32
+#undef DATA_S8
+#undef DATA_U8
+#undef PARAM_S16
+#undef PARAM_S32
 }
 
 /* Attach either an animation tree or a static MB object to an item. */

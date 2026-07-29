@@ -115,3 +115,23 @@ The complete old-to-new map and evidence are in
   cases 9, 5, 6, and 7 in target code order after the merged 1/2 and 3/4
   fallthrough blocks, because switch body order materially affects diff
   alignment even when the jump table is equivalent.
+
+## SetItem constructor continuation (2026-07-28)
+
+- A decompiler may misidentify a helper from the surrounding arithmetic.
+  SetItem's negative door-delay path doubles and negates the delay, calls
+  `0x800BCCA8`, then adds half the range. The symbol map proves that callee is
+  `RandInt`, not a square-root or absolute-value helper.
+- Recover hidden floating arguments from the call-site registers. The
+  `FindWorldAnimNode` call loads `r3 = &matrix[12]` and `f1 = 10.0f`, matching
+  the translated world.c API even though Ghidra rendered it as a zero-argument
+  call.
+- Treat decompiler booleans that survive a large switch as control-flow state.
+  SetItem's geometry flag begins true, is cleared for ordinary critter and
+  world-animation items, and is re-enabled only when a special statue animation
+  tree is found. Leaving it true produced plausible code but attached the wrong
+  geometry at runtime.
+- Follow nested loads literally. A loaded critter's animation-tree header is
+  `*(loaded + 0x120)` followed by `*(header + 0x28)`; collapsing the offsets
+  into `*(loaded + 0x148)` crosses a pointer indirection and is semantically
+  wrong.
