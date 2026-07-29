@@ -175,7 +175,7 @@ static char sBossGenName[] = "BOSSGEN";   /* 0x80346AA4 (.sdata) */
 
 extern s32   stricmp(const char* a, const char* b);
 extern s32   toupper(s32 c);
-extern void  AtreeInitLists(s32 a, s32 b);
+extern void  AtreeAlloc(s32 a, s32 b);
 extern void  DoTexMods(void* data);
 extern s32   DoWorldAnimSub(void* track, void* animdata, void* animBase);
 extern void* MBNewNode(s32 parent, void* tmpl, s32 arg2);
@@ -197,7 +197,7 @@ extern s32   lbl_80344DA0;
 extern void  InitPlayerControls(void);
 extern void  ControlsUpdate(void);
 extern void  AnimInit(void);
-extern void  fn_80010DF4(s32 arg0);
+extern void  AtreeInitLists(s32 arg0);
 extern void  AudioRegisterMenu(void);
 extern void  AudioResetInput(void);
 extern void  InitLighting(s32 arg0);
@@ -306,7 +306,7 @@ extern void  LoadPowerups(s32 arg0);
 extern void  LoadWeapons(void);
 extern void  LoadWorldData(void);
 extern void  MBOX_LockModels(void);
-extern void  fn_80010E84(s32 arg0);
+extern void  AtreeListLock(s32 arg0);
 extern void  AudioStopSelect(void);
 extern void  init_prefs(void);
 extern void  InitTexMods(void* tex, s32 arg1);
@@ -632,11 +632,11 @@ s32 fn_80057BC8(s32 type)
     return sWorldDataTypes[i].f20;
 }
 
-/* 0x8005403C -- lock the model box, then run fn_80010E84. */
+/* 0x8005403C -- lock the model box, then run AtreeListLock. */
 void fn_8005403C(s32 arg0)
 {
     MBOX_LockModels();
-    fn_80010E84(arg0);
+    AtreeListLock(arg0);
 }
 
 /* 0x8005636C -- advance a two-field counter unless it is parked at 2. */
@@ -688,7 +688,7 @@ void game_init_data(void)
     InitPlayerControls();
     ControlsUpdate();
     AnimInit();
-    fn_80010DF4(0);
+    AtreeInitLists(0);
     AudioRegisterMenu();
     AudioResetInput();
     AudioRegisterMenu();
@@ -1042,14 +1042,14 @@ void fn_80053C70(void)
     case 0x8002:
     case 0x400F:
     case 0x8004:
-        AtreeInitLists(64, 64);
+        AtreeAlloc(64, 64);
         break;
     case 0x4012:
     case 0x8009:
-        AtreeInitLists(3584, 3072);
+        AtreeAlloc(3584, 3072);
         break;
     default:
-        AtreeInitLists(-1, -1);
+        AtreeAlloc(-1, -1);
         break;
     }
 }

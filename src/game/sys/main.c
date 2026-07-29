@@ -73,7 +73,7 @@ void OptionsSetup(void);
 void FontInit(void);
 u32 BytesFree(void);
 void ControlsUpdate(void);
-void AtreeInitLists(int w, int h);
+void AtreeAlloc(int w, int h);
 void pbInitDiag(int arg);
 void fn_800533E4(void);
 void fn_8005403C(int arg);
@@ -87,7 +87,7 @@ int DoOptions(void);
 void sndFxQueUpdate(void);
 void AudioSysSync(int arg);
 int pbDiagDrawMenu(void);
-void fn_80010DF4(int arg);
+void AtreeInitLists(int arg);
 void fn_8006FF1C(void);
 void DoLighting(int arg);
 int sysTestFlags(int arg);
@@ -338,7 +338,7 @@ void main(void)
         u32 tmp;
         u8 pad[16]; /* unused, matches original frame */
 
-        AtreeInitLists(1024, 1024);
+        AtreeAlloc(1024, 1024);
         LoadModel(&lbl_803472C4, &tmp, 1, -1);
         pbInitDiag(2);
     } else {
@@ -377,7 +377,7 @@ void main(void)
             if (pbDiagDrawMenu() != 0) {
                 lbl_80343B00 = -1;
                 MBOX_ResetUnlockedModels(0);
-                fn_80010DF4(0);
+                AtreeInitLists(0);
                 bulletproof_printf(st + 208);
                 FontInit();
                 fn_800533E4();
