@@ -52,7 +52,7 @@ extern s32 lbl_803449C0;       /* movie_list1 index */
 extern s32 lbl_80343C60;       /* movie_list2 index */
 extern u32 lbl_80344620;       /* pad buttons (held) */
 extern u64 gControllerButtons;       /* pad buttons 64-bit */
-extern s32 lbl_80343C58;       /* keep-running flag */
+extern s32 dbg_test_movies;       /* keep-running flag */
 
 void fn_800B27C4(void);
 void padInit(void);
@@ -255,7 +255,7 @@ void fn_8006845C(const char* str);
 void test_movies(void)
 {
     LockMem(1);
-    while (lbl_80343C58 != 0) {
+    while (dbg_test_movies != 0) {
         if (lbl_803449C0 >= 0) {
             PlayVQMovie(movie_list1[lbl_803449C0]);
             FreeUnlockedMem(1);
@@ -327,11 +327,11 @@ void main(void)
                        mlmMemBase + (mlmMemLimit / 4) * 4);
     ControlsUpdate();
     if (lbl_80344620 & 0x02000000) {
-        lbl_80343C58 = 1;
+        dbg_test_movies = 1;
     } else {
-        lbl_80343C58 = 0;
+        dbg_test_movies = 0;
     }
-    if (lbl_80343C58 != 0) {
+    if (dbg_test_movies != 0) {
         test_movies();
     }
     if (lbl_803449B0 != 0) {
