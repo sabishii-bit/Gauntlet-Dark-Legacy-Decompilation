@@ -5,6 +5,8 @@
 - `AudioSoundExists` is exact (136 bytes).
 - `sndTestAcquire` is exact (280 bytes).
 - `sndCmd1` is exact (248 bytes).
+- `sndCmdD` is exact (232 bytes) with the same callback-loop shape as
+  `sndCmd1`.
 
 ## Source-shape technique
 
