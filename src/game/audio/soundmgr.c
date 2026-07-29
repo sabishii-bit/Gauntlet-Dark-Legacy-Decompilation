@@ -663,8 +663,10 @@ void sndSysClear(void)
     memset(s->msgbuf, 0, 0x400);
     sCount2 = 0;
     while (sCount1-- > 0) {
-        Node* node = s->nodes[sCount1];
-        s->nodes[sCount1] = 0;
+        Node* node;
+        SndState* entry = (SndState*)((u8*)s + sCount1 * 4);
+        node = entry->nodes[0];
+        entry->nodes[0] = 0;
         node->unk4 = 0;
         node->unk8 = 0;
         node->cb();
