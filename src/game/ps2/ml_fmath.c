@@ -26,6 +26,9 @@ extern f64 sqrt(f64 x);
 extern f64 __frsqrte(f64 x);
 extern f32 sin(f32 x);
 extern f32 cos(f32 x);
+extern f32 atan2(f32 y, f32 x);
+extern f32 ffsin(f32 x);
+extern f32 ffcos(f32 x);
 extern void sceSamp0TransposeMatrix(f32* dst, const f32* src);
 extern void sceSamp0CopyMatrix34(f32* dst, const f32* src);
 extern void mat44Mult__FR5mat44R5mat44R5mat44(f32* dst, f32* lhs, f32* rhs);
@@ -109,25 +112,133 @@ void ExtractYPR(void) {}
 void ExtractPYR(void) {}
 
 /* 0x800BD050 */
-void CreateYPRMatrix(void) {}
+void CreateYPRMatrix(f32* matrix, const f32* angles)
+{
+    f32 c0 = ffcos(angles[0]);
+    f32 s0 = -ffsin(angles[0]);
+    f32 c1 = ffcos(angles[1]);
+    f32 s1 = -ffsin(angles[1]);
+    f32 c2 = ffcos(angles[2]);
+    f32 s2 = -ffsin(angles[2]);
+
+    matrix[0] = c1 * c2 - (s1 * s0) * s2;
+    matrix[4] = -c1 * s2 - (s1 * s0) * c2;
+    matrix[8] = -s1 * c0;
+    matrix[1] = c0 * s2;
+    matrix[5] = c0 * c2;
+    matrix[9] = -s0;
+    matrix[2] = s1 * c2 + (c1 * s0) * s2;
+    matrix[6] = -s1 * s2 + (c1 * s0) * c2;
+    matrix[10] = c1 * c0;
+    matrix[3] = 0.0f;
+    matrix[7] = 0.0f;
+    matrix[11] = 0.0f;
+    matrix[15] = 1.0f;
+}
 
 /* 0x800BD154 */
-void CreateRYPMatrix(void) {}
+void CreateRYPMatrix(f32* matrix, const f32* angles)
+{
+    u8 unused[8];
+    f32 c0 = ffcos(angles[0]);
+    f32 s0 = -ffsin(angles[0]);
+    f32 c1 = ffcos(angles[1]);
+    f32 s1 = -ffsin(angles[1]);
+    f32 c2 = ffcos(angles[2]);
+    f32 s2 = -ffsin(angles[2]);
+    f32 a = -c2 * s1;
+    f32 b = -s2 * s1;
+
+    matrix[0] = c2 * c1;
+    matrix[4] = -s2 * c0 + a * s0;
+    matrix[8] = s2 * s0 + a * c0;
+    matrix[1] = s2 * c1;
+    matrix[5] = c2 * c0 + b * s0;
+    matrix[9] = -c2 * s0 + b * c0;
+    matrix[2] = s1;
+    matrix[6] = c1 * s0;
+    matrix[10] = c1 * c0;
+    matrix[3] = 0.0f;
+    matrix[7] = 0.0f;
+    matrix[11] = 0.0f;
+    matrix[15] = 1.0f;
+}
 
 /* 0x800BD254 */
-void CreatePYRMatrix(void) {}
+void CreatePYRMatrix(f32* matrix, const f32* angles)
+{
+    f32 c0 = ffcos(angles[0]);
+    f32 s0 = -ffsin(angles[0]);
+    f32 c1 = ffcos(angles[1]);
+    f32 s1 = -ffsin(angles[1]);
+    f32 c2 = ffcos(angles[2]);
+    f32 s2 = -ffsin(angles[2]);
+
+    matrix[0] = c1 * c2;
+    matrix[4] = -c1 * s2;
+    matrix[8] = -s1;
+    matrix[1] = -(s0 * s1) * c2 + c0 * s2;
+    matrix[5] = (s0 * s1) * s2 + c0 * c2;
+    matrix[9] = -s0 * c1;
+    matrix[2] = (c0 * s1) * c2 + s0 * s2;
+    matrix[6] = (c0 * s1) * -s2 + s0 * c2;
+    matrix[10] = c0 * c1;
+    matrix[3] = 0.0f;
+    matrix[7] = 0.0f;
+    matrix[11] = 0.0f;
+    matrix[15] = 1.0f;
+}
 
 /* 0x800BD360 */
-void AddAngle(void) {}
+f32 AddAngle(f32 angle, f32 amount)
+{
+    angle += amount;
+    while (angle > 3.141592654) {
+        angle -= 6.283185308;
+    }
+    while (angle <= -3.141592654) {
+        angle += 6.283185308;
+    }
+    return angle;
+}
 
 /* 0x800BD3A4 */
-void SubAngle(void) {}
+f32 SubAngle(f32 angle, f32 amount)
+{
+    angle -= amount;
+    while (angle > 3.141592654) {
+        angle -= 6.283185308;
+    }
+    while (angle <= -3.141592654) {
+        angle += 6.283185308;
+    }
+    return angle;
+}
 
 /* 0x800BD3E8 */
-void FixAngle(void) {}
+f32 FixAngle(f32 angle)
+{
+    while (angle > 3.141592654) {
+        angle -= 6.283185308;
+    }
+    while (angle <= -3.141592654) {
+        angle += 6.283185308;
+    }
+    return angle;
+}
 
 /* 0x800BD428 */
-void GetYawPitch(void) {}
+void GetYawPitch(const f32* vector, f32* yaw, f32* pitch)
+{
+    u8 unused[8];
+    f32 z = vector[2];
+    f32 x = vector[0];
+    f32 distance;
+
+    *yaw = atan2(x, z);
+    distance = fqdist(vector[0], vector[2]);
+    *pitch = atan2(vector[1], distance);
+}
 
 /* 0x800BD488 */
 void CreateDirMatrix(void) {}
