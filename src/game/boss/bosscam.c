@@ -17,10 +17,11 @@
  *
  * Status: NonMatching, but most of the small/medium functions are now real
  * reconstructions verified against the extracted target (fndiff):
- *   MATCHING (byte-exact):   TriggerCameraEnd, BossCameraInit, GameCameraInit
+ *   MATCHING (byte-exact):   TriggerCameraEnd, BossCameraInit, GameCameraInit,
+ *                            BossCameraStart
  *   NEAR (correct logic, regalloc/scheduler/idiom residuals only):
  *       PointViewDist, CameraLimitPlayerDpos, GetPlayerViewDist,
- *       BossCameraStart, GetBossAvgPos, TriggerCameraActivate
+ *       GetBossAvgPos, TriggerCameraActivate
  *   FAITHFUL (reconstructed, NonMatching -- intricate clip-flag control flow):
  *       CamLimitPlayerDpos
  *   PARKED as documented stubs (large fp-math / giant / unresolved prototype):
@@ -80,6 +81,11 @@ extern void* memset(void* dst, int val, size_t n);
 extern void* gGameCamera;             /* .sbss 0x803443D4 */
 extern u8 gGameCameraData[0x1B4];     /* .bss  0x8023E92C */
 extern u8 gBossCamData[0x60];         /* .bss  0x8023E8CC */
+
+typedef struct BossGameCameraView {
+    u8 pad_000[220];
+    f32 view_scale;
+} BossGameCameraView;
 
 /* bosscam-owned .sbss scratch (referenced externally, see split notes) */
 extern s32 lbl_803443A8;
@@ -349,10 +355,10 @@ static void BossCameraStart(void) {
             *(f32*)(lbl_803443D0 + 52) = *(f32*)(lbl_803443D0 + 40);
             *(f32*)(lbl_803443D0 + 56) = *(f32*)(lbl_803443D0 + 44);
         }
-        *(f32*)((u8*)gGameCamera + 220) = lbl_80345B90 * *(f32*)(lbl_803443D0 + 24);
+        ((BossGameCameraView*)gGameCamera)->view_scale =
+            lbl_80345B90 * *(f32*)(lbl_803443D0 + 24);
         if (lbl_80343C5C != 0) {
-            *(f32*)((u8*)gGameCamera + 220) =
-                *(f32*)((u8*)gGameCamera + 220) * lbl_80343B84;
+            ((BossGameCameraView*)gGameCamera)->view_scale *= lbl_80343B84;
         }
     }
     *(f32*)((u8*)gGameCamera + 240) = lbl_80345BA0;

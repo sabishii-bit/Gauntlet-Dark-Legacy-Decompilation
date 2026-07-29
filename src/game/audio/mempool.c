@@ -57,9 +57,9 @@ typedef struct MemPoolLists {
 extern MemListNode* lbl_8031EB00[];
 
 void list_verify(MemList* list);
-void list_insert(MemList* list, MemListNode* node);
+void list_insert_size(MemList* list, MemListNode* node);
+void list_insert_tail(MemList* list, MemListNode* node);
 void list_remove(MemList* list, MemListNode* node);
-void list_append(MemList* list, MemListNode* node);
 
 /* 0x800D5260  no-op hook called on list-verify failure */
 #pragma dont_inline on
@@ -172,7 +172,7 @@ s32 pool_garbage_collect(MemPoolLists* pool,
     return result;
 }
 
-/* 0x800D54A4  free a block (list_remove) */
+/* 0x800D54A4  free a block (list_insert_tail) */
 void pool_free(MemPoolLists* pool, MemListNode* node) {
     s32 owner;
 
@@ -198,7 +198,7 @@ void pool_free(MemPoolLists* pool, MemListNode* node) {
         node->prev->next = node->next;
     }
     list_verify(&pool->secondary);
-    list_remove(&pool->secondary, node);
+    list_insert_tail(&pool->secondary, node);
     pool->secondary.head = node;
 
     if (--lbl_80345260 <= 0) {
@@ -208,7 +208,7 @@ void pool_free(MemPoolLists* pool, MemListNode* node) {
     }
 }
 
-/* 0x800D55A8  first-fit allocate (list_append) */
+/* 0x800D55A8  first-fit allocate (list_remove) */
 MemListNode* pool_alloc(MemPoolLists* pool, MemListNode* node) {
     char* strings;
     volatile u8 scratch[8];
@@ -256,11 +256,11 @@ MemListNode* pool_alloc(MemPoolLists* pool, MemListNode* node) {
             if (node->flags == candidate->flags + candidate->key) {
                 node->flags = candidate->flags;
                 node->key += candidate->key;
-                list_append(&pool->primary, candidate);
+                list_remove(&pool->primary, candidate);
                 merged = 1;
             } else if (candidate->flags == node->flags + node->key) {
                 node->key += candidate->key;
-                list_append(&pool->primary, candidate);
+                list_remove(&pool->primary, candidate);
                 merged = 1;
             }
 
@@ -294,7 +294,7 @@ MemListNode* pool_alloc(MemPoolLists* pool, MemListNode* node) {
     if (result != NULL) {
         result->flags = node->flags;
         result->key = node->key;
-        list_insert(&pool->primary, result);
+        list_insert_size(&pool->primary, result);
         node->flags = 0;
         node->key = 0;
         list_verify(&pool->secondary);
@@ -381,7 +381,7 @@ s32 pool_alloc_at(MemPoolLists* pool, MemListNode* node, s32 size,
 
                 node->key = alignedSize;
                 node->flags = address;
-                list_remove(&pool->secondary, node);
+                list_insert_tail(&pool->secondary, node);
                 pool->secondary.head = node;
 
                 list_verify(&pool->primary);
@@ -402,12 +402,12 @@ s32 pool_alloc_at(MemPoolLists* pool, MemListNode* node, s32 size,
                 } else if (freeNode->flags == address) {
                     freeNode->flags += alignedSize;
                     freeNode->key -= alignedSize;
-                    list_insert(&pool->primary, freeNode);
+                    list_insert_size(&pool->primary, freeNode);
                 } else {
                     freeNode->key = address - freeNode->flags;
                     remainderSize =
                         (blockSize - alignedSize) - freeNode->key;
-                    list_insert(&pool->primary, freeNode);
+                    list_insert_size(&pool->primary, freeNode);
                     if (remainderSize != 0) {
                         remainderNode = NULL;
                         for (i = 0; i < (s32)lbl_80345254; i++) {
@@ -502,15 +502,15 @@ s32 pool_dispose_and_alloc(MemPoolLists* pool, MemListNode* node, s32 size) {
             if (blockSize >= alignedSize) {
                 node->key = alignedSize;
                 node->flags = freeNode->flags;
-                list_append(&pool->primary, freeNode);
+                list_remove(&pool->primary, freeNode);
                 if (freeNode->key > alignedSize) {
                     freeNode->flags += alignedSize;
                     freeNode->key -= alignedSize;
-                    list_insert(&pool->primary, freeNode);
+                    list_insert_size(&pool->primary, freeNode);
                 } else {
                     freeNode->flags = 0;
                 }
-                list_remove(&pool->secondary, node);
+                list_insert_tail(&pool->secondary, node);
                 pool->secondary.head = node;
                 result = alignedSize;
                 break;
@@ -640,7 +640,7 @@ u32 pool_init(u32 size) {
 }
 
 /* 0x800D5F94  insert a node (verified) */
-void list_insert(MemList* list, MemListNode* node) {
+void list_insert_size(MemList* list, MemListNode* node) {
     MemListNode** link;
 
     link = &list->head;
@@ -670,8 +670,8 @@ void list_insert(MemList* list, MemListNode* node) {
     list_verify(list);
 }
 
-/* 0x800D603C  remove a node (verified) */
-void list_remove(MemList* list, MemListNode* node) {
+/* 0x800D603C  insert a node at the tail (verified) */
+void list_insert_tail(MemList* list, MemListNode* node) {
     list_verify(list);
     if (list->head != NULL) {
         node->next = list->head;
@@ -687,8 +687,8 @@ void list_remove(MemList* list, MemListNode* node) {
     }
 }
 
-/* 0x800D60B8  append a node (verified) */
-void list_append(MemList* list, MemListNode* node) {
+/* 0x800D60B8  unlink a node (verified) */
+void list_remove(MemList* list, MemListNode* node) {
     list_verify(list);
     if (node == node->next) {
         list->head = NULL;

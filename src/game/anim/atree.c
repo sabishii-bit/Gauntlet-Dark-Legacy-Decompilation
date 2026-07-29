@@ -367,7 +367,7 @@ void fn_80010E84(int slot)
 }
 
 /* fn_8001101C: per-object animation dispatch (evaluates texmod sequences via
- * fn_8000F184 / DoTexModSeqSub, then recurses into fn_80011334).  DEFERRED --
+ * AnimateTreeFrame / DoTexModSeqSub, then recurses into fn_80011334).  DEFERRED --
  * demo float-ABI passthrough (f1..f8 forwarded); needs a dedicated pass. */
 STUB(0x8001101C, fn_8001101C)
 
@@ -376,12 +376,12 @@ void fn_80011104(void* node, int a, int c)
     fn_80011134(0.0f, node, a, 0, c, 1);
 }
 
-/* fn_80011134: animation-tree evaluation main (InitAnim / WorldVector / texmod
+/* fn_80011134: animation-tree evaluation main (AnimateTree / WorldVector / texmod
  * seq, recurses fn_80011334).  DEFERRED -- demo float-ABI. */
 void fn_80011134(f32 frame, void* node, int a, int b, int c, int d) {}
 
 /* fn_80011334: recursive animation-tree walk/render (DoObjAnimation,
- * MBTreeSet/ClearFlags, fn_8000F2D8).  DEFERRED -- demo float-ABI. */
+ * MBTreeSet/ClearFlags, DoAnimation).  DEFERRED -- demo float-ABI. */
 STUB(0x80011334, fn_80011334)
 
 /* ---------------- tree traversal / teardown ---------------- */

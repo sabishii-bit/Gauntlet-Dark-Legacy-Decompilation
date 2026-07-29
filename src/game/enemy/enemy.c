@@ -3463,7 +3463,7 @@ extern s32 check_enemy_pos(f32* start, f32* out, s32 slot);
 extern void SetEnemyObj(s32 slot, f32* pos, s32 type, s32 level, s32 spew);
 extern void UpdateObjWorldMat(f32* worldmat);              /* claim grid cell */
 extern void fn_8005A404(f32* worldmat, f32* coll_offset, f32* attn_offset);
-extern void fn_8000ED70(void* animinfo, s32 seq, s32 c, s32 d, f32 time);
+extern s32 InitAnim(f32 time, animinfo* info, s32 seq, s32 frame, s32 active);
 extern void StartGenFX(f32* pos, s32 level);
 extern s32 gBossType;
 extern s32 gBossDying;
@@ -3623,7 +3623,7 @@ placed:
     e->action = 1;
     r = e->actionlist[1].animidx;
     if (r >= 0) {
-        fn_8000ED70(&e->atree.animinfo, r, 0, 1, 0.0f);
+        InitAnim(0.0f, &e->atree.animinfo, r, 0, 1);
     }
     if (e->hht > 2.0 && level <= 3 && lbl_80251148[type] != 0) {
         StartGenFX(pos, level);
