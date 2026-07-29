@@ -12,6 +12,13 @@ f32 fqdist(f32 x, f32 y);
 u32 RandInt(u32 limit);
 f32 Random(f32 scale);
 void Randomize(u32 seed);
+f32 AddAngle(f32 angle, f32 amount);
+f32 SubAngle(f32 angle, f32 amount);
+f32 FixAngle(f32 angle);
+void GetYawPitch(const f32* vector, f32* yaw, f32* pitch);
+void CreateYPRMatrix(f32* matrix, const f32* angles);
+void CreateRYPMatrix(f32* matrix, const f32* angles);
+void CreatePYRMatrix(f32* matrix, const f32* angles);
 
 void ReflectVector2D(const f32* vector, const f32* normal, f32* out);
 void ReflectVector(const f32* vector, const f32* normal, f32* out);
