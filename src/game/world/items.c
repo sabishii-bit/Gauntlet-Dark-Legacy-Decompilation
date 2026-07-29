@@ -2363,19 +2363,20 @@ next_start:
 void SetPlayerStartPos(s32 idx)
 {
     u8*  base = (u8*)&sItemRuntime;
-    f32* posY = (f32*)(base + 3092);
+    f32* posY;
 
     if (idx > sLastPlayerStart) {
         idx = 0;
     }
-    if ((double)posY[idx * 3] <= sInvalidPlayerStartY) {
+    posY = (f32*)((u32)base + 3092);
+    if ((double)*(f32*)((u8*)posY + idx * 12) <= sInvalidPlayerStartY) {
         idx = 0;
     }
     if (WorldOpen(crystal_order[idx]) == 0) {
         idx = 0;
     }
     gDefaultPlayerPosition[0] = *(f32*)(base + idx * 12 + 3088);
-    gDefaultPlayerPosition[1] = posY[idx * 3];
+    gDefaultPlayerPosition[1] = *(f32*)((u8*)posY + idx * 12);
     gDefaultPlayerPosition[2] = *(f32*)(base + idx * 12 + 3096);
     gPlayerStartYaw = *(f32*)(base + idx * 4 + 3032);
     if (*(u32*)(base + idx * 4 + 5596) == 0) {
