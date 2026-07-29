@@ -4,6 +4,7 @@
 
 - `AudioSoundExists` is exact (136 bytes).
 - `sndTestAcquire` is exact (280 bytes).
+- `sndCmd1` is exact (248 bytes).
 
 ## Source-shape technique
 
@@ -36,6 +37,22 @@ keeps `voice[0]` as a `3304(r6)` field access.  Declaring `entry` before the
 call makes it live across the call and costs another nonvolatile register;
 spelling the whole address arithmetically makes MWCC fold `3304` into the
 index (`addi index,3304; add base,index`) instead.
+
+The same pattern applies when no call precedes the address formation.  In
+`sndCmd1`, indexing the aggregate directly (`state->nodes[index]`) folded the
+`nodes` field displacement into the scaled index.  Casting the shifted base
+back to its aggregate type keeps the field displacement separate:
+
+```c
+Node* node;
+SndState* entry = (SndState*)((u8*)state + index * 4);
+node = entry->nodes[0];
+```
+
+Declare the loaded field (`node`) before the shifted-base local (`entry`) when
+the target wants the field in `r3` and the address in `r4`.  The declaration
+order removed the last register rotation; an otherwise-unused 8-byte local
+restored this function's retail stack frame.
 
 ## Near-match improvement
 
