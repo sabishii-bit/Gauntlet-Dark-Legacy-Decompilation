@@ -80,6 +80,8 @@ struct animheader;
 struct objanimheader;
 
 /* -- OBJGRP (misc.h Id=2284, 0x68): world transform + collision block -- */
+#ifndef GAME_OBJGRP_DEFINED
+#define GAME_OBJGRP_DEFINED
 typedef struct OBJGRP {
     f32 worldmat[4][4];      /* 0x00 */
     f32 attn_pos[4];         /* 0x40 */
@@ -87,6 +89,7 @@ typedef struct OBJGRP {
     struct mbnode *node;     /* 0x60 */
     s32 flags;               /* 0x64 */
 } OBJGRP;                     /* size 0x68 */
+#endif
 
 /* -- animinfo (graphics.h Id=3256, 0x38): playback state for one atree -- */
 typedef struct animinfo {

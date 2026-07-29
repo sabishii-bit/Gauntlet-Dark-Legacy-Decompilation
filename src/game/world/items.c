@@ -1,5 +1,6 @@
 #include "types.h"
 #include "game/item.h"
+#include "game/enemy.h"
 #include "game/worldinfo.h"
 
 /* Gauntlet item / world-object system (Xbox ITEMS.OBJ), region
@@ -137,6 +138,13 @@ extern void  FatalError(const char* msg, s32 code);
 extern void  fn_8005412C(void);
 extern void  fn_80062A00(void);
 extern void  LinkItemTriggers(void);
+extern s32   fn_80012F78(void* header, void* tree, char* name, u32 flags);
+extern void  fn_80011104(void* tree, s32 action, s32 mode);
+extern s32   generate_enemy(f32* pos, s32 type, s32 level, f32* dir,
+                            s32 spew, Item* generator, s32 important,
+                            f32 angle);
+extern s32   fn_8004F404(s32 enemy_index, f32* position);
+extern void  WorldVector(const f32* vector, f32* out, const f32* matrix);
 extern void* memset(void* dst, s32 val, u32 n);
 extern u32*  FindWORLDOBJ(const char* name);
 extern double DistanceToClosestPlayer(f32* pos);
@@ -148,8 +156,6 @@ extern void  MBNodeSetParent(void* node, void* parent);
 extern void  UpdateObjWorldMat(OBJGRP* group);
 extern void  AddItemWobj(Item* item);
 extern s32   PlayerSelecting(s32 idx);
-extern s32   gNumEnemies;
-extern u8    gEnemies[];
 extern u8    gPlayers[];
 extern ItemSceneContext gFloorCollisionResult;
 extern s64   gControllerButtons;
@@ -218,6 +224,7 @@ extern f64   FloorPos(f64 y, f32 r, f32* pos, s32 mode); /* ground probe */
 extern s32   MBOX_NewObject(char* name, f32* mtx, s32 a, s32 b);
 extern void  MBTreeSetAlpha(s32 handle, s32 pri, s32 b);
 extern s32   MBOX_ReallyFindObject(char* name, s32 a, s32 b, s32 c);
+extern void* MBNewObject(s32 object, f32* matrix, void* parent, u32 flags);
 extern void  MBSetObject(void* node, s32 object);
 extern char* strcat(char* dst, const char* src);
 extern s32   StartFXNoLoop(s32 type, f32* pos);
@@ -230,6 +237,10 @@ extern char  sLevelOneSuffix[];   /* "L1" */
 extern char  sRootSuffix[];   /* "ROOT" */
 extern char  sItemHealthTextureFmt[];   /* "%s%d" health-tier fmt */
 extern f64   sPi;     /* pi (rounded) */
+extern f64   sTwoPi;
+extern f64   sNegativePi;
+extern f64   sHalfPi;
+extern f32   sLogic12Distance;
 extern f64   sArrowFloorYOffset;     /* 0.5 */
 extern f32   sArrowFloorRadius;
 extern s32   sShownMilestones;   /* milestone shown idx */
@@ -244,6 +255,7 @@ extern f32     gDefaultPlayerPosition[3];
 extern f32     gPlayerStartYaw;
 extern s32     CurTransmitter;
 extern char    sNewItemBadIndex[];
+extern char    sSetItemFailedFmt[];
 
 s32 ItemVisible(Item* item);
 
@@ -946,7 +958,7 @@ double DistanceToClosestPlayer(f32* position)
 s32 did_generate(void* owner, s32 checkEnemies)
 {
     u8* player = gPlayers;
-    u8* enemy = gEnemies;
+    u8* enemy = (u8*)gEnemies;
     s32 i;
 
     for (i = 0; i < 4; i++, player += 13148) {
@@ -1135,6 +1147,233 @@ s32 ItemVisible(Item* it)
         }
     }
     return visible;
+}
+
+/*
+ * Logic 12 places successive enemies alternately beside their generator.
+ * Once a side is unusable the phase advances; after both sides, subsequent
+ * enemies retain their spawn point.
+ */
+static void place_logic12(s8* data, s32 enemy_index)
+{
+    f32 matrix[16];
+    u8 unused_middle[12];
+    f32 transformed[3];
+    f32 angles[3];
+    f32 vector[3];
+    u8 unused_before[4];
+    Enemy* enemy = &gEnemies[enemy_index];
+    f64 angle;
+    f32 z;
+    f32 y;
+    f32 x;
+
+    enemy->flag1 = 0;
+    switch (data[4]) {
+    case 0:
+        angle = sHalfPi;
+        angle += *(f32*)&data[16];
+        x = enemy->objgrp.worldmat[3][0];
+        y = enemy->objgrp.worldmat[3][1];
+        z = enemy->objgrp.worldmat[3][2];
+        if (angle > sPi) {
+            angle -= sTwoPi;
+        } else if (angle <= sNegativePi) {
+            angle = sTwoPi + angle;
+        }
+        angles[0] = sItemZero;
+        angles[1] = (f32)angle;
+        angles[2] = sItemZero;
+        CreateYPRMatrix(matrix, angles);
+        vector[0] = sItemZero;
+        vector[1] = sItemZero;
+        vector[2] = sLogic12Distance;
+        WorldVector(vector, transformed, matrix);
+        enemy->dest[0] = x + transformed[0];
+        enemy->dest[1] = y + transformed[1];
+        enemy->dest[2] = z + transformed[2];
+        if (fn_8004F404(enemy_index, enemy->dest) != 0) {
+            enemy->flag1 = 1;
+        }
+        break;
+    case 1:
+        angle = *(f32*)&data[16] - sHalfPi;
+        z = enemy->objgrp.worldmat[3][0];
+        y = enemy->objgrp.worldmat[3][1];
+        x = enemy->objgrp.worldmat[3][2];
+        if (angle > sPi) {
+            angle -= sTwoPi;
+        } else if (angle <= sNegativePi) {
+            angle = sTwoPi + angle;
+        }
+        angles[0] = sItemZero;
+        angles[1] = (f32)angle;
+        angles[2] = sItemZero;
+        CreateYPRMatrix(matrix, angles);
+        vector[0] = sItemZero;
+        vector[1] = sItemZero;
+        vector[2] = sLogic12Distance;
+        WorldVector(vector, transformed, matrix);
+        enemy->dest[0] = z + transformed[0];
+        enemy->dest[1] = y + transformed[1];
+        enemy->dest[2] = x + transformed[2];
+        if (fn_8004F404(enemy_index, enemy->dest) != 0) {
+            enemy->flag1 = 2;
+        }
+        break;
+    default:
+        enemy->dest[0] = enemy->objgrp.worldmat[3][0];
+        enemy->dest[1] = enemy->objgrp.worldmat[3][1];
+        enemy->dest[2] = enemy->objgrp.worldmat[3][2];
+        enemy->flag1 = 4;
+        break;
+    }
+
+    if (enemy->flag1 != 0) {
+        data[2]++;
+        data[4]++;
+        enemy->birth_pos[0] = enemy->objgrp.worldmat[3][0];
+        enemy->birth_pos[1] = enemy->objgrp.worldmat[3][1];
+        enemy->birth_pos[2] = enemy->objgrp.worldmat[3][2];
+        if (data[2] >= data[3]) {
+            data[10] = 7;
+            data[4] = 3;
+        }
+    }
+}
+
+/*
+ * Spawn the one enemy described by a generator item.  The data union is the
+ * PDB's generator payload: enemy type/level/spew at +0/+6/+7, generated count
+ * at +2, and the generator angle at +0x10.
+ */
+static void generate_single(Item* item, s32 algorithm, s32 important)
+{
+    u8* data = item->data;
+    f32 position[3];
+    f32 direction[3];
+    s32 enemy_index;
+    Enemy* enemy;
+    f64 angle;
+    f32 zero;
+    f32 radius;
+
+    if (*(s8*)&data[2] != 0) {
+        return;
+    }
+
+    radius = item->info->item.radius;
+    position[0] = item->objgrp.coll_pos[0];
+    position[1] = item->objgrp.coll_pos[1];
+    position[2] = item->objgrp.coll_pos[2];
+    direction[0] = item->objgrp.worldmat[2][0];
+    direction[1] = item->objgrp.worldmat[2][1];
+    direction[2] = item->objgrp.worldmat[2][2];
+
+    enemy_index =
+        generate_enemy(position, *(s16*)&data[0], *(s8*)&data[6],
+                       direction, *(s8*)&data[7], item, important,
+                       radius);
+    if (enemy_index < 0) {
+        return;
+    }
+
+    enemy = &gEnemies[enemy_index];
+    enemy->birth_style = algorithm == 15 ? 2 : 0;
+    enemy->algorithm = algorithm;
+    if (algorithm == 11) {
+        enemy->state = DECORATION;
+    }
+
+    enemy->ang = *(f32*)&data[0x10] + enemy->genang_offset;
+    angle = enemy->ang;
+    if (angle > sPi) {
+        angle -= sTwoPi;
+    } else if (angle <= sNegativePi) {
+        angle = sTwoPi + angle;
+    }
+    enemy->ang = (f32)angle;
+    enemy->angbak = enemy->ang;
+    zero = sItemZero;
+    enemy->pyr[0] = zero;
+    enemy->pyr[1] = enemy->ang;
+    enemy->pyr[2] = zero;
+    enemy->birth_pos[0] = enemy->objgrp.worldmat[3][0];
+    enemy->birth_pos[1] = enemy->objgrp.worldmat[3][1];
+    enemy->birth_pos[2] = enemy->objgrp.worldmat[3][2];
+    (*(s8*)&data[2])++;
+}
+
+/* Attach either an animation tree or a static MB object to an item. */
+void SetItemGeo(Item* item, void* atree_header, char* name, u32 flags)
+{
+    u8 unused[8];
+    s32 node_type = 1;
+    u32 mbflags;
+
+    if (name == NULL) {
+        name = item->info->item.desc;
+    }
+    if (atree_header == NULL) {
+        atree_header = item->info->item.atreeheader;
+    }
+    mbflags = flags | 0x800;
+    mbflags |= item->info->item.mbflags;
+    if (item->info->type != 2) {
+        node_type = 3;
+    }
+
+    if (atree_header != NULL) {
+        item->action = 0;
+        *(s32*)item->atree =
+            fn_80012F78(atree_header, item->atree, name, mbflags);
+        *(s16*)((u8*)item + 0xA4) = 1;
+        if (item->objgrp.node == NULL) {
+            item->objgrp.node =
+                MBNewNode(sItemsRootNode, gIdentityMatrix, node_type);
+        } else {
+            *((u8*)item->objgrp.node + 0x52) = 1;
+        }
+        MBNodeSetParent(*(void**)*(void**)item->atree, item->objgrp.node);
+        if (item->active & 1) {
+            s32 action;
+            if (item->active & 4) {
+                action = 0;
+            } else {
+                action = 1;
+            }
+            item->daction = action;
+        }
+        fn_80011104(item->atree, item->daction, 2);
+    } else {
+        s32 object;
+
+        if ((object = MBOX_ReallyFindObject(name, -1, -1, -1)) < 0) {
+            strcat(name, "L1");
+            object = MBOX_ReallyFindObject(name, -1, -1, -1);
+        }
+        if (object < 0) {
+            strcat(name, "ROOT");
+            object = MBOX_ReallyFindObject(name, -1, -1, -1);
+        }
+        if (object < 0) {
+            ErrorPrintf(sSetItemFailedFmt, name);
+            if (item->objgrp.node == NULL) {
+                item->objgrp.node =
+                    MBNewNode(sItemsRootNode, gIdentityMatrix, 1);
+            } else {
+                *((u8*)item->objgrp.node + 0x52) = 1;
+            }
+        } else if (item->objgrp.node == NULL) {
+            item->objgrp.node = MBNewObject(object, gIdentityMatrix, 0, 0);
+            MBTreeSetFlags(item->objgrp.node, mbflags, 0);
+        } else {
+            MBSetObject(item->objgrp.node, object);
+            *((u8*)item->objgrp.node + 0x52) = 2;
+            MBTreeSetFlags(item->objgrp.node, mbflags, 0);
+        }
+        *(s32*)item->atree = 0;
+    }
 }
 
 s32 RegisterItemWobj(void* target_ptr, s16 type, s32 x_grid, s32 z_grid,

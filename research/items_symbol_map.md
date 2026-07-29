@@ -175,6 +175,23 @@ and is 156 instructions versus the target's 161.
 float arrays (X, node Y, secondary X, Z, and value) followed by a 150-entry
 target-pointer table at runtime offset `0x7220`. Its translation is
 instruction-count identical at 139 instructions.
+
+## Generator placement pipeline
+
+The two previously anonymous entry points at the start of the GC module are
+the PDB-local `place_logic12` (`0x800631AC`) and `generate_single`
+(`0x80063444`). Both translations are instruction-for-instruction exact.
+
+`generate_single` consumes the generator payload in `Item.data`, spawns from
+the item's collision position, initializes `Enemy.birth_style`, `algorithm`,
+facing, and `birth_pos`, then increments the generated count. `place_logic12`
+takes that payload plus the newly allocated enemy index, tries offsets of
+`3.5f` at `generator_angle ± pi/2`, records which side succeeded in
+`Enemy.flag1`, and advances the payload phase/count.
+
+The associated constants are now mapped as `sTwoPi` (`0x80347028`),
+`sNegativePi` (`0x80347030`), `sHalfPi` (`0x80347108`), and
+`sLogic12Distance` (`0x80347110`).
 | `lbl_80344EB8` | `gSceneRoot` | default MB scene root |
 | `lbl_80347180` | `sOne` | `1.0f` |
 | `lbl_80347184` | `sNegativeHalf` | `-0.5f` |
