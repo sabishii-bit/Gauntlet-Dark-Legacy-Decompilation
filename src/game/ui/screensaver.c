@@ -66,7 +66,7 @@ void ClearAllPlayerControls(int a);   /* 0x80032A80 */
 
 /* ---- shared front-end state (small data / bss, other TUs) ---- */
 extern int gWinGlobals;         /* gWinGlobals */
-extern u8 lbl_80344A5C;
+extern u8 gDiskErrorShown;
 extern u8 lbl_80344A5D;
 extern int gGameBusy;
 extern int lbl_80344A30;        /* modal-render depth */

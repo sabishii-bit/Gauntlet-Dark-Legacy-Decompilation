@@ -13,13 +13,13 @@ int DVDGetCommandBlockStatus(void* block);
 
 void ScrollMessageBox(char* msg);   /* disc-error message display (MESSAGE.OBJ) */
 void sysHandleReset(void);        /* frame yield while waiting on DVD */
-void sndTestStartAll(void);    /* post-error recovery, gated by lbl_80344A5C */
+void sndTestStartAll(void);    /* post-error recovery after the error screen */
 
-extern u8 lbl_80344A5C;        /* error-screen-shown flag (other TU) */
-extern u8 lbl_8025EDE8[];      /* shared scratch DVDFileInfo (.bss) */
-extern u8 lbl_8028CB30[];      /* file slot table: records @+1440+i*88, buffers @+1528+i*16416 */
-extern u8 lbl_80344DB8;        /* dvd-busy flag */
-extern u8 lbl_80115860[];      /* disc error strings block */
+extern u8 gDiskErrorShown;       /* error-screen-shown flag (other TU) */
+extern u8 gDvdScratchFileInfo[]; /* shared scratch DVDFileInfo (.bss) */
+extern u8 sFileSlots[];          /* records @+1440+i*88, buffers @+1528+i*16416 */
+extern u8 sDvdBusy;
+extern u8 DiskErrorStr[];        /* Xbox PDB name */
 
 u8 G3DIsPadEnabled(int idx);
 void G3DGetControlPadAnalogStick(f32* x, f32* y, int pad, int stick);
@@ -64,44 +64,44 @@ static f32 sceIntToF32(s32 x)
     return (f32) x;
 }
 
-/* --- misc PS2 kernel stubs (exact identities TBD) ------------------- */
+/* --- retained PS2 IOP/bootstrap API --------------------------------- */
 
-void fn_800AEA54(void)
+void sceSifInitRpc(void)
 {
 }
 
-int fn_800AEA58(void)
-{
-    return 1;
-}
-
-int fn_800AEA60(void)
+int sceSifSyncIop(void)
 {
     return 1;
 }
 
-int fn_800AEA68(void)
+int sceSifRebootIop(void)
+{
+    return 1;
+}
+
+int sceSifLoadFileReset(void)
 {
     return 0;
 }
 
-int fn_800AEA70(void)
+int sceSifLoadModule(void)
 {
     return 0;
 }
 
-int fn_800AEA78(void)
+int sceSifInitIopHeap(void)
 {
     return 0;
 }
 
-int fn_800AEA80(int a, int b, int* out)
+int sceSifLoadElfPart(int a, int b, int* out)
 {
     *out = 0;
     return 0;
 }
 
-int fn_800AEA90(void)
+int sceFsReset(void)
 {
     return 0;
 }
@@ -126,7 +126,7 @@ int sceFileSize(const char* path)
         r = DVDOpen(path, fi);
         if (r == 0) {
             int off = (int) (((u32) &bufo[31] & ~31) - (u32) &bufo);
-            fn_800AEBF4(lbl_8025EDE8, bufo + off, 32, 0);
+            sDvdReadSync(gDvdScratchFileInfo, bufo + off, 32, 0);
         }
     } while (r == 0);
     size = *(u32*) (fi + 0x34); /* DVDFileInfo.length */
@@ -134,7 +134,7 @@ int sceFileSize(const char* path)
         r = DVDClose(fi);
         if (r == 0) {
             int off = (int) (((u32) &bufc[31] & ~31) - (u32) &bufc);
-            fn_800AEBF4(lbl_8025EDE8, bufc + off, 32, 0);
+            sDvdReadSync(gDvdScratchFileInfo, bufc + off, 32, 0);
         }
     } while (r == 0);
     return size;
@@ -165,16 +165,16 @@ int sceWrite(int fd, const void* buf, int len)
 }
 
 /* 0x800AEBF4: synchronous DVD read with disc-error UI (0x15C) */
-int fn_800AEBF4(void* fileInfo, void* buf, int len, int offset)
+int sDvdReadSync(void* fileInfo, void* buf, int len, int offset)
 {
     char* msg = 0;
-    char* base = (char*) lbl_80115860;
+    char* base = (char*) DiskErrorStr;
     int status;
 
-    lbl_80344A5C = 0;
-    lbl_80344DB8 = 0;
+    gDiskErrorShown = 0;
+    sDvdBusy = 0;
     if (DVDReadAsyncPrio(fileInfo, buf, len, offset, 0, 2) == 0) {
-        lbl_80344DB8 = 1;
+        sDvdBusy = 1;
         switch (DVDGetCommandBlockStatus(fileInfo)) {
         case -1:
             msg = base + 176;
@@ -207,14 +207,14 @@ int fn_800AEBF4(void* fileInfo, void* buf, int len, int offset)
         goto dvd_done;
 
     dvd_busy:
-        lbl_80344DB8 = 1;
+        sDvdBusy = 1;
         goto dvd_done;
 
     dvd_error:
         {
             char* msg2;
 
-            lbl_80344DB8 = 1;
+            sDvdBusy = 1;
             msg2 = 0;
             switch (status) {
             case -1:
@@ -239,7 +239,7 @@ int fn_800AEBF4(void* fileInfo, void* buf, int len, int offset)
     dvd_done:
         sysHandleReset();
     } while (status != 0);
-    if (lbl_80344A5C != 0) {
+    if (gDiskErrorShown != 0) {
         sndTestStartAll();
     }
     return len;
@@ -268,7 +268,7 @@ int sceRead(int fd, void* buf, int len)
             f->cursor = a;
         }
         if (n > 0) {
-            if (fn_800AEBF4(f->fileInfo, f->buf + (f->bufOff + a - f->winOff), n,
+            if (sDvdReadSync(f->fileInfo, f->buf + (f->bufOff + a - f->winOff), n,
                             f->cursor) != n) {
                 return -1;
             }
@@ -287,7 +287,7 @@ int sceRead(int fd, void* buf, int len)
 
     while (span > f->chunk) {
         f->winOff = f->cursor;
-        if (fn_800AEBF4(f->fileInfo, f->buf + f->bufOff, f->chunk, f->cursor) !=
+        if (sDvdReadSync(f->fileInfo, f->buf + f->bufOff, f->chunk, f->cursor) !=
             f->chunk) {
             return -1;
         }
@@ -301,7 +301,7 @@ int sceRead(int fd, void* buf, int len)
 
     if (span > 0) {
         f->winOff = f->cursor;
-        if (fn_800AEBF4(f->fileInfo, f->buf + f->bufOff, span, f->cursor) != span) {
+        if (sDvdReadSync(f->fileInfo, f->buf + f->bufOff, span, f->cursor) != span) {
             return -1;
         }
         f->cursor += span;
@@ -328,7 +328,7 @@ int sceClose(int fd)
                callsite inside the loop, matching Midway. Declaring off in the
                outer scope folds base+off -> aligned and hoists it whole. */
             int off = (int) (((u32) &buf[31] & ~31) - (u32) &buf[0]);
-            fn_800AEBF4(lbl_8025EDE8, buf + off, 32, 0);
+            sDvdReadSync(gDvdScratchFileInfo, buf + off, 32, 0);
         }
     } while (r == 0);
     f->open = 0;
@@ -347,7 +347,7 @@ int sceOpen(const char* path, int flags, ...)
     int r;
     u8 rbuf[64];
 
-    base = lbl_8028CB30;
+    base = sFileSlots;
     if (!(flags & 1)) {
         return -1;
     }
@@ -369,7 +369,7 @@ int sceOpen(const char* path, int flags, ...)
         r = DVDOpen(path, fi);
         if (r == 0) {
             off = (int) (((u32) &rbuf[31] & ~31) - (u32) &rbuf[0]);
-            fn_800AEBF4(lbl_8025EDE8, rbuf + off, 32, 0);
+            sDvdReadSync(gDvdScratchFileInfo, rbuf + off, 32, 0);
         }
     } while (r == 0);
 
@@ -405,11 +405,11 @@ int GetThreadId(void)
     return 0;
 }
 
-void fn_800AF1D8(void)
+void FlushCache(void)
 {
 }
 
-void fn_800AF1DC(void)
+void sceGsSyncPath(void)
 {
 }
 
@@ -423,22 +423,22 @@ int EIntr(void)
     return 0;
 }
 
-int fn_800AF1F0(void)
+int scePadEnterPressMode(void)
 {
     return 1;
 }
 
-int fn_800AF1F8(void)
+int scePadInfoPressMode(void)
 {
     return 0;
 }
 
-int fn_800AF200(void)
+int scePadSetMainMode(void)
 {
     return 0;
 }
 
-int fn_800AF208(void)
+int scePadGetReqState(void)
 {
     return 0;
 }
@@ -470,7 +470,7 @@ int scePadInfoMode(void)
     return 7;
 }
 
-int fn_800AF2D4(void)
+int scePadInfoAct(void)
 {
     return 0;
 }
@@ -539,42 +539,42 @@ int sceMtapInit(void)
     return 1;
 }
 
-void fn_800AF540(void)
+void sceMtapPortClose(void)
 {
 }
 
-int fn_800AF544(void)
-{
-    return 0;
-}
-
-int fn_800AF54C(void)
+int sceGsExecLoadImage(void)
 {
     return 0;
 }
 
-int fn_800AF554(void)
+int sceGsSetDefLoadImage(void)
+{
+    return 0;
+}
+
+int Deci2Call(void)
 {
     return 1;
 }
 
-int fn_800AF55C(void)
+int sceGsSyncV(void)
 {
     return 1;
 }
 
-void fn_800AF564(void)
+void sceGsSwapDBuff(void)
 {
 }
 
-void fn_800AF568(void)
+void sceGsSetDefDBuff(void)
 {
 }
 
-void fn_800AF56C(void)
+void sceGsResetPath(void)
 {
 }
 
-void fn_800AF570(void)
+void sceGsResetGraph(void)
 {
 }

@@ -65,7 +65,7 @@ extern void GXSetZMode(int enable, int func, int update);
 extern void fn_800C0FE4(void);
 extern void fn_800C3674(void);
 extern void fn_800C1624(void);
-extern void fn_800AF1D8(int a);
+extern void FlushCache(int mode);
 extern void fn_800C1148(int a, int b, const char* s);
 extern void pbResetTextures(void);
 extern void pbTreeTraverse(void);
@@ -202,7 +202,7 @@ void MBEndFrame(void) {
     (*(s32*)(*(u8**)(wg + 0x10) + 0x4))++;
 
     fn_800C1624();
-    fn_800AF1D8(0);
+    FlushCache(0);
     fn_800C1148(0, 0, lbl_80115D90);
     pbWinSetup();
     fn_800C1148(0, 0, lbl_80115D90);

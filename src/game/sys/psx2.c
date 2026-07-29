@@ -16,13 +16,13 @@ extern s32 lbl_803445EC;
 extern s32 lbl_80344B48;
 extern u32* lbl_80343E78;
 
-extern void fn_800AEA54(s32);
-extern s32 fn_800AEA58(void);
-extern s32 fn_800AEA60(const char*);
-extern s32 fn_800AEA68(void);
-extern s32 fn_800AEA70(const char*, s32, void*);
-extern s32 fn_800AEA78(void);
-extern s32 fn_800AEA90(void);
+extern void sceSifInitRpc(s32);
+extern s32 sceSifSyncIop(void);
+extern s32 sceSifRebootIop(const char*);
+extern s32 sceSifLoadFileReset(void);
+extern s32 sceSifLoadModule(const char*, s32, void*);
+extern s32 sceSifInitIopHeap(void);
+extern s32 sceFsReset(void);
 extern void mathStub2__Fv(s32);
 extern void mathStub3__Fv(s32);
 extern void dcsInit(void);
@@ -45,40 +45,40 @@ void init_psx2() {
     u8 unused[4];
     s32 result;
 
-    fn_800AEA54(0);
+    sceSifInitRpc(0);
     mathStub3__Fv(0);
     mathStub2__Fv(1);
     sprintf(message, "REBOOT IOP (%s%s)", "cdrom0:\\\\", "IOPRP21.IMG");
 
     do {
-        result = fn_800AEA60("cdrom0:\\\\IOPRP21.IMG");
+        result = sceSifRebootIop("cdrom0:\\\\IOPRP21.IMG");
     } while (result == 0);
     if (result < 0) {
         FatalErrorf("sceSifRebootIop %s%s Failed: %d", "cdrom0:\\\\",
                     "IOPRP21.IMG", result);
     }
-    while (fn_800AEA58() == 0) {
+    while (sceSifSyncIop() == 0) {
     }
 
-    fn_800AEA54(0);
+    sceSifInitRpc(0);
     mathStub3__Fv(0);
     mathStub2__Fv(1);
-    fn_800AEA90();
-    fn_800AEA68();
+    sceFsReset();
+    sceSifLoadFileReset();
 
     if (lbl_80344B48 != 0) {
         load_irx_args("cdrom0:\\\\IRX\\", "mem2MB.irx", 1, 0, 0);
-        while (fn_800AEA60("cdrom0:\\\\IOPRP21.IMG") == 0) {
+        while (sceSifRebootIop("cdrom0:\\\\IOPRP21.IMG") == 0) {
         }
-        while (fn_800AEA58() == 0) {
+        while (sceSifSyncIop() == 0) {
         }
-        fn_800AEA54(0);
+        sceSifInitRpc(0);
         mathStub3__Fv(0);
         mathStub2__Fv(1);
-        fn_800AEA90();
+        sceFsReset();
     }
 
-    fn_800AEA78();
+    sceSifInitIopHeap();
     sprintf(message, "LOAD IRX (%s)", "cdrom0:\\\\IRX\\");
     load_irx_args("cdrom0:\\\\IRX\\", "sio2man.irx", 1, 0, 0);
     if (load_irx_args("cdrom0:\\\\IRX\\", "mtapman.irx", 0, 0, 0) == 0) {
@@ -118,7 +118,7 @@ static s32 load_irx_args(char* directory, char* name, s32 fatal,
 
     tries = 0;
     do {
-        result = fn_800AEA70(path, argLength, args);
+        result = sceSifLoadModule(path, argLength, args);
         if (result >= 0) {
             break;
         }
