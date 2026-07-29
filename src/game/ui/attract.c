@@ -546,8 +546,8 @@ void do_screen2d(void) {
 
     MBOX_FindTexture(base + 2400, 0);
     state = lbl_80344298;
+    lbl_8034422C = lbl_8034422C + gFrameTicks;
     delta = gFrameTicks;
-    lbl_8034422C += delta;
 
     if (state != 0) {
         if (lbl_80344234 != 0 && lbl_80344794 == 0) {
