@@ -71,9 +71,9 @@ void fn_80036138(void);
 void fn_80036424(void);
 void fn_80036740(s32 who, f32 amount);
 void fn_800367CC(void);
-void fn_800368DC(s32 slot, s32 id, f32 amount);
-s32  fn_80036958(Critter *c, f32 *out);
-void fn_80036A58(void);
+void CritterSetFxHitTime(s32 slot, s32 id, f32 amount);
+s32  CritterGetTarget(Critter *c, f32 *out);
+void CritterGetTargetSub(void);
 void fn_80036B5C(void);
 void fn_80036C70(void);
 void fn_80036E00(void);
@@ -180,7 +180,7 @@ void fn_80036740(s32 who, f32 amount)
 
 /* 0x800368DC -- add `amount` to a per-limb counter of the critter whose id
  * matches `id`, then stamp the companion slot with the current game time. */
-void fn_800368DC(s32 slot, s32 id, f32 amount)
+void CritterSetFxHitTime(s32 slot, s32 id, f32 amount)
 {
     s32 i;
     Critter *c;
@@ -199,7 +199,7 @@ void fn_800368DC(s32 slot, s32 id, f32 amount)
 
 /* 0x80036958 -- resolve a critter target position from either its selected
  * player or the current waypoint chain. */
-s32 fn_80036958(Critter *c, f32 *out)
+s32 CritterGetTarget(Critter *c, f32 *out)
 {
     u8 unused[16];
     void *waypoint;
@@ -261,7 +261,7 @@ waypoint_test:
 done:
     return result;
 }
-/* 0x80036A58 */ void fn_80036A58(void) {}
+/* 0x80036A58 */ void CritterGetTargetSub(void) {}
 /* 0x80036B5C */ void fn_80036B5C(void) {}
 /* 0x80036C70 */ void fn_80036C70(void) {}
 /* 0x80036E00 */ void fn_80036E00(void) {}
@@ -551,9 +551,17 @@ void CritterInitInst(Critter *c, struct CritterHeader *hdr)
 }
 /* 0x8003EA4C -- tear down a critter instance: detach scene nodes, kill sfx,
  * recurse into linked children, free colnode list, then clear the slot. */
+typedef struct CritterSubnode {
+    void *atree;
+    u8 _pad04[68];
+    void *mbnode;
+    u8 _pad4C[4];
+    struct CritterSubnode *next;
+} CritterSubnode;
+
 void CritterDelInst(Critter *c)
 {
-    void *node;
+    CritterSubnode *node;
 
     if (*(s16 *)((u8 *)*(void **)((u8 *)c->hdr + 288) + 32) == 4) {
         fn_8002C49C(c->mtx);
@@ -583,13 +591,13 @@ void CritterDelInst(Critter *c)
     }
     c->anim = NULL;
     while ((node = c->subnodes) != NULL) {
-        if (*(void **)node != NULL) {
+        if (node->atree != NULL) {
             AtreeDelete(node);
         }
-        if (*(void **)((u8 *)node + 72) != NULL) {
-            MBRemoveNode(*(void **)((u8 *)node + 72), 1);
+        if (node->mbnode != NULL) {
+            MBRemoveNode(node->mbnode, 1);
         }
-        *(void **)((u8 *)node + 72) = NULL;
+        node->mbnode = NULL;
         c->subnodes = *(void **)((u8 *)c->subnodes + 80);
     }
     c->hdr = NULL;
