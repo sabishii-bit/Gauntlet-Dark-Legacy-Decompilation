@@ -250,7 +250,7 @@ void PlayerMotion_FindClosestPlayer(Player* p, f32* dir, u32 flags, f32 dmg) {
         dvec[1] = op->pos[1] - p->pos[1];
         dvec[2] = op->pos[2] - p->pos[2];
         len = NormalVector(dvec);
-        dot = dvec[1] * dir[1] + dvec[0] * dir[0] + dvec[2] * dir[2];
+        dot = dvec[0] * dir[0] + dvec[1] * dir[1] + dvec[2] * dir[2];
         if (dot < 0.707) {
             continue;
         }

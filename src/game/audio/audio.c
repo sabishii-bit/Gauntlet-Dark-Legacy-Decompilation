@@ -826,10 +826,11 @@ void AudioDeferSlot(void* cb, s32 arg)
     if (sAudioSuspend != 0) {
         return;
     }
-    if (lbl_803442A4 != 0) {
-        return;
+    switch (lbl_803442A4) {
+    case 0:
+        sndDeferSlot(cb, arg);
+        break;
     }
-    sndDeferSlot(cb, arg);
 }
 
 /* ---------------------------------------------------------------- */
