@@ -153,7 +153,7 @@ extern char* lbl_80343C68[1];      /* {"OK"}                                */
 
 /* save-cache / card state (sbss + sdata) */
 extern s32 lbl_803449F0;           /* per-block byte budget                 */
-extern s32 lbl_803449D0;           /* prefs_loaded flag                     */
+extern s32 prefs_loaded;           /* prefs_loaded flag                     */
 extern s32 lbl_803449D4;
 extern u8 lbl_803449D8;
 extern s32 lbl_803449DC;
@@ -161,7 +161,7 @@ extern s32 lbl_803449E0;
 extern u32 lbl_803449E4;           /* banner palette handle                 */
 extern u32 lbl_803449E8;           /* icon palette handle                   */
 extern u32 lbl_803449EC;           /* opening-banner texture handle         */
-extern s32 lbl_803449F4;           /* per-frame service counter (wrap 60)   */
+extern s32 vmu_update_counter;           /* per-frame service counter (wrap 60)   */
 extern u32 lbl_803449F8;           /* built save-image size                 */
 extern u8* lbl_803449FC;           /* file buffer                           */
 extern u8* lbl_80344A00;           /* card workArea                         */
@@ -382,9 +382,9 @@ s32 vmu_directory_exists(void)
 /* serve_memcard - per-frame service tick (60-frame wrap counter) */
 void serve_memcard(void)
 {
-    lbl_803449F4++;
-    if (lbl_803449F4 > 60) {
-        lbl_803449F4 = 0;
+    vmu_update_counter++;
+    if (vmu_update_counter > 60) {
+        vmu_update_counter = 0;
     }
 }
 
@@ -528,10 +528,10 @@ void check_prefs_loaded(void)
     if (saveMount(0, 0, 0) == 0) {
         return;
     }
-    if (lbl_803449D0 != 0) {
+    if (prefs_loaded != 0) {
         return;
     }
-    lbl_803449D0 = 1;
+    prefs_loaded = 1;
     if ((u8) beginSaveCacheTransaction()) {
         *opts = *(GameOpts*) ((u8*) lbl_80343C74 + 8);
     }
@@ -767,9 +767,9 @@ int InitPreferences(void)
     int ret = 0;
     u8 pad[24]; /* unused, matches original frame */
 
-    if (lbl_803449D0 == 0) {
+    if (prefs_loaded == 0) {
         lbl_803449EC = 0;
-        lbl_803449D0 = 1;
+        prefs_loaded = 1;
         lbl_803449F8 = 0;
         bulletproof_printf(lbl_801131E8);
         while (FileSystemReading() != 0) {
