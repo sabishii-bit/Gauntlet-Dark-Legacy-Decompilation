@@ -586,8 +586,12 @@ s32 sndTestAcquire(void)
         sSndActive = 1;
         ARGetBaseAddress();
         for (i = 0; i < 14; i++) {
-            s->voice[i] = AXAcquireVoice(0x1f, 0, 0);
-            sndVoiceSetParams(s->voice[i], 0, 0, -0x3e8, -0x3e8, 0x40, 0x40, 0);
+            s32 voice = AXAcquireVoice(0x1f, 0, 0);
+            SndState* entry = (SndState*)((u8*)s + i * 4);
+
+            entry->voice[0] = voice;
+            sndVoiceSetParams(entry->voice[0], 0, 0, -0x3e8, -0x3e8,
+                              0x40, 0x40, 0);
         }
         AXRegisterCallback(sndTestAXCallback);
     }
