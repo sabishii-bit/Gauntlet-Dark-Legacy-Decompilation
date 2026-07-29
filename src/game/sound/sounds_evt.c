@@ -18,13 +18,12 @@
  * They are therefore left as fn_ pending an id table; the caller-domain and
  * play-primitive of every function are recorded in the scout report.
  *
- * STATUS (body-fill pass): 116/118 functions reconstructed; 95 byte-exact
- * (72 EXACT + 23 pool-name-noise-only).  The 21 residuals are all semantically
- * faithful, in known non-source-reachable classes: arg-eval order + arg-temp
- * coalescing (C8F0/DB24 world-entry ternary, DF7C/E08C/FE4C), the SOUNDS-TU
- * peephole-off branch-unfold (D100/D16C/D1D8/FB84), player-base address
- * canonicalization / volatile-register renumber (F198/F4D0/F550/F638/F860/
- * F9E8/EEBC/EF04/FD84/CFA8), and one FPR renumber (AudioFindPlayerSlot).
+ * STATUS (matching pass): 116/118 functions reconstructed; 102 byte-exact
+ * after recovering the C8F0 call-argument temporaries, the D100/D16C/D1D8
+ * one-case switches, the EEBC/EF04 argument locals, and SeverePain's
+ * assignment-in-condition. Remaining residuals are semantically faithful;
+ * F550/F860 now have exact instruction counts, and FD84 has a substantially
+ * closer control-flow and argument-loading shape.
  * Deferred (too large for this light-touch pass, need dedicated sessions):
  *   fn_8009CB44           0x8009CB44 (0x23C) two-half lbl_8034476C<=1 range
  *                         dispatch over shared AudioWithName/QueAddEx bodies
@@ -305,12 +304,10 @@ void fn_8009C8F0(int pos, int flag)
         if (idx >= 0) {
             u8* e = *(u8**)(gWorldData + 44) + idx * 24;
             if (*(s32*)(e + 16) >= 0) {
-                /* NOTE: OPERAND_DIFF residual - MWCC evaluates arg4 before arg3
-                 * here (right-to-left); target loads arg3 (off 20) first. Pure
-                 * arg-eval-order/scheduling, structurally faithful. */
-                sndFxPlay3DAtten(*(s32*)(e + 16), pos,
-                                 *(s16*)(e + 20) != 0 ? *(s16*)(e + 20) : 224,
-                                 *(s16*)(e + 22) != 0 ? *(s16*)(e + 22) : 126);
+                int atten = *(s16*)(e + 20) != 0 ? *(s16*)(e + 20) : 224;
+                int priority = *(s16*)(e + 22) != 0 ? *(s16*)(e + 22) : 126;
+
+                sndFxPlay3DAtten(*(s32*)(e + 16), pos, atten, priority);
             }
         }
     } else {
@@ -870,12 +867,18 @@ void fn_8009EE2C(int flag)
 
 void fn_8009EEBC(int pidx, int sel)
 {
-    sndFxPlayEx((&lbl_80343E2C)[sel], lbl_801232C8[pidx], 127, 125);
+    int track = lbl_801232C8[pidx];
+    int id = (&lbl_80343E2C)[sel];
+
+    sndFxPlayEx(id, track, 127, 125);
 }
 
 void fn_8009EF04(int pidx, int sel)
 {
-    sndFxPlayEx((&lbl_80343E24)[sel], lbl_801232C8[pidx], 127, 125);
+    int track = lbl_801232C8[pidx];
+    int id = (&lbl_80343E24)[sel];
+
+    sndFxPlayEx(id, track, 127, 125);
 }
 
 void fn_8009EF4C(int pos)
@@ -1023,19 +1026,25 @@ void fn_8009FD84(void)
 
     if (idx >= 0) {
         entry = *(u8**)(gWorldData + 44) + idx * 24;
-        if (*(int*)(entry + 16) < 0) {
-            entry = 0;
+        if (*(int*)(entry + 16) >= 0) {
+            goto entry_ready;
         }
-    } else {
-        entry = 0;
     }
+    entry = 0;
+entry_ready:
     if (entry != 0) {
         if (*(int*)(level + 20) >= 0) {
+            int sound_id = *(int*)(entry + 16);
+
             if (good_wiz_state <= 2) {
-                sndFxQueAddEx(1, *(int*)(entry + 16), -1.0f, -1.0f, 224, 127, 2);
+                sndFxQueAddEx(1, sound_id, -1.0f, -1.0f, 224, 127, 2);
             }
-            if (good_wiz_state <= 2) {
-                sndFxQueAddEx(1, *(int*)(*(u8**)(gCurLevel + 100) + 20), -1.0f, -1.0f, 224, 127, 2);
+            {
+                int next_id = *(int*)(*(u8**)(gCurLevel + 100) + 20);
+
+                if (good_wiz_state <= 2) {
+                    sndFxQueAddEx(1, next_id, -1.0f, -1.0f, 224, 127, 2);
+                }
             }
         }
     }
@@ -1102,23 +1111,33 @@ void fn_8009F06C(int pos, int idx)
 
 void fn_8009F550(int pidx, int sel, int arg3)
 {
-    u8* player = &gPlayers[pidx * 13148];
-    s32* t = lbl_801232C8;
-    int f8 = *(int*)(player + 8);
-    int slot = (int)(player + 68);
+    typedef struct AudioPlayerEventIds {
+        u8 pad_0000[1020];
+        s32 case_0[8][4];
+        s32 case_1[8];
+        s32 case_2[8];
+    } AudioPlayerEventIds;
+    AudioPlayerEventIds* t = (AudioPlayerEventIds*)lbl_801232C8;
+    int f8;
+    int slot;
+    int flags;
 
-    if (*(int*)(player + 292) & 0x400) {
+    flags = *(int*)&gPlayers[pidx * 13148 + 292];
+    f8 = *(int*)&gPlayers[pidx * 13148 + 8];
+    slot = (int)&gPlayers[pidx * 13148 + 68];
+
+    if (flags & 0x400) {
         sndFxPlay3D(95, slot, 224, 16);
     } else {
         switch (sel) {
         case 0:
-            sndFxPlay3D(t[255 + f8 * 4 + arg3], slot, 224, 19);
+            sndFxPlay3D(t->case_0[f8][arg3], slot, 224, 19);
             break;
         case 1:
-            sndFxPlay3D(t[287 + f8], slot, 224, 17);
+            sndFxPlay3D(t->case_1[f8], slot, 224, 17);
             break;
         case 2:
-            sndFxPlay3D(t[295 + f8], slot, 224, 16);
+            sndFxPlay3D(t->case_2[f8], slot, 224, 16);
             break;
         }
     }
@@ -1126,21 +1145,27 @@ void fn_8009F550(int pidx, int sel, int arg3)
 
 void fn_8009F860(int pidx, int arg2)
 {
+    typedef struct AudioEventIds {
+        u8 pad_0000[700];
+        s32 random_pain[8][4];
+        s32 severe_pain[1];
+    } AudioEventIds;
     u8* player = &gPlayers[pidx * 13148];
-    s32* t = lbl_801232C8;
+    AudioEventIds* t = (AudioEventIds*)lbl_801232C8;
 
     if (RandInt(4) == 0) {
         if (!(*(int*)(player + 292) & 0x400)) {
-            if (t[*(int*)(player + 8) * 4 + arg2 + 175] >= 0) {
+            if (t->random_pain[*(int*)(player + 8)][arg2] >= 0) {
                 int pan = AudioAng((int)(player + 68));
 
-                sndFxQueAdd(t[*(int*)(player + 8) * 4 + arg2 + 175], -1.0f, 1.0f, 192, pan, 66);
+                sndFxQueAdd(t->random_pain[*(int*)(player + 8)][arg2],
+                            -1.0f, 1.0f, 192, pan, 66);
             }
         }
     } else {
-        int id = t[*(int*)(player + 8) + 207];
+        int id;
 
-        if (id >= 0) {
+        if ((id = t->severe_pain[*(int*)(player + 8)]) >= 0) {
             int pan = AudioAng((int)(player + 68));
 
             if (*(int*)(player + 292) & 0x400) {
@@ -1195,9 +1220,9 @@ void fn_8009F748(int pidx)
 void AudioPlayerSeverePain(int pidx)
 {
     u8* player = &gPlayers[pidx * 13148];
-    int id = lbl_80123624[*(int*)(player + 8)];
+    int id;
 
-    if (id >= 0) {
+    if ((id = lbl_80123624[*(int*)(player + 8)]) >= 0) {
         int pan = AudioAng((int)(player + 68));
 
         if (*(int*)(player + 292) & 0x400) {
@@ -1439,15 +1464,18 @@ void fn_8009CFA8(int pidx, int sel)
     sndFxPlayEx(soundId, p1, 127, 66);
 }
 
-/* NOTE (D100/D16C/D1D8): the middle gate (lbl_803447B4==0) shows a 1-branch
- * unfold residual (target beq/b vs our folded bne) - the known SOUNDS-TU
- * peephole-off class (cf. sounds.c AudioSelect); not reachable via source. */
 void fn_8009D100(int pos)
 {
     int id = lbl_80123C34[sMusicTrackHi];
 
-    if (lbl_803447B8 == 0 && lbl_803447B4 == 0 && id >= 0) {
-        sndFxPlay3D(id, pos, 224, 68);
+    if (lbl_803447B8 == 0) {
+        switch (lbl_803447B4) {
+        case 0:
+            if (id >= 0) {
+                sndFxPlay3D(id, pos, 224, 68);
+            }
+            break;
+        }
     }
 }
 
@@ -1455,8 +1483,14 @@ void fn_8009D16C(int pos)
 {
     int id = lbl_80123BFC[sMusicTrackHi];
 
-    if (lbl_803447B8 == 0 && lbl_803447B4 == 0 && id >= 0) {
-        sndFxPlay3D(id, pos, 224, 30);
+    if (lbl_803447B8 == 0) {
+        switch (lbl_803447B4) {
+        case 0:
+            if (id >= 0) {
+                sndFxPlay3D(id, pos, 224, 30);
+            }
+            break;
+        }
     }
 }
 
@@ -1464,7 +1498,13 @@ void fn_8009D1D8(int pos, int sel)
 {
     int id = lbl_80123B8C[sel][sMusicTrackHi];
 
-    if (lbl_803447B8 == 0 && lbl_803447B4 == 0 && gBossType < 0 && id >= 0) {
-        sndFxPlay3D(id, pos, 224, 30);
+    if (lbl_803447B8 == 0) {
+        switch (lbl_803447B4) {
+        case 0:
+            if (gBossType < 0 && id >= 0) {
+                sndFxPlay3D(id, pos, 224, 30);
+            }
+            break;
+        }
     }
 }
