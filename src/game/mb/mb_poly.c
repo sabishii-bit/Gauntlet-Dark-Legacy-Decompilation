@@ -408,8 +408,7 @@ void PolyXfrmVerts(PolyVert* verts, s32 count) {
     u32 sy;
 
     for (i = 0; i < count; i++) {
-        v = &verts[i];
-        if (v->flags == 0) {
+        if ((v = &verts[i])->flags == 0) {
             continue;
         }
         v->sClip = 1.0f;
