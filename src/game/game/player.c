@@ -465,7 +465,7 @@ static void PlayerProcessSkinFX(void* p, void* node);
 void check_player_atts(void* p, s32 chartype, s32* stats);
 static void do_got_it(void);
 void mini_inventory_update(s32 player);
-s32 heal_player(f32 amount, void* p);
+s32 heal_player(f32 amount, Player* p);
 f32 player_max_health(void* p);
 s32 player_can_be_damaged(void* p);
 void kill_player(s32 player);
@@ -2221,10 +2221,10 @@ void PlayerProcessScale(void* vp) {
 
 /* Is player i on the character-select overlay?                        */
 s32 PlayerSelecting(s32 i) {
-    if (P(i)->state != 2 && P(i)->state != 3) {
-        return 0;
+    if (P(i)->state == 2 || P(i)->state == 3) {
+        return 1;
     }
-    return 1;
+    return 0;
 }
 
 /* Sink-and-spin exit sequence; dest chooses the next level.           */
@@ -2414,8 +2414,7 @@ void do_heal_players(void* vp, f32 amount) {
 }
 
 /* Heal one player; 0 = already full, 1 = capped, 2 = healed.          */
-s32 heal_player(f32 amount, void* vp) {
-    Player* p = vp;
+s32 heal_player(f32 amount, Player* p) {
     f32 cap;
 
     cap = 0.5 * (p->level - 1) + 30.0;
@@ -2922,6 +2921,7 @@ void remove_player_geo(s32 i) {
 
 /* Swap player i to character type; 0x10 = the active hidden char.     */
 void change_player(s32 i, s32 type) {
+    u8 unused[8];
     Player* p = P(i);
 
     player_store_in_save(p, type);
@@ -2933,7 +2933,7 @@ void change_player(s32 i, s32 type) {
     }
     p->character = type;
     p->char_type = type;
-    if (p->char_type > 7) {
+    if (p->char_type >= 8) {
         p->char_type -= 8;
     }
     LoadPlyrData(i, type, NULL);
