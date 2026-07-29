@@ -118,7 +118,7 @@ extern f32   gIdentityMatrix[16];
 extern s32   sNumItems;
 extern s32   lbl_8034481C;
 extern s32   gGameBusy;
-extern s32   lbl_80344770;
+extern s32   gGameplayPauseTimer;
 extern s32   gGameMode;
 extern s64   gControllerButtons;
 extern Player gPlayers[4];
@@ -630,7 +630,7 @@ void fn_8005B988(void)
 {
     s32 i;
 
-    if ((gGameBusy | lbl_80344770) == 0) {
+    if ((gGameBusy | gGameplayPauseTimer) == 0) {
         fn_800606FC();
         if (sGoodWizObj != 0) {
             DoTexMods(sGoodWizObj);

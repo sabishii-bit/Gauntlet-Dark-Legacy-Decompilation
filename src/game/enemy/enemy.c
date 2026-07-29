@@ -3284,7 +3284,7 @@ extern void fn_8002C49C(f32* worldmat);             /* release grid slot */
 extern void MBRemoveNode(struct mbnode* n, s32 a);   /* delete scene node */
 extern void SfxDeleteParented(struct mbnode* n, s32 a, s32 b);
 extern void AtreeDelete(void* atree);               /* free anim tree */
-extern s32 lbl_803443B4;      /* level-teardown-in-progress flag */
+extern s32 gTriggerCameraState;
 extern s32 lbl_80344734;      /* node-delete reentry guard */
 extern s32 ErrorPrintf(const char* fmt, ...);
 extern char lbl_80112468[];
@@ -3332,7 +3332,7 @@ void kill_enemy(s32 index)
     char* p;
     char buf[32];
 
-    if (lbl_803443B4 != 0) {
+    if (gTriggerCameraState != 0) {
         return;
     }
     if (e->gotitem != 0) {

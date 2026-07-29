@@ -40,7 +40,7 @@ extern void* lbl_80344B2C; /* world root node */
 extern s32 lbl_8034481C;
 extern s32 lbl_80344804;
 extern s32 lbl_80344808;
-extern s32 lbl_803443B4;
+extern s32 gTriggerCameraState;
 extern s32 gBossType;
 extern s32 lbl_80344768;
 extern s32 lbl_803447B4;
@@ -340,7 +340,7 @@ void DoExit(Player* p) {
     }
 
     if (!exiting && sumnerSpeechActive() == 0) {
-        switch (lbl_803443B4) {
+        switch (gTriggerCameraState) {
         case 0:
             break;
         default:

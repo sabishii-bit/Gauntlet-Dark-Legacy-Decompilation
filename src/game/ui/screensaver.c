@@ -69,7 +69,7 @@ extern int gWinGlobals;         /* gWinGlobals */
 extern u8 gDiskErrorShown;
 extern u8 lbl_80344A5D;
 extern int gGameBusy;
-extern int lbl_80344A30;        /* modal-render depth */
+extern int gModalRenderDepth;
 extern int lbl_80344E04;
 extern int lbl_80344A48;        /* screensaver idle timer */
 extern int gGameMode;        /* game-mode flag */
@@ -103,9 +103,9 @@ void ScrollMessageBox(char* msg)
 {
     (void)msg;
     sndTestStopAll();
-    lbl_80344A30 += 1;
+    gModalRenderDepth += 1;
     MBEndFrame();
-    lbl_80344A30 -= 1;
+    gModalRenderDepth -= 1;
 }
 
 void ScreenSaverStartWeap(int idx)
