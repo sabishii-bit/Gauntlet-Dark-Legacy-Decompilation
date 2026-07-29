@@ -374,6 +374,12 @@ ShowCameras                # renum, base/off/elem rotation (items; body real, 24
 FindClosestWaypoint        # renum+copy, w/result/i rotation + 1 maxDist fmr (items; ctr+volatile-root landed, 55 ln)
 fn_8006799C                # sched, lit-clamp arm2 pair-vs-fold + t staging (items; body real, 14 ln)
 RandItemIdx                # remat, result r0-web mr (items, 5 ln)
+PlayerNewFloor             # renum: 4 lines, two outer fmuls have commutative
+                           # operands reversed; direct source order canonicalizes,
+                           # inlined mul helper perturbs FP schedule/frame
+fn_80057B30                # isel: 5 lines, target retains lbz+extsb before u8
+                           # result mask; s8 local folds extension, explicit
+                           # shift emits slwi+srawi instead
 fn_8002A890                # renum, i/count/temp r8<->r10 rotation (combat vec-avg; structure byte-identical, 18 ln)
 fn_8002C8A8                # sched+frame, dz/dx load order + sqrt-reload f4<->f5 + 24B frame (combat pitch-angle; __frsqrte+atan2 idiom landed, 71 ln)
 InitLighting  # renum: FPR f0/f1 pair swap in ambient store tail, spelling-proof (3 A/Bs: locals, chains, proto)

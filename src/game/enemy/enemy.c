@@ -753,6 +753,7 @@ s32 do_ai(s32 index)
 {
     Enemy* e = &gEnemies[index];
     f32 mat[16];
+    u8 unused[8];
 
     e->trans[0] = 0.0f;
     e->trans[1] = 0.0f;
@@ -795,8 +796,9 @@ s32 do_ai(s32 index)
         e->daction = 0;
         e->ang = 0.005555555555555556 * (3.141592654 * (f32)(u32)gFrameTicks) + e->ang;
         {
-            f64 a = e->ang;
-            if (a > 3.141592654) {
+            f64 a;
+
+            if ((a = e->ang) > 3.141592654) {
                 a -= 6.283185308;
             } else if (a <= -3.141592654) {
                 a = 6.283185308 + a;

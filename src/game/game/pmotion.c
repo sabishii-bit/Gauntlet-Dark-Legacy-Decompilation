@@ -86,8 +86,11 @@ typedef struct PMotionCtx {
 
 /* float magnitude via sign-bit clear (matches the inline fabs codegen). */
 static f32 fabsf_(f32 x) {
-    *(u32*)&x &= 0x7FFFFFFF;
-    return x;
+    f32 slots[3];
+
+    slots[2] = x;
+    *(u32*)&slots[2] &= 0x7FFFFFFF;
+    return slots[2];
 }
 
 /* ================================================================== */
@@ -364,7 +367,7 @@ STUB(0x8008760C, PlayerCollideEnemies)
 STUB(0x80087830, PlayerCollidePlayers)
 STUB(0x80087A20, PlayerCollideItems)
 int PlayerNewFloor(PMotionCtx* m, Player* p, f32* dpos) {
-    u8 unused[24];
+    u8 unused[8];
     WorldObj* mf = (WorldObj*)PF(p, 0x8C4, u32);
     s32 result;
 
