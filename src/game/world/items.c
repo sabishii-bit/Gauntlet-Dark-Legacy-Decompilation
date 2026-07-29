@@ -247,7 +247,7 @@ extern f32     sLightingZero;
 
 extern void  MBInitLights(void);
 extern void  MBAddLight(double val, void* a, f32* b);
-extern void  MBSetAmbient(double val, f32* p);
+extern void  MBSetAmbient(f32 val, f32* p);
 extern void  DoLighting(s32 flag);
 extern void  pbResetWindowPool(void);
 extern void  pbSetWindowUV1(double a, double b);
@@ -630,11 +630,9 @@ void InitLighting(s32 flag)
     MBSetAmbient(sLevelAmbient, NULL);
     DoLighting(1);
     sLightingScratchY = sLightingZero;
-    sLightingScratchZ = sNegativeHalf;
-    sLightingScratchX = sNegativeHalf;
-    AmbientSpecialTime = sLightingZero;
-    AmbientSpecialValue = sLightingZero;
-    AmbientSpecialCurValue = sLightingZero;
+    sLightingScratchX = sLightingScratchZ = sNegativeHalf;
+    AmbientSpecialCurValue = AmbientSpecialValue = AmbientSpecialTime =
+        sLightingZero;
 }
 
 /* pair up transporter items by matching each one's dest id to another's id. */
@@ -839,16 +837,16 @@ next:
 found:
     if (i < 0) {
         ErrorPrintf(sUnableToAddItemFmt, name);
-        item = NULL;
+        return NULL;
+    }
+
+    d = &(*defs)[i];
+    item = NewItemPtr();
+    if (matrix != NULL) {
+        SetItem(item, 0, d, matrix);
+        AddItemSub(item);
     } else {
-        d = &(*defs)[i];
-        item = NewItemPtr();
-        if (matrix != NULL) {
-            SetItem(item, 0, d, matrix);
-            AddItemSub(item);
-        } else {
-            SetItem(item, 0, d, gIdentityMatrix);
-        }
+        SetItem(item, 0, d, gIdentityMatrix);
     }
     return item;
 }
@@ -895,17 +893,15 @@ void SafeRockSetup(void)
  * type-10 items in state 0x29 (up to max); flag hides them. */
 s32 CollectSafeRocks(s32* out, s32 max, s32 flag)
 {
-    s32 off;
     Item* it;
     s32 i;
     s32 count;
 
     count = 0;
     i = 0;
-    off = 0;
 
     while (i < sNumItems) {
-        it = (Item*)((u8*)sItems + off);
+        it = &sItems[i];
         if (it->info->type == 10 && *(s16*)((u8*)it + 0xDC) == 0x29) {
             out[count] = i;
             if (flag != 0) {
@@ -918,7 +914,6 @@ s32 CollectSafeRocks(s32* out, s32 max, s32 flag)
             }
         }
         i++;
-        off += 240;
     }
     return count;
 }
@@ -1127,20 +1122,19 @@ void LinkTriggerToCam(s32 idx, s32 type)
 static void AddItemWobj(Item* it)
 {
     char buf[32];
-    s16 tier;
+    u8 unused[4];
     s32 hp = it->health;
     s32 base = it->info->item.hitpoints;
+    s16 tier;
 
     if (hp == 0) {
         tier = 0;
-    } else if (hp > base) {
-        if (hp > base << 1) {
-            tier = 3;
-        } else {
-            tier = 2;
-        }
-    } else {
+    } else if (hp <= base) {
         tier = 1;
+    } else if (hp <= base << 1) {
+        tier = 2;
+    } else {
+        tier = 3;
     }
     if (tier != *(s16*)(it->data + 2)) {
         s32 tex;
@@ -1162,7 +1156,7 @@ static void AddItemWobj(Item* it)
         } else {
             MBSetObject(it->objgrp.node, tex);
             if (tier == 0) {
-                *(u16*)((u8*)it + 0x62) &= ~1u;
+                it->active &= ~1;
                 it->armor = -1;
             }
         }
@@ -2221,8 +2215,8 @@ void LoadPowerups(char* name) {
 
 void LoadItems(void)
 {
-    ItemStrings* strings = &sObjectsFile;
     ItemRuntime* runtime = &sItemRuntime;
+    ItemStrings* strings = &sObjectsFile;
 
     if (sItemFile0Handle < 0 && gBossType < 0) {
         sprintf(runtime->itemPath, strings->file0Format, WorldItemDesc());
@@ -2719,7 +2713,6 @@ s32 ShowMilestones(s32 idx)
 {
     s32 old = sShownMilestones;
     u8* base;
-    s32 off;
     s32 i;
 
     if (idx < 0) {
@@ -2728,8 +2721,8 @@ s32 ShowMilestones(s32 idx)
     sShownMilestones = idx;
     if (idx != old) {
         base = sMilestones;
-        for (i = 0, off = 0; i < sNumMilestones; i++, off += 0x68) {
-            u8* elem = base + off;
+        for (i = 0; i < sNumMilestones; i++) {
+            u8* elem = base + i * 0x68;
             if (sShownMilestones != 0) {
                 if (*(u32*)(elem + 0x60) == 0) {
                     *(s32*)(elem + 0x60) = add_arrow(1, 1, 1, NULL, NULL,
@@ -2752,7 +2745,6 @@ s32 ShowCameras(s32 idx)
 {
     s32 old = sShownCameras;
     u8* base;
-    s32 off;
     s32 i;
     f32 tmp[17];
 
@@ -2762,8 +2754,8 @@ s32 ShowCameras(s32 idx)
     sShownCameras = idx;
     if (idx != old) {
         base = sTriggerCameras;
-        for (i = 0, off = 0; i < sNumTriggerCameras; i++, off += 0x28) {
-            u8* elem = base + off;
+        for (i = 0; i < sNumTriggerCameras; i++) {
+            u8* elem = base + i * 0x28;
             s32 alt = 0;
             s32 kind = 1;
             if (*(u8*)elem == 1) {
@@ -2841,17 +2833,16 @@ LookoutParam* FindClosestWaypoint(f64 maxDist, f32* pos, s32 all)
     s32 i;
     LookoutParam* w = sLookoutParams;
     LookoutParam* result = NULL;
+    f32 d2;
+    f32 dx;
+    f32 dy;
+    f32 dz;
     u8 unused[12];
     u8 unused2[8];
     volatile f32 root;
 
     for (i = 0; i < sNumLookoutParams; i++, w++) {
         if (all != 0 || (w->next >= 0 && w->next != i)) {
-            f32 d2;
-            f32 dx;
-            f32 dy;
-            f32 dz;
-
             dy = w->pos[1] - pos[1];
             dx = w->pos[0] - pos[0];
             dz = w->pos[2] - pos[2];
@@ -2859,15 +2850,16 @@ LookoutParam* FindClosestWaypoint(f64 maxDist, f32* pos, s32 all)
             d2 = dz * dz + d2;
             if (d2 > sItemZero) {
                 f64 guess = __frsqrte(d2);
-                guess = 0.5 * guess * (3.0 - guess * guess * d2);
-                guess = 0.5 * guess * (3.0 - guess * guess * d2);
-                guess = 0.5 * guess * (3.0 - guess * guess * d2);
-                root = (f32)(d2 * (0.5 * guess * (3.0 - guess * guess * d2)));
+                guess = sArrowFloorYOffset * guess * (3.0 - guess * guess * d2);
+                guess = sArrowFloorYOffset * guess * (3.0 - guess * guess * d2);
+                guess = sArrowFloorYOffset * guess * (3.0 - guess * guess * d2);
+                root = (f32)(d2 * (sArrowFloorYOffset * guess *
+                                   (3.0 - guess * guess * d2)));
                 d2 = root;
             }
             if (d2 < maxDist) {
-                result = w;
                 maxDist = d2;
+                result = w;
             }
         }
     }

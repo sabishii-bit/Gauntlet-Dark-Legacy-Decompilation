@@ -376,3 +376,6 @@ fn_8006799C                # sched, lit-clamp arm2 pair-vs-fold + t staging (ite
 RandItemIdx                # remat, result r0-web mr (items, 5 ln)
 fn_8002A890                # renum, i/count/temp r8<->r10 rotation (combat vec-avg; structure byte-identical, 18 ln)
 fn_8002C8A8                # sched+frame, dz/dx load order + sqrt-reload f4<->f5 + 24B frame (combat pitch-angle; __frsqrte+atan2 idiom landed, 71 ln)
+InitLighting  # renum: FPR f0/f1 pair swap in ambient store tail, spelling-proof (3 A/Bs: locals, chains, proto)
+LoadItems  # sched: prologue addi-temp+copy for dual struct-base inits, 13 real best (3 spellings)
+FindClosestWaypoint  # renum: extern-SDA f64 (sArrowFloorYOffset) flips invariant FPR band vs pool-literal; colors spelling-proof (3 A/Bs); reloc now honest
