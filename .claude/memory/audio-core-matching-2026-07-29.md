@@ -3,6 +3,7 @@
 ## Exact gain
 
 - `AudioSoundExists` is exact (136 bytes).
+- `sndTestAcquire` is exact (280 bytes).
 
 ## Source-shape technique
 
@@ -20,6 +21,21 @@ With only the pointer update, MWCC keeps the original pointer in another
 register and emits `addi` plus `lwz`. Disabling common-subexpression reuse lets
 it use `lwzu`; disabling propagation preserves the retail `add base,index`
 followed by a displacement load when returning the handle.
+
+For an address that must be formed *after* a call, materialize the call result
+first, then declare the typed shifted-base pointer:
+
+```c
+s32 voice = AXAcquireVoice(...);
+SndState* entry = (SndState*)((u8*)state + i * 4);
+entry->voice[0] = voice;
+```
+
+In `sndTestAcquire`, this emits the retail `add r6,r30,r31` after the call and
+keeps `voice[0]` as a `3304(r6)` field access.  Declaring `entry` before the
+call makes it live across the call and costs another nonvolatile register;
+spelling the whole address arithmetically makes MWCC fold `3304` into the
+index (`addi index,3304; add base,index`) instead.
 
 ## Near-match improvement
 
