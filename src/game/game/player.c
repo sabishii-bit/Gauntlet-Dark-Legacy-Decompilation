@@ -2449,10 +2449,14 @@ s32 player_can_be_damaged(void* vp) {
     Player* p = vp;
 
     if ((PF(p, 0x208, s32) < 0x58 || PF(p, 0x208, s32) > 0x5A) &&
-        p->action < 0xB && (p->hud_flags & 0x10) == 0 && PF(p, 0x6B8, s32) == 0) {
-        return 1;
+        p->action < 0xB && (p->hud_flags & 0x10) == 0) {
+        if (PF(p, 0x6B8, u32) == 0) {
+            goto can_damage;
+        }
     }
     return 0;
+can_damage:
+    return 1;
 }
 
 /* ------------------------------------------------------------------ */
