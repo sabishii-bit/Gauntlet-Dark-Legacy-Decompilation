@@ -628,13 +628,13 @@ void sndTestAXCallback(void)
 s32 sndSysFlush(void)
 {
     SndState* s = &g;
-    s32* e = s->defer;
     s32 ret = 0;
+    s32 i;
+    s32 n;
+    s32* e = s->defer;
+    volatile s32 _fpad[2];
 
     if (sCount2 > 0) {
-        s32 n;
-        s32 i;
-
         s->msgbuf[sCount2] = 0;
         dcsHandleRequest(0x11, s->msgbuf, e);
         sCount2 = 0;
@@ -642,8 +642,10 @@ s32 sndSysFlush(void)
         n = e[0];
         e++;
         for (i = 0; i < n; i++) {
-            Node* node = s->nodes[i];
-            s->nodes[i] = 0;
+            Node* node;
+            SndState* entry = (SndState*)((u8*)s + i * 4);
+            node = entry->nodes[0];
+            entry->nodes[0] = 0;
             node->unk4 = e[1];
             node->unk8 = e[2];
             node->cb();
