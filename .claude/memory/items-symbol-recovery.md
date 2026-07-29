@@ -142,3 +142,13 @@ The complete old-to-new map and evidence are in
   changed no behavior, but raised SetItem from 21.83% to 72.24% fuzzy and the
   whole TU from 64.90% to 78.95%. This is a high-leverage first step for every
   large MWCC switch.
+- Preserve compiler-visible pointer bases when the target hoists them into
+  callee-saved registers. Keeping locals for `&gWorldInfo.iteminfo`,
+  `sItemRuntime`, and the arrow-name table, and using `instance->params`
+  directly instead of a nullable convenience pointer, removed substantial
+  preamble and cross-case register drift.
+- The KEYRING replacement search uses the generic item-info predicate
+  `candidate.type == type && (subtype < 1 || candidate.subtype == subtype)`.
+  Its not-found path is a fallthrough assignment to `-1`; expressing the
+  successful exit with a label avoids an extra post-loop comparison and
+  matches the retail control flow.

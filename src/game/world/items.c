@@ -1366,13 +1366,18 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
     char name[36];
     char child_name[32];
     char* strings = (char*)&sObjectsFile;
-    u8* params = instance != NULL ? instance->params : NULL;
+    iteminfo** infos = &gWorldInfo.iteminfo;
+    iteminfo* info_base = *infos;
+    ItemRuntime* runtime = &sItemRuntime;
+    char** arrows = sArrowObjectNames;
     void* atree_header;
     s32 attach_geometry = 1;
     s32 type;
     s32 subtype;
     s32 item_index = (s32)(item - sItems);
     s32 i;
+    iteminfo* candidate;
+    s32 found;
 
     /* Random descriptors contain a count and an array of s16 info indices. */
     while (info->type == -1) {
@@ -1386,7 +1391,7 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
             choice = 0;
         }
         sItemRandSeed += 439;
-        info = &gWorldInfo.iteminfo[
+        info = &info_base[
             *(s16*)((u8*)info + 8 + choice * sizeof(s16))];
     }
 
@@ -1401,18 +1406,20 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
         }
         if (subtype == 2 && instance != NULL &&
             *(s16*)&instance->params[0] > 1) {
-            iteminfo* candidate = gWorldInfo.iteminfo;
-            s32 found = -1;
+            candidate = info_base;
 
-            for (i = 0; i < gWorldInfo.niteminfos; i++, candidate++) {
+            for (found = 0; found < gWorldInfo.niteminfos;
+                 found++, candidate++) {
                 if (strcmp(sKeyringName, candidate->item.desc) == 0 &&
-                    candidate->type == 1 &&
-                    candidate->item.subtype == 2) {
-                    found = i;
-                    break;
+                    candidate->type == type &&
+                    (subtype < 1 ||
+                     candidate->item.subtype == subtype)) {
+                    goto keyring_found;
                 }
             }
-            info = &gWorldInfo.iteminfo[found];
+            found = -1;
+keyring_found:
+            info = &(*infos)[found];
             type = info->type;
             subtype = info->item.subtype;
         } else if (subtype == 15 && sMusicTrackHi == 13 &&
@@ -1425,21 +1432,19 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
 
     item->info = info;
     item->coll_offset[0] = info->item.coloffset[0];
-    item->coll_offset[1] = info->item.coloffset[1] + 1.0f;
+    item->coll_offset[1] = info->item.coloffset[1];
     item->coll_offset[2] = info->item.coloffset[2];
+    item->coll_offset[1] =
+        (f32)((f64)item->coll_offset[1] + 1.0);
     item->visrad =
-        2.0f * (info->item.xdim < info->item.zdim ?
-                info->item.zdim : info->item.xdim);
+        2.0f * (info->item.radius < info->item.height ?
+                info->item.height : info->item.radius);
     item->objgrp.flags = 0;
     {
         f32 x = item->coll_offset[0];
         f32 z = item->coll_offset[2];
-        if (x < 0.0f) {
-            x = -x;
-        }
-        if (z < 0.0f) {
-            z = -z;
-        }
+        *(u32*)&x &= 0x7FFFFFFF;
+        *(u32*)&z &= 0x7FFFFFFF;
         if ((f64)(x + z) < 0.01) {
             item->objgrp.flags = 2;
         }
@@ -1458,8 +1463,6 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
     item->playermask = 0;
     item->opener = -1;
     item->minoff = !ItemVisible(item);
-    item->armor = (s8)info->item.armor;
-    item->health = info->item.hitpoints;
 
     atree_header = info->item.atreeheader;
     if (instance == NULL || instance->desc[0] == '\0') {
@@ -1467,6 +1470,8 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
     } else {
         strncpy(name, instance->desc, sizeof(instance->desc));
     }
+    item->armor = (s8)info->item.armor;
+    item->health = info->item.hitpoints;
 
 #define DATA_S16(off) (*(s16*)&item->data[(off)])
 #define DATA_U16(off) (*(u16*)&item->data[(off)])
@@ -1475,6 +1480,7 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
 #define DATA_F32(off) (*(f32*)&item->data[(off)])
 #define DATA_S8(off)  (*(s8*)&item->data[(off)])
 #define DATA_U8(off)  (*(u8*)&item->data[(off)])
+#define params (instance->params)
 #define PARAM_S16(off, fallback) \
     (instance != NULL ? *(s16*)&params[(off)] : (fallback))
 #define PARAM_S32(off, fallback) \
@@ -1500,9 +1506,9 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
             (s16)fn_80050FB0(DATA_S16(0), DATA_U8(2));
 
         if (DATA_S16(0) == 32) {
-            loaded = CritterTypeLoaded(7, 0);
-            if (loaded) {
+            if (CritterTypeLoaded(7, 0) != NULL) {
                 void* header;
+                loaded = CritterTypeLoaded(7, 0);
                 item->active &= ~1;
                 header = *(void**)((u8*)loaded + 0x120);
                 atree_header = (void*)AtreeMatch(
@@ -1514,8 +1520,8 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
         } else if (DATA_S16(0) == 29) {
             void* header = gWadAtreeHeaders[29];
             if (header == NULL) {
-                loaded = CritterTypeLoaded(3, 0);
-                if (loaded) {
+                if (CritterTypeLoaded(3, 0) != NULL) {
+                    loaded = CritterTypeLoaded(3, 0);
                     header = *(void**)((u8*)loaded + 0x120);
                     header = *(void**)((u8*)header + 0x28);
                 }
@@ -1717,10 +1723,10 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
             count_index = 2;
         }
         if (DATA_U8(3) == 0) {
-            DATA_U8(3) = *((u8*)sArrowObjectNames + 0x30 + count_index);
+            DATA_U8(3) = *((u8*)arrows + 0x30 + count_index);
         }
         if (DATA_U8(11) == 0) {
-            DATA_U8(11) = *((u8*)sArrowObjectNames + 0x3C + count_index);
+            DATA_U8(11) = *((u8*)arrows + 0x3C + count_index);
         }
         DATA_U8(3) = (u8)(DATA_U8(3) *
                            *(f32*)(gCurLevel + 0xD4));
@@ -1780,7 +1786,7 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
     }
 
     case 9:
-        if (instance != NULL && PARAM_S32(0, 0) == 0) {
+        if (*(s32*)&params[0] == 0) {
             DATA_S16(0) = (s16)fn_80057B30((char*)&params[4]);
         } else {
             DATA_S16(0) = -1;
@@ -1856,9 +1862,9 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
             }
             break;
         case 10:
-            lbl_8025EA04[0] = matrix[12];
-            lbl_8025EA04[1] = matrix[13];
-            lbl_8025EA04[2] = matrix[14];
+            ((f32*)((u8*)runtime + 0x7214))[0] = matrix[12];
+            ((f32*)((u8*)runtime + 0x7214))[1] = matrix[13];
+            ((f32*)((u8*)runtime + 0x7214))[2] = matrix[14];
             sSpecialItem10 = (s32)item;
             break;
         case 13:
@@ -1871,7 +1877,7 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
             break;
         case 15:
             DATA_S32(4) =
-                ((s32*)((u8*)sArrowObjectNames + 0x10))[DATA_S32(4)];
+                ((s32*)((u8*)arrows + 0x10))[DATA_S32(4)];
             break;
         }
         break;
@@ -1910,23 +1916,27 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
                 item->coll_offset, item->coll_offset);
     MBTreeSetZMod(20.0f, item->objgrp.node, 1);
 
-    if (type == 2 && *(void**)item->atree != NULL) {
-        sprintf(child_name, "%sNULL1", name);
-        i = MBOX_ReallyFindObject(child_name, sItemFile0Handle,
-                                  sItemFile0Handle, -1);
-        if (i >= 0) {
-            void* node = AtreeFindMbidxNode(*(void**)item->atree, i);
-            if (node != NULL) {
-                DATA_S32(8) = *(s32*)node;
-                MBTreeSetFlags(*(void**)node, 1, 0);
+    if (type == 2) {
+        if (*(void**)item->atree != NULL) {
+            sprintf(child_name, "%sNULL1", name);
+            i = MBOX_ReallyFindObject(child_name, sItemFile0Handle,
+                                      sItemFile0Handle, -1);
+            if (i >= 0) {
+                void* node = AtreeFindMbidxNode(*(void**)item->atree, i);
+                if (node != NULL) {
+                    DATA_S32(8) = *(s32*)node;
+                    MBTreeSetFlags(*(void**)node, 1, 0);
+                }
             }
+        }
+    } else if (type == 1) {
+        if (subtype == 15 && sMusicTrackHi == 13 &&
+            lbl_80344C60 != 0) {
+            item->active |= 0x800;
+            MBTreeSetAlpha((s32)item->objgrp.node, 255, 1);
         }
     } else if (type == 8) {
         *((u8*)item + 0x83) |= 4;
-    } else if (type == 1 && subtype == 15 &&
-               sMusicTrackHi == 13 && lbl_80344C60 != 0) {
-        item->active |= 0x800;
-        MBTreeSetAlpha((s32)item->objgrp.node, 255, 1);
     }
 
 #undef DATA_S16
@@ -1936,6 +1946,7 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
 #undef DATA_F32
 #undef DATA_S8
 #undef DATA_U8
+#undef params
 #undef PARAM_S16
 #undef PARAM_S32
 }

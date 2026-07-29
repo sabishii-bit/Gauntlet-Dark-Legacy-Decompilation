@@ -128,7 +128,7 @@ extern void* sGoodWizObj;        /* level-zero item resource buffer */
 #define sItemFile0Buf sGoodWizObj
 extern s32   sItemFile1Handle;
 extern void* sItemFile1Buf;
-extern s32   sItemRandSeed;
+extern u32   sItemRandSeed;
 /* NB: the "weapons"/"powerups" resource names are string literals in
  * LoadWeapons/LoadPowerups (-str readonly: <=8 bytes -> .sdata2/r2). */
 
