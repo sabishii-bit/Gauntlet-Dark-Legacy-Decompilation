@@ -1064,7 +1064,7 @@ void LinkTriggerToCam(s32 idx, s32 type)
             if (type < 220) {
                 return;
             }
-            if (type > 233) {
+            if (type >= 234) {
                 return;
             }
             *(void**)(base + type * 4 + 4592) = (void*)(base + idx * 40 + 5652);
@@ -1837,7 +1837,8 @@ keyring_found:
         }
         if (DATA_S16(0) == 41) {
             item->health *= DATA_S16(2);
-            sprintf(name, "%s%d", info->item.desc, DATA_S16(2));
+            sprintf(name, sItemHealthTextureFmt,
+                    info->item.desc, DATA_S16(2));
         }
         DATA_S16(4) = 0;
         DATA_S16(6) = 0;
@@ -2743,18 +2744,25 @@ s32 add_arrow(s32 kind, s32 refresh, s32 useAngles, f32* angles, f32* look, f32*
  * node; otherwise only chained ones). */
 LookoutParam* FindClosestWaypoint(f64 maxDist, f32* pos, s32 all)
 {
+    s32 i;
     LookoutParam* w = sLookoutParams;
     LookoutParam* result = NULL;
     u8 unused[12];
+    u8 unused2[8];
     volatile f32 root;
-    s32 i;
 
     for (i = 0; i < sNumLookoutParams; i++, w++) {
         if (all != 0 || (w->next >= 0 && w->next != i)) {
-            f32 dy = w->pos[1] - pos[1];
-            f32 dx = w->pos[0] - pos[0];
-            f32 dz = w->pos[2] - pos[2];
-            f64 d2 = dx * dx + dy * dy + dz * dz;
+            f32 d2;
+            f32 dx;
+            f32 dy;
+            f32 dz;
+
+            dy = w->pos[1] - pos[1];
+            dx = w->pos[0] - pos[0];
+            dz = w->pos[2] - pos[2];
+            d2 = dx * dx + dy * dy;
+            d2 = dz * dz + d2;
             if (d2 > sItemZero) {
                 f64 guess = __frsqrte(d2);
                 guess = 0.5 * guess * (3.0 - guess * guess * d2);
