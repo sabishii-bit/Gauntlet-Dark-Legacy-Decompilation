@@ -489,9 +489,11 @@ s32 FindStringMessageSub(StrList* p, const u8* name)
 {
     s32 off;
     s32 i;
+    s32 nameOffset;
 
     for (i = 0, off = 0; i < p->nName; i++, off += 4) {
-        if (stricmp(p->nameData + *(s32*)((u8*)p->nameOff + off), name) == 0) {
+        nameOffset = *(s32*)((u8*)p->nameOff + off);
+        if (stricmp(p->nameData + nameOffset, name) == 0) {
             break;
         }
     }

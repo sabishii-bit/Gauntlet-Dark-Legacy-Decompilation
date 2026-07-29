@@ -33,3 +33,20 @@ The symbol map now names the two data objects `gFontDefs8x8` and `gFontDefs`
 instead of address placeholders. The same rule applies to the indexed loop in
 `FontInit`: use `table[i]`, not `table`, when the target has a final `lwz` after
 forming the table address.
+
+## `FindStringMessageSub`
+
+`FindStringMessageSub` is exact (128 bytes). The nested address expression was
+semantically correct but colored the name-data base and offset into `r5`/`r0`
+instead of retail's `r0`/`r3`. Hoisting only the loaded offset to a
+function-scope local:
+
+```c
+s32 nameOffset;
+nameOffset = *(s32*)((u8*)p->nameOff + off);
+stricmp(p->nameData + nameOffset, name);
+```
+
+restores the retail load/add chain without changing the stack frame. Three
+block-scope helper locals produced the same instruction body but enlarged the
+frame by eight bytes; one function-scope scalar was the minimal lever.
