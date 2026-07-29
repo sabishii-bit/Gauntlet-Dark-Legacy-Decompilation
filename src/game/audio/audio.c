@@ -326,27 +326,36 @@ s32 AudioSoundPlaying(s32 soundId)
     return 0;
 }
 
+#pragma opt_common_subs off
+#pragma opt_propagation off
 s32 AudioSoundExists(s32 soundId)
 {
     /* two-table scan, both addressed off sAudioState: the 12 x 20 channel table
      * (sAudioChanUpdate, +2856) then the 32 x 48 voice table (gAudioKillTbl,
      * +1320).  Returns the stored handle of the first live match. */
     s32 i;
+    u8* state = sAudioState;
 
     for (i = 0; i < 12; i++) {
-        if (*(s32*)(sAudioState + i * 20 + 2856) == soundId
-            && *(s32*)(sAudioState + i * 20 + 2860) != 0) {
-            return *(s32*)(sAudioState + i * 20 + 2872);
+        u8* entry = state + i * 20;
+
+        if (soundId == *(s32*)(entry += 2856) && *(s32*)(entry + 4) != 0) {
+            u8* resultEntry = state + i * 20;
+            return *(s32*)(resultEntry + 2872);
         }
     }
     for (i = 0; i < 32; i++) {
-        if (*(s32*)(sAudioState + i * 48 + 1320) == soundId
-            && *(s32*)(sAudioState + i * 48 + 1324) != 0) {
-            return *(s32*)(sAudioState + i * 48 + 1340);
+        u8* entry = state + i * 48;
+
+        if (soundId == *(s32*)(entry += 1320) && *(s32*)(entry + 4) != 0) {
+            u8* resultEntry = state + i * 48;
+            return *(s32*)(resultEntry + 1340);
         }
     }
     return 0;
 }
+#pragma opt_propagation reset
+#pragma opt_common_subs reset
 
 s32 AudioMaskBySound(s32 soundId)
 {
@@ -641,11 +650,16 @@ s32 AudioBankQueueName(char* bankName, char* partName, s32 arg)
     if (sAudioSuspend != 0) {
         return 1;
     }
-    for (bankIndex = 0, bankOffset = bankIndex; bankIndex < gAudioBankTbl[4];
-         bankIndex++, bankOffset += 292) {
-        if (strncmp((char*)((u8*)gAudioBankTbl + bankOffset + 20), bankName, 16) == 0) {
+    bankIndex = 0;
+    bankOffset = bankIndex;
+    while (bankIndex < gAudioBankTbl[4]) {
+        char* name = (char*)((u8*)gAudioBankTbl + bankOffset + 20);
+
+        if (strncmp(name, bankName, 16) == 0) {
             break;
         }
+        bankIndex++;
+        bankOffset += 292;
     }
     if (bankIndex == gAudioBankTbl[4]) {
         sAudioSuspend = 1;
