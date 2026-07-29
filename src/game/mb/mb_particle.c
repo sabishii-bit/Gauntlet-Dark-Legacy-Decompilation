@@ -942,8 +942,8 @@ void MBRemovePsys(MBObject* node) {
 
 /* 0x800D1364 - listFindHandle: walk an id chain to a matching link slot */
 static s32* listFindHandle(s32 id, s32 base) {
-    s32* link = (s32*)(base + 4);
     u32 cur;
+    s32* link = (s32*)(base + 4);
     while ((cur = *link) != 0 && cur != (u32)id) {
         link = (s32*)(cur + 0x24);
     }
