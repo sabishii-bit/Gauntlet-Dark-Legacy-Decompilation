@@ -32,6 +32,9 @@ Exact-match source shapes:
 - `AtreeNodePrevNode`: avoid a named `next` local in the root-list walk.
   Repeating `list->next` in the condition/body lets CSE produce the retail
   rotated loop and is byte-exact.
-- `AtreeNodeInsert` is structurally exact after preserving the child anchor as
-  a separate local, but retains a two-register `p`/`last` rotation (14 real
-  diff lines).  Declaration and first-definition order did not resolve it.
+- `AtreeNodeInsert`: preserve the child anchor as a separate local, then reuse
+  the dead incoming `parent` and `root` parameters as the second sibling
+  loop's cursor and tail.  Their ABI registers become the retail `r4`/`r5`
+  pair while the anchor stays in `r6`; this removes the final 14-line
+  register-only residual and makes the function byte-exact.  Merely changing
+  declaration or first-definition order did not affect the coloring.
