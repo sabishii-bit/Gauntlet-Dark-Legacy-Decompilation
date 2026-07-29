@@ -13,7 +13,7 @@ typedef unsigned int u32;
 typedef unsigned char u8;
 
 extern s32 lbl_803445EC;
-extern s32 lbl_80344B48;
+extern s32 dbg_test_2mb;
 extern u32* lbl_80343E78;
 
 extern void sceSifInitRpc(s32);
@@ -66,7 +66,7 @@ void init_psx2() {
     sceFsReset();
     sceSifLoadFileReset();
 
-    if (lbl_80344B48 != 0) {
+    if (dbg_test_2mb != 0) {
         load_irx_args("cdrom0:\\\\IRX\\", "mem2MB.irx", 1, 0, 0);
         while (sceSifRebootIop("cdrom0:\\\\IOPRP21.IMG") == 0) {
         }
