@@ -649,11 +649,13 @@ void fn_800D967C(int param_1, int param_2) {
 void fn_800D96B0(void) {
 }
 
-u32 fn_800D9874(u32 param_1, int param_2) {
+u32 MovieValidateFrameFormat(u32 param_1, int param_2) {
     int uVar1;
     u32 iVar2;
     int iVar3;
     int uVar4;
+    int inputWidth;
+    int inputHeight;
 
     iVar3 = *(int*)(param_2 + 4);
     iVar2 = *(u32*)(param_2 + 0xc);
@@ -668,8 +670,10 @@ u32 fn_800D9874(u32 param_1, int param_2) {
     if (iVar2 == 0) {
         return 0;
     }
-    if (*(int*)(iVar2 + 4) != uVar1 ||
-        (*(int*)(iVar2 + 8) != uVar4 && *(int*)(iVar2 + 8) != -uVar4)) {
+    inputWidth = *(int*)(iVar2 + 4);
+    inputHeight = *(int*)(iVar2 + 8);
+    if (inputWidth != uVar1 ||
+        (inputHeight != uVar4 && inputHeight != -uVar4)) {
         return 0xfffffffe;
     }
     switch (*(int*)(iVar2 + 0x10)) {
@@ -1112,7 +1116,7 @@ void fn_800DB82C(u32* param_1, int param_2, u32 param_3) {
     *(u8*)(param_1 + 0x13) = 0;
 }
 
-u8 fn_800DB91C(u32* param_1, u32 param_2, u32 param_3) {
+u8 MovieDecoderInitBuffers(u32* param_1, u32 param_2, u32 param_3) {
     int iVar3;
     int iVar4;
     u8 unused[24];
@@ -1136,8 +1140,9 @@ u8 fn_800DB91C(u32* param_1, u32 param_2, u32 param_3) {
         fn_800D9C5C((int*)(param_1 + 0xf), 0x40000);
     }
     param_1[6] = param_2 & 0xfffff800;
+    iVar3 = param_1[6];
     lbl_803452AC++;
-    param_1[1] = (u32)AllocHiMem(param_1[6] + 0x20, param_1[6]);
+    param_1[1] = (u32)AllocHiMem(iVar3 + 0x20, iVar3);
     iVar3 = lbl_803452AC;
     lbl_803452AC++;
     param_1[3] = (u32)AllocHiMem(0x10020, iVar3);
