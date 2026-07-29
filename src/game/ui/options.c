@@ -396,6 +396,7 @@ extern s32 legend_hint_num;        /* 0x80344AD0 */
 extern s32 rune_hint_pass;         /* 0x80344AD4 */
 extern s32 rune_hint_num;          /* 0x80344AD8 */
 extern s32 sfx_sound_count;        /* 0x80344ADC slider test-sound timer */
+extern char optionsStringPool[];   /* 0x80113830 OPTIONS rodata anchor */
 extern s32 OPTMENU_VOL_DY;         /* 0x80344AE0 */
 extern s32 optmenu_abortall;       /* 0x80344AE4 */
 extern s32 title_choice;           /* 0x80344AE8 title selection latch */
@@ -1382,10 +1383,11 @@ static void position_audioslider(AUDIOSLIDER* s, s32 x, s32 y, s32 w, s32 h, s32
 
 static void start_audioslider(AUDIOSLIDER* s)
 {
-    s->empty = MBNewBlit("empty_bar", 0, 0);
-    s->pink = MBNewBlit("pink_bar", 0, 0);
-    s->ml = MBNewBlit("marker_left", 0, 0);
-    s->mr = MBNewBlit("marker_right", 0, 0);
+    char* strings = optionsStringPool;
+    s->empty = MBNewBlit(strings + 520, 0, 0);
+    s->pink = MBNewBlit(strings + 532, 0, 0);
+    s->ml = MBNewBlit(strings + 544, 0, 0);
+    s->mr = MBNewBlit(strings + 556, 0, 0);
     s->slid = MBNewBlit("slider", 0, 0);
     mbBlitInit3414(s->ml, 1);
     mbBlitInit3414(s->mr, 1);
