@@ -69,6 +69,14 @@ extern f32 fqdist(f32 x, f32 y);
 extern f32 smallsqrt(f32 v);
 extern void fn_8009C850(void* p);
 extern void damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir);
+extern f64 fn_8005C1DC(void* target, s32 arg, s32 pidx, f64 range); /* hit test -> priority */
+extern void fn_8002F44C(Player* p, void* target, s32 exact);        /* apply melee hit */
+extern f32 lbl_80347B30; /* 0.0f */
+extern f64 lbl_80347B28; /* hit-point y offset */
+extern f64 lbl_80347B08; /* hit-priority threshold */
+extern f64 lbl_80347D68; /* min separation for push-out */
+extern s32 fn_8002FA70(f32* otherPos, f32 r, f32 p3, f32* from, f32* to,
+                       f32* hitOut, s32 flag); /* segment/sphere collide */
 extern void MBTreeSetAlpha(void* node, s32 alpha, s32 mode);
 extern void* fn_8005B8B0(Player* p);
 extern s32 PointVisible(f32 y, f32* pos);
@@ -269,7 +277,43 @@ void PlayerMotion_FindClosestPlayer(Player* p, f32* dir, u32 flags, f32 dmg) {
         damage_player(closest, dmg, 2, flags, dvec);
     }
 }
-STUB(0x80086924, PlayerMotion_HitTarget)
+/* 0x80086924 - resolve a melee hit against `target`: run the hit test, and on
+ * a connect apply damage and raise the hit-something flag (type 3 = solid,
+ * type 10 = openable, which also posts a "hit chest" message). */
+void PlayerMotion_HitTarget(Player* p, void* target, s32 arg, f32 range) {
+    f32 hitpos[3];
+    f64 priority;
+
+    if (lbl_80347B30 == range) {
+        range = PF(p, 0x104, f32);
+    }
+    if (target == NULL) {
+        return;
+    }
+    hitpos[0] = PF(target, 0x44, f32);
+    hitpos[1] = PF(target, 0x48, f32);
+    hitpos[2] = PF(target, 0x4C, f32);
+    hitpos[1] = (f32)(hitpos[1] + lbl_80347B28);
+
+    priority = fn_8005C1DC(target, arg, p->index, range);
+    {
+        s32 exact = priority == lbl_80347B08 ? 1 : 0;
+        s32 type;
+        if (priority < lbl_80347B08) {
+            return;
+        }
+        fn_8002F44C(p, target, exact);
+        type = **(s32**)target;
+        if (type == 3) {
+            lbl_803447E4 = 1;
+        } else if (type == 10) {
+            if ((s8)(*(u8**)target)[0x28] == 0) {
+                msgPost(20, p->index, (u32)hitpos);
+            }
+            lbl_803447E4 = 1;
+        }
+    }
+}
 STUB(0x80086A24, PlayerMotion_DamageTarget)
 STUB(0x80086C78, PlayerGetTarget)
 /* NOTE: correct body; not yet byte-exact (far-field PF address-CSE parks an
@@ -370,7 +414,68 @@ void DoExit(Player* p) {
     }
 }
 STUB(0x8008760C, PlayerCollideEnemies)
-STUB(0x80087830, PlayerCollidePlayers)
+/* 0x80087830 - sweep the other three players along the movement segment
+ * from->to; of those hit (and in front of the motion), pick the nearest and
+ * push `out` back out of it.  Returns the collided player index or -1. */
+s32 PlayerCollidePlayers(Player* p, f32 range, f32 p3, f32* from, f32* to,
+                         f32* out, s32 stopFirst) {
+    f32 hit[3];
+    s32 closest = -1;
+    f32 best = lbl_80347B30;
+    s32 i;
+
+    for (i = 0; i < 4; i++) {
+        Player* op = &gPlayerRecords[i];
+        f32 dot;
+        f32 d;
+
+        if (i == p->index) {
+            continue;
+        }
+        if (op->state != 1 && op->state != 4) {
+            continue;
+        }
+        if ((PF(op, 0x964, s16) & 0x20) != 0) {
+            continue;
+        }
+        dot = (PF(op, 0x64, f32) - from[0]) * (to[0] - from[0]) +
+              (PF(op, 0x6C, f32) - from[2]) * (to[2] - from[2]);
+        if (dot < lbl_80347B30) {
+            continue;
+        }
+        if (fn_8002FA70((f32*)((u8*)op + 0x64), range + PF(op, 0x850, f32), p3,
+                        from, to, hit, 1) == 0) {
+            continue;
+        }
+        d = fqdist(hit[0] - to[0], hit[2] - to[2]);
+        if (closest < 0 || d < best) {
+            closest = i;
+            best = d;
+        }
+        if (stopFirst != 0) {
+            break;
+        }
+    }
+
+    if (closest >= 0) {
+        Player* cp = &gPlayerRecords[closest];
+        f32 ex = to[0] - PF(cp, 0x64, f32);
+        f32 ez = to[2] - PF(cp, 0x6C, f32);
+        f32 dist = fqdist(ex, ez);
+
+        if (dist > lbl_80347D68) {
+            f32 scale = (range + PF(cp, 0x850, f32) - dist) / dist;
+            out[0] = ex * scale + to[0];
+            out[1] = lbl_80347B30 * scale + to[1];
+            out[2] = ez * scale + to[2];
+        } else {
+            out[0] = from[0];
+            out[1] = from[1];
+            out[2] = from[2];
+        }
+    }
+    return closest;
+}
 STUB(0x80087A20, PlayerCollideItems)
 int PlayerNewFloor(PMotionCtx* m, Player* p, f32* dpos) {
     u8 unused[8];
