@@ -188,7 +188,7 @@ extern u32   strlen(const char* text);
 extern s32   toupper(s32 c);
 extern char* strcpy(char* dst, const char* src);
 extern char* strncpy(char* dst, const char* src, u32 count);
-extern f64   atan2(f64 y, f64 x);
+extern f32   atan2(f32 y, f32 x);
 extern void* memset(void* dst, s32 val, u32 n);
 extern u32*  FindWORLDOBJ(const char* name);
 extern double DistanceToClosestPlayer(f32* pos);
@@ -1393,6 +1393,7 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
 {
     char name[36];
     char child_name[32];
+    u8 stack_pad[16];
     char* strings = (char*)&sObjectsFile;
     iteminfo** infos = &gWorldInfo.iteminfo;
     iteminfo* info_base = *infos;
@@ -1404,7 +1405,6 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
     s32 subtype;
     s32 item_index = (s32)(item - sItems);
     s32 i;
-    iteminfo* candidate;
     s32 found;
 
     /* Random descriptors contain a count and an array of s16 info indices. */
@@ -1427,34 +1427,39 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
     subtype = info->item.subtype;
 
     if (type == 1) {
-        if (subtype == 12) {
+        switch (subtype) {
+        case 2:
+            if (instance != NULL && *(s16*)&instance->params[0] > 1) {
+                for (found = 0; found < gWorldInfo.niteminfos;
+                     found++, info_base++) {
+                    iteminfodata* body = &info_base->item;
+
+                    if (strcmp(sKeyringName, body->desc) == 0 &&
+                        info_base->type == type &&
+                        (subtype <= 0 ||
+                         body->subtype == subtype)) {
+                        goto keyring_found;
+                    }
+                }
+                found = -1;
+keyring_found:
+                info = &(*infos)[found];
+                type = info->type;
+                subtype = info->item.subtype;
+            }
+            break;
+        case 12:
             ErrorPrintf(strings + 0x38C, matrix[12], matrix[13], matrix[14]);
             item->active = -1;
             return;
-        }
-        if (subtype == 2 && instance != NULL &&
-            *(s16*)&instance->params[0] > 1) {
-            candidate = info_base;
-
-            for (found = 0; found < gWorldInfo.niteminfos;
-                 found++, candidate++) {
-                if (strcmp(sKeyringName, candidate->item.desc) == 0 &&
-                    candidate->type == type &&
-                    (subtype < 1 ||
-                     candidate->item.subtype == subtype)) {
-                    goto keyring_found;
-                }
+        case 15:
+            if (sMusicTrackHi == 13 &&
+                (lbl_803449A0 != 0 ||
+                 towerAllPlayersMetBossReq(1) != 0)) {
+                item->active = -1;
+                return;
             }
-            found = -1;
-keyring_found:
-            info = &(*infos)[found];
-            type = info->type;
-            subtype = info->item.subtype;
-        } else if (subtype == 15 && sMusicTrackHi == 13 &&
-                   (lbl_803449A0 != 0 ||
-                    towerAllPlayersMetBossReq(1) != 0)) {
-            item->active = -1;
-            return;
+            break;
         }
     }
 
@@ -1464,15 +1469,23 @@ keyring_found:
     item->coll_offset[2] = info->item.coloffset[2];
     item->coll_offset[1] =
         (f32)((f64)item->coll_offset[1] + 1.0);
-    item->visrad =
-        2.0f * (info->item.radius < info->item.height ?
-                info->item.height : info->item.radius);
+    {
+        f32 radius = info->item.radius;
+
+        radius = radius > info->item.height ?
+                 radius : info->item.height;
+        item->visrad = (f32)(2.0 * (f64)radius);
+    }
     item->objgrp.flags = 0;
     {
-        f32 x = item->coll_offset[0];
-        f32 z = item->coll_offset[2];
-        *(u32*)&x &= 0x7FFFFFFF;
+        f32 x;
+        f32 z;
+        u8 abs_pad[24];
+
+        z = item->coll_offset[2];
         *(u32*)&z &= 0x7FFFFFFF;
+        x = item->coll_offset[0];
+        *(u32*)&x &= 0x7FFFFFFF;
         if ((f64)(x + z) < 0.01) {
             item->objgrp.flags = 2;
         }
@@ -1522,7 +1535,7 @@ keyring_found:
         DATA_U8(2) = (u8)PARAM_S16(0, 1);
         DATA_S8(3) = (s8)PARAM_S16(2, -1);
         DATA_S16(0) = (s16)fn_80051FDC(info->item.desc);
-        DATA_F32(4) = (f32)atan2(matrix[8], matrix[10]);
+        DATA_F32(4) = atan2(matrix[8], matrix[10]);
         DATA_S32(8) = 0;
         DATA_F32(12) =
             instance != NULL ? *(f32*)&params[4] : 0.0f;
@@ -1536,77 +1549,76 @@ keyring_found:
         if (DATA_S16(0) == 32) {
             if (CritterTypeLoaded(7, 0) != NULL) {
                 void* header;
-                loaded = CritterTypeLoaded(7, 0);
                 item->active &= ~1;
+                attach_geometry = 1;
+                loaded = CritterTypeLoaded(7, 0);
                 header = *(void**)((u8*)loaded + 0x120);
                 atree_header = (void*)AtreeMatch(
                     *(void**)((u8*)header + 0x28),
                     strings + 0x3A8, 1);
-                attach_geometry = 1;
             }
             DATA_U8(2) = 1;
         } else if (DATA_S16(0) == 29) {
-            void* header = gWadAtreeHeaders[29];
-            if (header == NULL) {
-                if (CritterTypeLoaded(3, 0) != NULL) {
-                    loaded = CritterTypeLoaded(3, 0);
-                    header = *(void**)((u8*)loaded + 0x120);
-                    header = *(void**)((u8*)header + 0x28);
-                }
-            }
-            if (header != NULL) {
+            if (gWadAtreeHeaders[29] != NULL) {
                 item->active &= ~1;
-                atree_header =
-                    (void*)AtreeMatch(header, strings + 0x3B4, 1);
                 attach_geometry = 1;
+                atree_header =
+                    (void*)AtreeMatch(gWadAtreeHeaders[29],
+                                     strings + 0x3B4, 1);
+            } else if (CritterTypeLoaded(3, 0) != NULL) {
+                void* header;
+
+                item->active &= ~1;
+                attach_geometry = 1;
+                loaded = CritterTypeLoaded(3, 0);
+                header = *(void**)((u8*)loaded + 0x120);
+                atree_header = (void*)AtreeMatch(
+                    *(void**)((u8*)header + 0x28),
+                    strings + 0x3B4, 1);
             }
             DATA_U8(2) = 1;
         } else if (DATA_S16(0) == 30 &&
                    gWadAtreeHeaders[30] != NULL) {
             item->active &= ~1;
-            if (DATA_S8(2) == 0 || DATA_S8(2) == 1) {
-                if (DATA_S8(2) == 1) {
-                    DATA_U32(8) |= 1;
-                }
+            attach_geometry = 1;
+            switch (DATA_S8(2)) {
+            case 1:
+                DATA_U32(8) |= 1;
+                /* fallthrough */
+            case 0:
                 atree_header = (void*)AtreeMatch(
                     gWadAtreeHeaders[30], strings + 0x3C0, 1);
                 DATA_U8(2) = 1;
-                attach_geometry = 1;
-            } else if (DATA_S8(2) == 2 || DATA_S8(2) == 3) {
-                if (DATA_S8(2) == 3) {
-                    DATA_U32(8) |= 1;
-                }
+                break;
+            case 3:
+                DATA_U32(8) |= 1;
+                /* fallthrough */
+            case 2:
                 atree_header = (void*)AtreeMatch(
                     gWadAtreeHeaders[30], strings + 0x3D0, 1);
                 DATA_U8(2) = 2;
-                attach_geometry = 1;
+                break;
             }
         }
         break;
     }
 
     case 2:
-        DATA_S16(0) = PARAM_S16(0, -1);
+        DATA_S16(0) = (s16)PARAM_S32(0, -1);
         DATA_S16(2) = 0;
-        DATA_F32(4) = (f32)atan2(matrix[8], matrix[10]);
         DATA_S32(8) = 0;
         DATA_S32(12) = 0;
+        DATA_F32(4) = atan2(matrix[8], matrix[10]);
         DATA_S16(16) = PARAM_S16(4, 0);
         break;
 
     case 5:
     {
         u8* wobj = NULL;
-        u16 trigger_flags = 0;
-        s32 wobj_index = PARAM_S16(0, -1);
+        u16 trigger_flags;
+        s32 wobj_index;
 
-        if (instance == NULL) {
-            DATA_S32(0) = 0;
-            DATA_U16(4) = 0;
-            DATA_F32(8) = 0.0f;
-            DATA_U8(6) = 0;
-            DATA_U8(7) = 0;
-        } else {
+        if (instance != NULL) {
             switch (subtype) {
             case 20: trigger_flags = 0x10; break;
             case 21: trigger_flags = 8; break;
@@ -1617,10 +1629,14 @@ keyring_found:
             case 27: trigger_flags = 0x80C; break;
             case 28: trigger_flags = 9; break;
             case 29: trigger_flags = 10; break;
+            case 24:
+            case 30:
+            case 31:
             default:
                 trigger_flags = PARAM_S16(2, 0) | 8;
                 break;
             }
+            wobj_index = *(s16*)&params[0];
             if (wobj_index >= 0) {
                 if (wobj_index < gWorldInfo.nwobjs) {
                     wobj = (u8*)gWorldInfo.wobjs + wobj_index * 0x3C;
@@ -1655,22 +1671,43 @@ keyring_found:
             }
             DATA_U8(6) = params[6];
             DATA_U8(7) = params[7];
+        } else {
+            DATA_S32(0) = 0;
+            DATA_U16(4) = 0;
+            DATA_F32(8) = 0.0f;
+            DATA_U8(6) = 0;
+            DATA_U8(7) = 0;
         }
         DATA_S32(12) = 0;
         DATA_S16(16) = 0;
         DATA_S16(18) = -1;
 
-        if (wobj != NULL && sMusicTrackHi == 13 &&
-            (DATA_U8(6) == 104 || DATA_U8(6) == 199)) {
+        if (wobj != NULL && sMusicTrackHi == 13) {
             u32 flags = 0;
+            u32 player_flags = 0;
+            s32 activate = 0;
             s32 player;
-            for (player = 0; player < 4; player++) {
-                u8* p = gPlayers + player * 13148;
-                if (*(s32*)(p + 0xE8) != 0) {
-                    flags |= towerGetLevelFlag(p, 8);
+
+            switch (DATA_U8(6)) {
+            case 104:
+            case 199:
+                for (player = 0; player < 4; player++) {
+                    u8* p = gPlayers + player * 13148;
+                    if (*(s32*)(p + 0xE8) != 0) {
+                        s32 player_index;
+                        flags |= towerGetLevelFlag(p, 8);
+                        player_index = *(s32*)(p + 0x0C);
+                        player_flags |=
+                            *(u16*)(p + player_index * 240 + 8738);
+                    }
                 }
+                if (flags & 1) {
+                    activate = 1;
+                }
+                break;
             }
-            if (flags & 1) {
+
+            if (activate != 0) {
                 s16* anim = fn_80055CB8(wobj);
                 wobj[0x17] = '/';
                 wobj[0x16] = '/';
@@ -1721,7 +1758,7 @@ keyring_found:
             for (i = 0; i < gWorldInfo.niteminfos; i++, candidate++) {
                 if (strcmp("LOW", candidate->item.desc) == 0 &&
                     candidate->type == type &&
-                    (subtype < 1 || subtype == candidate->item.subtype)) {
+                    (subtype <= 0 || subtype == candidate->item.subtype)) {
                     item->info = candidate;
                     break;
                 }
@@ -1740,7 +1777,7 @@ keyring_found:
         DATA_F32(12) = 0.0f;
         DATA_S16(8) = 0;
         DATA_U8(10) = 0;
-        DATA_F32(16) = (f32)atan2(matrix[8], matrix[10]);
+        DATA_F32(16) = atan2(matrix[8], matrix[10]);
         item->activetime = 40;
         item->health *= DATA_S8(6);
 
@@ -1750,13 +1787,13 @@ keyring_found:
         } else if (count_index > 2) {
             count_index = 2;
         }
-        if (DATA_U8(3) == 0) {
-            DATA_U8(3) = *((u8*)arrows + 0x30 + count_index);
+        if (DATA_S8(3) == 0) {
+            DATA_S8(3) = (s8)((s32*)arrows)[12 + count_index];
         }
         if (DATA_U8(11) == 0) {
-            DATA_U8(11) = *((u8*)arrows + 0x3C + count_index);
+            DATA_U8(11) = (u8)((s32*)arrows)[15 + count_index];
         }
-        DATA_U8(3) = (u8)(DATA_U8(3) *
+        DATA_S8(3) = (s8)(DATA_S8(3) *
                            *(f32*)(gCurLevel + 0xD4));
         DATA_U8(11) = (u8)(DATA_U8(11) *
                             *(f32*)(gCurLevel + 0xD0));
