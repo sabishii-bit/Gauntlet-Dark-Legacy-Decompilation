@@ -159,3 +159,14 @@ The complete old-to-new map and evidence are in
   65-instruction size and reduced the meaningful diff to 18 lines. Dead stack
   arrays still matter: an additional eight-byte local recovered the target
   48-byte frame even though it is never referenced.
+- Stack padding can recover both frame size and array placement independently.
+  `AddItemInstList` needed four dead bytes declared after its matrix to move
+  the matrix from `sp+8` to the target `sp+12`, then eight dead bytes declared
+  before the matrix to grow the frame from 120 to 128 without moving it again.
+  This reduced that function from 96 to 71 meaningful diff lines.
+- Do not “clean up” adjacent-small-data aliases without checking the complete
+  opcode sequence. `gControllerButtons` at `0x803445C8` is intentionally
+  declared as 64-bit in `items.c`: its low word aliases `sFlags` at
+  `0x803445CC`, and MWCC emits the retail pair of word loads plus 64-bit
+  boolean operations. Replacing the expression with a direct `sFlags` test
+  looks semantically obvious but removes seven target instructions.

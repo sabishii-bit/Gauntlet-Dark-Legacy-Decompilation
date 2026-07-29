@@ -483,11 +483,13 @@ Item* NewItemPtr(void)
 void AddItemInstList(void)
 {
     iteminst* instances = gWorldInfo.iteminst;
+    s32 i;
     s32 instance_count = gWorldInfo.niteminsts;
     s32 visible_sum_coins = 0;
-    s32 i;
     s32 instance_offset;
+    u8 frame_pad[8];
     f32 matrix[16];
+    u8 unused[4];
 
     sItemRandSeed = pbLoad;
     fn_8005412C();
@@ -496,8 +498,9 @@ void AddItemInstList(void)
 
     for (i = 0, instance_offset = 0; i < instance_count;
          i++, instance_offset += sizeof(iteminst)) {
-        iteminst* instance = (iteminst*)((u8*)instances + instance_offset);
         Item* item = NewItemPtr();
+        iteminst* instance =
+            (iteminst*)((u8*)instances + instance_offset);
 
         if (instance->index < 0) {
             FatalError(sNewItemBadIndex, 0x800000);
@@ -804,17 +807,32 @@ void DeleteItem(Item* item, s32 flag)
 /* look up an item definition by name (+ type / optional level) and spawn it. */
 Item* PlaceItem(s32 type, s32 level, char* name, void* matrix)
 {
-    iteminfo* def = gWorldInfo.iteminfo;
+    u8 unused[8];
+    s32 i;
+    Item* item;
     iteminfo* d;
-    Item*     item;
-    s32       i;
+    iteminfo** defs;
+    iteminfo* def;
+
+    defs = &gWorldInfo.iteminfo;
+    def = *defs;
 
     for (i = 0; i < gWorldInfo.niteminfos; i++) {
         iteminfodata* body = &def->item;
-        if (strcmp(name, body->desc) == 0 && type == def->type &&
-            (level <= 0 || level == body->subtype)) {
+        if (strcmp(name, body->desc) != 0) {
+            goto next;
+        }
+        if (type != def->type) {
+            goto next;
+        }
+        if (level <= 0) {
             goto found;
         }
+        if (level != body->subtype) {
+            goto next;
+        }
+        goto found;
+next:
         def++;
     }
     i = -1;
@@ -823,7 +841,7 @@ found:
         ErrorPrintf(sUnableToAddItemFmt, name);
         item = NULL;
     } else {
-        d = &gWorldInfo.iteminfo[i];
+        d = &(*defs)[i];
         item = NewItemPtr();
         if (matrix != NULL) {
             SetItem(item, 0, d, matrix);
@@ -877,13 +895,16 @@ void SafeRockSetup(void)
  * type-10 items in state 0x29 (up to max); flag hides them. */
 s32 CollectSafeRocks(s32* out, s32 max, s32 flag)
 {
-    s32 count = 0;
-    s32 i = 0;
-    Item* it;
-    s32 off = 0;
+    s32 off;
+    s32 i;
+    s32 count;
+
+    count = 0;
+    i = 0;
+    off = 0;
 
     while (i < sNumItems) {
-        it = (Item*)((u8*)sItems + off);
+        Item* it = (Item*)((u8*)sItems + off);
         if (it->info->type == 10 && *(s16*)((u8*)it + 0xDC) == 0x29) {
             out[count] = i;
             if (flag != 0) {
@@ -2125,8 +2146,11 @@ void LoadPowerups(char* name) {
 
 void LoadItems(void)
 {
-    ItemRuntime* runtime = &sItemRuntime;
-    ItemStrings* strings = &sObjectsFile;
+    ItemStrings* strings;
+    ItemRuntime* runtime;
+
+    strings = &sObjectsFile;
+    runtime = &sItemRuntime;
 
     if (sItemFile0Handle < 0 && gBossType < 0) {
         sprintf(runtime->itemPath, strings->file0Format, WorldItemDesc());
@@ -2624,8 +2648,8 @@ LookoutParam* FindLookoutParam(s32 id)
 s32 ShowMilestones(s32 idx)
 {
     s32 old = sShownMilestones;
-    u8* base;
     s32 off;
+    u8* base;
     s32 i;
 
     if (idx < 0) {
