@@ -218,3 +218,10 @@ The complete old-to-new map and evidence are in
   target body order. SetItem's final dispatch is lexically `2,8,1`; that form
   recovered the target compare tree, whereas an equivalent `if/else if`
   chain emitted sequential inequality tests.
+- MWCC often preserves a ternary's merge register where an equivalent
+  assignment tree is folded into early returns. This was enough to make three
+  real functions exact: `RandItemIdx` keeps its modulo/zero result in `r0`,
+  `ItemVisible` materializes each boolean through `r0` before returning it,
+  and `DoLighting` keeps the selected ambient clamp in the target FPR. For
+  small helpers that are structurally correct but one merge register off,
+  test a direct ternary before trying padding or dummy locals.
