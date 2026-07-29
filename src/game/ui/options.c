@@ -318,7 +318,7 @@ extern void AudioMenuExit(void);
 extern void AudioCursorSelect(void);
 extern void AudioCursorH(void);
 extern void AudioCursorV(void);
-extern void fn_8009D484(void);
+extern void AudioBuzzer(void);
 extern void fn_8009EE2C(s32 which);
 
 /* misc game systems */
@@ -1458,7 +1458,7 @@ s32 do_optmenu(OPTMENU* m, s32 allowNav)
     if ((pressed & 0x2000000) != 0) {
         /* A / select */
         if (m->items[m->sel].value < 0) {
-            fn_8009D484();
+            AudioBuzzer();
             return 0;
         }
         if ((m->flags & 0x400) != 0) {

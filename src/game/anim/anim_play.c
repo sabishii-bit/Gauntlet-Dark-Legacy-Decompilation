@@ -10,16 +10,57 @@
  * extabindex  0x80008890..0x800088A8
  */
 
+#include "types.h"
+
+extern f32 light_color[4];
+extern const f32 lbl_803457F0;
+void GetAnimAngXYZVal();
+
+void ZeroAnimData(void* data)
+{
+    f32 zero = lbl_803457F0;
+    f32* value = (f32*)data;
+
+    value[12] = zero;
+    value[13] = zero;
+    value[14] = zero;
+    value[24] = zero;
+    value[25] = zero;
+    value[26] = zero;
+    value[36] = light_color[0];
+    value[37] = light_color[1];
+    value[38] = light_color[2];
+    *(s16*)((u8*)data + 8) = -1;
+    *(s16*)((u8*)data + 10) = 0;
+}
+
 #define STUB(address, name) void name(void) {}
 
-STUB(0x8000F628, ZeroAnimData)
 STUB(0x8000F678, InitAnimData)
-STUB(0x8000F72C, CalcAnimData)
+
+void CalcAnimData()
+{
+    GetAnimAngXYZVal();
+}
+
 STUB(0x8000F74C, InterpXYZ)
 STUB(0x8000F788, InterpPYR)
 STUB(0x8000F7F4, GetAnimAngXYZVal)
 STUB(0x80010850, fn_80010850)
 STUB(0x80010904, fn_80010904)
-STUB(0x800109E4, InitAnimInvDeltaTable)
 
 #undef STUB
+
+extern f32 lbl_8023CBA0[256];
+extern f64 lbl_80345838;
+extern f64 lbl_80345840;
+
+void InitAnimInvDeltaTable(void)
+{
+    s32 i;
+
+    lbl_8023CBA0[0] = lbl_803457F0;
+    for (i = 1; i < 256; i++) {
+        lbl_8023CBA0[i] = lbl_80345840 / (f32)i;
+    }
+}

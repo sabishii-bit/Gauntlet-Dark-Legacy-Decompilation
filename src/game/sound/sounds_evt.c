@@ -414,7 +414,7 @@ void AudioCursorSelect(void)
     sndFxPlayHandle(17, 127, 3);
 }
 
-void fn_8009D400(void)
+void AudioCursorChar(void)
 {
     sndFxPlayHandle(15, 127, 3);
 }
@@ -429,7 +429,7 @@ void AudioCursorV(void)
     sndFxPlayHandle(13, 127, 3);
 }
 
-void fn_8009D484(void)
+void AudioBuzzer(void)
 {
     sndFxPlayHandle(10, 127, 48);
 }
