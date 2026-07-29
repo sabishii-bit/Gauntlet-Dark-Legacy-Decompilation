@@ -139,7 +139,10 @@ typedef struct Critter {
     u8  _blk49C[0x10];        /* 0x49C .. 0x4AC                             */
     f32 unk4AC;               /* 0x4AC (init 0)                              */
     f32 health;               /* 0x4B0 current hp                             */
-    u8  _blk4B4[0x2C];        /* 0x4B4 .. 0x4E0                            */
+    f32 counterValue;         /* 0x4B4 transient move/event counter           */
+    s32 counterState;         /* 0x4B8 state paired with counterValue          */
+    u8  _blk4BC[0x20];        /* 0x4BC .. 0x4DC                               */
+    f32 counterTime;          /* 0x4DC last counter-update timestamp           */
     s16 unk4E0[4];            /* 0x4E0 four ids (init -1)                     */
     f32 timed[4];              /* 0x4E8 expiry times paired with unk4E0 ids  */
     u8  hitnodes[0x5C0];      /* 0x4F8 collision/sfx nodes (16 x 0x5C,         */
