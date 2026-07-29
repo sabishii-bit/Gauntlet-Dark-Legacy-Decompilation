@@ -46,8 +46,8 @@ void LockMem(int arg);
 void FreeUnlockedMem(int arg);
 void PlayVQMovie(const char* name);
 
-extern char* lbl_8011CD58[];   /* movie_list1 (7) */
-extern char* lbl_8011CD74[];   /* movie_list2 (26) */
+extern char* movie_list1[];   /* movie_list1 (7) */
+extern char* movie_list2[];   /* movie_list2 (26) */
 extern s32 lbl_803449C0;       /* movie_list1 index */
 extern s32 lbl_80343C60;       /* movie_list2 index */
 extern u32 lbl_80344620;       /* pad buttons (held) */
@@ -257,7 +257,7 @@ void test_movies(void)
     LockMem(1);
     while (lbl_80343C58 != 0) {
         if (lbl_803449C0 >= 0) {
-            PlayVQMovie(lbl_8011CD58[lbl_803449C0]);
+            PlayVQMovie(movie_list1[lbl_803449C0]);
             FreeUnlockedMem(1);
             if (lbl_80344620 & 0x10000000) {
                 lbl_803449C0--;
@@ -274,7 +274,7 @@ void test_movies(void)
             if (lbl_80343C60 < 0) {
                 lbl_80343C60 = 0;
             }
-            PlayVQMovie(lbl_8011CD74[lbl_80343C60]);
+            PlayVQMovie(movie_list2[lbl_80343C60]);
             FreeUnlockedMem(1);
             if (lbl_80344620 & 0x10000000) {
                 lbl_80343C60--;
