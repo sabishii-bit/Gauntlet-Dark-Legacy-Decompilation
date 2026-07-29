@@ -19,7 +19,13 @@ struct Player;
 typedef struct LookoutParam {
     /* 0x00 */ u8  data[0x30];
     /* 0x30 */ f32 pos[3];
-    /* 0x3C */ u8  data2[0x68 - 0x3C];
+    /* 0x3C */ u8  _pad3C[4];
+    /* 0x40 */ f32 saved_pos[3];
+    /* 0x4C */ u8  _pad4C[4];
+    /* 0x50 */ f32 saved_pos2[3];
+    /* 0x5C */ u8  _pad5C[4];
+    /* 0x60 */ s32 handle;
+    /* 0x64 */ s32 active;
     /* 0x68 */ s16 next;
     /* 0x6A */ s16 id;
 } LookoutParam; /* 0x6C */
@@ -76,6 +82,15 @@ typedef struct iteminst {
     /* 0x24 */ f32 pyr[3];
     /* 0x30 */ u8  params[12];
 } iteminst; /* 0x3C */
+
+/* Compact world-locator record consumed by AddLocatorInstList. */
+typedef struct locator {
+    /* 0x00 */ u8  type;
+    /* 0x01 */ u8  subtype;
+    /* 0x02 */ s16 index;
+    /* 0x04 */ f32 pos[3];
+    /* 0x10 */ f32 pyr[3];
+} locator; /* 0x1C */
 
 /* A live placed item instance.                                               */
 typedef struct Item {
@@ -135,7 +150,7 @@ void  AddItemInstList(void);
 Item* PlaceItem(s32 type, s32 level, char* name, void* matrix);
 void  SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix);
 void  MatchTransporters(void);
-void  AddLocatorInstList(void* list, s32 count);
+void  AddLocatorInstList(void);
 LookoutParam* FindLookoutParam(s32 id);
 LookoutParam* FindClosestWaypoint(f64 maxDist, f32* pos, s32 all);
 LookoutParam* NextWaypoint(LookoutParam* waypoint);
