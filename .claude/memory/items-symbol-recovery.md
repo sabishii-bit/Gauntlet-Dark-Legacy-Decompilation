@@ -152,3 +152,10 @@ The complete old-to-new map and evidence are in
   Its not-found path is a fallthrough assignment to `-1`; expressing the
   successful exit with a label avoids an extra post-loop comparison and
   matches the retail control flow.
+- For MWCC's inlined distance calculations, split the squared length into two
+  assignments instead of one three-term expression. In `FindClosestWaypoint`,
+  declaring `d2, dx, dy, dz` before assigning Y/X/Z, then evaluating
+  `d2 = dx*dx + dy*dy; d2 = dz*dz + d2;` recovered the target's exact
+  65-instruction size and reduced the meaningful diff to 18 lines. Dead stack
+  arrays still matter: an additional eight-byte local recovered the target
+  48-byte frame even though it is never referenced.
