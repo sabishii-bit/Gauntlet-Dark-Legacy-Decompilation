@@ -1055,7 +1055,9 @@ invalid_entry:
 
 void AudioPlayerBreath(int pidx)
 {
-    AudioWithName(-1, pidx, 5.0f, sMusicTrackHi == 13 ? 0x30014 : 0x2000C, -1);
+    int sound = sMusicTrackHi == 13 ? 0x30014 : 0x2000C;
+
+    AudioWithName(-1, pidx, 5.0f, sound, -1);
 }
 
 void fn_8009FEA0(int pidx)
@@ -1112,6 +1114,7 @@ void fn_8009F06C(int pos, int idx)
     }
 }
 
+#pragma opt_common_subs off
 void AudioPlayerTurbo(int pidx, int sel, int arg3)
 {
     typedef struct AudioTurboSoundIds {
@@ -1125,9 +1128,9 @@ void AudioPlayerTurbo(int pidx, int sel, int arg3)
     int slot;
     int flags;
 
-    flags = *(int*)&gPlayers[pidx * 13148 + 292];
-    f8 = *(int*)&gPlayers[pidx * 13148 + 8];
-    slot = (int)&gPlayers[pidx * 13148 + 68];
+    flags = *(int*)(gPlayers + pidx * 13148 + 292);
+    f8 = *(int*)(gPlayers + pidx * 13148 + 8);
+    slot = (int)(gPlayers + pidx * 13148 + 68);
 
     if (flags & 0x400) {
         sndFxPlay3D(95, slot, 224, 16);
@@ -1145,6 +1148,7 @@ void AudioPlayerTurbo(int pidx, int sel, int arg3)
         }
     }
 }
+#pragma opt_common_subs reset
 
 void AudioPlayerEatFood(int pidx, int foodType)
 {
