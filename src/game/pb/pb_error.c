@@ -37,14 +37,14 @@ typedef struct WinGlobals {
 } WinGlobals;
 extern WinGlobals* gWinGlobals;
 
-extern int fn_800AF544();
-extern int fn_800AF54C();
-extern int fn_800AF564();
-extern int fn_800AF568();
-extern int fn_800AF56C();
-extern int fn_800AF570();
-extern int fn_800AF1D8();
-extern int fn_800AF1DC();
+extern int sceGsExecLoadImage();
+extern int sceGsSetDefLoadImage();
+extern int sceGsSwapDBuff();
+extern int sceGsSetDefDBuff();
+extern int sceGsResetPath();
+extern int sceGsResetGraph();
+extern int FlushCache();
+extern int sceGsSyncPath();
 extern void fn_800C1148();              /* mb_window.c helper */
 extern void fn_800C13CC(void);
 
@@ -77,8 +77,8 @@ void fn_800C1174(register s8* text, register u32 errorHigh)
         addi r26, errorHigh, 0x4DB8
         addi r27, text, 0
     }
-    fn_800AF56C();
-    fn_800AF570(0, 0, 2, 1);
+    sceGsResetPath();
+    sceGsResetGraph(0, 0, 2, 1);
     fn_800C13CC();
 
     asm {
@@ -93,7 +93,7 @@ void fn_800C1174(register s8* text, register u32 errorHigh)
         li r7, 0
         li r8, 0
     }
-    fn_800AF568();
+    sceGsSetDefDBuff();
     asm {
         lwz r6, gErrorCode
         opword 0x38800000
@@ -108,12 +108,12 @@ void fn_800C1174(register s8* text, register u32 errorHigh)
         opword 0x50803C30
         sth r0, 16(r26)
     }
-    fn_800AF1D8();
+    FlushCache();
     asm { mr r3, r26 }
-    fn_800AF564();
-    fn_800AF56C();
+    sceGsSwapDBuff();
+    sceGsResetPath();
     asm { mr r3, r26 }
-    fn_800AF564();
+    sceGsSwapDBuff();
     fn_800C13CC();
 
     asm {
@@ -220,14 +220,14 @@ void fn_800C1174(register s8* text, register u32 errorHigh)
         li r9, 256
         li r10, 8
     }
-    fn_800AF54C();
+    sceGsSetDefLoadImage();
     asm { li r3, 0 }
-    fn_800AF1D8();
+    FlushCache();
     asm {
         addi r3, r1, 8216
         opword 0x38810010
     }
-    fn_800AF544();
+    sceGsExecLoadImage();
     asm {
         addi r5, r26, 0
         li r3, 0
@@ -253,7 +253,7 @@ void fn_800C13CC(void)
     for (zero = 0; zero < 1024; zero++) {
         pixels[zero] = 0;
     }
-    fn_800AF1D8(0);
+    FlushCache(0);
 
     {
     asm {
@@ -271,11 +271,11 @@ void fn_800C13CC(void)
         opword 0x39200020
         opword 0x39400020
     }
-        fn_800AF54C();
+        sceGsSetDefLoadImage();
         if (lbl_80343EE8 != 0) {
-            fn_800AF1D8(0);
+            FlushCache(0);
         }
-        fn_800AF544(image, pixels);
+        sceGsExecLoadImage(image, pixels);
         if (lbl_80343EEC != 0) {
             asm { addi r5, r30, 0 }
             fn_800C1148(0, 0);
@@ -306,7 +306,7 @@ void fn_800C1498(void)
         cmpwi r0, 4
         bge reset
     }
-    fn_800AF1DC(0);
+    sceGsSyncPath(0);
     asm {
         b done
     reset:

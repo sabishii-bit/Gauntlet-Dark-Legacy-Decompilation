@@ -17,7 +17,7 @@
 void __as__4vec4FRC4vec4(f32* dst, f32* src); /* vec4::operator= */
 void mbBlitStub51E0(void);
 void pbResetDORegs(void);
-void fn_800AF554(s32 unused, u16 flags, void* data);
+void Deci2Call(s32 unused, u16 flags, void* data);
 
 /* pool entry, 0x50 bytes */
 typedef struct PbWGWin {
@@ -389,7 +389,7 @@ void fn_800C1120(void)
 
 void fn_800C1148(s32 unused, s32 flags, void* data)
 {
-    fn_800AF554(unused, flags, data);
+    Deci2Call(unused, flags, data);
 }
 
 void fn_800C116C(void)

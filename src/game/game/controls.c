@@ -79,12 +79,12 @@ extern s32 scePadPortOpen(s32 port, s32 slot, void* data);
 extern s32 scePadPortClose(s32 port);  /* stub */
 extern s32 sceMtapPortOpen(s32 port);
 extern s32 sceMtapGetConnection(s32 port);
-extern s32 fn_800AF1F0(void);          /* scePad info/mode stub family */
-extern s32 fn_800AF1F8(void);
-extern s32 fn_800AF200(void);
-extern s32 fn_800AF208(void);
+extern s32 scePadEnterPressMode(void);
+extern s32 scePadInfoPressMode(void);
+extern s32 scePadSetMainMode(void);
+extern s32 scePadGetReqState(void);
 extern s32 scePadSetActAlign(void);
-extern s32 fn_800AF2D4(void);
+extern s32 scePadInfoAct(void);
 extern s32 sceMtapInit(void);
 extern void sysResetService(void);     /* sysResetService */
 

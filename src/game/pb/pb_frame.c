@@ -107,7 +107,7 @@ extern void fn_800C2618(void);
 extern void fn_800C2C74(void);
 extern void DIntr(void);
 extern void EIntr(void);
-extern u32 fn_800AF55C(void);
+extern u32 sceGsSyncV(void);
 
 /* Latch a frame buffer + publish its packet pointers
  * (references PB_FRAME.C:__LINE__). */
@@ -177,7 +177,7 @@ void pbFrameMode(s32 mode, s32 flag)
 {
     (void)mode;
     (void)flag;
-    fn_800AF55C();
+    sceGsSyncV();
 }
 
 /* Queue a debug-grab request at (x, y). */
@@ -260,7 +260,7 @@ void fn_800C31C4(void)
     g->screen->f38 = 2048.0f;
     g->screen->f3c = 2048.0 + (lbl_80343F0C - lbl_80343F08) / 2;
     g->screen->m04 = 0;
-    g->screen->m08 = fn_800AF55C() == 0;
+    g->screen->m08 = sceGsSyncV() == 0;
     g->screen->m10 = 0;
     g->screen->m14 = 4;
     g->screen->m18 = 4;
@@ -283,7 +283,7 @@ void fn_800C32D0(void)
     g->screen->f38 = 2048.0f;
     g->screen->f3c = 2048.0 + (lbl_80343F0C - lbl_80343F08) / 2;
     g->screen->m04 = 0;
-    g->screen->m08 = fn_800AF55C() == 0;
+    g->screen->m08 = sceGsSyncV() == 0;
     g->screen->m10 = 0;
     g->screen->m14 = 4;
     g->screen->m18 = 4;

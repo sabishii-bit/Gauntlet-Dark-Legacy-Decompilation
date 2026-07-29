@@ -157,7 +157,7 @@ void serve_io(void);
 void adsPoll(void);             /* ADSTREAM per-frame poll (adsPoll) */
 
 /* main globals block: DVDFileInfo @0, ortho Mtx44 @60, viewport @124 */
-extern u8 lbl_8025EDE8[];
+extern u8 gDvdScratchFileInfo[];
 extern char lbl_8011304C[]; /* "check.txt" */
 
 extern f32 sMusicFadeBase;

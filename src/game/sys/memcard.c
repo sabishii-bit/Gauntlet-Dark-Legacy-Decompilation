@@ -184,7 +184,7 @@ extern u8 gTextWorkBuf[0x800];
 extern u8 gTextFormatBuf[0x404];
 extern s32 gGameBusy;
 extern s32 lbl_80344A30;
-extern u8 lbl_80344A5C;
+extern u8 gDiskErrorShown;
 extern u8 lbl_80344A5D;
 extern s32 lbl_80344A54;
 extern float lbl_80344A58;
@@ -1623,7 +1623,7 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
     int x;
     int y;
 
-    lbl_80344A5C = 1;
+    gDiskErrorShown = 1;
     lbl_80344A5D = 1;
     win = gWinGlobals;
     savedBusy = (void*) gGameBusy;
