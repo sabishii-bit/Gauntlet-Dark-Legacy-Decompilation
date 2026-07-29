@@ -129,12 +129,12 @@ extern void* MBRemoveNode(void* obj, int flag);
 extern void MBNodeSetParent(void* child, void* parent);
 
 /* intra-TU forward declarations (address-order names retained) */
-anode* fn_800132F0(anode* node);
-anode* fn_8001331C(anode* node, anode* list);
-void fn_80011750(anode* node);
-void fn_800119DC(anode* node);
-void fn_80011A74(anode* node);
-anode* fn_800117EC(anode* node, int keep, anode* root);
+anode* AtreeNodeLastSibling(anode* node);
+anode* AtreeNodePrevNode(anode* node, anode* list);
+void AtreeRemovePsysSub(anode* node);
+void AtreeRemoveNodeChild(anode* node);
+void AtreeRemoveNodeSub(anode* node);
+anode* AtreeRemoveNode(anode* node, int keep, anode* root);
 void fn_80012F9C();
 void fn_80011134(f32 frame, void* node, int a, int b, int c, int d);
 
@@ -305,7 +305,7 @@ void* AtreeMatch(atreeheader* hdr, char* name, s32 report)
 
 /* ---------------- node/animdata pools ---------------- */
 
-void AtreeListInit(void)
+void AtreeSetEmpty(void)
 {
     int i;
 
@@ -321,7 +321,7 @@ void AtreeListInit(void)
     }
 }
 
-void AtreeInitLists(int nnodes, int ndata)
+void AtreeAlloc(int nnodes, int ndata)
 {
     if (AtreeNodeList == NULL) {
         if (nnodes < 0) {
@@ -337,12 +337,12 @@ void AtreeInitLists(int nnodes, int ndata)
         AnimDataMax = ndata;
         AnimDataList = AllocMem(ndata * 0xA0);
     }
-    AtreeListInit();
+    AtreeSetEmpty();
 }
 
 /* ---------------- atree-list slot save / restore ---------------- */
 
-void fn_80010DF4(int slot)
+void AtreeInitLists(int slot)
 {
     int i;
 
@@ -356,10 +356,10 @@ void fn_80010DF4(int slot)
     AnimDataNum = 0;
     AnimDataFirstFree = 0;
     AnimDataList = atreelist_save.datalist[slot];
-    AtreeListInit();
+    AtreeSetEmpty();
 }
 
-void fn_80010E84(int slot)
+void AtreeListLock(int slot)
 {
     atreelist_save.natreelists[slot] = natreelists;
     atreelist_save.nodelist[slot] = AtreeNodeList;
@@ -424,17 +424,16 @@ void AtreeDelete(anode** proot)
     anode* node;
     anode* nxt;
 
-    root = *proot;
-    node = root;
+    root = node = *proot;
     while (node != NULL) {
         nxt = node->next;
-        root = fn_800117EC(node, 1, root);
+        root = AtreeRemoveNode(node, 1, root);
         node = nxt;
     }
     *proot = NULL;
 }
 
-void fn_80011628(anode* node, anode* newparent, anode* root, int reparent)
+void AtreeNodeSetParent(anode* node, anode* newparent, anode* root, int reparent)
 {
     anode* parent;
     anode* prev;
@@ -444,7 +443,7 @@ void fn_80011628(anode* node, anode* newparent, anode* root, int reparent)
         if (parent != NULL && parent->child == node) {
             parent->child = node->next;
         } else {
-            prev = fn_8001331C(node, root);
+            prev = AtreeNodePrevNode(node, root);
             prev->next = node->next;
         }
         node->next = NULL;
@@ -453,7 +452,7 @@ void fn_80011628(anode* node, anode* newparent, anode* root, int reparent)
             if (newparent->child == NULL) {
                 newparent->child = node;
             } else {
-                fn_800132F0(newparent->child)->next = node;
+                AtreeNodeLastSibling(newparent->child)->next = node;
             }
         }
         if (reparent != 0 && node->obj != NULL) {
@@ -462,12 +461,12 @@ void fn_80011628(anode* node, anode* newparent, anode* root, int reparent)
     }
 }
 
-void fn_800116EC(atree* tree)
+void AtreeKillPsys(atree* tree)
 {
     anode* node;
 
     for (node = tree->root; node != NULL; node = node->next) {
-        fn_80011750(node->child);
+        AtreeRemovePsysSub(node->child);
         if (node->type == 4 && node->anim != NULL) {
             node->anim = MBRemoveNode(node->anim, 0);
         }
@@ -475,13 +474,13 @@ void fn_800116EC(atree* tree)
 }
 
 #pragma dont_inline on
-void fn_80011750(anode* node)
+void AtreeRemovePsysSub(anode* node)
 {
     anode* child;
 
     for (; node != NULL; node = node->next) {
         for (child = node->child; child != NULL; child = child->next) {
-            fn_80011750(child->child);
+            AtreeRemovePsysSub(child->child);
             if (child->type == 4 && child->anim != NULL) {
                 child->anim = MBRemoveNode(child->anim, 0);
             }
@@ -493,7 +492,7 @@ void fn_80011750(anode* node)
 }
 #pragma dont_inline off
 
-anode* fn_800117EC(anode* node, int keep, anode* root)
+anode* AtreeRemoveNode(anode* node, int keep, anode* root)
 {
     anode* c1;
     anode* c2;
@@ -511,12 +510,12 @@ anode* fn_800117EC(anode* node, int keep, anode* root)
             if (c2 != NULL) {
                 for (; c2 != NULL; c2 = c2->next) {
                     if (c2->child != NULL) {
-                        fn_800119DC(c2->child);
+                        AtreeRemoveNodeChild(c2->child);
                     }
-                    fn_80011A74(c2);
+                    AtreeRemoveNodeSub(c2);
                 }
             }
-            fn_80011A74(c1);
+            AtreeRemoveNodeSub(c1);
         }
     }
     parent = node->parent;
@@ -533,7 +532,7 @@ anode* fn_800117EC(anode* node, int keep, anode* root)
                 root = node->next;
             }
         } else {
-            prev = fn_8001331C(node, root);
+            prev = AtreeNodePrevNode(node, root);
             if (prev != NULL) {
                 if (keep == 0 && node->child != NULL) {
                     prev->next = node->child;
@@ -559,36 +558,34 @@ anode* fn_800117EC(anode* node, int keep, anode* root)
     } else {
         parent->child = node->next;
     }
-    fn_80011A74(node);
+    AtreeRemoveNodeSub(node);
     return root;
 }
 
-void fn_800119DC(anode* node)
+void AtreeRemoveNodeChild(anode* node)
 {
     anode* c1;
     anode* c2;
 
     for (; node != NULL; node = node->next) {
-        c1 = node->child;
-        if (c1 != NULL) {
+        if ((c1 = node->child) != NULL) {
             for (; c1 != NULL; c1 = c1->next) {
-                c2 = c1->child;
-                if (c2 != NULL) {
+                if ((c2 = c1->child) != NULL) {
                     for (; c2 != NULL; c2 = c2->next) {
                         if (c2->child != NULL) {
-                            fn_800119DC(c2->child);
+                            AtreeRemoveNodeChild(c2->child);
                         }
-                        fn_80011A74(c2);
+                        AtreeRemoveNodeSub(c2);
                     }
                 }
-                fn_80011A74(c1);
+                AtreeRemoveNodeSub(c1);
             }
         }
-        fn_80011A74(node);
+        AtreeRemoveNodeSub(node);
     }
 }
 
-void fn_80011A74(anode* node)
+void AtreeRemoveNodeSub(anode* node)
 {
     int idx;
     animdata* ad;
@@ -622,7 +619,7 @@ void fn_80011A74(anode* node)
     }
 }
 
-int fn_80011B6C(void* bank)
+int AtreeModel(void* bank)
 {
     int i;
 
@@ -659,8 +656,9 @@ void fn_80012F9C() {}
 
 /* ---------------- sibling-ring helpers ---------------- */
 
-void fn_8001326C(anode* node, anode* parent, anode* root)
+void AtreeNodeInsert(anode* node, anode* parent, anode* root)
 {
+    anode* child;
     anode* p;
     anode* last;
 
@@ -676,18 +674,20 @@ void fn_8001326C(anode* node, anode* parent, anode* root)
         last->next = node;
         return;
     }
+    child = parent->child;
     if (parent->child == NULL) {
         parent->child = node;
         return;
     }
-    last = parent->child;
-    for (p = last->next; p != NULL && p != parent->child; p = p->next) {
+    p = child->next;
+    last = child;
+    for (; p != NULL && p != child; p = p->next) {
         last = p;
     }
     last->next = node;
 }
 
-anode* fn_800132F0(anode* node)
+anode* AtreeNodeLastSibling(anode* node)
 {
     anode* last;
     anode* p;
@@ -699,23 +699,18 @@ anode* fn_800132F0(anode* node)
     return last;
 }
 
-anode* fn_8001331C(anode* node, anode* list)
+anode* AtreeNodePrevNode(anode* node, anode* list)
 {
     anode* p;
     anode* c;
-    anode* nxt;
 
     p = node->parent;
     if (p == NULL) {
-        while (list != NULL) {
-            nxt = list->next;
-            if (nxt == NULL) {
-                return NULL;
-            }
-            if (nxt == node) {
+        while (list != NULL && list->next != NULL) {
+            if (list->next == node) {
                 return list;
             }
-            list = nxt;
+            list = list->next;
         }
         return NULL;
     }
