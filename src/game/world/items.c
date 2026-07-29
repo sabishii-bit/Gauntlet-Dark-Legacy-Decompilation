@@ -281,8 +281,8 @@ extern void  WPitchMat3(f32* matrix, f32 angle);
 extern void  WYawMat3(f32* matrix, f32 angle);
 extern void  WRollMat3(f32* matrix, f32 angle);
 extern char* sArrowObjectNames[];   /* arrow blit names by kind */
-extern char  sLevelOneSuffix[];   /* "L1" */
-extern char  sRootSuffix[];   /* "ROOT" */
+extern const char sLevelOneSuffix[3]; /* "L1" */
+extern const char sRootSuffix[5];     /* "ROOT" */
 extern char  sItemHealthTextureFmt[];   /* "%s%d" health-tier fmt */
 extern f64   sPi;     /* pi (rounded) */
 extern f64   sTwoPi;
@@ -1481,136 +1481,6 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
     (instance != NULL ? *(s32*)&params[(off)] : (fallback))
 
     switch (type) {
-    case 1:
-        DATA_S32(0) = *(s32*)((u8*)info + 0x3C);
-        DATA_S32(4) = *(s16*)((u8*)info + 0x40);
-        DATA_F32(8) = (f32)*(s16*)((u8*)info + 0x4A);
-        DATA_S32(12) = 0;
-        DATA_S16(16) = 0;
-        switch (subtype) {
-        case 2:
-            if (instance != NULL) {
-                DATA_S32(4) = *(s16*)&params[0];
-            }
-            if (DATA_S32(4) < 1) {
-                DATA_S32(4) = 1;
-            }
-            break;
-        case 10:
-            lbl_8025EA04[0] = matrix[12];
-            lbl_8025EA04[1] = matrix[13];
-            lbl_8025EA04[2] = matrix[14];
-            sSpecialItem10 = (s32)item;
-            break;
-        case 13:
-            sSpecialItem13 = (s32)item;
-            break;
-        case 14:
-            if (instance != NULL) {
-                DATA_S32(4) = *(s16*)&params[0];
-            }
-            break;
-        case 15:
-            DATA_S32(4) =
-                ((s32*)((u8*)sArrowObjectNames + 0x10))[DATA_S32(4)];
-            break;
-        }
-        break;
-
-    case 2:
-        DATA_S16(0) = PARAM_S16(0, -1);
-        DATA_S16(2) = 0;
-        DATA_F32(4) = (f32)atan2(matrix[8], matrix[10]);
-        DATA_S32(8) = 0;
-        DATA_S32(12) = 0;
-        DATA_S16(16) = PARAM_S16(4, 0);
-        break;
-
-    case 3:
-    {
-        s32 enemy_type;
-        s32 count_index;
-        s32 count;
-
-        item->visrad *= 4.0f;
-        DATA_U8(2) = 0;
-        DATA_U8(3) = (u8)PARAM_S16(4, 0);
-        DATA_U8(11) = (u8)PARAM_S16(6, 0);
-        DATA_U8(4) = 0;
-        DATA_U8(7) = (u8)PARAM_S16(2, 0);
-        enemy_type = fn_80051FDC(info->item.desc);
-        DATA_S16(0) = (s16)enemy_type;
-
-        if (DATA_S16(0) == 3) {
-            iteminfo* candidate = gWorldInfo.iteminfo;
-            for (i = 0; i < gWorldInfo.niteminfos; i++, candidate++) {
-                if (strcmp("LOW", candidate->item.desc) == 0 &&
-                    candidate->type == type &&
-                    (subtype < 1 || subtype == candidate->item.subtype)) {
-                    item->info = candidate;
-                    break;
-                }
-            }
-        }
-        if (gGameOptions[10] != 0 || DATA_S8(7) < 0) {
-            DATA_S8(7) = (s8)lbl_8011BD40[DATA_S16(0)];
-        }
-        DATA_S8(6) = (s8)PARAM_S16(0, 1);
-        if (DATA_S8(6) < 1) {
-            ErrorPrintf(strings + 0x424, DATA_S8(6),
-                        matrix[12], matrix[13], matrix[14]);
-            DATA_S8(6) = 1;
-        }
-        DATA_S8(5) = -1;
-        DATA_F32(12) = 0.0f;
-        DATA_S16(8) = 0;
-        DATA_U8(10) = 0;
-        DATA_F32(16) = (f32)atan2(matrix[8], matrix[10]);
-        item->activetime = 40;
-        item->health *= DATA_S8(6);
-
-        count_index = DATA_S8(6) - 1;
-        if (count_index < 0) {
-            count_index = 0;
-        } else if (count_index > 2) {
-            count_index = 2;
-        }
-        if (DATA_U8(3) == 0) {
-            DATA_U8(3) = *((u8*)sArrowObjectNames + 0x30 + count_index);
-        }
-        if (DATA_U8(11) == 0) {
-            DATA_U8(11) = *((u8*)sArrowObjectNames + 0x3C + count_index);
-        }
-        DATA_U8(3) = (u8)(DATA_U8(3) *
-                           *(f32*)(gCurLevel + 0xD4));
-        DATA_U8(11) = (u8)(DATA_U8(11) *
-                            *(f32*)(gCurLevel + 0xD0));
-        item->health = (s16)(item->health *
-                              *(f32*)(gCurLevel + 0xCC));
-        if (sMusicTrackHi == 5) {
-            strcpy(item->info->item.desc, "CAT");
-            DATA_S16(0) = -2;
-            DATA_S8(6) = 2;
-        } else if (sMusicTrackHi == 6) {
-            strcpy(item->info->item.desc, "HEL");
-            DATA_S16(0) = -3;
-            DATA_S8(6) = 3;
-        }
-        DATA_S16(0) =
-            (s16)fn_80050FB0(DATA_S16(0), DATA_S8(2));
-        if (stricmp(name, "BOSSGEN") != 0) {
-            count = DATA_S8(6);
-            if (DATA_S16(0) < -1) {
-                sprintf(name, strings + 0x17C, count);
-            } else {
-                sprintf(name, strings + 0x18C,
-                        fn_80051F64(DATA_S16(0)), count);
-            }
-        }
-        atree_header = (void*)AtreeMatchAnyHeader(name, 1);
-        break;
-    }
-
     case 4:
     {
         void* loaded = NULL;
@@ -1680,6 +1550,15 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
         }
         break;
     }
+
+    case 2:
+        DATA_S16(0) = PARAM_S16(0, -1);
+        DATA_S16(2) = 0;
+        DATA_F32(4) = (f32)atan2(matrix[8], matrix[10]);
+        DATA_S32(8) = 0;
+        DATA_S32(12) = 0;
+        DATA_S16(16) = PARAM_S16(4, 0);
+        break;
 
     case 5:
     {
@@ -1770,9 +1649,108 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
         break;
     }
 
-    case 7:
-        lbl_803448BC++;
+    case 12:
+        if (instance == NULL || PARAM_S32(0, -1) < 0) {
+            DATA_S32(0) = 0;
+            DATA_F32(4) = 0.0f;
+        } else {
+            DATA_S32(0) =
+                (s32)((u8*)gWorldInfo.wobjs +
+                      PARAM_S32(0, 0) * 0x3C);
+            DATA_S32(4) = PARAM_S32(4, 0);
+        }
+        DATA_F32(8) =
+            instance != NULL ? *(f32*)&params[8] : 0.0f;
+        DATA_F32(12) = 0.0f;
+        if (subtype != 2) {
+            attach_geometry = 0;
+        }
         break;
+
+    case 3:
+    {
+        s32 enemy_type;
+        s32 count_index;
+        s32 count;
+
+        item->visrad *= 4.0f;
+        DATA_U8(2) = 0;
+        DATA_U8(3) = (u8)PARAM_S16(4, 0);
+        DATA_U8(11) = (u8)PARAM_S16(6, 0);
+        DATA_U8(4) = 0;
+        DATA_U8(7) = (u8)PARAM_S16(2, 0);
+        enemy_type = fn_80051FDC(info->item.desc);
+        DATA_S16(0) = (s16)enemy_type;
+
+        if (DATA_S16(0) == 3) {
+            iteminfo* candidate = gWorldInfo.iteminfo;
+            for (i = 0; i < gWorldInfo.niteminfos; i++, candidate++) {
+                if (strcmp("LOW", candidate->item.desc) == 0 &&
+                    candidate->type == type &&
+                    (subtype < 1 || subtype == candidate->item.subtype)) {
+                    item->info = candidate;
+                    break;
+                }
+            }
+        }
+        if (gGameOptions[10] != 0 || DATA_S8(7) < 0) {
+            DATA_S8(7) = (s8)lbl_8011BD40[DATA_S16(0)];
+        }
+        DATA_S8(6) = (s8)PARAM_S16(0, 1);
+        if (DATA_S8(6) < 1) {
+            ErrorPrintf(strings + 0x424, DATA_S8(6),
+                        matrix[12], matrix[13], matrix[14]);
+            DATA_S8(6) = 1;
+        }
+        DATA_S8(5) = -1;
+        DATA_F32(12) = 0.0f;
+        DATA_S16(8) = 0;
+        DATA_U8(10) = 0;
+        DATA_F32(16) = (f32)atan2(matrix[8], matrix[10]);
+        item->activetime = 40;
+        item->health *= DATA_S8(6);
+
+        count_index = DATA_S8(6) - 1;
+        if (count_index < 0) {
+            count_index = 0;
+        } else if (count_index > 2) {
+            count_index = 2;
+        }
+        if (DATA_U8(3) == 0) {
+            DATA_U8(3) = *((u8*)sArrowObjectNames + 0x30 + count_index);
+        }
+        if (DATA_U8(11) == 0) {
+            DATA_U8(11) = *((u8*)sArrowObjectNames + 0x3C + count_index);
+        }
+        DATA_U8(3) = (u8)(DATA_U8(3) *
+                           *(f32*)(gCurLevel + 0xD4));
+        DATA_U8(11) = (u8)(DATA_U8(11) *
+                            *(f32*)(gCurLevel + 0xD0));
+        item->health = (s16)(item->health *
+                              *(f32*)(gCurLevel + 0xCC));
+        if (sMusicTrackHi == 5) {
+            strcpy(item->info->item.desc, "CAT");
+            DATA_S16(0) = -2;
+            DATA_S8(6) = 2;
+        } else if (sMusicTrackHi == 6) {
+            strcpy(item->info->item.desc, "HEL");
+            DATA_S16(0) = -3;
+            DATA_S8(6) = 3;
+        }
+        DATA_S16(0) =
+            (s16)fn_80050FB0(DATA_S16(0), DATA_S8(2));
+        if (stricmp(name, "BOSSGEN") != 0) {
+            count = DATA_S8(6);
+            if (DATA_S16(0) < -1) {
+                sprintf(name, strings + 0x17C, count);
+            } else {
+                sprintf(name, strings + 0x18C,
+                        fn_80051F64(DATA_S16(0)), count);
+            }
+        }
+        atree_header = (void*)AtreeMatchAnyHeader(name, 1);
+        break;
+    }
 
     case 8:
     {
@@ -1812,49 +1790,10 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
         item->active |= 0x40;
         break;
 
-    case 10:
-        DATA_S16(0) = PARAM_S16(0, 0);
-        DATA_S16(2) = PARAM_S16(2, 1);
-        if (DATA_S16(0) < 1) {
-            DATA_S16(0) = (s16)subtype;
-        }
-        if (DATA_S16(0) == 40 || DATA_S16(0) == 49 ||
-            (DATA_S16(0) > 50 && DATA_S16(0) < 54)) {
-            item->active |= 0x40;
-        }
-        if (DATA_S16(0) == 41) {
-            item->health *= DATA_S16(2);
-            sprintf(name, "%s%d", info->item.desc, DATA_S16(2));
-        }
-        DATA_S16(4) = 0;
-        DATA_S16(6) = 0;
-        DATA_F32(8) = 0.0f;
-        DATA_F32(12) = 0.0f;
-        DATA_F32(16) = 0.0f;
-        break;
-
     case 11:
         DATA_S32(0) = PARAM_S32(0, 0);
         DATA_S32(4) = PARAM_S32(4, 0);
         DATA_S32(8) = 0;
-        break;
-
-    case 12:
-        if (instance == NULL || PARAM_S32(0, -1) < 0) {
-            DATA_S32(0) = 0;
-            DATA_F32(4) = 0.0f;
-        } else {
-            DATA_S32(0) =
-                (s32)((u8*)gWorldInfo.wobjs +
-                      PARAM_S32(0, 0) * 0x3C);
-            DATA_S32(4) = PARAM_S32(4, 0);
-        }
-        DATA_F32(8) =
-            instance != NULL ? *(f32*)&params[8] : 0.0f;
-        DATA_F32(12) = 0.0f;
-        if (subtype != 2) {
-            attach_geometry = 0;
-        }
         break;
 
     case 13:
@@ -1878,6 +1817,67 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
         DATA_S32(8) = FindWorldAnimNode(&matrix[12], lbl_8034709C);
         attach_geometry = 0;
         item->active |= 0x40;
+        break;
+
+    case 10:
+        DATA_S16(0) = PARAM_S16(0, 0);
+        DATA_S16(2) = PARAM_S16(2, 1);
+        if (DATA_S16(0) < 1) {
+            DATA_S16(0) = (s16)subtype;
+        }
+        if (DATA_S16(0) == 40 || DATA_S16(0) == 49 ||
+            (DATA_S16(0) > 50 && DATA_S16(0) < 54)) {
+            item->active |= 0x40;
+        }
+        if (DATA_S16(0) == 41) {
+            item->health *= DATA_S16(2);
+            sprintf(name, "%s%d", info->item.desc, DATA_S16(2));
+        }
+        DATA_S16(4) = 0;
+        DATA_S16(6) = 0;
+        DATA_F32(8) = 0.0f;
+        DATA_F32(12) = 0.0f;
+        DATA_F32(16) = 0.0f;
+        break;
+
+    case 1:
+        DATA_S32(0) = *(s32*)((u8*)info + 0x3C);
+        DATA_S32(4) = *(s16*)((u8*)info + 0x40);
+        DATA_F32(8) = (f32)*(s16*)((u8*)info + 0x4A);
+        DATA_S32(12) = 0;
+        DATA_S16(16) = 0;
+        switch (subtype) {
+        case 2:
+            if (instance != NULL) {
+                DATA_S32(4) = *(s16*)&params[0];
+            }
+            if (DATA_S32(4) < 1) {
+                DATA_S32(4) = 1;
+            }
+            break;
+        case 10:
+            lbl_8025EA04[0] = matrix[12];
+            lbl_8025EA04[1] = matrix[13];
+            lbl_8025EA04[2] = matrix[14];
+            sSpecialItem10 = (s32)item;
+            break;
+        case 13:
+            sSpecialItem13 = (s32)item;
+            break;
+        case 14:
+            if (instance != NULL) {
+                DATA_S32(4) = *(s16*)&params[0];
+            }
+            break;
+        case 15:
+            DATA_S32(4) =
+                ((s32*)((u8*)sArrowObjectNames + 0x10))[DATA_S32(4)];
+            break;
+        }
+        break;
+
+    case 7:
+        lbl_803448BC++;
         break;
     }
 
@@ -1985,11 +1985,11 @@ void SetItemGeo(Item* item, void* atree_header, char* name, u32 flags)
         s32 object;
 
         if ((object = MBOX_ReallyFindObject(name, -1, -1, -1)) < 0) {
-            strcat(name, "L1");
+            strcat(name, sLevelOneSuffix);
             object = MBOX_ReallyFindObject(name, -1, -1, -1);
         }
         if (object < 0) {
-            strcat(name, "ROOT");
+            strcat(name, sRootSuffix);
             object = MBOX_ReallyFindObject(name, -1, -1, -1);
         }
         if (object < 0) {
@@ -2195,7 +2195,7 @@ void SetupWeaponPowerupTexMods(void) {
 /* deterministic pseudo-random index in [0, mod).  advance != 0 steps the
  * shared item seed by 439 (matches the DOL: (seed>>5 + n) % mod). */
 s32 RandItemIdx(s32 n, s32 mod, s32 advance) {
-    u32 result;
+    s32 result;
 
     if (mod != 0) {
         result = (((u32)sItemRandSeed >> 5) + (u32)n) % (u32)mod;
@@ -2205,7 +2205,7 @@ s32 RandItemIdx(s32 n, s32 mod, s32 advance) {
     if (advance != 0) {
         sItemRandSeed += 439;
     }
-    return (s32)result;
+    return result;
 }
 
 /* return the magic-bus scene node backing item[idx]. */
