@@ -94,7 +94,7 @@
  *                                          DoShake [game/sys/main x2]
  *                                          (candidate: DebugCamUpdate)
  *   0x80070144 fn_80070144          0x1FC pure matrix/vector math (no calls) [fn_8006DF34]
- *   0x80070340 fn_80070340          0x1AC shared cam helper (SlowNormalVector/BE8C8);
+ *   0x80070340 CamLookInDir         0x1AC shared cam helper (SlowNormalVector/BE8C8);
  *                                          5 internal callers (all mode-updaters)
  *   0x800704EC DebugCamControlInputs 0x444 input -> debug cam motion (sin/cos) [fn_8006FF1C]
  *   0x80070930 DebugCamInit         0x38  DebugCam=&DebugCamera; CamReset [pb_diag]
@@ -285,18 +285,21 @@ extern const f32 lbl_80127D50[3];  /* up ref: looking down */
 extern const f32 gIdentityMatrix[];   /* default identity-ish basis */
 
 /*
- * fn_80070340 -- build an orthonormal look basis into mat[0..2]=right,
+ * CamLookInDir -- build an orthonormal look basis into mat[0..2]=right,
  * mat[4..6]=up, mat[8..10]=forward from the forward direction in dir.  Degenerate
  * (near-zero) forward copies a default basis; a near-vertical forward selects an
  * up reference by sign, otherwise a general up reference; then two cross products
  * (with a re-normalize) orthonormalize the basis.  [5 internal callers]
  */
-void fn_80070340(f32* dir, f32* mat) {
-    f32* m = mat;
-    f32* up = m + 4;
-    f32* fwd = m + 8;
+void CamLookInDir(f32* dir, u32 mat) {
+    f32* m;
+    f32* up;
+    f32* fwd;
     f32 len;
 
+    m = (f32*)mat;
+    up = m + 4;
+    fwd = m + 8;
     m[8] = dir[0];
     m[9] = dir[1];
     m[10] = dir[2];
@@ -799,5 +802,5 @@ void CalcFrustrumNormals(const Vec3* look, f32 fov, Vec3* out) {
  * The remaining fn_ bodies (the fn_8006DF34 / fn_8006E654 / fn_8006F16C
  * per-mode updaters, the fn_8006DC64 frustum point-clip test, and the small
  * fn_8006ECD4 / fn_8006FBAC / fn_8006FCDC / fn_8006FE30 / fn_80070144 /
- * fn_80070340 helpers) are left as documented-only; see the .text map above.
+ * CamLookInDir helpers) are left as documented-only; see the .text map above.
  */
