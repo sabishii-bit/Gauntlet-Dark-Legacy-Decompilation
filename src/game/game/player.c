@@ -2955,7 +2955,7 @@ void new_player(s32 i) {
     clear_player(i, 1);
     p->state = 2;
     p->motion_state = 0;
-    PF(p, 0xA8B, u8) = 0xFF;
+    PF(p, 0xA8B, s8) = -1;
     PF(p, 0x3358, s32) = -1;
     sel_set_inactive(i);
 }
