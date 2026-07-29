@@ -2318,8 +2318,8 @@ static s32 do_weakening(void* vp, s32 active) {
 /* All exiting players agree on a destination? 0 = no/blocked.         */
 static s32 all_players_go_to_same_level(void) {
     Player* p = P(0);
-    s32 dest = 0;
     s32 i;
+    s32 dest = 0;
 
     if (lbl_803447D0 < 0xE && lbl_8034481C == 0) {
         return 0;
@@ -3501,13 +3501,12 @@ void PlayerUpdateAtts(void* vp) {
 }
 
 /* Zero the per-character bonus stats for all 16 characters.           */
-void set_player_default_atts(void* vp) {
-    Player* p = vp;
-    s32 index = p->index;
-    s32 chartype = p->character;
-    s32 j;
+void set_player_default_atts(void* p) {
+    s32 j = 0;
+    s32 index = ((Player*)p)->index;
+    s32 chartype = ((Player*)p)->character;
 
-    for (j = 0; j < 16; j++) {
+    for (; j < 16; j++) {
         LoadPlyrData(index, j, NULL);
         *(f32*)((u8*)p + j * 0x18 + 0xA98) = 0.0f;
         *(f32*)((u8*)p + j * 0x18 + 0xA9C) = 0.0f;
