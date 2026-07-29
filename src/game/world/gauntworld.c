@@ -1060,8 +1060,8 @@ void fn_800606FC(void)
  * 8005D0C4  0x0148  fn_ : enemy-grid op (StartEnemyGrid/NextGridEnemy,
  *                    MBTreeSetFlags, fqdist)
  * 8005D20C  0x01CC  fn_ : dispatch (fn_8005D3D8, fn_8005F0F4, fn_80062FF0)
- * 8005D3D8  0x01F0  fn_ : (damage_enemy; lbl_80346FC8)
- * 8005D5C8  0x0168  fn_ : accessor (no calls; lbl_80346FC8)
+ * 8005D3D8  0x01F0  fn_ : (damage_enemy; sNewtonThree)
+ * 8005D5C8  0x0168  fn_ : accessor (no calls; sNewtonThree)
  * 8005D730  0x0720  fn_ : per-object update (fn_8005E90C, fn_8007xxxx anim,
  *                    fn_8009Dxxxx, msgPost, strcmp)
  * 8005DE50  0x0ABC  fn_ : big object state machine (FindStringMessageListSub,

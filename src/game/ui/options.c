@@ -134,7 +134,7 @@ typedef struct OPTMENU {
     s32 font;        /* 0x80 override font handle */
     s32 num_items;   /* 0x84 counted lazily */
     void* icon_node; /* 0x88 selection-icon scene node */
-    u8 msg[0x48];    /* 0x8C message/anim block (AtreeDelete/fn_80012F78) */
+    u8 msg[0x48];    /* 0x8C message/anim block (AtreeDelete/AtreeInit) */
     s32 icon_y;      /* 0xD4 icon y position latch */
     s32 icon_t;      /* 0xD8 icon glide timer */
     void* title_blit;/* 0xDC backdrop blit */
@@ -280,9 +280,9 @@ extern void* MBTreeSetFlags(void* node, s32 a, s32 b);
 extern void* MBRemoveNode(void* node, s32 a);
 extern void MBNodeSetParent(void* node, void* parent);
 extern void* AtreeMatch(void* tree, u32 rgb, char* name, s32 d);
-extern void* fn_80012F78(void* tree, void* node, void* msg, s32 a, s32 b);
+extern void* AtreeInit(void* tree, void* node, void* msg, s32 a, s32 b);
 extern void AtreeDelete(void* msg);
-extern void fn_80011104(void* msg, s32 a, s32 b, s32 x, s32 y);
+extern void AnimateATree(void* msg, s32 a, s32 b, s32 x, s32 y);
 extern void CopyMat3(f32* dst, f32* src);
 extern void* PitchMat3(void);
 extern s32 StartFireScroll(char* name, s32 a, s32 x, s32 y, s32 w, s32 h, s32 e, f32 z);
@@ -1832,7 +1832,7 @@ void show_optmenu(OPTMENU* m)
         *(u32*)((u8*)m->icon_node + 0x48) = m->icon_rgb;
         CopyMat3((f32*)(*((u8**)winset + 1) + 0x240), (f32*)m->icon_node);
         PitchMat3();
-        fn_80011104(m->msg, 0, 0, tx, ty);
+        AnimateATree(m->msg, 0, 0, tx, ty);
     }
 
     /* burn blit animation */
@@ -2124,7 +2124,7 @@ void start_optmenu_nostack(OPTMENU* m, s32 sel)
         m->icon_node = MBNewNode(0.0f, NULL, 0);
         node = MBTreeSetFlags(m->icon_node, 8, 0);
         match = AtreeMatch(node, sPowerupsBuf, "ICON_ARROW", 0);
-        m->icon_node = fn_80012F78(node, match, m->msg, 0, 0);
+        m->icon_node = AtreeInit(node, match, m->msg, 0, 0);
         if (m->icon_node != NULL && *(void**)m->icon_node != NULL) {
             MBNodeSetParent(*(void**)m->icon_node, m->icon_node);
         }

@@ -92,7 +92,7 @@
  *   fn_8004DC2C/fn_8004DF58/fn_8004E448 - move post-processing / FX helpers.
  *   fn_8004F87C/fn_8004FBC8 - generate_enemy support (type resolve / gendir).
  *   plus small state/timer pokes: fn_8004CFAC, fn_8004D030, fn_8004DB3C,
- *   fn_8004E5F8, fn_8004E67C, fn_8004F1DC, fn_8004F404.
+ *   fn_8004E5F8, fn_8004E67C, fn_8004F1DC, check_vacancy.
  *
  * Matching is intentionally not attempted here (high mismatch accepted); this
  * file exists to carry the symbol map and keep the tree green.

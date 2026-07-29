@@ -371,7 +371,7 @@ void AtreeListLock(int slot)
  * demo float-ABI passthrough (f1..f8 forwarded); needs a dedicated pass. */
 STUB(0x8001101C, fn_8001101C)
 
-void fn_80011104(void* node, int a, int c)
+void AnimateATree(void* node, int a, int c)
 {
     fn_80011134(0.0f, node, a, 0, c, 1);
 }
@@ -645,7 +645,7 @@ STUB(0x8001267C, fn_8001267C)
 
 /* ---------------- playback dispatch wrappers ---------------- */
 
-void fn_80012F78(void* node, int a, int b, uint c)
+void AtreeInit(void* node, int a, int b, uint c)
 {
     fn_80012F9C(node, a, b, c, 1);
 }

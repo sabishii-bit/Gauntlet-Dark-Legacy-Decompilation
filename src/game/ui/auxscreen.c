@@ -92,7 +92,7 @@ s32 good_wiz_exit_timer;
 extern s32 GetBossBeatFlag(void* p);
 extern s32 GetBossNumRunes(void* p);
 extern void* AtreeMatch(void* atree, char* name, s32 flag);
-extern void* fn_80012F78(void* dst, void* src, s32 a);
+extern void* AtreeInit(void* dst, void* src, s32 a);
 extern void* MBNewNode(void* p, void* tbl, s32 a);
 extern void MBNodeSetParent(void* a, void* b);
 extern void calc_wizard_pos(f32* out);
@@ -101,7 +101,7 @@ extern void fn_8002C53C(void* p);
 extern void calc_good_wiz_attn(s32 reset, s32 force);
 extern s32 hide_rune_stones(void* p);
 extern void MBTreeSetAlpha(void* p, s32 alpha, s32 a);
-extern void fn_80011104(void* p, s32 a, s32 b);
+extern void AnimateATree(void* p, s32 a, s32 b);
 extern void fn_8009C710(s32 speech);
 extern s32 CaptionText(char* a, char* b, s32 line, s32 page, s32 flags);
 extern s32 fn_800629B0(void);
@@ -207,7 +207,7 @@ void DoGoodWizard(void)
     case 1:
         AtreeMatch(sItemFile1Buf, "WIZARD", 1);
         *(void**)(lbl_8023DFD0 + 1520) =
-            fn_80012F78(lbl_8023DFD0 + 1520, (void*)0x88001880, 0);
+            AtreeInit(lbl_8023DFD0 + 1520, (void*)0x88001880, 0);
         *(u16*)(lbl_8023DFD0 + 1576) = 1;
         *(void**)(lbl_8023DFD0 + 1512) =
             MBNewNode(lbl_80344BD4, gIdentityMatrix, 1);

@@ -346,10 +346,10 @@ extern void* lbl_80344B2C; /* world root node */
 extern s32 lbl_80344C4C;
 extern s32 lbl_80344C54;
 extern f32 lbl_80344C5C;
-extern s32 lbl_80344C60;
+extern s32 gSumnerReady;
 extern s32 lbl_80344C90;
 extern s32 gMessageActive;
-extern s32 lbl_803449A0;
+extern s32 gDemoMode;
 extern s32 gGameBusy;
 extern s32 gTriggerCameraState;
 extern s32 gBossType;
@@ -1523,9 +1523,9 @@ void do_players(void) {
         if (gScriptedCameraState == 0 && lbl_803447B8 == 0) {
             lbl_80344B10 += gFrameTicks;
             if (lbl_80344B10 > 0) {
-                if (lbl_803449A0 == 0) {
+                if (gDemoMode == 0) {
                     if (sMusicTrackHi == 0xD) {
-                        if (lbl_80344C60 != 0) {
+                        if (gSumnerReady != 0) {
                             ControllerMessageBox(-1, FindStringMessageListSub(0, "WelcomeMessage"), -1, -1);
                             lbl_80344C90 = 6;
                             lbl_80344C54 = 1;
@@ -2097,8 +2097,8 @@ extern void AudioPlayerDies(s32 player);
 extern void AudioPlayerHit(f32 dmg, s32 player, s32 kind);
 extern s32 do_vibe(s32 player, s32 lvl, s32 n);
 extern void AtreeDelete(void** h);
-extern s32 fn_80012F78(void* atree, void* out, s32 a, s32 flags);
-extern void fn_80011104(void** h, s32 a, s32 b);
+extern s32 AtreeInit(void* atree, void* out, s32 a, s32 flags);
+extern void AnimateATree(void** h, s32 a, s32 b);
 extern void StartGemFX(f32* pos, s32 n);
 extern s32* PlaceItem(s32 a, s32 b, char* name, f32* mat);
 extern s32* AddItem(s32* tmpl, f32* pos, s32 a, s32 b);
@@ -2971,7 +2971,7 @@ void clear_player(s32 i, s32 full) {
     for (j = 0; j < 9; j++) {
         PF(p, 0x3300 + j * 4, s32) = j & 3;
     }
-    p->gold = lbl_803449A0 ? 0x9C4 : 0;
+    p->gold = gDemoMode ? 0x9C4 : 0;
     p->health = 100.0f;
     PF(p, 0x1EC8, u16) = 0;
     PF(p, 0x1ECA, u16) = 0;
@@ -3070,7 +3070,7 @@ void load_player(s32 i) {
     s32 j;
     f32 m[16];
 
-    if (lbl_803449A0 != 0 && sMusicTrackHi != 0xD) {
+    if (gDemoMode != 0 && sMusicTrackHi != 0xD) {
         /* cheat build: force the level stamped on the current level */
         if ((f32)p->level != PF(gCurLevel, 0x9C, f32)) {
             opt_force_player |= 2;
@@ -4131,7 +4131,7 @@ void* PlayerModel(s32 i) {
 /*
  * GIANT (0x18F8) -- documented skeleton.  Per-frame powerup master:
  * walks all 11 slots ticking timers, runs the per-type processors --
- * levitation/anti-death node juggling (fn_80012F78 overlays via
+ * levitation/anti-death node juggling (AtreeInit overlays via
  * lbl_80282930 class colors), reflect-shot, x-ray (do_see_thru),
  * growth/shrink, invisibility/invuln node alpha (MBTreeSetScale family),
  * mikey (PlayerProcessMikeyPUP), skin FX (PlayerProcessSkinFX), timed
@@ -4171,7 +4171,7 @@ static void PlayerProcessSkinFX(void* vp, void* node) {
             AtreeDelete((void**)((u8*)p + 0x748));
         }
         if (PF(p, 0x748, s32) == 0 && *src != NULL) {
-            PF(p, 0x748, s32) = fn_80012F78(*src, (u8*)p + 0x748, 0, 0x800);
+            PF(p, 0x748, s32) = AtreeInit(*src, (u8*)p + 0x748, 0, 0x800);
             MBTreeSetFlags(*(void**)PF(p, 0x748, s32*), 0x10, 0);
             MBNodeSetParent(*(void**)PF(p, 0x748, s32*), p->node);
             MBTreeSetAlpha(*(void**)PF(p, 0x748, s32*), 0, 1);
@@ -4201,7 +4201,7 @@ static void PlayerProcessSkinFX(void* vp, void* node) {
             MBTreeSetFlags(*(void**)PF(p, 0x748, s32*), 2, 0);
         } else {
             MBTreeClearFlags(*(void**)PF(p, 0x748, s32*), 2, 0);
-            fn_80011104((void**)((u8*)p + 0x748), (PF(p, 0x900, u32) & 0x10000000) != 0,
+            AnimateATree((void**)((u8*)p + 0x748), (PF(p, 0x900, u32) & 0x10000000) != 0,
                         (PF(p, 0x900, u32) & 0x10000000) ? 2 : 0);
         }
     }
@@ -4238,7 +4238,7 @@ void PlayerProcessMikeyPUP(void* vp) {
                 return;
             }
             atree = AtreeMatch(sPowerupsBuf, "MIKEYPUP_ON", 1);
-            PF(p, 0x96C, s32) = fn_80012F78(atree, (u8*)p + 0x96C, 0, 0);
+            PF(p, 0x96C, s32) = AtreeInit(atree, (u8*)p + 0x96C, 0, 0);
             PF(p, 0x9A4, s16) = 1;
             PF(p, 0xA14, void*) = MBNewNode(lbl_80344BD4, gIdentityMatrix, 1);
             PF(p, 0xA18, s32) = 0;
@@ -4278,7 +4278,7 @@ void PlayerProcessMikeyPUP(void* vp) {
     }
     /* live: tick anim + sparkles */
     MBTreeClearFlags(*(void**)PF(p, 0x96C, s32*), 2, 0);
-    fn_80011104((void**)((u8*)p + 0x96C), 0, 0);
+    AnimateATree((void**)((u8*)p + 0x96C), 0, 0);
     t = PF(p, 0xA1C, s16);
     if (t < 0x3C && t == (t / 10) * 10) {
         StartGemFX((f32*)((u8*)p + 0xA04), rand() % 4 + 1);
@@ -4420,7 +4420,7 @@ static s32 do_see_thru(void* vp) {
                 if (lbl_8025ECB8[i][0] != NULL) {
                     AtreeDelete(&lbl_8025ECB8[i][0]);
                 }
-                lbl_8025ECB8[i][0] = (void*)fn_80012F78(tree, &lbl_8025ECB8[i][0], 0, 0x80);
+                lbl_8025ECB8[i][0] = (void*)AtreeInit(tree, &lbl_8025ECB8[i][0], 0, 0x80);
                 MBTreeSetFlags(*(void**)lbl_8025ECB8[i][0], 8, 0);
                 *(f32*)((u8*)*(void**)lbl_8025ECB8[i][0] + 0x40) = 1.001f;
                 *(f32*)((u8*)*(void**)lbl_8025ECB8[i][0] + 0x44) = 1.001f;

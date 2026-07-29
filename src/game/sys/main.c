@@ -135,7 +135,7 @@ extern u32 lbl_80344DA8;
 extern s32 lbl_803449B0;       /* save-pending flag */
 extern u8 pbMeasureLoad;
 extern s32 gGameBusy;
-extern s32 lbl_803449A0;
+extern s32 gDemoMode;
 extern s32 lbl_80343B00;
 extern s32 gGameMode;       /* game state id */
 extern s32 lbl_80344A80;
@@ -360,7 +360,7 @@ void main(void)
         LoadVU1GameLogic();
         lbl_803449C4 = 3;
         PlayerControls();
-        if (lbl_803449A0 == 0) {
+        if (gDemoMode == 0) {
             sndSysStub1();
         }
         lbl_803449C4 = 11;
