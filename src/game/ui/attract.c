@@ -102,8 +102,9 @@ extern int  fn_800C7874(void);
 extern void PlayVQMovie(int a);
 extern int  DrawGlowText(int x, int y, void* str, float scale);   /* btext */
 extern int  DrawGlowTextMLines(int x, int y, void* str, float scale);   /* btext */
-extern void* DrawText();
-extern void* DrawTextKeepScale();
+extern void* DrawText(int x, int y, int flags, u32 color, const char* fmt, ...);
+extern void* DrawTextKeepScale(float scale, int x, int y, int flags,
+                               u32 color, const char* text);
 
 /* forward decls (project style) */
 void init_attract_mode(int screen);
@@ -123,7 +124,6 @@ static char* attract_screen_name(int kind);
 static int  attract_state;          /* per-screen run state            */
 static int  titlescreen_timeout;    /* title fade / dwell countdown    */
 static int  did_titlesound;         /* one-shot title jingle latch     */
-static int  credits_scroll;         /* credit scroll pixel offset      */
 static int  cur_screen_id;          /* active screen-list id           */
 static int  cur_screen_kind;        /* active screen kind              */
 static int  cur_screen_idx;         /* index into screen list          */
@@ -140,16 +140,16 @@ extern char gIdentityMatrix[];
 extern char lbl_80118188[];
 extern char lbl_801111B8[];
 extern char lbl_80111278[];
-extern const char lbl_803458D4[8];
-extern const char lbl_803458BC[7];
-extern const char lbl_803458DC[6];
+extern const char creditsModelName[8];
+extern const char numberedTextureFmt[7];
+extern const char gauntFontName[6];
 extern int  lbl_80118250[];
 extern int  lbl_8023D1E0[];
 extern int  lbl_8023D1F0[];
-extern const char lbl_803458B4[6];
-extern const char lbl_803458C4[6];
-extern const float lbl_803458CC;
-extern float lbl_803458B0;
+extern const char titleModelName[6];
+extern const char titleTexturePrefix[6];
+extern const float titleWindowZoom;
+extern float screen2dTextScale;
 extern float lbl_80344590;
 extern float sMusicFadeBase;
 extern const double lbl_80345920;
@@ -192,7 +192,7 @@ int lbl_80344234;
 int lbl_8034423C;
 int lbl_80344254;
 int lbl_80344258;
-int lbl_8034425C;
+int credits_scroll;
 int lbl_80344244;
 int lbl_80344248;
 int lbl_80344250;
@@ -203,7 +203,7 @@ int lbl_80344298;
 int lbl_80344204;
 unsigned int lbl_80344208;
 int lbl_80344218;
-int gFrameTicks;
+unsigned int gFrameTicks;
 int gGameBusy;
 int lbl_80344578;
 long long gControllerButtons;
@@ -218,6 +218,7 @@ extern ScreenListEntry screen_list[16];
 extern char* credit_text[];
 extern char* credit_text2[];
 extern char* credit_text3[];
+extern float creditsTextScale;
 
 /* ================================================================== */
 /* do_titlescreen  (ATTRACT.OBJ)                                       */
@@ -278,7 +279,7 @@ void init_titlescreen(void) {
         sndFxInit(0x8009, -1);
         MBOX_NewObject(base + 2232, gIdentityMatrix, 0, 0);
         bulletproof_printf(base + 2244);
-        lbl_80343B38 = LoadModel((void*)lbl_803458B4, 0, 1, -1);
+        lbl_80343B38 = LoadModel((void*)titleModelName, 0, 1, -1);
     } else {
         sndFxInit(0x8009, -3);
     }
@@ -299,7 +300,7 @@ void init_titlescreen(void) {
     lbl_80344260 = 1800;
 
     for (i = 0; i < 4; i++) {
-        sprintf(buf, (void*)lbl_803458BC, (void*)lbl_803458C4, i);
+        sprintf(buf, (void*)numberedTextureFmt, (void*)titleTexturePrefix, i);
         e = &lbl_80118250[i * 2];
         lbl_8023D1F0[i] = MBNewBlit(buf, e[0], e[1]);
         mbBlitCvtCoord(lbl_8023D1F0[i], lbl_80343B3C);
@@ -311,7 +312,7 @@ void init_titlescreen(void) {
     SelectLoadStart();
     bulletproof_printf(base + 2324);
     fn_80053C70();
-    MBWindowZoom(lbl_803458CC);
+    MBWindowZoom(titleWindowZoom);
     lbl_80344270 = 0;
     lbl_80344274 = 30;
     MBBlitSetAlpha(lbl_80344264, 255);
@@ -367,59 +368,112 @@ void do_credits(void) {
 /* the scroll position; report whether the roll has run off-screen.    */
 /* ================================================================== */
 int scroll_credits(void) {
+    char** text;
     int y;
-    int col;
-    int idx;
-    int alive = 1;
-    int off_bottom = 0;
+    int result;
+    int alive;
+    u32 idx;
+    int offBottom;
+    int offset;
     void* line;
 
+    text = credit_text;
+    result = 0;
+    alive = 1;
+    idx = 0;
+    offBottom = 0;
+    offset = 0;
+    y = credits_scroll;
+
     /* column 1 (92 lines) */
-    for (idx = 0, col = 0; idx < 92; idx++, col++) {
-        y = credits_scroll - idx * 21;
-        if (y < 0 || y >= 384) {
-            alive = 0;
-            continue;
+    do {
+        if (y < 0) {
+            break;
         }
-        line = DrawText(32, 13, credit_text[idx + 337], 383 - y,
-                           0xFF, (void*)0);
-        if (line == 0) {
-            continue;
+        if (y < 384) {
+            line = DrawText(32, 383 - y, 13, 0xFFFFFF,
+                            ((char**)((u8*)text + offset))[337]);
+            if (line != NULL) {
+                if (384 - y < 16) {
+                    MBFontMsgSetAlpha((int)line,
+                                      255 - ((384 - y) << 4));
+                }
+                if (y < 16) {
+                    MBFontMsgSetAlpha((int)line, (16 - y) << 4);
+                }
+                if (idx == 91 && y > 192) {
+                    offBottom = 1;
+                }
+                alive = 0;
+            }
         }
-        if (384 - y < 16) {
-            MBFontMsgSetAlpha((int)line, (384 - y) << 4);
-        }
-        if (y < 16) {
-            MBFontMsgSetAlpha((int)line, (16 - y) << 4);
-        }
+        idx++;
+        y -= 21;
+        offset += 4;
+    } while (idx < 92);
+
+    if (offBottom != 0 || alive != 0) {
+        result = 1;
     }
 
-    /* column 2 (40 lines) */
-    for (idx = 0, col = 0; idx < 40; idx++, col++) {
-        y = credits_scroll - idx * 15;
-        if (y < 0 || y >= 384) {
-            continue;
+    idx = 0;
+    offset = 0;
+    do {
+        if (y < 0) {
+            break;
         }
-        line = DrawTextKeepScale(32, 13, credit_text[idx + 429], 383 - y,
-                           0xFF, (void*)0);
-        if (line == 0) {
-            continue;
+        if (y < 384) {
+            line = DrawTextKeepScale(creditsTextScale, 32, 383 - y, 13,
+                                     0xFFFFFF,
+                                     ((char**)((u8*)text + offset))[429]);
+            if (line != NULL) {
+                if (384 - y < 16) {
+                    MBFontMsgSetAlpha((int)line,
+                                      255 - ((384 - y) << 4));
+                }
+                if (y < 16) {
+                    MBFontMsgSetAlpha((int)line, (16 - y) << 4);
+                }
+                alive = 0;
+            }
         }
-        if (384 - y < 16) {
-            MBFontMsgSetAlpha((int)line, (384 - y) << 4);
-        }
-        if (y < 16) {
-            MBFontMsgSetAlpha((int)line, (16 - y) << 4);
-        }
-    }
+        idx++;
+        y -= 15;
+        offset += 4;
+    } while (idx < 40);
 
-    /* column 3 (10 lines) */
-    for (idx = 0; idx < 10; idx++) {
-        y = credits_scroll - idx * 15;
-        if (y < 0 || y >= 384) {
-            continue;
+    idx = 0;
+    offset = 0;
+    do {
+        if (y < 0) {
+            break;
         }
-        (void)off_bottom;
+        if (y < 384) {
+            line = DrawTextKeepScale(creditsTextScale, 32, 383 - y, 13,
+                                     0xFFFFFF,
+                                     ((char**)((u8*)text + offset))[469]);
+            if (line != NULL) {
+                if (384 - y < 16) {
+                    MBFontMsgSetAlpha((int)line,
+                                      255 - ((384 - y) << 4));
+                }
+                if (y < 16) {
+                    MBFontMsgSetAlpha((int)line, (16 - y) << 4);
+                }
+                alive = 0;
+            }
+        }
+        idx++;
+        y -= 15;
+        offset += 4;
+    } while (idx < 10);
+
+    if (gFrameTicks != 0) {
+        if (lbl_803447C0 != 0) {
+            credits_scroll += 3;
+        } else {
+            credits_scroll += result + 1;
+        }
     }
     return alive;
 }
@@ -437,15 +491,15 @@ void init_credits(void) {
 
     fn_80054E68(30);
     lbl_80343B04 = -1;
-    lbl_8034425C = 0;
+    credits_scroll = 0;
     lbl_80343B0C = -1;
     lbl_80343B10 = -1;
     lbl_80343B08 = -1;
     sndFxInit(0x8000, -1);
     MBOX_NewObject(base + 2232, gIdentityMatrix, 0, 0);
     init_next_level_8005638C(-1);
-    lbl_80344258 = LoadModel((void*)lbl_803458D4, 0, 1, -1);
-    FontInitSpecial((void*)lbl_803458D4, 8);
+    lbl_80344258 = LoadModel((void*)creditsModelName, 0, 1, -1);
+    FontInitSpecial((void*)creditsModelName, 8);
     AudioSelectReset();
     lbl_80344298 = 0;
 
@@ -511,9 +565,9 @@ void do_screen2d(void) {
 
     attract_check_input(0);
     if (lbl_80344794 != 0) {
-        DrawGlowTextMLines(-416, -320, base + 2220, lbl_803458B0);
+        DrawGlowTextMLines(-416, -320, base + 2220, screen2dTextScale);
     } else if (lbl_80344298 == 0) {
-        DrawGlowTextMLines(-432, -320, base + 2412, lbl_803458B0);
+        DrawGlowTextMLines(-432, -320, base + 2412, screen2dTextScale);
     }
 }
 
@@ -560,11 +614,11 @@ int init_screen2d(int a, int slot) {
     p = base + so + 232;
     lbl_80344224 = LoadModel(p + lbl_80344238 * 80, 0, 0, -1);
     if (*(int*)(base + so + lbl_80344238 * 80 + 288) >= 0) {
-        FontInitSpecial((void*)lbl_803458DC, 8);
+        FontInitSpecial((void*)gauntFontName, 8);
     }
 
     for (i = 0; i < 4; i++) {
-        sprintf(buf, lbl_803458BC, p + lbl_80344238 * 80 + 32, i);
+        sprintf(buf, numberedTextureFmt, p + lbl_80344238 * 80 + 32, i);
         lbl_8023D1E0[i] = MBNewBlit(buf, *(int*)(base + i * 8 + 200),
                                     *(int*)(base + i * 8 + 204));
     }
