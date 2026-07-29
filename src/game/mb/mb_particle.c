@@ -879,7 +879,7 @@ void MBPsysSetEVolume(f32 base, f32 range, MBObject* node) {
 }
 
 /* 0x800D0F68 - MBPsysSetETime: emit duration + fade (with forever flag) */
-void MBPsysSetETime(f64 dur, f64 rep, MBObject* node) {
+void MBPsysSetETime(f32 dur, f32 rep, MBObject* node) {
     Psys* p = (Psys*)node->data.psys;
     f64 v;
     if (p->e_phase > 1) {
@@ -893,10 +893,10 @@ void MBPsysSetETime(f64 dur, f64 rep, MBObject* node) {
     v = (v < 0.0) ? 0.0 : (v > 65535.0) ? 65535.0 : v;
     p->e_fade = (s32)v;
     p->flags &= ~1;
-    if (dur < 0.0) {
+    if (dur < 0.0f) {
         p->e_life = 0xffff;
         p->flags |= 2;
-    } else if (rep < 0.0) {
+    } else if (rep < 0.0f) {
         p->e_fade = 0xffff;
         p->flags |= 2;
     }
