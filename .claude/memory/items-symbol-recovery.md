@@ -179,3 +179,29 @@ The complete old-to-new map and evidence are in
   upward. An eight-byte array after `update_player_milestone`'s position/abs-Y
   struct moved it from `sp+16` to the target `sp+24` while growing the frame
   from 88 to the target 96 bytes; meaningful diff fell from 82 to 58.
+- Sparse inner decision trees should also be tested as switches. Replacing
+  SetItem's subtype 2/12/15 chain and its statue-mode 0..3 chain with switches
+  recovered MWCC's target branch topology and fallthrough sharing.
+- Split dead stack padding across independent lexical blocks when both high and
+  low temporary slots need alignment. SetItem uses one pad near its name arrays
+  and another beside its absolute-value temporaries; the combined frame size is
+  unchanged, but the compiler places both conversion spills at their retail
+  offsets.
+- Do not hoist duplicated calls merely because the decompiler merges their
+  results. SetItem's subtype-29 tree performs separate `AtreeMatch` paths for a
+  global header and a loaded critter header. Preserving that duplication
+  substantially improves code generation and reflects the original source.
+- Serialized fields must retain their load width until the destination narrows
+  them. A type-2 parameter is loaded with `lwz` and only then truncated by
+  `extsh`; spelling it as an `s16` parameter load silently loses both the
+  original access semantics and target instructions.
+- Pointer-shaped data tables can still contain packed integer defaults.
+  SetItem's arrow table is typed as `char**`, but offsets `+0x30` and `+0x3c`
+  are word-stride signed/unsigned byte defaults. Indexing it as an `s32` table
+  recovered the target `slwi`/`lwz` sequence; byte-pointer indexing produced
+  incorrect `lbz` accesses.
+- Apparently dead accumulators can expose omitted source behavior. The tower
+  trigger loop ORs a per-player halfword at `player + 8738 + index*240` in
+  addition to calling `towerGetLevelFlag`. Restoring that read recovered the
+  target loop exactly enough to remove a large structural diff, even though
+  the accumulated value is not subsequently tested in retail code.
