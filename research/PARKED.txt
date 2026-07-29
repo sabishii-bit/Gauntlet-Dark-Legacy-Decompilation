@@ -396,3 +396,5 @@ CritterLookForCriticalMove # renum, 75/75 opcode-identical; c/time-offset/move-o
                            # 24 real best after applying reverse declaration order (moves/i now exact)
 fn_8003B1CC               # gate, 77/76 best; outer node-selection if collapses target bge+b into one blt
 CritterProcessSafeRocks   # isel, 63/63; three base+offset address canonicalizations, 12 real best
+CritterChildCriticalMove # renum+init, 201/201 full two-pass body; 3 second-loop zero-init
+                          # instructions differ, remaining 180 real lines are saved-GPR coloring

@@ -37,6 +37,17 @@ typedef struct CritterHitNode {
     f32 activeFrom;
 } CritterHitNode;
 
+typedef struct CritterPattern {
+    u8 _pad00[0x10];
+    s16 flags;
+    u8 _pad12[2];
+    f32 cooldown;
+    u8 _pad18[8];
+    s16 move;
+    s16 sequence[7];
+    u8 _pad30[0x20];
+} CritterPattern;
+
 extern CritterBigState gBig;
 extern void *lbl_80241060[4];         /* 0x80241060 loaded-file handle table    */
 extern u8    lbl_80241070[4][0x50];   /* 0x80241070 per-type header buffers      */
@@ -70,6 +81,7 @@ extern f64   lbl_803465A8;
 extern f64   lbl_803465B0;
 extern f64   lbl_80346550;
 extern f32   lbl_803464C0;
+extern f32   lbl_803465F8;
 
 /* -- external helpers -- */
 extern void *AllocFile(const char *wad, const char *name);
@@ -161,14 +173,14 @@ s32  fn_8003B1CC(Critter *c, CritterMove *move);
 void fn_8003B300(void);
 void CritterGetNextMove(void);
 void CritterLookForReady(Critter *c);
-void fn_8003B7D8(void);
+void CritterChildCriticalMove(Critter *c);
 void CritterLookForCriticalMove(Critter *c);
 void fn_8003BC28(void);
 void fn_8003BDF4(void);
 void fn_8003C11C(void);
 void CritterAnimate(void);
 void CritterMoveDone(void);
-s32  fn_8003C8D4(Critter *a, Critter *b);
+s32  fn_8003C8D4(CritterMove *a, CritterMove *b);
 s32  CritterFindMoveType(Critter *c, s32 type, s32 mode);
 void fn_8003CA98(void);
 void fn_8003D0A4(void);
@@ -863,7 +875,155 @@ void CritterLookForReady(Critter *c)
         c->nextmove = (s16)result;
     }
 }
-/* 0x8003B7D8 */ void fn_8003B7D8(void) {}
+/* 0x8003B7D8 -- continue the current child-pattern sequence or choose the
+ * oldest ready child pattern / critical move and its target. */
+void CritterChildCriticalMove(Critter *c)
+{
+    CritterPattern *patterns;
+    CritterPattern *pattern;
+    CritterMove *moves;
+    CritterMove *move;
+    f32 *time;
+    s32 patternChoice;
+    s32 moveChoice;
+    s32 playerChoice;
+    s32 player;
+    s32 i;
+    s32 timeOffset;
+    s32 recordOffset;
+    s32 type;
+    u32 flags;
+    f64 zero;
+    f32 best;
+
+    patternChoice = -1;
+    moveChoice = -1;
+    playerChoice = -1;
+    best = lbl_803465F8;
+
+    if (c->unk11C >= 0 && c->unk120 + 1 < 8) {
+        patterns = *(CritterPattern **)((u8 *)c->hdr + 0x128);
+        c->nextmove =
+            patterns[c->unk11C].sequence[c->unk120];
+        if (c->nextmove >= 0) {
+            c->unk11E = c->unk11C;
+            return;
+        }
+    }
+
+    patterns = *(CritterPattern **)((u8 *)c->hdr + 0x128);
+    i = 0;
+    timeOffset = 0;
+    recordOffset = 0;
+    while (i < *(s16 *)((u8 *)c->hdr + 0x114)) {
+        pattern = (CritterPattern *)((u8 *)patterns + recordOffset);
+        if (i == c->unk11C) {
+            goto next_pattern;
+        }
+        if ((pattern->flags & 2) != 0 &&
+            c->childcnt != c->alivecnt) {
+            goto next_pattern;
+        }
+        if ((pattern->flags & 0x1000) != 0) {
+            goto next_pattern;
+        }
+        time = (f32 *)((u8 *)c + 0x318 + timeOffset);
+        if (sMusicFadeBase < *time + pattern->cooldown) {
+            goto next_pattern;
+        }
+        player = CritterGetTargetSub(c, (f32 *)((u8 *)pattern + 0x30), 0);
+        if (player >= 0 && *time < best) {
+            patternChoice = i;
+            playerChoice = player;
+            best = *time;
+        }
+
+    next_pattern:
+        i++;
+        timeOffset += 4;
+        recordOffset += sizeof(CritterPattern);
+    }
+
+    moves = *(CritterMove **)((u8 *)c->hdr + 0x124);
+    i = 0;
+    zero = lbl_80346488;
+    timeOffset = 0;
+    recordOffset = 0;
+    while (i < *(s16 *)((u8 *)c->hdr + 0x110)) {
+        if (i == c->curmove) {
+            goto next_move;
+        }
+        move = (CritterMove *)((u8 *)moves + recordOffset);
+        type = move->type;
+        if (type < 0x7F || type >= 0xF0) {
+            goto next_move;
+        }
+        flags = move->flags;
+        if ((flags & 4) != 0) {
+            goto next_move;
+        }
+        if ((flags & 2) != 0 &&
+            c->childcnt != c->alivecnt) {
+            goto next_move;
+        }
+        if ((flags & 0x10) != 0) {
+            if (move->node < 0) {
+                goto next_move;
+            }
+            if (move->link >= 0 && moves[move->link].node < 0) {
+                goto next_move;
+            }
+        }
+
+        if (c->unk128 >= 0 && type == 0x81) {
+            patternChoice = -1;
+            moveChoice = i;
+            playerChoice = c->unk128;
+            break;
+        }
+
+        if ((f64)move->cooldown > zero &&
+            sMusicFadeBase <
+                *(f32 *)((u8 *)c + 0x218 + timeOffset) +
+                    move->cooldown) {
+            goto next_move;
+        }
+        player = CritterGetTargetSub(c, (f32 *)((u8 *)move + 0x60), 0);
+        if (player >= 0) {
+            time = (f32 *)((u8 *)c + 0x218 + timeOffset);
+            if (*time < best) {
+                best = *time;
+                patternChoice = -1;
+                moveChoice = i;
+                playerChoice = player;
+            } else {
+                if (patternChoice < 0 &&
+                    (moveChoice < 0 ||
+                     fn_8003C8D4(&moves[moveChoice], move) > 1)) {
+                    best = *time;
+                    patternChoice = -1;
+                    moveChoice = i;
+                    playerChoice = player;
+                }
+            }
+        }
+
+    next_move:
+        i++;
+        timeOffset += 4;
+        recordOffset += sizeof(CritterMove);
+    }
+
+    if (patternChoice >= 0) {
+        c->unk11E = (s16)patternChoice;
+        c->unk126 = (s16)playerChoice;
+        pattern = *(CritterPattern **)((u8 *)c->hdr + 0x128);
+        c->nextmove = pattern[patternChoice].move;
+    } else if (moveChoice >= 0) {
+        c->nextmove = (s16)moveChoice;
+        c->unk126 = (s16)playerChoice;
+    }
+}
 /* 0x8003BAFC -- select a ready critical move when its target player is
  * currently attacking. */
 void CritterLookForCriticalMove(Critter *c)
@@ -928,16 +1088,16 @@ void CritterLookForCriticalMove(Critter *c)
 
 /* 0x8003C8D4 -- classify two critters' facing/positions into a 0/1/2 code by
  * the relation encoded in a->curmove (0x56). */
-s32 fn_8003C8D4(Critter *a, Critter *b)
+s32 fn_8003C8D4(CritterMove *a, CritterMove *b)
 {
     s32 av;
     s32 bv;
     s32 result;
 
     result = 1;
-    av = (s32)a->state;
-    bv = (s32)b->state;
-    switch ((s32)*(s16 *)((u8 *)a + 86)) {
+    av = a->unk08;
+    bv = b->unk08;
+    switch (a->unk56) {
     case 0:
         result = 0;
         break;
@@ -1145,7 +1305,7 @@ void CritterInitInst(Critter *c, struct CritterHeader *hdr)
         memset(c->moveTimes, 0, *(s16 *)(h + 272) * 4);
     }
     if ((s16)*(s16 *)(h + 276) > 0) {
-        memset(c->movestate, 0, *(s16 *)(h + 276) * 4);
+        memset(c->patternTimes, 0, *(s16 *)(h + 276) * 4);
     }
     if ((s16)*(s16 *)(h + 280) > 0) {
         memset(c->hitnodes, 0, *(s16 *)(h + 280) * 92);
