@@ -77,10 +77,13 @@ typedef struct CritterMove {
     u32 flags;            /* 0x04 flag bits (bit 3 tested in ProcessCritter)   */
     s32 unk08;            /* 0x08 (compared against 0xF00 in CritterAnimate)   */
     s16 anim;             /* 0x0C animation id to play                         */
-    u8  _blk0E[0x46];     /* 0x0E .. 0x54                                      */
+    s16 node;             /* 0x0E attached animation-node index                */
+    u8  _blk10[0x44];     /* 0x10 .. 0x54                                      */
     s16 link;             /* 0x54 chained/target move index                    */
     s16 unk56;            /* 0x56                                              */
-    u8  _blk58[0x38];     /* 0x58 .. 0x90                                      */
+    u8  _blk58[0x28];     /* 0x58 .. 0x80                                      */
+    f32 cooldown;         /* 0x80 move reuse delay                             */
+    u8  _blk84[0x0C];     /* 0x84 .. 0x90                                      */
 } CritterMove;            /* size 0x90 */
 
 /* ==================================================================== *
@@ -103,7 +106,8 @@ typedef struct Critter {
     void *colhandle;          /* 0x074 collision/link handle (AtreeDelete)     */
     u8  sound[0x20];          /* 0x078 embedded sound/voice control block      */
     f32 animtimer;            /* 0x098 anim blend accumulator                  */
-    u8  _blk09C[0x18];        /* 0x09C .. 0x0B4                               */
+    u8  _blk09C[0x14];        /* 0x09C .. 0x0B0                               */
+    s32 anodeCount;           /* 0x0B0 number of animation-node records        */
     void *anodes;             /* 0x0B4 anode array base (stride 0x28)          */
     u8  _res0B8[4];           /* 0x0B8                                        */
     void *subnodes;           /* 0x0BC aux node list head (node->next @0x50)   */
@@ -127,13 +131,21 @@ typedef struct Critter {
     s16 unk128;               /* 0x128 (init -1)                              */
     u8  _blk12A[0x92];        /* 0x12A .. 0x1BC                              */
     f32 unk1BC[4][4];         /* 0x1BC 4x4 floats (init 0; per-limb scratch)   */
-    u8  _blk1FC[0x18];        /* 0x1FC .. 0x214                             */
+    u8  _blk1FC[0x10];        /* 0x1FC .. 0x20C                             */
+    s16 moveFlags;            /* 0x20C per-move activation flags             */
+    s16 moveSfxFlags;         /* 0x20E per-move sound/particle flags          */
+    u8  _blk210[4];           /* 0x210 .. 0x214                              */
     f32 rate;                 /* 0x214 move speed / timescale                 */
-    u8  moveflags[0x100];     /* 0x218 per-move s32 flags (hdr->0x110 count)   */
-    u8  movestate[0x134];     /* 0x318 per-move s32 state (hdr->0x114 count)   */
+    f32 moveTimes[0x40];      /* 0x218 per-move last-use timestamps             */
+    u8  movestate[0x80];      /* 0x318 per-move s32 state                     */
+    f32 worldMoveMatrix[12];  /* 0x398 move-node world transform              */
+    f32 moveOrigin[3];        /* 0x3C8 cached move origin                      */
+    u8  _blk3D4[0x54];        /* 0x3D4 .. 0x428                              */
+    f32 moveMatrix[3];        /* 0x428 current move-space position             */
+    u8  _blk434[0x18];        /* 0x434 .. 0x44C                              */
     s16 healthmtr;            /* 0x44C health-meter handle (>=0 == present)     */
-    u8  childcnt;             /* 0x44E spawned child count                    */
-    u8  alivecnt;             /* 0x44F live child count (ProcessCritter)       */
+    s8  childcnt;             /* 0x44E spawned child count                    */
+    s8  alivecnt;             /* 0x44F live child count (ProcessCritter)       */
     u8  healthbar[0x48];      /* 0x450 health-bar object (AtreeDelete)         */
     void *damageflash;        /* 0x498 damage-flash object (MBTreeSetScale)       */
     u8  _blk49C[0x10];        /* 0x49C .. 0x4AC                             */
@@ -141,7 +153,10 @@ typedef struct Critter {
     f32 health;               /* 0x4B0 current hp                             */
     f32 counterValue;         /* 0x4B4 transient move/event counter           */
     s32 counterState;         /* 0x4B8 state paired with counterValue          */
-    u8  _blk4BC[0x20];        /* 0x4BC .. 0x4DC                               */
+    f32 knockbackInput[3];    /* 0x4BC pending knockback direction/force       */
+    u8  _res4C8[4];           /* 0x4C8                                        */
+    f32 knockbackVelocity[3]; /* 0x4CC accumulated knockback vector            */
+    u8  _res4D8[4];           /* 0x4D8                                        */
     f32 counterTime;          /* 0x4DC last counter-update timestamp           */
     s16 unk4E0[4];            /* 0x4E0 four ids (init -1)                     */
     f32 timed[4];              /* 0x4E8 expiry times paired with unk4E0 ids  */

@@ -86,3 +86,47 @@ Near-match status:
 - `CritterEmptyInst` has the correct pool overlay and semantics but remains a larger
   allocation/addressing residual. Do not discard the three-argument overflow
   `ErrorPrintf(format, index, active_count)` recovered from Ghidra.
+
+## Third pass (2026-07-29)
+
+Verified exact additions:
+
+- `CritterInsertTarget` (0xE4)
+- `CritterDoKnockback` (0x15C; linked bytes exact, object diff is pool-name
+  relocation noise only)
+- `CritterAddHealthMeter` (0x150)
+
+Reusable findings:
+
+11. `CritterInsertTarget` is a four-entry insertion sort over a real 0x24-byte
+    record, not byte-copy boilerplate. Modeling `CritterTargetRecord` and using
+    whole-struct assignments makes MWCC emit the retail copy sequence. Hoist
+    `target->distance` into a local before the scan; this moves the `lfs` to the
+    retail position and closes the last scheduling residual.
+12. In `CritterDoKnockback`, load the double clamp magnitude into one local after
+    `NormalVector` and reuse it for all three vector components. Repeating the
+    external constant expression makes MWCC reload it three times; the one local
+    reproduces the retail single `lfd` and all three multiply/round stores.
+13. An external string known to live in `.sdata2` needs its section stated on the
+    declaration (`DECL_SECT(".sdata2") extern const char ...`). Merely making the
+    declaration `const` still selects `lis/addi`; the section-qualified declaration
+    produces the retail SDA21 `li`.
+14. The first health-fill coordinate in `CritterAddHealthMeter` needs one named
+    root-node pointer followed by a direct field RMW. Adding a second named `f32 *`
+    does reproduce the desired address instruction but inflates the debug frame by
+    eight bytes. One root local plus
+    `*(f32 *)((u8 *)root + 0x30) = ...` gives both the retail `addi`/store shape and
+    the 0x18-byte frame.
+15. Recover signed byte fields from `lbz` followed by `extsb`. The critter child
+    counters at 0x44E/0x44F are `s8`, which is needed by critical-move selection.
+
+New fully translated near matches:
+
+- `CritterLineNodeColSub` (formerly `fn_80037C08`) is 75/75 opcode-identical;
+  the remaining 12 lines are one three-way saved-FPR color rotation.
+- `CritterLookForCriticalMove` (formerly `fn_8003BAFC`) is 75/75
+  opcode-identical; the remaining diff is a nonvolatile GPR web rotation.
+- `fn_8003B1CC` is fully translated and one branch-shape instruction away from
+  the 77-instruction retail body.
+- `CritterProcessSafeRocks` is fully translated at 63/63 instructions; only three
+  address-canonicalization sites remain (12 real diff lines).
