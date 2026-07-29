@@ -7,6 +7,8 @@
 - `sndCmd1` is exact (248 bytes).
 - `sndCmdD` is exact (232 bytes) with the same callback-loop shape as
   `sndCmd1`.
+- `sndSysClear` is exact (156 bytes) with the same typed shifted-base callback
+  access, but no extra frame padding.
 
 ## Source-shape technique
 
