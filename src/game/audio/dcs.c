@@ -249,11 +249,12 @@ s32 dcsBankQuery(s32 bank, s32* handle, s32* size) {
     if (bank != 0) {
         *handle = (index + result) * 0x1000 + result;
         *size = dcsBankData[index].size;
-        return result;
+    } else {
+        *handle = 0;
+        *size = 0;
+        result = 0;
     }
-    *handle = 0;
-    *size = 0;
-    return 0;
+    return result;
 }
 
 /* 0x800D23A0  start playback on a channel */
