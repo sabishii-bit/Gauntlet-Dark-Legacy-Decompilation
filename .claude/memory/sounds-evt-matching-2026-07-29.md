@@ -41,6 +41,11 @@ check.
   separate from its extracted fields.** Repeating the player-array
   expressions lets dominance CSE retain one address while giving the field
   and position values independent volatile registers.
+- **Cast the array base to an integer when a final commutative `add` is
+  reversed.** In `AudioTurboDefense`, materializing the byte offset and writing
+  `(u32)gPlayers + offset + field` preserves the target's base-plus-offset
+  operand order. Pointer indexing canonicalized the same address as
+  offset-plus-base. The integer form made the full 128-byte function exact.
 
 ## Remaining close residuals
 
@@ -78,8 +83,8 @@ tables jointly identify the remaining generic symbols:
 - Replacing `AudioPlayerEatSFX`'s long-lived derived player pointer with an
   explicit byte offset and re-derived pointer restored the target's complete
   68-instruction structure. Its residual is now register coloring only.
-- Materializing `AudioTurboDefense`'s position before the call moved the final
-  `addi` ahead of constant argument setup, reducing its residual from six
-  schedule lines to four commutative-register lines.
+- Materializing `AudioTurboDefense`'s offset once and using integer base
+  arithmetic for both field addresses resolved the final commutative-register
+  residual; the function is now byte-exact.
 - Laying out the invalid-entry arm explicitly in `AudioEnterNextStage` reduced
   that structural residual from 13 to eight real lines.

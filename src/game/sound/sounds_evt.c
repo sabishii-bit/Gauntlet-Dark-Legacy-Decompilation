@@ -1337,7 +1337,8 @@ void fn_8009FFF4(int sel, int pidx)
 
 void AudioTurboDefense(int pidx)
 {
-    int f292 = *(int*)&gPlayers[pidx * 13148 + 292];
+    int offset = pidx * 13148;
+    int f292 = *(int*)((u32)gPlayers + offset + 292);
     int id;
     int pos;
 
@@ -1350,7 +1351,7 @@ void AudioTurboDefense(int pidx)
     } else {
         return;
     }
-    pos = (int)&gPlayers[pidx * 13148 + 84];
+    pos = (u32)gPlayers + offset + 84;
     sndFxPlay3D(id, pos, 224, 40);
 }
 
