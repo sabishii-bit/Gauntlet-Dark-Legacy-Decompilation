@@ -4,12 +4,12 @@
 
 `sounds_evt.c` moved from 95/118 to 102/118 exact functions:
 
-- `fn_8009C8F0`
-- `fn_8009D100`
-- `fn_8009D16C`
-- `fn_8009D1D8`
-- `fn_8009EEBC`
-- `fn_8009EF04`
+- `AudioExplodeWall`
+- `AudioBridgeOpen`
+- `AudioBridgeClose`
+- `AudioWorldObjectMotion`
+- `AudioClick`
+- `AudioClick2`
 - `AudioPlayerSeverePain`
 
 The full build moved from 1,985 / 352,508 exact functions/bytes to
@@ -19,7 +19,7 @@ check.
 ## CodeWarrior techniques
 
 - **Materialize complex call arguments in source order.** MWCC evaluates call
-  arguments right-to-left. In `fn_8009C8F0`, assigning the two conditional
+  arguments right-to-left. In `AudioExplodeWall`, assigning the two conditional
   halfword arguments to `atten` and `priority` before the call gives the
   target load/branch order. The equivalent inline ternaries in the call swap
   the two code blocks.
@@ -33,8 +33,8 @@ check.
   initializer followed by `if (id >= 0)` loaded through `r0` and inserted an
   extra `mr` after the compare. This made `AudioPlayerSeverePain` exact.
 - **Use a truly typed pointer, not a cast at the access site, to preserve
-  field displacements.** The local table overlays in `fn_8009F550` and
-  `fn_8009F860` make MWCC emit separate row/column shifts followed by
+  field displacements.** The local table overlays in `AudioPlayerTurbo` and
+  `AudioPlayerEatFood` make MWCC emit separate row/column shifts followed by
   `lwz field_disp(base)`. Flat expressions such as
   `table[row * 4 + col + K]` canonicalize to a combined index and `lwzx`.
 - **Delete a derived player pointer when the target keeps the base temporary
@@ -44,10 +44,42 @@ check.
 
 ## Remaining close residuals
 
-- `fn_8009F550`: instruction-identical; one commutative `add` operand pair
+- `AudioPlayerTurbo`: instruction-identical; one commutative `add` operand pair
   remains (2 real diff lines).
-- `fn_8009F860`: instruction-identical and operand-identical; only a
+- `AudioPlayerEatFood`: instruction-identical and operand-identical; only a
   three-register coloring rotation remains (32 real diff lines).
-- `fn_8009FD84`: reduced from 30 to 13 real diff lines. Its loads and call
+- `AudioEnterNextStage`: reduced from 30 to 13 real diff lines. Its loads and call
   argument schedule now match; the compiler still folds one target
   `blt`/unconditional-`b` pair into a single inverted branch.
+
+## Recovered identities
+
+The Xbox PDB names, GameCube callers, item subtype enum, and adjacent sound-ID
+tables jointly identify the remaining generic symbols:
+
+- `8009C8F0` -> `AudioExplodeWall` (called for `SUB_WALL`)
+- `8009D100` / `8009D16C` -> `AudioBridgeOpen` / `AudioBridgeClose`
+  (bridge pad/switch state transitions)
+- `8009D1D8` -> `AudioWorldObjectMotion` (shared rotator/elevator motion table;
+  kept conservative because the Xbox binary splits related behaviors)
+- `8009EEBC` / `8009EF04` -> `AudioClick` / `AudioClick2`
+- `8009F550` -> `AudioPlayerTurbo`
+- `8009F860` -> `AudioPlayerEatFood`
+- `8009FD84` -> `AudioEnterNextStage`
+- `8009F638` -> `AudioPlayerEatSFX` (player-motion caller and food/eating
+  effect selection)
+- `8009FBD4` -> `AudioNumRunesFound` (the item dispatcher passes the
+  population count of the 13-bit rune mask)
+- `8009F4D0` -> `AudioTurboDefense` (player defensive-power flags select the
+  three turbo-defense sound IDs)
+
+## Additional source-shape progress
+
+- Replacing `AudioPlayerEatSFX`'s long-lived derived player pointer with an
+  explicit byte offset and re-derived pointer restored the target's complete
+  68-instruction structure. Its residual is now register coloring only.
+- Materializing `AudioTurboDefense`'s position before the call moved the final
+  `addi` ahead of constant argument setup, reducing its residual from six
+  schedule lines to four commutative-register lines.
+- Laying out the invalid-entry arm explicitly in `AudioEnterNextStage` reduced
+  that structural residual from 13 to eight real lines.

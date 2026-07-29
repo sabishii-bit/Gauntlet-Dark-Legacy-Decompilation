@@ -1032,7 +1032,7 @@ void fn_800606FC(void)
  * 8005A738  0x0130  fn_ : per-instance text draw (DrawTextKeepScale,
  *                    fn_8005A868, RandInt, strcpy)
  * 8005A868  0x03A8  fn_ : text/gfx draw (DrawTextKeepScale, fn_8003xxxx mtx,
- *                    AudioCursorH/58, fn_8009EF04)
+ *                    AudioCursorH/58, AudioClick2)
  * 8005AC10  0x00D0  fn_ : accessor (no calls; gControllerButtons/8034477C)
  * 8005ACE0  0x02B8  fn_ : DEBUG draw of world-object info (DrawText, sprintf,
  *                    get_screen_pos).  "ROT:","BRID:","DOOR:","ELEV:","LIFT:",
@@ -1093,7 +1093,9 @@ void fn_800606FC(void)
  * 800629B0  0x0050  fn_ : accessor (no calls; sNumItems/80344950).
  *                    Called by auxscreen.
  * 80062A00  0x05F0  fn_ : particle-system update (WorldPsysActivate/DeActivate,
- *                    did_generate, fn_8009D100..694, MBTreeClearFlags/368/6C0)
+ *                    did_generate, AudioBridgeOpen/Close,
+ *                    AudioWorldObjectMotion, fn_8009D258..694,
+ *                    MBTreeClearFlags/368/6C0)
  * 80062FF0  0x01BC  fn_ : enemy-grid op (StartEnemyGrid/NextGridEnemy,
  *                    fqdist)
  * ========================================================================== */

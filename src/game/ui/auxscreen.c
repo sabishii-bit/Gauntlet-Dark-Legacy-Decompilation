@@ -122,7 +122,7 @@ extern s32 GetScrollText(char* a, char* b, s32 line, s32* out);
 extern s32 GetScrollScale(char* a, char* b, s32 line);
 extern s32 CaptionTextSub(s32 x, f32 w, s32 y, s32 page, s32 flags);
 extern s32 ScrollTextNum(char* a, char* b);
-extern s32 fn_8009FD84(void);
+extern void AudioEnterNextStage(void);
 extern s32 fn_80055F68(s32 a, s32 b);
 extern s32 AudioSysUpdate(s32 a);
 extern void* AudioRegisterNameBanks(void* p, s32 a);
@@ -539,7 +539,7 @@ s32 do_mapscreen(s32 skip)
     switch (map_load_state) {
     case 0:
         if (skip == 0) {
-            fn_8009FD84();
+            AudioEnterNextStage();
         }
         map_load_state++;
         break;

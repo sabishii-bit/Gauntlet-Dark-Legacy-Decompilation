@@ -43,7 +43,7 @@ Parked/restored during this pass:
 
 - `MBPsysSetEVolume`: frame remains eight bytes too large across named-local,
   parameter-reuse, explicit-cast, and implicit-cast forms.
-- `fn_8009DB24` / `fn_8009C8F0`: pan/flags evaluation order remains an
+- `fn_8009DB24` / `AudioExplodeWall`: pan/flags evaluation order remains an
   allocator/inlining-source residual.
 - `fn_80055CB8`, `AudioGetSoundVol`, `sysClearFlags`: pure destination-register
   choice; source-equivalent attempts were neutral.
