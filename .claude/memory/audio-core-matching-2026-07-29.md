@@ -9,6 +9,7 @@
   `sndCmd1`.
 - `sndSysClear` is exact (156 bytes) with the same typed shifted-base callback
   access, but no extra frame padding.
+- `sndSysFlush` is exact (196 bytes).
 
 ## Source-shape technique
 
@@ -57,6 +58,13 @@ Declare the loaded field (`node`) before the shifted-base local (`entry`) when
 the target wants the field in `r3` and the address in `r4`.  The declaration
 order removed the last register rotation; an otherwise-unused 8-byte local
 restored this function's retail stack frame.
+
+In the larger `sndSysFlush` callback loop, MWCC colored the call-live locals
+into ascending nonvolatile registers in reverse lexical declaration order.
+Declaring the locals as `ret, i, n, e` (after `state`) produced the retail
+mapping `{e,n,i,ret} = {r25,r26,r27,r28}` and left `state` in `r29`.  Combining
+that ordering with the typed shifted-base access and an 8-byte scratch local
+made the entire function exact.
 
 ## Near-match improvement
 
