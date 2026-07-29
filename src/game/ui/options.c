@@ -429,6 +429,7 @@ typedef struct OPTGLOBALS {
 } OPTGLOBALS;
 
 OPTGLOBALS optglobals;      /* 0x80274E00 */
+extern OPTMENU* optionsStack[4]; /* 0x80274E40, optglobals.stack alias */
 
 /* ------------------------------------------------------------------ */
 /* forward decls (source order = GC emission order)                    */
@@ -2001,7 +2002,7 @@ static s32 finish_optmenu(OPTMENU* m, s32 force)
         if (options_state == 1) {
             options_state = 0;
             for (i = 0; i < 4; i++) {
-                optglobals.stack[i] = NULL;
+                optionsStack[i] = NULL;
             }
         }
         return 0;
@@ -2013,7 +2014,7 @@ static s32 finish_optmenu(OPTMENU* m, s32 force)
         if (options_state == 1) {
             options_state = 0;
             for (i = 0; i < 4; i++) {
-                optglobals.stack[i] = NULL;
+                optionsStack[i] = NULL;
             }
         }
         return 0;
