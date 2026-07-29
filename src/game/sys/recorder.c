@@ -13,7 +13,7 @@
 #include "game/player.h"
 #include "game/camera.h"
 
-static u8 lbl_80282940[0x18C];
+static u8 cam_bak[0x18C];
 static f32 sCameraPos[3];
 static f32 sReticlePos[7][3];
 static f32 sReticleDepth[11];
@@ -125,7 +125,7 @@ void LoadAllRecords(void) {
     }
 }
 
-void SaveAllRecords_8008C0F4(s32 excludedItem, s32 recordArg, f32* playerPos) {
+void SaveAllRecords(s32 excludedItem, s32 recordArg, f32* playerPos) {
     s32 count;
     Item* item;
     u8* player;
@@ -205,7 +205,7 @@ void LoadStage(void) {
     camera_mode_level(1);
     lbl_803447D0 = 0;
     fn_80051C78();
-    fn_8002E328(lbl_80282940, gCameras);
+    fn_8002E328(cam_bak, gCameras);
 
     for (i = 0; i < 7; i++) {
         lbl_8023F864[i][0] = sReticlePos[i][0];
@@ -231,7 +231,7 @@ void LoadStage(void) {
 void SaveStage(void) {
     s32 i;
 
-    fn_8002E328(gCameras, lbl_80282940);
+    fn_8002E328(gCameras, cam_bak);
     for (i = 0; i < 7; i++) {
         sReticlePos[i][0] = lbl_8023F864[i][0];
         sReticlePos[i][1] = lbl_8023F864[i][1];
