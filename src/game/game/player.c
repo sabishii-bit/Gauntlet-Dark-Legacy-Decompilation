@@ -2815,20 +2815,20 @@ void abort_player(s32 i) {
 
 /* Collision-probe position (offset 0x64).                             */
 void GetPlayerColPos(s32 i, f32* out) {
-    Player* p = P(i);
+    u8* p = (u8*)potionicon_tab + i * PREC_STRIDE;
 
-    out[0] = p->col_pos[0];
-    out[1] = p->col_pos[1];
-    out[2] = p->col_pos[2];
+    out[0] = *(f32*)(p + 0xCA4);
+    out[1] = *(f32*)(p + 0xCA8);
+    out[2] = *(f32*)(p + 0xCAC);
 }
 
 /* World position (offset 0x44).                                       */
 void GetPlayerPos(s32 i, f32* out) {
-    Player* p = P(i);
+    u8* p = (u8*)potionicon_tab + i * PREC_STRIDE;
 
-    out[0] = p->pos[0];
-    out[1] = p->pos[1];
-    out[2] = p->pos[2];
+    out[0] = *(f32*)(p + 0xC84);
+    out[1] = *(f32*)(p + 0xC88);
+    out[2] = *(f32*)(p + 0xC8C);
 }
 
 /* Tear down the in-world player geo (nodes, weapon, mikey, atree).    */
