@@ -283,7 +283,7 @@ extern void  WRollMat3(f32* matrix, f32 angle);
 extern char* sArrowObjectNames[];   /* arrow blit names by kind */
 extern const char sLevelOneSuffix[3]; /* "L1" */
 extern const char sRootSuffix[5];     /* "ROOT" */
-extern char  sItemHealthTextureFmt[];   /* "%s%d" health-tier fmt */
+extern char  sItemHealthTextureFmt[5];  /* "%s%d" health-tier fmt */
 extern f64   sPi;     /* pi (rounded) */
 extern f64   sTwoPi;
 extern f64   sNegativePi;
@@ -1721,19 +1721,19 @@ keyring_found:
     }
 
     case 12:
-        if (instance == NULL || PARAM_S32(0, -1) < 0) {
-            DATA_S32(0) = 0;
-            DATA_F32(4) = 0.0f;
-        } else {
+        if (instance != NULL && *(s32*)&params[0] >= 0) {
             DATA_S32(0) =
                 (s32)((u8*)gWorldInfo.wobjs +
-                      PARAM_S32(0, 0) * 0x3C);
-            DATA_S32(4) = PARAM_S32(4, 0);
+                      *(s32*)&params[0] * 0x3C);
+            DATA_F32(4) = *(f32*)&params[4];
+        } else {
+            DATA_S32(0) = 0;
+            DATA_F32(4) = 0.0f;
         }
         DATA_F32(8) =
-            instance != NULL ? *(f32*)&params[8] : 0.0f;
+            instance != NULL ? *(f32*)&params[8] : sZeroDouble;
         DATA_F32(12) = 0.0f;
-        if (subtype != 2) {
+        if (item->info->item.subtype != 2) {
             attach_geometry = 0;
         }
         break;
@@ -1742,26 +1742,33 @@ keyring_found:
     {
         s32 enemy_type;
         s32 count_index;
-        s32 count;
 
-        item->visrad *= 4.0f;
+        item->visrad *= 4.0;
         DATA_U8(2) = 0;
-        DATA_U8(3) = (u8)PARAM_S16(4, 0);
+        DATA_S8(3) = (s8)PARAM_S16(4, 0);
         DATA_U8(11) = (u8)PARAM_S16(6, 0);
         DATA_U8(4) = 0;
-        DATA_U8(7) = (u8)PARAM_S16(2, 0);
+        DATA_S8(7) = (s8)PARAM_S16(2, 0);
         enemy_type = fn_80051FDC(info->item.desc);
         DATA_S16(0) = (s16)enemy_type;
 
         if (DATA_S16(0) == 3) {
-            iteminfo* candidate = gWorldInfo.iteminfo;
-            for (i = 0; i < gWorldInfo.niteminfos; i++, candidate++) {
-                if (strcmp("LOW", candidate->item.desc) == 0 &&
+            iteminfo* candidate = *infos;
+            for (found = 0; found < gWorldInfo.niteminfos;
+                 found++, candidate++) {
+                iteminfodata* body = &candidate->item;
+
+                if (strcmp("LOW", body->desc) == 0 &&
                     candidate->type == type &&
-                    (subtype <= 0 || subtype == candidate->item.subtype)) {
-                    item->info = candidate;
+                    (subtype <= 0 || subtype == body->subtype)) {
                     break;
                 }
+            }
+            if (found == gWorldInfo.niteminfos) {
+                found = -1;
+            }
+            if (found >= 0) {
+                item->info = &(*infos)[found];
             }
         }
         if (gGameOptions[10] != 0 || DATA_S8(7) < 0) {
@@ -1811,12 +1818,11 @@ keyring_found:
         DATA_S16(0) =
             (s16)fn_80050FB0(DATA_S16(0), DATA_S8(2));
         if (stricmp(name, "BOSSGEN") != 0) {
-            count = DATA_S8(6);
             if (DATA_S16(0) < -1) {
-                sprintf(name, strings + 0x17C, count);
+                sprintf(name, strings + 0x17C, DATA_S8(6));
             } else {
                 sprintf(name, strings + 0x18C,
-                        fn_80051F64(DATA_S16(0)), count);
+                        fn_80051F64(DATA_S16(0)), DATA_S8(6));
             }
         }
         atree_header = (void*)AtreeMatchAnyHeader(name, 1);
@@ -1827,7 +1833,7 @@ keyring_found:
     {
         s32 scaled;
         DATA_F32(0) = instance != NULL ?
-                      (f32)PARAM_S16(0, 0) : 0.0f;
+                      (f32)*(s16*)&params[0] : 0.0f;
         if (DATA_F32(0) == 0.0f) {
             DATA_F32(0) =
                 (f32)*(s16*)((u8*)info + 0x40);
@@ -1841,7 +1847,9 @@ keyring_found:
         item->health = (s16)(item->health *
                               *(f32*)(gCurLevel + 0xCC));
         scaled = *(s16*)((u8*)info + 0x48) * 2;
-        if (scaled < 0) {
+        if (scaled == 0) {
+            scaled = 0;
+        } else if (scaled < 0) {
             scaled = -scaled;
             scaled = (scaled >> 1) + (s32)RandInt((u32)scaled);
         }
@@ -1851,10 +1859,10 @@ keyring_found:
     }
 
     case 9:
-        if (*(s32*)&params[0] == 0) {
-            DATA_S16(0) = (s16)fn_80057B30((char*)&params[4]);
-        } else {
+        if (*(s32*)&params[0] != 0) {
             DATA_S16(0) = -1;
+        } else {
+            DATA_S16(0) = (s16)fn_80057B30((char*)&params[4]);
         }
         DATA_S32(4) = 0;
         item->active &= ~1;
@@ -1871,15 +1879,15 @@ keyring_found:
         DATA_F32(0) =
             instance != NULL ? *(f32*)&params[0] : 0.0f;
         DATA_S16(12) = (s16)PARAM_S32(4, 0);
-        if (instance == NULL || DATA_S16(12) != 0) {
-            DATA_S32(4) = -1;
-        } else {
-            for (i = 0; i < (s32)strlen(instance->desc); i++) {
+        if (instance != NULL && DATA_S16(12) == 0) {
+            for (i = 0; i < strlen(instance->desc); i++) {
                 instance->desc[i] = (char)toupper(instance->desc[i]);
             }
             DATA_S32(4) =
                 AudioFindSound(instance->desc,
                                sizeof(instance->desc), 1);
+        } else {
+            DATA_S32(4) = -1;
         }
         DATA_S16(14) = 0;
         DATA_S16(16) = PARAM_S16(8, 0);
@@ -1893,17 +1901,32 @@ keyring_found:
     case 10:
         DATA_S16(0) = PARAM_S16(0, 0);
         DATA_S16(2) = PARAM_S16(2, 1);
-        if (DATA_S16(0) < 1) {
-            DATA_S16(0) = (s16)subtype;
+        if (DATA_S16(0) <= 0) {
+            DATA_S16(0) = (s16)item->info->item.subtype;
         }
-        if (DATA_S16(0) == 40 || DATA_S16(0) == 49 ||
-            (DATA_S16(0) > 50 && DATA_S16(0) < 54)) {
-            item->active |= 0x40;
+        if (DATA_S16(0) == 49) {
+            goto set_type10_active;
         }
+        if (DATA_S16(0) < 49) {
+            if (DATA_S16(0) == 40) {
+                goto set_type10_active;
+            }
+            goto after_type10_active;
+        }
+        if (DATA_S16(0) >= 54) {
+            goto after_type10_active;
+        }
+        if (DATA_S16(0) >= 51) {
+            goto set_type10_active;
+        }
+        goto after_type10_active;
+set_type10_active:
+        item->active |= 0x40;
+after_type10_active:
         if (DATA_S16(0) == 41) {
             item->health *= DATA_S16(2);
             sprintf(name, sItemHealthTextureFmt,
-                    info->item.desc, DATA_S16(2));
+                    item->info->item.desc, DATA_S16(2));
         }
         DATA_S16(4) = 0;
         DATA_S16(6) = 0;
@@ -1913,12 +1936,24 @@ keyring_found:
         break;
 
     case 1:
-        DATA_S32(0) = *(s32*)((u8*)info + 0x3C);
-        DATA_S32(4) = *(s16*)((u8*)info + 0x40);
-        DATA_F32(8) = (f32)*(s16*)((u8*)info + 0x4A);
+        DATA_S32(0) = *(s32*)((u8*)item->info + 0x3C);
+        DATA_S32(4) = *(s16*)((u8*)item->info + 0x40);
+        DATA_F32(8) = (f32)*(s16*)((u8*)item->info + 0x4A);
         DATA_S32(12) = 0;
         DATA_S16(16) = 0;
+        subtype = item->info->item.subtype;
         switch (subtype) {
+        case 10:
+            ((f32*)((u8*)runtime + 0x7214))[0] = matrix[12];
+            ((f32*)((u8*)runtime + 0x7214))[1] = matrix[13];
+            ((f32*)((u8*)runtime + 0x7214))[2] = matrix[14];
+            sSpecialItem10 = (s32)item;
+            break;
+        case 14:
+            if (instance != NULL) {
+                DATA_S32(4) = *(s16*)&params[0];
+            }
+            break;
         case 2:
             if (instance != NULL) {
                 DATA_S32(4) = *(s16*)&params[0];
@@ -1927,23 +1962,12 @@ keyring_found:
                 DATA_S32(4) = 1;
             }
             break;
-        case 10:
-            ((f32*)((u8*)runtime + 0x7214))[0] = matrix[12];
-            ((f32*)((u8*)runtime + 0x7214))[1] = matrix[13];
-            ((f32*)((u8*)runtime + 0x7214))[2] = matrix[14];
-            sSpecialItem10 = (s32)item;
-            break;
-        case 13:
-            sSpecialItem13 = (s32)item;
-            break;
-        case 14:
-            if (instance != NULL) {
-                DATA_S32(4) = *(s16*)&params[0];
-            }
-            break;
         case 15:
             DATA_S32(4) =
                 ((s32*)((u8*)arrows + 0x10))[DATA_S32(4)];
+            break;
+        case 13:
+            sSpecialItem13 = (s32)item;
             break;
         }
         break;
@@ -1982,7 +2006,8 @@ keyring_found:
                 item->coll_offset, item->coll_offset);
     MBTreeSetZMod(20.0f, item->objgrp.node, 1);
 
-    if (type == 2) {
+    switch (type) {
+    case 2:
         if (*(void**)item->atree != NULL) {
             sprintf(child_name, "%sNULL1", name);
             i = MBOX_ReallyFindObject(child_name, sItemFile0Handle,
@@ -1995,14 +2020,17 @@ keyring_found:
                 }
             }
         }
-    } else if (type == 1) {
+        break;
+    case 8:
+        *((u8*)item + 0x83) |= 4;
+        break;
+    case 1:
         if (subtype == 15 && sMusicTrackHi == 13 &&
             lbl_80344C60 != 0) {
             item->active |= 0x800;
             MBTreeSetAlpha((s32)item->objgrp.node, 255, 1);
         }
-    } else if (type == 8) {
-        *((u8*)item + 0x83) |= 4;
+        break;
     }
 
 #undef DATA_S16
