@@ -145,9 +145,10 @@ void CreateRYPMatrix(f32* matrix, const f32* angles)
     f32 c1 = ffcos(angles[1]);
     f32 s1 = -ffsin(angles[1]);
     f32 c2 = ffcos(angles[2]);
+    f32 b;
     f32 s2 = -ffsin(angles[2]);
     f32 a = -c2 * s1;
-    f32 b = -s2 * s1;
+    b = -s2 * s1;
 
     matrix[0] = c2 * c1;
     matrix[4] = -s2 * c0 + a * s0;

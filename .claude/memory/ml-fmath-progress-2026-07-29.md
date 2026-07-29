@@ -29,17 +29,28 @@ the first `atan2`.
 
 `CreateYPRMatrix`, `CreateRYPMatrix`, and `CreatePYRMatrix` now contain their
 full recovered matrix formulas and have exact target instruction counts
-(65/65, 64/64, 67/67).  They are not byte-exact yet:
+(65/65, 64/64, 67/67).
 
 - YPR: 40 real lines, saved-FPR coloring plus expression operand order.
-- RYP: 14 real lines, a pure `f6`/`f7` web swap.
+- RYP: byte-exact (only private pool-symbol spelling is suppressed).
 - PYR: 38 real lines, saved-FPR coloring plus expression operand order.
 
 Separate zero stores in address order (`[3]`, `[7]`, `[11]`) are required.
 A chained assignment emits them in reverse order.  `CreateRYPMatrix` also
-needs an unused eight-byte local for the target 0x48-byte frame.  Swapping the
-two final temporary declarations did not affect its `f6`/`f7` coloring, so do
-not repeat that neutral attempt.
+needs an unused eight-byte local for the target 0x48-byte frame.  Its final
+`f6`/`f7` web swap was solved by declaring `b` before `s2` but assigning it
+after `a`:
+
+```c
+f32 b;
+f32 s2 = -ffsin(angles[2]);
+f32 a = -c2 * s1;
+b = -s2 * s1;
+```
+
+Moving only the initialized `a`/`b` declarations was neutral.  Splitting a
+declaration from its assignment changes MWCC's virtual-register ordering
+without changing the instruction schedule, which made all 256 bytes exact.
 
 ## Data ownership warning
 
