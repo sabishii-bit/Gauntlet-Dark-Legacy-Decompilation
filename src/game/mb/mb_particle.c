@@ -56,7 +56,7 @@ MBObject* MBNewNode(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
 void  MBRemoveNode(MBObject* node, s32 mode);              /* scene-node free */
 int   AddPsysObject(void* fn, MBObject* node);            /* traverse visitor */
 BOOL  MBWorldSphereVisible3(f64 radius, void* bounds);              /* frustum/sphere cull */
-f64   mbInvSqrtLookup(f64 x);                                 /* rsqrt / normalize */
+f32   mbInvSqrtLookup(f64 x);                                 /* rsqrt / normalize */
 f64   fqdist(f64 a, f64 b);                          /* hypot accumulate */
 void  pbBlitSetTexture(s32 tex);                               /* bind texture page */
 void  pbBlitSetDrawRegs(u32 a, u32 b);                          /* set blend/tev mode */
@@ -279,7 +279,7 @@ static void getCurrentDir(Psys* p, MBObject* node, f32* out) {
     f32 mag = dx * dx + dy * dy + dz * dz;
     f32 s;
     if (mag < 0.7 || mag > 1.3) {
-        s = p->p_speed * (f32)mbInvSqrtLookup(mag);
+        s = p->p_speed * mbInvSqrtLookup(mag);
     } else {
         s = p->p_speed;
     }
