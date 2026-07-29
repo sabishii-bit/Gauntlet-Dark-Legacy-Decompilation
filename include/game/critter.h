@@ -83,7 +83,8 @@ typedef struct CritterMove {
     s16 unk56;            /* 0x56                                              */
     u8  _blk58[0x28];     /* 0x58 .. 0x80                                      */
     f32 cooldown;         /* 0x80 move reuse delay                             */
-    u8  _blk84[0x0C];     /* 0x84 .. 0x90                                      */
+    f32 readyDistance;    /* 0x84 immediate-ready target threshold             */
+    u8  _blk88[0x08];     /* 0x88 .. 0x90                                      */
 } CritterMove;            /* size 0x90 */
 
 /* ==================================================================== *
@@ -129,9 +130,11 @@ typedef struct Critter {
     s16 unk124;               /* 0x124 (init -1)                              */
     s16 unk126;               /* 0x126 (init -1)                              */
     s16 unk128;               /* 0x128 (init -1)                              */
-    u8  _blk12A[0x92];        /* 0x12A .. 0x1BC                              */
+    s16 targetCount;          /* 0x12A active target count                     */
+    u8  _blk12C[0x90];        /* 0x12C .. 0x1BC                              */
     f32 unk1BC[4][4];         /* 0x1BC 4x4 floats (init 0; per-limb scratch)   */
-    u8  _blk1FC[0x10];        /* 0x1FC .. 0x20C                             */
+    f32 targetPos[3];         /* 0x1FC resolved target position                */
+    u8  _blk208[4];           /* 0x208 .. 0x20C                              */
     s16 moveFlags;            /* 0x20C per-move activation flags             */
     s16 moveSfxFlags;         /* 0x20E per-move sound/particle flags          */
     u8  _blk210[4];           /* 0x210 .. 0x214                              */
