@@ -143,6 +143,10 @@ extern s32   lbl_80343C0C;
 extern s32   lbl_80344A2C;
 extern s32   lbl_8034476C;
 extern s32   lbl_80344768;
+extern s32   lbl_803441B0;
+extern s32   lbl_803441B4;
+extern s32   lbl_803441B8;
+extern s32   lbl_803443BC;
 extern s32   gNumPlayers;
 extern s32   lbl_80344760;
 extern s32   lbl_80343C10;
@@ -170,6 +174,8 @@ static char sBossGenName[] = "BOSSGEN";   /* 0x80346AA4 (.sdata) */
 extern s32   stricmp(const char* a, const char* b);
 extern s32   toupper(s32 c);
 extern void  AtreeInitLists(s32 a, s32 b);
+extern void  DoTexMods(void* data);
+extern s32   DoWorldAnimSub(void* track, void* animdata, void* animBase);
 extern void* MBNewNode(s32 parent, void* tmpl, s32 arg2);
 
 /* game_init_data externs. */
@@ -321,7 +327,7 @@ s32  LevelLetter(s32 arg0);
 s32  NextAttractWave(s32 level);
 s32  PrevWorldLevel(s32 waveMask);
 s32  NextWorldLevel(s32 waveMask);
-s32  fn_80055E60(s32 arg0);
+s32  WorldExplosion(s32 arg0);
 s32  fn_80055F68(s32 arg0, s32 arg1);
 s32  fn_80056698(s32 arg0, s32 arg1);
 void fn_800510A4(void);
@@ -510,27 +516,72 @@ s32 fn_80054E68(s32 arg0)
     return old;
 }
 
+static s32 worldAnimIndexMatches(s32 entry, s32 index)
+{
+    return entry == index;
+}
+
 /* 0x80055CB8 -- find the worldanim bound to a given world object. */
-void* fn_80055CB8(void* wobj)
+s16* FindWobjWanim(void* wobj)
 {
     s32 idx = ((s32)wobj - gWorldInfo[1]) / 60;   /* wobjs @0x04, stride 60 */
     u8* wa = (u8*)gWorldInfo[35];                  /* worldanims @0x8C       */
     s32 i;
 
     for (i = 0; i < gWorldInfo[36]; i++) {         /* nworldanims @0x90      */
-        if (idx == *(s16*)(wa + i * 16)) {
-            return wa + i * 16;
+        if (worldAnimIndexMatches(*(s16*)(wa + i * 16), idx)) {
+            return (s16*)(wa + i * 16);
         }
     }
     return 0;
 }
 
-/* 0x80055E04 -- run fn_80055E60, then flag a scene-node subtree. */
-void fn_80055E04(void* node, s32 arg1)
+/* Advance every active world-object animation track. */
+void DoWorldAnimation(void)
+{
+    u8* data_off;
+    u8* track_off;
+    s32 i;
+    u8* anim_base;
+
+    if ((void*)gWorldInfo[32] != NULL) {
+        DoTexMods((void*)gWorldInfo[32]);
+    }
+    if ((lbl_80344768 > 0 || (gGameMode & 0x8000) != 0) &&
+        (lbl_803443BC <= 10 || lbl_803443BC >= 100000) &&
+        gWorldInfo[36] != 0 && (void*)gWorldInfo[37] != NULL) {
+        s32* wi;
+        s32* count;
+        s32* header;
+
+        wi = gWorldInfo;
+        count = &wi[36];
+        header = (s32*)wi[37];
+        anim_base = (u8*)header[3];
+        i = 0;
+        lbl_803441B8 = header[0];
+        data_off = NULL;
+        track_off = NULL;
+        lbl_803441B4 = header[1];
+        lbl_803441B0 = header[2];
+        while (i < *count) {
+            u8* track = (u8*)wi[35] + (u32)track_off;
+            if (*(u32*)(track + 12) != 0) {
+                DoWorldAnimSub(track, (u8*)wi[38] + (u32)data_off, anim_base);
+            }
+            i++;
+            data_off += 160;
+            track_off += 16;
+        }
+    }
+}
+
+/* 0x80055E04 -- run WorldExplosion, then flag a scene-node subtree. */
+void WorldObjectExplode(void* node, s32 arg1)
 {
     s32* n = (s32*)node;
 
-    fn_80055E60(arg1);
+    WorldExplosion(arg1);
     while (n != 0) {
         MBTreeSetFlags((void*)n[10], 2, 0);   /* +0x28 */
         n[4] |= 0x10000000;                   /* +0x10 */
@@ -716,7 +767,7 @@ s32 fn_80054070(s32 arg0, s32 arg1, s32 arg2)
 }
 
 /* 0x80055E60 -- spawn the level-transition effect for the current music. */
-s32 fn_80055E60(s32 arg0)
+s32 WorldExplosion(s32 arg0)
 {
     f32 f30;
     f32 f31;

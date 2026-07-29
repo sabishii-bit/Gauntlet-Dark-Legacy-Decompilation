@@ -142,21 +142,19 @@ s32 fn_800C0BD4(u32 sel)
 
     if (sel != 0) {
         PbWGCtx* ctx;
-        PbWGWin* w;
         if ((sel & 0xFFFF) > 12) {
             return 1;
         }
         ctx = g->ctx;
-        w = (PbWGWin*)((u8*)ctx + (sel & 0xFFFF) * 0x50 + 0x28C);
-        t = w;
-        if (w->id != sel) {
+        t = (PbWGWin*)((u8*)ctx + (sel & 0xFFFF) * 0x50 + 0x28C);
+        if (t->id != sel) {
             return 1;
         }
-        head = &ctx->active;
-        if (ctx->active == t) {
+        head = (PbWGWin**)((u8*)ctx + 180);
+        if (*head == t) {
             *head = t->next;
         } else {
-            cur = ctx->active;
+            cur = *head;
             while (cur != 0 && cur->next != t) {
                 cur = cur->next;
             }
@@ -166,9 +164,7 @@ s32 fn_800C0BD4(u32 sel)
             cur->next = t->next;
         }
     } else {
-        PbWGWin* w;
-        head = &g->ctx->active;
-        w = *head;
+        PbWGWin* w = *(head = &g->ctx->active);
         if (w != 0) {
             t = w->next;
             if (t == 0) {
@@ -338,6 +334,9 @@ void fn_800C0FE8(void)
  * out of every loaded bank's slot stamps (u64 per slot). */
 void fn_800C1004(void)
 {
+    s32 off;
+    s32 so;
+    s32 k;
     PbWGGlobals* g = gWinGlobals;
     s32 t;
     s32 i;
@@ -353,7 +352,6 @@ void fn_800C1004(void)
         u32 m;
         u32 mm[2];
         u64 mk;
-        s32 off;
 
         m = ~(((b & 0xFF) << 24) | ((b & 0xFF) << 16) |
               ((b & 0xFF) << 8) | (b & 0xFF));
@@ -369,8 +367,7 @@ void fn_800C1004(void)
                 u32 nslots = bank->nslots;
                 if (nslots != 0) {
                     u8* stamps = bank->stamps;
-                    s32 so = 0;
-                    s32 k;
+                    so = 0;
                     for (k = (nslots + 7) >> 3; k > 0; k--) {
                         *(u64*)(stamps + so) &= mk;
                         so += 8;
