@@ -192,6 +192,32 @@ takes that payload plus the newly allocated enemy index, tries offsets of
 The associated constants are now mapped as `sTwoPi` (`0x80347028`),
 `sNegativePi` (`0x80347030`), `sHalfPi` (`0x80347108`), and
 `sLogic12Distance` (`0x80347110`).
+
+## Locator runtime map
+
+`AddLocatorInstList` is now translated from its 0x1C `locator` input records.
+It is a zero-argument loader over `gWorldInfo.locators/nlocators`, not the old
+placeholder list/count API. Its portable body is 421 instructions versus the
+419-instruction target and implements every locator kind.
+
+The translation resolves the full `sItemRuntime` middle region:
+
+| Runtime offset | Type/count | Purpose |
+|---|---:|---|
+| `0x0BB8` | `char[32]` | item load path scratch |
+| `0x0BD8` | `f32[14]` | player-start yaw |
+| `0x0C10` | `f32[14][3]` | player-start positions |
+| `0x0CB8` | `LookoutParam[20]` | lookout matrices and links |
+| `0x1528` | `TriggerCamera*[3][14]` | Sumner camera variants |
+| `0x15D0` | `TriggerCamera*[17]` | rune/player transmitters |
+| `0x1614` | `TriggerCamera[256]` | trigger-camera records |
+| `0x3E14` | `MilestoneParam[128]` | milestone arrow matrices |
+| `0x7220` | `void*[150]` | existing item-WOBJ targets |
+
+The newly identified state symbols are `gNumTransmitters` (`0x80344544`),
+`sLastTransmitter` (`0x80344904`), `sSpecialTransmitter` (`0x80344910`), and
+the float initialization sentinel `sInvalidPlayerStartYFloat`
+(`0x80347158`).
 | `lbl_80344EB8` | `gSceneRoot` | default MB scene root |
 | `lbl_80347180` | `sOne` | `1.0f` |
 | `lbl_80347184` | `sNegativeHalf` | `-0.5f` |

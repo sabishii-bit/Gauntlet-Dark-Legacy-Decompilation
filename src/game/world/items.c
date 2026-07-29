@@ -50,14 +50,28 @@ extern void* MBNewNode(void* parent, f32* matrix, s32 flags);
 extern void  MBTreeSetFlags(void* node, s32 flags, s32 value);
 
 typedef struct TriggerCamera {
-    /* 0x00 */ u8  _pad00[4];
+    /* 0x00 */ u8  type;
+    /* 0x01 */ u8  subtype;
+    /* 0x02 */ s16 active;
     /* 0x04 */ f32 eye[4];
     /* 0x14 */ f32 target[3];
-} TriggerCamera;
+    /* 0x20 */ u8  _pad20[4];
+    /* 0x24 */ s32 handle;
+} TriggerCamera; /* 0x28 */
 
 typedef struct RuneCameraVariants {
     s32 value[3];
 } RuneCameraVariants;
+
+typedef struct MilestoneParam {
+    f32 matrix[16];
+    f32 pos[3];
+    u8  _pad4C[4];
+    f32 saved_pos[3];
+    u8  _pad5C[4];
+    s32 handle;
+    s32 active;
+} MilestoneParam; /* 0x68 */
 
 typedef struct ItemRuntime {
     /* 0x0000 */ f32 wobjX[150];
@@ -65,8 +79,15 @@ typedef struct ItemRuntime {
     /* 0x04B0 */ f32 wobjX2[150];
     /* 0x0708 */ f32 wobjZ[150];
     /* 0x0960 */ f32 wobjValue[150];
-    char itemPath[0x100];
-    u8   _pad0CB8[0x6568];
+    char itemPath[0x20];
+    f32 playerStartYaw[14];
+    f32 playerStartPositions[14][3];
+    LookoutParam lookoutParams[20];
+    TriggerCamera* sumnerCameras[3][14];
+    TriggerCamera* runeCameras[17];
+    TriggerCamera triggerCameras[256];
+    MilestoneParam milestones[128];
+    u8 _pad7214[0xC];
     /* 0x7220 */ void* wobjTarget[150];
 } ItemRuntime;
 
@@ -145,6 +166,7 @@ extern s32   generate_enemy(f32* pos, s32 type, s32 level, f32* dir,
                             f32 angle);
 extern s32   fn_8004F404(s32 enemy_index, f32* position);
 extern void  WorldVector(const f32* vector, f32* out, const f32* matrix);
+extern void  AddBoss(f32* matrix);
 extern void* memset(void* dst, s32 val, u32 n);
 extern u32*  FindWORLDOBJ(const char* name);
 extern double DistanceToClosestPlayer(f32* pos);
@@ -249,6 +271,10 @@ extern s32   sNumMilestones;   /* milestone count */
 extern s32   sNumTriggerCameras;   /* camera count */
 extern u8    sMilestones[]; /* milestone table (stride 0x68: pos@0, handle@0x60) */
 extern u8    sTriggerCameras[]; /* camera table (stride 0x28: type@0, a@4, b@0x14, handle@0x24) */
+extern s32   gNumTransmitters;
+extern s32   sLastTransmitter;
+extern TriggerCamera* sSpecialTransmitter;
+extern f32   sInvalidPlayerStartYFloat;
 extern void* gWadAtreeHeaders[45]; /* wad atree headers */
 extern f32   sItemZero;   /* waypoint dist epsilon */
 extern f32     gDefaultPlayerPosition[3];
@@ -1737,6 +1763,223 @@ void update_player_milestone(struct Player* player_ptr)
         }
     }
 }
+
+#define ADD_TRANSMITTER(camera, loc)                                      \
+    do {                                                                  \
+        if (++sNumTriggerCameras > 256) {                                 \
+            FatalError(strings + 1220, 0x800000);                         \
+        }                                                                 \
+        (camera) =                                                        \
+            &(runtime)->triggerCameras[sNumTriggerCameras - 1];           \
+        (camera)->eye[0] = (loc)->pos[0];                                 \
+        (camera)->eye[1] = (loc)->pos[1];                                 \
+        (camera)->eye[2] = (loc)->pos[2];                                 \
+        (camera)->target[0] = (loc)->pyr[0];                              \
+        (camera)->target[1] = (loc)->pyr[1];                              \
+        (camera)->target[2] = (loc)->pyr[2];                              \
+    } while (0)
+
+/*
+ * Expand the compact locator records loaded with WORLDINFO into the runtime
+ * camera, milestone, boss, player-start, and lookout tables.
+ */
+void AddLocatorInstList(void)
+{
+    locator* locators = gWorldInfo.locators;
+    s32 locator_count = gWorldInfo.nlocators;
+    ItemRuntime* runtime = &sItemRuntime;
+    char* strings = (char*)&sObjectsFile;
+    f32 boss_matrix[16];
+    u8 unused[12];
+    f64 pi;
+    f32 invalid_start;
+    s32 i;
+    s32 selected;
+    s32 yaw_offset;
+    s32 position_offset;
+
+    sNumMilestones = 0;
+    sNumTriggerCameras = 0;
+    CurTransmitter = 0;
+    sSpecialTransmitter = NULL;
+    sLastTransmitter = 0;
+    gNumTransmitters = 0;
+    sNumLookoutParams = 0;
+
+    for (i = 0; i < 20; i++) {
+        runtime->lookoutParams[i].next = -1;
+        runtime->lookoutParams[i].id = -1;
+    }
+    invalid_start = sInvalidPlayerStartYFloat;
+    sLastPlayerStart = 0;
+    yaw_offset = 0;
+    position_offset = 0;
+    for (i = 0; i < 14; i++) {
+        *(f32*)((u8*)runtime + position_offset + 3092) = invalid_start;
+        *(TriggerCamera**)((u8*)runtime + yaw_offset + 5596) = NULL;
+        position_offset += 12;
+        yaw_offset += 4;
+    }
+    runtime->runeCameras[0] = NULL;
+    runtime->runeCameras[1] = NULL;
+    runtime->runeCameras[2] = NULL;
+    sWindowCameras[0] = NULL;
+    sWindowCameras[1] = NULL;
+    sShownCameras = 0;
+    pi = sPi;
+    sShownMilestones = 0;
+
+    for (i = 0; i < locator_count; i++) {
+        locator* loc = &locators[i];
+        TriggerCamera* camera;
+        MilestoneParam* milestone;
+        LookoutParam* lookout;
+        s32 linked = 0;
+
+        switch (loc->type) {
+        case 1:
+            linked = 1;
+            /* fallthrough */
+        case 2:
+            ADD_TRANSMITTER(camera, loc);
+            camera->target[1] =
+                (f32)((f64)camera->target[1] + pi);
+            camera->target[1] = FixAngle(camera->target[1]);
+            camera->active = 1;
+            camera->type = 0;
+            camera->subtype = loc->subtype;
+            gNumTransmitters++;
+            if (linked) {
+                if (sMusicTrackHi != 13) {
+                    loc->index = 0;
+                }
+                if (loc->index > sLastTransmitter) {
+                    sLastTransmitter = loc->index;
+                }
+                runtime->runeCameras[loc->index + 3] = camera;
+                camera->type = 3;
+            }
+            camera->handle =
+                add_arrow(1, 0, 0, loc->pyr, loc->pos, NULL);
+            break;
+        case 3:
+            linked = 1;
+            /* fallthrough */
+        case 4:
+            ADD_TRANSMITTER(camera, loc);
+            camera->target[0] = -camera->target[0];
+            camera->active = 1;
+            camera->type = 1;
+            camera->subtype = loc->subtype;
+            if (linked) {
+                sSpecialTransmitter = camera;
+            }
+            camera->handle =
+                add_arrow(1, 0, 1, loc->pyr, loc->pos, NULL);
+            break;
+        case 9:
+            ADD_TRANSMITTER(camera, loc);
+            camera->target[1] =
+                (f32)((f64)camera->target[1] + pi);
+            camera->target[1] = FixAngle(camera->target[1]);
+            camera->active = 1;
+            camera->type = 2;
+            camera->subtype = loc->subtype;
+            LinkTriggerToCam((s32)(camera - runtime->triggerCameras),
+                             loc->index);
+            camera->handle =
+                add_arrow(2, 0, 0, loc->pyr, loc->pos, NULL);
+            break;
+        case 5:
+            if (++sNumMilestones > 128) {
+                FatalError(strings + 1240, 0x800000);
+            }
+            milestone = &runtime->milestones[sNumMilestones - 1];
+            milestone->handle =
+                add_arrow(0, 0, 1, loc->pyr, loc->pos, milestone->matrix);
+            milestone->pos[0] = milestone->matrix[12];
+            milestone->pos[1] = milestone->matrix[13];
+            milestone->pos[2] = milestone->matrix[14];
+            milestone->saved_pos[0] = milestone->matrix[12];
+            milestone->saved_pos[1] = milestone->matrix[13];
+            milestone->saved_pos[2] = milestone->matrix[14];
+            milestone->active = 1;
+            break;
+        case 6:
+            if ((s32)gGameMode != 0x400B) {
+                CreateYPRMatrix(boss_matrix, loc->pyr);
+                boss_matrix[12] = loc->pos[0];
+                boss_matrix[13] = loc->pos[1];
+                boss_matrix[14] = loc->pos[2];
+                AddBoss(boss_matrix);
+            }
+            break;
+        case 7:
+            if (sMusicTrackHi != 13) {
+                loc->index = 0;
+            }
+            if (loc->index > sLastPlayerStart) {
+                sLastPlayerStart = loc->index;
+            }
+            runtime->playerStartPositions[loc->index][0] = loc->pos[0];
+            runtime->playerStartPositions[loc->index][1] = loc->pos[1];
+            runtime->playerStartPositions[loc->index][2] = loc->pos[2];
+            runtime->playerStartYaw[loc->index] = loc->pyr[1];
+            gPlayerStartYaw = loc->pyr[1];
+            break;
+        case 8:
+        case 10:
+            if (sNumLookoutParams >= 20) {
+                ErrorPrintf(strings + 1260, 20);
+                break;
+            }
+            sNumLookoutParams++;
+            lookout = &runtime->lookoutParams[sNumLookoutParams - 1];
+            lookout->handle =
+                add_arrow(2, 0, 1, loc->pyr, loc->pos,
+                          (f32*)lookout->data);
+            lookout->saved_pos[0] = lookout->pos[0];
+            lookout->saved_pos[1] = lookout->pos[1];
+            lookout->saved_pos[2] = lookout->pos[2];
+            lookout->saved_pos2[0] = lookout->pos[0];
+            lookout->saved_pos2[1] = lookout->pos[1];
+            lookout->saved_pos2[2] = lookout->pos[2];
+            lookout->active = 1;
+            lookout->next = loc->index;
+            lookout->id = loc->subtype;
+            break;
+        default:
+            ErrorPrintf(strings + 1276, loc->type);
+            break;
+        }
+    }
+
+    ShowCameras(gGameOptions[5]);
+    selected = 0;
+    if (selected > sLastPlayerStart) {
+        selected = 0;
+    }
+    if ((f64)((f32*)((u8*)runtime + 3092))[selected * 3] <=
+        sInvalidPlayerStartY) {
+        selected = 0;
+    }
+    if (WorldOpen(crystal_order[selected]) == 0) {
+        selected = 0;
+    }
+    gDefaultPlayerPosition[0] =
+        runtime->playerStartPositions[selected][0];
+    gDefaultPlayerPosition[1] =
+        ((f32*)((u8*)runtime + 3092))[selected * 3];
+    gDefaultPlayerPosition[2] =
+        runtime->playerStartPositions[selected][2];
+    gPlayerStartYaw = runtime->playerStartYaw[selected];
+    if (runtime->runeCameras[selected + 3] == NULL) {
+        selected = 0;
+    }
+    CurTransmitter = (s32)runtime->runeCameras[selected + 3];
+}
+
+#undef ADD_TRANSMITTER
 
 LookoutParam* FindLookoutParam(s32 id)
 {

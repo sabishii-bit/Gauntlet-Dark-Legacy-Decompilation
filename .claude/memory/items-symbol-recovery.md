@@ -91,3 +91,27 @@ The complete old-to-new map and evidence are in
   `fadd f2,f2,f1`, whereas one expression selected `f1` and inserted
   `fmr f2,f1`. Together with branch-specific X/Z temporary coloring this
   brought `place_logic12` to an exact 166/166 instructions.
+
+## Locator expansion continuation (2026-07-28)
+
+- `AddLocatorInstList` is zero-argument. It reads `gWorldInfo.locators`
+  (`+0x70`) and `gWorldInfo.nlocators` (`+0x7C`) directly; the old
+  list/count prototype was an ABI placeholder.
+- The 0x1C serialized `locator` record is type/subtype/index followed by
+  `pos[3]` and `pyr[3]`. The type switch maps 1/2/3/4/9 to trigger-camera
+  variants, 5 to milestones, 6 to boss matrices, 7 to player starts, and
+  8/10 to lookout waypoints.
+- The formerly opaque middle of `sItemRuntime` is one contiguous typed arena:
+  a 32-byte load path, 14 start yaws, 14 start positions, 20 lookouts,
+  42 Sumner-camera pointers, 17 rune/transmitter pointers, 256
+  `TriggerCamera` records, and 128 milestone records. The final twelve-byte
+  pad places the existing WOBJ target table back at `+0x7220`.
+- Three source bodies that look duplicated are the Xbox PDB's
+  `AddTransmitter` logic inlined by the GC optimizer. A C preprocessor macro
+  is the portable way to reproduce the repeated body; a `static` helper was
+  not inlined by MWCC and left an unwanted base function.
+- Express bounded counter updates as `if (++count > limit)`: MWCC emits the
+  target compare-before-store schedule and avoids a store/reload pair. Keep
+  cases 9, 5, 6, and 7 in target code order after the merged 1/2 and 3/4
+  fallthrough blocks, because switch body order materially affects diff
+  alignment even when the jump table is equivalent.
