@@ -570,13 +570,13 @@ void DoLighting(s32 flag)
         }
         AmbientSpecialCurValue = AmbientSpecialCurValue + (f32)step;
     }
-    if (sLevelAmbient * sLevelAmbientScale + AmbientSpecialCurValue < sAmbientMinimum) {
-        lit = sAmbientMinimum;
-    } else if (sLevelAmbient * sLevelAmbientScale + AmbientSpecialCurValue > sAmbientMaximum) {
-        lit = sAmbientMaximum;
-    } else {
-        lit = sLevelAmbient * sLevelAmbientScale + AmbientSpecialCurValue;
-    }
+    lit = sLevelAmbient * sLevelAmbientScale + AmbientSpecialCurValue <
+                  sAmbientMinimum ?
+          sAmbientMinimum :
+          (sLevelAmbient * sLevelAmbientScale + AmbientSpecialCurValue >
+                   sAmbientMaximum ?
+           sAmbientMaximum :
+           sLevelAmbient * sLevelAmbientScale + AmbientSpecialCurValue);
     MBSetAmbient((f32)lit, NULL);
     pbSetWindowUV1(sOne, AmbientSpecialCurValue);
     pbSetWindowUV0(sOne, AmbientSpecialCurValue);
@@ -896,6 +896,7 @@ void SafeRockSetup(void)
 s32 CollectSafeRocks(s32* out, s32 max, s32 flag)
 {
     s32 off;
+    Item* it;
     s32 i;
     s32 count;
 
@@ -904,7 +905,7 @@ s32 CollectSafeRocks(s32* out, s32 max, s32 flag)
     off = 0;
 
     while (i < sNumItems) {
-        Item* it = (Item*)((u8*)sItems + off);
+        it = (Item*)((u8*)sItems + off);
         if (it->info->type == 10 && *(s16*)((u8*)it + 0xDC) == 0x29) {
             out[count] = i;
             if (flag != 0) {
@@ -1215,17 +1216,9 @@ s32 ItemVisible(Item* it)
         useEq = 1;
     }
     if (useEq) {
-        if (val == minp) {
-            visible = 1;
-        } else {
-            visible = 0;
-        }
+        visible = val == minp ? 1 : 0;
     } else {
-        if (val >= minp) {
-            visible = 1;
-        } else {
-            visible = 0;
-        }
+        visible = val >= minp ? 1 : 0;
     }
     return visible;
 }
@@ -1434,12 +1427,16 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
                      found++, info_base++) {
                     iteminfodata* body = &info_base->item;
 
-                    if (strcmp(sKeyringName, body->desc) == 0 &&
-                        info_base->type == type &&
-                        (subtype <= 0 ||
-                         body->subtype == subtype)) {
-                        goto keyring_found;
+                    if (strcmp(sKeyringName, body->desc) != 0) {
+                        continue;
                     }
+                    if (info_base->type != type) {
+                        continue;
+                    }
+                    if (subtype > 0 && body->subtype != subtype) {
+                        continue;
+                    }
+                    goto keyring_found;
                 }
                 found = -1;
 keyring_found:
@@ -1467,8 +1464,7 @@ keyring_found:
     item->coll_offset[0] = info->item.coloffset[0];
     item->coll_offset[1] = info->item.coloffset[1];
     item->coll_offset[2] = info->item.coloffset[2];
-    item->coll_offset[1] =
-        (f32)((f64)item->coll_offset[1] + 1.0);
+    item->coll_offset[1] += 1.0;
     {
         f32 radius = info->item.radius;
 
@@ -1506,10 +1502,10 @@ keyring_found:
     item->minoff = !ItemVisible(item);
 
     atree_header = info->item.atreeheader;
-    if (instance == NULL || instance->desc[0] == '\0') {
-        strcpy(name, info->item.desc);
-    } else {
+    if (instance != NULL && instance->desc[0] != '\0') {
         strncpy(name, instance->desc, sizeof(instance->desc));
+    } else {
+        strcpy(name, info->item.desc);
     }
     item->armor = (s8)info->item.armor;
     item->health = info->item.hitpoints;
@@ -1531,20 +1527,20 @@ keyring_found:
     case 4:
     {
         void* loaded = NULL;
-        attach_geometry = 0;
-        DATA_U8(2) = (u8)PARAM_S16(0, 1);
+        DATA_S8(2) = (s8)PARAM_S16(0, 1);
         DATA_S8(3) = (s8)PARAM_S16(2, -1);
         DATA_S16(0) = (s16)fn_80051FDC(info->item.desc);
         DATA_F32(4) = atan2(matrix[8], matrix[10]);
         DATA_S32(8) = 0;
         DATA_F32(12) =
-            instance != NULL ? *(f32*)&params[4] : 0.0f;
+            instance != NULL ? *(f32*)&params[4] : sZeroDouble;
         DATA_S16(16) = PARAM_S16(8, 0);
         if (gGameOptions[10] != 0 || DATA_S8(3) < 0) {
             DATA_S8(3) = (s8)lbl_8011BD40[DATA_S16(0)];
         }
+        attach_geometry = 0;
         DATA_S16(0) =
-            (s16)fn_80050FB0(DATA_S16(0), DATA_U8(2));
+            (s16)fn_80050FB0(DATA_S16(0), DATA_S8(2));
 
         if (DATA_S16(0) == 32) {
             if (CritterTypeLoaded(7, 0) != NULL) {
@@ -1615,7 +1611,7 @@ keyring_found:
     case 5:
     {
         u8* wobj = NULL;
-        u16 trigger_flags;
+        s32 trigger_flags;
         s32 wobj_index;
 
         if (instance != NULL) {
@@ -1633,20 +1629,21 @@ keyring_found:
             case 30:
             case 31:
             default:
-                trigger_flags = PARAM_S16(2, 0) | 8;
+                trigger_flags = *(s16*)&params[2] | 8;
                 break;
             }
+            subtype |= (trigger_flags & 0xFF) << 8;
             wobj_index = *(s16*)&params[0];
             if (wobj_index >= 0) {
-                if (wobj_index < gWorldInfo.nwobjs) {
+                if (wobj_index >= gWorldInfo.nwobjs) {
+                    ErrorPrintf(strings + 0x3E0,
+                                gWorldInfo.nwobjs, wobj_index);
+                } else {
                     wobj = (u8*)gWorldInfo.wobjs + wobj_index * 0x3C;
                     if (*(void**)(wobj + 0x28) == NULL) {
                         ErrorPrintf(strings + 0x3FC, wobj);
                         wobj = NULL;
                     }
-                } else {
-                    ErrorPrintf(strings + 0x3E0,
-                                gWorldInfo.nwobjs, wobj_index);
                 }
             }
             DATA_S32(0) = (s32)wobj;
@@ -1655,19 +1652,19 @@ keyring_found:
                     *(u32*)(wobj + 0x10) |= 0x10000000;
                 }
                 RegisterItemWobj(
-                    wobj, (s16)(subtype | ((trigger_flags & 0xFF) << 8)),
+                    wobj, (s16)subtype,
                     *(s16*)&params[8], *(s16*)&params[10],
                     *(s8*)&params[5]);
                 wobj[0x17] = 0;
                 wobj[0x16] = 0;
                 *(u32*)(wobj + 0x10) |= 0x100000;
             }
-            DATA_U16(4) =
-                trigger_flags | (PARAM_S16(2, 0) & 0xFF00);
+            trigger_flags |= *(s16*)&params[2] & ~0xFF;
+            DATA_S16(4) = (s16)trigger_flags;
             if (params[4] == 0xFF) {
                 DATA_F32(8) = 0.01f;
             } else {
-                DATA_F32(8) = 0.5f * params[4];
+                DATA_F32(8) = (f32)(0.5 * (f64)params[4]);
             }
             DATA_U8(6) = params[6];
             DATA_U8(7) = params[7];
@@ -1758,15 +1755,19 @@ keyring_found:
                  found++, candidate++) {
                 iteminfodata* body = &candidate->item;
 
-                if (strcmp("LOW", body->desc) == 0 &&
-                    candidate->type == type &&
-                    (subtype <= 0 || subtype == body->subtype)) {
-                    break;
+                if (strcmp("LOW", body->desc) != 0) {
+                    continue;
                 }
+                if (candidate->type != type) {
+                    continue;
+                }
+                if (subtype > 0 && body->subtype != subtype) {
+                    continue;
+                }
+                goto low_item_found;
             }
-            if (found == gWorldInfo.niteminfos) {
-                found = -1;
-            }
+            found = -1;
+low_item_found:
             if (found >= 0) {
                 item->info = &(*infos)[found];
             }
@@ -1795,10 +1796,12 @@ keyring_found:
             count_index = 2;
         }
         if (DATA_S8(3) == 0) {
-            DATA_S8(3) = (s8)((s32*)arrows)[12 + count_index];
+            DATA_S8(3) =
+                (s8)*(s32*)((u8*)arrows + count_index * 4 + 0x30);
         }
         if (DATA_U8(11) == 0) {
-            DATA_U8(11) = (u8)((s32*)arrows)[15 + count_index];
+            DATA_U8(11) =
+                (u8)*(s32*)((u8*)arrows + count_index * 4 + 0x3C);
         }
         DATA_S8(3) = (s8)(DATA_S8(3) *
                            *(f32*)(gCurLevel + 0xD4));
@@ -2218,11 +2221,8 @@ void LoadPowerups(char* name) {
 
 void LoadItems(void)
 {
-    ItemStrings* strings;
-    ItemRuntime* runtime;
-
-    strings = &sObjectsFile;
-    runtime = &sItemRuntime;
+    ItemStrings* strings = &sObjectsFile;
+    ItemRuntime* runtime = &sItemRuntime;
 
     if (sItemFile0Handle < 0 && gBossType < 0) {
         sprintf(runtime->itemPath, strings->file0Format, WorldItemDesc());
@@ -2305,11 +2305,8 @@ void SetupWeaponPowerupTexMods(void) {
 s32 RandItemIdx(s32 n, s32 mod, s32 advance) {
     s32 result;
 
-    if (mod != 0) {
-        result = (((u32)sItemRandSeed >> 5) + (u32)n) % (u32)mod;
-    } else {
-        result = 0;
-    }
+    result = mod != 0 ?
+        (((u32)sItemRandSeed >> 5) + (u32)n) % (u32)mod : 0;
     if (advance != 0) {
         sItemRandSeed += 439;
     }
@@ -2721,8 +2718,8 @@ LookoutParam* FindLookoutParam(s32 id)
 s32 ShowMilestones(s32 idx)
 {
     s32 old = sShownMilestones;
-    s32 off;
     u8* base;
+    s32 off;
     s32 i;
 
     if (idx < 0) {
