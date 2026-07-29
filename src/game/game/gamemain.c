@@ -113,7 +113,9 @@ extern u8*  gWorldData;            /* 0x80344838 */
 /* 44-byte per-realm world-data descriptor table (0x8011... via ADDR16). */
 typedef struct WorldDataType {
     s32 type;        /* 0x00 realm type id            */
-    s32 _a[4];       /* 0x04 (byte 15 = display letter)*/
+    u8  _04[11];
+    u8  letter;      /* 0x0F display letter           */
+    u8  _10[4];
     s32 f20;         /* 0x14 associated world value    */
     s32 _b[5];       /* 0x18                          */
 } WorldDataType;                   /* size 0x2C (44) */
@@ -669,7 +671,7 @@ s32 LevelLetter(s32 arg0)
     if (idx < 0) {
         c = 'A';
     } else {
-        c = ((u8*)&sWorldDataTypes[idx])[15];
+        c = sWorldDataTypes[idx].letter;
     }
     if ((s8)c == 'T' && arg0 == 0) {
         c = 'G';
@@ -1058,7 +1060,7 @@ s32 fn_80057B30(const char* s)
     s32 i;
 
     for (i = 0; i < 14; i++) {
-        if (letter == ((s8*)&sWorldDataTypes[i])[15]) {
+        if (letter == (s8)sWorldDataTypes[i].letter) {
             realm = sWorldDataTypes[i].type;
             break;
         }
