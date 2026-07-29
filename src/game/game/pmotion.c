@@ -339,7 +339,13 @@ void DoExit(Player* p) {
         exiting = 0;
     }
 
-    if (!exiting && sumnerSpeechActive() == 0 && lbl_803443B4 == 0) {
+    if (!exiting && sumnerSpeechActive() == 0) {
+        switch (lbl_803443B4) {
+        case 0:
+            break;
+        default:
+            return;
+        }
         if (lbl_80344808 != 0) {
             p->idle_timer += gFrameTicks;
         } else if (fn_8005B8FC(p) != 0) {
