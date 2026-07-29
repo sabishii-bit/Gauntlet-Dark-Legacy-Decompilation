@@ -205,7 +205,7 @@ extern void  reset_sel_menu(void);
 extern void  reset_attract_mode(void);
 extern void  bulletproof_printf(const char* fmt, ...);
 extern void  AudioInit(void);
-extern void  fn_80067B0C(s32 arg0);
+extern void  serve_busy(s32 arg0);
 extern s32   AudioSysUpdate(s32 arg0);
 extern void  ResolveWorldData(s32 worldlevel);
 
@@ -712,7 +712,7 @@ void game_init_data(void)
     AudioInit();
     bulletproof_printf(msgs + 116);  /* "Loading Audio..."      */
     while (AudioSysUpdate(1) != 0) {
-        fn_80067B0C(-1);
+        serve_busy(-1);
     }
     bulletproof_printf(msgs + 136);  /* "Loading Game."         */
     ControlsUpdate();
@@ -969,7 +969,7 @@ s32 fn_80056698(s32 arg0, s32 arg1)
     if (arg1 < 0) {
         init_next_level(arg0);
         while (fn_80055F68(0, 0) == 0) {
-            fn_80067B0C(-1);
+            serve_busy(-1);
         }
     }
     p = (s32*)lbl_80344DA4;

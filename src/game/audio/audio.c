@@ -63,7 +63,7 @@ extern void  ErrorPrintf(const char* fmt, ...);
 extern void  bulletproof_printf(const char* fmt, ...);
 extern int   sprintf(char* buf, const char* fmt, ...);
 extern int   strncmp(const char* a, const char* b, u32 n);
-extern void  fn_80067B0C(s32 a);       /* per-frame service pump */
+extern void  serve_busy(s32 a);       /* per-frame service pump */
 extern f32   NormalVector(void* vec);  /* normalize vector, return approximate length */
 extern void  sndFxInitVoices(void);    /* sndfx.c (0x80015C48): reset voices */
 extern void  FatalErrorf(const char* fmt, ...); /* fatal/debug printer */
@@ -940,7 +940,7 @@ void AudioStreamStop(void)
     }
     while (sndSysFrameCallback() != 0) {
         s32 j;
-        fn_80067B0C(-1);
+        serve_busy(-1);
         if ((u32)((pbLoad - start) << 1) > 900) {
             ErrorPrintf(lbl_80111418);
             sndSysSetBit0(0);
