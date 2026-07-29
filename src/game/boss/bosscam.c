@@ -90,7 +90,7 @@ typedef struct BossGameCameraView {
 /* bosscam-owned .sbss scratch (referenced externally, see split notes) */
 extern s32 lbl_803443A8;
 extern s32 lbl_803443AC;
-extern s32 lbl_803443B4;              /* trigger-cam active mode (==2 armed) */
+extern s32 gTriggerCameraState;
 extern s32 lbl_803443B8;
 extern s32 lbl_803443BC;              /* trigger-cam frame timer */
 extern s32 lbl_803443C0;
@@ -169,12 +169,12 @@ void TriggerCameraActivate(s32 p1, f32* p2, f32* p3, s32 duration, s32 p5, s32 p
 
     if (duration >= 0) {
         lbl_803443BC = (duration != 0) ? duration * 6 : 40;
-        lbl_803443B4 = 2;
+        gTriggerCameraState = 2;
     } else {
         lbl_803443BC = 1000000;
-        lbl_803443B4 = 2;
+        gTriggerCameraState = 2;
     }
-    if (lbl_803443B4 == 2) {
+    if (gTriggerCameraState == 2) {
         DisablePlayerControls();
     }
     lbl_803443B8 = p5;

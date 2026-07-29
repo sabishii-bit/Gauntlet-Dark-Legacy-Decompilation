@@ -31,34 +31,34 @@ typedef struct World {
 } World;
 
 /* --- shared externs (owned by other TUs) --- */
-extern World gWorlds[];                 /* gPlayers, stride 0x335C */
-extern void* gMsgBoxes[4];              /* lbl_8028C378 */
+extern World gPlayers[];                /* stride 0x335C */
+extern void* gMsgBoxes[4];
 extern short gJumpTab120240[];          /* lbl_80120240 */
 
 /* small-data (sda/sbss) globals */
-extern int gCurWorld;                   /* lbl_80344CBC */
-extern int g3E8;                        /* lbl_803443E8 */
+extern int gCurWorld;
+extern int lbl_803443E8;
 extern int g77C;                        /* gGameMode */
-extern int g568;                        /* gGameBusy */
-extern int g57C;                        /* gFrameTicks */
-extern int g770;                        /* lbl_80344770 */
-extern int gMsgIndex;                   /* lbl_80344C98 */
-extern int g3B4;                        /* lbl_803443B4 */
+extern int gGameBusy;
+extern int gFrameTicks;
+extern int gGameplayPauseTimer;
+extern int gMsgIndex;
+extern int gTriggerCameraState;
 extern int g7C0;                        /* lbl_803447C0 */
-extern int gA30;                        /* lbl_80344A30 */
-extern int gA98;                        /* options_state */
-extern int gC9C;                        /* lbl_80344C9C */
-extern int gCA0;                        /* lbl_80344CA0 */
-extern int gCA4;                        /* lbl_80344CA4 */
+extern int gModalRenderDepth;
+extern int options_state;
+extern int gMessageState;
+extern int gMessageDelayIndex;
+extern int gMessageDelay;
 extern int gCA8;                        /* lbl_80344CA8 */
 extern int gCAC;                        /* lbl_80344CAC */
 extern int gCB0;                        /* lbl_80344CB0 */
 extern int gCB4;                        /* lbl_80344CB4 */
 extern int gCB8;                        /* lbl_80344CB8 */
 extern int gCC0;                        /* lbl_80344CC0 */
-extern int gCC4;                        /* lbl_80344CC4 */
-extern int gCC8;                        /* lbl_80344CC8 */
-extern int gCCC;                        /* lbl_80344CCC */
+extern int gMessageActive;
+extern int gMsgDescCount;
+extern int gMessageTimer;
 extern int g298;                        /* lbl_80344298 */
 
 /* --- text library --- */
@@ -353,41 +353,41 @@ static MsgDesc gMsgDescTable[256] = {
 void msgUpdate(void)
 {
     void** boxes = gMsgBoxes;
-    int b568 = g568;
+    int b568 = gGameBusy;
     int i;
     int t;
     int cnt;
     void* box;
 
     if (b568 == 0) {
-        t = gCA4 - g57C;
-        gCA4 = t;
+        t = gMessageDelay - gFrameTicks;
+        gMessageDelay = t;
         if (t < 0) {
-            gCA4 = 0;
+            gMessageDelay = 0;
         }
     }
     cnt = 0;
     for (i = 0; i < 4; i++) {
-        int st = gWorlds[i].state;
-        if (st != 1 && (u32)(st - 2) > 1 && st != 5) {
-            cnt++;
+        int st = gPlayers[i].state;
+        if (st == 1 || (u32)(st - 2) <= 1 || st == 5) {
+            break;
         }
+        cnt++;
     }
     if (cnt == 4) {
-        gCCC = 0;
+        gMessageTimer = 0;
     }
-    if (gCC4 == 0) {
+    if (gMessageActive == 0) {
         return;
     }
-    if (gA98 != 0 || gA30 > 0 || g3B4 != 0) {
-        box = boxes[gMsgIndex];
-        if (box != 0) {
+    if (options_state != 0 || gModalRenderDepth > 0 || gTriggerCameraState != 0) {
+        if ((box = boxes[gMsgIndex]) != 0) {
             mbBlitInit3414(box, 1);
         }
         return;
     }
     if (b568 != 0) {
-        if (gCCC > 0) {
+        if (gMessageTimer > 0) {
             msgDraw();
             box = boxes[gMsgIndex];
             if (box != 0) {
@@ -396,13 +396,13 @@ void msgUpdate(void)
         }
         return;
     }
-    t = g770 - g57C;
-    g770 = t;
+    t = gGameplayPauseTimer - gFrameTicks;
+    gGameplayPauseTimer = t;
     if (t < 0) {
-        g770 = 0;
+        gGameplayPauseTimer = 0;
     }
-    t = gCCC - g57C;
-    gCCC = t;
+    t = gMessageTimer - gFrameTicks;
+    gMessageTimer = t;
     if (t > 0) {
         msgDraw();
         box = boxes[gMsgIndex];
@@ -417,9 +417,9 @@ void msgUpdate(void)
             boxes[i] = 0;
         }
     }
-    gCC4 = 0;
-    g770 = 0;
-    gC9C = 0;
+    gMessageActive = 0;
+    gGameplayPauseTimer = 0;
+    gMessageState = 0;
 }
 
 /* msgPost - TODO: priority-insert / validation body (~387 insns).
@@ -442,16 +442,16 @@ void msgInit(void)
 {
     int i;
 
-    gC9C = 0;
+    gMessageState = 0;
     for (i = 0; i < 4; i++) {
         gMsgBoxes[i] = 0;
     }
-    g770 = 0;
-    gCC4 = 0;
-    gCA4 = 0;
-    gCA0 = 0;
+    gGameplayPauseTimer = 0;
+    gMessageActive = 0;
+    gMessageDelay = 0;
+    gMessageDelayIndex = 0;
     gMsgIndex = 0;
-    gCC8 = 256;
+    gMsgDescCount = 256;
 }
 
 /* msgWidth */
@@ -463,19 +463,19 @@ int msgWidth(int p0, int idx)
 
     w = StringTextWidth(gMsgDescTable[idx].type, gMsgDescTable[idx].param, 1.0f);
     if (idx == 50 || idx == 89 || idx == 93) {
-        a = StringTextWidth(3, gWorlds[gCurWorld].fC, 1.0f);
+        a = StringTextWidth(3, gPlayers[gCurWorld].fC, 1.0f);
         b = StringTextWidth(2, gCurWorld, 1.0f);
         c = a + 12;
         c = c + b;
-        if (g3E8 == 1) {
+        if (lbl_803443E8 == 1) {
             c += 20;
         }
         if (c > w) {
             w = c;
         }
     } else if (idx == 101) {
-        if (g3E8 == 1) {
-            fc = gWorlds[gCurWorld].fC;
+        if (lbl_803443E8 == 1) {
+            fc = gPlayers[gCurWorld].fC;
             a = StringTextWidth(2, gCurWorld, 1.0f);
             b = StringTextWidth(3, fc, 1.0f);
             c = StringTextWidth(24, 1, 1.0f);
@@ -504,7 +504,7 @@ int msgWorldFlags(int who, int worldMask)
         last = worldMask;
     }
     for (i = worldMask; i <= last; i++) {
-        World* w = &gWorlds[i];
+        World* w = &gPlayers[i];
         if (w->state != 0) {
             b = w->items[who];
             if (b != 0) {

@@ -328,9 +328,9 @@ extern s32 lbl_80344804;   /* any player needs pad */
 extern s32 gScriptedCameraState;
 extern s32 lbl_803447B8;   /* paused */
 extern s32 lbl_803447B4;
-extern s32 lbl_80344770;
+extern s32 gGameplayPauseTimer;
 extern s32 lbl_80344A28;
-extern s32 lbl_80344A30;
+extern s32 gModalRenderDepth;
 extern s32 lbl_80344A44;
 extern s32 opt_restart_request;
 extern u32 opt_force_player;   /* demo-message once flags */
@@ -348,10 +348,10 @@ extern s32 lbl_80344C54;
 extern f32 lbl_80344C5C;
 extern s32 lbl_80344C60;
 extern s32 lbl_80344C90;
-extern s32 lbl_80344CC4;
+extern s32 gMessageActive;
 extern s32 lbl_803449A0;
 extern s32 gGameBusy;
-extern s32 lbl_803443B4;
+extern s32 gTriggerCameraState;
 extern s32 gBossType;
 extern s32 lbl_803444E4;
 extern s32 lbl_803444F4;
@@ -1571,11 +1571,11 @@ void do_players(void) {
                 }
             }
         }
-        if (gGameBusy != 0 || lbl_80344770 != 0) {
+        if (gGameBusy != 0 || gGameplayPauseTimer != 0) {
             WritePlayerInfo(-1);
             return;
         }
-        if (lbl_803443B4 == 1) {
+        if (gTriggerCameraState == 1) {
             WritePlayerInfo(-1);
             for (i = 0, p = P(0); i < 4; i++, p++) {
                 p->select_timer = p->select_timer + lbl_80344590;
@@ -1795,9 +1795,9 @@ void do_players(void) {
                     }
                 }
                 fn_8002C53C(p->mat);
-                if ((sMusicTrackHi != 0xD || sumnerSpeechActive() == 0) && lbl_803443B4 == 0 &&
-                    lbl_80344A30 == 0 && lbl_80344CC4 == 0 && p->name_timer > 0 &&
-                    gGameBusy == 0 && lbl_80344770 == 0) {
+                if ((sMusicTrackHi != 0xD || sumnerSpeechActive() == 0) && gTriggerCameraState == 0 &&
+                    gModalRenderDepth == 0 && gMessageActive == 0 && p->name_timer > 0 &&
+                    gGameBusy == 0 && gGameplayPauseTimer == 0) {
                     char name[8 + 1];
                     f32 spos[2];
 
@@ -2484,7 +2484,7 @@ void damage_player(s32 i, f32 dmg_in, u32 flags, f32* dir) {
     f64 red;
     u16 hf;
 
-    if (p->state != 1 || lbl_803443B4 != 0 || (fl & 0x200) != 0) {
+    if (p->state != 1 || gTriggerCameraState != 0 || (fl & 0x200) != 0) {
         return;
     }
     if (player_can_be_damaged(p) == 0) {

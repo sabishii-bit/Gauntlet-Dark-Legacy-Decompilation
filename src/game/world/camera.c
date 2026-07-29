@@ -72,7 +72,7 @@ extern f32 shake_rad;       /* 0x8034448C */
 /* --- shared globals referenced by this window (names kept from codebase) --- */
 extern s32 gFrameTicks;    /* integer frame delta (shared w/ auxscreen.c) */
 extern s32 gGameBusy;    /* shake pause flag A (shared w/ sndfx.c) */
-extern s32 lbl_80344770;    /* shake pause flag B */
+extern s32 gGameplayPauseTimer;
 extern s32 lbl_80343BD8;    /* camera-active gate (checked by do_camera too) */
 
 /* camera_request_change latch (camera-internal state, purpose unconfirmed) */
@@ -161,7 +161,7 @@ void DoShake(Vec3* posA, Vec3* posB) {
     if (!shaking) {
         return;
     }
-    if (gGameBusy | lbl_80344770) {
+    if (gGameBusy | gGameplayPauseTimer) {
         return;
     }
 

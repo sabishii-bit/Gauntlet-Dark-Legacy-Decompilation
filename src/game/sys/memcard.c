@@ -183,7 +183,7 @@ extern void* gWinGlobals;
 extern u8 gTextWorkBuf[0x800];
 extern u8 gTextFormatBuf[0x404];
 extern s32 gGameBusy;
-extern s32 lbl_80344A30;
+extern s32 gModalRenderDepth;
 extern u8 gDiskErrorShown;
 extern u8 lbl_80344A5D;
 extern s32 lbl_80344A54;
@@ -1630,10 +1630,10 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
     sysResetService();
     vibrators_off();
     gGameBusy = 1;
-    lbl_80344A30++;
+    gModalRenderDepth++;
     msgUpdate();
     fn_800B6B80();
-    MBLockMessages(lbl_80344A30 - 1);
+    MBLockMessages(gModalRenderDepth - 1);
 
     if (gWinGlobals != 0 && *(void**) ((u8*) win + 48) != 0) {
         extra = (u8*) *(void**) ((u8*) win + 48) + 4;
@@ -1702,7 +1702,7 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
     if (blit != 0) {
         MBRemoveBlit(blit);
     }
-    MBUnlockMessages(lbl_80344A30 - 1);
+    MBUnlockMessages(gModalRenderDepth - 1);
     gGameBusy = (s32) savedBusy;
-    lbl_80344A30--;
+    gModalRenderDepth--;
 }
