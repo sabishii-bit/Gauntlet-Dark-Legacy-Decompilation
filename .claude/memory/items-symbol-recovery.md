@@ -135,3 +135,10 @@ The complete old-to-new map and evidence are in
   `*(loaded + 0x120)` followed by `*(header + 0x28)`; collapsing the offsets
   into `*(loaded + 0x148)` crosses a pointer indirection and is semantically
   wrong.
+- Recover the original lexical case order from the jump table's destination
+  addresses, not from Ghidra's numerically sorted switch. SetItem's type table
+  maps 1..13 to bodies whose ascending-address order is
+  `4,2,5,12,3,8,9,11,13,10,1,7`. Reordering the C cases to that sequence
+  changed no behavior, but raised SetItem from 21.83% to 72.24% fuzzy and the
+  whole TU from 64.90% to 78.95%. This is a high-leverage first step for every
+  large MWCC switch.
