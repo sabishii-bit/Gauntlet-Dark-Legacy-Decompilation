@@ -129,6 +129,14 @@ Reusable findings:
     at the allocator endgame. In `CritterLookForReady`, assigning
     `zeroFloat = lbl_80346470` forced the retail early `lfs`, which in turn colored
     `best/zeroFloat/zeroDouble` as `f29/f30/f31` and made all 87 instructions exact.
+18. For nested array fields, keep a typed base and write both subscripts in the
+    access (`patterns[patternIndex].sequence[step]`). An intermediate pointer to one
+    pattern folds the `+0x22` field displacement into the index and selects `lhax`;
+    the two-subscript form emits the retail base add followed by `lha 0x22(base)`.
+19. Adjacent saved FPRs can follow reverse declaration order even in a 200+
+    instruction function. Declaring the double `zero` before the float `best`
+    changed `CritterChildCriticalMove` from `best=f31/zero=f30` to the retail
+    `best=f30/zero=f31` without changing its instruction stream.
 
 New fully translated near matches:
 
@@ -141,3 +149,7 @@ New fully translated near matches:
   the 77-instruction retail body.
 - `CritterProcessSafeRocks` is fully translated at 63/63 instructions; only three
   address-canonicalization sites remain (12 real diff lines).
+- `CritterChildCriticalMove` (formerly `fn_8003B7D8`) now has its full two-pass
+  201/201-instruction body and typed 0x50-byte `CritterPattern` records. Three
+  second-loop initialization instructions remain structurally different; the
+  rest of its residual is nonvolatile register coloring.

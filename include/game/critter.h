@@ -140,7 +140,7 @@ typedef struct Critter {
     u8  _blk210[4];           /* 0x210 .. 0x214                              */
     f32 rate;                 /* 0x214 move speed / timescale                 */
     f32 moveTimes[0x40];      /* 0x218 per-move last-use timestamps             */
-    u8  movestate[0x80];      /* 0x318 per-move s32 state                     */
+    f32 patternTimes[0x20];   /* 0x318 per-pattern last-use timestamps         */
     f32 worldMoveMatrix[12];  /* 0x398 move-node world transform              */
     f32 moveOrigin[3];        /* 0x3C8 cached move origin                      */
     u8  _blk3D4[0x54];        /* 0x3D4 .. 0x428                              */
