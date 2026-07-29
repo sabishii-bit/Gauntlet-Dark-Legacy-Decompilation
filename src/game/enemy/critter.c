@@ -69,8 +69,8 @@ void fn_80035D08(void);
 void fn_80035E48(void);
 void fn_80036138(void);
 void fn_80036424(void);
-void fn_80036740(s32 who, f32 amount);
-void fn_800367CC(void);
+void CritterAwardExp(s32 who, f32 amount);
+void CritterDamagePlayer(void);
 void CritterSetFxHitTime(s32 slot, s32 id, f32 amount);
 s32  CritterGetTarget(Critter *c, f32 *out);
 void CritterGetTargetSub(void);
@@ -78,7 +78,7 @@ void fn_80036B5C(void);
 void fn_80036C70(void);
 void fn_80036E00(void);
 void fn_80036FBC(void);
-void fn_800371BC(void *critter, f32 *pos);
+void CritterInsertTarget(void *critter, f32 *pos);
 void fn_800372A0(void);
 void fn_800374FC(void);
 void fn_80037734(void);
@@ -98,7 +98,7 @@ void CritterDoKnockback(void);
 void CritterUpdateCounters(Critter *c);
 void CritterGolemAI(void);
 void CritterBossAI(void);
-void fn_8003A73C(void);
+void CritterProcessSafeRocks(void);
 void fn_8003A838(void);
 void fn_8003A9C4(void);
 void CritterRotate(void);
@@ -118,8 +118,8 @@ void CritterFindMoveType(void);
 void fn_8003CA98(void);
 void fn_8003D0A4(void);
 void CritterDoSfx(void);
+void CritterDoSfxSub(void);
 void CritterDoParticle(void);
-void fn_8003DE70(void);
 void CritterNewInst(void);
 void CritterInitGeo(void);
 void CritterAddHealthMeter(void);
@@ -140,7 +140,7 @@ void CritterAllocType(void *hdr, void *move, s32 arg);
 void CritterLoadFinish(void);
 void CritterInitAllMoves(void);
 void CritterInitMoves(void *move);
-void fn_8003FF98(void);
+void CritterInitSfx(void);
 void CritterInitHeader(void *hdr, void *file);
 
 /* ==================================================================== */
@@ -158,7 +158,7 @@ void CritterInitHeader(void *hdr, void *file);
 /* 0x80036424 */ void fn_80036424(void) {}
 /* 0x80036740 -- award experience to one player (who >= 0) or all four active
  * players (who < 0), by the integer part of `amount`. */
-void fn_80036740(s32 who, f32 amount)
+void CritterAwardExp(s32 who, f32 amount)
 {
     s32 end;
     Player *player;
@@ -176,7 +176,7 @@ void fn_80036740(s32 who, f32 amount)
         }
     }
 }
-/* 0x800367CC */ void fn_800367CC(void) {}
+/* 0x800367CC */ void CritterDamagePlayer(void) {}
 
 /* 0x800368DC -- add `amount` to a per-limb counter of the critter whose id
  * matches `id`, then stamp the companion slot with the current game time. */
@@ -184,8 +184,11 @@ void CritterSetFxHitTime(s32 slot, s32 id, f32 amount)
 {
     s32 i;
     Critter *c;
+    CritterBigState *big;
+
+    big = &gBig;
     for (i = 0; i < lbl_8034466C; i++) {
-        c = &gCritterPool[i];
+        c = &big->pool[i];
         if (c->hdr != NULL && id == c->id) {
             break;
         }
@@ -193,8 +196,8 @@ void CritterSetFxHitTime(s32 slot, s32 id, f32 amount)
     if (i >= lbl_8034466C) {
         return;
     }
-    c->unk1BC[slot][0] += amount;
-    c->unk1BC[slot][1] = sMusicFadeBase;
+    big->pool[i].unk1BC[slot][0] += amount;
+    big->pool[i].unk1BC[slot][1] = sMusicFadeBase;
 }
 
 /* 0x80036958 -- resolve a critter target position from either its selected
@@ -266,7 +269,7 @@ done:
 /* 0x80036C70 */ void fn_80036C70(void) {}
 /* 0x80036E00 */ void fn_80036E00(void) {}
 /* 0x80036FBC */ void fn_80036FBC(void) {}
-/* 0x800371BC */ void fn_800371BC(void *critter, f32 *pos) {}
+/* 0x800371BC */ void CritterInsertTarget(void *critter, f32 *pos) {}
 /* 0x800372A0 */ void fn_800372A0(void) {}
 /* 0x800374FC */ void fn_800374FC(void) {}
 /* 0x80037734 */ void fn_80037734(void) {}
@@ -372,6 +375,7 @@ void fn_80037ED0(f32 add, Critter *c, s32 id)
  * active players, then process every live critter, summing their results. */
 s32 ProcessCritterList(void)
 {
+    Player *player = gPlayers;
     s32 activePlayers;
     s32 i;
     s32 total;
@@ -379,8 +383,8 @@ s32 ProcessCritterList(void)
     activePlayers = 0;
     total = 0;
     lbl_80344664++;
-    for (i = 0; i < 4; i++) {
-        if (gPlayers[i].state == 1) {
+    for (i = 0; i < 4; i++, player++) {
+        if (player->state == 1) {
             activePlayers++;
         }
         gBig.scratch[i] = 0.0f;
@@ -396,10 +400,51 @@ s32 ProcessCritterList(void)
 }
 /* 0x80038DDC */ s32 ProcessCritter(Critter *c) { return 0; }
 /* 0x8003946C */ void CritterDoKnockback(void) {}
-/* 0x800395C8 */ void CritterUpdateCounters(Critter *c) {}
+/* 0x800395C8 -- expire the critter's transient move counter and both timed
+ * counter pairs for each of its four effect slots. */
+void CritterUpdateCounters(Critter *c)
+{
+    s32 i;
+    s32 moveType;
+    f32 *counterTime;
+    u8 *base;
+    f64 zero;
+    f64 timeout;
+    f32 clear;
+    f32 current;
+
+    moveType = *(s32 *)(*(u8 **)((u8 *)c->hdr + 0x124) + c->curmove * 0x90);
+    if ((((f64)c->counterTime > 0.0) &&
+         ((f64)(sMusicFadeBase - c->counterTime) > 3.0)) ||
+        moveType == 0x22 || (moveType >= 0x40 && moveType < 0x7F)) {
+        c->counterValue = 0.0f;
+        c->counterState = 0;
+        c->counterTime = 0.0f;
+    }
+
+    zero = 0.0;
+    timeout = 15.0;
+    clear = 0.0f;
+    for (i = 0; i < 4; i++) {
+        base = (u8 *)c + i * 0x10;
+        counterTime = (f32 *)(base + 0x1C0);
+        current = *counterTime;
+        if ((f64)current > zero &&
+            (f64)(sMusicFadeBase - current) > timeout) {
+            *(f32 *)(base + 0x1BC) = clear;
+            *counterTime = clear;
+        }
+        current = *(counterTime = (f32 *)(base + 0x1C8));
+        if ((f64)current > zero &&
+            (f64)(sMusicFadeBase - current) > timeout) {
+            *(f32 *)(base + 0x1C4) = clear;
+            *counterTime = clear;
+        }
+    }
+}
 /* 0x800396A4 */ void CritterGolemAI(void) {}
 /* 0x80039AD8 */ void CritterBossAI(void) {}
-/* 0x8003A73C */ void fn_8003A73C(void) {}
+/* 0x8003A73C */ void CritterProcessSafeRocks(void) {}
 /* 0x8003A838 */ void fn_8003A838(void) {}
 /* 0x8003A9C4 */ void fn_8003A9C4(void) {}
 /* 0x8003AF4C */ void CritterRotate(void) {}
@@ -462,8 +507,8 @@ s32 fn_8003C8D4(Critter *a, Critter *b)
 /* 0x8003CA98 */ void fn_8003CA98(void) {}
 /* 0x8003D0A4 */ void fn_8003D0A4(void) {}
 /* 0x8003D7E0 */ void CritterDoSfx(void) {}
-/* 0x8003DC64 */ void CritterDoParticle(void) {}
-/* 0x8003DE70 */ void fn_8003DE70(void) {}
+/* 0x8003DC64 */ void CritterDoSfxSub(void) {}
+/* 0x8003DE70 */ void CritterDoParticle(void) {}
 /* 0x8003E048 */ void CritterNewInst(void) {}
 /* 0x8003E2E8 -- reserve the first free critter pool slot, wipe it, and stamp
  * it with a fresh index + rolling unique id. */
@@ -674,5 +719,5 @@ void CritterInitAllMoves(void)
 }
 
 /* 0x8003FC4C */ void CritterInitMoves(void *move) {}
-/* 0x8003FF98 */ void fn_8003FF98(void) {}
+/* 0x8003FF98 */ void CritterInitSfx(void) {}
 /* 0x800400F0 */ void CritterInitHeader(void *hdr, void *file) {}
