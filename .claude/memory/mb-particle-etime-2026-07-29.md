@@ -70,3 +70,19 @@ the unshifted aggregate folds `0x58` into the retail `lwz 88(r3)`. Other
 `mb_particle.c` globals documented at `0x80128710..0x801287FB` should be migrated
 to this aggregate as their functions are translated, rather than modeled as
 independent SDA statics.
+
+## `MBDrawPsysTest`
+
+`MBDrawPsysTest` is exact (124 bytes). It needed three source-shape cues at
+once:
+
+- an otherwise unused eight-byte local scratch array to reproduce the retail
+  frame;
+- a named `bounds = (u8*)draw + 0x30` pointer so the integer argument is formed
+  before loading the floating-point radius;
+- an explicit `if (vis != 0) return 1; return 0;` so MWCC emits the retail
+  conditional branches rather than its shorter arithmetic booleanization.
+
+When a nearly matching function shows all three classes of mismatch—frame,
+call scheduling, and boolean-return lowering—fix them independently rather
+than expecting one optimization pragma to reproduce the entire body.
