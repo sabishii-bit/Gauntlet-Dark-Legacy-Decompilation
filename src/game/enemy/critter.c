@@ -19,7 +19,13 @@
 #include "game/player.h"
 
 /* -- module-local BigState siblings (bss, pooled off gBig) -- */
-extern f32   gBig[4];                 /* 0x80240FD0 per-player scratch flags    */
+typedef struct CritterBigState {
+    f32 scratch[4];
+    u8 _pad010[0x224];
+    Critter pool[16];
+} CritterBigState;
+
+extern CritterBigState gBig;
 extern void *lbl_80241060[4];         /* 0x80241060 loaded-file handle table    */
 extern u8    lbl_80241070[4][0x50];   /* 0x80241070 per-type header buffers      */
 extern Player gPlayers[4];        /* 0x80275AE0 player records (gPlayerRecords) */
@@ -31,10 +37,13 @@ extern s32   lbl_8034465C;            /* 0x8034465C active-player count         
 extern s16   lbl_80344664;            /* 0x80344664 rolling tick counter          */
 extern s32   lbl_80344660;            /* 0x80344660 loaded-type count             */
 extern s32   lbl_8034466C;            /* 0x8034466C active critter count (gNumCritters) */
-extern f32   sMusicFadeBase;          /* 0x80344594 shared game-time / fade base   */
+extern volatile f32 sMusicFadeBase;   /* 0x80344594 shared game-time / fade base   */
+extern f32   lbl_80346480;
+extern f64   lbl_80346488;
+extern f64   lbl_80346490;
 
 /* -- external helpers -- */
-extern void *AllocFile(const char *name);
+extern void *AllocFile(const char *wad, const char *name);
 extern void *NextWaypoint(void *player);
 extern void  AddExp(s32 player, s32 amount, s32 kind);
 extern void  HealthMeterUpdate(void *meter, f32 cur, f32 max);
@@ -63,7 +72,7 @@ void fn_80036424(void);
 void fn_80036740(s32 who, f32 amount);
 void fn_800367CC(void);
 void fn_800368DC(s32 slot, s32 id, f32 amount);
-void fn_80036958(void *player, f32 *out);
+s32  fn_80036958(Critter *c, f32 *out);
 void fn_80036A58(void);
 void fn_80036B5C(void);
 void fn_80036C70(void);
@@ -77,9 +86,9 @@ void fn_800378C8(void);
 void fn_80037A10(void);
 void fn_80037C08(void);
 void fn_80037D34(s32 unused, void *ctx);
-void fn_80037D44(void);
-void fn_80037E80(void);
-void fn_80037ED0(f32 add);
+s32  fn_80037D44(Critter *c, s32 id);
+s32  fn_80037E80(Critter *c, s32 id);
+void fn_80037ED0(f32 add, Critter *c, s32 id);
 void fn_80037F84(void);
 void fn_800380F0(void);
 void CritterDamage(void);
@@ -121,7 +130,7 @@ void CritterUpdateSkinfx(void);
 void CritterRemoveColnodeSub(void);
 void CritterInitColnodes(void);
 void CritterAddAnimInsts(void);
-s32  CritterLoadFile(const char *name);
+s32  CritterLoadFile(const char *wad, const char *name);
 void CritterLoadDone(void);
 void CritterBGLoadFile(s32 *loader);
 void CritterLoadStartNext(void);
@@ -151,20 +160,19 @@ void CritterInitHeader(void *hdr, void *file);
  * players (who < 0), by the integer part of `amount`. */
 void fn_80036740(s32 who, f32 amount)
 {
-    s32 lo;
-    s32 hi;
-    s32 i;
+    s32 end;
+    Player *player;
 
-    if (who < 0) {
-        lo = 0;
-        hi = 4;
+    if (who >= 0) {
+        end = who + 1;
     } else {
-        hi = who + 1;
-        lo = who;
+        who = 0;
+        end = 4;
     }
-    for (i = lo; i < hi; i++) {
-        if (gPlayers[i].state == 1) {
-            AddExp(i, (s32)amount, 0);
+    player = &gPlayers[who];
+    for (; who < end; who++, player++) {
+        if (player->state == 1) {
+            AddExp(who, (s32)amount, 0);
         }
     }
 }
@@ -189,7 +197,70 @@ void fn_800368DC(s32 slot, s32 id, f32 amount)
     c->unk1BC[slot][1] = sMusicFadeBase;
 }
 
-/* 0x80036958 */ void fn_80036958(void *player, f32 *out) {}
+/* 0x80036958 -- resolve a critter target position from either its selected
+ * player or the current waypoint chain. */
+s32 fn_80036958(Critter *c, f32 *out)
+{
+    u8 unused[16];
+    void *waypoint;
+    f64 minimum_distance;
+    s32 result;
+
+    if (*(s16 *)((u8 *)c + 0x12A) <= 0) {
+        goto init_waypoint_search;
+    } else {
+        s32 player = *(s32 *)((u8 *)c + 0x12C);
+        u8 *record = (u8 *)&gPlayers[player];
+
+        out[0] = *(f32 *)(record + 0x64);
+        out[1] = *(f32 *)(record + 0x68);
+        out[2] = *(f32 *)(record + 0x6C);
+        result = 1;
+        goto done;
+    }
+
+waypoint_body:
+    {
+        f32 dy;
+        f32 x;
+        f32 dx;
+        f32 dz;
+        f32 distance;
+
+        dy = *(f32 *)((u8 *)waypoint + 0x34) - c->vel[1];
+        x = *(f32 *)((u8 *)waypoint + 0x30);
+        dx = x - c->vel[0];
+        dz = *(f32 *)((u8 *)waypoint + 0x38) - c->vel[2];
+        distance = dx * dx + dy * dy;
+        distance = dz * dz + distance;
+
+        if ((f64)distance < minimum_distance) {
+            c->particle = NextWaypoint(waypoint);
+            goto waypoint_test;
+        } else {
+            out[0] = x;
+            out[1] = *(f32 *)((u8 *)c->particle + 0x34);
+            out[2] = *(f32 *)((u8 *)c->particle + 0x38);
+            result = 1;
+            goto done;
+        }
+    }
+
+init_waypoint_search:
+    minimum_distance = lbl_80346490;
+waypoint_test:
+    waypoint = c->particle;
+    if (waypoint != NULL) {
+        goto waypoint_body;
+    }
+
+    out[0] = 0.0f;
+    out[1] = 0.0f;
+    out[2] = 0.0f;
+    result = 0;
+done:
+    return result;
+}
 /* 0x80036A58 */ void fn_80036A58(void) {}
 /* 0x80036B5C */ void fn_80036B5C(void) {}
 /* 0x80036C70 */ void fn_80036C70(void) {}
@@ -208,9 +279,92 @@ void fn_80037D34(s32 unused, void *ctx)
     lbl_80344648 = ctx;
     lbl_80344644 = 0;
 }
-/* 0x80037D44 */ void fn_80037D44(void) {}
-/* 0x80037E80 */ void fn_80037E80(void) {}
-/* 0x80037ED0 */ void fn_80037ED0(f32 add) {}
+
+static inline s32 CritterTimedSlotActive(Critter *c, s32 id)
+{
+    s32 i;
+
+    for (i = 0; i < 4; i++) {
+        if (c->unk4E0[i] == id) {
+            if (sMusicFadeBase < c->timed[i]) {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+/* 0x80037D44 -- search this critter and its immediate family for an active
+ * timed slot.  Children are searched only for a root critter. */
+s32 fn_80037D44(Critter *c, s32 id)
+{
+    Critter *relative;
+
+    if (CritterTimedSlotActive(c, id)) {
+        return 1;
+    }
+    relative = c->parent;
+    if (relative != NULL) {
+        if (CritterTimedSlotActive(relative, id)) {
+            return 1;
+        }
+    } else {
+        relative = c->next;
+        while (relative != NULL) {
+            if (CritterTimedSlotActive(relative, id)) {
+                return 1;
+            }
+            relative = relative->next;
+        }
+    }
+    return 0;
+}
+/* 0x80037E80 -- test whether a timed per-player slot is active for `id`. */
+s32 fn_80037E80(Critter *c, s32 id)
+{
+    s32 i;
+
+    for (i = 0; i < 4; i++) {
+        if (c->unk4E0[i] == id) {
+            if (sMusicFadeBase < c->timed[i]) {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+/* 0x80037ED0 -- allocate or replace one of the four timed id slots. */
+void fn_80037ED0(f32 add, Critter *c, s32 id)
+{
+    s32 i;
+    s32 oldest;
+    f32 oldest_time;
+    s32 offset;
+
+    oldest = -1;
+    oldest_time = lbl_80346480;
+    if ((f64)add <= lbl_80346488) {
+        return;
+    }
+
+    for (i = 0, offset = 0; i < 4; i++, offset += sizeof(f32)) {
+        if (sMusicFadeBase > c->timed[i]) {
+            c->unk4E0[i] = id;
+            c->timed[i] = sMusicFadeBase + add;
+            return;
+        }
+        if ((f64)oldest_time < lbl_80346488 ||
+            c->timed[i] < oldest_time) {
+            oldest_time = c->timed[i];
+            oldest = i;
+        }
+    }
+    if (oldest < 0) {
+        return;
+    }
+    c->unk4E0[oldest] = id;
+    c->timed[oldest] = sMusicFadeBase + add;
+}
 /* 0x80037F84 */ void fn_80037F84(void) {}
 /* 0x800380F0 */ void fn_800380F0(void) {}
 /* 0x800383A8 */ void CritterDamage(void) {}
@@ -229,7 +383,7 @@ s32 ProcessCritterList(void)
         if (gPlayers[i].state == 1) {
             activePlayers++;
         }
-        gBig[i] = 0.0f;
+        gBig.scratch[i] = 0.0f;
     }
     lbl_8034465C = activePlayers;
 
@@ -316,15 +470,18 @@ s32 fn_8003C8D4(Critter *a, Critter *b)
 Critter *CritterEmptyInst(void)
 {
     s32 i;
+    s32 byte_offset;
     Critter *c;
+    CritterBigState *big;
 
+    big = &gBig;
     for (i = 0; i < lbl_8034466C; i++) {
-        if (gCritterPool[i].hdr == NULL) {
+        if (big->pool[i].hdr == NULL) {
             break;
         }
     }
     if (i >= 16) {
-        ErrorPrintf(lbl_8011221C, i);
+        ErrorPrintf(lbl_8011221C, i, lbl_8034466C);
         return NULL;
     }
     if (i == lbl_8034466C) {
@@ -333,12 +490,12 @@ Critter *CritterEmptyInst(void)
             gCritterCountMax = lbl_8034466C;
         }
     }
-    c = &gCritterPool[i];
+    byte_offset = i * sizeof(Critter);
+    c = (Critter *)((u8 *)big + 0x234 + byte_offset);
     memset(c, 0, sizeof(Critter));
     c->index = (s16)i;
-    c->id = gCritterNextID;
-    gCritterNextID++;
-    if (gCritterNextID > 4095) {
+    *(s16 *)((u8 *)big + 0x236 + byte_offset) = gCritterNextID;
+    if ((u16)(gCritterNextID = gCritterNextID + 1) > 4095) {
         gCritterNextID = 1;
     }
     return c;
@@ -444,11 +601,11 @@ void CritterDelInst(Critter *c)
 /* 0x8003F1F0 */ void CritterAddAnimInsts(void) {}
 
 /* 0x8003F3AC -- allocate a load slot, read the file, and build its header. */
-s32 CritterLoadFile(const char *name)
+s32 CritterLoadFile(const char *wad, const char *name)
 {
     s32 idx;
     idx = lbl_80344660++;
-    lbl_80241060[idx] = AllocFile(name);
+    lbl_80241060[idx] = AllocFile(wad, name);
     CritterInitHeader(&lbl_80241070[idx], lbl_80241060[idx]);
     return idx;
 }
