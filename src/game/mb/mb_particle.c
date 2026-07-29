@@ -75,6 +75,7 @@ void  pbBlitSetTexture(s32 tex);
 extern void* gWinGlobals;
 extern f32   gVpScaleY;
 extern f32   psysInfo[];     /* per-parm scale/min/max config table */
+extern u8    lbl_80128710[]; /* retail module-global data block */
 
 /* --- TU-owned globals (real addresses in .data/.bss/.sbss) --- */
 static s32       gPsysActive;      /* 0x80128710 live psys count */
@@ -451,12 +452,13 @@ BOOL MBDrawPsysTest(MBObject* node, void* draw) {
 /* 0x800CDC5C - MBTraversePsys visitor: guard non-psys / filtered nodes */
 s32 MBTraversePsys(MBObject* node, void* fn) {
     Psys* p = (Psys*)node->data.psys;
-    if (p == NULL || gPsysDisabled != 0) {
+    u8* globals = lbl_80128710;
+    if (p == NULL || *(s32*)(globals + 0x58) != 0) {
         if (p == NULL) {
             ErrorPrintf("MBTraversePsys: PSYS node with psys=0");
             return 1;
         }
-        if (gPsysDisabled != p->id) {
+        if (*(s32*)(globals + 0x58) != p->id) {
             return 0;
         }
     }

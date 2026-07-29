@@ -51,3 +51,22 @@ leaf functions with a pure register permutation, try reversing adjacent local
 declarations before introducing artificial uses or volatile storage. MWCC's
 allocation direction is sensitive to the local lifetimes and is not uniform
 across every function, so validate each case with `fndiff`.
+
+## `MBTraversePsys` and the module-global block
+
+`MBTraversePsys` is exact (136 bytes). The retail TU does not address the
+traversal filter as an independent SDA symbol. It loads the absolute address of
+the particle module's `.data` block, `lbl_80128710`, and reads the filter at
+offset `0x58`. Model the access as a field of that block:
+
+```c
+u8* globals = lbl_80128710;
+*(s32*)(globals + 0x58)
+```
+
+Keeping the anchor pointer unshifted is important: a pointer initialized to
+`lbl_80128710 + 0x58` materializes an extra `addi`; accessing the field through
+the unshifted aggregate folds `0x58` into the retail `lwz 88(r3)`. Other
+`mb_particle.c` globals documented at `0x80128710..0x801287FB` should be migrated
+to this aggregate as their functions are translated, rather than modeled as
+independent SDA statics.
