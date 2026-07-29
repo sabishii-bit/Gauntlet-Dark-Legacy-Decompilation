@@ -76,7 +76,7 @@ extern TowerMsgState lbl_8028C288;
 extern char lbl_80114D50[];   /* garg-item message-list string */
 extern char lbl_80114D60[];   /* crystals-needed message-list string */
 extern char lbl_80114D6C[];   /* demo-closed message-list string */
-extern s32  lbl_803449A0;     /* demo/full-game mode flag */
+extern s32  gDemoMode;
 extern f32  lbl_803485E8;     /* -1.0 */
 extern int  lbl_80348610;     /* "GWIZ" packed (sdata2, SDA-addressed) */
 extern int  lbl_803485A4;     /* "WIZARD" packed (sdata2, SDA-addressed) */
@@ -89,7 +89,7 @@ extern void* gSceneRoot;    /* MB parent object */
 extern void* MBNewNode(void*, void*, int);
 extern void  MBNodeSetParent(void* node, void* parent);
 extern void  CopyMat4(f32* src, void* node);
-extern s32   fn_80012F78(void* atree, void* out, s32 a, s32 flags);
+extern s32   AtreeInit(void* atree, void* out, s32 a, s32 flags);
 extern u8*   gCurLevel;       /* current-level descriptor pointer */
 extern s32   lbl_803448A8;    /* last recorded world */
 extern s32   lbl_803448AC;    /* last recorded level */
@@ -138,7 +138,7 @@ extern void* sSumnerObj;   /* live Sumner (good wizard) object handle   */
 extern s32 lbl_80344C54;
 extern f32 lbl_80344C58;
 extern f32 lbl_80344C5C;
-extern s32 lbl_80344C60;
+extern s32 gSumnerReady;
 extern s32 lbl_80344C64;   /* Sumner active/state latch                 */
 extern f32 lbl_80344C68;
 extern s32 lbl_80344C6C;
@@ -179,7 +179,7 @@ void TowerInit(void) {
     lbl_80344C54 = zero;
     lbl_80344C58 = lbl_80348588;
     lbl_80344C5C = lbl_80348588;
-    lbl_80344C60 = zero;
+    gSumnerReady = zero;
     lbl_80344C64 = zero;
     lbl_80344C68 = lbl_80348588;
     lbl_80344C6C = zero;
@@ -759,7 +759,7 @@ void TowerNeedCrystalsMsg(int who, int slot) {
     if (*cd < sMusicFadeBase) {
         int msg;
 
-        if (lbl_803449A0 != 0) {
+        if (gDemoMode != 0) {
             msg = FindStringMessageListSub_8001FC4C(0, lbl_80114D60);
             ControllerMessageBox(who, msg, 0, -1);
         } else {
@@ -788,7 +788,7 @@ void sumnerUpdatePresence(void) {
     if (lbl_80344C4C == 0) {
         s32 player;
 
-        lbl_80344C60 = 1;
+        gSumnerReady = 1;
         for (player = 0; player < 4; player++) {
             Player* rec = &gPlayers[player];
 
@@ -797,15 +797,15 @@ void sumnerUpdatePresence(void) {
 
                 for (k = 0; k < 16; k++) {
                     if (*(s32*)((u8*)rec + k * 24 + 0xA90) > 0) {
-                        lbl_80344C60 = 0;
+                        gSumnerReady = 0;
                     }
                 }
             }
         }
     } else {
-        lbl_80344C60 = 0;
+        gSumnerReady = 0;
     }
-    if (lbl_80344C60 != 0) {
+    if (gSumnerReady != 0) {
         lbl_80344C5C = lbl_80348588;
     } else {
         lbl_80344C5C = lbl_803485E8;
@@ -881,7 +881,7 @@ int sumnerCheckLevelUp(void) {
         void* atree = (void*)AtreeMatch(sGoodWizObj, (char*)&lbl_803485A4, 0);
 
         if (atree != 0) {
-            s->wizAtree = (void*)fn_80012F78(atree, &s->wizAtree, 0, 0xC00880);
+            s->wizAtree = (void*)AtreeInit(atree, &s->wizAtree, 0, 0xC00880);
             lbl_80344C64 = (s32)MBNewNode(gSceneRoot, gIdentityMatrix, 1);
             MBNodeSetParent(*(void**)s->wizAtree, (void*)lbl_80344C64);
         }
@@ -929,7 +929,7 @@ void SumnerInit(void) {
     void* lp;
 
     s->gwizAtree =
-        (void*)fn_80012F78((void*)AtreeMatch(sGoodWizObj, (char*)&lbl_80348610, 0),
+        (void*)AtreeInit((void*)AtreeMatch(sGoodWizObj, (char*)&lbl_80348610, 0),
                            &s->gwizAtree, 0, 2048);
     sSumnerObj = MBNewNode(gSceneRoot, gIdentityMatrix, 1);
     MBNodeSetParent(*(void**)s->gwizAtree, sSumnerObj);

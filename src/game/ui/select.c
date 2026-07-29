@@ -66,7 +66,7 @@ extern s32 lbl_80344B7C;
 extern s32 lbl_80344B80;
 extern s32 lbl_80344BC0;   /* load-in-progress flag */
 extern s32 lbl_80343DD4;   /* async load handle      */
-extern s32 lbl_803449A0;   /* select mode flag       */
+extern s32 gDemoMode;
 extern u32 lbl_80344824;   /* active-player bit mask */
 extern s32 lbl_80344A18;   /* per-(port+slot) card state (3=ready) */
 extern s32 lbl_80344A14;   /* per-(port+slot) card-present flag    */
@@ -167,7 +167,7 @@ s32 GetBossBeatFlag(s32 boss)
 static s32 LimitSeltype(u8* player, s32 idx, s32 step)
 {
     int flag;
-    if (lbl_803449A0 != 0) {
+    if (gDemoMode != 0) {
         if (idx < 4) {
             idx = 7;
         } else if (idx > 7) {

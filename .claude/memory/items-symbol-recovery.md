@@ -225,3 +225,26 @@ The complete old-to-new map and evidence are in
   and `DoLighting` keeps the selected ambient clamp in the target FPR. For
   small helpers that are structurally correct but one merge register off,
   test a direct ternary before trying padding or dummy locals.
+
+## Local-symbol and inline cleanup (2026-07-29)
+
+- dtk appends retail addresses to TU-local functions in the extracted object,
+  while MWCC emits the readable source identifier. `objdiff` therefore showed
+  four instruction-exact `items.c` functions as target-only 0% entries. Local
+  preprocessor aliases such as
+  `#define place_logic12 place_logic12_800631AC` preserve the readable source
+  spelling while emitting the target symbol. This made `place_logic12`,
+  `generate_single`, `NewItemPtr`, and `AtreeMatchAnyHeader` visible as 1,492
+  bytes of genuine exact matches.
+- An ordinary `static` helper may be expanded into every caller yet still
+  retain an unused out-of-line body in the object. Marking
+  `ItemFindMBObjectL1` `static inline` removed its extra 0x88-byte body without
+  changing either caller's instructions. It also reduced the source `.text`
+  from 18,816 to 18,680 bytes and made the source `extab`/`extabindex` section
+  sizes equal the target. Use `nm` as well as per-function diffs when a TU's
+  total text size remains wrong despite apparently complete callers.
+- `#pragma peephole off` around `AddItemWobj` expanded the fused `mr.` into the
+  correct instruction count, but ordered the copy before the comparison and
+  perturbed two earlier loads. It improved fuzzy output only and did not create
+  a byte match, so it was rejected. Do not keep compiler-pragmas solely for a
+  higher fuzzy percentage.

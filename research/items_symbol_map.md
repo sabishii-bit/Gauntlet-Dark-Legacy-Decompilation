@@ -12,6 +12,14 @@ cross-reference sets.
 | Old symbol | Name | Basis |
 |---|---|---|
 | `fn_800115D0` | `AtreeDelete` | PDB order, whole-tree teardown behavior |
+| `fn_80011104` | `AnimateATree` | ATREE.OBJ PDB; thin zero-frame animation wrapper |
+| `fn_80012F78` | `AtreeInit` | ATREE.OBJ PDB; thin runtime-tree construction wrapper |
+| `fn_8004F404` | `check_vacancy` | ENEMY.OBJ PDB; validates a candidate generator position |
+| `fn_80050FB0` | `GetEnemyType` | ENEMY.OBJ PDB; resolves type/subtype through loaded overrides |
+| `fn_80051F64` | `EnemyTypePrefix` | ENEMY.OBJ PDB; returns the type's formatted-name prefix |
+| `fn_80051FDC` | `EnemyDescType` | ENEMY.OBJ PDB; description-to-enemy-type lookup |
+| `fn_8005412C` | `SetPlayerVars` | GAMEMAIN.OBJ PDB; rebuilds active-player category globals |
+| `fn_80057B30` | `FindWave` | gauntworld.obj PDB; parses the compact letter/digit wave tag |
 | `fn_80057AB4` | `LevelItemDesc` | PDB and returned level record |
 | `fn_80057AC0` | `WorldItemDesc` | PDB and returned world record |
 | `fn_8005A260` | `LoadModel` | GLUE.OBJ PDB and model-loader calls |
@@ -57,6 +65,7 @@ cross-reference sets.
 | `lbl_80112FC8` | `sTriggerCameraConflictFmt` | DOL string |
 | `lbl_80112FF4` | `sDeathIconName` | `"DEATH_ICON"` |
 | `lbl_8011C8A8` | `sArrowObjectNames` | `add_arrow` name table |
+| `lbl_8011BD40` | `sEnemyDefaultAlgorithm` | ENEMY.OBJ per-type fallback algorithm table |
 | `lbl_80124D14` | `crystal_order` | ITEMS.OBJ PDB |
 | `lbl_802577F0` | `sItemRuntime` | item WOBJ arrays and shared load scratch |
 | `lbl_8025EA10` | `sItemWobjTargets` | 150-entry item-WOBJ target-pointer table |
@@ -67,6 +76,7 @@ cross-reference sets.
 | `lbl_80258E04` | `sTriggerCameras` | trigger-camera records |
 | `lbl_8025B604` | `sMilestones` | milestone records |
 | `lbl_803448E0` | `sUnusedResetState` | reset-only GC state |
+| `lbl_803448BC` | `gNumType7Items` | count incremented by `SetItem`'s type-7 constructor |
 | `lbl_803448E4` | `sCrystalCamera` | `CrystalCamActivate` pointer |
 | `lbl_803448F0` | `sVisibleSumCoinCount` | visible type-1/subtype-1 item count built by `AddItemInstList` |
 | `lbl_803448F4` | `sShownMilestones` | current milestone overlay state |
@@ -128,6 +138,7 @@ cross-reference sets.
 | `lbl_803447BC` | `gScriptedCameraState` | scripted camera sub-state |
 | `lbl_80344914` | `CurTransmitter` | NEWCAM.OBJ PDB |
 | `lbl_80344980` | `AmbientSpecialTime` | LIGHTS.OBJ PDB |
+| `lbl_803449A0` | `gDemoMode` | demo/select restriction flag shared by player, tower, and main |
 | `lbl_80344984` | `AmbientSpecialValue` | LIGHTS.OBJ PDB |
 | `lbl_80344988` | `AmbientSpecialCurValue` | LIGHTS.OBJ PDB |
 | `lbl_8034498C` | `sLightingScratchX` | initialized lighting scratch |
@@ -136,6 +147,12 @@ cross-reference sets.
 | `lbl_80344998` | `sLevelAmbient` | current level ambient value |
 | `lbl_8034499C` | `sLevelAmbientScale` | ambient multiplier |
 | `lbl_80344B18` | `gPlayerStartYaw` | selected start orientation |
+| `lbl_80344C60` | `gSumnerReady` | tower/player good-wizard readiness state |
+| `lbl_80346F50` | `sCameraVisibilityRadius` | `2.0f` camera-mode visibility sphere radius |
+| `lbl_80346FC8` | `sNewtonThree` | `3.0` reciprocal-square-root refinement constant |
+| `lbl_80347038` | `sNoNearbyPlayerDistance` | `1000.0f` initial closest-player sentinel |
+| `lbl_8034709C` | `sItemSearchDistance` | shared `10.0f` item/world-node search distance |
+| `lbl_80347120` | `sCameraDistanceLimit` | `100.0` camera-mode proximity cutoff |
 
 ## Player milestone ABI
 

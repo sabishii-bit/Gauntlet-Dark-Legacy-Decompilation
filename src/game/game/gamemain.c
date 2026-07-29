@@ -252,7 +252,7 @@ typedef struct EffectInfoEntry {
 } EffectInfoEntry;                 /* size 12 */
 extern EffectInfoEntry EffectInfo[];
 
-/* PrintWorldMemSizes / fn_80050FB0 externs. */
+/* PrintWorldMemSizes / GetEnemyType externs. */
 extern char  lbl_80112788[];       /* debug format-string table */
 extern s32   lbl_80257680[];       /* per-level enemy type table */
 typedef struct WorldMemTable {
@@ -275,7 +275,7 @@ extern s32   dbgTextEnable;
 extern s32   mlmMemUsed;
 extern void  ErrorPrintf(const char* fmt, ...);
 
-/* fn_800521E8 / fn_8005412C externs. */
+/* fn_800521E8 / SetPlayerVars externs. */
 extern s32   gGameBusy;
 extern s32   lbl_80344774;
 extern s32   gFrameTicks;
@@ -379,7 +379,7 @@ void fn_80051164(void)
 }
 
 /* 0x80051F64 -- table lookup by id, return &entry.f20 (or NULL). */
-void* fn_80051F64(s32 id)
+void* EnemyTypePrefix(s32 id)
 {
     s32 i;
 
@@ -851,7 +851,7 @@ void fn_800521E8(void)
 }
 
 /* 0x8005412C -- categorise the loaded worlds and update the flow globals. */
-void fn_8005412C(void)
+void SetPlayerVars(void)
 {
     u8* base = gPlayers;
     s32 count1 = 0;
@@ -891,7 +891,7 @@ void fn_8005412C(void)
 }
 
 /* 0x80050FB0 -- resolve a type id through the override tables. */
-s32 fn_80050FB0(s32 arg0, s32 arg1)
+s32 GetEnemyType(s32 arg0, s32 arg1)
 {
     s32 result = arg0;
 
@@ -1016,7 +1016,7 @@ void fn_800510A4(void)
 }
 
 /* 0x80051FDC -- resolve a level/enemy name to its type id (-1 on miss). */
-s32 fn_80051FDC(const char* name)
+s32 EnemyDescType(const char* name)
 {
     s32 i;
 
@@ -1055,7 +1055,7 @@ void fn_80053C70(void)
 }
 
 /* 0x80057B30 -- parse a "<letter><digit>" level tag to (realm<<8)|index. */
-s32 fn_80057B30(const char* s)
+s32 FindWave(const char* s)
 {
     s32 realm = -1;
     s8 letter = toupper(s[0]);

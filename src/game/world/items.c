@@ -3,6 +3,17 @@
 #include "game/enemy.h"
 #include "game/worldinfo.h"
 
+/*
+ * dtk makes TU-local functions globally addressable in the extracted object
+ * by appending their retail address.  Keep the recovered source names readable
+ * while emitting symbols that objdiff can pair with those target functions.
+ */
+#define place_logic12       place_logic12_800631AC
+#define generate_single     generate_single_80063444
+#define AddItemWobj         AddItemWobj_80063DB0
+#define NewItemPtr          NewItemPtr_800642C8
+#define AtreeMatchAnyHeader AtreeMatchAnyHeader_800674F4
+
 /* Gauntlet item / world-object system (Xbox ITEMS.OBJ), region
  * 0x800631AC-0x80067AE0 -- the whole gap between gauntworld.c and main.c.
  *
@@ -145,11 +156,10 @@ extern s32            gNumPlayers;
 extern u32            gGameMode;
 extern s32            gGameOptions[12];
 extern char           sMaxItemsError[];
-extern s32            lbl_803448BC;
-extern s32            lbl_803449A0;
-extern s32            lbl_80344C60;
-extern f32            lbl_8025EA04[3];
-extern s32            lbl_8011BD40[];
+extern s32            gNumType7Items;
+extern s32            gDemoMode;
+extern s32            gSumnerReady;
+extern s32            sEnemyDefaultAlgorithm[];
 
 extern s32            gGameBusy;
 extern s32            gScriptedCameraState;
@@ -160,23 +170,23 @@ extern char           sSafeRockBoss41ObjectName[];
 extern char           sSafeRockBoss44ObjectName[];
 
 extern void  FatalError(const char* msg, s32 code);
-extern void  fn_8005412C(void);
+extern void  SetPlayerVars(void);
 extern void  fn_80062A00(void);
 extern void  LinkItemTriggers(void);
-extern s32   fn_80012F78(void* header, void* tree, char* name, u32 flags);
-extern void  fn_80011104(void* tree, s32 action, s32 mode);
+extern s32   AtreeInit(void* header, void* tree, char* name, u32 flags);
+extern void  AnimateATree(void* tree, s32 action, s32 mode);
 extern s32   generate_enemy(f32* pos, s32 type, s32 level, f32* dir,
                             s32 spew, Item* generator, s32 important,
                             f32 angle);
-extern s32   fn_8004F404(s32 enemy_index, f32* position);
+extern s32   check_vacancy(s32 enemy_index, f32* position);
 extern void  WorldVector(const f32* vector, f32* out, const f32* matrix);
 extern void  AddBoss(f32* matrix);
-extern s32   fn_80051FDC(char* desc);
-extern s32   fn_80050FB0(s32 type, s32 level);
-extern char* fn_80051F64(s32 type);
+extern s32   EnemyDescType(char* desc);
+extern s32   GetEnemyType(s32 type, s32 level);
+extern char* EnemyTypePrefix(s32 type);
 extern void* CritterTypeLoaded(s32 type, s32 load);
 extern s16*  FindWobjWanim(void* wobj);
-extern s32   fn_80057B30(char* name);
+extern s32   FindWave(char* name);
 extern s32   towerGetLevelFlag(void* player, s32 flag);
 extern s32   towerAllPlayersMetBossReq(s32 flag);
 extern s32   AudioFindSound(char* name, s32 length, s32 load);
@@ -217,11 +227,11 @@ extern char  sTriggerCameraConflictFmt[];
 extern s32   sMusicTrackHi;
 extern int   strcmp(const char* a, const char* b);
 extern u8    gCameras[];
-extern f32   lbl_80346F50;
-extern f32   lbl_80347038;
-extern f32   lbl_8034709C;
-extern f64   lbl_80346FC8;
-extern f64   lbl_80347120;
+extern f32   sCameraVisibilityRadius;
+extern f32   sNoNearbyPlayerDistance;
+extern f32   sItemSearchDistance;
+extern f64   sNewtonThree;
+extern f64   sCameraDistanceLimit;
 extern f64   sMilestoneHeightTolerance;
 extern f64   sMilestoneDistanceTolerance;
 extern s32   MBWorldSphereVisible3(f32* position, f32 radius);
@@ -492,7 +502,7 @@ void AddItemInstList(void)
     u8 unused[4];
 
     sItemRandSeed = pbLoad;
-    fn_8005412C();
+    SetPlayerVars();
     gMaxItems = instance_count + 500;
     sItems = AllocMem(gMaxItems * sizeof(Item));
 
@@ -944,7 +954,7 @@ double DistanceToClosestPlayer(f32* position)
     f64 best;
     u8 unused[16];
 
-    best = lbl_80347038;
+    best = sNoNearbyPlayerDistance;
     if ((s32)gGameMode == 0x8008) {
         f32 sphere[4];
         volatile f32 root;
@@ -965,19 +975,19 @@ double DistanceToClosestPlayer(f32* position)
         if (distance > sItemZero) {
             f64 estimate = __frsqrte(distance);
             estimate = sArrowFloorYOffset * estimate *
-                       (lbl_80346FC8 - estimate * estimate * distance);
+                       (sNewtonThree - estimate * estimate * distance);
             estimate = sArrowFloorYOffset * estimate *
-                       (lbl_80346FC8 - estimate * estimate * distance);
+                       (sNewtonThree - estimate * estimate * distance);
             estimate = sArrowFloorYOffset * estimate *
-                       (lbl_80346FC8 - estimate * estimate * distance);
+                       (sNewtonThree - estimate * estimate * distance);
             root = (f32)(distance *
                          (sArrowFloorYOffset * estimate *
-                          (lbl_80346FC8 - estimate * estimate * distance)));
+                          (sNewtonThree - estimate * estimate * distance)));
             distance = root;
         }
-        if (distance < lbl_80347120 &&
-            MBWorldSphereVisible3(sphere, lbl_80346F50) != 0) {
-            best = lbl_8034709C;
+        if (distance < sCameraDistanceLimit &&
+            MBWorldSphereVisible3(sphere, sCameraVisibilityRadius) != 0) {
+            best = sItemSearchDistance;
         }
     } else {
         u8* player = gPlayers;
@@ -1000,17 +1010,17 @@ double DistanceToClosestPlayer(f32* position)
                 if (distance > sItemZero) {
                     f64 estimate = __frsqrte(distance);
                     estimate = sArrowFloorYOffset * estimate *
-                               (lbl_80346FC8 -
+                               (sNewtonThree -
                                 estimate * estimate * distance);
                     estimate = sArrowFloorYOffset * estimate *
-                               (lbl_80346FC8 -
+                               (sNewtonThree -
                                 estimate * estimate * distance);
                     estimate = sArrowFloorYOffset * estimate *
-                               (lbl_80346FC8 -
+                               (sNewtonThree -
                                 estimate * estimate * distance);
                     root = (f32)(distance *
                                  (sArrowFloorYOffset * estimate *
-                                  (lbl_80346FC8 -
+                                  (sNewtonThree -
                                    estimate * estimate * distance)));
                     distance = root;
                 }
@@ -1111,7 +1121,7 @@ void LinkTriggerToCam(s32 idx, s32 type)
 
 /* find the MB object for name, retrying with the "L1" then "ROOT" suffix
  * appended (Xbox PDB: ItemFindMBObjectL1, static; inlined on GC). */
-static s32 ItemFindMBObjectL1(char* name)
+static inline s32 ItemFindMBObjectL1(char* name)
 {
     s32 object = MBOX_ReallyFindObject(name, -1, -1, -1);
 
@@ -1260,7 +1270,7 @@ static void place_logic12(s8* data, s32 enemy_index)
         enemy->dest[0] = x + transformed[0];
         enemy->dest[1] = y + transformed[1];
         enemy->dest[2] = z + transformed[2];
-        if (fn_8004F404(enemy_index, enemy->dest) != 0) {
+        if (check_vacancy(enemy_index, enemy->dest) != 0) {
             enemy->flag1 = 1;
         }
         break;
@@ -1285,7 +1295,7 @@ static void place_logic12(s8* data, s32 enemy_index)
         enemy->dest[0] = z + transformed[0];
         enemy->dest[1] = y + transformed[1];
         enemy->dest[2] = x + transformed[2];
-        if (fn_8004F404(enemy_index, enemy->dest) != 0) {
+        if (check_vacancy(enemy_index, enemy->dest) != 0) {
             enemy->flag1 = 2;
         }
         break;
@@ -1445,7 +1455,7 @@ keyring_found:
             return;
         case 15:
             if (sMusicTrackHi == 13 &&
-                (lbl_803449A0 != 0 ||
+                (gDemoMode != 0 ||
                  towerAllPlayersMetBossReq(1) != 0)) {
                 item->active = -1;
                 return;
@@ -1523,18 +1533,18 @@ keyring_found:
         void* loaded = NULL;
         DATA_S8(2) = (s8)PARAM_S16(0, 1);
         DATA_S8(3) = (s8)PARAM_S16(2, -1);
-        DATA_S16(0) = (s16)fn_80051FDC(info->item.desc);
+        DATA_S16(0) = (s16)EnemyDescType(info->item.desc);
         DATA_F32(4) = atan2(matrix[8], matrix[10]);
         DATA_S32(8) = 0;
         DATA_F32(12) =
             instance != NULL ? *(f32*)&params[4] : sZeroDouble;
         DATA_S16(16) = PARAM_S16(8, 0);
         if (gGameOptions[10] != 0 || DATA_S8(3) < 0) {
-            DATA_S8(3) = (s8)lbl_8011BD40[DATA_S16(0)];
+            DATA_S8(3) = (s8)sEnemyDefaultAlgorithm[DATA_S16(0)];
         }
         attach_geometry = 0;
         DATA_S16(0) =
-            (s16)fn_80050FB0(DATA_S16(0), DATA_S8(2));
+            (s16)GetEnemyType(DATA_S16(0), DATA_S8(2));
 
         if (DATA_S16(0) == 32) {
             if (CritterTypeLoaded(7, 0) != NULL) {
@@ -1740,7 +1750,7 @@ keyring_found:
         DATA_U8(11) = (u8)PARAM_S16(6, 0);
         DATA_U8(4) = 0;
         DATA_S8(7) = (s8)PARAM_S16(2, 0);
-        enemy_type = fn_80051FDC(info->item.desc);
+        enemy_type = EnemyDescType(info->item.desc);
         DATA_S16(0) = (s16)enemy_type;
 
         if (DATA_S16(0) == 3) {
@@ -1767,7 +1777,7 @@ low_item_found:
             }
         }
         if (gGameOptions[10] != 0 || DATA_S8(7) < 0) {
-            DATA_S8(7) = (s8)lbl_8011BD40[DATA_S16(0)];
+            DATA_S8(7) = (s8)sEnemyDefaultAlgorithm[DATA_S16(0)];
         }
         DATA_S8(6) = (s8)PARAM_S16(0, 1);
         if (DATA_S8(6) < 1) {
@@ -1813,13 +1823,13 @@ low_item_found:
             DATA_S8(6) = 3;
         }
         DATA_S16(0) =
-            (s16)fn_80050FB0(DATA_S16(0), DATA_S8(2));
+            (s16)GetEnemyType(DATA_S16(0), DATA_S8(2));
         if (stricmp(name, "BOSSGEN") != 0) {
             if (DATA_S16(0) < -1) {
                 sprintf(name, strings + 0x17C, DATA_S8(6));
             } else {
                 sprintf(name, strings + 0x18C,
-                        fn_80051F64(DATA_S16(0)), DATA_S8(6));
+                        EnemyTypePrefix(DATA_S16(0)), DATA_S8(6));
             }
         }
         atree_header = (void*)AtreeMatchAnyHeader(name, 1);
@@ -1859,7 +1869,7 @@ low_item_found:
         if (*(s32*)&params[0] != 0) {
             DATA_S16(0) = -1;
         } else {
-            DATA_S16(0) = (s16)fn_80057B30((char*)&params[4]);
+            DATA_S16(0) = (s16)FindWave((char*)&params[4]);
         }
         DATA_S32(4) = 0;
         item->active &= ~1;
@@ -1890,7 +1900,7 @@ low_item_found:
         DATA_S16(16) = PARAM_S16(8, 0);
         DATA_S16(18) = PARAM_S16(10, 0);
         strncpy(item->info->item.desc, instance->desc, 16);
-        DATA_S32(8) = FindWorldAnimNode(&matrix[12], lbl_8034709C);
+        DATA_S32(8) = FindWorldAnimNode(&matrix[12], sItemSearchDistance);
         attach_geometry = 0;
         item->active |= 0x40;
         break;
@@ -1970,7 +1980,7 @@ after_type10_active:
         break;
 
     case 7:
-        lbl_803448BC++;
+        gNumType7Items++;
         break;
     }
 
@@ -2023,7 +2033,7 @@ after_type10_active:
         break;
     case 1:
         if (subtype == 15 && sMusicTrackHi == 13 &&
-            lbl_80344C60 != 0) {
+            gSumnerReady != 0) {
             item->active |= 0x800;
             MBTreeSetAlpha((s32)item->objgrp.node, 255, 1);
         }
@@ -2063,7 +2073,7 @@ void SetItemGeo(Item* item, void* atree_header, char* name, u32 flags)
     if (atree_header != NULL) {
         item->action = 0;
         *(s32*)item->atree =
-            fn_80012F78(atree_header, item->atree, name, mbflags);
+            AtreeInit(atree_header, item->atree, name, mbflags);
         *(s16*)((u8*)item + 0xA4) = 1;
         if (item->objgrp.node == NULL) {
             item->objgrp.node =
@@ -2081,7 +2091,7 @@ void SetItemGeo(Item* item, void* atree_header, char* name, u32 flags)
             }
             item->daction = action;
         }
-        fn_80011104(item->atree, item->daction, 2);
+        AnimateATree(item->atree, item->daction, 2);
     } else {
         s32 object = ItemFindMBObjectL1(name);
 
