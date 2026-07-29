@@ -198,7 +198,7 @@ extern void  MBRemoveNode(s32 handle, s32 flag);
 extern s32   MBTreeClearFlags(void* node, s32 a, s32 b);
 extern void  MBNodeSetParent(void* node, void* parent);
 extern void  UpdateObjWorldMat(OBJGRP* group);
-extern void  AddItemWobj(Item* item);
+static void AddItemWobj(Item* it);
 extern s32   RegisterItemWobj(void* target_ptr, s16 type, s32 x_grid,
                               s32 z_grid, s32 value);
 extern s32   PlayerSelecting(s32 idx);
@@ -1117,15 +1117,31 @@ void LinkTriggerToCam(s32 idx, s32 type)
     }
 }
 
+/* find the MB object for name, retrying with the "L1" then "ROOT" suffix
+ * appended (Xbox PDB: ItemFindMBObjectL1, static; inlined on GC). */
+static s32 ItemFindMBObjectL1(char* name)
+{
+    s32 object = MBOX_ReallyFindObject(name, -1, -1, -1);
+
+    if (object < 0) {
+        strcat(name, sLevelOneSuffix);
+        object = MBOX_ReallyFindObject(name, -1, -1, -1);
+    }
+    if (object < 0) {
+        strcat(name, sRootSuffix);
+        object = MBOX_ReallyFindObject(name, -1, -1, -1);
+    }
+    return object;
+}
+
 /* 0x80063DB0 - retexture a damageable item by health tier (name + tier
  * digit, falling back to name+"L1"/"ROOT"), blanking it at tier 0. */
 static void AddItemWobj(Item* it)
 {
     char buf[32];
-    u8 unused[4];
     s32 hp = it->health;
     s32 base = it->info->item.hitpoints;
-    s16 tier;
+    s32 tier;
 
     if (hp == 0) {
         tier = 0;
@@ -1141,15 +1157,7 @@ static void AddItemWobj(Item* it)
         *(s16*)(it->data + 2) = tier;
         sprintf(buf, sItemHealthTextureFmt, it->info->item.desc,
                 *(s16*)(it->data + 2));
-        tex = MBOX_ReallyFindObject(buf, -1, -1, -1);
-        if (tex < 0) {
-            strcat(buf, sLevelOneSuffix);
-            tex = MBOX_ReallyFindObject(buf, -1, -1, -1);
-        }
-        if (tex < 0) {
-            strcat(buf, sRootSuffix);
-            tex = MBOX_ReallyFindObject(buf, -1, -1, -1);
-        }
+        tex = ItemFindMBObjectL1(buf);
         if (tex < 0) {
             MBTreeSetFlags(it->objgrp.node, 1, 1);
             *(s16*)(it->data + 2) = -1;
@@ -2045,7 +2053,6 @@ after_type10_active:
 /* Attach either an animation tree or a static MB object to an item. */
 void SetItemGeo(Item* item, void* atree_header, char* name, u32 flags)
 {
-    u8 unused[8];
     s32 node_type = 1;
     u32 mbflags;
 
@@ -2084,16 +2091,8 @@ void SetItemGeo(Item* item, void* atree_header, char* name, u32 flags)
         }
         fn_80011104(item->atree, item->daction, 2);
     } else {
-        s32 object;
+        s32 object = ItemFindMBObjectL1(name);
 
-        if ((object = MBOX_ReallyFindObject(name, -1, -1, -1)) < 0) {
-            strcat(name, sLevelOneSuffix);
-            object = MBOX_ReallyFindObject(name, -1, -1, -1);
-        }
-        if (object < 0) {
-            strcat(name, sRootSuffix);
-            object = MBOX_ReallyFindObject(name, -1, -1, -1);
-        }
         if (object < 0) {
             ErrorPrintf(sSetItemFailedFmt, name);
             if (item->objgrp.node == NULL) {

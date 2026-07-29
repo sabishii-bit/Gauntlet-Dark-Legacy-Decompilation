@@ -268,6 +268,15 @@ GC/1.2.5 + cflags_demo pipeline). Laws, in application order:
 
 ## Additions (light-touch swarm round, 2026-07)
 
+- **Induction-form law** (items.c ShowMilestones/ShowCameras/CollectSafeRocks
+  all EXACT): when a stride loop's counter pair is rotated (base/off swapped
+  one position), the original spelled the element address as
+  `base + i * stride` (or `&arr[i]`) and let MWCC strength-reduce — the
+  induction temp is a COMPILER web created last, colored highest (r31).
+  A hand-written `off += stride` user variable creates its web too early
+  and steals the low color. Delete the named accumulator; keep `i` alone.
+  (Decl-order shuffles are color-neutral — confirmed again; don't retry.)
+
 - **Scalar-vs-array extern controls SDA21 vs ADDR16** (sounds_evt): for a
   global in r13/r2 range, `extern s32 lbl_X;` (scalar, or sized array) emits
   the 1-insn SDA21 form; `extern s32 lbl_X[];` (unsized array) forces the
