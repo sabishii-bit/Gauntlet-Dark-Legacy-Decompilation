@@ -56,6 +56,7 @@ extern f32   lbl_80344590;            /* 0x80344590 frame delta                 
 extern f32   lbl_803447D8;            /* boss/player damage scaling gate             */
 extern volatile f32 sMusicFadeBase;   /* 0x80344594 shared game-time / fade base   */
 extern f32   lbl_80346480;
+extern f32   lbl_80346470;
 extern f64   lbl_80346488;
 extern f64   lbl_80346490;
 extern f32   lbl_803464B8;
@@ -68,6 +69,7 @@ extern f64   lbl_803465A0;
 extern f64   lbl_803465A8;
 extern f64   lbl_803465B0;
 extern f64   lbl_80346550;
+extern f32   lbl_803464C0;
 
 /* -- external helpers -- */
 extern void *AllocFile(const char *wad, const char *name);
@@ -131,7 +133,7 @@ struct CritterTargetState;
 struct CritterTargetRecord;
 void CritterInsertTarget(struct CritterTargetState *state,
                          struct CritterTargetRecord *target);
-void fn_800372A0(void);
+f32  fn_800372A0(Critter *c, f32 *moveTarget, f32 *target, s32 mode);
 void fn_800374FC(void);
 void fn_80037734(void);
 void fn_800378C8(void);
@@ -158,7 +160,7 @@ void CritterRotate(void);
 s32  fn_8003B1CC(Critter *c, CritterMove *move);
 void fn_8003B300(void);
 void CritterGetNextMove(void);
-void fn_8003B67C(void);
+void CritterLookForReady(Critter *c);
 void fn_8003B7D8(void);
 void CritterLookForCriticalMove(Critter *c);
 void fn_8003BC28(void);
@@ -415,7 +417,13 @@ void CritterInsertTarget(CritterTargetState *state, CritterTargetRecord *target)
         state->records[insert] = *target;
     }
 }
-/* 0x800372A0 */ void fn_800372A0(void) {}
+#pragma dont_inline on
+/* 0x800372A0 */ f32 fn_800372A0(Critter *c, f32 *moveTarget,
+                                 f32 *target, s32 mode)
+{
+    return 0.0f;
+}
+#pragma dont_inline off
 /* 0x800374FC */ void fn_800374FC(void) {}
 /* 0x80037734 */ void fn_80037734(void) {}
 /* 0x800378C8 */ void fn_800378C8(void) {}
@@ -777,16 +785,93 @@ s32 fn_8003B1CC(Critter *c, CritterMove *move)
 }
 /* 0x8003B300 */ void fn_8003B300(void) {}
 /* 0x8003B4CC */ void CritterGetNextMove(void) {}
-/* 0x8003B67C */ void fn_8003B67C(void) {}
+/* 0x8003B67C -- choose the closest ready move in the 0x30..0x39 family. */
+void CritterLookForReady(Critter *c)
+{
+    s32 timeOffset;
+    s32 moveOffset;
+    s32 i;
+    CritterMove *moves;
+    s32 result;
+    s32 moveCount;
+    CritterMove *move;
+    s32 type;
+    f64 zeroDouble;
+    f32 zeroFloat;
+    f32 best;
+    f32 distance;
+
+    moveCount = *(s16 *)((u8 *)c->hdr + 0x110);
+    moves = *(CritterMove **)((u8 *)c->hdr + 0x124);
+    result = -1;
+    best = lbl_803464C0;
+
+    if ((*(u32 *)((u8 *)c->hdr + 0x5C) & 0x10000) == 0) {
+        return;
+    }
+    if (CritterGetTarget(c, c->targetPos) == 0) {
+        return;
+    }
+
+    zeroFloat = lbl_80346470;
+    i = 0;
+    zeroDouble = lbl_80346488;
+    timeOffset = 0;
+    moveOffset = 0;
+    while (i < moveCount) {
+        move = (CritterMove *)((u8 *)moves + moveOffset);
+        type = move->type;
+        if (type < 0x30 || type > 0x39) {
+            goto next;
+        }
+        if (type == 0x38 && c->unk124 < 0) {
+            goto next;
+        }
+        if ((move->flags & 4) != 0) {
+            goto next;
+        }
+
+        if (c->targetCount == 0 && c->particle != NULL) {
+            if (c->targetCount == 0 &&
+                move->readyDistance > zeroFloat) {
+                result = i;
+                break;
+            }
+        }
+
+        if ((f64)move->cooldown > zeroDouble &&
+            sMusicFadeBase <
+                *(f32 *)((u8 *)c + 0x218 + timeOffset) +
+                    move->cooldown) {
+            goto next;
+        }
+
+        distance = fn_800372A0(c, (f32 *)((u8 *)move + 0x60),
+                               c->targetPos, 0);
+        if (distance < best) {
+            result = i;
+            best = distance;
+        }
+
+    next:
+        i++;
+        timeOffset += 4;
+        moveOffset += sizeof(CritterMove);
+    }
+
+    if (result >= 0) {
+        c->nextmove = (s16)result;
+    }
+}
 /* 0x8003B7D8 */ void fn_8003B7D8(void) {}
 /* 0x8003BAFC -- select a ready critical move when its target player is
  * currently attacking. */
 void CritterLookForCriticalMove(Critter *c)
 {
     s32 i;
-    s32 timeOffset;
-    s32 moveOffset;
     CritterMove *moves;
+    s32 moveOffset;
+    s32 timeOffset;
     CritterMove *move;
     u32 flags;
     s32 player;

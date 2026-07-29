@@ -95,6 +95,7 @@ Verified exact additions:
 - `CritterDoKnockback` (0x15C; linked bytes exact, object diff is pool-name
   relocation noise only)
 - `CritterAddHealthMeter` (0x150)
+- `CritterLookForReady` (0x15C)
 
 Reusable findings:
 
@@ -119,13 +120,23 @@ Reusable findings:
     the 0x18-byte frame.
 15. Recover signed byte fields from `lbz` followed by `extsb`. The critter child
     counters at 0x44E/0x44F are `s8`, which is needed by critical-move selection.
+16. For a dense loop whose opcode stream is exact but five or more nonvolatile
+    integer webs are rotated, list the desired colors from low to high and declare
+    the corresponding locals in reverse order. `CritterLookForReady` needed
+    `timeOffset, moveOffset, i, moves, result, moveCount` to produce retail
+    `r25..r31` ownership around the fixed `c` parameter web.
+17. A literal `0.0f` and a named zero-valued `.sdata2` float are not interchangeable
+    at the allocator endgame. In `CritterLookForReady`, assigning
+    `zeroFloat = lbl_80346470` forced the retail early `lfs`, which in turn colored
+    `best/zeroFloat/zeroDouble` as `f29/f30/f31` and made all 87 instructions exact.
 
 New fully translated near matches:
 
 - `CritterLineNodeColSub` (formerly `fn_80037C08`) is 75/75 opcode-identical;
   the remaining 12 lines are one three-way saved-FPR color rotation.
 - `CritterLookForCriticalMove` (formerly `fn_8003BAFC`) is 75/75
-  opcode-identical; the remaining diff is a nonvolatile GPR web rotation.
+  opcode-identical; applying the reverse-declaration rule reduced the remaining
+  nonvolatile GPR rotation from 28 to 24 real lines.
 - `fn_8003B1CC` is fully translated and one branch-shape instruction away from
   the 77-instruction retail body.
 - `CritterProcessSafeRocks` is fully translated at 63/63 instructions; only three
