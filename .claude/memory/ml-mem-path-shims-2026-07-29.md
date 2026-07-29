@@ -30,7 +30,8 @@ linked DOL SHA-1 check remained clean.
   path buffer. This grows the frame from `0x218` to the target `0x220` without
   moving the buffer from `r1+0x110`.
 - `serve_io`'s loop condition is the post-increment form
-  `while (i++ < 1 && served == 0)`. This removes two real instruction
-  differences versus a conventional `for` loop. Its remaining nine real lines
-  are caused by the global slot increment/reload shape and are intentionally
-  parked after the local iteration cap.
+  `while (i++ < 1 && served == 0)`. Its global slot wrap must be written as
+  `if (++mlmCurFileSlot >= 1)` so MWCC compares the incremented temporary
+  before storing it. Scoped `#pragma opt_common_subs off` prevents the entry
+  zero from being kept in a third nonvolatile register for the wrap store.
+  Together those two changes make `serve_io` exact (144 bytes).

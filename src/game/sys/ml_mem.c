@@ -102,6 +102,7 @@ void FreeHiMem(void)
 {
 }
 
+#pragma opt_common_subs off
 void serve_io(void)
 {
     int i;
@@ -114,12 +115,12 @@ void serve_io(void)
             finfo_list[mlmCurFileSlot].done != 1) {
             served = do_threaded_io(&finfo_list[mlmCurFileSlot]);
         }
-        mlmCurFileSlot++;
-        if (mlmCurFileSlot > 0) {
+        if (++mlmCurFileSlot >= 1) {
             mlmCurFileSlot = 0;
         }
     }
 }
+#pragma opt_common_subs reset
 
 /* WAD directory lookup: {count@+4, entries@+8}, entry = {key,ofs,size,pad} */
 int MBGetFromWad(int* wad, int key, int* sizeOut)
