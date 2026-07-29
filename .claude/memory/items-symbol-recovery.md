@@ -170,3 +170,12 @@ The complete old-to-new map and evidence are in
   `0x803445CC`, and MWCC emits the retail pair of word loads plus 64-bit
   boolean operations. Replacing the expression with a direct `sFlags` test
   looks semantically obvious but removes seven target instructions.
+- Squared distances formed from `f32` components should generally stay `f32`
+  until the reciprocal-square-root refinement. In `DistanceToClosestPlayer`,
+  changing the accumulator from `f64` to `f32`, declaring it before X/Y/Z,
+  and splitting the sum after two terms removed two register moves, recovered
+  the exact 122-instruction size, and cut the meaningful diff from 108 to 84.
+- A dead array declared after a compound stack local shifts the whole compound
+  upward. An eight-byte array after `update_player_milestone`'s position/abs-Y
+  struct moved it from `sp+16` to the target `sp+24` while growing the frame
+  from 88 to the target 96 bytes; meaningful diff fell from 82 to 58.

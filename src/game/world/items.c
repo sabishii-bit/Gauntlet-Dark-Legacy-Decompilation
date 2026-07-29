@@ -960,10 +960,10 @@ double DistanceToClosestPlayer(f32* position)
     if ((s32)gGameMode == 0x8008) {
         f32 sphere[4];
         volatile f32 root;
-        f32 dy;
+        f32 distance;
         f32 dx;
+        f32 dy;
         f32 dz;
-        f64 distance;
 
         sphere[0] = position[0];
         sphere[1] = position[1];
@@ -972,7 +972,8 @@ double DistanceToClosestPlayer(f32* position)
         dy = *(f32*)(gCameras + 0x38) - sphere[1];
         dx = *(f32*)(gCameras + 0x34) - sphere[0];
         dz = *(f32*)(gCameras + 0x3C) - sphere[2];
-        distance = dx * dx + dy * dy + dz * dz;
+        distance = dx * dx + dy * dy;
+        distance = dz * dz + distance;
         if (distance > sItemZero) {
             f64 estimate = __frsqrte(distance);
             estimate = sArrowFloorYOffset * estimate *
@@ -997,10 +998,16 @@ double DistanceToClosestPlayer(f32* position)
         for (i = 0; i < 4; i++, player += 0x335C) {
             if (*(s32*)(player + 0xE8) == 1) {
                 volatile f32 root;
-                f32 dy = *(f32*)(player + 0x48) - position[1];
-                f32 dx = *(f32*)(player + 0x44) - position[0];
-                f32 dz = *(f32*)(player + 0x4C) - position[2];
-                f64 distance = dx * dx + dy * dy + dz * dz;
+                f32 distance;
+                f32 dx;
+                f32 dy;
+                f32 dz;
+
+                dy = *(f32*)(player + 0x48) - position[1];
+                dx = *(f32*)(player + 0x44) - position[0];
+                dz = *(f32*)(player + 0x4C) - position[2];
+                distance = dx * dx + dy * dy;
+                distance = dz * dz + distance;
 
                 if (distance > sItemZero) {
                     f64 estimate = __frsqrte(distance);
@@ -2343,6 +2350,7 @@ void update_player_milestone(struct Player* player_ptr)
         u8 unused1[12];
         f32 position[3];
     } locals;
+    u8 unused[8];
     s32 i;
     s32 offset;
     s32 j;
