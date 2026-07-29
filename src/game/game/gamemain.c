@@ -771,11 +771,11 @@ s32 fn_80054070(s32 arg0, s32 arg1, s32 arg2)
 /* 0x80055E60 -- spawn the level-transition effect for the current music. */
 s32 WorldExplosion(s32 arg0)
 {
-    f32 f30;
     f32 f31;
+    f32 f30;
     s32 fxid;
-    s32 dmg;
     s32 result;
+    s32 dmg;
 
     f30 = lbl_80346BE0;
     switch (sMusicTrackHi) {
