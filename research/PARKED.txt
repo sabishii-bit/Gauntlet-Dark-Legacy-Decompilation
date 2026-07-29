@@ -389,3 +389,10 @@ SetItemGeo  # renum-tail: mr. fusion vs cmpwi+addi return-materialization after 
 AddItemWobj  # renum-tail: same mr.-fusion residual as SetItemGeo at ItemFindMBObjectL1 return join; 13 real, 1-insn
 SetPlayerStartPos  # sched/peephole: stfsu @LO fusion vs lis+addi+stfs for gDefaultPlayerPosition store block, 31 real (dst-local, unsized-extern, scoped-pragma all failed; pragma poisons whole tail)
 PlaceItem  # renum: defs/body r27-r30 LICM pair + bne/b-vs-beq threading, 45 real (continue-form, ||-guard, delete-local all identical)
+# critter.c third pass (2026-07-29):
+CritterLineNodeColSub      # renum, 75/75 opcode-identical; radius/zero/dot-threshold saved-FPR
+                           # three-cycle (f29/f30/f31), 12 real after structural body landed
+CritterLookForCriticalMove # renum, 75/75 opcode-identical; c/moves/time-offset/move-offset
+                           # nonvolatile web rotation, 28 real best after three declaration-order probes
+fn_8003B1CC               # gate, 77/76 best; outer node-selection if collapses target bge+b into one blt
+CritterProcessSafeRocks   # isel, 63/63; three base+offset address canonicalizations, 12 real best
