@@ -679,12 +679,12 @@ void AtreeNodeInsert(anode* node, anode* parent, anode* root)
         parent->child = node;
         return;
     }
-    p = child->next;
-    last = child;
-    for (; p != NULL && p != child; p = p->next) {
-        last = p;
+    parent = child->next;
+    root = child;
+    for (; parent != NULL && parent != child; parent = parent->next) {
+        root = parent;
     }
-    last->next = node;
+    root->next = node;
 }
 
 anode* AtreeNodeLastSibling(anode* node)
