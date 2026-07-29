@@ -19,11 +19,13 @@
  * play-primitive of every function are recorded in the scout report.
  *
  * STATUS (matching pass): 116/118 functions reconstructed; 102 byte-exact
- * after recovering the C8F0 call-argument temporaries, the D100/D16C/D1D8
- * one-case switches, the EEBC/EF04 argument locals, and SeverePain's
+ * after recovering the AudioExplodeWall call-argument temporaries, the
+ * bridge/world-motion one-case switches, the AudioClick argument locals,
+ * and SeverePain's
  * assignment-in-condition. Remaining residuals are semantically faithful;
- * F550/F860 now have exact instruction counts, and FD84 has a substantially
- * closer control-flow and argument-loading shape.
+ * AudioPlayerTurbo/AudioPlayerEatFood now have exact instruction counts,
+ * and AudioEnterNextStage has a substantially closer control-flow and
+ * argument-loading shape.
  * Deferred (too large for this light-touch pass, need dedicated sessions):
  *   fn_8009CB44           0x8009CB44 (0x23C) two-half lbl_8034476C<=1 range
  *                         dispatch over shared AudioWithName/QueAddEx bodies
@@ -297,7 +299,7 @@ void fn_8009C8A0(int pos)
     }
 }
 
-void fn_8009C8F0(int pos, int flag)
+void AudioExplodeWall(int pos, int flag)
 {
     if (flag > 0) {
         int idx = *(s16*)(*(u8**)(gCurLevel + 100) + 18);
@@ -865,7 +867,7 @@ void fn_8009EE2C(int flag)
     sAudioOverride = save;
 }
 
-void fn_8009EEBC(int pidx, int sel)
+void AudioClick(int pidx, int sel)
 {
     int track = lbl_801232C8[pidx];
     int id = (&lbl_80343E2C)[sel];
@@ -873,7 +875,7 @@ void fn_8009EEBC(int pidx, int sel)
     sndFxPlayEx(id, track, 127, 125);
 }
 
-void fn_8009EF04(int pidx, int sel)
+void AudioClick2(int pidx, int sel)
 {
     int track = lbl_801232C8[pidx];
     int id = (&lbl_80343E24)[sel];
@@ -1018,20 +1020,21 @@ void fn_8009FD38(void)
     }
 }
 
-void fn_8009FD84(void)
+void AudioEnterNextStage(void)
 {
     u8* level = *(u8**)(gCurLevel + 100);
     int idx = *(s16*)(level + 16);
     u8* entry;
 
-    if (idx >= 0) {
+    if (idx < 0) {
+invalid_entry:
+        entry = 0;
+    } else {
         entry = *(u8**)(gWorldData + 44) + idx * 24;
-        if (*(int*)(entry + 16) >= 0) {
-            goto entry_ready;
+        if (*(int*)(entry + 16) < 0) {
+            goto invalid_entry;
         }
     }
-    entry = 0;
-entry_ready:
     if (entry != 0) {
         if (*(int*)(level + 20) >= 0) {
             int sound_id = *(int*)(entry + 16);
@@ -1109,15 +1112,15 @@ void fn_8009F06C(int pos, int idx)
     }
 }
 
-void fn_8009F550(int pidx, int sel, int arg3)
+void AudioPlayerTurbo(int pidx, int sel, int arg3)
 {
-    typedef struct AudioPlayerEventIds {
+    typedef struct AudioTurboSoundIds {
         u8 pad_0000[1020];
-        s32 case_0[8][4];
-        s32 case_1[8];
-        s32 case_2[8];
-    } AudioPlayerEventIds;
-    AudioPlayerEventIds* t = (AudioPlayerEventIds*)lbl_801232C8;
+        s32 snd_turbo_a[8][4];
+        s32 snd_turbo_b[8];
+        s32 snd_turbo_c[8];
+    } AudioTurboSoundIds;
+    AudioTurboSoundIds* t = (AudioTurboSoundIds*)lbl_801232C8;
     int f8;
     int slot;
     int flags;
@@ -1131,41 +1134,41 @@ void fn_8009F550(int pidx, int sel, int arg3)
     } else {
         switch (sel) {
         case 0:
-            sndFxPlay3D(t->case_0[f8][arg3], slot, 224, 19);
+            sndFxPlay3D(t->snd_turbo_a[f8][arg3], slot, 224, 19);
             break;
         case 1:
-            sndFxPlay3D(t->case_1[f8], slot, 224, 17);
+            sndFxPlay3D(t->snd_turbo_b[f8], slot, 224, 17);
             break;
         case 2:
-            sndFxPlay3D(t->case_2[f8], slot, 224, 16);
+            sndFxPlay3D(t->snd_turbo_c[f8], slot, 224, 16);
             break;
         }
     }
 }
 
-void fn_8009F860(int pidx, int arg2)
+void AudioPlayerEatFood(int pidx, int foodType)
 {
-    typedef struct AudioEventIds {
+    typedef struct AudioFoodSoundIds {
         u8 pad_0000[700];
-        s32 random_pain[8][4];
-        s32 severe_pain[1];
-    } AudioEventIds;
+        s32 snd_eat[8][4];
+        s32 snd_eat_default[1];
+    } AudioFoodSoundIds;
     u8* player = &gPlayers[pidx * 13148];
-    AudioEventIds* t = (AudioEventIds*)lbl_801232C8;
+    AudioFoodSoundIds* t = (AudioFoodSoundIds*)lbl_801232C8;
 
     if (RandInt(4) == 0) {
         if (!(*(int*)(player + 292) & 0x400)) {
-            if (t->random_pain[*(int*)(player + 8)][arg2] >= 0) {
+            if (t->snd_eat[*(int*)(player + 8)][foodType] >= 0) {
                 int pan = AudioAng((int)(player + 68));
 
-                sndFxQueAdd(t->random_pain[*(int*)(player + 8)][arg2],
+                sndFxQueAdd(t->snd_eat[*(int*)(player + 8)][foodType],
                             -1.0f, 1.0f, 192, pan, 66);
             }
         }
     } else {
         int id;
 
-        if ((id = t->severe_pain[*(int*)(player + 8)]) >= 0) {
+        if ((id = t->snd_eat_default[*(int*)(player + 8)]) >= 0) {
             int pan = AudioAng((int)(player + 68));
 
             if (*(int*)(player + 292) & 0x400) {
@@ -1176,29 +1179,34 @@ void fn_8009F860(int pidx, int arg2)
     }
 }
 
-void fn_8009F638(int pidx)
+void AudioPlayerEatSFX(int pidx)
 {
-    u8* player = &gPlayers[pidx * 13148];
-    int f284 = *(int*)(player + 284);
+    int playerOffset = pidx * 13148;
+    int f284;
+
+    pidx = (int)&gPlayers[playerOffset];
+    f284 = *(int*)(pidx + 284);
 
     if (f284 & 0x580000) {
-        sndFxPlay3DAtten(66, (int)(player + 68), 127, 40);
+        sndFxPlay3DAtten(66, pidx + 68, 127, 40);
     } else {
         switch (f284 & 0xF) {
         case 1:
-            sndFxPlay3DAtten(68, (int)(player + 68), 127, 40);
+            sndFxPlay3DAtten(68, pidx + 68, 127, 40);
             break;
         case 2:
-            sndFxPlay3DAtten(70, (int)(player + 68), 127, 40);
+            sndFxPlay3DAtten(70, pidx + 68, 127, 40);
             break;
         case 3:
-            sndFxPlay3DAtten(69, (int)(player + 68), 127, 40);
+            sndFxPlay3DAtten(69, pidx + 68, 127, 40);
             break;
         case 4:
-            sndFxPlay3DAtten(67, (int)(player + 68), 127, 40);
+            sndFxPlay3DAtten(67, pidx + 68, 127, 40);
             break;
         default:
-            sndFxPlay3DAtten(lbl_801236A4[*(int*)(player + 8)], (int)(player + 68), 127, 42);
+            pidx = (int)&gPlayers[playerOffset];
+            sndFxPlay3DAtten(lbl_801236A4[*(int*)(pidx + 8)],
+                            pidx + 68, 127, 42);
             break;
         }
     }
@@ -1283,17 +1291,17 @@ void AudioPlayerPain(int pidx)
     }
 }
 
-void fn_8009FBD4(int sel)
+void AudioNumRunesFound(int runeCount)
 {
-    if (sel <= 0) {
+    if (runeCount <= 0) {
         return;
     }
-    if (sel == 1) {
+    if (runeCount == 1) {
         if (good_wiz_state <= 2) {
             sndFxQueAddEx(1, 0x10030, -1.0f, -1.0f, 224, 127, 2);
         }
-    } else if (sel <= 12) {
-        int id = lbl_8012348C[sel - 2];
+    } else if (runeCount <= 12) {
+        int id = lbl_8012348C[runeCount - 2];
 
         if (good_wiz_state <= 2) {
             sndFxQueAddEx(1, id, -1.0f, -1.0f, 224, 127, 2);
@@ -1323,10 +1331,11 @@ void fn_8009FFF4(int sel, int pidx)
     }
 }
 
-void fn_8009F4D0(int pidx)
+void AudioTurboDefense(int pidx)
 {
     int f292 = *(int*)&gPlayers[pidx * 13148 + 292];
     int id;
+    int pos;
 
     if (f292 & 0x10) {
         id = 71;
@@ -1337,7 +1346,8 @@ void fn_8009F4D0(int pidx)
     } else {
         return;
     }
-    sndFxPlay3D(id, (int)&gPlayers[pidx * 13148 + 84], 224, 40);
+    pos = (int)&gPlayers[pidx * 13148 + 84];
+    sndFxPlay3D(id, pos, 224, 40);
 }
 
 void fn_8009D7E4(int a, int pos)
@@ -1464,7 +1474,7 @@ void fn_8009CFA8(int pidx, int sel)
     sndFxPlayEx(soundId, p1, 127, 66);
 }
 
-void fn_8009D100(int pos)
+void AudioBridgeOpen(int pos)
 {
     int id = lbl_80123C34[sMusicTrackHi];
 
@@ -1479,7 +1489,7 @@ void fn_8009D100(int pos)
     }
 }
 
-void fn_8009D16C(int pos)
+void AudioBridgeClose(int pos)
 {
     int id = lbl_80123BFC[sMusicTrackHi];
 
@@ -1494,7 +1504,7 @@ void fn_8009D16C(int pos)
     }
 }
 
-void fn_8009D1D8(int pos, int sel)
+void AudioWorldObjectMotion(int pos, int sel)
 {
     int id = lbl_80123B8C[sel][sMusicTrackHi];
 
