@@ -48,8 +48,8 @@ void PlayVQMovie(const char* name);
 
 extern char* movie_list1[];   /* movie_list1 (7) */
 extern char* movie_list2[];   /* movie_list2 (26) */
-extern s32 lbl_803449C0;       /* movie_list1 index */
-extern s32 lbl_80343C60;       /* movie_list2 index */
+extern s32 sMovieIdx1;       /* movie_list1 index */
+extern s32 sMovieIdx2;       /* movie_list2 index */
 extern u32 lbl_80344620;       /* pad buttons (held) */
 extern u64 gControllerButtons;       /* pad buttons 64-bit */
 extern s32 dbg_test_movies;       /* keep-running flag */
@@ -118,53 +118,53 @@ void InitControls(void);
 void MBWindowZoom(f32 zoom);
 void fn_800C1170(int a, void* b, int c);
 
-extern char lbl_80113028[];    /* string table (soulsave.. boot strings) */
+extern char sBootStrings[];    /* string table (soulsave.. boot strings) */
 extern char lbl_80126A98[];    /* version string */
 extern u8 lbl_80127D00[];
 extern u8 gIdentityMatrix[];
 extern u32 gErrorCode;         /* boot clear color */
-extern s32 lbl_803449C4;       /* boot step */
+extern s32 sBootPhase;       /* boot step */
 extern u8* mlmMemBase;
 extern s32 mlmMemLimit;
 extern u32 lbl_803472BC;
 extern u32 lbl_803472C4;
 extern u32 lbl_803472CC;
-extern u32 lbl_803449C8;
-extern f32 lbl_803472D4;       /* boot window zoom */
+extern u32 sBootModelHandle;
+extern f32 sBootWindowZoom;       /* boot window zoom */
 extern u32 lbl_80344DA8;
-extern s32 lbl_803449B0;       /* save-pending flag */
+extern s32 sDiagPending;       /* save-pending flag */
 extern u8 pbMeasureLoad;
 extern s32 gGameBusy;
 extern s32 gDemoMode;
 extern s32 lbl_80343B00;
 extern s32 gGameMode;       /* game state id */
 extern s32 lbl_80344A80;
-extern s32 lbl_803449BC;
+extern s32 sSpecialCamInit;
 extern u32 gBossObj;
 extern s32 lbl_80343C5C;
 extern s32 lbl_803444E0;
 extern s32 lbl_8034475C;
 extern s32 lbl_80344F80;
-extern u32 lbl_803449AC;
+extern u32 sMainFrames;
 extern u8 lbl_803441F0;
 extern s64 lbl_80344278;       /* OSTime snapshot */
-extern u32 lbl_803449CC;
+extern u32 sMainTimerTicks;
 
 extern char* lbl_80344800;      /* debug print list base */
-extern char* lbl_803449B4;
-extern s32 lbl_803449B8;        /* debug print y cursor */
+extern char* sDbgPrintPtr;
+extern s32 sDbgPrintY;        /* debug print y cursor */
 void serve_io(void);
 void adsPoll(void);             /* ADSTREAM per-frame poll (adsPoll) */
 
 /* main globals block: DVDFileInfo @0, ortho Mtx44 @60, viewport @124 */
 extern u8 gDvdScratchFileInfo[];
-extern char lbl_8011304C[]; /* "check.txt" */
+extern char sCheckTxt[]; /* "check.txt" */
 
 extern f32 sMusicFadeBase;
 extern f64 lbl_803471B8;
 extern f32 AmbientSpecialTime;
 extern f32 AmbientSpecialValue;
-extern u32 lbl_80343C64;  /* copy-clear color */
+extern u32 sBootClearColor;  /* copy-clear color */
 extern f32 lbl_803472B4;  /* 1.0f */
 extern f32 lbl_803472B8;  /* -1.0f */
 extern u32 lbl_803472B0;  /* tev kcolor */
@@ -181,7 +181,7 @@ void fn_80067AE0(f32 t, f32 v)
 }
 
 /* per-frame service pump */
-void fn_80067B0C(int flags)
+void serve_busy(int flags)
 {
     if (flags & 1) {
         pbPulseTime();
@@ -204,9 +204,9 @@ register u32 high;
     high = 0x80260000;
     g = (u8*)(high - 0x1218);
     DEMOInit(0);
-    while (DVDOpen(lbl_8011304C, g) == 0) {
+    while (DVDOpen(sCheckTxt, g) == 0) {
     }
-    clear = lbl_80343C64;
+    clear = sBootClearColor;
     GXSetCopyClear(&clear, 0);
     GXSetZMode(1, 6, 1);
     GXSetVtxAttrFmt(0, 9, 1, 4, 0);
@@ -249,43 +249,43 @@ register u32 high;
     sndVoiceInit();
 }
 
-void fn_80068408(char** msg, int level);
-void fn_8006845C(const char* str);
+void main_report_cb(char** msg, int level);
+void main_print_cb(const char* str);
 
 void test_movies(void)
 {
     LockMem(1);
     while (dbg_test_movies != 0) {
-        if (lbl_803449C0 >= 0) {
-            PlayVQMovie(movie_list1[lbl_803449C0]);
+        if (sMovieIdx1 >= 0) {
+            PlayVQMovie(movie_list1[sMovieIdx1]);
             FreeUnlockedMem(1);
             if (lbl_80344620 & 0x10000000) {
-                lbl_803449C0--;
+                sMovieIdx1--;
             } else {
-                lbl_803449C0++;
+                sMovieIdx1++;
             }
-            if ((u32) lbl_803449C0 >= 7) {
-                lbl_803449C0 = -1;
-                lbl_80343C60 = 0;
-            } else if (lbl_803449C0 < 0) {
-                lbl_80343C60 = 24;
+            if ((u32) sMovieIdx1 >= 7) {
+                sMovieIdx1 = -1;
+                sMovieIdx2 = 0;
+            } else if (sMovieIdx1 < 0) {
+                sMovieIdx2 = 24;
             }
         } else {
-            if (lbl_80343C60 < 0) {
-                lbl_80343C60 = 0;
+            if (sMovieIdx2 < 0) {
+                sMovieIdx2 = 0;
             }
-            PlayVQMovie(movie_list2[lbl_80343C60]);
+            PlayVQMovie(movie_list2[sMovieIdx2]);
             FreeUnlockedMem(1);
             if (lbl_80344620 & 0x10000000) {
-                lbl_80343C60--;
+                sMovieIdx2--;
             } else {
-                lbl_80343C60++;
+                sMovieIdx2++;
             }
-            if ((u32) lbl_80343C60 >= 26) {
-                lbl_80343C60 = -1;
-                lbl_803449C0 = 0;
-            } else if (lbl_80343C60 < 0) {
-                lbl_803449C0 = 5;
+            if ((u32) sMovieIdx2 >= 26) {
+                sMovieIdx2 = -1;
+                sMovieIdx1 = 0;
+            } else if (sMovieIdx2 < 0) {
+                sMovieIdx1 = 5;
             }
         }
         if (lbl_80344620 & 0x00040000) {
@@ -299,16 +299,16 @@ void test_movies(void)
 
 void main(void)
 {
-    char* st = lbl_80113028;
+    char* st = sBootStrings;
 
     main_init();
     fn_800B27C4();
     padInit();
-    sysSetResetCallback(fn_80068408);
-    sysSetMsgCallback(fn_8006845C);
+    sysSetResetCallback(main_report_cb);
+    sysSetMsgCallback(main_print_cb);
     pbPulseTime();
     gErrorCode = 0xFF;
-    lbl_803449C4 = 0;
+    sBootPhase = 0;
     game_init_once(st + 48);
     LoadModel(&lbl_803472BC, 0, 0, -1);
     MBNewBlit(st + 60, 0, 0);
@@ -334,7 +334,7 @@ void main(void)
     if (dbg_test_movies != 0) {
         test_movies();
     }
-    if (lbl_803449B0 != 0) {
+    if (sDiagPending != 0) {
         u32 tmp;
         u8 pad[16]; /* unused, matches original frame */
 
@@ -355,25 +355,25 @@ void main(void)
         pbPulseTime();
         srand(pbGetTime() >> 3);
         gGameBusy = 0;
-        lbl_803449C4 = 2;
+        sBootPhase = 2;
         fn_8002F040();
         LoadVU1GameLogic();
-        lbl_803449C4 = 3;
+        sBootPhase = 3;
         PlayerControls();
         if (gDemoMode == 0) {
             sndSysStub1();
         }
-        lbl_803449C4 = 11;
+        sBootPhase = 11;
         ScreenSaver();
-        lbl_803449C4 = 4;
+        sBootPhase = 4;
         if (DoOptions() != 0) {
             gGameBusy = 1;
         }
-        lbl_803449C4 = 5;
+        sBootPhase = 5;
         sndFxQueUpdate();
         AudioSysSync(1);
-        if (lbl_803449B0 != 0) {
-            lbl_803449C4 = 6;
+        if (sDiagPending != 0) {
+            sBootPhase = 6;
             if (pbDiagDrawMenu() != 0) {
                 lbl_80343B00 = -1;
                 MBOX_ResetUnlockedModels(0);
@@ -383,17 +383,17 @@ void main(void)
                 fn_800533E4();
                 fn_8005403C(1);
                 init_attract_mode(0x8004);
-                lbl_803449B0 = 0;
+                sDiagPending = 0;
             }
             fn_8006FF1C();
         } else {
-            lbl_803449C4 = 7;
+            sBootPhase = 7;
             DoLighting(0);
-            lbl_803449C4 = 8;
+            sBootPhase = 8;
             if (sysTestFlags(32) == 0) {
                 game_main();
             }
-            lbl_803449C4 = 9;
+            sBootPhase = 9;
             if (TriggerCamUpdate() == 0) {
                 s32 state = gGameMode;
 
@@ -404,17 +404,17 @@ void main(void)
                         do_camera();
                     }
                 } else if (lbl_80344A80 == 1) {
-                    if (lbl_803449BC == 0) {
+                    if (sSpecialCamInit == 0) {
                         fn_8006FE30();
-                        lbl_803449BC = 1;
+                        sSpecialCamInit = 1;
                     }
                     fn_8006FF1C();
                 } else if (state & 0x8000) {
                     lbl_80344A80 = 0;
-                    lbl_803449BC = 0;
+                    sSpecialCamInit = 0;
                     do_camera();
                 } else {
-                    lbl_803449BC = 0;
+                    sSpecialCamInit = 0;
                     if (gBossObj != 0) {
                         lbl_80344A80 = 0;
                         if (BossCameraUpdate() == 0) {
@@ -440,17 +440,17 @@ void main(void)
         sndSysStub0();
         MBEndFrame();
         serve_io();
-        lbl_803449AC++;
+        sMainFrames++;
         /* PARKED 1-bit residual: target compares this u8 with cmplwi;
            every source form tried emits cmpwi (same semantics for a
            zero-extended byte vs 0). Plus one reloc-name split on the
            OSTime store (lbl_80344278+4 vs lbl_8034427C; same address). */
         if (lbl_803441F0 != 0) {
-            if (lbl_803449AC > 1) {
-                if (lbl_803449AC == 2) {
+            if (sMainFrames > 1) {
+                if (sMainFrames == 2) {
                     lbl_80344278 = OSGetTime();
                 } else {
-                    lbl_803449CC++;
+                    sMainTimerTicks++;
                 }
             }
         }
@@ -458,7 +458,7 @@ void main(void)
 }
 
 /* report handler: prints levels 0/1 centered-ish in white */
-void fn_80068408(char** msg, int level)
+void main_report_cb(char** msg, int level)
 {
     switch (level) {
     case 0:
@@ -471,18 +471,18 @@ void fn_80068408(char** msg, int level)
 }
 
 /* debug print-line callback: NULL resets; first line yellow, then white */
-void fn_8006845C(const char* str)
+void main_print_cb(const char* str)
 {
     if (str == 0) {
-        lbl_803449B4 = lbl_80344800;
-        lbl_803449B8 = 24;
+        sDbgPrintPtr = lbl_80344800;
+        sDbgPrintY = 24;
         return;
     }
     {
-        s32 y = lbl_803449B8;
+        s32 y = sDbgPrintY;
         DrawText(16, y, 0, (y == 24) ? 0x00FFFF00 : 0x00FFFFFF, str);
     }
-    lbl_803449B8 += 12;
+    sDbgPrintY += 12;
 }
 
 /* 0x800684D4  one-time boot bring-up: memory, mb/pb, fonts, audio rom,
@@ -490,7 +490,7 @@ void fn_8006845C(const char* str)
 void game_init_once(const char* name)
 {
     char buf[36];
-    char* st = lbl_80113028;
+    char* st = sBootStrings;
 
     fn_800520CC();
     fn_8002EFE8();
@@ -505,14 +505,14 @@ void game_init_once(const char* name)
     dbgTextInit();
     MBInit();
     bulletproof_printf(st + 316);
-    LoadModel(&lbl_803472CC, &lbl_803449C8, 1, -1);
+    LoadModel(&lbl_803472CC, &sBootModelHandle, 1, -1);
     FontEndFrame();
     FontInitDefault();
     bulletproof_printf(st + 328);
     AudioLoadRom();
     bulletproof_printf(st + 348);
     InitControls();
-    MBWindowZoom(lbl_803472D4);
+    MBWindowZoom(sBootWindowZoom);
     fn_8005403C(0);
     fn_800C1170(325, &lbl_80344DA8, 0);
     bulletproof_printf(st + 376, BytesFree());

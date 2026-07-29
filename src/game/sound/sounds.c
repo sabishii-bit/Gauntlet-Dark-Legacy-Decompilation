@@ -47,7 +47,7 @@ extern int AudioFindSound(char* a, int b, int c);
 extern int AudioIsActive(void);
 extern void AudioDeferSlot(void* cb, int arg);
 extern int LevelLetter(int a);
-extern void fn_80067B0C(int a);
+extern void serve_busy(int a);
 extern void fn_800C031C(void* a, void* b, void* c, int d);
 extern int sprintf(char* buf, const char* fmt, ...);
 extern char* strcat(char* dst, const char* src);
@@ -404,7 +404,7 @@ void BGMusicStart(void)
     int v = (sMusicTrackHi << 8) | (sMusicTrackLo & 0xFF);
 
     while (sndFxUpdate(1) != 0) {
-        fn_80067B0C(-1);
+        serve_busy(-1);
     }
     sndFxResetVoices();
     sCurSelectTrack = 0;
@@ -452,7 +452,7 @@ void AudioRegisterNameBanks(char* name, int flag)
     }
     if (flag == 0) {
         while (AudioSysUpdate(1) != 0) {
-            fn_80067B0C(-1);
+            serve_busy(-1);
         }
     }
 }

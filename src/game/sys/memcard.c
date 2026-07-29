@@ -92,7 +92,7 @@ u32 GetHiMemCacheTop(void);
 int FileSystemReading(void);
 void bulletproof_printf(const char* fmt, ...);
 void pbPulseTime(void);
-void fn_80067B0C(int flags);       /* service pump (movie/audio) while busy */
+void serve_busy(int flags);       /* service pump (movie/audio) while busy */
 
 /* ---- UI / message-box (game) used by drawMemCardMessage -------------- */
 void msgUpdate(void);
@@ -420,7 +420,7 @@ int saveLoad(int port, int slot, int fileNo, void* dst)
     lbl_803449F8 = 0;
     bulletproof_printf(rpool + 40);
     while (FileSystemReading() != 0) {
-        fn_80067B0C(-1);
+        serve_busy(-1);
     }
     beginSaveTransaction();
     lbl_80344A04 = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x2D44C0);
@@ -468,7 +468,7 @@ int saveSave(int port, int slot, int fileNo, void* src)
     lbl_803449F8 = 0;
     bulletproof_printf(rpool + 40);
     while (FileSystemReading() != 0) {
-        fn_80067B0C(-1);
+        serve_busy(-1);
     }
     beginSaveTransaction();
     lbl_80344A04 = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x2D44C0);
@@ -606,7 +606,7 @@ int MemCardCreateGaunt(int port, int slot)
     lbl_803449F8 = 0;
     bulletproof_printf(lbl_801131E8);
     while (FileSystemReading() != 0) {
-        fn_80067B0C(-1);
+        serve_busy(-1);
     }
     beginSaveTransaction();
     lbl_80344A04 = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x2D44C0);
@@ -773,7 +773,7 @@ int InitPreferences(void)
         lbl_803449F8 = 0;
         bulletproof_printf(lbl_801131E8);
         while (FileSystemReading() != 0) {
-            fn_80067B0C(-1);
+            serve_busy(-1);
         }
         beginSaveTransaction();
         lbl_80344A04 = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x2D44C0);
@@ -831,7 +831,7 @@ u8 beginSaveCacheTransaction(void)
     lbl_803449F8 = 0;
     bulletproof_printf(lbl_801131E8);
     while (FileSystemReading() != 0) {
-        fn_80067B0C(-1);
+        serve_busy(-1);
     }
     size = 0x310000;
     sysSetFlags(64);
@@ -1570,7 +1570,7 @@ s32 saveMenuPrompt(const char* msg, char** options, s32 count)
             timer = 30;
             dcsAramWrite((void*)(GetHiMemCacheTop() - 0x310000), 0xCF0000, 0x310000);
             dcsAramRead(0x9E0000, (void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
-            fn_80067B0C(-1);
+            serve_busy(-1);
             dcsAramWrite((void*)(GetHiMemCacheTop() - 0x310000), 0x9E0000, 0x310000);
             dcsAramRead(0xCF0000, (void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
         }
