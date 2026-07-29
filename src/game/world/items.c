@@ -175,7 +175,7 @@ extern s32   fn_80051FDC(char* desc);
 extern s32   fn_80050FB0(s32 type, s32 level);
 extern char* fn_80051F64(s32 type);
 extern void* CritterTypeLoaded(s32 type, s32 load);
-extern s16*  fn_80055CB8(void* wobj);
+extern s16*  FindWobjWanim(void* wobj);
 extern s32   fn_80057B30(char* name);
 extern s32   towerGetLevelFlag(void* player, s32 flag);
 extern s32   towerAllPlayersMetBossReq(s32 flag);
@@ -1699,7 +1699,7 @@ keyring_found:
             }
 
             if (activate != 0) {
-                s16* anim = fn_80055CB8(wobj);
+                s16* anim = FindWobjWanim(wobj);
                 wobj[0x17] = '/';
                 wobj[0x16] = '/';
                 *(u32*)(wobj + 0x10) |= 0xA00000;

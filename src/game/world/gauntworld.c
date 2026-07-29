@@ -1079,7 +1079,7 @@ void fn_800606FC(void)
  * 8005FB48  0x0260  fn_ : (fn_8002FA70, fn_8005FDA8, fqdist)
  * 8005FDA8  0x01B8  fn_ : (FatalError, CTriListCollide, MulBodyVecMat4/DD00/DE80).
  *                    "COL_OBJECT Item: idx < 0"
- * 8005FF60  0x01B4  fn_ : (ErrorPrintf, fn_80055CB8).
+ * 8005FF60  0x01B4  fn_ : (ErrorPrintf, FindWobjWanim).
  *                    "Special trigger has no target"
  * 80060114  0x05E8  fn_ : spawn enemy from world data (CritterNewInst,
  *                    generate_enemy, atan2, UpdateObjWorldMat, MBWorldSphereVisible3).

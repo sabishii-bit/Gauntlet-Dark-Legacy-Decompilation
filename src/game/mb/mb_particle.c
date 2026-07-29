@@ -863,7 +863,7 @@ void MBPsysSetERate4(f64 v0, f64 v1, f64 v2, f64 v3, MBObject* node) {
 
 /* 0x800D0EB0 - MBPsysSetEVolume: particle life/fade base+range (bytes, clamped).
  * NOTE: PDB name inferred (byte fields psys+0x60/0x61). */
-void MBPsysSetEVolume(f64 base, f64 range, MBObject* node) {
+void MBPsysSetEVolume(f32 base, f32 range, MBObject* node) {
     Psys* p = (Psys*)node->data.psys;
     f64 v;
     if (p->e_phase > 1) {

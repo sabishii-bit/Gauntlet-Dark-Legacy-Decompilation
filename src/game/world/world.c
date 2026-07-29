@@ -164,10 +164,10 @@ extern void  MBTreeSetAltTex(void*, s32, s32, s32);
 extern void  MBNewWorldPsys(s32, void*, void*, s32, void*, void*); /* spawn psys   */
 extern void  CopyMat4(void*, void*);
 extern void  ZeroAnimData(void*);
-extern s32   CalcAnimData(void*, f32*, s32, s32, s32, s32, f32); /* sample anim  */
+extern s32   CalcAnimData(void*, f32*, void*, s32, s32, s32, f32); /* sample anim */
 extern void  CreatePYRMatrix(void*, f32*);  /* apply anim rotation (variant A)      */
 extern void  CreateRYPMatrix(void*, f32*);  /* apply anim rotation (variant B)      */
-extern void  fn_80055E04(WorldObj*, f32*);
+extern void  WorldObjectExplode(WorldObj*, f32*);
 extern void  ErrorPrintf(const char*, ...);
 extern void  bulletproof_printf(const char*, ...);
 extern int   strcmp(const char*, const char*);
@@ -210,14 +210,16 @@ static const float lbl_80348778 = 0.0f;
 
 /* DoWorldAnimSub: advance one object's keyframe animation by one frame.
  * `wa` is the worldanim track; `panim` points at the object's animdata pointer
- * (panim[0] is the little-endian keyframe stream).  Returns the swapped mode
- * word from the stream header, or 0 when nothing was animated. */
-s32 DoWorldAnimSub(struct worldanim* wa, void** panim) {
+ * (panim[0] is the little-endian keyframe stream). `animBase` is the shared
+ * animation-data block used by the stream's byte-swapped +4 offset. Returns
+ * the swapped mode word from the stream header, or 0 when nothing animated. */
+s32 DoWorldAnimSub(struct worldanim* wa, void** panim, u8* animBase) {
     WorldObj* wobjs = (WorldObj*)gWorldInfo.wobjs;
     WorldObj* obj = &wobjs[wa->objidx];
     void* data = panim[0];
     G3DNode* node;
     u8* d;
+    u8* sequence;
     u32 f;
     s32 mode;
     s32 nframes;
@@ -260,6 +262,7 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim) {
     /* Read the stream header (stored little-endian). */
     d = (u8*)data;
     mode = WORLD_BSWAP16(*(u16*)(d + 0));
+    sequence = animBase + WORLD_BSWAP32(*(u32*)(d + 4));
 
     if ((mode & 0xFFF) == 0) {
         /* No keyframes: reset to the template pose. */
@@ -267,7 +270,7 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim) {
         ZeroAnimData(panim);
     } else {
         nframes = wa->nframes;
-        if (CalcAnimData(panim, xf, 0, mode, 0, nframes, wa->curframe) != 0) {
+        if (CalcAnimData(panim, xf, sequence, mode, 0, nframes, wa->curframe) != 0) {
             /* Rotation. */
             if (mode & 7) {
                 if (mode & 0x8000) {
@@ -312,7 +315,7 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim) {
                 if ((obj->flags & 0x100F0000) == 0x00050000) {
                     f32 m[16];
                     GetWorldMat(obj->nodeptr, m, 0);
-                    fn_80055E04(obj, m + 12);
+                    WorldObjectExplode(obj, m + 12);
                 }
             } else {                          /* one-shot: stop at start */
                 wa->curframe = 0.0f;
@@ -337,7 +340,7 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim) {
                 if ((obj->flags & 0x100F0000) == 0x00050000) {
                     f32 m[16];
                     GetWorldMat(obj->nodeptr, m, 0);
-                    fn_80055E04(obj, m + 12);
+                    WorldObjectExplode(obj, m + 12);
                 }
             } else {                          /* one-shot: clamp at end */
                 wa->curframe = (f32)(wa->nframes - 1);

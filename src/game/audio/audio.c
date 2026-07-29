@@ -1223,14 +1223,16 @@ f32 AudioGetSoundVol(s32 packedId)
     AudioRomBankEntry* banks;
     u8* root;
     AudioRomSoundEntry* sounds;
-    s32 soundIndex = packedId & 0xFFF;
+    s32 firstSound;
 
     root = sAudioBankTable;
     banks = *(AudioRomBankEntry**)(root + 16);
     sounds = *(AudioRomSoundEntry**)(root + 20);
-    soundIndex += banks[packedId >> 16].firstSound;
+    firstSound = banks[packedId >> 16].firstSound;
+    packedId &= 0xFFF;
+    firstSound = packedId + firstSound;
 
-    return sounds[soundIndex].volume;
+    return sounds[firstSound].volume;
 }
 
 /* AudioFindSound: resolve a sound handle by name across all loaded banks. */
