@@ -436,17 +436,22 @@ void MBDrawPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
 /* 0x800CDBE0 - visibility pre-cull; sets psys->e_isvis draw flag */
 BOOL MBDrawPsysTest(MBObject* node, void* draw) {
     Psys* p = (Psys*)node->data.psys;
+    u8 unused[8];
     s32 vis;
     if (p->e_phase >= 6) {
         vis = 1;
     } else {
-        vis = MBWorldSphereVisible3((f64)p->max_dist, (u8*)draw + 0x30);
+        void* bounds = (u8*)draw + 0x30;
+        vis = MBWorldSphereVisible3((f64)p->max_dist, bounds);
     }
     p->e_isvis = vis;
     if (vis == 0 && p->p_nactive != 0) {
         vis = 1;
     }
-    return vis != 0;
+    if (vis != 0) {
+        return 1;
+    }
+    return 0;
 }
 
 /* 0x800CDC5C - MBTraversePsys visitor: guard non-psys / filtered nodes */
