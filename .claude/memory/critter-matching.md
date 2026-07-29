@@ -37,14 +37,18 @@ Reusable findings:
    state, then the 16-entry critter pool at offset `0x234`. Model this layout instead
    of treating the scratch array and pool as unrelated objects when target addressing
    is relative to `gBig`.
+7. A complete typed overlay can suppress an unwanted update-form field load. For
+   `CritterDelInst`, changing the opaque subnode pointer into a struct with fields at
+   `0x00`, `0x48`, and `0x50` made MWCC emit the target `lwz 72(r29)` plus
+   `stw 72(r29)` instead of `lwzu 72(r29)` plus `stw 0(r29)`. Earlier partial
+   typed-node experiments had missed the exact layout/lifetime combination.
 
 Near-match status:
 
-- `fn_80036958` is fully translated at 64/64 instructions and differs only by an
+- `CritterGetTarget` is fully translated at 64/64 instructions and differs only by an
   FP-register allocation swap (`real 8`). Its target-like control flow requires the
   explicit waypoint-search labels; ordinary structured loops regress substantially.
-- `CritterDelInst` is 80/80 with a four-line `lwzu`/displacement peephole residual.
-  Typed-node, array-index, scoped-temp, and peephole experiments did not improve it.
+- `CritterDelInst` is exact after the complete typed-subnode overlay described above.
 - `CritterEmptyInst` has the correct pool overlay and semantics but remains a larger
   allocation/addressing residual. Do not discard the three-argument overflow
   `ErrorPrintf(format, index, active_count)` recovered from Ghidra.
