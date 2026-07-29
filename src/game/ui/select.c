@@ -339,8 +339,8 @@ s32 other_players_next_level(s32 idx)
 int check_active_players(void)
 {
     int i;
-    int count = 0;
     u8* p;
+    int count = 0;
     new_menu_accept(-1, 1);
     p = gPlayers;
     for (i = 0; i < 4; i++, p += 0x335C) {
