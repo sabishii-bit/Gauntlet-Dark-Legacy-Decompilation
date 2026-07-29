@@ -77,6 +77,15 @@ extern f64 lbl_80347B08; /* hit-priority threshold */
 extern f64 lbl_80347D68; /* min separation for push-out */
 extern s32 fn_8002FA70(f32* otherPos, f32 r, f32 p3, f32* from, f32* to,
                        f32* hitOut, s32 flag); /* segment/sphere collide */
+extern f64 lbl_80347B00; /* wedge dot threshold */
+extern f64 lbl_80347D78; /* second-pass range scale */
+extern u8  lbl_80282850[]; /* wall-collide context (normal copy @+12) */
+extern u8  lbl_8023CA98[]; /* live wall-collide result (normal @+0x10) */
+extern void* lbl_80344B30; /* last wall WorldObj hit */
+extern s32 lbl_80344180;   /* per-cell wall-touch counter index */
+extern u8  gWorldInfo[];   /* WorldInfo (cell touch buffer @+0x5C) */
+extern void* PlayerWallCollide(f32* from, f32* to, void* ctx, f32 range);
+extern void SlideAlongWall(f32* from, f32* dpos, void* ctx, f32* nrm, f32 range);
 extern void MBTreeSetAlpha(void* node, s32 alpha, s32 mode);
 extern void* fn_8005B8B0(Player* p);
 extern s32 PointVisible(f32 y, f32* pos);
@@ -557,7 +566,64 @@ int PlayerCheckMovingFloor(Player* p) {
     return 0;
 }
 
-STUB(0x80088714, fn_80088714)
+/* 0x80088714 - collide the motion segment pos->pos+dpos against the world
+ * walls, slide `dpos` along the hit wall (or project it for one-way walls),
+ * then re-test; if the second wall opposes the first (wedged), stop the move.
+ * Returns 0 (no wall), 1 (slid / exit wall on the right anim), or 2. */
+s32 fn_80088714(f32 range, Player* p, f32* pos, f32* dpos) {
+    f32 to[3];
+    s32 result = 0;
+    WorldObj* wall;
+    u8* ctx = lbl_80282850;
+    f32* wn = (f32*)&lbl_8023CA98[0x10];
+
+    to[0] = pos[0] + dpos[0];
+    to[1] = pos[1] + dpos[1];
+    to[2] = pos[2] + dpos[2];
+    lbl_80344B30 = PlayerWallCollide(pos, to, ctx, range);
+    wall = (WorldObj*)lbl_80344B30;
+    if (wall == NULL) {
+        return result;
+    }
+
+    *(f32*)(ctx + 12) = wn[0];
+    result = 1;
+    *(f32*)(ctx + 16) = wn[1];
+    *(f32*)(ctx + 20) = wn[2];
+
+    if ((wall->flags & 0x38) != 0) {
+        return p->anim_208 == 0x8F ? 1 : 2;
+    }
+
+    if ((wall->flags & 0x1000) != 0) {
+        f32 nx = *(f32*)(ctx + 12);
+        f32 ny = *(f32*)(ctx + 16);
+        f32 nz = *(f32*)(ctx + 20);
+        f32 d = -(dpos[2] * nz + dpos[0] * nx + dpos[1] * ny);
+        dpos[0] = nx * d + dpos[0];
+        dpos[1] = ny * d + dpos[1];
+        dpos[2] = nz * d + dpos[2];
+    } else {
+        SlideAlongWall(pos, dpos, ctx, (f32*)(ctx + 12), range);
+    }
+
+    to[0] = pos[0] + dpos[0];
+    to[1] = pos[1] + dpos[1];
+    to[2] = pos[2] + dpos[2];
+    (*(u8**)&gWorldInfo[0x5C])[lbl_80344180]++;
+    wall = (WorldObj*)PlayerWallCollide(pos, to, ctx, (f32)(lbl_80347D78 * range));
+    if (wall == NULL) {
+        return result;
+    }
+    lbl_80344B30 = wall;
+    if (wn[1] * *(f32*)(ctx + 16) + wn[0] * *(f32*)(ctx + 12) +
+            wn[2] * *(f32*)(ctx + 20) < lbl_80347B00) {
+        dpos[0] = lbl_80347B30;
+        dpos[1] = lbl_80347B30;
+        dpos[2] = lbl_80347B30;
+    }
+    return result;
+}
 STUB(0x80088938, fn_80088938)
 STUB(0x80088EF4, fn_80088EF4)
 
