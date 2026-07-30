@@ -2920,8 +2920,30 @@ void PlayerDamagedItem(void* player, void* item, s32 flag)
     if (type == 2) {
         return;
     }
-    if (type < 2) {
-        if (type > 0 && PF(item, 0xC6, s16) < 1 && info[1] == 4) {
+    if (type > 2) {
+        if (type < 4) {
+            s32 t;
+            if (flag != 0) {
+                PF(player, 0x918, s32) = 0;
+                PF(player, PF(player, 0x0C, s32) * 0x1C + 0xC20, s32) =
+                    PF(player, PF(player, 0x0C, s32) * 0x1C + 0xC20, s32) + 1;
+            }
+            t = PF(item, 0xDC, s16);
+            if (t == -2) {
+                t = 1;
+            } else if (t == -3) {
+                t = 2;
+            } else if (t < 0) {
+                t = 0;
+            }
+            if (flag == 0) {
+                AddExp(PF(player, 0, s32), lbl_8011BB20[t] * 5, 0);
+            } else {
+                AddExp(PF(player, 0, s32), lbl_8011BBA8[t] * 5, 0);
+            }
+        }
+    } else if (type >= 1) {
+        if (PF(item, 0xC6, s16) < 1 && info[1] == 4) {
             s32 pos[3];
             s32 vec[3];
             s32 fx;
@@ -2935,26 +2957,6 @@ void PlayerDamagedItem(void* player, void* item, s32 flag)
                              lbl_80346310);
             msgPost(fx, 0xE, PF(player, 0, s32), (u32)vec);
             DeleteItem(item, 1);
-        }
-    } else if (type < 4) {
-        s32 t;
-        if (flag != 0) {
-            PF(player, 0x918, s32) = 0;
-            PF(player, PF(player, 0x0C, s32) * 0x1C + 0xC20, s32) =
-                PF(player, PF(player, 0x0C, s32) * 0x1C + 0xC20, s32) + 1;
-        }
-        t = PF(item, 0xDC, s16);
-        if (t == -2) {
-            t = 1;
-        } else if (t == -3) {
-            t = 2;
-        } else if (t < 0) {
-            t = 0;
-        }
-        if (flag == 0) {
-            AddExp(PF(player, 0, s32), lbl_8011BB20[t] * 5, 0);
-        } else {
-            AddExp(PF(player, 0, s32), lbl_8011BBA8[t] * 5, 0);
         }
     }
 }
