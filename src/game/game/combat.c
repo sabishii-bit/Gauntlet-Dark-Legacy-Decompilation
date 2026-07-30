@@ -507,21 +507,93 @@ void chg_target_state(s32 mode)
     gCameraTargetPositionCount = 0;
 }
 
-/* Recalculate pitch/yaw from the camera position to its current attention. */
-void calc_cam_pyr(s32 camIdx)
+/* calc_cam_pyr: derive camera pitch/yaw for the active look mode. */
+extern s32 lbl_8028CA90, lbl_80344544, lbl_80344538, lbl_803447BC;
+extern f32 lbl_8034616C, lbl_80344530, lbl_80344408, lbl_80344534;
+extern f32 lbl_8028CABC, lbl_8028CAC8, lbl_8028CAD0, lbl_8028CAC4;
+extern f32 lbl_80118B60[];
+extern f64 lbl_80346170, lbl_80346070, lbl_80345EF0, lbl_80346178;
+extern u32 lbl_8034457C;
+
+void calc_cam_pyr(s32 camIdx, s32 resetDelta)
 {
     Camera* cam = &gCameras[camIdx];
-    f32 dx = cam->attn[0] - cam->wpos[0];
-    f32 dy = cam->attn[1] - cam->wpos[1];
-    f32 dz = cam->attn[2] - cam->wpos[2];
-    f32 horiz = fqdist(dx, dz);
+    f64 dv;
+    f64 dv3;
+    f32 v;
 
-    if (horiz < 0.001f) {
-        horiz = 0.001f;
+    cam->pyr[2] = lbl_80345EC8;
+    if (resetDelta != 0) {
+        cam->pyr_delta[0] = lbl_80345EC8;
+        cam->pyr_delta[1] = lbl_80345EC8;
+        cam->pyr_delta[2] = lbl_80345EC8;
     }
-    cam->pyr[0] = FixAngle((f32)-atan2(dy, horiz));
-    cam->pyr[1] = FixAngle((f32)atan2(dx, dz));
-    cam->pyr[2] = 0.0f;
+    if (lbl_8028CA90 == 0) {
+        cam->pyr[0] = lbl_8034616C;
+        cam->pyr[1] = lbl_80345EC8;
+        cam->pyr[2] = lbl_80345EC8;
+        goto apply;
+    }
+    if (lbl_80344544 != 0) {
+        f32 rate = (f32)(lbl_80346170 * (f64)lbl_8034457C);
+        f32 diff = lbl_80344530 - lbl_80344408;
+        f32 step;
+        if (diff < 0.0f) {
+            diff = -diff;
+        }
+        step = (f32)(lbl_80346070 * (f64)diff);
+        if (step < rate) {
+            step = rate;
+        }
+        if (lbl_80344530 <= lbl_80344408) {
+            lbl_80344408 = lbl_80344408 - step;
+            if (lbl_80344408 <= lbl_80344530) {
+                lbl_80344408 = lbl_80344530;
+            }
+        } else {
+            lbl_80344408 = lbl_80344408 + step;
+            if (lbl_80344530 <= lbl_80344408) {
+                lbl_80344408 = lbl_80344530;
+            }
+        }
+    }
+    cam->pyr[0] = lbl_80344408;
+    if (lbl_80344544 != 0) {
+        goto apply;
+    }
+
+    dv3 = lbl_8028CABC;
+    if (lbl_80344538 == 2) {
+        dv = lbl_8028CAC8 - cam->attn[0];
+    } else if (lbl_80344538 < 2) {
+        if (lbl_80344538 <= 0) {
+            dv = cam->attn[0] - lbl_8028CAC8;
+        } else {
+            dv = lbl_8028CAD0 - cam->attn[2];
+            dv3 = lbl_8028CAC4;
+        }
+    } else if (lbl_80344538 > 3) {
+        dv = cam->attn[0] - lbl_8028CAC8;
+    } else {
+        dv = cam->attn[2] - lbl_8028CAD0;
+        dv3 = lbl_8028CAC4;
+    }
+    v = lbl_80344534;
+    if (lbl_803447BC == 0) {
+        v = lbl_80118B60[lbl_80344538];
+    }
+    cam->pyr[1] = FixAngle((f32)((f64)v + dv / (lbl_80345EF0 * dv3)));
+
+apply:
+    if (lbl_80344544 == 0) {
+        if (lbl_80346178 <=
+            (f32)((f64)cam->pyr[0] + (f64)cam->pyr_delta[0])) {
+            cam->pyr[0] = (f32)(lbl_80346178 - (f64)cam->pyr_delta[0]);
+        }
+        cam->pyr[0] = cam->pyr[0] + cam->pyr_delta[0];
+        cam->pyr[1] = cam->pyr[1] + cam->pyr_delta[1];
+        cam->pyr[2] = cam->pyr[2] + cam->pyr_delta[2];
+    }
 }
 
 /*
@@ -774,7 +846,7 @@ void StandardCamera(s32 camIdx)
     cam->attn[2] += (next[2] - cam->attn[2]) * 0.1f * gFrameTicks;
     adjust_radius(camIdx);
     get_cam_wpos(camIdx, cam->wpos);
-    calc_cam_pyr(camIdx);
+    calc_cam_pyr(camIdx, 0);
 }
 
 void del_target(u32 id)
