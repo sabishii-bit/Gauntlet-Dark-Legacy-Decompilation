@@ -2130,10 +2130,12 @@ void InitCamera(s32 resetAll)
     lbl_8034448C = lbl_80345EC8;
     lbl_80344480 = 0;
 
+    {
+    u32* c = (u32*)&gCameras[0];
+    f32 zero = lbl_80345EC8;
+    f32 radius = (f32)lbl_80346200;
     for (i = 0; i < 6; i++) {
-        u32* c = (u32*)&gCameras[i];
-        f32* cf = (f32*)&gCameras[i];
-        f32 zero = lbl_80345EC8;
+        f32* cf = (f32*)c;
         c[0] = 0;
         CopyMat4((f32*)lbl_80127D60, cf + 1);
         cf[0x11] = zero; cf[0x12] = zero; cf[0x13] = zero;
@@ -2152,7 +2154,7 @@ void InitCamera(s32 resetAll)
         cf[0x5b] = zero; cf[0x5c] = zero; cf[0x5d] = zero;
         cf[0x5f] = zero; cf[0x60] = zero; cf[0x61] = zero;
         c[0x36] = 0;
-        cf[0x31] = (f32)lbl_80346200;
+        cf[0x31] = radius;
         c[0x32] = (u32)-1;
         c[0x35] = 0;
         c[0x34] = 0;
@@ -2173,6 +2175,8 @@ void InitCamera(s32 resetAll)
         c[0x42] = 0;
         c[0x41] = 0;
         c[0x40] = 0;
+        c += 99;
+    }
     }
 
     if (resetAll == 0) {
@@ -2512,11 +2516,16 @@ void InitCamera(s32 resetAll)
     }
 
     lbl_80344534 = lbl_80118B60[lbl_80344538];
-    for (i = 0; i < 6; i++) {
-        Camera* cam = &gCameras[i];
-        *(f32*)((u8*)cam + 0x34) = cam->wpos[0];
-        *(f32*)((u8*)cam + 0x38) = cam->wpos[1];
-        *(f32*)((u8*)cam + 0x3C) = cam->wpos[2];
+    {
+        u8* mat3 = (u8*)&gCameras[0] + 0x34;
+        u8* src = (u8*)&gCameras[0] + 0x64;
+        for (i = 0; i < 6; i++) {
+            *(u32*)(mat3 + 0) = *(u32*)(src + 0);
+            *(u32*)(mat3 + 4) = *(u32*)(src + 4);
+            *(u32*)(mat3 + 8) = *(u32*)(src + 8);
+            mat3 += 0x18C;
+            src += 0x18C;
+        }
     }
     lbl_8023F818 = lbl_80345EC8;
     lbl_8023F81C = lbl_80345EC8;
@@ -2548,14 +2557,18 @@ void InitCamera(s32 resetAll)
     }
     gCameraTargetCount = 0;
     ProcCamera(0, 0);
-    for (i = 0; i < 6; i++) {
-        f32* cf = (f32*)&gCameras[i];
-        cf[0x11] = cf[0xd];
-        cf[0x12] = cf[0xe];
-        cf[0x13] = cf[0xf];
-        cf[0x15] = lbl_80345EC8;
-        cf[0x16] = lbl_80345EC8;
-        cf[0x17] = lbl_80345EC8;
+    {
+        f32* cf = (f32*)&gCameras[0];
+        f32 zero = lbl_80345EC8;
+        for (i = 0; i < 6; i++) {
+            cf[0x11] = cf[0xd];
+            cf[0x12] = cf[0xe];
+            cf[0x13] = cf[0xf];
+            cf[0x15] = zero;
+            cf[0x16] = zero;
+            cf[0x17] = zero;
+            cf += 99;
+        }
     }
 }
 
