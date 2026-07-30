@@ -224,7 +224,7 @@ extern s32 gGameMode;    /* game state (0x8009 in-game, 0x4010 tower) */
 extern s32 lbl_803447B8;
 extern u32 sFlags;    /* pause/movie flags */
 extern s32 lbl_803445D8;
-extern s32 lbl_80344578;    /* vb_elapsed */
+extern s32 gClockStepTicks; /* vb_elapsed */
 extern s32 sLastWorldLevel;
 extern s32 lbl_80344824;    /* active-player mask */
 extern s32 sWorldDataConst;
@@ -584,7 +584,7 @@ int DoOptions(void)
 
     /* menu clock: full speed, or (paused w/ button held) 2, else 0 */
     if ((sFlags & 8) == 0) {
-        vb_elapsed_menu = lbl_80344578;
+        vb_elapsed_menu = gClockStepTicks;
     } else if ((lbl_80240FB0 & 0x2000000) == 0 && (lbl_80240FC0 & 0x1000000) == 0) {
         vb_elapsed_menu = 0;
     } else {
@@ -1410,7 +1410,7 @@ s32 do_optmenu(OPTMENU* m, s32 allowNav)
 
     /* menu clock (same policy as DoOptions) */
     if ((sFlags & 8) == 0) {
-        vb_elapsed_menu = lbl_80344578;
+        vb_elapsed_menu = gClockStepTicks;
     } else if ((lbl_80240FB0 & 0x2000000) == 0 && (lbl_80240FC0 & 0x1000000) == 0) {
         vb_elapsed_menu = 0;
     } else {

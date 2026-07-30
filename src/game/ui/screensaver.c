@@ -84,7 +84,7 @@ extern int lbl_80344A38;        /* wipe X anchor */
 extern int lbl_80344A3C;        /* wipe Y anchor */
 extern int lbl_80344A40;        /* wipe progress accumulator */
 extern int lbl_80344A44;        /* inventory-panels-built flag */
-extern int lbl_80344578;        /* frame-time delta */
+extern int gClockStepTicks;     /* frame-time delta */
 extern u32 sFlags;              /* sFlags global mode flags */
 extern u32 lbl_80240FB0;        /* pad state A */
 extern u32 lbl_80240FC0;        /* pad state B */
@@ -297,7 +297,7 @@ int ServeFireScroll(void)
     }
 
     if ((sFlags & 8) == 0) {
-        lbl_80344A40 += lbl_80344578;
+        lbl_80344A40 += gClockStepTicks;
     } else if ((lbl_80240FB0 & 0x2000000) || (lbl_80240FC0 & 0x1000000)) {
         lbl_80344A40 += 2;
     }

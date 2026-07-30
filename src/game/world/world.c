@@ -136,7 +136,7 @@ extern void*  lbl_80344DA0;     /* secondary loaded world block                *
 extern void*  lbl_80344DA4;     /* primary loaded world block                  */
 extern void*  gSceneRoot;     /* default parent node                         */
 extern s32    lbl_803447DC;     /* global animation pause/step flag            */
-extern float  lbl_80344590;     /* per-frame delta time (seconds)              */
+extern float  gClockFrameStep;  /* per-frame delta time (seconds)              */
 
 extern s32    mlmMemUsed;
 extern u8     gIdentityMatrix[];   /* node template / name data (.data)           */
@@ -223,7 +223,7 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim, u8* animBase) {
     u32 f;
     s32 mode;
     s32 nframes;
-    f32 dt = lbl_80344590;
+    f32 dt = gClockFrameStep;
     f32 xf[16]; /* sampled transform (pos @16, scale @32) from CalcAnimData */
 
     if (data == NULL) {

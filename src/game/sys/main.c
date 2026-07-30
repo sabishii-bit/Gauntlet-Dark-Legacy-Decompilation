@@ -78,7 +78,7 @@ void pbInitDiag(int arg);
 void fn_800533E4(void);
 void fn_8005403C(int arg);
 void init_attract_mode(int screen);
-void fn_8002F040(void);
+void ClockOncePerFrame(void);
 void LoadVU1GameLogic(void);
 void PlayerControls(void);
 void sndSysStub1(void);
@@ -102,7 +102,7 @@ void fn_80052134(void);
 void fn_800C0394(void);
 void sndSysStub0(void);
 void fn_800520CC(void);
-void fn_8002EFE8(void);
+void ResetClock(void);
 void InitMemHandler(void);
 void init_psx2(s32 arg);
 void AdsAllocBuffer(void);
@@ -356,7 +356,7 @@ void main(void)
         srand(pbGetTime() >> 3);
         gGameBusy = 0;
         sBootPhase = 2;
-        fn_8002F040();
+        ClockOncePerFrame();
         LoadVU1GameLogic();
         sBootPhase = 3;
         PlayerControls();
@@ -493,7 +493,7 @@ void game_init_once(const char* name)
     char* st = sBootStrings;
 
     fn_800520CC();
-    fn_8002EFE8();
+    ResetClock();
     bulletproof_printf(st + 264);
     InitMemHandler();
     init_psx2(*(s32*)name);

@@ -30,7 +30,7 @@ extern u8 gIdentityMatrix[];
 extern u8 lbl_80118250[];
 /* Per-frame time deltas (engine globals in the .sbss window). */
 extern s32 gFrameTicks;  /* integer frame delta */
-extern s32 lbl_80344578;  /* caption frame delta */
+extern s32 gClockStepTicks; /* caption frame delta */
 extern f32 sMusicFadeBase;  /* float frame delta */
 /* Assorted engine handles read by DoGoodWizard/init_gamemovie. */
 extern void* sMusicTrackHi;
@@ -97,7 +97,7 @@ extern void* MBNewNode(void* p, void* tbl, s32 a);
 extern void MBNodeSetParent(void* a, void* b);
 extern void calc_wizard_pos(f32* out);
 extern void CopyMat4(void* p);
-extern void fn_8002C53C(void* p);
+extern void add_target(void* p);
 extern void calc_good_wiz_attn(s32 reset, s32 force);
 extern s32 hide_rune_stones(void* p);
 extern void MBTreeSetAlpha(void* p, s32 alpha, s32 a);
@@ -498,7 +498,7 @@ s32 CaptionText(char* a, char* b, s32 line, s32 page, s32 flags)
     if (line < 0) {
         s32 total = ScrollTextNum(a, b);
         if (caption_line + 1 < total) {
-            caption_timer = caption_timer - lbl_80344578;
+            caption_timer = caption_timer - gClockStepTicks;
             if (caption_timer <= 0) {
                 caption_line = caption_line + 1;
                 caption_page = page;

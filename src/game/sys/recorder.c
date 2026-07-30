@@ -25,9 +25,9 @@ static f32 sSavedPlayerPos[4];
 
 extern Player gPlayers[4];
 extern void* sItemWobjTargets[];
-extern f32 lbl_8023F83C[3];
+extern f32 gRecorderCameraPosition[3];
 extern f32 lbl_8023F848[7];
-extern f32 lbl_8023F864[7][3];
+extern f32 gCameraTargetPositions[7][3];
 
 extern s32 sNumItems;
 extern s32 sNumItemWobjs;
@@ -49,7 +49,7 @@ s32 lbl_80344B80 = 0;
 s32 lbl_80344B84 = 0;
 s32 lbl_80344B88[2];
 
-extern s32 lbl_8034454C;
+extern s32 gCameraTargetPositionCount;
 extern s32 lbl_80344510;
 extern s32 lbl_8034450C;
 extern s32 lbl_80344508;
@@ -66,7 +66,7 @@ extern void get_player_pos(s32 player, s32 mode);
 extern void UpdatePlayerWorldMat(Player* player, s32 force);
 extern void camera_mode_level(s32 mode);
 extern void fn_80051C78(void);
-extern void fn_8002E328(void* source, void* destination);
+extern void CopyCam(void* source, void* destination);
 
 void LoadStage(void);
 void SaveStage(void);
@@ -205,24 +205,24 @@ void LoadStage(void) {
     camera_mode_level(1);
     lbl_803447D0 = 0;
     fn_80051C78();
-    fn_8002E328(cam_bak, gCameras);
+    CopyCam(cam_bak, gCameras);
 
     for (i = 0; i < 7; i++) {
-        lbl_8023F864[i][0] = sReticlePos[i][0];
-        lbl_8023F864[i][1] = sReticlePos[i][1];
-        lbl_8023F864[i][2] = sReticlePos[i][2];
+        gCameraTargetPositions[i][0] = sReticlePos[i][0];
+        gCameraTargetPositions[i][1] = sReticlePos[i][1];
+        gCameraTargetPositions[i][2] = sReticlePos[i][2];
         lbl_8023F848[i] = sReticleDepth[i];
     }
 
-    lbl_8034454C = lbl_80344B70;
+    gCameraTargetPositionCount = lbl_80344B70;
     lbl_80344510 = lbl_80344B50;
     lbl_8034450C = lbl_80344B54;
     lbl_80344508 = lbl_80344B58;
     lbl_80344534 = lbl_80344B5C;
     lbl_80344530 = lbl_80344B60;
-    lbl_8023F83C[0] = sCameraPos[0];
-    lbl_8023F83C[1] = sCameraPos[1];
-    lbl_8023F83C[2] = sCameraPos[2];
+    gRecorderCameraPosition[0] = sCameraPos[0];
+    gRecorderCameraPosition[1] = sCameraPos[1];
+    gRecorderCameraPosition[2] = sCameraPos[2];
     lbl_803444DC = lbl_80344B64;
     lbl_803444D8 = lbl_80344B68;
     lbl_803444D4 = lbl_80344B6C;
@@ -231,23 +231,23 @@ void LoadStage(void) {
 void SaveStage(void) {
     s32 i;
 
-    fn_8002E328(gCameras, cam_bak);
+    CopyCam(gCameras, cam_bak);
     for (i = 0; i < 7; i++) {
-        sReticlePos[i][0] = lbl_8023F864[i][0];
-        sReticlePos[i][1] = lbl_8023F864[i][1];
-        sReticlePos[i][2] = lbl_8023F864[i][2];
+        sReticlePos[i][0] = gCameraTargetPositions[i][0];
+        sReticlePos[i][1] = gCameraTargetPositions[i][1];
+        sReticlePos[i][2] = gCameraTargetPositions[i][2];
         sReticleDepth[i] = lbl_8023F848[i];
     }
 
-    lbl_80344B70 = lbl_8034454C;
+    lbl_80344B70 = gCameraTargetPositionCount;
     lbl_80344B50 = lbl_80344510;
     lbl_80344B54 = lbl_8034450C;
     lbl_80344B58 = lbl_80344508;
     lbl_80344B5C = lbl_80344534;
     lbl_80344B60 = lbl_80344530;
-    sCameraPos[0] = lbl_8023F83C[0];
-    sCameraPos[1] = lbl_8023F83C[1];
-    sCameraPos[2] = lbl_8023F83C[2];
+    sCameraPos[0] = gRecorderCameraPosition[0];
+    sCameraPos[1] = gRecorderCameraPosition[1];
+    sCameraPos[2] = gRecorderCameraPosition[2];
     lbl_80344B64 = lbl_803444DC;
     lbl_80344B68 = lbl_803444D8;
     lbl_80344B6C = lbl_803444D4;

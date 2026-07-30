@@ -444,7 +444,7 @@ static s32 lbl_80343BE0[2] = { 0, 0 };
 
 /* --- .bss --- */
 
-extern u32 lbl_80240798[8]; /* 0x80240798 latched menu edges - owned by an earlier TU (target bss starts at 0x802407B8) */
+extern u32 gPlayerMissileRuntime[8]; /* combat-owned per-player missile runtime */
 static u32 lbl_802407B8[4];      /* 0x802407B8 per-pad levels                  */
 static u32 lbl_802407C8[4];      /* 0x802407C8 per-pad old levels              */
 static u32 lbl_802407D8[4];      /* 0x802407D8 per-pad levels word 2           */
@@ -499,7 +499,7 @@ static u32 lbl_80344624;         /* 0x80344624 (pad)                           *
 
 /* --- data owned by other TUs --- */
 extern u32 lbl_80344824;  /* active player mask (later TU sbss)         */
-extern s32 lbl_80344578;  /* steptime (clock TU)                        */
+extern s32 gClockStepTicks;  /* steptime (clock TU)                     */
 
 /* byte copy helper (Xbox PDB: lf_memcpy; inlined on GC) */
 static void lf_memcpy(u8* d, u8* src, s32 n)
@@ -558,7 +558,7 @@ f32 fn_80034C88(f32 x);
 /* 0x8003101C  clear the latched edge block so menus don't double-fire */
 void nuke_ctrls(void)
 {
-    memset(lbl_80240798, 0, 0x20);
+    memset(gPlayerMissileRuntime, 0, 0x20);
 }
 
 /* 0x8003104C  does any ACTIVE player (gPlayers stride 0x335C) have a
@@ -1331,7 +1331,7 @@ void ControlsUpdate(void)
             serve_mtap(1);
         }
     }
-    step = lbl_80344578;
+    step = gClockStepTicks;
     lbl_80344618 = 0;
     lbl_80344620 = 0;
     lbl_8034461C = 0;

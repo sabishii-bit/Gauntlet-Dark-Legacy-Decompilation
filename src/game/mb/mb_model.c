@@ -73,7 +73,7 @@ extern void* bsearch(const void*, const void*, u32, u32,
 extern u8*  gWinGlobals;         /* 0x80344FC0 : MB/window manager context */
 extern s32  lbl_80344E88;        /* background-load state / index (-1 = idle) */
 extern s32  lbl_80344E8C;        /* current model/object-def count */
-extern s32  lbl_80344588;        /* bulletproof_printf channel arg */
+extern s32  gClockFrameNumber;   /* bulletproof_printf channel arg */
 extern s32  mlmMemUsed;          /* 0x80344F44 : MLM bytes used by models */
 
 extern u8   lbl_802A5CF0[0x1C];  /* background-load context block */
@@ -108,13 +108,13 @@ int MBOX_BGLoadModelDone(void) {
     }
     StartFileRead(lbl_80115DA8, (void*)&lbl_802A5CF0, 0, 0, 0, 0);
     bulletproof_printf(lbl_80115DB4,
-                       lbl_80344E88, g, lbl_80344588);
+                       lbl_80344E88, g, gClockFrameNumber);
     SetupModel((void*)g, lbl_80115DA8, lbl_80344E88);
     t = pbGetCPUTime();
 
     StartFileRead(lbl_80115DB4, (void*)&lbl_802A5CF0, 0, 0, 0, 0);
     bulletproof_printf(lbl_80115DB4,
-                       lbl_80344E88, g, lbl_80344588);
+                       lbl_80344E88, g, gClockFrameNumber);
     fn_800C7214((void*)g);
     (void)t;
 

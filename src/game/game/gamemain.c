@@ -296,7 +296,7 @@ extern f32   lbl_80346AF0;
 extern f64   lbl_80346B00;
 
 /* Called helpers (signatures picked to reproduce the argument setup). */
-extern void  fn_80030BA0(s32 idx);
+extern void  InitEnemyMissiles(s32 idx);
 extern void  mbBlitInit3414(void* blit, s32 hide);
 extern void  reset_players(void);
 extern void  LoadPdataFile(void);
@@ -357,7 +357,7 @@ void fn_800508A0(void)
 void fn_80050910(s32 arg0)
 {
     lbl_802511FC[arg0] = -lbl_802511FC[arg0];
-    fn_80030BA0(arg0);
+    InitEnemyMissiles(arg0);
 }
 
 /* 0x80051164 -- clear the parallel per-slot tables of the pool. */
@@ -391,8 +391,8 @@ void* EnemyTypePrefix(s32 id)
     return 0;
 }
 
-/* 0x80051FA0 -- table lookup by id, return &entry.f4 (or NULL). */
-void* fn_80051FA0(s32 id)
+/* 0x80051FA0 -- table lookup by id, return &entry.f4 (the enemy descriptor). */
+void* EnemyTypeDesc(s32 id)
 {
     s32 i;
 

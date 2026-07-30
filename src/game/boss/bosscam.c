@@ -95,8 +95,8 @@ extern s32 lbl_803443B8;
 extern s32 lbl_803443BC;              /* trigger-cam frame timer */
 extern s32 lbl_803443C0;
 extern s32 lbl_803443C4;
-extern f32 lbl_803444C0;
-extern f32 lbl_803444C4;
+extern f32 gCameraWindowScaleX;
+extern f32 gCameraWindowScaleY;
 
 extern const f32 lbl_80345C28;        /* .sdata2 pooled float literal */
 
@@ -454,8 +454,8 @@ void GameCameraInit(void) {
     gGameCamera = gGameCameraData;
     lbl_803443A8 = 0;
     CamReset(gGameCamera);
-    lbl_803444C0 = lbl_80345C28;
-    lbl_803444C4 = lbl_80345C28;
+    gCameraWindowScaleX = lbl_80345C28;
+    gCameraWindowScaleY = lbl_80345C28;
 }
 
 /* Shared scalar camera-value clamp (0x160): angle-wrap then velocity/accel

@@ -313,8 +313,8 @@ extern s32 lbl_80344824;   /* active-player mask */
 extern s32 lbl_80344760;
 extern u32 sFlags;   /* sFlags: pause/movie */
 extern s32 gFrameTicks;   /* frame delta (int) */
-extern s32 lbl_80344578;   /* vb elapsed */
-extern f32 lbl_80344590;   /* frame delta (float) */
+extern s32 gClockStepTicks; /* vb elapsed */
+extern f32 gClockFrameStep; /* frame delta (float) */
 extern f32 sMusicFadeBase;
 extern s32 sVisibleSumCoinCount;   /* total visible sum-coin count */
 extern s32 sMusicTrackHi;   /* music track */
@@ -415,7 +415,7 @@ extern s32 MBBackgroundLoading(void);
 extern void fn_8005A338(f32* mat, f32* fwd, f32* pos);
 extern void UpdateObjWorldMat(f32* mat);
 extern f32 get_actual_screen_pos(s32 a, f32* out1, f32* out2, f32* pos);
-extern void fn_8002C53C(f32* mat);
+extern void add_target(f32* mat);
 extern s32 DamageColor(u32 flags);
 extern void fn_800C02F4(u32 rgb);
 extern void fn_800C0ADC(f32 a, f32 b);
@@ -730,7 +730,7 @@ static void show_crystals(Player* p) {
     if (welcome_timer < 1 && options_state == 0 && gGameMode == 0x4010 &&
         (f64)p->got_timer > 0.0) {
         i = p->index;
-        p->got_timer = p->got_timer - lbl_80344590;
+        p->got_timer = p->got_timer - gClockFrameStep;
         total = sVisibleSumCoinCount;
         type = p->got_type;
         if (type < 0x200) {
@@ -1578,7 +1578,7 @@ void do_players(void) {
         if (gTriggerCameraState == 1) {
             WritePlayerInfo(-1);
             for (i = 0, p = P(0); i < 4; i++, p++) {
-                p->select_timer = p->select_timer + lbl_80344590;
+                p->select_timer = p->select_timer + gClockFrameStep;
             }
             return;
         }
@@ -1794,7 +1794,7 @@ void do_players(void) {
                         p->pulse_7FC = 2.0f;
                     }
                 }
-                fn_8002C53C(p->mat);
+                add_target(p->mat);
                 if ((sMusicTrackHi != 0xD || sumnerSpeechActive() == 0) && gTriggerCameraState == 0 &&
                     gModalRenderDepth == 0 && gMessageActive == 0 && p->name_timer > 0 &&
                     gGameBusy == 0 && gGameplayPauseTimer == 0) {
@@ -1997,7 +1997,7 @@ extern s32 lbl_8025EC98[4];   /* see-thru: saved parent */
 extern u8* lbl_8025ECA8[4];   /* see-thru: proxy node */
 extern void* lbl_8025ECB8[4][0x12]; /* see-thru: overlay handle (stride 0x48) */
 extern u8* lbl_80282930[4];   /* per-player class record (att bases at +0x28..) */
-extern void* lbl_80240628[];  /* level-tier halo atrees [i*2], [i*2+1] */
+extern void* gPlayerFamiliarTrees[]; /* level-tier halo atrees [i*2], [i*2+1] */
 extern u32 lbl_80240E5C[];    /* pad config words, stride 0xF */
 extern u32 lbl_80240E60[];
 extern u32 lbl_80240E64[];
@@ -2013,7 +2013,7 @@ extern s32 lbl_80344BEC;      /* exit FX color */
 extern s32 sLastWorldLevel;      /* secret-exit destination */
 extern s32 sWorldDataConst;      /* town level id */
 extern s32 lbl_80344B84;      /* battle-tower level id */
-extern s32 lbl_80344588;      /* frame parity counter */
+extern s32 gClockFrameNumber; /* frame parity counter */
 extern s32 lbl_80344DA4;      /* world loaded */
 extern s32 lbl_803447D0;      /* level-clear/exit progress state */
 extern s32 lbl_803447A8[2];   /* cleared at init_players */
@@ -2080,7 +2080,7 @@ extern void towerRuneNearAudio(void);
 extern u32 NextWorldLevel(s32 a);
 extern u32 PrevWorldLevel(s32 a);
 extern void SetSkinFX(f32 scale, f32* v, s32 color, s32 n, s32 one);
-extern void fn_8002C49C(f32* mat);
+extern void del_target(f32* mat);
 extern void YawMat3(f32* mat, f32 ang);
 extern void AudioHeartBeat(s32 player);
 extern s32 fn_8005B8FC(void* p);
@@ -2110,7 +2110,7 @@ extern void sel_set_inactive(s32 player);
 extern s32 other_players_next_level(s32 player);
 extern void LoadPlyrData(s32 player, s32 chartype, void* flag);
 extern void controls_remove_active_player(s32 player);
-extern void fn_80030C84(void* p);
+extern void InitPlayerMissiles(void* p);
 extern void strcpy(char* dst, char* src);
 extern s32 toupper(s32 c);
 extern void strncpy(char* dst, char* src, s32 n);
@@ -2268,14 +2268,14 @@ static void do_exit(void* vp, s32 dest) {
         PF(p, 0x1F2, s16) = 0;
         if (p->state != 5) {
             p->state = 5;
-            fn_8002C49C(p->mat);
+            del_target(p->mat);
         }
     } else if (PF(p, 0x8B8, f32) < 1.0 + 0.5 * PF(p, 0x854, f32) + p->pos[1]) {
         /* still above the hole floor: sink and spin */
         p->pos[0] += 0.0f * (f32)gFrameTicks;
         p->pos[1] += -0.06f * (f32)gFrameTicks;
         p->pos[2] += 0.0f * (f32)gFrameTicks;
-        YawMat3(p->mat, (f32)(0.5 * lbl_80344590));
+        YawMat3(p->mat, (f32)(0.5 * gClockFrameStep));
         p->hud_flags |= 1;
     }
 }
@@ -2617,7 +2617,7 @@ void damage_player(s32 i, f32 dmg_in, u32 flags, f32* dir) {
                 fn_8009FFF4(1, i);
             }
         } else if (hp_old >= 0x33 && hp_new <= 0x32) {
-            fn_8009FFF4((lbl_80344588 & 1) ? 3 : 2, i);
+            fn_8009FFF4((gClockFrameNumber & 1) ? 3 : 2, i);
         } else {
             s32 kind = (s32)dmg;
             if (kind == 2) {
@@ -2694,7 +2694,7 @@ static void player_dies(s32 i) {
     s32 j;
     f32 m[16];
 
-    fn_8002C49C(p->mat);
+    del_target(p->mat);
     if (lbl_8025ECB8[i][0] != NULL) {
         AtreeDelete(&lbl_8025ECB8[i][0]);
     }
@@ -3049,7 +3049,7 @@ s32 activate_player(s32 i) {
             }
         }
         if (lbl_803447D0 < 10 && gGameMode != 0x400B && gGameMode != 0x400D) {
-            fn_8002C53C(p->mat);
+            add_target(p->mat);
         } else {
             MBTreeSetFlags(p->node, 2, 0);
         }
@@ -3559,7 +3559,7 @@ void load_player_geo(s32 i, void* vp) {
     pad = p->class_id;
     LoadPlyrData(i, p->character, NULL);
     if (sWeaponsBuf != 0) {
-        fn_80030C84(p);
+        InitPlayerMissiles(p);
     }
     cls = p->character;
     if (HIDDEN_CODE(p) == NULL) {
@@ -4156,9 +4156,9 @@ static void PlayerProcessSkinFX(void* vp, void* node) {
 
     (void)node;
     if (p->level >= 0x50) {
-        src = (void**)&lbl_80240628[p->index * 2 + 1];
+        src = (void**)&gPlayerFamiliarTrees[p->index * 2 + 1];
     } else if (p->level >= 0x1E) {
-        src = (void**)&lbl_80240628[p->index * 2];
+        src = (void**)&gPlayerFamiliarTrees[p->index * 2];
     } else {
         if (PF(p, 0x748, s32) != 0) {
             AtreeDelete((void**)((u8*)p + 0x748));

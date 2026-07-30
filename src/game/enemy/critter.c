@@ -65,7 +65,7 @@ extern s32   lbl_8034466C;            /* 0x8034466C active critter count (gNumCr
 extern s32   lbl_80344650;            /* 0x80344650 safe-rock collection flags    */
 extern s32   lbl_80344654;            /* 0x80344654 selected safe-rock slot        */
 extern s32   lbl_80344658;            /* 0x80344658 collected safe-rock count      */
-extern f32   lbl_80344590;            /* 0x80344590 frame delta                     */
+extern f32   gClockFrameStep;         /* 0x80344590 frame delta                     */
 extern f32   lbl_803447D8;            /* boss/player damage scaling gate             */
 extern volatile f32 sMusicFadeBase;   /* 0x80344594 shared game-time / fade base   */
 extern f32   lbl_80346480;
@@ -120,7 +120,7 @@ extern s32   AtreeFindNodeIdx(void *tree, s32 count, const char *name,
                               s32 length);
 extern void  SfxDeleteParented(void *sfx, s32 a, s32 b);
 extern void  BossDeath(void);
-extern void  fn_8002C49C(void *mtx);
+extern void  del_target(void *mtx);
 extern void  AtreeDelete(void *handle);
 extern s32   CollectSafeRocks(s32 *out, s32 max, s32 flags);
 extern void  SafeRockActivate(s32 index);
@@ -580,7 +580,7 @@ void NodeLookAtPos(void *node, f32 *target, f32 *yaw, f32 *pitch)
         wantedYaw = (f32)atan2(dx, dz);
         wantedPitch = (f32)atan2(dy, dx * dx + dz * dz);
     }
-    step = 0.08f * lbl_80344590;
+    step = 0.08f * gClockFrameStep;
     yawDelta = wantedYaw - *yaw;
     while (yawDelta > 3.1415927f) {
         yawDelta -= 6.2831855f;
@@ -1874,7 +1874,7 @@ void CritterProcessSafeRocks(void)
     } else if (lbl_80344658 > 0) {
         for (i = 0; i < lbl_80344658; i++) {
             if ((f64)big->safeRockTimers[i] > 0.0) {
-                big->safeRockTimers[i] -= lbl_80344590;
+                big->safeRockTimers[i] -= gClockFrameStep;
                 if ((f64)big->safeRockTimers[i] <= 0.0) {
                     SafeRockActivate(big->safeRockIndices[i]);
                 }
@@ -1936,7 +1936,7 @@ s32 CritterTranslate(Critter *c, CritterMove *move)
         return 0;
     }
     speed *= *(f32 *)((u8 *)gCurLevel + 0xB0) *
-             move->readyDistance * lbl_80344590;
+             move->readyDistance * gClockFrameStep;
     if (move->type == 0x38) {
         forward[0] = c->targetPos[0] - c->vel[0];
         forward[1] = c->targetPos[1] - c->vel[1];
@@ -1977,9 +1977,9 @@ s32 CritterTranslate(Critter *c, CritterMove *move)
         break;
     }
     delta[1] = 0.0f;
-    delta[0] += c->knockbackVelocity[0] * lbl_80344590;
-    delta[1] += c->knockbackVelocity[1] * lbl_80344590;
-    delta[2] += c->knockbackVelocity[2] * lbl_80344590;
+    delta[0] += c->knockbackVelocity[0] * gClockFrameStep;
+    delta[1] += c->knockbackVelocity[1] * gClockFrameStep;
+    delta[2] += c->knockbackVelocity[2] * gClockFrameStep;
     c->knockbackVelocity[0] *= 0.8f;
     c->knockbackVelocity[1] *= 0.8f;
     c->knockbackVelocity[2] *= 0.8f;
@@ -2032,7 +2032,7 @@ void CritterRotate(Critter *c, CritterMove *move)
     while (delta < -3.1415927f) {
         delta += 6.2831855f;
     }
-    step = *(f32 *)((u8 *)move + 0x88) * lbl_80344590;
+    step = *(f32 *)((u8 *)move + 0x88) * gClockFrameStep;
     if (c->unkAC6 > 0) {
         step *= 0.5f;
     }
@@ -2629,7 +2629,7 @@ void CritterAnimate(Critter *c)
     if (c->pausecnt <= 0) {
         done = AnimateATree(&c->colhandle, sequence, transition);
     } else {
-        c->animtimer += lbl_80344590;
+        c->animtimer += gClockFrameStep;
         done = 0;
     }
     for (subnode = (u8 *)c->subnodes;
@@ -3259,7 +3259,7 @@ void CritterDelInst(Critter *c)
     CritterSubnode *node;
 
     if (*(s16 *)((u8 *)*(void **)((u8 *)c->hdr + 288) + 32) == 4) {
-        fn_8002C49C(c->mtx);
+        del_target(c->mtx);
         if (c->parent == NULL) {
             BossDeath();
         }
