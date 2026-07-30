@@ -2940,6 +2940,9 @@ void PlayerDamagedItem(void* player, void* item, s32 flag)
     }
 }
 
+extern f64 lbl_80346318, lbl_80346320;
+extern f32 lbl_8034632C, lbl_80346330, lbl_80346334, lbl_80346338;
+
 void ModifyDamage(f32 armor, f32* damage, u32* damageType, u32 shield)
 {
     f32 value = *damage;
@@ -2950,28 +2953,28 @@ void ModifyDamage(f32 armor, f32* damage, u32* damageType, u32 shield)
     u32 color;
 
     if ((shield & 0x100000) != 0) {
-        if ((f64)value <= 1.0) {
-            *damage = 0.0f;
+        if ((f64)value > lbl_80346318) {
+            *damage = (f32)(lbl_80346320 * -(f64)value);
         } else {
-            *damage = (f32)(0.1 * -(f64)value);
+            *damage = lbl_80346328;
         }
         return;
     }
     if ((shield & 0x10000) != 0 ||
         ((shield & 0x1000) != 0 && (type & 0x200) != 0) ||
         ((shield & 0x2000) != 0 && (type & 0x800) != 0)) {
-        *damage = 0.0f;
+        *damage = lbl_80346328;
         return;
     }
 
     if (gBossType >= 0) {
-        weak = 0.75f;
-        resist = 1.25f;
-        strong = 1.5f;
+        weak = lbl_8034632C;
+        resist = lbl_80346330;
+        strong = lbl_80346334;
     } else {
-        weak = 0.5f;
-        resist = 1.5f;
-        strong = 2.0f;
+        weak = lbl_80346338;
+        resist = lbl_80346334;
+        strong = lbl_8034633C;
     }
     if ((shield & 0x40000) != 0) {
         *damageType &= 0xFFFEFE8F;
@@ -2981,59 +2984,61 @@ void ModifyDamage(f32 armor, f32* damage, u32* damageType, u32 shield)
     }
 
     if ((type & 0xA00) == 0) {
-        f32 original = value;
-        value = 0.0f;
-        if (original < 0.0f) {
-            value = -original;
-        } else if (original > armor) {
-            value = original - armor;
+        if (value >= lbl_80346328) {
+            if (value <= armor) {
+                value = lbl_80346328;
+            } else {
+                value = value - armor;
+            }
+        } else {
+            value = -value;
         }
     }
-    if ((f64)value > 0.0) {
+    if ((f64)value > lbl_80346340) {
         color = type & 0xF;
         switch (color) {
         case 1:
             if ((shield & 1) != 0) {
                 value *= weak;
             } else if ((shield & 0x100) != 0) {
-                value = 0.0f;
-            } else if ((shield & 2) == 0 && (shield & 0x200) == 0) {
-                value *= resist;
-            } else {
+                value = lbl_80346328;
+            } else if ((shield & 2) != 0 || (shield & 0x200) != 0) {
                 value *= strong;
+            } else {
+                value *= resist;
             }
             break;
         case 2:
             if ((shield & 2) != 0) {
                 value *= weak;
             } else if ((shield & 0x200) != 0) {
-                value = 0.0f;
-            } else if ((shield & 1) == 0 && (shield & 0x100) == 0) {
-                value *= resist;
-            } else {
+                value = lbl_80346328;
+            } else if ((shield & 1) != 0 || (shield & 0x100) != 0) {
                 value *= strong;
+            } else {
+                value *= resist;
             }
             break;
         case 3:
             if ((shield & 4) != 0) {
                 value *= weak;
             } else if ((shield & 0x400) != 0) {
-                value = 0.0f;
-            } else if ((shield & 8) == 0 && (shield & 0x800) == 0) {
-                value *= resist;
-            } else {
+                value = lbl_80346328;
+            } else if ((shield & 8) != 0 || (shield & 0x800) != 0) {
                 value *= strong;
+            } else {
+                value *= resist;
             }
             break;
         case 4:
             if ((shield & 8) != 0) {
                 value *= weak;
             } else if ((shield & 0x800) != 0) {
-                value = 0.0f;
-            } else if ((shield & 4) == 0 && (shield & 0x400) == 0) {
-                value *= resist;
-            } else {
+                value = lbl_80346328;
+            } else if ((shield & 4) != 0 || (shield & 0x400) != 0) {
                 value *= strong;
+            } else {
+                value *= resist;
             }
             break;
         }
