@@ -285,9 +285,44 @@ void write_stage_info(s32 mode)
     }
 }
 
+extern s32 lbl_80344490;
+extern f32 lbl_80344410;
+extern f32 lbl_80346168;
+extern u8* gCurLevel;
+extern f32 lbl_80345F80;
+extern s32 sMusicTrackLo;
+extern s32 lbl_80344498;
+extern void* lbl_8034440C;
+extern char lbl_80111B50[];
+extern s32 StringTextWidth(s32 id, s32 a, f32 scale);
+extern s32 StringTextHeight(s32 id, s32 a, s32 b, f32 scale);
+extern void* MBNewBlit(void* tex, s32 x, s32 y);
+extern void mbBlitProject(void* blit, s32 w, s32 h);
+
 void init_stage_info(void)
 {
-    write_stage_info(0);
+    s32 width = 0;
+    s32 height = 0;
+    u32 level;
+
+    lbl_80344490 = 91;
+    lbl_80344410 = lbl_80346168;
+    level = *(u32*)gCurLevel;
+    if ((level & 1) != 0) {
+        width = StringTextWidth(175, -1, lbl_80345F80);
+        height = StringTextHeight(175, -1, 0, lbl_80345F80);
+    } else if ((level & 4) != 0) {
+        width = StringTextWidth(176, -1, lbl_80345F80);
+        height = StringTextHeight(176, -1, 0, lbl_80345F80);
+    } else if (sMusicTrackLo == 0) {
+        lbl_80344498 = 0;
+    }
+    if (width > 0) {
+        s32 w = width + 60;
+        s32 h = height + 16;
+        lbl_8034440C = MBNewBlit(lbl_80111B50, 256 - w / 2, 108 - h / 2);
+        mbBlitProject(lbl_8034440C, w, h);
+    }
 }
 
 void AverageCameraTargetPosition(f32* out)
