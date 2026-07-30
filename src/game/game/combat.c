@@ -198,7 +198,9 @@ extern s32 lbl_8011BC30[];  /* exp: kill+flag */
 extern s32 lbl_8011BBA8[];  /* exp: hit */
 extern s32 lbl_8011BB20[];  /* exp: kill */
 extern void AddExp(s32 playerIdx, s32 exp, s32 award);
-extern s32 msgPost(s32 code, s32 player, u32 arg);
+extern s32 msgPost();
+extern f32 lbl_80346310;
+s32 start_magic();
 
 /* Low-level combat services recovered in other game TUs.  K&R declarations
  * retain the original vararg/floating-register call contracts. */
@@ -2891,38 +2893,50 @@ void PlayerDamagedEnemy(void* player, void* enemy, s32 state, s32 damage,
     }
 }
 
-void PlayerDamagedItem(void* player, void* item, s32 exact)
+void PlayerDamagedItem(void* player, void* item, s32 flag)
 {
-    void* object = *(void**)item;
-    s32 type;
+    s32* info = *(s32**)item;
+    s32 type = info[0];
 
-    if (object == 0) {
+    if (type == 2) {
         return;
     }
-    type = PF(object, 0x00, s32);
-    if (type == 1 && PF(item, 0xC6, s16) < 1 &&
-        PF(object, 0x04, s32) == 4) {
-        f32 hitPos[3];
-        hitPos[0] = PF(item, 0x44, f32);
-        hitPos[1] = PF(item, 0x48, f32);
-        hitPos[2] = PF(item, 0x4C, f32);
-        AddItem(PF(player, 0x00, s32), hitPos, PF(object, 0x3C, s32), 0);
-        DeleteItem(item, 1);
-    } else if (type == 3) {
-        s32 damageType = PF(item, 0xDC, s16);
-        if (exact != 0) {
+    if (type < 2) {
+        if (type > 0 && PF(item, 0xC6, s16) < 1 && info[1] == 4) {
+            s32 pos[3];
+            s32 vec[3];
+            s32 fx;
+            pos[0] = *(s32*)((u8*)item + 0x44);
+            pos[1] = *(s32*)((u8*)item + 0x48);
+            pos[2] = *(s32*)((u8*)item + 0x4C);
+            vec[0] = *(s32*)((u8*)player + 0x54);
+            vec[1] = *(s32*)((u8*)player + 0x58);
+            vec[2] = *(s32*)((u8*)player + 0x5C);
+            fx = start_magic(PF(player, 0, s32), pos, info[0xF], 0,
+                             lbl_80346310);
+            msgPost(fx, 0xE, PF(player, 0, s32), (u32)vec);
+            DeleteItem(item, 1);
+        }
+    } else if (type < 4) {
+        s32 t;
+        if (flag != 0) {
             PF(player, 0x918, s32) = 0;
-            PF(player, PF(player, 0x0C, s32) * 0x1C + 0xC20, s32)++;
+            PF(player, PF(player, 0x0C, s32) * 0x1C + 0xC20, s32) =
+                PF(player, PF(player, 0x0C, s32) * 0x1C + 0xC20, s32) + 1;
         }
-        if (damageType == -2) {
-            damageType = 1;
-        } else if (damageType == -3) {
-            damageType = 2;
-        } else if (damageType < 0) {
-            damageType = 0;
+        t = PF(item, 0xDC, s16);
+        if (t == -2) {
+            t = 1;
+        } else if (t == -3) {
+            t = 2;
+        } else if (t < 0) {
+            t = 0;
         }
-        damage_enemy(PF(player, 0x00, s32), item,
-                     exact ? 5 : 1, 0, damageType, 0);
+        if (flag == 0) {
+            AddExp(PF(player, 0, s32), lbl_8011BB20[t] * 5, 0);
+        } else {
+            AddExp(PF(player, 0, s32), lbl_8011BBA8[t] * 5, 0);
+        }
     }
 }
 
