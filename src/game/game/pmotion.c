@@ -32,7 +32,7 @@ extern Player gPlayers[]; /* gPlayerRecords[4], stride 0x335C */
 /* ------------------------------------------------------------------ */
 
 extern s32 gGameMode;   /* game state (0x4010 = in-game) */
-extern f32 lbl_8034458C;   /* frame delta (float) */
+extern f32 gClockFrameReciprocal; /* inverse frame delta */
 extern s32 gFrameTicks;   /* frame delta (int) */
 extern s32 lbl_803447B8;   /* pause/menu depth */
 extern s32 lbl_803447E4;   /* hit-something flag */
@@ -70,13 +70,13 @@ extern f32 smallsqrt(f32 v);
 extern void fn_8009C850(void* p);
 extern void damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir);
 extern f64 fn_8005C1DC(void* target, s32 arg, s32 pidx, f64 range); /* hit test -> priority */
-extern void fn_8002F44C(Player* p, void* target, s32 exact);        /* apply melee hit */
+extern void PlayerDamagedItem(Player* p, void* target, s32 exact); /* apply melee hit */
 extern f32 lbl_80347B30; /* 0.0f */
 extern f64 lbl_80347B28; /* hit-point y offset */
 extern f64 lbl_80347B08; /* hit-priority threshold */
 extern f64 lbl_80347D68; /* min separation for push-out */
-extern s32 fn_8002FA70(f32* otherPos, f32 r, f32 p3, f32* from, f32* to,
-                       f32* hitOut, s32 flag); /* segment/sphere collide */
+extern s32 LineCylinderCollide(f32* otherPos, f32 r, f32 p3, f32* from,
+                               f32* to, f32* hitOut, s32 flag);
 extern f64 lbl_80347B00; /* wedge dot threshold */
 extern f64 lbl_80347D78; /* second-pass range scale */
 extern u8  lbl_80282850[]; /* wall-collide context (normal copy @+12) */
@@ -106,7 +106,7 @@ extern s32 damage_enemy(void* enemy, s32 pidx, s32 a3, s32 a4, f32* dir,
 extern s32 CritterDamage(void* critter, s32 pidx, s32 a3, s32 a4, f32* dir,
                          s32 flag, f32 dmg);
 extern s32 CritterNoHit(void* critter, s32 slot);
-extern void fn_8002F2D4(Player* p, void* enemy, s32 state, s32 hit, s32 a5);
+extern void PlayerDamagedEnemy(Player* p, void* enemy, s32 state, s32 hit, s32 a5);
 extern void fn_80037ED0(void* critter, s32 slot, f32 priority);
 extern f32 lbl_80347C50; /* impulse scale (fire/heavy) */
 extern f64 lbl_80347D38; /* impulse scale (potion, small) */
@@ -120,6 +120,11 @@ extern s32 lbl_80344BF8; /* skin-fx texture id */
 extern f32 atan2(f32 y, f32 x);
 extern void fn_80094164(void* pos, u32 flags, s32 a3);
 extern void SetSkinFX(void* node, s32 tex, s32 a3, s32 a4, f32 dur);
+extern void StartEnemyGrid(f32* pos, f32 range);
+extern s32 NextGridEnemy(void);
+extern f32 fn_8005F0F4(void* item, s32 a2, f32* pos, f32* hit, f32 range, f32 p2);
+extern s32 fn_8005D730(Player* p, void* item);
+extern u8* sItems;
 extern void MBTreeSetAlpha(void* node, s32 alpha, s32 mode);
 extern void* fn_8005B8B0(Player* p);
 extern s32 PointVisible(f32 y, f32* pos);
@@ -276,7 +281,7 @@ int PlayerCollideWalls(Player* p, s32 unused, f32* dpos, f32* from, f32* to) {
         }
         count = 1;
     } else {
-        PF(p, 0x864, f32) += lbl_8034458C * dx;
+        PF(p, 0x864, f32) += gClockFrameReciprocal * dx;
         dpos[0] = 0.0f;
     }
 
@@ -293,7 +298,7 @@ int PlayerCollideWalls(Player* p, s32 unused, f32* dpos, f32* from, f32* to) {
         }
         count++;
     } else {
-        PF(p, 0x86C, f32) += lbl_8034458C * (to[2] - from[2]);
+        PF(p, 0x86C, f32) += gClockFrameReciprocal * (to[2] - from[2]);
         dpos[2] = 0.0f;
     }
 
@@ -511,7 +516,7 @@ void PlayerMotion_HitTarget(Player* p, void* target, s32 arg, f32 range) {
         if (priority < lbl_80347B08) {
             return;
         }
-        fn_8002F44C(p, target, exact);
+        PlayerDamagedItem(p, target, exact);
         type = **(s32**)target;
         if (type == 3) {
             lbl_803447E4 = 1;
@@ -578,7 +583,7 @@ s32 PlayerMotion_DamageTarget(Player* p, s32 targetId, s32 a3, s32 a4, s32 a5,
             result = damage_enemy(enemy, p->index, a3, a4, dir, 1, dmg);
         }
         if (result >= 0) {
-            fn_8002F2D4(p, enemy, estate, result, a5);
+            PlayerDamagedEnemy(p, enemy, estate, result, a5);
         }
         if (priority > lbl_80347B08) {
             PF(enemy, 0x2B8 + p->index * 4, f32) = sMusicFadeBase + priority;
@@ -689,7 +694,94 @@ void DoExit(Player* p) {
         }
     }
 }
-STUB(0x8008760C, PlayerCollideEnemies)
+/* 0x8008760C - sweep the enemy grid around pos; for each eligible entry run
+ * the collision test + resolve (fn_8005D730), track the best hit and the
+ * caller's push-out, and remember the last blocking/opening entry on the
+ * player.  Returns the number of hard collisions. */
+s32 PlayerCollideEnemies(Player* p, s32 a2, f32* pos, f32* out, s32 a5,
+                         s32* out2, f32 range, f32 p2) {
+    f32 hit[3];
+    f32 best = lbl_80347B30;
+    f64 thresh = lbl_80347B08;
+    u8* last = NULL;
+    s32 lastResult = 0;
+    s32 count = 0;
+    s32 idx;
+
+    if ((u32)(gBossType - 42) <= 1) {
+        StartEnemyGrid(pos, (f32)(lbl_80347BB8 + range));
+    } else {
+        StartEnemyGrid(pos, range);
+    }
+
+    for (;;) {
+        u8* item;
+        s32 type;
+        f32 d;
+        s32 result;
+
+        idx = NextGridEnemy();
+        if (idx < 0) {
+            break;
+        }
+        item = sItems + idx * 240;
+        type = **(s32**)item;
+
+        {
+            s32 skip = 0;
+            if (type == 8) {
+                s8 sub = PF(item, 0xC8, s8);
+                if ((sub == 2 || sub == 4) && (PF(item, 0xC4, s16) & 1)) {
+                    skip = 0;
+                } else {
+                    skip = 1;
+                }
+            } else if (type < 8) {
+                if (type == 1 && PF(item, 0xE8, s32) != 0) {
+                    skip = 1;
+                }
+            }
+            if (skip) {
+                continue;
+            }
+        }
+
+        d = fn_8005F0F4(item, a2, pos, hit, range, p2);
+        if (!(d >= thresh)) {
+            continue;
+        }
+        result = fn_8005D730(p, item);
+        if (result == 1) {
+            count++;
+        }
+        type = **(s32**)item;
+        if (type != 10 && type >= 9 && type < 12) {
+            PF(p, 0x8AC, u8*) = item;
+        }
+        if (last == NULL ||
+            (result != 0 && (d < best || lastResult == 0 || type == 10))) {
+            best = d;
+            last = item;
+            lastResult = result;
+            if (out != NULL) {
+                out[0] = hit[0];
+                out[1] = hit[1];
+                out[2] = hit[2];
+            }
+            if (a5 != 0 && count != 0) {
+                break;
+            }
+        }
+    }
+
+    if (a5 == 0) {
+        PF(p, 0x8A8, u8*) = last;
+    }
+    if (out2 != NULL) {
+        *out2 = (s32)last;
+    }
+    return count;
+}
 /* 0x80087830 - sweep the other three players along the movement segment
  * from->to; of those hit (and in front of the motion), pick the nearest and
  * push `out` back out of it.  Returns the collided player index or -1. */
@@ -719,8 +811,9 @@ s32 PlayerCollidePlayers(Player* p, f32 range, f32 p3, f32* from, f32* to,
         if (dot < lbl_80347B30) {
             continue;
         }
-        if (fn_8002FA70((f32*)((u8*)op + 0x64), range + PF(op, 0x850, f32), p3,
-                        from, to, hit, 1) == 0) {
+        if (LineCylinderCollide((f32*)((u8*)op + 0x64),
+                                range + PF(op, 0x850, f32), p3,
+                                from, to, hit, 1) == 0) {
             continue;
         }
         d = fqdist(hit[0] - to[0], hit[2] - to[2]);
