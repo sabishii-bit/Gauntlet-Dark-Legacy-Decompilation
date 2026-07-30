@@ -251,16 +251,17 @@ void CameraSupervisor(s32 camIdx);
 
 void DiffRate(s32 camIdx)
 {
-    Camera* cam = &gCameras[camIdx];
+    f32* camState = (f32*)gCameraState;
+    Camera* cam = (Camera*)((u8*)gCameraState + camIdx * 396 + 0xC8);
     f64 prevYaw = (f32)cam->pyr[1];
     f32 rate;
     f64 y;
 
-    lbl_8023F820 = lbl_8023F81C;
-    lbl_8023F81C = lbl_8023F818;
-    lbl_8023F818 = cam->pyr[1];
+    camState[6] = camState[5];
+    camState[5] = camState[4];
+    camState[4] = cam->pyr[1];
     CameraSupervisor(camIdx);
-    rate = lbl_8034444C * (f32)(f64)lbl_8034457C;
+    rate = lbl_8034444C * (f32)(f64)(u32)gFrameTicks;
 
     if (lbl_80344400 < 1 || cam->pyr[1] == lbl_80344534) {
         if (lbl_80344400 < 0 && cam->pyr[1] != lbl_80344534) {
@@ -314,10 +315,10 @@ void DiffRate(s32 camIdx)
             lbl_80344400 = 0;
         }
     }
-    if ((lbl_80345EC8 < cam->pyr[1] && lbl_80345EC8 < lbl_8023F81C &&
-         lbl_8023F818 < lbl_80345EC8) ||
-        (cam->pyr[1] < lbl_80345EC8 && lbl_8023F81C < lbl_80345EC8 &&
-         lbl_80345EC8 < lbl_8023F818)) {
+    if ((lbl_80345EC8 < cam->pyr[1] && lbl_80345EC8 < camState[5] &&
+         camState[4] < lbl_80345EC8) ||
+        (cam->pyr[1] < lbl_80345EC8 && camState[5] < lbl_80345EC8 &&
+         lbl_80345EC8 < camState[4])) {
         cam->pyr[1] = lbl_80344534;
         lbl_80344400 = 0;
     }
