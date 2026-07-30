@@ -1143,17 +1143,41 @@ extern s32 gCameraWindowBottomLimit;
 extern f32 gCameraWindowScaleX;
 extern f32 gCameraWindowScaleY;
 
+extern s32 lbl_803444AC, lbl_803444B0, lbl_803444B4, lbl_803444B8, lbl_803444BC;
+
 void ChangeWindow(void)
 {
-    f32 centerX = (f32)(gCameraWindowLeftLimit + gCameraWindowRightLimit) * 0.5f;
-    f32 centerY = (f32)(gCameraWindowTopLimit + gCameraWindowBottomLimit) * 0.5f;
-    f32 halfX = (f32)(gCameraWindowRightLimit - gCameraWindowLeftLimit) *
-                0.5f * gCameraWindowScaleX;
-    f32 halfY = (f32)(gCameraWindowTopLimit - gCameraWindowBottomLimit) *
-                0.5f * gCameraWindowScaleY;
+    f32 halfY;
+    f32 halfX;
+    s32 centerX = (s32)(lbl_80345F18 *
+        (f64)(gCameraWindowRightLimit + gCameraWindowLeftLimit));
+    s32 centerY = (s32)(lbl_80345F18 *
+        (f64)(gCameraWindowTopLimit + gCameraWindowBottomLimit));
 
-    MBWindowSetRegion(centerX - halfX, centerX + halfX,
-                      centerY + halfY, centerY - halfY, 1.0f);
+    halfY = (f32)(s32)(lbl_80345F18 *
+        (f64)(gCameraWindowTopLimit - gCameraWindowBottomLimit)) *
+        gCameraWindowScaleX;
+    halfX = (f32)(s32)(lbl_80345F18 *
+        (f64)(gCameraWindowRightLimit - gCameraWindowLeftLimit)) *
+        gCameraWindowScaleY;
+    lbl_803444AC = (s32)((f32)centerX - halfX);
+    lbl_803444B0 = (s32)((f32)centerX + halfX);
+    lbl_803444B4 = (s32)((f32)centerY + halfY);
+    lbl_803444B8 = (s32)((f32)centerY - halfY);
+    if (lbl_803444AC < gCameraWindowLeftLimit) {
+        lbl_803444AC = gCameraWindowLeftLimit;
+    }
+    if (gCameraWindowRightLimit < lbl_803444B0) {
+        lbl_803444B0 = gCameraWindowRightLimit;
+    }
+    if (gCameraWindowTopLimit < lbl_803444B4) {
+        lbl_803444B4 = gCameraWindowTopLimit;
+    }
+    if (lbl_803444B8 < gCameraWindowBottomLimit) {
+        lbl_803444B8 = gCameraWindowBottomLimit;
+    }
+    MBWindowSetRegion((f32)lbl_803444AC, (f32)lbl_803444B0,
+        (f32)lbl_803444B4, (f32)lbl_803444B8, (f32)lbl_803444BC);
 }
 
 void CopyCam(u8* src, u8* dst)
