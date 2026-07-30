@@ -252,7 +252,7 @@ extern s32 lbl_8034489C;    /* in-world flag gating the boss rename    */
 extern s32 gBossType;       /* current boss id (35 = STUMPL 'Q' skin)  */
 extern s32 lbl_80344BD8;    /* count of registered custom fx defs      */
 extern u8 gPlayers[];   /* player-record array, stride 0x335C      */
-extern f32 lbl_80344584;    /* current game time (min-endtime gate)    */
+extern f32 gClockTime;      /* current game time (min-endtime gate)    */
 extern s32 lbl_80343DF0;    /* running effect-id counter               */
 extern s32 lbl_80344890;    /* tracked live-fx slot A (cleared on del) */
 extern s32 lbl_80344894;    /* tracked live-fx slot B (cleared on del) */
@@ -534,7 +534,7 @@ s32 StartDeathFX(struct mbnode* parent, s32 kind, u32 fla)
             MBTreeSetFlags(root->node, 0x10, 0);
         }
     }
-    page->fx[idx].minendtime = 0.5 + lbl_80344584;
+    page->fx[idx].minendtime = 0.5 + gClockTime;
     return idx;
 }
 
@@ -1030,7 +1030,7 @@ s32 StartFXTree(struct atreeheader* hdr, f32* pos, u32 fla, u32 flb, f32 time)
 
     ai = (struct fxanim*)&e->atree[4];
     if (time > 0.0) {
-        e->endtime = lbl_80344584 + time;
+        e->endtime = gClockTime + time;
         ai->oneshot = 1;
     } else {
         n = ai->def->nframes;
@@ -1038,12 +1038,12 @@ s32 StartFXTree(struct atreeheader* hdr, f32* pos, u32 fla, u32 flb, f32 time)
             ai->oneshot = 1;
             n = 30;
         }
-        e->endtime = 0.00111111 * ((f32)n * (f32)ai->def->rate) + lbl_80344584;
+        e->endtime = 0.00111111 * ((f32)n * (f32)ai->def->rate) + gClockTime;
     }
     if (fla & 0x20000000) {
         ai->oneshot = 0;
     }
-    e->maxtime = e->endtime - lbl_80344584;
+    e->maxtime = e->endtime - gClockTime;
     e->flags = fla;
     if (pos != NULL) {
         e->node->pos[0] = pos[0];
@@ -1168,7 +1168,7 @@ static void UpdateFXStreak(Effect* e, f32* pos)
     f32 p0x, p0y, p0z;
     f32 p1x, p1y, p1z;
 
-    t = e->maxtime - (e->endtime - lbl_80344584);
+    t = e->maxtime - (e->endtime - gClockTime);
     side = (f32)(0.8 * e->streakscale);
     tail = (f32)(0.1 * e->streakscale);
     back = t;
@@ -1346,7 +1346,7 @@ s32 DeleteEffect(s32 idx, s32 mode)
     e = &Effects[idx];
 
     if (mode == 0) {
-        if (e->minendtime > 0.0 && lbl_80344584 < e->minendtime) {
+        if (e->minendtime > 0.0 && gClockTime < e->minendtime) {
             return idx;
         }
     }

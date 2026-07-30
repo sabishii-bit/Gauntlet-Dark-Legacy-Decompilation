@@ -205,7 +205,7 @@ extern void GetYawPitch(f32* a, f32* b, f32* c);
 extern f32 SlowNormalVector(f32* vector);
 
 extern s32 lbl_80343CE0;   /* slow-motion / time-scaling enable */
-extern f32 lbl_80344590;   /* time scale (frame delta) */
+extern f32 gClockFrameStep; /* time scale (frame delta) */
 extern s32 lbl_80343CEC;   /* interpolation frame count (divisor) */
 extern s32 lbl_80343CF8;   /* active marker index (also the 3D selector) */
 
@@ -224,10 +224,10 @@ s32 fn_80070144(f32 targetYaw, f32 targetPitch, NcCamera* cam) {
     s32 result;
 
     if (lbl_80343CE0 != 0) {
-        if (lbl_80344590 <= 0.0) {
+        if (gClockFrameStep <= 0.0) {
             step = 1.0f;
         } else {
-            step = 30.0 * lbl_80344590;
+            step = 30.0 * gClockFrameStep;
         }
     } else {
         step = 1.0f;
@@ -338,7 +338,7 @@ void CamReset(NcCamera* cam);   /* defined below; forward decl for early callers
 extern void fn_8006F16C(s32 arg);
 extern void fn_8006DF34(NcCamera* cam);
 extern void fn_8006E654(void);
-extern void fn_8002A5C0(s32 mode);
+extern void write_stage_info(s32 mode);
 
 extern s32       gGameBusy;   /* master camera-disable flag */
 extern void*     gFrameTicks;   /* camera-enable gate (nonzero to run) */
@@ -348,7 +348,7 @@ extern s32       gScriptedCameraState;   /* scripted-path sub-state */
 /*
  * UpdateCam -- top-level per-frame camera dispatcher.  Runs only when the
  * camera is enabled; lazily kick-starts the standard camera, drives the
- * scripted-path state machine (fn_8002A5C0) when active, and otherwise ticks
+ * scripted-path state machine (write_stage_info) when active, and otherwise ticks
  * the live standard camera (fn_8006DF34) or, on the freeze->unfreeze edge,
  * re-pushes the MB projection.  Always returns 1.  [caller: game/sys/main]
  */
@@ -367,7 +367,7 @@ s32 UpdateCam(void) {
         if (gScriptedCameraState > 2) {
             gScriptedCameraState = 2;
         }
-        fn_8002A5C0(gScriptedCameraState);
+        write_stage_info(gScriptedCameraState);
         if (gScriptedCameraState == 1) {
             fn_8006E654();
         }
@@ -796,7 +796,7 @@ void CalcFrustrumNormals(const Vec3* look, f32 fov, Vec3* out) {
  * DebugCamControlInputs [0x800704EC, size 0x444] -- NOT reconstructed (giant,
  * input handling).  Reads the debug-cam input bitmask (lbl_80344A84) and, per
  * direction bit, rotates yaw (0xEC) / pitch (0x104) and translates the debug
- * camera (0xA4 / 0xAC) by the current speed (lbl_80344590) scaled through the
+ * camera (0xA4 / 0xAC) by the current speed (gClockFrameStep) scaled through the
  * yaw/pitch sin/cos.  Caller: fn_8006FF1C (DebugCamUpdate path).
  *
  * The remaining fn_ bodies (the fn_8006DF34 / fn_8006E654 / fn_8006F16C

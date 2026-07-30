@@ -87,8 +87,8 @@ extern int init_next_level_8005638C(int a);
 extern int  LoadModel(void* a, void* b, int c, int d);
 extern void fn_80057024(void);
 extern int  NextAttractWave(void);
-extern void fn_8002CF78(int a);
-extern void fn_8002C640(void);
+extern void InitCamera(int a);
+extern void init_targets(void);
 extern void AudioReset(int a);          /* was AudioReset */
 extern void AudioEmptyCb1(void);        /* was AudioEmptyCb1 */
 extern void MBOX_NewObject(void* dst, void* name, int a, int b);
@@ -150,7 +150,7 @@ extern const char titleModelName[6];
 extern const char titleTexturePrefix[6];
 extern const float titleWindowZoom;
 extern float screen2dTextScale;
-extern float lbl_80344590;
+extern float gClockFrameStep;
 extern float sMusicFadeBase;
 extern const double lbl_80345920;
 extern const double lbl_80345928;
@@ -205,7 +205,7 @@ unsigned int lbl_80344208;
 int lbl_80344218;
 unsigned int gFrameTicks;
 int gGameBusy;
-int lbl_80344578;
+int gClockStepTicks;
 long long gControllerButtons;
 int lbl_80344778;
 int lbl_80344794;
@@ -290,7 +290,7 @@ void init_titlescreen(void) {
     lbl_803448A8 = -1;
     lbl_80344C4C = 0;
     opt_force_player = 0;
-    fn_8002CF78(1);
+    InitCamera(1);
     bulletproof_printf(base + 2264);
     AudioSelectReset();
     bulletproof_printf(base + 2280);
@@ -523,7 +523,7 @@ void do_screen2d(void) {
     int state;
 
     if (lbl_80344254 > 0) {
-        lbl_80344254 -= lbl_80344578;
+        lbl_80344254 -= gClockStepTicks;
     }
     if (lbl_80344254 < 0) {
         lbl_80344254 = 0;
@@ -657,7 +657,7 @@ int do_flyby(void) {
         long long t = OSGetTime();
         (void)t;
         AudioSelectReset();
-        fn_8002C640();
+        init_targets();
         if (attract_music != 0) {
             MBRemoveBlit(attract_music);
             attract_music = 0;
@@ -699,7 +699,7 @@ int do_movie(void) {
 
     if (lbl_80344298 != 0) {
         lbl_80344218 = 21;
-        fn_8002C640();
+        init_targets();
         if (lbl_80344208 != 0) {
             MBRemoveBlit(lbl_80344208);
             lbl_80344208 = 0;
@@ -873,7 +873,7 @@ static int attract_check_input(int block) {
     if ((ATTRACT_FLAGS64 & 4) != 0) {
         return 0;
     }
-    if (lbl_80344590 > lbl_80345920 && sMusicFadeBase > lbl_80345928) {
+    if (gClockFrameStep > lbl_80345920 && sMusicFadeBase > lbl_80345928) {
         if (any(0xF000000) != 0) {
             ret = 2;
         } else if (block == 0) {

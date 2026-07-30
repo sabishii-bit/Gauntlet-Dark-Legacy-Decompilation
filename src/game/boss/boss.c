@@ -79,7 +79,7 @@ extern int lbl_803444E0;   /* 0x803444E0 */
 extern int sMusicSubIndex;                /* 0x803448EC */
 extern int sMusicSubState;                /* 0x803448E8 */
 
-extern void fn_8002C53C(int obj);
+extern void add_target(int obj);
 extern void* CritterTypeLoaded(int a, int b);
 extern void* CritterNewInst(int a, int b, void* obj);
 extern void* CopyMat4(void* a, void* b);
@@ -106,7 +106,7 @@ extern BossSpewData lbl_801189E0;         /* 0x801189E0 spew tables */
 extern f32         gIdentityMatrix[16];      /* item matrix template */
 extern s32         lbl_8034476C;          /* coin count multiplier */
 extern s32         sMusicTrackHi;         /* 0x803448D8 world index */
-extern f32         lbl_80344590;          /* physics timestep */
+extern f32         gClockFrameStep;       /* physics timestep */
 extern f32         lbl_80344880;          /* ground-probe height */
 
 extern f64  FloorPos(f64 a, f64 b, void* c, u32 d);   /* ground/collision query */
@@ -342,12 +342,12 @@ void ProcessSpewItems(void) {
         pvx = &it->vx;
         pvy = &it->vy;
         pvz = &it->vz;
-        *(f32*)((char*)obj + 0x34) = lbl_80344590 * it->vx + *(f32*)((char*)obj + 0x34);
-        *(f32*)((char*)obj + 0x38) = lbl_80344590 * it->vy + *(f32*)((char*)obj + 0x38);
-        *(f32*)((char*)obj + 0x3c) = lbl_80344590 * it->vz + *(f32*)((char*)obj + 0x3c);
+        *(f32*)((char*)obj + 0x34) = gClockFrameStep * it->vx + *(f32*)((char*)obj + 0x34);
+        *(f32*)((char*)obj + 0x38) = gClockFrameStep * it->vy + *(f32*)((char*)obj + 0x38);
+        *(f32*)((char*)obj + 0x3c) = gClockFrameStep * it->vz + *(f32*)((char*)obj + 0x3c);
 
         h = 10.0f;
-        lim = 0.5 * lbl_80344590;
+        lim = 0.5 * gClockFrameStep;
         if (it->vy <= 0.0f) {
             f64 g = FloorPos(lbl_80344880, 1.0f, (char*)obj + 0x34, 0);
             h = *(f32*)((char*)obj + 0x38) - (f32)(1.0 + g);
@@ -357,11 +357,11 @@ void ProcessSpewItems(void) {
                     *pvy = 0.0f;
                 }
                 *(f32*)((char*)obj + 0x38) = (f32)(1.0 + g);
-                lim = 4.0 * lbl_80344590;
+                lim = 4.0 * gClockFrameStep;
             }
         }
         if (0.1 <= h) {
-            *pvy = -(f32)(8.0 * lbl_80344590 - *pvy);
+            *pvy = -(f32)(8.0 * gClockFrameStep - *pvy);
         }
         clampAxis(pvx, lim);
         clampAxis(pvz, lim);
@@ -581,7 +581,7 @@ void BossActivate(void* obj, int flag) {
     gBossActive = 1;
     if (lbl_803444E0 == 0) {
         lbl_803444E0 = 1;
-        fn_8002C53C((int)obj + 0xc);
+        add_target((int)obj + 0xc);
     }
     if (flag != 0) {
         sMusicSubIndex = 1;
