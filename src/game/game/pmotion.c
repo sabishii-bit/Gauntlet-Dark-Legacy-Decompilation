@@ -95,6 +95,7 @@ extern f64 lbl_80347D20; /* rising-dpos damp */
 extern f32 lbl_80347B40; /* 1.0f (sqrt normalize) */
 extern f64 lbl_80347D28; /* return coeff */
 extern f64 lbl_80347BB0; /* return bias */
+extern f64 lbl_80347BB8; /* min forward speed / vertical gate */
 extern void MBTreeSetAlpha(void* node, s32 alpha, s32 mode);
 extern void* fn_8005B8B0(Player* p);
 extern s32 PointVisible(f32 y, f32* pos);
@@ -692,6 +693,88 @@ s32 fn_80088714(f32 range, Player* p, f32* pos, f32* dpos) {
     return result;
 }
 STUB(0x80088938, fn_80088938)
-STUB(0x80088EF4, fn_80088EF4)
+/* 0x80088EF4 - find the nearest other player inside p's forward-facing cone
+ * (within maxDist, dot >= minDot), gated by a stack of state/anim/floor
+ * eligibility checks.  Returns that player's index, or -1 if none. */
+s32 fn_80088EF4(Player* p, f32 maxDist, f32 minDot) {
+    f32 face[3];
+    f32 diff[3];
+    s32 closest = -1;
+    s32 i;
+    WorldObj* floor;
+
+    if (PF(p, 0x6B8, u32) != 0 || PF(p, 0x6BC, u32) != 0 ||
+        PF(p, 0x6DC, u32) == 0) {
+        return -1;
+    }
+    if ((PF(p, 0x124, u32) & 0x400) != 0) {
+        return -1;
+    }
+    if (p->state != 1) {
+        return -1;
+    }
+    if (PF(p, 0x828, f32) < lbl_80347BB8) {
+        return -1;
+    }
+    floor = (WorldObj*)PF(p, 0x8C4, u32);
+    if (floor == NULL || (floor->flags & 0x1000) != 0) {
+        return -1;
+    }
+
+    face[0] = PF(p, 0x34, f32);
+    face[1] = PF(p, 0x38, f32);
+    face[2] = PF(p, 0x3C, f32);
+    NormalVector2D(face);
+
+    for (i = 0; i < 4; i++) {
+        Player* op = &gPlayerRecords[i];
+        s32 anim;
+        f32 d;
+
+        if (i == p->index) {
+            continue;
+        }
+        if (op->state != 1) {
+            continue;
+        }
+        if (PF(op, 0x6B8, u32) != 0) {
+            continue;
+        }
+        if ((PF(op, 0x964, s16) & 0x50) != 0) {
+            continue;
+        }
+        anim = op->anim_208;
+        if ((anim >= 0x54 && anim < 0x5B) || anim >= 0x6B) {
+            continue;
+        }
+        if ((PF(op, 0x124, u32) & 0x400) != 0) {
+            continue;
+        }
+        if (PF(p, 0x834, s32) != 0 && gBossType >= 0) {
+            continue;
+        }
+        floor = (WorldObj*)PF(op, 0x8C4, u32);
+        if (floor == NULL || (floor->flags & 0x1000) != 0) {
+            continue;
+        }
+        diff[0] = op->pos[0] - p->pos[0];
+        diff[1] = op->pos[1] - p->pos[1];
+        diff[2] = op->pos[2] - p->pos[2];
+        if (fabsf_(diff[1]) > lbl_80347B28) {
+            continue;
+        }
+        d = NormalVector2D(diff);
+        if (d > maxDist) {
+            continue;
+        }
+        if (diff[0] * face[0] + diff[2] * face[2] < minDot) {
+            continue;
+        }
+        closest = i;
+        maxDist = d;
+    }
+
+    return closest;
+}
 
 #undef STUB
