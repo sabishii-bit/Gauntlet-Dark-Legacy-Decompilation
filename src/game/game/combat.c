@@ -164,6 +164,17 @@ extern s32 lbl_803447B8;
 extern s32 lbl_8034453C;
 extern s32 lbl_803445D4;
 extern s32 gScriptedCameraState;
+extern s32 lbl_803447B4;
+extern s32 gNumTransmitters;
+extern f64 lbl_80346128;  /* transmitter yaw step */
+extern f64 lbl_80345F58;  /* +pi */
+extern f64 lbl_80345F60;  /* 2pi */
+extern f64 lbl_80345F68;  /* -pi */
+extern f64 lbl_80346130;  /* radius divisor */
+extern f64 lbl_803460D0;  /* radius min */
+extern f32 lbl_80346018;  /* radius min clamp */
+extern f64 lbl_80345FF0;  /* radius max */
+extern f32 lbl_80346020;  /* radius max clamp */
 
 /* Low-level combat services recovered in other game TUs.  K&R declarations
  * retain the original vararg/floating-register call contracts. */
@@ -240,17 +251,55 @@ void CameraSupervisor(s32 camIdx)
 }
 
 /* Orient a camera around its attention point at the requested radius. */
-void cam_orient_to(s32 camIdx, f32 yaw, f32 pitch, f32 radius)
+/* 0x80029E8C - orient the transmitter camera (cam 3): spin its yaw, clamp the
+ * radius, snap the look-at to camera 0's, then rebuild its world position. */
+void cam_orient_to(s32 camIdx)
 {
     Camera* cam = &gCameras[camIdx];
-    f32 cp = (f32)cos(pitch);
+    f32 yaw;
+    f32 vec[3];
+    f32 out[3];
+    f32 mat[16];
 
-    cam->pyr[0] = pitch;
-    cam->pyr[1] = FixAngle(yaw);
-    cam->radius = radius;
-    cam->wpos[0] = cam->attn[0] - radius * (f32)sin(yaw) * cp;
-    cam->wpos[1] = cam->attn[1] + radius * (f32)sin(pitch);
-    cam->wpos[2] = cam->attn[2] - radius * (f32)cos(yaw) * cp;
+    if (lbl_803447B8 != 0 || lbl_803447B4 != 0 || gNumTransmitters == 0 ||
+        camIdx != 3) {
+        return;
+    }
+
+    yaw = (f32)(cam->pyr[1] + lbl_80346128);
+    if (yaw > lbl_80345F58) {
+        yaw = (f32)(yaw - lbl_80345F60);
+    } else if (yaw <= lbl_80345F68) {
+        yaw = (f32)(lbl_80345F60 + yaw);
+    }
+    cam->pyr[1] = yaw;
+
+    cam->radius = (f32)(cam->radius / lbl_80346130);
+    if (cam->radius < lbl_803460D0) {
+        cam->radius = lbl_80346018;
+    } else if (cam->radius > lbl_80345FF0) {
+        cam->radius = lbl_80346020;
+    }
+
+    cam->vel[0] = lbl_80345EC8;
+    cam->vel[1] = lbl_80345EC8;
+    cam->vel[2] = lbl_80345EC8;
+    cam->avel[0] = lbl_80345EC8;
+    cam->avel[1] = lbl_80345EC8;
+    cam->avel[2] = lbl_80345EC8;
+    cam->attn[0] = gCameras[0].attn[0];
+    cam->attn[1] = gCameras[0].attn[1];
+    cam->attn[2] = gCameras[0].attn[2];
+
+    CreateYPRMatrix(mat, cam->pyr);
+    vec[0] = lbl_80345EC8;
+    vec[1] = lbl_80345EC8;
+    vec[2] = cam->radius;
+    WorldVector(vec, out, mat);
+    cam->wpos[0] = cam->attn[0] + out[0];
+    cam->wpos[1] = cam->attn[1] + out[1];
+    cam->wpos[2] = cam->attn[2] + out[2];
+    lbl_8034453C = 0;
 }
 
 /* Walk-mode camera completion/cleanup predicate. */
