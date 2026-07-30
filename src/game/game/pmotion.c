@@ -108,6 +108,18 @@ extern s32 CritterDamage(void* critter, s32 pidx, s32 a3, s32 a4, f32* dir,
 extern s32 CritterNoHit(void* critter, s32 slot);
 extern void fn_8002F2D4(Player* p, void* enemy, s32 state, s32 hit, s32 a5);
 extern void fn_80037ED0(void* critter, s32 slot, f32 priority);
+extern f32 lbl_80347C50; /* impulse scale (fire/heavy) */
+extern f64 lbl_80347D38; /* impulse scale (potion, small) */
+extern f64 lbl_80347D40; /* impulse scale (potion) */
+extern f32 lbl_80347D48; /* impulse scale (light) */
+extern f64 lbl_80347B50; /* +pi */
+extern f64 lbl_80347B60; /* 2pi */
+extern f64 lbl_80347B68; /* -pi */
+extern f64 lbl_80347C38; /* facing-flip threshold */
+extern s32 lbl_80344BF8; /* skin-fx texture id */
+extern f32 atan2(f32 y, f32 x);
+extern void fn_80094164(void* pos, u32 flags, s32 a3);
+extern void SetSkinFX(void* node, s32 tex, s32 a3, s32 a4, f32 dur);
 extern void MBTreeSetAlpha(void* node, s32 alpha, s32 mode);
 extern void* fn_8005B8B0(Player* p);
 extern s32 PointVisible(f32 y, f32* pos);
@@ -330,7 +342,115 @@ void PlayerMotion_FloorFX(Player* p, WorldObj* obj, f32* v1, f32* v2) {
         break;
     }
 }
-STUB(0x80086470, PlayerKnockback)
+/* 0x80086470 - advance the player's queued knockback: dispatch on the hit-type
+ * flag bits to a reaction code + velocity impulse, retarget the facing angle
+ * for the strong reactions, spawn the skin FX, then clear the queue.  Returns
+ * the reaction code the motion driver acts on. */
+u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
+    u32 result = 0;
+    u32 prevFlags;
+    u32 flags;
+
+    if (PF(p, 0x8E0, f32) > lbl_80347B08) {
+        PF(p, 0x8E0, f32) = lbl_80347B30;
+    }
+    prevFlags = PF(p, 0x8D8, u32);
+    PF(p, 0x8D8, u32) = PF(p, 0x8D4, u32);
+    flags = PF(p, 0x8D4, u32);
+
+    if ((flags & 0x4000) != 0) {
+        PF(p, 0x8D4, u32) = flags & 0x4000;
+        return 300;
+    }
+    if ((flags & 0x8000) != 0) {
+        PF(p, 0x8D4, u32) = flags & 0x8000;
+        if ((prevFlags & 0x8000) == 0) {
+            PF(p, 0x870, f32) = PF(p, 0x8DC, f32);
+            PF(p, 0x874, f32) = PF(p, 0x8E0, f32);
+            PF(p, 0x878, f32) = PF(p, 0x8E4, f32);
+        }
+        return 301;
+    }
+    if ((prevFlags & 0x8000) != 0) {
+        damage_player(p->index, PF(p, 0x8D0, f32), 1, 0, NULL);
+        PF(p, 0x8D0, f32) = lbl_80347B30;
+    }
+    if ((PF(p, 0x120, u32) & 0x10000) != 0) {
+        PF(p, 0x8D0, f32) = lbl_80347B30;
+        PF(p, 0x8D4, u32) = 0;
+        return 0;
+    }
+
+    if ((flags & 0x4000000) != 0) {
+        result = 200;
+    }
+    if (PF(p, 0x8D0, f32) > lbl_80347B40) {
+#define KNOCK_IMPULSE(sc)                                              \
+        PF(p, 0x870, f32) = PF(p, 0x8DC, f32) * (sc) + PF(p, 0x870, f32); \
+        PF(p, 0x874, f32) = PF(p, 0x8E0, f32) * (sc) + PF(p, 0x874, f32); \
+        PF(p, 0x878, f32) = PF(p, 0x8E4, f32) * (sc) + PF(p, 0x878, f32)
+
+        if ((flags & 0x10000) != 0) {
+            f32 sc = lbl_80347C50;
+            result = 30;
+            KNOCK_IMPULSE(sc);
+        } else if ((flags & 0x40) != 0) {
+            f32 sc = lbl_80347C50;
+            result = 20;
+            KNOCK_IMPULSE(sc);
+        } else if ((flags & 0x120) != 0) {
+            f32 sc = (f32)((PF(p, 0x124, u32) & 0x400) != 0 ? lbl_80347D38
+                                                            : lbl_80347D40);
+            result = 20;
+            KNOCK_IMPULSE(sc);
+        } else if ((flags & 0x10) != 0) {
+            f32 sc = lbl_80347D48;
+            result = 10;
+            KNOCK_IMPULSE(sc);
+        } else if ((flags & 0x2000) != 0) {
+            result = 3;
+        } else if ((flags & 0x80) != 0) {
+            result = 2;
+        } else {
+            result = 1;
+        }
+#undef KNOCK_IMPULSE
+        if (result >= 10) {
+            {
+                f32 a = atan2(PF(p, 0x8DC, f32), PF(p, 0x8E4, f32));
+                f32 d = a - angle;
+                if (d > lbl_80347B50) {
+                    d = (f32)(d - lbl_80347B60);
+                } else if (d <= lbl_80347B68) {
+                    d = (f32)(lbl_80347B60 + d);
+                }
+                if (fabsf_(d) > lbl_80347C38) {
+                    result++;
+                    a = (f32)(a + lbl_80347B50);
+                }
+                if (a > lbl_80347B50) {
+                    a = (f32)(a - lbl_80347B60);
+                } else if (a <= lbl_80347B68) {
+                    a = (f32)(lbl_80347B60 + a);
+                }
+                *out = a;
+            }
+        }
+        if ((flags & 0x1000000) == 0) {
+            fn_80094164((u8*)p + 0x54, flags, 0);
+        }
+        SetSkinFX((u8*)p + 0x7DC, lbl_80344BF8, 1, 1, lbl_80347B40);
+    } else if ((flags & 0x80) != 0) {
+        result = 2;
+    }
+
+    PF(p, 0x8DC, f32) = lbl_80347B30;
+    PF(p, 0x8E0, f32) = lbl_80347B30;
+    PF(p, 0x8E4, f32) = lbl_80347B30;
+    PF(p, 0x8D0, f32) = lbl_80347B30;
+    PF(p, 0x8D4, u32) = 0;
+    return result;
+}
 void PlayerMotion_FindClosestPlayer(Player* p, f32* dir, u32 flags, f32 dmg) {
     u8 unused[8];
     f32 dvec[3];
