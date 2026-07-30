@@ -1774,32 +1774,42 @@ void init_targets(void)
     gCameraTargetCount = 0;
 }
 
+extern f64 lbl_80345EB8;  /* 0.001 */
+extern f32 lbl_80346120;  /* 0.001f */
+
 f32 get_yaw(f32* to, f32* from)
 {
     f32 dz = to[2] - from[2];
     f32 dx = to[0] - from[0];
-    f32 adz = dz < 0.0f ? -dz : dz;
-    f32 adx = dx < 0.0f ? -dx : dx;
+    f32 adz;
+    f32 adx;
     f32 angle;
+    union {
+        f32 f;
+        u32 i;
+    } u;
 
-    if (adz <= 0.001f) {
-        adz = 0.001f;
+    u.f = dz;
+    u.i &= 0x7FFFFFFF;
+    adz = u.f;
+    if (adz <= lbl_80345EB8) {
+        adz = lbl_80346120;
     }
+    u.f = dx;
+    u.i &= 0x7FFFFFFF;
+    adx = u.f;
     angle = (f32)atan2(adx, adz);
-    if (dz < 0.0f) {
-        if (dx < 0.0f) {
-            angle = (f32)(3.141592653589793 + angle);
+    if (dz < lbl_80345F78) {
+        if (dx < lbl_80345F78) {
+            angle = (f32)(lbl_80345F58 + angle);
         } else {
-            angle = (f32)(3.141592653589793 - angle);
+            angle = (f32)(lbl_80345F58 - angle);
         }
-    } else if (dx < 0.0f) {
+    } else if (dx < lbl_80345F78) {
         angle = -angle;
     }
     return FixAngle(angle);
 }
-
-extern f64 lbl_80345EB8;  /* 0.001 */
-extern f32 lbl_80346120;  /* 0.001f */
 
 f32 get_pitch(f32* a, f32* b)
 {
