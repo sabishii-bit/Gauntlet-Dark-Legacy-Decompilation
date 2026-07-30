@@ -175,6 +175,15 @@ extern f64 lbl_803460D0;  /* radius min */
 extern f32 lbl_80346018;  /* radius min clamp */
 extern f64 lbl_80345FF0;  /* radius max */
 extern f32 lbl_80346020;  /* radius max clamp */
+extern f64 lbl_80345F78;  /* no-dist sentinel */
+extern s32 lbl_803443FC;  /* wall-hug flag */
+extern s32 lbl_80344960;
+extern f32 lbl_80344528;
+extern f32 lbl_8034618C;  /* radius snap epsilon */
+extern s32 lbl_803443F4;  /* radius-moved flag */
+extern f64 lbl_80346098;  /* radius step gain */
+extern s32 lbl_803444E4;
+extern s32 lbl_80344418;
 
 /* Low-level combat services recovered in other game TUs.  K&R declarations
  * retain the original vararg/floating-register call contracts. */
@@ -558,24 +567,56 @@ f32 get_cam_dist(s32 camIdx)
     }
 }
 
-void adjust_radius(s32 camIdx)
+s32 adjust_radius(s32 camIdx)
 {
     Camera* cam = &gCameras[camIdx];
     f32 desired = get_cam_dist(camIdx);
-    f32 rate = cam->value;
-    f32 delta = desired - cam->radius;
+    void* levelData = *(void**)((u8*)gCurLevel + 96);
+    f32 val;
+    f32 diff;
+    f32 ad;
+    f32 step;
 
-    if (rate <= 0.0f) {
-        rate = 0.05f;
+    if (desired == lbl_80345F78) {
+        return 0;
     }
-    rate *= (f32)(u32)gFrameTicks;
-    if (delta > rate) {
-        cam->radius += rate;
-    } else if (delta < -rate) {
-        cam->radius -= rate;
-    } else {
-        cam->radius = desired;
+    val = desired;
+    if (desired < cam->radius && lbl_803443FC > 0) {
+        lbl_803443FC = 0;
+        val = cam->radius;
     }
+    if (val > cam->radius && lbl_803443FC < 0) {
+        lbl_803443FC = 0;
+        val = cam->radius;
+    }
+    if (lbl_80344960 < 0 && val > cam->radius && cam->radius > lbl_80344528) {
+        val = cam->radius;
+    }
+
+    diff = val - cam->radius;
+    ad = diff;
+    *(u32*)&ad &= 0x7FFFFFFF;
+    if (ad < lbl_8034618C) {
+        cam->radius = val;
+        lbl_803443F4 = 1;
+        return -1;
+    }
+    step = (f32)(lbl_80346098 * (ad - lbl_8034618C) + lbl_8034618C);
+    if (step > lbl_80346158 && lbl_803444E4 == 0) {
+        step = lbl_80346158;
+    }
+    if (val > cam->radius) {
+        cam->radius = cam->radius + step;
+        lbl_803443F4 = 1;
+        return -1;
+    }
+    if (val < cam->radius) {
+        if (lbl_80344418 == 0 || *(s16*)((u8*)levelData + 54) != 0) {
+            cam->radius = cam->radius - step;
+            lbl_803443F4 = 1;
+        }
+    }
+    return -1;
 }
 
 /*
