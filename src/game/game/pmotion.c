@@ -96,6 +96,18 @@ extern f32 lbl_80347B40; /* 1.0f (sqrt normalize) */
 extern f64 lbl_80347D28; /* return coeff */
 extern f64 lbl_80347BB0; /* return bias */
 extern f64 lbl_80347BB8; /* min forward speed / vertical gate */
+extern f64 lbl_80347C28; /* damage scale / force clamp */
+extern f64 lbl_80347D50; /* knockback force scale */
+extern f32 lbl_80347B98; /* knockback force cap */
+extern u8  gCritterPool[]; /* critter records, stride 0xAE0 */
+extern u8  gEnemies[];     /* enemy records, stride 0x394 */
+extern s32 damage_enemy(void* enemy, s32 pidx, s32 a3, s32 a4, f32* dir,
+                        s32 flag, f32 dmg);
+extern s32 CritterDamage(void* critter, s32 pidx, s32 a3, s32 a4, f32* dir,
+                         s32 flag, f32 dmg);
+extern s32 CritterNoHit(void* critter, s32 slot);
+extern void fn_8002F2D4(Player* p, void* enemy, s32 state, s32 hit, s32 a5);
+extern void fn_80037ED0(void* critter, s32 slot, f32 priority);
 extern void MBTreeSetAlpha(void* node, s32 alpha, s32 mode);
 extern void* fn_8005B8B0(Player* p);
 extern s32 PointVisible(f32 y, f32* pos);
@@ -391,7 +403,74 @@ void PlayerMotion_HitTarget(Player* p, void* target, s32 arg, f32 range) {
         }
     }
 }
-STUB(0x80086A24, PlayerMotion_DamageTarget)
+/* 0x80086A24 - deal a melee hit to the enemy or critter identified by
+ * `targetId` (>=0x10000 = critter pool, else enemy list): honor the per-player
+ * hit cooldown, build the knockback direction from p's facing + damage, call
+ * damage_enemy/CritterDamage, then run the follow-up reaction.  Returns the
+ * hit result code, or -1. */
+s32 PlayerMotion_DamageTarget(Player* p, s32 targetId, s32 a3, s32 a4, s32 a5,
+                              f32 dmg, f32 priority) {
+    f32 dir[3];
+    u8* enemy;
+    u8* critter;
+    s32 result = -1;
+
+    if (targetId >= 0x10000) {
+        critter = &gCritterPool[(targetId & 0xFFFF) * 2784];
+        enemy = NULL;
+    } else if (targetId >= 0) {
+        enemy = &gEnemies[targetId * 916];
+        critter = NULL;
+    } else {
+        return -1;
+    }
+
+    if (priority > lbl_80347B08) {
+        if (enemy != NULL) {
+            if (sMusicFadeBase < PF(enemy, 0x2B8 + p->index * 4, f32)) {
+                return -1;
+            }
+        } else if (critter != NULL) {
+            if (CritterNoHit(critter, p->index + 1) != 0) {
+                return -1;
+            }
+        }
+    }
+
+    if (dmg == lbl_80347B30) {
+        dmg = PF(p, 0x104, f32);
+    }
+    if ((PF(p, 0x124, u32) & 0x100) != 0) {
+        dmg = (f32)(dmg * lbl_80347C28);
+    }
+    dir[0] = PF(p, 0x34, f32);
+    dir[1] = PF(p, 0x38, f32);
+    dir[2] = PF(p, 0x3C, f32);
+    dir[1] = (f32)(lbl_80347D50 * dmg);
+    if (dir[1] > lbl_80347C28) {
+        dir[1] = lbl_80347B98;
+    }
+
+    if (enemy != NULL) {
+        s32 estate = PF(enemy, 0xB4, s32);
+        if (PF(enemy, 0x200, f32) > lbl_80347B08 &&
+            (estate == 1 || estate == 6)) {
+            result = damage_enemy(enemy, p->index, a3, a4, dir, 1, dmg);
+        }
+        if (result >= 0) {
+            fn_8002F2D4(p, enemy, estate, result, a5);
+        }
+        if (priority > lbl_80347B08) {
+            PF(enemy, 0x2B8 + p->index * 4, f32) = sMusicFadeBase + priority;
+        }
+    } else if (critter != NULL) {
+        result = CritterDamage(critter, p->index, a3, a4, dir, 1, dmg);
+        if (priority > lbl_80347B08) {
+            fn_80037ED0(critter, p->index + 1, priority);
+        }
+    }
+    return result;
+}
 STUB(0x80086C78, PlayerGetTarget)
 /* NOTE: correct body; not yet byte-exact (far-field PF address-CSE parks an
  * extra nonvolatile -- needs a 0x93C..0x94C struct overlay; light-touch cap). */
