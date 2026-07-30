@@ -1401,55 +1401,176 @@ f32 get_pitch(f32* a, f32* b)
     return FixAngle((f32)ang);
 }
 
+extern f32 lbl_8023F8C4[], lbl_8023F8B8[];
+extern s32 lbl_8034477C, lbl_80344824, lbl_80344414;
+extern u8 lbl_80344950[];
+extern f64 lbl_803461F0;
+extern f64 cos(f64);
+extern f64 sin(f64);
+
 void get_attn_pos(s32 camIdx, f32* out)
 {
     Camera* cam = &gCameras[camIdx];
+    f32* attnDest = (f32*)((u8*)cam + 0x15C);
+    s32 aMode = cam->a_mode;
     s32 i;
 
     cam->old_attn[0] = cam->attn[0];
     cam->old_attn[1] = cam->attn[1];
     cam->old_attn[2] = cam->attn[2];
 
-    if (cam->a_mode == ATN_LOCK || cam->a_mode == ATN_POINT) {
+    if (sMusicTrackHi < 0) {
+        if (aMode != 1) {
+            cam->attn[0] = lbl_80345EC8;
+            cam->attn[1] = lbl_80345EC8;
+            cam->attn[2] = lbl_80345EC8;
+            out[0] = cam->attn[0];
+            out[1] = cam->attn[1];
+            out[2] = cam->attn[2];
+        }
+        attnDest[0] = out[0];
+        attnDest[1] = out[1];
+        attnDest[2] = out[2];
+        cam->attn_dest_no_offset[0] = out[0];
+        cam->attn_dest_no_offset[1] = out[1];
+        cam->attn_dest_no_offset[2] = out[2];
+    } else if (aMode == 1 ||
+               ((lbl_8034477C & 0x4000) != 0 && lbl_80344824 == 0)) {
         out[0] = cam->attn[0];
         out[1] = cam->attn[1];
         out[2] = cam->attn[2];
-    } else if ((cam->a_mode == ATN_OBJECT || cam->a_mode == ATN_PLAYER ||
-                cam->a_mode == ATN_ENEMY || cam->a_mode == ATN_ITEM) &&
-               cam->attnobj != 0) {
-        f32* p = (f32*)((u8*)cam->attnobj + 0x40);
-        out[0] = p[0];
-        out[1] = p[1];
-        out[2] = p[2];
-    } else if (gCameraTargetCount != 0) {
-        f32 minv[3] = { 100000.0f, 100000.0f, 100000.0f };
-        f32 maxv[3] = { -100000.0f, -100000.0f, -100000.0f };
-        for (i = 0; i < 15; i++) {
-            CameraTarget* target = &gCameraTargets[i];
-            if (target->active != 0) {
-                f32* p = (f32*)(target->object + 0x40);
-                s32 axis;
-                for (axis = 0; axis < 3; axis++) {
-                    if (p[axis] < minv[axis]) minv[axis] = p[axis];
-                    if (p[axis] > maxv[axis]) maxv[axis] = p[axis];
+        attnDest[0] = out[0];
+        attnDest[1] = out[1];
+        attnDest[2] = out[2];
+        cam->attn_dest_no_offset[0] = out[0];
+        cam->attn_dest_no_offset[1] = out[1];
+        cam->attn_dest_no_offset[2] = out[2];
+    } else if (aMode == 3 || (u32)(aMode - 5) < 5) {
+        if (cam->attnobj == 0) {
+            out[0] = cam->attn[0];
+            out[1] = cam->attn[1];
+            out[2] = cam->attn[2];
+        } else {
+            f32* p = (f32*)((u8*)cam->attnobj + 0x40);
+            out[0] = p[0];
+            out[1] = p[1];
+            out[2] = p[2];
+        }
+        attnDest[0] = out[0];
+        attnDest[1] = out[1];
+        attnDest[2] = out[2];
+        cam->attn_dest_no_offset[0] = out[0];
+        cam->attn_dest_no_offset[1] = out[1];
+        cam->attn_dest_no_offset[2] = out[2];
+    } else if (aMode == 10) {
+        s32 t = *(s32*)((u8*)cam + 0x114);
+        if (*(s16*)(sTriggerCameras + t * 0x28 + 2) == 0) {
+            out[0] = cam->attn[0];
+            out[1] = cam->attn[1];
+            out[2] = cam->attn[2];
+        } else {
+            out[0] = TC_X(t);
+            out[1] = TC_Y(t);
+            out[2] = TC_Z(t);
+        }
+        attnDest[0] = out[0];
+        attnDest[1] = out[1];
+        attnDest[2] = out[2];
+        cam->attn_dest_no_offset[0] = out[0];
+        cam->attn_dest_no_offset[1] = out[1];
+        cam->attn_dest_no_offset[2] = out[2];
+    } else {
+        s32* timer = (s32*)((u8*)cam + 0xD8);
+        if (lbl_803444F4 == 0) {
+            *timer = 0;
+        }
+        if (*timer < 0xB4 || lbl_80344960 < 0) {
+            f32 minX = lbl_8034619C, maxX = lbl_803461A0;
+            f32 minY = lbl_8034619C, maxY = lbl_803461A0;
+            f32 minZ = lbl_8034619C, maxZ = lbl_803461A0;
+            f32 sv0, sv1, sv2;
+            for (i = 0; i < 15; i++) {
+                CameraTarget* target = &gCameraTargets[i];
+                if (target->active > 0) {
+                    f32* p = (f32*)(target->object + 0x40);
+                    if (p[0] < minX) minX = p[0];
+                    if (maxX < p[0]) maxX = p[0];
+                    if (p[1] < minY) minY = p[1];
+                    if (maxY < p[1]) maxY = p[1];
+                    if (p[2] < minZ) minZ = p[2];
+                    if (maxZ < p[2]) maxZ = p[2];
                 }
             }
+            out[0] = (f32)(lbl_80345F18 * (f64)(minX + maxX));
+            out[1] = (f32)(lbl_80345F18 * (f64)(minY + maxY));
+            out[2] = (f32)(lbl_80345F18 * (f64)(minZ + maxZ));
+            cam->attn_dest_no_offset[0] = out[0];
+            cam->attn_dest_no_offset[1] = out[1];
+            cam->attn_dest_no_offset[2] = out[2];
+            if (*(s32*)((u8*)cam + 0xEC) == 3) {
+                if (lbl_80344544 == 0) {
+                    f64 cp = cos((f64)cam->pyr[0]);
+                    out[2] = (f32)(lbl_80345F18 * lbl_80345F18 *
+                        (f64)(maxZ - minZ) * cp + (f64)out[2]);
+                } else {
+                    f64 sy = sin((f64)cam->pyr[1]);
+                    f64 cp = cos((f64)cam->pyr[0]);
+                    f64 cy;
+                    f64 cp2;
+                    out[0] = (f32)((f32)((f32)(lbl_803461F0 * lbl_80345F18 *
+                        (f64)(maxX - minX)) * cp) * sy + (f64)out[0]);
+                    cy = cos((f64)cam->pyr[1]);
+                    cp2 = cos((f64)cam->pyr[0]);
+                    out[2] = (f32)((f32)((f32)(lbl_803461F0 * lbl_80345F18 *
+                        (f64)(maxZ - minZ)) * cp2) * cy + (f64)out[2]);
+                }
+            }
+            attnDest[0] = out[0];
+            attnDest[1] = out[1];
+            attnDest[2] = out[2];
+            sv0 = out[0];
+            sv1 = out[1];
+            sv2 = out[2];
+            lbl_80344418 = 0;
+            if (lbl_803447B8 == 0 && lbl_80344414 < 2) {
+                for (i = 0; i < 3; i++) {
+                    if (lbl_8023F8C4[i] <= out[i]) {
+                        if (lbl_8023F8B8[i] < out[i]) {
+                            out[i] = lbl_8023F8B8[i];
+                            lbl_80344418 = 1;
+                        }
+                    } else {
+                        out[i] = lbl_8023F8C4[i];
+                        lbl_80344418 = 1;
+                    }
+                }
+            }
+            if (lbl_80344414 != 0) {
+                if (sv0 - out[0] == lbl_80345EC8 &&
+                    sv1 - out[1] == lbl_80345EC8 &&
+                    sv2 - out[2] == lbl_80345EC8) {
+                    lbl_80344414 = 0;
+                } else {
+                    out[0] = sv0;
+                    out[1] = sv1;
+                    out[2] = sv2;
+                }
+            }
+            *timer = *timer + lbl_8034457C;
+        } else {
+            u8* w = *(u8**)(*(u8**)(lbl_80344950 +
+                lbl_80344960 * 0xF0 + 0xDC) + 0x28);
+            out[0] = *(f32*)(w + 0x30);
+            out[1] = *(f32*)(w + 0x34);
+            out[2] = *(f32*)(w + 0x38);
+            attnDest[0] = out[0];
+            attnDest[1] = out[1];
+            attnDest[2] = out[2];
+            cam->attn_dest_no_offset[0] = out[0];
+            cam->attn_dest_no_offset[1] = out[1];
+            cam->attn_dest_no_offset[2] = out[2];
         }
-        out[0] = (minv[0] + maxv[0]) * 0.5f;
-        out[1] = (minv[1] + maxv[1]) * 0.5f;
-        out[2] = (minv[2] + maxv[2]) * 0.5f;
-    } else {
-        out[0] = cam->attn[0];
-        out[1] = cam->attn[1];
-        out[2] = cam->attn[2];
     }
-
-    cam->attn_dest_no_offset[0] = out[0];
-    cam->attn_dest_no_offset[1] = out[1];
-    cam->attn_dest_no_offset[2] = out[2];
-    out[0] += cam->offset[0];
-    out[1] += cam->offset[1];
-    out[2] += cam->offset[2];
 }
 
 void recalc_lookat(s32 camIdx, s32 snap)
