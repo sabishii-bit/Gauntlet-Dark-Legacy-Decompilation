@@ -153,6 +153,12 @@ extern char* EnemyTypeDesc(s32 type);
 extern s32 toupper(s32 c);
 extern s32 sprintf(char* dst, const char* fmt, ...);
 
+/* shared camera math constants (.sdata2) */
+extern f32 lbl_80345EC8;  /* 0.0f */
+extern f64 lbl_80345F18;  /* 0.5 (rsqrt newton) */
+extern f64 lbl_80345F20;  /* 3.0 (rsqrt newton) */
+extern s32 lbl_80344508;
+
 /* Low-level combat services recovered in other game TUs.  K&R declarations
  * retain the original vararg/floating-register call contracts. */
 extern void damage_enemy();
@@ -758,17 +764,34 @@ void recalc_lookat(s32 camIdx, s32 snap)
         cam->attn[0] = pos[0];
         cam->attn[1] = pos[1];
         cam->attn[2] = pos[2];
-        cam->delta[0] = 0.0f;
-        cam->delta[1] = 0.0f;
-        cam->delta[2] = 0.0f;
+        cam->delta[0] = lbl_80345EC8;
+        cam->delta[1] = lbl_80345EC8;
+        cam->delta[2] = lbl_80345EC8;
         gCameraTargetPositionCount = 0;
         gCameraTargetMode = ATN_TARGET;
+        lbl_80344508 = -1;
     }
-    if (snap != 0) {
+    {
         f32 dx = cam->wpos[0] - pos[0];
         f32 dy = cam->wpos[1] - pos[1];
         f32 dz = cam->wpos[2] - pos[2];
-        cam->radius = smallsqrt(dx * dx + dy * dy + dz * dz);
+        f32 d2;
+        volatile f32 root;
+
+        if (snap == 0) {
+            return;
+        }
+        d2 = dx * dx + dy * dy + dz * dz;
+        if (d2 > lbl_80345EC8) {
+            f64 g = __frsqrte((f64)d2);
+            g = lbl_80345F18 * g * (lbl_80345F20 - d2 * g * g);
+            g = lbl_80345F18 * g * (lbl_80345F20 - d2 * g * g);
+            g = lbl_80345F18 * g * (lbl_80345F20 - d2 * g * g);
+            g = lbl_80345F18 * g * (lbl_80345F20 - d2 * g * g);
+            root = (f32)(d2 * g);
+            d2 = root;
+        }
+        cam->radius = d2;
     }
 }
 
