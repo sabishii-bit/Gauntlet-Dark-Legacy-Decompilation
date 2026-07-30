@@ -370,38 +370,157 @@ s32 MoveCam_walk(s32 camIdx)
 }
 
 /* Initialize or advance the game camera's scripted transition. */
-void init_game_cam(s32 camIdx, s32 mode)
+extern u8 lbl_80240E38[];
+extern f32 lbl_80346138, lbl_80346148;
+extern f64 lbl_80345FE0, lbl_80346140;
+extern s32 lbl_8023FCD4, lbl_8023FCD8, lbl_803445CC, lbl_8023FBE8;
+extern s32 lbl_8023FCE0, lbl_8023FCE4;
+extern s32 lbl_803447BC;
+extern u32 lbl_8034457C;
+void write_stage_info(s32 mode);
+
+/*
+ * init_game_cam -- game-camera (index 2) zoom/transition driver.  Steps the
+ * game camera's world position and attention toward camera 0's, each capped
+ * per frame; when both converge it fires the level transition.  Returns 0 on
+ * transition, -1 otherwise.
+ */
+s32 init_game_cam(s32 camIdx)
 {
-    Camera* cam = &gCameras[camIdx];
-    f32 amount;
+    s32 prevTimer = lbl_803447BC;
+    s32 reached = 2;
+    u8* level = *(u8**)((u8*)gCurLevel + 0x60);
+    f32 dx, dy, dz;
+    f32 len;
+    f64 g;
     s32 i;
 
-    if (mode == 0 || cam->state == 0) {
-        cam->state = 1;
-        cam->mode = mode;
-        cam->timer = 0;
-        cam->trans_mode = 1;
-        for (i = 0; i < 3; i++) {
-            cam->old_wpos[i] = cam->wpos[i];
-            cam->old_attn[i] = cam->attn[i];
-        }
-        return;
+    if (camIdx != 2) {
+        return -1;
     }
 
-    cam->timer += gFrameTicks;
-    amount = cam->num1 > 0.0f ? (f32)cam->timer / cam->num1 : 1.0f;
-    if (amount > 1.0f) {
-        amount = 1.0f;
+    if (lbl_803447BC > 2) {
+        lbl_803447BC = lbl_803447BC - lbl_8034457C;
+        if (lbl_803447BC < 2) {
+            lbl_803447BC = 2;
+        }
+        if (lbl_803447BC < 45) {
+            for (i = 0; i < 4; i++) {
+                u8* player = (u8*)gPlayers + i * PLAYER_STRIDE;
+                if (PF(player, 0xE8, s32) == 1 &&
+                    (*(u32*)(lbl_80240E38 + i * 0x3C) & 0x20000FF) != 0) {
+                    lbl_803447BC = 2;
+                }
+            }
+        }
     }
-    for (i = 0; i < 3; i++) {
-        cam->wpos[i] = cam->old_wpos[i] +
-                       (cam->cam_dest[i] - cam->old_wpos[i]) * amount;
-        cam->attn[i] = cam->old_attn[i] +
-                       (cam->attn_dest[i] - cam->old_attn[i]) * amount;
+    lbl_80344490 = lbl_803447BC;
+    write_stage_info(lbl_803447BC);
+
+    if (prevTimer > 1 && lbl_803447BC == 1) {
+        for (i = 0; i < 4; i++) {
+            u8* player = (u8*)gPlayers + i * PLAYER_STRIDE;
+            if (PF(player, 0xE8, s32) == 1) {
+                PF(player, 0x91C, s32) = 4;
+            }
+        }
     }
-    if (amount == 1.0f) {
-        cam->trans_mode = 0;
+
+    if (lbl_803447BC == 1) {
+        dx = gCameras[0].wpos[0] - gCameras[2].wpos[0];
+        dy = gCameras[0].wpos[1] - gCameras[2].wpos[1];
+        dz = gCameras[0].wpos[2] - gCameras[2].wpos[2];
+        len = (f32)(dz * dz + (f32)(dx * dx + (f32)(dy * dy)));
+        if (len > lbl_80345EC8) {
+            g = __frsqrte((f64)len);
+            g = lbl_80345F18 * g * -((f64)len * g * g - lbl_80345F20);
+            g = lbl_80345F18 * g * -((f64)len * g * g - lbl_80345F20);
+            g = lbl_80345F18 * g * -((f64)len * g * g - lbl_80345F20);
+            len = (f32)((f64)len * lbl_80345F18 * g *
+                        -((f64)len * g * g - lbl_80345F20));
+        }
+        if (len < lbl_80345F28) {
+            reached = 1;
+        } else {
+            if (len > lbl_80346138) {
+                len = lbl_80346138;
+            }
+            len = (f32)((f64)lbl_8034457C / len);
+            if (len > lbl_80345FE0) {
+                len = lbl_80345F80;
+            }
+            dx = dx * len;
+            dy = dy * len;
+            dz = dz * len;
+        }
+        gCameras[2].wpos[0] = gCameras[2].wpos[0] + dx;
+        gCameras[2].wpos[1] = gCameras[2].wpos[1] + dy;
+        gCameras[2].wpos[2] = gCameras[2].wpos[2] + dz;
+
+        dx = gCameras[0].attn[0] - gCameras[2].attn[0];
+        dy = gCameras[0].attn[1] - gCameras[2].attn[1];
+        dz = gCameras[0].attn[2] - gCameras[2].attn[2];
+        len = (f32)(dz * dz + (f32)(dx * dx + (f32)(dy * dy)));
+        if (len > lbl_80345EC8) {
+            g = __frsqrte((f64)len);
+            g = lbl_80345F18 * g * -((f64)len * g * g - lbl_80345F20);
+            g = lbl_80345F18 * g * -((f64)len * g * g - lbl_80345F20);
+            g = lbl_80345F18 * g * -((f64)len * g * g - lbl_80345F20);
+            len = (f32)((f64)len * lbl_80345F18 * g *
+                        -((f64)len * g * g - lbl_80345F20));
+        }
+        if (len < lbl_80345F28) {
+            reached = reached - 1;
+        } else {
+            if (len > lbl_80346140) {
+                len = lbl_80346148;
+            }
+            len = (f32)((f64)lbl_8034457C / len);
+            if (len > lbl_80345FE0) {
+                len = lbl_80345F80;
+            }
+            dx = dx * len;
+            dy = dy * len;
+            dz = dz * len;
+        }
+        gCameras[2].attn[0] = gCameras[2].attn[0] + dx;
+        gCameras[2].attn[1] = gCameras[2].attn[1] + dy;
+        gCameras[2].attn[2] = gCameras[2].attn[2] + dz;
+
+        if (reached < 1) {
+            if (lbl_8034440C != 0) {
+                MBRemoveBlit((s32)lbl_8034440C);
+                lbl_8034440C = 0;
+            }
+            lbl_803444F0 = *(s8*)(level + 0x25);
+            if (lbl_803444F0 < 0) {
+                if (lbl_8023FCD4 != 0) {
+                    lbl_8023FCD8 = lbl_8023FCD4;
+                    lbl_8023FCD4 = 0;
+                }
+                if ((lbl_803445CC & 4) != 0) {
+                    lbl_803445D4 = lbl_803445D4 | 4;
+                }
+                lbl_8034453C = 0;
+                lbl_803447B8 = 0;
+                lbl_803447BC = 0;
+                lbl_8023FBE8 = 0;
+                return 0;
+            }
+            lbl_803444EC = 0;
+            lbl_803447B8 = 2;
+            if (lbl_8023FCD4 != 2) {
+                lbl_8023FCD8 = lbl_8023FCD4;
+                lbl_8023FCD4 = 2;
+            }
+            if (lbl_8023FCE0 != 2) {
+                lbl_8023FCE4 = lbl_8023FCE0;
+                lbl_8023FCE0 = 2;
+            }
+            lbl_8034453C = 0;
+        }
     }
+    return -1;
 }
 
 /* Stage-information overlay state.  The original drives its text/blit UI;
