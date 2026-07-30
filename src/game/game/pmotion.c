@@ -86,6 +86,15 @@ extern s32 lbl_80344180;   /* per-cell wall-touch counter index */
 extern u8  gWorldInfo[];   /* WorldInfo (cell touch buffer @+0x5C) */
 extern void* PlayerWallCollide(f32* from, f32* to, void* ctx, f32 range);
 extern void SlideAlongWall(f32* from, f32* dpos, void* ctx, f32* nrm, f32 range);
+extern f64 lbl_80347D00; /* slope clamp threshold */
+extern f32 lbl_80347D08; /* clamped slope */
+extern f32 lbl_80347B10; /* flag-8 floor slope */
+extern f64 lbl_80347D10; /* swim slope bias */
+extern f64 lbl_80347D18; /* dot/steep-up threshold */
+extern f64 lbl_80347D20; /* rising-dpos damp */
+extern f32 lbl_80347B40; /* 1.0f (sqrt normalize) */
+extern f64 lbl_80347D28; /* return coeff */
+extern f64 lbl_80347BB0; /* return bias */
 extern void MBTreeSetAlpha(void* node, s32 alpha, s32 mode);
 extern void* fn_8005B8B0(Player* p);
 extern s32 PointVisible(f32 y, f32* pos);
@@ -164,7 +173,65 @@ void PlayerMotion_SetAnimState(Player* p) {
  */
 void PlayerMotion(void) {
 }
-STUB(0x80085FA0, ModifyPlayerDpos)
+/* 0x80085FA0 - shape the raw horizontal dpos against the current floor slope:
+ * clamp the slope, blend it into the vertical component (special-casing
+ * flag-8 floors, swimming state 4, and steep/opposed motion), renormalize,
+ * and return the frame's slope-scaled speed factor. */
+f32 ModifyPlayerDpos(Player* p, f32* from, f32* dpos, u32 flags, s32 a5,
+                     u32 a6, f32 arg7, f32 param) {
+    f32 dot;
+    f32 mag;
+    f32 slope;
+
+    dot = from[0] * dpos[0] + from[2] * dpos[2];
+    mag = fqdist(dpos[0], dpos[2]);
+
+    slope = PF(p, 0x8BC, f32);
+    if (slope > lbl_80347D00) {
+        slope = lbl_80347D08;
+    }
+    if ((PF(p, 0x8C0, u32) & 8) != 0 && slope > lbl_80347B30 &&
+        slope < lbl_80347B00) {
+        slope = lbl_80347B10;
+    }
+    if (p->char_type == 4) {
+        slope = (f32)(slope + lbl_80347D10);
+    }
+
+    if (dot < lbl_80347D18 * mag || (flags & 0x100000) != 0) {
+        dpos[0] = from[0];
+        dpos[2] = from[2];
+        dpos[1] = slope;
+    } else if (a5 >= 0 || a6 != 0) {
+        f32 ab[2];
+        if (dpos[1] > lbl_80347B30) {
+            dpos[1] = (f32)(dpos[1] * lbl_80347D20);
+        }
+        ab[0] = dpos[1];
+        ab[1] = slope;
+        *(u32*)&ab[0] &= 0x7FFFFFFF;
+        *(u32*)&ab[1] &= 0x7FFFFFFF;
+        if (ab[1] > ab[0]) {
+            dpos[1] = (f32)(lbl_80347B00 * (dpos[1] + slope));
+        }
+    } else {
+        f32 s = smallsqrt(lbl_80347B40 - slope * slope);
+        dpos[0] = dpos[0] * s;
+        dpos[2] = dpos[2] * s;
+        dpos[1] = slope;
+    }
+
+    if (dpos[1] < lbl_80347B30) {
+        dpos[1] = (f32)(dpos[1] * lbl_80347B00);
+    }
+    NormalVector(dpos);
+    if (dpos[1] > lbl_80347D18) {
+        dpos[0] = from[0];
+        dpos[1] = from[1];
+        dpos[2] = from[2];
+    }
+    return (f32)(lbl_80347D28 * param + lbl_80347BB0);
+}
 
 int PlayerCollideWalls(Player* p, s32 unused, f32* dpos, f32* from, f32* to) {
     f32 dx = to[0] - from[0];
