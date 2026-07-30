@@ -184,6 +184,14 @@ extern s32 lbl_803443F4;  /* radius-moved flag */
 extern f64 lbl_80346098;  /* radius step gain */
 extern s32 lbl_803444E4;
 extern s32 lbl_80344418;
+/* get_cam_dist: FOV/screen-fit constants + wall-hug state */
+extern f64 lbl_80345F28, lbl_80346190, lbl_80345F90, lbl_80345EB0;
+extern f64 lbl_803461A8, lbl_803461B8, lbl_803461C0, lbl_803461C8;
+extern f64 lbl_80345F88, lbl_80345FF8;
+extern f32 lbl_80346198, lbl_8034452C, lbl_8034619C, lbl_803461A0;
+extern f32 lbl_803460F0, lbl_803461B0, lbl_803461B4, lbl_803461D0, lbl_803444E8;
+extern s32 lbl_8034451C, lbl_80344520, lbl_80344518, lbl_80344514;
+extern s32 lbl_803444F4, sMusicTrackHi;
 extern s32 gBossActive;
 extern s32 lbl_8011BCB8[];  /* exp: hit+flag */
 extern s32 lbl_8011BC30[];  /* exp: kill+flag */
@@ -546,32 +554,124 @@ void get_cam_wpos(s32 camIdx, f32* out)
 f32 get_cam_dist(s32 camIdx)
 {
     Camera* cam = &gCameras[camIdx];
-    f32 minx = 100000.0f;
-    f32 maxx = -100000.0f;
-    f32 minz = 100000.0f;
-    f32 maxz = -100000.0f;
-    s32 i;
+    f64 base;
+    f64 minDist;
+    f64 farBase;
+    f64 farDist;
+    f64 result;
 
-    for (i = 0; i < 15; i++) {
-        CameraTarget* target = &gCameraTargets[i];
-        if (target->active != 0) {
-            f32* pos = (f32*)(target->object + 0x40);
-            if (pos[0] < minx) minx = pos[0];
-            if (pos[0] > maxx) maxx = pos[0];
-            if (pos[2] < minz) minz = pos[2];
-            if (pos[2] > maxz) maxz = pos[2];
+    base = lbl_80345F78;
+    if (gBossType >= 0) {
+        base = lbl_80345F28;
+    }
+    base = (f32)base;
+    minDist = (f32)(lbl_80346190 + base);
+    if (lbl_80344960 >= 0) {
+        minDist = (f32)(minDist + lbl_80345F28);
+    }
+    farBase = lbl_80345F90 + base;
+    farDist = (f32)farBase;
+    if (lbl_80344960 >= 0) {
+        farDist = (f32)(farDist + lbl_80345F28);
+    }
+
+    if (sMusicTrackHi < 0 || gCameraTargetCount == 0) {
+        result = lbl_80345EC8;
+    } else if (gCameraTargetCount == 1) {
+        lbl_803444E8 = lbl_80346198;
+        result = lbl_8034452C;
+    } else {
+        s32 i;
+        f32 min24 = lbl_8034619C, max24 = lbl_803461A0;
+        f32 min36 = lbl_8034619C, max28 = lbl_803461A0;
+        f32 ratio, xr, yr, nearScale, farScale;
+        f64 radius = (f32)cam->radius;
+
+        for (i = 0; i < 15; i++) {
+            CameraTarget* t = &gCameraTargets[i];
+            if (t->active > 0) {
+                f32 v24 = *(f32*)((u8*)t + 24);
+                if (v24 < min24) min24 = v24;
+                if (max24 < v24) max24 = v24;
+                if (*(f32*)((u8*)t + 36) < min36) min36 = *(f32*)((u8*)t + 36);
+                if (max28 < *(f32*)((u8*)t + 28)) max28 = *(f32*)((u8*)t + 28);
+            }
+        }
+        xr = (max24 - min24) /
+             (f32)((lbl_8034451C - 30) - (lbl_80344520 + 30));
+        yr = (max28 - min36) /
+             (f32)((lbl_80344518 - 20) - (lbl_80344514 + 40));
+        ratio = xr;
+        if (xr < yr) ratio = yr;
+
+        nearScale = lbl_803461B0;
+        if (lbl_803461A8 <= ratio) {
+            nearScale = lbl_803461B4;
+            if (ratio < lbl_80345F18 + base) {
+                nearScale = (f32)(lbl_803461B8 +
+                    ((lbl_80345F18 + base) - ratio) / lbl_803460F0);
+            }
+        }
+        if (ratio <= lbl_803461C0) {
+            farScale = lbl_803461D0;
+            if (farBase < ratio) {
+                farScale = (f32)(lbl_803461C8 -
+                    (ratio - farBase) / lbl_80346018);
+            }
+        } else {
+            f64 t2 = lbl_803461C8;
+            if (lbl_803444E4 != 0) {
+                t2 = lbl_80345F20;
+            }
+            farScale = (f32)t2;
+        }
+        lbl_803444E8 = ratio;
+
+        if (lbl_803444E4 != 0 && lbl_803443FC >= 0) {
+            lbl_80344418 = 0;
+        }
+        if (lbl_80344418 == 0 || lbl_803443FC >= 0) {
+            if (lbl_803443FC == 0) {
+                if (ratio < lbl_80345F18 + base && lbl_80344418 == 0) {
+                    lbl_803443FC = -1;
+                    radius = cam->radius * nearScale;
+                }
+                if (farDist < ratio ||
+                    (lbl_803444F4 == 0 &&
+                     ((lbl_80344960 < 0 && cam->radius < lbl_80344528) ||
+                      (lbl_80344960 >= 0 &&
+                       (f64)cam->radius < lbl_80345FF0)))) {
+                    lbl_803443FC = 1;
+                    radius = cam->radius * farScale;
+                }
+            } else if ((lbl_803443FC < 0 &&
+                        lbl_80346190 + base <= ratio) ||
+                       (lbl_803443FC > 0 && ratio <= minDist)) {
+                lbl_803443FC = 0;
+            } else if (lbl_803443FC < 1) {
+                radius = cam->radius * nearScale;
+            } else {
+                radius = cam->radius * farScale;
+            }
+        } else {
+            lbl_803443FC = 0;
+        }
+
+        result = lbl_8034452C;
+        if (result <= radius) {
+            result = radius;
+            if (lbl_80344960 < 0) {
+                if (lbl_80344528 < radius && lbl_803444E4 == 0) {
+                    result = (f32)(radius -
+                        lbl_80345F88 * (f32)(radius - lbl_80344528));
+                }
+            } else if (lbl_80345FF0 < radius) {
+                result = (f32)(lbl_80345FF8 *
+                    (lbl_80345FF0 - (f32)cam->radius) + (f32)cam->radius);
+            }
         }
     }
-    if (gCameraTargetCount == 0) {
-        return cam->radius;
-    }
-    {
-        f32 spread = fqdist(maxx - minx, maxz - minz);
-        f32 desired = 5.0f + spread * 1.25f;
-        if (desired < cam->num2) desired = cam->num2;
-        if (cam->num3 > 0.0f && desired > cam->num3) desired = cam->num3;
-        return desired;
-    }
+    return (f32)result;
 }
 
 s32 adjust_radius(s32 camIdx)
