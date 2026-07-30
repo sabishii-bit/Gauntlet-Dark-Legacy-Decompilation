@@ -2044,45 +2044,404 @@ void recalc_lookat(s32 camIdx, s32 snap)
     }
 }
 
+extern s32 lbl_80344498, lbl_803444E0, lbl_803444F8, lbl_80344470, lbl_80344474;
+extern s32 lbl_8034454C, lbl_80344548, lbl_8034446C, lbl_80344494, lbl_803443F0;
+extern s32 lbl_80344550, lbl_80344478, lbl_8034447C, lbl_80344484, lbl_80344488;
+extern s32 lbl_80344480, lbl_803447B4, lbl_803444BC, lbl_8034449C;
+extern s32 lbl_803444A0, lbl_803444A4, lbl_803444A8, lbl_80344514, lbl_80344518;
+extern s32 lbl_80344520, lbl_80344744, lbl_803447F8, lbl_80344524;
+extern s32 lbl_80344288, lbl_8034441C, lbl_80344910, lbl_80344420, lbl_80344A28;
+extern f32 lbl_80344460, lbl_80344464, lbl_8034448C, lbl_803461F8, lbl_803461FC;
+extern f32 lbl_803444C0, lbl_803444C4, lbl_80345F80;
+extern f32 lbl_80344428, lbl_80344424, lbl_80344438, lbl_80344434;
+extern f32 lbl_8034443C, lbl_80344440, lbl_80344444, lbl_80344448;
+extern f32 lbl_8034442C, lbl_80344430;
+extern f64 lbl_80346200, lbl_80345F48, lbl_803460B0, lbl_803460B8, lbl_803460C0;
+extern f64 lbl_803460C8, lbl_80345EF0, lbl_80346238, lbl_80346240, lbl_80346078;
+extern f64 lbl_80346080, lbl_80346250, lbl_8034601C;
+extern f32 lbl_80346208, lbl_80346148, lbl_80346158, lbl_8034620C, lbl_80346210;
+extern f32 lbl_80346214, lbl_80346218, lbl_8034621C, lbl_80346220, lbl_80346224;
+extern f32 lbl_80346228, lbl_8034622C, lbl_80346230, lbl_80346204, lbl_80346248;
+extern f32 lbl_80346258, lbl_8034625C, lbl_80345F14, lbl_80344880;
+extern f32 lbl_8023F824, lbl_8023F828, lbl_8023F82C, lbl_8023F830, lbl_8023F834;
+extern f32 lbl_8023F838, lbl_802757D8, lbl_8028CAC8, lbl_8028CAD0, lbl_8028CAB4;
+extern f32 lbl_8028CAA8, lbl_8028CACC;
+extern f32 lbl_802757D4[], lbl_8028CA8C[], lbl_8023F8D4[], lbl_80258E08[];
+extern u8 lbl_80344EE8[], lbl_80127D60[];
+void ChangeWindow(void);
+s32 fn_8000D3C4(f32 a, f32* pos, s32 c);
+s32 fn_80051480(f32* pos);
+f32 fn_8002C7CC(void);
+f32 fn_8002C8A8(f32* a, f32* b);
+void fn_80027608(f32* a, f32* b);
+void fn_80022824(f32* a, f32* b);
+void dbgTextPrintfCol();
+
 void InitCamera(s32 resetAll)
 {
-    s32 first = resetAll != 0 ? 0 : 1;
+    Camera* c0 = &gCameras[0];
+    s32 scrH = MBScreenHeight();
+    s32 scrW = MBScreenWidth();
+    s32 uiFov = 0x40;
     s32 i;
+    f32 mat[18];
+    f32 in[3];
+    f32 out[3];
 
-    for (i = first; i < 6; i++) {
-        Camera* cam = &gCameras[i];
+    lbl_80344498 = 0;
+    lbl_803444DC = 0;
+    lbl_803444D0 = 0;
+    lbl_803444D4 = lbl_80345EC8;
+    lbl_803444D8 = lbl_80345EC8;
+    lbl_80344960 = -1;
+    lbl_803444F0 = -1;
+    lbl_8034453C = 0;
+    lbl_803444E0 = 0;
+    lbl_80344500 = 0;
+    lbl_803444F8 = 0;
+    lbl_803444F4 = 1;
+    lbl_803444E4 = 0;
+    lbl_80344470 = 0;
+    lbl_80344474 = 0;
+    lbl_8034454C = 0;
+    lbl_80344548 = 0;
+    lbl_80344508 = -1;
+    lbl_8034446C = -1;
+    lbl_80344494 = 0;
+    lbl_80344460 = lbl_80345EC8;
+    lbl_80344464 = lbl_80345EC8;
+    lbl_803443F0 = 0;
+    lbl_803443F8 = 600;
+    lbl_80344538 = 0;
+    lbl_80344400 = 1;
+    lbl_803447BC = 0;
+    lbl_8034452C = lbl_803461F8;
+    lbl_80344528 = lbl_803461FC;
+    lbl_80344408 = lbl_8034616C;
+    lbl_80344530 = lbl_8034616C;
+    lbl_80344404 = 1;
+    lbl_803447B4 = 0;
+    lbl_803447B8 = 0;
+    lbl_80344550 = 0;
+    lbl_80344478 = 0;
+    lbl_8034447C = 0;
+    lbl_80344484 = 0;
+    lbl_80344488 = 0;
+    lbl_8034448C = lbl_80345EC8;
+    lbl_80344480 = 0;
+
+    for (i = 0; i < 6; i++) {
+        u32* c = (u32*)&gCameras[i];
+        f32* cf = (f32*)&gCameras[i];
         s32 k;
-        cam->state = i == 0 ? 1 : 0;
-        cam->radius = 10.0f;
-        cam->mode = 0;
-        cam->flags = 0;
-        cam->trans_mode = 0;
-        cam->timer = 0;
-        cam->c_mode = CAM_GAME;
-        cam->pc_mode = CAM_GAME;
-        cam->a_mode = ATN_TARGET;
-        cam->pa_mode = ATN_TARGET;
-        cam->camobj = 0;
-        cam->attnobj = 0;
-        cam->pn = cam->en = cam->gn = cam->mn = cam->ln = cam->cn = -1;
-        for (k = 0; k < 4; k++) {
-            cam->wpos[k] = 0.0f;
-            cam->old_wpos[k] = 0.0f;
-            cam->vel[k] = 0.0f;
-            cam->avel[k] = 0.0f;
-            cam->pyr[k] = 0.0f;
-            cam->pyr_delta[k] = 0.0f;
-            cam->attn[k] = 0.0f;
-            cam->old_attn[k] = 0.0f;
-            cam->delta[k] = 0.0f;
-            cam->offset[k] = 0.0f;
+        c[0] = 0;
+        CopyMat4((f32*)lbl_80127D60, cf + 1);
+        for (k = 0x11; k <= 0x2f; k++) {
+            if ((k & 3) != 0) cf[k] = lbl_80345EC8;
         }
-        cam->mat[0][0] = cam->mat[1][1] = cam->mat[2][2] = cam->mat[3][3] = 1.0f;
+        for (k = 0x47; k <= 0x61; k++) {
+            if ((k - 3) % 4 != 0) cf[k] = lbl_80345EC8;
+        }
+        cf[0x31] = (f32)lbl_80346200;
+        c[0x32] = (u32)-1;
+        c[0x33] = 0;
+        c[0x34] = 0;
+        c[0x35] = 0;
+        c[0x36] = 0;
+        cf[0x37] = lbl_80345EC8;
+        cf[0x38] = lbl_80345EC8;
+        cf[0x39] = lbl_80345EC8;
+        cf[0x3a] = lbl_80345EC8;
+        c[0x3b] = (u32)-1;
+        c[0x3c] = (u32)-1;
+        c[0x3d] = 0;
+        c[0x3e] = (u32)-1;
+        c[0x3f] = (u32)-1;
+        for (k = 0x40; k <= 0x46; k++) c[k] = 0;
     }
-    init_targets();
-    if (gCameras[0].state != 0) {
-        StandardCamera(0);
-        ProcCamera(0, 0);
+
+    if (resetAll == 0) {
+        if (lbl_8034477C == 0x400B) {
+            if (*(s32*)((u8*)c0 + 0xEC) != 2) {
+                *(s32*)((u8*)c0 + 0xF0) = *(s32*)((u8*)c0 + 0xEC);
+                *(s32*)((u8*)c0 + 0xEC) = 2;
+            }
+            if (*(s32*)((u8*)c0 + 0xF8) != 1) {
+                *(s32*)((u8*)c0 + 0xFC) = *(s32*)((u8*)c0 + 0xF8);
+                *(s32*)((u8*)c0 + 0xF8) = 1;
+            }
+            c0->wpos[0] = lbl_80345EC8;
+            c0->wpos[1] = lbl_80346208;
+            c0->wpos[2] = lbl_80346148;
+            *(f32*)((u8*)c0 + 0x12C) = lbl_80345EC8;
+            *(f32*)((u8*)c0 + 0x130) = lbl_80346158;
+            *(f32*)((u8*)c0 + 0x134) = lbl_80345EC8;
+            c0->state = 1;
+        } else if (lbl_8034477C == 0x400D || lbl_8034477C == 0x4013 ||
+                   lbl_8034477C == 0x4017) {
+            f64 s, cc;
+            f32 dx, dz, dy;
+            f64 len2;
+            f64 g;
+            if (*(s32*)((u8*)c0 + 0xEC) != 2) {
+                *(s32*)((u8*)c0 + 0xF0) = *(s32*)((u8*)c0 + 0xEC);
+                *(s32*)((u8*)c0 + 0xEC) = 2;
+            }
+            if (*(s32*)((u8*)c0 + 0xF8) != 1) {
+                *(s32*)((u8*)c0 + 0xFC) = *(s32*)((u8*)c0 + 0xF8);
+                *(s32*)((u8*)c0 + 0xF8) = 1;
+            }
+            *(f32*)((u8*)c0 + 0xE0) = lbl_80345F48;
+            *(f32*)((u8*)c0 + 0xA8) = lbl_80345F48;
+            *(f32*)((u8*)c0 + 0xE4) = lbl_80345EC8;
+            lbl_8023F824 = lbl_8034620C;
+            lbl_8023F828 = lbl_80346210;
+            lbl_8023F82C = lbl_8034620C;
+            lbl_8023F830 = lbl_80346214;
+            lbl_8023F834 = lbl_80346218;
+            lbl_8023F838 = lbl_80346214;
+            s = sin(lbl_80345F48);
+            cc = cos(lbl_80345F48);
+            dz = (f32)((f64)lbl_8023F828 - (f64)lbl_8023F834);
+            dx = (f32)(s * (f64)lbl_8023F824) - (f32)(s * (f64)lbl_8023F830);
+            dy = (f32)((f32)(cc * (f64)lbl_8023F82C) -
+                       (f32)(cc * (f64)lbl_8023F838));
+            len2 = dy * dy + dx * dx + dz * dz;
+            if ((f64)lbl_80345EC8 < len2) {
+                g = __frsqrte(len2);
+                g = lbl_80345F18 * g * -(len2 * g * g - lbl_80345F20);
+                g = lbl_80345F18 * g * -(len2 * g * g - lbl_80345F20);
+                g = lbl_80345F18 * g * -(len2 * g * g - lbl_80345F20);
+                len2 = (f32)(len2 * lbl_80345F18 * g * -(len2 * g * g - lbl_80345F20));
+            }
+            c0->radius = (f32)len2;
+            c0->wpos[0] = (f32)(s * (f64)lbl_8023F824) +
+                          (f32)(s * (f64)*(f32*)((u8*)c0 + 0xE4));
+            c0->wpos[1] = lbl_8023F828 + lbl_80345EC8;
+            c0->wpos[2] = (f32)(cc * (f64)lbl_8023F82C) +
+                          (f32)(cc * (f64)*(f32*)((u8*)c0 + 0xE4));
+            *(f32*)((u8*)c0 + 0x12C) = (f32)(s * (f64)lbl_8023F830) +
+                          (f32)(s * (f64)*(f32*)((u8*)c0 + 0xE4));
+            *(f32*)((u8*)c0 + 0x130) = lbl_8023F834 + lbl_80345EC8;
+            *(f32*)((u8*)c0 + 0x134) = (f32)(cc * (f64)lbl_8023F838) +
+                          (f32)(cc * (f64)*(f32*)((u8*)c0 + 0xE4));
+            *(s32*)((u8*)c0 + 0xD0) = 0;
+            *(s32*)((u8*)c0 + 0xCC) = 0;
+            c0->state = 1;
+        } else if (lbl_8034477C == 0x8007) {
+            if (*(s32*)((u8*)c0 + 0xEC) != 2) {
+                *(s32*)((u8*)c0 + 0xF0) = *(s32*)((u8*)c0 + 0xEC);
+                *(s32*)((u8*)c0 + 0xEC) = 2;
+            }
+            if (*(s32*)((u8*)c0 + 0xF8) != 1) {
+                *(s32*)((u8*)c0 + 0xFC) = *(s32*)((u8*)c0 + 0xF8);
+                *(s32*)((u8*)c0 + 0xF8) = 1;
+            }
+            c0->wpos[0] = lbl_8034621C;
+            c0->wpos[1] = lbl_80346220;
+            c0->wpos[2] = lbl_80346224;
+            *(f32*)((u8*)c0 + 0x12C) = lbl_80346228;
+            *(f32*)((u8*)c0 + 0x130) = lbl_8034622C;
+            *(f32*)((u8*)c0 + 0x134) = lbl_80346230;
+            c0->state = 1;
+        } else if (lbl_8034477C == 0x8008) {
+            if (lbl_80344288 == 0) {
+                u8* hdr = *(u8**)((u8*)gCurLevel + 0x60);
+                lbl_80344744 = *(s16*)(hdr + 0x34);
+                lbl_8034441C = *(s16*)(hdr + 0x26);
+                if (lbl_8034441C < 0 && lbl_80344910 == 0) {
+                    lbl_8034441C = 0;
+                    *(s16*)(hdr + 0x26) = 0;
+                }
+                if (lbl_8034441C == 0) {
+                    f64 g;
+                    f32 v[3];
+                    if (*(s32*)((u8*)c0 + 0xEC) != 5) {
+                        *(s32*)((u8*)c0 + 0xF0) = *(s32*)((u8*)c0 + 0xEC);
+                        *(s32*)((u8*)c0 + 0xEC) = 5;
+                    }
+                    if (*(s32*)((u8*)c0 + 0xF8) != 1) {
+                        *(s32*)((u8*)c0 + 0xFC) = *(s32*)((u8*)c0 + 0xF8);
+                        *(s32*)((u8*)c0 + 0xF8) = 1;
+                    }
+                    *(f32*)((u8*)c0 + 0x12C) = lbl_8028CAC8;
+                    *(f32*)((u8*)c0 + 0x134) = lbl_8028CAD0;
+                    *(f32*)((u8*)c0 + 0x130) = lbl_8028CAB4;
+                    do {
+                        g = fn_8000D3C4(lbl_80344880, (f32*)((u8*)c0 + 0x12C), 0);
+                        if (g != (f64)lbl_80344880 || g <= (f64)lbl_8028CAA8) {
+                            break;
+                        }
+                        *(f32*)((u8*)c0 + 0x130) =
+                            (f32)((f64)*(f32*)((u8*)c0 + 0x130) - lbl_80345EF0);
+                    } while (1);
+                    if (g == (f64)lbl_80344880) {
+                        *(f32*)((u8*)c0 + 0x130) = lbl_8028CACC;
+                    } else {
+                        *(f32*)((u8*)c0 + 0x130) = (f32)(lbl_80346238 + g);
+                    }
+                    if (*(f32*)((u8*)c0 + 0x130) < lbl_802757D8) {
+                        *(f32*)((u8*)c0 + 0x130) = lbl_802757D8;
+                    }
+                    c0->radius = *(f32*)(hdr + 0x28);
+                    *(f32*)((u8*)c0 + 0xE0) =
+                        (f32)(lbl_80346240 * (f64)c0->radius);
+                    *(f32*)((u8*)c0 + 0xE4) = (f32)(lbl_80345EF0 + (f64)lbl_8028CACC);
+                    *(f32*)((u8*)c0 + 0xE8) =
+                        (f32)(lbl_80345FE0 + (f64)*(f32*)((u8*)c0 + 0xE4));
+                    *(f32*)((u8*)c0 + 0xA4) = lbl_80346248;
+                    *(f32*)((u8*)c0 + 0xA8) = lbl_80345EC8;
+                    *(f32*)((u8*)c0 + 0xAC) = lbl_80345EC8;
+                    CreateYPRMatrix(mat, (f32*)((u8*)c0 + 0xA4));
+                    in[0] = lbl_80345EC8;
+                    in[1] = lbl_80345EC8;
+                    in[2] = c0->radius;
+                    WorldVector(in, out, mat);
+                    c0->wpos[0] = *(f32*)((u8*)c0 + 0x12C) + out[0];
+                    c0->wpos[1] = *(f32*)((u8*)c0 + 0x130) + out[1];
+                    c0->wpos[2] = *(f32*)((u8*)c0 + 0x134) + out[2];
+                    v[0] = c0->wpos[0] - *(f32*)((u8*)c0 + 0x12C);
+                    v[1] = c0->wpos[1] - *(f32*)((u8*)c0 + 0x130);
+                    v[2] = c0->wpos[2] - *(f32*)((u8*)c0 + 0x134);
+                    NormalVector(v);
+                    c0->wpos[0] =
+                        (f32)((f64)v[0] * (f64)c0->radius + (f64)*(f32*)((u8*)c0 + 0x12C));
+                    c0->wpos[1] =
+                        (f32)((f64)v[1] * (f64)c0->radius + (f64)*(f32*)((u8*)c0 + 0x130));
+                    c0->wpos[2] =
+                        (f32)((f64)v[2] * (f64)c0->radius + (f64)*(f32*)((u8*)c0 + 0x134));
+                    c0->state = 1;
+                    lbl_80344420 = 0x708;
+                } else {
+                    /* checkpoint / boss variants set the game camera through the
+                     * standard supervisor path */
+                    if (*(s32*)((u8*)c0 + 0xEC) != 2) {
+                        *(s32*)((u8*)c0 + 0xF0) = *(s32*)((u8*)c0 + 0xEC);
+                        *(s32*)((u8*)c0 + 0xEC) = 2;
+                    }
+                    if (*(s32*)((u8*)c0 + 0xF8) != 1) {
+                        *(s32*)((u8*)c0 + 0xFC) = *(s32*)((u8*)c0 + 0xF8);
+                        *(s32*)((u8*)c0 + 0xF8) = 1;
+                    }
+                    c0->radius = lbl_80346258;
+                    c0->state = 1;
+                    StandardCamera(0);
+                    CameraSupervisor(0);
+                }
+            } else {
+                if (*(s32*)((u8*)c0 + 0xEC) != 2) {
+                    *(s32*)((u8*)c0 + 0xF0) = *(s32*)((u8*)c0 + 0xEC);
+                    *(s32*)((u8*)c0 + 0xEC) = 2;
+                }
+                if (*(s32*)((u8*)c0 + 0xF8) != 0) {
+                    *(s32*)((u8*)c0 + 0xFC) = *(s32*)((u8*)c0 + 0xF8);
+                    *(s32*)((u8*)c0 + 0xF8) = 0;
+                }
+                c0->wpos[0] = lbl_802757D4[0];
+                c0->wpos[1] = *(f32*)(lbl_802757D4 + 1);
+                c0->wpos[2] = *(f32*)(lbl_802757D4 + 2);
+                c0->wpos[1] = (f32)(lbl_80346078 +
+                    (f64)fn_8000D3C4(lbl_80344880, c0->wpos, 0));
+                *(s32*)((u8*)c0 + 0xD0) = fn_80051480(c0->wpos);
+                *(f32*)((u8*)c0 + 0xA4) = lbl_80345EC8;
+                *(f32*)((u8*)c0 + 0xA8) = fn_8002C7CC();
+                *(f32*)((u8*)c0 + 0xE0) = *(f32*)((u8*)c0 + 0xA8);
+                *(f32*)((u8*)c0 + 0xAC) = lbl_80345EC8;
+                c0->radius = lbl_80345F14;
+                c0->state = 1;
+            }
+        } else if (gCurLevel != 0) {
+            s16* hdr = *(s16**)((u8*)gCurLevel + 0x60);
+            if (*(s32*)((u8*)c0 + 0xEC) != 1) {
+                *(s32*)((u8*)c0 + 0xF0) = *(s32*)((u8*)c0 + 0xEC);
+                *(s32*)((u8*)c0 + 0xEC) = 1;
+            }
+            if (*(s32*)((u8*)c0 + 0xF8) != 0) {
+                *(s32*)((u8*)c0 + 0xFC) = *(s32*)((u8*)c0 + 0xF8);
+                *(s32*)((u8*)c0 + 0xF8) = 0;
+            }
+            *(f32*)((u8*)c0 + 0x12C) = lbl_80345EC8;
+            *(f32*)((u8*)c0 + 0x130) = lbl_80345EC8;
+            *(f32*)((u8*)c0 + 0x134) = lbl_80345EC8;
+            c0->radius = lbl_8034625C;
+            c0->wpos[0] = lbl_80345EC8;
+            c0->wpos[1] = lbl_80345EC8;
+            c0->wpos[2] = lbl_80345EC8;
+            lbl_80344538 = *hdr;
+            lbl_80344408 = *(f32*)(hdr + 2);
+            lbl_80344404 = hdr[1];
+            lbl_80344524 = *(s32*)(hdr + 4);
+            lbl_8034452C = *(f32*)(hdr + 0x16);
+            lbl_80344528 = *(f32*)(hdr + 0x18);
+            lbl_803447F8 = 18000;
+            lbl_80344744 = hdr[0x1a];
+            uiFov = scrH == 0x100 ? 0x2a : 0x40;
+            c0->state = 1;
+            lbl_80344530 = lbl_80344408;
+        }
+    } else {
+        if (*(s32*)((u8*)c0 + 0xEC) != 2) {
+            *(s32*)((u8*)c0 + 0xF0) = *(s32*)((u8*)c0 + 0xEC);
+            *(s32*)((u8*)c0 + 0xEC) = 2;
+        }
+        if (*(s32*)((u8*)c0 + 0xF8) != 1) {
+            *(s32*)((u8*)c0 + 0xFC) = *(s32*)((u8*)c0 + 0xF8);
+            *(s32*)((u8*)c0 + 0xF8) = 1;
+        }
+        c0->wpos[0] = lbl_80345EC8;
+        c0->wpos[1] = lbl_80345EC8;
+        c0->wpos[2] = lbl_80345EC8;
+        *(f32*)((u8*)c0 + 0x12C) = lbl_80345EC8;
+        *(f32*)((u8*)c0 + 0x130) = lbl_80345EC8;
+        *(f32*)((u8*)c0 + 0x134) = lbl_80346204;
+        c0->state = 1;
+    }
+
+    lbl_80344534 = lbl_80118B60[lbl_80344538];
+    for (i = 0; i < 6; i++) {
+        Camera* cam = &gCameras[i];
+        *(f32*)((u8*)cam + 0x34) = cam->wpos[0];
+        *(f32*)((u8*)cam + 0x38) = cam->wpos[1];
+        *(f32*)((u8*)cam + 0x3C) = cam->wpos[2];
+    }
+    lbl_8023F818 = lbl_80345EC8;
+    lbl_8023F81C = lbl_80345EC8;
+    lbl_8023F820 = lbl_80345EC8;
+    lbl_8034449C = 0;
+    lbl_803444C0 = lbl_80345F80;
+    lbl_803444C4 = lbl_80345F80;
+    lbl_803444BC = 0;
+    lbl_803444A0 = scrW;
+    lbl_803444A4 = scrH;
+    lbl_803444A8 = uiFov;
+    ChangeWindow();
+    MBWindowZoom(lbl_80345F80);
+    lbl_80344520 = (s32)-(f32)((f64)*(f32*)(lbl_80344EE8 + 0x14) * lbl_8034601C -
+                              (f64)*(f32*)(lbl_80344EE8 + 8));
+    lbl_8034451C = (s32)((f64)*(f32*)(lbl_80344EE8 + 0x14) * lbl_8034601C +
+                         (f64)*(f32*)(lbl_80344EE8 + 8));
+    lbl_80344518 = (s32)((f64)*(f32*)(lbl_80344EE8 + 0x18) * lbl_8034601C +
+                         (f64)*(f32*)(lbl_80344EE8 + 0xC));
+    lbl_80344514 = (s32)-(f32)((f64)*(f32*)(lbl_80344EE8 + 0x18) * lbl_8034601C -
+                              (f64)*(f32*)(lbl_80344EE8 + 0xC));
+    for (i = 0; i < 15; i++) {
+        CameraTarget* t = &gCameraTargets[i];
+        t->active = 0;
+        t->object = 0;
+        t->x = lbl_80345EC8;
+        t->y = lbl_80345EC8;
+        t->z = lbl_80345EC8;
+    }
+    gCameraTargetCount = 0;
+    ProcCamera(0, 0);
+    for (i = 0; i < 6; i++) {
+        f32* cf = (f32*)&gCameras[i];
+        cf[0x11] = cf[0xd];
+        cf[0x12] = cf[0xe];
+        cf[0x13] = cf[0xf];
+        cf[0x15] = lbl_80345EC8;
+        cf[0x16] = lbl_80345EC8;
+        cf[0x17] = lbl_80345EC8;
     }
 }
 
