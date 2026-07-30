@@ -115,7 +115,7 @@ void MBWindowZoom(f32 zoom);
 void DoShake(void* camera, void* attention);
 void LookInDirection(s32 camera, f32* direction);
 void ErrorPrintf(char* format, ...);
-void FatalError(char* format, ...);
+void FatalError(char* format, s32 code);
 void* EnemyTypePrefix(s32 enemyType);
 void* AtreeMatch(void* tree, char* name, s32 required);
 void DeleteItem(void* item, s32 immediate);
@@ -3208,22 +3208,24 @@ s32 StartMissile(s32 owner, f32* position, f32* velocity, u32 damageType,
         color = lbl_8034633C;
         if (wallSound == 5) {
             if (variant == 0) {
-                wallSound = (damageType & 0x400000) != 0 ? 7 : 6;
+                if ((damageType & 0x400000) != 0) {
+                    wallSound = 7;
+                } else {
+                    wallSound = 6;
+                }
             } else {
                 wallSound = 0;
             }
         }
     }
-    vel[0] = (f32)((f64)velocity[0] * scale);
-    vel[1] = (f32)((f64)velocity[1] * scale);
-    vel[2] = (f32)((f64)velocity[2] * scale);
+    vel[0] = velocity[0] * scale;
+    vel[1] = velocity[1] * scale;
+    vel[2] = velocity[2] * scale;
     if ((f64)(vel[2] * vel[2] +
         (f32)(vel[0] * vel[0] + (f32)(vel[1] * vel[1]))) < lbl_80346348) {
         FatalError(lbl_80111E28, 0x800000);
     }
-    if (owner <= 0) {
-        flg = extraFlags | 0x1107;
-    } else {
+    if (owner > 0) {
         if (lbl_80274E9C == 1) {
             flg = extraFlags | 0x200F;
         } else if (lbl_80274E9C == 2) {
@@ -3234,6 +3236,8 @@ s32 StartMissile(s32 owner, f32* position, f32* velocity, u32 damageType,
         if ((damageType & 0x100000) != 0) {
             flg &= ~0x4u;
         }
+    } else {
+        flg = extraFlags | 0x1107;
     }
     if ((f64)desc->color[0] == lbl_80346340 &&
         (f64)desc->color[1] == lbl_80346340 &&
