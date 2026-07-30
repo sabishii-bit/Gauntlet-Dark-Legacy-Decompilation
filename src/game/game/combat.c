@@ -1293,21 +1293,258 @@ f32 someone_will_be_off_screen(s32 camIdx, f32* pos)
  * StandardCamera -- multiplayer framing loop.  It updates the focus point,
  * radius and radial camera position, then derives the camera orientation.
  */
+extern s32 lbl_803444DC, lbl_803444CC, lbl_803444C8, lbl_80344500;
+extern f32 lbl_803444D8, lbl_803444D4, lbl_803444D0;
+extern f32 lbl_8023F83C, lbl_8023F840, lbl_8023F844;
+extern f32 lbl_80346188, lbl_803461E8;
+extern f64 lbl_803461E0, lbl_80346180;
+f32 NormalVector(f32* v);
+
+/*
+ * StandardCamera -- game camera (camera 0) auto-pan.  When the tracked targets
+ * drift toward the screen edges it eases pan angles in/out, applies them around
+ * the look axis, then keeps whichever of the two candidate framings leaves the
+ * fewest targets off screen.
+ */
 void StandardCamera(s32 camIdx)
 {
-    Camera* cam = &gCameras[camIdx];
-    f32 next[3];
+    Camera* c0 = &gCameras[0];
+    f32* wpos0 = (f32*)((u8*)c0 + 0x64);
+    f32* attn0 = (f32*)((u8*)c0 + 0x12C);
+    s32 wasPanning = lbl_803444DC;
+    s32 scrH = MBScreenHeight();
+    s32 scrW = MBScreenWidth();
+    f32 minX = lbl_803461D4, maxX = lbl_803461D8;
+    f32 maxY = lbl_803461D8, minY = lbl_803461D4;
+    f32 errX = lbl_80345EC8;
+    f32 errY = lbl_80345EC8;
+    f32 offX = lbl_80345EC8;
+    f32 offZ = lbl_80345EC8;
+    f32 yaw;
+    s32 i;
 
-    get_attn_pos(camIdx, next);
-    cam->attn_dest[0] = next[0];
-    cam->attn_dest[1] = next[1];
-    cam->attn_dest[2] = next[2];
-    cam->attn[0] += (next[0] - cam->attn[0]) * 0.1f * gFrameTicks;
-    cam->attn[1] += (next[1] - cam->attn[1]) * 0.1f * gFrameTicks;
-    cam->attn[2] += (next[2] - cam->attn[2]) * 0.1f * gFrameTicks;
-    adjust_radius(camIdx);
-    get_cam_wpos(camIdx, cam->wpos);
-    calc_cam_pyr(camIdx, 0);
+    if (gCurLevel == 0 || camIdx != 0 || lbl_8034453C != 0 ||
+        *(s32*)((u8*)c0 + 0xEC) != 3 || gBossType >= 0 || gBossType == 0x22) {
+        return;
+    }
+
+    if (lbl_80345F78 == (f64)lbl_803444D8 && lbl_80345F78 == (f64)lbl_803444D4) {
+        lbl_803444DC = 0;
+        lbl_803444D0 = 0;
+        lbl_80344528 = *(f32*)(*(s32*)((u8*)gCurLevel + 0x60) + 0x30);
+    } else {
+        lbl_803444DC = 1;
+        lbl_803444D0 = lbl_803444D0 + lbl_8034457C;
+    }
+    if (gCameraTargetCount > 0) {
+        for (i = 0; i < 15; i++) {
+            CameraTarget* t = &gCameraTargets[i];
+            if (t->active != 0) {
+                f32 tx = *(f32*)((u8*)t + 0x28);
+                if (tx < minX) minX = tx;
+                if (maxX < tx) maxX = tx;
+                if (maxY < *(f32*)((u8*)t + 0x2C)) {
+                    maxY = *(f32*)((u8*)t + 0x2C);
+                }
+                if (*(f32*)((u8*)t + 0x34) < minY) {
+                    minY = *(f32*)((u8*)t + 0x34);
+                }
+            }
+        }
+        if (gCameraTargetCount == 1) minY = maxY;
+        errX = (f32)(lbl_80345F18 * (f64)(minX + maxX)) - (f32)(scrW / 2);
+        errY = (f32)(lbl_80345F18 * (f64)(maxY + minY)) -
+               (f32)(scrH - (scrH - 0x40) / 2);
+    }
+
+    if (gCameraTargetCount < 1 ||
+        c0->radius <= *(f32*)(*(s32*)((u8*)gCurLevel + 0x60) + 0x30) ||
+        (lbl_80344500 == 0 && lbl_803444F4 != 0 && lbl_803444DC == 0) ||
+        (f64)lbl_803444E8 < lbl_80345F90) {
+        if (lbl_803461E0 <= (f64)errX) {
+            if ((f64)lbl_803444D8 <= lbl_80345F78) {
+                if ((f64)lbl_803444D8 < lbl_80345F78) {
+                    lbl_803444D8 = lbl_803444D8 + lbl_80346188;
+                    if (lbl_80345F78 <= (f64)lbl_803444D8) {
+                        lbl_803444D8 = lbl_80345EC8;
+                    }
+                }
+            } else {
+                lbl_803444D8 = lbl_803444D8 - lbl_80346188;
+                if ((f64)lbl_803444D8 <= lbl_80345F78) {
+                    lbl_803444D8 = lbl_80345EC8;
+                }
+            }
+            if ((lbl_803444D8 < 0.0f ? -lbl_803444D8 : lbl_803444D8) <
+                lbl_80346188) {
+                lbl_803444D8 = lbl_80345EC8;
+            }
+        }
+        if (lbl_803461E0 <= (f64)errY) {
+            if ((f64)lbl_803444D4 <= lbl_80345F78) {
+                if ((f64)lbl_803444D4 < lbl_80345F78) {
+                    lbl_803444D4 = (f32)((f64)lbl_803444D4 + lbl_80346188);
+                    if (lbl_80345F78 <= (f64)lbl_803444D4) {
+                        lbl_803444D4 = lbl_80345EC8;
+                    }
+                }
+            } else {
+                lbl_803444D4 = (f32)((f64)lbl_803444D4 - lbl_80346188);
+                if ((f64)lbl_803444D4 <= lbl_80345F78) {
+                    lbl_803444D4 = lbl_80345EC8;
+                }
+            }
+            if ((lbl_803444D4 < 0.0f ? -lbl_803444D4 : lbl_803444D4) <
+                lbl_80346188) {
+                lbl_803444D4 = lbl_80345EC8;
+            }
+        }
+    } else {
+        f32 ax = errX < 0.0f ? -errX : errX;
+        if ((lbl_80346160 <= (f64)ax && lbl_80345F78 == (f64)lbl_803444D8) ||
+            (lbl_803461E0 <= (f64)ax && lbl_80345F78 != (f64)lbl_803444D8)) {
+            if ((f64)errX < lbl_80345F78) {
+                lbl_803444D8 = (f32)((f64)lbl_803444D8 - lbl_80346070);
+            } else {
+                lbl_803444D8 = (f32)((f64)lbl_803444D8 + lbl_80346070);
+            }
+        } else if ((f64)ax < lbl_803460D0) {
+            if ((f64)lbl_803444D8 <= lbl_80345F78) {
+                if ((f64)lbl_803444D8 < lbl_80345F78) {
+                    lbl_803444D8 = (f32)((f64)lbl_803444D8 + lbl_803461E8);
+                    if (lbl_80345F78 <= (f64)lbl_803444D8) {
+                        lbl_803444D8 = lbl_80345EC8;
+                    }
+                }
+            } else {
+                lbl_803444D8 = (f32)((f64)lbl_803444D8 - lbl_803461E8);
+                if ((f64)lbl_803444D8 <= lbl_80345F78) {
+                    lbl_803444D8 = lbl_80345EC8;
+                }
+            }
+            if ((lbl_803444D8 < 0.0f ? -lbl_803444D8 : lbl_803444D8) <
+                lbl_803461E8) {
+                lbl_803444D8 = lbl_80345EC8;
+            }
+        }
+        {
+            f32 ay = errY < 0.0f ? -errY : errY;
+            if ((lbl_80346160 <= (f64)ay && lbl_80345F78 == (f64)lbl_803444D4) ||
+                (lbl_803461E0 <= (f64)ay && lbl_80345F78 != (f64)lbl_803444D4)) {
+                if ((f64)errY < lbl_80345F78) {
+                    lbl_803444D4 = (f32)((f64)lbl_803444D4 + lbl_80346070);
+                } else {
+                    lbl_803444D4 = (f32)((f64)lbl_803444D4 - lbl_80346070);
+                }
+            } else if ((f64)ay < lbl_803460D0) {
+                if ((f64)lbl_803444D4 <= lbl_80345F78) {
+                    if ((f64)lbl_803444D4 < lbl_80345F78) {
+                        lbl_803444D4 = (f32)((f64)lbl_803444D4 + lbl_803461E8);
+                        if (lbl_80345F78 <= (f64)lbl_803444D4) {
+                            lbl_803444D4 = lbl_80345EC8;
+                        }
+                    }
+                } else {
+                    lbl_803444D4 = (f32)((f64)lbl_803444D4 - lbl_803461E8);
+                    if ((f64)lbl_803444D4 <= lbl_80345F78) {
+                        lbl_803444D4 = lbl_80345EC8;
+                    }
+                }
+                if ((lbl_803444D4 < 0.0f ? -lbl_803444D4 : lbl_803444D4) <
+                    lbl_803461E8) {
+                    lbl_803444D4 = lbl_80345EC8;
+                }
+            }
+        }
+    }
+
+    if (lbl_80345F78 != (f64)lbl_803444D8) {
+        f32 a = lbl_803444D8 < 0.0f ? -lbl_803444D8 : lbl_803444D8;
+        if ((f64)lbl_803444D8 <= lbl_80345F78) {
+            yaw = (f32)((f64)(*(f32*)((u8*)c0 + 0xA8)) + lbl_80346180);
+        } else {
+            yaw = (f32)((f64)(*(f32*)((u8*)c0 + 0xA8)) - lbl_80346180);
+        }
+        if ((f64)yaw <= lbl_80345F58) {
+            if ((f64)yaw <= lbl_80345F68) yaw = (f32)(lbl_80345F60 + (f64)yaw);
+        } else {
+            yaw = (f32)((f64)yaw - lbl_80345F60);
+        }
+        offX = (f32)((f64)sin((f64)yaw) * (f64)a + (f64)offX);
+        lbl_803444DC = 1;
+        offZ = (f32)((f64)cos((f64)yaw) * (f64)a + (f64)offZ);
+    }
+    if (lbl_80345F78 != (f64)lbl_803444D4) {
+        f32 a = lbl_803444D4 < 0.0f ? -lbl_803444D4 : lbl_803444D4;
+        f64 y = (f64)(*(f32*)((u8*)c0 + 0xA8));
+        if ((f64)lbl_803444D4 <= lbl_80345F78) y = (f32)(y + lbl_80345F58);
+        if (y <= lbl_80345F58) {
+            if (y <= lbl_80345F68) y = lbl_80345F60 + y;
+        } else {
+            y = y - lbl_80345F60;
+        }
+        yaw = (f32)y;
+        offX = (f32)((f64)sin((f64)yaw) * (f64)a + (f64)offX);
+        lbl_803444DC = 1;
+        offZ = (f32)((f64)cos((f64)yaw) * (f64)a + (f64)offZ);
+    }
+
+    if (lbl_80345F78 == (f64)lbl_803444D8 && lbl_80345F78 == (f64)lbl_803444D4) {
+        lbl_803444DC = 0;
+        lbl_803444D0 = 0;
+    } else {
+        f32 mn = lbl_8034619C, mx = lbl_803461A0;
+        f32 cand[3];
+        f32 dir[3];
+        for (i = 0; i < 15; i++) {
+            CameraTarget* t = &gCameraTargets[i];
+            if (t->active > 0) {
+                f32 ty = *(f32*)(t->object + 0x44);
+                if (ty < mn) mn = ty;
+                if (mx < ty) mx = ty;
+            }
+        }
+        lbl_8023F83C = (f32)((f64)offX + (f64)wpos0[0]);
+        lbl_8023F840 = lbl_80345EC8 + wpos0[1];
+        lbl_8023F844 = (f32)((f64)offZ + (f64)wpos0[2]);
+        cand[0] = (f32)((f64)offX + (f64)attn0[0]);
+        cand[2] = (f32)((f64)offZ + (f64)attn0[2]);
+        attn0[1] = (f32)(lbl_80345F18 * (f64)(mx + mn));
+        cand[1] = attn0[1];
+        *(f32*)((u8*)c0 + 0x160) = attn0[1];
+        dir[0] = (f32)((f64)lbl_8023F83C - (f64)cand[0]);
+        dir[1] = (f32)((f64)lbl_8023F840 - (f64)cand[1]);
+        dir[2] = (f32)((f64)lbl_8023F844 - (f64)cand[2]);
+        NormalVector(dir);
+        lbl_8023F83C = (f32)((f64)dir[0] * (f64)c0->radius + (f64)cand[0]);
+        lbl_8023F840 = (f32)((f64)dir[1] * (f64)c0->radius + (f64)cand[1]);
+        lbl_8023F844 = (f32)((f64)dir[2] * (f64)c0->radius + (f64)cand[2]);
+    }
+
+    if (lbl_803444DC != 0) {
+        f32 rNew = someone_will_be_off_screen(0, &lbl_8023F83C);
+        f32 rOld = someone_will_be_off_screen(0, wpos0);
+        if (rOld <= rNew) {
+            wpos0[0] = lbl_8023F83C;
+            wpos0[1] = lbl_8023F840;
+            wpos0[2] = lbl_8023F844;
+            attn0[0] = (f32)((f64)attn0[0] + (f64)offX);
+            attn0[1] = attn0[1] + lbl_80345EC8;
+            attn0[2] = (f32)((f64)attn0[2] + (f64)offZ);
+        } else {
+            lbl_803444DC = 0;
+            lbl_803444D0 = 0;
+            lbl_803444D8 = lbl_80345EC8;
+            lbl_803444D4 = lbl_80345EC8;
+            lbl_8023F83C = wpos0[0];
+            lbl_8023F840 = wpos0[1];
+            lbl_8023F844 = wpos0[2];
+        }
+    }
+    if (wasPanning == 0 && lbl_803444DC == 1) {
+        lbl_803444CC = lbl_80344510;
+        lbl_803444C8 = lbl_8034450C;
+    }
 }
 
 void del_target(u32 id)
