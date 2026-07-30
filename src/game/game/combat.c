@@ -2885,27 +2885,86 @@ void InitEnemyMissiles(s32 enemyType)
     }
 }
 
+extern u8 lbl_80118E28[], lbl_80118E38[];
+extern char* lbl_801190E8[];
+extern void *lbl_802753FC[], *lbl_802753E4[];
+extern void *lbl_80240574[];
+extern void *lbl_803445C0, *lbl_803445BC, *lbl_803445B8, *lbl_803445B0;
+extern void *lbl_803445AC, *lbl_803445A8, *lbl_803445A4, *lbl_8034459C;
+extern void *lbl_803445A0, *lbl_803445B4, *lbl_80240624;
+extern void *sWeaponsBuf, *sPowerupsBuf;
+extern char lbl_803463EC[];
+void* MBOX_FindTexture(char* name, void* arg);
+void* InitCustomEffect(void* tree, char* name, void* arg);
+
 void InitPlayerMissiles(void* player)
 {
-    s32 playerIndex = PF(player, 0x00, s32);
+    s32 idx = PF(player, 0x00, s32);
+    s32 charType = PF(player, 0x0C, s32);
+    char* charName = (char*)(lbl_80118E28 + charType * 0x14);
+    u8 throwByte = *(u8*)(charName + PF(player, 0x3324, s32) / 10 + 4);
+    void* weaponWad = lbl_802753FC[idx * 0x13];
+    void* powerupWad = lbl_802753E4[idx * 0x13];
+    char buf[24];
+    s32 missing;
     s32 i;
-    void* playerTree = PF(player, 0x74, void*);
+
+    if (throwByte == 0x30) {
+        sprintf(buf, "%s_THROW0", charName);
+        gPlayerMissileRuntime[idx].missileTree = AtreeMatch(powerupWad, buf, 0);
+    } else {
+        sprintf(buf, "%s_THROW_%c", charName, (char)throwByte);
+        gPlayerMissileRuntime[idx].missileTree = AtreeMatch(weaponWad, buf, 0);
+    }
+    if (gPlayerMissileRuntime[idx].missileTree == 0) {
+        sprintf(buf, "%s_THROW1", charName);
+        gPlayerMissileRuntime[idx].missileTree = AtreeMatch(powerupWad, buf, 0);
+    }
+    missing = gPlayerMissileRuntime[idx].missileTree == 0;
+    if (missing) {
+        ErrorPrintf("Player Missile not found: %s", buf);
+    }
+    gPlayerMissileRuntime[idx].trailEffect =
+        (u32)(*(s32*)(lbl_80118E38 + charType * 0x14));
 
     for (i = 0; i < 5; i++) {
-        gPlayerMissiles[playerIndex * 5 + i] = -1;
-        gPlayerWeaponHoldTrees[playerIndex][i] = 0;
-        if (playerTree != 0 && PlayerMissileDesc[i] != 0) {
-            gPlayerWeaponHoldTrees[playerIndex][i] =
-                AtreeMatch(playerTree, PlayerMissileDesc[i], 1);
+        char* name = lbl_801190E8[i * 2];
+        if (name[0] == '\0') {
+            gPlayerWeaponHoldTrees[idx][i] = 0;
+            *(s32*)&lbl_80240574[idx * 5 + i] = -1;
+        } else {
+            sprintf(buf, "WEAP_HOLD_%s", name);
+            gPlayerWeaponHoldTrees[idx][i] = AtreeMatch(weaponWad, buf, 1);
+            sprintf(buf, "WEAP_TW_%c", name[0]);
+            lbl_80240574[idx * 5 + i] =
+                InitCustomEffect(weaponWad, buf, 0);
         }
     }
-    gPlayerFamiliarTrees[playerIndex][0] = 0;
-    gPlayerFamiliarTrees[playerIndex][1] = 0;
-    gPlayerFamiliarSpitTrees[playerIndex] = 0;
-    gPlayerMissileRuntime[playerIndex].missileTree =
-        playerTree != 0 ? AtreeMatch(playerTree, "THROW1", 0) : 0;
-    gPlayerMissileRuntime[playerIndex].trailEffect = 0;
-    if (gPlayerMissileRuntime[playerIndex].missileTree == 0) {
-        ErrorPrintf("Player Missile not found");
+    lbl_80344598 = (s32)MBOX_FindTexture("WEP_STREAK", 0);
+    lbl_803445C0 = AtreeMatch(sWeaponsBuf, "SUPERARROW", 1);
+    lbl_803445BC = AtreeMatch(sWeaponsBuf, "BOSSG_ELEC", 1);
+    lbl_803445B8 = AtreeMatch(sWeaponsBuf, "BOSSG_ACID", 1);
+    if (sPowerupsBuf == 0) {
+        lbl_803445B0 = 0;
+        lbl_803445AC = 0;
+        lbl_803445A8 = 0;
+        lbl_803445A4 = 0;
+        lbl_8034459C = 0;
+        lbl_803445A0 = 0;
+    } else {
+        lbl_803445B0 = AtreeMatch(sPowerupsBuf, "PHOENIX", 1);
+        lbl_803445AC = AtreeMatch(sPowerupsBuf, "WINGS", 1);
+        lbl_803445A8 = AtreeMatch(sPowerupsBuf, lbl_803463EC, 1);
+        lbl_803445A4 = AtreeMatch(sPowerupsBuf, "HEAD_BREATHEF", 1);
+        lbl_8034459C = AtreeMatch(sPowerupsBuf, "HEAD_BREATHEE", 1);
+        lbl_803445A0 = AtreeMatch(sPowerupsBuf, "HEAD_BREATHEA", 1);
+    }
+    lbl_803445B4 = AtreeMatch(sWeaponsBuf, "FW_SHLD_ACTIVE", 1);
+    gPlayerFamiliarTrees[idx][0] = AtreeMatch(weaponWad, "FAMILIAR1", 1);
+    gPlayerFamiliarTrees[idx][1] = AtreeMatch(weaponWad, "FAMILIAR2", 1);
+    gPlayerFamiliarSpitTrees[idx] = AtreeMatch(weaponWad, "FAMILIAR_SPIT", 1);
+    lbl_80240624 = AtreeMatch(sWeaponsBuf, "PHOENIX_FBALL", 1);
+    if (missing) {
+        FatalError("InitPlayerMissiles failed!", 0x800000);
     }
 }
