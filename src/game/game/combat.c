@@ -682,6 +682,7 @@ void write_stage_info(s32 mode);
  */
 s32 init_game_cam(s32 camIdx)
 {
+    Camera* cam = (Camera*)((u8*)gCameraState + camIdx * 396 + 0xC8);
     s32 prevTimer = lbl_803447BC;
     s32 reached = 2;
     u8* level = *(u8**)((u8*)gCurLevel + 0x60);
@@ -722,9 +723,9 @@ s32 init_game_cam(s32 camIdx)
     }
 
     if (lbl_803447BC == 1) {
-        dx = gCameras[0].wpos[0] - gCameras[2].wpos[0];
-        dy = gCameras[0].wpos[1] - gCameras[2].wpos[1];
-        dz = gCameras[0].wpos[2] - gCameras[2].wpos[2];
+        dx = gCameras[0].wpos[0] - cam[0].wpos[0];
+        dy = gCameras[0].wpos[1] - cam[0].wpos[1];
+        dz = gCameras[0].wpos[2] - cam[0].wpos[2];
         len = (f32)(dz * dz + (f32)(dx * dx + (f32)(dy * dy)));
         if (len > lbl_80345EC8) {
             g = __frsqrte((f64)len);
@@ -748,13 +749,13 @@ s32 init_game_cam(s32 camIdx)
             dy = dy * len;
             dz = dz * len;
         }
-        gCameras[2].wpos[0] = gCameras[2].wpos[0] + dx;
-        gCameras[2].wpos[1] = gCameras[2].wpos[1] + dy;
-        gCameras[2].wpos[2] = gCameras[2].wpos[2] + dz;
+        cam[0].wpos[0] = cam[0].wpos[0] + dx;
+        cam[0].wpos[1] = cam[0].wpos[1] + dy;
+        cam[0].wpos[2] = cam[0].wpos[2] + dz;
 
-        dx = gCameras[0].attn[0] - gCameras[2].attn[0];
-        dy = gCameras[0].attn[1] - gCameras[2].attn[1];
-        dz = gCameras[0].attn[2] - gCameras[2].attn[2];
+        dx = gCameras[0].attn[0] - cam[0].attn[0];
+        dy = gCameras[0].attn[1] - cam[0].attn[1];
+        dz = gCameras[0].attn[2] - cam[0].attn[2];
         len = (f32)(dz * dz + (f32)(dx * dx + (f32)(dy * dy)));
         if (len > lbl_80345EC8) {
             g = __frsqrte((f64)len);
@@ -778,9 +779,9 @@ s32 init_game_cam(s32 camIdx)
             dy = dy * len;
             dz = dz * len;
         }
-        gCameras[2].attn[0] = gCameras[2].attn[0] + dx;
-        gCameras[2].attn[1] = gCameras[2].attn[1] + dy;
-        gCameras[2].attn[2] = gCameras[2].attn[2] + dz;
+        cam[0].attn[0] = cam[0].attn[0] + dx;
+        cam[0].attn[1] = cam[0].attn[1] + dy;
+        cam[0].attn[2] = cam[0].attn[2] + dz;
 
         if (reached < 1) {
             if (lbl_8034440C != 0) {
