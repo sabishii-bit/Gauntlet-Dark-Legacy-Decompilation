@@ -1218,28 +1218,75 @@ s32 adjust_radius(s32 camIdx)
  * The GCN renderer's integer viewport conversion is folded into the matrix
  * multiply here.
  */
-s32 someone_will_be_off_screen(s32 camIdx, f32 margin)
+extern f32 lbl_803461D4, lbl_803461D8;
+void MBWindowProject();
+s32 MBScreenHeight(void);
+s32 MBScreenWidth(void);
+
+/*
+ * someone_will_be_off_screen -- temporarily place camera camIdx at pos, project
+ * every active target into the window, and return the largest normalized screen
+ * offset from center (a value > 1 means a target falls outside the frame).
+ */
+f32 someone_will_be_off_screen(s32 camIdx, f32* pos)
 {
     Camera* cam = &gCameras[camIdx];
+    f32* eye = (f32*)((u8*)cam + 0x34);
+    f32 savedX = eye[0];
+    f32 savedY = eye[1];
+    f32 savedZ = eye[2];
+    f32 minX = lbl_803461D4, maxX = lbl_803461D8;
+    f32 minY = lbl_803461D4, maxY = lbl_803461D8;
+    s32 scrH = MBScreenHeight();
+    s32 scrW = MBScreenWidth();
     s32 i;
+    f32 cx, cy, hd, vd, hd2, vd2, rx, ry;
 
+    eye[0] = pos[0];
+    eye[1] = pos[1];
+    eye[2] = pos[2];
     for (i = 0; i < 15; i++) {
-        CameraTarget* target = &gCameraTargets[i];
-        if (target->active != 0) {
-            f32* p = (f32*)(target->object + 0x40);
-            f32 x = p[0] - cam->wpos[0];
-            f32 y = p[1] - cam->wpos[1];
-            f32 z = p[2] - cam->wpos[2];
-            f32 sx = x * cam->mat[0][0] + y * cam->mat[1][0] + z * cam->mat[2][0];
-            f32 sy = x * cam->mat[0][1] + y * cam->mat[1][1] + z * cam->mat[2][1];
-            f32 depth = x * cam->mat[0][2] + y * cam->mat[1][2] + z * cam->mat[2][2];
-            if (depth <= 0.01f || sx > depth * margin || sx < -depth * margin ||
-                sy > depth * margin || sy < -depth * margin) {
-                return 1;
-            }
+        CameraTarget* t = &gCameraTargets[i];
+        if (t->active != 0) {
+            s16 sp[2];
+            f32 sx, sy;
+            MBWindowProject((f32*)(t->object + 0x40),
+                            (f32*)((u8*)cam + 4), 0, sp);
+            sx = (f32)sp[0];
+            sy = (f32)sp[1];
+            if (sx < minX) minX = sx;
+            if (maxX < sx) maxX = sx;
+            if (sy < minY) minY = sy;
+            if (maxY < sy) maxY = sy;
+            MBWindowProject((f32*)(t->object + 0x30),
+                            (f32*)((u8*)cam + 4), 0, sp);
+            sx = (f32)sp[0];
+            sy = (f32)sp[1];
+            if (sx < minX) minX = sx;
+            if (maxX < sx) maxX = sx;
+            if (sy < minY) minY = sy;
+            if (maxY < sy) maxY = sy;
         }
     }
-    return 0;
+    eye[0] = savedX;
+    eye[1] = savedY;
+    eye[2] = savedZ;
+
+    cx = (f32)(scrW / 2);
+    cy = (f32)(scrH - (scrH - 0x40) / 2);
+    hd = minX - cx;
+    if (hd < 0.0f) hd = -hd;
+    hd2 = maxX - cx;
+    if (hd2 < 0.0f) hd2 = -hd2;
+    if (hd2 < hd) hd2 = hd;
+    rx = hd2 / (f32)(scrW / 2);
+    vd = minY - cy;
+    if (vd < 0.0f) vd = -vd;
+    vd2 = maxY - cy;
+    if (vd2 < 0.0f) vd2 = -vd2;
+    if (vd2 < vd) vd2 = vd;
+    ry = vd2 / (f32)((scrH - 0x40) / 2);
+    return rx < ry ? ry : rx;
 }
 
 /*
