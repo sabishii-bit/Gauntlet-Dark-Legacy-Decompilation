@@ -3395,9 +3395,17 @@ s32 EnemyStartMissile(void* enemy, f32* launchPos, f32* target, s32 slot)
 
 extern MissileDesc lbl_80118F68[];
 extern u8 lbl_8011A0E8[], lbl_8011A118[], lbl_8011A148[], lbl_8011A1A8[];
-extern u8 lbl_80111DE0[], lbl_80111DF4[];
+extern f32 lbl_80111DE0[], lbl_80111DF4[];
 extern s32 lbl_80240560[];
-extern f32 lbl_803463A0, lbl_803463B0;
+extern void* lbl_80240574[];
+extern void* lbl_80240798[];
+extern void* lbl_80285018[];
+extern void *lbl_803445B8, *lbl_803445BC, *lbl_803445C0, *lbl_80240624;
+extern f32 lbl_80285C20[];
+extern s16 lbl_80285CA0[];
+extern s32* lbl_80285BD0[];
+extern s32* lbl_80285BCC[];
+extern f32 lbl_803463A0, lbl_803463B0, lbl_803463A8, lbl_803463B8;
 void MulVecMat3(f32* in, f32* out, f32* mat);
 s32 fn_80094080();
 f64 fn_8005C1DC();
@@ -3413,10 +3421,12 @@ void MBTreeSetFlags(s32 node, s32 mask, s32 value);
  * then spawns up to five missiles in the weapon's spread pattern, linking and
  * lighting each spawned effect.  Returns the primary effect handle.
  */
-s32 PlayerStartMissile(void* player, f32* direction, u32 damageType, s32 mode)
+void PlayerStartMissile(s32* player, f32* direction, u32 damageType, s32 mode,
+                        f32 scaleArg)
 {
-    s32 idx = PF(player, 0x00, s32);
-    u32 pflags = PF(player, 0x124, u32);
+    s32 idx = player[0];
+    u32 pflags = (u32)player[0x49];
+    u32 trailFx = gPlayerMissileRuntime[idx].trailEffect;
     u32 special = pflags & 0x8000;
     u32 dmgLow = damageType & 0xF;
     u32 extraFlags = 0;
@@ -3426,16 +3436,20 @@ s32 PlayerStartMissile(void* player, f32* direction, u32 damageType, s32 mode)
     f32 pt0[3];
     f32 pt1[3];
     f32 wallHit[3];
-    f32 spread[3];
+    f32 spreadA[5];
+    f32 spreadB[5];
     f32 launchDir[3];
-    f32 scale = PF(player, 0x114, f32);
-    s32 primary = -1;
+    f32 scale;
+    f32 scale2;
+    f32 invSpeed;
+    void* tree;
+    s32 j;
     s32 i;
 
     if (special == 0) {
         if ((pflags & 0x4000) == 0) {
             if ((damageType & 0x100000) == 0 || (damageType & 0x2000000) != 0) {
-                desc = (MissileDesc*)((u8*)lbl_80118F68 + PF(player, 8, s32) * 0x30);
+                desc = (MissileDesc*)((u8*)lbl_80118F68 + player[2] * 0x30);
             } else {
                 desc = (MissileDesc*)lbl_8011A0E8;
                 useSpecial = 1;
@@ -3448,25 +3462,27 @@ s32 PlayerStartMissile(void* player, f32* direction, u32 damageType, s32 mode)
         desc = (MissileDesc*)lbl_8011A118;
         useSpecial = 1;
     }
+    scale = *(f32*)((u8*)player + 0x114) * scaleArg;
+    scale2 = scale;
 
     if ((pflags & 0x400) == 0) {
         if (mode == 1) {
             MulVecMat3((f32*)((u8*)lbl_80282930[idx] + 0x5C), aim,
-                       (f32*)((u8*)player + 0x14));
+                       (f32*)(player + 5));
         } else if (mode == 2) {
             MulVecMat3((f32*)((u8*)lbl_80282930[idx] + 0x158), aim,
-                       (f32*)((u8*)player + 0x14));
+                       (f32*)(player + 5));
         } else {
             aim[0] = lbl_80346328;
             aim[1] = lbl_80346328;
             aim[2] = lbl_80346328;
         }
     } else {
-        MulVecMat3((f32*)lbl_8011A1A8, aim, (f32*)((u8*)player + 0x14));
+        MulVecMat3((f32*)lbl_8011A1A8, aim, (f32*)(player + 5));
     }
-    aim[0] = PF(player, 0x64, f32) + aim[0];
-    aim[1] = PF(player, 0x68, f32) + aim[1];
-    aim[2] = PF(player, 0x6C, f32) + aim[2];
+    aim[0] = *(f32*)((u8*)player + 0x64) + aim[0];
+    aim[1] = *(f32*)((u8*)player + 0x68) + aim[1];
+    aim[2] = *(f32*)((u8*)player + 0x6C) + aim[2];
     pt0[0] = (f32)(lbl_803463A0 * (f64)direction[0] + (f64)aim[0]);
     pt0[1] = (f32)(lbl_803463A0 * (f64)direction[1] + (f64)aim[1]);
     pt0[2] = (f32)(lbl_803463A0 * (f64)direction[2] + (f64)aim[2]);
@@ -3477,8 +3493,8 @@ s32 PlayerStartMissile(void* player, f32* direction, u32 damageType, s32 mode)
     if ((damageType & 0x100000) == 0) {
         if (WeaponWallCollide(pt0, pt1, wallHit) != 0) {
             if ((damageType & 0x200000) == 0) {
-                fn_80094080(wallHit, damageType, mode);
-                return -1;
+                fn_80094080(wallHit, damageType, wallHit, mode, special);
+                return;
             }
             pt1[0] = pt0[0];
             pt1[1] = pt0[1];
@@ -3486,48 +3502,158 @@ s32 PlayerStartMissile(void* player, f32* direction, u32 damageType, s32 mode)
         }
     }
     {
-        s32 hit = fn_8005ED44(desc->radius, pt0, pt1, wallHit, 0, PF(player, 0, s32));
+        s32* hit = (s32*)fn_8005ED44(desc->radius, pt0, pt1, wallHit,
+                                     0, player[0]);
         if (hit != 0) {
-            f64 dmg = fn_8005C1DC(scale, hit, damageType, PF(player, 0, s32));
+            f64 dmg = fn_8005C1DC(scale, hit, damageType, player[0]);
             if (dmg < lbl_80346340) {
-                fn_80094080(wallHit, damageType);
+                fn_80094080(wallHit, damageType, player[0], 0);
             } else {
-                s32 killed = lbl_80346340 == dmg;
-                PlayerDamagedItem(player, (void*)hit, killed);
+                u32 killed = lbl_80346340 == dmg;
+                PlayerDamagedItem(player, hit, killed);
                 fn_80094440(wallHit, damageType, killed);
             }
             if ((damageType & 0x100000) == 0) {
-                return -1;
+                return;
             }
         }
     }
 
-    for (i = 0; i < 5; i++) {
-        s32 fx;
-        if ((i > 0 && (damageType & 0x480000) == 0) ||
-            (i > 2 && (damageType & 0x400000) == 0)) {
-            break;
-        }
-        spread[0] = *(f32*)((u8*)lbl_80111DE0 + i * 4);
-        spread[2] = *(f32*)((u8*)lbl_80111DF4 + i * 4);
-        launchDir[0] = direction[0] * spread[0] +
-                       (f32)((f64)direction[2] * (f64)spread[2]);
-        launchDir[1] = direction[1];
-        launchDir[2] = (f32)(-(f64)direction[0] * (f64)spread[2] +
-                             (f64)(direction[2] * spread[0]));
-        fx = StartMissile(idx + 1, pt1, launchDir, damageType, desc,
-                          gPlayerMissileRuntime[idx].missileTree, mode,
-                          extraFlags, scale, desc->damage);
-        if (fx >= 0) {
-            if ((damageType & 0x2000000) != 0) {
-                ScaleFX(fx, lbl_803463B0, lbl_803463B0, lbl_803463B0);
+    {
+        f32 aimSpeed = *(f32*)((u8*)player + 0x118);
+        f32 clamped = (f32)lbl_80346318;
+        if ((f64)lbl_80346318 <= (f64)aimSpeed) {
+            clamped = aimSpeed;
+            if (lbl_803463A8 < (f64)aimSpeed) {
+                clamped = (f32)lbl_803463A8;
             }
-            lbl_80240560[idx * 5 + i] = fx;
-        } else {
-            lbl_80240560[idx * 5 + i] = -1;
+        }
+        invSpeed = (f32)(lbl_80346318 / (f64)clamped);
+        if ((damageType & 0x100000) == 0 && lbl_80346340 < (f64)scale2) {
+            f32 horiz;
+            f32 hn;
+            direction[0] = (f32)((f64)direction[0] * (f64)scale2);
+            direction[1] = (f32)((f64)direction[1] * (f64)scale2);
+            direction[2] = (f32)((f64)direction[2] * (f64)scale2);
+            horiz = (f32)fqdist(direction[0], direction[2]);
+            hn = (f32)lbl_80346318;
+            if (lbl_80346348 < (f64)horiz) {
+                hn = (f32)(lbl_80346318 / (f64)horiz);
+            }
+            direction[0] = (f32)((f64)direction[0] * (f64)hn);
+            direction[2] = (f32)((f64)direction[2] * (f64)hn);
+            direction[1] = (f32)((f64)invSpeed *
+                (lbl_80346370 * (f64)desc->weight *
+                    (f64)(f32)((f64)horiz * (f64)invSpeed) +
+                 (f64)((direction[1] + lbl_803463B0) *
+                    (f32)((f64)clamped * (f64)hn))));
+        }
+
+        {
+            u32 f = (u32)player[0x49];
+            if ((f & 0x8000) == 0) {
+                if ((f & 0x4000) == 0) {
+                    if ((f & 0x400) == 0) {
+                        if ((damageType & 0x100000) == 0 ||
+                            (damageType & 0x2000000) != 0) {
+                            tree = lbl_80240798[idx * 2];
+                        } else {
+                            tree = lbl_803445C0;
+                        }
+                    } else {
+                        extraFlags = 0x10000;
+                        tree = lbl_80240624;
+                    }
+                } else {
+                    extraFlags = 0x10000;
+                    tree = lbl_803445B8;
+                }
+            } else {
+                extraFlags = 0x10000;
+                tree = lbl_803445BC;
+            }
+        }
+
+        {
+        f64 c340 = lbl_80346340;
+        f64 c318 = lbl_80346318;
+        f64 c3B8 = lbl_803463B8;
+        for (i = 0; i < 5; i++) {
+            s32 fx;
+            for (j = 0; j < 5; j++) {
+                spreadB[j] = lbl_80111DE0[j];
+            }
+            for (j = 0; j < 5; j++) {
+                spreadA[j] = lbl_80111DF4[j];
+            }
+            if ((i > 0 && (damageType & 0x480000) == 0) ||
+                (i > 2 && (damageType & 0x400000) == 0)) {
+                break;
+            }
+            launchDir[1] = direction[1];
+            launchDir[0] = direction[0] * spreadB[i] +
+                           (f32)((f64)direction[2] * (f64)spreadA[i]);
+            launchDir[2] = (f32)(-(f64)direction[0] * (f64)spreadA[i] +
+                                 (f64)(direction[2] * spreadB[i]));
+            if ((player[2] == 2 || player[2] == 6) &&
+                *(s32*)((u8*)lbl_80240574 + player[0] * 0x14 + dmgLow * 4) >= 0 &&
+                !useSpecial) {
+                tree = lbl_80285018[0];
+            }
+            fx = StartMissile(player[0] + 1, pt1, launchDir, damageType, desc,
+                              tree, i, extraFlags, clamped, scale);
+            if (fx >= 0) {
+                if (!useSpecial) {
+                    s32 tw = *(s32*)((u8*)lbl_80240574 + player[0] * 0x14 +
+                                     dmgLow * 4);
+                    if (tw >= 0) {
+                        u32 fxFlags = 0x81880;
+                        s32 sub;
+                        if (dmgLow == 1) {
+                            fxFlags |= 0x800000;
+                        }
+                        if ((player[2] == 2 || player[2] == 6) && dmgLow == 0) {
+                            fxFlags |= 0x3000000;
+                        }
+                        sub = StartFXSub(tw, 0, 0, fxFlags, desc, tree, i,
+                                         extraFlags, lbl_80346328, scale);
+                        if (sub == fx) {
+                            DeleteEffect(sub, 1);
+                            fx = -1;
+                        } else if (c340 < (f64)lbl_80285C20[fx * 0x3C]) {
+                            if (sub >= 0) {
+                                lbl_80285CA0[fx * 0x78] = (s16)sub;
+                                MBNodeSetParent(*lbl_80285BD0[sub * 0x3C],
+                                                *lbl_80285BD0[fx * 0x3C]);
+                            }
+                        } else {
+                            DeleteEffect(fx, 1);
+                            DeleteEffect(sub, 1);
+                            fx = -1;
+                        }
+                    }
+                }
+                if (fx >= 0) {
+                    f32 scaleFx = lbl_80346384;
+                    if (trailFx != 0) {
+                        MBTreeSetFlags(*(s32*)((u8*)lbl_80285BCC[fx * 0x3C] +
+                                       0x78), trailFx, 2);
+                    }
+                    if (c318 < (f64)scaleArg) {
+                        scaleFx = (f32)((f64)scaleFx * (f64)scaleArg);
+                    }
+                    if (0x62 < player[0xCC9]) {
+                        scaleFx = (f32)((f64)scaleFx * c3B8);
+                    }
+                    if (c318 != (f64)scaleFx) {
+                        ScaleFX(scaleFx, scaleFx, scaleFx);
+                    }
+                }
+            }
+            lbl_80240560[i] = fx;
+        }
         }
     }
-    return primary;
 }
 
 void InitEnemyMissiles(s32 enemyType)
