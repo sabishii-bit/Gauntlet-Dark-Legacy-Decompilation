@@ -15,6 +15,7 @@
 
 #include "types.h"
 #include "game/camera.h"
+#include "game/worldinfo.h"
 
 typedef struct CameraTarget {
     s32 active;   /* +0x00 */
@@ -941,21 +942,22 @@ void calc_cam_pyr(s32 camIdx, s32 resetDelta)
     f64 dv;
     f64 dv3;
     f32 v;
+    f32 zero = lbl_80345EC8;
 
-    cam->pyr[2] = lbl_80345EC8;
+    cam->pyr[2] = zero;
     if (resetDelta != 0) {
-        cam->pyr_delta[0] = lbl_80345EC8;
-        cam->pyr_delta[1] = lbl_80345EC8;
-        cam->pyr_delta[2] = lbl_80345EC8;
+        cam->pyr_delta[0] = zero;
+        cam->pyr_delta[1] = zero;
+        cam->pyr_delta[2] = zero;
     }
-    if (lbl_8028CA90 == 0) {
+    if (gWorldInfo.wobjs == 0) {
         cam->pyr[0] = lbl_8034616C;
-        cam->pyr[1] = lbl_80345EC8;
-        cam->pyr[2] = lbl_80345EC8;
+        cam->pyr[1] = zero;
+        cam->pyr[2] = zero;
         goto apply;
     }
     if (lbl_80344544 != 0) {
-        f32 rate = (f32)(lbl_80346170 * (f64)lbl_8034457C);
+        f32 rate = (f32)(lbl_80346170 * (f64)(u32)gFrameTicks);
         f32 diff = lbl_80344530 - lbl_80344408;
         f32 step;
         if (diff < 0.0f) {
@@ -2610,12 +2612,12 @@ void ChangeWindow(void)
     s32 centerY = (s32)(lbl_80345F18 *
         (f64)(gCameraWindowTopLimit + gCameraWindowBottomLimit));
 
-    halfY = (f32)(s32)(lbl_80345F18 *
-        (f64)(gCameraWindowTopLimit - gCameraWindowBottomLimit)) *
-        gCameraWindowScaleX;
     halfX = (f32)(s32)(lbl_80345F18 *
         (f64)(gCameraWindowRightLimit - gCameraWindowLeftLimit)) *
         gCameraWindowScaleY;
+    halfY = (f32)(s32)(lbl_80345F18 *
+        (f64)(gCameraWindowTopLimit - gCameraWindowBottomLimit)) *
+        gCameraWindowScaleX;
     lbl_803444AC = (s32)((f32)centerX - halfX);
     lbl_803444B0 = (s32)((f32)centerX + halfX);
     lbl_803444B4 = (s32)((f32)centerY + halfY);
