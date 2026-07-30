@@ -158,6 +158,12 @@ extern f32 lbl_80345EC8;  /* 0.0f */
 extern f64 lbl_80345F18;  /* 0.5 (rsqrt newton) */
 extern f64 lbl_80345F20;  /* 3.0 (rsqrt newton) */
 extern s32 lbl_80344508;
+extern s32 lbl_803444F0;
+extern s32 lbl_803444EC;
+extern s32 lbl_803447B8;
+extern s32 lbl_8034453C;
+extern s32 lbl_803445D4;
+extern s32 gScriptedCameraState;
 
 /* Low-level combat services recovered in other game TUs.  K&R declarations
  * retain the original vararg/floating-register call contracts. */
@@ -251,19 +257,43 @@ void cam_orient_to(s32 camIdx, f32 yaw, f32 pitch, f32 radius)
 s32 MoveCam_walk(s32 camIdx)
 {
     Camera* cam = &gCameras[camIdx];
-    f32 dx = cam->cam_dest[0] - cam->wpos[0];
-    f32 dy = cam->cam_dest[1] - cam->wpos[1];
-    f32 dz = cam->cam_dest[2] - cam->wpos[2];
+    s32 done;
 
-    if (smallsqrt(dx * dx + dy * dy + dz * dz) > 0.01f) {
-        return 0;
+    if (lbl_803444F0 == 1) {
+        u8* p = gPlayers;
+        s32 i;
+        done = 1;
+        for (i = 0; i < 4; i++, p += 13148) {
+            if (*(s32*)(p + 232) == 1 && *(s32*)(p + 516) != 1) {
+                done = 0;
+            }
+        }
+    } else {
+        done = 1;
     }
-    cam->trans_mode = 0;
-    cam->timer = 0;
-    cam->wpos[0] = cam->cam_dest[0];
-    cam->wpos[1] = cam->cam_dest[1];
-    cam->wpos[2] = cam->cam_dest[2];
-    return 1;
+    if (done != 0) {
+        s32 oldMode = cam->a_mode;
+        lbl_803447B8 = 0;
+        lbl_803444F0 = -1;
+        lbl_803444EC = -1;
+        gScriptedCameraState = 0;
+        lbl_8034453C = 0;
+        if (cam->c_mode != 0) {
+            cam->pc_mode = cam->c_mode;
+            cam->c_mode = CAM_OFF;
+        }
+        if (cam->a_mode != oldMode) {
+            cam->pa_mode = cam->a_mode;
+            cam->a_mode = oldMode;
+        }
+        cam->state = 0;
+        if ((((gControllerButtons & cam->state) ^ cam->state) |
+             ((sFlags & 4) ^ cam->state)) != 0) {
+            lbl_803445D4 |= 4;
+            sPreviousFlags = sPreviousFlags;
+        }
+    }
+    return done == 0;
 }
 
 /* Initialize or advance the game camera's scripted transition. */
