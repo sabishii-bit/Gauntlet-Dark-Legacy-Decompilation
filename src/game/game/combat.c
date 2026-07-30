@@ -2133,31 +2133,46 @@ void InitCamera(s32 resetAll)
     for (i = 0; i < 6; i++) {
         u32* c = (u32*)&gCameras[i];
         f32* cf = (f32*)&gCameras[i];
-        s32 k;
+        f32 zero = lbl_80345EC8;
         c[0] = 0;
         CopyMat4((f32*)lbl_80127D60, cf + 1);
-        for (k = 0x11; k <= 0x2f; k++) {
-            if ((k & 3) != 0) cf[k] = lbl_80345EC8;
-        }
-        for (k = 0x47; k <= 0x61; k++) {
-            if ((k - 3) % 4 != 0) cf[k] = lbl_80345EC8;
-        }
+        cf[0x11] = zero; cf[0x12] = zero; cf[0x13] = zero;
+        cf[0x15] = zero; cf[0x16] = zero; cf[0x17] = zero;
+        cf[0x19] = zero; cf[0x1a] = zero; cf[0x1b] = zero;
+        cf[0x1d] = zero; cf[0x1e] = zero; cf[0x1f] = zero;
+        cf[0x21] = zero; cf[0x22] = zero; cf[0x23] = zero;
+        cf[0x25] = zero; cf[0x26] = zero; cf[0x27] = zero;
+        cf[0x29] = zero; cf[0x2a] = zero; cf[0x2b] = zero;
+        cf[0x2d] = zero; cf[0x2e] = zero; cf[0x2f] = zero;
+        cf[0x47] = zero; cf[0x48] = zero; cf[0x49] = zero;
+        cf[0x4b] = zero; cf[0x4c] = zero; cf[0x4d] = zero;
+        cf[0x4f] = zero; cf[0x50] = zero; cf[0x51] = zero;
+        cf[0x53] = zero; cf[0x54] = zero; cf[0x55] = zero;
+        cf[0x57] = zero; cf[0x58] = zero; cf[0x59] = zero;
+        cf[0x5b] = zero; cf[0x5c] = zero; cf[0x5d] = zero;
+        cf[0x5f] = zero; cf[0x60] = zero; cf[0x61] = zero;
+        c[0x36] = 0;
         cf[0x31] = (f32)lbl_80346200;
         c[0x32] = (u32)-1;
-        c[0x33] = 0;
-        c[0x34] = 0;
         c[0x35] = 0;
-        c[0x36] = 0;
-        cf[0x37] = lbl_80345EC8;
-        cf[0x38] = lbl_80345EC8;
-        cf[0x39] = lbl_80345EC8;
-        cf[0x3a] = lbl_80345EC8;
-        c[0x3b] = (u32)-1;
+        c[0x34] = 0;
+        c[0x33] = 0;
+        cf[0x3a] = zero;
+        cf[0x39] = zero;
+        cf[0x38] = zero;
+        cf[0x37] = zero;
         c[0x3c] = (u32)-1;
+        c[0x3b] = (u32)-1;
         c[0x3d] = 0;
-        c[0x3e] = (u32)-1;
         c[0x3f] = (u32)-1;
-        for (k = 0x40; k <= 0x46; k++) c[k] = 0;
+        c[0x3e] = (u32)-1;
+        c[0x46] = 0;
+        c[0x45] = 0;
+        c[0x44] = 0;
+        c[0x43] = 0;
+        c[0x42] = 0;
+        c[0x41] = 0;
+        c[0x40] = 0;
     }
 
     if (resetAll == 0) {
