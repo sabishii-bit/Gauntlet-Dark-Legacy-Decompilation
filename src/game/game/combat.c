@@ -832,7 +832,7 @@ void write_stage_info(s32 mode)
     f32 prev = lbl_80344410;
     u32 level;
 
-    lbl_80344410 = (f32)(lbl_80346150 * (f32)(u32)gFrameTicks + prev);
+    lbl_80344410 = (f32)(lbl_80346150 * (f64)(u32)gFrameTicks + prev);
     if (mode <= 1 || lbl_80344410 > lbl_80345F40) {
         lbl_80344410 = lbl_80346158;
     }
@@ -844,22 +844,22 @@ void write_stage_info(s32 mode)
         return;
     }
 
-    DrawTextKeepScale(-256, 48 - (s32)(lbl_80346160 * lbl_80344410), 6,
+    DrawTextKeepScale(-256, 48 - (s32)(lbl_80344410 * lbl_80346160), 6,
                       0xFFFFFF, (char*)gCurLevel + 20);
     level = *(u32*)gCurLevel;
     if ((level & 1) != 0) {
         DrawStringText(-256, 4204, -1, 0x160C03, 175, 0);
-        if (prev == lbl_80344410 && lbl_80345F40 == lbl_80344410) {
+        if (prev != lbl_80344410 && lbl_80345F40 == lbl_80344410) {
             fn_8009D300();
         }
     } else if ((level & 4) != 0) {
         DrawStringText(-256, 4204, -1, 0x160C03, 176, 0);
-        if (prev == lbl_80344410 && lbl_80345F40 == lbl_80344410) {
+        if (prev != lbl_80344410 && lbl_80345F40 == lbl_80344410) {
             fn_8009FAB4();
         }
     } else if (lbl_80344498 != 0 && sMusicTrackLo == 0) {
         DrawStringText(-256, 4204, -1, 0x160C03, 177, 0);
-        if (prev == lbl_80344410 && lbl_80345F40 == lbl_80344410) {
+        if (prev != lbl_80344410 && lbl_80345F40 == lbl_80344410) {
             fn_8009D2B4();
         }
     }
@@ -901,9 +901,9 @@ void AverageCameraTargetPosition(f32* out)
     f32 scale;
 
     if (n > 0) {
-        sum[0] = 0.0f;
-        sum[1] = 0.0f;
-        sum[2] = 0.0f;
+        sum[0] = lbl_80345EC8;
+        sum[1] = lbl_80345EC8;
+        sum[2] = lbl_80345EC8;
         off = 0;
         for (i = 0; i < n; i++) {
             f32* q = gCameraTargetPositions + off;
