@@ -145,6 +145,14 @@ extern void fn_8009D300(void);
 extern void fn_8009FAB4(void);
 extern void fn_8009D2B4(void);
 
+/* missile atree lookup */
+extern void* gWadAtreeHeaders[];
+extern char lbl_80119110[];   /* missile-name suffix table (stride 8) */
+extern char lbl_803463D4[];   /* "%s%s" */
+extern char* EnemyTypeDesc(s32 type);
+extern s32 toupper(s32 c);
+extern s32 sprintf(char* dst, const char* fmt, ...);
+
 /* Low-level combat services recovered in other game TUs.  K&R declarations
  * retain the original vararg/floating-register call contracts. */
 extern void damage_enemy();
@@ -1393,16 +1401,21 @@ s32 PlayerStartMissile(void* player, f32* direction, u32 damageType, s32 slot)
 
 void InitEnemyMissiles(s32 enemyType)
 {
+    char buf[32];
     s32 slot;
-    void* enemyTree = EnemyTypePrefix(enemyType);
 
     for (slot = 0; slot < 3; slot++) {
-        char* name = EnemyMissileDesc[enemyType * 3 + slot];
-        if (enemyTree == 0 || name == 0 || *name == '\0') {
-            gEnemyMissileTrees[enemyType][slot] = 0;
-        } else {
+        if (gWadAtreeHeaders[enemyType] != NULL) {
+            char* p;
+            sprintf(buf, lbl_803463D4, EnemyTypeDesc(enemyType),
+                    &lbl_80119110[slot * 8]);
+            for (p = buf; *p != '\0'; p++) {
+                *p = (char)toupper(*p);
+            }
             gEnemyMissileTrees[enemyType][slot] =
-                AtreeMatch(enemyTree, name, 0);
+                AtreeMatch(gWadAtreeHeaders[enemyType], buf, 0);
+        } else {
+            gEnemyMissileTrees[enemyType][slot] = NULL;
         }
     }
 }
