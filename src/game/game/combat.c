@@ -184,6 +184,13 @@ extern s32 lbl_803443F4;  /* radius-moved flag */
 extern f64 lbl_80346098;  /* radius step gain */
 extern s32 lbl_803444E4;
 extern s32 lbl_80344418;
+extern s32 gBossActive;
+extern s32 lbl_8011BCB8[];  /* exp: hit+flag */
+extern s32 lbl_8011BC30[];  /* exp: kill+flag */
+extern s32 lbl_8011BBA8[];  /* exp: hit */
+extern s32 lbl_8011BB20[];  /* exp: kill */
+extern void AddExp(s32 playerIdx, s32 exp, s32 award);
+extern s32 msgPost(s32 code, s32 player, u32 arg);
 
 /* Low-level combat services recovered in other game TUs.  K&R declarations
  * retain the original vararg/floating-register call contracts. */
@@ -1138,22 +1145,44 @@ void ClockOncePerFrame(void)
     gClockPreviousTime = sMusicFadeBase;
 }
 
-void PlayerDamagedEnemy(void* player, void* enemy, s32 enemyState,
-                        s32 damage, s32 magic, u32 flags, f32* direction)
+void PlayerDamagedEnemy(void* player, void* enemy, s32 state, s32 damage,
+                        s32 flag)
 {
-    s32 enemyType = PF(enemy, 0x00, s32);
+    s32 t;
 
-    if ((enemyType != PF(gPlayers, 0x00, s32) || gGameBusy != 0) &&
-        (enemyState == 1 || enemyState == 6)) {
-        if (enemyType == -2) {
-            enemyType = 1;
-        } else if (enemyType == -3) {
-            enemyType = 2;
-        } else if (enemyType < 0) {
-            enemyType = 0;
+    if (*(s32*)enemy == gBossType && gBossActive == 0) {
+        return;
+    }
+    if (state != 1 && state != 6) {
+        return;
+    }
+    if (damage > 0 && *(s16*)((u8*)enemy + 728) == 0) {
+        s32 c = *(s32*)((u8*)player + 2328) + 1;
+        *(s32*)((u8*)player + 2328) = c;
+        if (c >= 10 && gBossType < 0) {
+            msgPost(22, *(s32*)player, (u32)((u8*)player + 84));
         }
-        damage_enemy(PF(player, 0x00, s32), enemy, damage, magic,
-                     flags, direction, enemyType);
+    }
+
+    t = *(s32*)enemy;
+    if (t == -2) {
+        t = 1;
+    } else if (t == -3) {
+        t = 2;
+    } else if (t < 0) {
+        t = 0;
+    }
+
+    if (flag != 0) {
+        if (damage != 0) {
+            AddExp(*(s32*)player, lbl_8011BCB8[t], 1);
+        } else {
+            AddExp(*(s32*)player, lbl_8011BC30[t], 1);
+        }
+    } else if (damage != 0) {
+        AddExp(*(s32*)player, lbl_8011BBA8[t], 0);
+    } else {
+        AddExp(*(s32*)player, lbl_8011BB20[t], 0);
     }
 }
 
