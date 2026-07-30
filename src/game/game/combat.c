@@ -120,6 +120,31 @@ void* EnemyTypePrefix(s32 enemyType);
 void* AtreeMatch(void* tree, char* name, s32 required);
 void DeleteItem(void* item, s32 immediate);
 
+/* stage-info banner (combat.c title-card display) */
+extern u8* gCurLevel;
+extern s32 sMusicTrackLo;
+extern s32 lbl_80344490;
+extern s32 lbl_80344498;
+extern void* lbl_8034440C;
+extern f32 lbl_80344410;
+extern f32 lbl_80346168;
+extern f32 lbl_80345F80;
+extern f32 lbl_80346158;
+extern f64 lbl_80346150;
+extern f64 lbl_80345F50;
+extern f64 lbl_80345F40;
+extern f64 lbl_80346160;
+extern char lbl_80111B50[];
+extern s32 StringTextWidth(s32 id, s32 a, f32 scale);
+extern s32 StringTextHeight(s32 id, s32 a, s32 b, f32 scale);
+extern void* MBNewBlit(void* tex, s32 x, s32 y);
+extern void mbBlitProject(void* blit, s32 w, s32 h);
+extern void DrawTextKeepScale(s32 x, s32 y, s32 flags, u32 color, char* str);
+extern void DrawStringText(s32 x, s32 y, s32 a, u32 color, s32 id, ...);
+extern void fn_8009D300(void);
+extern void fn_8009FAB4(void);
+extern void fn_8009D2B4(void);
+
 /* Low-level combat services recovered in other game TUs.  K&R declarations
  * retain the original vararg/floating-register call contracts. */
 extern void damage_enemy();
@@ -266,38 +291,41 @@ void init_game_cam(s32 camIdx, s32 mode)
  * this translation preserves the timer and ownership transitions. */
 void write_stage_info(s32 mode)
 {
-    static s32 stageInfoMode;
-    static s32 stageInfoTimer;
+    f32 prev = lbl_80344410;
+    u32 level;
 
-    if (mode == 0) {
-        stageInfoTimer = 0;
-        stageInfoMode = 0;
+    lbl_80344410 = (f32)(lbl_80346150 * (f32)(u32)gFrameTicks + prev);
+    if (mode <= 1 || lbl_80344410 > lbl_80345F40) {
+        lbl_80344410 = lbl_80346158;
+    }
+    if (mode <= 0) {
+        if (lbl_8034440C != NULL) {
+            MBRemoveBlit((s32)lbl_8034440C);
+            lbl_8034440C = NULL;
+        }
         return;
     }
-    if (stageInfoMode != mode) {
-        stageInfoMode = mode;
-        stageInfoTimer = 0;
-    }
-    stageInfoTimer += gFrameTicks;
-    if (stageInfoTimer > 300) {
-        stageInfoMode = 0;
-        stageInfoTimer = 0;
+
+    DrawTextKeepScale(-256, 48 - (s32)(lbl_80346160 * lbl_80344410), 6,
+                      0xFFFFFF, (char*)gCurLevel + 20);
+    level = *(u32*)gCurLevel;
+    if ((level & 1) != 0) {
+        DrawStringText(-256, 4204, -1, 0x160C03, 175, 0);
+        if (prev == lbl_80344410 && lbl_80345F40 == lbl_80344410) {
+            fn_8009D300();
+        }
+    } else if ((level & 4) != 0) {
+        DrawStringText(-256, 4204, -1, 0x160C03, 176, 0);
+        if (prev == lbl_80344410 && lbl_80345F40 == lbl_80344410) {
+            fn_8009FAB4();
+        }
+    } else if (lbl_80344498 != 0 && sMusicTrackLo == 0) {
+        DrawStringText(-256, 4204, -1, 0x160C03, 177, 0);
+        if (prev == lbl_80344410 && lbl_80345F40 == lbl_80344410) {
+            fn_8009D2B4();
+        }
     }
 }
-
-extern s32 lbl_80344490;
-extern f32 lbl_80344410;
-extern f32 lbl_80346168;
-extern u8* gCurLevel;
-extern f32 lbl_80345F80;
-extern s32 sMusicTrackLo;
-extern s32 lbl_80344498;
-extern void* lbl_8034440C;
-extern char lbl_80111B50[];
-extern s32 StringTextWidth(s32 id, s32 a, f32 scale);
-extern s32 StringTextHeight(s32 id, s32 a, s32 b, f32 scale);
-extern void* MBNewBlit(void* tex, s32 x, s32 y);
-extern void mbBlitProject(void* blit, s32 w, s32 h);
 
 void init_stage_info(void)
 {
