@@ -2079,7 +2079,7 @@ void dbgTextPrintfCol();
 
 void InitCamera(s32 resetAll)
 {
-    Camera* c0 = &gCameras[0];
+    Camera* c0 = (Camera*)(gCameraState + 0xC8);
     s32 scrH = MBScreenHeight();
     s32 scrW = MBScreenWidth();
     s32 uiFov = 0x40;
