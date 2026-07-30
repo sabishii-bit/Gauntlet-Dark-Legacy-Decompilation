@@ -230,19 +230,84 @@ s32 StartMissile();
  * the destination and rate state; wrapping before the comparison is critical
  * because the shortest turn can cross +/-pi.
  */
-f32 DiffRate(f32 current, f32 target, f32 rate)
-{
-    f32 delta = FixAngle(target - current);
-    f32 step = rate * (f32)(u32)gFrameTicks;
+extern f32 lbl_8023F818, lbl_8023F81C, lbl_8023F820, lbl_8034444C;
+extern f32 lbl_80344534;
+extern s32 lbl_80344400;
+extern u32 lbl_8034457C;
+void CameraSupervisor(s32 camIdx);
 
-    if (delta > step) {
-        current += step;
-    } else if (delta < -step) {
-        current -= step;
+void DiffRate(s32 camIdx)
+{
+    Camera* cam = &gCameras[camIdx];
+    f64 prevYaw = (f32)cam->pyr[1];
+    f32 rate;
+    f64 y;
+
+    lbl_8023F820 = lbl_8023F81C;
+    lbl_8023F81C = lbl_8023F818;
+    lbl_8023F818 = cam->pyr[1];
+    CameraSupervisor(camIdx);
+    rate = lbl_8034444C * (f32)(f64)lbl_8034457C;
+
+    if (lbl_80344400 < 1 || cam->pyr[1] == lbl_80344534) {
+        if (lbl_80344400 < 0 && cam->pyr[1] != lbl_80344534) {
+            cam->pyr[1] = cam->pyr[1] - rate;
+            y = (f32)cam->pyr[1];
+            if (y <= lbl_80345F58) {
+                if (y <= lbl_80345F68) {
+                    y = lbl_80345F60 + y;
+                }
+            } else {
+                y = y - lbl_80345F60;
+            }
+            cam->pyr[1] = (f32)y;
+            y = (f32)cam->pyr[1];
+            if (y <= prevYaw) {
+                if ((f32)((f64)lbl_80344534 - y) < lbl_80345F58 &&
+                    y <= (f64)lbl_80344534) {
+                    cam->pyr[1] = lbl_80344534;
+                    lbl_80344400 = 0;
+                }
+            } else if ((f64)lbl_80344534 < prevYaw ||
+                       y <= (f64)lbl_80344534) {
+                cam->pyr[1] = lbl_80344534;
+                lbl_80344400 = 0;
+            }
+        } else {
+            cam->pyr[1] = lbl_80344534;
+            lbl_80344400 = 0;
+        }
     } else {
-        current = target;
+        cam->pyr[1] = cam->pyr[1] + rate;
+        y = (f32)cam->pyr[1];
+        if (y <= lbl_80345F58) {
+            if (y <= lbl_80345F68) {
+                y = lbl_80345F60 + y;
+            }
+        } else {
+            y = y - lbl_80345F60;
+        }
+        cam->pyr[1] = (f32)y;
+        y = (f32)cam->pyr[1];
+        if (prevYaw <= y) {
+            if ((f32)(y - (f64)lbl_80344534) < lbl_80345F58 &&
+                (f64)lbl_80344534 <= y) {
+                cam->pyr[1] = lbl_80344534;
+                lbl_80344400 = 0;
+            }
+        } else if (prevYaw < (f64)lbl_80344534 ||
+                   (f64)lbl_80344534 <= y) {
+            cam->pyr[1] = lbl_80344534;
+            lbl_80344400 = 0;
+        }
     }
-    return FixAngle(current);
+    if ((lbl_80345EC8 < cam->pyr[1] && lbl_80345EC8 < lbl_8023F81C &&
+         lbl_8023F818 < lbl_80345EC8) ||
+        (cam->pyr[1] < lbl_80345EC8 && lbl_8023F81C < lbl_80345EC8 &&
+         lbl_80345EC8 < lbl_8023F818)) {
+        cam->pyr[1] = lbl_80344534;
+        lbl_80344400 = 0;
+    }
 }
 
 /*
@@ -250,27 +315,246 @@ f32 DiffRate(f32 current, f32 target, f32 rate)
  * velocities for one camera.  The GCN implementation also applies collision
  * limits; those limits are represented by the per-axis limit vectors.
  */
+extern u8 sTriggerCameras[];
+extern f64 lbl_80346030, lbl_803460E8, lbl_803460F8, lbl_803460D8;
+extern f64 lbl_80346108, lbl_80346118;
+extern f32 lbl_8034445C, lbl_80344454, lbl_80344450, lbl_80344458;
+extern f32 lbl_80346100, lbl_80346110, lbl_80344530, lbl_80344408;
+extern f64 lbl_80345FE0;
+extern s32 lbl_80344510, lbl_8034450C, lbl_80344918, lbl_8034429C, lbl_80344404;
+
+#define TC_X(i) (*(f32*)(sTriggerCameras + (i) * 0x28 + 4))
+#define TC_Y(i) (*(f32*)(sTriggerCameras + (i) * 0x28 + 8))
+#define TC_Z(i) (*(f32*)(sTriggerCameras + (i) * 0x28 + 0xC))
+
+/*
+ * CameraSupervisor -- trigger-camera (rail) selector for camera camIdx.  Finds
+ * the two nearest active rail nodes, blends between them along the segment,
+ * and drives the target yaw/pitch and their approach rates.
+ */
 void CameraSupervisor(s32 camIdx)
 {
     Camera* cam = &gCameras[camIdx];
-    s32 i;
-    f32 step = (f32)(u32)gFrameTicks;
+    s32 prevBest = lbl_80344510;
+    s32 prevSel = lbl_80344508;
+    s32 count = 0;
+    s32 idx = 0;
+    s32 off = 0;
+    s32 n = lbl_80344918;
+    f64 d11 = lbl_80345EC8;
+    f64 d14 = lbl_80345EC8;
+    f64 d15 = lbl_80345EC8;
+    f64 d17 = lbl_80345EC8;
+    f64 d18 = lbl_80346030;
+    f64 d19 = lbl_80346030;
+    f64 d12, d13, d16;
+    f32 local_68, local_64, local_60;
+    s32 sel;
+    s32 best;
 
-    if (cam->state == 0) {
-        return;
+    if (lbl_80344918 > 0) {
+        do {
+            if (sTriggerCameras[off] == 1 &&
+                *(s16*)(sTriggerCameras + off + 2) != 0) {
+                f32 fy = cam->wpos[1] - *(f32*)(sTriggerCameras + off + 8);
+                f32 fx = cam->wpos[0] - *(f32*)(sTriggerCameras + off + 4);
+                f32 fz = cam->wpos[2] - *(f32*)(sTriggerCameras + off + 0xC);
+                d13 = fz * fz + fx * fx + fy * fy;
+                if (lbl_80345EC8 < d13) {
+                    d12 = __frsqrte(d13);
+                    d12 = lbl_80345F18 * d12 * -(d13 * d12 * d12 - lbl_80345F20);
+                    d12 = lbl_80345F18 * d12 * -(d13 * d12 * d12 - lbl_80345F20);
+                    d12 = lbl_80345F18 * d12 * -(d13 * d12 * d12 - lbl_80345F20);
+                    d13 = (f32)(d13 * lbl_80345F18 * d12 *
+                                -(d13 * d12 * d12 - lbl_80345F20));
+                }
+                if (d19 <= d13) {
+                    if (d13 < d18) {
+                        count++;
+                        d15 = *(f32*)(sTriggerCameras + off + 0x18);
+                        d11 = *(f32*)(sTriggerCameras + off + 0x14);
+                        d18 = d13;
+                        lbl_8034450C = idx;
+                    }
+                } else {
+                    count++;
+                    lbl_8034450C = lbl_80344510;
+                    d18 = d19;
+                    d11 = d14;
+                    d14 = *(f32*)(sTriggerCameras + off + 0x14);
+                    d15 = d17;
+                    d17 = *(f32*)(sTriggerCameras + off + 0x18);
+                    d19 = d13;
+                    lbl_80344510 = idx;
+                }
+            }
+            idx++;
+            off += 0x28;
+            n--;
+        } while (n != 0);
     }
-    for (i = 0; i < 3; i++) {
-        cam->wpos[i] += cam->vel[i] * step;
-        cam->pyr[i] = DiffRate(cam->pyr[i], cam->pyr[i] + cam->avel[i],
-                               cam->value);
-        cam->attn[i] += cam->delta[i] * step;
-        if (cam->limit_pos[i] != 0.0f) {
-            f32 d = cam->wpos[i] - cam->limit_pos[i];
-            if (d * cam->limit_vel[i] > 0.0f) {
-                cam->wpos[i] = cam->limit_pos[i];
-                cam->vel[i] = 0.0f;
+    best = lbl_80344510;
+    if (count == 1) {
+        lbl_8034450C = lbl_80344510;
+        d18 = d19;
+        d11 = d14;
+        d15 = d17;
+    }
+    sel = lbl_8034450C;
+    if (count != 0) {
+        d18 = (f32)(d19 + d18);
+        if (count == 1 || lbl_80345F78 == d18) {
+            lbl_8034429C = lbl_8034429C + lbl_8034457C;
+        } else {
+            f32 sx, sy, sz;
+            PointLineColl(&cam->wpos[0],
+                (f32*)(sTriggerCameras + 4 + lbl_80344510 * 0x28),
+                (f32*)(sTriggerCameras + 4 + lbl_8034450C * 0x28),
+                &local_68);
+            sz = TC_Z(best) - TC_Z(sel);
+            sx = TC_X(best) - TC_X(sel);
+            sy = TC_Y(best) - TC_Y(sel);
+            d16 = sz * sz + sx * sx + sy * sy;
+            if (lbl_80345EC8 < d16) {
+                d13 = __frsqrte(d16);
+                d13 = lbl_80345F18 * d13 * -(d16 * d13 * d13 - lbl_80345F20);
+                d13 = lbl_80345F18 * d13 * -(d16 * d13 * d13 - lbl_80345F20);
+                d13 = lbl_80345F18 * d13 * -(d16 * d13 * d13 - lbl_80345F20);
+                d16 = (f32)(d16 * lbl_80345F18 * d13 *
+                            -(d16 * d13 * d13 - lbl_80345F20));
+            }
+            sz = TC_Z(best) - local_60;
+            sx = TC_X(best) - local_68;
+            sy = TC_Y(best) - local_64;
+            d13 = sz * sz + sx * sx + sy * sy;
+            if (lbl_80345EC8 < d13) {
+                d12 = __frsqrte(d13);
+                d12 = lbl_80345F18 * d12 * -(d13 * d12 * d12 - lbl_80345F20);
+                d12 = lbl_80345F18 * d12 * -(d13 * d12 * d12 - lbl_80345F20);
+                d12 = lbl_80345F18 * d12 * -(d13 * d12 * d12 - lbl_80345F20);
+                d13 = (f32)(d13 * lbl_80345F18 * d12 *
+                            -(d13 * d12 * d12 - lbl_80345F20));
+            }
+            lbl_8034445C = (f32)(d19 / d18);
+            d18 = lbl_8034445C;
+            if (d18 < lbl_80345F28) {
+                if (lbl_80346098 <= d18) {
+                    lbl_8034445C = (f32)-(lbl_803460E8 * (d18 - lbl_80345F28) -
+                                          lbl_80345FE0);
+                }
+            } else {
+                lbl_8034445C = lbl_80345F80;
+            }
+            if (lbl_80345F18 < (f32)(d13 / d16)) {
+                lbl_80344534 = (f32)d15;
+                lbl_80344530 = (f32)d11;
+                lbl_80344508 = lbl_8034450C;
+                if (d11 <= (f64)lbl_80344408) {
+                    lbl_80344404 = -1;
+                } else {
+                    lbl_80344404 = 1;
+                }
+            } else {
+                lbl_80344534 = (f32)d17;
+                lbl_80344530 = (f32)d14;
+                lbl_80344508 = lbl_80344510;
+                if (d14 <= (f64)lbl_80344408) {
+                    lbl_80344404 = -1;
+                } else {
+                    lbl_80344404 = 1;
+                }
+            }
+            d18 = (f32)(lbl_80344534 - cam->pyr[1]);
+            if (lbl_80345F68 <= d18) {
+                if (lbl_80345F78 <= d18) {
+                    if (lbl_80345F58 <= d18) {
+                        lbl_80344400 = -1;
+                    } else {
+                        lbl_80344400 = 1;
+                    }
+                } else {
+                    lbl_80344400 = -1;
+                }
+            } else {
+                lbl_80344400 = 1;
+            }
+            if (prevSel != lbl_80344508) {
+                f32 ax, ay, az;
+                az = cam->wpos[2] - TC_Y(lbl_80344508);
+                ax = cam->wpos[0] - TC_X(lbl_80344508);
+                ay = cam->wpos[1] - TC_Z(lbl_80344508);
+                d18 = az * az + ax * ax + ay * ay;
+                if (lbl_80345EC8 < d18) {
+                    d11 = __frsqrte(d18);
+                    d11 = lbl_80345F18 * d11 * -(d18 * d11 * d11 - lbl_80345F20);
+                    d11 = lbl_80345F18 * d11 * -(d18 * d11 * d11 - lbl_80345F20);
+                    d11 = lbl_80345F18 * d11 * -(d18 * d11 * d11 - lbl_80345F20);
+                    d18 = (f32)(d18 * lbl_80345F18 * d11 *
+                                -(d18 * d11 * d11 - lbl_80345F20));
+                }
+                d18 = (f32)(d18 * lbl_803460F0);
+                if (lbl_80345F78 == d18) {
+                    lbl_8034444C = lbl_80345EC8;
+                    lbl_80344454 = lbl_80345EC8;
+                    lbl_80344450 = lbl_80345EC8;
+                    lbl_80344458 = lbl_80345EC8;
+                } else {
+                    f32 av;
+                    if (d18 < lbl_80345FE0) {
+                        d18 = lbl_80345F80;
+                    }
+                    d11 = (f32)(lbl_80344534 - cam->pyr[1]);
+                    if (lbl_80345F58 < d11) {
+                        d11 = (f32)(lbl_80345F60 - d11);
+                    }
+                    av = (f32)(d11 / d18);
+                    if (av < 0.0f) {
+                        av = -av;
+                    }
+                    lbl_8034444C = av;
+                    if (lbl_803460F8 <= lbl_8034444C) {
+                        lbl_8034444C = lbl_80346100;
+                    }
+                    d11 = lbl_80344454;
+                    av = (f32)((f64)lbl_8034444C - d11);
+                    if (av < 0.0f) {
+                        av = -av;
+                    }
+                    if (lbl_803460D8 <= av) {
+                        if (lbl_8034444C <= d11) {
+                            lbl_8034444C = (f32)(d11 - lbl_803460D8);
+                        } else {
+                            lbl_8034444C = (f32)(lbl_803460D8 + d11);
+                        }
+                    }
+                    av = (f32)((f64)(lbl_80344530 - lbl_80344408) / d18);
+                    if (av < 0.0f) {
+                        av = -av;
+                    }
+                    lbl_80344450 = av;
+                    if (lbl_80346108 <= lbl_80344450) {
+                        lbl_80344450 = lbl_80346110;
+                    }
+                    d18 = lbl_80344458;
+                    av = (f32)((f64)lbl_80344450 - d18);
+                    if (av < 0.0f) {
+                        av = -av;
+                    }
+                    if (lbl_80346118 <= av) {
+                        if (lbl_80344450 <= d18) {
+                            lbl_80344450 = (f32)(d18 - lbl_80346118);
+                        } else {
+                            lbl_80344450 = (f32)(lbl_80346118 + d18);
+                        }
+                    }
+                    lbl_80344454 = lbl_8034444C;
+                    lbl_80344458 = lbl_80344450;
+                }
             }
         }
+    }
+    if (prevBest >= 0 && prevBest == lbl_8034450C) {
+        *(s16*)(sTriggerCameras + prevBest * 0x28 + 2) = 0;
     }
 }
 
