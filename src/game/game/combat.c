@@ -1054,7 +1054,8 @@ static s32 cam_blocked(f32* wpos)
 
 void get_cam_wpos(s32 camIdx)
 {
-    Camera* cam = &gCameras[camIdx];
+    s32* camState = (s32*)gCameraState;
+    Camera* cam = (Camera*)((u8*)gCameraState + camIdx * 396 + 0xC8);
     f32* wpos = (f32*)((u8*)cam + 0x64);
     f32* attn = (f32*)((u8*)cam + 0x12C);
     f32* pyr = (f32*)((u8*)cam + 0xA4);
@@ -1067,15 +1068,15 @@ void get_cam_wpos(s32 camIdx)
     *(f32*)((u8*)cam + 0x78) = wpos[1];
     *(f32*)((u8*)cam + 0x7C) = wpos[2];
 
-    if (lbl_80344544 == 0 && lbl_803443F8 < 1) {
+    if (gNumTransmitters == 0 && lbl_803443F8 <= 0) {
         s32 mode = lbl_80344538;
         for (i = 0; i < 4; i++) {
-            lbl_8023F808[i] = 0;
+            camState[i] = 0;
         }
         for (i = 0; i < 4; i++) {
             f32 y;
             place_cam(cam, wpos, attn, pyr, mat);
-            lbl_8023F808[mode] = cam_blocked(wpos);
+            camState[mode] = cam_blocked(wpos);
             y = (f32)((f64)pyr[1] + lbl_80346180);
             if ((f64)y <= lbl_80345F58) {
                 if ((f64)y <= lbl_80345F68) y = (f32)(lbl_80345F60 + (f64)y);
@@ -1085,11 +1086,11 @@ void get_cam_wpos(s32 camIdx)
             mode = mode & 3;
             pyr[1] = y;
         }
-        if (lbl_8023F808[lbl_80344538] != 0) {
+        if (camState[lbl_80344538] != 0) {
             s32 adj = (lbl_80344538 - 1) & 3;
             s32 found = 0;
             for (i = 4; i != 0; i--) {
-                if (adj != lbl_80344538 && lbl_8023F808[adj] == 0) {
+                if (adj != lbl_80344538 && camState[adj] == 0) {
                     found = 1;
                     break;
                 }
