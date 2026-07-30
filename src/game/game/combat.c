@@ -2546,22 +2546,94 @@ void ProcCamera(s32 camIdx, s32 useRecorderPosition)
  * limits.  The debug build also printed selectable object information here;
  * clamping is the runtime-relevant part of the routine.
  */
+extern s32 lbl_803445CC;
+extern f64 lbl_803460C0, lbl_803460C8;
+void fn_800C02F4(s32 color);
+
+/*
+ * screen_limitation -- debug overlay printing camera camIdx's world position,
+ * attention, orientation, distance and its camera-/attention-mode names.  Gated
+ * by the debug flag (lbl_803445CC & 1); no effect in a normal build.
+ */
 void screen_limitation(s32 camIdx)
 {
-    Camera* cam = &gCameras[camIdx];
-    s32 i;
+    s32 c = lbl_8034453C;
+    Camera* cam = &gCameras[c];
+    f32* wpos = (f32*)((u8*)cam + 0x64);
+    f32* attn = (f32*)((u8*)cam + 0x12C);
+    s32 aMode = *(s32*)((u8*)cam + 0xF8);
+    s32 cMode = *(s32*)((u8*)cam + 0xEC);
+    s32 row;
+    f32 yaw;
+    f64 yawDeg;
+    s32 pitch;
 
-    if (cam->state == 0) {
+    if ((lbl_803445CC & 1) == 0) {
         return;
     }
-    for (i = 0; i < 3; i++) {
-        f32 limit = cam->limit_pos[i];
-        f32 range = cam->limit_vel[i];
-        if (range > 0.0f) {
-            if (cam->attn[i] < limit - range) cam->attn[i] = limit - range;
-            if (cam->attn[i] > limit + range) cam->attn[i] = limit + range;
-        }
+    row = MBScreenHeight() / 8;
+    MBScreenWidth();
+    if (row != 0x20) {
+        row -= 2;
     }
+    yaw = FixAngle((f32)(lbl_80345F60 - (f64)*(f32*)((u8*)cam + 0xA8)));
+    yawDeg = (f64)(f32)(lbl_803460B0 * lbl_803460B8 * (f64)yaw);
+    if (yawDeg < (f64)lbl_80345EC8) {
+        yawDeg = (f64)(f32)(yawDeg + lbl_803460C0);
+    }
+    if (lbl_803460C8 < yawDeg) {
+        yawDeg = (f64)lbl_80345EC8;
+    }
+    pitch = (s32)(lbl_803460B0 * lbl_803460B8 * (f64)*(f32*)((u8*)cam + 0xA4));
+    fn_800C02F4(0xFF00);
+    dbgTextPrintfCol(wpos[0], wpos[1], wpos[2], 1, row - 0xC,
+                     "CAM %2f/%2f/%2f", wpos[0], wpos[1], wpos[2]);
+    dbgTextPrintfCol(attn[0], attn[1], attn[2], 1, row - 0xB,
+                     "ATN %2f/%2f/%2f", attn[0], attn[1], attn[2]);
+    dbgTextPrintfCol(yawDeg, *(f32*)((u8*)cam + 0xA8), attn[2], 1, row - 0xA,
+                     "YAW %1f/%2f", yawDeg);
+    dbgTextPrintfCol(lbl_803460B8, lbl_803460B0, attn[2], 1, row - 9,
+                     "PITCH %d", pitch);
+    dbgTextPrintfCol(*(f32*)((u8*)cam + 0xC4), lbl_803460B0, attn[2], 1, row - 8,
+                     "DISTANCE %2f", *(f32*)((u8*)cam + 0xC4));
+    switch (cMode) {
+    case 0:  dbgTextPrintfCol(0, 0, 0, 5, row - 7, "OFF"); break;
+    case 1:  dbgTextPrintfCol(0, 0, 0, 5, row - 7, "FREE"); break;
+    case 2:  dbgTextPrintfCol(0, 0, 0, 5, row - 7, "LOCK"); break;
+    case 3:  dbgTextPrintfCol(0, 0, 0, 5, row - 7, "GAME"); break;
+    case 4:  dbgTextPrintfCol(0, 0, 0, 5, row - 7, "TETHER"); break;
+    case 5:  dbgTextPrintfCol(0, 0, 0, 5, row - 7, "VECDIST"); break;
+    case 6:  dbgTextPrintfCol(0, 0, 0, 5, row - 7, "POINT"); break;
+    case 7:  dbgTextPrintfCol(0, 0, 0, 5, row - 7, "DRAGON"); break;
+    case 8:  dbgTextPrintfCol(0, 0, 0, 5, row - 7, "CHIMERA"); break;
+    case 9:  dbgTextPrintfCol(0, 0, 0, 5, row - 7, "GENIE"); break;
+    case 10: dbgTextPrintfCol(0, 0, 0, 5, row - 7, "DRIDER"); break;
+    case 11: dbgTextPrintfCol(0, 0, 0, 5, row - 7, "DEMON"); break;
+    case 12: dbgTextPrintfCol(0, 0, 0, 5, row - 7, "BOSS"); break;
+    default: dbgTextPrintfCol(0, 0, 0, 5, row - 7, "UNKNOWN"); break;
+    }
+    switch (aMode) {
+    case 0:  dbgTextPrintfCol(0, 0, 0, 0x12, row - 7, "FREE"); break;
+    case 1:  dbgTextPrintfCol(0, 0, 0, 0x12, row - 7, "LOCK"); break;
+    case 2:  dbgTextPrintfCol(0, 0, 0, 0x12, row - 7, "TARGET"); break;
+    case 3:  dbgTextPrintfCol(0, 0, 0, 0x12, row - 7, "OBJECT"); break;
+    case 4:  dbgTextPrintfCol(0, 0, 0, 0x12, row - 7, "POINT"); break;
+    case 5:  dbgTextPrintfCol(0, 0, 0, 0x12, row - 7, "PLAYER %02X",
+                              *(s32*)((u8*)cam + 0x104)); break;
+    case 6:  dbgTextPrintfCol(0, 0, 0, 0x12, row - 7, "ENEMY %02X",
+                              *(s32*)((u8*)cam + 0x108)); break;
+    case 7:  dbgTextPrintfCol(0, 0, 0, 0x12, row - 7, "ITEM %02X",
+                              *(s32*)((u8*)cam + 0x10C)); break;
+    case 8:  dbgTextPrintfCol(0, 0, 0, 0x12, row - 7, "MILESTONE %02X",
+                              *(s32*)((u8*)cam + 0x110)); break;
+    case 9:  dbgTextPrintfCol(0, 0, 0, 0x12, row - 7, "LOOKOUT %02X",
+                              *(s32*)((u8*)cam + 0x114)); break;
+    case 10: dbgTextPrintfCol(0, 0, 0, 0x12, row - 7, "CAMERA %02X",
+                              *(s32*)((u8*)cam + 0x118)); break;
+    default: dbgTextPrintfCol(0, 0, 0, 0x12, row - 7, "UNKNOWN"); break;
+    }
+    dbgTextPrintfCol(0, 0, 0, 1, row - 6, "MODE %d", *(s32*)((u8*)cam + 0xD0));
+    fn_800C02F4(-1);
 }
 
 void ResetClock(void)
