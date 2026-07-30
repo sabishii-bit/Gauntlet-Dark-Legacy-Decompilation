@@ -1016,23 +1016,154 @@ apply:
  * and last-good-position fallback makes this usable by a native port even
  * before the world-collision adapter is available.
  */
-void get_cam_wpos(s32 camIdx, f32* out)
+extern s32 lbl_8023F808[], lbl_803443F8;
+extern f64 lbl_80346180;
+extern f32 lbl_80346188;
+s32 CameraCollide(f32* pos, f32* obj);
+
+/* Place the camera radially behind its attention point, rotating yaw to a
+ * clear angle and lifting pitch until no tracked target blocks the view. */
+static void place_cam(Camera* cam, f32* wpos, f32* attn, f32* pyr, f32* mat)
+{
+    f32 in[3];
+    f32 out[3];
+    CreateYPRMatrix(mat, pyr);
+    in[0] = lbl_80345EC8;
+    in[1] = lbl_80345EC8;
+    in[2] = cam->radius;
+    WorldVector(in, out, mat);
+    wpos[0] = attn[0] + out[0];
+    wpos[1] = attn[1] + out[1];
+    wpos[2] = attn[2] + out[2];
+}
+
+static s32 cam_blocked(f32* wpos)
+{
+    s32 j;
+    for (j = 0; j < 15; j++) {
+        CameraTarget* t = &gCameraTargets[j];
+        if (t->active > 0 && CameraCollide(wpos, (f32*)(t->object + 0x40))) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void get_cam_wpos(s32 camIdx)
 {
     Camera* cam = &gCameras[camIdx];
-    f32 pitch = cam->pyr[0];
-    f32 yaw = cam->pyr[1];
-    f32 cp = (f32)cos(pitch);
-    f32 candidate[3];
+    f32* wpos = (f32*)((u8*)cam + 0x64);
+    f32* attn = (f32*)((u8*)cam + 0x12C);
+    f32* pyr = (f32*)((u8*)cam + 0xA4);
+    f32* pyrDelta = (f32*)((u8*)cam + 0xB4);
+    s32* timer = (s32*)((u8*)cam + 0xCC);
+    f32 mat[18];
     s32 i;
 
-    candidate[0] = cam->attn[0] - cam->radius * (f32)sin(yaw) * cp;
-    candidate[1] = cam->attn[1] + cam->radius * (f32)sin(pitch);
-    candidate[2] = cam->attn[2] - cam->radius * (f32)cos(yaw) * cp;
-    for (i = 0; i < 3; i++) {
-        if (candidate[i] == candidate[i]) {
-            out[i] = candidate[i];
-        } else {
-            out[i] = cam->old_wpos[i];
+    *(f32*)((u8*)cam + 0x74) = wpos[0];
+    *(f32*)((u8*)cam + 0x78) = wpos[1];
+    *(f32*)((u8*)cam + 0x7C) = wpos[2];
+
+    if (lbl_80344544 == 0 && lbl_803443F8 < 1) {
+        s32 mode = lbl_80344538;
+        for (i = 0; i < 4; i++) {
+            lbl_8023F808[i] = 0;
+        }
+        for (i = 0; i < 4; i++) {
+            f32 y;
+            place_cam(cam, wpos, attn, pyr, mat);
+            lbl_8023F808[mode] = cam_blocked(wpos);
+            y = (f32)((f64)pyr[1] + lbl_80346180);
+            if ((f64)y <= lbl_80345F58) {
+                if ((f64)y <= lbl_80345F68) y = (f32)(lbl_80345F60 + (f64)y);
+            } else {
+                y = (f32)((f64)y - lbl_80345F60);
+            }
+            mode = mode & 3;
+            pyr[1] = y;
+        }
+        if (lbl_8023F808[lbl_80344538] != 0) {
+            s32 adj = (lbl_80344538 - 1) & 3;
+            s32 found = 0;
+            for (i = 4; i != 0; i--) {
+                if (adj != lbl_80344538 && lbl_8023F808[adj] == 0) {
+                    found = 1;
+                    break;
+                }
+            }
+            if (found) {
+                s32 delta = adj - lbl_80344538;
+                lbl_803447BC = 1;
+                lbl_80344400 = (delta == 1 || delta == -3) ? 1 : -1;
+                lbl_80344534 = lbl_80118B60[lbl_80344538];
+                lbl_80344538 = (lbl_80344538 + lbl_80344400) & 3;
+                lbl_803443F8 = (delta == 2 || delta == -2) ? 0 : 0x168;
+            }
+        }
+    }
+
+    place_cam(cam, wpos, attn, pyr, mat);
+
+    if (lbl_80344544 == 0) {
+        if (cam_blocked(wpos)) {
+            *timer = *timer + lbl_8034457C;
+            if (*timer > 0xB4) {
+                *timer = 0xB4;
+            }
+            if (lbl_80344404 < 1) {
+                if (lbl_80346188 <= pyr[0]) {
+                    *pyrDelta = (f32)((f64)*pyrDelta - lbl_80346188);
+                    pyr[0] = (f32)((f64)pyr[0] - lbl_80346188);
+                    place_cam(cam, wpos, attn, pyr, mat);
+                }
+            } else {
+                if ((f64)pyr[0] <= lbl_80346178 - lbl_80346188) {
+                    *pyrDelta = (f32)((f64)*pyrDelta + lbl_80346188);
+                    pyr[0] = (f32)((f64)pyr[0] + lbl_80346188);
+                    place_cam(cam, wpos, attn, pyr, mat);
+                }
+            }
+        } else if (*timer >= 0) {
+            f32 savedW0 = wpos[0], savedW1 = wpos[1], savedW2 = wpos[2];
+            f32 savedD = *pyrDelta;
+            *timer = *timer - lbl_8034457C;
+            if (*timer < 0) {
+                if (lbl_80344404 < 1) {
+                    if (lbl_80345F78 <= (f64)*pyrDelta) {
+                        *pyrDelta = lbl_80345EC8;
+                    } else {
+                        *pyrDelta = (f32)((f64)*pyrDelta + lbl_80346188);
+                        if (lbl_80345F78 < (f64)*pyrDelta) {
+                            *pyrDelta = lbl_80345EC8;
+                        }
+                        pyr[0] = (f32)((f64)pyr[0] + lbl_80346188);
+                        place_cam(cam, wpos, attn, pyr, mat);
+                        if (cam_blocked(wpos)) {
+                            *pyrDelta = savedD;
+                            wpos[0] = savedW0;
+                            wpos[1] = savedW1;
+                            wpos[2] = savedW2;
+                        }
+                    }
+                } else {
+                    if ((f64)*pyrDelta <= lbl_80345F78) {
+                        *pyrDelta = lbl_80345EC8;
+                    } else {
+                        *pyrDelta = (f32)((f64)*pyrDelta - lbl_80346188);
+                        if ((f64)*pyrDelta < lbl_80345F78) {
+                            *pyrDelta = lbl_80345EC8;
+                        }
+                        pyr[0] = (f32)((f64)pyr[0] - lbl_80346188);
+                        place_cam(cam, wpos, attn, pyr, mat);
+                        if (cam_blocked(wpos)) {
+                            *pyrDelta = savedD;
+                            wpos[0] = savedW0;
+                            wpos[1] = savedW1;
+                            wpos[2] = savedW2;
+                        }
+                    }
+                }
+            }
         }
     }
 }
