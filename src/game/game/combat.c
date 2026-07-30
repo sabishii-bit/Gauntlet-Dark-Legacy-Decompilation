@@ -2312,9 +2312,25 @@ void InitCamera(s32 resetAll)
                         (f32)((f64)v[2] * (f64)c0->radius + (f64)*(f32*)((u8*)c0 + 0x134));
                     c0->state = 1;
                     lbl_80344420 = 0x708;
-                } else {
-                    /* checkpoint / boss variants set the game camera through the
-                     * standard supervisor path */
+                } else if (lbl_8034441C < 0 || lbl_8034441C > 1) {
+                    f32 saveW[3];
+                    f32 saveA[3];
+                    f32 d[3];
+                    c0->wpos[0] = *(f32*)(lbl_80344910 + 4);
+                    c0->wpos[1] = *(f32*)(lbl_80344910 + 8);
+                    c0->wpos[2] = *(f32*)(lbl_80344910 + 0xC);
+                    *(f32*)((u8*)c0 + 0xA4) = *(f32*)(lbl_80344910 + 0x14);
+                    *(f32*)((u8*)c0 + 0xA8) = *(f32*)(lbl_80344910 + 0x18);
+                    *(f32*)((u8*)c0 + 0xAC) = *(f32*)(lbl_80344910 + 0x1C);
+                    CreateYPRMatrix(mat, (f32*)((u8*)c0 + 0xA4));
+                    c0->radius = lbl_80346148;
+                    in[0] = lbl_80345EC8;
+                    in[1] = lbl_80345EC8;
+                    in[2] = lbl_80346148;
+                    WorldVector(in, out, mat);
+                    *(f32*)((u8*)c0 + 0x12C) = c0->wpos[0] + out[0];
+                    *(f32*)((u8*)c0 + 0x130) = c0->wpos[1] + out[1];
+                    *(f32*)((u8*)c0 + 0x134) = c0->wpos[2] + out[2];
                     if (*(s32*)((u8*)c0 + 0xEC) != 2) {
                         *(s32*)((u8*)c0 + 0xF0) = *(s32*)((u8*)c0 + 0xEC);
                         *(s32*)((u8*)c0 + 0xEC) = 2;
@@ -2323,10 +2339,93 @@ void InitCamera(s32 resetAll)
                         *(s32*)((u8*)c0 + 0xFC) = *(s32*)((u8*)c0 + 0xF8);
                         *(s32*)((u8*)c0 + 0xF8) = 1;
                     }
-                    c0->radius = lbl_80346258;
-                    c0->state = 1;
+                    *(s32*)((u8*)c0 + 0xC8) = 0;
+                    saveW[0] = c0->wpos[0];
+                    saveW[1] = c0->wpos[1];
+                    saveW[2] = c0->wpos[2];
+                    saveA[0] = *(f32*)((u8*)c0 + 0x12C);
+                    saveA[1] = *(f32*)((u8*)c0 + 0x130);
+                    saveA[2] = *(f32*)((u8*)c0 + 0x134);
                     StandardCamera(0);
+                    fn_80027608(saveW, saveA);
+                    d[0] = saveA[0] - saveW[0];
+                    d[1] = saveA[1] - saveW[1];
+                    d[2] = saveA[2] - saveW[2];
+                    fn_80022824(d, lbl_8023F8D4);
+                    c0->state = 1;
+                    lbl_80344428 = lbl_80345EC8;
+                    lbl_80344424 = lbl_80345EC8;
+                    lbl_80344438 = lbl_80345EC8;
+                    lbl_80344434 = lbl_80345EC8;
+                    lbl_80344454 = lbl_80345EC8;
+                    lbl_8034444C = lbl_80345EC8;
+                    lbl_80344458 = lbl_80345EC8;
+                    lbl_80344450 = lbl_80345EC8;
                     CameraSupervisor(0);
+                    if (lbl_80344510 != lbl_8034450C) {
+                        f64 dv;
+                        f32 fa;
+                        lbl_80344444 = fn_8002C8A8(c0->wpos,
+                            &lbl_80258E08[lbl_8034450C * 10]);
+                        lbl_80344448 = fn_8002C7CC();
+                        fa = FixAngle((f32)(lbl_80345F60 - (f64)lbl_80344448));
+                        dv = (f64)(f32)(lbl_803460B0 * lbl_803460B8 * (f64)fa);
+                        if (dv < (f64)lbl_80345EC8) {
+                            dv = (f64)(f32)(dv + lbl_803460C0);
+                        }
+                        if (lbl_803460C8 < dv) {
+                            dv = (f64)lbl_80345EC8;
+                        }
+                        if (lbl_80344A28 == 0) {
+                            s32 py = (s32)(lbl_803460B0 * lbl_803460B8 *
+                                           (f64)lbl_80344444);
+                            dbgTextPrintfCol(dv, lbl_803460B8, lbl_803460B0, 2, 3,
+                                "DEST P=%d Y=%4.1f", py);
+                        }
+                    }
+                    lbl_8034442C = lbl_80344444;
+                    lbl_80344430 = lbl_80344448;
+                    lbl_80344530 = *(f32*)((u8*)c0 + 0xA4);
+                    lbl_8034443C = *(f32*)((u8*)c0 + 0xA4);
+                    lbl_80344440 = *(f32*)((u8*)c0 + 0xA8);
+                    lbl_80344408 = *(f32*)((u8*)c0 + 0xA4);
+                } else {
+                    f32 d[3];
+                    if (*(s32*)((u8*)c0 + 0xEC) != 2) {
+                        *(s32*)((u8*)c0 + 0xF0) = *(s32*)((u8*)c0 + 0xEC);
+                        *(s32*)((u8*)c0 + 0xEC) = 2;
+                    }
+                    if (*(s32*)((u8*)c0 + 0xF8) != 1) {
+                        *(s32*)((u8*)c0 + 0xFC) = *(s32*)((u8*)c0 + 0xF8);
+                        *(s32*)((u8*)c0 + 0xF8) = 1;
+                    }
+                    c0->wpos[0] = lbl_8028CAC8;
+                    c0->wpos[2] = lbl_8028CAD0;
+                    c0->wpos[1] = (f32)(lbl_80346250 + (f64)lbl_802757D8);
+                    c0->radius = lbl_80346258;
+                    *(f32*)((u8*)c0 + 0xA4) = *(f32*)(hdr + 0x28);
+                    *(f32*)((u8*)c0 + 0xA8) = lbl_80345EC8;
+                    *(f32*)((u8*)c0 + 0xAC) = lbl_80345EC8;
+                    CreateYPRMatrix(mat, (f32*)((u8*)c0 + 0xA4));
+                    in[0] = lbl_80345EC8;
+                    in[1] = lbl_80345EC8;
+                    in[2] = c0->radius;
+                    WorldVector(in, out, mat);
+                    *(f32*)((u8*)c0 + 0x12C) = c0->wpos[0] + out[0];
+                    *(f32*)((u8*)c0 + 0x130) = c0->wpos[1] + out[1];
+                    *(f32*)((u8*)c0 + 0x134) = c0->wpos[2] + out[2];
+                    d[0] = *(f32*)((u8*)c0 + 0x12C) - c0->wpos[0];
+                    d[1] = *(f32*)((u8*)c0 + 0x130) - c0->wpos[1];
+                    d[2] = *(f32*)((u8*)c0 + 0x134) - c0->wpos[2];
+                    NormalVector(d);
+                    *(f32*)((u8*)c0 + 0x12C) =
+                        (f32)((f64)d[0] * (f64)c0->radius + (f64)c0->wpos[0]);
+                    *(f32*)((u8*)c0 + 0x130) =
+                        (f32)((f64)d[1] * (f64)c0->radius + (f64)c0->wpos[1]);
+                    *(f32*)((u8*)c0 + 0x134) =
+                        (f32)((f64)d[2] * (f64)c0->radius + (f64)c0->wpos[2]);
+                    c0->state = 1;
+                    lbl_80344420 = 0x5DC;
                 }
             } else {
                 if (*(s32*)((u8*)c0 + 0xEC) != 2) {
