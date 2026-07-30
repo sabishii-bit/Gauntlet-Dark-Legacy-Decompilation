@@ -11,8 +11,8 @@ metadata:
 Verified exact functions from the first implementation batch:
 
 - `CritterAwardExp` (`fn_80036740` before the PDB rename)
-- `fn_80037D44`
-- `fn_80037E80`
+- `CritterNoHit` (`fn_80037D44` before the PDB rename)
+- `CritterNoHitSub` (`fn_80037E80` before the PDB rename)
 - `fn_80037ED0`
 - `CritterLoadFile`
 
@@ -20,7 +20,7 @@ Reusable findings:
 
 1. A scalar global loaded on every loop iteration in the target may need a TU-local
    `volatile` declaration. Declaring `sMusicFadeBase` as `extern volatile f32`
-   prevented LICM and made `fn_80037E80` exact.
+   prevented LICM and made `CritterNoHitSub` exact.
 2. When the target emits both a standalone helper and multiple inlined copies, define
    a `static inline` implementation for callers but retain a direct standalone body.
    A wrapper that only returns the inline helper can perturb the standalone function's
@@ -72,6 +72,11 @@ High-confidence Xbox-PDB/Ghidra symbol cleanup from this pass:
 - `fn_8003DE70` -> `CritterDoParticle`
 - `fn_8003FF98` -> `CritterInitSfx`
 - `0x8003DC64`, previously mislabeled `CritterDoParticle`, -> `CritterDoSfxSub`
+- `fn_80037D34` -> `CritterCollideStart`
+- `fn_80037D44` -> `CritterNoHit`
+- `fn_80037E80` -> `CritterNoHitSub`
+- `fn_8003B1CC` -> `CritterMoveSetup`
+- `fn_8003C8D4` -> `CritterGetDmove`
 
 Near-match status:
 
@@ -145,7 +150,8 @@ New fully translated near matches:
 - `CritterLookForCriticalMove` (formerly `fn_8003BAFC`) is 75/75
   opcode-identical; applying the reverse-declaration rule reduced the remaining
   nonvolatile GPR rotation from 28 to 24 real lines.
-- `fn_8003B1CC` is fully translated and one branch-shape instruction away from
+- `CritterMoveSetup` (`fn_8003B1CC`) is fully translated and one
+  branch-shape instruction away from
   the 77-instruction retail body.
 - `CritterProcessSafeRocks` is fully translated at 63/63 instructions; only three
   address-canonicalization sites remain (12 real diff lines).
@@ -153,3 +159,40 @@ New fully translated near matches:
   201/201-instruction body and typed 0x50-byte `CritterPattern` records. Three
   second-loop initialization instructions remain structurally different; the
   rest of its residual is nonvolatile register coloring.
+
+## Full-stub recovery pass (2026-07-29)
+
+20. The Ghidra MCP REST endpoint can return a whole decompilation when the normal
+    tool result is too large to iterate comfortably:
+    `http://127.0.0.1:8089/decompile_function?address=0x...&program=main.dol`.
+    Keep the address explicit and verify the recovered function against
+    `tools/gdl/fnasm.py`/`fndiff.py`; Ghidra frequently mistakes a floating return
+    for `void` around MWCC `_savefpr_*` prologues.
+21. Rename a recovered function and every typed call site in the same change.
+    Leaving `CritterLookForReady` calling the obsolete undeclared
+    `fn_800372A0` made MWCC insert an integer-to-float conversion and regressed an
+    exact 87-instruction function to 94 instructions. Calling the mapped
+    `CritterCalcTarget` prototype restored the exact body.
+22. Xbox symbol names are best assigned by combining behavior and relative size,
+    not object order. Xbox and GameCube CRITTER.OBJ arrange several large regions
+    in opposite order. For example, GC `0x80036B5C` rescans a populated target
+    record (`CritterReCalcTarget`), while `0x800372A0` builds and scores a target
+    record (`CritterCalcTarget`).
+23. For serialized WAD headers, first express endian conversion as loops over
+    record arrays and typed-width field swaps. This gives a reviewable native
+    translation even though the retail GameCube compiler unrolled much of the
+    conversion. Be especially careful at mixed-width boundaries: the damage
+    record has `u32` fields only through `0x3C`, followed by `u16` fields at
+    `0x40..0x46`.
+24. Never pass the address of adjacent scalar locals to a vector helper. MWCC may
+    place them in a different order, and native C does not guarantee adjacency.
+    `CritterCollidePlayers` uses an explicit three-float separation vector before
+    calling `NormalVector2D`.
+
+The full recovery pass replaced every remaining empty CRITTER.OBJ skeleton with a
+compiling behavioral translation and mapped the high-confidence Xbox names for
+collision, target selection, movement collision, action/animation, instance, and
+loader functions. `fndiff.py --classify` reports no target-only functions. The TU
+must remain `NonMatching`: most recovered bodies still need ordinary compiler-match
+iteration, but there are no longer missing C implementations blocking native-port
+work.
