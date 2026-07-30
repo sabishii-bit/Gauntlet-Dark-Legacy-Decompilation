@@ -576,8 +576,7 @@ void CameraSupervisor(s32 camIdx)
  * radius, snap the look-at to camera 0's, then rebuild its world position. */
 void cam_orient_to(s32 camIdx)
 {
-    Camera* cam = &gCameras[camIdx];
-    f32 yaw;
+    Camera* cam = (Camera*)((u8*)gCameraState + camIdx * 396 + 0xC8);
     f32 vec[3];
     f32 out[3];
     f32 mat[16];
@@ -587,13 +586,16 @@ void cam_orient_to(s32 camIdx)
         return;
     }
 
-    yaw = (f32)(cam->pyr[1] + lbl_80346128);
-    if (yaw > lbl_80345F58) {
-        yaw = (f32)(yaw - lbl_80345F60);
-    } else if (yaw <= lbl_80345F68) {
-        yaw = (f32)(lbl_80345F60 + yaw);
+    cam->pyr[1] = (f32)(cam->pyr[1] + lbl_80346128);
+    {
+        f32 yaw = cam->pyr[1];
+        if (yaw > lbl_80345F58) {
+            yaw = (f32)(yaw - lbl_80345F60);
+        } else if (yaw <= lbl_80345F68) {
+            yaw = (f32)(lbl_80345F60 + yaw);
+        }
+        cam->pyr[1] = yaw;
     }
-    cam->pyr[1] = yaw;
 
     cam->radius = (f32)(cam->radius / lbl_80346130);
     if (cam->radius < lbl_803460D0) {
@@ -1305,7 +1307,7 @@ s32 adjust_radius(s32 camIdx)
     f32 ad;
     f32 step;
 
-    if (desired == lbl_80345F78) {
+    if (lbl_80345F78 == desired) {
         return 0;
     }
     val = desired;
@@ -1796,6 +1798,9 @@ f32 get_yaw(f32* to, f32* from)
     return FixAngle(angle);
 }
 
+extern f64 lbl_80345EB8;  /* 0.001 */
+extern f32 lbl_80346120;  /* 0.001f */
+
 f32 get_pitch(f32* a, f32* b)
 {
     f32 dz = a[2] - b[2];
@@ -1810,22 +1815,22 @@ f32 get_pitch(f32* a, f32* b)
         u32 i;
     } u;
 
-    if (len > 0.0f) {
+    if (len > lbl_80345EC8) {
         f64 guess = __frsqrte(len);
-        guess = 0.5 * guess * (3.0 - len * guess * guess);
-        guess = 0.5 * guess * (3.0 - len * guess * guess);
-        guess = 0.5 * guess * (3.0 - len * guess * guess);
-        root = (f32)(len * (0.5 * guess * (3.0 - len * guess * guess)));
+        guess = lbl_80345F18 * guess * (lbl_80345F20 - len * guess * guess);
+        guess = lbl_80345F18 * guess * (lbl_80345F20 - len * guess * guess);
+        guess = lbl_80345F18 * guess * (lbl_80345F20 - len * guess * guess);
+        root = (f32)(len * (lbl_80345F18 * guess * (lbl_80345F20 - len * guess * guess)));
         len = root;
     }
     dist = len;
-    if (len <= 0.001) {
-        dist = 0.001f;
+    if (len <= lbl_80345EB8) {
+        dist = lbl_80346120;
     }
     u.f = dy;
     u.i &= 0x7FFFFFFF;
     ang = atan2(u.f, dist);
-    if (dy >= 0.0) {
+    if (dy >= lbl_80345F78) {
         ang = -ang;
     }
     return FixAngle((f32)ang);
