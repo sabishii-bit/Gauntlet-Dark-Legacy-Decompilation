@@ -19,13 +19,13 @@ typedef struct MsgDesc {
 
 typedef struct World {
     /* 0x0000 */ char _pad0[4];
-    /* 0x0004 */ int f4;
+    /* 0x0004 */ int class_id;
     /* 0x0008 */ char _pad8[4];
-    /* 0x000C */ int fC;
+    /* 0x000C */ int character;
     /* 0x0010 */ char _pad10[0xD8];
     /* 0x00E8 */ int state;
     /* 0x00EC */ char _padEC[0x38];
-    /* 0x0124 */ int f124;
+    /* 0x0124 */ int flags;
     /* 0x0128 */ char _pad128[0x1C8C];
     /* 0x1DB4 */ u8 items[0x15A8];
 } World;
@@ -38,7 +38,7 @@ extern short gJumpTab120240[];          /* lbl_80120240 */
 /* small-data (sda/sbss) globals */
 extern int gCurWorld;
 extern int lbl_803443E8;
-extern int g77C;                        /* gGameMode */
+extern int gGameMode;
 extern int gGameBusy;
 extern int gFrameTicks;
 extern int gGameplayPauseTimer;
@@ -50,32 +50,43 @@ extern int options_state;
 extern int gMessageState;
 extern int gMessageDelayIndex;
 extern int gMessageDelay;
-extern int gCA8;                        /* lbl_80344CA8 */
-extern int gCAC;                        /* lbl_80344CAC */
-extern int gCB0;                        /* lbl_80344CB0 */
-extern int gCB4;                        /* lbl_80344CB4 */
-extern int gCB8;                        /* lbl_80344CB8 */
-extern int gCC0;                        /* lbl_80344CC0 */
+extern int gMessageValue;
+extern int gMessageTextArg;
+extern int gMessageFontFlags;
+extern int gMessageCenterY;
+extern int gMessageCenterX;
+extern int gCurrentMessage;
 extern int gMessageActive;
 extern int gMsgDescCount;
 extern int gMessageTimer;
-extern int g298;                        /* lbl_80344298 */
+extern int lbl_80344298;
+extern int gControllerButtons;
+extern int sFlags;
 
 /* --- text library --- */
-int  StringTextHeight(int a, int b, int c);
-int  StringTextWidth(int a, int b, float scale);
-int  DrawStringTextMLines(int a, int b, int c, int d, int e, int f, int g, int h, int i);
-int  DrawStringTextMulti(int a, int b, int c, int d, int e, int f);
-int  DrawStringText(int a, int b, int c, int d, int e, int f, int g, int h);
-int  RestoreDrawStringScale(void);
-int  SetDrawStringScale(void);
-int  GetStringListText(int a, int b, int c, int d);
+int  StringTextNum(int text);
+int  StringTextHeight(float scale, int text, int param, int lines);
+int  StringTextWidth(float scale, int text, int param);
+void DrawStringTextMLines(int x, int y, int flags, int color, int lines,
+                          int text, ...);
+void DrawStringTextMulti(int x, int y, int flags, int color, int lines,
+                         int text);
+int  DrawStringText(int x, int y, int flags, int color, int text, int param,
+                    ...);
+float RestoreDrawStringScale(void);
+float SetDrawStringScale(float scale);
+char* GetStringListText(int a, int b, int c, u32* d);
 int  GetStringListMsg(int a, int b);
-int  GetStringText(int a, int b, int* c);
-int  MBSetFontFlags(int a);
+char* GetStringText(int a, int b, u32* c);
+u32  MBSetFontFlags(u32 a);
 void mbBlitInit3414(void* box, int flag);
 void MBRemoveBlit(void* box);
-void get_screen_pos(int a, int* b, int* c, int d);
+void* MBNewBlit(char* name, int x, int y);
+void mbBlitProject(void* box, int width, int height);
+void MBBlitSetAlpha(void* box, int alpha);
+void get_screen_pos(int camera, int* x, int* y, void* position);
+void fn_8009CD80(int player, int value, int count);
+void fn_8009CB44(int player, u32 flags, int arg);
 
 /* --- forward decls (address order) --- */
 void msgUpdate(void);
@@ -422,19 +433,306 @@ void msgUpdate(void)
     gMessageState = 0;
 }
 
-/* msgPost - TODO: priority-insert / validation body (~387 insns).
- * Validates a message vs its descriptor + world state (via msgWorldFlags),
- * then inserts it into gMsgBoxes[] by priority. Stubbed for now. */
-int msgPost(int idx, int param, char* str)
+/* Validate, place, and activate one descriptor-table message. */
+int msgPost(int idx, int param, char* position)
 {
-    (void)idx; (void)param; (void)str;
-    return 0;
+    MsgDesc* desc;
+    int originalParam = param;
+    int fontIndex;
+    int lineCount;
+    int width;
+    int height;
+    int left;
+    int top;
+    int centerX;
+    int centerY;
+    int worldFlags;
+    int duration;
+    int category;
+    int first;
+    int last;
+    int count;
+    int stride;
+    int i;
+
+    if (idx < 0 || idx >= gMsgDescCount) {
+        return 0;
+    }
+    desc = &gMsgDescTable[idx];
+    if (desc->type < 0 || gTriggerCameraState != 0) {
+        return 0;
+    }
+
+    category = desc->category;
+    if (category == 2) {
+        if (msgWorldFlags(idx, param) != 0) {
+            return 0;
+        }
+    } else if (category == 1) {
+        if ((msgWorldFlags(idx, -1) & 0xF) != 0) {
+            return 0;
+        }
+    } else if (category != 0) {
+        if ((msgWorldFlags(idx, -1) & 0x100) != 0) {
+            return 0;
+        }
+    }
+
+    if (gMessageActive != 0 &&
+        desc->priority <= gMsgDescTable[gCurrentMessage].priority) {
+        return 0;
+    }
+    if ((idx < 0x1D || (idx > 0x2B && idx < 0x2E) ||
+         idx == 0x37 || idx == 0x50) &&
+        gGameMode != 0x8006 && gGameMode != 0x8003 && gMessageDelay > 0) {
+        return 0;
+    }
+
+    fontIndex = param;
+    if (param < 0) {
+        param = 0;
+        fontIndex = 4;
+    }
+    gMsgIndex = 0;
+    if (position == 0) {
+        if (originalParam < 0) {
+            centerX = 0x100;
+            centerY = 0xC0;
+        } else {
+            centerX = (u16)gJumpTab120240[param];
+            centerY = 0xFA;
+        }
+    } else {
+        get_screen_pos(0, &centerX, &centerY, position);
+        centerY -= 0x3E;
+    }
+
+    if (desc->param < 0) {
+        duration = StringTextNum(desc->type);
+    } else {
+        duration = 1;
+    }
+    if (g7C0 == 0) {
+        lineCount = 8;
+    } else {
+        lineCount = 12;
+    }
+    if (lbl_803443E8 == 1) {
+        lineCount = 14;
+    }
+    height = StringTextHeight(1.0f, desc->type, desc->param, lineCount) + 0x10;
+    top = centerY - height / 2;
+    if (top < 2) {
+        centerY += 2 - top;
+        top = 2;
+    } else if (top + height > 0x130) {
+        centerY += 0x130 - (top + height);
+        top = 0x130 - height;
+    }
+    gMessageCenterY = centerY;
+
+    width = msgWidth(param, idx) + 0x40;
+    left = centerX - width / 2;
+    if (left < 0) {
+        centerX -= left;
+        left = 0;
+    } else if (left + width > 0x1FF) {
+        centerX -= left + width - 0x1FF;
+        left = 0x1FF - width;
+    }
+    gMessageCenterX = centerX;
+
+    if (gMsgBoxes[gMsgIndex] != 0) {
+        MBRemoveBlit(gMsgBoxes[gMsgIndex]);
+        gMsgBoxes[gMsgIndex] = 0;
+    }
+    gMsgBoxes[gMsgIndex] = MBNewBlit(gMsgFonts[fontIndex], left, top);
+    mbBlitProject(gMsgBoxes[gMsgIndex], width, height);
+    MBBlitSetAlpha(gMsgBoxes[gMsgIndex], 0x40);
+    mbBlitInit3414(gMsgBoxes[gMsgIndex], 0);
+
+    gMessageTextArg = 1;
+    gMessageFontFlags = gMsgCfg[fontIndex];
+    gMessageValue = *(int*)((u8*)&gPlayers[param] + 0x3324);
+    gMessageActive = 1;
+    gCurWorld = param;
+    gCurrentMessage = idx;
+    msgDraw();
+    gMessageTimer = duration * 0x3C + 0x1E;
+
+    if (category == 2) {
+        first = param;
+        last = param;
+        if (originalParam < 0) {
+            first = 0;
+            last = 3;
+        }
+    } else if (category != 0) {
+        first = 0;
+        last = 3;
+    } else {
+        first = 1;
+        last = 0;
+    }
+    count = (last + 1) - first;
+    stride = first * 0x335C;
+    for (i = 0; i < count; i++, stride += 0x335C) {
+        World* world = (World*)((u8*)gPlayers + stride);
+        if (world->state != 0) {
+            world->items[idx] |= 0x11;
+        }
+    }
+
+    if (gGameMode == 0x8003 || gMessageState != 0) {
+        category = -1;
+    } else {
+        category = desc->f4;
+    }
+    if (category == -1) {
+        gGameplayPauseTimer = 0x3C;
+    } else if (category == 1) {
+        gGameplayPauseTimer = 0x1E;
+    } else {
+        gGameplayPauseTimer = 0;
+    }
+
+    i = gMessageDelayIndex;
+    if (desc->flags != 0) {
+        if (idx == 0x65 && gMessageValue > 9) {
+            if (gMessageValue < 99) {
+                fn_8009CD80(param, gPlayers[param].character, gMessageValue);
+            } else {
+                fn_8009CD80(param, 0, 99);
+            }
+        } else {
+            fn_8009CB44(param, desc->flags, -1);
+        }
+        if ((sFlags & 0x10) == 0) {
+            if (gGameMode == 0x8003 || gGameMode == 0x8006) {
+                gMessageDelay = 0x3C;
+            } else {
+                gMessageDelay = gMsgLevels[gMessageDelayIndex];
+                if (gMsgLevels[gMessageDelayIndex + 1] >= 0) {
+                    i = gMessageDelayIndex + 1;
+                }
+            }
+        } else {
+            gMessageDelay = 0;
+        }
+    }
+    gMessageDelayIndex = i;
+    return -1;
 }
 
-/* msgDraw - TODO: message renderer (~314 insns), draws the active
- * message box with the fn_8001Fxxx text library. Stubbed for now. */
+/* Render the active message, including the localized player/world variants. */
 void msgDraw(void)
 {
+    MsgDesc* desc;
+    int centerY;
+    int lineHeight;
+    int playerClass;
+    int playerWorld;
+    u32 oldFlags;
+    char* text;
+    char* worldText;
+    char* classText;
+    int worldWidth;
+    int classWidth;
+    int labelWidth;
+    int numberWidth;
+    int x;
+    int y;
+    int tens;
+    int textMsg;
+    int textParam;
+    int scratch[6];
+    u32 color;
+    volatile u32 stackPad;
+
+    desc = &gMsgDescTable[gCurrentMessage];
+    playerClass = gPlayers[gCurWorld].character;
+    playerWorld = gPlayers[gCurWorld].class_id;
+    centerY = gMessageCenterY | 0x1000;
+
+    if (((gGameMode & 0x8000) == 0 || lbl_80344298 == 0) && desc->type >= 0) {
+        oldFlags = MBSetFontFlags(0x02000000);
+        if (gCurrentMessage == 0x65 && gMessageValue >= 10) {
+        tens = gMessageValue / 10;
+        if (gMessageValue == 99) {
+            text = GetStringText(0x15, 0, &color);
+        } else {
+            text = GetStringListText(0, playerClass, tens >> 1, &color);
+        }
+        worldText = GetStringText(2, playerWorld, (u32*)scratch);
+        classText = GetStringText(3, playerClass, 0);
+        lineHeight = StringTextHeight(1.0f, 0x18, 0, 2) + 2;
+
+        if (lbl_803443E8 == 1) {
+            worldWidth = StringTextWidth(1.0f, 2, playerWorld);
+            classWidth = StringTextWidth(1.0f, 3, playerClass);
+            labelWidth = StringTextWidth(1.0f, 0x18, 0);
+            x = gMessageCenterX - (worldWidth + classWidth + labelWidth + 0x14) / 2;
+            y = centerY - lineHeight;
+            DrawStringText(x, y, -1, gMessageFontFlags, 2, playerWorld);
+            x += worldWidth;
+            DrawStringText(x + 10, y, -1, gMessageFontFlags, 3, playerClass);
+            DrawStringText(x + classWidth + 0x14, y, -1, gMessageFontFlags,
+                           0x18, 0);
+            DrawStringText(-gMessageCenterX, centerY, -1, gMessageFontFlags,
+                           0x18, 1, gMessageValue);
+
+            if (gMessageValue == 99) {
+                textParam = 0;
+                textMsg = 0x15;
+            } else {
+                textMsg = GetStringListMsg(0, playerClass);
+                textParam = tens >> 1;
+            }
+            numberWidth = StringTextWidth(1.25f, textMsg, textParam);
+            labelWidth = StringTextWidth(1.0f, 0x18, 2);
+            x = gMessageCenterX - (numberWidth + labelWidth + 0x10) / 2;
+            SetDrawStringScale(1.25f);
+            DrawStringText(x, centerY + lineHeight + 2, color,
+                           gMessageFontFlags, textMsg, textParam);
+            RestoreDrawStringScale();
+            DrawStringText(x + numberWidth + 0x10, centerY + lineHeight, -1,
+                           gMessageFontFlags, 0x18, 2);
+        } else {
+            DrawStringText(-gMessageCenterX, centerY - lineHeight, -1,
+                           gMessageFontFlags, 0x18, 0, worldText, classText);
+            DrawStringText(-gMessageCenterX, centerY, -1, gMessageFontFlags,
+                           0x18, 1);
+            DrawStringText(-gMessageCenterX, centerY + lineHeight, -1,
+                           gMessageFontFlags, 0x18, 2, gMessageValue, text);
+        }
+        } else if (gCurrentMessage == 0x22) {
+            DrawStringTextMLines(-gMessageCenterX, centerY, 2, -1,
+                                 gMessageFontFlags, desc->type, gMessageValue);
+        } else if (gCurrentMessage == 0x32 || gCurrentMessage == 0x59 ||
+                   gCurrentMessage == 0x5D) {
+            worldText = GetStringText(2, playerWorld, 0);
+            classText = GetStringText(3, playerClass, 0);
+            lineHeight = (StringTextHeight(1.0f, desc->type, 0, 2) + 2) >> 1;
+            if ((gPlayers[gCurWorld].flags & 0x400) != 0 &&
+                gCurrentMessage != 0x5D) {
+                DrawStringText(-gMessageCenterX, centerY - lineHeight, -1,
+                               gMessageFontFlags, 4, 0);
+            } else {
+                DrawStringText(-gMessageCenterX, centerY - lineHeight,
+                               gMessageTextArg, gMessageFontFlags, desc->type, 0,
+                               worldText, classText);
+            }
+            DrawStringText(-gMessageCenterX, centerY + lineHeight,
+                           gMessageTextArg, gMessageFontFlags, desc->type, 1);
+        } else if (desc->param >= 0) {
+            DrawStringText(-gMessageCenterX, centerY, -1, gMessageFontFlags,
+                           desc->type, desc->param);
+        } else {
+            DrawStringTextMulti(-gMessageCenterX, centerY, 2, -1,
+                                gMessageFontFlags, desc->type);
+        }
+        MBSetFontFlags(oldFlags);
+    }
 }
 
 /* msgInit */
@@ -461,10 +759,11 @@ int msgWidth(int p0, int idx)
     int fc;
     int w;
 
-    w = StringTextWidth(gMsgDescTable[idx].type, gMsgDescTable[idx].param, 1.0f);
+    w = StringTextWidth(1.0f, gMsgDescTable[idx].type, gMsgDescTable[idx].param);
     if (idx == 50 || idx == 89 || idx == 93) {
-        a = StringTextWidth(3, gPlayers[gCurWorld].fC, 1.0f);
-        b = StringTextWidth(2, gCurWorld, 1.0f);
+        a = StringTextWidth(1.0f, 3, gPlayers[gCurWorld].character);
+        p0 = gCurWorld;
+        b = StringTextWidth(1.0f, 2, p0);
         c = a + 12;
         c = c + b;
         if (lbl_803443E8 == 1) {
@@ -475,11 +774,13 @@ int msgWidth(int p0, int idx)
         }
     } else if (idx == 101) {
         if (lbl_803443E8 == 1) {
-            fc = gPlayers[gCurWorld].fC;
-            a = StringTextWidth(2, gCurWorld, 1.0f);
-            b = StringTextWidth(3, fc, 1.0f);
-            c = StringTextWidth(24, 1, 1.0f);
-            c = a + b + c + 20;
+            fc = gPlayers[gCurWorld].character;
+            a = StringTextWidth(1.0f, 2, gCurWorld);
+            b = StringTextWidth(1.0f, 3, fc);
+            c = StringTextWidth(1.0f, 24, 1);
+            p0 = a + b;
+            c += p0;
+            c += 20;
             if (c > w) {
                 w = c;
             }
