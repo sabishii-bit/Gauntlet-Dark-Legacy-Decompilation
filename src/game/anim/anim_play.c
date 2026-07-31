@@ -37,7 +37,46 @@ void ZeroAnimData(void* data)
 
 #define STUB(address, name) void name(void) {}
 
-STUB(0x8000F678, InitAnimData)
+/* InitAnimData @0x8000F678 -- reset one node's anim-data block to defaults:
+ * clear the pose channels to zero and the scale channels to light_color. */
+void InitAnimData(u32* data, u32 arg)
+{
+    f32* v = (f32*)data;
+    f32 zero;
+
+    data[0] = arg;
+    *(s16*)(data + 2) = 0xFFFF;
+    *(s16*)((u8*)data + 10) = 0;
+    data[3] = 0xFFFFFFFF;
+    zero = lbl_803457F0;
+    v[12] = zero;
+    v[13] = zero;
+    v[14] = zero;
+    v[8] = zero;
+    v[9] = zero;
+    v[10] = zero;
+    v[4] = zero;
+    v[5] = zero;
+    v[6] = zero;
+    v[24] = zero;
+    v[25] = zero;
+    v[26] = zero;
+    v[20] = zero;
+    v[21] = zero;
+    v[22] = zero;
+    v[16] = zero;
+    v[17] = zero;
+    v[18] = zero;
+    v[36] = light_color[0];
+    v[37] = light_color[1];
+    v[38] = light_color[2];
+    v[32] = light_color[0];
+    v[33] = light_color[1];
+    v[34] = light_color[2];
+    v[28] = light_color[0];
+    v[29] = light_color[1];
+    v[30] = light_color[2];
+}
 
 void CalcAnimData()
 {
