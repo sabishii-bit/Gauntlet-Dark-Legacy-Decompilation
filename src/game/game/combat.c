@@ -852,8 +852,16 @@ void write_stage_info(s32 mode)
         return;
     }
 
-    DrawTextKeepScale(-256, 48 - (s32)(lbl_80344410 * lbl_80346160), 6,
-                      0xFFFFFF, (char*)gCurLevel + 20);
+    {
+        f64 scale;
+        f32 slide;
+
+        slide = lbl_80344410;
+        scale = lbl_80346160;
+
+        DrawTextKeepScale(-256, 48 - (s32)(scale * slide), 6,
+                          0xFFFFFF, (char*)gCurLevel + 20);
+    }
     level = *(u32*)gCurLevel;
     if ((level & 1) != 0) {
         DrawStringText(-256, 4204, -1, 0x160C03, 175, 0);
