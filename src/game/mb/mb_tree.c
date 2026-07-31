@@ -54,6 +54,18 @@ extern MBTreeNode* lbl_80344ED0;
 extern MBTreeNode* lbl_80344EDC;
 extern MBTreeNode* lbl_80344EE0;
 extern s32 lbl_80344EC8;
+extern MBTreeNode* lbl_80344EA8;
+extern MBTreeNode* lbl_80344EAC;
+extern MBTreeNode* lbl_80344EB0;
+extern MBTreeNode* lbl_80344EB4;
+extern MBTreeNode* gSceneRoot;
+extern MBTreeNode* lbl_80344EBC;
+extern MBTreeNode* defaultBlitList;
+extern MBTreeNode* gDiag_DE8;
+extern MBTreeNode* gDiag_DEC;
+extern MBTreeNode* gPolyCtx;
+extern MBTreeNode* lbl_80344ED4;
+extern MBTreeNode* lbl_80344ED8;
 extern u8 lbl_802C2A28[];
 extern const f32 lbl_80348CA0;
 extern f32 gIdentityMatrix[16];
@@ -76,6 +88,10 @@ extern void* AllocMem(u32 size);
 extern void FatalError(const char* text, s32 errorCode);
 extern void ErrorPrintf(const char* format, ...);
 extern void CopyMat4(const f32* src, f32* dst);
+extern void MBInitObjects(s32 enable);
+extern void MBInitBlits(s32 makeNodes);
+extern void MBInitPolys(s32 useHash);
+extern void fn_800C0AA4(s32 layer);
 void MBNodeInit(MBTreeNode* node, s32 type);
 MBTreeNode* MBCreateNode(void);
 
@@ -475,41 +491,120 @@ done:
 
 #pragma dont_inline off
 
+static inline void MBTreeMoveAfter(MBTreeNode* node, MBTreeNode* after)
+{
+    MBTreeNode* previous;
+
+    if (after->parent == node->parent) {
+        previous = MBNodePrevNode(node);
+        if (previous != 0)
+            previous->next = node->next;
+        else
+            node->parent->child = node->next;
+        node->next = after->next;
+        after->next = node;
+    }
+}
+
 /* 0x800BA820 */
-void MBTreeInit(void) {}
+void MBTreeInit(void)
+{
+    const f32* matrix;
+    MBTreeNode* node1;
+    MBTreeNode* node2;
+    MBTreeNode* node3;
+    s32 i;
+
+    lbl_80344EC8 = 0;
+    lbl_80344ECC = 0;
+    lbl_80344EE0 = 0;
+    MBInitObjects(1);
+    MBInitBlits(1);
+    MBInitPolys(1);
+
+    matrix = gIdentityMatrix;
+    node1 = MBCreateNode();
+    if (node1 != 0) {
+        MBNodeInit(node1, 9);
+        CopyMat4(matrix, (f32*)node1);
+        MBNodeInsert(node1, 0);
+    }
+    lbl_80344ED8 = node1;
+    node1->flags |= 4;
+
+    matrix = gIdentityMatrix;
+    node2 = MBCreateNode();
+    if (node2 != 0) {
+        MBNodeInit(node2, 15);
+        CopyMat4(matrix, (f32*)node2);
+        MBNodeInsert(node2, 0);
+    }
+    lbl_80344ED4 = node2;
+    node2->flags |= 4;
+
+    matrix = gIdentityMatrix;
+    node3 = MBCreateNode();
+    if (node3 != 0) {
+        MBNodeInit(node3, 1);
+        CopyMat4(matrix, (f32*)node3);
+        MBNodeInsert(node3, 0);
+    }
+    lbl_80344EDC = node3;
+
+    MBTreeMoveAfter(gDiag_DEC, lbl_80344EBC);
+    MBTreeMoveAfter(gSceneRoot, gDiag_DEC);
+    MBTreeMoveAfter(lbl_80344EDC, gSceneRoot);
+    MBTreeMoveAfter(lbl_80344EB4, lbl_80344EDC);
+    MBTreeMoveAfter(lbl_80344EB0, lbl_80344EB4);
+    MBTreeMoveAfter(gPolyCtx, lbl_80344EB0);
+    MBTreeMoveAfter(lbl_80344EAC, gPolyCtx);
+    MBTreeMoveAfter(gPolyCtx, lbl_80344ED8);
+    MBTreeMoveAfter(defaultBlitList, lbl_80344EAC);
+    MBTreeMoveAfter(lbl_80344ED4, defaultBlitList);
+    MBTreeMoveAfter(gDiag_DE8, lbl_80344ED4);
+    MBTreeMoveAfter(lbl_80344EA8, gDiag_DE8);
+
+    for (i = 0; i < 64; i++)
+        ((MBUVScaleAdd*)lbl_802C2A28)[i].uScale = lbl_80348CA0;
+
+    fn_800C0AA4(3);
+}
 
 /* 0x800BACF8 - MBNodeOrder: move node immediately before sibling. */
 void MBNodeOrder(MBTreeNode* node, MBTreeNode* sibling)
 {
-    MBTreeNode* parent;
-    MBTreeNode* current;
     MBTreeNode* previous;
+    MBTreeNode* parent;
 
-    parent = sibling->parent;
-    if (node->parent != parent)
+    if (node->parent != (parent = sibling->parent))
         return;
 
-    current = lbl_80344ECC;
-    if (parent != 0)
-        current = parent->child;
-    if (current == 0 || current == sibling) {
+    if (parent == 0)
+        previous = lbl_80344ECC;
+    else
+        previous = parent->child;
+
+    if (previous == 0) {
+        previous = 0;
+    } else if (previous == sibling) {
         previous = 0;
     } else {
-        previous = current;
         while (previous != 0 && previous->next != sibling)
             previous = previous->next;
+        if (previous == 0)
+            previous = 0;
     }
 
-    if (previous == 0)
-        parent->child = sibling->next;
-    else
+    if (previous != 0)
         previous->next = sibling->next;
+    else
+        parent->child = sibling->next;
     sibling->next = node->next;
     node->next = sibling;
 }
 
 /* 0x800BAD90 */
-void fn_800BAD90(void) {}
+void MBCompVertScaleAddUV(void) {}
 
 /* 0x800BAD94 - MBNodeSetParent */
 void MBNodeSetParent(MBTreeNode* node, MBTreeNode* new_parent)
