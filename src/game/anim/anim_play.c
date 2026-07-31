@@ -120,8 +120,101 @@ void InterpPYR(f32 frac, f32* a, f32* b, f32* out)
     }
 }
 STUB(0x8000F7F4, GetAnimAngXYZVal)
-STUB(0x80010850, fn_80010850)
-STUB(0x80010904, fn_80010904)
+/* fn_80010850 @0x80010850 -- scan `n` bits of a byte-swapped bitfield; return
+ * the index of the highest set bit and store the total set count via `out`. */
+int fn_80010850(u32* bits, s32 n, s32* out)
+{
+    s32 last = 0;
+    s32 i = 0;
+    s32 count = 0;
+    s32 bit = 0;
+    u32 word;
+    union {
+        u32 w;
+        u8 b[4];
+    } s, d;
+
+    s.w = *bits;
+    d.b[0] = s.b[3];
+    d.b[1] = s.b[2];
+    d.b[2] = s.b[1];
+    d.b[3] = s.b[0];
+    word = d.w;
+    while (i < n) {
+        if ((word & (1 << bit)) != 0) {
+            count++;
+            last = i;
+        }
+        bit++;
+        if (bit > 31) {
+            bits++;
+            s.w = *bits;
+            d.b[0] = s.b[3];
+            d.b[1] = s.b[2];
+            d.b[2] = s.b[1];
+            d.b[3] = s.b[0];
+            word = d.w;
+            bit = 0;
+        }
+        i++;
+    }
+    *out = count;
+    return last;
+}
+
+/* fn_80010904 @0x80010904 -- return the index of the next set bit strictly
+ * after `start` in the byte-swapped bitfield, or -1 if none within `total`. */
+u32 fn_80010904(u32* bits, s32 start, s32 total)
+{
+    u32 idx = start + 1;
+
+    if ((s32)idx < total) {
+        u32 bit = idx;
+        u32 word;
+        union {
+            u32 w;
+            u8 b[4];
+        } s, d;
+
+        if ((s32)idx >= 32) {
+            u32 skip = idx >> 5;
+            do {
+                bits++;
+                bit -= 0x20;
+                total -= 0x20;
+                skip--;
+            } while (skip != 0);
+        }
+        s.w = *bits;
+        d.b[0] = s.b[3];
+        d.b[1] = s.b[2];
+        d.b[2] = s.b[1];
+        d.b[3] = s.b[0];
+        word = d.w;
+        while ((word & (1 << bit)) == 0) {
+            u32 nextbit = bit + 1;
+            if (total <= (s32)nextbit) {
+                return 0xFFFFFFFF;
+            }
+            if ((s32)nextbit >= 32) {
+                bits++;
+                s.w = *bits;
+                d.b[0] = s.b[3];
+                d.b[1] = s.b[2];
+                d.b[2] = s.b[1];
+                d.b[3] = s.b[0];
+                word = d.w;
+                nextbit = bit - 0x1F;
+                total -= 0x20;
+            }
+            idx++;
+            bit = nextbit;
+        }
+    } else {
+        idx = 0xFFFFFFFF;
+    }
+    return idx;
+}
 
 #undef STUB
 
