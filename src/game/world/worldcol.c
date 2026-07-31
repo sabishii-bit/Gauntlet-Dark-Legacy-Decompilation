@@ -63,6 +63,8 @@ extern f64 lbl_80345730, lbl_803457A0, lbl_803457A8;
 extern f32 lbl_80344164, lbl_80345764;
 extern u8 gIdentityMatrix[], lbl_80127DA0[];
 void CopyMat3(void* src, void* dst);   /* 0x800BE8C8 */
+f32 NormalVector(f32* v);               /* 0x800BDA98 */
+f32 fqdist();                           /* 0x800BCB44 */
 
 u32 WorldCollide(f32 radius, void* from, void* to, f32* result,
                  s32 flags, s32 mode);
@@ -277,6 +279,59 @@ void CreateMat3Norm(f32 scale, f32* mtx, f32* normal)
         mtx[11] = lbl_8034572C;
     }
 }
-STUB(0x8000E73C, PointLineColl)
+/* PointLineColl @0x8000E73C -- project `point` onto segment [start,end], clamp
+ * to the endpoints, store the closest point in `out`, and score the distance. */
+void PointLineColl(f32* point, f32* start, f32* end, f32* out)
+{
+    f32 scratch[6];
+    f32 seg[3];
+    f64 len;
+    f64 dx;
+    f64 dy;
+    f64 dz;
+    f64 t;
+
+    seg[0] = end[0] - start[0];
+    seg[1] = end[1] - start[1];
+    seg[2] = end[2] - start[2];
+    len = (f64)NormalVector(seg);
+    dz = point[2] - start[2];
+    dy = point[1] - start[1];
+    dx = (f64)(f32)((f64)point[0] - (f64)start[0]);
+    t = (f64)(f32)(dz * (f64)seg[2] +
+                   (f64)(f32)(dx * (f64)seg[0] + (f64)(f32)(dy * (f64)seg[1])));
+    if ((f64)lbl_8034572C < t) {
+        if (t < len) {
+            if (out == 0) {
+                out = scratch;
+            }
+            out[0] = (f32)((f64)seg[0] * t + (f64)start[0]);
+            out[1] = (f32)((f64)seg[1] * t + (f64)start[1]);
+            out[2] = (f32)((f64)seg[2] * t + (f64)start[2]);
+            dy = point[1] - out[1];
+            len = (f64)fqdist((f64)(point[0] - out[0]),
+                              (f64)(point[2] - out[2]));
+            fqdist(len, dy);
+        } else {
+            dy = point[1] - end[1];
+            len = (f64)fqdist((f64)(f32)((f64)point[0] - (f64)end[0]),
+                              (f64)(point[2] - end[2]));
+            fqdist(len, dy);
+            if (out != 0) {
+                out[0] = end[0];
+                out[1] = end[1];
+                out[2] = end[2];
+            }
+        }
+    } else {
+        len = (f64)fqdist(dx, dz);
+        fqdist(len, dy);
+        if (out != 0) {
+            out[0] = start[0];
+            out[1] = start[1];
+            out[2] = start[2];
+        }
+    }
+}
 
 #undef STUB
