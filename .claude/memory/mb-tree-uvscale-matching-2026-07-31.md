@@ -30,3 +30,26 @@ Two MWCC source-shape details closed the function:
 
 MB_TREE owns rodata `0x801160B0..0x801160E4` (one trailing zero claim byte) and
 sdata2 `0x80348CA0..0x80348CC8`; `datadiff.py` verifies both.
+
+## Init and ordering follow-up
+
+`MBTreeInit` is a 310-instruction subsystem initializer, not an empty platform
+hook. It clears the node allocator, initializes objects/blits/polys, creates
+three root nodes (types 9, 15, and 1), reorders twelve global render roots,
+marks all 64 UV records free, and enables debug layer 3. A small inlined
+`MBTreeMoveAfter(node, after)` helper reproduces every repeated ordering block.
+The semantic translation currently emits 311 instructions; its residual is
+almost entirely the nonvolatile-register permutation plus one matrix-pointer
+copy and the final loop schedule.
+
+`MBNodeOrder` became exact by preserving the standalone `MBNodePrevNode`
+control shape and writing the parent capture inside the comparison:
+
+```c
+if (node->parent != (parent = sibling->parent))
+    return;
+```
+
+That assignment-in-condition changes both evaluation order and the r5/r6 web
+allocation, eliminating a 34-line register-only residual. The 4-byte no-op at
+`0x800BAD90` is Xbox's `MBCompVertScaleAddUV`, not an unknown `fn_*`.

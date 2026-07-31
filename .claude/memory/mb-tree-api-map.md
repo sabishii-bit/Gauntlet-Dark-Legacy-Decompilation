@@ -22,6 +22,7 @@ description: "MB_TREE real-name map and node layout anchors"
 - `800BA6C0 MBTreeSetAlpha`
 - `800BA784 MBTreeSetZsortAdd`
 - `800BACF8 MBNodeOrder`
+- `800BAD90 MBCompVertScaleAddUV` (intentional no-op on GameCube)
 - `800BAD94 MBNodeSetParent`
 - `800BAEAC MBRemoveNode`
 - `800BB164 MBRemoveNodeChild`
