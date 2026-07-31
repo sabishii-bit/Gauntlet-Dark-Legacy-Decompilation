@@ -291,9 +291,40 @@ void* disp_piece(void)
     return 0;
 }
 
-/* Per-slot numeric stat draw (~print_n_of_m: "n / m"). Skeleton. */
-void print_n_of_m(void)
+int DrawTextKeepScale();               /* 0x800209BC */
+void MBFontMsgSetAlpha(int handle, u32 node); /* 0x800B5AA8 */
+void sprintf();                        /* 0x800C9BD0 */
+extern u8 lbl_8011D568[];              /* n-of-m style config, stride 0x24 */
+extern f64 lbl_80347418;               /* min scale to draw */
+extern char lbl_80347420[], lbl_80347424[]; /* "%d" formats */
+extern int lbl_80343CA0;               /* message font handle */
+
+/* Per-slot numeric stat draw (print_n_of_m: "n / m", right-aligned). */
+void print_n_of_m(s32 style, s32 n, s32 m, s32 x, u32 node)
 {
+    char buf[76];
+    u8* cfg = lbl_8011D568 + style * 0x24;
+    f32 scale = *(f32*)(cfg + 0x220);
+    s32 a = *(s32*)(cfg + 0x214);
+    s32 b = *(s32*)(cfg + 0x218);
+    s32 d = *(s32*)(cfg + 0x224);
+    s32 e = *(s32*)(cfg + 0x228);
+    s32 xr;
+    int h;
+
+    if (n < 0 || m < n) {
+        n = m;
+    }
+    if (lbl_80347418 < (f64)scale) {
+        xr = x + a + d;
+        sprintf(buf, lbl_80347420, n);
+        h = DrawTextKeepScale(scale, xr - DrawNormalText(scale, buf, lbl_80343CA0),
+                              b + e, lbl_80343CA0, 0xFFFFFF, buf);
+        MBFontMsgSetAlpha(h, node);
+        sprintf(buf, lbl_80347424, m);
+        h = DrawTextKeepScale(scale, xr, b + e, lbl_80343CA0, 0xFFFFFF, buf);
+        MBFontMsgSetAlpha(h, node);
+    }
 }
 
 /*
