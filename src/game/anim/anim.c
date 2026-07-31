@@ -30,6 +30,15 @@ extern char lbl_80110758[];
 f32 floorf(f32 x);                     /* 0x800EAA1C */
 f32 fabsf(f32 x);
 extern f64 lbl_803457D0, lbl_803457D8, lbl_803457E0;
+void FatalErrorf(char* fmt, ...);      /* 0x800BC590 */
+extern char lbl_80110730[];
+s32 CalcAnimInfo(animinfo* info);
+void CopyMat3(void* src, void* dst);   /* 0x800BE8C8 */
+void ZeroAnimData(int* node);          /* 0x8000F628 */
+void CreateRYPMatrix();                /* 0x800BD154 */
+void CreatePYRMatrix();                /* 0x800BD254 */
+s32 CalcAnimation();                   /* 0x8000F534 */
+extern u8 gIdentityMatrix[];
 
 void AnimInit(void)
 {
@@ -108,7 +117,71 @@ s32 AnimDone(void* anim)
     return 0;
 }
 
-STUB(0x8000EB70, AnimateTree)
+/* AnimateTree @0x8000EB70 -- per-frame drive of one animinfo: advance it, then
+ * (re)start sequence `seq` if the `mode` policy calls for it, and report a bit
+ * mask of what happened (1=restarted, 2=looped/finished, 4=holding, 8=event). */
+u32 AnimateTree(f32 time, animinfo* info, s32 seq, s32 frame, s32 mode)
+{
+    u32 result = 0;
+    s32 restart = 0;
+    s32 status;
+    s32 curseq;
+    s32 done;
+    s16 rep;
+
+    lbl_803441B8 = ((u32*)info->animheader)[0];
+    lbl_803441B4 = ((u32*)info->animheader)[1];
+    lbl_803441B0 = ((u32*)info->animheader)[2];
+    status = CalcAnimInfo(info);
+    curseq = info->animseq;
+    done = (info->stage & 0xFF) == 0xFF;
+    rep = info->repeat;
+    if (mode == 2) {
+        if (done || seq != curseq) {
+            restart = 1;
+        }
+    } else if (mode < 2) {
+        if (mode == 0) {
+            if (done && seq != curseq) {
+                restart = 1;
+            }
+        } else if (mode >= 0) {
+            if (done) {
+                restart = 1;
+            }
+        } else {
+            restart = 1;
+        }
+    } else {
+        restart = 1;
+    }
+    if (restart) {
+        s32 initret;
+        if (!done ||
+            (f64)info->starttime < (f64)info->atime - lbl_803457C0) {
+            info->starttime = (f32)((f64)info->atime - lbl_803457C0);
+        }
+        initret = InitAnim(time, info, seq, frame, 1);
+        if (initret < 1) {
+            FatalErrorf(lbl_80110730, initret, seq, info->numseqs);
+        }
+        if ((*(u16*)((u8*)info->seqheader + curseq * 0x30 + 0x26) & 1) != 0) {
+            result = 8;
+        }
+        result |= 1;
+    }
+    if (((result & 1) != 0 || status == 0xF) &&
+        (status = CalcAnimInfo(info)) == 0xF) {
+        CalcAnimInfo(info);
+    }
+    if (result != 0 && (done || (info->stage & 0xFF) == 0xFF)) {
+        result |= 2;
+    }
+    if ((rep != 0 || seq == curseq) && done) {
+        result |= 4;
+    }
+    return result;
+}
 /* InitAnim @0x8000ED70 -- start playback of sequence `seq` on `info`, seeding
  * scale, frame, start/trans times.  Returns 0 if the tree has no sequences. */
 s32 InitAnim(f32 time, animinfo* info, s32 seq, s32 frame, s32 active)
@@ -162,7 +235,7 @@ s32 InitAnim(f32 time, animinfo* info, s32 seq, s32 frame, s32 active)
 /* CalcAnimInfo @0x8000EF18 -- advance one animinfo along the game clock:
  * step/quantize the frame, honour looping/one-shot, and cross-fade the
  * transition fraction while the trans window is open. */
-void CalcAnimInfo(animinfo* info)
+s32 CalcAnimInfo(animinfo* info)
 {
     f64 sc;
     f64 at;
@@ -172,7 +245,7 @@ void CalcAnimInfo(animinfo* info)
     s32 nf;
 
     if (info == NULL) {
-        return;
+        return 0;
     }
     info->atime = gClockTime;
     if (info->setpanim == 2) {
@@ -180,19 +253,19 @@ void CalcAnimInfo(animinfo* info)
     }
     if ((info->stage & 0xFF) == 0xFF) {
         if ((info->stage & 0x100) == 0) {
-            return;
+            return 0;
         }
         info->stage = info->stage & 0xFF00;
     }
     if (info->active == 0) {
-        return;
+        return 0;
     }
     nf = *(s16*)((u8*)info->seqheader + info->animseq * 0x30 + 0x20);
     if (nf == 0) {
         info->active = 0;
         info->stage |= 0xFF;
         info->starttime = info->atime;
-        return;
+        return 0;
     }
     sc = (f64)(info->seqscale * lbl_803441A8);
     at = (f64)info->atime;
@@ -200,7 +273,7 @@ void CalcAnimInfo(animinfo* info)
     if ((f64)info->transtime > at) {
         info->transfrac = (info->atime - info->starttime) /
                           (info->transtime - info->starttime);
-        return;
+        return 0;
     }
     if (info->animseq0 != info->animseq) {
         info->starttime = -(f32)((f64)info->frame * sc - at);
@@ -218,20 +291,21 @@ void CalcAnimInfo(animinfo* info)
     if (lbl_803457D8 + (f32)(nf - 1) <= t) {
         info->stage |= 0xFF;
         info->frame = (f32)(nf - 1);
-        if (info->repeat == 0) {
-            info->stage &= 0xFEFF;
-            info->transfrac = lbl_803457B4;
-        } else {
+        if (info->repeat != 0) {
             info->starttime = info->atime;
             info->stage |= 0x100;
             info->setpanim = 1;
+            return 15;
         }
-    } else {
-        if (t < lbl_803457B4) {
-            t = lbl_803457B4;
-        }
-        info->frame = (f32)t;
+        info->stage &= 0xFEFF;
+        info->transfrac = lbl_803457B4;
+        return 0;
     }
+    if (t < lbl_803457B4) {
+        t = lbl_803457B4;
+    }
+    info->frame = (f32)t;
+    return 1;
 }
 /* SetupAnimHeader @0x8000F184 -- snap an animinfo to sequence `seq`, frame
  * interpolated across [lo,hi], and cache the animheader's first three words. */
@@ -266,7 +340,86 @@ s32 AnimateTreeFrame(f32 time, animinfo* info, s32 seq, s32 lo, s32 hi)
     return 1;
 }
 
-STUB(0x8000F2D8, DoAnimation)
+/* DoAnimation @0x8000F2D8 -- evaluate one tree node's animation for this
+ * frame: locate the (byte-swapped) key data, blend the pose, and build the
+ * output transform (or the identity when the node has no animation). */
+u32 DoAnimation(int* node, animinfo* info, f32* outmtx, s32* outrot,
+                f32* posoff)
+{
+    u16* key;
+    void* data;
+    u16 raw;
+    u32 flags;
+    u32 next;
+    u32 off;
+    s32 pose[12];
+
+    if (*node == 0) {
+        return 0;
+    }
+    key = (u16*)(*node + info->animseq * 8);
+    off = *(u32*)(key + 2);
+    off = (off << 24) | ((off & 0xFF00) << 8) | ((off >> 8) & 0xFF00) |
+          (off >> 24);
+    data = (void*)(((s32*)info->animheader)[3] + off);
+    raw = *key;
+    flags = (u16)((raw << 8) | (raw >> 8));
+    next = (u16)((key[1] << 8) | (key[1] >> 8));
+    if (info->setpanim != 0) {
+        *(u16*)((u8*)node + 8) = 0xFFFF;
+        *(u16*)((u8*)node + 10) = 0;
+        info->setpanim = 2;
+    }
+    if ((raw & 0xF) == 0 && (raw >> 8) == 0) {
+        if (outmtx != NULL) {
+            CopyMat3(gIdentityMatrix, outmtx);
+            if (posoff == NULL) {
+                outmtx[0xC] = lbl_803457B4;
+                outmtx[0xD] = lbl_803457B4;
+                outmtx[0xE] = lbl_803457B4;
+            } else {
+                outmtx[0xC] = posoff[0];
+                outmtx[0xD] = posoff[1];
+                outmtx[0xE] = posoff[2];
+            }
+        }
+        ZeroAnimData(node);
+    } else if (CalcAnimation(node, pose, data, info, flags, next) != 0) {
+        if (outmtx != NULL) {
+            if ((raw & 0x80) == 0) {
+                CreateRYPMatrix(outmtx, pose, data, info, flags, next);
+            } else {
+                CreatePYRMatrix(outmtx, pose, data, info, flags, next);
+            }
+            if (posoff == NULL) {
+                outmtx[0xC] = *(f32*)&pose[4];
+                outmtx[0xD] = *(f32*)&pose[5];
+                outmtx[0xE] = *(f32*)&pose[6];
+            } else {
+                outmtx[0xC] = *(f32*)&pose[4] + posoff[0];
+                outmtx[0xD] = *(f32*)&pose[5] + posoff[1];
+                outmtx[0xE] = *(f32*)&pose[6] + posoff[2];
+            }
+            if (outrot != NULL) {
+                outrot[0] = pose[8];
+                outrot[1] = pose[9];
+                outrot[2] = pose[10];
+            }
+        }
+        if (info->transfrac == lbl_803457B4) {
+            node[0xC] = pose[0];
+            node[0xD] = pose[1];
+            node[0xE] = pose[2];
+            node[0x18] = pose[4];
+            node[0x19] = pose[5];
+            node[0x1A] = pose[6];
+            node[0x24] = pose[8];
+            node[0x25] = pose[9];
+            node[0x26] = pose[10];
+        }
+    }
+    return flags;
+}
 
 /* CalcAnimation @0x8000F534 -- evaluate the atree pose, blending the three
  * transform channels by transfrac, then mirror if the seq's flag bit is set. */
