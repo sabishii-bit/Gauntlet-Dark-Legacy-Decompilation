@@ -61,7 +61,44 @@ void InitAnimInfo(animinfo* info, u8 flags)
     }
 }
 
-STUB(0x8000E994, SetupAnimHeader)
+/* SetupAnimHeader @0x8000E994 -- byte-swap the animheader's first 7 words
+ * (loaded little-endian), then relocate its 5 section pointers to absolute
+ * addresses in `dst` (in place when dst is NULL). */
+int* SetupAnimHeader(int* hdr, int* dst)
+{
+#define SWAP(i)                                                               \
+    {                                                                         \
+        union {                                                               \
+            u32 w;                                                            \
+            u8 b[4];                                                          \
+        } s, d;                                                               \
+        s.w = hdr[i];                                                         \
+        d.b[0] = s.b[3];                                                      \
+        d.b[1] = s.b[2];                                                      \
+        d.b[2] = s.b[1];                                                      \
+        d.b[3] = s.b[0];                                                      \
+        hdr[i] = d.w;                                                         \
+    }
+    SWAP(0);
+    SWAP(1);
+    SWAP(2);
+    SWAP(3);
+    SWAP(4);
+    SWAP(5);
+    SWAP(6);
+#undef SWAP
+    if (dst == NULL) {
+        dst = hdr;
+    }
+    dst[0] = hdr[0] + (int)hdr;
+    dst[1] = hdr[1] + (int)hdr;
+    dst[2] = hdr[2] + (int)hdr;
+    dst[3] = hdr[3] + (int)hdr;
+    dst[4] = hdr[4] + (int)hdr;
+    dst[5] = hdr[5];
+    dst[6] = hdr[6];
+    return dst;
+}
 
 s32 AnimDone(void* anim)
 {
