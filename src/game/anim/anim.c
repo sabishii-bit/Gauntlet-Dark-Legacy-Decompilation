@@ -23,6 +23,10 @@ void InterpPYR();                      /* 0x8000F788 */
 void InterpXYZ();                      /* 0x8000F74C */
 extern f64 lbl_803457E8;
 extern u32 lbl_803441B8, lbl_803441B4, lbl_803441B0;
+void ErrorPrintf(char* fmt, ...);      /* 0x800BC6E0 */
+extern f32 gClockTime;                 /* 0x80344584 */
+extern f64 lbl_803457C0;
+extern char lbl_80110758[];
 
 void AnimInit(void)
 {
@@ -65,7 +69,56 @@ s32 AnimDone(void* anim)
 }
 
 STUB(0x8000EB70, AnimateTree)
-s32 InitAnim(f32 time, animinfo* info, s32 seq, s32 frame, s32 active) {}
+/* InitAnim @0x8000ED70 -- start playback of sequence `seq` on `info`, seeding
+ * scale, frame, start/trans times.  Returns 0 if the tree has no sequences. */
+s32 InitAnim(f32 time, animinfo* info, s32 seq, s32 frame, s32 active)
+{
+    u8* s;
+    s16 nf;
+    u16 rep;
+    f32 sc;
+
+    if (seq >= info->numseqs) {
+        ErrorPrintf(lbl_80110758, seq, info->numseqs - 1);
+        if (info->numseqs < 1) {
+            return 0;
+        }
+        seq = 0;
+    }
+    info->atime = gClockTime;
+    info->active = (s16)active;
+    s = (u8*)info->seqheader + seq * 0x30;
+    nf = *(s16*)(s + 0x20);
+    rep = *(u16*)(s + 0x24);
+    if (*(s16*)(s + 0x22) < 1) {
+        info->seqscale = info->animscale;
+    } else {
+        info->seqscale = (f32)(lbl_803457C0 * (f64)(f32)*(s16*)(s + 0x22) *
+                               (f64)info->animscale);
+    }
+    if (nf < frame) {
+        frame = 0;
+    }
+    sc = info->seqscale * lbl_803441A8;
+    info->frame = (f32)frame;
+    if (time == lbl_803457B4) {
+        info->starttime = -(info->frame * sc - info->atime);
+        info->transtime = lbl_803457B4;
+    } else {
+        info->starttime =
+            (f32)(-(f64)(info->frame * sc - info->atime) - lbl_803457C0);
+        info->transtime =
+            (f32)((f64)(f32)((f64)info->atime + time) - lbl_803457C0);
+    }
+    info->setpanim = 1;
+    info->transfrac = lbl_803457B4;
+    info->animseq0 = info->animseq;
+    info->animseq = seq;
+    info->stage &= 0xf000;
+    info->repeat = rep;
+    info->numframes = nf;
+    return 1;
+}
 STUB(0x8000EF18, CalcAnimInfo)
 /* SetupAnimHeader @0x8000F184 -- snap an animinfo to sequence `seq`, frame
  * interpolated across [lo,hi], and cache the animheader's first three words. */
