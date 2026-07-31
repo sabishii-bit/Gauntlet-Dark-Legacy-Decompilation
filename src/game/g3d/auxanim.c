@@ -54,7 +54,8 @@ extern void MBTreeClearFlags(int a, int b, int c);
 extern void MBSetObject(void* obj, int objid);
 extern void MBTreeSetAlpha(int a, int b, int c);
 extern void MBTreeSetAltTex(int a, int b, int c, int d);
-extern void MBTreeSetUVScaleAdd(float a, float b, float c, float d, int handle, int flag);
+extern void MBTreeSetUVScaleAdd(float uScale, float uAdd, float vScale, float vAdd,
+                                int node, int recurse);
 extern int MBOX_ReallyFindObject(OANIM* node, int a, int b, int c);
 extern void FatalError(char* msg, int code);
 extern void ErrorPrintf(char* fmt, ...);

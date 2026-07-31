@@ -354,6 +354,8 @@ game/mb/mb_tree.c:
 	extab       start:0x80007918 end:0x800079A0
 	extabindex  start:0x8000BDF4 end:0x8000BEC0
 	.text       start:0x800BA084 end:0x800BB5F4
+	.rodata     start:0x801160B0 end:0x801160E4
+	.sdata2     start:0x80348CA0 end:0x80348CC8
 
 game/mb/mb_util.c:
 	extab       start:0x800079A0 end:0x800079B8

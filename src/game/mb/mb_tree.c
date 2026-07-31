@@ -42,6 +42,13 @@ typedef struct MBTreeNode {
     /* 0x7C */ struct MBTreeNode* next;
 } MBTreeNode;
 
+typedef struct MBUVScaleAdd {
+    f32 uScale;
+    f32 uAdd;
+    f32 vScale;
+    f32 vAdd;
+} MBUVScaleAdd;
+
 extern MBTreeNode* lbl_80344ECC;
 extern MBTreeNode* lbl_80344ED0;
 extern MBTreeNode* lbl_80344EDC;
@@ -53,6 +60,13 @@ extern f32 gIdentityMatrix[16];
 extern f32 light_color[4];
 extern void* gWinGlobals;
 
+const char lbl_801160B0[] = "Too many UV Scale Add nodes active\n";
+
+static f32 MBTreePoolHugeFloat(void)
+{
+    return 1e37f;
+}
+
 void MBRemoveNodeChild(MBTreeNode* node);
 MBTreeNode* MBNodeLastSibling(MBTreeNode* node);
 MBTreeNode* MBNodePrevNode(MBTreeNode* node);
@@ -60,6 +74,7 @@ void MBNodeInsert(MBTreeNode* node, MBTreeNode* parent);
 extern void MBRemovePsys(MBTreeNode* node);
 extern void* AllocMem(u32 size);
 extern void FatalError(const char* text, s32 errorCode);
+extern void ErrorPrintf(const char* format, ...);
 extern void CopyMat4(const f32* src, f32* dst);
 void MBNodeInit(MBTreeNode* node, s32 type);
 MBTreeNode* MBCreateNode(void);
@@ -132,7 +147,42 @@ done:
 }
 
 /* 0x800BA1BC */
-void MBTreeSetUVScaleAdd(void) {}
+void MBTreeSetUVScaleAdd(f32 uScale, f32 uAdd, f32 vScale, f32 vAdd,
+                         MBTreeNode* node, s32 recurse)
+{
+    MBUVScaleAdd* entries;
+    MBUVScaleAdd* entry;
+
+    entries = (MBUVScaleAdd*)lbl_802C2A28;
+    if (1.0 == uScale && 0.0 == uAdd && 1.0 == vScale && 0.0 == vAdd) {
+        if (node->flags & 0x10000000) {
+            if (node->flags & 0x10000000) {
+                entries[node->uvScaleAddIndex].uScale = lbl_80348CA0;
+                MBTreeClearUVScaleAdd(node, -1, recurse);
+            }
+        }
+        return;
+    }
+
+    if (node->flags & 0x10000000)
+        entries[node->uvScaleAddIndex].uScale = lbl_80348CA0;
+
+    entry = &entries[63];
+    while (entry-- != entries) {
+        if (entry->uScale > 1e36) {
+            entry->uScale = uScale;
+            entry->uAdd = uAdd;
+            entry->vScale = vScale;
+            entry->vAdd = vAdd;
+            if (entry->uScale > 1e36)
+                entry->uScale = 1e36f;
+            MBTreeClearUVScaleAdd(node, entry - entries, recurse);
+            return;
+        }
+    }
+
+    ErrorPrintf(lbl_801160B0);
+}
 
 /* 0x800BA2C4 */
 void MBTreeClearFlags(MBTreeNode* node, u32 flags, s32 recurse)
@@ -702,7 +752,7 @@ void MBNodeInit(MBTreeNode* node, s32 type)
     node->parent = 0;
     node->child = 0;
     node->next = 0;
-    node->zMod = lbl_80348CA0;
+    node->zMod = 0.0f;
     node->ambientAdd = 0;
     node->texIndex = -1;
     node->altTex = 0;
