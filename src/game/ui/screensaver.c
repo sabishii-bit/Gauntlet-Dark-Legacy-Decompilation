@@ -120,9 +120,36 @@ void ScrollMessageBox(char* msg)
     gModalRenderDepth -= 1;
 }
 
+void* MBNewNode();                     /* 0x800BB29C */
+void* AtreeMatch();                    /* atree lookup by name */
+void* AtreeInit();                     /* 0x80012F78 */
+void MBNodeSetParent();                /* 0x800BAD94 */
+extern u8 lbl_8011D568[];              /* weapon init tables (names/pos/vel) */
+extern void* sPowerupsBuf;             /* atree wad */
+extern f32 lbl_80347398;               /* initial weapon spin */
+
+/* Set up one screensaver weapon: scene node + weapon object parented to it,
+ * then seed its position/velocity from the per-weapon init table. */
 void ScreenSaverStartWeap(int idx)
 {
-    (void)idx;
+    u8* w = (u8*)lbl_80274600 + idx * 0x88;
+    u8* t = lbl_8011D568 + idx * 0xc;
+    void* atree;
+
+    *(void**)(w + 0x5c) = MBNewNode(lbl_80344A64, 0, 0);
+    atree = AtreeMatch(sPowerupsBuf, *(char**)(lbl_8011D568 + 0x744 + idx * 4), 0);
+    *(void**)(w + 0x60) = AtreeInit(atree, w + 0x60, 0, 0);
+    if (*(s32**)(w + 0x60) != 0 && **(s32**)(w + 0x60) != 0) {
+        MBNodeSetParent(**(s32**)(w + 0x60), *(void**)(w + 0x5c));
+    }
+    *(u32*)(w + 0x20) = *(u32*)(t + 0x754);
+    *(u32*)(w + 0x24) = *(u32*)(t + 0x758);
+    *(u32*)(w + 0x28) = *(u32*)(t + 0x75c);
+    *(u32*)(w + 0x30) = *(u32*)(t + 0x784);
+    *(u32*)(w + 0x34) = *(u32*)(t + 0x788);
+    *(u32*)(w + 0x38) = *(u32*)(t + 0x78c);
+    *(f32*)(w + 0x2c) = lbl_80347398;
+    *(f32*)(w + 0x3c) = lbl_80347398;
 }
 
 void ScreenSaverStart(void)
