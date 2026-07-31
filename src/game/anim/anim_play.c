@@ -14,6 +14,7 @@
 
 extern f32 light_color[4];
 extern const f32 lbl_803457F0;
+extern f64 lbl_803457F8, lbl_80345800, lbl_80345808;
 void GetAnimAngXYZVal();
 
 void ZeroAnimData(void* data)
@@ -43,8 +44,42 @@ void CalcAnimData()
     GetAnimAngXYZVal();
 }
 
-STUB(0x8000F74C, InterpXYZ)
-STUB(0x8000F788, InterpPYR)
+/* InterpXYZ @0x8000F74C -- linear-interpolate a 3-vector by `frac`. */
+void InterpXYZ(f32 frac, f32* a, f32* b, f32* out)
+{
+    s32 i;
+    for (i = 0; i < 3; i++) {
+        if (a[i] != b[i]) {
+            out[i] = frac * (b[i] - a[i]) + a[i];
+        } else {
+            out[i] = a[i];
+        }
+    }
+}
+
+/* InterpPYR @0x8000F788 -- interpolate a 3-angle vector, wrapping each delta
+ * into the shortest arc before blending. */
+void InterpPYR(f32 frac, f32* a, f32* b, f32* out)
+{
+    f64 lo = lbl_80345808;
+    f64 wrap = lbl_80345800;
+    f64 hi = lbl_803457F8;
+    s32 i;
+    for (i = 0; i < 3; i++) {
+        if (a[i] != b[i]) {
+            f64 d = b[i] - a[i];
+            if (d > hi) {
+                d = d - wrap;
+            }
+            if (d <= lo) {
+                d = d + wrap;
+            }
+            out[i] = (f32)(frac * d + (f64)a[i]);
+        } else {
+            out[i] = a[i];
+        }
+    }
+}
 STUB(0x8000F7F4, GetAnimAngXYZVal)
 STUB(0x80010850, fn_80010850)
 STUB(0x80010904, fn_80010904)
