@@ -27,6 +27,9 @@ void ErrorPrintf(char* fmt, ...);      /* 0x800BC6E0 */
 extern f32 gClockTime;                 /* 0x80344584 */
 extern f64 lbl_803457C0;
 extern char lbl_80110758[];
+f32 floorf(f32 x);                     /* 0x800EAA1C */
+f32 fabsf(f32 x);
+extern f64 lbl_803457D0, lbl_803457D8, lbl_803457E0;
 
 void AnimInit(void)
 {
@@ -119,7 +122,80 @@ s32 InitAnim(f32 time, animinfo* info, s32 seq, s32 frame, s32 active)
     info->numframes = nf;
     return 1;
 }
-STUB(0x8000EF18, CalcAnimInfo)
+/* CalcAnimInfo @0x8000EF18 -- advance one animinfo along the game clock:
+ * step/quantize the frame, honour looping/one-shot, and cross-fade the
+ * transition fraction while the trans window is open. */
+void CalcAnimInfo(animinfo* info)
+{
+    f64 sc;
+    f64 at;
+    f64 inv;
+    f64 t;
+    f64 fl;
+    s32 nf;
+
+    if (info == NULL) {
+        return;
+    }
+    info->atime = gClockTime;
+    if (info->setpanim == 2) {
+        info->setpanim = 0;
+    }
+    if ((info->stage & 0xFF) == 0xFF) {
+        if ((info->stage & 0x100) == 0) {
+            return;
+        }
+        info->stage = info->stage & 0xFF00;
+    }
+    if (info->active == 0) {
+        return;
+    }
+    nf = *(s16*)((u8*)info->seqheader + info->animseq * 0x30 + 0x20);
+    if (nf == 0) {
+        info->active = 0;
+        info->stage |= 0xFF;
+        info->starttime = info->atime;
+        return;
+    }
+    sc = (f64)(info->seqscale * lbl_803441A8);
+    at = (f64)info->atime;
+    inv = lbl_803457D0 / sc;
+    if ((f64)info->transtime > at) {
+        info->transfrac = (info->atime - info->starttime) /
+                          (info->transtime - info->starttime);
+        return;
+    }
+    if (info->animseq0 != info->animseq) {
+        info->starttime = -(f32)((f64)info->frame * sc - at);
+        info->transtime = lbl_803457B4;
+        info->transfrac = lbl_803457B4;
+        info->animseq0 = info->animseq;
+        info->setpanim = 1;
+    }
+    t = (info->atime - info->starttime) * (f32)inv;
+    fl = floorf((f32)(lbl_803457D8 + t));
+    if ((info->flags & 2) == 0 ||
+        (f64)fabsf((f32)(t - fl)) < lbl_803457E0 || sc < (f64)lbl_803441A8) {
+        t = fl;
+    }
+    if (lbl_803457D8 + (f32)(nf - 1) <= t) {
+        info->stage |= 0xFF;
+        info->frame = (f32)(nf - 1);
+        if (info->repeat == 0) {
+            info->stage &= 0xFEFF;
+            info->transfrac = lbl_803457B4;
+        } else {
+            info->starttime = info->atime;
+            info->stage |= 0x100;
+            info->setpanim = 1;
+        }
+    } else {
+        if (t < lbl_803457B4) {
+            t = lbl_803457B4;
+        }
+        info->frame = (f32)t;
+    }
+}
 /* SetupAnimHeader @0x8000F184 -- snap an animinfo to sequence `seq`, frame
  * interpolated across [lo,hi], and cache the animheader's first three words. */
 s32 AnimateTreeFrame(f32 time, animinfo* info, s32 seq, s32 lo, s32 hi)
