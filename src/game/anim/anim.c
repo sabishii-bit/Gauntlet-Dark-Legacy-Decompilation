@@ -351,20 +351,25 @@ u32 DoAnimation(int* node, animinfo* info, f32* outmtx, s32* outrot,
     u16 raw;
     u32 flags;
     u32 next;
-    u32 off;
+    union {
+        u32 w;
+        u8 b[4];
+    } so, sd;
     s32 pose[12];
 
     if (*node == 0) {
         return 0;
     }
     key = (u16*)(*node + info->animseq * 8);
-    off = *(u32*)(key + 2);
-    off = (off << 24) | ((off & 0xFF00) << 8) | ((off >> 8) & 0xFF00) |
-          (off >> 24);
-    data = (void*)(((s32*)info->animheader)[3] + off);
+    so.w = *(u32*)(key + 2);
+    sd.b[0] = so.b[3];
+    sd.b[1] = so.b[2];
+    sd.b[2] = so.b[1];
+    sd.b[3] = so.b[0];
+    data = (void*)(((s32*)info->animheader)[3] + sd.w);
     raw = *key;
-    flags = (u16)((raw << 8) | (raw >> 8));
-    next = (u16)((key[1] << 8) | (key[1] >> 8));
+    flags = (u16)(((raw & 0xFF) << 8) | (raw >> 8));
+    next = (u16)(((key[1] & 0xFF) << 8) | (key[1] >> 8));
     if (info->setpanim != 0) {
         *(u16*)((u8*)node + 8) = 0xFFFF;
         *(u16*)((u8*)node + 10) = 0;
