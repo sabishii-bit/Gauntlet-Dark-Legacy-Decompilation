@@ -1997,7 +1997,7 @@ extern s32 lbl_8025EC98[4];   /* see-thru: saved parent */
 extern u8* lbl_8025ECA8[4];   /* see-thru: proxy node */
 extern void* lbl_8025ECB8[4][0x12]; /* see-thru: overlay handle (stride 0x48) */
 extern u8* lbl_80282930[4];   /* per-player class record (att bases at +0x28..) */
-extern void* gPlayerFamiliarTrees[]; /* level-tier halo atrees [i*2], [i*2+1] */
+extern void* FamiliarTree[4][2]; /* level-tier halo atrees */
 extern u32 lbl_80240E5C[];    /* pad config words, stride 0xF */
 extern u32 lbl_80240E60[];
 extern u32 lbl_80240E64[];
@@ -4156,9 +4156,9 @@ static void PlayerProcessSkinFX(void* vp, void* node) {
 
     (void)node;
     if (p->level >= 0x50) {
-        src = (void**)&gPlayerFamiliarTrees[p->index * 2 + 1];
+        src = &FamiliarTree[p->index][1];
     } else if (p->level >= 0x1E) {
-        src = (void**)&gPlayerFamiliarTrees[p->index * 2];
+        src = &FamiliarTree[p->index][0];
     } else {
         if (PF(p, 0x748, s32) != 0) {
             AtreeDelete((void**)((u8*)p + 0x748));

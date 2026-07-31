@@ -87,14 +87,14 @@ game/world/camera.c:
 	.text       start:0x80022734 end:0x8002951C
 
 game/game/combat.c:
-	extab       start:0x80005B00 end:0x80005C10
-	extabindex  start:0x800090D0 end:0x80009268
-	.text       start:0x8002951C end:0x8003101C
+	extab       start:0x80005B00 end:0x80005C18
+	extabindex  start:0x800090D0 end:0x80009274
+	.text       start:0x8002951C end:0x8003104C
 
 game/game/controls.c:
-	extab       start:0x80005C10 end:0x80005CE0
-	extabindex  start:0x80009268 end:0x800093A0
-	.text       start:0x8003101C end:0x80034CFC
+	extab       start:0x80005C18 end:0x80005CE0
+	extabindex  start:0x80009274 end:0x800093A0
+	.text       start:0x8003104C end:0x80034CFC
 
 game/enemy/critter.c:
 	extab       start:0x80005CE0 end:0x80005F28

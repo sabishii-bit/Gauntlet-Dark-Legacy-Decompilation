@@ -10,7 +10,7 @@
  *
  * CAMERA.OBJ tail  0x8002951C..0x8002EFE8
  * CLOCK.OBJ        0x8002EFE8..0x8002F2D4
- * COMBAT.OBJ       0x8002F2D4..0x8003101C
+ * COMBAT.OBJ       0x8002F2D4..0x8003104C
  */
 
 #include "types.h"
@@ -48,7 +48,7 @@ extern s32 sClockAccumulator;
 extern u32 gClockElapsedTime;
 extern u32 gClockCurrentTime;
 extern s32 gClockStepTicks;
-extern s32 gFrameTicks;
+extern u32 gFrameTicks;
 
 extern s32 pbLoad;
 extern s32 gGameBusy;
@@ -63,38 +63,47 @@ extern s32 sPreviousFlags;
 extern u8 gPlayers[];
 extern u8 gEnemies[];
 
-typedef struct MissileDesc {
-    u32 flags;
+typedef struct MissileInfo {
+    u32 damageType;
     f32 damage;
     f32 speed;
-    f32 radius;
-    f32 scale;
-    f32 color[3];
+    f32 collisionRadius;
+    f32 hitRadius;
+    f32 angularVelocity[3];
     f32 weight;
     s32 hitEffect;
     s32 hitSound;
     s32 wallSound;
-    s32 mode;
-} MissileDesc;
+} MissileInfo;
 
-typedef struct PlayerMissileRuntime {
-    void* missileTree;
-    u32 trailEffect;
-} PlayerMissileRuntime;
+typedef struct MissileTreeInfo {
+    void* throwHeader;
+    u32 throwFlags;
+} MissileTreeInfo;
 
-extern s32 gPlayerMissiles[25];
-extern void* gPlayerWeaponHoldTrees[4][5];
-extern void* gPlayerFamiliarSpitTrees[5];
-extern void* gPlayerFamiliarTrees[4][2];
-extern void* gEnemyMissileTrees[28][3];
-extern PlayerMissileRuntime gPlayerMissileRuntime[4];
-extern MissileDesc PlayerMissileInfo[];
-extern MissileDesc EnemyMissileInfo[];
-extern MissileDesc BallistaMissileInfo;
-extern MissileDesc BossElecMissileInfo;
-extern MissileDesc BossAcidMissileInfo;
-extern char* EnemyMissileDesc[];
-extern char* PlayerMissileDesc[];
+typedef struct MissileDescription {
+    char throwDescription[4];
+    char throwLevel[11];
+    u8 _pad0F;
+    u32 flags;
+} MissileDescription;
+
+extern s32 pmissile_sfxidx[5];
+extern s32 WeapThrowFx[4][5];
+extern void* WeapHoldFxTree[4][5];
+extern void* FamiliarSpit[4];
+extern void* PhoenixTree;
+extern void* FamiliarTree[4][2];
+extern void* EnemyMissileTree[28][3];
+extern MissileTreeInfo PlayerMissileTreeInfo[4];
+extern MissileInfo PlayerMissileInfo[8];
+extern MissileInfo EnemyMissileInfo[28][3];
+extern MissileInfo BallistaMissileInfo;
+extern MissileInfo BossElecMissileInfo;
+extern MissileInfo BossAcidMissileInfo;
+extern char EnemyMissileDesc[3][8];
+extern MissileDescription PlayerMissileDesc[16];
+extern char DmgTypeDesc[5][8];
 
 /* cross-TU references */
 void CopyMat4(f32* src, f32* dst);
@@ -114,12 +123,13 @@ u32 pbGetTime(void);
 void MBRemoveBlit(s32 blit);
 void MBWindowZoom(f32 zoom);
 void DoShake(void* camera, void* attention);
-void LookInDirection(s32 camera, f32* direction);
+void LookInDirection(f32* matrix, f32* direction);
 void ErrorPrintf(char* format, ...);
 void FatalError(char* format, s32 code);
 void* EnemyTypePrefix(s32 enemyType);
 void* AtreeMatch(void* tree, char* name, s32 required);
 void DeleteItem(void* item, s32 immediate);
+extern void* memset(void* dst, int value, size_t size);
 
 /* stage-info banner (combat.c title-card display) */
 extern u8* gCurLevel;
@@ -148,7 +158,6 @@ extern void fn_8009D2B4(void);
 
 /* missile atree lookup */
 extern void* gWadAtreeHeaders[];
-extern char lbl_80119110[];   /* missile-name suffix table (stride 8) */
 extern char lbl_803463D4[];   /* "%s%s" */
 extern char* EnemyTypeDesc(s32 type);
 extern s32 toupper(s32 c);
@@ -223,13 +232,13 @@ void init_targets(void);
 s32 LineCylinderCollide(f32* center, f32 radius, f32 halfHeight,
                         f32* from, f32* to, f32* hit, s32 directional);
 s32 StartMissile(s32 owner, f32* position, f32* velocity, u32 damageType,
-                 MissileDesc* desc, void* missileTree, s32 variant,
+                 MissileInfo* desc, void* missileTree, s32 variant,
                  u32 extraFlags, f32 scale, f32 damageMag);
 /* StartMissile FX/vibration constants */
 extern f32 lbl_803463C0, lbl_8034633C, lbl_80346328, lbl_803463D0;
 extern f64 lbl_80346348, lbl_80346340, lbl_803463C8;
 extern char lbl_80111E28[];
-extern s32 lbl_80274E9C, lbl_80344598;
+extern s32 lbl_80274E9C, WeaponStreakTex;
 extern u32 lbl_8011A178[], lbl_8011A188[];
 extern void* lbl_80282930[];
 void fn_80093E50();
@@ -247,7 +256,6 @@ void fn_80093D98();
 extern f32 lbl_8023F818, lbl_8023F81C, lbl_8023F820, lbl_8034444C;
 extern f32 lbl_80344534;
 extern s32 lbl_80344400;
-extern u32 lbl_8034457C;
 void CameraSupervisor(s32 camIdx);
 
 void DiffRate(s32 camIdx)
@@ -336,7 +344,7 @@ extern f64 lbl_80346108, lbl_80346118;
 extern f32 lbl_8034445C, lbl_80344454, lbl_80344450, lbl_80344458;
 extern f32 lbl_80346100, lbl_80346110, lbl_80344530, lbl_80344408;
 extern f64 lbl_80345FE0;
-extern s32 lbl_80344510, lbl_8034450C, lbl_80344918, lbl_8034429C, lbl_80344404;
+extern s32 lbl_80344510, lbl_8034450C, sNumTriggerCameras, lbl_8034429C, lbl_80344404;
 
 #define TC_X(i) (*(f32*)(sTriggerCameras + (i) * 0x28 + 4))
 #define TC_Y(i) (*(f32*)(sTriggerCameras + (i) * 0x28 + 8))
@@ -355,7 +363,7 @@ void CameraSupervisor(s32 camIdx)
     s32 count = 0;
     s32 idx = 0;
     s32 off = 0;
-    s32 n = lbl_80344918;
+    s32 n = sNumTriggerCameras;
     f64 d11 = lbl_80345EC8;
     f64 d14 = lbl_80345EC8;
     f64 d15 = lbl_80345EC8;
@@ -367,7 +375,7 @@ void CameraSupervisor(s32 camIdx)
     s32 sel;
     s32 best;
 
-    if (lbl_80344918 > 0) {
+    if (sNumTriggerCameras > 0) {
         do {
             if (sTriggerCameras[off] == 1 &&
                 *(s16*)(sTriggerCameras + off + 2) != 0) {
@@ -419,7 +427,7 @@ void CameraSupervisor(s32 camIdx)
     if (count != 0) {
         d18 = (f32)(d19 + d18);
         if (count == 1 || lbl_80345F78 == d18) {
-            lbl_8034429C = lbl_8034429C + lbl_8034457C;
+            lbl_8034429C = lbl_8034429C + gFrameTicks;
         } else {
             f32 sx, sy, sz;
             PointLineColl(&cam->wpos[0],
@@ -674,10 +682,10 @@ s32 MoveCam_walk(s32 camIdx)
 extern u8 lbl_80240E38[];
 extern f32 lbl_80346138, lbl_80346148;
 extern f64 lbl_80345FE0, lbl_80346140;
-extern s32 lbl_8023FCD4, lbl_8023FCD8, lbl_803445CC, lbl_8023FBE8;
+extern s32 lbl_8023FCD4, lbl_8023FCD8, sFlags, lbl_8023FBE8;
 extern s32 lbl_8023FCE0, lbl_8023FCE4;
-extern s32 lbl_803447BC;
-extern u32 lbl_8034457C;
+extern s32 gScriptedCameraState;
+extern u32 gFrameTicks;
 void write_stage_info(s32 mode);
 
 /*
@@ -689,7 +697,7 @@ void write_stage_info(s32 mode);
 s32 init_game_cam(s32 camIdx)
 {
     Camera* cam = (Camera*)((u8*)gCameraState + camIdx * 396 + 0xC8);
-    s32 prevTimer = lbl_803447BC;
+    s32 prevTimer = gScriptedCameraState;
     s32 reached = 2;
     u8* level = *(u8**)((u8*)gCurLevel + 0x60);
     f32 dx, dy, dz;
@@ -701,25 +709,25 @@ s32 init_game_cam(s32 camIdx)
         return -1;
     }
 
-    if (lbl_803447BC > 2) {
-        lbl_803447BC = lbl_803447BC - lbl_8034457C;
-        if (lbl_803447BC < 2) {
-            lbl_803447BC = 2;
+    if (gScriptedCameraState > 2) {
+        gScriptedCameraState = gScriptedCameraState - gFrameTicks;
+        if (gScriptedCameraState < 2) {
+            gScriptedCameraState = 2;
         }
-        if (lbl_803447BC < 45) {
+        if (gScriptedCameraState < 45) {
             for (i = 0; i < 4; i++) {
                 u8* player = (u8*)gPlayers + i * PLAYER_STRIDE;
                 if (PF(player, 0xE8, s32) == 1 &&
                     (*(u32*)(lbl_80240E38 + i * 0x3C) & 0x20000FF) != 0) {
-                    lbl_803447BC = 2;
+                    gScriptedCameraState = 2;
                 }
             }
         }
     }
-    lbl_80344490 = lbl_803447BC;
-    write_stage_info(lbl_803447BC);
+    lbl_80344490 = gScriptedCameraState;
+    write_stage_info(gScriptedCameraState);
 
-    if (prevTimer > 1 && lbl_803447BC == 1) {
+    if (prevTimer > 1 && gScriptedCameraState == 1) {
         for (i = 0; i < 4; i++) {
             u8* player = (u8*)gPlayers + i * PLAYER_STRIDE;
             if (PF(player, 0xE8, s32) == 1) {
@@ -728,7 +736,7 @@ s32 init_game_cam(s32 camIdx)
         }
     }
 
-    if (lbl_803447BC == 1) {
+    if (gScriptedCameraState == 1) {
         dx = gCameras[0].wpos[0] - cam[0].wpos[0];
         dy = gCameras[0].wpos[1] - cam[0].wpos[1];
         dz = gCameras[0].wpos[2] - cam[0].wpos[2];
@@ -747,7 +755,7 @@ s32 init_game_cam(s32 camIdx)
             if (len > lbl_80346138) {
                 len = lbl_80346138;
             }
-            len = (f32)((f64)lbl_8034457C / len);
+            len = (f32)((f64)gFrameTicks / len);
             if (len > lbl_80345FE0) {
                 len = lbl_80345F80;
             }
@@ -777,7 +785,7 @@ s32 init_game_cam(s32 camIdx)
             if (len > lbl_80346140) {
                 len = lbl_80346148;
             }
-            len = (f32)((f64)lbl_8034457C / len);
+            len = (f32)((f64)gFrameTicks / len);
             if (len > lbl_80345FE0) {
                 len = lbl_80345F80;
             }
@@ -800,12 +808,12 @@ s32 init_game_cam(s32 camIdx)
                     lbl_8023FCD8 = lbl_8023FCD4;
                     lbl_8023FCD4 = 0;
                 }
-                if ((lbl_803445CC & 4) != 0) {
+                if ((sFlags & 4) != 0) {
                     lbl_803445D4 = lbl_803445D4 | 4;
                 }
                 lbl_8034453C = 0;
                 lbl_803447B8 = 0;
-                lbl_803447BC = 0;
+                gScriptedCameraState = 0;
                 lbl_8023FBE8 = 0;
                 return 0;
             }
@@ -869,6 +877,7 @@ void init_stage_info(void)
 {
     s32 width = 0;
     s32 height = 0;
+    u8 unused[8];
     u32 level;
 
     lbl_80344490 = 91;
@@ -884,33 +893,35 @@ void init_stage_info(void)
         lbl_80344498 = 0;
     }
     if (width > 0) {
-        s32 w = width + 60;
-        s32 h = height + 16;
-        lbl_8034440C = MBNewBlit(lbl_80111B50, 256 - w / 2, 108 - h / 2);
-        mbBlitProject(lbl_8034440C, w, h);
+        width += 60;
+        height += 16;
+        lbl_8034440C = MBNewBlit(lbl_80111B50, 256 - width / 2,
+                                108 - height / 2);
+        mbBlitProject(lbl_8034440C, width, height);
     }
 }
 
 void AverageCameraTargetPosition(f32* out)
 {
+    f32* q;
+    s32 n = gCameraTargetPositionCount;
     f32 sum[3];
     s32 i;
     s32 k;
     s32 off;
-    s32 n = gCameraTargetPositionCount;
     f32 scale;
 
     if (n > 0) {
         sum[0] = lbl_80345EC8;
         sum[1] = lbl_80345EC8;
         sum[2] = lbl_80345EC8;
+        i = 0;
         off = 0;
-        for (i = 0; i < n; i++) {
-            f32* q = gCameraTargetPositions + off;
+        for (; i < n; i++, off += 3) {
+            q = gCameraTargetPositions + off;
             for (k = 0; k < 3; k++) {
                 sum[k] += q[k];
             }
-            off += 3;
         }
         scale = (f32)(1.0 / (f64)n);
         sum[0] = sum[0] * scale;
@@ -929,12 +940,12 @@ void chg_target_state(s32 mode)
 }
 
 /* calc_cam_pyr: derive camera pitch/yaw for the active look mode. */
-extern s32 lbl_8028CA90, lbl_80344544, lbl_80344538, lbl_803447BC;
+extern s32 lbl_8028CA90, gNumTransmitters, lbl_80344538, gScriptedCameraState;
 extern f32 lbl_8034616C, lbl_80344530, lbl_80344408, lbl_80344534;
 extern f32 lbl_8028CABC, lbl_8028CAC8, lbl_8028CAD0, lbl_8028CAC4;
 extern f32 lbl_80118B60[];
 extern f64 lbl_80346170, lbl_80346070, lbl_80345EF0, lbl_80346178;
-extern u32 lbl_8034457C;
+extern u32 gFrameTicks;
 
 void calc_cam_pyr(s32 camIdx, s32 resetDelta)
 {
@@ -956,7 +967,7 @@ void calc_cam_pyr(s32 camIdx, s32 resetDelta)
         cam->pyr[2] = zero;
         goto apply;
     }
-    if (lbl_80344544 != 0) {
+    if (gNumTransmitters != 0) {
         f32 rate = (f32)(lbl_80346170 * (f64)(u32)gFrameTicks);
         f32 diff = lbl_80344530 - lbl_80344408;
         f32 step;
@@ -980,7 +991,7 @@ void calc_cam_pyr(s32 camIdx, s32 resetDelta)
         }
     }
     cam->pyr[0] = lbl_80344408;
-    if (lbl_80344544 != 0) {
+    if (gNumTransmitters != 0) {
         goto apply;
     }
 
@@ -1001,13 +1012,13 @@ void calc_cam_pyr(s32 camIdx, s32 resetDelta)
         dv3 = lbl_8028CAC4;
     }
     v = lbl_80344534;
-    if (lbl_803447BC == 0) {
+    if (gScriptedCameraState == 0) {
         v = lbl_80118B60[lbl_80344538];
     }
     cam->pyr[1] = FixAngle((f32)((f64)v + dv / (lbl_80345EF0 * dv3)));
 
 apply:
-    if (lbl_80344544 == 0) {
+    if (gNumTransmitters == 0) {
         if (lbl_80346178 <=
             (f32)((f64)cam->pyr[0] + (f64)cam->pyr_delta[0])) {
             cam->pyr[0] = (f32)(lbl_80346178 - (f64)cam->pyr_delta[0]);
@@ -1024,7 +1035,7 @@ apply:
  * and last-good-position fallback makes this usable by a native port even
  * before the world-collision adapter is available.
  */
-extern s32 lbl_8023F808[], lbl_803443F8;
+extern s32 lbl_803443F8;
 extern f64 lbl_80346180;
 extern f32 lbl_80346188;
 s32 CameraCollide(f32* pos, f32* obj);
@@ -1102,7 +1113,7 @@ void get_cam_wpos(s32 camIdx)
             }
             if (found) {
                 s32 delta = adj - lbl_80344538;
-                lbl_803447BC = 1;
+                gScriptedCameraState = 1;
                 lbl_80344400 = (delta == 1 || delta == -3) ? 1 : -1;
                 lbl_80344534 = lbl_80118B60[lbl_80344538];
                 lbl_80344538 = (lbl_80344538 + lbl_80344400) & 3;
@@ -1113,9 +1124,9 @@ void get_cam_wpos(s32 camIdx)
 
     place_cam(cam, wpos, attn, pyr, mat);
 
-    if (lbl_80344544 == 0) {
+    if (gNumTransmitters == 0) {
         if (cam_blocked(wpos)) {
-            *timer = *timer + lbl_8034457C;
+            *timer = *timer + gFrameTicks;
             if (*timer > 0xB4) {
                 *timer = 0xB4;
             }
@@ -1135,7 +1146,7 @@ void get_cam_wpos(s32 camIdx)
         } else if (*timer >= 0) {
             f32 savedW0 = wpos[0], savedW1 = wpos[1], savedW2 = wpos[2];
             f32 savedD = *pyrDelta;
-            *timer = *timer - lbl_8034457C;
+            *timer = *timer - gFrameTicks;
             if (*timer < 0) {
                 if (lbl_80344404 < 1) {
                     if (lbl_80345F78 <= (f64)*pyrDelta) {
@@ -1435,7 +1446,6 @@ f32 someone_will_be_off_screen(s32 camIdx, f32* pos)
  */
 extern s32 lbl_803444DC, lbl_803444CC, lbl_803444C8, lbl_80344500;
 extern f32 lbl_803444D8, lbl_803444D4, lbl_803444D0;
-extern f32 lbl_8023F83C, lbl_8023F840, lbl_8023F844;
 extern f32 lbl_80346188, lbl_803461E8;
 extern f64 lbl_803461E0, lbl_80346180;
 f32 NormalVector(f32* v);
@@ -1474,7 +1484,7 @@ void StandardCamera(s32 camIdx)
         lbl_80344528 = *(f32*)(*(s32*)((u8*)gCurLevel + 0x60) + 0x30);
     } else {
         lbl_803444DC = 1;
-        lbl_803444D0 = lbl_803444D0 + lbl_8034457C;
+        lbl_803444D0 = lbl_803444D0 + gFrameTicks;
     }
     if (gCameraTargetCount > 0) {
         for (i = 0; i < 15; i++) {
@@ -1644,30 +1654,30 @@ void StandardCamera(s32 camIdx)
                 if (mx < ty) mx = ty;
             }
         }
-        lbl_8023F83C = (f32)((f64)offX + (f64)wpos0[0]);
-        lbl_8023F840 = lbl_80345EC8 + wpos0[1];
-        lbl_8023F844 = (f32)((f64)offZ + (f64)wpos0[2]);
+        gRecorderCameraPosition[0] = (f32)((f64)offX + (f64)wpos0[0]);
+        gRecorderCameraPosition[1] = lbl_80345EC8 + wpos0[1];
+        gRecorderCameraPosition[2] = (f32)((f64)offZ + (f64)wpos0[2]);
         cand[0] = (f32)((f64)offX + (f64)attn0[0]);
         cand[2] = (f32)((f64)offZ + (f64)attn0[2]);
         attn0[1] = (f32)(lbl_80345F18 * (f64)(mx + mn));
         cand[1] = attn0[1];
         *(f32*)((u8*)c0 + 0x160) = attn0[1];
-        dir[0] = (f32)((f64)lbl_8023F83C - (f64)cand[0]);
-        dir[1] = (f32)((f64)lbl_8023F840 - (f64)cand[1]);
-        dir[2] = (f32)((f64)lbl_8023F844 - (f64)cand[2]);
+        dir[0] = (f32)((f64)gRecorderCameraPosition[0] - (f64)cand[0]);
+        dir[1] = (f32)((f64)gRecorderCameraPosition[1] - (f64)cand[1]);
+        dir[2] = (f32)((f64)gRecorderCameraPosition[2] - (f64)cand[2]);
         NormalVector(dir);
-        lbl_8023F83C = (f32)((f64)dir[0] * (f64)c0->radius + (f64)cand[0]);
-        lbl_8023F840 = (f32)((f64)dir[1] * (f64)c0->radius + (f64)cand[1]);
-        lbl_8023F844 = (f32)((f64)dir[2] * (f64)c0->radius + (f64)cand[2]);
+        gRecorderCameraPosition[0] = (f32)((f64)dir[0] * (f64)c0->radius + (f64)cand[0]);
+        gRecorderCameraPosition[1] = (f32)((f64)dir[1] * (f64)c0->radius + (f64)cand[1]);
+        gRecorderCameraPosition[2] = (f32)((f64)dir[2] * (f64)c0->radius + (f64)cand[2]);
     }
 
     if (lbl_803444DC != 0) {
-        f32 rNew = someone_will_be_off_screen(0, &lbl_8023F83C);
+        f32 rNew = someone_will_be_off_screen(0, gRecorderCameraPosition);
         f32 rOld = someone_will_be_off_screen(0, wpos0);
         if (rOld <= rNew) {
-            wpos0[0] = lbl_8023F83C;
-            wpos0[1] = lbl_8023F840;
-            wpos0[2] = lbl_8023F844;
+            wpos0[0] = gRecorderCameraPosition[0];
+            wpos0[1] = gRecorderCameraPosition[1];
+            wpos0[2] = gRecorderCameraPosition[2];
             attn0[0] = (f32)((f64)attn0[0] + (f64)offX);
             attn0[1] = attn0[1] + lbl_80345EC8;
             attn0[2] = (f32)((f64)attn0[2] + (f64)offZ);
@@ -1676,9 +1686,9 @@ void StandardCamera(s32 camIdx)
             lbl_803444D0 = 0;
             lbl_803444D8 = lbl_80345EC8;
             lbl_803444D4 = lbl_80345EC8;
-            lbl_8023F83C = wpos0[0];
-            lbl_8023F840 = wpos0[1];
-            lbl_8023F844 = wpos0[2];
+            gRecorderCameraPosition[0] = wpos0[0];
+            gRecorderCameraPosition[1] = wpos0[1];
+            gRecorderCameraPosition[2] = wpos0[2];
         }
     }
     if (wasPanning == 0 && lbl_803444DC == 1) {
@@ -1850,8 +1860,8 @@ f32 get_pitch(f32* a, f32* b)
 }
 
 extern f32 lbl_8023F8C4[], lbl_8023F8B8[];
-extern s32 lbl_8034477C, lbl_80344824, lbl_80344414;
-extern u8 lbl_80344950[];
+extern s32 gGameMode, lbl_80344824, lbl_80344414;
+extern u8 sItems[];
 extern f64 lbl_803461F0;
 extern f64 cos(f64);
 extern f64 sin(f64);
@@ -1883,7 +1893,7 @@ void get_attn_pos(s32 camIdx, f32* out)
         cam->attn_dest_no_offset[1] = out[1];
         cam->attn_dest_no_offset[2] = out[2];
     } else if (aMode == 1 ||
-               ((lbl_8034477C & 0x4000) != 0 && lbl_80344824 == 0)) {
+               ((gGameMode & 0x4000) != 0 && lbl_80344824 == 0)) {
         out[0] = cam->attn[0];
         out[1] = cam->attn[1];
         out[2] = cam->attn[2];
@@ -1956,7 +1966,7 @@ void get_attn_pos(s32 camIdx, f32* out)
             cam->attn_dest_no_offset[1] = out[1];
             cam->attn_dest_no_offset[2] = out[2];
             if (*(s32*)((u8*)cam + 0xEC) == 3) {
-                if (lbl_80344544 == 0) {
+                if (gNumTransmitters == 0) {
                     f64 cp = cos((f64)cam->pyr[0]);
                     out[2] = (f32)(lbl_80345F18 * lbl_80345F18 *
                         (f64)(maxZ - minZ) * cp + (f64)out[2]);
@@ -2004,9 +2014,9 @@ void get_attn_pos(s32 camIdx, f32* out)
                     out[2] = sv2;
                 }
             }
-            *timer = *timer + lbl_8034457C;
+            *timer = *timer + gFrameTicks;
         } else {
-            u8* w = *(u8**)(*(u8**)(lbl_80344950 +
+            u8* w = *(u8**)(*(u8**)(sItems +
                 lbl_80344960 * 0xF0 + 0xDC) + 0x28);
             out[0] = *(f32*)(w + 0x30);
             out[1] = *(f32*)(w + 0x34);
@@ -2067,14 +2077,14 @@ void recalc_lookat(s32 camIdx, s32 snap)
 }
 
 extern s32 lbl_80344498, lbl_803444E0, lbl_803444F8, lbl_80344470, lbl_80344474;
-extern s32 lbl_8034454C, lbl_80344548, lbl_8034446C, lbl_80344494, lbl_803443F0;
-extern s32 lbl_80344550, lbl_80344478, lbl_8034447C, lbl_80344484, lbl_80344488;
-extern s32 lbl_80344480, lbl_803447B4, lbl_803444BC, lbl_8034449C;
-extern s32 lbl_803444A0, lbl_803444A4, lbl_803444A8, lbl_80344514, lbl_80344518;
-extern s32 lbl_80344520, lbl_80344744, lbl_803447F8, lbl_80344524;
-extern s32 lbl_80344288, lbl_8034441C, lbl_80344910, lbl_80344420, lbl_80344A28;
-extern f32 lbl_80344460, lbl_80344464, lbl_8034448C, lbl_803461F8, lbl_803461FC;
-extern f32 lbl_803444C0, lbl_803444C4, lbl_80345F80;
+extern s32 gCameraTargetPositionCount, gCameraTargetMode, lbl_8034446C, lbl_80344494, lbl_803443F0;
+extern s32 lbl_80344550, shake_type, shaking, shake_count, shake_delay;
+extern s32 shake_priority, lbl_803447B4, lbl_803444BC, gCameraWindowLeftLimit;
+extern s32 gCameraWindowRightLimit, gCameraWindowTopLimit, gCameraWindowBottomLimit, lbl_80344514, lbl_80344518;
+extern s32 lbl_80344520, gNumEnemies, lbl_803447F8, lbl_80344524;
+extern s32 lbl_80344288, lbl_8034441C, sSpecialTransmitter, lbl_80344420, lbl_80344A28;
+extern f32 lbl_80344460, lbl_80344464, shake_rad, lbl_803461F8, lbl_803461FC;
+extern f32 gCameraWindowScaleX, gCameraWindowScaleY, lbl_80345F80;
 extern f32 lbl_80344428, lbl_80344424, lbl_80344438, lbl_80344434;
 extern f32 lbl_8034443C, lbl_80344440, lbl_80344444, lbl_80344448;
 extern f32 lbl_8034442C, lbl_80344430;
@@ -2088,15 +2098,12 @@ extern f32 lbl_80346258, lbl_8034625C, lbl_80345F14, lbl_80344880;
 extern f32 lbl_8023F824, lbl_8023F828, lbl_8023F82C, lbl_8023F830, lbl_8023F834;
 extern f32 lbl_8023F838, lbl_802757D8, lbl_8028CAC8, lbl_8028CAD0, lbl_8028CAB4;
 extern f32 lbl_8028CAA8, lbl_8028CACC;
-extern f32 lbl_802757D4[], lbl_8028CA8C[], lbl_8023F8D4[], lbl_80258E08[];
-extern u8 lbl_80344EE8[], lbl_80127D60[];
+extern f32 gDefaultPlayerPosition[], lbl_8023F8D4[], lbl_80258E08[];
+extern u8 lbl_80344EE8[], gIdentityMatrix[];
+extern u8 sMilestones[];
 void ChangeWindow(void);
-s32 fn_8000D3C4(f32 a, f32* pos, s32 c);
+s32 FloorPos(f32 a, f32* pos, s32 c);
 s32 fn_80051480(f32* pos);
-f32 fn_8002C7CC(void);
-f32 fn_8002C8A8(f32* a, f32* b);
-void fn_80027608(f32* a, f32* b);
-void fn_80022824(f32* a, f32* b);
 void dbgTextPrintfCol();
 
 void InitCamera(s32 resetAll)
@@ -2125,8 +2132,8 @@ void InitCamera(s32 resetAll)
     lbl_803444E4 = 0;
     lbl_80344470 = 0;
     lbl_80344474 = 0;
-    lbl_8034454C = 0;
-    lbl_80344548 = 0;
+    gCameraTargetPositionCount = 0;
+    gCameraTargetMode = 0;
     lbl_80344508 = -1;
     lbl_8034446C = -1;
     lbl_80344494 = 0;
@@ -2136,7 +2143,7 @@ void InitCamera(s32 resetAll)
     lbl_803443F8 = 600;
     lbl_80344538 = 0;
     lbl_80344400 = 1;
-    lbl_803447BC = 0;
+    gScriptedCameraState = 0;
     lbl_8034452C = lbl_803461F8;
     lbl_80344528 = lbl_803461FC;
     lbl_80344408 = lbl_8034616C;
@@ -2145,12 +2152,12 @@ void InitCamera(s32 resetAll)
     lbl_803447B4 = 0;
     lbl_803447B8 = 0;
     lbl_80344550 = 0;
-    lbl_80344478 = 0;
-    lbl_8034447C = 0;
-    lbl_80344484 = 0;
-    lbl_80344488 = 0;
-    lbl_8034448C = lbl_80345EC8;
-    lbl_80344480 = 0;
+    shake_type = 0;
+    shaking = 0;
+    shake_count = 0;
+    shake_delay = 0;
+    shake_rad = lbl_80345EC8;
+    shake_priority = 0;
 
     {
     u32* c = (u32*)&gCameras[0];
@@ -2159,7 +2166,7 @@ void InitCamera(s32 resetAll)
     for (i = 0; i < 6; i++) {
         f32* cf = (f32*)c;
         c[0] = 0;
-        CopyMat4((f32*)lbl_80127D60, cf + 1);
+        CopyMat4((f32*)gIdentityMatrix, cf + 1);
         cf[0x11] = zero; cf[0x12] = zero; cf[0x13] = zero;
         cf[0x15] = zero; cf[0x16] = zero; cf[0x17] = zero;
         cf[0x19] = zero; cf[0x1a] = zero; cf[0x1b] = zero;
@@ -2202,7 +2209,7 @@ void InitCamera(s32 resetAll)
     }
 
     if (resetAll == 0) {
-        if (lbl_8034477C == 0x400B) {
+        if (gGameMode == 0x400B) {
             if (*(s32*)((u8*)c0 + 0xEC) != 2) {
                 *(s32*)((u8*)c0 + 0xF0) = *(s32*)((u8*)c0 + 0xEC);
                 *(s32*)((u8*)c0 + 0xEC) = 2;
@@ -2218,8 +2225,8 @@ void InitCamera(s32 resetAll)
             *(f32*)((u8*)c0 + 0x130) = lbl_80346158;
             *(f32*)((u8*)c0 + 0x134) = lbl_80345EC8;
             c0->state = 1;
-        } else if (lbl_8034477C == 0x400D || lbl_8034477C == 0x4013 ||
-                   lbl_8034477C == 0x4017) {
+        } else if (gGameMode == 0x400D || gGameMode == 0x4013 ||
+                   gGameMode == 0x4017) {
             f64 s, cc;
             f32 dx, dz, dy;
             f64 len2;
@@ -2269,7 +2276,7 @@ void InitCamera(s32 resetAll)
             *(s32*)((u8*)c0 + 0xD0) = 0;
             *(s32*)((u8*)c0 + 0xCC) = 0;
             c0->state = 1;
-        } else if (lbl_8034477C == 0x8007) {
+        } else if (gGameMode == 0x8007) {
             if (*(s32*)((u8*)c0 + 0xEC) != 2) {
                 *(s32*)((u8*)c0 + 0xF0) = *(s32*)((u8*)c0 + 0xEC);
                 *(s32*)((u8*)c0 + 0xEC) = 2;
@@ -2285,12 +2292,12 @@ void InitCamera(s32 resetAll)
             *(f32*)((u8*)c0 + 0x130) = lbl_8034622C;
             *(f32*)((u8*)c0 + 0x134) = lbl_80346230;
             c0->state = 1;
-        } else if (lbl_8034477C == 0x8008) {
+        } else if (gGameMode == 0x8008) {
             if (lbl_80344288 == 0) {
                 u8* hdr = *(u8**)((u8*)gCurLevel + 0x60);
-                lbl_80344744 = *(s16*)(hdr + 0x34);
+                gNumEnemies = *(s16*)(hdr + 0x34);
                 lbl_8034441C = *(s16*)(hdr + 0x26);
-                if (lbl_8034441C < 0 && lbl_80344910 == 0) {
+                if (lbl_8034441C < 0 && sSpecialTransmitter == 0) {
                     lbl_8034441C = 0;
                     *(s16*)(hdr + 0x26) = 0;
                 }
@@ -2309,7 +2316,7 @@ void InitCamera(s32 resetAll)
                     *(f32*)((u8*)c0 + 0x134) = lbl_8028CAD0;
                     *(f32*)((u8*)c0 + 0x130) = lbl_8028CAB4;
                     do {
-                        g = fn_8000D3C4(lbl_80344880, (f32*)((u8*)c0 + 0x12C), 0);
+                        g = FloorPos(lbl_80344880, (f32*)((u8*)c0 + 0x12C), 0);
                         if (g != (f64)lbl_80344880 || g <= (f64)lbl_8028CAA8) {
                             break;
                         }
@@ -2357,12 +2364,12 @@ void InitCamera(s32 resetAll)
                     f32 saveW[3];
                     f32 saveA[3];
                     f32 d[3];
-                    c0->wpos[0] = *(f32*)(lbl_80344910 + 4);
-                    c0->wpos[1] = *(f32*)(lbl_80344910 + 8);
-                    c0->wpos[2] = *(f32*)(lbl_80344910 + 0xC);
-                    *(f32*)((u8*)c0 + 0xA4) = *(f32*)(lbl_80344910 + 0x14);
-                    *(f32*)((u8*)c0 + 0xA8) = *(f32*)(lbl_80344910 + 0x18);
-                    *(f32*)((u8*)c0 + 0xAC) = *(f32*)(lbl_80344910 + 0x1C);
+                    c0->wpos[0] = *(f32*)(sSpecialTransmitter + 4);
+                    c0->wpos[1] = *(f32*)(sSpecialTransmitter + 8);
+                    c0->wpos[2] = *(f32*)(sSpecialTransmitter + 0xC);
+                    *(f32*)((u8*)c0 + 0xA4) = *(f32*)(sSpecialTransmitter + 0x14);
+                    *(f32*)((u8*)c0 + 0xA8) = *(f32*)(sSpecialTransmitter + 0x18);
+                    *(f32*)((u8*)c0 + 0xAC) = *(f32*)(sSpecialTransmitter + 0x1C);
                     CreateYPRMatrix(mat, (f32*)((u8*)c0 + 0xA4));
                     c0->radius = lbl_80346148;
                     in[0] = lbl_80345EC8;
@@ -2388,11 +2395,11 @@ void InitCamera(s32 resetAll)
                     saveA[1] = *(f32*)((u8*)c0 + 0x130);
                     saveA[2] = *(f32*)((u8*)c0 + 0x134);
                     StandardCamera(0);
-                    fn_80027608(saveW, saveA);
+                    DoShake(saveW, saveA);
                     d[0] = saveA[0] - saveW[0];
                     d[1] = saveA[1] - saveW[1];
                     d[2] = saveA[2] - saveW[2];
-                    fn_80022824(d, lbl_8023F8D4);
+                    LookInDirection(d, lbl_8023F8D4);
                     c0->state = 1;
                     lbl_80344428 = lbl_80345EC8;
                     lbl_80344424 = lbl_80345EC8;
@@ -2406,9 +2413,10 @@ void InitCamera(s32 resetAll)
                     if (lbl_80344510 != lbl_8034450C) {
                         f64 dv;
                         f32 fa;
-                        lbl_80344444 = fn_8002C8A8(c0->wpos,
+                        lbl_80344444 = get_pitch(c0->wpos,
                             &lbl_80258E08[lbl_8034450C * 10]);
-                        lbl_80344448 = fn_8002C7CC();
+                        lbl_80344448 = get_yaw(c0->wpos,
+                            &lbl_80258E08[lbl_8034450C * 10]);
                         fa = FixAngle((f32)(lbl_80345F60 - (f64)lbl_80344448));
                         dv = (f64)(f32)(lbl_803460B0 * lbl_803460B8 * (f64)fa);
                         if (dv < (f64)lbl_80345EC8) {
@@ -2477,14 +2485,16 @@ void InitCamera(s32 resetAll)
                     *(s32*)((u8*)c0 + 0xFC) = *(s32*)((u8*)c0 + 0xF8);
                     *(s32*)((u8*)c0 + 0xF8) = 0;
                 }
-                c0->wpos[0] = lbl_802757D4[0];
-                c0->wpos[1] = *(f32*)(lbl_802757D4 + 1);
-                c0->wpos[2] = *(f32*)(lbl_802757D4 + 2);
+                c0->wpos[0] = gDefaultPlayerPosition[0];
+                c0->wpos[1] = *(f32*)(gDefaultPlayerPosition + 1);
+                c0->wpos[2] = *(f32*)(gDefaultPlayerPosition + 2);
                 c0->wpos[1] = (f32)(lbl_80346078 +
-                    (f64)fn_8000D3C4(lbl_80344880, c0->wpos, 0));
+                    (f64)FloorPos(lbl_80344880, c0->wpos, 0));
                 *(s32*)((u8*)c0 + 0xD0) = fn_80051480(c0->wpos);
                 *(f32*)((u8*)c0 + 0xA4) = lbl_80345EC8;
-                *(f32*)((u8*)c0 + 0xA8) = fn_8002C7CC();
+                *(f32*)((u8*)c0 + 0xA8) = get_yaw(
+                    (f32*)(sMilestones + *(s32*)((u8*)c0 + 0xD0) * 0x68 + 0x30),
+                    c0->wpos);
                 *(f32*)((u8*)c0 + 0xE0) = *(f32*)((u8*)c0 + 0xA8);
                 *(f32*)((u8*)c0 + 0xAC) = lbl_80345EC8;
                 c0->radius = lbl_80345F14;
@@ -2514,7 +2524,7 @@ void InitCamera(s32 resetAll)
             lbl_8034452C = *(f32*)(hdr + 0x16);
             lbl_80344528 = *(f32*)(hdr + 0x18);
             lbl_803447F8 = 18000;
-            lbl_80344744 = hdr[0x1a];
+            gNumEnemies = hdr[0x1a];
             uiFov = scrH == 0x100 ? 0x2a : 0x40;
             c0->state = 1;
             lbl_80344530 = lbl_80344408;
@@ -2552,13 +2562,13 @@ void InitCamera(s32 resetAll)
     lbl_8023F818 = lbl_80345EC8;
     lbl_8023F81C = lbl_80345EC8;
     lbl_8023F820 = lbl_80345EC8;
-    lbl_8034449C = 0;
-    lbl_803444C0 = lbl_80345F80;
-    lbl_803444C4 = lbl_80345F80;
+    gCameraWindowLeftLimit = 0;
+    gCameraWindowScaleX = lbl_80345F80;
+    gCameraWindowScaleY = lbl_80345F80;
     lbl_803444BC = 0;
-    lbl_803444A0 = scrW;
-    lbl_803444A4 = scrH;
-    lbl_803444A8 = uiFov;
+    gCameraWindowRightLimit = scrW;
+    gCameraWindowTopLimit = scrH;
+    gCameraWindowBottomLimit = uiFov;
     ChangeWindow();
     MBWindowZoom(lbl_80345F80);
     lbl_80344520 = (s32)-(f32)((f64)*(f32*)(lbl_80344EE8 + 0x14) * lbl_8034601C -
@@ -2695,14 +2705,14 @@ void ProcCamera(s32 camIdx, s32 useRecorderPosition)
  * limits.  The debug build also printed selectable object information here;
  * clamping is the runtime-relevant part of the routine.
  */
-extern s32 lbl_803445CC;
+extern s32 sFlags;
 extern f64 lbl_803460C0, lbl_803460C8;
 void fn_800C02F4(s32 color);
 
 /*
  * screen_limitation -- debug overlay printing camera camIdx's world position,
  * attention, orientation, distance and its camera-/attention-mode names.  Gated
- * by the debug flag (lbl_803445CC & 1); no effect in a normal build.
+ * by the debug flag (sFlags & 1); no effect in a normal build.
  */
 void screen_limitation(s32 camIdx)
 {
@@ -2717,7 +2727,7 @@ void screen_limitation(s32 camIdx)
     f64 yawDeg;
     s32 pitch;
 
-    if ((lbl_803445CC & 1) == 0) {
+    if ((sFlags & 1) == 0) {
         return;
     }
     row = MBScreenHeight() / 8;
@@ -3195,11 +3205,11 @@ void* MissileCollidePlayer(f32 radius, f32* from, f32* to, f32* hit)
 
 /*
  * StartMissile -- common effect allocator/configurator shared by enemy and
- * player launch paths.  MissileDesc is the PDB-described runtime definition;
+ * player launch paths.  MissileInfo is the PDB-described runtime definition;
  * the effect system owns movement after these attributes are installed.
  */
 s32 StartMissile(s32 owner, f32* position, f32* velocity, u32 damageType,
-                 MissileDesc* desc, void* missileTree, s32 variant,
+                 MissileInfo* desc, void* missileTree, s32 variant,
                  u32 extraFlags, f32 scale, f32 damageMag)
 {
     f32 color = lbl_803463C0;
@@ -3244,21 +3254,21 @@ s32 StartMissile(s32 owner, f32* position, f32* velocity, u32 damageType,
     } else {
         flg = extraFlags | 0x1107;
     }
-    if ((f64)desc->color[0] == lbl_80346340 &&
-        (f64)desc->color[1] == lbl_80346340 &&
-        (f64)desc->color[2] == lbl_80346340) {
+    if ((f64)desc->angularVelocity[0] == lbl_80346340 &&
+        (f64)desc->angularVelocity[1] == lbl_80346340 &&
+        (f64)desc->angularVelocity[2] == lbl_80346340) {
         flg |= 0x20000;
     }
     flg |= 0x1000000;
     fx = StartFXTree(missileTree, position, flg, 0x80000, color);
-    radius = desc->radius;
+    radius = desc->collisionRadius;
     if ((damageType & 0x2000000) != 0) {
         radius = (f32)((f64)radius * lbl_803463C8);
     }
-    fn_80093E50(fx, vel, desc->color, desc->weight, radius);
+    fn_80093E50(fx, vel, desc->angularVelocity, desc->weight, radius);
     SfxSetHit(fx, (s16)desc->hitEffect, desc->hitSound, wallSound);
-    SfxSetDamage(fx, damageType | desc->flags, owner, damageMag,
-                 desc->scale, lbl_80346328);
+    SfxSetDamage(fx, damageType | desc->damageType, owner, damageMag,
+                 desc->hitRadius, lbl_80346328);
     if ((damageType & 0x2000000) != 0) {
         ScaleFX(fx, lbl_803463D0, lbl_803463D0, lbl_803463D0);
     }
@@ -3279,7 +3289,7 @@ s32 StartMissile(s32 owner, f32* position, f32* velocity, u32 damageType,
                 }
             }
         }
-        fn_80093D98(fx, lbl_80344598, vibColor, vibIntensity, lbl_80346328,
+        fn_80093D98(fx, WeaponStreakTex, vibColor, vibIntensity, lbl_80346328,
             *(f32*)((u8*)lbl_80282930[owner - 1] + 0x17C));
     }
     return fx;
@@ -3325,8 +3335,8 @@ void SfxSetLight();
 s32 EnemyStartMissile(void* enemy, f32* launchPos, f32* target, s32 slot)
 {
     s32 enemyType = PF(enemy, 0x00, s32);
-    MissileDesc* desc = &EnemyMissileInfo[enemyType * 3 + slot];
-    void* tree = gEnemyMissileTrees[enemyType][slot];
+    MissileInfo* desc = &EnemyMissileInfo[enemyType][slot];
+    void* tree = EnemyMissileTree[enemyType][slot];
     f32 dir[3];
     f32 speed;
     f32 invSpeed;
@@ -3415,7 +3425,7 @@ s32 EnemyStartMissile(void* enemy, f32* launchPos, f32* target, s32 slot)
             spawn[1] = (f32)(lbl_80346398 * (f64)dir[1] + (f64)aim[1]);
             spawn[2] = (f32)(lbl_80346398 * (f64)dir[2] + (f64)aim[2]);
             if (WeaponWallCollide(aim, spawn, 0) == 0 &&
-                fn_8005ED44(desc->radius, aim, spawn, 0, 0, -1) == 0) {
+                fn_8005ED44(desc->collisionRadius, aim, spawn, 0, 0, -1) == 0) {
                 f32 damage = desc->damage;
                 if (lbl_803447D8 < lbl_80346318) {
                     damage = (f32)((f64)damage * lbl_80346370);
@@ -3437,14 +3447,10 @@ s32 EnemyStartMissile(void* enemy, f32* launchPos, f32* target, s32 slot)
     return 0;
 }
 
-extern MissileDesc lbl_80118F68[];
-extern u8 lbl_8011A0E8[], lbl_8011A118[], lbl_8011A148[], lbl_8011A1A8[];
+extern u8 lbl_8011A1A8[];
 extern f32 lbl_80111DE0[], lbl_80111DF4[];
-extern s32 lbl_80240560[];
-extern void* lbl_80240574[];
-extern void* lbl_80240798[];
-extern void* lbl_80285018[];
-extern void *lbl_803445B8, *lbl_803445BC, *lbl_803445C0, *lbl_80240624;
+extern void* EffectInfo[];
+extern void *BossAcidTree, *BossElecTree, *BallistaTree;
 extern f32 lbl_80285C20[];
 extern s16 lbl_80285CA0[];
 extern s32* lbl_80285BD0[];
@@ -3470,12 +3476,12 @@ void PlayerStartMissile(s32* player, f32* direction, u32 damageType, s32 mode,
 {
     s32 idx = player[0];
     u32 pflags = (u32)player[0x49];
-    u32 trailFx = gPlayerMissileRuntime[idx].trailEffect;
+    u32 trailFx = PlayerMissileTreeInfo[idx].throwFlags;
     u32 special = pflags & 0x8000;
     u32 dmgLow = damageType & 0xF;
     u32 extraFlags = 0;
     s32 useSpecial = 0;
-    MissileDesc* desc;
+    MissileInfo* desc;
     f32 aim[3];
     f32 pt0[3];
     f32 pt1[3];
@@ -3493,17 +3499,17 @@ void PlayerStartMissile(s32* player, f32* direction, u32 damageType, s32 mode,
     if (special == 0) {
         if ((pflags & 0x4000) == 0) {
             if ((damageType & 0x100000) == 0 || (damageType & 0x2000000) != 0) {
-                desc = (MissileDesc*)((u8*)lbl_80118F68 + player[2] * 0x30);
+                desc = &PlayerMissileInfo[player[2]];
             } else {
-                desc = (MissileDesc*)lbl_8011A0E8;
+                desc = &BallistaMissileInfo;
                 useSpecial = 1;
             }
         } else {
-            desc = (MissileDesc*)lbl_8011A148;
+            desc = &BossAcidMissileInfo;
             useSpecial = 1;
         }
     } else {
-        desc = (MissileDesc*)lbl_8011A118;
+        desc = &BossElecMissileInfo;
         useSpecial = 1;
     }
     scale = *(f32*)((u8*)player + 0x114) * scaleArg;
@@ -3546,7 +3552,7 @@ void PlayerStartMissile(s32* player, f32* direction, u32 damageType, s32 mode,
         }
     }
     {
-        s32* hit = (s32*)fn_8005ED44(desc->radius, pt0, pt1, wallHit,
+        s32* hit = (s32*)fn_8005ED44(desc->collisionRadius, pt0, pt1, wallHit,
                                      0, player[0]);
         if (hit != 0) {
             f64 dmg = fn_8005C1DC(scale, hit, damageType, player[0]);
@@ -3600,21 +3606,21 @@ void PlayerStartMissile(s32* player, f32* direction, u32 damageType, s32 mode,
                     if ((f & 0x400) == 0) {
                         if ((damageType & 0x100000) == 0 ||
                             (damageType & 0x2000000) != 0) {
-                            tree = lbl_80240798[idx * 2];
+                            tree = PlayerMissileTreeInfo[idx].throwHeader;
                         } else {
-                            tree = lbl_803445C0;
+                            tree = BallistaTree;
                         }
                     } else {
                         extraFlags = 0x10000;
-                        tree = lbl_80240624;
+                        tree = PhoenixTree;
                     }
                 } else {
                     extraFlags = 0x10000;
-                    tree = lbl_803445B8;
+                    tree = BossAcidTree;
                 }
             } else {
                 extraFlags = 0x10000;
-                tree = lbl_803445BC;
+                tree = BossElecTree;
             }
         }
 
@@ -3640,16 +3646,15 @@ void PlayerStartMissile(s32* player, f32* direction, u32 damageType, s32 mode,
             launchDir[2] = (f32)(-(f64)direction[0] * (f64)spreadA[i] +
                                  (f64)(direction[2] * spreadB[i]));
             if ((player[2] == 2 || player[2] == 6) &&
-                *(s32*)((u8*)lbl_80240574 + player[0] * 0x14 + dmgLow * 4) >= 0 &&
+                WeapThrowFx[player[0]][dmgLow] >= 0 &&
                 !useSpecial) {
-                tree = lbl_80285018[0];
+                tree = EffectInfo[0];
             }
             fx = StartMissile(player[0] + 1, pt1, launchDir, damageType, desc,
                               tree, i, extraFlags, clamped, scale);
             if (fx >= 0) {
                 if (!useSpecial) {
-                    s32 tw = *(s32*)((u8*)lbl_80240574 + player[0] * 0x14 +
-                                     dmgLow * 4);
+                    s32 tw = WeapThrowFx[player[0]][dmgLow];
                     if (tw >= 0) {
                         u32 fxFlags = 0x81880;
                         s32 sub;
@@ -3694,7 +3699,7 @@ void PlayerStartMissile(s32* player, f32* direction, u32 damageType, s32 mode,
                     }
                 }
             }
-            lbl_80240560[i] = fx;
+            pmissile_sfxidx[i] = fx;
         }
         }
     }
@@ -3709,35 +3714,32 @@ void InitEnemyMissiles(s32 enemyType)
         if (gWadAtreeHeaders[enemyType] != NULL) {
             char* p;
             sprintf(buf, lbl_803463D4, EnemyTypeDesc(enemyType),
-                    &lbl_80119110[slot * 8]);
+                    EnemyMissileDesc[slot]);
             for (p = buf; *p != '\0'; p++) {
                 *p = (char)toupper(*p);
             }
-            gEnemyMissileTrees[enemyType][slot] =
+            EnemyMissileTree[enemyType][slot] =
                 AtreeMatch(gWadAtreeHeaders[enemyType], buf, 0);
         } else {
-            gEnemyMissileTrees[enemyType][slot] = NULL;
+            EnemyMissileTree[enemyType][slot] = NULL;
         }
     }
 }
 
-extern u8 lbl_80118E28[], lbl_80118E38[];
-extern char* lbl_801190E8[];
 extern void *lbl_802753FC[], *lbl_802753E4[];
-extern void *lbl_80240574[];
-extern void *lbl_803445C0, *lbl_803445BC, *lbl_803445B8, *lbl_803445B0;
-extern void *lbl_803445AC, *lbl_803445A8, *lbl_803445A4, *lbl_8034459C;
-extern void *lbl_803445A0, *lbl_803445B4, *lbl_80240624;
+extern void *BallistaTree, *BossElecTree, *BossAcidTree, *lbl_803445B0;
+extern void *WingsTree, *PojoTree, *BreatheFireTree, *BreatheElecTree;
+extern void *BreatheAcidTree, *FireShieldTree, *PhoenixTree;
 extern void *sWeaponsBuf, *sPowerupsBuf;
 extern char lbl_803463EC[];
 void* MBOX_FindTexture(char* name, void* arg);
-void* InitCustomEffect(void* tree, char* name, void* arg);
+s32 InitCustomEffect(void* tree, char* name, s32 zmod, s32 alpha);
 
 void InitPlayerMissiles(void* player)
 {
     s32 idx = PF(player, 0x00, s32);
     s32 charType = PF(player, 0x0C, s32);
-    char* charName = (char*)(lbl_80118E28 + charType * 0x14);
+    char* charName = PlayerMissileDesc[charType].throwDescription;
     u8 throwByte = *(u8*)(charName + PF(player, 0x3324, s32) / 10 + 4);
     void* weaponWad = lbl_802753FC[idx * 0x13];
     void* powerupWad = lbl_802753E4[idx * 0x13];
@@ -3747,60 +3749,63 @@ void InitPlayerMissiles(void* player)
 
     if (throwByte == 0x30) {
         sprintf(buf, "%s_THROW0", charName);
-        gPlayerMissileRuntime[idx].missileTree = AtreeMatch(powerupWad, buf, 0);
+        PlayerMissileTreeInfo[idx].throwHeader = AtreeMatch(powerupWad, buf, 0);
     } else {
         sprintf(buf, "%s_THROW_%c", charName, (char)throwByte);
-        gPlayerMissileRuntime[idx].missileTree = AtreeMatch(weaponWad, buf, 0);
+        PlayerMissileTreeInfo[idx].throwHeader = AtreeMatch(weaponWad, buf, 0);
     }
-    if (gPlayerMissileRuntime[idx].missileTree == 0) {
+    if (PlayerMissileTreeInfo[idx].throwHeader == 0) {
         sprintf(buf, "%s_THROW1", charName);
-        gPlayerMissileRuntime[idx].missileTree = AtreeMatch(powerupWad, buf, 0);
+        PlayerMissileTreeInfo[idx].throwHeader = AtreeMatch(powerupWad, buf, 0);
     }
-    missing = gPlayerMissileRuntime[idx].missileTree == 0;
+    missing = PlayerMissileTreeInfo[idx].throwHeader == 0;
     if (missing) {
         ErrorPrintf("Player Missile not found: %s", buf);
     }
-    gPlayerMissileRuntime[idx].trailEffect =
-        (u32)(*(s32*)(lbl_80118E38 + charType * 0x14));
+    PlayerMissileTreeInfo[idx].throwFlags = PlayerMissileDesc[charType].flags;
 
     for (i = 0; i < 5; i++) {
-        char* name = lbl_801190E8[i * 2];
+        char* name = DmgTypeDesc[i];
         if (name[0] == '\0') {
-            gPlayerWeaponHoldTrees[idx][i] = 0;
-            *(s32*)&lbl_80240574[idx * 5 + i] = -1;
+            WeapHoldFxTree[idx][i] = 0;
+            WeapThrowFx[idx][i] = -1;
         } else {
             sprintf(buf, "WEAP_HOLD_%s", name);
-            gPlayerWeaponHoldTrees[idx][i] = AtreeMatch(weaponWad, buf, 1);
+            WeapHoldFxTree[idx][i] = AtreeMatch(weaponWad, buf, 1);
             sprintf(buf, "WEAP_TW_%c", name[0]);
-            lbl_80240574[idx * 5 + i] =
-                InitCustomEffect(weaponWad, buf, 0);
+            WeapThrowFx[idx][i] = InitCustomEffect(weaponWad, buf, 0, 0);
         }
     }
-    lbl_80344598 = (s32)MBOX_FindTexture("WEP_STREAK", 0);
-    lbl_803445C0 = AtreeMatch(sWeaponsBuf, "SUPERARROW", 1);
-    lbl_803445BC = AtreeMatch(sWeaponsBuf, "BOSSG_ELEC", 1);
-    lbl_803445B8 = AtreeMatch(sWeaponsBuf, "BOSSG_ACID", 1);
+    WeaponStreakTex = (s32)MBOX_FindTexture("WEP_STREAK", 0);
+    BallistaTree = AtreeMatch(sWeaponsBuf, "SUPERARROW", 1);
+    BossElecTree = AtreeMatch(sWeaponsBuf, "BOSSG_ELEC", 1);
+    BossAcidTree = AtreeMatch(sWeaponsBuf, "BOSSG_ACID", 1);
     if (sPowerupsBuf == 0) {
         lbl_803445B0 = 0;
-        lbl_803445AC = 0;
-        lbl_803445A8 = 0;
-        lbl_803445A4 = 0;
-        lbl_8034459C = 0;
-        lbl_803445A0 = 0;
+        WingsTree = 0;
+        PojoTree = 0;
+        BreatheFireTree = 0;
+        BreatheElecTree = 0;
+        BreatheAcidTree = 0;
     } else {
         lbl_803445B0 = AtreeMatch(sPowerupsBuf, "PHOENIX", 1);
-        lbl_803445AC = AtreeMatch(sPowerupsBuf, "WINGS", 1);
-        lbl_803445A8 = AtreeMatch(sPowerupsBuf, lbl_803463EC, 1);
-        lbl_803445A4 = AtreeMatch(sPowerupsBuf, "HEAD_BREATHEF", 1);
-        lbl_8034459C = AtreeMatch(sPowerupsBuf, "HEAD_BREATHEE", 1);
-        lbl_803445A0 = AtreeMatch(sPowerupsBuf, "HEAD_BREATHEA", 1);
+        WingsTree = AtreeMatch(sPowerupsBuf, "WINGS", 1);
+        PojoTree = AtreeMatch(sPowerupsBuf, lbl_803463EC, 1);
+        BreatheFireTree = AtreeMatch(sPowerupsBuf, "HEAD_BREATHEF", 1);
+        BreatheElecTree = AtreeMatch(sPowerupsBuf, "HEAD_BREATHEE", 1);
+        BreatheAcidTree = AtreeMatch(sPowerupsBuf, "HEAD_BREATHEA", 1);
     }
-    lbl_803445B4 = AtreeMatch(sWeaponsBuf, "FW_SHLD_ACTIVE", 1);
-    gPlayerFamiliarTrees[idx][0] = AtreeMatch(weaponWad, "FAMILIAR1", 1);
-    gPlayerFamiliarTrees[idx][1] = AtreeMatch(weaponWad, "FAMILIAR2", 1);
-    gPlayerFamiliarSpitTrees[idx] = AtreeMatch(weaponWad, "FAMILIAR_SPIT", 1);
-    lbl_80240624 = AtreeMatch(sWeaponsBuf, "PHOENIX_FBALL", 1);
+    FireShieldTree = AtreeMatch(sWeaponsBuf, "FW_SHLD_ACTIVE", 1);
+    FamiliarTree[idx][0] = AtreeMatch(weaponWad, "FAMILIAR1", 1);
+    FamiliarTree[idx][1] = AtreeMatch(weaponWad, "FAMILIAR2", 1);
+    FamiliarSpit[idx] = AtreeMatch(weaponWad, "FAMILIAR_SPIT", 1);
+    PhoenixTree = AtreeMatch(sWeaponsBuf, "PHOENIX_FBALL", 1);
     if (missing) {
         FatalError("InitPlayerMissiles failed!", 0x800000);
     }
+}
+
+void ResetPlayerMissiles(void)
+{
+    memset(PlayerMissileTreeInfo, 0, sizeof(PlayerMissileTreeInfo));
 }

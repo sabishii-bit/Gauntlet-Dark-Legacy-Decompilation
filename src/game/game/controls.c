@@ -1,22 +1,22 @@
 /*
  * controls.c - player controls / PS2 scePad+sceMtap shim layer (CONTROLS.OBJ).
  *
- * .text 0x8003101C-0x80034CFC, extab 0x80005C10-0x80005CE0,
- * extabindex 0x80009268-0x800093A0.
+ * .text 0x8003104C-0x80034CFC, extab 0x80005C18-0x80005CE0,
+ * extabindex 0x80009274-0x800093A0.
  *
  * TU identity/boundary evidence:
  *  - Xbox PDB CONTROLS.OBJ carries the full roster (ReadControls,
  *    PlayerControls, joyReadPad/joyGetStatus, serve_mtap, MtapOpenPort,
  *    the new_/any_ edge-query family, aiPad* data).  Every function in
- *    0x8003101C-0x80034CFC shares the same statics (lbl_802407xx pad
+ *    0x8003104C-0x80034CFC shares the same statics (lbl_802407xx pad
  *    arrays, lbl_80240E30 per-player structs, lbl_803445xx flag cluster,
  *    ctrls_initialized) - one TU.
  *  - fn_80030C84 (ends exactly 0x8003101C) references sWeaponsBuf/
  *    sPowerupsBuf (weapons-fx TU); fn_80034CFC references gEnemies/
  *    gCurLevel (combat-side TU) - clean seams both sides.
- *  - extabindex rows 0x80009268..0x800093A0 are exactly this TU's
- *    LR-saving fns (first row fn=0x8003101C, last row fn=0x80034B3C,
- *    bracketed by 0x80030C84 / 0x80034CFC rows).
+ *  - extabindex rows 0x80009274..0x800093A0 are exactly this TU's
+ *    LR-saving fns (first row fn=0x8003119C, last row fn=0x80034B3C,
+ *    bracketed by 0x8003101C / 0x80034CFC rows).
  *
  * Names from the Xbox PDB (research/xbox_symbols/functions_by_module.txt).
  * NOTE two symbols are pinned by Matching main.c and keep their old names:
@@ -37,8 +37,8 @@
  * my_ctrl_scheme, controls_set_active_players, all_plyr_new_*, start,
  * new_menu_back's siblings, controls_monkey, test_controls.
  *
- * Status: NonMatching.  20 of 38 fns byte-exact/matched (nuke_ctrls,
- * active_player_edge, new_menu_back/accept, controls_first_active_player,
+ * Status: NonMatching.  19 of 37 fns byte-exact/matched
+ * (active_player_edge, new_menu_back/accept, controls_first_active_player,
  * start_no_assignment, new_start, new_up/down/left/right, any_level, any,
  * new_ctrl, and_edges*, assigned_controller, ClearControls*,
  * ClearPlayerControl*, controls_remove_active_player*, serve_mtap,
@@ -444,7 +444,6 @@ static s32 lbl_80343BE0[2] = { 0, 0 };
 
 /* --- .bss --- */
 
-extern u32 gPlayerMissileRuntime[8]; /* combat-owned per-player missile runtime */
 static u32 lbl_802407B8[4];      /* 0x802407B8 per-pad levels                  */
 static u32 lbl_802407C8[4];      /* 0x802407C8 per-pad old levels              */
 static u32 lbl_802407D8[4];      /* 0x802407D8 per-pad levels word 2           */
@@ -513,7 +512,6 @@ static void lf_memcpy(u8* d, u8* src, s32 n)
 /* prototypes (nearly every intra-TU call is a forward reference -     */
 /* callees sit AFTER callers in the emission order)                    */
 /* ------------------------------------------------------------------ */
-void nuke_ctrls(void);
 s32 active_player_edge(u32 mask);
 s32 new_menu_back(s32 plyr);
 void controls_remove_active_player(s32 plyr);
@@ -554,12 +552,6 @@ void MtapOpenPort(s32 port, s32 flag);
 f32 fn_80034C88(f32 x);
 
 /* ================================================================== */
-
-/* 0x8003101C  clear the latched edge block so menus don't double-fire */
-void nuke_ctrls(void)
-{
-    memset(gPlayerMissileRuntime, 0, 0x20);
-}
 
 /* 0x8003104C  does any ACTIVE player (gPlayers stride 0x335C) have a
  * new edge under mask?  (auxscreen: accept-button query) */
