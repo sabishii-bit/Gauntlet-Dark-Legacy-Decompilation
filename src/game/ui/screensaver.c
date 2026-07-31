@@ -63,6 +63,18 @@ void mbInitBlitEntry(void* blit, u32 pos, int a);   /* 0x800B2988 */
 
 /* ---- misc engine helpers (other TUs) ---- */
 void ClearAllPlayerControls(int a);   /* 0x80032A80 */
+void AtreeDelete(void* atree);        /* 0x800115D0 */
+int MBRemoveNode(int handle, int flag); /* 0x800BAEAC */
+void MBTreeClearFlags(int node, int mask, int val); /* 0x800BA2C4 */
+void ShopMusicStart();                /* 0x800A0DA8 */
+void AudioSelect();                   /* 0x800A0F64 */
+
+/* ---- screensaver-weapon struct array (this TU's .bss, stride 0x88) ---- */
+extern u8 lbl_80274620[];             /* node @+0x3c, atree @+0x40 */
+extern int lbl_80344A64;              /* backdrop node handle */
+extern int lbl_80344ECC;              /* active-node list head (next @+0x7c) */
+extern int lbl_80344A60;              /* saved options state */
+extern int options_state;             /* 0x80344A98 */
 
 /* ---- shared front-end state (small data / bss, other TUs) ---- */
 extern int gWinGlobals;         /* gWinGlobals */
@@ -127,6 +139,26 @@ void ScreenSaverUpdateWeap(void)
 
 void ScreenSaverEnd(void)
 {
+    s32 off;
+    s32 i;
+    s32 node;
+
+    for (i = 0, off = 0; i < 4; i++, off += 0x88) {
+        AtreeDelete(lbl_80274620 + 0x40 + off);
+        *(s32*)(lbl_80274620 + 0x3c + off) =
+            MBRemoveNode(*(s32*)(lbl_80274620 + 0x3c + off), 1);
+    }
+    MBRemoveNode(lbl_80344A64, 1);
+    for (node = lbl_80344ECC; node != 0; node = *(s32*)(node + 0x7c)) {
+        MBTreeClearFlags(node, 2, 0);
+    }
+    ClearAllPlayerControls(-2);
+    options_state = lbl_80344A60;
+    if (gGameMode == 0x4012) {
+        ShopMusicStart(lbl_80344A60);
+    } else if (gGameMode < 0x4012 && gGameMode == 0x400B) {
+        AudioSelect(1);
+    }
 }
 
 void ScreenSaver(void)
