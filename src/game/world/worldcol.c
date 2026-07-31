@@ -58,6 +58,12 @@ extern f32 lbl_8023CA50[];
 extern WorldCollisionResult lbl_8023CA40;
 extern FloorCollisionResult gFloorCollisionResult;
 
+typedef double f64;
+extern f64 lbl_80345730, lbl_803457A0, lbl_803457A8;
+extern f32 lbl_80344164, lbl_80345764;
+extern u8 gIdentityMatrix[], lbl_80127DA0[];
+void CopyMat3(void* src, void* dst);   /* 0x800BE8C8 */
+
 u32 WorldCollide(f32 radius, void* from, void* to, f32* result,
                  s32 flags, s32 mode);
 
@@ -228,11 +234,49 @@ u32 WorldCollide(f32 radius, void* from, void* to, f32* result,
                  s32 flags, s32 mode) {
     return 0;
 }
-STUB(0x8000DCD8, ExitCollisionEarly)
+/* ExitCollisionEarly @0x8000DCD8 -- true when the collision mask requests the
+ * fast-exit bit and the recorded floor height matches the query plane. */
+s32 ExitCollisionEarly(void)
+{
+    if ((lbl_80344188 & 0x20) == 0 ||
+        lbl_80345730 != (f64)lbl_80344164) {
+        return 0;
+    }
+    return 1;
+}
 STUB(0x8000DD00, NextGrid)
 STUB(0x8000DFEC, WorldObjCollide)
 STUB(0x8000E3B8, CTriListCollide)
-STUB(0x8000E674, CreateMat3Norm)
+/* CreateMat3Norm @0x8000E674 -- build an orthonormal basis whose Y axis is the
+ * given (scaled) surface normal; snap to the up/down identity near vertical. */
+void CreateMat3Norm(f32 scale, f32* mtx, f32* normal)
+{
+    f32 ny = normal[1];
+
+    if ((f64)ny > lbl_803457A0) {
+        CopyMat3(gIdentityMatrix, mtx);
+    } else if ((f64)ny < lbl_803457A8) {
+        CopyMat3(lbl_80127DA0, mtx);
+    } else {
+        f32 nz = normal[2];
+        f32 nx = normal[0];
+        f32 t = nz * scale;
+        f32 nxs = nx * scale;
+        mtx[0] = -t;
+        mtx[1] = lbl_8034572C;
+        mtx[2] = nxs;
+        mtx[3] = lbl_8034572C;
+        mtx[4] = nx;
+        mtx[5] = ny;
+        mtx[6] = nz;
+        mtx[7] = lbl_8034572C;
+        mtx[8] = (f32)(-(f64)nxs * (f64)ny);
+        mtx[9] = (f32)(scale *
+                       -(f64)(f32)((f64)ny * (f64)ny - (f64)lbl_80345764));
+        mtx[10] = (f32)(-(f64)ny * (f64)t);
+        mtx[11] = lbl_8034572C;
+    }
+}
 STUB(0x8000E73C, PointLineColl)
 
 #undef STUB
