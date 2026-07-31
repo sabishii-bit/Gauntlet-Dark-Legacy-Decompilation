@@ -2,6 +2,7 @@
 
 - [Matching workflow policy](matching-workflow-policy.md) - USER-AGREED: matchtool.py (now tools/gdl/) probe first (covers BOTH proven compilers 1.2.5n+1.2.5 in one table), xbmod.py for REAL names, /XboxPDB types; no archive-wide compiler sweeps; timebox+accept regalloc-only residuals
 - [Combat boundary and missile layouts](combat-boundary-and-missile-layout-2026-07-31.md) - corrected COMBAT/CONTROLS seam, exact MISSILEDESC/MISSILEINFO partitions, ResetPlayerMissiles exact, and MWCC loop/frame matching techniques
+- [Message renderer reconstruction](message-renderer-reconstruction-2026-07-31.md) - canonical btext ABI, 1.25x text scale, varargs/stale-register rules, stack-shape technique, and mapped message globals
 - [auxanim.c matching](auxanim-matching-2026-07-29.md) - exact indexed-access/targeted-volatile and auto-inline return-materialization techniques; InitOAnimList three-register rotation parked
 - [atree.c node matching](atree-node-matching-2026-07-29.md) - Xbox helper name map; chained assignment, assignment-in-test, and no-named-next exact source shapes
 - [33.50% closeout pass](message-poly-sounds-matching-2026-07-29.md) - message loop semantics, assignment-in-test, named call-result, and targeted opt_common_subs-off CSE control
