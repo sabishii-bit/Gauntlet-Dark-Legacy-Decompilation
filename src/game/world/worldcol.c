@@ -59,7 +59,7 @@ extern WorldCollisionResult lbl_8023CA40;
 extern FloorCollisionResult gFloorCollisionResult;
 
 typedef double f64;
-extern f64 lbl_80345730, lbl_803457A0, lbl_803457A8;
+extern f64 lbl_80345730, lbl_80345738, lbl_803457A0, lbl_803457A8;
 extern f32 lbl_80344164, lbl_80345764;
 extern u8 gIdentityMatrix[], lbl_80127DA0[];
 void CopyMat3(void* src, void* dst);   /* 0x800BE8C8 */
@@ -103,7 +103,84 @@ u32 WeaponWallCollide(f32 radius, void* from, void* to, f32* normal) {
     return hit;
 }
 
-void SlideAlongWall(void) {
+/* SlideAlongWall @0x8000D034 -- push a horizontal move `vel` back out of a wall
+ * plane (point `wallpt`, unit `normal`), sliding it along the surface unless the
+ * remaining motion is too shallow, in which case the axis is zeroed. */
+u32 SlideAlongWall(f32 radius, f32* pos, f32* vel, f32* wallpt, f32* normal)
+{
+    u32 result;
+    f64 vz = (f64)vel[2];
+    f64 vx = (f64)vel[0];
+    f64 pen;
+    f64 avz;
+    f64 avx;
+    f64 dotx;
+    f64 dotz;
+
+    pen = (f64)(f32)(
+        (f64)(f32)(
+            (f64)((f32)((f64)pos[0] + vx) - wallpt[0]) * (f64)normal[0] +
+            (f64)(((f32)((f64)pos[2] + vz) - wallpt[2]) * normal[2])) -
+        radius);
+    avz = vz;
+    if (vz < lbl_80345730) {
+        avz = -vz;
+    }
+    avx = vx;
+    if (vx < lbl_80345730) {
+        avx = -vx;
+    }
+    if ((f64)lbl_8034572C <= pen) {
+        return 0;
+    }
+    dotx = (f64)(f32)((f64)normal[0] * pen);
+    result = 1;
+    if (avx < avz ||
+        ((f64)lbl_8034572C < vx && (f64)lbl_8034572C < dotx) ||
+        (vx < (f64)lbl_8034572C && dotx < (f64)lbl_8034572C)) {
+        f64 avx2 = vx;
+        f64 adotx;
+        if (vx < lbl_80345730) {
+            avx2 = -vx;
+        }
+        adotx = dotx;
+        if (dotx < lbl_80345730) {
+            adotx = -dotx;
+        }
+        if (lbl_80345738 * radius + avx2 <= adotx) {
+            result = 0xFFFFFFFF;
+            vel[0] = lbl_8034572C;
+        } else {
+            vel[0] = (f32)((f64)vel[0] - dotx);
+        }
+    }
+    dotz = (f64)(f32)((f64)normal[2] * pen);
+    if (avx < avz) {
+        if ((f64)vel[2] <= (f64)lbl_8034572C || dotz <= (f64)lbl_8034572C) {
+            if ((f64)lbl_8034572C <= (f64)vel[2]) {
+                return result;
+            }
+            if ((f64)lbl_8034572C <= dotz) {
+                return result;
+            }
+        }
+    }
+    avz = (f64)vel[2];
+    if (avz < lbl_80345730) {
+        avz = -avz;
+    }
+    {
+        f64 adotz = dotz;
+        if (dotz < lbl_80345730) {
+            adotz = -dotz;
+        }
+        if (adotz < lbl_80345738 * radius + avz) {
+            vel[2] = (f32)((f64)vel[2] - dotz);
+            return result;
+        }
+    }
+    vel[2] = lbl_8034572C;
+    return 0xFFFFFFFF;
 }
 
 u32 EnemyWallCollide(f32 radius, void* from, void* to, f32* normal) {
