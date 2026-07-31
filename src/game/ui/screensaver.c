@@ -286,9 +286,42 @@ void animate_panel_piece(void)
  * Panel text/blit helper: lays out one label string into a temp blit,
  * positions it, and returns the blit handle (or NULL). Skeleton.
  */
-void* disp_piece(void)
+void strcpy();                         /* 0x800E80D4 */
+int MBOX_FindTexture_Err();            /* 0x800B8B34 */
+int MBRomTexPtr(int texid);            /* 0x800BA024 */
+void sprintf();                        /* 0x800C9BD0 */
+extern char lbl_803473D8[];            /* piece-name format */
+extern f32 lbl_803473E0;               /* blit scale */
+
+/* Build one inventory piece's icon blit: format its name, find the texture,
+ * create + position the blit, cache its w/h.  Returns the blit (or NULL). */
+void* disp_piece(u32* piece, s32 xoff, u32 mode)
 {
-    return 0;
+    char buf[36];
+    char* name = (char*)piece[0];
+    void* blit;
+
+    if (name == 0) {
+        blit = 0;
+    } else {
+        int tex;
+        int info;
+        if (mode != 0) {
+            sprintf(buf, lbl_803473D8, name, mode);
+        } else {
+            strcpy(buf, name);
+        }
+        tex = MBOX_FindTexture_Err(buf, 0, 1);
+        blit = MBNewBlit(buf, 0, 0);
+        info = MBRomTexPtr(tex);
+        mbBlitCalcWidth(lbl_803473E0, blit, piece[1] + xoff, piece[2]);
+        if (info != 0) {
+            mbBlitProject(blit, *(u16*)(info + 10), *(u16*)(info + 0xc));
+            piece[7] = *(u16*)(info + 10);
+            piece[8] = *(u16*)(info + 0xc);
+        }
+    }
+    return blit;
 }
 
 int DrawTextKeepScale();               /* 0x800209BC */
