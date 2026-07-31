@@ -752,6 +752,7 @@ void msgInit(void)
     gMsgDescCount = 256;
 }
 
+#pragma opt_propagation off
 /* msgWidth */
 int msgWidth(int p0, int idx)
 {
@@ -779,7 +780,7 @@ int msgWidth(int p0, int idx)
             b = StringTextWidth(1.0f, 3, fc);
             c = StringTextWidth(1.0f, 24, 1);
             p0 = a + b;
-            c += p0;
+            c = p0 + c;
             c += 20;
             if (c > w) {
                 w = c;
@@ -788,6 +789,7 @@ int msgWidth(int p0, int idx)
     }
     return w;
 }
+#pragma opt_propagation reset
 
 /* msgWorldFlags */
 int msgWorldFlags(int who, int worldMask)
