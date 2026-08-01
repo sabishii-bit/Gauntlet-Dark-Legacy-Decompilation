@@ -46,13 +46,18 @@ typedef struct DcsStream {
 
 typedef struct DcsSampleData {
     u32 aramAddress;
-    u8 _pad04[0x1C];
+    u32 swappedLength;
+    u8 _pad08[0x18];
     u32 sampleRate;
     u32 length;
     u16 coefficients[16];
     u16 predScale;
     u16 _pad4A;
 } DcsSampleData;
+
+typedef struct DcsVagExtraHeader {
+    u32 words[24];
+} DcsVagExtraHeader;
 
 typedef struct DcsChannelInfo {
     s16 volume;
@@ -63,6 +68,31 @@ typedef struct DcsChannelInfo {
     s32 sample;
     DcsSampleData* sampleData;
 } DcsChannelInfo;
+
+#define DCS_STRING_POOL                                                       \
+    "DCSERROR: \0\0"                                                        \
+    "Duck nonzero (%d) -- resetting\n\0"                                    \
+    "DCSFATAL: \0\0"                                                        \
+    "OVERWRITE existing SAMPLE (%d)\n\0"                                   \
+    "%d samples read OK -- %d PUNTED\n\0\0\0\0"                           \
+    "BANK End of file in CALL list\n\0\0"                                  \
+    "BANK max call index exceeded\n\0\0\0"                                \
+    "BANK max call instructions exceeded\n\0\0\0\0"                       \
+    "BANK nCall exceeds size\n\0\0\0\0"                                  \
+    "BANK call list size mismatches header\n\0\0"                           \
+    "BANK max sample index exceeded\n\0"                                   \
+    "No BANK header found\n\0\0\0"                                        \
+    "BankReadHeader NOT A BANK!\n\0"                                       \
+    "BankReadHeader TOO MANY CALLS: 0x%04x > 0x4FF\0\0\0"                 \
+    "Incomplete BANK header found\n\0\0\0"                                \
+    "BankReadHeader BAD SIZE for call list\0\0\0"                         \
+    "Unknown BANK version\0\0\0\0"                                       \
+    "Bank type %d.%03d,  made with VAGBANK v%d.%03d\n\0"                   \
+    "VagParseHeader NOT A VAG!\n\0"
+
+#define DCS_SWAP32(value)                                                     \
+    (((value) << 24) | (((value) << 8) & 0x00FF0000) |                       \
+     ((value) >> 24) | (((value) >> 8) & 0x0000FF00))
 
 extern u8 lbl_802F5F60[];
 extern DcsSampleData lbl_802C9F60[];
@@ -85,9 +115,11 @@ extern u32 lbl_80345228;
 extern u32 lbl_8034522C;
 extern u32 lbl_80345230;
 extern u32 lbl_80129588[];
-extern char lbl_80116F58[];
 extern char lbl_80117080[];
 extern int printf(const char* format, ...);
+extern int strncmp(const char* lhs, const char* rhs, u32 length);
+extern void* memcpy(void* dst, const void* src, u32 length);
+extern u32 FileBufGet(void* file, void* destination, s32 length);
 extern s32 dcsResetPending;
 extern volatile u8 dcsSampleBusy;
 extern volatile u8 dcsAramBusy;
@@ -367,7 +399,7 @@ s32 dcsBankCheckSamples(int param_9, int param_10) {
         puVar4 = &lbl_802F0F60[iVar5];
         if ((int)(*puVar4 & 0xfff) >= param_9) {
             if ((int)((*puVar4 & 0xfff) + param_10) > 0xfff) {
-                printf(lbl_80116F58);
+                printf(DCS_STRING_POOL);
                 printf(lbl_80117080);
                 param_10 = 0;
             }
@@ -789,16 +821,161 @@ s32 dcsVoiceInUse(s32 channel) {
 }
 
 /* 0x800D3E24  read+validate a BANK file header */
-void BankReadHeader(void) {
+s32 BankReadHeader(void* file, u32* header) {
+    char signature[4];
+    s32 result;
+    s32 byteSwapped;
+    u32 word;
+
+    result = 0;
+    byteSwapped = 0;
+    if (FileBufGet(file, header, 16) != 16) {
+        printf(DCS_STRING_POOL);
+        printf(DCS_STRING_POOL + 0x148);
+        result = -1;
+    } else {
+        word = header[0];
+        signature[0] = (s8)(word >> 24);
+        signature[1] = (word >> 16) & 0xFF;
+        signature[2] = (word >> 8) & 0xFF;
+        signature[3] = word & 0xFF;
+        if (strncmp(signature, "VBNK", 4) == 0) {
+            byteSwapped = 1;
+        } else if (strncmp(signature, "KNBV", 4) == 0) {
+            byteSwapped = 0;
+        } else {
+            printf(DCS_STRING_POOL);
+            printf(DCS_STRING_POOL + 0x160);
+            result = -2;
+        }
+    }
+
+    if (result >= 0) {
+        if (byteSwapped != 0) {
+            header[1] = DCS_SWAP32(header[1]);
+            header[2] = DCS_SWAP32(header[2]);
+            header[3] = DCS_SWAP32(header[3]);
+        }
+        if ((s32)header[3] > 0x4FF) {
+            printf(DCS_STRING_POOL);
+            printf(DCS_STRING_POOL + 0x17C, header[3]);
+            result = -5;
+        } else {
+            switch (header[2] & 0xFFFF) {
+            case 0x106:
+                if ((s32)FileBufGet(file, header + 4, 4) != 4) {
+                    printf(DCS_STRING_POOL);
+                    printf(DCS_STRING_POOL + 0x1AC);
+                    result = -3;
+                } else if (byteSwapped != 0) {
+                    header[4] = DCS_SWAP32(header[4]);
+                }
+                break;
+            case 0x100:
+                if ((s32)header[1] != (s32)(header[3] * 16)) {
+                    printf(DCS_STRING_POOL);
+                    printf(DCS_STRING_POOL + 0x1CC);
+                    result = -4;
+                }
+                header[4] = -1;
+                break;
+            default:
+                printf(DCS_STRING_POOL);
+                printf(DCS_STRING_POOL + 0x1F4);
+                result = -5;
+                break;
+            }
+        }
+    }
+    return result;
 }
 
 /* 0x800D4048  parse in-memory BANK header */
-void BankParseHeader(void) {
+#pragma opt_lifetimes off
+s32 BankParseHeader(u32* header, s32* byteSwapped, u32* version) {
+    char signature[4];
+    s32 result;
+    u32 word;
+
+    result = 0;
+    word = header[0];
+    signature[0] = (s8)(word >> 24);
+    signature[1] = (word >> 16) & 0xFF;
+    signature[2] = (word >> 8) & 0xFF;
+    signature[3] = word & 0xFF;
+
+    if (strncmp(signature, "VBNK", 4) == 0) {
+        *byteSwapped = 1;
+    } else if (strncmp(signature, "KNBV", 4) == 0) {
+        *byteSwapped = 0;
+    } else {
+        printf(DCS_STRING_POOL);
+        printf(DCS_STRING_POOL + 0x160);
+        *byteSwapped = 0;
+        result = -1;
+        *version = 0;
+    }
+
+    if (result >= 0) {
+        *version = header[2] & 0xFFFF;
+        printf("DCS: ");
+        printf(DCS_STRING_POOL + 0x20C,
+               (header[2] >> 8) & 0xFF,
+               header[2] & 0xFF, header[2] >> 24,
+               (header[2] >> 16) & 0xFF);
+    }
+    return result;
 }
+#pragma opt_lifetimes reset
 
 /* 0x800D415C  parse a VAG sample header */
-void VagParseHeader(void) {
+#pragma opt_lifetimes off
+s32 VagParseHeader(void* file, u32* header, DcsSampleData* sample) {
+    char signature[4];
+    DcsVagExtraHeader extraHeader;
+    s32 zero;
+    s32 result;
+    u32 word;
+
+    zero = 0;
+    result = 0;
+    word = header[0];
+    signature[0] = (s8)(word >> 24);
+    signature[1] = (word >> 16) & 0xFF;
+    signature[2] = (word >> 8) & 0xFF;
+    signature[3] = word & 0xFF;
+    sample->predScale = zero;
+
+    if (strncmp(signature, "pGAV", 4) == 0) {
+        u32* swappedLength = &sample->swappedLength;
+        sample->length = (u32)swappedLength;
+        *swappedLength = DCS_SWAP32(header[3]);
+        sample->sampleRate = (DCS_SWAP32(header[4]) << 12) / 48000;
+        header[1] = DCS_SWAP32(header[1]);
+    } else if (strncmp(signature, "VAGp", 4) == 0) {
+        sample->swappedLength = sample->length = header[3];
+        sample->sampleRate = (header[4] << 12) / 48000;
+    } else {
+        printf("DCSERROR: ");
+        printf("VagParseHeader NOT A VAG!\n");
+        sample->sampleRate = zero;
+        result = -1;
+        sample->length = zero;
+        sample->swappedLength = zero;
+    }
+
+    if (header[1] == 0x28) {
+        if (FileBufGet(file, &extraHeader, 96) != 96) {
+            result = -1;
+        }
+        memcpy(sample->coefficients, (u8*)&extraHeader + 28, 32);
+        sample->predScale = *(u16*)((u8*)&extraHeader + 62);
+    } else if (header[1] == 0x29) {
+        sample->predScale = 1;
+    }
+    return result;
 }
+#pragma opt_lifetimes reset
 
 /* 0x800D42E4  set stream loop/one-shot flag */
 void dcsSetStreamFlag(DcsStream* stream, s32 looping) {
