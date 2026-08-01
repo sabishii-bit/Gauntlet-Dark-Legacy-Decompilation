@@ -151,7 +151,7 @@ s32 NextGridEnemy(void)
 
 /* Seed the enemy iterator for a circular query at pos (x=pos[0], z=pos[2])
  * with radius r, then load the first candidate cell. */
-void StartEnemyGrid(f32 r, f32* pos)
+void StartEnemyGrid(f32* pos, f32 r)
 {
     int mnx, mnz;
     f32 pad;

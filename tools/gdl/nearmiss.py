@@ -18,10 +18,13 @@ mark them [PARKED] rather than hide, so the queue stays honest.
 """
 
 import argparse
+import difflib
 import json
 import subprocess
 import sys
 from pathlib import Path
+
+from fndiff import classify_function, normalized_reloc_lines, parse
 
 VERSION = "GUNE5D"
 REPO = Path(__file__).resolve().parent.parent.parent
@@ -50,6 +53,8 @@ def main():
     ap.add_argument("--grep", metavar="STR", help="only TUs whose name contains STR")
     ap.add_argument("--parked", choices=["mark", "skip"], default="mark",
                     help="PARKED.txt handling (default: mark)")
+    ap.add_argument("--residuals", action="store_true",
+                    help="measure real object-diff lines and sort cheapest first")
     args = ap.parse_args()
 
     if args.refresh:
@@ -74,22 +79,47 @@ def main():
         # Editing their source based on fuzzy% BREAKS REAL DOL BYTES.
         if u.get("metadata", {}).get("complete"):
             continue
+        target_fns = base_fns = None
+        if args.residuals:
+            target_obj = REPO / "build" / VERSION / "obj" / f"{unit}.o"
+            base_obj = REPO / "build" / VERSION / "src" / f"{unit}.o"
+            if target_obj.exists() and base_obj.exists():
+                target_fns = parse(target_obj)
+                base_fns = parse(base_obj)
         for f in u.get("functions", []):
             pct = f.get("fuzzy_match_percent", 0.0)
             if pct >= args.min and pct < 100.0:
                 name = f.get("name", "?")
                 size = int(f.get("size", 0) or 0)
-                rows.append((pct, size, name, unit))
+                real = None
+                category = None
+                if target_fns is not None:
+                    target = target_fns.get(name)
+                    base = base_fns.get(name)
+                    if target is not None and base is not None:
+                        diff = difflib.unified_diff(
+                            normalized_reloc_lines(target),
+                            normalized_reloc_lines(base), lineterm="", n=0)
+                        real = sum(1 for line in diff
+                                   if line[:1] in "+-" and
+                                   line[:3] not in ("+++", "---"))
+                        category = classify_function(target, base)
+                rows.append((pct, size, name, unit, real, category))
 
-    rows.sort(key=lambda r: (-r[0], r[1]))
+    if args.residuals:
+        rows.sort(key=lambda r: (r[4] is None, r[4] or 0, -r[1], -r[0]))
+    else:
+        rows.sort(key=lambda r: (-r[0], r[1]))
     shown = 0
-    for pct, size, name, unit in rows:
+    for pct, size, name, unit, real, category in rows:
         tag = ""
         if name in parked:
             if args.parked == "skip":
                 continue
             tag = "  [PARKED]"
-        print(f"{pct:6.2f}%  {size:5d}B  {name:<40} {unit}{tag}")
+        residual = (f"  d={real:3d} {category:<18}" if real is not None
+                    else "" if not args.residuals else "  d=???")
+        print(f"{pct:6.2f}%  {size:5d}B{residual}  {name:<40} {unit}{tag}")
         shown += 1
     print(f"--- {shown} near-miss fns (>= {args.min}%, < 100%)"
           f"{'' if not parked else f' | {len(parked)} names in PARKED.txt'} ---")

@@ -885,6 +885,8 @@ void init_stage_info(void)
 {
     s32 width = 0;
     s32 height = 0;
+    s32 x;
+    s32 y;
     u8 unused[8];
     u32 level;
 
@@ -903,8 +905,9 @@ void init_stage_info(void)
     if (width > 0) {
         width += 60;
         height += 16;
-        lbl_8034440C = MBNewBlit(lbl_80111B50, 256 - width / 2,
-                                108 - height / 2);
+        x = 256 - width / 2;
+        y = 108 - height / 2;
+        lbl_8034440C = MBNewBlit(lbl_80111B50, x, y);
         mbBlitProject(lbl_8034440C, width, height);
     }
 }

@@ -2130,7 +2130,7 @@ extern void DrawGlowText(f32 scale, s32 x, s32 y, char* text);
 extern void AudioCursorH(void);
 extern void AudioCursorSelect(void);
 extern void AudioCursorV(void);
-extern void StartEnemyGrid(f32 pad, f32* pos);
+extern void StartEnemyGrid(f32* pos, f32 pad);
 extern s32 NextGridEnemy(void);
 extern s32 PointVisible(f32 r, s32* pos);
 extern s32 saveLoad(s32 a, s32 b, s32 c, void* buf, s32* size);
@@ -4472,7 +4472,7 @@ static f32 ClosestChest(void* vp) {
     f32 d;
     f32 best = 250000.0f;
 
-    StartEnemyGrid(60.0f, p->pos);
+    StartEnemyGrid(p->pos, 60.0f);
     while ((j = NextGridEnemy()) >= 0) {
         it = sItems + j * 0xF0;
         if (*(s16*)(it + 0xC4) == -1) {

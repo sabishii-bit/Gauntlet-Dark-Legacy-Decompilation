@@ -159,18 +159,20 @@ def score(target_fns, base_fns, only_fn=None):
             res[name] = "OK"
         elif full_norm(t) == full_norm(b):
             res[name] = "OK~"
-        elif len(t) != len(b):
-            res[name] = f"L{len(b) - len(t):+d}"
         else:
             # +/- lines from a real diff, excluding reloc-name lines -- same
-            # semantics as fndiff --count's "real" column. (A positional zip
-            # here counted every line after one moved insn: BF4 showed 81
-            # where the true diff was 14.)
+            # semantics as fndiff --count's "real" column. Score length-
+            # mismatched candidates too: declaration/source-shape sweeps often
+            # share the same L+n, and collapsing all of them to that one value
+            # hid substantial register-allocation improvements.
             import difflib
             d = [l for l in difflib.unified_diff(t, b, lineterm="", n=0)
                  if l[:1] in "+-" and l[:3] not in ("+++", "---")
                  and "R_PPC" not in l]
-            res[name] = len(d) if d else "OK~"
+            if len(t) != len(b):
+                res[name] = f"L{len(b) - len(t):+d}/D{len(d)}"
+            else:
+                res[name] = len(d) if d else "OK~"
     return res
 
 
@@ -184,7 +186,11 @@ def total_key(row):
         elif isinstance(v, int):
             tot += v
         elif isinstance(v, str) and v.startswith("L"):
-            tot += 100 + 5 * abs(int(v[1:]))
+            m = re.match(r"L([+-]\d+)(?:/D(\d+))?", v)
+            if m:
+                tot += 100 + 5 * abs(int(m.group(1))) + int(m.group(2) or 0)
+            else:
+                tot += 10000
         else:
             tot += 10000  # MISS dominates
     return tot

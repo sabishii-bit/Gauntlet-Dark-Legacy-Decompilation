@@ -633,11 +633,21 @@ u32 fn_800D93D4(u32* param_1, u32 param_2, int param_3, char* param_4, int param
 }
 
 void fn_800D9614(u32* param_1, u32* param_2) {
-    fn_800D93D4(param_1, param_2[0], param_2[1], (char*)param_2[2], param_2[3], param_2[4]);
+    u32 arg1 = param_2[1];
+    u32 arg3 = param_2[3];
+    u32 arg2 = param_2[2];
+    u32 arg4 = param_2[4];
+
+    fn_800D93D4(param_1, param_2[0], arg1, (char*)arg2, arg3, arg4);
 }
 
 void fn_800D9648(u32* param_1, u32* param_2) {
-    fn_800D93D4(param_1, param_2[0], param_2[1], (char*)param_2[2], param_2[3], param_2[4]);
+    u32 arg1 = param_2[1];
+    u32 arg3 = param_2[3];
+    u32 arg2 = param_2[2];
+    u32 arg4 = param_2[4];
+
+    fn_800D93D4(param_1, param_2[0], arg1, (char*)arg2, arg3, arg4);
 }
 
 void fn_800D967C(int param_1, int param_2) {
@@ -909,12 +919,17 @@ void fn_800D9DF0(char* param_1, int param_2, u8* param_3, int* param_4) {
 void fn_800D9F20(int param_1) {
     u32 uVar1;
     u32 uVar2;
+    u32 requestSize;
+    u32 requestOffset;
+    u8* requestData;
 
     if (*(u8*)(param_1 + 0x14) != 0) {
         adsPoll();
-        uVar1 = *(u32*)(param_1 + 8);
-        if (uVar1 != 0) {
-            uVar1 = sndCmd17((*(int*)(param_1 + 4) + *(int*)(param_1 + 0x10)) - uVar1, uVar1);
+        if (*(u32*)(param_1 + 8) != 0) {
+            uVar1 = sndCmd17(
+                (*(int*)(param_1 + 4) + *(int*)(param_1 + 0x10)) -
+                    *(u32*)(param_1 + 8),
+                *(u32*)(param_1 + 8));
             *(u32*)(param_1 + 8) = *(u32*)(param_1 + 8) - uVar1;
         }
         if (*(u32*)(param_1 + 8) == 0) {
@@ -923,8 +938,11 @@ void fn_800D9F20(int param_1) {
                 uVar2 = 0xc000;
             }
             *(u32*)(param_1 + 0x10) = uVar2;
-            if ((u8)fn_800DB2F4((int)(lbl_803452B0 + 0x20), *(u8**)(param_1 + 4),
-                                *(u32*)(param_1 + 0xc), *(u32*)(param_1 + 0x10))) {
+            requestSize = *(u32*)(param_1 + 0x10);
+            requestOffset = *(u32*)(param_1 + 0xc);
+            requestData = *(u8**)(param_1 + 4);
+            if ((u8)fn_800DB2F4((int)(lbl_803452B0 + 0x20), requestData,
+                                requestOffset, requestSize)) {
                 *(u32*)(param_1 + 8) = *(u32*)(param_1 + 0x10);
                 *(int*)(param_1 + 0xc) = *(int*)(param_1 + 0xc) + *(int*)(param_1 + 0x10);
             }

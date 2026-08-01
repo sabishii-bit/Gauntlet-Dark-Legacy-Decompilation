@@ -280,7 +280,9 @@ void mbBlitCalcRect(MBBLIT* b, s32* x, s32* y, f32* depth) {
         *y = value;
     }
     if (depth != 0) {
-        *depth = (f32)b->depth / 32.0;
+        fr = (f32)b->depth;
+        fr *= 0.03125;
+        *depth = fr;
     }
 }
 

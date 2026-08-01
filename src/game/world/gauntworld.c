@@ -113,6 +113,8 @@ extern void  SetupPlayerTexMods(s32 player);
 extern void  fn_800606FC(void);
 extern s32   fn_8005D0C4(s32 id, f32* position);
 extern f32   NormalVector(f32* vector);
+extern f32   sNoDistance;
+extern f32   sCameraVisibilityRadius;
 extern u8    lbl_80237BA0[];
 extern f32   gIdentityMatrix[16];
 extern s32   sNumItems;
@@ -544,7 +546,7 @@ f32 fn_8005B198(f32 radius, f32* position, Item** result)
     Item* best_item = 0;
     s32 index;
 
-    StartEnemyGrid(radius, position);
+    StartEnemyGrid(position, radius);
     while ((index = NextGridEnemy()) >= 0) {
         item = &sItems[index];
 
@@ -677,20 +679,23 @@ extern void fn_8009D91C(f32* pos);
 s32 fn_8005D0C4(s32 id, f32* position)
 {
     f32 dy;
-    f32 best = 2.0f;
+    f32 best = sCameraVisibilityRadius;
     s32 best_idx = -1;
     s32 idx;
-    u8 unused[24];
+    u8 unused[16];
+    struct {
+        u8 pad[8];
+        f32 value;
+    } absWork;
 
     if (id != 33 && id != 32 && id != 29) {
         return -1;
     }
 
-    StartEnemyGrid(-1.0f, position);
+    StartEnemyGrid(position, sNoDistance);
     while ((idx = NextGridEnemy()) >= 0) {
         Item* item = &sItems[idx];
         f32 d;
-        f32 ady;
 
         if (item->active == -1) {
             continue;
@@ -712,9 +717,9 @@ s32 fn_8005D0C4(s32 id, f32* position)
             d = fqdist(dx, dz);
         }
         if (d < best) {
-            ady = dy;
-            *(u32*)&ady &= 0x7FFFFFFF;
-            if (ady < 3.0f) {
+            absWork.value = dy;
+            *(u32*)&absWork.value &= 0x7FFFFFFF;
+            if (absWork.value < 3.0f) {
                 best = d;
                 best_idx = idx;
             }
@@ -735,7 +740,7 @@ Item* fn_8005ED44(f32 radius, s32 a2, f32* position, s32 a4, s32 a5, s32 a6)
     s32 idx;
     Item* best = 0;
 
-    StartEnemyGrid(radius, position);
+    StartEnemyGrid(position, radius);
     while ((idx = NextGridEnemy()) >= 0) {
         item = &sItems[idx];
         if (fn_8005EE18(item, a6) != 0) {
@@ -835,7 +840,7 @@ Item* fn_8005EFAC(f32 radius, s32 a2, f32* position, s32 a4, s32 a5)
     s32 idx;
     Item* best = 0;
 
-    StartEnemyGrid(radius, position);
+    StartEnemyGrid(position, radius);
     while ((idx = NextGridEnemy()) >= 0) {
         s32 reject;
         item = &sItems[idx];
@@ -883,7 +888,7 @@ Item* fn_80062FF0(f32 radius, f32* position, s32 type, f32* out1, f32* out2)
     Item* best = 0;
     s32 idx;
 
-    StartEnemyGrid(radius, position);
+    StartEnemyGrid(position, radius);
     while ((idx = NextGridEnemy()) >= 0) {
         iteminfo* info;
         s16 active;

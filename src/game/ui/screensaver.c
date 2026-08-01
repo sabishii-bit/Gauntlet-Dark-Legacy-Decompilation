@@ -166,25 +166,31 @@ void ScreenSaverUpdateWeap(void)
 
 void ScreenSaverEnd(void)
 {
+    u8* base;
     s32 off;
+    u8* node;
     s32 i;
-    s32 node;
 
-    for (i = 0, off = 0; i < 4; i++, off += 0x88) {
-        AtreeDelete(lbl_80274620 + 0x40 + off);
-        *(s32*)(lbl_80274620 + 0x3c + off) =
-            MBRemoveNode(*(s32*)(lbl_80274620 + 0x3c + off), 1);
+    base = lbl_80274620;
+    for (i = 0; i < 4; i++) {
+        off = i * 0x88;
+        AtreeDelete(base + 0x40 + off);
+        *(s32*)(base + 0x3c + off) =
+            MBRemoveNode(*(s32*)(base + 0x3c + off), 1);
     }
     MBRemoveNode(lbl_80344A64, 1);
-    for (node = lbl_80344ECC; node != 0; node = *(s32*)(node + 0x7c)) {
-        MBTreeClearFlags(node, 2, 0);
+    for (node = (u8*)lbl_80344ECC; node != 0; node = *(u8**)(node + 0x7c)) {
+        MBTreeClearFlags((s32)node, 2, 0);
     }
     ClearAllPlayerControls(-2);
     options_state = lbl_80344A60;
-    if (gGameMode == 0x4012) {
-        ShopMusicStart(lbl_80344A60);
-    } else if (gGameMode < 0x4012 && gGameMode == 0x400B) {
+    switch (gGameMode) {
+    case 0x4012:
+        ShopMusicStart();
+        break;
+    case 0x400B:
         AudioSelect(1);
+        break;
     }
 }
 
@@ -249,10 +255,16 @@ void init_inventory_panel(int idx)
  */
 void init_panel_blits(int idx)
 {
-    lbl_80274600[idx] = 0;
-    *(int*)((u8*)lbl_80274600 + idx * 4 + 16) = 0;
-    *(void**)((u8*)lbl_80274600 + idx * 16 + 928) = 0;
-    *(void**)((u8*)lbl_80274600 + idx * 48 + 992) = 0;
+    int* base = lbl_80274600;
+    int zero = 0;
+
+    base[idx] = zero;
+    {
+        int* p = &base[idx];
+        *(int*)((u8*)p + 16) = zero;
+    }
+    *(int*)((u8*)base + idx * 16 + 928) = zero;
+    *(int*)((u8*)base + idx * 48 + 992) = zero;
 }
 
 /* Free (MBRemoveBlit) and null every blit handle in one player's panel. */

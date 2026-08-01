@@ -936,17 +936,22 @@ void fn_800552A4(f32 total, f32 current)
 {
     u8 unused[8];
     f64 offset;
+    f64 vertex;
     f32 progress = (total - current) / total;
 
+    vertex = 41.0 * progress + 23.0;
+    vertex *= 0.0078125;
     mbBlitSetupVerts(lbl_80257630[1], -1.0f, -1.0f,
-                     (f32)((41.0 * progress + 23.0) * 0.0078125), -1.0f);
+                     (f32)vertex, -1.0f);
     offset = 39.0 * progress;
     mbBlitProject(lbl_80257630[1], 0, 41 - Round((f32)offset));
     mbBlitCalcY(lbl_80257630[1], Round((f32)offset) + 24);
 
     offset = 38.0 * progress;
+    vertex = 105.0 - offset;
+    vertex *= 0.0078125;
     mbBlitSetupVerts(lbl_80257630[2], -1.0f, -1.0f,
-                     (f32)((105.0 - offset) * 0.0078125), -1.0f);
+                     (f32)vertex, -1.0f);
     mbBlitProject(lbl_80257630[2], 0, Round((f32)offset) + 23);
     mbBlitCalcY(lbl_80257630[2], 106 - Round((f32)offset));
 }
@@ -1156,6 +1161,7 @@ s32 GetEnemyType(s32 arg0, s32 arg1)
 }
 
 /* 0x800575CC -- debug dump of the per-category memory usage. */
+#pragma opt_propagation off
 void PrintWorldMemSizes(void)
 {
     char* fmt = lbl_80112788;
@@ -1163,6 +1169,7 @@ void PrintWorldMemSizes(void)
     s32 sum;
     u8 unused[8];
     s32 i;
+    WorldMemTable* entry;
 
     if (lbl_80344850 == 0) {
         return;
@@ -1179,18 +1186,23 @@ void PrintWorldMemSizes(void)
     bulletproof_printf(fmt + 468, lbl_8034485C);
     bulletproof_printf(fmt + 488, lbl_80344858);
     for (i = 0; i < 8; i++) {
-        sum += t->sizes[i];
+        entry = (WorldMemTable*)((u8*)t + i * 4);
+        sum += *(volatile s32*)&entry->sizes[0];
     }
     bulletproof_printf(fmt + 508, sum);
     for (i = 0; i < 8; i++) {
-        if (t->typeids[i] >= 0 && t->sizes[i] >= 0) {
-            bulletproof_printf(fmt + 528, lbl_8011B578[t->typeids[i]]);
+        entry = (WorldMemTable*)((u8*)t + i * 4);
+        if (entry->typeids[0] >= 0 && entry->sizes[0] >= 0) {
+            bulletproof_printf(fmt + 528,
+                               lbl_8011B578[entry->typeids[0]],
+                               entry->sizes[0]);
         }
     }
     bulletproof_printf(fmt + 540);
     bulletproof_printf(fmt + 568, mlmMemUsed);
     lbl_80344850 = 0;
 }
+#pragma opt_propagation reset
 
 /* 0x80056698 -- resolve a world/level then tally its memory footprint. */
 s32 fn_80056698(s32 arg0, s32 arg1)

@@ -144,8 +144,15 @@ extern void DCInvalidateRange(void* address, u32 length);
 extern void ARQPostRequest(ARQRequest* request, u32 owner, u32 type,
                            u32 priority, u32 source, u32 destination,
                            u32 length, ARQCallback callback);
+extern void* FileBufStart(void* descriptor);
+extern s32 FileBufReopen(void* file);
+extern s32 FileBufClose(void* file);
 
 s32 dcsVoiceStart(u32 sample, s32 volumePan, s32 priority);
+s32 BankReadHeader(void* file, u32* header);
+void dcsSetStreamFlag(DcsStream* stream, s32 looping);
+s32 dcsReadCalls(void* file, u32* header);
+s32 dcsReadVags(void* file, u32* header);
 
 /* 0x800D1E04  trigger/refresh a channel; -> dcsVoiceStart */
 void dcsChannelPlay(s32 value) {
@@ -357,6 +364,65 @@ s32 AudioQueUpdate(s32 bank) {
 
 /* 0x800D285C  open file, read bank header/calls/vags */
 s32 dcsBankLoad(void* bank, s32 mode) {
+    DcsBankData* table = dcsBankData;
+    s32 bankNumber = 0;
+    s32 error = 0;
+    s32 oldCallCount = lbl_80345200;
+    void* file;
+    u32 header[6];
+
+    file = FileBufStart(bank);
+    if (file != NULL) {
+        if (FileBufReopen(file) != 0) {
+            DcsBankData* entry;
+            u32 slot;
+            s32 count;
+            s32 offset;
+
+            dcsSetStreamFlag((DcsStream*)file, 0);
+            error = BankReadHeader(file, header);
+            if (error == 0) {
+                error = dcsReadCalls(file, header);
+            }
+            if (error == 0) {
+                slot = 0;
+                count = 16;
+                offset = 0;
+                do {
+                    entry = (DcsBankData*)((u8*)table + offset);
+                    if (entry->handle == 0 && entry->size == 0) {
+                        break;
+                    }
+                    slot++;
+                    offset += sizeof(DcsBankData);
+                    count--;
+                } while (count != 0);
+                if (lbl_803451F8 <= (s32)slot) {
+                    lbl_803451F8 = slot + 1;
+                }
+                entry->size = lbl_80345200 - oldCallCount;
+                if (entry->size == 0) {
+                    error = 1;
+                } else {
+                    entry->handle = oldCallCount;
+                    lbl_80345224 = lbl_802EFF5E[oldCallCount];
+                    bankNumber = (s32)(entry - table) + 1;
+                    error = dcsReadVags(file, header);
+                    if (error != 0) {
+                        AudioQueUpdate(bankNumber);
+                    }
+                }
+            }
+        }
+        FileBufClose(file);
+    }
+    if (dcsResetPending != 0) {
+        bankNumber = -2;
+    } else if (error != 0) {
+        bankNumber = -1;
+    }
+    dcsResetPending = 0;
+    return bankNumber;
 }
 
 /* 0x800D29D4  set dcsResetPending */
@@ -383,11 +449,13 @@ s32 dcsBankUnload(void* bank) {
 }
 
 /* 0x800D2A68  read VAG sample table, upload to ARAM (readVags) */
-void dcsReadVags(void) {
+s32 dcsReadVags(void* file, u32* header) {
+    return 0;
 }
 
 /* 0x800D2CEC  read the bank call list (readCalls) */
-void dcsReadCalls(void) {
+s32 dcsReadCalls(void* file, u32* header) {
+    return 0;
 }
 
 /* 0x800D30B4  validate sample indices (callFixup) */

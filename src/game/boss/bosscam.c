@@ -164,9 +164,10 @@ void TriggerCameraEnd(void) {
 }
 
 void TriggerCameraActivate(s32 p1, f32* p2, f32* p3, s32 duration, s32 p5, s32 p6) {
-    u8* buf = lbl_8023E880;
+    u8* buf;
     f32 mtx[4];
 
+    buf = lbl_8023E880;
     if (duration >= 0) {
         lbl_803443BC = (duration != 0) ? duration * 6 : 40;
         gTriggerCameraState = 2;
@@ -281,9 +282,13 @@ f32 PointViewDist(f32* point, f32 dist) {
     f32 best;
     f32 zx, zy;
     f32 d;
+    f32 pointZ;
+    f32 nearZ;
 
-    d = point[2] - view[23] - dist;
     best = lbl_80345BA4;
+    pointZ = point[2];
+    nearZ = view[23];
+    d = pointZ - nearZ - dist;
     if (d < best) {
         best = d;
         worst = 1;
