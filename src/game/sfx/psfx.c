@@ -44,11 +44,13 @@ STUB(0x8008A34C, fn_8008A34C)
 void PlayerSfxClearData(u32* rec, s32 count)
 {
     s32 i;
-    for (i = 0; i < count; i++) {
+    i = 0;
+    while (i < count) {
         if ((rec[0] & 0xF000100) == 0 && (s32)rec[2] >= 0) {
             ClearCustomEffect(rec[2]);
             rec[2] = -1;
         }
+        i++;
         rec += 0x14;
     }
 }
