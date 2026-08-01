@@ -101,7 +101,7 @@ extern char lbl_8011656C[]; /* "PB_FRAME.C:__LINE__" */
 
 extern void pbFrameMode(s32 mode, s32 flag);
 extern void MBBlitUpdateWindow(f32 sx, f32 sy);
-extern void fn_800B69DC(f32 sx, f32 sy);
+extern void MBFontUpdateWindow(f32 sx, f32 sy);
 extern void fn_800C116C(s32 code, char* file);
 extern void fn_800C2618(void);
 extern void fn_800C2C74(void);
@@ -225,7 +225,7 @@ void fn_800C2F88(void)
     g->proj->m14 = 16.0 * g->screen->height;
     if (g->proj->f00 != ox || g->proj->f04 != oy) {
         MBBlitUpdateWindow(g->proj->f00 / ox, g->proj->f04 / oy);
-        fn_800B69DC(g->proj->f00 / ox, g->proj->f04 / oy);
+        MBFontUpdateWindow(g->proj->f00 / ox, g->proj->f04 / oy);
     }
     g->screen->m40 = 1;
 }

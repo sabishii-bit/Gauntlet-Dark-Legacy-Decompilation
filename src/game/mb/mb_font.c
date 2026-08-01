@@ -497,9 +497,30 @@ void fn_800B5D90(void)
     lbl_80344E20 = lbl_802A4A84[lock];
 }
 
-/* 0x800B69DC - MBInitFonts (tentative) */
-void fn_800B69DC(void)
+/* 0x800B69DC - rescale every live glyph cell after a render-window change
+ * (Xbox: MBFontUpdateWindow). */
+void MBFontUpdateWindow(f32 scaleX, f32 scaleY)
 {
+    u8 unused[8];
+    s32 fontIndex;
+
+    for (fontIndex = 0; fontIndex < lbl_80344E10; fontIndex++) {
+        s32 cellIndex;
+        MBFont* font = (MBFont*)lbl_802A4AA4[fontIndex];
+
+        for (cellIndex = 0; cellIndex < font->count; cellIndex++) {
+            u8* cell = font->cells + cellIndex * 36;
+
+            if (*(u16*)(cell + 16) != 0 && (*(u32*)cell & 0x40) == 0) {
+                *(u16*)(cell + 8) = (u16)((f32)*(u16*)(cell + 8) * scaleX);
+                *(u16*)(cell + 10) = (u16)((f32)*(u16*)(cell + 10) * scaleY);
+                *(u16*)(cell + 16) = (u16)((f32)*(u16*)(cell + 16) * scaleX);
+                if ((*(u32*)cell & 0x100) == 0) {
+                    *(u16*)(cell + 18) = (u16)((f32)*(u16*)(cell + 18) * scaleY);
+                }
+            }
+        }
+    }
 }
 
 /* 0x800B6B08 - full font reset: drop all fonts + lock saves, mark changed. */
