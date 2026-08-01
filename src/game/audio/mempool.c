@@ -23,8 +23,23 @@ extern u32 lbl_80345254;
 extern u32 lbl_80345258;
 extern volatile s32 lbl_8034525C;
 extern s32 lbl_80345260;
-extern char lbl_801172A0[];
 extern char lbl_80349300[8];
+
+#define MEMPOOL_STRINGS                                                       \
+    "MEMLOCK is saving your skin!\n\0\0\0"                                  \
+    "DCSERROR: \0\0"                                                        \
+    "No more free MemBlk's\n\0\0"                                           \
+    "pool_free ran out of FREE blocks! increase pool_init() value\n\0\0\0"     \
+    "pool_dispose_and_alloc IGNORING already-allocated block 0x%08x\n\0"     \
+    "pool_alloc IGNORING already-allocated block 0x%08x\n\0"                 \
+    "pool_alloc IGNORING 0-byte request\n\0"                                  \
+    "pool_alloc failed %d bytes (%d biggest, %d total)\n\0\0"                \
+    "WARNING: pool_new rounding block up to next power of 2: 0x%08x\n\0"     \
+    "DISPOSE code %d unknown\n\0\0\0\0"                                     \
+    "DCSFATAL: \0\0"                                                        \
+    "LIST Null link\n\0"                                                     \
+    "LIST Bad node 0x%08x <- 0x%08x\n\0"                                    \
+    "LIST Bad node 0x%08x -> 0x%08x\n"
 
 void mathStub1__Fv();
 void* AllocMem(u32 size);
@@ -104,7 +119,7 @@ u32 pool_new(MemList* list) {
     if (owner != lbl_8034525C) {
         if (lbl_8034525C != 0) {
             printf(lbl_80349300);
-            printf(lbl_801172A0);
+            printf(MEMPOOL_STRINGS);
         }
         WaitSema(lbl_80345258);
         lbl_8034525C = owner;
@@ -180,7 +195,7 @@ void pool_free(MemPoolLists* pool, MemListNode* node) {
     if (owner != lbl_8034525C) {
         if (lbl_8034525C != 0) {
             printf(lbl_80349300);
-            printf(lbl_801172A0);
+            printf(MEMPOOL_STRINGS);
         }
         WaitSema(lbl_80345258);
         lbl_8034525C = owner;
@@ -220,7 +235,7 @@ MemListNode* pool_alloc(MemPoolLists* pool, MemListNode* node) {
     s32 i;
     MemListNode* freeNode;
 
-    strings = lbl_801172A0;
+    strings = MEMPOOL_STRINGS;
     result = NULL;
     (void)scratch;
     if (node->flags == 0) {
@@ -344,7 +359,7 @@ s32 pool_alloc_at(MemPoolLists* pool, MemListNode* node, s32 size,
     (void)scratch;
     totalSize = 0;
     lastSize = 0;
-    strings = lbl_801172A0;
+    strings = MEMPOOL_STRINGS;
 
     if (node->flags != 0) {
         printf(strings + 32);
@@ -455,7 +470,6 @@ s32 pool_alloc_at(MemPoolLists* pool, MemListNode* node, s32 size,
 
 /* 0x800D5B38  dispose then reallocate */
 s32 pool_dispose_and_alloc(MemPoolLists* pool, MemListNode* node, s32 size) {
-    char* strings;
     s32 owner;
     MemListNode* head;
     u32 alignmentMask;
@@ -469,15 +483,14 @@ s32 pool_dispose_and_alloc(MemPoolLists* pool, MemListNode* node, s32 size) {
     result = 0;
     totalSize = 0;
     lastSize = 0;
-    strings = lbl_801172A0;
     if (node->flags != 0) {
-        printf(strings + 32);
-        printf(strings + 196, node->flags);
+        printf(MEMPOOL_STRINGS + 32);
+        printf(MEMPOOL_STRINGS + 196, node->flags);
         return 0;
     }
     if (size == 0) {
-        printf(strings + 32);
-        printf(strings + 248);
+        printf(MEMPOOL_STRINGS + 32);
+        printf(MEMPOOL_STRINGS + 248);
         return 0;
     }
 
@@ -485,7 +498,7 @@ s32 pool_dispose_and_alloc(MemPoolLists* pool, MemListNode* node, s32 size) {
     if (owner != lbl_8034525C) {
         if (lbl_8034525C != 0) {
             printf(lbl_80349300);
-            printf(strings);
+            printf(MEMPOOL_STRINGS);
         }
         WaitSema(lbl_80345258);
         lbl_8034525C = owner;
@@ -522,8 +535,8 @@ s32 pool_dispose_and_alloc(MemPoolLists* pool, MemListNode* node, s32 size) {
     }
 
     if (result == 0) {
-        printf(strings + 32);
-        printf(strings + 284, alignedSize, lastSize, totalSize);
+        printf(MEMPOOL_STRINGS + 32);
+        printf(MEMPOOL_STRINGS + 284, alignedSize, lastSize, totalSize);
     }
 
     if (--lbl_80345260 <= 0) {
@@ -547,7 +560,7 @@ s32 pool_dispose(MemPoolLists* pool, u32 address, u32 size,
     s32 result;
     MemListNode* freeNode;
 
-    strings = lbl_801172A0;
+    strings = MEMPOOL_STRINGS;
     (void)scratch;
     result = 0;
     owner = GetThreadId();
@@ -707,7 +720,7 @@ void list_verify(MemList* list) {
     char* strings;
     MemListNode* node;
 
-    strings = lbl_801172A0;
+    strings = MEMPOOL_STRINGS;
     node = list->head;
     if (node != NULL) {
         do {

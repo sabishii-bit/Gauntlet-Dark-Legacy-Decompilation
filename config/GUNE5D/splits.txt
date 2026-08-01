@@ -517,6 +517,7 @@ game/audio/mempool.c:
 	extab       start:0x800080B0 end:0x80008118
 	extabindex  start:0x8000C958 end:0x8000C9F4
 	.text       start:0x800D5260 end:0x800D6234
+	.rodata     start:0x801172A0 end:0x801174A8
 
 game/audio/adstream.c:
 	extab       start:0x80008118 end:0x800081A8
