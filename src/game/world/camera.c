@@ -19,7 +19,7 @@
  *   0x800229D0 do_camera                top-level per-frame camera update       [global]  BODY
  *   0x80022DAC camera_init_for_gamemode setup driven by game-mode g_800229D0    (local)   giant, doc-only
  *   0x800231D4 camera_run_mode          camera-mode state machine (2 jumptables)(local)   BODY
- *   0x80023ED0 camera_mode_follow       largest mode handler (MB blit, project) (local)   giant, doc-only
+ *   0x80023ED0 camera_mode_follow       largest mode handler (MB blit, project) (local)   BODY
  *   0x80024F30 camera_mode_target       atan2 aiming toward a target            (local)   BODY
  *   0x80025640 debug_camera_pos         object-type + position debug overlay    (local)   giant, doc-only
  *   0x80025CEC camera_debug_supervisor  largest fn; drives debug_camera_pos      (local)   giant, doc-only
@@ -96,6 +96,41 @@ typedef struct CameraRunScratch {
     f32 destination[3];             /* stack +0x130 */
     u8 _pad13C[0x0C];
 } CameraRunScratch; /* 0x13C; allocated at r1+0xC */
+
+/* Address-taken workspace used by camera_mode_follow.  Its members reproduce
+ * the retail frame's independent vectors (the gaps are compiler homes for
+ * integer-to-double conversions and saved registers). */
+typedef struct CameraFollowScratch {
+    u8 _pad00[4];
+    s16 projected[2];               /* stack +0x10 */
+    Vec3 finalDirection;            /* stack +0x14 */
+    Vec3 finalPosition;             /* stack +0x20 */
+    Vec3 finalAttention;            /* stack +0x2C */
+    f32 normalizeFinal[3];          /* stack +0x38 */
+    volatile f32 focusRoot;         /* stack +0x44 */
+    Vec3 resetDirection;            /* stack +0x48 */
+    Vec3 resetPosition;             /* stack +0x54 */
+    Vec3 resetAttention;            /* stack +0x60 */
+    f32 normalizeDefault[3];        /* stack +0x6C */
+    Vec3 transitionDirection;       /* stack +0x78 */
+    Vec3 transitionPosition;        /* stack +0x84 */
+    Vec3 transitionAttention;       /* stack +0x90 */
+    volatile f32 transitionPositionRoot; /* stack +0x9C */
+    volatile f32 transitionAttentionRoot;/* stack +0xA0 */
+    f32 normalizeTransition[3];     /* stack +0xA4 */
+    Vec3 initialDirection;          /* stack +0xB0 */
+    Vec3 initialPosition;           /* stack +0xBC */
+    Vec3 initialAttention;          /* stack +0xC8 */
+    f32 normalizeInitial[3];        /* stack +0xD4 */
+    Vec3 emptyDirection;            /* stack +0xE0 */
+    Vec3 emptyPosition;             /* stack +0xEC */
+    Vec3 emptyAttention;            /* stack +0xF8 */
+    Vec3 requestDirection;          /* stack +0x104 */
+    Vec3 requestPosition;           /* stack +0x110 */
+    Vec3 requestAttention;          /* stack +0x11C */
+    u8 _pad11C[0x38];
+    f32 focus[3];                   /* stack +0x160 */
+} CameraFollowScratch; /* 0x160; allocated at r1+0xC */
 
 /* Camera field access (no full struct recovered; stride 0x18C). */
 #define CAM_F32(c, off) (*(f32*)((u8*)(c) + (off)))
@@ -195,6 +230,39 @@ extern s32 lbl_803444F0;
 extern f32 lbl_80344590;
 extern f32 lbl_80345F38;
 extern f32 lbl_80345F14;
+extern s32 lbl_803444F4;
+extern s32 lbl_80344494;
+extern s32 lbl_803447B4;
+extern s32 lbl_803447B8;
+extern s32 lbl_803443FC;
+extern void* lbl_8034440C;
+extern f32 lbl_80344460;
+extern f32 lbl_80344464;
+extern f32 lbl_80344468;
+extern f32 lbl_80344528;
+extern s32 lbl_80344514;
+extern s32 lbl_80344518;
+extern s32 lbl_8034451C;
+extern s32 lbl_80344520;
+extern s32 lbl_80344960;
+extern f32 gCameraTargetPositions[7][3];
+extern f32 gDefaultPlayerPosition[3];
+extern u8 lbl_80240E30[];
+extern f64 lbl_80345F50;
+extern f64 lbl_80345F88;
+extern f64 lbl_80345F90;
+extern f64 lbl_80345F98;
+extern f32 lbl_80345FA0;
+extern f64 lbl_80345FA8;
+extern f64 lbl_80345FB0;
+extern f32 lbl_80345FB8;
+extern f64 lbl_80345FC0;
+extern f64 lbl_80345FC8;
+extern f64 lbl_80345FD0;
+extern f64 lbl_80345FD8;
+extern f64 lbl_80345FE0;
+extern f32 lbl_80345FE8;
+extern f64 lbl_80345FF0;
 
 /* --- external projection / math helpers (G3D / pb layer) --- */
 void MBWorldToScreen(f32* out_xy, void* world_pos);                   /* screen projection (INT path) */
@@ -233,9 +301,16 @@ int PlayerOnMovingObject(void);
 void ProcCamera(s32 camIdx, s32 mode);
 void screen_limitation(void);
 void MBCameraUpdate(f32* position, f32* matrix);
+void MBRemoveBlit(void* blit);
+void AverageCameraTargetPosition_8002A890(f32* out);
+void calc_cam_pyr(s32 camIdx, s32 resetDelta);
+void get_cam_wpos(s32 camIdx);
+s32 adjust_radius(s32 camIdx);
+void CopyCam(u8* source, u8* destination);
 
 f32 camera_approach_yaw(void* cam, f32 target);
 f32 camera_lerp_yaw(f32 current, f32 target);
+void camera_orbit_update(s32 camIdx);
 void camera_collide_step(s32 camIdx);
 void camera_init_for_gamemode(s32 camIdx);
 void camera_run_mode(s32 camIdx);
@@ -994,6 +1069,522 @@ free_attention:
         break;
     }
 }
+
+/* Keep the rendered view in sync with the simulation camera.  CAMERA.OBJ
+ * expands this sequence at each early-out and transition arm. */
+#define FOLLOW_RENDER(camIndex_, cam_, position_, attention_, direction_)      \
+    do {                                                                       \
+        (position_).x = (cam_)->wpos[0];                                       \
+        (position_).y = (cam_)->wpos[1];                                       \
+        (position_).z = (cam_)->wpos[2];                                       \
+        (attention_).x = (cam_)->attn[0];                                     \
+        (attention_).y = (cam_)->attn[1];                                     \
+        (attention_).z = (cam_)->attn[2];                                     \
+        StandardCamera(camIndex_);                                             \
+        DoShake((Vec3*)&(position_), (Vec3*)&(attention_));                    \
+        (direction_).x = (attention_).x - (position_).x;                       \
+        (direction_).y = (attention_).y - (position_).y;                       \
+        (direction_).z = (attention_).z - (position_).z;                       \
+        LookInDirection((f32*)&(direction_).x, (u32)&(cam_)->mat[0][0]);        \
+    } while (0)
+
+#define FOLLOW_NORMALIZE_POSITION(cam_, vector_)                              \
+    do {                                                                       \
+        f32 followRadius_ = (cam_)->radius;                                    \
+        (vector_)[0] = (cam_)->wpos[0] - (cam_)->attn[0];                     \
+        (vector_)[1] = (cam_)->wpos[1] - (cam_)->attn[1];                     \
+        (vector_)[2] = (cam_)->wpos[2] - (cam_)->attn[2];                     \
+        SlowNormalVector((f32*)(vector_));                                     \
+        (cam_)->wpos[0] = (cam_)->attn[0] + (vector_)[0] * followRadius_;     \
+        (cam_)->wpos[1] = (cam_)->attn[1] + (vector_)[1] * followRadius_;     \
+        (cam_)->wpos[2] = (cam_)->attn[2] + (vector_)[2] * followRadius_;     \
+    } while (0)
+
+#define focus                    followScratch.focus
+#define projected                followScratch.projected
+#define finalDirection           followScratch.finalDirection
+#define finalPosition            followScratch.finalPosition
+#define finalAttention           followScratch.finalAttention
+#define normalizeFinal           followScratch.normalizeFinal
+#define resetDirection           followScratch.resetDirection
+#define resetPosition            followScratch.resetPosition
+#define resetAttention           followScratch.resetAttention
+#define normalizeDefault         followScratch.normalizeDefault
+#define transitionDirection      followScratch.transitionDirection
+#define transitionPosition       followScratch.transitionPosition
+#define transitionAttention      followScratch.transitionAttention
+#define normalizeTransition      followScratch.normalizeTransition
+#define initialDirection         followScratch.initialDirection
+#define initialPosition          followScratch.initialPosition
+#define initialAttention         followScratch.initialAttention
+#define normalizeInitial         followScratch.normalizeInitial
+#define emptyDirection           followScratch.emptyDirection
+#define emptyPosition            followScratch.emptyPosition
+#define emptyAttention           followScratch.emptyAttention
+#define requestDirection         followScratch.requestDirection
+#define requestPosition          followScratch.requestPosition
+#define requestAttention         followScratch.requestAttention
+#define backup                   ((Camera*)(state + 0x884))
+#define followPositions          ((f32 (*)[3])(state + 0x5C))
+
+/* Main gameplay camera.  This is the retail transition supervisor: it keeps
+ * a short focus history, blends scripted camera changes, controls camera
+ * speed from the projected target extent, and rejects views which put a live
+ * player outside the safe viewport. */
+#pragma opt_common_subs off
+void camera_mode_follow(s32 camIdx)
+{
+    u8* state = gCameraState;
+    Camera* cam = (Camera*)(state + 0xC8 + camIdx * sizeof(Camera));
+    CameraFollowScratch followScratch;
+    f32 savedPitch;
+    f32 savedYaw;
+    f32 savedTurn;
+    f32 zeroValue;
+    f32 oldPositionX;
+    f32 oldPositionY;
+    f32 oldPositionZ;
+    f32 oldAttentionX;
+    f32 oldAttentionY;
+    f32 oldAttentionZ;
+    f32 oldRadius;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 distance;
+    f32 desiredSpeed;
+    f32 maximumStep;
+    f32 scale;
+    f32 previousSpeed;
+    f32 targetExtent;
+    f32 screenX;
+    f32 screenY;
+    f64 root;
+    s32 transitionParts;
+    s32 player;
+    s32 offscreen;
+    s32 i;
+
+    if (lbl_80344500 != 0) {
+        lbl_803444F8 -= gFrameTicks;
+        zeroValue = lbl_80345EC8;
+        cam->delta[0] = zeroValue;
+        cam->delta[1] = zeroValue;
+        cam->delta[2] = zeroValue;
+        cam->pyr_delta[0] = zeroValue;
+        cam->pyr_delta[1] = zeroValue;
+        cam->pyr_delta[2] = zeroValue;
+        FOLLOW_RENDER(camIdx, cam, requestPosition, requestAttention,
+                      requestDirection);
+        return;
+    }
+
+    if (gCameraTargetCount == 0) {
+        zeroValue = lbl_80345EC8;
+        cam->delta[0] = zeroValue;
+        cam->delta[1] = zeroValue;
+        cam->delta[2] = zeroValue;
+        cam->pyr_delta[0] = zeroValue;
+        cam->pyr_delta[1] = zeroValue;
+        cam->pyr_delta[2] = zeroValue;
+        FOLLOW_RENDER(camIdx, cam, emptyPosition, emptyAttention,
+                      emptyDirection);
+        return;
+    }
+
+    if (lbl_803444F4 == 0 && lbl_803447B8 == 0 && lbl_803447B4 == 0 &&
+        camIdx == 0 && cam->trans_mode < 0 && lbl_803444DC == 0) {
+        lbl_80344494 += gFrameTicks;
+        if (lbl_80344494 > 90) {
+            cam->trans_mode = 1;
+            gCameraTargetPositionCount = 0;
+            gCameraTargetMode = 4;
+            lbl_80344508 = -1;
+            lbl_80344494 = 0;
+        }
+    } else {
+        lbl_80344494 = 0;
+    }
+
+    savedPitch = lbl_80345EC8;
+    savedYaw = savedPitch;
+    savedTurn = savedPitch;
+    if (gNumTransmitters != 0) {
+        CopyCam((u8*)cam, (u8*)backup);
+        savedTurn = (f32)lbl_80344400;
+        savedPitch = lbl_80344530;
+        savedYaw = lbl_80344534;
+    }
+
+    camera_orbit_update(camIdx);
+    if (cam->trans_mode >= 0) {
+        transitionParts = 2;
+        switch (cam->trans_mode) {
+        case 0:
+            cam->attn[0] = cam->wpos[0];
+            cam->attn[1] = cam->wpos[1];
+            cam->attn[2] = cam->wpos[2];
+            cam->radius = lbl_80345F80;
+            calc_cam_pyr(camIdx, 1);
+            get_cam_wpos(camIdx);
+            zeroValue = lbl_80345EC8;
+            cam->vel[0] = zeroValue;
+            cam->vel[1] = zeroValue;
+            cam->vel[2] = zeroValue;
+            cam->avel[0] = zeroValue;
+            cam->avel[1] = zeroValue;
+            cam->avel[2] = zeroValue;
+            FOLLOW_NORMALIZE_POSITION(cam, normalizeInitial);
+            FOLLOW_RENDER(camIdx, cam, initialPosition, initialAttention,
+                          initialDirection);
+            ProcCamera(camIdx, 0);
+            lbl_803443FC = 0;
+            cam->trans_mode = -1;
+            break;
+
+        case 1:
+            if (gScriptedCameraState <= 1) {
+                oldPositionX = cam->wpos[0];
+                oldPositionY = cam->wpos[1];
+                oldPositionZ = cam->wpos[2];
+                oldAttentionX = cam->attn[0];
+                oldAttentionY = cam->attn[1];
+                oldAttentionZ = cam->attn[2];
+
+                calc_cam_pyr(camIdx, 1);
+                get_attn_pos(camIdx, cam->attn);
+                zeroValue = lbl_80345EC8;
+                cam->delta[0] = zeroValue;
+                cam->delta[1] = zeroValue;
+                cam->delta[2] = zeroValue;
+                if (lbl_803447B8 == 0) {
+                    get_cam_wpos(camIdx);
+                }
+                if (adjust_radius(camIdx) == 0) {
+                    return;
+                }
+                if (lbl_803443F4 != 0) {
+                    FOLLOW_NORMALIZE_POSITION(cam, normalizeTransition);
+                }
+                zeroValue = lbl_80345EC8;
+                cam->vel[0] = zeroValue;
+                cam->vel[1] = zeroValue;
+                cam->vel[2] = zeroValue;
+                cam->avel[0] = zeroValue;
+                cam->avel[1] = zeroValue;
+                cam->avel[2] = zeroValue;
+
+                dx = cam->attn[0] - oldAttentionX;
+                dy = cam->attn[1] - oldAttentionY;
+                dz = cam->attn[2] - oldAttentionZ;
+                distance = dx * dx + dy * dy + dz * dz;
+                if (distance > lbl_80345EC8) {
+                    root = __frsqrte(distance);
+                    root = lbl_80345F18 * root *
+                           -(distance * root * root - lbl_80345F20);
+                    root = lbl_80345F18 * root *
+                           -(distance * root * root - lbl_80345F20);
+                    root = lbl_80345F18 * root *
+                           -(distance * root * root - lbl_80345F20);
+                    followScratch.transitionAttentionRoot =
+                        (f32)(distance * lbl_80345F18 * root *
+                        -(distance * root * root - lbl_80345F20));
+                    distance = followScratch.transitionAttentionRoot;
+                }
+                if ((f64)distance < lbl_80345F28) {
+                    transitionParts = 1;
+                }
+                cam->attn[0] = oldAttentionX +
+                    (f32)((f64)dx * lbl_80345F88);
+                cam->attn[1] = oldAttentionY +
+                    (f32)((f64)dy * lbl_80345F88);
+                cam->attn[2] = oldAttentionZ +
+                    (f32)((f64)dz * lbl_80345F88);
+
+                dx = cam->wpos[0] - oldPositionX;
+                dy = cam->wpos[1] - oldPositionY;
+                dz = cam->wpos[2] - oldPositionZ;
+                distance = dx * dx + dy * dy + dz * dz;
+                if (distance > lbl_80345EC8) {
+                    root = __frsqrte(distance);
+                    root = lbl_80345F18 * root *
+                           -(distance * root * root - lbl_80345F20);
+                    root = lbl_80345F18 * root *
+                           -(distance * root * root - lbl_80345F20);
+                    root = lbl_80345F18 * root *
+                           -(distance * root * root - lbl_80345F20);
+                    followScratch.transitionPositionRoot =
+                        (f32)(distance * lbl_80345F18 * root *
+                        -(distance * root * root - lbl_80345F20));
+                    distance = followScratch.transitionPositionRoot;
+                }
+                if ((f64)distance < lbl_80345F28) {
+                    transitionParts--;
+                }
+                cam->wpos[0] = oldPositionX +
+                    (f32)((f64)dx * lbl_80345F88);
+                cam->wpos[1] = oldPositionY +
+                    (f32)((f64)dy * lbl_80345F88);
+                cam->wpos[2] = oldPositionZ +
+                    (f32)((f64)dz * lbl_80345F88);
+                FOLLOW_RENDER(camIdx, cam, transitionPosition,
+                              transitionAttention, transitionDirection);
+            } else {
+                gScriptedCameraState -= gFrameTicks;
+                if (gScriptedCameraState <= 1) {
+                    gScriptedCameraState = 1;
+                }
+                if (gScriptedCameraState < 45) {
+                    for (player = 0; player < 4; player++) {
+                        if (*(s32*)(gPlayers + player * 0x335C + 0xE8) == 1 &&
+                            (*(u32*)(lbl_80240E30 + player * 0x3C + 8) &
+                             0x020000FF) != 0) {
+                            gScriptedCameraState = 1;
+                        }
+                    }
+                }
+            }
+            if (transitionParts == 0) {
+                cam->trans_mode = -1;
+                if (lbl_803447B8 != 0) {
+                    if (lbl_8034440C != 0) {
+                        MBRemoveBlit(lbl_8034440C);
+                        lbl_8034440C = 0;
+                    }
+                    lbl_803447B8 = 0;
+                    gScriptedCameraState = 0;
+                    for (player = 0; player < 4; player++) {
+                        if (*(s32*)(gPlayers + player * 0x335C + 0xE8) == 1) {
+                            *(s32*)(gPlayers + player * 0x335C + 0x91C) = 4;
+                        }
+                    }
+                }
+            }
+            break;
+
+        default:
+            calc_cam_pyr(camIdx, 1);
+            if (gCameraTargetCount > 0) {
+                get_attn_pos(camIdx, cam->attn);
+            } else {
+                cam->attn[0] = gDefaultPlayerPosition[0];
+                cam->attn[1] = gDefaultPlayerPosition[1];
+                cam->attn[2] = gDefaultPlayerPosition[2];
+                cam->attn_dest[0] = cam->attn[0];
+                cam->attn_dest[1] = cam->attn[1];
+                cam->attn_dest[2] = cam->attn[2];
+                cam->attn_dest_no_offset[0] = cam->attn[0];
+                cam->attn_dest_no_offset[1] = cam->attn[1];
+                cam->attn_dest_no_offset[2] = cam->attn[2];
+            }
+            zeroValue = lbl_80345EC8;
+            cam->delta[0] = zeroValue;
+            cam->delta[1] = zeroValue;
+            cam->delta[2] = zeroValue;
+            calc_cam_pyr(camIdx, 1);
+            get_cam_wpos(camIdx);
+            zeroValue = lbl_80345EC8;
+            cam->vel[0] = zeroValue;
+            cam->vel[1] = zeroValue;
+            cam->vel[2] = zeroValue;
+            cam->avel[0] = zeroValue;
+            cam->avel[1] = zeroValue;
+            cam->avel[2] = zeroValue;
+            if (lbl_803443F4 != 0) {
+                FOLLOW_NORMALIZE_POSITION(cam, normalizeDefault);
+            }
+            FOLLOW_RENDER(camIdx, cam, resetPosition, resetAttention,
+                          resetDirection);
+            ProcCamera(camIdx, 0);
+            lbl_803443FC = 0;
+            cam->trans_mode = -1;
+            break;
+        }
+    }
+
+    if (cam->trans_mode >= 0) {
+        return;
+    }
+
+    get_attn_pos(camIdx, focus);
+    if (gCameraTargetPositionCount == 6) {
+        for (i = 0; i < 6; i++) {
+            followPositions[i][0] = followPositions[i + 1][0];
+            followPositions[i][1] = followPositions[i + 1][1];
+            followPositions[i][2] = followPositions[i + 1][2];
+        }
+    }
+    followPositions[gCameraTargetPositionCount][0] = focus[0];
+    followPositions[gCameraTargetPositionCount][1] = focus[1];
+    followPositions[gCameraTargetPositionCount][2] = focus[2];
+    if (gCameraTargetPositionCount < 6) {
+        gCameraTargetPositionCount++;
+    }
+
+    AverageCameraTargetPosition_8002A890(focus);
+    cam->delta[0] = focus[0] - cam->attn[0];
+    cam->delta[1] = focus[1] - cam->attn[1];
+    cam->delta[2] = focus[2] - cam->attn[2];
+    if (adjust_radius(camIdx) == 0) {
+        return;
+    }
+
+    dx = cam->delta[0];
+    dy = cam->delta[1];
+    dz = cam->delta[2];
+    distance = dx * dx + dy * dy + dz * dz;
+    if (distance > lbl_80345EC8) {
+        root = __frsqrte(distance);
+        root = lbl_80345F18 * root *
+               -(distance * root * root - lbl_80345F20);
+        root = lbl_80345F18 * root *
+               -(distance * root * root - lbl_80345F20);
+        root = lbl_80345F18 * root *
+               -(distance * root * root - lbl_80345F20);
+        followScratch.focusRoot = (f32)(distance * lbl_80345F18 * root *
+            -(distance * root * root - lbl_80345F20));
+        distance = followScratch.focusRoot;
+    }
+
+    previousSpeed = lbl_80344464;
+    targetExtent = lbl_803444E8;
+    lbl_80344460 = lbl_80344464;
+    if ((f64)targetExtent < lbl_80345F90) {
+        maximumStep = lbl_80345FA0;
+        desiredSpeed = (f32)(lbl_80345F98 *
+            ((f64)(u32)gFrameTicks - lbl_80345F50));
+    } else if ((f64)targetExtent >= lbl_80345FA8) {
+        maximumStep = lbl_80345FB8;
+        desiredSpeed = (f32)(lbl_80345FB0 *
+            ((f64)(u32)gFrameTicks - lbl_80345F50));
+    } else {
+        f64 extentDelta = lbl_80345FA8 - (f64)targetExtent;
+        desiredSpeed = (f32)(lbl_80345FC0 * extentDelta + lbl_80345FB0);
+        maximumStep = (f32)-(lbl_80345FD0 * extentDelta *
+            lbl_80345FD8 - lbl_80345FC8);
+    }
+    lbl_80344464 = desiredSpeed;
+    lbl_80344468 = maximumStep;
+
+    if (lbl_80344960 >= 0 || (f64)targetExtent < lbl_80345FE0) {
+        if (desiredSpeed <= previousSpeed) {
+            if ((f64)(previousSpeed - desiredSpeed) > lbl_80345F90) {
+                desiredSpeed = (f32)((f64)previousSpeed - lbl_80345F90);
+            }
+        } else if ((f64)(desiredSpeed - previousSpeed) > lbl_80345F90) {
+            desiredSpeed = (f32)(lbl_80345F90 + (f64)previousSpeed);
+        }
+    } else {
+        maximumStep = lbl_80345FE8;
+        desiredSpeed = (f32)((f64)targetExtent *
+            ((f64)(u32)gFrameTicks - lbl_80345F50));
+    }
+    lbl_80344464 = desiredSpeed;
+    lbl_80344468 = maximumStep;
+
+    if (desiredSpeed <= distance) {
+        if (distance > maximumStep) {
+            distance = maximumStep;
+        }
+        scale = desiredSpeed / distance;
+        cam->delta[0] *= scale;
+        cam->delta[1] *= scale;
+        cam->delta[2] *= scale;
+    }
+    cam->attn[0] += cam->delta[0];
+    cam->attn[1] += cam->delta[1];
+    cam->attn[2] += cam->delta[2];
+
+    calc_cam_pyr(camIdx, 0);
+    get_cam_wpos(camIdx);
+    zeroValue = lbl_80345EC8;
+    cam->vel[0] = zeroValue;
+    cam->vel[1] = zeroValue;
+    cam->vel[2] = zeroValue;
+    cam->avel[0] = zeroValue;
+    cam->avel[1] = zeroValue;
+    cam->avel[2] = zeroValue;
+    if (lbl_803443F4 != 0) {
+        oldRadius = cam->radius;
+        normalizeFinal[0] = cam->wpos[0] - cam->attn[0];
+        normalizeFinal[1] = cam->wpos[1] - cam->attn[1];
+        normalizeFinal[2] = cam->wpos[2] - cam->attn[2];
+        SlowNormalVector(normalizeFinal);
+        cam->wpos[0] = cam->attn[0] + normalizeFinal[0] * oldRadius;
+        cam->wpos[1] = cam->attn[1] + normalizeFinal[1] * oldRadius;
+        cam->wpos[2] = cam->attn[2] + normalizeFinal[2] * oldRadius;
+    }
+    FOLLOW_RENDER(camIdx, cam, finalPosition, finalAttention, finalDirection);
+
+    if (lbl_80343BD8 != 0 && gNumTransmitters != 0 &&
+        ((cam->radius >= lbl_80344528 && lbl_80344960 < 0) ||
+         ((f64)cam->radius >= lbl_80345FF0 && lbl_80344960 >= 0)) &&
+        (lbl_803444F4 == 0 || lbl_80344534 != savedYaw)) {
+        s32 backupAttentionMode;
+        offscreen = 0;
+        for (player = 0; player < 4; player++) {
+            u8* playerData = gPlayers + player * 0x335C;
+            if (*(s32*)(playerData + 0xE8) == 1) {
+                MBWindowProject((f32*)(playerData + 0x54),
+                                (f32*)(state + 0xCC), 0, projected);
+                screenX = (f32)projected[0];
+                screenY = (f32)projected[1];
+                if (screenX < (f32)(lbl_80344520 + 30) ||
+                    screenX > (f32)(lbl_8034451C - 30) ||
+                    screenY > (f32)(lbl_80344518 - 20) ||
+                    screenY < (f32)(lbl_80344514 + 40)) {
+                    offscreen = 1;
+                }
+            }
+        }
+        if (offscreen != 0) {
+            CopyCam((u8*)backup, (u8*)cam);
+            lbl_80344400 = (s32)savedTurn;
+            lbl_80344530 = savedPitch;
+            lbl_80344534 = savedYaw;
+        }
+        backupAttentionMode = backup->a_mode;
+        if (backup->c_mode != CAM_OFF) {
+            backup->pc_mode = backup->c_mode;
+            backup->c_mode = CAM_OFF;
+        }
+        if (backupAttentionMode != backup->a_mode) {
+            backup->pa_mode = backup->a_mode;
+            backup->a_mode = (ATN_MODE)backupAttentionMode;
+        }
+        backup->state = 0;
+    }
+}
+#pragma opt_common_subs on
+
+#undef focus
+#undef projected
+#undef finalDirection
+#undef finalPosition
+#undef finalAttention
+#undef normalizeFinal
+#undef resetDirection
+#undef resetPosition
+#undef resetAttention
+#undef normalizeDefault
+#undef transitionDirection
+#undef transitionPosition
+#undef transitionAttention
+#undef normalizeTransition
+#undef initialDirection
+#undef initialPosition
+#undef initialAttention
+#undef normalizeInitial
+#undef emptyDirection
+#undef emptyPosition
+#undef emptyAttention
+#undef requestDirection
+#undef requestPosition
+#undef requestAttention
+#undef backup
+#undef followPositions
+#undef FOLLOW_NORMALIZE_POSITION
+#undef FOLLOW_RENDER
 
 /* Track the active player object, then settle into an orbit around it. */
 void camera_mode_target(s32 camIdx)
