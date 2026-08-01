@@ -141,7 +141,7 @@ void fn_8004E448(Enemy* enemy, s32 arg, f32* pos);   /* missile/audio dispatch *
 void fn_8004E5F8(Enemy* enemy);                     /* update milestone history */
 void fn_8004E67C(void);                             /* update enemy texmods */
 s32 check_vacancy(s32 index, f32* pos);             /* validate spawn position */
-extern void fn_8004F1DC(Enemy* e);                  /* garm2 (type 27) death hook */
+void fn_8004F1DC(Enemy* enemy);                     /* garm2 death-direction FX */
 
 /* --- cross-module callees --- */
 extern f32 fqdist(f32 x, f32 z);               /* 2D magnitude */
@@ -165,6 +165,8 @@ extern s32 EnemyStartMissile(Enemy* enemy, s32 arg, f32* pos, s32 kind);
 extern void fn_8009DCE4(f32* pos);
 extern void fn_8009DDFC(f32* pos);
 extern void fn_8009DE2C(f32* pos);
+extern void CreateDirMatrix(f32* matrix, f32* direction, f32* up);
+extern void StartEnemyDeathFX(f32* matrix);
 
 /* --- module data shared with other enemy helpers --- */
 extern s32 gFrameTicks;      /* frame ticks (game speed units this frame) */
@@ -182,6 +184,14 @@ extern f32 lbl_803468F0;
 extern f64 lbl_80346A20;
 extern f64 lbl_80346810;
 extern f64 lbl_80346818;
+extern const f32 lbl_80346A4C;
+extern const f32 lbl_80346A50;
+extern const f32 lbl_80346A54;
+extern const f64 lbl_80346A58;
+extern const f32 lbl_80346A60;
+extern const f32 lbl_80346A64;
+extern const f32 lbl_80346A68;
+extern const f32 lbl_80346A6C;
 extern f32 gPlayers[][3287]; /* 0x80275AE0: 0x335C generator records */
 extern f32 lbl_8023CA98[][4];
 extern f32 lbl_8011BED8[];  /* 0x8011BED8 per-type turn-rate table */ /* wall-slide scratch; [1] = output vector */
@@ -3641,7 +3651,6 @@ f32 turn_enemy_ang(Enemy* e, f32 want)
 
 /* --- generate_enemy externs --- */
 extern s32 RandInt(s32 n);
-extern f32 fn_8004FBC8(f32* v, f32* out, s32 d);     /* rotate spawn dir d */
 extern s32 check_enemy_pos(f32* start, f32* out, s32 slot);
 extern void SetEnemyObj(s32 slot, f32* pos, s32 type, s32 level, s32 spew);
 extern void UpdateObjWorldMat(f32* worldmat);              /* claim grid cell */
@@ -3654,6 +3663,41 @@ extern s32 gGameMode;      /* current map/world id */
 extern s32 lbl_803447DC;      /* generators-disabled flag */
 extern s32 lbl_8034472C;      /* random-type rotation counter */
 extern u8 lbl_8011AF48[];     /* enemy.c .data anchor (type tables at +4284..) */
+
+/* Accelerate an enemy along an angle, caching the trig pair between calls. */
+void fn_8004CD1C(Enemy* enemy, f32 speed, f32 angle)
+{
+    if (enemy->type != gBossType && enemy->action != 1) {
+        s32 action;
+
+        if (speed >= 1.25) {
+            action = 4;
+        } else {
+            action = 3;
+        }
+        RequestEnemyAction(enemy, action);
+
+        if (enemy->action == 3 || enemy->action == 4 ||
+            (u32)(enemy->action - 22) <= 1 || enemy->coll_pnum >= 0) {
+            f32 typeSpeed;
+            f32 dx;
+            f32 dz;
+
+            if (enemy->prev_dir != angle) {
+                enemy->xspd = sin(angle);
+                enemy->zspd = cos(angle);
+                enemy->prev_dir = angle;
+            }
+            typeSpeed = ((f32*)lbl_80250E40)[enemy->type];
+            dx = enemy->xspd * typeSpeed;
+            dz = enemy->zspd * typeSpeed;
+            dx = speed * dx;
+            dz = speed * dz;
+            enemy->trans[0] += dx;
+            enemy->trans[2] += dz;
+        }
+    }
+}
 
 /* Resolve the generator/spew class shared by groups of enemy types. */
 s32 fn_8004F87C(s32 type, s32 level, s32 spew)
@@ -3741,6 +3785,89 @@ s32 fn_8004F87C(s32 type, s32 level, s32 spew)
         break;
     }
     return spew;
+}
+
+/* Rotate a horizontal direction into one of the eight generator octants. */
+f32 fn_8004FBC8(f32* input, f32* output, s32 direction)
+{
+    f32 x = input[0];
+    f32 z = input[2];
+    f64 term;
+
+    output[1] = input[1];
+    switch (direction) {
+    default:
+        output[0] = x;
+        output[2] = z;
+        return lbl_80346820;
+    case 1:
+        output[0] = -x;
+        output[2] = -z;
+        return lbl_80346A4C;
+    case 2:
+        output[0] = -z;
+        output[2] = x;
+        return lbl_80346A50;
+    case 3:
+        output[0] = z;
+        output[2] = -x;
+        return lbl_80346A54;
+    case 4:
+        term = lbl_80346A58 * z;
+        output[0] = lbl_80346A58 * x + term;
+        output[2] = lbl_80346A58 * -x + term;
+        return lbl_80346A60;
+    case 5:
+        term = lbl_80346A58 * x;
+        output[0] = lbl_80346A58 * -z + term;
+        output[2] = lbl_80346A58 * z + term;
+        return lbl_80346A64;
+    case 6:
+        term = lbl_80346A58 * -x;
+        output[0] = lbl_80346A58 * z + term;
+        output[2] = lbl_80346A58 * -z + term;
+        return lbl_80346A68;
+    case 7:
+        term = lbl_80346A58 * -z;
+        output[0] = lbl_80346A58 * -x + term;
+        output[2] = lbl_80346A58 * x + term;
+        return lbl_80346A6C;
+    }
+}
+
+/* Point the Garm death effect toward its target (or the first active player). */
+void fn_8004F1DC(Enemy* enemy)
+{
+    volatile f32 enemyPos[3];
+    f32 matrix[12];
+    f32 direction[3];
+    s32 i;
+    f32* player = 0;
+
+    if (enemy->closest >= 0) {
+        player = gPlayers[enemy->closest];
+    } else {
+        for (i = 0; i < 4; i++) {
+            if (((s32*)gPlayers[i])[0xE8 / 4] == 1) {
+                break;
+            }
+        }
+        if (i < 4) {
+            player = gPlayers[i];
+        }
+    }
+
+    if (player != 0) {
+        enemyPos[0] = enemy->objgrp.worldmat[3][0];
+        enemyPos[1] = enemy->objgrp.worldmat[3][1];
+        enemyPos[2] = enemy->objgrp.worldmat[3][2];
+        direction[0] = player[17] - enemyPos[0];
+        direction[1] = player[18] - enemyPos[1];
+        direction[2] = player[19] - enemyPos[2];
+        NormalVector(direction);
+        CreateDirMatrix(matrix, direction, 0);
+        StartEnemyDeathFX(matrix);
+    }
 }
 
 /* generate_enemy @0x8004F4B4 (global).  Spawn an enemy of `type` at `pos`:
