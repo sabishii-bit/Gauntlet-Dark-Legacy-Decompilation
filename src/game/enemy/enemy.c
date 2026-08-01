@@ -134,8 +134,8 @@ extern s32 fn_8004646C(f32 rad, f32 hht, s32 index, f32* oldc, f32* newc,
                        f32* newc2, s32* hitWorld);  /* enemy-vs-enemy probe */
 extern s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc,
                        f32* newc);                  /* generator-contact probe */
-extern s32 fn_8004CFAC(f32* pos, f32* target);      /* turn direction (route) */
-extern s32 fn_8004D030(s32 index, s32 ticks);       /* set dead_end/turn timer */
+s32 fn_8004CFAC(f32* pos, f32* target);             /* turn direction (route) */
+void fn_8004D030(s32 index, s32 ticks);             /* set dead_end/turn timer */
 extern void fn_8004F1DC(Enemy* e);                  /* garm2 (type 27) death hook */
 
 /* --- cross-module callees --- */
@@ -743,6 +743,53 @@ static f32 fabsf_(f32 x)
 {
     *(u32*)&x &= 0x7FFFFFFF;
     return x;
+}
+
+/* Choose the turn direction on the axis with the larger separation. */
+s32 fn_8004CFAC(f32* pos, f32* target)
+{
+    u8 framePad[8];
+    f32 x = pos[0];
+    f32 targetX = target[0];
+    f32 dx = x - targetX;
+    f32 z;
+    f32 targetZ;
+    f32 dz;
+    u8 unused[12];
+
+    *(u32*)&dx &= 0x7FFFFFFF;
+    z = pos[2];
+    targetZ = target[2];
+    dz = z - targetZ;
+    *(u32*)&dz &= 0x7FFFFFFF;
+
+    if (dx >= dz) {
+        if (z < targetZ) {
+            return 1;
+        }
+        return -1;
+    }
+    if (x < targetX) {
+        return -1;
+    }
+    return 1;
+}
+
+/* Arm an enemy's dead-end timer and clear blocked desired actions. */
+void fn_8004D030(s32 index, s32 ticks)
+{
+    Enemy* enemy = &gEnemies[index];
+
+    if (enemy->dead_end > 0) {
+        return;
+    }
+    enemy->dead_end = ticks;
+    if (ticks < 60) {
+        return;
+    }
+    if (enemy->daction == 3 || enemy->daction == 4) {
+        enemy->daction = 0;
+    }
 }
 
 /* do_ai @0x80046854 - central AI dispatcher.  Zeroes the per-frame translation,
