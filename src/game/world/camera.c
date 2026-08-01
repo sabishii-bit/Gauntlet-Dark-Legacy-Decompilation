@@ -16,7 +16,7 @@
  *   0x80022734 get_screen_pos           world pos -> INT screen x,y            [global]  BODY
  *   0x80022794 get_actual_screen_pos    per-camera projection -> FLOAT x,y     [global]  BODY
  *   0x80022824 LookInDirection          build camera basis from a look vector  [global]  giant, doc-only
- *   0x800229D0 do_camera                top-level per-frame camera update       [global]  giant, doc-only
+ *   0x800229D0 do_camera                top-level per-frame camera update       [global]  BODY
  *   0x80022DAC camera_init_for_gamemode setup driven by game-mode g_800229D0    (local)   giant, doc-only
  *   0x800231D4 camera_run_mode          camera-mode state machine (2 jumptables)(local)   giant, doc-only
  *   0x80023ED0 camera_mode_follow       largest mode handler (MB blit, project) (local)   giant, doc-only
@@ -54,6 +54,17 @@ typedef struct CameraMilestone {
     f32 position[3];
     u8 _pad3C[0x2C];
 } CameraMilestone; /* 0x68 */
+
+typedef struct CameraTarget {
+    /* 0x00 */ s32 active;
+    /* 0x04 */ u8* object;
+    /* 0x08 */ f32 position[3];
+    /* 0x14 */ u8 _pad14[4];
+    /* 0x18 */ f32 projectedTop[2];
+    /* 0x20 */ f32 projectedBottom[2];
+    /* 0x28 */ f32 limitedTop[2];
+    /* 0x30 */ f32 limitedBottom[2];
+} CameraTarget; /* 0x38 */
 
 /* Camera field access (no full struct recovered; stride 0x18C). */
 #define CAM_F32(c, off) (*(f32*)((u8*)(c) + (off)))
@@ -112,6 +123,8 @@ extern s32 lbl_80344470;
 extern s32 lbl_803444C8;
 extern s32 lbl_803444CC;
 extern s32 lbl_803444DC;
+extern s32 lbl_803443F4;
+extern s32 lbl_803443F8;
 extern f32 lbl_8023F818;
 extern f32 lbl_8023F81C;
 extern f32 lbl_8023F820;
@@ -171,10 +184,16 @@ void CreateYPRMatrix(f32* matrix, const f32* angles);
 void WorldVector(const f32* vector, f32* out, const f32* matrix);
 void StandardCamera(s32 camIdx);
 f32 PointLineColl(f32* point, f32* from, f32* to, f32* closest);
+int PlayerOnMovingObject(void);
+void ProcCamera(s32 camIdx, s32 mode);
+void screen_limitation(void);
+void MBCameraUpdate(f32* position, f32* matrix);
 
 f32 camera_approach_yaw(void* cam, f32 target);
 f32 camera_lerp_yaw(f32 current, f32 target);
 void camera_collide_step(s32 camIdx);
+void camera_init_for_gamemode(s32 camIdx);
+void camera_run_mode(s32 camIdx);
 
 #define TC_X(i) (*(f32*)(sTriggerCameras + (i) * 0x28 + 4))
 #define TC_Y(i) (*(f32*)(sTriggerCameras + (i) * 0x28 + 8))
@@ -260,6 +279,108 @@ void LookInDirection(f32* dir, u32 matAddress)
         up[2] = fwd[0] * mat[1] - fwd[1] * mat[0];
     }
 }
+
+#define CLAMP_PROJECTED(field_)                                                \
+    do {                                                                       \
+        if ((f64)(field_) < -2000.0) {                                        \
+            (field_) = -2000.0f;                                               \
+        } else if ((f64)(field_) > 2000.0) {                                  \
+            (field_) = 2000.0f;                                                \
+        }                                                                      \
+    } while (0)
+
+/* Project camera targets, advance each active camera, then refresh the
+ * renderer-facing camera matrices. */
+void do_camera(void)
+{
+    u8* state;
+    s32 i;
+    CameraTarget* target;
+    f32* cameraMatrix;
+    Camera* camera;
+    u8 unused[8];
+    s16 projectedTop[2];
+    s16 projectedBottom[2];
+    s16 limitedTop[2];
+    s16 limitedBottom[2];
+    s32 sign;
+    s32 moving;
+
+    state = gCameraState;
+    if (PlayerOnMovingObject() != 0) {
+        moving = 0;
+    } else {
+        moving = 1;
+    }
+    lbl_80343BD8 = moving;
+
+    cameraMatrix = (f32*)(state + 0xCC);
+    target = (CameraTarget*)(state + 0xA10);
+    for (i = 0; i < 15; i++, target++) {
+        sign = target->active >> 31;
+        if ((sign ^ target->active) - sign == 1) {
+            MBWindowProject((f32*)(target->object + 0x40), cameraMatrix,
+                            NULL, projectedTop);
+            target->projectedTop[0] = (f32)projectedTop[0];
+            target->projectedTop[1] = (f32)projectedTop[1];
+            CLAMP_PROJECTED(target->projectedTop[0]);
+            CLAMP_PROJECTED(target->projectedTop[1]);
+
+            MBWindowProject((f32*)(target->object + 0x30), cameraMatrix,
+                            NULL, projectedBottom);
+            target->projectedBottom[0] = (f32)projectedBottom[0];
+            target->projectedBottom[1] = (f32)projectedBottom[1];
+            CLAMP_PROJECTED(target->projectedBottom[0]);
+            CLAMP_PROJECTED(target->projectedBottom[1]);
+        }
+    }
+
+    lbl_803443F4 = 0;
+    if ((gGameBusy | gGameplayPauseTimer) == 0 && lbl_803443F8 > 0) {
+        lbl_803443F8 -= gFrameTicks;
+    }
+
+    camera = (Camera*)(state + 0xC8);
+    for (i = 0; i < 6; i++, camera++) {
+        if (camera->state == 1) {
+            if ((gGameBusy | gGameplayPauseTimer) == 0) {
+                lbl_803443F4 = 0;
+                camera_init_for_gamemode(i);
+                camera_run_mode(i);
+            }
+            if (camera->c_mode != CAM_OFF) {
+                ProcCamera(i, lbl_803444DC);
+            }
+        }
+    }
+
+    target = (CameraTarget*)(state + 0xA10);
+    for (i = 0; i < 15; i++, target++) {
+        sign = target->active >> 31;
+        if ((sign ^ target->active) - sign == 1) {
+            MBWindowProject((f32*)(target->object + 0x40), cameraMatrix,
+                            NULL, limitedTop);
+            target->limitedTop[0] = (f32)limitedTop[0];
+            target->limitedTop[1] = (f32)limitedTop[1];
+            CLAMP_PROJECTED(target->limitedTop[0]);
+            CLAMP_PROJECTED(target->limitedTop[1]);
+
+            MBWindowProject((f32*)(target->object + 0x30), cameraMatrix,
+                            NULL, limitedBottom);
+            target->limitedBottom[0] = (f32)limitedBottom[0];
+            target->limitedBottom[1] = (f32)limitedBottom[1];
+            CLAMP_PROJECTED(target->limitedBottom[0]);
+            CLAMP_PROJECTED(target->limitedBottom[1]);
+        }
+    }
+
+    screen_limitation();
+    i = lbl_8034453C;
+    MBCameraUpdate((f32*)(state + i * sizeof(Camera) + 0xFC),
+                   (f32*)(state + i * sizeof(Camera) + 0xCC));
+}
+
+#undef CLAMP_PROJECTED
 
 /* These setters are macro-expanded at each state-machine arm.  The retail
  * source did the same, which deliberately leaves duplicated blocks. */
