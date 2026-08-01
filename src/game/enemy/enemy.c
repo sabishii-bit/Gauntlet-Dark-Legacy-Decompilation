@@ -136,6 +136,8 @@ extern s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc,
                        f32* newc);                  /* generator-contact probe */
 s32 fn_8004CFAC(f32* pos, f32* target);             /* turn direction (route) */
 void fn_8004D030(s32 index, s32 ticks);             /* set dead_end/turn timer */
+void fn_8004DB3C(Enemy* enemy, s32 delta);           /* fade enemy tree alpha */
+void fn_8004E448(Enemy* enemy, s32 arg, f32* pos);   /* missile/audio dispatch */
 void fn_8004E5F8(Enemy* enemy);                     /* update milestone history */
 void fn_8004E67C(void);                             /* update enemy texmods */
 s32 check_vacancy(s32 index, f32* pos);             /* validate spawn position */
@@ -156,7 +158,13 @@ extern void CreateYPRMatrix(f32* mat, f32* pyr);        /* pyr -> rotation matri
 extern void CopyMat3(f32* src, f32* dst);           /* 0x800BE8C8 */
 extern void MBTreeSetFlags(struct mbnode* n, s32 a, s32 b); /* node show/update */
 extern void MBTreeClearFlags(struct mbnode* n, s32 a, s32 b); /* node update */
+extern s32 MBTreeGetAlpha(struct mbnode* n);
+extern void MBTreeSetAlpha(struct mbnode* n, s32 alpha, s32 propagate);
 extern void DoTexMods(void* data);
+extern s32 EnemyStartMissile(Enemy* enemy, s32 arg, f32* pos, s32 kind);
+extern void fn_8009DCE4(f32* pos);
+extern void fn_8009DDFC(f32* pos);
+extern void fn_8009DE2C(f32* pos);
 
 /* --- module data shared with other enemy helpers --- */
 extern s32 gFrameTicks;      /* frame ticks (game speed units this frame) */
@@ -797,6 +805,64 @@ void fn_8004D030(s32 index, s32 ticks)
     }
     if (enemy->daction == 3 || enemy->daction == 4) {
         enemy->daction = 0;
+    }
+}
+
+/* Fade an enemy and its shadow, hiding both when fully opaque. */
+void fn_8004DB3C(Enemy* enemy, s32 delta)
+{
+    s32 alpha = MBTreeGetAlpha(enemy->objgrp.node);
+    s32 value;
+
+    if (delta <= 0 || alpha < 255) {
+        if (delta >= 0 || alpha != 0) {
+            value = alpha + delta * gFrameTicks;
+            if (value < 0) {
+                delta = 0;
+            } else if (value > 255) {
+                delta = 255;
+            } else {
+                delta = value;
+            }
+            if (delta == 255) {
+                MBTreeSetFlags(enemy->objgrp.node, 2, 0);
+                MBTreeSetFlags(enemy->shadow, 2, 0);
+            } else {
+                MBTreeSetAlpha(enemy->objgrp.node, delta, 1);
+                MBTreeSetAlpha(enemy->shadow, delta, 1);
+                MBTreeClearFlags(enemy->objgrp.node, 2, 0);
+                MBTreeClearFlags(enemy->shadow, 2, 0);
+            }
+        }
+    }
+}
+
+/* Select and launch an enemy missile, then dispatch its positional sound. */
+void fn_8004E448(Enemy* enemy, s32 arg, f32* pos)
+{
+    s32 kind;
+
+    if (enemy->algorithm == 28 || enemy->algorithm == 29) {
+        kind = 2;
+    } else if (enemy->algorithm == 16 || enemy->algorithm == 23) {
+        kind = 0;
+    } else if (enemy->algorithm == 17 || enemy->algorithm == 26) {
+        kind = 1;
+    } else {
+        kind = 2;
+    }
+
+    if (EnemyStartMissile(enemy, arg, pos, kind) != 0) {
+        if (kind == 0) {
+            fn_8009DE2C(pos);
+        }
+        if (kind == 2) {
+            if (enemy->type == 2) {
+                fn_8009DCE4(pos);
+            } else {
+                fn_8009DDFC(pos);
+            }
+        }
     }
 }
 
