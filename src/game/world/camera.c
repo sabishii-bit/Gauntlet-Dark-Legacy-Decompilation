@@ -49,6 +49,12 @@ typedef struct Vec3 {
     f32 z;
 } Vec3;
 
+typedef struct CameraMilestone {
+    f32 matrix[12];
+    f32 position[3];
+    u8 _pad3C[0x2C];
+} CameraMilestone; /* 0x68 */
+
 /* Camera field access (no full struct recovered; stride 0x18C). */
 #define CAM_F32(c, off) (*(f32*)((u8*)(c) + (off)))
 #define CAM_YAW_OFF 0xA8 /* yaw angle field used by camera_approach_yaw */
@@ -155,7 +161,7 @@ extern const f32 lbl_80127D20[3];
 extern const f32 lbl_80127D40[3];
 extern const f32 lbl_80127D50[3];
 extern const f32 gIdentityMatrix[];
-extern u8 sMilestones[];
+extern CameraMilestone sMilestones[];
 
 f32 FloorPos(f32 fallback, f32 radius, f32* position, s32 mode);
 f32 fqdist(f32 x, f32 y);
@@ -344,8 +350,8 @@ menu_done:
         }
         if (camIndex != 1) return;
         menuCam = (Camera*)(state + 596);
-        tableMode = *(volatile s32*)&menuCam->a_mode;
-        changed = *(volatile s32*)&menuCam->c_mode;
+        tableMode = menuCam->a_mode;
+        changed = menuCam->c_mode;
         if (changed != CAM_OFF) {
             menuCam->pc_mode = (CAM_MODE)changed;
             menuCam->c_mode = CAM_OFF;
@@ -947,7 +953,7 @@ void camera_mode_spin(s32 camIdx)
 void camera_mode_orbit(s32 camIdx)
 {
     Camera* cam;
-    u8* milestone;
+    CameraMilestone* milestone;
     f32 matrix[16];
     f32 localOffset[3];
     f32 transformed[3];
@@ -973,7 +979,8 @@ void camera_mode_orbit(s32 camIdx)
         cosineInput = cam->num1;
         zero = lbl_80345EC8;
         cosine = cos(cosineInput);
-        tickScale = 0.1 * (f64)(u32)gFrameTicks;
+        tickScale = (f64)(u32)gFrameTicks;
+        tickScale *= 0.1;
         cam->wpos[0] += (f32)((f64)sine * tickScale);
         cam->wpos[1] += (f32)((f64)zero * tickScale);
         cam->wpos[2] += (f32)((f64)cosine * tickScale);
@@ -982,13 +989,13 @@ void camera_mode_orbit(s32 camIdx)
             (f64)FloorPos((f32)((f64)cam->wpos[1] - 4.5), 0.1f,
                           cam->wpos, 0));
 
-        milestone = sMilestones + cam->mode * 0x68;
-        if ((f64)fqdist(*(f32*)(milestone + 0x30) - cam->wpos[0],
-                        *(f32*)(milestone + 0x38) - cam->wpos[2]) <= 1.5) {
+        milestone = sMilestones;
+        if ((f64)fqdist(milestone[cam->mode].position[0] - cam->wpos[0],
+                        milestone[cam->mode].position[2] - cam->wpos[2]) <= 1.5) {
             cam->mode = fn_800511D0(cam->mode, 0.1745329201221466f);
         }
-        milestone = sMilestones + cam->mode * 0x68;
-        cam->num1 = get_yaw((f32*)(milestone + 0x30), cam->wpos);
+        milestone = &sMilestones[cam->mode];
+        cam->num1 = get_yaw(milestone->position, cam->wpos);
         cam->pyr[1] = camera_lerp_yaw(cam->pyr[1], cam->num1);
 
         CreateYPRMatrix(matrix, cam->pyr);

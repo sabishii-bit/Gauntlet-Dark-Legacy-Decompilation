@@ -86,3 +86,20 @@ real switch also restored two missing branch instructions.
 lines with the same parser/classifier as `fndiff.py`, then sorts cheap residuals
 first.  Use this after a fresh `ninja`; fuzzy percentage alone over-prioritizes
 large register-allocation walls.
+
+## Keep a typed array base when the target colors base before index
+
+In `camera_mode_orbit`, forming an element pointer first left the milestone
+table base in `r0` and the scaled index in `r3`.  The target used the opposite
+allocation.  Keeping a typed base pointer and indexing at the field use fixed
+the complete GPR cluster without changing the generated opcode stream:
+
+```c
+CameraMilestone* milestones = sMilestones;
+fqdist(milestones[cam->mode].position[0] - cam->wpos[0], ...);
+```
+
+This is the register-color counterpart to the typed-local subscript law: an
+early `&array[index]` element pointer can coalesce with the eventual argument
+register, while a base pointer keeps the array base web live and colors the
+compiler-created scaled-index temporary separately.
