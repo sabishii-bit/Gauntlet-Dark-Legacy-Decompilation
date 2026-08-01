@@ -32,6 +32,8 @@
  */
 #include "types.h"
 #include "dolphin/ax.h"
+#include "game/dcs.h"
+#include "game/sndvoice.h"
 
 /*
  * The streaming state block (single global gAdsStream, 0x13C bytes).  Only the
@@ -50,7 +52,7 @@ typedef struct ADSTREAM {
     /* 0x28 */ s32 ringRead;
     /* 0x2C */ s32 ringWrite;
     /* 0x30 */ s32 refillState;
-    /* 0x34 */ u8 _pad34[0x3C - 0x34];
+    /* 0x34 */ s32 voice[2];
     /* 0x3C */ s32 vol;                /* pending volume */
     /* 0x40 */ s32 volDirty;           /* "volume changed" flag */
     /* 0x44 */ s32 keyCount;           /* voice-keying counter */
@@ -60,7 +62,7 @@ typedef struct ADSTREAM {
     /* 0x54 */ u8 _pad54[0x5C - 0x54];
     /* 0x5C */ u32 sampleBits;
     /* 0x60 */ u8 _pad60[0x64 - 0x60];
-    /* 0x64 */ s32 blocks;
+    /* 0x64 */ u32 blocks;
     /* 0x68 */ u8 _pad68[0x13C - 0x68];
 } ADSTREAM;
 
@@ -195,7 +197,34 @@ void AdsSetMode(ADSTREAM* s, u32 mode) {
 
 /* 0x800D6DE8  apply volume/pan immediately: mono (1 voice) / stereo (2 voice)
  * panning via dcsVoiceSetMaster + sndVoiceSetVolume.  Xbox: AdsSetVolumeDirect. */
-void AdsSetVolumeDirect(void) {
+void AdsSetVolumeDirect(ADSTREAM* stream, s32 volume) {
+    s32 mono;
+
+    if (stream != NULL) {
+        stream->vol = volume;
+        if ((stream->mode & 0x80) == 0) {
+            if (stream->blocks == 2) {
+                if ((stream->mode & 0x10) != 0) {
+                    mono = ((((u32)volume >> 16) * 0x2D40) >> 14);
+                    dcsVoiceSetMaster(stream->voice[0], mono, mono);
+                    mono = (s32)(((u32)(volume & 0xFFFF) * 0x2D40) >> 14);
+                    dcsVoiceSetMaster(stream->voice[1], mono, mono);
+                } else {
+                    dcsVoiceSetMaster(stream->voice[0],
+                                      (u32)volume >> 16, 0);
+                    dcsVoiceSetMaster(stream->voice[1],
+                                      0, volume & 0xFFFF);
+                }
+                sndVoiceSetVolume(sVoice[stream->voice[0]], 0);
+                sndVoiceSetVolume(sVoice[stream->voice[1]], 0x7F);
+            } else if (stream->blocks == 1) {
+                mono = (s32)(((((u32)volume >> 16) +
+                                (volume & 0xFFFF)) >> 1) * 0x2D40) >> 14;
+                dcsVoiceSetMaster(stream->voice[0], mono, mono);
+                sndVoiceSetVolume(sVoice[stream->voice[0]], 0x40);
+            }
+        }
+    }
 }
 
 /* 0x800D6F18  queue a volume change (stream->vol = v; dirty = 1) for the next
