@@ -648,6 +648,75 @@ void fn_8005636C(s32* s)
     s[1] += s[2];
 }
 
+/* 0x80057978 -- map an enemy type id to its shared subtype class. */
+s32 GetEnemySubtype(s32 type)
+{
+    s32 subtype = 0;
+
+    switch (type) {
+    case 0:
+    case 3:
+    case 6:
+    case 9:
+    case 12:
+    case 15:
+    case 18:
+    case 21:
+    case 22:
+        subtype = 1;
+        break;
+    case 1:
+    case 4:
+    case 7:
+    case 10:
+    case 13:
+    case 19:
+    case 23:
+        subtype = 3;
+        break;
+    case 2:
+    case 5:
+    case 8:
+    case 11:
+    case 14:
+    case 16:
+    case 17:
+    case 20:
+    case 24:
+    case 25:
+    case 27:
+        subtype = 4;
+        break;
+    case 29:
+    case 33:
+        subtype = 5;
+        break;
+    case 30:
+        subtype = 6;
+        break;
+    case 31:
+        subtype = 7;
+        break;
+    case 32:
+        subtype = 8;
+        break;
+    case 34:
+    case 35:
+    case 36:
+    case 37:
+    case 38:
+    case 39:
+    case 40:
+    case 41:
+    case 42:
+    case 43:
+    case 44:
+        subtype = 9;
+        break;
+    }
+    return subtype;
+}
+
 /* 0x800579E0 -- does the given 4-char tag match the current level id? */
 s32 InLevel(const char* tag)
 {
