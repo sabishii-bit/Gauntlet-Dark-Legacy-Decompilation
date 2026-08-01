@@ -909,7 +909,7 @@ void init_stage_info(void)
     }
 }
 
-void AverageCameraTargetPosition(f32* out)
+void AverageCameraTargetPosition_8002A890(f32* out)
 {
     f32* q;
     s32 n = gCameraTargetPositionCount;

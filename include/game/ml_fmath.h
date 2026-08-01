@@ -12,6 +12,8 @@ f32 fqdist(f32 x, f32 y);
 u32 RandInt(u32 limit);
 f32 Random(f32 scale);
 void Randomize(u32 seed);
+void ExtractYPR(const f32* matrix, f32* angles);
+void ExtractPYR(const f32* matrix, f32* angles);
 f32 AddAngle(f32 angle, f32 amount);
 f32 SubAngle(f32 angle, f32 amount);
 f32 FixAngle(f32 angle);

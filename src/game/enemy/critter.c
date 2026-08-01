@@ -760,15 +760,14 @@ s32 CritterGetTarget(Critter *c, f32 *out)
 
 waypoint_body:
     {
+        f32 dx;
         f32 dy;
         f32 x;
-        f32 dx;
         f32 dz;
         f32 distance;
 
         dy = *(f32 *)((u8 *)waypoint + 0x34) - c->vel[1];
-        x = *(f32 *)((u8 *)waypoint + 0x30);
-        dx = x - c->vel[0];
+        dx = (x = *(f32 *)((u8 *)waypoint + 0x30)) - c->vel[0];
         dz = *(f32 *)((u8 *)waypoint + 0x38) - c->vel[2];
         distance = dx * dx + dy * dy;
         distance = dz * dz + distance;
@@ -2053,18 +2052,21 @@ s32 CritterMoveSetup(Critter *c, CritterMove *move)
     void *node;
     void *candidate;
     s32 nodeIndex;
+    s16 currentMove;
+    s16 queuedTarget;
 
     target = NULL;
-    if (c->curmove >= 0) {
+    currentMove = c->curmove;
+    if (currentMove >= 0) {
         target = (f32 *)(*(u8 **)((u8 *)c->hdr + 0x124) +
-                         c->curmove * sizeof(CritterMove) + 0x60);
+                         currentMove * sizeof(CritterMove) + 0x60);
     }
 
     if (c->unk124 < 0 || c->movedone != 0) {
         if (c->unkAC6 > 0) {
             c->unk124 = -1;
-        } else if (c->unk126 >= 0) {
-            c->unk124 = c->unk126;
+        } else if ((queuedTarget = c->unk126) >= 0) {
+            c->unk124 = queuedTarget;
         } else {
             c->unk124 = CritterGetTargetSub(c, target, 1);
         }
@@ -2081,14 +2083,15 @@ s32 CritterMoveSetup(Critter *c, CritterMove *move)
         nodeIndex = move->node;
         node = c->anim;
         if (nodeIndex < 0) {
-        } else {
-            candidate = ((void **)((u8 *)c->anodes +
-                                   nodeIndex * 0x28))[0];
-            if (candidate == NULL) {
-                candidate = node;
-            }
-            node = candidate;
+            asm { b store_move_node }
         }
+        candidate = ((void **)((u8 *)c->anodes +
+                               nodeIndex * 0x28))[0];
+        if (candidate == NULL) {
+            candidate = node;
+        }
+        node = candidate;
+store_move_node:
         c->obj_d0 = node;
     }
 

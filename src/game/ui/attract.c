@@ -111,7 +111,7 @@ void init_attract_mode(int screen);
 int  scroll_credits(void);
 static int  attract_check_input(int block);
 static void attract_start_screen2d(void);
-static char* attract_screen_name(int kind);
+const char* attract_screen_name_80014F34(int kind);
 
 /* 64-bit attract flag word at 0x803445C8 (its low half aliases sFlags).
  * Masked tests compile to the and/and/xor/xor/or. long-long idiom. */
@@ -134,6 +134,8 @@ static int  attract_music;
 extern int  sFlags;
 extern int  lbl_80118200[];
 extern char lbl_80111238[];
+extern const char lbl_80111294[];
+extern const char lbl_801112A0[];
 extern char lbl_80126A98[];
 extern char lbl_80110900[];
 extern char gIdentityMatrix[];
@@ -154,6 +156,11 @@ extern float gClockFrameStep;
 extern float sMusicFadeBase;
 extern const double lbl_80345920;
 extern const double lbl_80345928;
+extern const char lbl_803458F8;
+extern const char lbl_80345900;
+extern const char lbl_80345908;
+extern const char lbl_80345910;
+extern const char lbl_80345918;
 
 /* Real .sdata/.sbss globals of ATTRACT.OBJ, named by their DOL address so
  * the EMB_SDA21 relocations carry the target symbol names. */
@@ -845,13 +852,30 @@ void init_attract_mode(int screen) {
 }
 
 /* screen-kind -> printable name (used by the on-screen debug overlay) */
-static char* attract_screen_name(int kind) {
-    switch (kind & 0xFFFF) {
-    case SCR_KIND_SCREEN2D: return "Screen2D";
-    case SCR_KIND_TITLE:    return "Titlescreen";
-    default:                return "";
+#pragma force_active on
+const char* attract_screen_name_80014F34(int kind) {
+    switch (kind) {
+    default:
+    case 0x8007:
+        return &lbl_803458F8;
+    case 0x8000:
+        return &lbl_80345900;
+    case 0x8004:
+        return lbl_80111294;
+    case 0x8001:
+    case 0x8002:
+        return &lbl_80345908;
+    case 0x8003:
+    case 0x8006:
+    case 0x8008:
+        return &lbl_80345910;
+    case 0x8009:
+        return lbl_801112A0;
+    case 0x8005:
+        return &lbl_80345918;
     }
 }
+#pragma force_active reset
 
 /* reset_attract_mode  (ATTRACT.OBJ) - clear all sequencer state */
 void reset_attract_mode(void) {

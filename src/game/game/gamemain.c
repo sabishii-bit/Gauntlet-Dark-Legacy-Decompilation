@@ -115,11 +115,13 @@ typedef struct WorldDataType {
     s32 type;        /* 0x00 realm type id            */
     u8  _04[11];
     u8  letter;      /* 0x0F display letter           */
-    u8  _10[4];
+    s32 available;   /* 0x10 world data is loaded     */
     s32 f20;         /* 0x14 associated world value    */
-    s32 _b[5];       /* 0x18                          */
+    s32 _b[4];       /* 0x18                          */
+    s32 attractLevel;/* 0x28 attract-mode level index */
 } WorldDataType;                   /* size 0x2C (44) */
 extern WorldDataType sWorldDataTypes[];
+extern u8 sWorldLevelTable[];
 extern s32  sCurWorldIndex;        /* 0x80344844 */
 
 /* Flat views of the big module globals (avoids header coupling). */
@@ -136,12 +138,14 @@ typedef struct Row36 {
 } Row36;                           /* size 0x24 (36) */
 extern Row36 lbl_8011AF48[];       /* 44-entry, stride 36 lookup table   */
 extern s32  lbl_80257640[];        /* 4-entry threshold table            */
+extern void* lbl_80257630[];       /* two thermometer blits at [1],[2]   */
 extern s32  gGameOptions[];        /* prefs/config block                 */
 extern s32  lbl_802577CC[];        /* 8 keys                             */
 extern s8*  lbl_8025776C[];        /* 8 parallel object pointers         */
 
 /* SDA-relative scalars (all in .sdata/.sbss). */
 extern s32   lbl_80343C0C;
+extern u64   gControllerButtons;
 extern s32   lbl_80344A2C;
 extern s32   lbl_8034476C;
 extern s32   lbl_80344768;
@@ -169,6 +173,9 @@ extern s32   lbl_8034473C;
 extern s32   gSceneRoot;
 extern s32   gNumEnemies;          /* 0x80344744 */
 extern f32   lbl_80346820;
+extern u8    sMilestones[];
+extern s32   sNumMilestones;
+extern f64   __frsqrte(f64 x);
 extern s32   gIdentityMatrix[];       /* node template (ADDR16) */
 
 static char sBossGenName[] = "BOSSGEN";   /* 0x80346AA4 (.sdata) */
@@ -194,6 +201,21 @@ extern s32   alpha;
 extern s32   lbl_80344784;
 extern s32   lbl_80344DA4;
 extern s32   lbl_80344DA0;
+extern s32   lbl_8034481C;
+extern s32   sLastWorldLevel;
+extern s32   sFirstWorldId;
+extern u32   pbLoad;
+extern s32   gDemoMode;
+extern s32   opt_force_player;
+extern void* lbl_8034479C;
+extern s32   options_state;
+extern u8    optionsAudioAndPrefs[];
+extern s32   optionsAudioAndPrefs30[];
+extern s16   lbl_80343C14;
+extern f32   lbl_80343C18;
+extern f32   lbl_80343C1C;
+extern s32   lbl_80343C20;
+extern u8*   lbl_80344EE8;
 extern void  InitPlayerControls(void);
 extern void  ControlsUpdate(void);
 extern void  AnimInit(void);
@@ -208,6 +230,13 @@ extern void  AudioInit(void);
 extern void  serve_busy(s32 arg0);
 extern s32   AudioSysUpdate(s32 arg0);
 extern void  ResolveWorldData(s32 worldlevel);
+extern void  FatalError(const char* msg, s32 code);
+extern void  fn_80053D08(s32 a, s32 b, s32 c);
+extern void  SelectLoadStart(void);
+extern s32   SelectLoadDone(void);
+extern void  FontInitSpecial(void* def, s32 font);
+extern void  ShopLoadData(void);
+extern void  LoadItems(void);
 
 /* World-load / blit / fx externs. */
 extern s32   sWorldDataConst;      /* 0x80344848 */
@@ -226,6 +255,8 @@ extern f32   lbl_80346BEC;
 extern f32   lbl_80346BF0;
 extern f32   lbl_80346BF4;
 extern char  lbl_801125D0[];
+extern char  lbl_801125E4[];
+extern char  lbl_80112600[];
 extern s32   BytesFree(void);
 extern void  fn_80057F44(s32 a, s32 b);
 extern void  NewWorld(void);
@@ -239,6 +270,9 @@ extern void* MBOX_FindTexture(const char* name, s32 arg1);
 extern void* MBCreateBlit(s32 a, void* tex, s32 c, s32 d, s32 e, s32 f);
 extern void  mbBlitProject(void* blit, s32 a, s32 b);
 extern void  mbBlitCvtCoord(void* blit, f32 c);
+extern void  mbBlitSetupVerts(void* blit, f32 a, f32 b, f32 c, f32 d);
+extern void  mbBlitCalcY(void* blit, s32 y);
+extern s32   Round(f32 value);
 extern void  MBBlitSetAlpha(void* blit, s32 a);
 extern s32   fn_80093BC0(s32 a, s32 b, s32 c, s32 d, s32 e, s32 f, s32 g, f32 h);
 extern void  SfxSetDamage(s32 a, s32 b, s32 c, f32 d, f32 e, f32 f);
@@ -311,12 +345,16 @@ extern void  AudioStopSelect(void);
 extern void  init_prefs(void);
 extern void  InitTexMods(void* tex, s32 arg1);
 extern void  MBTreeSetFlags(void* node, s32 flags, s32 arg2);
+extern void  MBTreeClearFlags(void* node, s32 flags, s32 arg2);
+extern void  MBTreeSetAlpha(void* node, s32 alpha, s32 arg2);
+extern void  MBWindowTo3D(f32 depth, s16* screen, f32* camera, f32* out);
 
 /* Forward decls for same-TU functions referenced before definition. */
 void game_main(void);
 void do_stats_display(void);
-void LoadTowerAndSelect(s32 arg0);
+void LoadTowerAndSelect(void);
 s32  init_next_level(s32 arg0);
+s32  init_next_level_8005638C(s32 arg0);
 void init_thermometer(void);
 void GetEnemyTypes(void);
 void game_init_data(void);
@@ -333,6 +371,9 @@ s32  WorldExplosion(s32 arg0);
 s32  fn_80055F68(s32 arg0, s32 arg1);
 s32  fn_80056698(s32 arg0, s32 arg1);
 void fn_800510A4(void);
+void fn_80052134(void);
+s32 fn_80051480(f32* pos);
+void fn_800552A4(f32 total, f32 current);
 
 /* ================================================================== */
 /* Function bodies (address order).                                    */
@@ -541,6 +582,9 @@ s16* FindWobjWanim(void* wobj)
 /* Advance every active world-object animation track. */
 void DoWorldAnimation(void)
 {
+    s32* wi;
+    s32* count;
+    s32* header;
     u8* data_off;
     u8* track_off;
     s32 i;
@@ -552,18 +596,14 @@ void DoWorldAnimation(void)
     if ((lbl_80344768 > 0 || (gGameMode & 0x8000) != 0) &&
         (lbl_803443BC <= 10 || lbl_803443BC >= 100000) &&
         gWorldInfo[36] != 0 && (void*)gWorldInfo[37] != NULL) {
-        s32* wi;
-        s32* count;
-        s32* header;
-
+        data_off = NULL;
+        track_off = NULL;
         wi = gWorldInfo;
         count = &wi[36];
         header = (s32*)wi[37];
         anim_base = (u8*)header[3];
         i = 0;
         lbl_803441B8 = header[0];
-        data_off = NULL;
-        track_off = NULL;
         lbl_803441B4 = header[1];
         lbl_803441B0 = header[2];
         while (i < *count) {
@@ -811,6 +851,106 @@ void fn_80053A68(s32 arg0)
     mbBlitInit3414(lbl_803447B0, 0);
 }
 
+/* 0x80053B88 -- finish async tower loading, then initialize the selected level. */
+void LoadTowerAndSelect(void)
+{
+    u32 timeout = pbLoad + 900;
+
+    if (lbl_80343DD4 < 0) {
+        fn_80053D08(-1, 0, -1);
+        SelectLoadStart();
+        while (SelectLoadDone() == 0) {
+            if (pbLoad > timeout) {
+                FatalError(lbl_801125E4, 0x8000);
+            }
+        }
+    }
+    if (lbl_80343C10 < 0) {
+        fn_80053D08(sWorldDataConst, 1, -1);
+        FontInitSpecial(lbl_80112600, 8);
+        ShopLoadData();
+        LoadItems();
+        lbl_80343C10 = init_next_level_8005638C(sWorldDataConst);
+        if (gDemoMode == 0) {
+            opt_force_player = 0;
+        }
+    } else {
+        fn_80053D08(-1, 1, -1);
+    }
+}
+
+/* 0x80054D18 -- choose and resolve the next world/level selection. */
+s32 next_world(void)
+{
+    u8 unused[8];
+    s32 world;
+    s32 forced = 0;
+    s32 state = lbl_8034481C;
+    s32 transitioning = 0;
+
+    if (state >= 13 && state < 0x10000) {
+        transitioning = 1;
+    }
+    if (state >= 2) {
+        forced = 1;
+    }
+    if (transitioning) {
+        world = lbl_80344B84;
+        forced = 1;
+    } else if (sLastWorldLevel < 0) {
+        world = gGameOptions[9];
+        if ((world >> 8) >= 14) {
+            world = sFirstWorldId;
+        }
+        lbl_8034481C = world + 0x10000;
+        forced = 1;
+    } else {
+        s32 i;
+        s32 offset;
+
+        world = -1;
+        for (i = 0, offset = 0; i < 4; i++, offset += 13148) {
+            s32 state = *(s32*)(gPlayers + offset + 232);
+            if (state != 0 && state != 2 &&
+                world < *(s32*)(gPlayers + offset + 2096)) {
+                world = *(s32*)(gPlayers + offset + 2096);
+            }
+        }
+        if (world < 0) {
+            world = sWorldDataConst;
+        }
+        if ((world >> 8) >= 14) {
+            world = sFirstWorldId;
+        }
+    }
+    ResolveWorldData(world);
+    if (!forced && ((*(s16*)(gCurLevel + 4) & 1) == 0)) {
+        world = NextWorldLevel(1);
+        ResolveWorldData(world);
+    }
+    return world;
+}
+
+/* 0x800552A4 -- animate the two halves of the loading thermometer. */
+void fn_800552A4(f32 total, f32 current)
+{
+    u8 unused[8];
+    f64 offset;
+    f32 progress = (total - current) / total;
+
+    mbBlitSetupVerts(lbl_80257630[1], -1.0f, -1.0f,
+                     (f32)((41.0 * progress + 23.0) * 0.0078125), -1.0f);
+    offset = 39.0 * progress;
+    mbBlitProject(lbl_80257630[1], 0, 41 - Round((f32)offset));
+    mbBlitCalcY(lbl_80257630[1], Round((f32)offset) + 24);
+
+    offset = 38.0 * progress;
+    mbBlitSetupVerts(lbl_80257630[2], -1.0f, -1.0f,
+                     (f32)((105.0 - offset) * 0.0078125), -1.0f);
+    mbBlitProject(lbl_80257630[2], 0, Round((f32)offset) + 23);
+    mbBlitCalcY(lbl_80257630[2], 106 - Round((f32)offset));
+}
+
 /* 0x80054070 -- load a world/level, measuring its heap usage. */
 s32 fn_80054070(s32 arg0, s32 arg1, s32 arg2)
 {
@@ -872,6 +1012,28 @@ s32 WorldExplosion(s32 arg0)
     return result;
 }
 
+/* 0x80052134 -- update the option marker's visibility and screen position. */
+void fn_80052134(void)
+{
+    s32 i;
+
+    if (lbl_8034479C != 0) {
+        if (options_state != 0 ||
+            optionsAudioAndPrefs30[6] == 0) {
+            MBTreeSetFlags(lbl_8034479C, 1, 0);
+        } else {
+            MBTreeClearFlags(lbl_8034479C, 1, 0);
+            MBWindowTo3D(lbl_80343C1C, &lbl_80343C14,
+                         (f32*)(lbl_80344EE8 + 100),
+                         (f32*)((u8*)lbl_8034479C + 0x30));
+            for (i = 0; i < 3; i++) {
+                *(f32*)((u8*)lbl_8034479C + 0x40 + i * 4) = lbl_80343C18;
+            }
+            MBTreeSetAlpha(lbl_8034479C, lbl_80343C20, 0);
+        }
+    }
+}
+
 /* 0x800521E8 -- animate the loading-timer HUD, arm attract on timeout. */
 void fn_800521E8(void)
 {
@@ -927,14 +1089,17 @@ void SetPlayerVars(void)
     s32 count2 = 0;
     s32 count3 = 0;
     s32 i;
+    u8* e;
+    s32 type;
+    s32 f292;
 
     lbl_803447D4 = lbl_803447D8;
     lbl_803447DC = 0;
     lbl_803447D8 = lbl_80346AF0;
     lbl_803447E0 = 0;
     for (i = 0; i < 4; i++) {
-        u8* e = base + i * 13148;
-        s32 type = *(s32*)(e + 232);
+        e = base + i * 13148;
+        type = *(s32*)(e + 232);
         if (type != 0) {
             count1++;
             if (type != 2 && type != 3) {
@@ -946,7 +1111,7 @@ void SetPlayerVars(void)
             count3++;
         }
         if (type == 1) {
-            s32 f292 = *(s32*)(e + 292);
+            f292 = *(s32*)(e + 292);
             if (f292 & 0x8) {
                 lbl_803447DC = 1;
             }
@@ -1084,17 +1249,56 @@ void fn_800510A4(void)
     }
 }
 
+/* 0x80051480 -- return the milestone nearest to a world-space position. */
+s32 fn_80051480(f32* pos)
+{
+    u8 unused[16];
+    s32 best_idx = -1;
+    register f32 best_dist = 100000.0f;
+    u8* node = sMilestones;
+    s32 i;
+
+    for (i = 0; i < sNumMilestones; i++) {
+        f32 d;
+        f32 dx;
+        f32 dy;
+        f32 dz;
+
+        dy = pos[1] - *(f32*)(node + 0x34);
+        dx = pos[0] - *(f32*)(node + 0x30);
+        dz = pos[2] - *(f32*)(node + 0x38);
+        d = dx * dx + dy * dy;
+        d = dz * dz + d;
+
+        if (d > 0.0f) {
+            volatile f32 tmp;
+            f64 y = __frsqrte(d);
+            y = 0.5 * y * (3.0 - y * y * d);
+            y = 0.5 * y * (3.0 - y * y * d);
+            y = 0.5 * y * (3.0 - y * y * d);
+            tmp = (f32)(d * (0.5 * y * (3.0 - y * y * d)));
+            d = tmp;
+        }
+        if (d < best_dist) {
+            best_dist = d;
+            best_idx = i;
+        }
+        node += 104;
+    }
+    return best_idx;
+}
+
 /* 0x80051FDC -- resolve a level/enemy name to its type id (-1 on miss). */
 s32 EnemyDescType(const char* name)
 {
-    s32 i;
+    u32 i;
 
     if (stricmp(name, sBossGenName) == 0) {
         s32 t = lbl_802577CC[0];
-        if (t == gBossType) {
-            t = -1;
+        if (t != gBossType) {
+            return t;
         }
-        return t;
+        return -1;
     }
     for (i = 0; i < 44; i++) {
         if (stricmp(name, (char*)&lbl_8011AF48[i].f4) == 0) {
@@ -1141,3 +1345,169 @@ u32 FindWave(const s8* s)
     }
     return (realm << 8) | ((u32)((s32)(s8)s[1] - '1') & 0xFF);
 }
+
+typedef struct WorldLevelNav {
+    u32 flags;
+    s16 flags2;
+    u8 _06[0x106];
+} WorldLevelNav;
+
+typedef struct WorldDataNav {
+    u8 _00[0x16];
+    s16 curLevel;
+    s16 numLevels;
+    u8 _1A[2];
+    WorldLevelNav* levels;
+} WorldDataNav;
+
+/* 0x80057C14 -- advance attract mode to the next loaded, playable wave. */
+s32 NextAttractWave(s32 worldLevel)
+{
+    s32 worldType = worldLevel >> 8;
+    s32 worldIndex;
+    s32 startIndex;
+    s32 tableOffset;
+    s32 level;
+    s32 worldBits;
+    u8* worldTable = sWorldLevelTable;
+
+    for (worldIndex = 0; worldIndex < 14; worldIndex++) {
+        if (worldType == *(s32*)(worldTable + worldIndex * 44 + 232)) {
+            break;
+        }
+    }
+    if (worldIndex == 14) {
+        worldIndex = 0;
+    }
+    startIndex = worldIndex;
+
+    do {
+        do {
+            worldIndex++;
+            if ((u32)worldIndex >= 14) {
+                worldIndex = 0;
+            }
+            tableOffset = worldIndex * 44;
+        } while (*(s32*)(worldTable + tableOffset + 248) == 0 &&
+                 worldIndex != startIndex);
+
+        level = *(s32*)(worldTable + tableOffset + 272);
+        if (level >= *(s32*)(worldTable + tableOffset + 252)) {
+            level = 0;
+        }
+        worldBits = *(s32*)(worldTable + tableOffset + 232) << 8;
+        ResolveWorldData(worldBits | (level & 0xFF));
+
+        if ((gControllerButtons & 0x10) == 0) {
+            s32 originalLevel = level;
+            s32 numLevels = *(s32*)(worldTable + tableOffset + 252);
+            WorldLevelNav* levels = ((WorldDataNav*)gWorldData)->levels;
+
+            while ((levels[level].flags2 & 2) == 0) {
+                level++;
+                if (level >= numLevels) {
+                    level = 0;
+                }
+                if (level == originalLevel) {
+                    break;
+                }
+            }
+            if ((levels[level].flags2 & 2) == 0) {
+                continue;
+            }
+        }
+        worldIndex = worldBits | (level & 0xFF);
+        ResolveWorldData(worldIndex);
+        level++;
+        if (level >= *(s32*)(worldTable + tableOffset + 252)) {
+            level = 0;
+        }
+        *(s32*)(worldTable + tableOffset + 272) = level;
+        return worldIndex;
+    } while (1);
+}
+
+/* 0x80057D94 -- move backward to a level accepted by waveMask, wrapping
+ * through the loaded-world table when the current world is exhausted. */
+s32 PrevWorldLevel(s32 waveMask)
+{
+    register s32 currentWorld;
+    u8* worldTable = sWorldLevelTable;
+    s32 worldIndex;
+    s32 tableOffset;
+    s32 level;
+
+    currentWorld = sCurWorldIndex;
+    worldIndex = currentWorld;
+    if (gWorldData == 0) {
+        return gGameOptions[9];
+    }
+    if (waveMask == -1) {
+        level = -1;
+    } else {
+        level = ((WorldDataNav*)gWorldData)->curLevel - 1;
+        if (waveMask != 0) {
+            while (level >= 0 &&
+                   (waveMask & ((WorldDataNav*)gWorldData)->levels[level].flags2) == 0) {
+                level--;
+            }
+        }
+    }
+
+    if (level < 0) {
+        level = 0;
+        do {
+            worldIndex--;
+            if (worldIndex < 0) {
+                worldIndex = 13;
+            }
+            tableOffset = worldIndex * 44;
+        } while (*(s32*)(worldTable + tableOffset + 248) == 0 &&
+                 worldIndex != currentWorld);
+        if (*(s32*)(worldTable + tableOffset + 252) >= 0) {
+            level = *(s32*)(worldTable + tableOffset + 252) - 1;
+        }
+    }
+    return (*(s32*)(worldTable + worldIndex * 44 + 232) << 8) |
+           (level & 0xFF);
+}
+
+/* 0x80057E6C -- move forward to a level accepted by waveMask, wrapping
+ * through the loaded-world table when the current world is exhausted. */
+#pragma opt_propagation off
+s32 NextWorldLevel(s32 waveMask)
+{
+    register s32 currentWorld;
+    s32 worldIndex;
+    s32 level;
+
+    currentWorld = sCurWorldIndex;
+    worldIndex = currentWorld;
+    if (gWorldData == 0) {
+        return gGameOptions[9];
+    }
+    if (waveMask == -1) {
+        level = 99;
+    } else {
+        level = ((WorldDataNav*)gWorldData)->curLevel + 1;
+        if (waveMask != 0) {
+            while (level < ((WorldDataNav*)gWorldData)->numLevels &&
+                   (waveMask & ((WorldDataNav*)gWorldData)->levels[level].flags2) == 0) {
+                level++;
+            }
+        }
+    }
+
+    if (level >= ((WorldDataNav*)gWorldData)->numLevels) {
+        level = 0;
+        do {
+            worldIndex++;
+            if ((u32)worldIndex >= 14) {
+                worldIndex = 0;
+            }
+        } while (sWorldDataTypes[worldIndex].available == 0 &&
+                 worldIndex != currentWorld);
+    }
+    return (sWorldDataTypes[worldIndex].type << 8) | (level & 0xFF);
+}
+#pragma opt_propagation reset

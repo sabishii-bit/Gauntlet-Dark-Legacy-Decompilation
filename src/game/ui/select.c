@@ -76,6 +76,9 @@ extern char lbl_80114718[];/* save-slot format string A */
 extern char lbl_80114724[];/* save-slot format string B */
 extern u8  gPlayers[]; /* 4-player array, stride 0x335C */
 extern u8  lbl_80284878[]; /* 4 pages x 11 entries x 0xC blit table */
+extern u8  lbl_80121688[]; /* select-menu data page */
+extern s32 lbl_80343DD8;
+extern f32 lbl_80348020;
 
 extern s32  new_menu_accept(s32 plyr, s32 allow_start);
 extern void new_player(s32 i);
@@ -121,6 +124,9 @@ extern void mbInitBlitEntry(void* blit, u32 frames, s32 frame);
 extern void mbBlitUpdateEntry(void* blit, u32 mask, u32 set);
 extern void MBBlitSetAlpha(void* blit, s32 alpha);
 extern void MBBlitSetColor4(void* blit, u32 a, u32 b, u32 c, u32 d);
+extern void* memcpy(void* dst, const void* src, unsigned long size);
+extern void ClearPlayerControl(s32 player, s32 code);
+extern void start_optmenu_nostack(void* menu, s32 player);
 
 /* ---- async-load primitives (other TUs) ---- */
 extern int  MBOX_BGLoadModelStart(void* name, int a);
@@ -307,18 +313,89 @@ end:
     *(s32*)(base + idx * 36 + 0x720) = 0;
 }
 
-void setup_sel_menu(void)
+static s32 sel_set_choice(s32 player, s32 mode);
+
+#pragma opt_propagation off
+void setup_sel_menu(s32 player, s32 mode)
 {
+    u8* bss = lbl_80284878;
+    u8* data = lbl_80121688;
+    u8* menu;
+    s32 playerOffset;
+    s32 baseChoice;
+
+    ClearPlayerControl(player, 2);
+    playerOffset = player * 232;
+    menu = data + playerOffset + 712;
+    memcpy(menu, data + 1640, 232);
+
+    baseChoice = ((s32*)data)[player];
+    *(s32*)(data + playerOffset + 724) -= baseChoice;
+    *(s32*)menu = mode;
+
+    switch (mode) {
+    case 0:
+        *(void**)(data + playerOffset + 740) = data + 280;
+        *(s32*)(data + playerOffset + 828) = sel_set_choice(player, mode);
+        break;
+    case 1:
+        *(void**)(data + playerOffset + 740) = data + 388;
+        *(s32*)(data + playerOffset + 828) = sel_set_choice(player, mode);
+        break;
+    case 15:
+        *(void**)(data + playerOffset + 740) = data + 604;
+        *(s32*)(data + playerOffset + 828) = 1;
+        *(s32*)(data + playerOffset + 728) = lbl_80343DD8 + 64;
+        break;
+    case 5:
+    case 10: {
+        u8* entries = bss + 1824;
+        s32 sum;
+        s32 off;
+        s32 i;
+        s32* selected = (s32*)(data + playerOffset + 828);
+
+        *(void**)(data + playerOffset + 740) = entries;
+        *(s32*)(data + playerOffset + 724) = baseChoice + 4;
+        *(s32*)(data + playerOffset + 728) = 70;
+        *(f32*)(data + playerOffset + 764) = lbl_80348020;
+        *selected = 0;
+        sum = *(s32*)(gPlayers + player * 0x335C + 0x334C) +
+              *(s32*)(gPlayers + player * 0x335C + 0x3350) + 1000;
+        for (i = 0, off = 0; *(s32*)(entries + off) != 0; i++, off += 36) {
+            if (sum == *(s32*)(entries + off + 4)) {
+                *selected = i;
+                break;
+            }
+        }
+        break;
+    }
+    case 8:
+    case 13:
+        *(void**)(data + playerOffset + 740) = bss + player * 324 + 528;
+        *(s32*)(data + playerOffset + 724) = baseChoice + 8;
+        *(s32*)(data + playerOffset + 728) = 70;
+        *(f32*)(data + playerOffset + 764) = lbl_80348020;
+        *(s32*)(data + playerOffset + 828) = *(s32*)(gPlayers + player * 0x335C + 0x3358);
+        if (*(s32*)(data + playerOffset + 828) < 0) {
+            *(s32*)(data + playerOffset + 828) = 0;
+        }
+        break;
+    }
+
+    start_optmenu_nostack(menu, player);
 }
+#pragma opt_propagation reset
 
 void sel_set_inactive(s32 slot)
 {
     lbl_80121950[slot].state = 0;
 }
 
-void sel_set_choice(void)
+static s32 sel_set_choice(s32 player, s32 mode)
 {
     mbBlitProject(0, 0, 0);
+    return 0;
 }
 
 s32 other_players_next_level(s32 idx)

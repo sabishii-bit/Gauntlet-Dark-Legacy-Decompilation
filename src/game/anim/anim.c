@@ -309,6 +309,8 @@ s32 CalcAnimInfo(animinfo* info)
 }
 /* SetupAnimHeader @0x8000F184 -- snap an animinfo to sequence `seq`, frame
  * interpolated across [lo,hi], and cache the animheader's first three words. */
+#pragma opt_lifetimes off
+#pragma opt_propagation off
 s32 AnimateTreeFrame(f32 time, animinfo* info, s32 seq, s32 lo, s32 hi)
 {
     if (seq >= info->numseqs) {
@@ -326,10 +328,11 @@ s32 AnimateTreeFrame(f32 time, animinfo* info, s32 seq, s32 lo, s32 hi)
     } else {
         info->frame = (f32)lo;
     }
-    if ((f32)(info->numframes - 1) < info->frame) {
+    if (info->frame > (f32)(info->numframes - 1)) {
         info->frame = (f32)(info->numframes - 1);
     }
-    if (info->frame < lbl_803457B4) {
+    time = info->frame;
+    if (time < lbl_803457B4) {
         info->frame = lbl_803457B4;
     }
     info->transtime = lbl_803457B4;
@@ -339,6 +342,8 @@ s32 AnimateTreeFrame(f32 time, animinfo* info, s32 seq, s32 lo, s32 hi)
     lbl_803441B0 = ((u32*)info->animheader)[2];
     return 1;
 }
+#pragma opt_lifetimes reset
+#pragma opt_propagation reset
 
 /* DoAnimation @0x8000F2D8 -- evaluate one tree node's animation for this
  * frame: locate the (byte-swapped) key data, blend the pose, and build the

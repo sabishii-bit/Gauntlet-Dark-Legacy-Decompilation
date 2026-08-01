@@ -805,6 +805,21 @@ int fn_800D9C34(int p) {
 
 #pragma dont_inline on
 void fn_800D9C5C(int* p, int n) {
+    s32 tag;
+
+    if (p[0] != 0) {
+        lbl_803452AC--;
+        if (lbl_803452AC == 0) {
+            ResetAllocTot();
+        }
+    }
+    p[0] = 0;
+    p[1] = n;
+    tag = lbl_803452AC;
+    lbl_803452AC++;
+    p[0] = (s32)AllocHiMem(p[1], tag);
+    p[3] = 0;
+    p[2] = 0;
 }
 #pragma dont_inline off
 

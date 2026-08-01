@@ -21,7 +21,6 @@
 #include "types.h"
 
 extern u32 gErrorCode;           /* 0x80343EF0 (.sdata) */
-extern u8  lbl_802C4DB8[0x28];   /* error scratch block (.bss) */
 extern u32 lbl_80343F04;
 extern s32 lbl_80343F08;
 extern s32 lbl_80343EE8;
@@ -58,6 +57,8 @@ typedef struct PBErrorBlock {
     u8 blue;
 } PBErrorBlock;
 
+extern PBErrorBlock lbl_802C4DB8; /* error scratch block (.bss) */
+
 /* Big error reporter: rasterizes the message through a 256-wide 1-bit glyph
  * atlas into an 8 KiB stack bitmap, one 21-character line at a time.
  * The dummy high-word parameter reproduces the original r4 materialization;
@@ -65,6 +66,7 @@ typedef struct PBErrorBlock {
  * metadata. Fixed address opwords are GUNE5D-specific linked bytes. */
 void fn_800C1174(register s8* text, register u32 errorHigh)
 {
+    register PBErrorBlock* errorBlock = &lbl_802C4DB8;
     u8 image[80];
     u8 unused[4];
     struct {
@@ -72,9 +74,7 @@ void fn_800C1174(register s8* text, register u32 errorHigh)
         u32 data[2048];
     } pixels;
 
-    errorHigh = 0x802C0000;
     asm {
-        addi r26, errorHigh, 0x4DB8
         addi r27, text, 0
     }
     sceGsResetPath();
@@ -83,7 +83,7 @@ void fn_800C1174(register s8* text, register u32 errorHigh)
 
     asm {
         lwz r0, lbl_80343F08
-        mr r3, r26
+        mr r3, errorBlock
         lwz r5, lbl_80343F04
         opword 0x38800000
         srawi r0, r0, 1
@@ -99,31 +99,31 @@ void fn_800C1174(register s8* text, register u32 errorHigh)
         opword 0x38800000
         li r3, 0
         rlwinm r0, r6, 15, 25, 31
-        stb r0, 32(r26)
+        stb r0, 32(errorBlock)
         rlwinm r5, r6, 23, 25, 31
         rlwinm r0, r6, 31, 25, 31
-        stb r5, 33(r26)
-        stb r0, 34(r26)
-        lhz r0, 16(r26)
+        stb r5, 33(errorBlock)
+        stb r0, 34(errorBlock)
+        lhz r0, 16(errorBlock)
         opword 0x50803C30
-        sth r0, 16(r26)
+        sth r0, 16(errorBlock)
     }
     FlushCache();
-    asm { mr r3, r26 }
+    asm { mr r3, errorBlock }
     sceGsSwapDBuff();
     sceGsResetPath();
-    asm { mr r3, r26 }
+    asm { mr r3, errorBlock }
     sceGsSwapDBuff();
     fn_800C13CC();
 
     asm {
         opword 0x3C800100
-        lis r5, 0x8012
-        lis r3, 0x8011
+        lis r5, lbl_80120E98@ha
+        lis r3, lbl_801164C0@ha
         opword 0x3BC4FFFF
         addi r31, r1, 16
-        addi r29, r5, 0x0E98
-        addi r26, r3, 0x64C0
+        addi r29, r5, lbl_80120E98@l
+        addi errorBlock, r3, lbl_801164C0@l
         li r28, 50
         b outer_check
     outer_zero:
@@ -229,7 +229,7 @@ void fn_800C1174(register s8* text, register u32 errorHigh)
     }
     sceGsExecLoadImage();
     asm {
-        addi r5, r26, 0
+        addi r5, errorBlock, 0
         li r3, 0
         opword 0x38800000
     }
@@ -257,8 +257,6 @@ void fn_800C13CC(void)
 
     {
     asm {
-        opword 0x3C608011
-        opword 0x3BC364C0
         li r29, 0
         li r31, 0
     loop:
@@ -277,8 +275,7 @@ void fn_800C13CC(void)
         }
         sceGsExecLoadImage(image, pixels);
         if (lbl_80343EEC != 0) {
-            asm { addi r5, r30, 0 }
-            fn_800C1148(0, 0);
+            fn_800C1148(0, 0, lbl_801164C0);
         }
     asm {
         addi r29, r29, 1

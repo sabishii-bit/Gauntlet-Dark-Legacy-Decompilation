@@ -89,6 +89,7 @@ extern s32 pbLoad;
 extern u8 gDefaultFont[];       /* 0x80237C60 */
 extern void* gFontDefs8x8[];    /* 0x80118AF8 */
 extern void* gFontDefs[];       /* 0x80118B2C */
+extern char lbl_801119C4[];     /* "SCROLLS%s" format string */
 
 /* ---- external primitives ---- */
 
@@ -456,13 +457,13 @@ f32 SetDrawStringScale(f32 scale)
     return OldStringScale;
 }
 
-/* ==== 0x8001FBF0 SetScrollLevelMsgList (variadic; skeleton) ==== */
+/* ==== 0x8001FBF0 SetScrollLevelMsgList ==== */
 s32 FindStringMessageSub(StrList* p, const u8* name);
 
-void SetScrollLevelMsgList(s32 level, ...)
+void SetScrollLevelMsgList(s32 level, const char* suffix)
 {
-    u8 buf[36];
-    sprintf((char*)buf, "SCROLLS%s", 0);
+    u8 buf[32];
+    sprintf((char*)buf, lbl_801119C4, suffix);
     scroll_level_msg = FindStringMessageSub(&gScrollMsgList[level], buf);
 }
 

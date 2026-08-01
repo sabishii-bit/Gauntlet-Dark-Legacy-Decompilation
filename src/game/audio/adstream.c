@@ -43,7 +43,7 @@ typedef struct ADSTREAM {
     /* 0x00 */ u32 mode;               /* mode/flag bits */
     /* 0x04 */ void* file;              /* FileBuf handle */
     /* 0x08 */ void* buffer;            /* stream work/ring buffer */
-    /* 0x0C */ u8 _pad0C[4];
+    /* 0x0C */ void* cookedPtr;
     /* 0x10 */ s32 ringSize;
     /* 0x14 */ s32 ringUsed;
     /* 0x18 */ u32 spuReadBase;
@@ -64,7 +64,10 @@ typedef struct ADSTREAM {
     /* 0x5C */ u32 sampleBits;
     /* 0x60 */ u8 _pad60[0x64 - 0x60];
     /* 0x64 */ u32 blocks;
-    /* 0x68 */ u8 _pad68[0x13C - 0x68];
+    /* 0x68 */ u32 frameAlign;
+    /* 0x6C */ u8 _pad6C[0x78 - 0x6C];
+    /* 0x78 */ u32 fileLoopSize;
+    /* 0x7C */ u8 _pad7C[0x13C - 0x7C];
 } ADSTREAM;
 
 /*
@@ -92,13 +95,22 @@ extern void* AllocMem(u32 size);
 extern s32 FileBufClose(void* file);
 extern s32 FileBufOpen(void* file, void* desc);
 extern void* FileBufStart(void* desc);
+extern s32 FileBufSeek(void* file, s32 offset, s32 whence);
+extern s32 FileBufGet(void* file, void* destination, s32 length);
+extern s32 FileBufReopen(void* file);
 extern void dcsSetStreamFlag(void* stream, s32 looping);
 extern void* memset(void* p, int c, u32 n);
+extern s32 strncmp(const char* lhs, const char* rhs, u32 length);
+extern char lbl_80349330[5];
+extern char lbl_80349338[5];
+extern char lbl_80349340[5];
+extern char lbl_80349348[5];
 
 void _AdsThread(void);
 s32 adsMoveCookedToSpu(ADSTREAM* stream);
 s32 adsMoveRawToCooked(ADSTREAM* stream);
 s32 adsMoveFileToRaw(ADSTREAM* stream);
+s32 AdsParseHeader(ADSTREAM* stream, u32* header, u32* body);
 
 /* Mark a stream's volume dirty (inlined helper). */
 static void adsMarkVol(ADSTREAM* s, s32 vol) {
@@ -162,10 +174,61 @@ s32 adsMoveRawToCooked(ADSTREAM* stream) {
 
 /* 0x800D683C  file -> raw ring: FileBufSeek to the SSbd body / loop point,
  * FileBufGet into the raw ring.  Xbox: adsMoveFileToRaw. */
+#pragma opt_propagation off
 #pragma dont_inline on
 s32 adsMoveFileToRaw(ADSTREAM* stream) {
+    s32 result;
+    u32 isEmpty;
+
+    isEmpty = (u32)__cntlzw(stream->fileRemaining) >> 5;
+    result = isEmpty;
+    if (isEmpty != 0) {
+        if (stream->endCount == 0 && (stream->mode & 2) != 0) {
+            if (stream->sampleBits == 32) {
+                FileBufSeek(stream->file,
+                            ((stream->blocks * 192) >> 1) + 40, 0);
+            } else {
+                FileBufSeek(stream->file, 40, 0);
+            }
+            stream->fileRemaining += stream->fileLoopSize;
+        }
+    } else {
+        s32 offset;
+        s32 remaining;
+        void* destination;
+        s32 amount;
+
+        if (stream->ringRead > 0) {
+            memcpy(stream->buffer, stream->ringPtr, stream->ringRead);
+            if (stream->loopMarker != 0) {
+                stream->loopMarker -=
+                    (u32)stream->ringPtr - (u32)stream->buffer;
+            }
+        }
+        if (stream->ringRead != stream->ringSize - sizeVoiceLoop) {
+            result = 0;
+        }
+        stream->ringPtr = stream->buffer;
+        offset = stream->ringRead;
+        remaining = stream->fileRemaining;
+        amount = stream->ringSize - offset;
+        amount = amount < remaining ? amount : remaining;
+        destination = (u8*)stream->ringPtr + offset;
+        amount = FileBufGet(stream->file, destination, amount);
+        stream->fileRemaining -= amount;
+        stream->ringRead += amount;
+        if (stream->ringRead != stream->ringSize) {
+            result = 0;
+        }
+        if (stream->fileRemaining == 0) {
+            stream->loopMarker =
+                (u32)stream->ringPtr + stream->ringRead;
+        }
+    }
+    return result;
 }
 #pragma dont_inline off
+#pragma opt_propagation reset
 
 /* 0x800D69B8  pump one pipeline cycle: cooked->spu, file->raw, raw->cooked,
  * then handle loop wrap.  Xbox: adsFeed. */
@@ -277,8 +340,10 @@ void AdsSetVolume(ADSTREAM* s, s32 vol) {
 /* 0x800D6F30  set up each AX voice from the SShd header: sample-rate ratio
  * (AXSetVoiceSrc), ADPCM coefficients/gain/loop (AXSetVoiceAdpcm),
  * AXSetVoiceAddr/SrcType/Type.  Xbox: adsInitFromHeader. */
-void adsInitFromHeader(void) {
+#pragma dont_inline on
+void adsInitFromHeader(ADSTREAM* stream) {
 }
+#pragma dont_inline off
 
 /* 0x800D719C  if playing (status==0x1000) reset the voice-keying counters and
  * bump the loop counter.  Xbox: AdsKeyVoices (behavioural mapping). */
@@ -337,8 +402,65 @@ void AdsPutBuffer(void) {
 /* 0x800D76A4  (re)start playback / loop: FileBufReopen, read+parse the 0x28
  * header, adsInitFromHeader, prime the ring (adsFeed x2), set status=playing.
  * Xbox: AdsStart. */
-void AdsStart(void) {
+#pragma opt_propagation off
+s32 AdsStart(ADSTREAM* stream) {
+    s32 parseResult;
+    u32 setupResult;
+    u32 frameSize;
+    u32 aramNext;
+    s32 result = -1;
+
+    if (stream->file != NULL) {
+        FileBufReopen(stream->file);
+        if (stream->status == 0x1000) {
+            result = 0;
+        } else if (stream->status == 0) {
+            lbl_80345268 = 0;
+            if (FileBufGet(stream->file, (u8*)stream + 0x54, 40) == 40) {
+                stream->fileRemaining = 0;
+                parseResult =
+                    AdsParseHeader(stream, (u32*)(&stream->status + 1),
+                                   (u32*)((u8*)stream + 0x74));
+                if (parseResult >= 0) {
+                    setupResult = -1;
+                    frameSize = sizeVoiceLoop;
+                    aramNext = gAddrSpuNext;
+                    if (aramNext + frameSize * stream->blocks <=
+                            (u32)gAddrSpuTop &&
+                        frameSize % stream->frameAlign == 0) {
+                        stream->spuReadBase = aramNext;
+                        gAddrSpuNext += sizeVoiceLoop * stream->blocks;
+                        stream->ringSize += stream->ringUsed;
+                        stream->ringUsed = halfVoiceLoop * stream->blocks;
+                        stream->ringSize -= stream->ringUsed;
+                        stream->cookedPtr =
+                            (u8*)stream->buffer + stream->ringSize;
+                        adsInitFromHeader(stream);
+                        stream->fileRemaining += stream->fileLoopSize;
+                        setupResult = stream->fileLoopSize;
+                    }
+                    if ((s32)setupResult >= 0) {
+                        if (stream->endCount == 0) {
+                            stream->refillState = 0;
+                        }
+                        if (stream->ringWrite == 0) {
+                            adsFeed(stream);
+                        }
+                        adsFeed(stream);
+                        stream->status = 0x2000;
+                        if (stream->keyCount != 0) {
+                            lbl_80345274 = 13;
+                            _AdsThread();
+                        }
+                        result = 0;
+                    }
+                }
+            }
+        }
+    }
+    return result;
 }
+#pragma opt_propagation reset
 
 /* 0x800D7848  close the stream file (FileBufClose) and release its ring space.
  * Xbox: AdsClose. */
@@ -468,5 +590,73 @@ s32 adsLockCallback(s32 command) {
 /* 0x800D7B3C  parse the ".ss" header: match the "SShd"/"SSbd" chunk tags
  * (strncmp), byte-swap the header fields, and FileBufGet the ADPCM coef table.
  * Xbox: AdsParseHeader. */
-void AdsParseHeader(void) {
+s32 AdsParseHeader(ADSTREAM* stream, u32* header, u32* body) {
+    s32 result = 0;
+    u32 headerTag = header[0];
+    u32 bodyTag = body[0];
+    u8 headerName[4];
+    u8 bodyName[4];
+    u32 value;
+
+    headerName[0] = (s8)(headerTag >> 24);
+    bodyName[0] = (s8)(bodyTag >> 24);
+    headerName[1] = (headerTag >> 16) & 0xFF;
+    bodyName[1] = (bodyTag >> 16) & 0xFF;
+    headerName[2] = (headerTag >> 8) & 0xFF;
+    bodyName[2] = (bodyTag >> 8) & 0xFF;
+    headerName[3] = headerTag;
+    bodyName[3] = bodyTag;
+
+    if (strncmp((char*)headerName, lbl_80349330, 4) == 0) {
+        if (strncmp((char*)bodyName, lbl_80349338, 4) != 0) {
+            result = -1;
+        }
+    } else if (strncmp((char*)headerName, lbl_80349340, 4) == 0) {
+        if (strncmp((char*)bodyName, lbl_80349348, 4) == 0) {
+            value = header[1];
+            header[1] = ((value & 0x00FF0000) >> 8) |
+                        ((value & 0xFF000000) >> 24) |
+                        ((value & 0x000000FF) << 24) |
+                        ((value & 0x0000FF00) << 8);
+            value = header[2];
+            header[2] = (value << 24) | ((value & 0xFF00) << 8) |
+                        ((value >> 8) & 0xFF00) | (value >> 24);
+            value = header[3];
+            header[3] = ((value & 0x00FF0000) >> 8) |
+                        ((value & 0xFF000000) >> 24) |
+                        ((value & 0x000000FF) << 24) |
+                        ((value & 0x0000FF00) << 8);
+            value = header[4];
+            header[4] = (value << 24) | ((value & 0xFF00) << 8) |
+                        ((value >> 8) & 0xFF00) | (value >> 24);
+            value = header[5];
+            header[5] = ((value & 0x00FF0000) >> 8) |
+                        ((value & 0xFF000000) >> 24) |
+                        ((value & 0x000000FF) << 24) |
+                        ((value & 0x0000FF00) << 8);
+            value = body[1];
+            body[1] = (value << 24) | ((value & 0xFF00) << 8) |
+                      ((value >> 8) & 0xFF00) | (value >> 24);
+        } else {
+            result = -1;
+        }
+    } else {
+        result = -1;
+    }
+
+    if (header[4] != 1 && header[4] != 2) {
+        result = -1;
+    }
+    if (result < 0) {
+        header[1] = 0;
+        header[2] = 0;
+        header[3] = 0;
+        header[4] = 0;
+        header[5] = 0;
+    }
+    if (header[2] == 32) {
+        FileBufGet(stream->file, (u8*)stream + 0x7C,
+                   (header[4] * 192) >> 1);
+    }
+    return result;
 }

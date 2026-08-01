@@ -347,9 +347,11 @@ void DoPolyInst(PolyInstance* inst, s32 mode, s32 phase) {
     if (inst->_02 != 0) {
         return;
     }
-    if (inst->type < 3) {
-        return;
+    if (inst->type >= 3) {
+        goto draw;
     }
+    asm { b done }
+draw:
     if (phase != 0) {
         if (mode == 11) {
             DoPolyInstSub(inst, 0);
@@ -360,6 +362,8 @@ void DoPolyInst(PolyInstance* inst, s32 mode, s32 phase) {
     } else {
         DoPolyInstSub(inst, 0);
     }
+done:
+    ;
 }
 
 /* 0x800DE52C - set GX state and stream one instance's quad into the FIFO */

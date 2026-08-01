@@ -752,6 +752,7 @@ void fn_800C64A4(PbDOObj* obj, u32 flags, u8* node)
         obj->flags78 = f;
     } else {
         obj->flags78 &= ~1;
+        asm {}
         p = (f32*)(g->lights + 0x90);
         base = 0.0f;
     }
