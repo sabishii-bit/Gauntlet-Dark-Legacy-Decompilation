@@ -136,6 +136,9 @@ extern s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc,
                        f32* newc);                  /* generator-contact probe */
 s32 fn_8004CFAC(f32* pos, f32* target);             /* turn direction (route) */
 void fn_8004D030(s32 index, s32 ticks);             /* set dead_end/turn timer */
+void fn_8004E5F8(Enemy* enemy);                     /* update milestone history */
+void fn_8004E67C(void);                             /* update enemy texmods */
+s32 check_vacancy(s32 index, f32* pos);             /* validate spawn position */
 extern void fn_8004F1DC(Enemy* e);                  /* garm2 (type 27) death hook */
 
 /* --- cross-module callees --- */
@@ -146,20 +149,25 @@ extern s32 DeleteEffect(s32 idx, s32 mode);         /* sfx.c 0x80097790 */
 extern void* EnemyWallCollide(f32 rad, f32* from, f32* to, f32* hitnrm); /* world probe */
 extern s32 SlideAlongWall(f32 rad, f32* pos, f32* trans, f32* hitnrm, f32* out);
                                                     /* wall slide/deflect */
+extern s32 check_enemy_pos(f32* start, f32* out, s32 slot);
 extern s32 fn_8005D20C(s32 index, f32* oldc, f32* newc, s32 moved);
                                                     /* player collide + damage */
 extern void CreateYPRMatrix(f32* mat, f32* pyr);        /* pyr -> rotation matrix */
 extern void CopyMat3(f32* src, f32* dst);           /* 0x800BE8C8 */
 extern void MBTreeSetFlags(struct mbnode* n, s32 a, s32 b); /* node show/update */
 extern void MBTreeClearFlags(struct mbnode* n, s32 a, s32 b); /* node update */
+extern void DoTexMods(void* data);
 
 /* --- module data shared with other enemy helpers --- */
 extern s32 gFrameTicks;      /* frame ticks (game speed units this frame) */
+extern s32 gGameBusy;
+extern s32 gGameplayPauseTimer;
 extern f32 gClockFrameStep;   /* knockback integration scale */
 extern f32 lbl_80344720;      /* current retreat/turn base angle */
 extern void* lbl_80344730;    /* last worldobj hit by an enemy move */
 extern s32 lbl_80344728;
 extern s32 default_gen_count;
+extern s32 lbl_8034471C;
 extern f32 lbl_80346820;
 extern f64 lbl_80346878;
 extern f32 lbl_803468F0;
@@ -184,7 +192,7 @@ s32 lbl_80251148[45];          /* 0x80251148 per-type generator-fx enable */
 u32 lbl_80251100[0x48 / 4];    /* 0x80251100 */
 f32 lbl_802510F4[3];           /* 0x802510F4 world-probe hit normal */
 u32 lbl_80250E40[0x2B4 / 4];   /* 0x80250E40 */
-u32 lbl_80250E00[0x40 / 4];    /* 0x80250E00 */
+s32 lbl_80250E00[0x40 / 4];    /* 0x80250E00 enemy-type pool anchor */
 
 /* .bss first-use-order referencer.  MWCC allocates referenced bss symbols in
  * FIRST-USE order (then unreferenced ones in reverse declaration order); in
@@ -790,6 +798,67 @@ void fn_8004D030(s32 index, s32 ticks)
     if (enemy->daction == 3 || enemy->daction == 4) {
         enemy->daction = 0;
     }
+}
+
+/* Track this enemy's target milestone in the player's recent-history ring. */
+void fn_8004E5F8(Enemy* enemy)
+{
+    s32* player = (s32*)((u8*)gPlayers + enemy->closest * 0x335C);
+    s32 i;
+
+    for (i = 0; i < 5; i++) {
+        if (enemy->plr_ms == player[0xA34 / 4 + i]) {
+            break;
+        }
+    }
+    if (i < 5) {
+        enemy->ms_idx = i;
+        if (enemy->max_msidx < enemy->ms_idx) {
+            enemy->max_msidx = enemy->ms_idx;
+        }
+    } else {
+        enemy->ms_idx = 0;
+        enemy->max_msidx = 4;
+        enemy->plr_ms = -1;
+    }
+}
+
+/* Advance texture modifiers for each loaded enemy type while gameplay runs. */
+void fn_8004E67C(void)
+{
+    s32 i;
+    s32 type;
+
+    if ((gGameBusy | gGameplayPauseTimer) == 0) {
+        for (i = 0; i < lbl_8034471C; i++) {
+            type = lbl_80250E00[8 + i];
+            if ((void*)lbl_80250E00[345 + type] != 0) {
+                DoTexMods((void*)lbl_80250E00[345 + type]);
+            }
+        }
+    }
+}
+
+/* Test a proposed enemy location and hide the slot again when it is blocked. */
+s32 check_vacancy(s32 index, f32* pos)
+{
+    Enemy* enemy = &gEnemies[index];
+    f32 adjusted[3];
+
+    adjusted[0] = pos[0];
+    adjusted[1] = pos[1];
+    adjusted[2] = pos[2];
+    adjusted[1] += enemy->coll_offset[1];
+
+    if (check_enemy_pos(adjusted, 0, index) <= 0) {
+        MBTreeSetFlags(enemy->objgrp.node, 2, 0);
+        if (enemy->shadow != 0) {
+            MBTreeSetFlags(enemy->shadow, 2, 0);
+        }
+        enemy->state = INACTIVE;
+        return 0;
+    }
+    return -1;
 }
 
 /* do_ai @0x80046854 - central AI dispatcher.  Zeroes the per-frame translation,
