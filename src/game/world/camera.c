@@ -22,7 +22,7 @@
  *   0x80023ED0 camera_mode_follow       largest mode handler (MB blit, project) (local)   BODY
  *   0x80024F30 camera_mode_target       atan2 aiming toward a target            (local)   BODY
  *   0x80025640 debug_camera_pos         object-type + position debug overlay    (local)   BODY
- *   0x80025CEC camera_debug_supervisor  largest fn; drives debug_camera_pos      (local)   giant, doc-only
+ *   0x80025CEC camera_debug_supervisor  largest fn; drives debug_camera_pos      (local)   BODY
  *   0x80026CA4 camera_request_change    small request/priority latch            (local)   BODY
  *   0x80026CF0 camera_mode_level        per-level scripted camera               (local)   giant, doc-only
  *   0x80027608 DoShake                  apply active shake offset to a position [global]  BODY
@@ -171,6 +171,28 @@ typedef struct CameraDebugScratch {
     f32 desiredAttention[3];       /* stack +0x4C */
 } CameraDebugScratch; /* 0x4C; allocated at r1+0x0C */
 
+/* Address-taken locals for camera_debug_supervisor.  The retail compiler
+ * overlays the final saved player position on futurePosition. */
+typedef struct CameraSupervisorScratch {
+    u8 _pad00[0x14];
+    volatile f32 movedRoot;          /* stack +0x44 */
+    volatile f32 currentRoot;        /* stack +0x48 */
+    f32 return4CurrentX;             /* stack +0x4C */
+    f32 return4OldX;                 /* stack +0x50 */
+    f32 return4CurrentY;             /* stack +0x54 */
+    f32 return4OldY;                 /* stack +0x58 */
+    f32 return3CurrentX;             /* stack +0x5C */
+    f32 return3OldX;                 /* stack +0x60 */
+    f32 return2CurrentY;             /* stack +0x64 */
+    f32 return2OldY;                 /* stack +0x68 */
+    s16 alternateProjected[2];       /* stack +0x6C */
+    s16 projected[2];                /* stack +0x70 */
+    u8 _pad68[0x30];
+    f32 alternatePosition[3];        /* stack +0xA4 */
+    u8 _padA4[8];
+    f32 futurePosition[3];           /* stack +0xB8 */
+} CameraSupervisorScratch; /* 0x94; allocated at r1+0x30 */
+
 /* Camera field access (no full struct recovered; stride 0x18C). */
 #define CAM_F32(c, off) (*(f32*)((u8*)(c) + (off)))
 #define CAM_YAW_OFF 0xA8 /* yaw angle field used by camera_approach_yaw */
@@ -315,6 +337,7 @@ extern s32 lbl_8034451C;
 extern s32 lbl_80344520;
 extern s32 lbl_80344960;
 extern s32 lbl_80344A28;
+extern u8* lbl_80344EE8;
 extern f32 gCameraTargetPositions[7][3];
 extern f32 gDefaultPlayerPosition[3];
 extern u8 lbl_80240E30[];
@@ -333,6 +356,7 @@ extern f64 lbl_80345FD8;
 extern f64 lbl_80345FE0;
 extern f32 lbl_80345FE8;
 extern f64 lbl_80345FF0;
+extern f64 lbl_80346008;
 extern char lbl_80111B3C[];
 extern char lbl_80111A08[];
 
@@ -383,6 +407,9 @@ void UpdatePlayerWorldMat(void* player, s32 anchor);
 void init_stage_info(void);
 void DiffRate(s32 camIdx);
 void dbgTextPrintfCol(s32 x, s32 line, char* fmt, ...);
+void fn_8005A588(struct OBJGRP* group, f32* offset);
+s32 MBScreenHeight(void);
+s32 MBScreenWidth(void);
 
 f32 camera_approach_yaw(void* cam, f32 target);
 f32 camera_lerp_yaw(f32 current, f32 target);
@@ -398,6 +425,7 @@ void camera_mode_orbit(s32 camIdx);
 void camera_mode_level(s32 reset);
 void DoShake(Vec3* posA, Vec3* posB);
 s32 debug_camera_pos(s32 lastPlayer);
+s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta);
 
 #define TC_X(i) (*(f32*)(sTriggerCameras + (i) * 0x28 + 4))
 #define TC_Y(i) (*(f32*)(sTriggerCameras + (i) * 0x28 + 8))
@@ -3445,4 +3473,319 @@ s32 debug_camera_pos(s32 lastPlayer)
     }
     return offscreen;
 }
+
+#define CAMERA_LATCH_CHANGE()                                              \
+    do {                                                                   \
+        lbl_80344500 = 1;                                                  \
+        lbl_803444FC = 1;                                                  \
+        if (lbl_803444F8 < 60) {                                           \
+            lbl_803444F8 = 60;                                             \
+        }                                                                  \
+        if ((f64)lbl_803444E8 < lbl_80345FA8) {                            \
+            lbl_803444F8 = 0;                                              \
+        }                                                                  \
+    } while (0)
+
+#define CAMERA_SUPERVISOR_ABS(field, value)                                \
+    (scratch.field = (value),                                              \
+     *(u32*)&scratch.field &= 0x7FFFFFFF, scratch.field)
+
+/*
+ * Classify a proposed player movement against the camera's safe rectangle.
+ * The nonzero return values identify which screen-space escape/re-entry path
+ * handled the movement; path 5 performs the full distance/boss check and path
+ * 6 verifies a temporarily moved player with the debug camera.
+ */
+s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
+{
+    u8* playerData = gPlayers + playerIndex * 0x335C;
+    u8* state = gCameraState;
+    f32* cameraMatrix;
+    CameraTarget* target;
+    CameraSupervisorScratch scratch;
+    f32 oldX;
+    f32 oldY;
+    f32 currentX;
+    f32 currentY;
+    f32 currentAbsX;
+    f32 oldAbsX;
+    f32 currentAbsY;
+    f32 oldAbsY;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 movedX;
+    f32 movedY;
+    f32 movedZ;
+    f32 currentDistance;
+    f32 movedDistance;
+    f32 currentScreenDistance;
+    f32 movedScreenDistance;
+    f32 cameraDx;
+    f32 cameraDz;
+    f32 movedCameraDx;
+    f32 movedCameraDz;
+    f32 zeroValue;
+    f64 root;
+    s32 screenHeight;
+    s32 screenWidth;
+    s32 targetIndex;
+
+    screenHeight = MBScreenHeight();
+    screenWidth = MBScreenWidth();
+    if (*(s32*)(playerData + 0x204) == 29) {
+        return 0;
+    }
+
+    cameraMatrix = (f32*)(state + 0xCC);
+    scratch.futurePosition[0] =
+        *(f32*)(playerData + 0x54) + movementDelta[0];
+    oldX = *(f32*)(playerData + 0x8A0);
+    scratch.futurePosition[1] =
+        *(f32*)(playerData + 0x58) + movementDelta[1];
+    oldY = *(f32*)(playerData + 0x8A4);
+    scratch.futurePosition[2] =
+        *(f32*)(playerData + 0x5C) + movementDelta[2];
+    MBWindowProject(scratch.futurePosition, cameraMatrix, 0,
+                    scratch.projected);
+    currentX = (f32)scratch.projected[0];
+    currentY = (f32)scratch.projected[1];
+
+    target = (CameraTarget*)(state + 0xA10);
+    for (targetIndex = 0; targetIndex < 15; targetIndex++, target++) {
+        if (target->object == playerData + 0x14) {
+            break;
+        }
+    }
+    if (targetIndex < 15 &&
+        (f64)(target->limitedTop[1] - target->limitedBottom[1]) >=
+            (f64)lbl_80345F90 *
+                (f64)((lbl_80344518 - 20) - (lbl_80344514 + 40))) {
+        scratch.alternatePosition[0] =
+            *(f32*)(playerData + 0x44) + movementDelta[0];
+        scratch.alternatePosition[1] =
+            *(f32*)(playerData + 0x48) + movementDelta[1];
+        scratch.alternatePosition[2] =
+            *(f32*)(playerData + 0x4C) + movementDelta[2];
+        MBWindowProject(scratch.alternatePosition, cameraMatrix, 0,
+                        scratch.alternateProjected);
+        if (target->limitedTop[1] - target->limitedBottom[1] <=
+            currentY - (f32)scratch.alternateProjected[1]) {
+            zeroValue = lbl_80345EC8;
+            movementDelta[0] = zeroValue;
+            movementDelta[1] = zeroValue;
+            movementDelta[2] = zeroValue;
+        }
+    }
+
+    if (currentX > (f32)(lbl_80344520 + 30) &&
+        currentX < (f32)(lbl_8034451C - 30) &&
+        currentY > (f32)(lbl_80344514 + 40) &&
+        currentY < (f32)(lbl_80344518 - 20)) {
+        if (gCameraTargetCount > 1 &&
+            (oldX <= (f32)(lbl_80344520 + 30) ||
+             oldX >= (f32)(lbl_8034451C - 30) ||
+             oldY <= (f32)(lbl_80344514 + 40) ||
+             oldY >= (f32)(lbl_80344518 - 20)) &&
+            ((f64)*(f32*)(state + 0x18C) >= lbl_80345FF0 ||
+             lbl_80344960 < 0) &&
+            lbl_80343BD8 != 0) {
+            CAMERA_LATCH_CHANGE();
+        }
+        return 1;
+    } else if (oldX > (f32)(lbl_80344520 + 30) &&
+               oldX < (f32)(lbl_8034451C - 30) &&
+               currentX > (f32)(lbl_80344520 + 30) &&
+               currentX < (f32)(lbl_8034451C - 30) &&
+               CAMERA_SUPERVISOR_ABS(return2OldY,
+                   oldY - *(f32*)(lbl_80344EE8 + 0xC)) >
+                   CAMERA_SUPERVISOR_ABS(return2CurrentY,
+                       currentY - *(f32*)(lbl_80344EE8 + 0xC))) {
+        if (gCameraTargetCount > 1 &&
+            (oldY <= (f32)(lbl_80344514 + 40) ||
+             oldY >= (f32)(lbl_80344518 - 20)) &&
+            ((f64)*(f32*)(state + 0x18C) >= lbl_80345FF0 ||
+             lbl_80344960 < 0) &&
+            lbl_80343BD8 != 0) {
+            CAMERA_LATCH_CHANGE();
+        }
+        return 2;
+    } else if (oldY > (f32)(lbl_80344514 + 40) &&
+               oldY < (f32)(lbl_80344518 - 20) &&
+               currentY > (f32)(lbl_80344514 + 40) &&
+               currentY < (f32)(lbl_80344518 - 20) &&
+               CAMERA_SUPERVISOR_ABS(return3OldX,
+                   oldX - *(f32*)(lbl_80344EE8 + 8)) >
+                   CAMERA_SUPERVISOR_ABS(return3CurrentX,
+                       currentX - *(f32*)(lbl_80344EE8 + 8))) {
+        if (gCameraTargetCount > 1 &&
+            (oldX <= (f32)(lbl_80344520 + 30) ||
+             oldX >= (f32)(lbl_8034451C - 30)) &&
+            ((f64)*(f32*)(state + 0x18C) >= lbl_80345FF0 ||
+             lbl_80344960 < 0) &&
+            lbl_80343BD8 != 0) {
+            CAMERA_LATCH_CHANGE();
+        }
+        return 3;
+    } else if (CAMERA_SUPERVISOR_ABS(return4OldY,
+                   oldY - *(f32*)(lbl_80344EE8 + 0xC)) >
+                   CAMERA_SUPERVISOR_ABS(return4CurrentY,
+                       currentY - *(f32*)(lbl_80344EE8 + 0xC)) &&
+               CAMERA_SUPERVISOR_ABS(return4OldX,
+                   oldX - *(f32*)(lbl_80344EE8 + 8)) >
+                   CAMERA_SUPERVISOR_ABS(return4CurrentX,
+                       currentX - *(f32*)(lbl_80344EE8 + 8))) {
+        if (gCameraTargetCount > 1 &&
+            (oldX <= (f32)(lbl_80344520 + 30) ||
+             oldX >= (f32)(lbl_8034451C - 30) ||
+             oldY <= (f32)(lbl_80344514 + 40) ||
+             oldY >= (f32)(lbl_80344518 - 20)) &&
+            ((f64)*(f32*)(state + 0x18C) >= lbl_80345FF0 ||
+             lbl_80344960 < 0) &&
+            lbl_80343BD8 != 0) {
+            CAMERA_LATCH_CHANGE();
+        }
+        return 4;
+    }
+
+    if (currentX <= (f32)(lbl_80344520 + 30) ||
+        currentX >= (f32)(lbl_8034451C - 30) ||
+        currentY <= (f32)(lbl_80344514 + 40) ||
+        currentY >= (f32)(lbl_80344518 - 20)) {
+        dx = (*(f32*)(playerData + 0x44) +
+              *(f32*)(playerData + 0x838)) - *(f32*)(state + 0x1F4);
+        dy = (*(f32*)(playerData + 0x48) +
+              *(f32*)(playerData + 0x83C)) - *(f32*)(state + 0x1F8);
+        dz = (*(f32*)(playerData + 0x4C) +
+              *(f32*)(playerData + 0x840)) - *(f32*)(state + 0x1FC);
+        currentDistance = dz * dz + dx * dx + dy * dy;
+        movedX = dx + movementDelta[0];
+        movedY = dy + movementDelta[1];
+        movedZ = dz + movementDelta[2];
+
+        currentAbsY = oldY - (f32)(screenHeight - 64);
+        currentAbsX = oldX - (f32)(screenWidth / 2);
+        oldAbsY = currentY - (f32)(screenHeight - 64);
+        oldAbsX = currentX - (f32)(screenWidth / 2);
+        currentScreenDistance =
+            currentAbsY * currentAbsY + currentAbsX * currentAbsX;
+        movedScreenDistance = oldAbsY * oldAbsY + oldAbsX * oldAbsX;
+
+        if (currentDistance > lbl_80345EC8) {
+            root = __frsqrte(currentDistance);
+            root = lbl_80345F18 * root *
+                   -(currentDistance * root * root - lbl_80345F20);
+            root = lbl_80345F18 * root *
+                   -(currentDistance * root * root - lbl_80345F20);
+            root = lbl_80345F18 * root *
+                   -(currentDistance * root * root - lbl_80345F20);
+            currentDistance = (f32)(currentDistance * lbl_80345F18 * root *
+                -(currentDistance * root * root - lbl_80345F20));
+        }
+        movedDistance = movedZ * movedZ + movedX * movedX + movedY * movedY;
+        if (movedDistance > lbl_80345EC8) {
+            root = __frsqrte(movedDistance);
+            root = lbl_80345F18 * root *
+                   -(movedDistance * root * root - lbl_80345F20);
+            root = lbl_80345F18 * root *
+                   -(movedDistance * root * root - lbl_80345F20);
+            root = lbl_80345F18 * root *
+                   -(movedDistance * root * root - lbl_80345F20);
+            movedDistance = (f32)(movedDistance * lbl_80345F18 * root *
+                -(movedDistance * root * root - lbl_80345F20));
+        }
+
+        if (gBossType < 0) {
+            if (movedDistance > currentDistance &&
+                ((s32)currentX != (s32)oldX ||
+                 currentY <= (f32)(lbl_80344514 + 40) ||
+                 currentY >= (f32)(lbl_80344518 - 20)) &&
+                ((s32)currentY != (s32)oldY ||
+                 currentX <= (f32)(lbl_80344520 + 30) ||
+                 currentX >= (f32)(lbl_8034451C - 30))) {
+                zeroValue = lbl_80345EC8;
+                movementDelta[0] = zeroValue;
+                movementDelta[1] = zeroValue;
+                movementDelta[2] = zeroValue;
+            }
+        } else if (movedScreenDistance > currentScreenDistance) {
+            cameraDz = *(f32*)(state + 0x1FC) -
+                       *(f32*)(playerData + 0x5C);
+            cameraDx = *(f32*)(state + 0x1F4) -
+                       *(f32*)(playerData + 0x54);
+            movedCameraDz = cameraDz - movementDelta[2];
+            movedCameraDx = cameraDx - movementDelta[0];
+            if (movedCameraDx * movedCameraDx +
+                    movedCameraDz * movedCameraDz >
+                cameraDx * cameraDx + cameraDz * cameraDz &&
+                ((s32)currentX != (s32)oldX ||
+                 currentY <= (f32)(lbl_80344514 + 40) ||
+                 currentY >= (f32)(lbl_80344518 - 20)) &&
+                ((s32)currentY != (s32)oldY ||
+                 currentX <= (f32)(lbl_80344520 + 30) ||
+                 currentX >= (f32)(lbl_8034451C - 30))) {
+                zeroValue = lbl_80345EC8;
+                movementDelta[0] = zeroValue;
+                movementDelta[1] = zeroValue;
+                movementDelta[2] = zeroValue;
+            }
+        }
+
+        if (oldX <= (f32)(lbl_80344520 + 30) ||
+            oldX >= (f32)(lbl_8034451C - 30) ||
+            oldY <= (f32)(lbl_80344514 + 40) ||
+            oldY >= (f32)(lbl_80344518 - 20)) {
+            lbl_803444E4 = 1;
+        } else if (gBossType >= 0) {
+            debug_camera_pos(playerIndex);
+        }
+        if (gBossType < 0) {
+            debug_camera_pos(playerIndex);
+        }
+
+        if (((lbl_80344960 < 0 &&
+              *(f32*)(state + 0x18C) >= lbl_80344528) ||
+             (lbl_80344960 >= 0 &&
+              (f64)*(f32*)(state + 0x18C) >= lbl_80345FF0)) &&
+            (f64)lbl_803444E8 >= lbl_80346008) {
+            if (gBossType >= 0) {
+                if (gCameraTargetCount > 1) {
+                    if (lbl_803444E4 == 0) {
+                        if (lbl_80343BD8 != 0) {
+                            CAMERA_LATCH_CHANGE();
+                        }
+                    } else {
+                        lbl_80344500 = 0;
+                        lbl_803444FC = 0;
+                        lbl_803444F8 = 0;
+                    }
+                }
+            } else if (gCameraTargetCount > 1 && lbl_80343BD8 != 0) {
+                CAMERA_LATCH_CHANGE();
+            }
+        }
+        return 5;
+    }
+
+    scratch.futurePosition[0] = *(f32*)(playerData + 0x44);
+    scratch.futurePosition[1] = *(f32*)(playerData + 0x48);
+    scratch.futurePosition[2] = *(f32*)(playerData + 0x4C);
+    *(f32*)(playerData + 0x44) += movementDelta[0];
+    *(f32*)(playerData + 0x48) += movementDelta[1];
+    *(f32*)(playerData + 0x4C) += movementDelta[2];
+    fn_8005A588((struct OBJGRP*)(playerData + 0x14),
+                (f32*)(playerData + 0x838));
+    if (debug_camera_pos(playerIndex) != 0 && lbl_80343BD8 != 0) {
+        CAMERA_LATCH_CHANGE();
+    }
+    *(f32*)(playerData + 0x44) = scratch.futurePosition[0];
+    *(f32*)(playerData + 0x48) = scratch.futurePosition[1];
+    *(f32*)(playerData + 0x4C) = scratch.futurePosition[2];
+    fn_8005A588((struct OBJGRP*)(playerData + 0x14),
+                (f32*)(playerData + 0x838));
+    return 6;
+}
+
+#undef CAMERA_LATCH_CHANGE
+#undef CAMERA_SUPERVISOR_ABS
 #pragma opt_common_subs on
