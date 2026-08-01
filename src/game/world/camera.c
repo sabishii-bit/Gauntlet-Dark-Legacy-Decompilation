@@ -132,6 +132,34 @@ typedef struct CameraFollowScratch {
     f32 focus[3];                   /* stack +0x160 */
 } CameraFollowScratch; /* 0x160; allocated at r1+0xC */
 
+/* Address-taken workspace used by camera_mode_level.  Keeping both camera
+ * matrices in one object reproduces the retail function's 0x198-byte frame. */
+typedef struct CameraLevelScratch {
+    u8 _pad00[0x0C];
+    Vec3 overheadDirection;        /* stack +0x18 */
+    Vec3 overheadPosition;         /* stack +0x24 */
+    Vec3 overheadAttention;        /* stack +0x30 */
+    u8 _pad30[8];
+    Vec3 transmitterDirection;     /* stack +0x44 */
+    Vec3 transmitterPosition;      /* stack +0x50 */
+    Vec3 transmitterAttention;     /* stack +0x5C */
+    u8 _pad5C[8];
+    volatile f32 transmitterRoot;  /* stack +0x70 */
+    u8 _pad68[8];
+    Vec3 levelDirection;           /* stack +0x7C */
+    Vec3 levelPosition;            /* stack +0x88 */
+    Vec3 levelAttention;           /* stack +0x94 */
+    f32 normalizeLevel[3];         /* stack +0xA0 */
+    u8 _padA0[0x14];
+    f32 transmitterMatrix[16];     /* stack +0xC0 */
+    u8 _padF4[0x0C];
+    Vec3 transformed;              /* stack +0x10C */
+    u8 _pad10C[0x0C];
+    Vec3 offset;                   /* stack +0x124 */
+    f32 overheadMatrix[16];        /* stack +0x130 */
+    u8 _pad164[8];
+} CameraLevelScratch; /* 0x16C; allocated at r1+0xC */
+
 /* Camera field access (no full struct recovered; stride 0x18C). */
 #define CAM_F32(c, off) (*(f32*)((u8*)(c) + (off)))
 #define CAM_YAW_OFF 0xA8 /* yaw angle field used by camera_approach_yaw */
@@ -224,8 +252,21 @@ extern f64 lbl_803460E8;
 extern f64 lbl_803460F8;
 extern f64 lbl_80346108;
 extern f64 lbl_80346118;
+extern f32 lbl_80346010;
+extern f32 lbl_80346014;
+extern f32 lbl_80346018;
+extern f32 lbl_8034601C;
+extern f32 lbl_80346020;
+extern f32 lbl_80346024;
+extern f32 lbl_80346040;
 extern u8 sTriggerCameras[];
 extern u8 gPlayers[];
+extern u8* gCurLevel;
+extern u8* CurTransmitter;
+extern u8 gWorldInfo[];
+extern s32 gNumEnemies;
+extern s32 lbl_80344414;
+extern s32 lbl_803444EC;
 extern s32 lbl_803444F0;
 extern f32 lbl_80344590;
 extern f32 lbl_80345F38;
@@ -307,11 +348,13 @@ void calc_cam_pyr(s32 camIdx, s32 resetDelta);
 void get_cam_wpos(s32 camIdx);
 s32 adjust_radius(s32 camIdx);
 void CopyCam(u8* source, u8* destination);
+void UpdatePlayerWorldMat(void* player, s32 anchor);
+void init_stage_info(void);
 
 f32 camera_approach_yaw(void* cam, f32 target);
 f32 camera_lerp_yaw(f32 current, f32 target);
 void camera_orbit_update(s32 camIdx);
-void camera_collide_step(s32 camIdx);
+void camera_collide_step(s32 camIdx, f32 blendThreshold);
 void camera_init_for_gamemode(s32 camIdx);
 void camera_run_mode(s32 camIdx);
 void camera_mode_follow(s32 camIdx);
@@ -319,6 +362,7 @@ void camera_mode_target(s32 camIdx);
 void camera_mode_dest(s32 camIdx);
 void camera_mode_spin(s32 camIdx);
 void camera_mode_orbit(s32 camIdx);
+void camera_mode_level(s32 reset);
 void DoShake(Vec3* posA, Vec3* posB);
 
 #define TC_X(i) (*(f32*)(sTriggerCameras + (i) * 0x28 + 4))
@@ -1933,7 +1977,7 @@ void camera_orbit_update(s32 camIdx)
     lbl_8023F820 = lbl_8023F81C;
     lbl_8023F81C = lbl_8023F818;
     lbl_8023F818 = cam->pyr[1];
-    camera_collide_step(camIdx);
+    camera_collide_step(camIdx, lbl_80346040);
 
     angle = (f32)(lbl_80344534 - cam->pyr[1]);
     if (angle < 0.0) {
@@ -2011,7 +2055,7 @@ void camera_orbit_update(s32 camIdx)
 }
 
 /* Select and blend the two closest active trigger-camera rail nodes. */
-void camera_collide_step(s32 camIdx)
+void camera_collide_step(s32 camIdx, f32 blendThreshold)
 {
     Camera* cam = &gCameras[camIdx];
     s32 previousBest = lbl_80344510;
@@ -2142,7 +2186,7 @@ void camera_collide_step(s32 camIdx)
                 lbl_8034445C = lbl_80345F80;
             }
 
-            if (lbl_80345F18 < (f32)(distance / segmentLength)) {
+            if (blendThreshold < (f32)(distance / segmentLength)) {
                 lbl_80344534 = (f32)secondYaw;
                 lbl_80344530 = (f32)bestYaw;
                 lbl_80344508 = lbl_8034450C;
@@ -2263,6 +2307,350 @@ void camera_request_change(s32 value, s32 mode) {
         lbl_803444F8 = 0;
     }
 }
+
+#pragma opt_common_subs off
+/* Initialize the four gameplay views from the active level camera record. */
+void camera_mode_level(s32 reset)
+{
+    u8* state = gCameraState;
+    u8* levelCamera = *(u8**)(gCurLevel + 0x60);
+    Camera* cam0;
+    Camera* cam1;
+    Camera* cam2;
+    Camera* cam3;
+    u8* player;
+    s32 playerIndex;
+    s32 tries;
+    s32 playerLoop;
+    s32 cameraIndex;
+    s32 cameraOffset;
+    s32* playerNumber;
+    struct OBJGRP* playerObject;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 distance;
+    f32 radius;
+    f32 levelOffset;
+    f64 root;
+    f64 wrappedAngle;
+    f32 zeroValue;
+    CameraLevelScratch scratch;
+
+    lbl_803444F0 = -1;
+    lbl_803444EC = -1;
+    lbl_80344960 = -1;
+    player = gPlayers;
+    for (playerLoop = 0; playerLoop < 4;
+         playerLoop++, player += 0x335C) {
+        if (*(s32*)(player + 0xE8) == 1) {
+            UpdatePlayerWorldMat(player, 1);
+        }
+    }
+
+    gNumEnemies = *(s16*)(levelCamera + 0x34);
+    if (*(s8*)(levelCamera + 0x24) == 0) {
+        levelOffset = lbl_80346010;
+        *(f32*)(levelCamera + 0x0C) =
+            *(f32*)(gWorldInfo + 0x18) + levelOffset;
+        *(f32*)(levelCamera + 0x10) =
+            *(f32*)(gWorldInfo + 0x1C) + lbl_80345EC8;
+        *(f32*)(levelCamera + 0x14) =
+            *(f32*)(gWorldInfo + 0x20) + levelOffset;
+        levelOffset = lbl_80346014;
+        *(f32*)(levelCamera + 0x18) =
+            *(f32*)(gWorldInfo + 0x24) + levelOffset;
+        *(f32*)(levelCamera + 0x1C) =
+            *(f32*)(gWorldInfo + 0x28) + lbl_80346018;
+        *(f32*)(levelCamera + 0x20) =
+            *(f32*)(gWorldInfo + 0x2C) + levelOffset;
+    }
+    *(f32*)(state + 0xBC) = *(f32*)(levelCamera + 0x0C);
+    *(f32*)(state + 0xC0) = *(f32*)(levelCamera + 0x10);
+    *(f32*)(state + 0xC4) = *(f32*)(levelCamera + 0x14);
+    *(f32*)(state + 0xB0) = *(f32*)(levelCamera + 0x18);
+    *(f32*)(state + 0xB4) = *(f32*)(levelCamera + 0x1C);
+    *(f32*)(state + 0xB8) = *(f32*)(levelCamera + 0x20);
+    lbl_80344414 = 2;
+
+    cam0 = (Camera*)(state + 0xC8);
+    {
+        CAM_MODE previousMode = cam0->c_mode;
+        if (previousMode != CAM_GAME) {
+            cam0->pc_mode = previousMode;
+            cam0->c_mode = CAM_GAME;
+        }
+    }
+    if (cam0->a_mode != ATN_TARGET) {
+        cam0->pa_mode = cam0->a_mode;
+        cam0->a_mode = ATN_TARGET;
+    }
+    cam0->trans_mode = 3;
+    gCameraTargetPositionCount = 0;
+    gCameraTargetMode = 7;
+    lbl_80344508 = -1;
+    lbl_80344494 = 0;
+    gScriptedCameraState = 0;
+    zeroValue = lbl_80345EC8;
+    cam0->vel[0] = zeroValue;
+    cam0->vel[1] = zeroValue;
+    cam0->vel[2] = zeroValue;
+    cam0->avel[0] = zeroValue;
+    cam0->avel[1] = zeroValue;
+    cam0->avel[2] = zeroValue;
+    lbl_803444E0 = 0;
+
+    if (gCameraTargetCount == 0) {
+        cam0->attn[0] = gDefaultPlayerPosition[0];
+        cam0->attn[1] = gDefaultPlayerPosition[1];
+        cam0->attn[2] = gDefaultPlayerPosition[2];
+        cam0->attn_dest[0] = cam0->attn[0];
+        cam0->attn_dest[1] = cam0->attn[1];
+        cam0->attn_dest[2] = cam0->attn[2];
+        cam0->attn_dest_no_offset[0] = cam0->attn[0];
+        cam0->attn_dest_no_offset[1] = cam0->attn[1];
+        cam0->attn_dest_no_offset[2] = cam0->attn[2];
+    } else {
+        get_attn_pos(0, cam0->attn);
+    }
+    lbl_80344534 = lbl_80118B60[lbl_80344538];
+    if (gNumTransmitters != 0) {
+        *(s16*)(CurTransmitter + 2) = 0;
+        camera_collide_step(0, lbl_8034601C);
+        *(volatile f32*)&lbl_80344408 =
+            *(volatile f32*)&lbl_80344530;
+        cam0->pyr[0] = *(volatile f32*)&lbl_80344530;
+        cam0->pyr[1] = *(volatile f32*)&lbl_80344534;
+    }
+    calc_cam_pyr(0, 1);
+    get_cam_wpos(0);
+    if (lbl_803443F4 != 0) {
+        radius = cam0->radius;
+        scratch.normalizeLevel[0] = cam0->wpos[0] - cam0->attn[0];
+        scratch.normalizeLevel[1] = cam0->wpos[1] - cam0->attn[1];
+        scratch.normalizeLevel[2] = cam0->wpos[2] - cam0->attn[2];
+        SlowNormalVector(scratch.normalizeLevel);
+        cam0->wpos[0] = cam0->attn[0] + scratch.normalizeLevel[0] * radius;
+        cam0->wpos[1] = cam0->attn[1] + scratch.normalizeLevel[1] * radius;
+        cam0->wpos[2] = cam0->attn[2] + scratch.normalizeLevel[2] * radius;
+    }
+    cam0->cam_dest[0] = cam0->wpos[0];
+    cam0->cam_dest[1] = cam0->wpos[1];
+    cam0->cam_dest[2] = cam0->wpos[2];
+    cam0->attn_dest[0] = cam0->attn[0];
+    cam0->attn_dest[1] = cam0->attn[1];
+    cam0->attn_dest[2] = cam0->attn[2];
+    scratch.levelPosition.x = cam0->wpos[0];
+    scratch.levelPosition.y = cam0->wpos[1];
+    scratch.levelPosition.z = cam0->wpos[2];
+    scratch.levelAttention.x = cam0->attn[0];
+    scratch.levelAttention.y = cam0->attn[1];
+    scratch.levelAttention.z = cam0->attn[2];
+    StandardCamera(0);
+    DoShake(&scratch.levelPosition, &scratch.levelAttention);
+    scratch.levelDirection.x =
+        scratch.levelAttention.x - scratch.levelPosition.x;
+    scratch.levelDirection.y =
+        scratch.levelAttention.y - scratch.levelPosition.y;
+    scratch.levelDirection.z =
+        scratch.levelAttention.z - scratch.levelPosition.z;
+    LookInDirection(&scratch.levelDirection.x, (u32)&cam0->mat[0][0]);
+    cam0->state = 1;
+
+    cam1 = (Camera*)(state + 0x254);
+    {
+        CAM_MODE previousMode = cam1->c_mode;
+        if (previousMode != CAM_OBJEYE) {
+            cam1->pc_mode = previousMode;
+            cam1->c_mode = CAM_OBJEYE;
+        }
+    }
+    if (cam1->a_mode != ATN_FREE) {
+        cam1->pa_mode = cam1->a_mode;
+        cam1->a_mode = ATN_FREE;
+    }
+    cam1->trans_mode = 0;
+    playerNumber = &cam0->pn;
+    playerIndex = *playerNumber;
+    for (tries = 0; tries < 4; tries++) {
+        player = gPlayers + playerIndex * 0x335C;
+        if (*(s32*)(player + 0xE8) == 1 ||
+            *(s32*)(player + 0xE8) == 4) {
+            *playerNumber = playerIndex;
+            playerObject = (struct OBJGRP*)(player + 0x14);
+            goto level_player_found;
+        }
+        playerIndex++;
+        if (playerIndex >= 4) {
+            playerIndex = 0;
+        }
+    }
+    playerObject = 0;
+
+level_player_found:
+    cam1->camobj = playerObject;
+    cam1->state = 1;
+    cam2 = (Camera*)(state + 0x3E0);
+    if (gGameMode == 0x8006 || gGameMode == 0x8003 || reset != 0 ||
+        CurTransmitter == 0) {
+        cam2->state = 0;
+        lbl_8034453C = 0;
+    } else {
+        cam2->wpos[0] = *(f32*)(CurTransmitter + 4);
+        cam2->wpos[1] = *(f32*)(CurTransmitter + 8);
+        cam2->wpos[2] = *(f32*)(CurTransmitter + 0x0C);
+        cam2->pyr[2] = *(f32*)(CurTransmitter + 0x1C);
+        cam2->pyr[0] = *(f32*)(CurTransmitter + 0x14);
+        cam2->pyr[1] = *(f32*)(CurTransmitter + 0x18);
+        cam2->pyr[0] = -cam2->pyr[0];
+        cam2->pyr[1] = (f32)((f64)cam2->pyr[1] + CAM_PI);
+        wrappedAngle = cam2->pyr[1];
+        if (wrappedAngle > CAM_PI) {
+            wrappedAngle -= CAM_2PI;
+        } else if (wrappedAngle <= -CAM_PI) {
+            wrappedAngle = CAM_2PI + wrappedAngle;
+        }
+        cam2->pyr[1] = (f32)wrappedAngle;
+        CreateYPRMatrix(scratch.transmitterMatrix, cam2->pyr);
+
+        dx = cam2->wpos[0] - gDefaultPlayerPosition[0];
+        dy = cam2->wpos[1] - gDefaultPlayerPosition[1];
+        dz = cam2->wpos[2] - gDefaultPlayerPosition[2];
+        distance = dz * dz + dx * dx + dy * dy;
+        if (distance > lbl_80345EC8) {
+            root = __frsqrte(distance);
+            root = lbl_80345F18 * root *
+                   -(distance * root * root - lbl_80345F20);
+            root = lbl_80345F18 * root *
+                   -(distance * root * root - lbl_80345F20);
+            root = lbl_80345F18 * root *
+                   -(distance * root * root - lbl_80345F20);
+            scratch.transmitterRoot = (f32)(distance * lbl_80345F18 * root *
+                -(distance * root * root - lbl_80345F20));
+            distance = scratch.transmitterRoot;
+        }
+        cam2->radius = distance;
+        scratch.offset.x = lbl_80345EC8;
+        scratch.offset.y = lbl_80345EC8;
+        scratch.offset.z = cam2->radius;
+        WorldVector(&scratch.offset.x, &scratch.transformed.x,
+                    scratch.transmitterMatrix);
+        cam2->attn[0] = cam2->wpos[0] + scratch.transformed.x;
+        cam2->attn[1] = cam2->wpos[1] + scratch.transformed.y;
+        cam2->attn[2] = cam2->wpos[2] + scratch.transformed.z;
+        cam2->pyr[1] = (f32)((f64)cam2->pyr[1] + CAM_PI);
+        wrappedAngle = cam2->pyr[1];
+        if (wrappedAngle > CAM_PI) {
+            wrappedAngle -= CAM_2PI;
+        } else if (wrappedAngle <= -CAM_PI) {
+            wrappedAngle = CAM_2PI + wrappedAngle;
+        }
+        cam2->pyr[1] = (f32)wrappedAngle;
+        if (cam2->c_mode != CAM_LOCK) {
+            cam2->pc_mode = cam2->c_mode;
+            cam2->c_mode = CAM_LOCK;
+        }
+        if (cam2->a_mode != ATN_LOCK) {
+            cam2->pa_mode = cam2->a_mode;
+            cam2->a_mode = ATN_LOCK;
+        }
+        cam2->trans_mode = 0;
+        scratch.transmitterPosition.x = cam2->wpos[0];
+        scratch.transmitterPosition.y = cam2->wpos[1];
+        scratch.transmitterPosition.z = cam2->wpos[2];
+        scratch.transmitterAttention.x = cam2->attn[0];
+        scratch.transmitterAttention.y = cam2->attn[1];
+        scratch.transmitterAttention.z = cam2->attn[2];
+        StandardCamera(2);
+        DoShake(&scratch.transmitterPosition, &scratch.transmitterAttention);
+        scratch.transmitterDirection.x =
+            scratch.transmitterAttention.x - scratch.transmitterPosition.x;
+        scratch.transmitterDirection.y =
+            scratch.transmitterAttention.y - scratch.transmitterPosition.y;
+        scratch.transmitterDirection.z =
+            scratch.transmitterAttention.z - scratch.transmitterPosition.z;
+        LookInDirection(&scratch.transmitterDirection.x,
+                        (u32)&cam2->mat[0][0]);
+        gScriptedCameraState = 91;
+        lbl_803447B8 = 1;
+        init_stage_info();
+        lbl_8034453C = 2;
+        cam2->state = 1;
+    }
+
+    cam3 = (Camera*)(state + 0x56C);
+    {
+        CAM_MODE previousMode = cam3->c_mode;
+        if (previousMode != CAM_VECDIST) {
+            cam3->pc_mode = previousMode;
+            cam3->c_mode = CAM_VECDIST;
+        }
+    }
+    if (cam3->a_mode != ATN_TARGET) {
+        cam3->pa_mode = cam3->a_mode;
+        cam3->a_mode = ATN_TARGET;
+    }
+    cameraIndex = 0;
+    cam3->trans_mode = cameraIndex;
+    {
+    f32 cam3Zero = lbl_80345EC8;
+    cam3->vel[0] = cam3Zero;
+    cam3->vel[1] = cam3Zero;
+    cam3->vel[2] = cam3Zero;
+    cam3->avel[0] = cam3Zero;
+    cam3->avel[1] = cam3Zero;
+    cam3->avel[2] = cam3Zero;
+    cam3->attn[0] = cam0->attn[0];
+    cam3->attn[1] = cam0->attn[1];
+    cam3->attn[2] = cam0->attn[2];
+    cam3->radius = lbl_80346020;
+    cam3->pyr[0] = lbl_80346024;
+    cam3->pyr[1] = cam3Zero;
+    cam3->pyr[2] = cam3Zero;
+    CreateYPRMatrix(scratch.overheadMatrix, cam3->pyr);
+    scratch.offset.x = cam3Zero;
+    scratch.offset.y = cam3Zero;
+    }
+    scratch.offset.z = cam3->radius;
+    WorldVector(&scratch.offset.x, &scratch.transformed.x,
+                scratch.overheadMatrix);
+    cam3->wpos[0] = cam3->attn[0] + scratch.transformed.x;
+    cam3->wpos[1] = cam3->attn[1] + scratch.transformed.y;
+    cam3->wpos[2] = cam3->attn[2] + scratch.transformed.z;
+    scratch.overheadPosition.x = cam3->wpos[0];
+    scratch.overheadPosition.y = cam3->wpos[1];
+    scratch.overheadPosition.z = cam3->wpos[2];
+    scratch.overheadAttention.x = cam3->attn[0];
+    scratch.overheadAttention.y = cam3->attn[1];
+    scratch.overheadAttention.z = cam3->attn[2];
+    StandardCamera(3);
+    DoShake(&scratch.overheadPosition, &scratch.overheadAttention);
+    scratch.overheadDirection.x =
+        scratch.overheadAttention.x - scratch.overheadPosition.x;
+    scratch.overheadDirection.y =
+        scratch.overheadAttention.y - scratch.overheadPosition.y;
+    scratch.overheadDirection.z =
+        scratch.overheadAttention.z - scratch.overheadPosition.z;
+    LookInDirection(&scratch.overheadDirection.x, (u32)&cam3->mat[0][0]);
+    cam3->state = 1;
+
+    cameraOffset = cameraIndex;
+    zeroValue = *(volatile f32*)&lbl_80345EC8;
+    do {
+        Camera* cam = (Camera*)(state + cameraOffset);
+        ProcCamera(cameraIndex, 0);
+        cam = (Camera*)((u8*)cam + 0xC8);
+        cam->limit_pos[0] = cam->mat[3][0];
+        cam->limit_pos[1] = cam->mat[3][1];
+        cam->limit_pos[2] = cam->mat[3][2];
+        cam->limit_vel[0] = zeroValue;
+        cam->limit_vel[1] = zeroValue;
+        cam->limit_vel[2] = zeroValue;
+        cameraIndex++;
+        cameraOffset += sizeof(Camera);
+    } while (cameraIndex <= 3);
+}
+#pragma opt_common_subs on
 
 /* Update the single-player rotating camera mode. */
 void camera_mode_spin(s32 camIdx)
