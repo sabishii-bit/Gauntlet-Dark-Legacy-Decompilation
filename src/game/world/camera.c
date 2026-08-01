@@ -243,12 +243,21 @@ extern f64 lbl_80345F28;
 extern f64 lbl_80345F58;
 extern f64 lbl_80345F60;
 extern f64 lbl_80345F68;
+extern f64 lbl_80345F70;
 extern f64 lbl_80345F78;
 extern f32 lbl_80345F80;
 extern f64 lbl_80346030;
 extern f64 lbl_80346098;
+extern f64 lbl_803460A0;
+extern f64 lbl_803460A8;
+extern f64 lbl_803460B0;
+extern f64 lbl_803460B8;
+extern f64 lbl_803460C0;
+extern f64 lbl_803460C8;
+extern f64 lbl_803460D0;
 extern f64 lbl_803460D8;
 extern f64 lbl_803460E8;
+extern f64 lbl_803460E0;
 extern f64 lbl_803460F8;
 extern f64 lbl_80346108;
 extern f64 lbl_80346118;
@@ -266,6 +275,8 @@ extern u8* CurTransmitter;
 extern u8 gWorldInfo[];
 extern s32 gNumEnemies;
 extern s32 lbl_80344414;
+extern s32 lbl_8034441C;
+extern s32 lbl_80344420;
 extern s32 lbl_803444EC;
 extern s32 lbl_803444F0;
 extern f32 lbl_80344590;
@@ -278,6 +289,12 @@ extern s32 lbl_803447B8;
 extern s32 lbl_803443FC;
 extern void* lbl_8034440C;
 extern f32 lbl_80344460;
+extern f32 lbl_80344424;
+extern f32 lbl_80344428;
+extern f32 lbl_8034442C;
+extern f32 lbl_80344430;
+extern f32 lbl_80344444;
+extern f32 lbl_80344448;
 extern f32 lbl_80344464;
 extern f32 lbl_80344468;
 extern f32 lbl_80344528;
@@ -286,6 +303,7 @@ extern s32 lbl_80344518;
 extern s32 lbl_8034451C;
 extern s32 lbl_80344520;
 extern s32 lbl_80344960;
+extern s32 lbl_80344A28;
 extern f32 gCameraTargetPositions[7][3];
 extern f32 gDefaultPlayerPosition[3];
 extern u8 lbl_80240E30[];
@@ -304,6 +322,7 @@ extern f64 lbl_80345FD8;
 extern f64 lbl_80345FE0;
 extern f32 lbl_80345FE8;
 extern f64 lbl_80345FF0;
+extern char lbl_80111B3C[];
 
 /* --- external projection / math helpers (G3D / pb layer) --- */
 void MBWorldToScreen(f32* out_xy, void* world_pos);                   /* screen projection (INT path) */
@@ -350,6 +369,8 @@ s32 adjust_radius(s32 camIdx);
 void CopyCam(u8* source, u8* destination);
 void UpdatePlayerWorldMat(void* player, s32 anchor);
 void init_stage_info(void);
+void DiffRate(s32 camIdx);
+void dbgTextPrintfCol(s32 x, s32 line, char* fmt, ...);
 
 f32 camera_approach_yaw(void* cam, f32 target);
 f32 camera_lerp_yaw(f32 current, f32 target);
@@ -2925,3 +2946,315 @@ lerp_adjust_done:
     }
     return (f32)result;
 }
+
+#pragma opt_common_subs off
+/* Move the primary gameplay camera along a destination-camera rail. */
+void camera_mode_dest(s32 camIdx)
+{
+    Camera* cam = &gCameras[camIdx];
+    f32 step;
+    f32 distance;
+    f32 scale;
+    f32 yawDelta;
+    f32 yawStep;
+    f32 zero;
+    f64 root;
+    f64 angle;
+    s32 pitchReached;
+    s32 yawReached;
+    f32 matrix[16];
+    f32 offset[3];
+    f32 transformed[3];
+    /* Retail leaves four words between its angle and transform vectors. */
+    f32 angles[7];
+    f32 orbitNormalize[3];
+    volatile f32 directionRoot;
+    f32 finalNormalize[3];
+
+    if (camIdx != 0) {
+        return;
+    }
+
+    zero = lbl_80345EC8;
+    cam->vel[0] = zero;
+    cam->vel[1] = zero;
+    cam->vel[2] = zero;
+    cam->avel[0] = zero;
+    cam->avel[1] = zero;
+    cam->avel[2] = zero;
+    if (cam->mode < 2) {
+        return;
+    }
+
+    switch (lbl_8034441C) {
+    case 0:
+        step = (f32)(lbl_80346098 * (f64)(u32)gFrameTicks);
+        cam->radius -= (f32)((f64)(u32)gFrameTicks * lbl_803460A0 *
+                             (f64)(cam->radius - cam->num1));
+        lbl_803443F4 = 1;
+        cam->vel[0] = -step;
+        if (cam->wpos[1] < cam->num2) {
+            cam->vel[1] = (f32)(lbl_80345F88 * (f64)step);
+        } else if (cam->wpos[1] > cam->num3) {
+            cam->vel[1] = (f32)(lbl_80345F88 * (f64)-step);
+        }
+        if ((lbl_80344420 -= gFrameTicks) <= 0) {
+            lbl_8034429C += gFrameTicks;
+        }
+        return;
+
+    case 1:
+        cam->pyr[1] +=
+            (f32)(lbl_803460A8 * (f64)(u32)gFrameTicks);
+        angle = cam->pyr[1];
+        if (angle > CAM_PI) {
+            angle -= CAM_2PI;
+        } else if (angle <= -CAM_PI) {
+            angle = CAM_2PI + angle;
+        }
+        cam->pyr[1] = (f32)angle;
+        offset[0] = lbl_80345EC8;
+        offset[1] = lbl_80345EC8;
+        offset[2] = cam->radius;
+        CreateYPRMatrix(matrix, cam->pyr);
+        WorldVector(offset, transformed, matrix);
+        cam->attn[0] = cam->wpos[0] + transformed[0];
+        cam->attn[1] = cam->wpos[1] + transformed[1];
+        cam->attn[2] = cam->wpos[2] + transformed[2];
+        orbitNormalize[0] = cam->attn[0] - cam->wpos[0];
+        orbitNormalize[1] = cam->attn[1] - cam->wpos[1];
+        orbitNormalize[2] = cam->attn[2] - cam->wpos[2];
+        distance = cam->radius;
+        SlowNormalVector(orbitNormalize);
+        cam->attn[0] = cam->wpos[0] + orbitNormalize[0] * distance;
+        cam->attn[1] = cam->wpos[1] + orbitNormalize[1] * distance;
+        cam->attn[2] = cam->wpos[2] + orbitNormalize[2] * distance;
+        if ((lbl_80344420 -= gFrameTicks) <= 0) {
+            lbl_8034429C += gFrameTicks;
+        }
+        return;
+
+    default:
+        break;
+    }
+    pitchReached = 0;
+    cam->pyr[0] = -cam->pyr[0];
+    step = (f32)(lbl_80346098 * (f64)(u32)gFrameTicks);
+    DiffRate(0);
+    cam->pyr[0] = -cam->pyr[0];
+
+    if (lbl_80344510 != lbl_8034450C) {
+        lbl_80344444 = get_pitch(cam->wpos,
+            (f32*)(sTriggerCameras + lbl_8034450C * 0x28 + 4));
+        lbl_80344448 = get_yaw(cam->wpos,
+            (f32*)(sTriggerCameras + lbl_8034450C * 0x28 + 4));
+        angle = (f64)FixAngle((f32)(lbl_80345F60 -
+                                     (f64)lbl_80344448));
+        angle = lbl_803460B0 * angle;
+        angle = (f64)(f32)(lbl_803460B8 * angle);
+        if (angle < (f64)lbl_80345EC8) {
+            angle = (f64)(f32)(angle + lbl_803460C0);
+        }
+        if (lbl_803460C8 < angle) {
+            angle = lbl_80345EC8;
+        }
+        if (lbl_80344A28 == 0) {
+            f64 pitchValue = lbl_803460B0 * (f64)lbl_80344444;
+            s32 pitchDegrees = (s32)(lbl_803460B8 * pitchValue);
+            dbgTextPrintfCol(2, 3, lbl_80111B3C, pitchDegrees,
+                             angle);
+        }
+    }
+
+    if (lbl_80344510 != lbl_8034450C) {
+        f32* triggerX = (f32*)(sTriggerCameras + 4);
+        f32* triggerY = (f32*)(sTriggerCameras + 8);
+        f32* triggerZ = (f32*)(sTriggerCameras + 0xC);
+        f32 weight;
+        transformed[0] =
+            triggerX[lbl_80344510 * 10] - cam->wpos[0];
+        transformed[1] =
+            triggerY[lbl_80344510 * 10] - cam->wpos[1];
+        transformed[2] =
+            triggerZ[lbl_80344510 * 10] - cam->wpos[2];
+        weight = lbl_8034445C;
+        transformed[0] *= weight;
+        transformed[1] *= weight;
+        transformed[2] *= weight;
+        offset[0] =
+            triggerX[lbl_8034450C * 10] - cam->wpos[0];
+        offset[1] =
+            triggerY[lbl_8034450C * 10] - cam->wpos[1];
+        offset[2] =
+            triggerZ[lbl_8034450C * 10] - cam->wpos[2];
+        {
+        f64 otherWeight = lbl_80345FE0 - (f64)weight;
+        offset[0] = (f32)((f64)offset[0] * otherWeight);
+        offset[1] = (f32)((f64)offset[1] * otherWeight);
+        offset[2] = (f32)((f64)offset[2] * otherWeight);
+        }
+        transformed[0] += offset[0];
+        transformed[1] += offset[1];
+        transformed[2] += offset[2];
+    } else {
+        transformed[0] = lbl_80345EC8;
+        transformed[1] = lbl_80345EC8;
+        transformed[2] = lbl_80345EC8;
+        lbl_8034429C += gFrameTicks;
+    }
+
+    distance = transformed[2] * transformed[2] +
+               transformed[0] * transformed[0] +
+               transformed[1] * transformed[1];
+    if (distance > lbl_80345EC8) {
+        root = __frsqrte(distance);
+        root = lbl_80345F18 * root *
+               -(distance * root * root - lbl_80345F20);
+        root = lbl_80345F18 * root *
+               -(distance * root * root - lbl_80345F20);
+        root = lbl_80345F18 * root *
+               -(distance * root * root - lbl_80345F20);
+        directionRoot = (f32)(distance * lbl_80345F18 * root *
+            -(distance * root * root - lbl_80345F20));
+        distance = directionRoot;
+    }
+
+    if ((f64)distance >= lbl_803460D0 ||
+        lbl_80344510 != lbl_8034450C) {
+        if (lbl_8034442C < lbl_80344444) {
+            if ((f64)lbl_80344424 < lbl_80345F70) {
+                lbl_80344424 =
+                    (f32)((f64)lbl_80344424 + lbl_803460D8);
+            }
+            lbl_8034442C += lbl_80344424 * (f32)(u32)gFrameTicks;
+            if (lbl_8034442C >= lbl_80344444) {
+                pitchReached = 1;
+            }
+        } else if (lbl_8034442C > lbl_80344444) {
+            if ((f64)lbl_80344424 > lbl_803460E0) {
+                lbl_80344424 =
+                    (f32)((f64)lbl_80344424 - lbl_803460D8);
+            }
+            lbl_8034442C += lbl_80344424 * (f32)(u32)gFrameTicks;
+            if (lbl_8034442C <= lbl_80344444) {
+                pitchReached = 1;
+            }
+        } else {
+            pitchReached = 1;
+        }
+        if (pitchReached != 0) {
+            if ((f64)lbl_80344424 > lbl_80345F78) {
+                lbl_80344424 =
+                    (f32)((f64)lbl_80344424 - lbl_803460D8);
+            } else if ((f64)lbl_80344424 < lbl_80345F78) {
+                lbl_80344424 =
+                    (f32)((f64)lbl_80344424 + lbl_803460D8);
+            }
+        }
+
+        yawReached = 0;
+        angle = (f64)(f32)(lbl_80344448 - lbl_80344430);
+        if (angle > CAM_PI) {
+            angle -= CAM_2PI;
+        } else if (angle <= -CAM_PI) {
+            angle = CAM_2PI + angle;
+        }
+        yawDelta = (f32)angle;
+        yawStep = lbl_80344428 * (f32)(u32)gFrameTicks;
+        if ((f64)yawDelta > (f64)lbl_80345EC8) {
+            if ((f64)lbl_80344428 < lbl_80345F70) {
+                lbl_80344428 =
+                    (f32)((f64)lbl_80344428 + lbl_803460D8);
+            }
+            if (yawStep >= lbl_80345EC8 && yawStep >= yawDelta) {
+                yawReached = 1;
+            }
+        } else if ((f64)yawDelta < (f64)lbl_80345EC8) {
+            if ((f64)lbl_80344428 > lbl_803460E0) {
+                lbl_80344428 =
+                    (f32)((f64)lbl_80344428 - lbl_803460D8);
+            }
+            if (yawStep <= lbl_80345EC8 && yawStep <= yawDelta) {
+                yawReached = 1;
+            }
+        } else {
+            if (lbl_80344428 > lbl_80345EC8) {
+                lbl_80344428 =
+                    (f32)((f64)lbl_80344428 - lbl_803460D8);
+            } else if (lbl_80344428 < lbl_80345EC8) {
+                lbl_80344428 =
+                    (f32)((f64)lbl_80344428 + lbl_803460D8);
+            }
+        }
+        if (yawReached != 0) {
+            if (lbl_80344428 > lbl_80345EC8) {
+                lbl_80344428 =
+                    (f32)((f64)lbl_80344428 - lbl_803460D8);
+            } else if (lbl_80344428 < lbl_80345EC8) {
+                lbl_80344428 =
+                    (f32)((f64)lbl_80344428 + lbl_803460D8);
+            }
+        }
+        lbl_80344430 += yawStep;
+        angle = lbl_80344430;
+        if (angle > CAM_PI) {
+            angle -= CAM_2PI;
+        } else if (angle <= -CAM_PI) {
+            angle = CAM_2PI + angle;
+        }
+        lbl_80344430 = (f32)angle;
+
+        angles[0] = lbl_8034442C;
+        angle = CAM_PI + (f64)lbl_80344430;
+        if (angle > CAM_PI) {
+            angle -= CAM_2PI;
+        } else if (angle <= -CAM_PI) {
+            angle = CAM_2PI + angle;
+        }
+        angles[1] = (f32)angle;
+        angles[2] = lbl_80345EC8;
+        CreateYPRMatrix(matrix, angles);
+        offset[0] = lbl_80345EC8;
+        offset[1] = lbl_80345EC8;
+        offset[2] = step;
+        WorldVector(offset, transformed, matrix);
+        cam->wpos[0] += transformed[0];
+        cam->wpos[1] += transformed[1];
+        cam->wpos[2] += transformed[2];
+    }
+
+    zero = lbl_80345EC8;
+    cam->pyr_delta[0] = zero;
+    cam->pyr_delta[1] = zero;
+    cam->pyr_delta[2] = zero;
+    scale = lbl_80344450 * (f32)(u32)gFrameTicks;
+    if (lbl_80344530 - lbl_80344408 > lbl_80345EC8) {
+        lbl_80344408 += scale;
+        if (lbl_80344408 >= lbl_80344530) {
+            lbl_80344408 = lbl_80344530;
+        }
+    } else {
+        lbl_80344408 -= scale;
+        if (lbl_80344408 <= lbl_80344530) {
+            lbl_80344408 = lbl_80344530;
+        }
+    }
+    cam->pyr[0] = lbl_80344408;
+    CreateYPRMatrix(matrix, cam->pyr);
+    offset[0] = lbl_80345EC8;
+    offset[1] = lbl_80345EC8;
+    offset[2] = cam->radius;
+    WorldVector(offset, transformed, matrix);
+    cam->attn[0] = cam->wpos[0] + transformed[0];
+    cam->attn[1] = cam->wpos[1] + transformed[1];
+    cam->attn[2] = cam->wpos[2] + transformed[2];
+    finalNormalize[0] = cam->attn[0] - cam->wpos[0];
+    finalNormalize[1] = cam->attn[1] - cam->wpos[1];
+    finalNormalize[2] = cam->attn[2] - cam->wpos[2];
+    distance = cam->radius;
+    SlowNormalVector(finalNormalize);
+    cam->attn[0] = cam->wpos[0] + finalNormalize[0] * distance;
+    cam->attn[1] = cam->wpos[1] + finalNormalize[1] * distance;
+    cam->attn[2] = cam->wpos[2] + finalNormalize[2] * distance;
+}
+#pragma opt_common_subs on

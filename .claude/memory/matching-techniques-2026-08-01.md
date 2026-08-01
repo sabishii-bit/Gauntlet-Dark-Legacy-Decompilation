@@ -180,3 +180,20 @@ aggregate at `r1+0x0C`, while the retail saved-register area begins at
 `r1+0x17C`. The otherwise-unused final eight bytes are necessary to obtain the
 retail 0x198-byte frame; accounting only for the highest live matrix produces
 a frame that is eight bytes too small.
+
+## Reverse local-array declarations and pad a reused vector
+
+`camera_mode_dest` showed the opposite failure mode from the giant scratch
+overlays: combining all of its arrays into one aggregate made the outgoing
+varargs area keep the aggregate twelve bytes too high. MWCC allocates separate
+local arrays in reverse declaration order. Declaring the matrix first and the
+short-lived normalization vectors last put them in retail order, then sizing
+the three-used-element angle workspace as seven floats preserved retail's
+four-word lifetime gap. That recovered the exact 0xD0 frame and the important
+transform, offset, and matrix locations without emitting dead instructions.
+
+The debug print in the same routine is also a useful ABI tell. Declaring
+`dbgTextPrintfCol(s32, s32, char*, ...)` restores the target `crset` for a
+floating vararg. Pass the already-rounded double expression directly; an
+explicit cast back to `f32` inserts an extra `frsp` immediately before the
+call and changes the surrounding FPR allocation.
