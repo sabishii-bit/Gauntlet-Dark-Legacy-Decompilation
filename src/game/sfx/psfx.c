@@ -20,13 +20,26 @@ extern u8* lbl_80282930[4];
 extern void ClearCustomEffect(s32 index);
 extern void* player_multiple_models[];
 extern u8 lbl_802828B0[];
+extern u8 lbl_8012006C[];
+extern void* lbl_80120E00[16];
+extern char lbl_801142A0[];
+extern char lbl_801142D4[];
+extern char lbl_80347E44[];
+extern char lbl_80347E4C[];
+extern s32 mlmLastFileSize;
 extern char lbl_80347E3C[];
 extern void* InitCustomEffect();
 extern s32 MBOX_FindTexture_Sub();
 extern s32 AudioFindSound();
 extern void* MBOX_ReallyFindObject();
 extern s32* AtreeFindMbidxNode();
-extern void sprintf();
+extern s32 sprintf(void* dst, const char* fmt, ...);
+extern s32 FileExists();
+extern void* AllocFile();
+extern s32 MLMReadFile();
+extern void FatalErrorf(const char* fmt, ...);
+extern void ErrorPrintf(const char* fmt, ...);
+extern void* AllocMem();
 void fn_8008A678();
 
 #define STUB(address, name) void name(void) {}
@@ -63,14 +76,20 @@ void PlayerSfxInitData(s32* player, u32* records, s32 count, void* param4)
     s32 off;
     u32* rec;
     s32 i;
+    s32 secondOff;
+    s32 j;
 
     for (i = 0, off = 0; i < count; i++, off += 0x50) {
         rec = (u32*)((u8*)records + off);
         rec[2] = -1;
         rec[3] = -1;
     }
-    for (i = 0, off = 0; i < count; i++, off += 0x50) {
-        fn_8008A678(player, (u32*)((u8*)records + off), param4);
+    j = 0;
+    secondOff = 0;
+    while (j < count) {
+        fn_8008A678(player, (u32*)((u8*)records + secondOff), param4);
+        j++;
+        secondOff += 0x50;
     }
 }
 
@@ -154,6 +173,58 @@ void ClearPlyrData(s32 player)
 }
 
 STUB(0x8008A928, LoadPlyrData)
-STUB(0x8008BAF0, LoadPdataFile)
+/* LoadPdataFile @0x8008BAF0 -- preflight all 16 class pdata files, retain
+ * their largest size, then allocate four reusable player load buffers. */
+void LoadPdataFile(void)
+{
+    u8 unused[8];
+    u8* temp = lbl_802828B0;
+    u8* sizePtr;
+    s32 maxSize;
+    s32 index;
+    s32 offset;
+
+    maxSize = 0;
+    index = 0;
+    offset = 0;
+    do {
+        *(void**)((u8*)lbl_80120E00 + offset) = 0;
+        sprintf(temp, "%s.wad", lbl_8012006C + offset);
+        if (FileExists("pdata", temp)) {
+            if (*(void**)((u8*)lbl_80120E00 + offset) == 0) {
+                *(void**)((u8*)lbl_80120E00 + offset) =
+                    AllocFile("pdata", temp);
+                sizePtr = temp + offset;
+                *(u32*)(sizePtr + 0x40) = mlmLastFileSize;
+            } else if (!MLMReadFile("pdata", temp,
+                                    *(u32*)((sizePtr = temp + offset) + 0x40),
+                                    *(void**)((u8*)lbl_80120E00 + offset))) {
+                FatalErrorf("pdata file %s: file on disk go too large for buffer", temp);
+            }
+        } else {
+            ErrorPrintf("No player data file: %s", temp);
+            *(void**)((u8*)lbl_80120E00 + offset) = 0;
+            sizePtr = temp + offset;
+            *(u32*)(sizePtr + 0x40) = 0;
+        }
+        sizePtr = temp + offset;
+        if (*(s32*)(sizePtr + 0x40) > maxSize) {
+            maxSize = *(s32*)(sizePtr + 0x40);
+        }
+        index++;
+        offset += 4;
+    } while (index < 16);
+
+    index = 0;
+    offset = 0;
+    do {
+        sizePtr = temp + offset;
+        *(s32*)(sizePtr + 0x20) = -1;
+        *(void**)(sizePtr + 0x30) = AllocMem(maxSize);
+        *(s32*)(sizePtr + 0x80) = 0;
+        index++;
+        offset += 4;
+    } while (index < 4);
+}
 
 #undef STUB
