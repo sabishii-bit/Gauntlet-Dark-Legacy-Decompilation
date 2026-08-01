@@ -162,3 +162,21 @@ rematerializes each `addi r3,r1,offset` just before `DoShake`. Also derive the
 camera, focus-history array, backup camera, and projection matrix from one
 `gCameraState` base. The target retains that common base in one saved GPR,
 where separately named globals produce extra `lis/addi` pairs and lifetimes.
+
+## Recover hidden float parameters from callee prologues
+
+Ghidra initially rendered `camera_collide_step` as a one-argument call, but its
+retail prologue immediately copies `f1` into saved `f27`. The two callers load
+different constants into `f1`, proving the routine actually takes
+`(s32 cameraIndex, f32 blendThreshold)`. Restoring that prototype recovered
+the level-camera call sequence and explains why its trigger-node selection
+threshold differs from the normal orbit path. When a decompile appears to
+hard-code a float, inspect the callee's first basic block for an untyped FPR
+parameter before transcribing it as a global constant.
+
+`camera_mode_level` also demonstrates an exact-frame overlay with an explicit
+tail gap: its address-taken vectors and two 4x4 matrices occupy a 0x16C-byte
+aggregate at `r1+0x0C`, while the retail saved-register area begins at
+`r1+0x17C`. The otherwise-unused final eight bytes are necessary to obtain the
+retail 0x198-byte frame; accounting only for the highest live matrix produces
+a frame that is eight bytes too small.
