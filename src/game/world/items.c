@@ -1155,12 +1155,14 @@ static void AddItemWobj(Item* it)
         tier = 3;
     }
     if (tier != *(s16*)(it->data + 2)) {
+        s32 found;
         s32 tex;
         *(s16*)(it->data + 2) = tier;
         sprintf(buf, sItemHealthTextureFmt, it->info->item.desc,
                 *(s16*)(it->data + 2));
-        tex = ItemFindMBObjectL1(buf);
-        if (tex < 0) {
+        found = ItemFindMBObjectL1(buf);
+        tex = found;
+        if (found < 0) {
             MBTreeSetFlags(it->objgrp.node, 1, 1);
             *(s16*)(it->data + 2) = -1;
         } else {
