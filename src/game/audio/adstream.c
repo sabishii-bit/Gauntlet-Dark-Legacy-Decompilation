@@ -31,6 +31,7 @@
  * linked from the DOL.
  */
 #include "types.h"
+#include "dolphin/ax.h"
 
 /*
  * The streaming state block (single global gAdsStream, 0x13C bytes).  Only the
@@ -43,18 +44,22 @@ typedef struct ADSTREAM {
     /* 0x0C */ u8 _pad0C[4];
     /* 0x10 */ s32 ringSize;
     /* 0x14 */ s32 ringUsed;
-    /* 0x18 */ u8 _pad18[0x24 - 0x18];
+    /* 0x18 */ u32 spuReadBase;
+    /* 0x1C */ u8 _pad1C[0x24 - 0x1C];
     /* 0x24 */ void* ringPtr;
     /* 0x28 */ s32 ringRead;
     /* 0x2C */ s32 ringWrite;
-    /* 0x30 */ u8 _pad30[0x3C - 0x30];
+    /* 0x30 */ s32 refillState;
+    /* 0x34 */ u8 _pad34[0x3C - 0x34];
     /* 0x3C */ s32 vol;                /* pending volume */
     /* 0x40 */ s32 volDirty;           /* "volume changed" flag */
     /* 0x44 */ s32 keyCount;           /* voice-keying counter */
     /* 0x48 */ s32 loopCount;          /* loop/refill counter */
     /* 0x4C */ s32 endCount;           /* end-of-stream counter */
     /* 0x50 */ s32 status;             /* 0 / 0x1000 (playing) / 0x2000 */
-    /* 0x54 */ u8 _pad54[0x64 - 0x54];
+    /* 0x54 */ u8 _pad54[0x5C - 0x54];
+    /* 0x5C */ u32 sampleBits;
+    /* 0x60 */ u8 _pad60[0x64 - 0x60];
     /* 0x64 */ s32 blocks;
     /* 0x68 */ u8 _pad68[0x13C - 0x68];
 } ADSTREAM;
@@ -77,6 +82,7 @@ extern s32 sShortenedHalfVoiceLoop; /* 0x80345290 samples per frame */
 extern s32 lbl_80345270;   /* largest stream allocation seen */
 extern u32 lbl_80345288;   /* global ADS flags */
 extern ADSTREAM gADS;
+extern AXVPB* sVoice[14];
 
 extern void* AllocMem(u32 size);
 extern s32 FileBufClose(void* file);
@@ -84,6 +90,8 @@ extern s32 FileBufOpen(void* file, void* desc);
 extern void* FileBufStart(void* desc);
 extern void dcsSetStreamFlag(void* stream, s32 looping);
 extern void* memset(void* p, int c, u32 n);
+
+void _AdsThread(void);
 
 /* Mark a stream's volume dirty (inlined helper). */
 static void adsMarkVol(ADSTREAM* s, s32 vol) {
@@ -97,6 +105,31 @@ static void adsMarkVol(ADSTREAM* s, s32 vol) {
  * current playback address and, when the SPU has drained past the refill
  * threshold, queues a refill command (13) to _AdsThread.  Xbox: adsPoll. */
 void adsPoll(void) {
+    ADSTREAM* stream;
+    AXVPB* voice;
+    AXPBADDR* addr;
+    u32 current;
+    s32 refillState;
+
+    if ((lbl_80345288 & 0x2000) != 0) {
+        voice = sVoice[13];
+        stream = &gADS;
+        addr = &voice->pb.addr;
+        current = ((u32)addr->currentAddressHi << 16) +
+                  addr->currentAddressLo;
+        if (stream->sampleBits == 32) {
+            current >>= 1;
+            refillState = current >= stream->spuReadBase + halfVoiceLoop;
+        } else {
+            current <<= 1;
+            refillState = current >=
+                          stream->spuReadBase + sShortenedHalfVoiceLoop;
+        }
+        if (stream->refillState != refillState || stream->loopCount != 0) {
+            lbl_80345274 = 13;
+            _AdsThread();
+        }
+    }
 }
 
 /* 0x800D62F0  cooked ring -> ARAM/SPU: ARQPostRequest per block, DCFlushRange,
