@@ -126,7 +126,7 @@ extern s32   CollectSafeRocks(s32 *out, s32 max, s32 flags);
 extern void  SafeRockActivate(s32 index);
 extern u32   RandInt(u32 limit);
 extern s32   NextGridEnemy(void);
-extern void  StartEnemyGrid(f32 radius, f32 *position);
+extern void  StartEnemyGrid(f32 *position, f32 radius);
 extern s32   NextGridItem(void);
 extern void  StartItemGrid(f32 radius, f32 *position);
 extern void  damage_player(s32 player, f32 damage, s32 mode, u32 flags,
@@ -360,7 +360,7 @@ void CritterCollideItems(Critter *c, f32 *delta)
         return;
     }
     radius = *(f32 *)((u8 *)c->hdr + 0x7C);
-    StartEnemyGrid(radius, c->pos);
+    StartEnemyGrid(c->pos, radius);
     while ((index = NextGridEnemy()) >= 0) {
         item = sItems + index * 0xF0;
         if (*(s32 *)item == 0) {

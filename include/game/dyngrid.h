@@ -10,7 +10,7 @@
  * stride).  Callers must therefore index the pool documented below, not infer
  * a pool from the function name.
  */
-void StartEnemyGrid(f32 radius, f32* position); /* iterates sItems */
+void StartEnemyGrid(f32* position, f32 radius); /* iterates sItems */
 s32 NextGridEnemy(void);
 
 void StartItemGrid(f32 radius, f32* position);  /* iterates gEnemies */

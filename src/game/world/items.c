@@ -1476,8 +1476,9 @@ keyring_found:
     {
         f32 radius = info->item.radius;
 
-        radius = radius > info->item.height ?
-                 radius : info->item.height;
+        if (radius <= info->item.height) {
+            radius = info->item.height;
+        }
         item->visrad = (f32)(2.0 * (f64)radius);
     }
     item->objgrp.flags = 0;
@@ -1507,7 +1508,13 @@ keyring_found:
     }
     item->playermask = 0;
     item->opener = -1;
-    item->minoff = !ItemVisible(item);
+    found = 0;
+    switch (ItemVisible(item)) {
+    case 0:
+        found = 1;
+        break;
+    }
+    item->minoff = (s8)found;
 
     atree_header = info->item.atreeheader;
     if (instance != NULL && instance->desc[0] != '\0') {
@@ -1620,7 +1627,7 @@ keyring_found:
     {
         u8* wobj = NULL;
         s32 trigger_flags;
-        s32 wobj_index;
+        s16 wobj_index;
 
         if (instance != NULL) {
             switch (subtype) {
@@ -1746,7 +1753,7 @@ keyring_found:
     case 3:
     {
         s32 enemy_type;
-        s32 count_index;
+        s32 count_index = 0;
 
         item->visrad *= 4.0;
         DATA_U8(2) = 0;
@@ -1769,10 +1776,10 @@ keyring_found:
                 if (candidate->type != type) {
                     continue;
                 }
-                if (subtype > 0 && body->subtype != subtype) {
-                    continue;
-                }
-                goto low_item_found;
+                    if (subtype > 0 && body->subtype != subtype) {
+                        continue;
+                    }
+                    goto low_item_found;
             }
             found = -1;
 low_item_found:
@@ -1797,19 +1804,22 @@ low_item_found:
         item->activetime = 40;
         item->health *= DATA_S8(6);
 
-        count_index = DATA_S8(6) - 1;
-        if (count_index < 0) {
+        enemy_type = DATA_S8(6) - 1;
+        if (enemy_type < 0) {
             count_index = 0;
-        } else if (count_index > 2) {
-            count_index = 2;
+        } else {
+            if (enemy_type > 2) {
+                enemy_type = 2;
+            }
+            count_index = enemy_type;
         }
         if (DATA_S8(3) == 0) {
-            DATA_S8(3) =
-                (s8)*(s32*)((u8*)arrows + count_index * 4 + 0x30);
+            s32* defaults = (s32*)(arrows + count_index);
+            DATA_S8(3) = (s8)defaults[12];
         }
         if (DATA_U8(11) == 0) {
-            DATA_U8(11) =
-                (u8)*(s32*)((u8*)arrows + count_index * 4 + 0x3C);
+            s32* defaults = (s32*)(arrows + count_index);
+            DATA_U8(11) = (u8)defaults[15];
         }
         DATA_S8(3) = (s8)(DATA_S8(3) *
                            *(f32*)(gCurLevel + 0xD4));
@@ -1847,12 +1857,12 @@ low_item_found:
                       (f32)*(s16*)&params[0] : 0.0f;
         if (DATA_F32(0) == 0.0f) {
             DATA_F32(0) =
-                (f32)*(s16*)((u8*)info + 0x40);
+                (f32)*(s16*)((u8*)item->info + 0x40);
         }
         DATA_S16(4) = PARAM_S16(2, 0);
         if (DATA_S16(4) != 0) {
-            *(s16*)((u8*)info + 0x48) =
-                (s16)(DATA_S16(4) * -3);
+            scaled = -DATA_S16(4);
+            *(s16*)((u8*)item->info + 0x48) = (s16)(scaled * 3);
         }
         DATA_F32(0) *= *(f32*)(gCurLevel + 0xDC);
         item->health = (s16)(item->health *
@@ -1929,8 +1939,9 @@ low_item_found:
         }
         if (DATA_S16(0) >= 51) {
             goto set_type10_active;
+        } else {
+            goto after_type10_active;
         }
-        goto after_type10_active;
 set_type10_active:
         item->active |= 0x40;
 after_type10_active:
@@ -1997,7 +2008,7 @@ after_type10_active:
         (instance == NULL || (instance->flags & 2) == 0)) {
         u32 flags = 0;
         if (instance != NULL && (instance->flags & 4)) {
-            flags = 0x80000;
+            flags |= 0x80000;
         }
         SetItemGeo(item, atree_header, name, flags);
     } else if (item->objgrp.node == NULL) {
@@ -2036,10 +2047,13 @@ after_type10_active:
         *((u8*)item + 0x83) |= 4;
         break;
     case 1:
-        if (subtype == 15 && sMusicTrackHi == 13 &&
-            gSumnerReady != 0) {
-            item->active |= 0x800;
-            MBTreeSetAlpha((s32)item->objgrp.node, 255, 1);
+        switch (subtype) {
+        case 15:
+            if (sMusicTrackHi == 13 && gSumnerReady != 0) {
+                item->active |= 0x800;
+                MBTreeSetAlpha((s32)item->objgrp.node, 255, 1);
+            }
+            break;
         }
         break;
     }

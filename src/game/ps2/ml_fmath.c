@@ -323,21 +323,20 @@ void GetYawPitch(const f32* vector, f32* yaw, f32* pitch)
     *pitch = atan2(vector[1], distance);
 }
 
-static inline void createDirNormalize(f32* vector)
+static inline void createDirNormalize(f32* vector, volatile f32* root)
 {
     f32 length = vector[0] * vector[0] + vector[1] * vector[1] +
                  vector[2] * vector[2];
     f32 scale;
-    volatile f32 root;
 
     if (length > 0.0f) {
         f64 guess = __frsqrte(length);
         guess = 0.5 * guess * (3.0 - guess * guess * length);
         guess = 0.5 * guess * (3.0 - guess * guess * length);
         guess = 0.5 * guess * (3.0 - guess * guess * length);
-        root = (f32)(length *
-                     (0.5 * guess * (3.0 - guess * guess * length)));
-        length = root;
+        *root = (f32)(length *
+                      (0.5 * guess * (3.0 - guess * guess * length)));
+        length = *root;
     }
     if ((f64)length <= 0.0) {
         scale = 1.0f;
@@ -350,12 +349,16 @@ static inline void createDirNormalize(f32* vector)
 }
 
 /* 0x800BD488 */
+#pragma opt_propagation off
 void CreateDirMatrix(f32* matrix, f32* direction, f32* up)
 {
     f32 angles[3];
     f32 distance;
     u8 unused[8];
     f32 length2;
+    volatile f32 directionRoot;
+    volatile f32 upRoot;
+    u8 rootPad[8];
 
     length2 = direction[0] * direction[0] +
               direction[1] * direction[1] +
@@ -378,12 +381,12 @@ void CreateDirMatrix(f32* matrix, f32* direction, f32* up)
     matrix[8] = direction[0];
     matrix[9] = direction[1];
     matrix[10] = direction[2];
-    createDirNormalize(&matrix[8]);
+    createDirNormalize(&matrix[8], &directionRoot);
 
     matrix[4] = matrix[9] * up[2] - matrix[10] * up[1];
     matrix[5] = matrix[10] * up[0] - matrix[8] * up[2];
     matrix[6] = matrix[8] * up[1] - matrix[9] * up[0];
-    createDirNormalize(&matrix[4]);
+    createDirNormalize(&matrix[4], &upRoot);
 
     matrix[0] = matrix[5] * matrix[10] - matrix[6] * matrix[9];
     matrix[1] = matrix[6] * matrix[8] - matrix[4] * matrix[10];
@@ -393,6 +396,7 @@ void CreateDirMatrix(f32* matrix, f32* direction, f32* up)
     matrix[11] = 0.0f;
     matrix[15] = 1.0f;
 }
+#pragma opt_propagation reset
 
 /* 0x800BD7C4 */
 void ReflectVector2D(const f32* vector, const f32* normal, f32* out)
@@ -734,10 +738,12 @@ void YawMat3(f32* matrix, f32 angle)
 /* Pre-multiply by a roll rotation. */
 void WRollMat3(f32* matrix, f32 angle)
 {
-    u8 unused[16];
-    f32 magnitude = angle;
+    u8 unused0[8];
+    f32 magnitude;
+    u8 unused1[8];
     s32 row;
 
+    magnitude = angle;
     *(u32*)&magnitude &= 0x7FFFFFFF;
     if ((f64)magnitude < 0.0001)
         return;
