@@ -21,7 +21,7 @@
  *   0x800231D4 camera_run_mode          camera-mode state machine (2 jumptables)(local)   BODY
  *   0x80023ED0 camera_mode_follow       largest mode handler (MB blit, project) (local)   BODY
  *   0x80024F30 camera_mode_target       atan2 aiming toward a target            (local)   BODY
- *   0x80025640 debug_camera_pos         object-type + position debug overlay    (local)   giant, doc-only
+ *   0x80025640 debug_camera_pos         object-type + position debug overlay    (local)   BODY
  *   0x80025CEC camera_debug_supervisor  largest fn; drives debug_camera_pos      (local)   giant, doc-only
  *   0x80026CA4 camera_request_change    small request/priority latch            (local)   BODY
  *   0x80026CF0 camera_mode_level        per-level scripted camera               (local)   giant, doc-only
@@ -33,7 +33,7 @@
  *   0x80028560 camera_approach_yaw      rate-limit a cam yaw toward a target    (local)   BODY
  *   0x80028670 camera_mode_orbit        sin/cos orbit mode (-> camera_lerp_yaw) (local)   doc-only
  *   0x80028938 camera_lerp_yaw          rate-limit one angle toward another     (local)   BODY
- *   0x80028A74 camera_mode_dest         scripted move-to ("DEST P=%d, Y=%4.1f") (local)   giant, doc-only
+ *   0x80028A74 camera_mode_dest         scripted move-to ("DEST P=%d, Y=%4.1f") (local)   BODY
  *
  * Data globals in the 0x80344xxx range (shake/state) are SHARED with other
  * TUs (attract.c, sndfx.c, auxscreen.c, ...) and are left under their existing
@@ -159,6 +159,17 @@ typedef struct CameraLevelScratch {
     f32 overheadMatrix[16];        /* stack +0x130 */
     u8 _pad164[8];
 } CameraLevelScratch; /* 0x16C; allocated at r1+0xC */
+
+typedef struct CameraDebugScratch {
+    u8 _pad00[8];                 /* compiler homes below stack +0x14 */
+    s16 projected[2];              /* stack +0x14 */
+    f32 direction[3];              /* stack +0x18 */
+    f32 position[3];               /* stack +0x24 */
+    f32 attention[3];              /* stack +0x30 */
+    f32 normalize[3];              /* stack +0x3C */
+    volatile f32 root;             /* stack +0x48 */
+    f32 desiredAttention[3];       /* stack +0x4C */
+} CameraDebugScratch; /* 0x4C; allocated at r1+0x0C */
 
 /* Camera field access (no full struct recovered; stride 0x18C). */
 #define CAM_F32(c, off) (*(f32*)((u8*)(c) + (off)))
@@ -323,6 +334,7 @@ extern f64 lbl_80345FE0;
 extern f32 lbl_80345FE8;
 extern f64 lbl_80345FF0;
 extern char lbl_80111B3C[];
+extern char lbl_80111A08[];
 
 /* --- external projection / math helpers (G3D / pb layer) --- */
 void MBWorldToScreen(f32* out_xy, void* world_pos);                   /* screen projection (INT path) */
@@ -385,6 +397,7 @@ void camera_mode_spin(s32 camIdx);
 void camera_mode_orbit(s32 camIdx);
 void camera_mode_level(s32 reset);
 void DoShake(Vec3* posA, Vec3* posB);
+s32 debug_camera_pos(s32 lastPlayer);
 
 #define TC_X(i) (*(f32*)(sTriggerCameras + (i) * 0x28 + 4))
 #define TC_Y(i) (*(f32*)(sTriggerCameras + (i) * 0x28 + 8))
@@ -3256,5 +3269,180 @@ void camera_mode_dest(s32 camIdx)
     cam->attn[0] = cam->wpos[0] + finalNormalize[0] * distance;
     cam->attn[1] = cam->wpos[1] + finalNormalize[1] * distance;
     cam->attn[2] = cam->wpos[2] + finalNormalize[2] * distance;
+}
+#pragma opt_common_subs on
+
+#pragma opt_common_subs off
+/* Simulate the debug camera and report whether an active player leaves it. */
+s32 debug_camera_pos(s32 lastPlayer)
+{
+    u8* state = gCameraState;
+    Camera* cam = (Camera*)(state + 0x884);
+    CameraDebugScratch scratch;
+    u8* playerData;
+    char* debugText = lbl_80111A08;
+    f32 distance;
+    f32 extent;
+    f32 scale;
+    f32 screenX;
+    f32 screenY;
+    f64 root;
+    f64 difference;
+    s32 player;
+    s32 offscreen;
+    s32 previousAttention;
+    f32 oldRadius;
+    f32 savedPitch;
+    f32 zeroValue;
+
+    offscreen = 0;
+    CopyCam(state + 0xC8, (u8*)cam);
+    get_attn_pos(5, scratch.desiredAttention);
+    lbl_803443F4 = 0;
+    adjust_radius(5);
+
+    cam->delta[0] = scratch.desiredAttention[0] - cam->attn[0];
+    cam->delta[1] = scratch.desiredAttention[1] - cam->attn[1];
+    cam->delta[2] = scratch.desiredAttention[2] - cam->attn[2];
+    distance = cam->delta[2] * cam->delta[2] +
+               cam->delta[0] * cam->delta[0] +
+               cam->delta[1] * cam->delta[1];
+    if (distance > lbl_80345EC8) {
+        root = __frsqrte(distance);
+        root = lbl_80345F18 * root *
+               -(distance * root * root - lbl_80345F20);
+        root = lbl_80345F18 * root *
+               -(distance * root * root - lbl_80345F20);
+        root = lbl_80345F18 * root *
+               -(distance * root * root - lbl_80345F20);
+        scratch.root = (f32)(distance * lbl_80345F18 * root *
+            -(distance * root * root - lbl_80345F20));
+        distance = scratch.root;
+    }
+
+    extent = lbl_803444E8;
+    if ((f64)extent < lbl_80345F90) {
+        lbl_80344468 = lbl_80345FA0;
+        lbl_80344464 =
+            (f32)(lbl_80345F98 * (f64)(u32)gFrameTicks);
+    } else if ((f64)extent >= lbl_80345FA8) {
+        lbl_80344468 = lbl_80345FB8;
+        lbl_80344464 =
+            (f32)(lbl_80345FB0 * (f64)(u32)gFrameTicks);
+    } else {
+        difference = lbl_80345FA8 - (f64)extent;
+        lbl_80344464 =
+            (f32)(lbl_80345FC0 * difference + lbl_80345FB0);
+        lbl_80344468 =
+            (f32)-(lbl_80345FD0 * difference * lbl_80345FD8 -
+                   lbl_80345FC8);
+    }
+    if (lbl_80344960 < 0 && (f64)extent >= lbl_80345FE0) {
+        lbl_80344468 = lbl_80345FE8;
+        lbl_80344464 = extent * (f32)(u32)gFrameTicks;
+    }
+
+    if (lbl_80344464 <= distance) {
+        if (distance > lbl_80344468) {
+            distance = lbl_80344468;
+        }
+        scale = lbl_80344464 / distance;
+        cam->delta[0] *= scale;
+        cam->delta[1] *= scale;
+        cam->delta[2] *= scale;
+    }
+    cam->attn[0] += cam->delta[0];
+    cam->attn[1] += cam->delta[1];
+    cam->attn[2] += cam->delta[2];
+
+    savedPitch = lbl_80344408;
+    calc_cam_pyr(5, 0);
+    lbl_80344408 = savedPitch;
+    get_cam_wpos(5);
+    zeroValue = lbl_80345EC8;
+    cam->vel[0] = zeroValue;
+    cam->vel[1] = zeroValue;
+    cam->vel[2] = zeroValue;
+    cam->avel[0] = zeroValue;
+    cam->avel[1] = zeroValue;
+    cam->avel[2] = zeroValue;
+    if (lbl_803443F4 != 0) {
+        oldRadius = cam->radius;
+        scratch.normalize[0] = cam->wpos[0] - cam->attn[0];
+        scratch.normalize[1] = cam->wpos[1] - cam->attn[1];
+        scratch.normalize[2] = cam->wpos[2] - cam->attn[2];
+        SlowNormalVector(scratch.normalize);
+        cam->wpos[0] = cam->attn[0] + scratch.normalize[0] * oldRadius;
+        cam->wpos[1] = cam->attn[1] + scratch.normalize[1] * oldRadius;
+        cam->wpos[2] = cam->attn[2] + scratch.normalize[2] * oldRadius;
+    }
+
+    scratch.position[0] = cam->wpos[0];
+    scratch.position[1] = cam->wpos[1];
+    scratch.position[2] = cam->wpos[2];
+    scratch.attention[0] = cam->attn[0];
+    scratch.attention[1] = cam->attn[1];
+    scratch.attention[2] = cam->attn[2];
+    StandardCamera(5);
+    DoShake((Vec3*)scratch.position, (Vec3*)scratch.attention);
+    scratch.direction[0] = scratch.attention[0] - scratch.position[0];
+    scratch.direction[1] = scratch.attention[1] - scratch.position[1];
+    scratch.direction[2] = scratch.attention[2] - scratch.position[2];
+    LookInDirection(scratch.direction, (u32)&cam->mat[0][0]);
+    ProcCamera(5, 0);
+
+    if (lbl_80344A28 == 0) {
+        dbgTextPrintfCol(40, 9, debugText + 196,
+                         (s32)cam->wpos[0], (s32)cam->wpos[1],
+                         (s32)cam->wpos[2]);
+        dbgTextPrintfCol(40, 10, debugText + 220,
+                         (s32)cam->attn[0], (s32)cam->attn[1],
+                         (s32)cam->attn[2]);
+    }
+
+    playerData = gPlayers;
+    for (player = 0; player <= lastPlayer;
+         player++, playerData += 0x335C) {
+        if (*(s32*)(playerData + 0xE8) == 1) {
+            MBWindowProject((f32*)(playerData + 0x54),
+                            (f32*)(state + 0x888), 0, scratch.projected);
+            screenX = (f32)scratch.projected[0];
+            screenY = (f32)scratch.projected[1];
+            if (screenX < (f32)(lbl_80344520 + 30) ||
+                screenX > (f32)(lbl_8034451C - 30) ||
+                screenY > (f32)(lbl_80344518 - 20) ||
+                screenY < (f32)(lbl_80344514 + 40)) {
+                lbl_803444F4 = 0;
+                offscreen = 1;
+                if (lbl_80344A28 == 0) {
+                    dbgTextPrintfCol(10, player + 11,
+                                     debugText + 244, player);
+                }
+            } else if (lbl_80344A28 == 0) {
+                dbgTextPrintfCol(10, player + 11, debugText + 264);
+            }
+            if (lbl_80344A28 == 0) {
+                dbgTextPrintfCol(40, player + 11, debugText + 284,
+                                 (s32)screenX, (s32)screenY, offscreen);
+            }
+        }
+    }
+
+    previousAttention = cam->a_mode;
+    if (cam->c_mode != CAM_OFF) {
+        cam->pc_mode = cam->c_mode;
+        cam->c_mode = CAM_OFF;
+    }
+    if (previousAttention != cam->a_mode) {
+        cam->pa_mode = cam->a_mode;
+        cam->a_mode = (ATN_MODE)previousAttention;
+    }
+    cam->state = 0;
+
+    if (cam->radius < lbl_80344528 ||
+        ((f64)cam->radius < lbl_80345FF0 && lbl_80344960 != 0)) {
+        offscreen = 0;
+    }
+    return offscreen;
 }
 #pragma opt_common_subs on
