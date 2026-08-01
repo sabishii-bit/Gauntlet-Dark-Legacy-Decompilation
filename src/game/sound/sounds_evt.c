@@ -1264,9 +1264,12 @@ void AudioPlayerPoison(int pidx)
 
 void AudioHeartBeat(int pidx)
 {
-    u8* player = &gPlayers[pidx * 13148];
-    f32 v = *(f32*)(player + 7860);
+    u8* player = gPlayers;
+    f32 v;
     int track = lbl_801232C8[pidx];
+
+    player += pidx * 13148;
+    v = *(f32*)(player + 7860);
 
     if (v <= 10.0) {
         sndFxPlayEx(0, track, 202, 9);
