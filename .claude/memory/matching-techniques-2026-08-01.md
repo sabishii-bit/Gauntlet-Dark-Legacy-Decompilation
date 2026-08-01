@@ -197,3 +197,20 @@ The debug print in the same routine is also a useful ABI tell. Declaring
 floating vararg. Pass the already-rounded double expression directly; an
 explicit cast back to `f32` inserts an extra `frsp` immediately before the
 call and changes the surrounding FPR allocation.
+
+## Let compiler homes establish the aggregate base before padding it
+
+`camera_debug_supervisor` needs both an explicit scratch layout and MWCC's own
+eight-byte float-to-integer conversion homes. A first-pass aggregate assumed
+the usual `r1+0x0C` base and made the frame 32 bytes too large. Inspection of
+the compiled displacements showed that MWCC had placed the aggregate at
+`r1+0x30`, above its implicit homes. Reducing only the aggregate's leading pad
+by `0x24` then recovered the retail 0x130-byte frame and, simultaneously, the
+exact offsets for eight inline-fabs temporaries (`+0x4C..+0x68`), two projected
+s16 pairs (`+0x6C/+0x70`), the alternate position (`+0xA4`), the future
+position (`+0xB8`), and conversion homes (`+0xC8..+0xE4`).
+
+The function's late "temporarily move player" path reuses the original future
+position's three stack words for the saved player position. Reusing the same
+aggregate field in C preserves that lifetime overlay; a separately declared
+saved vector is promoted into FPRs and loses the retail spill/reload sequence.
