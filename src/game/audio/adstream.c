@@ -83,6 +83,7 @@ extern s32 sShortenedSizeVoiceLoop; /* 0x8034528C samples per frame x2 */
 extern s32 sShortenedHalfVoiceLoop; /* 0x80345290 samples per frame */
 extern s32 lbl_80345270;   /* largest stream allocation seen */
 extern u32 lbl_80345288;   /* global ADS flags */
+extern s32 sConfig;
 extern ADSTREAM gADS;
 extern AXVPB* sVoice[14];
 
@@ -258,7 +259,36 @@ s32 AdsKeyVoices(ADSTREAM* s) {
 
 /* 0x800D71D0  per-stream service tick: advance frame counters by state, kick a
  * refill command on end-of-stream.  Xbox: (per-stream update - behavioural). */
-void adsUpdateStream(void) {
+s32 adsUpdateStream(ADSTREAM* stream) {
+    s32 result = 0;
+
+    if (stream == NULL) {
+        return 0;
+    }
+    switch (stream->status) {
+    case 0x1000:
+        if (stream->endCount != 0) {
+            stream->keyCount++;
+        }
+        result = -1;
+        break;
+    case 0:
+        stream->keyCount++;
+        if (stream->endCount == 0) {
+            stream->loopCount = 0;
+        }
+        break;
+    case 0x2000:
+        stream->keyCount++;
+        if (stream->endCount == 0) {
+            stream->loopCount = 0;
+        }
+        lbl_80345274 = 13;
+        _AdsThread();
+        break;
+    }
+    sConfig = 1;
+    return result;
 }
 
 /* 0x800D72AC  submit a decoded buffer into the pipeline: parse header on the
