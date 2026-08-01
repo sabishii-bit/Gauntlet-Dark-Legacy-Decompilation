@@ -20,7 +20,7 @@
  *   0x80022DAC camera_init_for_gamemode setup driven by game-mode g_800229D0    (local)   giant, doc-only
  *   0x800231D4 camera_run_mode          camera-mode state machine (2 jumptables)(local)   BODY
  *   0x80023ED0 camera_mode_follow       largest mode handler (MB blit, project) (local)   giant, doc-only
- *   0x80024F30 camera_mode_target       atan2 aiming toward a target            (local)   giant, doc-only
+ *   0x80024F30 camera_mode_target       atan2 aiming toward a target            (local)   BODY
  *   0x80025640 debug_camera_pos         object-type + position debug overlay    (local)   giant, doc-only
  *   0x80025CEC camera_debug_supervisor  largest fn; drives debug_camera_pos      (local)   giant, doc-only
  *   0x80026CA4 camera_request_change    small request/priority latch            (local)   BODY
@@ -194,6 +194,7 @@ extern u8 gPlayers[];
 extern s32 lbl_803444F0;
 extern f32 lbl_80344590;
 extern f32 lbl_80345F38;
+extern f32 lbl_80345F14;
 
 /* --- external projection / math helpers (G3D / pb layer) --- */
 void MBWorldToScreen(f32* out_xy, void* world_pos);                   /* screen projection (INT path) */
@@ -206,6 +207,7 @@ void CopyMat3(const f32* src, f32* dst);
 extern f32 sin(f32 x);
 extern f32 cos(f32 x);
 extern f64 __frsqrte(f64 x);
+extern f32 atan2(f32 y, f32 x);
 extern const f32 lbl_80127D20[3];
 extern const f32 lbl_80127D40[3];
 extern const f32 lbl_80127D50[3];
@@ -221,6 +223,7 @@ void WorldVector(const f32* vector, f32* out, const f32* matrix);
 void StandardCamera(s32 camIdx);
 f32 PointLineColl(f32* point, f32* from, f32* to, f32* closest);
 f32 AddAngle(f32 angle, f32 amount);
+f32 SubAngle(f32 angle, f32 amount);
 f32 get_pitch(f32* from, f32* to);
 void get_attn_pos(s32 camIdx, f32* out);
 int init_game_cam(s32 camIdx);
@@ -989,6 +992,223 @@ free_attention:
 
     default:
         break;
+    }
+}
+
+/* Track the active player object, then settle into an orbit around it. */
+void camera_mode_target(s32 camIdx)
+{
+    Camera* cam = &gCameras[camIdx];
+    s32 objectWasMissing;
+    s32 playerIndex;
+    s32 tries;
+    u8* playerObject;
+    f32 targetYaw;
+    f32 distance;
+    f32 scale;
+    f32 angleDelta;
+    f32 angleStep;
+    f32 currentPitch;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    volatile f32 moveDelta[3];
+    f64 divisorDouble;
+    f32 matrix[16];
+    f32 offset[3];
+    f32 transformed[3];
+    f32 normalize[3];
+    Vec3 movingPosition;
+    Vec3 movingAttention;
+    Vec3 movingDirection;
+    Vec3 finalPosition;
+    Vec3 finalAttention;
+    Vec3 finalDirection;
+    volatile f32 movingRoot;
+    volatile f32 radiusRoot;
+
+    objectWasMissing = cam->camobj == 0 ? -1 : 0;
+    playerIndex = gCameras[0].pn;
+    for (tries = 0; tries < 4; tries++) {
+        if (*(s32*)(gPlayers + playerIndex * 0x335C + 0xE8) == 1 ||
+            *(s32*)(gPlayers + playerIndex * 0x335C + 0xE8) == 4) {
+            playerObject = gPlayers + playerIndex * 0x335C + 0x14;
+            gCameras[0].pn = playerIndex;
+            goto found_target_player;
+        }
+        playerIndex++;
+        if (playerIndex >= 4) {
+            playerIndex = 0;
+        }
+    }
+    playerObject = 0;
+
+found_target_player:
+    cam->camobj = (struct OBJGRP*)playerObject;
+    if (cam->camobj == 0) {
+        return;
+    }
+    if (*(u32*)((u8*)cam->camobj + 0x60) == 0) {
+        return;
+    }
+    if (objectWasMissing != 0) {
+        cam->trans_mode = 0;
+    }
+
+    targetYaw = atan2(*(f32*)((u8*)cam->camobj + 0x20),
+                      *(f32*)((u8*)cam->camobj + 0x28));
+
+    switch (cam->trans_mode) {
+    case 0:
+        cam->pyr[0] = 0.0f;
+        cam->pyr[1] = targetYaw;
+        cam->pyr[2] = 0.0f;
+        cam->trans_mode++;
+        /* fall through */
+    case 1:
+        cam->attn[0] = *(f32*)((u8*)cam->camobj + 0x40);
+        cam->attn[1] = *(f32*)((u8*)cam->camobj + 0x44);
+        cam->attn[2] = *(f32*)((u8*)cam->camobj + 0x48);
+        dx = cam->attn[0] - cam->wpos[0];
+        dy = cam->attn[1] - cam->wpos[1];
+        dz = cam->attn[2] - cam->wpos[2];
+        distance = dy * dy;
+        distance = dx * dx + distance;
+        distance = dz * dz + distance;
+        if (distance > 0.0f) {
+            f64 guess = __frsqrte(distance);
+            guess = 0.5 * guess * (3.0 - distance * guess * guess);
+            guess = 0.5 * guess * (3.0 - distance * guess * guess);
+            guess = 0.5 * guess * (3.0 - distance * guess * guess);
+            movingRoot = (f32)(distance *
+                (0.5 * guess * (3.0 - distance * guess * guess)));
+            distance = movingRoot;
+        }
+        moveDelta[0] = dx;
+        divisorDouble = (f64)distance;
+        moveDelta[1] = dy;
+        moveDelta[2] = dz;
+
+        if ((f64)distance >= 2.0) {
+            if ((f64)distance >= 15.0) {
+                divisorDouble = (f64)lbl_80345F14;
+            }
+            scale = (f32)(2.0 / divisorDouble);
+            moveDelta[0] *= scale;
+            moveDelta[1] *= scale;
+            moveDelta[2] *= scale;
+            cam->wpos[0] += moveDelta[0];
+            cam->wpos[1] += moveDelta[1];
+            cam->wpos[2] += moveDelta[2];
+            moveDelta[0] = cam->wpos[0] - cam->attn[0];
+            moveDelta[1] = cam->wpos[1] - cam->attn[1];
+            moveDelta[2] = cam->wpos[2] - cam->attn[2];
+            dx = moveDelta[0];
+            dy = moveDelta[1];
+            dz = moveDelta[2];
+            distance = dz * dz + dx * dx + dy * dy;
+            if (distance > 0.0f) {
+                f64 guess = __frsqrte(distance);
+                guess = 0.5 * guess * (3.0 - distance * guess * guess);
+                guess = 0.5 * guess * (3.0 - distance * guess * guess);
+                guess = 0.5 * guess * (3.0 - distance * guess * guess);
+                radiusRoot = (f32)(distance *
+                    (0.5 * guess * (3.0 - distance * guess * guess)));
+                distance = radiusRoot;
+            }
+            cam->radius = distance;
+            cam->pyr[0] = get_pitch(cam->wpos, cam->attn);
+            cam->pyr[1] = get_yaw(cam->wpos, cam->attn);
+            movingPosition.x = cam->wpos[0];
+            movingPosition.y = cam->wpos[1];
+            movingPosition.z = cam->wpos[2];
+            movingAttention.x = cam->attn[0];
+            movingAttention.y = cam->attn[1];
+            movingAttention.z = cam->attn[2];
+            StandardCamera(camIdx);
+            DoShake(&movingPosition, &movingAttention);
+            movingDirection.x = movingAttention.x - movingPosition.x;
+            movingDirection.y = movingAttention.y - movingPosition.y;
+            movingDirection.z = movingAttention.z - movingPosition.z;
+            LookInDirection(&movingDirection.x, (u32)&cam->mat[0][0]);
+        } else {
+            cam->pyr[1] = AddAngle(cam->pyr[1], (f32)CAM_PI);
+            cam->radius = lbl_80345F14;
+            lbl_803443F4 = 1;
+            cam->trans_mode++;
+        }
+        break;
+
+    case 2:
+        currentPitch = cam->pyr[0];
+        if ((f64)currentPitch != 0.0) {
+            angleStep = (f32)(0.017453292522222223 * (f64)(u32)gFrameTicks);
+            if ((f64)currentPitch >= 0.0) {
+                cam->pyr[0] = SubAngle(cam->pyr[0], angleStep);
+                if ((f64)cam->pyr[0] <= 0.0) cam->pyr[0] = 0.0f;
+            } else {
+                cam->pyr[0] = AddAngle(cam->pyr[0], angleStep);
+                if ((f64)cam->pyr[0] >= 0.0) cam->pyr[0] = 0.0f;
+            }
+        }
+        angleDelta = FixAngle(cam->pyr[1] - targetYaw);
+        if ((f64)angleDelta != 0.0) {
+            angleStep = (f32)(0.034906585044444445 * (f64)(u32)gFrameTicks);
+            if ((f64)angleDelta >= 0.0) {
+                cam->pyr[1] = SubAngle(cam->pyr[1], angleStep);
+                angleDelta = FixAngle(cam->pyr[1] - targetYaw);
+                if ((f64)angleDelta <= 0.0) cam->pyr[1] = targetYaw;
+            } else {
+                cam->pyr[1] = AddAngle(cam->pyr[1], angleStep);
+                angleDelta = FixAngle(cam->pyr[1] - targetYaw);
+                if ((f64)angleDelta >= 0.0) cam->pyr[1] = targetYaw;
+            }
+        }
+        if ((f64)cam->pyr[0] == 0.0 && (f64)cam->pyr[1] == targetYaw) {
+            cam->trans_mode = -1;
+        }
+        break;
+
+    default:
+        cam->pyr[1] = targetYaw;
+        cam->pyr[2] = 0.0f;
+        break;
+    }
+
+    if (cam->trans_mode != 1) {
+        cam->wpos[0] = *(f32*)((u8*)cam->camobj + 0x40);
+        cam->wpos[1] = *(f32*)((u8*)cam->camobj + 0x44);
+        cam->wpos[2] = *(f32*)((u8*)cam->camobj + 0x48);
+        CreateYPRMatrix(matrix, cam->pyr);
+        offset[0] = 0.0f;
+        offset[1] = 0.0f;
+        offset[2] = cam->radius;
+        WorldVector(offset, transformed, matrix);
+        cam->attn[0] = cam->wpos[0] + transformed[0];
+        cam->attn[1] = cam->wpos[1] + transformed[1];
+        cam->attn[2] = cam->wpos[2] + transformed[2];
+        if (lbl_803443F4 != 0) {
+            f32 cameraRadius = cam->radius;
+            normalize[0] = cam->attn[0] - cam->wpos[0];
+            normalize[1] = cam->attn[1] - cam->wpos[1];
+            normalize[2] = cam->attn[2] - cam->wpos[2];
+            SlowNormalVector(normalize);
+            cam->attn[0] = cam->wpos[0] + normalize[0] * cameraRadius;
+            cam->attn[1] = cam->wpos[1] + normalize[1] * cameraRadius;
+            cam->attn[2] = cam->wpos[2] + normalize[2] * cameraRadius;
+        }
+        finalPosition.x = cam->wpos[0];
+        finalPosition.y = cam->wpos[1];
+        finalPosition.z = cam->wpos[2];
+        finalAttention.x = cam->attn[0];
+        finalAttention.y = cam->attn[1];
+        finalAttention.z = cam->attn[2];
+        StandardCamera(camIdx);
+        DoShake(&finalPosition, &finalAttention);
+        finalDirection.x = finalAttention.x - finalPosition.x;
+        finalDirection.y = finalAttention.y - finalPosition.y;
+        finalDirection.z = finalAttention.z - finalPosition.z;
+        LookInDirection(&finalDirection.x, (u32)&cam->mat[0][0]);
     }
 }
 
