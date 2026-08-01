@@ -225,7 +225,6 @@ void pool_free(MemPoolLists* pool, MemListNode* node) {
 
 /* 0x800D55A8  first-fit allocate (list_remove) */
 MemListNode* pool_alloc(MemPoolLists* pool, MemListNode* node) {
-    char* strings;
     volatile u8 scratch[8];
     MemListNode* result;
     MemListNode* candidate;
@@ -233,9 +232,9 @@ MemListNode* pool_alloc(MemPoolLists* pool, MemListNode* node) {
     s32 owner;
     s32 remaining;
     s32 i;
+    s32 merged;
     MemListNode* freeNode;
 
-    strings = MEMPOOL_STRINGS;
     result = NULL;
     (void)scratch;
     if (node->flags == 0) {
@@ -246,34 +245,28 @@ MemListNode* pool_alloc(MemPoolLists* pool, MemListNode* node) {
     if (owner != lbl_8034525C) {
         if (lbl_8034525C != 0) {
             printf(lbl_80349300);
-            printf(strings);
+            printf(MEMPOOL_STRINGS);
         }
         WaitSema(lbl_80345258);
         lbl_8034525C = owner;
     }
     lbl_80345260++;
 
-    if (pool->primary.head != NULL) {
-        scan = pool->primary.head->prev;
-    } else {
-        scan = NULL;
-    }
+    scan = pool->primary.head != NULL ? pool->primary.head->prev : NULL;
     remaining = 2;
     if (scan != NULL) {
         do {
-            s32 merged;
-
             candidate = scan;
             if (scan != pool->primary.head) {
                 scan = scan->prev;
             }
             merged = 0;
-            if (node->flags == candidate->flags + candidate->key) {
+            if (candidate->flags + candidate->key == node->flags) {
                 node->flags = candidate->flags;
                 node->key += candidate->key;
                 list_remove(&pool->primary, candidate);
                 merged = 1;
-            } else if (candidate->flags == node->flags + node->key) {
+            } else if (node->flags + node->key == candidate->flags) {
                 node->key += candidate->key;
                 list_remove(&pool->primary, candidate);
                 merged = 1;
@@ -292,7 +285,7 @@ MemListNode* pool_alloc(MemPoolLists* pool, MemListNode* node) {
 
     if (result == NULL) {
         freeNode = NULL;
-        for (i = 0; i < (s32)lbl_80345254; i++) {
+        for (i = (s32)freeNode; i < (s32)lbl_80345254; i++) {
             candidate = &((MemListNode*)lbl_80345250)[i];
             if (candidate->flags == 0) {
                 freeNode = candidate;
@@ -300,8 +293,8 @@ MemListNode* pool_alloc(MemPoolLists* pool, MemListNode* node) {
             }
         }
         if (freeNode == NULL) {
-            printf(strings + 32);
-            printf(strings + 44);
+            printf(MEMPOOL_STRINGS + 32);
+            printf(MEMPOOL_STRINGS + 44);
         }
         result = freeNode;
     }
@@ -324,8 +317,8 @@ MemListNode* pool_alloc(MemPoolLists* pool, MemListNode* node) {
         }
         list_verify(&pool->secondary);
     } else {
-        printf(strings + 32);
-        printf(strings + 68);
+        printf(MEMPOOL_STRINGS + 32);
+        printf(MEMPOOL_STRINGS + 68);
     }
 
     if (--lbl_80345260 <= 0) {
@@ -339,7 +332,6 @@ MemListNode* pool_alloc(MemPoolLists* pool, MemListNode* node) {
 /* 0x800D5848  allocate at a fixed address */
 s32 pool_alloc_at(MemPoolLists* pool, MemListNode* node, s32 size,
                   u32 address) {
-    char* strings;
     volatile u8 scratch[8];
     u32 endAddress;
     s32 result;
@@ -349,26 +341,24 @@ s32 pool_alloc_at(MemPoolLists* pool, MemListNode* node, s32 size,
     MemListNode* freeNode;
     MemListNode* head;
     u32 alignmentMask;
+    s32 i;
     MemListNode* remainderNode;
     s32 remainderSize;
     u32 blockSize;
     s32 owner;
-    s32 i;
 
     result = 0;
     (void)scratch;
     totalSize = 0;
     lastSize = 0;
-    strings = MEMPOOL_STRINGS;
-
     if (node->flags != 0) {
-        printf(strings + 32);
-        printf(strings + 196, node->flags);
+        printf(MEMPOOL_STRINGS + 32);
+        printf(MEMPOOL_STRINGS + 196, node->flags);
         return 0;
     }
     if (size == 0) {
-        printf(strings + 32);
-        printf(strings + 248);
+        printf(MEMPOOL_STRINGS + 32);
+        printf(MEMPOOL_STRINGS + 248);
         return 0;
     }
 
@@ -376,7 +366,7 @@ s32 pool_alloc_at(MemPoolLists* pool, MemListNode* node, s32 size,
     if (owner != lbl_8034525C) {
         if (lbl_8034525C != 0) {
             printf(lbl_80349300);
-            printf(strings);
+            printf(MEMPOOL_STRINGS);
         }
         WaitSema(lbl_80345258);
         lbl_8034525C = owner;
@@ -420,8 +410,8 @@ s32 pool_alloc_at(MemPoolLists* pool, MemListNode* node, s32 size,
                     list_insert_size(&pool->primary, freeNode);
                 } else {
                     freeNode->key = address - freeNode->flags;
-                    remainderSize =
-                        (blockSize - alignedSize) - freeNode->key;
+                    remainderSize = blockSize - alignedSize;
+                    remainderSize -= freeNode->key;
                     list_insert_size(&pool->primary, freeNode);
                     if (remainderSize != 0) {
                         remainderNode = NULL;
@@ -435,8 +425,8 @@ s32 pool_alloc_at(MemPoolLists* pool, MemListNode* node, s32 size,
                             }
                         }
                         if (remainderNode == NULL) {
-                            printf(strings + 32);
-                            printf(strings + 44);
+                            printf(MEMPOOL_STRINGS + 32);
+                            printf(MEMPOOL_STRINGS + 44);
                         }
                         if (remainderNode == NULL) {
                             break;
@@ -456,8 +446,8 @@ s32 pool_alloc_at(MemPoolLists* pool, MemListNode* node, s32 size,
     }
 
     if (result == 0) {
-        printf(strings + 32);
-        printf(strings + 284, alignedSize, lastSize, totalSize);
+        printf(MEMPOOL_STRINGS + 32);
+        printf(MEMPOOL_STRINGS + 284, alignedSize, lastSize, totalSize);
     }
 
     if (--lbl_80345260 <= 0) {
@@ -550,7 +540,6 @@ s32 pool_dispose_and_alloc(MemPoolLists* pool, MemListNode* node, s32 size) {
 /* 0x800D5D2C  dispose a block */
 s32 pool_dispose(MemPoolLists* pool, u32 address, u32 size,
                  s32 alignment) {
-    char* strings;
     volatile u8 scratch[8];
     MemListNode* node;
     MemListNode* next;
@@ -560,14 +549,13 @@ s32 pool_dispose(MemPoolLists* pool, u32 address, u32 size,
     s32 result;
     MemListNode* freeNode;
 
-    strings = MEMPOOL_STRINGS;
     (void)scratch;
     result = 0;
     owner = GetThreadId();
     if (owner != lbl_8034525C) {
         if (lbl_8034525C != 0) {
             printf(lbl_80349300);
-            printf(strings);
+            printf(MEMPOOL_STRINGS);
         }
         WaitSema(lbl_80345258);
         lbl_8034525C = owner;
@@ -587,19 +575,18 @@ s32 pool_dispose(MemPoolLists* pool, u32 address, u32 size,
             }
         } while (next != pool->secondary.head);
     }
-    freeNode = NULL;
-    pool->secondary.head = NULL;
+    pool->secondary.head = freeNode = NULL;
 
     node = pool->primary.head;
     if (node != NULL) {
         next = node->next;
         while (next != NULL && next != pool->primary.head) {
-            node->flags = 0;
+            node->flags = (u32)freeNode;
             node = next;
             next = next->next;
         }
     } else {
-        for (i = 0; i < (s32)lbl_80345254; i++) {
+        for (i = (u32)freeNode; i < (s32)lbl_80345254; i++) {
             candidate = &((MemListNode*)lbl_80345250)[i];
             if (candidate->flags == 0) {
                 freeNode = candidate;
@@ -607,8 +594,8 @@ s32 pool_dispose(MemPoolLists* pool, u32 address, u32 size,
             }
         }
         if (freeNode == NULL) {
-            printf(strings + 32);
-            printf(strings + 44);
+            printf(MEMPOOL_STRINGS + 32);
+            printf(MEMPOOL_STRINGS + 44);
         }
         node = freeNode;
     }
@@ -627,7 +614,7 @@ s32 pool_dispose(MemPoolLists* pool, u32 address, u32 size,
         }
         if ((1 << pool->alignmentShift) > alignment) {
             printf(lbl_80349300);
-            printf(strings + 336, 1 << pool->alignmentShift);
+            printf(MEMPOOL_STRINGS + 336, 1 << pool->alignmentShift);
         }
         result = 1;
     }

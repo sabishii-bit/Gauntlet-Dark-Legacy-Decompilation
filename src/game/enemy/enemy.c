@@ -184,6 +184,8 @@ extern f32 lbl_803468F0;
 extern f64 lbl_80346A20;
 extern f64 lbl_80346810;
 extern f64 lbl_80346818;
+extern f64 lbl_803469F8;
+extern f64 lbl_80346A00;
 extern const f32 lbl_80346A4C;
 extern const f32 lbl_80346A50;
 extern const f32 lbl_80346A54;
@@ -871,6 +873,44 @@ void fn_8004E448(Enemy* enemy, s32 arg, f32* pos)
                 fn_8009DCE4(pos);
             } else {
                 fn_8009DDFC(pos);
+            }
+        }
+    }
+}
+
+/* Advance an enemy after it reaches its assigned milestone. */
+void update_enemy_milestone(Enemy* enemy)
+{
+    u8 frame_pad[12];
+    struct {
+        u8 pad[12];
+        f32 vertical;
+        f32 milestone[3];
+    } local;
+    f32 dx;
+    f32 dz;
+
+    if (enemy->plr_ms >= 0) {
+        GetMilestonePos(enemy->plr_ms, local.milestone);
+        dx = *(f32*)((u8*)enemy + 0x34) - local.milestone[0];
+        dz = *(f32*)((u8*)enemy + 0x3C) - local.milestone[2];
+        local.vertical = *(f32*)((u8*)enemy + 0x38) - local.milestone[1];
+        *(u32*)&local.vertical &= 0x7FFFFFFF;
+        if ((f64)local.vertical < lbl_803469F8 &&
+            (f64)fqdist(dx, dz) < lbl_80346A00) {
+            fn_8004E5F8(enemy);
+            enemy->plr_ms = -1;
+            enemy->operation_count = enemy->operation_speed;
+            if (enemy->ms_idx > 0) {
+                if (enemy->ms_idx > 0) {
+                    enemy->ms_idx--;
+                }
+                enemy->max_msidx = enemy->ms_idx;
+            }
+            if (enemy->algorithm == 10) {
+                enemy->collided = 0;
+                enemy->route = 0;
+                enemy->stuck_count = 0;
             }
         }
     }

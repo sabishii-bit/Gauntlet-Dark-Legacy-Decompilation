@@ -696,23 +696,23 @@ s32 StartMagicHealFX(f32 scale, f32* pos)
     u8 unused[8];
     s32 idx;
     f32 s;
+    Effect* e;
+    struct mbnode* node;
 
     s = 0.03125 * scale;
     idx = StartFXSubGuts(FX_MAGICHEAL, pos, 0, 0x880, 0.0f);
     if (s > 1.0) {
         s = 1.0f;
     }
-    {
-        Effect* e = (Effect*)&page->info[idx * 20];
-        struct mbnode* node = ((EffectPage*)e)->fx[0].node;
+    e = (Effect*)&page->info[idx * 20];
+    node = ((EffectPage*)e)->fx[0].node;
 
-        e = (Effect*)((u8*)e + 2976);
-        if (node != NULL) {
-            MBTreeSetFlags(node, 8, 0);
-            e->node->scale[0] = s;
-            e->node->scale[1] = s;
-            e->node->scale[2] = s;
-        }
+    e = (Effect*)((u8*)e + 2976);
+    if (node != NULL) {
+        MBTreeSetFlags(node, 8, 0);
+        e->node->scale[0] = s;
+        e->node->scale[1] = s;
+        e->node->scale[2] = s;
     }
     return idx;
 }
@@ -1073,7 +1073,7 @@ struct fxitem {
     /* 0xCF */ s8 armor;
 };
 
-static s32 SfxSkipItem(struct fxitem* item, u32 a, u32 b)
+static s32 SfxSkipItem_80096FF4(struct fxitem* item, u32 a, u32 b)
 {
     struct fxitemdef* def = item->def;
     s32 sub = def->subtype;

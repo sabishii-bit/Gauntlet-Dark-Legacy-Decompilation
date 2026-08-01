@@ -66,9 +66,18 @@ typedef struct anode {
     /* 0x24 */ f32 frame;
 } anode; /* 0x28 */
 
+typedef struct animseqdesc {
+    /* 0x00 */ u8 _pad00[0x24];
+    /* 0x24 */ s16 wraps;
+    /* 0x26 */ u8 _pad26[2];
+    /* 0x28 */ s16 ntexmods;
+    /* 0x2A */ u8 _pad2A[2];
+    /* 0x2C */ TEXMOD* texmods;
+} animseqdesc; /* 0x30 */
+
 /* -- animinfo: atree playback state (graphics.h Id=3256, 0x38) -- */
 typedef struct animinfo {
-    /* 0x00 */ atreeseq* seqheader;
+    /* 0x00 */ animseqdesc* seqheader;
     /* 0x04 */ void* animheader;
     /* 0x08 */ void* oanimheader;
     /* 0x0C */ s16 numseqs;
@@ -127,6 +136,16 @@ extern void InitTexMod(TEXMOD* tm, int texidx);
 extern int strncpy(char* dst, const char* src, u32 n);
 extern void* MBRemoveNode(void* obj, int flag);
 extern void MBNodeSetParent(void* child, void* parent);
+extern s32 MBOX_NewObject(const char* name, s32 arg1, s32 arg2, s32 arg3);
+extern s32 MBOX_ReallyFindObject(const char* name, s32 arg1, s32 arg2,
+                                s32 create);
+extern void* MBNewObject(s32 object, s32 arg1, void* parent, s32 arg3);
+extern void MBTreeSetFlags(void* object, u32 flags, s32 recurse);
+extern void InitAnimData(u32* data, u32 frameData);
+extern void* AudioSetListenerPos(s32* object, s32 frameData, f32* params);
+extern s32 AnimateTreeFrame(f32 time, animinfo* info, s32 seq, s32 lo, s32 hi);
+extern void DoTexModSeqSub(void* context, TEXMOD* texmod, s32 frame);
+extern const f32 lbl_80345848;
 
 /* intra-TU forward declarations (address-order names retained) */
 anode* AtreeNodeLastSibling(anode* node);
@@ -137,6 +156,8 @@ void AtreeRemoveNodeSub(anode* node);
 anode* AtreeRemoveNode(anode* node, int keep, anode* root);
 void fn_80012F9C();
 void fn_80011134(f32 frame, void* node, int a, int b, int c, int d);
+void fn_80011334(anode* node, animinfo* info, s32 recurse);
+animdata* AnimDataNodeNew(void);
 
 /* ================= file-scope state ================= */
 static s32 AtreeNumNodes;
@@ -210,13 +231,16 @@ void InitTexMods(atreeseq* seq, int texidx)
     TEXMOD* tm;
 
     if (seq != NULL) {
-        if (texidx >= 0) {
-            for (i = 0; i < seq->ntexmods; i++) {
-                tm = (TEXMOD*)((char*)seq->texmods + i * 0x58);
-                InitTexMod(tm, texidx);
-            }
+        if (texidx < 0) {
+            asm { b done }
+        }
+        for (i = 0; i < seq->ntexmods; i++) {
+            tm = (TEXMOD*)((char*)seq->texmods + i * 0x58);
+            InitTexMod(tm, texidx);
         }
     }
+done:
+    ;
 }
 
 /* ---------------- node/seq lookup ---------------- */
@@ -272,7 +296,7 @@ s32 AtreeFindSeq(atree* tree, char* name)
     atreeseq* seqs;
 
     ai = &tree->animinfo;
-    seqs = ai->seqheader;
+    seqs = (atreeseq*)ai->seqheader;
     for (i = 0; i < ai->numseqs; i++) {
         if (strcmp((char*)seqs + i * 0x30, name) == 0) {
             return i;
@@ -369,7 +393,46 @@ void AtreeListLock(int slot)
 /* fn_8001101C: per-object animation dispatch (evaluates texmod sequences via
  * AnimateTreeFrame / DoTexModSeqSub, then recurses into fn_80011334).  DEFERRED --
  * demo float-ABI passthrough (f1..f8 forwarded); needs a dedicated pass. */
-STUB(0x8001101C, fn_8001101C)
+#pragma opt_lifetimes off
+#pragma opt_propagation off
+s32 fn_8001101C(atree* tree, s32 sequence, s32 frame, s32 recurse)
+{
+    animinfo* info;
+    anode* root;
+    animseqdesc* seq;
+    TEXMOD* texmod;
+    void* context;
+    s32 result;
+    s32 i;
+    s32 offset;
+    s32 period;
+
+    root = tree->root;
+    info = &tree->animinfo;
+    result = AnimateTreeFrame(0.0f, info, sequence, frame, frame);
+    if (recurse > 0) {
+        if (info->seqheader != NULL) {
+            seq = &info->seqheader[sequence];
+            context = root->obj;
+            i = 0;
+            offset = 0;
+            while (i < seq->ntexmods) {
+                texmod = (TEXMOD*)((u8*)seq->texmods + offset);
+                period = texmod->frames * texmod->rate;
+                if (frame > period && seq->wraps != 0 && period > 1) {
+                    frame %= period;
+                }
+                DoTexModSeqSub(context, texmod, frame);
+                i++;
+                offset += sizeof(TEXMOD);
+            }
+        }
+        fn_80011334(root, info, recurse);
+    }
+    return result;
+}
+#pragma opt_lifetimes reset
+#pragma opt_propagation reset
 
 void AnimateATree(void* node, int a, int c)
 {
@@ -382,7 +445,7 @@ void fn_80011134(f32 frame, void* node, int a, int b, int c, int d) {}
 
 /* fn_80011334: recursive animation-tree walk/render (DoObjAnimation,
  * MBTreeSet/ClearFlags, DoAnimation).  DEFERRED -- demo float-ABI. */
-STUB(0x80011334, fn_80011334)
+void fn_80011334(anode* node, animinfo* info, s32 recurse) {}
 
 /* ---------------- tree traversal / teardown ---------------- */
 
@@ -780,7 +843,113 @@ anode* fn_80013390(int count)
 /* AtreeNodeInit: create the MBObject for one anode and wire its animdata
  * (MBNewObject / MBOX_NewObject / InitAnimData / AnimDataNodeNew, ~0x264).
  * DEFERRED -- demo float-ABI; semantic skeleton only. */
-STUB(0x80013480, AtreeNodeInit)
+typedef struct AtreeNodeDef {
+    u8 _pad00[0x14];
+    f32 audioParams[3];
+    f32 position[3];
+    s16 type;
+    s16 flags;
+    u32 treeFlags;
+    s32 dataOffset;
+} AtreeNodeDef;
+
+typedef struct AtreeDataBases {
+    u8* type3;
+    u8* animData;
+    u8* type2;
+} AtreeDataBases;
+
+void AtreeNodeInit(anode* node, anode* parent, const char* name,
+                   AtreeDataBases* bases, AtreeNodeDef* def, s32 objectIndex)
+{
+    s32 object;
+    s32 dataOffset;
+
+    if ((def->flags & 1) != 0) {
+        goto generic_object;
+    }
+    if (*name != '\0') {
+        goto named_object;
+    }
+generic_object:
+    node->obj = (void*)MBOX_NewObject(NULL, 0,
+                                     (s32)(parent != NULL ? parent->obj : NULL), 0);
+    if (def == NULL || def->type != 2) {
+        MBTreeSetFlags(node->obj, 1, 0);
+    }
+    goto object_ready;
+named_object:
+    object = MBOX_ReallyFindObject(name, objectIndex, objectIndex, 1);
+    node->obj = MBNewObject(object, 0,
+                            parent != NULL ? parent->obj : NULL, 0);
+object_ready:
+    if (node->obj == NULL) {
+        gErrorCode = 0xFFFF00;
+        FatalError("AtreeNodeInit: MBNewObject returned NULL", 0x804060);
+    }
+    MBTreeSetFlags(node->obj, def->treeFlags, 0);
+
+    if (def == NULL) {
+        goto null_definition;
+    }
+
+    node->type = def->type;
+    dataOffset = def->dataOffset;
+    switch (def->type) {
+    case 1:
+        if (dataOffset >= 0) {
+            *(s32*)&node->frame = (s32)(bases->animData + dataOffset);
+            node->anim = AnimDataNodeNew();
+        } else {
+            *(s32*)&node->frame = 0;
+            node->anim = NULL;
+        }
+        InitAnimData((u32*)node->anim, *(u32*)&node->frame);
+        break;
+    case 2:
+        if (dataOffset >= 0) {
+            object = (s32)(bases->type2 + dataOffset);
+        } else {
+            object = 0;
+        }
+        *(s32*)&node->frame = object;
+        node->anim = (void*)*(u32*)&node->frame;
+        break;
+    case 3:
+        *(s32*)&node->frame = (s32)(bases->type3 + dataOffset);
+        node->anim = (void*)*(u32*)&node->frame;
+        break;
+    case 4:
+        *(s32*)&node->frame = (s32)(bases->type3 + dataOffset);
+        node->anim = AudioSetListenerPos((s32*)node->obj,
+                                         *(s32*)&node->frame,
+                                         def->audioParams);
+        break;
+    default:
+        *(s32*)&node->frame = 0;
+        break;
+    }
+    node->x = def->position[0];
+    node->y = def->position[1];
+    node->z = def->position[2];
+    goto definition_ready;
+
+null_definition:
+    node->type = 0;
+    *(s32*)&node->frame = 0;
+    node->x = lbl_80345848;
+    node->y = lbl_80345848;
+    node->z = lbl_80345848;
+
+definition_ready:
+
+    *(f32*)((u8*)node->obj + 0x30) = node->x;
+    *(f32*)((u8*)node->obj + 0x34) = node->y;
+    *(f32*)((u8*)node->obj + 0x38) = node->z;
+    node->parent = parent;
+    node->child = NULL;
+    node->next = NULL;
+}
 
 animdata* AnimDataNodeNew(void)
 {

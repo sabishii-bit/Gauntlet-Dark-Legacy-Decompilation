@@ -640,9 +640,11 @@ void InitLighting(s32 flag)
     MBSetAmbient(sLevelAmbient, NULL);
     DoLighting(1);
     sLightingScratchY = sLightingZero;
-    sLightingScratchX = sLightingScratchZ = sNegativeHalf;
-    AmbientSpecialCurValue = AmbientSpecialValue = AmbientSpecialTime =
-        sLightingZero;
+    sLightingScratchZ = sNegativeHalf;
+    sLightingScratchX = sNegativeHalf;
+    AmbientSpecialTime = sLightingZero;
+    AmbientSpecialValue = sLightingZero;
+    AmbientSpecialCurValue = sLightingZero;
 }
 
 /* pair up transporter items by matching each one's dest id to another's id. */

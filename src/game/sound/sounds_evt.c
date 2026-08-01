@@ -688,9 +688,13 @@ void fn_8009DB24(int sel, int arg)
             u8* e = *(u8**)(gWorldData + 44) + idx * 24;
 
             if (*(s32*)(e + 16) >= 0) {
-                sndFxPlay3DAtten(*(s32*)(e + 16), arg,
-                                 *(s16*)(e + 20) != 0 ? *(s16*)(e + 20) : 224,
-                                 *(s16*)(e + 22) != 0 ? *(s16*)(e + 22) : 126);
+                s32 customFlags;
+
+                sndFxPlay3DAtten(
+                    *(s32*)(e + 16), arg,
+                    *(s16*)(e + 20) != 0 ? *(s16*)(e + 20) : 224,
+                    (customFlags = *(s16*)(e + 22),
+                     customFlags != 0 ? customFlags : 126));
             }
         }
         break;
@@ -1262,6 +1266,10 @@ void AudioPlayerPoison(int pidx)
     }
 }
 
+typedef struct AudioPlayerRecord {
+    u8 data[13148];
+} AudioPlayerRecord;
+
 void AudioHeartBeat(int pidx)
 {
     u8* player = gPlayers;
@@ -1281,7 +1289,6 @@ void AudioHeartBeat(int pidx)
         sndFxPlayEx(0, track, 127, 9);
     }
 }
-
 #pragma opt_propagation off
 void AudioPlayerPain(int pidx)
 {
@@ -1469,6 +1476,7 @@ void fn_8009CEE0(int pidx, int sel, int flags)
     sndFxPlayEx(soundId, p1, pan, 66);
 }
 
+#pragma opt_propagation off
 void fn_8009CFA8(int pidx, int sel)
 {
     s32* t = lbl_801232C8;
@@ -1485,6 +1493,7 @@ void fn_8009CFA8(int pidx, int sel)
     }
     sndFxPlayEx(soundId, p1, 127, 66);
 }
+#pragma opt_propagation reset
 
 void AudioBridgeOpen(int pos)
 {

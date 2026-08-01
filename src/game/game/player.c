@@ -546,7 +546,7 @@ extern void PlayerMotion_SetAnimState(void* p);
 
 /* enemy/anim */
 extern void DoPlayerAction(void* p);
-extern void PlayerCheckMovingFloor(void* p);
+extern void PlayerCheckMovingFloor_80088688(void* p);
 extern void PlayerDoWeapTrail(void* p);
 
 /* ------------------------------------------------------------------ */
@@ -1714,7 +1714,7 @@ void do_players(void) {
                 }
                 break;
             case 2:
-                PlayerCheckMovingFloor(p);
+                PlayerCheckMovingFloor_80088688(p);
                 for (j = 0; j < 4; j++) {
                     s32 st;
 
@@ -1724,7 +1724,7 @@ void do_players(void) {
                 }
                 break;
             case 3:
-                PlayerCheckMovingFloor(p);
+                PlayerCheckMovingFloor_80088688(p);
                 if (MBBackgroundLoading() == 0 && gGameMode != 0x4013 &&
                     gGameMode != 0x4017) {
                     activate_player(i);
@@ -1872,7 +1872,7 @@ void do_players(void) {
                 break;
             case 8:
                 PlayerProcessPowerups(p, 0, NULL);
-                PlayerCheckMovingFloor(p);
+                PlayerCheckMovingFloor_80088688(p);
                 if (p->count_920 > 0) {
                     p->anim_20C = 0x7E;
                     if (p->anim_208 == 0x7E) {
@@ -2340,6 +2340,7 @@ static s32 all_players_go_to_same_level(void) {
 }
 
 /* Player index+1 if someone is riding a moving lift/platform.         */
+#pragma opt_propagation off
 s32 PlayerOnMovingObject(void) {
     u8* obj;
     u8* mo;
@@ -2365,6 +2366,7 @@ s32 PlayerOnMovingObject(void) {
     }
     return 0;
 }
+#pragma opt_propagation reset
 
 /* Another player (not i / not obj) currently riding something?        */
 s32 OtherPlayerOnOtherMovingObject(s32 i, u8* obj) {

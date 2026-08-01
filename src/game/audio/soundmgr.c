@@ -679,6 +679,7 @@ void sndSysClear(void)
 #pragma dont_inline off
 
 /* 0x800432EC  synchronise: emit begin/end commands (0xc, 0xd) */
+#pragma opt_strength_reduction off
 void sndSysSync(void)
 {
     SndState* s = &g;
@@ -713,3 +714,4 @@ void sndSysSync(void)
     }
     sMode = want;
 }
+#pragma opt_strength_reduction reset

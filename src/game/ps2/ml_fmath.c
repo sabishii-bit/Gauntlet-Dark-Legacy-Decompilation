@@ -23,6 +23,7 @@ extern void srand(u32 seed);
 extern u32 pbRand(void);
 extern u32 lbl_80344F08; /* sRandom */
 extern f64 sqrt(f64 x);
+extern f64 __fabs(f64 x);
 extern f64 __frsqrte(f64 x);
 extern f32 sin(f32 x);
 extern f32 cos(f32 x);
@@ -33,6 +34,7 @@ extern void sceSamp0TransposeMatrix(f32* dst, const f32* src);
 extern void sceSamp0CopyMatrix34(f32* dst, const f32* src);
 extern void mat44Mult__FR5mat44R5mat44R5mat44(f32* dst, f32* lhs, f32* rhs);
 extern void __as__5mat44FRC5mat44(f32* dst, const f32* src);
+extern const f32 gIdentityMatrix[];
 
 /* 0x800BCAAC - piecewise square-root approximation */
 f32 smallsqrt(f32 value)
@@ -105,11 +107,91 @@ void Randomize(u32 seed) {
     srand(seed);
 }
 
-/* 0x800BCD68 */
-void ExtractYPR(void) {}
+/* 0x800BCD68 - extract yaw/pitch/roll angles from a 4x4 matrix. */
+void ExtractYPR(const f32* matrix, f32* angles)
+{
+    f32 absValue = matrix[9];
+    u8 unused[48];
+    f32 angle2;
+    f32 angle1;
+    f32 angle0;
+    f32 magnitude;
 
-/* 0x800BCED8 */
-void ExtractPYR(void) {}
+    *(u32*)&absValue &= 0x7FFFFFFF;
+    if (__fabs(1.0 - absValue) < 0.0001) {
+        f64 lockedAngle;
+        angle1 = atan2(-matrix[2], matrix[0]);
+        if (matrix[9] > 0.0f) {
+            lockedAngle = 1.570796327;
+        } else {
+            lockedAngle = -1.570796327;
+        }
+        angle0 = lockedAngle;
+        angle2 = 0.0f;
+    } else {
+        angle2 = atan2(-matrix[1], matrix[5]);
+        magnitude = cos(angle2);
+        if (magnitude == 0.0) {
+            if (angle2 > 0.0) {
+                angle0 = atan2(-matrix[1], matrix[9]);
+                angle1 = atan2(-matrix[4], matrix[6]);
+            } else {
+                angle0 = atan2(matrix[1], matrix[9]);
+                angle1 = atan2(-matrix[6], matrix[4]);
+            }
+        } else {
+            magnitude = matrix[5] / magnitude;
+            angle0 = atan2(matrix[9], magnitude);
+            angle1 = atan2(matrix[8] / magnitude, matrix[10] / magnitude);
+        }
+    }
+    angles[0] = angle0;
+    angles[1] = angle1;
+    angles[2] = angle2;
+}
+
+/* 0x800BCED8 - extract pitch/yaw/roll angles from a 4x4 matrix. */
+void ExtractPYR(const f32* matrix, f32* angles)
+{
+    f32 absValue = matrix[2];
+    u8 unused[48];
+    f32 angle0;
+    f32 angle1;
+    f32 angle2;
+    f32 magnitude;
+
+    *(u32*)&absValue &= 0x7FFFFFFF;
+    if (__fabs(1.0 - absValue) < 0.0001) {
+        f64 lockedAngle;
+        angle0 = atan2(matrix[9], matrix[5]);
+        if (matrix[2] > 0.0f) {
+            lockedAngle = -1.570796327;
+        } else {
+            lockedAngle = 1.570796327;
+        }
+        angle1 = lockedAngle;
+        angle2 = 0.0f;
+    } else {
+        angle0 = atan2(-matrix[6], matrix[10]);
+        magnitude = cos(angle0);
+        if (magnitude == 0.0) {
+            if (angle0 > 0.0) {
+                angle1 = atan2(-matrix[2], -matrix[6]);
+                angle2 = atan2(-matrix[8], -matrix[9]);
+            } else {
+                angle1 = atan2(-matrix[2], matrix[6]);
+                angle2 = atan2(matrix[8], matrix[9]);
+            }
+        } else {
+            magnitude = matrix[10] / magnitude;
+            angle1 = atan2(-matrix[2], magnitude);
+            angle2 = atan2(-matrix[1] / magnitude, matrix[0] / magnitude);
+        }
+    }
+    angles[0] = angle0;
+    angles[1] = angle1;
+    angles[2] = angle2;
+}
 
 /* 0x800BD050 */
 void CreateYPRMatrix(f32* matrix, const f32* angles)
@@ -139,7 +221,7 @@ void CreateYPRMatrix(f32* matrix, const f32* angles)
 /* 0x800BD154 */
 void CreateRYPMatrix(f32* matrix, const f32* angles)
 {
-    u8 unused[8];
+    volatile u8 unused[8];
     f32 c0 = ffcos(angles[0]);
     f32 s0 = -ffsin(angles[0]);
     f32 c1 = ffcos(angles[1]);
@@ -241,8 +323,76 @@ void GetYawPitch(const f32* vector, f32* yaw, f32* pitch)
     *pitch = atan2(vector[1], distance);
 }
 
+static inline void createDirNormalize(f32* vector)
+{
+    f32 length = vector[0] * vector[0] + vector[1] * vector[1] +
+                 vector[2] * vector[2];
+    f32 scale;
+    volatile f32 root;
+
+    if (length > 0.0f) {
+        f64 guess = __frsqrte(length);
+        guess = 0.5 * guess * (3.0 - guess * guess * length);
+        guess = 0.5 * guess * (3.0 - guess * guess * length);
+        guess = 0.5 * guess * (3.0 - guess * guess * length);
+        root = (f32)(length *
+                     (0.5 * guess * (3.0 - guess * guess * length)));
+        length = root;
+    }
+    if ((f64)length <= 0.0) {
+        scale = 1.0f;
+    } else {
+        scale = (f32)(1.0 / length);
+    }
+    vector[0] *= scale;
+    vector[1] *= scale;
+    vector[2] *= scale;
+}
+
 /* 0x800BD488 */
-void CreateDirMatrix(void) {}
+void CreateDirMatrix(f32* matrix, f32* direction, f32* up)
+{
+    f32 angles[3];
+    f32 distance;
+    u8 unused[8];
+    f32 length2;
+
+    length2 = direction[0] * direction[0] +
+              direction[1] * direction[1] +
+              direction[2] * direction[2];
+    if ((f64)length2 < 0.001) {
+        sceSamp0CopyMatrix34(matrix, (f32*)gIdentityMatrix);
+        matrix[15] = 1.0f;
+        return;
+    }
+    if (up == 0) {
+        distance = fqdist(direction[0], direction[2]);
+        angles[0] = (f32)(0.5 * atan2(direction[1], distance));
+        distance = direction[2];
+        angles[1] = atan2(direction[0], distance);
+        angles[2] = 0.0f;
+        CreateYPRMatrix(matrix, angles);
+        return;
+    }
+
+    matrix[8] = direction[0];
+    matrix[9] = direction[1];
+    matrix[10] = direction[2];
+    createDirNormalize(&matrix[8]);
+
+    matrix[4] = matrix[9] * up[2] - matrix[10] * up[1];
+    matrix[5] = matrix[10] * up[0] - matrix[8] * up[2];
+    matrix[6] = matrix[8] * up[1] - matrix[9] * up[0];
+    createDirNormalize(&matrix[4]);
+
+    matrix[0] = matrix[5] * matrix[10] - matrix[6] * matrix[9];
+    matrix[1] = matrix[6] * matrix[8] - matrix[4] * matrix[10];
+    matrix[2] = matrix[4] * matrix[9] - matrix[5] * matrix[8];
+    matrix[3] = 0.0f;
+    matrix[7] = 0.0f;
+    matrix[11] = 0.0f;
+    matrix[15] = 1.0f;
+}
 
 /* 0x800BD7C4 */
 void ReflectVector2D(const f32* vector, const f32* normal, f32* out)

@@ -1489,14 +1489,14 @@ u8* loadOpeningBanner(void)
  */
 void beginSaveTransaction(void)
 {
-    u8* buf;
     u32 size = 0x310000;
+    u8* buf;
     u8* lo;
     u8 pad[8]; /* unused, matches original frame */
 
     sysSetFlags(64);
     buf = (u8*) GetHiMemCacheTop();
-    dcsAramWriteTop(buf - 0x310000, 0x310000);
+    dcsAramWriteTop((void*)((u32)buf - 0x310000), 0x310000);
     lo = buf - 0x310000;
     lbl_80344A0C = OSCreateHeap(lo, lo + size);
     lbl_80344A08 = OSSetCurrentHeap(lbl_80344A0C);

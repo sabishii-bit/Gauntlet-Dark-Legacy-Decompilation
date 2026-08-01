@@ -528,6 +528,11 @@ void PlayerMotion_HitTarget(Player* p, void* target, s32 arg, f32 range) {
         }
     }
 }
+typedef struct EnemyDamageView {
+    u8 _000[0x2B8];
+    f32 hitCooldown[4];
+} EnemyDamageView;
+
 /* 0x80086A24 - deal a melee hit to the enemy or critter identified by
  * `targetId` (>=0x10000 = critter pool, else enemy list): honor the per-player
  * hit cooldown, build the knockback direction from p's facing + damage, call
@@ -535,16 +540,17 @@ void PlayerMotion_HitTarget(Player* p, void* target, s32 arg, f32 range) {
  * hit result code, or -1. */
 s32 PlayerMotion_DamageTarget(Player* p, s32 targetId, s32 a3, s32 a4, s32 a5,
                               f32 dmg, f32 priority) {
+    u8 unused[8];
     f32 dir[3];
-    u8* enemy;
     u8* critter;
+    EnemyDamageView* enemy;
     s32 result = -1;
 
     if (targetId >= 0x10000) {
         critter = &gCritterPool[(targetId & 0xFFFF) * 2784];
         enemy = NULL;
     } else if (targetId >= 0) {
-        enemy = &gEnemies[targetId * 916];
+        enemy = (EnemyDamageView*)&gEnemies[targetId * 916];
         critter = NULL;
     } else {
         return -1;
@@ -552,7 +558,7 @@ s32 PlayerMotion_DamageTarget(Player* p, s32 targetId, s32 a3, s32 a4, s32 a5,
 
     if (priority > lbl_80347B08) {
         if (enemy != NULL) {
-            if (sMusicFadeBase < PF(enemy, 0x2B8 + p->index * 4, f32)) {
+            if (sMusicFadeBase < enemy->hitCooldown[p->index]) {
                 return -1;
             }
         } else if (critter != NULL) {
@@ -562,7 +568,7 @@ s32 PlayerMotion_DamageTarget(Player* p, s32 targetId, s32 a3, s32 a4, s32 a5,
         }
     }
 
-    if (dmg == lbl_80347B30) {
+    if (lbl_80347B30 == dmg) {
         dmg = PF(p, 0x104, f32);
     }
     if ((PF(p, 0x124, u32) & 0x100) != 0) {
@@ -577,16 +583,17 @@ s32 PlayerMotion_DamageTarget(Player* p, s32 targetId, s32 a3, s32 a4, s32 a5,
     }
 
     if (enemy != NULL) {
-        s32 estate = PF(enemy, 0xB4, s32);
+        s32 estateRaw = PF(enemy, 0xB4, s32);
+        s32 estate = estateRaw;
         if (PF(enemy, 0x200, f32) > lbl_80347B08 &&
-            (estate == 1 || estate == 6)) {
+            (estateRaw == 1 || estateRaw == 6)) {
             result = damage_enemy(enemy, p->index, a3, a4, dir, 1, dmg);
         }
         if (result >= 0) {
             PlayerDamagedEnemy(p, enemy, estate, result, a5);
         }
         if (priority > lbl_80347B08) {
-            PF(enemy, 0x2B8 + p->index * 4, f32) = sMusicFadeBase + priority;
+            enemy->hitCooldown[p->index] = sMusicFadeBase + priority;
         }
     } else if (critter != NULL) {
         result = CritterDamage(critter, p->index, a3, a4, dir, 1, dmg);
@@ -913,7 +920,7 @@ int PlayerCheckFloor(Player* p, WorldObj* obj, f32* dpos) {
 
 STUB(0x80088068, PlayerCollideFloor)
 
-int PlayerCheckMovingFloor(Player* p) {
+int PlayerCheckMovingFloor_80088688(Player* p) {
     f32 drop = -(3.0 + (f64)PF(p, 0x854, f32));
     if (gGameMode == 0x4010) {
         PF(p, 0x8C4, u32) = FloorCollide(PF(p, 0x850, f32), 0.0f, drop,

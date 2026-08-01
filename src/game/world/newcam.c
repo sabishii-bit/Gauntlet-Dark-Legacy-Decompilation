@@ -459,9 +459,14 @@ void* fn_8006FBAC(f32* pos) {
 void* fn_8006FCDC(f32* pos) {
     u8 unused[8];
     s32 best = -1;
-    f32 bestDist = 0.0f;
     s32 sel;
     s32 i;
+    f32 bestDist = 0.0f;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 d;
+    f32 selDist;
 
     if (sNumTriggerCameras <= 0) {
         return NULL;
@@ -470,10 +475,10 @@ void* fn_8006FCDC(f32* pos) {
     for (i = 0; i < sNumTriggerCameras; i++) {
         NcMarker* m = &sTriggerCameras[i];
         if (m->flag == 0 && i != sel) {
-            f32 dy = pos[1] - m->y;
-            f32 dx = pos[0] - m->x;
-            f32 dz = pos[2] - m->z;
-            f32 d = dy * dy + dx * dx + dz * dz;
+            dx = pos[0] - m->x;
+            dy = pos[1] - m->y;
+            dz = pos[2] - m->z;
+            d = dx * dx + dy * dy + dz * dz;
             if (best < 0 || d < bestDist) {
                 bestDist = d;
                 best = i;
@@ -484,10 +489,10 @@ void* fn_8006FCDC(f32* pos) {
         lbl_80343CF8 = best;
     } else {
         NcMarker* m = &sTriggerCameras[sel];
-        f32 dy = pos[1] - m->y;
-        f32 dx = pos[0] - m->x;
-        f32 dz = pos[2] - m->z;
-        f32 selDist = dy * dy + dx * dx + dz * dz;
+        dx = pos[0] - m->x;
+        dy = pos[1] - m->y;
+        dz = pos[2] - m->z;
+        selDist = dx * dx + dy * dy + dz * dz;
         if (bestDist <= 0.4444444444444444 * selDist) {
             MBTreeSetAlpha(m->node, 100, 0);
             lbl_80343CF8 = best;

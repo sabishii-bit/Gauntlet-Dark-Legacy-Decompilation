@@ -156,6 +156,7 @@ void pbDiagDrawMenuB(DiagMenu* menu) {
     }
 }
 
+#pragma opt_propagation off
 void pbInitDiag(int mode) {
     f32* dp = gDiagData;
     f32* fp = (f32*)buttons;
@@ -178,6 +179,7 @@ void pbInitDiag(int mode) {
     gDiag_D4 = 0;
     pbResetDiag();
 }
+#pragma opt_propagation reset
 
 void pbResetDiag(void) {
     int i;
