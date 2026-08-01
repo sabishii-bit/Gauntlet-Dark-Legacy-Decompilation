@@ -146,3 +146,19 @@ target's deliberate spill/reload sequence across an inlined reciprocal-square
 root.  Populate it only after the root calculation; making the input vector
 volatile too early changes the load schedule and over-constrains the first
 distance calculation.
+
+## Reuse one TU base in giant camera supervisors
+
+`camera_mode_follow` has six independent position/attention/direction triples,
+four normalization vectors, three square-root spills, a projection pair, and
+an averaged focus vector. Letting MWCC pack those as ordinary locals produced
+the right behavior in a 432-byte frame, while retail used a 512-byte frame.
+A single `CameraFollowScratch` overlay allocated at `r1+0x0C` recovered every
+important retail offset from `r1+0x10` through `r1+0x168` and the exact frame.
+
+For this unusually large function, `#pragma opt_common_subs off` stopped MWCC
+from hoisting scratch-member addresses across `StandardCamera`; retail instead
+rematerializes each `addi r3,r1,offset` just before `DoShake`. Also derive the
+camera, focus-history array, backup camera, and projection matrix from one
+`gCameraState` base. The target retains that common base in one saved GPR,
+where separately named globals produce extra `lis/addi` pairs and lifetimes.
