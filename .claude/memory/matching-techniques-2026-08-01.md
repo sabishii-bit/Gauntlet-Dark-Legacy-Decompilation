@@ -130,3 +130,19 @@ them.  Reordering `camera_run_mode` to the target's physical body order
 structural diff while leaving the behavior unchanged.  Also keep the
 zero-attention switch after the nonzero-attention switch and branch to it with
 a label; an early source-level `if` places the whole second switch first.
+
+## Audit math prototypes when an otherwise-correct call gains `frsp`
+
+`camera_mode_target` calls the MSL-named `atan2` through the engine's
+PS2-facing float ABI, just like CAMERA's `sin` and `cos` calls.  Declaring it
+as the standard double-returning function inserted an immediate `frsp` and
+propagated conversions through the settling logic.  The recovered prototype
+`f32 atan2(f32, f32)` restored the target's plain `fmr f31,f1` result path and
+removed the conversion cascade.  Treat a lone post-call `frsp` as a prototype
+diagnostic before attempting register-shaping changes.
+
+For the same handler, a volatile three-float movement vector reproduced the
+target's deliberate spill/reload sequence across an inlined reciprocal-square
+root.  Populate it only after the root calculation; making the input vector
+volatile too early changes the load schedule and over-constrains the first
+distance calculation.
