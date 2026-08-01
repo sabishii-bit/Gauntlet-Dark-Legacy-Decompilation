@@ -3269,9 +3269,9 @@ s32 PlayerWriteSaveFile(s32 i, s32 slot) {
 
 /* Revive dying players and restore per-character health.              */
 void PlayersRestoreHealth(void) {
+    s32 chartype;
     Player* p = P(0);
     f32 cap;
-    s32 chartype;
     s32 i;
     u8 unused[8];
 
