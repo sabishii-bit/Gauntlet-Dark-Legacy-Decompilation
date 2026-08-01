@@ -47,7 +47,8 @@ typedef struct ADSTREAM {
     /* 0x10 */ s32 ringSize;
     /* 0x14 */ s32 ringUsed;
     /* 0x18 */ u32 spuReadBase;
-    /* 0x1C */ u8 _pad1C[0x24 - 0x1C];
+    /* 0x1C */ u32 loopMarker;
+    /* 0x20 */ s32 fileRemaining;
     /* 0x24 */ void* ringPtr;
     /* 0x28 */ s32 ringRead;
     /* 0x2C */ s32 ringWrite;
@@ -95,6 +96,9 @@ extern void dcsSetStreamFlag(void* stream, s32 looping);
 extern void* memset(void* p, int c, u32 n);
 
 void _AdsThread(void);
+s32 adsMoveCookedToSpu(ADSTREAM* stream);
+s32 adsMoveRawToCooked(ADSTREAM* stream);
+s32 adsMoveFileToRaw(ADSTREAM* stream);
 
 /* Mark a stream's volume dirty (inlined helper). */
 static void adsMarkVol(ADSTREAM* s, s32 vol) {
@@ -138,8 +142,10 @@ void adsPoll(void) {
 /* 0x800D62F0  cooked ring -> ARAM/SPU: ARQPostRequest per block, DCFlushRange,
  * AXSetVoiceAdpcmLoop; prints "DCSERROR: SPU UNDERRUN..." on underrun.
  * Xbox: adsMoveCookedToSpu. */
-void adsMoveCookedToSpu(void) {
+#pragma dont_inline on
+s32 adsMoveCookedToSpu(ADSTREAM* stream) {
 }
+#pragma dont_inline off
 
 /* 0x800D657C  ARQ last-block completion callback: sets the "voices ready"
  * gate flag (lbl_80345268 = 1).  Xbox: (SPU/ARQ done callback - behavioural). */
@@ -149,17 +155,47 @@ void adsArqDone(void) {
 
 /* 0x800D6588  raw ring -> cooked ring: wraps/segments the copy across the ring
  * boundary via memcpy, advances the cooked cursors.  Xbox: adsMoveRawToCooked. */
-void adsMoveRawToCooked(void) {
+#pragma dont_inline on
+s32 adsMoveRawToCooked(ADSTREAM* stream) {
 }
+#pragma dont_inline off
 
 /* 0x800D683C  file -> raw ring: FileBufSeek to the SSbd body / loop point,
  * FileBufGet into the raw ring.  Xbox: adsMoveFileToRaw. */
-void adsMoveFileToRaw(void) {
+#pragma dont_inline on
+s32 adsMoveFileToRaw(ADSTREAM* stream) {
 }
+#pragma dont_inline off
 
 /* 0x800D69B8  pump one pipeline cycle: cooked->spu, file->raw, raw->cooked,
  * then handle loop wrap.  Xbox: adsFeed. */
-void adsFeed(void) {
+s32 adsFeed(ADSTREAM* stream) {
+    s32 result = 0;
+    u32 previousMarker;
+    s32 remaining;
+
+    adsMoveCookedToSpu(stream);
+    if (stream->file != NULL) {
+        adsMoveFileToRaw(stream);
+    }
+    previousMarker = stream->loopMarker;
+    adsMoveRawToCooked(stream);
+    remaining = stream->fileRemaining;
+    if (remaining <= 0 && stream->ringRead <= 0) {
+        result = 1;
+    } else if (previousMarker != 0 && stream->loopMarker == 0) {
+        result = 1;
+    }
+    if (stream->file != NULL) {
+        s32* file = stream->file;
+
+        if ((remaining & ~0xF) != ((file[3] + file[5]) & ~0xF) &&
+            (stream->mode & 0x80) != 0) {
+            stream->loopCount++;
+            stream->ringWrite = 0;
+        }
+    }
+    return result;
 }
 
 /* 0x800D6A8C  command/state processor: consumes the pending command
