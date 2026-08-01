@@ -103,3 +103,30 @@ This is the register-color counterpart to the typed-local subscript law: an
 early `&array[index]` element pointer can coalesce with the eventual argument
 register, while a base pointer keeps the array base web live and colors the
 compiler-created scaled-index temporary separately.
+
+## Model a giant function's stack as one explicit scratch layout
+
+`camera_run_mode` initially emitted the right operations in a 248-byte frame,
+while the target used 360 bytes and every address-taken vector was displaced.
+An explicit `CameraRunScratch` aggregate, with fields placed at the observed
+stack offsets and enough trailing padding to put MWCC's unsigned-to-double
+conversion slot immediately before the saved registers, reproduced the exact
+frame and every scratch displacement at once.  This is substantially safer
+than scattering unrelated dead arrays through a large state machine.
+
+Account for the ABI's local-area base empirically: this function's aggregate
+landed at `r1+12`, so its first padding region is four bytes smaller than an
+`r1+8` estimate, with those four bytes restored at the tail to preserve the
+total frame.  Address-taken aggregate members can still make MWCC cache two
+member addresses in nonvolatile GPRs across a call; treat that as a separate
+register-allocation residual rather than disturbing an otherwise exact frame.
+
+## Switch-arm source order controls the emitted state-machine layout
+
+For two jump tables with identical case values, matching only the cases is not
+enough.  MWCC emits case bodies in source order and points the table entries at
+them.  Reordering `camera_run_mode` to the target's physical body order
+(`CAM_VECDIST`, game modes, object mode, follow modes, off) collapsed a huge
+structural diff while leaving the behavior unchanged.  Also keep the
+zero-attention switch after the nonzero-attention switch and branch to it with
+a label; an early source-level `if` places the whole second switch first.
