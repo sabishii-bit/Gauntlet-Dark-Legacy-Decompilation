@@ -1279,6 +1279,7 @@ void AudioHeartBeat(int pidx)
     }
 }
 
+#pragma opt_propagation off
 void AudioPlayerPain(int pidx)
 {
     u8* player = &gPlayers[pidx * 13148];
@@ -1286,7 +1287,9 @@ void AudioPlayerPain(int pidx)
     if (*(int*)(player + 232) == 1) {
         int pan = AudioAng((int)(player + 68));
         int r = RandInt(4);
-        int id = lbl_801234E4[*(int*)(player + 8)][r];
+        u32 randomOffset = (u32)r << 2;
+        int id = *(int*)((u8*)lbl_801234E4 +
+                         (*(int*)(player + 8) << 4) + randomOffset);
 
         if (*(int*)(player + 292) & 0x400) {
             id = 96;
@@ -1294,6 +1297,7 @@ void AudioPlayerPain(int pidx)
         sndFxQueAdd(id, -1.0f, 1.0f, 224, pan, 100);
     }
 }
+#pragma opt_propagation reset
 
 void AudioNumRunesFound(int runeCount)
 {
