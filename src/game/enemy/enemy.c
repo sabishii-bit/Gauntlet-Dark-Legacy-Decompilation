@@ -3575,7 +3575,6 @@ f32 turn_enemy_ang(Enemy* e, f32 want)
 
 /* --- generate_enemy externs --- */
 extern s32 RandInt(s32 n);
-extern s32 fn_8004F87C(s32 type, s32 level, s32 a);  /* resolve spew/drop class */
 extern f32 fn_8004FBC8(f32* v, f32* out, s32 d);     /* rotate spawn dir d */
 extern s32 check_enemy_pos(f32* start, f32* out, s32 slot);
 extern void SetEnemyObj(s32 slot, f32* pos, s32 type, s32 level, s32 spew);
@@ -3589,6 +3588,94 @@ extern s32 gGameMode;      /* current map/world id */
 extern s32 lbl_803447DC;      /* generators-disabled flag */
 extern s32 lbl_8034472C;      /* random-type rotation counter */
 extern u8 lbl_8011AF48[];     /* enemy.c .data anchor (type tables at +4284..) */
+
+/* Resolve the generator/spew class shared by groups of enemy types. */
+s32 fn_8004F87C(s32 type, s32 level, s32 spew)
+{
+    switch (type) {
+    case 0:
+    case 3:
+    case 6:
+    case 9:
+    case 12:
+    case 15:
+    case 18:
+    case 21:
+    case 22:
+        if (spew != 2 && spew != 4) {
+            spew = RandInt(1) != 0 ? 4 : 2;
+        }
+        break;
+    case 2:
+    case 7:
+    case 14:
+    case 17:
+    case 24:
+        if (spew == 0) {
+            switch (level) {
+            default:
+                spew = 7;
+                break;
+            case 3:
+                spew = 30;
+                break;
+            case 4:
+                spew = 23;
+                break;
+            case 5:
+                spew = 17;
+                break;
+            case 6:
+                spew = 18;
+                break;
+            }
+        }
+        break;
+    case 1:
+    case 4:
+    case 5:
+    case 8:
+    case 10:
+    case 11:
+    case 13:
+    case 16:
+    case 19:
+    case 20:
+    case 25:
+    case 32:
+    case 33:
+        if (spew == 0) {
+            switch (level) {
+            default:
+                spew = 7;
+                break;
+            case 4:
+                spew = 23;
+                break;
+            case 5:
+                spew = 17;
+                break;
+            case 6:
+                spew = 18;
+                break;
+            }
+        }
+        break;
+    case 27:
+        spew = 31;
+        break;
+    case 30:
+        spew = 3;
+        break;
+    case 31:
+        spew = 27;
+        break;
+    case 29:
+        spew = 19;
+        break;
+    }
+    return spew;
+}
 
 /* generate_enemy @0x8004F4B4 (global).  Spawn an enemy of `type` at `pos`:
  * validate world/boss state and per-type limits, resolve random types
