@@ -194,15 +194,15 @@ void serve_busy(int flags)
     }
 }
 
-#pragma opt_schedule off
-#pragma opt_propagation off
 void main_init(high)
 register u32 high;
 {
     f32 ident[3][4];
     u32 clear;
-    register u8* g = gDvdScratchFileInfo;
+    u8* g;
 
+    high = 0x80260000;
+    g = (u8*)(high - 0x1218);
     DEMOInit(0);
     while (DVDOpen(sCheckTxt, g) == 0) {
     }
@@ -248,9 +248,6 @@ register u32 high;
     AXInit();
     sndVoiceInit();
 }
-#pragma opt_propagation reset
-#pragma opt_schedule reset
-
 void main_report_cb(char** msg, int level);
 void main_print_cb(const char* str);
 
