@@ -186,7 +186,7 @@ extern s32   GetEnemyType(s32 type, s32 level);
 extern char* EnemyTypePrefix(s32 type);
 extern void* CritterTypeLoaded(s32 type, s32 load);
 extern s16*  FindWobjWanim(void* wobj);
-extern s32   FindWave(char* name);
+extern u32   FindWave(const s8* name);
 extern s32   towerGetLevelFlag(void* player, s32 flag);
 extern s32   towerAllPlayersMetBossReq(s32 flag);
 extern s32   AudioFindSound(char* name, s32 length, s32 load);
@@ -1871,7 +1871,7 @@ low_item_found:
         if (*(s32*)&params[0] != 0) {
             DATA_S16(0) = -1;
         } else {
-            DATA_S16(0) = (s16)FindWave((char*)&params[4]);
+            DATA_S16(0) = (s16)FindWave((const s8*)&params[4]);
         }
         DATA_S32(4) = 0;
         item->active &= ~1;

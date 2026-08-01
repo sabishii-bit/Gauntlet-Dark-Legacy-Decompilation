@@ -1055,7 +1055,7 @@ void fn_80053C70(void)
 }
 
 /* 0x80057B30 -- parse a "<letter><digit>" level tag to (realm<<8)|index. */
-s32 FindWave(const char* s)
+u32 FindWave(const s8* s)
 {
     s32 realm = -1;
     s8 letter = toupper(s[0]);
@@ -1070,5 +1070,5 @@ s32 FindWave(const char* s)
     if (realm < 0) {
         return -1;
     }
-    return (realm << 8) | (u8)(s[1] - '1');
+    return (realm << 8) | ((u32)((s32)(s8)s[1] - '1') & 0xFF);
 }
