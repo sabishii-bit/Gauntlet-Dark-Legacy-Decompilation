@@ -3133,8 +3133,11 @@ void camera_mode_dest(s32 camIdx)
     f32 yawDelta;
     f32 yawStep;
     f32 zero;
+    f32 targetPitch;
+    f32 currentPitch;
     f64 root;
     f64 angle;
+    f64 rawAngle;
     s32 pitchReached;
     s32 yawReached;
     f32 matrix[16];
@@ -3164,8 +3167,8 @@ void camera_mode_dest(s32 camIdx)
     switch (lbl_8034441C) {
     case 0:
         step = (f32)(lbl_80346098 * (f64)(u32)gFrameTicks);
-        cam->radius -= (f32)((f64)(u32)gFrameTicks * lbl_803460A0 *
-                             (f64)(cam->radius - cam->num1));
+        cam->radius -= (f32)((f64)(u32)gFrameTicks *
+            (lbl_803460A0 * (f64)(cam->radius - cam->num1)));
         lbl_803443F4 = 1;
         cam->vel[0] = -step;
         if (cam->wpos[1] < cam->num2) {
@@ -3230,7 +3233,7 @@ void camera_mode_dest(s32 camIdx)
         if (angle < (f64)lbl_80345EC8) {
             angle = (f64)(f32)(angle + lbl_803460C0);
         }
-        if (lbl_803460C8 < angle) {
+        if (angle > lbl_803460C8) {
             angle = lbl_80345EC8;
         }
         if (lbl_80344A28 == 0) {
@@ -3253,9 +3256,9 @@ void camera_mode_dest(s32 camIdx)
         transformed[2] =
             triggerZ[lbl_80344510 * 10] - cam->wpos[2];
         weight = lbl_8034445C;
-        transformed[0] *= weight;
-        transformed[1] *= weight;
-        transformed[2] *= weight;
+        *(volatile f32*)&transformed[0] = transformed[0] * weight;
+        *(volatile f32*)&transformed[1] = transformed[1] * weight;
+        *(volatile f32*)&transformed[2] = transformed[2] * weight;
         offset[0] =
             triggerX[lbl_8034450C * 10] - cam->wpos[0];
         offset[1] =
@@ -3278,19 +3281,22 @@ void camera_mode_dest(s32 camIdx)
         lbl_8034429C += gFrameTicks;
     }
 
-    distance = transformed[2] * transformed[2] +
-               transformed[0] * transformed[0] +
-               transformed[1] * transformed[1];
+    scale = transformed[0] * transformed[0];
+    yawDelta = transformed[1] * transformed[1];
+    distance = transformed[2] * transformed[2];
+    yawDelta = scale + yawDelta;
+    distance = distance + yawDelta;
     if (distance > lbl_80345EC8) {
         root = __frsqrte(distance);
         root = lbl_80345F18 * root *
-               -(distance * root * root - lbl_80345F20);
+               -(root * root * distance - lbl_80345F20);
         root = lbl_80345F18 * root *
-               -(distance * root * root - lbl_80345F20);
+               -(root * root * distance - lbl_80345F20);
         root = lbl_80345F18 * root *
-               -(distance * root * root - lbl_80345F20);
-        directionRoot = (f32)(distance * lbl_80345F18 * root *
-            -(distance * root * root - lbl_80345F20));
+               -(root * root * distance - lbl_80345F20);
+        directionRoot = (f32)(distance *
+            (lbl_80345F18 * root *
+             -(root * root * distance - lbl_80345F20)));
         distance = directionRoot;
     }
 
@@ -3328,11 +3334,13 @@ void camera_mode_dest(s32 camIdx)
         }
 
         yawReached = 0;
-        angle = (f64)(f32)(lbl_80344448 - lbl_80344430);
-        if (angle > CAM_PI) {
-            angle -= CAM_2PI;
-        } else if (angle <= -CAM_PI) {
-            angle = CAM_2PI + angle;
+        rawAngle = (f64)(f32)(lbl_80344448 - lbl_80344430);
+        if (rawAngle > CAM_PI) {
+            angle = rawAngle - CAM_2PI;
+        } else if (rawAngle <= -CAM_PI) {
+            angle = CAM_2PI + rawAngle;
+        } else {
+            angle = rawAngle;
         }
         yawDelta = (f32)angle;
         yawStep = lbl_80344428 * (f32)(u32)gFrameTicks;
@@ -3341,7 +3349,7 @@ void camera_mode_dest(s32 camIdx)
                 lbl_80344428 =
                     (f32)((f64)lbl_80344428 + lbl_803460D8);
             }
-            if (yawStep >= lbl_80345EC8 && yawStep >= yawDelta) {
+            if (yawStep >= lbl_80345EC8 && yawDelta <= yawStep) {
                 yawReached = 1;
             }
         } else if ((f64)yawDelta < (f64)lbl_80345EC8) {
@@ -3349,7 +3357,7 @@ void camera_mode_dest(s32 camIdx)
                 lbl_80344428 =
                     (f32)((f64)lbl_80344428 - lbl_803460D8);
             }
-            if (yawStep <= lbl_80345EC8 && yawStep <= yawDelta) {
+            if (yawStep <= lbl_80345EC8 && yawDelta >= yawStep) {
                 yawReached = 1;
             }
         } else {
@@ -3402,16 +3410,18 @@ void camera_mode_dest(s32 camIdx)
     cam->pyr_delta[0] = zero;
     cam->pyr_delta[1] = zero;
     cam->pyr_delta[2] = zero;
+    targetPitch = lbl_80344530;
+    currentPitch = lbl_80344408;
     scale = lbl_80344450 * (f32)(u32)gFrameTicks;
-    if (lbl_80344530 - lbl_80344408 > lbl_80345EC8) {
-        lbl_80344408 += scale;
-        if (lbl_80344408 >= lbl_80344530) {
-            lbl_80344408 = lbl_80344530;
+    if (targetPitch - currentPitch > zero) {
+        lbl_80344408 = currentPitch + scale;
+        if (lbl_80344408 >= targetPitch) {
+            lbl_80344408 = targetPitch;
         }
     } else {
-        lbl_80344408 -= scale;
-        if (lbl_80344408 <= lbl_80344530) {
-            lbl_80344408 = lbl_80344530;
+        lbl_80344408 = currentPitch - scale;
+        if (lbl_80344408 <= targetPitch) {
+            lbl_80344408 = targetPitch;
         }
     }
     cam->pyr[0] = lbl_80344408;

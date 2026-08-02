@@ -198,6 +198,25 @@ floating vararg. Pass the already-rounded double expression directly; an
 explicit cast back to `f32` inserts an extra `frsp` immediately before the
 call and changes the surrounding FPR allocation.
 
+A later `camera_mode_dest` pass raised the function from about 91.20% to
+94.93%. Parenthesize the radius decay as `ticks * (rate * difference)`;
+left-associating it as `ticks * rate * difference` produces an equivalent but
+different FPR web. Spell the trigger-direction length as three independent
+squares and two additions, then use `guess * guess * distance` in every
+reciprocal-root correction and group the final result as
+`distance * (half * guess * correction)`.
+
+Three volatile-qualified stores of the weighted trigger vector prevent MWCC
+from retaining its first component across construction of the second vector.
+This recovered the retail instruction count for that variant and improved the
+linked fuzzy score even though the residual register diff became noisier.
+For wrapped yaw, preserve a separate `rawAngle` and explicitly assign the
+wrapped result in all three arms; this restores retail's default-arm `fmr`.
+Write commutative threshold tests in the same operand orientation as retail
+(`yawDelta <= yawStep` / `yawDelta >= yawStep`). Finally, cache the target and
+current pitch globals in distinct scalars before the late approach step. That
+last source-identity change alone recovered most of the tail's FPR allocation.
+
 ## Let compiler homes establish the aggregate base before padding it
 
 `camera_debug_supervisor` needs both an explicit scratch layout and MWCC's own
