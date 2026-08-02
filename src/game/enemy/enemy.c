@@ -942,14 +942,17 @@ void fn_8004E5F8(Enemy* enemy)
 /* Advance texture modifiers for each loaded enemy type while gameplay runs. */
 void fn_8004E67C(void)
 {
+    u8* resources;
+    u8* cursor;
     s32 i;
-    s32 type;
 
+    resources = (u8*)lbl_80250E00;
     if ((gGameBusy | gGameplayPauseTimer) == 0) {
         for (i = 0; i < lbl_8034471C; i++) {
-            type = lbl_80250E00[8 + i];
-            if ((void*)lbl_80250E00[345 + type] != 0) {
-                DoTexMods((void*)lbl_80250E00[345 + type]);
+            cursor = resources + i * sizeof(s32);
+            cursor = resources + *(s32*)(cursor + 0x20) * sizeof(void*);
+            if (*(void**)(cursor + 0x564) != 0) {
+                DoTexMods(*(void**)(cursor + 0x564));
             }
         }
     }
