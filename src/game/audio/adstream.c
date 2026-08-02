@@ -70,6 +70,19 @@ typedef struct ADSTREAM {
     /* 0x7C */ u8 _pad7C[0x13C - 0x7C];
 } ADSTREAM;
 
+typedef void (*ARQCallback)(u32 request);
+
+typedef struct ARQRequest {
+    struct ARQRequest* next;
+    u32 owner;
+    u32 type;
+    u32 priority;
+    u32 source;
+    u32 destination;
+    u32 length;
+    ARQCallback callback;
+} ARQRequest;
+
 /*
  * Shared ADS globals.  These live in the module's auto data split at fixed
  * addresses and are also touched cross-TU by the dcs driver, so they are
@@ -90,6 +103,8 @@ extern u32 lbl_80345288;   /* global ADS flags */
 extern s32 sConfig;
 extern ADSTREAM gADS;
 extern AXVPB* sVoice[14];
+extern ARQRequest lbl_80320C3C[];
+extern ARQCallback lbl_80345294;
 
 extern void* AllocMem(u32 size);
 extern s32 FileBufClose(void* file);
@@ -105,8 +120,18 @@ extern char lbl_80349330[5];
 extern char lbl_80349338[5];
 extern char lbl_80349340[5];
 extern char lbl_80349348[5];
+extern s32 printf(const char* format, ...);
+extern void DCFlushRange(void* address, u32 length);
+extern void ARQPostRequest(ARQRequest* request, u32 owner, u32 type,
+                           u32 priority, u32 source, u32 destination,
+                           u32 length, ARQCallback callback);
+extern s32 dcsMemTryLock(u32 address, s32 voice,
+                         s32 (*callback)(s32), s32 command);
 
 void _AdsThread(void);
+void adsArqDone(void);
+s32 adsLockCallback(s32 command);
+void AdsSetVolumeDirect(ADSTREAM* stream, s32 volume);
 s32 adsMoveCookedToSpu(ADSTREAM* stream);
 s32 adsMoveRawToCooked(ADSTREAM* stream);
 s32 adsMoveFileToRaw(ADSTREAM* stream);
@@ -156,6 +181,97 @@ void adsPoll(void) {
  * Xbox: adsMoveCookedToSpu. */
 #pragma dont_inline on
 s32 adsMoveCookedToSpu(ADSTREAM* stream) {
+    u8 unused[8];
+    AXPBADPCMLOOP loop;
+    register u32 cookedSize;
+    s32 result;
+    u32 i;
+    u32 transferSize;
+    u8* source;
+    u32 destination;
+    ADSTREAM* self;
+
+    self = stream;
+    result = 0;
+    if ((cookedSize = self->ringWrite) < halfVoiceLoop &&
+        (self->fileRemaining > 0 || self->ringRead > 0)) {
+        if (self->status != 0) {
+            s32 volume;
+
+            printf("DCSERROR: ");
+            printf("SPU UNDERRUN, loop-glitch likely");
+            dcsMemTryLock(self->spuReadBase +
+                              self->refillState * halfVoiceLoop,
+                          self->voice[0], adsLockCallback, 0);
+            lbl_80345288 |= 1 << self->voice[0];
+            volume = self->vol;
+            AdsSetVolumeDirect(self, 0);
+            self->vol = volume;
+            self->mode |= 0x80;
+        }
+    } else {
+        s32 requestOffset;
+        s32 voiceOffset;
+
+        source = self->cookedPtr;
+        if (self->sampleBits >= 32) {
+            destination = self->spuReadBase +
+                          self->refillState * halfVoiceLoop;
+        } else {
+            destination = self->spuReadBase +
+                          self->refillState * sShortenedHalfVoiceLoop;
+        }
+        transferSize = cookedSize;
+        i = 0;
+        requestOffset = 0;
+        voiceOffset = 0;
+        while (i < self->blocks) {
+            if (self->refillState == 0) {
+                loop.loop_pred_scale = *source;
+                loop.loop_yn1 = 0;
+                loop.loop_yn2 = 0;
+                AXSetVoiceAdpcmLoop(
+                    sVoice[*(s32*)((u8*)self + voiceOffset + 0x34)],
+                    &loop);
+            }
+            DCFlushRange(source, transferSize);
+            lbl_80345294 = NULL;
+            if (i == self->blocks - 1) {
+                lbl_80345294 = (ARQCallback)adsArqDone;
+            }
+            ARQPostRequest((ARQRequest*)((u8*)lbl_80320C3C + requestOffset),
+                           0, 0, 1, (u32)source, destination, transferSize,
+                           lbl_80345294);
+            i++;
+            requestOffset += sizeof(ARQRequest);
+            source += halfVoiceLoop;
+            destination += sizeVoiceLoop;
+            voiceOffset += 4;
+        }
+        if (self->status != 0) {
+            if ((self->mode & 0x80) != 0) {
+                s32 volume = self->vol;
+
+                self->mode &= ~0x80;
+                AdsSetVolumeDirect(self, volume);
+            }
+            {
+                u32 lockAddress = destination - sizeVoiceLoop;
+
+                if (self->ringWrite < halfVoiceLoop) {
+                    lockAddress = self->ringWrite + lockAddress;
+                    lockAddress -= 16;
+                }
+                dcsMemTryLock(lockAddress, self->voice[i - 1],
+                              adsLockCallback, 0);
+            }
+            lbl_80345288 |= 0x2000;
+        }
+        self->ringWrite = 0;
+        result = 1;
+        self->refillState = (u32)__cntlzw(self->refillState) >> 5;
+    }
+    return result;
 }
 #pragma dont_inline off
 
