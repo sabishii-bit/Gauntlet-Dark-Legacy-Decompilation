@@ -403,3 +403,22 @@ camera loop's zero value removes the last broad coloring difference. This
 reduced the exact-length 247-instruction function from 116 to 4 real diff
 lines and raised it from about 98.745% to 99.271%; the residue is only the
 three-instruction loop-initializer schedule.
+
+`camera_debug_supervisor` confirmed three more source-shape tells. In each
+Newton refinement, write the correction product as `root * root * distance`,
+and group the final result as `distance * (half * root * correction)`. This
+restores retail's multiply/FNMSUB dependency chain. For an outside-of-screen
+test that follows an integer-coordinate equality test, spell the range as
+`!(value > low && value < high)`; the algebraically equivalent pair of
+`<= || >=` comparisons makes MWCC emit two IEEE-safe `cror` sequences instead
+of retail's direct `ble`/`blt` branches.
+
+When target assembly materializes two field addresses before a long floating
+calculation and dereferences them much later, retain two typed pointer locals
+even if direct byte-offset loads are shorter C. Here, separate pointers for
+the camera X and Z fields recovered the retail `addi` homes and improved the
+later boss-camera register web. The two square-root results also really pass
+through the known volatile stack slots; combining these field aliases with
+the stack spills improved the supervisor from about 90.37% to 92.54% (566 to
+474 real diff lines). Either change alone was weaker, so test related lifetime
+evidence as a set rather than rejecting one clue solely on instruction count.
