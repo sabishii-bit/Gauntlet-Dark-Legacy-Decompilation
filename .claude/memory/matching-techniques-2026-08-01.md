@@ -518,3 +518,13 @@ object recovered several exact wrappers without source contortions. In the same
 TU, caching `&gBig` as a typed `BigState*` made the initializer retain the
 retail aggregate base across its array clears and reduced `sndSysInit` from 64
 to 22 real diff lines.
+
+A branch-local conditional initializer can control how MWCC delivers a value
+to an immediately following call. In `sounds_evt.c`, declaring `int id` inside
+the guarded block and initializing it with a ternary made MWCC load both table
+choices into a temporary register and then move the selected value into ABI
+argument register `r3`, matching retail exactly. A neighboring function needed
+that form in only one arm; keeping ordinary `if` assignments in the other arm
+allowed MWCC to load its table value directly into `r3`. Mixed source shapes
+inside sibling branches are therefore useful when retail uses different value
+coalescing for otherwise similar calls.

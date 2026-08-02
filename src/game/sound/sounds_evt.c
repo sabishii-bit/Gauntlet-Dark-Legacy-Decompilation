@@ -785,17 +785,15 @@ void fn_8009DF7C(int p, int mode)
 {
     s32* T = (s32*)sSpeechNameBuf;
     int id0 = T[*(int*)p + 300];
-    int id;
 
     if (id0 >= 0) {
         if (mode == 1) {
-            if (*(s16*)(p + 518) >= 2) {
-                id = T[id0 + 353];
-            } else {
-                id = T[id0 + 345];
-            }
+            int id = *(s16*)(p + 518) >= 2 ? T[id0 + 353] : T[id0 + 345];
+
             sndFxPlay3DAtten(id, p + 52, 224, 25);
         } else {
+            int id;
+
             if (*(s16*)(p + 518) >= 2) {
                 id = T[id0 + 369];
             } else {
@@ -810,14 +808,10 @@ void fn_8009E08C(int p)
 {
     s32* T = (s32*)sSpeechNameBuf;
     int id0 = T[*(int*)p + 300];
-    int id;
 
     if (id0 >= 0) {
-        if (*(s16*)(p + 518) >= 2) {
-            id = T[id0 + 433];
-        } else {
-            id = T[id0 + 425];
-        }
+        int id = *(s16*)(p + 518) >= 2 ? T[id0 + 433] : T[id0 + 425];
+
         sndFxPlay3DAtten(id, p + 52, 180, 75);
     }
 }
