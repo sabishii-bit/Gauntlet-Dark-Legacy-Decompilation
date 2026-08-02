@@ -445,3 +445,32 @@ difference. Finally, keeping `gPlayers` in a named pointer local makes MWCC
 retain the array base across the object-player loop, as retail does. Together
 these changes reduced `camera_run_mode` from 839 instructions/408 real diff
 lines to the exact 831 instructions and 28 real diff lines.
+
+The later `camera_mode_follow` pass supersedes the earlier recommendation to
+keep its entire 0x160-byte scratch area as one aggregate. The aggregate found
+the frame, but it also tied every address-taken vector into one source object
+and rotated almost the whole function. Split the members back into independent
+locals in descending stack-offset order, retaining explicit byte gaps at the
+top and bottom. This keeps the retail 512-byte frame and all offsets while
+letting each `StandardCamera`/`DoShake` expansion rematerialize its own stack
+addresses.
+
+For large supervisors, split repeated loop counters even when their live
+ranges do not visibly overlap in C: three uses of one `player` variable made
+MWCC build a function-wide saved-GPR web. The final viewport loop specifically
+wants both a typed `Player*` advanced by one structure and a 0..3 counter, plus
+a named projection-matrix pointer. Declare the matrix before the camera, then
+declare the final-loop offscreen flag before the player pointer and counter;
+MWCC colors them as retail's r29/r28 and r27/r26/r25 set. A local cached target
+history count likewise prevents three invented global reload/index sequences.
+
+Two apparent redundancies in the target were source-shape evidence: the idle
+transition guard rechecks the already-zero request flag, and nests another
+`camIdx == 0` around the timer increment even though the outer condition has
+the same test. Restoring both and spelling the threshold as `>= 90` repaired
+the physical state-machine layout. Finally, use the established
+`root * root * distance` Newton association and group the last multiply as
+`distance * (half * root * correction)`. These changes moved
+`camera_mode_follow` from 1053 instructions/1093 real diff lines (about 84%
+fuzzy) to 1049 instructions/401 real diff lines (about 91.49% fuzzy), and the
+camera TU from about 95.31% to 95.96% fuzzy.
