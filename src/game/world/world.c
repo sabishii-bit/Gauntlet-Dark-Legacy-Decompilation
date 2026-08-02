@@ -396,16 +396,21 @@ struct mbnode* FindWorldAnimNode(f32* point, f32 maxdist) {
 /* ResetWorlds: clear both worlds' runtime state (Xbox PDB name; InitWorlds is
  * the sibling candidate for this slot - both zero the same fields). */
 void ResetWorlds(void) {
-    world_root0 = 0;
-    world_root1 = 0;
-    lbl_80344DA4 = 0;
-    lbl_80344DA0 = 0;
-    gWorldInfo.model = -1;
-    gWorldInfo2.model = -1;
-    gWorldInfo.inited = 0;
-    gWorldInfo2.inited = 0;
-    lbl_80344D74 = 0;
-    lbl_80344D78 = 0;
+    register s32 zero;
+    register s32* world_blob;
+
+    zero = 0;
+    world_blob = (s32*)gWorldName;
+    world_root0 = (void*)zero;
+    world_root1 = (void*)zero;
+    lbl_80344DA4 = (void*)zero;
+    lbl_80344DA0 = (void*)zero;
+    world_blob[0x168 / 4] = -1;
+    world_blob[0xC4 / 4] = -1;
+    world_blob[0xE4 / 4] = zero;
+    world_blob[0x40 / 4] = zero;
+    lbl_80344D74 = (s32*)zero;
+    lbl_80344D78 = (float*)zero;
 }
 
 /* NewWorld: create the two scene-root display nodes. */
