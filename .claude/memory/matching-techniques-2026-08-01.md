@@ -492,3 +492,13 @@ distance: assigning Y before X and forming `y*y + x*x + z*z` best reproduced
 this function's FPR web. Together these changes reduced `camera_mode_level`
 from 581/582 instructions and 269 real diff lines to the exact 582/582 length
 and 92 real diff lines before report scoring.
+
+In an exact-length function, scalar declaration position can select the SSA
+destination register even when statement order and stack layout are unchanged.
+`camera_mode_target` declared its reused `distance` before all component and
+angle scalars; moving only that declaration below `dx`, `dy`, `dz`, and the
+three squared-component temporaries made MWCC retain the retail final-distance
+FPR through both square-root chains. The function stayed exactly 452
+instructions while dropping from 86 to 50 real diff lines. Converting the
+player cursor to the mapped `Player*`/`Player.state` representation was codegen
+neutral, so semantic cleanup can accompany this kind of allocation fix safely.
