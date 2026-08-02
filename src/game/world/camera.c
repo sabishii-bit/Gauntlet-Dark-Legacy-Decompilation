@@ -3661,16 +3661,14 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
     u8* playerData = gPlayers + playerIndex * 0x335C;
     u8* state = gCameraState;
     f32* cameraMatrix;
+    f32* cameraPositionX;
+    f32* cameraPositionZ;
     CameraTarget* target;
     CameraSupervisorScratch scratch;
     f32 oldX;
     f32 oldY;
     f32 currentX;
     f32 currentY;
-    f32 currentAbsX;
-    f32 oldAbsX;
-    f32 currentAbsY;
-    f32 oldAbsY;
     f32 dx;
     f32 dy;
     f32 dz;
@@ -3679,6 +3677,10 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
     f32 movedZ;
     f32 currentDistance;
     f32 movedDistance;
+    f32 currentAbsY;
+    f32 currentAbsX;
+    f32 oldAbsY;
+    f32 oldAbsX;
     f32 currentScreenDistance;
     f32 movedScreenDistance;
     f32 cameraDx;
@@ -3812,16 +3814,18 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
         currentX >= (f32)(lbl_8034451C - 30) ||
         currentY <= (f32)(lbl_80344514 + 40) ||
         currentY >= (f32)(lbl_80344518 - 20)) {
-        dx = (*(f32*)(playerData + 0x44) +
-              *(f32*)(playerData + 0x838)) - *(f32*)(state + 0x1F4);
         dy = (*(f32*)(playerData + 0x48) +
               *(f32*)(playerData + 0x83C)) - *(f32*)(state + 0x1F8);
+        dx = (*(f32*)(playerData + 0x44) +
+              *(f32*)(playerData + 0x838)) - *(f32*)(state + 0x1F4);
         dz = (*(f32*)(playerData + 0x4C) +
               *(f32*)(playerData + 0x840)) - *(f32*)(state + 0x1FC);
         currentDistance = dz * dz + dx * dx + dy * dy;
         movedX = dx + movementDelta[0];
         movedY = dy + movementDelta[1];
         movedZ = dz + movementDelta[2];
+        cameraPositionX = (f32*)(state + 0x1F4);
+        cameraPositionZ = (f32*)(state + 0x1FC);
 
         currentAbsY = oldY - (f32)(screenHeight - 64);
         currentAbsX = oldX - (f32)(screenWidth / 2);
@@ -3834,56 +3838,58 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
         if (currentDistance > lbl_80345EC8) {
             root = __frsqrte(currentDistance);
             root = lbl_80345F18 * root *
-                   -(currentDistance * root * root - lbl_80345F20);
+                   -(root * root * currentDistance - lbl_80345F20);
             root = lbl_80345F18 * root *
-                   -(currentDistance * root * root - lbl_80345F20);
+                   -(root * root * currentDistance - lbl_80345F20);
             root = lbl_80345F18 * root *
-                   -(currentDistance * root * root - lbl_80345F20);
-            currentDistance = (f32)(currentDistance * lbl_80345F18 * root *
-                -(currentDistance * root * root - lbl_80345F20));
+                   -(root * root * currentDistance - lbl_80345F20);
+            scratch.currentRoot = (f32)(currentDistance *
+                (lbl_80345F18 * root *
+                 -(root * root * currentDistance - lbl_80345F20)));
+            currentDistance = scratch.currentRoot;
         }
         movedDistance = movedZ * movedZ + movedX * movedX + movedY * movedY;
         if (movedDistance > lbl_80345EC8) {
             root = __frsqrte(movedDistance);
             root = lbl_80345F18 * root *
-                   -(movedDistance * root * root - lbl_80345F20);
+                   -(root * root * movedDistance - lbl_80345F20);
             root = lbl_80345F18 * root *
-                   -(movedDistance * root * root - lbl_80345F20);
+                   -(root * root * movedDistance - lbl_80345F20);
             root = lbl_80345F18 * root *
-                   -(movedDistance * root * root - lbl_80345F20);
-            movedDistance = (f32)(movedDistance * lbl_80345F18 * root *
-                -(movedDistance * root * root - lbl_80345F20));
+                   -(root * root * movedDistance - lbl_80345F20);
+            scratch.movedRoot = (f32)(movedDistance *
+                (lbl_80345F18 * root *
+                 -(root * root * movedDistance - lbl_80345F20)));
+            movedDistance = scratch.movedRoot;
         }
 
         if (gBossType < 0) {
             if (movedDistance > currentDistance &&
                 ((s32)currentX != (s32)oldX ||
-                 currentY <= (f32)(lbl_80344514 + 40) ||
-                 currentY >= (f32)(lbl_80344518 - 20)) &&
+                 !(currentY > (f32)(lbl_80344514 + 40) &&
+                   currentY < (f32)(lbl_80344518 - 20))) &&
                 ((s32)currentY != (s32)oldY ||
-                 currentX <= (f32)(lbl_80344520 + 30) ||
-                 currentX >= (f32)(lbl_8034451C - 30))) {
+                 !(currentX > (f32)(lbl_80344520 + 30) &&
+                   currentX < (f32)(lbl_8034451C - 30)))) {
                 zeroValue = lbl_80345EC8;
                 movementDelta[0] = zeroValue;
                 movementDelta[1] = zeroValue;
                 movementDelta[2] = zeroValue;
             }
         } else if (movedScreenDistance > currentScreenDistance) {
-            cameraDz = *(f32*)(state + 0x1FC) -
-                       *(f32*)(playerData + 0x5C);
-            cameraDx = *(f32*)(state + 0x1F4) -
-                       *(f32*)(playerData + 0x54);
+            cameraDz = *cameraPositionZ - *(f32*)(playerData + 0x5C);
+            cameraDx = *cameraPositionX - *(f32*)(playerData + 0x54);
             movedCameraDz = cameraDz - movementDelta[2];
             movedCameraDx = cameraDx - movementDelta[0];
             if (movedCameraDx * movedCameraDx +
                     movedCameraDz * movedCameraDz >
                 cameraDx * cameraDx + cameraDz * cameraDz &&
                 ((s32)currentX != (s32)oldX ||
-                 currentY <= (f32)(lbl_80344514 + 40) ||
-                 currentY >= (f32)(lbl_80344518 - 20)) &&
+                 !(currentY > (f32)(lbl_80344514 + 40) &&
+                   currentY < (f32)(lbl_80344518 - 20))) &&
                 ((s32)currentY != (s32)oldY ||
-                 currentX <= (f32)(lbl_80344520 + 30) ||
-                 currentX >= (f32)(lbl_8034451C - 30))) {
+                 !(currentX > (f32)(lbl_80344520 + 30) &&
+                   currentX < (f32)(lbl_8034451C - 30)))) {
                 zeroValue = lbl_80345EC8;
                 movementDelta[0] = zeroValue;
                 movementDelta[1] = zeroValue;
