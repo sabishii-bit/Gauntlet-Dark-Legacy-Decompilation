@@ -640,12 +640,14 @@ u32 pool_init(u32 size) {
 }
 
 /* 0x800D5F94  insert a node (verified) */
+#pragma opt_common_subs off
 void list_insert_size(MemList* list, MemListNode* node) {
     MemListNode** link;
 
     link = &list->head;
     list_verify(list);
     {
+        MemListNode* current;
         MemListNode* head;
 
         head = list->head;
@@ -654,8 +656,8 @@ void list_insert_size(MemList* list, MemListNode* node) {
             node->next = node;
             list->head = node;
         } else {
-            while (node->key > (*link)->key) {
-                link = &(*link)->next;
+            while (node->key > (current = *link)->key) {
+                link = &current->next;
                 if (*link == head) {
                     break;
                 }
@@ -669,6 +671,7 @@ void list_insert_size(MemList* list, MemListNode* node) {
     }
     list_verify(list);
 }
+#pragma opt_common_subs reset
 
 /* 0x800D603C  insert a node at the tail (verified) */
 void list_insert_tail(MemList* list, MemListNode* node) {
