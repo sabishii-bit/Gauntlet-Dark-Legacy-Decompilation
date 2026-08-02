@@ -547,3 +547,14 @@ same family of source shape associates squared distances without extra code:
 webs where ordinary `distance = x*x + y*y; distance = z*z + distance;` did
 not. Validate each instance with `fndiff --clean`, since operand order and
 declaration changes around it can still rotate neighboring temporaries.
+
+A plain self-assignment can also change allocation order for two long-lived
+integer pointer webs. `GetMaxPlayerModelSize` had retail's slot-zero maximum
+pointer in `r6` and the current-player-slot pointer in `r7`; the otherwise
+identical translation colored them in the opposite registers. Adding
+`player_multiple_models[0].model_max = player_multiple_models[0].model_max;`
+immediately after computing the current slot emitted no instruction, but made
+MWCC allocate every pointer exactly like retail. This recovered all 420 linked
+bytes. Keep this form close to the first real access of the self-assigned field:
+placing a self-assignment on the cursor itself moved that cursor all the way to
+`r31` and made the mismatch worse.
