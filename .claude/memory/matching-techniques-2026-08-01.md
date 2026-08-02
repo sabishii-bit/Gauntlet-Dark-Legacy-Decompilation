@@ -240,3 +240,29 @@ then multiply it by the float frame-tick value. That produces retail's
 extra conversion and changes its FPR. The completed 269-instruction function
 is parked on only one four-instruction pointer-load scheduling tie (8 real
 diff lines), after the documented scheduler-attempt limit.
+
+## Treat an apparent void helper as unfinished until every exit is decoded
+
+`camera_collide_step` originally looked like a void rail updater because the
+decompiler lost the tail at `_restfpr_27`. Raw disassembly showed a common
+tail that takes the absolute angular distance from pi and returns `-1` or `0`.
+Changing the prototype to `(s32, f32) -> s32` also exposed three early zero
+returns. Do not accept a void prototype merely because callers ignore `r3`;
+inspect every predecessor of the restore thunk and the instructions directly
+before it.
+
+The same function demonstrates how one scratch overlay can reproduce several
+unrelated compiler homes without inventing fake behavior. Its address-taken
+floats occupy retail stack `+0x28`, `+0x2C`, `+0x30`, `+0x34`, and `+0x38`,
+while `PointLineColl` writes its closest point at `+0x40`. Those slots cover
+the final wrapped angle, two late square-root spills, the trigger-distance
+root, the bit-cleared vertical delta, and the output vector. Keep the root
+members volatile so MWCC retains the retail store/reload pairs.
+
+For trigger-camera selection, the active polarity is zero, distance is from
+`attn_dest_no_offset`, and the score is Euclidean distance plus the absolute
+vertical delta. The previous selected trigger is evaluated separately, then
+the two candidates may be swapped before the blend. Recovering those details
+raised the function from roughly 23% to 64% fuzzy before register-allocation
+tuning; the key progress came from rebuilding the state machine, not from
+chasing isolated instructions.
