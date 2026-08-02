@@ -389,3 +389,17 @@ later radius lifetime and cache the step-limit global in the existing scale
 scalar. Together these source identities brought `debug_camera_pos` from
 422/427 instructions and 221 real diff lines to the exact 427/427 length with
 78 real lines, while matching its stack frame and saved-GPR layout.
+
+`do_camera` demonstrates that assigning the same C pointer or counter again
+later can still make MWCC build one function-long register web. A single
+`CameraTarget*` reused for the pre-camera and post-camera projection loops took
+retail's `r30`, displacing the projection matrix and every loop register.
+Split it into `projectedTarget` and `limitedTarget`; likewise give the three
+logical loops distinct counter identities. Then declare the long-lived matrix
+pointer immediately after the state base, before those counters. MWCC keeps
+the matrix in retail `r30`, coalesces the short target cursors in `r28`, and
+uses the expected loop register. Reusing the earlier `moving` scalar as the
+camera loop's zero value removes the last broad coloring difference. This
+reduced the exact-length 247-instruction function from 116 to 4 real diff
+lines and raised it from about 98.745% to 99.271%; the residue is only the
+three-instruction loop-initializer schedule.
