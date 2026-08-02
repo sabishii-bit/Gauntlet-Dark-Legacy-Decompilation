@@ -391,15 +391,23 @@ void towerRecordLevelBeaten(int level, int world) {
 
 /* Set an inventory bit (field 0x2230/0x2232) for a player - garg/legend item. */
 void playerGiveGargItem(int player, int item, int count) {
-    if (count == fn_80057BC8(item) - 1) {
-        PlayerCharSave* save = TOWER_SAVE(player);
-        u16* first = (u16*)((u8*)save + 0x145C);
-        u16 bit = 1 << item;
+    Player* record = &gPlayers[player];
 
-        if ((*first & bit) == 0) {
-            *first |= bit;
+    if (count == fn_80057BC8(item) - 1) {
+        s32 characterOffset;
+        u8* first;
+        u32 bit;
+
+        first = (u8*)record +
+                (characterOffset = record->character * sizeof(PlayerCharSave));
+        bit = 1 << item;
+
+        if (*(u16*)(first += 0x2230) & bit) {
+            u8* save = (u8*)record;
+            save += characterOffset;
+            *(u16*)(save + 0x2232) |= bit;
         } else {
-            *(u16*)((u8*)save + 0x145E) |= bit;
+            *(u16*)first |= bit;
         }
     }
 }
