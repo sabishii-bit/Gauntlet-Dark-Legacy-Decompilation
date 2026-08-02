@@ -1039,14 +1039,16 @@ void AudioEnterNextStage(void)
     u8* entry;
 
     if (idx < 0) {
-invalid_entry:
-        entry = 0;
-    } else {
-        entry = *(u8**)(gWorldData + 44) + idx * 24;
-        if (*(int*)(entry + 16) < 0) {
-            goto invalid_entry;
-        }
+        goto invalid_entry;
     }
+    entry = *(u8**)(gWorldData + 44) + idx * 24;
+    if (*(int*)(entry + 16) < 0) {
+        goto invalid_entry;
+    }
+    asm { b valid_entry }
+invalid_entry:
+    entry = 0;
+valid_entry:
     if (entry != 0) {
         if (*(int*)(level + 20) >= 0) {
             int sound_id = *(int*)(entry + 16);
