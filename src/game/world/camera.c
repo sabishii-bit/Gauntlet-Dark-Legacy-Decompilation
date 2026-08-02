@@ -2510,15 +2510,14 @@ void camera_request_change(s32 value, s32 mode) {
 void camera_mode_level(s32 reset)
 {
     u8* state = gCameraState;
-    u8* levelCamera = *(u8**)(gCurLevel + 0x60);
     Camera* cam0;
     Camera* cam1;
     Camera* cam2;
     Camera* cam3;
-    u8* player;
-    s32 playerIndex;
     s32 tries;
-    s32 playerLoop;
+    s32 playerIndex;
+    u8* player;
+    u8* levelCamera = *(u8**)(gCurLevel + 0x60);
     s32 cameraIndex;
     s32 cameraOffset;
     s32* playerNumber;
@@ -2538,8 +2537,8 @@ void camera_mode_level(s32 reset)
     lbl_803444EC = -1;
     lbl_80344960 = -1;
     player = gPlayers;
-    for (playerLoop = 0; playerLoop < 4;
-         playerLoop++, player += 0x335C) {
+    for (tries = 0; tries < 4;
+         tries++, player += 0x335C) {
         if (*(s32*)(player + 0xE8) == 1) {
             UpdatePlayerWorldMat(player, 1);
         }
@@ -2667,8 +2666,7 @@ void camera_mode_level(s32 reset)
         cam1->a_mode = ATN_FREE;
     }
     cam1->trans_mode = 0;
-    playerNumber = &cam0->pn;
-    playerIndex = *playerNumber;
+    playerIndex = *(playerNumber = (s32*)(state + 0x1C8));
     for (tries = 0; tries < 4; tries++) {
         player = gPlayers + playerIndex * 0x335C;
         if (*(s32*)(player + 0xE8) == 1 ||
@@ -2696,9 +2694,9 @@ level_player_found:
         cam2->wpos[0] = *(f32*)(CurTransmitter + 4);
         cam2->wpos[1] = *(f32*)(CurTransmitter + 8);
         cam2->wpos[2] = *(f32*)(CurTransmitter + 0x0C);
-        cam2->pyr[2] = *(f32*)(CurTransmitter + 0x1C);
         cam2->pyr[0] = *(f32*)(CurTransmitter + 0x14);
         cam2->pyr[1] = *(f32*)(CurTransmitter + 0x18);
+        cam2->pyr[2] = *(f32*)(CurTransmitter + 0x1C);
         cam2->pyr[0] = -cam2->pyr[0];
         cam2->pyr[1] = (f32)((f64)cam2->pyr[1] + CAM_PI);
         wrappedAngle = cam2->pyr[1];
@@ -2717,13 +2715,14 @@ level_player_found:
         if (distance > lbl_80345EC8) {
             root = __frsqrte(distance);
             root = lbl_80345F18 * root *
-                   -(distance * root * root - lbl_80345F20);
+                   -(root * root * distance - lbl_80345F20);
             root = lbl_80345F18 * root *
-                   -(distance * root * root - lbl_80345F20);
+                   -(root * root * distance - lbl_80345F20);
             root = lbl_80345F18 * root *
-                   -(distance * root * root - lbl_80345F20);
-            scratch.transmitterRoot = (f32)(distance * lbl_80345F18 * root *
-                -(distance * root * root - lbl_80345F20));
+                   -(root * root * distance - lbl_80345F20);
+            scratch.transmitterRoot = (f32)(distance *
+                (lbl_80345F18 * root *
+                 -(root * root * distance - lbl_80345F20)));
             distance = scratch.transmitterRoot;
         }
         cam2->radius = distance;
@@ -2835,8 +2834,8 @@ level_player_found:
     zeroValue = *(volatile f32*)&lbl_80345EC8;
     do {
         Camera* cam = (Camera*)(state + cameraOffset);
-        ProcCamera(cameraIndex, 0);
         cam = (Camera*)((u8*)cam + 0xC8);
+        ProcCamera(cameraIndex, 0);
         cam->limit_pos[0] = cam->mat[3][0];
         cam->limit_pos[1] = cam->mat[3][1];
         cam->limit_pos[2] = cam->mat[3][2];
