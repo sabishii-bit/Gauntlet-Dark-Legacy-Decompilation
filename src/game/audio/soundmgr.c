@@ -40,7 +40,7 @@ typedef struct Node {
     /* 0x0 */ u32 unk0;
     /* 0x4 */ u32 unk4;
     /* 0x8 */ u32 unk8;
-    /* 0xC */ void (*cb)(void);
+    /* 0xC */ void (*cb)(struct Node*);
 } Node;
 
 typedef struct SndState {
@@ -155,7 +155,7 @@ s32 sndSysFrameCallback(void)
 
     if (sFramePend != 0 && pend == 0) {
         if (sFrameCb != 0 && sFrameCb->cb != 0) {
-            sFrameCb->cb();
+            sFrameCb->cb(sFrameCb);
             sFrameCb = 0;
         }
     }
@@ -339,7 +339,7 @@ s32 sndCmdD(void)
         entry->nodes[0] = 0;
         node->unk4 = 0;
         node->unk8 = 0;
-        node->cb();
+        node->cb(node);
     }
     sCount1 = 0;
     memset(s->defer, 0, 0x400);
@@ -497,7 +497,7 @@ s32 sndCmd1(void)
         entry->nodes[0] = 0;
         node->unk4 = 0;
         node->unk8 = 0;
-        node->cb();
+        node->cb(node);
     }
     sCount1 = 0;
     memset(s->defer, 0, 0x400);
@@ -522,7 +522,7 @@ s32 sndSysUpdate(void)
             held->unk8 = sReset;
         }
         sReset = 0;
-        held->cb();
+        held->cb(held);
     }
     if (sPending > 0) {
         s->msgbuf[sCount2++] = 0x55af;
@@ -650,7 +650,7 @@ s32 sndSysFlush(void)
             entry->nodes[0] = 0;
             node->unk4 = e[1];
             node->unk8 = e[2];
-            node->cb();
+            node->cb(node);
             e += 3;
         }
         sCount1 = 0;
@@ -673,7 +673,7 @@ void sndSysClear(void)
         entry->nodes[0] = 0;
         node->unk4 = 0;
         node->unk8 = 0;
-        node->cb();
+        node->cb(node);
     }
     sCount1 = 0;
     memset(s->defer, 0, 0x400);
