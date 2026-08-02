@@ -502,3 +502,19 @@ FPR through both square-root chains. The function stayed exactly 452
 instructions while dropping from 86 to 50 real diff lines. Converting the
 player cursor to the mapped `Player*`/`Player.state` representation was codegen
 neutral, so semantic cleanup can accompany this kind of allocation fix safely.
+
+For command wrappers around a large global aggregate, the first member-address
+expression can decide whether MWCC constructs the aggregate base directly in a
+saved register or creates an extra pre-prologue copy. In `sndCmd8`, declaring
+the `SndState*` without initializing it, calling `memset(g.in, ...)` directly,
+and assigning `s = &g` immediately afterward removed the extra address copy and
+made the function byte-exact. The pointer remains the ordinary typed aggregate
+base for every later field access, so the source stays portable.
+
+Always run the dual-compiler probe before polishing a mixed-era game TU.
+`soundmgr.c` under the demo flags matched 26 of 30 functions with vanilla
+`GC/1.2.5`, versus fewer under inherited `GC/1.2.5n`; selecting the compiler per
+object recovered several exact wrappers without source contortions. In the same
+TU, caching `&gBig` as a typed `BigState*` made the initializer retain the
+retail aggregate base across its array clears and reduced `sndSysInit` from 64
+to 22 real diff lines.
