@@ -301,6 +301,10 @@ extern f32 lbl_8034601C;
 extern f32 lbl_80346020;
 extern f32 lbl_80346024;
 extern f32 lbl_80346040;
+extern f64 lbl_80346038;
+extern f64 lbl_80346048;
+extern f64 lbl_80346050;
+extern f32 lbl_80346058;
 extern u8 sTriggerCameras[];
 extern u8 gPlayers[];
 extern u8* gCurLevel;
@@ -1993,127 +1997,176 @@ shake_done:
 /* Earlier CAMERA.OBJ form of DiffRate, including the no-transmitter path. */
 void camera_orbit_update(s32 camIdx)
 {
+    struct {
+        f32 difference;
+        u8 pad[4];
+    } scratch;
+    f32* targetAngles = lbl_80118B60;
+    u8* state = gCameraState;
+    register u8* cameraBase;
     Camera* cam;
-    f64 previous;
-    f64 angle;
+    f32* middleHistory;
+    f32 crossing;
+    f32 angleStep;
     f32 rate;
+    f32 zeroValue;
+    f64 angle;
+    f32 previous;
 
     if (gNumTransmitters == 0) {
         previous = lbl_80344534;
-        if (gScriptedCameraState != 0 && lbl_803447B8 == 0) {
-            rate = (f32)(0.017453292522222223 * (f64)(u32)gFrameTicks);
-            if (lbl_80344400 > 0) {
-                lbl_80344534 = (f32)(previous + rate);
-                angle = lbl_80118B60[lbl_80344538];
-                if (previous < angle && angle <= lbl_80344534) {
-                    lbl_80344534 = (f32)angle;
-                    gScriptedCameraState = 0;
-                }
-            } else {
-                lbl_80344534 = (f32)(previous - rate);
-                if (lbl_80344538 == 2) {
-                    if (-3.141592654 < previous &&
-                        (f64)lbl_80344534 <= -3.141592654) {
-                        lbl_80344534 = lbl_80118B60[2];
+        if (gScriptedCameraState == 0) {
+            goto orbit_done;
+        }
+        switch (lbl_803447B8) {
+        case 0:
+                if (lbl_80344400 > 0) {
+                    lbl_80344534 = (f32)(lbl_80346038 *
+                        (f64)(u32)gFrameTicks + previous);
+                    angle = targetAngles[lbl_80344538];
+                    if (previous < angle && (f64)lbl_80344534 >= angle) {
+                        lbl_80344534 = targetAngles[lbl_80344538];
                         gScriptedCameraState = 0;
                     }
                 } else {
-                    angle = lbl_80118B60[lbl_80344538];
-                    if (angle < previous && (f64)lbl_80344534 <= angle) {
-                        lbl_80344534 = (f32)angle;
-                        gScriptedCameraState = 0;
+                    lbl_80344534 = (f32)-(lbl_80346038 *
+                        (f64)(u32)gFrameTicks - previous);
+                    switch (lbl_80344538) {
+                    case 2:
+                        if (previous > lbl_80345F68 &&
+                            (f64)lbl_80344534 <= lbl_80345F68) {
+                            lbl_80344534 = targetAngles[lbl_80344538];
+                            gScriptedCameraState = 0;
+                        }
+                        break;
+                    default:
+                        angle = targetAngles[lbl_80344538];
+                        if (previous > angle &&
+                            (f64)lbl_80344534 <= angle) {
+                            lbl_80344534 = targetAngles[lbl_80344538];
+                            gScriptedCameraState = 0;
+                        }
+                        break;
                     }
                 }
-            }
-            lbl_80344534 = FixAngle(lbl_80344534);
+                lbl_80344534 = FixAngle(lbl_80344534);
+                break;
+        default:
+                goto orbit_done;
         }
-        return;
+        goto orbit_done;
     }
 
-    cam = &gCameras[camIdx];
-    previous = cam->pyr[1];
-    if (lbl_803447B8 != 0 || lbl_803444E4 != 0) {
-        return;
+    cameraBase = state + camIdx * 0x18C;
+    previous = *(f32*)(cameraBase + 0x170);
+    cameraBase += 0xC8;
+    cam = (Camera*)cameraBase;
+    if (lbl_803447B8 != 0) {
+        goto orbit_done;
     }
+    switch (lbl_803444E4) {
+    case 0:
+            middleHistory = (f32*)(state + 0x14);
+            middleHistory[1] = middleHistory[0];
+            middleHistory[0] = *(f32*)(state + 0x10);
+            *(f32*)(state + 0x10) = previous;
+            camera_collide_step(camIdx, lbl_80346040);
 
-    lbl_8023F820 = lbl_8023F81C;
-    lbl_8023F81C = lbl_8023F818;
-    lbl_8023F818 = cam->pyr[1];
-    camera_collide_step(camIdx, lbl_80346040);
+            scratch.difference = lbl_80344534 - cam->pyr[1];
+            *(u32*)&scratch.difference &= 0x7FFFFFFF;
+            angleStep = scratch.difference;
+            if ((f64)angleStep > lbl_80345F58) {
+                angleStep = (f32)(lbl_80345F60 -
+                    (f64)scratch.difference);
+            }
+            angleStep = (f32)((f64)angleStep * lbl_80346048);
+            if ((f64)angleStep < lbl_80346050) {
+                angleStep = lbl_80346058;
+            }
+            rate = angleStep * (f32)(u32)gFrameTicks;
 
-    angle = (f32)(lbl_80344534 - cam->pyr[1]);
-    if (angle < 0.0) {
-        angle = -angle;
-    }
-    if (3.141592654 < angle) {
-        angle = (f32)(6.283185308 - angle);
-    }
-    angle = (f32)(angle * 0.1);
-    if (angle < 0.017453292522222223) {
-        angle = 0.017453292522222223;
-    }
-    rate = (f32)(angle * (f32)(f64)(u32)gFrameTicks);
+            if (lbl_80344400 <= 0) {
+                goto orbit_nonpositive;
+            }
+            if (cam->pyr[1] == lbl_80344534) {
+                goto orbit_nonpositive;
+            }
 
-    if (lbl_80344400 < 1 || cam->pyr[1] == lbl_80344534) {
-        if (lbl_80344400 < 0 && cam->pyr[1] != lbl_80344534) {
-            cam->pyr[1] -= rate;
+            cam->pyr[1] += rate;
             angle = cam->pyr[1];
-            if (angle <= 3.141592654) {
-                if (angle <= -3.141592654) {
-                    angle = 6.283185308 + angle;
-                }
-            } else {
-                angle -= 6.283185308;
+            if (angle > lbl_80345F58) {
+                angle -= lbl_80345F60;
+            } else if (angle <= lbl_80345F68) {
+                angle = lbl_80345F60 + angle;
             }
             cam->pyr[1] = (f32)angle;
             angle = cam->pyr[1];
-            if (angle <= previous) {
-                if ((f32)((f64)lbl_80344534 - angle) < 3.141592654 &&
-                    angle <= (f64)lbl_80344534) {
+            if (previous > angle) {
+                if ((f64)lbl_80344534 > previous ||
+                    (f64)lbl_80344534 <= angle) {
                     cam->pyr[1] = lbl_80344534;
                     lbl_80344400 = 0;
                 }
-            } else if ((f64)lbl_80344534 < previous ||
-                       angle <= (f64)lbl_80344534) {
+            } else if ((crossing = cam->pyr[1] - lbl_80344534,
+                        (f64)crossing < lbl_80345F58) &&
+                       angle >= (f64)lbl_80344534) {
                 cam->pyr[1] = lbl_80344534;
                 lbl_80344400 = 0;
             }
-        } else {
-            cam->pyr[1] = lbl_80344534;
-            lbl_80344400 = 0;
-        }
-    } else {
-        cam->pyr[1] += rate;
-        angle = cam->pyr[1];
-        if (angle <= 3.141592654) {
-            if (angle <= -3.141592654) {
-                angle = 6.283185308 + angle;
-            }
-        } else {
-            angle -= 6.283185308;
-        }
-        cam->pyr[1] = (f32)angle;
-        angle = cam->pyr[1];
-        if (previous <= angle) {
-            if ((f32)(angle - (f64)lbl_80344534) < 3.141592654 &&
-                (f64)lbl_80344534 <= angle) {
-                cam->pyr[1] = lbl_80344534;
-                lbl_80344400 = 0;
-            }
-        } else if (previous < (f64)lbl_80344534 ||
-                   (f64)lbl_80344534 <= angle) {
-            cam->pyr[1] = lbl_80344534;
-            lbl_80344400 = 0;
-        }
-    }
+            goto orbit_direction_done;
 
-    if ((lbl_80345EC8 < cam->pyr[1] &&
-         lbl_80345EC8 < lbl_8023F81C && lbl_8023F818 < lbl_80345EC8) ||
-        (cam->pyr[1] < lbl_80345EC8 &&
-         lbl_8023F81C < lbl_80345EC8 && lbl_80345EC8 < lbl_8023F818)) {
-        cam->pyr[1] = lbl_80344534;
-        lbl_80344400 = 0;
+orbit_nonpositive:
+            if (lbl_80344400 < 0 && cam->pyr[1] != lbl_80344534) {
+                cam->pyr[1] -= rate;
+                angle = cam->pyr[1];
+                if (angle > lbl_80345F58) {
+                    angle -= lbl_80345F60;
+                } else if (angle <= lbl_80345F68) {
+                    angle = lbl_80345F60 + angle;
+                }
+                cam->pyr[1] = (f32)angle;
+                angle = cam->pyr[1];
+                if (previous < angle) {
+                    if ((f64)lbl_80344534 < previous ||
+                        (f64)lbl_80344534 >= angle) {
+                        cam->pyr[1] = lbl_80344534;
+                        lbl_80344400 = 0;
+                    }
+                } else if ((crossing = lbl_80344534 - cam->pyr[1],
+                            (f64)crossing < lbl_80345F58) &&
+                               angle <= (f64)lbl_80344534) {
+                    cam->pyr[1] = lbl_80344534;
+                    lbl_80344400 = 0;
+                }
+            } else {
+                cam->pyr[1] = lbl_80344534;
+                lbl_80344400 = 0;
+            }
+
+orbit_direction_done:
+            if (cam->pyr[1] > lbl_80345EC8 &&
+                middleHistory[0] > lbl_80345EC8 &&
+                *(f32*)(state + 0x10) < lbl_80345EC8) {
+                goto orbit_crossed_zero;
+            }
+            zeroValue = *(volatile f32*)&lbl_80345EC8;
+            if (cam->pyr[1] < zeroValue) {
+                if (middleHistory[0] < zeroValue) {
+                    if (*(f32*)(state + 0x10) > zeroValue) {
+                        goto orbit_crossed_zero;
+                    }
+                }
+            }
+            goto orbit_done;
+orbit_crossed_zero:
+            cam->pyr[1] = lbl_80344534;
+            lbl_80344400 = 0;
+            break;
+    default:
+            goto orbit_done;
     }
+orbit_done:
+    ;
 }
 
 /* Select and blend the two closest active trigger-camera rail nodes. */
