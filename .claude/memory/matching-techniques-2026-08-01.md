@@ -304,3 +304,27 @@ removed the final five extra instructions without altering behavior. The
 remaining selector delta is register coloring and scheduling, so exact length
 is a useful stopping checkpoint even though the fuzzy score remains about
 90.26%.
+
+## Recover stack layouts from reverse declaration allocation and overlays
+
+`camera_mode_target` exposed a complete local layout from its stack accesses.
+MWCC allocated its address-taken declarations in reverse source order: final
+direction at `+0x10`, final position at `+0x1C`, final attention at `+0x28`,
+normalization at `+0x34`, moving direction/position/attention at
+`+0x40/+0x4C/+0x58`, two root spills at `+0x64/+0x68`, the matrix at `+0x6C`,
+the local offset at `+0xAC`, and the movement vector at `+0xB8`. Reordering
+the declarations to that reverse sequence recovered every displacement. The
+late `WorldVector` output also belongs in the now-dead movement-vector slots;
+using a separate transformed vector prevents the retail lifetime overlay.
+
+A four-byte leading field inside the lowest direction aggregate moved all
+live locals up one word without emitting code. A separate dead eight-byte
+array then enlarged only the aligned frame, recovering the retail 240-byte
+frame and its compiler conversion homes. For the two inline square roots,
+independent squared-component temporaries produced retail's three `fmuls`
+plus two `fadds`, while the `guess * guess * distance` association aligned the
+entire refinement opcode stream. Express the sign split as `if (value < 0)`
+with the negative arm first; this emits retail's direct `bge` to the positive
+arm instead of a `cror`-based greater-or-equal test and reversed block order.
+These changes brought the function to the exact 452 instructions and about
+98.93% fuzzy, with only register/scheduler differences remaining.
