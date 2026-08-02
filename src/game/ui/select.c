@@ -495,10 +495,16 @@ void init_player_select(int mode)
     MBCreateBlit(0, 0, 0, 0, 0, 0);
 }
 
+#pragma opt_propagation off
 void hide_select_blits(s32 arg0, s32 flag)
 {
-    s32 start, end;
-    s32 pg, j;
+    u8* pagebase;
+    u8* entry;
+    s32 pg;
+    s32 j;
+    s32 end;
+    s32 start;
+    void* handle;
     if (arg0 < 0) {
         start = 0;
         end = 3;
@@ -506,21 +512,21 @@ void hide_select_blits(s32 arg0, s32 flag)
         start = end = arg0;
     }
     for (pg = start; pg <= end; pg++) {
-        u8* pagebase = (u8*)lbl_80284878 + pg * 132;
+        pagebase = (u8*)lbl_80284878 + pg * 132;
         for (j = 0; j < 11; j++) {
-            u8* entry = pagebase + j * 12;
-            u32 h = *(u32*)entry;
-            if (h != 0) {
+            entry = pagebase + j * 12;
+            if ((handle = *(void**)entry) != 0) {
                 if (flag != 0 || (j > 1 && j < 9)) {
-                    mbBlitInit3414((void*)h, 1);
+                    mbBlitInit3414(handle, 1);
                 } else {
-                    mbBlitInit3414((void*)h, 0);
+                    mbBlitInit3414(handle, 0);
                 }
                 *(s32*)(entry + 4) = 0;
             }
         }
     }
 }
+#pragma opt_propagation reset
 
 void setup_tex(s32 id, s32 slot, s32 flags, s32 hide, char* fmt, ...)
 {
