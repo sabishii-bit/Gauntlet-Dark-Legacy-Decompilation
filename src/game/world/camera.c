@@ -42,6 +42,7 @@
 
 #include "types.h"
 #include "game/camera.h"
+#include "game/player.h"
 
 typedef struct Vec3 {
     f32 x;
@@ -65,41 +66,6 @@ typedef struct CameraTarget {
     /* 0x28 */ f32 limitedTop[2];
     /* 0x30 */ f32 limitedBottom[2];
 } CameraTarget; /* 0x38 */
-
-/* Address-taken workspace used by camera_mode_follow.  Its members reproduce
- * the retail frame's independent vectors (the gaps are compiler homes for
- * integer-to-double conversions and saved registers). */
-typedef struct CameraFollowScratch {
-    u8 _pad00[4];
-    s16 projected[2];               /* stack +0x10 */
-    Vec3 finalDirection;            /* stack +0x14 */
-    Vec3 finalPosition;             /* stack +0x20 */
-    Vec3 finalAttention;            /* stack +0x2C */
-    f32 normalizeFinal[3];          /* stack +0x38 */
-    volatile f32 focusRoot;         /* stack +0x44 */
-    Vec3 resetDirection;            /* stack +0x48 */
-    Vec3 resetPosition;             /* stack +0x54 */
-    Vec3 resetAttention;            /* stack +0x60 */
-    f32 normalizeDefault[3];        /* stack +0x6C */
-    Vec3 transitionDirection;       /* stack +0x78 */
-    Vec3 transitionPosition;        /* stack +0x84 */
-    Vec3 transitionAttention;       /* stack +0x90 */
-    volatile f32 transitionPositionRoot; /* stack +0x9C */
-    volatile f32 transitionAttentionRoot;/* stack +0xA0 */
-    f32 normalizeTransition[3];     /* stack +0xA4 */
-    Vec3 initialDirection;          /* stack +0xB0 */
-    Vec3 initialPosition;           /* stack +0xBC */
-    Vec3 initialAttention;          /* stack +0xC8 */
-    f32 normalizeInitial[3];        /* stack +0xD4 */
-    Vec3 emptyDirection;            /* stack +0xE0 */
-    Vec3 emptyPosition;             /* stack +0xEC */
-    Vec3 emptyAttention;            /* stack +0xF8 */
-    Vec3 requestDirection;          /* stack +0x104 */
-    Vec3 requestPosition;           /* stack +0x110 */
-    Vec3 requestAttention;          /* stack +0x11C */
-    u8 _pad11C[0x38];
-    f32 focus[3];                   /* stack +0x160 */
-} CameraFollowScratch; /* 0x160; allocated at r1+0xC */
 
 /* Address-taken workspace used by camera_mode_level.  Keeping both camera
  * matrices in one object reproduces the retail function's 0x198-byte frame. */
@@ -1214,42 +1180,18 @@ free_attention:
         LookInDirection((f32*)&(direction_).x, (u32)&(cam_)->mat[0][0]);        \
     } while (0)
 
-#define FOLLOW_NORMALIZE_POSITION(cam_, vector_)                              \
+#define FOLLOW_NORMALIZE_POSITION(cam_, vector_, radius_)                     \
     do {                                                                       \
-        f32 followRadius_ = (cam_)->radius;                                    \
+        (radius_) = (cam_)->radius;                                            \
         (vector_)[0] = (cam_)->wpos[0] - (cam_)->attn[0];                     \
         (vector_)[1] = (cam_)->wpos[1] - (cam_)->attn[1];                     \
         (vector_)[2] = (cam_)->wpos[2] - (cam_)->attn[2];                     \
         SlowNormalVector((f32*)(vector_));                                     \
-        (cam_)->wpos[0] = (cam_)->attn[0] + (vector_)[0] * followRadius_;     \
-        (cam_)->wpos[1] = (cam_)->attn[1] + (vector_)[1] * followRadius_;     \
-        (cam_)->wpos[2] = (cam_)->attn[2] + (vector_)[2] * followRadius_;     \
+        (cam_)->wpos[0] = (cam_)->attn[0] + (vector_)[0] * (radius_);         \
+        (cam_)->wpos[1] = (cam_)->attn[1] + (vector_)[1] * (radius_);         \
+        (cam_)->wpos[2] = (cam_)->attn[2] + (vector_)[2] * (radius_);         \
     } while (0)
 
-#define focus                    followScratch.focus
-#define projected                followScratch.projected
-#define finalDirection           followScratch.finalDirection
-#define finalPosition            followScratch.finalPosition
-#define finalAttention           followScratch.finalAttention
-#define normalizeFinal           followScratch.normalizeFinal
-#define resetDirection           followScratch.resetDirection
-#define resetPosition            followScratch.resetPosition
-#define resetAttention           followScratch.resetAttention
-#define normalizeDefault         followScratch.normalizeDefault
-#define transitionDirection      followScratch.transitionDirection
-#define transitionPosition       followScratch.transitionPosition
-#define transitionAttention      followScratch.transitionAttention
-#define normalizeTransition      followScratch.normalizeTransition
-#define initialDirection         followScratch.initialDirection
-#define initialPosition          followScratch.initialPosition
-#define initialAttention         followScratch.initialAttention
-#define normalizeInitial         followScratch.normalizeInitial
-#define emptyDirection           followScratch.emptyDirection
-#define emptyPosition            followScratch.emptyPosition
-#define emptyAttention           followScratch.emptyAttention
-#define requestDirection         followScratch.requestDirection
-#define requestPosition          followScratch.requestPosition
-#define requestAttention         followScratch.requestAttention
 #define backup                   ((Camera*)(state + 0x884))
 #define followPositions          ((f32 (*)[3])(state + 0x5C))
 
@@ -1257,12 +1199,40 @@ free_attention:
  * a short focus history, blends scripted camera changes, controls camera
  * speed from the projected target extent, and rejects views which put a live
  * player outside the safe viewport. */
-#pragma opt_common_subs off
 void camera_mode_follow(s32 camIdx)
 {
     u8* state = gCameraState;
+    f32* projectionMatrix;
     Camera* cam = (Camera*)(state + 0xC8 + camIdx * sizeof(Camera));
-    CameraFollowScratch followScratch;
+    f32 focus[3];
+    u8 followPad[0x38];
+    Vec3 requestAttention;
+    Vec3 requestPosition;
+    Vec3 requestDirection;
+    Vec3 emptyAttention;
+    Vec3 emptyPosition;
+    Vec3 emptyDirection;
+    f32 normalizeInitial[3];
+    Vec3 initialAttention;
+    Vec3 initialPosition;
+    Vec3 initialDirection;
+    f32 normalizeTransition[3];
+    volatile f32 transitionAttentionRoot;
+    volatile f32 transitionPositionRoot;
+    Vec3 transitionAttention;
+    Vec3 transitionPosition;
+    Vec3 transitionDirection;
+    f32 normalizeDefault[3];
+    Vec3 resetAttention;
+    Vec3 resetPosition;
+    Vec3 resetDirection;
+    volatile f32 focusRoot;
+    f32 normalizeFinal[3];
+    Vec3 finalAttention;
+    Vec3 finalPosition;
+    Vec3 finalDirection;
+    s16 projected[2];
+    u8 followLowPad[4];
     f32 savedPitch;
     f32 savedYaw;
     f32 savedTurn;
@@ -1273,7 +1243,7 @@ void camera_mode_follow(s32 camIdx)
     f32 oldAttentionX;
     f32 oldAttentionY;
     f32 oldAttentionZ;
-    f32 oldRadius;
+    f32 followRadius;
     f32 dx;
     f32 dy;
     f32 dz;
@@ -1286,10 +1256,14 @@ void camera_mode_follow(s32 camIdx)
     f32 screenX;
     f32 screenY;
     f64 root;
-    s32 transitionParts;
-    s32 player;
+    s32 scriptedPlayer;
+    s32 resetPlayer;
     s32 offscreen;
+    s32 transitionParts;
+    Player* playerData;
+    s32 viewportPlayer;
     s32 i;
+    s32 positionCount;
 
     if (lbl_80344500 != 0) {
         lbl_803444F8 -= gFrameTicks;
@@ -1318,10 +1292,13 @@ void camera_mode_follow(s32 camIdx)
         return;
     }
 
-    if (lbl_803444F4 == 0 && lbl_803447B8 == 0 && lbl_803447B4 == 0 &&
-        camIdx == 0 && cam->trans_mode < 0 && lbl_803444DC == 0) {
-        lbl_80344494 += gFrameTicks;
-        if (lbl_80344494 > 90) {
+    if (lbl_803444F4 == 0 && lbl_80344500 == 0 &&
+        lbl_803447B8 == 0 && lbl_803447B4 == 0 && camIdx == 0 &&
+        cam->trans_mode < 0 && lbl_803444DC == 0) {
+        if (camIdx == 0) {
+            lbl_80344494 += gFrameTicks;
+        }
+        if (lbl_80344494 >= 90) {
             cam->trans_mode = 1;
             gCameraTargetPositionCount = 0;
             gCameraTargetMode = 4;
@@ -1332,9 +1309,7 @@ void camera_mode_follow(s32 camIdx)
         lbl_80344494 = 0;
     }
 
-    savedPitch = lbl_80345EC8;
-    savedYaw = savedPitch;
-    savedTurn = savedPitch;
+    savedTurn = savedYaw = savedPitch = lbl_80345EC8;
     if (gNumTransmitters != 0) {
         CopyCam((u8*)cam, (u8*)backup);
         savedTurn = (f32)lbl_80344400;
@@ -1360,7 +1335,7 @@ void camera_mode_follow(s32 camIdx)
             cam->avel[0] = zeroValue;
             cam->avel[1] = zeroValue;
             cam->avel[2] = zeroValue;
-            FOLLOW_NORMALIZE_POSITION(cam, normalizeInitial);
+            FOLLOW_NORMALIZE_POSITION(cam, normalizeInitial, followRadius);
             FOLLOW_RENDER(camIdx, cam, initialPosition, initialAttention,
                           initialDirection);
             ProcCamera(camIdx, 0);
@@ -1390,7 +1365,8 @@ void camera_mode_follow(s32 camIdx)
                     return;
                 }
                 if (lbl_803443F4 != 0) {
-                    FOLLOW_NORMALIZE_POSITION(cam, normalizeTransition);
+                    FOLLOW_NORMALIZE_POSITION(cam, normalizeTransition,
+                                              followRadius);
                 }
                 zeroValue = lbl_80345EC8;
                 cam->vel[0] = zeroValue;
@@ -1403,19 +1379,19 @@ void camera_mode_follow(s32 camIdx)
                 dx = cam->attn[0] - oldAttentionX;
                 dy = cam->attn[1] - oldAttentionY;
                 dz = cam->attn[2] - oldAttentionZ;
-                distance = dx * dx + dy * dy + dz * dz;
+                distance = dz * dz + (dx * dx + dy * dy);
                 if (distance > lbl_80345EC8) {
                     root = __frsqrte(distance);
                     root = lbl_80345F18 * root *
-                           -(distance * root * root - lbl_80345F20);
+                           -(root * root * distance - lbl_80345F20);
                     root = lbl_80345F18 * root *
-                           -(distance * root * root - lbl_80345F20);
+                           -(root * root * distance - lbl_80345F20);
                     root = lbl_80345F18 * root *
-                           -(distance * root * root - lbl_80345F20);
-                    followScratch.transitionAttentionRoot =
-                        (f32)(distance * lbl_80345F18 * root *
-                        -(distance * root * root - lbl_80345F20));
-                    distance = followScratch.transitionAttentionRoot;
+                           -(root * root * distance - lbl_80345F20);
+                    transitionAttentionRoot =
+                        (f32)(distance * (lbl_80345F18 * root *
+                        -(root * root * distance - lbl_80345F20)));
+                    distance = transitionAttentionRoot;
                 }
                 if ((f64)distance < lbl_80345F28) {
                     transitionParts = 1;
@@ -1430,19 +1406,19 @@ void camera_mode_follow(s32 camIdx)
                 dx = cam->wpos[0] - oldPositionX;
                 dy = cam->wpos[1] - oldPositionY;
                 dz = cam->wpos[2] - oldPositionZ;
-                distance = dx * dx + dy * dy + dz * dz;
+                distance = dz * dz + (dx * dx + dy * dy);
                 if (distance > lbl_80345EC8) {
                     root = __frsqrte(distance);
                     root = lbl_80345F18 * root *
-                           -(distance * root * root - lbl_80345F20);
+                           -(root * root * distance - lbl_80345F20);
                     root = lbl_80345F18 * root *
-                           -(distance * root * root - lbl_80345F20);
+                           -(root * root * distance - lbl_80345F20);
                     root = lbl_80345F18 * root *
-                           -(distance * root * root - lbl_80345F20);
-                    followScratch.transitionPositionRoot =
-                        (f32)(distance * lbl_80345F18 * root *
-                        -(distance * root * root - lbl_80345F20));
-                    distance = followScratch.transitionPositionRoot;
+                           -(root * root * distance - lbl_80345F20);
+                    transitionPositionRoot =
+                        (f32)(distance * (lbl_80345F18 * root *
+                        -(root * root * distance - lbl_80345F20)));
+                    distance = transitionPositionRoot;
                 }
                 if ((f64)distance < lbl_80345F28) {
                     transitionParts--;
@@ -1461,9 +1437,11 @@ void camera_mode_follow(s32 camIdx)
                     gScriptedCameraState = 1;
                 }
                 if (gScriptedCameraState < 45) {
-                    for (player = 0; player < 4; player++) {
-                        if (*(s32*)(gPlayers + player * 0x335C + 0xE8) == 1 &&
-                            (*(u32*)(lbl_80240E30 + player * 0x3C + 8) &
+                    for (scriptedPlayer = 0; scriptedPlayer < 4;
+                         scriptedPlayer++) {
+                        if (*(s32*)(gPlayers + scriptedPlayer * 0x335C +
+                                    0xE8) == 1 &&
+                            (*(u32*)(lbl_80240E30 + scriptedPlayer * 0x3C + 8) &
                              0x020000FF) != 0) {
                             gScriptedCameraState = 1;
                         }
@@ -1479,9 +1457,11 @@ void camera_mode_follow(s32 camIdx)
                     }
                     lbl_803447B8 = 0;
                     gScriptedCameraState = 0;
-                    for (player = 0; player < 4; player++) {
-                        if (*(s32*)(gPlayers + player * 0x335C + 0xE8) == 1) {
-                            *(s32*)(gPlayers + player * 0x335C + 0x91C) = 4;
+                    for (resetPlayer = 0; resetPlayer < 4; resetPlayer++) {
+                        if (*(s32*)(gPlayers + resetPlayer * 0x335C +
+                                    0xE8) == 1) {
+                            *(s32*)(gPlayers + resetPlayer * 0x335C +
+                                    0x91C) = 4;
                         }
                     }
                 }
@@ -1517,7 +1497,8 @@ void camera_mode_follow(s32 camIdx)
             cam->avel[1] = zeroValue;
             cam->avel[2] = zeroValue;
             if (lbl_803443F4 != 0) {
-                FOLLOW_NORMALIZE_POSITION(cam, normalizeDefault);
+                FOLLOW_NORMALIZE_POSITION(cam, normalizeDefault,
+                                          followRadius);
             }
             FOLLOW_RENDER(camIdx, cam, resetPosition, resetAttention,
                           resetDirection);
@@ -1532,18 +1513,20 @@ void camera_mode_follow(s32 camIdx)
         return;
     }
 
+    offscreen = 0;
     get_attn_pos(camIdx, focus);
-    if (gCameraTargetPositionCount == 6) {
+    positionCount = gCameraTargetPositionCount;
+    if (positionCount == 6) {
         for (i = 0; i < 6; i++) {
             followPositions[i][0] = followPositions[i + 1][0];
             followPositions[i][1] = followPositions[i + 1][1];
             followPositions[i][2] = followPositions[i + 1][2];
         }
     }
-    followPositions[gCameraTargetPositionCount][0] = focus[0];
-    followPositions[gCameraTargetPositionCount][1] = focus[1];
-    followPositions[gCameraTargetPositionCount][2] = focus[2];
-    if (gCameraTargetPositionCount < 6) {
+    followPositions[positionCount][0] = focus[0];
+    followPositions[positionCount][1] = focus[1];
+    followPositions[positionCount][2] = focus[2];
+    if (positionCount < 6) {
         gCameraTargetPositionCount++;
     }
 
@@ -1558,18 +1541,18 @@ void camera_mode_follow(s32 camIdx)
     dx = cam->delta[0];
     dy = cam->delta[1];
     dz = cam->delta[2];
-    distance = dx * dx + dy * dy + dz * dz;
+    distance = dz * dz + dx * dx + dy * dy;
     if (distance > lbl_80345EC8) {
         root = __frsqrte(distance);
         root = lbl_80345F18 * root *
-               -(distance * root * root - lbl_80345F20);
+               -(root * root * distance - lbl_80345F20);
         root = lbl_80345F18 * root *
-               -(distance * root * root - lbl_80345F20);
+               -(root * root * distance - lbl_80345F20);
         root = lbl_80345F18 * root *
-               -(distance * root * root - lbl_80345F20);
-        followScratch.focusRoot = (f32)(distance * lbl_80345F18 * root *
-            -(distance * root * root - lbl_80345F20));
-        distance = followScratch.focusRoot;
+               -(root * root * distance - lbl_80345F20);
+        focusRoot = (f32)(distance * (lbl_80345F18 * root *
+            -(root * root * distance - lbl_80345F20)));
+        distance = focusRoot;
     }
 
     previousSpeed = lbl_80344464;
@@ -1631,14 +1614,14 @@ void camera_mode_follow(s32 camIdx)
     cam->avel[1] = zeroValue;
     cam->avel[2] = zeroValue;
     if (lbl_803443F4 != 0) {
-        oldRadius = cam->radius;
+        followRadius = cam->radius;
         normalizeFinal[0] = cam->wpos[0] - cam->attn[0];
         normalizeFinal[1] = cam->wpos[1] - cam->attn[1];
         normalizeFinal[2] = cam->wpos[2] - cam->attn[2];
         SlowNormalVector(normalizeFinal);
-        cam->wpos[0] = cam->attn[0] + normalizeFinal[0] * oldRadius;
-        cam->wpos[1] = cam->attn[1] + normalizeFinal[1] * oldRadius;
-        cam->wpos[2] = cam->attn[2] + normalizeFinal[2] * oldRadius;
+        cam->wpos[0] = cam->attn[0] + normalizeFinal[0] * followRadius;
+        cam->wpos[1] = cam->attn[1] + normalizeFinal[1] * followRadius;
+        cam->wpos[2] = cam->attn[2] + normalizeFinal[2] * followRadius;
     }
     FOLLOW_RENDER(camIdx, cam, finalPosition, finalAttention, finalDirection);
 
@@ -1647,12 +1630,13 @@ void camera_mode_follow(s32 camIdx)
          ((f64)cam->radius >= lbl_80345FF0 && lbl_80344960 >= 0)) &&
         (lbl_803444F4 == 0 || lbl_80344534 != savedYaw)) {
         s32 backupAttentionMode;
-        offscreen = 0;
-        for (player = 0; player < 4; player++) {
-            u8* playerData = gPlayers + player * 0x335C;
-            if (*(s32*)(playerData + 0xE8) == 1) {
-                MBWindowProject((f32*)(playerData + 0x54),
-                                (f32*)(state + 0xCC), 0, projected);
+        playerData = (Player*)gPlayers;
+        projectionMatrix = (f32*)(state + 0xCC);
+        for (viewportPlayer = 0; viewportPlayer < 4;
+             viewportPlayer++, playerData++) {
+            if (playerData->state == 1) {
+                MBWindowProject(playerData->col_pos, projectionMatrix, 0,
+                                projected);
                 screenX = (f32)projected[0];
                 screenY = (f32)projected[1];
                 if (screenX < (f32)(lbl_80344520 + 30) ||
@@ -1681,32 +1665,6 @@ void camera_mode_follow(s32 camIdx)
         backup->state = 0;
     }
 }
-#pragma opt_common_subs on
-
-#undef focus
-#undef projected
-#undef finalDirection
-#undef finalPosition
-#undef finalAttention
-#undef normalizeFinal
-#undef resetDirection
-#undef resetPosition
-#undef resetAttention
-#undef normalizeDefault
-#undef transitionDirection
-#undef transitionPosition
-#undef transitionAttention
-#undef normalizeTransition
-#undef initialDirection
-#undef initialPosition
-#undef initialAttention
-#undef normalizeInitial
-#undef emptyDirection
-#undef emptyPosition
-#undef emptyAttention
-#undef requestDirection
-#undef requestPosition
-#undef requestAttention
 #undef backup
 #undef followPositions
 #undef FOLLOW_NORMALIZE_POSITION
