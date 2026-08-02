@@ -588,3 +588,22 @@ but retail independently materializes the same value into argument register
 retail `lis r4,49; addis r3,r31,-49` order; passing `size`, assigning `size`
 again, or using only the literal all chose a different schedule. The temporary
 emits no instruction or stack growth after optimization.
+
+For a large function whose opcode stream is already identical but a late
+block still has volatile-register coloring differences, test a function-local
+`#pragma opt_propagation off` before reshaping the block itself. In
+`camera_run_mode`, that pragma corrected the final player-search loop across a
+3,324-byte function, but initially changed one earlier floating-point multiply
+from `f1` to `f3`. Staging the double expression through an already-live `f64`
+local before converting it to `f32` restored the retail `fmul f1` / `frsp f3`
+pair:
+
+```c
+stepDouble = 0.08333333 * (15.0 - (f64)cam->radius);
+rate = (f32)stepDouble;
+```
+
+The combination made the whole function byte-exact. This is especially useful
+when `flagsweep.py` reports `-opt noprop` as the only variant that improves a
+register-only residual: use the pragma for the coloring, then repair isolated
+propagation fallout with typed staging temporaries.
