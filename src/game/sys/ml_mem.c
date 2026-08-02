@@ -432,6 +432,7 @@ void* AllocMem32(int size)
 void* AllocHiMem(u32 size)
 {
     u32 tmp;
+    u32 result;
 
     if (mlmMemReserved != 0) {
         gErrorCode = 0x808000;
@@ -446,10 +447,11 @@ void* AllocHiMem(u32 size)
                     size, (mlmMemUsed + size) - mlmMemLimit);
     }
     tmp = ((u32)mlmMemBase + mlmMemLimit) - size;
-    size += tmp - (tmp & 0xffffff80);
+    result = tmp & 0xffffff80;
+    size += tmp - result;
     mlmMemLimit -= size;
     alloctot += size;
-    return mlmMemBase + mlmMemLimit;
+    return (void*)result;
 }
 
 int GetHiMemCacheTop(void)
