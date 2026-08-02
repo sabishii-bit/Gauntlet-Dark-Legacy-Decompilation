@@ -2190,22 +2190,36 @@ extern void ClearPlyrData(s32 player);
 /* per-frame processors                                                */
 /* ------------------------------------------------------------------ */
 
+extern const f64 lbl_803478E8;
+
+static inline f64 PlayerScaleMultiply(f32 value, const f64* factor)
+{
+    return (f64)value * *factor;
+}
+
 /* Decay the shrink/grow potion scale back toward 1 and clamp tiny.    */
+#pragma opt_common_subs off
+#pragma opt_propagation off
 void PlayerProcessScale(void* vp) {
     Player* p = vp;
     f32 s;
+    f32 ambientScale;
+    f32 zero;
     f32 av;
     u8 unused[8];
 
     s = PF(p, 0x7FC, f32);
     if (s != 0.0) {
-        PF(p, 0x7FC, f32) = s * 0.995;
+        ambientScale = s;
+        PF(p, 0x7FC, f32) = (f32)PlayerScaleMultiply(s, &lbl_803478E8);
         av = PF(p, 0x7FC, f32);
         *(u32*)&av &= 0x7FFFFFFF;
         if (av < 0.01) {
-            PF(p, 0x7FC, f32) = 0.0f;
+            zero = 0.0f;
+            ambientScale = zero;
+            PF(p, 0x7FC, f32) = zero;
         }
-        MBTreeSetAmbientAdd(p->node, (s32)(100.0 * s), 1);
+        MBTreeSetAmbientAdd(p->node, (s32)(100.0 * ambientScale), 1);
     }
     if (PF(p, 0x7DC, f32) > 0.0f) {
         PF(p, 0x95A, s16) = 1;
@@ -2213,11 +2227,13 @@ void PlayerProcessScale(void* vp) {
         PF(p, 0x95A, s16) = 0;
     }
     if (ProcessSkinFX((f32*)((u8*)p + 0x7DC), p->node, 0) == 0 &&
-        *(s16*)(p->node + 0x5C) < -1) {
+        *(s16*)(p->node + 0x5C) <= -2) {
         MBTreeSetAltTex(p->node, -1, 0, 1);
         MBTreeSetAmbientAdd(p->node, 0, 1);
     }
 }
+#pragma opt_propagation reset
+#pragma opt_common_subs reset
 
 /* Is player i on the character-select overlay?                        */
 s32 PlayerSelecting(s32 i) {
