@@ -317,11 +317,14 @@ u32 WorldCollide(f32 radius, void* from, void* to, f32* result,
  * fast-exit bit and the recorded floor height matches the query plane. */
 s32 ExitCollisionEarly(void)
 {
-    if ((lbl_80344188 & 0x20) == 0 ||
-        lbl_80345730 != (f64)lbl_80344164) {
-        return 0;
+    s32 result = 0;
+
+    if ((lbl_80344188 & 0x20) != 0) {
+        if (lbl_80345730 == (f64)lbl_80344164) {
+            result = 1;
+        }
     }
-    return 1;
+    return result;
 }
 STUB(0x8000DD00, NextGrid)
 STUB(0x8000DFEC, WorldObjCollide)
