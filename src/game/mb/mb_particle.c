@@ -127,11 +127,9 @@ static Psys* allocPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
                        f64 f8, s32 fromArena, s32 a, s32 b, s32 c, s32 d,
                        s32 e, s32 g);
 static s32* listFindHandle(s32 id, s32 base);
-static void freePsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                     f64 f8, MBObject* node);
+static void freePsys(MBObject* node);
 static void* allocPsysMem(s32 size, s32 tag);
-static void  freePsysMem(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                         f64 f8, void* blk);
+static void freePsysMem(void* blk);
 static void initPresetList(void);
 static void setPTimeVal(f32 sec, Psys* p);
 
@@ -922,7 +920,7 @@ void MBPsysStartFrame(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
     gPsysFrameFrac = 0.0f;
     while (node != NULL) {
         MBObject* next = node->child;
-        freePsys(f1, f2, f3, f4, f5, f6, f7, f8, node);
+        freePsys(node);
         node = next;
     }
     gPsysRmQueue = NULL;
@@ -959,22 +957,22 @@ static s32* listFindHandle(s32 id, s32 base) {
 
 /* 0x800D138C - freePsys: release a psys node's buffers back to the pool.
  * Documented reconstruction (NonMatching). */
-static void freePsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                     f64 f8, MBObject* node) {
-    if (node->child != NULL) {
-        node->child->data.psys = NULL;
-        MBRemoveNode(node->child, 1);
-        node->child = NULL;
+#pragma opt_common_subs off
+static void freePsys(MBObject* node) {
+    if (*(MBObject**)((u8*)node + 40) != NULL) {
+        *(void**)((u8*)*(MBObject**)((u8*)node + 40) + 112) = NULL;
+        MBRemoveNode(*(MBObject**)((u8*)node + 40), 1);
+        *(MBObject**)((u8*)node + 40) = NULL;
     }
-    if (*((s32*)node + 1) == 0) {   /* not world-owned */
-        Psys* p = (Psys*)node->data.psys;
-        if (p != NULL) {
-            freePsysMem(f1, f2, f3, f4, f5, f6, f7, f8, p);
-            node->data.psys = NULL;
+    if (*((u32*)node + 1) == 0) {   /* not world-owned */
+        if (*(Psys**)((u8*)node + 8) != NULL) {
+            freePsysMem(*(Psys**)((u8*)node + 8));
+            *(Psys**)((u8*)node + 8) = NULL;
         }
-        freePsysMem(f1, f2, f3, f4, f5, f6, f7, f8, node);
+        freePsysMem(node);
     }
 }
+#pragma opt_common_subs reset
 
 /* 0x800D1404 - allocPsysMem: first-fit split allocator over the block pool.
  * Documented reconstruction (NonMatching). */
@@ -1008,8 +1006,7 @@ static void* allocPsysMem(s32 size, s32 tag) {
 
 /* 0x800D1530 - freePsysMem: return a block, coalescing neighbours.
  * Documented reconstruction (NonMatching). */
-static void freePsysMem(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                        f64 f8, void* mem) {
+static void freePsysMem(void* mem) {
     PsysMemBlock* b = (PsysMemBlock*)mem - 1;
     if (b->bytes >= 0) {
         ErrorPrintf("freePsysMem: bad free block. Error=%d", b->bytes);
