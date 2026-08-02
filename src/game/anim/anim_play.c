@@ -100,22 +100,22 @@ void InterpXYZ(f32 frac, f32* a, f32* b, f32* out)
  * into the shortest arc before blending. */
 void InterpPYR(f32 frac, f32* a, f32* b, f32* out)
 {
-    f64 lo = lbl_80345808;
-    f64 wrap = lbl_80345800;
-    f64 hi = lbl_803457F8;
     s32 i;
     for (i = 0; i < 3; i++) {
-        if (a[i] != b[i]) {
-            f64 d = b[i] - a[i];
-            if (d > hi) {
-                d = d - wrap;
+        f32 av = a[i];
+        f32 bv = b[i];
+
+        if (av != bv) {
+            bv = bv - av;
+            if (bv > lbl_803457F8) {
+                bv = bv - lbl_80345800;
             }
-            if (d <= lo) {
-                d = d + wrap;
+            if (bv <= lbl_80345808) {
+                bv = bv + lbl_80345800;
             }
-            out[i] = (f32)(frac * d + (f64)a[i]);
+            out[i] = frac * bv + av;
         } else {
-            out[i] = a[i];
+            out[i] = av;
         }
     }
 }
