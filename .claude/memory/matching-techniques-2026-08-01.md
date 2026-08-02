@@ -474,3 +474,21 @@ the physical state-machine layout. Finally, use the established
 `camera_mode_follow` from 1053 instructions/1093 real diff lines (about 84%
 fuzzy) to 1049 instructions/401 real diff lines (about 91.49% fuzzy), and the
 camera TU from about 95.31% to 95.96% fuzzy.
+
+`camera_mode_level` showed that a pointer kept alive for a late three-float
+copy can rotate nearly every saved GPR in the second half of a function. The
+typed `cam0` local was only needed late to copy its attention into camera 3;
+reading the same three fields from their mapped `gCameraState` offsets ended
+that lifetime after camera 0 setup. Declaring the typed `Player*` cursor before
+the shared loop counter then recovered the retail prologue coloring, while
+moving the late camera index before that cursor gave it retail's r30.
+
+Do not keep a zero scalar alive across `CreateYPRMatrix` merely to initialize
+two stack floats afterward. Retail reloads the zero constant after the call;
+using the short-lived scalar only for camera fields and the global for the two
+post-call stores avoids an unnecessary saved FPR and restores exact function
+length. Finally, component order can matter even for an equivalent squared
+distance: assigning Y before X and forming `y*y + x*x + z*z` best reproduced
+this function's FPR web. Together these changes reduced `camera_mode_level`
+from 581/582 instructions and 269 real diff lines to the exact 582/582 length
+and 92 real diff lines before report scoring.
