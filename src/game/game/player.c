@@ -4602,31 +4602,48 @@ void PlayerAddPowerup(f32 duration, f32 strength, void* vp, s32 type, u32 mask) 
 }
 
 /* Attribute bump helpers (per-character bonus + norm recompute).      */
-void PlayerIncSpeed(void* vp, u32 amount) {
-    Player* p = vp;
+typedef struct PlayerAttributeBonus {
+    f32 _pad0[2];
+    f32 fight;
+    f32 armor;
+    f32 magic;
+    f32 speed;
+} PlayerAttributeBonus;
 
-    *(f32*)&CHAR_STATS(p, p->character)[5] += (f32)(s32)amount;
+typedef struct PlayerAttributeOverlay {
+    s32 index;
+    s32 class_id;
+    s32 char_type;
+    s32 character;
+    u8 _pad10[0xA90 - 0x10];
+    PlayerAttributeBonus bonuses[16];
+} PlayerAttributeOverlay;
+
+void PlayerIncSpeed(void* vp, u32 amount) {
+    PlayerAttributeOverlay* p = vp;
+
+    p->bonuses[p->character].speed += (f32)(s32)amount;
     check_player_atts(p, p->character, NULL);
 }
 
 void PlayerIncMagic(void* vp, u32 amount) {
-    Player* p = vp;
+    PlayerAttributeOverlay* p = vp;
 
-    *(f32*)&CHAR_STATS(p, p->character)[4] += (f32)(s32)amount;
+    p->bonuses[p->character].magic += (f32)(s32)amount;
     check_player_atts(p, p->character, NULL);
 }
 
 void PlayerIncArmor(void* vp, u32 amount) {
-    Player* p = vp;
+    PlayerAttributeOverlay* p = vp;
 
-    *(f32*)&CHAR_STATS(p, p->character)[3] += (f32)(s32)amount;
+    p->bonuses[p->character].armor += (f32)(s32)amount;
     check_player_atts(p, p->character, NULL);
 }
 
 void PlayerIncFight(void* vp, u32 amount) {
-    Player* p = vp;
+    PlayerAttributeOverlay* p = vp;
 
-    *(f32*)&CHAR_STATS(p, p->character)[2] += (f32)(s32)amount;
+    p->bonuses[p->character].fight += (f32)(s32)amount;
     check_player_atts(p, p->character, NULL);
 }
 
