@@ -267,7 +267,7 @@ extern s32 lbl_8034441C;
 extern s32 lbl_80344420;
 extern s32 lbl_803444EC;
 extern s32 lbl_803444F0;
-extern f32 lbl_80344590;
+extern f32 gClockFrameStep;
 extern f32 lbl_80345F38;
 extern f32 lbl_80345F14;
 extern s32 lbl_803444F4;
@@ -748,10 +748,11 @@ void camera_run_mode(s32 camIdx)
 {
     Camera* cam = &gCameras[camIdx];
     s32 attentionMode = cam->a_mode;
-    s32* playerCursor;
+    Player* players;
+    Player* player;
     s32 playerIndex;
+    s32* playerCursor;
     s32 tries;
-    u8* players;
     u8* playerObject;
     f32 distance;
     f32 scale;
@@ -832,9 +833,9 @@ void camera_run_mode(s32 camIdx)
         cam->delta[0] = destination[0] - cam->attn[0];
         cam->delta[1] = destination[1] - cam->attn[1];
         cam->delta[2] = destination[2] - cam->attn[2];
-        distance = cam->delta[2] * cam->delta[2];
-        distance += cam->delta[0] * cam->delta[0] +
-                    cam->delta[1] * cam->delta[1];
+        distance = cam->delta[2] * cam->delta[2] +
+                   (distance = cam->delta[0] * cam->delta[0] +
+                               cam->delta[1] * cam->delta[1]);
         if (distance > 0.0f) {
             f64 guess = __frsqrte(distance);
             guess = 0.5 * guess * (3.0 - guess * guess * distance);
@@ -923,7 +924,7 @@ void camera_run_mode(s32 camIdx)
                         (0.5 * guess * (3.0 - guess * guess * distance)));
                     distance = rootGameMode;
                 }
-                cam->radius = (f32)((f64)distance + 2.0 * (f64)lbl_80344590);
+                cam->radius = (f32)((f64)distance + 2.0 * (f64)gClockFrameStep);
                 cameraRadius = cam->radius;
                 cameraPosition = cam->wpos;
                 cameraAttention = cam->attn;
@@ -1002,13 +1003,13 @@ void camera_run_mode(s32 camIdx)
         if (cam->trans_mode == 0) {
             cam->trans_mode = -1;
         }
-        players = gPlayers;
-        playerIndex = gCameras[0].pn;
+        players = (Player*)gPlayers;
         playerCursor = &gCameras[0].pn;
+        playerIndex = *playerCursor;
         for (tries = 0; tries < 4; tries++) {
-            if (*(s32*)(players + playerIndex * 0x335C + 0xE8) == 1 ||
-                *(s32*)(players + playerIndex * 0x335C + 0xE8) == 4) {
-                playerObject = players + playerIndex * 0x335C + 0x14;
+            player = &players[playerIndex];
+            if (player->state == 1 || player->state == 4) {
+                playerObject = (u8*)player + 0x14;
                 *playerCursor = playerIndex;
                 goto found_player_object;
             }
@@ -1106,11 +1107,11 @@ free_attention:
             cam->trans_mode = -1;
         }
         dx = cam->wpos[0] - cam->wpos[0];
-        dz = cam->wpos[2] - cam->wpos[2];
         dy = cam->wpos[1] - cam->wpos[1];
-        cam->attn[0] += dx;
-        cam->attn[1] += dy;
-        cam->attn[2] += dz;
+        dz = cam->wpos[2] - cam->wpos[2];
+        cam->attn[0] += (dx = dx);
+        cam->attn[1] += (dy = dy);
+        cam->attn[2] += (dz = dz);
         if (gGameMode == 0x8008) {
             camera_mode_dest(camIdx);
         }
@@ -2840,8 +2841,8 @@ void camera_mode_spin(s32 camIdx)
         deltaX = settings[75] - settings[125];
         deltaY = settings[76] - settings[126];
         deltaZ = settings[77] - settings[127];
-        distance = deltaX * deltaX + deltaY * deltaY;
-        distance = deltaZ * deltaZ + distance;
+        distance = deltaZ * deltaZ +
+                   (distance = deltaX * deltaX + deltaY * deltaY);
         if (distance > 0.0f) {
             f64 guess = __frsqrte(distance);
             guess = 0.5 * guess * (3.0 - guess * guess * distance);
@@ -2899,7 +2900,7 @@ void camera_mode_orbit(s32 camIdx)
         cosineInput = (f32)((f64)sine * tickScale);
         zero *= tickScale;
         cosine = (f32)((f64)cosine * tickScale);
-        cam->wpos[0] = cosineInput + cam->wpos[0];
+        cam->wpos[0] = cam->wpos[0] + (cosineInput = cosineInput);
         cam->wpos[1] += zero;
         cam->wpos[2] += cosine;
 

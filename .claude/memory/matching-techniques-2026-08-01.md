@@ -528,3 +528,22 @@ that form in only one arm; keeping ordinary `if` assignments in the other arm
 allowed MWCC to load its table value directly into `r3`. Mixed source shapes
 inside sibling branches are therefore useful when retail uses different value
 coalescing for otherwise similar calls.
+
+Nested self-assignments can also steer a single commutative operand without
+adding instructions. `camera_mode_orbit` was otherwise exact, but spelling
+the X update in its natural reversed order rotated the preceding float
+conversion temporaries, while the original order emitted the final `fadds`
+operands backwards. This portable form matched both constraints:
+
+```c
+cam->wpos[0] = cam->wpos[0] + (cosineInput = cosineInput);
+```
+
+MWCC keeps the old position in the retail temporary and splits the right-hand
+value's SSA/coalescing web; the self-assignment disappears completely. The
+same family of source shape associates squared distances without extra code:
+`distance = z*z + (distance = x*x + y*y)`. In `camera_run_mode` and
+`camera_mode_spin`, that nested result assignment recovered the retail FPR
+webs where ordinary `distance = x*x + y*y; distance = z*z + distance;` did
+not. Validate each instance with `fndiff --clean`, since operand order and
+declaration changes around it can still rotate neighboring temporaries.
