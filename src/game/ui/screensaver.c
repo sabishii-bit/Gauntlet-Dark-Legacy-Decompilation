@@ -253,18 +253,22 @@ void init_inventory_panel(int idx)
  *   +992 (0x3E0)  arrH[4][12]  handles   (stride 48)
  * The two int arrays lbl_80274600[4]/lbl_80274610[4] sit at +0/+16.
  */
+typedef struct PanelBlitOverlay {
+    int state[4];
+    int state2[4];
+    u8 _pad20[0x3A0 - 0x20];
+    int group4[4][4];
+    int group12[4][12];
+} PanelBlitOverlay;
+
 void init_panel_blits(int idx)
 {
-    int* base = lbl_80274600;
-    int zero = 0;
+    PanelBlitOverlay* panels = (PanelBlitOverlay*)lbl_80274600;
 
-    base[idx] = zero;
-    {
-        int* p = &base[idx];
-        *(int*)((u8*)p + 16) = zero;
-    }
-    *(int*)((u8*)base + idx * 16 + 928) = zero;
-    *(int*)((u8*)base + idx * 48 + 992) = zero;
+    panels->state[idx] = 0;
+    panels->state2[idx] = 0;
+    panels->group4[idx][0] = 0;
+    panels->group12[idx][0] = 0;
 }
 
 /* Free (MBRemoveBlit) and null every blit handle in one player's panel. */
