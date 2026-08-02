@@ -42,7 +42,7 @@ extern void* AllocMem(int size);
 extern void* GetMemBase(void);
 extern int   BytesFree(void);
 extern void  LockMem(void);
-extern void  FreeUnlockedMem(void);
+extern void  FreeUnlockedMem(int slot);
 extern void  FatalError(const char* fmt, ...);
 extern void  ErrorPrintf(const char* fmt, ...);
 extern void  bulletproof_printf(const char* fmt, ...);
@@ -55,7 +55,7 @@ extern void  pbSetTime(int t);
 extern int   fn_800C7214(void* p);          /* MB file/texture post-load */
 extern void  fn_800C7884(int a);            /* MB texture-region reset */
 extern void  MBLockFonts(int slot);         /* MB lock helper */
-extern void  fn_800B6C20(void);             /* MB unlock helper */
+extern void  fn_800B6C20(int level);        /* MB unlock helper */
 extern void  fn_800B6BC0(void);             /* MB reset helper */
 extern void  MBTreeInit(void);             /* mb_objects reset */
 extern void  fn_800B9E4C(void);             /* mb_objects init */
@@ -260,14 +260,20 @@ void MBOX_LockModels(int slot) {
 }
 
 /* ---- 0x800B8A38 : free all models above the highest lock point ---- */
-void MBOX_ResetUnlockedModels(void) {
-    fn_800C7884(0);
-    FreeUnlockedMem();
-    fn_800B6C20();
+void MBOX_ResetUnlockedModels(int slot) {
+    u8* g = gWinGlobals;
+
+    fn_800C7884(slot);
+    FreeUnlockedMem(slot);
+    fn_800B6C20(slot);
+    lbl_80344E8C = lbl_802A5D0C[slot];
+    (*(s32**)(g + 0x30))[0] = lbl_80344E8C;
     MBTreeInit();
-    fn_800B9E4C();
-    MBInitPsys();
-    lbl_80344E8C = lbl_802A5D0C[0];
+    lbl_80344E88 = -1;
+    if (slot == 1) {
+        fn_800B9E4C();
+        MBInitPsys();
+    }
 }
 
 /* ---- 0x800B8AB8 : reset the whole model system ---- */
