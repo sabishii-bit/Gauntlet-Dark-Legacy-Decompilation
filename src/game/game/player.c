@@ -4502,31 +4502,48 @@ static f32 ClosestChest(void* vp) {
 
 /* Query (and tick) the slot holding powerup type/mask.  Returns the   */
 /* remaining state: 0 gone, 1 permanent, else the ticking timer.       */
+typedef struct PlayerPowerupState {
+    f32 strength;
+    s32 type;
+    f32 timer;
+    u32 mask;
+} PlayerPowerupState;
+
+typedef struct PlayerPowerupOverlay {
+    u8 pad[0x130];
+    PlayerPowerupState powerups[11];
+} PlayerPowerupOverlay;
+
 s32 player_get_powerup_state(f32 dt, void* vp, s32 type, u32 mask) {
-    Player* p = vp;
-    f32* tp;
+    register Player* p = (Player*)vp;
     s32 j;
     s32 r = 0;
 
     for (j = 0; j < 11; j++) {
-        if (PUP_STRENGTH(p, j) != 0.0 &&
-            PUP_TYPE(p, j) == type && (PUP_MASK(p, j) & mask)) {
-            break;
+        u8* entry = (u8*)p + j * 0x10;
+
+        if (*(f32*)(entry + 0x130) != 0.0) {
+            if (*(s32*)(entry + 0x134) == type) {
+                if (*(u32*)(entry + 0x13C) & mask) {
+                    break;
+                }
+            }
         }
     }
     if (j < 11) {
-        tp = &PUP_TIMER(p, j);
-        r = (s32)*tp;
-        if (r < 0) {
+        PlayerPowerupOverlay* overlay = (PlayerPowerupOverlay*)p;
+
+        r = (s32)overlay->powerups[j].timer;
+        if ((s32)overlay->powerups[j].timer < 0) {
             r = 1;
         } else if (sMusicTrackHi != 0xD) {
             if (dt < 0.0f) {
-                *tp = 0.0f;
+                overlay->powerups[j].timer = 0.0f;
             } else {
-                *tp -= dt;
+                overlay->powerups[j].timer -= dt;
             }
-            if (*tp <= 0.0f) {
-                PUP_STRENGTH(p, j) = 0.0f;
+            if (overlay->powerups[j].timer <= 0.0f) {
+                overlay->powerups[j].strength = 0.0f;
             }
         }
     }

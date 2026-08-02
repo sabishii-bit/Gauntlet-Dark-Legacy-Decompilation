@@ -667,3 +667,23 @@ only after the opcode/register diff is zero: here replacing the old 4+12 byte
 pads with one 8-byte tail pad kept both the 64-byte frame and the volatile
 float rounding slot at `20(r1)`. This combination recovered all 124
 instructions (496 linked bytes) exactly.
+
+## Typed overlays for indexed records and duplicated float conversions
+
+Flattening a repeated record access into `base + constant + index * stride`
+can leave an otherwise exact function with reversed source operands on PPC
+`add`, `cmpw`, and `and.` instructions. In `player_get_powerup_state`, model
+the 16-byte power-up record and a padded player overlay explicitly, then use
+`overlay->powerups[j].field`. MWCC preserves the retail `base + index` tree
+and folds the field displacement into the following load/store. A block-local
+byte pointer plus nested `if` statements similarly preserved the retail
+left/right operand encoding in the search loop; the equivalent compound
+expression canonicalized both operands in the opposite order.
+
+Also inspect conversion duplication before caching a result. Retail converted
+the same timer float to integer twice and stored the two `fctiwz` results in
+separate 8-byte stack slots. Repeating the cast in the comparison, instead of
+testing the cached integer, reproduced both stores. Declaring the player alias
+as `register` prevented the otherwise dead source alias from adding an 8-byte
+home slot, keeping the retail 40-byte frame. Together these source-shape clues
+recovered all 54 instructions exactly.
