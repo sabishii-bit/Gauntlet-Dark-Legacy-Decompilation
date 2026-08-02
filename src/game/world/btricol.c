@@ -29,6 +29,9 @@ typedef struct ColFrame {
 
 /* Read-only collision-query line, owned elsewhere (.bss 0x8023F7E8). */
 extern f32 gColQueryLine[8]; /* [0..2] = p0, [4..6] = p1 */
+extern const f64 lbl_80345D80;
+extern const f64 lbl_80345D88;
+extern const f32 lbl_80345D90;
 
 /* PSVEC-style helpers in the g3d math library. */
 extern f32  fqdist(f32 a, f32 b, f32 c, f32 d, f32 e, f32 f);
@@ -38,7 +41,8 @@ extern void SlowNormalVector(Vec* out, Vec* a, Vec* b);
 f32         TriLineCol(Vec* tri, Vec* out, f32 radius);
 f32         BTriLineCol(Vec* tri, Vec* out, f32 radius);
 static void BodyVectorNorm(Vec* in, Vec* out, ColFrame* f, f32 c);
-static void WorldVectorNorm(Vec* out, f32 x, f32 y, f32 z, ColFrame* f);
+static void WorldVectorNorm(Vec* out, f32 x, f32 y, f32 z, f32 c,
+                            ColFrame* f);
 static f32  LineLineDist3D2D(Vec* a0, Vec* a1, Vec* outA, f32* outTa,
                              Vec* b0, Vec* b1, f32* outTb, Vec* outB);
 static f32  LineLineDist(Vec* a0, Vec* a1, Vec* b0, Vec* b1,
@@ -52,25 +56,57 @@ static f32  PointLineDist2D(Vec* p0, Vec* p1, Vec* dir, Vec* out);
 /* ------------------------------------------------------------------ */
 static void BodyVectorNorm(Vec* in, Vec* out, ColFrame* f, f32 c) {
     f32 s = f->s;
-    if (s > 0.99999994f) {
+    if ((f64)s > lbl_80345D80) {
         out->x = in->x;
         out->y = in->y;
         out->z = in->z;
         return;
     }
-    if (s < -0.99999994f) {
+    if ((f64)s < lbl_80345D88) {
         out->x = in->x;
         out->y = -in->y;
         out->z = -in->z;
         return;
     }
     {
-        f32 cs = f->c;
-        f32 tz = f->t;
-        out->x = -in->x * (tz * c) + in->z * (cs * c);
-        out->y = in->x * cs + in->y * s + in->z * tz;
-        out->z = in->y * (1.0f - s * s) * c + s * (in->x * (cs * c)) +
-                 (tz * c) * (-in->z * s);
+        f32 cs;
+        f32 neg_ix;
+        f32 cs_scaled;
+        f32 t;
+        f32 t_scaled;
+        f32 iy;
+        f32 ix;
+        f32 iz;
+        f32 iy_s;
+        f32 mid_y;
+        f32 iz_cs_scaled;
+        f32 result_y;
+        f32 neg_iz;
+        f32 result_x;
+        f32 negix_cs_scaled;
+        f32 negiz_s;
+
+        cs = f->c;
+        iy = in->y;
+        cs_scaled = cs * c;
+        iz = in->z;
+        ix = in->x;
+        iy_s = iy * s;
+        t = f->t;
+        neg_ix = -ix;
+        mid_y = ix * cs + iy_s;
+        t_scaled = t * c;
+        iz_cs_scaled = iz * cs_scaled;
+        result_y = iz * t + mid_y;
+        neg_iz = -iz;
+        result_x = neg_ix * t_scaled + iz_cs_scaled;
+        negix_cs_scaled = neg_ix * cs_scaled;
+        negiz_s = neg_iz * s;
+        out->x = result_x;
+        out->y = result_y;
+        out->z = t_scaled * negiz_s +
+                 (s * negix_cs_scaled +
+                  c * (iy * (lbl_80345D90 - s * s)));
     }
 }
 
@@ -78,23 +114,36 @@ static void BodyVectorNorm(Vec* in, Vec* out, ColFrame* f, f32 c) {
 /* Inverse of BodyVectorNorm: fold a world-space vector back into the  */
 /* surface body frame.                                                 */
 /* ------------------------------------------------------------------ */
-static void WorldVectorNorm(Vec* out, f32 x, f32 y, f32 z, ColFrame* f) {
+static void WorldVectorNorm(Vec* out, f32 x, f32 y, f32 z, f32 c,
+                            ColFrame* f) {
     f32 s = f->s;
-    if (s > 0.99999994f) {
+    if ((f64)s > lbl_80345D80) {
         out->x = x;
         out->y = y;
         out->z = z;
         return;
     }
-    if (s < -0.99999994f) {
+    if ((f64)s < lbl_80345D88) {
         out->x = x;
         out->y = -y;
         out->z = -z;
         return;
     }
-    out->x = x;
-    out->y = y;
-    out->z = z;
+    {
+        f32 cs;
+        f32 cs_scaled;
+        f32 t;
+        f32 t_scaled;
+
+        cs = f->c;
+        t = f->t;
+        cs_scaled = cs * c;
+        t_scaled = t * c;
+
+        out->x = s * (-z * cs_scaled) + (-x * t_scaled + y * cs);
+        out->y = y * s + c * (z * (lbl_80345D90 - s * s));
+        out->z = t_scaled * (-z * s) + (x * cs_scaled + y * t);
+    }
 }
 
 /* ------------------------------------------------------------------ */
@@ -180,7 +229,7 @@ f32 TriLineCol(Vec* tri, Vec* out, f32 radius) {
     local.y = gColQueryLine[1];
     local.z = gColQueryLine[2];
     BodyVectorNorm(&local, out, &frame, radius);
-    WorldVectorNorm(&local, local.x, local.y, local.z, &frame);
+    WorldVectorNorm(&local, local.x, local.y, local.z, radius, &frame);
     return -1.0f;
 }
 
@@ -203,6 +252,6 @@ f32 BTriLineCol(Vec* tri, Vec* out, f32 radius) {
     e1.z = gColQueryLine[6];
     BodyVectorNorm(&e0, out, &frame, radius);
     (void)LineLineDist3D2D(&e0, &e1, out, &ta, &e0, &e1, &tb, out);
-    WorldVectorNorm(&e0, e0.x, e0.y, e0.z, &frame);
+    WorldVectorNorm(&e0, e0.x, e0.y, e0.z, radius, &frame);
     return -1.0f;
 }
