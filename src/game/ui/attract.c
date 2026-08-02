@@ -878,17 +878,25 @@ const char* attract_screen_name_80014F34(int kind) {
 #pragma force_active reset
 
 /* reset_attract_mode  (ATTRACT.OBJ) - clear all sequencer state */
+#pragma opt_propagation off
 void reset_attract_mode(void) {
-    lbl_80343B04 = -1;
-    lbl_803441F4 = 0;
-    lbl_80344294 = 0;
-    lbl_80344290 = 0;
-    sAudioOverride = 0;
-    lbl_80343B0C = -1;
-    lbl_80343B10 = -1;
-    lbl_80343B08 = -1;
-    lbl_80343B14 = -1;
+    register s32 none;
+    register s32 zero;
+
+    none = -1;
+    zero = 0;
+
+    lbl_80343B04 = none;
+    lbl_803441F4 = zero;
+    lbl_80344294 = zero;
+    lbl_80344290 = zero;
+    sAudioOverride = zero;
+    lbl_80343B0C = none;
+    lbl_80343B10 = none;
+    lbl_80343B08 = none;
+    lbl_80343B14 = none;
 }
+#pragma opt_propagation reset
 
 /* poll pads for the Start / skip trigger while in attract */
 static int attract_check_input(int block) {
