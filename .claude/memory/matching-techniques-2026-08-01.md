@@ -214,3 +214,29 @@ The function's late "temporarily move player" path reuses the original future
 position's three stack words for the saved player position. Reusing the same
 aggregate field in C preserves that lifetime overlay; a separately declared
 saved vector is promoted into FPRs and loses the retail spill/reload sequence.
+
+## Use singleton switches to preserve two-branch dispatches
+
+`camera_orbit_update` contained three places where retail emitted an explicit
+conditional branch followed by an unconditional branch (`beq case; b exit`).
+Ordinary `if`/`else` and equivalent `goto` forms were folded to one inverted
+branch. Expressing the dispatch as a `switch` with one named case and a
+`default` preserved the retail two-branch form without inline assembly. This
+worked both for a real value dispatch (`case 2`) and for zero-valued guard
+globals. It also preserved register allocation, unlike inline `asm { b ... }`,
+which changed the function's floating-register lifetimes.
+
+The same function's absolute-yaw bit clear needed its address-taken float at
+`r1+0x10`. A two-word scratch record with the live float first and an unused
+four-byte tail made MWCC allocate the record at that exact offset while
+retaining the retail 0x38-byte frame. Later crossing differences must use a
+separate, non-address-taken `f32`; reusing the scratch float forces two
+unwanted store/reload pairs.
+
+Finally, model the angular step as a dedicated `f32`, even though each test
+promotes it to `f64`. Explicitly round it after the wrap and scale operations,
+then multiply it by the float frame-tick value. That produces retail's
+`fmr`/`frsp` chain and final `fmuls`; keeping the step in a `f64` causes an
+extra conversion and changes its FPR. The completed 269-instruction function
+is parked on only one four-instruction pointer-load scheduling tie (8 real
+diff lines), after the documented scheduler-attempt limit.
