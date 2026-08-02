@@ -400,17 +400,22 @@ static s32 sel_set_choice(s32 player, s32 mode)
 
 s32 other_players_next_level(s32 idx)
 {
+    s32 st;
+    u8* p;
     int i;
-    u8* p = gPlayers;
+
+    p = gPlayers;
     for (i = 0; i < 4; i++, p += 0x335C) {
         if (i != idx) {
-            s32 st = *(s32*)(p + 0xE8);
+            st = *(s32*)(p + 0xE8);
             if (st == 1 || (u32)(st - 4) <= 1) {
                 return *(s32*)(p + 0x830);
             }
         }
     }
-    return *(s32*)(gPlayers + idx * 0x335C + 0x830);
+    p = gPlayers;
+    p += idx * 0x335C;
+    return *(s32*)(p + 0x830);
 }
 
 int check_active_players(void)
