@@ -647,3 +647,23 @@ retaining the original `li 32; and` sequence. The object relocation is named
 address and the linked function is byte-exact. Treat this target sequence as
 source-type evidence, and use the containing 64-bit symbol rather than a
 volatile mask or a TU-wide optimization change.
+
+## Combining scoped no-CSE, inlined argument staging, and frame balancing
+
+`pbCameraUpdate` had three independent residual classes: an extra `fmr` in its
+square-root path, reversed load order for the two `atan2` arguments, and
+swapped FPR identities in two float/double scale expressions. Treat these as
+separate levers. A function-local `#pragma opt_common_subs off` removed the
+structural `fmr` and the two unwanted `lfsu` forms. A tiny `static inline`
+two-argument wrapper, compiled with `#pragma dont_inline off`, preserved the
+retail left-to-right `lfs f1` / `lfs f2` argument staging without emitting a
+real helper. Finally, assigning each double constant to a reused `double`
+temporary and the field value to a reused `f32` temporary produced retail's
+`lfd f0; lfs f1; fmul f0,f1,f0` web.
+
+Inlining and typed staging change MWCC's dead parameter/local home space even
+when they add no instructions. Rebalance the pre-existing unused byte arrays
+only after the opcode/register diff is zero: here replacing the old 4+12 byte
+pads with one 8-byte tail pad kept both the 64-byte frame and the volatile
+float rounding slot at `20(r1)`. This combination recovered all 124
+instructions (496 linked bytes) exactly.

@@ -1,7 +1,7 @@
 /* pb_window.c -- Midway's window/camera/projection layer (pb_window.obj on
  * Xbox, 26 fns; the GCN build keeps 15). Function names from shell3D.pdb;
  * PBWINDOW layout matches the Xbox PDB struct field-for-field.
- * WIP: debugScissor/pbProjCalc/pbWinSetup/pbCameraUpdate still stubs.
+ * WIP: debugScissor/pbProjCalc/pbWinSetup still retain matching residuals.
  */
 
 #include "types.h"
@@ -729,6 +729,13 @@ void pbWinSetup(void)
 
 
 /* 0x800C9448: positional light packets + camera pitch/yaw */
+#pragma dont_inline off
+static inline f32 pbAtan2Ordered(f32 x, f32 z)
+{
+    return atan2(x, z);
+}
+
+#pragma opt_common_subs off
 void pbCameraUpdate()
 {
     PBWINGLOBALS* g = gWinGlobals;
@@ -739,9 +746,9 @@ void pbCameraUpdate()
     int count;
     f32 one;
     f32 fz, fx;
-    u8 pad0[4]; /* unused, matches original frame */
+    double scale;
     volatile float y;
-    u8 pad1[0xC]; /* unused, matches original frame */
+    u8 pad1[8]; /* unused, matches original frame */
 
     count = 0;
     ri = 0;
@@ -774,9 +781,13 @@ void pbCameraUpdate()
         one = y;
     }
     g->current->cam_pitch = atan(g->current->cam_look[1] / one);
-    g->current->cam_yaw = atan2(g->current->cam_look[0], g->current->cam_look[2]);
-    g->current->cam_pitch = (f32) (0.31830988614222805 * (double) g->current->cam_pitch);
-    g->current->cam_yaw = (f32) (0.15915494307111402 * (double) g->current->cam_yaw);
+    g->current->cam_yaw = pbAtan2Ordered(g->current->cam_look[0], g->current->cam_look[2]);
+    scale = 0.31830988614222805;
+    one = g->current->cam_pitch;
+    g->current->cam_pitch = (f32) ((double) one * scale);
+    scale = 0.15915494307111402;
+    one = g->current->cam_yaw;
+    g->current->cam_yaw = (f32) ((double) one * scale);
     if (lbl_80345158 != 0) {
         lbl_8034515C = lbl_8034515C + 1;
         if (lbl_8034515C > 0x14) {
@@ -787,6 +798,8 @@ void pbCameraUpdate()
         }
     }
 }
+#pragma opt_common_subs reset
+#pragma dont_inline on
 
 /* 0x800C9638 */
 void pbCameraCalc(void)
