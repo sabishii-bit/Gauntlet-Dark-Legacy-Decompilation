@@ -625,3 +625,11 @@ then loop index; this produced retail's `r7` through `r11` allocation. Reusing
 the offset's initial zero for the two preceding global clears kept that web
 live and avoided a separate rematerialized zero. This combination recovered
 all 65 instructions exactly; declaration shuffles without `noprop` did not.
+
+`flagsweep.py` can also identify a narrowly useful `-opt nocse` result. For
+`list_insert_size`, naming the repeatedly loaded `*link` value as `current`
+gave the traversal node its own register web, while a function-local
+`#pragma opt_common_subs off` prevented MWCC from folding that web back into
+the head pointer. Neither change was sufficient alone; together they matched
+all 42 instructions. Prefer this scoped pairing over changing the TU-wide
+compiler flags when only one intrusive-list traversal needs the older shape.
