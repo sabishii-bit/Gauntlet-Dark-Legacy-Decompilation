@@ -266,3 +266,12 @@ the two candidates may be swapped before the blend. Recovering those details
 raised the function from roughly 23% to 64% fuzzy before register-allocation
 tuning; the key progress came from rebuilding the state machine, not from
 chasing isolated instructions.
+
+`camera_mode_orbit` also shows that algebraically identical update syntax can
+change the whole volatile-FPR web. Materializing the three scaled components,
+using `zero *= tickScale`, and writing the X update as
+`scaledX + positionX` reduced a 34-line register diff to one commutative
+`fadds` operand-order tie. Combining conversion and scaling as
+`scale * (f64)(u32)ticks` let MWCC reuse the dead conversion constant register,
+matching the retail `fsub`/`fmul` web. Prefer these source-level accumulator
+forms before accepting a broad register-only residual.

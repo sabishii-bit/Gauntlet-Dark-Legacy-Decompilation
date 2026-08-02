@@ -2909,9 +2909,9 @@ void camera_mode_orbit(s32 camIdx)
         f32 value[3];
     } lookWork;
     f32 sine;
-    f32 cosine;
     f32 cosineInput;
     f32 zero;
+    f32 cosine;
     f64 tickScale;
 
     cam = &gCameras[camIdx];
@@ -2920,11 +2920,13 @@ void camera_mode_orbit(s32 camIdx)
         cosineInput = cam->num1;
         zero = lbl_80345EC8;
         cosine = cos(cosineInput);
-        tickScale = (f64)(u32)gFrameTicks;
-        tickScale *= 0.1;
-        cam->wpos[0] += (f32)((f64)sine * tickScale);
-        cam->wpos[1] += (f32)((f64)zero * tickScale);
-        cam->wpos[2] += (f32)((f64)cosine * tickScale);
+        tickScale = 0.1 * (f64)(u32)gFrameTicks;
+        cosineInput = (f32)((f64)sine * tickScale);
+        zero *= tickScale;
+        cosine = (f32)((f64)cosine * tickScale);
+        cam->wpos[0] = cosineInput + cam->wpos[0];
+        cam->wpos[1] += zero;
+        cam->wpos[2] += cosine;
 
         cam->wpos[1] = (f32)(4.5 +
             (f64)FloorPos((f32)((f64)cam->wpos[1] - 4.5), 0.1f,
