@@ -1677,12 +1677,11 @@ void camera_mode_target(s32 camIdx)
     u8* playerObject;
     s32 playerIndex;
     s32 objectWasMissing = cam->camobj == 0 ? -1 : 0;
-    u8* player;
+    Player* player;
     s32* playerNumber;
     s32 tries;
     f32 targetYaw;
     f32 targetDirectionZ;
-    f32 distance;
     f32 scale;
     f32 angleDelta;
     f32 angleStep;
@@ -1693,6 +1692,7 @@ void camera_mode_target(s32 camIdx)
     f32 squaredX;
     f32 squaredY;
     f32 squaredZ;
+    f32 distance;
     u8 unused[8];
     volatile f32 moveDelta[3];
     f64 divisorDouble;
@@ -1714,10 +1714,9 @@ void camera_mode_target(s32 camIdx)
     playerNumber = &gCameras[0].pn;
     playerIndex = *playerNumber;
     for (tries = 0; tries < 4; tries++) {
-        player = gPlayers + playerIndex * 0x335C;
-        if (*(s32*)(player + 0xE8) == 1 ||
-            *(s32*)(player + 0xE8) == 4) {
-            playerObject = player + 0x14;
+        player = (Player*)gPlayers + playerIndex;
+        if (player->state == 1 || player->state == 4) {
+            playerObject = (u8*)player + 0x14;
             *playerNumber = playerIndex;
             goto found_target_player;
         }
