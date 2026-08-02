@@ -1719,11 +1719,14 @@ void camera_mode_follow(s32 camIdx)
 void camera_mode_target(s32 camIdx)
 {
     Camera* cam = &gCameras[camIdx];
-    s32 objectWasMissing;
-    s32 playerIndex;
-    s32 tries;
     u8* playerObject;
+    s32 playerIndex;
+    s32 objectWasMissing = cam->camobj == 0 ? -1 : 0;
+    u8* player;
+    s32* playerNumber;
+    s32 tries;
     f32 targetYaw;
+    f32 targetDirectionZ;
     f32 distance;
     f32 scale;
     f32 angleDelta;
@@ -1732,28 +1735,35 @@ void camera_mode_target(s32 camIdx)
     f32 dx;
     f32 dy;
     f32 dz;
+    f32 squaredX;
+    f32 squaredY;
+    f32 squaredZ;
+    u8 unused[8];
     volatile f32 moveDelta[3];
     f64 divisorDouble;
-    f32 matrix[16];
     f32 offset[3];
-    f32 transformed[3];
-    f32 normalize[3];
-    Vec3 movingPosition;
-    Vec3 movingAttention;
-    Vec3 movingDirection;
-    Vec3 finalPosition;
-    Vec3 finalAttention;
-    Vec3 finalDirection;
+    f32 matrix[16];
     volatile f32 movingRoot;
     volatile f32 radiusRoot;
+    Vec3 movingAttention;
+    Vec3 movingPosition;
+    Vec3 movingDirection;
+    f32 normalize[3];
+    Vec3 finalAttention;
+    Vec3 finalPosition;
+    struct {
+        f32 pad;
+        Vec3 direction;
+    } finalDirection;
 
-    objectWasMissing = cam->camobj == 0 ? -1 : 0;
-    playerIndex = gCameras[0].pn;
+    playerNumber = &gCameras[0].pn;
+    playerIndex = *playerNumber;
     for (tries = 0; tries < 4; tries++) {
-        if (*(s32*)(gPlayers + playerIndex * 0x335C + 0xE8) == 1 ||
-            *(s32*)(gPlayers + playerIndex * 0x335C + 0xE8) == 4) {
-            playerObject = gPlayers + playerIndex * 0x335C + 0x14;
-            gCameras[0].pn = playerIndex;
+        player = gPlayers + playerIndex * 0x335C;
+        if (*(s32*)(player + 0xE8) == 1 ||
+            *(s32*)(player + 0xE8) == 4) {
+            playerObject = player + 0x14;
+            *playerNumber = playerIndex;
             goto found_target_player;
         }
         playerIndex++;
@@ -1775,8 +1785,8 @@ found_target_player:
         cam->trans_mode = 0;
     }
 
-    targetYaw = atan2(*(f32*)((u8*)cam->camobj + 0x20),
-                      *(f32*)((u8*)cam->camobj + 0x28));
+    targetDirectionZ = *(f32*)((u8*)cam->camobj + 0x28);
+    targetYaw = atan2(*(f32*)((u8*)cam->camobj + 0x20), targetDirectionZ);
 
     switch (cam->trans_mode) {
     case 0:
@@ -1797,11 +1807,11 @@ found_target_player:
         distance = dz * dz + distance;
         if (distance > 0.0f) {
             f64 guess = __frsqrte(distance);
-            guess = 0.5 * guess * (3.0 - distance * guess * guess);
-            guess = 0.5 * guess * (3.0 - distance * guess * guess);
-            guess = 0.5 * guess * (3.0 - distance * guess * guess);
+            guess = 0.5 * guess * (3.0 - guess * guess * distance);
+            guess = 0.5 * guess * (3.0 - guess * guess * distance);
+            guess = 0.5 * guess * (3.0 - guess * guess * distance);
             movingRoot = (f32)(distance *
-                (0.5 * guess * (3.0 - distance * guess * guess)));
+                (0.5 * guess * (3.0 - guess * guess * distance)));
             distance = movingRoot;
         }
         moveDelta[0] = dx;
@@ -1826,14 +1836,18 @@ found_target_player:
             dx = moveDelta[0];
             dy = moveDelta[1];
             dz = moveDelta[2];
-            distance = dz * dz + dx * dx + dy * dy;
-            if (distance > 0.0f) {
+            squaredX = dx * dx;
+            squaredZ = dz * dz;
+            squaredY = dy * dy;
+            distance = squaredX + squaredY;
+            distance = squaredZ + distance;
+            if (distance > *(volatile f32*)&lbl_80345EC8) {
                 f64 guess = __frsqrte(distance);
-                guess = 0.5 * guess * (3.0 - distance * guess * guess);
-                guess = 0.5 * guess * (3.0 - distance * guess * guess);
-                guess = 0.5 * guess * (3.0 - distance * guess * guess);
+                guess = 0.5 * guess * (3.0 - guess * guess * distance);
+                guess = 0.5 * guess * (3.0 - guess * guess * distance);
+                guess = 0.5 * guess * (3.0 - guess * guess * distance);
                 radiusRoot = (f32)(distance *
-                    (0.5 * guess * (3.0 - distance * guess * guess)));
+                    (0.5 * guess * (3.0 - guess * guess * distance)));
                 distance = radiusRoot;
             }
             cam->radius = distance;
@@ -1863,25 +1877,25 @@ found_target_player:
         currentPitch = cam->pyr[0];
         if ((f64)currentPitch != 0.0) {
             angleStep = (f32)(0.017453292522222223 * (f64)(u32)gFrameTicks);
-            if ((f64)currentPitch >= 0.0) {
-                cam->pyr[0] = SubAngle(cam->pyr[0], angleStep);
-                if ((f64)cam->pyr[0] <= 0.0) cam->pyr[0] = 0.0f;
-            } else {
+            if (currentPitch < 0.0f) {
                 cam->pyr[0] = AddAngle(cam->pyr[0], angleStep);
                 if ((f64)cam->pyr[0] >= 0.0) cam->pyr[0] = 0.0f;
+            } else {
+                cam->pyr[0] = SubAngle(cam->pyr[0], angleStep);
+                if ((f64)cam->pyr[0] <= 0.0) cam->pyr[0] = 0.0f;
             }
         }
         angleDelta = FixAngle(cam->pyr[1] - targetYaw);
         if ((f64)angleDelta != 0.0) {
             angleStep = (f32)(0.034906585044444445 * (f64)(u32)gFrameTicks);
-            if ((f64)angleDelta >= 0.0) {
-                cam->pyr[1] = SubAngle(cam->pyr[1], angleStep);
-                angleDelta = FixAngle(cam->pyr[1] - targetYaw);
-                if ((f64)angleDelta <= 0.0) cam->pyr[1] = targetYaw;
-            } else {
+            if (angleDelta < 0.0f) {
                 cam->pyr[1] = AddAngle(cam->pyr[1], angleStep);
                 angleDelta = FixAngle(cam->pyr[1] - targetYaw);
                 if ((f64)angleDelta >= 0.0) cam->pyr[1] = targetYaw;
+            } else {
+                cam->pyr[1] = SubAngle(cam->pyr[1], angleStep);
+                angleDelta = FixAngle(cam->pyr[1] - targetYaw);
+                if ((f64)angleDelta <= 0.0) cam->pyr[1] = targetYaw;
             }
         }
         if ((f64)cam->pyr[0] == 0.0 && (f64)cam->pyr[1] == targetYaw) {
@@ -1903,10 +1917,10 @@ found_target_player:
         offset[0] = 0.0f;
         offset[1] = 0.0f;
         offset[2] = cam->radius;
-        WorldVector(offset, transformed, matrix);
-        cam->attn[0] = cam->wpos[0] + transformed[0];
-        cam->attn[1] = cam->wpos[1] + transformed[1];
-        cam->attn[2] = cam->wpos[2] + transformed[2];
+        WorldVector(offset, (f32*)moveDelta, matrix);
+        cam->attn[0] = cam->wpos[0] + moveDelta[0];
+        cam->attn[1] = cam->wpos[1] + moveDelta[1];
+        cam->attn[2] = cam->wpos[2] + moveDelta[2];
         if (lbl_803443F4 != 0) {
             f32 cameraRadius = cam->radius;
             normalize[0] = cam->attn[0] - cam->wpos[0];
@@ -1925,10 +1939,10 @@ found_target_player:
         finalAttention.z = cam->attn[2];
         StandardCamera(camIdx);
         DoShake(&finalPosition, &finalAttention);
-        finalDirection.x = finalAttention.x - finalPosition.x;
-        finalDirection.y = finalAttention.y - finalPosition.y;
-        finalDirection.z = finalAttention.z - finalPosition.z;
-        LookInDirection(&finalDirection.x, (u32)&cam->mat[0][0]);
+        finalDirection.direction.x = finalAttention.x - finalPosition.x;
+        finalDirection.direction.y = finalAttention.y - finalPosition.y;
+        finalDirection.direction.z = finalAttention.z - finalPosition.z;
+        LookInDirection(&finalDirection.direction.x, (u32)&cam->mat[0][0]);
     }
 }
 
