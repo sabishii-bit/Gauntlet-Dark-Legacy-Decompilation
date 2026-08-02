@@ -687,3 +687,16 @@ testing the cached integer, reproduced both stores. Declaring the player alias
 as `register` prevented the otherwise dead source alias from adding an 8-byte
 home slot, keeping the retail 40-byte frame. Together these source-shape clues
 recovered all 54 instructions exactly.
+
+## Pair named loop floats with propagation-off for FPR identity
+
+When an invariant float threshold and a per-iteration field load are swapped
+between `f0` and `f1`, a propagation pragma alone may be insufficient if both
+values are still anonymous expression temporaries. In `AudioFindPlayerSlot`,
+declare both `value` and `threshold`, assign the field first and the global
+threshold second inside the loop, and compile only the function with
+`#pragma opt_propagation off`. LICM still hoists the invariant global load,
+but the named assignment order survives long enough to give it retail's `f0`
+identity and the field load `f1`. This matched all 24 instructions exactly;
+either the named locals or propagation-off by itself left the original FPR
+swap unchanged.
