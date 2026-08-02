@@ -158,10 +158,10 @@ PolyHeader* MBCreatePolyHeader(s32 capacity) {
 
 /* 0x800DDF6C - allocate an instance, wire it into a header, seed its verts */
 PolyInstance* MBNewPoly(PolyContext* ctx, s32 type, s32 tex, f32* verts) {
+    PolyVert* dv;
     PolyHeader* header;
     PolyInstance* inst;
     PolyInstance* tail;
-    PolyVert* dv;
     s32 free;
     s32 i;
     u8 unused[8];
@@ -211,7 +211,7 @@ PolyInstance* MBNewPoly(PolyContext* ctx, s32 type, s32 tex, f32* verts) {
         inst->verts[i].x = 0.0f;
         inst->verts[i].y = 0.0f;
         inst->verts[i].z = 0.0f;
-        inst->verts[i].flags = 0;
+        inst->verts[i].flags = (free = 0);
     }
 
     /* append to the header's instance list */
@@ -233,10 +233,12 @@ PolyInstance* MBNewPoly(PolyContext* ctx, s32 type, s32 tex, f32* verts) {
 
     if (verts != NULL) {
         for (i = 0; i < type; i++) {
-            dv[i].x = verts[i * 3 + 0];
-            dv[i].y = verts[i * 3 + 1];
-            dv[i].z = verts[i * 3 + 2];
-            dv[i].flags = 1;
+            f32* in = &verts[i * 3];
+            PolyVert* out = &dv[i];
+            out->x = in[0];
+            out->y = in[1];
+            out->z = in[2];
+            out->flags = 1;
         }
     }
     MBPolyInstUpdateTex(inst, tex);
