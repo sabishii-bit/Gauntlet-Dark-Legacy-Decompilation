@@ -122,13 +122,18 @@ extern u8* gWorldData;
 
 /* ----------------------------------------------------------------- */
 
+#pragma opt_propagation off
 int AudioFindPlayerSlot(int pidx, int class_, int type)
 {
     u8* slot = &gPlayers[pidx * 13148] + 304;
+    f32 value;
+    f32 threshold;
     int i;
 
     for (i = 0; i < 11; i++) {
-        if (*(f32*)slot <= lbl_8034832C) {
+        value = *(f32*)slot;
+        threshold = lbl_8034832C;
+        if (value <= threshold) {
             continue;
         }
         if (*(int*)(slot + 12) == type && *(int*)(slot + 4) == class_) {
@@ -138,6 +143,7 @@ int AudioFindPlayerSlot(int pidx, int class_, int type)
     }
     return -1;
 }
+#pragma opt_propagation reset
 
 void AudioPlay3DSel(int soundId, int p2, int pos, int sel)
 {
