@@ -115,22 +115,23 @@ void sndTestAXCallback(void);  /* sndTestAXCallback */
 /* 0x8004229C */
 void sndSysInit(void)
 {
+    BigState* big = &gBig;
     s32 i, j;
 
     for (i = 0; i < 9; i++) {
         for (j = 0; j < 6; j++) {
-            gBig.arrB034[i][j] = 0;
+            big->arrB034[i][j] = 0;
         }
     }
     lbl_8034466C = 0;
-    memset(gBig.blk234, 0, 0xAE00);
+    memset(big->blk234, 0, 0xAE00);
     lbl_80344668 = 0;
-    memset(gBig.blk1E0, 0, 0x54);
+    memset(big->blk1E0, 0, 0x54);
     lbl_80344664 = 0;
     lbl_80344660 = 0;
     for (i = 0; i < 4; i++) {
-        *(s32*)(gBig.arrA0[i]) = 0;
-        gBig.arr90[i] = 0;
+        *(s32*)(big->arrA0[i]) = 0;
+        big->arr90[i] = 0;
     }
     lbl_8034465C = 0;
     lbl_80344658 = 0;
@@ -273,10 +274,11 @@ s32 sndCmdA(s32 a, s32 b, s32 c, Node* cb)
 /* 0x8004270C  cmd 0x8, by name */
 s32 sndCmd8(char* name, s32 b, s32 c)
 {
-    SndState* s = &g;
+    SndState* s;
     s32 rv = -4;
 
-    memset(s->in, 0, 0x20);
+    memset(g.in, 0, 0x20);
+    s = &g;
     if (name == 0) {
         rv = -1;
     } else if (sBankLock == 0) {
