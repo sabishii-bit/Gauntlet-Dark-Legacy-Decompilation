@@ -1087,23 +1087,26 @@ void fn_800521E8(void)
 }
 
 /* 0x8005412C -- categorise the loaded worlds and update the flow globals. */
+#pragma opt_propagation off
 void SetPlayerVars(void)
 {
     u8* base = gPlayers;
+    s32 offset = 0;
+    s32 bossType = gBossType;
     s32 count1 = 0;
     s32 count2 = 0;
     s32 count3 = 0;
-    s32 i;
     u8* e;
+    s32 i;
     s32 type;
     s32 f292;
 
     lbl_803447D4 = lbl_803447D8;
-    lbl_803447DC = 0;
+    lbl_803447DC = offset;
     lbl_803447D8 = lbl_80346AF0;
-    lbl_803447E0 = 0;
-    for (i = 0; i < 4; i++) {
-        e = base + i * 13148;
+    lbl_803447E0 = offset;
+    for (i = 0; i < 4; i++, offset += 13148) {
+        e = base + offset;
         type = *(s32*)(e + 232);
         if (type != 0) {
             count1++;
@@ -1120,7 +1123,7 @@ void SetPlayerVars(void)
             if (f292 & 0x8) {
                 lbl_803447DC = 1;
             }
-            if (gBossType < 0 && (f292 & 0x200)) {
+            if (bossType < 0 && (f292 & 0x200)) {
                 lbl_803447D8 = lbl_803447D8 * lbl_80346B00;
             }
         }
@@ -1128,6 +1131,7 @@ void SetPlayerVars(void)
     }
     fn_8005207C(count1, count2, count3);
 }
+#pragma opt_propagation reset
 
 /* 0x80050FB0 -- resolve a type id through the override tables. */
 s32 GetEnemyType(s32 arg0, s32 arg1)
