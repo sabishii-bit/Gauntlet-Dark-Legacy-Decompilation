@@ -328,3 +328,25 @@ with the negative arm first; this emits retail's direct `bge` to the positive
 arm instead of a `cror`-based greater-or-equal test and reversed block order.
 These changes brought the function to the exact 452 instructions and about
 98.93% fuzzy, with only register/scheduler differences remaining.
+
+`camera_mode_level` confirmed that declaration order can control the entire
+saved-GPR web even when it does not alter stack layout. Moving the initialized
+level-camera pointer below the short-lived loop declarations placed it in the
+retail `r27`; moving the player cursor after the loop counter restored its
+retail `r30`. Reusing the later `tries` counter for the initial four-player
+scan removed another artificial variable lifetime. For member pointers that
+retail derives from the TU state base, spell the known state offset directly
+(`state + 0x1C8`) instead of deriving it through a typed camera local; this
+keeps the canonical base available to the allocator.
+
+The last reciprocal-root expression needs a grouping that is stricter than
+the refinement steps: use `distance * (half * root * correction)`. A flat
+`distance * half * root * correction` lets MWCC precompute `distance * half`
+before the refinement chain, rotating its FPR web even when every intermediate
+Newton step is otherwise associated correctly. Materializing a camera's
+`+0xC8` adjustment before `ProcCamera` likewise restores the retail pointer
+lifetime; applying it only after the call lets MWCC fold the adjustment into
+all subsequent field displacements. The remaining one-instruction length
+delta is an address-form tie: retail emits `addi` plus `lfs` for
+`gDefaultPlayerPosition`, while MWCC currently folds the same access into
+`lfsu`. The function is parked at 581/582 instructions and about 96.08% fuzzy.
