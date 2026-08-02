@@ -275,3 +275,18 @@ using `zero *= tickScale`, and writing the X update as
 `scale * (f64)(u32)ticks` let MWCC reuse the dead conversion constant register,
 matching the retail `fsub`/`fmul` web. Prefer these source-level accumulator
 forms before accepting a broad register-only residual.
+
+`camera_mode_spin` benefited from variable-identity reuse across disjoint
+phases. Replace separate `delta[3]` and `offset[3]` arrays with three scalar
+deltas, then reuse those same scalars for the later orbit offsets. MWCC carried
+the X/Z affinities into the post-square-root update and removed the large FPR
+rotation. Preserve the retail frame separately with dead padding; splitting
+the original 24-byte array footprint into a 20-byte gap plus an 8-byte tail
+put the volatile root at stack `+0x14` while retaining the 72-byte frame.
+
+For the reciprocal-square-root refinement, associate every correction as
+`guess * guess * distance`, not `distance * guess * guess`. The former emits
+retail's `fmul guess,guess` followed by `fnmsub distance,...`; the latter
+creates a different but equivalent `distance*guess` accumulator web. Together
+with a two-stage squared-distance sum, this reduced the mode from 68 to 8 real
+diff lines.
