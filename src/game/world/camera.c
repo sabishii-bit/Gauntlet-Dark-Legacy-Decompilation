@@ -547,10 +547,13 @@ void LookInDirection(f32* dir, u32 matAddress)
 void do_camera(void)
 {
     u8* state;
-    s32 i;
-    CameraTarget* target;
     f32* cameraMatrix;
+    s32 projectedIndex;
+    s32 limitedIndex;
+    s32 cameraIndex;
     Camera* camera;
+    CameraTarget* projectedTarget;
+    CameraTarget* limitedTarget;
     u8 unused[8];
     s16 projectedTop[2];
     s16 projectedBottom[2];
@@ -568,23 +571,24 @@ void do_camera(void)
     lbl_80343BD8 = moving;
 
     cameraMatrix = (f32*)(state + 0xCC);
-    target = (CameraTarget*)(state + 0xA10);
-    for (i = 0; i < 15; i++, target++) {
-        sign = target->active >> 31;
-        if ((sign ^ target->active) - sign == 1) {
-            MBWindowProject((f32*)(target->object + 0x40), cameraMatrix,
+    projectedTarget = (CameraTarget*)(state + 0xA10);
+    for (projectedIndex = 0; projectedIndex < 15;
+         projectedIndex++, projectedTarget++) {
+        sign = projectedTarget->active >> 31;
+        if ((sign ^ projectedTarget->active) - sign == 1) {
+            MBWindowProject((f32*)(projectedTarget->object + 0x40), cameraMatrix,
                             NULL, projectedTop);
-            target->projectedTop[0] = (f32)projectedTop[0];
-            target->projectedTop[1] = (f32)projectedTop[1];
-            CLAMP_PROJECTED(target->projectedTop[0]);
-            CLAMP_PROJECTED(target->projectedTop[1]);
+            projectedTarget->projectedTop[0] = (f32)projectedTop[0];
+            projectedTarget->projectedTop[1] = (f32)projectedTop[1];
+            CLAMP_PROJECTED(projectedTarget->projectedTop[0]);
+            CLAMP_PROJECTED(projectedTarget->projectedTop[1]);
 
-            MBWindowProject((f32*)(target->object + 0x30), cameraMatrix,
+            MBWindowProject((f32*)(projectedTarget->object + 0x30), cameraMatrix,
                             NULL, projectedBottom);
-            target->projectedBottom[0] = (f32)projectedBottom[0];
-            target->projectedBottom[1] = (f32)projectedBottom[1];
-            CLAMP_PROJECTED(target->projectedBottom[0]);
-            CLAMP_PROJECTED(target->projectedBottom[1]);
+            projectedTarget->projectedBottom[0] = (f32)projectedBottom[0];
+            projectedTarget->projectedBottom[1] = (f32)projectedBottom[1];
+            CLAMP_PROJECTED(projectedTarget->projectedBottom[0]);
+            CLAMP_PROJECTED(projectedTarget->projectedBottom[1]);
         }
     }
 
@@ -593,44 +597,46 @@ void do_camera(void)
         lbl_803443F8 -= gFrameTicks;
     }
 
+    moving = cameraIndex = 0;
     camera = (Camera*)(state + 0xC8);
-    for (i = 0; i < 6; i++, camera++) {
+    for (; cameraIndex < 6; cameraIndex++, camera++) {
         if (camera->state == 1) {
             if ((gGameBusy | gGameplayPauseTimer) == 0) {
-                lbl_803443F4 = 0;
-                camera_init_for_gamemode(i);
-                camera_run_mode(i);
+                lbl_803443F4 = moving;
+                camera_init_for_gamemode(cameraIndex);
+                camera_run_mode(cameraIndex);
             }
             if (camera->c_mode != CAM_OFF) {
-                ProcCamera(i, lbl_803444DC);
+                ProcCamera(cameraIndex, lbl_803444DC);
             }
         }
     }
 
-    target = (CameraTarget*)(state + 0xA10);
-    for (i = 0; i < 15; i++, target++) {
-        sign = target->active >> 31;
-        if ((sign ^ target->active) - sign == 1) {
-            MBWindowProject((f32*)(target->object + 0x40), cameraMatrix,
+    limitedTarget = (CameraTarget*)(state + 0xA10);
+    for (limitedIndex = 0; limitedIndex < 15;
+         limitedIndex++, limitedTarget++) {
+        sign = limitedTarget->active >> 31;
+        if ((sign ^ limitedTarget->active) - sign == 1) {
+            MBWindowProject((f32*)(limitedTarget->object + 0x40), cameraMatrix,
                             NULL, limitedTop);
-            target->limitedTop[0] = (f32)limitedTop[0];
-            target->limitedTop[1] = (f32)limitedTop[1];
-            CLAMP_PROJECTED(target->limitedTop[0]);
-            CLAMP_PROJECTED(target->limitedTop[1]);
+            limitedTarget->limitedTop[0] = (f32)limitedTop[0];
+            limitedTarget->limitedTop[1] = (f32)limitedTop[1];
+            CLAMP_PROJECTED(limitedTarget->limitedTop[0]);
+            CLAMP_PROJECTED(limitedTarget->limitedTop[1]);
 
-            MBWindowProject((f32*)(target->object + 0x30), cameraMatrix,
+            MBWindowProject((f32*)(limitedTarget->object + 0x30), cameraMatrix,
                             NULL, limitedBottom);
-            target->limitedBottom[0] = (f32)limitedBottom[0];
-            target->limitedBottom[1] = (f32)limitedBottom[1];
-            CLAMP_PROJECTED(target->limitedBottom[0]);
-            CLAMP_PROJECTED(target->limitedBottom[1]);
+            limitedTarget->limitedBottom[0] = (f32)limitedBottom[0];
+            limitedTarget->limitedBottom[1] = (f32)limitedBottom[1];
+            CLAMP_PROJECTED(limitedTarget->limitedBottom[0]);
+            CLAMP_PROJECTED(limitedTarget->limitedBottom[1]);
         }
     }
 
     screen_limitation();
-    i = lbl_8034453C;
-    MBCameraUpdate((f32*)(state + i * sizeof(Camera) + 0xFC),
-                   (f32*)(state + i * sizeof(Camera) + 0xCC));
+    cameraIndex = lbl_8034453C;
+    MBCameraUpdate((f32*)(state + cameraIndex * sizeof(Camera) + 0xFC),
+                   (f32*)(state + cameraIndex * sizeof(Camera) + 0xCC));
 }
 
 #undef CLAMP_PROJECTED
