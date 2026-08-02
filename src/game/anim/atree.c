@@ -5,11 +5,11 @@
  * .text lays functions out in reverse source order (DoTexMods lowest,
  * AnimDataNodeNew highest).
  *
- * Status: 18 functions byte-exact (objdiff 100%); the lookup/teardown/pool
- * families are complete.  The animation-evaluation chain (fn_8001101C..
- * fn_80011334, fn_80012F9C, AtreeNodeInit) and the two construction giants
- * (fn_80011DCC, fn_8001267C) carry the demo float-ABI passthrough and are
- * left as documented stubs pending a dedicated pass.
+ * Status: the lookup/teardown/pool families are translated, including the
+ * player-model match wrapper at fn_80011BBC.  The animation-evaluation chain
+ * (fn_8001101C..fn_80011334, fn_80012F9C, AtreeNodeInit) and the two
+ * construction giants (fn_80011DCC, fn_8001267C) carry the demo float-ABI
+ * passthrough and remain documented stubs pending a dedicated pass.
  *
  * .text       0x80010A4C..0x800137BC
  * extab       0x80005590..0x80005678
@@ -154,7 +154,7 @@ void AtreeRemovePsysSub(anode* node);
 void AtreeRemoveNodeChild(anode* node);
 void AtreeRemoveNodeSub(anode* node);
 anode* AtreeRemoveNode(anode* node, int keep, anode* root);
-void fn_80012F9C();
+void* fn_80012F9C();
 void fn_80011134(f32 frame, void* node, int a, int b, int c, int d);
 void fn_80011334(anode* node, animinfo* info, s32 recurse);
 animdata* AnimDataNodeNew(void);
@@ -694,10 +694,52 @@ int AtreeModel(void* bank)
     return -1;
 }
 
-/* fn_80011BBC: AtreeMatch variant with UV-scroll registry remap (whichatree /
- * atree_scroll lookup, then dispatches fn_80012F9C).  DEFERRED -- demo
- * float-ABI + registry. */
-STUB(0x80011BBC, fn_80011BBC)
+/* Match an animation tree, remember its per-bank scroll name, and instantiate
+ * the selected tree into the caller's playback state. */
+void* fn_80011BBC(atreeheader* hdr, char* name, void* state, char* scrollName,
+                  u32 flags)
+{
+    s32 i = 0;
+    s32 scrollOffset = 0;
+    s32 bankOffset = 0;
+    u8 unused[8];
+
+    for (; i < natreelists; i++, scrollOffset += 16, bankOffset += 4) {
+        if (*(void**)((u8*)whichatree + bankOffset) == hdr) {
+            strncpy((char*)atree_scroll + scrollOffset, scrollName, 16);
+        }
+    }
+
+    if (name != NULL) {
+        atreematch* list;
+        void* node;
+        s32 matchOffset;
+
+        if (hdr == NULL) {
+            FatalError("AtreeMatch with NULL atree", 0x804060);
+        }
+        list = hdr->list;
+        matchOffset = 0;
+        for (i = 0; i < hdr->num; i++) {
+            if (strcmp(name, (char*)list + matchOffset) == 0) {
+                node = (u8*)hdr +
+                    *(s32*)((u8*)list + matchOffset + 0x20);
+                goto found;
+            }
+            matchOffset += sizeof(atreematch);
+        }
+        ErrorPrintf("No AtreeMatch: %s", name);
+        node = NULL;
+found:
+        if (node == NULL) {
+            return node;
+        }
+        return fn_80012F9C(node, state, scrollName, flags, 1);
+    }
+
+    return fn_80012F9C((u8*)hdr + hdr->list[0].offset, state, scrollName,
+                       flags, 1);
+}
 
 /* fn_80011DCC / fn_8001267C: GIANT atree construction pair (~0x8B0 / ~0x8FC):
  * build the runtime tree from a def (InitOAnimList, SetupAnimHeader,
@@ -715,7 +757,7 @@ void AtreeInit(void* node, int a, int b, uint c)
 
 /* fn_80012F9C: recursive anim-tree instantiation (~0x2D0): resolves node names
  * (AtreeNodeInit, MBOX_ReallyFindObject), builds children.  DEFERRED. */
-void fn_80012F9C() {}
+void* fn_80012F9C() {}
 
 /* ---------------- sibling-ring helpers ---------------- */
 

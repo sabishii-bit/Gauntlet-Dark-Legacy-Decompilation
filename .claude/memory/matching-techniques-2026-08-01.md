@@ -568,3 +568,13 @@ retail's pointer and counter coloring. Its preceding zero-fill loop also needed
 the already-dead `free` local reused as `flags = (free = 0)`; this made MWCC
 place the integer zero in retail's register without adding code. Together the
 two changes recovered all 608 linked bytes.
+
+When a loop walks two static arrays with independent byte offsets, spelling a
+named base pointer can trigger MWCC strength reduction: the compiler replaces
+`base + offset` with a pointer induction variable and removes the offset web.
+Using the static array name directly at the access site retains a hoisted base
+register plus the independent offset, matching the retail instruction shape.
+This moved the translated `fn_80011BBC` atree wrapper from a pointer-IV shape
+to the target's two-base/three-counter loop. Its remaining mismatch is register
+coloring plus one address CSE, so do not re-test compiler versions or flag
+presets; both axes are already neutral for this class.
