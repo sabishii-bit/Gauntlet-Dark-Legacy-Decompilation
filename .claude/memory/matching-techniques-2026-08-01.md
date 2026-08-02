@@ -607,3 +607,21 @@ The combination made the whole function byte-exact. This is especially useful
 when `flagsweep.py` reports `-opt noprop` as the only variant that improves a
 register-only residual: use the pragma for the coloring, then repair isolated
 propagation fallout with typed staging temporaries.
+
+## Callback ABI and volatile-web declaration order
+
+An indirect call can reveal a missing callback parameter even when the callee
+type is otherwise unknown. Every `soundmgr.c` node callback site already left
+the owning `Node*` in ABI argument register `r3`; declaring the callback as
+`void (*)(Node*)` and passing the node preserved the exact sites and changed
+`sndSysUpdate` from a 16-line register rotation to byte-exact. Audit the live
+argument registers at an indirect call before accepting a no-argument
+prototype from a decompiler.
+
+For a no-call loop, `#pragma opt_propagation off` can make declaration order
+directly determine volatile GPR coloring. `SetPlayerVars` needed its long-lived
+locals declared as base pointer, byte offset, cached boss type, entry pointer,
+then loop index; this produced retail's `r7` through `r11` allocation. Reusing
+the offset's initial zero for the two preceding global clears kept that web
+live and avoided a separate rematerialized zero. This combination recovered
+all 65 instructions exactly; declaration shuffles without `noprop` did not.
