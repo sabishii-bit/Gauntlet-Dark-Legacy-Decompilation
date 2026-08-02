@@ -558,3 +558,13 @@ MWCC allocate every pointer exactly like retail. This recovered all 420 linked
 bytes. Keep this form close to the first real access of the self-assigned field:
 placing a self-assignment on the cursor itself moved that cursor all the way to
 `r31` and made the mismatch worse.
+
+In unrolled aggregate loops, naming both sides of a copy can recover several
+registers at once. `MBNewPoly` initially rotated its source base, destination
+base, and the two induction offsets even though the loop was structurally
+exact. Giving each iteration `f32* in = &verts[i * 3]` and
+`PolyVert* out = &dv[i]`, then accessing `in[0..2]` and `out->...`, reproduced
+retail's pointer and counter coloring. Its preceding zero-fill loop also needed
+the already-dead `free` local reused as `flags = (free = 0)`; this made MWCC
+place the integer zero in retail's register without adding code. Together the
+two changes recovered all 608 linked bytes.
