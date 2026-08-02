@@ -169,32 +169,33 @@ extern f32 lbl_80348590;
 /* ===================================================================== */
 
 /* Zero the whole tower/sumner state block. Called from game_main. */
+#pragma opt_propagation off
 void TowerInit(void) {
     s32 none = -1;
-    s32 zero = 0;
 
-    lbl_80344C4C = zero;
+    lbl_80344C4C = 0;
     lbl_80343E48 = none;
-    sSumnerObj = (void*)zero;
-    lbl_80344C54 = zero;
+    sSumnerObj = 0;
+    lbl_80344C54 = 0;
     lbl_80344C58 = lbl_80348588;
     lbl_80344C5C = lbl_80348588;
-    gSumnerReady = zero;
-    lbl_80344C64 = zero;
+    gSumnerReady = 0;
+    lbl_80344C64 = 0;
     lbl_80344C68 = lbl_80348588;
-    lbl_80344C6C = zero;
-    lbl_80344C70 = zero;
-    lbl_80344C74 = zero;
-    lbl_80344C78 = zero;
+    lbl_80344C6C = 0;
+    lbl_80344C70 = 0;
+    lbl_80344C74 = 0;
+    lbl_80344C78 = 0;
     lbl_80343E4C = none;
     lbl_80343E50 = none;
     lbl_80343E54 = none;
     lbl_80343E58 = none;
-    lbl_80344C7C = zero;
-    lbl_80344C80 = zero;
-    lbl_80344C84 = zero;
-    lbl_80344C88 = zero;
+    lbl_80344C7C = 0;
+    lbl_80344C80 = 0;
+    lbl_80344C84 = 0;
+    lbl_80344C88 = 0;
 }
+#pragma opt_propagation reset
 
 /* Resolve the current world object handle (newcam GetPlayerAvgPos + ClosestStartPos). */
 void towerUpdateCurWorldObj(void) {
