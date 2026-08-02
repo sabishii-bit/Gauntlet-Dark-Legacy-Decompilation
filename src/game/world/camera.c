@@ -193,6 +193,20 @@ typedef struct CameraSupervisorScratch {
     f32 futurePosition[3];           /* stack +0xB8 */
 } CameraSupervisorScratch; /* 0x94; allocated at r1+0x30 */
 
+/* Address-taken roots and closest-point output used by camera_collide_step.
+ * The gaps reproduce CAMERA.OBJ's 0x90-byte frame. */
+typedef struct CameraCollideScratch {
+    u8 _pad00[0x14];
+    f32 finalAngle;                  /* stack +0x28 */
+    volatile f32 closestRoot;        /* stack +0x2C */
+    volatile f32 segmentRoot;        /* stack +0x30 */
+    volatile f32 distanceRoot;       /* stack +0x34 */
+    f32 verticalDifference;          /* stack +0x38 */
+    u8 _pad2C[4];
+    f32 closest[3];                  /* stack +0x40 */
+    u8 _pad3C[12];
+} CameraCollideScratch;
+
 /* Camera field access (no full struct recovered; stride 0x18C). */
 #define CAM_F32(c, off) (*(f32*)((u8*)(c) + (off)))
 #define CAM_YAW_OFF 0xA8 /* yaw angle field used by camera_approach_yaw */
@@ -259,6 +273,7 @@ extern f32 lbl_8023F820;
 extern f32 lbl_80344534;
 extern f32 lbl_80344530;
 extern f32 lbl_80344524;
+extern f32 lbl_80344504;
 extern f32 lbl_80344408;
 extern f32 lbl_8034444C;
 extern f32 lbl_8034445C;
@@ -279,7 +294,7 @@ extern f64 lbl_80345F68;
 extern f64 lbl_80345F70;
 extern f64 lbl_80345F78;
 extern f32 lbl_80345F80;
-extern f64 lbl_80346030;
+extern f32 lbl_80346030;
 extern f64 lbl_80346098;
 extern f64 lbl_803460A0;
 extern f64 lbl_803460A8;
@@ -304,7 +319,10 @@ extern f32 lbl_80346040;
 extern f64 lbl_80346038;
 extern f64 lbl_80346048;
 extern f64 lbl_80346050;
+extern f64 lbl_80346060;
+extern f64 lbl_80346068;
 extern f32 lbl_80346058;
+extern s32 gGameOptions[];
 extern u8 sTriggerCameras[];
 extern u8 gPlayers[];
 extern u8* gCurLevel;
@@ -375,6 +393,7 @@ void CopyMat3(const f32* src, f32* dst);
 extern f32 sin(f32 x);
 extern f32 cos(f32 x);
 extern f64 __frsqrte(f64 x);
+extern f64 __fabs(f64 x);
 extern f32 atan2(f32 y, f32 x);
 extern const f32 lbl_80127D20[3];
 extern const f32 lbl_80127D40[3];
@@ -418,7 +437,7 @@ s32 MBScreenWidth(void);
 f32 camera_approach_yaw(void* cam, f32 target);
 f32 camera_lerp_yaw(f32 current, f32 target);
 void camera_orbit_update(s32 camIdx);
-void camera_collide_step(s32 camIdx, f32 blendThreshold);
+s32 camera_collide_step(s32 camIdx, f32 blendThreshold);
 void camera_init_for_gamemode(s32 camIdx);
 void camera_run_mode(s32 camIdx);
 void camera_mode_follow(s32 camIdx);
@@ -2170,233 +2189,273 @@ orbit_done:
 }
 
 /* Select and blend the two closest active trigger-camera rail nodes. */
-void camera_collide_step(s32 camIdx, f32 blendThreshold)
+s32 camera_collide_step(s32 camIdx, f32 blendThreshold)
 {
     Camera* cam = &gCameras[camIdx];
-    s32 previousBest = lbl_80344510;
-    s32 previousSelection = lbl_80344508;
     s32 count = 0;
+    s32 rememberSelection = 0;
     s32 index = 0;
     s32 offset = 0;
-    s32 remaining = sNumTriggerCameras;
-    f64 bestYaw = lbl_80345EC8;
-    f64 nearestYaw = lbl_80345EC8;
-    f64 secondYaw = lbl_80345EC8;
-    f64 bestPitch = lbl_80345EC8;
-    f64 nearestDistance = lbl_80346030;
-    f64 secondDistance = lbl_80346030;
+    s32 remaining;
+    s32 loopSelection;
+    f32 bestPitch = lbl_80345EC8;
+    f32 secondYaw = bestPitch;
+    f32 nearestYaw = bestPitch;
+    f32 bestYaw = bestPitch;
+    f32 nearestDistance = lbl_80346030;
+    f32 secondDistance = nearestDistance;
+    f32 effectiveThreshold = blendThreshold;
+    f32 swapAngle;
+    f32 swapDistance;
     f64 root;
-    f64 distance;
-    f64 segmentLength;
-    f32 closest[3];
+    f32 distance;
+    f32 segmentLength;
+    f32 blendRatio;
+    CameraCollideScratch scratch;
     s32 selected;
     s32 best;
+    s32 holdSelection;
+    s32 sameSelection;
+    u8* bestTrigger;
+    u8* selectedTrigger;
 
-    if (remaining > 0) {
-        do {
-            if (sTriggerCameras[offset] == 1 &&
-                *(s16*)(sTriggerCameras + offset + 2) != 0) {
-                f32 dy = cam->wpos[1] - *(f32*)(sTriggerCameras + offset + 8);
-                f32 dx = cam->wpos[0] - *(f32*)(sTriggerCameras + offset + 4);
-                f32 dz = cam->wpos[2] - *(f32*)(sTriggerCameras + offset + 0xC);
-                distance = dz * dz + dx * dx + dy * dy;
-                if (lbl_80345EC8 < distance) {
+    if (lbl_80344508 < 0) {
+        effectiveThreshold = lbl_8034601C;
+    } else if (camIdx == 0 && lbl_803444DC != 0 && cam->c_mode == 3 &&
+               (f64)lbl_803444E8 >= lbl_80346060 &&
+               lbl_803444CC != lbl_80344510 &&
+               lbl_803444CC != lbl_8034450C &&
+               lbl_803444C8 != lbl_80344510 &&
+               lbl_803444C8 != lbl_8034450C) {
+        effectiveThreshold = lbl_8034601C;
+        rememberSelection = 1;
+    }
+
+    remaining = sNumTriggerCameras;
+    loopSelection = lbl_80344508;
+    for (index = 0, offset = 0; index < remaining;
+         index++, offset += 0x28) {
+            u8* trigger = sTriggerCameras + offset;
+            if (trigger[0] == 0 && *(s16*)(trigger + 2) != 0) {
+                f32 dy = cam->attn_dest_no_offset[1] -
+                    *(f32*)(trigger + 8);
+                f32 dx = cam->attn_dest_no_offset[0] -
+                    *(f32*)(trigger + 4);
+                f32 dz = cam->attn_dest_no_offset[2] -
+                    *(f32*)(trigger + 0xC);
+                f32 candidateDistance;
+
+                distance = dy * dy + dx * dx + dz * dz;
+                if ((f64)distance > (f64)lbl_80345EC8) {
                     root = __frsqrte(distance);
                     root = lbl_80345F18 * root *
-                           -(distance * root * root - lbl_80345F20);
+                           -(root * root * distance - lbl_80345F20);
                     root = lbl_80345F18 * root *
-                           -(distance * root * root - lbl_80345F20);
+                           -(root * root * distance - lbl_80345F20);
                     root = lbl_80345F18 * root *
-                           -(distance * root * root - lbl_80345F20);
-                    distance = (f32)(distance * lbl_80345F18 * root *
-                               -(distance * root * root - lbl_80345F20));
+                           -(root * root * distance - lbl_80345F20);
+                    scratch.distanceRoot =
+                        (f32)(distance * (lbl_80345F18 * root *
+                        -(root * root * distance - lbl_80345F20)));
+                    distance = scratch.distanceRoot;
                 }
-                if (secondDistance <= distance) {
-                    if (distance < nearestDistance) {
+                scratch.verticalDifference = dy;
+                *(u32*)&scratch.verticalDifference &= 0x7FFFFFFF;
+                candidateDistance = distance + scratch.verticalDifference;
+
+                if (loopSelection < 0) {
+                    if (candidateDistance < nearestDistance) {
                         count++;
-                        secondYaw = *(f32*)(sTriggerCameras + offset + 0x18);
-                        bestYaw = *(f32*)(sTriggerCameras + offset + 0x14);
-                        nearestDistance = distance;
+                        lbl_8034450C = lbl_80344510;
+                        secondDistance = nearestDistance;
+                        bestYaw = nearestYaw;
+                        nearestYaw = *(f32*)(trigger + 0x14);
+                        secondYaw = bestPitch;
+                        bestPitch = *(f32*)(trigger + 0x18);
+                        nearestDistance = candidateDistance;
+                        lbl_80344510 = index;
+                    } else if (candidateDistance < secondDistance) {
+                        count++;
+                        secondYaw = *(f32*)(trigger + 0x18);
+                        bestYaw = *(f32*)(trigger + 0x14);
+                        secondDistance = candidateDistance;
                         lbl_8034450C = index;
                     }
-                } else {
+                } else if (index == loopSelection) {
                     count++;
-                    lbl_8034450C = lbl_80344510;
-                    nearestDistance = secondDistance;
-                    bestYaw = nearestYaw;
-                    nearestYaw = *(f32*)(sTriggerCameras + offset + 0x14);
-                    secondYaw = bestPitch;
-                    bestPitch = *(f32*)(sTriggerCameras + offset + 0x18);
-                    secondDistance = distance;
+                    secondYaw = *(f32*)(trigger + 0x18);
+                    bestYaw = *(f32*)(trigger + 0x14);
+                    secondDistance = candidateDistance;
+                    lbl_8034450C = index;
+                } else if (candidateDistance < nearestDistance) {
+                    count++;
+                    bestPitch = *(f32*)(trigger + 0x18);
+                    nearestYaw = *(f32*)(trigger + 0x14);
+                    nearestDistance = candidateDistance;
                     lbl_80344510 = index;
                 }
             }
-            index++;
-            offset += 0x28;
-            remaining--;
-        } while (remaining != 0);
     }
 
     best = lbl_80344510;
+    if (lbl_80344508 >= 0 && secondDistance < nearestDistance) {
+        lbl_80344510 = lbl_8034450C;
+        lbl_8034450C = best;
+        swapAngle = bestYaw;
+        bestYaw = nearestYaw;
+        nearestYaw = swapAngle;
+        swapAngle = secondYaw;
+        secondYaw = bestPitch;
+        bestPitch = swapAngle;
+        swapDistance = nearestDistance;
+        nearestDistance = secondDistance;
+        secondDistance = swapDistance;
+    }
+
     if (count == 1) {
         lbl_8034450C = lbl_80344510;
-        nearestDistance = secondDistance;
         bestYaw = nearestYaw;
         secondYaw = bestPitch;
+        secondDistance = nearestDistance;
     }
-    selected = lbl_8034450C;
+    if (count == 0) {
+        return 0;
+    }
 
-    if (count != 0) {
-        nearestDistance = (f32)(secondDistance + nearestDistance);
-        if (count == 1 || lbl_80345F78 == nearestDistance) {
-            lbl_8034429C += gFrameTicks;
-        } else {
+    best = lbl_80344510;
+    selected = lbl_8034450C;
+    bestTrigger = sTriggerCameras + best * 0x28;
+    selectedTrigger = sTriggerCameras + selected * 0x28;
+    if (lbl_80345F78 == (f64)(nearestDistance + secondDistance)) {
+        return 0;
+    }
+    if (count == 1) {
+        return 0;
+    }
+
+    {
             f32 sx;
             f32 sy;
             f32 sz;
 
-            PointLineColl(cam->wpos,
-                (f32*)(sTriggerCameras + 4 + lbl_80344510 * 0x28),
-                (f32*)(sTriggerCameras + 4 + lbl_8034450C * 0x28),
-                closest);
-            sz = TC_Z(best) - TC_Z(selected);
-            sx = TC_X(best) - TC_X(selected);
-            sy = TC_Y(best) - TC_Y(selected);
-            segmentLength = sz * sz + sx * sx + sy * sy;
-            if (lbl_80345EC8 < segmentLength) {
+            PointLineColl(cam->attn,
+                (f32*)(bestTrigger + 4),
+                (f32*)(selectedTrigger + 4),
+                scratch.closest);
+            sy = *(f32*)(bestTrigger + 8) - *(f32*)(selectedTrigger + 8);
+            sx = *(f32*)(bestTrigger + 4) - *(f32*)(selectedTrigger + 4);
+            sz = *(f32*)(bestTrigger + 0xC) -
+                 *(f32*)(selectedTrigger + 0xC);
+            segmentLength = sy * sy + sx * sx + sz * sz;
+            if ((f64)segmentLength > (f64)lbl_80345EC8) {
                 root = __frsqrte(segmentLength);
                 root = lbl_80345F18 * root *
-                       -(segmentLength * root * root - lbl_80345F20);
+                       -(root * root * segmentLength - lbl_80345F20);
                 root = lbl_80345F18 * root *
-                       -(segmentLength * root * root - lbl_80345F20);
+                       -(root * root * segmentLength - lbl_80345F20);
                 root = lbl_80345F18 * root *
-                       -(segmentLength * root * root - lbl_80345F20);
-                segmentLength = (f32)(segmentLength * lbl_80345F18 * root *
-                    -(segmentLength * root * root - lbl_80345F20));
+                       -(root * root * segmentLength - lbl_80345F20);
+                scratch.segmentRoot = (f32)(segmentLength *
+                    (lbl_80345F18 * root *
+                    -(root * root * segmentLength - lbl_80345F20)));
+                segmentLength = scratch.segmentRoot;
             }
-            sz = TC_Z(best) - closest[2];
-            sx = TC_X(best) - closest[0];
-            sy = TC_Y(best) - closest[1];
-            distance = sz * sz + sx * sx + sy * sy;
-            if (lbl_80345EC8 < distance) {
+            sy = *(f32*)(bestTrigger + 8) - scratch.closest[1];
+            sx = *(f32*)(bestTrigger + 4) - scratch.closest[0];
+            sz = *(f32*)(bestTrigger + 0xC) - scratch.closest[2];
+            distance = sy * sy + sx * sx + sz * sz;
+            if ((f64)distance > (f64)lbl_80345EC8) {
                 root = __frsqrte(distance);
                 root = lbl_80345F18 * root *
-                       -(distance * root * root - lbl_80345F20);
+                       -(root * root * distance - lbl_80345F20);
                 root = lbl_80345F18 * root *
-                       -(distance * root * root - lbl_80345F20);
+                       -(root * root * distance - lbl_80345F20);
                 root = lbl_80345F18 * root *
-                       -(distance * root * root - lbl_80345F20);
-                distance = (f32)(distance * lbl_80345F18 * root *
-                           -(distance * root * root - lbl_80345F20));
+                       -(root * root * distance - lbl_80345F20);
+                scratch.closestRoot = (f32)(distance * (lbl_80345F18 * root *
+                    -(root * root * distance - lbl_80345F20)));
+                distance = scratch.closestRoot;
             }
 
-            lbl_8034445C = (f32)(secondDistance / nearestDistance);
-            distance = lbl_8034445C;
-            if (distance < lbl_80345F28) {
-                if (lbl_80346098 <= distance) {
-                    lbl_8034445C = (f32)-(lbl_803460E8 *
-                        (distance - lbl_80345F28) - 1.0);
+            blendRatio = (f32)(distance / segmentLength);
+            lbl_80344504 = blendRatio;
+            if ((lbl_80344470 -= gFrameTicks) < 0) {
+                lbl_80344470 = 0;
+            }
+
+            if ((f64)blendRatio <= (f64)effectiveThreshold) {
+                holdSelection = 0;
+                sameSelection = holdSelection;
+                if (lbl_80344508 == lbl_8034450C &&
+                    lbl_8034446C == lbl_80344510) {
+                    sameSelection = 1;
                 }
-            } else {
-                lbl_8034445C = lbl_80345F80;
-            }
-
-            if (blendThreshold < (f32)(distance / segmentLength)) {
-                lbl_80344534 = (f32)secondYaw;
-                lbl_80344530 = (f32)bestYaw;
-                lbl_80344508 = lbl_8034450C;
-                lbl_80344404 = bestYaw <= (f64)lbl_80344408 ? -1 : 1;
-            } else {
-                lbl_80344534 = (f32)bestPitch;
-                lbl_80344530 = (f32)nearestYaw;
-                lbl_80344508 = lbl_80344510;
-                lbl_80344404 = nearestYaw <= (f64)lbl_80344408 ? -1 : 1;
+                if (sameSelection != 0 && lbl_80344470 > 0) {
+                    holdSelection = 1;
+                }
+                if (holdSelection == 0) {
+                    lbl_80344534 = bestPitch;
+                    lbl_80344530 = nearestYaw;
+                    lbl_80344508 = lbl_80344510;
+                    lbl_80344470 = 120;
+                }
+                if ((gCameraTargetCount > 1 || gGameOptions[3] >= 2) &&
+                    lbl_80344530 < lbl_80344524) {
+                    lbl_80344530 = lbl_80344524;
+                }
+                if (lbl_80344530 > lbl_80344408) {
+                    lbl_80344404 = 1;
+                } else {
+                    lbl_80344404 = -1;
+                }
+            } else if ((f64)blendRatio >
+                       lbl_80345FE0 - (f64)effectiveThreshold) {
+                holdSelection = 0;
+                sameSelection = holdSelection;
+                if (lbl_80344508 == lbl_80344510 &&
+                    lbl_8034446C == lbl_8034450C) {
+                    sameSelection = 1;
+                }
+                if (sameSelection != 0 && lbl_80344470 > 0) {
+                    holdSelection = 1;
+                }
+                if (holdSelection == 0) {
+                    lbl_80344534 = secondYaw;
+                    lbl_80344530 = bestYaw;
+                    lbl_80344508 = lbl_8034450C;
+                    lbl_80344470 = 120;
+                }
+                if ((gCameraTargetCount > 1 || gGameOptions[3] >= 2) &&
+                    lbl_80344530 < lbl_80344524) {
+                    lbl_80344530 = lbl_80344524;
+                }
+                if (lbl_80344530 > lbl_80344408) {
+                    lbl_80344404 = 1;
+                } else {
+                    lbl_80344404 = -1;
+                }
             }
 
             distance = (f32)(lbl_80344534 - cam->pyr[1]);
-            if (lbl_80345F68 <= distance) {
-                if (lbl_80345F78 <= distance) {
-                    lbl_80344400 = lbl_80345F58 <= distance ? -1 : 1;
-                } else {
-                    lbl_80344400 = -1;
-                }
-            } else {
+            if ((f64)distance < lbl_80345F68) {
                 lbl_80344400 = 1;
+            } else if ((f64)distance < lbl_80345F78) {
+                lbl_80344400 = -1;
+            } else if ((f64)distance < lbl_80345F58) {
+                lbl_80344400 = 1;
+            } else {
+                lbl_80344400 = -1;
             }
-
-            if (previousSelection != lbl_80344508) {
-                f32 ax;
-                f32 ay;
-                f32 az;
-                az = cam->wpos[2] - TC_Y(lbl_80344508);
-                ax = cam->wpos[0] - TC_X(lbl_80344508);
-                ay = cam->wpos[1] - TC_Z(lbl_80344508);
-                distance = az * az + ax * ax + ay * ay;
-                if (lbl_80345EC8 < distance) {
-                    root = __frsqrte(distance);
-                    root = lbl_80345F18 * root *
-                           -(distance * root * root - lbl_80345F20);
-                    root = lbl_80345F18 * root *
-                           -(distance * root * root - lbl_80345F20);
-                    root = lbl_80345F18 * root *
-                           -(distance * root * root - lbl_80345F20);
-                    distance = (f32)(distance * lbl_80345F18 * root *
-                               -(distance * root * root - lbl_80345F20));
-                }
-                distance = (f32)(distance * lbl_803460F0);
-                if (lbl_80345F78 == distance) {
-                    lbl_8034444C = lbl_80345EC8;
-                    lbl_80344454 = lbl_80345EC8;
-                    lbl_80344450 = lbl_80345EC8;
-                    lbl_80344458 = lbl_80345EC8;
-                } else {
-                    f32 velocity;
-                    if (distance < 1.0) {
-                        distance = lbl_80345F80;
-                    }
-                    root = (f32)(lbl_80344534 - cam->pyr[1]);
-                    if (lbl_80345F58 < root) {
-                        root = (f32)(lbl_80345F60 - root);
-                    }
-                    velocity = (f32)(root / distance);
-                    if (velocity < 0.0f) velocity = -velocity;
-                    lbl_8034444C = velocity;
-                    if (lbl_803460F8 <= lbl_8034444C) {
-                        lbl_8034444C = lbl_80346100;
-                    }
-                    root = lbl_80344454;
-                    velocity = (f32)((f64)lbl_8034444C - root);
-                    if (velocity < 0.0f) velocity = -velocity;
-                    if (lbl_803460D8 <= velocity) {
-                        lbl_8034444C = lbl_8034444C <= root
-                            ? (f32)(root - lbl_803460D8)
-                            : (f32)(lbl_803460D8 + root);
-                    }
-                    velocity = (f32)((f64)(lbl_80344530 - lbl_80344408) /
-                                     distance);
-                    if (velocity < 0.0f) velocity = -velocity;
-                    lbl_80344450 = velocity;
-                    if (lbl_80346108 <= lbl_80344450) {
-                        lbl_80344450 = lbl_80346110;
-                    }
-                    root = lbl_80344458;
-                    velocity = (f32)((f64)lbl_80344450 - root);
-                    if (velocity < 0.0f) velocity = -velocity;
-                    if (lbl_80346118 <= velocity) {
-                        lbl_80344450 = lbl_80344450 <= root
-                            ? (f32)(root - lbl_80346118)
-                            : (f32)(lbl_80346118 + root);
-                    }
-                    lbl_80344454 = lbl_8034444C;
-                    lbl_80344458 = lbl_80344450;
-                }
-            }
-        }
     }
 
-    if (previousBest >= 0 && previousBest == lbl_8034450C) {
-        *(s16*)(sTriggerCameras + previousBest * 0x28 + 2) = 0;
+    scratch.finalAngle = FixAngle(lbl_80344530 - lbl_80344408);
+    *(u32*)&scratch.finalAngle &= 0x7FFFFFFF;
+    distance = (f32)__fabs(lbl_80345F58 - (f64)scratch.finalAngle);
+    if (rememberSelection != 0) {
+        lbl_803444CC = lbl_80344510;
+        lbl_803444C8 = lbl_8034450C;
     }
+    return (f64)distance < lbl_80346068 ? -1 : 0;
 }
 
 /*
