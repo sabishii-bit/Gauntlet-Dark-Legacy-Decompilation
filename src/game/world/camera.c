@@ -66,37 +66,6 @@ typedef struct CameraTarget {
     /* 0x30 */ f32 limitedBottom[2];
 } CameraTarget; /* 0x38 */
 
-/* Stack work area used by camera_run_mode (offsets are from the object). */
-typedef struct CameraRunScratch {
-    u8 _pad00[0x1C];
-    f32 normalizeGameMode[3];       /* stack +0x28 */
-    volatile f32 rootGameMode;     /* stack +0x34 */
-    f32 freeDirection[3];           /* stack +0x38 */
-    f32 freePosition[3];            /* stack +0x44 */
-    f32 freeAttention[3];           /* stack +0x50 */
-    f32 normalizeFree[3];           /* stack +0x5C */
-    u8 _pad60[0x0C];
-    f32 objectDirection[3];         /* stack +0x74 */
-    f32 objectPosition[3];          /* stack +0x80 */
-    f32 objectAttention[3];         /* stack +0x8C */
-    volatile f32 rootObject;        /* stack +0x98 */
-    f32 gameDirection[3];           /* stack +0x9C */
-    f32 gamePosition[3];            /* stack +0xA8 */
-    f32 gameAttention[3];           /* stack +0xB4 */
-    f32 normalizeGame[3];           /* stack +0xC0 */
-    volatile f32 rootGame;          /* stack +0xCC */
-    u8 _padC8[0x18];
-    Vec3 vectorDirection;           /* stack +0xE8 */
-    Vec3 vectorPosition;            /* stack +0xF4 */
-    Vec3 vectorAttention;           /* stack +0x100 */
-    f32 normalizeVector[3];         /* stack +0x10C */
-    u8 _pad110[8];
-    volatile f32 rootVector;        /* stack +0x120 */
-    u8 _pad124[0x0C];
-    f32 destination[3];             /* stack +0x130 */
-    u8 _pad13C[0x0C];
-} CameraRunScratch; /* 0x13C; allocated at r1+0xC */
-
 /* Address-taken workspace used by camera_mode_follow.  Its members reproduce
  * the retail frame's independent vectors (the gaps are compiler homes for
  * integer-to-double conversions and saved registers). */
@@ -813,8 +782,10 @@ void camera_run_mode(s32 camIdx)
 {
     Camera* cam = &gCameras[camIdx];
     s32 attentionMode = cam->a_mode;
+    s32* playerCursor;
     s32 playerIndex;
     s32 tries;
+    u8* players;
     u8* playerObject;
     f32 distance;
     f32 scale;
@@ -827,7 +798,33 @@ void camera_run_mode(s32 camIdx)
     f64 divisorDouble;
     f32* cameraAttention;
     f32* cameraPosition;
-    CameraRunScratch scratch;
+    u8 framePad[8];
+    f32 destination[3];
+    u8 destinationPad[0x0C];
+    volatile f32 rootVector;
+    u8 rootVectorPad[8];
+    f32 normalizeVector[3];
+    Vec3 vectorAttention;
+    Vec3 vectorPosition;
+    Vec3 vectorDirection;
+    u8 vectorPad[0x18];
+    volatile f32 rootGame;
+    f32 normalizeGame[3];
+    f32 gameAttention[3];
+    f32 gamePosition[3];
+    f32 gameDirection[3];
+    volatile f32 rootObject;
+    f32 objectAttention[3];
+    f32 objectPosition[3];
+    f32 objectDirection[3];
+    u8 objectPad[0x0C];
+    f32 normalizeFree[3];
+    f32 freeAttention[3];
+    f32 freePosition[3];
+    f32 freeDirection[3];
+    volatile f32 rootGameMode;
+    f32 normalizeGameMode[3];
+    u8 runModePad[0x1C];
 
     if (cam->camobj != 0 && *(u32*)((u8*)cam->camobj + 0x60) == 0) {
         cam->camobj = 0;
@@ -865,25 +862,25 @@ void camera_run_mode(s32 camIdx)
             }
         }
 
-        get_attn_pos(camIdx, scratch.destination);
-        cam->delta[0] = scratch.destination[0] - cam->attn[0];
-        cam->delta[1] = scratch.destination[1] - cam->attn[1];
-        cam->delta[2] = scratch.destination[2] - cam->attn[2];
+        get_attn_pos(camIdx, destination);
+        cam->delta[0] = destination[0] - cam->attn[0];
+        cam->delta[1] = destination[1] - cam->attn[1];
+        cam->delta[2] = destination[2] - cam->attn[2];
         distance = cam->delta[2] * cam->delta[2];
-        distance = cam->delta[0] * cam->delta[0] + distance;
-        distance = cam->delta[1] * cam->delta[1] + distance;
+        distance += cam->delta[0] * cam->delta[0] +
+                    cam->delta[1] * cam->delta[1];
         if (distance > 0.0f) {
             f64 guess = __frsqrte(distance);
-            guess = 0.5 * guess * (3.0 - distance * guess * guess);
-            guess = 0.5 * guess * (3.0 - distance * guess * guess);
-            guess = 0.5 * guess * (3.0 - distance * guess * guess);
-            scratch.rootVector = (f32)(distance *
-                (0.5 * guess * (3.0 - distance * guess * guess)));
-            distance = scratch.rootVector;
+            guess = 0.5 * guess * (3.0 - guess * guess * distance);
+            guess = 0.5 * guess * (3.0 - guess * guess * distance);
+            guess = 0.5 * guess * (3.0 - guess * guess * distance);
+            rootVector = (f32)(distance *
+                (0.5 * guess * (3.0 - guess * guess * distance)));
+            distance = rootVector;
         }
         stepDouble = 0.3 * (f64)(u32)gFrameTicks;
         divisorDouble = (f64)distance;
-        if (stepDouble <= (f64)distance) {
+        if ((f64)distance >= stepDouble) {
             if ((f64)distance > 12.0) {
                 divisorDouble = (f64)lbl_80345F38;
             }
@@ -901,9 +898,9 @@ void camera_run_mode(s32 camIdx)
             cam->wpos[0] += cam->delta[0];
             cam->wpos[1] += cam->delta[1];
             cam->wpos[2] += cam->delta[2];
-            cam->attn[0] = scratch.destination[0];
-            cam->attn[1] = scratch.destination[1];
-            cam->attn[2] = scratch.destination[2];
+            cam->attn[0] = destination[0];
+            cam->attn[1] = destination[1];
+            cam->attn[2] = destination[2];
         }
         if (gGameMode == 0x8008) {
             camera_mode_dest(camIdx);
@@ -912,29 +909,29 @@ void camera_run_mode(s32 camIdx)
         }
         if (lbl_803443F4 != 0) {
             cameraRadius = cam->radius;
-            scratch.normalizeVector[0] = cam->wpos[0] - cam->attn[0];
-            scratch.normalizeVector[1] = cam->wpos[1] - cam->attn[1];
-            scratch.normalizeVector[2] = cam->wpos[2] - cam->attn[2];
-            SlowNormalVector(scratch.normalizeVector);
-            cam->wpos[0] = cam->attn[0] + scratch.normalizeVector[0] * cameraRadius;
-            cam->wpos[1] = cam->attn[1] + scratch.normalizeVector[1] * cameraRadius;
-            cam->wpos[2] = cam->attn[2] + scratch.normalizeVector[2] * cameraRadius;
+            normalizeVector[0] = cam->wpos[0] - cam->attn[0];
+            normalizeVector[1] = cam->wpos[1] - cam->attn[1];
+            normalizeVector[2] = cam->wpos[2] - cam->attn[2];
+            SlowNormalVector(normalizeVector);
+            cam->wpos[0] = cam->attn[0] + normalizeVector[0] * cameraRadius;
+            cam->wpos[1] = cam->attn[1] + normalizeVector[1] * cameraRadius;
+            cam->wpos[2] = cam->attn[2] + normalizeVector[2] * cameraRadius;
         }
         cam->pyr[0] = get_pitch(cam->wpos, cam->attn);
         cam->pyr[1] = get_yaw(cam->wpos, cam->attn);
         cam->pyr[0] = -cam->pyr[0];
-        scratch.vectorPosition.x = cam->wpos[0];
-        scratch.vectorPosition.y = cam->wpos[1];
-        scratch.vectorPosition.z = cam->wpos[2];
-        scratch.vectorAttention.x = cam->attn[0];
-        scratch.vectorAttention.y = cam->attn[1];
-        scratch.vectorAttention.z = cam->attn[2];
+        vectorPosition.x = cam->wpos[0];
+        vectorPosition.y = cam->wpos[1];
+        vectorPosition.z = cam->wpos[2];
+        vectorAttention.x = cam->attn[0];
+        vectorAttention.y = cam->attn[1];
+        vectorAttention.z = cam->attn[2];
         StandardCamera(camIdx);
-        DoShake(&scratch.vectorPosition, &scratch.vectorAttention);
-        scratch.vectorDirection.x = scratch.vectorAttention.x - scratch.vectorPosition.x;
-        scratch.vectorDirection.y = scratch.vectorAttention.y - scratch.vectorPosition.y;
-        scratch.vectorDirection.z = scratch.vectorAttention.z - scratch.vectorPosition.z;
-        LookInDirection(&scratch.vectorDirection.x, (u32)&cam->mat[0][0]);
+        DoShake(&vectorPosition, &vectorAttention);
+        vectorDirection.x = vectorAttention.x - vectorPosition.x;
+        vectorDirection.y = vectorAttention.y - vectorPosition.y;
+        vectorDirection.z = vectorAttention.z - vectorPosition.z;
+        LookInDirection(&vectorDirection.x, (u32)&cam->mat[0][0]);
         break;
 
     case CAM_FREE:
@@ -947,32 +944,30 @@ void camera_run_mode(s32 camIdx)
             camera_mode_dest(camIdx);
         } else if (gGameMode == 0x8007) {
             if (camIdx == 0) {
-            dy = cam->wpos[1] - cam->attn[1];
-            dx = cam->wpos[0] - cam->attn[0];
-            dz = cam->wpos[2] - cam->attn[2];
-            distance = dy * dy;
-            distance = dx * dx + distance;
-            distance = dz * dz + distance;
+                dx = cam->wpos[0] - cam->attn[0];
+                dy = cam->wpos[1] - cam->attn[1];
+                dz = cam->wpos[2] - cam->attn[2];
+                distance = dz * dz + (dx * dx + dy * dy);
                 if (distance > 0.0f) {
                     f64 guess = __frsqrte(distance);
-                    guess = 0.5 * guess * (3.0 - distance * guess * guess);
-                    guess = 0.5 * guess * (3.0 - distance * guess * guess);
-                    guess = 0.5 * guess * (3.0 - distance * guess * guess);
-                    scratch.rootGameMode = (f32)(distance *
-                        (0.5 * guess * (3.0 - distance * guess * guess)));
-                    distance = scratch.rootGameMode;
+                    guess = 0.5 * guess * (3.0 - guess * guess * distance);
+                    guess = 0.5 * guess * (3.0 - guess * guess * distance);
+                    guess = 0.5 * guess * (3.0 - guess * guess * distance);
+                    rootGameMode = (f32)(distance *
+                        (0.5 * guess * (3.0 - guess * guess * distance)));
+                    distance = rootGameMode;
                 }
                 cam->radius = (f32)((f64)distance + 2.0 * (f64)lbl_80344590);
                 cameraRadius = cam->radius;
                 cameraPosition = cam->wpos;
                 cameraAttention = cam->attn;
-                scratch.normalizeGameMode[0] = cameraPosition[0] - cameraAttention[0];
-                scratch.normalizeGameMode[1] = cameraPosition[1] - cameraAttention[1];
-                scratch.normalizeGameMode[2] = cameraPosition[2] - cameraAttention[2];
-                SlowNormalVector(scratch.normalizeGameMode);
-                cameraPosition[0] = cameraAttention[0] + scratch.normalizeGameMode[0] * cameraRadius;
-                cameraPosition[1] = cameraAttention[1] + scratch.normalizeGameMode[1] * cameraRadius;
-                cameraPosition[2] = cameraAttention[2] + scratch.normalizeGameMode[2] * cameraRadius;
+                normalizeGameMode[0] = cameraPosition[0] - cameraAttention[0];
+                normalizeGameMode[1] = cameraPosition[1] - cameraAttention[1];
+                normalizeGameMode[2] = cameraPosition[2] - cameraAttention[2];
+                SlowNormalVector(normalizeGameMode);
+                cameraPosition[0] = cameraAttention[0] + normalizeGameMode[0] * cameraRadius;
+                cameraPosition[1] = cameraAttention[1] + normalizeGameMode[1] * cameraRadius;
+                cameraPosition[2] = cameraAttention[2] + normalizeGameMode[2] * cameraRadius;
             }
         } else if (gGameMode == 0x400D || gGameMode == 0x4013 ||
                    gGameMode == 0x4017) {
@@ -982,11 +977,11 @@ void camera_run_mode(s32 camIdx)
         if (lbl_803447B8 != 0) {
             if (lbl_803444F0 >= 0) {
                 if (MoveCam_walk(camIdx) == 0) {
-                    return;
+                    break;
                 }
             } else {
                 if (init_game_cam(camIdx) == 0) {
-                    return;
+                    break;
                 }
             }
         } else {
@@ -996,59 +991,59 @@ void camera_run_mode(s32 camIdx)
         if (((gGameMode != 0x8008 && gGameMode != 0x400D &&
               gGameMode != 0x4013 && gGameMode != 0x4017)) ||
             cam->c_mode != CAM_LOCK) {
-            dy = cam->wpos[1] - cam->attn[1];
             dx = cam->wpos[0] - cam->attn[0];
+            dy = cam->wpos[1] - cam->attn[1];
             dz = cam->wpos[2] - cam->attn[2];
-            distance = dy * dy;
-            distance = dx * dx + distance;
-            distance = dz * dz + distance;
+            distance = dz * dz + (dx * dx + dy * dy);
             if (distance > 0.0f) {
                 f64 guess = __frsqrte(distance);
-                guess = 0.5 * guess * (3.0 - distance * guess * guess);
-                guess = 0.5 * guess * (3.0 - distance * guess * guess);
-                guess = 0.5 * guess * (3.0 - distance * guess * guess);
-                scratch.rootGame = (f32)(distance *
-                    (0.5 * guess * (3.0 - distance * guess * guess)));
-                distance = scratch.rootGame;
+                guess = 0.5 * guess * (3.0 - guess * guess * distance);
+                guess = 0.5 * guess * (3.0 - guess * guess * distance);
+                guess = 0.5 * guess * (3.0 - guess * guess * distance);
+                rootGame = (f32)(distance *
+                    (0.5 * guess * (3.0 - guess * guess * distance)));
+                distance = rootGame;
             }
             cam->radius = distance;
             lbl_803443F4 = 1;
             cameraRadius = cam->radius;
-            scratch.normalizeGame[0] = cam->wpos[0] - cam->attn[0];
-            scratch.normalizeGame[1] = cam->wpos[1] - cam->attn[1];
-            scratch.normalizeGame[2] = cam->wpos[2] - cam->attn[2];
-            SlowNormalVector(scratch.normalizeGame);
-            cam->wpos[0] = cam->attn[0] + scratch.normalizeGame[0] * cameraRadius;
-            cam->wpos[1] = cam->attn[1] + scratch.normalizeGame[1] * cameraRadius;
-            cam->wpos[2] = cam->attn[2] + scratch.normalizeGame[2] * cameraRadius;
+            normalizeGame[0] = cam->wpos[0] - cam->attn[0];
+            normalizeGame[1] = cam->wpos[1] - cam->attn[1];
+            normalizeGame[2] = cam->wpos[2] - cam->attn[2];
+            SlowNormalVector(normalizeGame);
+            cam->wpos[0] = cam->attn[0] + normalizeGame[0] * cameraRadius;
+            cam->wpos[1] = cam->attn[1] + normalizeGame[1] * cameraRadius;
+            cam->wpos[2] = cam->attn[2] + normalizeGame[2] * cameraRadius;
             cam->pyr[0] = get_pitch(cam->wpos, cam->attn);
             cam->pyr[1] = get_yaw(cam->wpos, cam->attn);
             cam->pyr[0] = -cam->pyr[0];
         }
-        scratch.gamePosition[0] = cam->wpos[0];
-        scratch.gamePosition[1] = cam->wpos[1];
-        scratch.gamePosition[2] = cam->wpos[2];
-        scratch.gameAttention[0] = cam->attn[0];
-        scratch.gameAttention[1] = cam->attn[1];
-        scratch.gameAttention[2] = cam->attn[2];
+        gamePosition[0] = cam->wpos[0];
+        gamePosition[1] = cam->wpos[1];
+        gamePosition[2] = cam->wpos[2];
+        gameAttention[0] = cam->attn[0];
+        gameAttention[1] = cam->attn[1];
+        gameAttention[2] = cam->attn[2];
         StandardCamera(camIdx);
-        DoShake((Vec3*)scratch.gamePosition, (Vec3*)scratch.gameAttention);
-        scratch.gameDirection[0] = scratch.gameAttention[0] - scratch.gamePosition[0];
-        scratch.gameDirection[1] = scratch.gameAttention[1] - scratch.gamePosition[1];
-        scratch.gameDirection[2] = scratch.gameAttention[2] - scratch.gamePosition[2];
-        LookInDirection(scratch.gameDirection, (u32)&cam->mat[0][0]);
+        DoShake((Vec3*)gamePosition, (Vec3*)gameAttention);
+        gameDirection[0] = gameAttention[0] - gamePosition[0];
+        gameDirection[1] = gameAttention[1] - gamePosition[1];
+        gameDirection[2] = gameAttention[2] - gamePosition[2];
+        LookInDirection(gameDirection, (u32)&cam->mat[0][0]);
         break;
 
     case CAM_OBJEYE:
         if (cam->trans_mode == 0) {
             cam->trans_mode = -1;
         }
+        players = gPlayers;
         playerIndex = gCameras[0].pn;
+        playerCursor = &gCameras[0].pn;
         for (tries = 0; tries < 4; tries++) {
-            if (*(s32*)(gPlayers + playerIndex * 0x335C + 0xE8) == 1 ||
-                *(s32*)(gPlayers + playerIndex * 0x335C + 0xE8) == 4) {
-                playerObject = gPlayers + playerIndex * 0x335C + 0x14;
-                gCameras[0].pn = playerIndex;
+            if (*(s32*)(players + playerIndex * 0x335C + 0xE8) == 1 ||
+                *(s32*)(players + playerIndex * 0x335C + 0xE8) == 4) {
+                playerObject = players + playerIndex * 0x335C + 0x14;
+                *playerCursor = playerIndex;
                 goto found_player_object;
             }
             playerIndex++;
@@ -1077,34 +1072,32 @@ found_player_object:
         cam->pyr[0] = get_pitch(cam->wpos, cam->attn);
         cam->pyr[1] = get_yaw(cam->wpos, cam->attn);
         cam->pyr[1] = AddAngle(cam->pyr[1], (f32)CAM_PI);
-        dy = cam->wpos[1] - cam->attn[1];
         dx = cam->wpos[0] - cam->attn[0];
+        dy = cam->wpos[1] - cam->attn[1];
         dz = cam->wpos[2] - cam->attn[2];
-        distance = dy * dy;
-        distance = dx * dx + distance;
-        distance = dz * dz + distance;
+        distance = dz * dz + (dx * dx + dy * dy);
         if (distance > 0.0f) {
             f64 guess = __frsqrte(distance);
-            guess = 0.5 * guess * (3.0 - distance * guess * guess);
-            guess = 0.5 * guess * (3.0 - distance * guess * guess);
-            guess = 0.5 * guess * (3.0 - distance * guess * guess);
-            scratch.rootObject = (f32)(distance *
-                (0.5 * guess * (3.0 - distance * guess * guess)));
-            distance = scratch.rootObject;
+            guess = 0.5 * guess * (3.0 - guess * guess * distance);
+            guess = 0.5 * guess * (3.0 - guess * guess * distance);
+            guess = 0.5 * guess * (3.0 - guess * guess * distance);
+            rootObject = (f32)(distance *
+                (0.5 * guess * (3.0 - guess * guess * distance)));
+            distance = rootObject;
         }
         cam->radius = distance;
-        scratch.objectPosition[0] = cam->wpos[0];
-        scratch.objectPosition[1] = cam->wpos[1];
-        scratch.objectPosition[2] = cam->wpos[2];
-        scratch.objectAttention[0] = cam->attn[0];
-        scratch.objectAttention[1] = cam->attn[1];
-        scratch.objectAttention[2] = cam->attn[2];
+        objectPosition[0] = cam->wpos[0];
+        objectPosition[1] = cam->wpos[1];
+        objectPosition[2] = cam->wpos[2];
+        objectAttention[0] = cam->attn[0];
+        objectAttention[1] = cam->attn[1];
+        objectAttention[2] = cam->attn[2];
         StandardCamera(camIdx);
-        DoShake((Vec3*)scratch.objectPosition, (Vec3*)scratch.objectAttention);
-        scratch.objectDirection[0] = scratch.objectAttention[0] - scratch.objectPosition[0];
-        scratch.objectDirection[1] = scratch.objectAttention[1] - scratch.objectPosition[1];
-        scratch.objectDirection[2] = scratch.objectAttention[2] - scratch.objectPosition[2];
-        LookInDirection(scratch.objectDirection, (u32)&cam->mat[0][0]);
+        DoShake((Vec3*)objectPosition, (Vec3*)objectAttention);
+        objectDirection[0] = objectAttention[0] - objectPosition[0];
+        objectDirection[1] = objectAttention[1] - objectPosition[1];
+        objectDirection[2] = objectAttention[2] - objectPosition[2];
+        LookInDirection(objectDirection, (u32)&cam->mat[0][0]);
         break;
 
     case CAM_GAME:
@@ -1147,8 +1140,8 @@ free_attention:
             cam->trans_mode = -1;
         }
         dx = cam->wpos[0] - cam->wpos[0];
-        dy = cam->wpos[1] - cam->wpos[1];
         dz = cam->wpos[2] - cam->wpos[2];
+        dy = cam->wpos[1] - cam->wpos[1];
         cam->attn[0] += dx;
         cam->attn[1] += dy;
         cam->attn[2] += dz;
@@ -1157,29 +1150,29 @@ free_attention:
         }
         if (lbl_803443F4 != 0) {
             cameraRadius = cam->radius;
-            scratch.normalizeFree[0] = cam->wpos[0] - cam->attn[0];
-            scratch.normalizeFree[1] = cam->wpos[1] - cam->attn[1];
-            scratch.normalizeFree[2] = cam->wpos[2] - cam->attn[2];
-            SlowNormalVector(scratch.normalizeFree);
-            cam->wpos[0] = cam->attn[0] + scratch.normalizeFree[0] * cameraRadius;
-            cam->wpos[1] = cam->attn[1] + scratch.normalizeFree[1] * cameraRadius;
-            cam->wpos[2] = cam->attn[2] + scratch.normalizeFree[2] * cameraRadius;
+            normalizeFree[0] = cam->wpos[0] - cam->attn[0];
+            normalizeFree[1] = cam->wpos[1] - cam->attn[1];
+            normalizeFree[2] = cam->wpos[2] - cam->attn[2];
+            SlowNormalVector(normalizeFree);
+            cam->wpos[0] = cam->attn[0] + normalizeFree[0] * cameraRadius;
+            cam->wpos[1] = cam->attn[1] + normalizeFree[1] * cameraRadius;
+            cam->wpos[2] = cam->attn[2] + normalizeFree[2] * cameraRadius;
         }
         cam->pyr[0] = get_pitch(cam->wpos, cam->attn);
         cam->pyr[1] = get_yaw(cam->wpos, cam->attn);
         cam->pyr[0] = -cam->pyr[0];
-        scratch.freePosition[0] = cam->wpos[0];
-        scratch.freePosition[1] = cam->wpos[1];
-        scratch.freePosition[2] = cam->wpos[2];
-        scratch.freeAttention[0] = cam->attn[0];
-        scratch.freeAttention[1] = cam->attn[1];
-        scratch.freeAttention[2] = cam->attn[2];
+        freePosition[0] = cam->wpos[0];
+        freePosition[1] = cam->wpos[1];
+        freePosition[2] = cam->wpos[2];
+        freeAttention[0] = cam->attn[0];
+        freeAttention[1] = cam->attn[1];
+        freeAttention[2] = cam->attn[2];
         StandardCamera(camIdx);
-        DoShake((Vec3*)scratch.freePosition, (Vec3*)scratch.freeAttention);
-        scratch.freeDirection[0] = scratch.freeAttention[0] - scratch.freePosition[0];
-        scratch.freeDirection[1] = scratch.freeAttention[1] - scratch.freePosition[1];
-        scratch.freeDirection[2] = scratch.freeAttention[2] - scratch.freePosition[2];
-        LookInDirection(scratch.freeDirection, (u32)&cam->mat[0][0]);
+        DoShake((Vec3*)freePosition, (Vec3*)freeAttention);
+        freeDirection[0] = freeAttention[0] - freePosition[0];
+        freeDirection[1] = freeAttention[1] - freePosition[1];
+        freeDirection[2] = freeAttention[2] - freePosition[2];
+        LookInDirection(freeDirection, (u32)&cam->mat[0][0]);
         break;
 
     case CAM_OBJEYE:

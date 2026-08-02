@@ -422,3 +422,26 @@ through the known volatile stack slots; combining these field aliases with
 the stack spills improved the supervisor from about 90.37% to 92.54% (566 to
 474 real diff lines). Either change alone was weaker, so test related lifetime
 evidence as a set rather than rejecting one clue solely on instruction count.
+
+`camera_run_mode` showed why reproducing absolute stack offsets with one large
+scratch aggregate can still poison code generation. Ghidra's accesses came
+from independent address-taken vectors and scalar spills. Declaring those
+locals separately, in reverse stack-allocation order, and putting an otherwise
+dead eight-byte frame pad first preserved the retail 360-byte frame and every
+local displacement while ending the false function-long pointer lifetimes.
+That removed eight extra instructions across four switch arms. Keep the root
+results as independent volatile scalar spills; sharing them reconnects their
+register webs.
+
+Two control-flow and expression-order details then removed most of the
+remaining delta. A failed `MoveCam_walk`/`init_game_cam` exits its switch arm,
+so use `break`, not an early `return`; MWCC then emits the retail epilogue and
+continuation branches. For repeated camera distances, assign X before Y and
+Z, but form the sum as `z*z + (x*x + y*y)`. MWCC schedules the loads in retail
+order and reuses the Y register destructively through the first multiply.
+For the initial delta distance, `distance = z*z; distance += x*x + y*y;`
+preserves the target instruction count and leaves only a two-register coloring
+difference. Finally, keeping `gPlayers` in a named pointer local makes MWCC
+retain the array base across the object-player loop, as retail does. Together
+these changes reduced `camera_run_mode` from 839 instructions/408 real diff
+lines to the exact 831 instructions and 28 real diff lines.
