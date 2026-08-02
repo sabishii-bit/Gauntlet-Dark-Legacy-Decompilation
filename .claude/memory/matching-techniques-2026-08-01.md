@@ -290,3 +290,17 @@ retail's `fmul guess,guess` followed by `fnmsub distance,...`; the latter
 creates a different but equivalent `distance*guess` accumulator web. Together
 with a two-stage squared-distance sum, this reduced the mode from 68 to 8 real
 diff lines.
+
+`camera_collide_step` reached the retail 444-instruction length by removing
+four code-generation artifacts. Share an early zero result with the final
+false return through a common label so MWCC tail-merges both exits. Build each
+three-component squared distance as staged assignments (`y*y`, then `x*x +`
+the accumulator, then `z*z +` it); a single expression made MWCC preserve the
+root input with an extra `fmr` at both square-root sites. Finally, read the
+immutable zero and maximum-distance globals through volatile-qualified float
+pointers. That makes MWCC load each value directly into its long-lived FPR
+home instead of loading through a temporary and copying it. These changes
+removed the final five extra instructions without altering behavior. The
+remaining selector delta is register coloring and scheduling, so exact length
+is a useful stopping checkpoint even though the fuzzy score remains about
+90.26%.
