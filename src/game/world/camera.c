@@ -2469,11 +2469,11 @@ void camera_mode_level(s32 reset)
     Camera* cam1;
     Camera* cam2;
     Camera* cam3;
+    s32 cameraIndex;
+    Player* player;
     s32 tries;
     s32 playerIndex;
-    u8* player;
     u8* levelCamera = *(u8**)(gCurLevel + 0x60);
-    s32 cameraIndex;
     s32 cameraOffset;
     s32* playerNumber;
     struct OBJGRP* playerObject;
@@ -2491,10 +2491,10 @@ void camera_mode_level(s32 reset)
     lbl_803444F0 = -1;
     lbl_803444EC = -1;
     lbl_80344960 = -1;
-    player = gPlayers;
+    player = (Player*)gPlayers;
     for (tries = 0; tries < 4;
-         tries++, player += 0x335C) {
-        if (*(s32*)(player + 0xE8) == 1) {
+         tries++, player++) {
+        if (player->state == 1) {
             UpdatePlayerWorldMat(player, 1);
         }
     }
@@ -2623,11 +2623,10 @@ void camera_mode_level(s32 reset)
     cam1->trans_mode = 0;
     playerIndex = *(playerNumber = (s32*)(state + 0x1C8));
     for (tries = 0; tries < 4; tries++) {
-        player = gPlayers + playerIndex * 0x335C;
-        if (*(s32*)(player + 0xE8) == 1 ||
-            *(s32*)(player + 0xE8) == 4) {
+        player = (Player*)gPlayers + playerIndex;
+        if (player->state == 1 || player->state == 4) {
             *playerNumber = playerIndex;
-            playerObject = (struct OBJGRP*)(player + 0x14);
+            playerObject = (struct OBJGRP*)((u8*)player + 0x14);
             goto level_player_found;
         }
         playerIndex++;
@@ -2663,10 +2662,10 @@ level_player_found:
         cam2->pyr[1] = (f32)wrappedAngle;
         CreateYPRMatrix(scratch.transmitterMatrix, cam2->pyr);
 
-        dx = cam2->wpos[0] - gDefaultPlayerPosition[0];
         dy = cam2->wpos[1] - gDefaultPlayerPosition[1];
+        dx = cam2->wpos[0] - gDefaultPlayerPosition[0];
         dz = cam2->wpos[2] - gDefaultPlayerPosition[2];
-        distance = dz * dz + dx * dx + dy * dy;
+        distance = dy * dy + dx * dx + dz * dz;
         if (distance > lbl_80345EC8) {
             root = __frsqrte(distance);
             root = lbl_80345F18 * root *
@@ -2751,17 +2750,17 @@ level_player_found:
     cam3->avel[0] = cam3Zero;
     cam3->avel[1] = cam3Zero;
     cam3->avel[2] = cam3Zero;
-    cam3->attn[0] = cam0->attn[0];
-    cam3->attn[1] = cam0->attn[1];
-    cam3->attn[2] = cam0->attn[2];
+    cam3->attn[0] = *(f32*)(state + 0x1F4);
+    cam3->attn[1] = *(f32*)(state + 0x1F8);
+    cam3->attn[2] = *(f32*)(state + 0x1FC);
     cam3->radius = lbl_80346020;
     cam3->pyr[0] = lbl_80346024;
     cam3->pyr[1] = cam3Zero;
     cam3->pyr[2] = cam3Zero;
     CreateYPRMatrix(scratch.overheadMatrix, cam3->pyr);
-    scratch.offset.x = cam3Zero;
-    scratch.offset.y = cam3Zero;
     }
+    scratch.offset.x = lbl_80345EC8;
+    scratch.offset.y = lbl_80345EC8;
     scratch.offset.z = cam3->radius;
     WorldVector(&scratch.offset.x, &scratch.transformed.x,
                 scratch.overheadMatrix);
