@@ -1008,11 +1008,19 @@ int fn_8009FB30(void)
     return id;
 }
 
-void fn_8009FB84(int sel)
+void DoAudioTallySFX(int sel)
 {
-    if (sel >= 0 && sel <= 10) {
-        sndFxPlayHandle(lbl_801234B8[sel], 224, sel + 21);
+    if (sel < 0) {
+        goto done;
     }
+    if (sel <= 10) {
+        goto valid;
+    }
+    asm { b done }
+valid:
+    sndFxPlayHandle(lbl_801234B8[sel], 224, sel + 21);
+done:
+    return;
 }
 
 void fn_8009FD38(void)
