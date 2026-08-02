@@ -511,20 +511,19 @@ void PlayerMotion_HitTarget(Player* p, void* target, s32 arg, f32 range) {
 
     priority = fn_8005C1DC(target, arg, p->index, range);
     {
-        s32 exact = priority == lbl_80347B08 ? 1 : 0;
+        s32 exact = lbl_80347B08 == priority ? 1 : 0;
         s32 type;
-        if (priority < lbl_80347B08) {
-            return;
-        }
-        PlayerDamagedItem(p, target, exact);
-        type = **(s32**)target;
-        if (type == 3) {
-            lbl_803447E4 = 1;
-        } else if (type == 10) {
-            if ((s8)(*(u8**)target)[0x28] == 0) {
-                msgPost(20, p->index, (u32)hitpos);
+        if (priority >= *(volatile f64*)&lbl_80347B08) {
+            PlayerDamagedItem(p, target, exact);
+            type = **(s32**)target;
+            if (type == 3) {
+                lbl_803447E4 = 1;
+            } else if (type == 10) {
+                if ((s8)(*(u8**)target)[0x28] == 0) {
+                    msgPost(20, p->index, (u32)hitpos);
+                }
+                lbl_803447E4 = 1;
             }
-            lbl_803447E4 = 1;
         }
     }
 }
