@@ -2835,16 +2835,17 @@ void camera_mode_spin(s32 camIdx)
     f32 yaw;
     f32 sine;
     f32 cosine;
-    f32 delta[3];
-    f32 offset[3];
+    f32 deltaX;
+    f32 deltaY;
+    f32 deltaZ;
+    u8 vectorPad[20];
     f32 distance;
     volatile f32 root;
-    u8 pad[4];
+    u8 pad[8];
 
     state = gCameraState;
     settings = (f32*)state;
-    cam = (Camera*)(state + camIdx * sizeof(Camera));
-    cam = (Camera*)((u8*)cam + 0xC8);
+    cam = (Camera*)(state + camIdx * sizeof(Camera) + 0xC8);
     if (camIdx == 0 &&
         (gGameMode == 0x400D || gGameMode == 0x4013 ||
          gGameMode == 0x4017)) {
@@ -2861,32 +2862,31 @@ void camera_mode_spin(s32 camIdx)
         settings[126] = settings[11];
         settings[127] = cosine * settings[12];
 
-        delta[0] = settings[75] - settings[125];
-        delta[1] = settings[76] - settings[126];
-        delta[2] = settings[77] - settings[127];
-        distance = delta[1] * delta[1];
-        distance = delta[0] * delta[0] + distance;
-        distance = delta[2] * delta[2] + distance;
+        deltaX = settings[75] - settings[125];
+        deltaY = settings[76] - settings[126];
+        deltaZ = settings[77] - settings[127];
+        distance = deltaX * deltaX + deltaY * deltaY;
+        distance = deltaZ * deltaZ + distance;
         if (distance > 0.0f) {
             f64 guess = __frsqrte(distance);
-            guess = 0.5 * guess * (3.0 - distance * guess * guess);
-            guess = 0.5 * guess * (3.0 - distance * guess * guess);
-            guess = 0.5 * guess * (3.0 - distance * guess * guess);
+            guess = 0.5 * guess * (3.0 - guess * guess * distance);
+            guess = 0.5 * guess * (3.0 - guess * guess * distance);
+            guess = 0.5 * guess * (3.0 - guess * guess * distance);
             root = (f32)(distance *
-                         (0.5 * guess * (3.0 - distance * guess * guess)));
+                         (0.5 * guess * (3.0 - guess * guess * distance)));
             distance = root;
         }
         cam->radius = distance;
 
-        offset[0] = sine * cam->num2;
-        offset[1] = 0.0f;
-        offset[2] = cosine * cam->num2;
-        cam->wpos[0] += offset[0];
-        cam->wpos[1] += offset[1];
-        cam->wpos[2] += offset[2];
-        cam->attn[0] += offset[0];
-        cam->attn[1] += offset[1];
-        cam->attn[2] += offset[2];
+        deltaX = sine * cam->num2;
+        deltaY = 0.0f;
+        deltaZ = cosine * cam->num2;
+        cam->wpos[0] += deltaX;
+        cam->wpos[1] += deltaY;
+        cam->wpos[2] += deltaZ;
+        cam->attn[0] += deltaX;
+        cam->attn[1] += deltaY;
+        cam->attn[2] += deltaZ;
     }
 }
 
