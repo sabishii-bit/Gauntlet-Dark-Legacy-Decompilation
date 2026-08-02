@@ -414,11 +414,15 @@ void StartFireScroll(void)
 /* Tear down all screen-transition blits (green-circle wipe cleanup). */
 void EndFireScroll(void)
 {
+    void** handle;
+
     if (lbl_80344A34) { lbl_80344A34 = MBRemoveBlit(lbl_80344A34); }
     if (lbl_80343C8C) { lbl_80343C8C = MBRemoveBlit(lbl_80343C8C); }
-    if (lbl_80343C90) { lbl_80343C90 = MBRemoveBlit(lbl_80343C90); }
+    handle = &lbl_80343C8C;
+    if (*++handle) { *handle = MBRemoveBlit(*handle); }
     if (lbl_80343C94) { lbl_80343C94 = MBRemoveBlit(lbl_80343C94); }
-    if (lbl_80343C98) { lbl_80343C98 = MBRemoveBlit(lbl_80343C98); }
+    handle = &lbl_80343C94;
+    if (*++handle) { *handle = MBRemoveBlit(*handle); }
 }
 
 /*
