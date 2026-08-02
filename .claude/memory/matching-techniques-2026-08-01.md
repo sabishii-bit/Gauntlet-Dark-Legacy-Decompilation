@@ -350,3 +350,23 @@ all subsequent field displacements. The remaining one-instruction length
 delta is an address-form tie: retail emits `addi` plus `lfs` for
 `gDefaultPlayerPosition`, while MWCC currently folds the same access into
 `lfsu`. The function is parked at 581/582 instructions and about 96.08% fuzzy.
+
+`debug_camera_pos` showed that a contiguous retail stack layout does not
+necessarily come from one source aggregate. Keeping the projected screen pair
+inside the scratch structure made MWCC hoist its address into a saved GPR for
+the whole player loop. Splitting the same footprint into an eight-byte dead
+pad, a standalone `s16 projected[2]`, and the remaining scratch structure
+preserved every absolute stack offset while making MWCC rematerialize the
+stack address at each projection call, as retail does.
+
+Retain constant camera indices as named integer locals when the function also
+uses them for address arithmetic. The explicit value `5` reconstructs retail's
+indexed matrix address instead of collapsing it to `state + 0x888`. An
+explicit typed `sourceCamera = state + 0xC8` similarly recovers the target's
+temporary `addi` followed by the call-argument `mr`. Reading the late saved
+attention mode directly from `state + 0x97C` keeps the state base live in its
+retail saved register. Finally, reuse the earlier saved-pitch scalar for the
+later radius lifetime and cache the step-limit global in the existing scale
+scalar. Together these source identities brought `debug_camera_pos` from
+422/427 instructions and 221 real diff lines to the exact 427/427 length with
+78 real lines, while matching its stack frame and saved-GPR layout.
