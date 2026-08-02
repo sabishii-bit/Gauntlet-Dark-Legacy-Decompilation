@@ -633,3 +633,17 @@ gave the traversal node its own register web, while a function-local
 the head pointer. Neither change was sufficient alone; together they matched
 all 42 instructions. Prefer this scoped pairing over changing the TU-wide
 compiler flags when only one intrusive-list traversal needs the older shape.
+
+## Recovering `li` + `and` from a low-half 64-bit flag test
+
+When retail loads a 32-bit flag symbol but then emits `li mask; and` where a
+direct `s32_flags & constant` reconstruction emits one `rlwinm`, inspect the
+adjacent symbol layout before trying optimizer flags. In `sndSysSync`,
+`sFlags` at `0x803445CC` is the low half of the 64-bit
+`gControllerButtons` word at `0x803445C8`. Writing
+`gControllerButtons & 0x20` made MWCC eliminate the unused high half while
+retaining the original `li 32; and` sequence. The object relocation is named
+`gControllerButtons+4` instead of `sFlags`, but both resolve to the same
+address and the linked function is byte-exact. Treat this target sequence as
+source-type evidence, and use the containing 64-bit symbol rather than a
+volatile mask or a TU-wide optimization change.

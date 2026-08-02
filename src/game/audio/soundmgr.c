@@ -13,8 +13,8 @@
  * NonMatching: the original reserves a small unused stack local in many of
  * these functions (reconstructed here as `volatile s32 _fpad[N]`).  A few
  * residuals remain: the deferred-callback loop (sndSysFlush/sndSysClear/
- * sndCmdD/sndCmd1) differs by one address-fold instruction, sndSysSync by
- * one (rlwinm vs li+and), and sndSysUpdate/sndSysInit by register choice.
+ * sndCmdD/sndCmd1) differs by one address-fold instruction, while sndSysInit
+ * differs by register choice.
  * These are register/frame-allocation-only residuals; logic is verified.
  */
 
@@ -72,6 +72,7 @@ extern s32 sConfig;         /* sConfig */
 extern s32 sPending;        /* sPending */
 extern s32 sReset;          /* sReset */
 extern s32 sFlags;          /* sFlags */
+extern long long gControllerButtons; /* 64-bit word whose low half aliases sFlags */
 
 /*
  * The init state is a single aggregate the compiler anchors on: sndSysInit
@@ -686,7 +687,7 @@ void sndSysSync(void)
 {
     SndState* s = &g;
     volatile s32 _fpad[4];
-    s32 want = sFlags & 0x20;
+    s32 want = gControllerButtons & 0x20;
 
     if (sInSync != 0) {
         return;
