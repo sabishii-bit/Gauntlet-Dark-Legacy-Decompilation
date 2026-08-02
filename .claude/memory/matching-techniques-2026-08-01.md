@@ -578,3 +578,13 @@ This moved the translated `fn_80011BBC` atree wrapper from a pointer-IV shape
 to the target's two-base/three-counter loop. Its remaining mismatch is register
 coloring plus one address CSE, so do not re-test compiler versions or flag
 presets; both axes are already neutral for this class.
+
+For call-argument scheduling, split a rematerialized constant from an existing
+long-lived local even when both have the same value. `beginSaveTransaction`
+keeps `size = 0x310000` live in `r30` for the subsequent heap-end calculation,
+but retail independently materializes the same value into argument register
+`r4` before forming the first argument in `r3`. Passing
+`(transferSize = 0x310000)` from a separate, otherwise dead local preserved the
+retail `lis r4,49; addis r3,r31,-49` order; passing `size`, assigning `size`
+again, or using only the literal all chose a different schedule. The temporary
+emits no instruction or stack growth after optimization.
