@@ -700,3 +700,20 @@ but the named assignment order survives long enough to give it retail's `f0`
 identity and the field load `f1`. This matched all 24 instructions exactly;
 either the named locals or propagation-off by itself left the original FPR
 swap unchanged.
+
+## Explicit zero initialization can recover a retail data-backed table
+
+If a function's instructions are semantically correct but its target uses a
+`lis/addi` relocation into `.data` while the reconstruction addresses a TU
+`.bss` anchor, inspect the target bytes before changing the code. The saved
+atree-list table at `0x80118128` is 0x60 bytes of explicit zeros in `.data`.
+Writing `= {{0}, {0}, {0}}` on the source aggregate makes MWCC emit the same
+data-backed object; leaving it tentative places it in `.bss` and changes the
+entire address tree.
+
+`AtreeInitLists` also demonstrates that auto-inlining is not uniform between
+adjacent callers: `AtreeSetEmpty` remains a real call here even though MWCC
+normally inlines its loop body. A function-scoped `#pragma dont_inline on`
+restored the call and removed 23 extra instructions. `matchtool probe` reports
+the resulting 36-instruction function as `OK~` (only meaningful-vs-`lbl_`
+relocation names differ), and objdiff counts all 144 code bytes exact.

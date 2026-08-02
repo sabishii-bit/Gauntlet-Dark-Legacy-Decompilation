@@ -176,7 +176,7 @@ static struct {
     s32 natreelists[8];
     anode* nodelist[8];
     animdata* datalist[8];
-} atreelist_save;
+} atreelist_save = {{0}, {0}, {0}};
 
 static s32 atree_handles[24];
 static u8 atree_scroll[24][16];
@@ -366,6 +366,7 @@ void AtreeAlloc(int nnodes, int ndata)
 
 /* ---------------- atree-list slot save / restore ---------------- */
 
+#pragma dont_inline on
 void AtreeInitLists(int slot)
 {
     int i;
@@ -382,6 +383,7 @@ void AtreeInitLists(int slot)
     AnimDataList = atreelist_save.datalist[slot];
     AtreeSetEmpty();
 }
+#pragma dont_inline reset
 
 void AtreeListLock(int slot)
 {
