@@ -890,38 +890,41 @@ MBTreeNode* MBCreateNode(void)
 }
 
 /* 0x800BB4CC */
-void MBNodeInsert(MBTreeNode* node, MBTreeNode* parent)
+static void MBNodeAppend(MBTreeNode* node, MBTreeNode* head)
 {
-    MBTreeNode* tail;
-    MBTreeNode* next;
+    MBTreeNode* tail = head;
+    MBTreeNode* next = head->next;
 
-    node->parent = parent;
-    if (parent != 0) {
-        tail = parent->child;
-        if (tail == 0) {
-            parent->child = node;
-            return;
-        }
-        next = tail->next;
-        while (next != 0 && next != tail) {
-            tail = next;
-            next = next->next;
-        }
-        tail->next = node;
-        return;
-    }
-
-    tail = lbl_80344ECC;
-    if (tail == 0) {
-        lbl_80344ECC = node;
-        return;
-    }
-    next = tail->next;
-    while (next != 0 && next != lbl_80344ECC) {
+    while (next != 0 && next != head) {
         tail = next;
         next = next->next;
     }
     tail->next = node;
+}
+
+void MBNodeInsert(MBTreeNode* node, MBTreeNode* parent)
+{
+    node->parent = parent;
+    if (parent == 0) {
+        MBTreeNode* head;
+
+        if ((head = lbl_80344ECC) == 0) {
+            lbl_80344ECC = node;
+            return;
+        }
+        MBNodeAppend(node, head);
+        return;
+    }
+
+    {
+        MBTreeNode* head = parent->child;
+
+        if (head == 0) {
+            parent->child = node;
+            return;
+        }
+        MBNodeAppend(node, head);
+    }
 }
 
 /* 0x800BB55C */
