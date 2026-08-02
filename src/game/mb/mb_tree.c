@@ -96,27 +96,45 @@ void MBNodeInit(MBTreeNode* node, s32 type);
 MBTreeNode* MBCreateNode(void);
 
 /* 0x800BA084 */
+typedef struct MBClearVertex {
+    u16 _pad0;
+    u16 flags;
+    u8 _pad4[12];
+} MBClearVertex;
+
+typedef struct MBClearModel {
+    u8 _pad0[0x48];
+    u32 vertexCount;
+    u8 _pad4C[0x0C];
+    MBClearVertex* vertices;
+} MBClearModel;
+
+typedef struct MBClearRecord {
+    s32 state;
+    MBClearModel* model;
+    u8 _pad8[8];
+} MBClearRecord;
+
+typedef struct MBClearGlobals {
+    u8 _pad0[0x30];
+    MBClearRecord* records;
+} MBClearGlobals;
+
 void MBClearTexscroll(void)
 {
-    u8* globals = gWinGlobals;
+    MBClearGlobals* globals = gWinGlobals;
+    MBClearModel** model;
     s32 i;
-    s32 offset;
 
-    for (i = 0, offset = 0;
-         i < **(s32**)(globals + 0x30);
-         i++, offset += 0x10) {
-        u8* record = *(u8**)(globals + 0x30) + offset;
+    for (i = 0; i < globals->records[0].state; i++) {
+        MBClearRecord* record = &globals->records[i];
 
-        if (*(s32*)(record + 0x10) == 0) {
-            u8** model = (u8**)(record + 4);
+        model = &record->model;
+        if (record[1].state == 0) {
             u32 j;
-            s32 vertex_offset;
 
-            for (j = 0, vertex_offset = 0;
-                 j < *(u32*)(*model + 0x48);
-                 j++, vertex_offset += 0x10) {
-                u8* vertices = *(u8**)(*model + 0x58);
-                *(u16*)(vertices + vertex_offset + 2) &= ~0x40;
+            for (j = 0; j < (*model)->vertexCount; j++) {
+                (*model)->vertices[j].flags &= ~0x40;
             }
         }
     }
