@@ -744,16 +744,17 @@ general_mode:
  * mode's scratch vectors separate, which is why the local arrays below are
  * intentionally not shared between the switch arms.
  */
+#pragma opt_propagation off
 void camera_run_mode(s32 camIdx)
 {
     Camera* cam = &gCameras[camIdx];
     s32 attentionMode = cam->a_mode;
-    Player* players;
-    Player* player;
     s32 playerIndex;
-    s32* playerCursor;
     s32 tries;
     u8* playerObject;
+    Player* players;
+    Player* player;
+    s32* playerCursor;
     f32 distance;
     f32 scale;
     f32 rate;
@@ -814,7 +815,8 @@ void camera_run_mode(s32 camIdx)
     case CAM_VECDIST:
         if (cam->trans_mode == 0) {
             if ((f64)cam->radius < 15.0) {
-                rate = (f32)(0.08333333 * (15.0 - (f64)cam->radius));
+                stepDouble = 0.08333333 * (15.0 - (f64)cam->radius);
+                rate = (f32)stepDouble;
                 if ((f64)rate < 0.15) {
                     rate = 0.15f;
                 }
@@ -1162,6 +1164,7 @@ free_attention:
         break;
     }
 }
+#pragma opt_propagation reset
 
 /* Keep the rendered view in sync with the simulation camera.  CAMERA.OBJ
  * expands this sequence at each early-out and transition arm. */
