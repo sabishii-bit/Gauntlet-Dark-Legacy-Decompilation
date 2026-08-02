@@ -4086,6 +4086,7 @@ static void GetMaxPlayerModelSize(void) {
     }
     for (i = 1; i < 4; i++) {
         s = &player_multiple_models[i];
+        player_multiple_models[0].model_max = player_multiple_models[0].model_max;
         if ((s32)s->model_max > (s32)player_multiple_models[0].model_max) {
             player_multiple_models[0].model_max = s->model_max;
         }
