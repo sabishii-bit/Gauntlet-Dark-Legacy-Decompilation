@@ -1579,18 +1579,18 @@ void camera_mode_follow(s32 camIdx)
     lbl_80344464 = desiredSpeed;
     lbl_80344468 = maximumStep;
 
-    if (lbl_80344960 >= 0 || (f64)targetExtent < lbl_80345FE0) {
-        if (desiredSpeed <= previousSpeed) {
-            if ((f64)(previousSpeed - desiredSpeed) > lbl_80345F90) {
-                desiredSpeed = (f32)((f64)previousSpeed - lbl_80345F90);
-            }
-        } else if ((f64)(desiredSpeed - previousSpeed) > lbl_80345F90) {
-            desiredSpeed = (f32)(lbl_80345F90 + (f64)previousSpeed);
-        }
-    } else {
+    if (lbl_80344960 < 0 && (f64)targetExtent >= lbl_80345FE0) {
         maximumStep = lbl_80345FE8;
         desiredSpeed = (f32)((f64)targetExtent *
             ((f64)(u32)gFrameTicks - lbl_80345F50));
+    } else {
+        if (previousSpeed < desiredSpeed) {
+            if ((f64)(desiredSpeed - previousSpeed) > lbl_80345F90) {
+                desiredSpeed = (f32)(lbl_80345F90 + (f64)previousSpeed);
+            }
+        } else if ((f64)(previousSpeed - desiredSpeed) > lbl_80345F90) {
+            desiredSpeed = (f32)((f64)previousSpeed - lbl_80345F90);
+        }
     }
     lbl_80344464 = desiredSpeed;
     lbl_80344468 = maximumStep;
