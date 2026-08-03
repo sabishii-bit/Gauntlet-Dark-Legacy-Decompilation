@@ -267,6 +267,115 @@ s32 show_gold(s32 col)
 }
 
 extern u8* gCurLevel;
+extern char lbl_80114918[];  /* final-stats string pool                */
+extern s32 lbl_80122F30[];   /* per-player stats x column              */
+extern s32 lbl_80122F40[];   /* per-player stats y column              */
+extern f32 lbl_80348330;     /* stats line text scale                  */
+extern f32 lbl_80348334;     /* stats title text scale                 */
+extern char lbl_80348338[];  /* "%d" fmt (sdata)                       */
+extern f64 lbl_80348340;     /* seconds per day                        */
+extern f64 lbl_80348348;     /* seconds per hour                       */
+extern f64 lbl_80348350;     /* seconds per minute                     */
+extern char lbl_80348358[];  /* "%d Days" fmt (sdata)                  */
+extern u8 lbl_80240E30[];    /* pad states, stride 60, buttons @+8     */
+extern void AudioCursorSelect(void);
+
+/* Staged end-of-game Final Stats screen: reveals one glowing line per
+ * 60-tick window, then the playtime breakdown and the Continue prompt.
+ * Returns 1 once the player confirms with Start. */
+static s32 shop_show_final_stats(u8* pl)
+{
+    char* pool = lbl_80114918;
+    s32 done = 0;
+    s32 cls = *(s32*)(pl + 12);
+    s32 idx = *(s32*)(pl + 0);
+    s32 timer = *(s32*)(pl + 2668);
+    f32 scale = lbl_80348330;
+    u8* stats = pl + (cls * 28 + 3088);
+    s32 xbase = *(s32*)((u8*)lbl_80122F30 + idx * 4);
+    s32 ypos = *(s32*)((u8*)lbl_80122F40 + idx * 4);
+    s32 x8 = xbase + 8;
+    s32 colorMask = 0x1000000;
+    s32 t = timer & 0xFFFF;
+    s32 nx;
+    s32 y2;
+    s32 days;
+    s32 hours;
+    s32 mins;
+    f32 secs;
+    char buf[36];
+
+    if (t < 0xF000) {
+        *(s32*)(pl + 2668) = timer + gFrameTicks;
+    }
+    nx = -ypos;
+    DrawGlowText(lbl_80348334, nx, 32, pool + 80);
+    if (t > 90 && t < 150) {
+        DrawGlowText(scale, nx, 60, pool + 92);
+    } else {
+        DrawTextKeepScale(scale, nx, 60, 6, colorMask - 1, pool + 92);
+    }
+    if (t > 90) {
+        sprintf(buf, lbl_80348338, *(s32*)stats);
+        DrawGlowText(scale, nx, 78, buf);
+    }
+    if (t > 150 && t < 210) {
+        DrawGlowText(scale, nx, 98, pool + 108);
+        y2 = 116;
+        DrawGlowText(scale, nx, 116, pool + 120);
+    } else {
+        DrawTextKeepScale(scale, nx, 98, 6, colorMask - 1, pool + 108);
+        y2 = 116;
+        DrawTextKeepScale(scale, nx, 116, 6, colorMask - 1, pool + 120);
+    }
+    if (t > 150) {
+        sprintf(buf, lbl_80348338, *(s32*)(stats + 16));
+        DrawGlowText(scale, nx, y2 + 18, buf);
+    }
+    if (t > 210 && t < 270) {
+        DrawGlowText(scale, nx, y2 + 38, pool + 132);
+    } else {
+        DrawTextKeepScale(scale, nx, y2 + 38, 6, colorMask - 1, pool + 132);
+    }
+    if (t > 210) {
+        sprintf(buf, lbl_80348338, *(s32*)(stats + 20));
+        DrawGlowText(scale, nx, y2 + 56, buf);
+    }
+    if (t > 270 && t < 330) {
+        DrawGlowText(scale, nx, y2 + 76, pool + 144);
+    } else {
+        DrawTextKeepScale(scale, nx, y2 + 76, 6, colorMask - 1, pool + 144);
+    }
+    secs = *(f32*)(stats + 24);
+    days = (s32)(secs / lbl_80348340);
+    secs = (f32)-(lbl_80348340 * (f32)days - secs);
+    hours = (s32)(secs / lbl_80348348);
+    secs = (f32)-(lbl_80348348 * (f32)hours - secs);
+    mins = (s32)(secs / lbl_80348350);
+    if (t > 270) {
+        sprintf(buf, lbl_80348358, days);
+        DrawGlowText(scale, nx, y2 + 94, buf);
+        sprintf(buf, pool + 160, hours);
+        DrawGlowText(scale, nx, y2 + 112, buf);
+        sprintf(buf, pool + 172, mins);
+        DrawGlowText(scale, nx, y2 + 130, buf);
+    }
+    if (t >= 330) {
+        done = 1;
+    }
+    if (done != 0) {
+        if ((*(u32*)(lbl_80240E30 + *(s32*)pl * 60 + 8) & 0x2000000) != 0) {
+            AudioCursorSelect();
+            *(s32*)(pl + 2668) = 0;
+            return 1;
+        }
+        MBNewTempBlit(lbl_80344E48, x8 + 8, 280, 16, 16);
+        DrawGlowText(lbl_80348360, x8 + 32, 280, pool + 184);
+    }
+    DrawTextKeepScale(lbl_80348364, nx, 8, 6, 0, lbl_80348368);
+    return 0;
+}
+
 extern s32 lbl_803448C4;    /* current world number  */
 extern s32 lbl_803448C8;    /* current level number  */
 extern s32 sWorldDataConst; /* shop world-data key   */
