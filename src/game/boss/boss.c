@@ -137,6 +137,15 @@ extern void mbBlitSetupVerts(void* blit, f32 a, f32 b, f32 c, f32 d);
 extern void MBBlitSetColor(void* blit, u32 color);
 extern u32  gFrameTicks;                 /* meter approach rate */
 
+extern u8  gEnemies[];                   /* enemy records (stride 0x394) */
+extern f32 lbl_80343B74[2];              /* add-spawn yaw angles */
+extern f64 lbl_80345B78;                 /* add-spawn spacing scale */
+extern f32 lbl_80345AD0;                 /* add move speed */
+extern f32 lbl_80345B10;                 /* generate_enemy angle arg */
+extern s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
+                          void* gen, s32 imp, f32 ang);
+extern f32 atan2(f32 y, f32 x);
+
 /* ------------------------------------------------------------------ */
 /* forward decls (address order)                                      */
 /* ------------------------------------------------------------------ */
@@ -149,7 +158,13 @@ void HealthMeterInit(void);
 void BossActivate(void* obj, int flag);
 void BossDeath(void);
 void BossDying(void);
-void BossGenerateEnemy(void);
+struct BossObjView {
+    u8  _0[0x20];
+    f32 dir[3];   /* 0x20 */
+    u8  _2c[4];
+    f32 pos[3];   /* 0x30 */
+};
+void BossGenerateEnemy(struct BossObjView* o);
 void AddBoss(void* obj);
 void BossInit(void);
 
@@ -555,7 +570,41 @@ void BossDeath(void) {
     }
 }
 
-void BossGenerateEnemy(void) {
+/* Boss type 44: spawn the two escort adds beside the boss. */
+void BossGenerateEnemy(struct BossObjView* o) {
+    f32 pos[3];
+    f32 vec[3];
+    s32 i;
+    u8* e;
+    u8 unused[4];
+
+    switch (gBossType) {
+    case 44: {
+        f64 scale = lbl_80345B78;
+        f32 speed = lbl_80345AD0;
+
+        for (i = 0; i < 2; i++) {
+            YawVec3(o->dir, vec, lbl_80343B74[i]);
+            pos[0] = scale * vec[0] + o->pos[0];
+            pos[1] = scale * vec[1] + o->pos[1];
+            pos[2] = scale * vec[2] + o->pos[2];
+            e = (u8*)gEnemies +
+                generate_enemy(pos, 27, 3, vec, -1, 0, 1, lbl_80345B10) * 916;
+            {
+                f32 vz = vec[2];
+                *(f32*)(e + 588) = atan2(vec[0], vz);
+            }
+            *(f32*)(e + 592) = *(f32*)(e + 588);
+            *(f32*)(e + 576) = speed;
+            *(f32*)(e + 580) = *(f32*)(e + 588);
+            *(f32*)(e + 584) = speed;
+            *(f32*)(e + 748) = o->pos[0];
+            *(f32*)(e + 752) = o->pos[1];
+            *(f32*)(e + 756) = o->pos[2];
+        }
+        break;
+    }
+    }
 }
 
 void AddBoss(void* obj) {
