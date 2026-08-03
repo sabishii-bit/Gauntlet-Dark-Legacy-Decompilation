@@ -167,6 +167,9 @@ s32 dcsReadVags(void* file, u32* header);
 s32 dcsBankCheckSamples(int start, int shift);
 s32 dcsSampleUpload(void* state, u32 uploadArg);
 s32 BankParseHeader(u32* header, s32* byteSwapped, u32* version);
+s32 dcsSampleStream();
+extern s32 pool_garbage_collect(void* pool, s32 (*gapCallback)());
+extern void* memmove(void* dst, const void* src, u32 length);
 s32 VagParseHeader(void* file, u32* header, DcsSampleData* sample);
 extern void listVerifyHook(void);
 extern char lbl_80116F58[];   /* "DCSERROR: " + trailing dcs string pool */
@@ -377,8 +380,92 @@ void dcsQuePoll(void) {
     AudioQueUpdate(lbl_803451F8);
 }
 
-/* 0x800D258C  service the queued sample/duck requests */
+/* 0x800D258C  unload a bank: free its samples, compact the call tables */
 s32 AudioQueUpdate(s32 bank) {
+    DcsData* d = &dcsBankData;
+    s32 result = 0;
+    s32 idx;
+    s32 size;
+    s32 handle;
+    s32 endCall;
+    s32 firstInstr;
+    s32 endInstr;
+    s32 i;
+    s32 c;
+    s32 n;
+    u32 smpIdx;
+    DcsSampleData* smp;
+
+    update_chinfo(0xFFF);
+    if (lbl_8034520C != 0) {
+        printf(lbl_80116F58);
+        printf(lbl_80116F58 + 12, lbl_8034520C);
+        lbl_8034520C = 0;
+    }
+    idx = bank - 1;
+    if (idx < 0 || idx > 15) {
+        result = -1;
+    } else {
+        size = d->banks[idx].size;
+        if (size != 0) {
+            handle = d->banks[idx].handle;
+            endCall = handle + size;
+            firstInstr = d->callStart[handle];
+            endInstr = lbl_80345204;
+            if (endCall < lbl_80345200) {
+                endInstr = d->callStart[endCall];
+            }
+            for (i = firstInstr; i < endInstr; i++) {
+                smpIdx = d->callInstr[i] & 0xFFF;
+                if (smpIdx < 0x800) {
+                    smp = &d->samples[smpIdx];
+                    if (smp->sampleRate != 0) {
+                        if (smp->aramAddress != 0) {
+                            pool_alloc((u8*)d + 0x2C080, smp);
+                        }
+                        smp->sampleRate = 0;
+                        smp->predScale = 0;
+                    }
+                    if ((s32)smpIdx < lbl_80345218) {
+                        lbl_80345218 = smpIdx;
+                    }
+                }
+                if ((d->callInstr[i] & 0x8000) != 0) {
+                    i = i + 3;
+                }
+            }
+            while (lbl_803451FC > 0 &&
+                   d->samples[lbl_803451FC - 1].sampleRate == 0) {
+                lbl_803451FC = lbl_803451FC - 1;
+            }
+            if (endInstr < lbl_80345204) {
+                memmove(&d->callInstr[firstInstr], &d->callInstr[endInstr],
+                        (lbl_80345204 - endInstr) * 2);
+            }
+            lbl_80345204 = lbl_80345204 - (endInstr - firstInstr);
+            n = lbl_80345200 - endCall;
+            if (endCall < lbl_80345200) {
+                for (c = endCall; n != 0; c++, n--) {
+                    d->callStart[c - size] =
+                        d->callStart[c] - (endInstr - firstInstr);
+                }
+            }
+            lbl_80345200 = lbl_80345200 - size;
+            d->banks[idx].handle = 0;
+            d->banks[idx].size = 0;
+            for (c = 0, n = lbl_803451F8; n > 0; c++, n--) {
+                if ((s32)d->banks[c].handle > handle) {
+                    d->banks[c].handle = d->banks[c].handle - size;
+                }
+            }
+            while (lbl_803451F8 > 0 && d->banks[lbl_803451F8 - 1].size == 0) {
+                lbl_803451F8 = lbl_803451F8 - 1;
+            }
+            result = 1;
+        }
+        pool_garbage_collect((u8*)d + 0x2C080, dcsSampleStream);
+    }
+    return result;
 }
 
 /* 0x800D285C  open file, read bank header/calls/vags */
