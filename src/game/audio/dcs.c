@@ -35,8 +35,8 @@ typedef struct ARQRequest {
 } ARQRequest;
 
 typedef struct DcsBankData {
-    u32 handle;
-    u32 size;
+    s32 handle;
+    s32 size;
 } DcsBankData;
 
 typedef struct DcsStream {
@@ -454,7 +454,7 @@ s32 AudioQueUpdate(s32 bank) {
             d->banks[idx].handle = 0;
             d->banks[idx].size = 0;
             for (c = 0, n = lbl_803451F8; n > 0; c++, n--) {
-                if ((s32)d->banks[c].handle > handle) {
+                if (d->banks[c].handle > handle) {
                     d->banks[c].handle = d->banks[c].handle - size;
                 }
             }
@@ -474,14 +474,14 @@ s32 dcsBankLoad(void* bank, s32 mode) {
     s32 bankNumber = 0;
     s32 error = 0;
     s32 oldCallCount = lbl_80345200;
-    void* file;
     u32 header[6];
+    void* file;
 
     file = FileBufStart(bank);
     if (file != NULL) {
         if (FileBufReopen(file) != 0) {
             DcsBankData* entry;
-            u32 slot;
+            s32 slot;
             s32 count;
             s32 offset;
 
@@ -492,26 +492,25 @@ s32 dcsBankLoad(void* bank, s32 mode) {
             }
             if (error == 0) {
                 slot = 0;
-                count = 16;
-                offset = 0;
-                do {
+                offset = slot;
+                for (count = 0; count < 16; count++) {
                     entry = (DcsBankData*)((u8*)table + offset);
                     if (entry->handle == 0 && entry->size == 0) {
                         break;
                     }
                     slot++;
                     offset += sizeof(DcsBankData);
-                    count--;
-                } while (count != 0);
-                if (lbl_803451F8 <= (s32)slot) {
+                }
+                if (lbl_803451F8 <= slot) {
                     lbl_803451F8 = slot + 1;
                 }
+                entry = &table[slot];
                 entry->size = lbl_80345200 - oldCallCount;
                 if (entry->size == 0) {
                     error = 1;
                 } else {
                     entry->handle = oldCallCount;
-                    lbl_80345224 = lbl_802EFF5E[oldCallCount];
+                    lbl_80345224 = dcsBankData.callStart[oldCallCount];
                     bankNumber = (s32)(entry - table) + 1;
                     error = dcsReadVags(file, header);
                     if (error != 0) {
