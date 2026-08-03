@@ -405,7 +405,7 @@ void fn_800C31C4(void)
     u8* fb = lbl_802C4DE0;
     WinGlobals* gg = gWinGlobals;
     WinGlobals* g;
-    register s32 zero = 0;
+    s32 zero = 0;
 
     if (gg->screen == 0) {
         gg->screen = (MBScreen*)(fb + 0x400);

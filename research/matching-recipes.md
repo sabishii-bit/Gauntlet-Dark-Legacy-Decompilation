@@ -473,3 +473,39 @@ GC/1.2.5 + cflags_demo pipeline). Laws, in application order:
   cast before/after shift, u16/u8 temps, volatile derefs, scoped peephole
   off (worse), prop off. Suspect a different compiler switch or helper;
   body committed correct-logic (666 real).
+
+## Additions (BREAKTHROUGH session, 2026-08-03 late)
+
+- **BITFIELD STRUCTS solve the rlwimi insert-shape wall** (fn_800C2618
+  407 insns STUB->EXACT): a partial-register write the and/or expression
+  forms can never reproduce (`clrlwi src; lhz; rlwimi src-masked; sth`,
+  no dest mask op) is MWCC's native BITFIELD STORE. Define an overlay
+  struct per container+position (`typedef struct { u16 hi:9; u16 lo:7; }`)
+  and assign the field: `((T*)(p+off))->hi = (u16)val;`. The (u16)/(u8)
+  cast on the source emits the explicit clrlwi-16/24 exactly where the
+  target has it; u32 sources take no cast. MSB-first field order.
+- **Aligned s64 field + COMPOUND RMW kills the 64-bit store addi**:
+  `*(u64*)(p+off) op=` and even typed-field `x = x & k` spellings
+  materialize `addi base` for the store half; `s->pm->pmode1 &= ~3;`
+  (compound, through an ALIGNED s64 struct field, single deref) folds
+  both words to displacements and keeps the li -4/-1 64-bit constant
+  pair. u64 COPIES: `*(f64*)dst = *(f64*)src` for the lfd/stfd form
+  (u64-typed copy emits lwz/stw pairs).
+- **Hidden PS2 argument pins registers fn-wide** (fn_800C31C4/32D0):
+  a dead-looking early `li r3,0` + every temp avoiding r3/r4 = a call
+  later takes an ARGUMENT the decl dropped (sceGsSyncV(0) - real PS2
+  signature sceGsSyncV(int)). Fixing the proto un-rotated the whole fn.
+  CHECK SDK SIGNATURES before chasing register rotations.
+- **`!x` vs `x == 0`**: !call() emits the bare cntlzw/srwi bool;
+  `call() == 0` emits neg+cntlzw+srwi. Target cntlzw-direct => spell `!`.
+- **Assignment-in-condition pins addi-before-load** (fn_800C1624 EXACT):
+  `if (*(q = &s->m14) == 0)` keeps `addi q` ahead of the load where
+  separate statements let the scheduler hoist the load. (The camera.c
+  a_mode/c_mode 2-line swap is NOT this class - still parked.)
+- Clamp-in-arg recipe CONFIRMED half: re-derefed value gives the CSE-temp
+  clamp; but whether the bge/b UNFOLDS + the extra `mr` arg-copy appears
+  is allocator-side - adsMoveFileToRaw still parks at 18.
+- AdsParseHeader 44->20: ALL byte-swaps must use the DCS_SWAP32 term
+  order ((v<<24)|((v<<8)&0xFF0000)|(v>>24)|((v>>8)&0xFF00)) per the
+  OR-chain right-operand-first base rule; error arms spelled `!= 0`
+  with result=-1 INLINE (polarity), match strncmp ladder shape.
