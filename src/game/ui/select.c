@@ -70,6 +70,28 @@ extern s32 gDemoMode;
 extern u32 lbl_80344824;   /* active-player bit mask */
 extern s32 lbl_80344A18;   /* per-(port+slot) card state (3=ready) */
 extern s32 lbl_80344A14;   /* per-(port+slot) card-present flag    */
+extern u8 lbl_80274578[];  /* vmu dir-info rows, 132B per (port,slot) */
+extern u8 lbl_80284A88[];  /* per-player file-entry menu table, 36B ea */
+extern char lbl_80348018[8]; /* save-file name prefix (5 chars checked) */
+s32 get_vmu_directory(s32 a, s32 b);
+extern s32 lbl_803448AC;   /* front-end screen id (8 = in-game shop?) */
+extern s32 lbl_803448A8;   /* front-end sub-state                     */
+extern u32 lbl_80343D6C;   /* current save-file owner tag             */
+s32 vmu_directory_exists();
+extern s32 gGameMode;
+extern char lbl_801143F8[];  /* select-screen string pool             */
+extern char* lbl_80120104[]; /* per-class texture-name pointer table  */
+extern char lbl_80347F44[];  /* "?" texture name (sdata)              */
+extern char lbl_80347F4C[];  /* unarmed spec label fmt (sdata)        */
+extern char lbl_80347F58[];  /* "%s NAME" fmt (sdata)                 */
+extern void* pbLoad;
+void PlayerModel(s32 player);
+void setup_player_display(s32 player);
+void hide_select_blits(s32 arg0, s32 flag);
+
+typedef struct StrBlock4 {
+    char* s[4];
+} StrBlock4;
 extern s32 lbl_80344610;   /* memcard slot sub-state */
 extern u8  lbl_80343DEC;   /* current card port/slot byte */
 extern char lbl_80114718[];/* save-slot format string A */
@@ -262,9 +284,63 @@ gotv:
     }
 }
 
-int setup_file_entries(const char* name)
+int setup_file_entries(u8* pl, s32 fromLoad)
 {
-    return strncmp(name, (const char*)gPlayers, 8);
+    s32 ok = 1;
+    s32 a;
+    s32 b;
+    s32 state;
+    s32 count;
+    u8* row;
+    u8* eb;
+    u8* e;
+    s32 k;
+    s32 nameOff;
+    s32 entOff;
+
+    a = *(s32*)(pl + 0x334C);
+    b = *(s32*)(pl + 0x3350);
+    state = *(s32*)((u8*)&lbl_80344A18 + a * 4 + b * 4);
+    if (state == 1) {
+        return -1;
+    }
+    if (state == 3 &&
+        *(s32*)((u8*)&lbl_80344A14 + a * 4 + b * 4) == 1) {
+        count = get_vmu_directory(a, b);
+        if (count < 0) {
+            return 0;
+        }
+        row = lbl_80274578 + a * 132 + b * 132;
+        eb = lbl_80284A88;
+        k = 0;
+        nameOff = 0;
+        entOff = 0;
+        for (; k < count; k++, nameOff += 16, entOff += 36) {
+            e = eb + *(s32*)pl * 324 + entOff;
+            *(u32*)e = (u32)(row + nameOff + 8);
+            *(s32*)(e + 4) = k + 1000;
+            *(s32*)(e + 32) = 0;
+            *(s32*)(e + 8) = 4;
+            if (fromLoad == 0) {
+                if (strncmp((char*)*(u32*)e, lbl_80348018, 5) == 0) {
+                    *(s32*)(e + 32) = -1;
+                } else {
+                    ok = 0;
+                }
+            }
+            if (verify_vmu_file_ok(pl, k) == 0) {
+                *(s32*)(e + 32) = -1;
+            }
+            if (*(s32*)(e + 32) == 0) {
+            }
+        }
+        *(u32*)(lbl_80284A88 + *(s32*)pl * 324 + k * 36) = 0;
+        if (fromLoad == 0 && ok != 0) {
+            return 0;
+        }
+        return 1;
+    }
+    return -2;
 }
 
 int verify_vmu_file_ok(u8* pl, s32 v)
@@ -394,8 +470,73 @@ void sel_set_inactive(s32 slot)
 
 static s32 sel_set_choice(s32 player, s32 mode)
 {
-    mbBlitProject(0, 0, 0);
-    return 0;
+    u8* menu = (u8*)&lbl_80121950[player];
+    u8* pl = gPlayers + player * 0x335C;
+    u8* e;
+    s32 best = -1;
+    s32 i = 0;
+    s32 off = 0;
+    u32 owner;
+
+    for (;;) {
+        e = *(u8**)(menu + 28) + off;
+        if (*(u32*)e == 0) {
+            break;
+        }
+        switch (*(s32*)(e + 4)) {
+        case 1000:
+            *(s32*)(e + 32) = 0;
+            break;
+        case 1001:
+            if (gDemoMode != 0) {
+                *(s32*)(e + 32) = -1;
+            } else if (lbl_803448AC == 8 && lbl_803448A8 == 3) {
+                *(s32*)(e + 32) = -1;
+            } else if (vmu_directory_exists() >= 1) {
+                *(s32*)(e + 32) = 0;
+            } else {
+                *(s32*)(e + 32) = -1;
+            }
+            break;
+        case 1002:
+            if (gDemoMode != 0) {
+                *(s32*)(e + 32) = -1;
+            } else if (vmu_directory_exists() >= 1) {
+                *(s32*)(e + 32) = 0;
+            } else {
+                *(s32*)(e + 32) = -1;
+            }
+            break;
+        case 1004:
+            if (lbl_803448AC == 8 && lbl_803448A8 == 3) {
+                *(s32*)(e + 32) = -1;
+            } else {
+                *(s32*)(e + 32) = 0;
+            }
+            break;
+        case 1003:
+            if (lbl_803448AC == 8 && lbl_803448A8 == 3) {
+                *(s32*)(e + 32) = -1;
+            } else {
+                owner = *(u32*)(pl + 240);
+                if (owner != 0 && owner != lbl_80343D6C) {
+                    *(s32*)(e + 32) = -1;
+                } else {
+                    *(s32*)(e + 32) = 0;
+                }
+            }
+            break;
+        case 1005:
+            *(s32*)(e + 32) = 0;
+            break;
+        }
+        if (*(s32*)(e + 32) >= 0 && best < 0) {
+            best = i;
+        }
+        i++;
+        off += 36;
+    }
+    return best;
 }
 
 s32 other_players_next_level(s32 idx)
@@ -477,10 +618,116 @@ void update_class_attr(void)
     MBNewTempBlit(0, 0, 0, 0, 0);
 }
 
-void update_class_spec(void)
+void update_class_spec(s32 player)
 {
-    mbBlitInit3414(0, 0);
-    mbBlitProject(0, 0, 0);
+    char* pool = lbl_801143F8;
+    u8* blitBase = lbl_80284878;
+    u8* pl = gPlayers + player * 0x335C;
+    s32 boff;
+    u8* eWeap;
+    u8* eA;
+    u8* eB;
+    u8* eC;
+    u8* eD;
+    s32 state;
+    s32 cls;
+    s32 spec;
+    s32 known;
+    char* texName;
+    char* extra;
+    char* qfmt;
+    u8 unused[48];
+    StrBlock4 tmp;
+
+    PlayerModel(player);
+    setup_player_display(player);
+    setup_tex(player, 2, 0, 0, pool + 168,
+              lbl_801200B0 + (*(s32*)(pl + 12) & 7) * 4);
+    boff = player * 132;
+    eWeap = blitBase + boff;
+    mbBlitProject(*(void**)(eWeap += 24), -1, 320);
+    eA = blitBase + boff;
+    mbBlitInit3414(*(void**)(eA += 84), 1);
+    eB = blitBase + boff;
+    mbBlitInit3414(*(void**)(eB += 72), 1);
+    eC = blitBase + boff;
+    mbBlitInit3414(*(void**)(eC += 60), 1);
+    eD = blitBase + boff;
+    mbBlitInit3414(*(void**)(eD += 96), 1);
+
+    if (gGameMode == 0x400B) {
+        state = *(s32*)(pl + 232);
+        if (state != 3) {
+            if (state == 2) {
+                goto substate;
+            }
+            hide_select_blits(player, 0);
+        }
+    }
+    return;
+
+substate:
+    switch (*(s32*)(pl + 13112)) {
+    case 2:
+        break;
+    case 1:
+        cls = *(s32*)(pl + 12);
+        if (cls == 2 && *(u32*)(pl + 240) == lbl_80343D6C) {
+            setup_tex(player, 8, 0, 0, pool + 232);
+        } else {
+            setup_tex(player, 8, 0, 0, lbl_80347F58,
+                      lbl_801200B0 + cls * 4);
+        }
+        break;
+    case 0:
+    case 3:
+        hide_select_blits(player, 0);
+        break;
+    case 4:
+        tmp = *(StrBlock4*)(pool + 80);
+        mbBlitInit3414(*(void**)eWeap, 1);
+        spec = *(s32*)(pl + 16);
+        if (spec < 8) {
+            known = 1;
+        } else if ((*(u16*)(pl + 2700) & (1 << (spec - 8))) != 0) {
+            known = 1;
+        } else {
+            known = 0;
+        }
+        if (known != 0) {
+            texName = tmp.s[0];
+            extra = lbl_80120104[*(s32*)(pl + 4)];
+            qfmt = 0;
+        } else {
+            qfmt = pool + 848;
+            extra = lbl_80347F44;
+            texName = 0;
+        }
+        if (spec == 16) {
+            setup_tex(player, 3, 0, 0, lbl_80347F4C);
+        } else {
+            setup_tex(player, 3, 0, 0, pool + 156,
+                      lbl_801200B0 + spec * 4);
+        }
+        if (texName != 0) {
+            (void)pbLoad;
+            setup_tex(player, 8, 0, 0, lbl_80347F58,
+                      lbl_801200B0 + *(s32*)(pl + 16) * 4);
+        } else {
+            mbBlitInit3414(*(void**)eB, 1);
+            mbBlitInit3414(*(void**)eC, 1);
+            mbBlitInit3414(*(void**)eD, 1);
+        }
+        if (qfmt != 0) {
+            setup_tex(player, 7, 0, 0, qfmt);
+            *(s32*)(blitBase + boff + 88) = 3;
+            *(s32*)(blitBase + boff + 92) = 0;
+        } else {
+            mbBlitInit3414(*(void**)eA, 1);
+        }
+        mbBlitInit3414(*(void**)eWeap, 1);
+        break;
+    }
 }
 
 /* Enter / initialise the select screen. */
