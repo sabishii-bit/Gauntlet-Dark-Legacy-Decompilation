@@ -509,3 +509,29 @@ GC/1.2.5 + cflags_demo pipeline). Laws, in application order:
   order ((v<<24)|((v<<8)&0xFF0000)|(v>>24)|((v>>8)&0xFF00)) per the
   OR-chain right-operand-first base rule; error arms spelled `!= 0`
   with result=-1 INLINE (polarity), match strncmp ladder shape.
+
+## The opt_lifetimes law (camera_orbit_update byte-exact, 2026-08-03)
+
+Scoped `#pragma opt_lifetimes off` (before fn) + `#pragma opt_lifetimes reset`
+(after fn) cracks the in-place pointer-increment web that plain respelling
+never wins:
+
+    target:  add   rD,base,idx      ours:  add   rT,base,idx
+             lfs   f31,368(rD)             lfs   f31,368(rT)
+             addi  rD,rD,200               addi  rD,rT,200
+
+Conditions and costs:
+- The single-variable spelling is REQUIRED (`cam = base; use *cam; cam += K`)
+  AND there must be a real USE between the two defs. Back-to-back defs with
+  no use between still fold to a temp (camera_mode_spin: parked).
+- Under -off, every NAMED local becomes ONE whole-function web. A variable
+  that the target allocator split into two webs must be split into one name
+  per web by hand: orbit's `previous` -> `prevSpin` (early region, volatile
+  f3) + `previous` (crosses the call, f31). Pragma + split = byte-exact.
+- New names raise whole-fn register pressure -> spills (+8 frame) and fmr
+  copies. Reuse DEAD names (mapped by target color) instead of minting new
+  ones. Block-scoped locals under -off are given STACK SLOTS - never use
+  them to shorten a lifetime.
+- Tells that a target fn is lifetimes-ON (do NOT pragma it): dead scratch
+  reuse like `lwz r0,glob; mulli r0,r0,K` in the tail (do_camera), copies
+  folded to fresh li (init_for_gamemode). Pragma made both worse.
