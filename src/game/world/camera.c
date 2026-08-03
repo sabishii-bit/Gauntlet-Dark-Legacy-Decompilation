@@ -361,7 +361,7 @@ s32 adjust_radius(s32 camIdx);
 void CopyCam(u8* source, u8* destination);
 void UpdatePlayerWorldMat(void* player, s32 anchor);
 void init_stage_info(void);
-void DiffRate(s32 camIdx);
+void DiffRate();
 void dbgTextPrintfCol(s32 x, s32 line, char* fmt, ...);
 void fn_8005A588(struct OBJGRP* group, f32* offset);
 s32 MBScreenHeight(void);
@@ -3181,7 +3181,7 @@ void camera_mode_dest(s32 camIdx)
     pitchReached = 0;
     cam->pyr[0] = -cam->pyr[0];
     step = (f32)(lbl_80346098 * (f64)(u32)gFrameTicks);
-    DiffRate(0);
+    DiffRate();
     cam->pyr[0] = -cam->pyr[0];
 
     if (lbl_80344510 != lbl_8034450C) {
@@ -3228,12 +3228,9 @@ void camera_mode_dest(s32 camIdx)
             triggerY[lbl_8034450C * 10] - cam->wpos[1];
         offset[2] =
             triggerZ[lbl_8034450C * 10] - cam->wpos[2];
-        {
-        f64 otherWeight = lbl_80345FE0 - (f64)weight;
-        offset[0] = (f32)((f64)offset[0] * otherWeight);
-        offset[1] = (f32)((f64)offset[1] * otherWeight);
-        offset[2] = (f32)((f64)offset[2] * otherWeight);
-        }
+        offset[0] = (f32)((f64)offset[0] * (lbl_80345FE0 - (f64)weight));
+        offset[1] = (f32)((f64)offset[1] * (lbl_80345FE0 - (f64)weight));
+        offset[2] = (f32)((f64)offset[2] * (lbl_80345FE0 - (f64)weight));
         transformed[0] += offset[0];
         transformed[1] += offset[1];
         transformed[2] += offset[2];
