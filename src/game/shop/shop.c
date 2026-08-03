@@ -266,6 +266,125 @@ s32 show_gold(s32 col)
     return done;
 }
 
+extern u8* gCurLevel;
+extern s32 lbl_803448C4;    /* current world number  */
+extern s32 lbl_803448C8;    /* current level number  */
+extern s32 sWorldDataConst; /* shop world-data key   */
+extern void ResolveWorldData(s32 key);
+
+/* Compute the three end-of-level pile stats for one player (gold earned,
+ * kills, second currency), rank them, and seed the pile animation tables. */
+void fn_8009A0AC(s32 col)
+{
+    u8* tbl = lbl_802897D0;
+    u8* pl = gPlayers + col * 13148;
+    s32 range = lbl_80343E10 - lbl_80343E0C;
+    u8* lvl;
+    s32 cls;
+    s32 goldRaw;
+    s32 raw2;
+    s32 raw3;
+    s32 statG;
+    s32 stat2;
+    s32 stat3;
+    s32 t;
+    s32 t2;
+    s32 t3;
+    s32 ra;
+    s32 rb;
+    s32 rc;
+    s32 off;
+    s32 i;
+    u8* base;
+    u8* b28;
+
+    ResolveWorldData((u8)lbl_803448C4 | (lbl_803448C8 << 8));
+    cls = *(s32*)(pl + 12);
+    lvl = gCurLevel;
+    base = pl + cls * 240;
+    goldRaw = *(s32*)(pl + 7876) - *(s32*)(base + 8780);
+    t = goldRaw * range / (*(s32*)(lvl + 224) + 1);
+    b28 = pl + cls * 28;
+    base = pl + cls * 24;
+    raw2 = (*(s32*)(b28 + 3088) + *(s32*)(b28 + 3104)) -
+           (*(s32*)(b28 + 8284) + *(s32*)(b28 + 8300));
+    raw3 = *(s32*)(pl + 7872) - *(s32*)(base + 7900);
+    if (t < 64) {
+        statG = 64;
+    } else if (t > range) {
+        statG = range;
+    } else {
+        statG = t;
+    }
+    t2 = raw2 * range / (*(s32*)(lvl + 228) + 1);
+    if (t2 < 64) {
+        stat2 = 64;
+    } else if (t2 > range) {
+        stat2 = range;
+    } else {
+        stat2 = t2;
+    }
+    t3 = raw3 * range / (*(s32*)(lvl + 232) + 1);
+    if (t3 < 64) {
+        stat3 = 64;
+    } else if (t3 > range) {
+        stat3 = range;
+    } else {
+        stat3 = t3;
+    }
+
+    if (statG >= stat3 && statG >= stat2) {
+        if (stat3 >= stat2) {
+            ra = 0;
+            rb = 1;
+            rc = 2;
+        } else {
+            ra = 0;
+            rc = 1;
+            rb = 2;
+        }
+    } else if (stat3 >= statG && stat3 >= stat2) {
+        if (statG >= stat2) {
+            rb = 0;
+            ra = 1;
+            rc = 2;
+        } else {
+            rb = 0;
+            rc = 1;
+            ra = 2;
+        }
+    } else if (statG >= stat3) {
+        rc = 0;
+        ra = 1;
+        rb = 2;
+    } else {
+        rc = 0;
+        rb = 1;
+        ra = 2;
+    }
+
+    off = col * 12;
+    i = 0;
+    base = tbl + off;
+    *(s32*)(base + 224 + ra * 4) = i;
+    *(s32*)(base + 224 + rb * 4) = 2;
+    *(s32*)(base + 224 + rc * 4) = 1;
+    base = tbl + off;
+    for (t = 3; t != 0; t--) {
+        *(s32*)(base + 128 + i) = lbl_80343E14;
+        i += 4;
+    }
+    base = tbl + off;
+    *(s32*)(base + 80 + ra * 4) = statG;
+    *(s32*)(base + 80 + rb * 4) = stat3;
+    *(s32*)(base + 80 + rc * 4) = stat2;
+    base = tbl + off;
+    *(s32*)(base + 176 + ra * 4) = goldRaw;
+    *(s32*)(base + 176 + rb * 4) = raw3;
+    *(s32*)(base + 176 + rc * 4) = raw2;
+    ResolveWorldData(sWorldDataConst);
+}
+
 /* Enter the between-level shop and launch its asynchronous front-end load. */
 void init_shop(s32 fromMenu)
 {
