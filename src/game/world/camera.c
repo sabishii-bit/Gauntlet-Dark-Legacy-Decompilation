@@ -3174,6 +3174,7 @@ void camera_mode_dest(s32 camIdx)
         }
         return;
 
+    case -1:
     default:
         break;
     }
