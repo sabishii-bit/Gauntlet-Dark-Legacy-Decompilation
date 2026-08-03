@@ -89,7 +89,7 @@ typedef struct ARQRequest {
  * referenced here by their address-keyed lbl_ names (the relocs must resolve
  * to the exact addresses).
  */
-extern u8 lbl_80345268;    /* 0x80345268  "voices ready" gate flag */
+extern volatile u8 lbl_80345268; /* 0x80345268  "voices ready" gate flag */
 extern void* gBuf;         /* 0x8034526C  the AllocMem work buffer */
 extern s32 lbl_80345274;   /* 0x80345274  pending command code */
 extern s32 gAddrSpuNext;   /* 0x80345278  ring base cursor */
@@ -100,6 +100,8 @@ extern s32 sShortenedSizeVoiceLoop; /* 0x8034528C samples per frame x2 */
 extern s32 sShortenedHalfVoiceLoop; /* 0x80345290 samples per frame */
 extern s32 lbl_80345270;   /* largest stream allocation seen */
 extern u32 lbl_80345288;   /* global ADS flags */
+extern s32 lbl_80344694;   /* music duck request */
+extern s32 dcsMemLockOwner();
 extern s32 sConfig;
 extern ADSTREAM gADS;
 extern AXVPB* sVoice[14];
@@ -135,7 +137,9 @@ extern void ARQPostRequest(ARQRequest* request, u32 owner, u32 type,
 extern s32 dcsMemTryLock(u32 address, s32 voice,
                          s32 (*callback)(s32), s32 command);
 
-void _AdsThread(void);
+s32 _AdsThread(void);
+s32 AdsStart(ADSTREAM* stream);
+s32 adsFeed(ADSTREAM* stream);
 void adsArqDone(void);
 s32 adsLockCallback(s32 command);
 void AdsSetVolumeDirect(ADSTREAM* stream, s32 volume);
@@ -543,7 +547,101 @@ s32 adsFeed(ADSTREAM* stream) {
  * dispatches start/stop/loop by stream state (+0x50: 0/0x1000/0x2000).
  * Xbox: _AdsThread (no real thread on GCN - runs synchronously). */
 #pragma dont_inline on
-void _AdsThread(void) {
+s32 _AdsThread(void) {
+    ADSTREAM* s;
+    s32 v;
+    s32 count;
+    s32 j;
+    u32 i;
+    ADSTREAM* base = &gADS;
+    s32 sv;
+    u8 unused[8];
+
+    s = 0;
+    v = lbl_80345274;
+    lbl_80345274 = -1;
+    j = 0;
+    for (count = 0; count < 2; count++) {
+        if (v == base->voice[j]) {
+            s = base;
+            break;
+        }
+        j++;
+    }
+    if (s == 0) {
+        return 0;
+    }
+    switch (s->status) {
+    case 0x2000:
+        dcsMemLockOwner(0, 0);
+        if (s->keyCount != 0) {
+            i = 0;
+            s->keyCount = i;
+            s->status = 0x1000;
+            if (s->endCount != 0) {
+                s->endCount = i;
+            } else {
+                s->mode &= ~0x80;
+                AdsSetVolumeDirect(s, s->vol);
+                for (; i < s->blocks; i++) {
+                    while (lbl_80345268 == 0) {
+                    }
+                    AXSetVoiceState(sVoice[s->voice[i]], 1);
+                }
+            }
+            lbl_80345288 |= 0x2000;
+            dcsMemLockOwner(0, 1);
+            adsFeed(s);
+        } else {
+            dcsMemLockOwner(0);
+        }
+        break;
+    case 0x1000:
+        dcsMemLockOwner(0, 0);
+        lbl_80345288 &= ~0x2000;
+        if (s->volDirty != 0) {
+            s->volDirty = 0;
+            AdsSetVolumeDirect(s, s->vol);
+        }
+        if (s->loopCount != 0) {
+            s->loopCount = 0;
+            if (s->endCount != 0) {
+                gAddrSpuNext -= sizeVoiceLoop * s->blocks;
+                s->status = 0;
+                AdsStart(s);
+            } else {
+                s->status = 0x2000;
+                for (i = 0; i < s->blocks; i++) {
+                    AXSetVoiceState(sVoice[s->voice[i]], 0);
+                }
+                sv = s->vol;
+                AdsSetVolumeDirect(s, 0);
+                s->vol = sv;
+                s->mode |= 0x80;
+                sConfig = 0;
+            }
+        } else {
+            if (s->endCount != 0) {
+                s->fileRemaining = 0;
+                s->ringRead = 0;
+            }
+            if (adsFeed(s) != 0) {
+                if (s->endCount == 0 && (s->mode & 2) != 0) {
+                    sConfig = 3;
+                } else {
+                    lbl_80345288 &= ~0x2000;
+                    if (s->endCount == 0) {
+                        sConfig = 0;
+                    }
+                    s->loopCount++;
+                }
+            }
+            lbl_80345288 |= 0x2000;
+            dcsMemLockOwner(0, 1);
+        }
+        break;
+    }
+    return 0;
 }
 #pragma dont_inline off
 
