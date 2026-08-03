@@ -399,7 +399,6 @@ void fn_8009A0AC(s32 col)
     s32 t;
     s32 t2;
     s32 t3;
-    s32 tG;
     s32 ra;
     s32 rb;
     s32 rc;
@@ -419,31 +418,28 @@ void fn_8009A0AC(s32 col)
     raw2 = (*(s32*)(b28 + 3088) + *(s32*)(b28 + 3104)) -
            (*(s32*)(b28 + 8284) + *(s32*)(b28 + 8300));
     raw3 = *(s32*)(pl + 7872) - *(s32*)(base + 7900);
-    tG = t;
     if (t < 64) {
         statG = 64;
-    } else if (tG > range) {
+    } else if (t > range) {
         statG = range;
     } else {
-        statG = tG;
+        statG = t;
     }
     t2 = raw2 * range / (*(s32*)(lvl + 228) + 1);
-    tG = t2;
     if (t2 < 64) {
         stat2 = 64;
-    } else if (tG > range) {
+    } else if (t2 > range) {
         stat2 = range;
     } else {
-        stat2 = tG;
+        stat2 = t2;
     }
     t3 = raw3 * range / (*(s32*)(lvl + 232) + 1);
-    tG = t3;
     if (t3 < 64) {
         stat3 = 64;
-    } else if (tG > range) {
+    } else if (t3 > range) {
         stat3 = range;
     } else {
-        stat3 = tG;
+        stat3 = t3;
     }
 
     if (statG >= stat3 && statG >= stat2) {
