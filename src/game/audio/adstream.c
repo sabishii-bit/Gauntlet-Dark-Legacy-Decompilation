@@ -115,6 +115,7 @@ extern s32 FileBufGet(void* file, void* destination, s32 length);
 extern s32 FileBufReopen(void* file);
 extern void dcsSetStreamFlag(void* stream, s32 looping);
 extern void* memset(void* p, int c, u32 n);
+extern void* memcpy(void* destination, const void* source, u32 length);
 extern s32 strncmp(const char* lhs, const char* rhs, u32 length);
 extern char lbl_80349330[5];
 extern char lbl_80349338[5];
@@ -284,8 +285,162 @@ void adsArqDone(void) {
 /* 0x800D6588  raw ring -> cooked ring: wraps/segments the copy across the ring
  * boundary via memcpy, advances the cooked cursors.  Xbox: adsMoveRawToCooked. */
 #pragma dont_inline on
+#pragma opt_lifetimes off
+#pragma opt_propagation off
+#pragma opt_common_subs off
 s32 adsMoveRawToCooked(ADSTREAM* stream) {
+    register u32 divisor;
+    u8* rawEnd;
+    u32 chunk;
+    u8* destination;
+    u8* blockDestination;
+    u8* source;
+    u8* destinationEnd;
+    u32 blockIndex;
+    u32 copySize;
+    s32 padding;
+    s32 remaining;
+    ADSTREAM* self;
+    u32 firstPart;
+    u32 available;
+    u32 ringWrite;
+    s32 ringRead;
+    u32 space;
+    u32 half;
+    u8* initialSource;
+    s32 ringSize;
+    u32 dead;
+
+    self = stream;
+    divisor = self->blocks;
+    if (divisor <= 1) {
+        divisor = 1;
+    } else {
+        dead = divisor;
+    }
+
+    ringRead = self->ringRead;
+    padding = 0;
+    initialSource = self->ringPtr;
+    source = initialSource;
+    available = ringRead / (s32)divisor;
+    ringWrite = self->ringWrite;
+    half = halfVoiceLoop;
+    space = half - ringWrite;
+    ringSize = self->ringSize;
+    chunk = self->frameAlign;
+    rawEnd = (u8*)self->buffer + ringSize;
+    destination = (u8*)self->cookedPtr + ringWrite;
+
+    if (available >= space) {
+        available = space;
+    } else {
+        dead = available;
+    }
+    copySize = available;
+    if (copySize < half && ringWrite != half) {
+        source = initialSource;
+    }
+    if (chunk != 0) {
+        copySize -= copySize % chunk;
+    } else {
+        if (self->loopMarker != 0) {
+            if (source > (u8*)self->loopMarker) {
+                chunk = ((u8*)self->loopMarker + ringSize) - source;
+            } else {
+                chunk = (u8*)self->loopMarker - source;
+            }
+            if (chunk > copySize) {
+                chunk = copySize;
+            }
+        } else {
+            chunk = copySize;
+        }
+    }
+
+    remaining = ringRead / (s32)divisor - copySize;
+    destinationEnd = destination + copySize;
+    while (destination < destinationEnd) {
+        if (chunk == 0) {
+            copySize = destinationEnd - destination;
+            break;
+        }
+
+        blockDestination = destination;
+        blockIndex = 0;
+        while (blockIndex < self->blocks) {
+            if (source + chunk > rawEnd) {
+                firstPart = rawEnd - source;
+                memcpy(blockDestination, source, firstPart);
+                memcpy(blockDestination + firstPart, self->buffer,
+                       chunk - firstPart);
+            } else {
+                memcpy(blockDestination, source, chunk);
+            }
+            source += chunk;
+            blockDestination += halfVoiceLoop;
+            if (source >= rawEnd) {
+                source -= self->ringSize;
+            }
+            blockIndex++;
+        }
+
+        if ((u8*)self->loopMarker != source) {
+            destination += chunk;
+        } else {
+            u8* aligned;
+            u32 amount;
+
+            self->loopMarker = amount = 0;
+            if (self->frameAlign != 0) {
+                if ((s32)(destination - (u8*)self->cookedPtr) >= 16) {
+                    for (; (s32)blockIndex > 0; blockIndex--) {
+                        blockDestination -= halfVoiceLoop;
+                    }
+                }
+                padding += chunk;
+                if (remaining < padding) {
+                    destinationEnd -= chunk;
+                    copySize -= chunk;
+                }
+            } else {
+                aligned = destination + chunk - 15;
+                while (aligned > destination) {
+                    amount += 16;
+                    aligned -= 16;
+                }
+                padding += amount;
+                if (remaining < padding) {
+                    destinationEnd -= amount;
+                    copySize -= amount;
+                }
+                destination = aligned - 1;
+                chunk = destinationEnd - destination;
+            }
+        }
+    }
+
+    if ((s32)copySize >= 16) {
+        u32 count = self->blocks;
+        u8* end = destination;
+
+        for (; count > 0; count--) {
+            end += halfVoiceLoop;
+        }
+    }
+
+    available = divisor * (copySize + padding);
+    self->ringRead -= available;
+    self->ringPtr = (u8*)self->ringPtr + available;
+    if ((u8*)self->ringPtr >= rawEnd) {
+        self->ringPtr = (u8*)self->ringPtr - self->ringSize;
+    }
+    self->ringWrite += copySize;
+    return copySize;
 }
+#pragma opt_lifetimes reset
+#pragma opt_propagation reset
+#pragma opt_common_subs reset
 #pragma dont_inline off
 
 /* 0x800D683C  file -> raw ring: FileBufSeek to the SSbd body / loop point,
