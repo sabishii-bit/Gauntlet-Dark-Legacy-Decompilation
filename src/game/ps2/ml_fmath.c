@@ -673,8 +673,9 @@ void MulMat4(f32* lhs, f32* rhs, f32* out)
 /* Post-multiply by a roll rotation. */
 void RollMat3(f32* matrix, f32 angle)
 {
-    u8 unused[16];
+    u8 unused0[8];
     f32 magnitude = angle;
+    u8 unused1[8];
     s32 i;
 
     *(u32*)&magnitude &= 0x7FFFFFFF;
@@ -686,8 +687,8 @@ void RollMat3(f32* matrix, f32 angle)
         for (i = 0; i < 3; i++) {
             f32 a = matrix[i];
             f32 b = matrix[4 + i];
-            matrix[4 + i] = c * b + s * a;
-            matrix[i] = c * a - s * b;
+            matrix[4 + i] = b * c + s * a;
+            matrix[i] = c * a - b * s;
         }
     }
 }

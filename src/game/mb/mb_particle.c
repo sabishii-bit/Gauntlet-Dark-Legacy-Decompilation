@@ -768,9 +768,20 @@ static Psys* allocPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
  * Documented reconstruction (NonMatching; target resolves p_tex through the
  * gWinGlobals texture table via a packed page|sub index). */
 void MBPsysSetPTex(MBObject* node, u32 tex) {
+    struct TexPageEnt {
+        u32 f0;
+        u8* obj;
+        u32 f8;
+        u32 fC;
+    };
+    u8* g = (u8*)gWinGlobals;
     Psys* p = (Psys*)node->data.psys;
+    struct TexPageEnt* pages;
+
     p->p_texidx = tex;
-    p->p_tex = (struct ROMTEX*)tex;   /* resolved page ptr */
+    pages = *(struct TexPageEnt**)(g + 48);
+    p->p_tex = (struct ROMTEX*)(*(u8**)(pages[(tex >> 16) & 0xFFFF].obj + 88) +
+                                (tex & 0xFFFF) * 16);
 }
 
 /* 0x800D0B44 - MBPsysScalePParm: multiply a parameter gradient by a scalar */
