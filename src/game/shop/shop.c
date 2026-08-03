@@ -399,6 +399,7 @@ void fn_8009A0AC(s32 col)
     s32 t;
     s32 t2;
     s32 t3;
+    s32 tG;
     s32 ra;
     s32 rb;
     s32 rc;
@@ -407,7 +408,7 @@ void fn_8009A0AC(s32 col)
     u8* base;
     u8* b28;
 
-    ResolveWorldData((u8)lbl_803448C4 | (lbl_803448C8 << 8));
+    ResolveWorldData((lbl_803448C8 << 8) | (u8)lbl_803448C4);
     cls = *(s32*)(pl + 12);
     lvl = gCurLevel;
     base = pl + cls * 240;
@@ -418,28 +419,31 @@ void fn_8009A0AC(s32 col)
     raw2 = (*(s32*)(b28 + 3088) + *(s32*)(b28 + 3104)) -
            (*(s32*)(b28 + 8284) + *(s32*)(b28 + 8300));
     raw3 = *(s32*)(pl + 7872) - *(s32*)(base + 7900);
+    tG = t;
     if (t < 64) {
         statG = 64;
-    } else if (t > range) {
+    } else if (tG > range) {
         statG = range;
     } else {
-        statG = t;
+        statG = tG;
     }
     t2 = raw2 * range / (*(s32*)(lvl + 228) + 1);
+    tG = t2;
     if (t2 < 64) {
         stat2 = 64;
-    } else if (t2 > range) {
+    } else if (tG > range) {
         stat2 = range;
     } else {
-        stat2 = t2;
+        stat2 = tG;
     }
     t3 = raw3 * range / (*(s32*)(lvl + 232) + 1);
+    tG = t3;
     if (t3 < 64) {
         stat3 = 64;
-    } else if (t3 > range) {
+    } else if (tG > range) {
         stat3 = range;
     } else {
-        stat3 = t3;
+        stat3 = tG;
     }
 
     if (statG >= stat3 && statG >= stat2) {
