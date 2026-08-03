@@ -1,5 +1,11 @@
 #include "types.h"
+/* The game calls GXSetChanMatColor through its own pointer-taking prototype
+ * (see mb_particle.c); hide the SDK by-value declaration so the TU can
+ * declare the shape the original code generation proves. */
+#define GXSetChanMatColor GXSetChanMatColor_sdk_byval
 #include "dolphin/gx.h"
+#undef GXSetChanMatColor
+extern void GXSetChanMatColor(s32 chan, void* color);
 #include "dolphin/pad.h"
 #include "MWCPlusLib.h"
 #include "NMWException.h"
@@ -86,7 +92,9 @@ typedef struct MBScale {
 } MBScale;
 
 typedef struct MBWindow {
-    u8 _pad00[0x38];
+    u8 _pad00[0x10];
+    void* obj10;          /* +0x10 draw-context object (+52 = depth divisor) */
+    u8 _pad14[0x24];
     MBScale* scale;
 } MBWindow;
 
@@ -150,13 +158,21 @@ extern u32 __cvt_fp2unsigned(f32 value);
 extern MBWindow* gWinGlobals;
 extern const f32 lbl_80348AD0;
 extern const f32 lbl_80348AA0;
+extern f32 lbl_80348AD4;            /* 0.5f screen-half constant */
+
+extern void SetMultiPassTextureParams(s32 n);
+extern void SetCullMode(s32 mode);
+extern void SetPerspectiveMode(s32 mode);
+extern void SetViewportHeight(f32 h);
+extern void SetVertexFormat(s32 fmt);
+extern void PSMTXIdentity(f32 mtx[3][4]);
 
 /* internal helpers (defined below / same TU) */
 static u32 mbInitBlitEntry(MBBLIT* b, int arg, int z);
 static void mbBlitProject(MBBLIT* b, int a, int c);
 static void mbBlitSetupVerts(MBBLIT* b, f32 u0, f32 u1, f32 v0, f32 v1);
 void DrawBlit(MBBLIT* b);
-void DrawBlitFlatQuad(void* q);
+void DrawBlitFlatQuad(MBBLIT* b);
 void mbBlitCalcRect(MBBLIT* b, s32* x, s32* y, f32* depth);
 void mbBlitCalcWidth(MBBLIT* b, s32 x, s32 y, f64 depth);
 void mbBlitCvtCoord(MBBLIT* b, f64 depth);
@@ -763,7 +779,7 @@ s32 MBDrawBlits(MBNODE* node) {
         s32 offset = 0;
 
         for (i = 0; i < tempQuadCount; i++) {
-            DrawBlitFlatQuad(base + offset);
+            DrawBlitFlatQuad((MBBLIT*)(base + offset));
             offset += 0x24;
         }
         lbl_80344E00 = 1;
@@ -793,8 +809,61 @@ void DrawBlit(MBBLIT* b) {
      * (pbBlitSetDrawRegs), GXBegin/GXEnd a textured quad */
 }
 
-void DrawBlitFlatQuad(void* q) {
-    /* GXBegin/GXEnd a solid (untextured) quad */
+void DrawBlitFlatQuad(MBBLIT* b) {
+    MBWindow* g = gWinGlobals;
+    u8 unused[96];
+    f32 mtx[3][4];
+    GXColor c;
+    GXColor c2;
+    f32 y1, z, x0, y0, x1;
+    s32 a2;
+    u32 rr, gg, bb;
+    u8 unused2[36];
+
+    SetMultiPassTextureParams(3);
+    SetCullMode(0);
+    SetPerspectiveMode(0);
+    SetViewportHeight(lbl_80348AD4);
+    SetVertexFormat(3);
+    PSMTXIdentity(mtx);
+    GXLoadPosMtxImm(mtx, 0);
+
+    a2 = (b->color0 >> 23) & 0x1FE;
+    rr = (b->color0 >> 16) & 0xFF;
+    gg = (b->color0 >> 8) & 0xFF;
+    bb = b->color0 & 0xFF;
+
+    x0 = (f32)(b->x * 2) / (f32)g->scale->viewport0 - lbl_80348AD4;
+    x1 = (f32)((b->x + (u16)b->width) * 2) / (f32)g->scale->viewport0 -
+         lbl_80348AD4;
+    y0 = lbl_80348AD4 - (f32)(b->y * 2) / (f32)g->scale->viewport1;
+    y1 = lbl_80348AD4 -
+         (f32)((b->y + (u16)b->height) * 2) / (f32)g->scale->viewport1;
+    z = (f32)(b->depth * 2) / (f32)*(s32*)((u8*)g->obj10 + 52) - lbl_80348AD4;
+
+    if (a2 == 256) {
+        a2--;
+    }
+    c.r = rr;
+    c.g = gg;
+    c.b = bb;
+    c.a = a2;
+    c2 = c;
+    GXSetChanMatColor(GX_COLOR0A0, &c2);
+
+    GXBegin(GX_TRIANGLESTRIP, GX_VTXFMT0, 4);
+    GXWGFifo.f32 = x0;
+    GXWGFifo.f32 = y0;
+    GXWGFifo.f32 = z;
+    GXWGFifo.f32 = x0;
+    GXWGFifo.f32 = y1;
+    GXWGFifo.f32 = z;
+    GXWGFifo.f32 = x1;
+    GXWGFifo.f32 = y0;
+    GXWGFifo.f32 = z;
+    GXWGFifo.f32 = x1;
+    GXWGFifo.f32 = y1;
+    GXWGFifo.f32 = z;
 }
 
 void pbBlitSetDrawRegs(u32 flags, u32 mode) {
