@@ -436,3 +436,40 @@ GC/1.2.5 + cflags_demo pipeline). Laws, in application order:
   conversion (movieplayer queued).
 - **Ghidra double-params on int fns** = ABI noise from float-using callees,
   not real float forwarding (items).
+
+## Additions (stub-fill session, 2026-08-03)
+
+- **u64 tells (pb_frame GS/PMODE work)**: `li rA,1; and` pairs = 64-bit AND
+  (u64 lvalue; BE low word lives at +4 — a lone `lwz X+4` masked with li+and
+  means the source op was `*(u64*)(p+X) & K`). `& ~3` on u64 keeps the
+  high-word `and rH,-1` alive. u64 copies emit lfd/stfd. A 64-bit `<<1` OR'd
+  in came from `(s32)(x << 1)` (32-bit shift, then sign-extend via s64 OR) —
+  spelling it `(s64)x << 1` calls __shl2i and drags in saved regs.
+- **GS bitfield extracts carry explicit width masks**: plain `u16>>N` emits
+  srawi/srwi; the target rlwinm means `(x >> N) & 0x1FF/0x7FF/0xFFF` (the GS
+  field width) was in source (fn_800C2C74 flipped EXACT on this).
+- **Sub-struct pointer view** (`T* s = (T*)&ctl->m18;`) reproduces a
+  `lwz base; addi base,base,24` prologue and per-statement `lwz regs` reloads
+  (stores through s alias the pointer field). fn_800C2C74/2618.
+- **BossGenerateEnemy (EXACT) checklist**: typed-view PARAM (not a local
+  cast) avoids the extra GPR web; sized `extern f32 arr[2]` for the SDA21
+  1-insn address form (unsized [] = lis/addi pair + hoisted web); one-case
+  `switch` for the beq/b unfolded guard; `f64 scale = lbl; f32 speed = lbl;`
+  locals inside the guard land constants in f31/f30; atan2 arg2-temp
+  (`f32 vz = vec[2];`) flips the f2-before-f1 load order; `u8 unused[4]`
+  last-declared fixed the +4 frame.
+- **DrawBlitFlatQuad**: game code calls GXSetChanMatColor with a POINTER
+  (mb_particle proto) — shadow the SDK decl via
+  `#define GXSetChanMatColor X_sdk / #include gx.h / #undef` and pass &copy
+  (`GXColor c2 = c;` supplies the lwz/stw word copy at the right slot).
+  int->f32 conversion-site count and per-site slots pin the frame; dead pads
+  96 (above mtx) + 36 (below colors). PARKED at 100 real: volatile FP triple
+  (magic/half/div = f10/f8/f9 vs ours f9/f10/f8) + coupled int schedule; decl
+  order in target color order DID fix all five nonvolatile f27-f31 webs.
+- **fn_800C2618 rlwimi insert shape PARKED**: MWCC insists on
+  `lhzu dest; clrlwi dest; rlwimi dest,src(raw)` for
+  `(u16)((src&0xFFFF)<<7)|(dest&0x7F)`; the target's
+  `clrlwi src; lhz/sth disp` form survived none of: operand swap, (u16)
+  cast before/after shift, u16/u8 temps, volatile derefs, scoped peephole
+  off (worse), prop off. Suspect a different compiler switch or helper;
+  body committed correct-logic (666 real).
