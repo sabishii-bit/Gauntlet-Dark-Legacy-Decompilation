@@ -15,11 +15,14 @@ typedef signed int s32;
 typedef unsigned int u32;
 typedef float f32;
 typedef unsigned char u8;
+typedef signed short s16;
 
 typedef struct WorldCollisionResult {
     u8 _pad00[0x58];
     u8 query[0x30];
     f32 normal[3];
+    u8 _pad94[156];
+    f32 qnorm[3];   /* 0x130 query direction normal */
 } WorldCollisionResult;
 
 typedef struct Vec3 {
@@ -62,19 +65,40 @@ typedef double f64;
 extern f64 lbl_80345730, lbl_80345738, lbl_803457A0, lbl_803457A8;
 extern f32 lbl_80344164, lbl_80345764;
 
+/* one collision triangle record (stride 0x28) */
+typedef struct WorldTri {
+    s16 layerLo;  /* 0x00 */
+    s16 layerHi;  /* 0x02 */
+    u8  _pad04[4];
+    f32 nx;       /* 0x08 plane normal */
+    f32 ny;       /* 0x0C */
+    f32 nz;       /* 0x10 */
+    u8  _pad14[20];
+} WorldTri;
+
 /* world grid description (0x8028CA8C block; only the walk fields typed) */
 typedef struct WorldGridInfo {
-    u8  _pad00[72];
+    u8  _pad00[8];
+    WorldTri* tris;  /* 0x08 triangle records          */
+    u8  _pad0c[60];
     f32 cellW;    /* 0x48 world units per grid cell */
     f32 invCell;  /* 0x4C 1 / cellW                 */
     s32 gridW;    /* 0x50 cells across (X)          */
     s32 gridD;    /* 0x54 cells deep (Z)            */
+    u8  _pad58[4];
+    char* marks;  /* 0x5C per-tri visited stamps    */
 } WorldGridInfo;
 extern WorldGridInfo gWorldInfo;
 extern f32 lbl_80344168, lbl_8034416C, lbl_80344170, lbl_80344174,
     lbl_80344178, lbl_8034417C;
 extern char lbl_80110720[]; /* "GRID ERROR" */
 void FatalError(const char* msg, int code);
+extern char lbl_8034418C;             /* current visited stamp */
+extern f32 lbl_80345760, lbl_80345778;
+extern f64 lbl_80345780, lbl_80345788, lbl_80345790, lbl_80345798;
+extern f32 lbl_8023F7F8[3];           /* query origin */
+s32 TriLineCol(WorldTri* tri, f32* hit);
+f32 BTriLineCol(f32 radius, WorldTri* tri, f32* hit);
 extern u8 gIdentityMatrix[], lbl_80127DA0[];
 void CopyMat3(void* src, void* dst);   /* 0x800BE8C8 */
 f32 NormalVector(f32* v);               /* 0x800BDA98 */
@@ -434,7 +458,124 @@ static s32 NextGrid(f32 a, f32 b, f32 c, f32 d, s32* gx, s32* gz)
     return 0;
 }
 STUB(0x8000DFEC, WorldObjCollide)
-STUB(0x8000E3B8, CTriListCollide)
+/* 0x8000E3B8 -- test the query line/sweep against a list of triangles,
+ * keeping the closest hit.  Returns the best (scaled) hit distance. */
+static f32 CTriListCollide(f32 radius, s32 base, s32 count, WorldTri** outTri,
+                           s16* idxList, f32* outPt, s32 layerLo, s32 layerHi,
+                           s32 noFilter)
+{
+    f64 k788;
+    f64 zd;
+    f32 best;
+    f32 result;
+    f32 rad;
+    f64 k798;
+    f64 k790;
+    f32 zf;
+    f32* org;
+    s32 i;
+    s32 ti;
+    WorldTri* tri;
+    WorldCollisionResult* res;
+    f32 d;
+    f32 dd;
+    f32 dot;
+    f32 hit[9];
+
+    rad = radius;
+    org = lbl_8023F7F8;
+    result = lbl_80345778;
+    best = lbl_80345760;
+    k788 = lbl_80345788;
+    zf = lbl_8034572C;
+    k790 = lbl_80345790;
+    k798 = lbl_80345798;
+    zd = lbl_80345730;
+    res = &lbl_8023CA40;
+    for (i = 0; i < count; i++) {
+        if (idxList != 0) {
+            ti = base + idxList[i];
+        } else {
+            ti = base + i;
+        }
+        if (gWorldInfo.marks[ti] == lbl_8034418C) {
+            continue;
+        }
+        gWorldInfo.marks[ti] = lbl_8034418C;
+        tri = &gWorldInfo.tris[ti];
+        if (noFilter == 0) {
+            if (tri->ny < lbl_80344194) {
+                continue;
+            }
+            if (tri->ny > lbl_80344190) {
+                continue;
+            }
+            if (tri->layerHi < layerLo) {
+                continue;
+            }
+            if (tri->layerLo > layerHi) {
+                continue;
+            }
+        }
+        if ((lbl_80344188 & 0x20) != 0) {
+            if (TriLineCol(tri, hit) != 0) {
+                d = lbl_80345730;
+            } else {
+                d = lbl_80345780;
+            }
+        } else {
+            d = BTriLineCol(rad, tri, hit);
+        }
+        if (d >= zd) {
+            if ((lbl_80344188 & 0x20) != 0) {
+                result = d;
+                if (outTri != 0) {
+                    *outTri = tri;
+                }
+                if (outPt != 0) {
+                    outPt[0] = hit[0];
+                    outPt[1] = hit[1];
+                    outPt[2] = hit[2];
+                }
+                break;
+            }
+            if ((lbl_80344188 & 0x10) != 0) {
+                if (zd == d) {
+                    dd = (hit[1] - org[1]) * (hit[1] - org[1]) +
+                         (hit[0] - org[0]) * (hit[0] - org[0]) +
+                         (hit[2] - org[2]) * (hit[2] - org[2]);
+                } else {
+                    dd = k788 * d;
+                }
+            } else {
+                dd = (hit[1] - org[1]) * (hit[1] - org[1]) +
+                     (hit[0] - org[0]) * (hit[0] - org[0]) +
+                     (hit[2] - org[2]) * (hit[2] - org[2]);
+            }
+            dot = res->qnorm[1] * tri->ny + res->qnorm[0] * tri->nx +
+                  res->qnorm[2] * tri->nz;
+            if (dot < zf) {
+                dot = -dot;
+            }
+            if (dot < k790) {
+                dd = dd * k798;
+            }
+            if (dd < best) {
+                best = dd;
+                result = dd;
+                if (outTri != 0) {
+                    *outTri = tri;
+                }
+                if (outPt != 0) {
+                    outPt[0] = hit[0];
+                    outPt[1] = hit[1];
+                    outPt[2] = hit[2];
+                }
+            }
+        }
+    }
+    return result;
+}
 /* CreateMat3Norm @0x8000E674 -- build an orthonormal basis whose Y axis is the
  * given (scaled) surface normal; snap to the up/down identity near vertical. */
 void CreateMat3Norm(f32 scale, f32* mtx, f32* normal)
