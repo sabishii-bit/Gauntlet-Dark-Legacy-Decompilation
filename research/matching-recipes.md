@@ -535,3 +535,32 @@ Conditions and costs:
 - Tells that a target fn is lifetimes-ON (do NOT pragma it): dead scratch
   reuse like `lwz r0,glob; mulli r0,r0,K` in the tail (do_camera), copies
   folded to fresh li (init_for_gamemode). Pragma made both worse.
+
+## Switch-tree sentinel law (camera_mode_dest, 2026-08-03)
+
+When target and ours have IDENTICAL case bodies but the dispatch tree roots
+at a different case (e.g. target `cmpwi 0; beq; bge; b` vs ours `cmpwi 1`
+first), the case SETS differ: retail has an extra case label merged with
+default that shifts MWCC pivot selection. `case -1: default:` flipped
+camera_mode_dest to the retail root-at-0 shape (-35 real). A default-merged
+sentinel produces a compare-free edge (plain `b default`), so look for a
+tree edge with no cmpwi as the tell. Negative sentinels are natural for
+mode variables initialized to -1.
+
+## mode_dest grind addenda (2026-08-03, 569->471)
+
+- K&R hidden-arg strikes again: retail calls DiffRate with NO li r3 setup.
+  `void DiffRate();` + argless call site (-1 insn, frees renumber skew).
+- Named f64 invariant locals (`f64 otherWeight = A - (f64)w;`) get their
+  lfd+fsub HOISTED to the defining var's position; inlining the expression
+  per-use (letting CSE unify) keeps codegen equal but FREES the variable's
+  register -> -54 lines of renumber collapsed. Prefer inline+CSE over named
+  invariant temps when the target computes late.
+- Statement-order wins that DID land: `distance = cam->radius;` BEFORE the
+  3-store normalize vector (scheduler sinks it 2 slots to the retail spot;
+  placing it after = park); ticks-conversion statement FIRST in the
+  post-switch head (-12).
+- Regression list (mode_follow, DO NOT RETRY): fan-out copies for the
+  savedTurn=savedYaw=savedPitch chain (both orders 513 vs 448 chain);
+  mode_dest-style named-squares respell of the delta sum (502 vs 448) -
+  mode_follow's FP lattice punishes ANY new early web.
