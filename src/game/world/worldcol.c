@@ -18,12 +18,34 @@ typedef unsigned char u8;
 typedef signed short s16;
 
 typedef struct WorldCollisionResult {
-    u8 _pad00[0x58];
-    u8 query[0x30];
-    f32 normal[3];
-    u8 _pad94[156];
-    f32 qnorm[3];   /* 0x130 query direction normal */
+    f32 hitPt[3];      /* 0x000 closest hit point */
+    u8 _pad0c[0x4C];
+    u8 query[0x30];    /* 0x058 */
+    f32 normal[3];     /* 0x088 */
+    u8 _pad94[132];
+    f32 hitAlt[3];     /* 0x118 secondary-channel hit point */
+    u8 _pad124[4];
+    f32 bestAlt;       /* 0x128 secondary-channel best distance */
+    void* objAlt;      /* 0x12C secondary-channel object */
+    f32 qnorm[3];      /* 0x130 query direction normal */
+    u8 _pad13c[4];
+    f32 qdir2[3];      /* 0x140 query end/dir vector */
+    u8 _pad14c[4];
+    f32 qpos[3];       /* 0x150 query start point */
 } WorldCollisionResult;
+
+/* world object record (collidable prop) */
+typedef struct WObj {
+    u8 _pad00[0x10];
+    u32 flags;        /* 0x10 */
+    u8 _pad14[8];
+    f32 pos[3];       /* 0x1C */
+    f32* mat;         /* 0x28 */
+    u8 _pad2c[4];
+    f32 radius;       /* 0x30 */
+    u8 _pad34[4];
+    s32 triBase;      /* 0x38 */
+} WObj;
 
 typedef struct Vec3 {
     f32 x;
@@ -99,6 +121,17 @@ extern f64 lbl_80345780, lbl_80345788, lbl_80345790, lbl_80345798;
 extern f32 lbl_8023F7F8[3];           /* query origin */
 s32 TriLineCol(WorldTri* tri, f32* hit);
 f32 BTriLineCol(f32 radius, WorldTri* tri, f32* hit);
+void GetWorldMat(void* node, f32* mtx, s32 mode);
+static f32 CTriListCollide(f32 radius, s32 base, s32 count, WorldTri** outTri,
+                           s16* idxList, f32* outPt, s32 layerLo, s32 layerHi,
+                           s32 noFilter);
+void MulBodyVecMat4(f32* src, f32* dst, f32* mtx);
+extern f32 lbl_8023F7E8[3];
+extern f32 lbl_80344198, lbl_8034419C, lbl_803441A0;
+extern f64 lbl_80345770;
+extern WObj* lbl_80344160;
+extern s32 lbl_80344180;
+extern WorldTri* lbl_80344184;
 extern u8 gIdentityMatrix[], lbl_80127DA0[];
 void CopyMat3(void* src, void* dst);   /* 0x800BE8C8 */
 f32 NormalVector(f32* v);               /* 0x800BDA98 */
@@ -457,7 +490,122 @@ static s32 NextGrid(f32 a, f32 b, f32 c, f32 d, s32* gx, s32* gz)
     }
     return 0;
 }
-STUB(0x8000DFEC, WorldObjCollide)
+/* 0x8000DFEC -- sweep the query line against one world object: quick
+ * sphere/line rejection, transform the query into object space, then run the
+ * triangle list and record the best hit in the active result channel. */
+static void WorldObjCollide(f32 rad, WObj* obj, s32 count, s16* list, f32* mtx)
+{
+    WorldCollisionResult* res = &lbl_8023CA40;
+    u32 flags = obj->flags;
+    f32 qx;
+    f32 qy;
+    f32 qz;
+    f32* p;
+    f32 reach;
+    f32 lim;
+    f32 t;
+    f32 ymax;
+    f32 ymin;
+    f32 d;
+    f32* m2;
+    u8 unused[8];
+    f32 v[3];
+    f32 mtxBuf[16];
+    WorldTri* triOut;
+
+    if ((flags & 0x1000000) != 0) {
+        if (mtx == 0) {
+            GetWorldMat(obj->mat, mtxBuf, 0);
+            mtx = mtxBuf;
+        }
+        p = mtx + 12;
+    } else if ((flags & 0x1000) != 0) {
+        p = obj->mat + 12;
+    } else {
+        p = obj->pos;
+    }
+
+    v[0] = p[0] - (qx = res->qpos[0]);
+    v[1] = p[1] - (qy = res->qpos[1]);
+    v[2] = p[2] - (qz = res->qpos[2]);
+    reach = obj->radius + rad;
+    lim = reach + lbl_803441A0;
+    t = v[1] * res->qnorm[1] + v[0] * res->qnorm[0] + v[2] * res->qnorm[2];
+    if (t > lim) {
+        return;
+    }
+    if (t < -reach) {
+        return;
+    }
+    v[0] = res->qnorm[0] * t + qx;
+    v[1] = res->qnorm[1] * t + qy;
+    v[2] = res->qnorm[2] * t + qz;
+    v[0] = p[0] - v[0];
+    v[1] = p[1] - v[1];
+    v[2] = p[2] - v[2];
+    if (v[0] * v[0] + v[1] * v[1] + v[2] * v[2] >= reach * reach) {
+        return;
+    }
+
+    flags = obj->flags;
+    if ((flags & 0x1000000) != 0) {
+        MulBodyVecMat4(res->qpos, lbl_8023F7F8, mtx);
+        MulBodyVecMat4(res->qdir2, lbl_8023F7E8, mtx);
+        ymax = mtx[5] * (lbl_8034419C - mtx[13]);
+        ymin = mtx[5] * (lbl_80344198 - mtx[13]);
+    } else if ((flags & 0x1000) != 0) {
+        m2 = obj->mat;
+        if ((flags & 1) == 0) {
+            MulBodyVecMat4(res->qpos, lbl_8023F7F8, m2);
+            MulBodyVecMat4(res->qdir2, lbl_8023F7E8, m2);
+            ymax = m2[5] * (lbl_8034419C - m2[13]);
+            ymin = m2[5] * (lbl_80344198 - m2[13]);
+        } else {
+            lbl_8023F7F8[0] = res->qpos[0] - m2[12];
+            lbl_8023F7F8[1] = res->qpos[1] - m2[13];
+            lbl_8023F7F8[2] = res->qpos[2] - m2[14];
+            lbl_8023F7E8[0] = res->qdir2[0] - m2[12];
+            lbl_8023F7E8[1] = res->qdir2[1] - m2[13];
+            lbl_8023F7E8[2] = res->qdir2[2] - m2[14];
+            ymax = lbl_8034419C - m2[13];
+            ymin = lbl_80344198 - m2[13];
+        }
+    } else {
+        lbl_8023F7F8[0] = res->qpos[0];
+        lbl_8023F7F8[1] = res->qpos[1];
+        lbl_8023F7F8[2] = res->qpos[2];
+        lbl_8023F7E8[0] = res->qdir2[0];
+        lbl_8023F7E8[1] = res->qdir2[1];
+        lbl_8023F7E8[2] = res->qdir2[2];
+        ymax = lbl_8034419C;
+        ymin = lbl_80344198;
+    }
+
+    d = CTriListCollide(rad, obj->triBase, count, &triOut, list, v,
+                        (s32)(lbl_80345770 * ymax), (s32)(lbl_80345770 * ymin),
+                        obj->flags & 0x40);
+    if (d >= lbl_80345730) {
+        if ((obj->flags & 0x200) != 0) {
+            f32* q = &res->bestAlt;
+            if (d < *q) {
+                res->objAlt = obj;
+                *q = d;
+                res->hitAlt[0] = v[0];
+                res->hitAlt[1] = v[1];
+                res->hitAlt[2] = v[2];
+            }
+        } else if (d < lbl_80344164) {
+            lbl_80344160 = obj;
+            lbl_80344164 = d;
+            lbl_80344184 = triOut;
+            lbl_80344180 =
+                (s32)((u8*)triOut - (u8*)gWorldInfo.tris) / 40;
+            res->hitPt[0] = v[0];
+            res->hitPt[1] = v[1];
+            res->hitPt[2] = v[2];
+        }
+    }
+}
 /* 0x8000E3B8 -- test the query line/sweep against a list of triangles,
  * keeping the closest hit.  Returns the best (scaled) hit distance. */
 static f32 CTriListCollide(f32 radius, s32 base, s32 count, WorldTri** outTri,
