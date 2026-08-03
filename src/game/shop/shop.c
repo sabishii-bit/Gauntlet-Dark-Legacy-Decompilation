@@ -179,6 +179,93 @@ s32 show_piles(s32 col)
     return result;
 }
 
+extern u8 lbl_80122ED0[];   /* shop draw-layout page (.data)          */
+extern char lbl_803483B8[]; /* "%s: %d" gold-line fmt (sdata)         */
+extern char lbl_801149F4[]; /* "Continue" label                        */
+extern char lbl_80348368[]; /* "Stats" label (sdata, color-code +2)    */
+extern f32 lbl_80348360;    /* gold-line text scale                    */
+extern f32 lbl_80348364;    /* stats text scale                        */
+extern void* lbl_80344E48;  /* continue-arrow texture                  */
+extern int sprintf(char* buf, const char* fmt, ...);
+extern void DrawGlowText(f32 scale, s32 y, s32 x, char* txt);
+extern void DrawTextKeepScale(f32 scale, s32 y, s32 x, s32 font, s32 color,
+                              char* txt);
+extern void* MBNewTempBlit(void* tex, int x, int y, int w, int h);
+
+/* Draw the three per-pile gold totals (rising-pile animation + glow text),
+ * the Continue prompt once everything settled, and the Stats footer.
+ * Returns 1 + the index of the pile still animating, 0 when done. */
+s32 show_gold(s32 col)
+{
+    u8* dpage = lbl_80122ED0;
+    u8* tbl = lbl_802897D0;
+    s32 adj = gFrameTicks + (gFrameTicks >> 1);
+    u8* blits = tbl + col * 24 + 7504;
+    u8* counts = tbl + col * 12 + 224;
+    u8* shownT = tbl + col * 12 + 128;
+    u8* targT = tbl + col * 12 + 80;
+    u8* valT = tbl + col * 12 + 176;
+    s32 colorMask = 0x1000000;
+    s32 ypos = *(s32*)(dpage + col * 4 + 112);
+    s32 xbase = *(s32*)(dpage + col * 4 + 96);
+    s32 done = 0;
+    s32 k = 0;
+    s32 off = 0;
+    s32 fontY;
+    u8* blit;
+    s32 tgt;
+    s32 shown;
+    s32 grew;
+    u8* item;
+    s32 drawX;
+    f32 height;
+    char buf[32];
+
+    for (; k < 3; k++, off += 4) {
+        tgt = *(s32*)(targT + off);
+        shown = *(s32*)(shownT + off);
+        blit = *(u8**)(blits + *(s32*)(counts + off) * 4);
+        grew = 0;
+        if (done != 0) {
+            mbBlitInit3414(blit, 1);
+        } else {
+            mbBlitInit3414(blit, 0);
+            if (shown < tgt) {
+                shown += adj;
+                if (shown > tgt) {
+                    shown = tgt;
+                }
+                done = k + 1;
+                grew = 1;
+            } else {
+                shown = tgt;
+            }
+            height = (f32)((f32)shown * lbl_803483B0);
+            mbBlitCalcY(blit, lbl_80343E10 - shown);
+            mbBlitProject(blit, 0, shown);
+            mbBlitSetupVerts(blit, lbl_8034832C, lbl_80348328, lbl_8034832C,
+                             height);
+            *(s32*)(shownT + off) = shown;
+        }
+        item = dpage + *(s32*)(counts + off) * 4;
+        drawX = *(s32*)(item + 172);
+        sprintf(buf, lbl_803483B8, *(u32*)(item + 160), *(s32*)(valT + off));
+        if (grew != 0) {
+            DrawGlowText(lbl_80348360, xbase + 16, drawX, buf);
+        } else {
+            DrawTextKeepScale(lbl_80348360, xbase + 16, drawX, 6,
+                              colorMask - 1, buf);
+        }
+    }
+    fontY = *(s32*)(dpage + 184);
+    if (done == 0) {
+        DrawGlowText(lbl_80348360, xbase + 32, fontY, lbl_801149F4);
+        MBNewTempBlit(lbl_80344E48, xbase + 16, fontY - 3, 20, 20);
+    }
+    DrawTextKeepScale(lbl_80348364, -ypos, 8, 6, 0, lbl_80348368);
+    return done;
+}
+
 /* Enter the between-level shop and launch its asynchronous front-end load. */
 void init_shop(s32 fromMenu)
 {
