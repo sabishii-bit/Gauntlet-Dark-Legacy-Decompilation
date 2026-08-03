@@ -2177,8 +2177,9 @@ s32 camera_collide_step(s32 camIdx, f32 blendThreshold)
     f32 nearestYaw = bestPitch;
     f32 bestYaw = bestPitch;
     f64 effectiveThreshold = blendThreshold;
+    /* blendThreshold is dead once captured above; retail reuses it (still in
+     * the incoming f1) as the second-best trigger distance. */
     f32 nearestDistance = *(volatile f32*)&lbl_80346030;
-    f32 secondDistance = nearestDistance;
     f32 swapAngle;
     f32 swapDistance;
     f64 root;
@@ -2193,6 +2194,7 @@ s32 camera_collide_step(s32 camIdx, f32 blendThreshold)
     u8* bestTrigger;
     u8* selectedTrigger;
 
+    blendThreshold = nearestDistance;
     if (lbl_80344508 < 0) {
         effectiveThreshold = lbl_8034601C;
     } else if (camIdx == 0 && lbl_803444DC != 0 && cam->c_mode == 3 &&
@@ -2244,25 +2246,25 @@ s32 camera_collide_step(s32 camIdx, f32 blendThreshold)
                     if (candidateDistance < nearestDistance) {
                         count++;
                         lbl_8034450C = lbl_80344510;
-                        secondDistance = nearestDistance;
+                        blendThreshold = nearestDistance;
                         bestYaw = nearestYaw;
                         nearestYaw = *(f32*)(sTriggerCameras + offset + 0x14);
                         secondYaw = bestPitch;
                         bestPitch = *(f32*)(sTriggerCameras + offset + 0x18);
                         nearestDistance = candidateDistance;
                         lbl_80344510 = index;
-                    } else if (candidateDistance < secondDistance) {
+                    } else if (candidateDistance < blendThreshold) {
                         count++;
                         secondYaw = *(f32*)(sTriggerCameras + offset + 0x18);
                         bestYaw = *(f32*)(sTriggerCameras + offset + 0x14);
-                        secondDistance = candidateDistance;
+                        blendThreshold = candidateDistance;
                         lbl_8034450C = index;
                     }
                 } else if (index == loopSelection) {
                     count++;
                     secondYaw = *(f32*)(sTriggerCameras + offset + 0x18);
                     bestYaw = *(f32*)(sTriggerCameras + offset + 0x14);
-                    secondDistance = candidateDistance;
+                    blendThreshold = candidateDistance;
                     lbl_8034450C = index;
                 } else if (candidateDistance < nearestDistance) {
                     count++;
@@ -2275,7 +2277,7 @@ s32 camera_collide_step(s32 camIdx, f32 blendThreshold)
     }
 
     best = lbl_80344510;
-    if (lbl_80344508 >= 0 && secondDistance < nearestDistance) {
+    if (lbl_80344508 >= 0 && blendThreshold < nearestDistance) {
         lbl_80344510 = lbl_8034450C;
         lbl_8034450C = best;
         swapAngle = bestYaw;
@@ -2285,15 +2287,15 @@ s32 camera_collide_step(s32 camIdx, f32 blendThreshold)
         secondYaw = bestPitch;
         bestPitch = swapAngle;
         swapDistance = nearestDistance;
-        nearestDistance = secondDistance;
-        secondDistance = swapDistance;
+        nearestDistance = blendThreshold;
+        blendThreshold = swapDistance;
     }
 
     if (count == 1) {
         lbl_8034450C = lbl_80344510;
         bestYaw = nearestYaw;
         secondYaw = bestPitch;
-        secondDistance = nearestDistance;
+        blendThreshold = nearestDistance;
     }
     if (count == 0) {
         goto return_zero;
@@ -2303,7 +2305,7 @@ s32 camera_collide_step(s32 camIdx, f32 blendThreshold)
     selected = lbl_8034450C;
     bestTrigger = sTriggerCameras + best * 0x28;
     selectedTrigger = sTriggerCameras + selected * 0x28;
-    if (lbl_80345F78 == (f64)(nearestDistance + secondDistance)) {
+    if (lbl_80345F78 == (f64)(nearestDistance + blendThreshold)) {
         return 0;
     }
     if (count == 1) {
