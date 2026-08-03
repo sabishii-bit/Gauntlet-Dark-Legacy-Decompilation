@@ -71,7 +71,7 @@ typedef struct PbFrameCtl {
     s32 m00;           /* 0x00 */
     u8  _pad04[0xc];
     s32 m10;           /* 0x10 */
-    u8  _pad14[4];
+    s32 m14;           /* 0x14 : apply-decoded-registers flag */
     s32 m18;           /* 0x18 : current frame index */
     u8  _pad1c[0xc];
     u8* m28;           /* 0x28 */
@@ -191,11 +191,6 @@ void fn_800C25F0(u32 x, u32 y)
     gWinGlobals->screen->m48 = 1;
 }
 
-void fn_800C2618(void)
-{
-    (void)lbl_80343EFC;
-}
-
 /* GS display-register decode block, viewed at lbl_80343EFC+0x18. */
 typedef struct PbFrameDecode {
     /* +0x18 */ s32 frameIdx;
@@ -216,6 +211,172 @@ typedef struct PbFrameDecode {
     /* +0xA0 */ f32 fA0;
     /* +0xA4 */ f32 fA4;
 } PbFrameDecode;
+
+/* Re-pack the decode block back into the GS DISPLAY/DISPFB register shadows
+ * (both field mirrors), refresh the scale ratios, and rebuild PMODE. */
+void fn_800C2618(void)
+{
+    PbFrameDecode* s;
+    u16 th;
+    u8 tb;
+    u8 unused[8];
+
+    if (lbl_80343EFC->m14 != 0) {
+        s = (PbFrameDecode*)&lbl_80343EFC->m18;
+        if (s->m28 != 0) {
+            s->f64 = (f32)(s32)s->m5C / (f32)(s32)s->m54;
+            s->f68 = (f32)(s32)s->m60 / (f32)(s32)s->m58;
+            s->fA0 = (f32)(s32)s->m98 / (f32)(s32)s->m90;
+            s->fA4 = (f32)(s32)s->m9C / (f32)(s32)s->m94;
+
+            th = s->m34;
+            *(u16*)(s->regs + 0x1E0) =
+                (th << 7) | (*(u16*)(s->regs + 0x1E0) & 0x7F);
+            tb = s->m3C;
+            *(u8*)(s->regs + 0x1E1) =
+                (tb << 1) | (*(u8*)(s->regs + 0x1E1) & 0x81);
+            *(u32*)(s->regs + 0x1E0) = ((s->m40 & 0x1F) << 12) |
+                                       (*(u32*)(s->regs + 0x1E0) & 0xFFFE0FFF);
+            th = s->m44;
+            *(u16*)(s->regs + 0x1E4) =
+                (th << 5) | (*(u16*)(s->regs + 0x1E4) & 0x1F);
+            *(u32*)(s->regs + 0x1E4) = ((s->m48 & 0x7FF) << 10) |
+                                       (*(u32*)(s->regs + 0x1E4) & 0xFFE003FF);
+            th = s->m4C;
+            *(u16*)(s->regs + 0x1E8) =
+                (th << 4) | (*(u16*)(s->regs + 0x1E8) & 0xF);
+            *(u32*)(s->regs + 0x1E8) = ((s->m50 & 0x7FF) << 9) |
+                                       (*(u32*)(s->regs + 0x1E8) & 0xFFF001FF);
+            th = s->m54;
+            *(u16*)(s->regs + 0x1EA) = ((th << 5) & 0x1E0) |
+                (*(u16*)(s->regs + 0x1EA) & 0xFE1F);
+            tb = s->m58;
+            *(u8*)(s->regs + 0x1EB) = ((tb << 3) & 0x18) |
+                (*(u8*)(s->regs + 0x1EB) & 0xE7);
+            th = s->m5C;
+            *(u16*)(s->regs + 0x1EC) =
+                (th << 4) | (*(u16*)(s->regs + 0x1EC) & 0xF);
+            *(u32*)(s->regs + 0x1EC) = ((s->m60 & 0x7FF) << 9) |
+                                       (*(u32*)(s->regs + 0x1EC) & 0xFFF001FF);
+            th = s->m70;
+            *(u16*)(s->regs + 0x1F0) =
+                (th << 7) | (*(u16*)(s->regs + 0x1F0) & 0x7F);
+            tb = s->m78;
+            *(u8*)(s->regs + 0x1F1) =
+                (tb << 1) | (*(u8*)(s->regs + 0x1F1) & 0x81);
+            *(u32*)(s->regs + 0x1F0) = ((s->m7C & 0x1F) << 12) |
+                                       (*(u32*)(s->regs + 0x1F0) & 0xFFFE0FFF);
+            th = s->m80;
+            *(u16*)(s->regs + 0x1F4) =
+                (th << 5) | (*(u16*)(s->regs + 0x1F4) & 0x1F);
+            *(u32*)(s->regs + 0x1F4) = ((s->m84 & 0x7FF) << 10) |
+                                       (*(u32*)(s->regs + 0x1F4) & 0xFFE003FF);
+            th = s->m88;
+            *(u16*)(s->regs + 0x1F8) =
+                (th << 4) | (*(u16*)(s->regs + 0x1F8) & 0xF);
+            *(u32*)(s->regs + 0x1F8) = ((s->m8C & 0x7FF) << 9) |
+                                       (*(u32*)(s->regs + 0x1F8) & 0xFFF001FF);
+            th = s->m90;
+            *(u16*)(s->regs + 0x1FA) = ((th << 5) & 0x1E0) |
+                (*(u16*)(s->regs + 0x1FA) & 0xFE1F);
+            tb = s->m94;
+            *(u8*)(s->regs + 0x1FB) = ((tb << 3) & 0x18) |
+                (*(u8*)(s->regs + 0x1FB) & 0xE7);
+            th = s->m98;
+            *(u16*)(s->regs + 0x1FC) =
+                (th << 4) | (*(u16*)(s->regs + 0x1FC) & 0xF);
+            *(u32*)(s->regs + 0x1FC) = ((s->m9C & 0x7FF) << 9) |
+                                       (*(u32*)(s->regs + 0x1FC) & 0xFFF001FF);
+
+            th = s->m38;
+            *(u16*)(s->regs + 0x3E0) =
+                (th << 7) | (*(u16*)(s->regs + 0x3E0) & 0x7F);
+            tb = s->m3C;
+            *(u8*)(s->regs + 0x3E1) =
+                (tb << 1) | (*(u8*)(s->regs + 0x3E1) & 0x81);
+            *(u32*)(s->regs + 0x3E0) = ((s->m40 & 0x1F) << 12) |
+                                       (*(u32*)(s->regs + 0x3E0) & 0xFFFE0FFF);
+            th = s->m44;
+            *(u16*)(s->regs + 0x3E4) =
+                (th << 5) | (*(u16*)(s->regs + 0x3E4) & 0x1F);
+            *(u32*)(s->regs + 0x3E4) = ((s->m48 & 0x7FF) << 10) |
+                                       (*(u32*)(s->regs + 0x3E4) & 0xFFE003FF);
+            th = s->m4C;
+            *(u16*)(s->regs + 0x3E8) =
+                (th << 4) | (*(u16*)(s->regs + 0x3E8) & 0xF);
+            *(u32*)(s->regs + 0x3E8) = ((s->m50 & 0x7FF) << 9) |
+                                       (*(u32*)(s->regs + 0x3E8) & 0xFFF001FF);
+            th = s->m54;
+            *(u16*)(s->regs + 0x3EA) = ((th << 5) & 0x1E0) |
+                (*(u16*)(s->regs + 0x3EA) & 0xFE1F);
+            tb = s->m58;
+            *(u8*)(s->regs + 0x3EB) = ((tb << 3) & 0x18) |
+                (*(u8*)(s->regs + 0x3EB) & 0xE7);
+            th = s->m5C;
+            *(u16*)(s->regs + 0x3EC) =
+                (th << 4) | (*(u16*)(s->regs + 0x3EC) & 0xF);
+            *(u32*)(s->regs + 0x3EC) = ((s->m60 & 0x7FF) << 9) |
+                                       (*(u32*)(s->regs + 0x3EC) & 0xFFF001FF);
+            th = s->m74;
+            *(u16*)(s->regs + 0x3F0) =
+                (th << 7) | (*(u16*)(s->regs + 0x3F0) & 0x7F);
+            tb = s->m78;
+            *(u8*)(s->regs + 0x3F1) =
+                (tb << 1) | (*(u8*)(s->regs + 0x3F1) & 0x81);
+            *(u32*)(s->regs + 0x3F0) = ((s->m7C & 0x1F) << 12) |
+                                       (*(u32*)(s->regs + 0x3F0) & 0xFFFE0FFF);
+            th = s->m80;
+            *(u16*)(s->regs + 0x3F4) =
+                (th << 5) | (*(u16*)(s->regs + 0x3F4) & 0x1F);
+            *(u32*)(s->regs + 0x3F4) = ((s->m84 & 0x7FF) << 10) |
+                                       (*(u32*)(s->regs + 0x3F4) & 0xFFE003FF);
+            th = s->m88;
+            *(u16*)(s->regs + 0x3F8) =
+                (th << 4) | (*(u16*)(s->regs + 0x3F8) & 0xF);
+            *(u32*)(s->regs + 0x3F8) = ((s->m8C & 0x7FF) << 9) |
+                                       (*(u32*)(s->regs + 0x3F8) & 0xFFF001FF);
+            th = s->m90;
+            *(u16*)(s->regs + 0x3FA) = ((th << 5) & 0x1E0) |
+                (*(u16*)(s->regs + 0x3FA) & 0xFE1F);
+            tb = s->m94;
+            *(u8*)(s->regs + 0x3FB) = ((tb << 3) & 0x18) |
+                (*(u8*)(s->regs + 0x3FB) & 0xE7);
+            th = s->m98;
+            *(u16*)(s->regs + 0x3FC) =
+                (th << 4) | (*(u16*)(s->regs + 0x3FC) & 0xF);
+            *(u32*)(s->regs + 0x3FC) = ((s->m9C & 0x7FF) << 9) |
+                                       (*(u32*)(s->regs + 0x3FC) & 0xFFF001FF);
+
+            tb = s->m30;
+            *(u8*)(s->regs + 0x1C0) =
+                (tb << 7) | (*(u8*)(s->regs + 0x1C0) & 0x7F);
+            tb = s->m6C;
+            *(u8*)(s->regs + 0x1C0) = ((tb << 6) & 0x40) |
+                (*(u8*)(s->regs + 0x1C0) & 0xBF);
+            *(u8*)(s->regs + 0x1C1) = s->m1C;
+            *(u64*)(s->regs + 0x1C8) = *(u64*)(s->regs + 0x1C0);
+            tb = s->m30;
+            *(u8*)(s->regs + 0x3C0) =
+                (tb << 7) | (*(u8*)(s->regs + 0x3C0) & 0x7F);
+            tb = s->m6C;
+            *(u8*)(s->regs + 0x3C0) = ((tb << 6) & 0x40) |
+                (*(u8*)(s->regs + 0x3C0) & 0xBF);
+            *(u8*)(s->regs + 0x3C1) = s->m1C;
+            *(u64*)(s->regs + 0x3C8) = *(u64*)(s->regs + 0x3C0);
+
+            *(u64*)(s->m28 + 0x1D0) = *(u64*)(s->m28 + 0x1D0) & ~3;
+            *(s64*)(s->m28 + 0x1D0) = *(s64*)(s->m28 + 0x1D0) | (s32)s->m20;
+            *(s64*)(s->m28 + 0x1D0) =
+                *(s64*)(s->m28 + 0x1D0) | (s32)(s->m24 << 1);
+            *(u64*)(s->m28 + 0x3D0) = *(u64*)(s->m28 + 0x3D0) & ~3;
+            *(s64*)(s->m28 + 0x3D0) = *(s64*)(s->m28 + 0x3D0) | (s32)s->m20;
+            *(s64*)(s->m28 + 0x3D0) =
+                *(s64*)(s->m28 + 0x3D0) | (s32)(s->m24 << 1);
+        }
+    }
+}
+
+
 
 /* Unpack the latched GS DISPLAY/DISPFB register shadows into the decode
  * block (widths, positions, magnifications) and derive the scale ratios. */
