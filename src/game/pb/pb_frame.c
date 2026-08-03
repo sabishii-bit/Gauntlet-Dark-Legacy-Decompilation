@@ -191,6 +191,13 @@ void fn_800C25F0(u32 x, u32 y)
     gWinGlobals->screen->m48 = 1;
 }
 
+typedef struct GsPmodeView {
+    u8  _pad0[0x1D0];
+    s64 pmode1;        /* 0x1D0 */
+    u8  _pad1d8[0x1F8];
+    s64 pmode2;        /* 0x3D0 */
+} GsPmodeView;
+
 /* GS display-register decode block, viewed at lbl_80343EFC+0x18. */
 typedef struct PbFrameDecode {
     /* +0x18 */ s32 frameIdx;
@@ -198,7 +205,7 @@ typedef struct PbFrameDecode {
     u8 _pad1d[3];
     /* +0x20 */ u32 m20;
     /* +0x24 */ u32 m24;
-    /* +0x28 */ u8* m28;
+    /* +0x28 */ GsPmodeView* m28;
     /* +0x2C */ u8* regs;
     /* +0x30 */ u32 m30;
     /* +0x34 */ u32 m34;
@@ -212,13 +219,24 @@ typedef struct PbFrameDecode {
     /* +0xA4 */ f32 fA4;
 } PbFrameDecode;
 
+/* GS register bitfield overlays (write shapes for fn_800C2618). */
+typedef struct GsFldH9 { u16 hi : 9; u16 lo : 7; } GsFldH9;
+typedef struct GsFldB6 { u8 top : 1; u8 mid : 6; u8 low : 1; } GsFldB6;
+typedef struct GsFldW5 { u32 a : 15; u32 b : 5; u32 c : 12; } GsFldW5;
+typedef struct GsFldH11 { u16 hi : 11; u16 lo : 5; } GsFldH11;
+typedef struct GsFldW11a { u32 a : 11; u32 b : 11; u32 c : 10; } GsFldW11a;
+typedef struct GsFldH12 { u16 hi : 12; u16 lo : 4; } GsFldH12;
+typedef struct GsFldW11b { u32 a : 12; u32 b : 11; u32 c : 9; } GsFldW11b;
+typedef struct GsFldH4 { u16 a : 7; u16 b : 4; u16 c : 5; } GsFldH4;
+typedef struct GsFldB2 { u8 a : 3; u8 b : 2; u8 c : 3; } GsFldB2;
+typedef struct GsFldB1a { u8 a : 1; u8 rest : 7; } GsFldB1a;
+typedef struct GsFldB1b { u8 a : 1; u8 b : 1; u8 rest : 6; } GsFldB1b;
+
 /* Re-pack the decode block back into the GS DISPLAY/DISPFB register shadows
  * (both field mirrors), refresh the scale ratios, and rebuild PMODE. */
 void fn_800C2618(void)
 {
     PbFrameDecode* s;
-    u16 th;
-    u8 tb;
     u8 unused[8];
 
     if (lbl_80343EFC->m14 != 0) {
@@ -229,149 +247,67 @@ void fn_800C2618(void)
             s->fA0 = (f32)(s32)s->m98 / (f32)(s32)s->m90;
             s->fA4 = (f32)(s32)s->m9C / (f32)(s32)s->m94;
 
-            th = s->m34;
-            *(u16*)(s->regs + 0x1E0) =
-                (th << 7) | (*(u16*)(s->regs + 0x1E0) & 0x7F);
-            tb = s->m3C;
-            *(u8*)(s->regs + 0x1E1) =
-                (tb << 1) | (*(u8*)(s->regs + 0x1E1) & 0x81);
-            *(u32*)(s->regs + 0x1E0) = ((s->m40 & 0x1F) << 12) |
-                                       (*(u32*)(s->regs + 0x1E0) & 0xFFFE0FFF);
-            th = s->m44;
-            *(u16*)(s->regs + 0x1E4) =
-                (th << 5) | (*(u16*)(s->regs + 0x1E4) & 0x1F);
-            *(u32*)(s->regs + 0x1E4) = ((s->m48 & 0x7FF) << 10) |
-                                       (*(u32*)(s->regs + 0x1E4) & 0xFFE003FF);
-            th = s->m4C;
-            *(u16*)(s->regs + 0x1E8) =
-                (th << 4) | (*(u16*)(s->regs + 0x1E8) & 0xF);
-            *(u32*)(s->regs + 0x1E8) = ((s->m50 & 0x7FF) << 9) |
-                                       (*(u32*)(s->regs + 0x1E8) & 0xFFF001FF);
-            th = s->m54;
-            *(u16*)(s->regs + 0x1EA) = ((th << 5) & 0x1E0) |
-                (*(u16*)(s->regs + 0x1EA) & 0xFE1F);
-            tb = s->m58;
-            *(u8*)(s->regs + 0x1EB) = ((tb << 3) & 0x18) |
-                (*(u8*)(s->regs + 0x1EB) & 0xE7);
-            th = s->m5C;
-            *(u16*)(s->regs + 0x1EC) =
-                (th << 4) | (*(u16*)(s->regs + 0x1EC) & 0xF);
-            *(u32*)(s->regs + 0x1EC) = ((s->m60 & 0x7FF) << 9) |
-                                       (*(u32*)(s->regs + 0x1EC) & 0xFFF001FF);
-            th = s->m70;
-            *(u16*)(s->regs + 0x1F0) =
-                (th << 7) | (*(u16*)(s->regs + 0x1F0) & 0x7F);
-            tb = s->m78;
-            *(u8*)(s->regs + 0x1F1) =
-                (tb << 1) | (*(u8*)(s->regs + 0x1F1) & 0x81);
-            *(u32*)(s->regs + 0x1F0) = ((s->m7C & 0x1F) << 12) |
-                                       (*(u32*)(s->regs + 0x1F0) & 0xFFFE0FFF);
-            th = s->m80;
-            *(u16*)(s->regs + 0x1F4) =
-                (th << 5) | (*(u16*)(s->regs + 0x1F4) & 0x1F);
-            *(u32*)(s->regs + 0x1F4) = ((s->m84 & 0x7FF) << 10) |
-                                       (*(u32*)(s->regs + 0x1F4) & 0xFFE003FF);
-            th = s->m88;
-            *(u16*)(s->regs + 0x1F8) =
-                (th << 4) | (*(u16*)(s->regs + 0x1F8) & 0xF);
-            *(u32*)(s->regs + 0x1F8) = ((s->m8C & 0x7FF) << 9) |
-                                       (*(u32*)(s->regs + 0x1F8) & 0xFFF001FF);
-            th = s->m90;
-            *(u16*)(s->regs + 0x1FA) = ((th << 5) & 0x1E0) |
-                (*(u16*)(s->regs + 0x1FA) & 0xFE1F);
-            tb = s->m94;
-            *(u8*)(s->regs + 0x1FB) = ((tb << 3) & 0x18) |
-                (*(u8*)(s->regs + 0x1FB) & 0xE7);
-            th = s->m98;
-            *(u16*)(s->regs + 0x1FC) =
-                (th << 4) | (*(u16*)(s->regs + 0x1FC) & 0xF);
-            *(u32*)(s->regs + 0x1FC) = ((s->m9C & 0x7FF) << 9) |
-                                       (*(u32*)(s->regs + 0x1FC) & 0xFFF001FF);
+            ((GsFldH9*)(s->regs + 0x1E0))->hi = (u16)s->m34;
+            ((GsFldB6*)(s->regs + 0x1E1))->mid = (u8)s->m3C;
+            ((GsFldW5*)(s->regs + 0x1E0))->b = s->m40;
+            ((GsFldH11*)(s->regs + 0x1E4))->hi = (u16)s->m44;
+            ((GsFldW11a*)(s->regs + 0x1E4))->b = s->m48;
+            ((GsFldH12*)(s->regs + 0x1E8))->hi = (u16)s->m4C;
+            ((GsFldW11b*)(s->regs + 0x1E8))->b = s->m50;
+            ((GsFldH4*)(s->regs + 0x1EA))->b = (u16)s->m54;
+            ((GsFldB2*)(s->regs + 0x1EB))->b = (u8)s->m58;
+            ((GsFldH12*)(s->regs + 0x1EC))->hi = (u16)s->m5C;
+            ((GsFldW11b*)(s->regs + 0x1EC))->b = s->m60;
+            ((GsFldH9*)(s->regs + 0x1F0))->hi = (u16)s->m70;
+            ((GsFldB6*)(s->regs + 0x1F1))->mid = (u8)s->m78;
+            ((GsFldW5*)(s->regs + 0x1F0))->b = s->m7C;
+            ((GsFldH11*)(s->regs + 0x1F4))->hi = (u16)s->m80;
+            ((GsFldW11a*)(s->regs + 0x1F4))->b = s->m84;
+            ((GsFldH12*)(s->regs + 0x1F8))->hi = (u16)s->m88;
+            ((GsFldW11b*)(s->regs + 0x1F8))->b = s->m8C;
+            ((GsFldH4*)(s->regs + 0x1FA))->b = (u16)s->m90;
+            ((GsFldB2*)(s->regs + 0x1FB))->b = (u8)s->m94;
+            ((GsFldH12*)(s->regs + 0x1FC))->hi = (u16)s->m98;
+            ((GsFldW11b*)(s->regs + 0x1FC))->b = s->m9C;
 
-            th = s->m38;
-            *(u16*)(s->regs + 0x3E0) =
-                (th << 7) | (*(u16*)(s->regs + 0x3E0) & 0x7F);
-            tb = s->m3C;
-            *(u8*)(s->regs + 0x3E1) =
-                (tb << 1) | (*(u8*)(s->regs + 0x3E1) & 0x81);
-            *(u32*)(s->regs + 0x3E0) = ((s->m40 & 0x1F) << 12) |
-                                       (*(u32*)(s->regs + 0x3E0) & 0xFFFE0FFF);
-            th = s->m44;
-            *(u16*)(s->regs + 0x3E4) =
-                (th << 5) | (*(u16*)(s->regs + 0x3E4) & 0x1F);
-            *(u32*)(s->regs + 0x3E4) = ((s->m48 & 0x7FF) << 10) |
-                                       (*(u32*)(s->regs + 0x3E4) & 0xFFE003FF);
-            th = s->m4C;
-            *(u16*)(s->regs + 0x3E8) =
-                (th << 4) | (*(u16*)(s->regs + 0x3E8) & 0xF);
-            *(u32*)(s->regs + 0x3E8) = ((s->m50 & 0x7FF) << 9) |
-                                       (*(u32*)(s->regs + 0x3E8) & 0xFFF001FF);
-            th = s->m54;
-            *(u16*)(s->regs + 0x3EA) = ((th << 5) & 0x1E0) |
-                (*(u16*)(s->regs + 0x3EA) & 0xFE1F);
-            tb = s->m58;
-            *(u8*)(s->regs + 0x3EB) = ((tb << 3) & 0x18) |
-                (*(u8*)(s->regs + 0x3EB) & 0xE7);
-            th = s->m5C;
-            *(u16*)(s->regs + 0x3EC) =
-                (th << 4) | (*(u16*)(s->regs + 0x3EC) & 0xF);
-            *(u32*)(s->regs + 0x3EC) = ((s->m60 & 0x7FF) << 9) |
-                                       (*(u32*)(s->regs + 0x3EC) & 0xFFF001FF);
-            th = s->m74;
-            *(u16*)(s->regs + 0x3F0) =
-                (th << 7) | (*(u16*)(s->regs + 0x3F0) & 0x7F);
-            tb = s->m78;
-            *(u8*)(s->regs + 0x3F1) =
-                (tb << 1) | (*(u8*)(s->regs + 0x3F1) & 0x81);
-            *(u32*)(s->regs + 0x3F0) = ((s->m7C & 0x1F) << 12) |
-                                       (*(u32*)(s->regs + 0x3F0) & 0xFFFE0FFF);
-            th = s->m80;
-            *(u16*)(s->regs + 0x3F4) =
-                (th << 5) | (*(u16*)(s->regs + 0x3F4) & 0x1F);
-            *(u32*)(s->regs + 0x3F4) = ((s->m84 & 0x7FF) << 10) |
-                                       (*(u32*)(s->regs + 0x3F4) & 0xFFE003FF);
-            th = s->m88;
-            *(u16*)(s->regs + 0x3F8) =
-                (th << 4) | (*(u16*)(s->regs + 0x3F8) & 0xF);
-            *(u32*)(s->regs + 0x3F8) = ((s->m8C & 0x7FF) << 9) |
-                                       (*(u32*)(s->regs + 0x3F8) & 0xFFF001FF);
-            th = s->m90;
-            *(u16*)(s->regs + 0x3FA) = ((th << 5) & 0x1E0) |
-                (*(u16*)(s->regs + 0x3FA) & 0xFE1F);
-            tb = s->m94;
-            *(u8*)(s->regs + 0x3FB) = ((tb << 3) & 0x18) |
-                (*(u8*)(s->regs + 0x3FB) & 0xE7);
-            th = s->m98;
-            *(u16*)(s->regs + 0x3FC) =
-                (th << 4) | (*(u16*)(s->regs + 0x3FC) & 0xF);
-            *(u32*)(s->regs + 0x3FC) = ((s->m9C & 0x7FF) << 9) |
-                                       (*(u32*)(s->regs + 0x3FC) & 0xFFF001FF);
+            ((GsFldH9*)(s->regs + 0x3E0))->hi = (u16)s->m38;
+            ((GsFldB6*)(s->regs + 0x3E1))->mid = (u8)s->m3C;
+            ((GsFldW5*)(s->regs + 0x3E0))->b = s->m40;
+            ((GsFldH11*)(s->regs + 0x3E4))->hi = (u16)s->m44;
+            ((GsFldW11a*)(s->regs + 0x3E4))->b = s->m48;
+            ((GsFldH12*)(s->regs + 0x3E8))->hi = (u16)s->m4C;
+            ((GsFldW11b*)(s->regs + 0x3E8))->b = s->m50;
+            ((GsFldH4*)(s->regs + 0x3EA))->b = (u16)s->m54;
+            ((GsFldB2*)(s->regs + 0x3EB))->b = (u8)s->m58;
+            ((GsFldH12*)(s->regs + 0x3EC))->hi = (u16)s->m5C;
+            ((GsFldW11b*)(s->regs + 0x3EC))->b = s->m60;
+            ((GsFldH9*)(s->regs + 0x3F0))->hi = (u16)s->m74;
+            ((GsFldB6*)(s->regs + 0x3F1))->mid = (u8)s->m78;
+            ((GsFldW5*)(s->regs + 0x3F0))->b = s->m7C;
+            ((GsFldH11*)(s->regs + 0x3F4))->hi = (u16)s->m80;
+            ((GsFldW11a*)(s->regs + 0x3F4))->b = s->m84;
+            ((GsFldH12*)(s->regs + 0x3F8))->hi = (u16)s->m88;
+            ((GsFldW11b*)(s->regs + 0x3F8))->b = s->m8C;
+            ((GsFldH4*)(s->regs + 0x3FA))->b = (u16)s->m90;
+            ((GsFldB2*)(s->regs + 0x3FB))->b = (u8)s->m94;
+            ((GsFldH12*)(s->regs + 0x3FC))->hi = (u16)s->m98;
+            ((GsFldW11b*)(s->regs + 0x3FC))->b = s->m9C;
 
-            tb = s->m30;
-            *(u8*)(s->regs + 0x1C0) =
-                (tb << 7) | (*(u8*)(s->regs + 0x1C0) & 0x7F);
-            tb = s->m6C;
-            *(u8*)(s->regs + 0x1C0) = ((tb << 6) & 0x40) |
-                (*(u8*)(s->regs + 0x1C0) & 0xBF);
+            ((GsFldB1a*)(s->regs + 0x1C0))->a = (u8)s->m30;
+            ((GsFldB1b*)(s->regs + 0x1C0))->b = (u8)s->m6C;
             *(u8*)(s->regs + 0x1C1) = s->m1C;
-            *(u64*)(s->regs + 0x1C8) = *(u64*)(s->regs + 0x1C0);
-            tb = s->m30;
-            *(u8*)(s->regs + 0x3C0) =
-                (tb << 7) | (*(u8*)(s->regs + 0x3C0) & 0x7F);
-            tb = s->m6C;
-            *(u8*)(s->regs + 0x3C0) = ((tb << 6) & 0x40) |
-                (*(u8*)(s->regs + 0x3C0) & 0xBF);
+            *(f64*)(s->regs + 0x1C8) = *(f64*)(s->regs + 0x1C0);
+            ((GsFldB1a*)(s->regs + 0x3C0))->a = (u8)s->m30;
+            ((GsFldB1b*)(s->regs + 0x3C0))->b = (u8)s->m6C;
             *(u8*)(s->regs + 0x3C1) = s->m1C;
-            *(u64*)(s->regs + 0x3C8) = *(u64*)(s->regs + 0x3C0);
+            *(f64*)(s->regs + 0x3C8) = *(f64*)(s->regs + 0x3C0);
 
-            *(u64*)(s->m28 + 0x1D0) = *(u64*)(s->m28 + 0x1D0) & ~3;
-            *(s64*)(s->m28 + 0x1D0) = *(s64*)(s->m28 + 0x1D0) | (s32)s->m20;
-            *(s64*)(s->m28 + 0x1D0) =
-                *(s64*)(s->m28 + 0x1D0) | (s32)(s->m24 << 1);
-            *(u64*)(s->m28 + 0x3D0) = *(u64*)(s->m28 + 0x3D0) & ~3;
-            *(s64*)(s->m28 + 0x3D0) = *(s64*)(s->m28 + 0x3D0) | (s32)s->m20;
-            *(s64*)(s->m28 + 0x3D0) =
-                *(s64*)(s->m28 + 0x3D0) | (s32)(s->m24 << 1);
+            s->m28->pmode1 &= ~3;
+            s->m28->pmode1 |= (s32)s->m20;
+            s->m28->pmode1 |= (s32)(s->m24 << 1);
+            s->m28->pmode2 &= ~3;
+            s->m28->pmode2 |= (s32)s->m20;
+            s->m28->pmode2 |= (s32)(s->m24 << 1);
         }
     }
 }
@@ -413,8 +349,8 @@ void fn_800C2C74(void)
         s->m30 = (*(u8*)(s->regs + 0x1C0) >> 7) & 1;
         s->m6C = (*(u8*)(s->regs + 0x1C0) >> 6) & 1;
         s->m1C = *(u8*)(s->regs + 0x1C1);
-        s->m20 = (u32)(*(u64*)(s->m28 + 0x1D0) & 1);
-        s->m24 = (u32)(*(u64*)(s->m28 + 0x1D0) & 2);
+        s->m20 = (u32)(*(u64*)((u8*)s->m28 + 0x1D0) & 1);
+        s->m24 = (u32)(*(u64*)((u8*)s->m28 + 0x1D0) & 2);
         s->f64 = (f32)(s32)s->m5C / (f32)(s32)s->m54;
         s->f68 = (f32)(s32)s->m60 / (f32)(s32)s->m58;
         s->fA0 = (f32)(s32)s->m98 / (f32)(s32)s->m90;
