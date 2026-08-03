@@ -61,6 +61,20 @@ extern FloorCollisionResult gFloorCollisionResult;
 typedef double f64;
 extern f64 lbl_80345730, lbl_80345738, lbl_803457A0, lbl_803457A8;
 extern f32 lbl_80344164, lbl_80345764;
+
+/* world grid description (0x8028CA8C block; only the walk fields typed) */
+typedef struct WorldGridInfo {
+    u8  _pad00[72];
+    f32 cellW;    /* 0x48 world units per grid cell */
+    f32 invCell;  /* 0x4C 1 / cellW                 */
+    s32 gridW;    /* 0x50 cells across (X)          */
+    s32 gridD;    /* 0x54 cells deep (Z)            */
+} WorldGridInfo;
+extern WorldGridInfo gWorldInfo;
+extern f32 lbl_80344168, lbl_8034416C, lbl_80344170, lbl_80344174,
+    lbl_80344178, lbl_8034417C;
+extern char lbl_80110720[]; /* "GRID ERROR" */
+void FatalError(const char* msg, int code);
 extern u8 gIdentityMatrix[], lbl_80127DA0[];
 void CopyMat3(void* src, void* dst);   /* 0x800BE8C8 */
 f32 NormalVector(f32* v);               /* 0x800BDA98 */
@@ -326,7 +340,99 @@ s32 ExitCollisionEarly(void)
     }
     return result;
 }
-STUB(0x8000DD00, NextGrid)
+/* 0x8000DD00 -- step the grid walk to the next cell along the ray.
+ * a = X-direction component (zero = walking straight along Z), b = current
+ * Z-cross for the vertical case, c = dz/dx slope, d = walk radius. */
+static s32 NextGrid(f32 a, f32 b, f32 c, f32 d, s32* gx, s32* gz)
+{
+    s32 xv = *gx;
+    s32 zv = *gz;
+    f32 step;
+    s32 pos;
+    f32 edge;
+    f32 t;
+    s32 idx;
+    f64 z2;
+
+    if (lbl_80345730 == a) {
+        if (b >= lbl_80345730) {
+            step = d;
+            pos = 1;
+            zv = zv + 1;
+        } else {
+            step = -d;
+            pos = 0;
+            zv = zv - 1;
+        }
+        edge = (f32)(xv + 1) * gWorldInfo.cellW + lbl_80344178;
+    } else {
+        if (c >= lbl_80345730) {
+            step = d;
+            pos = 1;
+            zv = zv + 1;
+        } else {
+            step = -d;
+            pos = 0;
+            zv = zv - 1;
+        }
+        edge = (f32)(xv + 1) * gWorldInfo.cellW + lbl_80344178;
+        b = c * (edge - lbl_80344168);
+    }
+
+    if (zv >= 0 && zv < gWorldInfo.gridD) {
+        t = lbl_80345724 * step + (lbl_8034416C + b);
+        if (pos != 0) {
+            if (t > lbl_80344174) {
+                t = lbl_80344174;
+            }
+            if (zv <= (s32)(gWorldInfo.invCell * (t - lbl_8034417C))) {
+                *gz = zv;
+                return 1;
+            }
+        } else {
+            if (t < lbl_80344174) {
+                t = lbl_80344174;
+            }
+            if (zv >= (s32)(gWorldInfo.invCell * (t - lbl_8034417C))) {
+                *gz = zv;
+                return 1;
+            }
+        }
+    }
+
+    if (edge > lbl_80344170) {
+        return 0;
+    }
+    if (xv + 1 >= gWorldInfo.gridW) {
+        return 0;
+    }
+    z2 = lbl_80345730;
+    if (z2 == a || edge - lbl_80344168 < lbl_80345724 * d) {
+        t = lbl_8034416C;
+    } else {
+        edge = edge + gWorldInfo.cellW;
+        b = edge - (lbl_80344168 + lbl_80345724 * d);
+        if (b > z2) {
+            t = b * c + lbl_8034416C;
+        } else {
+            t = lbl_8034416C;
+        }
+    }
+    if ((pos != 0 && t > lbl_80344174) || (pos == 0 && t < lbl_80344174)) {
+        t = lbl_80344174;
+    }
+    idx = (s32)(gWorldInfo.invCell * (t - lbl_8034417C));
+    if ((s32)(gWorldInfo.invCell * (t - lbl_8034417C)) < gWorldInfo.gridD &&
+        idx >= 0) {
+        *gx = xv + 1;
+        *gz = idx;
+        if (xv + 1 < 0 || idx < 0) {
+            FatalError(lbl_80110720, 0x800000);
+        }
+        return 1;
+    }
+    return 0;
+}
 STUB(0x8000DFEC, WorldObjCollide)
 STUB(0x8000E3B8, CTriListCollide)
 /* CreateMat3Norm @0x8000E674 -- build an orthonormal basis whose Y axis is the
