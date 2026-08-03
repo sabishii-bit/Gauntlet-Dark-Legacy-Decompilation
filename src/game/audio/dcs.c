@@ -104,8 +104,11 @@ extern s32 lbl_802C9ED8[];
 extern u16 lbl_802EFF5E[];
 extern u16 lbl_802F0F60[];
 typedef struct DcsData {
-    DcsBankData banks[16];        /* 0x00 */
-    DcsSampleData samples[2048];  /* 0x80, stride 0x4C */
+    DcsBankData banks[16];        /* 0x00000 */
+    DcsSampleData samples[2048];  /* 0x00080, stride 0x4C */
+    u16 callStart[2048];          /* 0x26080 first-instr index per call */
+    u16 callInstr[10240];         /* 0x27080 call instruction stream */
+    /* 0x2C080: staging pool node area (lbl_802F5F60) */
 } DcsData;
 extern DcsData dcsBankData;
 extern DcsChannelInfo ch_info[12];
@@ -163,6 +166,7 @@ s32 dcsReadCalls(void* file, u32* header);
 s32 dcsReadVags(void* file, u32* header);
 s32 dcsBankCheckSamples(int start, int shift);
 s32 dcsSampleUpload(void* state, u32 uploadArg);
+s32 BankParseHeader(u32* header, s32* byteSwapped, u32* version);
 s32 VagParseHeader(void* file, u32* header, DcsSampleData* sample);
 extern void listVerifyHook(void);
 extern char lbl_80116F58[];   /* "DCSERROR: " + trailing dcs string pool */
@@ -567,7 +571,119 @@ s32 dcsReadVags(void* file, u32* header) {
 
 /* 0x800D2CEC  read the bank call list (readCalls) */
 s32 dcsReadCalls(void* file, u32* header) {
-    return 0;
+    char* strs = lbl_80116F58;
+    DcsData* d = &dcsBankData;
+    s32 result = 1;
+    s32 swap;
+    s32 fmt;
+    u16* dst;
+    u16* end;
+    u32* src;
+    s32 count;
+    s32 half;
+    s32 i;
+
+    if (BankParseHeader(header, &swap, (u32*)&fmt) >= 0) {
+        result = 0;
+        dst = &d->callInstr[lbl_80345204];
+        count = header[3];
+        switch (fmt) {
+        case 256:
+            if (((u32)dst & 3) != 0) {
+                src = (u32*)((u8*)dst + 2);
+            } else {
+                src = (u32*)dst;
+            }
+            if (header[1] != FileBufGet(file, src, header[1])) {
+                printf(strs);
+                printf(strs + 124);
+                result = 1;
+                goto done;
+            }
+            end = &d->callInstr[lbl_80345204 + (s32)header[1] / 4];
+            for (; count != 0; count--) {
+                if (lbl_80345200 >= 2048) {
+                    printf(strs);
+                    printf(strs + 156);
+                    goto done;
+                }
+                d->callStart[lbl_80345200] = lbl_80345204;
+                if (lbl_80345204 + 4 > 10240) {
+                    printf(strs);
+                    printf(strs + 188);
+                    goto done;
+                }
+                if (dst > end) {
+                    printf(strs);
+                    printf(strs + 228);
+                    goto done;
+                }
+                if (swap != 0) {
+                    src[0] = DCS_SWAP32(src[0]);
+                    src[1] = DCS_SWAP32(src[1]);
+                    src[2] = DCS_SWAP32(src[2]);
+                    src[3] = DCS_SWAP32(src[3]);
+                }
+                dst[0] = src[0] | 0x8000;
+                dst[1] = src[1];
+                dst[2] = src[3];
+                dst[3] = (src[2] != 0 ? 0x8000 : 0) | 0x7F;
+                dst += 4;
+                src += 4;
+                lbl_80345204 = lbl_80345204 + 4;
+                lbl_80345200 = lbl_80345200 + 1;
+            }
+            break;
+        default:
+            if (header[1] != FileBufGet(file, dst, header[1])) {
+                printf(strs);
+                printf(strs + 124);
+                result = 1;
+                goto done;
+            }
+            half = (s32)header[1] / 2;
+            end = &d->callInstr[lbl_80345204 + half];
+            if (swap != 0) {
+                for (i = half - 1; i >= 0; i--) {
+                    dst[i] = (u16)((dst[i] >> 8) | (dst[i] << 8));
+                }
+            }
+            for (; count != 0; count--) {
+                if (lbl_80345200 >= 2048) {
+                    printf(strs);
+                    printf(strs + 156);
+                    goto done;
+                }
+                d->callStart[lbl_80345200] = lbl_80345204;
+                for (;;) {
+                    if (lbl_80345204 + 3 >= 10240) {
+                        printf(strs);
+                        printf(strs + 188);
+                        goto done;
+                    }
+                    if (dst > end) {
+                        printf(strs);
+                        printf(strs + 228);
+                        goto done;
+                    }
+                    lbl_80345204 = lbl_80345204 + 1;
+                    if ((*dst++ & 0x8000) != 0) {
+                        break;
+                    }
+                }
+                lbl_80345204 = lbl_80345204 + 3;
+                dst += 3;
+                lbl_80345200 = lbl_80345200 + 1;
+            }
+            break;
+        }
+        if (dst != end) {
+            printf(strs);
+            printf(strs + 256);
+        }
+    }
+done:
+    return result;
 }
 
 /* 0x800D30B4  validate sample indices (callFixup) */
