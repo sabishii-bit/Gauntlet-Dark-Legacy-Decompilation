@@ -106,6 +106,79 @@ extern void fn_80053A68(s32 arg);
 extern void setup_player_display(s32 player);
 extern void SelectLoadStart(void);
 extern void fn_80053C70(void);
+extern u32 gFrameTicks;
+extern s32 lbl_80343E0C;    /* pile meter top    */
+extern s32 lbl_80343E10;    /* pile meter bottom */
+extern s32 lbl_80343E14;    /* pile meter base   */
+extern f64 lbl_803483B0;    /* pile height -> vert scale */
+extern f32 lbl_8034832C;    /* pile vert coord A */
+extern f32 lbl_80348328;    /* pile vert coord B */
+extern void mbBlitInit3414(void* blit, s32 hide);
+extern void mbBlitProject(void* blit, s32 w, s32 h);
+extern void mbBlitCalcY(void* blit, s32 y);
+extern void mbBlitSetupVerts(void* blit, f32 a, f32 b, f32 c, f32 d);
+
+/* Animate one player gold-pile column toward its target height; returns 0
+ * while the pile is still sinking (drives the count-down loop). */
+s32 show_piles(s32 col)
+{
+    u8* tbl = lbl_802897D0;
+    u8* counts = tbl + col * 12 + 224;
+    u8* pl = gPlayers + col * 13148;
+    s32 result = 1;
+    s32 range = lbl_80343E10 - lbl_80343E0C - lbl_80343E14;
+    s32 adj = gFrameTicks + (gFrameTicks >> 1);
+    s32 n = 3;
+    s32 count = 0;
+    s32 off = 0;
+    u8* blit;
+    u8* slot;
+    s32 gold;
+    s32 cur;
+    s32 tgt;
+    u8* curp;
+    f32 height;
+
+    for (; n != 0; n--) {
+        if (*(s32*)(counts + off) == 0) {
+            break;
+        }
+        count++;
+        off += 4;
+    }
+
+    blit = *(u8**)(tbl + col * 24 + 7504);
+    if (blit == 0) {
+        return 1;
+    }
+    gold = *(s32*)(pl + 7876);
+    slot = tbl + col * 12 + count * 4;
+    curp = slot + 128;
+    cur = *(s32*)(slot + 128);
+    tgt = lbl_80343E14 + gold * range / (*(s32*)(slot + 80) + 1);
+    if (gold == 0) {
+        mbBlitInit3414(blit, 1);
+    } else {
+        mbBlitInit3414(blit, 0);
+        if (tgt < cur) {
+            cur = cur - adj;
+            result = 0;
+            if (cur < tgt) {
+                cur = tgt;
+            }
+        } else {
+            cur = tgt;
+        }
+        height = (f32)((f32)cur * lbl_803483B0);
+        mbBlitCalcY(blit, lbl_80343E10 - cur);
+        mbBlitProject(blit, 0, cur);
+        mbBlitSetupVerts(blit, lbl_8034832C, lbl_80348328, lbl_8034832C,
+                         height);
+        *(s32*)curp = cur;
+    }
+    return result;
+}
+
 /* Enter the between-level shop and launch its asynchronous front-end load. */
 void init_shop(s32 fromMenu)
 {
