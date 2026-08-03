@@ -883,33 +883,27 @@ s32 AdsParseHeader(ADSTREAM* stream, u32* header, u32* body) {
             result = -1;
         }
     } else if (strncmp((char*)headerName, lbl_80349340, 4) == 0) {
-        if (strncmp((char*)bodyName, lbl_80349348, 4) == 0) {
-            value = header[1];
-            header[1] = ((value & 0x00FF0000) >> 8) |
-                        ((value & 0xFF000000) >> 24) |
-                        ((value & 0x000000FF) << 24) |
-                        ((value & 0x0000FF00) << 8);
-            value = header[2];
-            header[2] = (value << 24) | ((value & 0xFF00) << 8) |
-                        ((value >> 8) & 0xFF00) | (value >> 24);
-            value = header[3];
-            header[3] = ((value & 0x00FF0000) >> 8) |
-                        ((value & 0xFF000000) >> 24) |
-                        ((value & 0x000000FF) << 24) |
-                        ((value & 0x0000FF00) << 8);
-            value = header[4];
-            header[4] = (value << 24) | ((value & 0xFF00) << 8) |
-                        ((value >> 8) & 0xFF00) | (value >> 24);
-            value = header[5];
-            header[5] = ((value & 0x00FF0000) >> 8) |
-                        ((value & 0xFF000000) >> 24) |
-                        ((value & 0x000000FF) << 24) |
-                        ((value & 0x0000FF00) << 8);
-            value = body[1];
-            body[1] = (value << 24) | ((value & 0xFF00) << 8) |
-                      ((value >> 8) & 0xFF00) | (value >> 24);
-        } else {
+        if (strncmp((char*)bodyName, lbl_80349348, 4) != 0) {
             result = -1;
+        } else {
+            value = header[1];
+            header[1] = (value << 24) | ((value << 8) & 0x00FF0000) |
+                        (value >> 24) | ((value >> 8) & 0x0000FF00);
+            value = header[2];
+            header[2] = (value << 24) | ((value << 8) & 0x00FF0000) |
+                        (value >> 24) | ((value >> 8) & 0x0000FF00);
+            value = header[3];
+            header[3] = (value << 24) | ((value << 8) & 0x00FF0000) |
+                        (value >> 24) | ((value >> 8) & 0x0000FF00);
+            value = header[4];
+            header[4] = (value << 24) | ((value << 8) & 0x00FF0000) |
+                        (value >> 24) | ((value >> 8) & 0x0000FF00);
+            value = header[5];
+            header[5] = (value << 24) | ((value << 8) & 0x00FF0000) |
+                        (value >> 24) | ((value >> 8) & 0x0000FF00);
+            value = body[1];
+            body[1] = (value << 24) | ((value << 8) & 0x00FF0000) |
+                        (value >> 24) | ((value >> 8) & 0x0000FF00);
         }
     } else {
         result = -1;
