@@ -45,13 +45,17 @@ typedef struct DcsStream {
 } DcsStream;
 
 typedef struct DcsSampleData {
-    u32 aramAddress;
-    u32 swappedLength;
-    u8 _pad08[0x18];
-    u32 sampleRate;
-    u32 length;
-    u16 coefficients[16];
-    u16 predScale;
+    u32 aramAddress;      /* 0x00 ARAM pool node (address/size/links) */
+    u32 swappedLength;    /* 0x04 */
+    u8 _pad08[8];         /* 0x08 */
+    u32 buffer;           /* 0x10 staging RAM pool node (addr) */
+    u32 bufferSize;       /* 0x14 */
+    u32* bufPrev;         /* 0x18 */
+    u32* bufNext;         /* 0x1C */
+    u32 sampleRate;       /* 0x20 nonzero = slot in use */
+    u32 length;           /* 0x24 */
+    u16 coefficients[16]; /* 0x28 */
+    u16 predScale;        /* 0x48 */
     u16 _pad4A;
 } DcsSampleData;
 
@@ -99,7 +103,11 @@ extern DcsSampleData lbl_802C9F60[];
 extern s32 lbl_802C9ED8[];
 extern u16 lbl_802EFF5E[];
 extern u16 lbl_802F0F60[];
-extern DcsBankData dcsBankData[];
+typedef struct DcsData {
+    DcsBankData banks[16];        /* 0x00 */
+    DcsSampleData samples[2048];  /* 0x80, stride 0x4C */
+} DcsData;
+extern DcsData dcsBankData;
 extern DcsChannelInfo ch_info[12];
 extern AXVPB* sVoice[14];
 extern s32 lbl_80343FF8;
@@ -133,7 +141,7 @@ extern void pool_dispose_and_alloc(void* pool, void* node, u32 size, s32 arg, vo
 extern void* pool_alloc_at(void* pool, void* node, u32 size, u32 arg, void* pool2);
 extern ARQRequest dcsSampleReq;
 extern u32 BytesFree(void);
-extern void* AllocHiMem(u32 size, u32 tag);
+extern void* AllocHiMem(); /* K&R: dcsReadVags passes 1 arg, others 2 */
 extern s32 lbl_80345208;
 extern void dcsMemLockTag(s32 slot, u32 tag);
 extern s32 dcsMemLock(void);
@@ -153,6 +161,13 @@ s32 BankReadHeader(void* file, u32* header);
 void dcsSetStreamFlag(DcsStream* stream, s32 looping);
 s32 dcsReadCalls(void* file, u32* header);
 s32 dcsReadVags(void* file, u32* header);
+s32 dcsBankCheckSamples(int start, int shift);
+s32 dcsSampleUpload(void* state, u32 uploadArg);
+s32 VagParseHeader(void* file, u32* header, DcsSampleData* sample);
+extern void listVerifyHook(void);
+extern char lbl_80116F58[];   /* "DCSERROR: " + trailing dcs string pool */
+extern s32 lbl_80345218;      /* free-sample-slot scan cursor */
+extern s32 lbl_803451FC;      /* high-water sample index */
 
 /* 0x800D1E04  trigger/refresh a channel; -> dcsVoiceStart */
 void dcsChannelPlay(s32 value) {
@@ -287,7 +302,7 @@ s32 dcsBankQuery(s32 bank, s32* handle, s32* size) {
 
     if (bank != 0) {
         *handle = (index + result) * 0x1000 + result;
-        *size = dcsBankData[index].size;
+        *size = dcsBankData.banks[index].size;
     } else {
         *handle = 0;
         *size = 0;
@@ -364,7 +379,7 @@ s32 AudioQueUpdate(s32 bank) {
 
 /* 0x800D285C  open file, read bank header/calls/vags */
 s32 dcsBankLoad(void* bank, s32 mode) {
-    DcsBankData* table = dcsBankData;
+    DcsBankData* table = dcsBankData.banks;
     s32 bankNumber = 0;
     s32 error = 0;
     s32 oldCallCount = lbl_80345200;
@@ -450,7 +465,104 @@ s32 dcsBankUnload(void* bank) {
 
 /* 0x800D2A68  read VAG sample table, upload to ARAM (readVags) */
 s32 dcsReadVags(void* file, u32* header) {
-    return 0;
+    char* strs = lbl_80116F58;
+    s32 error = 0;
+    s32 prevEnd = 0;
+    s32 remaining = header[4];
+    s32 slot;
+    DcsSampleData* smp;
+    s32 length;
+    u32 aligned;
+    u32 room;
+    u32* node;
+    u32 buf[12];
+    u8 unused[4];
+
+    while (remaining-- != 0) {
+        if (FileBufGet(file, buf, 48) != 48) {
+            break;
+        }
+
+        if (lbl_80345218 >= 2048) {
+            slot = -1;
+        } else {
+            while (dcsBankData.samples[slot = lbl_80345218].sampleRate != 0) {
+                if ((lbl_80345218 = lbl_80345218 + 1) >= 2048) {
+                    slot = -1;
+                    break;
+                }
+            }
+        }
+        if (slot < 0) {
+            error = 1;
+            break;
+        }
+
+        smp = &dcsBankData.samples[slot];
+        if (smp->aramAddress != 0 || smp->buffer != 0) {
+            printf(strs + 44);
+            printf(strs + 56, slot);
+            listVerifyHook();
+        }
+
+        if (VagParseHeader(file, buf, smp) < 0) {
+            error = 1;
+        } else {
+            length = smp->length;
+            room = BytesFree();
+            aligned = (length + 63) & ~63;
+            if ((s32)room < (s32)aligned) {
+                error = 1;
+            } else {
+                smp->buffer = (u32)AllocHiMem(aligned);
+                node = &smp->buffer;
+                smp->bufferSize = aligned;
+                smp->bufPrev = node;
+                smp->bufNext = node;
+                memset((void*)smp->buffer, 0, aligned);
+                if (length == (s32)FileBufGet(file, (void*)smp->buffer,
+                                              length)) {
+                    dcsSampleUpload(node, 0);
+                    smp->buffer = 0;
+                    smp->bufferSize = 0;
+                    if (lbl_803451FC <= slot) {
+                        lbl_803451FC = slot + 1;
+                    }
+                } else {
+                    error = 1;
+                }
+                ResetAllocTot();
+            }
+        }
+
+        if (error != 0 || dcsResetPending != 0) {
+            if (slot >= 0 && slot < 2048) {
+                if (smp->sampleRate != 0) {
+                    if (smp->aramAddress != 0) {
+                        pool_alloc((u8*)&dcsBankData + 0x2C080, smp);
+                    }
+                    smp->sampleRate = 0;
+                    smp->predScale = 0;
+                }
+                if (lbl_80345218 > slot) {
+                    lbl_80345218 = slot;
+                }
+            }
+            dcsBankCheckSamples(prevEnd, 0);
+            break;
+        }
+
+        if (slot != prevEnd) {
+            dcsBankCheckSamples(prevEnd, slot - prevEnd);
+        }
+        prevEnd = slot + 1;
+    }
+
+    if (remaining > 0) {
+        printf(strs);
+        printf(strs + 88, header[4] - remaining, remaining);
+    }
+    return error;
 }
 
 /* 0x800D2CEC  read the bank call list (readCalls) */
