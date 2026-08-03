@@ -1986,6 +1986,7 @@ shake_done:
 }
 
 /* Earlier CAMERA.OBJ form of DiffRate, including the no-transmitter path. */
+#pragma opt_lifetimes off
 void camera_orbit_update(s32 camIdx)
 {
     struct {
@@ -2003,9 +2004,10 @@ void camera_orbit_update(s32 camIdx)
     f32 zeroValue;
     f64 angle;
     f32 previous;
+    f32 prevSpin;
 
     if (gNumTransmitters == 0) {
-        previous = lbl_80344534;
+        prevSpin = lbl_80344534;
         if (gScriptedCameraState == 0) {
             goto orbit_done;
         }
@@ -2013,18 +2015,18 @@ void camera_orbit_update(s32 camIdx)
         case 0:
                 if (lbl_80344400 > 0) {
                     lbl_80344534 = (f32)(lbl_80346038 *
-                        (f64)(u32)gFrameTicks + previous);
+                        (f64)(u32)gFrameTicks + prevSpin);
                     angle = targetAngles[lbl_80344538];
-                    if (previous < angle && (f64)lbl_80344534 >= angle) {
+                    if (prevSpin < angle && (f64)lbl_80344534 >= angle) {
                         lbl_80344534 = targetAngles[lbl_80344538];
                         gScriptedCameraState = 0;
                     }
                 } else {
                     lbl_80344534 = (f32)-(lbl_80346038 *
-                        (f64)(u32)gFrameTicks - previous);
+                        (f64)(u32)gFrameTicks - prevSpin);
                     switch (lbl_80344538) {
                     case 2:
-                        if (previous > lbl_80345F68 &&
+                        if (prevSpin > lbl_80345F68 &&
                             (f64)lbl_80344534 <= lbl_80345F68) {
                             lbl_80344534 = targetAngles[lbl_80344538];
                             gScriptedCameraState = 0;
@@ -2032,7 +2034,7 @@ void camera_orbit_update(s32 camIdx)
                         break;
                     default:
                         angle = targetAngles[lbl_80344538];
-                        if (previous > angle &&
+                        if (prevSpin > angle &&
                             (f64)lbl_80344534 <= angle) {
                             lbl_80344534 = targetAngles[lbl_80344538];
                             gScriptedCameraState = 0;
@@ -2048,10 +2050,10 @@ void camera_orbit_update(s32 camIdx)
         goto orbit_done;
     }
 
-    cameraBase = state + camIdx * 0x18C;
-    previous = *(f32*)(cameraBase + 0x170);
-    cameraBase += 0xC8;
-    cam = (Camera*)cameraBase;
+    cam = (Camera*)(state + camIdx * 0x18C);
+    previous = *(f32*)((u8*)cam + 0x170);
+    cam = (Camera*)((u8*)cam + 0xC8);
+    (void)cameraBase;
     if (lbl_803447B8 != 0) {
         goto orbit_done;
     }
@@ -2159,7 +2161,7 @@ orbit_crossed_zero:
 orbit_done:
     ;
 }
-
+#pragma opt_lifetimes reset
 /* Select and blend the two closest active trigger-camera rail nodes. */
 s32 camera_collide_step(s32 camIdx, f32 blendThreshold)
 {
