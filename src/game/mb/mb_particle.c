@@ -46,6 +46,7 @@
 /* --- externs (other TUs) --- */
 void* memset(void* p, int c, u32 n);
 void  ErrorPrintf(const char* fmt, ...);
+void  FatalErrorf(const char* fmt, ...);
 u32   pbRand(void);
 void* AllocMem(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7, f64 f8,
                s32 size, void* tag, s32 a, s32 b, s32 c, s32 d, s32 e, s32 g);
@@ -76,6 +77,7 @@ extern void* gWinGlobals;
 extern f32   gVpScaleY;
 extern f32   psysInfo[];     /* per-parm scale/min/max config table */
 extern u8    lbl_80128710[]; /* retail module-global data block */
+extern char  lbl_80116F30[]; /* "freePsysMem: bad free block..." */
 
 /* --- TU-owned globals (real addresses in .data/.bss/.sbss) --- */
 static s32       gPsysActive;      /* 0x80128710 live psys count */
@@ -1006,17 +1008,118 @@ static void* allocPsysMem(s32 size, s32 tag) {
 
 /* 0x800D1530 - freePsysMem: return a block, coalescing neighbours.
  * Documented reconstruction (NonMatching). */
+#pragma opt_lifetimes off
 static void freePsysMem(void* mem) {
-    PsysMemBlock* b = (PsysMemBlock*)mem - 1;
-    if (b->bytes >= 0) {
-        ErrorPrintf("freePsysMem: bad free block. Error=%d", b->bytes);
-        return;
+    PsysMemBlock* block;
+    s32 nextBytes;
+    s32 prevBytes;
+    PsysMemBlock* next;
+    PsysMemPool* pool;
+    s32 bytes;
+    PsysMemBlock* prev;
+    PsysMemBlock* mergeNext;
+    s32 error;
+
+    block = (PsysMemBlock*)mem - 1;
+    nextBytes = 0;
+    prevBytes = 0;
+    next = block->next;
+    mem = lbl_80128710;
+    pool = (PsysMemPool*)((u8*)mem + 0x24);
+    bytes = -block->bytes;
+    prev = block->prev;
+    mergeNext = next;
+
+    if (next == NULL) {
+        if (pool->last != block) {
+            error = 1;
+            goto bad_block;
+        }
+        if ((u8*)block + bytes != (u8*)pool->addr + pool->pool_bytes) {
+            error = 11;
+            goto bad_block;
+        }
+    } else {
+        if (next->prev != block) {
+            error = 2;
+            goto bad_block;
+        }
+        if ((u8*)next - (u8*)block != bytes) {
+            error = 3;
+            goto bad_block;
+        }
+        nextBytes = next->bytes;
+        if (nextBytes <= 0) {
+            if (nextBytes == 0) {
+                error = 10;
+                goto bad_block;
+            }
+            mergeNext = NULL;
+        }
     }
-    b->bytes = -b->bytes;
-    gPoolTotal += b->bytes;
-    gPoolCount++;
-    gPoolFree = b;
+
+    if (prev == NULL) {
+        if (pool->frst != block) {
+            error = 4;
+            goto bad_block;
+        }
+        prevBytes = 0;
+    } else {
+        if (prev->next != block) {
+            error = 5;
+            goto bad_block;
+        }
+        prevBytes = prev->bytes;
+        if (prevBytes <= 0) {
+            if (prevBytes == 0) {
+                error = 9;
+                goto bad_block;
+            }
+            prevBytes = -prevBytes;
+            prev = NULL;
+        } else if ((u8*)block - (u8*)prev != prevBytes) {
+            error = 6;
+            goto bad_block;
+        }
+    }
+
+    pool->free_bytes += bytes;
+    pool->free_cnt++;
+    pool->alloc_cnt--;
+
+    if (mergeNext != NULL) {
+        block->next = mergeNext->next;
+        pool->next = block;
+        if (block->next != NULL) {
+            block->next->prev = block;
+        } else {
+            pool->last = block;
+        }
+        bytes += nextBytes;
+        pool->free_cnt--;
+    }
+
+    if (prev != NULL) {
+        prev->next = block->next;
+        block = prev;
+        pool->next = prev;
+        if (prev->next != NULL) {
+            prev->next->prev = prev;
+        } else {
+            pool->last = prev;
+        }
+        bytes += prevBytes;
+        pool->free_cnt--;
+    }
+
+    block->bytes = bytes;
+    block->id = -1;
+    return;
+
+bad_block:
+    FatalErrorf(lbl_80116F30, error);
 }
+#pragma opt_lifetimes reset
 
 /* 0x800D1724 - initPresetList: checksum + validate the built-in preset table.
  * Documented reconstruction (NonMatching). */
