@@ -3783,10 +3783,14 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
         cameraPositionX = (f32*)(state + 0x1F4);
         cameraPositionZ = (f32*)(state + 0x1FC);
 
-        currentAbsY = oldY - (f32)(screenHeight - 64);
-        currentAbsX = oldX - (f32)(screenWidth / 2);
-        oldAbsY = currentY - (f32)(screenHeight - 64);
-        oldAbsX = currentX - (f32)(screenWidth / 2);
+        {
+            s32 bottomEdge = screenHeight - 64;
+            s32 halfWidth = screenWidth / 2;
+            currentAbsY = oldY - (f32)bottomEdge;
+            currentAbsX = oldX - (f32)halfWidth;
+            oldAbsY = currentY - (f32)bottomEdge;
+            oldAbsX = currentX - (f32)halfWidth;
+        }
         currentScreenDistance =
             currentAbsY * currentAbsY + currentAbsX * currentAbsX;
         movedScreenDistance = oldAbsY * oldAbsY + oldAbsX * oldAbsX;
