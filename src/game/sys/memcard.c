@@ -56,7 +56,7 @@ void VIWaitForRetrace(void);
 void cardInit(void);
 void cardExit(void);
 void cardStart(void* buf, u32 size, int arg);
-void cardWaitResult(void);
+s32 cardWaitResult(void);
 s32 cardGetResult(void);
 void cardMount(s32 chan, void* workArea, void* detachCb);
 void cardUnmount(s32 chan);
@@ -165,7 +165,8 @@ extern s32 vmu_update_counter;           /* per-frame service counter (wrap 60) 
 extern u32 lbl_803449F8;           /* built save-image size                 */
 extern u8* lbl_803449FC;           /* file buffer                           */
 extern u8* lbl_80344A00;           /* card workArea                         */
-extern u8* lbl_80344A04;           /* directory buffer                      */
+extern u8* lbl_80344A04;
+extern char* optionsAudioAndPrefs30[];           /* directory buffer                      */
 extern void* lbl_80344A08;         /* previous heap                         */
 extern void* lbl_80344A0C;         /* save heap                             */
 extern s32 lbl_80344A10[2];        /* per-(port+slot) cached free bytes     */
@@ -857,260 +858,302 @@ u8 beginSaveCacheTransaction(void)
  * was loaded, 0 otherwise.  (Structural reconstruction of the 0xD64 giant;
  * the ~15 inlined per-error retry menus are folded into the retry loop.)
  */
+/* Retail expands this prompt per call site; each expansion has its own keep
+ * flag (whole-function webs under opt_lifetimes off burn r14-r24 in decl
+ * order; the last three spill to the frame). */
+#define CARD_RETRY_PROMPT(msg_, keep)                                       \
+    do {                                                                    \
+        switch (saveMenuPrompt((msg_), lbl_80343C6C, 2)) {                  \
+        case 0:                                                             \
+            keep = 1;                                                       \
+            break;                                                          \
+        case 1:                                                             \
+            keep = 0;                                                       \
+            lbl_80344A24 = keep;                                            \
+            lbl_80344A18 = -1;                                              \
+            lbl_80344A14 = -1;                                              \
+            lbl_80344A20 = keep;                                            \
+            break;                                                          \
+        }                                                                   \
+        if ((u8)keep != 0) {                                                \
+            goto retry;                                                     \
+        }                                                                   \
+        return 0;                                                           \
+    } while (0)
+
+typedef struct SaveBlob {
+    u8 bytes[41544];
+} SaveBlob;
+
+typedef struct OptsBlob {
+    u8 bytes[32];
+} OptsBlob;
+
+#pragma opt_lifetimes off
 u8 loadGauntletSave(void)
 {
     char* dpool = lbl_8011CDE0;
     char* rpool = lbl_801131C0;
-    u8 hadCard;
-    u8 needCheck;
-    u8 needFormat;
-    s32 probe;
+    s32 result;
+    s32 scan;
+    s32 scratch;
+    s32 sel;
+    s32 sel2;
+    u8 keepPair;
+    u8 keepSerial;
+    u8 keepSerial2;
+    u8 keepTime;
+    u8 keepProbe3;
+    u8 keepProbe2;
+    u8 keepSize;
+    u8 keepMount5;
+    u8 keepMount2;
+    u8 keepMount3;
+    u8 keepCheck3;
+    u8 keepCheck128;
+    u8 keepFmt3;
+    u8 keepFmtDef;
+    u32 convBuf[2];
+    s32 volatile bigSize;
+    u8* volatile dirTab;
+    char** volatile opts;
+    void* volatile removedCb;
+    u32 volatile hiWord;
+    s32 fileNo;
+    u8 volatile found;
+    u8 volatile needUnmount;
+    u8 volatile needCheck;
+    char* volatile checkMsg;
+    u32 volatile neededPct;
+    u32 serial[2];
     s32 memSize;
     s32 sectorSize;
-    u32 serial[2];
-    f64 startSec;
-    u8 result = 0;
-    int i;
+    u8 stat[112];
+    f64 kbias = lbl_803472F8;
+    f32 timeout = lbl_803472F0;
+    f32 startSec;
+
+    checkMsg = dpool + 776;
+    opts = optionsAudioAndPrefs30;
+    dirTab = lbl_80274578;
+    removedCb = cardRemovedCallback;
+    hiWord = 0x43300000;
+    bigSize = 0x10000;
 
 retry:
-    hadCard = 0;
+    found = 0;
+    result = 0;
+    needUnmount = 0;
+    scratch = 0;
     needCheck = 0;
-    needFormat = 0;
-    for (i = 0; i < 2; i++) {
+    for (scan = 0; scan < 2; scan++) {
         pageSaveCacheOut();
-        drawMemCardMessage(dpool + 1712, 0, 0, 0);   /* "Accessing..." */
+        drawMemCardMessage(dpool + 1712, 0, 0, 0);
         pageSaveCacheIn();
     }
 
-    /* time-limited probe */
     pbPulseTime();
-    startSec = (f64) sSeconds;
+    convBuf[1] = sSeconds;
+    convBuf[0] = hiWord;
+    startSec = *(f64*)convBuf - kbias;
     for (;;) {
-        probe = CARDProbeEx(0, &memSize, &sectorSize);
+        scan = CARDProbeEx(0, &memSize, &sectorSize);
         pbPulseTime();
-        if ((f64) sSeconds - startSec > lbl_803472F0) {
-            if (saveMenuPrompt(dpool + 1052, lbl_80343C6C, 2) == 1) {
-                lbl_80344A24 = 0;
-                lbl_80344A18 = -1;
-                lbl_80344A14 = -1;
-                lbl_80344A20 = 0;
-                return 0;
-            }
-            goto retry;
+        convBuf[1] = sSeconds;
+        convBuf[0] = hiWord;
+        if ((f32)(*(f64*)convBuf - kbias) - startSec > timeout) {
+            CARD_RETRY_PROMPT(dpool + 1052, keepTime);
         }
-        if (probe != -1) {
+        if (scan != -1) {
             break;
         }
     }
 
-    if (probe == -2 || probe == -128) {
-        if (saveMenuPrompt(dpool + 1052, lbl_80343C6C, 2) == 1) {
-            lbl_80344A24 = 0;
-            lbl_80344A18 = -1;
-            lbl_80344A14 = -1;
-            lbl_80344A20 = 0;
-            return 0;
-        }
-        goto retry;
+    switch (scan) {
+    case -3:
+        CARD_RETRY_PROMPT(dpool + 256, keepProbe3);
+    case -2:
+    case -128:
+        CARD_RETRY_PROMPT(dpool + 1052, keepProbe2);
+    case 0:
+    default:
+        break;
     }
-    if (probe == -3) {
-        if (saveMenuPrompt(dpool + 256, lbl_80343C6C, 2) == 1) {
-            lbl_80344A24 = 0;
-            lbl_80344A18 = -1;
-            lbl_80344A14 = -1;
-            lbl_80344A20 = 0;
-            return 0;
-        }
-        goto retry;
-    }
+
     if (memSize != 8192) {
-        if (saveMenuPrompt(dpool + 44, lbl_80343C6C, 2) == 1) {
+        CARD_RETRY_PROMPT(dpool + 44, keepSize);
+    }
+
+    cardMount(0, lbl_803449FC, removedCb);
+    cardWaitResult();
+    switch (cardGetResult()) {
+    case -13:
+        checkMsg = dpool + 824;
+        scratch = 1;
+        break;
+    case -6:
+    case 0:
+        checkMsg = dpool + 948;
+        needCheck = 1;
+        needUnmount = 1;
+        break;
+    case -5:
+    case -128:
+        CARD_RETRY_PROMPT(rpool + 240, keepMount5);
+    case -2:
+        CARD_RETRY_PROMPT(rpool + 392, keepMount2);
+    case -3:
+        CARD_RETRY_PROMPT(dpool + 256, keepMount3);
+    default:
+        break;
+    }
+
+    if (needCheck) {
+        switch (CARDCheck(0)) {
+        case -6:
+            scratch = 1;
+            break;
+        case -3:
+            CARD_RETRY_PROMPT(dpool + 256, keepCheck3);
+        case -128:
+            CARD_RETRY_PROMPT(dpool + 1052, keepCheck128);
+        case 0:
+        default:
+            break;
+        }
+    }
+
+    if (*(u64*)&lbl_80344A20 != 0 && (u8)scratch != 0) {
+        CARD_RETRY_PROMPT(dpool + 1516, keepPair);
+    }
+
+    if ((u8)scratch != 0) {
+        switch (saveMenuPrompt(checkMsg, (char**)(dpool + 1880), 3)) {
+        case 0:
+            sel = 0;
+            break;
+        case 1:
+            sel = 1;
+            break;
+        case 2:
+            sel = 2;
             lbl_80344A24 = 0;
             lbl_80344A18 = -1;
             lbl_80344A14 = -1;
             lbl_80344A20 = 0;
-            return 0;
+            break;
         }
-        goto retry;
-    }
 
-    cardMount(0, lbl_803449FC, cardRemovedCallback);
-    cardWaitResult();
-    {
-        s32 r = cardGetResult();
-        char* fmtMsg = dpool + 776;                 /* "must be formatted" */
-
-        if (r == -13) {
-            fmtMsg = dpool + 824;                   /* wrong market */
-            needFormat = 1;
-        } else if (r == -6) {
-            fmtMsg = dpool + 948;                   /* corrupt */
-            hadCard = 1;
-            needCheck = 1;
-        } else if (r == -5 || r == -128) {
-            if (saveMenuPrompt(rpool + 240, lbl_80343C6C, 2) == 1) {
-                lbl_80344A24 = 0;
-                lbl_80344A18 = -1;
-                lbl_80344A14 = -1;
-                lbl_80344A20 = 0;
-                return 0;
-            }
+        switch (sel) {
+        case 1:
             goto retry;
-        } else if (r == -3) {
-            if (saveMenuPrompt(dpool + 256, lbl_80343C6C, 2) == 1) {
-                lbl_80344A24 = 0;
-                lbl_80344A18 = -1;
-                lbl_80344A14 = -1;
-                lbl_80344A20 = 0;
-                return 0;
+        case 0:
+            for (scratch = 0; scratch < 2; scratch++) {
+                pageSaveCacheOut();
+                drawMemCardMessage(dpool + 1796, 0, 0, 0);
+                pageSaveCacheIn();
             }
-            goto retry;
-        } else if (r < -3 && r >= -13) {
-            if (saveMenuPrompt(rpool + 392, lbl_80343C6C, 2) == 1) {
-                lbl_80344A24 = 0;
-                lbl_80344A18 = -1;
-                lbl_80344A14 = -1;
-                lbl_80344A20 = 0;
-                return 0;
-            }
-            goto retry;
-        }
-
-        if (needCheck) {
-            s32 c = CARDCheck(0);
-
-            if (c == -6) {
-                needFormat = 1;
-            } else if (c == -3) {
-                if (saveMenuPrompt(dpool + 256, lbl_80343C6C, 2) == 1) {
-                    lbl_80344A24 = 0;
-                    lbl_80344A18 = -1;
-                    lbl_80344A14 = -1;
-                    lbl_80344A20 = 0;
-                    return 0;
-                }
-                goto retry;
-            } else if (c == -128) {
-                if (saveMenuPrompt(dpool + 1052, lbl_80343C6C, 2) == 1) {
-                    lbl_80344A24 = 0;
-                    lbl_80344A18 = -1;
-                    lbl_80344A14 = -1;
-                    lbl_80344A20 = 0;
-                    return 0;
-                }
-                goto retry;
-            }
-        }
-
-        if ((lbl_80344A20 != 0 || lbl_80344A24 != 0) && needFormat) {
-            if (saveMenuPrompt(rpool + 1516, lbl_80343C6C, 2) == 1) {
-                lbl_80344A24 = 0;
-                lbl_80344A18 = -1;
-                lbl_80344A14 = -1;
-                lbl_80344A20 = 0;
-            } else {
-                goto retry;
-            }
-            return 0;
-        }
-
-        if (needFormat) {
-            /* offer a format (3-option prompt) */
-            s32 choice = saveMenuPrompt(fmtMsg, (char**) (dpool + 1880), 3);
-
-            if (choice == 2) {
-                cardUnmount(0);
-                cardWaitResult();
-                lbl_80344A24 = 0;
-                lbl_80344A18 = -1;
-                lbl_80344A14 = -1;
-                lbl_80344A20 = 0;
-                return 0;
-            }
-            if (choice != 1) {
-                for (i = 0; i < 2; i++) {
-                    pageSaveCacheOut();
-                    drawMemCardMessage(dpool + 1796, 0, 0, 0); /* Formatting */
-                    pageSaveCacheIn();
-                }
-                if (cardFormat(0) != 0) {
-                    if (saveMenuPrompt(dpool + 256, lbl_80343C6C, 2) == 1) {
-                        lbl_80344A24 = 0;
-                        lbl_80344A18 = -1;
-                        lbl_80344A14 = -1;
-                        lbl_80344A20 = 0;
-                        return 0;
-                    }
-                    goto retry;
-                }
-                saveMenuPrompt(rpool + 548, 0, 0);  /* "Format Successful." */
+            cardFormat(0);
+            switch (cardWaitResult()) {
+            case 0:
+                saveMenuPrompt(rpool + 548, 0, 0);
                 lbl_80344A18 = 3;
                 lbl_80344A14 = 1;
+                break;
+            case -3:
+                CARD_RETRY_PROMPT(dpool + 256, keepFmt3);
+            default:
+                CARD_RETRY_PROMPT(dpool + 1052, keepFmtDef);
             }
+            break;
+        case 2:
+            if (needUnmount != 0) {
+                cardUnmount(0);
+                cardWaitResult();
+            }
+            lbl_80344A24 = 0;
+            lbl_80344A18 = -1;
+            lbl_80344A14 = -1;
+            lbl_80344A20 = 0;
+            return 0;
         }
     }
 
     cardLoadFile(0, lbl_80344A04);
-    cardWaitResult();
-    if (cardGetResult() == 0) {
-        s32 count = cardLock();
-        s32 off = count * 23360;
-
-        while (count != 0) {
-            s32 fileNo = *(s32*) (lbl_80344A04 + off - 256);
-            char stat[64];
-
-            off -= 23360;
-            count--;
-            CARDGetStatus(0, fileNo, stat);
-            if (strcmp(stat, lbl_8011D550) == 0) {
-                hadCard = 1;
-                *(s32*) (lbl_80344A04 + off + 23104) = fileNo;
+    if (cardWaitResult() == 0) {
+        result = cardLock();
+        for (scratch = result * 23360; result != 0;) {
+            scan = scratch - 256;
+            scratch -= 23360;
+            result--;
+            CARDGetStatus(0, *(s32*)(lbl_80344A04 + scan), stat);
+            if (strcmp((char*)stat, dpool + 1904) == 0) {
+                found = 1;
+                fileNo = *(s32*)(lbl_80344A04 + scan);
                 break;
             }
         }
-        if (cardUnlock(), cardWaitResult(), cardGetResult() != 0) {
+        cardUnlock();
+        if (cardWaitResult() != 0) {
             saveMenuPrompt(rpool + 568, lbl_80343C68, 1);
             return 0;
         }
-    }
-
-    if (hadCard) {
-        /* found the save file - read + verify it */
-        u32 sum;
-        u8* p;
-        u8* img;
-
-        if (lbl_803449EC == 0) {
-            lbl_803449EC = (u32) loadOpeningBanner();
-            if (lbl_803449EC == 0) {
-                OSPanic(rpool + 608, 1019, rpool + 620);
-            }
-            lbl_803449E8 = 0;
-            lbl_803449E4 = 0;
-            TEXGetPalette(0, rpool + 672);
-            TEXGetPalette(0, rpool + 696);
-        }
-        img = buildSaveImage(lbl_8011D550, rpool + 716, (int) lbl_803449EC,
-                             (int) lbl_803449E4, 2, 0, (char*) lbl_803449E8);
-        cardReadFile(0, img, (void*) lbl_803449F8);
-        cardWaitResult();
-
-        /* copy image into the staged record and recompute checksum */
-        memcpy(lbl_80343C74, img, 5193 * 8);
-        sum = 0;
-        for (p = lbl_80343C74; p < lbl_80343C74 + 0x10000 - 23992; p++) {
-            sum += *p;
-        }
-        if (*(u32*) lbl_80343C74 == sum &&
-            *(u32*) (lbl_80343C74 + 4) == 0x4F4B4159 /* "OKAY" */) {
-            result = 1;
+        if (found == 0) {
+            result = 0;
         } else {
-            saveMenuPrompt(rpool + 736, lbl_80343C68, 1);  /* corrupt */
-            {
-                s32 d = CARDDelete(0, lbl_8011D550);
+            s32 rdres;
 
-                if (d == -5 || d == -10 || d == -128 || (d < -1 && d >= -2)) {
+            if (lbl_803449EC == 0) {
+                lbl_803449EC = (u32)loadOpeningBanner();
+                if (lbl_803449EC == 0) {
+                    OSPanic(rpool + 608, 1019, rpool + 620);
+                }
+                lbl_803449E8 = 0;
+                lbl_803449E4 = 0;
+                TEXGetPalette((int)&lbl_803449E4, rpool + 672);
+                TEXGetPalette((int)&lbl_803449E8, rpool + 696);
+            }
+            scratch = (s32)buildSaveImage(dpool + 1904, (void*)lbl_803449EC,
+                                          (int)lbl_803449E4, (int)lbl_803449E8,
+                                          2, 0, (const char*)(rpool + 716));
+            cardReadFile(0, (void*)fileNo, (void*)lbl_803449F8);
+            rdres = cardWaitResult();
+            *(SaveBlob*)lbl_80343C74 = *(SaveBlob*)scratch;
+
+            {
+                u32 saved = *(u32*)lbl_80343C74;
+                s32 n = bigSize - 23992;
+                u32 sum = 0;
+                u8* q;
+
+                *(u32*)lbl_80343C74 = sum;
+                if (n != 0) {
+                    q = lbl_80343C74;
+                    do {
+                        sum += *q++;
+                    } while (--n != 0);
+                }
+                if (saved == sum &&
+                    *(u32*)(lbl_80343C74 + 4) == 0x4F4B4159) {
+                    if (rdres == 0) {
+                        lbl_80344A18 = 3;
+                        lbl_80344A14 = 1;
+                        result = 1;
+                    } else {
+                        result = 0;
+                    }
+                } else {
+                    saveMenuPrompt(rpool + 736, lbl_80343C68, 1);
+                    switch (CARDDelete(0, dpool + 1904)) {
+                    case -128:
+                    case -10:
+                    case -4:
+                    case -3:
+                    case -1:
+                        break;
+                    default:
+                        goto retry;
+                    }
                     saveMenuPrompt(rpool + 832, lbl_80343C68, 1);
                     lbl_80344A24 = 0;
                     lbl_80344A18 = -1;
@@ -1118,7 +1161,6 @@ retry:
                     lbl_80344A20 = 0;
                     return 0;
                 }
-                goto retry;
             }
         }
     }
@@ -1126,56 +1168,78 @@ retry:
     CARDGetSerialNo(0, serial);
     cardUnmount(0);
     cardWaitResult();
+    if (*(u64*)&lbl_80344A20 != 0) {
+        if (*(u64*)&lbl_80344A20 != *(u64*)serial) {
+            CARD_RETRY_PROMPT(dpool + 1516, keepSerial);
+        }
+    }
 
-    if ((lbl_80344A20 != 0 || lbl_80344A24 != 0) &&
-        ((u32) lbl_80344A20 != serial[0] || (u32) lbl_80344A24 != serial[1])) {
-        if (saveMenuPrompt(rpool + 1516, lbl_80343C6C, 2) == 1) {
+    if ((u8)result != 0) {
+        neededPct = 0;
+        scratch = 0;
+        if (*(u64*)&lbl_80344A20 != 0 &&
+            *(u64*)&lbl_80344A20 != *(u64*)serial) {
+            CARD_RETRY_PROMPT(dpool + 404, keepSerial2);
+        }
+    } else {
+        scratch = cardGetTotalBytes();
+        neededPct = (u32)((cardGetTotalBytes() + 0x10000 - 1401) / scratch);
+        scratch = 1;
+    }
+
+    if ((u32)cardGetUsedPercent() >= neededPct &&
+        (u32)cardGetFreeFiles() >= (u32)scratch) {
+        if ((u8)result == 0) {
+            saveMenuPrompt(dpool + 1344, lbl_80343C68, 1);
+            *(OptsBlob*)lbl_80343C74 = *(OptsBlob*)opts;
+            memcpy(lbl_80343C74 + 41416, dirTab, 128);
+            memset(lbl_80343C74 + 40, 0, bigSize - 24160);
+            if ((u8)writeGauntletSave() == 1) {
+                saveMenuPrompt(dpool + 1296, lbl_80343C68, 1);
+                lbl_80344A24 = serial[1];
+                result = 1;
+                lbl_80344A18 = 3;
+                lbl_80344A14 = 1;
+                lbl_80344A20 = serial[0];
+            } else {
+                saveMenuPrompt(dpool + 1316, lbl_80343C68, 1);
+                goto retry;
+            }
+        } else {
+            lbl_80344A24 = serial[1];
+            lbl_80344A18 = 3;
+            lbl_80344A14 = 1;
+            lbl_80344A20 = serial[0];
+        }
+    } else {
+        switch (saveMenuPrompt(dpool + 600, (char**)(dpool + 1892), 3)) {
+        case 0:
+            sel2 = 0;
+            break;
+        case 1:
+            sel2 = 1;
+            break;
+        case 2:
+            sel2 = 2;
             lbl_80344A24 = 0;
             lbl_80344A18 = -1;
             lbl_80344A14 = -1;
             lbl_80344A20 = 0;
+            break;
+        }
+        switch (sel2) {
+        case 0:
+            goto retry;
+        case 1:
+            OSResetSystem(1, 0x80000000, 1);
+            break;
+        case 2:
             return 0;
-        }
-        goto retry;
-    }
-
-    if (result) {
-        if ((lbl_80344A20 != 0 || lbl_80344A24 != 0) &&
-            ((u32) serial[0] != (u32) lbl_80344A20 ||
-             (u32) serial[1] != (u32) lbl_80344A24)) {
-            if (saveMenuPrompt(rpool + 404, lbl_80343C6C, 2) == 1) {
-                lbl_80344A24 = 0;
-                lbl_80344A18 = -1;
-                lbl_80344A14 = -1;
-                lbl_80344A20 = 0;
-                return 0;
-            }
-            goto retry;
-        }
-        lbl_80344A24 = serial[1];
-        lbl_80344A18 = 3;
-        lbl_80344A14 = 1;
-        lbl_80344A20 = serial[0];
-    } else {
-        /* no valid save present - check free space / offer creation */
-        s32 needFiles = 1;
-        s32 needBlocks = (cardGetTotalBytes(),
-                          ((0x10000 - 1401 + cardGetTotalBytes()) /
-                           cardGetTotalBytes()));
-
-        if (cardGetUsedPercent() < needBlocks || cardGetFreeFiles() < needFiles) {
-            s32 c = saveMenuPrompt(rpool + 600, (char**) (rpool + 1892), 3);
-
-            if (c == 1) {
-                OSResetSystem(1, 0x80000000, 1);
-            } else if (c == 2) {
-                return 0;
-            }
-            goto retry;
         }
     }
     return result;
 }
+#pragma opt_lifetimes reset
 
 /*
  * writeGauntletSave - the card write/commit engine.  Loads the opening
