@@ -62,7 +62,7 @@ typedef struct ADSTREAM {
     /* 0x50 */ s32 status;             /* 0 / 0x1000 (playing) / 0x2000 */
     /* 0x54 */ u8 _pad54[0x5C - 0x54];
     /* 0x5C */ u32 sampleBits;
-    /* 0x60 */ u8 _pad60[0x64 - 0x60];
+    /* 0x60 */ u32 sampleRate;
     /* 0x64 */ u32 blocks;
     /* 0x68 */ u32 frameAlign;
     /* 0x6C */ u8 _pad6C[0x78 - 0x6C];
@@ -117,6 +117,10 @@ extern void dcsSetStreamFlag(void* stream, s32 looping);
 extern void* memset(void* p, int c, u32 n);
 extern void* memcpy(void* destination, const void* source, u32 length);
 extern s32 strncmp(const char* lhs, const char* rhs, u32 length);
+extern f32 lbl_80349308;   /* SRC ratio divisor */
+extern f64 lbl_80349310;   /* SRC fraction scale (65536.0) */
+extern f64 lbl_80349318;   /* u32->f64 conversion bias */
+extern f64 lbl_80349320;   /* s32->f64 conversion bias */
 extern char lbl_80349330[5];
 extern char lbl_80349338[5];
 extern char lbl_80349340[5];
@@ -613,6 +617,92 @@ void AdsSetVolume(ADSTREAM* s, s32 vol) {
  * AXSetVoiceAddr/SrcType/Type.  Xbox: adsInitFromHeader. */
 #pragma dont_inline on
 void adsInitFromHeader(ADSTREAM* stream) {
+    f64 kscale;
+    f64 kmag2;
+    f32 kdiv;
+    f64 kmagU;
+    u32 k48;
+    u32 aram;
+    s32 vnum;
+    u32 i;
+    u32 t;
+    u32 bits;
+    f32 ratio;
+    u32 cur;
+    u32 end;
+    s32 j;
+    u8* ch;
+    u32 cvr[2];
+    u32 cvs[2];
+    u16 addr[8];
+    u16 srcb[8];
+    u16 adp[20];
+
+    kmagU = lbl_80349318;
+    k48 = 48000;
+    aram = stream->spuReadBase;
+    kdiv = lbl_80349308;
+    kmag2 = lbl_80349320;
+    kscale = lbl_80349310;
+    vnum = 13;
+    for (i = 0; i < stream->blocks; i++) {
+        bits = stream->sampleBits;
+        if (bits >= 32) {
+            t = ((stream->sampleRate << 12) / k48) * k48;
+            cvr[1] = t >> 12;
+            cvr[0] = 0x43300000;
+            ratio = (f32)(*(f64*)cvr - kmagU);
+        } else {
+            t = ((stream->sampleRate << 12) / k48) * 12000;
+            cvr[1] = t >> 12;
+            cvr[0] = 0x43300000;
+            ratio = (f32)(*(f64*)cvr - kmagU);
+        }
+        if (bits == 32) {
+            ch = (u8*)stream + i * 96;
+            for (j = 0; j < 8; j++) {
+                adp[j * 2] = *(u16*)(ch + j * 4 + 152);
+                adp[j * 2 + 1] = *(u16*)(ch + j * 4 + 154);
+            }
+            adp[16] = *(u16*)(ch + 184);
+            adp[17] = *(u16*)(ch + 186);
+            adp[18] = *(u16*)(ch + 188);
+            adp[19] = *(u16*)(ch + 190);
+            AXSetVoiceAdpcm(sVoice[vnum], (AXPBADPCM*)adp);
+            addr[0] = 1;
+            addr[1] = 0;
+            end = (aram + sizeVoiceLoop) * 2 - 1;
+            cur = aram * 2 + 2;
+        } else {
+            addr[0] = 1;
+            addr[1] = 10;
+            end = (aram + sShortenedSizeVoiceLoop) >> 1;
+            cur = aram >> 1;
+        }
+        ratio = ratio / kdiv;
+        cvs[1] = (u32)(s32)ratio ^ 0x80000000;
+        cvs[0] = 0x43300000;
+        srcb[0] = (u16)(s32)ratio;
+        srcb[1] = (u16)(s32)(kscale * (ratio - (f32)(*(f64*)cvs - kmag2)));
+        srcb[2] = 0;
+        srcb[3] = 0;
+        srcb[4] = 0;
+        srcb[5] = 0;
+        srcb[6] = 0;
+        AXSetVoiceSrc(sVoice[vnum], (AXPBSRC*)srcb);
+        addr[2] = cur >> 16;
+        addr[3] = cur;
+        addr[4] = end >> 16;
+        addr[5] = end;
+        addr[6] = cur >> 16;
+        addr[7] = cur;
+        AXSetVoiceAddr(sVoice[vnum], (AXPBADDR*)addr);
+        AXSetVoiceSrcType(sVoice[vnum], 1);
+        AXSetVoiceType(sVoice[vnum], 1);
+        stream->voice[i] = vnum;
+        vnum = vnum - 1;
+        aram += sizeVoiceLoop;
+    }
 }
 #pragma dont_inline off
 
