@@ -3161,10 +3161,10 @@ void camera_mode_dest(s32 camIdx)
         cam->attn[0] = cam->wpos[0] + transformed[0];
         cam->attn[1] = cam->wpos[1] + transformed[1];
         cam->attn[2] = cam->wpos[2] + transformed[2];
+        distance = cam->radius;
         orbitNormalize[0] = cam->attn[0] - cam->wpos[0];
         orbitNormalize[1] = cam->attn[1] - cam->wpos[1];
         orbitNormalize[2] = cam->attn[2] - cam->wpos[2];
-        distance = cam->radius;
         SlowNormalVector(orbitNormalize);
         cam->attn[0] = cam->wpos[0] + orbitNormalize[0] * distance;
         cam->attn[1] = cam->wpos[1] + orbitNormalize[1] * distance;
@@ -3178,9 +3178,9 @@ void camera_mode_dest(s32 camIdx)
     default:
         break;
     }
+    step = (f32)(lbl_80346098 * (f64)(u32)gFrameTicks);
     pitchReached = 0;
     cam->pyr[0] = -cam->pyr[0];
-    step = (f32)(lbl_80346098 * (f64)(u32)gFrameTicks);
     DiffRate();
     cam->pyr[0] = -cam->pyr[0];
 
@@ -3393,10 +3393,10 @@ void camera_mode_dest(s32 camIdx)
     cam->attn[0] = cam->wpos[0] + transformed[0];
     cam->attn[1] = cam->wpos[1] + transformed[1];
     cam->attn[2] = cam->wpos[2] + transformed[2];
+    distance = cam->radius;
     finalNormalize[0] = cam->attn[0] - cam->wpos[0];
     finalNormalize[1] = cam->attn[1] - cam->wpos[1];
     finalNormalize[2] = cam->attn[2] - cam->wpos[2];
-    distance = cam->radius;
     SlowNormalVector(finalNormalize);
     cam->attn[0] = cam->wpos[0] + finalNormalize[0] * distance;
     cam->attn[1] = cam->wpos[1] + finalNormalize[1] * distance;
