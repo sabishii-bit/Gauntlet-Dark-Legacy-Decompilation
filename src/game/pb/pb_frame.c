@@ -196,9 +196,69 @@ void fn_800C2618(void)
     (void)lbl_80343EFC;
 }
 
+/* GS display-register decode block, viewed at lbl_80343EFC+0x18. */
+typedef struct PbFrameDecode {
+    /* +0x18 */ s32 frameIdx;
+    /* +0x1C */ u8  m1C;
+    u8 _pad1d[3];
+    /* +0x20 */ u32 m20;
+    /* +0x24 */ u32 m24;
+    /* +0x28 */ u8* m28;
+    /* +0x2C */ u8* regs;
+    /* +0x30 */ u32 m30;
+    /* +0x34 */ u32 m34;
+    u32 m38, m3C, m40, m44, m48, m4C, m50, m54, m58, m5C, m60;
+    /* +0x64 */ f32 f64;
+    /* +0x68 */ f32 f68;
+    /* +0x6C */ u32 m6C;
+    /* +0x70 */ u32 m70;
+    u32 m74, m78, m7C, m80, m84, m88, m8C, m90, m94, m98, m9C;
+    /* +0xA0 */ f32 fA0;
+    /* +0xA4 */ f32 fA4;
+} PbFrameDecode;
+
+/* Unpack the latched GS DISPLAY/DISPFB register shadows into the decode
+ * block (widths, positions, magnifications) and derive the scale ratios. */
 void fn_800C2C74(void)
 {
-    (void)lbl_80343EFC;
+    PbFrameDecode* s = (PbFrameDecode*)&lbl_80343EFC->m18;
+    u8 unused[8];
+
+    if (s->m28 != 0) {
+        s->m34 = (*(u16*)(s->regs + 0x1E0) >> 7) & 0x1FF;
+        s->m38 = (*(u16*)(s->regs + 0x3E0) >> 7) & 0x1FF;
+        s->m3C = (*(u8*)(s->regs + 0x1E1) >> 1) & 0x3F;
+        s->m40 = (*(u32*)(s->regs + 0x1E0) >> 12) & 0x1F;
+        s->m44 = (*(u16*)(s->regs + 0x1E4) >> 5) & 0x7FF;
+        s->m48 = (*(u32*)(s->regs + 0x1E4) >> 10) & 0x7FF;
+        s->m4C = (*(u16*)(s->regs + 0x1E8) >> 4) & 0xFFF;
+        s->m50 = (*(u32*)(s->regs + 0x1E8) >> 9) & 0x7FF;
+        s->m54 = (*(u16*)(s->regs + 0x1EA) >> 5) & 0xF;
+        s->m58 = (*(u8*)(s->regs + 0x1EB) >> 3) & 3;
+        s->m5C = (*(u16*)(s->regs + 0x1EC) >> 4) & 0xFFF;
+        s->m60 = (*(u32*)(s->regs + 0x1EC) >> 9) & 0x7FF;
+        s->m70 = (*(u16*)(s->regs + 0x1F0) >> 7) & 0x1FF;
+        s->m74 = (*(u16*)(s->regs + 0x3F0) >> 7) & 0x1FF;
+        s->m78 = (*(u8*)(s->regs + 0x1F1) >> 1) & 0x3F;
+        s->m7C = (*(u32*)(s->regs + 0x1F0) >> 12) & 0x1F;
+        s->m80 = (*(u16*)(s->regs + 0x1F4) >> 5) & 0x7FF;
+        s->m84 = (*(u32*)(s->regs + 0x1F4) >> 10) & 0x7FF;
+        s->m88 = (*(u16*)(s->regs + 0x1F8) >> 4) & 0xFFF;
+        s->m8C = (*(u32*)(s->regs + 0x1F8) >> 9) & 0x7FF;
+        s->m90 = (*(u16*)(s->regs + 0x1FA) >> 5) & 0xF;
+        s->m94 = (*(u8*)(s->regs + 0x1FB) >> 3) & 3;
+        s->m98 = (*(u16*)(s->regs + 0x1FC) >> 4) & 0xFFF;
+        s->m9C = (*(u32*)(s->regs + 0x1FC) >> 9) & 0x7FF;
+        s->m30 = (*(u8*)(s->regs + 0x1C0) >> 7) & 1;
+        s->m6C = (*(u8*)(s->regs + 0x1C0) >> 6) & 1;
+        s->m1C = *(u8*)(s->regs + 0x1C1);
+        s->m20 = (u32)(*(u64*)(s->m28 + 0x1D0) & 1);
+        s->m24 = (u32)(*(u64*)(s->m28 + 0x1D0) & 2);
+        s->f64 = (f32)(s32)s->m5C / (f32)(s32)s->m54;
+        s->f68 = (f32)(s32)s->m60 / (f32)(s32)s->m58;
+        s->fA0 = (f32)(s32)s->m98 / (f32)(s32)s->m90;
+        s->fA4 = (f32)(s32)s->m9C / (f32)(s32)s->m94;
+    }
 }
 
 /* Set the render size in pixels (referenced from mb_main.c -- keep fn_). */
