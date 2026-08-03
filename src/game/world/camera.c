@@ -2513,9 +2513,8 @@ void camera_mode_level(s32 reset)
             *(f32*)(gWorldInfo + 0x1C) + lbl_80345EC8;
         *(f32*)(levelCamera + 0x14) =
             *(f32*)(gWorldInfo + 0x20) + levelOffset;
-        levelOffset = lbl_80346014;
         *(f32*)(levelCamera + 0x18) =
-            *(f32*)(gWorldInfo + 0x24) + levelOffset;
+            *(f32*)(gWorldInfo + 0x24) + (levelOffset = lbl_80346014);
         *(f32*)(levelCamera + 0x1C) =
             *(f32*)(gWorldInfo + 0x28) + lbl_80346018;
         *(f32*)(levelCamera + 0x20) =
