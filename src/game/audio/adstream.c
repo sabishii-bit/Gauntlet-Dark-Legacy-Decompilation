@@ -121,6 +121,8 @@ extern f32 lbl_80349308;   /* SRC ratio divisor */
 extern f64 lbl_80349310;   /* SRC fraction scale (65536.0) */
 extern f64 lbl_80349318;   /* u32->f64 conversion bias */
 extern f64 lbl_80349320;   /* s32->f64 conversion bias */
+extern char lbl_801174A8[]; /* "AdsPutBuffer..." message pool */
+extern char lbl_80349328[];  /* short EOF tag */
 extern char lbl_80349330[5];
 extern char lbl_80349338[5];
 extern char lbl_80349340[5];
@@ -757,7 +759,129 @@ s32 adsUpdateStream(ADSTREAM* stream) {
  * first buffer (AdsParseHeader), init voices (adsInitFromHeader), feed the
  * ring; prints "AdsPutBuffer EOF/overrun -- %d bytes UNSENT".
  * Xbox: AdsPutBuffer. */
-void AdsPutBuffer(void) {
+s32 AdsPutBuffer(ADSTREAM* s, u8* src, s32 len) {
+    char* strs = lbl_801174A8;
+    s32 hres = 0;
+    u8* wrEnd;
+    u8* wp;
+    s32 tail;
+    s32 over;
+    s32 amt;
+    s32 amt16;
+    s32 part;
+    s32 cofsz;
+    u8* dst;
+    s32 saved;
+    u8 unused[8];
+
+    wrEnd = (u8*)s->buffer + s->ringSize;
+    wp = (u8*)s->ringPtr + s->ringRead;
+    if (wp > wrEnd) {
+        wp -= s->ringSize;
+    }
+    tail = wrEnd - wp;
+    over = (s->ringRead + len) - s->ringSize;
+    if ((u32)len >= (u32)s->fileRemaining && s->fileRemaining > 0) {
+        printf(lbl_80349328);
+        printf(strs + 48, len - s->fileRemaining);
+        amt = s->fileRemaining;
+        amt16 = (s->fileRemaining + 15) & ~15;
+    } else {
+        if (over > 0) {
+            len -= over;
+        }
+        amt16 = len & ~15;
+        if (over > 0) {
+            printf(strs);
+            printf(strs + 88, len - amt16);
+        }
+        amt = amt16;
+        len = amt16;
+    }
+    if (amt16 > 0) {
+        if (amt16 > tail) {
+            memcpy(wp, src, tail);
+            memcpy(s->buffer, src + tail, amt16 - tail);
+        } else {
+            memcpy(wp, src, amt16);
+        }
+    }
+    s->ringRead += amt;
+    s->fileRemaining -= amt;
+    s->loopMarker = (u32)s->ringPtr + s->ringRead;
+    if (s->loopMarker > (u32)s->buffer + s->ringSize) {
+        s->loopMarker -= s->ringSize;
+    }
+    if (s->fileRemaining + 40 > 0) {
+        goto done;
+    }
+    s->fileRemaining += 40;
+    dst = (u8*)s + 0x54;
+    if ((u8*)s->ringPtr + 40 > wrEnd) {
+        part = wrEnd - (u8*)s->ringPtr;
+        memcpy(dst, s->ringPtr, part);
+        memcpy(dst + part, s->buffer, 40 - part);
+        s->ringPtr = (u8*)s->ringPtr - (s->ringSize - 40);
+        s->ringRead -= 40;
+    } else {
+        memcpy(dst, s->ringPtr, 40);
+        s->ringPtr = (u8*)s->ringPtr + 40;
+        s->ringRead -= 40;
+    }
+    cofsz = (s->blocks * 192) >> 1;
+    dst = (u8*)s + 0x7C;
+    s->fileRemaining += cofsz;
+    if ((u8*)s->ringPtr + cofsz > wrEnd) {
+        part = wrEnd - (u8*)s->ringPtr;
+        memcpy(dst, s->ringPtr, part);
+        memcpy(dst + part, s->buffer, cofsz - part);
+        s->ringPtr = (u8*)s->ringPtr - (s->ringSize - cofsz);
+        s->ringRead -= cofsz;
+    } else {
+        memcpy(dst, s->ringPtr, cofsz);
+        s->ringPtr = (u8*)s->ringPtr + cofsz;
+        s->ringRead -= cofsz;
+    }
+    saved = s->sampleBits;
+    s->sampleBits = 16;
+    hres = AdsParseHeader(s, (u32*)((u8*)s + 0x54), (u32*)((u8*)s + 0x74));
+    s->sampleBits = saved;
+    if (hres < 0) {
+        len = hres;
+        goto done;
+    }
+    hres = -1;
+    if ((u32)(gAddrSpuNext + sizeVoiceLoop * s->blocks) <= (u32)gAddrSpuTop &&
+        sizeVoiceLoop - (sizeVoiceLoop / s->frameAlign) * s->frameAlign == 0) {
+        s->spuReadBase = gAddrSpuNext;
+        gAddrSpuNext = gAddrSpuNext + sizeVoiceLoop * s->blocks;
+        s->ringSize += s->ringUsed;
+        s->ringUsed = halfVoiceLoop * s->blocks;
+        s->ringSize -= s->ringUsed;
+        s->cookedPtr = (u8*)s->buffer + s->ringSize;
+        adsInitFromHeader(s);
+        s->fileRemaining += s->fileLoopSize;
+        hres = s->fileLoopSize;
+    }
+    if (hres < 0) {
+        len = hres;
+    }
+done:
+    if (amt > 0 && hres >= 0) {
+        switch (s->status) {
+        case 0:
+            if (adsMoveRawToCooked(s) == 0) {
+                adsMoveCookedToSpu(s);
+                adsMoveRawToCooked(s);
+                s->status = 0x2000;
+            }
+            break;
+        case 0x2000:
+            adsMoveRawToCooked(s);
+            break;
+        }
+    }
+    return len;
 }
 
 /* 0x800D76A4  (re)start playback / loop: FileBufReopen, read+parse the 0x28
