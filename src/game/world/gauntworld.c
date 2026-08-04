@@ -1391,3 +1391,71 @@ s32 fn_8005D20C(s32 index, f32* from, f32* to, s32 ticking)
     return blocked;
 }
 #pragma dont_inline off
+
+extern char lbl_80112C68[];            /* "COL OBJECT Item: idx < 0" */
+extern f32 lbl_8023F7E8[3];
+extern f32 lbl_8023F7F8[3];
+extern u8 gWorldInfo[];
+extern s32 lbl_80344188;
+extern char lbl_8034418C;
+extern f32 lbl_80344190;
+extern f32 lbl_80344194;
+extern f64 lbl_80347008;
+extern f32 lbl_80347010;
+void FatalError(const char* msg, int code);
+f32 CTriListCollide(f32 radius, s32 base, s32 count, u8** outTri,
+                    s16* idxList, f32* outPt, s32 layerLo, s32 layerHi,
+                    s32 noFilter);
+void MulBodyVecMat4(const f32* vector, f32* out, const f32* matrix);
+void MulVecMat4(const f32* vector, f32* out, const f32* matrix);
+
+/* 0x8005FDA8 - sweep an item's collision tri list along segment a->b */
+f32 fn_8005FDA8(u8* e, f32* a, f32* b, f32* outPos, f32* outNorm, f32 margin)
+{
+    f32* m = *(f32**)(e + 100);
+    f32 pt[5];
+    u8* triOut;
+    f32 lo;
+    f32 hi;
+    f32 hit;
+    char v;
+    f32 k;
+    f64 d1;
+    f64 d2;
+
+    if (*(s16*)(e + 192) < 0) {
+        FatalError(lbl_80112C68, 0x800000);
+    }
+    if (a[1] < b[1]) {
+        lo = a[1] - margin;
+        hi = b[1] + margin;
+    } else {
+        lo = b[1] - margin;
+        hi = a[1] + margin;
+    }
+    *(s32*)(gWorldInfo + 88) = *(s32*)(gWorldInfo + 88) + 1;
+    if (*(s32*)(gWorldInfo + 88) > 255) {
+        *(s32*)(gWorldInfo + 88) = 1;
+    }
+    v = (char)*(s32*)(gWorldInfo + 88);
+    lbl_80344188 = 0;
+    lbl_8034418C = v;
+    MulBodyVecMat4(a, lbl_8023F7F8, m);
+    MulBodyVecMat4(b, lbl_8023F7E8, m);
+    k = m[5];
+    d1 = lbl_80347008 * (k * (lo - m[13]));
+    d2 = lbl_80347008 * (k * (hi - m[13]));
+    lbl_80344194 = lbl_80347010;
+    lbl_80344190 = sCameraVisibilityRadius;
+    hit = CTriListCollide(margin, *(s16*)(e + 192), *(s16*)(e + 194), &triOut,
+                          (s16*)0, pt, (s16)(s32)d1, (s16)(s32)d2, 0);
+    if (hit >= sZeroDouble) {
+        if (outNorm != 0) {
+            WorldVector((f32*)(triOut + 8), outNorm, m);
+        }
+        if (outPos != 0) {
+            MulVecMat4(pt, outPos, m);
+        }
+    }
+    return hit;
+}
