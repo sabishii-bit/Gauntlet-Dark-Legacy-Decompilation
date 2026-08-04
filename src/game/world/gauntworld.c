@@ -1156,3 +1156,104 @@ s32 fn_8005A738(s32 player)
 out:
     return ret;
 }
+
+/* 0x8005D3D8 - can this world object block/affect the given enemy? */
+extern u8 gEnemies[];
+extern f64 sNewtonThree;
+extern s32 damage_enemy(u8* e, f32 amount, s32 dtype, s32 knock, s32 srcflags,
+                        s32 arg6, s32 arg7);
+
+s32 fn_8005D3D8(s32 index, u8* wobj)
+{
+    u8* hdr = *(u8**)wobj;
+    u8* sub = hdr + 4;
+    u8* e;
+    s32 ret;
+    s32 t;
+    s32 u;
+
+    if (index >= 0) {
+        e = gEnemies + index * 916;
+    } else {
+        e = 0;
+    }
+    ret = 1;
+    switch (*(u32*)hdr) {
+    case 1:
+        ret = 0;
+        break;
+    case 10:
+        switch (*(s32*)sub) {
+        case 40:
+        case 49:
+        case 51:
+        case 52:
+        case 53:
+            ret = 0;
+            break;
+        case 41:
+            if (*(s16*)(wobj + 222) > 0) {
+                ret = 1;
+            }
+            break;
+        default:
+            ret = 1;
+            break;
+        }
+        break;
+    case 2:
+        if (e == 0) {
+            break;
+        }
+        if (*(s32*)e == 29 || *(s32*)e == 32) {
+            ret = 0;
+        }
+        break;
+    case 3:
+        if (e == 0) {
+            break;
+        }
+        if (*(s8*)(wobj + 226) != 0) {
+            t = 0;
+        } else {
+            t = 1;
+        }
+        u = (t == 0) ? 1 : 0;
+        ret = u;
+        if (*(s16*)(wobj + 220) == 17) {
+            ret = 0;
+        }
+        if (*(s32*)e == 29 || *(s32*)e == 32) {
+            if (*(f32*)(hdr + 16) <= sNewtonThree) {
+                ret = 0;
+            }
+        }
+        break;
+    case 8:
+        if (e == 0) {
+            break;
+        }
+        t = *(s32*)e;
+        if (t == 30 || t == 29 || t == 32) {
+            ret = 0;
+            break;
+        }
+        if (t == 3 || t == 0) {
+            s32 b = *(s8*)(wobj + 200);
+            if (b == 2) goto dmg;
+            if (b != 4) goto nodmg;
+dmg:
+            damage_enemy(e, *(f32*)(wobj + 220), -1, 0, (s32)(e + 68), 0, 2);
+nodmg:
+            ret = 0;
+        }
+        break;
+    case 5:
+    case 9:
+    case 11:
+    case 12:
+        ret = 0;
+        break;
+    }
+    return ret;
+}
