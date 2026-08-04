@@ -48,8 +48,7 @@ void* memset(void* p, int c, u32 n);
 void  ErrorPrintf(const char* fmt, ...);
 void  FatalErrorf(const char* fmt, ...);
 u32   pbRand(void);
-void* AllocMem(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7, f64 f8,
-               s32 size, void* tag, s32 a, s32 b, s32 c, s32 d, s32 e, s32 g);
+void* AllocMem(s32 size);
 s32   MBOX_FindTexture(const char* name, s32* out);   /* texture-by-name lookup */
 MBObject* MBNewNode(s32 parent, void* tmpl, s32 mode);     /* scene-node create */
 void  MBRemoveNode(MBObject* node, s32 mode);              /* scene-node free */
@@ -518,8 +517,9 @@ static void setupNewPMode_800CDCE4(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f
     if (p->worldname == NULL) {
         buf = allocPsysMem(ringBytes, p->id);
     } else {
-        buf = AllocMem(f1, f2, f3, f4, f5, f6, f7, f8, ringBytes, 0,
-                       0, 0, 0, 0, 0, 0);
+        buf = AllocMem(ringBytes);
+        (void)0; /*
+                       0, 0, 0, 0, 0, 0); */
     }
     if (buf == NULL) {
         ErrorPrintf("No mem for psys id=%d", p->id);
@@ -757,8 +757,7 @@ static Psys* allocPsys(s32 fromArena) {
     if (fromArena == 0) {
         p = (Psys*)allocPsysMem(0x130, gPsysIdCounter);
     } else {
-        p = (Psys*)AllocMem(f1, f2, f3, f4, f5, f6, f7, f8, 0x130, (void*)id,
-                            0, 0, 0, 0, 0, 0);
+        p = (Psys*)AllocMem(0x130);
     }
     if (p == NULL) {
         return NULL;
@@ -1169,25 +1168,50 @@ static void initPresetList(void) {
 
 /* 0x800D1800 - MBInitPsys: build the 120000-byte block pool + index arrays.
  * Documented reconstruction (NonMatching). */
-void MBInitPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                f64 f8) {
-    PsysMemBlock* base;
-    gPsysActive = 0;
-    gPsysList = NULL;
-    gPsysRmQueue = NULL;
-    gPsysRemoved = 0;
-    gPsysIdCounter = 0;
-    gPsysFrame = 0;
-    gPsysFrameFrac = 1.0f;
-    gPoolTotal = 120000;
-    gPoolCount = 1;
-    base = (PsysMemBlock*)AllocMem(f1, f2, f3, f4, f5, f6, f7, f8, 120000, 0, 0,
-                                   0, 0, 0, 0, 0);
-    gPoolBase = base;
-    gPoolFree = base;
-    base->bytes = gPoolTotal;
-    base->next = NULL;
-    base->prev = NULL;
-    base->id = 0;
+extern f32 lbl_80349154;
+extern u8 lbl_802C9D30[];
+
+#pragma dont_inline on
+void MBInitPsys(void) {
+    u8* pi = (u8*)psysInfo;
+    s32* psize = (s32*)(pi + 108);
+    u8* m = pi + 64;
+    s32 size;
+    s32* q;
+    s32 n;
+
+    *(s32*)(pi + 68) = 0;
+    *(s32*)(pi + 64) = 0;
+    *(s32*)(pi + 76) = 0;
+    *(s32*)(pi + 72) = 0;
+    *(s32*)(pi + 80) = 0;
+    *(s32*)(pi + 92) = 0;
+    *(s32*)(pi + 96) = 0;
+    *(s32*)(pi + 84) = 0;
+    *(f32*)(pi + 88) = lbl_80349154;
+    *(s32*)(lbl_802C9D30 + 20) = 0;
+    *(s32*)(pi + 100) = 0;
+    size = 120000;
+    *(s32*)(pi + 104) = size;
+    *psize = size;
+    *(s32*)(pi + 112) = 1;
+    *(s32*)(pi + 116) = 0;
+    *(s32*)(pi + 120) = (s32)AllocMem(size);
+    *(s32*)(pi + 132) = *(s32*)(pi + 120);
+    *(s32*)(pi + 124) = *(s32*)(pi + 120);
+    *(s32*)(pi + 128) = *(s32*)(pi + 120);
+    q = *(s32* volatile*)((u32)pi + 132);
+    q[0] = *psize;
+    q[1] = 0;
+    q[2] = 0;
+    q[3] = 0;
+    if (*(s32*)(m + 72) == 0) {
+        *(s32*)(m + 72) = 1023;
+    }
+    n = *(s32*)(m + 72);
+    *(s32*)(m + 76) = (s32)AllocMem(n * 12);
+    *(s32*)(m + 80) = (s32)AllocMem(n);
+    memset(*(void**)(m + 80), 0, n);
     initPresetList();
 }
+#pragma dont_inline off
