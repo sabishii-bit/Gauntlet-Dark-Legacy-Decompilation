@@ -729,8 +729,6 @@ s32 StartMagicPlayerFX(f32* pos)
 /* 0x80092B58 StartThrowMagicFX / 0x80092DF4 StartMagicFX -- doc-only
  * (throw-magic / magic family, atan2 launch). */
 
-extern s32 lbl_80122088[];      /* magic FX def table (ids @+3484, color idx @+124, colors @+24) */
-
 /* pool-entry view for the magic-FX param block */
 typedef struct MagicFxView {
     u8  _pad00[124];
@@ -742,6 +740,87 @@ typedef struct MagicFxView {
     f32 scale;              /* 0xB8 */
     u16 owner;              /* 0xBC */
 } MagicFxView;
+
+/* shared magic-FX param seeding (auto-inlined at each Start* site) */
+static void SetMagicParams(u8* base, s32 idx, s32 tf, f32 power, f32 scale,
+                           s32 owner)
+{
+    if (idx >= 0) {
+        MagicFxView* fx = (MagicFxView*)((u32)base + idx * 240 + 2976);
+        if ((tf & 15) >= 5) {
+            tf = tf & ~0xC;
+        }
+        fx->power = power;
+        fx->flags = tf;
+        fx->scale = scale;
+        fx->timer = 0.0f;
+        fx->owner = owner + 1;
+    }
+}
+
+extern f64 lbl_803480F0;        /* death launch velocity factor */
+extern f32 lbl_803480F8;        /* death timer preset */
+extern f32 lbl_803480FC;        /* death power preset */
+extern void MBTreeSetZsortAdd(struct mbnode* node, s32 v, s32 a);
+extern void MBTreeSetAlpha(struct mbnode* node, s32 v, s32 a);
+
+s32 StartEnemyDeathFX(u8* en)
+{
+    u8* base = (u8*)EffectInfo;
+    u8* hdr = base + 1056;
+    s32 idx;
+    s32 off;
+    u8* fxp;
+    u8* q;
+    struct mbnode* node;
+    f32 yaw;
+    f32 v[3];
+    f32* vp = v;
+
+    idx = -1;
+    if (*(void**)(base + 1056) == 0) {
+        goto done;
+    }
+    idx = -1;
+    if (*(void**)(base + 1056) != 0 &&
+        (idx = StartFXTree(*(struct atreeheader**)(base + 1056), (f32*)(en + 48),
+                           0x8C01, 0x20800, 0.0f)) >= 0) {
+        off = idx * 240;
+        fxp = base + off;
+        node = *(struct mbnode**)(fxp += 2996);
+        MBTreeSetZsortAdd(node, *(s32*)(hdr + 4), 1);
+        MBTreeSetAlpha(*(struct mbnode**)fxp, *(s32*)(hdr + 8), 1);
+        *(s32*)(base + off + 3072) = 88;
+    }
+    v[0] = (f32)(lbl_803480F0 * *(f32*)(en + 32));
+    v[1] = (f32)(lbl_803480F0 * *(f32*)(en + 36));
+    v[2] = (f32)(lbl_803480F0 * *(f32*)(en + 40));
+    if (idx >= 0) {
+        q = base + idx * 240 + 2976;
+        yaw = atan2(vp[0], vp[2]);
+        *(f32*)(q + 128) = vp[0];
+        *(f32*)(q + 132) = vp[1];
+        *(f32*)(q + 136) = vp[2];
+        if (*(struct mbnode**)(q + 20) != 0) {
+            YawMat3(*(struct mbnode**)(q + 20), yaw);
+        }
+        *(f32*)(q + 160) = 0.0f;
+        *(f32*)(q + 152) = lbl_803480F8;
+    }
+    SetMagicParams(base, idx, 0x100020, lbl_803480FC, 0.0f, -1);
+    if (idx >= 0) {
+        u8* r = base + idx * 240;
+        *(u16*)(r + 3168) = 89;
+        *(u16*)(r + 3170) = -1;
+        *(u32*)(r + 3076) = *(u32*)(r + 3076) | 0x4000;
+        *(f32*)(r + 3092) = lbl_803480F8;
+    }
+done:
+    return idx;
+}
+
+extern s32 lbl_80122088[];      /* magic FX def table (ids @+3484, color idx @+124, colors @+24) */
+
 extern f64 lbl_80348128;        /* magic scale factor */
 extern f64 lbl_80348118;        /* magic scale cap test */
 extern f32 lbl_803480A0;        /* magic scale cap */
@@ -754,7 +833,6 @@ s32 StartMagicFX(f32* pos, s32 tf, s32 owner, f32 power, f32 scale)
     s32 idx;
     s32 low;
     s32* tab = lbl_80122088;
-    s32 v;
     f32 s;
     u8* e;
     Effect* ef;
@@ -774,18 +852,7 @@ s32 StartMagicFX(f32* pos, s32 tf, s32 owner, f32 power, f32 scale)
         *(u32*)(e + 3180) = 0;
         *(u32*)(e + 3184) = 0;
     }
-    v = tf;
-    if (idx >= 0) {
-        MagicFxView* fx = (MagicFxView*)((u32)base + idx * 240 + 2976);
-        if ((v & 15) >= 5) {
-            v = v & ~0xC;
-        }
-        fx->power = power;
-        fx->flags = v;
-        fx->scale = scale;
-        fx->timer = 0.0f;
-        fx->owner = owner + 1;
-    }
+    SetMagicParams(base, idx, tf, power, scale, owner);
     if (s > lbl_80348118) {
         s = lbl_803480A0;
     }
