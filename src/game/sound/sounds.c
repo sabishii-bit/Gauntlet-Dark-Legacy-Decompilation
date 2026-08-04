@@ -621,3 +621,84 @@ void InitNameAudio(void)
         *(s32*)(buf + coff + 672) = -1;
     }
 }
+
+/* 0x8009F1AC - drive the underwater/ambient loop (sound 83 / event 113) */
+extern u32 lbl_80257630[4];     /* ambient blit ids */
+extern f32 lbl_80344B20;        /* ambient fade rate */
+extern void mbBlitInit3414(u32 blit, s32 mode);
+extern void fn_800552A4(u8* p, f32 rate, f32 v);
+
+void AudioAmbientUpdate(void)
+{
+    s32 mode;
+    s32 idx;
+    s32 pi;
+    s32 j;
+    s32 joff;
+    s32 k;
+    s32 koff;
+    s32 poff;
+    s32 t;
+    u8* p;
+    s32 tr;
+    s32 pan;
+
+    mode = 0;
+    idx = 0;
+    poff = 0;
+    for (pi = 0; pi < 4; pi++) {
+        p = (u8*)gPlayers + poff;
+        if (*(s32*)(p + 232) == 1 && *(s16*)(p + 2400) != 0) {
+            j = 0;
+            joff = 0;
+            for (; j < 4; j++, joff += 4) {
+                if (*(u32*)((u8*)lbl_80257630 + joff) != 0) {
+                    mbBlitInit3414(*(u32*)((u8*)lbl_80257630 + joff), 0);
+                }
+            }
+            t = 0;
+            for (j = 0; j < 11; j++) {
+                if (*(u32*)(p + t + 316) & 8) {
+                    fn_800552A4((u8*)((u32)gPlayers + poff + t), lbl_80344B20,
+                                *(f32*)((u32)gPlayers + poff + t + 304));
+                    break;
+                }
+                t += 16;
+            }
+            mode = 2;
+            break;
+        }
+        idx++;
+        poff += 13148;
+    }
+    if (mode != 0) {
+        if (AudioSoundExists(83) == 0) {
+            if (mode == 1) {
+                sndFxPlay3DTracked(83, 0, 127, 113);
+            } else {
+                sndFxPlay3DTracked(83, (s32)((u8*)gPlayers + idx * 13148 + 84),
+                                   127, 113);
+            }
+        }
+        tr = AudioMaskByEvent(113);
+        if (tr != 0) {
+            if (mode == 1) {
+                pan = AudioAng(0);
+            } else {
+                pan = AudioAng((s32)((u8*)gPlayers + idx * 13148 + 84));
+            }
+            AudioSetTrackPan(tr, pan);
+        }
+    } else {
+        if (sMusicTrackHi != 12) {
+            k = 0;
+            koff = 0;
+            for (; k < 4; k++, koff += 4) {
+                if (*(u32*)((u8*)lbl_80257630 + koff) != 0) {
+                    mbBlitInit3414(*(u32*)((u8*)lbl_80257630 + koff), 1);
+                }
+            }
+        }
+        AudioKillBySound(83);
+    }
+}
