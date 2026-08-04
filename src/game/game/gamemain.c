@@ -1879,3 +1879,86 @@ void fn_80055AFC(void)
     lbl_803447EC = 1;
     lbl_803447F4 = lbl_803447F4 - limit;
 }
+
+extern s32 lbl_803447A8[2];        /* meter blit handles */
+extern u32 sSpecialItem10;
+extern s32 lbl_80344790;
+extern s32 lbl_8034478C;
+extern f32 lbl_80346AFC;           /* 0.0f */
+extern f64 lbl_80346B90;           /* 0.5 */
+extern f64 lbl_80346B98;           /* 3.0 */
+extern f64 lbl_80346BA0;
+extern f32 lbl_80343C08;
+extern f64 lbl_80346B10;
+extern f64 lbl_80346BA8;
+extern f64 lbl_80346BB0;
+extern f64 lbl_80346BB8;
+extern f32 lbl_80346B20;
+extern f64 lbl_80346BC8;
+extern f64 lbl_80346BC0;
+extern f64 lbl_80346B38;
+extern s32 mbBlitReset33F8(void* blit);
+extern void fn_8009FF54(f32* pos);
+extern void fn_8009FFA4(f32* pos);
+
+/* 0x80055678 -- update the special-item proximity meter blits from the
+ * distance between the two given points. */
+void fn_80055678(f32* a, f32* b)
+{
+    f32 d;
+    f32 v;
+    f64 t;
+    f32 lvl;
+    f32 f6;
+    f32 x;
+    f64 lvl2;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+
+    if (mbBlitReset33F8((void*)lbl_803447A8[0]) != 0 || sSpecialItem10 == 0) {
+        mbBlitInit3414((void*)lbl_803447A8[0], 1);
+        mbBlitInit3414((void*)lbl_803447A8[1], 1);
+    } else {
+        dx = a[0] - b[0];
+        dy = a[1] - b[1];
+        dz = a[2] - b[2];
+        d = dx * dx + dy * dy + dz * dz;
+        if (d > lbl_80346AFC) {
+            volatile f32 tmp;
+            f64 y = __frsqrte(d);
+            y = lbl_80346B90 * y * (lbl_80346B98 - y * y * d);
+            y = lbl_80346B90 * y * (lbl_80346B98 - y * y * d);
+            y = lbl_80346B90 * y * (lbl_80346B98 - y * y * d);
+            d = (f32)(d * (lbl_80346B90 * y * (lbl_80346B98 - y * y * d)));
+            tmp = d;
+            d = tmp;
+        }
+        v = (f32)(d - lbl_80346BA0);
+        v = v * lbl_80343C08;
+        if (v < lbl_80346AFC) {
+            t = lbl_80346B10;
+        } else if (v > lbl_80346BA8) {
+            t = lbl_80346BA8;
+        } else {
+            t = v;
+        }
+        x = (f32)t;
+        lvl = (f32)(lbl_80346BA8 - (lbl_80346BA8 - x) * (lbl_80346BA8 - x));
+        if (lbl_80344790 == 0 && lvl < lbl_80346BB0) {
+            lbl_80344790 = 1;
+            fn_8009FF54(b);
+        } else if (lbl_8034478C == 0 && lvl < lbl_80346BB8) {
+            lbl_8034478C = 1;
+            fn_8009FFA4(b);
+        }
+        t = lbl_80346BA8 - lvl;
+        f6 = (f32)t;
+        lvl2 = lbl_80346BC8 * f6;
+        mbBlitSetupVerts((void*)lbl_803447A8[1], lbl_80346B20, lbl_80346B20,
+                         (f32)((lbl_80346BC0 - lvl2) * lbl_80346B38),
+                         lbl_80346B20);
+        mbBlitProject((void*)lbl_803447A8[1], 0, Round((f32)lvl2) + 27);
+        mbBlitCalcY((void*)lbl_803447A8[1], 102 - Round((f32)lvl2));
+    }
+}
