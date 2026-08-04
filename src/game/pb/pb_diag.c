@@ -156,6 +156,203 @@ void pbDiagDrawMenuB(DiagMenu* menu) {
     }
 }
 
+/* texture bank view: slot count at +0x48 */
+typedef struct DiagTexBank {
+    u8 _pad00[0x48];
+    u32 nslots;             /* 0x48 */
+} DiagTexBank;
+
+extern s32 gDiag_F4;            /* declared above */
+extern s32 gDiagBtns_F8[];      /* per-screen cursor table */
+extern char lbl_803486F8[8];    /* "%3d %s"-style row format (sdata2) */
+extern void* MBOX_GetTexDef(u32 id);
+
+/* one label row per texture slot of bank `bank`, windowed like MenuA */
+void pbDiagDrawTexLabel(DiagTexBank* tb, int bank)
+{
+    int line;
+    u32 color;
+    u32 hi;
+    int i;
+    int start;
+    int end;
+    register u32 count;
+    u32 id;
+    void* def;
+    u8 _spare[8];
+
+
+    line = 3;
+    if ((count = tb->nslots) < 38) {
+        end = count;
+        start = 0;
+    } else {
+        end = gDiagBtns_F8[gDiag_F4] + 19;
+        if (end < 38) {
+            end = 38;
+        }
+        if ((u32)end >= count) {
+            end = count;
+        }
+        start = end - 38;
+    }
+    hi = bank << 16;
+    for (i = start; i < (s32)end; i++) {
+        id = (u16)i | hi;
+        if (i == gDiagBtns_F8[gDiag_F4]) {
+            color = 0x00FFFF00;
+        } else {
+            color = 0x00FFFFFF;
+        }
+        def = MBOX_GetTexDef(id);
+        fn_800C008C(color, 1, line, lbl_803486F8, i, def);
+        line++;
+    }
+}
+
+/* string-row list: count at +0x4C, row base at +0x5C, 24-byte rows */
+typedef struct DiagStrRows {
+    u8 _pad00[76];
+    u32 count;              /* 0x4C */
+    u8 _pad50[12];
+    char* strs;             /* 0x5C */
+} DiagStrRows;
+
+typedef struct DiagRow {       /* 24-byte string row */
+    char name[22];
+    s16  val;
+} DiagRow;
+
+extern s32 gDiagBtns_B8[];      /* per-screen cursor table (B8 block) */
+extern s32 gDiag_D0C;
+extern char lbl_80348758[8];    /* value-suffix row format (sdata2) */
+
+/* windowed 24-byte string rows; selected row also prints its s16 value */
+void pbDiagDrawStrRow(DiagStrRows* p)
+{
+    int i;
+    int line;
+    int end;
+    int start;
+    u32 count;
+    int len;
+
+    line = 3;
+    if ((count = p->count) < 38) {
+        end = count;
+        start = 0;
+    } else {
+        end = gDiagBtns_B8[gDiag_F4] + 19;
+        if (end < 38) {
+            end = 38;
+        }
+        if ((u32)end >= count) {
+            end = count;
+        }
+        start = end - 38;
+    }
+    for (i = start; i < end; i++) {
+        if (i == gDiagBtns_B8[gDiag_F4]) {
+            fn_800C008C(0x00FFFF00, 1, line, ((DiagRow*)p->strs)[i].name);
+            len = strlen(((DiagRow*)p->strs)[i].name) + 3;
+            if (((DiagRow*)p->strs)[i].val > 0) {
+                fn_800C008C(0x00FFFF00, len, line, lbl_80348758, gDiag_D0C);
+            }
+        } else {
+            fn_800C008C(0x00FFFFFF, 1, line, ((DiagRow*)p->strs)[i].name);
+        }
+        line++;
+    }
+}
+
+extern u32 lbl_80240FC0[];      /* pb frame/screen state block */
+extern f32 gDiag_E68;           /* color-bar animation speed scale */
+extern f64 lbl_803486D0;        /* E68 ramp step */
+extern f32 lbl_803486B4;        /* E68 reset value */
+extern f32 lbl_80348670;        /* zero */
+extern f64 lbl_80348710;        /* hue speed factor */
+extern f64 lbl_80348718;        /* hue speed cap test */
+extern f32 lbl_80348720;        /* hue speed cap */
+extern f32 lbl_80348724;        /* hue ctrl min */
+extern f32 lbl_80348728;        /* hue ctrl max */
+extern f64 lbl_80348730;        /* wrap high bound */
+extern f64 lbl_80348738;        /* wrap full circle */
+extern f64 lbl_80348740;        /* wrap low bound */
+extern f64 lbl_80348748;        /* sat speed factor */
+extern f32 lbl_80348750;        /* sat/val ctrl min */
+extern f32 lbl_80348754;        /* sat/val ctrl max */
+extern f64 lbl_80348688;        /* val speed factor */
+f32 pbDiagCtrlFloat(s32 axis, s32 pad, f32 val, f32 inc, f32 min, f32 max);
+
+/* buttons block view: color-bar HSV/RGB state at +368 */
+typedef struct DiagPadView {
+    u32 words[92];          /* 0x000: raw pad words (word 5 = held buttons) */
+    f32 f368;               /* 0x170: hue A */
+    f32 f372;               /* 0x174: hue B */
+    f32 f376;               /* 0x178 */
+    f32 f380;               /* 0x17C: sat */
+    f32 f384;               /* 0x180: val A */
+    f32 f388;               /* 0x184: val B */
+} DiagPadView;
+
+/* animate/adjust the diag color-bar HSV values from pad input */
+#pragma opt_propagation off
+void pbDiagDrawColorBars(void)
+{
+    f32* gd = gDiagData;
+    DiagPadView* b = (DiagPadView*)buttons;
+    f32* dst;
+    f32 spd;
+    f64 v;
+
+    if (lbl_80240FC0[1] != 0) {
+        gDiag_E68 = (f32)(gDiag_E68 + lbl_803486D0);
+    } else {
+        gDiag_E68 = lbl_803486B4;
+    }
+    if (b->words[5] & 0x40000) {
+        f32 z = lbl_80348670;
+        b->f368 = z;
+        b->f372 = z;
+        b->f376 = z;
+        b->f380 = gd[36];
+        b->f384 = gd[37];
+        b->f388 = gd[38];
+    } else {
+        v = lbl_80348710 * gDiag_E68;
+        spd = (f32)v;
+        if (spd > lbl_80348718) {
+            spd = lbl_80348720;
+        }
+        b->f368 = pbDiagCtrlFloat(1, 1, b->f368, -spd, lbl_80348724, lbl_80348728);
+        v = b->f368;
+        if (v > lbl_80348730) {
+            v = v - lbl_80348738;
+        } else if (v <= lbl_80348740) {
+            v = lbl_80348738 + v;
+        }
+        b->f368 = (f32)v;
+        dst = &b->f372;
+        *dst = pbDiagCtrlFloat(0, 1, b->f372, spd, lbl_80348724, lbl_80348728);
+        v = *dst;
+        if (v > lbl_80348730) {
+            v = v - lbl_80348738;
+        } else if (v <= lbl_80348740) {
+            v = lbl_80348738 + v;
+        }
+        *dst = (f32)v;
+        b->f380 = pbDiagCtrlFloat(3, 1, b->f380, (f32)(lbl_80348748 * gDiag_E68),
+                                  lbl_80348750, lbl_80348754);
+        dst = &b->f384;
+        *dst = pbDiagCtrlFloat(4, 1, b->f384, (f32)(lbl_80348688 * gDiag_E68),
+                               lbl_80348750, lbl_80348754);
+        dst = &b->f388;
+        *dst = pbDiagCtrlFloat(2, 1, b->f388, (f32)(lbl_80348688 * gDiag_E68),
+                               lbl_80348750, lbl_80348754);
+    }
+}
+#pragma opt_propagation reset
+
 #pragma opt_propagation off
 void pbInitDiag(int mode) {
     f32* dp = gDiagData;
