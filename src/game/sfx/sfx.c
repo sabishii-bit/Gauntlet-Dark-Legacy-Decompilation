@@ -840,7 +840,19 @@ typedef struct MagicView {
     s32 colorpick[1];   /* +108 per-player-class color idx */
     u8 _p2[12];
     s32 coloridx[1];    /* +124 per-magic-type color idx   */
-    u8 _p3[3356];
+    u8 _p3a[3236];
+    s32 kindidA[1];     /* +3364 base fx id per element    */
+    u8 _q0[16];
+    s32 kindidB[1];     /* +3384 alt fx id per element     */
+    u8 _q1[16];
+    s32 kindidC[1];     /* +3404 base big fx id            */
+    u8 _q2[16];
+    s32 kindidD[1];     /* +3424 alt big fx id             */
+    u8 _q3[16];
+    s32 kindidE[1];     /* +3444 base beam fx id           */
+    u8 _q4[16];
+    s32 kindidF[1];     /* +3464 alt beam fx id            */
+    u8 _q5[16];
     s32 magicid[1];     /* +3484 magic fx id per type      */
     u8 _p3b[16];
     s32 throwid[1];     /* +3504 throw fx id per type      */
@@ -1913,7 +1925,96 @@ s32 fn_80094440(f32* pos, u32 idx, s32 which)
     return ret;
 }
 
-/* 0x800945D0 fn_800945D0 -- doc-only (Start*, big, CopyMat3). */
+extern f64 lbl_80348060;
+extern f64 lbl_803480B0;
+extern s32 lbl_8034482C;
+extern s32 lbl_80344BD0;
+
+/* 0x800945D0 -- spawn a per-element magic burst fx: pick the def id from
+ * the element tables, then scale the node + zsort from the def. */
+s32 fn_800945D0(f32* pos, f32* mat, s32 idx, s32 alt, s32 kind, f32 scale)
+{
+    MagicView* tbl = (MagicView*)lbl_80122088;
+    EffectPage* page = (EffectPage*)EffectInfo;
+    s32 ret;
+    s32 t = idx & 0xF;
+    s32 tid;
+    f32 rad;
+
+    if (kind == 11 || kind == 21) {
+        if (alt != 0) {
+            tid = tbl->kindidF[t];
+        } else {
+            tid = tbl->kindidE[t];
+        }
+        rad = (f32)(lbl_803480B0 * scale);
+    } else if (kind == 29 || kind == 5 || lbl_8034482C != 0) {
+        if (alt != 0) {
+            tid = tbl->kindidB[t];
+        } else {
+            tid = tbl->kindidA[t];
+        }
+        rad = lbl_803480A0;
+    } else {
+        if (alt != 0) {
+            tid = tbl->kindidD[t];
+        } else {
+            tid = tbl->kindidC[t];
+        }
+        rad = (f32)(lbl_803480B0 * scale);
+    }
+    if (tid == 4) {
+        u32 v = lbl_80344BD0;
+        lbl_80344BD0 = v + 1;
+        tid = (v & 1) + 6;
+    }
+    if (tid == 5) {
+        u32 v = lbl_80344BD0;
+        lbl_80344BD0 = v + 1;
+        tid = (v & 1) + 8;
+    }
+    ret = -1;
+    if (tid < 0 || tid >= 218) {
+        ErrorPrintf(lbl_80114790, tid);
+        ret = -1;
+    } else {
+        EffectHeader* hdr = &page->info[tid];
+        if (hdr->atree != NULL) {
+            ret = StartFXTree(hdr->atree, pos, 0, 0x880, lbl_80348068);
+            if (ret >= 0) {
+                s32 ro = ret * 240;
+                MBTreeSetZsortAdd(page->fx[ret].node, hdr->zmod, 1);
+                MBTreeSetAlpha(page->fx[ret].node, hdr->alpha, 1);
+                page->fx[ret].type = (fx_type)tid;
+            }
+        }
+    }
+    if (ret < 0) {
+        return ret;
+    }
+    if (mat != NULL && ret >= 0) {
+        Effect* e = &page->fx[ret];
+        if (mat != NULL) {
+            CopyMat3(mat, e->node);
+        }
+    }
+    {
+        u8* ep = (u8*)page + ret * 240;
+        struct mbnode* nd;
+        Effect* e = (Effect*)(ep + 2976);
+        if ((nd = *(struct mbnode**)(ep + 2996)) != NULL) {
+            MBTreeSetFlags(nd, 8, 0);
+            *(f32*)((u8*)e->node + 64) = rad;
+            *(f32*)((u8*)e->node + 68) = rad;
+            *(f32*)((u8*)e->node + 72) = rad;
+        }
+        MBTreeSetZsortAdd(
+            e->node,
+            (s32)(lbl_803480B0 + rad * (f32)page->info[t].zmod), 1);
+    }
+    return ret;
+}
+
 
 void ScaleFX(s32 idx, f32 sx, f32 sy, f32 sz)
 {
