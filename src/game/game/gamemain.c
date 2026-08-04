@@ -1639,3 +1639,79 @@ suffix:
     }
     return buf;
 }
+
+/* 0x80051568 - find the nearest live idle item for an enemy (grid scan) */
+extern u8* sItems;
+extern f64 lbl_80346A88;        /* health floor */
+extern f32 lbl_803468B0;        /* big initial distance */
+extern f32 lbl_803469D4;        /* grid radius */
+extern f32 lbl_80346820;        /* 0.0f */
+extern f64 lbl_80346830;        /* 0.5 */
+extern f64 lbl_803468B8;        /* 3.0 */
+extern f64 __frsqrte(f64 x);
+extern void StartEnemyGrid(f32* pos, f32 radius);
+extern s32 NextGridEnemy(void);
+
+void fn_80051568(s32 index)
+{
+    u8* e = (u8*)gEnemies + index * 916;
+    s32 i;
+    s32 off;
+    u8* it;
+    u8* hdr;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 dist2;
+    f64 kHalf;
+    f32 kZero;
+    f64 kThree;
+    u8 _spare[24];
+
+    if (*(s16*)(e + 628) >= 0 && *(f32*)(e + 636) <= lbl_80346A88) {
+        *(s32*)(e + 828) = 0;
+        *(s32*)(e + 832) = -1;
+        *(f32*)(e + 836) = lbl_803468B0;
+        return;
+    }
+    if (*(s32*)(e + 828) != 0) {
+        return;
+    }
+    StartEnemyGrid((f32*)(e + 52), lbl_803469D4);
+    kZero = lbl_80346820;
+    kHalf = lbl_80346830;
+    kThree = lbl_803468B8;
+    while ((i = NextGridEnemy()) >= 0) {
+        off = i * 240;
+        it = (u8*)sItems + off;
+        hdr = *(u8**)it;
+        if (*(s16*)(it + 196) == -1) {
+            continue;
+        }
+        if (*(s32*)hdr != 2) {
+            continue;
+        }
+        if (*(s8*)(it + 205) != 0) {
+            continue;
+        }
+        dy = *(f32*)(it + 56) - *(f32*)(e + 56);
+        dx = *(f32*)(it + 52) - *(f32*)(e + 52);
+        dz = *(f32*)(it + 60) - *(f32*)(e + 60);
+        dist2 = dy * dy + dx * dx + dz * dz;
+        if (dist2 > kZero) {
+            volatile f32 tmp;
+            f64 y = __frsqrte(dist2);
+            y = kHalf * y * (kThree - y * y * dist2);
+            y = kHalf * y * (kThree - y * y * dist2);
+            y = kHalf * y * (kThree - y * y * dist2);
+            dist2 = (f32)(dist2 * (kHalf * y * (kThree - y * y * dist2)));
+            tmp = dist2;
+            dist2 = tmp;
+        }
+        if (dist2 < *(f32*)(e + 836)) {
+            *(f32*)(e + 836) = dist2;
+            *(s32*)(e + 832) = i;
+            *(s32*)(e + 828) = 1;
+        }
+    }
+}
