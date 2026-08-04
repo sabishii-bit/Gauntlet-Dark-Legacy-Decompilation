@@ -64,7 +64,40 @@ extern s32 gDiagRepeatDelay;    /* gDiagRepeatDelay */
 extern s32 gDiagRepeatRate;     /* gDiagRepeatRate */
 extern s32 gDiag_F0;            /* gDiag_F0 */
 extern s32 gDiag_F4;            /* gDiag_F4 */
-extern s32 gDiag_FC;            /* gDiag_FC */
+extern u32 lbl_80240FC0[];      /* pb frame/screen state block */
+extern f32 gDiag_E68;           /* color-bar animation speed scale */
+extern f64 lbl_803486D0;        /* E68 ramp step */
+extern f32 lbl_803486B4;        /* E68 reset value */
+extern f32 lbl_80348670;        /* zero */
+extern f64 lbl_80348710;        /* hue speed factor */
+extern f64 lbl_80348718;        /* hue speed cap test */
+extern f32 lbl_80348720;        /* hue speed cap */
+extern f32 lbl_80348724;        /* hue ctrl min */
+extern f32 lbl_80348728;        /* hue ctrl max */
+extern f64 lbl_80348730;        /* wrap high bound */
+extern f64 lbl_80348738;        /* wrap full circle */
+extern f64 lbl_80348740;        /* wrap low bound */
+extern f64 lbl_80348748;        /* sat speed factor */
+extern f32 lbl_80348750;        /* sat/val ctrl min */
+extern f32 lbl_80348754;        /* sat/val ctrl max */
+extern f64 lbl_80348688;        /* val speed factor */
+f32 pbDiagCtrlFloat(s32 axis, s32 pad, f32 val, f32 inc, f32 min, f32 max);
+
+/* string-row list: count at +0x4C, row base at +0x5C, 24-byte rows */
+typedef struct DiagStrRows {
+    u8 _pad00[76];
+    u32 count;              /* 0x4C */
+    u8 _pad50[12];
+    char* strs;             /* 0x5C */
+} DiagStrRows;
+
+typedef struct DiagRow {       /* 24-byte string row */
+    char name[22];
+    s16  val;
+} DiagRow;
+
+extern s32 gDiag_FC;
+extern s32 gDiag_D0C;            /* gDiag_FC */
 extern s32 gDiag_D00;           /* gDiag_D00 */
 extern s32 gDiag_D04;           /* gDiag_D04 */
 extern s32 gDiag_D08;           /* gDiag_D08 */
@@ -369,24 +402,166 @@ void pbDiagDrawTexLabel(DiagTexBank* tb, int bank)
     }
 }
 
-extern u32 lbl_80240FC0[];      /* pb frame/screen state block */
-extern f32 gDiag_E68;           /* color-bar animation speed scale */
-extern f64 lbl_803486D0;        /* E68 ramp step */
-extern f32 lbl_803486B4;        /* E68 reset value */
-extern f32 lbl_80348670;        /* zero */
-extern f64 lbl_80348710;        /* hue speed factor */
-extern f64 lbl_80348718;        /* hue speed cap test */
-extern f32 lbl_80348720;        /* hue speed cap */
-extern f32 lbl_80348724;        /* hue ctrl min */
-extern f32 lbl_80348728;        /* hue ctrl max */
-extern f64 lbl_80348730;        /* wrap high bound */
-extern f64 lbl_80348738;        /* wrap full circle */
-extern f64 lbl_80348740;        /* wrap low bound */
-extern f64 lbl_80348748;        /* sat speed factor */
-extern f32 lbl_80348750;        /* sat/val ctrl min */
-extern f32 lbl_80348754;        /* sat/val ctrl max */
-extern f64 lbl_80348688;        /* val speed factor */
-f32 pbDiagCtrlFloat(s32 axis, s32 pad, f32 val, f32 inc, f32 min, f32 max);
+extern s32 gDiag_FC;
+extern s32 gDiag_D0C;
+extern s32 gDiag_F0;
+extern s32 gDiag_D00;
+extern s32 gDiag_DEC;
+extern s32 gDiag_E6C;
+extern s32 gDiag_E70;
+extern u32 gControllerButtons;
+extern u32 sFlags;
+extern f32 gIdentityMatrix[];
+extern f32 lbl_803486B0;
+extern f32 lbl_803486B8;
+extern char lbl_80348700[8];
+extern char lbl_80348708[8];
+extern char lbl_803486F0[8];
+extern void MBSetAmbient(int idx, f32 v);
+extern void MBAddLight(int a, int b, f32 v);
+extern void MBWindowViewport(f32 a, f32 b, f32 c, f32 d);
+extern s32 MBOX_NewObject(char* name, f32* mtx, int a, int b);
+extern void* MBOX_FindTexture_Err(char* name, int a, int b);
+extern s32 MBCreateBlit(s32 a, void* tex, int b, int c, int d, int e);
+extern void mbBlitCvtCoord(s32 blit, f32 v);
+extern void MBBlitSetColor(s32 blit, s32 color);
+extern void MBSetObject(s32 obj, void* data);
+extern void MBTreeSetAltTex(s32 obj, int idx, void* tex, int a);
+extern void CreatePYRMatrix(s32 obj, void* pyr);
+extern u32 fn_800C02F4(u32 color);
+extern void fn_800C01C0(int x, int y, const char* fmt, ...);
+extern u8* MBOX_ReallyFindObject(void* entry, int a, int b, int c);
+void pbDiagDrawColorBars(void);
+void pbDiagDrawStrRow(DiagStrRows* p);
+s32 pbDiagCtrlInt(s32 axis, s32 pad, s32 val, s32 inc, s32 min, s32 max);
+
+/* object record view (also the DiagStrRows passed to pbDiagDrawStrRow) */
+typedef struct DiagObjView {
+    u8   _pad00[32];
+    char name[44];          /* 0x20 */
+    s32  count;             /* 0x4C */
+    u8   _pad50[12];
+    char* rows;             /* 0x5C: 24-byte rows */
+} DiagObjView;
+
+/* object-browser screen: spawn/manage the preview object, columns, HSV */
+s32 pbDiagDrawObject(void)
+{
+    f32* gd = gDiagData;
+    u32* b = buttons;
+    char* strs = lbl_80114E90;
+    WinGlobals* wg;
+    DiagObjView* obj;
+    s32* cur;
+    int x;
+    int i;
+    s32 old;
+    s32 zero;
+    s32 one;
+    u32 saved;
+    f32* px;
+    f32* py;
+    s32 v;
+    s32 idx;
+    u8* t10;
+    u8* fnd;
+    char buf[68];
+
+    x = 0;
+    wg = gWinGlobals;
+    if (gDiag_FC == 0) {
+        f32 z;
+        MBSetAmbient(0, lbl_803486B0);
+        MBAddLight(0, 0, lbl_803486B4);
+        z = lbl_80348670;
+        MBWindowViewport(z, z, z, z);
+        gDiag_FC = MBOX_NewObject(strs + 268, gIdentityMatrix, 0, 0);
+        gDiag_D8 = 1;
+        gDiag_D0C = 0;
+        gDiag_D00 = MBCreateBlit(gDiag_DEC, MBOX_FindTexture_Err(strs + 280, 0, 1), 0, 0, 512, 384);
+        mbBlitCvtCoord(gDiag_D00, lbl_803486B8);
+    }
+    MBSetBGColor(*(s32*)((u8*)gd + gDiag_D8 * 12), *(s32*)((u8*)gd + gDiag_D8 * 12 + 4),
+                 *(s32*)((u8*)gd + gDiag_D8 * 12 + 8));
+    v = gDiag_D00;
+    if (v != 0) {
+        MBBlitSetColor(v, *(s32*)((u8*)gd + gDiag_D8 * 4 + 108));
+    }
+    gDiag_F4 = pbDiagCtrlInt(0, 0, gDiag_F4, 1, 0, gDiag_F0);
+    obj = *(DiagObjView**)((u8*)wg->f30 + gDiag_F4 * 16 + 4);
+    cur = (s32*)((u8*)b + gDiag_F4 * 4);
+    old = cur[12];
+    cur = (s32*)((u8*)b + gDiag_F4 * 4);
+    cur[12] = pbDiagCtrlInt(1, 0, cur[12], 1, 0, *(s32*)((u8*)obj + 76));
+    cur = (s32*)((u8*)b + gDiag_F4 * 4);
+    cur[12] = pbDiagCtrlInt(4, 0, cur[12], 10, 0, *(s32*)((u8*)obj + 76));
+    cur = (s32*)((u8*)b + gDiag_F4 * 4);
+    if (old != cur[12]) {
+        printf(lbl_80348700, obj->rows + cur[12] * 24);
+        gDiag_D0C = 0;
+    }
+    cur = (s32*)((u8*)b + gDiag_F4 * 4);
+    fnd = MBOX_ReallyFindObject(obj->rows + cur[12] * 24, gDiag_F4, gDiag_F4, 1);
+    cur = (s32*)((u8*)b + gDiag_F4 * 4);
+    if (!(gDiag_E6C == gDiag_F4 && gDiag_E70 == cur[12])) {
+        gDiag_E6C = gDiag_F4;
+        gDiag_E70 = cur[12];
+    }
+    MBSetObject(gDiag_FC, fnd + gDiag_D0C);
+    zero = 0;
+    one = 1;
+    if ((gControllerButtons & zero) != zero || (sFlags & one) != zero) {
+        MBTreeSetAltTex(gDiag_FC, -2, gDiagWhiteObj, 1);
+        gDiag_D4 = one;
+    } else if (gDiag_D4 != 0) {
+        MBTreeSetAltTex(gDiag_FC, -1, 0, 1);
+        gDiag_D4 = zero;
+    }
+    if (b[8] & 0x01000000) {
+        v = gDiag_D0C + 1;
+        gDiag_D0C = v;
+        cur = (s32*)((u8*)b + gDiag_F4 * 4);
+        if (v > *(s16*)(obj->rows + cur[12] * 24 + 22)) {
+            gDiag_D0C = 0;
+        }
+    }
+    pbDiagDrawColorBars();
+    CreatePYRMatrix(gDiag_FC, (u8*)b + 368);
+    px = (f32*)((u8*)b + 384);
+    py = (f32*)((u8*)b + 388);
+    *(f32*)((u8*)gDiag_FC + 48) = *(f32*)((u8*)b + 380);
+    *(f32*)((u8*)gDiag_FC + 52) = *(f32*)((u8*)b + 384);
+    *(f32*)((u8*)gDiag_FC + 56) = *(f32*)((u8*)b + 388);
+    for (i = 0; i < gDiag_F0; i++) {
+        sprintf(buf, lbl_803486F0, i);
+        fn_800C008C((i == gDiag_F4) ? 0x00FFFF00 : 0x00FFFFFF, x, 2, buf);
+        x += 4;
+    }
+    saved = fn_800C02F4(0x00FFFFFF);
+    if (*(s8*)obj->name != 0) {
+        fn_800C008C(0x00FFFF00, 57 - strlen(obj->name), 3, lbl_80348708, obj->name, gDiag_F4);
+    }
+    t10 = *(u8**)((u8*)gDiag_FC + 112);
+    if (*(u8**)(t10 + 44) != 0) {
+        idx = (s32)(*(u8**)(t10 + 44) - (u8*)obj->rows) / 24;
+    } else {
+        idx = -1;
+    }
+    fn_800C01C0(2, 43, strs + 656, *(f32*)(t10 + 4), *(s32*)(t10 + 32), *(s32*)(t10 + 36),
+                (u16)*(u32*)((u8*)gDiag_FC + 108), idx, *(s32*)(t10 + 40));
+    fn_800C01C0(2, 44, strs + 716, *(f32*)((u8*)b + 380), *px, *py,
+                *(f32*)((u8*)b + 368), *(f32*)((u8*)b + 372), *(f32*)((u8*)b + 376));
+    fn_800C02F4(saved);
+    pbDiagDrawStrRow((DiagStrRows*)obj);
+    if (b[0] & 0x08000000) {
+        MBTreeInit();
+        gDiag_FC = 0;
+        gDiag_D00 = 0;
+        return 1;
+    }
+    return 0;
+}
+
 
 /* buttons block view: color-bar HSV/RGB state at +368 */
 typedef struct DiagPadView {
@@ -457,18 +632,7 @@ void pbDiagDrawColorBars(void)
 }
 #pragma opt_propagation reset
 
-/* string-row list: count at +0x4C, row base at +0x5C, 24-byte rows */
-typedef struct DiagStrRows {
-    u8 _pad00[76];
-    u32 count;              /* 0x4C */
-    u8 _pad50[12];
-    char* strs;             /* 0x5C */
-} DiagStrRows;
 
-typedef struct DiagRow {       /* 24-byte string row */
-    char name[22];
-    s16  val;
-} DiagRow;
 
 extern s32 gDiagBtns_B8[];      /* per-screen cursor table (B8 block) */
 extern s32 gDiag_D0C;
@@ -516,9 +680,6 @@ void pbDiagDrawStrRow(DiagStrRows* p)
 
 extern u32 lbl_80240FB0[4];
 extern u32 lbl_80240FA0[4];
-extern void MBSetBGColor(int r, int g, int b);
-extern void printf(const char* fmt, ...);
-s32 pbDiagCtrlInt(s32 axis, s32 pad, s32 val, s32 inc, s32 min, s32 max);
 
 /* 12-byte top-menu entry rows at gDiagData+156 */
 typedef struct DiagMenuEntry {
