@@ -4395,3 +4395,77 @@ done24:;
 done24b:
     return index;
 }
+
+extern f32 lbl_803468B0;
+extern f32 fn_80034C88(f32 x);
+extern s32 LineCylinderCollide(f32* center, f32 radius, f32 halfHeight,
+                               f32* from, f32* to, f32* hit, s32 directional);
+
+/* 0x80046680 - pick the player hit by the enemy's swept collision cylinder;
+ * b!=0 restricts the sweep to the nearest live player. */
+s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
+{
+    s32 i;
+    s32 j;
+    s32 last;
+    u8* p;
+    u8* q;
+    u8* e = (u8*)gEnemies + index * 916;
+    s32 ret = -1;
+    s32 start;
+    f32 best1;
+    f32 best = lbl_803468B0;
+    f32 hit[4];
+    f32 d;
+    f32 dy;
+    f32 dx;
+    f32 dz;
+    u8 _spare[40];
+
+    if (b != 0) {
+        start = 0;
+        last = 3;
+    } else {
+        if (*(s16*)(e + 628) < 0) {
+            return -1;
+        }
+        best1 = best;
+        last = -1;
+        p = (u8*)gPlayers;
+        for (i = 0; i < 4; i++, p += 13148) {
+            if (*(s32*)(p + 232) == 1) {
+                if (*(s16*)(p + 2588) > 2) {
+                    dx = *(f32*)(e + 84) - *(f32*)(p + 2564);
+                    dy = *(f32*)(e + 88) - *(f32*)(p + 2568);
+                    dz = *(f32*)(e + 92) - *(f32*)(p + 2572);
+                    d = fn_80034C88(dx * dx + dy * dy + dz * dz);
+                } else {
+                    dx = *(f32*)(e + 84) - *(f32*)(p + 100);
+                    dy = *(f32*)(e + 88) - *(f32*)(p + 104);
+                    dz = *(f32*)(e + 92) - *(f32*)(p + 108);
+                    d = fn_80034C88(dx * dx + dy * dy + dz * dz);
+                }
+                if (d < best1) {
+                    best1 = d;
+                    last = i;
+                }
+            }
+        }
+        start = last;
+    }
+    q = (u8*)gPlayers + start * 13148;
+    for (j = start; j <= last; j++, q += 13148) {
+        if (*(s32*)(q + 232) == 1) {
+            if (LineCylinderCollide((f32*)(q + 100), rad + *(f32*)(q + 2128),
+                                    hht + *(f32*)(q + 2132), oldc, newc, hit,
+                                    1) != 0) {
+                d = fqdist(hit[0] - newc[0], hit[2] - newc[2]);
+                if (d < best) {
+                    ret = j;
+                    best = d;
+                }
+            }
+        }
+    }
+    return ret;
+}
