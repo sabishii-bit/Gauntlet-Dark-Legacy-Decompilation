@@ -1584,3 +1584,58 @@ s32 fn_80057F44(s32 code, s32 mask)
     }
     return sub;
 }
+
+/* 0x80051E1C - format a world/level display name (uppercased) */
+extern char lbl_80346A90[8];    /* "%s" fmt */
+extern char lbl_80346A98[8];    /* "%s %c" fmt */
+extern char lbl_80346AA0[8];    /* suffix */
+extern char lbl_80343BF8[5];    /* level letter table */
+
+static char* findWorldName(s32 world)
+{
+    s32 off = 0;
+    s32 i;
+
+    for (i = 0; i < 44; i++) {
+        u8* e = (u8*)lbl_8011AF48 + off;
+        if (*(s32*)e == world) {
+            return (char*)(e + 4);
+        }
+        off += 36;
+    }
+    return 0;
+}
+
+char* fn_80051E1C(s32 world, s32 lvl, s32 flag)
+{
+    char* buf = (char*)lbl_80250E00;
+    s32 n;
+    u32 i;
+
+    n = lvl;
+    if (lvl == 0) {
+        n = 1;
+    }
+    if (lvl >= 4) {
+        goto chk8;
+    }
+    goto plain;
+chk8:
+    if (lvl >= 8) {
+        goto plain;
+    }
+    goto lettered;
+plain:
+    sprintf(buf, lbl_80346A90, findWorldName(world));
+    goto suffix;
+lettered:
+    sprintf(buf, lbl_80346A98, findWorldName(world), (&lbl_80343BF8[n])[-4]);
+suffix:
+    if (flag != 0) {
+        strcat(buf, lbl_80346AA0);
+    }
+    for (i = 0; i < strlen(buf); i++) {
+        buf[i] = toupper(buf[i]);
+    }
+    return buf;
+}
