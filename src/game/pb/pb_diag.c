@@ -447,11 +447,11 @@ typedef struct DiagObjView {
 s32 pbDiagDrawObject(void)
 {
     f32* gd = gDiagData;
+    s32* gdi = (s32*)gDiagData;
     s32* b = (s32*)buttons;
     char* strs = lbl_80114E90;
     WinGlobals* wg;
     DiagObjView* obj;
-    s32* cur;
     int x;
     int i;
     s32 old;
@@ -482,10 +482,10 @@ s32 pbDiagDrawObject(void)
         gDiag_D00 = MBCreateBlit(gDiag_DEC, tex, 0, 0, 512, 384);
         mbBlitCvtCoord(gDiag_D00, lbl_803486B8);
     }
-    MBSetBGColor(((s32*)gd)[gDiag_D8 * 3], *(s32*)((u8*)gd + gDiag_D8 * 12 + 4),
+    MBSetBGColor(*(s32*)((u32)gd + gDiag_D8 * 12), *(s32*)((u8*)gd + gDiag_D8 * 12 + 4),
                  *(s32*)((u8*)gd + gDiag_D8 * 12 + 8));
     if (gDiag_D00 != 0) {
-        MBBlitSetColor(gDiag_D00, (&((s32*)gd)[gDiag_D8])[27]);
+        MBBlitSetColor(gDiag_D00, (&gdi[gDiag_D8])[27]);
     }
     v = pbDiagCtrlInt(0, 0, gDiag_F4, 1, 0, gDiag_F0);
     gDiag_F4 = v;
