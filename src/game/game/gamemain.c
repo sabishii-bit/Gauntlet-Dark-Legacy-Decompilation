@@ -40,8 +40,8 @@
 /*                                      (FatalError "LoadTowerAndSelect */
 /*                                      Timeout" on stall), loads the   */
 /*                                      "shopatt9" font, then loads the */
-/*                                      level via init_next_level.      */
-/*   0x8005638C  init_next_level    -- builds the "levels/level%s" path */
+/*                                      level via init_next_level_8005638C.      */
+/*   0x8005638C  init_next_level_8005638C    -- builds the "levels/level%s" path */
 /*                                      and loads a level (calls        */
 /*                                      GetEnemyTypes).                  */
 /*   0x80055898  init_thermometer   -- creates the two HUD thermometer  */
@@ -353,7 +353,7 @@ extern void  MBWindowTo3D(f32 depth, s16* screen, f32* camera, f32* out);
 void game_main(void);
 void do_stats_display(void);
 void LoadTowerAndSelect(void);
-s32  init_next_level(s32 arg0);
+s32  init_next_level_8005638C(s32 arg0);
 s32  init_next_level_8005638C(s32 arg0);
 void init_thermometer(void);
 void GetEnemyTypes(void);
@@ -1217,7 +1217,7 @@ s32 fn_80056698(s32 arg0, s32 arg1)
 
     ResolveWorldData(arg0);
     if (arg1 < 0) {
-        init_next_level(arg0);
+        init_next_level_8005638C(arg0);
         while (fn_80055F68(0, 0) == 0) {
             serve_busy(-1);
         }
