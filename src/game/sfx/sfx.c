@@ -446,9 +446,76 @@ void DmgFxNodeUpdate(struct mbnode* node, s32 absolute, f32 rx, f32 rz, f32 rotp
     }
 }
 
-/* 0x80091700 DmgFxAdd -- doc-only: if !(flags&0x20) or mindp <= -1.0 create a
- * "COLCIR" node scaled by colrad*0.01 into e->dmgdebug; else build
- * (int)(acosf(mindp)*180/pi/15)*2 "COLARC" segments fanned +/- pi/12 steps. */
+/* 0x80091700 DmgFxAdd - dmgdebug node: COLCIR sphere or COLARC fan */
+extern Effect Effects[64];
+extern f32 acosf(f32 x);
+extern s32 Round(f32 x);
+extern f64 lbl_803480A8;        /* -1.0 arc threshold */
+extern f64 lbl_803480B8;        /* 180/pi factor */
+extern f64 lbl_803480C0;        /* arc scale */
+extern f64 lbl_803480C8;        /* 15.0 divisor */
+extern f64 lbl_80348098;        /* radius scale */
+extern f64 lbl_803480B0;        /* y squash */
+extern f32 lbl_803480D0;        /* odd-start yaw */
+extern f32 lbl_803480DC;        /* even-start yaw */
+extern f64 lbl_803480E0;        /* yaw step */
+extern f32 lbl_803480E8;        /* fixed radius */
+extern char lbl_803480D4[7];    /* "COLARC" */
+extern char lbl_8034808C[7];    /* "COLCIR" */
+
+void DmgFxAdd(s32 idx)
+{
+    Effect* e = &Effects[idx];
+    s32 cnt;
+    s32 flags = 0x401808;
+    f32 s;
+    f32 yaw;
+    f64 step;
+    u8 _spare[8];
+
+    if ((*(u32*)((u8*)e + 100) & 0x20) && *(f32*)((u8*)e + 156) > lbl_803480A8) {
+        cnt = Round((f32)(lbl_803480C0 * acosf(*(f32*)((u8*)e + 156)) *
+                          lbl_803480B8 / lbl_803480C8)) << 1;
+        s = (f32)(lbl_80348098 * *(f32*)((u8*)e + 152));
+        if (cnt & 1) {
+            yaw = lbl_803480D0;
+            *(s32*)((u8*)e + 224) =
+                (s32)MBOX_NewObject(lbl_803480D4, 0, *(s32*)((u8*)e + 20), flags);
+            cnt = cnt - 1;
+        } else {
+            yaw = lbl_803480DC;
+            *(s32*)((u8*)e + 224) =
+                (s32)MBOX_NewObject(0, 0, *(s32*)((u8*)e + 20), flags);
+        }
+        (*(struct mbnode**)((u32)e + 224))->scale[0] = s;
+        (*(struct mbnode**)((u8*)e + 224))->scale[1] = (f32)(lbl_803480B0 * s);
+        (*(struct mbnode**)((u8*)e + 224))->scale[2] = s;
+        step = lbl_803480E0;
+        while (cnt != 0) {
+            YawMat3(MBOX_NewObject(lbl_803480D4, 0,
+                                                   *(s32*)((u8*)e + 224), flags),
+                    yaw);
+            YawMat3(MBOX_NewObject(lbl_803480D4, 0,
+                                                   *(s32*)((u8*)e + 224), flags),
+                    -yaw);
+            yaw = (f32)(yaw + step);
+            cnt = cnt - 2;
+        }
+    } else {
+        struct mbnode* node;
+        if (*(u32*)((u8*)e + 100) & 0x20) {
+            s = lbl_803480E8;
+        } else {
+            s = (f32)(lbl_80348098 * *(f32*)((u8*)e + 152));
+        }
+        node = MBOX_NewObject(lbl_8034808C, 0,
+                                              *(s32*)((u8*)e + 20), flags);
+        node->scale[0] = s;
+        node->scale[1] = s;
+        node->scale[2] = s;
+        *(s32*)((u8*)e + 224) = (s32)node;
+    }
+}
 
 /* ====================================================================== */
 
