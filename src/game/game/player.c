@@ -1230,44 +1230,44 @@ done:
 
 /* Map player state (+ motion state) to a HUD display mode. */
 s32 get_display_mode(s32 i) {
-    s32 m;
+    Player* p = P(i);
 
-    switch (P(i)->state) {
-    case 3:
-        return 2;
-    case 2:
-        m = P(i)->motion_state;
-        if (m != 4) {
-            if (m < 4) {
-                if (m != 0 && m >= 0) {
-                    if (m < 3) {
-                        return 1;
-                    }
-                    return 3;
-                }
-            } else if (m < 0xF && m > 9) {
-                return 1;
-            }
-            return 0;
-        }
-        return 6;
+    switch (p->state) {
     case 1:
-        break;
-    case 11:
-        return 10;
     case 4:
     case 5:
-        break;
+        if (gGameMode == 0x4012) {
+            return 5;
+        }
+        if (*(u32*)((u8*)p + 116) != 0) {
+            return 1;
+        }
+        return 1;
+    case 2:
+        switch (p->motion_state) {
+        case 3:
+            return 3;
+        case 1:
+        case 2:
+        case 10:
+        case 11:
+        case 12:
+        case 13:
+        case 14:
+            return 1;
+        case 4:
+            return 6;
+        case 0:
+        default:
+            return 0;
+        }
+    case 3:
+        return 2;
+    case 11:
+        return 10;
     default:
         return 0;
     }
-    if (gGameMode == 0x4012) {
-        return 5;
-    }
-    if (P(i)->node != NULL) {
-        return 1;
-    }
-    return 1;
 }
 
 /* ------------------------------------------------------------------ */
