@@ -1459,3 +1459,69 @@ f32 fn_8005FDA8(u8* e, f32* a, f32* b, f32* outPos, f32* outNorm, f32 margin)
     }
     return hit;
 }
+
+extern char lbl_80112C84[];            /* "Special trigger has no target" */
+extern s32 sNumItemWobjs;
+extern u8 sItemRuntime[];
+s16* FindWobjWanim(void* wobj);
+
+/* 0x8005FF60 - fire all special triggers of the given class */
+void fn_8005FF60(s32 type, s32 flag)
+{
+    s32 i;
+    u8* it;
+    u8* w;
+    u8* obj;
+    s32 j;
+    s32 n;
+    u8* rt;
+    u8 _spare[8];
+
+    it = (u8*)sItems;
+    rt = sItemRuntime;
+    for (i = 0; i < sNumItems; i++, it += 240) {
+        if (*(s16*)(it + 196) != -1 && (*(s16*)(it + 196) & 0x8100) == 0 &&
+            *(s32*)*(u32**)it == 5 && *(u8*)(it + 226) == type) {
+            w = it;
+            while (w != 0) {
+                *(s16*)(w + 196) |= 0x400;
+                *(s8*)(w + 200) = 2;
+                *(s8*)(w + 202) = 2;
+                obj = *(u8**)(w + 220);
+                if (obj != 0) {
+                    *(s8*)(obj + 22) = 47;
+                    if (*(u32*)(obj + 16) & 0x2000000) {
+                        s16* wa = FindWobjWanim(obj);
+                        *(s8*)(obj + 23) = 47;
+                        *(s8*)(obj + 22) = 47;
+                        *(u32*)(obj + 16) |= 0x200000;
+                        if (flag != 0) {
+                            *(u32*)(obj + 16) |= 0x800000;
+                            if (wa != 0) {
+                                *(f32*)(wa + 4) = wa[1] - 1;
+                            }
+                        }
+                    } else {
+                        if (flag != 0) {
+                            n = sNumItemWobjs;
+                            for (j = 0; j < n; j++) {
+                                if (*(u32*)(&rt[j * 4] + 29216) ==
+                                    (u32)obj) {
+                                    break;
+                                }
+                            }
+                            if (j < n) {
+                                f32 v = *(f32*)(&rt[j * 4] + 1800);
+                                *(f32*)((u32)rt + j * 4) = v;
+                                *(f32*)(*(u32*)(obj + 40) + 52) = v;
+                            }
+                        }
+                    }
+                } else {
+                    ErrorPrintf(lbl_80112C84);
+                }
+                w = *(u8**)(w + 228);
+            }
+        }
+    }
+}
