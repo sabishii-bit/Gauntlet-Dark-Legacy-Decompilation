@@ -769,10 +769,16 @@ typedef struct MagicView {
     s32 colorpick[1];   /* +108 per-player-class color idx */
     u8 _p2[12];
     s32 coloridx[1];    /* +124 per-magic-type color idx   */
-    u8 _p3[3396];
+    u8 _p3[3356];
+    s32 magicid[1];     /* +3484 magic fx id per type      */
+    u8 _p3b[16];
+    s32 throwid[1];     /* +3504 throw fx id per type      */
+    u8 _p3c[16];
     s32 shieldid[1];    /* +3524 shield fx id per type     */
     u8 _p4[52];
     s32 fxflags[1];     /* +3580 damage-type flags per fx  */
+    u8 _p5[16];
+    f32 pyr[3];         /* +3600 throw pyr velocity        */
 } MagicView;
 extern f32 lbl_803480F8;
 extern f32 lbl_80348068;
@@ -905,8 +911,114 @@ s32 StartMagicPlayerFX(f32* pos)
     return StartFXSubGuts(FX_START_MAGIC, pos, 0, 0x880, 0.0f);
 }
 
-/* 0x80092B58 StartThrowMagicFX / 0x80092DF4 StartMagicFX -- doc-only
- * (throw-magic / magic family, atan2 launch). */
+/* 0x80092DF4 StartMagicFX -- bodied below (older pass). */
+
+extern char lbl_80114790[];     /* "Bad throw effect" fmt */
+extern f64 lbl_80348128;
+extern f64 lbl_80348118;
+extern f64 lbl_80348120;
+extern f32 lbl_80348130;
+extern f32 lbl_80348134;
+
+/* 0x80092B58 StartThrowMagicFX -- spawn a thrown-magic projectile: def id
+ * from the magic table, launch velocity/yaw from vel, damage + light setup. */
+s32 StartThrowMagicFX(f32* pos, f32* vel, s32 type, s32 player, s32 snd,
+                      f32 weight, f32 dmg, f32 size)
+{
+    MagicView* tbl = (MagicView*)lbl_80122088;
+    EffectPage* page = (EffectPage*)EffectInfo;
+    s32 tid;
+    s32 t4;
+    s32 ret;
+    s32 cp;
+    f32* cp3;
+    f32* pv;
+    f32 rad;
+    s32 fxh;
+    u32 fl;
+    s32 ro;
+
+    rad = (f32)(lbl_80348128 * size);
+    if (rad > lbl_80348118) {
+        rad = lbl_803480A0;
+    }
+    tid = tbl->throwid[type & 0xF];
+    t4 = type & 0xF;
+    ret = -1;
+    if (tid < 0 || tid >= 218) {
+        ErrorPrintf(lbl_80114790, tid);
+        ret = -1;
+    } else {
+        EffectHeader* hdr = &page->info[tid];
+        if (hdr->atree != NULL) {
+            ret = StartFXTree(hdr->atree, pos, 0x20010E, 0x800, lbl_80348130);
+            if (ret >= 0) {
+                ro = ret * 240;
+                MBTreeSetZsortAdd(page->fx[ret].node, hdr->zmod, 1);
+                MBTreeSetAlpha(page->fx[ret].node, hdr->alpha, 1);
+                page->fx[ret].type = (fx_type)tid;
+            }
+        }
+    }
+    if (ret >= 0) {
+        Effect* e = &page->fx[ret];
+        if (vel != NULL) {
+            f32 yaw = atan2(vel[0], vel[2]);
+            e->vel[0] = vel[0];
+            e->vel[1] = vel[1];
+            e->vel[2] = vel[2];
+            if (e->node != NULL) {
+                YawMat3(e->node, yaw);
+            }
+        }
+        pv = tbl->pyr;
+        if (pv != NULL) {
+            e->pyrvel[0] = pv[0];
+            e->pyrvel[1] = pv[1];
+            e->pyrvel[2] = pv[2];
+        }
+        if (weight >= lbl_80348078) {
+            e->weight = weight;
+        }
+        e->colrad = lbl_80348134;
+    }
+    fxh = tbl->magicid[t4];
+    if (ret >= 0) {
+        page->fx[ret].fxhit = fxh;
+        page->fx[ret].hit_audio = snd;
+        page->fx[ret].wall_sound = snd;
+    }
+    fl = type;
+    if (ret >= 0) {
+        Effect* e = &page->fx[ret];
+        if ((s32)(fl & 0xF) >= 5) {
+            fl &= ~0xC;
+        }
+        e->damage = dmg;
+        e->damagetype = (DMG_TYPE)fl;
+        e->damageradius = size;
+        e->damagedelay = lbl_80348068;
+        e->owner = player + 1;
+    }
+    page->fx[ret].hitscale = rad;
+    cp = tbl->coloridx[t4];
+    cp3 = tbl->colors[cp];
+    if (ret >= 0) {
+        u8* e4 = (u8*)page + ret * 240;
+        *(f32*)(e4 + 2992) = (f32)(lbl_80348120 * size);
+        if (cp3 != NULL) {
+            *(f32*)(e4 + 2976) = cp3[0];
+            *(f32*)(e4 + 2980) = cp3[1];
+            *(f32*)(e4 + 2984) = cp3[2];
+        } else {
+            *(f32*)(e4 + 2976) = light_color[0];
+            *(f32*)(e4 + 2980) = light_color[1];
+            *(f32*)(e4 + 2984) = light_color[2];
+        }
+    }
+    return ret;
+}
+
 
 /* pool-entry view for the magic-FX param block */
 typedef struct MagicFxView {
