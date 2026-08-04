@@ -4178,3 +4178,43 @@ s32 find_enemy_slot(s32 type, s32 level) {
     }
     return best_index;
 }
+
+/* 0x8004C8CC - wall/object clearance probe shared by the move_logic set */
+extern void* fn_8005EFAC(f32 rad, f32* probe, f32* pos, s32 a, s32 b);
+extern s32 fn_8005D3D8(s32 a, void* obj);
+extern f64 lbl_80346858;
+
+s32 fn_8004C8CC(f32* pos, s32 index)
+{
+    Enemy* e = &gEnemies[index];
+    s32 result;
+    f32 rad;
+    f32 hht;
+    f32 probe[3];
+    void* obj;
+
+    rad = (f32)(lbl_80346858 + *(f32*)((u8*)e + 568));
+    hht = (f32)(lbl_80346858 + *(f32*)((u8*)e + 572));
+    probe[0] = *(f32*)((u8*)e + 84);
+    probe[1] = *(f32*)((u8*)e + 88);
+    result = -1;
+    probe[2] = *(f32*)((u8*)e + 92);
+    probe[1] = pos[1];
+    if (fn_8004646C(rad, hht, index, probe, pos, 0, 0) >= 0) {
+        result = 0;
+    }
+    if (result != 0) {
+        obj = fn_8005EFAC(rad, probe, pos, 0, 0);
+        if (obj != 0) {
+            if (fn_8005D3D8(-1, obj) != 0) {
+                result = 0;
+            }
+        }
+    }
+    if (result != 0) {
+        if (FastWallCollide(probe, pos, 0, 2) != 0) {
+            result = 0;
+        }
+    }
+    return result;
+}
