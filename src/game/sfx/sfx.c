@@ -951,8 +951,83 @@ s32 StartMagicFX(f32* pos, s32 tf, s32 owner, f32 power, f32 scale)
     return idx;
 }
 
-/* 0x80092FC0 SuicideExplosion / 0x800933BC StartExplosion /
- * 0x80093918 fn_80093918 -- doc-only giants this pass. */
+/* 0x80092FC0 SuicideExplosion / 0x800933BC StartExplosion -- doc-only
+ * giants this pass. */
+
+extern struct atreeheader* FamiliarSpit[];
+extern f64 lbl_80348078;
+extern f32 lbl_80348068;
+
+/* 0x80093918 -- spawn a familiar-spit style projectile fx for a player:
+ * velocity from vec*scale, yaw from the velocity, damage/light from the
+ * magic def table. */
+s32 fn_80093918(s32 idx, s32 player, f32* pos, f32* vec, f32 scale, f32 spd,
+                f32 h)
+{
+    s32 i4 = idx * 4;
+    u8* tbl = (u8*)lbl_80122088;
+    u8* fx = (u8*)EffectInfo;
+    s32 ret;
+    u32 flags;
+    s32 pi;
+    s32 cp;
+    f32* cp3;
+    volatile f32 v[3];
+
+    ret = StartFXTree(*(struct atreeheader**)((u8*)FamiliarSpit + i4), pos,
+                      0x101000E, 0x880, lbl_803480F8);
+    if (ret < 0) {
+        return -1;
+    }
+    v[0] = vec[0] * scale;
+    v[1] = vec[1] * scale;
+    v[2] = vec[2] * scale;
+    if (ret >= 0) {
+        Effect* e = (Effect*)(&fx[ret * 240] + 2976);
+        f32 yaw = atan2(v[0], v[2]);
+        e->vel[0] = v[0];
+        e->vel[1] = v[1];
+        e->vel[2] = v[2];
+        if (e->node != NULL) {
+            YawMat3(e->node, yaw);
+        }
+        if (h >= lbl_80348078) {
+            e->weight = h;
+        }
+        e->colrad = lbl_803480A0;
+    }
+    flags = *(u32*)(tbl + i4 + 3580);
+    if (ret >= 0) {
+        Effect* e = (Effect*)(&fx[ret * 240] + 2976);
+        f32 k;
+        if ((s32)(flags & 0xF) >= 5) {
+            flags &= ~0xC;
+        }
+        k = lbl_80348068;
+        e->damage = spd;
+        e->damagetype = (DMG_TYPE)flags;
+        e->damageradius = k;
+        e->damagedelay = k;
+        e->owner = player + 1;
+    }
+    pi = *(s32*)((u8*)gPlayers + player * 13148 + 4);
+    cp = *(s32*)(tbl + pi * 4 + 108);
+    cp3 = (f32*)(tbl + cp * 12 + 24);
+    if (idx >= 0) {
+        u8* e3 = fx + idx * 240;
+        *(f32*)(e3 + 2992) = lbl_803480F8;
+        if (cp3 != NULL) {
+            *(f32*)(e3 + 2976) = cp3[0];
+            *(f32*)(e3 + 2980) = cp3[1];
+            *(f32*)(e3 + 2984) = cp3[2];
+        } else {
+            *(f32*)(e3 + 2976) = light_color[0];
+            *(f32*)(e3 + 2980) = light_color[1];
+            *(f32*)(e3 + 2984) = light_color[2];
+        }
+    }
+    return ret;
+}
 
 /* plain typed spawn at a position (no orientation) */
 s32 StartFXNoLoop(s32 type, f32* pos)
