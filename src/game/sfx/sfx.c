@@ -599,6 +599,7 @@ static s32 StartFXSubGuts(s32 type, f32* pos, u32 fla, u32 flb, f32 time)
     return idx;
 }
 
+
 s32 StartEnemyAtkFX(f32* pos, s32 n)
 {
     EffectPage* page = (EffectPage*)EffectInfo;
@@ -690,6 +691,7 @@ s32 StartLevelUpFX(f32* pos, s32 color)
 
 /* 0x80092794 StartShieldFX -- doc-only (shield family). */
 
+#pragma opt_lifetimes off
 s32 StartMagicHealFX(f32 scale, f32* pos)
 {
     EffectPage* page = (EffectPage*)EffectInfo;
@@ -716,6 +718,7 @@ s32 StartMagicHealFX(f32 scale, f32* pos)
     }
     return idx;
 }
+#pragma opt_lifetimes reset
 
 s32 StartMagicPlayerFX(f32* pos)
 {
