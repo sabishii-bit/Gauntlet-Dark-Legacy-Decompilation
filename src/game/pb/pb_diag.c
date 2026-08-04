@@ -81,6 +81,165 @@ extern int strlen(const char* s);
 
 void pbResetDiag(void);
 
+/* audio bank table (owned by the sound driver): counts + column arrays */
+typedef struct AudioBankTable {
+    s32 count;              /* 0x00: number of banks */
+    u8  _pad04[8];
+    u8* banks;              /* 0x0C: bank records, stride 9364 */
+    u8* subs;               /* 0x10: sub-sound records, stride 44 */
+    u8* voices;             /* 0x14: voice records, stride 28 */
+} AudioBankTable;
+
+extern char lbl_80114E90[];     /* diag format strings (.rodata) */
+extern AudioBankTable* sAudioBankTable;
+extern s32 gDiag_D28;           /* selected bank */
+extern s32 gDiag_D2C;           /* selected sound */
+extern s32 gDiag_D30;           /* selected voice row */
+extern s32 gDiag_D34;           /* selected sub-sound */
+extern s32 gDiag_D38;           /* focused column (0/1/2) */
+extern char lbl_803486A0[8];    /* "%s"-style row format (sdata2) */
+extern char lbl_803486A8[8];    /* sub-row format (sdata2) */
+extern int sprintf(char* dst, const char* fmt, ...);
+
+/* sound-browser columns: banks / sounds+subsounds / voices */
+void pbDiagDrawSoundRow(void)
+{
+    char* strs = lbl_80114E90;
+    u8* bank;
+    u8* snd;
+    u8* snd2;
+    u8* sub2;
+    u8* voice;
+    u32 col1;
+    u32 col2;
+    u32 col3;
+    int i;
+    int off;
+    int s;
+    int soff;
+    int k;
+    int koff;
+    int row;
+    int sel;
+    int flat;
+    int t;
+    int top;
+    int bot;
+    int flag;
+    int id;
+    u8* sub;
+    s32* q32;
+    u32 val;
+    char buf[128];
+
+    col1 = (gDiag_D38 == 0) ? 0x00FFFF00 : 0x0000FF00;
+    i = 0;
+    off = 0;
+    while (i < sAudioBankTable->count) {
+        sprintf(buf, lbl_803486A0, sAudioBankTable->banks + off);
+        fn_800C008C((i == gDiag_D28) ? col1 : 0x00FFFFFF, 2, i + 5, buf);
+        i++;
+        off += 9364;
+    }
+    bank = sAudioBankTable->banks + gDiag_D28 * 9364;
+    if (gDiag_D38 == 1) {
+        col2 = 0x00FFFF00;
+    } else {
+        col2 = 0x0000FF00;
+    }
+    sel = -1;
+    flat = 0;
+    for (s = 0; s < *(s32*)(bank + 16); s++) {
+        int n = *(s32*)(bank + s * 292 + 44);
+        for (k = 0; k < n; k++) {
+            if (s == gDiag_D2C && k == gDiag_D34) {
+                sel = flat;
+            }
+            flat++;
+        }
+        flat++;
+    }
+    t = (sel - 15 > 0) ? (sel - 15) : 0;
+    bot = t + 29;
+    top = t;
+    if (bot >= flat) {
+        bot = flat - 1;
+        top = (flat - 30 > 0) ? (bot - 29) : 0;
+    }
+    row = 0;
+    s = row;
+    soff = 0;
+    while (s < *(s32*)(bank + 16)) {
+        snd = bank + soff + 20;
+        if (row >= top && row <= bot) {
+            sprintf(buf, lbl_803486A0, snd);
+            fn_800C008C((s == gDiag_D2C) ? col2 : 0x00FFFFFF, 10, row + 5 - top, buf);
+        }
+        k = 0;
+        koff = 0;
+        row++;
+        while (k < *(s32*)(snd + 24)) {
+            id = *(s32*)(snd + koff + 28);
+            sub = sAudioBankTable->subs + id * 44;
+            if (row >= top && row <= bot) {
+                sprintf(buf, lbl_803486A8, sub + 16);
+                flag = 0;
+                if (s == gDiag_D2C && k == gDiag_D34) {
+                    flag = 1;
+                }
+                fn_800C008C(flag ? col2 : 0x00FFFFFF, 10, row + 5 - top, buf);
+            }
+            row++;
+            k++;
+            koff += 4;
+        }
+        s++;
+        soff += 292;
+    }
+    while (row < 30) {
+        fn_800C008C(0x00FFFFFF, 10, row + 5, strs + 180);
+        row++;
+    }
+    snd2 = sAudioBankTable->banks + (gDiag_D28 * 9364 + gDiag_D2C * 292 + 20);
+    q32 = (s32*)(snd2 + gDiag_D34 * 4);
+    id = q32[7];
+    sub2 = sAudioBankTable->subs + id * 44;
+    voice = sAudioBankTable->voices + *(s16*)(sub2 + 38) * 28;
+    if (gDiag_D38 == 2) {
+        col3 = 0x00FFFF00;
+    } else {
+        col3 = 0x0000FF00;
+    }
+    top = gDiag_D30 - 15;
+    if (top > 0) {
+    } else {
+        top = 0;
+    }
+    bot = top + 29;
+    if (bot >= *(s16*)(sub2 + 36)) {
+        bot = *(s16*)(sub2 + 36) - 1;
+        top = (*(s16*)(sub2 + 36) - 30 > 0) ? (bot - 29) : 0;
+    }
+    row = 0;
+    i = 0;
+    soff = 0;
+    while (i < *(s16*)(sub2 + 36)) {
+        if (row >= top && row <= bot) {
+            u8* e = voice + soff;
+            val = ((*(s32*)(snd2 + gDiag_D34 * 4 + 28) & 0x7FFF) << 16) | i;
+            sprintf(buf, strs + 204, *(f32*)(e + 20), val);
+            fn_800C008C((i == gDiag_D30) ? col3 : 0x00FFFFFF, 25, row + 5 - top, buf);
+        }
+        row++;
+        i++;
+        soff += 28;
+    }
+    while (row < 30) {
+        fn_800C008C(0x00FFFFFF, 25, row + 5, strs + 228);
+        row++;
+    }
+}
+
 void pbDiagDrawMenuA(DiagList* list) {
     int line;
     int i;
@@ -355,7 +514,6 @@ void pbDiagDrawStrRow(DiagStrRows* p)
 
 
 
-extern char lbl_80114E90[];     /* diag menu format strings (.rodata) */
 extern u32 lbl_80240FB0[4];
 extern u32 lbl_80240FA0[4];
 extern void MBSetBGColor(int r, int g, int b);
