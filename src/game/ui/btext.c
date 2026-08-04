@@ -115,6 +115,7 @@ extern int vsprintf(char* buf, const char* fmt, void* ap);
 /* ---- helpers ---- */
 
 s32 FixMLineText(s32* src, s32* dst, s32 lines);
+s32 DrawTextSub(f32 scale, f32 shScale, s32 x, s32 y, u32 flags, u32 color, u8* str);
 
 /* Force the .bss pool into address order (deadstripped by mwld). */
 static void btext_bss_order(void)
@@ -435,11 +436,41 @@ s32 DrawStringText(s32 x, s32 y, u32 flags, u32 color, s32 msg, s32 idx, ...)
     return 0;
 }
 
-/* ==== 0x8001FAB0 DrawStringTextSub (skeleton) ==== */
+/* ==== 0x8001FAB0 DrawStringTextSub - draw a multi-line message ==== */
 s32 DrawStringTextSub(StrList* p, s32 msg, s32 x, s32 y, s32 spacing, u32 font, u32 color)
 {
-    (void)p; (void)msg; (void)x; (void)y; (void)spacing; (void)font; (void)color;
-    return 0;
+    u32 ret;
+    u8* e;
+    f32 sx;
+    f32 sh;
+    s32 n;
+    s32 i;
+    s32 off;
+    s32 lines[18];
+    s32* lp;
+
+    ret = 0;
+    if (spacing < 0) {
+        spacing = gLineSpacing;
+    }
+    e = (u8*)p->msgs + msg * 20;
+    sx = DrawStringScale * *(f32*)(e + 12);
+    sh = *(f32*)(e + 16);
+    spacing += (s32)((f32)MBFontHeight(font) * sx);
+    n = FixMLineText((s32*)gTextFormatBuf, (s32*)gTextWorkBuf, (s32)lines);
+    lp = (s32*)(u32)lines;
+    i = 0;
+    off = 0;
+    for (; i < n; i++, off += 4) {
+        u32 r = DrawTextSub(sx, sh, x, y, font, color,
+                            *(u8**)((u8*)lp + off));
+        if (ret == 0) {
+            ret = r;
+        }
+        y += spacing;
+    }
+    gDrawTextY = y;
+    return ret;
 }
 
 /* ==== 0x8001FBCC RestoreDrawStringScale ==== */
@@ -645,7 +676,6 @@ s32 DrawNormalText(f32 scale, u8* str, s32 color)
 }
 
 /* ==== 0x800208E4 DrawTextMLines ==== */
-void DrawTextSub(f32 scale, f32 shScale, s32 x, s32 y, u32 flags, u32 color, u8* str);
 
 s32 DrawTextMLines(f32 scale, s32 x, s32 y, u32 font, u32 color, s32* str)
 {
@@ -679,7 +709,7 @@ void DrawText(s32 x, s32 y, u32 flags, u32 color, const char* fmt, ...)
 }
 
 /* ==== 0x80020AAC DrawTextSub (core; skeleton) ==== */
-void DrawTextSub(f32 scale, f32 shScale, s32 x, s32 y, u32 flags, u32 color, u8* str)
+s32 DrawTextSub(f32 scale, f32 shScale, s32 x, s32 y, u32 flags, u32 color, u8* str)
 {
     (void)scale; (void)shScale; (void)x; (void)y; (void)flags; (void)color; (void)str;
     MBDrawText(x, y, str);
@@ -785,3 +815,4 @@ void LoadFonts(s32 mode, void* def, void* def2)
 {
     (void)mode; (void)def; (void)def2;
 }
+
