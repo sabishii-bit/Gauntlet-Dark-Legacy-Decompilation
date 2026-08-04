@@ -99,7 +99,7 @@ typedef struct DiagRow {       /* 24-byte string row */
 extern u32 gDiag_FC;
 extern s32 gDiag_D0C;            /* gDiag_FC */
 extern u32 gDiag_D00;           /* gDiag_D00 */
-extern s32 gDiag_D04;           /* gDiag_D04 */
+extern u32 gDiag_D04;           /* gDiag_D04 */
 extern s32 gDiag_D08;           /* gDiag_D08 */
 
 /* --- text / draw primitives + subsystem init (other TUs) --- */
@@ -348,10 +348,13 @@ void pbDiagDrawMenuB(DiagMenu* menu) {
     }
 }
 
-/* texture bank view: slot count at +0x48 */
+/* texture bank view: name at +0x20, slot count at +0x48, defs at +0x58 */
 typedef struct DiagTexBank {
-    u8 _pad00[0x48];
-    u32 nslots;             /* 0x48 */
+    u8   _pad00[32];
+    char name[40];          /* 0x20 */
+    u32  nslots;            /* 0x48 */
+    u8   _pad4C[12];
+    u8*  defs;              /* 0x58: 16-byte texdef records */
 } DiagTexBank;
 
 extern s32 gDiag_F4;            /* declared above */
@@ -359,8 +362,227 @@ extern s32 gDiagBtns_F8[];      /* per-screen cursor table */
 extern char lbl_803486F8[8];    /* "%3d %s"-style row format (sdata2) */
 extern void* MBOX_GetTexDef(u32 id);
 
+extern u32 gDiag_FC;
+extern s32 gDiag_D0C;
+extern s32 gDiag_F0;
+extern s32 gDiag_DEC;
+extern s32 gDiag_E6C;
+extern s32 gDiag_E70;
+extern u32 gControllerButtons;
+extern u32 sFlags;
+extern f32 gIdentityMatrix[];
+extern f32 lbl_803486B0;
+extern f32 lbl_803486B8;
+extern char lbl_80348700[8];
+extern char lbl_80348708[8];
+extern char lbl_803486F0[8];
+extern void MBSetAmbient(int idx, f32 v);
+extern void MBAddLight(int a, int b, f32 v);
+extern void MBWindowViewport(f32 a, f32 b, f32 c, f32 d);
+extern s32 MBOX_NewObject(char* name, f32* mtx, int a, int b);
+extern void* MBOX_FindTexture_Err(char* name, int a, int b);
+extern s32 MBCreateBlit(s32 a, void* tex, int b, int c, int d, int e);
+extern void mbBlitCvtCoord(s32 blit, f32 v);
+extern void MBBlitSetColor(s32 blit, s32 color);
+extern void MBSetObject(s32 obj, void* data);
+extern void MBTreeSetAltTex(s32 obj, int idx, void* tex, int a);
+extern void CreatePYRMatrix(s32 obj, void* pyr);
+extern u32 fn_800C02F4(u32 color);
+extern void fn_800C01C0(int x, int y, const char* fmt, ...);
+extern u8* MBOX_ReallyFindObject(void* entry, int a, int b, int c);
+void pbDiagDrawColorBars(void);
+void pbDiagDrawStrRow(DiagStrRows* p);
+s32 pbDiagCtrlInt(s32 axis, s32 pad, s32 val, s32 inc, s32 min, s32 max);
+
+extern s32 gDiag_D10;           /* texture-screen mode (0..3) */
+extern u8* gDiag_D14;           /* highlighted texdef ptr */
+extern s32 gDiag_DE8;
+extern char lbl_80114FA8[];     /* backdrop texture name (.rodata) */
+extern char lbl_8011501C[];     /* "LOCKED"-style banner (.rodata) */
+extern char lbl_803486E8[8];    /* texdef printf format (sdata2) */
+extern void fn_800C7864(int a);
+extern void mbBlitUpdateEntry(u32 blit, int idx, u32 flags);
+extern void MBRemoveBlit(u32 blit);
+extern void mbInitBlitEntry(u32 blit, u32 id, int a);
+extern void mbBlitCalcRect(u32 blit, s32* x, s32* y, int a);
+extern void mbBlitCalcWidth(u32 blit, s32 x, s32 y, f32 v);
+extern u32 mbBlitStub343C(void);
+void pbDiagDrawTexLabel();
+
+/* texture-browser screen: backdrop blit, 6-tile grid or single zoom blit,
+ * per-bank texture cursor, tile refresh + highlight toggling */
+s32 pbDiagDrawTexture(void)
+{
+    f32* gd = gDiagData;
+    u32* b = buttons;
+    WinGlobals* wg;
+    DiagTexBank* tb;
+    s32* gdi = (s32*)gDiagData;
+    int x;
+    u8* texdef;
+    int i;
+    s32 old;
+    s32 v;
+    u32 saved;
+    void* tex;
+    u32* bp;
+    s32 rectX;
+    s32 rectY;
+    u32 w;
+    char buf[68];
+
+    x = 0;
+    texdef = 0;
+    wg = gWinGlobals;
+    if (gDiag_D00 == 0) {
+        tex = MBOX_FindTexture_Err(lbl_80114FA8, 0, 1);
+        gDiag_D00 = MBCreateBlit(gDiag_DEC, tex, 0, 0, 512, 384);
+        mbBlitCvtCoord(gDiag_D00, lbl_803486B8);
+    }
+    if (gDiag_D00 != 0) {
+        MBBlitSetColor(gDiag_D00, (&gdi[gDiag_D8])[27]);
+    }
+    if (gDiag_D14 != 0) {
+        *(u16*)(gDiag_D14 + 2) &= ~2;
+    }
+    if (gDiag_D10 >= 2) {
+        if ((u32)(&b[0])[98] == 0) {
+            fn_800C7864(0);
+            for (i = 0; i < 6; i++) {
+                (&b[i])[98] = MBCreateBlit(gDiag_DE8, 0,
+                                           ((s16*)&gd[i * 4])[108],
+                                           ((s16*)&gd[i * 4])[109],
+                                           ((s16*)&gd[i])[164],
+                                           ((s16*)&gd[i])[165]);
+                mbBlitUpdateEntry((&b[i])[98], -1, 0x01000200);
+            }
+        }
+        if (gDiag_D04 != 0) {
+            MBRemoveBlit(gDiag_D04);
+            gDiag_D04 = 0;
+        }
+    } else {
+        if (gDiag_D04 == 0) {
+            gDiag_D04 = MBCreateBlit(gDiag_DE8, 0, 256, 64, -2, -2);
+            mbBlitUpdateEntry(gDiag_D04, -1, 0x01000000);
+            gDiag_D8 = 0;
+        }
+        if ((u32)(&b[0])[98] != 0) {
+            for (i = 0; i < 6; i++) {
+                MBRemoveBlit((&b[i])[98]);
+            }
+            (&b[0])[98] = 0;
+        }
+    }
+    MBSetBGColor(*(s32*)((u32)gd + gDiag_D8 * 12), *(s32*)((u8*)gd + gDiag_D8 * 12 + 4),
+                 *(s32*)((u8*)gd + gDiag_D8 * 12 + 8));
+    v = pbDiagCtrlInt(0, 0, gDiag_F4, 1, 0, gDiag_F0);
+    gDiag_F4 = v;
+    old = (s32)(&b[v])[28];
+    tb = ((DiagTexBank**)&((s32*)wg->f30)[v * 4])[1];
+    if ((&((s32*)wg->f30)[v * 4])[4] == 0) {
+        (&b[gDiag_F4])[28] = pbDiagCtrlInt(1, 0, old, 1, 0, tb->nslots);
+        (&b[gDiag_F4])[28] = pbDiagCtrlInt(4, 0, (&b[gDiag_F4])[28], 10, 0, tb->nslots);
+        if (old != (s32)(&b[gDiag_F4])[28]) {
+            printf(lbl_803486E8,
+                   MBOX_GetTexDef((u16)(&b[gDiag_F4])[28] | (gDiag_F4 << 16)));
+            gDiag_D0C = 0;
+        }
+        if (gDiag_D10 >= 2) {
+            for (i = 0; i < 6; i++) {
+                mbInitBlitEntry((&b[i])[98],
+                                (u16)(&b[gDiag_F4])[28] | (gDiag_F4 << 16), 0);
+            }
+        } else if (gDiag_D04 != 0) {
+            mbInitBlitEntry(gDiag_D04,
+                            (u16)(&b[gDiag_F4])[28] | (gDiag_F4 << 16), 0);
+        }
+    }
+    for (i = 0; i < gDiag_F0; i++) {
+        sprintf(buf, lbl_803486F0, i);
+        fn_800C008C((i == gDiag_F4) ? 0x00FFFF00 : 0x00FFFFFF, x, 2, buf);
+        x += 4;
+    }
+    if (*(s8*)tb->name != 0) {
+        fn_800C008C(0x00FFFF00, 61 - strlen(tb->name), 3, tb->name);
+    }
+    if ((&((s32*)wg->f30)[gDiag_F4 * 4])[4] == 0) {
+        pbDiagDrawTexLabel(tb);
+        saved = fn_800C02F4(0x00FFFFFF);
+        if (tb->nslots != 0) {
+            texdef = tb->defs + (&b[gDiag_F4])[28] * 16;
+        } else {
+            texdef = 0;
+        }
+        if (texdef != 0 && gDiag_D14 != 0) {
+            fn_800C02F4(0x00FF0000);
+            fn_800C01C0(30, 43, lbl_8011501C);
+        }
+        fn_800C02F4(saved);
+    }
+    if (gDiag_D04 != 0) {
+        mbBlitCalcRect(gDiag_D04, &rectX, &rectY, 0);
+        w = b[1];
+        if (w & 3) {
+            rectX = rectX - 1;
+        }
+        if (w & 0xC) {
+            rectX = rectX + 1;
+        }
+        if (w & 0x30) {
+            rectY = rectY + 1;
+        }
+        if (w & 0xC0) {
+            rectY = rectY - 1;
+        }
+        mbBlitCalcWidth(gDiag_D04, rectX, rectY, lbl_803486B8);
+    }
+    if (b[0] & 0x01000000) {
+        if (gDiag_D10 == 1) {
+            gDiag_D10 = 2;
+        } else if (gDiag_D10 == 3) {
+            gDiag_D10 = 0;
+        }
+    } else {
+        if (gDiag_D10 == 0) {
+            gDiag_D10 = 1;
+        } else if (gDiag_D10 == 2) {
+            gDiag_D10 = 3;
+        }
+    }
+    bp = &b[5];
+    if (b[5] & 0x04000000) {
+        if (gDiag_D04 != 0) {
+            mbBlitUpdateEntry(gDiag_D04, -1, mbBlitStub343C() ^ 256);
+        }
+    }
+    if (*bp & 0x02000000) {
+        if (gDiag_D14 != 0) {
+            gDiag_D14 = 0;
+        } else {
+            gDiag_D14 = texdef;
+        }
+    }
+    if (b[0] & 0x08000000) {
+        MBTreeInit();
+        gDiag_D04 = 0;
+        gDiag_D00 = 0;
+        (&b[0])[106] = 0;
+        (&b[0])[98] = 0;
+        gDiag_D14 = 0;
+        return 1;
+    }
+    if (gDiag_D14 != 0) {
+        gDiag_D14 = texdef;
+        *(u16*)(texdef + 2) |= 2;
+    }
+    return 0;
+}
+
 /* one label row per texture slot of bank `bank`, windowed like MenuA */
-void pbDiagDrawTexLabel(DiagTexBank* tb, int bank)
+void pbDiagDrawTexLabel(tb, bank)
+DiagTexBank* tb;
+int bank;
 {
     int line;
     u32 color;
@@ -402,37 +624,6 @@ void pbDiagDrawTexLabel(DiagTexBank* tb, int bank)
     }
 }
 
-extern u32 gDiag_FC;
-extern s32 gDiag_D0C;
-extern s32 gDiag_F0;
-extern s32 gDiag_DEC;
-extern s32 gDiag_E6C;
-extern s32 gDiag_E70;
-extern u32 gControllerButtons;
-extern u32 sFlags;
-extern f32 gIdentityMatrix[];
-extern f32 lbl_803486B0;
-extern f32 lbl_803486B8;
-extern char lbl_80348700[8];
-extern char lbl_80348708[8];
-extern char lbl_803486F0[8];
-extern void MBSetAmbient(int idx, f32 v);
-extern void MBAddLight(int a, int b, f32 v);
-extern void MBWindowViewport(f32 a, f32 b, f32 c, f32 d);
-extern s32 MBOX_NewObject(char* name, f32* mtx, int a, int b);
-extern void* MBOX_FindTexture_Err(char* name, int a, int b);
-extern s32 MBCreateBlit(s32 a, void* tex, int b, int c, int d, int e);
-extern void mbBlitCvtCoord(s32 blit, f32 v);
-extern void MBBlitSetColor(s32 blit, s32 color);
-extern void MBSetObject(s32 obj, void* data);
-extern void MBTreeSetAltTex(s32 obj, int idx, void* tex, int a);
-extern void CreatePYRMatrix(s32 obj, void* pyr);
-extern u32 fn_800C02F4(u32 color);
-extern void fn_800C01C0(int x, int y, const char* fmt, ...);
-extern u8* MBOX_ReallyFindObject(void* entry, int a, int b, int c);
-void pbDiagDrawColorBars(void);
-void pbDiagDrawStrRow(DiagStrRows* p);
-s32 pbDiagCtrlInt(s32 axis, s32 pad, s32 val, s32 inc, s32 min, s32 max);
 
 /* object record view (also the DiagStrRows passed to pbDiagDrawStrRow) */
 typedef struct DiagObjView {
