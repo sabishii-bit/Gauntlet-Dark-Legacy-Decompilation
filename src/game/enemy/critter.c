@@ -280,6 +280,9 @@ void CritterGetDoAction(Critter *c);
 u32  CritterCopyAnim(Critter *c, CritterMove *move, s32 frame);
 void CritterAnimate(Critter *c);
 void CritterMoveDone(Critter *c, s32 moveIndex);
+extern s32 lbl_8034489C;
+extern f64 lbl_80346608;
+extern f32 lbl_80346470;
 s32  CritterGetDmove(CritterMove *a, CritterMove *b);
 s32  CritterFindMoveType(Critter *c, s32 type, s32 mode);
 void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active);
@@ -2651,41 +2654,72 @@ void CritterAnimate(Critter *c)
  * just completed its blend. */
 void CritterMoveDone(Critter *c, s32 moveIndex)
 {
-    CritterMove *move;
-    Critter *child;
-    s16 nextPatternMove;
+    u8* m;
+    Critter* child;
+    s32 n;
+    s32 fx;
+    f32* cf = (f32*)c;
 
-    if (c->unk11C < 0) {
-        if (c->unk11E < 0) {
-            if (moveIndex >= 0) {
-                c->moveTimes[moveIndex] =
-                    sMusicFadeBase + (*(s16 *)((u8 *)c + 0x88) - 2.0f) *
-                                     0.016666668f;
+    fx = *(s16*)((u8*)c + 280);
+    m = 0;
+    if (fx >= 0) {
+        m = *(u8**)(*(u8**)((u8*)c + 4) + 292) + fx * 144;
+    }
+    if (m != 0) {
+        switch (*(s32*)m) {
+        case 16:
+            if (*(s16*)(m + 84) < 0) {
+                if (lbl_8034489C == 1) {
+                    lbl_8034489C = 2;
+                }
             }
-        } else {
-            c->patternTimes[c->unk11E] = sMusicFadeBase;
-            c->unk11C = c->unk11E;
-            c->unk120 = 0;
-        }
-    } else if (c->parent == NULL || c->parent->unk11C < 0) {
-        c->unk120++;
-        nextPatternMove = -1;
-        if (c->unk120 < 8) {
-            nextPatternMove = *(s16 *)(*(u8 **)((u8 *)c->hdr + 0x128) +
-                                      c->unk11C * 0x50 +
-                                      c->unk120 * 2 + 0x20);
-        }
-        if (nextPatternMove < 0) {
-            c->unk11C = -1;
-            c->unk120 = -1;
-            for (child = c->next; child != NULL; child = child->next) {
-                child->unk11C = -1;
-                child->unk120 = -1;
+            break;
+        case 34:
+            if (lbl_8034489C == 3) {
+                lbl_8034489C = 4;
             }
+            break;
         }
     }
-    c->curmove = (s16)moveIndex;
-    c->rate = 0.0f;
+    if (*(s16*)((u8*)c + 284) >= 0) {
+        child = *(Critter**)((u8*)c + 2780);
+        if (child != 0 && *(s16*)((u8*)child + 284) >= 0) {
+        } else {
+            *(s16*)((u8*)c + 288) = *(s16*)((u8*)c + 288) + 1;
+            n = *(s16*)((u8*)c + 284);
+            fx = *(s16*)((u8*)c + 288);
+            if (fx < 8 &&
+                (&((s16*)(*(u8**)(*(u8**)((u8*)c + 4) + 296) +
+                          n * 80))[fx])[16] >= 0) {
+            } else {
+                *(s16*)((u8*)c + 284) = -1;
+                *(s16*)((u8*)c + 288) = -1;
+                child = *(Critter**)((u8*)c + 2776);
+                while (child != 0) {
+                    *(s16*)((u8*)child + 284) = -1;
+                    *(s16*)((u8*)child + 288) = -1;
+                    child = *(Critter**)((u8*)child + 2776);
+                }
+            }
+        }
+    } else {
+        n = *(s16*)((u8*)c + 286);
+        if (n >= 0) {
+            (&cf[n])[198] = sMusicFadeBase;
+            *(s16*)((u8*)c + 284) = *(s16*)((u8*)c + 286);
+            *(s16*)((u8*)c + 288) = 0;
+        } else {
+            (&cf[moveIndex])[134] =
+                (f32)(lbl_80346608 * (f32)(*(s16*)((u8*)c + 136) - 2) +
+                      sMusicFadeBase);
+        }
+    }
+    fx = *(s16*)((u8*)c + 2746);
+    if (fx >= 0) {
+        *(s16*)((u8*)c + 2746) = DeleteEffect(fx, 1);
+    }
+    *(s16*)((u8*)c + 280) = moveIndex;
+    *(f32*)((u8*)c + 532) = lbl_80346470;
 }
 
 /* 0x8003C8D4 -- classify two critters' facing/positions into a 0/1/2 code by
