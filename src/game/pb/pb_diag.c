@@ -413,27 +413,31 @@ void pbDiagDrawTexLabel();
  * per-bank texture cursor, tile refresh + highlight toggling */
 s32 pbDiagDrawTexture(void)
 {
-    f32* gd = gDiagData;
     u32* b = buttons;
+    char buf[68];
+    u8* texdef;
+    int x;
     WinGlobals* wg;
+    f32* gd;
     DiagTexBank* tb;
     s32* gdi = (s32*)gDiagData;
-    int x;
-    u8* texdef;
     int i;
     s32 old;
+    s32 old2;
     s32 v;
     u32 saved;
     void* tex;
     u32* bp;
+    u32 w;
+    u8 _spare[48];
     s32 rectX;
     s32 rectY;
-    u32 w;
-    char buf[68];
+    u8 _spare2[8];
 
-    x = 0;
     texdef = 0;
+    x = 0;
     wg = gWinGlobals;
+    gd = gDiagData;
     if (gDiag_D00 == 0) {
         tex = MBOX_FindTexture_Err(lbl_80114FA8, 0, 1);
         gDiag_D00 = MBCreateBlit(gDiag_DEC, tex, 0, 0, 512, 384);
@@ -449,12 +453,12 @@ s32 pbDiagDrawTexture(void)
         if ((u32)(&b[0])[98] == 0) {
             fn_800C7864(0);
             for (i = 0; i < 6; i++) {
-                (&b[i])[98] = MBCreateBlit(gDiag_DE8, 0,
+                *(u32*)((u8*)b + i * 4 + 392) = MBCreateBlit(gDiag_DE8, 0,
                                            ((s16*)&gd[i * 4])[108],
                                            ((s16*)&gd[i * 4])[109],
                                            ((s16*)&gd[i])[164],
                                            ((s16*)&gd[i])[165]);
-                mbBlitUpdateEntry((&b[i])[98], -1, 0x01000200);
+                mbBlitUpdateEntry(*(u32*)((u8*)b + i * 4 + 392), -1, 0x01000200);
             }
         }
         if (gDiag_D04 != 0) {
@@ -469,7 +473,7 @@ s32 pbDiagDrawTexture(void)
         }
         if ((u32)(&b[0])[98] != 0) {
             for (i = 0; i < 6; i++) {
-                MBRemoveBlit((&b[i])[98]);
+                MBRemoveBlit(*(u32*)((u8*)b + i * 4 + 392));
             }
             (&b[0])[98] = 0;
         }
@@ -481,16 +485,19 @@ s32 pbDiagDrawTexture(void)
     old = (s32)(&b[v])[28];
     tb = ((DiagTexBank**)&((s32*)wg->f30)[v * 4])[1];
     if ((&((s32*)wg->f30)[v * 4])[4] == 0) {
-        (&b[gDiag_F4])[28] = pbDiagCtrlInt(1, 0, old, 1, 0, tb->nslots);
-        (&b[gDiag_F4])[28] = pbDiagCtrlInt(4, 0, (&b[gDiag_F4])[28], 10, 0, tb->nslots);
-        if (old != (s32)(&b[gDiag_F4])[28]) {
-            printf(lbl_803486E8,
-                   MBOX_GetTexDef((u16)(&b[gDiag_F4])[28] | (gDiag_F4 << 16)));
+        old2 = pbDiagCtrlInt(1, 0, old, 1, 0, tb->nslots);
+        v = gDiag_F4;
+        (&b[v])[28] = old2;
+        old2 = pbDiagCtrlInt(4, 0, (&b[v])[28], 10, 0, tb->nslots);
+        v = gDiag_F4;
+        (&b[v])[28] = old2;
+        if (old != (s32)(&b[v])[28]) {
+            printf(lbl_803486E8, MBOX_GetTexDef((u16)(&b[v])[28] | (v << 16)));
             gDiag_D0C = 0;
         }
         if (gDiag_D10 >= 2) {
             for (i = 0; i < 6; i++) {
-                mbInitBlitEntry((&b[i])[98],
+                mbInitBlitEntry(*(u32*)((u8*)b + i * 4 + 392),
                                 (u16)(&b[gDiag_F4])[28] | (gDiag_F4 << 16), 0);
             }
         } else if (gDiag_D04 != 0) {
