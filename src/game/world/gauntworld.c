@@ -1166,11 +1166,10 @@ extern s32 damage_enemy(u8* e, f32 amount, s32 dtype, s32 knock, s32 srcflags,
 s32 fn_8005D3D8(s32 index, u8* wobj)
 {
     u8* hdr = *(u8**)wobj;
+    s32 ret;
     u8* sub = hdr + 4;
     u8* e;
-    s32 ret;
     s32 t;
-    s32 u;
 
     if (index >= 0) {
         e = gEnemies + index * 916;
@@ -1218,8 +1217,7 @@ s32 fn_8005D3D8(s32 index, u8* wobj)
         } else {
             t = 1;
         }
-        u = (t == 0) ? 1 : 0;
-        ret = u;
+        ret = (t != 0) ? 1 : 0;
         if (*(s16*)(wobj + 220) == 17) {
             ret = 0;
         }
@@ -1247,6 +1245,87 @@ dmg:
 nodmg:
             ret = 0;
         }
+        break;
+    case 5:
+    case 9:
+    case 11:
+    case 12:
+        ret = 0;
+        break;
+    }
+    return ret;
+}
+
+/* 0x8005D5C8 - classify a world object for a player (jumptable pair) */
+s32 fn_8005D5C8(u8* pl, u8* wobj)
+{
+    u8* hdr = *(u8**)wobj;
+    s32 ret = 1;
+    u8* sub = hdr + 4;
+    s32 cls = *(s16*)(*(u8**)(*(u8**)(pl + 4) + 288) + 32);
+    s32 t;
+
+    switch (*(u32*)hdr) {
+    case 1:
+        ret = 0;
+        break;
+    case 10:
+        switch (*(s32*)sub) {
+        case 40:
+        case 49:
+        case 51:
+        case 52:
+        case 53:
+            ret = 0;
+            break;
+        case 41:
+            if (*(s16*)(wobj + 222) > 0) {
+                ret = 1;
+            }
+            break;
+        case 43:
+        case 44:
+        case 45:
+            if (cls == 3 || cls == 7) {
+                ret = 3;
+            } else {
+                ret = 1;
+            }
+            break;
+        default:
+            ret = 1;
+            break;
+        }
+        break;
+    case 2:
+        ret = 1;
+        if (*(s32*)sub == 43) {
+            if (cls == 3 || cls == 7) {
+                ret = 3;
+            }
+        } else {
+            if (cls == 3 || cls == 7) {
+                ret = 2;
+            }
+        }
+        break;
+    case 3:
+        if (*(s8*)(wobj + 226) != 0) {
+            t = 0;
+        } else {
+            t = 1;
+        }
+        ret = (t != 0) ? 0 : 1;
+        if (*(f32*)(hdr + 16) <= sNewtonThree) {
+            if (cls == 3 || cls == 7) {
+                ret = 3;
+            } else {
+                ret = 0;
+            }
+        }
+        break;
+    case 8:
+        ret = 0;
         break;
     case 5:
     case 9:
