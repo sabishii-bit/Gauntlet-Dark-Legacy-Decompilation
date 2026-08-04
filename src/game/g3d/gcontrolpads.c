@@ -197,10 +197,10 @@ void G3DReadControlPadStates(register u32 managerHigh)
 {
     register PADStatus* status;
 
+    managerHigh = 0x80290000;
     asm {
-        lis managerHigh, gPadManager@ha
         li r29, 0
-        addi r31, managerHigh, gPadManager@l
+        addi r31, managerHigh, 0x645C
         mr r30, r29
         stw r29, 0(r31)
     }
