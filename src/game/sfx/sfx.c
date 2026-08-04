@@ -756,7 +756,119 @@ s32 StartLevelUpFX(f32* pos, s32 color)
     return StartFXSubGuts(lbl_80122E60[color], pos, 0, 0x880800, 0.0f);
 }
 
-/* 0x80092794 StartShieldFX -- doc-only (shield family). */
+extern f64 lbl_80348108;
+extern s32 lbl_80122088[];
+
+/* typed view of the magic FX def table at lbl_80122088: MWCC emits the
+ * member-array accesses as add(base,scaled-index) + member-offset
+ * displacement, which raw byte math refuses to produce */
+typedef struct MagicView {
+    u8 _p0[24];
+    f32 colors[1][3];   /* +24  color triplets, stride 12  */
+    u8 _p1[72];
+    s32 colorpick[1];   /* +108 per-player-class color idx */
+    u8 _p2[12];
+    s32 coloridx[1];    /* +124 per-magic-type color idx   */
+    u8 _p3[3396];
+    s32 shieldid[1];    /* +3524 shield fx id per type     */
+    u8 _p4[52];
+    s32 fxflags[1];     /* +3580 damage-type flags per fx  */
+} MagicView;
+extern f32 lbl_803480F8;
+extern f32 lbl_80348068;
+extern f64 lbl_80348078;
+extern f32 lbl_803480A0;
+extern f64 lbl_80348110;
+void fn_80093E50(s32 idx, f32* a, f32* b, f32 x, f32 y);
+extern f64 lbl_80348118;
+extern f64 lbl_80348120;
+
+/* 0x80092794 StartShieldFX -- spawn the shield magic fx for a player and
+ * scale its size/damage/light from the cast size. */
+s32 StartShieldFX(f32* pos, s32 type, s32 player, f32 dmg, f32 size)
+{
+    s32 t4 = type & 0xF;
+    MagicView* tbl = (MagicView*)lbl_80122088;
+    EffectPage* page = (EffectPage*)EffectInfo;
+    s32 ret;
+    s32 cp;
+    f32* cp3;
+    f32 rad;
+    f64 t;
+    u32 fl;
+    s32 ro;
+    u8* ep;
+    struct mbnode* nd;
+    Effect* e;
+    u8 _spare[24];
+
+    rad = (f32)(lbl_80348108 * size);
+    ret = StartFXSub(tbl->shieldid[type & 0xF], pos, 314, 0x800,
+                     lbl_803480F8);
+    if (ret < 0) {
+        ret = -1;
+    } else {
+        fn_80093E50(ret, (f32*)0, (f32*)0, lbl_80348068, lbl_80348068);
+        page->fx[ret].fxhit = 0;
+        page->fx[ret].hit_audio = 0;
+        page->fx[ret].wall_sound = 0;
+    }
+    if (ret >= 0) {
+        Effect* e = &page->fx[ret];
+        e->weight = lbl_80348068;
+        if (size >= lbl_80348078) {
+            e->colrad = size;
+        }
+    }
+    fl = type;
+    if (ret >= 0) {
+        Effect* e = &page->fx[ret];
+        if ((s32)(fl & 0xF) >= 5) {
+            fl &= ~0xC;
+        }
+        e->damage = dmg;
+        e->damagetype = (DMG_TYPE)fl;
+        e->damageradius = size;
+        e->damagedelay = lbl_80348068;
+        e->owner = player + 1;
+    }
+    if (rad < lbl_80348110) {
+        t = lbl_80348110;
+    } else if (rad > lbl_80348118) {
+        t = lbl_80348118;
+    } else {
+        t = rad;
+    }
+    rad = (f32)t;
+    ro = ret * 240;
+    ep = (u8*)page + ro;
+    nd = *(struct mbnode**)(ep + 2996);
+    e = (Effect*)(ep + 2976);
+    if (nd != NULL) {
+        MBTreeSetFlags(nd, 8, 0);
+        *(f32*)((u8*)e->node + 64) = rad;
+        *(f32*)((u8*)e->node + 68) = lbl_803480A0;
+        *(f32*)((u8*)e->node + 72) = rad;
+    }
+    MBTreeSetFlags(*(struct mbnode**)((u32)page + ret * 240 + 2996), 0x90800, 1);
+    cp = tbl->coloridx[t4];
+    cp3 = tbl->colors[cp];
+    if (ret >= 0) {
+        u8* e4 = (u8*)page + ro;
+        *(f32*)(e4 + 2992) = (f32)(lbl_80348120 * size);
+        if (cp3 != NULL) {
+            e->lightcolor[0] = cp3[0];
+            *(f32*)(e4 + 2980) = cp3[1];
+            *(f32*)(e4 + 2984) = cp3[2];
+        } else {
+            e->lightcolor[0] = light_color[0];
+            *(f32*)(e4 + 2980) = light_color[1];
+            *(f32*)(e4 + 2984) = light_color[2];
+        }
+    }
+    return ret;
+}
+
 
 #pragma opt_lifetimes off
 s32 StartMagicHealFX(f32 scale, f32* pos)
