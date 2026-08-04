@@ -72,9 +72,9 @@ void fn_800C1174(register s8* text, register u32 errorHigh)
         u32 data[2048];
     } pixels;
 
-    errorHigh = 0x802C0000;
     asm {
-        addi r26, errorHigh, 0x4DB8
+        lis errorHigh, lbl_802C4DB8@ha
+        addi r26, errorHigh, lbl_802C4DB8@l
         addi r27, text, 0
     }
     sceGsResetPath();
@@ -118,12 +118,12 @@ void fn_800C1174(register s8* text, register u32 errorHigh)
 
     asm {
         opword 0x3C800100
-        lis r5, 0x8012
-        lis r3, 0x8011
+        lis r5, lbl_80120E98@ha
+        lis r3, lbl_801164C0@ha
         opword 0x3BC4FFFF
         addi r31, r1, 16
-        addi r29, r5, 0x0E98
-        addi r26, r3, 0x64C0
+        addi r29, r5, lbl_80120E98@l
+        addi r26, r3, lbl_801164C0@l
         li r28, 50
         b outer_check
     outer_zero:
@@ -257,8 +257,8 @@ void fn_800C13CC(void)
 
     {
     asm {
-        opword 0x3C608011
-        opword 0x3BC364C0
+        lis r3, lbl_801164C0@ha
+        addi r30, r3, lbl_801164C0@l
         li r29, 0
         li r31, 0
     loop:

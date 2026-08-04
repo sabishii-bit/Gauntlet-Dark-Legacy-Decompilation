@@ -201,8 +201,8 @@ register u32 high;
     u32 clear;
     u8* g;
 
-    high = 0x80260000;
-    g = (u8*)(high - 0x1218);
+    high = (u32)gDvdScratchFileInfo;
+    g = (u8*)high;
     DEMOInit(0);
     while (DVDOpen(sCheckTxt, g) == 0) {
     }
