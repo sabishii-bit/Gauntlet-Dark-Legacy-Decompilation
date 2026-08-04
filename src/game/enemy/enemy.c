@@ -4218,3 +4218,50 @@ s32 fn_8004C8CC(f32* pos, s32 index)
     }
     return result;
 }
+
+/* 0x80045FE4 - enemy-vs-world-object damage (type from wobj flag nibble) */
+extern u32 WorldObjGetAllFlags(void* wobj);
+extern void NormalVector2D(f32* v);
+extern f32 lbl_80346820;
+extern f32 lbl_803468A0;
+extern f32 lbl_803468A4;
+
+#pragma dont_inline on
+void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm)
+{
+    u32 flags;
+    f32 dir[3];
+
+    flags = WorldObjGetAllFlags(wobj);
+    if (*(s32*)e == 27) {
+        return;
+    }
+    if ((flags & 0xF0000) == 0) {
+        return;
+    }
+    if (flags & 0x02000000) {
+        if (!(flags & 0x08000000)) {
+            return;
+        }
+    }
+    dir[0] = oldpos[0] - hitnrm[0];
+    dir[1] = lbl_80346820;
+    dir[2] = oldpos[2] - hitnrm[2];
+    NormalVector2D(dir);
+    switch (flags & 0xF0000) {
+    case 0x10000:
+        damage_enemy(e, lbl_803468A0, -1, 0, (s32)hitnrm, (s32)dir, 1);
+        break;
+    case 0x20000:
+        damage_enemy(e, lbl_803468A0, -1, 16, (s32)hitnrm, (s32)dir, 1);
+        break;
+    case 0x30000:
+    case 0x40000:
+    case 0x50000:
+        damage_enemy(e, lbl_803468A4, -1, 32, (s32)hitnrm, (s32)dir, 1);
+        break;
+    case 0x60000:
+        break;
+    }
+}
+#pragma dont_inline off
