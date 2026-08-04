@@ -138,12 +138,9 @@ static void setPTimeVal(f32 sec, Psys* p);
 MBObject* createPsysNode(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
                          f64 f8, f32* verts, f32 depth, s32 flag, s32 tex,
                          s32 a, s32 b, s32 c, s32 d);
-MBObject* MBNewPsysDescrip(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
-                           f64 f7, f64 f8, void* a, f32 depth, s32 flag,
-                           s32 tex, s32 b, s32 c, s32 d, s32 e);
-MBObject* MBPsysFirework(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                         f64 f8, f32* verts, f32 depth, s32 a, s32 b, s32 c,
-                         s32 d, s32 e, s32 g);
+MBObject* MBNewPsysDescrip(s32 a, s32 b, s32 c, void* cfg);
+MBObject* MBPsysFirework(s32 a, s32 b, s32 count, s32 m0, s32 m1, s32 m2,
+                         f32 rate, f32 power, f32 sc0, f32 sc1, f32 sc2);
 MBObject* MBPsysFlame(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
                       f64 f8, s32 a, s32 tex, f32* verts, s32 b, s32 c, s32 d,
                       s32 e, s32 g);
@@ -649,32 +646,55 @@ MBObject* MBNewWorldPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
 }
 
 /* 0x800CFB38 - build a psys node from a preset descriptor */
-MBObject* MBNewPsysDescrip(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
-                           f64 f7, f64 f8, void* wp, f32 depth, s32 flag,
-                           s32 tex, s32 b, s32 c, s32 d, s32 e) {
-    MBObject* node = createPsysNode(f1, f2, f3, f4, f5, f6, f7, f8, 0, depth,
-                                    flag, tex, 0, 0, 0, 0);
-    if (node != NULL && wp != NULL) {
-        setWorldParms(f1, f2, f3, f4, f5, f6, f7, f8, node,
-                      (Psys*)node->data.psys, (PsysDescrip*)wp, 0, 0, 0, 0, 0);
+MBObject* MBNewPsysDescrip(s32 a, s32 b, s32 c, void* cfg) {
+    MBObject* node = createPsysNode(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0,
+                                    0.0f, 0, b, 0, 0, 0, 0);
+    if (node != NULL && cfg != NULL) {
+        setWorldParms(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, node,
+                      (Psys*)node->data.psys, (PsysDescrip*)cfg, 0, 0, 0, 0, 0);
     }
     return node;
 }
 
+extern f64 lbl_80349298;        /* firework rate divisor */
+extern f64 lbl_80349210;        /* firework power scale */
+
 /* 0x800CFA84 - firework preset (deferred build through MBNewPsysDescrip) */
-MBObject* MBPsysFirework(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                         f64 f8, f32* verts, f32 depth, s32 a, s32 b, s32 c,
-                         s32 d, s32 e, s32 g) {
-    return MBNewPsysDescrip(f1, f2, f3, f4, f5, f6, f7, f8, verts, depth, 0,
-                            a, b, c, d, e);
+#pragma dont_inline on
+MBObject* MBPsysFirework(s32 a, s32 b, s32 count, s32 m0, s32 m1, s32 m2,
+                         f32 rate, f32 power, f32 sc0, f32 sc1, f32 sc2) {
+    u8* pi = (u8*)psysInfo;
+    MBObject* node;
+
+    *(f32*)(pi + 3324) = sc0;
+    *(f32*)(pi + 3328) = sc1;
+    *(f32*)(pi + 3332) = sc1;
+    *(f32*)(pi + 3336) = sc2;
+    *(s32*)(pi + 3308) = m0;
+    *(s32*)(pi + 3312) = m1;
+    *(s32*)(pi + 3316) = m1;
+    *(s32*)(pi + 3320) = m2;
+    *(f32*)(pi + 3252) = (f32)(rate / lbl_80349298);
+    *(u8*)(pi + 3117) = 0;
+    *(u8*)(pi + 3118) = 0;
+    if (count == 0) {
+        *(s32*)(pi + 3148) = 100;
+    } else {
+        *(s32*)(pi + 3148) = count;
+    }
+    node = MBNewPsysDescrip(a, b, 0, pi + 3108);
+    if (node != NULL) {
+        *(u16*)(*(u8**)((u8*)node + 112) + 56) = (s32)(lbl_80349210 * power);
+    }
+    return node;
 }
+#pragma dont_inline off
 
 /* 0x800CF8EC - flame preset */
 MBObject* MBPsysFlame(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
                       f64 f8, s32 a, s32 tex, f32* verts, s32 b, s32 c, s32 d,
                       s32 e, s32 g) {
-    return MBNewPsysDescrip(f1, f2, f3, f4, f5, f6, f7, f8, verts, (f32)a, 0,
-                            tex, b, c, d, e);
+    return MBNewPsysDescrip((s32)f1, tex, 0, verts);
 }
 
 /* 0x800D079C - default psys node (no descriptor), stores render flags */
