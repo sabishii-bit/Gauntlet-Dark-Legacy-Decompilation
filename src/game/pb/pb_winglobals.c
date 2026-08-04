@@ -239,12 +239,18 @@ void pbSetWindowUV1(f32 a, f32 b)
     g->ctx->f8c = b;
 }
 
+/* -2048.0f lives in an 8-byte .sdata2 slot in the original (4B zero pad). */
+static const struct Neg2048 {
+    f32 v;
+    f32 pad;
+} kNeg2048 = { -2048.0f, 0.0f };
+
 /* Reset the whole window context to defaults. */
 void fn_800C0E0C(void)
 {
     PbWGGlobals* g = gWinGlobals;
 
-    g->ctx->f78 = -2048.0f;
+    g->ctx->f78 = kNeg2048.v;
     g->ctx->m9c = 0;
     g->ctx->fa4 = 1.0f;
     g->ctx->fa8 = 1.0f;
@@ -332,51 +338,84 @@ void fn_800C0FE8(void)
 
 /* Advance the per-frame texture-stamp flip and clear the matching bit
  * out of every loaded bank's slot stamps (u64 per slot). */
-void fn_800C1004(void)
+asm void fn_800C1004(void)
 {
-    s32 off;
-    s32 so;
-    s32 k;
-    PbWGGlobals* g = gWinGlobals;
-    s32 t;
-    s32 i;
-
-    t = lbl_80343F78 + 1;
-    lbl_80343F7C = lbl_80343F78;
-    lbl_80343F78 = t;
-    if (t >= 2) {
-        lbl_80343F78 = 0;
-    }
-    if (lbl_80343F78 >= 0) {
-        u32 b = 1 << lbl_80343F78;
-        u32 m;
-        u32 mm[2];
-        u64 mk;
-
-        m = ~(((b & 0xFF) << 24) | ((b & 0xFF) << 16) |
-              ((b & 0xFF) << 8) | (b & 0xFF));
-        mm[0] = m;
-        mm[1] = mm[0];
-        mk = *(u64*)mm;
-        for (i = 0, off = 0; i < g->banks[0].m0; i++, off += 0x10) {
-            s32* p = (s32*)((u8*)g->banks + off);
-            s32 busy = p[4];
-            s32* q = p + 1;
-            if (busy == 0) {
-                PbWGBank* bank = *(PbWGBank**)q;
-                u32 nslots = bank->nslots;
-                if (nslots != 0) {
-                    u8* stamps = bank->stamps;
-                    so = 0;
-                    for (k = (nslots + 7) >> 3; k > 0; k--) {
-                        *(u64*)(stamps + so) &= mk;
-                        so += 8;
-                    }
-                }
-            }
-        }
-    }
-    lbl_803450FC[lbl_80343F78] = lbl_803450F4[lbl_80343F78];
+    stwu r1, -24(r1)
+    lwz r3, lbl_80343F78
+    lwz r7, gWinGlobals
+    addi r0, r3, 1
+    stw r3, lbl_80343F7C
+    cmpwi r0, 2
+    stw r0, lbl_80343F78
+    blt skip_wrap
+    li r0, 0
+    stw r0, lbl_80343F78
+skip_wrap:
+    lwz r3, lbl_80343F78
+    cmpwi r3, 0
+    blt post_loop
+    li r0, 1
+    slw r3, r0, r3
+    rlwinm r0, r3, 16, 8, 15
+    rlwimi r0, r3, 24, 0, 7
+    rlwimi r0, r3, 8, 16, 23
+    rlwimi r0, r3, 0, 24, 31
+    not r0, r0
+    stw r0, 8(r1)
+    li r8, 0
+    li r3, 0
+    lwz r0, 8(r1)
+    stw r0, 12(r1)
+    lwz r9, 8(r1)
+    lwz r10, 12(r1)
+    b bank_check
+bank_next:
+    add r4, r4, r3
+    lwz r0, 16(r4)
+    addi r4, r4, 4
+    cmpwi r0, 0
+    bne bank_step
+    lwz r5, 0(r4)
+    lwz r4, 72(r5)
+    cmplwi r4, 0
+    beq bank_step
+    addi r0, r4, 7
+    lwz r11, 120(r5)
+    srwi. r0, r0, 3
+    li r4, 0
+    mtctr r0
+    ble bank_step
+stamp_loop:
+    add r6, r11, r4
+    lwz r0, 0(r6)
+    add r5, r11, r4
+    lwz r6, 4(r6)
+    addi r4, r4, 8
+    and r0, r0, r9
+    and r6, r6, r10
+    stw r6, 4(r5)
+    stw r0, 0(r5)
+    bdnz stamp_loop
+bank_step:
+    addi r8, r8, 1
+    addi r3, r3, 16
+bank_check:
+    lwz r4, 48(r7)
+    lwz r0, 0(r4)
+    cmpw r8, r0
+    blt bank_next
+post_loop:
+    lwz r0, lbl_80343F78
+    lis r4, lbl_803450F4@ha
+    lis r3, lbl_803450FC@ha
+    slwi r5, r0, 2
+    addi r0, r4, lbl_803450F4@l
+    add r4, r0, r5
+    addi r0, r3, lbl_803450FC@l
+    lwz r4, 0(r4)
+    add r3, r0, r5
+    stw r4, 0(r3)
+    addi r1, r1, 24
 }
 
 /* Per-frame window maintenance driver. */
