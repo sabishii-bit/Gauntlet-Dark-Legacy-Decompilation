@@ -91,7 +91,7 @@ extern u32* lbl_80343E98;
 extern u32* lbl_80343E9C;
 extern s32 lbl_80343F08;
 extern s32 lbl_80343F0C;
-extern volatile s32 lbl_80344F98;
+extern volatile u32 lbl_80344F98;
 extern volatile u32 lbl_80344F9C;
 extern u32 lbl_80344FAC, lbl_80344FB0, lbl_80344FB8;
 extern s32 lbl_80344FC4;
@@ -100,6 +100,38 @@ extern u8 lbl_802C4DE0[];    /* default frame buffers (0x450) */
 extern char lbl_8011656C[]; /* "PB_FRAME.C:__LINE__" */
 
 extern void pbFrameMode(s32 mode, s32 flag);
+
+/* GS register bitfield overlays (write shapes for fn_800C2618). */
+typedef struct GsFldH9 { u16 hi : 9; u16 lo : 7; } GsFldH9;
+typedef struct GsFldB6 { u8 top : 1; u8 mid : 6; u8 low : 1; } GsFldB6;
+typedef struct GsFldW5 { u32 a : 15; u32 b : 5; u32 c : 12; } GsFldW5;
+typedef struct GsFldH11 { u16 hi : 11; u16 lo : 5; } GsFldH11;
+typedef struct GsFldW11a { u32 a : 11; u32 b : 11; u32 c : 10; } GsFldW11a;
+typedef struct GsFldH12 { u16 hi : 12; u16 lo : 4; } GsFldH12;
+typedef struct GsFldW11b { u32 a : 12; u32 b : 11; u32 c : 9; } GsFldW11b;
+typedef struct GsFldH4 { u16 a : 7; u16 b : 4; u16 c : 5; } GsFldH4;
+typedef struct GsFldB2 { u8 a : 3; u8 b : 2; u8 c : 3; } GsFldB2;
+typedef struct GsFldB1a { u8 a : 1; u8 rest : 7; } GsFldB1a;
+typedef struct GsFldB1b { u8 a : 1; u8 b : 1; u8 rest : 6; } GsFldB1b;
+
+/* pbFrameMode support */
+typedef struct GsFldB5b1 { u8 a : 5; u8 b : 1; u8 c : 2; } GsFldB5b1;
+extern s32 lbl_80343F00;
+extern f64 lbl_80348F18;
+extern u32 lbl_80343EF8;
+extern s32 lbl_80343F04;
+extern u32 lbl_80128088[];
+extern s32 lbl_80344FA0;
+extern s32 lbl_80344FA4;
+extern s32 lbl_80344FA8;
+extern u8 lbl_80344FB4;
+extern void fn_800C2F88(void);
+extern void sceGsResetGraph(s32 a, s16 b, s16 c, s16 d);
+extern void sceGsResetPath(void);
+extern void sceMtapPortClose(void* env, s16 cnt, s16 w, s16 h, s32 psm,
+                             s16 chan, s32 e);
+extern void FlushCache(s32 mode);
+
 extern void MBBlitUpdateWindow(f32 sx, f32 sy);
 extern void MBFontUpdateWindow(f32 sx, f32 sy);
 extern void fn_800C116C(s32 code, char* file);
@@ -171,13 +203,474 @@ void fn_800C1624(void)
     }
 }
 
-/* Display frame-mode state machine (0xEF8; the PB_FRAME namesake). */
+/* Display frame-mode state machine (0xEF8; the PB_FRAME namesake).
+ * Modes 3-6 reprogram the GS display (width/height/interlace) and rebuild
+ * both 512-byte GIF A+D register packets from the sceGs display-env
+ * templates on the stack; mode 1 just latches the pending mode. */
 void pbFrameMode(s32 mode, s32 flag)
 {
-    (void)mode;
-    (void)flag;
-    sceGsSyncV(0);
+    WinGlobals* g;
+    s32 sync0;
+    MBScreen* scr;
+    u8 dispenv[96];                       /* 88..183: two 40B + slack */
+    u8 tplA2[88];                         /* 184..271 */
+    u8 tplB1[88];                         /* 272..359 */
+    u8 tplC1[80];                         /* 360..439 */
+    u8 tplA1[88];                         /* 440..527 */
+    u8 tplB2[88];                         /* 528..615 */
+    u8 tplC2[64];                         /* 616..679 */
+    u32 gifTag2;                          /* 684 */
+    u32 colorMask;                        /* 688 */
+    u32 kTest1;                           /* 692.. spare consts */
+    u8 _spare[40];
+    u32 kAlpha1;                          /* 736 */
+    u32 kBig;                             /* 740 */
+    u32 kTexFlush;                        /* 744 */
+    u32 kNop;                             /* 748 */
+    u8* tplA2p;                           /* 752 */
+    u32 cvPad[4];
+    s32 convW;
+    s32 convH;
+    s32 loopW;                            /* r27 */
+    s32 loopH;                            /* r31 */
+    s32 loopCnt;                          /* r28 */
+    s32 loopChan;                         /* r29 */
+    s32 fieldA;                           /* r25 */
+    s32 fieldB;                           /* r26 */
+    s32 blocks;                           /* r21 */
+    s32 halfBlocks;                       /* r4-ish */
+    s32 dblBlocks;                        /* r20 */
+    s32 k;                                /* r23 */
+    s32 envOff;                           /* r29 reuse */
+    s32 bufOff;                           /* r28 reuse */
+    u8* buf;
+    u8* env;
+    u8* tA;
+    u8* tB;
+    u8* tC;
+    s32 smode;
+    s32 aR;
+    s32 aG;
+    s32 noBlend;
+    s32 selA;
+    s32 selB;
+    s32 selC;
+
+    g = gWinGlobals;
+    lbl_80344F9C = 0;
+    sync0 = lbl_80343F00;
+    while (lbl_80344F98 != 0) {
+    }
+    if ((u32)mode > 6) {
+        return;
+    }
+    switch (mode) {
+    case 3:
+        convW = (s32)(f32)lbl_80343F04;
+        convH = (s32)(f32)(lbl_80343F0C / 2);
+        scr = g->screen;
+        scr->width = convW;
+        scr->height = convH;
+        *(s32*)((u8*)scr + 48) = 1;
+        *(s32*)((u8*)scr + 52) = 0x1000000 - 1;
+        if (scr->m28 == 0 || scr->m2c == 0) {
+            g->screen->m28 = 512;
+            g->screen->m2c = 384;
+        }
+        fn_800C2F88();
+        loopW = lbl_80343F04;
+        loopH = lbl_80343F08 / 2;
+        g->screen->m00 = 2;
+        loopCnt = 10;
+        loopChan = 49;
+        fieldA = 0;
+        fieldB = 1;
+        break;
+    case 4:
+        convW = (s32)(f32)lbl_80343F04;
+        convH = (s32)(f32)lbl_80343F0C;
+        scr = g->screen;
+        scr->width = convW;
+        scr->height = convH;
+        *(s32*)((u8*)scr + 48) = 1;
+        *(s32*)((u8*)scr + 52) = 0x1000000 - 1;
+        if (scr->m28 == 0 || scr->m2c == 0) {
+            g->screen->m28 = 512;
+            g->screen->m2c = 384;
+        }
+        fn_800C2F88();
+        loopW = lbl_80343F04;
+        loopH = lbl_80343F08;
+        g->screen->m00 = 1;
+        loopCnt = 10;
+        loopChan = 49;
+        fieldA = 1;
+        fieldB = 0;
+        break;
+    case 5:
+        convW = (s32)(f32)lbl_80343F04;
+        convH = (s32)(f32)(lbl_80343F0C / 2);
+        scr = g->screen;
+        scr->width = convW;
+        scr->height = convH;
+        *(s32*)((u8*)scr + 48) = 1;
+        *(s32*)((u8*)scr + 52) = 0x10000 - 1;
+        if (scr->m28 == 0 || scr->m2c == 0) {
+            g->screen->m28 = 512;
+            g->screen->m2c = 384;
+        }
+        fn_800C2F88();
+        loopW = lbl_80343F04;
+        loopH = lbl_80343F08 / 2;
+        g->screen->m00 = 2;
+        loopCnt = 2;
+        loopChan = 50;
+        fieldA = 0;
+        fieldB = 1;
+        break;
+    case 6:
+        convW = (s32)(f32)lbl_80343F04;
+        convH = (s32)(f32)lbl_80343F0C;
+        scr = g->screen;
+        scr->width = convW;
+        scr->height = convH;
+        *(s32*)((u8*)scr + 48) = 1;
+        *(s32*)((u8*)scr + 52) = 0x10000 - 1;
+        if (scr->m28 == 0 || scr->m2c == 0) {
+            g->screen->m28 = 512;
+            g->screen->m2c = 384;
+        }
+        fn_800C2F88();
+        loopW = lbl_80343F04;
+        loopH = lbl_80343F08;
+        g->screen->m00 = 1;
+        loopCnt = 2;
+        loopChan = 50;
+        fieldA = 1;
+        fieldB = 0;
+        break;
+    case 1:
+        g->screen->m10 = mode;
+        lbl_80343EF8 = lbl_80128088[mode];
+        return;
+    case 0:
+    case 2:
+        return;
+    }
+
+    blocks = ((loopW + 63) >> 6) * loopH + 31 >> 5;
+    halfBlocks = blocks;
+    lbl_80343EF8 = lbl_80128088[mode];
+    if (loopCnt == 2 || loopCnt == 10) {
+        blocks = (blocks + 1) >> 1;
+    }
+    if (loopChan == 50 || loopChan == 58) {
+        halfBlocks = (halfBlocks + 1) >> 1;
+    }
+    dblBlocks = blocks * 2;
+    *(s32*)((u8*)g->screen + 68) = halfBlocks + dblBlocks;
+    g->screen->m08 = !sceGsSyncV(0);
+    if (flag != 0) {
+        sceGsResetGraph(0, (s16)fieldA, (s16)sync0, (s16)fieldB);
+        sceGsResetPath();
+    }
+    sceMtapPortClose(dispenv, (s16)loopCnt, (s16)loopW, (s16)loopH, 3,
+                     (s16)loopChan, 1);
+
+    tplA2p = tplA2;
+    gifTag2 = 0x60712435;
+    colorMask = 0x1000000 - 1;
+    kAlpha1 = 0x10000 - 32743;
+    kNop = 0x7000001A;
+    kBig = 0x10000000;
+    envOff = 0;
+    bufOff = 0;
+    for (k = 0; k < 2; k++) {
+        buf = g->screen->frames + bufOff;
+        env = dispenv + envOff;
+        if (k != 0) {
+            tA = tplA2p;
+            tB = tplB1;
+            tC = tplC1;
+        } else {
+            tA = tplA1;
+            tB = tplB2;
+            tC = tplC2;
+        }
+        *(u32*)(buf + 448) = *(u32*)env;
+        *(u32*)(buf + 452) = *(u32*)(env + 4);
+        *(u32*)(buf + 456) = *(u32*)env;
+        *(u32*)(buf + 460) = *(u32*)(env + 4);
+        *(u32*)(buf + 464) = *(u32*)(env + 8);
+        *(u32*)(buf + 468) = *(u32*)(env + 12);
+        *(u32*)(buf + 472) = *(u32*)(env + 32);
+        *(u32*)(buf + 476) = *(u32*)(env + 36);
+        *(u32*)(buf + 496) = *(u32*)(env + 16);
+        *(u32*)(buf + 500) = *(u32*)(env + 20);
+        *(u32*)(buf + 504) = *(u32*)(env + 24);
+        *(u32*)(buf + 508) = *(u32*)(env + 28);
+        *(u32*)(buf + 480) = *(u32*)(env + 16);
+        *(u32*)(buf + 484) = *(u32*)(env + 20);
+        *(u32*)(buf + 488) = *(u32*)(env + 24);
+        *(u32*)(buf + 492) = *(u32*)(env + 28);
+
+        smode = lbl_80344FA0;
+        if (smode == 0) {
+            s32 xoff = lbl_80344FB0;
+            s32 one = 1;
+            s32 zero = 0;
+
+            ((GsFldB1a*)(buf + 448))->a = one;
+            *(u8*)(buf + 449) = 128;
+            ((GsFldB1b*)(buf + 448))->b = one;
+            *(f64*)(buf + 456) = *(f64*)(buf + 448);
+            ((GsFldH11*)(buf + 484))->hi = one;
+            ((GsFldW11a*)(buf + 484))->b = zero;
+            ((GsFldH4*)(buf + 490))->b = *(u16*)(env + 26);
+            ((GsFldB2*)(buf + 491))->b = *(u8*)(env + 27);
+            ((GsFldH12*)(buf + 488))->hi =
+                (*(u16*)(env + 24) >> 4) + (lbl_80344FA4 + lbl_80344FAC);
+            ((GsFldW11b*)(buf + 488))->b =
+                (*(u32*)(env + 24) >> 9 & 0x7FF) + (lbl_80344FA8 + xoff);
+            ((GsFldH12*)(buf + 492))->hi =
+                (*(u16*)(env + 28) >> 4) - 4 - lbl_80344FA4 * 2;
+            ((GsFldW11b*)(buf + 492))->b =
+                (*(u32*)(env + 28) >> 9 & 0x7FF) - lbl_80344FA8 * 2;
+            ((GsFldH11*)(buf + 500))->hi = one;
+            ((GsFldW11a*)(buf + 500))->b = one;
+            ((GsFldH4*)(buf + 506))->b = *(u16*)(env + 26);
+            ((GsFldB2*)(buf + 507))->b = *(u8*)(env + 27);
+            ((GsFldH12*)(buf + 504))->hi =
+                (*(u16*)(env + 24) >> 4) + (*(u16*)(env + 26) >> 5 & 0xF) +
+                lbl_80344FA4 + lbl_80344FAC + 1;
+            ((GsFldW11b*)(buf + 504))->b =
+                (*(u32*)(env + 24) >> 9 & 0x7FF) + (lbl_80344FA8 + xoff);
+            ((GsFldH12*)(buf + 508))->hi =
+                (*(u16*)(env + 28) >> 4) - 4 - lbl_80344FA4 * 2;
+            ((GsFldW11b*)(buf + 508))->b =
+                (*(u32*)(env + 28) >> 9 & 0x7FF) - 1 - lbl_80344FA8 * 2;
+        } else if (smode == 8) {
+            s32 one = 1;
+
+            ((GsFldB1a*)(buf + 448))->a = one;
+            ((GsFldB1b*)(buf + 448))->b = one;
+            ((GsFldB5b1*)(buf + 448))->b = one;
+            *(u8*)(buf + 449) = 128;
+            *(f64*)(buf + 456) = *(f64*)(buf + 448);
+            ((GsFldW11b*)(buf + 508))->b =
+                (*(u32*)(env + 28) >> 9 & 0x7FF) - 1;
+        } else if (smode == 9) {
+            s32 zero = 0;
+            s32 one = 1;
+
+            ((GsFldH11*)(buf + 500))->hi = zero;
+            ((GsFldW11a*)(buf + 500))->b = one;
+            ((GsFldW11b*)(buf + 508))->b =
+                (*(u32*)(env + 28) >> 9 & 0x7FF) - 1;
+        } else {
+            s32 one = 1;
+
+            aR = 128;
+            aG = 128;
+            noBlend = 1;
+            selA = 0;
+            selB = 0;
+            selC = 0;
+            if (smode <= 5) {
+                aR = (smode - 1) << 6;
+                aG = 256 - aR;
+                noBlend = 0;
+                if (aR > 255) {
+                    aR = 255;
+                }
+                if (aG > 255) {
+                    aG = 255;
+                }
+            } else if (smode == 6) {
+                noBlend = 0;
+                selA = 1;
+            } else if (smode == 7) {
+                noBlend = 0;
+                selA = 0;
+                selB = 0;
+                selC = 1;
+            } else if (smode == 10) {
+                aR = 64;
+                aG = 192;
+            } else if (smode == 11) {
+                aR = 192;
+                aG = 64;
+            }
+            ((GsFldB1a*)(buf + 448))->a = one;
+            *(u8*)(buf + 449) = (u8)aR;
+            ((GsFldB1b*)(buf + 448))->b = one;
+            ((GsFldB1a*)(buf + 456))->a = one;
+            ((GsFldB1b*)(buf + 456))->b = one;
+            *(u8*)(buf + 457) = (u8)aG;
+            ((GsFldH11*)(buf + 484))->hi = 0;
+            ((GsFldW11a*)(buf + 484))->b = 0;
+            ((GsFldH4*)(buf + 490))->b = *(u16*)(env + 26);
+            ((GsFldB2*)(buf + 491))->b = *(u8*)(env + 27);
+            ((GsFldH12*)(buf + 488))->hi =
+                (*(u16*)(env + 24) >> 4) +
+                noBlend * ((*(u16*)(env + 26) >> 5 & 0xF) + 1);
+            ((GsFldW11b*)(buf + 488))->b =
+                (*(u32*)(env + 24) >> 9 & 0x7FF) +
+                selB * ((*(u8*)(env + 27) >> 3 & 3) + 1);
+            ((GsFldH12*)(buf + 492))->hi = *(u16*)(env + 28) >> 4;
+            ((GsFldW11b*)(buf + 492))->b = *(u32*)(env + 28) >> 9 & 0x7FF;
+            ((GsFldH11*)(buf + 500))->hi = 0;
+            ((GsFldW11a*)(buf + 500))->b = one;
+            ((GsFldH4*)(buf + 506))->b = *(u16*)(env + 26);
+            ((GsFldB2*)(buf + 507))->b = *(u8*)(env + 27);
+            ((GsFldH12*)(buf + 504))->hi =
+                (*(u16*)(env + 24) >> 4) +
+                selA * ((*(u16*)(env + 26) >> 5 & 0xF) + 1);
+            ((GsFldW11b*)(buf + 504))->b =
+                (*(u32*)(env + 24) >> 9 & 0x7FF) +
+                selC * ((*(u8*)(env + 27) >> 3 & 3) + 1);
+            ((GsFldH12*)(buf + 508))->hi = *(u16*)(env + 28) >> 4;
+            ((GsFldW11b*)(buf + 508))->b =
+                (*(u32*)(env + 28) >> 9 & 0x7FF) - 1;
+        }
+
+        *(u32*)(buf + 32) = *(u32*)tA;
+        *(u32*)(buf + 36) = *(u32*)(tA + 4);
+        *(u32*)(buf + 48) = *(u32*)(tA + 12);
+        *(u32*)(buf + 52) = *(u32*)(tA + 16);
+        *(u32*)(buf + 64) = *(u32*)(tA + 24);
+        *(u32*)(buf + 68) = *(u32*)(tA + 28);
+        *(u32*)(buf + 80) = *(u32*)(tA + 36);
+        *(u32*)(buf + 84) = *(u32*)(tA + 40);
+        *(u32*)(buf + 400) = *(u32*)(tA + 76);
+        *(u32*)(buf + 404) = *(u32*)(tA + 80);
+        *(u32*)(buf + 112) = *(u32*)tB;
+        *(u32*)(buf + 116) = *(u32*)(tB + 4);
+        *(u32*)(buf + 128) = *(u32*)(tB + 12);
+        *(u32*)(buf + 132) = *(u32*)(tB + 16);
+        *(u32*)(buf + 144) = *(u32*)(tB + 24);
+        *(u32*)(buf + 148) = *(u32*)(tB + 28);
+        *(u32*)(buf + 160) = *(u32*)(tB + 36);
+        *(u32*)(buf + 164) = *(u32*)(tB + 40);
+        *(u32*)(buf + 416) = *(u32*)(tB + 76);
+        *(u32*)(buf + 420) = *(u32*)(tB + 80);
+        *(u32*)(buf + 192) = *(u32*)(tA + 48);
+        *(u32*)(buf + 196) = *(u32*)(tA + 52);
+        *(u32*)(buf + 208) = *(u32*)(tA + 56);
+        *(u32*)(buf + 212) = *(u32*)(tA + 60);
+        lbl_80344FB4 = (*(u64*)(buf + 208) & 1) == 0;
+        *(u32*)(buf + 224) = *(u32*)(tA + 68);
+        *(u32*)(buf + 228) = *(u32*)(tA + 72);
+        *(u32*)(buf + 100) = 0;
+        *(u32*)(buf + 96) = 0;
+        *(u32*)(buf + 180) = 0;
+        *(u32*)(buf + 176) = 0;
+        *(u32*)(buf + 240) = 0x71603524;
+        *(u32*)(buf + 244) = gifTag2;
+        *(u32*)(buf + 260) = 0;
+        *(u32*)(buf + 256) = 0;
+        *(u32*)(buf + 276) = colorMask;
+        *(u32*)(buf + 272) = 0;
+        *(u32*)(buf + 292) = 0;
+        *(u32*)(buf + 288) = 0;
+        *(u32*)(buf + 304) = 0;
+        *(u32*)(buf + 308) = 128;
+        *(u32*)(buf + 320) = *(u32*)tC;
+        *(u32*)(buf + 324) = *(u32*)(tC + 4);
+        *(u32*)(buf + 336) = *(u32*)(tC + 8);
+        *(u32*)(buf + 340) = *(u32*)(tC + 12);
+        *(u32*)(buf + 352) = *(u32*)(tC + 16);
+        *(u32*)(buf + 356) = *(u32*)(tC + 20);
+        *(u32*)(buf + 368) = *(u32*)(tC + 28);
+        *(u32*)(buf + 372) = *(u32*)(tC + 32);
+        *(u32*)(buf + 384) = *(u32*)(tC + 40);
+        *(u32*)(buf + 388) = *(u32*)(tC + 44);
+        *(u32*)(buf + 44) = 76;
+        *(u32*)(buf + 40) = 0;
+        *(u32*)(buf + 60) = 78;
+        *(u32*)(buf + 56) = 0;
+        *(u32*)(buf + 76) = 24;
+        *(u32*)(buf + 72) = 0;
+        *(u32*)(buf + 92) = 64;
+        *(u32*)(buf + 88) = 0;
+        *(u32*)(buf + 108) = 74;
+        *(u32*)(buf + 104) = 0;
+        *(u32*)(buf + 412) = 71;
+        *(u32*)(buf + 408) = 0;
+        *(u32*)(buf + 124) = 77;
+        *(u32*)(buf + 120) = 0;
+        *(u32*)(buf + 140) = 79;
+        *(u32*)(buf + 136) = 0;
+        *(u32*)(buf + 156) = 25;
+        *(u32*)(buf + 152) = 0;
+        *(u32*)(buf + 172) = 65;
+        *(u32*)(buf + 168) = 0;
+        *(u32*)(buf + 188) = 75;
+        *(u32*)(buf + 184) = 0;
+        *(u32*)(buf + 428) = 72;
+        *(u32*)(buf + 424) = 0;
+        *(u32*)(buf + 204) = 26;
+        *(u32*)(buf + 200) = 0;
+        *(u32*)(buf + 220) = 70;
+        *(u32*)(buf + 216) = 0;
+        *(u32*)(buf + 236) = 69;
+        *(u32*)(buf + 232) = 0;
+        *(u32*)(buf + 252) = 68;
+        *(u32*)(buf + 248) = 0;
+        *(u32*)(buf + 268) = 34;
+        *(u32*)(buf + 264) = 0;
+        *(u32*)(buf + 284) = 61;
+        *(u32*)(buf + 280) = 0;
+        *(u32*)(buf + 300) = 73;
+        *(u32*)(buf + 296) = 0;
+        *(u32*)(buf + 316) = 59;
+        *(u32*)(buf + 312) = 0;
+        *(u32*)(buf + 332) = 71;
+        *(u32*)(buf + 328) = 0;
+        *(u32*)(buf + 348) = 0;
+        *(u32*)(buf + 344) = 0;
+        *(u32*)(buf + 364) = 1;
+        *(u32*)(buf + 360) = 0;
+        *(u32*)(buf + 380) = 5;
+        *(u32*)(buf + 376) = 0;
+        *(u32*)(buf + 396) = 5;
+        *(u32*)(buf + 392) = 0;
+        *(u32*)(buf + 12) = 0;
+        *(u32*)(buf + 8) = 0;
+        *(u32*)(buf + 16) = 0x8019;
+        *(u32*)(buf + 20) = kBig;
+        *(u32*)(buf + 28) = 14;
+        *(u32*)(buf + 24) = 0;
+        *(u32*)(buf + 0) = kNop;
+        *(u32*)(buf + 4) = 0;
+        envOff += 40;
+        bufOff += 512;
+    }
+
+    scr = g->screen;
+    {
+        u8* pkt = scr->frames;
+
+        ((GsFldH9*)(pkt + 480))->hi = (u16)blocks;
+        ((GsFldH9*)(pkt + 496))->hi = (u16)blocks;
+        ((GsFldH9*)(pkt + 32))->hi = 0;
+        ((GsFldH9*)(pkt + 112))->hi = 0;
+        ((GsFldH9*)(pkt + 48))->hi = (u16)dblBlocks;
+        ((GsFldH9*)(pkt + 128))->hi = (u16)dblBlocks;
+        pkt = g->screen->frames + 512;
+        ((GsFldH9*)(pkt + 480))->hi = 0;
+        ((GsFldH9*)(pkt + 496))->hi = 0;
+        ((GsFldH9*)(pkt + 32))->hi = (u16)blocks;
+        ((GsFldH9*)(pkt + 112))->hi = (u16)blocks;
+        ((GsFldH9*)(pkt + 48))->hi = (u16)dblBlocks;
+        ((GsFldH9*)(pkt + 128))->hi = (u16)dblBlocks;
+    }
+    g->screen->m10 = mode;
+    FlushCache(0);
+    lbl_80344F9C = 1;
+    g->screen->m48 = 0;
 }
+
 
 /* Queue a debug-grab request at (x, y). */
 void fn_800C25F0(u32 x, u32 y)
@@ -218,18 +711,6 @@ typedef struct PbFrameDecode {
     /* +0xA4 */ f32 fA4;
 } PbFrameDecode;
 
-/* GS register bitfield overlays (write shapes for fn_800C2618). */
-typedef struct GsFldH9 { u16 hi : 9; u16 lo : 7; } GsFldH9;
-typedef struct GsFldB6 { u8 top : 1; u8 mid : 6; u8 low : 1; } GsFldB6;
-typedef struct GsFldW5 { u32 a : 15; u32 b : 5; u32 c : 12; } GsFldW5;
-typedef struct GsFldH11 { u16 hi : 11; u16 lo : 5; } GsFldH11;
-typedef struct GsFldW11a { u32 a : 11; u32 b : 11; u32 c : 10; } GsFldW11a;
-typedef struct GsFldH12 { u16 hi : 12; u16 lo : 4; } GsFldH12;
-typedef struct GsFldW11b { u32 a : 12; u32 b : 11; u32 c : 9; } GsFldW11b;
-typedef struct GsFldH4 { u16 a : 7; u16 b : 4; u16 c : 5; } GsFldH4;
-typedef struct GsFldB2 { u8 a : 3; u8 b : 2; u8 c : 3; } GsFldB2;
-typedef struct GsFldB1a { u8 a : 1; u8 rest : 7; } GsFldB1a;
-typedef struct GsFldB1b { u8 a : 1; u8 b : 1; u8 rest : 6; } GsFldB1b;
 
 /* Re-pack the decode block back into the GS DISPLAY/DISPFB register shadows
  * (both field mirrors), refresh the scale ratios, and rebuild PMODE. */
