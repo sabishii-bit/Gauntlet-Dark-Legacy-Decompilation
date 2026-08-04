@@ -96,9 +96,9 @@ typedef struct DiagRow {       /* 24-byte string row */
     s16  val;
 } DiagRow;
 
-extern s32 gDiag_FC;
+extern u32 gDiag_FC;
 extern s32 gDiag_D0C;            /* gDiag_FC */
-extern s32 gDiag_D00;           /* gDiag_D00 */
+extern u32 gDiag_D00;           /* gDiag_D00 */
 extern s32 gDiag_D04;           /* gDiag_D04 */
 extern s32 gDiag_D08;           /* gDiag_D08 */
 
@@ -402,10 +402,9 @@ void pbDiagDrawTexLabel(DiagTexBank* tb, int bank)
     }
 }
 
-extern s32 gDiag_FC;
+extern u32 gDiag_FC;
 extern s32 gDiag_D0C;
 extern s32 gDiag_F0;
-extern s32 gDiag_D00;
 extern s32 gDiag_DEC;
 extern s32 gDiag_E6C;
 extern s32 gDiag_E70;
@@ -448,7 +447,7 @@ typedef struct DiagObjView {
 s32 pbDiagDrawObject(void)
 {
     f32* gd = gDiagData;
-    u32* b = buttons;
+    s32* b = (s32*)buttons;
     char* strs = lbl_80114E90;
     WinGlobals* wg;
     DiagObjView* obj;
@@ -465,6 +464,7 @@ s32 pbDiagDrawObject(void)
     s32 idx;
     u8* t10;
     u8* fnd;
+    void* tex;
     char buf[68];
 
     x = 0;
@@ -478,34 +478,32 @@ s32 pbDiagDrawObject(void)
         gDiag_FC = MBOX_NewObject(strs + 268, gIdentityMatrix, 0, 0);
         gDiag_D8 = 1;
         gDiag_D0C = 0;
-        gDiag_D00 = MBCreateBlit(gDiag_DEC, MBOX_FindTexture_Err(strs + 280, 0, 1), 0, 0, 512, 384);
+        tex = MBOX_FindTexture_Err(strs + 280, 0, 1);
+        gDiag_D00 = MBCreateBlit(gDiag_DEC, tex, 0, 0, 512, 384);
         mbBlitCvtCoord(gDiag_D00, lbl_803486B8);
     }
-    MBSetBGColor(*(s32*)((u8*)gd + gDiag_D8 * 12), *(s32*)((u8*)gd + gDiag_D8 * 12 + 4),
+    MBSetBGColor(((s32*)gd)[gDiag_D8 * 3], *(s32*)((u8*)gd + gDiag_D8 * 12 + 4),
                  *(s32*)((u8*)gd + gDiag_D8 * 12 + 8));
-    v = gDiag_D00;
-    if (v != 0) {
-        MBBlitSetColor(v, *(s32*)((u8*)gd + gDiag_D8 * 4 + 108));
+    if (gDiag_D00 != 0) {
+        MBBlitSetColor(gDiag_D00, (&((s32*)gd)[gDiag_D8])[27]);
     }
-    gDiag_F4 = pbDiagCtrlInt(0, 0, gDiag_F4, 1, 0, gDiag_F0);
-    obj = *(DiagObjView**)((u8*)wg->f30 + gDiag_F4 * 16 + 4);
-    cur = (s32*)((u8*)b + gDiag_F4 * 4);
-    old = cur[12];
-    cur = (s32*)((u8*)b + gDiag_F4 * 4);
-    cur[12] = pbDiagCtrlInt(1, 0, cur[12], 1, 0, *(s32*)((u8*)obj + 76));
-    cur = (s32*)((u8*)b + gDiag_F4 * 4);
-    cur[12] = pbDiagCtrlInt(4, 0, cur[12], 10, 0, *(s32*)((u8*)obj + 76));
-    cur = (s32*)((u8*)b + gDiag_F4 * 4);
-    if (old != cur[12]) {
-        printf(lbl_80348700, obj->rows + cur[12] * 24);
+    v = pbDiagCtrlInt(0, 0, gDiag_F4, 1, 0, gDiag_F0);
+    gDiag_F4 = v;
+    obj = *(DiagObjView**)((u8*)wg->f30 + v * 16 + 4);
+    old = (&b[v])[12];
+    (&b[gDiag_F4])[12] =
+        pbDiagCtrlInt(1, 0, (&b[gDiag_F4])[12], 1, 0, obj->count);
+    (&b[gDiag_F4])[12] =
+        pbDiagCtrlInt(4, 0, (&b[gDiag_F4])[12], 10, 0, obj->count);
+    if (old != (&b[gDiag_F4])[12]) {
+        printf(lbl_80348700, obj->rows + (&b[gDiag_F4])[12] * 24);
         gDiag_D0C = 0;
     }
-    cur = (s32*)((u8*)b + gDiag_F4 * 4);
-    fnd = MBOX_ReallyFindObject(obj->rows + cur[12] * 24, gDiag_F4, gDiag_F4, 1);
-    cur = (s32*)((u8*)b + gDiag_F4 * 4);
-    if (!(gDiag_E6C == gDiag_F4 && gDiag_E70 == cur[12])) {
+    fnd = MBOX_ReallyFindObject(obj->rows + (&b[gDiag_F4])[12] * 24,
+                                gDiag_F4, gDiag_F4, 1);
+    if (gDiag_E6C != gDiag_F4 || gDiag_E70 != (&b[gDiag_F4])[12]) {
         gDiag_E6C = gDiag_F4;
-        gDiag_E70 = cur[12];
+        gDiag_E70 = (&b[gDiag_F4])[12];
     }
     MBSetObject(gDiag_FC, fnd + gDiag_D0C);
     zero = 0;
@@ -520,8 +518,7 @@ s32 pbDiagDrawObject(void)
     if (b[8] & 0x01000000) {
         v = gDiag_D0C + 1;
         gDiag_D0C = v;
-        cur = (s32*)((u8*)b + gDiag_F4 * 4);
-        if (v > *(s16*)(obj->rows + cur[12] * 24 + 22)) {
+        if (v > *(s16*)(obj->rows + (&b[gDiag_F4])[12] * 24 + 22)) {
             gDiag_D0C = 0;
         }
     }
