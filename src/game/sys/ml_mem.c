@@ -34,6 +34,7 @@ extern u32 strlen(const char* s);
 extern char* strcpy(char* d, const char* s);
 extern char* strncpy(char* d, const char* s, u32 n);
 extern char* strcat(char* d, const char* s);
+extern char* strncat(char* d, const char* s, u32 n);
 extern char* strrchr(const char* s, int c);
 
 /* ---- PS2-style file shim (game/ps2/fakelib.c) ---- */
@@ -87,7 +88,7 @@ extern char mlmRootPath[];
 extern const char mlmPathFmtWad[6]; /* "%s/%s" */
 extern const char mlmPathFmt[3];    /* "%s"    */
 extern const char mlmExtDefault[5]; /* ".ps2"  */
-extern const char mlmPathSeparator[];
+extern const char mlmPathSeparator[2];
 
 /* forward decls (address order kept) */
 int do_threaded_io(MLFILE* f);
@@ -489,23 +490,33 @@ void get_path(char* out, char* wad, char* name)
     strcat(out, tmp);
 }
 
-int FileMap(char* wad, char* name, int base, void* dest, u32* sizeOut)
+#pragma dont_inline on
+int FileMap(char* wad, char* name, char* dst, s32 n, u32* handle, s32* sizeOut)
 {
-    char full[256];
-    u32 size;
+    char full[260];
+    s32 size;
 
+    *handle = 0;
     get_path(full, wad, name);
     size = sceFileSize(full);
-    if (size & 0xf) {
-        size += 0x10 - (size & 0xf);
+    if (size & 0xF) {
+        size += 0x10 - (size & 0xF);
     }
     *sizeOut = size;
-    if ((int)*sizeOut < 1) {
-        return 0;
+    if (*sizeOut > 0) {
+        strncpy(dst, wad, n);
+        n = n - strlen(wad);
+        if (n > 0) {
+            strcat(dst, mlmPathSeparator);
+            if (n - 1 > 0) {
+                strncat(dst, name, n - 1);
+            }
+        }
+        return 1;
     }
-    strcpy((char*)base, name);
-    return 1;
+    return 0;
 }
+#pragma dont_inline off
 
 int FileSize(char* wad, char* name)
 {
