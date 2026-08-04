@@ -4320,3 +4320,78 @@ s32 fn_8004CE38(Enemy* e)
     }
     return 1;
 }
+
+/* 0x8004D958 - per-enemy frame update: lifetime, owner change, boss-death
+ * cull, AI step + type-24 hover bob timer */
+extern s32 gBossDying;
+extern void fn_800945D0(u8* pos, u8* a, s32 b, s32 c, u32 type, f32 scale);
+
+s32 fn_8004D958(s32 index)
+{
+    Enemy* e = &gEnemies[index];
+    s32 dir;
+    s16 own;
+    s16 t;
+    s16 v;
+
+    *(s16*)((u8*)e + 726) += gFrameTicks;
+    if (*(f32*)((u8*)e + 636) > *(f32*)((u8*)e + 768)) {
+        if (*(s16*)((u8*)e + 732) == 0) {
+            return -1;
+        }
+    }
+    own = *(s16*)((u8*)e + 630);
+    if (own >= 0 && *(s16*)((u8*)e + 628) != own) {
+        *(s32*)((u8*)e + 844) = 0;
+        *(s32*)((u8*)e + 848) = 4;
+    }
+    if (gBossType >= 0 && gBossDying != 0) {
+        fn_800945D0((u8*)e + 68, (u8*)e + 4, 0, 1, *(u32*)e,
+                    *(f32*)((u8*)e + 572));
+        kill_enemy(index);
+        return -1;
+    }
+    index = do_ai(index);
+    if (*(s32*)((u8*)e + 204) == 1) {
+        *(s32*)((u8*)e + 208) = 3;
+    }
+    if (*(s32*)e == 24) goto is24;
+    goto done24b;
+is24:
+    {
+        s32 st = *(s32*)((u8*)e + 204);
+        dir = 16;
+        if (st == 3) goto bob;
+        if (st == 4) goto bob;
+        if (st != 0) goto stop;
+        {
+bob:
+            t = *(s16*)((u8*)e + 724);
+            if (t == 0) {
+                fn_8004DB3C(e, -dir);
+                *(s16*)((u8*)e + 724) = RandInt(60) + 60;
+            } else if (t > 0) {
+                fn_8004DB3C(e, -dir);
+                v = *(s16*)((u8*)e + 724) - gFrameTicks;
+                *(s16*)((u8*)e + 724) = v;
+                if (v < 0) {
+                    *(s16*)((u8*)e + 724) = -(RandInt(60) + 60);
+                }
+            } else {
+                fn_8004DB3C(e, 16);
+                v = *(s16*)((u8*)e + 724) + gFrameTicks;
+                *(s16*)((u8*)e + 724) = v;
+                if (v > 0) {
+                    *(s16*)((u8*)e + 724) = 0;
+                }
+            }
+        }
+        goto done24;
+stop:
+        fn_8004DB3C(e, -dir);
+        *(s16*)((u8*)e + 724) = 0;
+done24:;
+    }
+done24b:
+    return index;
+}
