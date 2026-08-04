@@ -451,8 +451,8 @@ int sndFxPlay3DAtten(int soundId, Vec3* pos, int p2, int flags)
     } else {
         f32 t;
         f64 d;
-        d = DistanceToClosestPlayer(pos) / 50.0;
-        t = 1.4 - d;
+        d = DistanceToClosestPlayer(pos);
+        t = 1.4 - d / 50.0;
         atten = t < 0.0 ? 0.0 : t > 1.0 ? 1.0 : t;
     }
     if (atten <= 0.0) {
