@@ -707,7 +707,78 @@ s32 StartGemFX(f32* pos, s32 sel)
     return ret;
 }
 
-/* 0x800920E0 fn_800920E0 -- doc-only (bag, Random + atan2). */
+extern f64 Random(f64 range);
+extern f32 lbl_80127D20[3];     /* bag launch direction */
+extern f64 lbl_80348078;
+extern f32 lbl_80348068;
+extern f32 lbl_803480F8;
+extern f32 lbl_803480A0;
+extern f32 lbl_80348100;
+extern f32 lbl_80348104;
+extern f64 lbl_803480E0;
+extern f32 lbl_803480FC;
+
+/* 0x800920E0 -- spawn the treasure-bag toss fx: scaled launch direction,
+ * random spin, then attach the item to spawn on completion. */
+s32 fn_800920E0(f32* pos, struct item* item, f32 scale)
+{
+    EffectPage* page = (EffectPage*)EffectInfo;
+    s32 ret;
+    s32 ro;
+    volatile f32 pyr[3];
+    volatile f32 v[3];
+    u8 _spare[36];
+
+    if (scale <= lbl_80348078) {
+        scale = lbl_80348100;
+    }
+    v[0] = lbl_80127D20[0] * scale;
+    v[1] = lbl_80127D20[1] * scale;
+    v[2] = lbl_80127D20[2] * scale;
+    pyr[0] = (f32)(lbl_803480E0 + Random(lbl_80348104));
+    pyr[1] = lbl_80348068;
+    pyr[2] = lbl_80348068;
+    ret = -1;
+    {
+        EffectHeader* hdr = &page->info[68];
+        struct atreeheader* at;
+        if ((at = hdr->atree) != NULL) {
+            ret = StartFXTree(at, pos, 0x200004, 0, lbl_803480F8);
+        if (ret >= 0) {
+            ro = ret * 240;
+            MBTreeSetZsortAdd(page->fx[ret].node, hdr->zmod, 1);
+            MBTreeSetAlpha(page->fx[ret].node, hdr->alpha, 1);
+            page->fx[ret].type = (fx_type)68;
+            }
+        }
+    }
+    if (ret >= 0) {
+        page->fx[ret].fxhit = 69;
+        page->fx[ret].hit_audio = 0;
+        page->fx[ret].wall_sound = 0;
+    }
+    if (ret >= 0) {
+        Effect* e = &page->fx[ret];
+        f32 yaw = atan2(v[0], v[2]);
+        e->vel[0] = v[0];
+        e->vel[1] = v[1];
+        e->vel[2] = v[2];
+        if (e->node != NULL) {
+            YawMat3(e->node, yaw);
+        }
+        e->pyrvel[0] = pyr[0];
+        e->pyrvel[1] = pyr[1];
+        e->pyrvel[2] = pyr[2];
+        if (lbl_803480FC >= lbl_80348078) {
+            e->weight = lbl_803480FC;
+        }
+        if (lbl_803480A0 >= lbl_80348078) {
+            e->colrad = lbl_803480A0;
+        }
+    }
+    page->fx[ret].additem = item;
+    return ret;
+}
 
 s32 StartEnterFX(f32* pos)
 {
@@ -912,6 +983,7 @@ s32 StartMagicPlayerFX(f32* pos)
 }
 
 /* 0x80092DF4 StartMagicFX -- bodied below (older pass). */
+
 
 extern char lbl_80114790[];     /* "Bad throw effect" fmt */
 extern f64 lbl_80348128;
