@@ -210,61 +210,6 @@ void pbDiagDrawTexLabel(DiagTexBank* tb, int bank)
     }
 }
 
-/* string-row list: count at +0x4C, row base at +0x5C, 24-byte rows */
-typedef struct DiagStrRows {
-    u8 _pad00[76];
-    u32 count;              /* 0x4C */
-    u8 _pad50[12];
-    char* strs;             /* 0x5C */
-} DiagStrRows;
-
-typedef struct DiagRow {       /* 24-byte string row */
-    char name[22];
-    s16  val;
-} DiagRow;
-
-extern s32 gDiagBtns_B8[];      /* per-screen cursor table (B8 block) */
-extern s32 gDiag_D0C;
-extern char lbl_80348758[8];    /* value-suffix row format (sdata2) */
-
-/* windowed 24-byte string rows; selected row also prints its s16 value */
-void pbDiagDrawStrRow(DiagStrRows* p)
-{
-    int i;
-    int line;
-    int end;
-    int start;
-    u32 count;
-    int len;
-
-    line = 3;
-    if ((count = p->count) < 38) {
-        end = count;
-        start = 0;
-    } else {
-        end = gDiagBtns_B8[gDiag_F4] + 19;
-        if (end < 38) {
-            end = 38;
-        }
-        if ((u32)end >= count) {
-            end = count;
-        }
-        start = end - 38;
-    }
-    for (i = start; i < end; i++) {
-        if (i == gDiagBtns_B8[gDiag_F4]) {
-            fn_800C008C(0x00FFFF00, 1, line, ((DiagRow*)p->strs)[i].name);
-            len = strlen(((DiagRow*)p->strs)[i].name) + 3;
-            if (((DiagRow*)p->strs)[i].val > 0) {
-                fn_800C008C(0x00FFFF00, len, line, lbl_80348758, gDiag_D0C);
-            }
-        } else {
-            fn_800C008C(0x00FFFFFF, 1, line, ((DiagRow*)p->strs)[i].name);
-        }
-        line++;
-    }
-}
-
 extern u32 lbl_80240FC0[];      /* pb frame/screen state block */
 extern f32 gDiag_E68;           /* color-bar animation speed scale */
 extern f64 lbl_803486D0;        /* E68 ramp step */
@@ -352,6 +297,153 @@ void pbDiagDrawColorBars(void)
     }
 }
 #pragma opt_propagation reset
+
+/* string-row list: count at +0x4C, row base at +0x5C, 24-byte rows */
+typedef struct DiagStrRows {
+    u8 _pad00[76];
+    u32 count;              /* 0x4C */
+    u8 _pad50[12];
+    char* strs;             /* 0x5C */
+} DiagStrRows;
+
+typedef struct DiagRow {       /* 24-byte string row */
+    char name[22];
+    s16  val;
+} DiagRow;
+
+extern s32 gDiagBtns_B8[];      /* per-screen cursor table (B8 block) */
+extern s32 gDiag_D0C;
+extern char lbl_80348758[8];    /* value-suffix row format (sdata2) */
+
+/* windowed 24-byte string rows; selected row also prints its s16 value */
+void pbDiagDrawStrRow(DiagStrRows* p)
+{
+    int i;
+    int line;
+    int end;
+    int start;
+    u32 count;
+    int len;
+
+    line = 3;
+    if ((count = p->count) < 38) {
+        end = count;
+        start = 0;
+    } else {
+        end = gDiagBtns_B8[gDiag_F4] + 19;
+        if (end < 38) {
+            end = 38;
+        }
+        if ((u32)end >= count) {
+            end = count;
+        }
+        start = end - 38;
+    }
+    for (i = start; i < end; i++) {
+        if (i == gDiagBtns_B8[gDiag_F4]) {
+            fn_800C008C(0x00FFFF00, 1, line, ((DiagRow*)p->strs)[i].name);
+            len = strlen(((DiagRow*)p->strs)[i].name) + 3;
+            if (((DiagRow*)p->strs)[i].val > 0) {
+                fn_800C008C(0x00FFFF00, len, line, lbl_80348758, gDiag_D0C);
+            }
+        } else {
+            fn_800C008C(0x00FFFFFF, 1, line, ((DiagRow*)p->strs)[i].name);
+        }
+        line++;
+    }
+}
+
+
+
+extern char lbl_80114E90[];     /* diag menu format strings (.rodata) */
+extern u32 lbl_80240FB0[4];
+extern u32 lbl_80240FA0[4];
+extern void MBSetBGColor(int r, int g, int b);
+extern void printf(const char* fmt, ...);
+s32 pbDiagCtrlInt(s32 axis, s32 pad, s32 val, s32 inc, s32 min, s32 max);
+
+/* 12-byte top-menu entry rows at gDiagData+156 */
+typedef struct DiagMenuEntry {
+    char name[8];
+    s32 (*fn)(void);
+} DiagMenuEntry;
+
+typedef struct DiagDataView {
+    u8 _pad00[156];
+    DiagMenuEntry entries[5];
+} DiagDataView;
+
+/* top-level diag menu: latch pads, draw/step the 5 entries, dispatch the
+ * active entry's handler */
+s32 pbDiagDrawMenu(void)
+{
+    f32* gd = gDiagData;
+    u32* b = buttons;
+    char* strs = lbl_80114E90;
+    char* row;
+    int x;
+    int i;
+    u32 color;
+    s32 old;
+    s32 ret;
+    u8 _spare[8];
+
+    fn_800C0310();
+    if (gDiagRepeatDelay > 0) {
+        gDiagRepeatDelay = gDiagRepeatDelay - 1;
+        gDiagRepeatRate = 2;
+    } else {
+        gDiagRepeatDelay = 0;
+        gDiagRepeatRate = 8;
+    }
+    for (i = 0; i < 4; i++) {
+        b[i] = lbl_80240FC0[i];
+        *(u32*)((u8*)b + i * 4 + 16) = *(u32*)((u8*)lbl_80240FB0 + i * 4);
+        *(u32*)((u8*)b + i * 4 + 32) = *(u32*)((u8*)lbl_80240FA0 + i * 4);
+    }
+    if (gDiag_E0 < 0) {
+        MBSetBGColor(0, 0, 0);
+        old = gDiag_DC;
+        ret = pbDiagCtrlInt(0, 0, old, 1, 0, 5);
+        gDiag_DC = ret;
+        if (ret != old) {
+            row = (char*)gd + gDiag_DC * 12;
+            printf(strs + 764, row + 156);
+        }
+        x = 0;
+        for (i = x; (u32)i < 5; i++) {
+            if (i == gDiag_DC) {
+                color = 0x00FFFF00;
+            } else {
+                color = 0x00FFFFFF;
+            }
+            fn_800C008C(color, x, 2, (char*)&gd[i * 3] + 156);
+            x += 8;
+        }
+        if (gDiagRepeatDelay == 0 && (b[4] & 0x02000000)) {
+            gDiag_E0 = gDiag_DC;
+            row = (char*)gd + gDiag_E0 * 12;
+            printf(strs + 784, row + 156);
+        }
+    } else {
+        row = (char*)gd + gDiag_E0 * 12;
+        ret = (*(s32 (**)(void))(row + 164))();
+        if (ret == 1) {
+            gDiag_E0 = -1;
+            printf(strs + 804);
+        } else if (ret == 2) {
+            return 2;
+        }
+        gDiag_E4 = gDiag_E0;
+        if (b[4] & 0x00100000) {
+            gDiag_D8 = gDiag_D8 + 1;
+            if ((u32)gDiag_D8 >= 9) {
+                gDiag_D8 = 0;
+            }
+        }
+    }
+    return 0;
+}
 
 #pragma opt_propagation off
 void pbInitDiag(int mode) {
