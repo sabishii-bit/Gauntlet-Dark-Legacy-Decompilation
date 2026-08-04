@@ -631,6 +631,97 @@ void WorldObjectExplode(void* node, s32 arg1)
     }
 }
 
+static char* findWorldName(s32 world)
+{
+    s32 off = 0;
+    s32 i;
+
+    for (i = 0; i < 44; i++) {
+        u8* e = (u8*)lbl_8011AF48 + off;
+        if (*(s32*)e == world) {
+            return (char*)(e + 4);
+        }
+        off += 36;
+    }
+    return 0;
+}
+
+extern char lbl_80112370[];        /* format-string blob */
+int sprintf(char* s, const char* fmt, ...);
+void* fn_80057ACC(s32 key);
+
+/* 0x80050DD8 -- format the pickup/status message line for an id/qty. */
+void fn_80050DD8(char* buf, s32 id, s32 qty)
+{
+    char* fmt = lbl_80112370;
+    s32 off = 0;
+    u8* tbl = (u8*)lbl_8011AF48;
+    char* name;
+    s32 i;
+
+    if (id == 29 || id == 33) {
+        off = 0;
+        for (i = 0; i < 44; i++) {
+            if (id == *(s32*)(tbl + off)) {
+                name = (char*)(tbl + off + 4);
+                goto f1;
+            }
+            off += 36;
+        }
+        name = 0;
+f1:
+        sprintf(buf, fmt + 304, name, fn_80057ACC(id));
+    } else if (id == 32) {
+        off = 0;
+        for (i = 0; i < 44; i++) {
+            if (id == *(s32*)(tbl + off)) {
+                name = (char*)(tbl + off + 4);
+                goto f2;
+            }
+            off += 36;
+        }
+        name = 0;
+f2:
+        sprintf(buf, fmt + 320, name, fn_80057ACC(id));
+    } else if (qty == 4) {
+        off = 0;
+        for (i = 0; i < 44; i++) {
+            if (id == *(s32*)(tbl + off)) {
+                name = (char*)(tbl + off + 4);
+                goto f3;
+            }
+            off += 36;
+        }
+        name = 0;
+f3:
+        sprintf(buf, fmt + 336, name);
+    } else if (qty > 10) {
+        off = 0;
+        for (i = 0; i < 44; i++) {
+            if (id == *(s32*)(tbl + off)) {
+                name = (char*)(tbl + off + 4);
+                goto f4;
+            }
+            off += 36;
+        }
+        name = 0;
+f4:
+        sprintf(buf, fmt + 352, name, qty - 10);
+    } else {
+        off = 0;
+        for (i = 0; i < 44; i++) {
+            if (id == *(s32*)(tbl + off)) {
+                name = (char*)(tbl + off + 4);
+                goto f5;
+            }
+            off += 36;
+        }
+        name = 0;
+f5:
+        sprintf(buf, fmt + 368, name);
+    }
+}
+
 /* 0x80057ACC -- lookup a live object by key, else default to gWorldData+4. */
 void* fn_80057ACC(s32 key)
 {
@@ -1590,21 +1681,6 @@ extern char lbl_80346A90[8];    /* "%s" fmt */
 extern char lbl_80346A98[8];    /* "%s %c" fmt */
 extern char lbl_80346AA0[8];    /* suffix */
 extern char lbl_80343BF8[5];    /* level letter table */
-
-static char* findWorldName(s32 world)
-{
-    s32 off = 0;
-    s32 i;
-
-    for (i = 0; i < 44; i++) {
-        u8* e = (u8*)lbl_8011AF48 + off;
-        if (*(s32*)e == world) {
-            return (char*)(e + 4);
-        }
-        off += 36;
-    }
-    return 0;
-}
 
 char* fn_80051E1C(s32 world, s32 lvl, s32 flag)
 {
