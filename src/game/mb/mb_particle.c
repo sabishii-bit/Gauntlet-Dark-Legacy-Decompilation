@@ -51,9 +51,7 @@ u32   pbRand(void);
 void* AllocMem(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7, f64 f8,
                s32 size, void* tag, s32 a, s32 b, s32 c, s32 d, s32 e, s32 g);
 s32   MBOX_FindTexture(const char* name, s32* out);   /* texture-by-name lookup */
-MBObject* MBNewNode(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                      f64 f8, f32 depth, void* verts, s32 flag, s32 tex,
-                      void* v2, s32 a, s32 b, s32 c);      /* scene-node create */
+MBObject* MBNewNode(s32 parent, void* tmpl, s32 mode);     /* scene-node create */
 void  MBRemoveNode(MBObject* node, s32 mode);              /* scene-node free */
 int   AddPsysObject(void* fn, MBObject* node);            /* traverse visitor */
 BOOL  MBWorldSphereVisible3(f64 radius, void* bounds);              /* frustum/sphere cull */
@@ -122,9 +120,7 @@ static void setupNewPMode_800CDCE4(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f
                           f64 f7, f64 f8, Psys* p);
 static void setupParms(Psys* p);
 static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wp, f32* over);
-static Psys* allocPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                       f64 f8, s32 fromArena, s32 a, s32 b, s32 c, s32 d,
-                       s32 e, s32 g);
+static Psys* allocPsys(s32 flag);
 static s32* listFindHandle(s32 id, s32 base);
 static void freePsys(MBObject* node);
 static void* allocPsysMem(s32 size, s32 tag);
@@ -715,56 +711,54 @@ MBObject* MBNewPsysDefault(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
 }
 
 /* 0x800D07FC - create a scene node + attach a fresh psys descriptor */
+extern f32 lbl_80349220;        /* psys default rate */
+
 MBObject* createPsysNode(s32 a, s32 b, s32 c, s32 d) {
-    f64 f1 = 0.0, f2 = 0.0, f3 = 0.0, f4 = 0.0, f5 = 0.0, f6 = 0.0, f7 = 0.0,
-        f8 = 0.0;
-    f32* verts = 0;
-    f32 depth = 0.0f;
-    s32 flag = c;
-    s32 tex = b;
+    u8* globals = lbl_80128710;
     MBObject* node;
     Psys* p;
-    if (gPsysDisabled == -1) {
+
+    if (*(s32*)(globals + 88) == -1) {
         return NULL;
     }
-    node = MBNewNode(f1, f2, f3, f4, f5, f6, f7, f8, depth, verts, 0xe, tex,
-                       verts, a, b, c);
+    node = MBNewNode(b, (void*)a, 14);
     if (node == NULL) {
         return NULL;
     }
-    p = allocPsys(f1, f2, f3, f4, f5, f6, f7, f8, flag, 0, 0, tex, 0, 0, 0);
+    p = allocPsys(c);
     if (p == NULL) {
-        node->data.psys = NULL;
+        *(u32*)((u8*)node + 112) = 0;
         MBRemoveNode(node, 1);
         return NULL;
     }
-    node->data.psys = p;
-    p->node = (struct mbnode*)node;   /* back-link */
-    if (tex != 0) {
-        if (tex == -1) {
-            p->flags |= 0x80;
-        } else if (tex == -2) {
-            p->flags |= 0x40;
+    *(Psys**)((u8*)node + 112) = p;
+    *(MBObject**)((u8*)p + 40) = node;
+    if (d != 0) {
+        if (d == -1) {
+            *(u16*)((u8*)p + 44) |= 128;
+        } else if (d == -2) {
+            *(u16*)((u8*)p + 44) |= 64;
         } else {
-            p->flags |= 0xc0;
+            *(u16*)((u8*)p + 44) |= 192;
         }
     }
-    p->e_last_time = gPsysFrame;
-    p->e_phase = 0;
+    *(s32*)((u8*)p + 144) = *(s32*)(globals + 20);
+    *(u8*)((u8*)p + 55) = 0;
+    *(f32*)((u8*)p + 164) = lbl_80349220;
     return node;
 }
 
 /* 0x800D08FC - allocate + default-init a psys descriptor (0x130 bytes) */
-static Psys* allocPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                       f64 f8, s32 fromArena, s32 a, s32 b, s32 c, s32 d,
-                       s32 e, s32 g) {
+static Psys* allocPsys(s32 fromArena) {
+    f64 f1 = 0.0, f2 = 0.0, f3 = 0.0, f4 = 0.0, f5 = 0.0, f6 = 0.0, f7 = 0.0,
+        f8 = 0.0;
     Psys* p;
     s32 id = gPsysIdCounter++;
     if (fromArena == 0) {
         p = (Psys*)allocPsysMem(0x130, gPsysIdCounter);
     } else {
         p = (Psys*)AllocMem(f1, f2, f3, f4, f5, f6, f7, f8, 0x130, (void*)id,
-                            b, c, d, e, g, 0);
+                            0, 0, 0, 0, 0, 0);
     }
     if (p == NULL) {
         return NULL;
