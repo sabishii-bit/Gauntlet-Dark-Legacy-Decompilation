@@ -549,9 +549,9 @@ void init_shop(s32 fromMenu)
 /* Build and center the per-entry vertical offsets for one shop player. */
 void calc_shop_ypos(s32 player)
 {
+    u8* p = &gPlayers[player * 13148];
     s32* ypos = &lbl_8028A520[player << 6];
     void** blits = &lbl_8028B120[player << 6];
-    u8* p = &gPlayers[player * 13148];
     u8* entry;
     s32 i;
     s32 y;
@@ -564,8 +564,9 @@ void calc_shop_ypos(s32 player)
             y += 24;
         }
         if ((s8)entry[32] != 0) {
-            y += TextHeightMLines((f32)(0.5 * (f64)*(f32*)(entry + 64)),
-                                  6, (char*)entry + 32) + 16;
+            y = y + TextHeightMLines((f32)(0.5 * (f64)*(f32*)(entry + 64)),
+                                     6, (char*)entry + 32);
+            y = y + 16;
         }
     }
 
