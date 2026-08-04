@@ -90,7 +90,7 @@
  *   0x8007F818 PlayerIncFight (Inc* stat index proven by 0xA98/9C/A0/A4
  *   displacement scan; GC order is Xbox order REVERSED)
  *   0x8007F874 check_player_atts (player_max_att auto-inlined x4)
- *   0x8007FAB4 SetPlayerWindows        0x8007FC80 do_got_it (L)
+ *   0x8007FAB4 SetPlayerWindows        0x8007FC80 do_got_it_8007FC80 (L)
  *   0x80080158 kill_got_it             0x800801EC add_got_it
  *   0x80080270 init_got_it             0x800802E4 UpdatePlayerWorldMat
  *   0x8008033C mini_inventory_update   0x80080718 mini_inventory_draw_label
@@ -139,7 +139,7 @@
  * All other back-slice bodies are faithful Ghidra transcriptions pending
  * match passes (biggest first: PlayerProcessPowerups (skeleton -- real body
  * needed), set_hidden_player, damage_player, do_see_thru, load_player,
- * load_player_geo, do_got_it, create_player_blits, mini_inventory_update).
+ * load_player_geo, do_got_it_8007FC80, create_player_blits, mini_inventory_update).
  *
  * FLIP GATES (claimcheck): .bss 0xC40 (the HUD block below -- size exact),
  * .data 0x5C (jumptable), .rodata 0x104 (strings), .sdata2 0x198 (pool)
@@ -463,7 +463,7 @@ s32 activate_player(s32 player);
 void PlayerProcessPowerups(void* p, s32 a, s32* b);
 static void PlayerProcessSkinFX(void* p, void* node);
 void check_player_atts(void* p, s32 chartype, s32* stats);
-static void do_got_it(void);
+static void do_got_it_8007FC80(void);
 void mini_inventory_update(s32 player);
 s32 heal_player(f32 amount, Player* p);
 f32 player_max_health(void* p);
@@ -1961,7 +1961,7 @@ void do_players(void) {
             lbl_80344500 = 0;
         }
         WritePlayerInfo(-1);
-        do_got_it();
+        do_got_it_8007FC80();
         AudioAmbientUpdate();
     }
 }
@@ -4764,7 +4764,7 @@ void SetPlayerWindows(s32 on) {
 /* ------------------------------------------------------------------ */
 
 /* Per-frame got-it slide/hold/fade state machine + blit creation.     */
-static void do_got_it(void) {
+static void do_got_it_8007FC80(void) {
     char buf[36];
     GotIt* g;
     s32 y[3];

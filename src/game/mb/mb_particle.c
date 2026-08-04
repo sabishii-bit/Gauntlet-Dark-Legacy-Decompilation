@@ -18,7 +18,7 @@
  *
  * Per frame MBDrawPsys runs the emitter state machine (delay/emit/active/fade/
  * dead, psys->e_phase @ 0x37), emits new particles by calling the mode-selected
- * pos_func / dir_func generators wired by setupNewPMode, advances live
+ * pos_func / dir_func generators wired by setupNewPMode_800CDCE4, advances live
  * particles through the ppos_func integrators and submits each sprite through
  * DrawPsysSub (GX quads). MBDrawPsysTest is the visibility pre-cull.
  *
@@ -29,7 +29,7 @@
  * Text range 0x800CBC4C..0x800D190C. GC function order is scrambled relative to
  * the Xbox source. The small integrators / generators / setters are exact
  * reconstructions from the target asm (many byte-matching); the large bodies
- * (MBDrawPsys, DrawPsysSub, setWorldParms, setupNewPMode, MBNewPsysDescrip) are
+ * (MBDrawPsys, DrawPsysSub, setWorldParms, setupNewPMode_800CDCE4, MBNewPsysDescrip) are
  * documented reconstructions of the observed call/flow shape, not exact math.
  * Functions that touch the module-global block are NonMatching on the global
  * access alone (target reaches them through a pooled absolute base at
@@ -118,7 +118,7 @@ static void getOrthoVecs(f32* a, f32* b, f32* dir);
 static void getCurrentDir(Psys* p, MBObject* node, f32* out);
 static f64  getSinCos(f64 ang, f32* sinOut);
 static void DrawPsysSub(void);
-static void setupNewPMode(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
+static void setupNewPMode_800CDCE4(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
                           f64 f7, f64 f8, Psys* p);
 static void setupParms(Psys* p);
 static void setWorldParms(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
@@ -424,7 +424,7 @@ void MBDrawPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
     gPosSlot = -1;
     if (phase == 0) {
         setupParms(p);
-        setupNewPMode(f1, f2, f3, f4, f5, f6, f7, 0.0, p);
+        setupNewPMode_800CDCE4(f1, f2, f3, f4, f5, f6, f7, 0.0, p);
         p->e_phase = 2;
         (void)listFindHandle(p->id, (s32)&gPsysRmQueue);
     }
@@ -490,7 +490,7 @@ static void setupParms(Psys* p) {
  * Wires dir_func/pos_func/ppos_func based on the emit distribution and
  * animation flags, then carves the per-psys buffers out of the block pool (or
  * the world arena). Giant (NonMatching); documented flow. */
-static void setupNewPMode(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
+static void setupNewPMode_800CDCE4(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
                           f64 f7, f64 f8, Psys* p) {
     void* posFn;
     void* dirFn;

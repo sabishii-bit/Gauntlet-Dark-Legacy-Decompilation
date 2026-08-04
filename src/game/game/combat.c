@@ -225,9 +225,9 @@ extern void SfxSetOwner();
 
 /* in-TU forward references */
 void recalc_lookat(s32 camIdx, s32 snap);
-void get_attn_pos(s32 camIdx, f32* out);
-void ProcCamera(s32 camIdx, s32 useRecorderPosition);
-void StandardCamera(s32 camIdx);
+void get_attn_pos_8002C9A8(s32 camIdx, f32* out);
+void ProcCamera_8002E548(s32 camIdx, s32 useRecorderPosition);
+void StandardCamera_8002B828(s32 camIdx);
 void init_targets(void);
 s32 LineCylinderCollide(f32* center, f32 radius, f32 halfHeight,
                         f32* from, f32* to, f32* hit, s32 directional);
@@ -249,7 +249,7 @@ void fn_80093D98();
 #define ENEMY_STRIDE  0x394
 
 /*
- * DiffRate -- rate-limit a camera angular value.  CameraSupervisor supplies
+ * DiffRate_8002951C -- rate-limit a camera angular value.  CameraSupervisor supplies
  * the destination and rate state; wrapping before the comparison is critical
  * because the shortest turn can cross +/-pi.
  */
@@ -258,7 +258,7 @@ extern f32 lbl_80344534;
 extern s32 lbl_80344400;
 void CameraSupervisor(s32 camIdx);
 
-void DiffRate(s32 camIdx)
+void DiffRate_8002951C(s32 camIdx)
 {
     f32* camState = (f32*)gCameraState;
     Camera* cam = (Camera*)((u8*)gCameraState + camIdx * 396 + 0xC8);
@@ -584,7 +584,7 @@ void CameraSupervisor(s32 camIdx)
 /* Orient a camera around its attention point at the requested radius. */
 /* 0x80029E8C - orient the transmitter camera (cam 3): spin its yaw, clamp the
  * radius, snap the look-at to camera 0's, then rebuild its world position. */
-void cam_orient_to(s32 camIdx)
+void cam_orient_to_80029E8C(s32 camIdx)
 {
     Camera* cam = (Camera*)((u8*)gCameraState + camIdx * 396 + 0xC8);
     f32 vec[3];
@@ -636,7 +636,7 @@ void cam_orient_to(s32 camIdx)
 }
 
 /* Walk-mode camera completion/cleanup predicate. */
-s32 MoveCam_walk(s32 camIdx)
+s32 MoveCam_walk_8002A024(s32 camIdx)
 {
     Camera* cam = &gCameras[camIdx];
     s32 done;
@@ -950,7 +950,7 @@ void chg_target_state(s32 mode)
     gCameraTargetPositionCount = 0;
 }
 
-/* calc_cam_pyr: derive camera pitch/yaw for the active look mode. */
+/* calc_cam_pyr_8002A97C: derive camera pitch/yaw for the active look mode. */
 extern s32 lbl_8028CA90, gNumTransmitters, lbl_80344538, gScriptedCameraState;
 extern f32 lbl_8034616C, lbl_80344530, lbl_80344408, lbl_80344534;
 extern f32 lbl_8028CABC, lbl_8028CAC8, lbl_8028CAD0, lbl_8028CAC4;
@@ -958,7 +958,7 @@ extern f32 lbl_80118B60[];
 extern f64 lbl_80346170, lbl_80346070, lbl_80345EF0, lbl_80346178;
 extern u32 gFrameTicks;
 
-void calc_cam_pyr(s32 camIdx, s32 resetDelta)
+void calc_cam_pyr_8002A97C(s32 camIdx, s32 resetDelta)
 {
     Camera* cam = &gCameras[camIdx];
     f64 dv;
@@ -1041,7 +1041,7 @@ apply:
 }
 
 /*
- * get_cam_wpos -- derive a collision-safe world position for the camera.
+ * get_cam_wpos_8002ABE0 -- derive a collision-safe world position for the camera.
  * The target performs several world traces; retaining the radial placement
  * and last-good-position fallback makes this usable by a native port even
  * before the world-collision adapter is available.
@@ -1079,7 +1079,7 @@ static s32 cam_blocked(f32* wpos)
     return 0;
 }
 
-void get_cam_wpos(s32 camIdx)
+void get_cam_wpos_8002ABE0(s32 camIdx)
 {
     s32* camState = (s32*)gCameraState;
     Camera* cam = (Camera*)((u8*)gCameraState + camIdx * 396 + 0xC8);
@@ -1322,7 +1322,7 @@ f32 get_cam_dist(s32 camIdx)
     return (f32)result;
 }
 
-s32 adjust_radius(s32 camIdx)
+s32 adjust_radius_8002B2D4(s32 camIdx)
 {
     Camera* cam = &gCameras[camIdx];
     f32 desired = get_cam_dist(camIdx);
@@ -1452,7 +1452,7 @@ f32 someone_will_be_off_screen(s32 camIdx, f32* pos)
 }
 
 /*
- * StandardCamera -- multiplayer framing loop.  It updates the focus point,
+ * StandardCamera_8002B828 -- multiplayer framing loop.  It updates the focus point,
  * radius and radial camera position, then derives the camera orientation.
  */
 extern s32 lbl_803444DC, lbl_803444CC, lbl_803444C8, lbl_80344500;
@@ -1462,12 +1462,12 @@ extern f64 lbl_803461E0, lbl_80346180;
 f32 NormalVector(f32* v);
 
 /*
- * StandardCamera -- game camera (camera 0) auto-pan.  When the tracked targets
+ * StandardCamera_8002B828 -- game camera (camera 0) auto-pan.  When the tracked targets
  * drift toward the screen edges it eases pan angles in/out, applies them around
  * the look axis, then keeps whichever of the two candidate framings leaves the
  * fewest targets off screen.
  */
-void StandardCamera(s32 camIdx)
+void StandardCamera_8002B828(s32 camIdx)
 {
     Camera* c0 = &gCameras[0];
     f32* wpos0 = (f32*)((u8*)c0 + 0x64);
@@ -1877,7 +1877,7 @@ extern f64 lbl_803461F0;
 extern f64 cos(f64);
 extern f64 sin(f64);
 
-void get_attn_pos(s32 camIdx, f32* out)
+void get_attn_pos_8002C9A8(s32 camIdx, f32* out)
 {
     Camera* cam = &gCameras[camIdx];
     f32* attnDest = (f32*)((u8*)cam + 0x15C);
@@ -2051,7 +2051,7 @@ void recalc_lookat(s32 camIdx, s32 snap)
         cam->a_mode == ATN_POINT) {
         return;
     }
-    get_attn_pos(camIdx, pos);
+    get_attn_pos_8002C9A8(camIdx, pos);
     if (snap != 0) {
         cam->attn[0] = pos[0];
         cam->attn[1] = pos[1];
@@ -2405,7 +2405,7 @@ void InitCamera(s32 resetAll)
                     saveA[0] = *(f32*)((u8*)c0 + 0x12C);
                     saveA[1] = *(f32*)((u8*)c0 + 0x130);
                     saveA[2] = *(f32*)((u8*)c0 + 0x134);
-                    StandardCamera(0);
+                    StandardCamera_8002B828(0);
                     DoShake(saveW, saveA);
                     d[0] = saveA[0] - saveW[0];
                     d[1] = saveA[1] - saveW[1];
@@ -2599,7 +2599,7 @@ void InitCamera(s32 resetAll)
         t->z = lbl_80345EC8;
     }
     gCameraTargetCount = 0;
-    ProcCamera(0, 0);
+    ProcCamera_8002E548(0, 0);
     {
         f32* cf = (f32*)&gCameras[0];
         f32 zero = lbl_80345EC8;
@@ -2679,7 +2679,7 @@ void CopyCam(u8* src, u8* dst)
 #undef CI
 }
 
-void ProcCamera(s32 camIdx, s32 useRecorderPosition)
+void ProcCamera_8002E548(s32 camIdx, s32 useRecorderPosition)
 {
     Camera* cam = &gCameras[camIdx];
     f32 offset[3];

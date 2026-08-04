@@ -467,8 +467,8 @@ void SetScrollLevelMsgList(s32 level, const char* suffix)
     scroll_level_msg = FindStringMessageSub(&gScrollMsgList[level], buf);
 }
 
-/* ==== 0x8001FC4C FindStringMessageListSub ==== */
-s32 FindStringMessageListSub(s32 list, const u8* name)
+/* ==== 0x8001FC4C FindStringMessageListSub_8001FC4C ==== */
+s32 FindStringMessageListSub_8001FC4C(s32 list, const u8* name)
 {
     s32 i;
     s32 off;
