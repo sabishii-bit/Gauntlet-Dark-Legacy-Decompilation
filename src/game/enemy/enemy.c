@@ -4469,3 +4469,78 @@ s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
     }
     return ret;
 }
+
+extern u8 lbl_8011AF48[];
+extern f32 lbl_80344880;
+extern f32 lbl_80346A40;
+extern f64 lbl_80346A28;
+extern f32 FloorPos(f32 fallback, f32 radius, f32* position, s32 mode);
+extern void fn_80050618(u8* e, s32 type, s32 level, s32 one);
+extern void fn_80050054(s32 slot, s32 spew, f32 scale);
+extern void fn_8005A338(f32* worldmat, f32* coll_offset, f32* attn_offset);
+extern u16 AnimateATree(void* tree, s32 sequence, s32 transition);
+
+/* 0x8004FE34 - initialise a freshly claimed enemy slot's object state. */
+void SetEnemyObj(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
+{
+    u8* e = (u8*)gEnemies + slot * 916;
+    u8* tbl = (u8*)lbl_8011AF48;
+    s32 t4 = type * 4;
+    f32 z = lbl_80346820;
+    f32 scale;
+
+    *(s32*)e = type;
+    *(f32*)(e + 544) = z;
+    *(f32*)(e + 548) = *(f32*)(tbl + t4 + 2080);
+    *(f32*)(e + 552) = z;
+    *(f32*)(e + 556) = z;
+    *(f32*)(e + 560) = *(f32*)(tbl + t4 + 2216);
+    *(f32*)(e + 564) = z;
+    *(f32*)(e + 576) = z;
+    *(f32*)(e + 580) = z;
+    *(f32*)(e + 584) = z;
+    *(s32*)(e + 180) = 1;
+    *(s16*)(e + 724) = 0;
+    fn_80050618(e, type, level, 1);
+    if (level > 3) {
+        level = 2;
+    }
+    if (spew == 18) {
+        level = 1;
+    }
+    {
+        u8* r = (u8*)((u32)tbl + t4);
+        scale = *(f32*)(r + 2760);
+    }
+    if (type != 30) {
+        scale = scale * *(f32*)(gCurLevel + 172);
+    }
+    if (type < 28) {
+        scale = (f32)(lbl_80346A28 * scale * level);
+    }
+    fn_8005A338((f32*)(e + 4), (f32*)(e + 556), (f32*)(e + 544));
+    if (*(u32*)(e + 100) != 0) {
+        *(f32*)(e + 52) = pos[0];
+        *(f32*)(e + 56) = pos[1];
+        *(f32*)(e + 60) = pos[2];
+        *(f32*)(e + 56) = FloorPos(lbl_80344880, lbl_80346A40, pos, 2);
+        MBTreeClearFlags(*(struct mbnode**)(e + 100), 2, 0);
+        *(f32*)(e + 512) = scale;
+        fn_80050054(slot, spew, scale);
+        if (type == 30) {
+            *(s16*)(e + 518) = level;
+        }
+        *(f32*)(e + 56) = *(f32*)(e + 56) + *(f32*)(e + 540);
+    }
+    UpdateObjWorldMat((f32*)(e + 4));
+    fn_8005A404((f32*)(e + 4), (f32*)(e + 556), (f32*)(e + 544));
+    *(f32*)(e + 660) = *(f32*)(e + 56);
+    if (*(u32*)(e + 476) != 0) {
+        *(f32*)(*(u32*)(e + 476) + 48) = *(f32*)(*(u32*)(e + 100) + 48);
+        *(f32*)(*(u32*)(e + 476) + 52) = *(f32*)(*(u32*)(e + 100) + 52);
+        *(f32*)(*(u32*)(e + 476) + 56) = *(f32*)(*(u32*)(e + 100) + 56);
+    }
+    if (*(u32*)(e + 108) != 0) {
+        AnimateATree((void*)(e + 108), 0, 2);
+    }
+}
