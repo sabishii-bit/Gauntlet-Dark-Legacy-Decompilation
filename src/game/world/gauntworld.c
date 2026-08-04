@@ -1104,3 +1104,55 @@ void fn_800606FC(void)
  * 80062FF0  0x01BC  fn_ : enemy-grid op (StartEnemyGrid/NextGridEnemy,
  *                    fqdist)
  * ========================================================================== */
+
+/* 0x8005A738 - per-player overhead name text (random name + timed draw) */
+typedef struct NameTimerView {
+    u8  _pad[504];
+    s16 timer;              /* 0x1F8 */
+} NameTimerView;
+extern u8 gGameOptions[];
+extern char* lbl_8011C848[];    /* random name table (+80: per-player colors) */
+extern s16 lbl_80343C40[4];     /* per-player text x offsets (sdata) */
+extern f32 lbl_80346DB0;        /* draw scale */
+extern s32 RandInt(s32 range);
+extern char* strcpy(char* d, const char* s);
+extern void DrawTextKeepScale(f32 scale, s32 x, s32 y, u32 font, u32 color, u8* str);
+extern s32 fn_8005A868(void);
+extern s32 gFrameTicks;
+
+s32 fn_8005A738(s32 player)
+{
+    char** names = lbl_8011C848;
+    Player* p = &gPlayers[player];
+    s32 ret = 0;
+    s16 t;
+
+    if (*(u32*)(gGameOptions + 44) & 1) {
+        strcpy((char*)p + 2688, names[RandInt(20)]);
+        return -1;
+    }
+    if (*(s32*)((u8*)p + 13100) == 0) {
+        if ((ret = fn_8005A868()) <= 0) {
+            goto out;
+        }
+        *(s32*)((u32)p + 13100) = 1;
+        ((NameTimerView*)p)->timer = 60;
+        ret = 0;
+        if (*(s8*)((u8*)p + 2688) == 0) {
+            strcpy((char*)((u32)p + 2688), names[RandInt(20)]);
+        }
+    } else {
+        t = ((NameTimerView*)p)->timer - gFrameTicks;
+        ((NameTimerView*)p)->timer = t;
+        if (t < 0) {
+            ((NameTimerView*)p)->timer = 0;
+            ret = 1;
+        } else if (((NameTimerView*)p)->timer & 16) {
+            DrawTextKeepScale(lbl_80346DB0, -lbl_80343C40[player], 340, 7,
+                              (u32)(&names[player])[20],
+                              (u8*)p + 2688);
+        }
+    }
+out:
+    return ret;
+}
