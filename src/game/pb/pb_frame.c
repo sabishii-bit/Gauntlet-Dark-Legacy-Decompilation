@@ -115,6 +115,7 @@ typedef struct GsFldB1a { u8 a : 1; u8 rest : 7; } GsFldB1a;
 typedef struct GsFldB1b { u8 a : 1; u8 b : 1; u8 rest : 6; } GsFldB1b;
 
 /* pbFrameMode support */
+typedef struct P8 { u32 a; u32 b; } P8;
 typedef struct GsFldB5b1 { u8 a : 5; u8 b : 1; u8 c : 2; } GsFldB5b1;
 extern s32 lbl_80343F00;
 extern f64 lbl_80348F18;
@@ -222,15 +223,12 @@ void pbFrameMode(s32 mode, s32 flag)
     u32 gifTag2;                          /* 684 */
     u32 colorMask;                        /* 688 */
     u32 kTest1;                           /* 692.. spare consts */
-    u8 _spare[40];
+    u8 _spare[24];
     u32 kAlpha1;                          /* 736 */
     u32 kBig;                             /* 740 */
     u32 kTexFlush;                        /* 744 */
     u32 kNop;                             /* 748 */
     u8* tplA2p;                           /* 752 */
-    u32 cvPad[4];
-    s32 convW;
-    s32 convH;
     s32 loopW;                            /* r27 */
     s32 loopH;                            /* r31 */
     s32 loopCnt;                          /* r28 */
@@ -245,6 +243,11 @@ void pbFrameMode(s32 mode, s32 flag)
     s32 bufOff;                           /* r28 reuse */
     u8* buf;
     u8* env;
+    u8* pA1;
+    u8* pB1;
+    u8* pB2;
+    u8* pC1;
+    u8* pC2;
     u8* tA;
     u8* tB;
     u8* tC;
@@ -266,16 +269,13 @@ void pbFrameMode(s32 mode, s32 flag)
     }
     switch (mode) {
     case 3:
-        convW = (s32)(f32)lbl_80343F04;
-        convH = (s32)(f32)(lbl_80343F0C / 2);
-        scr = g->screen;
-        scr->width = convW;
-        scr->height = convH;
-        *(s32*)((u8*)scr + 48) = 1;
-        *(s32*)((u8*)scr + 52) = 0x1000000 - 1;
-        if (scr->m28 == 0 || scr->m2c == 0) {
-            g->screen->m28 = 512;
-            g->screen->m2c = 384;
+        g->screen->width = (s32)(f32)lbl_80343F04;
+        g->screen->height = (s32)(f32)(lbl_80343F0C / 2);
+        *(s32*)((u8*)g->screen + 48) = 1;
+        *(s32*)((u8*)g->screen + 52) = 0x1000000 - 1;
+        if (g->screen->m28 == 0 || g->screen->m2c == 0) {
+            gWinGlobals->screen->m28 = 512;
+            gWinGlobals->screen->m2c = 384;
         }
         fn_800C2F88();
         loopW = lbl_80343F04;
@@ -287,16 +287,13 @@ void pbFrameMode(s32 mode, s32 flag)
         fieldB = 1;
         break;
     case 4:
-        convW = (s32)(f32)lbl_80343F04;
-        convH = (s32)(f32)lbl_80343F0C;
-        scr = g->screen;
-        scr->width = convW;
-        scr->height = convH;
-        *(s32*)((u8*)scr + 48) = 1;
-        *(s32*)((u8*)scr + 52) = 0x1000000 - 1;
-        if (scr->m28 == 0 || scr->m2c == 0) {
-            g->screen->m28 = 512;
-            g->screen->m2c = 384;
+        g->screen->width = (s32)(f32)lbl_80343F04;
+        g->screen->height = (s32)(f32)lbl_80343F0C;
+        *(s32*)((u8*)g->screen + 48) = 1;
+        *(s32*)((u8*)g->screen + 52) = 0x1000000 - 1;
+        if (g->screen->m28 == 0 || g->screen->m2c == 0) {
+            gWinGlobals->screen->m28 = 512;
+            gWinGlobals->screen->m2c = 384;
         }
         fn_800C2F88();
         loopW = lbl_80343F04;
@@ -308,16 +305,13 @@ void pbFrameMode(s32 mode, s32 flag)
         fieldB = 0;
         break;
     case 5:
-        convW = (s32)(f32)lbl_80343F04;
-        convH = (s32)(f32)(lbl_80343F0C / 2);
-        scr = g->screen;
-        scr->width = convW;
-        scr->height = convH;
-        *(s32*)((u8*)scr + 48) = 1;
-        *(s32*)((u8*)scr + 52) = 0x10000 - 1;
-        if (scr->m28 == 0 || scr->m2c == 0) {
-            g->screen->m28 = 512;
-            g->screen->m2c = 384;
+        g->screen->width = (s32)(f32)lbl_80343F04;
+        g->screen->height = (s32)(f32)(lbl_80343F0C / 2);
+        *(s32*)((u8*)g->screen + 48) = 1;
+        *(s32*)((u8*)g->screen + 52) = 0x10000 - 1;
+        if (g->screen->m28 == 0 || g->screen->m2c == 0) {
+            gWinGlobals->screen->m28 = 512;
+            gWinGlobals->screen->m2c = 384;
         }
         fn_800C2F88();
         loopW = lbl_80343F04;
@@ -329,16 +323,13 @@ void pbFrameMode(s32 mode, s32 flag)
         fieldB = 1;
         break;
     case 6:
-        convW = (s32)(f32)lbl_80343F04;
-        convH = (s32)(f32)lbl_80343F0C;
-        scr = g->screen;
-        scr->width = convW;
-        scr->height = convH;
-        *(s32*)((u8*)scr + 48) = 1;
-        *(s32*)((u8*)scr + 52) = 0x10000 - 1;
-        if (scr->m28 == 0 || scr->m2c == 0) {
-            g->screen->m28 = 512;
-            g->screen->m2c = 384;
+        g->screen->width = (s32)(f32)lbl_80343F04;
+        g->screen->height = (s32)(f32)lbl_80343F0C;
+        *(s32*)((u8*)g->screen + 48) = 1;
+        *(s32*)((u8*)g->screen + 52) = 0x10000 - 1;
+        if (g->screen->m28 == 0 || g->screen->m2c == 0) {
+            gWinGlobals->screen->m28 = 512;
+            gWinGlobals->screen->m2c = 384;
         }
         fn_800C2F88();
         loopW = lbl_80343F04;
@@ -378,6 +369,11 @@ void pbFrameMode(s32 mode, s32 flag)
                      (s16)loopChan, 1);
 
     tplA2p = tplA2;
+    pA1 = tplA1;
+    pB1 = tplB1;
+    pB2 = tplB2;
+    pC1 = tplC1;
+    pC2 = tplC2;
     gifTag2 = 0x60712435;
     colorMask = 0x1000000 - 1;
     kAlpha1 = 0x10000 - 32743;
@@ -388,31 +384,17 @@ void pbFrameMode(s32 mode, s32 flag)
     for (k = 0; k < 2; k++) {
         buf = g->screen->frames + bufOff;
         env = dispenv + envOff;
-        if (k != 0) {
-            tA = tplA2p;
-            tB = tplB1;
-            tC = tplC1;
-        } else {
-            tA = tplA1;
-            tB = tplB2;
-            tC = tplC2;
-        }
-        *(u32*)(buf + 448) = *(u32*)env;
-        *(u32*)(buf + 452) = *(u32*)(env + 4);
-        *(u32*)(buf + 456) = *(u32*)env;
-        *(u32*)(buf + 460) = *(u32*)(env + 4);
-        *(u32*)(buf + 464) = *(u32*)(env + 8);
-        *(u32*)(buf + 468) = *(u32*)(env + 12);
-        *(u32*)(buf + 472) = *(u32*)(env + 32);
-        *(u32*)(buf + 476) = *(u32*)(env + 36);
-        *(u32*)(buf + 496) = *(u32*)(env + 16);
-        *(u32*)(buf + 500) = *(u32*)(env + 20);
-        *(u32*)(buf + 504) = *(u32*)(env + 24);
-        *(u32*)(buf + 508) = *(u32*)(env + 28);
-        *(u32*)(buf + 480) = *(u32*)(env + 16);
-        *(u32*)(buf + 484) = *(u32*)(env + 20);
-        *(u32*)(buf + 488) = *(u32*)(env + 24);
-        *(u32*)(buf + 492) = *(u32*)(env + 28);
+        tA = (k != 0) ? tplA2p : pA1;
+        tB = (k != 0) ? pB1 : pB2;
+        tC = (k != 0) ? pC1 : pC2;
+        *(P8*)(buf + 448) = *(P8*)env;
+        *(P8*)(buf + 456) = *(P8*)env;
+        *(P8*)(buf + 464) = *(P8*)(env + 8);
+        *(P8*)(buf + 472) = *(P8*)(env + 32);
+        *(P8*)(buf + 496) = *(P8*)(env + 16);
+        *(P8*)(buf + 504) = *(P8*)(env + 24);
+        *(P8*)(buf + 480) = *(P8*)(env + 16);
+        *(P8*)(buf + 488) = *(P8*)(env + 24);
 
         smode = lbl_80344FA0;
         if (smode == 0) {
@@ -429,11 +411,11 @@ void pbFrameMode(s32 mode, s32 flag)
             ((GsFldH4*)(buf + 490))->b = *(u16*)(env + 26);
             ((GsFldB2*)(buf + 491))->b = *(u8*)(env + 27);
             ((GsFldH12*)(buf + 488))->hi =
-                (*(u16*)(env + 24) >> 4) + (lbl_80344FA4 + lbl_80344FAC);
+                ((u32)*(u16*)(env + 24) >> 4) + (lbl_80344FA4 + lbl_80344FAC);
             ((GsFldW11b*)(buf + 488))->b =
                 (*(u32*)(env + 24) >> 9 & 0x7FF) + (lbl_80344FA8 + xoff);
             ((GsFldH12*)(buf + 492))->hi =
-                (*(u16*)(env + 28) >> 4) - 4 - lbl_80344FA4 * 2;
+                ((u32)*(u16*)(env + 28) >> 4) - 4 - lbl_80344FA4 * 2;
             ((GsFldW11b*)(buf + 492))->b =
                 (*(u32*)(env + 28) >> 9 & 0x7FF) - lbl_80344FA8 * 2;
             ((GsFldH11*)(buf + 500))->hi = one;
@@ -441,32 +423,14 @@ void pbFrameMode(s32 mode, s32 flag)
             ((GsFldH4*)(buf + 506))->b = *(u16*)(env + 26);
             ((GsFldB2*)(buf + 507))->b = *(u8*)(env + 27);
             ((GsFldH12*)(buf + 504))->hi =
-                (*(u16*)(env + 24) >> 4) + (*(u16*)(env + 26) >> 5 & 0xF) +
+                ((u32)*(u16*)(env + 24) >> 4) + ((u32)*(u16*)(env + 26) >> 5 & 0xF) +
                 lbl_80344FA4 + lbl_80344FAC + 1;
             ((GsFldW11b*)(buf + 504))->b =
                 (*(u32*)(env + 24) >> 9 & 0x7FF) + (lbl_80344FA8 + xoff);
             ((GsFldH12*)(buf + 508))->hi =
-                (*(u16*)(env + 28) >> 4) - 4 - lbl_80344FA4 * 2;
+                ((u32)*(u16*)(env + 28) >> 4) - 4 - lbl_80344FA4 * 2;
             ((GsFldW11b*)(buf + 508))->b =
                 (*(u32*)(env + 28) >> 9 & 0x7FF) - 1 - lbl_80344FA8 * 2;
-        } else if (smode == 8) {
-            s32 one = 1;
-
-            ((GsFldB1a*)(buf + 448))->a = one;
-            ((GsFldB1b*)(buf + 448))->b = one;
-            ((GsFldB5b1*)(buf + 448))->b = one;
-            *(u8*)(buf + 449) = 128;
-            *(f64*)(buf + 456) = *(f64*)(buf + 448);
-            ((GsFldW11b*)(buf + 508))->b =
-                (*(u32*)(env + 28) >> 9 & 0x7FF) - 1;
-        } else if (smode == 9) {
-            s32 zero = 0;
-            s32 one = 1;
-
-            ((GsFldH11*)(buf + 500))->hi = zero;
-            ((GsFldW11a*)(buf + 500))->b = one;
-            ((GsFldW11b*)(buf + 508))->b =
-                (*(u32*)(env + 28) >> 9 & 0x7FF) - 1;
         } else {
             s32 one = 1;
 
@@ -501,6 +465,20 @@ void pbFrameMode(s32 mode, s32 flag)
                 aR = 192;
                 aG = 64;
             }
+            if (smode == 8) {
+                ((GsFldB1a*)(buf + 448))->a = one;
+                ((GsFldB1b*)(buf + 448))->b = one;
+                ((GsFldB5b1*)(buf + 448))->b = one;
+                *(u8*)(buf + 449) = 128;
+                *(f64*)(buf + 456) = *(f64*)(buf + 448);
+                ((GsFldW11b*)(buf + 508))->b =
+                    (*(u32*)(env + 28) >> 9 & 0x7FF) - 1;
+            } else if (smode == 9) {
+                ((GsFldH11*)(buf + 500))->hi = 0;
+                ((GsFldW11a*)(buf + 500))->b = 1;
+                ((GsFldW11b*)(buf + 508))->b =
+                    (*(u32*)(env + 28) >> 9 & 0x7FF) - 1;
+            } else {
             ((GsFldB1a*)(buf + 448))->a = one;
             *(u8*)(buf + 449) = (u8)aR;
             ((GsFldB1b*)(buf + 448))->b = one;
@@ -512,26 +490,27 @@ void pbFrameMode(s32 mode, s32 flag)
             ((GsFldH4*)(buf + 490))->b = *(u16*)(env + 26);
             ((GsFldB2*)(buf + 491))->b = *(u8*)(env + 27);
             ((GsFldH12*)(buf + 488))->hi =
-                (*(u16*)(env + 24) >> 4) +
-                noBlend * ((*(u16*)(env + 26) >> 5 & 0xF) + 1);
+                ((u32)*(u16*)(env + 24) >> 4) +
+                noBlend * (((u32)*(u16*)(env + 26) >> 5 & 0xF) + 1);
             ((GsFldW11b*)(buf + 488))->b =
                 (*(u32*)(env + 24) >> 9 & 0x7FF) +
-                selB * ((*(u8*)(env + 27) >> 3 & 3) + 1);
-            ((GsFldH12*)(buf + 492))->hi = *(u16*)(env + 28) >> 4;
+                selB * (((u32)*(u8*)(env + 27) >> 3 & 3) + 1);
+            ((GsFldH12*)(buf + 492))->hi = (u32)*(u16*)(env + 28) >> 4;
             ((GsFldW11b*)(buf + 492))->b = *(u32*)(env + 28) >> 9 & 0x7FF;
             ((GsFldH11*)(buf + 500))->hi = 0;
             ((GsFldW11a*)(buf + 500))->b = one;
             ((GsFldH4*)(buf + 506))->b = *(u16*)(env + 26);
             ((GsFldB2*)(buf + 507))->b = *(u8*)(env + 27);
             ((GsFldH12*)(buf + 504))->hi =
-                (*(u16*)(env + 24) >> 4) +
-                selA * ((*(u16*)(env + 26) >> 5 & 0xF) + 1);
+                ((u32)*(u16*)(env + 24) >> 4) +
+                selA * (((u32)*(u16*)(env + 26) >> 5 & 0xF) + 1);
             ((GsFldW11b*)(buf + 504))->b =
                 (*(u32*)(env + 24) >> 9 & 0x7FF) +
-                selC * ((*(u8*)(env + 27) >> 3 & 3) + 1);
-            ((GsFldH12*)(buf + 508))->hi = *(u16*)(env + 28) >> 4;
+                selC * (((u32)*(u8*)(env + 27) >> 3 & 3) + 1);
+            ((GsFldH12*)(buf + 508))->hi = (u32)*(u16*)(env + 28) >> 4;
             ((GsFldW11b*)(buf + 508))->b =
                 (*(u32*)(env + 28) >> 9 & 0x7FF) - 1;
+            }
         }
 
         *(u32*)(buf + 32) = *(u32*)tA;
