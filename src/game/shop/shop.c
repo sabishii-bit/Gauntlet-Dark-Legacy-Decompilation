@@ -148,7 +148,7 @@ s32 show_piles(s32 col);
 void fn_8009A0AC(s32 col);
 static s32 shop_show_final_stats(u8* pl);
 static s32 shop_show_lv(u8* pl, s32 mode);
-extern s32 do_shopping_8009AA48(s32 player);
+static s32 do_shopping_8009AA48(s32 player);
 static void shop_setup(void);
 
 /* Master shop state machine: runs each active player's shop flow and
@@ -1251,6 +1251,530 @@ void init_shop(s32 fromMenu)
         fn_80053A68(0);
     }
     fn_80053C70();
+}
+
+extern s32 new_left(s32 player);
+extern s32 new_right(s32 player);
+extern s32 new_ctrl(u32 mask, s32 player);
+extern s32 new_menu_back(s32 player);
+extern void AudioClick(s32 player, s32 dir);
+extern void AudioBuzzer(void);
+extern s32 RandInt(s32 range);
+extern void fn_8009D038(s32 player);
+extern void PlayerProcessPowerups(u8* pl);
+extern void PlayerAddPowerup(u8* pl, s32 kind, u32 mask, f32 dur, f32 pw);
+extern void PlayerIncFight(u8* pl, s32 amt);
+extern void PlayerIncSpeed(u8* pl, s32 amt);
+extern void PlayerIncArmor(u8* pl, s32 amt);
+extern void PlayerIncMagic(u8* pl, s32 amt);
+extern void heal_player(u8* pl, f32 amount);
+extern s32 lbl_803448A0;
+extern s32 lbl_803448A4;
+extern f64 lbl_803483D8;
+extern f32 lbl_803483CC;
+extern f32 lbl_803483D0;
+extern f32 lbl_803483E0;
+extern f32 lbl_803483E4;
+extern f32 lbl_803483E8;
+extern f32 lbl_803483EC;
+extern f32 lbl_803483F0;
+extern f32 lbl_803483F4;
+extern f32 lbl_803483F8;
+extern f32 lbl_803483FC;
+extern f32 lbl_80348400;
+extern f32 lbl_80348404;
+extern f32 lbl_80348408;
+extern char lbl_8034840C[4];
+extern f32 lbl_80348364;
+static s32 write_shop_menu(s32 player, s32 scroll);
+
+/* Buy/sell driver for one shop player: cursor movement over available
+ * items, sell-back, and the per-item purchase effects. */
+static s32 do_shopping_8009AA48(s32 player)
+{
+    u8* pl = gPlayers + player * 13148;
+    u8* page = lbl_802897D0;
+    u8* tbl = lbl_80122ED0;
+    s32 exit = 0;
+    s32 speed = 1;
+    s32 moved = 0;
+    s32 click = 0;
+    s32 bought = 0;
+    s32 paid = 0;
+    s32* scrollp = (s32*)(page + (player << 2) + 32);
+    s32* topp = (s32*)(page + (player << 2) + 16);
+    s32* dimp = (s32*)(page + (player << 2));
+    s32* cntp = (s32*)(page + (player << 2) + 64);
+    u8* avail = page + (player << 8) + 4432;
+    s32 price;
+    s32 sell;
+    s32 buy;
+    s32 j;
+
+    if (*scrollp != 0) {
+        speed = *scrollp;
+    }
+    *dimp = *(s32*)(pl + 2664) - *topp;
+    do {
+        if (new_left(player) != 0) {
+            if (click == 0) {
+                AudioClick(player, 0);
+                click = 1;
+            }
+            if (*scrollp != 0) {
+                speed = *scrollp + 1;
+            }
+            *(s32*)(pl + 2664) += 1;
+            if (*(s32*)(pl + 2664) >= *cntp) {
+                *(s32*)(pl + 2664) = 0;
+                moved = 1;
+                *dimp = 0;
+                *topp = 0;
+            }
+        }
+        if (new_right(player) != 0) {
+            if (click == 0) {
+                AudioClick(player, 1);
+                click = 1;
+            }
+            if (*scrollp != 0) {
+                speed = *scrollp + 1;
+            }
+            *(s32*)(pl + 2664) -= 1;
+            if (*(s32*)(pl + 2664) < 0) {
+                u8* item;
+                *cntp = 0;
+                item = lbl_80344C14;
+                for (j = 0; j < lbl_80344C10; j++, item += 80) {
+                    if (*(s32*)(pl + 7876) < *(s32*)(item + 72)) {
+                        s32 r;
+                        s32 t;
+                        if (ItemDefValid(item) != 0) {
+                            r = AudioFindPlayerSlot(
+                                player,
+                                *(s32*)(tbl +
+                                        *(s32*)(item + 68) * 8 + 188),
+                                *(s32*)(tbl +
+                                        *(s32*)(item + 68) * 8 + 192));
+                        } else {
+                            r = -1;
+                        }
+                        if (r >= 0) {
+                            t = 1;
+                        } else if (PlayerItemState(player, item) >= 0) {
+                            t = 1;
+                        } else {
+                            t = 0;
+                        }
+                        if (t != 0) {
+                            *cntp = j;
+                        }
+                    } else {
+                        *cntp = j;
+                    }
+                }
+                *cntp += 1;
+                *(s32*)(pl + 2664) = *cntp - 1;
+                *dimp = *(s32*)(pl + 2664);
+                *topp = *dimp - 6;
+                if (*topp < 0) {
+                    *dimp = *dimp - *topp;
+                    *topp = 0;
+                }
+                moved = 1;
+            }
+        }
+        price = *(s32*)(lbl_80344C14 + *(s32*)(pl + 2664) * 80 + 72);
+    } while (*(s32*)(avail + *(s32*)(pl + 2664) * 4) != 0);
+    if (*scrollp == 0) {
+        sell = new_ctrl(0x2000000, player);
+        buy = new_ctrl(0x1000000, player);
+    } else {
+        sell = 0;
+        buy = 0;
+    }
+    if (buy != 0 &&
+        (*(u32*)(page + player * 768 + 336 + *(s32*)(pl + 2664) * 4) & 4)) {
+        u8* item =
+            lbl_80344C14 + *(s32*)(pl + 2664) * 80;
+        switch (*(s32*)(item + 68)) {
+        case 1:
+            if (*(s32*)(pl + 7864) > 0) {
+                *(s32*)(pl + 7864) -= 1;
+                bought = 1;
+            }
+            break;
+        case 3:
+            if (*(s32*)(pl + 7868) > 0) {
+                *(s32*)(pl + 7868) -= 1;
+                bought = 1;
+            }
+            break;
+        default: {
+            s32 have;
+            s32 r;
+            if (*(s32*)(tbl + *(s32*)(item + 68) * 8 + 188) != 0 &&
+                *(s32*)(tbl + *(s32*)(item + 68) * 8 + 192) != 0) {
+                have = 1;
+            } else {
+                have = 0;
+            }
+            if (have != 0) {
+                s32 t;
+                if (*(s32*)(tbl + *(s32*)(item + 68) * 8 + 188) != 0 &&
+                    *(s32*)(tbl + *(s32*)(item + 68) * 8 + 192) != 0) {
+                    t = 1;
+                } else {
+                    t = 0;
+                }
+                if (t != 0) {
+                    r = AudioFindPlayerSlot(
+                        player,
+                        *(s32*)(tbl + *(s32*)(item + 68) * 8 + 188),
+                        *(s32*)(tbl + *(s32*)(item + 68) * 8 + 192));
+                } else {
+                    r = -1;
+                }
+                *(f32*)(pl + r * 16 + 304) = lbl_8034832C;
+                *(s32*)(pl + r * 16 + 308) = 0;
+                *(s32*)(pl + r * 16 + 316) = 0;
+                *(f32*)(pl + r * 16 + 312) = (f32)0;
+                bought = 1;
+            }
+            break;
+        }
+        }
+        if (bought != 0) {
+            *(s32*)(pl + 7876) += price * 3 / 4;
+            fn_8009D038(player);
+            PlayerProcessPowerups(pl);
+        } else {
+            AudioBuzzer();
+        }
+    }
+    if (sell != 0) {
+        if (*(s32*)(pl + 7876) >=
+            *(s32*)(lbl_80344C14 + *(s32*)(pl + 2664) * 80 + 72)) {
+            u8* item = lbl_80344C14 + *(s32*)(pl + 2664) * 80;
+            paid = 1;
+            switch (*(s32*)(item + 68)) {
+            default:
+                exit = 1;
+                break;
+            case 1:
+                if (*(s32*)(pl + 7864) < lbl_803448A4) {
+                    *(s32*)(pl + 7864) += 1;
+                } else {
+                    paid = 0;
+                }
+                break;
+            case 2:
+                PlayerAddPowerup(pl, 5, 0x200000, lbl_8034832C,
+                                 lbl_803483CC);
+                break;
+            case 3:
+                if (*(s32*)(pl + 7868) < lbl_803448A0) {
+                    s32 r = RandInt(4);
+                    s32 old = *(s32*)(pl + 7868);
+                    *(s32*)(pl + 7868) = old + 1;
+                    *(s32*)(pl + old * 4 + 13056) = r + 1;
+                } else {
+                    paid = 0;
+                }
+                break;
+            case 4:
+                PlayerAddPowerup(pl, 9, 0x100, lbl_8034832C, lbl_803483D0);
+                break;
+            case 5:
+                PlayerIncFight(pl, 10);
+                *(f32*)(pl + 2672) =
+                    (f32)(*(f32*)(pl + 2672) + lbl_803483D8);
+                break;
+            case 6:
+                PlayerIncSpeed(pl, 10);
+                *(f32*)(pl + 2684) =
+                    (f32)(*(f32*)(pl + 2684) + lbl_803483D8);
+                break;
+            case 7:
+                PlayerIncArmor(pl, 10);
+                *(f32*)(pl + 2676) =
+                    (f32)(*(f32*)(pl + 2676) + lbl_803483D8);
+                break;
+            case 8:
+                PlayerIncMagic(pl, 10);
+                *(f32*)(pl + 2680) =
+                    (f32)(*(f32*)(pl + 2680) + lbl_803483D8);
+                break;
+            case 9:
+                PlayerAddPowerup(pl, 6, 0x20000, lbl_8034832C,
+                                 lbl_803483D0);
+                break;
+            case 10:
+                PlayerAddPowerup(pl, 9, 0x80, lbl_8034832C, lbl_803483E0);
+                break;
+            case 11:
+                PlayerAddPowerup(pl, 5, 0x20000000, lbl_8034832C,
+                                 lbl_803483D0);
+                break;
+            case 12:
+                PlayerAddPowerup(pl, 5, 0x80000, lbl_8034832C,
+                                 lbl_803483E0);
+                break;
+            case 13:
+                PlayerAddPowerup(pl, 5, 0x10000000, lbl_803483E4,
+                                 lbl_803483E8);
+                break;
+            case 14:
+                PlayerAddPowerup(pl, 6, 0x400000, lbl_8034832C,
+                                 lbl_803483EC);
+                break;
+            case 15:
+                PlayerAddPowerup(pl, 6, 0x200000, lbl_8034832C,
+                                 lbl_803483EC);
+                break;
+            case 16:
+                PlayerAddPowerup(pl, 6, 0x110000, lbl_8034832C,
+                                 lbl_803483F0);
+                break;
+            case 17:
+                heal_player(pl, (f32)*(s32*)(item + 76));
+                break;
+            case 18:
+                PlayerAddPowerup(pl, 9, 1, lbl_8034832C, lbl_803483F4);
+                break;
+            case 19:
+                PlayerAddPowerup(pl, 9, 0x100, lbl_8034832C, lbl_803483D0);
+                break;
+            case 20:
+                PlayerAddPowerup(pl, 5, 1, lbl_8034832C, lbl_803483CC);
+                break;
+            case 21:
+                PlayerAddPowerup(pl, 5, 2, lbl_8034832C, lbl_803483CC);
+                break;
+            case 22:
+                PlayerAddPowerup(pl, 5, 3, lbl_8034832C, lbl_803483CC);
+                break;
+            case 23:
+                PlayerAddPowerup(pl, 5, 4, lbl_8034832C, lbl_803483CC);
+                break;
+            case 24:
+                PlayerAddPowerup(pl, 5, 0x100000, lbl_803483F8,
+                                 lbl_803483E8);
+                break;
+            case 25:
+                PlayerAddPowerup(pl, 9, 0x10, lbl_803483F8, lbl_803483E8);
+                break;
+            case 26:
+                PlayerAddPowerup(pl, 9, 0x40, lbl_803483F8, lbl_803483E8);
+                break;
+            case 27:
+                PlayerAddPowerup(pl, 9, 0x20, lbl_803483F8, lbl_803483E8);
+                break;
+            case 28:
+                PlayerAddPowerup(pl, 9, 0x10000, lbl_803483FC,
+                                 lbl_80348400);
+                break;
+            case 29:
+                PlayerAddPowerup(pl, 9, 0x200, lbl_8034832C, lbl_803483EC);
+                break;
+            case 30:
+                PlayerAddPowerup(pl, 9, 4, lbl_8034832C, lbl_803483EC);
+                break;
+            case 31:
+                PlayerAddPowerup(pl, 6, 0x10000, lbl_8034832C,
+                                 lbl_803483D0);
+                break;
+            case 32:
+                PlayerAddPowerup(pl, 9, 2, lbl_8034832C, lbl_80348404);
+                break;
+            case 33:
+                PlayerAddPowerup(pl, 6, 0x2008, lbl_8034832C,
+                                 lbl_803483EC);
+                break;
+            case 34:
+                PlayerAddPowerup(pl, 5, 0x400000, lbl_8034832C,
+                                 lbl_803483E0);
+                break;
+            case 35:
+                PlayerAddPowerup(pl, 6, 0x80000, lbl_8034832C,
+                                 lbl_80348404);
+                break;
+            case 36:
+                PlayerAddPowerup(pl, 9, 0x200000, lbl_8034832C,
+                                 lbl_80348404);
+                break;
+            case 37:
+                PlayerAddPowerup(pl, 9, 0x400000, lbl_8034832C,
+                                 lbl_80348404);
+                break;
+            case 38:
+                PlayerAddPowerup(pl, 9, 0x100000, lbl_8034832C,
+                                 lbl_80348404);
+                break;
+            case 39:
+                PlayerAddPowerup(pl, 9, 8, lbl_8034832C, lbl_80348408);
+                break;
+            }
+            if (paid != 0) {
+                *(s32*)(pl + 7876) -= price;
+                if (*(s32*)(pl + 2664) != 0) {
+                    fn_8009D038(player);
+                    PlayerProcessPowerups(pl);
+                }
+            } else {
+                AudioBuzzer();
+            }
+        } else {
+            AudioBuzzer();
+        }
+    } else if (new_menu_back(player) != 0) {
+        if (*(s32*)(pl + 2664) != 0) {
+            *(s32*)(pl + 2664) = 0;
+            moved = 1;
+        }
+    }
+    if (paid != 0 || bought != 0) {
+        u8* item = lbl_80344C14 + 80;
+        s32 joff = 4;
+        for (j = 1; j < lbl_80344C10; j++, joff += 4, item += 80) {
+            s32* fli = (s32*)(page + player * 768 + 336 + joff);
+            s32 r;
+            s32 t;
+            *fli = 0;
+            if (ItemDefValid(item) != 0) {
+                r = AudioFindPlayerSlot(
+                    player, *(s32*)(tbl + *(s32*)(item + 68) * 8 + 188),
+                    *(s32*)(tbl + *(s32*)(item + 68) * 8 + 192));
+            } else {
+                r = -1;
+            }
+            if (r >= 0) {
+                t = 1;
+            } else if (PlayerItemState(player, item) >= 0) {
+                t = 1;
+            } else {
+                t = 0;
+            }
+            if (t != 0) {
+                *fli |= 4;
+            }
+            if (calculate_player_shopping_parameters_8009C0F0(player, item)
+                != 0) {
+                *fli |= 2;
+            }
+        }
+        {
+            s32 ioff = 80;
+            joff = 4;
+            for (j = 1; j < lbl_80344C10; j++, joff += 4, ioff += 80) {
+                s32 r;
+                s32 t;
+                if (calculate_player_shopping_parameters_8009C0F0(
+                        player, lbl_80344C14 + ioff) != 0) {
+                    goto notavail;
+                }
+                {
+                    u8* it2 = lbl_80344C14 + ioff;
+                    if (ItemDefValid(it2) != 0) {
+                        r = AudioFindPlayerSlot(
+                            player,
+                            *(s32*)(tbl + *(s32*)(it2 + 68) * 8 + 188),
+                            *(s32*)(tbl + *(s32*)(it2 + 68) * 8 + 192));
+                    } else {
+                        r = -1;
+                    }
+                    if (r >= 0) {
+                        t = 1;
+                    } else if (PlayerItemState(player, it2) >= 0) {
+                        t = 1;
+                    } else {
+                        t = 0;
+                    }
+                    if (t != 0) {
+                        goto notavail;
+                    }
+                    *(s32*)(avail + joff) = 1;
+                    continue;
+                }
+notavail:
+                *(s32*)(avail + joff) = 0;
+            }
+        }
+        *(s32*)(page + (player << 8) + 5456 + *(s32*)(pl + 2664) * 4) = 30;
+        while (*(s32*)(pl + 7876) <
+                   *(s32*)(lbl_80344C14 + *(s32*)(pl + 2664) * 80 + 72) ||
+               *(s32*)(avail + *(s32*)(pl + 2664) * 4) != 0) {
+            *(s32*)(pl + 2664) -= 1;
+        }
+        if (*(s32*)(pl + 2664) < *topp) {
+            u8* item;
+            *topp = *(s32*)(pl + 2664);
+            *cntp = 0;
+            item = lbl_80344C14;
+            for (j = 0; j < lbl_80344C10; j++, item += 80) {
+                if (*(s32*)(pl + 7876) < *(s32*)(item + 72)) {
+                    s32 r;
+                    s32 t;
+                    if (ItemDefValid(item) != 0) {
+                        r = AudioFindPlayerSlot(
+                            player,
+                            *(s32*)(tbl + *(s32*)(item + 68) * 8 + 188),
+                            *(s32*)(tbl + *(s32*)(item + 68) * 8 + 192));
+                    } else {
+                        r = -1;
+                    }
+                    if (r >= 0) {
+                        t = 1;
+                    } else if (PlayerItemState(player, item) >= 0) {
+                        t = 1;
+                    } else {
+                        t = 0;
+                    }
+                    if (t != 0) {
+                        *cntp = j;
+                    }
+                } else {
+                    *cntp = j;
+                }
+            }
+            *cntp += 1;
+            moved = 1;
+        }
+        {
+            s32 n = lbl_80344C10;
+            for (j = *(s32*)(pl + 2664) + 1; j < n; j++) {
+                if (*(s32*)(page + (player << 8) + 6480 + j * 4) == 0) {
+                    break;
+                }
+            }
+        }
+    }
+    if (moved == 0) {
+        s32 top = *topp;
+        s32 d = *(s32*)(pl + 2664) - top;
+        if (d > 6) {
+            *topp = d + top - 6;
+        } else if (d < 0) {
+            *topp = top + d;
+        } else {
+            s32 v0 = *dimp;
+            if (v0 < d) {
+                if (v0 >= 3 && (*cntp - 1) - (top + 6) > 0) {
+                    *topp = top + 1;
+                }
+            } else if (d < v0 && v0 <= 3 && top > 0) {
+                *topp = top - 1;
+            }
+        }
+    }
+    if (moved != 0) {
+        speed = -1;
+    }
+    *scrollp = write_shop_menu(player, speed);
+    DrawTextKeepScale(lbl_80348364,
+                      -*(s32*)((u8*)lbl_80122F40 + (player << 2)), 8, 6, 0,
+                      lbl_8034840C);
+    return exit;
 }
 
 extern s32 lbl_80343E00;    /* menu fade band height */
