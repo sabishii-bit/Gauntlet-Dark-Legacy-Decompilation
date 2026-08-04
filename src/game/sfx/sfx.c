@@ -1121,6 +1121,154 @@ static void SetMagicParams(u8* base, s32 idx, s32 tf, f32 power, f32 scale,
     }
 }
 
+extern s32 sMusicTrackHi;
+extern f32 lbl_80348134;
+extern f32 lbl_80348138;
+extern f32 lbl_8034813C;
+extern f32 lbl_80348140;
+extern f32 lbl_80348144;
+extern f32 lbl_80348148;
+extern f64 lbl_80348150;
+extern f64 lbl_803480A8;
+extern f32 lbl_803480EC;
+
+/* 0x80092FC0 SuicideExplosion -- the potion/suicide blast: main explosion,
+ * smoke, flash, plus a deathmatch-mode variant. */
+s32 SuicideExplosion(f32* pos, f32 dmg)
+{
+    MagicView* tbl = (MagicView*)lbl_80122088;
+    EffectPage* page = (EffectPage*)EffectInfo;
+    s32 ret;
+    s32 a;
+    s32 ro;
+    s32 fl;
+    struct mbnode* nd;
+    u8* ha;
+    f32 y;
+
+    if (sMusicTrackHi == 11 || sMusicTrackHi == 7) {
+        a = StartFXSub(25, pos, 43, 0x800, lbl_80348068);
+        if (a < 0) {
+            a = -1;
+        } else {
+            fn_80093E50(a, (f32*)0, (f32*)0, lbl_80348068, lbl_80348068);
+            page->fx[a].fxhit = 0;
+            page->fx[a].hit_audio = 4;
+            page->fx[a].wall_sound = 0;
+        }
+        ret = a;
+        fl = 2048;
+        SetMagicParams((u8*)page, a, fl, dmg, lbl_80348138, -1);
+        ro = a * 240;
+        nd = page->fx[a].node;
+        y = *(f32*)((u32)nd + 52);
+        *(f32*)((u32)nd + 52) = (f32)(y + lbl_803480A8);
+        if (a >= 0) {
+            *(s16*)((u8*)page + ro + 3168) = 26;
+            *(s16*)((u8*)page + ro + 3170) = 27;
+            *(u32*)((u8*)page + ro + 3076) |= 0x4000;
+            *(f32*)((u8*)page + ro + 3092) = lbl_8034813C;
+        }
+        {
+            u8* ep = (u8*)page + ro;
+            struct mbnode* nd2;
+            Effect* e = (Effect*)(ep + 2976);
+            if ((nd2 = *(struct mbnode**)(ep + 2996)) != NULL) {
+                f32 k1;
+                MBTreeSetFlags(nd2, 8, 0);
+                k1 = lbl_80348140;
+                *(f32*)((u8*)e->node + 64) = k1;
+                *(f32*)((u8*)e->node + 68) = lbl_803480A0;
+                *(f32*)((u8*)e->node + 72) = k1;
+            }
+        }
+    } else {
+        EffectHeader* hdr = &page->info[22];
+        struct atreeheader* at;
+        Effect* e3;
+        s32 sm;
+
+        ret = -1;
+        if ((at = hdr->atree) != NULL) {
+            ret = StartFXTree(at, pos, 41, 0x880, lbl_80348068);
+            if (ret >= 0) {
+                MBTreeSetZsortAdd(page->fx[ret].node, hdr->zmod, 1);
+                MBTreeSetAlpha(page->fx[ret].node, hdr->alpha, 1);
+                page->fx[ret].type = (fx_type)22;
+            }
+        }
+        if (ret < 0) {
+            return -1;
+        }
+        ro = ret * 240;
+        ha = (u8*)page + 3180;
+        *(s32*)(ha + ro) = 4;
+        fl = 1057;
+        SetMagicParams((u8*)page, ret, fl, dmg, lbl_80348144, -1);
+        {
+            u8* ep = (u8*)page + ro;
+            e3 = (Effect*)(ep + 2976);
+            if ((nd = *(struct mbnode**)(ep + 2996)) != NULL) {
+                f32 k1;
+                MBTreeSetFlags(nd, 8, 0);
+                k1 = lbl_803480A0;
+                *(f32*)((u8*)e3->node + 64) = k1;
+                *(f32*)((u8*)e3->node + 68) = k1;
+                *(f32*)((u8*)e3->node + 72) = k1;
+            }
+        }
+        sm = StartFXSub(28, pos, 0, 0x800, lbl_80348068);
+        if (sm < 0) {
+            sm = -1;
+        } else {
+            fn_80093E50(sm, (f32*)0, (f32*)0, lbl_80348068, lbl_80348068);
+            page->fx[sm].fxhit = 0;
+            *(s32*)(ha + sm * 240) = 0;
+            page->fx[sm].wall_sound = 0;
+        }
+        {
+            u8* ep = (u8*)page + sm * 240;
+            struct mbnode* nd2;
+            Effect* e = (Effect*)(ep + 2976);
+            if ((nd2 = *(struct mbnode**)(ep + 2996)) != NULL) {
+                f32 k1;
+                MBTreeSetFlags(nd2, 8, 0);
+                k1 = lbl_80348148;
+                *(f32*)((u8*)e->node + 64) = k1;
+                *(f32*)((u8*)e->node + 68) = k1;
+                *(f32*)((u8*)e->node + 72) = k1;
+            }
+        }
+        if (ret >= 0) {
+            u8* e4 = (u8*)page + ro;
+            f32* c = tbl->colors[0];
+            *(f32*)(e4 + 2992) = (f32)(lbl_80348150 * lbl_803480EC);
+            if (c != NULL) {
+                e3->lightcolor[0] = c[0];
+                *(f32*)(e4 + 2980) = c[1];
+                *(f32*)(e4 + 2984) = c[2];
+            } else {
+                e3->lightcolor[0] = light_color[0];
+                *(f32*)(e4 + 2980) = light_color[1];
+                *(f32*)(e4 + 2984) = light_color[2];
+            }
+        }
+    }
+    a = StartFXSub(80, pos, 0, 0x800, lbl_80348068);
+    if (a < 0) {
+        a = -1;
+    } else {
+        fn_80093E50(a, (f32*)0, (f32*)0, lbl_80348068, lbl_80348068);
+        page->fx[a].fxhit = 0;
+        page->fx[a].hit_audio = 0;
+        page->fx[a].wall_sound = 0;
+    }
+    if (a >= 0) {
+        page->fx[a].fxfade = lbl_80348134;
+    }
+    return ret;
+}
+
 extern f64 lbl_803480F0;        /* death launch velocity factor */
 extern f32 lbl_803480F8;        /* death timer preset */
 extern f32 lbl_803480FC;        /* death power preset */
@@ -1247,8 +1395,9 @@ s32 StartMagicFX(f32* pos, s32 tf, s32 owner, f32 power, f32 scale)
     return idx;
 }
 
-/* 0x80092FC0 SuicideExplosion / 0x800933BC StartExplosion -- doc-only
- * giants this pass. */
+/* 0x800933BC StartExplosion -- doc-only giant this pass. */
+
+
 
 extern struct atreeheader* FamiliarSpit[];
 extern f64 lbl_80348078;
