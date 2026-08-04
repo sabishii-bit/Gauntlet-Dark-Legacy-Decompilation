@@ -653,6 +653,7 @@ s32 pbDiagDrawObject(void)
     int x;
     int i;
     s32 old;
+    s32 ret;
     s32 zero;
     s32 one;
     u32 saved;
@@ -689,21 +690,23 @@ s32 pbDiagDrawObject(void)
     gDiag_F4 = v;
     obj = *(DiagObjView**)((u8*)wg->f30 + v * 16 + 4);
     old = (&b[v])[12];
-    (&b[gDiag_F4])[12] =
-        pbDiagCtrlInt(1, 0, (&b[gDiag_F4])[12], 1, 0, obj->count);
-    (&b[gDiag_F4])[12] =
-        pbDiagCtrlInt(4, 0, (&b[gDiag_F4])[12], 10, 0, obj->count);
-    if (old != (&b[gDiag_F4])[12]) {
-        printf(lbl_80348700, obj->rows + (&b[gDiag_F4])[12] * 24);
+    ret = pbDiagCtrlInt(1, 0, (&b[gDiag_F4])[12], 1, 0, obj->count);
+    v = gDiag_F4;
+    (&b[v])[12] = ret;
+    ret = pbDiagCtrlInt(4, 0, (&b[v])[12], 10, 0, obj->count);
+    v = gDiag_F4;
+    (&b[v])[12] = ret;
+    if (old != (&b[v])[12]) {
+        printf(lbl_80348700, obj->rows + (&b[v])[12] * 24);
         gDiag_D0C = 0;
     }
-    fnd = MBOX_ReallyFindObject(obj->rows + (&b[gDiag_F4])[12] * 24,
-                                gDiag_F4, gDiag_F4, 1);
+    v = gDiag_F4;
+    fnd = MBOX_ReallyFindObject(obj->rows + (&b[v])[12] * 24, v, v, 1) + gDiag_D0C;
     if (gDiag_E6C != gDiag_F4 || gDiag_E70 != (&b[gDiag_F4])[12]) {
         gDiag_E6C = gDiag_F4;
         gDiag_E70 = (&b[gDiag_F4])[12];
     }
-    MBSetObject(gDiag_FC, fnd + gDiag_D0C);
+    MBSetObject(gDiag_FC, fnd);
     zero = 0;
     one = 1;
     if ((gControllerButtons & zero) != zero || (sFlags & one) != zero) {
