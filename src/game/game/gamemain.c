@@ -258,7 +258,7 @@ extern char  lbl_801125D0[];
 extern char  lbl_801125E4[];
 extern char  lbl_80112600[];
 extern s32   BytesFree(void);
-extern void  fn_80057F44(s32 a, s32 b);
+extern s32   fn_80057F44(s32 code, s32 mask);
 extern void  NewWorld(void);
 extern void  init_players(void);
 extern void  ResetItems(void);
@@ -1527,3 +1527,60 @@ s32 NextWorldLevel(s32 waveMask)
     return (sWorldDataTypes[worldIndex].type << 8) | (level & 0xFF);
 }
 #pragma opt_propagation reset
+
+/* 0x80057F44 - validate/normalize a world+level code, resolve it, and walk
+ * forward until a level matching the wave mask is found */
+extern s32 sCurWorldType;
+extern char lbl_801129F8[];   /* "couldn't find world data" fatal fmt */
+
+s32 fn_80057F44(s32 code, s32 mask)
+{
+    WorldDataType* types = sWorldDataTypes;
+    s32 wt;
+    s32 sub;
+    char* fatal;
+    u32 i;
+
+    fatal = (char*)lbl_801129F8;
+    for (;;) {
+        wt = code >> 8;
+        sub = code & 0xFF;
+        if (sCurWorldType != wt) {
+            for (i = 0; i < 14; i++) {
+                if (types[i].type == wt && types[i].available != 0) {
+                    break;
+                }
+            }
+            if (i == 14) {
+                for (i = 0; i < 14; i++) {
+                    if (types[i].available != 0) {
+                        wt = types[i].type;
+                        break;
+                    }
+                }
+            }
+            if (i == 14) {
+                FatalError(fatal, 0x800000);
+            }
+        } else {
+            if (gWorldData != 0) {
+                if (sub >= *(s16*)(gWorldData + 24)) {
+                    sub = 0;
+                }
+            } else {
+                sub = 0;
+            }
+        }
+        sub = (u8)sub;
+        sub = (sub & 0xFF) | (wt << 8);
+        ResolveWorldData(sub);
+        if (mask == 0) {
+            break;
+        }
+        if (*(s16*)(gCurLevel + 4) & mask) {
+            break;
+        }
+        code = NextWorldLevel(mask);
+    }
+    return sub;
+}
