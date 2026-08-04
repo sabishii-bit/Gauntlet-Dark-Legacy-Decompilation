@@ -729,6 +729,94 @@ s32 StartMagicPlayerFX(f32* pos)
 /* 0x80092B58 StartThrowMagicFX / 0x80092DF4 StartMagicFX -- doc-only
  * (throw-magic / magic family, atan2 launch). */
 
+extern s32 lbl_80122088[];      /* magic FX def table (ids @+3484, color idx @+124, colors @+24) */
+
+/* pool-entry view for the magic-FX param block */
+typedef struct MagicFxView {
+    u8  _pad00[124];
+    f32 timer;              /* 0x7C */
+    u8  _pad80[44];
+    f32 power;              /* 0xAC */
+    u8  _padB0[4];
+    s32 flags;              /* 0xB4 */
+    f32 scale;              /* 0xB8 */
+    u16 owner;              /* 0xBC */
+} MagicFxView;
+extern f64 lbl_80348128;        /* magic scale factor */
+extern f64 lbl_80348118;        /* magic scale cap test */
+extern f32 lbl_803480A0;        /* magic scale cap */
+extern f64 lbl_80348120;        /* light radius factor */
+void fn_80093E50(s32 idx, f32* a, f32* b, f32 x, f32 y);
+
+s32 StartMagicFX(f32* pos, s32 tf, s32 owner, f32 power, f32 scale)
+{
+    u8* base = (u8*)EffectInfo;
+    s32 idx;
+    s32 low;
+    s32* tab = lbl_80122088;
+    s32 v;
+    f32 s;
+    u8* e;
+    Effect* ef;
+    struct mbnode* node;
+    f32* col;
+    s32 ci;
+
+    low = tf & 15;
+    s = (f32)(lbl_80348128 * scale);
+    idx = StartFXSub((&tab[tf & 15])[871], pos, 298, 2048, 0.0f);
+    if (idx < 0) {
+        idx = -1;
+    } else {
+        fn_80093E50(idx, 0, 0, 0.0f, 0.0f);
+        e = base + idx * 240;
+        *(u16*)(e + 3166) = 0;
+        *(u32*)(e + 3180) = 0;
+        *(u32*)(e + 3184) = 0;
+    }
+    v = tf;
+    if (idx >= 0) {
+        MagicFxView* fx = (MagicFxView*)((u32)base + idx * 240 + 2976);
+        if ((v & 15) >= 5) {
+            v = v & ~0xC;
+        }
+        fx->power = power;
+        fx->flags = v;
+        fx->scale = scale;
+        fx->timer = 0.0f;
+        fx->owner = owner + 1;
+    }
+    if (s > lbl_80348118) {
+        s = lbl_803480A0;
+    }
+    owner = idx * 240;
+    ef = (Effect*)(base + owner);
+    node = ((EffectPage*)ef)->fx[0].node;
+    ef = (Effect*)((u8*)ef + 2976);
+    if (node != NULL) {
+        MBTreeSetFlags(node, 8, 0);
+        ef->node->scale[0] = s;
+        ef->node->scale[1] = s;
+        ef->node->scale[2] = s;
+    }
+    ci = (&tab[low])[31];
+    col = (f32*)&(&tab[ci * 3])[6];
+    if (idx >= 0) {
+        e = base + owner;
+        *(f32*)(e + 2992) = (f32)(lbl_80348120 * scale);
+        if (col != 0) {
+            *(f32*)ef = col[0];
+            *(f32*)(e + 2980) = col[1];
+            *(f32*)(e + 2984) = col[2];
+        } else {
+            *(f32*)ef = light_color[0];
+            *(f32*)(e + 2980) = light_color[1];
+            *(f32*)(e + 2984) = light_color[2];
+        }
+    }
+    return idx;
+}
+
 /* 0x80092FC0 SuicideExplosion / 0x800933BC StartExplosion /
  * 0x80093918 fn_80093918 -- doc-only giants this pass. */
 
