@@ -955,8 +955,34 @@ void PlayVQMovie(void) {
 }
 
 /* movie close/cleanup (AudioStreamStop, operator delete, sceClose) */
-void fn_800DA60C(void) {
+extern void AudioStreamStop(void);
+extern s32 sceClose(s32 fd);
+void fn_800DBA80(u8* dec, s32 fd);
+void __dl__FPv(void* p);
+void __dla__FPv(void* p);
+
+#pragma dont_inline on
+void fn_800DA60C(u8* m)
+{
+    u8* strm;
+
+    if (*(u32*)((u32)m + 400) != 0) {
+        AudioStreamStop();
+        if ((strm = *(u8**)(m + 400)) != 0) {
+            AudioStreamStop();
+            __dla__FPv(*(void**)(strm + 4));
+            __dl__FPv(strm);
+        }
+        *(u32*)(m + 400) = 0;
+    }
+    (**(void (**)(u8*))(28 + *(u8**)(m + 368)))(m + 336);
+    fn_800DBA80(m + 32, *(s32*)(m + 28));
+    if (*(s32*)(m + 28) != 0) {
+        sceClose(*(s32*)(m + 28));
+    }
+    *(s32*)(m + 28) = 0;
 }
+#pragma dont_inline off
 
 /* movie start: stream audio setup (sndCmd16/sndCmd17) */
 void fn_800DA6A4(void) {
@@ -1074,7 +1100,7 @@ void __dla__FPv(void* p) {
 #pragma dont_inline off
 
 /* operator delete (weak, emitted into this TU) */
-void __dl__FPv(void) {
+void __dl__FPv(void* p) {
 }
 
 void dtor_800DB21C(void) {
@@ -1192,7 +1218,7 @@ u8 MovieDecoderInitBuffers(u32* param_1, u32 param_2, u32 param_3) {
     return param_1[0] != 0;
 }
 
-void fn_800DBA80(void) {
+void fn_800DBA80(u8* dec, s32 fd) {
 }
 
 void dtor_800DBB94(void) {
