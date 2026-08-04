@@ -97,6 +97,48 @@ typedef struct DiagRow {       /* 24-byte string row */
 } DiagRow;
 
 extern u32 gDiag_FC;
+extern s32 gDiag_D0C;
+extern s32 gDiag_F0;
+extern s32 gDiag_DEC;
+extern s32 gDiag_E6C;
+extern s32 gDiag_E70;
+extern u32 gControllerButtons;
+extern u32 sFlags;
+extern f32 gIdentityMatrix[];
+extern f32 lbl_803486B0;
+extern f32 lbl_803486B8;
+extern char lbl_80348700[8];
+extern char lbl_80348708[8];
+extern char lbl_803486F0[8];
+extern void MBSetAmbient(int idx, f32 v);
+extern void MBAddLight(int a, int b, f32 v);
+extern void MBWindowViewport(f32 a, f32 b, f32 c, f32 d);
+extern s32 MBOX_NewObject(char* name, f32* mtx, int a, int b);
+extern void* MBOX_FindTexture_Err(char* name, int a, int b);
+extern s32 MBCreateBlit(s32 a, void* tex, int b, int c, int d, int e);
+extern void mbBlitCvtCoord(s32 blit, f32 v);
+extern void MBBlitSetColor(s32 blit, s32 color);
+extern void MBSetObject(s32 obj, void* data);
+extern void MBTreeSetAltTex(s32 obj, int idx, void* tex, int a);
+extern void CreatePYRMatrix(s32 obj, void* pyr);
+extern u32 fn_800C02F4(u32 color);
+extern void fn_800C01C0(int x, int y, const char* fmt, ...);
+extern u8* MBOX_ReallyFindObject(void* entry, int a, int b, int c);
+void pbDiagDrawColorBars(void);
+void pbDiagDrawStrRow(DiagStrRows* p);
+s32 pbDiagCtrlInt(s32 axis, s32 pad, s32 val, s32 inc, s32 min, s32 max);
+
+/* object record view (also the DiagStrRows passed to pbDiagDrawStrRow) */
+typedef struct DiagObjView {
+    u8   _pad00[32];
+    char name[44];          /* 0x20 */
+    s32  count;             /* 0x4C */
+    u8   _pad50[12];
+    char* rows;             /* 0x5C: 24-byte rows */
+} DiagObjView;
+
+
+extern u32 gDiag_FC;
 extern s32 gDiag_D0C;            /* gDiag_FC */
 extern u32 gDiag_D00;           /* gDiag_D00 */
 extern u32 gDiag_D04;           /* gDiag_D04 */
@@ -273,6 +315,260 @@ void pbDiagDrawSoundRow(void)
     }
 }
 
+extern f32 gDiag_D20;           /* info-screen ambient ramp */
+extern f32 gDiag_D24;           /* info-screen anim clock */
+extern void* gDiag_D1C;         /* last attached list */
+extern s32 gDiag_F00;
+extern s32 gGameBusy;
+extern f32 gClockFrameStep;
+extern s32 lbl_80344CF8;        /* menu count (latched from lbl_803441E8) */
+extern s32 lbl_803441E8;
+extern DiagMenu* lbl_8023D180[]; /* per-menu DiagMenu ptr table */
+extern s32 lbl_8023CFA0[];      /* per-menu texmod arg table */
+extern u8 lbl_8023D000[];       /* per-menu atree params, stride 16 */
+extern f64 lbl_803486E0;        /* s32->f32 conversion bias */
+extern f64 lbl_803486C0;        /* anim rate constant */
+extern f64 lbl_803486C8;        /* ambient scale */
+extern f64 lbl_80348678;        /* anim clock threshold */
+extern char lbl_803486D8[8];    /* info column format (sdata2) */
+extern void InitTexMods(DiagMenu* menu, s32 arg);
+extern void DoTexMods(DiagMenu* menu);
+extern void AtreeDelete(void* slot);
+extern s32 AtreeInit(DiagList* list, void* slot, void* params, int a);
+extern void MBNodeSetParent(u32 node, s32 parent);
+extern void fn_8001101C(void* slot, s32 sel, s32 frame, int mode);
+extern void MBTreeSetAmbientAdd(u32 node, s32 amount, int a);
+void pbDiagDrawMenuA(DiagList* list);
+void pbDiagDrawMenuB(DiagMenu* menu);
+
+/* info/animation browser: menu columns, atree preview + anim clock */
+s32 pbDiagDrawInfo(void)
+{
+    char* strs = lbl_80114E90;
+    u32* b = buttons;
+    f32* gd = gDiagData;
+    int x;
+    DiagMenu* menu;
+    DiagList* entry;
+    s32 old;
+    s32 v;
+    int i;
+    s32 stepped;
+    u32 w;
+    u32 w2;
+    u32 saved;
+    void* tex;
+    f32* px;
+    f32* py;
+    DiagObjView* obj;
+    char buf16[84];
+    char buf[68];
+
+    x = 0;
+    if (gDiag_FC == 0) {
+        MBSetAmbient(0, lbl_803486B0);
+        MBAddLight(0, 0, lbl_803486B4);
+        gDiag_D20 = lbl_80348670;
+        gDiag_FC = MBOX_NewObject(strs + 268, gIdentityMatrix, 0, 0);
+        gDiag_D8 = 1;
+        lbl_80344CF8 = lbl_803441E8;
+        gDiagMenuIdx = 1;
+        gDiagListSel = 0;
+        gDiag_D1C = 0;
+        *(s32*)((u8*)b + 456) = 0;
+        *(f32*)((u8*)b + 1552) = gd[36];
+        *(f32*)((u8*)b + 1556) = gd[37];
+        *(f32*)((u8*)b + 1560) = gd[38];
+        *(f32*)((u8*)b + 380) = *(f32*)((u8*)b + 1552);
+        *(f32*)((u8*)b + 384) = *(f32*)((u8*)b + 1556);
+        *(f32*)((u8*)b + 388) = *(f32*)((u8*)b + 1560);
+        gDiag_D24 = lbl_803486B8;
+        for (i = 0; i < 256; i++) {
+            *(u32*)((u8*)b + i * 4 + 528) = 0;
+        }
+    }
+    if (gDiag_D00 == 0) {
+        tex = MBOX_FindTexture_Err(strs + 280, 0, 1);
+        gDiag_D00 = MBCreateBlit(gDiag_DEC, tex, 0, 0, 512, 384);
+        mbBlitCvtCoord(gDiag_D00, lbl_803486B8);
+    }
+    if (gDiag_D00 != 0) {
+        MBBlitSetColor(gDiag_D00, (&((s32*)gDiagData)[gDiag_D8])[27]);
+    }
+    MBSetBGColor(*(s32*)((u32)gd + gDiag_D8 * 12), *(s32*)((u8*)gd + gDiag_D8 * 12 + 4),
+                 *(s32*)((u8*)gd + gDiag_D8 * 12 + 8));
+    old = gDiagMenuIdx;
+    v = pbDiagCtrlInt(0, 0, old, 1, 0, lbl_80344CF8);
+    gDiagMenuIdx = v;
+    menu = lbl_8023D180[v];
+    if (v != old && menu != 0) {
+        gDiagListSel = (&b[v])[68];
+        if (lbl_8023CFA0[v] >= 0 && menu->count != 0) {
+            InitTexMods(menu, lbl_8023CFA0[gDiagMenuIdx]);
+        }
+        gDiag_D24 = lbl_803486B8;
+        printf(strs + 292, menu->strs + (&b[gDiagMenuIdx])[44] * 36);
+        gDiag_D0C = 0;
+    }
+    if (menu == 0 || menu->count == 0) {
+        (&b[gDiagMenuIdx])[44] = 0;
+        entry = 0;
+    } else {
+        if (menu->strs != 0) {
+            entry = (DiagList*)((u8*)menu +
+                *(s32*)(menu->strs + (&b[gDiagMenuIdx])[44] * 36 + 32));
+            gDiagListSel = pbDiagCtrlInt(1, 0, gDiagListSel, 1, 0, entry->count);
+        } else {
+            gDiagListSel = 0;
+            entry = 0;
+        }
+        v = gDiagListSel;
+        if (v != (&b[gDiagMenuIdx])[68]) {
+            (&b[gDiagMenuIdx])[68] = v;
+            gDiag_D24 = (f32)(s32)(&b[v])[132];
+        }
+    }
+    if (menu != 0 && entry != 0) {
+        stepped = 0;
+        w = b[8];
+        if (w & 0x01000000) {
+            v = (&b[gDiagMenuIdx])[44] + 1;
+            (&b[gDiagMenuIdx])[44] = v;
+            if (v >= menu->count) {
+                (&b[gDiagMenuIdx])[44] = 0;
+            }
+            stepped = 1;
+        }
+        if (w & 0x04000000) {
+            v = (&b[gDiagMenuIdx])[44] - 1;
+            (&b[gDiagMenuIdx])[44] = v;
+            if (v < 0) {
+                (&b[gDiagMenuIdx])[44] = menu->count - 1;
+            }
+            stepped = 1;
+        }
+        if (stepped != 0) {
+            entry = (DiagList*)((u8*)menu +
+                *(s32*)(menu->strs + (&b[gDiagMenuIdx])[44] * 36 + 32));
+            if (gDiagListSel >= entry->count) {
+                gDiagListSel = 0;
+                (&b[gDiagMenuIdx])[68] = 0;
+                gDiag_D24 = (f32)(s32)(&b[gDiagListSel])[132];
+            }
+        }
+    }
+    if (!(*(u32*)((u8*)b + 456) != 0 && (void*)entry == gDiag_D1C)) {
+        if (*(u32*)((u8*)b + 456) != 0) {
+            AtreeDelete((u8*)b + 456);
+        }
+        if (entry != 0) {
+            s32 zero = 0;
+            s32 one = 1;
+            s32 kept = gDiag_F00;
+            if ((gControllerButtons & zero) != zero || (sFlags & one) != zero) {
+                *(u32*)((u8*)b + 456) = AtreeInit(entry, (u8*)b + 456, 0, 0);
+            } else {
+                *(u32*)((u8*)b + 456) =
+                    AtreeInit(entry, (u8*)b + 456, lbl_8023D000 + gDiagMenuIdx * 16, 0);
+            }
+            if (gDiag_F00 != 0) {
+                gDiag_F00 = kept;
+            }
+            MBNodeSetParent(*(u32*)((u8*)b + 456), gDiag_FC);
+        } else {
+            *(u32*)((u8*)b + 456) = 0;
+        }
+        gDiag_D1C = entry;
+        gDiag_D24 = lbl_803486B8;
+    }
+    if (entry != 0) {
+        if (gGameBusy == 0) {
+            s16 spd = *(s16*)(*(u8**)((u8*)b + 460) + gDiagListSel * 48 + 34);
+            if (spd > 0) {
+                gDiag_D24 = (f32)(lbl_803486C0 / (f64)spd *
+                                  (lbl_803486C0 * gClockFrameStep) + gDiag_D24);
+            } else {
+                gDiag_D24 = (f32)(gDiag_D24 + lbl_803486C0 * gClockFrameStep);
+            }
+            if (gDiag_D24 < lbl_80348678) {
+                gDiag_D24 = lbl_80348670;
+            }
+        }
+        *(u16*)((u8*)b + 512) = 1;
+        if (gDiag_D24 >= (f32)(s32)*(s16*)((u8*)b + 476)) {
+            gDiag_D24 = lbl_80348670;
+        }
+        if (gDiag_D24 >= lbl_80348678) {
+            fn_8001101C((u8*)b + 456, gDiagListSel, (s32)gDiag_D24, 2);
+        }
+        MBTreeSetAmbientAdd(**(u32**)((u8*)b + 456),
+                            (s32)(lbl_803486C8 * gDiag_D20), 1);
+        if (menu != 0) {
+            DoTexMods(menu);
+        }
+    }
+    v = gDiagListSel;
+    (&b[v])[132] = (s32)gDiag_D24;
+    pbDiagDrawColorBars();
+    CreatePYRMatrix(gDiag_FC, (u8*)b + 368);
+    px = (f32*)((u8*)b + 384);
+    py = (f32*)((u8*)b + 388);
+    *(f32*)((u8*)gDiag_FC + 48) = *(f32*)((u8*)b + 380);
+    *(f32*)((u8*)gDiag_FC + 52) = *(f32*)((u8*)b + 384);
+    *(f32*)((u8*)gDiag_FC + 56) = *(f32*)((u8*)b + 388);
+    w2 = b[8];
+    if (w2 & 0x00400000) {
+        gDiag_D20 = (f32)(gDiag_D20 + lbl_803486D0);
+    }
+    if (w2 & 0x00800000) {
+        gDiag_D20 = (f32)(gDiag_D20 - lbl_803486D0);
+    }
+    {
+        s32 zero = 0;
+        s32 one = 1;
+        if ((gControllerButtons & zero) != zero || (sFlags & one) != zero) {
+            MBTreeSetAltTex(gDiag_FC, -2, gDiagWhiteObj, 1);
+            gDiag_D4 = one;
+        } else if (gDiag_D4 != 0) {
+            MBTreeSetAltTex(gDiag_FC, -1, 0, 1);
+            gDiag_D4 = zero;
+        }
+    }
+    for (i = 0; i < lbl_80344CF8; i++) {
+        sprintf(buf, lbl_803486D8, i);
+        fn_800C008C((i == gDiagMenuIdx) ? 0x00FFFF00 : 0x00FFFFFF, x, 2, buf);
+        x += 3;
+    }
+    saved = fn_800C02F4(0x00FFFFFF);
+    if (entry != 0) {
+        obj = *(DiagObjView**)((u8*)gWinGlobals->f30 + gDiag_F4 * 16 + 4);
+        if (*(s8*)obj->name != 0) {
+            fn_800C008C(0x00FFFF00, 61 - strlen(obj->name), 3, obj->name);
+        }
+    }
+    sprintf(buf16, strs + 304, *(f32*)((u8*)b + 484),
+            *(s16*)((u8*)b + 476) - 1,
+            (entry != 0) ? *(s16*)(*(u8**)entry + gDiagListSel * 48 + 34) : 0);
+    fn_800C01C0(2, 43, buf16);
+    sprintf(buf16, strs + 344, *(f32*)((u8*)b + 380), *px, *py,
+            *(f32*)((u8*)b + 368), *(f32*)((u8*)b + 372), *(f32*)((u8*)b + 376));
+    fn_800C01C0(2, 44, buf16);
+    fn_800C02F4(saved);
+    if (menu != 0) {
+        pbDiagDrawMenuB(menu);
+    }
+    if (entry != 0) {
+        pbDiagDrawMenuA(entry);
+    }
+    if (b[0] & 0x08000000) {
+        MBTreeInit();
+        gDiag_FC = 0;
+        gDiag_D00 = 0;
+        return 1;
+    }
+    return 0;
+}
+
 void pbDiagDrawMenuA(DiagList* list) {
     int line;
     int i;
@@ -361,38 +657,6 @@ extern s32 gDiag_F4;            /* declared above */
 extern s32 gDiagBtns_F8[];      /* per-screen cursor table */
 extern char lbl_803486F8[8];    /* "%3d %s"-style row format (sdata2) */
 extern void* MBOX_GetTexDef(u32 id);
-
-extern u32 gDiag_FC;
-extern s32 gDiag_D0C;
-extern s32 gDiag_F0;
-extern s32 gDiag_DEC;
-extern s32 gDiag_E6C;
-extern s32 gDiag_E70;
-extern u32 gControllerButtons;
-extern u32 sFlags;
-extern f32 gIdentityMatrix[];
-extern f32 lbl_803486B0;
-extern f32 lbl_803486B8;
-extern char lbl_80348700[8];
-extern char lbl_80348708[8];
-extern char lbl_803486F0[8];
-extern void MBSetAmbient(int idx, f32 v);
-extern void MBAddLight(int a, int b, f32 v);
-extern void MBWindowViewport(f32 a, f32 b, f32 c, f32 d);
-extern s32 MBOX_NewObject(char* name, f32* mtx, int a, int b);
-extern void* MBOX_FindTexture_Err(char* name, int a, int b);
-extern s32 MBCreateBlit(s32 a, void* tex, int b, int c, int d, int e);
-extern void mbBlitCvtCoord(s32 blit, f32 v);
-extern void MBBlitSetColor(s32 blit, s32 color);
-extern void MBSetObject(s32 obj, void* data);
-extern void MBTreeSetAltTex(s32 obj, int idx, void* tex, int a);
-extern void CreatePYRMatrix(s32 obj, void* pyr);
-extern u32 fn_800C02F4(u32 color);
-extern void fn_800C01C0(int x, int y, const char* fmt, ...);
-extern u8* MBOX_ReallyFindObject(void* entry, int a, int b, int c);
-void pbDiagDrawColorBars(void);
-void pbDiagDrawStrRow(DiagStrRows* p);
-s32 pbDiagCtrlInt(s32 axis, s32 pad, s32 val, s32 inc, s32 min, s32 max);
 
 extern s32 gDiag_D10;           /* texture-screen mode (0..3) */
 extern u8* gDiag_D14;           /* highlighted texdef ptr */
@@ -632,14 +896,6 @@ int bank;
 }
 
 
-/* object record view (also the DiagStrRows passed to pbDiagDrawStrRow) */
-typedef struct DiagObjView {
-    u8   _pad00[32];
-    char name[44];          /* 0x20 */
-    s32  count;             /* 0x4C */
-    u8   _pad50[12];
-    char* rows;             /* 0x5C: 24-byte rows */
-} DiagObjView;
 
 /* object-browser screen: spawn/manage the preview object, columns, HSV */
 s32 pbDiagDrawObject(void)
