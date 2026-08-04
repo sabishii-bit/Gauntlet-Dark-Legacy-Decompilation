@@ -188,8 +188,8 @@ extern f32 lbl_80348364;    /* stats text scale                        */
 extern void* lbl_80344E48;  /* continue-arrow texture                  */
 extern int sprintf(char* buf, const char* fmt, ...);
 extern void DrawGlowText(f32 scale, s32 y, s32 x, char* txt);
-extern void DrawTextKeepScale(f32 scale, s32 y, s32 x, s32 font, s32 color,
-                              char* txt);
+extern s32 DrawTextKeepScale(f32 scale, s32 y, s32 x, s32 font, s32 color,
+                             char* txt);
 extern void* MBNewTempBlit(void* tex, int x, int y, int w, int h);
 
 /* Draw the three per-pile gold totals (rising-pile animation + glow text),
@@ -744,6 +744,249 @@ void init_shop(s32 fromMenu)
         fn_80053A68(0);
     }
     fn_80053C70();
+}
+
+extern s32 lbl_80343E00;    /* menu fade band height */
+extern s32 lbl_80343E04;    /* menu top y            */
+extern s32 lbl_80343E08;    /* menu bottom y         */
+extern f64 lbl_80348428;    /* mlines scale factor   */
+extern char lbl_80348414[]; /* "%d" price fmt        */
+extern char lbl_8034841C[]; /* "%d" sell fmt         */
+extern char lbl_80348430[]; /* up-arrow texture name */
+extern char lbl_80114A30[]; /* down-arrow texture    */
+extern s32 lbl_80122F50[];  /* per-player price x column */
+extern void mbBlitCalcRect(void* blit, s32 a, s32* rect, s32 b);
+extern void MBBlitSetAlpha(void* blit, s32 alpha);
+extern s32 MBSetFontAlpha(s32 alpha);
+extern void MBFontMsgSetAlpha(s32 msg, s32 alpha);
+extern s32 DrawTextMLines(f32 scale, s32 x, s32 y, s32 font, s32 color,
+                          char* str);
+extern s32 DrawGlowTextMLines(f32 scale, s32 x, s32 y, char* str);
+extern void* MBOX_FindTexture(char* name, s32 mode);
+void calc_shop_ypos(s32 player);
+
+/* Draw one player's scrolling shop menu column; returns the scroll speed
+ * while the list is still moving. */
+static s32 write_shop_menu(s32 player, s32 scroll)
+{
+    u8* page = lbl_802897D0;
+    u8* pl = gPlayers + player * 13148;
+    s32 didScroll = 0;
+    s32 needUp = 0;
+    s32 needDn = 0;
+    s32 mv = scroll;
+    s32* cursp;
+    s32* scrollflag;
+    s32 ybase;
+    s32 j;
+    s32 joff;
+    s32 itemoff;
+    s32* colp;
+    s32* xcol;
+    u8* blits;
+    u8* timers;
+    u8* avail;
+    u8* flags;
+    s32 y;
+    char buf[20];
+    s32 tex;
+    s32* fli;
+    f64 kGold;
+    u8 _spare[16];
+
+    if (mv > 0 && mv < 2) {
+        mv = 2;
+    }
+    cursp = (s32*)(page + (player << 8) + 3408);
+    if (*cursp == -1) {
+        mv = -1;
+    }
+    calc_shop_ypos(player);
+    scrollflag = (s32*)(page + (player << 2) + 48);
+    *scrollflag = 0;
+    {
+        s32 top = lbl_80343E04;
+        s32 bot = lbl_80343E08;
+        s32 cy = *cursp;
+        s32 last;
+        ybase = top + (bot - top) / 2;
+        if (ybase + cy > top) {
+            ybase = top - cy;
+        }
+        last = *(s32*)(page + (player << 8) + lbl_80344C10 * 4 + 3404);
+        if (ybase + last < bot) {
+            ybase = bot - last;
+        }
+    }
+    kGold = lbl_80348428;
+    colp = (s32*)((u8*)lbl_80122F50 + (player << 2));
+    xcol = (s32*)((u8*)lbl_80122F40 + (player << 2));
+    itemoff = 0;
+    blits = page + (player << 8) + 6480;
+    timers = page + (player << 8) + 5456;
+    avail = page + (player << 8) + 4432;
+    flags = page + player * 768 + 336;
+    joff = 0;
+    for (j = 0; j < lbl_80344C10; j++, joff += 4, itemoff += 80) {
+        s32* timp = (s32*)(timers + joff);
+        s32 yt = ybase + *(s32*)((u8*)cursp + joff);
+        u8* item = lbl_80344C14 + itemoff;
+        void* blit = *(void**)(blits + joff);
+        s32 hl;
+        s32 sel;
+        s32 a;
+        s32 price;
+        if (*timp > 0) {
+            s32 t = *timp - gFrameTicks;
+            *timp = t;
+            if (t < 0) {
+                *timp = 0;
+            }
+            hl = 0xFF0000;
+        } else {
+            hl = 0;
+        }
+        if (j == *(s32*)(pl + 2664)) {
+            sel = 1;
+        } else {
+            sel = 0;
+        }
+        mbBlitCalcRect(blit, 0, &y, 0);
+        if (y - yt < -1 || y - yt > 1) {
+            if (mv < 0) {
+                y = yt;
+            } else {
+                *scrollflag = 1;
+                if (y > yt) {
+                    y = y - gFrameTicks * mv;
+                    if (y < yt) {
+                        y = yt;
+                    }
+                    didScroll = 1;
+                } else if (y < yt) {
+                    y = y + gFrameTicks * mv;
+                    if (y > yt) {
+                        y = yt;
+                    }
+                    didScroll = 1;
+                }
+            }
+            mbBlitCalcY(blit, y);
+        }
+        {
+            s32 dim = lbl_80343E00;
+            s32 top = lbl_80343E04;
+            if (y < top - dim) {
+                a = 256;
+                if (*(s32*)(avail + joff) == 0) {
+                    needUp = 1;
+                }
+            } else if (y < top) {
+                a = (top - y) * 510 / dim;
+                if (a > 255) {
+                    a = 255;
+                }
+                if (*(s32*)(avail + joff) == 0) {
+                    needUp = 1;
+                }
+            } else if (y > lbl_80343E08 + dim) {
+                a = 256;
+                if (*(s32*)(avail + joff) == 0) {
+                    needDn = 1;
+                }
+            } else if (y > lbl_80343E08) {
+                a = (y - lbl_80343E08) * 510 / dim;
+                if (a > 255) {
+                    a = 255;
+                }
+                if (*(s32*)(avail + joff) == 0) {
+                    needDn = 1;
+                }
+            } else {
+                a = 0;
+            }
+        }
+        if (a >= 256) {
+            mbBlitInit3414(blit, 1);
+            continue;
+        }
+        if (a == 0 && *(s32*)(avail + joff) != 0) {
+            a = 160;
+        }
+        tex = MBBlitGetTex(blit);
+        if (tex == 0) {
+            mbBlitInit3414(blit, 1);
+        } else {
+            mbBlitInit3414(blit, 0);
+            MBBlitSetAlpha(blit, a);
+        }
+        price = *(s32*)(item + 72);
+        if (price > 0) {
+            s32 x;
+            s32 ytxt;
+            s32 msg;
+            fli = (s32*)(flags + joff);
+            x = *colp - 64;
+            if (*fli & 8) {
+                ytxt = y - 6;
+            } else {
+                ytxt = y + 12;
+            }
+            sprintf(buf, lbl_80348414, price);
+            if (sel != 0) {
+                DrawGlowText(lbl_80348360, x, ytxt, buf);
+            } else {
+                msg = DrawTextKeepScale(lbl_80348360, x, ytxt, 6, hl, buf);
+                if (msg != 0) {
+                    MBFontMsgSetAlpha(msg, a);
+                }
+            }
+            if (*fli & 8) {
+                ytxt = y + 12;
+                sprintf(buf, lbl_8034841C, price * 3 / 4);
+                if (sel != 0) {
+                    DrawGlowText(lbl_80348360, x, ytxt, buf);
+                } else {
+                    msg = DrawTextKeepScale(lbl_80348360, x, ytxt, 6, hl,
+                                            buf);
+                    if (msg != 0) {
+                        MBFontMsgSetAlpha(msg, a);
+                    }
+                }
+            }
+        }
+        if (tex > 0) {
+            y = y + 32;
+        } else {
+            y = y + 12;
+        }
+        if (*(s8*)(item + 32) != 0) {
+            s32 x2 = -*xcol;
+            s32 h;
+            if (sel != 0) {
+                h = DrawGlowTextMLines((f32)(kGold * *(f32*)(item + 64)),
+                                       x2, y, (char*)(item + 32));
+            } else {
+                s32 old = MBSetFontAlpha(a);
+                h = DrawTextMLines((f32)(kGold * *(f32*)(item + 64)), x2, y,
+                                   6, hl, (char*)(item + 32));
+                MBSetFontAlpha(old);
+            }
+            y = y + h;
+        }
+    }
+    if (needUp != 0) {
+        MBNewTempBlit(MBOX_FindTexture(lbl_80348430, 0), *xcol - 32,
+                      lbl_80343E04 - 40, -1, -1);
+    }
+    if (needDn != 0) {
+        MBNewTempBlit(MBOX_FindTexture(lbl_80114A30, 0), *xcol - 32,
+                      lbl_80343E08 + 56, -1, -1);
+    }
+    if (mv > 0 && didScroll != 0) {
+        return mv;
+    }
+    return 0;
 }
 
 /* Build and center the per-entry vertical offsets for one shop player. */
