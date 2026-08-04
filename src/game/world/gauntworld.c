@@ -1126,6 +1126,7 @@ s32 fn_8005A738(s32 player)
     Player* p = &gPlayers[player];
     s32 ret = 0;
     s16 t;
+    u8 _spare[8];
 
     if (*(u32*)(gGameOptions + 44) & 1) {
         strcpy((char*)p + 2688, names[RandInt(20)]);
@@ -1145,9 +1146,9 @@ s32 fn_8005A738(s32 player)
         t = ((NameTimerView*)p)->timer - gFrameTicks;
         ((NameTimerView*)p)->timer = t;
         if (t < 0) {
-            ((NameTimerView*)p)->timer = 0;
+            *(s16*)((u32)p + 504) = 0;
             ret = 1;
-        } else if (((NameTimerView*)p)->timer & 16) {
+        } else if (*(s16*)((u32)p + 504) & 16) {
             DrawTextKeepScale(lbl_80346DB0, -lbl_80343C40[player], 340, 7,
                               (u32)(&names[player])[20],
                               (u8*)p + 2688);
