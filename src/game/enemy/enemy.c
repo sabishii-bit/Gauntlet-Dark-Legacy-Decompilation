@@ -4265,3 +4265,58 @@ void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm)
     }
 }
 #pragma dont_inline off
+
+/* 0x8004CE38 - pick turn direction: which of +/-step headings nears the player */
+extern f64 lbl_80346920;        /* turn step */
+extern f64 lbl_80346840;        /* wrap high */
+extern f64 lbl_80346848;        /* full circle */
+extern f64 lbl_80346850;        /* wrap low */
+
+s32 fn_8004CE38(Enemy* e)
+{
+    u8* p;
+    f32 dx;
+    f32 dz;
+    f32 a;
+    f32 ang;
+    f64 t;
+    f32 x1;
+    f32 z1;
+    f32 x2;
+    f32 z2;
+
+    p = (u8*)&gPlayers[*(s16*)((u8*)e + 628)];
+    if (*(s16*)(p + 2588) > 2) {
+        dx = *(f32*)((u8*)e + 52) - *(f32*)(p + 2532);
+        dz = *(f32*)((u8*)e + 60) - *(f32*)(p + 2540);
+    } else {
+        dx = *(f32*)((u8*)e + 52) - *(f32*)(p + 68);
+        dz = *(f32*)((u8*)e + 60) - *(f32*)(p + 76);
+    }
+    a = (f32)(lbl_80346920 + *(f32*)((u32)e + 580));
+    if (a > lbl_80346840) {
+        t = a - lbl_80346848;
+    } else if (a <= lbl_80346850) {
+        t = lbl_80346848 + a;
+    } else {
+        t = a;
+    }
+    ang = (f32)t;
+    x1 = dx + sin(ang);
+    z1 = dz + cos(ang);
+    a = (f32)(*(f32*)((u8*)e + 580) - lbl_80346920);
+    if (a > lbl_80346840) {
+        t = a - lbl_80346848;
+    } else if (a <= lbl_80346850) {
+        t = lbl_80346848 + a;
+    } else {
+        t = a;
+    }
+    ang = (f32)t;
+    x2 = dx + sin(ang);
+    z2 = dz + cos(ang);
+    if (x2 * x2 + z2 * z2 <= x1 * x1 + z1 * z1) {
+        return -1;
+    }
+    return 1;
+}
