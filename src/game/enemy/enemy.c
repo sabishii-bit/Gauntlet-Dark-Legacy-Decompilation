@@ -4352,47 +4352,45 @@ s32 fn_8004D958(s32 index)
         return -1;
     }
     index = do_ai(index);
-    if (*(s32*)((u8*)e + 204) == 1) {
-        *(s32*)((u8*)e + 208) = 3;
+    if (e->action == 1) {
+        e->daction = 3;
     }
-    if (*(s32*)e == 24) goto is24;
-    goto done24b;
-is24:
-    {
-        s32 st = *(s32*)((u8*)e + 204);
+    switch (*(s32*)e) {
+    case 24: {
+        s32 st = e->action;
         dir = 16;
         if (st == 3) goto bob;
         if (st == 4) goto bob;
         if (st != 0) goto stop;
         {
 bob:
-            t = *(s16*)((u8*)e + 724);
+            t = e->endurance;
             if (t == 0) {
                 fn_8004DB3C(e, -dir);
-                *(s16*)((u8*)e + 724) = RandInt(60) + 60;
+                e->endurance = RandInt(60) + 60;
             } else if (t > 0) {
                 fn_8004DB3C(e, -dir);
-                v = *(s16*)((u8*)e + 724) - gFrameTicks;
-                *(s16*)((u8*)e + 724) = v;
+                v = e->endurance - gFrameTicks;
+                e->endurance = v;
                 if (v < 0) {
-                    *(s16*)((u8*)e + 724) = -(RandInt(60) + 60);
+                    e->endurance = -(RandInt(60) + 60);
                 }
             } else {
                 fn_8004DB3C(e, 16);
-                v = *(s16*)((u8*)e + 724) + gFrameTicks;
-                *(s16*)((u8*)e + 724) = v;
+                v = e->endurance + gFrameTicks;
+                e->endurance = v;
                 if (v > 0) {
-                    *(s16*)((u8*)e + 724) = 0;
+                    e->endurance = 0;
                 }
             }
         }
-        goto done24;
+        break;
 stop:
         fn_8004DB3C(e, -dir);
-        *(s16*)((u8*)e + 724) = 0;
-done24:;
+        e->endurance = 0;
+        break;
     }
-done24b:
+    }
     return index;
 }
 
