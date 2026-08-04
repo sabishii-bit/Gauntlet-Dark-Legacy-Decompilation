@@ -653,7 +653,7 @@ void ShopLoadData(void)
 #pragma opt_common_subs reset
 
 /* Return whether a player can buy the selected shop entry. */
-s32 calculate_player_shopping_parameters(s32 player, u8* entry)
+static s32 calculate_player_shopping_parameters_8009C0F0(s32 player, u8* entry)
 {
     u8* p = &gPlayers[player * 13148];
 
