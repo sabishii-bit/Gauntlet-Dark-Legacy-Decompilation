@@ -1336,3 +1336,58 @@ s32 fn_8005D5C8(u8* pl, u8* wobj)
     }
     return ret;
 }
+
+extern f64 sArrowFloorYOffset;
+extern f64 sZeroDouble;
+extern f32 sItemZero;
+extern f64 lbl_80346FB8;
+
+/* 0x8005D20C - track/find the world object ahead of an enemy (cached in
+ * e+652 with a rescan timer at e+812) */
+#pragma dont_inline on
+s32 fn_8005D20C(s32 index, f32* from, f32* to, s32 ticking)
+{
+    u8* e = (u8*)gEnemies + index * 916;
+    u32 obj;
+    s32 blocked;
+    f32 rad;
+    f32 hit;
+    f64 d;
+
+    rad = (f32)(sArrowFloorYOffset * *(f32*)(e + 568));
+    obj = 0;
+    blocked = 0;
+    if (ticking == 0 && *(u32*)(e + 652) != 0) {
+        d = fn_8005F0F4((Item*)*(u32*)(e + 652), rad,
+                        (f32)(lbl_80346FB8 * rad), (s32)from, to, (s32)0);
+        obj = (d >= sZeroDouble) ? *(u32*)(e + 652) : 0;
+    } else {
+        if (ticking != 0) {
+            *(s32*)(e + 812) = *(s32*)(e + 812) - gFrameTicks;
+        }
+        if (*(s32*)(e + 812) <= 0) {
+            obj = (s32)fn_80062FF0(rad, to, 0, (f32*)0, &hit);
+            hit = hit - rad;
+            if (hit > sItemZero) {
+                s32 t1 = (s32)(hit * (sArrowFloorYOffset * *(f32*)(e + 184)));
+                s32 t2 = (s32)(hit * (sArrowFloorYOffset * *(f32*)(e + 184)));
+                *(s32*)(e + 812) = (t2 < 30) ? t1 : 30;
+            }
+            if (obj != 0) {
+                d = fn_8005F0F4((Item*)obj, rad, (f32)(lbl_80346FB8 * rad),
+                                (s32)from, to, (s32)0);
+                obj = (d >= sZeroDouble) ? obj : 0;
+            }
+        }
+    }
+    if (obj != 0) {
+        blocked = fn_8005D3D8(index, (u8*)obj);
+    }
+    if (blocked != 0) {
+        *(s32*)(e + 652) = obj;
+    } else {
+        *(s32*)(e + 652) = 0;
+    }
+    return blocked;
+}
+#pragma dont_inline off
