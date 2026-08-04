@@ -1770,10 +1770,10 @@ void fn_80051568(s32 index)
         if (*(s8*)(it + 205) != 0) {
             continue;
         }
-        dy = *(f32*)(it + 56) - *(f32*)(e + 56);
         dx = *(f32*)(it + 52) - *(f32*)(e + 52);
+        dy = *(f32*)(it + 56) - *(f32*)(e + 56);
         dz = *(f32*)(it + 60) - *(f32*)(e + 60);
-        dist2 = dy * dy + dx * dx + dz * dz;
+        dist2 = dx * dx + dy * dy + dz * dz;
         if (dist2 > kZero) {
             volatile f32 tmp;
             f64 y = __frsqrte(dist2);
