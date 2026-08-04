@@ -17,7 +17,7 @@
 void __as__4vec4FRC4vec4(f32* dst, f32* src); /* vec4::operator= */
 void mbBlitStub51E0(void);
 void pbResetDORegs(void);
-void Deci2Call(s32 unused, u16 flags, void* data);
+void Deci2Call();
 
 /* pool entry, 0x50 bytes */
 typedef struct PbWGWin {
@@ -245,6 +245,9 @@ static const struct Neg2048 {
     f32 pad;
 } kNeg2048 = { -2048.0f, 0.0f };
 
+/* second 1.0f pair object (does not dedup with the scalar literal pool) */
+const struct Neg2048 lbl_80348F08 = { 1.0f, 0.0f };
+
 /* Reset the whole window context to defaults. */
 void fn_800C0E0C(void)
 {
@@ -311,9 +314,11 @@ void fn_800C0F70(void)
 void fn_800C0F90(void)
 {
     PbWGGlobals* g = gWinGlobals;
+    f32 one;
     g->proj = (PbWGProj*)lbl_802C4DA0;
-    g->proj->f00 = 1.0f;
-    g->proj->f04 = 1.0f;
+    one = lbl_80348F08.v;
+    g->proj->f00 = one;
+    g->proj->f04 = one;
     g->proj->m08 = 0x800;
     g->proj->m0c = 0x800;
     g->proj->m10 = lbl_80343F04;
@@ -426,9 +431,22 @@ void fn_800C1120(void)
     fn_800C1004();
 }
 
-void fn_800C1148(s32 unused, s32 flags, void* data)
+/* Deci2Call(unused, (u16)flags, data). The u16 narrow sits between mflr and
+ * the LR spill; no C form reproduces that interleave (u16/K&R/register/proto
+ * permutations, O1 all land it after stwu; peephole-on breaks the whole TU),
+ * so hand asm. NOTE: asm fns emit no extab entry -- this blocks the Matching
+ * flip (orig extab 0x30 vs ours 0x28) and dtk rejects a mid-TU extabindex
+ * split boundary, so the TU stays NonMatching with all fns byte-exact. */
+asm void fn_800C1148(void)
 {
-    Deci2Call(unused, flags, data);
+    mflr r0
+    rlwinm r4, r4, 0, 16, 31
+    stw r0, 4(r1)
+    stwu r1, -8(r1)
+    bl Deci2Call
+    lwz r0, 0xc(r1)
+    addi r1, r1, 8
+    mtlr r0
 }
 
 void fn_800C116C(void)
