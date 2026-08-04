@@ -616,17 +616,37 @@ void BodyVector(const f32* vector, f32* out, const f32* matrix)
 /* Multiply the rotational 3x3 portions of two column-major mat44s. */
 void MulMat3(f32* lhs, f32* rhs, f32* out)
 {
-    rhs[15] = lhs[15] = 0.0f;
+    f32 b4, b5, b6, b0, b1, b2, b8, b9, b10;
+    f32 a0, a1, a2;
 
-    out[0] = lhs[0] * rhs[0] + lhs[1] * rhs[4] + lhs[2] * rhs[8];
-    out[1] = lhs[0] * rhs[1] + lhs[1] * rhs[5] + lhs[2] * rhs[9];
-    out[2] = lhs[0] * rhs[2] + lhs[1] * rhs[6] + lhs[2] * rhs[10];
-    out[4] = lhs[4] * rhs[0] + lhs[5] * rhs[4] + lhs[6] * rhs[8];
-    out[5] = lhs[4] * rhs[1] + lhs[5] * rhs[5] + lhs[6] * rhs[9];
-    out[6] = lhs[4] * rhs[2] + lhs[5] * rhs[6] + lhs[6] * rhs[10];
-    out[8] = lhs[8] * rhs[0] + lhs[9] * rhs[4] + lhs[10] * rhs[8];
-    out[9] = lhs[8] * rhs[1] + lhs[9] * rhs[5] + lhs[10] * rhs[9];
-    out[10] = lhs[8] * rhs[2] + lhs[9] * rhs[6] + lhs[10] * rhs[10];
+    lhs[15] = rhs[15] = 0.0f;
+    b4 = rhs[4];
+    a1 = lhs[1];
+    b5 = rhs[5];
+    b0 = rhs[0];
+    a0 = lhs[0];
+    b6 = rhs[6];
+    b1 = rhs[1];
+    b2 = rhs[2];
+    b8 = rhs[8];
+    a2 = lhs[2];
+    b9 = rhs[9];
+    b10 = rhs[10];
+    out[0] = a1 * b4 + a0 * b0 + a2 * b8;
+    out[1] = a1 * b5 + a0 * b1 + a2 * b9;
+    out[2] = a1 * b6 + a0 * b2 + a2 * b10;
+    a1 = lhs[5];
+    a0 = lhs[4];
+    a2 = lhs[6];
+    out[4] = a1 * b4 + a0 * b0 + a2 * b8;
+    out[5] = a1 * b5 + a0 * b1 + a2 * b9;
+    out[6] = a1 * b6 + a0 * b2 + a2 * b10;
+    a1 = lhs[9];
+    a0 = lhs[8];
+    a2 = lhs[10];
+    out[8] = a1 * b4 + a0 * b0 + a2 * b8;
+    out[9] = a1 * b5 + a0 * b1 + a2 * b9;
+    out[10] = a1 * b6 + a0 * b2 + a2 * b10;
 }
 
 /* Recover the scale carried by each basis vector of a mat44. */
