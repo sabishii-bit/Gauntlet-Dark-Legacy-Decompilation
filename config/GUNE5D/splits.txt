@@ -398,6 +398,7 @@ game/pb/pb_winglobals.c:
 	extab       start:0x80007BA8 end:0x80007BD8
 	extabindex  start:0x8000C1CC end:0x8000C214
 	.text       start:0x800C0ADC end:0x800C1174
+	.sdata2     start:0x80348EF8 end:0x80348F10
 
 game/pb/pb_error.c:
 	extab       start:0x80007BD8 end:0x80007BF0
