@@ -1791,3 +1791,91 @@ void fn_80051568(s32 index)
         }
     }
 }
+
+extern s32 lbl_803447CC;
+extern s32 lbl_803447E8;
+extern s32 lbl_80344780;
+extern s32 ShowMilestones(s32 idx);
+extern s32 msgPost();
+
+/* 0x80055AFC -- milestone blink cycle: flash the milestone markers while the
+ * party is idle at a boss gate. */
+void fn_80055AFC(void)
+{
+    u8* ms;
+    s32 i;
+    u32 off;
+    s32 n;
+    s32 limit;
+    u8 _spare[32];
+
+    if (ShowMilestones(-1) != 0) {
+        return;
+    }
+    if (lbl_803447CC < 1200) {
+        return;
+    }
+    switch (lbl_803447E8) {
+    case 0:
+        limit = 600;
+        break;
+    default:
+        limit = 420;
+        break;
+    }
+    n = 0;
+    off = 0;
+    for (i = 0; i < 4; i++) {
+        if (*(s32*)((u8*)gPlayers + off + 232) == 1) {
+            break;
+        }
+        n++;
+        off += 13148;
+    }
+    if (n == 4) {
+        lbl_803447F4 = limit;
+        lbl_803447E4 = 1;
+    }
+    if (gGameBusy != 0) {
+        return;
+    }
+    if (gBossType >= 0) {
+        return;
+    }
+    if (lbl_803447E4 != 0) {
+        lbl_803447EC = 0;
+    }
+    n = lbl_803447F4 + gFrameTicks;
+    lbl_803447F4 = n;
+    if (n < limit) {
+        return;
+    }
+    if (lbl_803447EC != 0) {
+        i = 0;
+        ms = sMilestones;
+        off = 0;
+        while (i < sNumMilestones) {
+            u8* mp = ms + off;
+            MBTreeClearFlags(*(void**)(mp + 96), 2, 0);
+            i++;
+            off += 104;
+        }
+        if (sNumMilestones > 0 && lbl_80344780 == 0) {
+            msgPost(29, -1, 0);
+        }
+        lbl_803447E8 = lbl_803447E8 + 1;
+    } else {
+        i = 0;
+        ms = sMilestones;
+        off = 0;
+        while (i < sNumMilestones) {
+            u8* mp = ms + off;
+            MBTreeSetFlags(*(void**)(mp + 96), 2, 0);
+            i++;
+            off += 104;
+        }
+    }
+    lbl_80344780 = lbl_803447EC;
+    lbl_803447EC = 1;
+    lbl_803447F4 = lbl_803447F4 - limit;
+}
