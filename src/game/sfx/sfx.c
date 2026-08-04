@@ -1076,8 +1076,7 @@ extern f32 lbl_80348068;
 s32 fn_80093918(s32 idx, s32 player, f32* pos, f32* vec, f32 scale, f32 spd,
                 f32 h)
 {
-    s32 i4 = idx * 4;
-    u8* tbl = (u8*)lbl_80122088;
+    MagicView* tbl = (MagicView*)lbl_80122088;
     u8* fx = (u8*)EffectInfo;
     s32 ret;
     u32 flags;
@@ -1086,8 +1085,7 @@ s32 fn_80093918(s32 idx, s32 player, f32* pos, f32* vec, f32 scale, f32 spd,
     f32* cp3;
     volatile f32 v[3];
 
-    ret = StartFXTree(*(struct atreeheader**)((u8*)FamiliarSpit + i4), pos,
-                      0x101000E, 0x880, lbl_803480F8);
+    ret = StartFXTree(FamiliarSpit[idx], pos, 0x101000E, 0x880, lbl_803480F8);
     if (ret < 0) {
         return -1;
     }
@@ -1108,7 +1106,7 @@ s32 fn_80093918(s32 idx, s32 player, f32* pos, f32* vec, f32 scale, f32 spd,
         }
         e->colrad = lbl_803480A0;
     }
-    flags = *(u32*)(tbl + i4 + 3580);
+    flags = tbl->fxflags[idx];
     if (ret >= 0) {
         Effect* e = (Effect*)(&fx[ret * 240] + 2976);
         f32 k;
@@ -1123,8 +1121,8 @@ s32 fn_80093918(s32 idx, s32 player, f32* pos, f32* vec, f32 scale, f32 spd,
         e->owner = player + 1;
     }
     pi = *(s32*)((u8*)gPlayers + player * 13148 + 4);
-    cp = *(s32*)(tbl + pi * 4 + 108);
-    cp3 = (f32*)(tbl + cp * 12 + 24);
+    cp = tbl->colorpick[pi];
+    cp3 = tbl->colors[cp];
     if (idx >= 0) {
         u8* e3 = fx + idx * 240;
         *(f32*)(e3 + 2992) = lbl_803480F8;
