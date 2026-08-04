@@ -559,3 +559,65 @@ void AudioRegisterMenu(void)
 {
     fn_800C031C(lbl_8028BDE8, lbl_80124458, lbl_8028BCC0, 74);
 }
+
+/* 0x8009EFA0 - resolve the per-class speech id tables by sound name */
+extern char* lbl_80120104[];    /* per-class character name ptrs */
+extern char lbl_8034850C[8];    /* "%s_%s"-style fmt A (sdata2) */
+extern char lbl_80348514[8];    /* fmt B (sdata2) */
+extern char lbl_80114C54[];     /* fmt C (.rodata) */
+extern char lbl_80114C60[];     /* fmt D (.rodata) */
+
+void InitNameAudio(void)
+{
+    u8* buf = sSpeechNameBuf;
+    char (*suf)[4] = lbl_801200B0;
+    char** names = lbl_80120104;
+    s32 cls;
+    s32 i;
+    s32 boff;
+    s32 coff;
+    s32 ioff;
+    u8* tabA;
+    u8* tabB;
+
+    cls = 0;
+    boff = 0;
+    coff = 0;
+    for (; cls < 4; cls++, boff += 64, coff += 4) {
+        tabA = buf + boff;
+        tabB = buf + boff;
+        tabA = tabA + 144;
+        tabB = tabB + 400;
+        i = 0;
+        ioff = 0;
+        for (; i < 16; i++, ioff += 4) {
+            char* sf = (char*)suf + ioff;
+            sprintf((char*)buf, lbl_8034850C, *(char**)((u8*)names + coff), sf);
+            *(s32*)(tabA + ioff) = AudioFindSound((char*)buf, -1, 1);
+            sprintf((char*)buf, lbl_80348514, *(char**)((u8*)names + coff), sf);
+            *(s32*)(tabB + ioff) = AudioFindSound((char*)buf, -1, 1);
+        }
+        *(s32*)(buf + coff + 112) = -1;
+        *(s32*)(buf + coff + 128) = -1;
+    }
+    cls = 0;
+    boff = 0;
+    coff = 0;
+    for (; cls < 4; cls++, boff += 64, coff += 4) {
+        tabA = buf + boff;
+        tabB = buf + boff;
+        tabA = tabA + 688;
+        tabB = tabB + 944;
+        i = 0;
+        ioff = 0;
+        for (; i < 16; i++, ioff += 4) {
+            char* sf = (char*)suf + ioff;
+            sprintf((char*)buf, lbl_80114C54, *(char**)((u8*)names + coff), sf);
+            *(s32*)(tabA + ioff) = AudioFindSound((char*)buf, -1, 1);
+            sprintf((char*)buf, lbl_80114C60, *(char**)((u8*)names + coff), sf);
+            *(s32*)(tabB + ioff) = AudioFindSound((char*)buf, -1, 1);
+        }
+        *(s32*)(buf + coff + 656) = -1;
+        *(s32*)(buf + coff + 672) = -1;
+    }
+}
