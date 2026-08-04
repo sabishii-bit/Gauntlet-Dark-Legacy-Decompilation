@@ -147,7 +147,7 @@ s32 show_gold(s32 col);
 s32 show_piles(s32 col);
 void fn_8009A0AC(s32 col);
 static s32 shop_show_final_stats(u8* pl);
-extern s32 shop_show_lv(u8* pl, s32 mode);
+static s32 shop_show_lv(u8* pl, s32 mode);
 extern s32 do_shopping_8009AA48(s32 player);
 static void shop_setup(void);
 
@@ -480,7 +480,7 @@ s32 show_piles(s32 col)
 extern u8 lbl_80122ED0[];   /* shop draw-layout page (.data)          */
 extern char lbl_803483B8[]; /* "%s: %d" gold-line fmt (sdata)         */
 extern char lbl_801149F4[]; /* "Continue" label                        */
-extern char lbl_80348368[]; /* "Stats" label (sdata, color-code +2)    */
+extern char lbl_80348368[8]; /* "Stats" label (sdata, color-code +2)    */
 extern f32 lbl_80348360;    /* gold-line text scale                    */
 extern f32 lbl_80348364;    /* stats text scale                        */
 extern void* lbl_80344E48;  /* continue-arrow texture                  */
@@ -570,7 +570,7 @@ extern s32 lbl_80122F30[];   /* per-player stats x column              */
 extern s32 lbl_80122F40[];   /* per-player stats y column              */
 extern f32 lbl_80348330;     /* stats line text scale                  */
 extern f32 lbl_80348334;     /* stats title text scale                 */
-extern char lbl_80348338[];  /* "%d" fmt (sdata)                       */
+extern char lbl_80348338[8];  /* "%d" fmt (sdata)                       */
 extern f64 lbl_80348340;     /* seconds per day                        */
 extern f64 lbl_80348348;     /* seconds per hour                       */
 extern f64 lbl_80348350;     /* seconds per minute                     */
@@ -678,6 +678,215 @@ extern s32 lbl_803448C4;    /* current world number  */
 extern s32 lbl_803448C8;    /* current level number  */
 extern s32 sWorldDataConst; /* shop world-data key   */
 extern void ResolveWorldData(s32 key);
+
+extern s32 ExpToLevel(s32 exp);
+extern void AudioExp(s32 pad, s32 mode);
+extern void check_player_atts(u8* pl, s32 cls, u8* expslot);
+extern char* GetStringText(s32 id, s32 sub, s32 mode);
+extern char* GetStringListText(s32 id, s32 sub, s32 line, s32 mode);
+extern void DrawStringText(s32 x, s32 y, s32 font, u32 rgb, s32 msg, ...);
+extern f32 lbl_80348330;    /* stat row text scale   */
+extern f32 lbl_80348378;    /* level number scale    */
+extern f32 lbl_8034837C;    /* level name scale      */
+extern char lbl_80348380[8]; /* stat row 2 label      */
+extern char lbl_80348388[8]; /* stat row 3 label      */
+extern char lbl_80348390[8]; /* stat row 4 label      */
+extern char lbl_80348398[4]; /* health label line 1   */
+extern char lbl_8034839C[8]; /* health label line 2   */
+extern f64 lbl_803483A8;    /* health-per-level      */
+extern f64 lbl_80348370;    /* int-conv magic        */
+extern s32 lbl_80122F30[];  /* per-player panel base x */
+
+/* Level-up / level-intro panel for one shop player; returns 1 when the
+ * player confirms past it. */
+static s32 shop_show_lv(u8* pl, s32 final)
+{
+    f32 kScale = lbl_80348330;
+    u8* exps = pl + *(s32*)(pl + 12) * 24 + 7900;
+    char* fmts = lbl_80114918;
+    s32 x1 = *(s32*)((u8*)lbl_80122F30 + (*(s32*)pl << 2)) + 8;
+    s32 x2 = *(s32*)((u8*)lbl_80122F30 + (*(s32*)pl << 2)) + 88;
+    s32 xcol = *(s32*)((u8*)lbl_80122F40 + (*(s32*)pl << 2));
+    s32 tick = (u16)*(s32*)(pl + 2668);
+    s32 done = 0;
+    s32 lvl;
+    s32 anim;
+    s32 rowgate;
+    s32 chg;
+    s32 hl;
+    u8 _spare[24];
+    f32 d1;
+    f32 d2;
+    f32 d3;
+    f32 d4;
+    char buf[20];
+
+    lvl = ExpToLevel(*(s32*)exps);
+    if (final == 0) {
+        if (lvl == *(s32*)(pl + 13092)) {
+            return 1;
+        }
+        anim = 1;
+        rowgate = 90;
+    } else {
+        lvl = *(s32*)(pl + 13092);
+        anim = 0;
+        rowgate = 30;
+    }
+    if (*(s32*)(pl + 2668) == 0) {
+        if (final == 0) {
+            AudioExp(*(s32*)pl, 1);
+        }
+        *(s32*)(pl + 2668) += 1;
+    }
+    if (tick < 0xF000) {
+        *(s32*)(pl + 2668) += gFrameTicks;
+    }
+    sprintf(buf, fmts + 196, *(s32*)(pl + 13092));
+    if (anim != 0) {
+        DrawGlowText(lbl_80348378, -xcol, 32, buf);
+    } else {
+        DrawTextKeepScale(lbl_80348378, -xcol, 32, 6, 0xFFFFFF, buf);
+    }
+    {
+        s32 lv = *(s32*)(pl + 13092);
+        s32 tens = lv / 10;
+        char* name;
+        if (lv == 99) {
+            name = GetStringText(21, 0, 0);
+        } else if (lv < 10) {
+            name = GetStringText(23, *(s32*)(pl + 12), 0);
+        } else {
+            name = GetStringListText(0, *(s32*)(pl + 12), tens >> 1, 0);
+        }
+        xcol = -xcol;
+        DrawTextKeepScale(lbl_8034837C, xcol, 64, 6, 0xFFFFFF, name);
+    }
+    {
+        s32 old = *(s32*)(pl + 13092);
+        *(s32*)(pl + 13092) = lvl;
+        check_player_atts(pl, *(s32*)(pl + 12), exps);
+        d1 = *(f32*)(pl + 244) - *(f32*)(pl + 2672);
+        d2 = *(f32*)(pl + 248) - *(f32*)(pl + 2676);
+        d3 = *(f32*)(pl + 252) - *(f32*)(pl + 2680);
+        d4 = *(f32*)(pl + 256) - *(f32*)(pl + 2684);
+        *(s32*)(pl + 13092) = old;
+        check_player_atts(pl, *(s32*)(pl + 12), 0);
+    }
+    chg = (d1 != *(f32*)(pl + 244));
+    if (d1 != *(f32*)(pl + 244) && tick > rowgate && tick < rowgate + 60) {
+        DrawGlowText(kScale, x1, 96, fmts + 208);
+    } else {
+        DrawTextKeepScale(kScale, x1, 96, 6, 0xFFFFFF, fmts + 208);
+    }
+    if (chg != 0 && tick > rowgate) {
+        sprintf(buf, lbl_80348338, (s32)*(f32*)(pl + 244));
+        DrawGlowText(kScale, x2, 96, buf);
+    } else {
+        sprintf(buf, lbl_80348338, (s32)d1);
+        DrawTextKeepScale(kScale, x2, 96, 6, 0xFFFFFF, buf);
+    }
+    if (chg != 0) {
+        rowgate += 60;
+    }
+    chg = (d2 != *(f32*)(pl + 248));
+    if (d2 != *(f32*)(pl + 248) && tick > rowgate && tick < rowgate + 60) {
+        DrawGlowText(kScale, x1, 116, lbl_80348380);
+    } else {
+        DrawTextKeepScale(kScale, x1, 116, 6, 0xFFFFFF, lbl_80348380);
+    }
+    if (chg != 0 && tick > rowgate) {
+        sprintf(buf, lbl_80348338, (s32)*(f32*)(pl + 248));
+        DrawGlowText(kScale, x2, 116, buf);
+    } else {
+        sprintf(buf, lbl_80348338, (s32)d2);
+        DrawTextKeepScale(kScale, x2, 116, 6, 0xFFFFFF, buf);
+    }
+    if (chg != 0) {
+        rowgate += 60;
+    }
+    chg = (d3 != *(f32*)(pl + 252));
+    if (d3 != *(f32*)(pl + 252) && tick > rowgate && tick < rowgate + 60) {
+        DrawGlowText(kScale, x1, 136, lbl_80348388);
+    } else {
+        DrawTextKeepScale(kScale, x1, 136, 6, 0xFFFFFF, lbl_80348388);
+    }
+    if (chg != 0 && tick > rowgate) {
+        sprintf(buf, lbl_80348338, (s32)*(f32*)(pl + 252));
+        DrawGlowText(kScale, x2, 136, buf);
+    } else {
+        sprintf(buf, lbl_80348338, (s32)d3);
+        DrawTextKeepScale(kScale, x2, 136, 6, 0xFFFFFF, buf);
+    }
+    if (chg != 0) {
+        rowgate += 60;
+    }
+    chg = (d4 != *(f32*)(pl + 256));
+    if (d4 != *(f32*)(pl + 256) && tick > rowgate && tick < rowgate + 60) {
+        DrawGlowText(kScale, x1, 156, lbl_80348390);
+    } else {
+        DrawTextKeepScale(kScale, x1, 156, 6, 0xFFFFFF, lbl_80348390);
+    }
+    if (chg != 0 && tick > rowgate) {
+        sprintf(buf, lbl_80348338, (s32)*(f32*)(pl + 256));
+        DrawGlowText(kScale, x2, 156, buf);
+    } else {
+        sprintf(buf, lbl_80348338, (s32)d4);
+        DrawTextKeepScale(kScale, x2, 156, 6, 0xFFFFFF, buf);
+    }
+    if (chg != 0) {
+        rowgate += 60;
+    }
+    if (final != 0) {
+        hl = 0;
+    } else {
+        hl = 1;
+    }
+    if (hl != 0 && tick > rowgate && tick < rowgate + 60) {
+        DrawGlowText(kScale, x1, 188, lbl_80348398);
+        DrawGlowText(kScale, x1, 204, lbl_8034839C);
+    } else {
+        DrawTextKeepScale(kScale, x1, 188, 6, 0xFFFFFF, lbl_80348398);
+        DrawTextKeepScale(kScale, x1, 204, 6, 0xFFFFFF, lbl_8034839C);
+    }
+    if (hl != 0 && tick > rowgate) {
+        sprintf(buf, lbl_80348338, (s32)player_max_health(pl));
+        DrawGlowText(kScale, x2, 196, buf);
+        *(u32*)(pl + 2668) |= 0x10000;
+    } else {
+        s32 v = (s32)player_max_health(pl);
+        if (final == 0) {
+            v = (s32)(v - lbl_803483A8 * (*(s32*)(pl + 13092) - lvl));
+        }
+        sprintf(buf, lbl_80348338, v);
+        DrawTextKeepScale(kScale, x2, 196, 6, 0xFFFFFF, buf);
+    }
+    if (hl != 0) {
+        rowgate += 60;
+    }
+    if (final == 0) {
+        if (*(s32*)(pl + 13092) == 25) {
+            DrawStringText(xcol, 224, 6, 0xFF8040, 184, *(s32*)(pl + 8));
+        }
+        if (*(s32*)(pl + 13092) == 50) {
+            DrawStringText(xcol, 224, 6, 0xFF8040, 185, *(s32*)(pl + 8));
+        }
+    }
+    if (tick >= rowgate) {
+        done = 1;
+    }
+    if (done != 0) {
+        if (*(u32*)(lbl_80240E30 + *(s32*)pl * 60 + 8) & 0x2000000) {
+            AudioCursorSelect();
+            *(s32*)(pl + 2668) = 0;
+            return 1;
+        }
+        MBNewTempBlit(lbl_80344E48, x1 + 8, 280, 16, 16);
+        DrawGlowText(lbl_80348360, x1 + 32, 280, fmts + 184);
+    }
+    DrawTextKeepScale(lbl_80348364, xcol, 8, 6, 0, lbl_80348368);
+    return 0;
+}
 
 /* Compute the three end-of-level pile stats for one player (gold earned,
  * kills, second currency), rank them, and seed the pile animation tables. */
