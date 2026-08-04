@@ -121,10 +121,7 @@ static void DrawPsysSub(void);
 static void setupNewPMode_800CDCE4(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
                           f64 f7, f64 f8, Psys* p);
 static void setupParms(Psys* p);
-static void setWorldParms(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
-                          f64 f7, f64 f8, MBObject* node, Psys* p,
-                          PsysDescrip* wp, f32* over, s32 a, s32 b, s32 c,
-                          s32 d);
+static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wp, f32* over);
 static Psys* allocPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
                        f64 f8, s32 fromArena, s32 a, s32 b, s32 c, s32 d,
                        s32 e, s32 g);
@@ -135,9 +132,7 @@ static void freePsysMem(void* blk);
 static void initPresetList(void);
 static void setPTimeVal(f32 sec, Psys* p);
 
-MBObject* createPsysNode(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                         f64 f8, f32* verts, f32 depth, s32 flag, s32 tex,
-                         s32 a, s32 b, s32 c, s32 d);
+MBObject* createPsysNode(s32 a, s32 b, s32 c, s32 d);
 MBObject* MBNewPsysDescrip(s32 a, s32 b, s32 c, void* cfg);
 MBObject* MBPsysFirework(s32 a, s32 b, s32 count, s32 m0, s32 m1, s32 m2,
                          f32 rate, f32 power, f32 sc0, f32 sc1, f32 sc2);
@@ -550,10 +545,7 @@ static void setupNewPMode_800CDCE4(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f
  * time, counts, lifetime, colour envelope, speed, gravity, textures, flags)
  * with the same clamping the individual MBPsysSet* setters use. Giant
  * (NonMatching); documented flow. */
-static void setWorldParms(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
-                          f64 f7, f64 f8, MBObject* node, Psys* p,
-                          PsysDescrip* wp, f32* over, s32 a, s32 b, s32 c,
-                          s32 d) {
+static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wp, f32* over) {
     if (wp->pversion < 0x100) {
         ErrorPrintf("setWorldParms: WORLDPSYS type is bad");
         return;
@@ -626,32 +618,42 @@ s32 MBPsysSetDebugNode(s32 node, s32 remove) {
  * ======================================================================= */
 
 /* 0x800CEAF0 - create a named world psys node and apply a descriptor */
-MBObject* MBNewWorldPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                         f64 f8, f32* verts, f32 depth, PsysDescrip* wp,
-                         s32 tex, char* name, f32* over, s32 a, s32 g) {
-    MBObject* node = createPsysNode(f1, f2, f3, f4, f5, f6, f7, f8, verts, depth,
-                                    (name != NULL), tex, 0, 0, 0, 0);
-    if (node != NULL) {
-        Psys* p = (Psys*)node->data.psys;
-        p->worldname = (name != NULL && *name != '\0') ? name : NULL;
-        if (wp != NULL) {
-            setWorldParms(f1, f2, f3, f4, f5, f6, f7, f8, node, p, wp, over,
-                          0, 0, 0, 0);
-        }
-        if (name != NULL) {
-            p->flags |= 2;
-        }
+extern s8 lbl_803451B8;
+extern s32 lbl_803451B4;
+
+MBObject* MBNewWorldPsys(s32 a, s32 b, PsysDescrip* wp, s32 d, char* name,
+                         f32* over) {
+    Psys* p;
+    MBObject* node;
+
+    if (lbl_803451B8 == 0) {
+        lbl_803451B4 = 0;
+        lbl_803451B8 = 1;
+    }
+    node = createPsysNode(a, b, (name != NULL) ? 1 : 0, d);
+    if (node == NULL) {
+        return NULL;
+    }
+    p = (Psys*)node->data.psys;
+    if (name != NULL && *name != 0) {
+        p->worldname = name;
+    } else {
+        p->worldname = NULL;
+    }
+    if (wp != NULL) {
+        setWorldParms(node, p, wp, over);
+    }
+    if (name != NULL) {
+        p->flags |= 2;
     }
     return node;
 }
 
 /* 0x800CFB38 - build a psys node from a preset descriptor */
 MBObject* MBNewPsysDescrip(s32 a, s32 b, s32 c, void* cfg) {
-    MBObject* node = createPsysNode(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0,
-                                    0.0f, 0, b, 0, 0, 0, 0);
+    MBObject* node = createPsysNode(a, b, 0, 1);
     if (node != NULL && cfg != NULL) {
-        setWorldParms(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, node,
-                      (Psys*)node->data.psys, (PsysDescrip*)cfg, 0, 0, 0, 0, 0);
+        setWorldParms(node, (Psys*)node->data.psys, (PsysDescrip*)cfg, 0);
     }
     return node;
 }
@@ -705,8 +707,7 @@ MBObject* MBNewPsysDefault(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
     if (depth == 0.0f) {
         depth = 1.0f;   /* default draw depth (0x80344eb8) */
     }
-    node = createPsysNode(f1, f2, f3, f4, f5, f6, f7, f8, verts, depth, 0, tex,
-                          a, b, c, d);
+    node = createPsysNode((s32)f1, tex, 0, 0);
     if (node != NULL) {
         node->flags = flags;
     }
@@ -714,9 +715,13 @@ MBObject* MBNewPsysDefault(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
 }
 
 /* 0x800D07FC - create a scene node + attach a fresh psys descriptor */
-MBObject* createPsysNode(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                         f64 f8, f32* verts, f32 depth, s32 flag, s32 tex,
-                         s32 a, s32 b, s32 c, s32 d) {
+MBObject* createPsysNode(s32 a, s32 b, s32 c, s32 d) {
+    f64 f1 = 0.0, f2 = 0.0, f3 = 0.0, f4 = 0.0, f5 = 0.0, f6 = 0.0, f7 = 0.0,
+        f8 = 0.0;
+    f32* verts = 0;
+    f32 depth = 0.0f;
+    s32 flag = c;
+    s32 tex = b;
     MBObject* node;
     Psys* p;
     if (gPsysDisabled == -1) {
