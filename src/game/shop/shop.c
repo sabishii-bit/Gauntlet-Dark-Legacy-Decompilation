@@ -118,6 +118,304 @@ extern void mbBlitProject(void* blit, s32 w, s32 h);
 extern void mbBlitCalcY(void* blit, s32 y);
 extern void mbBlitSetupVerts(void* blit, f32 a, f32 b, f32 c, f32 d);
 
+extern s32 SelectLoadDone(void);
+extern void WritePlayerInfo(s32 player);
+extern void LoadPlyrData(s32 player, s32 pad, s32 mode);
+extern void fn_80053A38(void);
+extern s32 fn_80053B60(void);
+extern void fn_8009FCA8(s32 flag);
+extern s32 sndFxUpdate(s32 mode);
+extern void AudioStopMusicA(void);
+extern void init_panel_blits(s32 player);
+extern void fn_8009C460(s32 mode);
+extern s32 draw_inventory_panel(s32 player);
+extern void init_inventory_panel(s32 player);
+extern void end_inventory_panel(s32 player);
+extern void MBRemoveBlit(void* blit);
+extern s32 lbl_80344A28;
+extern char lbl_8011495C[];    /* "Loading..." */
+extern f32 lbl_80348328;
+extern f32 lbl_8034832C;
+extern s32 lbl_80344C0C;
+extern s32 lbl_80343E04;
+extern void DrawGlowText(f32 scale, s32 y, s32 x, char* txt);
+extern u8 lbl_80240E30[];
+extern void AudioCursorSelect(void);
+extern s32 lbl_803448C4;
+extern s32 lbl_803448C8;
+s32 show_gold(s32 col);
+s32 show_piles(s32 col);
+void fn_8009A0AC(s32 col);
+static s32 shop_show_final_stats(u8* pl);
+extern s32 shop_show_lv(u8* pl, s32 mode);
+extern s32 do_shopping_8009AA48(s32 player);
+static void shop_setup(void);
+
+/* Master shop state machine: runs each active player's shop flow and
+ * returns nonzero when everyone is done. */
+s32 do_shop(void)
+{
+    u8* page = lbl_802897D0;
+    s32 result = 1;
+    s32 statsFlag = 0;
+    s32 loaded;
+
+    loaded = SelectLoadDone();
+    if (loaded != 0 && lbl_80344C08 == 0) {
+        shop_setup();
+    }
+    WritePlayerInfo(-1);
+    if (loaded == 0) {
+        fn_80053A68(0);
+        DrawGlowText(lbl_80348328, 340, 260, lbl_8011495C);
+        return 0;
+    }
+    if (lbl_80344C18 == 0) {
+        fn_80053A38();
+        if (gGameBusy != 0 || lbl_80344A28 != 0) {
+            result = 0;
+        } else {
+            u8* pads = lbl_80240E30;
+            u8* pl = gPlayers;
+            f32 kHalf = lbl_8034832C;
+            s32 i;
+            s32 o60 = 0;
+            s32 o256 = 0;
+            s32 o12 = 0;
+            s32 o13148 = 0;
+            s32 o24 = 0;
+            s32 o4 = 0;
+            for (i = 0; i < 4; i++, o60 += 60, o256 += 256, o12 += 12,
+                o13148 += 13148, o24 += 24, o4 += 4, pl += 13148) {
+                s32 leave;
+                s32 j;
+                if (*(s32*)(pl + 232) != 1 && *(s32*)(pl + 232) != 5) {
+                    continue;
+                }
+                leave = 0;
+                LoadPlyrData(i, *(s32*)(pl + 12), 0);
+                switch (*(s32*)(pl + 2660)) {
+                case 0:
+                    *(s32*)(page + o4 + 16) = 0;
+                    *(s32*)(page + o4) = 0;
+                    *(s32*)(page + o4 + 32) = 0;
+                    fn_8009A0AC(i);
+                    *(s32*)(pl + 2668) = 0;
+                    *(f32*)(pl + 2672) = kHalf;
+                    *(f32*)(pl + 2676) = kHalf;
+                    *(f32*)(pl + 2680) = kHalf;
+                    *(f32*)(pl + 2684) = kHalf;
+                    if (lbl_80344C0C != 0) {
+                        void** q = (void**)(page + o24 + 7504);
+                        s32 cnt;
+                        s32 koff;
+                        u8* slot;
+                        if (q[0] != 0) {
+                            mbBlitInit3414(q[0], 1);
+                        }
+                        if (q[1] != 0) {
+                            mbBlitInit3414(q[1], 1);
+                        }
+                        if (q[2] != 0) {
+                            mbBlitInit3414(q[2], 1);
+                        }
+                        cnt = 0;
+                        koff = 0;
+                        for (j = 3; j != 0; j--) {
+                            if (*(s32*)(page + o12 + 224 + koff) == 0) {
+                                break;
+                            }
+                            cnt++;
+                            koff += 4;
+                        }
+                        slot = page + o12 + cnt * 4;
+                        *(s32*)(slot + 128) = *(s32*)(slot + 80);
+                        *(s32*)(slot + 80) =
+                            *(s32*)(gPlayers + o13148 + 7876);
+                        *(s32*)(pl + 2660) = 6;
+                    } else {
+                        *(s32*)(pl + 2660) += 1;
+                    }
+                    break;
+                case 1:
+                case 2:
+                case 3:
+                    if (show_gold(i) == 0) {
+                        if (*(u32*)(pads + *(s32*)pl * 60 + 8) &
+                            0x2000000) {
+                            void** q;
+                            AudioCursorSelect();
+                            q = (void**)(page + o24 + 7504);
+                            if (q[0] != 0) {
+                                mbBlitInit3414(q[0], 1);
+                            }
+                            if (q[1] != 0) {
+                                mbBlitInit3414(q[1], 1);
+                            }
+                            if (q[2] != 0) {
+                                mbBlitInit3414(q[2], 1);
+                            }
+                            *(s32*)(pl + 2660) = 4;
+                            *(s32*)(pl + 2668) = 0;
+                        }
+                    } else {
+                        statsFlag = 1;
+                    }
+                    break;
+                case 4:
+                    if (shop_show_lv(pl, 0) != 0) {
+                        if (lbl_803448C8 == 8 && lbl_803448C4 == 3) {
+                            *(s32*)(pl + 2660) = 20;
+                        } else {
+                            *(s32*)(pl + 2660) += 1;
+                        }
+                    }
+                    break;
+                case 5: {
+                    s32 cnt = 0;
+                    s32 koff = 0;
+                    u8* slot;
+                    for (j = 3; j != 0; j--) {
+                        if (*(s32*)(page + o12 + 224 + koff) == 0) {
+                            break;
+                        }
+                        cnt++;
+                        koff += 4;
+                    }
+                    slot = page + o12 + cnt * 4;
+                    *(s32*)(slot + 128) = *(s32*)(slot + 80);
+                    *(s32*)(slot + 80) = *(s32*)(gPlayers + o13148 + 7876);
+                    *(s32*)(pl + 2660) += 1;
+                    break;
+                }
+                case 6:
+                    if (lbl_80344C0C == 2) {
+                        for (j = 0; j < 6; j++) {
+                            void** q =
+                                (void**)(page + o24 + 7504 + j * 4);
+                            if (*q != 0) {
+                                MBRemoveBlit(*q);
+                                *q = 0;
+                            }
+                        }
+                        for (j = 0; j < lbl_80344C10; j++) {
+                            void** q =
+                                (void**)(page + o256 + 6480 + j * 4);
+                            if (*q != 0) {
+                                MBRemoveBlit(*q);
+                                *q = 0;
+                            }
+                        }
+                        *(s32*)(pl + 2660) = 9;
+                        break;
+                    }
+                    if (*(s32*)(pl + 232) == 1 || *(s32*)(pl + 232) == 5) {
+                        mbBlitInit3414(
+                            *(void**)(page + *(s32*)pl * 24 + 7516), 0);
+                        mbBlitInit3414(
+                            *(void**)(page + *(s32*)pl * 24 + 7520), 0);
+                        for (j = 0; j < lbl_80344C10; j++) {
+                            void* b = *(void**)(page + (*(s32*)pl << 8) +
+                                                6480 + j * 4);
+                            if (b != 0) {
+                                mbBlitInit3414(b, 1);
+                            }
+                        }
+                    }
+                    *(s32*)(pl + 2660) += 1;
+                    /* fall through */
+                case 7:
+                    show_piles(i);
+                    if (do_shopping_8009AA48(i) != 0) {
+                        for (j = 0; j < 6; j++) {
+                            void** q =
+                                (void**)(page + o24 + 7504 + j * 4);
+                            if (*q != 0) {
+                                MBRemoveBlit(*q);
+                                *q = 0;
+                            }
+                        }
+                        for (j = 0; j < lbl_80344C10; j++) {
+                            void** q =
+                                (void**)(page + o256 + 6480 + j * 4);
+                            if (*q != 0) {
+                                MBRemoveBlit(*q);
+                                *q = 0;
+                            }
+                        }
+                        *(s32*)(pl + 2660) += 1;
+                    }
+                    break;
+                case 8:
+                    if (shop_show_lv(pl, 1) != 0) {
+                        *(s32*)(pl + 2660) += 1;
+                    }
+                    break;
+                case 9:
+                    if (lbl_80344C0C == 1) {
+                        *(s32*)(pl + 2660) = 100;
+                    } else {
+                        init_panel_blits(i);
+                        fn_8009C460(2);
+                        *(s32*)(pl + 2660) += 1;
+                    }
+                    break;
+                case 10:
+                    draw_inventory_panel(i);
+                    if (*(u32*)(pads + o60 + 8) & 0x2000000) {
+                        AudioCursorSelect();
+                        init_inventory_panel(i);
+                        *(s32*)(pl + 2660) += 1;
+                    }
+                    break;
+                case 11:
+                    if (draw_inventory_panel(i) != 0) {
+                        end_inventory_panel(i);
+                        *(s32*)(pl + 2660) += 1;
+                    }
+                    break;
+                case 12:
+                    *(s32*)(pl + 2660) = 100;
+                    break;
+                case 20:
+                    if (shop_show_final_stats(pl) != 0) {
+                        *(s32*)(pl + 2660) += 1;
+                    }
+                    break;
+                default:
+                    *(s32*)(pl + 2660) = 100;
+                    /* fall through */
+                case 100:
+                    leave = 1;
+                    break;
+                }
+                if (leave != 0) {
+                    *(s32*)(pl + 232) = 5;
+                } else {
+                    result = 0;
+                }
+            }
+            fn_8009FCA8(statsFlag);
+        }
+    }
+    if (fn_80053B60() == 0) {
+        if (result != 0) {
+            DrawGlowText(lbl_80348328, 340, 260, lbl_8011495C);
+        }
+        result = 0;
+    }
+    if (sndFxUpdate(1) != 0) {
+        result = 0;
+    }
+    if (result != 0) {
+        AudioStopMusicA();
+        if (lbl_80344C0C == 0) {
+            result = 2;
+        }
+    }
+    return result;
+}
+
 /* Animate one player gold-pile column toward its target height; returns 0
  * while the pile is still sinking (drives the count-down loop). */
 s32 show_piles(s32 col)
