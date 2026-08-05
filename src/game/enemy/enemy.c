@@ -2769,12 +2769,11 @@ void move_logic19(s32 index)
     }
     e->ang = a;
     mode = e->mode1;
-    if (mode == 1) {
-        goto do_action;
-    } else if (mode < 1 || mode > 2) {
+    switch (mode) {
+    default:
         e->counter1 = 1;
         e->mode1++;
-    do_action:
+    case 1:
         RequestEnemyAction(e, 3);
         if (e->action == 3) {
             e->counter1 = RandInt(90) + 30;
@@ -2783,15 +2782,17 @@ void move_logic19(s32 index)
         if (e->mode1 != 2) {
             goto move;
         }
+        break;
+    case 2:
+        break;
     }
     if (e->dead_end > 0) {
         e->dead_end -= gFrameTicks;
     }
-    if (e->dead_end < 1) {
+    if (e->dead_end <= 0) {
         fn_8004CD1C(e, 1.0f, e->ang);
     }
-    e->counter1 -= gFrameTicks;
-    if (e->counter1 < 1 && e->daction == 3) {
+    if ((e->counter1 -= gFrameTicks) <= 0 && e->daction == 3) {
         e->daction = 0;
     }
     if ((e->dead_end > 0 && e->area == 1) || e->action == 0) {
