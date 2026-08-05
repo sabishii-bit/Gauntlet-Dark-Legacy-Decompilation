@@ -371,6 +371,9 @@ f32 camera_approach_yaw(void* cam, f32 target);
 f32 camera_lerp_yaw(f32 current, f32 target);
 void camera_orbit_update(s32 camIdx);
 s32 camera_collide_step(s32 camIdx, f32 blendThreshold);
+extern f32 lbl_80345EC8;  /* 0.0f (sdata2 pool) */
+extern f64 lbl_80345F18;  /* 0.5 */
+extern f64 lbl_80345F20;  /* 3.0 */
 void camera_init_for_gamemode(s32 camIdx);
 void camera_run_mode(s32 camIdx);
 void camera_mode_follow(s32 camIdx);
@@ -838,13 +841,13 @@ void camera_run_mode(s32 camIdx)
         distance = cam->delta[2] * cam->delta[2] +
                    (distance = cam->delta[0] * cam->delta[0] +
                                cam->delta[1] * cam->delta[1]);
-        if (distance > 0.0f) {
+        if (distance > lbl_80345EC8) {
             f64 guess = __frsqrte(distance);
-            guess = 0.5 * guess * (3.0 - guess * guess * distance);
-            guess = 0.5 * guess * (3.0 - guess * guess * distance);
-            guess = 0.5 * guess * (3.0 - guess * guess * distance);
+            guess = lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance);
+            guess = lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance);
+            guess = lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance);
             rootVector = (f32)(distance *
-                (0.5 * guess * (3.0 - guess * guess * distance)));
+                (lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance)));
             distance = rootVector;
         }
         stepDouble = 0.3 * (f64)(u32)gFrameTicks;
@@ -917,13 +920,13 @@ void camera_run_mode(s32 camIdx)
                 dy = cam->wpos[1] - cam->attn[1];
                 dz = cam->wpos[2] - cam->attn[2];
                 distance = dz * dz + (dx * dx + dy * dy);
-                if (distance > 0.0f) {
+                if (distance > lbl_80345EC8) {
                     f64 guess = __frsqrte(distance);
-                    guess = 0.5 * guess * (3.0 - guess * guess * distance);
-                    guess = 0.5 * guess * (3.0 - guess * guess * distance);
-                    guess = 0.5 * guess * (3.0 - guess * guess * distance);
+                    guess = lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance);
+                    guess = lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance);
+                    guess = lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance);
                     rootGameMode = (f32)(distance *
-                        (0.5 * guess * (3.0 - guess * guess * distance)));
+                        (lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance)));
                     distance = rootGameMode;
                 }
                 cam->radius = (f32)((f64)distance + 2.0 * (f64)gClockFrameStep);
@@ -964,13 +967,13 @@ void camera_run_mode(s32 camIdx)
             dy = cam->wpos[1] - cam->attn[1];
             dz = cam->wpos[2] - cam->attn[2];
             distance = dz * dz + (dx * dx + dy * dy);
-            if (distance > 0.0f) {
+            if (distance > lbl_80345EC8) {
                 f64 guess = __frsqrte(distance);
-                guess = 0.5 * guess * (3.0 - guess * guess * distance);
-                guess = 0.5 * guess * (3.0 - guess * guess * distance);
-                guess = 0.5 * guess * (3.0 - guess * guess * distance);
+                guess = lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance);
+                guess = lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance);
+                guess = lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance);
                 rootGame = (f32)(distance *
-                    (0.5 * guess * (3.0 - guess * guess * distance)));
+                    (lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance)));
                 distance = rootGame;
             }
             cam->radius = distance;
@@ -1045,13 +1048,13 @@ found_player_object:
         dy = cam->wpos[1] - cam->attn[1];
         dz = cam->wpos[2] - cam->attn[2];
         distance = dz * dz + (dx * dx + dy * dy);
-        if (distance > 0.0f) {
+        if (distance > lbl_80345EC8) {
             f64 guess = __frsqrte(distance);
-            guess = 0.5 * guess * (3.0 - guess * guess * distance);
-            guess = 0.5 * guess * (3.0 - guess * guess * distance);
-            guess = 0.5 * guess * (3.0 - guess * guess * distance);
+            guess = lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance);
+            guess = lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance);
+            guess = lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance);
             rootObject = (f32)(distance *
-                (0.5 * guess * (3.0 - guess * guess * distance)));
+                (lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance)));
             distance = rootObject;
         }
         cam->radius = distance;
@@ -1762,13 +1765,13 @@ found_target_player:
         dz = cam->attn[2] - cam->wpos[2];
         distance = dx * dx + dy * dy;
         distance = dz * dz + distance;
-        if (distance > 0.0f) {
+        if (distance > lbl_80345EC8) {
             f64 guess = __frsqrte(distance);
-            guess = 0.5 * guess * (3.0 - guess * guess * distance);
-            guess = 0.5 * guess * (3.0 - guess * guess * distance);
-            guess = 0.5 * guess * (3.0 - guess * guess * distance);
+            guess = lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance);
+            guess = lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance);
+            guess = lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance);
             movingRoot = (f32)(distance *
-                (0.5 * guess * (3.0 - guess * guess * distance)));
+                (lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance)));
             distance = movingRoot;
         }
         moveDelta[0] = dx;
@@ -1800,11 +1803,11 @@ found_target_player:
             distance = squaredZ + distance;
             if (distance > *(volatile f32*)&lbl_80345EC8) {
                 f64 guess = __frsqrte(distance);
-                guess = 0.5 * guess * (3.0 - guess * guess * distance);
-                guess = 0.5 * guess * (3.0 - guess * guess * distance);
-                guess = 0.5 * guess * (3.0 - guess * guess * distance);
+                guess = lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance);
+                guess = lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance);
+                guess = lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance);
                 radiusRoot = (f32)(distance *
-                    (0.5 * guess * (3.0 - guess * guess * distance)));
+                    (lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance)));
                 distance = radiusRoot;
             }
             cam->radius = distance;
@@ -2848,13 +2851,13 @@ void camera_mode_spin(s32 camIdx)
         deltaZ = settings[77] - settings[127];
         distance = deltaZ * deltaZ +
                    (distance = deltaX * deltaX + deltaY * deltaY);
-        if (distance > 0.0f) {
+        if (distance > lbl_80345EC8) {
             f64 guess = __frsqrte(distance);
-            guess = 0.5 * guess * (3.0 - guess * guess * distance);
-            guess = 0.5 * guess * (3.0 - guess * guess * distance);
-            guess = 0.5 * guess * (3.0 - guess * guess * distance);
+            guess = lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance);
+            guess = lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance);
+            guess = lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance);
             root = (f32)(distance *
-                         (0.5 * guess * (3.0 - guess * guess * distance)));
+                         (lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance)));
             distance = root;
         }
         cam->radius = distance;
