@@ -15,7 +15,6 @@
  * NonMatching residuals (parked, structurally correct):
  *   AudioWithName        - prologue register-allocation cascade (ops clean)
  *   ShopMusicStart/Map   - global scratch-buffer address scheduling
- *   AudioSelect          - 1-insn: peephole-off unfolded switch (bge/b)
  * Not yet decompiled (covered by original bytes; symbols mapped):
  *   InitNameAudio, AudioAmbientUpdate, AudioSecretProc,
  *   AudioSetupLevelStreams
@@ -337,12 +336,13 @@ void AudioSelect(int track)
     if (cur == 0) {
         AudioRegisterNameBanks("SELECT", 0);
     }
-    /* NOTE: target emits an unfolded `beq/bge/b` 3-way for this dispatch
-     * (peephole-off single-case switch); MWCC folds our bge -> 1-insn diff. */
+    /* Keeping the explicit zero case recreates the target's beq/bge/b
+     * dispatch even though it shares the default action. */
     switch (track) {
     case 1:
         sndFxPlayHandle(0xC0000, lbl_80343B4C, 1);
         break;
+    case 0:
     default:
         AudioKillBySound(0xC0000);
         break;
