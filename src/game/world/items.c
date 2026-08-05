@@ -1476,9 +1476,13 @@ keyring_found:
     {
         f32 radius = info->item.radius;
 
-        if (radius <= info->item.height) {
-            radius = info->item.height;
+        if (!(radius > info->item.height)) {
+            goto take_h;
         }
+        goto keep_r;
+    take_h:
+        radius = info->item.height;
+    keep_r:
         item->visrad = (f32)(2.0 * (f64)radius);
     }
     item->objgrp.flags = 0;
