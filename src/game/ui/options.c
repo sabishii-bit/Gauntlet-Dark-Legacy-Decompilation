@@ -1927,16 +1927,18 @@ void show_optmenu(OPTMENU* m)
 /* 0x80073718 end_optmenu                                              */
 /* ================================================================== */
 
+extern char lbl_80113A78[]; /* "end_optmenu called with bad options_level" */
+
 static void end_optmenu(s32 dir, s32 mode)
 {
     OPTGLOBALS* og = (OPTGLOBALS*)&optglobals;
     s32 keepBlit = 1;
-    OPTMENU* m;
     s32 off;
+    OPTMENU* m;
     s32 i;
 
     if (options_level < 0 || og->stack[options_level] == NULL) {
-        FatalError("end_optmenu called with bad options_level", 0x800000);
+        FatalError(lbl_80113A78, 0x800000);
     }
 
     if (mode < 0) {

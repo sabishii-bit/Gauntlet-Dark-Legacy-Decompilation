@@ -738,25 +738,19 @@ void adsInitFromHeader(ADSTREAM* stream) {
     u16 srcb[8];
     u16 adp[20];
 
-    kmagU = lbl_80349318;
     k48 = 48000;
-    aram = stream->spuReadBase;
-    kdiv = lbl_80349308;
-    kmag2 = lbl_80349320;
     kscale = lbl_80349310;
+    kdiv = lbl_80349308;
+    aram = stream->spuReadBase;
     vnum = 13;
     for (i = 0; i < stream->blocks; i++) {
         bits = stream->sampleBits;
         if (bits >= 32) {
             t = ((stream->sampleRate << 12) / k48) * k48;
-            cvr[1] = t >> 12;
-            cvr[0] = 0x43300000;
-            ratio = (f32)(*(f64*)cvr - kmagU);
+            ratio = (f32)(t >> 12);
         } else {
             t = ((stream->sampleRate << 12) / k48) * 12000;
-            cvr[1] = t >> 12;
-            cvr[0] = 0x43300000;
-            ratio = (f32)(*(f64*)cvr - kmagU);
+            ratio = (f32)(t >> 12);
         }
         if (bits == 32) {
             ch = (u8*)stream + i * 96;
@@ -780,10 +774,11 @@ void adsInitFromHeader(ADSTREAM* stream) {
             cur = aram >> 1;
         }
         ratio = ratio / kdiv;
-        cvs[1] = (u32)(s32)ratio ^ 0x80000000;
-        cvs[0] = 0x43300000;
         srcb[0] = (u16)(s32)ratio;
-        srcb[1] = (u16)(s32)(kscale * (ratio - (f32)(*(f64*)cvs - kmag2)));
+        {
+            f32 whole = (f32)(s32)ratio;
+            srcb[1] = (u16)(s32)(kscale * (ratio - whole));
+        }
         srcb[2] = 0;
         srcb[3] = 0;
         srcb[4] = 0;

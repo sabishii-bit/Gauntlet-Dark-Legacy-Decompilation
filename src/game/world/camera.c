@@ -1760,8 +1760,7 @@ found_target_player:
         dx = cam->attn[0] - cam->wpos[0];
         dy = cam->attn[1] - cam->wpos[1];
         dz = cam->attn[2] - cam->wpos[2];
-        distance = dy * dy;
-        distance = dx * dx + distance;
+        distance = dx * dx + dy * dy;
         distance = dz * dz + distance;
         if (distance > 0.0f) {
             f64 guess = __frsqrte(distance);

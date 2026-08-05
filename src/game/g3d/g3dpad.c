@@ -313,15 +313,15 @@ void G3DUpdatePadStatus(void) {
             aggregate->buttons |= pad->status.button;
             aggregate->repeat |= pad->repeat;
 
-            if (((aggregate->stickX ^ ((s32)aggregate->stickX >> 31)) -
+            if (((((s32)aggregate->stickX >> 31) ^ aggregate->stickX) -
                  ((s32)aggregate->stickX >> 31)) <
-                ((pad->status.stickX ^ ((s32)pad->status.stickX >> 31)) -
+                ((((s32)pad->status.stickX >> 31) ^ pad->status.stickX) -
                  ((s32)pad->status.stickX >> 31))) {
                 aggregate->stickX = pad->status.stickX;
             }
-            if (((aggregate->stickY ^ ((s32)aggregate->stickY >> 31)) -
+            if (((((s32)aggregate->stickY >> 31) ^ aggregate->stickY) -
                  ((s32)aggregate->stickY >> 31)) <
-                ((pad->status.stickY ^ ((s32)pad->status.stickY >> 31)) -
+                ((((s32)pad->status.stickY >> 31) ^ pad->status.stickY) -
                  ((s32)pad->status.stickY >> 31))) {
                 aggregate->stickY = pad->status.stickY;
             }
