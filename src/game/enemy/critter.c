@@ -3916,25 +3916,43 @@ typedef struct CritterFileHeader {
     u8 *sfx;
 } CritterFileHeader;
 
-static inline u16 CritterSwap16(u16 value)
+extern char lbl_8034665C[8]; /* "SFXX" */
+extern char lbl_80346664[8]; /* "DAMG" */
+extern char lbl_8034666C[8]; /* "MOVE" */
+extern char lbl_80346674[8]; /* "PTRN" */
+extern char lbl_8034667C[8]; /* "NODE" */
+extern char lbl_80346684[8]; /* "DESC" */
+extern char lbl_8034668C[8]; /* "TYPE" */
+extern char lbl_80346694[8]; /* "ADDA" */
+extern void FatalError(const char *msg, int code);
+
+static inline s32 CritterWadTag(char *s)
 {
-    return (u16)((value << 8) | (value >> 8));
+    return (s[0] << 24) | (s[1] << 16) | (s[2] << 8) | s[3];
 }
 
-static inline u32 CritterSwap32(u32 value)
+static inline u16 CritterSwap16(u16 v)
 {
-    return (value << 24) | ((value & 0x0000FF00) << 8) |
-           ((value & 0x00FF0000) >> 8) | (value >> 24);
+    u8 *p = (u8 *)&v;
+    return (u16)(p[0] | (p[1] << 8));
 }
 
-static inline void CritterSwap16At(u8 *record, s32 offset)
+static inline u32 CritterSwap32(u32 v)
 {
-    *(u16 *)(record + offset) = CritterSwap16(*(u16 *)(record + offset));
+    u32 r;
+    u8 *s = (u8 *)&v;
+    u8 *d = (u8 *)&r;
+    d[0] = s[3];
+    d[1] = s[2];
+    d[2] = s[1];
+    d[3] = s[0];
+    return r;
 }
 
-static inline void CritterSwap32At(u8 *record, s32 offset)
+static inline f32 CritterSwapF(f32 v)
 {
-    *(u32 *)(record + offset) = CritterSwap32(*(u32 *)(record + offset));
+    u32 r = CritterSwap32(*(u32 *)&v);
+    return *(f32 *)&r;
 }
 
 /* 0x800400F0 -- open all CRITTER WAD sections, convert little-endian
@@ -3943,11 +3961,12 @@ static inline void CritterSwap32At(u8 *record, s32 offset)
 void CritterInitHeader(void *hdr, void *file)
 {
     CritterFileHeader *header;
-    u8 *record;
+    u8 *p;
     u8 *type;
     u8 *tail;
     s32 swapped;
     s32 i;
+    s32 off;
     s32 j;
     s32 typeIndex;
 
@@ -3955,193 +3974,256 @@ void CritterInitHeader(void *hdr, void *file)
     swapped = 0;
     if (header->state == 0) {
         swapped = MBSetupWad(header->wad, (s32)file);
-        header->sfx = (u8 *)MBGetFromWad(header->wad, 0x53465858,
+        header->sfx = (u8 *)MBGetFromWad(header->wad,
+                                         CritterWadTag(lbl_8034665C),
                                          &header->sfxCount);
-        header->damage =
-            (u8 *)MBGetFromWad(header->wad, 0x44414D47,
-                               &header->damageCount);
-        header->moves =
-            (u8 *)MBGetFromWad(header->wad, 0x4D4F5645,
-                               &header->moveCount);
-        header->patterns =
-            (u8 *)MBGetFromWad(header->wad, 0x5054524E,
-                               &header->patternCount);
-        header->nodes =
-            (u8 *)MBGetFromWad(header->wad, 0x4E4F4445,
-                               &header->nodeCount);
-        header->descriptors =
-            (u8 *)MBGetFromWad(header->wad, 0x44455343,
-                               &header->descriptorCount);
-        header->types =
-            (u8 *)MBGetFromWad(header->wad, 0x54595045,
-                               &header->typeCount);
-        header->addAnims =
-            (u8 *)MBGetFromWad(header->wad, 0x41444441,
-                               &header->addAnimCount);
+        header->damage = (u8 *)MBGetFromWad(header->wad,
+                                            CritterWadTag(lbl_80346664),
+                                            &header->damageCount);
+        header->moves = (u8 *)MBGetFromWad(header->wad,
+                                           CritterWadTag(lbl_8034666C),
+                                           &header->moveCount);
+        header->patterns = (u8 *)MBGetFromWad(header->wad,
+                                              CritterWadTag(lbl_80346674),
+                                              &header->patternCount);
+        header->nodes = (u8 *)MBGetFromWad(header->wad,
+                                           CritterWadTag(lbl_8034667C),
+                                           &header->nodeCount);
+        header->descriptors = (u8 *)MBGetFromWad(header->wad,
+                                                 CritterWadTag(lbl_80346684),
+                                                 &header->descriptorCount);
+        header->types = (u8 *)MBGetFromWad(header->wad,
+                                           CritterWadTag(lbl_8034668C),
+                                           &header->typeCount);
+        header->addAnims = (u8 *)MBGetFromWad(header->wad,
+                                              CritterWadTag(lbl_80346694),
+                                              &header->addAnimCount);
         if (header->types == NULL) {
-            ErrorPrintf("Critter Header has no types\n");
+            FatalError("Critter Header has no types", 0x800000);
         }
         header->state = 1;
     }
 
-    if (swapped) {
-        for (i = 0, record = header->sfx;
-             i < header->sfxCount; i++, record += 0x50) {
-            CritterSwap32At(record, 0x00);
-            CritterSwap32At(record, 0x04);
-            CritterSwap32At(record, 0x08);
-            CritterSwap32At(record, 0x0C);
-            for (j = 0; j < 3; j++) {
-                CritterSwap32At(record, 0x30 + j * 4);
-            }
-            CritterSwap32At(record, 0x3C);
-            CritterSwap32At(record, 0x40);
-            CritterSwap16At(record, 0x44);
-            CritterSwap16At(record, 0x46);
-            CritterSwap32At(record, 0x48);
-            CritterSwap32At(record, 0x4C);
-        }
-
-        for (i = 0, record = header->damage;
-             i < header->damageCount; i++, record += 0x50) {
-            CritterSwap16At(record, 0x00);
-            CritterSwap16At(record, 0x02);
-            for (j = 0x08; j <= 0x1C; j += 4) {
-                CritterSwap32At(record, j);
-            }
-            for (j = 0x2C; j <= 0x3C; j += 4) {
-                CritterSwap32At(record, j);
-            }
-            CritterSwap16At(record, 0x40);
-            CritterSwap16At(record, 0x42);
-            CritterSwap16At(record, 0x44);
-            CritterSwap16At(record, 0x46);
-            CritterSwap32At(record, 0x48);
-        }
-
-        for (i = 0, record = header->moves;
-             i < header->moveCount; i++, record += 0x90) {
-            CritterSwap32At(record, 0x00);
-            CritterSwap32At(record, 0x04);
-            CritterSwap32At(record, 0x08);
-            CritterSwap16At(record, 0x0C);
-            CritterSwap16At(record, 0x0E);
-            CritterSwap32At(record, 0x40);
-            CritterSwap32At(record, 0x44);
-            CritterSwap16At(record, 0x48);
-            CritterSwap16At(record, 0x4A);
-            CritterSwap32At(record, 0x4C);
-            for (j = 0x50; j <= 0x5E; j += 2) {
-                CritterSwap16At(record, j);
-            }
-            for (j = 0x60; j <= 0x8C; j += 4) {
-                CritterSwap32At(record, j);
+    if ((u8)swapped) {
+        for (i = 0, off = 0; i < header->sfxCount; i++, off += 0x50) {
+            p = header->sfx + off;
+            *(u16 *)(p + 0x44) = CritterSwap16(*(u16 *)(p + 0x44));
+            *(u16 *)(p + 0x46) = CritterSwap16(*(u16 *)(p + 0x46));
+            *(u32 *)(p + 0x00) = CritterSwap32(*(u32 *)(p + 0x00));
+            *(u32 *)(p + 0x04) = CritterSwap32(*(u32 *)(p + 0x04));
+            *(u32 *)(p + 0x08) = CritterSwap32(*(u32 *)(p + 0x08));
+            *(u32 *)(p + 0x0C) = CritterSwap32(*(u32 *)(p + 0x0C));
+            *(f32 *)(p + 0x3C) = CritterSwapF(*(f32 *)(p + 0x3C));
+            *(f32 *)(p + 0x40) = CritterSwapF(*(f32 *)(p + 0x40));
+            *(u32 *)(p + 0x48) = CritterSwap32(*(u32 *)(p + 0x48));
+            *(f32 *)(p + 0x4C) = CritterSwapF(*(f32 *)(p + 0x4C));
+            for (j = 0; j < 12; j += 4) {
+                *(f32 *)(p + 0x30 + j) = CritterSwapF(*(f32 *)(p + 0x30 + j));
             }
         }
 
-        for (i = 0, record = header->patterns;
-             i < header->patternCount; i++, record += 0x50) {
-            CritterSwap16At(record, 0x10);
-            CritterSwap16At(record, 0x12);
-            CritterSwap32At(record, 0x14);
-            for (j = 0; j < 8; j++) {
-                CritterSwap16At(record, 0x20 + j * 2);
-            }
-            for (j = 0x30; j <= 0x4C; j += 4) {
-                CritterSwap32At(record, j);
-            }
-        }
-
-        for (i = 0, record = header->nodes;
-             i < header->nodeCount; i++, record += 0x50) {
-            for (j = 0x10; j <= 0x16; j += 2) {
-                CritterSwap16At(record, j);
-            }
-            CritterSwap32At(record, 0x18);
-            CritterSwap32At(record, 0x1C);
-            for (j = 0; j < 3; j++) {
-                CritterSwap32At(record, 0x20 + j * 4);
-            }
-            CritterSwap32At(record, 0x2C);
-            CritterSwap32At(record, 0x40);
-            CritterSwap32At(record, 0x44);
-        }
-
-        for (i = 0, record = header->descriptors;
-             i < header->descriptorCount; i++, record += 0x30) {
-            CritterSwap16At(record, 0x20);
-            CritterSwap16At(record, 0x24);
-            CritterSwap16At(record, 0x26);
-            CritterSwap32At(record, 0x28);
-        }
-
-        for (i = 0, record = header->types;
-             i < header->typeCount; i++, record += 0x140) {
-            CritterSwap16At(record, 0x50);
-            CritterSwap16At(record, 0x52);
-            CritterSwap16At(record, 0x56);
-            CritterSwap16At(record, 0x58);
-            CritterSwap16At(record, 0x5A);
-            for (j = 0xF4; j <= 0xFE; j += 2) {
-                CritterSwap16At(record, j);
-            }
-            for (j = 0x110; j <= 0x11E; j += 2) {
-                CritterSwap16At(record, j);
-            }
-            for (j = 0x5C; j <= 0x7C; j += 4) {
-                CritterSwap32At(record, j);
-            }
-            for (j = 0x80; j <= 0xBC; j += 4) {
-                CritterSwap32At(record, j);
-            }
-            for (j = 0xC0; j <= 0xF0; j += 4) {
-                CritterSwap32At(record, j);
-            }
-            for (j = 0x100; j <= 0x10C; j += 4) {
-                CritterSwap32At(record, j);
-            }
-            for (j = 0x120; j <= 0x138; j += 4) {
-                CritterSwap32At(record, j);
+        for (i = 0, off = 0; i < header->damageCount; i++, off += 0x50) {
+            p = header->damage + off;
+            *(u16 *)(p + 0x00) = CritterSwap16(*(u16 *)(p + 0x00));
+            *(u16 *)(p + 0x02) = CritterSwap16(*(u16 *)(p + 0x02));
+            *(u16 *)(p + 0x40) = CritterSwap16(*(u16 *)(p + 0x40));
+            *(u16 *)(p + 0x42) = CritterSwap16(*(u16 *)(p + 0x42));
+            *(u16 *)(p + 0x44) = CritterSwap16(*(u16 *)(p + 0x44));
+            *(u16 *)(p + 0x46) = CritterSwap16(*(u16 *)(p + 0x46));
+            *(f32 *)(p + 0x08) = CritterSwapF(*(f32 *)(p + 0x08));
+            *(f32 *)(p + 0x0C) = CritterSwapF(*(f32 *)(p + 0x0C));
+            *(f32 *)(p + 0x10) = CritterSwapF(*(f32 *)(p + 0x10));
+            *(f32 *)(p + 0x14) = CritterSwapF(*(f32 *)(p + 0x14));
+            *(f32 *)(p + 0x18) = CritterSwapF(*(f32 *)(p + 0x18));
+            *(f32 *)(p + 0x1C) = CritterSwapF(*(f32 *)(p + 0x1C));
+            *(f32 *)(p + 0x2C) = CritterSwapF(*(f32 *)(p + 0x2C));
+            *(f32 *)(p + 0x30) = CritterSwapF(*(f32 *)(p + 0x30));
+            *(f32 *)(p + 0x34) = CritterSwapF(*(f32 *)(p + 0x34));
+            *(f32 *)(p + 0x38) = CritterSwapF(*(f32 *)(p + 0x38));
+            *(f32 *)(p + 0x3C) = CritterSwapF(*(f32 *)(p + 0x3C));
+            *(f32 *)(p + 0x48) = CritterSwapF(*(f32 *)(p + 0x48));
+            *(u32 *)(p + 0x04) = CritterSwap32(*(u32 *)(p + 0x04));
+            for (j = 0; j < 12; j += 4) {
+                *(f32 *)(p + 0x20 + j) = CritterSwapF(*(f32 *)(p + 0x20 + j));
             }
         }
 
-        for (i = 0, record = header->addAnims;
-             i < header->addAnimCount; i++, record += 0x30) {
-            CritterSwap16At(record, 0x00);
-            CritterSwap16At(record, 0x02);
-            CritterSwap32At(record, 0x04);
-            CritterSwap32At(record, 0x08);
-            for (j = 0; j < 3; j++) {
-                CritterSwap32At(record, 0x20 + j * 4);
+        for (i = 0, off = 0; i < header->moveCount; i++, off += 0x90) {
+            p = header->moves + off;
+            *(u16 *)(p + 0x0C) = CritterSwap16(*(u16 *)(p + 0x0C));
+            *(u16 *)(p + 0x0E) = CritterSwap16(*(u16 *)(p + 0x0E));
+            *(u16 *)(p + 0x48) = CritterSwap16(*(u16 *)(p + 0x48));
+            *(u16 *)(p + 0x4A) = CritterSwap16(*(u16 *)(p + 0x4A));
+            *(u16 *)(p + 0x50) = CritterSwap16(*(u16 *)(p + 0x50));
+            *(u16 *)(p + 0x52) = CritterSwap16(*(u16 *)(p + 0x52));
+            *(u16 *)(p + 0x54) = CritterSwap16(*(u16 *)(p + 0x54));
+            *(u16 *)(p + 0x56) = CritterSwap16(*(u16 *)(p + 0x56));
+            *(u16 *)(p + 0x58) = CritterSwap16(*(u16 *)(p + 0x58));
+            *(u16 *)(p + 0x5A) = CritterSwap16(*(u16 *)(p + 0x5A));
+            *(u16 *)(p + 0x5C) = CritterSwap16(*(u16 *)(p + 0x5C));
+            *(u16 *)(p + 0x5E) = CritterSwap16(*(u16 *)(p + 0x5E));
+            *(u32 *)(p + 0x04) = CritterSwap32(*(u32 *)(p + 0x04));
+            *(u32 *)(p + 0x08) = CritterSwap32(*(u32 *)(p + 0x08));
+            *(u32 *)(p + 0x40) = CritterSwap32(*(u32 *)(p + 0x40));
+            *(u32 *)(p + 0x44) = CritterSwap32(*(u32 *)(p + 0x44));
+            *(f32 *)(p + 0x4C) = CritterSwapF(*(f32 *)(p + 0x4C));
+            *(f32 *)(p + 0x80) = CritterSwapF(*(f32 *)(p + 0x80));
+            *(f32 *)(p + 0x84) = CritterSwapF(*(f32 *)(p + 0x84));
+            *(f32 *)(p + 0x88) = CritterSwapF(*(f32 *)(p + 0x88));
+            *(f32 *)(p + 0x8C) = CritterSwapF(*(f32 *)(p + 0x8C));
+            *(u32 *)(p + 0x00) = CritterSwap32(*(u32 *)(p + 0x00));
+            *(f32 *)(p + 0x60) = CritterSwapF(*(f32 *)(p + 0x60));
+            *(f32 *)(p + 0x64) = CritterSwapF(*(f32 *)(p + 0x64));
+            *(f32 *)(p + 0x68) = CritterSwapF(*(f32 *)(p + 0x68));
+            *(f32 *)(p + 0x6C) = CritterSwapF(*(f32 *)(p + 0x6C));
+            *(f32 *)(p + 0x70) = CritterSwapF(*(f32 *)(p + 0x70));
+            *(f32 *)(p + 0x74) = CritterSwapF(*(f32 *)(p + 0x74));
+            *(f32 *)(p + 0x78) = CritterSwapF(*(f32 *)(p + 0x78));
+            *(f32 *)(p + 0x7C) = CritterSwapF(*(f32 *)(p + 0x7C));
+        }
+
+        for (i = 0, off = 0; i < header->patternCount; i++, off += 0x50) {
+            p = header->patterns + off;
+            *(u16 *)(p + 0x10) = CritterSwap16(*(u16 *)(p + 0x10));
+            *(u16 *)(p + 0x12) = CritterSwap16(*(u16 *)(p + 0x12));
+            *(f32 *)(p + 0x14) = CritterSwapF(*(f32 *)(p + 0x14));
+            *(f32 *)(p + 0x30) = CritterSwapF(*(f32 *)(p + 0x30));
+            *(f32 *)(p + 0x34) = CritterSwapF(*(f32 *)(p + 0x34));
+            *(f32 *)(p + 0x38) = CritterSwapF(*(f32 *)(p + 0x38));
+            *(f32 *)(p + 0x3C) = CritterSwapF(*(f32 *)(p + 0x3C));
+            *(f32 *)(p + 0x40) = CritterSwapF(*(f32 *)(p + 0x40));
+            *(f32 *)(p + 0x44) = CritterSwapF(*(f32 *)(p + 0x44));
+            *(f32 *)(p + 0x48) = CritterSwapF(*(f32 *)(p + 0x48));
+            *(f32 *)(p + 0x4C) = CritterSwapF(*(f32 *)(p + 0x4C));
+            for (j = 0; j < 16; j += 2) {
+                *(u16 *)(p + 0x20 + j) = CritterSwap16(*(u16 *)(p + 0x20 + j));
+            }
+        }
+
+        for (i = 0, off = 0; i < header->nodeCount; i++, off += 0x50) {
+            p = header->nodes + off;
+            *(u16 *)(p + 0x10) = CritterSwap16(*(u16 *)(p + 0x10));
+            *(u16 *)(p + 0x12) = CritterSwap16(*(u16 *)(p + 0x12));
+            *(u16 *)(p + 0x14) = CritterSwap16(*(u16 *)(p + 0x14));
+            *(u16 *)(p + 0x16) = CritterSwap16(*(u16 *)(p + 0x16));
+            *(f32 *)(p + 0x18) = CritterSwapF(*(f32 *)(p + 0x18));
+            *(f32 *)(p + 0x1C) = CritterSwapF(*(f32 *)(p + 0x1C));
+            *(f32 *)(p + 0x2C) = CritterSwapF(*(f32 *)(p + 0x2C));
+            *(f32 *)(p + 0x40) = CritterSwapF(*(f32 *)(p + 0x40));
+            *(f32 *)(p + 0x44) = CritterSwapF(*(f32 *)(p + 0x44));
+            for (j = 0; j < 12; j += 4) {
+                *(f32 *)(p + 0x20 + j) = CritterSwapF(*(f32 *)(p + 0x20 + j));
+            }
+        }
+
+        for (i = 0, off = 0; i < header->descriptorCount; i++, off += 0x30) {
+            p = header->descriptors + off;
+            *(u16 *)(p + 0x20) = CritterSwap16(*(u16 *)(p + 0x20));
+            *(u16 *)(p + 0x24) = CritterSwap16(*(u16 *)(p + 0x24));
+            *(u16 *)(p + 0x26) = CritterSwap16(*(u16 *)(p + 0x26));
+            *(u32 *)(p + 0x28) = CritterSwap32(*(u32 *)(p + 0x28));
+        }
+
+        for (i = 0, off = 0; i < header->typeCount; i++, off += 0x140) {
+            p = header->types + off;
+            *(u16 *)(p + 0x50) = CritterSwap16(*(u16 *)(p + 0x50));
+            *(u16 *)(p + 0x52) = CritterSwap16(*(u16 *)(p + 0x52));
+            *(u16 *)(p + 0x56) = CritterSwap16(*(u16 *)(p + 0x56));
+            *(u16 *)(p + 0x58) = CritterSwap16(*(u16 *)(p + 0x58));
+            *(u16 *)(p + 0x5A) = CritterSwap16(*(u16 *)(p + 0x5A));
+            *(u16 *)(p + 0xF4) = CritterSwap16(*(u16 *)(p + 0xF4));
+            *(u16 *)(p + 0xF6) = CritterSwap16(*(u16 *)(p + 0xF6));
+            *(u16 *)(p + 0xF8) = CritterSwap16(*(u16 *)(p + 0xF8));
+            *(u16 *)(p + 0xFA) = CritterSwap16(*(u16 *)(p + 0xFA));
+            *(u16 *)(p + 0xFC) = CritterSwap16(*(u16 *)(p + 0xFC));
+            *(u16 *)(p + 0xFE) = CritterSwap16(*(u16 *)(p + 0xFE));
+            *(u16 *)(p + 0x110) = CritterSwap16(*(u16 *)(p + 0x110));
+            *(u16 *)(p + 0x112) = CritterSwap16(*(u16 *)(p + 0x112));
+            *(u16 *)(p + 0x114) = CritterSwap16(*(u16 *)(p + 0x114));
+            *(u16 *)(p + 0x116) = CritterSwap16(*(u16 *)(p + 0x116));
+            *(u16 *)(p + 0x118) = CritterSwap16(*(u16 *)(p + 0x118));
+            *(u16 *)(p + 0x11A) = CritterSwap16(*(u16 *)(p + 0x11A));
+            *(u16 *)(p + 0x11C) = CritterSwap16(*(u16 *)(p + 0x11C));
+            *(u16 *)(p + 0x11E) = CritterSwap16(*(u16 *)(p + 0x11E));
+            *(u32 *)(p + 0x5C) = CritterSwap32(*(u32 *)(p + 0x5C));
+            *(f32 *)(p + 0x60) = CritterSwapF(*(f32 *)(p + 0x60));
+            *(f32 *)(p + 0x64) = CritterSwapF(*(f32 *)(p + 0x64));
+            *(f32 *)(p + 0x68) = CritterSwapF(*(f32 *)(p + 0x68));
+            *(f32 *)(p + 0x6C) = CritterSwapF(*(f32 *)(p + 0x6C));
+            *(f32 *)(p + 0x70) = CritterSwapF(*(f32 *)(p + 0x70));
+            *(f32 *)(p + 0x74) = CritterSwapF(*(f32 *)(p + 0x74));
+            *(f32 *)(p + 0x78) = CritterSwapF(*(f32 *)(p + 0x78));
+            *(f32 *)(p + 0x7C) = CritterSwapF(*(f32 *)(p + 0x7C));
+            *(f32 *)(p + 0xAC) = CritterSwapF(*(f32 *)(p + 0xAC));
+            *(f32 *)(p + 0xB0) = CritterSwapF(*(f32 *)(p + 0xB0));
+            *(f32 *)(p + 0xB4) = CritterSwapF(*(f32 *)(p + 0xB4));
+            *(f32 *)(p + 0xB8) = CritterSwapF(*(f32 *)(p + 0xB8));
+            *(f32 *)(p + 0xBC) = CritterSwapF(*(f32 *)(p + 0xBC));
+            *(f32 *)(p + 0xCC) = CritterSwapF(*(f32 *)(p + 0xCC));
+            *(f32 *)(p + 0xDC) = CritterSwapF(*(f32 *)(p + 0xDC));
+            *(u32 *)(p + 0xE0) = CritterSwap32(*(u32 *)(p + 0xE0));
+            *(f32 *)(p + 0xE4) = CritterSwapF(*(f32 *)(p + 0xE4));
+            *(f32 *)(p + 0xE8) = CritterSwapF(*(f32 *)(p + 0xE8));
+            *(f32 *)(p + 0xEC) = CritterSwapF(*(f32 *)(p + 0xEC));
+            *(f32 *)(p + 0xF0) = CritterSwapF(*(f32 *)(p + 0xF0));
+            *(u32 *)(p + 0x120) = CritterSwap32(*(u32 *)(p + 0x120));
+            *(u32 *)(p + 0x124) = CritterSwap32(*(u32 *)(p + 0x124));
+            *(u32 *)(p + 0x128) = CritterSwap32(*(u32 *)(p + 0x128));
+            *(u32 *)(p + 0x12C) = CritterSwap32(*(u32 *)(p + 0x12C));
+            *(u32 *)(p + 0x130) = CritterSwap32(*(u32 *)(p + 0x130));
+            *(u32 *)(p + 0x138) = CritterSwap32(*(u32 *)(p + 0x138));
+            *(f32 *)(p + 0x80) = CritterSwapF(*(f32 *)(p + 0x80));
+            *(f32 *)(p + 0x84) = CritterSwapF(*(f32 *)(p + 0x84));
+            *(f32 *)(p + 0x88) = CritterSwapF(*(f32 *)(p + 0x88));
+            *(f32 *)(p + 0x8C) = CritterSwapF(*(f32 *)(p + 0x8C));
+            *(f32 *)(p + 0x90) = CritterSwapF(*(f32 *)(p + 0x90));
+            *(f32 *)(p + 0x94) = CritterSwapF(*(f32 *)(p + 0x94));
+            *(f32 *)(p + 0x98) = CritterSwapF(*(f32 *)(p + 0x98));
+            *(f32 *)(p + 0x9C) = CritterSwapF(*(f32 *)(p + 0x9C));
+            for (j = 0; j < 12; j += 4) {
+                *(f32 *)(p + 0xA0 + j) = CritterSwapF(*(f32 *)(p + 0xA0 + j));
+                *(f32 *)(p + 0xC0 + j) = CritterSwapF(*(f32 *)(p + 0xC0 + j));
+                *(f32 *)(p + 0xD0 + j) = CritterSwapF(*(f32 *)(p + 0xD0 + j));
+                *(f32 *)(p + 0x100 + j) = CritterSwapF(*(f32 *)(p + 0x100 + j));
+            }
+        }
+
+        for (i = 0, off = 0; i < header->addAnimCount; i++, off += 0x30) {
+            p = header->addAnims + off;
+            *(u16 *)(p + 0x00) = CritterSwap16(*(u16 *)(p + 0x00));
+            *(u16 *)(p + 0x02) = CritterSwap16(*(u16 *)(p + 0x02));
+            *(u32 *)(p + 0x04) = CritterSwap32(*(u32 *)(p + 0x04));
+            *(u32 *)(p + 0x08) = CritterSwap32(*(u32 *)(p + 0x08));
+            for (j = 0; j < 12; j += 4) {
+                *(f32 *)(p + 0x20 + j) = CritterSwapF(*(f32 *)(p + 0x20 + j));
             }
         }
     }
 
-    for (i = 0, record = header->descriptors;
-         i < header->descriptorCount; i++, record += 0x30) {
-        *(s16 *)(record + 0x22) = -1;
+    for (i = 0, off = 0; i < header->descriptorCount; i++, off += 0x30) {
+        *(s16 *)(header->descriptors + off + 0x22) = -1;
     }
-    for (i = 0, type = header->types;
-         i < header->typeCount; i++, type += 0x140) {
-        *(void **)(type + 0x134) = NULL;
+    for (i = 0, off = 0; i < header->typeCount; i++, off += 0x140) {
+        *(u8 **)(header->types + off + 0x134) = NULL;
     }
-    for (i = 0, record = header->addAnims;
-         i < header->addAnimCount; i++, record += 0x30) {
-        typeIndex = *(s16 *)record;
-        if (typeIndex < 0 || typeIndex >= header->typeCount) {
-            ErrorPrintf("CRITTER: AddAnim has addto_idx %d, max %d\n",
+    for (i = 0, off = 0; i < header->addAnimCount; i++, off += 0x30) {
+        p = header->addAnims + off;
+        typeIndex = *(s16 *)p;
+        if (typeIndex > header->typeCount) {
+            ErrorPrintf("CRITTER: AddAnim has addto idx %d > max %d",
                         typeIndex, header->typeCount);
-            continue;
-        }
-        type = header->types + typeIndex * 0x140;
-        tail = *(u8 **)(type + 0x134);
-        if (tail == NULL) {
-            *(u8 **)(type + 0x134) = record;
         } else {
-            while (*(u8 **)(tail + 8) != NULL) {
-                tail = *(u8 **)(tail + 8);
+            type = header->types + typeIndex * 0x140;
+            tail = *(u8 **)(type + 0x134);
+            if (tail == NULL) {
+                *(u8 **)(type + 0x134) = p;
+            } else {
+                while (*(u8 **)(tail + 8) != NULL) {
+                    tail = *(u8 **)(tail + 8);
+                }
+                *(u8 **)(tail + 8) = p;
             }
-            *(u8 **)(tail + 8) = record;
         }
     }
 }
+

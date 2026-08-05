@@ -73,7 +73,7 @@
 struct worldanim {
     /* 0x00 */ s16   objidx;   /* index into gWorldInfo.wobjs                */
     /* 0x02 */ s16   nframes;  /* frame count                                */
-    /* 0x04 */ u8    _pad4[2];
+    /* 0x04 */ u16   fixed;    /* 0x8000 = data offset already relocated     */
     /* 0x06 */ s16   state;    /* run-time state/direction flag bits         */
     /* 0x08 */ f32   curframe; /* current frame position (advanced by 30*dt) */
     /* 0x0C */ void* data;     /* keyframe stream (little-endian in file)    */
@@ -181,19 +181,13 @@ extern s32   MBOX_AllocModel(const char*);
 extern s32   BytesFree(void);
 extern void* AllocMem(s32);
 
-/* InitWorldInfo (0x800A9E1C, ~0x1660 bytes) - PARKED GIANT, documented only.
- *
- * Allocates and initialises one WorldInfo's runtime data from a just-loaded,
- * endian-fixed world block, and returns the wobjs array base (stored by the
- * callers into world_objects / lbl_80344D98).  From the region survey it calls
- * InitDynobjGrid, AllocMem, SetupAnimHeader, InitAnimData, fn_80011DCC and
- * bulletproof_printf(lbl_80115244 = "---- ALLOC World Data [%dK]\n", ...), and
- * dispatches object set-up through jumptable_80126C30.  It fills wobjs, ctris,
- * the collision grid (gridrow/grid/gridsize/gridnum*), world bounds, item and
- * locator arrays, the atree/animation lists and the worldpsys table.  Left as
- * ONLY-IN-TARGET (no body emitted) per the work-order: too large to
- * reconstruct usefully in this pass. */
-extern WorldObj* InitWorldInfo(WorldInfo* wi);
+/* InitWorldInfo (0x800A9E1C): allocate + initialise one WorldInfo's runtime
+ * data from a just-loaded world block, and return the wobjs array base. */
+WorldObj* InitWorldInfo(WorldInfo* wi, void* data);
+extern struct animheader* SetupAnimHeader(void* block, void* arg);
+extern void InitAnimData(void* adata, void* stream);
+extern void fn_80011DCC(void* psys);
+extern void InitDynobjGrid(void);
 
 /* forward declarations (same TU) */
 static void sSetupWorldHeader(void* hdr);
@@ -432,7 +426,7 @@ void WorldSaveInitState(void) {
     if (lbl_80344DA4 != 0) {
         WorldObj* wobjs;
         s32 count = *(s32*)lbl_80344DA4;
-        world_objects = InitWorldInfo(&gWorldInfo);
+        world_objects = InitWorldInfo(&gWorldInfo, lbl_80344DA4);
         memBase = mlmMemUsed;
         lbl_80344D74 = AllocMem(count * 4);
         lbl_80344D78 = AllocMem(count * 12);
@@ -453,7 +447,7 @@ void WorldSaveInitState(void) {
     }
 
     if (lbl_80344DA0 != 0) {
-        lbl_80344D98 = InitWorldInfo(&gWorldInfo2);
+        lbl_80344D98 = InitWorldInfo(&gWorldInfo2, lbl_80344DA0);
         lbl_80344D8C = world_root1;
         CreateWorldNode(lbl_80344D98, lbl_80344D98, 0);
         MBTreeSetAltTex(world_root1, -2, gWorldInfo.whitetex, 1);
@@ -859,4 +853,345 @@ void* NewWorldObject(WorldObj* obj, WorldObj* parent) {
         MBTreeSetZsortAdd(node, -2, 1);
     }
     return node;
+}
+
+/* ---- InitWorldInfo (0x800A9E1C) ------------------------------------------
+ * Build one WorldInfo's runtime block from the loaded (little-endian) world
+ * file image: fix up every table's endianness on the FIRST init only
+ * (gWorldInfo.inited gates the swap; restores reuse the already-swapped
+ * data), resolve the embedded offsets into pointers, derive the world
+ * bounds/grid constants, allocate the coltri-checked and animdata arrays,
+ * and arm the animation and particle-system tables.  Returns wobjs. */
+
+/* byte-swap helpers: written through memory so each takes its value's
+ * address (matches the original's stack-slot swap sequences). */
+static u16 sSwapU16(u16 v) {
+    u8* b = (u8*)&v;
+    return (u16)((b[1] << 8) | b[0]);
+}
+
+static u32 sSwapU32(u32 v) {
+    u32 r;
+    u8* s = (u8*)&v;
+    u8* d = (u8*)&r;
+    d[0] = s[3];
+    d[1] = s[2];
+    d[2] = s[1];
+    d[3] = s[0];
+    return r;
+}
+
+static f32 sSwapF32(f32 v) {
+    u32 u;
+    f32 r;
+    u = sSwapU32(*(u32*)&v);
+    *(u32*)&r = u;
+    return r;
+}
+
+static const double lbl_80348768 = 0.0;  /* invgridsize fallback   */
+static const double lbl_80348788 = 0.5;  /* world center weight    */
+static const double lbl_803487A8 = 1.0;  /* invgridsize numerator  */
+
+WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
+    s32* blob = (s32*)data;
+    u8* base = (u8*)data;
+    f32* fblob = (f32*)data;
+    s32 memBase = mlmMemUsed;
+    s32 i;
+    s32 k;
+    s32 n;
+    s32 version;
+    u8* p;
+
+    wi->wobjs = (struct worldobj*)(base + blob[1]);
+    wi->ctris = (struct coltri*)(base + blob[3]);
+    wi->gridrow = (struct GRIDROW*)(base + blob[8]);
+    wi->grid = (struct GRIDENTRY*)(base + blob[5]);
+    wi->gridobjlist = (char*)(base + blob[7]);
+    wi->iteminfo = (struct iteminfo*)(base + blob[0x13]);
+    wi->iteminst = (struct iteminst*)(base + blob[0x15]);
+    wi->locators = (struct locator*)(base + blob[0x17]);
+
+    if (gWorldInfo.inited == 0) {
+        /* world objects (stride 0x3C) */
+        for (i = 0; i < blob[0]; i++) {
+            p = (u8*)wi->wobjs + i * 0x3C;
+            *(u16*)(p + 0x14) = sSwapU16(*(u16*)(p + 0x14));
+            *(u16*)(p + 0x2C) = sSwapU16(*(u16*)(p + 0x2C));
+            *(u16*)(p + 0x2E) = sSwapU16(*(u16*)(p + 0x2E));
+            *(u16*)(p + 0x36) = sSwapU16(*(u16*)(p + 0x36));
+            *(u32*)(p + 0x10) = sSwapU32(*(u32*)(p + 0x10));
+            *(f32*)(p + 0x30) = sSwapF32(*(f32*)(p + 0x30));
+            *(u32*)(p + 0x38) = sSwapU32(*(u32*)(p + 0x38));
+            *(u32*)(p + 0x18) = sSwapU32(*(u32*)(p + 0x18));
+            *(u32*)(p + 0x28) = sSwapU32(*(u32*)(p + 0x28));
+            for (k = 0; k < 3; k++) {
+                *(f32*)(p + 0x1C + k * 4) = sSwapF32(*(f32*)(p + 0x1C + k * 4));
+            }
+        }
+        /* collision triangles (stride 0x28) */
+        for (i = 0; i < blob[2]; i++) {
+            p = (u8*)wi->ctris + i * 0x28;
+            *(u16*)(p + 0x00) = sSwapU16(*(u16*)(p + 0x00));
+            *(u16*)(p + 0x02) = sSwapU16(*(u16*)(p + 0x02));
+            *(u16*)(p + 0x20) = sSwapU16(*(u16*)(p + 0x20));
+            *(u16*)(p + 0x22) = sSwapU16(*(u16*)(p + 0x22));
+            *(u16*)(p + 0x24) = sSwapU16(*(u16*)(p + 0x24));
+            *(u16*)(p + 0x26) = sSwapU16(*(u16*)(p + 0x26));
+            *(f32*)(p + 0x04) = sSwapF32(*(f32*)(p + 0x04));
+            for (k = 0; k < 3; k++) {
+                *(f32*)(p + 0x08 + k * 4) = sSwapF32(*(f32*)(p + 0x08 + k * 4));
+                *(f32*)(p + 0x14 + k * 4) = sSwapF32(*(f32*)(p + 0x14 + k * 4));
+            }
+        }
+        /* grid rows (stride 8) */
+        for (i = 0; i < blob[0x11]; i++) {
+            p = (u8*)wi->gridrow + i * 8;
+            *(u16*)(p + 0x00) = sSwapU16(*(u16*)(p + 0x00));
+            *(u16*)(p + 0x02) = sSwapU16(*(u16*)(p + 0x02));
+            *(u32*)(p + 0x04) = sSwapU32(*(u32*)(p + 0x04));
+        }
+        /* grid object index list (halfwords) */
+        n = (s32)((u32)(blob[5] - blob[7]) >> 1);
+        for (i = 0; i < n; i++) {
+            u16* hp = (u16*)wi->gridobjlist + i;
+            *hp = sSwapU16(*hp);
+        }
+        /* grid entries (words) */
+        n = (s32)((u32)(blob[8] - blob[5]) >> 2);
+        for (i = 0; i < n; i++) {
+            u32* wp = (u32*)wi->grid + i;
+            *wp = sSwapU32(*wp);
+        }
+        /* item infos (stride 0x50) */
+        for (i = 0; i < blob[0x12]; i++) {
+            p = (u8*)wi->iteminfo + i * 0x50;
+            *(u32*)p = sSwapU32(*(u32*)p);
+            if (*(s32*)p == -1) {
+                *(u32*)(p + 0x04) = sSwapU32(*(u32*)(p + 0x04));
+                for (k = 0; k < 16; k++) {
+                    *(u16*)(p + 0x08 + k * 2) =
+                        sSwapU16(*(u16*)(p + 0x08 + k * 2));
+                }
+            } else {
+                *(u16*)(p + 0x08) = sSwapU16(*(u16*)(p + 0x08));
+                *(u16*)(p + 0x0A) = sSwapU16(*(u16*)(p + 0x0A));
+                *(u16*)(p + 0x40) = sSwapU16(*(u16*)(p + 0x40));
+                *(u16*)(p + 0x42) = sSwapU16(*(u16*)(p + 0x42));
+                *(u16*)(p + 0x44) = sSwapU16(*(u16*)(p + 0x44));
+                *(u16*)(p + 0x46) = sSwapU16(*(u16*)(p + 0x46));
+                *(u16*)(p + 0x48) = sSwapU16(*(u16*)(p + 0x48));
+                *(u16*)(p + 0x4A) = sSwapU16(*(u16*)(p + 0x4A));
+                *(f32*)(p + 0x0C) = sSwapF32(*(f32*)(p + 0x0C));
+                *(f32*)(p + 0x10) = sSwapF32(*(f32*)(p + 0x10));
+                *(f32*)(p + 0x14) = sSwapF32(*(f32*)(p + 0x14));
+                *(f32*)(p + 0x18) = sSwapF32(*(f32*)(p + 0x18));
+                *(u32*)(p + 0x38) = sSwapU32(*(u32*)(p + 0x38));
+                *(u32*)(p + 0x3C) = sSwapU32(*(u32*)(p + 0x3C));
+                *(u32*)(p + 0x04) = sSwapU32(*(u32*)(p + 0x04));
+                *(u32*)(p + 0x4C) = sSwapU32(*(u32*)(p + 0x4C));
+                for (k = 0; k < 3; k++) {
+                    *(f32*)(p + 0x1C + k * 4) =
+                        sSwapF32(*(f32*)(p + 0x1C + k * 4));
+                }
+            }
+        }
+        /* item instances (stride 0x3C); payload layout depends on info type */
+        for (i = 0; i < blob[0x14]; i++) {
+            p = (u8*)wi->iteminst + i * 0x3C;
+            *(u16*)(p + 0x00) = sSwapU16(*(u16*)(p + 0x00));
+            *(u16*)(p + 0x04) = sSwapU16(*(u16*)(p + 0x04));
+            *(u16*)(p + 0x06) = sSwapU16(*(u16*)(p + 0x06));
+            switch (*(s32*)((u8*)wi->iteminfo + *(s16*)p * 0x50)) {
+            case 1:
+                *(u16*)(p + 0x30) = sSwapU16(*(u16*)(p + 0x30));
+                break;
+            case 2:
+                *(u16*)(p + 0x34) = sSwapU16(*(u16*)(p + 0x34));
+                *(u32*)(p + 0x30) = sSwapU32(*(u32*)(p + 0x30));
+                break;
+            case 3:
+                *(u16*)(p + 0x30) = sSwapU16(*(u16*)(p + 0x30));
+                *(u16*)(p + 0x32) = sSwapU16(*(u16*)(p + 0x32));
+                *(u16*)(p + 0x34) = sSwapU16(*(u16*)(p + 0x34));
+                *(u16*)(p + 0x36) = sSwapU16(*(u16*)(p + 0x36));
+                break;
+            case 4:
+                *(u16*)(p + 0x30) = sSwapU16(*(u16*)(p + 0x30));
+                *(u16*)(p + 0x32) = sSwapU16(*(u16*)(p + 0x32));
+                *(u16*)(p + 0x38) = sSwapU16(*(u16*)(p + 0x38));
+                *(u32*)(p + 0x34) = sSwapU32(*(u32*)(p + 0x34));
+                break;
+            case 5:
+                *(u16*)(p + 0x30) = sSwapU16(*(u16*)(p + 0x30));
+                *(u16*)(p + 0x32) = sSwapU16(*(u16*)(p + 0x32));
+                *(u16*)(p + 0x38) = sSwapU16(*(u16*)(p + 0x38));
+                *(u16*)(p + 0x3A) = sSwapU16(*(u16*)(p + 0x3A));
+                break;
+            case 6:
+                *(u16*)(p + 0x30) = sSwapU16(*(u16*)(p + 0x30));
+                *(u16*)(p + 0x32) = sSwapU16(*(u16*)(p + 0x32));
+                break;
+            case 9:
+                *(u32*)(p + 0x30) = sSwapU32(*(u32*)(p + 0x30));
+                break;
+            case 10:
+                *(u16*)(p + 0x30) = sSwapU16(*(u16*)(p + 0x30));
+                *(u16*)(p + 0x32) = sSwapU16(*(u16*)(p + 0x32));
+                break;
+            case 11:
+                *(u32*)(p + 0x30) = sSwapU32(*(u32*)(p + 0x30));
+                *(u32*)(p + 0x34) = sSwapU32(*(u32*)(p + 0x34));
+                break;
+            case 12:
+                *(u32*)(p + 0x30) = sSwapU32(*(u32*)(p + 0x30));
+                *(u32*)(p + 0x34) = sSwapU32(*(u32*)(p + 0x34));
+                *(u32*)(p + 0x38) = sSwapU32(*(u32*)(p + 0x38));
+                break;
+            case 13:
+                *(u16*)(p + 0x38) = sSwapU16(*(u16*)(p + 0x38));
+                *(u16*)(p + 0x3A) = sSwapU16(*(u16*)(p + 0x3A));
+                *(u32*)(p + 0x30) = sSwapU32(*(u32*)(p + 0x30));
+                *(u32*)(p + 0x34) = sSwapU32(*(u32*)(p + 0x34));
+                break;
+            }
+            for (k = 0; k < 3; k++) {
+                *(f32*)(p + 0x18 + k * 4) = sSwapF32(*(f32*)(p + 0x18 + k * 4));
+                *(f32*)(p + 0x24 + k * 4) = sSwapF32(*(f32*)(p + 0x24 + k * 4));
+            }
+        }
+        /* locators (stride 0x1C) */
+        for (i = 0; i < blob[0x16]; i++) {
+            p = (u8*)wi->locators + i * 0x1C;
+            *(u16*)(p + 0x02) = sSwapU16(*(u16*)(p + 0x02));
+            for (k = 0; k < 3; k++) {
+                *(f32*)(p + 0x04 + k * 4) = sSwapF32(*(f32*)(p + 0x04 + k * 4));
+                *(u32*)(p + 0x10 + k * 4) = sSwapU32(*(u32*)(p + 0x10 + k * 4));
+            }
+        }
+    }
+
+    wi->nwobjs = blob[0];
+    wi->nctris = blob[2];
+    wi->niteminfos = blob[0x12];
+    wi->niteminsts = blob[0x14];
+    wi->nlocators = blob[0x16];
+    wi->worldmin[0] = fblob[9];
+    wi->worldmin[1] = fblob[10];
+    wi->worldmin[2] = fblob[11];
+    wi->worldmax[0] = fblob[12];
+    wi->worldmax[1] = fblob[13];
+    wi->worldmax[2] = fblob[14];
+    wi->worldsize[0] = wi->worldmax[0] - wi->worldmin[0];
+    wi->worldsize[1] = wi->worldmax[1] - wi->worldmin[1];
+    wi->worldsize[2] = wi->worldmax[2] - wi->worldmin[2];
+    for (i = 0; i < 3; i++) {
+        wi->worldcenter[i] =
+            (f32)(lbl_80348788 * wi->worldsize[i] + wi->worldmin[i]);
+    }
+    wi->gridsize = fblob[0xF];
+    if (fblob[0xF] != lbl_80348778) {
+        wi->invgridsize = (f32)(lbl_803487A8 / fblob[0xF]);
+    } else {
+        wi->invgridsize = (f32)lbl_80348768;
+    }
+    wi->gridnumx = blob[0x10];
+    wi->gridnumz = blob[0x11];
+    wi->checknum = 1;
+    InitDynobjGrid();
+    wi->coltrichecked = AllocMem(blob[2]);
+    for (i = 0; i < blob[2]; i++) {
+        wi->coltrichecked[i] = 0;
+    }
+
+    /* header magic: 0xF00BABvv, vv = format version */
+    if (((u32)blob[0x18] & 0xF00BAB00) == 0xF00BAB00) {
+        version = blob[0x18] & 0xFF;
+    } else {
+        version = 0;
+    }
+
+    if (version >= 1 && blob[0x19] != 0) {
+        if (gWorldInfo.inited == 0) {
+            wi->animheader = SetupAnimHeader(base + blob[0x19], 0);
+        }
+        wi->worldanims = (struct worldanim*)(base + blob[0x1B]);
+        if (gWorldInfo.inited == 0) {
+            for (i = 0; i < blob[0x1A]; i++) {
+                p = (u8*)wi->worldanims + i * 0x10;
+                *(u16*)(p + 0x00) = sSwapU16(*(u16*)(p + 0x00));
+                *(u16*)(p + 0x02) = sSwapU16(*(u16*)(p + 0x02));
+                *(u16*)(p + 0x04) = sSwapU16(*(u16*)(p + 0x04));
+                *(u16*)(p + 0x06) = sSwapU16(*(u16*)(p + 0x06));
+                *(u32*)(p + 0x08) = sSwapU32(*(u32*)(p + 0x08));
+                *(u32*)(p + 0x0C) = sSwapU32(*(u32*)(p + 0x0C));
+            }
+        }
+        wi->nworldanims = blob[0x1A];
+        wi->animdata = AllocMem(blob[0x1A] * 0xA0);
+        if (gWorldInfo.inited == 0) {
+            for (i = 0; i < blob[0x1A]; i++) {
+                p = (u8*)wi->animdata + i * 0xA0;
+                *(u16*)(p + 0x08) = sSwapU16(*(u16*)(p + 0x08));
+                *(u16*)(p + 0x0A) = sSwapU16(*(u16*)(p + 0x0A));
+                *(u32*)(p + 0x04) = sSwapU32(*(u32*)(p + 0x04));
+                *(u32*)(p + 0x0C) = sSwapU32(*(u32*)(p + 0x0C));
+                *(u32*)(p + 0x00) = sSwapU32(*(u32*)(p + 0x00));
+                for (k = 0; k < 3; k++) {
+                    *(f32*)(p + 0x10 + k * 4) =
+                        sSwapF32(*(f32*)(p + 0x10 + k * 4));
+                    *(f32*)(p + 0x20 + k * 4) =
+                        sSwapF32(*(f32*)(p + 0x20 + k * 4));
+                    *(f32*)(p + 0x30 + k * 4) =
+                        sSwapF32(*(f32*)(p + 0x30 + k * 4));
+                    *(f32*)(p + 0x40 + k * 4) =
+                        sSwapF32(*(f32*)(p + 0x40 + k * 4));
+                    *(f32*)(p + 0x50 + k * 4) =
+                        sSwapF32(*(f32*)(p + 0x50 + k * 4));
+                    *(f32*)(p + 0x60 + k * 4) =
+                        sSwapF32(*(f32*)(p + 0x60 + k * 4));
+                    *(f32*)(p + 0x70 + k * 4) =
+                        sSwapF32(*(f32*)(p + 0x70 + k * 4));
+                    *(f32*)(p + 0x80 + k * 4) =
+                        sSwapF32(*(f32*)(p + 0x80 + k * 4));
+                    *(f32*)(p + 0x90 + k * 4) =
+                        sSwapF32(*(f32*)(p + 0x90 + k * 4));
+                }
+            }
+        }
+        for (i = 0; i < wi->nworldanims; i++) {
+            if (!(wi->worldanims[i].fixed & 0x8000)) {
+                wi->worldanims[i].data =
+                    base + (s32)wi->worldanims[i].data;
+                wi->worldanims[i].fixed |= 0x8000;
+            }
+            InitAnimData((u8*)wi->animdata + i * 0xA0, wi->worldanims[i].data);
+            wi->worldanims[i].state = 0x101;
+            ((WorldObj*)wi->wobjs)[wi->worldanims[i].objidx].flags |=
+                0x2000000;
+        }
+    } else {
+        wi->animheader = 0;
+        wi->worldanims = 0;
+        wi->nworldanims = 0;
+        wi->animdata = 0;
+    }
+
+    if (version < 2 || blob[0x1D] == 0) {
+        wi->worldpsys = 0;
+        wi->nworldpsys = 0;
+    } else {
+        wi->worldpsys = (struct WORLDPSYS*)(base + blob[0x1D]);
+        wi->nworldpsys = blob[0x1C];
+        if (gWorldInfo.inited == 0) {
+            for (i = 0; i < blob[0x1C]; i++) {
+                fn_80011DCC((u8*)wi->worldpsys + i * 0x138);
+            }
+        }
+    }
+
+    wi->inited = 1;
+    bulletproof_printf(lbl_80115244, (mlmMemUsed - memBase) >> 10);
+    return (WorldObj*)wi->wobjs;
 }

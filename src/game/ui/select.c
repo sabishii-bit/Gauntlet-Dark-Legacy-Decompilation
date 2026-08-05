@@ -123,11 +123,15 @@ extern char lbl_801144A0[];    /* welcome-back blit format string */
 extern void AudioSelectReset(void);
 extern void AudioStopSelect(void);
 extern void init_titlescreen(void);
-extern void init_attract_mode(void);
+extern void init_attract_mode(s32 mode);
 extern void LoadTowerAndSelect(int a);
 extern void remove_player_geo(int a);
 extern void msgInit(void);
 extern int  saveFileSize(int a);
+extern void AudioSelect(s32 code);
+extern void AudioCursorSelect(void);
+extern void AudioCursorChar(void);
+extern void AudioBuzzer(void);
 
 /* ---- text / MB blit library (other TUs) ---- */
 extern int  sprintf(char* buf, const char* fmt, ...);
@@ -223,17 +227,1082 @@ static s32 LimitSeltype(u8* player, s32 idx, s32 step)
 
 static void do_sel_menu_8008E4F4(s32 player, u32 mode);
 
-/* Top-level select state machine (invoked from gamemain / attract). */
-void do_player_select(void)
+/* ---- extra externs / protos used by do_player_select ---- */
+extern s32 lbl_80344BB0;   /* select-audio countdown */
+extern s32 lbl_80344BA8;   /* leave-select flag */
+extern s32 lbl_80344BAC;   /* all-idle frame counter */
+extern s32 lbl_80344BB4;   /* save-list debounce timer */
+extern s32 lbl_80344BB8;   /* required save file size */
+extern s32 lbl_803445DC;   /* in-select flag */
+extern s32 sFlags;         /* demo / cpu-select flags */
+extern s32 gClockStepTicks;
+extern s32 gFrameTicks;
+extern f32 lbl_80347F3C;   /* "Loading..." text scale */
+extern f32 lbl_80347F54;   /* "Press START" text scale */
+extern char lbl_80347F40[4]; /* auto-select save name */
+extern u8 lbl_80240E30[];  /* pad states, 4 x 0x3C, buttons at +8 */
+extern void show_optmenu(void);
+extern s32 do_optmenu(void* menu, s32 serve);
+extern void remove_optmenu(void* menu);
+extern s32 saveExists(void);
+extern char* strcpy(char* dst, const char* src);
+extern void clear_player(s32 i, s32 mode);
+extern void abort_player(s32 i);
+extern s32 set_hidden_player(u8* pl);
+extern s32 fn_8005AC10(s32 i);  /* name-entry open */
+extern s32 fn_8005A738(s32 i);  /* name-entry serve; 1 = done */
+extern s32 saveMount(s32 chan, s32 slot, s32 mode);
+extern u8 MemCardCreateGaunt(s32 chan, s32 slot);
+extern void set_directory_refresh_flags(s32 mask);
+extern s32 fn_80055F68(s32 a, s32 b);  /* async card-op poll */
+extern s32 PlayerLoadSaveFile(s32 i, s32 file);
+extern s32 PlayerWriteSaveFile(s32 i, s32 file);
+extern void add_vmu_file(s32 chan, s32 slot, s32 file, char* name, s32 flags,
+                         s32 cls);
+extern s32 fn_80053B60(void);   /* front-end mode poll */
+extern void fn_80053B20(void);  /* front-end teardown */
+extern void WritePlayerInfo(s32 i);
+extern s32 saveGetFreeBytes(s32 chan, s32 handle);
+extern void LoadPlyrData(s32 player, s32 pad, s32 mode);
+
+void setup_sel_menu(s32 player, s32 mode);
+void init_player_change(s32 idx, s32 arg1);
+int setup_file_entries(u8* pl, s32 fromLoad);
+int verify_vmu_file_ok(u8* pl, s32 v);
+s32 other_players_next_level(s32 idx);
+void setup_vmu_entries(void);
+s32 serve_blits(s32 player);
+void update_class_attr(s32 player);
+void update_class_spec(s32 player);
+
+/* select-time snapshot of the persistent player block (0xA80..0x1EB4),
+ * struct-assigned into the save shadow at +0x1ECC */
+typedef struct SaveSnap {
+    s32 w[0x50D];
+} SaveSnap;
+
+#pragma dont_inline on
+/* Top-level select state machine (invoked from gamemain / attract).
+ * Returns 1 once every pad has sat idle long enough to leave the screen. */
+s32 do_player_select(void)
 {
-    int i;
-    init_titlescreen();
-    init_attract_mode();
-    for (i = 0; i < 16; i++) {
-        do_sel_menu_8008E4F4(i, 0);
+    char* pool = lbl_801143F8;
+    u8* blitbase = lbl_80284878;
+    u8* page = lbl_80121688;
+    s32 allIdle = 1;
+    s32 anySelecting = 0;
+    u32 servedMask = 0;
+    s32 i;
+    u8* pl;
+    u8* blit;
+    u8* menu;
+    s32* xp;
+    s32 choice;
+
+    if (lbl_80344BB0 > 0) {
+        lbl_80344BB0--;
+        if (lbl_80344BB0 == 0) {
+            AudioSelect(1);
+        } else {
+            DrawGlowText(lbl_80347F3C, 0x154, 0x104, pool + 144);
+        }
     }
-    AudioWelcome(0, 0);
+    lbl_803445DC = 1;
+    new_menu_accept(-1, 1);
+
+    pl = gPlayers;
+    for (i = 0; i < 4; i++, pl += 13148) {
+        if (*(s32*)(pl + 0xE8) == 0 && (lbl_80344824 & (1 << i))) {
+            new_player(i);
+        }
+    }
+    setup_vmu_entries();
+
+    pl = gPlayers;
+    for (i = 4; i != 0; i--, pl += 13148) {
+        s32 st = *(s32*)(pl + 0xE8);
+        if (st == 3) {
+            anySelecting = 1;
+        } else if (st < 3 && st >= 2) {
+            anySelecting = 1;
+            allIdle = 0;
+        }
+    }
+    if (lbl_80344824 == 0) {
+        lbl_80344BA8 = 1;
+    }
+    if (anySelecting) {
+        for (i = 0; i < 4; i++) {
+            if (serve_blits(i) != 0) {
+                servedMask |= 1 << i;
+            }
+        }
+        if (servedMask != 0) {
+            allIdle = 0;
+        }
+    } else {
+        hide_select_blits(-1, 1);
+    }
+    if (lbl_80344BB4 > 0) {
+        lbl_80344BB4 -= gClockStepTicks;
+        if (lbl_80344BB4 < 0) {
+            lbl_80344BB4 = 0;
+        }
+    }
+
+    pl = gPlayers;
+    blit = blitbase;
+    menu = (u8*)lbl_80121950;
+    xp = (s32*)page;
+    for (i = 0; i < 4; i++, pl += 13148, blit += 132, menu += 232, xp++) {
+        s32 costume = *(s32*)(pl + 4);
+        s32 st;
+
+        if (lbl_80344BB0 != 0) {
+            allIdle = 0;
+            continue;
+        }
+        if (lbl_80344BA8 != 0) {
+            continue;
+        }
+        st = *(s32*)(pl + 0xE8);
+        if (st == 2) {
+            switch (*(s32*)(pl + 0x3338)) {
+            case 0: /* top select menu */
+                *(s32*)(pl + 0x333C) = *(s32*)(pl + 0x3338);
+                if (!(sFlags & 4)) {
+                    if (*(s32*)(menu + 108) == 0) {
+                        setup_sel_menu(i, 0);
+                        if (vmu_directory_exists() > 1 && saveExists() != 0) {
+                            u8* e = *(u8**)(menu + 28);
+                            s32 k = 0;
+                            s32 found = -1;
+                            for (;; e += 36, k++) {
+                                if (*(u32*)e == 0) {
+                                    break;
+                                }
+                                if (*(s32*)(e + 4) == 1001 &&
+                                    *(s32*)(e + 32) >= 0) {
+                                    found = k;
+                                    break;
+                                }
+                            }
+                            if (found >= 0) {
+                                *(s32*)(menu + 116) = found;
+                            }
+                        }
+                    }
+                    show_optmenu();
+                    choice = do_optmenu(menu, 1);
+                    do_sel_menu_8008E4F4(i, 0);
+                    if (choice == 1000) {
+                        remove_optmenu(menu);
+                        *(s32*)(pl + 0x3348) = 1;
+                        *(s32*)(pl + 0x3338) = 3;
+                        AudioCursorSelect();
+                    } else if (choice < 1000) {
+                        if (choice == -1) {
+                            remove_optmenu(menu);
+                            if ((lbl_80344824 & ~(1 << i)) == 0) {
+                                clear_player(i, 1);
+                                lbl_80344BA8 = 1;
+                            } else {
+                                abort_player(i);
+                            }
+                        }
+                    } else if (choice < 1002) {
+                        remove_optmenu(menu);
+                        *(s32*)(pl + 0x3348) = 1;
+                        *(s32*)(pl + 0x3338) = 5;
+                        AudioCursorSelect();
+                    }
+                } else {
+                    *(s32*)(pl + 0xE8) = 3;
+                    strcpy((char*)(pl + 0xA80), lbl_80347F40);
+                }
+                break;
+
+            case 1: { /* load/save menu */
+                *(s32*)(pl + 0x333C) = *(s32*)(pl + 0x3338);
+                if (*(s32*)(menu + 108) == 0) {
+                    setup_sel_menu(i, 1);
+                    if (vmu_directory_exists() < 2 || saveExists() == 0) {
+                        u8* e = *(u8**)(menu + 28);
+                        s32 k = 0;
+                        s32 found = -1;
+                        for (;; e += 36, k++) {
+                            if (*(u32*)e == 0) {
+                                break;
+                            }
+                            if (*(s32*)(e + 4) == 1005 &&
+                                *(s32*)(e + 32) >= 0) {
+                                found = k;
+                                break;
+                            }
+                        }
+                        if (found >= 0) {
+                            *(s32*)(menu + 116) = found;
+                        }
+                    }
+                    if (lbl_803448AC == 8 && lbl_803448A8 == 3) {
+                        u8* e;
+                        for (e = *(u8**)(menu + 28); *(u32*)e != 0; e += 36) {
+                            if (*(s32*)(e + 4) == 1003 &&
+                                *(s32*)(e + 32) >= 0) {
+                                *(s32*)(e + 32) = -1;
+                            }
+                        }
+                        for (e = *(u8**)(menu + 28); *(u32*)e != 0; e += 36) {
+                            if (*(s32*)(e + 4) == 1001 &&
+                                *(s32*)(e + 32) >= 0) {
+                                *(s32*)(e + 32) = -1;
+                            }
+                        }
+                        for (e = *(u8**)(menu + 28); *(u32*)e != 0; e += 36) {
+                            if (*(s32*)(e + 4) == 1004 &&
+                                *(s32*)(e + 32) >= 0) {
+                                *(s32*)(e + 32) = -1;
+                            }
+                        }
+                    }
+                }
+                show_optmenu();
+                choice = do_optmenu(menu, 1);
+                do_sel_menu_8008E4F4(i, 1);
+                if (choice == 1002) {
+                    remove_optmenu(menu);
+                    *(s32*)(pl + 0x3338) = 10;
+                } else if (choice < 1002) {
+                    if (choice != -1 && choice > -2 && choice > 1000) {
+                        remove_optmenu(menu);
+                        if (*(s8*)(pl + 0xA8B) == 0) {
+                            *(s32*)(pl + 0x3348) = 0;
+                        } else {
+                            *(s32*)(pl + 0x3348) = 1;
+                        }
+                        *(s32*)(pl + 0x3338) = 5;
+                    }
+                } else if (choice == 1005) {
+                    AudioCursorSelect();
+                    remove_optmenu(menu);
+                    *(s32*)(pl + 0xE8) = 3;
+                } else if (choice < 1005) {
+                    if (choice < 1004) { /* 1003: resume character */
+                        remove_optmenu(menu);
+                        if (set_hidden_player(pl) == 0) {
+                            *(s32*)(pl + 0x10) =
+                                LimitSeltype(pl, *(s32*)(pl + 0xC), 0);
+                            *(s32*)(pl + 0x3338) = 4;
+                        } else {
+                            s32 pi = *(s32*)pl;
+                            u8* b;
+                            init_player_change(pi, *(s32*)(pl + 0xC));
+                            b = blitbase + pi * 132;
+                            *(s32*)(b + 0x1C) = 5;
+                            *(s32*)(b + 0x20) = 0;
+                            mbBlitInit3414(*(void**)(b + 0x18), 0);
+                            MBBlitSetAlpha(*(void**)(b + 0x18), 0xFF);
+                            *(s32*)(b + 0x28) = 7;
+                            *(s32*)(b + 0x2C) = 0;
+                            *(s32*)(b + 0x4C) = 1;
+                            *(s32*)(b + 0x50) = 0;
+                            *(s32*)(b + 0x40) = 1;
+                            *(s32*)(b + 0x44) = 0;
+                        }
+                    } else { /* 1004: change character */
+                        remove_optmenu(menu);
+                        if (*(s8*)(pl + 0xA8B) == 0) {
+                            *(s32*)(pl + 0x3348) = 0;
+                        } else {
+                            *(s32*)(pl + 0x3348) = 1;
+                        }
+                        *(s32*)(pl + 0x3338) = 2;
+                    }
+                }
+                break;
+            }
+
+            case 2: /* change-character confirm */
+                if (*(s32*)(pl + 0x3348) != 0) {
+                    if ((lbl_80344824 & ~(1 << i)) == 0) {
+                        clear_player(i, 1);
+                        lbl_80344BA8 = 1;
+                    } else {
+                        abort_player(i);
+                    }
+                } else {
+                    if (*(s32*)(menu + 108) == 0) {
+                        setup_sel_menu(i, 15);
+                    }
+                    show_optmenu();
+                    choice = do_optmenu(menu, 1);
+                    do_sel_menu_8008E4F4(i, 4);
+                    if (choice == 1006) {
+                        remove_optmenu(menu);
+                        *(s32*)(pl + 0x3348) = 1;
+                    } else if (choice < 1006) {
+                        if (choice == -1) {
+                            goto conf2_back;
+                        }
+                    } else if (choice < 1008) {
+                    conf2_back:
+                        remove_optmenu(menu);
+                        *(s32*)(pl + 0x3338) = 1;
+                    }
+                }
+                break;
+
+            case 3: /* name entry */
+                if (*(s32*)(pl + 0x3348) < 2 && *(s32*)(pl + 0x3348) >= 0) {
+                    fn_8005AC10(i);
+                    *(s32*)(pl + 0x3348) = 2;
+                }
+                if (fn_8005A738(i) != 0) {
+                    if (set_hidden_player(pl) == 0) {
+                        *(s32*)(pl + 0x10) =
+                            LimitSeltype(pl, *(s32*)(pl + 0xC), 0);
+                        *(s32*)(pl + 0x3338) = 4;
+                    } else {
+                        s32 pi = *(s32*)pl;
+                        u8* b;
+                        init_player_change(pi, *(s32*)(pl + 0xC));
+                        b = blitbase + pi * 132;
+                        *(s32*)(b + 0x1C) = 5;
+                        *(s32*)(b + 0x20) = 0;
+                        mbBlitInit3414(*(void**)(b + 0x18), 0);
+                        MBBlitSetAlpha(*(void**)(b + 0x18), 0xFF);
+                        *(s32*)(b + 0x28) = 7;
+                        *(s32*)(b + 0x2C) = 0;
+                        *(s32*)(b + 0x4C) = 1;
+                        *(s32*)(b + 0x50) = 0;
+                        *(s32*)(b + 0x40) = 1;
+                        *(s32*)(b + 0x44) = 0;
+                    }
+                    *(SaveSnap*)(pl + 0x1ECC) = *(SaveSnap*)(pl + 0xA80);
+                }
+                choice = do_optmenu(menu, 0);
+                do_sel_menu_8008E4F4(i, 2);
+                if (choice == -1) {
+                    *(s32*)(pl + 0x3338) = *(s32*)(pl + 0x333C);
+                }
+                break;
+
+            case 4: { /* class / costume pick */
+                s32 sel = *(s32*)(pl + 0x10);
+                s32 moved = 0;
+                s32 step = 0;
+                s32 newsel;
+                s32 known;
+                char* texname;
+
+                choice = do_optmenu(menu, 0);
+                do_sel_menu_8008E4F4(i, 3);
+                switch (choice) {
+                case 3:
+                    step = -1;
+                    moved = 1;
+                    break;
+                case 4:
+                    step = 1;
+                    moved = 1;
+                    break;
+                case 7:
+                    costume++;
+                    if (costume > 3) {
+                        costume = 0;
+                    }
+                    moved = 1;
+                    break;
+                case 8:
+                    costume--;
+                    if (costume < 0) {
+                        costume = 3;
+                    }
+                    moved = 1;
+                    break;
+                case -1:
+                    *(s32*)(pl + 0x3338) = *(s32*)(pl + 0x333C);
+                    if (*(s32*)(pl + 0x3338) == 0) {
+                        new_player(i);
+                    }
+                    mbBlitInit3414(*(void**)(blit + 0x24), 1);
+                    break;
+                }
+                if (moved || sel + step != *(s32*)(pl + 0x10) ||
+                    *(s32*)(pl + 0xEC) != 2) {
+                    *(s32*)(pl + 0xEC) = 2;
+                    newsel = LimitSeltype(pl, sel + step, step);
+                    if (newsel != 16) {
+                        LoadPlyrData(i, newsel, 0);
+                    }
+                    if (moved || newsel != *(s32*)(pl + 0x10)) {
+                        if (*(s32*)(pl + 0x10) < 8) {
+                            known = 1;
+                        } else if (*(u16*)(pl + 0xA8C) &
+                                   (1 << (*(s32*)(pl + 0x10) - 8))) {
+                            known = 1;
+                        } else {
+                            known = 0;
+                        }
+                        if (known) {
+                            texname = lbl_80120104[costume];
+                        } else {
+                            texname = lbl_80347F44;
+                        }
+                        AudioCursorChar();
+                        if (*(s32*)(pl + 0x10) == 16) {
+                            setup_tex(i, 4, 0, 0, lbl_80347F4C);
+                        } else {
+                            setup_tex(i, 4, 0, 0, pool + 156,
+                                      lbl_801200B0[*(s32*)(pl + 0x10)],
+                                      texname);
+                        }
+                        *(s32*)(blit + 0x34) = 2;
+                        *(s32*)(blit + 0x38) = 0;
+                        if (serve_blits(i) != 0) {
+                            servedMask |= 1 << i;
+                        }
+                    }
+                    *(s32*)(pl + 0x10) = newsel;
+                    *(s32*)(pl + 4) = costume;
+                }
+                if (new_menu_accept(i, 0) != 0) {
+                    if (*(s32*)(pl + 0x10) < 8) {
+                        known = 1;
+                    } else if (*(u16*)(pl + 0xA8C) &
+                               (1 << (*(s32*)(pl + 0x10) - 8))) {
+                        known = 1;
+                    } else {
+                        known = 0;
+                    }
+                    if (known) {
+                        AudioCursorSelect();
+                        if (*(s32*)(pl + 0x3328) == 0) {
+                            s32 picked = *(s32*)(pl + 0x10);
+                            s32 saved;
+                            s32 wflag;
+                            *(s32*)(pl + 0xE8) = 3;
+                            *(s32*)(pl + 0x830) = other_players_next_level(i);
+                            saved = *(s32*)(pl + 0xF0);
+                            change_player(i, picked);
+                            *(s32*)(pl + 0xF0) = saved;
+                            setup_tex(i, 2, 0, 0, pool + 168,
+                                      lbl_801200B0[picked & 7]);
+                            mbBlitProject(*(void**)(blit + 0x18), -1, 320);
+                            wflag = (*(s32*)(pl + 0xF0) == 0) ? 1 : 0;
+                            if (*(s32*)(pl + 0x1EC0) == 0) {
+                                AudioWelcomeBack(i, wflag);
+                            } else {
+                                AudioWelcome(i, wflag);
+                            }
+                        } else {
+                            s32 wflag = 1;
+                            change_player(i, *(s32*)(pl + 0x10));
+                            *(s32*)(pl + 0x3328) = 1;
+                            *(s32*)(pl + 0x3338) = 1;
+                            setup_sel_menu(i, *(s32*)(pl + 0x3338));
+                            {
+                                u8* e = *(u8**)(menu + 28);
+                                s32 k = 0;
+                                s32 found = -1;
+                                for (;; e += 36, k++) {
+                                    if (*(u32*)e == 0) {
+                                        break;
+                                    }
+                                    if (*(s32*)(e + 4) == 1005 &&
+                                        *(s32*)(e + 32) >= 0) {
+                                        found = k;
+                                        break;
+                                    }
+                                }
+                                if (found >= 0) {
+                                    *(s32*)(menu + 116) = found;
+                                }
+                            }
+                            setup_tex(i, 2, 0, 0, pool + 168,
+                                      lbl_801200B0[*(s32*)(pl + 0x10) & 7]);
+                            mbBlitProject(*(void**)(blit + 0x18), -1, 320);
+                            if (*(s32*)(pl + 0x10) == 16 ||
+                                *(s32*)(pl + 0xF0) != 0) {
+                                wflag = 0;
+                            }
+                            if (*(s32*)(pl + 0x1EC0) == 0) {
+                                AudioWelcomeBack(i, wflag);
+                            } else {
+                                AudioWelcome(i, wflag);
+                            }
+                        }
+                        *(s32*)(blit + 0x1C) = 5;
+                        *(s32*)(blit + 0x20) = 0;
+                        mbBlitInit3414(*(void**)(blit + 0x18), 0);
+                        MBBlitSetAlpha(*(void**)(blit + 0x18), 0xFF);
+                        *(s32*)(blit + 0x28) = 7;
+                        *(s32*)(blit + 0x2C) = 0;
+                        *(s32*)(blit + 0x4C) = 1;
+                        *(s32*)(blit + 0x50) = 0;
+                        *(s32*)(blit + 0x40) = 1;
+                        *(s32*)(blit + 0x44) = 0;
+                    } else {
+                        AudioBuzzer();
+                    }
+                }
+                break;
+            }
+
+            case 5: /* pick a memory card (load) */
+                if (*(s32*)(pl + 0x3348) == 0) {
+                    if (*(s32*)(menu + 108) == 0) {
+                        setup_sel_menu(i, 15);
+                    }
+                    show_optmenu();
+                    choice = do_optmenu(menu, 1);
+                    if (choice == 1006) {
+                        remove_optmenu(menu);
+                        *(s32*)(pl + 0x3348) = 1;
+                    } else if (choice < 1006) {
+                        if (choice == -1) {
+                            goto card5_back;
+                        }
+                    } else if (choice < 1008) {
+                    card5_back:
+                        remove_optmenu(menu);
+                        *(s32*)(pl + 0x3338) = *(s32*)(pl + 0x333C);
+                    }
+                    do_sel_menu_8008E4F4(i, 5);
+                }
+                if (*(s32*)(pl + 0x3348) != 0) {
+                    if (*(s32*)(menu + 108) == 0) {
+                        setup_sel_menu(i, 5);
+                    }
+                    *(s32*)(menu + 132) = 0;
+                    show_optmenu();
+                    choice = do_optmenu(menu, 1);
+                    if (vmu_directory_exists() < 1) {
+                        choice = -1;
+                    }
+                    do_sel_menu_8008E4F4(i, 5);
+                    if (choice == -1) {
+                        remove_optmenu(menu);
+                        *(s32*)(pl + 0x3338) = *(s32*)(pl + 0x333C);
+                    } else if (choice > 999) {
+                        s32 r;
+                        set_directory_refresh_flags(-1);
+                        remove_optmenu(menu);
+                        *(s32*)(pl + 0x334C) = choice - 1000;
+                        *(s32*)(pl + 0x3350) = 0;
+                        r = setup_file_entries(pl, 1);
+                        if (r == -1) {
+                            s32 busy = 0;
+                            u8* q = gPlayers;
+                            s32 n;
+                            for (n = 4; n != 0; n--, q += 13148) {
+                                if (*(s32*)(q + 0xE8) == 2 && q != pl &&
+                                    *(s32*)(q + 0x334C) ==
+                                        *(s32*)(pl + 0x334C) &&
+                                    *(s32*)(q + 0x3350) ==
+                                        *(s32*)(pl + 0x3350)) {
+                                    s32 ms = *(s32*)(q + 0x3338);
+                                    if (ms == 6 || ms == 11 || ms == 12) {
+                                        busy = 1;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (busy) {
+                                *(s32*)(pl + 0x3338) = 5;
+                            } else {
+                                *(s32*)(pl + 0x3338) = 6;
+                            }
+                            *(s32*)(pl + 0x3348) = 0;
+                        } else if (r < 1) {
+                            *(s32*)(pl + 0x3338) = 7;
+                            *(s32*)(pl + 0x3348) = 1;
+                        } else {
+                            *(s32*)(pl + 0x3338) = 8;
+                        }
+                    }
+                }
+                break;
+
+            case 6:  /* mount / create-file confirm + progress */
+            case 11:
+            case 12: {
+                s32 t = *(s32*)(pl + 0x3348);
+                if (t == 3) {
+                    s32 ok;
+                    if (*(s32*)(pl + 0x3338) == 6) {
+                        ok = saveMount(*(s32*)(pl + 0x334C),
+                                       *(s32*)(pl + 0x3350), 1);
+                        if (ok < 0) {
+                            ok = 0;
+                        }
+                    } else {
+                        if (*(s32*)(pl + 0x3338) == 12 &&
+                            saveGetFreeBytes(*(s32*)(pl + 0x334C),
+                                             *(s32*)(pl + 0x3350)) <
+                                lbl_80344BB8) {
+                            *(s32*)(pl + 0x3348) = 1000;
+                            goto serve6;
+                        }
+                        ok = MemCardCreateGaunt(*(s32*)(pl + 0x334C),
+                                                *(s32*)(pl + 0x3350));
+                    }
+                    if (ok == 0) {
+                        *(s32*)(pl + 0x3348) = -1;
+                    } else {
+                        *(s32*)(pl + 0x3348) += 1;
+                    }
+                    goto serve6;
+                }
+                if (t < 3) {
+                    if (t == 0) {
+                        if (*(s32*)(menu + 108) == 0) {
+                            setup_sel_menu(i, 15);
+                        }
+                        show_optmenu();
+                        choice = do_optmenu(menu, 1);
+                        if (*(s32*)((u8*)&lbl_80344A14 +
+                                    *(s32*)(pl + 0x334C) * 4 +
+                                    *(s32*)(pl + 0x3350) * 4) != 1) {
+                            choice = -1;
+                        }
+                        if (setup_file_entries(pl, 1) > 0) {
+                            choice = -1;
+                        }
+                        {
+                            s32 busy = 0;
+                            u8* q = gPlayers;
+                            s32 n;
+                            for (n = 4; n != 0; n--, q += 13148) {
+                                if (*(s32*)(q + 0xE8) == 2 && q != pl &&
+                                    *(s32*)(q + 0x334C) ==
+                                        *(s32*)(pl + 0x334C) &&
+                                    *(s32*)(q + 0x3350) ==
+                                        *(s32*)(pl + 0x3350)) {
+                                    s32 ms = *(s32*)(q + 0x3338);
+                                    if (ms == 6 || ms == 11 || ms == 12) {
+                                        busy = 1;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (busy) {
+                                choice = -1;
+                            }
+                        }
+                        if (choice == 1006) {
+                            remove_optmenu(menu);
+                            *(s32*)(pl + 0x3348) = 1;
+                        } else if (choice < 1006) {
+                            if (choice == -1) {
+                                goto conf6_back;
+                            }
+                        } else if (choice < 1008) {
+                        conf6_back:
+                            remove_optmenu(menu);
+                            if (*(s32*)(pl + 0x3338) == 6) {
+                                *(s32*)(pl + 0x3338) = 5;
+                                *(s32*)(pl + 0x3348) = 1;
+                            } else {
+                                *(s32*)(pl + 0x3338) = 10;
+                            }
+                        }
+                    } else {
+                        if (t < 0) {
+                            goto decay6;
+                        }
+                        if (fn_80055F68(0, 0) != 0) {
+                            *(s32*)(pl + 0x3348) += 1;
+                        }
+                    }
+                } else {
+                decay6:
+                    if (t < 1000) {
+                        if (t < 0) {
+                            *(s32*)(pl + 0x3348) -= gFrameTicks;
+                            if (*(s32*)(pl + 0x3348) < -0x77) {
+                                *(s32*)(pl + 0x3338) = *(s32*)(pl + 0x333C);
+                                *(s32*)(pl + 0x3348) = 0;
+                            }
+                        } else {
+                            *(s32*)(pl + 0x3348) += gFrameTicks;
+                            if (*(s32*)(pl + 0x3348) > 0x77) {
+                                if (*(s32*)(pl + 0x3338) == 6) {
+                                    *(s32*)(pl + 0x3338) = 5;
+                                    *(s32*)(pl + 0x3348) = 1;
+                                } else {
+                                    *(s32*)(pl + 0x3338) = 13;
+                                    setup_file_entries(pl, 1);
+                                    *(s32*)(pl + 0x3348) = 0;
+                                }
+                            }
+                        }
+                    } else {
+                        *(s32*)(pl + 0x3348) += gFrameTicks;
+                        if (*(s32*)(pl + 0x3348) > 0x45F) {
+                            *(s32*)(pl + 0x3348) = 0;
+                            *(s32*)(pl + 0x3338) = *(s32*)(pl + 0x333C);
+                        }
+                    }
+                }
+            serve6:
+                if (*(s32*)(pl + 0x3338) == 11) {
+                    do_sel_menu_8008E4F4(i, 11);
+                } else if (*(s32*)(pl + 0x3338) == 6) {
+                    do_sel_menu_8008E4F4(i, 6);
+                } else {
+                    do_sel_menu_8008E4F4(i, 12);
+                }
+                break;
+            }
+
+            case 7: /* "no files" notice */
+                do_sel_menu_8008E4F4(i, 7);
+                *(s32*)(pl + 0x3348) += gFrameTicks;
+                if (*(s32*)(pl + 0x3348) > 0x77) {
+                    *(s32*)(pl + 0x3338) = *(s32*)(pl + 0x333C);
+                    *(s32*)(pl + 0x3348) = 0;
+                }
+                break;
+
+            case 8: /* pick a save file (load) */
+                if (*(s32*)(menu + 108) == 0) {
+                    setup_sel_menu(i, 8);
+                }
+                *(s32*)(menu + 132) = 0;
+                show_optmenu();
+                choice = do_optmenu(menu, 1);
+                if (*(s32*)((u8*)&lbl_80344A14 + *(s32*)(pl + 0x334C) * 4 +
+                            *(s32*)(pl + 0x3350) * 4) != 1 ||
+                    *(s32*)((u8*)&lbl_80344A18 + *(s32*)(pl + 0x334C) * 4 +
+                            *(s32*)(pl + 0x3350) * 4) != 3) {
+                    choice = -1;
+                }
+                setup_file_entries(pl, 0);
+                do_sel_menu_8008E4F4(i, 8);
+                if (choice == -1) {
+                    remove_optmenu(menu);
+                    *(s32*)(pl + 0x3338) = 5;
+                } else if (choice > 999) {
+                    if (verify_vmu_file_ok(pl, choice - 1000) != 0) {
+                        remove_optmenu(menu);
+                        *(s32*)(pl + 0x3338) = 9;
+                        *(s32*)(pl + 0x3354) = choice - 1000;
+                        *(s32*)(pl + 0x3358) = choice - 1000;
+                        *(s32*)(pl + 0x3348) = 0;
+                    }
+                }
+                break;
+
+            case 9: { /* load-file progress */
+                s32 t = *(s32*)(pl + 0x3348);
+                if (t == 3) {
+                    if (PlayerLoadSaveFile(i, *(s32*)(pl + 0x3354)) == 0) {
+                        *(s32*)(pl + 0x3348) = -1;
+                    } else {
+                        *(s32*)(pl + 0x3348) += 1;
+                    }
+                } else if (t < 3 && t >= 0) {
+                    if (fn_80055F68(0, 0) != 0) {
+                        *(s32*)(pl + 0x3348) += 1;
+                    }
+                } else if (t < 0) {
+                    *(s32*)(pl + 0x3348) -= gFrameTicks;
+                    if (*(s32*)(pl + 0x3348) < -0x77) {
+                        *(s32*)(pl + 0x3338) = *(s32*)(pl + 0x333C);
+                        *(s32*)(pl + 0x3348) = -1;
+                    }
+                } else {
+                    *(s32*)(pl + 0x3348) += gFrameTicks;
+                    if (*(s32*)(pl + 0x3348) > 0x77) {
+                        if (set_hidden_player(pl) == 0) {
+                            *(s32*)(pl + 0x10) =
+                                LimitSeltype(pl, *(s32*)(pl + 0xC), 0);
+                            *(s32*)(pl + 0x3338) = 4;
+                        } else {
+                            s32 pi = *(s32*)pl;
+                            u8* b;
+                            init_player_change(pi, *(s32*)(pl + 0xC));
+                            b = blitbase + pi * 132;
+                            *(s32*)(b + 0x1C) = 5;
+                            *(s32*)(b + 0x20) = 0;
+                            mbBlitInit3414(*(void**)(b + 0x18), 0);
+                            MBBlitSetAlpha(*(void**)(b + 0x18), 0xFF);
+                            *(s32*)(b + 0x28) = 7;
+                            *(s32*)(b + 0x2C) = 0;
+                            *(s32*)(b + 0x4C) = 1;
+                            *(s32*)(b + 0x50) = 0;
+                            *(s32*)(b + 0x40) = 1;
+                            *(s32*)(b + 0x44) = 0;
+                        }
+                        *(s32*)(pl + 0x3328) = 1;
+                        *(s32*)(pl + 0x3348) = -1;
+                    }
+                }
+                do_sel_menu_8008E4F4(i, 9);
+                break;
+            }
+
+            case 10: /* pick a memory card (save) */
+                if (*(s32*)(menu + 108) == 0) {
+                    setup_sel_menu(i, 10);
+                }
+                *(s32*)(menu + 132) = 0;
+                show_optmenu();
+                choice = do_optmenu(menu, 1);
+                if (vmu_directory_exists() < 1) {
+                    choice = -1;
+                }
+                do_sel_menu_8008E4F4(i, 10);
+                if (choice == -1) {
+                    remove_optmenu(menu);
+                    *(s32*)(pl + 0x3338) = *(s32*)(pl + 0x333C);
+                } else if (choice > 999) {
+                    s32 r;
+                    set_directory_refresh_flags(-1);
+                    remove_optmenu(menu);
+                    *(s32*)(pl + 0x334C) = choice - 1000;
+                    *(s32*)(pl + 0x3350) = 0;
+                    r = setup_file_entries(pl, 1);
+                    if (r == -2) {
+                        remove_optmenu(menu);
+                        *(s32*)(pl + 0x3338) = 10;
+                    } else if (r == -1) {
+                        s32 busy = 0;
+                        u8* q = gPlayers;
+                        s32 n;
+                        for (n = 4; n != 0; n--, q += 13148) {
+                            if (*(s32*)(q + 0xE8) == 2 && q != pl &&
+                                *(s32*)(q + 0x334C) == *(s32*)(pl + 0x334C) &&
+                                *(s32*)(q + 0x3350) == *(s32*)(pl + 0x3350)) {
+                                s32 ms = *(s32*)(q + 0x3338);
+                                if (ms == 6 || ms == 11 || ms == 12) {
+                                    busy = 1;
+                                    break;
+                                }
+                            }
+                        }
+                        if (busy) {
+                            *(s32*)(pl + 0x3338) = 10;
+                        } else {
+                            *(s32*)(pl + 0x3338) = 11;
+                        }
+                        *(s32*)(pl + 0x3348) = 0;
+                    } else if (r == 0) {
+                        s32 busy = 0;
+                        u8* q = gPlayers;
+                        s32 n;
+                        for (n = 4; n != 0; n--, q += 13148) {
+                            if (*(s32*)(q + 0xE8) == 2 && q != pl &&
+                                *(s32*)(q + 0x334C) == *(s32*)(pl + 0x334C) &&
+                                *(s32*)(q + 0x3350) == *(s32*)(pl + 0x3350)) {
+                                s32 ms = *(s32*)(q + 0x3338);
+                                if (ms == 6 || ms == 11 || ms == 12) {
+                                    busy = 1;
+                                    break;
+                                }
+                            }
+                        }
+                        if (busy) {
+                            *(s32*)(pl + 0x3338) = 10;
+                        } else {
+                            *(s32*)(pl + 0x3338) = 12;
+                        }
+                        *(s32*)(pl + 0x3348) = 0;
+                    } else {
+                        *(s32*)(pl + 0x3338) = 13;
+                    }
+                }
+                break;
+
+            case 13: /* pick a save slot (save target) */
+                if (*(s32*)(menu + 108) == 0) {
+                    setup_sel_menu(i, 13);
+                }
+                show_optmenu();
+                setup_file_entries(pl, 1);
+                choice = do_optmenu(menu, 1);
+                if (vmu_directory_exists() < 1) {
+                    choice = -1;
+                }
+                do_sel_menu_8008E4F4(i, 13);
+                if (choice == -1) {
+                    remove_optmenu(menu);
+                    *(s32*)(pl + 0x3338) = 10;
+                } else if (choice > 999 && lbl_80344BB4 == 0) {
+                    remove_optmenu(menu);
+                    *(s32*)(pl + 0x3338) = 14;
+                    *(s32*)(pl + 0x3354) = choice - 1000;
+                    *(s32*)(pl + 0x3358) = choice - 1000;
+                    *(s32*)(pl + 0x3348) = 0;
+                    lbl_80344BB4 = 0x1E;
+                }
+                break;
+
+            case 14: { /* write-file progress */
+                s32 t = *(s32*)(pl + 0x3348);
+                if (t == 3) {
+                    if (PlayerWriteSaveFile(i, *(s32*)(pl + 0x3354)) == 0) {
+                        *(s32*)(pl + 0x3348) = -1;
+                    } else {
+                        *(s32*)(pl + 0x3348) += 1;
+                        add_vmu_file(*(s32*)(pl + 0x334C),
+                                     *(s32*)(pl + 0x3350),
+                                     *(s32*)(pl + 0x3354),
+                                     (char*)(pl + 0xA80),
+                                     *(u16*)(pl + 0xA8E), *(s32*)(pl + 0xC));
+                    }
+                    goto serve14;
+                }
+                if (t < 3) {
+                    if (t == 0) {
+                        if (*(s32*)(lbl_80274578 + *(s32*)(pl + 0x334C) * 132 +
+                                    *(s32*)(pl + 0x3350) * 132 +
+                                    *(s32*)(pl + 0x3354) * 16) < 0) {
+                            *(s32*)(pl + 0x3348) = 1;
+                        } else {
+                            if (*(s32*)(menu + 108) == 0) {
+                                setup_sel_menu(i, 15);
+                            }
+                            show_optmenu();
+                            choice = do_optmenu(menu, 1);
+                            if (choice == 1006) {
+                                remove_optmenu(menu);
+                                *(s32*)(pl + 0x3348) = 1;
+                            } else if (choice < 1006) {
+                                if (choice == -1) {
+                                    goto conf14_back;
+                                }
+                            } else if (choice < 1008) {
+                            conf14_back:
+                                remove_optmenu(menu);
+                                *(s32*)(pl + 0x3338) = 13;
+                                *(s32*)(pl + 0x3358) = -1;
+                            }
+                        }
+                    } else {
+                        if (t < 0) {
+                            goto decay14;
+                        }
+                        if (fn_80055F68(0, 0) != 0) {
+                            *(s32*)(pl + 0x3348) += 1;
+                        }
+                    }
+                } else {
+                decay14:
+                    if (t < 0) {
+                        *(s32*)(pl + 0x3348) -= gFrameTicks;
+                        if (*(s32*)(pl + 0x3348) < -0x77) {
+                            *(s32*)(pl + 0x3338) = *(s32*)(pl + 0x333C);
+                            *(s32*)(pl + 0x3348) = 0;
+                        }
+                    } else {
+                        *(s32*)(pl + 0x3348) += gFrameTicks;
+                        if (*(s32*)(pl + 0x3348) > 0x77) {
+                            *(s32*)(pl + 0x3348) = 0;
+                            *(s32*)(pl + 0x3338) = *(s32*)(pl + 0x333C);
+                            setup_sel_menu(i, *(s32*)(pl + 0x3338));
+                            {
+                                u8* e = *(u8**)(menu + 28);
+                                s32 k = 0;
+                                s32 found = -1;
+                                for (;; e += 36, k++) {
+                                    if (*(u32*)e == 0) {
+                                        break;
+                                    }
+                                    if (*(s32*)(e + 4) == 1005 &&
+                                        *(s32*)(e + 32) >= 0) {
+                                        found = k;
+                                        break;
+                                    }
+                                }
+                                if (found >= 0) {
+                                    *(s32*)(menu + 116) = found;
+                                }
+                            }
+                        }
+                    }
+                }
+            serve14:
+                do_sel_menu_8008E4F4(i, 14);
+                break;
+            }
+            }
+
+            if (*(s32*)(pl + 0xE8) == 2) {
+                update_class_spec(i);
+                update_class_attr(i);
+            }
+        } else if (st < 2) {
+            if (st < 1) {
+                *(s32*)(blit + 0x1C) = 1;
+                *(s32*)(blit + 0x20) = 0;
+            }
+        } else if (st > 3) {
+            *(s32*)(blit + 0x1C) = 1;
+            *(s32*)(blit + 0x20) = 0;
+        } else { /* st == 3: character locked in */
+            if (allIdle == 0 && !(servedMask & (1 << i))) {
+                s32 nx = -(*xp + 64);
+                DrawTextKeepScale(lbl_80347F54, nx, 0x8E, 0, 0xFFFFFF,
+                                  pool + 180);
+                DrawTextKeepScale(lbl_80347F54, nx, 0x9A, 0, 0xFFFFFF,
+                                  pool + 192);
+                DrawTextKeepScale(lbl_80347F54, nx, 0xA6, 0, 0xFFFFFF,
+                                  pool + 208);
+                DrawTextKeepScale(lbl_80347F54, nx, 0xB2, 0, 0xFFFFFF,
+                                  pool + 220);
+                if (*(u32*)(lbl_80240E30 + i * 60 + 8) & 0x40000) {
+                    *(s32*)(pl + 0xE8) = 2;
+                    *(s32*)(pl + 0x3338) = 1;
+                    *(s32*)(pl + 0x333C) = 1;
+                }
+            }
+            if (*(s32*)(pl + 0xC) == 2 &&
+                *(u32*)(pl + 0xF0) == lbl_80343D6C) {
+                setup_tex(i, 8, 0, 0, pool + 232);
+            } else {
+                setup_tex(i, 8, 0, 0, lbl_80347F58,
+                          lbl_801200B0[*(s32*)(pl + 0xC)]);
+            }
+        }
+    }
+
+    if (gGameMode == 0x400B) {
+        s32 r = fn_80053B60();
+        if (r == 0) {
+            if (allIdle != 0 || lbl_80344BA8 != 0) {
+                DrawGlowText(lbl_80347F3C, -0x100, 0xEA, pool + 144);
+                WritePlayerInfo(-1);
+            }
+            allIdle = 0;
+        } else if (lbl_803448AC == 8 && lbl_803448A8 == 3) {
+            if (allIdle != 0 || lbl_80344BA8 != 0) {
+                fn_80053B20();
+                for (i = 0; i < 4; i++) {
+                    abort_player(i);
+                }
+                init_attract_mode(0x8000);
+                lbl_803445DC = 0;
+                return 0;
+            }
+        } else if (lbl_80344BA8 != 0) {
+            lbl_803445DC = 0;
+            init_titlescreen();
+        }
+    }
+    if (allIdle != 0) {
+        lbl_80344BAC++;
+    } else {
+        lbl_80344BAC = 0;
+    }
+    if (lbl_80344BAC > 8) {
+        lbl_803445DC = 0;
+        return 1;
+    }
+    return 0;
 }
+#pragma dont_inline off
 
 extern s32 lbl_80343DDC;
 extern f32 lbl_80343DE0;
@@ -1531,8 +2600,149 @@ void setup_tex(s32 id, s32 slot, s32 flags, s32 hide, char* fmt, ...)
     }
 }
 
-void serve_blits(void)
+/* Animate the per-player select blits (one 12-byte entry per slot: handle,
+ * mode, timer).  Returns how many entries are still mid-animation. */
+extern u8* MBRomTexPtr(u32 tex);
+extern f64 lbl_80348040;   /* pulse-scale base */
+extern f64 lbl_80348048;   /* pulse-scale step */
+extern f32 lbl_80348050;   /* zoom-in scale step */
+
+s32 serve_blits(s32 player)
 {
-    mbBlitInit3414(0, 0);
-    mbBlitProject(0, 0, 0);
+    u8* page = lbl_80121688;
+    s32* xp = (s32*)(lbl_80121688 + player * 4);
+    u8* blits = lbl_80284878 + player * 132;
+    s32 count = 0;
+    s32 j;
+    s32 off;
+
+    for (j = 0, off = 0; j < 11; j++, off += 12) {
+        u8* e = blits + off;
+        u8* h = *(u8**)e;
+        u8* pe = page + off;
+
+        switch (*(u32*)(e + 4)) {
+        case 1: /* hide */
+            *(s32*)(e + 4) = 0;
+            *(s32*)(e + 8) = 0;
+            mbBlitInit3414(h, 1);
+            break;
+
+        case 2: { /* fly out right while fading */
+            s32 t;
+            s32 u;
+            *(s32*)(e + 8) += gFrameTicks;
+            t = *(s32*)(e + 8);
+            u = t * t;
+            mbBlitCalcWidth(h, *(s32*)(pe + 0x20) + (*xp + u / 8), u + t * 3,
+                            (f32)*(s32*)(pe + 0x28));
+            MBBlitSetAlpha(h, u);
+            mbBlitProject(h, 0x80, 0x100 - u);
+            if (u < 0x100) {
+                mbBlitInit3414(h, 0);
+            } else {
+                *(s32*)(e + 4) = 0;
+                *(s32*)(e + 8) = 0;
+                mbBlitInit3414(h, 1);
+            }
+            count++;
+            break;
+        }
+
+        case 3: { /* looping pulse */
+            u8* tex = MBRomTexPtr(*(u32*)(h + 4));
+            s32 w = *(u16*)(tex + 10);
+            s32 ht = *(u16*)(tex + 12);
+            s32 amp;
+            f32 f;
+            s32 du;
+            s32 dv;
+            *(s32*)(e + 8) = (*(s32*)(e + 8) + 1) & 0x3F;
+            amp = *(s32*)(e + 8);
+            if (amp >= 0x20) {
+                amp = 0x20 - (amp & 0x1F);
+            }
+            f = (f32)(lbl_80348048 * (f64)amp + lbl_80348040);
+            du = (s32)((f32)w * f);
+            dv = (s32)((f32)ht * f);
+            mbBlitCalcWidth(h, *(s32*)(pe + 0x20) - du / 2 + *xp,
+                            *(s32*)(pe + 0x24) - dv / 2,
+                            (f32)*(s32*)(pe + 0x28));
+            mbBlitProject(h, du, dv);
+            break;
+        }
+
+        case 4: { /* zoom in from center */
+            u8* tex;
+            s32 w;
+            s32 ht;
+            s32 half;
+            s32 a;
+            f32 f;
+            s32 du;
+            s32 dv;
+            *(s32*)(e + 8) += gFrameTicks;
+            half = *(s32*)(e + 8) >> 1;
+            tex = MBRomTexPtr(*(u32*)(h + 4));
+            a = half * half;
+            w = *(u16*)(tex + 10);
+            ht = *(u16*)(tex + 12);
+            f = (f32)(0x100 - a) * lbl_80348050;
+            du = (s32)((f32)w * f);
+            dv = (s32)((f32)ht * f);
+            mbBlitCalcWidth(h, w / 2 + *(s32*)(pe + 0x20) - du / 2 + *xp,
+                            ht / 2 + *(s32*)(pe + 0x24) - dv / 2,
+                            (f32)*(s32*)(pe + 0x28));
+            mbBlitProject(h, du, dv);
+            if (a >= 0x100) {
+                *(s32*)(e + 4) = 0;
+                *(s32*)(e + 8) = 0;
+                mbBlitInit3414(h, 1);
+            }
+            count++;
+            break;
+        }
+
+        case 5: { /* fade in */
+            s32 a;
+            *(s32*)(e + 8) += gFrameTicks;
+            a = *(s32*)(e + 8) >> 1;
+            a = a * a;
+            if (a > 0x100) {
+                a = 0x100;
+            }
+            MBBlitSetAlpha(h, 0x100 - a);
+            if (a >= 0x100) {
+                *(s32*)(e + 4) = 0;
+                *(s32*)(e + 8) = 0;
+            }
+            count++;
+            break;
+        }
+
+        case 6: /* fade out (7 = delayed fade out) */
+        case 7: {
+            s32 half;
+            s32 a;
+            *(s32*)(e + 8) += gFrameTicks;
+            half = *(s32*)(e + 8) >> 1;
+            if (*(s32*)(e + 4) == 7) {
+                half -= 0x10;
+                if (half < 0) {
+                    half = 0;
+                }
+            }
+            a = half * half;
+            MBBlitSetAlpha(h, a);
+            if (a >= 0x100) {
+                *(s32*)(e + 4) = 0;
+                *(s32*)(e + 8) = 0;
+                mbBlitInit3414(h, 1);
+            }
+            count++;
+            break;
+        }
+        }
+    }
+    return count;
 }

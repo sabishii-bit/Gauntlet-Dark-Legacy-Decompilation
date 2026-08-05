@@ -537,32 +537,347 @@ static void setupNewPMode_800CDCE4(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f
  * ======================================================================= */
 
 /* 0x800CEBC0 - apply a WORLDPSYS descriptor blob to a live psys node.
- * Walks the wp->fields_used bitfield, applying each present attribute (emit
+ * Walks the blob's fields_used bitfield, applying each present attribute (emit
  * time, counts, lifetime, colour envelope, speed, gravity, textures, flags)
- * with the same clamping the individual MBPsysSet* setters use. Giant
- * (NonMatching); documented flow. */
-static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wp, f32* over) {
-    if (wp->pversion < 0x100) {
+ * with the same clamping the individual MBPsysSet* setters use.
+ * The blob layout here is the packed WORLDPSYS wire format (distinct from
+ * PsysDescrip, which MBNewPsysDescrip consumes). */
+typedef struct WorldPsys {
+    /* 0x00 */ u32 pversion;
+    /* 0x04 */ s16 preset;
+    /* 0x06 */ s16 pad06;
+    /* 0x08 */ u32 flagval;
+    /* 0x0C */ u32 flagmask;
+    /* 0x10 */ u32 used;
+    /* 0x14 */ s32 max_particles;
+    /* 0x18 */ s32 max_directions;
+    /* 0x1C */ s32 max_positions;
+    /* 0x20 */ f32 e_lifefade[2];
+    /* 0x28 */ f32 p_lifefade[2];
+    /* 0x30 */ f32 pad30[2];
+    /* 0x38 */ f32 e_angle;
+    /* 0x3C */ s32 texcnt;
+    /* 0x40 */ char texname[32];
+    /* 0x60 */ f32 e_dir[3];
+    /* 0x6C */ f32 e_vol[3];
+    /* 0x78 */ f32 e_rate[4];
+    /* 0x88 */ f32 e_rate_rand;
+    /* 0x8C */ f32 gravity;
+    /* 0x90 */ f32 drag;
+    /* 0x94 */ f32 speed;
+    /* 0x98 */ u32 rgba[4];   /* packed per-key RGBA colour envelope       */
+    /* 0xA8 */ f32 width[4];
+    /* 0xB8 */ f32 e_delay;
+} WorldPsys;
+
+static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) {
+    WorldPsys* wp = (WorldPsys*)wpd;
+    f32* tbl;
+    f32 t0, t1, t2, t3;
+    f64 v, mn, mx, sc;
+    u32 used;
+    u32 mask;
+    u16 fl;
+    u32 nfl;
+
+    if (wp->pversion < 0x100 ||
+        (s32)((u8*)&wp->preset - (u8*)wp) != 4 ||
+        (s32)((u8*)&wp->flagval - (u8*)wp) != 8 ||
+        (s32)((u8*)&wp->flagmask - (u8*)wp) != 0xc ||
+        (s32)((u8*)&wp->used - (u8*)wp) != 0x10 ||
+        (s32)((u8*)&wp->e_delay - (u8*)wp) != 0xb8) {
         ErrorPrintf("setWorldParms: WORLDPSYS type is bad");
         return;
     }
-    if (wp->fields_used & 0x2) {
+
+    if (wp->used & 0x1) {   /* inherit from a built-in preset first */
+        u8* base = (u8*)psysInfo;
+        s32 i = 0;
+        for (;;) {
+            s16 id = *(s16*)(base + i + 0x130);
+            u8* pre = base + i + 0x12c;
+            if (id == -1) {
+                break;
+            }
+            if (wp->preset == id) {
+                setWorldParms(node, p, (PsysDescrip*)pre, 0);
+                break;
+            }
+            i += 0x138;
+        }
+    }
+    if (wp->used & 0x2) {
+        p->p_max = (u16)wp->max_particles;
+    }
+    if (wp->used & 0x8) {
+        p->pos_max = (u16)wp->max_positions;
+    }
+    if (wp->used & 0x4) {
         p->dir_max = (u16)wp->max_directions;
     }
-    if (wp->fields_used & 0x10) {
-        p->e_life = (u16)wp->e_lifefade[0];
-        p->e_fade = (u16)wp->e_lifefade[1];
+    if (wp->used & 0x10) {
+        v = 30.0 * wp->e_lifefade[0];
+        p->e_life = (u16)(s32)((v < 1.0) ? 1.0 : (v > 65535.0) ? 65535.0 : v);
+        v = 30.0 * wp->e_lifefade[1];
+        p->e_fade = (u16)(s32)((v < 0.0) ? 0.0 : (v > 65535.0) ? 65535.0 : v);
+        if (wp->e_lifefade[0] < 0.0f) {
+            p->e_life = 0xffff;
+            p->flags |= 2;
+        } else if (wp->e_lifefade[1] < 0.0f) {
+            p->e_fade = 0xffff;
+            p->flags |= 2;
+        }
     }
-    if (wp->fields_used & 0x40) {
-        setPTimeVal(wp->e_angle, p);
+    if (wp->used & 0x20) {
+        v = 30.0 * wp->p_lifefade[0];
+        p->p_life = (u8)(s32)((v < 1.0) ? 1.0 : (v > 255.0) ? 255.0 : v);
+        v = 30.0 * wp->p_lifefade[1];
+        p->p_fade = (u8)(s32)((v < 0.0) ? 0.0 : (v > 255.0) ? 255.0 : v);
     }
-    if (wp->fields_used & 0x2000) {
-        p->p_speed = (f32)(wp->p_speed * (1.0 / 30.0));
+    if (wp->used & 0x40) {
+        f32 a = wp->e_angle;
+        if (a < 0.0f) {
+            p->e_angle = -1.0f;
+        } else if (a < 1.0f) {
+            p->e_angle = 0.0f;
+        } else if (a < 359.0f) {
+            p->e_angle = (f32)((3.141592654 * a) / 360.0);
+        } else {
+            p->e_angle = -1.0f;
+        }
     }
-    if (wp->fields_used & 0x4000) {
-        p->p_texidx = MBOX_FindTexture(wp->p_texname1, 0);
+    if (wp->used & 0x80000) {
+        v = 30.0 * wp->e_delay;
+        p->e_delay = (u16)(s32)((v <= 0.0) ? 0.0 : v);
     }
-    (void)node; (void)over;
+    if (wp->used & 0x80) {
+        p->e_dir[0] = wp->e_dir[0];
+        p->e_dir[1] = wp->e_dir[1];
+        p->e_dir[2] = wp->e_dir[2];
+    } else {
+        if (over == 0 ||
+            (over[0] == 0.0f && over[1] == 0.0f && over[2] == 0.0f)) {
+            p->e_dir[0] = 0.0f;
+            p->e_dir[1] = 1.0f;
+            p->e_dir[2] = 0.0f;
+        } else {
+            p->e_dir[0] = over[0];
+            p->e_dir[1] = over[1];
+            p->e_dir[2] = over[2];
+        }
+    }
+    if (wp->used & 0x100) {
+        p->e_vol[0] = wp->e_vol[0];
+        p->e_vol[1] = wp->e_vol[1];
+        p->e_vol[2] = wp->e_vol[2];
+    }
+    if (wp->used & 0x200) {
+        p->e_rate.i.life_start = (f32)((1.0 / 30.0) * wp->e_rate[0]);
+        p->e_rate.i.life_end   = (f32)((1.0 / 30.0) * wp->e_rate[1]);
+        p->e_rate.i.fade_start = (f32)((1.0 / 30.0) * wp->e_rate[2]);
+        p->e_rate.i.fade_end   = (f32)((1.0 / 30.0) * wp->e_rate[3]);
+    }
+    if (wp->used & 0x400) {
+        p->e_rate_rand = (f32)(0.01 * wp->e_rate_rand);
+    }
+    if (wp->used & 0x800) {
+        p->p_gravity = (f32)((-32.0 / 900.0) * wp->gravity);
+    }
+    if (wp->used & 0x1000) {
+        p->p_drag = (f32)(-1.0 * wp->drag);
+    }
+    if (wp->used & 0x2000) {
+        p->p_speed = (f32)((1.0 / 30.0) * wp->speed);
+    }
+    if (wp->used & 0x10000) {  /* packed r/g/b colour envelopes */
+        Psys* q;
+        /* red (lane 16) */
+        q = (Psys*)node->data.psys;
+        t3 = (f32)((1.0 / 255.0) * (f32)((wp->rgba[3] >> 16) & 0xff));
+        t2 = (f32)((1.0 / 255.0) * (f32)((wp->rgba[2] >> 16) & 0xff));
+        t1 = (f32)((1.0 / 255.0) * (f32)((wp->rgba[1] >> 16) & 0xff));
+        if (q->e_phase > 1) {
+            ErrorPrintf("Setting PSYS attribute after draw begins");
+        } else {
+            f32 sc, mn, mx, fv;
+            tbl = (f32*)(lbl_80128710 + 0x9c + 2 * 0x10);
+            sc = tbl[0]; mn = tbl[1]; mx = tbl[2];
+            t0 = (f32)((1.0 / 255.0) * (f32)((wp->rgba[0] >> 16) & 0xff));
+            fv = t0 * sc;
+            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
+            q->p_parms[2].i.life_start = fv;
+            fv = t1 * sc;
+            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
+            q->p_parms[2].i.life_end = fv;
+            fv = t2 * sc;
+            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
+            q->p_parms[2].i.fade_start = fv;
+            fv = t3 * sc;
+            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
+            q->p_parms[2].i.fade_end = fv;
+        }
+        /* green (lane 8) */
+        q = (Psys*)node->data.psys;
+        t3 = (f32)((1.0 / 255.0) * (f32)((wp->rgba[3] >> 8) & 0xff));
+        t2 = (f32)((1.0 / 255.0) * (f32)((wp->rgba[2] >> 8) & 0xff));
+        t1 = (f32)((1.0 / 255.0) * (f32)((wp->rgba[1] >> 8) & 0xff));
+        if (q->e_phase > 1) {
+            ErrorPrintf("Setting PSYS attribute after draw begins");
+        } else {
+            f32 sc, mn, mx, fv;
+            tbl = (f32*)(lbl_80128710 + 0x9c + 1 * 0x10);
+            sc = tbl[0]; mn = tbl[1]; mx = tbl[2];
+            t0 = (f32)((1.0 / 255.0) * (f32)((wp->rgba[0] >> 8) & 0xff));
+            fv = t0 * sc;
+            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
+            q->p_parms[1].i.life_start = fv;
+            fv = t1 * sc;
+            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
+            q->p_parms[1].i.life_end = fv;
+            fv = t2 * sc;
+            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
+            q->p_parms[1].i.fade_start = fv;
+            fv = t3 * sc;
+            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
+            q->p_parms[1].i.fade_end = fv;
+        }
+        /* blue (lane 0) */
+        q = (Psys*)node->data.psys;
+        t3 = (f32)((1.0 / 255.0) * (f32)(wp->rgba[3] & 0xff));
+        t2 = (f32)((1.0 / 255.0) * (f32)(wp->rgba[2] & 0xff));
+        t1 = (f32)((1.0 / 255.0) * (f32)(wp->rgba[1] & 0xff));
+        if (q->e_phase > 1) {
+            ErrorPrintf("Setting PSYS attribute after draw begins");
+        } else {
+            f32 sc, mn, mx, fv;
+            tbl = (f32*)(lbl_80128710 + 0x9c);
+            sc = tbl[0]; mn = tbl[1]; mx = tbl[2];
+            t0 = (f32)((1.0 / 255.0) * (f32)(wp->rgba[0] & 0xff));
+            fv = t0 * sc;
+            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
+            q->p_parms[0].i.life_start = fv;
+            fv = t1 * sc;
+            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
+            q->p_parms[0].i.life_end = fv;
+            fv = t2 * sc;
+            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
+            q->p_parms[0].i.fade_start = fv;
+            fv = t3 * sc;
+            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
+            q->p_parms[0].i.fade_end = fv;
+        }
+    }
+    if (wp->used & 0x20000) {  /* alpha / intensity envelope (lane 24) */
+        Psys* q = (Psys*)node->data.psys;
+        t3 = (f32)((1.0 / 255.0) * (f32)(wp->rgba[3] >> 24));
+        t2 = (f32)((1.0 / 255.0) * (f32)(wp->rgba[2] >> 24));
+        t1 = (f32)((1.0 / 255.0) * (f32)(wp->rgba[1] >> 24));
+        if (q->e_phase > 1) {
+            ErrorPrintf("Setting PSYS attribute after draw begins");
+        } else {
+            f32 sc, mn, mx, fv;
+            tbl = (f32*)(lbl_80128710 + 0x9c + 3 * 0x10);
+            sc = tbl[0]; mn = tbl[1]; mx = tbl[2];
+            t0 = (f32)((1.0 / 255.0) * (f32)(wp->rgba[0] >> 24));
+            fv = t0 * sc;
+            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
+            q->p_parms[3].i.life_start = fv;
+            fv = t1 * sc;
+            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
+            q->p_parms[3].i.life_end = fv;
+            fv = t2 * sc;
+            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
+            q->p_parms[3].i.fade_start = fv;
+            fv = t3 * sc;
+            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
+            q->p_parms[3].i.fade_end = fv;
+        }
+    }
+    if (wp->used & 0x40000) {  /* particle width envelope */
+        Psys* q = (Psys*)node->data.psys;
+        f32 w3 = wp->width[3];
+        f32 w2 = wp->width[2];
+        if (q->e_phase > 1) {
+            ErrorPrintf("Setting PSYS attribute after draw begins");
+        } else {
+            f32 mn, mx, fv;
+            tbl = (f32*)(lbl_80128710 + 0x9c + 4 * 0x10);
+            sc = tbl[0]; mn = tbl[1]; mx = tbl[2];
+            fv = (f32)(wp->width[0] * sc);
+            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
+            q->p_parms[4].i.life_start = fv;
+            fv = (f32)(wp->width[1] * sc);
+            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
+            q->p_parms[4].i.life_end = fv;
+            fv = (f32)(w2 * sc);
+            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
+            q->p_parms[4].i.fade_start = fv;
+            fv = (f32)(w3 * sc);
+            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
+            q->p_parms[4].i.fade_end = fv;
+        }
+    }
+    if (wp->used & 0x4000) {   /* bind particle texture by name */
+        struct TexPageEnt {
+            u32 f0;
+            u8* obj;
+            u32 f8;
+            u32 fC;
+        };
+        u32 tex = MBOX_FindTexture(wp->texname, 0);
+        u8* g = (u8*)gWinGlobals;
+        Psys* q = (Psys*)node->data.psys;
+        struct TexPageEnt* pages;
+        q->p_texidx = tex;
+        pages = *(struct TexPageEnt**)(g + 48);
+        q->p_tex = (struct ROMTEX*)(*(u8**)(pages[(tex >> 16) & 0xFFFF].obj + 88) +
+                                    (tex & 0xFFFF) * 16);
+    }
+    if (wp->used & 0x8000) {
+        p->texcnt = wp->texcnt;
+    }
+    if ((wp->flagval & 8) && 0.0 == p->p_gravity) {
+        p->p_gravity = -0.035555556f;
+    }
+    if ((wp->flagval & 0x10) && 0.0 == p->p_drag) {
+        p->p_drag = -1.0f;
+    }
+    mask = wp->flagmask;
+    fl = p->flags;
+    if (mask & 1) {
+        fl = (fl & 0xff3f) | ((wp->flagval & 1) ? 0xc0 : 0);
+    }
+    if (mask & 2) {
+        fl = (fl & 0xfffe) | ((wp->flagval & 2) != 0);
+    }
+    if (mask & 4) {
+        fl = (fl & 0xfffd) | ((wp->flagval & 4) ? 2 : 0);
+    }
+    if (mask & 0x40) {
+        fl = (fl & 0xffdf) | ((wp->flagval & 0x40) ? 0x20 : 0);
+    }
+    if (mask & 0x20) {
+        fl = (fl & 0xffef) | ((wp->flagval & 0x20) ? 0x10 : 0);
+    }
+    p->flags = fl;
+    mask = wp->flagmask;
+    nfl = node->flags;
+    if (mask & 0x80) {
+        nfl = (nfl & 0xff7fffff) | ((wp->flagval & 0x80) ? 0x800000 : 0);
+    }
+    if (mask & 0x100) {
+        nfl = (nfl & 0xbfffffff) | ((wp->flagval & 0x100) ? 0x40000000 : 0);
+    }
+    if (mask & 0x200) {
+        nfl = (nfl & 0xfffff7ff) | ((wp->flagval & 0x200) ? 0x800 : 0);
+    }
+    if (mask & 0x400) {
+        nfl = (nfl & 0xffffffbf) | ((wp->flagval & 0x400) ? 0x40 : 0);
+    }
+    if (mask & 0x800) {
+        nfl = (nfl & 0xffffff7f) | ((wp->flagval & 0x800) ? 0x80 : 0);
+    }
+    node->flags = nfl;
 }
 
 /* ======================================================================= *
