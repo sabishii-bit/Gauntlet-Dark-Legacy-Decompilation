@@ -60,7 +60,7 @@ s32 cardWaitResult(void);
 s32 cardGetResult(void);
 void cardMount(s32 chan, void* workArea, void* detachCb);
 void cardUnmount(s32 chan);
-void cardLoadFile(s32 chan, void* buf);
+s32 cardLoadFile(s32 chan, void* buf);
 void cardReadFile(s32 chan, void* dst, void* src);
 void cardWriteFile(s32 chan, void* name, void* buf);
 s32 cardFormat(s32 chan);
@@ -1344,15 +1344,18 @@ retry:
  */
 u8 vmu_exists(s32 chan, const char* name, s32* fileNoOut)
 {
+    u8* top = (u8*) GetHiMemCacheTop();
+    s32 dirSize = 0x2D44C0;
+    s32 found = 0;
+    u32 aramSize = 0x310000;
     u8* buf;
-    u8* workArea;
-    u8 found = 0;
-    u8 pad[8];
+    u8* lo;
 
     sysSetFlags(64);
-    workArea = (u8*) (GetHiMemCacheTop() - 0x310000);
-    dcsAramWriteTop(workArea, 0x310000);
-    lbl_80344A0C = OSCreateHeap(workArea, workArea + 0x310000);
+    top = (u8*) GetHiMemCacheTop();
+    dcsAramWriteTop(top - 0x310000, aramSize);
+    lo = top - 0x310000;
+    lbl_80344A0C = OSCreateHeap(lo, lo + aramSize);
     lbl_80344A08 = OSSetCurrentHeap(lbl_80344A0C);
     lbl_80344A00 = (u8*) OSAllocFromHeap(__OSCurrHeap, 8192);
     lbl_803449FC = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x10000 - 24576);
@@ -1364,19 +1367,18 @@ u8 vmu_exists(s32 chan, const char* name, s32* fileNoOut)
         return 0;
     }
 
-    buf = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x2D44C0);
+    buf = (u8*) OSAllocFromHeap(__OSCurrHeap, dirSize);
     cardLoadFile(chan, buf);
-    cardWaitResult();
-    if (cardGetResult() == 0) {
+    if (cardWaitResult() == 0) {
         s32 count = cardLock();
-        s32 off = count * 23360;
+        s32 off;
 
-        while (count != 0) {
+        while (off = count * 23360, count != 0) {
             s32 fileNo = *(s32*) (buf + off - 256);
-            char stat[64];
+            char stat[108];
 
-            off -= 23360;
             count--;
+            off -= 23360;
             CARDGetStatus(chan, fileNo, stat);
             if (strcmp(stat, name) == 0) {
                 *fileNoOut = *(s32*) (buf + off + 23104);
@@ -1396,7 +1398,7 @@ u8 vmu_exists(s32 chan, const char* name, s32* fileNoOut)
     OSDestroyHeap(lbl_80344A0C);
     dcsAramReadTop((void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
     sysClearFlags(64);
-    return found;
+    return (u8)found;
 }
 
 /*
