@@ -477,7 +477,7 @@ s32 show_piles(s32 col)
 }
 
 extern u8 lbl_80122ED0[];   /* shop draw-layout page (.data)          */
-extern char lbl_803483B8[]; /* "%s: %d" gold-line fmt (sdata)         */
+extern char lbl_803483B8[7]; /* "%s: %d" gold-line fmt (sdata2)        */
 extern char lbl_801149F4[]; /* "Continue" label                        */
 extern char lbl_80348368[8]; /* "Stats" label (sdata, color-code +2)    */
 extern f32 lbl_80348360;    /* gold-line text scale                    */
@@ -507,7 +507,6 @@ s32 show_gold(s32 col)
     s32 xbase = *(s32*)(dpage + col * 4 + 96);
     s32 done = 0;
     s32 k = 0;
-    s32 off = 0;
     s32 fontY;
     u8* blit;
     s32 tgt;
@@ -518,10 +517,10 @@ s32 show_gold(s32 col)
     f32 height;
     char buf[32];
 
-    for (; k < 3; k++, off += 4) {
-        tgt = *(s32*)(targT + off);
-        shown = *(s32*)(shownT + off);
-        blit = *(u8**)(blits + *(s32*)(counts + off) * 4);
+    for (; k < 3; k++) {
+        tgt = *(s32*)(targT + k * 4);
+        shown = *(s32*)(shownT + k * 4);
+        blit = *(u8**)(blits + *(s32*)(counts + k * 4) * 4);
         grew = 0;
         if (done != 0) {
             mbBlitInit3414(blit, 1);
@@ -542,11 +541,11 @@ s32 show_gold(s32 col)
             mbBlitProject(blit, 0, shown);
             mbBlitSetupVerts(blit, lbl_8034832C, lbl_80348328, lbl_8034832C,
                              height);
-            *(s32*)(shownT + off) = shown;
+            *(s32*)(shownT + k * 4) = shown;
         }
-        item = dpage + *(s32*)(counts + off) * 4;
+        item = dpage + *(s32*)(counts + k * 4) * 4;
         drawX = *(s32*)(item + 172);
-        sprintf(buf, lbl_803483B8, *(u32*)(item + 160), *(s32*)(valT + off));
+        sprintf(buf, lbl_803483B8, *(u32*)(item + 160), *(s32*)(valT + k * 4));
         if (grew != 0) {
             DrawGlowText(lbl_80348360, xbase + 16, drawX, buf);
         } else {
