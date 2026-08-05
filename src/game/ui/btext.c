@@ -1,4 +1,5 @@
 #include "types.h"
+#include "__va_arg.h"
 
 /* BTEXT.OBJ - bitmap/box text + SCROLLS message system (GameCube port).
  *
@@ -110,7 +111,7 @@ extern s32 stricmp(const u8* a, const u8* b);    /* 0x800C80EC */
 extern void* AllocFile();                        /* 0x800BF7F4 */
 extern void ErrorPrintf();                       /* 0x800BC6E0 */
 extern int sprintf(char* buf, const char* fmt, ...);
-extern int vsprintf(char* buf, const char* fmt, void* ap);
+extern int vsprintf(char* buf, const char* fmt, va_list ap);
 
 /* ---- helpers ---- */
 
@@ -704,7 +705,10 @@ void DrawTextKeepScale(f32 scale, s32 x, s32 y, u32 font, u32 color, u8* str)
 /* ==== 0x800209E0 DrawText (variadic; skeleton) ==== */
 void DrawText(s32 x, s32 y, u32 flags, u32 color, const char* fmt, ...)
 {
-    vsprintf((char*)gTextFormatBuf, fmt, 0);
+    va_list ap;
+
+    va_start(ap, fmt);
+    vsprintf((char*)gTextFormatBuf, fmt, ap);
     DrawTextSub(1.0f, 1.0f, x, y, flags, color, gTextFormatBuf);
 }
 
@@ -815,4 +819,3 @@ void LoadFonts(s32 mode, void* def, void* def2)
 {
     (void)mode; (void)def; (void)def2;
 }
-
