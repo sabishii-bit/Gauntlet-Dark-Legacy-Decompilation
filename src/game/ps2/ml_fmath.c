@@ -720,10 +720,12 @@ void RollMat3(f32* matrix, f32 angle)
 #pragma opt_propagation reset
 
 /* Post-multiply by a pitch rotation. */
+#pragma opt_propagation off
 void PitchMat3(f32* matrix, f32 angle)
 {
-    u8 unused[16];
+    u8 unused0[8];
     f32 magnitude = angle;
+    u8 unused1[8];
     s32 i;
 
     *(u32*)&magnitude &= 0x7FFFFFFF;
@@ -735,11 +737,16 @@ void PitchMat3(f32* matrix, f32 angle)
         for (i = 0; i < 3; i++) {
             f32 a = matrix[4 + i];
             f32 b = matrix[8 + i];
-            matrix[8 + i] = c * b + s * a;
-            matrix[4 + i] = c * a - s * b;
+            f32 newB;
+            f32 newA;
+            newA = a * c - b * s;
+            newB = b * c + a * s;
+            matrix[8 + i] = newB;
+            matrix[4 + i] = newA;
         }
     }
 }
+#pragma opt_propagation reset
 
 /* Post-multiply by a yaw rotation. */
 void YawMat3(f32* matrix, f32 angle)
@@ -817,10 +824,12 @@ void WPitchMat3(f32* matrix, f32 angle)
 }
 
 /* Pre-multiply by a yaw rotation. */
+#pragma opt_propagation off
 void WYawMat3(f32* matrix, f32 angle)
 {
-    u8 unused[16];
+    u8 unused0[8];
     f32 magnitude = angle;
+    u8 unused1[8];
     s32 row;
 
     *(u32*)&magnitude &= 0x7FFFFFFF;
@@ -833,11 +842,16 @@ void WYawMat3(f32* matrix, f32 angle)
             f32* v = matrix + row * 4;
             f32 a = v[0];
             f32 b = v[2];
-            v[2] = c * b + s * a;
-            v[0] = c * a - s * b;
+            f32 newB;
+            f32 newA;
+            newA = c * a - s * b;
+            newB = c * b + s * a;
+            v[2] = newB;
+            v[0] = newA;
         }
     }
 }
+#pragma opt_propagation reset
 
 /* 0x800BE79C */
 void ScaleMat3Vec3(const f32* matrix, f32* out, const f32* scale)
