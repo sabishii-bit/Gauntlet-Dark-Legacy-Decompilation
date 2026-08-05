@@ -19,3 +19,5 @@ clean_extab: true
 modules: []
 block_relocations:
 - source: ".data:0x801FD3C0"
+- source: ".text:0x80067B5C"
+- source: ".text:0x80067B6C"
