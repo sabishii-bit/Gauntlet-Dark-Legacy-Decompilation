@@ -124,7 +124,7 @@ extern f64 lbl_80349310;   /* SRC fraction scale (65536.0) */
 extern f64 lbl_80349318;   /* u32->f64 conversion bias */
 extern f64 lbl_80349320;   /* s32->f64 conversion bias */
 extern char lbl_801174A8[]; /* "AdsPutBuffer..." message pool */
-extern char lbl_80349328[];  /* short EOF tag */
+extern char lbl_80349328[6]; /* short EOF tag (sdata2) */
 extern char lbl_80349330[5];
 extern char lbl_80349338[5];
 extern char lbl_80349340[5];
@@ -853,8 +853,8 @@ s32 adsUpdateStream(ADSTREAM* stream) {
  * ring; prints "AdsPutBuffer EOF/overrun -- %d bytes UNSENT".
  * Xbox: AdsPutBuffer. */
 s32 AdsPutBuffer(ADSTREAM* s, u8* src, s32 len) {
-    char* strs = lbl_801174A8;
     s32 hres = 0;
+    char* strs = lbl_801174A8;
     u8* wrEnd;
     u8* wp;
     s32 tail;
