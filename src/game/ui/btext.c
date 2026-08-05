@@ -60,6 +60,13 @@ typedef struct StrList {  /* 0x44 - a loaded SCROLLS resource */
     /* 0x40 */ s32 nLdef;
 } StrList;
 
+/* Address view used where the original source addressed the whole TU pool
+ * through its font_info anchor. */
+typedef struct BTextPoolView {
+    u8 _pad[2240];
+    StrList stringList;
+} BTextPoolView;
+
 /* ---- TU-local data pool (.bss, address order pins the font_info anchor) ---- */
 
 void* font_info[14];           /* 0x8023EAE0 - per-mode loaded font pointers */
@@ -109,7 +116,7 @@ extern void* strcpy(void* dst, const void* src); /* 0x800E80D4 */
 extern void* strcat(void* dst, const void* src); /* 0x800E8064 */
 extern s32 stricmp(const u8* a, const u8* b);    /* 0x800C80EC */
 extern void* AllocFile();                        /* 0x800BF7F4 */
-extern void ErrorPrintf();                       /* 0x800BC6E0 */
+extern void ErrorPrintf(const char* fmt, ...);   /* 0x800BC6E0 */
 extern int sprintf(char* buf, const char* fmt, ...);
 extern int vsprintf(char* buf, const char* fmt, va_list ap);
 
@@ -117,6 +124,24 @@ extern int vsprintf(char* buf, const char* fmt, va_list ap);
 
 s32 FixMLineText(s32* src, s32* dst, s32 lines);
 s32 DrawTextSub(f32 scale, f32 shScale, s32 x, s32 y, u32 flags, u32 color, u8* str);
+
+static inline char* GetStringTextInline(BTextPoolView* info, s32 msg, s32 idx,
+                                        volatile u32* fontOut)
+{
+    MsgEnt* entry = &info->stringList.msgs[msg];
+    s32 fontIndex;
+    s32 off;
+
+    if (idx >= entry->count) {
+        return 0;
+    }
+    off = info->stringList.textOff[entry->first + idx];
+    fontIndex = entry->font;
+    if (fontIndex >= 0) {
+        *fontOut = info->stringList.fontDesc[fontIndex].color;
+    }
+    return (char*)(info->stringList.textData + off);
+}
 
 /* Force the .bss pool into address order (deadstripped by mwld). */
 static void btext_bss_order(void)
@@ -429,12 +454,27 @@ s32 DrawScrollText(s32 x, s32 y, u32 flags, u32 color, s32 list, s32 msg, s32 id
     return 0;
 }
 
-/* ==== 0x8001F93C DrawStringText (variadic; skeleton) ==== */
+/* ==== 0x8001F93C DrawStringText ==== */
 s32 DrawStringText(s32 x, s32 y, u32 flags, u32 color, s32 msg, s32 idx, ...)
 {
-    (void)x; (void)y; (void)flags; (void)color; (void)msg; (void)idx;
-    vsprintf((char*)gTextFormatBuf, (char*)gTextFormatBuf, 0);
-    return 0;
+    StrList* list;
+    char* text;
+    volatile u32 font;
+    va_list ap;
+    volatile u32 unused;
+
+    list = &((BTextPoolView*)font_info)->stringList;
+    text = GetStringTextInline((BTextPoolView*)font_info, msg, idx, &font);
+    if (text == 0) {
+        ErrorPrintf("DrawStringText: Msg %d idx %d > msg count\n", msg, idx);
+        return 0;
+    }
+    if ((s32)flags < 0 || ((s32)flags < 10 && (s32)font >= 10)) {
+        flags = font;
+    }
+    va_start(ap, idx);
+    vsprintf((char*)gTextFormatBuf, text, ap);
+    return DrawStringTextSub(list, msg, x, y, -1, flags, color);
 }
 
 /* ==== 0x8001FAB0 DrawStringTextSub - draw a multi-line message ==== */
