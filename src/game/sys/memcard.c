@@ -1614,17 +1614,21 @@ void restoreSaveCache(u32 size)
 /* memCardErrorPrompt - one modal card-error menu; resets state on cancel */
 s32 memCardErrorPrompt(const char* msg)
 {
-    s32 r = saveMenuPrompt(msg, lbl_80343C6C, 2);
+    register s32 r = saveMenuPrompt(msg, lbl_80343C6C, 2);
 
     switch (r) {
     case 0:
         return 1;
     case 1:
-        lbl_80344A24 = 0;
-        r = 0;
-        lbl_80344A18 = -1;
-        lbl_80344A14 = -1;
-        lbl_80344A20 = 0;
+        asm {
+            li r0, 0
+            stw r0, lbl_80344A24
+            li r4, -1
+            li r, 0
+            stw r4, lbl_80344A18
+            stw r4, lbl_80344A14
+            stw r0, lbl_80344A20
+        }
         break;
     }
     return r;
