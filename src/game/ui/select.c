@@ -281,14 +281,14 @@ static s32 sel_set_choice(s32 player, s32 mode);
 
 static void do_sel_menu(s32 player, u32 mode)
 {
-    u8* pl = gPlayers + player * 13148;
     s32* xp = (s32*)(lbl_80121688 + (player << 2));
     char* pool = lbl_801143F8;
-    s32 showSel = 1;
-    s32 showBack = 0;
+    u8* pl = gPlayers + player * 13148;
     f32 scale = lbl_80343DE0;
     s32 lh = lbl_80343DDC;
     s32 font = lbl_80344BC4;
+    s32 showSel = 1;
+    s32 showBack = 0;
     s32 x = *xp;
     s32 sz = (s32)(lbl_80347F60 * scale);
     s32 sz2 = (s32)(lbl_80347F60 * scale);
