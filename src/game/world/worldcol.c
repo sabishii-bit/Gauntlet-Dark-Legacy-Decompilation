@@ -16,6 +16,8 @@ typedef unsigned int u32;
 typedef float f32;
 typedef unsigned char u8;
 typedef signed short s16;
+typedef unsigned short u16;
+typedef signed char s8;
 
 typedef struct WorldCollisionResult {
     f32 hitPt[3];      /* 0x000 closest hit point */
@@ -38,12 +40,15 @@ typedef struct WorldCollisionResult {
 typedef struct WObj {
     u8 _pad00[0x10];
     u32 flags;        /* 0x10 */
-    u8 _pad14[8];
+    u8 _pad14[4];
+    struct WObj* parent; /* 0x18 */
     f32 pos[3];       /* 0x1C */
     f32* mat;         /* 0x28 */
     u8 _pad2c[4];
     f32 radius;       /* 0x30 */
-    u8 _pad34[4];
+    u8 _pad34;
+    u8 group;         /* 0x35 collision group bits */
+    u8 _pad36[2];
     s32 triBase;      /* 0x38 */
 } WObj;
 
@@ -91,23 +96,37 @@ extern f32 lbl_80344164, lbl_80345764;
 typedef struct WorldTri {
     s16 layerLo;  /* 0x00 */
     s16 layerHi;  /* 0x02 */
-    u8  _pad04[4];
+    f32 scale;    /* 0x04 basis scale (inverse XZ length) */
     f32 nx;       /* 0x08 plane normal */
     f32 ny;       /* 0x0C */
     f32 nz;       /* 0x10 */
     u8  _pad14[20];
 } WorldTri;
 
+/* per-row column record of the static grid (stride 8) */
+typedef struct WorldGridCol {
+    u16 min;   /* 0x00 first occupied X cell   */
+    u16 max;   /* 0x02 last occupied X cell    */
+    u32 base;  /* 0x04 index into cell words   */
+} WorldGridCol;
+
 /* world grid description (0x8028CA8C block; only the walk fields typed) */
 typedef struct WorldGridInfo {
-    u8  _pad00[8];
+    u8  _pad00[4];
+    u8* objs;        /* 0x04 world object array, stride 0x3C */
     WorldTri* tris;  /* 0x08 triangle records          */
-    u8  _pad0c[60];
+    WorldGridCol* cols; /* 0x0C per-Z-row column records */
+    u32* cells;      /* 0x10 packed cell words (off|cnt<<22) */
+    u8* lists;       /* 0x14 per-cell object/tri lists */
+    f32 originX;     /* 0x18 grid origin X             */
+    u8  _pad1c[4];
+    f32 originZ;     /* 0x20 grid origin Z             */
+    u8  _pad24[0x24];
     f32 cellW;    /* 0x48 world units per grid cell */
     f32 invCell;  /* 0x4C 1 / cellW                 */
     s32 gridW;    /* 0x50 cells across (X)          */
     s32 gridD;    /* 0x54 cells deep (Z)            */
-    u8  _pad58[4];
+    s32 stamp;    /* 0x58 rolling visited stamp     */
     char* marks;  /* 0x5C per-tri visited stamps    */
 } WorldGridInfo;
 extern WorldGridInfo gWorldInfo;
@@ -136,6 +155,14 @@ extern u8 gIdentityMatrix[], lbl_80127DA0[];
 void CopyMat3(void* src, void* dst);   /* 0x800BE8C8 */
 f32 NormalVector(f32* v);               /* 0x800BDA98 */
 f32 fqdist();                           /* 0x800BCB44 */
+void WorldVector(f32* v, f32* out, f32* mtx);
+void MulVec4Mat4(f32* v, f32* out, f32* mtx);
+void WorldDynCollide(s32 flags, s32 mode, f32 minx, f32 maxx, f32 minz,
+                     f32 maxz, f32 dx, f32 dz, f32 slope, f32 rad);
+extern f64 lbl_80345758;
+void CreateMat3Norm(f32 scale, f32* mtx, f32* normal);
+static s32 NextGrid(f32 a, f32 b, f32 c, f32 d, s32* gx, s32* gz);
+static void WorldObjCollide(f32 rad, WObj* obj, s32 count, s16* list, f32* mtx);
 
 u32 WorldCollide(f32 radius, void* from, void* to, f32* result,
                  s32 flags, s32 mode);
@@ -380,9 +407,229 @@ u32 FloorCollide(f32 radius, f32 yFrom, f32 yTo, Vec3* position,
 
 #define STUB(address, name) void name(void) {}
 
-u32 WorldCollide(f32 radius, void* from, void* to, f32* result,
+/* WorldCollide @0x8000D578 -- sweep a sphere/line query from `from` to `to`
+ * through the static world grid (then the dynamic objects), recording the
+ * closest hit in the shared collision channel and optionally writing a hit
+ * basis/point back into `result`. */
+u32 WorldCollide(f32 radius, void* fromv, void* tov, f32* result,
                  s32 flags, s32 mode) {
-    return 0;
+    WorldCollisionResult* res = &lbl_8023CA40;
+    f32* from = (f32*)fromv;
+    f32* to = (f32*)tov;
+    s32 offGrid = 0;
+    f32 dx;
+    f32 dz;
+    f32 slope;
+    f32 t;
+    s32 gx;
+    s32 gz;
+    WObj* obj;
+    u32 oflags;
+    f32 mtxBuf[16];
+    f32 vecBuf[3];
+
+    res->qpos[0] = from[0];
+    res->qpos[1] = from[1];
+    res->qpos[2] = from[2];
+    res->qdir2[0] = to[0];
+    res->qdir2[1] = to[1];
+    res->qdir2[2] = to[2];
+    res->qnorm[0] = to[0] - from[0];
+    res->qnorm[1] = to[1] - from[1];
+    res->qnorm[2] = to[2] - from[2];
+    lbl_803441A0 = NormalVector(res->qnorm);
+
+    if (from[0] <= to[0]) {
+        lbl_80344168 = from[0];
+        lbl_8034416C = from[2];
+        lbl_80344170 = to[0];
+        lbl_80344174 = to[2];
+    } else {
+        lbl_80344170 = from[0];
+        lbl_80344174 = from[2];
+        lbl_80344168 = to[0];
+        lbl_8034416C = to[2];
+    }
+    if (from[1] < to[1]) {
+        lbl_8034419C = from[1] - radius;
+        lbl_80344198 = to[1] + radius;
+    } else {
+        lbl_8034419C = to[1] - radius;
+        lbl_80344198 = from[1] + radius;
+    }
+
+    dx = lbl_80344170 - lbl_80344168;
+    dz = lbl_80344174 - lbl_8034416C;
+    slope = lbl_8034572C;
+    if (dx != lbl_8034572C) {
+        slope = dz / dx;
+    }
+    lbl_80344168 -= radius;
+    lbl_80344170 += radius;
+    if (dz >= lbl_8034572C) {
+        lbl_8034416C -= radius;
+        lbl_80344174 += radius;
+    } else {
+        lbl_8034416C += radius;
+        lbl_80344174 -= radius;
+    }
+
+    lbl_80344178 = gWorldInfo.originX;
+    lbl_8034417C = gWorldInfo.originZ;
+    if (lbl_80344170 < lbl_80344178) {
+        offGrid = 1;
+    }
+    if (lbl_80344168 < lbl_80344178) {
+        if (lbl_8034572C != dx) {
+            t = (lbl_80344178 - lbl_80344168) / dx;
+            if ((f64)t < lbl_80345730) {
+                t = -t;
+            }
+            lbl_8034416C = dz * t + lbl_8034416C;
+        }
+        lbl_80344168 = lbl_80344178;
+    }
+    if (lbl_80344174 < lbl_8034417C) {
+        if (lbl_8034572C == dz) {
+            offGrid = 1;
+        } else {
+            t = (lbl_8034417C - lbl_80344174) / dz;
+            if ((f64)t < lbl_80345730) {
+                t = -t;
+            }
+            lbl_80344170 = -(dx * t - lbl_80344170);
+            lbl_80344174 = (f32)(lbl_80345758 + lbl_8034417C);
+        }
+    }
+    if (lbl_8034416C < lbl_8034417C) {
+        if (lbl_8034572C != dz) {
+            t = (lbl_8034417C - lbl_8034416C) / dz;
+            if ((f64)t < lbl_80345730) {
+                t = -t;
+            }
+            lbl_80344168 = dx * t + lbl_80344168;
+        }
+        lbl_8034416C = lbl_8034417C;
+    }
+
+    gWorldInfo.stamp = gWorldInfo.stamp + 1;
+    if (gWorldInfo.stamp > 0xFF) {
+        gWorldInfo.stamp = 1;
+    }
+    lbl_8034418C = (char)gWorldInfo.stamp;
+    lbl_80344160 = 0;
+    lbl_80344164 = lbl_80345760;
+    res->objAlt = 0;
+    res->bestAlt = lbl_80345760;
+
+    if (offGrid == 0) {
+        gx = (s32)(gWorldInfo.invCell * (lbl_80344168 - lbl_80344178));
+        gz = (s32)(gWorldInfo.invCell * (lbl_8034416C - lbl_8034417C));
+        if (gx < 0) {
+            gx = 0;
+        } else if (gx > gWorldInfo.gridW - 1) {
+            gx = gWorldInfo.gridW - 1;
+        }
+        if (gz < 0) {
+            gz = 0;
+        } else if (gz > gWorldInfo.gridD - 1) {
+            gz = gWorldInfo.gridD - 1;
+        }
+        do {
+            WorldGridCol* col = &gWorldInfo.cols[gz];
+            if (gx >= col->min && gx <= col->max) {
+                u32 word = gWorldInfo.cells[col->base + (gx - col->min)];
+                s32 off = word & 0x3FFFFF;
+                s32 cnt = word >> 22;
+                s32 i;
+                for (i = 0; i < cnt; i++) {
+                    u8* entry = gWorldInfo.lists + off;
+                    s16 tcount = *(s16*)(entry + 2);
+                    if (tcount != 0) {
+                        s32 grp;
+                        obj = (WObj*)(gWorldInfo.objs + *(s16*)entry * 0x3C);
+                        grp = (s8)obj->group;
+                        if (obj->parent != 0) {
+                            grp |= (s8)obj->parent->group;
+                        }
+                        if ((obj->flags & flags) != 0 && (grp & mode) == 0 &&
+                            obj->triBase >= 0) {
+                            WorldObjCollide(radius, obj, tcount,
+                                            (s16*)(entry + 4), 0);
+                        }
+                        if ((lbl_80344188 & 0x20) != 0 &&
+                            lbl_80345730 == (f64)lbl_80344164) {
+                            break;
+                        }
+                        off = (tcount - 1) * 2 + off + 6;
+                    }
+                }
+            }
+            if ((lbl_80344188 & 0x20) != 0 &&
+                lbl_80345730 == (f64)lbl_80344164) {
+                break;
+            }
+        } while (NextGrid(dx, dz, slope, radius, &gx, &gz) != 0);
+    }
+
+    if ((lbl_80344188 & 0x20) == 0 || lbl_80345730 != (f64)lbl_80344164) {
+        WorldDynCollide(flags, mode, lbl_80344168, lbl_80344170, lbl_8034416C,
+                        lbl_80344174, dx, dz, slope, radius);
+    }
+
+    if (result != 0 && lbl_80344160 != 0) {
+        obj = lbl_80344160;
+        if ((obj->flags & 0x1000000) != 0 && (lbl_80344188 & 6) != 0) {
+            GetWorldMat(obj->mat, mtxBuf, 0);
+        }
+        if ((lbl_80344188 & 4) != 0) {
+            obj = lbl_80344160;
+            oflags = obj->flags;
+            if ((oflags & 0x1000000) != 0) {
+                WorldVector(&lbl_80344184->nx, vecBuf, mtxBuf);
+                CreateMat3Norm(lbl_80344184->scale, result, vecBuf);
+                NormalVector(result);
+                NormalVector(result + 8);
+            } else if ((oflags & 0x1000) != 0) {
+                if ((oflags & 1) == 0) {
+                    WorldVector(&lbl_80344184->nx, vecBuf, obj->mat);
+                    CreateMat3Norm(lbl_80344184->scale, result, vecBuf);
+                    NormalVector(result);
+                    NormalVector(result + 8);
+                } else {
+                    CreateMat3Norm(lbl_80344184->scale, result,
+                                   &lbl_80344184->nx);
+                }
+            } else {
+                CreateMat3Norm(lbl_80344184->scale, result,
+                               &lbl_80344184->nx);
+            }
+        }
+        if ((lbl_80344188 & 2) != 0) {
+            obj = lbl_80344160;
+            oflags = obj->flags;
+            if ((oflags & 0x1000000) != 0) {
+                MulVec4Mat4(res->hitPt, result + 12, mtxBuf);
+            } else if ((oflags & 0x1000) != 0) {
+                if ((oflags & 1) == 0) {
+                    MulVec4Mat4(res->hitPt, result + 12, obj->mat);
+                } else {
+                    result[12] = res->hitPt[0] + obj->mat[12];
+                    result[13] = res->hitPt[1] + lbl_80344160->mat[13];
+                    result[14] = res->hitPt[2] + lbl_80344160->mat[14];
+                    result[15] = lbl_80345764;
+                }
+            } else {
+                result[12] = res->hitPt[0];
+                result[13] = res->hitPt[1];
+                result[14] = res->hitPt[2];
+                result[15] = lbl_80345764;
+            }
+        }
+        *(WObj**)(result + 17) = lbl_80344160;
+        result[16] = lbl_80344164;
+    }
+    return (u32)lbl_80344160;
 }
 /* ExitCollisionEarly @0x8000DCD8 -- true when the collision mask requests the
  * fast-exit bit and the recorded floor height matches the query plane. */

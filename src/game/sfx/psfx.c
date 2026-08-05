@@ -172,7 +172,260 @@ void ClearPlyrData(s32 player)
     *(s32*)(lbl_80282930[player] + 0x24) = 0;
 }
 
-STUB(0x8008A928, LoadPlyrData)
+/* --- LoadPlyrData support ------------------------------------------------ */
+
+/* pdata wad payload is little-endian (PS2/Xbox heritage); MBSetupWad reports
+ * whether the archive needs byte-swapping and these fix each record up. */
+#define SWAP16(v)                                                       \
+    do {                                                                \
+        u16 _t = (v);                                                   \
+        (v) = (u16)((((u8*)&_t)[1] << 8) | ((u8*)&_t)[0]);              \
+    } while (0)
+
+#define SWAP32(v)                                                       \
+    do {                                                                \
+        u8 _t[8];                                                       \
+        *(u32*)_t = (v);                                                \
+        _t[4] = _t[3];                                                  \
+        _t[5] = _t[2];                                                  \
+        _t[6] = _t[1];                                                  \
+        _t[7] = _t[0];                                                  \
+        (v) = *(u32*)(_t + 4);                                          \
+    } while (0)
+
+#define SWAPF(v)                                                        \
+    do {                                                                \
+        f32 _in = (v);                                                  \
+        f32 _out;                                                       \
+        u32 _w = *(u32*)&_in;                                           \
+        SWAP32(_w);                                                     \
+        *(u32*)&_out = _w;                                              \
+        (v) = _out;                                                     \
+    } while (0)
+
+/* 4-char wad chunk tags kept as strings in sdata2 (chars are signed) */
+#define WADTAG(s) (((s)[0] << 24) | ((s)[1] << 16) | ((s)[2] << 8) | (s)[3])
+
+/* player-data header (first chunk of the pdata wad) */
+typedef struct PsfxHeader {
+    /* 0x00 */ s16 count;    /* number of SfxRecords            */
+    /* 0x02 */ s16 _02;
+    /* 0x04 */ u8* records;  /* SfxRecord[count], 0x50 each     */
+    /* 0x08 */ u8* moves;    /* third chunk rows, 0x58 each     */
+    /* 0x0C */ u8 _0c[0x18];
+    /* 0x24 */ s32 resolved; /* handles resolved this level     */
+} PsfxHeader;
+
+extern char lbl_80347E54[]; /* header-chunk wad tag  */
+extern char lbl_80347E5C[]; /* record-chunk wad tag  */
+extern char lbl_80347E64[]; /* move-chunk wad tag    */
+extern u32 gControllerButtons;
+extern u32 sFlags;
+extern s32 fn_80055F68(s32 a, s32 b);
+extern u8 MBSetupWad(void* wad, void* data);
+extern void* MBGetFromWad(void* wad, s32 tag, s32* count);
+extern void* memcpy(void* dst, const void* src, u32 n);
+extern u8 gPlayers[];
+extern void PlayerSfxInitData(s32* player, u32* records, s32 count, void* param4);
+
+/* LoadPlyrData @0x8008A928 -- ensure player plr has class cls's pdata wad
+ * loaded and parsed: reload the per-class file if needed (debug flag 0x10
+ * forces a disk re-read), copy it into the player's load buffer, pull the
+ * three chunks out of the wad, byte-swap every record when the archive is
+ * foreign-endian, then resolve the effect/sound handles. */
+void LoadPlyrData(s32 plr, s32 cls, s32 resolve)
+{
+    s32 wad[4];
+    s32 n1;
+    s32 n2;
+    s32 n3;
+    PsfxHeader* hdr;
+    u8* p;
+    s32 mode;
+    s32 i;
+    s32 j;
+    s32 k;
+    s32 off;
+    u8 swapped;
+
+    mode = 0;
+    if (plr < 0) {
+        return;
+    }
+    if (cls < 0) {
+        return;
+    }
+
+    if (cls != *(s32*)(lbl_802828B0 + 0x20 + plr * 4) ||
+        (*(s32*)(gPlayers + plr * 0x335C + 0xE8) != 0 && resolve != 0)) {
+        if ((sFlags & 0x10) == 0 || fn_80055F68(0, -1) == 0) {
+            mode = 1;
+        } else {
+            mode = 2;
+        }
+    }
+
+    if (mode == 0) {
+        /* already loaded: only (re)resolve the handles */
+        if (resolve != 0) {
+            hdr = (PsfxHeader*)lbl_80282930[plr];
+            if (hdr->resolved == 0) {
+                PlayerSfxInitData((s32*)(gPlayers + plr * 0x335C),
+                                  (u32*)hdr->records, hdr->count,
+                                  ((void**)player_multiple_models)[plr * 0x13 + 18]);
+                hdr->resolved = 1;
+            }
+        }
+        return;
+    }
+
+    if (mode == 2) {
+        /* forced re-read of the class file from disk */
+        sprintf(lbl_802828B0, "%s.wad", (char*)lbl_8012006C + cls * 4);
+        if (FileExists("pdata", lbl_802828B0)) {
+            if (lbl_80120E00[cls] == 0) {
+                lbl_80120E00[cls] = AllocFile("pdata", lbl_802828B0);
+                *(s32*)(lbl_802828B0 + 0x40 + cls * 4) = mlmLastFileSize;
+            } else if (!MLMReadFile("pdata", lbl_802828B0,
+                                    *(s32*)(lbl_802828B0 + 0x40 + cls * 4),
+                                    lbl_80120E00[cls])) {
+                FatalErrorf("pdata file %s: file on disk go too large for buffer",
+                            lbl_802828B0);
+            }
+        } else {
+            ErrorPrintf("No player data file: %s", lbl_802828B0);
+            lbl_80120E00[cls] = 0;
+            *(s32*)(lbl_802828B0 + 0x40 + cls * 4) = 0;
+        }
+    }
+
+    if (lbl_80120E00[cls] == 0) {
+        FatalErrorf("No player data file: %s", lbl_802828B0);
+        return;
+    }
+
+    memcpy(*(void**)(lbl_802828B0 + 0x30 + plr * 4), lbl_80120E00[cls],
+           *(s32*)(lbl_802828B0 + 0x40 + cls * 4));
+    swapped = MBSetupWad(wad, *(void**)(lbl_802828B0 + 0x30 + plr * 4));
+
+    hdr = (PsfxHeader*)MBGetFromWad(wad, WADTAG(lbl_80347E54), &n1);
+    lbl_80282930[plr] = (u8*)hdr;
+    hdr = (PsfxHeader*)lbl_80282930[plr];
+    hdr->records = MBGetFromWad(wad, WADTAG(lbl_80347E5C), &n2);
+    hdr = (PsfxHeader*)lbl_80282930[plr];
+    hdr->moves = MBGetFromWad(wad, WADTAG(lbl_80347E64), &n3);
+    hdr = (PsfxHeader*)lbl_80282930[plr];
+    hdr->resolved = 0;
+    *(s32*)(lbl_802828B0 + 0x20 + plr * 4) = cls;
+
+    if (swapped) {
+        /* header rows: 0x180 bytes each */
+        off = 0;
+        for (i = 0; i < n1; i++, off += 0x180) {
+            p = (u8*)lbl_80282930[plr] + off;
+            SWAP16(*(u16*)(p + 0x00));
+            SWAP16(*(u16*)(p + 0x02));
+            SWAP16(*(u16*)(p + 0x0C));
+            SWAP16(*(u16*)(p + 0x0E));
+            SWAP16(*(u16*)(p + 0x10));
+            SWAP16(*(u16*)(p + 0x12));
+            SWAP16(*(u16*)(p + 0x14));
+            SWAP16(*(u16*)(p + 0x16));
+            SWAP16(*(u16*)(p + 0x18));
+            SWAP16(*(u16*)(p + 0x1A));
+            SWAP16(*(u16*)(p + 0x1C));
+            SWAP16(*(u16*)(p + 0x1E));
+            SWAP16(*(u16*)(p + 0x20));
+            SWAP16(*(u16*)(p + 0x22));
+            SWAP32(*(u32*)(p + 0x24));
+            SWAPF(*(f32*)(p + 0x28));
+            SWAPF(*(f32*)(p + 0x2C));
+            SWAPF(*(f32*)(p + 0x30));
+            SWAPF(*(f32*)(p + 0x34));
+            SWAPF(*(f32*)(p + 0x38));
+            SWAPF(*(f32*)(p + 0x3C));
+            SWAPF(*(f32*)(p + 0x40));
+            SWAPF(*(f32*)(p + 0x44));
+            SWAPF(*(f32*)(p + 0x48));
+            SWAPF(*(f32*)(p + 0x4C));
+            SWAPF(*(f32*)(p + 0x50));
+            SWAPF(*(f32*)(p + 0x54));
+            SWAPF(*(f32*)(p + 0x58));
+            SWAPF(*(f32*)(p + 0x17C));
+            for (k = 0; k < 3; k++) {
+                SWAPF(*(f32*)(p + 0x5C + k * 4));
+                SWAPF(*(f32*)(p + 0x158 + k * 4));
+                SWAPF(*(f32*)(p + 0x164 + k * 4));
+                SWAPF(*(f32*)(p + 0x170 + k * 4));
+            }
+            for (j = 0; j < 10; j++) {
+                for (k = 0; k < 3; k++) {
+                    SWAPF(*(f32*)(p + 0x68 + j * 0xC + k * 4));
+                    SWAPF(*(f32*)(p + 0xE0 + j * 0xC + k * 4));
+                }
+            }
+        }
+
+        /* sfx records: 0x50 bytes each */
+        off = 0;
+        for (i = 0; i < n2; i++, off += 0x50) {
+            p = ((PsfxHeader*)lbl_80282930[plr])->records + off;
+            SWAP16(*(u16*)(p + 0x30));
+            SWAP16(*(u16*)(p + 0x32));
+            SWAP32(*(u32*)(p + 0x00));
+            SWAP32(*(u32*)(p + 0x04));
+            SWAP32(*(u32*)(p + 0x08));
+            SWAP32(*(u32*)(p + 0x0C));
+            SWAPF(*(f32*)(p + 0x40));
+            SWAPF(*(f32*)(p + 0x44));
+            SWAPF(*(f32*)(p + 0x48));
+            SWAP32(*(u32*)(p + 0x4C));
+            for (k = 0; k < 3; k++) {
+                SWAPF(*(f32*)(p + 0x34 + k * 4));
+            }
+        }
+
+        /* move rows: 0x58 bytes each */
+        off = 0;
+        for (i = 0; i < n3; i++, off += 0x58) {
+            p = ((PsfxHeader*)lbl_80282930[plr])->moves + off;
+            SWAP16(*(u16*)(p + 0x00));
+            SWAP16(*(u16*)(p + 0x02));
+            SWAP16(*(u16*)(p + 0x48));
+            SWAP16(*(u16*)(p + 0x4A));
+            SWAP16(*(u16*)(p + 0x4C));
+            SWAP16(*(u16*)(p + 0x4E));
+            SWAP16(*(u16*)(p + 0x50));
+            SWAP16(*(u16*)(p + 0x52));
+            SWAP16(*(u16*)(p + 0x54));
+            SWAPF(*(f32*)(p + 0x08));
+            SWAPF(*(f32*)(p + 0x0C));
+            SWAPF(*(f32*)(p + 0x10));
+            SWAPF(*(f32*)(p + 0x14));
+            SWAPF(*(f32*)(p + 0x18));
+            SWAPF(*(f32*)(p + 0x1C));
+            SWAPF(*(f32*)(p + 0x20));
+            SWAPF(*(f32*)(p + 0x24));
+            SWAPF(*(f32*)(p + 0x28));
+            SWAPF(*(f32*)(p + 0x38));
+            SWAPF(*(f32*)(p + 0x3C));
+            SWAPF(*(f32*)(p + 0x40));
+            SWAPF(*(f32*)(p + 0x44));
+            SWAP32(*(u32*)(p + 0x04));
+            for (k = 0; k < 3; k++) {
+                SWAPF(*(f32*)(p + 0x2C + k * 4));
+            }
+        }
+    }
+
+    if (resolve != 0) {
+        hdr = (PsfxHeader*)lbl_80282930[plr];
+        PlayerSfxInitData((s32*)(gPlayers + plr * 0x335C), (u32*)hdr->records,
+                          hdr->count,
+                          ((void**)player_multiple_models)[plr * 0x13 + 18]);
+        hdr->resolved = 1;
+    }
+}
 /* LoadPdataFile @0x8008BAF0 -- preflight all 16 class pdata files, retain
  * their largest size, then allocate four reusable player load buffers. */
 void LoadPdataFile(void)

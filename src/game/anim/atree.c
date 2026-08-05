@@ -743,12 +743,238 @@ found:
                        flags, 1);
 }
 
-/* fn_80011DCC / fn_8001267C: GIANT atree construction pair (~0x8B0 / ~0x8FC):
- * build the runtime tree from a def (InitOAnimList, SetupAnimHeader,
- * AtreeNodeInit, node/animdata allocation).  DEFERRED -- semantic skeletons
- * only; require a dedicated float-ABI reversing pass. */
-STUB(0x80011DCC, fn_80011DCC)
-STUB(0x8001267C, fn_8001267C)
+/* byte-order fixup helpers: the atree resource is little-endian on disk. */
+#define SWAP32(x)                                                             \
+    do {                                                                      \
+        union {                                                               \
+            u32 w;                                                            \
+            u8 b[4];                                                          \
+        } _s, _d;                                                             \
+        _s.w = (x);                                                           \
+        _d.b[0] = _s.b[3];                                                    \
+        _d.b[1] = _s.b[2];                                                    \
+        _d.b[2] = _s.b[1];                                                    \
+        _d.b[3] = _s.b[0];                                                    \
+        (x) = _d.w;                                                           \
+    } while (0)
+
+#define SWAP16(x)                                                             \
+    do {                                                                      \
+        union {                                                               \
+            u16 h;                                                            \
+            u8 b[2];                                                          \
+        } _s;                                                                 \
+        _s.h = (x);                                                           \
+        (x) = (u16)((_s.b[1] << 8) | _s.b[0]);                                \
+    } while (0)
+
+extern int* SetupAnimHeader(int* hdr, int* dst);
+extern void InitOAnimList(void* hdr, int arg);
+
+/* fn_80011DCC @0x80011DCC -- byte-swap one 0x138-byte atree node-definition
+ * record (v8+ headers) from little-endian disk order. */
+void fn_80011DCC(u32* p)
+{
+    u8* b = (u8*)p;
+    s32 i;
+
+    SWAP32(p[0]);
+    SWAP16(*(u16*)(b + 4));
+    SWAP32(p[2]);
+    SWAP32(p[3]);
+    SWAP32(p[4]);
+    SWAP32(p[5]);
+    SWAP32(p[6]);
+    SWAP32(p[7]);
+    SWAP32(p[0xC]);
+    SWAP32(p[0xD]);
+    SWAP32(p[0xE]);
+    SWAP32(p[0xF]);
+    SWAP32(p[0x22]);
+    SWAP32(p[0x23]);
+    SWAP32(p[0x24]);
+    SWAP32(p[0x25]);
+    SWAP32(p[0x2E]);
+    SWAP32(p[0x2F]);
+    SWAP32(p[0x30]);
+    SWAP32(p[0x31]);
+    SWAP32(p[0x4A]);
+    SWAP32(p[0x4B]);
+    SWAP32(p[0x4C]);
+    SWAP32(p[0x4D]);
+    for (i = 0; i < 2; i++) {
+        SWAP32(*(u32*)(b + 0x20 + i * 4));
+        SWAP32(*(u32*)(b + 0x28 + i * 4));
+    }
+    for (i = 0; i < 3; i++) {
+        SWAP32(*(u32*)(b + 0x60 + i * 4));
+        SWAP32(*(u32*)(b + 0x6C + i * 4));
+    }
+    for (i = 0; i < 4; i++) {
+        SWAP32(*(u32*)(b + 0xA8 + i * 4));
+        SWAP32(*(u32*)(b + 0x98 + i * 4));
+        SWAP32(*(u32*)(b + 0x78 + i * 4));
+        SWAP32(*(u32*)(b + 0xC8 + i * 4));
+        SWAP32(*(u32*)(b + 0xD8 + i * 4));
+        SWAP32(*(u32*)(b + 0xE8 + i * 4));
+        SWAP32(*(u32*)(b + 0xF8 + i * 4));
+        SWAP32(*(u32*)(b + 0x108 + i * 4));
+        SWAP32(*(u32*)(b + 0x118 + i * 4));
+    }
+}
+
+/* fn_8001267C @0x8001267C -- register/fix up one atree resource header:
+ * byte-swap the header, its match list, texmod table and (v8+) node-def
+ * records, rebase the internal offsets to pointers, run SetupAnimHeader /
+ * InitOAnimList over each match entry, then claim an atree-list slot. */
+u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
+{
+    u8* base = (u8*)hdr;
+    s32 i;
+    s32 j;
+    s32 off;
+
+    SWAP16(hdr[0]);
+    SWAP16(hdr[1]);
+    SWAP32(*(u32*)(hdr + 2));
+    SWAP32(*(u32*)(hdr + 4));
+    SWAP32(*(u32*)(hdr + 6));
+    if ((s16)hdr[1] > 7) {
+        SWAP32(*(u32*)(hdr + 8));
+        SWAP32(*(u32*)(hdr + 10));
+    }
+
+    if (((s16)hdr[1] & 0x8000U) == 0) {
+        /* match list: name[0x20] + offset, stride 0x24 */
+        if (*(s32*)(hdr + 2) != 0) {
+            *(s32*)(hdr + 2) += (s32)base;
+            off = 0;
+            for (i = 0; i < (s16)hdr[0]; i++) {
+                SWAP32(*(u32*)(*(s32*)(hdr + 2) + off + 0x20));
+                off += 0x24;
+            }
+        }
+        /* texmod table, stride 0x58 */
+        if (*(s32*)(hdr + 6) != 0) {
+            *(s32*)(hdr + 6) += (s32)base;
+            off = 0;
+            for (i = 0; i < *(s32*)(hdr + 4); i++) {
+                u16* tm = (u16*)(*(s32*)(hdr + 6) + off);
+                off += 0x58;
+                SWAP16(tm[0]);
+                SWAP16(tm[1]);
+                SWAP32(*(u32*)(tm + 0x22));
+                SWAP32(*(u32*)(tm + 0x24));
+                SWAP16(tm[0x26]);
+                SWAP16(tm[0x27]);
+                SWAP32(*(u32*)(tm + 0x28));
+                SWAP32(*(u32*)(tm + 0x2A));
+            }
+        }
+        /* node-definition records, stride 0x138 (v8+ headers only) */
+        if ((s16)hdr[1] > 7 && *(s32*)(hdr + 10) != 0) {
+            *(s32*)(hdr + 10) += (s32)base;
+            off = 0;
+            for (i = 0; i < *(s32*)(hdr + 8); i++) {
+                fn_80011DCC((u32*)(*(s32*)(hdr + 10) + off));
+                off += 0x138;
+            }
+        }
+
+        /* per-match-entry tree blobs */
+        off = 0;
+        for (i = 0; i < (s16)hdr[0]; i++) {
+            s32* blob =
+                (s32*)(base + *(s32*)(*(s32*)(hdr + 2) + off + 0x20));
+            s32 seqoff;
+            s32 texbase;
+            s32 nseqs;
+
+            SWAP32(*(u32*)&blob[0]);
+            SWAP32(*(u32*)&blob[1]);
+            SWAP32(*(u32*)&blob[2]);
+            SWAP32(*(u32*)&blob[3]);
+            SWAP32(*(u32*)&blob[4]);
+            SWAP32(*(u32*)&blob[5]);
+            SWAP16(*(u16*)((u8*)blob + 0x36));
+            blob[0] += (s32)blob;
+            blob[3] += (s32)blob;
+
+            /* sequence table, stride 0x30 */
+            seqoff = 0;
+            for (j = 0; j < blob[5]; j++) {
+                u8* seq = (u8*)(blob[0] + seqoff);
+                seqoff += 0x30;
+                SWAP16(*(u16*)(seq + 0x20));
+                SWAP16(*(u16*)(seq + 0x22));
+                SWAP16(*(u16*)(seq + 0x24));
+                SWAP16(*(u16*)(seq + 0x26));
+                SWAP16(*(u16*)(seq + 0x28));
+                SWAP16(*(u16*)(seq + 0x2A));
+                SWAP32(*(u32*)(seq + 0x2C));
+            }
+
+            /* node-info table, stride 0x3C */
+            seqoff = 0;
+            for (j = 0; j < blob[4]; j++) {
+                u8* ni = (u8*)(blob[3] + seqoff);
+                seqoff += 0x3C;
+                SWAP32(*(u32*)(ni + 0x20));
+                SWAP32(*(u32*)(ni + 0x24));
+                SWAP32(*(u32*)(ni + 0x28));
+                SWAP16(*(u16*)(ni + 0x2C));
+                SWAP16(*(u16*)(ni + 0x2E));
+                SWAP32(*(u32*)(ni + 0x30));
+                SWAP32(*(u32*)(ni + 0x34));
+                SWAP32(*(u32*)(ni + 0x38));
+            }
+
+            if (blob[1] != 0) {
+                blob[1] = (s32)SetupAnimHeader(
+                    (int*)((u8*)blob + blob[1]), (int*)0);
+            }
+            if (blob[2] != 0) {
+                blob[2] += (s32)blob;
+                SWAP32(*(u32*)blob[2]);
+                SWAP32(*(u32*)(blob[2] + 4));
+            }
+            InitOAnimList((void*)blob[2], model);
+
+            /* patch each sequence's texmod index into a pointer */
+            nseqs = blob[5];
+            seqoff = 0;
+            texbase = *(s32*)(hdr + 6);
+            if (nseqs > 0) {
+                s32 sbase = blob[0];
+                do {
+                    s32* ptexmods = (s32*)(sbase + seqoff + 0x2C);
+                    seqoff += 0x30;
+                    *ptexmods = texbase + *ptexmods * 0x58;
+                    nseqs--;
+                } while (nseqs != 0);
+            }
+            *(s16*)((u8*)blob + 0x36) = (s16)model;
+            off += 0x24;
+        }
+
+        if ((s32)slot < 0) {
+            if (natreelists < 24) {
+                slot = natreelists;
+                natreelists++;
+            } else {
+                gErrorCode = 0xFFFF80;
+                FatalError("Too many Atrees", 0x804060);
+            }
+        }
+        whichatree[slot] = hdr;
+        atree_scroll[slot][0] = 0;
+        atree_handles[slot] = model;
+        hdr[1] = (u16)slot | 0x8000;
+    } else {
+        slot = (s16)hdr[1] & 0x7FFF;
+    }
+    return slot;
+}
 
 /* ---------------- playback dispatch wrappers ---------------- */
 

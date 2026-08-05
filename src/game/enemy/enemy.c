@@ -2061,11 +2061,23 @@ void move_logic08(s32 index)
  * nonvolatile.  Uses the lbl_80250E00 + index*916 + 3608 anchor like the others.
  * TODO: transcribe the sub-mode state machine (Ghidra decompile_function 0x80048928
  * then split the modes by e->mode1 / e->flag1 as in move_logic22 + move_logic07). */
+extern f64 lbl_80346920;      /* pi/2 turn step */
+extern f64 lbl_80346858;      /* 0.1 probe lift */
+extern f64 lbl_803468E0;      /* stuck-angle threshold */
+extern f32 lbl_8011C064[];    /* 0x8011C064 pack-hunter turn-step ramp */
+extern s32 find_neighbor_milestone(s32 ms, s32 nth); /* 0x8004C9DC */
+
 void move_logic10(s32 index)
 {
     Enemy* e = (Enemy*)((u8*)lbl_80250E00 + index * 916 + 3608);
+    f32 speed = ((f32*)lbl_80250E40)[e->type];
     s32 it = lbl_80344748;
     s32 flee;
+    s32 skip;
+    s32 blocked = 0;
+    f32 face;
+    f32 cand;
+    f32 probe[3];
 
     if (it < 0) {
         flee = 0;
@@ -2097,9 +2109,463 @@ void move_logic10(s32 index)
         do_ai(index);
         return;
     }
-    /* --- remaining ~1000 insns of pack-hunter sub-modes not yet transcribed --- */
-    do_enemy_move(index);
+
+    update_enemy_milestone(e);
+
+    if (e->mode1 == 1) {
+        /* -- mode 1: walking a neighbor-milestone chain back toward the pack -- */
+        if (e->coll_pnum < 0) {
+            skip = 0;
+        } else {
+            if (e->algorithm != e->prev_ai) {
+                fn_80050394(index);
+            }
+            if (e->closest < 0) {
+                face = e->ang;
+            } else if (*(s16*)&gPlayers[e->closest][647] > 2) {
+                face = get_yaw(&gPlayers[e->closest][633],
+                               &e->objgrp.worldmat[3][0]);
+            } else {
+                face = get_yaw(&gPlayers[e->closest][17],
+                               &e->objgrp.worldmat[3][0]);
+            }
+            e->ang = face;
+            e->dead_end = 0;
+            fn_8004CD1C(e, 1.0f, e->ang);
+            e->pyr[1] = turn_enemy_ang(e, e->ang);
+            do_enemy_move(index);
+            skip = -1;
+        }
+        if (skip == 0) {
+            if (e->algorithm != e->prev_ai) {
+                fn_80050394(index);
+            }
+            if (e->plr_ms < 0) {
+                s32 got = 0;
+                e->mode2--;
+                if (e->mode2 > 0) {
+                    e->plr_ms = find_neighbor_milestone(e->plr_ms, e->mode2);
+                    got = e->plr_ms >= 0;
+                    if (got) {
+                        f32 mspos[3];
+                        e->stuck_count = 0;
+                        e->collided = 0;
+                        GetMilestonePos(e->plr_ms, mspos);
+                        lbl_80344720 =
+                            get_yaw(mspos, &e->objgrp.worldmat[3][0]);
+                    }
+                }
+                if (!got) {
+                    if (e->closest < 0) {
+                        face = e->ang;
+                    } else if (*(s16*)&gPlayers[e->closest][647] > 2) {
+                        face = get_yaw(&gPlayers[e->closest][633],
+                                       &e->objgrp.worldmat[3][0]);
+                    } else {
+                        face = get_yaw(&gPlayers[e->closest][17],
+                                       &e->objgrp.worldmat[3][0]);
+                    }
+                    lbl_80344720 = face;
+                    e->mode1 = 0;
+                    e->mode2 = 0;
+                    e->stuck_count = 0;
+                    e->collided = 0;
+                }
+            } else {
+                f32 mspos[3];
+                if (e->stuck_count > 4) {
+                    s32 old = e->plr_ms;
+                    e->mode2++;
+                    e->plr_ms = find_neighbor_milestone(old, e->mode2);
+                    if (e->plr_ms < 0) {
+                        e->plr_ms = old;
+                    }
+                    e->stuck_count = 0;
+                    e->collided = 0;
+                }
+                GetMilestonePos(e->plr_ms, mspos);
+                lbl_80344720 = get_yaw(mspos, &e->objgrp.worldmat[3][0]);
+            }
+            if (e->dead_end > 0) {
+                e->dead_end -= gFrameTicks;
+            }
+            if (e->dead_end < 1) {
+                if (e->plr_ms < 0) {
+                    if (e->area == 1) {
+                        s16 c = e->collided;
+                        cand = lbl_80344720;
+                        if (e->route == 0) {
+                            e->route = fn_8004CE38(e);
+                        }
+                        if (e->route < 1) {
+                            cand = cand - lbl_8011C064[c];
+                        } else {
+                            cand = cand + lbl_8011C064[c];
+                        }
+                    } else if (e->coll_ip == NULL && e->coll_enenum < 0) {
+                        cand = lbl_80344720;
+                    } else if (e->route < 1) {
+                        cand = e->ang - lbl_8011C064[e->collided];
+                    } else {
+                        cand = e->ang + lbl_8011C064[e->collided];
+                    }
+                } else {
+                    s16 c = e->collided;
+                    cand = lbl_80344720;
+                    if (e->route == 0) {
+                        f32 mp[3];
+                        f32 dx;
+                        f32 dz;
+                        f32 a;
+                        f32 d1;
+                        f32 d2;
+                        GetMilestonePos(e->plr_ms, mp);
+                        dx = e->objgrp.worldmat[3][0] - mp[0];
+                        dz = e->objgrp.worldmat[3][2] - mp[2];
+                        a = (f32)(lbl_80346920 + e->pyr[1]);
+                        if (a > lbl_80346840) {
+                            a = a - lbl_80346848;
+                        } else if (a <= lbl_80346850) {
+                            a = lbl_80346848 + a;
+                        }
+                        d1 = fqdist((f32)(sin(a) + dx), (f32)(cos(a) + dz));
+                        a = (f32)(e->pyr[1] - lbl_80346920);
+                        if (a > lbl_80346840) {
+                            a = a - lbl_80346848;
+                        } else if (a <= lbl_80346850) {
+                            a = lbl_80346848 + a;
+                        }
+                        d2 = fqdist((f32)(sin(a) + dx), (f32)(cos(a) + dz));
+                        if (d1 < d2) {
+                            e->route = 1;
+                        } else {
+                            e->route = -1;
+                        }
+                    }
+                    if (e->route < 1) {
+                        cand = cand - lbl_8011C064[c];
+                    } else {
+                        cand = cand + lbl_8011C064[c];
+                    }
+                }
+                if (cand > lbl_80346840) {
+                    cand = cand - lbl_80346848;
+                } else if (cand <= lbl_80346850) {
+                    cand = lbl_80346848 + cand;
+                }
+                probe[0] = e->objgrp.worldmat[3][0];
+                probe[2] = e->objgrp.worldmat[3][2];
+                probe[1] = (f32)(e->objgrp.worldmat[3][1] + lbl_80346858
+                                 + e->rad);
+                probe[0] += speed * sin(cand);
+                probe[2] += speed * cos(cand);
+                {
+                    f32 d0 = fabsf_(e->ang - e->angbak);
+                    f32 d1;
+                    if ((d0 > lbl_803468E0
+                         && (d1 = fabsf_(cand - e->angbak),
+                             d1 <= lbl_803468E0))
+                        || fn_8004C8CC(probe, index) == 0) {
+                        blocked = 1;
+                        e->stuck_count++;
+                    } else {
+                        e->stuck_count = 0;
+                    }
+                }
+                if (e->stuck_count > 10) {
+                    cand = lbl_80344720;
+                    e->ang = lbl_80344720;
+                }
+                if (!blocked) {
+                    e->angbak = e->ang;
+                    e->ang = cand;
+                }
+            } else {
+                cand = e->ang;
+            }
+            fn_8004CD1C(e, 1.0f, cand);
+            if (!blocked || cand == lbl_80344720) {
+                e->pyr[1] = turn_enemy_ang(e, cand);
+            }
+            do_enemy_move(index);
+        }
+    } else if (e->mode1 < 1 && e->mode1 > -1) {
+        /* -- mode 0: straight pursuit; hop onto the player's milestone list
+         * once we have been bumped enough times -- */
+        if (e->coll_pnum < 0) {
+            skip = 0;
+        } else {
+            if (e->algorithm != e->prev_ai) {
+                fn_80050394(index);
+            }
+            if (e->closest < 0) {
+                face = e->ang;
+            } else if (*(s16*)&gPlayers[e->closest][647] > 2) {
+                face = get_yaw(&gPlayers[e->closest][633],
+                               &e->objgrp.worldmat[3][0]);
+            } else {
+                face = get_yaw(&gPlayers[e->closest][17],
+                               &e->objgrp.worldmat[3][0]);
+            }
+            e->ang = face;
+            e->dead_end = 0;
+            fn_8004CD1C(e, 1.0f, e->ang);
+            e->pyr[1] = turn_enemy_ang(e, e->ang);
+            do_enemy_move(index);
+            skip = -1;
+        }
+        if (skip == 0) {
+            if (e->algorithm != e->prev_ai) {
+                fn_80050394(index);
+            }
+            if (e->collided < 5) {
+                if (e->closest < 0) {
+                    face = e->ang;
+                } else if (*(s16*)&gPlayers[e->closest][647] > 2) {
+                    face = get_yaw(&gPlayers[e->closest][633],
+                                   &e->objgrp.worldmat[3][0]);
+                } else {
+                    face = get_yaw(&gPlayers[e->closest][17],
+                                   &e->objgrp.worldmat[3][0]);
+                }
+                lbl_80344720 = face;
+            } else {
+                e->stuck_count = 0;
+                e->plr_ms = *(s32*)&gPlayers[e->closest][653];
+                if (e->plr_ms >= 0) {
+                    e->mode1++;
+                    e->mode2 = 0;
+                    e->collided = 0;
+                }
+            }
+            if (e->dead_end > 0) {
+                e->dead_end -= gFrameTicks;
+            }
+            if (e->dead_end < 1) {
+                if (e->area == 1) {
+                    s16 c = e->collided;
+                    cand = lbl_80344720;
+                    if (e->route == 0) {
+                        e->route = fn_8004CE38(e);
+                    }
+                    if (e->route < 1) {
+                        cand = cand - lbl_8011C064[c];
+                    } else {
+                        cand = cand + lbl_8011C064[c];
+                    }
+                } else if (e->coll_ip == NULL && e->coll_enenum < 0) {
+                    cand = lbl_80344720;
+                } else if (e->route < 1) {
+                    cand = e->ang - lbl_8011C064[e->collided];
+                } else {
+                    cand = e->ang + lbl_8011C064[e->collided];
+                }
+                if (cand > lbl_80346840) {
+                    cand = cand - lbl_80346848;
+                } else if (cand <= lbl_80346850) {
+                    cand = lbl_80346848 + cand;
+                }
+                probe[0] = e->objgrp.worldmat[3][0];
+                probe[2] = e->objgrp.worldmat[3][2];
+                probe[1] = (f32)(e->objgrp.worldmat[3][1] + lbl_80346858
+                                 + e->rad);
+                probe[0] += speed * sin(cand);
+                probe[2] += speed * cos(cand);
+                {
+                    f32 d0 = fabsf_(e->ang - e->angbak);
+                    f32 d1;
+                    if ((d0 > lbl_803468E0
+                         && (d1 = fabsf_(cand - e->angbak),
+                             d1 <= lbl_803468E0))
+                        || fn_8004C8CC(probe, index) == 0) {
+                        blocked = 1;
+                        e->stuck_count++;
+                    } else {
+                        e->stuck_count = 0;
+                    }
+                }
+                if (e->stuck_count > 10) {
+                    cand = lbl_80344720;
+                    e->ang = lbl_80344720;
+                }
+                if (!blocked) {
+                    e->angbak = e->ang;
+                    e->ang = cand;
+                }
+            } else {
+                cand = e->ang;
+            }
+            fn_8004CD1C(e, 1.0f, cand);
+            if (!blocked || cand == lbl_80344720) {
+                e->pyr[1] = turn_enemy_ang(e, cand);
+            }
+            do_enemy_move(index);
+        }
+    } else {
+        /* -- mode 2+: follow the player's recorded milestone trail -- */
+        if (e->algorithm != e->prev_ai) {
+            fn_80050394(index);
+        }
+        if (e->plr_ms < 0) {
+            if (e->stuck_count < 5) {
+                if (e->closest < 0) {
+                    face = e->ang;
+                } else if (*(s16*)&gPlayers[e->closest][647] > 2) {
+                    face = get_yaw(&gPlayers[e->closest][633],
+                                   &e->objgrp.worldmat[3][0]);
+                } else {
+                    face = get_yaw(&gPlayers[e->closest][17],
+                                   &e->objgrp.worldmat[3][0]);
+                }
+                lbl_80344720 = face;
+            } else {
+                e->plr_ms =
+                    *((s32*)&gPlayers[e->closest][653] + e->ms_idx);
+                if (e->plr_ms < 0) {
+                    if (e->closest < 0) {
+                        face = e->ang;
+                    } else if (*(s16*)&gPlayers[e->closest][647] > 2) {
+                        face = get_yaw(&gPlayers[e->closest][633],
+                                       &e->objgrp.worldmat[3][0]);
+                    } else {
+                        face = get_yaw(&gPlayers[e->closest][17],
+                                       &e->objgrp.worldmat[3][0]);
+                    }
+                    lbl_80344720 = face;
+                } else {
+                    f32 mspos[3];
+                    GetMilestonePos(e->plr_ms, mspos);
+                    lbl_80344720 =
+                        get_yaw(mspos, &e->objgrp.worldmat[3][0]);
+                }
+            }
+        } else if (e->stuck_count < 5) {
+            f32 mspos[3];
+            GetMilestonePos(e->plr_ms, mspos);
+            lbl_80344720 = get_yaw(mspos, &e->objgrp.worldmat[3][0]);
+        } else {
+            e->ms_idx++;
+            if (e->max_msidx < e->ms_idx
+                || *((s32*)&gPlayers[e->closest][653] + e->ms_idx) < 0) {
+                e->ms_idx = 0;
+                e->max_msidx = 4;
+                e->plr_ms = -1;
+                if (e->closest < 0) {
+                    face = e->ang;
+                } else if (*(s16*)&gPlayers[e->closest][647] > 2) {
+                    face = get_yaw(&gPlayers[e->closest][633],
+                                   &e->objgrp.worldmat[3][0]);
+                } else {
+                    face = get_yaw(&gPlayers[e->closest][17],
+                                   &e->objgrp.worldmat[3][0]);
+                }
+                lbl_80344720 = face;
+            } else {
+                e->plr_ms =
+                    *((s32*)&gPlayers[e->closest][653] + e->ms_idx);
+                e->stuck_count = 0;
+            }
+        }
+        if (e->dead_end > 0) {
+            e->dead_end -= gFrameTicks;
+        }
+        if (e->dead_end < 1) {
+            if (e->plr_ms < 0) {
+                if (e->area == 1) {
+                    s16 c = e->collided;
+                    cand = lbl_80344720;
+                    if (e->route == 0) {
+                        e->route = fn_8004CE38(e);
+                    }
+                    if (e->route < 1) {
+                        cand = cand - lbl_8011C064[c];
+                    } else {
+                        cand = cand + lbl_8011C064[c];
+                    }
+                } else if (e->coll_ip == NULL && e->coll_enenum < 0) {
+                    cand = lbl_80344720;
+                } else if (e->route < 1) {
+                    cand = e->ang - lbl_8011C064[e->collided];
+                } else {
+                    cand = e->ang + lbl_8011C064[e->collided];
+                }
+            } else {
+                s16 c = e->collided;
+                cand = lbl_80344720;
+                if (e->route == 0) {
+                    f32 mp[3];
+                    f32 dx;
+                    f32 dz;
+                    f32 a;
+                    f32 d1;
+                    f32 d2;
+                    GetMilestonePos(e->plr_ms, mp);
+                    dx = e->objgrp.worldmat[3][0] - mp[0];
+                    dz = e->objgrp.worldmat[3][2] - mp[2];
+                    a = (f32)(lbl_80346920 + e->pyr[1]);
+                    if (a > lbl_80346840) {
+                        a = a - lbl_80346848;
+                    } else if (a <= lbl_80346850) {
+                        a = lbl_80346848 + a;
+                    }
+                    d1 = fqdist((f32)(sin(a) + dx), (f32)(cos(a) + dz));
+                    a = (f32)(e->pyr[1] - lbl_80346920);
+                    if (a > lbl_80346840) {
+                        a = a - lbl_80346848;
+                    } else if (a <= lbl_80346850) {
+                        a = lbl_80346848 + a;
+                    }
+                    d2 = fqdist((f32)(sin(a) + dx), (f32)(cos(a) + dz));
+                    if (d1 < d2) {
+                        e->route = 1;
+                    } else {
+                        e->route = -1;
+                    }
+                }
+                if (e->route < 1) {
+                    cand = cand - lbl_8011C064[c];
+                } else {
+                    cand = cand + lbl_8011C064[c];
+                }
+            }
+            if (cand > lbl_80346840) {
+                cand = cand - lbl_80346848;
+            } else if (cand <= lbl_80346850) {
+                cand = lbl_80346848 + cand;
+            }
+            probe[0] = e->objgrp.worldmat[3][0];
+            probe[2] = e->objgrp.worldmat[3][2];
+            probe[1] = (f32)(e->objgrp.worldmat[3][1] + lbl_80346858
+                             + e->rad);
+            probe[0] += speed * sin(cand);
+            probe[2] += speed * cos(cand);
+            if ((fabsf_(e->ang - e->angbak) > lbl_803468E0
+                 && fabsf_(cand - e->angbak) <= lbl_803468E0)
+                || fn_8004C8CC(probe, index) == 0) {
+                blocked = 1;
+                e->stuck_count++;
+            } else {
+                e->stuck_count = 0;
+            }
+            if (e->stuck_count > 10) {
+                cand = lbl_80344720;
+                e->ang = lbl_80344720;
+            }
+            if (!blocked) {
+                e->angbak = e->ang;
+                e->ang = cand;
+            }
+        } else {
+            cand = e->ang;
+        }
+        fn_8004CD1C(e, 1.0f, cand);
+        if (!blocked || cand == lbl_80344720) {
+            e->pyr[1] = turn_enemy_ang(e, cand);
+        }
+        do_enemy_move(index);
+    }
 }
+
 
 /* move_logic12 @0x80049A1C (state 12, maggot-egg tether).  Shares the IT-flee /
  * chase gate, then runs a small generator-egg state machine: snap to the dest,

@@ -983,21 +983,1151 @@ s32 fn_800629B0(void)
 }
 
 /* --------------------------------------------------------------------------
- * Giant functions (light-touch skeletons).  Full bodies deferred; defined
- * last so no earlier caller auto-inlines these stubs (their `bl` is kept).
- *   fn_8005F0F4  0x0A54  big per-object distance/worker
+ * Big world-object handlers (reconstructed from the DOL).
+ *   fn_8005BA1C  0x07C0  gold-wizard reward pass over one item
  *   fn_8005C1DC  0x0E70  item/object spawn dispatcher
  *   fn_8005DE50  0x0ABC  big object state machine
+ *   fn_8005F0F4  0x0A54  big per-object distance/worker
  *   fn_800606FC  0x22B4  per-frame world update dispatcher
  */
-f32 fn_8005F0F4(Item* item, f32 a, f32 b, s32 c, f32* pos, s32 d)
+
+extern void* AtreeMatch(void* buf, const char* name, s32 mode);
+extern void  AtreeDelete(void* atree);
+extern void* AtreeInit(void* hdr, void* atree, s32 a, s32 flags);
+extern void  MBNodeSetParent(void* node, void* parent);
+extern void  AnimateATree(void* atree, s32 action, s32 mode);
+extern void  MBRemoveNode(void* node, s32 mode);
+extern void* AtreeMatchAnyHeader(char* name, s32 mode);
+extern void  fn_8009190C(OBJGRP* grp, s32 evt);
+extern s32   gNextItemIdx;
+extern u8    gWorldInfo[];
+extern char  lbl_80346F10[];     /* "CHICKEN"  */
+extern char  lbl_80346F18[];     /* "APPLE"    */
+extern char  lbl_80346F20[];     /* "TREAS_GOLD" (sdata2 copy)   */
+extern char  lbl_80346F28[];     /* "TREAS_SILVER" (sdata2 copy) */
+extern f32   lbl_80346F30;
+extern char  lbl_80346F34[];     /* "%s_D"     */
+extern char  lbl_802583A8[];     /* scratch name buffer          */
+extern char  sObjectsFile[];     /* +0x130 "TREAS_GOLD", +0x13C "TREAS_SILVER" */
+
+f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner);
+extern u8 gEnemies[];
+
+/* 0x8005BA1C - apply a gold/silver-wizard reward to one item (swap the item's
+ * atree to a treasure/food model, retarget generators, pop doors/walls). */
+void fn_8005BA1C(Item* item, u8* player)
 {
-    return 0.0f;
+    s32 evt = -1;                                 /* r25: fx event         */
+    s32 msg = -1;                                 /* r24: message code     */
+    iteminfo* info = item->info;
+    s32* sub = (s32*)((u8*)info + 4);
+    s32 rank = *(s32*)(player + 0x3324);          /* accumulated gold rank */
+    u32 mode = *(u32*)(player + 8) & 3;
+    void* hdr;
+    s32 k;
+    u8* rec;
+
+    switch (info->type) {
+    case 1:
+        switch (*sub) {
+        case 2:
+            break;
+        case 1:
+            if (mode != 0) {
+                break;
+            }
+            if (*(s32*)&item->data[4] > 10) {
+                break;
+            }
+            if (rank >= 0x32) {
+                hdr = AtreeMatch(sPowerupsBuf, &sObjectsFile[0x130], 1);
+                if (*(u32*)&item->atree[0] != 0) {
+                    AtreeDelete(item->atree);
+                }
+                *(void**)&item->atree[0] = AtreeInit(hdr, item->atree, 0, 0x800);
+                MBNodeSetParent(**(void***)&item->atree[0], item->objgrp.node);
+                *(s32*)&item->data[4] = 200;
+                evt = 0x30;
+                msg = 0x8C;
+            } else if (rank >= 0x19) {
+                hdr = AtreeMatch(sPowerupsBuf, &sObjectsFile[0x13C], 1);
+                if (*(u32*)&item->atree[0] != 0) {
+                    AtreeDelete(item->atree);
+                }
+                *(void**)&item->atree[0] = AtreeInit(hdr, item->atree, 0, 0x800);
+                MBNodeSetParent(**(void***)&item->atree[0], item->objgrp.node);
+                *(s32*)&item->data[4] = 100;
+                evt = 0x30;
+                msg = 0x8B;
+            }
+            break;
+        case 3:
+            if (mode != 2) {
+                break;
+            }
+            if (*(s32*)&item->data[4] <= -100) {
+                if (rank < 0x32) {
+                    break;
+                }
+                hdr = AtreeMatch(sPowerupsBuf, lbl_80346F10, 1);
+                if (*(u32*)&item->atree[0] != 0) {
+                    AtreeDelete(item->atree);
+                }
+                *(void**)&item->atree[0] = AtreeInit(hdr, item->atree, 0, 0x800);
+                MBNodeSetParent(**(void***)&item->atree[0], item->objgrp.node);
+                *(s32*)&item->data[4] = 100;
+                evt = 0x2F;
+                msg = 0x90;
+            } else if (*(s32*)&item->data[4] < 0) {
+                if (rank < 0x19) {
+                    break;
+                }
+                hdr = AtreeMatch(sPowerupsBuf, lbl_80346F18, 1);
+                if (*(u32*)&item->atree[0] != 0) {
+                    AtreeDelete(item->atree);
+                }
+                *(void**)&item->atree[0] = AtreeInit(hdr, item->atree, 0, 0x800);
+                MBNodeSetParent(**(void***)&item->atree[0], item->objgrp.node);
+                *(s32*)&item->data[4] = 50;
+                evt = 0x2F;
+                msg = 0x8F;
+            }
+            break;
+        }
+        break;
+
+    case 2:
+        if (*(s16*)&item->data[0] < 0) {
+            break;
+        }
+        rec = *(u8**)(gWorldInfo + 0x68) + *(s16*)&item->data[0] * 0x50;
+        if (*(s32*)rec != 1) {
+            break;
+        }
+        switch (*(s32*)(rec + 4)) {
+        case 2:
+            break;
+        case 1:
+            if (mode != 0) {
+                break;
+            }
+            if (*(s16*)(rec + 0x40) > 10) {
+                break;
+            }
+            if (rank >= 0x32) {
+                if (*sub != 0x2B) {
+                    hdr = AtreeMatch(sGoodWizObj, lbl_80346F20, 1);
+                    if (*(u32*)&item->atree[0] != 0) {
+                        AtreeDelete(item->atree);
+                    }
+                    *(void**)&item->atree[0] =
+                        AtreeInit(hdr, item->atree, 0, 0x800);
+                    MBNodeSetParent(**(void***)&item->atree[0],
+                                    item->objgrp.node);
+                }
+                *(s16*)&item->data[0x10] = 200;
+                if (item->action == 0) {
+                    *(s16*)&item->data[0x10] = 200;
+                    rec = *(u8**)(gWorldInfo + 0x68);
+                    for (k = 0; k < *(s32*)(gWorldInfo + 0x74); k++) {
+                        if (strcmp(&sObjectsFile[0x130],
+                                   (char*)(rec + 0x28)) == 0 &&
+                            *(s32*)rec == 1 && *(s32*)(rec + 4) == 1) {
+                            goto found_gold;
+                        }
+                        rec += 0x50;
+                    }
+                    k = -1;
+found_gold:
+                    *(s16*)&item->data[0] = (s16)k;
+                } else {
+                    *(s32*)&item->data[4] = 200;
+                }
+                evt = 0x30;
+                msg = 0x8C;
+            } else if (rank >= 0x19) {
+                if (*sub != 0x2B) {
+                    hdr = AtreeMatch(sGoodWizObj, lbl_80346F28, 1);
+                    if (*(u32*)&item->atree[0] != 0) {
+                        AtreeDelete(item->atree);
+                    }
+                    *(void**)&item->atree[0] =
+                        AtreeInit(hdr, item->atree, 0, 0x800);
+                    MBNodeSetParent(**(void***)&item->atree[0],
+                                    item->objgrp.node);
+                }
+                if (item->action == 0) {
+                    *(s16*)&item->data[0x10] = 100;
+                    rec = *(u8**)(gWorldInfo + 0x68);
+                    for (k = 0; k < *(s32*)(gWorldInfo + 0x74); k++) {
+                        if (strcmp(&sObjectsFile[0x13C],
+                                   (char*)(rec + 0x28)) == 0 &&
+                            *(s32*)rec == 1 && *(s32*)(rec + 4) == 1) {
+                            goto found_silver;
+                        }
+                        rec += 0x50;
+                    }
+                    k = -1;
+found_silver:
+                    *(s16*)&item->data[0] = (s16)k;
+                } else {
+                    *(s32*)&item->data[4] = 100;
+                }
+                evt = 0x30;
+                msg = 0x8B;
+            }
+            break;
+        case 3:
+            if (item->action > 0) {
+                break;
+            }
+            if (mode != 2) {
+                break;
+            }
+            if (*(s16*)(rec + 0x40) <= -100) {
+                if (rank < 0x32) {
+                    break;
+                }
+                rec = *(u8**)(gWorldInfo + 0x68);
+                for (k = 0; k < *(s32*)(gWorldInfo + 0x74); k++) {
+                    if (strcmp(lbl_80346F10, (char*)(rec + 0x28)) == 0 &&
+                        *(s32*)rec == 1 && *(s32*)(rec + 4) == 3) {
+                        goto found_chicken;
+                    }
+                    rec += 0x50;
+                }
+                k = -1;
+found_chicken:
+                *(s16*)&item->data[0] = (s16)k;
+                evt = 0x2F;
+                msg = 0x90;
+            } else if (*(s16*)(rec + 0x40) < 0) {
+                if (rank < 0x19) {
+                    break;
+                }
+                rec = *(u8**)(gWorldInfo + 0x68);
+                for (k = 0; k < *(s32*)(gWorldInfo + 0x74); k++) {
+                    if (strcmp(lbl_80346F18, (char*)(rec + 0x28)) == 0 &&
+                        *(s32*)rec == 1 && *(s32*)(rec + 4) == 3) {
+                        goto found_apple;
+                    }
+                    rec += 0x50;
+                }
+                k = -1;
+found_apple:
+                *(s16*)&item->data[0] = (s16)k;
+                evt = 0x2F;
+                msg = 0x8F;
+            }
+            break;
+        }
+        break;
+
+    case 8:
+        if (mode != 1) {
+            break;
+        }
+        if (rank >= 0x32) {
+            if (item->active == 0) {
+                break;
+            }
+            sprintf(lbl_802583A8, lbl_80346F34, (char*)info + 0x28);
+            hdr = AtreeMatchAnyHeader(lbl_802583A8, 0);
+            if (hdr != 0) {
+                if (*(u32*)&item->atree[0] != 0) {
+                    AtreeDelete(item->atree);
+                }
+                *(void**)&item->atree[0] = AtreeInit(hdr, item->atree, 0, 0x800);
+                MBNodeSetParent(**(void***)&item->atree[0], item->objgrp.node);
+                item->action = 0;
+                item->daction = 0;
+                item->active = 0;
+            } else {
+                if (*(u32*)&item->atree[0] != 0) {
+                    AtreeDelete(item->atree);
+                    *(u32*)&item->atree[0] = 0;
+                }
+                if (item->objgrp.node != 0) {
+                    MBRemoveNode(item->objgrp.node, 0);
+                    item->objgrp.node = 0;
+                }
+                item->active = -1;
+                k = ((u8*)item - (u8*)sItems) / 0xF0;
+                if (k < gNextItemIdx) {
+                    gNextItemIdx = k;
+                }
+            }
+            msg = 0x8E;
+            evt = 0x31;
+        } else {
+            if (item->activetime < 0x21C) {
+                evt = 0x31;
+            }
+            item->action = 0;
+            item->daction = 0;
+            item->activetime = 0x258;
+            AnimateATree(item->atree, item->daction, 3);
+            msg = 0x8D;
+        }
+        break;
+
+    case 10:
+        if (*sub == 0x29 || *sub == 0x2B) {
+            break;
+        }
+        if (mode != 3) {
+            break;
+        }
+        if (rank >= 0x32) {
+            fn_8005C1DC(item, lbl_80346F30, 0, *(s32*)player);
+            msg = 0x92;
+        } else {
+            *(s16*)&item->data[4] = 4;
+            msg = 0x91;
+        }
+        break;
+    }
+
+    if (evt >= 0) {
+        fn_8009190C(&item->objgrp, evt);
+    }
+    if (msg >= 0) {
+        msgPost(msg, *(s32*)player, (char*)(player + 0x44));
+    }
 }
 
-s32 fn_8005C1DC(Item* item, f32 a, s32 b)
+/* 0x8005F0F4 - collision/visibility probe of one item against the segment
+ * from -> pos.  Returns the 2D distance to the item (negative = no hit); when
+ * `out` is given it receives the pushed-out target position. */
+extern void NormalVector2D(f32* v);
+extern s32  towerAllPlayersMetBossReq(s32 level);
+extern s32  lbl_80344768;
+extern f64  sNewtonThree;
+extern f64  sZeroDouble;
+extern f32  sItemZero;
+extern f64  lbl_80346EE8;
+extern f64  lbl_80346EF0;
+extern f32  lbl_80346F6C;
+extern f32  fn_8005FDA8(u8* e, f32* a, f32* b, f32* outPos, f32* outNorm,
+                        f32 margin);
+
+/* float magnitude via sign-bit clear (inline fabs). */
+static f32 wfabsf_(f32 x)
 {
-    return 0;
+    *(u32*)&x &= 0x7FFFFFFF;
+    return x;
+}
+
+f32 fn_8005F0F4(Item* item, f32 a, f32 b, s32 c, f32* pos, s32 d)
+{
+    f32* from = (f32*)c;
+    f32* out = (f32*)d;
+    iteminfo* info;
+    s32* sub;
+    s16 coltype;
+    s32 keep;
+    s32 type;
+    f32 R;
+    f32 dist;
+    f32 cx, cz;
+    f32 dv[3];
+    f32 nv[3];
+    f32 mv[3];
+    f32 hitpt[3];
+    f32 norm[3];
+    f32 f1, f2, f3, f4;
+
+    if (item->active == -1 || (item->active & 0x8100) != 0) {
+        return sNoDistance;
+    }
+    info = item->info;
+    if (info->type == -1 || item->minoff != 0) {
+        return sNoDistance;
+    }
+    sub = (s32*)((u8*)info + 4);
+    coltype = info->item.coltype;
+    R = info->item.radius;
+    if (coltype == 0) {
+        return sNoDistance;
+    }
+    if ((item->active & 0x40) == 0 && (item->active & 0x4000) == 0) {
+        return sNoDistance;
+    }
+
+    keep = 1;
+    switch (info->type) {
+    case 2:
+        if (*sub == 0x2B && item->action == 2) {
+            keep = 0;
+        }
+        break;
+    case 3:
+        if (item->armor < 0 && info->item.height <= sNewtonThree) {
+            keep = 0;
+        }
+        break;
+    case 4:
+        if (*(f32*)&item->data[0xC] < sZeroDouble) {
+            R = lbl_80346F6C;
+        } else {
+            R = *(f32*)&item->data[0xC];
+        }
+        coltype = 1;
+        break;
+    case 5:
+        if ((item->active & 0x400) != 0) {
+            keep = 0;
+            break;
+        }
+        if (*(f32*)&item->data[0xC] > sZeroDouble) {
+            coltype = 1;
+            R = *(f32*)&item->data[0xC];
+        } else if (*sub == 0x1B) {
+            coltype = 1;
+            R = (f32)(R * lbl_80346EF0);
+        }
+        if ((*(u16*)&item->data[4] & 0x200) != 0) {
+            keep = 0;
+        } else if ((*(u16*)&item->data[4] & 0x40) != 0 &&
+                   (s8)item->data[6] < 100 &&
+                   towerAllPlayersMetBossReq((s8)item->data[6]) != 0) {
+            R = (f32)(R * lbl_80346EF0);
+        }
+        break;
+    case 7:
+        if (item->action > 1 ||
+            (item->action == 1 && item->activetime > 0x1E)) {
+            keep = 0;
+        }
+        break;
+    case 9:
+        if (*sub != 0x32) {
+            R = (f32)(R + ((f64)lbl_80344768 - lbl_80346EE8));
+        }
+        break;
+    case 10:
+        if (*sub < 0x2E && *sub > 0x2A && item->action > 0) {
+            keep = 0;
+        }
+        break;
+    case 13:
+        keep = 0;
+        break;
+    }
+    if (keep == 0) {
+        return sNoDistance;
+    }
+
+    R = (f32)(a + R);
+    cx = item->objgrp.coll_pos[0];
+    cz = item->objgrp.coll_pos[2];
+    f1 = (f32)(cx - pos[0]);
+    f2 = (f32)(cz - pos[2]);
+    if (R * R < f1 * f1 + f2 * f2) {
+        return sNoDistance;
+    }
+
+    dv[0] = (f32)(pos[0] - cx);
+    dv[1] = pos[1] - item->objgrp.coll_pos[1];
+    dv[2] = (f32)(pos[2] - cz);
+    if (coltype != 2 &&
+        (f32)(info->item.height + b) < wfabsf_(dv[1])) {
+        return sNoDistance;
+    }
+    dist = fqdist(dv[0], dv[2]);
+    if (R < dist) {
+        return sNoDistance;
+    }
+
+    if (coltype == 3) {
+        /* oriented box footprint */
+        if (wfabsf_(dv[0] * item->objgrp.worldmat[0][0] +
+                    dv[2] * item->objgrp.worldmat[0][2]) <=
+            (f32)(info->item.xdim + a)) {
+            if ((f32)(info->item.zdim + a) <
+                wfabsf_(dv[0] * item->objgrp.worldmat[2][0] +
+                        dv[2] * item->objgrp.worldmat[2][2])) {
+                keep = 0;
+            }
+        } else {
+            keep = 0;
+        }
+    } else if (coltype < 3) {
+        if (coltype != 1) {
+            if (coltype < 1) {
+                keep = 0;
+            } else {
+                dist = fqdist(dist, dv[1]);
+                if (R < dist) {
+                    keep = 0;
+                }
+            }
+        }
+    } else if (coltype < 5) {
+        /* tri-list collision sweep */
+        if (fn_8005FDA8((u8*)item, from, pos, hitpt, norm, b) < sZeroDouble) {
+            keep = 0;
+        }
+    } else {
+        keep = 0;
+    }
+    if (keep == 0) {
+        return sNoDistance;
+    }
+
+    /* soft types accept immediately at the probe point */
+    type = item->info->type;
+    if (type != 10) {
+        if (type < 10) {
+            if (type == 5 || (type > 4 && type > 7)) {
+                goto accept_at_pos;
+            }
+        } else if (type < 0xC) {
+accept_at_pos:
+            if (out != 0) {
+                out[0] = pos[0];
+                out[1] = pos[1];
+                out[2] = pos[2];
+            }
+            return dist;
+        }
+    }
+
+    /* line-of-sight check from the probe origin */
+    keep = 0;
+    nv[0] = (f32)(from[0] - cx);
+    nv[1] = sItemZero;
+    nv[2] = (f32)(from[2] - cz);
+    if (coltype == 3) {
+        f1 = nv[0] * item->objgrp.worldmat[0][0] +
+             nv[2] * item->objgrp.worldmat[0][2];
+        if (wfabsf_(f1) <= (f32)(info->item.xdim + a)) {
+            f2 = nv[0] * item->objgrp.worldmat[2][0] +
+                 nv[2] * item->objgrp.worldmat[2][2];
+            if (wfabsf_(f2) <= (f32)(info->item.zdim + a)) {
+                nv[0] = (f32)(pos[0] - cx);
+                nv[2] = (f32)(pos[2] - cz);
+                f3 = nv[0] * item->objgrp.worldmat[0][0] +
+                     nv[2] * item->objgrp.worldmat[0][2];
+                if (((sItemZero <= f1 || f3 <= f1) &&
+                     (f1 <= sItemZero || f1 <= f3)) &&
+                    (f4 = nv[0] * item->objgrp.worldmat[2][0] +
+                          nv[2] * item->objgrp.worldmat[2][2],
+                     (sItemZero <= f2 || f4 <= f2)) &&
+                    (f2 <= sItemZero || f2 <= f4)) {
+                    keep = 1;
+                }
+            }
+        }
+    } else if (coltype < 3) {
+        if (coltype == 1) {
+            keep = 1;
+        } else {
+            if (fqdist(nv[0], nv[2]) <= R) {
+                keep = 1;
+            }
+        }
+    } else if (coltype > 4) {
+        if (fqdist(nv[0], nv[2]) <= R) {
+            keep = 1;
+        }
+    }
+
+    if (keep != 0) {
+        nv[0] = pos[0] - from[0];
+        nv[1] = sItemZero;
+        nv[2] = pos[2] - from[2];
+        mv[0] = (f32)(cx - from[0]);
+        mv[1] = sItemZero;
+        mv[2] = (f32)(cz - from[2]);
+        NormalVector2D(nv);
+        NormalVector2D(mv);
+        if (nv[0] * mv[0] + nv[2] * mv[2] < sItemZero) {
+            return sNoDistance;
+        }
+    }
+
+    if (out != 0) {
+        if (coltype == 3) {
+            nv[0] = (f32)(pos[0] - cx);
+            nv[1] = sItemZero;
+            nv[2] = (f32)(pos[2] - cz);
+            f3 = nv[0] * item->objgrp.worldmat[0][0] +
+                 nv[2] * item->objgrp.worldmat[0][2];
+            f4 = nv[0] * item->objgrp.worldmat[2][0] +
+                 nv[2] * item->objgrp.worldmat[2][2];
+            f2 = (f32)(info->item.xdim + a) - wfabsf_(f3);
+            f1 = (f32)(info->item.zdim + a) - wfabsf_(f4);
+            if (sItemZero < f2 || sItemZero < f1) {
+                if (f1 <= f2 || f2 <= sItemZero) {
+                    if (f2 <= f1 || f1 <= sItemZero) {
+                        out[0] = from[0];
+                        out[1] = from[1];
+                        out[2] = from[2];
+                    } else if (f4 <= sItemZero) {
+                        f1 = -f1;
+                        out[0] = item->objgrp.worldmat[2][0] * f1 + pos[0];
+                        out[1] = item->objgrp.worldmat[2][1] * f1 + pos[1];
+                        out[2] = item->objgrp.worldmat[2][2] * f1 + pos[2];
+                    } else {
+                        out[0] = item->objgrp.worldmat[2][0] * f1 + pos[0];
+                        out[1] = item->objgrp.worldmat[2][1] * f1 + pos[1];
+                        out[2] = item->objgrp.worldmat[2][2] * f1 + pos[2];
+                    }
+                } else if (f3 <= sItemZero) {
+                    f2 = -f2;
+                    out[0] = item->objgrp.worldmat[0][0] * f2 + pos[0];
+                    out[1] = item->objgrp.worldmat[0][1] * f2 + pos[1];
+                    out[2] = item->objgrp.worldmat[0][2] * f2 + pos[2];
+                } else {
+                    out[0] = item->objgrp.worldmat[0][0] * f2 + pos[0];
+                    out[1] = item->objgrp.worldmat[0][1] * f2 + pos[1];
+                    out[2] = item->objgrp.worldmat[0][2] * f2 + pos[2];
+                }
+            } else {
+                out[0] = from[0];
+                out[1] = from[1];
+                out[2] = from[2];
+            }
+        } else if (coltype < 3 || coltype > 4) {
+            if (keep == 0) {
+                nv[0] = pos[0] - from[0];
+                nv[1] = sItemZero;
+                nv[2] = pos[2] - from[2];
+                mv[0] = (f32)(cx - from[0]);
+                mv[1] = sItemZero;
+                mv[2] = (f32)(cz - from[2]);
+            }
+            if (nv[2] * mv[0] - nv[0] * mv[2] <= sItemZero) {
+                f1 = -mv[0];
+                mv[0] = mv[2];
+                mv[2] = f1;
+            } else {
+                f1 = -mv[2];
+                mv[2] = mv[0];
+                mv[0] = f1;
+            }
+            NormalVector2D(mv);
+            f1 = nv[0] * mv[0] + nv[2] * mv[2];
+            out[0] = mv[0] * f1 + from[0];
+            out[1] = mv[1] * f1 + from[1];
+            out[2] = mv[2] * f1 + from[2];
+        } else {
+            /* push the target out along the tri-list hit normal */
+            nv[0] = hitpt[0] - pos[0];
+            nv[1] = hitpt[1] - pos[1];
+            nv[2] = hitpt[2] - pos[2];
+            out[0] = pos[0];
+            out[1] = pos[1];
+            f1 = (f32)((nv[0] * norm[0] + nv[2] * norm[2]) + a);
+            out[2] = pos[2];
+            if (sItemZero < f1) {
+                out[0] = norm[0] * f1 + out[0];
+                out[2] = norm[2] * f1 + out[2];
+            }
+        }
+    }
+    return dist;
+}
+
+/* 0x8005C1DC - apply a hit of `power` to one world item (item/object damage
+ * dispatcher).  Returns the remaining health as a float (-1 none, -2 heavy). */
+extern void  DeleteItem(Item* item, s32 mode);
+extern void  start_magic(s32 owner, f32* pos, s32 value, s32 mode, f32 radius);
+extern void  StartFXMat(s32 fx, OBJGRP* grp);
+extern void  StartExplosion(f32 radius);
+extern s32   MBOX_NewObject(const char* name, void* node, f32 scale, u32 flags);
+extern s32   MBOX_ReallyFindObject(char* name, s32 a, s32 b, s32 c);
+extern void  MBTreeSetZsortAdd(void* node, s32 value, s32 mode);
+extern u8    EnemyDescType(char* desc);
+extern char* EnemyTypePrefix(s32 type);
+extern void  AudioPlayEvt101(f32* pos);
+extern void  AudioExplodeWall(f32* pos, s32 health);
+extern f32   fn_8005E90C(Item* item, void* inst);
+extern void  fn_8009DA78(f32* pos);
+extern void  fn_8009DA28(f32* pos);
+extern void  fn_8009D9D8(f32* pos);
+extern void  fn_8009EF4C(f32* pos);
+extern void  fn_8009C7D8(f32* pos, s32 gen);
+extern void  fn_8009C774(f32* pos, s32 gen);
+extern void  fn_80091AC0(OBJGRP* grp, s32 gen, s32 off);
+extern s32   fn_80094440(f32* pos, u32 flags, s32 destroyed);
+extern void  AddItemWobj(Item* item);
+extern s32   Round(f32 value);
+extern s32   stricmp(const char* a, const char* b);
+extern char* strcat(char* dst, const char* src);
+extern u8    Effects[];
+extern s32   gNumEnemies;
+extern f64   lbl_80346ED8;       /* 2^52 int-conv constant */
+extern f64   lbl_80346EE8;
+extern f64   lbl_80346EF0;
+extern f64   lbl_80346F40;
+extern f64   sItemFloorYOffset;
+extern f32   sItemZero;
+extern f32   sItemFloorRadius;
+extern f32   lbl_80346F54;
+extern char  lbl_80346F58[];     /* "BADMEAT" */
+extern char  lbl_80346F60[];     /* "GAPPLE"  */
+extern f32   lbl_80346F68;
+extern f32   lbl_80346F6C;
+extern char  lbl_80346F70[];     /* "BOSSGEN" */
+extern char  sLevelOneSuffix[];  /* "L1"      */
+extern char  sRootSuffix[];      /* "ROOT"    */
+extern f64   lbl_80346F88;
+extern char  lbl_80346F90[];     /* "BARPOI0" */
+extern f64   lbl_80346F98;
+extern char  lbl_80346FA0[];     /* "BAREXP0" */
+extern f32   lbl_80346FA8;
+
+f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
+{
+    s32 destroyed = 0;                        /* item died from this hit  */
+    s32 alive;                                /* item tracks health       */
+    s32 ret;                                  /* remaining health / code  */
+    iteminfo* info = item->info;
+    s32* sub = (s32*)((u8*)info + 4);
+    f32 v[3];
+    char buf[0x38];
+    void* hdr;
+    u8* rec;
+    s32 k;
+    s32 thr;
+    s8 state;
+
+    /* scale generator hits by how far the player's gold exceeds the ramp */
+    if (info->type == 3 && owner >= 0 &&
+        *(f32*)((u8*)gCurLevel + 0x9C) > sItemZero) {
+        f32 mult = sItemFloorRadius;
+        f32 ramp = *(f32*)((u8*)gCurLevel + 0x9C);
+        f32 gold = (f32)*(s32*)((u8*)gPlayers + owner * 0x335C + 0x3324);
+
+        if (ramp <= gold) {
+            if (ramp < gold) {
+                mult = (f32)(sItemFloorYOffset * (gold - ramp) + lbl_80346EE8);
+            }
+        } else {
+            mult = -(f32)(lbl_80346F40 * (ramp - gold) - lbl_80346EE8);
+        }
+        power = power * mult;
+        if (power < (f32)lbl_80346EE8) {
+            power = sItemFloorRadius;
+        }
+    }
+
+    if ((flags & 0x800) != 0) {
+        if (power > sCameraVisibilityRadius) {
+            ret = -2;
+        } else {
+            ret = -1;
+        }
+        power = sItemZero;
+        alive = 0;
+    } else {
+        if (item->armor >= 0) {
+            power = power - (f32)item->armor;
+            if (power <= sItemZero) {
+                power = sItemFloorRadius;
+            }
+            item->health -= Round(power);
+            if (item->health < 0) {
+                item->health = 0;
+            }
+            destroyed = (item->health == 0);
+        }
+        if ((u8)item->armor == 0xFF) {
+            ret = -1;
+            alive = 0;
+        } else {
+            alive = 1;
+            ret = item->health;
+        }
+    }
+
+    v[0] = item->objgrp.coll_pos[0];
+    v[1] = (f32)(item->objgrp.coll_pos[1] + lbl_80346EF0);
+    v[2] = item->objgrp.coll_pos[2];
+
+    switch (info->type) {
+    case 1:
+        if (*sub == 4) {
+            if (ret == 0) {
+                start_magic(-1, item->objgrp.attn_pos,
+                            *(s32*)((u8*)info + 0x3C), 0, lbl_80346F54);
+                if (item->info->type == 1 && *(Item**)&item->data[0xC] != 0) {
+                    DeleteItem(*(Item**)&item->data[0xC], 0);
+                }
+                if (item->info->type == 2 && *(Item**)&item->data[0xC] != 0) {
+                    DeleteItem(*(Item**)&item->data[0xC], 0);
+                }
+                if (*(u32*)&item->atree[0] != 0) {
+                    AtreeDelete(item->atree);
+                    *(u32*)&item->atree[0] = 0;
+                }
+                if (item->objgrp.node != 0) {
+                    MBRemoveNode(item->objgrp.node, 0);
+                    item->objgrp.node = 0;
+                }
+                item->active = -1;
+                k = ((u8*)item - (u8*)sItems) / 0xF0;
+                if (k < gNextItemIdx) {
+                    gNextItemIdx = k;
+                }
+            }
+            break;
+        }
+        if (*sub < 4) {
+            if (*sub == 2) {
+                break;
+            }
+            if (*sub < 2) {
+                if (*sub > 0) {
+                    /* food -> junk treasure */
+                    if ((flags & 0x400) != 0 && power >= lbl_80346F68) {
+                        StartFXMat(0x20, &item->objgrp);
+                        StartFXMat(0x21, &item->objgrp);
+                        hdr = AtreeMatch(sPowerupsBuf, &sObjectsFile[0x158], 1);
+                        if (*(u32*)&item->atree[0] != 0) {
+                            AtreeDelete(item->atree);
+                        }
+                        *(void**)&item->atree[0] =
+                            AtreeInit(hdr, item->atree, 0, 0x800);
+                        MBNodeSetParent(**(void***)&item->atree[0],
+                                        item->objgrp.node);
+                        *(s32*)&item->data[4] = 10;
+                    }
+                    break;
+                }
+            } else if (ret == -2) {
+                /* good food goes bad on a heavy hit */
+                if (item->health == 2) {
+                    hdr = AtreeMatch(sPowerupsBuf, lbl_80346F58, 1);
+                    if (*(u32*)&item->atree[0] != 0) {
+                        AtreeDelete(item->atree);
+                    }
+                    *(void**)&item->atree[0] =
+                        AtreeInit(hdr, item->atree, 0, 0x800);
+                    MBNodeSetParent(**(void***)&item->atree[0],
+                                    item->objgrp.node);
+                    *(s32*)&item->data[4] = -100;
+                } else {
+                    hdr = AtreeMatch(sPowerupsBuf, lbl_80346F60, 1);
+                    if (*(u32*)&item->atree[0] != 0) {
+                        AtreeDelete(item->atree);
+                    }
+                    *(void**)&item->atree[0] =
+                        AtreeInit(hdr, item->atree, 0, 0x800);
+                    MBNodeSetParent(**(void***)&item->atree[0],
+                                    item->objgrp.node);
+                    *(s32*)&item->data[4] = -50;
+                }
+                destroyed = 1;
+                msgPost(0x88, -1, 0);
+            }
+        } else if (*sub < 0x11 && *sub > 9) {
+            break;
+        }
+        /* generic destroy */
+        if ((flags & 0x400) != 0 && power >= lbl_80346F68) {
+            StartFXMat(0x20, &item->objgrp);
+            StartFXMat(0x21, &item->objgrp);
+            MBOX_NewObject(&sObjectsFile[0x14C], item->objgrp.node,
+                           *(f32*)((u8*)item->objgrp.node + 0x74), 0x80800);
+            if (item->info->type == 1 && *(Item**)&item->data[0xC] != 0) {
+                DeleteItem(*(Item**)&item->data[0xC], 0);
+            }
+            if (item->info->type == 2 && *(Item**)&item->data[0xC] != 0) {
+                DeleteItem(*(Item**)&item->data[0xC], 0);
+            }
+            if (*(u32*)&item->atree[0] != 0) {
+                AtreeDelete(item->atree);
+                *(u32*)&item->atree[0] = 0;
+            }
+            if (item->objgrp.node != 0) {
+                MBRemoveNode(item->objgrp.node, 0);
+                item->objgrp.node = 0;
+            }
+            item->active = -1;
+            k = ((u8*)item - (u8*)sItems) / 0xF0;
+            if (k < gNextItemIdx) {
+                gNextItemIdx = k;
+            }
+            msgPost(0x87, -1, 0);
+        }
+        break;
+
+    case 2:
+        rec = 0;
+        if (*(s16*)&item->data[0] >= 0) {
+            rec = *(u8**)(gWorldInfo + 0x68) + *(s16*)&item->data[0] * 0x50;
+        }
+        if (rec != 0 && (flags & 0x200) != 0 &&
+            EnemyDescType((char*)(rec + 0x28)) == 0x1E && *sub != 0x2B) {
+            /* enemy chest converts to an apple generator */
+            *sub = 1;
+            rec = *(u8**)(gWorldInfo + 0x68);
+            for (k = 0; k < *(s32*)(gWorldInfo + 0x74); k++) {
+                if (strcmp(lbl_80346F18, (char*)(rec + 0x28)) == 0 &&
+                    *(s32*)rec == 1 && *(s32*)(rec + 4) == 3) {
+                    goto found_gen;
+                }
+                rec += 0x50;
+            }
+            k = -1;
+found_gen:
+            *(s16*)&item->data[0] = (s16)k;
+            AudioPlayEvt101(v);
+            alive = 1;
+            *(s16*)&item->data[2] = (s16)(lbl_80346F6C * power);
+        } else if (destroyed != 0 && (item->active & 0x200) != 0) {
+            if ((item->active & 1) == 0) {
+                item->active |= 1;
+                fn_8005E90C(item, 0);
+                if (*sub == 0x2B) {
+                    fn_8009DA78(v);
+                    msgPost(0x1B, -1, (char*)v);
+                }
+            }
+        } else if ((flags & 0x400) != 0 && power >= lbl_80346F68) {
+            if (*sub == 0x2C) {
+                item->daction = 2;
+                item->action = 2;
+                item->active |= 1;
+                fn_8005E90C(item, 0);
+            } else {
+                if (rec != 0 && EnemyDescType((char*)(rec + 0x28)) == 0x1E) {
+                    fn_8005E90C(item, 0);
+                }
+                StartFXMat(0x1F, &item->objgrp);
+                StartFXMat(0x21, &item->objgrp);
+                if (*sub == 0x30) {
+                    MBOX_NewObject(&sObjectsFile[0x164], item->objgrp.node,
+                                   *(f32*)((u8*)item->objgrp.node + 0x74),
+                                   0x80800);
+                } else {
+                    MBOX_NewObject(&sObjectsFile[0x170], item->objgrp.node,
+                                   *(f32*)((u8*)item->objgrp.node + 0x74),
+                                   0x80800);
+                }
+                if (item->info->type == 1 && *(Item**)&item->data[0xC] != 0) {
+                    DeleteItem(*(Item**)&item->data[0xC], 0);
+                }
+                if (item->info->type == 2 && *(Item**)&item->data[0xC] != 0) {
+                    DeleteItem(*(Item**)&item->data[0xC], 0);
+                }
+                if (*(u32*)&item->atree[0] != 0) {
+                    AtreeDelete(item->atree);
+                    *(u32*)&item->atree[0] = 0;
+                }
+                if (item->objgrp.node != 0) {
+                    MBRemoveNode(item->objgrp.node, 0);
+                    item->objgrp.node = 0;
+                }
+                item->active = -1;
+                k = ((u8*)item - (u8*)sItems) / 0xF0;
+                if (k < gNextItemIdx) {
+                    gNextItemIdx = k;
+                }
+            }
+        }
+        break;
+
+    case 3:
+        /* enemy generator damage-state machine */
+        thr = (s32)((f32)*(s16*)((u8*)info + 0x44) *
+                    *(f32*)((u8*)gCurLevel + 0xCC));
+        if (ret < 0) {
+            break;
+        }
+        if (destroyed == 0) {
+            if (item->health > thr) {
+                if (item->health > thr * 2) {
+                    state = 3;
+                } else {
+                    state = 2;
+                }
+            } else {
+                state = 1;
+            }
+        } else {
+            state = 0;
+        }
+        if (state != (s8)item->data[6]) {
+            item->data[6] = state;
+            if (state == 0) {
+                item->armor = -1;
+            } else {
+                item->data[3] = (u8)(item->data[3] << 1);
+            }
+            if ((s8)item->data[7] == 0x1C || (s8)item->data[7] == 0x1D) {
+                item->data[7] = 0;
+            }
+            if (item->data[7] == 0x1E) {
+                item->data[7] = 0;
+            }
+            if (stricmp(buf, lbl_80346F70) != 0) {
+                if (*(s16*)&item->data[0] < -1) {
+                    sprintf(buf, &sObjectsFile[0x17C], (s8)item->data[6]);
+                } else {
+                    sprintf(buf, &sObjectsFile[0x18C],
+                            EnemyTypePrefix(*(s16*)&item->data[0]),
+                            (s8)item->data[6]);
+                }
+            }
+            hdr = AtreeMatchAnyHeader(buf, 1);
+            if (hdr == 0) {
+                k = MBOX_ReallyFindObject(buf, -1, -1, -1);
+                if (k < 0) {
+                    strcat(buf, sLevelOneSuffix);
+                    k = MBOX_ReallyFindObject(buf, -1, -1, -1);
+                }
+                if (k < 0) {
+                    strcat(buf, sRootSuffix);
+                    k = MBOX_ReallyFindObject(buf, -1, -1, -1);
+                }
+                if (k < 0) {
+                    if (*(u32*)&item->atree[0] != 0) {
+                        AtreeDelete(item->atree);
+                        *(u32*)&item->atree[0] = 0;
+                    }
+                    if (item->objgrp.node != 0) {
+                        MBRemoveNode(item->objgrp.node, 0);
+                        item->objgrp.node = 0;
+                    }
+                    item->active = -1;
+                    k = ((u8*)item - (u8*)sItems) / 0xF0;
+                    if (k < gNextItemIdx) {
+                        gNextItemIdx = k;
+                    }
+                } else {
+                    MBSetObject(item->objgrp.node, k);
+                }
+            } else {
+                if (*(u32*)&item->atree[0] != 0) {
+                    AtreeDelete(item->atree);
+                }
+                *(void**)&item->atree[0] = AtreeInit(hdr, item->atree, 0, 0x800);
+                MBNodeSetParent(**(void***)&item->atree[0], item->objgrp.node);
+            }
+            if (state == 0) {
+                item->active &= ~1;
+                item->armor = -1;
+                fn_80091AC0(&item->objgrp, *(s16*)&item->data[0], 1);
+            } else {
+                fn_80091AC0(&item->objgrp, *(s16*)&item->data[0], 0);
+            }
+        }
+        if (state == 0) {
+            fn_8009C7D8(v, *(s16*)&item->data[0]);
+            for (k = 0; k < gNumEnemies; k++) {
+                if (*(Item**)(gEnemies + k * 0x394 + 0x290) == item) {
+                    *(Item**)(gEnemies + k * 0x394 + 0x290) = 0;
+                }
+            }
+        } else {
+            fn_8009C774(v, *(s16*)&item->data[0]);
+        }
+        break;
+
+    case 4:
+        *(s32*)&item->data[8] |= 1;
+        break;
+
+    case 5:
+        if ((flags & 0x800) == 0 && *sub == 0x1F) {
+            Item* w;
+            ret = 1;
+            for (w = item; w != 0; w = *(Item**)&w->data[8]) {
+                w->playermask |= 0xF;
+            }
+        }
+        break;
+
+    case 10:
+        if (ret < 0) {
+            break;
+        }
+        if (alive != 0 && destroyed == 0 && *sub != 0x29) {
+            *(s16*)&item->data[4] = 1;
+        }
+        switch (*(s32*)((u8*)item->info + 4)) {
+        case 0x29:
+            if (*(s16*)&item->data[2] >= 0) {
+                AddItemWobj(item);
+                destroyed = 0;
+            }
+            break;
+        case 0x2A:
+            AudioExplodeWall(v, item->health);
+            break;
+        case 0x2D:
+            if (destroyed == 0) {
+                fn_8009EF4C(v);
+            } else {
+                item->active |= 1;
+                StartExplosion((f32)(lbl_80346F98 *
+                                     *(f32*)((u8*)gCurLevel + 0xDC)));
+                fn_8009DA28(v);
+                MBOX_NewObject(lbl_80346FA0, item->objgrp.node,
+                               *(f32*)((u8*)item->objgrp.node + 0x74),
+                               0x80800);
+                alive = 0;
+                ret = -2;
+                destroyed = 0;
+            }
+            break;
+        case 0x2C:
+            if (destroyed == 0) {
+                fn_8009EF4C(v);
+            } else {
+                item->active |= 1;
+                StartExplosion((f32)(lbl_80346F88 *
+                                     *(f32*)((u8*)gCurLevel + 0xDC)));
+                fn_8009D9D8(v);
+                MBOX_NewObject(lbl_80346F90, item->objgrp.node,
+                               *(f32*)((u8*)item->objgrp.node + 0x74),
+                               0x80800);
+                alive = 0;
+                ret = -2;
+                destroyed = 0;
+            }
+            break;
+        default:
+            /* 0x2B, walls, everything else: shake / rumble */
+            if (destroyed == 0) {
+                fn_8009EF4C(v);
+            } else {
+                item->active |= 1;
+                fn_8009DA78(v);
+                destroyed = 0;
+            }
+            break;
+        }
+        if (destroyed != 0) {
+            if (*(u32*)&item->atree[0] != 0) {
+                AtreeDelete(item->atree);
+                *(u32*)&item->atree[0] = 0;
+            }
+            if (item->objgrp.node != 0) {
+                MBRemoveNode(item->objgrp.node, 0);
+                item->objgrp.node = 0;
+            }
+            item->active = -1;
+            k = ((u8*)item - (u8*)sItems) / 0xF0;
+            if (k < gNextItemIdx) {
+                gNextItemIdx = k;
+            }
+        }
+        break;
+    }
+
+    if (alive != 0) {
+        k = fn_80094440(v, flags, destroyed);
+        if (k >= 0) {
+            MBTreeSetZsortAdd(*(void**)(Effects + k * 0xF0 + 0x14),
+                              (s32)(lbl_80346FA8 * info->item.radius), 1);
+        }
+    }
+    return (f32)ret;
 }
 
 s32 fn_8005DE50(void* a, void* b)

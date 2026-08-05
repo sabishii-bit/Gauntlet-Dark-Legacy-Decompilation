@@ -73,7 +73,7 @@ extern void PADControlAllMotors(const u32* cmds);
 /* PS2 scePad/sceMtap shim layer (game/ps2/fakelib TU @0x800AF000+) */
 extern s32 scePadGetState(s32 port, s32 slot);
 extern s32 scePadInfoMode(void);       /* stub */
-extern s32 scePadRead(void);           /* used by joyReadPad */
+extern s32 scePadRead(s32 port, s32 slot, u8* data); /* used by joyReadPad */
 extern void scePadSetActDirect(s32 port, s32 slot, u8* data);
 extern s32 scePadPortOpen(s32 port, s32 slot, void* data);
 extern s32 scePadPortClose(s32 port);  /* stub */
@@ -959,17 +959,136 @@ s32 joyGetStatus(s32 pad, u8* buf)
 }
 #pragma dont_inline off
 
+/* one pressure-mode button record: mode 3 + raw pressure byte */
+#define SET_PBTN(idx, v)      \
+    buf[idx] = 3;             \
+    buf[(idx) + 1] = (v);
+
+/* one digital button record: mode 1 + 0xFF when the (active-low) report
+ * bit is clear */
+#define SET_DBTN(idx, byt, bit)                  \
+    buf[idx] = 1;                                \
+    if (((byt) & (bit)) != 0) {                  \
+        buf[(idx) + 1] = 0;                      \
+    } else {                                     \
+        buf[(idx) + 1] = 0xFF;                   \
+    }
+
+/* one analog-stick direction record: mode 3 + clamped 0..255 excursion */
+#define SET_ABTN(idx, expr)                      \
+    buf[idx] = 3;                                \
+    {                                            \
+        s32 t = (expr);                          \
+        if (t < 1) {                             \
+            buf[(idx) + 1] = 0;                  \
+        } else if (t < 0xFF) {                   \
+            buf[(idx) + 1] = t;                  \
+        } else {                                 \
+            buf[(idx) + 1] = 0xFF;               \
+        }                                        \
+    }
+
 /* 0x80031E74  read one pad via scePadRead and translate the PS2-format
- * button/pressure report into the per-pad level words + per-player
- * button records (get_dir/calc_analog_stick/set*Button inlined).
- * SKELETON - full transcription pending. */
+ * button/pressure report into the 24 {mode,value} button records
+ * (get_dir/calc_analog_stick/set*Button inlined). */
 #pragma dont_inline on
 s32 joyReadPad(s32 pad, u8* buf, s32 state)
 {
-    (void)pad;
-    (void)buf;
+    s32 slot = pad & 3;
+    s32 port = pad / 4;
+    u8 rdata[32];
+
+    if (slot == 0 && pad == 0) {
+        sysResetService();
+    }
+    if (lbl_80240AB8[pad] == 0) {
+        return -1;
+    }
+    if (lbl_8011A288[port * 4 + slot] == 0) {
+        return 0;
+    }
+    if (scePadRead(port, slot, rdata) == 0) {
+        return 0;
+    }
+    if (rdata[0] != 0) {
+        return 0;
+    }
+    /* terminal id must stay stable frame to frame */
+    if (lbl_80240AD8[pad] == 0) {
+        lbl_80240AD8[pad] = rdata[1];
+    } else if ((u32)rdata[1] != (u32)lbl_80240AD8[pad]) {
+        lbl_80240AD8[pad] = 0;
+        return -1;
+    }
+    if (buf == NULL) {
+        return 1;
+    }
+    if (lbl_80240AB8[pad] == 5) {
+        /* DUALSHOCK2 pressure mode: dpad + face buttons carry pressure */
+        SET_PBTN(2, rdata[8]);          /* right    */
+        SET_PBTN(0, rdata[9]);          /* left     */
+        SET_PBTN(4, rdata[10]);         /* up       */
+        SET_PBTN(6, rdata[11]);         /* down     */
+        SET_PBTN(0x18, rdata[12]);      /* triangle */
+        SET_PBTN(0x16, rdata[13]);      /* circle   */
+        SET_PBTN(0x1A, rdata[14]);      /* cross    */
+        SET_PBTN(0x14, rdata[15]);      /* square   */
+        SET_DBTN(0x24, rdata[3], 8);    /* R1 */
+        SET_DBTN(0x26, rdata[3], 2);    /* R2 */
+        SET_DBTN(0x10, rdata[3], 4);    /* L1 */
+        SET_DBTN(0x12, rdata[3], 1);    /* L2 */
+        SET_DBTN(0x28, rdata[2], 8);    /* start  */
+        SET_DBTN(0x2E, rdata[2], 4);    /* R3     */
+        SET_DBTN(0x2C, rdata[2], 2);    /* L3     */
+        SET_DBTN(0x2A, rdata[2], 1);    /* select */
+    } else {
+        SET_DBTN(0, rdata[2], 0x80);    /* left  */
+        SET_DBTN(6, rdata[2], 0x40);    /* down  */
+        SET_DBTN(2, rdata[2], 0x20);    /* right */
+        SET_DBTN(4, rdata[2], 0x10);    /* up    */
+        SET_DBTN(0x28, rdata[2], 8);    /* start  */
+        SET_DBTN(0x2E, rdata[2], 4);    /* R3     */
+        SET_DBTN(0x2C, rdata[2], 2);    /* L3     */
+        SET_DBTN(0x2A, rdata[2], 1);    /* select */
+        SET_DBTN(0x14, rdata[3], 0x80); /* square   */
+        SET_DBTN(0x1A, rdata[3], 0x40); /* cross    */
+        SET_DBTN(0x16, rdata[3], 0x20); /* circle   */
+        SET_DBTN(0x18, rdata[3], 0x10); /* triangle */
+        SET_DBTN(0x24, rdata[3], 8);    /* R1 */
+        SET_DBTN(0x10, rdata[3], 4);    /* L1 */
+        SET_DBTN(0x26, rdata[3], 2);    /* R2 */
+        SET_DBTN(0x12, rdata[3], 1);    /* L2 */
+    }
+    if (lbl_80240AB8[pad] == 4) {
+        /* digital pad: no stick records */
+        buf[8] = 0;
+        buf[9] = 0;
+        buf[10] = 0;
+        buf[11] = 0;
+        buf[12] = 0;
+        buf[13] = 0;
+        buf[14] = 0;
+        buf[15] = 0;
+        buf[0x1C] = 0;
+        buf[0x1D] = 0;
+        buf[0x1E] = 0;
+        buf[0x1F] = 0;
+        buf[0x20] = 0;
+        buf[0x21] = 0;
+        buf[0x22] = 0;
+        buf[0x23] = 0;
+    } else {
+        SET_ABTN(8, (0x80 - rdata[6]) * 2);    /* lstick left  */
+        SET_ABTN(0xA, (rdata[6] - 0x80) * 2);  /* lstick right */
+        SET_ABTN(0xC, (0x80 - rdata[7]) * 2);  /* lstick up    */
+        SET_ABTN(0xE, (rdata[7] - 0x80) * 2);  /* lstick down  */
+        SET_ABTN(0x1C, (0x80 - rdata[4]) * 2); /* rstick left  */
+        SET_ABTN(0x1E, (rdata[4] - 0x80) * 2); /* rstick right */
+        SET_ABTN(0x20, (0x80 - rdata[5]) * 2); /* rstick up    */
+        SET_ABTN(0x22, (rdata[5] - 0x80) * 2); /* rstick down  */
+    }
     (void)state;
-    return 0;
+    return 1;
 }
 #pragma dont_inline off
 
@@ -1551,12 +1670,195 @@ s32 CheckSpecials(s32 plyr, u32 lev)
     return found;
 }
 
-/* 0x80033C5C  top-level pad read: joyGetStatus every pad, assemble raw
- * levels + analog sticks (JoyAng/JoyMag lookup, fn_80034C88 sqrt,
- * atan2) into the staged arrays for ControlsUpdate.
- * SKELETON - full transcription pending. */
+/* boolean press for one button record (inlined all through ReadControls) */
+static s32 btn_down(u8* rec)
+{
+    if ((rec[0] & 1) == 0) {
+        return 0;
+    }
+    if ((rec[0] & 2) == 0) {
+        if (rec[1] == 0) {
+            return 0;
+        }
+        return 1;
+    }
+    if (rec[1] < 6) {
+        return 0;
+    }
+    return 1;
+}
+
+/* raw analog value for one button record (inlined in ReadControls) */
+static u32 btn_val(u8* rec)
+{
+    if ((rec[0] & 1) == 0) {
+        return 0;
+    }
+    if ((rec[0] & 2) == 0) {
+        if (rec[1] == 0) {
+            return 0;
+        }
+        return 0xFF;
+    }
+    return rec[1];
+}
+
+/* 0x80033C5C  top-level pad read: joyGetStatus every pad, translate the
+ * button records into the staged level words (lbl_80240F70/F60) and the
+ * staged analog angle/magnitude floats (atan2 + frsqrte-Newton sqrt),
+ * for ControlsUpdate to consume. */
 void ReadControls(void)
 {
+    int pad;
+    u8 rec[0x30];
+
+    if (ctrls_initialized == 0 || lbl_803445F4 != 0 || lbl_803445E0 != 0) {
+        return;
+    }
+    lbl_803445E4 = 200;
+    lbl_803445F8 = 1;
+    lbl_80344604++;
+    for (pad = 0; pad < 4; pad++) {
+        u8 ok = joyGetStatus(pad, rec);
+
+        if (ok != 0) {
+            s32 bStart, bSel, bL2, bL1, bR2, bR1, bTri, bCir, bX, bSq;
+            s32 scheme, analog, analog2;
+            s32 d0, d1, d2, d3;
+            s32 s8, sA, sC, sE;
+            s32 r0, r1, r2, r3;
+
+            bStart = btn_down(&rec[0x28]);
+            bSel = btn_down(&rec[0x2A]);
+            if (lbl_8011A268[pad] < 0) {
+                scheme = 0;
+            } else {
+                scheme = lbl_80240E30[lbl_8011A268[pad]].scheme;
+            }
+            analog = lbl_80240AB8[pad] == 2 || lbl_80240AB8[pad] == 3 ||
+                     lbl_80240AB8[pad] == 5;
+            analog2 = lbl_80240AB8[pad] == 2 || lbl_80240AB8[pad] == 3 ||
+                      lbl_80240AB8[pad] == 5;
+            d0 = get_button(&rec[0], 1);
+            d1 = get_button(&rec[2], 1);
+            d2 = get_button(&rec[4], 1);
+            d3 = get_button(&rec[6], 1);
+            if (analog2 != 0) {
+                s8 = get_button(&rec[8], 0);
+                sA = get_button(&rec[0xA], 0);
+                sC = get_button(&rec[0xC], 0);
+                sE = get_button(&rec[0xE], 0);
+                r0 = get_button(&rec[0x1C], 0);
+                r1 = get_button(&rec[0x1E], 0);
+                r2 = get_button(&rec[0x20], 0);
+                r3 = get_button(&rec[0x22], 0);
+            } else {
+                s8 = 0;
+                sA = 0;
+                sC = 0;
+                sE = 0;
+                r0 = 0;
+                r1 = 0;
+                r2 = 0;
+                r3 = 0;
+            }
+            /* scheme 3: right stick drives movement */
+            if (scheme == 3 && (r0 != 0 || r1 != 0 || r2 != 0 || r3 != 0)) {
+                s8 = r0;
+                sA = r1;
+                sC = r2;
+                sE = r3;
+            }
+            bL2 = btn_down(&rec[0x12]);
+            bL1 = btn_down(&rec[0x10]);
+            bR2 = btn_down(&rec[0x26]);
+            bR1 = btn_down(&rec[0x24]);
+            bTri = btn_down(&rec[0x18]);
+            bCir = btn_down(&rec[0x16]);
+            bX = btn_down(&rec[0x1A]);
+            bSq = btn_down(&rec[0x14]);
+            lbl_80240F60[pad] |= r0 | r1 << 2 | r2 << 4 | r3 << 6;
+            lbl_80240F70[pad] |=
+                s8 | sA << 2 | sC << 4 | sE << 6 | bStart << 0x12 | bSel << 0x13 |
+                bL1 << 0x14 | bL2 << 0x15 | bR1 << 0x16 | bR2 << 0x17 | bCir << 0x18 |
+                bX << 0x19 | bSq << 0x1A | bTri << 0x1B | (d0 != 0) << 0x1C |
+                (d1 != 0) << 0x1D | (d2 != 0) << 0x1E | (d3 != 0) << 0x1F;
+            if (analog != 0) {
+                u32 a, b, c, d;
+                f32 fh, fv, m2, mag;
+
+                /* left stick -> angle + magnitude */
+                a = btn_val(&rec[8]);
+                b = btn_val(&rec[0xA]);
+                c = btn_val(&rec[0xC]);
+                d = btn_val(&rec[0xE]);
+                if (d <= c) {
+                    d = -c;
+                }
+                if (a <= b) {
+                    a = -b;
+                }
+                fv = (f32)((s32)d) * (1.0 / 255.0);
+                fh = (f32)((s32)a) * (1.0 / 255.0);
+                lbl_80240F40[pad] = atan2(fh, fv);
+                m2 = fv * fv + fh * fh;
+                mag = m2;
+                if (m2 > 0.0f) {
+                    f64 g = __frsqrte(m2);
+
+                    g = 0.5 * g * (3.0 - g * g * m2);
+                    g = 0.5 * g * (3.0 - g * g * m2);
+                    g = 0.5 * g * (3.0 - g * g * m2);
+                    mag = (f32)(m2 * (0.5 * g * (3.0 - g * g * m2)));
+                }
+                if (mag < 1.0f) {
+                    lbl_80240F50[pad] = fn_80034C88(m2);
+                } else {
+                    lbl_80240F50[pad] = 1.0f;
+                }
+                /* right stick -> angle + magnitude */
+                a = btn_val(&rec[0x1C]);
+                b = btn_val(&rec[0x1E]);
+                c = btn_val(&rec[0x20]);
+                d = btn_val(&rec[0x22]);
+                if (d <= c) {
+                    d = -c;
+                }
+                if (a <= b) {
+                    a = -b;
+                }
+                fv = (f32)((s32)d) * (1.0 / 255.0);
+                fh = (f32)((s32)a) * (1.0 / 255.0);
+                lbl_80240F20[pad] = atan2(fh, fv);
+                m2 = fv * fv + fh * fh;
+                mag = m2;
+                if (m2 > 0.0f) {
+                    f64 g = __frsqrte(m2);
+
+                    g = 0.5 * g * (3.0 - g * g * m2);
+                    g = 0.5 * g * (3.0 - g * g * m2);
+                    g = 0.5 * g * (3.0 - g * g * m2);
+                    mag = (f32)(m2 * (0.5 * g * (3.0 - g * g * m2)));
+                }
+                if (mag < 1.0f) {
+                    lbl_80240F30[pad] = fn_80034C88(m2);
+                } else {
+                    lbl_80240F30[pad] = 1.0f;
+                }
+                /* scheme 3: right stick result IS the movement stick */
+                if (scheme == 3 && lbl_80240F30[pad] != 0.0f) {
+                    lbl_80240F50[pad] = lbl_80240F30[pad];
+                    lbl_80240F40[pad] = lbl_80240F20[pad];
+                }
+            } else {
+                lbl_80240F40[pad] = 0.0f;
+                lbl_80240F50[pad] = 0.0f;
+                lbl_80240F20[pad] = 0.0f;
+                lbl_80240F30[pad] = 0.0f;
+            }
+        }
+    }
+    lbl_803445E4 = 299;
 }
 
 /* 0x800347A0  one-time controls init */
