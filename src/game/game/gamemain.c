@@ -1802,9 +1802,9 @@ extern s32 msgPost();
  * party is idle at a boss gate. */
 void fn_80055AFC(void)
 {
-    u8* ms;
     s32 i;
     u32 off;
+    u8* ms;
     s32 n;
     s32 limit;
     u8 _spare[32];
@@ -1851,8 +1851,8 @@ void fn_80055AFC(void)
         return;
     }
     if (lbl_803447EC != 0) {
-        i = 0;
         ms = sMilestones;
+        i = 0;
         off = 0;
         while (i < sNumMilestones) {
             u8* mp = ms + off;
@@ -1865,8 +1865,8 @@ void fn_80055AFC(void)
         }
         lbl_803447E8 = lbl_803447E8 + 1;
     } else {
-        i = 0;
         ms = sMilestones;
+        i = 0;
         off = 0;
         while (i < sNumMilestones) {
             u8* mp = ms + off;

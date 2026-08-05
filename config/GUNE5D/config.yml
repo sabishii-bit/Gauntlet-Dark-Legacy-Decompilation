@@ -27,3 +27,7 @@ block_relocations:
 - source: ".text:0x800C122C"
 - source: ".text:0x800C1238"
 - source: ".text:0x800C123C"
+- source: ".text:0x800C1404"
+- source: ".text:0x800C1408"
+- source: ".text:0x800CB514"
+- source: ".text:0x800CB528"

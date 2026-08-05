@@ -289,6 +289,8 @@ void CreateDynobjGrid(void)
 /* Load-time init: derive the grid dimensions from the level bounds, then
  * allocate the grid array, the per-object record list, and the entry pool
  * (CalcMaxObjSize + InitDynobjList inlined). */
+extern f64 lbl_803466C8; /* 2.0 (sdata2) */
+
 void InitDynobjGrid(void)
 {
     s32 i;
@@ -316,7 +318,7 @@ void InitDynobjGrid(void)
         objidx = *(s16*)((u8*)gWorldInfo.objlistpool + ofs);
         ofs += 2;
         dynobj_list[i].obj_idx = objidx;
-        n = (s32)(2.0 * gWorldInfo.objs[objidx].radius / dyngrid_width);
+        n = (s32)(lbl_803466C8 * gWorldInfo.objs[objidx].radius / dyngrid_width);
         total += (n + 2) * (n + 2);
     }
     dyngrid_count = total + 1;
