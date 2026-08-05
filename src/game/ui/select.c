@@ -221,7 +221,7 @@ static s32 LimitSeltype(u8* player, s32 idx, s32 step)
     return idx;
 }
 
-static void do_sel_menu(s32 player, u32 mode);
+static void do_sel_menu_8008E4F4(s32 player, u32 mode);
 
 /* Top-level select state machine (invoked from gamemain / attract). */
 void do_player_select(void)
@@ -230,7 +230,7 @@ void do_player_select(void)
     init_titlescreen();
     init_attract_mode();
     for (i = 0; i < 16; i++) {
-        do_sel_menu(i, 0);
+        do_sel_menu_8008E4F4(i, 0);
     }
     AudioWelcome(0, 0);
 }
@@ -279,7 +279,7 @@ extern void* lbl_80344E48;
 extern s32 saveGetFreeBytes(s32 chan, s32 handle);
 static s32 sel_set_choice(s32 player, s32 mode);
 
-static void do_sel_menu(s32 player, u32 mode)
+static void do_sel_menu_8008E4F4(s32 player, u32 mode)
 {
     s32* xp = (s32*)(lbl_80121688 + (player << 2));
     char* pool = lbl_801143F8;
