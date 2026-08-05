@@ -1159,6 +1159,9 @@ s32 OptionsStart(s32 player, s32 b)
 
 #pragma push
 #pragma opt_propagation off
+extern char lbl_80113A1C[9];  /* "AAAWHITE" */
+extern f32 lbl_803475A0;      /* 1.0f */
+
 static void do_screenmenu(void)
 {
     s32 tex;
@@ -1173,15 +1176,15 @@ static void do_screenmenu(void)
     s32 w2;
     s32 hw;
     f32 one;
-    u8 unused[64];
+    u8 unused[56];
 
     /* #pragma opt_propagation off reproduces the target's runtime
      * 511-w / 383-h / sz/2 arithmetic (subfic/srawi) and register-cached
      * blit z (melee precedent for shipped scoped pragmas). */
     w = 0x10;
     h = 2;
-    one = 1.0f;
-    tex = (s32)MBOX_FindTexture("AAAWHITE", NULL);
+    one = lbl_803475A0;
+    tex = (s32)MBOX_FindTexture(lbl_80113A1C, NULL);
 
     blit = MBNewTempBlit(tex, 1, 1, w, h);
     if (blit != NULL) {
@@ -1221,9 +1224,8 @@ static void do_screenmenu(void)
     }
 
     /* center cross */
-    hw = h / 2;
-    w2 = w * 2;
-    blit = MBNewTempBlit(tex, 256 - w, 192 - hw, w2, h);
+    blit = MBNewTempBlit(tex, 256 - w, 192 - (hw = h / 2),
+                         w2 = w * 2, h);
     if (blit != NULL) {
         mbBlitCvtCoord(blit, one);
     }
@@ -1233,24 +1235,28 @@ static void do_screenmenu(void)
     }
 
     /* d-pad arrows */
-    sz = 0x20;
-    w2 = sz / 2;
-    hw = 256 - w2;
-    blit = MBNewTempBlit(lbl_80344E30, hw, 0x90, sz, sz);
+    {
+    s32 dh;
+    s32 dx;
+    s32 dsz = 0x20;
+    dh = dsz / 2;
+    dx = 256 - dh;
+    blit = MBNewTempBlit(lbl_80344E30, dx, 0x90, dsz, dsz);
     if (blit != NULL) {
         mbBlitCvtCoord(blit, one);
     }
-    blit = MBNewTempBlit(lbl_80344E38, (256 - sz) - w2, 0xB0, sz, sz);
+    blit = MBNewTempBlit(lbl_80344E38, (256 - dsz) - dh, 0xB0, dsz, dsz);
     if (blit != NULL) {
         mbBlitCvtCoord(blit, one);
     }
-    blit = MBNewTempBlit(lbl_80344E34, 288 - w2, 0xB0, sz, sz);
+    blit = MBNewTempBlit(lbl_80344E34, 288 - dh, 0xB0, dsz, dsz);
     if (blit != NULL) {
         mbBlitCvtCoord(blit, one);
     }
-    blit = MBNewTempBlit(lbl_80344E2C, hw, 0xD0, sz, sz);
+    blit = MBNewTempBlit(lbl_80344E2C, dx, 0xD0, dsz, dsz);
     if (blit != NULL) {
         mbBlitCvtCoord(blit, one);
+    }
     }
 }
 #pragma pop

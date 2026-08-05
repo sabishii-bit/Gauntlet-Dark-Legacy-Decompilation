@@ -3990,7 +3990,7 @@ s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
     gEnemies[slot].generator = gen;
     e = &gEnemies[slot];
     if (gen == 0 || type == 30) {
-        e->genang_offset = 0.0f;
+        e->genang_offset = lbl_80346820;
     } else {
         switch (otype) {
         case 1:
@@ -4073,9 +4073,9 @@ placed:
     UpdateObjWorldMat(&e->objgrp.worldmat[0][0]);
     fn_8005A404(&e->objgrp.worldmat[0][0], e->coll_offset, e->attn_offset);
     e->action = 1;
-    r = e->actionlist[1].animidx;
-    if (r >= 0) {
-        InitAnim(0.0f, &e->atree.animinfo, r, 0, 1);
+    if (e->actionlist[1].animidx >= 0) {
+        InitAnim(lbl_80346820, &e->atree.animinfo,
+                 e->actionlist[1].animidx, 0, 1);
     }
     if (e->hht > 2.0 && level <= 3 && lbl_80251148[type] != 0) {
         StartGenFX(pos, level);
