@@ -148,7 +148,7 @@ s32 show_piles(s32 col);
 void fn_8009A0AC(s32 col);
 static s32 shop_show_final_stats(u8* pl);
 static s32 shop_show_lv(u8* pl, s32 mode);
-static s32 do_shopping(s32 player);
+static s32 do_shopping_8009AA48(s32 player);
 static void shop_setup(void);
 
 /* Master shop state machine: runs each active player's shop flow and
@@ -326,7 +326,7 @@ s32 do_shop(void)
                     /* fall through */
                 case 7:
                     show_piles(i);
-                    if (do_shopping(i) != 0) {
+                    if (do_shopping_8009AA48(i) != 0) {
                         for (j = 0; j < 6; j++) {
                             void** q =
                                 (void**)(page + o24 + 7504 + j * 4);
@@ -1290,7 +1290,7 @@ static s32 write_shop_menu(s32 player, s32 scroll);
 
 /* Buy/sell driver for one shop player: cursor movement over available
  * items, sell-back, and the per-item purchase effects. */
-static s32 do_shopping(s32 player)
+static s32 do_shopping_8009AA48(s32 player)
 {
     u8* pl = gPlayers + player * 13148;
     u8* page = lbl_802897D0;
@@ -1304,13 +1304,12 @@ static s32 do_shopping(s32 player)
     s32* scrollp = (s32*)(page + (player << 2) + 32);
     s32* topp = (s32*)(page + (player << 2) + 16);
     s32* dimp = (s32*)(page + (player << 2));
-    s32* cntp = dimp + 16;
+    s32* cntp = (s32*)(page + (player << 2) + 64);
     u8* avail = page + (player << 8) + 4432;
     s32 price;
     s32 sell;
     s32 buy;
     s32 j;
-    u8 _spare[80];
 
     if (*scrollp != 0) {
         speed = *scrollp;
@@ -1325,15 +1324,12 @@ static s32 do_shopping(s32 player)
             if (*scrollp != 0) {
                 speed = *scrollp + 1;
             }
-            {
-                s32 c = *(s32*)(pl + 2664) + 1;
-                *(s32*)(pl + 2664) = c;
-                if (c >= *cntp) {
-                    *(s32*)(pl + 2664) = 0;
-                    moved = 1;
-                    *dimp = 0;
-                    *topp = 0;
-                }
+            *(s32*)(pl + 2664) += 1;
+            if (*(s32*)(pl + 2664) >= *cntp) {
+                *(s32*)(pl + 2664) = 0;
+                moved = 1;
+                *dimp = 0;
+                *topp = 0;
             }
         }
         if (new_right(player) != 0) {
@@ -1344,10 +1340,8 @@ static s32 do_shopping(s32 player)
             if (*scrollp != 0) {
                 speed = *scrollp + 1;
             }
-            {
-            s32 c = *(s32*)(pl + 2664) - 1;
-            *(s32*)(pl + 2664) = c;
-            if (c < 0) {
+            *(s32*)(pl + 2664) -= 1;
+            if (*(s32*)(pl + 2664) < 0) {
                 u8* item;
                 *cntp = 0;
                 item = lbl_80344C14;
@@ -1388,7 +1382,6 @@ static s32 do_shopping(s32 player)
                     *topp = 0;
                 }
                 moved = 1;
-            }
             }
         }
         price = *(s32*)(lbl_80344C14 + *(s32*)(pl + 2664) * 80 + 72);
