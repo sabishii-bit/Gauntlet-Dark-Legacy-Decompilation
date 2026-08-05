@@ -4940,6 +4940,359 @@ s32 fn_8004CE38(Enemy* e)
     return 1;
 }
 
+/* do_enemies @0x8004D078 -- per-frame master enemy loop.  Runs the critter
+ * list, then (when not paused) sweeps every enemy: a scripted-camera fast path,
+ * otherwise a player-aggro reset, an aggro-decay ramp, a milestone/aim probe,
+ * a two-radius visibility cull, and the main per-enemy state machine (alive /
+ * stunned / dying) with knockback damping and boss fade-out.  Draws the live
+ * enemy count when the debug flags are set. */
+extern void ProcessCritterList(void);
+extern s32 gScriptedCameraState;
+s32 fn_8004D958(s32 index);
+extern s32* DrawTextKeepScale(f32 scale, s32 x, s32 y, s32 font, s32 color, char* txt);
+extern s32 MBWorldSphereVisible3(f32* center, f32 radius);
+extern void fn_800516F8(s32 index);
+extern void fn_8009FEFC(s16 sound);
+extern void fn_8009FEA0(s16 sound);
+extern void AudioPlayEvt102(void);
+extern void ProcessSkinFX(f32* a, void* node, s32 c);
+extern void fn_8005A338(f32* mat, f32* colloff, f32* attnoff);
+extern void fn_8004DC2C(Enemy* e);
+extern void fn_8004DF58(Enemy* e);
+extern s32 gBoss398;
+extern char gTextFormatBuf[];
+extern s32 lbl_803447B8;
+extern s32 lbl_80344718;
+extern s32 lbl_80344740;
+extern f32 lbl_803447D8;
+extern s32 lbl_803447E4;
+extern f32 lbl_8011B878[];        /* per-type aggro-decay ramp (0x88) */
+extern f32 lbl_80346980;
+extern f64 lbl_80346928;
+extern f32 lbl_803468F0;
+extern f64 lbl_80346810;
+extern f64 lbl_80346818;
+extern f64 lbl_80346940;
+extern f64 lbl_80346878;
+extern f32 lbl_803469C0;
+extern char lbl_803469C4[3];
+extern f32 lbl_803469C8;
+
+void do_enemies(void)
+{
+    u8* pool = (u8*)lbl_80250E00;
+    s32 shown = 0;
+    s32 i;
+
+    ProcessCritterList();
+    if (gBoss398 >= 0) {
+        *(s32*)(pool + gBoss398 * 0x394 + 0xECC) = 1;
+    }
+    if ((gGameBusy | gGameplayPauseTimer) != 0) {
+        return;
+    }
+
+    if (gScriptedCameraState != 0) {
+        u8* e;
+
+        if (lbl_803447B8 == 0) {
+            return;
+        }
+        e = pool + 0xE18;
+        for (i = 0; i < gNumEnemies; i++, e += 0x394) {
+            s32 type;
+
+            if (*(s32*)(e + 0xB4) != 1) {
+                continue;
+            }
+            type = *(s32*)e;
+            if (type == gBossType) {
+                continue;
+            }
+            if (type == 0x1D) {
+                *(s32*)(e + 0xD0) = 1;
+            } else if (type == 0) {
+                *(s32*)(e + 0xD0) = 3;
+            } else {
+                *(s32*)(e + 0xD0) = 0;
+            }
+            if (*(u32*)(e + 0x6C) != 0) {
+                *(s32*)(e + 0xCC) = DoEnemyAction((Enemy*)e);
+            }
+        }
+        return;
+    }
+
+    {
+        u8* pl = (u8*)gPlayers;
+
+        for (i = 0; i < 4; i++, pl += 0x335C) {
+            if (*(s32*)(pl + 0xE8) == 1) {
+                *(s32*)(pl + 0xA24) = 0;
+                *(f32*)(pl + 0xA28) = 0.0f;
+            }
+        }
+    }
+
+    {
+        f32 rate = *(f32*)((u8*)gCurLevel + 0xB0) * (f32)gFrameTicks;
+
+        lbl_80344718 = 0;
+        for (i = 0; i < 45; i++) {
+            *(f32*)(pool + 0x40 + i * 4) = rate * lbl_8011B878[i];
+        }
+    }
+
+    {
+        u8* e = pool + 0xE18;
+
+        for (i = 0; i < gNumEnemies; i++, e += 0x394) {
+            if (*(s32*)(e + 0xB4) == 1 && *(s16*)(e + 0x310) == 0x12 &&
+                *(s16*)(e + 0x2DC) != 0) {
+                if (*(s32*)(e + 0xCC) == 4 || *(s32*)(e + 0xD0) == 4) {
+                    lbl_80344748 = i;
+                    break;
+                }
+            }
+        }
+    }
+
+    {
+        u8* e = pool + 0xE18;
+
+        lbl_80344740 = 0;
+        for (i = 0; i < gNumEnemies; i++, e += 0x394) {
+            f32 r;
+
+            if (*(s32*)(e + 0xB4) == 0) {
+                continue;
+            }
+            r = lbl_80346980 * *(f32*)(e + 0x238);
+            *(s16*)(e + 0x2DA) =
+                (s16)MBWorldSphereVisible3((f32*)(e + 0x44), r);
+            r = (f32)((f64)r + lbl_80346928);
+            *(s16*)(e + 0x2DC) =
+                (s16)MBWorldSphereVisible3((f32*)(e + 0x44), r);
+            if (*(s16*)(e + 0x2DA) != 0) {
+                lbl_80344740++;
+            }
+        }
+    }
+
+    {
+        u8* e = pool + 0xE18;
+
+        for (i = 0; i < gNumEnemies; i++, e += 0x394) {
+            s32 state;
+
+            *(s16*)(e + 0x312) = *(s16*)(e + 0x310);
+            *(s32*)(e + 0x36C) += gFrameTicks;
+            if (*(f32*)(e + 0x37C) > 0.0f) {
+                *(f32*)(e + 0x37C) -= gClockFrameStep;
+            }
+            if (*(s32*)e == 0) {
+                *(s32*)(e + 0xD0) = 3;
+            } else {
+                *(s32*)(e + 0xD0) = 0;
+            }
+
+            state = *(s32*)(e + 0xB4);
+            if (state == 1) {
+                if (*(s32*)e == gBossType) {
+                    shown++;
+                    goto tail;
+                }
+                shown++;
+                fn_8005A338((f32*)(e + 0x4), (f32*)(e + 0x22C),
+                            (f32*)(e + 0x220));
+                if (lbl_803447DC != 0) {
+                    *(f32*)(e + 0x90) += gClockFrameStep;
+                    fn_8004DC2C((Enemy*)e);
+                    do_enemy_collide(i);
+                } else if (gTriggerCameraState != 0) {
+                    *(s32*)(e + 0xD0) = 0;
+                    *(s32*)(e + 0xCC) = DoEnemyAction((Enemy*)e);
+                    do_enemy_collide(i);
+                    fn_8004DC2C((Enemy*)e);
+                } else {
+                    fn_800516F8(i);
+                    fn_8004DF58((Enemy*)e);
+                    fn_8004DC2C((Enemy*)e);
+                    if (fn_8004D958(i) != 0) {
+                        goto tail;
+                    }
+                    if (*(u32*)(e + 0x6C) != 0) {
+                        *(s32*)(e + 0xCC) = DoEnemyAction((Enemy*)e);
+                    }
+                    *(s32*)(e + 0x390) =
+                        (*(s32*)(e + 0xCC) == *(s32*)(e + 0xD0)) ? -1 : 0;
+                }
+                ProcessSkinFX((f32*)(e + 0x1E4), *(void**)(e + 0x64), 0);
+                UpdateObjWorldMat((f32*)(e + 0x4));
+                goto tail;
+            } else if (state == 6) {
+                fn_8005A338((f32*)(e + 0x4), (f32*)(e + 0x22C),
+                            (f32*)(e + 0x220));
+                shown++;
+                goto tail;
+            } else if (state == 8) {
+                fn_8005A338((f32*)(e + 0x4), (f32*)(e + 0x22C),
+                            (f32*)(e + 0x220));
+                shown++;
+                if (*(s32*)e == gBossType) {
+                    goto sync;
+                }
+                if (*(s32*)e == 0x1E) {
+                    s32 eff = *(s32*)(e + 0x1E0);
+                    s32 alpha = *(s32*)(e + 0x388);
+
+                    if (eff >= 0) {
+                        *(s32*)(e + 0x1E0) = DeleteEffect(eff, 1);
+                    }
+                    if (alpha < 0xFF) {
+                        MBTreeSetAlpha(*(struct mbnode**)(e + 0x64), alpha, 1);
+                        *(s32*)(e + 0x388) = alpha + gFrameTicks * 4;
+                        *(f32*)(e + 0x38) = (f32)(lbl_80346818 * gClockFrameStep +
+                                                  *(f32*)(e + 0x38));
+                        UpdateObjWorldMat((f32*)(e + 0x4));
+                        goto sync;
+                    }
+                    if (*(s32*)(e + 0x320) != 0) {
+                        if (*(s16*)(e + 0x206) == 2) {
+                            msgPost(0x81, *(s32*)(e + 0x284), (f32*)(e + 0x44));
+                        } else {
+                            msgPost(0x83, *(s32*)(e + 0x284), (f32*)(e + 0x44));
+                        }
+                    }
+                    kill_enemy(i);
+                    goto tail;
+                } else {
+                    s32 cc;
+
+                    fn_8004DC2C((Enemy*)e);
+                    *(s32*)(e + 0xD0) = 0x20;
+                    *(f32*)(e + 0x244) =
+                        turn_enemy_ang((Enemy*)e, *(f32*)(e + 0x24C));
+                    do_enemy_move(i);
+                    if (*(u32*)(e + 0x6C) != 0) {
+                        if (*(s32*)e != gBossType) {
+                            *(s32*)(e + 0xCC) = DoEnemyAction((Enemy*)e);
+                        }
+                        *(s32*)(e + 0x390) =
+                            (*(s32*)(e + 0xCC) == *(s32*)(e + 0xD0)) ? -1 : 0;
+                    }
+                    ProcessSkinFX((f32*)(e + 0x1E4), *(void**)(e + 0x64), 0);
+                    cc = *(s32*)(e + 0xCC);
+                    if ((cc == 0x1C || cc == 0x1D || cc == 0x20) &&
+                        *(f32*)(e + 0x1E4) <= 0.0f) {
+                        UpdateObjWorldMat((f32*)(e + 0x4));
+                        goto sync;
+                    }
+                    if (*(s32*)e == 0x1D) {
+                        if (RandInt(2) == 0) {
+                            fn_8009FEFC(*(s16*)(e + 0x1FE));
+                        } else {
+                            fn_8009FEA0(*(s16*)(e + 0x1FE));
+                        }
+                    }
+                    kill_enemy(i);
+                    goto tail;
+                }
+            sync:
+                if (*(u32*)(e + 0x1DC) != 0) {
+                    u8* n = *(u8**)(e + 0x1DC);
+
+                    *(f32*)(n + 0x30) = *(f32*)(e + 0x34);
+                    *(f32*)(n + 0x34) = *(f32*)(e + 0x38);
+                    *(f32*)(n + 0x38) = *(f32*)(e + 0x3C);
+                }
+            }
+
+        tail:
+            *(s16*)(e + 0x314) = *(s16*)(e + 0x310);
+            *(s16*)(e + 0x310) = *(s16*)(e + 0x312);
+            if (*(s32*)(e + 0x36C) >= *(s32*)(e + 0x368)) {
+                *(s32*)(e + 0x36C) -= *(s32*)(e + 0x368);
+            }
+            *(f32*)(e + 0x25C) = (f32)(lbl_80346940 * *(f32*)(e + 0x25C));
+            *(f32*)(e + 0x260) = (f32)(lbl_80346940 * *(f32*)(e + 0x260));
+            *(f32*)(e + 0x264) = (f32)(lbl_80346940 * *(f32*)(e + 0x264));
+            {
+                f32 v = *(f32*)(e + 0x25C);
+                *(u32*)&v &= 0x7FFFFFFF;
+                if (v < lbl_80346878) {
+                    *(f32*)(e + 0x25C) = 0.0f;
+                }
+            }
+            {
+                f32 v = *(f32*)(e + 0x260);
+                *(u32*)&v &= 0x7FFFFFFF;
+                if (v < lbl_80346878) {
+                    *(f32*)(e + 0x260) = 0.0f;
+                }
+            }
+            {
+                f32 v = *(f32*)(e + 0x264);
+                *(u32*)&v &= 0x7FFFFFFF;
+                if (v < lbl_80346878) {
+                    *(f32*)(e + 0x264) = 0.0f;
+                }
+            }
+            if (*(f32*)(e + 0x260) > 0.0f) {
+                f32 nv = *(f32*)(e + 0x260) - lbl_803469C0 * gClockFrameStep;
+                *(f32*)(e + 0x260) = nv;
+                if (nv < 0.0f) {
+                    *(f32*)(e + 0x260) = 0.0f;
+                }
+            }
+            if (gBossType < 0) {
+                if ((f64)lbl_803447D8 == lbl_80346810) {
+                    if (*(u32*)(e + 0x64) != 0) {
+                        u8* n = *(u8**)(e + 0x64);
+                        MBTreeSetFlags((struct mbnode*)n, 8, 0);
+                        *(f32*)(n + 0x40) = lbl_803447D8;
+                        *(f32*)(n + 0x44) = lbl_803447D8;
+                        *(f32*)(n + 0x48) = lbl_803447D8;
+                    }
+                    if (*(u32*)(e + 0x1DC) != 0) {
+                        u8* n = *(u8**)(e + 0x1DC);
+                        MBTreeSetFlags((struct mbnode*)n, 8, 0);
+                        *(f32*)(n + 0x40) = lbl_803447D8;
+                        *(f32*)(n + 0x44) = lbl_803447D8;
+                        *(f32*)(n + 0x48) = lbl_803447D8;
+                    }
+                } else {
+                    if (*(u32*)(e + 0x64) != 0) {
+                        u8* n = *(u8**)(e + 0x64);
+                        MBTreeClearFlags((struct mbnode*)n, 8, 0);
+                        *(f32*)(n + 0x40) = lbl_803468F0;
+                        *(f32*)(n + 0x44) = lbl_803468F0;
+                        *(f32*)(n + 0x48) = lbl_803468F0;
+                    }
+                    if (*(u32*)(e + 0x1DC) != 0) {
+                        u8* n = *(u8**)(e + 0x1DC);
+                        MBTreeClearFlags((struct mbnode*)n, 8, 0);
+                        *(f32*)(n + 0x40) = lbl_803468F0;
+                        *(f32*)(n + 0x44) = lbl_803468F0;
+                        *(f32*)(n + 0x48) = lbl_803468F0;
+                    }
+                }
+            }
+        }
+    }
+
+    if (lbl_80344718 == 0) {
+        AudioPlayEvt102();
+    }
+    if ((sFlags & 0x10) != 0 && (sFlags & 1) != 0) {
+        s32* blit;
+        sprintf(gTextFormatBuf, lbl_803469C4, shown);
+        blit = DrawTextKeepScale(lbl_803469C8, -0x100, 0x144, 0, 0xFF0000,
+                                 gTextFormatBuf);
+        *blit |= 0x40000;
+    }
+}
+
 /* 0x8004D958 - per-enemy frame update: lifetime, owner change, boss-death
  * cull, AI step + type-24 hover bob timer */
 extern s32 gBossDying;
