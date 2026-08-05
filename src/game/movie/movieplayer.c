@@ -33,7 +33,7 @@
 #include "types.h"
 
 /* --- externs: allocator + alloc-balance counter (ml_mem.c) --- */
-extern s32 lbl_803452AC;
+extern s32 gMovieAllocCount;
 extern void ResetAllocTot(void);
 extern void* AllocHiMem(u32 size, u32 tag);
 extern void* memcpy(void* dst, const void* src, u32 n);
@@ -47,7 +47,7 @@ extern void GXInvalidateTexAll(void);
 /* --- audio stream pump (soundmgr / adstream) --- */
 extern void adsPoll(void);
 extern s32 sndCmd17(s32 a, s32 b);
-extern u8* lbl_803452B0;
+extern u8* gMovieStreamState;
 
 /* --- PS2-shim file IO (sceLseek/sceRead the .avi container) --- */
 extern int sceLseek(int fd, int offset, int whence);
@@ -61,10 +61,14 @@ extern u32 lbl_801296F0[];
 extern u32 lbl_803452B8;
 extern u32 gDTextInitCount;
 extern u8 lbl_80321340[];
+extern u8 gMovieAudioCallback[];
 extern u8 gDTextColorRamp[];
 extern u8* gDTextBuf;
 
 /* --- sdata2 float pool (movie YUV->RGB matrix coeffs) --- */
+extern const f32 lbl_80349390;
+extern const f32 lbl_803493B8;
+extern const f32 lbl_803493BC;
 extern const f32 lbl_803493D8;
 extern const f32 lbl_803493DC;
 extern const f32 lbl_803493E0;
@@ -85,6 +89,15 @@ u32 fn_800D91B4(u32* p1, int p3, char* p4, int p5, u32 p6);
 u32 fn_800D9A14(u32* p1, u8* p2, int p3, u8 p4);
 void fn_800DBE98(u32 param_1, u8* param_2);
 int fn_800DB2F4(int param_1, u8* param_2, u32 param_3, u32 param_4);
+void fn_800DB3D4(u32* stream, s32 fd, u32 length);
+void fn_800DB29C(int stream);
+u32* fn_800DB36C(int stream);
+void fn_800D9F20(int audio);
+extern u32 __cvt_fp2unsigned(f64 value);
+extern s32 sndCmd16(s32 size);
+extern s32 sndCmdA(s32 volume, s32 arg1, s32 arg2, void* callback);
+extern s32 lbl_80343B4C;
+extern u8 gMovieFrameTimeReset;
 
 /* --- little-endian container readers (parse the PC-format .avi header) ---
  * Defined at file-end in the original (callers see only a prototype), so they
@@ -818,15 +831,15 @@ void fn_800D9C5C(int* p, int n) {
     s32 tag;
 
     if (p[0] != 0) {
-        lbl_803452AC--;
-        if (lbl_803452AC == 0) {
+        gMovieAllocCount--;
+        if (gMovieAllocCount == 0) {
             ResetAllocTot();
         }
     }
     p[0] = 0;
     p[1] = n;
-    tag = lbl_803452AC;
-    lbl_803452AC++;
+    tag = gMovieAllocCount;
+    gMovieAllocCount++;
     p[0] = (s32)AllocHiMem(p[1], tag);
     p[3] = 0;
     p[2] = 0;
@@ -933,7 +946,7 @@ void fn_800D9F20(int param_1) {
             *(u32*)(param_1 + 8) = *(u32*)(param_1 + 8) - uVar1;
         }
         if (*(u32*)(param_1 + 8) == 0) {
-            uVar2 = *(int*)(lbl_803452B0 + 0x108) - *(int*)(param_1 + 0xc);
+            uVar2 = *(int*)(gMovieStreamState + 0x108) - *(int*)(param_1 + 0xc);
             if (0xc000 < uVar2) {
                 uVar2 = 0xc000;
             }
@@ -941,7 +954,7 @@ void fn_800D9F20(int param_1) {
             requestSize = *(u32*)(param_1 + 0x10);
             requestOffset = *(u32*)(param_1 + 0xc);
             requestData = *(u8**)(param_1 + 4);
-            if ((u8)fn_800DB2F4((int)(lbl_803452B0 + 0x20), requestData,
+            if ((u8)fn_800DB2F4((int)(gMovieStreamState + 0x20), requestData,
                                 requestOffset, requestSize)) {
                 *(u32*)(param_1 + 8) = *(u32*)(param_1 + 0x10);
                 *(int*)(param_1 + 0xc) = *(int*)(param_1 + 0xc) + *(int*)(param_1 + 0x10);
@@ -992,8 +1005,103 @@ void fn_800DA60C(register u8* m)
 }
 #pragma dont_inline off
 
-/* movie start: stream audio setup (sndCmd16/sndCmd17) */
-void fn_800DA6A4(void) {
+typedef struct MovieAudioState {
+    s32 command;
+    u8* buffer;
+    s32 remaining;
+    s32 offset;
+    s32 requestSize;
+    u8 active;
+    u8 _pad[3];
+} MovieAudioState;
+
+/* Advance the VQ stream by one presentation interval and prime its audio. */
+u32 fn_800DA6A4(register u8* movie, register u32 decodeFrame, f32 elapsed)
+{
+    u8 unused[24];
+    register u32 audioSize;
+    register MovieAudioState* audio;
+    u32 frame;
+    register u32* chunk;
+
+    if (*(s32*)(movie + 0x1C) == 0 || movie[0x1A] != 0) {
+        return FALSE;
+    }
+    if (gMovieFrameTimeReset != 0) {
+        elapsed = lbl_80349390;
+        gMovieFrameTimeReset = 0;
+    }
+    if (elapsed > lbl_803493B8) {
+        elapsed = lbl_803493BC;
+    }
+
+    audioSize = 0x10000;
+    fn_800DB3D4((u32*)(movie + 0x20), *(s32*)(movie + 0x1C), audioSize - 0x6000);
+    if (movie[0x19] != 0) {
+        if (movie[0x18] != 0) {
+            s32 tag = gMovieAllocCount++;
+            audio = AllocHiMem(sizeof(MovieAudioState), tag);
+            if (audio != NULL) {
+                audio->command = sndCmd16(audioSize - 0x4000);
+                tag = gMovieAllocCount++;
+                audio->buffer = AllocHiMem(audioSize - 0x4000, tag);
+                audio->requestSize = 0;
+                audio->offset = 0;
+                audio->remaining = 0;
+                audio->active = 0;
+            }
+            *(MovieAudioState**)(movie + 0x190) = audio;
+            audio = *(MovieAudioState**)(movie + 0x190);
+            audio->active = (u8)fn_800DB2F4((s32)(gMovieStreamState + 0x20), audio->buffer, 0, 0xC000);
+            if (audio->active != 0) {
+                audio->offset = 0xC000;
+                audio->remaining = 0xC000;
+                audio->remaining -= sndCmd17((s32)audio->buffer, 0x6000);
+                audio->remaining -= sndCmd17((s32)(audio->buffer + 0x6000), 0x6000);
+                fn_800D9F20((s32)audio);
+                sndCmdA(lbl_80343B4C, 0, 1, gMovieAudioCallback);
+            }
+        }
+        movie[0x19] = 0;
+    } else {
+        *(f32*)(movie + 4) += elapsed;
+    }
+
+    frame = __cvt_fp2unsigned(*(f32*)(movie + 4) / *(f32*)(movie + 8));
+    if (frame <= *(u32*)(movie + 0x10)) {
+        goto done;
+    }
+    {
+        ++*(u32*)(movie + 0x10);
+        fn_800DB36C((s32)(movie + 0x20));
+        asm { mr chunk, r3 }
+        while (chunk != NULL && chunk[8] == 0) {
+            fn_800DB29C((s32)(movie + 0x20));
+            fn_800DB36C((s32)(movie + 0x20));
+            asm { mr chunk, r3 }
+        }
+        if (chunk == NULL) {
+            return *(u32*)(movie + 0x10) < *(u32*)(movie + 0xD4);
+        }
+        if (decodeFrame == 0) {
+            fn_800DB29C((s32)(movie + 0x20));
+            return TRUE;
+        }
+        *(u32*)(movie + 0x1A8) = chunk[4];
+        *(u32*)(movie + 0x124) = chunk[8];
+        *(s32*)(movie + 0x12C) = decodeFrame;
+        {
+            register void (*decode)(u8*, u8*, s32);
+            asm {
+                lwz decode, 0x170(movie)
+                lwz decode, 0x18(decode)
+            }
+            decode(movie + 0x150, movie + 0x11C, 0);
+        }
+        fn_800DB29C((s32)(movie + 0x20));
+    }
+done:
+    return TRUE;
 }
 
 /* movie open: sceOpen/sceRead the Gauntlet VQMovies .avi file, asserts on failure (MoviePlayer.cpp) */
@@ -1157,7 +1265,7 @@ u32* fn_800DB36C(int p) {
 }
 
 /* VQ codebook/frame reader (memcpy, ReadF32LE, sceRead) */
-void fn_800DB3D4(void) {
+void fn_800DB3D4(u32* stream, s32 fd, u32 length) {
 }
 
 void fn_800DB82C(u32* param_1, int param_2, u32 param_3) {
@@ -1208,15 +1316,15 @@ u8 MovieDecoderInitBuffers(u32* param_1, u32 param_2, u32 param_3) {
     }
     param_1[6] = param_2 & 0xfffff800;
     iVar3 = param_1[6];
-    lbl_803452AC++;
+    gMovieAllocCount++;
     param_1[1] = (u32)AllocHiMem(iVar3 + 0x20, iVar3);
-    iVar3 = lbl_803452AC;
-    lbl_803452AC++;
+    iVar3 = gMovieAllocCount;
+    gMovieAllocCount++;
     param_1[3] = (u32)AllocHiMem(0x10020, iVar3);
     param_1[0] = param_1[1] + 0x20 & 0xffffffe0;
     param_1[2] = param_1[3] + 0x20 & 0xffffffe0;
-    iVar3 = lbl_803452AC;
-    lbl_803452AC++;
+    iVar3 = gMovieAllocCount;
+    gMovieAllocCount++;
     param_1[0x15] = (u32)AllocHiMem(0x2800, iVar3);
     param_1[0x16] = param_1[0x15];
     for (iVar4 = 0; iVar4 < 255; iVar4++) {
