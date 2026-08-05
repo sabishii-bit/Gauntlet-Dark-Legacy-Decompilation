@@ -4676,6 +4676,76 @@ void uncouple_enemy(s32 index) {
     }
 }
 
+/* check_enemy_pos @0x8004F9AC -- validate a candidate spawn point for enemy
+ * `slot`: optionally offset it, reject wall/floor failures and steep drops,
+ * snap Y to the floor, then reject overlaps with world objects or other
+ * enemies (unless the overlap is the enemy's own generator).  Returns 1 when
+ * the position is usable, 0 when blocked by geometry/occupant, -1 on failure. */
+extern s32 FloorCollide(f32* pos, s32 a, s32 b, s32 mode, f32 x, f32 y, f32 z);
+extern u8 gFloorCollisionResult[]; /* 0x8023CAE0, floor Y at +0x34 */
+extern f32 lbl_80346A40;
+extern f32 lbl_80346A44;
+extern f32 lbl_80346A48;
+extern f64 lbl_80346988;           /* max vertical snap distance */
+extern f64 lbl_80346830;           /* 0.5 */
+extern void* fn_8005EFAC(f32 rad, f32* probe, f32* pos, s32 a, s32 b);
+extern s32 fn_8005D3D8(s32 a, void* obj);
+
+s32 check_enemy_pos(f32* start, f32* out, s32 slot)
+{
+    Enemy* e = &gEnemies[slot];
+    f32 rad = e->rad;
+    f32 hht = e->hht;
+    f32 pos[3];
+    f32 half;
+    void* obj;
+
+    if (out != NULL) {
+        pos[0] = out[0] + start[0];
+        pos[1] = out[1] + start[1];
+        pos[2] = out[2] + start[2];
+        if (EnemyWallCollide(rad, start, pos, 0) != 0) {
+            return -1;
+        }
+    } else {
+        pos[0] = start[0];
+        pos[1] = start[1];
+        pos[2] = start[2];
+    }
+    e->objgrp.worldmat[3][0] = pos[0];
+    e->objgrp.worldmat[3][1] = pos[1];
+    e->objgrp.worldmat[3][2] = pos[2];
+    if (FloorCollide(pos, 0, 0, 2, lbl_80346A40, lbl_80346A44, lbl_80346A48)
+        == 0) {
+        return -1;
+    }
+    {
+        f32 floorY = *(f32*)(gFloorCollisionResult + 0x34);
+        f32 dy = floorY - start[1];
+
+        *(u32*)&dy &= 0x7FFFFFFF;
+        if (dy > lbl_80346988) {
+            return -1;
+        }
+        e->objgrp.worldmat[3][1] = floorY;
+    }
+    fn_8005A65C(&e->objgrp.worldmat[0][0], e->coll_offset);
+    if (fn_80046680(rad, hht, slot, 1, start, pos) >= 0) {
+        return 0;
+    }
+    half = (f32)(lbl_80346830 * rad);
+    if (fn_8004646C(half, hht, slot, start, pos, 0, 0) >= 0) {
+        return 0;
+    }
+    obj = fn_8005EFAC(half, start, pos, 0, 0);
+    if (obj != NULL && obj != e->generator) {
+        if (fn_8005D3D8(-1, obj) != 0) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 /* find_enemy_slot: return a free/recyclable enemy slot for a new spawn.
  * Recycles the least-important live enemy through kill_enemy when the array is
  * full; returns -1 when the request cannot be satisfied. */
