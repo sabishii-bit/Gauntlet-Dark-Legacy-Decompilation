@@ -3571,12 +3571,15 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 dtype, s32 knock, s32 srcflags, s32 a
 /* kill_enemy @0x8004EFE4.  Drop the carried item (or place a "GARG<level>"
  * egg for gargoyles), then tear the enemy down: health/state clear, grid
  * release, shadow + special fx + scene node deletion, generator uncouple. */
+extern char lbl_80346A38[7]; /* "GARG%s" (sdata2) */
+
 void kill_enemy(s32 index)
 {
     Enemy* e = &gEnemies[index];
     struct item* item = 0;
     s32 carried = 0;
     char* p;
+    s32 t;
     char buf[32];
 
     if (gTriggerCameraState != 0) {
@@ -3587,9 +3590,10 @@ void kill_enemy(s32 index)
         e->gotitem = 0;
         carried = 1;
     } else {
-        switch (e->type) {
+        t = e->type;
+        switch (t) {
         case 32:
-            sprintf(buf, "GARG%s", fn_80057ACC());
+            sprintf(buf, lbl_80346A38, fn_80057ACC());
             for (p = buf; *p != 0; p++) {
                 *p = toupper(*p);
             }
@@ -3600,7 +3604,7 @@ void kill_enemy(s32 index)
     if (item != 0) {
         if (carried != 0) {
             *((u8*)item + 205) = 10;
-            fn_800920E0(e->objgrp.attn_pos, item, 0.0f);
+            fn_800920E0(e->objgrp.attn_pos, item, lbl_80346820);
         } else {
             *((u8*)item + 205) = 0;
             MBTreeClearFlags(*(struct mbnode**)((u8*)item + 100), 2, 0);
@@ -3616,7 +3620,7 @@ void kill_enemy(s32 index)
     if (e->type == 27) {
         fn_8004F1DC(e);
     }
-    e->health = 0.0f;
+    e->health = lbl_80346820;
     e->state = 0;
     del_target(&e->objgrp.worldmat[0][0]);
     if (e->shadow != 0) {
