@@ -691,6 +691,7 @@ void MulMat4(f32* lhs, f32* rhs, f32* out)
 }
 
 /* Post-multiply by a roll rotation. */
+#pragma opt_propagation off
 void RollMat3(f32* matrix, f32 angle)
 {
     u8 unused0[8];
@@ -707,11 +708,16 @@ void RollMat3(f32* matrix, f32 angle)
         for (i = 0; i < 3; i++) {
             f32 a = matrix[i];
             f32 b = matrix[4 + i];
-            matrix[4 + i] = b * c + s * a;
-            matrix[i] = c * a - b * s;
+            f32 newB;
+            f32 newA;
+            newA = c * a - b * s;
+            newB = b * c + s * a;
+            matrix[4 + i] = newB;
+            matrix[i] = newA;
         }
     }
 }
+#pragma opt_propagation reset
 
 /* Post-multiply by a pitch rotation. */
 void PitchMat3(f32* matrix, f32 angle)
@@ -757,6 +763,7 @@ void YawMat3(f32* matrix, f32 angle)
 }
 
 /* Pre-multiply by a roll rotation. */
+#pragma opt_propagation off
 void WRollMat3(f32* matrix, f32 angle)
 {
     u8 unused0[8];
@@ -775,11 +782,16 @@ void WRollMat3(f32* matrix, f32 angle)
             f32* v = matrix + row * 4;
             f32 a = v[0];
             f32 b = v[1];
-            v[1] = c * b + s * a;
-            v[0] = c * a - s * b;
+            f32 newB;
+            f32 newA;
+            newA = c * a - s * b;
+            newB = c * b + s * a;
+            v[1] = newB;
+            v[0] = newA;
         }
     }
 }
+#pragma opt_propagation reset
 
 /* Pre-multiply by a pitch rotation. */
 void WPitchMat3(f32* matrix, f32 angle)
