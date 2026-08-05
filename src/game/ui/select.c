@@ -133,11 +133,11 @@ extern int  saveFileSize(int a);
 extern int  sprintf(char* buf, const char* fmt, ...);
 extern int  vsprintf(char* buf, const char* fmt, va_list ap);
 extern int  strncmp(const char* a, const char* b, int n);
-extern void DrawGlowText(void);
-extern void DrawNormalText(void);
+extern void DrawGlowText(f32 scale, s32 x, s32 y, char* txt);
+extern s32 DrawNormalText(f32 scale, char* txt, s32 font);
 extern s32 DrawTextKeepScale(f32 scale, s32 x, s32 y, s32 font,
                              s32 color, char* txt);
-extern char* GetStringText(int id);
+extern char* GetStringText(s32 id, s32 sub, s32 mode);
 extern void* MBNewTempBlit(void* tex, int x, int y, int w, int h);
 extern int  MBCreateBlit(int a, int b, int c, int d, int e, int f);
 extern void* MBOX_FindTexture_Err(char* name, s32* out, s32 err);
@@ -1068,12 +1068,148 @@ void SelectLoadStart(void)
     }
 }
 
-void update_class_attr(void)
+extern s32 lbl_80343DB8;
+extern s32 lbl_80343DC0;
+extern f32 lbl_80343DC4;
+extern s32 lbl_80343DC8;
+extern s32 lbl_80343DCC;
+extern f32 lbl_80343DD0;
+extern s32 lbl_80344BBC;
+extern u8* lbl_80282930[];
+extern char lbl_8034802C[8];
+extern char lbl_80348034[4];
+extern s32 ExpToLevel(s32 exp);
+extern void LoadPlyrData(s32 player, s32 pad, s32 mode);
+extern void* MBOX_FindTexture(char* name, s32 mode);
+
+void update_class_attr(s32 player)
 {
-    GetStringText(0);
-    DrawNormalText();
-    DrawGlowText();
-    MBNewTempBlit(0, 0, 0, 0, 0);
+    u8* pl = gPlayers + player * 13148;
+    char* pool = lbl_801143F8;
+    s32 stats[4];
+    char buf[40];
+    u8* expslot;
+    s32 lvl;
+    s32 best;
+    s32 j;
+
+    LoadPlyrData(player, *(s32*)(pl + 12), 0);
+    if (*(s32*)(pl + 13092) <= 0) {
+        *(s32*)(pl + 13092) = 1;
+    }
+    if (*(s32*)(pl + 232) != 2) {
+        return;
+    }
+    switch (*(s32*)(pl + 13112)) {
+    case 4: {
+        s32 sel = *(s32*)(pl + 16);
+        s32 avail;
+        s32* xp;
+        s32 tx;
+        s32 y;
+        s32 row;
+        s32 soff;
+        f32 kScale;
+        if (sel < 8) {
+            avail = 1;
+        } else if (*(u16*)(pl + 2700) & (1 << (sel - 8))) {
+            avail = 1;
+        } else {
+            avail = 0;
+        }
+        if (avail == 0) {
+            return;
+        }
+        if (sel == 16) {
+            expslot = 0;
+            for (j = 0; j < 4; j++) {
+                stats[j] = 999;
+            }
+            lvl = 99;
+            best = -1;
+        } else {
+            expslot = pl + sel * 24 + 2704;
+            lvl = ExpToLevel(*(s32*)expslot);
+            LoadPlyrData(player, *(s32*)(pl + 16), 0);
+            {
+                u8* cls = lbl_80282930[player];
+                stats[0] = (s32)(*(f32*)(expslot + 8) +
+                                 (*(f32*)(cls + 40) +
+                                  (f32)((lvl - 1) * 5)));
+                stats[1] = (s32)(*(f32*)(expslot + 20) +
+                                 (*(f32*)(cls + 48) +
+                                  (f32)((lvl - 1) * 5)));
+                stats[2] = (s32)(*(f32*)(expslot + 12) +
+                                 (*(f32*)(cls + 56) +
+                                  (f32)((lvl - 1) * 5)));
+                stats[3] = (s32)(*(f32*)(expslot + 16) +
+                                 (*(f32*)(cls + 64) +
+                                  (f32)((lvl - 1) * 5)));
+            }
+            for (j = 0; j < 4; j++) {
+                s32 v = stats[j];
+                if (v < 999) {
+                } else {
+                    v = 999;
+                }
+                stats[j] = v;
+            }
+            {
+                s32 mx = 0;
+                best = 0;
+                for (j = 0; j < 4; j++) {
+                    if (stats[j] > mx) {
+                        mx = stats[j];
+                        best = j;
+                    }
+                }
+            }
+        }
+        xp = (s32*)(lbl_80121688 + (player << 2));
+        kScale = lbl_80343DC4;
+        tx = *xp + 81;
+        y = *((s32*)&lbl_80343DB8 + 1);
+        soff = 0;
+        for (row = 0; row < 4; row++, y += lbl_80343DC8, soff += 4) {
+            char* name = GetStringText(167, row, 0);
+            s32 w = DrawNormalText(kScale, name, 6);
+            s32 vx;
+            if (best == row) {
+                DrawGlowText(kScale, tx - w, y - 2, name);
+            } else {
+                DrawTextKeepScale(kScale, tx - w, y - 2, 6, 0xFFFFFF,
+                                  name);
+            }
+            vx = lbl_80343DB8 + *xp;
+            sprintf(buf, lbl_8034802C, *(s32*)((u8*)stats + soff));
+            if (best == row) {
+                MBNewTempBlit(MBOX_FindTexture(pool + 824, 0), vx - 6,
+                              y - 6, 68, -1);
+            }
+            DrawTextKeepScale(kScale, vx, y, lbl_80343DC0, 0xFFFFFF, buf);
+        }
+        {
+            s32 y2 = lbl_80343DCC;
+            s32 x2 = -(*xp + 64);
+            if (expslot != 0 && *(s32*)expslot > 0) {
+                sprintf(buf, pool + 836, lvl);
+            } else {
+                sprintf(buf, lbl_80348034);
+            }
+            DrawTextKeepScale(lbl_80343DD0, x2, y2, lbl_80344BBC, 0xFFFFFF,
+                              buf);
+        }
+        break;
+    }
+    case 1: {
+        s32 y2 = lbl_80343DCC;
+        s32 x2 = -(*(s32*)(lbl_80121688 + (player << 2)) + 64);
+        sprintf(buf, pool + 836, ExpToLevel(*(s32*)(pl + 7872)));
+        DrawTextKeepScale(lbl_80343DD0, x2, y2, lbl_80344BBC, 0xFFFFFF,
+                          buf);
+        break;
+    }
+    }
 }
 
 void update_class_spec(s32 player)
