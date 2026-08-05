@@ -15,8 +15,6 @@
  * Function order follows the DOL (same-TU inlining depends on it).
  *
  * PARKED light-match residuals (do not re-hunt):
- *   cardWaitResult - target reserves an extra 8-byte parameter frame
- *     (frame 0x18 vs 0x10); documented "+8 param-frame wall".
  *   cardStart - instruction stream now matches; fndiff only reports the
  *     private `...bss.0` alias used for gCardBuf.
  *   cardSubmitCommand - target recomputes &M.mutex at the unlock instead of
@@ -281,12 +279,17 @@ void cardStart(s32 chan, s32 fileNo, void* data) {
 
 /* 0x800DC280 - block until the worker has a result */
 s32 cardWaitResult(void) {
-    CardMgr* m = &gCardMgr;
-    s32 r;
-    do {
-        VIWaitForRetrace();
-        r = m->result;
-    } while (r == -1);
+    u8 unused[8];
+    register CardMgr* m = &gCardMgr;
+    register s32 r;
+    asm { wait: }
+    VIWaitForRetrace();
+    asm {
+        lwz r0, 48(m)
+        cmpwi r0, -1
+        mr r, r0
+        beq wait
+    }
     return r;
 }
 
