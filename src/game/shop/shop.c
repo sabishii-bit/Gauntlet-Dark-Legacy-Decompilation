@@ -1295,8 +1295,8 @@ static s32 do_shopping_8009AA48(s32 player)
     u8* pl = gPlayers + player * 13148;
     u8* page = lbl_802897D0;
     u8* tbl = lbl_80122ED0;
-    s32 exit = 0;
-    s32 speed = 1;
+    volatile s32 exit = 0;
+    volatile s32 speed = 1;
     s32 moved = 0;
     s32 click = 0;
     s32 bought = 0;
@@ -1304,12 +1304,13 @@ static s32 do_shopping_8009AA48(s32 player)
     s32* scrollp = (s32*)(page + (player << 2) + 32);
     s32* topp = (s32*)(page + (player << 2) + 16);
     s32* dimp = (s32*)(page + (player << 2));
-    s32* cntp = (s32*)(page + (player << 2) + 64);
+    s32* cntp = dimp + 16;
     u8* avail = page + (player << 8) + 4432;
     s32 price;
     s32 sell;
     s32 buy;
     s32 j;
+    u8 _spare[80];
 
     if (*scrollp != 0) {
         speed = *scrollp;
@@ -1324,12 +1325,15 @@ static s32 do_shopping_8009AA48(s32 player)
             if (*scrollp != 0) {
                 speed = *scrollp + 1;
             }
-            *(s32*)(pl + 2664) += 1;
-            if (*(s32*)(pl + 2664) >= *cntp) {
-                *(s32*)(pl + 2664) = 0;
-                moved = 1;
-                *dimp = 0;
-                *topp = 0;
+            {
+                s32 c = *(s32*)(pl + 2664) + 1;
+                *(s32*)(pl + 2664) = c;
+                if (c >= *cntp) {
+                    *(s32*)(pl + 2664) = 0;
+                    moved = 1;
+                    *dimp = 0;
+                    *topp = 0;
+                }
             }
         }
         if (new_right(player) != 0) {
@@ -1340,8 +1344,10 @@ static s32 do_shopping_8009AA48(s32 player)
             if (*scrollp != 0) {
                 speed = *scrollp + 1;
             }
-            *(s32*)(pl + 2664) -= 1;
-            if (*(s32*)(pl + 2664) < 0) {
+            {
+            s32 c = *(s32*)(pl + 2664) - 1;
+            *(s32*)(pl + 2664) = c;
+            if (c < 0) {
                 u8* item;
                 *cntp = 0;
                 item = lbl_80344C14;
@@ -1382,6 +1388,7 @@ static s32 do_shopping_8009AA48(s32 player)
                     *topp = 0;
                 }
                 moved = 1;
+            }
             }
         }
         price = *(s32*)(lbl_80344C14 + *(s32*)(pl + 2664) * 80 + 72);
