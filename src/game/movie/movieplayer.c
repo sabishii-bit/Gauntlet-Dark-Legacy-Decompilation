@@ -962,7 +962,7 @@ void __dl__FPv(void* p);
 void __dla__FPv(void* p);
 
 #pragma dont_inline on
-void fn_800DA60C(u8* m)
+void fn_800DA60C(register u8* m)
 {
     u8* strm;
 
@@ -975,7 +975,15 @@ void fn_800DA60C(u8* m)
         }
         *(u32*)(m + 400) = 0;
     }
-    (**(void (**)(u8*))(28 + *(u8**)(m + 368)))(m + 336);
+    {
+        register u8* object = m + 336;
+        register void (*dispatch)(u8*);
+        asm {
+            lwz dispatch, 368(m)
+            lwz dispatch, 28(dispatch)
+        }
+        dispatch(object);
+    }
     fn_800DBA80(m + 32, *(s32*)(m + 28));
     if (*(s32*)(m + 28) != 0) {
         sceClose(*(s32*)(m + 28));
