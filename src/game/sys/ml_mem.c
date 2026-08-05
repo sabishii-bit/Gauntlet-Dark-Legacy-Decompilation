@@ -89,6 +89,7 @@ extern const char mlmPathFmtWad[6]; /* "%s/%s" */
 extern const char mlmPathFmt[3];    /* "%s"    */
 extern const char mlmExtDefault[5]; /* ".ps2"  */
 extern const char mlmPathSeparator[2];
+extern const char mlmGameSubdirectory[]; /* "/gauntlet/" */
 
 /* forward decls (address order kept) */
 int do_threaded_io(MLFILE* f);
@@ -485,7 +486,7 @@ void get_path(char* out, char* wad, char* name)
     }
     strcpy(out, mlmRootPath);
     if (tmp[0] != '/') {
-        strcat(out, mlmPathSeparator);
+        strcat(out, mlmGameSubdirectory);
     }
     strcat(out, tmp);
 }
