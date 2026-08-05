@@ -4107,6 +4107,73 @@ void kill_enemy(s32 index)
     uncouple_enemy(index);
 }
 
+extern s32 lbl_80344724;   /* 0x80344724 active milestone count */
+/* find_neighbor_milestone @0x8004C9DC -- locate milestone id `ms` in the active
+ * milestone list, then return the id `nth` slots away (reflecting at the ends),
+ * preferring whichever candidate sits closer to the world origin. */
+s32 find_neighbor_milestone(s32 ms, s32 nth)
+{
+    s32 count = lbl_80344724;
+    s32 idx = 0;
+    s32 lo;
+    s32 hi;
+    s32 i;
+
+    for (i = 0; i < count; i++) {
+        if (*(s32*)((u8*)lbl_80250E00 + i * 4 + 0xF4) == ms) {
+            break;
+        }
+        idx++;
+    }
+    if (idx >= count) {
+        return -1;
+    }
+    lo = idx - nth;
+    hi = idx + nth;
+    if (lo < 0) {
+        return *(s32*)((u8*)lbl_80250E00 + hi * 4 + 0xF4);
+    }
+    if (hi > count - 1) {
+        return *(s32*)((u8*)lbl_80250E00 + lo * 4 + 0xF4);
+    }
+    {
+        s32 m_lo = *(s32*)((u8*)lbl_80250E00 + lo * 4 + 0xF4);
+        s32 m_hi = *(s32*)((u8*)lbl_80250E00 + hi * 4 + 0xF4);
+        u8* pl = sMilestones + m_lo * 0x68;
+        u8* ph = sMilestones + m_hi * 0x68;
+        f32 dlo = *(f32*)(pl + 0x34) * *(f32*)(pl + 0x34) +
+                  *(f32*)(pl + 0x30) * *(f32*)(pl + 0x30) +
+                  *(f32*)(pl + 0x38) * *(f32*)(pl + 0x38);
+        f32 dhi;
+
+        if (dlo > 0.0f) {
+            volatile f32 tmp;
+            f64 y = __frsqrte(dlo);
+            y = 0.5 * y * (3.0 - y * y * dlo);
+            y = 0.5 * y * (3.0 - y * y * dlo);
+            y = 0.5 * y * (3.0 - y * y * dlo);
+            tmp = (f32)(dlo * (0.5 * y * (3.0 - y * y * dlo)));
+            dlo = tmp;
+        }
+        dhi = *(f32*)(ph + 0x34) * *(f32*)(ph + 0x34) +
+              *(f32*)(ph + 0x30) * *(f32*)(ph + 0x30) +
+              *(f32*)(ph + 0x38) * *(f32*)(ph + 0x38);
+        if (dhi > 0.0f) {
+            volatile f32 tmp;
+            f64 y = __frsqrte(dhi);
+            y = 0.5 * y * (3.0 - y * y * dhi);
+            y = 0.5 * y * (3.0 - y * y * dhi);
+            y = 0.5 * y * (3.0 - y * y * dhi);
+            tmp = (f32)(dhi * (0.5 * y * (3.0 - y * y * dhi)));
+            dhi = tmp;
+        }
+        if (dlo < dhi) {
+            return m_lo;
+        }
+        return m_hi;
+    }
+}
+
 /* turn_enemy_ang @0x8004CBB8 (14 callers: the move_logic set).  Rotate the
  * enemy's yaw toward `want` at the per-type turn rate (lbl_8011BED8 table,
  * 3x rate while running/reacting), clamping to `want` when within one step,
