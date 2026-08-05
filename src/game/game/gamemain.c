@@ -779,6 +779,88 @@ void fn_8005636C(s32* s)
     s[1] += s[2];
 }
 
+/* 0x8005773C - build the per-level enemy-type track table from the current
+ * level's 6 type slots: resolve each to its world-data entry (0x18 stride),
+ * arm its audio streams, synthesise a boss slot (0x1e) when the level calls
+ * for one, resolve missing subtypes, build the subtype->type reverse map, and
+ * apply the easy-difficulty (< 2) type substitutions. */
+extern void AudioClearActiveTracks(void);
+extern void AudioSetupBossStreams(s32 idx, void* data);
+extern char lbl_801129D4[];
+
+void GetEnemyTypes(void)
+{
+    u8* tbl = (u8*)lbl_80257680;
+    u8* etab = *(u8**)(gWorldData + 0x20);
+    s32 seen1e = 0;
+    s32 i;
+
+    AudioClearActiveTracks();
+    for (i = 0; i < 8; i++) {
+        u8* slot = tbl + i * 4;
+        s32 type;
+        s32 t14c;
+
+        if (i < 6) {
+            type = *(s16*)(gCurLevel + i * 2 + 0x4C);
+        } else {
+            type = -1;
+        }
+        if (type >= 0) {
+            u8* ent = etab + type * 0x18;
+
+            *(s32*)(slot + 0x14C) = *(s32*)ent;
+            *(s32*)(slot + 0x10C) = *(s32*)(ent + 0x4);
+            if (*(s32*)(ent + 0x4) != 9 && *(s32*)(ent + 0x4) != 5) {
+                AudioSetupBossStreams(i, ent + 0x8);
+            }
+            *(u8**)(slot + 0xEC) = ent;
+        } else if (*(s32*)(gCurLevel + 0x44) < 0 && *(s32*)gWorldData != 0xD &&
+                   seen1e == 0) {
+            *(s32*)(slot + 0x14C) = 0x1E;
+            *(s32*)(slot + 0x10C) = 0;
+            *(s32*)(slot + 0xEC) = 0;
+        } else {
+            *(s32*)(slot + 0x14C) = -1;
+            *(s32*)(slot + 0x10C) = 0;
+            *(s32*)(slot + 0xEC) = 0;
+        }
+
+        t14c = *(s32*)(slot + 0x14C);
+        if (t14c == 0x1E) {
+            seen1e = 1;
+        }
+        if (t14c >= 0) {
+            if (*(s32*)(slot + 0x10C) == 0) {
+                *(s32*)(slot + 0x10C) = GetEnemySubtype(t14c);
+            }
+            if (*(s32*)(slot + 0x10C) <= 0) {
+                ErrorPrintf(lbl_801129D4, t14c);
+            }
+        }
+    }
+
+    for (i = 0; i < 8; i++) {
+        *(s32*)(tbl + i * 4 + 0x12C) = -1;
+    }
+    for (i = 0; i < 8; i++) {
+        s32 idx = *(s32*)(tbl + i * 4 + 0x10C);
+
+        if (idx < 6) {
+            *(s32*)(tbl + idx * 4 + 0x12C) = *(s32*)(tbl + i * 4 + 0x14C);
+        }
+    }
+    if (gGameOptions[2] < 2) {
+        for (i = 0; i < 8; i++) {
+            if (*(s32*)(tbl + i * 4 + 0x10C) == 2) {
+                *(s32*)(tbl + i * 4 + 0x10C) = 4;
+            } else {
+                *(s32*)(tbl + i * 4 + 0x14C) = -1;
+            }
+        }
+    }
+}
+
 /* 0x80057978 -- map an enemy type id to its shared subtype class. */
 s32 GetEnemySubtype(s32 type)
 {
