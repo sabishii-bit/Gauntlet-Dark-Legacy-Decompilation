@@ -1676,6 +1676,79 @@ s32 fn_80057F44(s32 code, s32 mask)
     return sub;
 }
 
+/* 0x80051C78 - rebuild the enemy path-milestone chain: clear the per-slot
+ * milestone table, find the milestone closest to the default player start,
+ * then walk fn_800511D0 from there appending each hop until it revisits a
+ * listed milestone or stops advancing. */
+extern s32 lbl_80344724;          /* count of milestones in the chain */
+extern f32 lbl_803468B0;          /* big initial distance */
+extern f64 __frsqrte(f64 x);
+extern f32 lbl_80346984;
+extern f32 gDefaultPlayerPosition[3];
+extern s32 fn_800511D0(s32 milestone, f32 param);
+
+void fn_80051C78(void)
+{
+    u8* pool = (u8*)lbl_80250E00;
+    s32 best = -1;
+    s32 cur;
+    s32 i;
+
+    for (i = 0; i < 128; i++) {
+        *(s32*)(pool + i * 4 + 0xF4) = -1;
+    }
+    lbl_80344724 = 0;
+
+    {
+        f32 bestDist = lbl_803468B0;
+        u8* m = sMilestones;
+
+        for (i = 0; i < sNumMilestones; i++, m += 0x68) {
+            f32 dy = gDefaultPlayerPosition[1] - *(f32*)(m + 0x34);
+            f32 dx = gDefaultPlayerPosition[0] - *(f32*)(m + 0x30);
+            f32 dz = gDefaultPlayerPosition[2] - *(f32*)(m + 0x38);
+            f32 d2 = dy * dy + dx * dx + dz * dz;
+
+            if (d2 > 0.0f) {
+                volatile f32 tmp;
+                f64 y = __frsqrte(d2);
+                y = 0.5 * y * (3.0 - y * y * d2);
+                y = 0.5 * y * (3.0 - y * y * d2);
+                y = 0.5 * y * (3.0 - y * y * d2);
+                tmp = (f32)(d2 * (0.5 * y * (3.0 - y * y * d2)));
+                d2 = tmp;
+            }
+            if (d2 < bestDist) {
+                best = i;
+                bestDist = d2;
+            }
+        }
+    }
+
+    cur = best;
+    for (;;) {
+        s32 count = lbl_80344724;
+        s32 prev = cur;
+        s32 k;
+
+        lbl_80344724 = count + 1;
+        *(s32*)(pool + count * 4 + 0xF4) = cur;
+        cur = fn_800511D0(cur, lbl_80346984);
+        count = lbl_80344724;
+        for (k = 0; k < count; k++) {
+            if (*(s32*)(pool + k * 4 + 0xF4) == cur) {
+                break;
+            }
+        }
+        if (k < count) {
+            break;
+        }
+        if (prev == cur) {
+            break;
+        }
+    }
+}
+
 /* 0x80051E1C - format a world/level display name (uppercased) */
 extern char lbl_80346A90[8];    /* "%s" fmt */
 extern char lbl_80346A98[8];    /* "%s %c" fmt */
