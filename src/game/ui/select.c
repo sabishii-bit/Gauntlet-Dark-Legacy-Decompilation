@@ -1325,15 +1325,156 @@ substate:
 }
 
 /* Enter / initialise the select screen. */
-void init_player_select(int mode)
+extern void abort_player(s32 i);
+extern void player_store_in_save(u8* pl);
+extern void init_targets(void);
+extern void InitCamera(s32 mode);
+extern s32 gGameBusy;
+extern s32 lbl_8034481C;
+extern s32 good_wiz_exit_timer;
+extern s32 lbl_80344BB8;
+extern s32 lbl_80344B84;
+extern s32 welcome_timer;
+extern s32 lbl_80344BA8;
+extern s32 lbl_80344BAC;
+extern s32 lbl_80344BB4;
+extern s32 lbl_80344BC8;
+extern s32 lbl_80344BB0;
+extern s32 lbl_80344B90;
+extern s32 lbl_80344B94;
+extern s32 lbl_80344B98;
+extern s32 lbl_80344B9C;
+extern s32 lbl_80344BA0;
+extern s32 lbl_80344BA4;
+extern s32 sLastWorldLevel;
+extern u8 gGameOptions[];
+extern u8 lbl_80284878[];
+extern f64 lbl_80348038;
+extern void fn_80053C70(void);
+extern void fn_800BC418(s32 startLine, s32 count);
+extern void towerUpdateCurWorldObj(void);
+extern void PlayersRestoreHealth(void);
+extern void AudioStopSelect(void);
+extern void AudioSelectReset(void);
+extern void mbBlitInit3414(void* blit, s32 hide);
+extern void mbBlitCvtCoord(void* blit, f32 c);
+extern void mbBlitCalcWidth(void* blit, s32 x, s32 w, f32 h);
+void update_class_spec(s32 player);
+
+void init_player_select(s32 mode)
 {
-    (void)mode;
+    char* pool = lbl_801143F8;
+    u8* page = lbl_80121688;
+    s32 i;
+    u8 _spare[32];
+
     AudioStopSelect();
-    remove_player_geo(0);
-    AudioSelectReset();
+    lbl_80344BB8 = saveFileSize(mode);
+    gGameMode = 0x400B;
+    gGameBusy = 0;
+    lbl_8034481C = 0;
+    good_wiz_exit_timer = 0;
+    lbl_80344B84 = -1;
+    welcome_timer = 0;
+    lbl_80344BA8 = 0;
+    lbl_80344BAC = 0;
+    lbl_80344BB4 = 0;
+    if (mode == 1) {
+        towerUpdateCurWorldObj();
+        PlayersRestoreHealth();
+    }
+    {
+        u8* pl = gPlayers;
+        for (i = 0; i < 4; i++, pl += 13148) {
+            if (!(lbl_80344824 & (1 << i))) {
+                abort_player(i);
+            }
+            *(s32*)pl = i;
+            if (*(s32*)(pl + 232) == 4) {
+                *(s32*)(pl + 232) = 1;
+            }
+            if (mode == 2 && *(s32*)(pl + 232) == 5) {
+                *(s32*)(pl + 232) = 2;
+                *(s32*)(pl + 13112) = 1;
+            }
+            if (*(s32*)(pl + 232) == 1) {
+                *(s32*)(pl + 232) = 3;
+                player_store_in_save(pl);
+                remove_player_geo(i);
+            }
+        }
+    }
+    if (mode == 0) {
+        msgInit();
+    }
+    lbl_80344BC8 = 0;
+    init_targets();
+    lbl_80344BB0 = 0;
+    if (mode != 0) {
+        AudioSelectReset();
+        lbl_80344BB0 = 4;
+    }
+    fn_800BC418(2, -1);
     LoadTowerAndSelect(0);
-    msgInit();
-    MBCreateBlit(0, 0, 0, 0, 0, 0);
+    InitCamera(0);
+    new_menu_accept(-1, 1);
+    {
+        u8* pl = gPlayers;
+        for (i = 0; i < 4; i++, pl += 13148) {
+            if (*(s32*)(pl + 232) == 0 && (lbl_80344824 & (1 << i))) {
+                new_player(i);
+            }
+        }
+    }
+    {
+        u8* pl = gPlayers;
+        s32 o132 = 0;
+        s32 o4 = 0;
+        s32 j;
+        for (i = 0; i < 4;
+             i++, o132 += 132, o4 += 4, pl += 13148) {
+            s32* xp = (s32*)(page + o4);
+            u8* blits = lbl_80284878 + o132;
+            s32 joff = 0;
+            for (j = 0; j < 11; j++, joff += 12) {
+                u8* e = page + joff;
+                void* b;
+                b = (void*)MBCreateBlit(0, 0,
+                                        *(s32*)(e + 32) + *xp,
+                                        *(s32*)(e + 36), -1, -1);
+                *(void**)(blits + joff) = b;
+                mbBlitInit3414(*(void**)(blits + joff), 1);
+                mbBlitCvtCoord(*(void**)(blits + joff),
+                               (f32)*(s32*)(e + 40));
+                *(s32*)(blits + joff + 4) = 0;
+            }
+            *(s32*)(pl + 2096) = sLastWorldLevel;
+            if (!(*(u32*)(gGameOptions + 44) & 1)) {
+                setup_tex(i, 0, 0, 0, pool + 868, i + 1);
+                setup_tex(i, 1, 0, 0, pool + 880, i + 1);
+                setup_tex(i, 9, 16384, 0, pool + 892);
+                setup_tex(i, 10, 16384, 0, pool + 904);
+                update_class_spec(i);
+            }
+            mbBlitCalcWidth(*(void**)(blits + 108),
+                            *(s32*)(page + 140) + *xp,
+                            *(s32*)(page + 144),
+                            (f32)*(s32*)(page + 148));
+            mbBlitCalcWidth(*(void**)(blits + 120),
+                            *(s32*)(page + 152) + *xp,
+                            *(s32*)(page + 156),
+                            (f32)*(s32*)(page + 160));
+        }
+    }
+    if (!(*(u32*)((u32)gGameOptions + 44) & 1)) {
+        lbl_80344B90 = 0;
+        lbl_80344B98 = 0;
+        lbl_80344B94 = 0;
+        lbl_80344BA0 = 0;
+        lbl_80344B9C = 0;
+    }
+    lbl_80344BA4 = 0;
+    fn_80053C70();
 }
 
 #pragma opt_propagation off
