@@ -1290,6 +1290,11 @@ static s32 write_shop_menu(s32 player, s32 scroll);
 
 /* Buy/sell driver for one shop player: cursor movement over available
  * items, sell-back, and the per-item purchase effects. */
+typedef struct { u8 _pad[72]; s32 price; u8 _pad2[4]; } DSItem;
+typedef struct { u8 _pad[336]; u32 v; } DSFlag4;
+typedef struct { u8 _pad[13056]; s32 v; } DSPot4;
+typedef struct { u8 _pad[5456]; s32 v; } DSTim4;
+
 static s32 do_shopping_8009AA48(s32 player)
 {
     u8* pl = gPlayers + player * 13148;
@@ -1401,7 +1406,7 @@ static s32 do_shopping_8009AA48(s32 player)
         buy = 0;
     }
     if (buy != 0 &&
-        (*(u32*)(page + player * 768 + 336 + *(s32*)(pl + 2664) * 4) & 4)) {
+        (((DSFlag4*)(page + player * 768 + *(s32*)(pl + 2664) * 4))->v & 4)) {
         u8* item =
             lbl_80344C14 + *(s32*)(pl + 2664) * 80;
         switch (*(s32*)(item + 68)) {
@@ -1452,7 +1457,10 @@ static s32 do_shopping_8009AA48(s32 player)
         }
         }
         if (bought != 0) {
-            *(s32*)(pl + 7876) += price * 3 / 4;
+            {
+                *(s32*)(pl + 7876) +=
+                    ((DSItem*)lbl_80344C14)[*(s32*)(pl + 2664)].price * 3 / 4;
+            }
             fn_8009D038(player);
             PlayerProcessPowerups(pl);
         } else {
@@ -1484,7 +1492,7 @@ static s32 do_shopping_8009AA48(s32 player)
                     s32 r = RandInt(4);
                     s32 old = *(s32*)(pl + 7868);
                     *(s32*)(pl + 7868) = old + 1;
-                    *(s32*)(pl + old * 4 + 13056) = r + 1;
+                    ((DSPot4*)(pl + old * 4))->v = r + 1;
                 } else {
                     paid = 0;
                 }
@@ -1707,7 +1715,10 @@ notavail:
                 *(s32*)(avail + joff) = 0;
             }
         }
-        *(s32*)(page + (player << 8) + 5456 + *(s32*)(pl + 2664) * 4) = 30;
+        {
+            ((DSTim4*)(page + (player << 8) + *(s32*)(pl + 2664) * 4))->v =
+                30;
+        }
         while (*(s32*)(pl + 7876) <
                    *(s32*)(lbl_80344C14 + *(s32*)(pl + 2664) * 80 + 72) ||
                *(s32*)(avail + *(s32*)(pl + 2664) * 4) != 0) {
