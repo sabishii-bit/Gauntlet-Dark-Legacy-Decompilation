@@ -4840,7 +4840,7 @@ s32 fn_8004C8CC(f32* pos, s32 index)
 
 /* 0x80045FE4 - enemy-vs-world-object damage (type from wobj flag nibble) */
 extern u32 WorldObjGetAllFlags(void* wobj);
-extern void NormalVector2D(f32* v);
+extern f32 NormalVector2D(f32* v);
 extern f32 lbl_80346820;
 extern f32 lbl_803468A0;
 extern f32 lbl_803468A4;
@@ -5017,6 +5017,116 @@ extern f32 lbl_803468B0;
 extern f32 fn_80034C88(f32 x);
 extern s32 LineCylinderCollide(f32* center, f32 radius, f32 halfHeight,
                                f32* from, f32* to, f32* hit, s32 directional);
+
+/* fn_8004646C @0x8004646C -- sweep the enemy's move (oldc->newc) against the
+ * critter-node mesh and the neighbouring enemies pulled from the item grid,
+ * returning the id of the closest blocking enemy (or a node hit tagged with
+ * 0x10000), skipping self, dead/idle occupants, already-linked pack members,
+ * and short obstacles when charging.  -1 = clear. */
+extern void CritterCollideStart(f32 rad, f32* pos, s32 a);
+extern void* CritterMoveNodeCol(f32 rad, f32 zero, f32* from, f32* to,
+                                void* hit, s32 a, s32 b);
+extern s32 NextGridItem(void);
+extern f32 lbl_803468B0;
+extern f64 lbl_80346868;
+
+s32 fn_8004646C(f32 rad, f32 hht, s32 index, f32* oldc, f32* newc, f32* newc2,
+                s32* hitWorld)
+{
+    u8* pool = (u8*)lbl_80250E00;
+    s32 startNode = *(s32*)(pool + index * 0x394 + 0x10A0);
+    f32 best = lbl_803468B0;
+    s32 result = -1;
+    s32 hint = -1;
+    void* nodeCol;
+    s32 node;
+    f32 delta[3];
+    u8 scratch[36];
+
+    if (hitWorld == NULL && startNode < 0x10000) {
+        hint = startNode;
+    }
+    CritterCollideStart(rad, newc, 0);
+    nodeCol = CritterMoveNodeCol(rad, 0.0f, oldc, newc, scratch, -1, 2);
+    if (nodeCol != NULL) {
+        return *(s16*)nodeCol | 0x10000;
+    }
+    StartItemGrid(rad, newc);
+    for (;;) {
+        Enemy* other;
+        s32 st;
+        s32 linked;
+
+        if (hint >= 0) {
+            node = hint;
+            hint = -1;
+        } else {
+            node = NextGridItem();
+        }
+        if (node < 0) {
+            break;
+        }
+        if (node == index) {
+            continue;
+        }
+        other = &gEnemies[node];
+        st = *(s32*)((u8*)other + 0xB4);
+        if (st == 0 || st == 8) {
+            continue;
+        }
+        {
+            Enemy* c = &gEnemies[index];
+            s32 v;
+
+            linked = 0;
+            for (;;) {
+                v = *(s32*)((u8*)c + 0x338);
+                if (v < 0) {
+                    break;
+                }
+                if (v == node) {
+                    linked = -1;
+                    break;
+                }
+                c = &gEnemies[v];
+            }
+        }
+        if (linked != 0) {
+            continue;
+        }
+        if ((f64)*(f32*)((u8*)other + 0x23C) <= lbl_80346868) {
+            if (*(s32*)other == 0x1D) {
+                continue;
+            }
+        }
+        delta[0] = *(f32*)((u8*)other + 0x54) - newc[0];
+        delta[1] = *(f32*)((u8*)other + 0x58) - newc[1];
+        delta[2] = *(f32*)((u8*)other + 0x5C) - newc[2];
+        {
+            f32 dist = NormalVector2D(delta);
+
+            if (dist >= best) {
+                continue;
+            }
+            if (LineCylinderCollide((f32*)((u8*)other + 0x54),
+                                    rad + *(f32*)((u8*)other + 0x238),
+                                    hht + *(f32*)((u8*)other + 0x23C), oldc,
+                                    newc, (f32*)scratch, 1) == 0) {
+                continue;
+            }
+            best = dist;
+        }
+        result = node;
+        if (hitWorld != NULL) {
+            continue;
+        }
+        if (node != startNode) {
+            continue;
+        }
+        break;
+    }
+    return result;
+}
 
 /* 0x80046680 - pick the player hit by the enemy's swept collision cylinder;
  * b!=0 restricts the sweep to the nearest live player. */
