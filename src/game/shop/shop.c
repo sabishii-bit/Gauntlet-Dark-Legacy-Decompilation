@@ -187,14 +187,14 @@ s32 do_shop(void)
             s32 o4 = 0;
             for (i = 0; i < 4; i++, o60 += 60, o256 += 256, o12 += 12,
                 o13148 += 13148, o24 += 24, o4 += 4, pl += 13148) {
-                s32 leave;
+                volatile s32 leave;
                 s32 j;
                 if (*(s32*)(pl + 232) != 1 && *(s32*)(pl + 232) != 5) {
                     continue;
                 }
                 leave = 0;
                 LoadPlyrData(i, *(s32*)(pl + 12), 0);
-                switch (*(s32*)(pl + 2660)) {
+                switch (*(u32*)(pl + 2660)) {
                 case 0:
                     *(s32*)(page + o4 + 16) = 0;
                     *(s32*)(page + o4) = 0;
@@ -290,12 +290,15 @@ s32 do_shop(void)
                 }
                 case 6:
                     if (lbl_80344C0C == 2) {
-                        for (j = 0; j < 6; j++) {
-                            void** q =
-                                (void**)(page + o24 + 7504 + j * 4);
-                            if (*q != 0) {
-                                MBRemoveBlit(*q);
-                                *q = 0;
+                        {
+                            u32 k;
+                            for (k = 0; k < 6; k++) {
+                                void** q =
+                                    (void**)(page + o24 + 7504 + k * 4);
+                                if (*q != 0) {
+                                    MBRemoveBlit(*q);
+                                    *q = 0;
+                                }
                             }
                         }
                         for (j = 0; j < lbl_80344C10; j++) {
@@ -327,12 +330,15 @@ s32 do_shop(void)
                 case 7:
                     show_piles(i);
                     if (do_shopping_8009AA48(i) != 0) {
-                        for (j = 0; j < 6; j++) {
-                            void** q =
-                                (void**)(page + o24 + 7504 + j * 4);
-                            if (*q != 0) {
-                                MBRemoveBlit(*q);
-                                *q = 0;
+                        {
+                            u32 k;
+                            for (k = 0; k < 6; k++) {
+                                void** q =
+                                    (void**)(page + o24 + 7504 + k * 4);
+                                if (*q != 0) {
+                                    MBRemoveBlit(*q);
+                                    *q = 0;
+                                }
                             }
                         }
                         for (j = 0; j < lbl_80344C10; j++) {
