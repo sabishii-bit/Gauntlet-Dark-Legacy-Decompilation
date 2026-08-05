@@ -12,14 +12,15 @@
  * Status: NonMatching.  Functions are emitted in target address order.  The
  * TU-local .bss pool (font_info .. gTextFormatBuf) is defined in-unit, in
  * declaration order, so font_info anchors the section at offset 0 and the list
- * accessors reproduce the font_info-relative sibling pooling.  19/45 functions
+ * accessors reproduce the font_info-relative sibling pooling.  21/45 functions
  * are byte-exact (all the leaf accessors/setters + the GetScroll/GetString
  * resolvers + DrawNormalText/DrawTextKeepScale).  The remaining full-bodied
  * functions (Find, Sub workers, DrawTextMLines, DrawGlowText) are
  * structurally complete with register/schedule residuals (opcode streams match;
- * see PARKED.txt).  The variadic Draw* wrappers and the big loader
- * (StringInitSub) are shape-only skeletons: the vararg FP-save ABI and the
- * whole-TU .sdata2 constant-pool ordering are future work.
+ * see PARKED.txt).  DrawText and DrawStringText now reproduce the variadic
+ * FP-save ABI exactly; DrawStringTextMLines is behavior-complete with only
+ * loop-register residuals.  DrawStringTextMulti, the scroll wrappers, and the
+ * big loader (StringInitSub) still need full reconstruction.
  */
 
 /* ---- message-resource structures (SCROLLS files) ---- */
@@ -63,8 +64,11 @@ typedef struct StrList {  /* 0x44 - a loaded SCROLLS resource */
 /* Address view used where the original source addressed the whole TU pool
  * through its font_info anchor. */
 typedef struct BTextPoolView {
-    u8 _pad[2240];
+    void* fonts[14];
+    u8 workBuf[0x800];
+    StrList scrollLists[2];
     StrList stringList;
+    u8 formatBuf[0x404];
 } BTextPoolView;
 
 /* ---- TU-local data pool (.bss, address order pins the font_info anchor) ---- */
@@ -400,13 +404,80 @@ s32 StringTextWidthSub(f32 scale, StrList* p, s32 msg, s32 idx)
     return maxw;
 }
 
-/* ==== 0x8001F234 DrawStringTextMLines (variadic; skeleton) ==== */
+/* ==== 0x8001F234 DrawStringTextMLines ==== */
 s32 DrawStringTextSub(StrList* p, s32 msg, s32 x, s32 y, s32 spacing, u32 font, u32 color);
+char* GetStringTextSub(StrList* p, s32 msg, s32 idx, u32* fontOut);
 
-void DrawStringTextMLines(s32 x, s32 y, u32 flags, u32 color, s32 spacing, s32 msg, ...)
+s32 DrawStringTextMLines(s32 x, s32 y, s32 spacing, s32 font, u32 color, s32 msg, ...)
 {
-    (void)x; (void)y; (void)flags; (void)color; (void)spacing; (void)msg;
-    vsprintf((char*)gTextWorkBuf, (char*)gTextWorkBuf, 0);
+    BTextPoolView* info;
+    MsgEnt* entry;
+    f32 scale;
+    f32 shScale;
+    s32 defaultFont;
+    s32 fontHeight;
+    s32 msgLine;
+    s32 lineCount;
+    s32 line;
+    s32 off;
+    s32* linePtr;
+    u32 text;
+    va_list ap;
+    s32 lines[16];
+    volatile u8 unused[20];
+
+    info = (BTextPoolView*)font_info;
+    entry = &info->stringList.msgs[msg];
+    msgLine = 0;
+    lineCount = msgLine;
+    if (spacing < 0) {
+        spacing = gLineSpacing;
+    }
+    scale = entry->scale * DrawStringScale;
+    shScale = entry->shScale;
+    defaultFont = info->stringList.fontDesc[entry->font].color;
+    if (font < 0 || (font < 10 && defaultFont >= 10)) {
+        font = defaultFont;
+    }
+    fontHeight = (s32)(scale * (f32)MBFontHeight(font));
+    spacing += fontHeight;
+    if ((y & 0x1000) != 0) {
+        y &= ~0x1000;
+        y -= (fontHeight + spacing * (entry->count - 1)) / 2;
+    }
+
+    info->workBuf[0x400] = 0;
+    while (lineCount < entry->count) {
+        if (lineCount == 16) {
+            break;
+        }
+        text = (u32)GetStringTextSub(&info->stringList, msg, msgLine++, 0);
+        if (text == 0) {
+            if (lineCount == 0) {
+                ErrorPrintf("DrawStringTextMLines: Msg=%d idx=%d > max", msg, msgLine);
+            }
+            break;
+        }
+        strcat(info->workBuf + 0x400, (char*)text);
+        strcat(info->workBuf + 0x400, "\n");
+        lineCount++;
+    }
+
+    va_start(ap, msg);
+    vsprintf((char*)info->workBuf, (char*)info->workBuf + 0x400, ap);
+    lineCount = FixMLineText((s32*)info->workBuf, (s32*)info->formatBuf, (s32)lines);
+    line = 0;
+    off = line;
+    linePtr = (s32*)(u32)lines;
+    while (line < lineCount) {
+        DrawTextSub(scale, shScale, x, y, font, color,
+                    *(u8**)((s32)linePtr + off));
+        y += spacing;
+        line++;
+        off += 4;
+    }
+    gDrawTextY = y;
+    return y;
 }
 
 /* ==== 0x8001F48C DrawStringTextMulti (skeleton) ==== */
