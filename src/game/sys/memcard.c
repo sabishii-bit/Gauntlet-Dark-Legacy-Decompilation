@@ -636,13 +636,16 @@ int MemCardCreateGaunt(int port, int slot)
  */
 s32 saveMount(s32 port, s32 slot, s32 doFormat)
 {
-    char* pool = lbl_801131C0;
-    s32* pState = &lbl_80344A18 + port + slot;
-    s32* pPresent = &lbl_80344A14 + port + slot;
     s32 idx = slot + port * 4;
-    s32 probe;
+    char* pool = lbl_801131C0;
+    s32* pState;
+    s32* pPresent;
+    u8* top;
+    u32 aramSize;
     s32 memSize;
     s32 sectorSize;
+    s32 probe;
+    s32 r;
     u8 mounted = 0;
     u8 retry;
 
@@ -650,66 +653,88 @@ s32 saveMount(s32 port, s32 slot, s32 doFormat)
     if (idx > 1) {
         return 0;
     }
+    pState = &lbl_80344A18 + port + slot;
+    pPresent = &lbl_80344A14 + port + slot;
 
     /* poll the slot until CARDProbeEx reports a stable status */
     do {
         retry = 0;
-        probe = CARDProbeEx(0, &memSize, &sectorSize);
-        if (probe == -2 || probe == 0) {
-            *pState = 0;
-            *pPresent = 0;
-        } else if (probe == -128 || probe == -3) {
+        probe = CARDProbeEx(idx, &memSize, &sectorSize);
+        switch (probe) {
+        case -128:
+        case -3:
             *pState = -1;
             *pPresent = -1;
-        } else if (probe == -1) {
+            break;
+        case -1:
             retry = 1;
+            break;
+        case -2:
+            *pState = 0;
+            *pPresent = 0;
+            /* fallthrough */
+        case 0:
+            *pState = 0;
+            *pPresent = 0;
+            break;
         }
         if (retry) {
             VIWaitForRetrace();
         }
     } while (retry);
 
+    aramSize = 0x310000;
     sysSetFlags(64);
-    dcsAramWriteTop((void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
-    lbl_80344A0C = OSCreateHeap((void*) (GetHiMemCacheTop() - 0x310000),
-                                (void*) (GetHiMemCacheTop()));
+    top = (u8*) GetHiMemCacheTop();
+    dcsAramWriteTop(top - 0x310000, aramSize);
+    lbl_80344A0C = OSCreateHeap(top - 0x310000, (top - 0x310000) + aramSize);
     lbl_80344A08 = OSSetCurrentHeap(lbl_80344A0C);
     lbl_80344A00 = (u8*) OSAllocFromHeap(__OSCurrHeap, 8192);
     lbl_803449FC = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x10000 - 24576);
     cardStart(lbl_80344A00 + 8192, 8192, 18);
     cardWaitResult();
-    cardMount(0, lbl_803449FC, cardRemovedCallback);
-    cardWaitResult();
+    cardMount(idx, lbl_803449FC, cardRemovedCallback);
+    r = cardWaitResult();
 
-    lbl_80344A10[idx] = -1;
-    if (cardGetResult() == 0) {
+    *(s32*)((u8*)lbl_80344A10 + (port << 2) + (slot << 2)) = -1;
+    if (r == 0) {
         *pPresent = 1;
         *pState = 3;
         mounted = 1;
     } else {
-        s32 r = cardGetResult();
-
-        if (r == -5) {
-            *pPresent = 0;
-            *pState = 2;
-        } else if (r == -13 || r == -128) {
-            *pPresent = 0;
-            *pState = (r == -13) ? 1 : 2;
-        } else if (r == -6) {
+        switch (r) {
+        case -6:
             *pPresent = 0;
             *pState = 2;
             mounted = 1;
-        } else if (r == -2) {
+            break;
+        case -13:
+            *pPresent = 0;
+            *pState = 1;
+            break;
+        case -128:
+            *pPresent = 0;
+            *pState = 2;
+            break;
+        case -2:
             *pPresent = 0;
             *pState = 0;
-        } else if (r == -3) {
+            break;
+        case -4:
+        case -3:
             *pState = -1;
             *pPresent = -1;
+            break;
+        case -1:
+            break;
+        case -5:
+            *pPresent = 0;
+            *pState = 2;
+            break;
         }
         if (doFormat) {
-            cardFormat(0);
-            cardWaitResult();
-            if (cardGetResult() == 0) {
+            cardFormat(idx);
+            if (cardWaitResult() == 0) {
                 *pState = 3;
                 *pPresent = 1;
             }
@@ -717,21 +742,24 @@ s32 saveMount(s32 port, s32 slot, s32 doFormat)
     }
 
     if (mounted) {
-        s32 c = CARDCheck(0);
-
-        if (c == -13 || c == -128 || c == -6) {
+        switch (CARDCheck(0)) {
+        case -128:
+        case -13:
+        case -6:
+        case -5:
+        case -3:
+        case -1:
             *pPresent = 0;
             *pState = 2;
-        } else if (c == -1) {
-            *pPresent = 0;
-            *pState = 2;
-        } else if (c < -1 && c >= -2) {
-            /* ok */
-        } else if (c >= 1) {
-            /* ok */
-        } else if (c == 0) {
+            break;
+        case -4:
+            break;
+        case -2:
+            break;
+        case 0:
             *pPresent = 1;
             *pState = 3;
+            break;
         }
     }
 
@@ -752,9 +780,9 @@ s32 saveMount(s32 port, s32 slot, s32 doFormat)
         s32* serial = &lbl_80344A20 + port * 2 + slot * 2;
 
         serial[1] = 0;
-        serial[0] = -1;
+        serial[0] = 0;
     }
-    return 0;
+    return -1;
 }
 
 /*
