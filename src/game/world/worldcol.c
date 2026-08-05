@@ -410,6 +410,7 @@ static s32 NextGrid(f32 a, f32 b, f32 c, f32 d, s32* gx, s32* gz)
     f32 t;
     s32 idx;
     f64 z2;
+    u8 _pad[8];
 
     if (lbl_80345730 == a) {
         if (b >= lbl_80345730) {
@@ -463,7 +464,7 @@ static s32 NextGrid(f32 a, f32 b, f32 c, f32 d, s32* gx, s32* gz)
     if (xv + 1 >= gWorldInfo.gridW) {
         return 0;
     }
-    z2 = lbl_80345730;
+    z2 = *(volatile f64*)&lbl_80345730;
     if (z2 == a || edge - lbl_80344168 < lbl_80345724 * d) {
         t = lbl_8034416C;
     } else {
@@ -479,16 +480,19 @@ static s32 NextGrid(f32 a, f32 b, f32 c, f32 d, s32* gx, s32* gz)
         t = lbl_80344174;
     }
     idx = (s32)(gWorldInfo.invCell * (t - lbl_8034417C));
-    if ((s32)(gWorldInfo.invCell * (t - lbl_8034417C)) < gWorldInfo.gridD &&
-        idx >= 0) {
-        *gx = xv + 1;
-        *gz = idx;
-        if (xv + 1 < 0 || idx < 0) {
-            FatalError(lbl_80110720, 0x800000);
+    if ((s32)(gWorldInfo.invCell * (t - lbl_8034417C)) < gWorldInfo.gridD) {
+        if (idx >= 0) {
+            goto commit;
         }
-        return 1;
     }
     return 0;
+commit:
+    *gx = xv + 1;
+    *gz = idx;
+    if (xv + 1 < 0 || idx < 0) {
+        FatalError(lbl_80110720, 0x800000);
+    }
+    return 1;
 }
 /* 0x8000DFEC -- sweep the query line against one world object: quick
  * sphere/line rejection, transform the query into object space, then run the

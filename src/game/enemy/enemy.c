@@ -309,9 +309,14 @@ next_enemy:
     return best_distance;
 }
 
+extern f64 lbl_80346840;        /* pi wrap high */
+extern f64 lbl_80346848;        /* 2*pi */
+extern f64 lbl_80346850;        /* -pi wrap low */
+
 void do_enemy_move(s32 index)
 {
-    Enemy* e = (Enemy*)((u8*)lbl_80250E00 + index * 916 + 3608); /* = &gEnemies[index] via the pool anchor */
+    u8* row = (u8*)lbl_80250E00 + index * 916;
+    Enemy* e = (Enemy*)(row + 3608); /* = &gEnemies[index] via the pool anchor */
     s32 alg = e->algorithm;
     f32 rad = e->rad;
     f32 hht = e->hht;
@@ -539,13 +544,16 @@ void do_enemy_move(s32 index)
                         fn_8004D030(index, 10);
                     } else {
                         fn_8004D030(index, 30);
-                        e->ang = 3.141592654 + lbl_80344720;
                         {
-                            f64 a = e->ang;
-                            if (a > 3.141592654) {
-                                a -= 6.283185308;
-                            } else if (a <= -3.141592654) {
-                                a = 6.283185308 + a;
+                            f64 a;
+                            f64 hi = lbl_80346840;
+                            f32 step = lbl_80344720;
+                            e->ang = (f32)(hi + step);
+                            a = e->ang;
+                            if (a > hi) {
+                                a -= lbl_80346848;
+                            } else if (a <= lbl_80346850) {
+                                a = lbl_80346848 + a;
                             }
                             e->ang = a;
                             e->pyr[1] = a;
@@ -646,13 +654,16 @@ void do_enemy_move(s32 index)
                             fn_8004D030(index, 15);
                         } else {
                             fn_8004D030(index, 15);
-                            e->ang = 3.141592654 + lbl_80344720;
                             {
-                                f64 a = e->ang;
-                                if (a > 3.141592654) {
-                                    a -= 6.283185308;
-                                } else if (a <= -3.141592654) {
-                                    a = 6.283185308 + a;
+                                f64 a;
+                                f64 hi = lbl_80346840;
+                                f32 step = lbl_80344720;
+                                e->ang = (f32)(hi + step);
+                                a = e->ang;
+                                if (a > hi) {
+                                    a -= lbl_80346848;
+                                } else if (a <= lbl_80346850) {
+                                    a = lbl_80346848 + a;
                                 }
                                 e->ang = a;
                                 e->pyr[1] = a;

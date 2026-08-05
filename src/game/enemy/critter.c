@@ -2323,8 +2323,8 @@ void CritterChildCriticalMove(Critter *c)
         }
     }
 
-    patterns = *(CritterPattern **)((u8 *)c->hdr + 0x128);
     i = 0;
+    patterns = *(CritterPattern **)((u8 *)c->hdr + 0x128);
     timeOffset = 0;
     recordOffset = 0;
     while (i < *(s16 *)((u8 *)c->hdr + 0x114)) {
