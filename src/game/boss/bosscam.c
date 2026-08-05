@@ -1,4 +1,5 @@
 #include "types.h"
+#include "game/camera.h"
 
 /*
  * game/boss/bosscam.c  --  BOSSCAM.OBJ (GameCube GUNE5D)
@@ -94,9 +95,17 @@ extern s32 gTriggerCameraState;
 extern s32 lbl_803443B8;
 extern s32 lbl_803443BC;              /* trigger-cam frame timer */
 extern s32 lbl_803443C0;
-extern s32 lbl_803443C4;
+extern u8* lbl_803443C4;
 extern f32 gCameraWindowScaleX;
 extern f32 gCameraWindowScaleY;
+extern s32 gFrameTicks;
+extern s32 lbl_803447DC;
+extern void* lbl_80257630[4];
+extern s32 gControllerButtons;
+extern s32 sFlags;
+extern s32 lbl_80344BF8;
+extern s32 lbl_80343BA8;
+extern const f32 lbl_80345B80;
 
 extern const f32 lbl_80345C28;        /* .sdata2 pooled float literal */
 
@@ -109,6 +118,16 @@ extern void YawVec3(void* axis, f32* out, f32 angle);
 extern void PitchVec3(f32* a, f32* b, f32 angle);
 extern void LookInDirection(f32* mtx, void* target);
 extern void vibrators_off(void);
+extern void StdCamFreeze(void);
+extern void MBCameraUpdate(f32* position, f32* matrix);
+extern void* MBNewTempBlit(s32 texture, s32 x, s32 y, s32 width, s32 height);
+extern void MBBlitSetColor(void* blit, u32 color);
+extern void mbBlitCvtCoord(void* blit, f64 depth);
+extern void mbBlitInit3414(void* blit, s32 enabled);
+extern void EnablePlayerControls(void);
+extern void fn_8006ECD4(void);
+extern void do_camera(void);
+extern void chg_target_state(s32 mode);
 
 /* PointViewDist frustum-test state */
 extern f32* lbl_80344EE8;             /* pointer to the active view/frustum */
@@ -154,7 +173,94 @@ extern f32 cos(f32);
 void CamLimitPlayerDpos(void* camera, u8* ps, f32* dpos, s32 arg);
 f32 PointViewDist(f32* point, f32 dist);
 
-void TriggerCamUpdate(void) {}
+#pragma opt_propagation off
+s32 TriggerCamUpdate(void)
+{
+    u8* cameraBuffer;
+    f32* position;
+    void* blit;
+    f32 x;
+    f32 y;
+    f32 z;
+    s32 i;
+    s32 offset;
+    s32 zero;
+    s32 two;
+
+    cameraBuffer = lbl_8023E880;
+    if (gTriggerCameraState == 0) {
+        return 0;
+    }
+    if (lbl_803443B8 > 0) {
+        lbl_803443B8 -= gFrameTicks;
+        return 0;
+    }
+
+    StdCamFreeze();
+    position = (f32*)(cameraBuffer + 48);
+    MBCameraUpdate(position, (f32*)cameraBuffer);
+    x = position[0];
+    gCameras[0].attn[0] = x;
+    y = position[1];
+    gCameras[0].attn[1] = y;
+    z = position[2];
+    gCameras[0].attn[2] = z;
+    gCameras[0].mat[3][0] = x;
+    gCameras[0].mat[3][1] = y;
+    gCameras[0].mat[3][2] = z;
+
+    blit = MBNewTempBlit(lbl_80344BF8, 0, 0, 512, lbl_80343BA8);
+    MBBlitSetColor(blit, 0);
+    mbBlitCvtCoord(blit, lbl_80345B80);
+    blit = MBNewTempBlit(lbl_80344BF8, 0, 304, 512, 80);
+    MBBlitSetColor(blit, 0);
+    mbBlitCvtCoord(blit, lbl_80345B80);
+
+    if (lbl_803447DC != 0) {
+        i = 0;
+        offset = 0;
+        do {
+            mbBlitInit3414(*(void**)((u8*)lbl_80257630 + offset), 1);
+            i++;
+            offset += 4;
+        } while (i < 4);
+    }
+
+    lbl_803443BC -= gFrameTicks;
+    if (lbl_803443BC <= 0) {
+        if (lbl_803443C0 > 0) {
+            lbl_803443C0 -= gFrameTicks;
+        } else if (lbl_803443C4 == 0 ||
+                   (*(u32*)(lbl_803443C4 + 0x10) & 0x08000000) == 0) {
+            if (gTriggerCameraState == 2) {
+                EnablePlayerControls();
+            }
+            i = gTriggerCameraState = 0;
+            if (lbl_803447DC != 0) {
+                offset = 0;
+                do {
+                    mbBlitInit3414(*(void**)((u8*)lbl_80257630 + offset), 0);
+                    i++;
+                    offset += 4;
+                } while (i < 4);
+            }
+            zero = 0;
+            two = 2;
+            if ((((sFlags & two) ^ zero) |
+                 ((gControllerButtons & zero) ^ zero)) != 0) {
+                fn_8006ECD4();
+            } else {
+                do_camera();
+            }
+            gCameras[0].attn[0] = gCameras[0].attn_dest[0];
+            gCameras[0].attn[1] = gCameras[0].attn_dest[1];
+            gCameras[0].attn[2] = gCameras[0].attn_dest[2];
+            chg_target_state(10);
+        }
+    }
+    return gTriggerCameraState;
+}
+#pragma opt_propagation reset
 
 void TriggerCameraEnd(void) {
     lbl_803443B8 = 0;
@@ -180,7 +286,7 @@ void TriggerCameraActivate(s32 p1, f32* p2, f32* p3, s32 duration, s32 p5, s32 p
     }
     lbl_803443B8 = p5;
     lbl_803443C0 = p6;
-    lbl_803443C4 = p1;
+    lbl_803443C4 = (u8*)p1;
     YawVec3(lbl_80127D40, mtx, lbl_80345B88 - p3[1]);
     PitchVec3(mtx, mtx, p3[0]);
     *(f32*)(buf + 48) = p2[0];
