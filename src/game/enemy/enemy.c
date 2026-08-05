@@ -107,6 +107,7 @@ s32 find_enemy_slot(s32 type, s32 level);
 void kill_enemy(s32 index);
 void uncouple_enemy(s32 index);
 void do_enemy_move(s32 index);
+s32 do_enemy_collide(s32 index);
 f32 turn_enemy_ang(Enemy* e, f32 want);
 s32 do_ai(s32 index);
 void move_logic00(s32 index);
@@ -127,7 +128,6 @@ extern s32 gGameOptions[];   /* 0x80257590 (lbl_80257598 = [2]) */
 #define ABS(x) (((x) ^ ((x) >> 31)) - ((x) >> 31))
 
 /* --- same-TU statics not yet reconstructed (extern until written) --- */
-extern s32 do_enemy_collide(s32 index);
 extern void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm);
 extern void fn_80046140(s32 index);                 /* generator-contact retreat */
 extern s32 fn_8004646C(f32 rad, f32 hht, s32 index, f32* oldc, f32* newc,
@@ -733,6 +733,269 @@ void do_enemy_move(s32 index)
         && alg != 18 && e->type != E_GOLEM) {
         e->daction = 0;
     }
+}
+
+/* do_enemy_collide @0x80045488 - the enemy collision core.  Sweeps the pending
+ * move (e->trans) against the world: probes walls (splitting the swept box for
+ * the 0x1d flyer type), resolves wall hits by damage + slide-or-stop, tests
+ * enemy-vs-enemy via fn_80045C30, snaps to the floor, reparents the mb-node to
+ * whatever surface it landed on, and - when the residual slide is tiny - runs
+ * the per-behaviour dead-end timers (turn/reverse).  Finally applies gravity
+ * toward the floor target, dealing fall damage past the drop threshold.
+ * Returns the collision class (0 none, 1 wall, 2 blocked). */
+extern void* fn_80045C30(Enemy* e, f32 rad, f32 arg, f32* oldpos, f32* trans,
+                         s32 collided);
+extern void MBNodeSetParent(void* node, void* parent);
+extern s32 FloorCollide(f32* pos, s32 a, s32 b, s32 mode, f32 x, f32 y, f32 z);
+extern s32 damage_enemy(Enemy* e, f32 amount, s32 dtype, s32 a, s32 b, s32 c,
+                        s32 d);
+extern f64 lbl_80346860;
+extern f64 lbl_80346868;
+extern f64 lbl_80346838;
+extern f64 lbl_80346870;
+extern f64 lbl_80346880;
+extern f32 lbl_80346888;
+extern s32 lbl_8034473C;
+extern f64 lbl_80346830;
+
+s32 do_enemy_collide(s32 index)
+{
+    u8* pool = (u8*)lbl_80250E00;
+    u8* e = (u8*)&gEnemies[index];
+    f32* tr = (f32*)(e + 0x210);
+    f32 dt = (f32)(lbl_80346860 * gClockFrameStep);
+    s16 behavior = *(s16*)(e + 0x310);
+    s32 result = 0;
+    f32 rad;
+    f32 slideRad;
+    void* hit = NULL;
+    f32 oldpos[3];
+    f32 dh;
+
+    if (*(s32*)e == 0x1F || *(s32*)(e + 0x358) <= 0) {
+        *(s16*)(e + 0x1FE) = 0;
+    }
+    if (*(s16*)(e + 0x280) == 0) {
+        void* mp = *(void**)(e + 0x298);
+        if (mp != NULL && !(*(u32*)((u8*)mp + 0x10) & 0x1000)) {
+            goto gravity;
+        }
+    }
+
+    rad = *(f32*)(e + 0x238);
+    oldpos[0] = *(f32*)(e + 0x54);
+    oldpos[1] = *(f32*)(e + 0x58);
+    oldpos[2] = *(f32*)(e + 0x5C);
+    oldpos[1] = (f32)((lbl_80346868 - *(f32*)(e + 0x21C)) + oldpos[1]);
+
+    if (*(s16*)(e + 0x280) != 0) {
+        if (*(s32*)e == 0x1D) {
+            f32 np[3];
+            slideRad = (f32)(lbl_80346830 * rad);
+            slideRad = (f32)(slideRad * lbl_80346838);
+            np[0] = oldpos[0] + tr[0];
+            np[1] = oldpos[1] + tr[1];
+            np[2] = oldpos[2] + tr[2];
+            lbl_80344730 = EnemyWallCollide(slideRad, oldpos, np,
+                                                 (f32*)(pool + 0x2F4));
+            if (lbl_80344730 != 0) {
+                EnemyWorldDamage((Enemy*)e, lbl_80344730, oldpos,
+                                 (f32*)(pool + 0x2F4));
+                if (*(u32*)((u8*)lbl_80344730 + 0x10) & 0x38) {
+                    result = 0;
+                } else if (!(*(u32*)(e + 0x330) & 1)) {
+                    if (SlideAlongWall(slideRad, oldpos, tr,
+                                       (f32*)(pool + 0x2F4),
+                                       lbl_8023CA98[1]) < 0) {
+                        tr[2] = 0.0f;
+                        tr[0] = 0.0f;
+                        result = 2;
+                    } else {
+                        result = 1;
+                    }
+                } else {
+                    result = 1;
+                }
+            } else {
+                result = 0;
+            }
+        } else {
+            f32 np[3];
+            slideRad = (f32)(rad * lbl_80346838);
+            np[0] = oldpos[0] + tr[0];
+            np[1] = oldpos[1] + tr[1];
+            np[2] = oldpos[2] + tr[2];
+            lbl_80344730 = EnemyWallCollide(slideRad, oldpos, np,
+                                                 (f32*)(pool + 0x2F4));
+            if (lbl_80344730 != 0) {
+                EnemyWorldDamage((Enemy*)e, lbl_80344730, oldpos,
+                                 (f32*)(pool + 0x2F4));
+                if (*(u32*)((u8*)lbl_80344730 + 0x10) & 0x38) {
+                    result = 0;
+                } else if (!(*(u32*)(e + 0x330) & 1)) {
+                    if (SlideAlongWall(slideRad, oldpos, tr,
+                                       (f32*)(pool + 0x2F4),
+                                       lbl_8023CA98[1]) < 0) {
+                        tr[2] = 0.0f;
+                        tr[0] = 0.0f;
+                        result = 2;
+                    } else {
+                        result = 1;
+                    }
+                } else {
+                    result = 1;
+                }
+            } else {
+                result = 0;
+            }
+        }
+    }
+
+    hit = fn_80045C30((Enemy*)e, rad, 0.0f, oldpos, tr, result);
+    if (hit != NULL) {
+        *(void**)(e + 0x298) = hit;
+        if ((f64)*(f32*)(e + 0x23C) <= lbl_80346868) {
+            if (*(u32*)((u8*)hit + 0x10) & 0x38) {
+                result = 2;
+                tr[2] = 0.0f;
+                tr[0] = 0.0f;
+            }
+        }
+    } else {
+        void* mp = *(void**)(e + 0x298);
+        if (mp != NULL && (*(u32*)((u8*)mp + 0x10) & 0x1000)) {
+            goto reparent;
+        }
+        tr[2] = 0.0f;
+        tr[0] = 0.0f;
+        hit = (void*)FloorCollide(oldpos, (s32)(pool + 0x300), 0, 2,
+                                  (f32)(lbl_80346830 * rad), *(f32*)(e + 0x23C),
+                                  (f32)(-*(f32*)(e + 0x23C) - lbl_80346870));
+        if (hit != NULL) {
+            *(f32*)(e + 0x294) = *(f32*)(pool + 0x334) + *(f32*)(e + 0x21C);
+            if (*(void**)(e + 0x1DC) != NULL) {
+                CopyMat3((f32*)(pool + 0x300), *(f32**)(e + 0x1DC));
+            }
+        }
+    }
+
+reparent:
+    if (hit != NULL) {
+        void* parent = *(void**)((u8*)hit + 0x28);
+        if (parent != NULL && (*(u32*)((u8*)hit + 0x10) & 0x1000)) {
+            MBNodeSetParent(*(void**)(e + 0x64), parent);
+        } else {
+            MBNodeSetParent(*(void**)(e + 0x64), (void*)lbl_8034473C);
+        }
+    }
+    *(s32*)(e + 0x29C) = (hit != NULL) ? *(s32*)((u8*)hit + 0x10) : 0;
+
+    if ((f64)fqdist(tr[0], tr[2]) >= lbl_80346878) {
+        goto gravity;
+    }
+
+    if (behavior == 0) {
+        if (ABS(*(s32*)(e + 0x354)) > 2) {
+            (*(s16*)(e + 0x364))++;
+            fn_8004D030(index, 0x3C);
+        } else {
+            (*(s16*)(e + 0x364))++;
+            fn_8004D030(index, 5);
+        }
+        if (*(s16*)(e + 0x364) >= 9) {
+            *(s32*)(e + 0x354) = -*(s32*)(e + 0x354) * 2;
+            *(s16*)(e + 0x364) = 0;
+            if (ABS(*(s32*)(e + 0x354)) > 2) {
+                *(f32*)(e + 0x24C) = lbl_80344720;
+                *(f32*)(e + 0x244) = lbl_80344720;
+            }
+        }
+    } else if (behavior == 7) {
+        if (ABS(*(s32*)(e + 0x354)) > 2) {
+            fn_8004D030(index, 0x3C);
+            *(f32*)(e + 0x24C) = lbl_80344720;
+            *(f32*)(e + 0x244) = lbl_80344720;
+            *(s16*)(e + 0x364) = 0;
+            *(s32*)(e + 0x354) = 0;
+        } else {
+            (*(s16*)(e + 0x364))++;
+            fn_8004D030(index, 0xA);
+        }
+        if (*(s16*)(e + 0x364) >= 7) {
+            *(s32*)(e + 0x354) = -*(s32*)(e + 0x354) * 2;
+            *(s16*)(e + 0x364) = 0;
+        }
+    } else if (behavior == 8) {
+        if (ABS(*(s32*)(e + 0x354)) > 2) {
+            fn_8004D030(index, 0x3C);
+            *(f32*)(e + 0x24C) = lbl_80344720;
+            *(f32*)(e + 0x244) = lbl_80344720;
+            *(s16*)(e + 0x364) = 0;
+            *(s32*)(e + 0x354) = 0;
+        } else {
+            (*(s16*)(e + 0x364))++;
+            fn_8004D030(index, 5);
+        }
+        if (*(s16*)(e + 0x364) >= 7) {
+            *(s32*)(e + 0x354) = -*(s32*)(e + 0x354) * 2;
+            *(s16*)(e + 0x364) = 0;
+        }
+    } else if (behavior == 0xA) {
+        if (ABS(*(s32*)(e + 0x354)) > 2) {
+            fn_8004D030(index, 0x3C);
+            *(f32*)(e + 0x24C) = lbl_80344720;
+            *(f32*)(e + 0x244) = lbl_80344720;
+            *(s16*)(e + 0x364) = 0;
+            *(s32*)(e + 0x354) = 0;
+        } else {
+            (*(s16*)(e + 0x364))++;
+            fn_8004D030(index, 0xA);
+        }
+        if (*(s16*)(e + 0x364) >= 7) {
+            *(s32*)(e + 0x354) = -*(s32*)(e + 0x354) * 2;
+            *(s16*)(e + 0x364) = 0;
+        }
+    } else if (behavior == 0x14) {
+        if (ABS(*(s32*)(e + 0x354)) > 2) {
+            (*(s16*)(e + 0x364))++;
+            fn_8004D030(index, 3);
+        } else {
+            f64 a;
+            fn_8004D030(index, 0x1E);
+            *(f32*)(e + 0x24C) = (f32)(lbl_80346840 + lbl_80344720);
+            a = *(f32*)(e + 0x24C);
+            if (a > lbl_80346840) {
+                a -= lbl_80346848;
+            } else if (a <= lbl_80346850) {
+                a += lbl_80346848;
+            }
+            *(f32*)(e + 0x24C) = (f32)a;
+            *(f32*)(e + 0x244) = (f32)a;
+            *(s16*)(e + 0x364) = 0;
+            *(s32*)(e + 0x354) = 0;
+        }
+        if (*(s16*)(e + 0x364) >= 7) {
+            *(s32*)(e + 0x354) = -*(s32*)(e + 0x354) * 2;
+            *(s16*)(e + 0x364) = 0;
+        }
+    } else {
+        if (*(s32*)(e + 0x358) <= 0) {
+            *(s32*)(e + 0x358) = 0x14;
+        }
+    }
+    *(s16*)(e + 0x1FE) = 1;
+
+gravity:
+    dh = *(f32*)(e + 0x294) - *(f32*)(e + 0x38);
+    if ((f64)dh < lbl_80346880) {
+        damage_enemy((Enemy*)e, lbl_80346888, -1, 0, 0, 0, 0);
+    }
+    if (dh < dt) {
+        dh = dt;
+    }
+    tr[1] += dh;
+    *(f32*)(e + 0x294) = *(f32*)(e + 0x38) + dh;
+    return result;
 }
 
 /* ===================================================================== *
