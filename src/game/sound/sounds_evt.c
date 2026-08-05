@@ -822,6 +822,189 @@ void fn_8009E08C(int p)
     }
 }
 
+/* --- AudioSetupBossStreams support --------------------------------- */
+extern char* strcpy(char* dst, const char* src);
+extern char* strcat(char* dst, const char* src);
+extern int sprintf(char* buf, const char* fmt, ...);
+extern int AudioFindSound(char* a, int b, int c);
+extern int LevelLetter(int a);
+extern s32 lbl_802577CC[]; /* level -> boss-stream select code (0..29) */
+extern s32 lbl_8025778C[]; /* level -> boss rank/tier */
+
+/* gBossType 36/37/41 use a shared sample set: truncate the speech name
+ * at 14 chars and append the variant letter before the lookup. */
+#define BossNameFixup()                                                     \
+    if (gBossType > 0) {                                                    \
+        switch (gBossType) {                                                \
+        case 41:                                                            \
+            sSpeechNameBuf[14] = 0;                                         \
+            strcat((char*)sSpeechNameBuf, "B");                             \
+            break;                                                          \
+        case 37:                                                            \
+            sSpeechNameBuf[14] = 0;                                         \
+            strcat((char*)sSpeechNameBuf, "D");                             \
+            break;                                                          \
+        case 36:                                                            \
+            sSpeechNameBuf[14] = 0;                                         \
+            strcat((char*)sSpeechNameBuf, "C");                             \
+            break;                                                          \
+        }                                                                   \
+    }
+
+void AudioSetupBossStreams(int idx, char* name)
+{
+    char bufA[36]; /* close-variant stream name */
+    char bufB[32]; /* far-variant stream name */
+    int sel;
+    int mode;
+    int nvar;
+    char* suffix;
+
+    sel = lbl_802577CC[idx];
+    suffix = "DIE";
+    if (sel < 0) {
+        return;
+    }
+    if (name == NULL || *name == 0) {
+        idx = -1;
+    }
+    *(s32*)(sSpeechNameBuf + 0x4B0 + sel * 4) = idx;
+    mode = 0;
+
+    switch (sel) {
+    case 29: /* golem/wizard */
+        sprintf(bufA, "GOL%c", (signed char)LevelLetter(0));
+        sprintf(bufB, "GOL%c", (signed char)LevelLetter(0));
+        nvar = 0;
+        sprintf((char*)sSpeechNameBuf, "S_GOL%cSTOMP", (signed char)LevelLetter(0));
+        sMusicSlot0 = AudioFindSound((char*)sSpeechNameBuf, -1, 1);
+        sprintf((char*)sSpeechNameBuf, "S_GOL%cBORN", (signed char)LevelLetter(0));
+        sMusicSlot1 = AudioFindSound((char*)sSpeechNameBuf, -1, 1);
+        sprintf((char*)sSpeechNameBuf, "S_GOL%cSWING", (signed char)LevelLetter(0));
+        sMusicSlot2 = AudioFindSound((char*)sSpeechNameBuf, -1, 1);
+        suffix = "KILL";
+        break;
+    case 1:
+    case 2:
+    case 4:
+    case 5:
+    case 7:
+    case 8:
+    case 10:
+    case 11:
+    case 13:
+    case 14:
+    case 16:
+    case 17:
+    case 19:
+    case 20:
+    case 23:
+    case 24:
+    case 25:
+    case 26: /* boss levels */
+        if (lbl_8025778C[idx] < 10 && gBossType < 0) {
+            sprintf(bufA, "%s1", name);
+            sprintf(bufB, "%s2", name);
+            nvar = 1;
+        } else {
+            sprintf(bufA, "%s2", name);
+            sprintf(bufB, "%s2", name);
+            nvar = 2;
+        }
+        if (sel == 2 || sel == 8 || sel == 19 || sel == 17 || sel == 24 || sel == 25) {
+            mode = 1;
+        } else if (sel == 11) {
+            mode = 2;
+        }
+        break;
+    case 27:
+        sprintf(bufA, "%s1", name);
+        sprintf(bufB, "%s1", name);
+        nvar = 0;
+        break;
+    default:
+        strcpy(bufA, name);
+        strcpy(bufB, name);
+        nvar = 0;
+        if (sel != 29) {
+            mode = 1;
+        }
+        break;
+    }
+
+    sprintf((char*)sSpeechNameBuf, "S_%s%sCLOSE", bufA, suffix);
+    BossNameFixup();
+    *(s32*)(sSpeechNameBuf + 0x564 + idx * 4) = AudioFindSound((char*)sSpeechNameBuf, -1, 1);
+
+    sprintf((char*)sSpeechNameBuf, "S_%s%sCLOSE", bufB, suffix);
+    BossNameFixup();
+    *(s32*)(sSpeechNameBuf + 0x584 + idx * 4) = AudioFindSound((char*)sSpeechNameBuf, -1, 1);
+
+    sprintf((char*)sSpeechNameBuf, "S_%s%sFAR", bufA, suffix);
+    BossNameFixup();
+    *(s32*)(sSpeechNameBuf + 0x5A4 + idx * 4) = AudioFindSound((char*)sSpeechNameBuf, -1, 1);
+
+    sprintf((char*)sSpeechNameBuf, "S_%s%sFAR", bufB, suffix);
+    BossNameFixup();
+    *(s32*)(sSpeechNameBuf + 0x5C4 + idx * 4) = AudioFindSound((char*)sSpeechNameBuf, -1, 1);
+
+    if (nvar < 2) {
+        sprintf((char*)sSpeechNameBuf, "S_%sHITCLOSE", bufA);
+        BossNameFixup();
+        *(s32*)(sSpeechNameBuf + 0x5E4 + idx * 4) = AudioFindSound((char*)sSpeechNameBuf, -1, 1);
+
+        sprintf((char*)sSpeechNameBuf, "S_%sHITFAR", bufA);
+        BossNameFixup();
+        *(s32*)(sSpeechNameBuf + 0x604 + idx * 4) = AudioFindSound((char*)sSpeechNameBuf, -1, 1);
+    }
+
+    if (nvar != 0) {
+        sprintf((char*)sSpeechNameBuf, "S_%sHIT1CLOSE", bufB);
+        BossNameFixup();
+        *(s32*)(sSpeechNameBuf + 0x624 + idx * 4) = AudioFindSound((char*)sSpeechNameBuf, -1, 1);
+
+        sprintf((char*)sSpeechNameBuf, "S_%sHIT2CLOSE", bufB);
+        BossNameFixup();
+        *(s32*)(sSpeechNameBuf + 0x644 + idx * 4) = AudioFindSound((char*)sSpeechNameBuf, -1, 1);
+
+        sprintf((char*)sSpeechNameBuf, "S_%sHIT1FAR", bufB);
+        BossNameFixup();
+        *(s32*)(sSpeechNameBuf + 0x664 + idx * 4) = AudioFindSound((char*)sSpeechNameBuf, -1, 1);
+
+        sprintf((char*)sSpeechNameBuf, "S_%sHIT2FAR", bufB);
+        BossNameFixup();
+        *(s32*)(sSpeechNameBuf + 0x684 + idx * 4) = AudioFindSound((char*)sSpeechNameBuf, -1, 1);
+    } else {
+        sprintf((char*)sSpeechNameBuf, "S_%sHITCLOSE", bufB);
+        BossNameFixup();
+        *(s32*)(sSpeechNameBuf + 0x624 + idx * 4) = AudioFindSound((char*)sSpeechNameBuf, -1, 1);
+        *(s32*)(sSpeechNameBuf + 0x644 + idx * 4) = *(s32*)(sSpeechNameBuf + 0x624 + idx * 4);
+
+        sprintf((char*)sSpeechNameBuf, "S_%sHITFAR", bufB);
+        BossNameFixup();
+        *(s32*)(sSpeechNameBuf + 0x664 + idx * 4) = AudioFindSound((char*)sSpeechNameBuf, -1, 1);
+        *(s32*)(sSpeechNameBuf + 0x684 + idx * 4) = *(s32*)(sSpeechNameBuf + 0x664 + idx * 4);
+    }
+
+    if (mode == 2) {
+        sprintf((char*)sSpeechNameBuf, "S_%sSTRIKE", bufA);
+        BossNameFixup();
+        *(s32*)(sSpeechNameBuf + 0x6A4 + idx * 4) = AudioFindSound((char*)sSpeechNameBuf, -1, 1);
+
+        sprintf((char*)sSpeechNameBuf, "S_%sSTRIKE", bufB);
+        BossNameFixup();
+        *(s32*)(sSpeechNameBuf + 0x6C4 + idx * 4) = AudioFindSound((char*)sSpeechNameBuf, -1, 1);
+    } else if (mode == 1) {
+        sprintf((char*)sSpeechNameBuf, "S_%sBITE", bufA);
+        BossNameFixup();
+        *(s32*)(sSpeechNameBuf + 0x6A4 + idx * 4) = AudioFindSound((char*)sSpeechNameBuf, -1, 1);
+
+        sprintf((char*)sSpeechNameBuf, "S_%sBITE", bufB);
+        BossNameFixup();
+        *(s32*)(sSpeechNameBuf + 0x6C4 + idx * 4) = AudioFindSound((char*)sSpeechNameBuf, -1, 1);
+    }
+}
+
 void fn_8009FCA8(int flag)
 {
     int id = lbl_80123454[lbl_803448B4];

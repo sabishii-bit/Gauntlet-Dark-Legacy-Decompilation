@@ -534,11 +534,444 @@ void SetMultiPassTextureParams(s32 stages)
     }
 }
 
-/* Big geometry pipeline: transform, light, clip and draw an object's verts. */
-void sDrawGeom(void* obj)
+/* --- sDrawGeom support ------------------------------------------------ */
+extern void vec4Mul__FR4vec4R4vec4R4vec4(f32* dst, f32* a, f32* b);
+extern void vec4Sub__FR4vec4R4vec4R4vec4(f32* dst, f32* a, f32* b);
+extern void vec4Add__FR4vec4R4vec4R4vec4(f32* dst, f32* a, f32* b);
+extern void vec4Scale__FR4vec4R4vec4f(f32* dst, f32* src, f32 s);
+extern void vec4Div__FR4vec4R4vec4f(f32* dst, f32* src, f32 s);
+extern void vec3Mul__FR4vec3R4vec3R4vec3(f32* dst, f32* a, f32* b);
+extern void vec3Scale__FR4vec3R4vec3f(f32* dst, f32* src, f32 s);
+extern void vec3Div__FR4vec3R4vec3f(f32* dst, f32* src, f32 s);
+extern void vec3Clamp__FR4vec4R4vec4ff(f32* dst, f32* src, f32 lo, f32 hi);
+extern void vec4FTOI__FPlR4vec4(s32* dst, f32* src);
+extern f32 DotProduct__8Math3D_BFR4vec3R4vec3(f32* a, f32* b);
+extern void sceSamp0InversMatrix(f32* dst, f32* src);
+extern void sceSamp0MulMatrix(f32* dst, f32* a, f32* b);
+extern void sceSamp0MultVec(f32* dst, f32* m, f32* v);
+
+extern f32 gCameraMtx[16];    /* camera (view) matrix */
+extern f32 lbl_802C9B38[16];  /* light-rotation matrix */
+extern f32 lbl_802C9AF8[16];  /* directional light colour / ambient block */
+extern u8 lbl_80128290[];     /* texture scale/offset table (+0xF0/+0x100) */
+
+/* saved per-call shadow state (sbss) */
+extern f64 lbl_80345060, lbl_80345078, lbl_80345080, lbl_80345088;
+extern f32 lbl_8034504C, lbl_80345054, lbl_80345068, lbl_8034506C;
+extern u32 lbl_80345044, lbl_80345050, lbl_80345058, lbl_80345070, lbl_80345074;
+extern s32 lbl_80345048;
+extern u8 lbl_80345040;       /* chrome/env-map path flag */
+extern u8 lbl_80345041;       /* fresnel/curve path flag */
+extern u32 lbl_80345090, lbl_80345094, lbl_80345098, lbl_8034509C;
+extern u16 lbl_803450A0, lbl_803450A2, lbl_803450A4, lbl_803450A6;
+extern s32 lbl_80345030;      /* draw-serial reset */
+extern s32 lbl_80345130;      /* draw-serial counter */
+extern f32 lbl_80343F54;      /* current draw param shadow */
+extern u16 lbl_80343F64, lbl_80343F66; /* debug object-highlight window */
+extern u16 lbl_80343F68;      /* debug packet-highlight limit */
+extern u16 lbl_80343F6A;      /* debug vertex-highlight limit */
+
+/* float constants (sdata2 pool) */
+extern f32 lbl_80348F50;      /* 1.0 */
+extern f32 lbl_80348F54;      /* light prescale divisor */
+extern f32 lbl_80348F58;      /* texcoord fixed-point divisor */
+extern f32 lbl_80348F5C;      /* packed-normal divisor */
+extern f32 lbl_80348F60;      /* 0.0 */
+extern f32 lbl_80348F64;      /* curve linear coefficient */
+extern f32 lbl_80348F68;      /* curve cubic coefficient */
+extern f32 lbl_80348F6C;      /* position fixed-point divisor */
+extern f32 lbl_80348F70;      /* z-bias divisor */
+extern f32 lbl_80348F74;      /* colour clamp max (255.0) */
+
+static u32 pbSwap32(u32 x)
 {
-    (void)obj;
-    /* stub: transforms verts through the vec/mat ops then calls pbDrawVerts */
+    union {
+        u32 w;
+        u8 b[4];
+    } a, b;
+    a.w = x;
+    b.b[0] = a.b[3];
+    b.b[1] = a.b[2];
+    b.b[2] = a.b[1];
+    b.b[3] = a.b[0];
+    return b.w;
+}
+
+static u16 pbSwap16(u16 x)
+{
+    union {
+        u16 h;
+        u8 b[2];
+    } a;
+    a.h = x;
+    return (u16)(a.b[1] | (a.b[0] << 8));
+}
+
+void pbDrawVerts(s32 count, u8* verts);
+
+/* Big geometry pipeline: parse the PS2-format GIF packet stream (byte
+ * swapped), transform + light each vertex into the shared PbVtx buffer at
+ * lbl_802C5430+0x1A8 and flush the strips through pbDrawVerts. */
+void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
+{
+    u8* st = (u8*)&lbl_802C5430;
+    u8* tbl = lbl_80128290;
+    f32 inv[16];        /* inverse object matrix */
+    PbGfxEnv envSave;   /* saved env block st+0x128 */
+    PbGfxEnv texSave;   /* saved tex block st+0x168 */
+    f32 amb[4];         /* ambient accumulator */
+    f32 tc[4];          /* decoded texcoords */
+    f32 nrm[4];         /* decoded packed normal */
+    f32 uv2[3];         /* decoded second uv set */
+    f32 pos[4];         /* decoded position */
+    f32 xf[4];          /* transformed position */
+    f32 lit[4];         /* lit colour */
+    f32 ta[4];
+    f32 tb[4];
+    f32 diff[4];
+    f32 sc[4];
+    s32 iout[4];
+    f32* litbase;
+    u32 hdr;
+    u32 end;
+    u32 idx;
+    s32 pkt;
+    u8 clipFlag;
+    u8 pktClip;
+    u8 vClip;
+    u8 kick;
+    s32 spec;
+    s32 flat;
+    u32 tag;
+    u32 cnt;
+    u32 tmp;
+    f32 qv;
+    u32 posw;
+    u32 pfmt;
+    u32 cfmt;
+    u32 step;
+    u32 posStride;
+    u32 colStride;
+    u8* posPtr;
+    u8* nrmPtr;
+    u8* uv2Ptr;
+    u8* colPtr;
+    u32 outOff;
+    u32 v;
+    u16 nv;
+    s32 i;
+    f32 x;
+
+    lbl_80345080 = *(f64*)(s + 0x60);
+    *(u32*)(st + 0x128) = *(u32*)(st + 0x148);
+    lbl_80345088 = *(f64*)(s + 0x50);
+    spec = (*(u32*)(s + 0x78) & 0x80) != 0;
+    st[0x14C] = 1;
+    st[0x14D] = 1;
+    st[0x14E] = 0;
+    if (flags & 4) {
+        lbl_80345068 = *(f32*)(s + 0x38);
+        lbl_80345054 = (f32)*(u32*)(s + 0x40);
+        lbl_8034504C = *(f32*)(s + 0x48);
+        lbl_80343F54 = *(f32*)(s + 0x4C);
+        *(f32*)(tbl + 0x100) = *(f32*)(s + 0x28);
+        *(f32*)(tbl + 0x104) = *(f32*)(s + 0x2C);
+        lbl_80345058 = *(u32*)(s + 0x44);
+        lbl_80345060 = *(f64*)(s + 0x30);
+        __as__4vec4FRC4vec4((f32*)(st + 0x118), (f32*)(s + 0x10));
+        *(f32*)(tbl + 0xF0) = *(f32*)(s + 0x20);
+        *(f32*)(tbl + 0xF4) = *(f32*)(s + 0x24);
+        *(PbGfxEnv*)(st + 0x128) = *(PbGfxEnv*)(st + 0x148);
+    }
+    if (flags & 8) {
+        lbl_80345070 = *(u32*)(s + 0x0);
+        lbl_80345074 = *(u32*)(s + 0x4);
+        lbl_80345078 = *(f64*)(s + 0x8);
+        *(PbGfxEnv*)(st + 0x168) = *(PbGfxEnv*)(st + 0x188);
+    }
+    if (mtx != 0) {
+        sceSamp0InversMatrix(inv, mtx);
+        sceSamp0MulMatrix((f32*)(st + 0x1F88), gCameraMtx, inv);
+        sceSamp0MulMatrix((f32*)(st + 0x1FC8), lbl_802C9B38, inv);
+        __as__4vec4FRC4vec4((f32*)(st + 0x1F48), lbl_802C9AF8);
+        __as__4vec4FRC4vec4((f32*)(st + 0x1F78), (f32*)(st + 0x118));
+        lbl_80345044 = *(u32*)(s + 0x74);
+        lbl_80345048 = *(s32*)(s + 0x70);
+        lbl_8034506C = lbl_80345068;
+        lbl_80345041 = (*(u32*)(s + 0x78) & 0x20) != 0;
+        lbl_80345050 = *(u32*)(s + 0x78);
+        __as__4vec4FRC4vec4(amb, lbl_802C9AF8 + 12);
+        vec4Mul__FR4vec4R4vec4R4vec4((f32*)(st + 0x1F48), (f32*)(st + 0x1F48),
+                                     (f32*)(st + 0x1F78));
+        lbl_80345040 = (*(u32*)(s + 0x78) & 2) != 0;
+        if (lbl_80345040 == 0) {
+            for (i = 0; i < 3; i++) {
+                amb[i] += lbl_8034504C;
+            }
+            if (!(*(u32*)(s + 0x78) & 1)) {
+                vec3Mul__FR4vec3R4vec3R4vec3((f32*)(st + 0x1F78),
+                                             (f32*)(st + 0x1F78), amb);
+            } else {
+                vec3Scale__FR4vec3R4vec3f((f32*)(st + 0x1F78),
+                                          (f32*)(st + 0x1F78), lbl_8034504C);
+                vec4Sub__FR4vec4R4vec4R4vec4((f32*)(st + 0x1F48),
+                                             (f32*)(st + 0x1F48),
+                                             (f32*)(st + 0x1F48));
+            }
+        } else {
+            vec3Scale__FR4vec3R4vec3f((f32*)(st + 0x1F78), (f32*)(st + 0x1F78),
+                                      lbl_8034504C);
+            vec3Div__FR4vec3R4vec3f((f32*)(st + 0x1F78), (f32*)(st + 0x1F78),
+                                    lbl_80348F54);
+        }
+    }
+    lbl_80345094 = lbl_80345090;
+    lbl_8034509C = lbl_80345098;
+    lbl_803450A2 = lbl_803450A0;
+    if (spec || lbl_80345040) {
+        envSave = *(PbGfxEnv*)(st + 0x128);
+        texSave = *(PbGfxEnv*)(st + 0x168);
+    }
+    if (lbl_80345040) {
+        SetMultiPassTextureParams(1);
+        SetVertexFormat(1);
+    } else if (spec) {
+        SetMultiPassTextureParams(2);
+        SetVertexFormat(0);
+    } else {
+        SetMultiPassTextureParams(0);
+        SetVertexFormat(0);
+    }
+    if (spec || lbl_80345040) {
+        fn_800C7928(*(u32*)(st + 0x168), 1);
+    }
+    sSetGFXEnv((PbGfxEnv*)(st + 0x128));
+
+    hdr = pbSwap32(data[0]);
+    clipFlag = 0;
+    if (lbl_803450A2 >= lbl_80343F64 && lbl_803450A2 < lbl_80343F66) {
+        clipFlag = 1;
+    }
+    litbase = (f32*)(st + 0x1F78);
+    end = ((hdr & 0xFFFF) + 1) * 4;
+    idx = 2;
+    pkt = 0;
+    while (idx < end) {
+        pktClip = clipFlag;
+        if (!(pkt >= (s32)lbl_803450A4 && pkt < (s32)lbl_80343F68)) {
+            pktClip = 0;
+        }
+        tag = pbSwap32(data[idx]);
+        if (tag == 0) {
+            break;
+        }
+        cnt = pbSwap32(data[idx + 1]);
+        tmp = pbSwap32(*(u32*)(data + idx + 3));
+        qv = *(f32*)&tmp;
+        flat = (lbl_80348F50 == qv);
+        posPtr = (u8*)(data + idx + 6);
+        idx += 5;
+        posw = pbSwap32(data[idx]);
+        pfmt = posw >> 24;
+        if (pfmt == 0x69) {
+            idx += (((cnt + 1) * 0x30 + 0x1F) >> 5);
+            posStride = 6;
+            idx += 1;
+        } else if (pfmt == 0x6A) {
+            idx += (((cnt + 1) * 0x18 + 0x1F) >> 5);
+            posStride = 3;
+            idx += 1;
+        } else {
+            idx += (cnt + 1) * 3;
+            posStride = 12;
+            idx += 1;
+        }
+        tmp = pbSwap32(data[idx]);
+        step = (((cnt << 4) + 0x1F) >> 5) + 1;
+        nrmPtr = (u8*)(data + idx + 1);
+        idx += step;
+        tmp = pbSwap32(data[idx]);
+        uv2Ptr = 0;
+        if ((tmp & 0xFFF) == 3) {
+            uv2Ptr = (u8*)(data + idx + 1);
+            idx += step;
+        }
+        tmp = pbSwap32(data[idx]);
+        colPtr = (u8*)(data + idx + 1);
+        cfmt = tmp >> 24;
+        if (cfmt == 0x6D) {
+            colStride = 8;
+            idx += cnt * 2 + 1;
+        } else if (cfmt == 0x66) {
+            colStride = 2;
+            idx += step;
+        } else {
+            colStride = 4;
+            idx += cnt + 1;
+        }
+        tmp = pbSwap32(data[idx]);
+        outOff = 0;
+        v = 0;
+        idx += 1;
+        pkt += 1;
+        for (; v < cnt; v++) {
+            vClip = pktClip;
+            if (!(v >= lbl_803450A6 && v < lbl_80343F6A)) {
+                vClip = 0;
+            }
+            /* texcoord decode */
+            if (cfmt == 0x6D) {
+                tc[0] = (f32)pbSwap16(*(u16*)(colPtr + 0));
+                tc[1] = (f32)pbSwap16(*(u16*)(colPtr + 2));
+                tc[2] = (f32)pbSwap16(*(u16*)(colPtr + 4));
+                tc[3] = (f32)pbSwap16(*(u16*)(colPtr + 6));
+            } else if (cfmt == 0x66) {
+                tc[0] = (f32)colPtr[0];
+                tc[1] = (f32)colPtr[1];
+            } else {
+                tc[0] = (f32)pbSwap16(*(u16*)(colPtr + 0));
+                tc[1] = (f32)pbSwap16(*(u16*)(colPtr + 2));
+            }
+            vec4Div__FR4vec4R4vec4f(tc, tc, lbl_80348F58);
+            /* packed normal + strip-kick bit */
+            nv = pbSwap16(*(u16*)nrmPtr);
+            nrm[0] = (f32)((s32)(s16)(nv & 0x1F) - 15) / lbl_80348F5C;
+            nrm[1] = (f32)((s32)(s16)((nv >> 5) & 0x1F) - 15) / lbl_80348F5C;
+            nrm[2] = (f32)((s32)(s16)((nv >> 10) & 0x1F) - 15) / lbl_80348F5C;
+            nrm[3] = lbl_80348F60;
+            kick = ((nv >> 15) & 1) != 0;
+            if (uv2Ptr != 0) {
+                u16 v2 = pbSwap16(*(u16*)uv2Ptr);
+                uv2Ptr += 2;
+                uv2[0] = (f32)((v2 & 0x1F) << 3);
+                uv2[1] = (f32)((v2 >> 2) & 0xF8);
+                uv2[2] = (f32)((v2 >> 7) & 0xF8);
+            }
+            if (lbl_80345041) {
+                vec4Mul__FR4vec4R4vec4R4vec4(ta, (f32*)(st + 0xF8), nrm);
+                vec4Mul__FR4vec4R4vec4R4vec4(tb, (f32*)(st + 0x108), nrm);
+                tc[0] = ta[2] + (ta[0] + ta[1]);
+                tc[1] = tb[2] + (tb[0] + tb[1]);
+                if (lbl_80345050 & 0x40) {
+                    x = tc[0];
+                    tc[0] = lbl_80348F64 * x + lbl_80348F68 * (x * (x * x));
+                    x = tc[1];
+                    tc[1] = lbl_80348F64 * x + lbl_80348F68 * (x * (x * x));
+                }
+            }
+            tc[0] = tc[0] * *(f32*)(tbl + 0xF0) + *(f32*)(tbl + 0x100);
+            tc[1] = tc[1] * *(f32*)(tbl + 0xF4) + *(f32*)(tbl + 0x104);
+            /* position decode */
+            if (pfmt == 0x69) {
+                pos[0] = (f32)(s16)pbSwap16(((u16*)posPtr)[0]);
+                pos[1] = (f32)(s16)pbSwap16(((u16*)posPtr)[1]);
+                pos[2] = (f32)(s16)pbSwap16(((u16*)posPtr)[2]);
+            } else if (pfmt == 0x6A) {
+                pos[0] = (f32)(s8)posPtr[0];
+                pos[1] = (f32)(s8)posPtr[1];
+                pos[2] = (f32)(s8)posPtr[2];
+            } else {
+                pos[0] = (f32)(s32)pbSwap32(((u32*)posPtr)[0]);
+                pos[1] = (f32)(s32)pbSwap32(((u32*)posPtr)[1]);
+                pos[2] = (f32)(s32)pbSwap32(((u32*)posPtr)[2]);
+            }
+            vec3Div__FR4vec3R4vec3f(pos, pos, lbl_80348F6C);
+            sceSamp0MultVec(xf, (f32*)(st + 0x1F88), pos);
+            xf[2] = xf[2] + lbl_8034506C / lbl_80348F70;
+            /* lighting */
+            if (lbl_80345040) {
+                __as__4vec4FRC4vec4(lit, litbase);
+                vec3Mul__FR4vec3R4vec3R4vec3(lit, lit, uv2);
+            } else {
+                f32 d = DotProduct__8Math3D_BFR4vec3R4vec3((f32*)(st + 0x1FC8),
+                                                           nrm);
+                if (d < lbl_80348F60) {
+                    d = lbl_80348F60;
+                }
+                if (d > lbl_80348F50) {
+                    d = lbl_80348F50;
+                }
+                vec4Scale__FR4vec4R4vec4f(lit, (f32*)(st + 0x1F48), d);
+                vec4Add__FR4vec4R4vec4R4vec4(lit, lit, litbase);
+            }
+            vec3Clamp__FR4vec4R4vec4ff(lit, lit, lbl_80348F60, lbl_80348F74);
+            if (vClip) {
+                lit[2] = lbl_80348F60;
+                lit[1] = lbl_80348F60;
+                lit[0] = lbl_80348F60;
+                lit[3] = lbl_80348F74;
+            }
+            if (lbl_80345044 != 0) {
+                u32 lo = 0;
+                s32 li;
+                for (li = 0; li < lbl_80345048; li++, lo += 0x20) {
+                    u8* L = (u8*)lbl_80345044 + lo;
+                    f32 d;
+                    f32 dd;
+                    f32 att;
+                    vec4Sub__FR4vec4R4vec4R4vec4(diff, (f32*)L, pos);
+                    d = DotProduct__8Math3D_BFR4vec3R4vec3(diff, nrm);
+                    dd = DotProduct__8Math3D_BFR4vec3R4vec3(diff, diff);
+                    att = -(*(f32*)(L + 0xC) * dd - lbl_80348F50);
+                    if (d > lbl_80348F60 && att > lbl_80348F60) {
+                        f32 w = *(f32*)(L + 0x1C) * att;
+                        w = d * w / dd;
+                        if (w > lbl_80348F50) {
+                            w = lbl_80348F50;
+                        }
+                        vec4Scale__FR4vec4R4vec4f(sc, (f32*)(L + 0x10), w);
+                        sc[3] = lbl_80348F60;
+                        vec4Add__FR4vec4R4vec4R4vec4(lit, lit, sc);
+                    }
+                }
+                vec3Clamp__FR4vec4R4vec4ff(lit, lit, lbl_80348F60,
+                                           lbl_80348F74);
+            }
+            vec4FTOI__FPlR4vec4(iout, lit);
+            {
+                u8* out = st + outOff + 0x1A8;
+                out[0] = (u8)iout[0];
+                flat = flat == 0;
+                out[1] = (u8)iout[1];
+                posPtr += posStride;
+                colPtr += colStride;
+                out[2] = (u8)iout[2];
+                out[3] = (u8)iout[3];
+                *(f32*)(out + 0x04) = tc[0];
+                *(f32*)(out + 0x08) = tc[1];
+                *(f32*)(out + 0x0C) = tc[2];
+                *(f32*)(out + 0x10) = tc[3];
+                *(f32*)(out + 0x14) = xf[0];
+                *(f32*)(out + 0x18) = xf[1];
+                *(f32*)(out + 0x1C) = -xf[2];
+                out[0x20] = kick;
+                out[0x21] = (u8)flat;
+            }
+            nrmPtr += 2;
+            outOff += 0x24;
+        }
+        /* flush strips: restart wherever a vertex carries the kick bit */
+        {
+            s32 start = 0;
+            s32 j;
+            u32 off = 0;
+            for (j = 0; j < (s32)cnt; j++, off += 0x24) {
+                if (st[off + 0x1C8] != 0 && (j - start) > 1) {
+                    pbDrawVerts(j - start, st + start * 0x24 + 0x1A8);
+                    start = j - 1;
+                }
+            }
+            pbDrawVerts((s32)cnt - start, st + start * 0x24 + 0x1A8);
+        }
+    }
+    if (spec || lbl_80345040) {
+        *(PbGfxEnv*)(st + 0x128) = envSave;
+        *(PbGfxEnv*)(st + 0x168) = texSave;
+    }
+    if (lbl_80345130 == 0) {
+        lbl_80345030 = -1;
+    }
+    lbl_80345130 = lbl_80345130 + 1;
 }
 
 /* chrome / environment UV generator (Xbox: setChrome) -- skeleton. */
