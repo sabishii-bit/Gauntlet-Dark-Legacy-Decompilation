@@ -852,8 +852,10 @@ s32 PlayerCollidePlayers(Player* p, f32 range, f32 p3, f32* from, f32* to,
     return closest;
 }
 STUB(0x80087A20, PlayerCollideItems)
+extern f32 lbl_80347B30; /* 0.0f (sdata2) */
+extern f64 lbl_80347BE8; /* 0.01 (sdata2) */
+
 int PlayerNewFloor(PMotionCtx* m, Player* p, f32* dpos) {
-    u8 unused[8];
     WorldObj* mf = (WorldObj*)PF(p, 0x8C4, u32);
     s32 result;
 
@@ -876,9 +878,11 @@ int PlayerNewFloor(PMotionCtx* m, Player* p, f32* dpos) {
             PF(p, 0x8BC, f32) = dpos[1] / d2;
         }
     } else {
-        PF(p, 0x8BC, f32) =
-            (m->fwd[0] * PF(p, 0x38, f32) - m->fwd[1] * PF(p, 0x34, f32)) * m->fwd[0] -
-            (m->fwd[1] * PF(p, 0x3C, f32) - m->fwd[2] * PF(p, 0x38, f32)) * m->fwd[2];
+        {
+            f32 t1 = m->fwd[0] * PF(p, 0x38, f32) - m->fwd[1] * PF(p, 0x34, f32);
+            f32 t2 = m->fwd[1] * PF(p, 0x3C, f32) - m->fwd[2] * PF(p, 0x38, f32);
+            PF(p, 0x8BC, f32) = t1 * m->fwd[0] - t2 * m->fwd[2];
+        }
     }
 
     PF(p, 0x8C0, u32) = m->floor != NULL ? m->floor->flags : 0;
@@ -984,9 +988,9 @@ s32 fn_80088714(f32 range, Player* p, f32* pos, f32* dpos) {
     lbl_80344B30 = wall;
     if (wn[1] * *(f32*)(ctx + 16) + wn[0] * *(f32*)(ctx + 12) +
             wn[2] * *(f32*)(ctx + 20) < lbl_80347B00) {
-        dpos[0] = lbl_80347B30;
-        dpos[1] = lbl_80347B30;
-        dpos[2] = lbl_80347B30;
+        dpos[0] = 0.0f;
+        dpos[1] = 0.0f;
+        dpos[2] = 0.0f;
     }
     return result;
 }
