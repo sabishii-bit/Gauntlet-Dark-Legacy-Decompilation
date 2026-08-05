@@ -578,7 +578,7 @@ extern char lbl_80348338[8];  /* "%d" fmt (sdata)                       */
 extern f64 lbl_80348340;     /* seconds per day                        */
 extern f64 lbl_80348348;     /* seconds per hour                       */
 extern f64 lbl_80348350;     /* seconds per minute                     */
-extern char lbl_80348358[];  /* "%d Days" fmt (sdata)                  */
+extern char lbl_80348358[8]; /* "%d Days" fmt (sdata2)                 */
 extern u8 lbl_80240E30[];    /* pad states, stride 60, buttons @+8     */
 extern void AudioCursorSelect(void);
 
@@ -915,20 +915,22 @@ void fn_8009A0AC(s32 col)
     s32 rc;
     s32 off;
     s32 i;
-    u8* base;
+    u8* b240;
+    u8* b24;
     u8* b28;
+    u8* p;
 
     ResolveWorldData((lbl_803448C8 << 8) | (u8)lbl_803448C4);
     cls = *(s32*)(pl + 12);
     lvl = gCurLevel;
-    base = pl + cls * 240;
-    goldRaw = *(s32*)(pl + 7876) - *(s32*)(base + 8780);
+    b240 = pl + cls * 240;
+    goldRaw = *(s32*)(pl + 7876) - *(s32*)(b240 + 8780);
     t = goldRaw * range / (*(s32*)(lvl + 224) + 1);
     b28 = pl + cls * 28;
-    base = pl + cls * 24;
+    b24 = pl + cls * 24;
     raw2 = (*(s32*)(b28 + 3088) + *(s32*)(b28 + 3104)) -
            (*(s32*)(b28 + 8284) + *(s32*)(b28 + 8300));
-    raw3 = *(s32*)(pl + 7872) - *(s32*)(base + 7900);
+    raw3 = *(s32*)(pl + 7872) - *(s32*)(b24 + 7900);
     if (t < 64) {
         statG = 64;
     } else if (t > range) {
@@ -985,23 +987,23 @@ void fn_8009A0AC(s32 col)
 
     off = col * 12;
     i = 0;
-    base = tbl + off;
-    *(s32*)(base + 224 + ra * 4) = i;
-    *(s32*)(base + 224 + rb * 4) = 2;
-    *(s32*)(base + 224 + rc * 4) = 1;
-    base = tbl + off;
+    p = tbl + off + 224;
+    *(s32*)(p + ra * 4) = i;
+    *(s32*)(p + rb * 4) = 2;
+    *(s32*)(p + rc * 4) = 1;
+    p = tbl + off;
     for (t = 3; t != 0; t--) {
-        *(s32*)(base + 128 + i) = lbl_80343E14;
+        *(s32*)(p + 128 + i) = lbl_80343E14;
         i += 4;
     }
-    base = tbl + off;
-    *(s32*)(base + 80 + ra * 4) = statG;
-    *(s32*)(base + 80 + rb * 4) = stat3;
-    *(s32*)(base + 80 + rc * 4) = stat2;
-    base = tbl + off;
-    *(s32*)(base + 176 + ra * 4) = goldRaw;
-    *(s32*)(base + 176 + rb * 4) = raw3;
-    *(s32*)(base + 176 + rc * 4) = raw2;
+    p = tbl + off + 80;
+    *(s32*)(p + ra * 4) = statG;
+    *(s32*)(p + rb * 4) = stat3;
+    *(s32*)(p + rc * 4) = stat2;
+    p = tbl + off + 176;
+    *(s32*)(p + ra * 4) = goldRaw;
+    *(s32*)(p + rb * 4) = raw3;
+    *(s32*)(p + rc * 4) = raw2;
     ResolveWorldData(sWorldDataConst);
 }
 
