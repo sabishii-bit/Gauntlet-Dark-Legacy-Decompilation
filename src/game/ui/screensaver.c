@@ -72,6 +72,14 @@ int MBRemoveNode(int handle, int flag); /* 0x800BAEAC */
 void MBTreeClearFlags(int node, int mask, int val); /* 0x800BA2C4 */
 void ShopMusicStart();                /* 0x800A0DA8 */
 void AudioSelect();                   /* 0x800A0F64 */
+f32 NormalVector(f32* vector);
+f32 Random(f32 range);
+void CreateDirMatrix(f32* matrix, f32* direction, f32* up);
+void PitchMat3(f32* matrix, f32 angle);
+void MulMat3(f32* lhs, f32* rhs, f32* out);
+void MulVec4Mat4(const f32* vector, f32* out, const f32* matrix);
+s32 MBWorldSphereClip(f32* sphere, f32 radius);
+s32 AnimateATree(void* tree, s32 sequence, s32 last);
 
 /* ---- screensaver-weapon struct array (this TU's .bss, stride 0x88) ---- */
 extern u8 lbl_80274620[];             /* node @+0x3c, atree @+0x40 */
@@ -79,6 +87,7 @@ extern int lbl_80344A64;              /* backdrop node handle */
 extern int lbl_80344ECC;              /* active-node list head (next @+0x7c) */
 extern int lbl_80344A60;              /* saved options state */
 extern int options_state;             /* 0x80344A98 */
+extern void* lbl_80344EE8;
 
 /* ---- shared front-end state (small data / bss, other TUs) ---- */
 extern int gWinGlobals;         /* gWinGlobals */
@@ -98,7 +107,7 @@ extern int gFireScrollCircleFrame;
 extern int gFireScrollMaskFrame;
 extern int gFireScrollTicks;
 extern int lbl_80344A44;        /* inventory-panels-built flag */
-extern int gClockStepTicks;     /* frame-time delta */
+extern u32 gClockStepTicks;     /* frame-time delta */
 extern s64 gControllerButtons;
 extern u32 sFlags;              /* sFlags global mode flags */
 extern u32 lbl_80240FB0[4];     /* pad state A */
@@ -112,6 +121,24 @@ extern f64 lbl_80347430;
 extern f64 lbl_80347438;
 extern f64 lbl_80347440;
 extern void fn_8009D37C(void);
+extern f32 lbl_80343CAC;
+extern f32 lbl_80343CB0;
+extern f32 lbl_80343CB4;
+extern f32 lbl_80343CB8;
+extern f32 lbl_80343CBC;
+extern f32 lbl_80343CC0;
+extern f32 lbl_80343CC4;
+extern f32 lbl_80347370;
+extern f64 lbl_80347380;
+extern f64 lbl_80347388;
+extern f64 lbl_80347390;
+extern f64 lbl_803473A0;
+extern f32 lbl_803473A8;
+extern f64 lbl_803473B0;
+extern f64 lbl_803473B8;
+extern f64 lbl_803473C0;
+extern f32 lbl_803473C8;
+extern f32 lbl_803473CC;
 
 /* ---- screensaver-weapon parallel state arrays (this TU's .bss) ---- */
 extern int lbl_80274600[4];     /* per-weapon slot A (state code) */
@@ -172,8 +199,184 @@ void ScreenSaverStart(void)
     }
 }
 
-void ScreenSaverUpdateWeap(void)
+typedef struct ScreenSaverWeapon {
+    u8 _pad00[0x20];
+    f32 position[3];
+    f32 _pad2C;
+    f32 velocity[3];
+    f32 _pad3C;
+    f32 angle;
+    s32 collisionState;
+    s32 elapsed;
+    s32 duration;
+    s32 resetAt;
+    f32 jitterX;
+    f32 jitterY;
+    void* node;
+    u8 atree[0x28];
+} ScreenSaverWeapon;
+
+void ScreenSaverUpdateWeap(s32 idx)
 {
+    register s32 weaponIndex = idx;
+    ScreenSaverWeapon* weapons = (ScreenSaverWeapon*)lbl_80274600;
+    ScreenSaverWeapon* weapon = &weapons[weaponIndex];
+    f32* position = weapon->position;
+    f32* positionY = &weapon->position[1];
+    f32* positionZ = &weapon->position[2];
+    f32* velocity = weapon->velocity;
+    f32* velocityY = &weapon->velocity[1];
+    f32* velocityZ = &weapon->velocity[2];
+    f32* angleValue = &weapon->angle;
+    s32* collisionState = &weapon->collisionState;
+    s32* elapsed = &weapon->elapsed;
+    s32* duration = &weapon->duration;
+    s32* resetAt = &weapon->resetAt;
+    void** node = &weapon->node;
+    u8* atree = weapon->atree;
+    f32 matrix[12];
+    f32 screenPosition[3];
+    u8 unused[40];
+    f32 frameStep;
+    f32 movementStep;
+    s32 collision;
+
+    frameStep = (f32)((f64)gClockStepTicks / lbl_80347390);
+    movementStep = frameStep * lbl_80343CB8;
+    *elapsed += gClockStepTicks;
+    if (*elapsed < *duration) {
+        return;
+    }
+
+    if (*duration > 0) {
+        u8* table = lbl_8011D568 + weaponIndex * 0xC;
+
+        if (*node == NULL) {
+            ScreenSaverStartWeap(weaponIndex);
+        }
+        position[0] = *(f32*)(table + 0x754);
+        *positionY = *(f32*)(table + 0x758);
+        *positionZ = *(f32*)(table + 0x75C);
+        velocity[0] = *(f32*)(table + 0x784);
+        *velocityY = *(f32*)(table + 0x788);
+        *velocityZ = *(f32*)(table + 0x78C);
+        NormalVector(velocity);
+        *angleValue = lbl_80347398;
+        *collisionState = 0;
+        weapon->jitterX = (f32)((f64)lbl_80343CB8 *
+                              (lbl_803473A0 + (f64)Random(lbl_803473A8)));
+        weapon->jitterY = (f32)((f64)lbl_80343CB4 *
+                              (lbl_803473A0 + (f64)Random(lbl_803473A8)));
+        *duration = 0;
+        MBTreeClearFlags((s32)*node, 2, 0);
+    }
+
+    position[0] += movementStep * velocity[0];
+    *positionY += movementStep * *velocityY;
+    *positionZ += movementStep * *velocityZ;
+    *angleValue += -lbl_80343CB4 * frameStep;
+    {
+        f64 angle = (f64)*angleValue;
+
+        if (angle > lbl_803473B0) {
+            angle -= lbl_803473B8;
+        } else if (angle <= lbl_803473C0) {
+            angle = lbl_803473B8 + angle;
+        }
+        *angleValue = (f32)angle;
+    }
+
+    CreateDirMatrix(matrix, velocity, NULL);
+    PitchMat3(matrix, *angleValue);
+    MulMat3(matrix, (f32*)lbl_80344EE8 + 25, (f32*)*node);
+    MulVec4Mat4(position, screenPosition,
+                (f32*)lbl_80344EE8 + 25);
+
+    if (*positionZ > lbl_80343CAC) {
+        collision = 5;
+    } else if (*positionZ < lbl_80343CB0) {
+        collision = 6;
+    } else {
+        collision = MBWorldSphereClip(screenPosition, lbl_803473C8);
+    }
+
+    if (*collisionState > 0) {
+        f32 spread;
+
+        switch (collision) {
+        case 1:
+            velocity[0] =
+                (f32)(lbl_80347388 + (f64)Random(lbl_80347370));
+            spread = lbl_80343CBC * Random(lbl_803473CC) -
+                     lbl_80343CBC;
+            *velocityY += spread;
+            break;
+        case 2:
+            velocity[0] =
+                -(f32)(lbl_80347388 + (f64)Random(lbl_80347370));
+            spread = lbl_80343CBC * Random(lbl_803473CC) -
+                     lbl_80343CBC;
+            *velocityY += spread;
+            break;
+        case 3:
+            *velocityY =
+                -(f32)(lbl_80347388 + (f64)Random(lbl_80347370));
+            spread = lbl_80343CBC * Random(lbl_803473CC) -
+                     lbl_80343CBC;
+            velocity[0] += spread;
+            break;
+        case 4:
+            *velocityY =
+                (f32)(lbl_80347388 + (f64)Random(lbl_80347370));
+            spread = lbl_80343CBC * Random(lbl_803473CC) -
+                     lbl_80343CBC;
+            velocity[0] += spread;
+            break;
+        case 5:
+            *velocityZ =
+                -(f32)(lbl_80347388 + (f64)Random(lbl_80347370));
+            if (*resetAt < *elapsed) {
+                u8* table = lbl_8011D568 + weaponIndex * 0xC;
+                s32 delay;
+
+                position[0] = *(f32*)(table + 0x754);
+                *positionY = *(f32*)(table + 0x758);
+                *positionZ = *(f32*)(table + 0x75C);
+                *elapsed = 0;
+                delay = (s32)(lbl_80347380 *
+                              ((f64)lbl_80343CC0 *
+                               (lbl_80347388 +
+                                (f64)Random(lbl_80347378))));
+                *duration = delay + 1;
+                *resetAt =
+                    (s32)(lbl_80347380 *
+                          ((f64)lbl_80343CC4 *
+                           (lbl_80347388 +
+                            (f64)Random(lbl_80347378))));
+                AtreeDelete(atree);
+                *node = (void*)MBRemoveNode((s32)*node, 1);
+                return;
+            }
+            break;
+        case 6:
+            *velocityZ =
+                (f32)(lbl_80347388 + (f64)Random(lbl_80347370));
+            break;
+        }
+        if (collision != 0) {
+            NormalVector(velocity);
+            *collisionState = -10;
+        }
+    } else if (*collisionState < 0) {
+        *collisionState = gClockStepTicks;
+    } else if (collision == 0) {
+        *collisionState = 1;
+    }
+
+    *(f32*)((u8*)*node + 0x30) = screenPosition[0];
+    *(f32*)((u8*)*node + 0x34) = screenPosition[1];
+    *(f32*)((u8*)*node + 0x38) = screenPosition[2];
+    AnimateATree(atree, 0, 0);
 }
 
 void ScreenSaverEnd(void)
@@ -219,7 +422,7 @@ void ScreenSaver(void)
     }
     ScreenSaverStart();
     for (i = 0; i < 4; i++) {
-        ScreenSaverUpdateWeap();
+        ScreenSaverUpdateWeap(i);
     }
     ScreenSaverEnd();
     lbl_80344A48 = 0;
