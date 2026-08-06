@@ -124,8 +124,9 @@ typedef struct SaveFileBlock {
 
 extern u8 lbl_80274578[];          /* dir-info tables: stride 132 (8x16 +4) */
 extern u8 lbl_8025EE80[];          /* VMU/dir working buffer (dir @+0x156F8)*/
-extern u8 optglobals[0xA0];        /* options TU globals; prefs at +0x80 */
-#define gameOpts (*(GameOpts*)&optglobals[0x80])
+extern u8 optglobals[0x40];        /* options TU globals before prefs block */
+extern GameOpts optionsAudioAndPrefs30;
+#define gameOpts optionsAudioAndPrefs30
 extern u8* lbl_80343C74;           /* staged save record (opts@+8, dir@+0xA1C8)*/
 extern char lbl_803472D8[8];       /* default dir name (sdata, SDA21)       */
 extern char lbl_803472E0[8];       /* dir name variant (sdata, SDA21)       */
@@ -166,7 +167,6 @@ extern u32 lbl_803449F8;           /* built save-image size                 */
 extern u8* lbl_803449FC;           /* file buffer                           */
 extern u8* lbl_80344A00;           /* card workArea                         */
 extern u8* lbl_80344A04;
-extern char* optionsAudioAndPrefs30[];           /* directory buffer                      */
 extern void* lbl_80344A08;         /* previous heap                         */
 extern void* lbl_80344A0C;         /* save heap                             */
 extern s32 lbl_80344A10[2];        /* per-(port+slot) cached free bytes     */
@@ -224,11 +224,12 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
  */
 int add_vmu_file(int a, int b, int c, const char* name, u32 v0, u32 v1)
 {
-    u8* row = lbl_80274578 + a * 132 + b * 132;
+    u8* row = lbl_80274578 + a * 132;
     u8* rec;
     int result;
     u8 unused[8]; /* matches original frame */
 
+    row += b * 132;
     rec = row + c * 16;
     strncpy((char*) (rec + 8), name, 8);
     *(u32*) rec = v0;
@@ -795,11 +796,13 @@ s32 saveMount(s32 port, s32 slot, s32 doFormat)
 int InitPreferences(void)
 {
     int ret = 0;
+    register u8* aramTop;
+    register u32 aramSize;
     u8 pad[24]; /* unused, matches original frame */
 
     if (prefs_loaded == 0) {
-        lbl_803449EC = 0;
         prefs_loaded = 1;
+        lbl_803449EC = 0;
         lbl_803449F8 = 0;
         bulletproof_printf(lbl_801131E8);
         while (FileSystemReading() != 0) {
@@ -808,8 +811,8 @@ int InitPreferences(void)
         beginSaveTransaction();
         lbl_80344A04 = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x2D44C0);
         if ((u8) loadGauntletSave()) {
-            gameOpts = *(GameOpts*) ((u8*) lbl_80343C74 + 8);
             ret = 1;
+            gameOpts = *(GameOpts*) ((u8*) lbl_80343C74 + 8);
         } else {
             ret = 0;
         }
@@ -817,7 +820,12 @@ int InitPreferences(void)
         cardWaitResult();
         OSSetCurrentHeap(lbl_80344A08);
         OSDestroyHeap(lbl_80344A0C);
-        dcsAramReadTop((void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
+        aramTop = (u8*)GetHiMemCacheTop();
+        asm {
+            lis aramSize, 49
+            addis aramTop, aramTop, -49
+        }
+        dcsAramReadTop(aramTop, aramSize);
         sysClearFlags(64);
         bulletproof_printf(lbl_801131C0);
         lbl_803449EC = 0;
@@ -963,7 +971,7 @@ u8 loadGauntletSave(void)
     f32 startSec;
 
     checkMsg = dpool + 776;
-    opts = optionsAudioAndPrefs30;
+    opts = (char**)&optionsAudioAndPrefs30;
     dirTab = lbl_80274578;
     removedCb = cardRemovedCallback;
     hiWord = 0x43300000;
@@ -1404,7 +1412,9 @@ u8 vmu_exists(s32 chan, const char* name, s32* fileNoOut)
 
         while (off = count * 23360, count != 0) {
             s32 fileNo = *(s32*) (buf + off - 256);
+            volatile u8 _pad0[12];
             char stat[108];
+            volatile u8 _pad1[12];
 
             count--;
             off -= 23360;
