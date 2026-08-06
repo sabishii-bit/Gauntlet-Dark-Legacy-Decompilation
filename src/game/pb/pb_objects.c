@@ -89,7 +89,7 @@ extern void EIntr(void);
 extern void* CreateSema(void* param);
 
 extern void pbSetupPosLights(f32 extra, int, void*, void*); /* pb_objregs pos-light setup */
-extern void fn_800C5598(int, u32, int, int, u32, int, void*, void*, void*); /* pb_objregs primitive emit */
+extern s32 pbSetDORegs(s32, u32, s32, u32, u32, s32, f32*, void*, u8*);
 extern int fn_800C7558(int handle);              /* pb_texture: resolve texture */
 extern void fn_800C1120(int);                    /* texture cache flush */
 extern int fn_800C1148(int, int, char* prompt); /* debug pad query */
@@ -256,7 +256,7 @@ int fn_800C38C0(void* a, u8* obj)
     if (lbl_80343F3C != 0) {
         pbSetupPosLights(*(f32*)(def + 4), 0, obj, a);
     }
-    fn_800C5598(0, tex, v25, v24, flags, hi, a, v1c, obj);
+    pbSetDORegs(0, tex, v25, v24, flags, hi, a, v1c, obj);
     pcount = *(int*)(def + 0xc) - 1;
     if (pcount != 0) {
         prim = *(u8**)(def + 0x18);
@@ -266,8 +266,8 @@ int fn_800C38C0(void* a, u8* obj)
             v1c += stride << 4;
             tx = pbObjTexSub(obj, *(u16*)(prim + 2), hi, &flags);
             stride = *(u16*)(prim + 0);
-            fn_800C5598(0, tx, *(s16*)(prim + 6), *(u16*)(prim + 4), flags, hi,
-                        0, v1c, 0);
+            pbSetDORegs(0, tx, *(s16*)(prim + 6), *(u16*)(prim + 4), flags,
+                        hi, 0, v1c, 0);
             prim += 8;
         } while (--pcount != 0);
     }

@@ -143,16 +143,19 @@ typedef struct PbDoRegs {
     s32  numLights;            /* 0x70 */
     f32* lights;               /* 0x74 */
     s32  m78, m7c, m80;        /* 0x78 */
-    u8   _pad84[0x38];
+    u8   _pad84[0x34];
+    s32  mb8;                  /* 0xB8 */
     s32  mbc;                  /* 0xBC */
     s32  mc0;                  /* 0xC0 */
     s32  mc4;                  /* 0xC4 */
-    u32  mc8;                  /* 0xC8 */
+    s32  mc8;                  /* 0xC8 */
     s32  mcc, md0, md4;        /* 0xCC */
     s32  md8;                  /* 0xD8 */
     f32  fdc;                  /* 0xDC */
     s32  me0, me4;             /* 0xE0 */
     s32  me8;                  /* 0xE8 */
+    u32  mec;                  /* 0xEC */
+    u32  mf0;                  /* 0xF0 */
 } PbDoRegs;
 
 /* per-object register/command builder (the "rdb" object) */
@@ -335,6 +338,7 @@ extern PbDrawState lbl_802C5430;     /* render-state shadow */
 extern u32 lbl_802C5578[];           /* current DO texture handle (carved) */
 extern u8 lbl_802C71F8[0x240];       /* transformed positional lights */
 extern u8 lbl_802C2E28[];            /* lightmap palette block */
+extern f32 lbl_802C2A28[256];        /* material/chrome parameter table */
 
 /* --- sbss --- */
 extern u32 lbl_803450B8[2];          /* default hook14 block */
@@ -344,6 +348,7 @@ extern u32 lbl_803450D0[2];          /* default hook34 block */
 extern s32 lbl_803450F0;             /* shared-bank texture index */
 extern s32 lbl_80345118;
 extern s8  lbl_8034511C;
+extern f32 gVpScaleY;
 
 /* --- render-state shadow (sbss statics) --- */
 static f32 sVpHeightScale;
@@ -974,9 +979,203 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
     lbl_80345130 = lbl_80345130 + 1;
 }
 
-/* chrome / environment UV generator (Xbox: setChrome) -- skeleton. */
-void fn_800C5598(void)
+void pbSetDODrawRegs(PbDOObj* obj, u32 handle);
+void fn_800C5D44(u32* pkt, s32 xy);
+void fn_800C5DA8(PbDOObj* obj, s32 arg, u8* node, f32* matrix);
+void fn_800C6350(PbDOObj* obj, s32 flags, u32 mask, u8* node);
+void fn_800C64A4(PbDOObj* obj, u32 flags, u8* node);
+void setTexShift(PbDOObj* obj, f32* sh, f32* alt, s32 chrome);
+void fn_800C68F4(u32* pkt, s32 x, u32 y);
+
+/* Apply the object/material state deltas and submit one geometry stream
+ * (Xbox: pbSetDORegs). */
+s32 pbSetDORegs(s32 unused, u32 texture, s32 textureMode, u32 material,
+                u32 flags, s32 bank, f32* matrix, void* geometry, u8* node)
 {
+    u8 unusedStack[32];
+    PbORGlobals* globals = gWinGlobals;
+    PbDoRegs* state = lbl_80343F4C;
+    s32 drawFlags = 0;
+    u32 changedFlags;
+    s32 textureShift;
+    s32 textureShiftFlag;
+    s32 matrixFlag;
+    f32 viewportScale;
+
+    state->mb8 = 0;
+    state->md8 = 0;
+    lbl_80345090 = bank;
+    lbl_80345098 = texture;
+    if (node != 0) {
+        lbl_803450A0 = *(u16*)(node + 0x50);
+    }
+
+    if (state->mc4 != texture || state->mc8 != textureMode) {
+        state->mc4 = texture;
+        state->mc8 = textureMode;
+        pbSetDODrawRegs((PbDOObj*)state, texture);
+    }
+
+    if (node != 0) {
+        state->m80 = (s32)node;
+        if (*(s32*)(globals->lights + 0x7C) != 0) {
+            state->m78 |= 0x40;
+        } else {
+            state->m78 &= ~0x40;
+        }
+
+        if (material != 0 && (flags & 0x4000) == 0) {
+            s32 value;
+            value = bank << 16;
+            value = (value & 0xFFFF0000) | (material & 0xFFFF);
+            state->m78 |= 2;
+            if (state->mcc != value) {
+                state->mcc = value;
+                fn_800C68F4((u32*)state, bank, material);
+                drawFlags = 8;
+            }
+            flags |= 0x2000;
+        } else {
+            state->m78 &= ~2;
+            state->mcc = -1;
+        }
+
+        if (state->md0 == -1) {
+            changedFlags = 0x189AF7C0;
+        } else {
+            changedFlags = flags ^ state->md0;
+            changedFlags |= (flags | state->md0) & 0x181A0700;
+        }
+        state->md0 = flags;
+
+        if (state->fdc != (f32)*(s16*)(node + 0x6A) ||
+            (changedFlags & 0x7100) != 0) {
+            changedFlags &= ~0x7100;
+            state->fdc = (f32)*(s16*)(node + 0x6A);
+            fn_800C64A4((PbDOObj*)state, flags, node);
+        }
+
+        if ((changedFlags & 0x100600) != 0) {
+            changedFlags &= ~0x100600;
+            if ((flags & 0x100600) != 0) {
+                state->f1c = (f32)*(u8*)(node + 0x53);
+                state->m78 |= 0x10;
+            } else {
+                state->f1c = lbl_80348F74;
+                state->m78 &= ~0x10;
+            }
+            state->mbc = 4;
+        }
+
+        if ((changedFlags & 0x10000000) != 0) {
+            changedFlags &= ~0x10000000;
+            if ((flags & 0x10000000) != 0) {
+                state->mf0 = (u32)&lbl_802C2A28[*(u8*)(node + 0x5E) * 4];
+                state->mbc = 4;
+            } else if (state->mf0 != 0) {
+                state->mf0 = 0;
+                state->mbc = 4;
+            }
+        }
+
+        if ((changedFlags & 0xA0000) != 0) {
+            changedFlags &= ~0xA0000;
+            if ((flags & 0xA0000) != 0) {
+                state->me0 = 1;
+                state->m78 |= 0x20;
+                fn_800C5DA8((PbDOObj*)state, 0, node, matrix);
+                state->mcc = -1;
+                state->md0 = -1;
+            } else {
+                state->me0 = 0;
+                state->m78 &= ~0x20;
+            }
+        }
+
+        if ((changedFlags & 0x08000000) != 0) {
+            changedFlags &= ~0x08000000;
+            if ((flags & 0x08000000) != 0) {
+                state->me4 = *(s32*)(node + 0x58);
+                fn_800C5D44((u32*)state, state->me4);
+                state->mcc = -1;
+                drawFlags = 8;
+                state->m78 |= 0x80;
+            } else {
+                state->m78 &= ~0x80;
+                state->me4 = 0;
+            }
+        }
+
+        if (state->mc0 != *(s16*)(node + 0x68)) {
+            state->mc0 = *(s16*)(node + 0x68);
+            state->f38 = (f32)*(s16*)(node + 0x68) *
+                         *(f32*)(globals->lights + 0x78);
+            state->mbc = 4;
+        }
+        if (changedFlags != 0) {
+            fn_800C6350((PbDOObj*)state, flags, changedFlags, node);
+        }
+    } else if (state->me4 != 0) {
+        fn_800C5D44((u32*)state, state->me4);
+        drawFlags = 8;
+    } else if (material != 0) {
+        s32 value;
+        value = bank << 16;
+        value = (value & 0xFFFF0000) | (material & 0xFFFF);
+        if (state->mcc != value) {
+            state->mcc = value;
+            fn_800C68F4((u32*)state, bank, material);
+            drawFlags = 8;
+        }
+    }
+
+    textureShift = state->mb8;
+    if (state->mbc != 0) {
+        setTexShift((PbDOObj*)state, (f32*)state->mec, (f32*)state->mf0,
+                    state->m78 & 0x20);
+        drawFlags += state->mbc;
+        state->mbc = 0;
+    }
+    if (textureShift != 0) {
+        textureShiftFlag = 1;
+    } else {
+        textureShiftFlag = 0;
+    }
+    if (matrix != 0) {
+        matrixFlag = 2;
+    } else {
+        matrixFlag = 0;
+    }
+    state->m58 = textureShift;
+    drawFlags += textureShiftFlag;
+    drawFlags += matrixFlag;
+
+    if (!sPerspModeInit) {
+        sPerspMode = 0;
+        sPerspModeInit = 1;
+    }
+    if (sPerspMode != 1) {
+        sPerspMode = 1;
+        GXSetProjection(gPerspProjMtx, 0);
+    }
+
+    viewportScale = gVpScaleY;
+    if (!sVpHeightInit) {
+        sVpHeightInit = 1;
+        sVpHeightScale = lbl_80348F50;
+    }
+    if (viewportScale != sVpHeightScale) {
+        sVpHeightScale = viewportScale;
+        GXSetViewport(gScreenData[0], gScreenData[1], gScreenData[2],
+                      viewportScale * gScreenData[3], gScreenData[4],
+                      gScreenData[5]);
+        GXSetScissor((u32)gScreenData[0], (u32)gScreenData[1],
+                     (u32)gScreenData[2],
+                     (u32)(viewportScale * gScreenData[3]));
+    }
+
+    sDrawGeom((u32*)geometry, matrix, (u8*)state, drawFlags);
+    return 0;
 }
 
 void pbResetDORegs(void);
@@ -1094,13 +1293,13 @@ void fn_800C5D44(u32* pkt, s32 xy)
 }
 
 /* the big DO register writer (Xbox: pbSetDORegs) -- skeleton. */
-void fn_800C5DA8(void)
+void fn_800C5DA8(PbDOObj* obj, s32 arg, u8* node, f32* matrix)
 {
 }
 
 /* Apply z-test / blend-test register deltas for an object
  * (Xbox candidate: setTexInfo). */
-void fn_800C6350(PbDOObj* obj, s32 flags, u32 mask)
+void fn_800C6350(PbDOObj* obj, s32 flags, u32 mask, u8* node)
 {
     PbORGlobals* g = gWinGlobals;
     PbDrawState* st = &lbl_802C5430;
