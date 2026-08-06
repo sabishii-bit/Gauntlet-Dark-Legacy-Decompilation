@@ -77,7 +77,7 @@ extern s32 AudioKillMask(s32 mask);
 extern volatile u32 pbLoad;      /* frame timestamp (ticks); re-read each use */
 extern s32  sAudioInitFlag;      /* 0x80344308: 1 while audio is paused/muted */
 extern s32  sFlags;              /* 0x803445CC: packed config flags */
-extern s32  gControllerButtons;        /* 0x803445C8: companion config word */
+extern s64  gControllerButtons;
 
 extern s32  sAudioSuspend;       /* 0x803442A0: nonzero => audio suspended/off */
 extern s32  lbl_803442A4;        /* 0x803442A4: stream-active flag */
@@ -1270,7 +1270,7 @@ s32 AudioFindSound(char* name, s32 maxLen, s32 warn)
             }
         }
     }
-    if (warn != 0 && (sFlags & 0x10) == 0) {
+    if (warn != 0 && (gControllerButtons & 0x10) == 0) {
         ErrorPrintf(lbl_80111574, name);
     }
     return -1;
