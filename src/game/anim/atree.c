@@ -8,9 +8,9 @@
  * Status: the lookup/teardown/pool families are translated, including the
  * player-model match wrapper at fn_80011BBC.  The core animation-evaluation
  * chain (DoAnimateTreeFrame, DoAnimateTree, and AnimateNode) is translated;
- * fn_80012F9C, AtreeNodeInit, and the two
- * construction giants (fn_80011DCC, fn_8001267C) carry the demo float-ABI
- * passthrough and remain documented stubs pending a dedicated pass.
+ * AtreeInitSub and AtreeNodeInit now cover the runtime construction path.
+ * The two resource-fixup giants (fn_80011DCC and fn_8001267C) are translated
+ * but still need dedicated code-generation passes.
  *
  * .text       0x80010A4C..0x800137BC
  * extab       0x80005590..0x80005678
@@ -126,9 +126,42 @@ typedef struct atreeheader {
     /* 0x04 */ atreematch* list;
 } atreeheader;
 
+/* -- one serialized node-description record (stride 0x3C) -- */
+typedef struct AtreeNodeDef {
+    /* 0x00 */ char name[0x14];
+    /* 0x14 */ f32 audioParams[3];
+    /* 0x20 */ f32 position[3];
+    /* 0x2C */ s16 type;
+    /* 0x2E */ s16 flags;
+    /* 0x30 */ u32 treeFlags;
+    /* 0x34 */ s32 dataOffset;
+    /* 0x38 */ s32 parent;
+} AtreeNodeDef; /* 0x3C */
+
+/* The first three animinfo fields double as the node-data base table. */
+typedef struct AtreeDataBases {
+    u8* type3;
+    u8* animData;
+    u8* type2;
+} AtreeDataBases;
+
+/* -- one selected tree blob inside an atree resource -- */
+typedef struct AtreeDefinition {
+    /* 0x00 */ animseqdesc* seqheader;
+    /* 0x04 */ void* animheader;
+    /* 0x08 */ void* oanimheader;
+    /* 0x0C */ AtreeNodeDef* nodes;
+    /* 0x10 */ s32 nodeCount;
+    /* 0x14 */ s32 sequenceCount;
+    /* 0x18 */ char objectPrefix[0x1E];
+    /* 0x36 */ s16 objectIndex;
+} AtreeDefinition; /* 0x38 */
+
 /* ================= external helpers ================= */
 extern int strcmp(const char* a, const char* b);
 extern int strncmp(const char* a, const char* b, u32 n);
+extern int strncat(char* dst, const char* src, u32 n);
+extern u32 strlen(const char* string);
 extern void ErrorPrintf(char* fmt, ...);
 extern void FatalError(char* msg, int code);
 extern void* AllocMem(u32 size);
@@ -144,6 +177,7 @@ extern void* MBNewObject(s32 object, s32 arg1, void* parent, s32 arg3);
 extern void MBTreeSetFlags(void* object, u32 flags, s32 recurse);
 extern void MBTreeClearFlags(void* object, u32 flags, s32 recurse);
 extern void InitAnimData(u32* data, u32 frameData);
+extern void InitAnimInfo(animinfo* info, u8 flags);
 extern void* AudioSetListenerPos(s32* object, s32 frameData, f32* params);
 extern s32 AnimateTreeFrame(f32 time, animinfo* info, s32 seq, s32 lo, s32 hi);
 extern void DoTexModSeqSub(void* context, TEXMOD* texmod, s32 frame);
@@ -155,6 +189,7 @@ extern s32 AnimateTree(f32 time, animinfo* info, s32 sequence, s32 first,
 extern void WorldVector(f32* source, f32* result, f32* matrix);
 extern const f32 sAtreeZero;
 extern const f64 sAtreeFrameRoundBias;
+DECL_SECT(".sdata2") extern const char sAtreeDummyName[];
 
 /* intra-TU forward declarations (address-order names retained) */
 anode* AtreeNodeLastSibling(anode* node);
@@ -163,7 +198,12 @@ void AtreeRemovePsysSub(anode* node);
 void AtreeRemoveNodeChild(anode* node);
 void AtreeRemoveNodeSub(anode* node);
 anode* AtreeRemoveNode(anode* node, int keep, anode* root);
-void* fn_80012F9C();
+anode* AtreeInitSub(AtreeDefinition* definition, atree* tree,
+                    const char* objectPrefix, u32 treeFlags, s32 reportError);
+void AtreeNodeInsert(anode* node, anode* parent, anode* root);
+anode* AtreeNewNode(s32 count);
+void AtreeNodeInit(anode* node, anode* parent, const char* name,
+                   AtreeDataBases* bases, AtreeNodeDef* def, s32 objectIndex);
 s32 DoAnimateTree(f32 frame, atree* tree, s32 sequence, s32 first, s32 last,
                   s32 recurse);
 void AnimateNode(anode* node, animinfo* info, s32 recurse);
@@ -863,11 +903,13 @@ found:
         if (node == NULL) {
             return node;
         }
-        return fn_80012F9C(node, state, scrollName, flags, 1);
+        return AtreeInitSub((AtreeDefinition*)node, (atree*)state, scrollName,
+                            flags, 1);
     }
 
-    return fn_80012F9C((u8*)hdr + hdr->list[0].offset, state, scrollName,
-                       flags, 1);
+    return AtreeInitSub(
+        (AtreeDefinition*)((u8*)hdr + hdr->list[0].offset), (atree*)state,
+        scrollName, flags, 1);
 }
 
 /* byte-order fixup helpers: the atree resource is little-endian on disk. */
@@ -1090,7 +1132,7 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
                 natreelists++;
             } else {
                 gErrorCode = 0xFFFF80;
-                FatalError("Too many Atrees", 0x804060);
+                FatalError("Too many Atrees\n", 0x804060);
             }
         }
         whichatree[slot] = hdr;
@@ -1105,14 +1147,130 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
 
 /* ---------------- playback dispatch wrappers ---------------- */
 
-void AtreeInit(void* node, int a, int b, uint c)
+anode* AtreeInit(AtreeDefinition* definition, atree* tree,
+                 const char* objectPrefix, u32 treeFlags)
 {
-    fn_80012F9C(node, a, b, c, 1);
+    return AtreeInitSub(definition, tree, objectPrefix, treeFlags, 1);
 }
 
-/* fn_80012F9C: recursive anim-tree instantiation (~0x2D0): resolves node names
- * (AtreeNodeInit, MBOX_ReallyFindObject), builds children.  DEFERRED. */
-void* fn_80012F9C() {}
+/* Instantiate a serialized tree into one runtime atree, resolving each object
+ * name and wiring the flat node array into its parent/child hierarchy. */
+anode* AtreeInitSub(AtreeDefinition* definition, atree* tree,
+                    const char* objectPrefix, u32 treeFlags, s32 reportError)
+{
+    s32 rootIndex;
+    s32 nodeOffset;
+    anode* nodes;
+    s32 i;
+    anode* root;
+    anode* node;
+    anode* parent;
+    AtreeNodeDef* nodeDefinition;
+    AtreeDataBases* bases;
+    s32 objectIndex;
+    s32 definitionOffset;
+    s32 object;
+    char name[16];
+
+    rootIndex = -1;
+    root = NULL;
+    objectIndex = definition->objectIndex;
+
+    if (definition->nodeCount > 0x200) {
+        gErrorCode = 0xFFFF00;
+        FatalError("> MAX NODES IN ATREE", 0x804060);
+    }
+
+    bases = (AtreeDataBases*)&tree->animinfo;
+    tree->animinfo.animheader = definition->animheader;
+    tree->animinfo.oanimheader = definition->oanimheader;
+    tree->animinfo.seqheader = definition->seqheader;
+    tree->animinfo.numseqs = (s16)definition->sequenceCount;
+    InitAnimInfo(&tree->animinfo, 0);
+
+    nodes = AtreeNewNode(definition->nodeCount);
+    if (nodes == NULL) {
+        if (reportError != 0) {
+            gErrorCode = 0xFFFF00;
+            FatalError("ERROR ADDING NEW ANODES", 0x804060);
+        } else {
+            return NULL;
+        }
+    }
+
+    i = 0;
+    definitionOffset = 0;
+    nodeOffset = 0;
+    while (i < definition->nodeCount) {
+        node = (anode*)((u8*)nodes + nodeOffset);
+        nodeDefinition =
+            (AtreeNodeDef*)((u8*)definition->nodes + definitionOffset);
+
+        if (nodeDefinition->parent >= i) {
+            FatalError("NODE HAS PARENT >= NODE", 0x804060);
+        }
+
+        if (nodeDefinition->parent >= 0) {
+            if (root == NULL) {
+                FatalError("NODE HAS PARENT BEFORE ROOT", 0x804060);
+            }
+            parent = (anode*)((u8*)nodes + nodeDefinition->parent * 0x28);
+        } else {
+            parent = NULL;
+        }
+
+        if (nodeDefinition->name[0] != '\0') {
+            object = -1;
+            if (objectPrefix != NULL) {
+                strncpy(name, objectPrefix, 15);
+                strncat(name, nodeDefinition->name, 15 - strlen(objectPrefix));
+                object = MBOX_ReallyFindObject(name, objectIndex, objectIndex,
+                                               -1);
+            }
+            if (object < 0) {
+                strncpy(name, definition->objectPrefix, 15);
+                strncat(name, nodeDefinition->name,
+                        15 - strlen(definition->objectPrefix));
+            }
+            name[15] = '\0';
+        } else {
+            name[0] = '\0';
+        }
+
+        if (node != NULL) {
+            AtreeNodeInit(node, parent, name, bases, nodeDefinition,
+                          objectIndex);
+            AtreeNodeInsert(node, parent, root);
+        }
+
+        if (strcmp(nodeDefinition->name, sAtreeDummyName) == 0) {
+            MBTreeSetFlags(node->obj, 1, 0);
+        }
+        MBTreeSetFlags(node->obj, treeFlags, 0);
+
+        if (parent == NULL) {
+            if (root == NULL) {
+                rootIndex = i;
+                root = node;
+            } else {
+                ErrorPrintf("ATREE: %s HAS MULTIPLE ROOTS: %d AND %d", name, i,
+                            rootIndex);
+            }
+        }
+
+        i++;
+        definitionOffset += sizeof(AtreeNodeDef);
+        nodeOffset += sizeof(anode);
+    }
+
+    tree->nanodes = definition->nodeCount;
+    tree->anodeinfo = (anodeinfo*)definition->nodes;
+    tree->firstanode = nodes;
+    if (root == NULL) {
+        FatalError("ATREE HAS NO ROOT", 0x804060);
+    }
+    return root;
+}
 
 /* ---------------- sibling-ring helpers ---------------- */
 
@@ -1186,76 +1344,51 @@ anode* AtreeNodePrevNode(anode* node, anode* list)
 
 /* ---------------- node / animdata allocation ---------------- */
 
-anode* fn_80013390(int count)
+anode* AtreeNewNode(s32 count)
 {
-    int i;
-    int start;
-    int remain;
-    int need;
-    s32 off;
-    anode* result;
+    s32 first;
+    s32 end;
+    anode* nodes;
+    s32 start;
+    s32 i;
+    s32 need;
 
     if (count < 1) {
-        result = NULL;
-    } else {
-        remain = AtreeNumNodes - AtreeNodeFirstFree;
-        off = AtreeNodeFirstFree * 0x28;
-        start = AtreeNodeFirstFree;
-        i = AtreeNodeFirstFree;
-        if (AtreeNodeFirstFree < AtreeNumNodes) {
-            do {
-                if (*(s32*)((char*)AtreeNodeList + off + 0x20) == -1) {
-                    if ((i + 1) - start >= count) {
-                        break;
-                    }
-                } else {
-                    start = i + 1;
-                }
-                i++;
-                off += 0x28;
-                remain--;
-            } while (remain != 0);
-        }
-        need = start + count;
-        if (need > AnodeMax) {
-            ErrorPrintf("Attempt to add > %d Atree nodes", i + count, AtreeNumNodes,
-                        AtreeNodeList, start, i, count);
-            result = NULL;
-        } else {
-            if (AtreeNumNodes <= need) {
-                AtreeNumNodes = need;
-                if (AtreeNodePeak < need) {
-                    AtreeNodePeak = need;
-                }
-            }
-            if (start == AtreeNodeFirstFree) {
-                AtreeNodeFirstFree += count;
-            }
-            result = (anode*)((char*)AtreeNodeList + start * 0x28);
+        return NULL;
+    }
+
+    first = AtreeNodeFirstFree;
+    end = AtreeNumNodes;
+    i = first;
+    nodes = AtreeNodeList;
+    start = first;
+    for (; i < end; i++) {
+        if (nodes[i].type != -1) {
+            start = i + 1;
+        } else if ((i + 1) - start >= count) {
+            break;
         }
     }
-    return result;
+
+    need = start + count;
+    if (need > AnodeMax) {
+        ErrorPrintf("Attempt to add > %d Atree nodes", i + count);
+        return NULL;
+    }
+    if (need >= end) {
+        AtreeNumNodes = need;
+        if (need > AtreeNodePeak) {
+            AtreeNodePeak = need;
+        }
+    }
+    if (start == first) {
+        AtreeNodeFirstFree += count;
+    }
+    return &nodes[start];
 }
 
 /* AtreeNodeInit: create the MBObject for one anode and wire its animdata
- * (MBNewObject / MBOX_NewObject / InitAnimData / AnimDataNodeNew, ~0x264).
- * DEFERRED -- demo float-ABI; semantic skeleton only. */
-typedef struct AtreeNodeDef {
-    u8 _pad00[0x14];
-    f32 audioParams[3];
-    f32 position[3];
-    s16 type;
-    s16 flags;
-    u32 treeFlags;
-    s32 dataOffset;
-} AtreeNodeDef;
-
-typedef struct AtreeDataBases {
-    u8* type3;
-    u8* animData;
-    u8* type2;
-} AtreeDataBases;
-
+ * (MBNewObject / MBOX_NewObject / InitAnimData / AnimDataNodeNew, ~0x264). */
 void AtreeNodeInit(anode* node, anode* parent, const char* name,
                    AtreeDataBases* bases, AtreeNodeDef* def, s32 objectIndex)
 {
