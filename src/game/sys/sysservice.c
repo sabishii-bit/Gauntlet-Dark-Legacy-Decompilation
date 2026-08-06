@@ -503,7 +503,11 @@ void sysAssertFailed(const char* msg, const char* file, int line) {
 
 /* 0x800DDDE8 */
 void sysClearFlags(u32 mask) {
-    gSysFlags &= ~mask;
+    asm {
+        lwz r4,gSysFlags(r0)
+        andc r0,r4,r3
+        stw r0,gSysFlags(r0)
+    }
 }
 
 /* 0x800DDDF8 */
