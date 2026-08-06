@@ -102,6 +102,7 @@ extern u8 gDefaultFontData[];   /* 0x80237C60 */
 extern char* gFontDefs8x8[];    /* 0x80118AF8 */
 extern s32 gFontDefs[];         /* 0x80118B2C */
 extern char lbl_801119C4[];     /* "SCROLLS%s" format string */
+extern char sDrawStringTextMultiRangeError[41];
 extern char sFontFileFormat[7]; /* "%s.fnt" */
 extern char sFontDirectory[6];  /* "fonts" */
 
@@ -145,6 +146,27 @@ static inline char* GetStringTextInline(BTextPoolView* info, s32 msg, s32 idx,
     fontIndex = entry->font;
     if (fontIndex >= 0) {
         *fontOut = info->stringList.fontDesc[fontIndex].color;
+    }
+    return (char*)(info->stringList.textData + off);
+}
+
+static inline char* GetStringTextRefsInline(BTextPoolView* info,
+                                            MsgEnt** msgsRef,
+                                            FontDesc** fontRef,
+                                            s32 msgOffset, s32 idx,
+                                            volatile u32* fontOut)
+{
+    MsgEnt* entry = (MsgEnt*)((u8*)*msgsRef + msgOffset);
+    s32 fontIndex;
+    s32 off;
+
+    if (idx >= entry->count) {
+        return 0;
+    }
+    off = info->stringList.textOff[entry->first + idx];
+    fontIndex = entry->font;
+    if (fontIndex >= 0) {
+        *fontOut = (*fontRef)[fontIndex].color;
     }
     return (char*)(info->stringList.textData + off);
 }
@@ -482,10 +504,58 @@ s32 DrawStringTextMLines(s32 x, s32 y, s32 spacing, s32 font, u32 color, s32 msg
     return y;
 }
 
-/* ==== 0x8001F48C DrawStringTextMulti (skeleton) ==== */
-void DrawStringTextMulti(s32 x, s32 y, u32 flags, u32 color, s32 spacing, s32 msg)
+/* ==== 0x8001F48C DrawStringTextMulti ==== */
+s32 DrawStringTextMulti(s32 x, s32 y, s32 spacing, s32 font, u32 color, s32 msg)
 {
-    (void)x; (void)y; (void)flags; (void)color; (void)spacing; (void)msg;
+    BTextPoolView* info = (BTextPoolView*)font_info;
+    MsgEnt** msgsRef = &info->stringList.msgs;
+    FontDesc** fontRef;
+    s32 msgOffset = msg * sizeof(MsgEnt);
+    MsgEnt* entry = (MsgEnt*)((u8*)*msgsRef + msgOffset);
+    volatile u32 defaultFont;
+    f32 scale;
+    f32 shadowScale;
+    s32 lineHeight;
+    s32 lineStep;
+    s32 idx;
+    char* text;
+
+    if (spacing < 0) {
+        spacing = gLineSpacing;
+    }
+    scale = entry->scale * DrawStringScale;
+    shadowScale = entry->shScale;
+    defaultFont = (*(fontRef = &info->stringList.fontDesc))[entry->font].color;
+    if (font < 0 || (font < 10 && (s32)defaultFont >= 10)) {
+        font = defaultFont;
+    }
+
+    lineHeight = (s32)(scale * (f32)MBFontHeight(font));
+    lineStep = spacing + lineHeight;
+    if (y & 0x1000) {
+        y &= ~0x1000;
+        y -= (lineHeight + lineStep * (entry->count - 1)) / 2;
+    }
+
+    idx = 0;
+    for (;;) {
+        text = GetStringTextRefsInline(info, msgsRef, fontRef, msgOffset, idx,
+                                       &defaultFont);
+        if (text == NULL) {
+            if (idx == 0) {
+                ErrorPrintf(sDrawStringTextMultiRangeError, msg, idx);
+            }
+            break;
+        }
+        DrawTextSub(scale, shadowScale, x, y, font, color, (u8*)text);
+        y += lineStep;
+        idx++;
+    }
+    {
+        u8 unused[16];
+        gDrawTextY = y;
+        return y;
+    }
 }
 
 /* ==== 0x8001F660 ScrollTextListNum ==== */
