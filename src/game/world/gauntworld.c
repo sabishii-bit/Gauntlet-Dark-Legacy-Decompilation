@@ -2606,6 +2606,7 @@ void fn_8005FF60(s32 type, s32 flag)
     s32 j;
     s32 n;
     u8* rt;
+    u8* entry;
     u8 _spare[8];
 
     it = (u8*)sItems;
@@ -2636,14 +2637,17 @@ void fn_8005FF60(s32 type, s32 flag)
                         if (flag != 0) {
                             n = sNumItemWobjs;
                             for (j = 0; j < n; j++) {
-                                if (*(u32*)(&rt[j * 4] + 29216) ==
-                                    (u32)obj) {
+                                entry = rt + j * 4;
+                                if (*(u32*)(entry + 29216) == (u32)obj) {
                                     break;
                                 }
                             }
                             if (j < n) {
-                                f32 v = *(f32*)(&rt[j * 4] + 1800);
-                                *(f32*)((u32)rt + j * 4) = v;
+                                f32 v;
+
+                                entry = rt + j * 4;
+                                v = *(f32*)(entry + 1800);
+                                *(f32*)entry = v;
                                 *(f32*)(*(u32*)(obj + 40) + 52) = v;
                             }
                         }
