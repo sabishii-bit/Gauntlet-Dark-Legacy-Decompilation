@@ -60,6 +60,10 @@ extern const f64 lbl_80348E48;
 extern const f64 lbl_80348E50;
 extern const f64 lbl_80348E58;
 extern const f64 lbl_80348E60;
+extern volatile const f64 lbl_80348E98;
+extern const f64 lbl_80348EA0;
+extern const f64 lbl_80348EA8;
+extern const f64 lbl_80348ED0;
 
 /* 0x800BCAAC - piecewise square-root approximation */
 f32 smallsqrt(f32 value)
@@ -314,12 +318,16 @@ void CreatePYRMatrix(f32* matrix, const f32* angles)
 /* 0x800BD360 */
 f32 AddAngle(f32 angle, f32 amount)
 {
+    f64 twoPi;
+
     angle += amount;
-    while (angle > 3.141592654) {
-        angle -= 6.283185308;
+    twoPi = lbl_80348E98;
+    while (angle > lbl_80348EA0) {
+        angle -= twoPi;
     }
-    while (angle <= -3.141592654) {
-        angle += 6.283185308;
+    twoPi = lbl_80348E98;
+    while (angle <= lbl_80348EA8) {
+        angle += twoPi;
     }
     return angle;
 }
@@ -327,12 +335,16 @@ f32 AddAngle(f32 angle, f32 amount)
 /* 0x800BD3A4 */
 f32 SubAngle(f32 angle, f32 amount)
 {
+    f64 twoPi;
+
     angle -= amount;
-    while (angle > 3.141592654) {
-        angle -= 6.283185308;
+    twoPi = lbl_80348E98;
+    while (angle > lbl_80348EA0) {
+        angle -= twoPi;
     }
-    while (angle <= -3.141592654) {
-        angle += 6.283185308;
+    twoPi = lbl_80348E98;
+    while (angle <= lbl_80348EA8) {
+        angle += twoPi;
     }
     return angle;
 }
@@ -340,11 +352,15 @@ f32 SubAngle(f32 angle, f32 amount)
 /* 0x800BD3E8 */
 f32 FixAngle(f32 angle)
 {
-    while (angle > 3.141592654) {
-        angle -= 6.283185308;
+    f64 twoPi;
+
+    twoPi = lbl_80348E98;
+    while (angle > lbl_80348EA0) {
+        angle -= twoPi;
     }
-    while (angle <= -3.141592654) {
-        angle += 6.283185308;
+    twoPi = lbl_80348E98;
+    while (angle <= lbl_80348EA8) {
+        angle += twoPi;
     }
     return angle;
 }
@@ -963,9 +979,9 @@ void CopyMat4(const f32* src, f32* dst)
 /* 0x800BE920 */
 s32 Round(f32 value)
 {
-    if (value >= 0.0)
-        value += 0.5;
+    if (value >= lbl_80348E00)
+        value += lbl_80348DB0;
     else
-        value += -0.5;
+        value += lbl_80348ED0;
     return (s32)value;
 }
