@@ -687,7 +687,7 @@ extern void DoTexMods(DiagMenu* menu);
 extern void AtreeDelete(void* slot);
 extern s32 AtreeInit(DiagList* list, void* slot, void* params, int a);
 extern void MBNodeSetParent(u32 node, s32 parent);
-extern void fn_8001101C(void* slot, s32 sel, s32 frame, int mode);
+extern s32 DoAnimateTreeFrame(void* slot, s32 sel, s32 frame, int mode);
 extern void MBTreeSetAmbientAdd(u32 node, s32 amount, int a);
 void pbDiagDrawMenuA(DiagList* list);
 void pbDiagDrawMenuB(DiagMenu* menu);
@@ -850,7 +850,7 @@ s32 pbDiagDrawInfo(void)
             gDiag_D24 = lbl_80348670;
         }
         if (gDiag_D24 >= lbl_80348678) {
-            fn_8001101C((u8*)b + 456, gDiagListSel, (s32)gDiag_D24, 2);
+            DoAnimateTreeFrame((u8*)b + 456, gDiagListSel, (s32)gDiag_D24, 2);
         }
         MBTreeSetAmbientAdd(**(u32**)((u8*)b + 456),
                             (s32)(lbl_803486C8 * gDiag_D20), 1);

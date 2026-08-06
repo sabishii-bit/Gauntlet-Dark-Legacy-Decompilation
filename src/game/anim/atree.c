@@ -6,8 +6,9 @@
  * AnimDataNodeNew highest).
  *
  * Status: the lookup/teardown/pool families are translated, including the
- * player-model match wrapper at fn_80011BBC.  The animation-evaluation chain
- * (fn_8001101C..fn_80011134, fn_80012F9C, AtreeNodeInit) and the two
+ * player-model match wrapper at fn_80011BBC.  The core animation-evaluation
+ * chain (DoAnimateTreeFrame, DoAnimateTree, and AnimateNode) is translated;
+ * fn_80012F9C, AtreeNodeInit, and the two
  * construction giants (fn_80011DCC, fn_8001267C) carry the demo float-ABI
  * passthrough and remain documented stubs pending a dedicated pass.
  *
@@ -71,7 +72,7 @@ typedef struct animseqdesc {
     /* 0x24 */ s16 wraps;
     /* 0x26 */ u8 _pad26[2];
     /* 0x28 */ s16 ntexmods;
-    /* 0x2A */ u8 _pad2A[2];
+    /* 0x2A */ s16 flags;
     /* 0x2C */ TEXMOD* texmods;
 } animseqdesc; /* 0x30 */
 
@@ -149,7 +150,10 @@ extern void DoTexModSeqSub(void* context, TEXMOD* texmod, s32 frame);
 extern void DoObjAnimation(void* animation, s32 object, s32 sequence, s32 frame);
 extern u32 DoAnimation(s32* animation, animinfo* info, f32* matrix,
                        s32* rotation, f32* position);
-extern const f32 lbl_80345848;
+extern s32 AnimateTree(f32 time, animinfo* info, s32 sequence, s32 first,
+                       s32 last);
+extern void WorldVector(f32* source, f32* result, f32* matrix);
+extern const f32 sAtreeZero;
 extern const f64 sAtreeFrameRoundBias;
 
 /* intra-TU forward declarations (address-order names retained) */
@@ -160,7 +164,8 @@ void AtreeRemoveNodeChild(anode* node);
 void AtreeRemoveNodeSub(anode* node);
 anode* AtreeRemoveNode(anode* node, int keep, anode* root);
 void* fn_80012F9C();
-void fn_80011134(f32 frame, void* node, int a, int b, int c, int d);
+s32 DoAnimateTree(f32 frame, atree* tree, s32 sequence, s32 first, s32 last,
+                  s32 recurse);
 void AnimateNode(anode* node, animinfo* info, s32 recurse);
 animdata* AnimDataNodeNew(void);
 
@@ -397,22 +402,68 @@ void AtreeListLock(int slot)
     atreelist_save.datalist[slot] = AnimDataList;
 }
 
-/* fn_8001101C: per-object animation dispatch (evaluates texmod sequences via
- * AnimateTreeFrame / DoTexModSeqSub, then recurses into fn_80011334).  DEFERRED --
- * demo float-ABI passthrough (f1..f8 forwarded); needs a dedicated pass. */
+/* Source-level helper retained by the Xbox PDB and inlined by the GCN build. */
+static inline void AnimFixPos(anode* root, animinfo* info)
+{
+    f32 translation[3];
+    f32* position;
+    anode* child;
+
+    child = root->child;
+    if (child != NULL) {
+        WorldVector((f32*)((u8*)child->obj + 0x30), translation,
+                    (f32*)root->obj);
+        translation[1] = sAtreeZero;
+        position = (f32*)root->obj;
+        *(position += 12) += translation[0];
+        position = (f32*)root->obj;
+        *(position += 13) += translation[1];
+        position = (f32*)root->obj;
+        *(position += 14) += translation[2];
+        *(f32*)((u8*)child->obj + 0x30) = sAtreeZero;
+        *(f32*)((u8*)child->obj + 0x38) = sAtreeZero;
+        if (child->type == 1) {
+            *(f32*)((u8*)child->anim + 0x40) = sAtreeZero;
+            *(f32*)((u8*)child->anim + 0x48) = sAtreeZero;
+            *(f32*)((u8*)child->anim + 0x60) = sAtreeZero;
+            *(f32*)((u8*)child->anim + 0x68) = sAtreeZero;
+        }
+    }
+    info->setpanim = 1;
+}
+
+/* Sequence texmod helper recovered from the Xbox ATREE symbol stream. */
+static inline void DoSeqTexMods(void* context, s32 frame, animseqdesc* seq)
+{
+    s32 i;
+    s32 offset;
+    TEXMOD* texmod;
+    s32 period;
+
+    i = 0;
+    offset = i;
+    while (i < seq->ntexmods) {
+        texmod = (TEXMOD*)((u8*)seq->texmods + offset);
+        period = texmod->frames * texmod->rate;
+        if (frame > period && seq->wraps != 0 && period > 1) {
+            frame %= period;
+        }
+        DoTexModSeqSub(context, texmod, frame);
+        i++;
+        offset += sizeof(TEXMOD);
+    }
+}
+
+/* DoAnimateTreeFrame: evaluate a fixed animation frame, run sequence texmods,
+ * and recurse through AnimateNode. */
 #pragma opt_lifetimes off
 #pragma opt_propagation off
-s32 fn_8001101C(atree* tree, s32 sequence, s32 frame, s32 recurse)
+s32 DoAnimateTreeFrame(atree* tree, s32 sequence, s32 frame, s32 recurse)
 {
     animinfo* info;
     anode* root;
     animseqdesc* seq;
-    TEXMOD* texmod;
-    void* context;
     s32 result;
-    s32 i;
-    s32 offset;
-    s32 period;
 
     root = tree->root;
     info = &tree->animinfo;
@@ -420,19 +471,7 @@ s32 fn_8001101C(atree* tree, s32 sequence, s32 frame, s32 recurse)
     if (recurse > 0) {
         if (info->seqheader != NULL) {
             seq = &info->seqheader[sequence];
-            context = root->obj;
-            i = 0;
-            offset = 0;
-            while (i < seq->ntexmods) {
-                texmod = (TEXMOD*)((u8*)seq->texmods + offset);
-                period = texmod->frames * texmod->rate;
-                if (frame > period && seq->wraps != 0 && period > 1) {
-                    frame %= period;
-                }
-                DoTexModSeqSub(context, texmod, frame);
-                i++;
-                offset += sizeof(TEXMOD);
-            }
+            DoSeqTexMods(root->obj, frame, seq);
         }
         AnimateNode(root, info, recurse);
     }
@@ -441,14 +480,49 @@ s32 fn_8001101C(atree* tree, s32 sequence, s32 frame, s32 recurse)
 #pragma opt_lifetimes reset
 #pragma opt_propagation reset
 
-void AnimateATree(void* node, int a, int c)
+s32 AnimateATree(atree* tree, s32 sequence, s32 last)
 {
-    fn_80011134(0.0f, node, a, 0, c, 1);
+    return DoAnimateTree(0.0f, tree, sequence, 0, last, 1);
 }
 
-/* fn_80011134: animation-tree evaluation main (AnimateTree / WorldVector / texmod
- * seq, recurses fn_80011334).  DEFERRED -- demo float-ABI. */
-void fn_80011134(f32 frame, void* node, int a, int b, int c, int d) {}
+/* DoAnimateTree: animation-tree evaluation main (AnimateTree / WorldVector /
+ * sequence texmods, then AnimateNode recursion). */
+s32 DoAnimateTree(f32 time, atree* tree, s32 sequence, s32 first, s32 last,
+                  s32 recurse)
+{
+    s32 result;
+    animinfo* info = &tree->animinfo;
+    anode* root;
+    s32 frame;
+
+    {
+        u32 rootValue = (u32)tree->root;
+        root = (anode*)rootValue;
+        if (tree == NULL || rootValue == 0 || info == NULL) {
+            return 0;
+        }
+    }
+
+    result = AnimateTree(time, info, sequence, first, last);
+    if ((result & 8) != 0) {
+        AnimFixPos(root, info);
+    }
+
+    if (recurse > 0 && info->seqheader != NULL) {
+        animseqdesc* seq;
+
+        seq = (animseqdesc*)((u8*)info->seqheader + info->animseq * 0x30);
+        if ((seq->flags & 1) != 0) {
+            frame = info->numframes -
+                    (s32)(sAtreeFrameRoundBias + info->frame) - 1;
+        } else {
+            frame = (s32)(sAtreeFrameRoundBias + info->frame);
+        }
+        DoSeqTexMods(root->obj, frame, seq);
+        AnimateNode(root, info, recurse);
+    }
+    return result;
+}
 
 /* AnimateNode: recursively evaluate an animation node and all descendants. */
 void AnimateNode(anode* node, animinfo* info, s32 recurse)
@@ -1260,9 +1334,9 @@ object_ready:
 null_definition:
     node->type = 0;
     *(s32*)&node->frame = 0;
-    node->x = lbl_80345848;
-    node->y = lbl_80345848;
-    node->z = lbl_80345848;
+    node->x = sAtreeZero;
+    node->y = sAtreeZero;
+    node->z = sAtreeZero;
 
 definition_ready:
 
