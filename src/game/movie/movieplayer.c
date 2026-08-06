@@ -1237,7 +1237,40 @@ u32 fn_800DACD8(int param_1, u8* param_2) {
 }
 
 /* MoviePlayer teardown (AudioStreamStop, operator delete, dtor_800DBB94) */
-void fn_800DB008(void) {
+u32* dtor_800DBB94(u32* self, s16 deleting);
+u32* fn_800DBD30(u32* self, s16 deleting);
+
+u32* fn_800DB008(u32* self, s16 deleting) {
+    u32* stream;
+    u8 unused[24];
+
+    if (self != NULL) {
+        self[0] = (u32)lbl_8012968C;
+        if ((s32)self[7] != 0) {
+            sceClose((s32)self[7]);
+        }
+        if (self[100] != 0) {
+            AudioStreamStop();
+            stream = (u32*)self[100];
+            if (stream != NULL) {
+                AudioStreamStop();
+                __dla__FPv((void*)stream[1]);
+                __dl__FPv(stream);
+            }
+        }
+        fn_800DBD30(self + 0x54, -1);
+        dtor_800DBB94(self + 8, -1);
+        if (self != NULL) {
+            self[0] = (u32)lbl_801296A4;
+        }
+        if (deleting > 0 && self != NULL) {
+            gMovieAllocCount--;
+            if (gMovieAllocCount == 0) {
+                ResetAllocTot();
+            }
+        }
+    }
+    return self;
 }
 
 u32* fn_800DB0F8(u32* volatile p) {
