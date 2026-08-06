@@ -586,22 +586,16 @@ Item* fn_8005B558(s32 id)
 
 s32 fn_8005B8B0(void* owner)
 {
-    s32 result = 0;
     Item* item = *(Item**)((u8*)owner + 0x8AC);
-    Item* linked;
-    s16 active;
+    s32 result = 0;
 
-    if (item == 0) {
-        return result;
-    }
-    if (item->info->type != 0xB) {
-        return result;
-    }
-    linked = *(Item**)&item->data[8];
-    active = linked->active;
-    if (active != -1) {
-        if (linked->minoff == 0 && (active & 0x4000) != 0) {
-            return (s32)linked;
+    if (item != 0 && item->info->type == 0xB) {
+        Item* linked = *(Item**)&item->data[8];
+        s16 active = linked->active;
+
+        result = (s32)linked;
+        if (active == -1 || linked->minoff != 0 || (active & 0x4000) == 0) {
+            result = 0;
         }
     }
     return result;
