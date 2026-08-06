@@ -157,18 +157,23 @@ void ClearAllPlyrData(void)
 }
 
 /* ClearPlyrData @0x8008A898 -- clear one player's sfx records (loop inlined). */
-void ClearPlyrData(s32 player)
+static inline void ClearPlyrRecords(u32* rec, s32 count)
 {
-    u8* hdr = lbl_80282930[player];
-    s16 count = *(s16*)hdr;
-    u32* rec = *(u32**)(hdr + 4);
     s32 i;
+
     for (i = 0; i < count; i++, rec += 0x14) {
         if ((rec[0] & 0xF000100) == 0 && (s32)rec[2] >= 0) {
             ClearCustomEffect(rec[2]);
             rec[2] = -1;
         }
     }
+}
+
+void ClearPlyrData(s32 player)
+{
+    u8* hdr = lbl_80282930[player];
+
+    ClearPlyrRecords(*(u32**)(hdr + 4), *(s16*)hdr);
     *(s32*)(lbl_80282930[player] + 0x24) = 0;
 }
 
