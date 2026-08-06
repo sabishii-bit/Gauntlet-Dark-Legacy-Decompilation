@@ -50,11 +50,16 @@ extern u8 gIdentityMatrix[];
 extern f64 lbl_80347D98;
 extern f32 lbl_80347DA0;
 extern f64 lbl_80347DE8;
+extern f32 lbl_80347E24;
 extern f32 lbl_80347E00;
 extern f64 lbl_80347E28;
 extern f32 lbl_80347E30;
 extern f32 lbl_80347E34;
 extern f32 lbl_80347E38;
+extern f32 lbl_80347DAC;
+extern f32 lbl_80347DB8;
+extern s32 WeaponStreakTex;
+extern s32 lbl_8011A178[];
 extern void* MBNewPsysDefault(f32* matrix, void* parent, s32 flags, s32 arena);
 extern void MBPsysSetPTex(void* psys, s32 texture);
 extern void MBPsysScalePParm(f32 scale, void* psys, s32 parameter);
@@ -63,6 +68,21 @@ extern void MBPsysSetPSpeed(f32 speed, void* psys);
 extern void MBPsysSetERate4(f32 a, f32 b, f32 c, f32 d, void* psys);
 extern void MBPsysSetEVolume(f32 base, f32 range, void* psys);
 extern void MBPsysSetETime(f32 duration, f32 fade, void* psys);
+extern void MBTreeSetFlags(void* node, u32 flags, s32 recurse);
+extern void SetSkinFX(void* skinFx, s32 base, s32 frames, s32 loops, f32 rate);
+extern void MulVecMat3(const f32* vector, f32* out, const f32* matrix);
+extern void MulVecMat4(const f32* vector, f32* out, const f32* matrix);
+extern s32 StartFXSub(s32 type, f32* position, u32 flagsA, u32 flagsB, f32 time);
+extern void SfxSetMat(s32 effect, f32* matrix, f32* position);
+extern void SfxSetParent(s32 effect, void* parent);
+extern void fn_80093D98(s32 effect, s32 texture, u32 color, s32 alpha,
+                        f32 scale, f32 forwardScale);
+extern void MBTreeSetAmbientAdd(void* node, s32 value, s32 recurse);
+extern void MBTreeSetColor(void* node, u32 color, s32 recurse);
+extern void AudioPlay3DSel(s32 sound, s32 volume, f32* position, s32 selector);
+extern void ShakeCamera(s32 type, s32 count, s32 delay, f32 radius,
+                        s32 priority);
+extern void SafeRockSetup(void);
 extern void GetWorldMat(void* node, f32* matrix, void* offset);
 extern void* MBRemoveNode(void* node, s32 mode);
 extern void MBTreeSetAlpha(void* node, s32 alpha, s32 mode);
@@ -192,22 +212,26 @@ done:
 }
 STUB(0x80089350, fn_80089350)
 STUB(0x800898DC, fn_800898DC)
-STUB(0x80089EA8, fn_80089EA8)
-STUB(0x8008A0E4, fn_8008A0E4)
 
 typedef struct PlayerSfxRecord {
     u32 flags;          /* 0x00 */
     u32 _04;
     s32 texture;        /* 0x08 */
-    s32 parent;         /* 0x0C: -1 uses the player's current node */
-    u8 _10[0x22];
+    s32 parent;         /* 0x0C: parent selector / positional sound */
+    u8 _10[0x20];
+    s16 skinLoops;      /* 0x30 */
     s16 speed;          /* 0x32 */
     f32 position[3];    /* 0x34 */
     f32 duration;       /* 0x40 */
     f32 rate;           /* 0x44 */
     f32 parameterScale; /* 0x48 */
-    u8 _4C[4];
+    u32 color;          /* 0x4C */
 } PlayerSfxRecord;
+
+s32 DoPlyrSfxSub(u8* player, s32 recordIndex, f32* offset,
+                 s32 absolute, s32 effectIndex);
+s32 DoPlyrSfx(u8* player, PlayerSfxRecord* record, f32* position,
+              s32 absolute, u32 flags, s32 effectIndex);
 
 /* Build and configure the particle node for one player-SFX record.
  * Xbox PDB: PSFX.OBJ local PsfxDoParticle. */
@@ -278,6 +302,172 @@ void PsfxDoParticle(u8* player, PlayerSfxRecord* record, s32 effectIndex)
         MBPsysSetPSpeed(speed, psys);
         MBPsysSetPTex(psys, texture);
     }
+}
+
+/* Resolve one player-SFX record, execute its selected effect path, then
+ * recurse through the record's linked successor.  Xbox PDB: DoPlyrSfxSub. */
+s32 DoPlyrSfxSub(u8* player, s32 recordIndex, f32* offset,
+                 s32 absolute, s32 effectIndex)
+{
+    PlayerSfxRecord* record;
+    u32 flags;
+    s32 result = -1;
+    f32 finalPosition[3];
+    f32 localPosition[3];
+    s32 playerIndex = *(s32*)player;
+
+    if (recordIndex < 0) {
+        return -1;
+    }
+
+    record = (PlayerSfxRecord*)(*(u8**)(lbl_80282930[playerIndex] + 4) +
+                                      recordIndex * sizeof(PlayerSfxRecord));
+    flags = record->flags;
+
+    if ((flags & 0x400) != 0) {
+        MBTreeSetFlags(*(void**)(player + 0x74), 1, 0);
+        MBTreeSetFlags(*(void**)(*(u8**)(player + 0x74) + 0x78), 2, 2);
+    }
+
+    if ((flags & 0x100) != 0) {
+        SetSkinFX(player + 0x7DC, record->texture, (s32)record->duration,
+                  record->skinLoops, record->rate);
+    } else if ((flags & 0x0F000000) != 0) {
+        PsfxDoParticle(player, record, effectIndex);
+    } else if ((flags & 0x200) == 0) {
+        if (absolute == 0) {
+            MulVecMat3(record->position, localPosition,
+                       (f32*)(player + 0x14));
+        } else {
+            localPosition[0] = record->position[0];
+            localPosition[1] = record->position[1];
+            localPosition[2] = record->position[2];
+        }
+
+        if ((flags & 1) != 0) {
+            absolute = 1;
+            finalPosition[0] = localPosition[0];
+            finalPosition[1] = localPosition[1];
+            finalPosition[2] = localPosition[2];
+        } else if (offset != NULL) {
+            finalPosition[0] = offset[0] + localPosition[0];
+            finalPosition[1] = offset[1] + localPosition[1];
+            finalPosition[2] = offset[2] + localPosition[2];
+        } else {
+            finalPosition[0] = localPosition[0];
+            finalPosition[1] = localPosition[1];
+            finalPosition[2] = localPosition[2];
+        }
+        result = DoPlyrSfx(player, record, finalPosition, absolute, flags,
+                           effectIndex);
+    }
+
+    if (record->parent >= 0 && (flags & 0x0F000000) == 0) {
+        AudioPlay3DSel(record->parent, 0xE0, (f32*)(player + 0x44), 1);
+    }
+    if ((flags & 2) != 0) {
+        ShakeCamera(0, 0, 90, lbl_80347E24, 100);
+    }
+    if ((flags & 0x20) != 0) {
+        SafeRockSetup();
+    }
+    if ((s32)record->_04 >= 0) {
+        DoPlyrSfxSub(player, (s32)record->_04, offset, absolute, result);
+    }
+    return result;
+}
+
+s32 DoPlyrSfx(u8* player, PlayerSfxRecord* record, f32* position,
+              s32 absolute, u32 flags, s32 effectIndex)
+{
+    u32 effectFlags;
+    u32 spawnFlags;
+    s32 type;
+    s32 effect;
+    void* parent;
+    u8* effectData;
+    void* rootNode;
+
+    type = record->texture;
+    if (type < 0) {
+        goto invalid;
+    }
+
+    effectFlags = 0x800;
+    spawnFlags = 0;
+    if ((flags & 4) != 0) {
+        effectFlags |= 0x80080;
+    }
+    if ((flags & 0x1000) != 0) {
+        effectFlags |= 0x800000;
+    }
+    if ((flags & 0x4000) != 0) {
+        effectFlags &= ~0x800;
+        effectFlags |= 0x2000;
+    }
+    if ((flags & 0x10) != 0) {
+        spawnFlags |= 0x200000;
+    }
+    if ((flags & 0x8000) != 0) {
+        spawnFlags |= 0x10000;
+    }
+    if ((flags & 0x10000) != 0) {
+        spawnFlags |= 0x400000;
+    }
+
+    effect = StartFXSub(type, position, spawnFlags, effectFlags, record->duration);
+    if (effect < 0) {
+        return effect;
+    }
+
+    if ((flags & 0x80) != 0) {
+        SfxSetMat(effect, (f32*)(player + 0x14),
+                  (f32*)(*(u8**)(player + 0x74) + 0x30));
+    } else if ((flags & 0x40) != 0) {
+        if ((flags & 0x2000) != 0 && lbl_80344B40 != NULL) {
+            player = lbl_80344B40;
+        }
+        if (absolute != 0) {
+            MulVecMat4(position, position, (f32*)(player + 0x14));
+        }
+        SfxSetMat(effect, (f32*)(player + 0x14), position);
+    } else if (absolute != 0) {
+        if ((flags & 0x2000) != 0 && lbl_80344B40 != NULL) {
+            player = lbl_80344B40;
+        }
+        if ((flags & 0x40000) != 0 && effectIndex >= 0) {
+            parent = Effects[effectIndex].node;
+        } else if ((flags & 0x800) != 0) {
+            parent = *(void**)(*(u8**)(player + 0x74) + 0x74);
+        } else if ((flags & 1) != 0) {
+            parent = *(void**)(player + 0x74);
+        } else {
+            parent = *(void**)(*(u8**)(player + 0x74) + 0x78);
+        }
+        SfxSetParent(effect, parent);
+    } else if ((flags & 0x40000) != 0 && effectIndex >= 0) {
+        SfxSetParent(effect, Effects[effectIndex].node);
+    }
+
+    if ((flags & 0x20000) != 0) {
+        fn_80093D98(effect, WeaponStreakTex, lbl_8011A178[*(s32*)(player + 4)],
+                    0x40, lbl_80347DAC, lbl_80347DB8);
+    }
+
+    effectData = (u8*)Effects + effect * sizeof(Effect);
+    rootNode = **(void***)(effectData += 0x18);
+    if (rootNode != NULL) {
+        MBTreeSetAmbientAdd(rootNode, 0x1FF, 1);
+    }
+    if (record->color != 0xFFFFFFFF) {
+        MBTreeSetColor(**(void***)effectData, record->color, 1);
+    }
+    goto done;
+
+invalid:
+    effect = -1;
+done:
+    return effect;
 }
 
 /* PlayerSfxClearData @0x8008A584 -- release the custom-effect handle of every
