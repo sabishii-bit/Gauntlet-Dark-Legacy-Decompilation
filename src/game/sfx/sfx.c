@@ -224,7 +224,7 @@ extern int msgPost(int idx, int param, char* str);
 extern u32 FloorCollide(f32 rad1, f32 rad2, f32 drop, f32* pos, f32* outnrm, s32 a, s32 b); /* floor probe */
 extern void AtreeDelete(void* atree);                                  /* atree release   */
 extern struct anode* AtreeInit(struct atreeheader* hdr, void* atree, s32 a, s32 b); /* atree build */
-extern struct anode* fn_80012F9C(struct atreeheader* hdr, void* atree, s32 a, u32 flb, s32 b); /* atree build (flags) */
+extern struct anode* AtreeInitSub(struct atreeheader* hdr, void* atree, s32 a, u32 flb, s32 b); /* atree build (flags) */
 extern struct mbnode* MBNewNode(struct mbnode* parent, f32* mat, s32 flag); /* new node under parent */
 extern struct mbnode* MBOX_NewObject(const char* name, s32 p2, s32 p3, u32 p4); /* create MB object */
 extern struct mbnode* lbl_80344EBC; /* fx scene root (flag 0x2000)     */
@@ -2078,7 +2078,7 @@ s32 StartFXTree(struct atreeheader* hdr, f32* pos, u32 fla, u32 flb, f32 time)
     }
     idx = FindEffectIdx();
     e = &Effects[idx];
-    ATREE_ROOT(e) = fn_80012F9C(hdr, &e->atree[0], 0, flb, 0);
+    ATREE_ROOT(e) = AtreeInitSub(hdr, &e->atree[0], 0, flb, 0);
     if (ATREE_ROOT(e) == NULL) {
         return -1;
     }
