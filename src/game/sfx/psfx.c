@@ -15,6 +15,7 @@
  */
 
 #include "types.h"
+#include "game/effect.h"
 
 extern u8* lbl_80282930[4];
 extern void ClearCustomEffect(s32 index);
@@ -23,6 +24,7 @@ extern u8 lbl_802828B0[];
 extern u8 lbl_8012006C[];
 extern void* lbl_80120E00[16];
 extern char lbl_801142A0[];
+extern char lbl_80114288[];
 extern char lbl_801142D4[];
 extern char lbl_80347E44[];
 extern char lbl_80347E4C[];
@@ -42,6 +44,25 @@ extern void ErrorPrintf(const char* fmt, ...);
 extern void* AllocMem();
 extern u32 gFrameTicks;
 extern s32 lbl_80343DB0;
+extern u8* lbl_80344B40;
+extern Effect Effects[64];
+extern u8 gIdentityMatrix[];
+extern f64 lbl_80347D98;
+extern f32 lbl_80347DA0;
+extern f64 lbl_80347DE8;
+extern f32 lbl_80347E00;
+extern f64 lbl_80347E28;
+extern f32 lbl_80347E30;
+extern f32 lbl_80347E34;
+extern f32 lbl_80347E38;
+extern void* MBNewPsysDefault(f32* matrix, void* parent, s32 flags, s32 arena);
+extern void MBPsysSetPTex(void* psys, s32 texture);
+extern void MBPsysScalePParm(f32 scale, void* psys, s32 parameter);
+extern void MBPsysSetPTime(f32 time, void* psys);
+extern void MBPsysSetPSpeed(f32 speed, void* psys);
+extern void MBPsysSetERate4(f32 a, f32 b, f32 c, f32 d, void* psys);
+extern void MBPsysSetEVolume(f32 base, f32 range, void* psys);
+extern void MBPsysSetETime(f32 duration, f32 fade, void* psys);
 extern void GetWorldMat(void* node, f32* matrix, void* offset);
 extern void* MBRemoveNode(void* node, s32 mode);
 extern void MBTreeSetAlpha(void* node, s32 alpha, s32 mode);
@@ -173,7 +194,91 @@ STUB(0x80089350, fn_80089350)
 STUB(0x800898DC, fn_800898DC)
 STUB(0x80089EA8, fn_80089EA8)
 STUB(0x8008A0E4, fn_8008A0E4)
-STUB(0x8008A34C, fn_8008A34C)
+
+typedef struct PlayerSfxRecord {
+    u32 flags;          /* 0x00 */
+    u32 _04;
+    s32 texture;        /* 0x08 */
+    s32 parent;         /* 0x0C: -1 uses the player's current node */
+    u8 _10[0x22];
+    s16 speed;          /* 0x32 */
+    f32 position[3];    /* 0x34 */
+    f32 duration;       /* 0x40 */
+    f32 rate;           /* 0x44 */
+    f32 parameterScale; /* 0x48 */
+    u8 _4C[4];
+} PlayerSfxRecord;
+
+/* Build and configure the particle node for one player-SFX record.
+ * Xbox PDB: PSFX.OBJ local PsfxDoParticle. */
+void PsfxDoParticle(u8* player, PlayerSfxRecord* record, s32 effectIndex)
+{
+    void* psys;
+    void* parent;
+    u32 flags;
+    u32 particleKind;
+    s32 parentHandle;
+    s32 texture;
+    f32 rate;
+    f32 speed;
+    f32 duration;
+    f32 parameterScale;
+    u8 unused[8];
+
+    flags = record->flags;
+    particleKind = flags & 0x0F000000;
+    rate = (f32)(lbl_80347E28 * (f64)record->rate);
+    texture = record->texture;
+    parentHandle = record->parent;
+    duration = record->duration;
+    parameterScale = record->parameterScale;
+    speed = (f32)(lbl_80347D98 * (f64)record->speed);
+
+    if ((flags & 0x40000) != 0 && effectIndex >= 0) {
+        parent = Effects[effectIndex].node;
+    } else if ((flags & 0x2000) != 0 && lbl_80344B40 != NULL) {
+        parent = *(void**)(lbl_80344B40 + 0x74);
+    } else if (parentHandle == -1) {
+        parent = *(void**)(player + 0x74);
+    } else {
+        parent = (void*)parentHandle;
+    }
+
+    switch (particleKind) {
+    case 0x02000000:
+        psys = MBNewPsysDefault((f32*)gIdentityMatrix, parent, 0, 1);
+        if (psys != NULL) {
+            MBPsysSetEVolume(lbl_80347E30, lbl_80347DA0, psys);
+            if (lbl_80347DE8 != (f64)parameterScale) {
+                MBPsysScalePParm(parameterScale, psys, 4);
+            }
+            MBPsysSetERate4(rate, rate, rate, rate, psys);
+            MBPsysSetETime(duration, lbl_80347E34, psys);
+        }
+        break;
+    case 0x01000000:
+    default:
+        psys = MBNewPsysDefault((f32*)gIdentityMatrix, parent, 0, 1);
+        MBPsysSetPTime(lbl_80347E38, psys);
+        if (lbl_80347DE8 != (f64)parameterScale) {
+            MBPsysScalePParm(parameterScale, psys, 4);
+        }
+        MBPsysSetERate4(rate, rate, rate, rate, psys);
+        MBPsysSetETime(duration, lbl_80347E34, psys);
+        MBPsysSetEVolume(lbl_80347E00, lbl_80347E00, psys);
+        break;
+    }
+
+    if (psys == NULL) {
+        ErrorPrintf(lbl_80114288);
+    } else {
+        *(f32*)((u8*)psys + 0x30) = record->position[0];
+        *(f32*)((u8*)psys + 0x34) = record->position[1];
+        *(f32*)((u8*)psys + 0x38) = record->position[2];
+        MBPsysSetPSpeed(speed, psys);
+        MBPsysSetPTex(psys, texture);
+    }
+}
 
 /* PlayerSfxClearData @0x8008A584 -- release the custom-effect handle of every
  * record whose flags lack the 0x0F000100 bits, marking each slot free. */
