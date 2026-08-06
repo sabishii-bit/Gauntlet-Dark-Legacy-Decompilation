@@ -1310,7 +1310,7 @@ extern s32 lbl_80343DE4;
 extern s32 lbl_80343DE8;
 extern s32 lbl_80344BC4;
 extern s32 lbl_80344BB8;
-extern s32 lbl_803449A0;
+extern s32 gDemoMode;
 extern f32 lbl_80347F60;
 extern f32 lbl_80347F64;
 extern char lbl_80347F0C[8];

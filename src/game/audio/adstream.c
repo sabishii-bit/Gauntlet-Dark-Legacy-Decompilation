@@ -100,7 +100,7 @@ extern s32 sShortenedSizeVoiceLoop; /* 0x8034528C samples per frame x2 */
 extern s32 sShortenedHalfVoiceLoop; /* 0x80345290 samples per frame */
 extern s32 lbl_80345270;   /* largest stream allocation seen */
 extern u32 lbl_80345288;   /* global ADS flags */
-extern s32 lbl_80344694;   /* music duck request */
+extern s32 sConfig;   /* music duck request */
 extern s32 dcsMemLockOwner();
 extern s32 sConfig;
 extern ADSTREAM gADS;

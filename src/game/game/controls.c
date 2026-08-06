@@ -11,8 +11,8 @@
  *    0x8003104C-0x80034CFC shares the same statics (lbl_802407xx pad
  *    arrays, lbl_80240E30 per-player structs, lbl_803445xx flag cluster,
  *    ctrls_initialized) - one TU.
- *  - fn_80030C84 (ends exactly 0x8003101C) references sWeaponsBuf/
- *    sPowerupsBuf (weapons-fx TU); fn_80034CFC references gEnemies/
+ *  - InitPlayerMissiles (ends exactly 0x8003101C) references sWeaponsBuf/
+ *    sPowerupsBuf (weapons-fx TU); CritterCollideEnemies references gEnemies/
  *    gCurLevel (combat-side TU) - clean seams both sides.
  *  - extabindex rows 0x80009274..0x800093A0 are exactly this TU's
  *    LR-saving fns (first row fn=0x8003119C, last row fn=0x80034B3C,
