@@ -72,19 +72,19 @@ extern void PADControlAllMotors(const u32* cmds);
 
 /* PS2 scePad/sceMtap shim layer (game/ps2/fakelib TU @0x800AF000+) */
 extern s32 scePadGetState(s32 port, s32 slot);
-extern s32 scePadInfoMode(void);       /* stub */
+extern s32 scePadInfoMode(s32 port, s32 slot, s32 mode, s32 index);
 extern s32 scePadRead(s32 port, s32 slot, u8* data); /* used by joyReadPad */
 extern void scePadSetActDirect(s32 port, s32 slot, u8* data);
 extern s32 scePadPortOpen(s32 port, s32 slot, void* data);
 extern s32 scePadPortClose(s32 port);  /* stub */
 extern s32 sceMtapPortOpen(s32 port);
 extern s32 sceMtapGetConnection(s32 port);
-extern s32 scePadEnterPressMode(void);
-extern s32 scePadInfoPressMode(void);
-extern s32 scePadSetMainMode(void);
-extern s32 scePadGetReqState(void);
-extern s32 scePadSetActAlign(void);
-extern s32 scePadInfoAct(void);
+extern s32 scePadEnterPressMode(s32 port, s32 slot);
+extern s32 scePadInfoPressMode(s32 port, s32 slot);
+extern s32 scePadSetMainMode(s32 port, s32 slot, s32 mode, s32 lock);
+extern s32 scePadGetReqState(s32 port, s32 slot);
+extern s32 scePadSetActAlign(s32 port, s32 slot, u8* align);
+extern s32 scePadInfoAct(s32 port, s32 slot, s32 act, s32 index);
 extern s32 sceMtapInit(void);
 extern void sysResetService(void);     /* sysResetService */
 
@@ -148,8 +148,11 @@ static s32 lbl_8011A258[4] = { -1, -1, -1, -1 };
 /* 0x8011A268  pad -> player assignment */
 static s32 lbl_8011A268[8] = { -1, -1, -1, -1, 0, 0, 0, 0 };
 
-/* 0x8011A288  scePadPortOpen done flags */
-static s32 lbl_8011A288[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+/* 0x8011A288  scePadPortOpen done flags, indexed by [port][slot] */
+static s32 lbl_8011A288[2][4] = {
+    { 0, 0, 0, 0 },
+    { 0, 0, 0, 0 },
+};
 
 /* 0x8011A2A8  SpecialMoves[13]: combo recognizer programs.  Each stage
  * matches a right-stick/button level word against mask (0x8000 = any-of,
@@ -532,7 +535,7 @@ s32 assign_controller(s32 pad);
 void vibrators_off(void);
 void do_vibe(s32 plyr, s32 inten, s32 time);
 s32 joyGetStatus(s32 pad, u8* buf);
-s32 joyReadPad(s32 pad, u8* buf, s32 state);
+s32 joyReadPad(s32 pad, u8* buf);
 void EnablePlayerControls(void);
 void DisablePlayerControls(void);
 void ClearControls(void);
@@ -949,12 +952,165 @@ void do_vibe(s32 plyr, s32 inten, s32 time)
 
 /* 0x80031A40  pump one pad's connection state machine (scePadGetState/
  * scePadInfoMode/press-mode negotiation, phases 0/0x28-0x2A/0x46-0x4D/99)
- * and joyReadPad it once stable.  SKELETON - full transcription pending. */
+ * and joyReadPad it once stable. */
 #pragma dont_inline on
 s32 joyGetStatus(s32 pad, u8* buf)
 {
-    (void)pad;
-    (void)buf;
+    s32 phase;
+    s32 slot;
+    s32 port;
+    s32 state;
+    s32 mode;
+    s32 result;
+    s32 i;
+    u8 align[6];
+
+    port = pad / 4;
+    slot = pad & 3;
+    if (lbl_80344610[port] == 3 && slot > 0) {
+        return 0;
+    }
+    if (lbl_8011A288[port][slot] == 0) {
+        return 0;
+    }
+
+    lbl_803445E4 = 700;
+    if (lbl_803445E0 != 0) {
+        return 0;
+    }
+    lbl_803445E0 = 1;
+    state = scePadGetState(port, slot);
+    phase = lbl_80240AA8[pad];
+
+    switch (phase) {
+    case 0:
+        lbl_80240AB8[pad] = 0;
+        ((u8*)&lbl_803445E8)[pad] = 0;
+        if ((state == 6 || state == 2) &&
+            (mode = scePadInfoMode(port, slot, 1, 0)) != 0) {
+            result = scePadInfoMode(port, slot, 2, 0);
+            if (result > 0) {
+                mode = result;
+            }
+            switch (mode) {
+            case 2:
+                lbl_80240AB8[pad] = 4;
+                phase = 99;
+                break;
+            case 4:
+                lbl_80240AB8[pad] = 1;
+                phase = 0x28;
+                break;
+            case 5:
+                lbl_80240AB8[pad] = 3;
+                phase = 99;
+                break;
+            case 7:
+                lbl_80240AB8[pad] = 2;
+                phase = 0x46;
+                break;
+            default:
+                lbl_80240AB8[pad] = 1;
+                phase = 99;
+                break;
+            }
+        }
+        break;
+
+    case 0x28:
+        if (scePadInfoMode(port, slot, 4, -1) == 0) {
+            phase = 99;
+            break;
+        }
+        phase++;
+        /* fall through */
+    case 0x29:
+        if (scePadSetMainMode(port, slot, 1, 3) == 1) {
+            phase++;
+        }
+        break;
+
+    case 0x2A:
+        if (scePadGetReqState(port, slot) == 1) {
+            phase--;
+        }
+        if (scePadGetReqState(port, slot) == 0) {
+            phase = 0;
+        }
+        break;
+
+    case 0x46:
+        if (scePadInfoAct(port, slot, -1, 0) == 0) {
+            phase = 0x4B;
+        }
+        align[0] = 0;
+        align[1] = 1;
+        for (i = 2; i < 6; i++) {
+            align[i] = 0xFF;
+        }
+        if (scePadSetActAlign(port, slot, align) != 0) {
+            phase++;
+        }
+        break;
+
+    case 0x47:
+        if (scePadGetState(port, slot) != 5) {
+            ((u8*)&lbl_803445E8)[pad] = 1;
+            phase = 0x4B;
+        }
+        break;
+
+    case 0x4B:
+        if (scePadInfoPressMode(port, slot) == 1) {
+            phase = 0x4C;
+        } else {
+            phase = 99;
+        }
+        break;
+
+    case 0x4C:
+        if (scePadEnterPressMode(port, slot) == 1) {
+            phase++;
+        }
+        break;
+
+    case 0x4D:
+        if (scePadGetReqState(port, slot) == 1) {
+            phase--;
+        }
+        if (scePadGetReqState(port, slot) == 0) {
+            lbl_80240AB8[pad] = 5;
+            phase = 99;
+        }
+        break;
+
+    default:
+        if (state == 7) {
+            sysResetService();
+            break;
+        }
+        if (state != 6 && state != 2) {
+            sysResetService();
+            break;
+        }
+        result = joyReadPad(pad, buf);
+        if (result < 0) {
+            phase = 0;
+        }
+        if (result > 0) {
+            lbl_80240AC8[pad] = state;
+            lbl_80240AA8[pad] = phase;
+            lbl_803445E4 = 798;
+            lbl_803445E0 = 0;
+            return 1;
+        }
+        break;
+    }
+
+    lbl_80240AC8[pad] = state;
+    lbl_80240AA8[pad] = phase;
+    lbl_803445E4 = 799;
+    lbl_803445E0 = 0;
     return 0;
 }
 #pragma dont_inline off
@@ -992,7 +1148,7 @@ s32 joyGetStatus(s32 pad, u8* buf)
  * button/pressure report into the 24 {mode,value} button records
  * (get_dir/calc_analog_stick/set*Button inlined). */
 #pragma dont_inline on
-s32 joyReadPad(s32 pad, u8* buf, s32 state)
+s32 joyReadPad(s32 pad, u8* buf)
 {
     s32 slot = pad & 3;
     s32 port = pad / 4;
@@ -1004,7 +1160,7 @@ s32 joyReadPad(s32 pad, u8* buf, s32 state)
     if (lbl_80240AB8[pad] == 0) {
         return -1;
     }
-    if (lbl_8011A288[port * 4 + slot] == 0) {
+    if (lbl_8011A288[port][slot] == 0) {
         return 0;
     }
     if (scePadRead(port, slot, rdata) == 0) {
@@ -1087,7 +1243,6 @@ s32 joyReadPad(s32 pad, u8* buf, s32 state)
         SET_ABTN(0x20, (0x80 - rdata[5]) * 2); /* rstick up    */
         SET_ABTN(0x22, (rdata[5] - 0x80) * 2); /* rstick down  */
     }
-    (void)state;
     return 1;
 }
 #pragma dont_inline off
@@ -1983,10 +2138,10 @@ void init_controls(void)
         s32 port = pad / 4;
         s32 opened;
 
-        if (lbl_8011A288[port * 4 + (pad & 3)] == 0) {
+        if (lbl_8011A288[port][pad & 3] == 0) {
             opened = scePadPortOpen(port, pad & 3, &lbl_802409A8[(port * 4 + (pad & 3)) * 64]);
             if (opened) {
-                lbl_8011A288[port * 4 + (pad & 3)] = 1;
+                lbl_8011A288[port][pad & 3] = 1;
             }
         } else {
             opened = 1;
