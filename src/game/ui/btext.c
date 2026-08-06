@@ -105,6 +105,11 @@ extern char lbl_801119C4[];     /* "SCROLLS%s" format string */
 extern char sDrawStringTextMultiRangeError[41];
 extern char sFontFileFormat[7]; /* "%s.fnt" */
 extern char sFontDirectory[6];  /* "fonts" */
+extern const f64 sBTextIntBias;
+extern const f32 sBTextOne;
+extern const f64 sBTextZero;
+extern const f64 sBTextShadowSpacing;
+extern const f64 sBTextOneDouble;
 
 /* ---- external primitives ---- */
 
@@ -909,11 +914,65 @@ void DrawText(s32 x, s32 y, u32 flags, u32 color, const char* fmt, ...)
     DrawTextSub(1.0f, 1.0f, x, y, flags, color, gTextFormatBuf);
 }
 
-/* ==== 0x80020AAC DrawTextSub (core; skeleton) ==== */
-s32 DrawTextSub(f32 scale, f32 shScale, s32 x, s32 y, u32 flags, u32 color, u8* str)
+/* ==== 0x80020AAC DrawTextSub (core) ==== */
+s32 DrawTextSub(register f32 scale, f32 shScale, s32 x, s32 y, u32 flags,
+                u32 color, u8* str)
 {
-    (void)scale; (void)shScale; (void)x; (void)y; (void)flags; (void)color; (void)str;
-    MBDrawText(x, y, str);
+    register f32 fontHeight;
+    f64 shadowProduct;
+    f32 shadowSpace;
+    s32 font;
+    s32 oldFlags;
+    s32 height;
+    s32 result;
+
+    font = flags & 0xFF;
+    oldFlags = 0;
+    if (y > 0 && (y & 0x1000)) {
+        y &= ~0x1000;
+        fontHeight = (f32)MBFontHeight(flags);
+        asm { fmuls fontHeight, fontHeight, scale }
+        height = (s32)fontHeight;
+        y -= height / 2;
+    }
+
+    if ((f64)shScale > sBTextZero) {
+        shScale *= scale;
+    } else if ((f64)shScale < sBTextZero) {
+        shScale = -shScale;
+    } else {
+        shScale = sBTextOne;
+    }
+
+    MBSetFont(font);
+    font = flags & 0x200;
+    if (font != 0) {
+        oldFlags = MBSetFontFlags(0);
+        MBSetFontFlags(oldFlags | 0x100);
+    }
+    if (flags & 0x100) {
+        MBSetFontColor(shadow_color);
+        shadowProduct = sBTextShadowSpacing * scale;
+        shadowSpace = (f32)shadowProduct;
+        MBSetFontScaleSpace(shadowSpace, shadowSpace);
+        MBSetFontScale(shScale, scale);
+        MBDrawText(x - 2, y - 2, str);
+    }
+
+    MBSetFontColor(color);
+    MBSetFontScaleSpace(scale, scale);
+    MBSetFontScale(shScale, scale);
+    result = (s32)MBDrawText(x, y, str);
+    if (font != 0) {
+        MBSetFontFlags(oldFlags);
+    }
+    if (sBTextOneDouble != (f64)shScale) {
+        MBSetFontScale(sBTextOne, sBTextOne);
+    }
+    {
+        u8 unused[8];
+        return result;
+    }
 }
 
 /* ==== 0x80020C3C TextMLines ==== */
