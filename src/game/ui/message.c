@@ -37,7 +37,7 @@ extern short gJumpTab120240[];          /* lbl_80120240 */
 
 /* small-data (sda/sbss) globals */
 extern int gCurWorld;
-extern int lbl_803443E8;
+extern int gLanguageId;
 extern int gGameMode;
 extern int gGameBusy;
 extern int gFrameTicks;
@@ -517,7 +517,7 @@ int msgPost(int idx, int param, char* position)
     } else {
         lineCount = 12;
     }
-    if (lbl_803443E8 == 1) {
+    if (gLanguageId == 1) {
         lineCount = 14;
     }
     height = StringTextHeight(1.0f, desc->type, desc->param, lineCount) + 0x10;
@@ -667,7 +667,7 @@ void msgDraw(void)
         classText = GetStringText(3, playerClass, 0);
         lineHeight = StringTextHeight(1.0f, 0x18, 0, 2) + 2;
 
-        if (lbl_803443E8 == 1) {
+        if (gLanguageId == 1) {
             worldWidth = StringTextWidth(1.0f, 2, playerWorld);
             classWidth = StringTextWidth(1.0f, 3, playerClass);
             labelWidth = StringTextWidth(1.0f, 0x18, 0);
@@ -767,14 +767,14 @@ int msgWidth(int p0, int idx)
         b = StringTextWidth(1.0f, 2, p0);
         c = a + 12;
         c = c + b;
-        if (lbl_803443E8 == 1) {
+        if (gLanguageId == 1) {
             c += 20;
         }
         if (c > w) {
             w = c;
         }
     } else if (idx == 101) {
-        if (lbl_803443E8 == 1) {
+        if (gLanguageId == 1) {
             fc = gPlayers[gCurWorld].character;
             a = StringTextWidth(1.0f, 2, gCurWorld);
             b = StringTextWidth(1.0f, 3, fc);
