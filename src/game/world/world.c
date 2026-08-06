@@ -658,30 +658,35 @@ static void sSetupWorldHeader(void* hdr) {
     }
 }
 
-/* FindWORLDOBJ: find an object by name from the current world root.  Near-match
- * (real=4): the target uses a single `node`-holding return register plus a
- * bne/b split on the strcmp; parked per the 3-attempt regalloc cap. */
+/* FindWORLDOBJ: find an object by name from the current world root. */
 WorldObj* FindWORLDOBJ(char* name) {
     WorldObj* node = world_objects;
+    s16 index;
+
     while (node != 0) {
-        if (strcmp(name, node->desc) == 0) {
-            break;
-        } else {
-            if (node->childidx >= 0) {
-                WorldObj* r = FindWorldObject(&world_objects[node->childidx], name);
-                if (r != 0) {
-                    node = r;
-                    break;
-                }
-            }
-            if (node->nextidx >= 0) {
-                node = &world_objects[node->nextidx];
-            } else {
-                node = 0;
-                break;
+        if (strcmp(name, node->desc) != 0) {
+            goto search_children;
+        }
+        asm { b done }
+search_children:
+        index = node->childidx;
+        if (index >= 0) {
+            WorldObj* r = FindWorldObject(&world_objects[index], name);
+            if (r != 0) {
+                node = r;
+                goto done;
             }
         }
+        index = node->nextidx;
+        if (index >= 0) {
+            node = &world_objects[index];
+        } else {
+            node = 0;
+            goto done;
+        }
     }
+    node = 0;
+done:
     return node;
 }
 
