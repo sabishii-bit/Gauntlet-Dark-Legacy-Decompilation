@@ -11,10 +11,11 @@
  * Address range 0x800DDE34..0x800DE928. Names come from the Xbox shell3D PDB
  * (MB_POLY.OBJ). NonMatching - kept for symbol mapping / documentation;
  * function order follows the DOL. The GX-submission and vertex-projection
- * bodies (DoPolyInstSub, PolyXfrmVerts, MBPolyInstUpdateTex) are documented
- * reconstructions of the observed call/flow shape, not exact math.
+ * bodies (DoPolyInstSub, PolyXfrmVerts, MBPolyInstUpdateTex) are translated;
+ * DoPolyInstSub is opcode-complete with a residual register-coloring diff.
  */
 #include "types.h"
+#include <dolphin/gx/GXVert.h>
 
 /* --- vertex / instance / header layout --- */
 typedef struct PolyVert {
@@ -24,9 +25,9 @@ typedef struct PolyVert {
     f32 sClip;        /* +0x0C projection scratch */
     u16 sx;           /* +0x10 projected screen x */
     u16 sy;           /* +0x12 projected screen y */
-    u32 sz;           /* +0x14 projected screen z / clip flag */
-    s16 u;            /* +0x18 texcoord u (fixed point) */
-    s16 v;            /* +0x1A texcoord v */
+    s32 sz;           /* +0x14 projected screen z / clip flag */
+    u16 u;            /* +0x18 texcoord u (fixed point) */
+    u16 v;            /* +0x1A texcoord v */
     u16 flags;        /* +0x1C 1 = active vertex */
     u8  _1E[0x02];
 } PolyVert;           /* 0x20 */
@@ -64,6 +65,13 @@ typedef struct PolyContext {
     PolyHeader* header;        /* +0x70 default header */
 } PolyContext;
 
+typedef struct PolyWinGlobals {
+    u8 _00[0x10];
+    u8* screen;                 /* +0x10, depth scale at +0x34 */
+    u8 _14[0x24];
+    u8* display;                /* +0x38, width/height at +0x10/+0x14 */
+} PolyWinGlobals;
+
 /* --- externs --- */
 typedef struct TexInfo {
     u8  _00[0x0A];
@@ -92,8 +100,8 @@ void fn_800C7914(void* a, void* b);
 void GXBegin(s32 prim, s32 fmt, s32 count);
 
 extern u8 gIdentityMatrix[0x40];   /* hash config for MBNewNode */
-extern void* gWinGlobals;       /* window/projection globals */
-extern PolyVert lbl_80343F5C[]; /* shared screen-vertex scratch */
+extern PolyWinGlobals* gWinGlobals; /* window/projection globals */
+extern f32* lbl_80343F5C;       /* shared screen-vertex scratch (5 floats each) */
 extern const f32 lbl_801177B8[2][4][2]; /* per-type UV template (tri/quad) */
 
 /* --- pool (real addresses in .bss/.sbss) --- */
@@ -370,10 +378,21 @@ done:
 
 /* 0x800DE52C - set GX state and stream one instance's quad into the FIFO */
 s32 DoPolyInstSub(PolyInstance* inst, s32 useScratch) {
-    PolyVert* src;
-    u8 mtx[0x30];
+    volatile u8 frameTail[16];
+    PolyWinGlobals* globals;
+    s32 texScale;
+    s32 unusedScale;
+    s32 color;
+    s32 alpha;
+    s32 red;
+    s32 green;
+    s32 blue;
+    s32 bindTexture;
     s32 i;
+    volatile u8 unused[16];
+    u8 mtx[0x30];
 
+    globals = gWinGlobals;
     if (inst->type < 3) {
         return 0;
     }
@@ -381,24 +400,58 @@ s32 DoPolyInstSub(PolyInstance* inst, s32 useScratch) {
     SetVertexFormat(0);
     SetCullMode(0);
     SetPerspectiveMode(0);
-    SetViewportHeight(0.0f);
+    SetViewportHeight(1.0f);
     PSMTXIdentity(mtx);
     GXLoadPosMtxImm(mtx, 0);
 
-    src = lbl_80343F5C;
-    if (useScratch == 0) {
+    bindTexture = useScratch;
+    useScratch = (s32)lbl_80343F5C;
+    if (bindTexture == 0) {
         pbBlitSetTexture(inst->tex);
         pbBlitSetDrawRegs(0, 0, 0);
     }
 
-    /* build clip-space verts into the shared scratch, then emit them */
-    for (i = 0; i < inst->type; i++) {
-        fn_800C7914(&src[i], gWinGlobals);
+    color = inst->color;
+    alpha = (color >> 23) & 0x1FE;
+    red = (color >> 16) & 0xFF;
+    green = (color >> 8) & 0xFF;
+    blue = color & 0xFF;
+    if (alpha > 255) {
+        alpha = 255;
     }
-    GXBegin(0xA0, 0, inst->type);
-    /* per-vertex position/colour/texcoord are written straight to the GX FIFO */
+
+    fn_800C7914(&texScale, &unusedScale);
+
     for (i = 0; i < inst->type; i++) {
-        (void)src[i];
+        PolyVert* vert = &inst->verts[i];
+        s32 depth = vert->sz;
+        if (depth <= 0) {
+            return 0;
+        }
+        ((f32*)useScratch)[i * 5 + 2] =
+            (f32)((vert->sx - 0x6C00) * 2) /
+                (f32)*(s32*)(globals->display + 0x10) -
+            1.0f;
+        ((f32*)useScratch)[i * 5 + 3] =
+            1.0f -
+            (f32)((vert->sy - 0x7200) * 2) /
+                (f32)*(s32*)(globals->display + 0x14);
+        ((f32*)useScratch)[i * 5 + 4] =
+            1.0f -
+            (f32)((u32)(*(s32*)(globals->screen + 0x34) - depth) * 2) /
+                (f32)*(s32*)(globals->screen + 0x34);
+        ((f32*)useScratch)[i * 5 + 0] =
+            ((f32)vert->u / (f32)texScale) * 0.0625f;
+        ((f32*)useScratch)[i * 5 + 1] =
+            ((f32)vert->v / (f32)texScale) * 0.0625f;
+    }
+
+    GXBegin(0xA0, 0, inst->type);
+    for (i = 0; i < inst->type; i++) {
+        f32* out = &((f32*)useScratch)[i * 5];
+        GXPosition3f32(out[2], out[3], out[4]);
+        GXColor4u8(red, green, blue, alpha);
+        GXTexCoord2f32(out[0], out[1]);
     }
     return 1;
 }
