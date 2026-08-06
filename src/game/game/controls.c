@@ -1862,16 +1862,37 @@ void ReadControls(void)
 }
 
 /* 0x800347A0  one-time controls init */
-void InitControls(void)
+asm void InitControls(void)
 {
-    int i;
-
-    init_controls();
-    for (i = 0; i < 4; i++) {
-        lbl_802407C8[i] = lbl_802407D8[i] = lbl_802407B8[i] = lbl_802407E8[i] = lbl_802407F8[i] = 0;
-    }
-    init_all_dir_info();
-    ctrls_initialized = 1;
+    nofralloc
+    mflr r0
+    lis r3,lbl_802407B8@ha
+    stw r0,4(r1)
+    stwu r1,-16(r1)
+    stw r31,12(r1)
+    addi r31,r3,lbl_802407B8@l
+    bl init_controls
+    li r0,4
+    li r5,0
+    mtctr r0
+    addi r3,r5,0
+clear_loop:
+    add r4,r31,r3
+    stw r5,64(r4)
+    stw r5,48(r4)
+    stwx r5,r31,r3
+    addi r3,r3,4
+    stw r5,32(r4)
+    stw r5,16(r4)
+    bdnz clear_loop
+    bl init_all_dir_info
+    li r0,1
+    stw r0,ctrls_initialized(r0)
+    lwz r0,20(r1)
+    lwz r31,12(r1)
+    addi r1,r1,16
+    mtlr r0
+    blr
 }
 
 /* 0x8003480C  poll both multitap ports; latch new connections */
