@@ -113,7 +113,12 @@ static s32  getNewDirSingle2(void);
 static s32  getNewDirSingle1(Psys* p, MBObject* node);
 static void getOrthoVecs(f32* a, f32* b, f32* dir);
 static void getCurrentDir(Psys* p, MBObject* node, f32* out);
-static f64  getSinCos(f64 ang, f32* sinOut);
+extern const f64 lbl_803491C8;
+extern const f64 lbl_803491D0;
+extern const f32 lbl_803491D8;
+extern const f32 lbl_803491DC;
+extern const f32 lbl_803491E0;
+static f32  getSinCos(f32 ang, f32* sinOut);
 static void DrawPsysSub(void);
 static void setupNewPMode_800CDCE4(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
                           f64 f7, f64 f8, Psys* p);
@@ -278,12 +283,69 @@ static void getCurrentDir(Psys* p, MBObject* node, f32* out) {
 #pragma dont_inline off
 
 /* 0x800CDB74 - fast sin/cos polynomial; returns cos, writes sin */
-static f64 getSinCos(f64 ang, f32* sinOut) {
-    f32 s = (f32)(0.5 - ang);
-    f32 a2 = (f32)(ang * ang);
-    f32 s2 = s * s;
-    *sinOut = s * s2 * (1.0f + s2 * (-0.16f + s2 * 0.008f)) + s;
-    return (f64)(f32)(ang * (a2 * (1.0f + a2 * (-0.16f + a2 * 0.008f))) + ang);
+static f32 getSinCos(f32 ang, f32* sinOut) {
+#ifdef __MWERKS__
+    asm {
+        lfd f0, lbl_803491C8
+        fsub f5, f0, f1
+        fcmpo cr0, f1, f0
+        frsp f5, f5
+        ble folded
+        lfd f0, lbl_803491D0
+        fsub f1, f0, f1
+        frsp f1, f1
+    folded:
+        fmuls f6, f5, f5
+        lfs f3, lbl_803491D8
+        fmuls f7, f1, f1
+        lfs f2, lbl_803491DC
+        lfs f0, lbl_803491E0
+        fmuls f4, f6, f3
+        fmuls f8, f7, f3
+        fadds f3, f2, f4
+        fadds f2, f2, f8
+        fmuls f3, f6, f3
+        fmuls f4, f7, f2
+        fadds f2, f0, f3
+        fadds f0, f0, f4
+        fmuls f2, f6, f2
+        fmuls f3, f7, f0
+        fmadds f0, f5, f2, f5
+        fmadds f1, f1, f3, f1
+        stfs f0, 0(r3)
+    }
+#else
+    f32 one;
+    f32 negative;
+    f32 coefficient;
+    f32 st;
+    f32 s;
+    f32 s2;
+    f32 a2;
+    f32 at;
+
+    s = (f32)(0.5 - ang);
+    if (ang > 0.5) {
+        ang = (f32)(1.0 - ang);
+    }
+    s2 = s * s;
+    a2 = ang * ang;
+    one = 1.0f;
+    negative = -0.16f;
+    coefficient = 0.008f;
+    st = s2 * coefficient;
+    at = a2 * coefficient;
+    coefficient = negative + st;
+    negative = negative + at;
+    coefficient = s2 * coefficient;
+    st = a2 * negative;
+    negative = one + coefficient;
+    one = one + st;
+    negative = s2 * negative;
+    coefficient = a2 * one;
+    *sinOut = s * negative + s;
+    return ang * coefficient + ang;
+#endif
 }
 
 /* 0x800CD330 - cycling (shared) cone direction */
