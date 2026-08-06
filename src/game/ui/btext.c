@@ -658,25 +658,32 @@ f32 GetScrollScale(s32 list, s32 msg)
 }
 
 /* ==== 0x8001FD9C GetStringListText ==== */
+static inline char* GetStringListTextInline(BTextPoolView* info, s32 msg,
+                                             s32 idx, u32* fontOut)
+{
+    MsgEnt* e = &info->stringList.msgs[msg];
+    s32 off;
+
+    if (idx >= e->count) {
+        return 0;
+    }
+    off = info->stringList.textOff[e->first + idx];
+    if (fontOut != 0 && e->font >= 0) {
+        *fontOut = info->stringList.fontDesc[e->font].color;
+    }
+    return (char*)(info->stringList.textData + off);
+}
+
 char* GetStringListText(s32 li, s32 sub, s32 idx, u32* fontOut)
 {
-    ListEnt* l = &gStringMsgList.lists[li];
-    MsgEnt* e;
-    s32 msg = (sub >= l->count) ? -1 : gStringMsgList.listOff[l->first + sub];
-    s32 off;
+    BTextPoolView* info = (BTextPoolView*)font_info;
+    ListEnt* l = &info->stringList.lists[li];
+    s32 msg = (sub >= l->count) ? -1 : info->stringList.listOff[l->first + sub];
 
     if (msg < 0) {
         return 0;
     }
-    e = &gStringMsgList.msgs[msg];
-    if (idx >= e->count) {
-        return 0;
-    }
-    off = gStringMsgList.textOff[e->first + idx];
-    if (fontOut != 0 && e->font >= 0) {
-        *fontOut = gStringMsgList.fontDesc[e->font].color;
-    }
-    return (char*)(gStringMsgList.textData + off);
+    return GetStringListTextInline(info, msg, idx, fontOut);
 }
 
 /* ==== 0x8001FE50 GetStringListMsg ==== */
