@@ -502,14 +502,17 @@ s32 saveGetFreeBytes(s32 port, s32 slot)
 {
     s32* p;
     u8 ok;
-    u8 unused[16]; /* matches original frame */
+    u8 unused[24]; /* matches original frame */
 
-    p = &lbl_80344A10[port];
-    p = &p[slot];
+    p = (s32*)((u8*)lbl_80344A10 + port * 4 + slot * 4);
     if (*p >= 0) {
         return *p;
     }
-    ok = (0 <= port && port <= 1);
+    if (port < 0 || port > 1) {
+        ok = 0;
+    } else {
+        ok = 1;
+    }
     if (!ok) {
         return -1;
     }
