@@ -255,21 +255,27 @@ void CreateRYPMatrix(f32* matrix, const f32* angles)
 /* 0x800BD254 */
 void CreatePYRMatrix(f32* matrix, const f32* angles)
 {
-    f32 c0 = ffcos(angles[0]);
-    f32 s0 = -ffsin(angles[0]);
-    f32 c1 = ffcos(angles[1]);
-    f32 s1 = -ffsin(angles[1]);
-    f32 c2 = ffcos(angles[2]);
-    f32 s2 = -ffsin(angles[2]);
+    f32 b, c0, s0, c1, s1, c2, s2;
 
+    c0 = ffcos(angles[0]);
+    s0 = -ffsin(angles[0]);
+    c1 = ffcos(angles[1]);
+    s1 = -ffsin(angles[1]);
+    c2 = ffcos(angles[2]);
+    s2 = -ffsin(angles[2]);
     matrix[0] = c1 * c2;
     matrix[4] = -c1 * s2;
     matrix[8] = -s1;
-    matrix[1] = -(s0 * s1) * c2 + c0 * s2;
-    matrix[5] = (s0 * s1) * s2 + c0 * c2;
+    {
+        f32 a = s0 * s1;
+
+        matrix[1] = -a * c2 + c0 * s2;
+        matrix[5] = a * s2 + c0 * c2;
+    }
     matrix[9] = -s0 * c1;
-    matrix[2] = (c0 * s1) * c2 + s0 * s2;
-    matrix[6] = (c0 * s1) * -s2 + s0 * c2;
+    b = c0 * s1;
+    matrix[2] = b * c2 + s0 * s2;
+    matrix[6] = b * -s2 + s0 * c2;
     matrix[10] = c0 * c1;
     matrix[3] = 0.0f;
     matrix[7] = 0.0f;
