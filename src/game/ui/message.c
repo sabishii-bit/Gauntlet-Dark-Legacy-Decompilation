@@ -69,7 +69,7 @@ int  StringTextHeight(float scale, int text, int param, int lines);
 int  StringTextWidth(float scale, int text, int param);
 void DrawStringTextMLines(int x, int y, int flags, int color, int lines,
                           int text, ...);
-void DrawStringTextMulti(int x, int y, int flags, int color, int lines,
+int  DrawStringTextMulti(int x, int y, int spacing, int font, int color,
                          int text);
 int  DrawStringText(int x, int y, int flags, int color, int text, int param,
                     ...);
