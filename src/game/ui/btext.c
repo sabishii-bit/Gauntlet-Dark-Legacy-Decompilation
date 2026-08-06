@@ -1271,6 +1271,7 @@ void FontInitDefault(void)
 }
 
 /* ==== 0x80020DA8 FontInit ==== */
+#pragma opt_lifetimes off
 void FontInit(void)
 {
     u32 i;
@@ -1284,6 +1285,7 @@ void FontInit(void)
     }
     gFontsInited = 1;
 }
+#pragma opt_lifetimes reset
 
 /* ==== 0x80020E5C FontEndFrame ==== */
 void FontEndFrame(void)

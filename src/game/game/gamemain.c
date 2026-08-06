@@ -470,21 +470,26 @@ void fn_800520C8(void)
 {
 }
 
-/* 0x800520CC -- reset the prefs/config block, then load prefs. */
-void fn_800520CC(void)
+/* 0x800520CC -- restore default options, then load saved preferences. */
+void default_options(void)
 {
-    gGameOptions[0] = 0;
-    gGameOptions[1] = 0;
-    gGameOptions[2] = 3;
-    gGameOptions[6] = 0;
-    gGameOptions[7] = 1;
-    gGameOptions[8] = 0;
-    gGameOptions[3] = 0;
-    gGameOptions[4] = 0;
-    gGameOptions[5] = 0;
-    gGameOptions[9] = 512;
-    gGameOptions[10] = 0;
-    gGameOptions[11] = 0;
+    s32* options;
+    s32 zero;
+
+    zero = 0;
+    options = &gGameOptions[zero];
+    options[0] = zero;
+    options[1] = zero;
+    options[2] = 3;
+    options[6] = zero;
+    options[7] = 1;
+    options[8] = zero;
+    options[3] = zero;
+    options[4] = zero;
+    options[5] = zero;
+    options[9] = 512;
+    options[10] = zero;
+    options[11] = zero;
     init_prefs();
 }
 
