@@ -301,12 +301,18 @@ s32 CameraLimitPlayerDpos(s32 player, f32* dpos, s32 arg) {
     f32 savedY = dpos[1];
 
     if (lbl_803443A8 != 0) {
-        if (!((gBossDead || gBossDying) &&
-              (gBossType == 41 || gBossType == 37 || gBossType == 36) &&
-              fn_800629B0() && lbl_803443B0 == 0)) {
-            CamLimitPlayerDpos(gGameCamera, ps, dpos, arg);
-            dpos[1] = savedY;
-        }
+        if (!(gBossDead || gBossDying)) goto limit_player;
+        if (gBossType == 41) goto check_boss_camera;
+        if (gBossType == 37) goto check_boss_camera;
+        if (gBossType != 36) goto limit_player;
+check_boss_camera:
+        if (!fn_800629B0()) goto limit_player;
+        if (lbl_803443B0 == 0) goto limit_done;
+limit_player:
+        CamLimitPlayerDpos(gGameCamera, ps, dpos, arg);
+        dpos[1] = savedY;
+limit_done:
+        ;
     } else if (lbl_80344A80 == 2) {
         ret = fn_8006DC2C(ps, dpos, arg);
     } else {
