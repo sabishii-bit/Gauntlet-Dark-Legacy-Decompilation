@@ -1276,19 +1276,24 @@ void FontInitDefault(void)
 
 /* ==== 0x80020DA8 FontInit ==== */
 #pragma opt_lifetimes off
+#pragma opt_propagation off
 void FontInit(void)
 {
     u32 i;
+    u32 modeIndex;
 
     StringInitSub(0, &gStringMsgList);
-    for (i = 0; (s32)i < 2; i++) {
-        StringInitSub(gScrollModes[i], &gScrollMsgList[i]);
+    i = 0;
+    modeIndex = i;
+    for (; (s32)i < 2; i++, modeIndex++) {
+        StringInitSub(gScrollModes[modeIndex], &gScrollMsgList[i]);
     }
     for (i = 1; i < 0xd; i++) {
         LoadFonts(i, gFontDefs8x8[i], gFontDefs[i]);
     }
     gFontsInited = 1;
 }
+#pragma opt_propagation on
 #pragma opt_lifetimes reset
 
 /* ==== 0x80020E5C FontEndFrame ==== */

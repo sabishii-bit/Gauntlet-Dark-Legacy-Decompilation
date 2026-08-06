@@ -67,14 +67,25 @@ typedef struct MBTextMsg {
 
 extern MBTextMsg lbl_8029F494[]; /* drawtext message records (44B each) */
 extern char lbl_8029E474[];      /* drawtext character buffer */
-extern s32 mbfont_space[35];     /* fallback width for a space, per font */
 
-typedef struct MBFont {
+typedef struct MBFont MBFont;
+
+/* The font-space table is the first member of the module's contiguous BSS
+ * state.  The live font-pointer table starts at +0x66DC. */
+typedef struct MBFontState {
+    s32 space[35];
+    u8 _pad008C[0x6650];
+    MBFont* fonts[35];
+} MBFontState;
+
+extern MBFontState mbfont_space;
+
+struct MBFont {
     s32 height;   /* 0x0 */
     u8* cells;    /* 0x4  maxCode+1 blit entries, 36B each */
     s32 count;    /* 0x8 */
     u32 flags;    /* 0xC  bit0 = remap punctuation/extended chars */
-} MBFont;
+};
 
 extern void FatalError(const char* msg, u32 code);
 extern void ErrorPrintf(const char* fmt, ...);
@@ -213,7 +224,7 @@ int MBFontHeight(int idx)
 /* 0x800B5B00 - pixel width of a string in the current font. */
 int MBFontStringWidth(const char* s)
 {
-    s32* space = mbfont_space;
+    MBFontState* state = &mbfont_space;
     int width = 0;
     int x;
     MBFont* font;
@@ -222,7 +233,7 @@ int MBFontStringWidth(const char* s)
     if (lbl_80344E14 < 0) {
         lbl_80344E14 = 0;
     }
-    font = *(MBFont**)((u8*)&space[lbl_80344E14] + 26332);
+    font = state->fonts[lbl_80344E14];
 
     while (*(u8*)s != 0) {
         ch = *(u8*)s;
@@ -233,8 +244,7 @@ int MBFontStringWidth(const char* s)
             }
             s++;
             x = (s32)(lbl_80344E5C *
-                      (f32)(*(MBFont**)((u8*)&space[lbl_80344E14] +
-                                       26332))->height);
+                      (f32)state->fonts[lbl_80344E14]->height);
             goto add_width;
         default:
             break;
@@ -257,7 +267,7 @@ int MBFontStringWidth(const char* s)
         mbBlitCalcX(font->cells + ch * 36, &x, 0);
         x = (s32)((f32)x * lbl_80344E5C);
         if (x == 0 && ch == ' ') {
-            x = (s32)(lbl_80344E5C * (f32)space[lbl_80344E14]);
+            x = (s32)(lbl_80344E5C * (f32)state->space[lbl_80344E14]);
         }
 
     add_width:
@@ -453,7 +463,7 @@ int MBNewFont(MBFontDef* def, int space, int nglyphs, int perRow)
     if (lbl_80344E14 < 0) {
         lbl_80344E14 = lbl_80344E10;
     }
-    mbfont_space[lbl_80344E10] = space;
+    mbfont_space.space[lbl_80344E10] = space;
     lbl_802A4AA4[lbl_80344E10] = fnt;
     lbl_80344E10 = lbl_80344E10 + 1;
     if (lbl_80344E10 >= 35) {
