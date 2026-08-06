@@ -671,12 +671,18 @@ void fn_800D9648(u32* param_1, u32* param_2) {
     fn_800D93D4(param_1, param_2[0], arg1, (char*)arg2, arg3, arg4);
 }
 
-void fn_800D967C(int param_1, int param_2) {
-    u32 arg3 = *(u32*)(param_2 + 0xc);
-    u32 arg2 = *(u32*)(param_2 + 4);
+void fn_800D967C(register int param_1, register int param_2) {
+    register u32 arg3;
+    register u32 arg2;
+    register void (*dispatch)(int, u32, u32);
 
-    (*(void (***)(int, u32, u32))(param_1 + 0x20))[3]
-        (param_1, arg2, arg3);
+    asm {
+        lwz dispatch, 32(param_1)
+        lwz arg3, 12(param_2)
+        lwz dispatch, 12(dispatch)
+        lwz arg2, 4(param_2)
+    }
+    dispatch(param_1, arg2, arg3);
 }
 
 /* allocator (AllocHiMem + ResetAllocTot/__unexpected) */
@@ -865,7 +871,22 @@ void fn_800D9C5C(int* p, int n) {
 }
 #pragma dont_inline off
 
-void fn_800D9CF4(void) {
+int* fn_800D9CF4(int* p, s16 releaseAgain) {
+    if (p != NULL) {
+        if (*p != 0) {
+            gMovieAllocCount--;
+            if (gMovieAllocCount == 0) {
+                ResetAllocTot();
+            }
+        }
+        if (releaseAgain > 0 && p != NULL) {
+            gMovieAllocCount--;
+            if (gMovieAllocCount == 0) {
+                ResetAllocTot();
+            }
+        }
+    }
+    return p;
 }
 
 #pragma dont_inline on
