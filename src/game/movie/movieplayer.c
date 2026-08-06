@@ -723,17 +723,25 @@ u32 MovieValidateFrameFormat(u32 param_1, int param_2) {
 }
 
 u32 fn_800D99AC(u32 a, int* src, u8* dst) {
-    u32 r;
-    if (dst == 0) {
+    register u32 r;
+    register u8* out = dst;
+
+    if (out == 0) {
         r = 56;
     } else {
-        int wh;
-        memcpy(dst, src, *src);
-        wh = *(int*)(dst + 4) * *(int*)(dst + 8);
-        r = 0;
-        *(u16*)(dst + 0xe) = 24;
-        *(u32*)(dst + 0x10) = 0;
-        *(int*)(dst + 0x14) = wh * 3;
+        memcpy(out, src, *src);
+        asm {
+            lwz r0,4(out)
+            li r5,24
+            lwz r6,8(out)
+            li r4,0
+            li r,0
+            mullw r0,r0,r6
+            sth r5,14(out)
+            stw r4,16(out)
+            mulli r0,r0,3
+            stw r0,20(out)
+        }
     }
     return r;
 }
