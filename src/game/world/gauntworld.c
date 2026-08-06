@@ -2211,7 +2211,7 @@ void fn_800606FC(void)
  *                    fn_8005F0F4)
  * 8005F0F4  0x0A54  fn_ : big per-object worker (fn_8005FDA8, towerAllPlayersMetBossReq,
  *                    fqdist, NormalVector2D)
- * 8005FB48  0x0260  fn_ : (fn_8002FA70, fn_8005FDA8, fqdist)
+ * 8005FB48  0x0260  fn_ : (LineCylinderCollide, fn_8005FDA8, fqdist)
  * 8005FDA8  0x01B8  fn_ : (FatalError, CTriListCollide, MulBodyVecMat4/DD00/DE80).
  *                    "COL_OBJECT Item: idx < 0"
  * 8005FF60  0x01B4  fn_ : (ErrorPrintf, FindWobjWanim).
@@ -2223,7 +2223,7 @@ void fn_800606FC(void)
  * 800606FC  0x22B4  fn_ : GIANT per-frame world update dispatcher (AudioStopAll,
  *                    ShakeCamera, TriggerCameraActivate, find_enemy_slot,
  *                    generate_enemy, fn_8005A338, fn_80060114, fn_80062A00,
- *                    fn_80062FF0, items fn_800631AC, +~40 more).
+ *                    fn_80062FF0, items place_logic12, +~40 more).
  *                    "CAN'T FIND LOOKPUT PARAM:%d".  [parked giant]
  * 800629B0  0x0050  fn_ : accessor (no calls; sNumItems/80344950).
  *                    Called by auxscreen.

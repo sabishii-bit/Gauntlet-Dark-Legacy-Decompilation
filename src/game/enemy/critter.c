@@ -145,7 +145,7 @@ extern s32   gFrameTicks;
 extern u32   lbl_80344BF8;
 extern u8    lbl_802411B0[0x540];
 extern s32   lbl_80344668;
-extern void *lbl_8034463C;
+extern void *crit_load_desc;
 extern s32  *lbl_80344640;
 extern s32   lbl_80344630;
 extern s32   lbl_80344634;
@@ -187,12 +187,12 @@ extern s32   MBSetupWad(s32 *wad, s32 base);
 extern s32   MBGetFromWad(s32 *wad, s32 key, s32 *sizeOut);
 extern u8   *sItems;
 extern void *lbl_80241020[16];
-extern s32   fn_80063D0C(void *rock);
-extern void *fn_80063C44(void *rock);
+extern s32   SafeRockActive(void *rock);
+extern void *ItemGetNode(void *rock);
 extern s32   PlayerAttacking(s32 player, s32 mode);
 extern char  lbl_8011221C[];          /* 0x8011221C critter-overflow message      */
 extern const char lbl_80112238[];
-extern f32   lbl_80127D60[12];
+extern f32   gIdentityMatrix[12];
 DECL_SECT(".sdata2") extern const char lbl_80346644[];
 extern void *gCurLevel;               /* current level record (->0xAC hp scale)   */
 extern char  lbl_8011219C[];          /* move-type lookup failure message          */
@@ -516,13 +516,13 @@ s32 SafeRockNearestTarget(s32 player)
     bestIndex = -1;
     best = lbl_803464C0;
     for (i = 0; i < lbl_80344658; i++) {
-        if (fn_80063D0C(lbl_80241020[i]) != 0) {
+        if (SafeRockActive(lbl_80241020[i]) != 0) {
             continue;
         }
         if (player < 0) {
             return i;
         }
-        node = fn_80063C44(lbl_80241020[i]);
+        node = ItemGetNode(lbl_80241020[i]);
         if (node == NULL) {
             continue;
         }
@@ -2044,7 +2044,7 @@ void CritterRotate(Critter *c, CritterMove *move)
         delta = -step;
     }
     *(f32 *)((u8 *)c + 0xFC) = current + delta;
-    CopyMat3((f32 *)lbl_80127D60, &c->mtx[0][0]);
+    CopyMat3((f32 *)gIdentityMatrix, &c->mtx[0][0]);
     YawMat3(*(f32 *)((u8 *)c + 0xFC), &c->mtx[0][0]);
 }
 /* 0x8003B1CC -- select the critter's current target/node and refresh the
@@ -3573,7 +3573,7 @@ s32 CritterLoadDone(s32 maxBytes)
 {
     u8 *resource;
 
-    resource = (u8 *)lbl_8034463C;
+    resource = (u8 *)crit_load_desc;
     if (resource == NULL) {
         return 1;
     }
@@ -3643,7 +3643,7 @@ void CritterLoadStartNext(void)
                 MBOX_BGLoadModelStart((char *)(resource + 0x10),
                                       *(s16 *)(resource + 0x22), resource);
                 lbl_80344640 = NULL;
-                lbl_8034463C = resource;
+                crit_load_desc = resource;
                 *(s16 *)(resource + 0x24) = 1;
                 return;
             }
