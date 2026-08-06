@@ -1307,7 +1307,19 @@ void __dl__FPv(void* p) {
     }
 }
 
-void dtor_800DB21C(void) {
+u32* dtor_800DB21C(u32* self, s16 deleting) {
+    u8 unused[24];
+
+    if (self != NULL) {
+        self[0] = (u32)lbl_801296A4;
+        if (deleting > 0 && self != NULL) {
+            gMovieAllocCount--;
+            if (gMovieAllocCount == 0) {
+                ResetAllocTot();
+            }
+        }
+    }
+    return self;
 }
 
 void fn_800DB29C(int p) {
