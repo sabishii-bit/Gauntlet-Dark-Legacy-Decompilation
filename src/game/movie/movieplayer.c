@@ -93,6 +93,7 @@ void fn_800DB3D4(u32* stream, s32 fd, u32 length);
 void fn_800DB29C(int stream);
 u32* fn_800DB36C(int stream);
 void fn_800D9F20(int audio);
+u32* fn_800DBF6C(u32* self, s16 deleting);
 extern u32 __cvt_fp2unsigned(f64 value);
 extern s32 sndCmd16(s32 size);
 extern s32 sndCmdA(s32 volume, s32 arg1, s32 arg2, void* callback);
@@ -1433,7 +1434,27 @@ u8 fn_800DBD00(void* self, s32 x) {
     return c;
 }
 
-void fn_800DBD30(void) {
+u32* fn_800DBD30(u32* self, s16 deleting) {
+    u8 unused[64];
+
+    if (self != NULL) {
+        self[8] = (u32)lbl_801296CC;
+        if (self[12] != 0) {
+            gMovieAllocCount--;
+            if (gMovieAllocCount == 0) {
+                ResetAllocTot();
+            }
+        }
+        lbl_803452B8--;
+        fn_800DBF6C(self, 0);
+        if (deleting > 0 && self != NULL) {
+            gMovieAllocCount--;
+            if (gMovieAllocCount == 0) {
+                ResetAllocTot();
+            }
+        }
+    }
+    return self;
 }
 
 u32* fn_800DBE04(u32* p) {
