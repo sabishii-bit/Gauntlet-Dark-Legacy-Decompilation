@@ -191,7 +191,7 @@ extern void* MBNewNode(s32 parent, void* tmpl, s32 arg2);
 extern char  lbl_80112538[];       /* audio/init message string table */
 extern s32   lbl_80344800;
 extern s32   lbl_803447C0;
-extern s32   lbl_803443E8;
+extern s32   gLanguageId;
 extern s32   lbl_80344830;
 extern s32   lbl_8034482C;
 extern s32   lbl_80344828;
@@ -976,7 +976,7 @@ void game_init_data(void)
     AudioRegisterMenu();
     lbl_80344800 = 0;
     lbl_803447C0 = 0;
-    lbl_803443E8 = 0;
+    gLanguageId = 0;
     lbl_80344830 = 99999;
     lbl_8034482C = 0;
     lbl_80344828 = 1;

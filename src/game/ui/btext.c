@@ -19,8 +19,8 @@
  * structurally complete with register/schedule residuals (opcode streams match;
  * see PARKED.txt).  DrawText and DrawStringText now reproduce the variadic
  * FP-save ABI exactly; DrawStringTextMLines is behavior-complete with only
- * loop-register residuals.  DrawStringTextMulti, the scroll wrappers, and the
- * big loader (StringInitSub) still need full reconstruction.
+ * loop-register residuals.  StringInitSub and the scroll wrappers are now
+ * complete native translations with only register/scheduling residuals.
  */
 
 /* ---- message-resource structures (SCROLLS files) ---- */
@@ -98,10 +98,12 @@ extern s32 glow_period;         /* 0x80343BD0 */
 extern s32 glow_font;           /* 0x80343BD4 */
 extern s32 gFontsInited;        /* 0x80344F5C */
 extern s32 pbLoad;
+extern s32 gLanguageId;
 extern u8 gDefaultFontData[];   /* 0x80237C60 */
 extern char* gFontDefs8x8[];    /* 0x80118AF8 */
 extern s32 gFontDefs[];         /* 0x80118B2C */
-extern char lbl_801119C4[];     /* "SCROLLS%s" format string */
+extern char sBTextStringPool[]; /* 0x801118D0 */
+extern char sScrollResourceFormat[]; /* "SCROLLS%s" */
 extern char sDrawStringTextMultiRangeError[41];
 extern char sDrawScrollTextRangeError[36];
 extern char sFontFileFormat[7]; /* "%s.fnt" */
@@ -111,6 +113,16 @@ extern const f32 sBTextOne;
 extern const f64 sBTextZero;
 extern const f64 sBTextShadowSpacing;
 extern const f64 sBTextOneDouble;
+extern char sTextAssetDirectory[5];
+extern char sFontChunkTag[8];
+extern char sTextChunkTag[8];
+extern char sTextOffsetChunkTag[8];
+extern char sStringChunkTag[8];
+extern char sListOffsetChunkTag[8];
+extern char sListChunkTag[8];
+extern char sDefinitionChunkTag[8];
+extern char sStringDefinitionChunkTag[8];
+extern char sListDefinitionChunkTag[8];
 
 /* ---- external primitives ---- */
 
@@ -129,9 +141,12 @@ extern void* strcpy(void* dst, const void* src); /* 0x800E80D4 */
 extern void* strcat(void* dst, const void* src); /* 0x800E8064 */
 extern s32 stricmp(const u8* a, const u8* b);    /* 0x800C80EC */
 extern void* AllocFile(char* directory, char* name); /* 0x800BF7F4 */
+extern u8 MBSetupWad(s32* wad, s32 base);
+extern s32 MBGetFromWad(s32* wad, s32 tag, s32* sizeOut);
 extern void ErrorPrintf(const char* fmt, ...);   /* 0x800BC6E0 */
 extern int sprintf(char* buf, const char* fmt, ...);
 extern int vsprintf(char* buf, const char* fmt, va_list ap);
+extern int strcmp(const char* lhs, const char* rhs);
 
 /* ---- helpers ---- */
 
@@ -779,7 +794,7 @@ s32 FindStringMessageSub(StrList* p, const u8* name);
 void SetScrollLevelMsgList(s32 level, const char* suffix)
 {
     u8 buf[32];
-    sprintf((char*)buf, lbl_801119C4, suffix);
+    sprintf((char*)buf, sScrollResourceFormat, suffix);
     scroll_level_msg = FindStringMessageSub(&gScrollMsgList[level], buf);
 }
 
@@ -914,11 +929,138 @@ char* GetStringTextSub(StrList* p, s32 msg, s32 idx, u32* fontOut)
     return (char*)(p->textData + off);
 }
 
-/* ==== 0x8001FFF4 StringInitSub (SCROLLS loader; skeleton) ==== */
-void* StringInitSub(s32 mode, StrList* p)
+/* ==== 0x8001FFF4 StringInitSub (SCROLLS loader) ==== */
+void StringInitSub(u32 mode, StrList* p)
 {
-    (void)mode;
-    return p;
+    char name[64];
+    char* stringPool = sBTextStringPool;
+    s32 textSize;
+    s32 textOffsetCount;
+    s32 listOffsetCount;
+    s32 definitionSize;
+    s32 offset;
+    s32 i;
+    u32 font;
+    u8 swapped;
+    u8 swapScratch[112];
+    u8 unused[112];
+
+#define BTEXT_TAG(tag)                                                        \
+    (((s32)(s8)(tag)[0] << 24) | ((s32)(s8)(tag)[1] << 16) |                 \
+     ((s32)(s8)(tag)[2] << 8) | (s32)(s8)(tag)[3])
+
+#define SWAP_BTEXT_WORD_AT(value, slot)                                       \
+    do {                                                                      \
+        *(u32*)(swapScratch + (slot)) = (value);                              \
+        swapScratch[(slot) + 4] = swapScratch[(slot) + 3];                    \
+        swapScratch[(slot) + 5] = swapScratch[(slot) + 2];                    \
+        swapScratch[(slot) + 6] = swapScratch[(slot) + 1];                    \
+        swapScratch[(slot) + 7] = swapScratch[(slot)];                        \
+        (value) = *(u32*)(swapScratch + (slot) + 4);                           \
+    } while (0)
+
+#define SWAP_BTEXT_FLOAT_AT(value, sourceSlot, resultSlot, swapSlot)           \
+    do {                                                                      \
+        *(f32*)(swapScratch + (sourceSlot)) = (value);                        \
+        *(u32*)(swapScratch + (swapSlot)) =                                   \
+            *(u32*)(swapScratch + (sourceSlot));                              \
+        swapScratch[(swapSlot) + 4] = swapScratch[(swapSlot) + 3];            \
+        swapScratch[(swapSlot) + 5] = swapScratch[(swapSlot) + 2];            \
+        swapScratch[(swapSlot) + 6] = swapScratch[(swapSlot) + 1];            \
+        swapScratch[(swapSlot) + 7] = swapScratch[(swapSlot)];                \
+        *(u32*)(swapScratch + (resultSlot)) =                                 \
+            *(u32*)(swapScratch + (swapSlot) + 4);                            \
+        (value) = *(f32*)(swapScratch + (resultSlot));                        \
+    } while (0)
+
+    if (mode != 0) {
+        if (gLanguageId == 1) {
+            sprintf(name, stringPool + 0x100, mode);
+        } else {
+            sprintf(name, stringPool + 0x10C, mode);
+        }
+    } else if (gLanguageId == 1) {
+        strcpy(name, stringPool + 0x118);
+    } else {
+        strcpy(name, stringPool + 0x128);
+    }
+
+    swapped = MBSetupWad((s32*)p, (s32)AllocFile(sTextAssetDirectory, name));
+    p->fontDesc = (FontDesc*)MBGetFromWad((s32*)p, BTEXT_TAG(sFontChunkTag),
+                                          &p->nFont);
+    p->textData = (u8*)MBGetFromWad((s32*)p, BTEXT_TAG(sTextChunkTag),
+                                    &textSize);
+    p->textOff = (s32*)MBGetFromWad((s32*)p, BTEXT_TAG(sTextOffsetChunkTag),
+                                    &textOffsetCount);
+    p->msgs = (MsgEnt*)MBGetFromWad((s32*)p, BTEXT_TAG(sStringChunkTag),
+                                    &p->nMsg);
+    p->listOff = (s32*)MBGetFromWad((s32*)p, BTEXT_TAG(sListOffsetChunkTag),
+                                    &listOffsetCount);
+    p->lists = (ListEnt*)MBGetFromWad((s32*)p, BTEXT_TAG(sListChunkTag),
+                                      &p->nList);
+    p->nameData = (u8*)MBGetFromWad((s32*)p, BTEXT_TAG(sDefinitionChunkTag),
+                                    &definitionSize);
+    p->nameOff = (s32*)MBGetFromWad((s32*)p,
+                                     BTEXT_TAG(sStringDefinitionChunkTag),
+                                     &p->nName);
+    p->ldef = (u8*)MBGetFromWad((s32*)p,
+                                 BTEXT_TAG(sListDefinitionChunkTag),
+                                 &p->nLdef);
+
+    if (swapped != 0) {
+        textOffsetCount = ((s32)p->msgs - (s32)p->textOff) / 4;
+        i = 0;
+        offset = 0;
+        listOffsetCount = ((s32)p->lists - (s32)p->listOff) / 4;
+
+        while (i < p->nFont) {
+            FontDesc* desc = (FontDesc*)((u8*)p->fontDesc + offset);
+
+            SWAP_BTEXT_WORD_AT(desc->color, 104);
+            i++;
+            offset += 0x14;
+        }
+        for (i = 0; i < textOffsetCount; i++) {
+            SWAP_BTEXT_WORD_AT(p->textOff[i], 96);
+        }
+        for (i = 0; i < p->nMsg; i++) {
+            MsgEnt* entry = &p->msgs[i];
+            SWAP_BTEXT_WORD_AT(entry->count, 88);
+            SWAP_BTEXT_WORD_AT(entry->first, 80);
+            SWAP_BTEXT_WORD_AT(entry->font, 72);
+            SWAP_BTEXT_FLOAT_AT(entry->scale, 64, 68, 8);
+            SWAP_BTEXT_FLOAT_AT(entry->shScale, 56, 60, 0);
+        }
+        for (i = 0; i < listOffsetCount; i++) {
+            SWAP_BTEXT_WORD_AT(p->listOff[i], 48);
+        }
+        for (i = 0; i < p->nList; i++) {
+            ListEnt* entry = &p->lists[i];
+            SWAP_BTEXT_WORD_AT(entry->count, 40);
+            SWAP_BTEXT_WORD_AT(entry->first, 32);
+        }
+        for (i = 0; i < p->nName; i++) {
+            SWAP_BTEXT_WORD_AT(p->nameOff[i], 24);
+        }
+        for (i = 0; i < p->nLdef; i++) {
+            SWAP_BTEXT_WORD_AT(((u32*)p->ldef)[i], 16);
+        }
+    }
+
+    for (i = 0; i < p->nFont; i++) {
+        p->fontDesc[i].color = 0;
+        for (font = 0; font < 13; font++) {
+            if (strcmp((char*)&p->fontDesc[i],
+                       gFontDefs8x8[font]) == 0) {
+                p->fontDesc[i].color = font;
+                break;
+            }
+        }
+    }
+
+#undef SWAP_BTEXT_FLOAT_AT
+#undef SWAP_BTEXT_WORD_AT
+#undef BTEXT_TAG
 }
 
 /* ==== 0x80020764 TextHeightMLines ==== */
@@ -1128,13 +1270,13 @@ void FontInitDefault(void)
     LoadFonts(0, gFontDefs8x8[0], gFontDefs[0]);
 }
 
-/* ==== 0x80020DA8 FontInit (skeleton) ==== */
+/* ==== 0x80020DA8 FontInit ==== */
 void FontInit(void)
 {
-    s32 i;
+    u32 i;
 
     StringInitSub(0, &gStringMsgList);
-    for (i = 0; i < 2; i++) {
+    for (i = 0; (s32)i < 2; i++) {
         StringInitSub(gScrollModes[i], &gScrollMsgList[i]);
     }
     for (i = 1; i < 0xd; i++) {
