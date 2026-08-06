@@ -40,11 +40,135 @@ extern s32 MLMReadFile();
 extern void FatalErrorf(const char* fmt, ...);
 extern void ErrorPrintf(const char* fmt, ...);
 extern void* AllocMem();
+extern u32 gFrameTicks;
+extern s32 lbl_80343DB0;
+extern void GetWorldMat(void* node, f32* matrix, void* offset);
+extern void* MBRemoveNode(void* node, s32 mode);
+extern void MBTreeSetAlpha(void* node, s32 alpha, s32 mode);
+extern void* MBNewObject(s32 object, f32* matrix, void* parent, u32 flags);
 void fn_8008A678();
 
 #define STUB(address, name) void name(void) {}
 
-STUB(0x80089120, PlayerDoWeapTrail)
+typedef struct PlayerTrailState {
+    u8 _pad000[0x74];
+    void* activeNode;
+    u8 _pad078[0x668];
+    void* worldNode;
+    u8 _pad6E4[0x110];
+    s32 objectGroup;
+    u8 _pad7F8[8];
+    s32 lastTrail;
+    s32 trailActive;
+    void* trails[8];
+} PlayerTrailState;
+
+/* Fade the player's existing weapon-trail nodes, recycle the brightest slot,
+ * and keep a fresh trail node at the weapon's current world transform. */
+void PlayerDoWeapTrail(PlayerTrailState* player)
+{
+    f32 matrix[16];
+    u8 unused[12];
+    s32 maximumAlpha = 0;
+    s32 maximumIndex = 0;
+    s32 minimumAlpha = 255;
+    s32 minimumIndex = 0;
+    s32 lastIndex = player->lastTrail;
+    s32 index;
+    s32 offset;
+    s32 alpha;
+    s32 chosenIndex;
+    void** slot;
+    void* node;
+    s32 object;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+
+    if (player->activeNode == NULL) {
+        goto done;
+    }
+    if (gFrameTicks == 0) {
+        asm { b done }
+    }
+
+ticks_active:
+    if (lastIndex >= 0 || player->trailActive != 0) {
+                index = 0;
+                offset = 0;
+                while (index <= lastIndex) {
+                    slot = (void**)((u8*)player + offset + 0x808);
+                    node = *slot;
+                    if (node != NULL) {
+                        if ((*(u32*)((u8*)node + 0x60) & 0x200) != 0) {
+                            alpha = 255 - *(u8*)((u8*)node + 0x53);
+                        } else {
+                            alpha = 0;
+                        }
+                        alpha += lbl_80343DB0 * gFrameTicks;
+                        if (alpha >= 255) {
+                            alpha = 255;
+                            *slot = MBRemoveNode(node, 1);
+                        }
+                        MBTreeSetAlpha(*slot, alpha, 1);
+                    } else {
+                        alpha = 255;
+                    }
+                    if (alpha > maximumAlpha) {
+                        maximumAlpha = alpha;
+                        maximumIndex = index;
+                    }
+                    if (alpha < minimumAlpha) {
+                        minimumAlpha = alpha;
+                        minimumIndex = index;
+                    }
+                    index++;
+                    offset += 4;
+                }
+
+                offset = lastIndex * 4;
+                while (lastIndex >= 0 &&
+                       *(void**)((u8*)player + offset + 0x808) == NULL) {
+                    lastIndex--;
+                    offset -= 4;
+                }
+                player->lastTrail = lastIndex;
+
+                if (player->trailActive != 0) {
+                    if (maximumIndex <= lastIndex && lastIndex < 7) {
+                        chosenIndex = lastIndex + 1;
+                    } else {
+                        chosenIndex = maximumIndex;
+                    }
+                    GetWorldMat(player->worldNode, matrix, NULL);
+                    if (minimumIndex <= lastIndex) {
+                        node = player->trails[minimumIndex];
+                        if (node != NULL) {
+                            dx = *(f32*)((u8*)node + 0x30) - matrix[12];
+                            dy = *(f32*)((u8*)node + 0x34) - matrix[13];
+                            dz = *(f32*)((u8*)node + 0x38) - matrix[14];
+                            if ((f64)(dx * dx + dy * dy + dz * dz) < 0.01) {
+                                return;
+                            }
+                        }
+                    }
+
+                    node = player->worldNode;
+                    slot = (void**)((u8*)player + chosenIndex * 4);
+                    object = (*(u32*)((u8*)node + 0x6C) & 0xFFFF) |
+                             (player->objectGroup << 16);
+                    if (*(slot += 0x202) != NULL) {
+                        MBRemoveNode(*slot, 1);
+                    }
+                    *slot = MBNewObject(object, matrix, NULL, 0x800);
+                    if (chosenIndex > player->lastTrail) {
+                        player->lastTrail = chosenIndex;
+                    }
+                }
+    }
+done:
+    ;
+}
 STUB(0x80089350, fn_80089350)
 STUB(0x800898DC, fn_800898DC)
 STUB(0x80089EA8, fn_80089EA8)
