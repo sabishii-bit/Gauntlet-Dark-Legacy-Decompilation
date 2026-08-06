@@ -753,6 +753,7 @@ void msgInit(void)
 }
 
 #pragma opt_propagation off
+#pragma opt_lifetimes off
 /* msgWidth */
 int msgWidth(int p0, int idx)
 {
@@ -766,7 +767,7 @@ int msgWidth(int p0, int idx)
         p0 = gCurWorld;
         b = StringTextWidth(1.0f, 2, p0);
         c = a + 12;
-        c = c + b;
+        c = b + c;
         if (gLanguageId == 1) {
             c += 20;
         }
@@ -775,20 +776,24 @@ int msgWidth(int p0, int idx)
         }
     } else if (idx == 101) {
         if (gLanguageId == 1) {
+            s32 sum;
+            s32 branchWidth;
+
             fc = gPlayers[gCurWorld].character;
             a = StringTextWidth(1.0f, 2, gCurWorld);
             b = StringTextWidth(1.0f, 3, fc);
-            c = StringTextWidth(1.0f, 24, 1);
-            p0 = a + b;
-            c = p0 + c;
-            c += 20;
-            if (c > w) {
-                w = c;
+            branchWidth = StringTextWidth(1.0f, 24, 1);
+            sum = a + b;
+            branchWidth = sum + branchWidth;
+            branchWidth += 20;
+            if (branchWidth > w) {
+                w = branchWidth;
             }
         }
     }
     return w;
 }
+#pragma opt_lifetimes reset
 #pragma opt_propagation reset
 
 /* msgWorldFlags */
