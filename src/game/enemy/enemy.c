@@ -5115,9 +5115,12 @@ extern f32 lbl_803468A0;
 extern f32 lbl_803468A4;
 
 #pragma dont_inline on
+#pragma opt_propagation off
+#pragma opt_common_subs off
 void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm)
 {
     u32 flags;
+    u32 damageType;
     f32 dir[3];
 
     flags = WorldObjGetAllFlags(wobj);
@@ -5136,7 +5139,8 @@ void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm)
     dir[1] = lbl_80346820;
     dir[2] = oldpos[2] - hitnrm[2];
     NormalVector2D(dir);
-    switch (flags & 0xF0000) {
+    damageType = flags & 0xF0000;
+    switch (damageType) {
     case 0x10000:
         damage_enemy(e, lbl_803468A0, -1, 0, (s32)hitnrm, (s32)dir, 1);
         break;
@@ -5152,6 +5156,8 @@ void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm)
         break;
     }
 }
+#pragma opt_propagation reset
+#pragma opt_common_subs reset
 #pragma dont_inline off
 
 /* 0x8004CE38 - pick turn direction: which of +/-step headings nears the player */
