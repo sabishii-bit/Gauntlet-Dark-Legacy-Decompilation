@@ -363,21 +363,19 @@ s32 vmu_directory_exists(void)
     s32* p = &lbl_80344A14;
     s32 present;
 
-    if (state == -1) {
-        return result;
+    if (state != -1) {
+        present = *p;
+        if (present == 1) {
+            result = (state == 3) ? 1 : -1;
+        } else if (result == 0) {
+            if (present == 1) {
+                result = -2;
+            } else {
+                result = -1;
+            }
+        }
     }
-    present = *p;
-    if (present == 1) {
-        result = (state == 3) ? 1 : -1;
-        return result;
-    }
-    if (result != 0) {
-        return result;
-    }
-    if (present == 1) {
-        return -2;
-    }
-    return -1;
+    return result;
 }
 
 /* serve_memcard - per-frame service tick (60-frame wrap counter) */
