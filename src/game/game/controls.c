@@ -2059,7 +2059,7 @@ f32 fn_80034C88(f32 x)
         y = 0.5 * y * (3.0 - y * y * x);
         y = 0.5 * y * (3.0 - y * y * x);
         result = (f32)(x * (0.5 * y * (3.0 - y * y * x)));
-        return result;
+        x = result;
     }
     return x;
 }
