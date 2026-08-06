@@ -422,13 +422,15 @@ void fn_800C7948(void) {
 
 /* Initialise the texture subsystem: install the default context + defaults,
  * init the TLUT regions, and reset the object registers. */
-void fn_800C7974(void) {
-    gWinGlobals->cur2 = (PbTexCtx*)lbl_802C7A08;
-    gWinGlobals->cur2->unk2b0 = -1;
-    gWinGlobals->cur2->unk2b4 = 0;
-    gWinGlobals->cur2->unk2b8 = 0;
-    gWinGlobals->cur2->unk2bc = 5;
-    gWinGlobals->cur2->unk2c0 = 1;
+void pbInitTexture(void) {
+    PbTexMgr* g = gWinGlobals;
+
+    g->cur2 = (PbTexCtx*)lbl_802C7A08;
+    g->cur2->unk2b0 = -1;
+    g->cur2->unk2b4 = 0;
+    g->cur2->unk2b8 = 0;
+    g->cur2->unk2bc = 5;
+    g->cur2->unk2c0 = 1;
     pbInitTlutRegions();
     fn_800C6AB4(0);
 }

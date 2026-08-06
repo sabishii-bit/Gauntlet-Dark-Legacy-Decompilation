@@ -78,7 +78,7 @@ extern void fn_800C69D4(void);
 extern void fn_800C69E4(void);
 extern void fn_800C6A00(void);
 extern void fn_800C7948(void);
-extern void fn_800C7974(void);
+extern void pbInitTexture(void);
 
 void pbSetupPBGPtrs(void);
 void pbCloseGlobal(void);
@@ -169,7 +169,7 @@ void pbInitGlobal(void)
     fn_800C6A00();
     fn_800C0F90();
     fn_800C33EC();
-    fn_800C7974();
+    pbInitTexture();
     pbSetDefaultWindow();
     g->status = 0x3FFFF;
     if (g->status != 0x3FFFF) {

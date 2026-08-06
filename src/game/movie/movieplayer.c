@@ -177,8 +177,16 @@ void fn_800D86C8(u32 param_1, u8* param_2, int param_3) {
     } while (cnt != 0);
 }
 
-/* PARKED: C++ throw() landing-pad (bl __unexpected) - unreproducible in .c compile */
-void fn_800D8784(void) {
+/* Release one movie allocation and clear the owning slot. */
+s32 fn_800D8784(u32* state) {
+    if (state[6] != 0) {
+        gMovieAllocCount--;
+        if (gMovieAllocCount == 0) {
+            ResetAllocTot();
+        }
+    }
+    state[6] = 0;
+    return 0;
 }
 
 /* VQ texture/tile decode into a GX tex obj (ReadU16LE/ReadF32LE, DCFlush/Invalidate, GXInvalidateTexAll) */
@@ -664,8 +672,11 @@ void fn_800D9648(u32* param_1, u32* param_2) {
 }
 
 void fn_800D967C(int param_1, int param_2) {
-    (**(void(***)(int, u32, u32))(*(int*)(param_1 + 0x20) + 0xc))
-        (param_1, *(u32*)(param_2 + 4), *(u32*)(param_2 + 0xc));
+    u32 arg3 = *(u32*)(param_2 + 0xc);
+    u32 arg2 = *(u32*)(param_2 + 4);
+
+    (*(void (***)(int, u32, u32))(param_1 + 0x20))[3]
+        (param_1, arg2, arg3);
 }
 
 /* allocator (AllocHiMem + ResetAllocTot/__unexpected) */
@@ -1207,14 +1218,16 @@ u32 fn_800DACD8(int param_1, u8* param_2) {
 void fn_800DB008(void) {
 }
 
-u32* fn_800DB0F8(u32* p) {
-    p[0] = (u32)lbl_801296A4;
-    p[0] = (u32)lbl_8012968C;
-    fn_800DBC64(p + 8);
-    fn_800DBE04(p + 0x54);
-    p[7] = 0;
-    p[100] = 0;
-    return p;
+u32* fn_800DB0F8(u32* volatile p) {
+    u32* self = p;
+
+    self[0] = (u32)lbl_801296A4;
+    self[0] = (u32)lbl_8012968C;
+    fn_800DBC64(self + 8);
+    fn_800DBE04(self + 0x54);
+    self[7] = 0;
+    self[100] = 0;
+    return self;
 }
 
 /* operator delete[] (weak, emitted into this TU) */
@@ -1425,21 +1438,34 @@ void fn_800DBF6C(void) {
 }
 
 /* 0x800DC034 init the DText debug-overlay 256-entry colour ramp (gDTextColorRamp/gDTextBuf) */
+typedef struct DTextRampEntry {
+    u8 _pad[768];
+    u8 value;
+} DTextRampEntry;
+
+#pragma opt_propagation off
 u32* DTextInitColorRamp(u32* p) {
+    DTextRampEntry* ramp;
+
     p[8] = (u32)lbl_801296F0;
+    ramp = (DTextRampEntry*)gDTextColorRamp;
     if (gDTextInitCount == 0) {
         int i;
-        int val;
-        memset(gDTextColorRamp, 0, 256);
-        memset(gDTextColorRamp + 512, 255, 256);
+        DTextRampEntry* entry;
+        int divisor;
+        memset(ramp, 0, 256);
+        memset((u8*)ramp + 512, 255, 256);
         for (i = 0; i < 256; i++) {
             gDTextBuf[i] = i;
         }
-        for (i = 0, val = 0; i < 32; i++, val += 255) {
-            gDTextColorRamp[768 + i] = (val + 16) / 31;
+        divisor = 31;
+        for (i = 0; i < 32; i++) {
+            entry = (DTextRampEntry*)((u8*)ramp + i);
+            entry->value = (i * 255 + 16) / divisor;
         }
     }
     gDTextInitCount++;
     p[6] = 0;
     return p;
 }
+#pragma opt_propagation reset

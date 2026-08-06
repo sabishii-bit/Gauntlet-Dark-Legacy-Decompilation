@@ -4226,4 +4226,3 @@ void CritterInitHeader(void *hdr, void *file)
         }
     }
 }
-
