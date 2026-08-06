@@ -36,19 +36,32 @@ extern void mat44Mult__FR5mat44R5mat44R5mat44(f32* dst, f32* lhs, f32* rhs);
 extern void __as__5mat44FRC5mat44(f32* dst, const f32* src);
 extern const f32 gIdentityMatrix[];
 extern const f32 gMlFmathZero;
+extern const f64 lbl_80348DA0;
+extern const f64 lbl_80348DB0;
+extern const f64 lbl_80348DB8;
+extern const f64 lbl_80348DC0;
+extern const f64 lbl_80348DC8;
+extern const f64 lbl_80348DD0;
+extern const f64 lbl_80348DD8;
+extern const f64 lbl_80348DE0;
+extern const f64 lbl_80348DE8;
+extern const f64 lbl_80348DF0;
+extern const f64 lbl_80348DF8;
 
 /* 0x800BCAAC - piecewise square-root approximation */
 f32 smallsqrt(f32 value)
 {
-    if (value <= 0.0001)
-        return 0.0f;
-    if (value > 0.5)
-        return (f32)(0.5858 * (value - 0.5) + 0.7071);
-    if (value > 0.25)
-        return (f32)(0.8284 * value + 0.2929);
-    if (value <= 0.125)
-        return (f32)(2.8284 * value);
-    return (f32)(1.1716 * value + 0.2071);
+    if (value <= lbl_80348DA0)
+        return gMlFmathZero;
+    if (value <= lbl_80348DB0) {
+        if (value <= lbl_80348DB8) {
+            if (value <= lbl_80348DC0)
+                return (f32)(lbl_80348DC8 * value);
+            return (f32)(lbl_80348DD8 * value + lbl_80348DD0);
+        }
+        return (f32)(lbl_80348DE8 * value + lbl_80348DE0);
+    }
+    return (f32)(lbl_80348DF8 * (value - lbl_80348DB0) + lbl_80348DF0);
 }
 
 /* 0x800BCB44 - fast two-dimensional distance approximation */
