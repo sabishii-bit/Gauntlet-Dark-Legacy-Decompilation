@@ -1493,7 +1493,6 @@ void MBInitPsys(void) {
     u8* m = pi + 64;
     s32 size;
     s32* q;
-    s32 n;
 
     *(s32*)(pi + 68) = 0;
     *(s32*)(pi + 64) = 0;
@@ -1515,7 +1514,8 @@ void MBInitPsys(void) {
     *(s32*)(pi + 132) = *(s32*)(pi + 120);
     *(s32*)(pi + 124) = *(s32*)(pi + 120);
     *(s32*)(pi + 128) = *(s32*)(pi + 120);
-    q = *(s32* volatile*)((u32)pi + 132);
+    q = (s32*)(pi + 132);
+    q = *(s32**)q;
     q[0] = *psize;
     q[1] = 0;
     q[2] = 0;
@@ -1523,10 +1523,10 @@ void MBInitPsys(void) {
     if (*(s32*)(m + 72) == 0) {
         *(s32*)(m + 72) = 1023;
     }
-    n = *(s32*)(m + 72);
-    *(s32*)(m + 76) = (s32)AllocMem(n * 12);
-    *(s32*)(m + 80) = (s32)AllocMem(n);
-    memset(*(void**)(m + 80), 0, n);
+    size = *(s32*)(m + 72);
+    *(s32*)(m + 76) = (s32)AllocMem(size * 12);
+    *(s32*)(m + 80) = (s32)AllocMem(size);
+    memset(*(void**)(m + 80), 0, size);
     initPresetList();
 }
 #pragma dont_inline off
