@@ -641,13 +641,13 @@ void DrawScrollListText(s32 list, s32 x, s32 y, s32 spacing, s32 font,
                         u32 color, s32 subList, s32 idx, s32 msgIdx)
 {
     BTextPoolView* info = (BTextPoolView*)font_info;
-    StrList* p = &info->stringList;
+    StrList* p = &gStringMsgList;
     ListEnt* sub;
     s32 msg;
     s32 resolved;
 
     if (list >= 0) {
-        p = &info->scrollLists[list];
+        p = &gScrollMsgList[list];
     }
     sub = &p->lists[subList];
     if (idx >= sub->count) {
