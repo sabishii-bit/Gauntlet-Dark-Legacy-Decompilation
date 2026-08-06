@@ -7,7 +7,7 @@
  *
  * Status: the lookup/teardown/pool families are translated, including the
  * player-model match wrapper at fn_80011BBC.  The animation-evaluation chain
- * (fn_8001101C..fn_80011334, fn_80012F9C, AtreeNodeInit) and the two
+ * (fn_8001101C..fn_80011134, fn_80012F9C, AtreeNodeInit) and the two
  * construction giants (fn_80011DCC, fn_8001267C) carry the demo float-ABI
  * passthrough and remain documented stubs pending a dedicated pass.
  *
@@ -141,11 +141,16 @@ extern s32 MBOX_ReallyFindObject(const char* name, s32 arg1, s32 arg2,
                                 s32 create);
 extern void* MBNewObject(s32 object, s32 arg1, void* parent, s32 arg3);
 extern void MBTreeSetFlags(void* object, u32 flags, s32 recurse);
+extern void MBTreeClearFlags(void* object, u32 flags, s32 recurse);
 extern void InitAnimData(u32* data, u32 frameData);
 extern void* AudioSetListenerPos(s32* object, s32 frameData, f32* params);
 extern s32 AnimateTreeFrame(f32 time, animinfo* info, s32 seq, s32 lo, s32 hi);
 extern void DoTexModSeqSub(void* context, TEXMOD* texmod, s32 frame);
+extern void DoObjAnimation(void* animation, s32 object, s32 sequence, s32 frame);
+extern u32 DoAnimation(s32* animation, animinfo* info, f32* matrix,
+                       s32* rotation, f32* position);
 extern const f32 lbl_80345848;
+extern const f64 sAtreeFrameRoundBias;
 
 /* intra-TU forward declarations (address-order names retained) */
 anode* AtreeNodeLastSibling(anode* node);
@@ -156,7 +161,7 @@ void AtreeRemoveNodeSub(anode* node);
 anode* AtreeRemoveNode(anode* node, int keep, anode* root);
 void* fn_80012F9C();
 void fn_80011134(f32 frame, void* node, int a, int b, int c, int d);
-void fn_80011334(anode* node, animinfo* info, s32 recurse);
+void AnimateNode(anode* node, animinfo* info, s32 recurse);
 animdata* AnimDataNodeNew(void);
 
 /* ================= file-scope state ================= */
@@ -429,7 +434,7 @@ s32 fn_8001101C(atree* tree, s32 sequence, s32 frame, s32 recurse)
                 offset += sizeof(TEXMOD);
             }
         }
-        fn_80011334(root, info, recurse);
+        AnimateNode(root, info, recurse);
     }
     return result;
 }
@@ -445,9 +450,57 @@ void AnimateATree(void* node, int a, int c)
  * seq, recurses fn_80011334).  DEFERRED -- demo float-ABI. */
 void fn_80011134(f32 frame, void* node, int a, int b, int c, int d) {}
 
-/* fn_80011334: recursive animation-tree walk/render (DoObjAnimation,
- * MBTreeSet/ClearFlags, DoAnimation).  DEFERRED -- demo float-ABI. */
-void fn_80011334(anode* node, animinfo* info, s32 recurse) {}
+/* AnimateNode: recursively evaluate an animation node and all descendants. */
+void AnimateNode(anode* node, animinfo* info, s32 recurse)
+{
+    s32 frame;
+    u32 flags;
+
+    if ((*(s16*)((u8*)info->seqheader + info->animseq * 0x30 + 0x2A) & 1) != 0) {
+        frame = info->numframes - (s32)(sAtreeFrameRoundBias + info->frame) - 1;
+    } else {
+        frame = (s32)(sAtreeFrameRoundBias + info->frame);
+    }
+
+    for (; node != NULL; node = node->next) {
+        switch (node->type) {
+        case 1:
+            if (recurse != 0) {
+                flags = DoAnimation(node->anim, info, node->obj,
+                                    (s32*)((u8*)node->obj + 0x40), &node->x);
+            } else {
+                flags = DoAnimation(node->anim, info, NULL, NULL, NULL);
+            }
+            if ((flags & 0x700) != 0) {
+                MBTreeSetFlags(node->obj, 8, 0);
+            } else {
+                MBTreeClearFlags(node->obj, 8, 0);
+            }
+            break;
+        case 2:
+            DoObjAnimation(node->anim, (s32)node->obj, info->animseq, frame);
+            break;
+        case 3:
+        {
+            TEXMOD* texmod = node->anim;
+            DoTexModSeqSub(node->obj, texmod, frame);
+            break;
+        }
+        case 4:
+            if ((info->flags & 4) != 0) {
+                if (info->animseq == 0) {
+                    MBTreeSetFlags(node->obj, 0x200000, 1);
+                } else {
+                    MBTreeClearFlags(node->obj, 0x200000, 1);
+                }
+            }
+            break;
+        }
+        if (node->child != NULL) {
+            AnimateNode(node->child, info, recurse);
+        }
+    }
+}
 
 /* ---------------- tree traversal / teardown ---------------- */
 
