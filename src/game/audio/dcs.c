@@ -987,8 +987,8 @@ s32 dcsSampleUpload(void* state, u32 uploadArg) {
 
 /* 0x800D374C  alloc ARAM + ARQ upload */
 s32 dcsSampleAllocUpload(void* sample, s32 arg) {
-    s32 found = 0;
     s32 channel;
+    s32 found = 0;
     u32* p = (u32*)sample;
     u32* puVar8 = p + 4;
 
