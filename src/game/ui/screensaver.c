@@ -99,9 +99,10 @@ extern int gFireScrollMaskFrame;
 extern int gFireScrollTicks;
 extern int lbl_80344A44;        /* inventory-panels-built flag */
 extern int gClockStepTicks;     /* frame-time delta */
+extern s64 gControllerButtons;
 extern u32 sFlags;              /* sFlags global mode flags */
-extern u32 lbl_80240FB0;        /* pad state A */
-extern u32 lbl_80240FC0;        /* pad state B */
+extern u32 lbl_80240FB0[4];     /* pad state A */
+extern u32 lbl_80240FC0[4];     /* pad state B */
 extern void* gDiag_DE8;
 extern s32 gFireScrollVariant;
 extern char* lbl_8011D748[];
@@ -532,38 +533,44 @@ void EndFireScroll(void)
  * is still growing (progress < 0x15), 0 once it finishes (and tears the
  * blits down via EndFireScroll).
  */
+#pragma opt_propagation off
 int ServeFireScroll(void)
 {
     int t;
     u32 pos;
+    u8 unused[8];
 
     if (gFireScrollCircleBlits[0] == 0) {
         return 0;
     }
 
-    if ((sFlags & 8) == 0) {
+    if ((gControllerButtons & 8) != 0) {
+        if ((lbl_80240FB0[0] & 0x2000000) ||
+            (lbl_80240FC0[0] & 0x1000000)) {
+            gFireScrollTicks += 2;
+        }
+    } else {
         gFireScrollTicks += gClockStepTicks;
-    } else if ((lbl_80240FB0 & 0x2000000) || (lbl_80240FC0 & 0x1000000)) {
-        gFireScrollTicks += 2;
     }
 
     t = gFireScrollTicks >> 1;
-    if (t < 0x15) {
-        pos = gFireScrollCircleFrame + t;
-        mbInitBlitEntry(gFireScrollCircleBlits[0], pos, 0);
-        if (gFireScrollCircleBlits[1]) { mbInitBlitEntry(gFireScrollCircleBlits[1], pos, 0); }
-        pos = gFireScrollMaskFrame + t;
-        mbInitBlitEntry(gFireScrollMaskBlits[0], pos, 0);
-        if (gFireScrollMaskBlits[1]) { mbInitBlitEntry(gFireScrollMaskBlits[1], pos, 0); }
-        if ((sFlags & 8) == 0) {
-            ClearAllPlayerControls(2);
-        }
-        return 1;
+    if (t >= 0x15) {
+        EndFireScroll();
+        return 0;
     }
 
-    EndFireScroll();
-    return 0;
+    pos = gFireScrollCircleFrame + t;
+    mbInitBlitEntry(gFireScrollCircleBlits[0], pos, 0);
+    if (gFireScrollCircleBlits[1]) { mbInitBlitEntry(gFireScrollCircleBlits[1], pos, 0); }
+    pos = gFireScrollMaskFrame + t;
+    mbInitBlitEntry(gFireScrollMaskBlits[0], pos, 0);
+    if (gFireScrollMaskBlits[1]) { mbInitBlitEntry(gFireScrollMaskBlits[1], pos, 0); }
+    if ((gControllerButtons & 8) == 0) {
+        ClearAllPlayerControls(2);
+    }
+    return 1;
 }
+#pragma opt_propagation reset
 
 /* ---- transition-flag accessors ---- */
 
