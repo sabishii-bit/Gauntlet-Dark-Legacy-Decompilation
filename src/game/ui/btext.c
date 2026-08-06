@@ -98,10 +98,12 @@ extern s32 glow_period;         /* 0x80343BD0 */
 extern s32 glow_font;           /* 0x80343BD4 */
 extern s32 gFontsInited;        /* 0x80344F5C */
 extern s32 pbLoad;
-extern u8 gDefaultFont[];       /* 0x80237C60 */
-extern void* gFontDefs8x8[];    /* 0x80118AF8 */
-extern void* gFontDefs[];       /* 0x80118B2C */
+extern u8 gDefaultFontData[];   /* 0x80237C60 */
+extern char* gFontDefs8x8[];    /* 0x80118AF8 */
+extern s32 gFontDefs[];         /* 0x80118B2C */
 extern char lbl_801119C4[];     /* "SCROLLS%s" format string */
+extern char sFontFileFormat[7]; /* "%s.fnt" */
+extern char sFontDirectory[6];  /* "fonts" */
 
 /* ---- external primitives ---- */
 
@@ -114,12 +116,12 @@ extern void MBSetFontAlpha(s32 alpha);           /* 0x800B63C0 */
 extern void MBSetFontScale(f32 sx, f32 sy);      /* 0x800B63F4 */
 extern void MBSetFontScaleSpace(f32 sx, f32 sy); /* 0x800B6418 */
 extern void* MBDrawText(s32 x, s32 y, u8* str);  /* 0x800B6588 */
-extern void MBNewFont();                         /* 0x800B66E8 */
+extern s32 MBNewFont(void* def, s32 space, s32 nglyphs, s32 perRow); /* 0x800B66E8 */
 extern void fn_800B6B08(void);                   /* 0x800B6B08 */
 extern void* strcpy(void* dst, const void* src); /* 0x800E80D4 */
 extern void* strcat(void* dst, const void* src); /* 0x800E8064 */
 extern s32 stricmp(const u8* a, const u8* b);    /* 0x800C80EC */
-extern void* AllocFile();                        /* 0x800BF7F4 */
+extern void* AllocFile(char* directory, char* name); /* 0x800BF7F4 */
 extern void ErrorPrintf(const char* fmt, ...);   /* 0x800BC6E0 */
 extern int sprintf(char* buf, const char* fmt, ...);
 extern int vsprintf(char* buf, const char* fmt, va_list ap);
@@ -904,11 +906,11 @@ void FontSetShadowColor(s32 color)
 }
 
 /* ==== 0x80020D44 FontInitSpecial (variadic forwarder; skeleton) ==== */
-void LoadFonts(s32 mode, void* def, void* def2);
+void LoadFonts(s32 mode, char* suffix, s32 space);
 
-void FontInitSpecial(void* def, void* def2)
+void FontInitSpecial(void* def, s32 space)
 {
-    LoadFonts(0xd, def, def2);
+    LoadFonts(0xd, def, space);
 }
 
 /* ==== 0x80020D70 FontInitDefault (skeleton) ==== */
@@ -939,8 +941,71 @@ void FontEndFrame(void)
     shadow_color = 0;
 }
 
-/* ==== 0x80020E84 LoadFonts (core loader; skeleton) ==== */
-void LoadFonts(s32 mode, void* def, void* def2)
+/* ==== 0x80020E84 LoadFonts (core loader) ==== */
+void LoadFonts(s32 mode, char* suffix, s32 space)
 {
-    (void)mode; (void)def; (void)def2;
+    char name[132];
+    u8* font;
+    s32 loaded;
+    s32 glyphCount;
+    s32 glyphsPerRow;
+    s32 offset;
+    s32 i;
+
+    sprintf(name, sFontFileFormat, suffix);
+    if (mode == 0) {
+        loaded = (s32)gDefaultFontData;
+    } else {
+        loaded = (s32)AllocFile(sFontDirectory, name);
+    }
+    font = (u8*)loaded;
+    offset = loaded + 12;
+
+#define SWAP_FONT_WORD(value)                                                \
+    do {                                                                     \
+        u8 _swap[8];                                                         \
+        *(u32*)_swap = (value);                                              \
+        _swap[4] = _swap[3];                                                 \
+        _swap[5] = _swap[2];                                                 \
+        _swap[6] = _swap[1];                                                 \
+        _swap[7] = _swap[0];                                                 \
+        (value) = *(u32*)(_swap + 4);                                        \
+    } while (0)
+
+    SWAP_FONT_WORD(*(u32*)(font + 4));
+    SWAP_FONT_WORD(*(u32*)(font + 8));
+    *(char**)font = suffix;
+    *(s32*)(font + 8) = offset;
+
+    if (mode >= 10 && mode <= 11) {
+        glyphCount = 256;
+        glyphsPerRow = 210;
+    } else if (mode == 12) {
+        glyphCount = 256;
+        glyphsPerRow = 100;
+    } else {
+        glyphCount = 128;
+        glyphsPerRow = 128;
+    }
+
+    offset = 0;
+    for (i = 0; i < glyphCount; i++) {
+        s32* glyph = (s32*)(*(u8**)(font + 8) + offset);
+
+        if (glyph[0] == 0) {
+            break;
+        }
+        offset += 16;
+        SWAP_FONT_WORD(glyph[0]);
+        SWAP_FONT_WORD(glyph[1]);
+        SWAP_FONT_WORD(glyph[2]);
+        SWAP_FONT_WORD(glyph[3]);
+    }
+#undef SWAP_FONT_WORD
+
+    {
+        u8 unused[48];
+        MBNewFont(font, space, glyphCount, glyphsPerRow);
+        font_info[mode] = font;
+    }
 }
