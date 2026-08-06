@@ -522,15 +522,20 @@ int towerAllPlayersMetBossReq(int level) {
 
 /* Per-record level status: 0/1/2 (field 0xDEE vs requirement table). Internal. */
 int towerLevelStatus(int player, int level) {
-    s16 value;
+    s32 value;
+    u32 world;
+    u8* save;
 
     if (gPlayers[player].state == 0) {
         return 0;
     }
-    if (PLAYER_AT(player, 0xF0, u32) == (u32)lbl_80343D6C) {
+    world = PLAYER_AT(player, 0xF0, u32);
+    if (world == (u32)lbl_80343D6C) {
         return 2;
     }
-    value = ((s16*)&TOWER_SAVE(player)->completion2)[level];
+    save = (u8*)&gPlayers[player] + gPlayers[player].character * 240;
+    save += level * 2;
+    value = *(s16*)(save + 3566);
     if (value < 0) {
         return 2;
     }
