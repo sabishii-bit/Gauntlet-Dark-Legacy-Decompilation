@@ -395,13 +395,12 @@ f32 PointViewDist(f32* point, f32 dist) {
     f32* view = lbl_80344EE8;
     s32 flags = 0;
     s32 worst = 0;
-    f32 best;
+    f32 best = 1.0e20f;
     f32 zx, zy;
     f32 d;
     f32 pointZ;
     f32 nearZ;
 
-    best = lbl_80345BA4;
     pointZ = point[2];
     nearZ = view[23];
     d = pointZ - nearZ - dist;
