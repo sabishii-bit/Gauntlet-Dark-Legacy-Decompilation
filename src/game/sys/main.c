@@ -101,7 +101,7 @@ void UpdateCam(void);
 void fn_80052134(void);
 void fn_800C0394(void);
 void sndSysStub0(void);
-void fn_800520CC(void);
+void default_options(void);
 void ResetClock(void);
 void InitMemHandler(void);
 void init_psx2(s32 arg);
@@ -491,7 +491,7 @@ void game_init_once(const char* name)
     char buf[36];
     char* st = sBootStrings;
 
-    fn_800520CC();
+    default_options();
     ResetClock();
     bulletproof_printf(st + 264);
     InitMemHandler();
