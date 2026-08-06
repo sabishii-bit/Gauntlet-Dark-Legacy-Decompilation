@@ -1483,27 +1483,20 @@ definition_ready:
 
 animdata* AnimDataNodeNew(void)
 {
-    int i;
-    int remain;
-    s32 off;
+    s32 i;
     animdata* list;
+    s32 end;
 
-    list = AnimDataList;
     i = AnimDataFirstFree;
-    off = i * 0xA0;
-    remain = AnimDataNum - i;
-    if (i < AnimDataNum) {
-        do {
-            if (*(s32*)((char*)list + off + 4) == 0) {
-                break;
-            }
-            i++;
-            off += 0xA0;
-            remain--;
-        } while (remain != 0);
+    end = AnimDataNum;
+    list = AnimDataList;
+    for (; i < end; i++) {
+        if (list[i].inuse == 0) {
+            break;
+        }
     }
-    if (i >= AnimDataNum) {
-        if (AnimDataNum >= AnimDataMax) {
+    if (i >= end) {
+        if (end >= AnimDataMax) {
             gErrorCode = 0xFFFF00;
             FatalError("Too Many AnimDataNodes", 0x804060);
         }
