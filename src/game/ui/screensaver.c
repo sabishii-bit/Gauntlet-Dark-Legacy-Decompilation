@@ -59,6 +59,7 @@ void MBEndFrame(void);
 void* MBRemoveBlit(void* blit);   /* returns NULL (clears the handle) */
 void mbBlitProject(void* blit, int w, int h);
 void mbBlitCalcWidth(void* blit, int x, int y, f64 depth);
+void MBBlitSetAlpha(void* blit, u32 alpha);
 void mbInitBlitEntry(void* blit, u32 pos, int a);   /* 0x800B2988 */
 void* MBCreateBlit(void* node, s32 tex, s32 x, s32 y, s32 w, s32 h);
 void mbBlitCvtCoord(void* blit, f32 depth);
@@ -139,6 +140,13 @@ extern f64 lbl_803473B8;
 extern f64 lbl_803473C0;
 extern f32 lbl_803473C8;
 extern f32 lbl_803473CC;
+extern f32 lbl_803473E0;
+extern f32 lbl_803473F4;
+extern f32 lbl_80347408;
+extern f32 lbl_8034740C;
+extern f32 lbl_80347410;
+extern s32 lbl_80343CA8;
+extern f32 lbl_8011D658[60];
 
 /* ---- screensaver-weapon parallel state arrays (this TU's .bss) ---- */
 extern int lbl_80274600[4];     /* per-weapon slot A (state code) */
@@ -535,9 +543,79 @@ void draw_panels(void)
     }
 }
 
-/* Per-slot panel piece draw (~animate_panel_piece). Giant; skeleton. */
-void animate_panel_piece(void)
+/* Position and fade one inventory-panel piece during its enter/leave phase. */
+void animate_panel_piece(f32 progress, s32* piece, void* blit, s32 xOffset,
+                         s32 phase)
 {
+    f32 progress2;
+    f32 factor;
+    f32 dx;
+    f32 dy;
+    s32 tableIndex;
+    s32 x;
+    s32 y;
+    u8 unused[8];
+
+    if (blit == NULL) {
+        return;
+    }
+
+    switch (phase) {
+    case 0:
+        progress2 = progress * progress;
+        tableIndex = (piece[1] + piece[2] +
+                      (s32)(lbl_80347408 *
+                            (lbl_803473E0 * (progress2 * progress)))) %
+                     60;
+        factor = lbl_80347378 - progress;
+        x = (s32)((f32)(piece[1] + xOffset) +
+                  factor * ((f32)lbl_80343CA8 *
+                            ((f32*)lbl_8011D568)[tableIndex]));
+        y = (s32)((f32)piece[2] +
+                  factor * ((f32)lbl_80343CA8 *
+                            lbl_8011D658[tableIndex]));
+        mbBlitCalcWidth(blit, x, y, lbl_803473E0);
+
+        progress = lbl_80347378 - progress2;
+        x = (s32)((f32)piece[7] * progress + (f32)piece[7]);
+        y = (s32)((f32)piece[8] * progress + (f32)piece[8]);
+        mbBlitProject(blit, x, y);
+        MBBlitSetAlpha(blit, (s32)(lbl_803473F4 * progress));
+        break;
+
+    case 1:
+        mbBlitCalcWidth(blit, piece[1] + xOffset, piece[2],
+                        lbl_803473E0);
+        mbBlitProject(blit, piece[7], piece[8]);
+        break;
+
+    case 2:
+        x = piece[1];
+        if (x > 64) {
+            dx = (f32)(x - 64);
+        } else {
+            dx = (f32)-(64 - x);
+        }
+        y = piece[2];
+        if (y > 180) {
+            dy = (f32)(y - 180);
+        } else {
+            dy = (f32)-(180 - y);
+        }
+        dx *= progress;
+        dy *= progress;
+        x = (s32)((f32)(x + xOffset) + lbl_8034740C * dx);
+        y = (s32)((f32)y + lbl_8034740C * dy);
+        mbBlitCalcWidth(blit, x, y, lbl_803473E0);
+
+        x = (s32)((f32)piece[7] +
+                  lbl_80347410 * ((f32)piece[7] * progress));
+        y = (s32)((f32)piece[8] +
+                  lbl_80347410 * ((f32)piece[8] * progress));
+        mbBlitProject(blit, x, y);
+        MBBlitSetAlpha(blit, (s32)(lbl_803473F4 * progress));
+        break;
+    }
 }
 
 /*
@@ -549,7 +627,6 @@ int MBOX_FindTexture_Err();            /* 0x800B8B34 */
 u32 MBRomTexPtr(int texid);            /* 0x800BA024 */
 int sprintf(char* dst, const char* fmt, ...); /* 0x800C9BD0 */
 extern char lbl_803473D8;              /* piece-name format */
-extern f32 lbl_803473E0;               /* blit scale */
 
 /* Build one inventory piece's icon blit: format its name, find the texture,
  * create + position the blit, cache its w/h.  Returns the blit (or NULL). */
