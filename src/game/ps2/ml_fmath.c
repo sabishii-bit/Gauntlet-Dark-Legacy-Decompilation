@@ -35,6 +35,7 @@ extern void sceSamp0CopyMatrix34(f32* dst, const f32* src);
 extern void mat44Mult__FR5mat44R5mat44R5mat44(f32* dst, f32* lhs, f32* rhs);
 extern void __as__5mat44FRC5mat44(f32* dst, const f32* src);
 extern const f32 gIdentityMatrix[];
+extern const f32 gMlFmathZero;
 
 /* 0x800BCAAC - piecewise square-root approximation */
 f32 smallsqrt(f32 value)
@@ -902,20 +903,22 @@ void ScaleMat3Vec3(const f32* matrix, f32* out, const f32* scale)
 /* Invert an orthonormal affine transform. */
 void InvertMat4(const f32* matrix, f32* out)
 {
+    f32 dot;
+
     sceSamp0TransposeMatrix(out, matrix);
     out[3] = 0.0f;
     out[7] = 0.0f;
     out[11] = 0.0f;
-    out[12] = (f32)(-1.0 * (matrix[12] * matrix[0] +
-                            matrix[13] * matrix[1] +
-                            matrix[14] * matrix[2]));
-    out[13] = (f32)(-1.0 * (matrix[12] * matrix[4] +
-                            matrix[13] * matrix[5] +
-                            matrix[14] * matrix[6]));
-    out[14] = (f32)(-1.0 * (matrix[12] * matrix[8] +
-                            matrix[13] * matrix[9] +
-                            matrix[14] * matrix[10]));
-    out[15] = 0.0f;
+    dot = matrix[12] * matrix[0] + matrix[13] * matrix[1] +
+          matrix[14] * matrix[2];
+    out[12] = (f32)(-1.0 * dot);
+    dot = matrix[12] * matrix[4] + matrix[13] * matrix[5] +
+          matrix[14] * matrix[6];
+    out[13] = (f32)(-1.0 * dot);
+    dot = matrix[12] * matrix[8] + matrix[13] * matrix[9] +
+          matrix[14] * matrix[10];
+    out[14] = (f32)(-1.0 * dot);
+    out[15] = gMlFmathZero;
 }
 
 /* 0x800BE8C8 */
