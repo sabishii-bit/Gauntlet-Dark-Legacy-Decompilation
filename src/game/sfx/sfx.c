@@ -470,33 +470,34 @@ void DmgFxAdd(s32 idx)
     s32 flags = 0x401808;
     f32 s;
     f32 yaw;
+    f64 arc;
     f64 step;
     u8 _spare[8];
 
     if ((*(u32*)((u8*)e + 100) & 0x20) && *(f32*)((u8*)e + 156) > lbl_803480A8) {
-        cnt = Round((f32)(lbl_803480C0 * acosf(*(f32*)((u8*)e + 156)) *
-                          lbl_803480B8 / lbl_803480C8)) << 1;
+        arc = lbl_803480C0 * acosf(*(f32*)((u8*)e + 156));
+        arc *= lbl_803480B8;
+        arc /= lbl_803480C8;
+        cnt = Round((f32)arc) << 1;
         s = (f32)(lbl_80348098 * *(f32*)((u8*)e + 152));
         if (cnt & 1) {
             yaw = lbl_803480D0;
-            *(s32*)((u8*)e + 224) =
-                (s32)MBOX_NewObject(lbl_803480D4, 0, *(s32*)((u8*)e + 20), flags);
+            e->dmgdebug = MBOX_NewObject(lbl_803480D4, 0, (s32)e->node, flags);
             cnt = cnt - 1;
         } else {
             yaw = lbl_803480DC;
-            *(s32*)((u8*)e + 224) =
-                (s32)MBOX_NewObject(0, 0, *(s32*)((u8*)e + 20), flags);
+            e->dmgdebug = MBOX_NewObject(0, 0, (s32)e->node, flags);
         }
-        (*(struct mbnode**)((u32)e + 224))->scale[0] = s;
-        (*(struct mbnode**)((u8*)e + 224))->scale[1] = (f32)(lbl_803480B0 * s);
-        (*(struct mbnode**)((u8*)e + 224))->scale[2] = s;
+        e->dmgdebug->scale[0] = s;
+        e->dmgdebug->scale[1] = (f32)(lbl_803480B0 * s);
+        e->dmgdebug->scale[2] = s;
         step = lbl_803480E0;
         while (cnt != 0) {
             YawMat3(MBOX_NewObject(lbl_803480D4, 0,
-                                                   *(s32*)((u8*)e + 224), flags),
+                                                   (s32)e->dmgdebug, flags),
                     yaw);
             YawMat3(MBOX_NewObject(lbl_803480D4, 0,
-                                                   *(s32*)((u8*)e + 224), flags),
+                                                   (s32)e->dmgdebug, flags),
                     -yaw);
             yaw = (f32)(yaw + step);
             cnt = cnt - 2;
@@ -513,7 +514,7 @@ void DmgFxAdd(s32 idx)
         node->scale[0] = s;
         node->scale[1] = s;
         node->scale[2] = s;
-        *(s32*)((u8*)e + 224) = (s32)node;
+        e->dmgdebug = node;
     }
 }
 
