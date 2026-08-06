@@ -1392,7 +1392,34 @@ u8 MovieDecoderInitBuffers(u32* param_1, u32 param_2, u32 param_3) {
 void fn_800DBA80(u8* dec, s32 fd) {
 }
 
-void dtor_800DBB94(void) {
+u32* dtor_800DBB94(u32* self, s16 deleting) {
+    u8 unused[32];
+
+    if (self != NULL) {
+        __dla__FPv((void*)self[1]);
+        self[1] = 0;
+        self[0] = 0;
+        __dla__FPv((void*)self[3]);
+        self[3] = 0;
+        self[2] = 0;
+        __dla__FPv((void*)self[0x15]);
+        self[6] = 0;
+        self[5] = 0;
+        self[4] = 0;
+        self[8] = 0;
+        self[9] = 0;
+        self[0x16] = 0;
+        self[0x14] = 0;
+        self[0x15] = 0;
+        fn_800D9CF4((int*)(self + 0xf), -1);
+        if (deleting > 0 && self != NULL) {
+            gMovieAllocCount--;
+            if (gMovieAllocCount == 0) {
+                ResetAllocTot();
+            }
+        }
+    }
+    return self;
 }
 
 u32* fn_800DBC64(u32* p) {
