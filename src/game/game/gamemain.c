@@ -1554,6 +1554,20 @@ typedef struct WorldDataNav {
     WorldLevelNav* levels;
 } WorldDataNav;
 
+typedef struct WorldTypeNav {
+    s32 worldId;
+    u8 _04[12];
+    s32 loaded;
+    s32 numLevels;
+    u8 _18[16];
+    s32 nextLevel;
+} WorldTypeNav;
+
+typedef struct WorldLevelTableNav {
+    u8 _000[232];
+    WorldTypeNav worlds[15];
+} WorldLevelTableNav;
+
 /* 0x80057C14 -- advance attract mode to the next loaded, playable wave. */
 s32 NextAttractWave(s32 worldLevel)
 {
@@ -1623,12 +1637,12 @@ s32 NextAttractWave(s32 worldLevel)
 
 /* 0x80057D94 -- move backward to a level accepted by waveMask, wrapping
  * through the loaded-world table when the current world is exhausted. */
+#pragma opt_propagation off
 s32 PrevWorldLevel(s32 waveMask)
 {
     register s32 currentWorld;
-    u8* worldTable = sWorldLevelTable;
+    WorldLevelTableNav* worldTable = (WorldLevelTableNav*)sWorldLevelTable;
     s32 worldIndex;
-    s32 tableOffset;
     s32 level;
 
     currentWorld = sCurWorldIndex;
@@ -1650,21 +1664,28 @@ s32 PrevWorldLevel(s32 waveMask)
 
     if (level < 0) {
         level = 0;
-        do {
+        for (;;) {
+            s32 entryOffset;
+            WorldLevelTableNav* entry;
+
             worldIndex--;
             if (worldIndex < 0) {
                 worldIndex = 13;
             }
-            tableOffset = worldIndex * 44;
-        } while (*(s32*)(worldTable + tableOffset + 248) == 0 &&
-                 worldIndex != currentWorld);
-        if (*(s32*)(worldTable + tableOffset + 252) >= 0) {
-            level = *(s32*)(worldTable + tableOffset + 252) - 1;
+            entryOffset = worldIndex * 44;
+            entry = (WorldLevelTableNav*)((u8*)worldTable + entryOffset);
+            if (entry->worlds[0].loaded != 0 || worldIndex == currentWorld) {
+                break;
+            }
+        }
+        if (worldTable->worlds[worldIndex].numLevels >= 0) {
+            level = worldTable->worlds[worldIndex].numLevels - 1;
         }
     }
-    return (*(s32*)(worldTable + worldIndex * 44 + 232) << 8) |
+    return (worldTable->worlds[worldIndex].worldId << 8) |
            (level & 0xFF);
 }
+#pragma opt_propagation on
 
 /* 0x80057E6C -- move forward to a level accepted by waveMask, wrapping
  * through the loaded-world table when the current world is exhausted. */
