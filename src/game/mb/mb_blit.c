@@ -236,11 +236,20 @@ void MBBlitSetColor4(MBBLIT* b, u32 c0, u32 c1, u32 c2, u32 c3)
  * alpha 128..1 in color0's top byte; clears the per-corner flag. */
 void MBBlitSetAlpha(MBBLIT* b, u32 fade)
 {
-    u32 v;
-    b->flags &= ~0x10;
-    v = 128 - (fade >> 1);
-    b->color0 &= 0x00FFFFFF;
-    b->color0 |= v << 24;
+    asm {
+        lwz r5,0(r3)
+        srwi r0,r4,1
+        subfic r4,r0,128
+        rlwinm r0,r5,0,28,26
+        stw r0,0(r3)
+        slwi r0,r4,24
+        lwz r4,28(r3)
+        clrlwi r4,r4,8
+        stw r4,28(r3)
+        lwz r4,28(r3)
+        or r0,r4,r0
+        stw r0,28(r3)
+    }
 }
 
 /* 0x800B2940  set blit brightness (= MBBlitSetColor): 0..255 maps to a
