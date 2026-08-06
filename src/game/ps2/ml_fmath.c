@@ -47,6 +47,19 @@ extern const f64 lbl_80348DE0;
 extern const f64 lbl_80348DE8;
 extern const f64 lbl_80348DF0;
 extern const f64 lbl_80348DF8;
+extern volatile const f64 lbl_80348E00;
+extern const f64 lbl_80348E08;
+extern const f64 lbl_80348E10;
+extern const f64 lbl_80348E18;
+extern const f64 lbl_80348E20;
+extern const f64 lbl_80348E28;
+extern const f64 lbl_80348E30;
+extern const f64 lbl_80348E38;
+extern const f64 lbl_80348E40;
+extern const f64 lbl_80348E48;
+extern const f64 lbl_80348E50;
+extern const f64 lbl_80348E58;
+extern const f64 lbl_80348E60;
 
 /* 0x800BCAAC - piecewise square-root approximation */
 f32 smallsqrt(f32 value)
@@ -67,41 +80,42 @@ f32 smallsqrt(f32 value)
 /* 0x800BCB44 - fast two-dimensional distance approximation */
 f32 fqdist(f32 x, f32 y)
 {
-    f32 lo;
+    f32 hi;
 
-    if (x < 0.0)
+    if (x < lbl_80348E00)
         x = -x;
-    if (y < 0.0)
+    if (y < lbl_80348E00)
         y = -y;
-    if (x < 0.0001)
+    if (x < lbl_80348DA0)
         return y;
-    if (y < 0.0001)
+    if (y < lbl_80348DA0)
         return x;
 
-    lo = x;
-    if (y <= x) {
-        lo = y;
+    if (x >= y) {
+        hi = x;
+    } else {
+        hi = y;
         y = x;
     }
 
-    if (0.5 * y < lo) {
-        if (0.75 * y < lo) {
-            if (0.875 * y < lo)
-                return (f32)(0.414 * lo + y);
-            return (f32)(0.376 * lo + y);
+    if (y <= lbl_80348DB0 * hi) {
+        if (y <= lbl_80348DB8 * hi) {
+            if (y <= lbl_80348DC0 * hi)
+                return (f32)(lbl_80348E08 * y + hi);
+            return (f32)(lbl_80348E10 * y + hi);
         }
-        if (0.625 * y < lo)
-            return (f32)(0.333 * lo + y);
-        return (f32)(0.287 * lo + y);
+        if (y <= lbl_80348E18 * hi)
+            return (f32)(lbl_80348E20 * y + hi);
+        return (f32)(lbl_80348E28 * y + hi);
     }
-    if (0.25 * y < lo) {
-        if (0.375 * y < lo)
-            return (f32)(0.236 * lo + y);
-        return (f32)(0.181 * lo + y);
+    if (y <= lbl_80348E30 * hi) {
+        if (y <= lbl_80348E38 * hi)
+            return (f32)(lbl_80348E40 * y + hi);
+        return (f32)(lbl_80348E48 * y + hi);
     }
-    if (0.125 * y < lo)
-        return (f32)(0.124 * lo + y);
-    return (f32)(0.064 * lo + y);
+    if (y <= lbl_80348E50 * hi)
+        return (f32)(lbl_80348E58 * y + hi);
+    return (f32)(lbl_80348E60 * y + hi);
 }
 
 /* 0x800BCCA8 */
