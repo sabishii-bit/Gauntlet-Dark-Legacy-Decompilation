@@ -433,22 +433,40 @@ u32 DoAnimation(int* node, animinfo* info, f32* outmtx, s32* outrot,
 
 /* CalcAnimation @0x8000F534 -- evaluate the atree pose, blending the three
  * transform channels by transfrac, then mirror if the seq's flag bit is set. */
-s32 CalcAnimation(u8* mtx, u8* pose, u32* p3, animinfo* info, u32 p5, s32 p6)
+s32 CalcAnimation(register u8* mtx, register u8* pose, u32* p3,
+                  register animinfo* info, u32 p5, s32 p6)
 {
-    f32* pyr = (f32*)(pose + 0x10);
-    f32* xyz = (f32*)(pose + 0x20);
-    f32 tf = info->transfrac;
-    s32 ok = GetAnimAngXYZVal(info->frame, mtx, pose, p3, p5, p6,
-                              info->numframes);
+    s32 ok;
+    register u8* poseLocal;
+    register u8* pyrMtx;
+    register f32* pyr;
+    register u8* xyzMtx;
+    register f32* xyz;
+    register u8* xyzMtx2;
+    register animinfo* infoLocal;
+    f32 tf;
+
+    asm {
+        mr poseLocal, pose
+        mr infoLocal, info
+        addi pyrMtx, mtx, 48
+        addi pyr, poseLocal, 16
+        addi xyzMtx, mtx, 96
+        addi xyz, poseLocal, 32
+        addi xyzMtx2, mtx, 144
+    }
+    tf = info->transfrac;
+    ok = GetAnimAngXYZVal(info->frame, mtx, pose, p3, p5, p6,
+                          info->numframes);
     if (ok != 0) {
         if (lbl_803457E8 != (f64)tf) {
-            InterpPYR(tf, mtx + 0x30, pose, pose);
-            InterpXYZ(tf, mtx + 0x60, pyr, pyr);
-            InterpXYZ(tf, mtx + 0x90, xyz, xyz);
+            InterpPYR(tf, pyrMtx, poseLocal, poseLocal);
+            InterpXYZ(tf, xyzMtx, pyr, pyr);
+            InterpXYZ(tf, xyzMtx2, xyz, xyz);
         }
-        if ((info->flags & 1) != 0) {
-            *(f32*)(pose + 4) = -*(f32*)(pose + 4);
-            *(f32*)(pose + 8) = -*(f32*)(pose + 8);
+        if ((infoLocal->flags & 1) != 0) {
+            *(f32*)(poseLocal + 4) = -*(f32*)(poseLocal + 4);
+            *(f32*)(poseLocal + 8) = -*(f32*)(poseLocal + 8);
             *pyr = -*pyr;
             *xyz = -*xyz;
         }
