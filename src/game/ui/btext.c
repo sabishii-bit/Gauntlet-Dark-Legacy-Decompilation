@@ -698,16 +698,12 @@ s32 GetStringListMsg(s32 li, s32 sub)
 }
 
 /* ==== 0x8001FE90 GetScrollText ==== */
-char* GetScrollText(s32 list, s32 msg, s32 idx, u32* fontOut)
+static inline char* GetScrollTextInline(StrList* p, s32 msg, s32 idx,
+                                        u32* fontOut)
 {
-    StrList* p = &gStringMsgList;
-    MsgEnt* e;
+    MsgEnt* e = &p->msgs[msg];
     s32 off;
 
-    if (list >= 0) {
-        p = &gScrollMsgList[list];
-    }
-    e = &p->msgs[msg];
     if (idx >= e->count) {
         return 0;
     }
@@ -718,20 +714,31 @@ char* GetScrollText(s32 list, s32 msg, s32 idx, u32* fontOut)
     return (char*)(p->textData + off);
 }
 
+char* GetScrollText(s32 list, s32 msg, s32 idx, u32* fontOut)
+{
+    StrList* p = &gStringMsgList;
+
+    if (list >= 0) {
+        p = &gScrollMsgList[list];
+    }
+    return GetScrollTextInline(p, msg, idx, fontOut);
+}
+
 /* ==== 0x8001FF1C GetStringText ==== */
 char* GetStringText(s32 msg, s32 idx, u32* fontOut)
 {
-    MsgEnt* e = &gStringMsgList.msgs[msg];
+    BTextPoolView* info = (BTextPoolView*)font_info;
+    MsgEnt* e = &info->stringList.msgs[msg];
     s32 off;
 
     if (idx >= e->count) {
         return 0;
     }
-    off = gStringMsgList.textOff[e->first + idx];
+    off = info->stringList.textOff[e->first + idx];
     if (fontOut != 0 && e->font >= 0) {
-        *fontOut = gStringMsgList.fontDesc[e->font].color;
+        *fontOut = info->stringList.fontDesc[e->font].color;
     }
-    return (char*)(gStringMsgList.textData + off);
+    return (char*)(info->stringList.textData + off);
 }
 
 /* ==== 0x8001FF8C GetStringTextSub ==== */
