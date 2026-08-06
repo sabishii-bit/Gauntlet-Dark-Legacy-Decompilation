@@ -2829,7 +2829,7 @@ void camera_mode_spin(s32 camIdx)
 
     state = gCameraState;
     settings = (f32*)state;
-    cam = (Camera*)(state + camIdx * sizeof(Camera) + 0xC8);
+    cam = &((Camera*)(state + 0xC8))[camIdx];
     if (camIdx == 0 &&
         (gGameMode == 0x400D || gGameMode == 0x4013 ||
          gGameMode == 0x4017)) {
