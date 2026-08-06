@@ -38,7 +38,7 @@ extern void* lbl_80344BD4;
 extern void* lbl_80344BEC;
 extern void* sItemFile1Buf;
 extern s32 lbl_803449A4;
-extern s32 gControllerButtons;
+extern s64 gControllerButtons;
 extern s32 sFlags;
 extern s32 lbl_8034481C;
 extern s32 sLastWorldLevel;
@@ -403,7 +403,7 @@ s32 do_gamemovie(void)
 /* ================================================================== */
 /* init_gamemovie (0xF4) -- start a pre-rendered game movie.          */
 /* ================================================================== */
-void init_gamemovie(s32 type)
+s32 init_gamemovie(s32 type)
 {
     gGameMode = 16398;
     movieactive = 0;
@@ -413,8 +413,7 @@ void init_gamemovie(s32 type)
     delete_map_blits();
     movie_state = 1;
     if (lbl_803449A4 == 0 &&
-        (gControllerButtons & 0) == 0 &&
-        (sFlags & 16) == 0 &&
+        (gControllerButtons & 16) == 0 &&
         lbl_8034481C == 0) {
         if (type == 44) {
             PlayVQMovie("victory");
@@ -430,6 +429,7 @@ void init_gamemovie(s32 type)
         }
     }
     kill_gamemovie = 0;
+    return movieactive;
 }
 
 /* ================================================================== */
