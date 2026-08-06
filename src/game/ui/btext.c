@@ -103,6 +103,7 @@ extern char* gFontDefs8x8[];    /* 0x80118AF8 */
 extern s32 gFontDefs[];         /* 0x80118B2C */
 extern char lbl_801119C4[];     /* "SCROLLS%s" format string */
 extern char sDrawStringTextMultiRangeError[41];
+extern char sDrawScrollTextRangeError[36];
 extern char sFontFileFormat[7]; /* "%s.fnt" */
 extern char sFontDirectory[6];  /* "fonts" */
 extern const f64 sBTextIntBias;
@@ -174,6 +175,39 @@ static inline char* GetStringTextRefsInline(BTextPoolView* info,
         *fontOut = (*fontRef)[fontIndex].color;
     }
     return (char*)(info->stringList.textData + off);
+}
+
+static inline char* GetScrollTextInline(StrList* p, s32 msg, s32 idx,
+                                        u32* fontOut)
+{
+    MsgEnt* e = &p->msgs[msg];
+    s32 off;
+
+    if (idx >= e->count) {
+        return 0;
+    }
+    off = p->textOff[e->first + idx];
+    if (fontOut != 0 && e->font >= 0) {
+        *fontOut = p->fontDesc[e->font].color;
+    }
+    return (char*)(p->textData + off);
+}
+
+static inline char* GetScrollTextRequiredFontInline(StrList* p, s32 msg,
+                                                    s32 idx,
+                                                    volatile u32* fontOut)
+{
+    MsgEnt* e = &p->msgs[msg];
+    s32 off;
+
+    if (idx >= e->count) {
+        return 0;
+    }
+    off = p->textOff[e->first + idx];
+    if (e->font >= 0) {
+        *fontOut = p->fontDesc[e->font].color;
+    }
+    return (char*)(p->textData + off);
 }
 
 /* Force the .bss pool into address order (deadstripped by mwld). */
@@ -584,22 +618,84 @@ s32 GetScrollListMsg(s32 list, s32 sub, s32 idx)
     return gScrollMsgList[list].msgs[msg].count;
 }
 
-/* ==== 0x8001F6EC DrawScrollListText (skeleton) ==== */
-s32 DrawScrollText(s32 x, s32 y, u32 flags, u32 color, s32 list, s32 msg, s32 idx, s32 spacing);
+/* ==== 0x8001F6EC DrawScrollListText ==== */
+s32 DrawScrollText(s32 list, s32 x, s32 y, s32 spacing, s32 font,
+                   u32 color, s32 msg, s32 idx);
 
-void DrawScrollListText(s32 x, s32 y, u32 flags, u32 color, s32 list, s32 spacing,
-                        s32 subList, s32 idx, s32 msgIdx)
+void DrawScrollListText(s32 list, s32 x, s32 y, s32 spacing, s32 font,
+                        u32 color, s32 subList, s32 idx, s32 msgIdx)
 {
-    (void)flags; (void)color;
-    DrawScrollText(x, y, flags, color, list, spacing, idx, msgIdx);
-    (void)subList;
+    BTextPoolView* info = (BTextPoolView*)font_info;
+    StrList* p = &info->stringList;
+    ListEnt* sub;
+    s32 msg;
+    s32 resolved;
+
+    if (list >= 0) {
+        p = &info->scrollLists[list];
+    }
+    sub = &p->lists[subList];
+    if (idx >= sub->count) {
+        resolved = -1;
+    } else {
+        resolved = p->listOff[sub->first + idx];
+    }
+    msg = resolved;
+    if (y < 0) {
+        StrList* heightList;
+
+        heightList = &((StrList*)info)[list];
+        y = -(y + StringTextHeightSub(DrawStringScale,
+                                      (StrList*)((u8*)heightList + 0x838),
+                                      msg, msgIdx,
+                                      spacing) / 2);
+    }
+    {
+        u8 unused[16];
+        DrawScrollText(list, x, y, spacing, font, color, msg, msgIdx);
+    }
 }
 
-/* ==== 0x8001F7DC DrawScrollText (skeleton) ==== */
-s32 DrawScrollText(s32 x, s32 y, u32 flags, u32 color, s32 list, s32 msg, s32 idx, s32 spacing)
+/* ==== 0x8001F7DC DrawScrollText ==== */
+s32 DrawScrollText(s32 list, s32 x, s32 y, s32 spacing, s32 font,
+                   u32 color, s32 msg, s32 idx)
 {
-    (void)x; (void)y; (void)flags; (void)color; (void)list; (void)msg; (void)idx; (void)spacing;
-    return 0;
+    BTextPoolView* info = (BTextPoolView*)font_info;
+    StrList* drawList = &info->stringList;
+    StrList* textList;
+    char* text;
+    volatile u32 defaultFont;
+    s32 fontIndex;
+
+    if (list >= 0) {
+        drawList = &((StrList*)info)[list];
+        drawList = (StrList*)((u8*)drawList + 0x838);
+    }
+    if (msg < 0) {
+        msg = scroll_level_msg;
+    }
+    if (msg < 0) {
+        return 0;
+    }
+
+    textList = &info->stringList;
+    if (list >= 0) {
+        textList = &((StrList*)info)[list];
+        textList = (StrList*)((u8*)textList + 0x838);
+    }
+    text = GetScrollTextRequiredFontInline(textList, msg, idx, &defaultFont);
+    if (text == NULL) {
+        ErrorPrintf(sDrawScrollTextRangeError, msg, idx);
+        return 0;
+    }
+    if (font < 0 || (font < 10 && (s32)defaultFont >= 10)) {
+        font = defaultFont;
+    }
+    strcpy(gTextFormatBuf, text);
+    {
+        u8 unused[4];
+        return DrawStringTextSub(drawList, msg, x, y, spacing, font, color);
+    }
 }
 
 /* ==== 0x8001F93C DrawStringText ==== */
@@ -775,22 +871,6 @@ s32 GetStringListMsg(s32 li, s32 sub)
 }
 
 /* ==== 0x8001FE90 GetScrollText ==== */
-static inline char* GetScrollTextInline(StrList* p, s32 msg, s32 idx,
-                                        u32* fontOut)
-{
-    MsgEnt* e = &p->msgs[msg];
-    s32 off;
-
-    if (idx >= e->count) {
-        return 0;
-    }
-    off = p->textOff[e->first + idx];
-    if (fontOut != 0 && e->font >= 0) {
-        *fontOut = p->fontDesc[e->font].color;
-    }
-    return (char*)(p->textData + off);
-}
-
 char* GetScrollText(s32 list, s32 msg, s32 idx, u32* fontOut)
 {
     StrList* p = &gStringMsgList;
