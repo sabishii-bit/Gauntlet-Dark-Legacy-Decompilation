@@ -476,7 +476,7 @@ s32 set_hidden_player(void* p);
 s32 load_player_model(s32 player, void* p, s32 alt, char* name);
 s32 load_player_model_sub(s32 player, void* p, char* name, void* slot);
 void player_get_from_save(void* p, s32 chartype);
-void player_store_in_save(void* p, s32 chartype);
+void player_store_in_save(void* p);
 void PlayerUpdateAtts(void* p);
 void set_player_default_atts(void* p);
 static void create_player_blits(s32 i);
@@ -488,8 +488,8 @@ static f32 ClosestChest(void* p);
 void PlayerAddPowerup(f32 duration, f32 strength, void* p, s32 type, u32 mask);
 void kill_got_it(s32 player);
 void SetPlayerWindows(s32 on);
-void PlayerRestoreState(void* p);
-void PlayerSaveState(void* p, s32 full);
+void PlayerRestoreState(s32 player);
+void PlayerSaveState(s32 player, s32 full);
 void mini_inventory_draw_label(s32 i);
 s32 mini_inventory_find_previous_selectable_item(s32 i);
 s32 mini_inventory_find_next_selectable_item(s32 i);
@@ -2800,7 +2800,7 @@ void inactivate_player(s32 i) {
 
     if (sMusicTrackHi == 0xD) {
         p->state = 1;
-        PlayerRestoreState(p);
+        PlayerRestoreState(i);
         return;
     }
     playerGiveGargItem(i, sMusicTrackHi, sMusicTrackLo);
@@ -2955,7 +2955,7 @@ void change_player(s32 i, s32 type) {
     u8 unused[8];
     Player* p = P(i);
 
-    player_store_in_save(p, type);
+    player_store_in_save(p);
     if (type == 0x10) {
         type = 2;
         HIDDEN_CODE(p) = lbl_80343D6C;
@@ -3282,7 +3282,7 @@ s32 PlayerWriteSaveFile(s32 i, s32 slot) {
     s32 ok;
 
     PF(p, 0x3358, s32) = slot;
-    player_store_in_save(p, slot);
+    player_store_in_save(p);
     do {
         ok = saveSave(PF(p, 0x3348, s32), PF(p, 0x3350, s32), PF(p, 0x3358, s32),
                          (u8*)p + 0xA80, 0x1434);
@@ -3319,9 +3319,13 @@ void PlayersRestoreHealth(void) {
     }
 }
 
+typedef struct PlayerSaveImage {
+    u8 bytes[0x1434];
+} PlayerSaveImage;
+
 /* Restore the level-start snapshot (image <- backup, then unpack).    */
-void PlayerRestoreState(void* vp) {
-    Player* p = vp;
+void PlayerRestoreState(s32 player) {
+    Player* p = P(player);
     f32 cap;
 
     if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
@@ -3331,22 +3335,24 @@ void PlayerRestoreState(void* vp) {
         }
         p->health = cap;
     } else {
-        memcpy((u8*)p + 0xA80, (u8*)p + 0x1ECC, 0x1434);
+        *(PlayerSaveImage*)((u8*)p + 0xA80) =
+            *(PlayerSaveImage*)((u8*)p + 0x1ECC);
         player_get_from_save(p, -1);
     }
 }
 
 /* Snapshot the running state (pack, then backup <- image).            */
-void PlayerSaveState(void* vp, s32 full) {
-    Player* p = vp;
+void PlayerSaveState(s32 player, s32 full) {
+    Player* p = P(player);
 
     if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
         return;
     }
-    player_store_in_save(p, full);
+    player_store_in_save(p);
     if (full != 0 && !(sMusicTrackHi == 5 && sMusicTrackLo == 1) &&
         !(sMusicTrackHi == 6 && sMusicTrackLo == 1)) {
-        memcpy((u8*)p + 0x1ECC, (u8*)p + 0xA80, 0x1434);
+        *(PlayerSaveImage*)((u8*)p + 0x1ECC) =
+            *(PlayerSaveImage*)((u8*)p + 0xA80);
     }
     PF(p, 0xA8B, u8) = 0;
 }
@@ -3437,7 +3443,7 @@ void player_get_from_save(void* vp, s32 type) {
 }
 
 /* Pack the live fields into the per-character slots + image header.   */
-void player_store_in_save(void* vp, s32 type) {
+void player_store_in_save(void* vp) {
     Player* p = vp;
     s32* st;
     u8* it;
