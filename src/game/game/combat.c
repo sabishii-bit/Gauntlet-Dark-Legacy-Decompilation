@@ -158,7 +158,7 @@ extern void fn_8009D2B4(void);
 
 /* missile atree lookup */
 extern void* gWadAtreeHeaders[];
-extern char lbl_803463D4[];   /* "%s%s" */
+extern char lbl_803463D4[5];  /* "%s%s" */
 extern char* EnemyTypeDesc(s32 type);
 extern s32 toupper(s32 c);
 extern s32 sprintf(char* dst, const char* fmt, ...);
