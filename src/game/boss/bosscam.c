@@ -135,6 +135,10 @@ extern s32 gPointViewNearPlane;       /* .sbss 0x803443C8  worst-plane index */
 extern s32 gPointViewClipFlags;       /* .sbss 0x803443CC  per-plane clip bits */
 extern const f32 lbl_80345BA4;        /* +INF sentinel for the running minimum */
 extern const f64 lbl_80345B98;        /* clip threshold (0.0) */
+extern const f64 lbl_80345BB8;        /* 2 pi */
+extern const f64 lbl_80345BC0;        /* -pi */
+extern f32 gClockFrameReciprocal;
+extern f32 gClockFrameStep;
 
 extern void CamReset(void* camera);
 
@@ -575,13 +579,78 @@ void GameCameraInit(void) {
     gCameraWindowScaleY = lbl_80345C28;
 }
 
-/* Shared scalar camera-value clamp (0x160): angle-wrap then velocity/accel
- * clamp of *value toward a target, returning the applied step.  Parked: the
- * asm reads six FP arg registers (f1,f2,f4,f5,f6 used; f3 slot skipped) so the
- * exact prototype is unresolved -- the four-float form below is a placeholder. */
-static f32 LimitCamVal2(f32* value, f32 target, f32 maxVel, f32 accel, s32 flag) {
-    (void)value; (void)target; (void)maxVel; (void)accel; (void)flag;
-    return 0.0f;
+/* Shared scalar camera-value clamp.  Advance `value` toward `target` with a
+ * bounded velocity and acceleration, optionally treating the values as
+ * wrapped angles. */
+static f32 LimitCamVal2(f32 value, f32 target, f32 minVelocity,
+                        f32 maxVelocity, f32 acceleration, f32 stopScale,
+                        f32* velocity, s32 wrapAngle) {
+    u8 unusedHigh[16];
+    f32 delta;
+    f32 accelerationStep;
+    f32 absDelta;
+    f32 oldVelocity;
+    f32 absVelocity;
+    f32 candidate;
+    f64 wrapped;
+    u8 unusedLow[8];
+
+    delta = target - value;
+    accelerationStep = acceleration * gClockFrameStep;
+    if (wrapAngle != 0) {
+        if ((f64)delta > lbl_80345B88) {
+            wrapped = (f64)delta - lbl_80345BB8;
+        } else if ((f64)delta <= lbl_80345BC0) {
+            wrapped = lbl_80345BB8 + (f64)delta;
+        } else {
+            wrapped = delta;
+        }
+        delta = (f32)wrapped;
+    }
+
+    target = stopScale * maxVelocity;
+    absDelta = delta;
+    *(u32*)&absDelta &= 0x7FFFFFFF;
+    oldVelocity = *velocity;
+    absVelocity = oldVelocity;
+    *(u32*)&absVelocity &= 0x7FFFFFFF;
+
+    if ((f64)stopScale > lbl_80345B98 &&
+        absVelocity < gClockFrameStep * target &&
+        absDelta < gClockFrameStep * target) {
+        minVelocity = lbl_80345BA0;
+    } else if (absDelta <
+               gClockFrameStep * (absVelocity + accelerationStep)) {
+        minVelocity = delta * gClockFrameReciprocal;
+    } else {
+        if (absVelocity / acceleration >= absDelta / absVelocity) {
+            if ((f64)oldVelocity > lbl_80345B98) {
+                candidate = oldVelocity - accelerationStep;
+                if ((f64)candidate < lbl_80345B98) {
+                    candidate = lbl_80345BA0;
+                }
+            } else {
+                candidate = oldVelocity + accelerationStep;
+                if ((f64)candidate > lbl_80345B98) {
+                    candidate = lbl_80345BA0;
+                }
+            }
+        } else if ((f64)delta > lbl_80345B98) {
+            candidate = oldVelocity + accelerationStep;
+        } else {
+            candidate = oldVelocity - accelerationStep;
+        }
+
+        if (!(candidate < minVelocity)) {
+            if (!(candidate > maxVelocity)) {
+                maxVelocity = candidate;
+            }
+            minVelocity = maxVelocity;
+        }
+    }
+
+    *velocity = minVelocity;
+    return minVelocity * gClockFrameStep + value;
 }
 
 /* Keep the static helpers referenced so -Wall stubs don't warn them away and
@@ -595,5 +664,5 @@ void bosscam_unused_refs(void) {
     (void)GetPlayerViewDist(&v);
     GetBossAvgPos(&v, 0.0f, &v, &v, 0);
     GetActualAvgVec(&v);
-    (void)LimitCamVal2(&v, 0.0f, 0.0f, 0.0f, 0);
+    (void)LimitCamVal2(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, &v, 0);
 }

@@ -1233,11 +1233,23 @@ u32* fn_800DB0F8(u32* volatile p) {
 /* operator delete[] (weak, emitted into this TU) */
 #pragma dont_inline on
 void __dla__FPv(void* p) {
+    if (p != NULL) {
+        gMovieAllocCount--;
+        if (gMovieAllocCount == 0) {
+            ResetAllocTot();
+        }
+    }
 }
 #pragma dont_inline off
 
 /* operator delete (weak, emitted into this TU) */
 void __dl__FPv(void* p) {
+    if (p != NULL) {
+        gMovieAllocCount--;
+        if (gMovieAllocCount == 0) {
+            ResetAllocTot();
+        }
+    }
 }
 
 void dtor_800DB21C(void) {

@@ -1407,10 +1407,16 @@ s32 ExpToLevel(s32 exp) {
 
 /* Total exp needed to reach a level. */
 s32 LevelToExp(s32 lv) {
+    s32 product;
+    s32 result;
+
     if (lv <= 60) {
         return (lv - 1) * (lv * 30 + 1000);
     }
-    return 0x28550 + (lv - 60) * 4600;
+    product = (lv - 60) * 4600;
+    result = 0x28550;
+    result += product;
+    return result;
 }
 
 /* Gold add, capped at 99999. */
