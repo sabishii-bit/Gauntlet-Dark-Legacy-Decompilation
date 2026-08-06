@@ -196,21 +196,26 @@ void ExtractPYR(const f32* matrix, f32* angles)
 /* 0x800BD050 */
 void CreateYPRMatrix(f32* matrix, const f32* angles)
 {
-    f32 c0 = ffcos(angles[0]);
-    f32 s0 = -ffsin(angles[0]);
-    f32 c1 = ffcos(angles[1]);
-    f32 s1 = -ffsin(angles[1]);
-    f32 c2 = ffcos(angles[2]);
-    f32 s2 = -ffsin(angles[2]);
+    f32 c0, s0, c1, s1, c2, s2;
+    f32 a, b;
 
-    matrix[0] = c1 * c2 - (s1 * s0) * s2;
-    matrix[4] = -c1 * s2 - (s1 * s0) * c2;
+    c0 = ffcos(angles[0]);
+    s0 = -ffsin(angles[0]);
+    c1 = ffcos(angles[1]);
+    s1 = -ffsin(angles[1]);
+    c2 = ffcos(angles[2]);
+    s2 = -ffsin(angles[2]);
+    a = s1 * s0;
+    b = c1 * s0;
+
+    matrix[0] = c1 * c2 - a * s2;
+    matrix[4] = -c1 * s2 - a * c2;
     matrix[8] = -s1 * c0;
     matrix[1] = c0 * s2;
     matrix[5] = c0 * c2;
     matrix[9] = -s0;
-    matrix[2] = s1 * c2 + (c1 * s0) * s2;
-    matrix[6] = -s1 * s2 + (c1 * s0) * c2;
+    matrix[2] = s1 * c2 + b * s2;
+    matrix[6] = -s1 * s2 + b * c2;
     matrix[10] = c1 * c0;
     matrix[3] = 0.0f;
     matrix[7] = 0.0f;
