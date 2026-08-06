@@ -58,7 +58,7 @@ void* MBNewTempBlit(void* tex, int x, int y, int w, int h);
 void MBEndFrame(void);
 void* MBRemoveBlit(void* blit);   /* returns NULL (clears the handle) */
 void mbBlitProject(void* blit, int w, int h);
-void mbBlitCalcWidth(f32 z, void* blit, int x, int y);
+void mbBlitCalcWidth(void* blit, int x, int y, f64 depth);
 void mbInitBlitEntry(void* blit, u32 pos, int a);   /* 0x800B2988 */
 void* MBCreateBlit(void* node, s32 tex, s32 x, s32 y, s32 w, s32 h);
 void mbBlitCvtCoord(void* blit, f32 depth);
@@ -544,11 +544,11 @@ void animate_panel_piece(void)
  * Panel text/blit helper: lays out one label string into a temp blit,
  * positions it, and returns the blit handle (or NULL). Skeleton.
  */
-void strcpy();                         /* 0x800E80D4 */
+char* strcpy(char* dst, const char* src); /* 0x800E80D4 */
 int MBOX_FindTexture_Err();            /* 0x800B8B34 */
-int MBRomTexPtr(int texid);            /* 0x800BA024 */
-void sprintf();                        /* 0x800C9BD0 */
-extern char lbl_803473D8[];            /* piece-name format */
+u32 MBRomTexPtr(int texid);            /* 0x800BA024 */
+int sprintf(char* dst, const char* fmt, ...); /* 0x800C9BD0 */
+extern char lbl_803473D8;              /* piece-name format */
 extern f32 lbl_803473E0;               /* blit scale */
 
 /* Build one inventory piece's icon blit: format its name, find the texture,
@@ -556,35 +556,32 @@ extern f32 lbl_803473E0;               /* blit scale */
 void* disp_piece(u32* piece, s32 xoff, u32 mode)
 {
     char buf[36];
-    char* name = (char*)piece[0];
     void* blit;
+    int tex;
+    u32 info;
 
-    if (name == 0) {
-        blit = 0;
+    if (piece[0] == 0) {
+        return NULL;
+    }
+    if (mode != 0) {
+        sprintf(buf, &lbl_803473D8, (char*)piece[0], mode);
     } else {
-        int tex;
-        int info;
-        if (mode != 0) {
-            sprintf(buf, lbl_803473D8, name, mode);
-        } else {
-            strcpy(buf, name);
-        }
-        tex = MBOX_FindTexture_Err(buf, 0, 1);
-        blit = MBNewBlit(buf, 0, 0);
-        info = MBRomTexPtr(tex);
-        mbBlitCalcWidth(lbl_803473E0, blit, piece[1] + xoff, piece[2]);
-        if (info != 0) {
-            mbBlitProject(blit, *(u16*)(info + 10), *(u16*)(info + 0xc));
-            piece[7] = *(u16*)(info + 10);
-            piece[8] = *(u16*)(info + 0xc);
-        }
+        strcpy(buf, (char*)piece[0]);
+    }
+    tex = MBOX_FindTexture_Err(buf, 0, 1);
+    blit = MBNewBlit(buf, 0, 0);
+    info = MBRomTexPtr(tex);
+    mbBlitCalcWidth(blit, piece[1] + xoff, piece[2], lbl_803473E0);
+    if (info != 0) {
+        mbBlitProject(blit, *(u16*)(info + 10), *(u16*)(info + 0xC));
+        piece[7] = *(u16*)(info + 10);
+        piece[8] = *(u16*)(info + 0xC);
     }
     return blit;
 }
 
 int DrawTextKeepScale();               /* 0x800209BC */
 void MBFontMsgSetAlpha(int handle, u32 node); /* 0x800B5AA8 */
-void sprintf();                        /* 0x800C9BD0 */
 extern u8 lbl_8011D568[];              /* n-of-m style config, stride 0x24 */
 extern f64 lbl_80347418;               /* min scale to draw */
 extern char lbl_80347420[], lbl_80347424[]; /* "%d" formats */
