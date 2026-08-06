@@ -34,7 +34,7 @@
  *   0x8006D29C ServeFireScroll                  blit-entry setup
  *   0x8006D458 EndFireScroll                  blit teardown
  *   0x8006D4E8 StartFireScroll                  green-circle screen-transition build
- *   0x8006D7BC FireScrollActive                  transition-active getter (lbl_80343C94)
+ *   0x8006D7BC FireScrollActive                  transition-active getter
  *   0x8006D7D8 FireScrollReset                  transition clear
  *   0x8006D7E4 ticks_for_firescroll                  returns 0
  *   0x8006D7EC ControllerMessageBox                  4-player interactive dialog (~ControllerMessageBox)
@@ -60,6 +60,10 @@ void* MBRemoveBlit(void* blit);   /* returns NULL (clears the handle) */
 void mbBlitProject(void* blit, int w, int h);
 void mbBlitCalcWidth(f32 z, void* blit, int x, int y);
 void mbInitBlitEntry(void* blit, u32 pos, int a);   /* 0x800B2988 */
+void* MBCreateBlit(void* node, s32 tex, s32 x, s32 y, s32 w, s32 h);
+void mbBlitCvtCoord(void* blit, f32 depth);
+void mbBlitUpdateEntry(void* blit, u32 keepMask, u32 setBits);
+s32 MBOX_FindTexture(const char* name, s32* out);
 
 /* ---- misc engine helpers (other TUs) ---- */
 void ClearAllPlayerControls(int a);   /* 0x80032A80 */
@@ -87,19 +91,26 @@ extern int lbl_80344A48;        /* screensaver idle timer */
 extern int gGameMode;        /* game-mode flag */
 
 /* ---- screen-transition blit handles + wipe state (green-circle wipe) ---- */
-extern void* lbl_80344A34;
-extern void* lbl_80343C8C;
-extern void* lbl_80343C90;
-extern void* lbl_80343C94;      /* transition-active handle (0 = inactive) */
-extern void* lbl_80343C98;
-extern int lbl_80344A38;        /* wipe X anchor */
-extern int lbl_80344A3C;        /* wipe Y anchor */
-extern int lbl_80344A40;        /* wipe progress accumulator */
+extern void* gFireScrollImageBlit;
+extern void* gFireScrollMaskBlits[2];
+extern void* gFireScrollCircleBlits[2]; /* first handle is the active flag */
+extern int gFireScrollCircleFrame;
+extern int gFireScrollMaskFrame;
+extern int gFireScrollTicks;
 extern int lbl_80344A44;        /* inventory-panels-built flag */
 extern int gClockStepTicks;     /* frame-time delta */
 extern u32 sFlags;              /* sFlags global mode flags */
 extern u32 lbl_80240FB0;        /* pad state A */
 extern u32 lbl_80240FC0;        /* pad state B */
+extern void* gDiag_DE8;
+extern s32 gFireScrollVariant;
+extern char* lbl_8011D748[];
+extern f32 lbl_80347378;
+extern volatile f64 lbl_80347428;
+extern f64 lbl_80347430;
+extern f64 lbl_80347438;
+extern f64 lbl_80347440;
+extern void fn_8009D37C(void);
 
 /* ---- screensaver-weapon parallel state arrays (this TU's .bss) ---- */
 extern int lbl_80274600[4];     /* per-weapon slot A (state code) */
@@ -309,7 +320,7 @@ void draw_panels(void)
 {
     int p;
 
-    if (lbl_80343C94 == 0) {
+    if (gFireScrollCircleBlits[0] == 0) {
         if (lbl_80344A44 == 0) {
             /* one-time panel-handle construction (float-ABI body elided) */
         }
@@ -403,12 +414,103 @@ void print_n_of_m(s32 style, s32 n, s32 m, s32 x, u32 node)
     }
 }
 
-/*
- * Build the green-circle screen-transition blits (allocates lbl_80343C94 /
- * lbl_80343C8C ... and seeds the wipe anchors). Giant; skeleton.
- */
-void StartFireScroll(void)
+/* Build the green-circle screen-transition blits and seed the wipe anchors. */
+s32 StartFireScroll(char* name, s32 variant, s32 x, s32 y, s32 width,
+                    s32 height, s32 split, f32 depth)
 {
+    s32 heightAdjust;
+    s32 adjustedY;
+    s32 adjustedHeight;
+    s32 splitWidth;
+    s32 tableOffset;
+    s32 maskTexture;
+    s32 circleTexture;
+    void* parent;
+    f64 depthOffset;
+    f32 imageDepth;
+    f32 circleDepth;
+    f32 maskDepth;
+
+    fn_8009D37C();
+    if (gFireScrollMaskBlits[0] != NULL) {
+        if (split == 1) {
+            return (s32)gFireScrollMaskBlits[1];
+        }
+        return (s32)gFireScrollMaskBlits[0];
+    }
+
+    if (variant < 0) {
+        if (++gFireScrollVariant >= 4) {
+            gFireScrollVariant = 0;
+        }
+        variant = gFireScrollVariant;
+    }
+
+    if ((f64)depth < lbl_80347428) {
+        depth = lbl_80347378;
+    }
+    depthOffset = (f64)depth - lbl_80347428;
+    maskDepth = (f32)(lbl_80347430 + depthOffset);
+    circleDepth = (f32)(lbl_80347438 + depthOffset);
+    imageDepth = (f32)(lbl_80347440 + depthOffset);
+
+    heightAdjust = 0;
+    adjustedY = y;
+    if (y < 0) {
+        heightAdjust = y + 32;
+        adjustedY = 0;
+    }
+    adjustedHeight = height + heightAdjust;
+    if (split == 1) {
+        splitWidth = width / 2;
+    } else {
+        splitWidth = width;
+    }
+
+    tableOffset = variant * 2;
+    maskTexture = MBOX_FindTexture(lbl_8011D748[tableOffset + 1], NULL);
+    gFireScrollMaskBlits[0] = MBCreateBlit(NULL, maskTexture + 1, x, adjustedY,
+                                          splitWidth, adjustedHeight);
+    mbBlitCvtCoord(gFireScrollMaskBlits[0], maskDepth);
+    mbBlitUpdateEntry(gFireScrollMaskBlits[0], 0xFFFFFFFF, 0x10000);
+    if (split == 1) {
+        gFireScrollMaskBlits[1] =
+            MBCreateBlit(NULL, maskTexture + 1, x + splitWidth, adjustedY,
+                         splitWidth, adjustedHeight);
+        mbBlitCvtCoord(gFireScrollMaskBlits[1], maskDepth);
+        mbBlitUpdateEntry(gFireScrollMaskBlits[1], 0xFFFFFFFF, 0x10020);
+    }
+    gFireScrollMaskFrame = maskTexture + 1;
+    parent = gDiag_DE8;
+
+    if (name[0] != '\0') {
+        s32 imageTexture = MBOX_FindTexture(name, NULL);
+
+        gFireScrollImageBlit = MBCreateBlit(parent, imageTexture, x, y,
+                                           width, height);
+        mbBlitCvtCoord(gFireScrollImageBlit, imageDepth);
+        mbBlitUpdateEntry(gFireScrollImageBlit, 0xFFFFFFFF, 0x10000);
+    }
+
+    circleTexture = MBOX_FindTexture(lbl_8011D748[tableOffset], NULL);
+    gFireScrollCircleBlits[0] =
+        MBCreateBlit(parent, circleTexture + 1, x, adjustedY, splitWidth,
+                     adjustedHeight);
+    mbBlitCvtCoord(gFireScrollCircleBlits[0], circleDepth);
+    if (split == 1) {
+        gFireScrollCircleBlits[1] =
+            MBCreateBlit(parent, circleTexture + 1, x + splitWidth, adjustedY,
+                         splitWidth, adjustedHeight);
+        mbBlitCvtCoord(gFireScrollCircleBlits[1], circleDepth);
+        mbBlitUpdateEntry(gFireScrollCircleBlits[1], 0xFFFFFFFF, 0x20);
+    }
+    gFireScrollCircleFrame = circleTexture + 1;
+    gFireScrollTicks = 0;
+
+    if (split == 1) {
+        return (s32)gFireScrollMaskBlits[1];
+    }
+    return (s32)gFireScrollMaskBlits[0];
 }
 
 /* Tear down all screen-transition blits (green-circle wipe cleanup). */
@@ -416,12 +518,12 @@ void EndFireScroll(void)
 {
     void** handle;
 
-    if (lbl_80344A34) { lbl_80344A34 = MBRemoveBlit(lbl_80344A34); }
-    if (lbl_80343C8C) { lbl_80343C8C = MBRemoveBlit(lbl_80343C8C); }
-    handle = &lbl_80343C8C;
+    if (gFireScrollImageBlit) { gFireScrollImageBlit = MBRemoveBlit(gFireScrollImageBlit); }
+    if (gFireScrollMaskBlits[0]) { gFireScrollMaskBlits[0] = MBRemoveBlit(gFireScrollMaskBlits[0]); }
+    handle = gFireScrollMaskBlits;
     if (*++handle) { *handle = MBRemoveBlit(*handle); }
-    if (lbl_80343C94) { lbl_80343C94 = MBRemoveBlit(lbl_80343C94); }
-    handle = &lbl_80343C94;
+    if (gFireScrollCircleBlits[0]) { gFireScrollCircleBlits[0] = MBRemoveBlit(gFireScrollCircleBlits[0]); }
+    handle = gFireScrollCircleBlits;
     if (*++handle) { *handle = MBRemoveBlit(*handle); }
 }
 
@@ -435,24 +537,24 @@ int ServeFireScroll(void)
     int t;
     u32 pos;
 
-    if (lbl_80343C94 == 0) {
+    if (gFireScrollCircleBlits[0] == 0) {
         return 0;
     }
 
     if ((sFlags & 8) == 0) {
-        lbl_80344A40 += gClockStepTicks;
+        gFireScrollTicks += gClockStepTicks;
     } else if ((lbl_80240FB0 & 0x2000000) || (lbl_80240FC0 & 0x1000000)) {
-        lbl_80344A40 += 2;
+        gFireScrollTicks += 2;
     }
 
-    t = lbl_80344A40 >> 1;
+    t = gFireScrollTicks >> 1;
     if (t < 0x15) {
-        pos = lbl_80344A38 + t;
-        mbInitBlitEntry(lbl_80343C94, pos, 0);
-        if (lbl_80343C98) { mbInitBlitEntry(lbl_80343C98, pos, 0); }
-        pos = lbl_80344A3C + t;
-        mbInitBlitEntry(lbl_80343C8C, pos, 0);
-        if (lbl_80343C90) { mbInitBlitEntry(lbl_80343C90, pos, 0); }
+        pos = gFireScrollCircleFrame + t;
+        mbInitBlitEntry(gFireScrollCircleBlits[0], pos, 0);
+        if (gFireScrollCircleBlits[1]) { mbInitBlitEntry(gFireScrollCircleBlits[1], pos, 0); }
+        pos = gFireScrollMaskFrame + t;
+        mbInitBlitEntry(gFireScrollMaskBlits[0], pos, 0);
+        if (gFireScrollMaskBlits[1]) { mbInitBlitEntry(gFireScrollMaskBlits[1], pos, 0); }
         if ((sFlags & 8) == 0) {
             ClearAllPlayerControls(2);
         }
@@ -463,11 +565,11 @@ int ServeFireScroll(void)
     return 0;
 }
 
-/* ---- transition-flag accessors (lbl_80343C94) ---- */
+/* ---- transition-flag accessors ---- */
 
 int FireScrollActive(void)
 {
-    if (lbl_80343C94) {
+    if (gFireScrollCircleBlits[0]) {
         return 1;
     }
     return 0;
@@ -475,7 +577,7 @@ int FireScrollActive(void)
 
 void FireScrollReset(void)
 {
-    lbl_80343C94 = 0;
+    gFireScrollCircleBlits[0] = 0;
 }
 
 int ticks_for_firescroll(void)
