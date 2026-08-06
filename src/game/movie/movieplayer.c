@@ -1466,8 +1466,27 @@ void fn_800DBE98(u32 param_1, u8* param_2) {
     param_2[0] = gDTextBuf[(int)(fVar4 + lbl_803493EC * fVar3 + fVar1)];
 }
 
-/* DText allocate/init buffer (gDTextInitCount) */
-void fn_800DBF6C(void) {
+/* Destroy a DText renderer and optionally release the object itself. */
+u32* fn_800DBF6C(u32* self, s16 deleting) {
+    u8 unused[64];
+
+    if (self != NULL) {
+        self[8] = (u32)lbl_801296F0;
+        gDTextInitCount--;
+        if (self[6] != 0) {
+            gMovieAllocCount--;
+            if (gMovieAllocCount == 0) {
+                ResetAllocTot();
+            }
+        }
+        if (deleting > 0 && self != NULL) {
+            gMovieAllocCount--;
+            if (gMovieAllocCount == 0) {
+                ResetAllocTot();
+            }
+        }
+    }
+    return self;
 }
 
 /* 0x800DC034 init the DText debug-overlay 256-entry colour ramp (gDTextColorRamp/gDTextBuf) */
