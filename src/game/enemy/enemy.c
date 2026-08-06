@@ -90,7 +90,7 @@
  *   fn_8004CE38 - left/right look-ahead probe angle helper.
  *   fn_8004D958 - per-enemy tick wrapper (drives do_ai).
  *   fn_8004DC2C/fn_8004DF58/fn_8004E448 - move post-processing / FX helpers.
- *   fn_8004F87C/fn_8004FBC8 - generate_enemy support (type resolve / gendir).
+ *   fn_8004F87C - generate_enemy type-resolution support.
  *   plus small state/timer pokes: fn_8004CFAC, fn_8004D030, fn_8004DB3C,
  *   fn_8004E5F8, fn_8004E67C, fn_8004F1DC, check_vacancy.
  *
@@ -4649,7 +4649,7 @@ s32 fn_8004F87C(s32 type, s32 level, s32 spew)
 }
 
 /* Rotate a horizontal direction into one of the eight generator octants. */
-f32 fn_8004FBC8(f32* input, f32* output, s32 direction)
+static f32 gendir(f32* input, f32* output, s32 direction)
 {
     f32 x = input[0];
     f32 z = input[2];
@@ -4858,7 +4858,7 @@ s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
         d = start;
         do {
             if ((mask & 0xFFFF & (1 << d)) == 0) {
-                e->genang_offset = fn_8004FBC8(v, out, d);
+                e->genang_offset = gendir(v, out, d);
                 r = check_enemy_pos(startv, out, slot);
                 if (r > 0) {
                     goto placed;

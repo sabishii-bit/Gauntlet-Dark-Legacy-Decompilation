@@ -2596,8 +2596,15 @@ extern s32 sNumItemWobjs;
 extern u8 sItemRuntime[];
 s16* FindWobjWanim(void* wobj);
 
-/* 0x8005FF60 - fire all special triggers of the given class */
-void fn_8005FF60(s32 type, s32 flag)
+typedef struct ItemWobjRuntime {
+    f32 y[450];
+    f32 initialY[450];
+    u8 _pad[25616];
+    u32 object[450];
+} ItemWobjRuntime;
+
+/* Fire all special triggers of the given class. */
+void ActivateSpecialTrigger(s32 type, s32 flag)
 {
     s32 i;
     u8* it;
@@ -2605,12 +2612,11 @@ void fn_8005FF60(s32 type, s32 flag)
     u8* obj;
     s32 j;
     s32 n;
-    u8* rt;
-    u8* entry;
+    ItemWobjRuntime* rt;
     u8 _spare[8];
 
     it = (u8*)sItems;
-    rt = sItemRuntime;
+    rt = (ItemWobjRuntime*)sItemRuntime;
     for (i = 0; i < sNumItems; i++, it += 240) {
         if (*(s16*)(it + 196) != -1 && (*(s16*)(it + 196) & 0x8100) == 0 &&
             *(s32*)*(u32**)it == 5 && *(u8*)(it + 226) == type) {
@@ -2637,17 +2643,15 @@ void fn_8005FF60(s32 type, s32 flag)
                         if (flag != 0) {
                             n = sNumItemWobjs;
                             for (j = 0; j < n; j++) {
-                                entry = rt + j * 4;
-                                if (*(u32*)(entry + 29216) == (u32)obj) {
+                                if (rt->object[j] == (u32)obj) {
                                     break;
                                 }
                             }
                             if (j < n) {
                                 f32 v;
 
-                                entry = rt + j * 4;
-                                v = *(f32*)(entry + 1800);
-                                *(f32*)entry = v;
+                                v = rt->initialY[j];
+                                rt->y[j] = v;
                                 *(f32*)(*(u32*)(obj + 40) + 52) = v;
                             }
                         }
