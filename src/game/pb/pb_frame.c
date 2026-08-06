@@ -865,7 +865,6 @@ void fn_800C31C4(void)
     u8* fb = lbl_802C4DE0;
     WinGlobals* gg = gWinGlobals;
     WinGlobals* g;
-    s32 zero = 0;
 
     if (gg->screen == 0) {
         gg->screen = (MBScreen*)(fb + 0x400);
@@ -876,9 +875,9 @@ void fn_800C31C4(void)
     *lbl_80343F20 = (u32)g->screen->frames;
     g->screen->f38 = 2048.0f;
     g->screen->f3c = 2048.0 + (lbl_80343F0C - lbl_80343F08) / 2;
-    g->screen->m04 = zero;
+    g->screen->m04 = 0;
     g->screen->m08 = !sceGsSyncV(0);
-    g->screen->m10 = zero;
+    g->screen->m10 = 0;
     g->screen->m14 = 4;
     g->screen->m18 = 4;
     lbl_80343EFC->m28 = fb;
