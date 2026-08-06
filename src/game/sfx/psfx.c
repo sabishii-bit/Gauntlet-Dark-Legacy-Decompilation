@@ -454,7 +454,8 @@ s32 DoPlyrSfx(u8* player, PlayerSfxRecord* record, f32* position,
                     0x40, lbl_80347DAC, lbl_80347DB8);
     }
 
-    effectData = (u8*)Effects + effect * sizeof(Effect);
+    effectData = (u8*)Effects;
+    effectData += effect * sizeof(Effect);
     rootNode = **(void***)(effectData += 0x18);
     if (rootNode != NULL) {
         MBTreeSetAmbientAdd(rootNode, 0x1FF, 1);
