@@ -1083,7 +1083,11 @@ s32 TextHeightMLines(f32 scale, s32 font, char* str)
 /* ==== 0x8002081C FontHeight ==== */
 s32 FontHeight(f32 scale, s32 font)
 {
-    return (s32)((f32)MBFontHeight(font) * scale);
+    f32 height;
+
+    height = (f32)MBFontHeight(font);
+    height *= scale;
+    return (s32)height;
 }
 
 /* ==== 0x80020874 DrawNormalText ==== */

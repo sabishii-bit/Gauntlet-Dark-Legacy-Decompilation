@@ -548,11 +548,12 @@ int towerLevelStatus(int player, int level) {
 /* Get a per-level record-B value (field 0xDEE). */
 int towerBossStatus(int player, int level) {
     s32 value = ((s16*)&TOWER_SAVE(player)->completion2)[level];
+    s32 result = value;
 
-    if (value >= 0) {
-        return value;
+    if (value < 0) {
+        result = lbl_80124C70[level];
     }
-    return lbl_80124C70[level];
+    return result;
 }
 
 /* Advance the per-level record-B counter (field 0xDEE, 0x223A, timers). */
