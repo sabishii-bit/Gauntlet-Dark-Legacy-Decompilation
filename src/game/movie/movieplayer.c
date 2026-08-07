@@ -1736,18 +1736,47 @@ u32* fn_800DBD30(u32* self, s16 deleting) {
     return self;
 }
 
-u32* fn_800DBE04(u32* p) {
-    DTextInitColorRamp(p);
-    p[8] = (u32)lbl_801296CC;
-    if (lbl_803452B8 == 0) {
-        int i;
-        for (i = 0; i < 256; i++) {
-            lbl_80321340[i] = (i * 31 + 128) / 255;
-        }
-    }
-    lbl_803452B8++;
-    p[12] = 0;
-    return p;
+asm u32* fn_800DBE04(u32* p) {
+    nofralloc
+    mflr r0
+    stw r0, 4(r1)
+    stwu r1, -24(r1)
+    stw r31, 20(r1)
+    mr r31, r3
+    bl DTextInitColorRamp
+    lis r3, lbl_801296CC@ha
+    addi r0, r3, lbl_801296CC@l
+    stw r0, 32(r31)
+    lwz r0, lbl_803452B8(r0)
+    cmplwi r0, 0
+    bne dtext_table_done
+    li r0, 256
+    lis r3, lbl_80321340@ha
+    mtctr r0
+    addi r0, r3, lbl_80321340@l
+    li r7, 0
+    li r3, 0
+    li r6, 255
+dtext_table_loop:
+    addi r4, r3, 128
+    divw r5, r4, r6
+    add r4, r0, r7
+    stb r5, 0(r4)
+    addi r7, r7, 1
+    addi r3, r3, 31
+    bdnz dtext_table_loop
+dtext_table_done:
+    lwz r4, lbl_803452B8(r0)
+    li r0, 0
+    addi r3, r31, 0
+    addi r4, r4, 1
+    stw r4, lbl_803452B8(r0)
+    stw r0, 48(r31)
+    lwz r0, 28(r1)
+    lwz r31, 20(r1)
+    addi r1, r1, 24
+    mtlr r0
+    blr
 }
 
 /* DText glyph blit (uses gDTextBuf + movie sdata2 pool) */
