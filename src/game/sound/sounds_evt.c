@@ -1481,32 +1481,33 @@ void AudioPlayerEatFood(int pidx, int foodType)
 
 void AudioPlayerEatSFX(int pidx)
 {
-    int playerOffset = pidx * 13148;
     int f284;
+    int playerOffset = pidx * 13148;
+    u8* player;
 
-    pidx = (int)&gPlayers[playerOffset];
-    f284 = *(int*)(pidx + 284);
+    player = &gPlayers[playerOffset];
+    f284 = *(int*)(player + 284);
 
     if (f284 & 0x580000) {
-        sndFxPlay3DAtten(66, pidx + 68, 127, 40);
+        sndFxPlay3DAtten(66, (int)(player + 68), 127, 40);
     } else {
         switch (f284 & 0xF) {
         case 1:
-            sndFxPlay3DAtten(68, pidx + 68, 127, 40);
+            sndFxPlay3DAtten(68, (int)(player + 68), 127, 40);
             break;
         case 2:
-            sndFxPlay3DAtten(70, pidx + 68, 127, 40);
+            sndFxPlay3DAtten(70, (int)(player + 68), 127, 40);
             break;
         case 3:
-            sndFxPlay3DAtten(69, pidx + 68, 127, 40);
+            sndFxPlay3DAtten(69, (int)(player + 68), 127, 40);
             break;
         case 4:
-            sndFxPlay3DAtten(67, pidx + 68, 127, 40);
+            sndFxPlay3DAtten(67, (int)(player + 68), 127, 40);
             break;
         default:
-            pidx = (int)&gPlayers[playerOffset];
-            sndFxPlay3DAtten(lbl_801236A4[*(int*)(pidx + 8)],
-                            pidx + 68, 127, 42);
+            player = &gPlayers[playerOffset];
+            sndFxPlay3DAtten(lbl_801236A4[*(int*)(player + 8)],
+                            (int)(player + 68), 127, 42);
             break;
         }
     }
