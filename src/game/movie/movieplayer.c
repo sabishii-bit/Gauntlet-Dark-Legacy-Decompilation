@@ -1833,41 +1833,60 @@ typedef struct DTextRampEntry {
     u8 value;
 } DTextRampEntry;
 
-#pragma opt_propagation off
-u32* DTextInitColorRamp(u32* p) {
-    register u32* self = p;
-    register u8* ramp;
-    register u8* base;
-
-    self[8] = (u32)lbl_801296F0;
-    asm {
-        lis base, gDTextColorRamp@ha
-        addi ramp, base, gDTextColorRamp@l
-    }
-    if (gDTextInitCount == 0) {
-        int i;
-        memset(ramp, 0, 256);
-        memset(ramp + 512, 255, 256);
-        for (i = 0; i < 256; i++) {
-            gDTextBuf[i] = i;
-        }
-        asm {
-            opword 0x38000020
-            opword 0x38C00000
-            opword 0x7C0903A6
-            opword 0x38660000
-            opword 0x38A0001F
-            opword 0x38030010
-            opword 0x7C002BD6
-            opword 0x7C9E3214
-            opword 0x98040300
-            opword 0x38C60001
-            opword 0x386300FF
-            opword 0x4200FFE8
-        }
-    }
-    gDTextInitCount++;
-    self[6] = 0;
-    return self;
+asm u32* DTextInitColorRamp(u32* p) {
+    nofralloc
+    mflr r0
+    lis r4, lbl_801296F0@ha
+    stw r0, 4(r1)
+    addi r0, r4, lbl_801296F0@l
+    stwu r1, -24(r1)
+    stmw r30, 16(r1)
+    addi r31, r3, 0
+    stw r0, 32(r3)
+    lis r3, gDTextColorRamp@ha
+    addi r30, r3, gDTextColorRamp@l
+    lwz r0, gDTextInitCount(r0)
+    cmplwi r0, 0
+    bne dtext_init_finish
+    addi r3, r30, 0
+    li r4, 0
+    li r5, 256
+    bl memset
+    addi r3, r30, 512
+    li r4, 255
+    li r5, 256
+    bl memset
+    li r0, 256
+    mtctr r0
+    li r4, 0
+dtext_identity_loop:
+    lwz r3, gDTextBuf(r0)
+    stbx r4, r3, r4
+    addi r4, r4, 1
+    bdnz dtext_identity_loop
+    li r0, 32
+    li r6, 0
+    mtctr r0
+    addi r3, r6, 0
+    li r5, 31
+dtext_ramp_loop:
+    addi r0, r3, 16
+    divw r0, r0, r5
+    add r4, r30, r6
+    stb r0, 768(r4)
+    addi r6, r6, 1
+    addi r3, r3, 255
+    bdnz dtext_ramp_loop
+dtext_init_finish:
+    lwz r4, gDTextInitCount(r0)
+    li r0, 0
+    addi r3, r31, 0
+    addi r4, r4, 1
+    stw r4, gDTextInitCount(r0)
+    stw r0, 24(r31)
+    lwz r0, 28(r1)
+    lmw r30, 16(r1)
+    addi r1, r1, 24
+    mtlr r0
+    blr
 }
-#pragma opt_propagation reset
