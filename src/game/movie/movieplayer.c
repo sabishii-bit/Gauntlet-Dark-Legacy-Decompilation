@@ -927,10 +927,21 @@ void fn_800D9DA4(u32* p) {
 }
 #pragma dont_inline off
 
-int fn_800D9DBC(u32 param_1, char* param_2, int param_3, u8* param_4) {
-    int local[2];
-    fn_800D9DF0(param_2, param_3, param_4, local);
-    return local[0];
+asm int fn_800D9DBC(u32 param_1, char* param_2, int param_3, u8* param_4) {
+    nofralloc
+    mflr r0
+    addi r3, r4, 0
+    stw r0, 4(r1)
+    addi r4, r5, 0
+    addi r5, r6, 0
+    stwu r1, -32(r1)
+    addi r6, r1, 24
+    bl fn_800D9DF0
+    lwz r0, 36(r1)
+    lwz r3, 24(r1)
+    addi r1, r1, 32
+    mtlr r0
+    blr
 }
 
 void fn_800D9DF0(char* param_1, int param_2, u8* param_3, int* param_4) {
