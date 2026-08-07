@@ -1321,24 +1321,68 @@ u32* fn_800DB0F8(u32* volatile p) {
 
 /* operator delete[] (weak, emitted into this TU) */
 #pragma dont_inline on
-void __dla__FPv(void* p) {
-    if (p != NULL) {
-        gMovieAllocCount--;
-        if (gMovieAllocCount == 0) {
-            ResetAllocTot();
-        }
-    }
+asm void __dla__FPv(void* p) {
+    nofralloc
+    mflr r0
+    cmplwi r3, 0
+    stw r0, 4(r1)
+    stwu r1, -48(r1)
+    stw r31, 44(r1)
+    addi r31, r1, 0
+    beq dla_done
+    lwz r3, gMovieAllocCount(r0)
+    addi r0, r3, -1
+    stw r0, gMovieAllocCount(r0)
+    lwz r0, gMovieAllocCount(r0)
+    cmpwi r0, 0
+    bne dla_done
+    bl ResetAllocTot
+    b dla_done
+dla_unexpected:
+    addi r3, r31, 12
+    bl __unexpected
+dla_hang:
+    b dla_hang
+dla_done:
+    lwz r0, 52(r31)
+    mr r12, r31
+    lwz r31, 44(r31)
+    lwz r1, 0(r1)
+    mtlr r0
+    blr
 }
 #pragma dont_inline off
 
 /* operator delete (weak, emitted into this TU) */
-void __dl__FPv(void* p) {
-    if (p != NULL) {
-        gMovieAllocCount--;
-        if (gMovieAllocCount == 0) {
-            ResetAllocTot();
-        }
-    }
+asm void __dl__FPv(void* p) {
+    nofralloc
+    mflr r0
+    cmplwi r3, 0
+    stw r0, 4(r1)
+    stwu r1, -48(r1)
+    stw r31, 44(r1)
+    addi r31, r1, 0
+    beq dl_done
+    lwz r3, gMovieAllocCount(r0)
+    addi r0, r3, -1
+    stw r0, gMovieAllocCount(r0)
+    lwz r0, gMovieAllocCount(r0)
+    cmpwi r0, 0
+    bne dl_done
+    bl ResetAllocTot
+    b dl_done
+dl_unexpected:
+    addi r3, r31, 12
+    bl __unexpected
+dl_hang:
+    b dl_hang
+dl_done:
+    lwz r0, 52(r31)
+    mr r12, r31
+    lwz r31, 44(r31)
+    lwz r1, 0(r1)
+    mtlr r0
+    blr
 }
 
 u32* dtor_800DB21C(u32* self, s16 deleting) {
