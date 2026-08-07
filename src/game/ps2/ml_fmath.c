@@ -22,6 +22,8 @@
 extern void srand(u32 seed);
 extern u32 pbRand(void);
 extern u32 lbl_80344F08; /* sRandom */
+extern f32 sYawCos;
+extern f32 sYawSin;
 extern f64 sqrt(f64 x);
 extern f64 __fabs(f64 x);
 extern f64 __frsqrte(f64 x);
@@ -818,25 +820,40 @@ void PitchMat3(f32* matrix, f32 angle)
 #pragma opt_propagation reset
 
 /* Post-multiply by a yaw rotation. */
+#pragma opt_lifetimes off
+#pragma opt_propagation off
 void YawMat3(f32* matrix, f32 angle)
 {
     f32 magnitude = angle;
+    u8 unused1[8];
     s32 i;
 
     *(u32*)&magnitude &= 0x7FFFFFFF;
     if ((f64)magnitude < 0.0001)
         return;
-    {
-        f32 s = sin(angle);
-        f32 c = cos(angle);
-        for (i = 0; i < 3; i++) {
-            f32 a = matrix[i];
-            f32 b = matrix[8 + i];
-            matrix[8 + i] = c * b + s * a;
-            matrix[i] = c * a - s * b;
-        }
+    sYawSin = sin(angle);
+    sYawCos = cos(angle);
+    for (i = 0; i < 3; i++) {
+        f32 s;
+        f32 a;
+        f32 c;
+        f32 b;
+        f32 newB;
+        f32 newA;
+
+        s = sYawSin;
+        c = sYawCos;
+        a = matrix[i];
+        b = matrix[8 + i];
+        newA = c * a - b * s;
+        newB = b * c + s * a;
+
+        matrix[8 + i] = newB;
+        matrix[i] = newA;
     }
 }
+#pragma opt_propagation reset
+#pragma opt_lifetimes reset
 
 /* Pre-multiply by a roll rotation. */
 #pragma opt_propagation off
