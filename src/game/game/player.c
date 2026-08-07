@@ -2165,7 +2165,7 @@ extern s32 saveSave(s32 a, s32 b, s32 c, void* buf, s32 size);
 extern s32 InitPreferences(s32 a, s32 b);
 extern s32 memCardErrorPrompt();
 extern s32 saveMenuPrompt(char* prompt, s32* colors, s32 n);
-extern s32 OptionsSetup(s32 a, s32 b);
+extern s32 OptionsSetup(s32 a);
 extern void ControlsUpdate(s32 a, s32* b, s32 c);
 extern void ReadControls(void);
 extern s32 any_level(u32 button);
@@ -3261,48 +3261,55 @@ void load_player(s32 i) {
 /* save image / per-character stats                                    */
 /* ------------------------------------------------------------------ */
 
-/* Memcard read into the save image, then unpack (msg on failure).     */
-s32 PlayerLoadSaveFile(s32 i, s32 slot) {
-    Player* p = P(i);
-    s32 size[2];
-    s32 ok;
-    s32 j;
-
-    PF(p, 0x3358, s32) = slot;
-    do {
-        size[0] = 0x1434;
-        ok = saveLoad(PF(p, 0x3348, s32), PF(p, 0x3350, s32), PF(p, 0x3358, s32),
-                         (u8*)p + 0xA80, size);
-        if (ok == 0 && memCardErrorPrompt("Game load failed...", 0) == 0) {
-            break;
-        }
-    } while (ok == 0);
-    if (ok != 0) {
-        j = InitPreferences(PF(p, 0x3348, s32), PF(p, 0x3350, s32));
-        if (j != 0) {
-            OptionsSetup(j, PF(p, 0x3350, s32));
-        }
-    }
-    player_get_from_save(p, -1);
-    PF(p, 0xA8B, u8) = 1;
-    /* image -> backup */
-    memcpy((u8*)p + 0x1ECC, (u8*)p + 0xA80, 0x1434);
-    for (j = 0; j < 0x100; j++) {
-        PF(p, 0x1DB4 + j, u8) &= 0xF0;
-    }
-    change_player(i, p->character);
-    return ok;
-}
+typedef struct PlayerSaveImage {
+    u8 bytes[0x1434];
+} PlayerSaveImage;
 
 typedef struct PlayerMemcardView {
     u8 _pad0000[0xA80];
-    u8 image[0x1434];
-    u8 _pad1EB4[0x1498];
+    PlayerSaveImage image;
+    u8 _pad1EB4[0x18];
+    PlayerSaveImage backup;
+    u8 _pad3300[0x4C];
     s32 cardFile;
     s32 cardDirectory;
     u8 _pad3354[4];
     s32 cardSlot;
 } PlayerMemcardView;
+
+/* Memcard read into the save image, then unpack (msg on failure).     */
+s32 PlayerLoadSaveFile(s32 i, s32 slot) {
+    s32 player = i;
+    s32 size[2];
+    s32 ok;
+    s32 j;
+    PlayerMemcardView* p = &((PlayerMemcardView*)gPlayers)[player];
+
+    p->cardSlot = slot;
+    size[0] = sizeof(p->image);
+    do {
+        ok = saveLoad(p->cardFile, p->cardDirectory, p->cardSlot,
+                      &p->image, size);
+        if (ok == 0 && memCardErrorPrompt("Game load failed...") == 0) {
+            break;
+        }
+    } while (ok == 0);
+    if (ok != 0) {
+        j = InitPreferences(p->cardFile, p->cardDirectory);
+        if (j != 0) {
+            OptionsSetup(j);
+        }
+    }
+    player_get_from_save(p, -1);
+    p->image.bytes[0xB] = 1;
+    /* image -> backup */
+    p->backup = p->image;
+    for (j = 0; j < 0x100; j++) {
+        p->image.bytes[0x1334 + j] &= 0xF0;
+    }
+    change_player(player, ((Player*)p)->character);
+    return ok;
+}
 
 /* Pack and memcard-write the save image (msg on failure).             */
 s32 PlayerWriteSaveFile(s32 i, s32 slot) {
@@ -3313,12 +3320,12 @@ s32 PlayerWriteSaveFile(s32 i, s32 slot) {
     player_store_in_save(p);
     do {
         ok = saveSave(p->cardFile, p->cardDirectory, p->cardSlot,
-                      p->image, sizeof(p->image));
+                      &p->image, sizeof(p->image));
         if (ok == 0 && memCardErrorPrompt("Game save failed...") == 0) {
             break;
         }
     } while (ok == 0);
-    p->image[0xB] = 1;
+    p->image.bytes[0xB] = 1;
     return ok;
 }
 
@@ -3346,10 +3353,6 @@ void PlayersRestoreHealth(void) {
         }
     }
 }
-
-typedef struct PlayerSaveImage {
-    u8 bytes[0x1434];
-} PlayerSaveImage;
 
 /* Restore the level-start snapshot (image <- backup, then unpack).    */
 void PlayerRestoreState(s32 player) {
