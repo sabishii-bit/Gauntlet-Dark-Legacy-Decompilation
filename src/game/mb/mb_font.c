@@ -226,6 +226,7 @@ int MBFontStringWidth(const char* s)
 {
     MBFontState* state = &mbfont_space;
     int width = 0;
+    const char* str = s;
     int x;
     MBFont* font;
     int ch;
@@ -235,14 +236,14 @@ int MBFontStringWidth(const char* s)
     }
     font = state->fonts[lbl_80344E14];
 
-    while (*(u8*)s != 0) {
-        ch = *(u8*)s;
+    while (*(u8*)str != 0) {
+        ch = *(u8*)str;
         switch (ch) {
         case '*':
-            if ((u8)s[1] < 'A' || (u8)s[1] > 'Z') {
+            if ((u8)str[1] < 'A' || (u8)str[1] > 'Z') {
                 goto add_width;
             }
-            s++;
+            str++;
             x = (s32)(lbl_80344E5C *
                       (f32)state->fonts[lbl_80344E14]->height);
             goto add_width;
@@ -252,7 +253,7 @@ int MBFontStringWidth(const char* s)
 
         if (font->flags & 1) {
             if (ch >= 128) {
-                ch = *(u8*)++s;
+                ch = *(u8*)++str;
             } else if (ch >= '0' && ch <= '9') {
                 /* Numeric glyphs are already in the remapped range. */
             } else if (ch == '.') {
@@ -272,7 +273,7 @@ int MBFontStringWidth(const char* s)
 
     add_width:
         width += x;
-        s++;
+        str++;
     }
     return width;
 }
