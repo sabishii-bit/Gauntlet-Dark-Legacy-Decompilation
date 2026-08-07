@@ -1066,18 +1066,22 @@ void StringInitSub(u32 mode, StrList* p)
 /* ==== 0x80020764 TextHeightMLines ==== */
 s32 TextHeightMLines(f32 scale, s32 font, char* str)
 {
-    s32 fh = MBFontHeight(font);
-    s32 n = 0;
+    s32 fh;
+    register s32 lineHeight;
+    u8 unused[16];
 
+    fh = MBFontHeight(font);
+    lineHeight = (s32)((f32)fh * scale);
+    fh = 0;
     for (;;) {
         str = find_newline(str);
-        if (str == 0 || n >= 0xF) {
+        if (str == 0 || fh >= 0xF) {
             break;
         }
         str++;
-        n++;
+        fh++;
     }
-    return (n + 1) * (s32)((f32)(s32)fh * scale);
+    return (fh + 1) * lineHeight;
 }
 
 /* ==== 0x8002081C FontHeight ==== */
