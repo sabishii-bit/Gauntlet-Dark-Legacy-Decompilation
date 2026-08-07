@@ -512,21 +512,27 @@ static s32 getNewDirConeShare(Psys* p, MBObject* node, s32 z) {
 
 /* 0x800CD4DC - unique (free-slot) cone direction */
 #pragma opt_lifetimes off
-static s32 getNewDirConeUnique(Psys* p, MBObject* node, s32 z) {
+static s32 getNewDirConeUnique(register Psys* p, register MBObject* node, s32 z) {
     u8 unused[8];
     f32 ux[3], uy[3], dir[3];
     f32 sn2, sn;
     f32 cs, cs2;
     f32 arg;
-    register Psys* psys = p;
+    register Psys* psys;
     register s32 idx;
-    register s32 count = p->dir_max;
-    register u8* use = p->dir_use_lst;
-    register MBObject* obj = node;
+    register s32 count;
+    register u8* use;
+    register MBObject* obj;
     s32 first;
     s32 used;
     f32 angle;
 
+    asm {
+        mr psys, p
+        lwz use, 20(p)
+        mr obj, node
+        lhz count, 48(p)
+    }
     idx = (s32)(3.051850947599719e-05 * (f64)(f32)count *
                 (f64)(f32)(pbRand() & 0x7fff));
     if (idx >= count) {
