@@ -212,11 +212,11 @@ static s32 getNewPosRectShare(Psys* p, MBObject* node, s32 z) {
     register MBObject* obj;
     u16 max;
 
-    idx = p->pos_next;
-    psys = p;
     last = p->pos_last;
-    obj = node;
+    psys = p;
     max = p->pos_max;
+    obj = node;
+    idx = p->pos_next;
 
     if (idx == last) {
         idx = -1;
