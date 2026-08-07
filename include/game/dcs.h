@@ -6,7 +6,7 @@
 void dcsChannelPlay(s32 value);
 s32 update_chinfo(u32 channels);
 s32 dcsChannelSetVolPan(u32 channels, s16 pan);
-s32 dcsChannelSetVolPan2(u32 channels, s32 volume);
+s32 dcsChannelSetVolPan2(s32 channels, s32 volume);
 void dcsAllocReset(s32* high, s32* current, s32* low);
 s32 dcsBankQuery(s32 bank, s32* handle, s32* size);
 s32 dcsVoiceStart(u32 sample, s32 volumePan, s32 priority);
