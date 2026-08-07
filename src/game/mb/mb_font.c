@@ -243,9 +243,14 @@ int MBFontStringWidth(const char* s)
             if ((u8)str[1] < 'A' || (u8)str[1] > 'Z') {
                 goto add_width;
             }
-            str++;
-            x = (s32)(lbl_80344E5C *
-                      (f32)state->fonts[lbl_80344E14]->height);
+            {
+                MBFont* specialFont;
+
+                str++;
+                specialFont = (MBFont*)((u8*)state + lbl_80344E14 * 4);
+                specialFont = *(MBFont**)((u8*)specialFont + 0x66dc);
+                x = (s32)(lbl_80344E5C * (f32)specialFont->height);
+            }
             goto add_width;
         default:
             break;
