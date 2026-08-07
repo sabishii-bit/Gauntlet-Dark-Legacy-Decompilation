@@ -150,7 +150,7 @@ extern int strcmp(const char* lhs, const char* rhs);
 
 /* ---- helpers ---- */
 
-s32 FixMLineText(s32* src, s32* dst, s32 lines);
+s32 FixMLineText(s32* src, s32* dst, s32* lines);
 s32 DrawTextSub(f32 scale, f32 shScale, s32 x, s32 y, u32 flags, u32 color, u8* str);
 
 static inline char* GetStringTextInline(BTextPoolView* info, s32 msg, s32 idx,
@@ -259,7 +259,7 @@ void DrawGlowTextMLines(f32 scale, s32 x, s32 y, s32* str)
     void* lines[16];
 
     lh = (s32)((f32)MBFontHeight(glow_font) * scale);
-    n = FixMLineText(str, (s32*)gTextWorkBuf, (s32)lines);
+    n = FixMLineText(str, (s32*)gTextWorkBuf, (s32*)lines);
     if (y < 0) {
         y = -(y + (n * lh) / 2);
     }
@@ -438,7 +438,7 @@ s32 StringTextWidthSub(f32 scale, StrList* p, s32 msg, s32 idx)
         for (line = 0; line < e->count; line++) {
             lineMax = 0;
             nlines = FixMLineText((s32*)(p->textData + p->textOff[e->first + line]),
-                                  (s32*)gTextWorkBuf, (s32)buf1);
+                                  (s32*)gTextWorkBuf, (s32*)buf1);
             off = 0;
             for (j = 0; j < nlines; j++) {
                 ls = *(u8**)((s32)buf1 + off);
@@ -460,7 +460,7 @@ s32 StringTextWidthSub(f32 scale, StrList* p, s32 msg, s32 idx)
     } else if (idx < e->count) {
         maxw = 0;
         nlines = FixMLineText((s32*)(p->textData + p->textOff[e->first + idx]),
-                              (s32*)gTextWorkBuf, (s32)buf2);
+                              (s32*)gTextWorkBuf, (s32*)buf2);
         color &= 0xff;
         off = 0;
         for (j = 0; j < nlines; j++) {
@@ -543,7 +543,7 @@ s32 DrawStringTextMLines(s32 x, s32 y, s32 spacing, s32 font, u32 color, s32 msg
 
     va_start(ap, msg);
     vsprintf((char*)info->workBuf, (char*)info->workBuf + 0x400, ap);
-    lineCount = FixMLineText((s32*)info->workBuf, (s32*)info->formatBuf, (s32)lines);
+    lineCount = FixMLineText((s32*)info->workBuf, (s32*)info->formatBuf, (s32*)lines);
     line = 0;
     off = line;
     linePtr = (s32*)(u32)lines;
@@ -757,7 +757,7 @@ s32 DrawStringTextSub(StrList* p, s32 msg, s32 x, s32 y, s32 spacing, u32 font, 
     sx = DrawStringScale * *(f32*)(e + 12);
     sh = *(f32*)(e + 16);
     spacing += (s32)((f32)MBFontHeight(font) * sx);
-    n = FixMLineText((s32*)gTextFormatBuf, (s32*)gTextWorkBuf, (s32)lines);
+    n = FixMLineText((s32*)gTextFormatBuf, (s32*)gTextWorkBuf, (s32*)lines);
     lp = (s32*)(u32)lines;
     i = 0;
     off = 0;
@@ -1118,7 +1118,7 @@ s32 DrawTextMLines(f32 scale, s32 x, s32 y, u32 font, u32 color, s32* str)
     s32 off;
     void* lines[17];
 
-    n = FixMLineText(str, (s32*)gTextFormatBuf, (s32)lines);
+    n = FixMLineText(str, (s32*)gTextFormatBuf, (s32*)lines);
     off = 0;
     for (i = 0; i < n; i++) {
         DrawTextSub(scale, 1.0f, x, y, font, color, *(u8**)((s32)lines + off));
@@ -1222,40 +1222,42 @@ s32 TextMLines(const char* s)
 }
 
 /* ==== 0x80020C8C FixMLineText ==== */
-s32 FixMLineText(s32* src, s32* dst, s32 lines)
+s32 FixMLineText(s32* src, s32* dst, s32* lines)
 {
-    s32* p = src;
-    s32 n = 0;
-    s32 off = 0;
+    s32 n;
+    s32 off;
 
     if (dst != 0) {
         strcpy(dst, src);
-        p = dst;
+        src = dst;
     }
+    n = 0;
+    off = 0;
     for (;;) {
         if (lines != 0) {
-            *(s32**)(lines + off) = p;
+            *(s32**)((u8*)lines + off) = src;
         }
-        for (; *(char*)p != '\0'; p = (s32*)((s32)p + 1)) {
-            if (*(char*)p == '\n') {
+        for (; *(char*)src != '\0'; src = (s32*)((s32)src + 1)) {
+            if (*(char*)src == '\n') {
                 goto found;
             }
         }
-        p = 0;
+        src = 0;
 found:
-        if (p == 0) {
-            return n + 1;
+        if (src == 0) {
+            break;
         }
         if (dst != 0) {
-            *(char*)p = '\0';
+            *(char*)src = '\0';
         }
         if (n >= 0xF) {
-            return n + 1;
+            break;
         }
-        p = (s32*)((s32)p + 1);
+        src = (s32*)((s32)src + 1);
         n++;
         off += 4;
     }
+    return n + 1;
 }
 
 /* ==== 0x80020D3C FontSetShadowColor ==== */
