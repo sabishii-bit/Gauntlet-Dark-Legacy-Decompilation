@@ -649,14 +649,15 @@ s32 ExitCollisionEarly(void)
  * Z-cross for the vertical case, c = dz/dx slope, d = walk radius. */
 static s32 NextGrid(f32 a, f32 b, f32 c, f32 d, s32* gx, s32* gz)
 {
+    f64 z2;
     s32 xv = *gx;
     s32 zv = *gz;
     f32 step;
     s32 pos;
     f32 edge;
     f32 t;
+    f32 minX;
     s32 idx;
-    f64 z2;
     u8 _pad[8];
 
     if (lbl_80345730 == a) {
@@ -712,11 +713,11 @@ static s32 NextGrid(f32 a, f32 b, f32 c, f32 d, s32* gx, s32* gz)
         return 0;
     }
     z2 = *(volatile f64*)&lbl_80345730;
-    if (z2 == a || edge - lbl_80344168 < lbl_80345724 * d) {
+    if (z2 == a || edge - (minX = lbl_80344168) < lbl_80345724 * d) {
         t = lbl_8034416C;
     } else {
         edge = edge + gWorldInfo.cellW;
-        b = edge - (lbl_80344168 + lbl_80345724 * d);
+        b = edge - (minX + lbl_80345724 * d);
         if (b > z2) {
             t = b * c + lbl_8034416C;
         } else {
