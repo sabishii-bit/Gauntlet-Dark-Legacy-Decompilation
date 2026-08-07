@@ -111,7 +111,7 @@ static s32  getNewPosSingle2(void);
 static s32  getNewPosSingle1(Psys* p, MBObject* node);
 static s32  getNewDirConeShare(Psys* p, MBObject* node, s32 z);
 static s32  getNewDirConeUnique(Psys* p, MBObject* node, s32 z);
-static void getNewDirSphere(Psys* p, MBObject* node, s32 z);
+static s32  getNewDirSphere(Psys* p, MBObject* node, s32 z);
 static s32  getNewDirFrame(Psys* p, MBObject* node);
 static s32  getNewDirSingle2(void);
 static s32  getNewDirSingle1(Psys* p, MBObject* node);
@@ -484,27 +484,63 @@ found:
 #pragma opt_lifetimes reset
 
 /* 0x800CD718 - random spherical direction (unit cube rejection + normalize) */
-static void getNewDirSphere(Psys* p, MBObject* node, s32 z) {
-    f32* slot;
-    f64 dx, dy, dz, len;
-    s32 count = (s16)p->dir_max;
-    s32 idx = (s32)((pbRand() & 0x7fff) % (count ? count : 1));
-    while (p->dir_use_lst[idx] == 0xff) {
-        idx = (idx == 0) ? count - 1 : idx - 1;
+#pragma opt_lifetimes off
+static s32 getNewDirSphere(Psys* p, MBObject* node, s32 z) {
+    u8 unused[8];
+    f32 dx, dy, dz, scale;
+    f64 len;
+    register Psys* psys = p;
+    register s32 idx;
+    register u8* use = p->dir_use_lst;
+    register s32 count = p->dir_max;
+    s32 first;
+    s32 used;
+
+    idx = (s32)(3.051850947599719e-05 * (f64)(f32)count *
+                (f64)(f32)(pbRand() & 0x7fff));
+    if (idx >= count) {
+        idx = count - 1;
     }
-    p->dir_use_lst[idx]++;
-    slot = p->init_dir_lst[idx];
-    dx = (f32)((pbRand() & 0x7fff) * 6.1e-5 - 1.0);
-    dy = (f32)((pbRand() & 0x7fff) * 6.1e-5 - 1.0);
-    dz = (f32)((pbRand() & 0x7fff) * 6.1e-5 - 1.0);
+    used = use[idx];
+    if (used == 0xff) {
+        first = idx;
+        do {
+            if (idx-- == 0) {
+                idx = count - 1;
+            }
+            if (idx == first) {
+                idx = 0;
+                goto foundSphere;
+            }
+            used = use[idx];
+        } while (used == 0xff);
+    }
+    use[idx] = used + 1;
+foundSphere:
+    if (idx < 0) {
+        return idx;
+    }
+    if (psys->dir_use_lst[idx] > 1) {
+        return idx;
+    }
+    use = (u8*)psys->init_dir_lst[idx];
+    dx = (f32)(6.103701986151684e-06 * (f64)(f32)(pbRand() & 0x7fff) - 0.1);
+    dy = (f32)(6.103701986151684e-06 * (f64)(f32)(pbRand() & 0x7fff) - 0.1);
+    dz = (f32)(6.103701986151684e-06 * (f64)(f32)(pbRand() & 0x7fff) - 0.1);
     len = fqdist(fqdist(dx, dz), dy);
-    if (len <= 1.0) {
-        slot[0] = (f32)dx; slot[1] = (f32)dy; slot[2] = (f32)dz;
+    if (len > 0.0) {
+        scale = (f32)(1.0 / len);
+        ((f32*)use)[2] = dz * scale;
+        ((f32*)use)[1] = dy * scale;
+        ((f32*)use)[0] = dx * scale;
     } else {
-        len = 1.0 / len;
-        slot[0] = (f32)(dx * len); slot[1] = (f32)(dy * len); slot[2] = (f32)(dz * len);
+        ((f32*)use)[2] = dz;
+        ((f32*)use)[1] = dy;
+        ((f32*)use)[0] = dx;
     }
+    return idx;
 }
+#pragma opt_lifetimes reset
 
 /* 0x800CD90C - cycling (frame) direction */
 #pragma opt_lifetimes on
