@@ -73,8 +73,15 @@ void  pbBlitSetTexture(s32 tex);
 extern void* gWinGlobals;
 extern f32   gVpScaleY;
 extern f32   psysInfo[];     /* per-parm scale/min/max config table */
-extern u8    lbl_80128710[]; /* retail module-global data block */
 extern char  lbl_80116F30[]; /* "freePsysMem: bad free block..." */
+
+typedef struct PsysModuleGlobals {
+    u8 pad00[0x54];
+    s16 dirSlot;
+    s16 posSlot;
+} PsysModuleGlobals;
+
+extern PsysModuleGlobals lbl_80128710; /* retail module-global data block */
 
 /* --- TU-owned globals (real addresses in .data/.bss/.sbss) --- */
 static s32       gPsysActive;      /* 0x80128710 live psys count */
@@ -90,9 +97,6 @@ static s32       gPoolTotal;       /* 0x8012873c bytes free in block pool */
 static s32       gPoolCount;       /* 0x80128740 free block count */
 static PsysMemBlock* gPoolBase;    /* 0x80128748 pool base */
 static PsysMemBlock* gPoolFree;    /* 0x80128754 free-list cursor */
-static s16       gDirSlot;         /* 0x80128764 shared dir slot cache */
-static s16       gPosSlot;         /* 0x80128766 shared pos slot cache */
-
 extern s32   gPsysDisabled;        /* 0x80128768 traverse filter / disable id */
 
 /* --- forward decls (behavioural helpers, static in the PDB) --- */
@@ -210,21 +214,43 @@ static s32 getNewPosRectUnique(Psys* p, MBObject* node, s32 z) {
 }
 
 /* 0x800CD254 - one shared position per frame (from node origin) */
+#pragma opt_lifetimes on
+#pragma opt_propagation off
 static s32 getNewPosFrame(Psys* p, MBObject* node) {
-    s32 idx;
-    if (gPosSlot >= 0) {
-        return gPosSlot;
+    PsysModuleGlobals* globals = &lbl_80128710;
+    s32 cached;
+
+    cached = globals->posSlot;
+    if (cached >= 0) {
+        return cached;
     }
-    idx = (s16)p->pos_next;
-    if (idx < 0) {
+    {
+        u16 max;
+        s32 idx;
+        f32* slot;
+
+        max = (u16)p->pos_max;
+        idx = (s32)p->pos_next;
+        if (idx == p->pos_last) {
+            idx = -1;
+        } else if (idx == 0) {
+            p->pos_next = max - 1;
+        } else {
+            p->pos_next = idx - 1;
+        }
+        if (idx < 0) {
+            return idx;
+        }
+        slot = p->init_pos_lst[idx];
+        slot[0] = node->mat[3][0];
+        slot[1] = node->mat[3][1];
+        slot[2] = node->mat[3][2];
+        globals->posSlot = (s16)idx;
         return idx;
     }
-    p->init_pos_lst[idx][0] = node->mat[3][0];
-    p->init_pos_lst[idx][1] = node->mat[3][1];
-    p->init_pos_lst[idx][2] = node->mat[3][2];
-    gPosSlot = (s16)idx;
-    return idx;
 }
+#pragma opt_lifetimes reset
+#pragma opt_propagation reset
 
 /* 0x800CD2EC - trivial (always slot 0) */
 static s32 getNewPosSingle2(void) {
@@ -416,18 +442,37 @@ static void getNewDirSphere(Psys* p, MBObject* node, s32 z) {
 }
 
 /* 0x800CD90C - cycling (frame) direction */
+#pragma opt_lifetimes on
+#pragma opt_propagation off
 static s32 getNewDirFrame(Psys* p, MBObject* node) {
-    s32 idx = gDirSlot;
-    if (idx < 0) {
-        idx = (s16)p->dir_next;
+    PsysModuleGlobals* globals = &lbl_80128710;
+    u8 unused[8];
+    s32 cached = globals->dirSlot;
+
+    if (cached >= 0) {
+        return cached;
+    }
+    {
+        u16 max = p->dir_max;
+        s32 idx = p->dir_next;
+
+        if (idx == p->dir_last) {
+            idx = -1;
+        } else if (idx == 0) {
+            p->dir_next = max - 1;
+        } else {
+            p->dir_next = idx - 1;
+        }
         if (idx < 0) {
             return idx;
         }
         getCurrentDir(p, node, p->init_dir_lst[idx]);
-        gDirSlot = (s16)idx;
+        globals->dirSlot = (s16)idx;
+        return idx;
     }
-    return idx;
 }
+#pragma opt_lifetimes reset
+#pragma opt_propagation reset
 
 /* 0x800CD9B0 - trivial (always slot 0) */
 static s32 getNewDirSingle2(void) {
@@ -469,8 +514,8 @@ void MBDrawPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
     if ((u32)dt > 0xf) {
         dt = 1;
     }
-    gDirSlot = -1;
-    gPosSlot = -1;
+    lbl_80128710.dirSlot = -1;
+    lbl_80128710.posSlot = -1;
     if (phase == 0) {
         setupParms(p);
         setupNewPMode_800CDCE4(f1, f2, f3, f4, f5, f6, f7, 0.0, p);
@@ -506,7 +551,7 @@ BOOL MBDrawPsysTest(MBObject* node, void* draw) {
 /* 0x800CDC5C - MBTraversePsys visitor: guard non-psys / filtered nodes */
 s32 MBTraversePsys(MBObject* node, void* fn) {
     Psys* p = (Psys*)node->data.psys;
-    u8* globals = lbl_80128710;
+    u8* globals = (u8*)&lbl_80128710;
     if (p == NULL || *(s32*)(globals + 0x58) != 0) {
         if (p == NULL) {
             ErrorPrintf("MBTraversePsys: PSYS node with psys=0");
@@ -762,7 +807,7 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
             ErrorPrintf("Setting PSYS attribute after draw begins");
         } else {
             f32 sc, mn, mx, fv;
-            tbl = (f32*)(lbl_80128710 + 0x9c + 2 * 0x10);
+            tbl = (f32*)((u8*)&lbl_80128710 + 0x9c + 2 * 0x10);
             sc = tbl[0]; mn = tbl[1]; mx = tbl[2];
             t0 = (f32)((1.0 / 255.0) * (f32)((wp->rgba[0] >> 16) & 0xff));
             fv = t0 * sc;
@@ -787,7 +832,7 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
             ErrorPrintf("Setting PSYS attribute after draw begins");
         } else {
             f32 sc, mn, mx, fv;
-            tbl = (f32*)(lbl_80128710 + 0x9c + 1 * 0x10);
+            tbl = (f32*)((u8*)&lbl_80128710 + 0x9c + 1 * 0x10);
             sc = tbl[0]; mn = tbl[1]; mx = tbl[2];
             t0 = (f32)((1.0 / 255.0) * (f32)((wp->rgba[0] >> 8) & 0xff));
             fv = t0 * sc;
@@ -812,7 +857,7 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
             ErrorPrintf("Setting PSYS attribute after draw begins");
         } else {
             f32 sc, mn, mx, fv;
-            tbl = (f32*)(lbl_80128710 + 0x9c);
+            tbl = (f32*)((u8*)&lbl_80128710 + 0x9c);
             sc = tbl[0]; mn = tbl[1]; mx = tbl[2];
             t0 = (f32)((1.0 / 255.0) * (f32)(wp->rgba[0] & 0xff));
             fv = t0 * sc;
@@ -838,7 +883,7 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
             ErrorPrintf("Setting PSYS attribute after draw begins");
         } else {
             f32 sc, mn, mx, fv;
-            tbl = (f32*)(lbl_80128710 + 0x9c + 3 * 0x10);
+            tbl = (f32*)((u8*)&lbl_80128710 + 0x9c + 3 * 0x10);
             sc = tbl[0]; mn = tbl[1]; mx = tbl[2];
             t0 = (f32)((1.0 / 255.0) * (f32)(wp->rgba[0] >> 24));
             fv = t0 * sc;
@@ -863,7 +908,7 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
             ErrorPrintf("Setting PSYS attribute after draw begins");
         } else {
             f32 mn, mx, fv;
-            tbl = (f32*)(lbl_80128710 + 0x9c + 4 * 0x10);
+            tbl = (f32*)((u8*)&lbl_80128710 + 0x9c + 4 * 0x10);
             sc = tbl[0]; mn = tbl[1]; mx = tbl[2];
             fv = (f32)(wp->width[0] * sc);
             if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
@@ -1091,7 +1136,7 @@ MBObject* MBNewPsysDefault(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
 extern f32 lbl_80349220;        /* psys default rate */
 
 MBObject* createPsysNode(s32 a, s32 b, s32 c, s32 d) {
-    u8* globals = lbl_80128710;
+    u8* globals = (u8*)&lbl_80128710;
     MBObject* node;
     Psys* p;
 
@@ -1430,7 +1475,7 @@ static void freePsysMem(void* mem) {
     nextBytes = 0;
     prevBytes = 0;
     next = block->next;
-    mem = lbl_80128710;
+    mem = (u8*)&lbl_80128710;
     pool = (PsysMemPool*)((u8*)mem + 0x24);
     bytes = -block->bytes;
     prev = block->prev;
