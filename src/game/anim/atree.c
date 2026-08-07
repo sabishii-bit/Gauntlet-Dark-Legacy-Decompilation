@@ -446,7 +446,7 @@ void AtreeListLock(int slot)
 static inline void AnimFixPos(anode* root, animinfo* info)
 {
     f32 translation[3];
-    f32* position;
+    f32 component;
     anode* child;
 
     child = root->child;
@@ -454,12 +454,12 @@ static inline void AnimFixPos(anode* root, animinfo* info)
         WorldVector((f32*)((u8*)child->obj + 0x30), translation,
                     (f32*)root->obj);
         translation[1] = sAtreeZero;
-        position = (f32*)root->obj;
-        *(position += 12) += translation[0];
-        position = (f32*)root->obj;
-        *(position += 13) += translation[1];
-        position = (f32*)root->obj;
-        *(position += 14) += translation[2];
+        component = ((f32*)root->obj)[12];
+        ((f32*)root->obj)[12] = component + translation[0];
+        component = ((f32*)root->obj)[13];
+        ((f32*)root->obj)[13] = component + translation[1];
+        component = ((f32*)root->obj)[14];
+        ((f32*)root->obj)[14] = component + translation[2];
         *(f32*)((u8*)child->obj + 0x30) = sAtreeZero;
         *(f32*)((u8*)child->obj + 0x38) = sAtreeZero;
         if (child->type == 1) {
