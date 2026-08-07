@@ -373,21 +373,25 @@ void mbBlitCalcClip(MBBLIT* b, f32 xScale, f32 yScale) {
 
 #pragma dont_inline on
 void mbBlitCalcX(MBBLIT* b, s32* width, s32* height) {
+    MBWindow* window = gWinGlobals;
+
     if (width != 0) {
-        if ((b->flags & 0x40) == 0) {
-            *width =
-                (s32)((f32)(u16)b->width / gWinGlobals->scale->x);
+        s32 value = (u16)b->width;
+        if ((b->flags & 0x40) != 0) {
+            value >>= 4;
         } else {
-            *width = (u16)b->width >> 4;
+            value = (s32)((f32)value / window->scale->x);
         }
+        *width = value;
     }
     if (height != 0) {
-        if ((b->flags & 0x140) == 0) {
-            *height =
-                (s32)((f32)(u16)b->height / gWinGlobals->scale->y);
+        s32 value = (u16)b->height;
+        if ((b->flags & 0x140) != 0) {
+            value >>= 4;
         } else {
-            *height = (u16)b->height >> 4;
+            value = (s32)((f32)value / window->scale->y);
         }
+        *height = value;
     }
 }
 #pragma dont_inline off
