@@ -109,7 +109,7 @@ static s32  getNewPosRectUnique(Psys* p, MBObject* node, s32 z);
 static s32  getNewPosFrame(Psys* p, MBObject* node);
 static s32  getNewPosSingle2(void);
 static s32  getNewPosSingle1(Psys* p, MBObject* node);
-static void getNewDirConeShare(Psys* p, MBObject* node, s32 z);
+static s32  getNewDirConeShare(Psys* p, MBObject* node, s32 z);
 static void getNewDirConeUnique(Psys* p, MBObject* node, s32 z);
 static void getNewDirSphere(Psys* p, MBObject* node, s32 z);
 static s32  getNewDirFrame(Psys* p, MBObject* node);
@@ -375,25 +375,49 @@ static f32 getSinCos(f32 ang, f32* sinOut) {
 }
 
 /* 0x800CD330 - cycling (shared) cone direction */
-static void getNewDirConeShare(Psys* p, MBObject* node, s32 z) {
-    f32 dir[3], ux[3], uy[3];
-    f32 sn, cs2;
-    f64 cs;
-    s32 idx = (s16)p->dir_next;
+#pragma opt_lifetimes on
+#pragma opt_propagation off
+static s32 getNewDirConeShare(Psys* p, MBObject* node, s32 z) {
+    f32 ux[3], uy[3], dir[3];
+    u8 unused[4];
+    f32 sn2, sn;
+    f32 cs, cs2;
+    f32 arg;
+    f32* slot;
+    s32 idx = p->dir_next;
+    u16 max = p->dir_max;
+    f32 angle;
+
+    if (idx == p->dir_last) {
+        idx = -1;
+    } else if (idx == 0) {
+        p->dir_next = max - 1;
+    } else {
+        p->dir_next = idx - 1;
+    }
     if (idx < 0) {
-        return;
+        return idx;
     }
     getCurrentDir(p, node, dir);
     getOrthoVecs(ux, uy, dir);
-    cs = getSinCos((f64)(f32)(p->e_angle * (pbRand() & 0x7fff)), &sn);
-    cs2 = (f32)getSinCos((f64)(f32)(pbRand() & 0x7fff), &sn);
+    slot = p->init_dir_lst[idx];
+    angle = p->e_angle;
+    arg = (f32)(3.051850947599719e-05 * (f64)angle * (f64)(f32)(pbRand() & 0x7fff));
+    cs = getSinCos(arg, &sn);
+    arg = (f32)(9.587672783631622e-05 * (f64)(f32)(pbRand() & 0x7fff));
+    cs2 = getSinCos(arg, &sn2);
     if (pbRand() & 4) {
         cs2 = -cs2;
     }
-    p->init_dir_lst[idx][0] = cs2 * uy[0] + sn * dir[0] + (f32)(cs * ux[0]);
-    p->init_dir_lst[idx][1] = cs2 * uy[1] + sn * dir[1] + (f32)(cs * ux[1]);
-    p->init_dir_lst[idx][2] = cs2 * uy[2] + sn * dir[2] + (f32)(cs * ux[2]);
+    cs2 = cs2 * cs;
+    sn2 = sn2 * cs;
+    slot[0] = sn * dir[0] + sn2 * ux[0] + cs2 * uy[0];
+    slot[1] = sn * dir[1] + sn2 * ux[1] + cs2 * uy[1];
+    slot[2] = sn * dir[2] + sn2 * ux[2] + cs2 * uy[2];
+    return idx;
 }
+#pragma opt_lifetimes reset
+#pragma opt_propagation reset
 
 /* 0x800CD4DC - unique (free-slot) cone direction */
 static void getNewDirConeUnique(Psys* p, MBObject* node, s32 z) {
