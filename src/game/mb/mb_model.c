@@ -84,7 +84,7 @@ extern const char lbl_80115DA8[]; /* "objects.ngc" */
 extern const char lbl_80115DB4[]; /* "textures.ngc" (+ pooled MBOX-loading log strings) */
 extern const char lbl_80115F24[]; /* pooled model-error strings ("bad version", "> max models") */
 extern const char lbl_80348C28[]; /* "static" */
-extern const char lbl_80348C30[]; /* "???" */
+extern const char lbl_80348C30[4]; /* "???" */
 
 /* forward declarations (GCN emit order = reverse Xbox source order) */
 static void  BGLoadTextures(void* rq);
@@ -315,14 +315,65 @@ static int texcmp(const void* a, const void* b) {
     return strncmp((const char*)a, (const char*)b, 0x1e);
 }
 
-/* ---- 0x800B8D0C : find a texture def by index ---- */
-int MBOX_GetTexDef(int idx) {
-    u8* g = gWinGlobals;
-    struct { s16 h; } key;
-    key.h = (s16)idx;
-    bsearch(&key, g, (u32)lbl_80344E8C, 0x20, texidxcmp);
-    return -1;
+typedef struct MboxTextureArchive {
+    u8 _pad00[0x50];
+    u32 textureCount;
+    u8 _pad54[0x0C];
+    void* textureDefs;
+} MboxTextureArchive;
+
+typedef struct MboxModelSlot {
+    u8 _pad00[4];
+    MboxTextureArchive* archive;
+    u8 _pad08[8];
+    s32 locked;
+} MboxModelSlot;
+
+static void setTextureKey(s16* destination, s32 value) {
+    *destination = (s16)value;
 }
+
+/* ---- 0x800B8D0C : find a texture def by index ---- */
+#pragma opt_propagation off
+void* MBOX_GetTexDef(int idx) {
+    u8 unused[8];
+    struct {
+        u8 _pad[30];
+        s16 h;
+    } key;
+    u16 textureIndex = idx;
+    u8* g = gWinGlobals;
+    s32 bank = idx >> 16;
+    void* result;
+
+    (void)unused;
+    if (bank >= lbl_80344E8C) {
+        result = NULL;
+        goto done;
+    }
+    bank <<= 4;
+    if (((MboxModelSlot*)(*(u8**)(g + 0x30) + bank))->locked != 0) {
+        result = NULL;
+        goto done;
+    }
+    if (((MboxModelSlot*)(*(u8**)(g + 0x30) + bank))->archive
+            ->textureCount == 0) {
+        result = NULL;
+        goto done;
+    }
+    setTextureKey(&key.h, (s16)textureIndex);
+    {
+        MboxModelSlot* slot;
+
+        slot = (MboxModelSlot*)(*(u8**)(g + 0x30) + bank);
+        result = bsearch(&key, slot->archive->textureDefs,
+                         slot->archive->textureCount, 0x24, texidxcmp);
+    }
+done:
+    result = result != NULL ? result : (void*)lbl_80348C30;
+    return result;
+}
+#pragma opt_propagation reset
 
 /* ---- 0x800B8DC0 : texture-index comparator ---- */
 static int texidxcmp(const void* a, const void* b) {
