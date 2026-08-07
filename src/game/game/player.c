@@ -2163,7 +2163,7 @@ extern s32 PointVisible(f32 r, s32* pos);
 extern s32 saveLoad(s32 a, s32 b, s32 c, void* buf, s32* size);
 extern s32 saveSave(s32 a, s32 b, s32 c, void* buf, s32 size);
 extern s32 InitPreferences(s32 a, s32 b);
-extern s32 memCardErrorPrompt(char* msg, ...);
+extern s32 memCardErrorPrompt();
 extern s32 saveMenuPrompt(char* prompt, s32* colors, s32 n);
 extern s32 OptionsSetup(s32 a, s32 b);
 extern void ControlsUpdate(s32 a, s32* b, s32 c);
@@ -3294,21 +3294,31 @@ s32 PlayerLoadSaveFile(s32 i, s32 slot) {
     return ok;
 }
 
+typedef struct PlayerMemcardView {
+    u8 _pad0000[0xA80];
+    u8 image[0x1434];
+    u8 _pad1EB4[0x1498];
+    s32 cardFile;
+    s32 cardDirectory;
+    u8 _pad3354[4];
+    s32 cardSlot;
+} PlayerMemcardView;
+
 /* Pack and memcard-write the save image (msg on failure).             */
 s32 PlayerWriteSaveFile(s32 i, s32 slot) {
-    Player* p = P(i);
+    PlayerMemcardView* p = &((PlayerMemcardView*)gPlayers)[i];
     s32 ok;
 
-    PF(p, 0x3358, s32) = slot;
+    p->cardSlot = slot;
     player_store_in_save(p);
     do {
-        ok = saveSave(PF(p, 0x3348, s32), PF(p, 0x3350, s32), PF(p, 0x3358, s32),
-                         (u8*)p + 0xA80, 0x1434);
-        if (ok == 0 && memCardErrorPrompt("Game save failed...", 0) == 0) {
+        ok = saveSave(p->cardFile, p->cardDirectory, p->cardSlot,
+                      p->image, sizeof(p->image));
+        if (ok == 0 && memCardErrorPrompt("Game save failed...") == 0) {
             break;
         }
     } while (ok == 0);
-    PF(p, 0xA8B, u8) = 1;
+    p->image[0xB] = 1;
     return ok;
 }
 
