@@ -278,25 +278,38 @@ int fn_800C38C0(void* a, u8* obj)
 static u32 pbObjTexSub(void* objv, int lo, int hi, u32* flags)
 {
     u8* obj = (u8*)objv;
-    s16 t = *(s16*)(obj + 0x5c);
+    s32 t = *(s16*)(obj + 0x5c);
 
     *flags &= ~0x00080000;
     switch (t) {
+    case -1: {
+        u32 result = hi << 16;
+        result = (result & 0xFFFF0000) | (lo & 0xFFFF);
+        return result;
+    }
     case -2:
         return *(u32*)(obj + 0x58);
-    case -1:
-        return (hi << 16) | (lo & 0xffff);
-    case -4:
+    case -4: {
+        u32 result;
         *flags |= 0x08000000;
-        return (hi << 16) | (lo & 0xffff);
-    case -3:
+        result = hi << 16;
+        result = (result & 0xFFFF0000) | (lo & 0xFFFF);
+        return result;
+    }
+    case -3: {
+        u32 result = *(u32*)(obj + 0x58);
         *flags |= 0x00080000;
-        return *(u32*)(obj + 0x58);
+        return result;
+    }
     default:
         if (lo == t) {
             return *(u32*)(obj + 0x58);
         }
-        return (hi << 16) | (lo & 0xffff);
+        {
+            u32 result = hi << 16;
+            result = (result & 0xFFFF0000) | (lo & 0xFFFF);
+            return result;
+        }
     }
 }
 
