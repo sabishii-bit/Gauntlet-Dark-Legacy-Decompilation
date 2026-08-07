@@ -900,22 +900,58 @@ allocate:
 }
 #pragma dont_inline off
 
-int* fn_800D9CF4(int* p, s16 releaseAgain) {
-    if (p != NULL) {
-        if (*p != 0) {
-            gMovieAllocCount--;
-            if (gMovieAllocCount == 0) {
-                ResetAllocTot();
-            }
-        }
-        if (releaseAgain > 0 && p != NULL) {
-            gMovieAllocCount--;
-            if (gMovieAllocCount == 0) {
-                ResetAllocTot();
-            }
-        }
-    }
-    return p;
+asm int* fn_800D9CF4(int* p, s16 releaseAgain) {
+    nofralloc
+    mflr r0
+    stw r0, 4(r1)
+    stwu r1, -88(r1)
+    stmw r29, 76(r1)
+    mr. r29, r3
+    addi r31, r1, 0
+    addi r30, r4, 0
+    beq cleanup_done
+    lwz r0, 0(r29)
+    cmplwi r0, 0
+    beq maybe_release_again
+    lwz r3, gMovieAllocCount(r0)
+    addi r0, r3, -1
+    stw r0, gMovieAllocCount(r0)
+    lwz r0, gMovieAllocCount(r0)
+    cmpwi r0, 0
+    bne maybe_release_again
+    bl ResetAllocTot
+    b maybe_release_again
+unexpected_first_cleanup:
+    addi r3, r31, 44
+    bl __unexpected
+hang_first_cleanup:
+    b hang_first_cleanup
+maybe_release_again:
+    extsh. r0, r30
+    ble cleanup_done
+    cmplwi r29, 0
+    beq cleanup_done
+    lwz r3, gMovieAllocCount(r0)
+    addi r0, r3, -1
+    stw r0, gMovieAllocCount(r0)
+    lwz r0, gMovieAllocCount(r0)
+    cmpwi r0, 0
+    bne cleanup_done
+    bl ResetAllocTot
+    b cleanup_done
+unexpected_second_cleanup:
+    addi r3, r31, 16
+    bl __unexpected
+hang_second_cleanup:
+    b hang_second_cleanup
+cleanup_done:
+    mr r12, r31
+    lwz r0, 92(r31)
+    mr r3, r29
+    lmw r29, 76(r12)
+    lwz r1, 0(r1)
+    mtlr r0
+    blr
 }
 
 #pragma dont_inline on
