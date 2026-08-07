@@ -80,8 +80,31 @@ extern void FatalError(char* fmt, int code);
 /* --- pb math library (C++ TUs; mangled names are valid C identifiers) --- */
 extern void mat44InvRigid__FR5mat44R5mat44(f32* dst, f32* src);
 extern void vec4ApplyTrans__FR4vec4R4vec4R5mat44(f32* dst, f32* src, f32* m);
+extern void vec4Apply__FR4vec4R4vec4R5mat44(f32* dst, f32* src, f32* m);
+extern void vec4Normalize__FR4vec4R4vec4(f32* dst, f32* src);
+extern void vec4Cross__FR4vec4R4vec4R4vec4(f32* dst, f32* a, f32* b);
+extern void vec4Sub__FR4vec4R4vec4R4vec4(f32* dst, f32* a, f32* b);
 extern f32 vec3LengthSquared__FR4vec3(f32* v);
 extern void __as__4vec4FRC4vec4(f32* dst, f32* src);
+extern f32 atan(f32 value);
+extern f32 atan2(f32 y, f32 x);
+extern f64 __frsqrte(f64 value);
+
+static inline f32 pbSqrtAccurate(f32 value)
+{
+    volatile f32 result;
+
+    if (value > 0.0f) {
+        f64 guess = __frsqrte((f64)value);
+        guess = 0.5 * guess * (3.0 - guess * guess * value);
+        guess = 0.5 * guess * (3.0 - guess * guess * value);
+        guess = 0.5 * guess * (3.0 - guess * guess * value);
+        guess = 0.5 * guess * (3.0 - guess * guess * value);
+        result = (f32)(value * guess);
+        return result;
+    }
+    return value;
+}
 
 /* --- pb_texture layer --- */
 extern void fn_800C7928(u32, u32);
@@ -225,12 +248,15 @@ typedef struct PbTexShiftCtx {
     u8  _pad00[0x14];
     s32 m14;     /* 0x14 */
     s32 m18;     /* 0x18 */
-    u8  _pad1c[0x10];
+    s32 m1c;     /* 0x1C */
+    s32 m20;     /* 0x20 */
+    s32 m24;     /* 0x24 */
+    u8  _pad28[4];
     f32 f2c;     /* 0x2C */
     f32 f30;     /* 0x30 */
     f32 f34;     /* 0x34 */
     f32 f38;     /* 0x38 */
-    u8  _pad3c[4];
+    s32 m3c;     /* 0x3C */
     u32 dbg;     /* 0x40 */
     s32 m44;     /* 0x44 */
 } PbTexShiftCtx;
@@ -322,7 +348,8 @@ extern f32 lbl_801283A0[4];
 /* --- strings --- */
 extern char str_txsh[];              /* "txsh: %6.2Lf %6.2Lf  %6.3Lf..." */
 extern char str_TexNotLoaded[];      /* "pbSetDODrawRegs: Texture not loaded" */
-extern char lbl_80348F8C[];          /* "\n" (sdata2) */
+extern char lbl_80348F8C;            /* "\n" (sdata2) */
+extern char lbl_801168D8[];          /* pbSetDORegs vector-debug strings */
 
 /* --- sdata block --- */
 extern u32 lbl_80343F48;             /* value copied into lightmap packets */
@@ -339,6 +366,8 @@ extern u32 lbl_802C5578[];           /* current DO texture handle (carved) */
 extern u8 lbl_802C71F8[0x240];       /* transformed positional lights */
 extern u8 lbl_802C2E28[];            /* lightmap palette block */
 extern f32 lbl_802C2A28[256];        /* material/chrome parameter table */
+extern f32 lbl_802C5528[4];          /* transformed right vector */
+extern f32 lbl_802C5538[4];          /* transformed up vector */
 
 /* --- sbss --- */
 extern u32 lbl_803450B8[2];          /* default hook14 block */
@@ -587,6 +616,12 @@ extern f32 lbl_80348F68;      /* curve cubic coefficient */
 extern f32 lbl_80348F6C;      /* position fixed-point divisor */
 extern f32 lbl_80348F70;      /* z-bias divisor */
 extern f32 lbl_80348F74;      /* colour clamp max (255.0) */
+extern f64 lbl_80348F90;
+extern f64 lbl_80348F98;
+extern f64 lbl_80348FA0;
+extern f64 lbl_80348FA8;
+extern f64 lbl_80348FB0;
+extern f64 lbl_80348FB8;
 
 static u32 pbSwap32(u32 x)
 {
@@ -1294,9 +1329,178 @@ void fn_800C5D44(u32* pkt, s32 xy)
     st->f1a4 = 6;
 }
 
-/* the big DO register writer (Xbox: pbSetDORegs) -- skeleton. */
+/* Build the object-space texture basis and the draw-register packet. */
 void fn_800C5DA8(PbDOObj* obj, s32 arg, u8* node, f32* matrix)
 {
+    char* debugStrings;
+    PbORGlobals* g = gWinGlobals;
+    f32 inverse[16];
+    f32 look[4];
+    f32 right[4];
+    f32 up[4];
+    f32 savedLook[4];
+    f32 savedRight[4];
+    f32 savedUp[4];
+    volatile f32 unused[3];
+    s32 debugFlags;
+
+    (void)arg;
+    (void)node;
+    debugFlags = 0;
+    debugStrings = lbl_801168D8;
+    mat44InvRigid__FR5mat44R5mat44(inverse, matrix);
+
+    if (lbl_80343F50->m3c != 0) {
+        lbl_80343F50->m44++;
+        if (lbl_80343F50->m44 > 20) {
+            lbl_80343F50->m44 = 0;
+            debugFlags = lbl_80343F50->dbg;
+            if (debugFlags != 0) {
+                bulletproof_printf(&lbl_80348F8C);
+            }
+        }
+    } else {
+        lbl_80343F50->m44 = 1;
+    }
+
+    if (lbl_80343F50->m1c != 0) {
+        vec4Sub__FR4vec4R4vec4R4vec4(look, (f32*)g->scr + 6,
+                                     matrix + 12);
+        vec4Cross__FR4vec4R4vec4R4vec4(right, look, (f32*)g->scr + 14);
+        vec4Cross__FR4vec4R4vec4R4vec4(up, right, look);
+        if (debugFlags != 0) {
+            if (debugFlags & 1) {
+                bulletproof_printf(debugStrings, look[0], look[1], look[2]);
+            }
+            if (debugFlags & 0x40) {
+                bulletproof_printf(debugStrings + 0x20,
+                                   up[0], up[1], up[2]);
+            }
+            if (debugFlags & 2) {
+                bulletproof_printf(debugStrings + 0x40,
+                                   right[0], right[1], right[2]);
+            }
+        }
+    } else {
+        right[0] = lbl_80348F50;
+        right[1] = lbl_80348F60;
+        right[2] = lbl_80348F60;
+        up[0] = lbl_80348F60;
+        up[1] = lbl_80348F50;
+        up[2] = lbl_80348F60;
+        if (lbl_80343F50->m20 != 0) {
+            vec4Apply__FR4vec4R4vec4R5mat44(
+                right, right, (f32*)g->scr + 0x90);
+            vec4Apply__FR4vec4R4vec4R5mat44(
+                up, up, (f32*)g->scr + 0x90);
+        } else {
+            vec4Apply__FR4vec4R4vec4R5mat44(
+                right, right, (f32*)g->scr + 0x80);
+            vec4Apply__FR4vec4R4vec4R5mat44(
+                up, up, (f32*)g->scr + 0x80);
+        }
+    if (debugFlags != 0) {
+            if (debugFlags & 0x80) {
+                bulletproof_printf(debugStrings + 0x64,
+                                   up[0], up[1], up[2]);
+            }
+            if (debugFlags & 4) {
+                bulletproof_printf(debugStrings + 0x84,
+                                   right[0], right[1], right[2]);
+            }
+        }
+    }
+
+    if (lbl_80343F50->m24 != 0) {
+        vec4Normalize__FR4vec4R4vec4(right, right);
+        vec4Normalize__FR4vec4R4vec4(up, up);
+        vec4Normalize__FR4vec4R4vec4(look, look);
+    }
+    if (lbl_80343F50->m18 != 0) {
+        __as__4vec4FRC4vec4(savedRight, right);
+        __as__4vec4FRC4vec4(savedUp, up);
+        __as__4vec4FRC4vec4(savedLook, look);
+    }
+
+    if (lbl_80343F50->m20 != 0) {
+        vec4Apply__FR4vec4R4vec4R5mat44(right, right, inverse);
+        vec4Apply__FR4vec4R4vec4R5mat44(up, up, inverse);
+    } else {
+        vec4Apply__FR4vec4R4vec4R5mat44(right, right, matrix);
+        vec4Apply__FR4vec4R4vec4R5mat44(up, up, matrix);
+    }
+    if (debugFlags != 0) {
+        if (debugFlags & 0x100) {
+            bulletproof_printf(debugStrings + 0xA8, up[0], up[1], up[2]);
+        }
+        if (debugFlags & 8) {
+            bulletproof_printf(debugStrings + 0xC8,
+                               right[0], right[1], right[2]);
+        }
+    }
+
+    vec4Normalize__FR4vec4R4vec4(right, right);
+    vec4Normalize__FR4vec4R4vec4(up, up);
+    if (debugFlags != 0) {
+        if (debugFlags & 0x200) {
+            bulletproof_printf(debugStrings + 0xEC, up[0], up[1], up[2]);
+        }
+        if (debugFlags & 0x10) {
+            bulletproof_printf(debugStrings + 0x10C,
+                               right[0], right[1], right[2]);
+        }
+    }
+    if (debugFlags != 0) {
+        if (debugFlags & 0x400) {
+            bulletproof_printf(debugStrings + 0x130, up[0], up[1], up[2]);
+        }
+        if (debugFlags & 0x20) {
+            bulletproof_printf(debugStrings + 0x150,
+                               right[0], right[1], right[2]);
+        }
+    }
+
+    __as__4vec4FRC4vec4(lbl_802C5528, right);
+    __as__4vec4FRC4vec4(lbl_802C5538, up);
+    if (obj->clamp != 0) {
+        PbRegPair* reg = obj->clampp;
+        if (reg != 0) {
+            reg->hi = 0;
+            reg->lo = 0;
+        } else {
+            obj->clampp = &obj->regs[obj->nregs];
+            obj->regs[obj->nregs].hi = 0;
+            obj->regs[obj->nregs].lo = 0;
+            obj->regid[obj->nregs] = 8;
+            obj->nregs++;
+        }
+        obj->clamp = 0;
+    }
+    obj->dirty = 4;
+
+    if (lbl_80343F50->m18 != 0) {
+        f32 length = pbSqrtAccurate(savedLook[0] * savedLook[0] +
+                                    savedLook[2] * savedLook[2]);
+        f32 yaw;
+        f32 pitch;
+
+        ((f32*)g->scr)[18] = atan(savedLook[1] / length);
+        ((f32*)g->scr)[19] = atan2(savedLook[0], savedLook[2]);
+        pitch = ((f32*)g->scr)[18];
+        yaw = ((f32*)g->scr)[19];
+        if (debugFlags & 0x2000) {
+            s32 yawDegrees = (s32)((lbl_80348FA0 * (f64)yaw) /
+                                   lbl_80348FA8);
+            s32 pitchDegrees = (s32)((lbl_80348FA0 * (f64)pitch) /
+                                     lbl_80348FA8);
+            bulletproof_printf(debugStrings + 0x174,
+                               yawDegrees, pitchDegrees);
+        }
+        ((f32*)g->scr)[18] =
+            (f32)((f64)((f32*)g->scr)[18] * lbl_80348FB0);
+        ((f32*)g->scr)[19] =
+            (f32)((f64)((f32*)g->scr)[19] * lbl_80348FB8);
+    }
 }
 
 /* Apply z-test / blend-test register deltas for an object
