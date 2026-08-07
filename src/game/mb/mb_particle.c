@@ -192,14 +192,51 @@ static void randRectPos(Psys* p, MBObject* node, f32* slot) {
 }
 
 /* 0x800CCE8C - cycling (shared) rect position */
+#pragma opt_lifetimes on
+#pragma opt_propagation off
 static s32 getNewPosRectShare(Psys* p, MBObject* node, s32 z) {
-    s32 idx = (s16)p->pos_next;
-    if (idx < 0) {
-        return -1;
+    u8 unused[8];
+    f32 ry, rx, rz;
+    f32* slot;
+    register s32 idx;
+    register Psys* psys;
+    u16 last;
+    register MBObject* obj;
+    u16 max;
+
+    idx = p->pos_next;
+    psys = p;
+    last = p->pos_last;
+    obj = node;
+    max = p->pos_max;
+
+    if (idx == last) {
+        idx = -1;
+    } else if (idx == 0) {
+        psys->pos_next = max - 1;
+    } else {
+        psys->pos_next = idx - 1;
     }
-    randRectPos(p, node, p->init_pos_lst[idx]);
+    if (idx < 0) {
+        return idx;
+    }
+    slot = psys->init_pos_lst[idx];
+    rx = (f32)((f64)psys->e_vol[0] *
+               (3.051850947599719e-05 * (f64)(f32)(pbRand() & 0x7fff) - 0.5));
+    ry = (f32)((f64)psys->e_vol[1] *
+               (3.051850947599719e-05 * (f64)(f32)(pbRand() & 0x7fff) - 0.5));
+    rz = (f32)((f64)psys->e_vol[2] *
+               (3.051850947599719e-05 * (f64)(f32)(pbRand() & 0x7fff) - 0.5));
+    slot[0] = rx * obj->mat[0][0] + ry * obj->mat[1][0] +
+              rz * obj->mat[2][0] + obj->mat[3][0];
+    slot[1] = rx * obj->mat[0][1] + ry * obj->mat[1][1] +
+              rz * obj->mat[2][1] + obj->mat[3][1];
+    slot[2] = rx * obj->mat[0][2] + ry * obj->mat[1][2] +
+              rz * obj->mat[2][2] + obj->mat[3][2];
     return idx;
 }
+#pragma opt_lifetimes reset
+#pragma opt_propagation reset
 
 /* 0x800CD02C - unique (free-slot) rect position */
 static s32 getNewPosRectUnique(Psys* p, MBObject* node, s32 z) {
