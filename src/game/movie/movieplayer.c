@@ -1625,23 +1625,24 @@ typedef struct DTextRampEntry {
 
 #pragma opt_propagation off
 u32* DTextInitColorRamp(u32* p) {
-    DTextRampEntry* ramp;
+    u8* ramp = gDTextColorRamp;
 
     p[8] = (u32)lbl_801296F0;
-    ramp = (DTextRampEntry*)gDTextColorRamp;
     if (gDTextInitCount == 0) {
         int i;
         DTextRampEntry* entry;
         int divisor;
+        int j;
         memset(ramp, 0, 256);
-        memset((u8*)ramp + 512, 255, 256);
+        memset(ramp + 512, 255, 256);
         for (i = 0; i < 256; i++) {
             gDTextBuf[i] = i;
         }
+        j = 0;
         divisor = 31;
-        for (i = 0; i < 32; i++) {
-            entry = (DTextRampEntry*)((u8*)ramp + i);
-            entry->value = (i * 255 + 16) / divisor;
+        for (; j < 32; j++) {
+            entry = (DTextRampEntry*)(ramp + j);
+            entry->value = (j * 255 + 16) / divisor;
         }
     }
     gDTextInitCount++;
