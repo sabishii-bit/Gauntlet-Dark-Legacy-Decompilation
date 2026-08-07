@@ -286,35 +286,6 @@ void MBOX_ResetModels(void) {
     lbl_80344E88 = -1;
 }
 
-/* ---- 0x800B8B04 : find a texture def by name ---- */
-int MBOX_FindTexture(const char* name, int p2) {
-    return MBOX_FindTexture_Sub(name, p2, 0, lbl_80344E8C - 1, 0);
-}
-
-/* ---- 0x800B8B34 : find a texture def by name (error variant) ---- */
-int MBOX_FindTexture_Err(const char* name, int p2, int flag) {
-    return MBOX_FindTexture_Sub(name, p2, 0, lbl_80344E8C - 1, flag);
-}
-
-/* ---- 0x800B8B64 : binary-search the texture-def table by name ---- */
-int MBOX_FindTexture_Sub(const char* name, int p2, int lo, int hi, int flag) {
-    u8* g = gWinGlobals;
-    char key[0x20];
-    int i;
-
-    for (i = 0; name[i] != '\0' && i < 0x1f; i++) {
-        key[i] = (char)toupper(name[i]);
-    }
-    key[i] = '\0';
-    bsearch(key, g, (u32)(hi - lo + 1), 0x20, texcmp);
-    return -1;
-}
-
-/* ---- 0x800B8CE8 : texture-name comparator (30 chars) ---- */
-static int texcmp(const void* a, const void* b) {
-    return strncmp((const char*)a, (const char*)b, 0x1e);
-}
-
 typedef struct MboxTextureArchive {
     u8 _pad00[0x50];
     u32 textureCount;
@@ -328,6 +299,89 @@ typedef struct MboxModelSlot {
     u8 _pad08[8];
     s32 locked;
 } MboxModelSlot;
+
+/* ---- 0x800B8B04 : find a texture def by name ---- */
+int MBOX_FindTexture(const char* name, void** out) {
+    return MBOX_FindTexture_Sub(name, (int)out, 0, lbl_80344E8C - 1, 0);
+}
+
+/* ---- 0x800B8B34 : find a texture def by name (error variant) ---- */
+int MBOX_FindTexture_Err(const char* name, void** out, int flag) {
+    return MBOX_FindTexture_Sub(name, (int)out, 0, lbl_80344E8C - 1, flag);
+}
+
+/* ---- 0x800B8B64 : binary-search the texture-def table by name ---- */
+int MBOX_FindTexture_Sub(const char* name, int p2, int lo, int hi, int flag) {
+    char key[0x24];
+    char* destination;
+    void** out = (void**)p2;
+    u8* g;
+    void* result;
+    s32 model;
+    s8 character;
+
+    destination = key;
+    result = NULL;
+    g = gWinGlobals;
+    while (*name == ' ' || *name == '\t' || *name == '\n') {
+        name++;
+    }
+    character = *name;
+    while (character != '\0' && character != ' ' && character != '\t' &&
+           character != '\n') {
+        *destination = (char)toupper(character);
+        name++;
+        destination++;
+        character = *name;
+    }
+    *destination = '\0';
+    if (lo < 0) {
+        lo = 0;
+    }
+    if (hi < 0 || hi >= lbl_80344E8C) {
+        hi = lbl_80344E8C - 1;
+    }
+    model = lo;
+    lo <<= 4;
+    while (model <= hi) {
+        MboxModelSlot* current =
+            (MboxModelSlot*)(*(u8**)(g + 0x30) + lo);
+
+        if (current->locked == 0) {
+            result = bsearch(key, current->archive->textureDefs,
+                             current->archive->textureCount, 0x24, texcmp);
+            if (result != NULL) {
+                break;
+            }
+        }
+        model++;
+        lo += 0x10;
+    }
+    if (result == NULL) {
+        if (flag == -1) {
+            return -1;
+        }
+        if (out != NULL) {
+            *out = NULL;
+        }
+        return 0;
+    }
+    {
+        s32 textureIndex = *(s16*)((u8*)result + 0x1E);
+        u32 id = (u16)textureIndex;
+
+        id |= model << 16;
+        if (out != NULL) {
+            *out = result;
+        }
+        return id;
+    }
+}
+
+/* ---- 0x800B8CE8 : texture-name comparator (30 chars) ---- */
+static int texcmp(const void* a, const void* b) {
+    return strncmp((const char*)a, (const char*)b, 0x1e);
+}
 
 static void setTextureKey(s16* destination, s32 value) {
     *destination = (s16)value;
