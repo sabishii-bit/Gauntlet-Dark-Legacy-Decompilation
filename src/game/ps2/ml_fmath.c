@@ -474,27 +474,34 @@ void ReflectVector(const f32* vector, const f32* normal, f32* out)
 }
 
 /* 0x800BD860 */
-f32 SlowNormalVector2D(f32* vector)
+f64 SlowNormalVector2D(f32* vector)
 {
-    f64 length = vector[0] * vector[0] + vector[2] * vector[2];
-    f32 scale = 1.0f;
+    f32 magnitude = vector[0] * vector[0] + vector[2] * vector[2];
+    f64 original = magnitude;
+    f64 length;
+    f32 scale;
+    u8 unused[8];
     volatile f32 root;
 
-    if (length > 0.0) {
-        f64 guess = __frsqrte(length);
-        guess = 0.5 * guess * (3.0 - length * guess * guess);
-        guess = 0.5 * guess * (3.0 - length * guess * guess);
-        guess = 0.5 * guess * (3.0 - length * guess * guess);
-        root = (f32)(length *
-                     (0.5 * guess * (3.0 - length * guess * guess)));
+    if (magnitude > 0.0f) {
+        f64 guess = __frsqrte(original);
+        guess = 0.5 * guess * (3.0 - original * (guess * guess));
+        guess = 0.5 * guess * (3.0 - original * (guess * guess));
+        guess = 0.5 * guess * (3.0 - original * (guess * guess));
+        root = (f32)(original *
+                     (0.5 * guess * (3.0 - original * (guess * guess))));
         length = root;
+    } else {
+        length = original;
     }
-    if (length > 0.0)
+    if (length <= 0.0)
+        scale = 1.0f;
+    else
         scale = (f32)(1.0 / length);
     vector[0] *= scale;
     vector[1] = 0.0f;
     vector[2] *= scale;
-    return (f32)length;
+    return length;
 }
 
 /* 0x800BD938 */
@@ -514,28 +521,35 @@ f32 NormalVector2D(f32* vector)
 }
 
 /* 0x800BD9B0 */
-f32 SlowNormalVector(f32* vector)
+f64 SlowNormalVector(f32* vector)
 {
-    f64 length = vector[2] * vector[2] + vector[0] * vector[0] +
-                 vector[1] * vector[1];
-    f32 scale = 1.0f;
+    f32 magnitude = vector[0] * vector[0] + vector[1] * vector[1] +
+                    vector[2] * vector[2];
+    f64 original = magnitude;
+    f64 length;
+    f32 scale;
+    u8 unused[8];
     volatile f32 root;
 
-    if (length > 0.0) {
-        f64 guess = __frsqrte(length);
-        guess = 0.5 * guess * (3.0 - length * guess * guess);
-        guess = 0.5 * guess * (3.0 - length * guess * guess);
-        guess = 0.5 * guess * (3.0 - length * guess * guess);
-        root = (f32)(length *
-                     (0.5 * guess * (3.0 - length * guess * guess)));
+    if (magnitude > 0.0f) {
+        f64 guess = __frsqrte(original);
+        guess = 0.5 * guess * (3.0 - original * (guess * guess));
+        guess = 0.5 * guess * (3.0 - original * (guess * guess));
+        guess = 0.5 * guess * (3.0 - original * (guess * guess));
+        root = (f32)(original *
+                     (0.5 * guess * (3.0 - original * (guess * guess))));
         length = root;
+    } else {
+        length = original;
     }
-    if (length > 0.0)
+    if (length <= 0.0)
+        scale = 1.0f;
+    else
         scale = (f32)(1.0 / length);
     vector[0] *= scale;
     vector[1] *= scale;
     vector[2] *= scale;
-    return (f32)length;
+    return length;
 }
 
 /* 0x800BDA98 */
