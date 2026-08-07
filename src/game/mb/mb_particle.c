@@ -82,6 +82,14 @@ typedef struct PsysModuleGlobals {
 } PsysModuleGlobals;
 
 extern PsysModuleGlobals lbl_80128710; /* retail module-global data block */
+typedef struct PsysPresetRecord {
+    u32 id;
+    u8 payload[304];
+    u32 checksum;
+} PsysPresetRecord;
+extern PsysPresetRecord psysPresetTable[9];
+extern s32 lbl_80345194;
+extern s8 lbl_80345198;
 
 /* --- TU-owned globals (real addresses in .data/.bss/.sbss) --- */
 static s32       gPsysActive;      /* 0x80128710 live psys count */
@@ -1765,20 +1773,50 @@ bad_block:
 }
 #pragma opt_lifetimes reset
 
-/* 0x800D1724 - initPresetList: checksum + validate the built-in preset table.
- * Documented reconstruction (NonMatching). */
+/* 0x800D1724 - checksum + validate the built-in preset table. */
 static void initPresetList(void) {
-    u32* preset = (u32*)0x801287fc;   /* 9 x 0x138-byte presets */
+    u8* byteStart;
+    u8* byteEnd;
+    PsysPresetRecord* preset;
+    u32 sum;
+    u8* cursor;
+    s32 bytes;
     s32 i;
-    for (i = 0; i < 9; i++) {
-        u32 sum = 0;
-        s32 k;
-        u32* w = preset + i * (0x138 / 4);
-        for (k = 0; k < 0x138 / 4 - 1; k++) {
-            sum += w[k];
-        }
-        (void)sum;
+
+    if (lbl_80345198 == 0) {
+        lbl_80345194 = 0;
+        lbl_80345198 = 1;
     }
+    if (lbl_80345194 != 0) {
+        return;
+    }
+
+    for (i = 8; i >= 0; i--) {
+        preset = &psysPresetTable[i];
+        cursor = (u8*)preset;
+        if (preset->id < 0x101) {
+            preset->checksum = 0;
+        } else {
+            byteStart = (u8*)preset + 64;
+            byteEnd = (u8*)preset + 96;
+            sum = 0;
+            bytes = 312;
+            while ((bytes -= 4) != 0) {
+                if (cursor >= byteStart && cursor <= byteEnd) {
+                    sum += cursor[0];
+                    sum += cursor[1];
+                    sum += cursor[2];
+                    sum += cursor[3];
+                    cursor += 4;
+                } else {
+                    sum += *(u32*)cursor;
+                    cursor += 4;
+                }
+            }
+            preset->checksum = sum ^ 0xAAAA5555;
+        }
+    }
+    lbl_80345194 = 1;
 }
 
 /* 0x800D1800 - MBInitPsys: build the 120000-byte block pool + index arrays.
