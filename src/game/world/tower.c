@@ -492,7 +492,8 @@ void towerAdvanceLevelRecord(int player, int level) {
             s16* value;
             u8* levelRecord;
 
-            levelRecord = (u8*)(level * 2 + (s32)record);
+            levelRecord = (u8*)(level * 2);
+            levelRecord += (s32)record;
             value = (s16*)(levelRecord + record->character * 240 + 3560);
 
             if (*value >= 0 && *value < lbl_80124D94[level]) {
