@@ -239,16 +239,62 @@ static s32 getNewPosRectShare(Psys* p, MBObject* node, s32 z) {
 #pragma opt_propagation reset
 
 /* 0x800CD02C - unique (free-slot) rect position */
+#pragma opt_lifetimes on
+#pragma opt_propagation off
 static s32 getNewPosRectUnique(Psys* p, MBObject* node, s32 z) {
-    s32 count = (s16)p->dir_max;
-    s32 idx = (s32)((pbRand() & 0x7fff) % (count ? count : 1));
-    while (p->pos_use_lst[idx] == 0xff) {
-        idx = (idx == 0) ? count - 1 : idx - 1;
+    f32 ry, rx, rz;
+    Psys* psys = p;
+    s32 idx;
+    u8* use = p->pos_use_lst;
+    s32 count = p->pos_max;
+    MBObject* obj = node;
+    s32 first;
+    s32 used;
+
+    idx = (s32)(3.051850947599719e-05 * (f64)(f32)count *
+                (f64)(f32)(pbRand() & 0x7fff));
+    if (idx >= count) {
+        idx = count - 1;
     }
-    p->pos_use_lst[idx]++;
-    randRectPos(p, node, p->init_pos_lst[idx]);
+    used = use[idx];
+    if (used == 0xff) {
+        first = idx;
+        do {
+            if (idx-- == 0) {
+                idx = count - 1;
+            }
+            if (idx == first) {
+                idx = 0;
+                goto foundPos;
+            }
+            used = use[idx];
+        } while (used == 0xff);
+    }
+    use[idx] = used + 1;
+foundPos:
+    if (idx < 0) {
+        return idx;
+    }
+    if (psys->pos_use_lst[idx] > 1) {
+        return idx;
+    }
+    use = (u8*)psys->init_pos_lst[idx];
+    rx = (f32)((f64)psys->e_vol[0] *
+               (3.051850947599719e-05 * (f64)(f32)(pbRand() & 0x7fff) - 0.5));
+    ry = (f32)((f64)psys->e_vol[1] *
+               (3.051850947599719e-05 * (f64)(f32)(pbRand() & 0x7fff) - 0.5));
+    rz = (f32)((f64)psys->e_vol[2] *
+               (3.051850947599719e-05 * (f64)(f32)(pbRand() & 0x7fff) - 0.5));
+    ((f32*)use)[0] = rx * obj->mat[0][0] + ry * obj->mat[1][0] +
+                     rz * obj->mat[2][0] + obj->mat[3][0];
+    ((f32*)use)[1] = rx * obj->mat[0][1] + ry * obj->mat[1][1] +
+                     rz * obj->mat[2][1] + obj->mat[3][1];
+    ((f32*)use)[2] = rx * obj->mat[0][2] + ry * obj->mat[1][2] +
+                     rz * obj->mat[2][2] + obj->mat[3][2];
     return idx;
 }
+#pragma opt_lifetimes reset
+#pragma opt_propagation reset
 
 /* 0x800CD254 - one shared position per frame (from node origin) */
 #pragma opt_lifetimes on
