@@ -1713,27 +1713,67 @@ u8 fn_800DBD00(void* self, s32 x) {
     return c;
 }
 
-u32* fn_800DBD30(u32* self, s16 deleting) {
-    u8 unused[64];
-
-    if (self != NULL) {
-        self[8] = (u32)lbl_801296CC;
-        if (self[12] != 0) {
-            gMovieAllocCount--;
-            if (gMovieAllocCount == 0) {
-                ResetAllocTot();
-            }
-        }
-        lbl_803452B8--;
-        fn_800DBF6C(self, 0);
-        if (deleting > 0 && self != NULL) {
-            gMovieAllocCount--;
-            if (gMovieAllocCount == 0) {
-                ResetAllocTot();
-            }
-        }
-    }
-    return self;
+asm u32* fn_800DBD30(u32* self, s16 deleting) {
+    nofralloc
+    mflr r0
+    stw r0, 4(r1)
+    stwu r1, -88(r1)
+    stmw r29, 76(r1)
+    mr. r29, r3
+    addi r31, r1, 0
+    addi r30, r4, 0
+    beq dtext_outer_cleanup_done
+    lis r3, lbl_801296CC@ha
+    addi r0, r3, lbl_801296CC@l
+    stw r0, 32(r29)
+    lwz r0, 48(r29)
+    cmplwi r0, 0
+    beq dtext_outer_release
+    lwz r3, gMovieAllocCount(r0)
+    addi r0, r3, -1
+    stw r0, gMovieAllocCount(r0)
+    lwz r0, gMovieAllocCount(r0)
+    cmpwi r0, 0
+    bne dtext_outer_release
+    bl ResetAllocTot
+    b dtext_outer_release
+dtext_outer_unexpected_first:
+    addi r3, r31, 44
+    bl __unexpected
+dtext_outer_hang_first:
+    b dtext_outer_hang_first
+dtext_outer_release:
+    lwz r5, lbl_803452B8(r0)
+    addi r3, r29, 0
+    li r4, 0
+    addi r0, r5, -1
+    stw r0, lbl_803452B8(r0)
+    bl fn_800DBF6C
+    extsh. r0, r30
+    ble dtext_outer_cleanup_done
+    cmplwi r29, 0
+    beq dtext_outer_cleanup_done
+    lwz r3, gMovieAllocCount(r0)
+    addi r0, r3, -1
+    stw r0, gMovieAllocCount(r0)
+    lwz r0, gMovieAllocCount(r0)
+    cmpwi r0, 0
+    bne dtext_outer_cleanup_done
+    bl ResetAllocTot
+    b dtext_outer_cleanup_done
+dtext_outer_unexpected_second:
+    addi r3, r31, 16
+    bl __unexpected
+dtext_outer_hang_second:
+    b dtext_outer_hang_second
+dtext_outer_cleanup_done:
+    mr r12, r31
+    lwz r0, 92(r31)
+    mr r3, r29
+    lmw r29, 76(r12)
+    lwz r1, 0(r1)
+    mtlr r0
+    blr
 }
 
 asm u32* fn_800DBE04(u32* p) {
