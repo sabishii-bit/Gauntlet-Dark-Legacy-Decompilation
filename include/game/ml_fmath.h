@@ -24,9 +24,9 @@ void CreatePYRMatrix(f32* matrix, const f32* angles);
 
 void ReflectVector2D(const f32* vector, const f32* normal, f32* out);
 void ReflectVector(const f32* vector, const f32* normal, f32* out);
-f32 SlowNormalVector2D(f32* vector);
+f64 SlowNormalVector2D(f32* vector);
 f32 NormalVector2D(f32* vector);
-f32 SlowNormalVector(f32* vector);
+f64 SlowNormalVector(f32* vector);
 f32 NormalVector(f32* vector);
 
 void MulBodyVecMat4(const f32* vector, f32* out, const f32* matrix);
