@@ -100,6 +100,7 @@ extern s32 sVoiceRotIdxB;  /* 0..3 announcer-voice rotation counter */
 extern s32 good_wiz_state; /* <=2 => attract/menu path (announcer allowed) */
 extern s32 lbl_803447B4;   /* gate flag */
 extern s32 lbl_803447B8;   /* gate flag */
+extern s32 lbl_8034476C;   /* alternate player-audio dispatch mode */
 extern s32 sMusicTrackHi;
 extern s32 sMusicTrackLo;
 extern s32 sMusicSlot0;
@@ -119,6 +120,11 @@ extern f32 sMusicVolScale;
 extern s32 gBossType;
 extern u8* gCurLevel;
 extern u8* gWorldData;
+extern f32 lbl_80348480;
+extern f32 lbl_80348484;
+extern f32 lbl_80348490;
+extern f32 lbl_80348494;
+extern f32 lbl_80348498;
 
 /* ----------------------------------------------------------------- */
 
@@ -354,6 +360,99 @@ void fn_8009C9DC(int sel, int pos)
     case 4:
         sndFxPlay3D(t[k + 862], pos, 224, 10);
         break;
+    }
+}
+
+/* Dispatch player event sounds between named playback and the announcer
+ * queue.  The accepted event ranges differ in the alternate audio mode. */
+void fn_8009CB44(s32 pidx, u32 sound, u32 extra)
+{
+    s32 track = lbl_801232C8[pidx];
+    u32 event = sound;
+    u32 tail = extra;
+    f32 volume;
+
+    if (lbl_8034476C <= 1) {
+        switch (event) {
+        case 0x2000F:
+            AudioWithName(-1, pidx, lbl_80348498, 0x2000F, tail);
+            return;
+        case 0x1003D:
+        case 0x2002C:
+            volume = lbl_80348490;
+            if (event == 0x1003D) {
+                volume = lbl_80348494;
+            }
+            AudioWithName(-1, pidx, volume, 0x20010, event);
+            return;
+        case 0x1002C:
+            AudioWithName(-1, pidx, lbl_80348498, 0x1002C, tail);
+            return;
+        }
+        if (good_wiz_state <= 2) {
+            sndFxQueAddEx(1, event, lbl_80348480, lbl_80348484, 224,
+                          track, 2);
+        }
+        return;
+    }
+
+    switch (event) {
+    case 0x1002C:
+        AudioWithName(-1, pidx, lbl_80348498, 0x1002C, tail);
+        return;
+    case 0x2000F:
+        AudioWithName(-1, pidx, lbl_80348498, event, tail);
+        return;
+    case 0x1003D:
+    case 0x20011:
+    case 0x20012:
+    case 0x20013:
+    case 0x20014:
+    case 0x20015:
+    case 0x20016:
+    case 0x20017:
+    case 0x20018:
+    case 0x20019:
+    case 0x2001A:
+    case 0x2001B:
+    case 0x2001C:
+    case 0x2001D:
+    case 0x2001E:
+    case 0x2001F:
+    case 0x20020:
+    case 0x20021:
+    case 0x20022:
+    case 0x20023:
+    case 0x20024:
+    case 0x20025:
+    case 0x20026:
+    case 0x20027:
+    case 0x20028:
+    case 0x2002B:
+    case 0x2002C:
+    case 0x2002D:
+    case 0x2002E:
+    case 0x2002F:
+    case 0x20030:
+    case 0x20031:
+    case 0x20035:
+    case 0x20036:
+    case 0x20037:
+    case 0x20038:
+    case 0x20039:
+    case 0x2003A:
+    case 0x2003B:
+    case 0x2003C:
+    case 0x2003D:
+        volume = lbl_80348490;
+        if (event == 0x1003D) {
+            volume = lbl_80348494;
+        }
+        AudioWithName(-1, pidx, volume, 0x20010, event);
+        return;
+    }
+    if (good_wiz_state <= 2) {
+        sndFxQueAddEx(1, event, lbl_80348480, lbl_80348484, 224, track, 2);
     }
 }
 
