@@ -966,20 +966,24 @@ s32 dcsSampleStream(void* sample, u32 uploadArg) {
 void dcsSampleCallback(u32 request);
 
 s32 dcsSampleUpload(void* state, u32 uploadArg) {
+    DcsData* d = &dcsBankData;
     u32* p = (u32*)state;
-    u32* node = p - 4;
+    u32* node = (u32*)((u8*)state +
+                       ((u8*)&d->samples[0] - (u8*)&d->samples[0].buffer));
+    void* pool = (u8*)d + 0x2C080;
 
-    if (uploadArg == 0) {
-        pool_dispose_and_alloc(lbl_802F5F60, node, p[1], 0, lbl_802F5F60);
+    if (uploadArg != 0) {
+        pool_alloc_at(pool, node, p[1], uploadArg, pool);
     } else {
-        pool_alloc_at(lbl_802F5F60, node, p[1], uploadArg, lbl_802F5F60);
+        pool_dispose_and_alloc(pool, node, p[1], uploadArg, pool);
     }
     if (*node == 0) {
         return 0xfffffffe;
     }
     DCFlushRange((void*)p[0], p[1]);
     dcsSampleBusy = 1;
-    ARQPostRequest(&dcsSampleReq, 0, 0, 1, p[0], *node, p[1], dcsSampleCallback);
+    ARQPostRequest((ARQRequest*)((u8*)d + 0x2C17C), 0, 0, 1, p[0], *node,
+                   p[1], dcsSampleCallback);
     while (dcsSampleBusy != 0) {
     }
     return 0;
