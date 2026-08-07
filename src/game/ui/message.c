@@ -3,9 +3,8 @@
 /* GDL in-game message / notification queue (GCN MESSAGE.OBJ region,
  * 0x800A4870-0x800A573C). Names are provisional (no clean PDB anchor on GCN).
  * The system holds up to 4 active message boxes, posts messages by priority
- * from a 256-entry descriptor table, and renders them with the game's text
- * library (fn_8001Fxxx). msgPost/msgDraw are left as stubs (large renderer /
- * priority-insert bodies not yet reconstructed). */
+ * from a 256-entry descriptor table, and renders localized messages with the
+ * game's text library. */
 
 typedef struct MsgDesc {
     /* 0x00 */ int f0;
@@ -71,7 +70,7 @@ void DrawStringTextMLines(int x, int y, int flags, int color, int lines,
                           int text, ...);
 int  DrawStringTextMulti(int x, int y, int spacing, int font, int color,
                          int text);
-int  DrawStringText(int x, int y, int flags, int color, int text, int param,
+int  DrawStringText(int x, int y, u32 flags, u32 color, int text, int param,
                     ...);
 float RestoreDrawStringScale(void);
 float SetDrawStringScale(float scale);
@@ -625,34 +624,35 @@ int msgPost(int idx, int param, char* position)
 }
 
 /* Render the active message, including the localized player/world variants. */
+#pragma opt_propagation off
 void msgDraw(void)
 {
     MsgDesc* desc;
+    int tens;
     int centerY;
     int lineHeight;
     int playerClass;
     int playerWorld;
     u32 oldFlags;
     char* text;
-    char* worldText;
     char* classText;
+    char* worldText;
+    char* specialWorldText;
     int worldWidth;
     int classWidth;
     int labelWidth;
     int numberWidth;
     int x;
     int y;
-    int tens;
     int textMsg;
-    int textParam;
     int scratch[6];
     u32 color;
     volatile u32 stackPad;
 
     desc = &gMsgDescTable[gCurrentMessage];
+    centerY = gMessageCenterY | 0x1000;
     playerClass = gPlayers[gCurWorld].character;
     playerWorld = gPlayers[gCurWorld].class_id;
-    centerY = gMessageCenterY | 0x1000;
 
     if (((gGameMode & 0x8000) == 0 || lbl_80344298 == 0) && desc->type >= 0) {
         oldFlags = MBSetFontFlags(0x02000000);
@@ -671,31 +671,36 @@ void msgDraw(void)
             worldWidth = StringTextWidth(1.0f, 2, playerWorld);
             classWidth = StringTextWidth(1.0f, 3, playerClass);
             labelWidth = StringTextWidth(1.0f, 0x18, 0);
-            x = gMessageCenterX - (worldWidth + classWidth + labelWidth + 0x14) / 2;
-            y = centerY - lineHeight;
-            DrawStringText(x, y, -1, gMessageFontFlags, 2, playerWorld);
-            x += worldWidth;
-            DrawStringText(x + 10, y, -1, gMessageFontFlags, 3, playerClass);
-            DrawStringText(x + classWidth + 0x14, y, -1, gMessageFontFlags,
+            y = worldWidth + classWidth;
+            labelWidth = y + labelWidth;
+            x = gMessageCenterX - (labelWidth + 0x14) / 2;
+            labelWidth = centerY - lineHeight;
+            DrawStringText(x, labelWidth, -1, gMessageFontFlags, 2, playerWorld);
+            worldWidth = x + worldWidth;
+            DrawStringText(worldWidth + 10, labelWidth, -1, gMessageFontFlags, 3, playerClass);
+            classWidth = worldWidth + classWidth;
+            DrawStringText(classWidth + 0x14, labelWidth, -1, gMessageFontFlags,
                            0x18, 0);
             DrawStringText(-gMessageCenterX, centerY, -1, gMessageFontFlags,
                            0x18, 1, gMessageValue);
 
             if (gMessageValue == 99) {
-                textParam = 0;
                 textMsg = 0x15;
+                classWidth = 0;
             } else {
                 textMsg = GetStringListMsg(0, playerClass);
-                textParam = tens >> 1;
+                classWidth = tens >> 1;
             }
-            numberWidth = StringTextWidth(1.25f, textMsg, textParam);
+            numberWidth = StringTextWidth(1.25f, textMsg, classWidth);
             labelWidth = StringTextWidth(1.0f, 0x18, 2);
-            x = gMessageCenterX - (numberWidth + labelWidth + 0x10) / 2;
+            labelWidth = numberWidth + labelWidth;
+            worldWidth = gMessageCenterX - (labelWidth + 0x10) / 2;
             SetDrawStringScale(1.25f);
-            DrawStringText(x, centerY + lineHeight + 2, color,
-                           gMessageFontFlags, textMsg, textParam);
+            x = centerY + lineHeight;
+            DrawStringText(worldWidth, x + 2, color,
+                           gMessageFontFlags, textMsg, classWidth);
             RestoreDrawStringScale();
-            DrawStringText(x + numberWidth + 0x10, centerY + lineHeight, -1,
+            DrawStringText(worldWidth + numberWidth + 0x10, x, -1,
                            gMessageFontFlags, 0x18, 2);
         } else {
             DrawStringText(-gMessageCenterX, centerY - lineHeight, -1,
@@ -710,9 +715,10 @@ void msgDraw(void)
                                  gMessageFontFlags, desc->type, gMessageValue);
         } else if (gCurrentMessage == 0x32 || gCurrentMessage == 0x59 ||
                    gCurrentMessage == 0x5D) {
-            worldText = GetStringText(2, playerWorld, 0);
-            classText = GetStringText(3, playerClass, 0);
-            lineHeight = (StringTextHeight(1.0f, desc->type, 0, 2) + 2) >> 1;
+            specialWorldText = GetStringText(2, playerWorld, 0);
+            text = GetStringText(3, playerClass, 0);
+            lineHeight = StringTextHeight(1.0f, desc->type, 0, 2) + 2;
+            lineHeight >>= 1;
             if ((gPlayers[gCurWorld].flags & 0x400) != 0 &&
                 gCurrentMessage != 0x5D) {
                 DrawStringText(-gMessageCenterX, centerY - lineHeight, -1,
@@ -720,7 +726,7 @@ void msgDraw(void)
             } else {
                 DrawStringText(-gMessageCenterX, centerY - lineHeight,
                                gMessageTextArg, gMessageFontFlags, desc->type, 0,
-                               worldText, classText);
+                               specialWorldText, text);
             }
             DrawStringText(-gMessageCenterX, centerY + lineHeight,
                            gMessageTextArg, gMessageFontFlags, desc->type, 1);
@@ -734,6 +740,7 @@ void msgDraw(void)
         MBSetFontFlags(oldFlags);
     }
 }
+#pragma opt_propagation reset
 
 /* msgInit */
 void msgInit(void)
