@@ -127,33 +127,47 @@ void serve_io(void)
 /* WAD directory lookup: {count@+4, entries@+8}, entry = {key,ofs,size,pad} */
 int MBGetFromWad(int* wad, int key, int* sizeOut)
 {
+    int* result;
+    int offset;
     int* entry;
-    int n;
-    int i;
+    u32 n;
 
-    entry = NULL;
-    if (wad != NULL) {
-        i = 0;
-        for (n = wad[1]; n != 0; n--) {
-            entry = (int*)(wad[2] + i);
-            if (key == *entry) {
-                goto found;
-            }
-            i += 0x10;
-        }
-        entry = NULL;
+    result = NULL;
+    if (wad == NULL) {
+        goto done;
     }
-found:
-    if (entry == NULL) {
+    if (wad != NULL) {
+        goto search;
+    }
+    entry = NULL;
+    goto assign;
+
+search:
+    offset = 0;
+    for (n = wad[1]; n > 0; n--) {
+        entry = (int*)(wad[2] + offset);
+        if ((u32)key != (u32)*entry) {
+            goto next;
+        }
+        goto assign;
+next:
+        offset += 0x10;
+    }
+    entry = NULL;
+
+assign:
+    result = entry;
+done:
+    if (result == NULL) {
         if (sizeOut != NULL) {
             *sizeOut = 0;
         }
         return 0;
     }
     if (sizeOut != NULL) {
-        *sizeOut = entry[2];
+        *sizeOut = result[2];
     }
-    return entry[1];
+    return result[1];
 }
 
 /* byte-swap a just-loaded WAD directory in place */
