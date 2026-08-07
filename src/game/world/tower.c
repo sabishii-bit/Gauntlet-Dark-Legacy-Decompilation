@@ -610,8 +610,12 @@ void towerAdvanceBossRecord(int player, int level) {
         Player* record = &gPlayers[i];
 
         if (record->state == 1 || record->state == 4) {
-            u8* levelRecord = (u8*)(level * 2 + (s32)record);
-            s16* value = (s16*)(levelRecord + record->character * 240 + 3566);
+            u8* levelRecord;
+            s16* value;
+
+            levelRecord = (u8*)(level * 2);
+            levelRecord += (s32)record;
+            value = (s16*)(levelRecord + record->character * 240 + 3566);
 
             if (*value >= 0 && *value < lbl_80124C70[level]) {
                 (*value)++;
