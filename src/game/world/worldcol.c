@@ -987,23 +987,28 @@ void CreateMat3Norm(f32 scale, f32* mtx, f32* normal)
     } else if ((f64)ny < lbl_803457A8) {
         CopyMat3(lbl_80127DA0, mtx);
     } else {
-        f32 nz = normal[2];
-        f32 nx = normal[0];
-        f32 t = nz * scale;
-        f32 nxs = nx * scale;
+        f32 nx;
+        f32 nxs;
+        f32 nz;
+        f32 t;
+        f32 zero;
+        nz = normal[2];
+        nx = normal[0];
+        t = nz * scale;
+        nxs = nx * scale;
         mtx[0] = -t;
-        mtx[1] = lbl_8034572C;
+        zero = lbl_8034572C;
+        mtx[1] = zero;
         mtx[2] = nxs;
-        mtx[3] = lbl_8034572C;
+        mtx[3] = zero;
         mtx[4] = nx;
         mtx[5] = ny;
         mtx[6] = nz;
-        mtx[7] = lbl_8034572C;
-        mtx[8] = (f32)(-(f64)nxs * (f64)ny);
-        mtx[9] = (f32)(scale *
-                       -(f64)(f32)((f64)ny * (f64)ny - (f64)lbl_80345764));
-        mtx[10] = (f32)(-(f64)ny * (f64)t);
-        mtx[11] = lbl_8034572C;
+        mtx[7] = zero;
+        mtx[8] = -nxs * ny;
+        mtx[9] = scale * (lbl_80345764 - ny * ny);
+        mtx[10] = -ny * t;
+        mtx[11] = zero;
     }
 }
 /* PointLineColl @0x8000E73C -- project `point` onto segment [start,end], clamp
