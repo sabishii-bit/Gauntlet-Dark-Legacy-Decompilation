@@ -989,6 +989,7 @@ void fn_800C68F4(u32* pkt, s32 x, u32 y);
 
 /* Apply the object/material state deltas and submit one geometry stream
  * (Xbox: pbSetDORegs). */
+#pragma opt_lifetimes off
 s32 pbSetDORegs(s32 unused, u32 texture, s32 textureMode, u32 material,
                 u32 flags, s32 bank, f32* matrix, void* geometry, u8* node)
 {
@@ -1147,8 +1148,8 @@ s32 pbSetDORegs(s32 unused, u32 texture, s32 textureMode, u32 material,
         matrixFlag = 0;
     }
     state->m58 = textureShift;
-    drawFlags += textureShiftFlag;
-    drawFlags += matrixFlag;
+    drawFlags = textureShiftFlag + drawFlags;
+    drawFlags = matrixFlag + drawFlags;
 
     if (!sPerspModeInit) {
         sPerspMode = 0;
@@ -1177,6 +1178,7 @@ s32 pbSetDORegs(s32 unused, u32 texture, s32 textureMode, u32 material,
     sDrawGeom((u32*)geometry, matrix, (u8*)state, drawFlags);
     return 0;
 }
+#pragma opt_lifetimes reset
 
 void pbResetDORegs(void);
 
