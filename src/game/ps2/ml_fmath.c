@@ -734,23 +734,63 @@ void ExtractScaleMat4(const f32* matrix, f32* out)
 /* Compose two transforms, scaling the basis of rhs before multiplication. */
 void MulMat4Scale(f32* lhs, f32* rhs, f32* out, f32* scale)
 {
-    s32 row;
-    s32 column;
+    f32 a0;
+    f32 a1;
+    f32 a2;
+    f32 a4;
+    f32 a5;
+    f32 a6;
+    f32 a8;
+    f32 a9;
+    f32 a10;
+    f32 b0;
+    f32 b1;
+    f32 b2;
+    f32 s;
 
-    lhs[15] = rhs[15] = scale[3] = 0.0f;
-    for (row = 0; row < 3; row++) {
-        for (column = 0; column < 3; column++) {
-            out[row * 4 + column] =
-                lhs[0 * 4 + column] * rhs[row * 4 + 0] * scale[row] +
-                lhs[1 * 4 + column] * rhs[row * 4 + 1] * scale[row] +
-                lhs[2 * 4 + column] * rhs[row * 4 + 2] * scale[row];
-        }
-    }
-    for (column = 0; column < 3; column++) {
-        out[12 + column] =
-            lhs[column] * rhs[12] + lhs[4 + column] * rhs[13] +
-            lhs[8 + column] * rhs[14] + lhs[12 + column];
-    }
+    lhs[15] = 0.0f;
+    rhs[15] = 0.0f;
+    scale[3] = 0.0f;
+
+    s = scale[0];
+    b0 = rhs[1] * s;
+    b1 = rhs[0] * s;
+    a4 = lhs[4];
+    a5 = lhs[5];
+    b2 = rhs[2] * s;
+    a0 = lhs[0];
+    a6 = lhs[6];
+    a1 = lhs[1];
+    a8 = lhs[8];
+    a2 = lhs[2];
+    a9 = lhs[9];
+    a10 = lhs[10];
+    out[0] = b1 * a0 + b0 * a4 + b2 * a8;
+    out[1] = b1 * a1 + b0 * a5 + b2 * a9;
+    out[2] = b1 * a2 + b0 * a6 + b2 * a10;
+
+    s = scale[1];
+    b0 = rhs[5] * s;
+    b1 = rhs[4] * s;
+    b2 = rhs[6] * s;
+    out[4] = b1 * a0 + b0 * a4 + b2 * a8;
+    out[5] = b1 * a1 + b0 * a5 + b2 * a9;
+    out[6] = b1 * a2 + b0 * a6 + b2 * a10;
+
+    s = scale[2];
+    b0 = rhs[9] * s;
+    b1 = rhs[8] * s;
+    b2 = rhs[10] * s;
+    out[8] = b1 * a0 + b0 * a4 + b2 * a8;
+    out[9] = b1 * a1 + b0 * a5 + b2 * a9;
+    out[10] = b1 * a2 + b0 * a6 + b2 * a10;
+
+    b0 = rhs[13];
+    b1 = rhs[12];
+    b2 = rhs[14];
+    out[12] = b1 * a0 + b0 * a4 + b2 * a8 + lhs[12];
+    out[13] = b1 * a1 + b0 * a5 + b2 * a9 + lhs[13];
+    out[14] = b1 * a2 + b0 * a6 + b2 * a10 + lhs[14];
 }
 
 /* 0x800BE360 */
