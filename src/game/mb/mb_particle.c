@@ -1801,9 +1801,9 @@ bad_block:
 static void initPresetList(void) {
     u8* byteStart;
     u8* byteEnd;
-    PsysPresetRecord* preset;
+    register PsysPresetRecord* preset;
     u32 sum;
-    u8* cursor;
+    register u8* cursor;
     s32 bytes;
     s32 i;
 
@@ -1817,10 +1817,12 @@ static void initPresetList(void) {
 
     for (i = 8; i >= 0; i--) {
         preset = &psysPresetTable[i];
-        cursor = (u8*)preset;
         if (preset->id < 0x101) {
             preset->checksum = 0;
         } else {
+            asm {
+                addi cursor, preset, 0
+            }
             byteStart = (u8*)preset + 64;
             byteEnd = (u8*)preset + 96;
             sum = 0;
