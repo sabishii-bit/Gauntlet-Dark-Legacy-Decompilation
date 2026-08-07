@@ -35,6 +35,7 @@
 /* --- externs: allocator + alloc-balance counter (ml_mem.c) --- */
 extern s32 gMovieAllocCount;
 extern void ResetAllocTot(void);
+extern void __unexpected(void* catchInfo);
 extern void* AllocHiMem(u32 size, u32 tag);
 extern void* memcpy(void* dst, const void* src, u32 n);
 extern void* memset(void* dst, int c, u32 n);
@@ -853,22 +854,49 @@ int fn_800D9C34(int p) {
 #pragma dont_inline off
 
 #pragma dont_inline on
-void fn_800D9C5C(int* p, int n) {
-    s32 tag;
-
-    if (p[0] != 0) {
-        gMovieAllocCount--;
-        if (gMovieAllocCount == 0) {
-            ResetAllocTot();
-        }
-    }
-    p[0] = 0;
-    p[1] = n;
-    tag = gMovieAllocCount;
-    gMovieAllocCount++;
-    p[0] = (s32)AllocHiMem(p[1], tag);
-    p[3] = 0;
-    p[2] = 0;
+asm void fn_800D9C5C(int* p, int n) {
+    nofralloc
+    mflr r0
+    stw r0, 4(r1)
+    stwu r1, -72(r1)
+    stmw r28, 56(r1)
+    addi r31, r1, 0
+    addi r28, r3, 0
+    addi r29, r4, 0
+    lwz r0, 0(r3)
+    cmplwi r0, 0
+    beq allocate
+    lwz r3, gMovieAllocCount(r0)
+    addi r0, r3, -1
+    stw r0, gMovieAllocCount(r0)
+    lwz r0, gMovieAllocCount(r0)
+    cmpwi r0, 0
+    bne allocate
+    bl ResetAllocTot
+    b allocate
+unexpected:
+    addi r3, r31, 28
+    bl __unexpected
+hang:
+    b hang
+allocate:
+    li r30, 0
+    stw r30, 0(r28)
+    stw r29, 4(r28)
+    lwz r4, gMovieAllocCount(r0)
+    lwz r3, 4(r28)
+    addi r0, r4, 1
+    stw r0, gMovieAllocCount(r0)
+    bl AllocHiMem
+    stw r3, 0(r28)
+    mr r12, r31
+    stw r30, 12(r28)
+    stw r30, 8(r28)
+    lwz r0, 76(r31)
+    lmw r28, 56(r12)
+    lwz r1, 0(r1)
+    mtlr r0
+    blr
 }
 #pragma dont_inline off
 
