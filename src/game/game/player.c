@@ -2007,6 +2007,24 @@ extern u8* lbl_8025ECA8[4];   /* see-thru: proxy node */
 extern void* lbl_8025ECB8[4][0x12]; /* see-thru: overlay handle (stride 0x48) */
 extern u8* lbl_80282930[4];   /* per-player class record (att bases at +0x28..) */
 extern void* FamiliarTree[4][2]; /* level-tier halo atrees */
+typedef struct PlayerControlState {
+    u32 ctl;
+    u32 levels;
+    u32 edges;
+    u32 repeatEdges;
+    s32 specialTimer;
+    s32 specialResult;
+    s32 specialLast;
+    f32 leftAngle;
+    f32 leftMagnitude;
+    f32 rightAngle;
+    f32 rightMagnitude;
+    s32 scheme;
+    s32 hasActuator;
+    s32 unk34;
+    s32 unk38;
+} PlayerControlState;
+extern PlayerControlState lbl_80240E30[4];
 extern u32 lbl_80240E5C[];    /* pad config words, stride 0xF */
 extern u32 lbl_80240E60[];
 extern u32 lbl_80240E64[];
@@ -3504,14 +3522,14 @@ void player_store_in_save(void* vp) {
 void player_save_controls(s32 i) {
     Player* p = P(i);
 
-    PF(p, 0x1DB0, u8) = (u8)lbl_80240E5C[i * 0xF];
-    PF(p, 0x1DB1, u8) = (u8)lbl_80240E60[i * 0xF];
-    PF(p, 0x1DB2, u8) = (u8)lbl_80240E68[i * 0xF];
-    PF(p, 0x1DB3, u8) = (u8)lbl_80240E64[i * 0xF];
-    PF(p, 0x31FC, u8) = (u8)lbl_80240E5C[i * 0xF];
-    PF(p, 0x31FD, u8) = (u8)lbl_80240E60[i * 0xF];
-    PF(p, 0x31FE, u8) = (u8)lbl_80240E68[i * 0xF];
-    PF(p, 0x31FF, u8) = (u8)lbl_80240E64[i * 0xF];
+    PF(p, 0x1DB0, u8) = (u8)lbl_80240E30[i].scheme;
+    PF(p, 0x1DB1, u8) = (u8)lbl_80240E30[i].hasActuator;
+    PF(p, 0x1DB2, u8) = (u8)lbl_80240E30[i].unk38;
+    PF(p, 0x1DB3, u8) = (u8)lbl_80240E30[i].unk34;
+    PF(p, 0x31FC, u8) = (u8)lbl_80240E30[i].scheme;
+    PF(p, 0x31FD, u8) = (u8)lbl_80240E30[i].hasActuator;
+    PF(p, 0x31FE, u8) = (u8)lbl_80240E30[i].unk38;
+    PF(p, 0x31FF, u8) = (u8)lbl_80240E30[i].unk34;
 }
 
 /* Derive the combat stats from the attribute norms x class ranges.    */
