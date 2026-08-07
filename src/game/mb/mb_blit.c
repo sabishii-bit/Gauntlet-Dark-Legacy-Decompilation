@@ -1184,16 +1184,60 @@ void mbBlitStaticInit(void) {
  * ===================================================================== */
 
 static u32 mbInitBlitEntry(MBBLIT* b, int tex, int delta) {
-    s32 old = b->tex;
+    s32 old;
+    s32 projectWidth;
+    s32 projectHeight;
+    s32 oldWidth;
+    s32 oldHeight;
+    MBTextureDef* texture;
+    s32 newWidth;
+    s32 newHeight;
+    f32 scale;
 
-    if (tex >= 0) {
-        b->tex = tex;
+    projectWidth = 0;
+    projectHeight = 0;
+    old = b->tex;
+
+    if (tex < 0) {
+        tex = old;
     }
-    b->tex += delta;
-    if (b->tex != old && (b->flags & 0xC00) != 0) {
-        mbBlitProject(b,
-                      (b->flags & 0x400) != 0 ? -1 : b->width,
-                      (b->flags & 0x800) != 0 ? -1 : b->height);
+    tex += delta;
+    b->tex = tex;
+    if (tex == old) {
+        return old;
+    }
+
+    if ((b->flags & 0x400) != 0) {
+        projectWidth = -1;
+    }
+    if ((b->flags & 0x800) != 0) {
+        projectHeight = -1;
+    }
+    if (projectWidth == -1 || projectHeight == -1) {
+        mbBlitProject(b, projectWidth, projectHeight);
+    }
+
+    if (old >= 0) {
+        texture = MBRomTexPtr(old);
+        oldWidth = texture->width;
+        oldHeight = texture->height;
+    } else {
+        oldWidth = 1;
+        oldHeight = 1;
+    }
+
+    texture = MBRomTexPtr(tex);
+    newWidth = texture->width;
+    newHeight = texture->height;
+    if (oldWidth != newWidth) {
+        scale = (f32)newWidth / (f32)oldWidth;
+        b->u0 = (s16)(0.5 + (f64)((f32)(u16)b->u0 * scale));
+        b->u1 = (s16)(0.5 + (f64)((f32)(u16)b->u1 * scale));
+    }
+    if (oldHeight != newHeight) {
+        scale = (f32)newHeight / (f32)oldHeight;
+        b->v0 = (s16)(0.5 + (f64)((f32)(u16)b->v0 * scale));
+        b->v1 = (s16)(0.5 + (f64)((f32)(u16)b->v1 * scale));
     }
     return old;
 }
