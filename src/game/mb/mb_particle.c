@@ -1262,6 +1262,8 @@ MBObject* MBNewPsysDescrip(s32 a, s32 b, s32 c, void* cfg) {
 
 extern f64 lbl_80349298;        /* firework rate divisor */
 extern f64 lbl_80349210;        /* firework power scale */
+extern MBObject* lbl_80344EBC;
+extern MBObject* gSceneRoot;
 
 /* 0x800CFA84 - firework preset (deferred build through MBNewPsysDescrip) */
 #pragma dont_inline on
@@ -1302,17 +1304,24 @@ MBObject* MBPsysFlame(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
 }
 
 /* 0x800D079C - default psys node (no descriptor), stores render flags */
-MBObject* MBNewPsysDefault(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
-                           f64 f7, f64 f8, f32* verts, f32 depth, s32 flags,
-                           s32 tex, s32 a, s32 b, s32 c, s32 d) {
+MBObject* MBNewPsysDefault(void* matrix, MBObject* parent, s32 flags,
+                           s32 arena) {
     MBObject* node;
-    if (depth == 0.0f) {
-        depth = 1.0f;   /* default draw depth (0x80344eb8) */
+    u8 unused[8];
+
+    (void)unused;
+    if (parent == NULL) {
+        if ((flags & 0x2000) != 0) {
+            parent = lbl_80344EBC;
+        } else {
+            parent = gSceneRoot;
+        }
     }
-    node = createPsysNode((s32)f1, tex, 0, 0);
-    if (node != NULL) {
-        node->flags = flags;
+    node = createPsysNode((s32)matrix, (s32)parent, 0, arena);
+    if (node == NULL) {
+        return NULL;
     }
+    node->flags = flags;
     return node;
 }
 
