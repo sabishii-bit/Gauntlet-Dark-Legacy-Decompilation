@@ -92,7 +92,10 @@ extern f64 __frsqrte(f64 value);
 
 static inline f32 pbSqrtAccurate(f32 value)
 {
-    volatile f32 result;
+    struct {
+        f32 pad[2];
+        volatile f32 result;
+    } local;
 
     if (value > 0.0f) {
         f64 guess = __frsqrte((f64)value);
@@ -100,8 +103,8 @@ static inline f32 pbSqrtAccurate(f32 value)
         guess = 0.5 * guess * (3.0 - guess * guess * value);
         guess = 0.5 * guess * (3.0 - guess * guess * value);
         guess = 0.5 * guess * (3.0 - guess * guess * value);
-        result = (f32)(value * guess);
-        return result;
+        local.result = (f32)(value * guess);
+        return local.result;
     }
     return value;
 }
@@ -1016,7 +1019,7 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
 
 void pbSetDODrawRegs(PbDOObj* obj, u32 handle);
 void fn_800C5D44(u32* pkt, s32 xy);
-void fn_800C5DA8(PbDOObj* obj, s32 arg, u8* node, f32* matrix);
+s32 fn_800C5DA8(PbDOObj* obj, s32 arg, u8* node, f32* matrix);
 void fn_800C6350(PbDOObj* obj, s32 flags, u32 mask, u8* node);
 void fn_800C64A4(PbDOObj* obj, u32 flags, u8* node);
 void setTexShift(PbDOObj* obj, f32* sh, f32* alt, s32 chrome);
@@ -1330,7 +1333,7 @@ void fn_800C5D44(u32* pkt, s32 xy)
 }
 
 /* Build the object-space texture basis and the draw-register packet. */
-void fn_800C5DA8(PbDOObj* obj, s32 arg, u8* node, f32* matrix)
+s32 fn_800C5DA8(PbDOObj* obj, s32 arg, u8* node, f32* matrix)
 {
     char* debugStrings;
     PbORGlobals* g = gWinGlobals;
@@ -1341,7 +1344,6 @@ void fn_800C5DA8(PbDOObj* obj, s32 arg, u8* node, f32* matrix)
     f32 savedLook[4];
     f32 savedRight[4];
     f32 savedUp[4];
-    volatile f32 unused[3];
     s32 debugFlags;
 
     (void)arg;
@@ -1469,8 +1471,12 @@ void fn_800C5DA8(PbDOObj* obj, s32 arg, u8* node, f32* matrix)
             reg->lo = 0;
         } else {
             obj->clampp = &obj->regs[obj->nregs];
-            obj->regs[obj->nregs].hi = 0;
-            obj->regs[obj->nregs].lo = 0;
+            {
+                s32 regIndex = obj->nregs;
+
+                obj->regs[regIndex].hi = 0;
+                obj->regs[regIndex].lo = 0;
+            }
             obj->regid[obj->nregs] = 8;
             obj->nregs++;
         }
@@ -1482,25 +1488,26 @@ void fn_800C5DA8(PbDOObj* obj, s32 arg, u8* node, f32* matrix)
         f32 length = pbSqrtAccurate(savedLook[0] * savedLook[0] +
                                     savedLook[2] * savedLook[2]);
         f32 yaw;
-        f32 pitch;
 
         ((f32*)g->scr)[18] = atan(savedLook[1] / length);
-        ((f32*)g->scr)[19] = atan2(savedLook[0], savedLook[2]);
-        pitch = ((f32*)g->scr)[18];
-        yaw = ((f32*)g->scr)[19];
+        yaw = savedLook[2];
+        ((f32*)g->scr)[19] = atan2(savedLook[0], yaw);
         if (debugFlags & 0x2000) {
-            s32 yawDegrees = (s32)((lbl_80348FA0 * (f64)yaw) /
-                                   lbl_80348FA8);
-            s32 pitchDegrees = (s32)((lbl_80348FA0 * (f64)pitch) /
-                                     lbl_80348FA8);
+            s32 yawDegrees =
+                (s32)((lbl_80348FA0 * (f64)((f32*)g->scr)[19]) /
+                      lbl_80348FA8);
+            s32 pitchDegrees =
+                (s32)((lbl_80348FA0 * (f64)((f32*)g->scr)[18]) /
+                      lbl_80348FA8);
             bulletproof_printf(debugStrings + 0x174,
                                yawDegrees, pitchDegrees);
         }
-        ((f32*)g->scr)[18] =
-            (f32)((f64)((f32*)g->scr)[18] * lbl_80348FB0);
-        ((f32*)g->scr)[19] =
-            (f32)((f64)((f32*)g->scr)[19] * lbl_80348FB8);
+        yaw = ((f32*)g->scr)[18];
+        ((f32*)g->scr)[18] = (f32)((f64)yaw * lbl_80348FB0);
+        yaw = ((f32*)g->scr)[19];
+        ((f32*)g->scr)[19] = (f32)((f64)yaw * lbl_80348FB8);
     }
+    return 0;
 }
 
 /* Apply z-test / blend-test register deltas for an object
