@@ -415,6 +415,30 @@ void playerGiveGargItem(int player, int item, int count) {
     }
 }
 
+static inline int towerLevelStatusA(int player, int level) {
+    s32 value;
+    u32 world;
+    u8* save;
+
+    if (gPlayers[player].state == 0) {
+        return 0;
+    }
+    world = PLAYER_AT(player, 0xF0, u32);
+    if (world == (u32)lbl_80343D6C) {
+        return 2;
+    }
+    save = (u8*)&gPlayers[player] + gPlayers[player].character * 240;
+    save += level * 2;
+    value = *(s16*)(save + 3560);
+    if (value < 0) {
+        return 2;
+    }
+    if (value == lbl_80124D94[level]) {
+        return 1;
+    }
+    return 0;
+}
+
 /* True if all active players meet the level-record-A requirement (field 0xDE8). */
 int towerAllPlayersMetLevelReq(int level) {
     s32 player;
@@ -425,30 +449,19 @@ int towerAllPlayersMetLevelReq(int level) {
     }
     for (player = 0; player < 4; player++) {
         if (gPlayers[player].state != 0) {
-            s32 value;
+            s32 value = towerLevelStatusA(player, level);
 
-            if (PLAYER_AT(player, 0xF0, s32) == lbl_80343D6C) {
-                value = 2;
-            } else {
-                value = ((s16*)&TOWER_SAVE(player)->completion1)[level];
-                if (value < 0) {
-                    value = 2;
-                } else if ((u32)value == (u32)lbl_80124D94[level]) {
-                    value = 1;
-                } else {
-                    value = 0;
-                }
-            }
             if (value != 0) {
                 return 1;
             }
             value = ((s16*)&TOWER_SAVE(player)->completion1)[level];
-            if (value > best) {
-                best = value;
+            if (best > value) {
+                value = best;
             }
+            best = value;
         }
     }
-    if (lbl_80124D94[level] <= best) {
+    if (best >= lbl_80124D94[level]) {
         return 1;
     }
     return 0;
@@ -487,6 +500,30 @@ void towerAdvanceLevelRecord(int player, int level) {
     }
 }
 
+static inline int towerLevelStatusB(int player, int level) {
+    s32 value;
+    u32 world;
+    u8* save;
+
+    if (gPlayers[player].state == 0) {
+        return 0;
+    }
+    world = PLAYER_AT(player, 0xF0, u32);
+    if (world == (u32)lbl_80343D6C) {
+        return 2;
+    }
+    save = (u8*)&gPlayers[player] + gPlayers[player].character * 240;
+    save += level * 2;
+    value = *(s16*)(save + 3566);
+    if (value < 0) {
+        return 2;
+    }
+    if (value == lbl_80124C70[level]) {
+        return 1;
+    }
+    return 0;
+}
+
 /* True if all active players meet the level-record-B requirement (field 0xDEE). */
 int towerAllPlayersMetBossReq(int level) {
     s32 player;
@@ -494,30 +531,19 @@ int towerAllPlayersMetBossReq(int level) {
 
     for (player = 0; player < 4; player++) {
         if (gPlayers[player].state != 0) {
-            s32 value;
+            s32 value = towerLevelStatusB(player, level);
 
-            if (PLAYER_AT(player, 0xF0, s32) == lbl_80343D6C) {
-                value = 2;
-            } else {
-                value = ((s16*)&TOWER_SAVE(player)->completion2)[level];
-                if (value < 0) {
-                    value = 2;
-                } else if ((u32)value == (u32)lbl_80124C70[level]) {
-                    value = 1;
-                } else {
-                    value = 0;
-                }
-            }
             if (value != 0) {
                 return 1;
             }
             value = ((s16*)&TOWER_SAVE(player)->completion2)[level];
-            if (value > best) {
-                best = value;
+            if (best > value) {
+                value = best;
             }
+            best = value;
         }
     }
-    if (lbl_80124C70[level] <= best) {
+    if (best >= lbl_80124C70[level]) {
         return 1;
     }
     return 0;
