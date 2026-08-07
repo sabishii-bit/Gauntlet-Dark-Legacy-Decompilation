@@ -1185,42 +1185,60 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
 
 /* 0x800CEA18 - push/remove/query the "current draw node" stack (<=100).
  * NOTE: PDB name MBPsysSetDebugNode is inferred, not string-anchored. */
-static s32 gNodeStack[100];        /* 0x802c9d50 */
+typedef struct NodeStackOverlay {
+    u8 pad[264];
+    s32 stack[100];
+} NodeStackOverlay;
+
+static NodeStackOverlay gNodeState; /* 0x802c9c48 */
 static s32 gNodeStackTop;          /* 0x803451bc */
-static u8  gNodeStackInit;         /* 0x803451c0 */
+static s8  gNodeStackInit;         /* 0x803451c0 */
 static s32 gNodeStackDirty;        /* 0x80345190 */
 
-s32 MBPsysSetDebugNode(s32 node, s32 remove) {
-    s32 top;
-    if (!gNodeStackInit) {
+s32 MBPsysSetDebugNode(u32 node, s32 remove) {
+    NodeStackOverlay* base = &gNodeState;
+
+    if (gNodeStackInit == 0) {
         gNodeStackTop = 0;
         gNodeStackInit = 1;
     }
-    top = gNodeStackTop;
     if (node != 0) {
-        if (remove == 0) {
-            if (gNodeStackTop < 100) {
-                gNodeStack[gNodeStackTop++] = node;
+        if (remove != 0) {
+            s32 count;
+            s32 i;
+            s32 out;
+
+            count = gNodeStackTop;
+            i = 0;
+            out = 0;
+            while (i < count) {
+                NodeStackOverlay* src = (NodeStackOverlay*)((u8*)base + (i << 2));
+                NodeStackOverlay* dst = (NodeStackOverlay*)((u8*)base + (out << 2));
+
+                dst->stack[0] = src->stack[0];
+                if (src->stack[0] == node) {
+                    out--;
+                }
+                i++;
+                out++;
+            }
+            gNodeStackTop = out;
+        } else {
+            s32 top = gNodeStackTop;
+
+            if (top > 99) {
+                base->stack[0] = node;
+            } else {
+                gNodeStackTop = top + 1;
+                base->stack[top] = node;
             }
             gNodeStackDirty = 1;
-        } else {
-            s32 r = 0, i;
-            for (i = 0; i < gNodeStackTop; i++) {
-                gNodeStack[r] = gNodeStack[i];
-                if (gNodeStack[i] != node) {
-                    r++;
-                }
-            }
-            gNodeStackTop = r;
-            return top;
         }
-        top = gNodeStackTop;
     }
-    gNodeStackTop = top;
-    if (gNodeStackTop < 1) {
-        return 0;
+    if (gNodeStackTop > 0) {
+        return base->stack[gNodeStackTop - 1];
     }
-    return gNodeStack[gNodeStackTop - 1];
+    return 0;
 }
 
 /* ======================================================================= *
