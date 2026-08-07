@@ -110,7 +110,7 @@ static s32  getNewPosFrame(Psys* p, MBObject* node);
 static s32  getNewPosSingle2(void);
 static s32  getNewPosSingle1(Psys* p, MBObject* node);
 static s32  getNewDirConeShare(Psys* p, MBObject* node, s32 z);
-static void getNewDirConeUnique(Psys* p, MBObject* node, s32 z);
+static s32  getNewDirConeUnique(Psys* p, MBObject* node, s32 z);
 static void getNewDirSphere(Psys* p, MBObject* node, s32 z);
 static s32  getNewDirFrame(Psys* p, MBObject* node);
 static s32  getNewDirSingle2(void);
@@ -420,27 +420,68 @@ static s32 getNewDirConeShare(Psys* p, MBObject* node, s32 z) {
 #pragma opt_propagation reset
 
 /* 0x800CD4DC - unique (free-slot) cone direction */
-static void getNewDirConeUnique(Psys* p, MBObject* node, s32 z) {
-    f32 dir[3], ux[3], uy[3];
-    f32 sn, cs2;
-    f64 cs;
-    s32 count = (s16)p->dir_max;
-    s32 idx = (s32)((pbRand() & 0x7fff) % (count ? count : 1));
-    while (p->dir_use_lst[idx] == 0xff) {
-        idx = (idx == 0) ? count - 1 : idx - 1;
+#pragma opt_lifetimes off
+static s32 getNewDirConeUnique(Psys* p, MBObject* node, s32 z) {
+    u8 unused[8];
+    f32 ux[3], uy[3], dir[3];
+    f32 sn2, sn;
+    f32 cs, cs2;
+    f32 arg;
+    register Psys* psys = p;
+    register s32 idx;
+    register s32 count = p->dir_max;
+    register u8* use = p->dir_use_lst;
+    register MBObject* obj = node;
+    s32 first;
+    s32 used;
+    f32 angle;
+
+    idx = (s32)(3.051850947599719e-05 * (f64)(f32)count *
+                (f64)(f32)(pbRand() & 0x7fff));
+    if (idx >= count) {
+        idx = count - 1;
     }
-    p->dir_use_lst[idx]++;
-    getCurrentDir(p, node, dir);
+    used = use[idx];
+    if (used == 0xff) {
+        first = idx;
+        do {
+            if (idx-- == 0) {
+                idx = count - 1;
+            }
+            if (idx == first) {
+                idx = 0;
+                goto found;
+            }
+            used = use[idx];
+        } while (used == 0xff);
+    }
+    use[idx] = used + 1;
+found:
+    if (idx < 0) {
+        return idx;
+    }
+    if (psys->dir_use_lst[idx] > 1) {
+        return idx;
+    }
+    getCurrentDir(psys, obj, dir);
     getOrthoVecs(ux, uy, dir);
-    cs = getSinCos((f64)(f32)(p->e_angle * (pbRand() & 0x7fff)), &sn);
-    cs2 = (f32)getSinCos((f64)(f32)(pbRand() & 0x7fff), &sn);
+    use = (u8*)psys->init_dir_lst[idx];
+    angle = psys->e_angle;
+    arg = (f32)(3.051850947599719e-05 * (f64)angle * (f64)(f32)(pbRand() & 0x7fff));
+    cs = getSinCos(arg, &sn);
+    arg = (f32)(9.587672783631622e-05 * (f64)(f32)(pbRand() & 0x7fff));
+    cs2 = getSinCos(arg, &sn2);
     if (pbRand() & 4) {
         cs2 = -cs2;
     }
-    p->init_dir_lst[idx][0] = cs2 * uy[0] + sn * dir[0] + (f32)(cs * ux[0]);
-    p->init_dir_lst[idx][1] = cs2 * uy[1] + sn * dir[1] + (f32)(cs * ux[1]);
-    p->init_dir_lst[idx][2] = cs2 * uy[2] + sn * dir[2] + (f32)(cs * ux[2]);
+    cs2 = cs2 * cs;
+    sn2 = sn2 * cs;
+    ((f32*)use)[0] = sn * dir[0] + sn2 * ux[0] + cs2 * uy[0];
+    ((f32*)use)[1] = sn * dir[1] + sn2 * ux[1] + cs2 * uy[1];
+    ((f32*)use)[2] = sn * dir[2] + sn2 * ux[2] + cs2 * uy[2];
+    return idx;
 }
+#pragma opt_lifetimes reset
 
 /* 0x800CD718 - random spherical direction (unit cube rejection + normalize) */
 static void getNewDirSphere(Psys* p, MBObject* node, s32 z) {
