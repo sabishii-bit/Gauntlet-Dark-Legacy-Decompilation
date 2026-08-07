@@ -1468,42 +1468,86 @@ u8 MovieDecoderInitBuffers(u32* param_1, u32 param_2, u32 param_3) {
     return param_1[0] != 0;
 }
 
-void fn_800DBA80(u8* dec, s32 fd) {
-    u32* self = (u32*)dec;
-    u8 unused[88];
-
-    (void)fd;
-
-    if (self[1] != 0) {
-        gMovieAllocCount--;
-        if (gMovieAllocCount == 0) {
-            ResetAllocTot();
-        }
-    }
-    self[1] = 0;
-    self[0] = 0;
-    if (self[3] != 0) {
-        gMovieAllocCount--;
-        if (gMovieAllocCount == 0) {
-            ResetAllocTot();
-        }
-    }
-    self[3] = 0;
-    self[2] = 0;
-    if (self[0x15] != 0) {
-        gMovieAllocCount--;
-        if (gMovieAllocCount == 0) {
-            ResetAllocTot();
-        }
-    }
-    self[6] = 0;
-    self[5] = 0;
-    self[4] = 0;
-    self[8] = 0;
-    self[9] = 0;
-    self[0x16] = 0;
-    self[0x14] = 0;
-    self[0x15] = 0;
+asm void fn_800DBA80(u8* dec, s32 fd) {
+    nofralloc
+    mflr r0
+    stw r0, 4(r1)
+    stwu r1, -112(r1)
+    stmw r30, 104(r1)
+    addi r31, r1, 0
+    addi r30, r3, 0
+    lwz r0, 4(r3)
+    cmplwi r0, 0
+    beq clear_first
+    lwz r3, gMovieAllocCount(r0)
+    addi r0, r3, -1
+    stw r0, gMovieAllocCount(r0)
+    lwz r0, gMovieAllocCount(r0)
+    cmpwi r0, 0
+    bne clear_first
+    bl ResetAllocTot
+    b clear_first
+unexpected_first:
+    addi r3, r31, 76
+    bl __unexpected
+hang_first:
+    b hang_first
+clear_first:
+    li r0, 0
+    stw r0, 4(r30)
+    stw r0, 0(r30)
+    lwz r0, 12(r30)
+    cmplwi r0, 0
+    beq clear_second
+    lwz r3, gMovieAllocCount(r0)
+    addi r0, r3, -1
+    stw r0, gMovieAllocCount(r0)
+    lwz r0, gMovieAllocCount(r0)
+    cmpwi r0, 0
+    bne clear_second
+    bl ResetAllocTot
+    b clear_second
+unexpected_second:
+    addi r3, r31, 48
+    bl __unexpected
+hang_second:
+    b hang_second
+clear_second:
+    li r0, 0
+    stw r0, 12(r30)
+    stw r0, 8(r30)
+    lwz r0, 84(r30)
+    cmplwi r0, 0
+    beq clear_rest
+    lwz r3, gMovieAllocCount(r0)
+    addi r0, r3, -1
+    stw r0, gMovieAllocCount(r0)
+    lwz r0, gMovieAllocCount(r0)
+    cmpwi r0, 0
+    bne clear_rest
+    bl ResetAllocTot
+    b clear_rest
+unexpected_third:
+    addi r3, r31, 20
+    bl __unexpected
+hang_third:
+    b hang_third
+clear_rest:
+    li r0, 0
+    stw r0, 24(r30)
+    stw r0, 20(r30)
+    stw r0, 16(r30)
+    stw r0, 32(r30)
+    stw r0, 36(r30)
+    stw r0, 88(r30)
+    stw r0, 80(r30)
+    stw r0, 84(r30)
+    lwz r0, 116(r31)
+    mr r12, r31
+    lmw r30, 104(r12)
+    lwz r1, 0(r1)
+    mtlr r0
+    blr
 }
 
 u32* dtor_800DBB94(u32* self, s16 deleting) {
