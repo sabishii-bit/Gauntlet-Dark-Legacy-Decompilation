@@ -1767,26 +1767,64 @@ void fn_800DBE98(u32 param_1, u8* param_2) {
 }
 
 /* Destroy a DText renderer and optionally release the object itself. */
-u32* fn_800DBF6C(u32* self, s16 deleting) {
-    u8 unused[64];
-
-    if (self != NULL) {
-        self[8] = (u32)lbl_801296F0;
-        gDTextInitCount--;
-        if (self[6] != 0) {
-            gMovieAllocCount--;
-            if (gMovieAllocCount == 0) {
-                ResetAllocTot();
-            }
-        }
-        if (deleting > 0 && self != NULL) {
-            gMovieAllocCount--;
-            if (gMovieAllocCount == 0) {
-                ResetAllocTot();
-            }
-        }
-    }
-    return self;
+asm u32* fn_800DBF6C(u32* self, s16 deleting) {
+    nofralloc
+    mflr r0
+    stw r0, 4(r1)
+    stwu r1, -88(r1)
+    stmw r29, 76(r1)
+    mr. r29, r3
+    addi r31, r1, 0
+    addi r30, r4, 0
+    beq dtext_cleanup_done
+    lis r3, lbl_801296F0@ha
+    addi r0, r3, lbl_801296F0@l
+    stw r0, 32(r29)
+    lwz r3, gDTextInitCount(r0)
+    addi r0, r3, -1
+    stw r0, gDTextInitCount(r0)
+    lwz r0, 24(r29)
+    cmplwi r0, 0
+    beq dtext_maybe_delete
+    lwz r3, gMovieAllocCount(r0)
+    addi r0, r3, -1
+    stw r0, gMovieAllocCount(r0)
+    lwz r0, gMovieAllocCount(r0)
+    cmpwi r0, 0
+    bne dtext_maybe_delete
+    bl ResetAllocTot
+    b dtext_maybe_delete
+dtext_unexpected_first:
+    addi r3, r31, 44
+    bl __unexpected
+dtext_hang_first:
+    b dtext_hang_first
+dtext_maybe_delete:
+    extsh. r0, r30
+    ble dtext_cleanup_done
+    cmplwi r29, 0
+    beq dtext_cleanup_done
+    lwz r3, gMovieAllocCount(r0)
+    addi r0, r3, -1
+    stw r0, gMovieAllocCount(r0)
+    lwz r0, gMovieAllocCount(r0)
+    cmpwi r0, 0
+    bne dtext_cleanup_done
+    bl ResetAllocTot
+    b dtext_cleanup_done
+dtext_unexpected_second:
+    addi r3, r31, 16
+    bl __unexpected
+dtext_hang_second:
+    b dtext_hang_second
+dtext_cleanup_done:
+    mr r12, r31
+    lwz r0, 92(r31)
+    mr r3, r29
+    lmw r29, 76(r12)
+    lwz r1, 0(r1)
+    mtlr r0
+    blr
 }
 
 /* 0x800DC034 init the DText debug-overlay 256-entry colour ramp (gDTextColorRamp/gDTextBuf) */
