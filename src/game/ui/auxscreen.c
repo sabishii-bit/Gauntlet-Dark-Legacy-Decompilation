@@ -443,11 +443,14 @@ void delete_map_blits(void)
     s32 i;
 
     for (i = 0; i < 4; i++) {
-        if (*(void**)(base + i * 4 + 64) != 0) {
-            MBRemoveBlit(*(void**)(base + i * 4 + 64));
+        void** p = (void**)(base + i * 4);
+        void* blit = p[16];
+        p += 16;
+        if (blit != 0) {
+            MBRemoveBlit(blit);
             MBRemoveBlit(*(void**)(base + i * 4 + 80));
         }
-        *(void**)(base + i * 4 + 64) = 0;
+        p[0] = 0;
         *(void**)(base + i * 4 + 80) = 0;
     }
     if (map_route_blit != 0) {
@@ -455,10 +458,13 @@ void delete_map_blits(void)
     }
     map_route_blit = 0;
     for (i = 0; i < 8; i++) {
-        if (*(void**)(base + i * 4 + 96) != 0) {
-            MBRemoveBlit(*(void**)(base + i * 4 + 96));
+        void** p = (void**)(base + i * 4);
+        void* blit = p[24];
+        p += 24;
+        if (blit != 0) {
+            MBRemoveBlit(blit);
         }
-        *(void**)(base + i * 4 + 96) = 0;
+        p[0] = 0;
     }
     for (i = 0; i < 4; i++) {
         del_player_blits(i);
