@@ -224,11 +224,12 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
  */
 int add_vmu_file(int a, int b, int c, const char* name, u32 v0, u32 v1)
 {
-    u8* row = lbl_80274578 + a * 132;
+    u8* row = lbl_80274578;
     u8* rec;
     int result;
     u8 unused[8]; /* matches original frame */
 
+    row += a * 132;
     row += b * 132;
     rec = row + c * 16;
     strncpy((char*) (rec + 8), name, 8);
