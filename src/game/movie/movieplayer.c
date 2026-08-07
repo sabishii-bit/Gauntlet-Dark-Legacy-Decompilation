@@ -1047,30 +1047,36 @@ void __dla__FPv(void* p);
 void fn_800DA60C(register u8* m)
 {
     u8* strm;
+    register u8* self;
+    register u32 active;
 
-    if (*(u32*)((u32)m + 400) != 0) {
+    asm {
+        mr self, m
+        lwz active, 400(m)
+    }
+    if (active != 0) {
         AudioStreamStop();
-        if ((strm = *(u8**)(m + 400)) != 0) {
+        if ((strm = *(u8**)(self + 400)) != 0) {
             AudioStreamStop();
             __dla__FPv(*(void**)(strm + 4));
             __dl__FPv(strm);
         }
-        *(u32*)(m + 400) = 0;
+        *(u32*)(self + 400) = 0;
     }
     {
-        register u8* object = m + 336;
+        register u8* object = self + 336;
         register void (*dispatch)(u8*);
         asm {
-            lwz dispatch, 368(m)
+            lwz dispatch, 368(self)
             lwz dispatch, 28(dispatch)
         }
         dispatch(object);
     }
-    fn_800DBA80(m + 32, *(s32*)(m + 28));
-    if (*(s32*)(m + 28) != 0) {
-        sceClose(*(s32*)(m + 28));
+    fn_800DBA80(self + 32, *(s32*)(self + 28));
+    if (*(s32*)(self + 28) != 0) {
+        sceClose(*(s32*)(self + 28));
     }
-    *(s32*)(m + 28) = 0;
+    *(s32*)(self + 28) = 0;
 }
 #pragma dont_inline off
 
@@ -1530,21 +1536,24 @@ u32* dtor_800DBB94(u32* self, s16 deleting) {
     return self;
 }
 
-u32* fn_800DBC64(u32* p) {
-    fn_800D9DA4(p + 0xf);
-    p[3] = 0;
-    p[2] = 0;
-    p[1] = 0;
-    p[0] = 0;
-    p[6] = 0;
-    p[5] = 0;
-    p[4] = 0;
-    p[8] = 0;
-    p[9] = 0;
-    p[0x16] = 0;
-    p[0x15] = 0;
-    p[0x14] = 0;
-    return p;
+u32* fn_800DBC64(register u32* p) {
+    register u32* self;
+
+    asm { addi self, p, 0 }
+    fn_800D9DA4(self + 0xf);
+    self[3] = 0;
+    self[2] = 0;
+    self[1] = 0;
+    self[0] = 0;
+    self[6] = 0;
+    self[5] = 0;
+    self[4] = 0;
+    self[8] = 0;
+    self[9] = 0;
+    self[0x16] = 0;
+    self[0x15] = 0;
+    self[0x14] = 0;
+    return self;
 }
 
 u8 fn_800DBCCC(void* self, s32 x) {
