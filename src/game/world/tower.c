@@ -311,26 +311,29 @@ int towerAwardWorldRunes(void) {
     s32 rune = lbl_80124DA0[sMusicTrackLo];
     s32 awarded = 0;
     s32 player;
+    f32 resetValue;
 
     if (rune < 0) {
         return 0;
     }
+    resetValue = lbl_8034858C;
     for (player = 0; player < 4; player++) {
-        if (gPlayers[player].state == 1) {
-            PLAYER_AT(player, 0x930, s32)++;
-            PLAYER_AT(player, 0x928, s32) = rune + 0x200;
-            PLAYER_AT(player, 0x92C, f32) = lbl_8034858C;
-            if (PLAYER_AT(player, 0x930, s32) >= sVisibleSumCoinCount) {
+        u8* record = (u8*)&gPlayers[player];
+
+        if (*(s32*)(record + 0xE8) == 1) {
+            (*(s32*)(record + 0x930))++;
+            *(s32*)(record + 0x928) = rune + 0x200;
+            *(f32*)(record + 0x92C) = resetValue;
+            if (*(s32*)(record + 0x930) >= sVisibleSumCoinCount) {
                 awarded = 1;
             }
         }
     }
-    if (awarded == 0) {
-        return 0;
-    }
-    for (player = 0; player < 4; player++) {
-        if (gPlayers[player].state == 1) {
-            PLAYER_AT(player, 0xA8C, u16) |= 1 << (rune - 8);
+    if (awarded != 0) {
+        for (player = 0; player < 4; player++) {
+            if (gPlayers[player].state == 1) {
+                PLAYER_AT(player, 0xA8C, u16) |= 1 << (rune - 8);
+            }
         }
     }
     return awarded;
