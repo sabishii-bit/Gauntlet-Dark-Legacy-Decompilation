@@ -474,28 +474,36 @@ int towerGetLevelRecord(int player, int level) {
 
 /* Advance the per-level record-A counter toward its cap (field 0xDE8, 0x2234). */
 void towerAdvanceLevelRecord(int player, int level) {
-    s32 first = player;
-    s32 last = player;
+    s32 last;
     s32 i;
+    f32 resetTime;
 
     if (player < 0) {
-        first = 0;
+        player = 0;
         last = 3;
+    } else {
+        last = player;
     }
-    for (i = first; i <= last; i++) {
+    resetTime = lbl_80348590;
+    for (i = player; i <= last; i++) {
         Player* record = &gPlayers[i];
 
         if (record->state == 1 || record->state == 4) {
-            s16* value = &((s16*)&TOWER_SAVE(i)->completion1)[level];
+            s16* value;
+            u8* levelRecord;
+
+            levelRecord = (u8*)(level * 2 + (s32)record);
+            value = (s16*)(levelRecord + record->character * 240 + 3560);
 
             if (*value >= 0 && *value < lbl_80124D94[level]) {
                 (*value)++;
                 if (sMusicTrackHi == 13) {
-                    PLAYER_AT(i, 0x2234 + level * 2, s16)++;
+                    s16* extra = (s16*)(levelRecord + record->character * 240 + 8756);
+                    (*extra)++;
                 }
             }
             PLAYER_AT(i, 0x928, s32) = level + 0x100;
-            PLAYER_AT(i, 0x92C, f32) = lbl_80348590;
+            PLAYER_AT(i, 0x92C, f32) = resetTime;
         }
     }
 }
@@ -587,28 +595,33 @@ int towerBossStatus(int player, int level) {
 
 /* Advance the per-level record-B counter (field 0xDEE, 0x223A, timers). */
 void towerAdvanceBossRecord(int player, int level) {
-    s32 first = player;
-    s32 last = player;
+    s32 last;
     s32 i;
+    f32 resetTime;
 
     if (player < 0) {
-        first = 0;
+        player = 0;
         last = 3;
+    } else {
+        last = player;
     }
-    for (i = first; i <= last; i++) {
+    resetTime = lbl_80348590;
+    for (i = player; i <= last; i++) {
         Player* record = &gPlayers[i];
 
         if (record->state == 1 || record->state == 4) {
-            s16* value = &((s16*)&TOWER_SAVE(i)->completion2)[level];
+            u8* levelRecord = (u8*)(level * 2 + (s32)record);
+            s16* value = (s16*)(levelRecord + record->character * 240 + 3566);
 
             if (*value >= 0 && *value < lbl_80124C70[level]) {
                 (*value)++;
                 if (sMusicTrackHi == 13) {
-                    PLAYER_AT(i, 0x223A + level * 2, s16)++;
+                    s16* extra = (s16*)(levelRecord + record->character * 240 + 8762);
+                    (*extra)++;
                 }
             }
             PLAYER_AT(i, 0x928, s32) = level;
-            PLAYER_AT(i, 0x92C, f32) = lbl_80348590;
+            PLAYER_AT(i, 0x92C, f32) = resetTime;
         }
     }
 }
