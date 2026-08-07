@@ -158,8 +158,10 @@ extern f32       gDefaultPlayerPosition[3];   /* default position when no player
 extern NcCamera  lbl_80274AA0;      /* DebugCamera instance */
 extern NcCamera* lbl_80344A6C;      /* live standard-camera pointer (frustum query) */
 extern NcCamera* lbl_80344A68;      /* DebugCam: pointer to the live debug camera */
+extern s32       lbl_80344A70;
 extern s32       lbl_80344A7C;      /* debug-camera active flag */
 extern s32       lbl_80344A90;      /* StdCam freeze flag */
+extern s32       lbl_80343CD4;
 extern void*     gCurLevel;         /* level record; +0x60 = active CAMERA* (bounds) */
 
 /* NEWCAM projection-parameter block: the live MB window pointer (mb_window.c
@@ -592,17 +594,55 @@ void CamReset(NcCamera* cam) {
     u8* p = (u8*)cam;
     s32 i;
 
-    /* bulk-clear the working set: matrix (0x40..0x78), orientation/target block
-     * (0xA4..0x110) and the per-frame history rows (0x114..0x294). */
-    for (i = 0x40; i < 0x294; i += 4) {
-        *(f32*)(p + i) = 0.0f;
-    }
-    cam->field_1A4 = 0;
-    cam->field_1A8 = -1;   /* no active target */
-    cam->field_1AC = 0.0f;
+    *(f32*)(p + 0xEC) = 3.1415927f;
+    *(f32*)(p + 0xF0) = 0.0f;
+    *(f32*)(p + 0x104) = 0.0f;
+    *(f32*)(p + 0x108) = 0.0f;
+    *(f32*)(p + 0xF4) = 0.0f;
+    *(f32*)(p + 0xF8) = 0.0f;
+    *(f32*)(p + 0xE0) = 0.0f;
+    *(f32*)(p + 0xE4) = 0.0f;
+    *(f32*)(p + 0xE8) = 0.0f;
+    *(f32*)(p + 0xA4) = 0.0f;
+    *(f32*)(p + 0xA8) = 0.0f;
+    *(f32*)(p + 0xAC) = 0.0f;
+    *(f32*)(p + 0xBC) = 0.0f;
+    *(f32*)(p + 0xC0) = 0.0f;
+    *(f32*)(p + 0xC4) = 0.0f;
+    *(f32*)(p + 0xC8) = 0.0f;
+    *(f32*)(p + 0xCC) = 0.0f;
+    *(f32*)(p + 0xD0) = 0.0f;
+    *(f32*)(p + 0x40) = 0.0f;
+    *(f32*)(p + 0x44) = 0.0f;
+    *(f32*)(p + 0x48) = 0.0f;
+    *(f32*)(p + 0x50) = 0.0f;
+    *(f32*)(p + 0x54) = 0.0f;
+    *(f32*)(p + 0x58) = 0.0f;
+    *(f32*)(p + 0x60) = 0.0f;
+    *(f32*)(p + 0x64) = 0.0f;
+    *(f32*)(p + 0x68) = 0.0f;
+    *(f32*)(p + 0x70) = 0.0f;
+    *(f32*)(p + 0x74) = 0.0f;
+    *(f32*)(p + 0x78) = 0.0f;
 
-    /* clear the module-wide current/freeze state */
-    lbl_80344A90 = 0;      /* unfreeze */
+    for (i = 0; i < 9; i++) {
+        *(f32*)(p + i * 0xC + 0x114) = 0.0f;
+        *(f32*)(p + i * 0xC + 0x118) = 0.0f;
+        *(f32*)(p + i * 0xC + 0x11C) = 0.0f;
+        *(f32*)(p + i * 4 + 0x180) = 0.0f;
+    }
+
+    *(s32*)(p + 0x1A4) = 0;
+    *(f32*)(p + 0xD4) = 0.0f;
+    *(f32*)(p + 0xD8) = 0.0f;
+    *(f32*)(p + 0x100) = 0.0f;
+    *(f32*)(p + 0x10C) = 1.0471976f;
+    *(f32*)(p + 0x110) = 0.0f;
+    lbl_80344A90 = 0;
+    lbl_80344A70 = lbl_80343CD4;
+    *(s32*)(p + 0x1A8) = -1;
+    *(f32*)(p + 0x1AC) = 0.0f;
+    lbl_80344A78 = 0;
 }
 #pragma dont_inline off
 
