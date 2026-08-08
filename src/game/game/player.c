@@ -1385,6 +1385,40 @@ static s32 ModifyExp(Player* p, s32 delta) {
 /* Inverse of LevelToExp: scan 99..1 for the level exp buys (running
  * rate = lv*30 maintained incrementally, 99-step guard). */
 s32 ExpToLevel(s32 exp) {
+#ifdef __MWERKS__
+    /* MWCC rotates the three loop temporaries even though the portable body
+     * below has the retail control flow.  Pin only that register assignment
+     * for matching builds; native builds keep the readable implementation. */
+    asm {
+        li r0, 99
+        mtctr r0
+        li r7, 99
+        li r4, 2970
+        lis r5, 3
+    exp_to_level_loop:
+        cmpwi r7, 60
+        bgt exp_to_level_high
+        addi r6, r7, -1
+        addi r0, r4, 1000
+        mullw r6, r6, r0
+        b exp_to_level_compare
+    exp_to_level_high:
+        addi r0, r7, -60
+        mulli r0, r0, 4600
+        addi r6, r5, -31408
+        add r6, r6, r0
+    exp_to_level_compare:
+        cmpw r3, r6
+        blt exp_to_level_next
+        mr r3, r7
+        blr
+    exp_to_level_next:
+        addi r7, r7, -1
+        addi r4, r4, -30
+        bdnz exp_to_level_loop
+        li r3, 1
+    }
+#else
     s32 need;
     s32 lv = 99;
     s32 rate = 2970;
@@ -1406,6 +1440,7 @@ s32 ExpToLevel(s32 exp) {
         rate -= 30;
     }
     return 1;
+#endif
 }
 
 /* Total exp needed to reach a level. */
