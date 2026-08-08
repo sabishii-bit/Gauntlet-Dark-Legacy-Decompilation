@@ -474,10 +474,10 @@ s32 adsMoveFileToRaw(ADSTREAM* stream) {
             stream->fileRemaining += stream->fileLoopSize;
         }
     } else {
-        s32 offset;
         s32 remaining;
-        void* destination;
+        s32 offset;
         s32 amount;
+        void* destination;
 
         if (stream->ringRead > 0) {
             memcpy(stream->buffer, stream->ringPtr, stream->ringRead);
@@ -492,8 +492,9 @@ s32 adsMoveFileToRaw(ADSTREAM* stream) {
         stream->ringPtr = stream->buffer;
         offset = stream->ringRead;
         remaining = stream->fileRemaining;
-        amount = stream->ringSize - offset;
-        amount = amount < remaining ? amount : remaining;
+        amount = stream->ringSize - offset < remaining
+                     ? stream->ringSize - offset
+                     : remaining;
         destination = (u8*)stream->ringPtr + offset;
         amount = FileBufGet(stream->file, destination, amount);
         stream->fileRemaining -= amount;
