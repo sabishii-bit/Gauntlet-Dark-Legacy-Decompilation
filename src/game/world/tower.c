@@ -662,6 +662,7 @@ void towerSetRuneNear(int player, int level) {
     last = player;
 setup:
     bit = 1 << level;
+    bit = bit;
     for (; player <= last; player++) {
         if (gPlayers[player].state == 1 ||
             gPlayers[player].state == 4) {
