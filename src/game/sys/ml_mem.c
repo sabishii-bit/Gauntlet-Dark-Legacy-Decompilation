@@ -126,40 +126,33 @@ void serve_io(void)
 }
 #pragma opt_common_subs reset
 
-/* WAD directory lookup: {count@+4, entries@+8}, entry = {key,ofs,size,pad} */
-int MBGetFromWad(int* wad, int key, int* sizeOut)
+static inline int* FindWadEntry(int* wad, int key)
 {
-    int* result;
     int offset;
     int* entry;
     u32 n;
 
-    result = NULL;
     if (wad == NULL) {
-        goto done;
+        return NULL;
     }
-    if (wad != NULL) {
-        goto search;
-    }
-    entry = NULL;
-    goto assign;
-
-search:
-    offset = 0;
-    for (n = wad[1]; n > 0; n--) {
+    for (n = 0, offset = 0; n < wad[1]; n++, offset += 0x10) {
         entry = (int*)(wad[2] + offset);
-        if ((u32)key != (u32)*entry) {
-            goto next;
+        if ((u32)key == (u32)*entry) {
+            return entry;
         }
-        goto assign;
-next:
-        offset += 0x10;
     }
-    entry = NULL;
+    return NULL;
+}
 
-assign:
-    result = entry;
-done:
+/* WAD directory lookup: {count@+4, entries@+8}, entry = {key,ofs,size,pad} */
+int MBGetFromWad(int* wad, int key, int* sizeOut)
+{
+    int* result;
+
+    result = NULL;
+    if (wad != NULL) {
+        result = FindWadEntry(wad, key);
+    }
     if (result == NULL) {
         if (sizeOut != NULL) {
             *sizeOut = 0;
