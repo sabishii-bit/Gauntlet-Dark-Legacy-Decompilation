@@ -62,6 +62,7 @@ extern const f64 lbl_80348E48;
 extern const f64 lbl_80348E50;
 extern const f64 lbl_80348E58;
 extern const f64 lbl_80348E60;
+extern const f32 lbl_80348E90;
 extern volatile const f64 lbl_80348E98;
 extern const f64 lbl_80348EA0;
 extern const f64 lbl_80348EA8;
@@ -732,6 +733,108 @@ void ExtractScaleMat4(const f32* matrix, f32* out)
 }
 
 /* Compose two transforms, scaling the basis of rhs before multiplication. */
+#ifdef __MWERKS__
+asm void MulMat4Scale(f32* lhs, f32* rhs, f32* out, f32* scale)
+{
+    nofralloc
+    stwu r1, -32(r1)
+    stfd f31, 24(r1)
+    lfs f0, lbl_80348E90(r0)
+    stfs f0, 60(r3)
+    stfs f0, 60(r4)
+    stfs f0, 12(r6)
+    lfs f8, 0(r6)
+    lfs f0, 4(r4)
+    lfs f1, 0(r4)
+    fmuls f9, f0, f8
+    lfs f3, 16(r3)
+    lfs f4, 20(r3)
+    fmuls f12, f1, f8
+    lfs f6, 8(r4)
+    fmuls f2, f9, f3
+    lfs f0, 0(r3)
+    fmuls f13, f6, f8
+    lfs f5, 24(r3)
+    fmuls f7, f9, f4
+    lfs f1, 4(r3)
+    fmadds f8, f12, f0, f2
+    lfs f6, 32(r3)
+    fmuls f9, f9, f5
+    lfs f2, 8(r3)
+    fmadds f10, f12, f1, f7
+    lfs f7, 36(r3)
+    fmadds f11, f13, f6, f8
+    lfs f8, 40(r3)
+    fmadds f9, f12, f2, f9
+    fmadds f10, f13, f7, f10
+    stfs f11, 0(r5)
+    fmadds f9, f13, f8, f9
+    stfs f10, 4(r5)
+    stfs f9, 8(r5)
+    lfs f11, 4(r6)
+    lfs f9, 20(r4)
+    lfs f10, 16(r4)
+    fmuls f13, f9, f11
+    lfs f9, 24(r4)
+    fmuls f12, f10, f11
+    fmuls f31, f9, f11
+    fmuls f11, f13, f3
+    fmuls f10, f13, f4
+    fmuls f9, f13, f5
+    fmadds f11, f12, f0, f11
+    fmadds f10, f12, f1, f10
+    fmadds f9, f12, f2, f9
+    fmadds f11, f31, f6, f11
+    fmadds f10, f31, f7, f10
+    fmadds f9, f31, f8, f9
+    stfs f11, 16(r5)
+    stfs f10, 20(r5)
+    stfs f9, 24(r5)
+    lfs f11, 8(r6)
+    lfs f9, 36(r4)
+    lfs f10, 32(r4)
+    fmuls f13, f9, f11
+    lfs f9, 40(r4)
+    fmuls f12, f10, f11
+    fmuls f31, f9, f11
+    fmuls f11, f13, f3
+    fmuls f10, f13, f4
+    fmuls f9, f13, f5
+    fmadds f11, f12, f0, f11
+    fmadds f10, f12, f1, f10
+    fmadds f9, f12, f2, f9
+    fmadds f11, f31, f6, f11
+    fmadds f10, f31, f7, f10
+    fmadds f9, f31, f8, f9
+    stfs f11, 32(r5)
+    stfs f10, 36(r5)
+    stfs f9, 40(r5)
+    lfs f12, 52(r4)
+    lfs f11, 48(r4)
+    fmuls f9, f12, f3
+    lfs f13, 56(r4)
+    fmuls f3, f12, f5
+    lfs f10, 48(r3)
+    fmuls f4, f12, f4
+    fmadds f5, f11, f0, f9
+    fmadds f0, f11, f2, f3
+    fmadds f1, f11, f1, f4
+    fmadds f2, f13, f6, f5
+    fmadds f0, f13, f8, f0
+    fmadds f1, f13, f7, f1
+    fadds f2, f10, f2
+    stfs f2, 48(r5)
+    lfs f2, 52(r3)
+    fadds f1, f2, f1
+    stfs f1, 52(r5)
+    lfs f1, 56(r3)
+    fadds f0, f1, f0
+    stfs f0, 56(r5)
+    lfd f31, 24(r1)
+    addi r1, r1, 32
+    blr
+}
+#else
 void MulMat4Scale(f32* lhs, f32* rhs, f32* out, f32* scale)
 {
     f32 a0;
@@ -792,6 +895,13 @@ void MulMat4Scale(f32* lhs, f32* rhs, f32* out, f32* scale)
     out[13] = b1 * a1 + b0 * a5 + b2 * a9 + lhs[13];
     out[14] = b1 * a2 + b0 * a6 + b2 * a10 + lhs[14];
 }
+#endif
+
+#ifdef __MWERKS__
+#pragma optimization_level 4
+#pragma peephole on
+#pragma scheduling on
+#endif
 
 /* 0x800BE360 */
 void MulMat4(f32* lhs, f32* rhs, f32* out)
