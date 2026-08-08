@@ -1263,25 +1263,17 @@ s32 TextMLines(const char* s)
 s32 FixMLineText(s32* src, s32* dst, s32* lines)
 {
     s32 n;
-    s32 off;
 
     if (dst != 0) {
         strcpy(dst, src);
         src = dst;
     }
     n = 0;
-    off = 0;
     for (;;) {
         if (lines != 0) {
-            *(s32**)((u8*)lines + off) = src;
+            ((s32**)lines)[n] = src;
         }
-        for (; *(char*)src != '\0'; src = (s32*)((s32)src + 1)) {
-            if (*(char*)src == '\n') {
-                goto found;
-            }
-        }
-        src = 0;
-found:
+        src = (s32*)find_newline((char*)src);
         if (src == 0) {
             break;
         }
@@ -1293,7 +1285,6 @@ found:
         }
         src = (s32*)((s32)src + 1);
         n++;
-        off += 4;
     }
     return n + 1;
 }
