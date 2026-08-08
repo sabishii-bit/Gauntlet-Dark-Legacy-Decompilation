@@ -177,11 +177,15 @@ static inline char* GetStringTextRefsInline(BTextPoolView* info,
                                             s32 msgOffset, s32 idx,
                                             volatile u32* fontOut)
 {
-    MsgEnt* entry = (MsgEnt*)((u8*)*msgsRef + msgOffset);
+    MsgEnt* msgs = *msgsRef;
+    MsgEnt* entry;
     s32 fontIndex;
     s32 off;
+    s32 count;
 
-    if (idx >= entry->count) {
+    count = *(s32*)(msgOffset + (s32)msgs);
+    entry = (MsgEnt*)((u8*)msgs + msgOffset);
+    if (idx >= count) {
         return 0;
     }
     off = info->stringList.textOff[entry->first + idx];
@@ -569,8 +573,8 @@ s32 DrawStringTextMulti(s32 x, s32 y, s32 spacing, s32 font, u32 color, s32 msg)
     volatile u32 defaultFont;
     f32 scale;
     f32 shadowScale;
+    f32 height;
     s32 lineHeight;
-    s32 lineStep;
     s32 idx;
     char* text;
 
@@ -584,11 +588,12 @@ s32 DrawStringTextMulti(s32 x, s32 y, s32 spacing, s32 font, u32 color, s32 msg)
         font = defaultFont;
     }
 
-    lineHeight = (s32)(scale * (f32)MBFontHeight(font));
-    lineStep = spacing + lineHeight;
+    height = (f32)MBFontHeight(font);
+    lineHeight = (s32)(height *= scale);
+    spacing += lineHeight;
     if (y & 0x1000) {
         y &= ~0x1000;
-        y -= (lineHeight + lineStep * (entry->count - 1)) / 2;
+        y -= (lineHeight + spacing * (entry->count - 1)) / 2;
     }
 
     idx = 0;
@@ -602,7 +607,7 @@ s32 DrawStringTextMulti(s32 x, s32 y, s32 spacing, s32 font, u32 color, s32 msg)
             break;
         }
         DrawTextSub(scale, shadowScale, x, y, font, color, (u8*)text);
-        y += lineStep;
+        y += spacing;
         idx++;
     }
     {
