@@ -22,6 +22,27 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent.parent
 VERSION = "GUNE5D"
 OBJDUMP = REPO / "build/binutils/powerpc-eabi-objdump.exe"
+SYMBOLS = REPO / "config" / VERSION / "symbols.txt"
+_SYMBOL_NAMES = None
+
+
+def configured_symbol_names():
+    global _SYMBOL_NAMES
+    if _SYMBOL_NAMES is None:
+        _SYMBOL_NAMES = {
+            match.group(1)
+            for line in SYMBOLS.read_text().splitlines()
+            if (match := re.match(r"^([A-Za-z_][A-Za-z0-9_]*)\s*=", line))
+        }
+    return _SYMBOL_NAMES
+
+
+def canonical_symbol(symbol: str):
+    """Undo DTK's address suffix when the unsuffixed link symbol exists."""
+    match = re.match(r"^(.+)_([0-9A-Fa-f]{8})$", symbol)
+    if match and match.group(1) in configured_symbol_names():
+        return match.group(1)
+    return symbol
 
 
 def read_function(unit: str, function: str):
@@ -95,7 +116,7 @@ def format_instruction(row, labels, function):
     reloc = row["reloc"]
     if reloc:
         kind, symbol = reloc
-        symbol = symbol.replace(" ", "")
+        symbol = canonical_symbol(symbol.replace(" ", ""))
         if kind == "REL24":
             text = f"{mnemonic} {symbol}"
         elif kind in {"ADDR16_HA", "ADDR16_HI", "ADDR16_LO"}:
@@ -112,6 +133,18 @@ def format_instruction(row, labels, function):
 
 
 def render_body(rows, function: str, signature: str):
+    unsupported = [
+        row for row in rows
+        if row["reloc"] and row["reloc"][0] == "EMB_SDA21"
+        and not re.search(r"0\((?:0|r0)\)$", row["text"])
+    ]
+    if unsupported:
+        details = ", ".join(
+            f"0x{row['offset']:X}:{row['reloc'][1]}" for row in unsupported
+        )
+        raise ValueError(
+            "unsupported bare-immediate SDA21 relocation(s): " + details
+        )
     offsets = {row["offset"] for row in rows}
     branch_targets = {
         target for row in rows

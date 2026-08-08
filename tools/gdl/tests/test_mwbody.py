@@ -9,6 +9,7 @@ from mwbody import (
     format_instruction,
     format_signature,
     local_target,
+    render_body,
     wrap_portable_definition,
 )
 
@@ -70,6 +71,15 @@ class MwBodyTests(unittest.TestCase):
             "#ifdef __MWERKS__\nasm void f(void)\n{\n    blr\n}\n#else\n"
             "void f(void)\n{\n    work();\n}\n#endif\n",
         )
+
+    def test_bare_immediate_sda_relocation_is_rejected(self):
+        rows = [{
+            "offset": 12,
+            "text": "li r29,0",
+            "reloc": ("EMB_SDA21", "small_string"),
+        }]
+        with self.assertRaisesRegex(ValueError, "bare-immediate SDA21"):
+            render_body(rows, "f", "void f(void)")
 
 
 if __name__ == "__main__":
