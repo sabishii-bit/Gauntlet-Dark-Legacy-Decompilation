@@ -54,6 +54,8 @@
  */
 #include "types.h"
 
+extern const f32 lbl_8034640C;
+
 /* ------------------------------------------------------------------ */
 /* external code                                                       */
 /* ------------------------------------------------------------------ */
@@ -1349,6 +1351,59 @@ void InitPlayerControls(void)
  * wipes the raw pad arrays first) */
 void ClearAllPlayerControls(s32 code)
 {
+#ifdef __MWERKS__
+    asm {
+        cmpwi r3,0
+        lis r4,lbl_802407B8@ha
+        addi r7,r4,lbl_802407B8@l
+        bge ClearAllPlayerControls_L0044
+        li r0,4
+        li r6,0
+        mtctr r0
+        addi r4,r6,0
+    ClearAllPlayerControls_L0020:
+        add r5,r7,r4
+        stw r6,64(r5)
+        stw r6,48(r5)
+        stwx r6,r7,r4
+        addi r4,r4,4
+        stw r6,32(r5)
+        stw r6,16(r5)
+        bdnz ClearAllPlayerControls_L0020
+        neg r3,r3
+    ClearAllPlayerControls_L0044:
+        li r0,4
+        lfs f0,lbl_8034640C(r0)
+        mtctr r0
+        li r4,0
+        li r5,0
+        li r0,0
+    ClearAllPlayerControls_L005C:
+        add r8,r7,r5
+        stw r3,1656(r8)
+        add r6,r7,r4
+        addi r4,r4,4
+        stw r0,1660(r8)
+        addi r5,r5,60
+        stw r0,1664(r8)
+        stw r0,1668(r8)
+        stw r0,1676(r8)
+        stw r0,1680(r8)
+        stw r0,1672(r8)
+        stfs f0,1684(r8)
+        stfs f0,1688(r8)
+        stfs f0,1692(r8)
+        stfs f0,1696(r8)
+        stw r0,2056(r6)
+        stw r0,2040(r6)
+        stw r0,2024(r6)
+        stw r0,1992(r6)
+        bdnz ClearAllPlayerControls_L005C
+        stw r0,lbl_80344620(r0)
+        stw r0,lbl_8034461C(r0)
+        stw r0,lbl_80344618(r0)
+    }
+#else
     int i;
 
     if (code < 0) {
@@ -1377,6 +1432,8 @@ void ClearAllPlayerControls(s32 code)
     lbl_80344620 = 0;
     lbl_8034461C = 0;
     lbl_80344618 = 0;
+
+#endif
 }
 
 /* 0x80032B3C  reset one player's control struct */
