@@ -720,15 +720,31 @@ void MulMat3(f32* lhs, f32* rhs, f32* out)
     out[10] = a1 * b6 + a0 * b2 + a2 * b10;
 }
 
+static inline f32 mlSqrtAccurate(f32 value)
+{
+    volatile f32 result;
+
+    if (value > gMlFmathZero) {
+        f64 guess = __frsqrte((f64)value);
+        guess = 0.5 * guess * (3.0 - guess * guess * value);
+        guess = 0.5 * guess * (3.0 - guess * guess * value);
+        guess = 0.5 * guess * (3.0 - guess * guess * value);
+        guess = 0.5 * guess * (3.0 - guess * guess * value);
+        result = (f32)(value * guess);
+        return result;
+    }
+    return value;
+}
+
 /* Recover the scale carried by each basis vector of a mat44. */
 void ExtractScaleMat4(const f32* matrix, f32* out)
 {
-    out[0] = (f32)sqrt(matrix[0] * matrix[0] + matrix[4] * matrix[4] +
-                       matrix[8] * matrix[8]);
-    out[1] = (f32)sqrt(matrix[1] * matrix[1] + matrix[5] * matrix[5] +
-                       matrix[9] * matrix[9]);
-    out[2] = (f32)sqrt(matrix[2] * matrix[2] + matrix[6] * matrix[6] +
-                       matrix[10] * matrix[10]);
+    out[0] = mlSqrtAccurate(matrix[0] * matrix[0] + matrix[4] * matrix[4] +
+                            matrix[8] * matrix[8]);
+    out[1] = mlSqrtAccurate(matrix[1] * matrix[1] + matrix[5] * matrix[5] +
+                            matrix[9] * matrix[9]);
+    out[2] = mlSqrtAccurate(matrix[2] * matrix[2] + matrix[6] * matrix[6] +
+                            matrix[10] * matrix[10]);
 }
 
 /* Compose two transforms, scaling the basis of rhs before multiplication. */
