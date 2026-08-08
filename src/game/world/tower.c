@@ -712,10 +712,14 @@ int towerGetRuneNearStat(int player, int level) {
     last = player;
 setup:
     bit = 1 << level;
+    bit = bit;
     for (; player <= last; player++) {
-        if (gPlayers[player].state != 0 &&
-            (TOWER_SAVE(player)->rune_near & bit) != 0) {
-            return 1;
+        if (gPlayers[player].state != 0) {
+            u32 near = TOWER_SAVE(player)->rune_near;
+            near &= bit;
+            if (near != 0) {
+                return 1;
+            }
         }
     }
     return 0;
