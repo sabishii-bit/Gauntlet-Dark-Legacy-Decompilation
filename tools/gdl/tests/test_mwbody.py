@@ -94,6 +94,14 @@ class MwBodyTests(unittest.TestCase):
             {"offset": 4, "text": "blr", "reloc": None},
         ]
         self.assertNotIn("blr", render_inline_leaf(rows, "f"))
+
+    def test_inline_leaf_rejects_oversized_body(self):
+        rows = [
+            {"offset": i * 4, "text": "nop", "reloc": None}
+            for i in range(128)
+        ] + [{"offset": 512, "text": "blr", "reloc": None}]
+        with self.assertRaisesRegex(ValueError, "128-insn"):
+            render_inline_leaf(rows, "f")
         rows = [{
             "offset": 0, "text": "lwz r3,0(0)",
             "reloc": ("EMB_SDA21", "global"),

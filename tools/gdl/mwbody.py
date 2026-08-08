@@ -165,6 +165,8 @@ def render_body(rows, function: str, signature: str):
 
 def render_inline_leaf(rows, function: str, allow_relocations=False):
     """Render a safe inline block for a frameless relocation-free leaf."""
+    if len(rows) > 128:
+        raise ValueError("inline-leaf body exceeds the verified 128-insn limit")
     unsafe = []
     for row in rows:
         op = row["text"].split(" ", 1)[0]
