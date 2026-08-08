@@ -136,6 +136,57 @@ u32 ReadF32LE(u8* p) {
 /* --- VQ decode / GX present / file-stream bodies (parked NonMatching) --- */
 
 void fn_800D860C(u32 param_1, u8* param_2, int param_3) {
+#ifdef __MWERKS__
+    asm {
+        slwi. r0,r5,1
+        addi r3,r4,0
+        li r5,0
+        mtctr r0
+        blelr
+    fn_800D860C_L0014:
+        lbz r0,1(r4)
+        lbz r9,4(r4)
+        mulli r0,r0,224
+        lbz r8,2(r4)
+        lbz r7,5(r4)
+        lbz r6,0(r4)
+        srawi r11,r0,9
+        addze r11,r11
+        lbz r0,3(r4)
+        mulli r9,r9,224
+        srawi r10,r9,9
+        addze r10,r10
+        mulli r8,r8,224
+        srawi r9,r8,9
+        mulli r7,r7,224
+        addze r9,r9
+        srawi r8,r7,9
+        addze r8,r8
+        mulli r6,r6,224
+        srawi r7,r6,8
+        addze r7,r7
+        mulli r0,r0,224
+        srawi r6,r0,8
+        add r8,r8,r9
+        addze r6,r6
+        addi r8,r8,16
+        addi r0,r6,16
+        addi r6,r11,8
+        addi r9,r10,8
+        add r6,r6,r9
+        slwi r9,r6,8
+        slwi r8,r8,24
+        addi r6,r7,16
+        slwi r0,r0,16
+        or r9,r9,r8
+        or r0,r6,r0
+        or r9,r9,r0
+        stwx r9,r3,r5
+        addi r4,r4,6
+        addi r5,r5,4
+        bdnz fn_800D860C_L0014
+    }
+#else
     u8* p;
     int i;
     int cnt;
@@ -156,9 +207,62 @@ void fn_800D860C(u32 param_1, u8* param_2, int param_3) {
         i += 4;
         cnt--;
     } while (cnt != 0);
+
+#endif
 }
 
 void fn_800D86C8(u32 param_1, u8* param_2, int param_3) {
+#ifdef __MWERKS__
+    asm {
+        slwi. r0,r5,1
+        addi r3,r4,0
+        li r5,0
+        mtctr r0
+        blelr
+    fn_800D86C8_L0014:
+        lbz r0,1(r4)
+        lbz r9,4(r4)
+        mulli r0,r0,224
+        lbz r8,2(r4)
+        lbz r7,5(r4)
+        lbz r6,0(r4)
+        srawi r11,r0,9
+        addze r11,r11
+        lbz r0,3(r4)
+        mulli r9,r9,224
+        srawi r10,r9,9
+        addze r10,r10
+        mulli r8,r8,224
+        srawi r9,r8,9
+        mulli r7,r7,224
+        addze r9,r9
+        srawi r8,r7,9
+        addze r8,r8
+        mulli r6,r6,224
+        srawi r7,r6,8
+        addze r7,r7
+        mulli r0,r0,224
+        srawi r6,r0,8
+        add r8,r8,r9
+        addze r6,r6
+        addi r8,r8,16
+        addi r7,r7,16
+        addi r0,r6,16
+        addi r6,r11,8
+        addi r9,r10,8
+        add r9,r6,r9
+        slwi r8,r8,16
+        slwi r6,r7,8
+        slwi r0,r0,24
+        or r9,r9,r8
+        or r0,r6,r0
+        or r9,r9,r0
+        stwx r9,r3,r5
+        addi r4,r4,6
+        addi r5,r5,4
+        bdnz fn_800D86C8_L0014
+    }
+#else
     u8* p;
     int i;
     int cnt;
@@ -179,6 +283,8 @@ void fn_800D86C8(u32 param_1, u8* param_2, int param_3) {
         i += 4;
         cnt--;
     } while (cnt != 0);
+
+#endif
 }
 
 /* Release one movie allocation and clear the owning slot. */
