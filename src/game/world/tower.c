@@ -512,7 +512,8 @@ void towerAdvanceLevelRecord(int player, int level) {
 static inline int towerLevelStatusB(int player, int level) {
     s32 value;
     u32 world;
-    u8* save;
+    u8* levelRecord;
+    Player* record;
 
     if (gPlayers[player].state == 0) {
         return 0;
@@ -521,9 +522,10 @@ static inline int towerLevelStatusB(int player, int level) {
     if (world == (u32)lbl_80343D6C) {
         return 2;
     }
-    save = (u8*)&gPlayers[player] + gPlayers[player].character * 240;
-    save += level * 2;
-    value = *(s16*)(save + 3566);
+    levelRecord = (u8*)(level * 2);
+    record = &gPlayers[player];
+    value = *(s16*)(levelRecord + (s32)record +
+                   record->character * 240 + 3566);
     if (value < 0) {
         return 2;
     }
@@ -541,11 +543,16 @@ int towerAllPlayersMetBossReq(int level) {
     for (player = 0; player < 4; player++) {
         if (gPlayers[player].state != 0) {
             s32 value = towerLevelStatusB(player, level);
+            u8* levelRecord;
+            Player* record;
 
             if (value != 0) {
                 return 1;
             }
-            value = ((s16*)&TOWER_SAVE(player)->completion2)[level];
+            levelRecord = (u8*)(level * 2);
+            record = &gPlayers[player];
+            value = *(s16*)(levelRecord + (s32)record +
+                           record->character * 240 + 3566);
             if (best > value) {
                 value = best;
             }
