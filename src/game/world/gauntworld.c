@@ -538,6 +538,76 @@ void fn_8005AC10(s32 player)
     }
 }
 
+extern u8 gWorldInfo[];
+extern f64 __fabs(f64 value);
+
+void fn_8005AF98(u8* record, s32* typeOut, s32* valueOut, s32* fieldOut,
+                 s32* stateOut, char** nameOut)
+{
+    u8 unusedHigh[8];
+    s32 type;
+    s32 value;
+    s32 field;
+    s32 state;
+    s32 nextType;
+    s32 nextValue;
+    s32 nextField;
+    s32 nextState;
+    char* name;
+    char* nextName;
+    s32 count;
+    s32 i;
+    s32 childOffset;
+    u8 unusedLow[16];
+
+    if (*(s32*)record == -1) {
+        count = *(s32*)(record + 4);
+        fn_8005AF98(*(u8**)(gWorldInfo + 104) + *(s16*)(record + 8) * 80,
+                    &type, &value, &field, &state, &name);
+        for (i = 1, childOffset = 2; i < count;
+             i++, childOffset += 2) {
+            fn_8005AF98(*(u8**)(gWorldInfo + 104) +
+                            *(s16*)(record + childOffset + 8) * 80,
+                        &nextType, &nextValue, &nextField, &nextState,
+                        &nextName);
+            if (nextType != type) {
+                type = 0;
+            }
+            if (nextValue != value) {
+                value = 0;
+            }
+            if (nextField != field) {
+                field = 0;
+            }
+            if (nextState != state) {
+                state = 0;
+            }
+            if (name != NULL && nextName != NULL) {
+                if (strcmp(name, nextName) != 0) {
+                    name = NULL;
+                }
+            } else {
+                nextName = NULL;
+                name = NULL;
+            }
+        }
+        *typeOut = type;
+        *valueOut = value;
+        *fieldOut = field;
+        *stateOut = state;
+        *nameOut = name;
+    } else {
+        *typeOut = *(s32*)record;
+        *valueOut = *(s32*)(record + 4);
+        *fieldOut = *(s16*)(record + 64);
+        if (*(s32*)record != 1 || *(s32*)(record + 4) != 3) {
+            *fieldOut = (s32)__fabs((f64)*fieldOut);
+        }
+        *stateOut = *(s32*)(record + 60);
+        *nameOut = (char*)(record + 40);
+    }
+}
+
 f32 fn_8005B198(f32 radius, f32* position, Item** result)
 {
     f32 delta[3];
