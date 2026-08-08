@@ -559,8 +559,9 @@ s32 fn_8009190C(f32* mat, s32 type)
         idx = StartFXSub(type, mat + 12, 0, 0x800, 0.0f);
         ret = idx;
         if (idx >= 0) {
+            Effect* effect = &Effects[idx];
             if (mat != NULL) {
-                CopyMat3(mat, Effects[idx].node);
+                CopyMat3(mat, effect->node);
             }
         }
     }
