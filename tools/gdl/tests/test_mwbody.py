@@ -4,10 +4,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from mwbody import format_instruction, local_target
+from mwbody import format_instruction, format_signature, local_target
 
 
 class MwBodyTests(unittest.TestCase):
+    def test_static_signature_places_asm_after_storage_class(self):
+        self.assertEqual(
+            format_signature("static s32 helper(void)"),
+            "static asm s32 helper(void)",
+        )
+
     def test_local_branch_uses_function_relative_offset(self):
         self.assertEqual(
             local_target("bge a54 <AllocMem32+0x3c>", "AllocMem32"),

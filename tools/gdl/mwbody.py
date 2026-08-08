@@ -78,6 +78,12 @@ def replace_last_immediate(text: str, replacement: str):
     return re.sub(r"(?<![\w])(?:0x)?0(?=(?:\([^)]*\))?$)", replacement, text)
 
 
+def format_signature(signature: str):
+    if signature.startswith("static "):
+        return "static asm " + signature.removeprefix("static ")
+    return "asm " + signature
+
+
 def format_instruction(row, labels, function):
     text = row["text"]
     mnemonic = text.split(" ", 1)[0]
@@ -123,7 +129,7 @@ def main():
               for offset in sorted(branch_targets)}
 
     signature = args.signature or f"void {args.function}(void)"
-    print(f"asm {signature}")
+    print(format_signature(signature))
     print("{")
     print("    nofralloc")
     for row in rows:
