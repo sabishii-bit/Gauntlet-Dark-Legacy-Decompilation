@@ -921,9 +921,10 @@ s32 pbDiagDrawInfo(void)
 }
 
 void pbDiagDrawMenuA(DiagList* list) {
-    int line;
-    int i;
     int off;
+    int colorBase;
+    int i;
+    int line;
     int start;
     int end;
     int count = list->count;
@@ -942,14 +943,16 @@ void pbDiagDrawMenuA(DiagList* list) {
         }
         start = end - 38;
     }
-    off = start * 48;
-    for (i = start; i < end; i++) {
+    off = (i = start) * 48;
+    colorBase = 0x01000000;
+    for (; i < end;) {
         if (i == gDiagListSel) {
-            fn_800C008C(0x00FFFF00, 18, line, list->strs + off);
+            fn_800C008C(colorBase - 0x100, 18, line, list->strs + off);
         } else {
-            fn_800C008C(0x00FFFFFF, 18, line, list->strs + off);
+            fn_800C008C(colorBase - 1, 18, line, list->strs + off);
         }
         line++;
+        i++;
         off += 48;
     }
 }
