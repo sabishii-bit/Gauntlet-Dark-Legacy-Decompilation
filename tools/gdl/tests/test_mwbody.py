@@ -4,7 +4,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from mwbody import format_instruction, format_signature, local_target
+from mwbody import (
+    find_definition,
+    format_instruction,
+    format_signature,
+    local_target,
+    wrap_portable_definition,
+)
 
 
 class MwBodyTests(unittest.TestCase):
@@ -45,6 +51,24 @@ class MwBodyTests(unittest.TestCase):
         self.assertEqual(
             format_instruction(row, {}, "helper"),
             "    lfd f4,lbl_80349190(r0)",
+        )
+
+    def test_find_definition_ignores_braces_in_strings_and_comments(self):
+        source = 'void f(void)\n{\n/* } */\nputs("{");\n}\nvoid g(void);\n'
+        start, end = find_definition(source, "void f(void)")
+        self.assertEqual(
+            source[start:end], 'void f(void)\n{\n/* } */\nputs("{");\n}',
+        )
+
+    def test_wrap_keeps_portable_definition(self):
+        source = "void f(void)\n{\n    work();\n}\n"
+        result = wrap_portable_definition(
+            source, "void f(void)", "asm void f(void)\n{\n    blr\n}",
+        )
+        self.assertEqual(
+            result,
+            "#ifdef __MWERKS__\nasm void f(void)\n{\n    blr\n}\n#else\n"
+            "void f(void)\n{\n    work();\n}\n#endif\n",
         )
 
 
