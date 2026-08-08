@@ -86,7 +86,7 @@
  *   fn_8004646C - world-grid query (StartItemGrid/NextGridItem).
  *   fn_80046680 - small gEnemies helper called by do_enemy_move.
  *   fn_8004C8CC - wall/object collision probe shared by the move_logic set.
- *   fn_8004CD1C - accelerate along an angle (cos/sin -> velocity).
+ *   set_enemy_trans - accelerate along an angle (cos/sin -> velocity).
  *   fn_8004CE38 - left/right look-ahead probe angle helper.
  *   fn_8004D958 - per-enemy tick wrapper (drives do_ai).
  *   fn_8004DC2C/fn_8004DF58/fn_8004E448 - move post-processing / FX helpers.
@@ -1008,7 +1008,7 @@ gravity:
 extern void RequestEnemyAction(Enemy* e, s32 action);
 extern f32 get_yaw(f32* to, f32* from);       /* dir angle from->to */
 extern void fn_80050394(s32 index);           /* AI-change transition hook */
-extern void fn_8004CD1C(Enemy* e, f32 spd, f32 ang); /* accel along angle */
+extern void set_enemy_trans(Enemy* e, f32 spd, f32 ang); /* accel along angle */
 extern f32 lbl_8011BF60[];    /* 0x8011BF60 imp retreat-speed ramp table */
 extern s32 lbl_80344748;      /* 0x80344748 current "IT" enemy slot */
 extern s32 RandInt(s32 n);
@@ -1507,7 +1507,7 @@ void move_logic00(s32 index)
             e->ang = cand;
         }
     }
-    fn_8004CD1C(e, 1.0f, e->ang);
+    set_enemy_trans(e, 1.0f, e->ang);
     e->pyr[1] = turn_enemy_ang(e, e->ang);
     do_enemy_move(index);
 }
@@ -1582,7 +1582,7 @@ void move_logic01(s32 index)
         *(u32*)&d &= 0x7FFFFFFF;
         if (e->dead_end <= 0 || d >= 0.10471975513333334) {
             e->dead_end = 0;
-            fn_8004CD1C(e, 1.0f, e->ang);
+            set_enemy_trans(e, 1.0f, e->ang);
         }
     }
     e->pyr[1] = turn_enemy_ang(e, e->ang);
@@ -1659,7 +1659,7 @@ void move_logic02(s32 index)
     if (e->coll_pnum >= 0) {
         e->ang = get_yaw(&gPlayers[e->coll_pnum][17], &e->objgrp.worldmat[3][0]);
     }
-    fn_8004CD1C(e, 1.0f, e->ang);
+    set_enemy_trans(e, 1.0f, e->ang);
     e->pyr[1] = turn_enemy_ang(e, e->ang);
     do_enemy_move(index);
 }
@@ -1712,7 +1712,7 @@ void move_logic03(s32 index)
             }
             e->ang = a;
         }
-        fn_8004CD1C(e, 1.0f, e->ang);
+        set_enemy_trans(e, 1.0f, e->ang);
         e->pyr[1] = turn_enemy_ang(e, e->ang);
         e->trans[0] *= 0.9;
         e->trans[1] *= 0.9;
@@ -1797,7 +1797,7 @@ void move_logic04(s32 index)
     if (e->coll_pnum >= 0) {
         e->ang = get_yaw(&gPlayers[e->coll_pnum][17], &e->objgrp.worldmat[3][0]);
     }
-    fn_8004CD1C(e, 1.0f, e->ang);
+    set_enemy_trans(e, 1.0f, e->ang);
     e->pyr[1] = turn_enemy_ang(e, e->ang);
     do_enemy_move(index);
 }
@@ -1910,7 +1910,7 @@ void move_logic05(s32 index)
             }
         }
     }
-    fn_8004CD1C(e, 1.0f, e->ang);
+    set_enemy_trans(e, 1.0f, e->ang);
     e->pyr[1] = turn_enemy_ang(e, e->ang);
     do_enemy_move(index);
 }
@@ -2021,7 +2021,7 @@ void move_logic06(s32 index)
             }
         }
     }
-    fn_8004CD1C(e, 1.0f, e->ang);
+    set_enemy_trans(e, 1.0f, e->ang);
     e->pyr[1] = turn_enemy_ang(e, e->ang);
     do_enemy_move(index);
 }
@@ -2149,7 +2149,7 @@ void move_logic07(s32 index)
     } else {
         cand = e->ang;
     }
-    fn_8004CD1C(e, 1.0f, cand);
+    set_enemy_trans(e, 1.0f, cand);
     if (found == 0 || cand == lbl_80344720) {
         e->pyr[1] = turn_enemy_ang(e, cand);
     }
@@ -2305,7 +2305,7 @@ void move_logic08(s32 index)
     } else {
         cand = e->ang;
     }
-    fn_8004CD1C(e, 1.0f, cand);
+    set_enemy_trans(e, 1.0f, cand);
     if (found == 0 || cand == lbl_80344720) {
         e->pyr[1] = turn_enemy_ang(e, cand);
     }
@@ -2322,7 +2322,7 @@ void move_logic08(s32 index)
  *   sin/cos     x7   - heading projection for the wander + corner probes
  *   GetMilestonePos x6, find_neighbor_milestone x2, update_enemy_milestone x1
  *                     - milestone-network navigation (shares the move_logic22 stack)
- *   turn_enemy_ang x5, fn_8004CD1C x5, do_enemy_move x5 - one move per sub-mode
+ *   turn_enemy_ang x5, set_enemy_trans x5, do_enemy_move x5 - one move per sub-mode
  *   fn_80050394 x5   - AI-change transition per sub-mode
  *   fqdist x4, fn_8004CE38 x3, fn_8004C8CC x3 - dist checks + corner probes
  *   do_ai x2         - the flee/chase bail-outs
@@ -2400,7 +2400,7 @@ void move_logic10(s32 index)
             }
             e->ang = face;
             e->dead_end = 0;
-            fn_8004CD1C(e, 1.0f, e->ang);
+            set_enemy_trans(e, 1.0f, e->ang);
             e->pyr[1] = turn_enemy_ang(e, e->ang);
             do_enemy_move(index);
             skip = -1;
@@ -2552,7 +2552,7 @@ void move_logic10(s32 index)
             } else {
                 cand = e->ang;
             }
-            fn_8004CD1C(e, 1.0f, cand);
+            set_enemy_trans(e, 1.0f, cand);
             if (!blocked || cand == lbl_80344720) {
                 e->pyr[1] = turn_enemy_ang(e, cand);
             }
@@ -2578,7 +2578,7 @@ void move_logic10(s32 index)
             }
             e->ang = face;
             e->dead_end = 0;
-            fn_8004CD1C(e, 1.0f, e->ang);
+            set_enemy_trans(e, 1.0f, e->ang);
             e->pyr[1] = turn_enemy_ang(e, e->ang);
             do_enemy_move(index);
             skip = -1;
@@ -2664,7 +2664,7 @@ void move_logic10(s32 index)
             } else {
                 cand = e->ang;
             }
-            fn_8004CD1C(e, 1.0f, cand);
+            set_enemy_trans(e, 1.0f, cand);
             if (!blocked || cand == lbl_80344720) {
                 e->pyr[1] = turn_enemy_ang(e, cand);
             }
@@ -2827,7 +2827,7 @@ void move_logic10(s32 index)
         } else {
             cand = e->ang;
         }
-        fn_8004CD1C(e, 1.0f, cand);
+        set_enemy_trans(e, 1.0f, cand);
         if (!blocked || cand == lbl_80344720) {
             e->pyr[1] = turn_enemy_ang(e, cand);
         }
@@ -2987,7 +2987,7 @@ void move_logic13(s32 index)
         f32 dist2;
 
         e->ang = get_yaw(&prev->objgrp.worldmat[3][0], &e->objgrp.worldmat[3][0]);
-        fn_8004CD1C(e, 1.0f, e->ang);
+        set_enemy_trans(e, 1.0f, e->ang);
         e->pyr[1] = turn_enemy_ang(e, e->ang);
         do_enemy_move(index);
         dy = prev->objgrp.worldmat[3][1] - e->objgrp.worldmat[3][1];
@@ -3101,7 +3101,7 @@ void move_logic14(s32 index)
         e->mode1++;
     }
     e->pyr[1] = turn_enemy_ang(e, e->ang);
-    fn_8004CD1C(e, 1.0f, e->ang);
+    set_enemy_trans(e, 1.0f, e->ang);
     do_enemy_move(index);
     diff = lbl_80344720 - e->ang;
     if (diff > 3.141592654) {
@@ -3247,7 +3247,7 @@ void move_logic15(s32 index)
     }
     }
 move:
-    fn_8004CD1C(e, 1.0f, e->ang);
+    set_enemy_trans(e, 1.0f, e->ang);
     e->pyr[1] = turn_enemy_ang(e, e->ang);
     do_enemy_move(index);
 }
@@ -3347,7 +3347,7 @@ void move_logic16(s32 index)
                 }
                 RequestEnemyAction(e, 22);
                 if (e->action == 22 || e->action == 23) {
-                    fn_8004CD1C(e, 0.8f, la);
+                    set_enemy_trans(e, 0.8f, la);
                 }
                 e->dead_end = 0;
             }
@@ -3448,7 +3448,7 @@ leap:
     if (e->dead_end <= 0
         || fabsf_(e->ang - e->anghit) >= 0.10471975513333334) {
         e->dead_end = 0;
-        fn_8004CD1C(e, 1.5f, e->ang);
+        set_enemy_trans(e, 1.5f, e->ang);
     }
 move:
     e->pyr[1] = turn_enemy_ang(e, e->ang);
@@ -3525,7 +3525,7 @@ void move_logic19(s32 index)
         e->dead_end -= gFrameTicks;
     }
     if (e->dead_end <= 0) {
-        fn_8004CD1C(e, 1.0f, e->ang);
+        set_enemy_trans(e, 1.0f, e->ang);
     }
     if ((e->counter1 -= gFrameTicks) <= 0 && e->daction == 3) {
         e->daction = 0;
@@ -3653,7 +3653,7 @@ void move_logic20(s32 index)
     } else {
         cand = e->ang;
     }
-    fn_8004CD1C(e, 2.0f, cand);
+    set_enemy_trans(e, 2.0f, cand);
     {
         f64 fn = 3.141592654 + lbl_80344720;
         if (fn > 3.141592654) {
@@ -3717,7 +3717,7 @@ void move_logic21(s32 index)
         }
         e->ang = a;
     }
-    fn_8004CD1C(e, 2.0f, e->ang);
+    set_enemy_trans(e, 2.0f, e->ang);
     e->pyr[1] = turn_enemy_ang(e, e->ang);
     do_enemy_move(index);
     if (e->moved != 0) {
@@ -3834,7 +3834,7 @@ void move_logic22(s32 index)
     }
 move:
     if (e->mode1 >= 0) {
-        fn_8004CD1C(e, 1.0f, e->ang);
+        set_enemy_trans(e, 1.0f, e->ang);
     }
     e->pyr[1] = turn_enemy_ang(e, e->ang);
     do_enemy_move(index);
@@ -3913,7 +3913,7 @@ void move_logic24(s32 index)
         }
         e->ang = a;
     }
-    fn_8004CD1C(e, 2.0f, e->ang);
+    set_enemy_trans(e, 2.0f, e->ang);
     e->pyr[1] = turn_enemy_ang(e, e->ang);
     do_enemy_move(index);
     if (e->moved != 0) {
@@ -4092,7 +4092,7 @@ void move_logic29(s32 index)
                     }
                     la = nv;
                 }
-                fn_8004CD1C(e, 0.8f, la);
+                set_enemy_trans(e, 0.8f, la);
                 RequestEnemyAction(e, 3);
                 e->dead_end = 0;
             }
@@ -4525,9 +4525,94 @@ extern s32 lbl_803447DC;      /* generators-disabled flag */
 extern s32 lbl_8034472C;      /* random-type rotation counter */
 extern u8 lbl_8011AF48[];     /* enemy.c .data anchor (type tables at +4284..) */
 extern u32 jumptable_8011C25C[];
+extern const f64 lbl_803469B8;
+extern void _savefpr_30(void);
+extern void _restfpr_30(void);
 
 /* Accelerate an enemy along an angle, caching the trig pair between calls. */
-void fn_8004CD1C(Enemy* enemy, f32 speed, f32 angle)
+#ifdef __MWERKS__
+asm void set_enemy_trans(Enemy* enemy, f32 speed, f32 angle)
+{
+    nofralloc
+    mflr r0
+    stw r0, 4(r1)
+    stwu r1, -48(r1)
+    addi r11, r1, 48
+    bl _savefpr_30
+    stw r31, 28(r1)
+    mr r31, r3
+    lwz r0, gBossType(r0)
+    lwz r3, 0(r3)
+    fmr f30, f1
+    fmr f31, f2
+    cmpw r3, r0
+    beq set_enemy_trans_done
+    lwz r0, 204(r31)
+    cmpwi r0, 1
+    beq set_enemy_trans_done
+    lfd f0, lbl_803469B8(r0)
+    fcmpo cr0, f30, f0
+    cror eq, gt, eq
+    bne set_enemy_trans_walk
+    li r4, 4
+    b set_enemy_trans_request
+set_enemy_trans_walk:
+    li r4, 3
+set_enemy_trans_request:
+    mr r3, r31
+    bl RequestEnemyAction
+    lwz r3, 204(r31)
+    cmpwi r3, 3
+    beq set_enemy_trans_apply
+    cmpwi r3, 4
+    beq set_enemy_trans_apply
+    addi r0, r3, -22
+    cmplwi r0, 1
+    ble set_enemy_trans_apply
+    lwz r0, 644(r31)
+    cmpwi r0, 0
+    blt set_enemy_trans_done
+set_enemy_trans_apply:
+    lfs f0, 780(r31)
+    fcmpu cr0, f0, f31
+    beq set_enemy_trans_cached
+    fmr f1, f31
+    bl sin
+    stfs f1, 772(r31)
+    fmr f1, f31
+    bl cos
+    stfs f1, 776(r31)
+    stfs f31, 780(r31)
+set_enemy_trans_cached:
+    lwz r4, 0(r31)
+    lis r3, lbl_80250E40@ha
+    addi r0, r3, lbl_80250E40@l
+    lfs f0, 772(r31)
+    slwi r3, r4, 2
+    add r3, r0, r3
+    lfs f1, 528(r31)
+    lfs f3, 0(r3)
+    lfs f2, 776(r31)
+    fmuls f0, f0, f3
+    fmuls f2, f2, f3
+    fmuls f0, f30, f0
+    fmuls f2, f30, f2
+    fadds f0, f1, f0
+    stfs f0, 528(r31)
+    lfs f0, 536(r31)
+    fadds f0, f0, f2
+    stfs f0, 536(r31)
+set_enemy_trans_done:
+    lwz r0, 52(r1)
+    addi r11, r1, 48
+    bl _restfpr_30
+    lwz r31, 28(r1)
+    mtlr r0
+    addi r1, r1, 48
+    blr
+}
+#else
+void set_enemy_trans(Enemy* enemy, f32 speed, f32 angle)
 {
     if (enemy->type != gBossType && enemy->action != 1) {
         s32 action;
@@ -4560,6 +4645,13 @@ void fn_8004CD1C(Enemy* enemy, f32 speed, f32 angle)
         }
     }
 }
+#endif
+
+#ifdef __MWERKS__
+#pragma optimization_level 4
+#pragma peephole on
+#pragma scheduling on
+#endif
 
 /* Resolve the generator/spew class shared by groups of enemy types. */
 s32 fn_8004F87C(s32 type, s32 level, s32 spew)
