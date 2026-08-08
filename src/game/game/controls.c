@@ -1531,8 +1531,7 @@ void InitJoyAng(void)
             } else {
                 lbl_80240C88[i][j] = atan2(y, x);
             }
-            m = y * y + xx;
-            if (m > 0.0f) {
+            if ((m = y * y + xx) > 0.0f) {
                 volatile f32 res;
                 f64 g = __frsqrte(m);
 
