@@ -960,60 +960,6 @@ void AudioStreamStop(void)
 /* AudioClearTracks: mark every mode bank's part slots not-loaded (+304/+308 = -1)
  * and every ROM bank's active-sound counters cleared (+40/+42 = 0), then flush
  * the driver (sndCmd6). */
-#ifdef __MWERKS__
-asm void AudioClearTracks(void)
-{
-    nofralloc
-    mflr r0
-    stw r0, 4(r1)
-    stwu r1, -8(r1)
-    lwz r0, sAudioSuspend
-    cmpwi r0, 0
-    bne clear_tracks_done
-    li r6, 0
-    li r3, 0
-    li r5, -1
-    b clear_mode_check
-clear_mode_loop:
-    addi r0, r3, 304
-    stwx r5, r4, r0
-    addi r0, r3, 308
-    addi r6, r6, 1
-    lwz r4, gAudioBankTbl
-    addi r3, r3, 292
-    stwx r5, r4, r0
-clear_mode_check:
-    lwz r4, gAudioBankTbl
-    lwz r0, 16(r4)
-    cmpw r6, r0
-    blt clear_mode_loop
-    li r9, 0
-    lwz r5, sAudioBankTable
-    addi r8, r9, 0
-    addi r6, r9, 0
-    li r3, 0
-    b clear_bank_check
-clear_bank_loop:
-    lwz r7, 16(r5)
-    addi r4, r3, 40
-    addi r0, r3, 42
-    sthx r8, r7, r4
-    addi r9, r9, 1
-    addi r3, r3, 44
-    lwz r4, 16(r5)
-    sthx r6, r4, r0
-clear_bank_check:
-    lwz r0, 4(r5)
-    cmpw r9, r0
-    blt clear_bank_loop
-    bl sndCmd6
-clear_tracks_done:
-    lwz r0, 12(r1)
-    addi r1, r1, 8
-    mtlr r0
-    blr
-}
-#else
 void AudioClearTracks(void)
 {
     s32 i;
@@ -1032,7 +978,6 @@ void AudioClearTracks(void)
     }
     sndCmd6();
 }
-#endif
 
 /* AudioUnloadPart: free the ROM bank currently held by the named mode bank's
  * loaded part -- but only if no other loaded mode bank still points at the same
