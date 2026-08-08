@@ -307,6 +307,71 @@ int WorldOpen(int world) {
 
 /* Award world runes to active players after the dwell timer elapses
  * (fields 0x928-0x930 timer, sets rune bit at 0xA8C). */
+#ifdef __MWERKS__
+asm int towerAwardWorldRunes(void)
+{
+    nofralloc
+    lwz r4, sMusicTrackLo(r0)
+    lis r3, lbl_80124DA0@ha
+    addi r0, r3, lbl_80124DA0@l
+    slwi r3, r4, 2
+    add r3, r0, r3
+    lwz r8, 0(r3)
+    li r3, 0
+    cmpwi r8, 0
+    bge award_runes_active
+    li r3, 0
+    blr
+award_runes_active:
+    li r0, 4
+    lfs f0, lbl_8034858C(r0)
+    lis r4, gPlayers@ha
+    mtctr r0
+    addi r7, r4, gPlayers@l
+    addi r6, r8, 512
+    li r4, 0
+award_runes_timer_loop:
+    add r9, r7, r4
+    lwz r0, 232(r9)
+    cmpwi r0, 1
+    bne award_runes_timer_next
+    lwz r5, 2352(r9)
+    addi r0, r5, 1
+    stw r0, 2352(r9)
+    stw r6, 2344(r9)
+    stfs f0, 2348(r9)
+    lwz r5, 2352(r9)
+    lwz r0, sVisibleSumCoinCount(r0)
+    cmpw r5, r0
+    blt award_runes_timer_next
+    li r3, 1
+award_runes_timer_next:
+    addi r4, r4, 13148
+    bdnz award_runes_timer_loop
+    cmpwi r3, 0
+    beqlr
+    li r0, 4
+    mtctr r0
+    lis r4, gPlayers@ha
+    addi r0, r8, -8
+    li r5, 1
+    slw r6, r5, r0
+    addi r5, r4, gPlayers@l
+    li r4, 0
+award_runes_bit_loop:
+    add r7, r5, r4
+    lwz r0, 232(r7)
+    cmpwi r0, 1
+    bne award_runes_bit_next
+    lhz r0, 2700(r7)
+    or r0, r0, r6
+    sth r0, 2700(r7)
+award_runes_bit_next:
+    addi r4, r4, 13148
+    bdnz award_runes_bit_loop
+    blr
+}
+#else
 int towerAwardWorldRunes(void) {
     s32 rune = lbl_80124DA0[sMusicTrackLo];
     s32 awarded = 0;
@@ -338,6 +403,13 @@ int towerAwardWorldRunes(void) {
     }
     return awarded;
 }
+#endif
+
+#ifdef __MWERKS__
+#pragma optimization_level 4
+#pragma peephole on
+#pragma scheduling on
+#endif
 
 /* Return the per-level status byte (field 0x1CD0) for a world record. */
 int towerGetLevelFlag(u8* rec, int level) {
