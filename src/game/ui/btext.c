@@ -1125,6 +1125,12 @@ s32 FontHeight(f32 scale, s32 font)
     return (s32)height;
 }
 #endif
+#ifdef __MWERKS__
+/* Function-level assembly disables these passes for following C functions. */
+#pragma optimization_level 4
+#pragma peephole on
+#pragma scheduling on
+#endif
 
 /* ==== 0x80020874 DrawNormalText ==== */
 s32 DrawNormalText(f32 scale, u8* str, s32 color)
