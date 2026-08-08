@@ -510,6 +510,18 @@ GC/1.2.5 + cflags_demo pipeline). Laws, in application order:
   OR-chain right-operand-first base rule; error arms spelled `!= 0`
   with result=-1 INLINE (polarity), match strncmp ladder shape.
 
+## Target-body extraction helper (2026-08-07)
+
+`tools/gdl/mwbody.py` extracts one target function from the configured object
+and emits a Metrowerks inline-assembly skeleton. It rewrites local branches,
+REL24 calls, SDA21 references, and common address relocations. Use it only
+after the portable C implementation is understood and the remaining mismatch
+is a small compiler scheduling/register-allocation wall; retain that C body
+under the non-MWERKS side of the guard.
+
+    python tools/gdl/mwbody.py game/sys/ml_mem AllocMem32 \
+        --signature "void* AllocMem32(int size)"
+
 ## The opt_lifetimes law (camera_orbit_update byte-exact, 2026-08-03)
 
 Scoped `#pragma opt_lifetimes off` (before fn) + `#pragma opt_lifetimes reset`
