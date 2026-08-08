@@ -2058,10 +2058,14 @@ void get_attn_pos_8002C9A8(s32 camIdx, f32* out)
     }
 }
 
+#pragma opt_propagation off
 void recalc_lookat(s32 camIdx, s32 snap)
 {
     Camera* cam = &gCameras[camIdx];
+    u8 tail[12];
     f32 pos[3];
+    u8 gap[4];
+    f32 zero;
 
     if (cam->a_mode == ATN_FREE || cam->a_mode == ATN_LOCK ||
         cam->a_mode == ATN_POINT) {
@@ -2072,9 +2076,10 @@ void recalc_lookat(s32 camIdx, s32 snap)
         cam->attn[0] = pos[0];
         cam->attn[1] = pos[1];
         cam->attn[2] = pos[2];
-        cam->delta[0] = lbl_80345EC8;
-        cam->delta[1] = lbl_80345EC8;
-        cam->delta[2] = lbl_80345EC8;
+        zero = lbl_80345EC8;
+        cam->delta[0] = zero;
+        cam->delta[1] = zero;
+        cam->delta[2] = zero;
         gCameraTargetPositionCount = 0;
         gCameraTargetMode = ATN_TARGET;
         lbl_80344508 = -1;
@@ -2089,19 +2094,20 @@ void recalc_lookat(s32 camIdx, s32 snap)
         if (snap == 0) {
             return;
         }
-        d2 = dx * dx + dy * dy + dz * dz;
+        d2 = dz * dz + (dx * dx + dy * dy);
         if (d2 > lbl_80345EC8) {
             f64 g = __frsqrte((f64)d2);
-            g = lbl_80345F18 * g * (lbl_80345F20 - d2 * g * g);
-            g = lbl_80345F18 * g * (lbl_80345F20 - d2 * g * g);
-            g = lbl_80345F18 * g * (lbl_80345F20 - d2 * g * g);
-            g = lbl_80345F18 * g * (lbl_80345F20 - d2 * g * g);
+            g = lbl_80345F18 * g * (lbl_80345F20 - d2 * (g * g));
+            g = lbl_80345F18 * g * (lbl_80345F20 - d2 * (g * g));
+            g = lbl_80345F18 * g * (lbl_80345F20 - d2 * (g * g));
+            g = lbl_80345F18 * g * (lbl_80345F20 - d2 * (g * g));
             root = (f32)(d2 * g);
             d2 = root;
         }
         cam->radius = d2;
     }
 }
+#pragma opt_propagation reset
 
 extern s32 lbl_80344498, lbl_803444E0, lbl_803444F8, lbl_80344470, lbl_80344474;
 extern s32 gCameraTargetPositionCount, gCameraTargetMode, lbl_8034446C, lbl_80344494, lbl_803443F0;
