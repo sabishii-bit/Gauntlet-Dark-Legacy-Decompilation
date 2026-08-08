@@ -1544,6 +1544,36 @@ u32* fn_800DB008(u32* self, s16 deleting) {
     return self;
 }
 
+#ifdef __MWERKS__
+asm u32* fn_800DB0F8(u32* p) {
+    nofralloc
+    mflr r0
+    lis r4, lbl_801296A4@ha
+    stw r0, 4(r1)
+    addi r4, r4, lbl_801296A4@l
+    stwu r1, -24(r1)
+    stw r31, 20(r1)
+    stw r3, 8(r1)
+    lis r3, lbl_8012968C@ha
+    addi r0, r3, lbl_8012968C@l
+    lwz r31, 8(r1)
+    stw r4, 0(r31)
+    addi r3, r31, 32
+    stw r0, 0(r31)
+    bl fn_800DBC64
+    addi r3, r31, 336
+    bl fn_800DBE04
+    li r0, 0
+    stw r0, 28(r31)
+    mr r3, r31
+    stw r0, 400(r31)
+    lwz r0, 28(r1)
+    lwz r31, 20(r1)
+    addi r1, r1, 24
+    mtlr r0
+    blr
+}
+#else
 u32* fn_800DB0F8(u32* volatile p) {
     u32* self = p;
 
@@ -1555,6 +1585,13 @@ u32* fn_800DB0F8(u32* volatile p) {
     self[100] = 0;
     return self;
 }
+#endif
+
+#ifdef __MWERKS__
+#pragma optimization_level 4
+#pragma peephole on
+#pragma scheduling on
+#endif
 
 /* operator delete[] (weak, emitted into this TU) */
 #pragma dont_inline on
