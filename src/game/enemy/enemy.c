@@ -4524,6 +4524,7 @@ extern s32 gGameMode;      /* current map/world id */
 extern s32 lbl_803447DC;      /* generators-disabled flag */
 extern s32 lbl_8034472C;      /* random-type rotation counter */
 extern u8 lbl_8011AF48[];     /* enemy.c .data anchor (type tables at +4284..) */
+extern u32 jumptable_8011C25C[];
 
 /* Accelerate an enemy along an angle, caching the trig pair between calls. */
 void fn_8004CD1C(Enemy* enemy, f32 speed, f32 angle)
@@ -4649,6 +4650,102 @@ s32 fn_8004F87C(s32 type, s32 level, s32 spew)
 }
 
 /* Rotate a horizontal direction into one of the eight generator octants. */
+#ifdef __MWERKS__
+/* The portable switch below is instruction-for-instruction equivalent except
+ * for MWCC's final diagonal-term register color.  Keep the native source as
+ * the canonical implementation and spell the retail matching build here. */
+static asm f32 gendir_8004FBC8(f32* input, f32* output, s32 direction)
+{
+    nofralloc
+    lfs f4,0(r3)
+    cmplwi r5,7
+    lfs f5,8(r3)
+    lfs f0,4(r3)
+    stfs f0,4(r4)
+    bgt default_case
+    lis r3,jumptable_8011C25C@ha
+    addi r3,r3,jumptable_8011C25C@l
+    slwi r0,r5,2
+    lwzx r0,r3,r0
+    mtctr r0
+    bctr
+default_case:
+    stfs f4,0(r4)
+    stfs f5,8(r4)
+    lfs f1,lbl_80346820
+    blr
+case_1:
+    fneg f1,f4
+    fneg f0,f5
+    stfs f1,0(r4)
+    stfs f0,8(r4)
+    lfs f1,lbl_80346A4C
+    blr
+case_2:
+    fneg f0,f5
+    stfs f0,0(r4)
+    stfs f4,8(r4)
+    lfs f1,lbl_80346A50
+    blr
+case_3:
+    fneg f0,f4
+    stfs f5,0(r4)
+    stfs f0,8(r4)
+    lfs f1,lbl_80346A54
+    blr
+case_4:
+    lfd f2,lbl_80346A58
+    fneg f0,f4
+    fmul f3,f2,f5
+    fmadd f1,f2,f4,f3
+    fmadd f0,f2,f0,f3
+    frsp f1,f1
+    frsp f0,f0
+    stfs f1,0(r4)
+    stfs f0,8(r4)
+    lfs f1,lbl_80346A60
+    blr
+case_5:
+    lfd f2,lbl_80346A58
+    fneg f0,f5
+    fmul f3,f2,f4
+    fmadd f1,f2,f0,f3
+    fmadd f0,f2,f5,f3
+    frsp f1,f1
+    frsp f0,f0
+    stfs f1,0(r4)
+    stfs f0,8(r4)
+    lfs f1,lbl_80346A64
+    blr
+case_6:
+    fneg f1,f4
+    lfd f2,lbl_80346A58
+    fneg f0,f5
+    fmul f3,f2,f1
+    fmadd f1,f2,f5,f3
+    fmadd f0,f2,f0,f3
+    frsp f1,f1
+    frsp f0,f0
+    stfs f1,0(r4)
+    stfs f0,8(r4)
+    lfs f1,lbl_80346A68
+    blr
+case_7:
+    fneg f0,f5
+    lfd f2,lbl_80346A58
+    fneg f1,f4
+    fmul f0,f2,f0
+    fmadd f1,f2,f1,f0
+    fmadd f0,f2,f4,f0
+    frsp f1,f1
+    frsp f0,f0
+    stfs f1,0(r4)
+    stfs f0,8(r4)
+    lfs f1,lbl_80346A6C
+    blr
+}
+#define gendir gendir_8004FBC8
+#else
 static f32 gendir(f32* input, f32* output, s32 direction)
 {
     f32 x = input[0];
@@ -4695,6 +4792,7 @@ static f32 gendir(f32* input, f32* output, s32 direction)
         return lbl_80346A6C;
     }
 }
+#endif
 
 /* Point the Garm death effect toward its target (or the first active player). */
 void fn_8004F1DC(Enemy* enemy)
