@@ -222,6 +222,96 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
  * below - this one only touches the directory + full commit.)
  * PARKED 79/80: one extra addi copying `row` into its preserved register.
  */
+#ifdef __MWERKS__
+asm int add_vmu_file(int a, int b, int c, const char* name,
+                     u32 value0, u32 value1)
+{
+    nofralloc
+    mflr r0
+    mulli r9, r3, 132
+    stw r0, 4(r1)
+    stwu r1, -64(r1)
+    lis r3, lbl_80274578@ha
+    addi r0, r3, lbl_80274578@l
+    stmw r28, 48(r1)
+    mulli r3, r4, 132
+    add r0, r0, r9
+    slwi r5, r5, 4
+    add r30, r0, r3
+    add r31, r30, r5
+    addi r28, r7, 0
+    addi r29, r8, 0
+    addi r4, r6, 0
+    addi r3, r31, 8
+    li r5, 8
+    bl strncpy
+    stw r28, 0(r31)
+    stw r29, 4(r31)
+    bl beginSaveCacheTransaction
+    clrlwi r0, r3, 24
+    cmplwi r0, 1
+    bne add_vmu_file_failed
+    li r31, 1
+    b add_vmu_file_result_ready
+add_vmu_file_failed:
+    li r31, 0
+add_vmu_file_result_ready:
+    cmpwi r31, 0
+    beq add_vmu_file_cleanup
+    lwz r3, lbl_80343C74(r0)
+    addi r4, r30, 0
+    li r5, 128
+    addis r3, r3, 1
+    addi r3, r3, -24120
+    bl memcpy
+    bl writeGauntletSave
+    lwz r0, lbl_80343C78(r0)
+    oris r0, r0, 65535
+    ori r0, r0, 65535
+    stw r0, lbl_80343C78(r0)
+    bl cardExit
+    bl cardWaitResult
+    lwz r3, lbl_80344A08(r0)
+    bl OSSetCurrentHeap
+    lwz r3, lbl_80344A0C(r0)
+    bl OSDestroyHeap
+    lis r3, 49
+    bl restoreSaveCache
+    li r3, 64
+    bl sysClearFlags
+    lis r3, lbl_801131C0@ha
+    crclr 4*cr1+eq
+    addi r3, r3, lbl_801131C0@l
+    bl bulletproof_printf
+    li r0, 0
+    stw r0, lbl_803449EC(r0)
+    b add_vmu_file_done
+add_vmu_file_cleanup:
+    bl cardExit
+    bl cardWaitResult
+    lwz r3, lbl_80344A08(r0)
+    bl OSSetCurrentHeap
+    lwz r3, lbl_80344A0C(r0)
+    bl OSDestroyHeap
+    lis r3, 49
+    bl restoreSaveCache
+    li r3, 64
+    bl sysClearFlags
+    lis r3, lbl_801131C0@ha
+    crclr 4*cr1+eq
+    addi r3, r3, lbl_801131C0@l
+    bl bulletproof_printf
+    li r0, 0
+    stw r0, lbl_803449EC(r0)
+add_vmu_file_done:
+    mr r3, r31
+    lmw r28, 48(r1)
+    lwz r0, 68(r1)
+    addi r1, r1, 64
+    mtlr r0
+    blr
+}
+#else
 int add_vmu_file(int a, int b, int c, const char* name, u32 v0, u32 v1)
 {
     u8* row = lbl_80274578;
@@ -260,6 +350,13 @@ int add_vmu_file(int a, int b, int c, const char* name, u32 v0, u32 v1)
     }
     return result;
 }
+#endif
+
+#ifdef __MWERKS__
+#pragma optimization_level 4
+#pragma peephole on
+#pragma scheduling on
+#endif
 
 /* saveExists - does the numbered/dir save exist on the mounted card? */
 int saveExists(void)
