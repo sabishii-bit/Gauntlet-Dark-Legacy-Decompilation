@@ -122,6 +122,13 @@ typedef struct SaveFileBlock {
     u32 w[1293];                   /* one 5172-byte per-file save data block */
 } SaveFileBlock;
 
+#define MEMCARD_STRING_POOL                                                    \
+    "Finish save cache transaction......\n\0\0\0\0"                           \
+    "Beginning save cache transaction......\n\0"                               \
+    "BASLUS-20047GameOpts\0\0\0\0"                                        \
+    "BASLUS-20047DirInfo\0"                                                 \
+    "BASLUS-20047save%04d"
+
 extern u8 lbl_80274578[];          /* dir-info tables: stride 132 (8x16 +4) */
 extern u8 lbl_8025EE80[];          /* VMU/dir working buffer (dir @+0x156F8)*/
 extern u8 optglobals[0x40];        /* options TU globals before prefs block */
@@ -449,7 +456,6 @@ int saveLoad(int port, int slot, int fileNo, void* dst)
  */
 int saveSave(int port, int slot, int fileNo, void* src)
 {
-    char* rpool = lbl_801131C0;
     u8 unused_hi[16];
     char name[64];
     u8 unused_lo[16];
@@ -459,15 +465,15 @@ int saveSave(int port, int slot, int fileNo, void* src)
     }
     /* inlined getSaveFileName(name, fileNo) (key built, result unused) */
     if (fileNo == -2) {
-        strcpy(name, rpool + 80);
+        strcpy(name, MEMCARD_STRING_POOL + 80);
     } else if (fileNo == -1) {
-        strcpy(name, rpool + 104);
+        strcpy(name, MEMCARD_STRING_POOL + 104);
     } else {
-        sprintf(name, rpool + 124, fileNo + 1);
+        sprintf(name, MEMCARD_STRING_POOL + 124, fileNo + 1);
     }
     lbl_803449EC = 0;
     lbl_803449F8 = 0;
-    bulletproof_printf(rpool + 40);
+    bulletproof_printf(MEMCARD_STRING_POOL + 40);
     while (FileSystemReading() != 0) {
         serve_busy(-1);
     }
@@ -475,7 +481,7 @@ int saveSave(int port, int slot, int fileNo, void* src)
     lbl_80344A04 = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x2D44C0);
     loadGauntletSave();
     *(GameOpts*) ((u8*) lbl_80343C74 + 8) = gameOpts;
-    *(SaveFileBlock*) ((u8*) lbl_80343C74 + fileNo * 5172 + 40) =
+    ((SaveFileBlock*) ((u8*) lbl_80343C74 + 40))[fileNo] =
         *(SaveFileBlock*) src;
     memcpy((u8*) lbl_80343C74 + 41416, lbl_80274578, 128);
     writeGauntletSave();
@@ -484,9 +490,17 @@ int saveSave(int port, int slot, int fileNo, void* src)
     cardWaitResult();
     OSSetCurrentHeap(lbl_80344A08);
     OSDestroyHeap(lbl_80344A0C);
-    dcsAramReadTop((void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
+    {
+        register u8* aramTop;
+        register u32 aramSize;
+
+        aramTop = (u8*) GetHiMemCacheTop();
+        aramSize = 0x310000;
+        aramTop -= aramSize;
+        dcsAramReadTop(aramTop, aramSize);
+    }
     sysClearFlags(64);
-    bulletproof_printf(rpool);
+    bulletproof_printf(MEMCARD_STRING_POOL);
     lbl_803449EC = 0;
     return 1;
 }
