@@ -4793,6 +4793,12 @@ static f32 gendir(f32* input, f32* output, s32 direction)
     }
 }
 #endif
+#ifdef __MWERKS__
+/* Function-level assembly disables these passes for following C functions. */
+#pragma optimization_level 4
+#pragma peephole on
+#pragma scheduling on
+#endif
 
 /* Point the Garm death effect toward its target (or the first active player). */
 void fn_8004F1DC(Enemy* enemy)
