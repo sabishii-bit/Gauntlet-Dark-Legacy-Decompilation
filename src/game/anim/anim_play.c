@@ -170,54 +170,54 @@ int fn_80010850(u32* bits, s32 n, s32* out)
  * after `start` in the byte-swapped bitfield, or -1 if none within `total`. */
 u32 fn_80010904(u32* bits, s32 start, s32 total)
 {
-    u32 idx = start + 1;
+    u32 word;
+    u32 result;
+    u32 bit;
+    volatile union {
+        u32 w;
+        u8 b[4];
+    } d0, s0, d1, s1;
+    u8 unused[16];
 
-    if ((s32)idx < total) {
-        u32 bit = idx;
-        u32 word;
-        union {
-            u32 w;
-            u8 b[4];
-        } s, d;
-
-        if ((s32)idx >= 32) {
-            u32 skip = idx >> 5;
-            do {
+    bit = start + 1;
+    result = bit;
+    if ((s32)bit >= total) {
+        return 0xFFFFFFFF;
+    }
+    {
+        while ((s32)bit >= 32) {
+            bits++;
+            bit -= 0x20;
+            total -= 0x20;
+        }
+        s0.w = *bits;
+        d0.b[0] = s0.b[3];
+        d0.b[1] = s0.b[2];
+        d0.b[2] = s0.b[1];
+        d0.b[3] = s0.b[0];
+        word = d0.w;
+        while (1) {
+            if ((word & (1 << bit)) != 0) {
+                return result;
+            }
+            bit++;
+            if ((s32)bit >= total) {
+                return 0xFFFFFFFF;
+            }
+            if ((s32)bit >= 32) {
                 bits++;
                 bit -= 0x20;
                 total -= 0x20;
-                skip--;
-            } while (skip != 0);
-        }
-        s.w = *bits;
-        d.b[0] = s.b[3];
-        d.b[1] = s.b[2];
-        d.b[2] = s.b[1];
-        d.b[3] = s.b[0];
-        word = d.w;
-        while ((word & (1 << bit)) == 0) {
-            u32 nextbit = bit + 1;
-            if (total <= (s32)nextbit) {
-                return 0xFFFFFFFF;
+                s1.w = *bits;
+                d1.b[0] = s1.b[3];
+                d1.b[1] = s1.b[2];
+                d1.b[2] = s1.b[1];
+                d1.b[3] = s1.b[0];
+                word = d1.w;
             }
-            if ((s32)nextbit >= 32) {
-                bits++;
-                s.w = *bits;
-                d.b[0] = s.b[3];
-                d.b[1] = s.b[2];
-                d.b[2] = s.b[1];
-                d.b[3] = s.b[0];
-                word = d.w;
-                nextbit = bit - 0x1F;
-                total -= 0x20;
-            }
-            idx++;
-            bit = nextbit;
+            result++;
         }
-    } else {
-        idx = 0xFFFFFFFF;
     }
-    return idx;
 }
 
 #undef STUB
