@@ -743,11 +743,11 @@ s32 DrawStringTextSub(StrList* p, s32 msg, s32 x, s32 y, s32 spacing, u32 font, 
     u8* e;
     f32 sx;
     f32 sh;
+    f32 height;
     s32 n;
     s32 i;
-    s32 off;
-    s32 lines[18];
-    s32* lp;
+    s32 lines[16];
+    volatile u8 unused[12];
 
     ret = 0;
     if (spacing < 0) {
@@ -756,14 +756,13 @@ s32 DrawStringTextSub(StrList* p, s32 msg, s32 x, s32 y, s32 spacing, u32 font, 
     e = (u8*)p->msgs + msg * 20;
     sx = DrawStringScale * *(f32*)(e + 12);
     sh = *(f32*)(e + 16);
-    spacing += (s32)((f32)MBFontHeight(font) * sx);
+    height = (f32)MBFontHeight(font);
+    spacing += (s32)(height * sx);
     n = FixMLineText((s32*)gTextFormatBuf, (s32*)gTextWorkBuf, (s32*)lines);
-    lp = (s32*)(u32)lines;
     i = 0;
-    off = 0;
-    for (; i < n; i++, off += 4) {
+    for (; i < n; i++) {
         u32 r = DrawTextSub(sx, sh, x, y, font, color,
-                            *(u8**)((u8*)lp + off));
+                            ((u8**)lines)[i]);
         if (ret == 0) {
             ret = r;
         }
