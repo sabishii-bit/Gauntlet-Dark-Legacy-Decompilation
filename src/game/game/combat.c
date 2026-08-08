@@ -638,6 +638,81 @@ void cam_orient_to_80029E8C(s32 camIdx)
 /* Walk-mode camera completion/cleanup predicate. */
 s32 MoveCam_walk_8002A024(s32 camIdx)
 {
+#ifdef __MWERKS__
+    asm {
+        lwz r0,lbl_803444F0(r0)
+        lis r4,gCameras@ha
+        mulli r5,r3,396
+        addi r3,r4,gCameras@l
+        cmpwi r0,1
+        add r6,r3,r5
+        beq MoveCam_walk_8002A024_L0020
+        b MoveCam_walk_8002A024_L005C
+    MoveCam_walk_8002A024_L0020:
+        li r0,4
+        lis r3,gPlayers@ha
+        mtctr r0
+        addi r3,r3,gPlayers@l
+        li r7,1
+    MoveCam_walk_8002A024_L0034:
+        lwz r0,232(r3)
+        cmpwi r0,1
+        bne MoveCam_walk_8002A024_L0050
+        lwz r0,516(r3)
+        cmpwi r0,1
+        beq MoveCam_walk_8002A024_L0050
+        li r7,0
+    MoveCam_walk_8002A024_L0050:
+        addi r3,r3,13148
+        bdnz MoveCam_walk_8002A024_L0034
+        b MoveCam_walk_8002A024_L0060
+    MoveCam_walk_8002A024_L005C:
+        li r7,1
+    MoveCam_walk_8002A024_L0060:
+        cmpwi r7,0
+        beq MoveCam_walk_8002A024_L00F0
+        li r3,0
+        li r0,-1
+        stw r3,lbl_803447B8(r0)
+        stw r0,lbl_803444F0(r0)
+        stw r0,lbl_803444EC(r0)
+        stw r3,gScriptedCameraState(r0)
+        stw r3,lbl_8034453C(r0)
+        lwz r0,236(r6)
+        lwz r4,248(r6)
+        cmpwi r0,0
+        beq MoveCam_walk_8002A024_L009C
+        stw r0,240(r6)
+        stw r3,236(r6)
+    MoveCam_walk_8002A024_L009C:
+        lwz r0,248(r6)
+        cmpw r4,r0
+        beq MoveCam_walk_8002A024_L00B0
+        stw r0,252(r6)
+        stw r4,248(r6)
+    MoveCam_walk_8002A024_L00B0:
+        li r5,0
+        stw r5,0(r6)
+        li r3,4
+        lwz r0,gControllerButtons(r0)
+        lwz r4,sFlags(r0)
+        and r0,r0,r5
+        and r3,r4,r3
+        xor r3,r3,r5
+        xor r0,r0,r5
+        or. r0,r3,r0
+        beq MoveCam_walk_8002A024_L00F0
+        lwz r0,lbl_803445D4(r0)
+        lwz r3,sPreviousFlags(r0)
+        ori r0,r0,4
+        stw r0,lbl_803445D4(r0)
+        stw r3,sPreviousFlags(r0)
+    MoveCam_walk_8002A024_L00F0:
+        neg r0,r7
+        cntlzw r0,r0
+        srwi r3,r0,5
+    }
+#else
     Camera* cam = &gCameras[camIdx];
     s32 done;
 
@@ -676,6 +751,8 @@ s32 MoveCam_walk_8002A024(s32 camIdx)
         }
     }
     return done == 0;
+
+#endif
 }
 
 /* Initialize or advance the game camera's scripted transition. */
