@@ -192,11 +192,14 @@ void pbUpdateMatricies(void)
 static void debugScissor(u32* p)
 {
     PBWINGLOBALS* g = gWinGlobals;
+    s32 mode;
     int x0, x1, y0, y1;
     f32 s1, s2;
     f32 fx0, fx1, fy0, fy1;
+    u8 unused[8];
 
-    if (gWinDebug->mode != 0) {
+    mode = gWinDebug->mode;
+    if (mode != 0) {
         if (gWinDebug->clipOff != 0) {
             x0 = 0;
             y0 = 0;
@@ -204,19 +207,14 @@ static void debugScissor(u32* p)
             y1 = ((PBSCREEN*) g->screen)->h;
         } else {
             if (gWinDebug->zoom) {
-                if (gWinDebug->mode != 0) {
+                if (mode != 0) {
                     s1 = (f32) (0.5 * (1.0 - (double) gWinDebug->zoom));
                     if (0.0 != (double) gWinDebug->zoom) {
-                        f32 fw1, fw2, fh1, fh2;
                         s2 = 1.0f - s1;
-                        fw1 = (f32) ((PBSCREEN*) g->screen)->w;
-                        fw2 = (f32) ((PBSCREEN*) g->screen)->w;
-                        fh1 = (f32) ((PBSCREEN*) g->screen)->h;
-                        fh2 = (f32) ((PBSCREEN*) g->screen)->h;
-                        fx0 = fw1 * s1;
-                        fx1 = fw2 * s2;
-                        fy0 = fh1 * s1;
-                        fy1 = fh2 * s2;
+                        fx0 = (f32) ((PBSCREEN*) g->screen)->w * s1;
+                        fx1 = (f32) ((PBSCREEN*) g->screen)->w * s2;
+                        fy0 = (f32) ((PBSCREEN*) g->screen)->h * s1;
+                        fy1 = (f32) ((PBSCREEN*) g->screen)->h * s2;
                     }
                 }
                 x0 = (s32) fx0;
