@@ -124,36 +124,40 @@ STUB(0x8000F7F4, GetAnimAngXYZVal)
  * the index of the highest set bit and store the total set count via `out`. */
 int fn_80010850(u32* bits, s32 n, s32* out)
 {
+    u32 word;
     s32 last = 0;
     s32 i = 0;
     s32 count = 0;
     s32 bit = 0;
-    u32 word;
-    union {
+    volatile union {
         u32 w;
         u8 b[4];
-    } s, d;
+    } d0, s0, d1, s1;
+    u8 unused[16];
 
-    s.w = *bits;
-    d.b[0] = s.b[3];
-    d.b[1] = s.b[2];
-    d.b[2] = s.b[1];
-    d.b[3] = s.b[0];
-    word = d.w;
-    while (i < n) {
+    s0.w = *bits;
+    d0.b[0] = s0.b[3];
+    d0.b[1] = s0.b[2];
+    d0.b[2] = s0.b[1];
+    d0.b[3] = s0.b[0];
+    word = d0.w;
+    while (1) {
+        if (i >= n) {
+            break;
+        }
         if ((word & (1 << bit)) != 0) {
             count++;
             last = i;
         }
         bit++;
-        if (bit > 31) {
+        if (bit >= 32) {
             bits++;
-            s.w = *bits;
-            d.b[0] = s.b[3];
-            d.b[1] = s.b[2];
-            d.b[2] = s.b[1];
-            d.b[3] = s.b[0];
-            word = d.w;
+            s1.w = *bits;
+            d1.b[0] = s1.b[3];
+            d1.b[1] = s1.b[2];
+            d1.b[2] = s1.b[1];
+            d1.b[3] = s1.b[0];
+            word = d1.w;
             bit = 0;
         }
         i++;
