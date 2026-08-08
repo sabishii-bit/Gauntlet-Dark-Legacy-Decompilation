@@ -163,6 +163,40 @@ def render_body(rows, function: str, signature: str):
     return "\n".join(lines)
 
 
+def render_inline_leaf(rows, function: str):
+    """Render a safe inline block for a frameless relocation-free leaf."""
+    unsafe = []
+    for row in rows:
+        op = row["text"].split(" ", 1)[0]
+        if row["reloc"] or op in {"bl", "bla", "bctrl", "mflr", "mtlr"}:
+            unsafe.append(row)
+        elif re.search(r"\br1\b", row["text"]):
+            unsafe.append(row)
+    if unsafe:
+        details = ", ".join(f"0x{row['offset']:X}" for row in unsafe)
+        raise ValueError(
+            "inline-leaf requires a frameless call-free relocation-free body: "
+            + details
+        )
+    if not rows or rows[-1]["text"] != "blr":
+        raise ValueError("inline-leaf requires a final compiler-supplied blr")
+
+    offsets = {row["offset"] for row in rows}
+    branch_targets = {
+        target for row in rows
+        if (target := local_target(row["text"], function)) in offsets
+    }
+    labels = {offset: f"{function}_L{offset:04X}"
+              for offset in sorted(branch_targets)}
+    lines = ["    asm {"]
+    for row in rows[:-1]:
+        if row["offset"] in labels:
+            lines.append("    " + labels[row["offset"]] + ":")
+        lines.append("    " + format_instruction(row, labels, function))
+    lines.append("    }")
+    return "\n".join(lines)
+
+
 def find_definition(source: str, signature: str):
     """Return the exact [start, end) range of a C function definition."""
     for match in re.finditer(re.escape(signature), source):
@@ -223,6 +257,18 @@ def wrap_portable_definition(source: str, signature: str, asm_body: str):
     return source[:start] + replacement + source[end:]
 
 
+def wrap_portable_inline(source: str, signature: str, asm_block: str):
+    start, end = find_definition(source, signature)
+    definition = source[start:end]
+    brace = definition.find("{")
+    inner = definition[brace + 1:-1]
+    replacement = (
+        definition[:brace + 1] + "\n#ifdef __MWERKS__\n" + asm_block
+        + "\n#else" + inner + "\n#endif\n}"
+    )
+    return source[:start] + replacement + source[end:]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("unit", help="unit path without main/ or extension")
@@ -231,6 +277,10 @@ def main():
     parser.add_argument(
         "--apply", metavar="SOURCE",
         help="wrap this source definition in-place, preserving portable C",
+    )
+    parser.add_argument(
+        "--inline-leaf", action="store_true",
+        help="with --apply, use a guarded inline block for a safe leaf",
     )
     args = parser.parse_args()
 
@@ -241,7 +291,12 @@ def main():
     if args.apply:
         path = REPO / args.apply
         source = path.read_text()
-        path.write_text(wrap_portable_definition(source, signature, body))
+        if args.inline_leaf:
+            block = render_inline_leaf(rows, args.function)
+            source = wrap_portable_inline(source, signature, block)
+        else:
+            source = wrap_portable_definition(source, signature, body)
+        path.write_text(source)
     else:
         print(body)
 

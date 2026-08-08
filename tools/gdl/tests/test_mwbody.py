@@ -9,7 +9,9 @@ from mwbody import (
     format_instruction,
     format_signature,
     local_target,
+    render_inline_leaf,
     render_body,
+    wrap_portable_inline,
     wrap_portable_definition,
 )
 
@@ -80,6 +82,35 @@ class MwBodyTests(unittest.TestCase):
         }]
         with self.assertRaisesRegex(ValueError, "bare-immediate SDA21"):
             render_body(rows, "f", "void f(void)")
+
+    def test_inline_leaf_rejects_stack_and_relocations(self):
+        rows = [{"offset": 0, "text": "stwu r1,-16(r1)", "reloc": None}]
+        with self.assertRaisesRegex(ValueError, "inline-leaf"):
+            render_inline_leaf(rows, "f")
+
+    def test_inline_leaf_omits_compiler_supplied_return(self):
+        rows = [
+            {"offset": 0, "text": "li r3,1", "reloc": None},
+            {"offset": 4, "text": "blr", "reloc": None},
+        ]
+        self.assertNotIn("blr", render_inline_leaf(rows, "f"))
+        rows = [{
+            "offset": 0, "text": "lwz r3,0(0)",
+            "reloc": ("EMB_SDA21", "global"),
+        }]
+        with self.assertRaisesRegex(ValueError, "inline-leaf"):
+            render_inline_leaf(rows, "f")
+
+    def test_inline_wrap_keeps_normal_function_signature(self):
+        source = "void f(void)\n{\n    work();\n}\n"
+        result = wrap_portable_inline(
+            source, "void f(void)", "    asm {\n        blr\n    }",
+        )
+        self.assertEqual(
+            result,
+            "void f(void)\n{\n#ifdef __MWERKS__\n"
+            "    asm {\n        blr\n    }\n#else\n    work();\n\n#endif\n}\n",
+        )
 
 
 if __name__ == "__main__":
