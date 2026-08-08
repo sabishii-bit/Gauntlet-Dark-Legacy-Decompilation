@@ -36,6 +36,17 @@ class MwBodyTests(unittest.TestCase):
             "    lwz r5,mlmMemUsed(r0)",
         )
 
+    def test_floating_sda_relocation_uses_placeholder_base(self):
+        row = {
+            "offset": 0,
+            "text": "lfd f4,0(0)",
+            "reloc": ("EMB_SDA21", "lbl_80349190"),
+        }
+        self.assertEqual(
+            format_instruction(row, {}, "helper"),
+            "    lfd f4,lbl_80349190(r0)",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
