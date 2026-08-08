@@ -1329,6 +1329,72 @@ static s8  gNodeStackInit;         /* 0x803451c0 */
 static s32 gNodeStackDirty;        /* 0x80345190 */
 
 s32 MBPsysSetDebugNode(u32 node, s32 remove) {
+#ifdef __MWERKS__
+    asm {
+        lbz r0,gNodeStackInit(r0)
+        lis r5,gNodeState@ha
+        addi r7,r5,gNodeState@l
+        extsb. r0,r0
+        bne MBPsysSetDebugNode_L0024
+        li r5,0
+        li r0,1
+        stw r5,gNodeStackTop(r0)
+        stb r0,gNodeStackInit(r0)
+    MBPsysSetDebugNode_L0024:
+        cmplwi r3,0
+        beq MBPsysSetDebugNode_L00B4
+        cmpwi r4,0
+        beq MBPsysSetDebugNode_L0084
+        lwz r0,gNodeStackTop(r0)
+        li r4,0
+        li r9,0
+        cmpwi r0,0
+        mtctr r0
+        ble MBPsysSetDebugNode_L007C
+    MBPsysSetDebugNode_L004C:
+        add r8,r7,r4
+        slwi r0,r9,2
+        lwz r6,264(r8)
+        add r5,r7,r0
+        stw r6,264(r5)
+        lwz r0,264(r8)
+        cmplw r0,r3
+        bne MBPsysSetDebugNode_L0070
+        addi r9,r9,-1
+    MBPsysSetDebugNode_L0070:
+        addi r4,r4,4
+        addi r9,r9,1
+        bdnz MBPsysSetDebugNode_L004C
+    MBPsysSetDebugNode_L007C:
+        stw r9,gNodeStackTop(r0)
+        b MBPsysSetDebugNode_L00B4
+    MBPsysSetDebugNode_L0084:
+        lwz r5,gNodeStackTop(r0)
+        cmpwi r5,99
+        ble MBPsysSetDebugNode_L0098
+        stw r3,264(r7)
+        b MBPsysSetDebugNode_L00AC
+    MBPsysSetDebugNode_L0098:
+        addi r4,r5,1
+        slwi r0,r5,2
+        stw r4,gNodeStackTop(r0)
+        add r4,r7,r0
+        stw r3,264(r4)
+    MBPsysSetDebugNode_L00AC:
+        li r0,1
+        stw r0,gNodeStackDirty(r0)
+    MBPsysSetDebugNode_L00B4:
+        lwz r0,gNodeStackTop(r0)
+        cmpwi r0,0
+        ble MBPsysSetDebugNode_L00D0
+        slwi r0,r0,2
+        add r3,r7,r0
+        lwz r3,260(r3)
+        blr
+    MBPsysSetDebugNode_L00D0:
+        li r3,0
+    }
+#else
     NodeStackOverlay* base = &gNodeState;
 
     if (gNodeStackInit == 0) {
@@ -1372,6 +1438,8 @@ s32 MBPsysSetDebugNode(u32 node, s32 remove) {
         return base->stack[gNodeStackTop - 1];
     }
     return 0;
+
+#endif
 }
 
 /* ======================================================================= *
@@ -1782,6 +1850,94 @@ static void freePsys(MBObject* node) {
 /* 0x800D1404 - allocPsysMem: first-fit split allocator over the block pool.
  * Documented reconstruction (NonMatching). */
 static void* allocPsysMem(s32 size, s32 tag) {
+#ifdef __MWERKS__
+    asm {
+        lis r5,lbl_80128710@ha
+        addi r5,r5,lbl_80128710@l
+        cmpwi r3,0
+        addi r6,r5,36
+        ble allocPsysMem_L0020
+        lwz r0,8(r6)
+        cmpw r3,r0
+        ble allocPsysMem_L0028
+    allocPsysMem_L0020:
+        li r3,0
+        blr
+    allocPsysMem_L0028:
+        lwz r5,32(r6)
+        addi r0,r3,31
+        clrrwi r8,r0,4
+        addi r7,r5,0
+    allocPsysMem_L0038:
+        lwz r0,0(r7)
+        cmpw r0,r8
+        bge allocPsysMem_L0064
+        lwz r7,4(r7)
+        cmplwi r7,0
+        bne allocPsysMem_L0054
+        lwz r7,24(r6)
+    allocPsysMem_L0054:
+        cmplw r7,r5
+        bne allocPsysMem_L0038
+        li r3,0
+        blr
+    allocPsysMem_L0064:
+        stw r4,12(r7)
+        lwz r0,0(r7)
+        subf r0,r8,r0
+        cmplwi r0,304
+        ble allocPsysMem_L00D8
+        lwz r3,4(r7)
+        add r5,r7,r8
+        stw r5,4(r7)
+        cmplwi r3,0
+        stw r7,8(r5)
+        stw r3,4(r5)
+        beq allocPsysMem_L009C
+        stw r5,8(r3)
+        b allocPsysMem_L00A0
+    allocPsysMem_L009C:
+        stw r5,28(r6)
+    allocPsysMem_L00A0:
+        stw r5,32(r6)
+        neg r0,r8
+        addi r3,r7,16
+        lwz r4,0(r7)
+        subf r4,r8,r4
+        stw r4,0(r5)
+        stw r0,0(r7)
+        lwz r4,16(r6)
+        addi r0,r4,1
+        stw r0,16(r6)
+        lwz r0,8(r6)
+        subf r0,r8,r0
+        stw r0,8(r6)
+        blr
+    allocPsysMem_L00D8:
+        lwz r0,4(r7)
+        cmplwi r0,0
+        bne allocPsysMem_L00F0
+        lwz r0,24(r6)
+        stw r0,32(r6)
+        b allocPsysMem_L00F4
+    allocPsysMem_L00F0:
+        stw r0,32(r6)
+    allocPsysMem_L00F4:
+        lwz r5,0(r7)
+        addi r3,r7,16
+        neg r0,r5
+        stw r0,0(r7)
+        lwz r4,16(r6)
+        addi r0,r4,1
+        stw r0,16(r6)
+        lwz r4,12(r6)
+        addi r0,r4,-1
+        stw r0,12(r6)
+        lwz r0,8(r6)
+        subf r0,r5,r0
+        stw r0,8(r6)
+    }
+#else
     u32 need;
     PsysMemBlock* b;
     if (size <= 0 || size > gPoolTotal) {
@@ -1807,6 +1963,8 @@ static void* allocPsysMem(s32 size, s32 tag) {
         b = b->next ? b->next : gPoolBase;
     } while (b != gPoolFree);
     return NULL;
+
+#endif
 }
 
 /* 0x800D1530 - freePsysMem: return a block, coalescing neighbours.
