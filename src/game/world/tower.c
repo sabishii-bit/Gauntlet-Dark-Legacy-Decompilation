@@ -30,7 +30,7 @@
  */
 
 /* --- external subsystem callees (names already mapped elsewhere) --- */
-extern void* FindWORLDOBJ(int a, int b, int c);
+extern void* FindWORLDOBJ();
 extern int   ResolveWorldData(int a, int b);
 extern int   AtreeMatch(void* obj, char* name, int flag);
 extern void  CaptionText(void);
@@ -40,7 +40,7 @@ extern int   GetScrollText(int a, int b);
 extern int   GetStringText(int a, int b);
 extern int   GetStringListText(int a, int b);
 extern int   FindStringMessageListSub_8001FC4C(int a, char* list);
-extern void  InitCustomEffect(char* name);
+extern s32   InitCustomEffect();
 extern void  TriggerCameraEnd(void);
 extern void* FindLookoutParam(int a);
 extern int   AudioSoundPlaying(int a);
@@ -51,6 +51,16 @@ extern void  GetPlayerAvgPos(f32* avg, f32* bmax, f32* bmin, int mode);
 extern int   ClosestStartPos(f32* pos);
 extern void  HintMenu(void);
 extern f32   sMusicFadeBase;
+extern void  AtreeDelete(void* atree);
+extern void* MBRemoveNode(void* node, s32 recursive);
+extern void  EnablePlayerControls(void);
+extern void  GetWorldMat(f32* matrix, f32* out, void* unused);
+extern s32   StartFXSub(f32 scale, s32 effect, void* state, u32 flags, u32 mode);
+extern void  SfxSetParent(s32 effect, void* parent);
+extern u8*   fn_8005B558(s32 id);
+extern void  MBTreeSetAlpha(void* tree, s32 alpha, s32 recurse);
+extern void  MBTreeSetFlags(void* tree, s32 flags, s32 recurse);
+extern void  fn_8009C460(s32 id);
 
 extern s32 lbl_80343C10;
 extern double lbl_803485F8;   /* 0.0 */
@@ -66,7 +76,8 @@ extern f32  lbl_8028C2A8[];   /* garg-item "need items" message cooldown timers 
  * own symbol lbl_8028C2A8.) */
 typedef struct {
     f32   cooldown[8];         /* 0x00 crystal "need crystals" msg cooldowns */
-    u8    _pad20[0x4C - 0x20]; /* 0x20 */
+    u8    _pad20[0x0C];        /* 0x20 */
+    char  effectName[0x20];    /* 0x2C temporary SHARD/RUNE effect name */
     s32   levelUpLevel[4];     /* 0x4C per-player level-up scratch slots */
     void* wizAtree;            /* 0x5C WIZARD (level-up) atree instance */
     u8    _pad60[0xA4 - 0x60]; /* 0x60 */
@@ -160,6 +171,9 @@ extern s32 lbl_80124DA0[9];
 extern f32 lbl_80348588;
 extern f32 lbl_8034858C;
 extern f32 lbl_80348590;
+extern char lbl_803485C0;
+extern char lbl_803485D0;
+extern char lbl_803485D8;
 
 #define PLAYER_AT(player, offset, type) \
     (*(type*)((u8*)&gPlayers[(player)] + (offset)))
@@ -918,6 +932,109 @@ int SumnerDoSpeech(void) {
 /* End the current Sumner speech: stop the camera move, spawn the reward
  * effects and clean up caption/wizard state.  Internal. */
 void SumnerSpeechEnd(void) {
+    char* strings = lbl_80114D50;
+    TowerMsgState* state = &lbl_8028C288;
+    s32 effectState[6];
+    f32 world[12];
+    s32 speech;
+    u8* object;
+    s32 effect;
+
+    if ((u32)lbl_80344C64 != 0) {
+        AtreeDelete(&state->wizAtree);
+        lbl_80344C64 = (s32)MBRemoveNode((void*)lbl_80344C64, 1);
+    }
+    TriggerCameraEnd();
+    lbl_80344C74 = 0;
+    EnablePlayerControls();
+
+    speech = lbl_80344C6C;
+    if (speech == 112) {
+        object = (u8*)FindWORLDOBJ(strings + 164);
+        if (object != 0) {
+            GetWorldMat(*(f32**)(object + 40), world, 0);
+            effect = InitCustomEffect(0, &lbl_803485D8, 0, 0);
+            if (object != 0 && effect >= 0) {
+                effect = StartFXSub(lbl_80348588, effect, effectState,
+                                    0x80000, 0x800);
+                SfxSetParent(effect, gSceneRoot);
+            }
+            RuneCamActivate(1);
+            MBTreeSetAlpha(*(void**)(fn_8005B558(0x803) + 100), 0xFF, 1);
+            if (PlayerHasShard(-1, 0x1FFF) != 0) {
+                lbl_80344C7C = 30;
+            } else {
+                lbl_80344C7C = 32;
+            }
+        } else {
+            ErrorPrintf(strings + 176);
+        }
+    } else if (speech >= 100) {
+        speech -= 100;
+        if (speech <= 14 &&
+            (object = (u8*)FindWORLDOBJ(strings + 128)) != 0) {
+            if (speech < 13) {
+                GetWorldMat(*(f32**)(object + 40), world, 0);
+                sprintf(state->effectName, &lbl_803485D0, speech + 1);
+                effect = InitCustomEffect(0, state->effectName, 0, 0);
+                if (object != 0 && effect >= 0) {
+                    effect = StartFXSub(lbl_80348588, effect, effectState,
+                                        0x80000, 0x800);
+                    SfxSetParent(effect, gSceneRoot);
+                }
+                RuneCamActivate(0);
+                fn_8009C460(21);
+            }
+            if (PlayerHasRune(-1, 0x3FE) != 0 &&
+                PlayerHasShard(-1, 0xFFF) != 0) {
+                if (speech < 13) {
+                    lbl_80344C7C = 20;
+                } else if (PlayerHasRune(-1, 0x7FE) == 0) {
+                    lbl_80344C7C = 21;
+                } else {
+                    lbl_80344C7C = 0;
+                }
+            } else if (PlayerHasShard(-1, 0xFFF) != 0) {
+                lbl_80344C7C = 24;
+            } else {
+                lbl_80344C7C = 22;
+            }
+            if (lbl_80344C7C != 0) {
+                MBTreeSetAlpha(*(void**)(fn_8005B558(0x600) + 100),
+                               0xFF, 1);
+            }
+        } else if (speech < 13) {
+            ErrorPrintf(strings + 140);
+        }
+    } else if (speech >= 0) {
+        if (speech < 9 &&
+            (object = (u8*)FindWORLDOBJ(strings + 88)) != 0) {
+            GetWorldMat(*(f32**)(object + 40), world, 0);
+            sprintf(state->effectName, &lbl_803485C0, speech);
+            effect = InitCustomEffect(0, state->effectName, 0, 0);
+            if (object != 0 && effect >= 0) {
+                effect = StartFXSub(lbl_80348588, effect, effectState,
+                                    0x80000, 0x800);
+                SfxSetParent(effect, gSceneRoot);
+            }
+            WindowCamActivate(0);
+            object = (u8*)FindWORLDOBJ(strings + 44);
+            if (object != 0) {
+                MBTreeSetFlags(*(void**)(object + 40), 2, 0);
+            }
+            if (PlayerHasRune(-1, 0x1FE) != 0) {
+                MBTreeSetAlpha(*(void**)(fn_8005B558(0x500) + 100),
+                               0xFF, 1);
+                lbl_80344C7C = 10;
+                fn_8009C460(10);
+            } else {
+                lbl_80344C7C = 14;
+                fn_8009C460(14);
+            }
+        } else if (speech < 9) {
+            ErrorPrintf(strings + 104);
+        }
+    }
 }
 
 /* Scan players for a level-up (score/level fields 0x1EC0/0x1EDC); if any
