@@ -129,6 +129,53 @@ void serve_io(void)
 /* WAD directory lookup: {count@+4, entries@+8}, entry = {key,ofs,size,pad} */
 int MBGetFromWad(int* wad, int key, int* sizeOut)
 {
+#ifdef __MWERKS__
+    asm {
+        cmplwi r3, 0
+        li r6, 0
+        beq mb_wad_done
+        bne mb_wad_search
+        li r7, 0
+        b mb_wad_assign
+    mb_wad_search:
+        lwz r0, 4(r3)
+        li r6, 0
+        cmplwi r0, 0
+        mtctr r0
+        ble mb_wad_not_found
+    mb_wad_loop:
+        lwz r0, 8(r3)
+        add r7, r0, r6
+        lwz r0, 0(r7)
+        cmplw r4, r0
+        bne mb_wad_next
+        b mb_wad_assign
+    mb_wad_next:
+        addi r6, r6, 16
+        bdnz mb_wad_loop
+    mb_wad_not_found:
+        li r7, 0
+    mb_wad_assign:
+        mr r6, r7
+    mb_wad_done:
+        cmplwi r6, 0
+        bne mb_wad_found
+        cmplwi r5, 0
+        beq mb_wad_return_null
+        li r0, 0
+        stw r0, 0(r5)
+    mb_wad_return_null:
+        li r3, 0
+        blr
+    mb_wad_found:
+        cmplwi r5, 0
+        beq mb_wad_return_offset
+        lwz r0, 8(r6)
+        stw r0, 0(r5)
+    mb_wad_return_offset:
+        lwz r3, 4(r6)
+    }
+#else
     int* result;
     int offset;
     int* entry;
@@ -170,6 +217,7 @@ done:
         *sizeOut = result[2];
     }
     return result[1];
+#endif
 }
 
 /* byte-swap a just-loaded WAD directory in place */
