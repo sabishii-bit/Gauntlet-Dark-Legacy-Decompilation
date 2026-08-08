@@ -398,7 +398,7 @@ extern void MBWorldToScreen(f32* out, f32* pos);
 /* text */
 extern s32 DrawNormalText(f32 scale, char* text, s32 font);
 extern void DrawTextKeepScale(f32 scale, s32 x, s32 y, s32 font, u32 rgb, char* text);
-extern s32 DrawText(f32 scale, s32 x, s32 y, s32 font, u32 rgb, char* fmt, ...);
+extern s32 DrawText(s32 x, s32 y, s32 font, u32 rgb, char* fmt, ...);
 extern void dbgTextPrintfCol(s32 x, s32 line, char* fmt, ...);
 
 /* scene nodes */
@@ -871,7 +871,7 @@ static void write_health_and_items(s32 i) {
             }
             sprintf(buf, "%d", (s32)p->health);
             w = DrawNormalText(1.0f, buf, 4);
-            DrawText(1.0f, (lbl_80120238[i] + 0x74) - w, 0x167, 4,
+            DrawText((lbl_80120238[i] + 0x74) - w, 0x167, 4,
                      lbl_801201C8[p->class_id], buf);
             mbBlitInit3414(frame_blit[i][5], 0);
         }
@@ -899,7 +899,7 @@ static void write_health_and_items(s32 i) {
                 if (lbl_802575B0 == 1) {
                     debug_player_pos(i);
                 } else {
-                    DrawText(1.0f, lbl_80120238[i] + 8, 0x154, 1, 0xFFFFFF, "XP: %d",
+                    DrawText(lbl_80120238[i] + 8, 0x154, 1, 0xFFFFFF, "XP: %d",
                              p->exp);
                 }
             }
@@ -911,7 +911,7 @@ static void write_health_and_items(s32 i) {
         }
         if (lbl_80344A28 != 0 || !hidden) {
             sprintf(buf2, "LV %d", p->level);
-            DrawText(1.0f, -lbl_80120240[i], 0x146, 1, 0xFFFFFF, buf2);
+            DrawText(-lbl_80120240[i], 0x146, 1, 0xFFFFFF, buf2);
         }
     }
 tail:
@@ -976,39 +976,39 @@ static void debug_player_pos(s32 i) {
         }
         oldflags = MBSetFontFlags(0x40000);
         y = 330.0f;
-        DrawText(1.0f, lbl_80120238[i] + 8, (s32)y, 1, 0xFFFFFF, name);
+        DrawText(lbl_80120238[i] + 8, (s32)y, 1, 0xFFFFFF, name);
         y += 10.0f;
         sprintf(tbuf, "%.1Lf %.1Lf %.1Lf", P(i)->pos[0], P(i)->pos[1],
                 P(i)->pos[2]);
-        DrawText(1.0f, lbl_80120238[i] + 8, (s32)y, 1, 0xFFFFFF, tbuf);
+        DrawText(lbl_80120238[i] + 8, (s32)y, 1, 0xFFFFFF, tbuf);
         y += 10.0f;
         MBWorldToScreen(ang, P(i)->pos);
         sprintf(tbuf, "%.0Lf %.0Lf", ang[0], ang[1]);
-        DrawText(1.0f, lbl_80120238[i] + 8, (s32)y, 1, 0xFFFFFF, tbuf);
+        DrawText(lbl_80120238[i] + 8, (s32)y, 1, 0xFFFFFF, tbuf);
         MBSetFontFlags(oldflags);
     }
 }
 
 /* Gold counter, right-aligned, 99999 cap. */
 static void write_gold(s32 i, s32 show) {
-    void** blit = &frame_blit[i][4];
-    char buf[20];
     s32 w;
-    Player* p;
+    s32 x;
+    Player* p = P(i);
+    char buf[12];
 
-    if (*blit != NULL) {
-        p = P(i);
+    if (frame_blit[i][4] != NULL) {
         if (p->gold > 99999) {
             p->gold = 99999;
         }
         if (show != 0) {
             sprintf(buf, "%d", p->gold);
             w = DrawNormalText(1.0f, buf, 4);
-            DrawText(1.0f, (lbl_80120238[i] + 0x3C) - w, 0x167, 4,
+            x = (lbl_80120238[i] + 0x3C) - w;
+            DrawText(x, 0x167, 4,
                      lbl_801201C8[p->class_id], buf);
-            mbBlitInit3414(*blit, 0);
+            mbBlitInit3414(frame_blit[i][4], 0);
         } else {
-            mbBlitInit3414(*blit, 1);
+            mbBlitInit3414(frame_blit[i][4], 1);
         }
     }
 }
