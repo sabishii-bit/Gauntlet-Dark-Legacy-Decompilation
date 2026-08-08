@@ -769,8 +769,8 @@ void MulMat4Scale(f32* lhs, f32* rhs, f32* out, f32* scale)
     scale[3] = 0.0f;
 
     s = scale[0];
-    b0 = rhs[1] * s;
     b1 = rhs[0] * s;
+    b0 = rhs[1] * s;
     a4 = lhs[4];
     a5 = lhs[5];
     b2 = rhs[2] * s;
@@ -786,23 +786,23 @@ void MulMat4Scale(f32* lhs, f32* rhs, f32* out, f32* scale)
     out[2] = b1 * a2 + b0 * a6 + b2 * a10;
 
     s = scale[1];
-    b0 = rhs[5] * s;
     b1 = rhs[4] * s;
+    b0 = rhs[5] * s;
     b2 = rhs[6] * s;
     out[4] = b1 * a0 + b0 * a4 + b2 * a8;
     out[5] = b1 * a1 + b0 * a5 + b2 * a9;
     out[6] = b1 * a2 + b0 * a6 + b2 * a10;
 
     s = scale[2];
-    b0 = rhs[9] * s;
     b1 = rhs[8] * s;
+    b0 = rhs[9] * s;
     b2 = rhs[10] * s;
     out[8] = b1 * a0 + b0 * a4 + b2 * a8;
     out[9] = b1 * a1 + b0 * a5 + b2 * a9;
     out[10] = b1 * a2 + b0 * a6 + b2 * a10;
 
-    b0 = rhs[13];
     b1 = rhs[12];
+    b0 = rhs[13];
     b2 = rhs[14];
     out[12] = b1 * a0 + b0 * a4 + b2 * a8 + lhs[12];
     out[13] = b1 * a1 + b0 * a5 + b2 * a9 + lhs[13];
