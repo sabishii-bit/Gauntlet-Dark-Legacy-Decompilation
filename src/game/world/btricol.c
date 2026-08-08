@@ -29,9 +29,14 @@ typedef struct ColFrame {
 
 /* Read-only collision-query line, owned elsewhere (.bss 0x8023F7E8). */
 extern f32 gColQueryLine[8]; /* [0..2] = p0, [4..6] = p1 */
+extern const f64 lbl_80345D40;
 extern const f64 lbl_80345D80;
 extern const f64 lbl_80345D88;
 extern const f32 lbl_80345D90;
+extern const f64 lbl_80345D98;
+extern const f64 lbl_80345DA0;
+extern const f64 lbl_80345DA8;
+extern f64 __frsqrte(f64 value);
 
 /* PSVEC-style helpers in the g3d math library. */
 extern f32  fqdist(f32 a, f32 b, f32 c, f32 d, f32 e, f32 f);
@@ -151,13 +156,37 @@ static void WorldVectorNorm(Vec* out, f32 x, f32 y, f32 z, f32 c,
 /* the closest point to *out.  Uses the PPC frsqrte + Newton-Raphson   */
 /* reciprocal-square-root idiom for the segment length.                */
 /* ------------------------------------------------------------------ */
+#pragma opt_propagation off
 static f32 PointLineDist2D(Vec* p0, Vec* p1, Vec* dir, Vec* out) {
-    f32 len2 = dir->x * dir->x + dir->z * dir->z;
-    f32 len = 0.0f;
-    if (len2 > 0.0f) {
-        len = (f32)__builtin_sqrtf(len2);
+    u8 unused[40];
+    struct {
+        f32 pad;
+        volatile f32 result;
+    } sqrtLocal;
+    register f32 length;
+    f64 guess;
+    f32 inverse;
+    f32 nx;
+    f32 ny;
+    f32 nz;
+    f32 distance;
+
+    length = dir->x * dir->x + dir->z * dir->z;
+    if (length > 0.0f) {
+        guess = __frsqrte((f64)length);
+
+        guess = lbl_80345D98 * guess *
+                (lbl_80345DA0 - length * guess * guess);
+        guess = lbl_80345D98 * guess *
+                (lbl_80345DA0 - length * guess * guess);
+        guess = lbl_80345D98 * guess *
+                (lbl_80345DA0 - length * guess * guess);
+        sqrtLocal.result = (f32)(length *
+                                 (lbl_80345D98 * guess *
+                                  (lbl_80345DA0 - length * guess * guess)));
+        length = sqrtLocal.result;
     }
-    if (len == 0.0f) {
+    if ((f64)length == lbl_80345D40) {
         f32 dx = p1->x - p0->x;
         f32 dz = p1->z - p0->z;
         out->x = p1->x;
@@ -165,18 +194,33 @@ static f32 PointLineDist2D(Vec* p0, Vec* p1, Vec* dir, Vec* out) {
         out->z = p1->z;
         return dx * dx + dz * dz;
     }
-    {
-        f32 inv = 1.0f / len;
-        f32 nx = dir->x * inv;
-        f32 nz = dir->z * inv;
-        f32 t = (p0->x - p1->x) * nx + (p0->z - p1->z) * nz;
-        if (t < 0.0f) {
-            out->x = p1->x;
-            out->y = p1->y;
-        }
+
+    inverse = (f32)(lbl_80345DA8 / (f64)length);
+    nx = dir->x * inverse;
+    ny = dir->y * inverse;
+    nz = dir->z * inverse;
+    distance = (p0->x - p1->x) * nx + (p0->z - p1->z) * nz;
+    if (distance < 0.0f) {
+        out->x = p1->x;
+        out->y = p1->y;
+        out->z = p1->z;
+    } else if (distance >= length) {
+        out->x = p1->x + dir->x;
+        out->y = p1->y + dir->y;
+        out->z = p1->z + dir->z;
+    } else {
+        out->x = nx * distance + p1->x;
+        out->y = ny * distance + p1->y;
+        out->z = nz * distance + p1->z;
     }
-    return len;
+
+    {
+        f32 dx = p0->x - out->x;
+        f32 dz = p0->z - out->z;
+        return dx * dx + dz * dz;
+    }
 }
+#pragma opt_propagation reset
 
 /* ------------------------------------------------------------------ */
 /* Shortest distance between two 3D line segments; closest points are  */
