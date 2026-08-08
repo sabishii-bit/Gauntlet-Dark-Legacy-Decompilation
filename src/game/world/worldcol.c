@@ -206,6 +206,135 @@ u32 WeaponWallCollide(f32 radius, void* from, void* to, f32* normal) {
  * remaining motion is too shallow, in which case the axis is zeroed. */
 u32 SlideAlongWall(f32 radius, f32* pos, f32* vel, f32* wallpt, f32* normal)
 {
+#ifdef __MWERKS__
+    asm {
+        lfs f2,8(r3)
+        lfs f6,8(r4)
+        lfd f0,lbl_80345730(r0)
+        fadds f3,f2,f6
+        lfs f2,8(r5)
+        lfs f4,0(r3)
+        fcmpo cr0,f6,f0
+        lfs f7,0(r4)
+        fadds f5,f4,f7
+        lfs f4,0(r5)
+        fsubs f2,f3,f2
+        lfs f0,8(r6)
+        lfs f8,0(r6)
+        fsubs f3,f5,f4
+        fmuls f0,f2,f0
+        fmadds f0,f3,f8,f0
+        fsubs f4,f0,f1
+        bge SlideAlongWall_L004C
+        fneg f6,f6
+    SlideAlongWall_L004C:
+        lfd f0,lbl_80345730(r0)
+        fcmpo cr0,f7,f0
+        bge SlideAlongWall_L0060
+        fneg f0,f7
+        b SlideAlongWall_L0064
+    SlideAlongWall_L0060:
+        fmr f0,f7
+    SlideAlongWall_L0064:
+        fcmpo cr0,f0,f6
+        bge SlideAlongWall_L0074
+        li r0,1
+        b SlideAlongWall_L0078
+    SlideAlongWall_L0074:
+        li r0,0
+    SlideAlongWall_L0078:
+        lfs f0,lbl_8034572C(r0)
+        fcmpo cr0,f4,f0
+        bge SlideAlongWall_L01A4
+        cmpwi r0,0
+        fmuls f3,f8,f4
+        li r3,1
+        bne SlideAlongWall_L00B8
+        fcmpo cr0,f7,f0
+        ble SlideAlongWall_L00A4
+        fcmpo cr0,f3,f0
+        bgt SlideAlongWall_L00B8
+    SlideAlongWall_L00A4:
+        lfs f0,lbl_8034572C(r0)
+        fcmpo cr0,f7,f0
+        bge SlideAlongWall_L010C
+        fcmpo cr0,f3,f0
+        bge SlideAlongWall_L010C
+    SlideAlongWall_L00B8:
+        lfd f0,lbl_80345730(r0)
+        fcmpo cr0,f7,f0
+        bge SlideAlongWall_L00C8
+        fneg f7,f7
+    SlideAlongWall_L00C8:
+        lfd f0,lbl_80345730(r0)
+        fcmpo cr0,f3,f0
+        bge SlideAlongWall_L00DC
+        fneg f2,f3
+        b SlideAlongWall_L00E0
+    SlideAlongWall_L00DC:
+        fmr f2,f3
+    SlideAlongWall_L00E0:
+        lfd f0,lbl_80345738(r0)
+        fmadd f0,f0,f1,f7
+        fcmpo cr0,f2,f0
+        bge SlideAlongWall_L0100
+        lfs f0,0(r4)
+        fsubs f0,f0,f3
+        stfs f0,0(r4)
+        b SlideAlongWall_L010C
+    SlideAlongWall_L0100:
+        lfs f0,lbl_8034572C(r0)
+        li r3,-1
+        stfs f0,0(r4)
+    SlideAlongWall_L010C:
+        lfs f0,8(r6)
+        cmpwi r0,0
+        fmuls f4,f0,f4
+        beq SlideAlongWall_L0148
+        lfs f2,8(r4)
+        lfs f0,lbl_8034572C(r0)
+        fcmpo cr0,f2,f0
+        ble SlideAlongWall_L0134
+        fcmpo cr0,f4,f0
+        bgt SlideAlongWall_L0148
+    SlideAlongWall_L0134:
+        lfs f0,lbl_8034572C(r0)
+        fcmpo cr0,f2,f0
+        bgelr
+        fcmpo cr0,f4,f0
+        bgelr
+    SlideAlongWall_L0148:
+        lfs f3,8(r4)
+        lfd f0,lbl_80345730(r0)
+        fcmpo cr0,f3,f0
+        bge SlideAlongWall_L015C
+        fneg f3,f3
+    SlideAlongWall_L015C:
+        lfd f0,lbl_80345730(r0)
+        fcmpo cr0,f4,f0
+        bge SlideAlongWall_L0170
+        fneg f2,f4
+        b SlideAlongWall_L0174
+    SlideAlongWall_L0170:
+        fmr f2,f4
+    SlideAlongWall_L0174:
+        lfd f0,lbl_80345738(r0)
+        fmadd f0,f0,f1,f3
+        fcmpo cr0,f2,f0
+        bge SlideAlongWall_L0194
+        lfs f0,8(r4)
+        fsubs f0,f0,f4
+        stfs f0,8(r4)
+        blr
+    SlideAlongWall_L0194:
+        lfs f0,lbl_8034572C(r0)
+        li r3,-1
+        stfs f0,8(r4)
+        blr
+    SlideAlongWall_L01A4:
+        li r3,0
+    }
+#else
     u32 result;
     f64 vz = (f64)vel[2];
     f64 vx = (f64)vel[0];
@@ -279,6 +408,8 @@ u32 SlideAlongWall(f32 radius, f32* pos, f32* vel, f32* wallpt, f32* normal)
     }
     vel[2] = lbl_8034572C;
     return 0xFFFFFFFF;
+
+#endif
 }
 
 u32 EnemyWallCollide(f32 radius, void* from, void* to, f32* normal) {
