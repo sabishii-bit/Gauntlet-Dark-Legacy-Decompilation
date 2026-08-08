@@ -492,56 +492,6 @@ int sndFxPlay3D(int soundId, Vec3* pos, int p2, int flags)
 /* sndFxInitVoices: (re)initialise voice, channel and track tables. */
 void sndFxInitVoices(void)
 {
-#ifdef __MWERKS__
-    asm {
-        li r0,12
-        lis r4,sAudioState@ha
-        mtctr r0
-        li r3,0
-        addi r0,r3,0
-        addi r5,r4,sAudioState@l
-    sndFxInitVoices_L0018:
-        add r4,r5,r3
-        stw r0,2860(r4)
-        addi r3,r3,20
-        bdnz sndFxInitVoices_L0018
-        li r0,32
-        mtctr r0
-        li r0,0
-        li r3,0
-    sndFxInitVoices_L0038:
-        add r4,r5,r3
-        stw r0,1324(r4)
-        addi r3,r3,48
-        bdnz sndFxInitVoices_L0038
-        li r0,4
-        mtctr r0
-        li r3,0
-        li r0,-1
-    sndFxInitVoices_L0058:
-        add r4,r5,r3
-        stw r0,1176(r4)
-        addi r3,r3,36
-        bdnz sndFxInitVoices_L0058
-        li r0,12
-        mtctr r0
-        addi r5,r5,24
-        li r4,0
-        li r3,-1
-        li r0,127
-    sndFxInitVoices_L0080:
-        stw r3,0(r5)
-        stw r3,4(r5)
-        stw r4,8(r5)
-        stw r4,12(r5)
-        stw r4,16(r5)
-        stw r0,20(r5)
-        stw r4,24(r5)
-        stw r3,28(r5)
-        addi r5,r5,32
-        bdnz sndFxInitVoices_L0080
-    }
-#else
     SndFxState* st = (SndFxState*)sAudioState;
     SndFxChan* c;
     int i;
@@ -567,8 +517,6 @@ void sndFxInitVoices(void)
         c->f1C = -1;
         c++;
     }
-
-#endif
 }
 
 /* sndFxStartVoice: core voice start.  Looks up the bank/sound, allocates a free

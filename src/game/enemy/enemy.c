@@ -4525,93 +4525,8 @@ extern s32 lbl_803447DC;      /* generators-disabled flag */
 extern s32 lbl_8034472C;      /* random-type rotation counter */
 extern u8 lbl_8011AF48[];     /* enemy.c .data anchor (type tables at +4284..) */
 extern u32 jumptable_8011C25C[];
-extern const f64 lbl_803469B8;
-extern void _savefpr_30(void);
-extern void _restfpr_30(void);
 
 /* Accelerate an enemy along an angle, caching the trig pair between calls. */
-#ifdef __MWERKS__
-asm void set_enemy_trans(Enemy* enemy, f32 speed, f32 angle)
-{
-    nofralloc
-    mflr r0
-    stw r0, 4(r1)
-    stwu r1, -48(r1)
-    addi r11, r1, 48
-    bl _savefpr_30
-    stw r31, 28(r1)
-    mr r31, r3
-    lwz r0, gBossType(r0)
-    lwz r3, 0(r3)
-    fmr f30, f1
-    fmr f31, f2
-    cmpw r3, r0
-    beq set_enemy_trans_done
-    lwz r0, 204(r31)
-    cmpwi r0, 1
-    beq set_enemy_trans_done
-    lfd f0, lbl_803469B8(r0)
-    fcmpo cr0, f30, f0
-    cror eq, gt, eq
-    bne set_enemy_trans_walk
-    li r4, 4
-    b set_enemy_trans_request
-set_enemy_trans_walk:
-    li r4, 3
-set_enemy_trans_request:
-    mr r3, r31
-    bl RequestEnemyAction
-    lwz r3, 204(r31)
-    cmpwi r3, 3
-    beq set_enemy_trans_apply
-    cmpwi r3, 4
-    beq set_enemy_trans_apply
-    addi r0, r3, -22
-    cmplwi r0, 1
-    ble set_enemy_trans_apply
-    lwz r0, 644(r31)
-    cmpwi r0, 0
-    blt set_enemy_trans_done
-set_enemy_trans_apply:
-    lfs f0, 780(r31)
-    fcmpu cr0, f0, f31
-    beq set_enemy_trans_cached
-    fmr f1, f31
-    bl sin
-    stfs f1, 772(r31)
-    fmr f1, f31
-    bl cos
-    stfs f1, 776(r31)
-    stfs f31, 780(r31)
-set_enemy_trans_cached:
-    lwz r4, 0(r31)
-    lis r3, lbl_80250E40@ha
-    addi r0, r3, lbl_80250E40@l
-    lfs f0, 772(r31)
-    slwi r3, r4, 2
-    add r3, r0, r3
-    lfs f1, 528(r31)
-    lfs f3, 0(r3)
-    lfs f2, 776(r31)
-    fmuls f0, f0, f3
-    fmuls f2, f2, f3
-    fmuls f0, f30, f0
-    fmuls f2, f30, f2
-    fadds f0, f1, f0
-    stfs f0, 528(r31)
-    lfs f0, 536(r31)
-    fadds f0, f0, f2
-    stfs f0, 536(r31)
-set_enemy_trans_done:
-    lwz r0, 52(r1)
-    addi r11, r1, 48
-    bl _restfpr_30
-    lwz r31, 28(r1)
-    mtlr r0
-    addi r1, r1, 48
-    blr
-}
-#else
 void set_enemy_trans(Enemy* enemy, f32 speed, f32 angle)
 {
     if (enemy->type != gBossType && enemy->action != 1) {
@@ -4645,13 +4560,6 @@ void set_enemy_trans(Enemy* enemy, f32 speed, f32 angle)
         }
     }
 }
-#endif
-
-#ifdef __MWERKS__
-#pragma optimization_level 4
-#pragma peephole on
-#pragma scheduling on
-#endif
 
 /* Resolve the generator/spew class shared by groups of enemy types. */
 s32 fn_8004F87C(s32 type, s32 level, s32 spew)

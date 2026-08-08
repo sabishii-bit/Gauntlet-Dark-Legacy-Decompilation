@@ -1,9 +1,5 @@
 #include "types.h"
 
-extern const f64 lbl_80345A28;
-extern const f32 lbl_80345A40;
-extern const f64 lbl_80345A48;
-
 /*
  * game/ui/auxscreen.c -- the "aux screen" TU: the between-level map screen,
  * the pre-rendered game movies (victory / garm), on-screen caption text and
@@ -355,69 +351,6 @@ have_target:
 /* ================================================================== */
 void calc_wizard_pos(f32* out)
 {
-#ifdef __MWERKS__
-    asm {
-        lis r4,gBossPos@ha
-        lfs f4,lbl_80345A40(r0)
-        addi r5,r4,gBossPos@l
-        lfs f0,0(r5)
-        li r0,4
-        lis r4,gPlayers@ha
-        mtctr r0
-        stfs f0,0(r3)
-        addi r0,r4,gPlayers@l
-        lfs f0,4(r5)
-        li r4,0
-        stfs f0,4(r3)
-        lfs f0,8(r5)
-        stfs f0,8(r3)
-        lfd f2,lbl_80345A28(r0)
-        lfd f1,lbl_80345A48(r0)
-    calc_wizard_pos_L0040:
-        add r6,r0,r4
-        lwz r5,232(r6)
-        cmpwi r5,1
-        beq calc_wizard_pos_L0058
-        cmpwi r5,8
-        bne calc_wizard_pos_L00AC
-    calc_wizard_pos_L0058:
-        lfs f3,0(r3)
-        addi r5,r6,72
-        lfs f0,68(r6)
-        fcmpu cr0,f2,f4
-        fadds f0,f3,f0
-        stfs f0,0(r3)
-        lfs f3,4(r3)
-        lfs f0,72(r6)
-        fadds f0,f3,f0
-        stfs f0,4(r3)
-        lfs f3,8(r3)
-        lfs f0,76(r6)
-        fadds f0,f3,f0
-        stfs f0,8(r3)
-        bne calc_wizard_pos_L00A4
-        lfs f0,0(r5)
-        fmul f0,f1,f0
-        frsp f0,f0
-        stfs f0,4(r3)
-    calc_wizard_pos_L00A4:
-        fadd f4,f4,f2
-        frsp f4,f4
-    calc_wizard_pos_L00AC:
-        addi r4,r4,13148
-        bdnz calc_wizard_pos_L0040
-        li r0,3
-        mtctr r0
-        li r4,0
-    calc_wizard_pos_L00C0:
-        add r5,r3,r4
-        lfs f0,0(r5)
-        addi r4,r4,4
-        fdivs f0,f0,f4
-        stfs f0,0(r5)
-        bdnz calc_wizard_pos_L00C0
-    }
-#else
     u8* arr = gPlayers;
     f32 count = 1.0f;
     s32 i;
@@ -442,8 +375,6 @@ void calc_wizard_pos(f32* out)
     out[0] = out[0] / count;
     out[1] = out[1] / count;
     out[2] = out[2] / count;
-
-#endif
 }
 
 /* ================================================================== */
