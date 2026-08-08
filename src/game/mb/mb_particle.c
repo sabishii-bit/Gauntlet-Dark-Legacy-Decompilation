@@ -112,8 +112,6 @@ static void getPPosLinear(Psys* p, f32* out, f32* dir, f32* org, f32 t);
 static void getPPosSpeed(Psys* p, f32* out, f32* dir, f32* org, f32 t);
 static void getPPosGrav(Psys* p, f32* out, f32* dir, f32* org, f32 t);
 static void getPPosSpeedGrav(Psys* p, f32* out, f32* dir, f32* org, f32 t);
-extern void _savefpr_30(void);
-extern void _restfpr_30(void);
 static s32  getNewPosRectShare(Psys* p, MBObject* node, s32 z);
 static s32  getNewPosRectUnique(Psys* p, MBObject* node, s32 z);
 static s32  getNewPosFrame(Psys* p, MBObject* node);
@@ -129,9 +127,6 @@ static void getOrthoVecs(f32* a, f32* b, f32* dir);
 static void getCurrentDir(Psys* p, MBObject* node, f32* out);
 extern const f64 lbl_803491C8;
 extern const f64 lbl_803491D0;
-extern const f64 lbl_80349190;
-extern const f64 lbl_803491A0;
-extern const f64 lbl_803491B8;
 extern const f32 lbl_803491D8;
 extern const f32 lbl_803491DC;
 extern const f32 lbl_803491E0;
@@ -207,121 +202,6 @@ static void randRectPos(Psys* p, MBObject* node, f32* slot) {
 /* 0x800CCE8C - cycling (shared) rect position */
 #pragma opt_lifetimes on
 #pragma opt_propagation off
-#ifdef __MWERKS__
-static asm s32 getNewPosRectShare(Psys* p, MBObject* node, s32 z)
-{
-    nofralloc
-    mflr r0
-    stw r0, 4(r1)
-    stwu r1, -96(r1)
-    addi r11, r1, 96
-    bl _savefpr_30
-    stmw r27, 60(r1)
-    lhz r29, 32(r3)
-    mr r27, r3
-    lhz r0, 34(r3)
-    mr r28, r4
-    lhz r3, 50(r3)
-    cmpw r29, r0
-    bne rect_share_advance
-    li r29, -1
-    b rect_share_index_done
-rect_share_advance:
-    cmpwi r29, 0
-    bne rect_share_decrement
-    addi r0, r3, -1
-    sth r0, 32(r27)
-    b rect_share_index_done
-rect_share_decrement:
-    addi r0, r29, -1
-    sth r0, 32(r27)
-rect_share_index_done:
-    cmpwi r29, 0
-    bge rect_share_generate
-    mr r3, r29
-    b rect_share_done
-rect_share_generate:
-    mulli r0, r29, 12
-    lwz r3, 16(r27)
-    add r30, r3, r0
-    bl pbRand
-    clrlwi r0, r3, 17
-    lfd f4, lbl_80349190(r0)
-    stw r0, 52(r1)
-    lis r31, 17200
-    lfd f2, lbl_803491B8(r0)
-    stw r31, 48(r1)
-    lfd f1, lbl_803491A0(r0)
-    lfd f3, 48(r1)
-    lfs f0, 80(r27)
-    fsubs f3, f3, f4
-    fmsub f1, f2, f3, f1
-    fmul f30, f0, f1
-    frsp f30, f30
-    bl pbRand
-    clrlwi r0, r3, 17
-    lfd f4, lbl_80349190(r0)
-    stw r0, 44(r1)
-    lfd f2, lbl_803491B8(r0)
-    stw r31, 40(r1)
-    lfd f1, lbl_803491A0(r0)
-    lfd f3, 40(r1)
-    lfs f0, 84(r27)
-    fsubs f3, f3, f4
-    fmsub f1, f2, f3, f1
-    fmul f31, f0, f1
-    frsp f31, f31
-    bl pbRand
-    clrlwi r0, r3, 17
-    lfs f0, 16(r28)
-    stw r0, 36(r1)
-    mr r3, r29
-    lfd f3, lbl_80349190(r0)
-    fmuls f0, f31, f0
-    stw r31, 32(r1)
-    lfs f1, 0(r28)
-    lfd f2, 32(r1)
-    lfd f4, lbl_803491B8(r0)
-    fmadds f0, f30, f1, f0
-    fsubs f5, f2, f3
-    lfd f2, lbl_803491A0(r0)
-    lfs f3, 88(r27)
-    lfs f1, 32(r28)
-    fmsub f4, f4, f5, f2
-    lfs f2, 48(r28)
-    fmul f4, f3, f4
-    frsp f4, f4
-    fmadds f0, f4, f1, f0
-    fadds f0, f2, f0
-    stfs f0, 0(r30)
-    lfs f0, 20(r28)
-    lfs f1, 4(r28)
-    fmuls f0, f31, f0
-    lfs f2, 36(r28)
-    lfs f3, 52(r28)
-    fmadds f0, f30, f1, f0
-    fmadds f0, f4, f2, f0
-    fadds f0, f3, f0
-    stfs f0, 4(r30)
-    lfs f0, 24(r28)
-    lfs f1, 8(r28)
-    fmuls f0, f31, f0
-    lfs f2, 40(r28)
-    lfs f3, 56(r28)
-    fmadds f0, f30, f1, f0
-    fmadds f0, f4, f2, f0
-    fadds f0, f3, f0
-    stfs f0, 8(r30)
-rect_share_done:
-    lwz r0, 100(r1)
-    addi r11, r1, 96
-    bl _restfpr_30
-    lmw r27, 60(r1)
-    mtlr r0
-    addi r1, r1, 96
-    blr
-}
-#else
 static s32 getNewPosRectShare(Psys* p, MBObject* node, s32 z) {
     u8 unused[8];
     f32 ry, rx, rz;
@@ -363,15 +243,8 @@ static s32 getNewPosRectShare(Psys* p, MBObject* node, s32 z) {
               rz * obj->mat[2][2] + obj->mat[3][2];
     return idx;
 }
-#endif
 #pragma opt_lifetimes reset
 #pragma opt_propagation reset
-
-#ifdef __MWERKS__
-#pragma optimization_level 4
-#pragma peephole on
-#pragma scheduling on
-#endif
 
 /* 0x800CD02C - unique (free-slot) rect position */
 #pragma opt_lifetimes on
@@ -1329,72 +1202,6 @@ static s8  gNodeStackInit;         /* 0x803451c0 */
 static s32 gNodeStackDirty;        /* 0x80345190 */
 
 s32 MBPsysSetDebugNode(u32 node, s32 remove) {
-#ifdef __MWERKS__
-    asm {
-        lbz r0,gNodeStackInit(r0)
-        lis r5,gNodeState@ha
-        addi r7,r5,gNodeState@l
-        extsb. r0,r0
-        bne MBPsysSetDebugNode_L0024
-        li r5,0
-        li r0,1
-        stw r5,gNodeStackTop(r0)
-        stb r0,gNodeStackInit(r0)
-    MBPsysSetDebugNode_L0024:
-        cmplwi r3,0
-        beq MBPsysSetDebugNode_L00B4
-        cmpwi r4,0
-        beq MBPsysSetDebugNode_L0084
-        lwz r0,gNodeStackTop(r0)
-        li r4,0
-        li r9,0
-        cmpwi r0,0
-        mtctr r0
-        ble MBPsysSetDebugNode_L007C
-    MBPsysSetDebugNode_L004C:
-        add r8,r7,r4
-        slwi r0,r9,2
-        lwz r6,264(r8)
-        add r5,r7,r0
-        stw r6,264(r5)
-        lwz r0,264(r8)
-        cmplw r0,r3
-        bne MBPsysSetDebugNode_L0070
-        addi r9,r9,-1
-    MBPsysSetDebugNode_L0070:
-        addi r4,r4,4
-        addi r9,r9,1
-        bdnz MBPsysSetDebugNode_L004C
-    MBPsysSetDebugNode_L007C:
-        stw r9,gNodeStackTop(r0)
-        b MBPsysSetDebugNode_L00B4
-    MBPsysSetDebugNode_L0084:
-        lwz r5,gNodeStackTop(r0)
-        cmpwi r5,99
-        ble MBPsysSetDebugNode_L0098
-        stw r3,264(r7)
-        b MBPsysSetDebugNode_L00AC
-    MBPsysSetDebugNode_L0098:
-        addi r4,r5,1
-        slwi r0,r5,2
-        stw r4,gNodeStackTop(r0)
-        add r4,r7,r0
-        stw r3,264(r4)
-    MBPsysSetDebugNode_L00AC:
-        li r0,1
-        stw r0,gNodeStackDirty(r0)
-    MBPsysSetDebugNode_L00B4:
-        lwz r0,gNodeStackTop(r0)
-        cmpwi r0,0
-        ble MBPsysSetDebugNode_L00D0
-        slwi r0,r0,2
-        add r3,r7,r0
-        lwz r3,260(r3)
-        blr
-    MBPsysSetDebugNode_L00D0:
-        li r3,0
-    }
-#else
     NodeStackOverlay* base = &gNodeState;
 
     if (gNodeStackInit == 0) {
@@ -1438,8 +1245,6 @@ s32 MBPsysSetDebugNode(u32 node, s32 remove) {
         return base->stack[gNodeStackTop - 1];
     }
     return 0;
-
-#endif
 }
 
 /* ======================================================================= *
@@ -1850,94 +1655,6 @@ static void freePsys(MBObject* node) {
 /* 0x800D1404 - allocPsysMem: first-fit split allocator over the block pool.
  * Documented reconstruction (NonMatching). */
 static void* allocPsysMem(s32 size, s32 tag) {
-#ifdef __MWERKS__
-    asm {
-        lis r5,lbl_80128710@ha
-        addi r5,r5,lbl_80128710@l
-        cmpwi r3,0
-        addi r6,r5,36
-        ble allocPsysMem_L0020
-        lwz r0,8(r6)
-        cmpw r3,r0
-        ble allocPsysMem_L0028
-    allocPsysMem_L0020:
-        li r3,0
-        blr
-    allocPsysMem_L0028:
-        lwz r5,32(r6)
-        addi r0,r3,31
-        clrrwi r8,r0,4
-        addi r7,r5,0
-    allocPsysMem_L0038:
-        lwz r0,0(r7)
-        cmpw r0,r8
-        bge allocPsysMem_L0064
-        lwz r7,4(r7)
-        cmplwi r7,0
-        bne allocPsysMem_L0054
-        lwz r7,24(r6)
-    allocPsysMem_L0054:
-        cmplw r7,r5
-        bne allocPsysMem_L0038
-        li r3,0
-        blr
-    allocPsysMem_L0064:
-        stw r4,12(r7)
-        lwz r0,0(r7)
-        subf r0,r8,r0
-        cmplwi r0,304
-        ble allocPsysMem_L00D8
-        lwz r3,4(r7)
-        add r5,r7,r8
-        stw r5,4(r7)
-        cmplwi r3,0
-        stw r7,8(r5)
-        stw r3,4(r5)
-        beq allocPsysMem_L009C
-        stw r5,8(r3)
-        b allocPsysMem_L00A0
-    allocPsysMem_L009C:
-        stw r5,28(r6)
-    allocPsysMem_L00A0:
-        stw r5,32(r6)
-        neg r0,r8
-        addi r3,r7,16
-        lwz r4,0(r7)
-        subf r4,r8,r4
-        stw r4,0(r5)
-        stw r0,0(r7)
-        lwz r4,16(r6)
-        addi r0,r4,1
-        stw r0,16(r6)
-        lwz r0,8(r6)
-        subf r0,r8,r0
-        stw r0,8(r6)
-        blr
-    allocPsysMem_L00D8:
-        lwz r0,4(r7)
-        cmplwi r0,0
-        bne allocPsysMem_L00F0
-        lwz r0,24(r6)
-        stw r0,32(r6)
-        b allocPsysMem_L00F4
-    allocPsysMem_L00F0:
-        stw r0,32(r6)
-    allocPsysMem_L00F4:
-        lwz r5,0(r7)
-        addi r3,r7,16
-        neg r0,r5
-        stw r0,0(r7)
-        lwz r4,16(r6)
-        addi r0,r4,1
-        stw r0,16(r6)
-        lwz r4,12(r6)
-        addi r0,r4,-1
-        stw r0,12(r6)
-        lwz r0,8(r6)
-        subf r0,r5,r0
-        stw r0,8(r6)
-    }
-#else
     u32 need;
     PsysMemBlock* b;
     if (size <= 0 || size > gPoolTotal) {
@@ -1963,8 +1680,6 @@ static void* allocPsysMem(s32 size, s32 tag) {
         b = b->next ? b->next : gPoolBase;
     } while (b != gPoolFree);
     return NULL;
-
-#endif
 }
 
 /* 0x800D1530 - freePsysMem: return a block, coalescing neighbours.

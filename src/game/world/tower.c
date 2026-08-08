@@ -307,71 +307,6 @@ int WorldOpen(int world) {
 
 /* Award world runes to active players after the dwell timer elapses
  * (fields 0x928-0x930 timer, sets rune bit at 0xA8C). */
-#ifdef __MWERKS__
-asm int towerAwardWorldRunes(void)
-{
-    nofralloc
-    lwz r4, sMusicTrackLo(r0)
-    lis r3, lbl_80124DA0@ha
-    addi r0, r3, lbl_80124DA0@l
-    slwi r3, r4, 2
-    add r3, r0, r3
-    lwz r8, 0(r3)
-    li r3, 0
-    cmpwi r8, 0
-    bge award_runes_active
-    li r3, 0
-    blr
-award_runes_active:
-    li r0, 4
-    lfs f0, lbl_8034858C(r0)
-    lis r4, gPlayers@ha
-    mtctr r0
-    addi r7, r4, gPlayers@l
-    addi r6, r8, 512
-    li r4, 0
-award_runes_timer_loop:
-    add r9, r7, r4
-    lwz r0, 232(r9)
-    cmpwi r0, 1
-    bne award_runes_timer_next
-    lwz r5, 2352(r9)
-    addi r0, r5, 1
-    stw r0, 2352(r9)
-    stw r6, 2344(r9)
-    stfs f0, 2348(r9)
-    lwz r5, 2352(r9)
-    lwz r0, sVisibleSumCoinCount(r0)
-    cmpw r5, r0
-    blt award_runes_timer_next
-    li r3, 1
-award_runes_timer_next:
-    addi r4, r4, 13148
-    bdnz award_runes_timer_loop
-    cmpwi r3, 0
-    beqlr
-    li r0, 4
-    mtctr r0
-    lis r4, gPlayers@ha
-    addi r0, r8, -8
-    li r5, 1
-    slw r6, r5, r0
-    addi r5, r4, gPlayers@l
-    li r4, 0
-award_runes_bit_loop:
-    add r7, r5, r4
-    lwz r0, 232(r7)
-    cmpwi r0, 1
-    bne award_runes_bit_next
-    lhz r0, 2700(r7)
-    or r0, r0, r6
-    sth r0, 2700(r7)
-award_runes_bit_next:
-    addi r4, r4, 13148
-    bdnz award_runes_bit_loop
-    blr
-}
-#else
 int towerAwardWorldRunes(void) {
     s32 rune = lbl_80124DA0[sMusicTrackLo];
     s32 awarded = 0;
@@ -403,13 +338,6 @@ int towerAwardWorldRunes(void) {
     }
     return awarded;
 }
-#endif
-
-#ifdef __MWERKS__
-#pragma optimization_level 4
-#pragma peephole on
-#pragma scheduling on
-#endif
 
 /* Return the per-level status byte (field 0x1CD0) for a world record. */
 int towerGetLevelFlag(u8* rec, int level) {
@@ -513,83 +441,6 @@ static inline int towerLevelStatusA(int player, int level) {
 
 /* True if all active players meet the level-record-A requirement (field 0xDE8). */
 int towerAllPlayersMetLevelReq(int level) {
-#ifdef __MWERKS__
-    asm {
-        cmpwi r3,2
-        li r10,0
-        ble towerAllPlayersMetLevelReq_L0010
-        li r3,2
-    towerAllPlayersMetLevelReq_L0010:
-        lis r4,lbl_80124D94@ha
-        lwz r6,lbl_80343D6C(r0)
-        slwi r5,r3,2
-        addi r0,r4,lbl_80124D94@l
-        add r4,r0,r5
-        li r0,4
-        lwz r9,0(r4)
-        lis r4,gPlayers@ha
-        mtctr r0
-        slwi r7,r3,1
-        addi r5,r4,gPlayers@l
-        li r3,0
-    towerAllPlayersMetLevelReq_L0040:
-        add r8,r5,r3
-        lwz r0,232(r8)
-        cmpwi r0,0
-        beq towerAllPlayersMetLevelReq_L00DC
-        bne towerAllPlayersMetLevelReq_L005C
-        li r0,0
-        b towerAllPlayersMetLevelReq_L00A8
-    towerAllPlayersMetLevelReq_L005C:
-        lwz r0,240(r8)
-        cmplw r0,r6
-        bne towerAllPlayersMetLevelReq_L0070
-        li r0,2
-        b towerAllPlayersMetLevelReq_L00A8
-    towerAllPlayersMetLevelReq_L0070:
-        lwz r0,12(r8)
-        mulli r0,r0,240
-        add r4,r8,r0
-        addi r0,r4,3560
-        lhax r0,r7,r0
-        cmpwi r0,0
-        bge towerAllPlayersMetLevelReq_L0094
-        li r0,2
-        b towerAllPlayersMetLevelReq_L00A8
-    towerAllPlayersMetLevelReq_L0094:
-        cmpw r0,r9
-        bne towerAllPlayersMetLevelReq_L00A4
-        li r0,1
-        b towerAllPlayersMetLevelReq_L00A8
-    towerAllPlayersMetLevelReq_L00A4:
-        li r0,0
-    towerAllPlayersMetLevelReq_L00A8:
-        cmpwi r0,0
-        beq towerAllPlayersMetLevelReq_L00B8
-        li r3,1
-        blr
-    towerAllPlayersMetLevelReq_L00B8:
-        lwz r0,12(r8)
-        mulli r0,r0,240
-        add r4,r8,r0
-        addi r0,r4,3560
-        lhax r0,r7,r0
-        cmpw r10,r0
-        ble towerAllPlayersMetLevelReq_L00D8
-        mr r0,r10
-    towerAllPlayersMetLevelReq_L00D8:
-        mr r10,r0
-    towerAllPlayersMetLevelReq_L00DC:
-        addi r3,r3,13148
-        bdnz towerAllPlayersMetLevelReq_L0040
-        cmpw r10,r9
-        blt towerAllPlayersMetLevelReq_L00F4
-        li r3,1
-        blr
-    towerAllPlayersMetLevelReq_L00F4:
-        li r3,0
-    }
-#else
     s32 player;
     s32 best = 0;
 
@@ -614,8 +465,6 @@ int towerAllPlayersMetLevelReq(int level) {
         return 1;
     }
     return 0;
-
-#endif
 }
 
 /* Get a per-level record-A value (field 0xDE8). */
@@ -686,79 +535,6 @@ static inline int towerLevelStatusB(int player, int level) {
 
 /* True if all active players meet the level-record-B requirement (field 0xDEE). */
 int towerAllPlayersMetBossReq(int level) {
-#ifdef __MWERKS__
-    asm {
-        lis r4,lbl_80124C70@ha
-        lwz r6,lbl_80343D6C(r0)
-        slwi r5,r3,2
-        addi r0,r4,lbl_80124C70@l
-        add r4,r0,r5
-        li r0,4
-        lwz r9,0(r4)
-        lis r4,gPlayers@ha
-        mtctr r0
-        slwi r7,r3,1
-        addi r5,r4,gPlayers@l
-        li r10,0
-        li r3,0
-    towerAllPlayersMetBossReq_L0034:
-        add r8,r5,r3
-        lwz r0,232(r8)
-        cmpwi r0,0
-        beq towerAllPlayersMetBossReq_L00D0
-        bne towerAllPlayersMetBossReq_L0050
-        li r0,0
-        b towerAllPlayersMetBossReq_L009C
-    towerAllPlayersMetBossReq_L0050:
-        lwz r0,240(r8)
-        cmplw r0,r6
-        bne towerAllPlayersMetBossReq_L0064
-        li r0,2
-        b towerAllPlayersMetBossReq_L009C
-    towerAllPlayersMetBossReq_L0064:
-        lwz r0,12(r8)
-        mulli r0,r0,240
-        add r4,r8,r0
-        addi r0,r4,3566
-        lhax r0,r7,r0
-        cmpwi r0,0
-        bge towerAllPlayersMetBossReq_L0088
-        li r0,2
-        b towerAllPlayersMetBossReq_L009C
-    towerAllPlayersMetBossReq_L0088:
-        cmpw r0,r9
-        bne towerAllPlayersMetBossReq_L0098
-        li r0,1
-        b towerAllPlayersMetBossReq_L009C
-    towerAllPlayersMetBossReq_L0098:
-        li r0,0
-    towerAllPlayersMetBossReq_L009C:
-        cmpwi r0,0
-        beq towerAllPlayersMetBossReq_L00AC
-        li r3,1
-        blr
-    towerAllPlayersMetBossReq_L00AC:
-        lwz r0,12(r8)
-        mulli r0,r0,240
-        add r4,r8,r0
-        addi r0,r4,3566
-        lhax r0,r7,r0
-        cmpw r10,r0
-        ble towerAllPlayersMetBossReq_L00CC
-        mr r0,r10
-    towerAllPlayersMetBossReq_L00CC:
-        mr r10,r0
-    towerAllPlayersMetBossReq_L00D0:
-        addi r3,r3,13148
-        bdnz towerAllPlayersMetBossReq_L0034
-        cmpw r10,r9
-        blt towerAllPlayersMetBossReq_L00E8
-        li r3,1
-        blr
-    towerAllPlayersMetBossReq_L00E8:
-        li r3,0
-    }
-#else
     s32 player;
     s32 best = 0;
 
@@ -780,8 +556,6 @@ int towerAllPlayersMetBossReq(int level) {
         return 1;
     }
     return 0;
-
-#endif
 }
 
 /* Per-record level status: 0/1/2 (field 0xDEE vs requirement table). Internal. */
@@ -877,45 +651,6 @@ setup:
 
 /* Set a per-level "rune near" bit for active players (field 0xDD8). */
 void towerSetRuneNear(int player, int level) {
-#ifdef __MWERKS__
-    asm {
-        cmpwi r3,0
-        bge towerSetRuneNear_L0014
-        li r3,0
-        li r7,3
-        b towerSetRuneNear_L0018
-    towerSetRuneNear_L0014:
-        mr r7,r3
-    towerSetRuneNear_L0018:
-        addi r0,r7,1
-        subf r0,r3,r0
-        li r6,1
-        mtctr r0
-        lis r5,gPlayers@ha
-        cmpw r3,r7
-        mulli r3,r3,13148
-        slw r6,r6,r4
-        addi r5,r5,gPlayers@l
-        bgtlr
-    towerSetRuneNear_L0040:
-        add r7,r5,r3
-        lwz r0,232(r7)
-        cmpwi r0,1
-        beq towerSetRuneNear_L0058
-        cmpwi r0,4
-        bne towerSetRuneNear_L0070
-    towerSetRuneNear_L0058:
-        lwz r0,12(r7)
-        mulli r4,r0,240
-        addi r4,r4,3544
-        lhzx r0,r7,r4
-        or r0,r0,r6
-        sthx r0,r7,r4
-    towerSetRuneNear_L0070:
-        addi r3,r3,13148
-        bdnz towerSetRuneNear_L0040
-    }
-#else
     s32 last;
     u32 bit;
 
@@ -933,52 +668,10 @@ setup:
             TOWER_SAVE(player)->rune_near |= bit;
         }
     }
-
-#endif
 }
 
 /* Query a per-level "rune near" bit for one player, or any player if -1. */
 int towerGetRuneNearStat(int player, int level) {
-#ifdef __MWERKS__
-    asm {
-        cmpwi r3,0
-        bge towerGetRuneNearStat_L0014
-        li r3,0
-        li r7,3
-        b towerGetRuneNearStat_L0018
-    towerGetRuneNearStat_L0014:
-        mr r7,r3
-    towerGetRuneNearStat_L0018:
-        addi r0,r7,1
-        subf r0,r3,r0
-        li r6,1
-        mtctr r0
-        lis r5,gPlayers@ha
-        cmpw r3,r7
-        mulli r3,r3,13148
-        slw r6,r6,r4
-        addi r5,r5,gPlayers@l
-        bgt towerGetRuneNearStat_L0078
-    towerGetRuneNearStat_L0040:
-        add r7,r5,r3
-        lwz r0,232(r7)
-        cmpwi r0,0
-        beq towerGetRuneNearStat_L0070
-        lwz r0,12(r7)
-        mulli r4,r0,240
-        addi r0,r4,3544
-        lhzx r0,r7,r0
-        and. r0,r0,r6
-        beq towerGetRuneNearStat_L0070
-        li r3,1
-        blr
-    towerGetRuneNearStat_L0070:
-        addi r3,r3,13148
-        bdnz towerGetRuneNearStat_L0040
-    towerGetRuneNearStat_L0078:
-        li r3,0
-    }
-#else
     s32 last;
     u32 bit;
 
@@ -997,8 +690,6 @@ setup:
         }
     }
     return 0;
-
-#endif
 }
 
 /* Give a rune to one player, or all active players if player is -1. */
