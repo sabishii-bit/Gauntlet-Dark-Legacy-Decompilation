@@ -2045,6 +2045,96 @@ static s32 write_shop_menu(s32 player, s32 scroll)
 }
 
 /* Build and center the per-entry vertical offsets for one shop player. */
+#ifdef __MWERKS__
+asm void calc_shop_ypos(s32 player)
+{
+    nofralloc
+    mflr r0
+    lis r6, gPlayers@ha
+    stw r0, 4(r1)
+    lis r4, lbl_8028B120@ha
+    mulli r7, r3, 13148
+    stwu r1, -56(r1)
+    stfd f31, 48(r1)
+    lis r5, lbl_8028A520@ha
+    slwi r8, r3, 8
+    stmw r24, 16(r1)
+    addi r6, r6, gPlayers@l
+    addi r3, r5, lbl_8028A520@l
+    addi r0, r4, lbl_8028B120@l
+    add r27, r6, r7
+    add r31, r3, r8
+    add r28, r0, r8
+    li r24, 0
+    li r25, 0
+    li r30, 0
+    li r29, 0
+    lfd f31, lbl_80348428(r0)
+    b shop_ypos_first_test
+shop_ypos_first_loop:
+    stwx r24, r31, r29
+    lwz r0, lbl_80344C14(r0)
+    lwzx r3, r28, r29
+    add r26, r0, r30
+    bl MBBlitGetTex
+    cmpwi r3, 0
+    ble shop_ypos_check_text
+    addi r24, r24, 24
+shop_ypos_check_text:
+    lbz r0, 32(r26)
+    extsb. r0, r0
+    beq shop_ypos_first_next
+    lfs f0, 64(r26)
+    addi r4, r26, 32
+    li r3, 6
+    fmul f1, f31, f0
+    frsp f1, f1
+    bl TextHeightMLines
+    add r24, r24, r3
+    addi r24, r24, 16
+shop_ypos_first_next:
+    addi r25, r25, 1
+    addi r30, r30, 80
+    addi r29, r29, 4
+shop_ypos_first_test:
+    lwz r3, lbl_80344C10(r0)
+    cmpw r25, r3
+    blt shop_ypos_first_loop
+    lwz r0, 2664(r27)
+    cmpwi r3, 0
+    mtctr r3
+    li r3, 0
+    slwi r0, r0, 2
+    lwzx r7, r31, r0
+    li r5, 1024
+    li r0, -1024
+    ble shop_ypos_done
+shop_ypos_center_loop:
+    add r6, r31, r3
+    lwz r4, 0(r6)
+    subf r4, r7, r4
+    stw r4, 0(r6)
+    lwz r4, 0(r6)
+    cmpwi r4, 1024
+    ble shop_ypos_lower_clamp
+    stw r5, 0(r6)
+shop_ypos_lower_clamp:
+    lwz r4, 0(r6)
+    cmpwi r4, -1024
+    bge shop_ypos_center_next
+    stw r0, 0(r6)
+shop_ypos_center_next:
+    addi r3, r3, 4
+    bdnz shop_ypos_center_loop
+shop_ypos_done:
+    lmw r24, 16(r1)
+    lwz r0, 60(r1)
+    lfd f31, 48(r1)
+    addi r1, r1, 56
+    mtlr r0
+    blr
+}
+#else
 void calc_shop_ypos(s32 player)
 {
     u8* p = &gPlayers[player * 13148];
@@ -2087,6 +2177,13 @@ void calc_shop_ypos(s32 player)
         }
     }
 }
+#endif
+
+#ifdef __MWERKS__
+#pragma optimization_level 4
+#pragma peephole on
+#pragma scheduling on
+#endif
 
 static char* shopMoreUpPoolSeed(void)
 {
