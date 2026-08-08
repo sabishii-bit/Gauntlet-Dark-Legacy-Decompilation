@@ -108,7 +108,7 @@ extern char DmgTypeDesc[5][8];
 /* cross-TU references */
 void CopyMat4(f32* src, f32* dst);
 extern f64 __frsqrte(f64 x);
-extern f64 atan2(f64 y, f64 x);
+extern f32 atan2(f32 y, f32 x);
 extern f64 sin(f64 angle);
 extern f64 cos(f64 angle);
 f32 FixAngle(f32 angle);
@@ -1801,39 +1801,50 @@ void init_targets(void)
 extern f64 lbl_80345EB8;  /* 0.001 */
 extern f32 lbl_80346120;  /* 0.001f */
 
+#pragma opt_propagation off
 f32 get_yaw(f32* to, f32* from)
 {
-    f32 dz = to[2] - from[2];
     f32 dx = to[0] - from[0];
+    f32 dz = to[2] - from[2];
     f32 adz;
     f32 adx;
+    f32 atanX;
     f32 angle;
+    u8 tail[16];
     union {
         f32 f;
         u32 i;
-    } u;
+    } uz, ux;
+    u8 unused[24];
 
-    u.f = dz;
-    u.i &= 0x7FFFFFFF;
-    adz = u.f;
+    uz.f = dz;
+    uz.i &= 0x7FFFFFFF;
+    adz = uz.f;
+    atanX = adz;
     if (adz <= lbl_80345EB8) {
-        adz = lbl_80346120;
+        atanX = lbl_80346120;
     }
-    u.f = dx;
-    u.i &= 0x7FFFFFFF;
-    adx = u.f;
-    angle = (f32)atan2(adx, adz);
-    if (dz < lbl_80345F78) {
-        if (dx < lbl_80345F78) {
-            angle = (f32)(lbl_80345F58 + angle);
+    ux.f = dx;
+    ux.i &= 0x7FFFFFFF;
+    adx = ux.f;
+    angle = atan2(adx, atanX);
+    if (dz >= lbl_80345F78) {
+        if (dx >= lbl_80345F78) {
+            angle = angle;
+            goto yaw_done;
         } else {
-            angle = (f32)(lbl_80345F58 - angle);
+            angle = -angle;
+            goto yaw_done;
         }
-    } else if (dx < lbl_80345F78) {
-        angle = -angle;
+    } else if (dx >= lbl_80345F78) {
+        angle = lbl_80345F58 - angle;
+    } else {
+        angle = lbl_80345F58 + angle;
     }
+yaw_done:
     return FixAngle(angle);
 }
+#pragma opt_propagation reset
 
 f32 get_pitch(f32* a, f32* b)
 {
