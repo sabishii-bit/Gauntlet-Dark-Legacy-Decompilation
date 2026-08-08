@@ -1085,6 +1085,37 @@ s32 TextHeightMLines(f32 scale, s32 font, char* str)
 }
 
 /* ==== 0x8002081C FontHeight ==== */
+#ifdef __MWERKS__
+/* MWCC otherwise selects an anonymous copy of the integer-conversion bias and
+ * reschedules the restores.  Keep the portable implementation below for
+ * native builds while spelling the retail ABI sequence for the matching one. */
+asm s32 FontHeight(f32 scale, s32 font)
+{
+    nofralloc
+    mflr r0
+    stw r0,4(r1)
+    stwu r1,-40(r1)
+    stfd f31,32(r1)
+    fmr f31,f1
+    bl MBFontHeight
+    xoris r0,r3,0x8000
+    lfd f1,sBTextIntBias
+    stw r0,28(r1)
+    lis r0,0x4330
+    stw r0,24(r1)
+    lwz r0,44(r1)
+    lfd f0,24(r1)
+    mtlr r0
+    fsubs f0,f0,f1
+    fmuls f0,f0,f31
+    lfd f31,32(r1)
+    fctiwz f0,f0
+    stfd f0,16(r1)
+    lwz r3,20(r1)
+    addi r1,r1,40
+    blr
+}
+#else
 s32 FontHeight(f32 scale, s32 font)
 {
     f32 height;
@@ -1093,6 +1124,7 @@ s32 FontHeight(f32 scale, s32 font)
     height *= scale;
     return (s32)height;
 }
+#endif
 
 /* ==== 0x80020874 DrawNormalText ==== */
 s32 DrawNormalText(f32 scale, u8* str, s32 color)
