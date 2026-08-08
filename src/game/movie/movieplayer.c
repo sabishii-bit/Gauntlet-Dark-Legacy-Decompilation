@@ -954,6 +954,12 @@ cleanup_done:
     blr
 }
 
+#ifdef __MWERKS__
+#pragma optimization_level 4
+#pragma peephole on
+#pragma scheduling on
+#endif
+
 #pragma dont_inline on
 void fn_800D9DA4(u32* p) {
     p[1] = 0;
@@ -979,6 +985,12 @@ asm int fn_800D9DBC(u32 param_1, char* param_2, int param_3, u8* param_4) {
     mtlr r0
     blr
 }
+
+#ifdef __MWERKS__
+#pragma optimization_level 4
+#pragma peephole on
+#pragma scheduling on
+#endif
 
 void fn_800D9DF0(char* param_1, int param_2, u8* param_3, int* param_4) {
     u32 uVar6;
@@ -1432,6 +1444,12 @@ dl_done:
     blr
 }
 
+#ifdef __MWERKS__
+#pragma optimization_level 4
+#pragma peephole on
+#pragma scheduling on
+#endif
+
 u32* dtor_800DB21C(u32* self, s16 deleting) {
     u8 unused[24];
 
@@ -1472,6 +1490,12 @@ asm void fn_800DB29C(int p) {
     stw r0, 20(r3)
     blr
 }
+
+#ifdef __MWERKS__
+#pragma optimization_level 4
+#pragma peephole on
+#pragma scheduling on
+#endif
 
 int fn_800DB2F4(int param_1, u8* param_2, u32 param_3, u32 param_4) {
     int iVar1;
@@ -1521,6 +1545,12 @@ movie_chunk_return:
     mr r3, r5
     blr
 }
+
+#ifdef __MWERKS__
+#pragma optimization_level 4
+#pragma peephole on
+#pragma scheduling on
+#endif
 
 /* VQ codebook/frame reader (memcpy, ReadF32LE, sceRead) */
 void fn_800DB3D4(u32* stream, s32 fd, volatile u32 length) {
@@ -1834,6 +1864,12 @@ clear_rest:
     blr
 }
 
+#ifdef __MWERKS__
+#pragma optimization_level 4
+#pragma peephole on
+#pragma scheduling on
+#endif
+
 u32* dtor_800DBB94(u32* self, s16 deleting) {
     u8 unused[32];
 
@@ -2011,6 +2047,12 @@ dtext_table_done:
     mtlr r0
     blr
 }
+
+#ifdef __MWERKS__
+#pragma optimization_level 4
+#pragma peephole on
+#pragma scheduling on
+#endif
 
 /* DText glyph blit (uses gDTextBuf + movie sdata2 pool) */
 void fn_800DBE98(u32 param_1, u8* param_2) {
