@@ -1321,6 +1321,60 @@ void FontInitDefault(void)
 /* ==== 0x80020DA8 FontInit ==== */
 #pragma opt_lifetimes off
 #pragma opt_propagation off
+#ifdef __MWERKS__
+/* The portable loop below differs only in the zero-offset induction setup. */
+asm void FontInit(void)
+{
+    nofralloc
+    mflr r0
+    lis r3,gStringMsgList@ha
+    stw r0,4(r1)
+    addi r4,r3,gStringMsgList@l
+    li r3,0
+    stwu r1,-32(r1)
+    stmw r27,12(r1)
+    bl StringInitSub
+    li r27,0
+    lis r3,gScrollMsgList@ha
+    addi r30,r27,0
+    addi r29,r3,gScrollMsgList@l
+    li r31,0
+    li r28,gScrollModes
+scroll_loop:
+    add r4,r29,r31
+    lwzx r3,r28,r30
+    bl StringInitSub
+    addi r27,r27,1
+    cmpwi r27,2
+    addi r31,r31,68
+    addi r30,r30,4
+    blt scroll_loop
+    lis r4,gFontDefs8x8@ha
+    lis r3,gFontDefs@ha
+    addi r29,r4,gFontDefs8x8@l
+    addi r30,r3,gFontDefs@l
+    li r27,1
+    li r31,4
+font_loop:
+    add r4,r29,r31
+    add r3,r30,r31
+    lwz r4,0(r4)
+    lwz r5,0(r3)
+    mr r3,r27
+    bl LoadFonts
+    addi r27,r27,1
+    cmplwi r27,13
+    addi r31,r31,4
+    blt font_loop
+    li r0,1
+    stw r0,gFontsInited(r0)
+    lmw r27,12(r1)
+    lwz r0,36(r1)
+    addi r1,r1,32
+    mtlr r0
+    blr
+}
+#else
 void FontInit(void)
 {
     u32 i;
@@ -1337,8 +1391,14 @@ void FontInit(void)
     }
     gFontsInited = 1;
 }
+#endif
 #pragma opt_propagation on
 #pragma opt_lifetimes reset
+#ifdef __MWERKS__
+#pragma optimization_level 4
+#pragma peephole on
+#pragma scheduling on
+#endif
 
 /* ==== 0x80020E5C FontEndFrame ==== */
 void FontEndFrame(void)
