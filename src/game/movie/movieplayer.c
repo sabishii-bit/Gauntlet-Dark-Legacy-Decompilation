@@ -984,34 +984,35 @@ u32 fn_800D9A14(u32* param_1, u8* param_2, int param_3, u8 param_4) {
 }
 
 u32 fn_800D9B48(u32* param_1, u8* param_2, int param_3) {
-    u32 uVar1;
-    int iVar2;
-    u32 uVar4;
-    int iVar5;
+    u32 readOffset;
+    int used;
+    u32 writeOffset;
+    int chunk;
 
-    uVar4 = param_1[2];
-    uVar1 = param_1[3];
-    if ((int)uVar4 >= (int)uVar1) {
-        iVar2 = uVar4 - uVar1;
+    writeOffset = param_1[2];
+    readOffset = param_1[3];
+    if ((int)writeOffset >= (int)readOffset) {
+        used = writeOffset - readOffset;
     } else {
-        iVar2 = param_1[1] + (uVar4 - uVar1);
+        used = param_1[1] + (writeOffset - readOffset);
     }
-    if (param_3 > (int)((param_1[1] - iVar2) - 1)) {
+    if (param_3 > (int)((param_1[1] - used) - 1)) {
         return 0;
     }
-    iVar2 = param_1[1] - uVar4;
-    if (iVar2 > param_3) {
-        iVar2 = param_3;
+    chunk = param_1[1] - writeOffset;
+    if (chunk > param_3) {
+        chunk = param_3;
     }
-    memcpy((u8*)(*param_1 + uVar4), param_2, iVar2);
-    iVar5 = param_3 - iVar2;
-    param_1[2] = param_1[2] + iVar2;
-    if (param_1[2] == param_1[1]) {
+    memcpy((u8*)(*param_1 + writeOffset), param_2, chunk);
+    param_2 += chunk;
+    param_3 -= chunk;
+    param_1[2] += chunk;
+    if ((int)param_1[2] == (int)param_1[1]) {
         param_1[2] = 0;
     }
-    if (iVar5 != 0) {
-        memcpy((u8*)*param_1, param_2 + iVar2, iVar5);
-        param_1[2] = param_1[2] + iVar5;
+    if (param_3 != 0) {
+        memcpy((u8*)*param_1, param_2, param_3);
+        param_1[2] += param_3;
     }
     return 1;
 }
