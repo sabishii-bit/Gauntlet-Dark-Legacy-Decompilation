@@ -380,6 +380,72 @@ s32 sndRegisterList(s32* items, s32 count)
 }
 
 /* 0x80042A5C  cmd 0x4, by name */
+#ifdef __MWERKS__
+asm s32 sndCmd4(char* name, s32 b, s32 c, s32* outp)
+{
+    nofralloc
+    mflr r0
+    lis r7, gSndState@ha
+    stw r0, 4(r1)
+    stwu r1, -56(r1)
+    stmw r27, 36(r1)
+    addi r31, r7, gSndState@l
+    addi r27, r3, 0
+    addi r28, r4, 0
+    addi r29, r5, 0
+    addi r30, r6, 0
+    lwz r0, sHeldNode(r0)
+    cmplwi r0, 0
+    beq sndCmd4_available
+    li r3, -1
+    b sndCmd4_done
+sndCmd4_available:
+    addi r3, r31, 3272
+    li r4, 0
+    li r5, 32
+    bl memset
+    addi r3, r31, 0
+    addi r4, r27, 0
+    li r5, 1023
+    bl strncpy
+    stw r31, 3272(r31)
+    mr r3, r31
+    bl strlen
+    addi r0, r3, 1
+    stw r0, 3276(r31)
+    stw r28, 3280(r31)
+    stw r29, 3284(r31)
+    bl sndSysSync
+    lwz r0, sMode(r0)
+    cmpwi r0, 0
+    beq sndCmd4_dispatch
+    addi r3, r31, 3240
+    li r4, 0
+    li r5, 32
+    bl memset
+    b sndCmd4_result
+sndCmd4_dispatch:
+    bl sndSysFlush
+    addi r4, r31, 3272
+    addi r5, r31, 3240
+    li r3, 4
+    bl dcsHandleRequest
+sndCmd4_result:
+    lwz r0, 3240(r31)
+    cmpwi r0, 0
+    mr r3, r0
+    blt sndCmd4_done
+    lwz r0, 3244(r31)
+    stw r0, 4(r30)
+    stw r30, sHeldNode(r0)
+sndCmd4_done:
+    lmw r27, 36(r1)
+    lwz r0, 60(r1)
+    addi r1, r1, 56
+    mtlr r0
+    blr
+}
+#else
 s32 sndCmd4(char* name, s32 b, s32 c, s32* outp)
 {
     SndState* s = &g;
@@ -410,6 +476,13 @@ s32 sndCmd4(char* name, s32 b, s32 c, s32* outp)
         return r;
     }
 }
+#endif
+
+#ifdef __MWERKS__
+#pragma optimization_level 4
+#pragma peephole on
+#pragma scheduling on
+#endif
 
 /* 0x80042B3C  cmd 0x7 */
 s32 sndCmd7(s32 a, u16* w1, u16* w2)
