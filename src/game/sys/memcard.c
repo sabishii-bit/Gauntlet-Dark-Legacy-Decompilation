@@ -402,31 +402,34 @@ void serve_memcard(void)
  */
 int saveLoad(int port, int slot, int fileNo, void* dst)
 {
-    char* rpool = lbl_801131C0;
-    u8 unused_hi[8];
+    u8 unused_hi[12];
     char name[64];
-    u8 unused[80];
+    u8 unused[84];
     u8 ret;
     u8 ok;
 
     if (saveMount(port, slot, 0) <= 0) {
         return 0;
     }
-    ok = (0 <= port && port <= 1);
+    if (port < 0 || port > 1) {
+        ok = 0;
+    } else {
+        ok = 1;
+    }
     if (!ok) {
         return 0;
     }
     /* inlined getSaveFileName(name, fileNo) */
     if (fileNo == -2) {
-        strcpy(name, rpool + 80);
+        strcpy(name, MEMCARD_STRING_POOL + 80);
     } else if (fileNo == -1) {
-        strcpy(name, rpool + 104);
+        strcpy(name, MEMCARD_STRING_POOL + 104);
     } else {
-        sprintf(name, rpool + 124, fileNo + 1);
+        sprintf(name, MEMCARD_STRING_POOL + 124, fileNo + 1);
     }
     lbl_803449EC = 0;
     lbl_803449F8 = 0;
-    bulletproof_printf(rpool + 40);
+    bulletproof_printf(MEMCARD_STRING_POOL + 40);
     while (FileSystemReading() != 0) {
         serve_busy(-1);
     }
@@ -434,7 +437,7 @@ int saveLoad(int port, int slot, int fileNo, void* dst)
     lbl_80344A04 = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x2D44C0);
     if ((u8) loadGauntletSave()) {
         *(SaveFileBlock*) dst =
-            *(SaveFileBlock*) ((u8*) lbl_80343C74 + fileNo * 5172 + 40);
+            ((SaveFileBlock*) ((u8*) lbl_80343C74 + 40))[fileNo];
         ret = 1;
     } else {
         ret = 0;
@@ -443,9 +446,17 @@ int saveLoad(int port, int slot, int fileNo, void* dst)
     cardWaitResult();
     OSSetCurrentHeap(lbl_80344A08);
     OSDestroyHeap(lbl_80344A0C);
-    dcsAramReadTop((void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
+    {
+        register u8* aramTop;
+        register u32 aramSize;
+
+        aramTop = (u8*) GetHiMemCacheTop();
+        aramSize = 0x310000;
+        aramTop -= aramSize;
+        dcsAramReadTop(aramTop, aramSize);
+    }
     sysClearFlags(64);
-    bulletproof_printf(rpool);
+    bulletproof_printf(MEMCARD_STRING_POOL);
     lbl_803449EC = 0;
     return ret;
 }
