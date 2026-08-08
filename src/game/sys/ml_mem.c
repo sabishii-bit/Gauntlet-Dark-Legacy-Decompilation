@@ -42,7 +42,7 @@ extern char* strrchr(const char* s, int c);
 /* ---- PS2-style file shim (game/ps2/fakelib.c) ---- */
 extern int sceOpen(const char* path, int flags);
 extern int sceRead(int fd, void* buf, int len);
-extern int sceReadAsync(int fd, int arg, int* status);
+extern int sceSifLoadElfPart(int fd, int arg, int* status);
 extern int sceLseek(int fd, int off, int whence);
 extern int sceClose(int fd);
 extern int sceFileSize(const char* path);
@@ -256,56 +256,54 @@ MLFILE* StartFileRead(char* wad, char* name, int compress, char* dest)
 /* serve one chunk of an open file; decompress on completion */
 int do_threaded_io(MLFILE* f)
 {
+    int destLen[1];
+    int initialStatus;
+    int waitStatus;
+    u8 unused[4];
     int status;
     u32 chunk;
-    int r;
     void* buf;
 
-    mlmReadRes = sceReadAsync(f->fd, 1, &status);
-    if (status != 0) {
-        return 1;
+    mlmReadRes = sceSifLoadElfPart(f->fd, 1, &initialStatus);
+    status = initialStatus;
+    if (status == 0) {
+        if (f->bytesRead >= f->totalSize) {
+            if (f->compressed) {
+                destLen[0] = f->compSize;
+                if (uncompress(f->buffer, destLen, f->compSrc,
+                               f->totalSize) != 0) {
+                    gErrorCode = 0x80;
+                    FatalErrorf("Error decompressing file. Can not continue\n");
+                }
+            }
+            mlmServeTimeout = 0;
+            while ((mlmReadRes = sceSifLoadElfPart(f->fd, 1, &waitStatus),
+                    waitStatus != 0)) {
+                if (++mlmServeTimeout > 1500000000) {
+                    gErrorCode = 0xa0;
+                    FatalErrorf("Timeout serving file %s (1)\n", f->name);
+                }
+            }
+            mlmCloseRes = sceClose(f->fd);
+            mlmMemLimit += alloctot;
+            alloctot = 0;
+            f->done = 1;
+        } else {
+            chunk = f->totalSize - f->bytesRead;
+            if ((int)chunk > 0x8000) {
+                chunk = 0x8000;
+            }
+            if (chunk & 0xf) {
+                chunk += 0x10 - (chunk & 0xf);
+            }
+            buf = f->compressed ? f->compSrc : f->buffer;
+            f->active = 1;
+            if (sceRead(f->fd, (char*)buf + f->bytesRead, chunk) >= 0) {
+                f->bytesRead += chunk;
+            }
+        }
     }
-    if (f->bytesRead < f->totalSize) {
-        chunk = f->totalSize - f->bytesRead;
-        if ((int)chunk > 0x8000) {
-            chunk = 0x8000;
-        }
-        if (chunk & 0xf) {
-            chunk += 0x10 - (chunk & 0xf);
-        }
-        buf = f->compressed ? f->compSrc : f->buffer;
-        f->active = 1;
-        r = sceRead(f->fd, (char*)buf + f->bytesRead, chunk);
-        if (r >= 0) {
-            f->bytesRead += chunk;
-        }
-        return 0;
-    }
-    if (f->compressed) {
-        int destLen = f->compSize;
-        r = uncompress(f->buffer, &destLen, f->compSrc, f->totalSize);
-        if (r != 0) {
-            gErrorCode = 0x80;
-            bulletproof_printf("Error decompressing file. Can not continue\n");
-        }
-    }
-    mlmServeTimeout = 0;
-    while (1) {
-        mlmReadRes = sceReadAsync(f->fd, 1, &status);
-        if (status == 0) {
-            break;
-        }
-        mlmServeTimeout++;
-        if (mlmServeTimeout > 1500000000) {
-            gErrorCode = 0xa0;
-            bulletproof_printf("Timeout serving file %s (1)\n", f->name);
-        }
-    }
-    mlmCloseRes = sceClose(f->fd);
-    mlmMemLimit += alloctot;
-    alloctot = 0;
-    f->done = 1;
-    return 0;
+    return !status;
 }
 
 /* ============================================================== *
