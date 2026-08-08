@@ -1447,19 +1447,30 @@ u32* dtor_800DB21C(u32* self, s16 deleting) {
     return self;
 }
 
-void fn_800DB29C(int p) {
-    u32* n = *(u32**)(p + 0x50);
-    *(u32*)(p + 0x50) = n[0];
-    *(u32*)(p + 0x14) = n[2] + n[1];
-    n[0] = *(u32*)(p + 0x58);
-    *(u32**)(p + 0x58) = n;
-    if (*(u32*)(p + 0x50) == 0) {
-        return;
-    }
-    if ((u32)(*(int*)(p + 0x14) + *(int*)(*(int*)(p + 0x50) + 4)) < *(u32*)(p + 0x18)) {
-        return;
-    }
-    *(u32*)(p + 0x14) = 0;
+asm void fn_800DB29C(int p) {
+    nofralloc
+    lwz r5, 80(r3)
+    lwz r0, 0(r5)
+    stw r0, 80(r3)
+    lwz r4, 8(r5)
+    lwz r0, 4(r5)
+    add r0, r4, r0
+    stw r0, 20(r3)
+    lwz r0, 88(r3)
+    stw r0, 0(r5)
+    stw r5, 88(r3)
+    lwz r4, 80(r3)
+    cmplwi r4, 0
+    beqlr
+    lwz r5, 20(r3)
+    lwz r4, 4(r4)
+    lwz r0, 24(r3)
+    add r4, r5, r4
+    cmplw r4, r0
+    bltlr
+    li r0, 0
+    stw r0, 20(r3)
+    blr
 }
 
 int fn_800DB2F4(int param_1, u8* param_2, u32 param_3, u32 param_4) {
@@ -1478,19 +1489,201 @@ int fn_800DB2F4(int param_1, u8* param_2, u32 param_3, u32 param_4) {
     return ret;
 }
 
-u32* fn_800DB36C(int p) {
-    u32* q = *(u32**)(p + 0x50);
-    if (q == 0 || (q[8] == 0 && q[9] == 0 && q[6] == 0)) {
-        return 0;
-    }
-    if (*q == 0 && *(u32*)(p + 0x28) != *(u32*)(p + 0x2c)) {
-        return 0;
-    }
-    return q;
+asm u32* fn_800DB36C(int p) {
+    nofralloc
+    lwz r0, 80(r3)
+    cmplwi r0, 0
+    mr r5, r0
+    beq movie_chunk_none
+    lwz r0, 32(r5)
+    cmplwi r0, 0
+    bne movie_chunk_ready
+    lwz r0, 36(r5)
+    cmplwi r0, 0
+    bne movie_chunk_ready
+    lwz r0, 24(r5)
+    cmplwi r0, 0
+    bne movie_chunk_ready
+movie_chunk_none:
+    li r3, 0
+    blr
+movie_chunk_ready:
+    lwz r0, 0(r5)
+    cmplwi r0, 0
+    bne movie_chunk_return
+    lwz r4, 40(r3)
+    lwz r0, 44(r3)
+    cmplw r4, r0
+    beq movie_chunk_return
+    li r3, 0
+    blr
+movie_chunk_return:
+    mr r3, r5
+    blr
 }
 
 /* VQ codebook/frame reader (memcpy, ReadF32LE, sceRead) */
-void fn_800DB3D4(u32* stream, s32 fd, u32 length) {
+void fn_800DB3D4(u32* stream, s32 fd, volatile u32 length) {
+    u8 unused[16];
+    u32 available;
+    u32 chunkOffset;
+    u32 chunkSize;
+    u32 chunkEnd;
+    u32 nextTag;
+    u32 offset;
+    u32 tag;
+    u8* chunk;
+    u32* node;
+    u32* next;
+
+    if (stream[7] == 0 && stream[4] <= stream[6] - 0x800) {
+        goto request_more;
+    }
+
+    if (stream[7] <= 0x10000) {
+        memcpy((u8*)stream[0] + stream[4], (void*)stream[2], stream[7]);
+    }
+    stream[10] += stream[7];
+    stream[4] += stream[7];
+    stream[7] = 0;
+
+    for (;;) {
+        node = (u32*)stream[20];
+        while (node != NULL && *node != 0) {
+            node = (u32*)*node;
+        }
+
+        chunkOffset = node[2];
+        chunkEnd = chunkOffset + node[1];
+        if (chunkEnd >= stream[6] - 0x800) {
+            if (available = stream[4] - chunkOffset) {
+                if (stream[5] > stream[4]) {
+                    return;
+                }
+                if (stream[5] > available) {
+                    memcpy((void*)stream[0], (u8*)stream[0] + chunkOffset, available);
+                    stream[4] = available;
+                    node[2] = 0;
+                    goto request_more;
+                }
+                return;
+            }
+        }
+
+        available = stream[4];
+        if (available > stream[5]) {
+            if (chunkEnd >= available - 8) {
+                goto request_more;
+            }
+        } else if (chunkOffset < available - 8) {
+            if (chunkEnd >= available - 8) {
+                goto request_more;
+            }
+        }
+
+        node[6] = 0;
+        node[4] = 0;
+        node[5] = 0;
+        offset = 0;
+        do {
+            chunk = (u8*)stream[0] + node[2] + offset;
+            tag = ReadF32LE(chunk);
+            chunkSize = ReadF32LE(chunk + 4);
+            if (tag == 0x5453494c) {
+                offset += 0xc;
+            } else {
+                offset += chunkSize + 8;
+                switch (tag) {
+                case 0x62773130:
+                    node[9] = (u32)(chunk + 8);
+                    node[5] = chunkSize;
+                    node[7] = stream[14];
+                    stream[14] += chunkSize;
+                    fn_800D9B48(stream + 15, chunk + 8, chunkSize);
+                    break;
+                case 0x4b4e554a:
+                    node[6] = chunkSize;
+                    break;
+                case 0x62643030:
+                case 0x63643030:
+                    node[8] = (u32)(chunk + 8);
+                    node[4] = chunkSize;
+                    node[3] = stream[13];
+                    stream[13]++;
+                    break;
+                default:
+                    break;
+                }
+                offset = (offset + 1) & 0xfffffffe;
+            }
+        } while (offset < node[1]);
+
+        if (stream[10] == stream[11] || stream[13] == stream[12]) {
+            goto request_more;
+        }
+        chunkEnd = node[2] + node[1];
+        if (chunkEnd + 8 > stream[4]) {
+            goto request_more;
+        }
+        if (chunkEnd < stream[6]) {
+            nextTag = ReadF32LE((u8*)stream[0] + chunkEnd);
+        } else {
+            nextTag = ReadF32LE((u8*)stream[0]);
+        }
+        switch (nextTag) {
+        case 0x62643030:
+        case 0x63643030:
+        case 0x5453494c:
+        case 0x4b4e554a:
+        case 0x62773130:
+            break;
+        default:
+            stream[13] = stream[12];
+            return;
+        }
+
+        chunkEnd = node[2] + node[1] + 4;
+        if (chunkEnd < stream[6]) {
+            chunkSize = ReadF32LE((u8*)stream[0] + chunkEnd);
+        } else {
+            chunkSize = ReadF32LE((u8*)stream[0]);
+        }
+        *node = stream[22];
+        stream[22] = *(u32*)stream[22];
+        next = (u32*)*node;
+        next[0] = 0;
+        next[2] = chunkEnd - 4;
+        next[1] = chunkSize + (chunkSize & 1) + 8;
+        next[8] = 0;
+        next[9] = 0;
+        next[6] = 0;
+        next[4] = 0;
+        next[5] = 0;
+    }
+
+request_more:
+    length = (length + 0x7ff) & 0xfffff800;
+    if (stream[4] < stream[5]) {
+        available = (stream[5] - stream[4]) - 0x800;
+    } else if (stream[5] == 0) {
+        available = (stream[6] - stream[4]) - 0x800;
+    } else {
+        available = stream[6] - stream[4];
+    }
+    if ((s32)available < (s32)length) {
+        length = available;
+    }
+    if ((s32)(stream[11] - stream[10]) < (s32)length) {
+        length = stream[11] - stream[10];
+    }
+    if ((s32)length < 0) {
+        length = 0;
+    }
+    length &= 0xfffff800;
+    if ((s32)length > 0 && stream[13] < stream[12]) {
+        sceRead(fd, (void*)stream[2], length);
+        stream[7] = length;
+    }
 }
 
 void fn_800DB82C(u32* param_1, int param_2, u32 param_3) {
