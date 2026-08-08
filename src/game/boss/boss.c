@@ -127,7 +127,12 @@ extern int  InitCustomEffect(int buf, char* name, int c, int d);
 extern int  SfxSetMorph(f32 a, int blit, int e2, int d);
 extern void fn_8009F340(f32* pos);
 extern void mbBlitInit3414(void* blit, int a);
-extern u8   gPlayers[];               /* per-slot item/rune records (0x335c) */
+typedef struct BossPlayerView {
+    u8 _0[232];
+    s32 state;
+    u8 _ec[0x335c - 236];
+} BossPlayerView;
+extern BossPlayerView gPlayers[];     /* per-slot item/rune records (0x335c) */
 extern int  sItemFile1Buf;                /* 0x80344974 */
 extern char str_BOSSKEY;                  /* .sdata2 effect name */
 extern char str_BOSSKEY2[];               /* .rodata effect name */
@@ -538,8 +543,8 @@ void BossDeath(void) {
 
     StartGoodWizard();
     gBossDead = 1;
-    for (i = 0, off = 0; i < 4; i++, off += 0x335c) {
-        int state = *(int*)((char*)gPlayers + off + 232);
+    for (i = 0; i < 4; i++) {
+        int state = gPlayers[i].state;
         if (state == 1 || state == 8) {
             PlayerGiveRune(i, GetWorldOrder(sMusicTrackHi));
         }
