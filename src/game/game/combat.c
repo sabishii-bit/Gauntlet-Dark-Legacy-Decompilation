@@ -1846,26 +1846,30 @@ yaw_done:
 }
 #pragma opt_propagation reset
 
+#pragma opt_propagation off
 f32 get_pitch(f32* a, f32* b)
 {
-    f32 dz = a[2] - b[2];
     f32 dx = a[0] - b[0];
+    f32 dz = a[2] - b[2];
     f32 dy = a[1] - b[1];
-    f32 len = dz * dz + dx * dx;
+    f32 len = dx * dx + dz * dz;
     f32 dist;
-    f64 ang;
+    f32 ang;
+    u8 tail[8];
     volatile f32 root;
     union {
         f32 f;
         u32 i;
     } u;
+    u8 unused[12];
 
     if (len > lbl_80345EC8) {
         f64 guess = __frsqrte(len);
-        guess = lbl_80345F18 * guess * (lbl_80345F20 - len * guess * guess);
-        guess = lbl_80345F18 * guess * (lbl_80345F20 - len * guess * guess);
-        guess = lbl_80345F18 * guess * (lbl_80345F20 - len * guess * guess);
-        root = (f32)(len * (lbl_80345F18 * guess * (lbl_80345F20 - len * guess * guess)));
+        guess = lbl_80345F18 * guess * (lbl_80345F20 - len * (guess * guess));
+        guess = lbl_80345F18 * guess * (lbl_80345F20 - len * (guess * guess));
+        guess = lbl_80345F18 * guess * (lbl_80345F20 - len * (guess * guess));
+        root = (f32)(len * (lbl_80345F18 * guess *
+                            (lbl_80345F20 - len * (guess * guess))));
         len = root;
     }
     dist = len;
@@ -1878,8 +1882,9 @@ f32 get_pitch(f32* a, f32* b)
     if (dy >= lbl_80345F78) {
         ang = -ang;
     }
-    return FixAngle((f32)ang);
+    return FixAngle(ang);
 }
+#pragma opt_propagation reset
 
 extern f32 lbl_8023F8C4[], lbl_8023F8B8[];
 extern s32 gGameMode, lbl_80344824, lbl_80344414;
