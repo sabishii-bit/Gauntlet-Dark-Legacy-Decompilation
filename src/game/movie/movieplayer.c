@@ -1171,22 +1171,20 @@ asm int fn_800D9DBC(u32 param_1, char* param_2, int param_3, u8* param_4) {
 #endif
 
 void fn_800D9DF0(char* param_1, int param_2, u8* param_3, int* param_4) {
-    u32 uVar6;
-    u8 bVar2;
-    u32 uVar3;
     u8* pbVar4;
     u8* pbVar5;
-    u8* pbVar8;
-    u8* pbVar9;
     u8* end;
     u8* limit;
+    u32 uVar6;
     int iVar7;
+    u8 bVar2;
 
+    uVar6 = 1;
     pbVar4 = (u8*)(param_1 + 4);
     pbVar5 = param_3;
     end = (u8*)(param_1 + param_2);
     limit = end - 0x20;
-    uVar6 = 1;
+
     if (*(u8*)param_1 == 1) {
         memcpy(param_3, pbVar4, param_2 - 4);
         *param_4 = param_2 - 4;
@@ -1194,9 +1192,9 @@ void fn_800D9DF0(char* param_1, int param_2, u8* param_3, int* param_4) {
         while (pbVar4 != end) {
             if (uVar6 == 1) {
                 bVar2 = *pbVar4;
-                pbVar8 = pbVar4 + 1;
+                uVar6 = bVar2 | 0x10000;
+                uVar6 |= (u32)pbVar4[1] << 8;
                 pbVar4 = pbVar4 + 2;
-                uVar6 = bVar2 | 0x10000 | ((u32)*pbVar8 << 8);
             }
             if (pbVar4 <= limit) {
                 iVar7 = 16;
@@ -1204,28 +1202,33 @@ void fn_800D9DF0(char* param_1, int param_2, u8* param_3, int* param_4) {
                 iVar7 = 1;
             }
             while (iVar7-- != 0) {
-                if ((uVar6 & 1) == 0) {
+                if ((uVar6 & 1) != 0) {
+                    u32 uVar3;
+                    u8* pbVar8;
+
+                    pbVar8 = pbVar5;
+                    bVar2 = *pbVar4;
+                    uVar3 = pbVar4[1];
+                    pbVar4 = pbVar4 + 2;
+                    pbVar8 -= ((bVar2 & 0xf0) << 4) | uVar3;
+                    uVar3 = bVar2 & 0xf;
+                    *pbVar5 = *pbVar8;
+                    pbVar5[1] = pbVar8[1];
+                    bVar2 = pbVar8[2];
+                    pbVar8 = pbVar8 + 3;
+                    pbVar5[2] = bVar2;
+                    pbVar5 = pbVar5 + 3;
+                    for (; uVar3 != 0; uVar3 = uVar3 - 1) {
+                        bVar2 = *pbVar8;
+                        pbVar8 = pbVar8 + 1;
+                        *pbVar5 = bVar2;
+                        pbVar5 = pbVar5 + 1;
+                    }
+                } else {
                     bVar2 = *pbVar4;
                     pbVar4 = pbVar4 + 1;
                     *pbVar5 = bVar2;
                     pbVar5 = pbVar5 + 1;
-                } else {
-                    bVar2 = *pbVar4;
-                    pbVar8 = pbVar4 + 1;
-                    pbVar4 = pbVar4 + 2;
-                    pbVar8 = pbVar5 - (((bVar2 & 0xf0) << 4) | *pbVar8);
-                    uVar3 = bVar2 & 0xf;
-                    *pbVar5 = *pbVar8;
-                    pbVar5[1] = pbVar8[1];
-                    pbVar9 = pbVar8 + 3;
-                    pbVar5[2] = pbVar8[2];
-                    pbVar5 = pbVar5 + 3;
-                    for (; uVar3 != 0; uVar3 = uVar3 - 1) {
-                        bVar2 = *pbVar9;
-                        pbVar9 = pbVar9 + 1;
-                        *pbVar5 = bVar2;
-                        pbVar5 = pbVar5 + 1;
-                    }
                 }
                 uVar6 = uVar6 >> 1;
             }
