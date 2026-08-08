@@ -522,6 +522,14 @@ under the non-MWERKS side of the guard.
     python tools/gdl/mwbody.py game/sys/ml_mem AllocMem32 \
         --signature "void* AllocMem32(int size)"
 
+For a mechanically safe edit, `--apply` locates the exact definition, emits
+the target body under `__MWERKS__`, and retains the complete existing function
+under `#else`. It scans balanced braces while ignoring strings and comments:
+
+    python tools/gdl/mwbody.py game/sys/ml_mem AllocMem32 \
+        --signature "void* AllocMem32(int size)" \
+        --apply src/game/sys/ml_mem.c
+
 ## The opt_lifetimes law (camera_orbit_update byte-exact, 2026-08-03)
 
 Scoped `#pragma opt_lifetimes off` (before fn) + `#pragma opt_lifetimes reset`

@@ -3,9 +3,10 @@
 
 This is intended for the small class of functions whose portable C body is
 already correct but is blocked by a compiler scheduling/register-allocation
-wall.  It does not edit source files: it prints a guarded-asm-ready function
-body, with local branch labels and common PowerPC relocations rewritten to MW
-syntax.  Keep the existing C implementation as the non-MWERKS fallback.
+wall.  By default it prints a guarded-asm-ready function body, with local
+branch labels and common PowerPC relocations rewritten to MW syntax.  With
+``--apply``, it wraps the named definition in-place and keeps its existing C
+implementation as the non-MWERKS fallback.
 
 Usage:
   python tools/gdl/mwbody.py game/sys/ml_mem AllocMem32 \
@@ -110,33 +111,106 @@ def format_instruction(row, labels, function):
     return f"    {op} {operands}"
 
 
+def render_body(rows, function: str, signature: str):
+    offsets = {row["offset"] for row in rows}
+    branch_targets = {
+        target for row in rows
+        if row["reloc"] is None
+        and (target := local_target(row["text"], function)) in offsets
+    }
+    labels = {offset: f"{function}_L{offset:04X}"
+              for offset in sorted(branch_targets)}
+
+    lines = [format_signature(signature), "{", "    nofralloc"]
+    for row in rows:
+        if row["offset"] in labels:
+            lines.append(labels[row["offset"]] + ":")
+        lines.append(format_instruction(row, labels, function))
+    lines.append("}")
+    return "\n".join(lines)
+
+
+def find_definition(source: str, signature: str):
+    """Return the exact [start, end) range of a C function definition."""
+    for match in re.finditer(re.escape(signature), source):
+        cursor = match.end()
+        while cursor < len(source) and source[cursor].isspace():
+            cursor += 1
+        if cursor >= len(source) or source[cursor] != "{":
+            continue
+
+        depth = 0
+        state = "code"
+        i = cursor
+        while i < len(source):
+            char = source[i]
+            nxt = source[i + 1] if i + 1 < len(source) else ""
+            if state == "code":
+                if char == "/" and nxt == "*":
+                    state = "block_comment"
+                    i += 1
+                elif char == "/" and nxt == "/":
+                    state = "line_comment"
+                    i += 1
+                elif char == '"':
+                    state = "string"
+                elif char == "'":
+                    state = "char"
+                elif char == "{":
+                    depth += 1
+                elif char == "}":
+                    depth -= 1
+                    if depth == 0:
+                        return match.start(), i + 1
+            elif state == "block_comment" and char == "*" and nxt == "/":
+                state = "code"
+                i += 1
+            elif state == "line_comment" and char == "\n":
+                state = "code"
+            elif state in {"string", "char"}:
+                if char == "\\":
+                    i += 1
+                elif (state == "string" and char == '"') or (
+                    state == "char" and char == "'"
+                ):
+                    state = "code"
+            i += 1
+    raise ValueError(f"definition with signature not found: {signature}")
+
+
+def wrap_portable_definition(source: str, signature: str, asm_body: str):
+    start, end = find_definition(source, signature)
+    if source[max(0, start - 32):start].rstrip().endswith("#ifdef __MWERKS__"):
+        raise ValueError(f"definition is already guarded: {signature}")
+    portable = source[start:end]
+    replacement = (
+        "#ifdef __MWERKS__\n" + asm_body + "\n#else\n" + portable
+        + "\n#endif"
+    )
+    return source[:start] + replacement + source[end:]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("unit", help="unit path without main/ or extension")
     parser.add_argument("function")
     parser.add_argument("--signature", help="C signature used after 'asm'")
+    parser.add_argument(
+        "--apply", metavar="SOURCE",
+        help="wrap this source definition in-place, preserving portable C",
+    )
     args = parser.parse_args()
 
     unit = re.sub(r"\.(c|cpp)$", "", args.unit.replace("\\", "/"))
     rows = read_function(unit, args.function)
-    offsets = {row["offset"] for row in rows}
-    branch_targets = {
-        target for row in rows
-        if row["reloc"] is None
-        and (target := local_target(row["text"], args.function)) in offsets
-    }
-    labels = {offset: f"{args.function}_L{offset:04X}"
-              for offset in sorted(branch_targets)}
-
     signature = args.signature or f"void {args.function}(void)"
-    print(format_signature(signature))
-    print("{")
-    print("    nofralloc")
-    for row in rows:
-        if row["offset"] in labels:
-            print(labels[row["offset"]] + ":")
-        print(format_instruction(row, labels, args.function))
-    print("}")
+    body = render_body(rows, args.function, signature)
+    if args.apply:
+        path = REPO / args.apply
+        source = path.read_text()
+        path.write_text(wrap_portable_definition(source, signature, body))
+    else:
+        print(body)
 
 
 if __name__ == "__main__":
