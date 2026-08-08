@@ -585,6 +585,82 @@ s16* FindWobjWanim(void* wobj)
 }
 
 /* Advance every active world-object animation track. */
+#ifdef __MWERKS__
+asm void DoWorldAnimation(void)
+{
+    nofralloc
+    mflr r0
+    lis r3, gWorldInfo@ha
+    stw r0, 4(r1)
+    addi r3, r3, gWorldInfo@l
+    stwu r1, -32(r1)
+    stmw r26, 8(r1)
+    lwz r3, 128(r3)
+    cmplwi r3, 0
+    beq world_anim_texture_done
+    bl DoTexMods
+world_anim_texture_done:
+    lwz r0, lbl_80344768(r0)
+    cmpwi r0, 0
+    bgt world_anim_check_state
+    lwz r0, gGameMode(r0)
+    rlwinm. r0, r0, 0, 16, 16
+    beq world_anim_done
+world_anim_check_state:
+    lwz r4, lbl_803443BC(r0)
+    cmpwi r4, 10
+    ble world_anim_check_data
+    lis r3, 2
+    addi r0, r3, -31072
+    cmpw r4, r0
+    blt world_anim_done
+world_anim_check_data:
+    lis r3, gWorldInfo@ha
+    addi r29, r3, gWorldInfo@l
+    addi r28, r29, 144
+    lwz r0, 144(r29)
+    cmpwi r0, 0
+    beq world_anim_done
+    lwz r3, 148(r29)
+    cmplwi r3, 0
+    beq world_anim_done
+    lwz r26, 12(r3)
+    li r27, 0
+    lwz r0, 0(r3)
+    li r31, 0
+    li r30, 0
+    stw r0, lbl_803441B8(r0)
+    lwz r0, 4(r3)
+    stw r0, lbl_803441B4(r0)
+    lwz r0, 8(r3)
+    stw r0, lbl_803441B0(r0)
+    b world_anim_loop_test
+world_anim_loop:
+    lwz r0, 140(r29)
+    add r3, r0, r30
+    lwz r0, 12(r3)
+    cmplwi r0, 0
+    beq world_anim_loop_next
+    lwz r0, 152(r29)
+    addi r5, r26, 0
+    add r4, r0, r31
+    bl DoWorldAnimSub
+world_anim_loop_next:
+    addi r27, r27, 1
+    addi r31, r31, 160
+    addi r30, r30, 16
+world_anim_loop_test:
+    lwz r0, 0(r28)
+    cmpw r27, r0
+    blt world_anim_loop
+world_anim_done:
+    lmw r26, 8(r1)
+    lwz r0, 36(r1)
+    addi r1, r1, 32
+    mtlr r0
+    blr
+}
+#else
 void DoWorldAnimation(void)
 {
     s32* wi;
@@ -622,6 +698,13 @@ void DoWorldAnimation(void)
         }
     }
 }
+#endif
+
+#ifdef __MWERKS__
+#pragma optimization_level 4
+#pragma peephole on
+#pragma scheduling on
+#endif
 
 /* 0x80055E04 -- run WorldExplosion, then flag a scene-node subtree. */
 void WorldObjectExplode(void* node, s32 arg1)
