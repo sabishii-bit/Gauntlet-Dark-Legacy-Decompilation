@@ -100,6 +100,11 @@ class MwBodyTests(unittest.TestCase):
         }]
         with self.assertRaisesRegex(ValueError, "inline-leaf"):
             render_inline_leaf(rows, "f")
+        self.assertIn(
+            "global(r0)", render_inline_leaf(rows + [
+                {"offset": 4, "text": "blr", "reloc": None},
+            ], "f", allow_relocations=True),
+        )
 
     def test_inline_wrap_keeps_normal_function_signature(self):
         source = "void f(void)\n{\n    work();\n}\n"

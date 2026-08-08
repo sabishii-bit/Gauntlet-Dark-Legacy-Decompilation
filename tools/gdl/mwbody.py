@@ -163,12 +163,13 @@ def render_body(rows, function: str, signature: str):
     return "\n".join(lines)
 
 
-def render_inline_leaf(rows, function: str):
+def render_inline_leaf(rows, function: str, allow_relocations=False):
     """Render a safe inline block for a frameless relocation-free leaf."""
     unsafe = []
     for row in rows:
         op = row["text"].split(" ", 1)[0]
-        if row["reloc"] or op in {"bl", "bla", "bctrl", "mflr", "mtlr"}:
+        if ((row["reloc"] and not allow_relocations)
+                or op in {"bl", "bla", "bctrl", "mflr", "mtlr"}):
             unsafe.append(row)
         elif re.search(r"\br1\b", row["text"]):
             unsafe.append(row)
@@ -282,6 +283,10 @@ def main():
         "--inline-leaf", action="store_true",
         help="with --apply, use a guarded inline block for a safe leaf",
     )
+    parser.add_argument(
+        "--inline-leaf-relocs", action="store_true",
+        help="inline a frameless leaf while allowing supported relocations",
+    )
     args = parser.parse_args()
 
     unit = re.sub(r"\.(c|cpp)$", "", args.unit.replace("\\", "/"))
@@ -291,8 +296,11 @@ def main():
     if args.apply:
         path = REPO / args.apply
         source = path.read_text()
-        if args.inline_leaf:
-            block = render_inline_leaf(rows, args.function)
+        if args.inline_leaf or args.inline_leaf_relocs:
+            block = render_inline_leaf(
+                rows, args.function,
+                allow_relocations=args.inline_leaf_relocs,
+            )
             source = wrap_portable_inline(source, signature, block)
         else:
             source = wrap_portable_definition(source, signature, body)
