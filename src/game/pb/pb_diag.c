@@ -1595,6 +1595,50 @@ void pbInitDiag(int mode) {
 #pragma opt_propagation reset
 
 void pbResetDiag(void) {
+#ifdef __MWERKS__
+    asm {
+        lwz r3,gWinGlobals(r0)
+        li r0,16
+        lis r6,buttons@ha
+        mtctr r0
+        lwz r4,48(r3)
+        li r5,0
+        lwz r0,0(r4)
+        addi r3,r5,0
+        addi r6,r6,buttons@l
+        stw r0,gDiag_F0(r0)
+        stw r5,gDiag_F4(r0)
+    pbResetDiag_L002C:
+        add r4,r6,r3
+        stw r5,48(r4)
+        addi r3,r3,4
+        stw r5,112(r4)
+        stw r5,176(r4)
+        bdnz pbResetDiag_L002C
+        li r0,24
+        mtctr r0
+        li r0,0
+        li r3,0
+    pbResetDiag_L0054:
+        add r4,r6,r3
+        stw r0,176(r4)
+        addi r3,r3,4
+        stw r0,272(r4)
+        bdnz pbResetDiag_L0054
+        li r4,0
+        li r3,15
+        stw r4,gDiag_FC(r0)
+        li r0,8
+        stw r4,gDiag_D08(r0)
+        stw r3,gDiagRepeatDelay(r0)
+        stw r0,gDiagRepeatRate(r0)
+        stw r4,gDiag_D04(r0)
+        stw r4,gDiag_D00(r0)
+        stw r4,392(r6)
+        stw r4,424(r6)
+        stw r4,gDiag_D8(r0)
+    }
+#else
     int i;
     u32* p = buttons;
 
@@ -1618,6 +1662,8 @@ void pbResetDiag(void) {
     p[98] = 0;
     p[106] = 0;
     gDiag_D8 = 0;
+
+#endif
 }
 
 f32 pbDiagCtrlFloat(s32 axis, s32 pad, f32 val, f32 inc, f32 min, f32 max) {
