@@ -277,6 +277,53 @@ int fn_800C38C0(void* a, u8* obj)
 /* Resolve a texture-shift descriptor into a packed tex address / flag word. */
 static u32 pbObjTexSub(void* objv, int lo, int hi, u32* flags)
 {
+#ifdef __MWERKS__
+    asm {
+        lha r7, 92(r3)
+        lwz r0, 0(r6)
+        cmpwi r7, -2
+        rlwinm r0, r0, 0, 13, 11
+        stw r0, 0(r6)
+        beq pb_obj_tex_minus_two
+        bge pb_obj_tex_nonnegative
+        cmpwi r7, -4
+        beq pb_obj_tex_minus_four
+        bge pb_obj_tex_minus_three
+        b pb_obj_tex_default
+    pb_obj_tex_nonnegative:
+        cmpwi r7, 0
+        bge pb_obj_tex_default
+        slwi r0, r5, 16
+        mr r3, r0
+        rlwimi r3, r4, 0, 16, 31
+        blr
+    pb_obj_tex_minus_two:
+        lwz r3, 88(r3)
+        blr
+    pb_obj_tex_minus_four:
+        lwz r0, 0(r6)
+        slwi r3, r5, 16
+        rlwimi r3, r4, 0, 16, 31
+        oris r0, r0, 2048
+        stw r0, 0(r6)
+        blr
+    pb_obj_tex_minus_three:
+        lwz r0, 0(r6)
+        lwz r3, 88(r3)
+        oris r0, r0, 8
+        stw r0, 0(r6)
+        blr
+    pb_obj_tex_default:
+        cmpw r4, r7
+        bne pb_obj_tex_packed
+        lwz r3, 88(r3)
+        blr
+    pb_obj_tex_packed:
+        slwi r0, r5, 16
+        mr r3, r0
+        rlwimi r3, r4, 0, 16, 31
+    }
+#else
     u8* obj = (u8*)objv;
     s32 t = *(s16*)(obj + 0x5c);
 
@@ -311,6 +358,7 @@ static u32 pbObjTexSub(void* objv, int lo, int hi, u32* flags)
             return result;
         }
     }
+#endif
 }
 
 /* Upload an object's textures, retrying once via a cache flush; fatal if the
