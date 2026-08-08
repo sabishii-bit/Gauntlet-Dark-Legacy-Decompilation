@@ -418,7 +418,8 @@ void playerGiveGargItem(int player, int item, int count) {
 static inline int towerLevelStatusA(int player, int level) {
     s32 value;
     u32 world;
-    u8* save;
+    u8* levelRecord;
+    Player* record;
 
     if (gPlayers[player].state == 0) {
         return 0;
@@ -427,9 +428,10 @@ static inline int towerLevelStatusA(int player, int level) {
     if (world == (u32)lbl_80343D6C) {
         return 2;
     }
-    save = (u8*)&gPlayers[player] + gPlayers[player].character * 240;
-    save += level * 2;
-    value = *(s16*)(save + 3560);
+    levelRecord = (u8*)(level * 2);
+    record = &gPlayers[player];
+    value = *(s16*)(levelRecord + (s32)record +
+                   record->character * 240 + 3560);
     if (value < 0) {
         return 2;
     }
@@ -450,11 +452,16 @@ int towerAllPlayersMetLevelReq(int level) {
     for (player = 0; player < 4; player++) {
         if (gPlayers[player].state != 0) {
             s32 value = towerLevelStatusA(player, level);
+            u8* levelRecord;
+            Player* record;
 
             if (value != 0) {
                 return 1;
             }
-            value = ((s16*)&TOWER_SAVE(player)->completion1)[level];
+            levelRecord = (u8*)(level * 2);
+            record = &gPlayers[player];
+            value = *(s16*)(levelRecord + (s32)record +
+                           record->character * 240 + 3560);
             if (best > value) {
                 value = best;
             }
