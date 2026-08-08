@@ -240,10 +240,10 @@ void pbSetWindowUV1(f32 a, f32 b)
 }
 
 /* -2048.0f lives in an 8-byte .sdata2 slot in the original (4B zero pad). */
-static const struct Neg2048 {
+const struct Neg2048 {
     f32 v;
     f32 pad;
-} kNeg2048 = { -2048.0f, 0.0f };
+} lbl_80348F00 = { -2048.0f, 0.0f };
 
 /* second 1.0f pair object (does not dedup with the scalar literal pool) */
 const struct Neg2048 lbl_80348F08 = { 1.0f, 0.0f };
@@ -253,7 +253,7 @@ void fn_800C0E0C(void)
 {
     PbWGGlobals* g = gWinGlobals;
 
-    g->ctx->f78 = kNeg2048.v;
+    g->ctx->f78 = lbl_80348F00.v;
     g->ctx->m9c = 0;
     g->ctx->fa4 = 1.0f;
     g->ctx->fa8 = 1.0f;
