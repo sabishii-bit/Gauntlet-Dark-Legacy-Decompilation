@@ -1035,22 +1035,22 @@ s32 mbBlitCalcLight(s32 x, s32 y) {
         } else {
             if (phase < 2.0) {
                 value =
-                    (f64)(f32)(2.0 * value * (phase - 3.0) + 1.0);
+                    (f64)(f32)(2.0 * (value * (phase - 3.0)) + 1.0);
             } else {
                 if (phase < 3.0) {
                     value = (f64)(f32)(
-                        2.0 * (3.0 - phase) * (0.5 - value) +
-                        2.0 * (phase - 2.0) * value);
+                        2.0 * ((3.0 - phase) * (0.5 - value)) +
+                        2.0 * ((phase - 2.0) * value));
                 } else {
                     if (phase < 4.0) {
                         value = (f64)(f32)(
                             2.0 * value +
-                            2.0 * (3.0 - phase) * (0.5 - value));
+                            2.0 * ((3.0 - phase) * (0.5 - value)));
                     } else {
                         if (phase < 5.0) {
                             value = (f64)(f32)(
-                                2.0 * (3.0 - phase) * (0.5 - value) +
-                                2.0 * (5.0 - phase) * value);
+                                2.0 * ((3.0 - phase) * (0.5 - value)) +
+                                2.0 * ((5.0 - phase) * value));
                         } else {
                             value = (f64)lbl_80348AA0;
                         }
@@ -1065,22 +1065,22 @@ s32 mbBlitCalcLight(s32 x, s32 y) {
         } else {
             if (phase < 3.0) {
                 value = (f64)(f32)(
-                    2.0 * (phase - 4.0) * (0.5 - value) +
-                    2.0 * (phase - 2.0) * value);
+                    2.0 * ((phase - 4.0) * (0.5 - value)) +
+                    2.0 * ((phase - 2.0) * value));
             } else {
                 if (phase < 4.0) {
                     value = (f64)(f32)(
                         2.0 * value +
-                        2.0 * (phase - 4.0) * (0.5 - value));
+                        2.0 * ((phase - 4.0) * (0.5 - value)));
                 } else {
                     if (phase < 5.0) {
                         value = (f64)(f32)(
-                            2.0 * (phase - 4.0) * (0.5 - value) +
-                            2.0 * (5.0 - phase) * value);
+                            2.0 * ((phase - 4.0) * (0.5 - value)) +
+                            2.0 * ((5.0 - phase) * value));
                     } else {
                         if (phase < 6.0) {
                             value = (f64)(f32)(
-                                2.0 * value * (4.0 - phase) + 1.0);
+                                2.0 * (value * (4.0 - phase)) + 1.0);
                         } else {
                             value =
                                 (f64)(f32)-(4.0 * value - (7.0 - phase));
@@ -1090,13 +1090,12 @@ s32 mbBlitCalcLight(s32 x, s32 y) {
             }
         }
     }
-    result = (f64)(f32)(value * 127.0);
+    value *= 127.0;
+    result = (f64)(f32)value;
     if (result < 0.0) {
         output = 0.0;
-    } else if (result > 127.0) {
-        output = 127.0;
     } else {
-        output = result;
+        output = result > 127.0 ? 127.0 : result;
     }
     return (s32)(f32)output;
 }
