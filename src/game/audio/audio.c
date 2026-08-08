@@ -1339,21 +1339,50 @@ s32 AudioIsActive(void)
 /* AudioSetListenerPos: byte-reverse each float of the incoming vec3 (PS2
  * little-endian -> GameCube big-endian) and hand it to the 3D transform
  * builder, then flag the listener slot dirty (+96 |= 1). */
+#ifdef __MWERKS__
+#pragma dont_inline off
+#pragma opt_common_subs off
+#pragma opt_propagation off
+#endif
+typedef union AudioFloatBytes {
+    f32 f;
+    u8 b[4];
+} AudioFloatBytes;
+
+static inline AudioFloatBytes AudioSwapFloat(const f32* values, s32 index)
+{
+    AudioFloatBytes pad;
+    AudioFloatBytes src;
+    AudioFloatBytes dst;
+    AudioFloatBytes value;
+
+#ifdef __MWERKS__
+    pad = pad;
+#endif
+    value.f = values[index];
+    src = value;
+    *(volatile u8*)&dst.b[0] = *(volatile u8*)&src.b[3];
+    *(volatile u8*)&dst.b[1] = *(volatile u8*)&src.b[2];
+    *(volatile u8*)&dst.b[2] = *(volatile u8*)&src.b[1];
+    *(volatile u8*)&dst.b[3] = *(volatile u8*)&src.b[0];
+    return dst;
+}
+#ifdef __MWERKS__
+#pragma opt_propagation reset
+#endif
+
 void AudioSetListenerPos(s32* out, s32 arg, f32* pos)
 {
     f32 v[3];
     s32 i;
 
     for (i = 0; i < 3; i++) {
-        union { f32 f; u8 b[4]; } in;
-        union { f32 f; u8 b[4]; } sw;
-        in.f = pos[i];
-        sw.b[0] = in.b[3];
-        sw.b[1] = in.b[2];
-        sw.b[2] = in.b[1];
-        sw.b[3] = in.b[0];
-        v[i] = sw.f;
+        v[i] = AudioSwapFloat(pos, i).f;
     }
     MBNewWorldPsys(0, out, arg, 1, 0, v);
     out[24] |= 1;
 }
+#ifdef __MWERKS__
+#pragma opt_common_subs reset
+#pragma dont_inline on
+#endif
