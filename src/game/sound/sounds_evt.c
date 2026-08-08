@@ -1446,6 +1446,79 @@ void AudioPlayerTurbo(int pidx, int sel, int arg3)
 }
 #pragma opt_common_subs reset
 
+#ifdef __MWERKS__
+asm void AudioPlayerEatFood(int pidx, int foodType)
+{
+    nofralloc
+    mflr r0
+    mulli r5, r3, 13148
+    stw r0, 4(r1)
+    stwu r1, -32(r1)
+    lis r3, gPlayers@ha
+    addi r0, r3, gPlayers@l
+    stmw r29, 20(r1)
+    lis r3, lbl_801232C8@ha
+    addi r31, r3, lbl_801232C8@l
+    addi r29, r4, 0
+    add r30, r0, r5
+    li r3, 4
+    bl RandInt
+    cmpwi r3, 0
+    bne eat_food_default
+    lwz r0, 292(r30)
+    rlwinm. r0, r0, 0, 21, 21
+    bne eat_food_done
+    lwz r0, 8(r30)
+    slwi r29, r29, 2
+    slwi r0, r0, 4
+    add r0, r31, r0
+    add r3, r0, r29
+    lwz r0, 700(r3)
+    cmpwi r0, 0
+    blt eat_food_done
+    addi r3, r30, 68
+    bl AudioAng
+    lwz r0, 8(r30)
+    mr r5, r3
+    lfs f1, lbl_80348480(r0)
+    li r4, 192
+    slwi r0, r0, 4
+    add r0, r31, r0
+    lfs f2, lbl_80348494(r0)
+    add r3, r0, r29
+    lwz r3, 700(r3)
+    li r6, 66
+    bl sndFxQueAdd
+    b eat_food_done
+eat_food_default:
+    lwz r0, 8(r30)
+    slwi r0, r0, 2
+    add r3, r31, r0
+    lwz r29, 828(r3)
+    cmpwi r29, 0
+    blt eat_food_done
+    addi r3, r30, 68
+    bl AudioAng
+    lwz r0, 292(r30)
+    addi r5, r3, 0
+    rlwinm. r0, r0, 0, 21, 21
+    beq eat_food_queue
+    li r29, 97
+eat_food_queue:
+    lfs f1, lbl_80348480(r0)
+    mr r3, r29
+    lfs f2, lbl_80348494(r0)
+    li r4, 192
+    li r6, 66
+    bl sndFxQueAdd
+eat_food_done:
+    lmw r29, 20(r1)
+    lwz r0, 36(r1)
+    addi r1, r1, 32
+    mtlr r0
+    blr
+}
+#else
 void AudioPlayerEatFood(int pidx, int foodType)
 {
     typedef struct AudioFoodSoundIds {
@@ -1478,6 +1551,13 @@ void AudioPlayerEatFood(int pidx, int foodType)
         }
     }
 }
+#endif
+
+#ifdef __MWERKS__
+#pragma optimization_level 4
+#pragma peephole on
+#pragma scheduling on
+#endif
 
 #ifdef __MWERKS__
 asm void AudioPlayerEatSFX(int pidx)
