@@ -2049,6 +2049,12 @@ clear_loop:
     mtlr r0
     blr
 }
+#ifdef __MWERKS__
+/* Function-level assembly disables these passes for following C functions. */
+#pragma optimization_level 4
+#pragma peephole on
+#pragma scheduling on
+#endif
 
 /* 0x8003480C  poll both multitap ports; latch new connections */
 void serve_mtap(s32 which)
