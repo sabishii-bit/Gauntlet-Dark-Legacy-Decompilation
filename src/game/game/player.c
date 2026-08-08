@@ -482,7 +482,7 @@ void set_player_default_atts(void* p);
 static void create_player_blits(s32 i);
 static void GetMaxPlayerModelSize(void);
 void PlayerProcessMikeyPUP(void* p);
-void AppendItemToLevel(f32 x, f32 y, f32 z, char* name);
+void AppendItemToLevel(f32 x, f32 y, f32 z, char* name, u32 flags);
 static s32 do_see_thru(void* p);
 static f32 ClosestChest(void* p);
 void PlayerAddPowerup(f32 duration, f32 strength, void* p, s32 type, u32 mask);
@@ -1994,7 +1994,21 @@ extern s32 gBoss398;      /* boss floor index */
 extern s32 lbl_80251CCC[];    /* floor records, stride 0xE5 words */
 extern s32 gNumEnemies;      /* enemy count */
 extern s32 lbl_80251F44[];    /* enemy records target field, stride 0xE5 words */
-extern s32 lbl_8012028C[];    /* bigape powerup table, stride 5 words */
+typedef struct BigapePowerupInfo {
+    char* name;
+    u32 flags;
+} BigapePowerupInfo;
+
+typedef struct BigapePowerupSpawn {
+    char level[4];
+    s32 type;
+    f32 x;
+    f32 y;
+    f32 z;
+} BigapePowerupSpawn;
+
+extern BigapePowerupInfo lbl_80120274[3];
+extern BigapePowerupSpawn lbl_8012028C[];
 extern u8* sItems;      /* gItems base (stride 0xF0) */
 extern s32 lbl_8028CAF4;      /* floor tree table (stride 0x50) */
 extern void* sKeyringAtree;    /* see-thru tree (low) */
@@ -2128,7 +2142,7 @@ extern s32 AtreeInit(void* atree, void* out, s32 a, s32 flags);
 extern void AnimateATree(void** h, s32 a, s32 b);
 extern void StartGemFX(f32* pos, s32 n);
 extern s32* PlaceItem(s32 a, s32 b, char* name, f32* mat);
-extern s32* AddItem(s32* tmpl, f32* pos, s32 a, s32 b);
+extern s32* AddItem(s32* tmpl, f32* pos);
 extern void AddItemSub(s32* item);
 extern s32 RandItemIdx(s32 item, s32 a, s32 b);
 extern void AudioPlayEvt102(void);
@@ -4363,20 +4377,24 @@ void PlayerProcessMikeyPUP(void* vp) {
 
 /* Drop the big-ape unlock powerups into the level.                    */
 void AppendBigapePowerupsToScene(void) {
+    u8 unused[16];
     s32 i;
 
     for (i = 0; i < lbl_80343DAC; i++) {
-        if (InLevel(&lbl_8012028C[i * 5]) != 0) {
-            AppendItemToLevel(*(f32*)&lbl_8012028C[i * 5 + 2],
-                              *(f32*)&lbl_8012028C[i * 5 + 3],
-                              *(f32*)&lbl_8012028C[i * 5 + 4],
-                              (char*)lbl_8012028C[i * 5 + 1]);
+        if (InLevel((s32*)&lbl_8012028C[i]) != 0) {
+            BigapePowerupInfo* info =
+                &lbl_80120274[lbl_8012028C[i].type];
+            AppendItemToLevel(lbl_8012028C[i].x, lbl_8012028C[i].y,
+                              lbl_8012028C[i].z,
+                              info->name, info->flags);
         }
     }
 }
 
 /* Instantiate a named pickup item at x/y/z via the item template.     */
-void AppendItemToLevel(f32 x, f32 y, f32 z, char* name) {
+void AppendItemToLevel(f32 x, f32 y, f32 z, char* name, u32 flags) {
+    u8 unused[24];
+    char* itemName = item_name;
     s32* item;
 
     item_tmpl[0] = 1;
@@ -4387,19 +4405,20 @@ void AppendItemToLevel(f32 x, f32 y, f32 z, char* name) {
     *(f32*)&item_tmpl[4] = 0.5f;
     *(f32*)&item_tmpl[5] = 0.0f;
     *(f32*)&item_tmpl[6] = 0.0f;
+    *(f32*)&item_tmpl[9] = 0.0f;
+    *(f32*)&item_tmpl[8] = 0.0f;
     *(f32*)&item_tmpl[7] = 0.0f;
-    item_tmpl2[0] = 0;
-    sprintf(item_name, "%s", name);
-    item_tmpl2[1] = 0;
+    sprintf(itemName, name);
+    *(s32*)(itemName + 16) = 0;
+    item_tmpl2[0] = flags;
     *(s16*)&item_tmpl2[1] = 0;
-    *(u16*)((u8*)&item_tmpl2[1] + 2) = 0xFFFF;
+    *((s16*)&item_tmpl2[1] + 1) = -1;
     *(s16*)&item_tmpl2[2] = 0;
     *((s16*)&item_tmpl2[2] + 1) = 0x10;
     *(s16*)&item_tmpl2[3] = 0;
     *((s16*)&item_tmpl2[3] + 1) = 0x1E;
-    item_tmpl2[0] = (s32)item_name;
-    item_tmpl2[4] = (s32)AtreeMatch(sPowerupsBuf, item_name, 0);
-    item = AddItem(item_tmpl, NULL, 0, -1);
+    item_tmpl2[4] = (s32)AtreeMatch(sPowerupsBuf, itemName, 0);
+    item = AddItem(item_tmpl, NULL);
     *((u8*)item + 0xCD) = 0;
     MBTreeClearFlags((void*)item[0x19], 2, 0);
     if (*(s32*)item[0] == 1) {
