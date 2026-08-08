@@ -95,6 +95,8 @@ void fn_800DB29C(int stream);
 u32* fn_800DB36C(int stream);
 void fn_800D9F20(int audio);
 u32* fn_800DBF6C(u32* self, s16 deleting);
+u8 fn_800DBCCC(void* self, s32 x);
+u8 fn_800DBD00(void* self, s32 x);
 extern u32 __cvt_fp2unsigned(f64 value);
 extern s32 sndCmd16(s32 size);
 extern s32 sndCmdA(s32 volume, s32 arg1, s32 arg2, void* callback);
@@ -687,9 +689,181 @@ void fn_800D967C(register int param_1, register int param_2) {
     dispatch(param_1, arg2, arg3);
 }
 
-/* allocator (AllocHiMem + ResetAllocTot/__unexpected) */
-void fn_800D96B0(void) {
+/* Initialize a VQ frame buffer and its 16-bit component selectors. */
+#ifdef __MWERKS__
+asm u32 fn_800D96B0(u32* self, u32 unused, u8* header)
+{
+    nofralloc
+    mflr r0
+    stw r0,4(r1)
+    stwu r1,-72(r1)
+    stmw r28,56(r1)
+    addi r31,r1,0
+    addi r30,r5,0
+    mr r29,r3
+    lwz r0,4(r5)
+    stw r0,0(r3)
+    lwz r0,8(r5)
+    cmpwi r0,0
+    blt negative_height
+    b height_done
+negative_height:
+    neg r0,r0
+height_done:
+    stw r0,4(r29)
+    lhz r0,14(r30)
+    stw r0,8(r29)
+    lwz r3,0(r29)
+    addi r0,r3,31
+    srawi r0,r0,5
+    addze r0,r0
+    stw r0,40(r29)
+    lwz r3,4(r29)
+    lwz r0,40(r29)
+    srawi r3,r3,2
+    addze r3,r3
+    mullw r0,r3,r0
+    stw r0,44(r29)
+    lwz r3,0(r29)
+    lhz r0,14(r30)
+    srawi r5,r3,1
+    lwz r4,4(r29)
+    addze r5,r5
+    lwz r3,44(r29)
+    mullw r4,r5,r4
+    srawi r5,r4,1
+    addze r5,r5
+    srawi r4,r5,3
+    cmplwi r0,16
+    addi r28,r5,6146
+    addze r4,r4
+    add r28,r28,r4
+    add r28,r28,r3
+    bne selectors_done
+    lwz r0,16(r30)
+    cmplwi r0,0
+    bne selectors_custom
+    li r0,0
+    stb r0,52(r29)
+    li r3,5
+    li r0,10
+    stb r3,55(r29)
+    stb r3,53(r29)
+    stb r3,57(r29)
+    stb r0,54(r29)
+    stb r3,56(r29)
+    b selectors_done
+selectors_custom:
+    cmplwi r0,3
+    bne selectors_done
+    mr r3,r29
+    lwz r4,40(r30)
+    bl fn_800DBD00
+    stb r3,52(r29)
+    mr r3,r29
+    lwz r4,40(r30)
+    bl fn_800DBCCC
+    stb r3,55(r29)
+    mr r3,r29
+    lwz r4,44(r30)
+    bl fn_800DBD00
+    stb r3,53(r29)
+    mr r3,r29
+    lwz r4,44(r30)
+    bl fn_800DBCCC
+    stb r3,57(r29)
+    mr r3,r29
+    lwz r4,48(r30)
+    bl fn_800DBD00
+    stb r3,54(r29)
+    mr r3,r29
+    lwz r4,48(r30)
+    bl fn_800DBCCC
+    stb r3,56(r29)
+selectors_done:
+    lwz r0,24(r29)
+    cmplwi r0,0
+    beq allocate
+    beq allocate
+    lwz r3,gMovieAllocCount(r0)
+    addi r0,r3,-1
+    stw r0,gMovieAllocCount(r0)
+    lwz r0,gMovieAllocCount(r0)
+    cmpwi r0,0
+    bne allocate
+    bl ResetAllocTot
+    b allocate
+unexpected:
+    addi r3,r31,32
+    bl __unexpected
+unexpected_done:
+    b unexpected_done
+allocate:
+    lwz r4,gMovieAllocCount(r0)
+    addi r3,r28,308
+    addi r0,r4,1
+    stw r0,gMovieAllocCount(r0)
+    bl AllocHiMem
+    stw r3,24(r29)
+    li r0,0
+    mr r12,r31
+    stw r0,28(r29)
+    li r3,0
+    lwz r0,76(r31)
+    lmw r28,56(r12)
+    lwz r1,0(r1)
+    mtlr r0
+    blr
 }
+#else
+u32 fn_800D96B0(u32* self, u32 unused, u8* header)
+{
+    s32 height;
+    s32 halfPixels;
+    u32 tag;
+
+    (void)unused;
+    self[0] = *(u32*)(header + 4);
+    height = *(s32*)(header + 8);
+    self[1] = height < 0 ? (u32)-height : (u32)height;
+    self[2] = *(u16*)(header + 14);
+    self[10] = ((s32)self[0] + 31) / 32;
+    self[11] = ((s32)self[1] / 4) * self[10];
+    halfPixels = (((s32)self[0] / 2) * (s32)self[1]) / 2;
+
+    if (*(u16*)(header + 14) == 16) {
+        if (*(u32*)(header + 16) == 0) {
+            ((u8*)self)[52] = 0;
+            ((u8*)self)[53] = 5;
+            ((u8*)self)[54] = 10;
+            ((u8*)self)[55] = 5;
+            ((u8*)self)[56] = 5;
+            ((u8*)self)[57] = 5;
+        } else if (*(u32*)(header + 16) == 3) {
+            ((u8*)self)[52] = fn_800DBD00(self, *(s32*)(header + 40));
+            ((u8*)self)[55] = fn_800DBCCC(self, *(s32*)(header + 40));
+            ((u8*)self)[53] = fn_800DBD00(self, *(s32*)(header + 44));
+            ((u8*)self)[57] = fn_800DBCCC(self, *(s32*)(header + 44));
+            ((u8*)self)[54] = fn_800DBD00(self, *(s32*)(header + 48));
+            ((u8*)self)[56] = fn_800DBCCC(self, *(s32*)(header + 48));
+        }
+    }
+
+    if (self[6] != 0 && --gMovieAllocCount == 0) {
+        ResetAllocTot();
+    }
+    tag = (u32)gMovieAllocCount++;
+    self[6] = (u32)AllocHiMem((u32)(halfPixels + halfPixels / 8) +
+                              self[11] + 6454, tag);
+    self[7] = 0;
+    return 0;
+}
+#endif
+#ifdef __MWERKS__
+#pragma optimization_level 4
+#pragma peephole on
+#pragma scheduling on
+#endif
 
 u32 MovieValidateFrameFormat(u32 param_1, int param_2) {
     int uVar1;
