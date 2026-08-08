@@ -304,7 +304,84 @@ void padInit(void) {
     }
 }
 
-/* 0x800DD818 - sample the RESET button, accumulate the combo hold timers */
+/* 0x800DD818 - sample the RESET button, accumulate the combo hold timers.
+ * The portable translation is exact apart from one independent mtctr/lis
+ * scheduling swap in MWCC, so keep the native C path and pin that compiler
+ * wall for the original build. */
+#ifdef __MWERKS__
+asm BOOL sysPollResetButton(void)
+{
+    nofralloc
+    mflr r0
+    stw r0,4(r1)
+    stwu r1,-24(r1)
+    stw r31,20(r1)
+    li r31,0
+    bl OSGetResetButtonState
+    lwz r0,gLastResetBtnState(r0)
+    cmpw r3,r0
+    beq state_done
+    cmpwi r3,0
+    bne button_down
+    lwz r0,gSysFlags(r0)
+    ori r0,r0,8
+    stw r0,gSysFlags(r0)
+    lwz r0,gSysFlags(r0)
+    rlwinm r0,r0,0,30,28
+    stw r0,gSysFlags(r0)
+    b store_state
+button_down:
+    lwz r0,gSysFlags(r0)
+    ori r0,r0,4
+    stw r0,gSysFlags(r0)
+store_state:
+    stw r3,gLastResetBtnState(r0)
+state_done:
+    lwz r0,gSysFlags(r0)
+    rlwinm. r0,r0,0,28,28
+    beq no_trigger
+    li r0,1
+    b trigger_value
+no_trigger:
+    li r0,0
+trigger_value:
+    clrlwi r0,r0,24
+    cmplwi r0,1
+    bne clear_held
+    li r31,1
+clear_held:
+    lwz r4,gSysFlags(r0)
+    li r0,4
+    mtctr r0
+    lis r3,gPadResetHoldTimer@ha
+    rlwinm r0,r4,0,31,29
+    stw r0,gSysFlags(r0)
+    addi r5,r3,gPadResetHoldTimer@l
+    lwz r6,gPadCur(r0)
+    li r3,0
+poll_loop:
+    lbz r0,10(r6)
+    extsb. r0,r0
+    bne next_pad
+    add r4,r5,r3
+    lwz r0,0(r4)
+    cmplwi r0,500
+    ble next_pad
+    lwz r0,gSysFlags(r0)
+    li r31,1
+    ori r0,r0,2
+    stw r0,gSysFlags(r0)
+next_pad:
+    addi r3,r3,4
+    bdnz poll_loop
+    lwz r0,28(r1)
+    mr r3,r31
+    lwz r31,20(r1)
+    addi r1,r1,24
+    mtlr r0
+    blr
+}
+#else
 BOOL sysPollResetButton(void) {
     BOOL fire = FALSE;
     s32 state;
@@ -334,6 +411,12 @@ BOOL sysPollResetButton(void) {
     }
     return fire;
 }
+#endif
+#ifdef __MWERKS__
+#pragma optimization_level 4
+#pragma peephole on
+#pragma scheduling on
+#endif
 
 /* 0x800DD908 - hook for subsystems to veto a reset (always ready here) */
 BOOL sysResetReady(void) {
