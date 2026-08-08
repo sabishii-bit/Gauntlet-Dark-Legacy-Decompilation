@@ -174,7 +174,7 @@ static void mbBlitSetupVerts(MBBLIT* b, f32 u0, f32 u1, f32 v0, f32 v1);
 void DrawBlit(MBBLIT* b);
 void DrawBlitFlatQuad(MBBLIT* b);
 void mbBlitCalcRect(MBBLIT* b, s32* x, s32* y, f32* depth);
-void mbBlitCalcWidth(MBBLIT* b, s32 x, s32 y, f64 depth);
+void mbBlitCalcWidth(MBBLIT* b, s32 x, s32 y, f32 depth);
 void mbBlitCvtCoord(MBBLIT* b, f64 depth);
 void mbBlitCalcY(MBBLIT* b, s32 y);
 void mbBlitCalcClip(MBBLIT* b, f32 xScale, f32 yScale);
@@ -311,7 +311,7 @@ void mbBlitCalcRect(MBBLIT* b, s32* x, s32* y, f32* depth) {
     }
 }
 
-void mbBlitCalcWidth(MBBLIT* b, s32 x, s32 y, f64 depth) {
+void mbBlitCalcWidth(MBBLIT* b, s32 x, s32 y, f32 depth) {
     MBWindow* window = gWinGlobals;
     s32 value;
 
