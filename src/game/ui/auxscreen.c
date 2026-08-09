@@ -119,8 +119,8 @@ extern void del_player_blits(s32 i);
 extern f32 atan2(f32 y, f32 x);
 extern void CreatePYRMatrix(void* mtx, void* v);
 extern void UpdateObjWorldMat(void* mtx);
-extern s32 GetScrollText(char* a, char* b, s32 line, s32* out);
-extern s32 GetScrollScale(char* a, char* b, s32 line);
+extern char* GetScrollText(char* a, char* b, s32 line, s32* out);
+extern f32 GetScrollScale(char* a, char* b, s32 line);
 extern s32 CaptionTextSub(char* text, f32 scale, s32 font, s32 rows, s32 y);
 extern s32 ScrollTextNum(char* a, char* b);
 extern void AudioEnterNextStage(void);
@@ -491,24 +491,27 @@ void CaptionTextReset(void)
 /* ================================================================== */
 /* CaptionText (0xF8) -- lay out and advance a caption block.         */
 /* ================================================================== */
+#pragma opt_lifetimes off
 s32 CaptionText(char* a, char* b, s32 line, s32 page, s32 flags)
 {
     f32 w = 0.6669999957f;
     s32 n;
-    s32 measured;
     s32 tmp;
 
     if (line >= 0) {
         caption_line = line;
         caption_page = 0;
     }
-    n = GetScrollText(a, b, caption_line, &tmp);
+    n = (s32)GetScrollText(a, b, caption_line, &tmp);
     w = w * GetScrollScale(a, b, caption_line);
-    measured = CaptionTextSub((char*)n, w, caption_page, flags, page);
-    if (measured == 0) {
-        return 0;
+    n = CaptionTextSub((char*)n, w, tmp, page, flags);
+    if (n == 0) {
+        goto done;
     }
-    if (line < 0) {
+    if (line >= 0) {
+        goto done;
+    }
+    {
         s32 total = ScrollTextNum(a, b);
         if (caption_line + 1 < total) {
             caption_timer = caption_timer - gClockStepTicks;
@@ -517,11 +520,13 @@ s32 CaptionText(char* a, char* b, s32 line, s32 page, s32 flags)
                 caption_page = page;
                 caption_timer = 60;
             }
+            n = 0;
         }
-        return 0;
     }
-    return measured;
+done:
+    return n;
 }
+#pragma opt_lifetimes reset
 
 /* ================================================================== */
 /* CaptionTextSub (0x2C4) -- draw one measured caption line.          */
