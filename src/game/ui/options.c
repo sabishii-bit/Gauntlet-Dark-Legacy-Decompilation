@@ -194,6 +194,7 @@ extern OPTMENU hintmenu_display;     /* 0x8011F910 hint display menu */
 
 extern s32 optmenu_rgb_text[3];      /* 0x8011DDF8 */
 extern s32 optmenu_rgb_ctls[3];      /* 0x8011DE04 */
+extern u8 lbl_8011DD20[];            /* options data block base */
 extern char opt_style_names[][16];   /* 0x8011F048 "Default"... */
 extern char opt_controls_desc[][16]; /* 0x8011DD20 per-style desc */
 extern s32 rune_idx_table[13];       /* 0x8011F9F8 */
@@ -1116,6 +1117,7 @@ s32 OptionsStart(s32 player, s32 b)
 {
     s32 i;
     OPTITEM* it;
+    u8* data = lbl_8011DD20;
 
     if (options_state != 0) {
         return options_state;
@@ -1123,24 +1125,26 @@ s32 OptionsStart(s32 player, s32 b)
     optmenu_nochoice = 0;
     switch (gGameMode) {
     case 0x8009:
-        start_optmenu(&optmenu_game, player);
+        start_optmenu((OPTMENU*)(data + 0x338), player);
         break;
     case 0x4010:
         if (sLastWorldLevel == sWorldDataConst) {
-            start_optmenu(&optmenu_tower, player);
+            start_optmenu((OPTMENU*)(data + 0x4F8), player);
         } else {
-            start_optmenu(&optmenu_tower_hints, player);
+            start_optmenu((OPTMENU*)(data + 0x7C4), player);
             for (i = 0;; i++) {
-                it = &optmenu_tower_hints.items[i];
+                it = &((OPTMENU*)(data + 0x7C4))->items[i];
                 if (it->text == NULL) {
                     break;
                 }
-                if (it->code == 0x26) {
-                    if (sMusicTrackHi == 0xC) {
-                        it->value = -1;
-                    } else {
-                        it->value = 0;
-                    }
+                switch (it->code) {
+                case 0x26:
+                if (sMusicTrackHi == 0xC) {
+                    it->value = -1;
+                } else {
+                    it->value = 0;
+                }
+                    break;
                 }
             }
         }
