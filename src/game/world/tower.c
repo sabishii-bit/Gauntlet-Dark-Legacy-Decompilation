@@ -431,9 +431,9 @@ void playerGiveGargItem(int player, int item, int count) {
     Player* record = &gPlayers[player];
 
     if (count == fn_80057BC8(item) - 1) {
+        u32 bit;
         s32 characterOffset;
         u8* first;
-        u32 bit;
 
         first = (u8*)record +
                 (characterOffset = record->character * sizeof(PlayerCharSave));
