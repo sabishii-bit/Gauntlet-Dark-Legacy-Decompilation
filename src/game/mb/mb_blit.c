@@ -1188,6 +1188,7 @@ static u32 mbInitBlitEntry(MBBLIT* b, int tex, int delta) {
     s32 projectHeight;
     s32 oldWidth;
     s32 oldHeight;
+    s32 newTex;
     MBTextureDef* texture;
     s32 newWidth;
     s32 newHeight;
@@ -1197,12 +1198,14 @@ static u32 mbInitBlitEntry(MBBLIT* b, int tex, int delta) {
     projectHeight = 0;
     old = b->tex;
 
-    if (tex < 0) {
-        tex = old;
+    if (tex >= 0) {
+        newTex = tex;
+    } else {
+        newTex = b->tex;
     }
-    tex += delta;
-    b->tex = tex;
-    if (tex == old) {
+    newTex += delta;
+    b->tex = newTex;
+    if (newTex == old) {
         return old;
     }
 
@@ -1225,7 +1228,7 @@ static u32 mbInitBlitEntry(MBBLIT* b, int tex, int delta) {
         oldHeight = 1;
     }
 
-    texture = MBRomTexPtr(tex);
+    texture = MBRomTexPtr(newTex);
     newWidth = texture->width;
     newHeight = texture->height;
     if (oldWidth != newWidth) {
