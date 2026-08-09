@@ -27,7 +27,7 @@
  * SfxDeleteParented, gCurLevel checks; DoPlayerAction: player anim-action
  * sequencer over p->seq/p->nextSeq with PlayerAttackType classification,
  * three jumptables 0x80127174/80127384/80127540, atree frame stepping via
- * fn_80011134, mb_tree node color pokes MBTreeClearFlags/MBTreeSetFlags).
+ * DoAnimateTree, mb_tree node color pokes MBTreeClearFlags/MBTreeSetFlags).
  */
 #include "types.h"
 
@@ -57,7 +57,7 @@ void SfxSetParent(void* sfx, void* parent);
 void SfxDeleteParented(void* parent, s32 a, s32 b);
 void dbgTextPrintfCol(int x, int y, const char* fmt, ...);
 s32 AnimateATree(void* node, s32 seq, s32 mode);
-u32 fn_80011134(f32 t, void* node, s32 seq, u32 frame, s32 mode, s32 e);
+u32 DoAnimateTree(f32 t, void* node, s32 seq, u32 frame, s32 mode, s32 e);
 s32 StartEnemyAtkFX(void* a, s32 b);
 void MBTreeSetFlags(void* obj, u32 flags, s32 recurse);
 void MBTreeClearFlags(void* obj, u32 flags, s32 recurse);
@@ -507,7 +507,7 @@ s32 DoEnemyAction(void* enemy)
 
 /* 0x800AC068  player action sequencer: advances the player action state
  * (p+0x208 current, p+0x20C requested, PlayerAttackType of both), drives the
- * atree animation (fn_80011134), pokes display-tree state (MBTreeClearFlags /
+ * atree animation (DoAnimateTree), pokes display-tree state (MBTreeClearFlags /
  * MBTreeSetFlags), and draws the GC-only anim debug overlay. */
 void DoPlayerAction(void* player)
 {
@@ -1451,7 +1451,7 @@ void DoPlayerAction(void* player)
         pf[0x2A] = 1.0f;
     }
 
-    adv = fn_80011134(speed, (u8*)p + 0x7C, seq, frame, mode, 1);
+    adv = DoAnimateTree(speed, (u8*)p + 0x7C, seq, frame, mode, 1);
     if (adv == 0) {
         p[0x23C] = PlayerAttackType(cur);
     } else {
