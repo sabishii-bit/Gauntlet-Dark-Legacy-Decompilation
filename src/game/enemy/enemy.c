@@ -5474,8 +5474,9 @@ extern void fn_8009FEA0(s16 sound);
 extern void AudioPlayEvt102(void);
 extern void ProcessSkinFX(f32* a, void* node, s32 c);
 extern void fn_8005A338(f32* mat, f32* colloff, f32* attnoff);
-extern void fn_8004DC2C(Enemy* e);
 extern void fn_8004DF58(Enemy* e);
+extern f32 atan2(f32 y, f32 x);
+extern void SetSkinFX(skinfx* fx, s32 base, s32 frames, s32 loops, f32 rate);
 extern s32 gBoss398;
 extern char gTextFormatBuf[];
 extern s32 lbl_803447B8;
@@ -5494,6 +5495,118 @@ extern f64 lbl_80346878;
 extern f32 lbl_803469C0;
 extern char lbl_803469C4[3];
 extern f32 lbl_803469C8;
+extern f32 lbl_803469CC;
+extern f32 lbl_803469D0;
+extern f32 lbl_803469D4;
+extern const f32 lbl_803469D8;
+extern f64 lbl_803469E0;
+extern f64 lbl_803469E8;
+extern s32 lbl_80344BF8;
+
+void fn_8004DC2C(Enemy* enemy)
+{
+    f32 scale;
+    f64 limit;
+    u32 damageType;
+    s32 type;
+    s32 typeCopy;
+    f64 angle;
+    u8 unused[8];
+
+    typeCopy = enemy->type;
+    type = typeCopy;
+    if (type == gBossType) {
+        return;
+    }
+    if ((f64)enemy->damage >= lbl_80346810) {
+        damageType = enemy->damagetype;
+        if ((damageType & 0x10160) != 0 ||
+            ((f64)enemy->damage > (f64)lbl_803469CC &&
+             (damageType & 0x200) != 0)) {
+            RequestEnemyAction(enemy, E_HIT_REACT2);
+            if (enemy->type == E_GOLEM) {
+                enemy->flag1 = 1;
+            }
+            if (enemy->type == E_ACID) {
+                scale = lbl_80346820;
+            } else if ((f64)enemy->hht <= lbl_80346868 && enemy->type != E_IT) {
+                scale = lbl_803469D0;
+            } else if (enemy->type == E_GOLEM) {
+                scale = lbl_80346980;
+            } else {
+                scale = lbl_803469D4;
+            }
+            enemy->pushed[0] += enemy->damagedir[0] * scale;
+            enemy->pushed[1] += enemy->damagedir[1] * scale;
+            enemy->pushed[2] += enemy->damagedir[2] * scale;
+            scale = enemy->damagedir[2];
+            angle = atan2(enemy->damagedir[0], scale);
+            limit = lbl_80346840;
+            enemy->pushang = (f32)(limit + angle);
+            angle = enemy->pushang;
+            if (angle > limit) {
+                angle -= lbl_80346848;
+            } else if (angle <= lbl_80346850) {
+                angle = lbl_80346848 + angle;
+            }
+            enemy->pushang = (f32)angle;
+            scale = lbl_80346820;
+            enemy->damagedir[0] = scale;
+            enemy->damagedir[1] = scale;
+            enemy->damagedir[2] = scale;
+        } else if ((damageType & 0x10) != 0) {
+            if (type == E_GOLEM || type == E_ACID) {
+                enemy->flag1 = 1;
+            } else {
+                RequestEnemyAction(enemy, E_HIT_REACT1);
+                enemy->pushed[0] += enemy->damagedir[0] * lbl_803469D8;
+                enemy->pushed[1] += enemy->damagedir[1] * lbl_803469D8;
+                enemy->pushed[2] += enemy->damagedir[2] * lbl_803469D8;
+                scale = enemy->damagedir[2];
+                angle = atan2(enemy->damagedir[0], scale);
+                limit = lbl_80346840;
+                enemy->pushang = (f32)(limit + angle);
+                angle = enemy->pushang;
+                if (angle > limit) {
+                    angle -= lbl_80346848;
+                } else if (angle <= lbl_80346850) {
+                    angle = lbl_80346848 + angle;
+                }
+                enemy->pushang = (f32)angle;
+                scale = lbl_80346820;
+                enemy->damagedir[0] = scale;
+                enemy->damagedir[1] = scale;
+                enemy->damagedir[2] = scale;
+            }
+        } else {
+            if (type != E_GOLEM) {
+                RequestEnemyAction(enemy, E_HIT_REACT1);
+            } else {
+                enemy->flag1 = 1;
+            }
+        }
+
+        if ((f64)(enemy->pushed[0] * enemy->pushed[0] +
+                  enemy->pushed[1] * enemy->pushed[1] +
+                  enemy->pushed[2] * enemy->pushed[2]) > lbl_803469E0) {
+            NormalVector(enemy->pushed);
+            limit = lbl_803469E8;
+            enemy->pushed[0] = (f32)(limit * enemy->pushed[0]);
+            enemy->pushed[1] = (f32)(limit * enemy->pushed[1]);
+            enemy->pushed[2] = (f32)(limit * enemy->pushed[2]);
+        }
+        scale = lbl_80346820;
+        enemy->damage = scale;
+        enemy->damagetype = 0;
+        if (enemy->health <= scale) {
+            RequestEnemyAction(enemy, E_DYING);
+        } else {
+            SetSkinFX(&enemy->skinfx, lbl_80344BF8, 1, 1, lbl_803468F0);
+        }
+    }
+    enemy->pushmag2 = enemy->pushed[0] * enemy->pushed[0] +
+                      enemy->pushed[2] * enemy->pushed[2];
+}
 
 void do_enemies(void)
 {
