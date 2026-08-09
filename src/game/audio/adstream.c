@@ -1178,12 +1178,12 @@ s32 AdsParseHeader(ADSTREAM* stream, u32* header, u32* body) {
     u32 value;
 
     headerName[0] = (s8)(headerTag >> 24);
-    bodyName[0] = (s8)(bodyTag >> 24);
     headerName[1] = (headerTag >> 16) & 0xFF;
-    bodyName[1] = (bodyTag >> 16) & 0xFF;
     headerName[2] = (headerTag >> 8) & 0xFF;
-    bodyName[2] = (bodyTag >> 8) & 0xFF;
     headerName[3] = headerTag;
+    bodyName[0] = (s8)(bodyTag >> 24);
+    bodyName[1] = (bodyTag >> 16) & 0xFF;
+    bodyName[2] = (bodyTag >> 8) & 0xFF;
     bodyName[3] = bodyTag;
 
     if (strncmp((char*)headerName, lbl_80349330, 4) == 0) {
