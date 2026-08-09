@@ -916,7 +916,7 @@ s32 fn_80057BC8(s32 type)
 }
 
 /* 0x8005403C -- lock the model box, then run AtreeListLock. */
-void fn_8005403C(s32 arg0)
+void LockModels(s32 arg0)
 {
     MBOX_LockModels();
     AtreeListLock(arg0);

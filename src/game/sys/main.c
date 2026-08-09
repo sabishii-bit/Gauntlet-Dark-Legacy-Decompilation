@@ -76,7 +76,7 @@ void ControlsUpdate(void);
 void AtreeAlloc(int w, int h);
 void pbInitDiag(int arg);
 void fn_800533E4(void);
-void fn_8005403C(int arg);
+void LockModels(int arg);
 void init_attract_mode(int screen);
 void ClockOncePerFrame(void);
 void LoadVU1GameLogic(void);
@@ -343,7 +343,7 @@ void main(void)
     } else {
         bulletproof_printf(st + 208);
         fn_800533E4();
-        fn_8005403C(1);
+        LockModels(1);
         init_attract_mode(-1);
     }
     bulletproof_printf(st + 236, BytesFree());
@@ -380,7 +380,7 @@ void main(void)
                 bulletproof_printf(st + 208);
                 FontInit();
                 fn_800533E4();
-                fn_8005403C(1);
+                LockModels(1);
                 init_attract_mode(0x8004);
                 sDiagPending = 0;
             }
@@ -512,7 +512,7 @@ void game_init_once(const char* name)
     bulletproof_printf(st + 348);
     InitControls();
     MBWindowZoom(sBootWindowZoom);
-    fn_8005403C(0);
+    LockModels(0);
     fn_800C1170(325, &lbl_80344DA8, 0);
     bulletproof_printf(st + 376, BytesFree());
 }

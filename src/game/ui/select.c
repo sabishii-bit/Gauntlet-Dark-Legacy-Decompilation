@@ -158,7 +158,7 @@ extern void start_optmenu_nostack(void* menu, s32 player);
 /* ---- async-load primitives (other TUs) ---- */
 extern int  MBOX_BGLoadModelStart(void* name, int a);
 extern int  MBOX_BGLoadModelDone(void);
-extern void fn_8005403C(int a);
+extern void LockModels(int a);
 extern char lbl_80348024[7];
 
 /* ============================================================
@@ -2114,7 +2114,7 @@ int SelectLoadDone(void)
     if (MBOX_BGLoadModelDone() == 0) {
         goto loading;
     }
-    fn_8005403C(2);
+    LockModels(2);
     lbl_80344BC0 = 1;
     result = 1;
     goto done;
