@@ -4547,7 +4547,7 @@ action_done31:
 /* --- kill_enemy externs --- */
 extern int sprintf(char* buf, const char* fmt, ...);
 extern int toupper(int c);
-extern char* fn_80057ACC(void);                     /* current-level tag string */
+extern char* fn_80057ACC(s32 slot);                 /* current-level tag string */
 extern struct item* PlaceItem(s32 a, s32 b, char* name, s32 c);
 extern void fn_800920E0(f32* pos, struct item* ip, f32 z); /* toss carried item */
 extern void AddItemSub(struct item* ip);           /* commit placed item */
@@ -4605,7 +4605,6 @@ void kill_enemy(s32 index)
     struct item* item = 0;
     s32 carried = 0;
     char* p;
-    s32 t;
     char buf[32];
 
     if (gTriggerCameraState != 0) {
@@ -4616,10 +4615,9 @@ void kill_enemy(s32 index)
         e->gotitem = 0;
         carried = 1;
     } else {
-        t = e->type;
-        switch (t) {
-        case 32:
-            sprintf(buf, lbl_80346A38, fn_80057ACC());
+        switch (e->type) {
+        case E_GARGOYLE:
+            sprintf(buf, lbl_80346A38, fn_80057ACC(e->type));
             for (p = buf; *p != 0; p++) {
                 *p = toupper(*p);
             }
