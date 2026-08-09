@@ -2078,7 +2078,7 @@ static void start_optmenu(OPTMENU* m, s32 sel)
         /* pop */
         end_optmenu(-1, 0);
         if (options_level >= 0) {
-            m = optglobals.stack[options_level];
+            m = optionsStack[options_level];
         } else {
             return;
         }
@@ -2086,7 +2086,7 @@ static void start_optmenu(OPTMENU* m, s32 sel)
     if (options_level >= 4) {
         FatalError("OPTONS_MAXLEVEL EXCEEDED MAX", 0x800000);
     }
-    optglobals.stack[options_level] = m;
+    optionsStack[options_level] = m;
     options_state = m->state;
     start_optmenu_nostack(m, sel);
     m->active = options_level + 1;
