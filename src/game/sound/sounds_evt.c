@@ -765,6 +765,12 @@ void fn_8009E03C(int pos)
     }
 }
 
+static inline void sndFxPlay3DAttenOrdered(int soundId, int pos, int flags,
+                                           int pan)
+{
+    sndFxPlay3DAtten(soundId, pos, pan, flags);
+}
+
 void fn_8009DB24(int sel, int arg)
 {
     s32* t = lbl_801232C8;
@@ -795,13 +801,10 @@ void fn_8009DB24(int sel, int arg)
             u8* e = *(u8**)(gWorldData + 44) + idx * 24;
 
             if (*(s32*)(e + 16) >= 0) {
-                s32 customFlags;
-
-                sndFxPlay3DAtten(
+                sndFxPlay3DAttenOrdered(
                     *(s32*)(e + 16), arg,
-                    *(s16*)(e + 20) != 0 ? *(s16*)(e + 20) : 224,
-                    (customFlags = *(s16*)(e + 22),
-                     customFlags != 0 ? customFlags : 126));
+                    *(s16*)(e + 22) != 0 ? *(s16*)(e + 22) : 126,
+                    *(s16*)(e + 20) != 0 ? *(s16*)(e + 20) : 224);
             }
         }
         break;
