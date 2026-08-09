@@ -47,7 +47,7 @@
  *   0x800920E0 fn_800920E0            Start* + Random + atan2 (firework-like)
  *   0x800922A0 StartEnterFX       (G) FX_ENTER, flb 0x80880                         [high] BODY (parked: renum)
  *   0x8009233C StartBlockFX       (G) FX_BLOCK + per-class frame + player reparent  [high] BODY (parked: 1-insn fold)
- *   0x80092464 fn_80092464            Start* + frame-range select (MBTreeSetColor)
+ *   0x80092464 StartComboFX       (G) combo sphere/color pair + class light color   [high]
  *   0x800926BC StartLevelUpFX     (G) FX_LEVELUP_* via color table 0x80122E60       [high] BODY (parked: renum)
  *   0x80092794 StartShieldFX            Start* via Sub + launch helper fn_80093E50
  *   0x800929C8 StartMagicHealFX   (G) FX_MAGICHEAL + scale/32 clamp                 [high] BODY (parked: renum)
@@ -235,6 +235,8 @@ extern s32 lbl_80285B04[];  /* per-enemy hit-fx type table   (.bss)    */
 extern s32 lbl_80285A50[];  /* per-enemy death-fx type table (.bss)    */
 extern s32 lbl_80122E60[4]; /* levelup fx type by player color (.data) */
 extern s32 lbl_8011A178[];  /* block-fx frame by player class  (.data) */
+extern s32 lbl_80122088[];   /* combo/magic FX definition page (.data) */
+extern f32 lbl_803480EC;     /* combo-sphere light radius               */
 extern s32 lbl_80122D98[5]; /* fx type by index (.data)               */
 extern s32 lbl_80122DAC[];  /* fx type table A by index (.data)       */
 extern s32 lbl_80122DC0[];  /* fx type table B by index (.data)       */
@@ -825,7 +827,94 @@ s32 StartBlockFX(f32 time, s32 pnum)
     return idx;
 }
 
-/* 0x80092464 fn_80092464 -- doc-only (combo family). */
+/* Spawn the combo sphere for a player class and the optional colored combo
+ * burst.  The class tables share the packed magic/effect definition page. */
+s32 StartComboFX(f32* pos, s32 color, s32 playerClass)
+{
+    u8* comboTable = (u8*)lbl_80122088;
+    EffectPage* page = (EffectPage*)EffectInfo;
+    s32 result = -1;
+
+    if (playerClass >= 0) {
+        s32 type = *(s32*)(comboTable + 3576);
+        EffectHeader* header;
+
+        result = -1;
+        if (type < 0 || type >= MAXEFFECTTYPES) {
+            ErrorPrintf("Bad Effect type: %d", type);
+            result = -1;
+        } else {
+            header = &page->info[type];
+            if (header->atree != NULL) {
+                result = StartFXTree(header->atree, pos, 0, 0x80980, 0.0f);
+                if (result >= 0) {
+                    s32 scaled = result * 240;
+                    u8* nodeField = (u8*)page + scaled;
+
+                    MBTreeSetZsortAdd(*(struct mbnode**)(nodeField += 2996),
+                                      header->zmod, 1);
+                    MBTreeSetAlpha(*(struct mbnode**)nodeField, header->alpha, 1);
+                    *(s32*)((u8*)page + scaled + 3072) = type;
+                }
+            }
+        }
+        if (result >= 0) {
+            s32 scaled = result * 240;
+            u8* nodeField = (u8*)page + scaled;
+            s32 colorIndex;
+            f32* lightColor;
+
+            MBTreeSetColor(*(struct mbnode**)(nodeField += 2996),
+                           lbl_8011A178[playerClass], 1);
+            MBTreeSetAmbientAdd(*(struct mbnode**)nodeField, 0x1FF, 1);
+            colorIndex = *(s32*)(comboTable + 108 + playerClass * 4);
+            lightColor = (f32*)(comboTable + 24 + colorIndex * 12);
+            if (result >= 0) {
+                *(f32*)((u8*)page + scaled + 2992) = lbl_803480EC;
+                if (lightColor != NULL) {
+                    *(f32*)((u8*)page + scaled + 2976) = lightColor[0];
+                    *(f32*)((u8*)page + scaled + 2980) = lightColor[1];
+                    *(f32*)((u8*)page + scaled + 2984) = lightColor[2];
+                } else {
+                    *(f32*)((u8*)page + scaled + 2976) = light_color[0];
+                    *(f32*)((u8*)page + scaled + 2980) = light_color[1];
+                    *(f32*)((u8*)page + scaled + 2984) = light_color[2];
+                }
+            }
+        }
+    }
+    if (color >= 0) {
+        s32 type = *(s32*)(comboTable + 3560 + color * 4);
+        s32 index = -1;
+        EffectHeader* header;
+
+        if (type < 0 || type >= MAXEFFECTTYPES) {
+            ErrorPrintf("Bad Effect type: %d", type);
+            index = -1;
+        } else {
+            header = &page->info[type];
+            if (header->atree != NULL) {
+                index = StartFXTree(header->atree, pos, 0, 0x400880, 0.0f);
+                if (index >= 0) {
+                    s32 scaled = index * 240;
+                    u8* nodeField = (u8*)page + scaled;
+
+                    MBTreeSetZsortAdd(*(struct mbnode**)(nodeField += 2996),
+                                      header->zmod, 1);
+                    MBTreeSetAlpha(*(struct mbnode**)nodeField, header->alpha, 1);
+                    *(s32*)((u8*)page + scaled + 3072) = type;
+                }
+            }
+        }
+        result = index;
+        if (result >= 0) {
+            u8* effectBase = (u8*)page + result * 240;
+
+            MBTreeSetAmbientAdd(*(struct mbnode**)(effectBase + 2996), 0x1FF, 1);
+        }
+    }
+    return result;
+}
 
 s32 StartLevelUpFX(f32* pos, s32 color)
 {
@@ -834,8 +923,6 @@ s32 StartLevelUpFX(f32* pos, s32 color)
 }
 
 extern f64 lbl_80348108;
-extern s32 lbl_80122088[];
-
 /* typed view of the magic FX def table at lbl_80122088: MWCC emits the
  * member-array accesses as add(base,scaled-index) + member-offset
  * displacement, which raw byte math refuses to produce */
@@ -1348,7 +1435,6 @@ done:
     return idx;
 }
 
-extern s32 lbl_80122088[];      /* magic FX def table (ids @+3484, color idx @+124, colors @+24) */
 
 extern f64 lbl_80348128;        /* magic scale factor */
 extern f64 lbl_80348118;        /* magic scale cap test */
