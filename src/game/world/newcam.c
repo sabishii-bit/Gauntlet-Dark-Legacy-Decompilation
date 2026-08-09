@@ -121,15 +121,22 @@ typedef struct Vec3 {
  * stay byte-accurate for the reconstructions below.
  */
 typedef struct NcCamera {
-    u8  _000[0x0A4];
-    f32 tx;            /* 0x0A4 translate accumulator X */
-    f32 _0A8;          /* 0x0A8 */
-    f32 tz;            /* 0x0AC translate accumulator Z */
-    u8  _0B0[0x0EC - 0x0B0];
+    u8  _000[0x030];
+    Vec3 position;     /* 0x030 world position */
+    u8  _03C[0x0A4 - 0x03C];
+    Vec3 attention;    /* 0x0A4 look-at point */
+    u8  _0B0[0x0DC - 0x0B0];
+    f32 level_height;  /* 0x0DC level camera height */
+    Vec3 direction;    /* 0x0E0 forward vector */
     f32 yaw;           /* 0x0EC */
-    u8  _0F0[0x104 - 0x0F0];
+    u8  _0F0[0x0F4 - 0x0F0];
+    f32 distance;      /* 0x0F4 follow distance */
+    u8  _0F8[0x104 - 0x0F8];
     f32 pitch;         /* 0x104 */
-    u8  _108[0x1A4 - 0x108];
+    u8  _108[0x10C - 0x108];
+    f32 zoom;          /* 0x10C */
+    f32 aspect;        /* 0x110 */
+    u8  _114[0x1A4 - 0x114];
     s32 field_1A4;     /* 0x1A4 */
     s32 field_1A8;     /* 0x1A8 (reset to -1) */
     f32 field_1AC;     /* 0x1AC */
@@ -173,6 +180,7 @@ extern const u8 lbl_80127D30[];
 
 /* ----- external helpers (G3D math layer) ----- */
 extern double tan(double);
+extern double __frsqrte(double);
 /* rotate/derive a unit vector from a constant seed. */
 extern void YawVec3(const void* seed, Vec3* out, f32 angle);
 extern void PitchVec3(const f32* vector, f32* out, f32 angle);
@@ -216,6 +224,7 @@ extern s32 lbl_80343CE0;   /* slow-motion / time-scaling enable */
 extern f32 gClockFrameStep; /* time scale (frame delta) */
 extern s32 lbl_80343CEC;   /* interpolation frame count (divisor) */
 extern s32 lbl_80343CF8;   /* active marker index (also the 3D selector) */
+extern s32 lbl_80344768;
 extern u8  lbl_80344A74;
 extern s32 gControllerButtons;
 extern s32 sFlags;
@@ -875,6 +884,86 @@ s32 CamGetPlayerAvgPos(Vec3* out, s32 flags) {
     }
 
     return count != 0;
+}
+
+void fn_8006F418(NcCamera* camera, f32* target)
+{
+    u8 unused_high[24];
+    Vec3 average;
+    u8 unused_low[4];
+    volatile f32 root;
+    f32 yaw;
+    f32 pitch;
+    f64 angle;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    register f32 distance;
+
+    if (target != 0) {
+        angle = (f64)target[6] - 3.141592654;
+        if (angle > 3.141592654) {
+            angle -= 6.283185308;
+        } else if (angle <= -3.141592654) {
+            angle = 6.283185308 + angle;
+        }
+        yaw = (f32)angle;
+    } else {
+        yaw = 0.0f;
+    }
+
+    if (target != 0) {
+        pitch = -target[5];
+    } else {
+        pitch = 0.0f;
+    }
+
+    if (lbl_80344768 > 1) {
+        f32 limit = -(*(f32**)((u8*)gCurLevel + 0x60))[2];
+        if (pitch < limit) {
+            limit = pitch;
+        }
+        pitch = limit;
+    }
+
+    YawVec3(lbl_80127D40, &camera->direction, -yaw);
+    PitchVec3((f32*)&camera->direction, (f32*)&camera->direction, -pitch);
+    camera->yaw = yaw;
+    camera->pitch = pitch;
+
+    if (target != 0) {
+        camera->position.x = target[1];
+        camera->position.y = target[2];
+        camera->position.z = target[3];
+    }
+
+    camera->level_height = (*(f32**)((u8*)gCurLevel + 0x60))[0x0C];
+    CamLookInDir((f32*)&camera->direction, (u32)camera);
+    MBCameraUpdate((f32*)&camera->position, (f32*)camera);
+    MBWindowZoom(camera->zoom);
+    if (camera->aspect > 0.0) {
+        MBWindowProjection(
+            0.31830988614222805 * (180.0 * camera->zoom),
+            1.0 / camera->aspect);
+    }
+
+    CamGetPlayerAvgPos(&average, 4);
+    dz = camera->position.z - average.z;
+    dx = camera->position.x - average.x;
+    dy = camera->position.y - average.y;
+    if ((distance = (dx * dx + dy * dy) + dz * dz) > 0.0f) {
+        f64 guess = __frsqrte((f64)distance);
+        guess = 0.5 * guess * (3.0 - guess * guess * distance);
+        guess = 0.5 * guess * (3.0 - guess * guess * distance);
+        guess = 0.5 * guess * (3.0 - guess * guess * distance);
+        root = (f32)(distance *
+                     (0.5 * guess * (3.0 - guess * guess * distance)));
+        distance = root;
+    }
+    camera->distance = distance;
+    camera->attention.x = camera->direction.x * camera->distance + camera->position.x;
+    camera->attention.y = camera->direction.y * camera->distance + camera->position.y;
+    camera->attention.z = camera->direction.z * camera->distance + camera->position.z;
 }
 
 /*
