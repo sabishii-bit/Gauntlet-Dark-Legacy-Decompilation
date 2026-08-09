@@ -79,7 +79,7 @@ extern s32  TitleMenu(s32 y);
 extern void TitleMenuInit(s32 sel);
 extern void fn_8009D350(int a);
 extern void AudioCursorSelect(void);
-extern void fn_80053B20(void);
+extern void EndTower(void);
 extern void fn_80053C70(void);
 extern void fn_80054E68(int a);
 extern void init_next_level(int a);
@@ -265,7 +265,7 @@ void do_titlescreen(void) {
     }
     if (titlescreen_timeout > 1800) {
         TitleMenuEnd();
-        fn_80053B20();
+        EndTower();
         did_titlesound = 1;
     }
 }
@@ -282,7 +282,7 @@ void init_titlescreen(void) {
 
     FreeHiMem(2);
     if (lbl_80343B38 < 0) {
-        fn_80053B20();
+        EndTower();
         sndFxInit(0x8009, -1);
         MBOX_NewObject(base + 2232, gIdentityMatrix, 0, 0);
         bulletproof_printf(base + 2244);

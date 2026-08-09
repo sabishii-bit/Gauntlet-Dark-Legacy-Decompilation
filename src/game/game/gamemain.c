@@ -685,7 +685,7 @@ void TransitionBlitHide(void)
 }
 
 /* 0x80053B20 -- reset the selection/flow globals and stop select audio. */
-void fn_80053B20(void)
+void EndTower(void)
 {
     lbl_80343C10 = -1;
     lbl_80343DD4 = -1;

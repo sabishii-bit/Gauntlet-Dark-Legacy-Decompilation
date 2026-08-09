@@ -260,7 +260,7 @@ extern s32 PlayerWriteSaveFile(s32 i, s32 file);
 extern void add_vmu_file(s32 chan, s32 slot, s32 file, char* name, s32 flags,
                          s32 cls);
 extern s32 ShowLoading(void);   /* front-end mode poll */
-extern void fn_80053B20(void);  /* front-end teardown */
+extern void EndTower(void);  /* front-end teardown */
 extern void WritePlayerInfo(s32 i);
 extern s32 saveGetFreeBytes(s32 chan, s32 handle);
 extern void LoadPlyrData(s32 player, s32 pad, s32 mode);
@@ -1278,7 +1278,7 @@ s32 do_player_select(void)
             allIdle = 0;
         } else if (lbl_803448AC == 8 && lbl_803448A8 == 3) {
             if (allIdle != 0 || lbl_80344BA8 != 0) {
-                fn_80053B20();
+                EndTower();
                 for (i = 0; i < 4; i++) {
                     abort_player(i);
                 }
