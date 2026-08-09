@@ -229,12 +229,14 @@ static double muld(double a, double b) {
     return a * b;
 }
 
+#pragma opt_lifetimes off
+#pragma opt_propagation off
 void MBWindowZoom(f32 zoom) {
     MBWinGlobals* g = gWinGlobals;
     MBWINDOW* w = lbl_80344EE8;
+    f32 z;
     f32 aspect;
     f32 hang;
-    f32 z;
 
     aspect = 0.75 * (w->height / (f32)g->disp->h);
     if (zoom > 0.0f) {
@@ -248,6 +250,8 @@ void MBWindowZoom(f32 zoom) {
     }
     MBWindowProjection(0.31830988614222805 * (180.0 * zoom), lbl_80343EC8);
 }
+#pragma opt_propagation reset
+#pragma opt_lifetimes reset
 
 /* 0x800BBCA8 - set view angles (radians): tan/cotan/cos of the half angles,
  * pixel scale/center, half-angle cotans. */
