@@ -1080,16 +1080,15 @@ Item* fn_80062FF0(f32 radius, f32* position, s32 type, f32* out1, f32* out2)
     StartEnemyGrid(position, radius);
     while ((idx = NextGridEnemy()) >= 0) {
         iteminfo* info;
-        s16 active;
         s32 reject;
+        s32 item_type;
         f32 d;
 
         item = &sItems[idx];
-        active = item->active;
-        if (active == -1) {
+        if (item->active == -1) {
             continue;
         }
-        if (active & 0x8100) {
+        if (item->active & 0x8100) {
             continue;
         }
         info = item->info;
@@ -1104,14 +1103,15 @@ Item* fn_80062FF0(f32 radius, f32* position, s32 type, f32* out1, f32* out2)
                 continue;
             }
         }
-        if (info->type == -1) {
+        item_type = info->type;
+        if (item_type == -1) {
             continue;
         }
         if (item->minoff != 0) {
             continue;
         }
         reject = 0;
-        switch (info->type) {
+        switch (item_type) {
         case 13:
             reject = 1;
             break;
@@ -1122,7 +1122,7 @@ Item* fn_80062FF0(f32 radius, f32* position, s32 type, f32* out1, f32* out2)
             break;
         case 8:
             if ((item->action == 2 || item->action == 4) &&
-                (active & 1)) {
+                (item->active & 1)) {
             } else {
                 reject = 1;
             }
