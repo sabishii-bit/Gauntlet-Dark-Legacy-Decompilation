@@ -3958,8 +3958,10 @@ void move_logic28(s32 index)
     }
     e->ang = a;
     if (e->closest >= 0) {
-        f32 dy = e->objgrp.worldmat[3][1] - gPlayers[e->closest][18];
-        if (e->visactive != 0 && e->actual_dist <= e->sight
+        f32* player = gPlayers[e->closest];
+        f32 sight = e->sight;
+        f32 dy = e->objgrp.worldmat[3][1] - player[18];
+        if (e->visactive != 0 && e->actual_dist <= sight
             && dy >= -10.0 && dy <= 10.0) {
             if (e->flag2 <= 0) {
                 if (e->org_lvl >= 3) {
