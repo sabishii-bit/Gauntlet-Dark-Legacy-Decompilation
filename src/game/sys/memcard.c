@@ -108,7 +108,7 @@ void mbBlitProject(void* blit, int w);
 void mbBlitCalcWidth(void* blit, int x, int y, f32 z);
 void DrawTextSub(int a, const char* text, int color, f32 s1, int f, f32 s2, int g);
 void vibrators_off(void);
-void fn_800B6B80(void);
+void MBHideMarkedMessages(void);
 void MBLockMessages(int a);
 void MBUnlockMessages(int a);
 void MBBlitSetColor(void* blit, int a);
@@ -1769,7 +1769,7 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
     gGameBusy = 1;
     gModalRenderDepth++;
     msgUpdate();
-    fn_800B6B80();
+    MBHideMarkedMessages();
     MBLockMessages(gModalRenderDepth - 1);
 
     if (gWinGlobals != 0 && *(void**) ((u8*) win + 48) != 0) {

@@ -55,8 +55,8 @@ extern void  pbSetTime(int t);
 extern int   fn_800C7214(void* p);          /* MB file/texture post-load */
 extern void  fn_800C7884(int a);            /* MB texture-region reset */
 extern void  MBLockFonts(int slot);         /* MB lock helper */
-extern void  fn_800B6C20(int level);        /* MB unlock helper */
-extern void  fn_800B6BC0(void);             /* MB reset helper */
+extern void  MBResetUnlockedFonts(int level); /* MB unlock helper */
+extern void  MBResetFonts(void);              /* MB reset helper */
 extern void  MBTreeInit(void);             /* mb_objects reset */
 extern void  fn_800B9E4C(void);             /* mb_objects init */
 extern void* FatalErrorf(void* def, void* name); /* object-def build */
@@ -265,7 +265,7 @@ void MBOX_ResetUnlockedModels(int slot) {
 
     fn_800C7884(slot);
     FreeUnlockedMem(slot);
-    fn_800B6C20(slot);
+    MBResetUnlockedFonts(slot);
     lbl_80344E8C = lbl_802A5D0C[slot];
     (*(s32**)(g + 0x30))[0] = lbl_80344E8C;
     MBTreeInit();
@@ -279,7 +279,7 @@ void MBOX_ResetUnlockedModels(int slot) {
 /* ---- 0x800B8AB8 : reset the whole model system ---- */
 void MBOX_ResetModels(void) {
     u8* g = gWinGlobals;
-    fn_800B6BC0();
+    MBResetFonts();
     fn_800C7884(0);
     lbl_80344E8C = 0;
     (*(s32**)(g + 0x30))[0] = 0;

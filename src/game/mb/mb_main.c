@@ -79,7 +79,7 @@ extern void MBTreeInit(void);
 extern void MBWindowInit(void);
 extern void MBSetBGColor(int a, int b, int c);
 extern void MBInitLights(void);
-extern void fn_800B6C94(void);
+extern void MBResetFontData(void);
 extern void fn_800B5D90(void);
 
 extern f64 sqrt(f64 x);
@@ -266,7 +266,7 @@ void MBInit(void) {
     MBTreeInit();
     MBWindowInit();
     MBInitLights();
-    fn_800B6C94();
+    MBResetFontData();
     pbInitDORegs();
 }
 
