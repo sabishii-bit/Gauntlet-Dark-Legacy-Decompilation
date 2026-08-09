@@ -715,7 +715,7 @@ s32 fn_80054CDC(void)
 }
 
 /* 0x80054E68 -- set-and-return the previous value of lbl_80343C0C. */
-s32 fn_80054E68(s32 arg0)
+s32 SetMaxFPS(s32 arg0)
 {
     s32 old = lbl_80343C0C;
     lbl_80343C0C = arg0;
