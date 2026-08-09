@@ -2053,6 +2053,7 @@ void calc_shop_ypos(s32 player)
     u8* entry;
     s32 i;
     s32 y;
+    f64 scale = lbl_80348428;
 
     p = &gPlayers[player * 13148];
     ypos = &lbl_8028A520[player << 6];
@@ -2065,7 +2066,8 @@ void calc_shop_ypos(s32 player)
             y += 24;
         }
         if ((s8)entry[32] != 0) {
-            y = y + TextHeightMLines((f32)(0.5 * (f64)*(f32*)(entry + 64)),
+            y = y + TextHeightMLines((f32)(scale *
+                                            (f64)*(f32*)(entry + 64)),
                                      6, (char*)entry + 32);
             y = y + 16;
         }
