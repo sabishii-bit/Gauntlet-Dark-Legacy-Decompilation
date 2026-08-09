@@ -194,7 +194,23 @@ extern const f32 lbl_80346A60;
 extern const f32 lbl_80346A64;
 extern const f32 lbl_80346A68;
 extern const f32 lbl_80346A6C;
-extern f32 gPlayers[][3287]; /* 0x80275AE0: 0x335C generator records */
+typedef struct EnemyPlayerView {
+    s32 index;
+    u8 _004[0x054 - 0x004];
+    f32 position[3];
+    u8 _060[0x120 - 0x060];
+    u32 flags;
+    u8 _124[0x954 - 0x124];
+    s16 it_enemy;
+    u8 _956[0x335C - 0x956];
+} EnemyPlayerView;
+typedef union EnemyPlayerArray {
+    f32 words[4][3287];
+    EnemyPlayerView view[4];
+} EnemyPlayerArray;
+extern EnemyPlayerArray gPlayers; /* 0x80275AE0: four 0x335C player records */
+#define gPlayerWords gPlayers.words
+#define gEnemyPlayers gPlayers.view
 extern f32 lbl_8023CA98[][4];
 extern f32 lbl_8011BED8[];  /* 0x8011BED8 per-type turn-rate table */ /* wall-slide scratch; [1] = output vector */
 
@@ -393,7 +409,7 @@ void do_enemy_move(s32 index)
         e->trans[2] = 0.0f;
         fn_8005A65C(&e->objgrp.worldmat[0][0], e->coll_offset);
         e->route = fn_8004CFAC(&e->objgrp.worldmat[3][0],
-                               &gPlayers[e->coll_pnum][17]);
+                               &gPlayerWords[e->coll_pnum][17]);
         fn_80046140(index);
     } else {
         hitWorld = 0;
@@ -757,6 +773,21 @@ extern f64 lbl_80346880;
 extern f32 lbl_80346888;
 extern s32 lbl_8034473C;
 extern f64 lbl_80346830;
+extern s32 AddExp(s32 player, s32 amount, s32 mode);
+extern s32 damage_player();
+extern s32 msgPost(s32 message, s32 player, void* position);
+extern s32 StartDeathFX(void* node, s32 kind, s32 flags);
+extern void AudioPlayEvt102Follow(f32* position, s32 player);
+extern void AudioPlayEvt104(f32* position);
+extern s32 SuicideExplosion(f32* position, f32 damage);
+extern void fn_8009DAC8(f32* position);
+extern s32 lbl_80344718;
+extern s32 lbl_803447E4;
+extern s32 lbl_80344B24;
+extern f64 lbl_80346898;
+extern f64 lbl_803468A8;
+extern u8* gCurLevel;
+extern void RequestEnemyAction(Enemy* enemy, s32 action);
 
 s32 do_enemy_collide(s32 index)
 {
@@ -998,6 +1029,94 @@ gravity:
     return result;
 }
 
+void fn_80046140(s32 index)
+{
+    u8* pool = (u8*)lbl_80250E00;
+    Enemy* enemy = (Enemy*)(pool + index * 0x394 + 0xE18);
+    s32 playerIndex;
+    s32 damaged;
+
+    if (enemy->type == E_DEATH) {
+        if (enemy->stun_timer <= 0 &&
+            (gEnemyPlayers[enemy->coll_pnum].flags & 0x80000) == 0) {
+            if (enemy->endurance > 0) {
+                enemy->endurance--;
+            } else {
+                RequestEnemyAction(enemy, E_ATTACK);
+                if ((enemy->attack_timer -= gFrameTicks) <= 0) {
+                    enemy->attack_timer += 3;
+                    if (enemy->org_lvl == 2) {
+                        AddExp(enemy->coll_pnum, -1, -2);
+                        damaged = 0;
+                    } else {
+                        damaged = damage_player(enemy->coll_pnum, -enemy->atts.fight,
+                                                1, 0x1000, 0);
+                    }
+                    if (enemy->org_lvl == 2) {
+                        msgPost(0x80, enemy->coll_pnum, &enemy->objgrp.attn_pos[0]);
+                    } else {
+                        msgPost(0x82, enemy->coll_pnum, &enemy->objgrp.attn_pos[0]);
+                    }
+                    lbl_803447E4 = 1;
+                    enemy->attack_count++;
+                    if (damaged != 0) {
+                        enemy->health = lbl_80346820;
+                    } else if (enemy->specialfx < 0) {
+                        enemy->specialfx = StartDeathFX(enemy->objgrp.node,
+                                                       enemy->org_lvl, 0);
+                    }
+                    if ((f64)(enemy->health -= enemy->atts.fight) >= lbl_80346898) {
+                        AudioPlayEvt102Follow(&enemy->objgrp.worldmat[3][0],
+                                              enemy->coll_pnum);
+                        lbl_80344718 = 1;
+                    } else {
+                        enemy->flag2 = 1;
+                        AudioPlayEvt104(&enemy->objgrp.worldmat[3][0]);
+                        playerIndex = enemy->coll_pnum;
+                        pool = (u8*)(enemy - (Enemy*)(pool + 0xE18));
+                        enemy->health = lbl_80346820;
+                        enemy->state = DYING;
+                        enemy->area = (s16)playerIndex;
+                        if (enemy->algorithm == 18) {
+                            SuicideExplosion(&enemy->objgrp.coll_pos[0],
+                                (f32)(lbl_803468A8 * *(f32*)(gCurLevel + 0xBC)));
+                            fn_8009DAC8(&enemy->objgrp.coll_pos[0]);
+                        }
+                        uncouple_enemy((s32)pool);
+                    }
+                }
+            }
+        }
+    } else if (enemy->type == E_IT) {
+        if (lbl_80344B24 >= 0) {
+            gEnemyPlayers[lbl_80344B24].it_enemy = 0;
+        }
+        lbl_80344B24 = enemy->coll_pnum;
+        gEnemyPlayers[lbl_80344B24].it_enemy = 1;
+        msgPost(0x32, gEnemyPlayers[lbl_80344B24].index,
+                &gEnemyPlayers[lbl_80344B24].position[0]);
+
+        playerIndex = lbl_80344B24;
+        pool = (u8*)(enemy - (Enemy*)(pool + 0xE18));
+        enemy->health = lbl_80346820;
+        enemy->state = DYING;
+        enemy->area = (s16)playerIndex;
+        if (enemy->algorithm == 18) {
+            SuicideExplosion(&enemy->objgrp.coll_pos[0],
+                (f32)(lbl_803468A8 * *(f32*)(gCurLevel + 0xBC)));
+            fn_8009DAC8(&enemy->objgrp.coll_pos[0]);
+        }
+        uncouple_enemy((s32)pool);
+    } else if (enemy->algorithm != 31) {
+        enemy->attack_index = (s16)enemy->coll_pnum;
+        if ((enemy->attack_count & 7) == 7) {
+            RequestEnemyAction(enemy, E_ATTACK_PWR);
+        } else {
+            RequestEnemyAction(enemy, E_ATTACK);
+        }
+    }
+}
+
 /* ===================================================================== *
  *  AI MOVE-LOGIC STATE HANDLERS  (do_ai jumptable, 0x80046B54..0x8004C650)
  *  Each takes the enemy slot index, sets a desired facing/velocity, then
@@ -1199,7 +1318,7 @@ void update_enemy_milestone(Enemy* enemy)
 /* Track this enemy's target milestone in the player's recent-history ring. */
 void fn_8004E5F8(Enemy* enemy)
 {
-    s32* player = (s32*)((u8*)gPlayers + enemy->closest * 0x335C);
+    s32* player = (s32*)((u8*)gPlayerWords + enemy->closest * 0x335C);
     s32 i;
 
     for (i = 0; i < 5; i++) {
@@ -1455,10 +1574,10 @@ void move_logic00(s32 index)
     if (e->dead_end < 1) {
         if (e->closest < 0) {
             base = e->ang;
-        } else if (*(s16*)&gPlayers[e->closest][647] > 2) {
-            base = get_yaw(&gPlayers[e->closest][633], &e->objgrp.worldmat[3][0]);
+        } else if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+            base = get_yaw(&gPlayerWords[e->closest][633], &e->objgrp.worldmat[3][0]);
         } else {
-            base = get_yaw(&gPlayers[e->closest][17], &e->objgrp.worldmat[3][0]);
+            base = get_yaw(&gPlayerWords[e->closest][17], &e->objgrp.worldmat[3][0]);
         }
         lbl_80344720 = base;
         {
@@ -1566,11 +1685,11 @@ void move_logic01(s32 index)
     }
     if (e->closest < 0 || e->operation_count < e->operation_speed) {
         a = e->ang;
-    } else if (*(s16*)&gPlayers[e->closest][647] > 2) {
-        e->ang = get_yaw(&gPlayers[e->closest][633], &e->objgrp.worldmat[3][0]);
+    } else if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+        e->ang = get_yaw(&gPlayerWords[e->closest][633], &e->objgrp.worldmat[3][0]);
         a = e->ang;
     } else {
-        e->ang = get_yaw(&gPlayers[e->closest][17], &e->objgrp.worldmat[3][0]);
+        e->ang = get_yaw(&gPlayerWords[e->closest][17], &e->objgrp.worldmat[3][0]);
         a = e->ang;
     }
     e->ang = a;
@@ -1657,7 +1776,7 @@ void move_logic02(s32 index)
         }
     }
     if (e->coll_pnum >= 0) {
-        e->ang = get_yaw(&gPlayers[e->coll_pnum][17], &e->objgrp.worldmat[3][0]);
+        e->ang = get_yaw(&gPlayerWords[e->coll_pnum][17], &e->objgrp.worldmat[3][0]);
     }
     set_enemy_trans(e, 1.0f, e->ang);
     e->pyr[1] = turn_enemy_ang(e, e->ang);
@@ -1694,10 +1813,10 @@ void move_logic03(s32 index)
             e->dead_end = 0;
         }
         if (e->counter2 >= 0) {
-            if (*(s16*)&gPlayers[e->counter2][647] > 2) {
-                face = get_yaw(&gPlayers[e->counter2][633], &e->objgrp.worldmat[3][0]);
+            if (*(s16*)&gPlayerWords[e->counter2][647] > 2) {
+                face = get_yaw(&gPlayerWords[e->counter2][633], &e->objgrp.worldmat[3][0]);
             } else {
-                face = get_yaw(&gPlayers[e->counter2][17], &e->objgrp.worldmat[3][0]);
+                face = get_yaw(&gPlayerWords[e->counter2][17], &e->objgrp.worldmat[3][0]);
             }
         } else {
             face = e->ang;
@@ -1796,7 +1915,7 @@ void move_logic04(s32 index)
         }
     }
     if (e->coll_pnum >= 0) {
-        e->ang = get_yaw(&gPlayers[e->coll_pnum][17], &e->objgrp.worldmat[3][0]);
+        e->ang = get_yaw(&gPlayerWords[e->coll_pnum][17], &e->objgrp.worldmat[3][0]);
     }
     set_enemy_trans(e, 1.0f, e->ang);
     e->pyr[1] = turn_enemy_ang(e, e->ang);
@@ -2079,10 +2198,10 @@ void move_logic07(s32 index)
     }
     if (e->closest < 0) {
         face = e->ang;
-    } else if (*(s16*)&gPlayers[e->closest][647] > 2) {
-        face = get_yaw(&gPlayers[e->closest][633], &e->objgrp.worldmat[3][0]);
+    } else if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+        face = get_yaw(&gPlayerWords[e->closest][633], &e->objgrp.worldmat[3][0]);
     } else {
-        face = get_yaw(&gPlayers[e->closest][17], &e->objgrp.worldmat[3][0]);
+        face = get_yaw(&gPlayerWords[e->closest][17], &e->objgrp.worldmat[3][0]);
     }
     lbl_80344720 = face;
     if (e->dead_end > 0) {
@@ -2216,10 +2335,10 @@ void move_logic08(s32 index)
                            &e->objgrp.worldmat[3][0]);
     } else if (e->closest < 0) {
         face = e->ang;
-    } else if (*(s16*)&gPlayers[e->closest][647] > 2) {
-        face = get_yaw(&gPlayers[e->closest][633], &e->objgrp.worldmat[3][0]);
+    } else if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+        face = get_yaw(&gPlayerWords[e->closest][633], &e->objgrp.worldmat[3][0]);
     } else {
-        face = get_yaw(&gPlayers[e->closest][17], &e->objgrp.worldmat[3][0]);
+        face = get_yaw(&gPlayerWords[e->closest][17], &e->objgrp.worldmat[3][0]);
     }
     lbl_80344720 = face;
     if (e->dead_end > 0) {
@@ -2229,10 +2348,10 @@ void move_logic08(s32 index)
         if (e->coll_pnum >= 0) {
             if (e->closest < 0) {
                 cand = e->ang;
-            } else if (*(s16*)&gPlayers[e->closest][647] > 2) {
-                cand = get_yaw(&gPlayers[e->closest][633], &e->objgrp.worldmat[3][0]);
+            } else if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+                cand = get_yaw(&gPlayerWords[e->closest][633], &e->objgrp.worldmat[3][0]);
             } else {
-                cand = get_yaw(&gPlayers[e->closest][17], &e->objgrp.worldmat[3][0]);
+                cand = get_yaw(&gPlayerWords[e->closest][17], &e->objgrp.worldmat[3][0]);
             }
             lbl_80344720 = cand;
         } else {
@@ -2392,11 +2511,11 @@ void move_logic10(s32 index)
             }
             if (e->closest < 0) {
                 face = e->ang;
-            } else if (*(s16*)&gPlayers[e->closest][647] > 2) {
-                face = get_yaw(&gPlayers[e->closest][633],
+            } else if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+                face = get_yaw(&gPlayerWords[e->closest][633],
                                &e->objgrp.worldmat[3][0]);
             } else {
-                face = get_yaw(&gPlayers[e->closest][17],
+                face = get_yaw(&gPlayerWords[e->closest][17],
                                &e->objgrp.worldmat[3][0]);
             }
             e->ang = face;
@@ -2428,11 +2547,11 @@ void move_logic10(s32 index)
                 if (!got) {
                     if (e->closest < 0) {
                         face = e->ang;
-                    } else if (*(s16*)&gPlayers[e->closest][647] > 2) {
-                        face = get_yaw(&gPlayers[e->closest][633],
+                    } else if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+                        face = get_yaw(&gPlayerWords[e->closest][633],
                                        &e->objgrp.worldmat[3][0]);
                     } else {
-                        face = get_yaw(&gPlayers[e->closest][17],
+                        face = get_yaw(&gPlayerWords[e->closest][17],
                                        &e->objgrp.worldmat[3][0]);
                     }
                     lbl_80344720 = face;
@@ -2570,11 +2689,11 @@ void move_logic10(s32 index)
             }
             if (e->closest < 0) {
                 face = e->ang;
-            } else if (*(s16*)&gPlayers[e->closest][647] > 2) {
-                face = get_yaw(&gPlayers[e->closest][633],
+            } else if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+                face = get_yaw(&gPlayerWords[e->closest][633],
                                &e->objgrp.worldmat[3][0]);
             } else {
-                face = get_yaw(&gPlayers[e->closest][17],
+                face = get_yaw(&gPlayerWords[e->closest][17],
                                &e->objgrp.worldmat[3][0]);
             }
             e->ang = face;
@@ -2591,17 +2710,17 @@ void move_logic10(s32 index)
             if (e->collided < 5) {
                 if (e->closest < 0) {
                     face = e->ang;
-                } else if (*(s16*)&gPlayers[e->closest][647] > 2) {
-                    face = get_yaw(&gPlayers[e->closest][633],
+                } else if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+                    face = get_yaw(&gPlayerWords[e->closest][633],
                                    &e->objgrp.worldmat[3][0]);
                 } else {
-                    face = get_yaw(&gPlayers[e->closest][17],
+                    face = get_yaw(&gPlayerWords[e->closest][17],
                                    &e->objgrp.worldmat[3][0]);
                 }
                 lbl_80344720 = face;
             } else {
                 e->stuck_count = 0;
-                e->plr_ms = *(s32*)&gPlayers[e->closest][653];
+                e->plr_ms = *(s32*)&gPlayerWords[e->closest][653];
                 if (e->plr_ms >= 0) {
                     e->mode1++;
                     e->mode2 = 0;
@@ -2680,25 +2799,25 @@ void move_logic10(s32 index)
             if (e->stuck_count < 5) {
                 if (e->closest < 0) {
                     face = e->ang;
-                } else if (*(s16*)&gPlayers[e->closest][647] > 2) {
-                    face = get_yaw(&gPlayers[e->closest][633],
+                } else if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+                    face = get_yaw(&gPlayerWords[e->closest][633],
                                    &e->objgrp.worldmat[3][0]);
                 } else {
-                    face = get_yaw(&gPlayers[e->closest][17],
+                    face = get_yaw(&gPlayerWords[e->closest][17],
                                    &e->objgrp.worldmat[3][0]);
                 }
                 lbl_80344720 = face;
             } else {
                 e->plr_ms =
-                    *((s32*)&gPlayers[e->closest][653] + e->ms_idx);
+                    *((s32*)&gPlayerWords[e->closest][653] + e->ms_idx);
                 if (e->plr_ms < 0) {
                     if (e->closest < 0) {
                         face = e->ang;
-                    } else if (*(s16*)&gPlayers[e->closest][647] > 2) {
-                        face = get_yaw(&gPlayers[e->closest][633],
+                    } else if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+                        face = get_yaw(&gPlayerWords[e->closest][633],
                                        &e->objgrp.worldmat[3][0]);
                     } else {
-                        face = get_yaw(&gPlayers[e->closest][17],
+                        face = get_yaw(&gPlayerWords[e->closest][17],
                                        &e->objgrp.worldmat[3][0]);
                     }
                     lbl_80344720 = face;
@@ -2716,23 +2835,23 @@ void move_logic10(s32 index)
         } else {
             e->ms_idx++;
             if (e->max_msidx < e->ms_idx
-                || *((s32*)&gPlayers[e->closest][653] + e->ms_idx) < 0) {
+                || *((s32*)&gPlayerWords[e->closest][653] + e->ms_idx) < 0) {
                 e->ms_idx = 0;
                 e->max_msidx = 4;
                 e->plr_ms = -1;
                 if (e->closest < 0) {
                     face = e->ang;
-                } else if (*(s16*)&gPlayers[e->closest][647] > 2) {
-                    face = get_yaw(&gPlayers[e->closest][633],
+                } else if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+                    face = get_yaw(&gPlayerWords[e->closest][633],
                                    &e->objgrp.worldmat[3][0]);
                 } else {
-                    face = get_yaw(&gPlayers[e->closest][17],
+                    face = get_yaw(&gPlayerWords[e->closest][17],
                                    &e->objgrp.worldmat[3][0]);
                 }
                 lbl_80344720 = face;
             } else {
                 e->plr_ms =
-                    *((s32*)&gPlayers[e->closest][653] + e->ms_idx);
+                    *((s32*)&gPlayerWords[e->closest][653] + e->ms_idx);
                 e->stuck_count = 0;
             }
         }
@@ -2883,10 +3002,10 @@ void move_logic12(s32 index)
         fn_80050394(index);
     }
     if (e->closest >= 0) {
-        if (*(s16*)&gPlayers[e->closest][647] > 2) {
-            a = get_yaw(&gPlayers[e->closest][633], &e->objgrp.worldmat[3][0]);
+        if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+            a = get_yaw(&gPlayerWords[e->closest][633], &e->objgrp.worldmat[3][0]);
         } else {
-            a = get_yaw(&gPlayers[e->closest][17], &e->objgrp.worldmat[3][0]);
+            a = get_yaw(&gPlayerWords[e->closest][17], &e->objgrp.worldmat[3][0]);
         }
     } else {
         a = e->ang;
@@ -3076,10 +3195,10 @@ void move_logic14(s32 index)
     }
     if (e->closest < 0) {
         face = e->ang;
-    } else if (*(s16*)&gPlayers[e->closest][647] > 2) {
-        face = get_yaw(&gPlayers[e->closest][633], &e->objgrp.worldmat[3][0]);
+    } else if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+        face = get_yaw(&gPlayerWords[e->closest][633], &e->objgrp.worldmat[3][0]);
     } else {
-        face = get_yaw(&gPlayers[e->closest][17], &e->objgrp.worldmat[3][0]);
+        face = get_yaw(&gPlayerWords[e->closest][17], &e->objgrp.worldmat[3][0]);
     }
     lbl_80344720 = face;
     if ((e->count -= gFrameTicks) <= 0) {
@@ -3120,7 +3239,7 @@ void move_logic14(s32 index)
             e->flag1 = -e->flag1;
         }
         e->dead_end = 0;
-        e->ang = get_yaw(&gPlayers[e->closest][17], &e->objgrp.worldmat[3][0]);
+        e->ang = get_yaw(&gPlayerWords[e->closest][17], &e->objgrp.worldmat[3][0]);
         if (e->flag1 > 0) {
             e->ang = e->ang + scale;
         } else {
@@ -3184,8 +3303,8 @@ void move_logic15(s32 index)
         return;
     }
     if (e->closest >= 0 && e->close_dist <= 0.8 * e->sight) {
-        f32 d = fqdist(gPlayers[e->closest][17] - e->objgrp.worldmat[3][0],
-                            gPlayers[e->closest][19] - e->objgrp.worldmat[3][2]);
+        f32 d = fqdist(gPlayerWords[e->closest][17] - e->objgrp.worldmat[3][0],
+                            gPlayerWords[e->closest][19] - e->objgrp.worldmat[3][2]);
         if (d <= 0.8 * e->sight) {
             e->algorithm = 0;
             do_ai(index);
@@ -3303,14 +3422,14 @@ void move_logic16(s32 index)
     }
     if (e->closest < 0) {
         a = e->ang;
-    } else if (*(s16*)&gPlayers[e->closest][647] > 2) {
-        a = get_yaw(&gPlayers[e->closest][633], &e->objgrp.worldmat[3][0]);
+    } else if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+        a = get_yaw(&gPlayerWords[e->closest][633], &e->objgrp.worldmat[3][0]);
     } else {
-        a = get_yaw(&gPlayers[e->closest][17], &e->objgrp.worldmat[3][0]);
+        a = get_yaw(&gPlayerWords[e->closest][17], &e->objgrp.worldmat[3][0]);
     }
     e->ang = a;
     if (e->closest >= 0) {
-        f32 dvert = e->objgrp.worldmat[3][1] - gPlayers[e->closest][18];
+        f32 dvert = e->objgrp.worldmat[3][1] - gPlayerWords[e->closest][18];
         if (e->visactive != 0 && dvert >= -10.0 && dvert <= 10.0) {
             if (e->flag1 == 0) {
                 if (e->actual_dist <= 0.6 * e->sight) {
@@ -3389,10 +3508,10 @@ void move_logic18(s32 index)
     }
     if (e->closest < 0) {
         a = e->ang;
-    } else if (*(s16*)&gPlayers[e->closest][647] > 2) {
-        a = get_yaw(&gPlayers[e->closest][633], &e->objgrp.worldmat[3][0]);
+    } else if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+        a = get_yaw(&gPlayerWords[e->closest][633], &e->objgrp.worldmat[3][0]);
     } else {
-        a = get_yaw(&gPlayers[e->closest][17], &e->objgrp.worldmat[3][0]);
+        a = get_yaw(&gPlayerWords[e->closest][17], &e->objgrp.worldmat[3][0]);
     }
     e->ang = a;
     sVar1 = e->mode1;
@@ -3495,10 +3614,10 @@ void move_logic19(s32 index)
         fn_80050394(index);
     }
     if (e->closest >= 0) {
-        if (*(s16*)&gPlayers[e->closest][647] > 2) {
-            a = get_yaw(&gPlayers[e->closest][633], &e->objgrp.worldmat[3][0]);
+        if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+            a = get_yaw(&gPlayerWords[e->closest][633], &e->objgrp.worldmat[3][0]);
         } else {
-            a = get_yaw(&gPlayers[e->closest][17], &e->objgrp.worldmat[3][0]);
+            a = get_yaw(&gPlayerWords[e->closest][17], &e->objgrp.worldmat[3][0]);
         }
     } else {
         a = e->ang;
@@ -3577,10 +3696,10 @@ void move_logic20(s32 index)
     }
     if (e->closest < 0) {
         face = e->ang;
-    } else if (*(s16*)&gPlayers[e->closest][647] > 2) {
-        face = get_yaw(&gPlayers[e->closest][633], &e->objgrp.worldmat[3][0]);
+    } else if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+        face = get_yaw(&gPlayerWords[e->closest][633], &e->objgrp.worldmat[3][0]);
     } else {
-        face = get_yaw(&gPlayers[e->closest][17], &e->objgrp.worldmat[3][0]);
+        face = get_yaw(&gPlayerWords[e->closest][17], &e->objgrp.worldmat[3][0]);
     }
     lbl_80344720 = face;
     if (e->dead_end > 0) {
@@ -3701,10 +3820,10 @@ void move_logic21(s32 index)
         e->dead_end = 0;
     }
     if (e->closest >= 0) {
-        if (*(s16*)&gPlayers[e->closest][647] > 2) {
-            face = get_yaw(&gPlayers[e->closest][633], &e->objgrp.worldmat[3][0]);
+        if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+            face = get_yaw(&gPlayerWords[e->closest][633], &e->objgrp.worldmat[3][0]);
         } else {
-            face = get_yaw(&gPlayers[e->closest][17], &e->objgrp.worldmat[3][0]);
+            face = get_yaw(&gPlayerWords[e->closest][17], &e->objgrp.worldmat[3][0]);
         }
     } else {
         face = e->ang;
@@ -3812,10 +3931,10 @@ void move_logic22(s32 index)
     } else if (mode1 < 0 && mode1 > -2) {
         if (e->closest < 0) {
             e->ang = e->ang;
-        } else if (*(s16*)&gPlayers[e->closest][647] > 2) {
-            e->ang = get_yaw(&gPlayers[e->closest][633], &e->objgrp.worldmat[3][0]);
+        } else if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+            e->ang = get_yaw(&gPlayerWords[e->closest][633], &e->objgrp.worldmat[3][0]);
         } else {
-            e->ang = get_yaw(&gPlayers[e->closest][17], &e->objgrp.worldmat[3][0]);
+            e->ang = get_yaw(&gPlayerWords[e->closest][17], &e->objgrp.worldmat[3][0]);
         }
         goto move;
     }
@@ -3856,17 +3975,17 @@ void move_logic23(s32 index)
         fn_80050394(index);
     }
     if (e->closest >= 0) {
-        if (*(s16*)&gPlayers[e->closest][647] > 2) {
-            a = get_yaw(&gPlayers[e->closest][633], &e->objgrp.worldmat[3][0]);
+        if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+            a = get_yaw(&gPlayerWords[e->closest][633], &e->objgrp.worldmat[3][0]);
         } else {
-            a = get_yaw(&gPlayers[e->closest][17], &e->objgrp.worldmat[3][0]);
+            a = get_yaw(&gPlayerWords[e->closest][17], &e->objgrp.worldmat[3][0]);
         }
     } else {
         a = e->ang;
     }
     e->ang = a;
     if (e->closest >= 0) {
-        f32* player = gPlayers[e->closest];
+        f32* player = gPlayerWords[e->closest];
         f32 sight = e->sight;
         f32 dy = e->objgrp.worldmat[3][1] - player[18];
         if (e->visactive != 0 && e->actual_dist <= sight
@@ -3949,17 +4068,17 @@ void move_logic28(s32 index)
         fn_80050394(index);
     }
     if (e->closest >= 0) {
-        if (*(s16*)&gPlayers[e->closest][647] > 2) {
-            a = get_yaw(&gPlayers[e->closest][633], &e->objgrp.worldmat[3][0]);
+        if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+            a = get_yaw(&gPlayerWords[e->closest][633], &e->objgrp.worldmat[3][0]);
         } else {
-            a = get_yaw(&gPlayers[e->closest][17], &e->objgrp.worldmat[3][0]);
+            a = get_yaw(&gPlayerWords[e->closest][17], &e->objgrp.worldmat[3][0]);
         }
     } else {
         a = e->ang;
     }
     e->ang = a;
     if (e->closest >= 0) {
-        f32* player = gPlayers[e->closest];
+        f32* player = gPlayerWords[e->closest];
         f32 sight = e->sight;
         f32 dy = e->objgrp.worldmat[3][1] - player[18];
         if (e->visactive != 0 && e->actual_dist <= sight
@@ -4036,14 +4155,14 @@ void move_logic29(s32 index)
     }
     if (e->closest < 0) {
         a = e->ang;
-    } else if (*(s16*)&gPlayers[e->closest][647] > 2) {
-        a = get_yaw(&gPlayers[e->closest][633], &e->objgrp.worldmat[3][0]);
+    } else if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+        a = get_yaw(&gPlayerWords[e->closest][633], &e->objgrp.worldmat[3][0]);
     } else {
-        a = get_yaw(&gPlayers[e->closest][17], &e->objgrp.worldmat[3][0]);
+        a = get_yaw(&gPlayerWords[e->closest][17], &e->objgrp.worldmat[3][0]);
     }
     e->ang = a;
     if (e->closest >= 0) {
-        f32 dvert = e->objgrp.worldmat[3][1] - gPlayers[e->closest][18];
+        f32 dvert = e->objgrp.worldmat[3][1] - gPlayerWords[e->closest][18];
         if (e->visactive != 0 && dvert >= -10.0 && dvert <= 10.0) {
             if (e->flag1 == 0) {
                 if (e->actual_dist <= 8.0) {
@@ -4225,10 +4344,10 @@ void move_logic31(s32 index)
         fn_80050394(index);
     }
     if (e->closest >= 0) {
-        if (*(s16*)&gPlayers[e->closest][647] > 2) {
-            a = get_yaw(&gPlayers[e->closest][633], &e->objgrp.worldmat[3][0]);
+        if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+            a = get_yaw(&gPlayerWords[e->closest][633], &e->objgrp.worldmat[3][0]);
         } else {
-            a = get_yaw(&gPlayers[e->closest][17], &e->objgrp.worldmat[3][0]);
+            a = get_yaw(&gPlayerWords[e->closest][17], &e->objgrp.worldmat[3][0]);
         }
     } else {
         a = e->ang;
@@ -4829,15 +4948,15 @@ void fn_8004F1DC(Enemy* enemy)
     f32* player = 0;
 
     if (enemy->closest >= 0) {
-        player = gPlayers[enemy->closest];
+        player = gPlayerWords[enemy->closest];
     } else {
         for (i = 0; i < 4; i++) {
-            if (((s32*)gPlayers[i])[0xE8 / 4] == 1) {
+            if (((s32*)gPlayerWords[i])[0xE8 / 4] == 1) {
                 break;
             }
         }
         if (i < 4) {
-            player = gPlayers[i];
+            player = gPlayerWords[i];
         }
     }
 
@@ -5302,7 +5421,7 @@ s32 fn_8004CE38(Enemy* e)
     f32 x2;
     f32 z2;
 
-    p = (u8*)&gPlayers[*(s16*)((u8*)e + 628)];
+    p = (u8*)&gPlayerWords[*(s16*)((u8*)e + 628)];
     if (*(s16*)(p + 2588) > 2) {
         dx = *(f32*)((u8*)e + 52) - *(f32*)(p + 2532);
         dz = *(f32*)((u8*)e + 60) - *(f32*)(p + 2540);
@@ -5422,7 +5541,7 @@ void do_enemies(void)
     }
 
     {
-        u8* pl = (u8*)gPlayers;
+        u8* pl = (u8*)gPlayerWords;
 
         for (i = 0; i < 4; i++, pl += 0x335C) {
             if (*(s32*)(pl + 0xE8) == 1) {
@@ -5909,7 +6028,7 @@ s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
         }
         best1 = best;
         last = -1;
-        p = (u8*)gPlayers;
+        p = (u8*)gPlayerWords;
         for (i = 0; i < 4; i++, p += 13148) {
             if (*(s32*)(p + 232) == 1) {
                 if (*(s16*)(p + 2588) > 2) {
@@ -5931,7 +6050,7 @@ s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
         }
         start = last;
     }
-    q = (u8*)gPlayers + start * 13148;
+    q = (u8*)gPlayerWords + start * 13148;
     for (j = start; j <= last; j++, q += 13148) {
         if (*(s32*)(q + 232) == 1) {
             if (LineCylinderCollide((f32*)(q + 100), rad + *(f32*)(q + 2128),
