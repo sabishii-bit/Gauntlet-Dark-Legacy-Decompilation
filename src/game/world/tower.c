@@ -340,6 +340,7 @@ int WorldOpen(int world) {
 
 /* Award world runes to active players after the dwell timer elapses
  * (fields 0x928-0x930 timer, sets rune bit at 0xA8C). */
+#pragma opt_propagation off
 int towerAwardWorldRunes(void) {
     s32 rune = lbl_80124DA0[sMusicTrackLo];
     s32 awarded = 0;
@@ -473,6 +474,7 @@ static inline int towerLevelStatusA(int player, int level) {
     }
     return 0;
 }
+#pragma opt_propagation reset
 
 /* True if all active players meet the level-record-A requirement (field 0xDE8). */
 int towerAllPlayersMetLevelReq(int level) {
