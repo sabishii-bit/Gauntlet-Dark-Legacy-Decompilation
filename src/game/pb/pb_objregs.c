@@ -1316,6 +1316,7 @@ s32 pbSetupPosLights(f32 extra, s32 a, s32 b, f32* m)
 }
 
 /* Emit a texture-address packet + reset the shared texture regs. */
+#pragma opt_propagation off
 void fn_800C5D44(u32* pkt, s32 xy)
 {
     PbDrawState* st = &lbl_802C5430;
@@ -1331,6 +1332,7 @@ void fn_800C5D44(u32* pkt, s32 xy)
     st->f1a1 = 1;
     st->f1a4 = 6;
 }
+#pragma opt_propagation reset
 
 /* Build the object-space texture basis and the draw-register packet. */
 s32 fn_800C5DA8(PbDOObj* obj, s32 arg, u8* node, f32* matrix)
