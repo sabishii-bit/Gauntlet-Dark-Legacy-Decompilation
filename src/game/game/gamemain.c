@@ -664,7 +664,7 @@ void fn_800533E4(void)
 }
 
 /* 0x80053A10 -- clear two per-enemy fields for all 25 enemy records. */
-void fn_80053A10(void)
+void init_moving_objects(void)
 {
     s32* e = gEnemies;
     s32 i;

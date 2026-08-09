@@ -118,7 +118,7 @@ extern void fn_800C0310(void);
 extern int fn_800BC418(int a, int b);
 extern void fn_80053D08(void* a, int b, int c);
 extern void bulletproof_printf(const char* fmt, ...);
-extern void fn_80053A10(int a);
+extern void init_moving_objects(int a);
 extern f32 DistanceToClosestPlayer(Vec3* a);     /* distance from listener */
 extern f32 NormalVector(Vec3* a);    /* normalize vector, return approximate length */
 extern int AudioAng(Vec3* pos);      /* position -> spatial descriptor */
@@ -231,7 +231,7 @@ void sndFxInit(void* a, void* b)
     lbl_80343B10 = -1;
     lbl_80343B08 = -1;
     bulletproof_printf(sAudioWatchdogName);
-    fn_80053A10(1);
+    init_moving_objects(1);
 }
 
 /* sndFxQueAdd: enqueue helper (default mode 0). */
