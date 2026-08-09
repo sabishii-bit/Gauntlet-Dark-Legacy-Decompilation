@@ -130,6 +130,20 @@ extern void* fn_8005B8B0(Player* p);
 extern s32 PointVisible(f32 y, f32* pos);
 extern void fn_8009C98C(f32* pos);
 extern f32 gFloorCollisionResult[]; /* transporter table (0x34 = target height) */
+extern f32 lbl_80344880;
+extern f64 lbl_80347B38;
+extern s32 lbl_803443A8;
+extern s32 lbl_80344500;
+extern s32 lbl_80344514;
+extern s32 lbl_80344518;
+extern s32 lbl_8034451C;
+extern s32 lbl_80344520;
+extern f32 FloorPos(f32 fallback, f32 radius, f32* position, s32 mode);
+extern void fn_8005A404(f32* dst, f32* src1, f32* src2);
+extern void get_actual_screen_pos(s32 camera, f32* x, f32* y, f32* position);
+extern void* fn_8005EFAC(f32 radius, f32* from, f32* position, s32 a4, s32 a5);
+extern s32 PlayerCollidePlayers(Player* p, f32 range, f32 height, f32* from,
+                                f32* to, f32* hit, s32 stopFirst);
 
 /* Player-motion transform context (arg to PlayerNewFloor / collision fns):
  * a 3x3-ish orient block at 0x10 and the current floor WorldObj* at 0x44. */
@@ -154,7 +168,84 @@ static f32 fabsf_(f32 x) {
 #define STUB(address, name) void name(void) {}
 
 STUB(0x8008091C, get_player_pos)
-STUB(0x80081104, try_location)
+s32 PlayerCollideItems(Player* p, f32 range, f32 height, f32* from, f32* to,
+                       f32* hit);
+
+s32 try_location(u8* motion, Player* p, f32* position, f32* resultPosition,
+                 s32* resultItem, s32 findFloor) {
+    f32 screen[2];
+    u8 unused[8];
+    f32 collidePosition[3];
+    f32 hitPosition[3];
+    f32 delta;
+    u8 unusedTail[4];
+    f32 radius = PF(p, 0x850, f32);
+    f32 height = PF(p, 0x854, f32);
+    s32 floorFlags = (*(u32*)(motion + 0x8C0)) & 0x38;
+
+    collidePosition[0] = *(f32*)(motion + 0x64);
+    collidePosition[1] = *(f32*)(motion + 0x68);
+    collidePosition[2] = *(f32*)(motion + 0x6C);
+
+    if (findFloor != 0) {
+        screen[0] = FloorPos(lbl_80344880, (f32)(lbl_80347B00 * radius), position, 1);
+        if (*(void**)((u8*)gFloorCollisionResult + 0x44) == NULL) {
+            return 0;
+        }
+        if (*(void**)(motion + 0x8C4) != NULL &&
+            ((*(u32*)(*(u8**)(motion + 0x8C4) + 0x10) & 0x1000) != 0) &&
+            *(void**)(motion + 0x8C4) != *(void**)((u8*)gFloorCollisionResult + 0x44)) {
+            return 0;
+        }
+        delta = screen[0] - *(f32*)(motion + 0x8B4);
+        *(u32*)&delta &= 0x7FFFFFFF;
+        if (delta > lbl_80347B38 ||
+            (delta > lbl_80347B28 && floorFlags == 0)) {
+            return 0;
+        }
+        position[1] = screen[0];
+    } else {
+        position[1] = *(f32*)(motion + 0x8B4);
+    }
+
+    p->pos[0] = position[0];
+    p->pos[1] = position[1];
+    p->pos[2] = position[2];
+    fn_8005A404(&p->mat[0], (f32*)((u8*)p + 0x844), (f32*)((u8*)p + 0x838));
+
+    if (gGameMode != 0x400C && lbl_80344500 == 0 && lbl_803443A8 == 0) {
+        get_actual_screen_pos(0, (f32*)&screen[1], (f32*)&screen[0], p->col_pos);
+        if (screen[1] < (f32)(lbl_80344520 + 30) ||
+            screen[1] > (f32)(lbl_8034451C - 30) ||
+            screen[0] > (f32)(lbl_80344518 - 20) ||
+            screen[0] < (f32)(lbl_80344514 + 40)) {
+            return 0;
+        }
+    }
+
+    position[1] += PF(p, 0x848, f32);
+    if (PlayerWallCollide(collidePosition, position, NULL, lbl_80347B40) != NULL) {
+        return 0;
+    }
+    if (PlayerCollidePlayers(p, radius, height, position, position, hitPosition, 1) >= 0) {
+        return 0;
+    }
+    p->collision_item = fn_8005EFAC(radius, collidePosition, position, 0, 0);
+    if (p->collision_item != NULL && fn_8005D730(p, p->collision_item) != 0) {
+        return 0;
+    }
+    {
+        s32 item = PlayerCollideItems(p, radius, height, position, position, hitPosition);
+        if (item >= 0) {
+            resultPosition[0] = position[0];
+            resultPosition[1] = position[1];
+            resultPosition[2] = position[2];
+            *resultItem = item;
+            return 0;
+        }
+    }
+    return 1;
+}
 void PlayerMotion_SetAnimState(Player* p) {
     u8 unused[32];
     if (lbl_803447B8 >= 2) {
@@ -851,7 +942,9 @@ s32 PlayerCollidePlayers(Player* p, f32 range, f32 p3, f32* from, f32* to,
     }
     return closest;
 }
-STUB(0x80087A20, PlayerCollideItems)
+s32 PlayerCollideItems(Player* p, f32 range, f32 height, f32* from, f32* to,
+                       f32* hit) {
+}
 extern f32 lbl_80347B30; /* 0.0f (sdata2) */
 extern f64 lbl_80347BE8; /* 0.01 (sdata2) */
 

@@ -170,7 +170,8 @@ typedef struct Player {
     /* 0x0870 */ u8  pad_0870[0x30];
     /* 0x08A0 */ f32 floor_hi;       /* clamped floor probe results [player.c] */
     /* 0x08A4 */ f32 floor_lo;
-    /* 0x08A8 */ u8  pad_08A8[8];
+    /* 0x08A8 */ void* collision_item; /* nearest item hit by the motion sweep */
+    /* 0x08AC */ void* special_collision_item; /* nearest special pickup */
     /* 0x08B0 */ s32* speech_req;    /* queued speech request [player.c do_players] */
     /* 0x08B4 */ u8  pad_08B4[0x10];
     /* 0x08C4 */ char* floor_name2;  /* fallback floor name [player.c debug] */
