@@ -168,8 +168,11 @@ extern NcCamera* lbl_80344A6C;      /* live standard-camera pointer (frustum que
 extern NcCamera* lbl_80344A68;      /* DebugCam: pointer to the live debug camera */
 extern s32       lbl_80344A70;
 extern s32       lbl_80344A7C;      /* debug-camera active flag */
+extern s32       lbl_80344A8C;
 extern s32       lbl_80344A90;      /* StdCam freeze flag */
 extern s32       lbl_80343CD4;
+extern f32       lbl_80343CD8;
+extern f32       lbl_80343CDC;
 extern void*     gCurLevel;         /* level record; +0x60 = active CAMERA* (bounds) */
 
 /* NEWCAM projection-parameter block: the live MB window pointer (mb_window.c
@@ -216,6 +219,7 @@ extern const NcBlk16 lbl_801137C0;  /* 16-byte zero look template */
 /* copy a 3x3 (row-major) basis; GetYawPitch derives a look basis from 3 vecs. */
 extern void CopyMat3(f32* src, f32* dst);
 extern void GetYawPitch(f32* a, f32* b, f32* c);
+extern void FatalError(char* message, s32 code);
 
 /* normalize a Vec3 in place, returning its original length (ps2/ml_fmath.c). */
 extern f32 SlowNormalVector(f32* vector);
@@ -976,10 +980,12 @@ void fn_8006F418(NcCamera* camera, f32* target)
  * and cross products with fmsubs and reads the two half-FOV tangents from the
  * NewCam projection block (lbl_80344EE8 +0x1C/+0x20).
  */
-void CalcFrustrumNormals(const Vec3* look, f32 fov, Vec3* out) {
+void CalcFrustrumNormals(const Vec3* look, const Vec3* unused, Vec3* out, f32 fov) {
     Vec3 seed;
     f32 tanH, tanV;
     Vec3 tl, tr, bl, br; /* frustum corner directions */
+
+    (void)unused;
 
     YawVec3(lbl_80127D30, &seed, fov);
     tanH = (f32)tan((f64)(*(f32*)((u8*)lbl_80344EE8 + 0x1C) * -fov));
@@ -998,14 +1004,103 @@ void CalcFrustrumNormals(const Vec3* look, f32 fov, Vec3* out) {
     out[0].z = tl.x * tr.y - tl.y * tr.x;
 }
 
+typedef struct NcPlane {
+    Vec3 normal;
+    f32 unused;
+} NcPlane;
+
+typedef struct NcLevelData {
+    u8 pad_00[0x60];
+    struct NcCameraBounds* camera;
+} NcLevelData;
+
+typedef struct NcCameraBounds {
+    u8 pad_00[0x2C];
+    f32 minimum_distance;
+    f32 maximum_distance;
+} NcCameraBounds;
+
+#define NC_DOT(a, b) \
+    ((a)->x * (b)->x + (a)->y * (b)->y + (a)->z * (b)->z)
+
+f32 CalcDist(Vec3* look, Vec3* point, NcPlane* planes, f32 fov, f32 current)
+{
+    NcCameraBounds* camera;
+    NcLevelData* level_data;
+    f32 distance;
+    f32 required;
+    s32 plane_index;
+    s32 player_index;
+    NcPlayer* player;
+    Vec3* camera_position;
+    Vec3* player_position;
+    s32 active;
+    f32 inverse;
+    f32 plane_distance;
+    f32 other_distance;
+
+    CalcFrustrumNormals(look, point, (Vec3*)planes, fov);
+
+    level_data = (NcLevelData*)gCurLevel;
+    if (level_data->camera->minimum_distance == level_data->camera->maximum_distance) {
+        return level_data->camera->minimum_distance;
+    }
+    camera = level_data->camera;
+
+    if (lbl_80344768 == 1) {
+        if (lbl_80344A8C != 0) {
+            return current + lbl_80343CDC;
+        }
+        return camera->minimum_distance;
+    }
+
+    required = 0.0f;
+    for (plane_index = 0; plane_index < 4; plane_index++) {
+        inverse = 1.0f / NC_DOT(look, &planes[plane_index].normal);
+        plane_distance = NC_DOT(point, &planes[plane_index].normal);
+
+        for (player_index = 0; player_index < 4; player_index++) {
+            player = &gPlayers[player_index];
+
+            active = ((player->ncflags & 0x20) == 0 &&
+                      (player->state == 1 || player->state == 4));
+            if (active == 0) {
+                continue;
+            }
+
+            camera_position = (Vec3*)player->campos;
+            player_position = (Vec3*)player->pos;
+            other_distance = NC_DOT(camera_position, &planes[plane_index].normal);
+            distance = required > inverse * (plane_distance - other_distance)
+                ? required : inverse * (plane_distance - other_distance);
+
+            other_distance = NC_DOT(player_position, &planes[plane_index].normal);
+            distance = distance > inverse * (plane_distance - other_distance)
+                ? distance : inverse * (plane_distance - other_distance);
+            required = distance;
+        }
+    }
+
+    if (level_data == 0 || camera == 0) {
+        FatalError("level_data or level_data->camera NULL", 0x800000);
+    }
+
+    camera = ((NcLevelData*)gCurLevel)->camera;
+    if (required <= camera->minimum_distance - lbl_80343CD8 && camera->minimum_distance < current) {
+        return camera->minimum_distance;
+    }
+    if (required <= current - lbl_80343CD8) {
+        return required + lbl_80343CD8;
+    }
+    if (required <= current - lbl_80343CDC) {
+        return current;
+    }
+    return required + lbl_80343CDC;
+}
+
+#undef NC_DOT
+
 /*
- * CalcDist [0x8006ED50, size 0x248] -- NOT reconstructed (medium-complex).
- * Builds the frustum planes (CalcFrustrumNormals), then for each valid player
- * projects the player onto the four inward plane normals and keeps the largest
- * distance the camera must sit back to keep every player inside the frustum;
- * FatalError("level_data or level_data->camera NULL") if the level/camera is
- * missing.  Returns the clamped fit distance.  Caller: fn_8006DF34.
- *
  * DebugCamControlInputs [0x800704EC, size 0x444] -- NOT reconstructed (giant,
  * input handling).  Reads the debug-cam input bitmask (lbl_80344A84) and, per
  * direction bit, rotates yaw (0xEC) / pitch (0x104) and translates the debug
