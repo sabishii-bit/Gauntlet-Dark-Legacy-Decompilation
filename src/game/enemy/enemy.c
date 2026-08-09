@@ -198,11 +198,18 @@ typedef struct EnemyPlayerView {
     s32 index;
     u8 _004[0x054 - 0x004];
     f32 position[3];
-    u8 _060[0x120 - 0x060];
+    u8 _060[0x064 - 0x060];
+    f32 damage_position[3];
+    u8 _070[0x0E8 - 0x070];
+    s32 state;
+    u8 _0EC[0x120 - 0x0EC];
     u32 flags;
     u8 _124[0x954 - 0x124];
     s16 it_enemy;
-    u8 _956[0x335C - 0x956];
+    u8 _956[0xA1E - 0x956];
+    s16 attack_reflect;
+    s16 attack_heal;
+    u8 _A22[0x335C - 0xA22];
 } EnemyPlayerView;
 typedef union EnemyPlayerArray {
     f32 words[4][3287];
@@ -774,7 +781,8 @@ extern f32 lbl_80346888;
 extern s32 lbl_8034473C;
 extern f64 lbl_80346830;
 extern s32 AddExp(s32 player, s32 amount, s32 mode);
-extern s32 damage_player();
+extern s32 damage_player(s32 player, f32 amount, s32 mode, u32 flags,
+                         f32* direction);
 extern s32 msgPost(s32 message, s32 player, void* position);
 extern s32 StartDeathFX(void* node, s32 kind, s32 flags);
 extern void AudioPlayEvt102Follow(f32* position, s32 player);
@@ -4429,6 +4437,7 @@ extern char lbl_80112468[];
  * Frame 176, saves r26-r31 + f31.
  * TODO: transcribe damage application + knockback integration + the death branch
  * (Ghidra decompile_function 0x8004E6F8). */
+#pragma dont_inline on
 s32 damage_enemy(Enemy* e, f32 amount, s32 dtype, s32 knock, s32 srcflags, s32 arg6, s32 arg7)
 {
     if (e->state == DECORATION) {
@@ -4440,6 +4449,7 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 dtype, s32 knock, s32 srcflags, s32 a
     /* --- remaining ~560 insns of damage application / FX / death not transcribed --- */
     return 0;
 }
+#pragma dont_inline off
 
 /* kill_enemy @0x8004EFE4.  Drop the carried item (or place a "GARG<level>"
  * egg for gargoyles), then tear the enemy down: health/state clear, grid
@@ -5502,6 +5512,14 @@ extern const f32 lbl_803469D8;
 extern f64 lbl_803469E0;
 extern f64 lbl_803469E8;
 extern s32 lbl_80344BF8;
+extern f64 lbl_80346830;
+extern f64 lbl_80346838;
+extern f64 lbl_80346868;
+extern f64 lbl_803469F0;
+extern s32 heal_player(EnemyPlayerView* player, f32 amount);
+extern void StartGemFX(f32* position, s32 kind);
+extern void fn_8009E08C(Enemy* enemy);
+extern void AudioPlayerHit(s32 player, s32 kind);
 
 void fn_8004DC2C(Enemy* enemy)
 {
@@ -5606,6 +5624,166 @@ void fn_8004DC2C(Enemy* enemy)
     }
     enemy->pushmag2 = enemy->pushed[0] * enemy->pushed[0] +
                       enemy->pushed[2] * enemy->pushed[2];
+}
+
+void fn_8004DF58(Enemy* enemy)
+{
+    u32 playerFlags;
+    EnemyPlayerView* player;
+    s32 damageMode;
+    f32 amount;
+    f32 direction[3];
+    f32 missilePosition[3];
+    f32 healedPosition[3];
+    f32 reflectedPosition[3];
+    u8 unused[16];
+    s32 hitKind;
+
+    (void)unused;
+    playerFlags = 0;
+    if (((enemy->algorithm == 28 ||
+          (u16)(enemy->algorithm - 29) <= 1) &&
+         (enemy->attack_flag & 0xF) != 0) ||
+        (enemy->algorithm == 31 && (enemy->attack_flag & 2) != 0)) {
+        if (enemy->coll_pnum < 0) {
+            if (enemy->closest >= 0) {
+                missilePosition[0] = gEnemyPlayers[enemy->closest].damage_position[0];
+                missilePosition[1] = gEnemyPlayers[enemy->closest].damage_position[1];
+                missilePosition[2] = gEnemyPlayers[enemy->closest].damage_position[2];
+            } else {
+                missilePosition[0] = enemy->objgrp.coll_pos[0];
+                missilePosition[1] = enemy->objgrp.coll_pos[1];
+                missilePosition[2] = enemy->objgrp.coll_pos[2];
+                missilePosition[0] = (f32)(lbl_803469F0 * sin(enemy->pyr[1]) +
+                                           missilePosition[0]);
+                missilePosition[2] = (f32)(lbl_803469F0 * cos(enemy->pyr[1]) +
+                                           missilePosition[2]);
+            }
+            fn_8004E448(enemy, (s32)missilePosition,
+                        enemy->objgrp.coll_pos);
+            enemy->attack_flag &= ~0xF;
+        }
+    }
+
+    if (enemy->attack_index >= 0 && (enemy->attack_flag & 0xF) != 0) {
+        player = &gEnemyPlayers[enemy->attack_index];
+        if (player->state == 1) {
+            damageMode = 1;
+            amount = enemy->atts.fight;
+            if ((f64)lbl_803447D8 < lbl_80346810) {
+                playerFlags |= 0x40000000;
+                amount = (f32)(amount * lbl_80346830);
+            } else {
+                if ((enemy->attack_flag & 2) != 0) {
+                    amount = (f32)(amount * lbl_80346838);
+                    if ((f64)enemy->hht > lbl_80346868) {
+                        playerFlags |= 0x10;
+                    }
+                }
+                if (enemy->type == E_GOLEM) {
+                    playerFlags |= 0x20;
+                }
+                if ((f64)enemy->hht <= lbl_80346868) {
+                    playerFlags |= 0x40000000;
+                }
+            }
+
+            if (player->attack_heal != 0) {
+                healedPosition[0] = enemy->objgrp.coll_pos[0];
+                healedPosition[1] = enemy->objgrp.coll_pos[1];
+                healedPosition[2] = enemy->objgrp.coll_pos[2];
+                player->damage_position[0] =
+                    healedPosition[0] - healedPosition[0];
+                player->damage_position[1] =
+                    healedPosition[1] - healedPosition[1];
+                player->damage_position[2] =
+                    healedPosition[2] - healedPosition[2];
+                damage_enemy(enemy, amount, -1, 0x200,
+                             (s32)player->damage_position,
+                             (s32)healedPosition, 1);
+                heal_player(player, amount);
+                amount = lbl_80346820;
+                playerFlags = 0x40000000;
+                StartGemFX(player->position, 1);
+            } else if (player->attack_reflect != 0) {
+                reflectedPosition[0] = enemy->objgrp.coll_pos[0];
+                reflectedPosition[1] = enemy->objgrp.coll_pos[1];
+                reflectedPosition[2] = enemy->objgrp.coll_pos[2];
+                player->damage_position[0] =
+                    reflectedPosition[0] - reflectedPosition[0];
+                player->damage_position[1] =
+                    reflectedPosition[1] - reflectedPosition[1];
+                player->damage_position[2] =
+                    reflectedPosition[2] - reflectedPosition[2];
+                damage_enemy(enemy, amount, -1, 0,
+                             (s32)player->damage_position,
+                             (s32)reflectedPosition, 1);
+                amount = lbl_80346820;
+                playerFlags = 0x40000000;
+                StartGemFX(player->position, 1);
+            }
+
+            if ((f64)enemy->hht <= lbl_80346868) {
+                if (enemy->type != E_IT) {
+                    goto generic_hit_sound;
+                }
+            }
+            if (enemy->type == E_DEMON || enemy->type == E_MUMMY ||
+                enemy->type == E_TREEFOLK) {
+            generic_hit_sound:
+                fn_8009E08C(enemy);
+                damageMode = 0;
+            } else if (enemy->type == E_GRUNT || enemy->type == E_KNIGHT ||
+                       enemy->type == E_LIZARDMAN) {
+                if (enemy->org_lvl >= 2) {
+                    hitKind = 3;
+                } else {
+                    hitKind = 4;
+                }
+                AudioPlayerHit(enemy->attack_index, hitKind);
+                damageMode = 0;
+            }
+            if ((playerFlags & 0x130) != 0) {
+                direction[0] = player->damage_position[0] -
+                               enemy->objgrp.coll_pos[0];
+                direction[1] = player->damage_position[1] -
+                               enemy->objgrp.coll_pos[1];
+                direction[2] = player->damage_position[2] -
+                               enemy->objgrp.coll_pos[2];
+                direction[1] = -direction[1];
+                NormalVector(direction);
+                damage_player(enemy->attack_index, amount, damageMode,
+                              playerFlags, direction);
+            } else {
+                damage_player(enemy->attack_index, amount, damageMode,
+                              playerFlags, 0);
+            }
+            lbl_803447E4 = 1;
+            enemy->attack_count++;
+            enemy->attack_flag &= ~0xF;
+        }
+        enemy->attack_index = -1;
+    }
+
+    if ((enemy->attack_flag & 0x10) != 0) {
+        if (enemy->closest >= 0) {
+            missilePosition[0] = gEnemyPlayers[enemy->closest].damage_position[0];
+            missilePosition[1] = gEnemyPlayers[enemy->closest].damage_position[1];
+            missilePosition[2] = gEnemyPlayers[enemy->closest].damage_position[2];
+        } else {
+            missilePosition[0] = enemy->objgrp.coll_pos[0];
+            missilePosition[1] = enemy->objgrp.coll_pos[1];
+            missilePosition[2] = enemy->objgrp.coll_pos[2];
+            missilePosition[0] = (f32)(lbl_803469F0 * sin(enemy->pyr[1]) +
+                                       missilePosition[0]);
+            missilePosition[2] = (f32)(lbl_803469F0 * cos(enemy->pyr[1]) +
+                                       missilePosition[2]);
+        }
+        fn_8004E448(enemy, (s32)missilePosition,
+                    enemy->objgrp.coll_pos);
+        enemy->flag1 = 1;
+        enemy->attack_flag &= ~0x10;
+    }
 }
 
 void do_enemies(void)
