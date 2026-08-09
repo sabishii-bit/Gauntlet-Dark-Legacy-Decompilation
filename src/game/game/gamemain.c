@@ -173,10 +173,13 @@ extern s32   lbl_8034473C;
 extern s32   gSceneRoot;
 extern s32   gNumEnemies;          /* 0x80344744 */
 extern f32   lbl_80346820;
+extern f32   lbl_803468B0;
 extern u8    sMilestones[];
 extern s32   sNumMilestones;
 extern f64   __frsqrte(f64 x);
 extern s32   gIdentityMatrix[];       /* node template (ADDR16) */
+extern f32   lbl_80346A7C;
+extern u32   RandInt(u32 limit);
 
 static char sBossGenName[] = "BOSSGEN";   /* 0x80346AA4 (.sdata) */
 
@@ -384,6 +387,151 @@ void fn_800552A4(f32 total, f32 current);
 /* ================================================================== */
 /* Function bodies (address order).                                    */
 /* ================================================================== */
+
+static s32 PlayersAverageLevel(void)
+{
+    s32* player = (s32*)gPlayers;
+    s32 activePlayers = 0;
+    s32 totalLevel = 0;
+    s32 i;
+
+    for (i = 0; i < 4; i++) {
+        if (player[58] == 1) {
+            activePlayers++;
+            totalLevel += player[3273];
+        }
+        player += 3287;
+    }
+    if (activePlayers == 0) {
+        return 1;
+    }
+    return totalLevel / activePlayers;
+}
+
+/* Xbox PDB: format_brain -- initialize a newly allocated enemy's AI state. */
+void format_brain(s32 index)
+{
+    u8* enemy = (u8*)gEnemies + index * 916;
+
+    *(f32*)(enemy + 764) = lbl_80346A7C;
+    *(u32*)(enemy + 816) = 0;
+
+    switch (*(s16*)(enemy + 784)) {
+    case 0:
+        *(s32*)(enemy + 852) = 1;
+        *(s16*)(enemy + 868) = 0;
+        break;
+    case 3:
+        *(s32*)(enemy + 852) = 1;
+        *(s16*)(enemy + 868) = 0;
+        *(s32*)(enemy + 804) = 0;
+        *(s32*)(enemy + 808) = -1;
+        *(s32*)(enemy + 800) = 0;
+        break;
+    case 2:
+    case 4:
+        *(s32*)(enemy + 884) = 0;
+        *(u32*)(enemy + 816) |= 1;
+        break;
+    case 5:
+    case 6:
+        *(u32*)(enemy + 816) |= 1;
+        break;
+    case 7:
+        *(s32*)(enemy + 852) = 0;
+        *(s16*)(enemy + 868) = 0;
+        *(s16*)(enemy + 870) = 0;
+        break;
+    case 8:
+        *(s32*)(enemy + 852) = 0;
+        *(s16*)(enemy + 868) = 0;
+        *(s16*)(enemy + 870) = 0;
+        *(s32*)(enemy + 828) = 0;
+        *(s32*)(enemy + 832) = -1;
+        *(f32*)(enemy + 836) = lbl_803468B0;
+        break;
+    case 9:
+        *(s32*)(enemy + 208) = 0;
+        *(u32*)(enemy + 816) |= 5;
+        break;
+    case 10:
+        *(s32*)(enemy + 852) = 0;
+        *(s16*)(enemy + 868) = 0;
+        *(s16*)(enemy + 870) = 0;
+        break;
+    case 11:
+        *(u32*)(enemy + 816) |= 7;
+        break;
+    case 12: {
+        f32 zero = lbl_80346820;
+        *(f32*)(enemy + 736) = zero;
+        *(f32*)(enemy + 740) = zero;
+        *(f32*)(enemy + 744) = zero;
+        *(s32*)(enemy + 852) = 0;
+        *(s16*)(enemy + 868) = 0;
+        *(s16*)(enemy + 870) = 0;
+        break;
+    }
+    case 13:
+        *(s32*)(enemy + 852) = 0;
+        *(s16*)(enemy + 868) = 0;
+        *(s16*)(enemy + 870) = 0;
+        break;
+    case 14:
+        *(s32*)(enemy + 852) = 0;
+        *(s16*)(enemy + 868) = 0;
+        *(s16*)(enemy + 870) = 0;
+        *(s32*)(enemy + 804) = 0;
+        break;
+    case 16:
+    case 23:
+        *(s32*)(enemy + 800) = RandInt(10);
+        *(s32*)(enemy + 804) = 0;
+        break;
+    case 17:
+    case 26:
+        *(s32*)(enemy + 800) = RandInt(10);
+        *(s32*)(enemy + 804) = 0;
+        break;
+    case 20:
+        *(s32*)(enemy + 852) = 0;
+        *(s16*)(enemy + 868) = 0;
+        *(s16*)(enemy + 870) = 0;
+        break;
+    case 21:
+        *(s32*)(enemy + 804) = 0;
+        break;
+    case 24:
+        *(s32*)(enemy + 804) = 0;
+        break;
+    case 27:
+        *(s32*)(enemy + 852) = 1;
+        *(s16*)(enemy + 868) = 0;
+        break;
+    case 28:
+    case 29:
+    case 31:
+        *(s32*)(enemy + 800) = RandInt(30);
+        *(s32*)(enemy + 804) = 0;
+        *(s32*)(enemy + 808) = 0;
+        break;
+    case 30:
+        *(s32*)(enemy + 852) = 1;
+        *(s16*)(enemy + 868) = 0;
+        *(s32*)(enemy + 804) = RandInt(60) + 60;
+        break;
+    }
+
+    *(s32*)(enemy + 860) = 0;
+    *(s32*)(enemy + 856) = 0;
+    *(s32*)(enemy + 840) = -1;
+    *(s32*)(enemy + 844) = 0;
+    *(s32*)(enemy + 848) = 4;
+    *(s16*)(enemy + 726) = 0;
+    *(s32*)(enemy + 880) = PlayersAverageLevel();
+    *(s32*)(enemy + 872) = 8;
+    *(s32*)(enemy + 876) = RandInt(*(u32*)(enemy + 872));
+}
 
 /* 0x800508A0 -- re-init texture-mod state for every active pool entry. */
 void fn_800508A0(void)
