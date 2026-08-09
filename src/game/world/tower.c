@@ -1276,11 +1276,15 @@ void SumnerSpeechEnd(void) {
 
 /* Scan players for a level-up (score/level fields 0x1EC0/0x1EDC); if any
  * levelled up, summon the "WIZARD" congratulation.  Internal. */
+#pragma opt_common_subs off
+#pragma opt_propagation off
 int sumnerCheckLevelUp(void) {
     TowerMsgState* s = &lbl_8028C288;
     s32 count = 0;
-    Player* p;
     s32 i;
+    Player* p;
+    s32 off;
+    u8* levelSlot;
 
     if (lbl_80343E4C < 0) {
         return 0;
@@ -1288,17 +1292,18 @@ int sumnerCheckLevelUp(void) {
     if (lbl_80344C68 > lbl_803485F8) {
         return 0;
     }
-    for (i = 0, p = &gPlayers[0]; i < 4; i++, p++) {
-        s->levelUpLevel[i] = 0;
+    for (p = &gPlayers[0], i = 0, off = 0; i < 4; i++, off += 4, p++) {
+        levelSlot = (u8*)s + off;
+        *(s32*)(levelSlot += 76) = 0;
         if (p->state != 0 && *(u32*)((u8*)p + 0xF0) != (u32)lbl_80343D6C) {
             int lvlOld = ExpToLevel(*(s32*)((u8*)p + p->character * 24 + 0x1EDC));
             int lvlNew = ExpToLevel(p->exp);
 
             if (lvlNew >= 99 && lvlOld < 99) {
-                s->levelUpLevel[i] = lvlNew;
+                *(s32*)levelSlot = lvlNew;
                 count++;
             } else if (lvlOld / 10 != lvlNew / 10) {
-                s->levelUpLevel[i] = lvlNew;
+                *(s32*)levelSlot = lvlNew;
                 count++;
             }
             *(s32*)((u8*)p + p->character * 24 + 0x1EDC) = p->exp;
@@ -1308,7 +1313,7 @@ int sumnerCheckLevelUp(void) {
     if (count == 0) {
         return 0;
     }
-    if (lbl_80344C64 == 0) {
+    if ((u32)lbl_80344C64 == 0) {
         void* atree = (void*)AtreeMatch(sGoodWizObj, (char*)&lbl_803485A4, 0);
 
         if (atree != 0) {
@@ -1324,6 +1329,8 @@ int sumnerCheckLevelUp(void) {
     CaptionTextReset();
     return count;
 }
+#pragma opt_propagation reset
+#pragma opt_common_subs reset
 
 /* Activate Sumner hint mode. */
 void SumnerHintsActivate(void) {
