@@ -4840,10 +4840,8 @@ void set_enemy_trans(Enemy* enemy, f32 speed, f32 angle)
                 enemy->prev_dir = angle;
             }
             typeSpeed = ((f32*)lbl_80250E40)[enemy->type];
-            dx = enemy->xspd * typeSpeed;
-            dz = enemy->zspd * typeSpeed;
-            dx = speed * dx;
-            dz = speed * dz;
+            dx = speed * (enemy->xspd * typeSpeed);
+            dz = speed * (enemy->zspd * typeSpeed);
             enemy->trans[0] += dx;
             enemy->trans[2] += dz;
         }
