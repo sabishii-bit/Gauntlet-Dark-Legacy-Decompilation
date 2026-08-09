@@ -44,6 +44,7 @@ extern s32 lbl_8034481C;
 extern s32 sLastWorldLevel;
 extern s32 gGameMode;
 extern void* gCurLevel;
+extern s32 gLanguageId;
 
 /* ------------------------------------------------------------------ */
 /* Aux-screen owned .sdata (tunables) and .sbss (state) globals        */
@@ -120,7 +121,7 @@ extern void CreatePYRMatrix(void* mtx, void* v);
 extern void UpdateObjWorldMat(void* mtx);
 extern s32 GetScrollText(char* a, char* b, s32 line, s32* out);
 extern s32 GetScrollScale(char* a, char* b, s32 line);
-extern s32 CaptionTextSub(s32 x, f32 w, s32 y, s32 page, s32 flags);
+extern s32 CaptionTextSub(char* text, f32 scale, s32 font, s32 rows, s32 y);
 extern s32 ScrollTextNum(char* a, char* b);
 extern void AudioEnterNextStage(void);
 extern s32 fn_80055F68(s32 a, s32 b);
@@ -145,6 +146,12 @@ extern void* MBNewBlit(void* base, s32 a, s32 b);
 extern void* MBOX_FindTexture(char* name, s32 a);
 extern void strcat(char* d, char* s);
 extern void fn_80053C70(void);
+extern char* strcpy(char* dst, char* src);
+extern char* strchr(char* str, s32 ch);
+extern void FontSetShadowColor(s32 color);
+extern s32 DrawNormalText(f32 scale, char* text, s32 font);
+extern void DrawTextKeepScale(f32 scale, s32 x, s32 y, s32 font, u32 color,
+                              char* text);
 
 /* Forward prototypes (helpers defined after their first caller). */
 s32 do_gamemovie(void);
@@ -497,7 +504,7 @@ s32 CaptionText(char* a, char* b, s32 line, s32 page, s32 flags)
     }
     n = GetScrollText(a, b, caption_line, &tmp);
     w = w * GetScrollScale(a, b, caption_line);
-    measured = CaptionTextSub(n, w, caption_page, flags, page);
+    measured = CaptionTextSub((char*)n, w, caption_page, flags, page);
     if (measured == 0) {
         return 0;
     }
@@ -520,17 +527,98 @@ s32 CaptionText(char* a, char* b, s32 line, s32 page, s32 flags)
 /* CaptionTextSub (0x2C4) -- draw one measured caption line.          */
 /* Structural best-effort; NonMatching.                               */
 /* ================================================================== */
-s32 CaptionTextSub(s32 x, f32 w, s32 y, s32 page, s32 flags)
+s32 CaptionTextSub(char* text, f32 scale, s32 font, s32 rows, s32 y)
 {
     u8* base = lbl_8023DFD0;
-    (void)base;
-    (void)x;
-    (void)w;
-    (void)y;
-    (void)page;
-    (void)flags;
-    gGameMode = 16398;
-    return 1;
+    char* source;
+    char* line;
+    f32 remaining = (f32)(rows - caption_page);
+    f32 glyph_width = 1.75f;
+    f32 line_height = 32.0f * scale;
+    s32 output_len = 0;
+    s32 done = 0;
+
+    if (text == 0) {
+        return -1;
+    }
+    if (remaining < 0.0) {
+        remaining = 0.0f;
+    }
+    if (gLanguageId == 1) {
+        glyph_width = 5.5f;
+    }
+
+    base[1152] = 0;
+    strcpy((char*)(base + 128), text);
+    source = (char*)(base + 128);
+    line = source;
+    FontSetShadowColor(0);
+
+    while (gGameMode != 0x8002 && remaining > 0.0) {
+        s8 ch = *source++;
+
+        switch (ch) {
+        case '\r':
+            base[1152 + output_len] = 0;
+            remaining = (f32)((f64)remaining - 30.0);
+            if (remaining >= 0.0f) {
+                base[1152] = 0;
+                output_len = 0;
+                line = source;
+                if (*source == '\n') {
+                    source++;
+                    line = source;
+                }
+            }
+            break;
+
+        case '\0':
+        case '\n':
+            base[1152 + output_len] = 0;
+            if (output_len > 0) {
+                s32 width = DrawNormalText(scale, (char*)(base + 1152), font);
+                DrawTextKeepScale(scale, 256 - (width >> 1), y, font | 0x100,
+                                  0xffffff, (char*)(base + 1152));
+            }
+            line = source;
+            output_len = 0;
+            base[1152] = 0;
+            y = (s32)((f32)y + line_height);
+            break;
+
+        case '\t':
+            remaining = (f32)((f64)remaining - 5.0);
+            break;
+
+        case ',':
+        case '.':
+            remaining -= 2.0f;
+            /* fall through */
+        default:
+            remaining -= glyph_width;
+            base[1152 + output_len++] = ch;
+            break;
+        }
+
+        if (ch == 0) {
+            done = 1;
+            break;
+        }
+    }
+
+    base[1152 + output_len] = 0;
+    if (output_len > 0) {
+        char* newline = strchr(line, '\n');
+        s32 width;
+
+        if (newline != 0) {
+            *newline = 0;
+        }
+        width = DrawNormalText(scale, line, font);
+        DrawTextKeepScale(scale, 256 - (width >> 1), y, font | 0x100,
+                          0xffffff, (char*)(base + 1152));
+    }
+    return done;
 }
 
 /* ================================================================== */
