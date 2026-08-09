@@ -75,7 +75,7 @@ u32 BytesFree(void);
 void ControlsUpdate(void);
 void AtreeAlloc(int w, int h);
 void pbInitDiag(int arg);
-void fn_800533E4(void);
+void ResetModels(void);
 void LockModels(int arg);
 void init_attract_mode(int screen);
 void ClockOncePerFrame(void);
@@ -342,7 +342,7 @@ void main(void)
         pbInitDiag(2);
     } else {
         bulletproof_printf(st + 208);
-        fn_800533E4();
+        ResetModels();
         LockModels(1);
         init_attract_mode(-1);
     }
@@ -379,7 +379,7 @@ void main(void)
                 AtreeInitLists(0);
                 bulletproof_printf(st + 208);
                 FontInit();
-                fn_800533E4();
+                ResetModels();
                 LockModels(1);
                 init_attract_mode(0x8004);
                 sDiagPending = 0;
