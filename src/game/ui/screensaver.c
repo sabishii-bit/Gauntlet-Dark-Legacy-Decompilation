@@ -71,8 +71,12 @@ void ClearAllPlayerControls(int a);   /* 0x80032A80 */
 void AtreeDelete(void* atree);        /* 0x800115D0 */
 int MBRemoveNode(int handle, int flag); /* 0x800BAEAC */
 void MBTreeClearFlags(int node, int mask, int val); /* 0x800BA2C4 */
+void MBTreeSetFlags(int node, int mask, int val); /* 0x800BA368 */
+void MBNodeOrder(int node, int sibling); /* 0x800BACF8 */
 void ShopMusicStart();                /* 0x800A0DA8 */
 void AudioSelect();                   /* 0x800A0F64 */
+void AudioSelectReset(void);          /* 0x800A17D4 */
+void AudioStreamStop(void);           /* 0x800176D8 */
 f32 NormalVector(f32* vector);
 f32 Random(f32 range);
 void CreateDirMatrix(f32* matrix, f32* direction, f32* up);
@@ -86,6 +90,7 @@ s32 AnimateATree(void* tree, s32 sequence, s32 last);
 extern u8 lbl_80274620[];             /* node @+0x3c, atree @+0x40 */
 extern int lbl_80344A64;              /* backdrop node handle */
 extern int lbl_80344ECC;              /* active-node list head (next @+0x7c) */
+extern int lbl_80344EDC;              /* active front-end node excluded from hide */
 extern int lbl_80344A60;              /* saved options state */
 extern int options_state;             /* 0x80344A98 */
 extern void* lbl_80344EE8;
@@ -147,6 +152,7 @@ extern f32 lbl_8034740C;
 extern f32 lbl_80347410;
 extern s32 lbl_80343CA8;
 extern f32 lbl_8011D658[60];
+extern f32 lbl_8011DCBC[3];
 
 /* ---- screensaver-weapon parallel state arrays (this TU's .bss) ---- */
 extern int lbl_80274600[4];     /* per-weapon slot A (state code) */
@@ -174,6 +180,7 @@ void MBNodeSetParent();                /* 0x800BAD94 */
 extern u8 lbl_8011D568[];              /* weapon init tables (names/pos/vel) */
 extern void* sPowerupsBuf;             /* atree wad */
 extern f32 lbl_80347398;               /* initial weapon spin */
+int RandInt(int range);                 /* 0x800BCCA8 */
 
 /* Set up one screensaver weapon: scene node + weapon object parented to it,
  * then seed its position/velocity from the per-weapon init table. */
@@ -201,9 +208,55 @@ void ScreenSaverStartWeap(int idx)
 
 void ScreenSaverStart(void)
 {
-    int i;
+    u8* weaponPositions;
+    u8* initialPositions;
+    u8* node;
+    s32 i;
+    s32 randomDelay;
+    f64 timeScale;
+    f64 randomBase;
+    u8 unused[16];
+
+    AudioSelectReset();
+    AudioStreamStop();
+    lbl_80344A60 = options_state;
+    options_state = 100;
+
+    for (node = (u8*)lbl_80344ECC; node != NULL;
+         node = *(u8**)(node + 0x7c)) {
+        if (*(s8*)(node + 0x52) != 7 && *(s8*)(node + 0x52) != 9 &&
+            node != (u8*)lbl_80344EDC) {
+            MBTreeSetFlags((s32)node, 2, 0);
+        }
+    }
+
+    lbl_80344A64 = (s32)MBNewNode(0, 0, 0);
+    MBNodeOrder(lbl_80344ECC, lbl_80344A64);
+
+    initialPositions = (u8*)lbl_8011DCBC;
+    weaponPositions = lbl_80274620;
+    randomBase = lbl_80347388;
+    timeScale = lbl_80347380;
     for (i = 0; i < 4; i++) {
         ScreenSaverStartWeap(i);
+        *(f32*)(weaponPositions + i * 0x88) =
+            *(f32*)(initialPositions + i * 0x0c);
+        *(f32*)(weaponPositions + i * 0x88 + 4) =
+            *(f32*)(initialPositions + i * 0x0c + 4);
+        *(f32*)(weaponPositions + i * 0x88 + 8) =
+            *(f32*)(initialPositions + i * 0x0c + 8);
+        *(s32*)(weaponPositions + i * 0x88 + 0x28) = 0;
+        *(s32*)(weaponPositions + i * 0x88 + 0x2c) =
+            (s32)((f64)lbl_80343CC0 *
+                  (randomBase + (f64)Random(lbl_80347378)) * timeScale) + 1;
+        *(s32*)(weaponPositions + i * 0x88 + 0x30) =
+            (s32)((f64)lbl_80343CC4 *
+                  (randomBase + (f64)Random(lbl_80347378)) * timeScale);
+        AtreeDelete(weaponPositions + i * 0x88 + 0x40);
+        *(s32*)(weaponPositions + i * 0x88 + 0x3c) = MBRemoveNode(
+            *(s32*)(weaponPositions + i * 0x88 + 0x3c), 1);
+        randomDelay = i * 30 + RandInt(15);
+        *(s32*)(weaponPositions + i * 0x88 + 0x2c) = randomDelay + 1;
     }
 }
 
