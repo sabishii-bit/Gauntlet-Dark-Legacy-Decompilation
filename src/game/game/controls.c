@@ -70,6 +70,12 @@ extern f64 __frsqrte(f64 x);
 extern void PADControlMotor(s32 chan, u32 cmd);
 extern void PADControlAllMotors(const u32* cmds);
 
+typedef struct MotorCommands {
+    u32 command[4];
+} MotorCommands;
+
+extern const MotorCommands lbl_80111FDC;
+
 /* PS2 scePad/sceMtap shim layer (game/ps2/fakelib TU @0x800AF000+) */
 extern s32 scePadGetState(s32 port, s32 slot);
 extern s32 scePadInfoMode(s32 port, s32 slot, s32 mode, s32 index);
@@ -905,8 +911,10 @@ void vibrators_off(void)
     s32 pad;
     s32* pp;
     int i;
-    u32 cmds[4] = { 2, 2, 2, 2 };
+    MotorCommands cmds;
     u8 act[8];
+
+    cmds = lbl_80111FDC;
 
     for (i = 0; i < 4; i++) {
         if (lbl_80240E10[i * 2] != 0) {
@@ -920,7 +928,7 @@ void vibrators_off(void)
             PADControlMotor(*pp, 0);
         }
     }
-    PADControlAllMotors(cmds);
+    PADControlAllMotors(cmds.command);
 }
 
 /* 0x80031938  start a rumble at vibe_inten[inten] for time frames */
