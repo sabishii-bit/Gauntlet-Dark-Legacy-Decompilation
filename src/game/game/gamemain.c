@@ -259,7 +259,7 @@ extern char  lbl_801125E4[];
 extern char  lbl_80112600[];
 extern s32   BytesFree(void);
 extern s32   fn_80057F44(s32 code, s32 mask);
-extern void  NewWorld(void);
+extern void  NewWorld(s32 arg0);
 extern void  init_players(void);
 extern void  ResetItems(void);
 extern void  ClearControls(void);
@@ -1284,6 +1284,8 @@ void fn_800552A4(f32 total, f32 current)
 /* 0x80054070 -- load a world/level, measuring its heap usage. */
 s32 fn_80054070(s32 arg0, s32 arg1, s32 arg2)
 {
+    s32 free;
+
     lbl_803447A4 = BytesFree();
     sMusicTrackHi = -1;
     if (arg0 == sWorldDataConst) {
@@ -1291,12 +1293,13 @@ s32 fn_80054070(s32 arg0, s32 arg1, s32 arg2)
     } else if (arg0 >= 0) {
         arg2 = fn_80056698(arg0, arg2);
     }
+    free = BytesFree();
+    lbl_803447A4 = lbl_803447A4 - free;
     lbl_803447E4 = 0;
-    lbl_803447A4 = lbl_803447A4 - BytesFree();
     lbl_803447EC = 0;
     lbl_803447F0 = 0;
     lbl_803447F4 = 0;
-    NewWorld();
+    NewWorld(0);
     init_players();
     fn_800510A4();
     ResetItems();
