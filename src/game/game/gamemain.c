@@ -2207,7 +2207,6 @@ extern s32 msgPost();
 void fn_80055AFC(void)
 {
     s32 i;
-    u32 off;
     u8* ms;
     s32 n;
     s32 limit;
@@ -2228,13 +2227,11 @@ void fn_80055AFC(void)
         break;
     }
     n = 0;
-    off = 0;
     for (i = 0; i < 4; i++) {
-        if (*(s32*)((u8*)gPlayers + off + 232) == 1) {
+        if (*(s32*)((u8*)gPlayers + i * 13148 + 232) == 1) {
             break;
         }
         n++;
-        off += 13148;
     }
     if (n == 4) {
         lbl_803447F4 = limit;
@@ -2257,12 +2254,10 @@ void fn_80055AFC(void)
     if (lbl_803447EC != 0) {
         ms = sMilestones;
         i = 0;
-        off = 0;
         while (i < sNumMilestones) {
-            u8* mp = ms + off;
+            u8* mp = ms + i * 104;
             MBTreeClearFlags(*(void**)(mp + 96), 2, 0);
             i++;
-            off += 104;
         }
         if (sNumMilestones > 0 && lbl_80344780 == 0) {
             msgPost(29, -1, 0);
@@ -2271,12 +2266,10 @@ void fn_80055AFC(void)
     } else {
         ms = sMilestones;
         i = 0;
-        off = 0;
         while (i < sNumMilestones) {
-            u8* mp = ms + off;
+            u8* mp = ms + i * 104;
             MBTreeSetFlags(*(void**)(mp + 96), 2, 0);
             i++;
-            off += 104;
         }
     }
     lbl_80344780 = lbl_803447EC;
