@@ -5199,23 +5199,36 @@ s32 mini_inventory_find_previous_selectable_item(s32 i) {
 
 /* Next slot (wrapping) holding a live powerup, or -1.                 */
 s32 mini_inventory_find_next_selectable_item(s32 i) {
-    s32 sel = tb_info[i].sel + 1;
-    s32 n = 0;
+    Player* p;
+    s32 n;
+    s32 sel;
 
-    if (sel > 9) {
-        sel = 0;
+    sel = tb_info[i].sel;
+    p = P(i);
+    sel++;
+    n = 0;
+    if (sel < 10) {
+        goto check_slot;
     }
-    while (n < 10) {
-        if (PUP_STRENGTH(P(i), sel) != 0.0) {
-            return sel;
-        }
-        sel++;
-        n++;
-        if (sel > 9) {
-            sel = 0;
-        }
+    sel = 0;
+    goto check_slot;
+
+next_slot:
+    sel++;
+    n++;
+    if (sel < 10) {
+        goto count_check;
     }
-    return -1;
+    sel = 0;
+count_check:
+    if (n >= 10) {
+        return -1;
+    }
+check_slot:
+    if ((f64)p->powerup[sel].strength == 0.0) {
+        goto next_slot;
+    }
+    return sel;
 }
 
 /* Load the INVENTORY overlay file once.                               */
