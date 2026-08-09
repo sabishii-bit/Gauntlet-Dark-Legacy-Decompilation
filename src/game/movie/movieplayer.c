@@ -53,6 +53,10 @@ extern u8* gMovieStreamState;
 /* --- PS2-shim file IO (sceLseek/sceRead the .avi container) --- */
 extern int sceLseek(int fd, int offset, int whence);
 extern int sceRead(int fd, void* data, int length);
+extern s32 sceClose(s32 fd);
+extern u8 sceFileExists(const char* path);
+extern int sceOpen(const char* path, ...);
+extern void sysAssertFailed(const char* expression, const char* file, int line);
 
 /* --- vtables (.data) + subsystem refcounts (.sbss) + colour ramps (.bss) --- */
 extern u32 lbl_801296A4[];
@@ -68,6 +72,8 @@ extern u8* gDTextBuf;
 
 /* --- sdata2 float pool (movie YUV->RGB matrix coeffs) --- */
 extern const f32 lbl_80349390;
+extern const f32 lbl_80349394;
+extern const f64 lbl_803493B0;
 extern const f32 lbl_803493B8;
 extern const f32 lbl_803493BC;
 extern const f32 lbl_803493D8;
@@ -93,6 +99,9 @@ int fn_800DB2F4(int param_1, u8* param_2, u32 param_3, u32 param_4);
 void fn_800DB3D4(u32* stream, s32 fd, u32 length);
 void fn_800DB29C(int stream);
 u32* fn_800DB36C(int stream);
+void fn_800DB82C(u32* stream, int fd, u32 offset);
+u32 fn_800DACD8(int movie, u8* header);
+u8 MovieDecoderInitBuffers(u32* decoder, u32 size, u32 hasAudio);
 void fn_800D9F20(int audio);
 u32* fn_800DBF6C(u32* self, s16 deleting);
 u8 fn_800DBCCC(void* self, s32 x);
@@ -865,7 +874,7 @@ u32 fn_800D96B0(u32* self, u32 unused, u8* header)
 #pragma scheduling on
 #endif
 
-u32 MovieValidateFrameFormat(u32 param_1, int param_2) {
+s32 MovieValidateFrameFormat(u32 param_1, int param_2, s32 unused) {
     int uVar1;
     u32 iVar2;
     int iVar3;
@@ -1420,7 +1429,139 @@ done:
 }
 
 /* movie open: sceOpen/sceRead the Gauntlet VQMovies .avi file, asserts on failure (MoviePlayer.cpp) */
-void fn_800DA920(void) {
+s32 fn_800DA920(u8* movie, const char* name)
+{
+    u8 headerStorage[4128];
+    u8* header;
+    const char* selected;
+    s32 offset;
+
+    header = headerStorage;
+    header += (32 - ((u32)header & 31)) & 31;
+    *(f32*)(movie + 4) = lbl_80349390;
+    *(u32*)(movie + 16) = 0;
+    if (*(s32*)(movie + 28) != 0) {
+        sceClose(*(s32*)(movie + 28));
+        *(s32*)(movie + 28) = 0;
+    }
+    if (*(u8**)(movie + 400) != NULL) {
+        u8* stream;
+
+        AudioStreamStop();
+        if ((stream = *(u8**)(movie + 400)) != NULL) {
+            AudioStreamStop();
+            __dla__FPv(*(void**)(stream + 4));
+            __dl__FPv(stream);
+        }
+        *(u32*)(movie + 400) = 0;
+    }
+
+    selected = name;
+    if (!sceFileExists(selected)) {
+        char path[256] = "Gauntlet/VQMovies/@";
+        static const char midwayPath[32] = "Gauntlet/VQMovies/midway.avi";
+        static const char playerName[12] = "MoviePlayer";
+        static const char baseName[16] = "MoviePlayerBase";
+        static const char fallbackPath[32] = "Gauntlet/VQMovies/KnotVQ.avi";
+        static const char sourceFile[16] = "MoviePlayer.cpp";
+        u8 pathPad[4];
+        char* dst;
+        register char c;
+        register s32 i = 0;
+        register char* cursor;
+
+        cursor = path;
+        while (*cursor != '@') {
+            i++;
+            cursor++;
+        }
+        cursor = (char*)name;
+        dst = path;
+        dst += i;
+        while ((c = *cursor) != '\0') {
+            *dst = c;
+            cursor++;
+            i++;
+            dst++;
+        }
+        path[i] = '.';
+        path[i + 1] = 'a';
+        path[i + 2] = 'v';
+        path[i + 3] = 'i';
+        path[i + 4] = '\0';
+        selected = path;
+        if (!sceFileExists(selected)) {
+            selected = fallbackPath;
+            if (!sceFileExists(selected)) {
+                sysAssertFailed(name, sourceFile, 192);
+                return 0;
+            }
+        }
+    }
+
+    *(s32*)(movie + 28) = sceOpen(selected, 1);
+    sceRead(*(s32*)(movie + 28), header, 4096);
+    if (!(u8)fn_800DACD8((s32)movie, header)) {
+        return 0;
+    }
+
+    *(f32*)(movie + 12) =
+        (f32)((f64)*(u32*)(movie + 204) / (f64)*(u32*)(movie + 200));
+    *(f32*)(movie + 8) = lbl_80349394 / *(f32*)(movie + 12);
+
+    *(u32*)(movie + 20) = 0;
+    for (offset = 0; offset < 4096; offset += 4) {
+        if (ReadF32LE(header + offset) == 0x4B4E554A) {
+            *(u32*)(movie + 20) = offset + 4;
+            break;
+        }
+    }
+    if (*(u32*)(movie + 20) != 0) {
+        *(u32*)(movie + 20) = 0;
+        for (; offset < 4096; offset += 4) {
+            if (ReadF32LE(header + offset) == 0x69766F6D) {
+                *(u32*)(movie + 20) = offset + 4;
+                break;
+            }
+        }
+    }
+    if (*(u32*)(movie + 20) == 0) {
+        *(u32*)(movie + 20) = 2048;
+    }
+
+    sceLseek(*(s32*)(movie + 28), *(s32*)(movie + 20), 0);
+    fn_800D99AC((u32)(movie + 336), (int*)(movie + 404), movie + 124);
+    *(u16*)(movie + 138) = 16;
+    *(u32*)(movie + 140) = 3;
+    *(u32*)(movie + 164) = 0xF800;
+    *(u32*)(movie + 168) = 2016;
+    *(u32*)(movie + 172) = 31;
+    *(u32*)(movie + 144) = *(u32*)(movie + 128) *
+                           *(u32*)(movie + 132) * 2;
+    *(s32*)(movie + 132) = -*(s32*)(movie + 132);
+    *(u8**)(movie + 288) = movie + 404;
+    *(u8**)(movie + 296) = movie + 124;
+
+    if (MovieValidateFrameFormat((u32)(movie + 336),
+                                 (s32)(movie + 284), 0) != 0) {
+        return 0;
+    }
+    {
+        typedef void (*MovieConfigureFn)(u8*, u8*, s32);
+        register MovieConfigureFn dispatch;
+
+        dispatch = (MovieConfigureFn)*(u32**)(movie + 368);
+        dispatch = ((MovieConfigureFn*)dispatch)[4];
+        dispatch(movie + 336, movie + 284, 0);
+    }
+    MovieDecoderInitBuffers((u32*)(movie + 32), 0x80000, movie[24]);
+    fn_800DB82C((u32*)(movie + 32), *(s32*)(movie + 28),
+                *(u32*)(movie + 20));
+    *(u32*)(movie + 80) = *(u32*)(movie + 212);
+    movie[25] = 1;
+    movie[26] = 0;
+    gMovieFrameTimeReset = 0;
+    return 1;
 }
 
 /* VQ .avi header parser (ReadF32LE/ReadU16LE/ReadU32LE) */
