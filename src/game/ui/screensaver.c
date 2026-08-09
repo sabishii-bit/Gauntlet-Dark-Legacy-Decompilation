@@ -153,6 +153,7 @@ extern f32 lbl_80347410;
 extern s32 lbl_80343CA8;
 extern f32 lbl_8011D658[60];
 extern f32 lbl_8011DCBC[3];
+extern u8 lbl_8011DA6C[];
 
 /* ---- screensaver-weapon parallel state arrays (this TU's .bss) ---- */
 extern int lbl_80274600[4];     /* per-weapon slot A (state code) */
@@ -581,20 +582,77 @@ void end_inventory_panel(int player)
  * ("s1 plyr" ...) and creates the text/icon blits via disp_piece, caching
  * handles into the arrG/arrH tables. Suppressed while a wipe is active.
  */
+void* disp_piece(u32* piece, s32 xoff, u32 mode);
+#pragma dont_inline on
 void draw_panels(void)
 {
-    int p;
+    char label[8];
+    u8 unused[4];
+    register u8* base = (u8*)lbl_80274600;
+    register u8* group4Base;
+    register s32 player;
+    register s32 xoff;
+    register s32 group12off;
+    register s32 group4off;
+    register s32 stateoff;
+    register s32 handleoff;
+    register s32 pieceoff;
+    register u8* pieces;
+    register s32 playerChar;
+    register s32 zero;
+    register s32 slot;
 
-    if (gFireScrollCircleBlits[0] == 0) {
-        if (lbl_80344A44 == 0) {
-            /* one-time panel-handle construction (float-ABI body elided) */
-        }
-        for (p = 0; p < 4; p++) {
-            draw_inventory_panel(p);
-        }
-        lbl_80344A44 = 1;
+    if (gFireScrollCircleBlits[0] != 0) {
+        return;
     }
+    if (lbl_80344A44 == 0) {
+        pieces = lbl_8011DA6C;
+        player = 0;
+        xoff = 0;
+        group12off = 0;
+        group4off = 0;
+        stateoff = 0;
+        zero = 0;
+        do {
+            *(volatile s32*)(base + stateoff) = zero;
+            *(s32*)(base + stateoff + 16) = zero;
+            group4Base = base + group4off;
+            *(s32*)(group4Base + 928) = zero;
+            *(s32*)(base + group12off + 992) = zero;
+            if (*(s32*)(group4Base += 928) == 0) {
+                slot = zero;
+                pieceoff = zero;
+                playerChar = player + '1';
+                handleoff = 0;
+                do {
+                    if ((u32)(slot - 2) <= 1) {
+                        label[0] = zero;
+                    } else {
+                        label[0] = playerChar;
+                        label[1] = zero;
+                    }
+                    *(void**)(group4Base + handleoff) = (void*)
+                        disp_piece((u32*)(pieces + pieceoff), xoff, (u32)label);
+                    slot++;
+                    handleoff += 4;
+                    pieceoff += 36;
+                } while (slot < 4);
+            }
+            player++;
+            xoff += 128;
+            group12off += 48;
+            group4off += 16;
+            stateoff += 4;
+        } while (player < 4);
+    }
+    slot = 0;
+    do {
+        draw_inventory_panel(slot);
+        slot++;
+    } while (slot < 4);
+    lbl_80344A44 = 1;
 }
+#pragma dont_inline reset
 
 /* Position and fade one inventory-panel piece during its enter/leave phase. */
 void animate_panel_piece(f32 progress, s32* piece, void* blit, s32 xOffset,
