@@ -652,7 +652,7 @@ void default_options(void)
 }
 
 /* 0x800533E4 -- reload player data / models / weapons / world. */
-void fn_800533E4(void)
+void ResetModels(void)
 {
     reset_players();
     LoadPdataFile();
