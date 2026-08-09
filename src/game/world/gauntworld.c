@@ -2674,8 +2674,9 @@ void ActivateSpecialTrigger(s32 type, s32 flag)
     u8* it;
     u8* w;
     u8* obj;
-    s32 j;
+    u8* entry;
     s32 n;
+    s32 j;
     ItemWobjRuntime* rt;
     u8 _spare[8];
 
@@ -2707,14 +2708,18 @@ void ActivateSpecialTrigger(s32 type, s32 flag)
                         if (flag != 0) {
                             n = sNumItemWobjs;
                             for (j = 0; j < n; j++) {
-                                if (rt->object[j] == (u32)obj) {
+                                entry = (u8*)rt;
+                                entry += j * 4;
+                                if (*(u32*)(entry + 29216) == (u32)obj) {
                                     break;
                                 }
                             }
                             if (j < n) {
                                 f32 v;
 
-                                v = rt->initialY[j];
+                                entry = (u8*)rt;
+                                entry += j * 4;
+                                v = *(f32*)(entry + 1800);
                                 rt->y[j] = v;
                                 *(f32*)(*(u32*)(obj + 40) + 52) = v;
                             }
