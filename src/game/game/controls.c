@@ -903,6 +903,7 @@ s32 assign_controller(s32 pad)
 void vibrators_off(void)
 {
     s32 pad;
+    s32* pp;
     int i;
     u32 cmds[4] = { 2, 2, 2, 2 };
     u8 act[8];
@@ -911,12 +912,12 @@ void vibrators_off(void)
         if (lbl_80240E10[i * 2] != 0) {
             lbl_80240E10[i * 2 + 1] = 0;
             lbl_80240E10[i * 2] = 0;
-            pad = lbl_8011A258[i];
+            pad = *(pp = &lbl_8011A258[i]);
             if (lbl_803445E0 == 0) {
                 memset(act, 0, 6);
                 scePadSetActDirect(pad / 4, pad & 3, act);
             }
-            PADControlMotor(lbl_8011A258[i], 0);
+            PADControlMotor(*pp, 0);
         }
     }
     PADControlAllMotors(cmds);
