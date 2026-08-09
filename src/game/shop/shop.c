@@ -122,7 +122,7 @@ extern s32 SelectLoadDone(void);
 extern void WritePlayerInfo(s32 player);
 extern void LoadPlyrData(s32 player, s32 pad, s32 mode);
 extern void TransitionBlitHide(void);
-extern s32 fn_80053B60(void);
+extern s32 ShowLoading(void);
 extern void fn_8009FCA8(s32 flag);
 extern s32 sndFxUpdate(s32 mode);
 extern void AudioStopMusicA(void);
@@ -404,7 +404,7 @@ s32 do_shop(void)
             fn_8009FCA8(statsFlag);
         }
     }
-    if (fn_80053B60() == 0) {
+    if (ShowLoading() == 0) {
         if (result != 0) {
             DrawGlowText(lbl_80348328, 340, 260, lbl_8011495C);
         }
