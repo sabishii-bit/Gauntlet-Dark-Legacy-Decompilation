@@ -5175,26 +5175,39 @@ void mini_inventory_draw_label(s32 i) {
 
 /* Previous slot (wrapping) holding a live powerup, or -1.             */
 s32 mini_inventory_find_previous_selectable_item(s32 i) {
-    s32 sel = tb_info[i].sel;
-    s32 n = 0;
+    s32 current;
+    s32 sel;
+    Player* p;
+    s32 n;
 
-    if (sel >= 0) {
-        sel--;
+    current = tb_info[i].sel;
+    p = P(i);
+    sel = current;
+    n = 0;
+    if (current < 0) {
+        goto wrap_initial;
     }
+    sel--;
+wrap_initial:
     if (sel == -1) {
         sel = 9;
     }
-    while (n < 10) {
-        if (PUP_STRENGTH(P(i), sel) != 0.0) {
-            return sel;
-        }
-        sel--;
-        n++;
-        if (sel == -1) {
-            sel = 9;
-        }
+    goto check_slot;
+
+previous_slot:
+    sel--;
+    n++;
+    if (sel == -1) {
+        sel = 9;
     }
-    return -1;
+    if (n >= 10) {
+        return -1;
+    }
+check_slot:
+    if ((f64)p->powerup[sel].strength == 0.0) {
+        goto previous_slot;
+    }
+    return sel;
 }
 
 /* Next slot (wrapping) holding a live powerup, or -1.                 */
