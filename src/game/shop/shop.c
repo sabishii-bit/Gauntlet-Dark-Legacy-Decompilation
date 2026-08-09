@@ -2047,13 +2047,16 @@ static s32 write_shop_menu(s32 player, s32 scroll)
 /* Build and center the per-entry vertical offsets for one shop player. */
 void calc_shop_ypos(s32 player)
 {
-    u8* p = &gPlayers[player * 13148];
-    s32* ypos = &lbl_8028A520[player << 6];
-    void** blits = &lbl_8028B120[player << 6];
+    void** blits;
+    s32* ypos;
+    u8* p;
     u8* entry;
     s32 i;
     s32 y;
 
+    p = &gPlayers[player * 13148];
+    ypos = &lbl_8028A520[player << 6];
+    blits = &lbl_8028B120[player << 6];
     y = 0;
     for (i = 0; i < lbl_80344C10; i++) {
         ypos[i] = y;
@@ -2070,20 +2073,17 @@ void calc_shop_ypos(s32 player)
 
     y = ypos[*(s32*)(p + 2664)];
     {
-        s32 offset = 0;
         s32 count;
 
-        for (count = lbl_80344C10; count > 0; count--) {
-            s32* cur = (s32*)((u8*)ypos + offset);
-
-            *cur -= y;
-            if (*cur > 1024) {
-                *cur = 1024;
+        i = 0;
+        for (count = lbl_80344C10; count > 0; count--, i++) {
+            ypos[i] -= y;
+            if (ypos[i] > 1024) {
+                ypos[i] = 1024;
             }
-            if (*cur < -1024) {
-                *cur = -1024;
+            if (ypos[i] < -1024) {
+                ypos[i] = -1024;
             }
-            offset += 4;
         }
     }
 }
