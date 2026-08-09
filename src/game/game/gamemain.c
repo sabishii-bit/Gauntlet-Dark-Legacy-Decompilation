@@ -2543,15 +2543,18 @@ extern void fn_8009FFA4(f32* pos);
 
 /* 0x80055678 -- update the special-item proximity meter blits from the
  * distance between the two given points. */
+#pragma opt_propagation off
 void fn_80055678(f32* a, f32* b)
 {
     f32 d;
     f32 v;
-    f64 t;
+    f64 lvl2;
     f32 lvl;
+    f64 scale;
+    f64 base;
     f32 f6;
     f32 x;
-    f64 lvl2;
+    f64 t;
     f32 dx;
     f32 dy;
     f32 dz;
@@ -2565,14 +2568,14 @@ void fn_80055678(f32* a, f32* b)
         dz = a[2] - b[2];
         d = dx * dx + dy * dy + dz * dz;
         if (d > lbl_80346AFC) {
-            volatile f32 tmp;
+            volatile f32 tmp[3];
             f64 y = __frsqrte(d);
             y = lbl_80346B90 * y * (lbl_80346B98 - y * y * d);
             y = lbl_80346B90 * y * (lbl_80346B98 - y * y * d);
             y = lbl_80346B90 * y * (lbl_80346B98 - y * y * d);
             d = (f32)(d * (lbl_80346B90 * y * (lbl_80346B98 - y * y * d)));
-            tmp = d;
-            d = tmp;
+            tmp[0] = d;
+            d = tmp[0];
         }
         v = (f32)(d - lbl_80346BA0);
         v = v * lbl_80343C08;
@@ -2592,13 +2595,15 @@ void fn_80055678(f32* a, f32* b)
             lbl_8034478C = 1;
             fn_8009FFA4(b);
         }
-        t = lbl_80346BA8 - lvl;
-        f6 = (f32)t;
-        lvl2 = lbl_80346BC8 * f6;
+        scale = lbl_80346BC8;
+        base = lbl_80346BC0;
+        lvl2 = scale * (f64)(f6 = (f32)(lbl_80346BA8 - lvl));
+        t = base - lvl2;
         mbBlitSetupVerts((void*)lbl_803447A8[1], lbl_80346B20, lbl_80346B20,
-                         (f32)((lbl_80346BC0 - lvl2) * lbl_80346B38),
+                         (f32)(t * lbl_80346B38),
                          lbl_80346B20);
         mbBlitProject((void*)lbl_803447A8[1], 0, Round((f32)lvl2) + 27);
         mbBlitCalcY((void*)lbl_803447A8[1], 102 - Round((f32)lvl2));
     }
 }
+#pragma opt_propagation on
