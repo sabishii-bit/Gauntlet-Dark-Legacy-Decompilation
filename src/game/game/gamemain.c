@@ -794,7 +794,7 @@ load_fmt5:
 
     offset = id << 2;
     *(s32*)((u8*)&pool[300] + offset) =
-        LoadModel(buf, (void**)((u8*)pool + offset + 1380), 0, -1);
+        LoadModel(buf, ((void**)&pool[345]) + id, 0, -1);
     *(s32*)((u8*)&pool[255] + offset) = model;
     InitEnemyMissiles(id);
 }
