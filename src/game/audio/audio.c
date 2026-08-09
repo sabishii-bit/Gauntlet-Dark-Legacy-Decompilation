@@ -518,16 +518,15 @@ s32 AudioAng(f32* pos)
  * retry once ("RESETTING AUDIO AND TRYING AGAIN").  Returns nonzero on success. */
 s32 AudioSetMode(char* modeName)
 {
-    s32 attempt;
     s32 result;
+    s32 attempt;
     s32 i;
-    s32 offset;
 
     gAudioBankTbl = 0;
     for (attempt = 0; attempt < 2; attempt++) {
-        for (i = 0, offset = 0; i < *(s32*)(sAudioBankTable + 0); i++, offset += 9364) {
-            if (strncmp((char*)(*(u8**)(sAudioBankTable + 12) + offset), modeName, 16) == 0) {
-                gAudioBankTbl = (s32*)(*(u8**)(sAudioBankTable + 12) + offset);
+        for (i = 0; i < *(s32*)(sAudioBankTable + 0); i++) {
+            if (strncmp((char*)(*(u8**)(sAudioBankTable + 12) + i * 9364), modeName, 16) == 0) {
+                gAudioBankTbl = (s32*)(*(u8**)(sAudioBankTable + 12) + i * 9364);
                 break;
             }
         }
@@ -535,14 +534,18 @@ s32 AudioSetMode(char* modeName)
             FatalErrorf(lbl_80111304, modeName);
         }
         result = 0;
-        for (i = 0; i < gAudioBankTbl[4]; i++) {
+        i = 0;
+        while (i < gAudioBankTbl[4]) {
             result = AudioLoadPart(i, 0, 0, 0);
+            if (result != 0) {
+                i++;
+            }
             if (result == 0) {
                 break;
             }
         }
         if (result != 0) {
-            return result;
+            break;
         }
         ErrorPrintf(lbl_80111324);
         sndTestAcquire(0);
