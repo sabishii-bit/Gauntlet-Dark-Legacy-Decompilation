@@ -827,93 +827,89 @@ s32 StartBlockFX(f32 time, s32 pnum)
     return idx;
 }
 
+typedef struct ComboFxView {
+    u8 _0000[24];
+    f32 colors[7][3];
+    s32 colorpick[4];
+    u8 _007C[3436];
+    s32 types[4];
+    s32 mainType;
+} ComboFxView;
+
 /* Spawn the combo sphere for a player class and the optional colored combo
  * burst.  The class tables share the packed magic/effect definition page. */
-s32 StartComboFX(f32* pos, s32 color, s32 playerClass)
+s32 StartComboFX(f32* pos, s32 typeIndex, s32 colorIndex)
 {
-    u8* comboTable = (u8*)lbl_80122088;
+    ComboFxView* table = (ComboFxView*)lbl_80122088;
     EffectPage* page = (EffectPage*)EffectInfo;
-    s32 result = -1;
+    s32 ret = -1;
 
-    if (playerClass >= 0) {
-        s32 type = *(s32*)(comboTable + 3576);
+    if (colorIndex >= 0) {
+        s32 type = table->mainType;
+        u32 flags = 0x80980;
         EffectHeader* header;
 
-        result = -1;
+        ret = -1;
         if (type < 0 || type >= MAXEFFECTTYPES) {
             ErrorPrintf("Bad Effect type: %d", type);
-            result = -1;
+            ret = -1;
         } else {
             header = &page->info[type];
             if (header->atree != NULL) {
-                result = StartFXTree(header->atree, pos, 0, 0x80980, 0.0f);
-                if (result >= 0) {
-                    s32 scaled = result * 240;
-                    u8* nodeField = (u8*)page + scaled;
-
-                    MBTreeSetZsortAdd(*(struct mbnode**)(nodeField += 2996),
-                                      header->zmod, 1);
-                    MBTreeSetAlpha(*(struct mbnode**)nodeField, header->alpha, 1);
-                    *(s32*)((u8*)page + scaled + 3072) = type;
+                ret = StartFXTree(header->atree, pos, 0, flags, 0.0f);
+                if (ret >= 0) {
+                    MBTreeSetZsortAdd(page->fx[ret].node, header->zmod, 1);
+                    MBTreeSetAlpha(page->fx[ret].node, header->alpha, 1);
+                    page->fx[ret].type = (fx_type)type;
                 }
             }
         }
-        if (result >= 0) {
-            s32 scaled = result * 240;
-            u8* nodeField = (u8*)page + scaled;
-            s32 colorIndex;
-            f32* lightColor;
+        if (ret >= 0) {
+            f32* color;
 
-            MBTreeSetColor(*(struct mbnode**)(nodeField += 2996),
-                           lbl_8011A178[playerClass], 1);
-            MBTreeSetAmbientAdd(*(struct mbnode**)nodeField, 0x1FF, 1);
-            colorIndex = *(s32*)(comboTable + 108 + playerClass * 4);
-            lightColor = (f32*)(comboTable + 24 + colorIndex * 12);
-            if (result >= 0) {
-                *(f32*)((u8*)page + scaled + 2992) = lbl_803480EC;
-                if (lightColor != NULL) {
-                    *(f32*)((u8*)page + scaled + 2976) = lightColor[0];
-                    *(f32*)((u8*)page + scaled + 2980) = lightColor[1];
-                    *(f32*)((u8*)page + scaled + 2984) = lightColor[2];
+            MBTreeSetColor(page->fx[ret].node, lbl_8011A178[colorIndex], 1);
+            MBTreeSetAmbientAdd(page->fx[ret].node, 0x1FF, 1);
+            color = table->colors[table->colorpick[colorIndex]];
+            if (ret >= 0) {
+                page->fx[ret].lightrad = lbl_803480EC;
+                if (color != NULL) {
+                    page->fx[ret].lightcolor[0] = color[0];
+                    page->fx[ret].lightcolor[1] = color[1];
+                    page->fx[ret].lightcolor[2] = color[2];
                 } else {
-                    *(f32*)((u8*)page + scaled + 2976) = light_color[0];
-                    *(f32*)((u8*)page + scaled + 2980) = light_color[1];
-                    *(f32*)((u8*)page + scaled + 2984) = light_color[2];
+                    page->fx[ret].lightcolor[0] = light_color[0];
+                    page->fx[ret].lightcolor[1] = light_color[1];
+                    page->fx[ret].lightcolor[2] = light_color[2];
                 }
             }
         }
     }
-    if (color >= 0) {
-        s32 type = *(s32*)(comboTable + 3560 + color * 4);
-        s32 index = -1;
+    if (typeIndex >= 0) {
+        u32 flags = 0x400880;
+        s32 type = table->types[typeIndex];
+        s32 subret = -1;
         EffectHeader* header;
 
         if (type < 0 || type >= MAXEFFECTTYPES) {
             ErrorPrintf("Bad Effect type: %d", type);
-            index = -1;
+            subret = -1;
         } else {
             header = &page->info[type];
             if (header->atree != NULL) {
-                index = StartFXTree(header->atree, pos, 0, 0x400880, 0.0f);
-                if (index >= 0) {
-                    s32 scaled = index * 240;
-                    u8* nodeField = (u8*)page + scaled;
-
-                    MBTreeSetZsortAdd(*(struct mbnode**)(nodeField += 2996),
-                                      header->zmod, 1);
-                    MBTreeSetAlpha(*(struct mbnode**)nodeField, header->alpha, 1);
-                    *(s32*)((u8*)page + scaled + 3072) = type;
+                subret = StartFXTree(header->atree, pos, 0, flags, 0.0f);
+                if (subret >= 0) {
+                    MBTreeSetZsortAdd(page->fx[subret].node, header->zmod, 1);
+                    MBTreeSetAlpha(page->fx[subret].node, header->alpha, 1);
+                    page->fx[subret].type = (fx_type)type;
                 }
             }
         }
-        result = index;
-        if (result >= 0) {
-            u8* effectBase = (u8*)page + result * 240;
-
-            MBTreeSetAmbientAdd(*(struct mbnode**)(effectBase + 2996), 0x1FF, 1);
+        ret = subret;
+        if (subret >= 0) {
+            MBTreeSetAmbientAdd(page->fx[ret].node, 0x1FF, 1);
         }
     }
-    return result;
+    return ret;
 }
 
 s32 StartLevelUpFX(f32* pos, s32 color)
