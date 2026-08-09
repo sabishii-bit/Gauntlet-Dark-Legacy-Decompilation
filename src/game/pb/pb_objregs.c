@@ -1558,13 +1558,9 @@ void fn_800C6350(PbDOObj* obj, s32 flags, u32 mask, u8* node)
         return;
     }
     {
-        s32 hi = flags & 0x800000;
-        s32 t;
-        if (hi) {
-            t = 0x48;
-        } else {
-            t = 0x44;
-        }
+        s64 t;
+        s32 hi;
+        t = (hi = flags & 0x800000) ? 0x48 : 0x44;
         if (obj->q30 == t) {
             return;
         }
