@@ -305,14 +305,16 @@ s32 cardMount(s32 chan, void* workArea, s32 arg3)   { return cardSubmitCommand(c
 s32 cardGetResult(void) { return gCardMgr.result; }
 
 /* 0x800DC604 - post a command if the worker is idle, else return last result */
+#pragma opt_common_subs off
 static s32 cardSubmitCommand(s32 chan, s32 cmdType, s32 param1, void* param2, s32 param3) {
     s32 ret;
+    s32* command;
     (void)param3;
     OSLockMutex(&M.mutex);
-    if (M.command != -1) {
+    if (*(command = &M.command) != -1) {
         ret = M.result;
     } else {
-        M.command = chan;
+        *command = chan;
         M.cmdType = cmdType;
         M.param1 = param1;
         M.param2 = param2;
@@ -326,6 +328,7 @@ static s32 cardSubmitCommand(s32 chan, s32 cmdType, s32 param1, void* param2, s3
     OSUnlockMutex(&M.mutex);
     return ret;
 }
+#pragma opt_common_subs reset
 
 /* 0x800DC6A4 - create/overwrite a save file (atomically, via a "~name" temp)
  * and refresh the in-RAM directory cache. `stat` describes the file, `data`
