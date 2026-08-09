@@ -414,13 +414,17 @@ void DmgFxNodeUpdate(struct mbnode* node, s32 absolute, f32 rx, f32 rz, f32 rotp
     /* PARKED at 6 residual insns (regalloc/order class, 3 attempts):
      * target emits fmul var,const (ours const,var) and fmr-before-mr call
      * setup; byte-different, semantically identical. */
-    node->scale[0] = rx * 0.01;
-    node->scale[1] = rx * 0.01;
-    node->scale[2] = rz * 0.01;
+    rx *= 0.01;
+    rz *= 0.01;
+    node->scale[0] = rx;
+    node->scale[1] = rx;
+    node->scale[2] = rz;
     if (absolute != 0) {
         CopyMat3(gIdentityMatrix, node);
-        WYawMat3(node, roty);
-        WPitchMat3(node, rotp);
+        sx = roty;
+        WYawMat3(node, sx);
+        sy = rotp;
+        WPitchMat3(node, sy);
         sx = 1.0f;
         sy = 1.0f;
         sz = 1.0f;
