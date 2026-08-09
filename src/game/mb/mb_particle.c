@@ -1652,34 +1652,66 @@ static void freePsys(MBObject* node) {
 }
 #pragma opt_common_subs reset
 
-/* 0x800D1404 - allocPsysMem: first-fit split allocator over the block pool.
- * Documented reconstruction (NonMatching). */
+/* 0x800D1404 - allocPsysMem: first-fit split allocator over the block pool. */
 static void* allocPsysMem(s32 size, s32 tag) {
-    u32 need;
+    PsysMemPool* pool = (PsysMemPool*)((u8*)&lbl_80128710 + 0x24);
     PsysMemBlock* b;
-    if (size <= 0 || size > gPoolTotal) {
+    u32 need;
+    PsysMemBlock* first;
+
+    if (size <= 0 || size > (s32)pool->free_bytes) {
         return NULL;
     }
     need = (size + 0x1f) & 0xfffffff0;
-    b = gPoolFree;
-    do {
-        if ((s32)need <= b->bytes) {
-            b->id = tag;
-            if ((u32)(b->bytes - need) < 0x131) {
-                gPoolFree = b->next ? b->next : gPoolBase;
-                b->bytes = -b->bytes;
-                gPoolCount--;
-                gPoolTotal -= (-b->bytes);
-                return b + 1;
-            }
-            gPoolTotal -= need;
-            gPoolCount--;
-            b->bytes = -(s32)need;
-            return b + 1;
+    first = pool->next;
+    b = first;
+    for (;;) {
+        if (b->bytes >= (s32)need) {
+            break;
         }
-        b = b->next ? b->next : gPoolBase;
-    } while (b != gPoolFree);
-    return NULL;
+        b = b->next;
+        if (b == NULL) {
+            b = pool->frst;
+        }
+        if (b == first) {
+            return NULL;
+        }
+    }
+
+    b->id = tag;
+    if ((u32)(b->bytes - need) > 0x130) {
+        PsysMemBlock* next = b->next;
+        PsysMemBlock* split = (PsysMemBlock*)((u8*)b + need);
+
+        b->next = split;
+        split->prev = b;
+        split->next = next;
+        if (next != NULL) {
+            next->prev = split;
+        } else {
+            pool->last = split;
+        }
+        pool->next = split;
+        split->bytes = b->bytes - need;
+        b->bytes = -(s32)need;
+        pool->alloc_cnt++;
+        pool->free_bytes -= need;
+        return b + 1;
+    }
+
+    if (b->next == NULL) {
+        pool->next = pool->frst;
+    } else {
+        pool->next = b->next;
+    }
+    {
+        s32 oldBytes = b->bytes;
+        b->bytes = -oldBytes;
+        pool->alloc_cnt++;
+        pool->free_cnt--;
+        pool->free_bytes -= oldBytes;
+    }
+    return b + 1;
 }
 
 /* 0x800D1530 - freePsysMem: return a block, coalescing neighbours.
