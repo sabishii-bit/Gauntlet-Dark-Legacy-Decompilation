@@ -4217,12 +4217,11 @@ static void update_vel(Enemy* e, f32 k)
  * by a per-type speed table), roll cooldown timers, and cue attacks. */
 void move_logic31(s32 index)
 {
-    Enemy* e = (Enemy*)((u8*)lbl_80250E00 + index * 916 + 3608);
+    Enemy* e = &gEnemies[index];
     f32 a;
     u8 unused[16];
 
-    if (*(s16*)((u8*)lbl_80250E00 + index * 916 + 4392)
-        != *(s16*)((u8*)lbl_80250E00 + index * 916 + 4396)) {
+    if (e->algorithm != e->prev_ai) {
         fn_80050394(index);
     }
     if (e->closest >= 0) {
@@ -4239,13 +4238,23 @@ void move_logic31(s32 index)
         e->daction = 0;
         if (e->visactive != 0) {
             s32 act = e->action;
-            if (act == 12 || act == 13) {
+            if (act == 12) {
+                goto action_12_or_13;
+            }
+            if (act != 13) {
+                goto other_action31;
+            }
+action_12_or_13:
+            {
                 update_vel(e, 1.0f);
                 e->flag2 = RandInt(30) + 30;
                 if (e->actual_dist <= 7.5) {
                     e->attack_index = e->closest;
                 }
-            } else if (act == 16 || act == 17) {
+                goto action_done31;
+            }
+other_action31:
+            if (act == 16 || act == 17) {
                 e->flag2 = RandInt(30) + 30;
             } else if (e->flag2 <= 0) {
                 if (e->actual_dist <= 10.0) {
@@ -4257,6 +4266,8 @@ void move_logic31(s32 index)
                 e->flag2 -= gFrameTicks;
                 update_vel(e, 0.5f);
             }
+action_done31:
+            ;
         }
     }
     e->pyr[1] = turn_enemy_ang(e, e->ang);
