@@ -1023,7 +1023,7 @@ s32 fn_800C5DA8(PbDOObj* obj, s32 arg, u8* node, f32* matrix);
 void fn_800C6350(PbDOObj* obj, s32 flags, u32 mask, u8* node);
 void fn_800C64A4(PbDOObj* obj, u32 flags, u8* node);
 void setTexShift(PbDOObj* obj, f32* sh, f32* alt, s32 chrome);
-void fn_800C68F4(u32* pkt, s32 x, u32 y);
+static void setLmapInfo(u32* pkt, s32 x, u32 y);
 
 /* Apply the object/material state deltas and submit one geometry stream
  * (Xbox: pbSetDORegs). */
@@ -1070,7 +1070,7 @@ s32 pbSetDORegs(s32 unused, u32 texture, s32 textureMode, u32 material,
             state->m78 |= 2;
             if (state->mcc != value) {
                 state->mcc = value;
-                fn_800C68F4((u32*)state, bank, material);
+                setLmapInfo((u32*)state, bank, material);
                 drawFlags = 8;
             }
             flags |= 0x2000;
@@ -1163,7 +1163,7 @@ s32 pbSetDORegs(s32 unused, u32 texture, s32 textureMode, u32 material,
         value = (value & 0xFFFF0000) | (material & 0xFFFF);
         if (state->mcc != value) {
             state->mcc = value;
-            fn_800C68F4((u32*)state, bank, material);
+            setLmapInfo((u32*)state, bank, material);
             drawFlags = 8;
         }
     }
@@ -1715,7 +1715,7 @@ void pbSetDODrawRegs(PbDOObj* obj, u32 handle)
 
 /* Emit a lightmap texture packet + reset the shared texture regs
  * (Xbox candidate: setLmapInfo). */
-void fn_800C68F4(u32* pkt, s32 x, u32 y)
+static void setLmapInfo(u32* pkt, s32 x, u32 y)
 {
     PbDrawState* st = &lbl_802C5430;
     pkt[0] = 0x5C000;
