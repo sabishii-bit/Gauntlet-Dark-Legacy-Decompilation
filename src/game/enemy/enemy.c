@@ -1432,21 +1432,19 @@ void fn_8004E448(Enemy* enemy, s32 arg, f32* pos)
 void update_enemy_milestone(Enemy* enemy)
 {
     u8 frame_pad[12];
-    struct {
-        u8 pad[12];
-        f32 vertical;
-        f32 milestone[3];
-    } local;
+    f32 milestone[3];
+    f32 vertical;
+    u8 local_pad[12];
     f32 dx;
     f32 dz;
 
     if (enemy->plr_ms >= 0) {
-        GetMilestonePos(enemy->plr_ms, local.milestone);
-        dx = *(f32*)((u8*)enemy + 0x34) - local.milestone[0];
-        dz = *(f32*)((u8*)enemy + 0x3C) - local.milestone[2];
-        local.vertical = *(f32*)((u8*)enemy + 0x38) - local.milestone[1];
-        *(u32*)&local.vertical &= 0x7FFFFFFF;
-        if ((f64)local.vertical < lbl_803469F8 &&
+        GetMilestonePos(enemy->plr_ms, milestone);
+        dx = *(f32*)((u8*)enemy + 0x34) - milestone[0];
+        dz = *(f32*)((u8*)enemy + 0x3C) - milestone[2];
+        vertical = *(f32*)((u8*)enemy + 0x38) - milestone[1];
+        *(u32*)&vertical &= 0x7FFFFFFF;
+        if ((f64)vertical < lbl_803469F8 &&
             (f64)fqdist(dx, dz) < lbl_80346A00) {
             fn_8004E5F8(enemy);
             enemy->plr_ms = -1;
