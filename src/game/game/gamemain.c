@@ -718,7 +718,7 @@ alloc_fmt5:
 
     id <<= 2;
     *(s32*)((u8*)&pool[300] + id) =
-        fn_8005A1EC(buf, (void**)((u8*)pool + id + 1380));
+        fn_8005A1EC(buf, (void**)((u8*)&pool[345] + id));
     *(s32*)((u8*)&pool[255] + id) = -model;
 }
 
