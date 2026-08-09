@@ -3506,6 +3506,7 @@ void move_logic19(s32 index)
     e->ang = a;
     mode = e->mode1;
     switch (mode) {
+    case 0:
     default:
         e->counter1 = 1;
         e->mode1++;
