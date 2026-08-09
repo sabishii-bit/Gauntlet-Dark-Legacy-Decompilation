@@ -1939,6 +1939,7 @@ void show_optmenu(OPTMENU* m)
 
 extern char lbl_80113A78[]; /* "end_optmenu called with bad options_level" */
 
+#pragma opt_propagation off
 static void end_optmenu(s32 dir, s32 mode)
 {
     OPTGLOBALS* og = (OPTGLOBALS*)&optglobals;
@@ -1953,12 +1954,11 @@ static void end_optmenu(s32 dir, s32 mode)
 
     if (mode < 0) {
         /* collapse: kill every level below, move top to level 0 */
-        for (i = 0, off = 0; i < options_level; i++) {
+        for (i = 0, off = 0; i < options_level; i++, off += 4) {
             m = *(OPTMENU**)((u8*)og->stack + off);
             if (m != NULL) {
                 REMOVE_OPTMENU(m);
             }
-            off += 4;
         }
         og->stack[0] = og->stack[options_level];
         options_level = 0;
@@ -2000,6 +2000,7 @@ static void end_optmenu(s32 dir, s32 mode)
         m->title_blit = MBRemoveBlit(m->title_blit);
     }
 }
+#pragma opt_propagation reset
 
 /* ================================================================== */
 /* 0x80073998 finish_optmenu                                           */
