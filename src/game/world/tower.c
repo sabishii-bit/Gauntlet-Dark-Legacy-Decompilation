@@ -33,16 +33,22 @@
 extern void* FindWORLDOBJ();
 extern int   ResolveWorldData(int a, int b);
 extern int   AtreeMatch(void* obj, char* name, int flag);
-extern void  CaptionText(void);
+extern s32   CaptionText(s32 a, s32 b, s32 c, s32 d, s32 e);
 extern void  CaptionTextReset(void);
-extern void  CaptionTextSub(int a, int b, int c);
-extern int   GetScrollText(int a, int b);
-extern int   GetStringText(int a, int b);
-extern int   GetStringListText(int a, int b);
+extern s32   CaptionTextSub(char* text, f32 scale, s32 line, s32 time, s32 width);
+extern char* GetScrollText(s32 a, s32 b, s32 c, s32* d);
+extern char* GetStringText(s32 a, s32 b, u32* c);
+extern char* GetStringListText(s32 a, s32 b, s32 c, u32* d);
 extern int   FindStringMessageListSub_8001FC4C(int a, char* list);
 extern s32   InitCustomEffect();
 extern void  TriggerCameraEnd(void);
 extern void* FindLookoutParam(int a);
+typedef struct SumnerLookoutParam {
+    u8 _pad00[0x6A];
+    s16 id;
+} SumnerLookoutParam;
+extern SumnerLookoutParam* FindClosestWaypoint(f64 maxDist, f32* pos, s32 all);
+extern void SumnerCamActivate(s32 idx, s32 sub);
 extern int   AudioSoundPlaying(int a);
 extern int   fn_80057BC8(int item);
 extern int   sprintf(char* buf, const char* fmt, ...);
@@ -61,6 +67,12 @@ extern u8*   fn_8005B558(s32 id);
 extern void  MBTreeSetAlpha(void* tree, s32 alpha, s32 recurse);
 extern void  MBTreeSetFlags(void* tree, s32 flags, s32 recurse);
 extern void  fn_8009C460(s32 id);
+extern s32   fn_8009CD80(s32 player, s32 character, s32 level);
+extern void  fn_8009C4F0(s32 idx);
+extern void  fn_8009C688(s32 idx);
+extern s32   StartLevelUpFX(f32* pos, s32 color);
+extern s32   StartGemFX(f32* pos, s32 color);
+void SumnerSpeechEnd(void);
 
 extern s32 lbl_80343C10;
 extern double lbl_803485F8;   /* 0.0 */
@@ -166,11 +178,18 @@ extern void* sGoodWizObj;  /* GWIZ animation/effect object              */
 extern s32 lbl_80124C70[9];
 extern s32 crystal_order[14];
 extern s32 lbl_80124D4C[14];
+extern s32 lbl_80124D84[4];
 extern s32 lbl_80124D94[3];
 extern s32 lbl_80124DA0[9];
 extern f32 lbl_80348588;
 extern f32 lbl_8034858C;
 extern f32 lbl_80348590;
+extern f32 lbl_803485EC;
+extern f32 lbl_803485F0;
+extern s32 gFrameTicks;
+extern f32 gClockFrameStep;
+extern s32 gScriptedCameraState;
+extern s32 lbl_803447B8;
 extern char lbl_803485C0;
 extern char lbl_803485D0;
 extern char lbl_803485D8;
@@ -929,8 +948,220 @@ int sumnerSpeechActive(void) {
 
 /* Run the Sumner speech: fetch scroll/string/list text, show captions,
  * play the speech audio, and advance the wizard animation. */
-int SumnerDoSpeech(void) {
-    return 0;
+void SumnerDoSpeech(void) {
+    s32 scrollArgs[2];
+    char caption[256];
+    f32 avg[4];
+    char* strings = lbl_80114D50;
+    TowerMsgState* state = &lbl_8028C288;
+    s32 message = -1;
+    s32 argument = 0;
+    s32 hasLevelUp = 0;
+    s32 i;
+    s32 elapsed;
+    s32 done;
+    u8* entry;
+
+    if (lbl_80344C68 <= lbl_80348588 || gScriptedCameraState != 0 ||
+        lbl_803447B8 != 0) {
+        return;
+    }
+    if (lbl_80344C78 > 0) {
+        lbl_80344C78 -= gFrameTicks;
+        return;
+    }
+
+    if (lbl_80343E4C >= 0) {
+        for (i = 0; i < 16; i += 4) {
+            entry = (u8*)state;
+            entry += i;
+
+            if (*(s32*)(entry + 76) > 0) {
+                hasLevelUp = 1;
+            }
+        }
+    }
+    if (lbl_80344C74 == 0) {
+        SumnerLookoutParam* waypoint;
+
+        if ((u32)lbl_80344C64 == 0) {
+            void* atree = (void*)AtreeMatch(sGoodWizObj, (char*)&lbl_803485A4, 0);
+
+            if (atree != 0) {
+                state->wizAtree = (void*)AtreeInit(atree, &state->wizAtree, 0,
+                                                  0xC00880);
+                lbl_80344C64 = (s32)MBNewNode(gSceneRoot, gIdentityMatrix, 1);
+                MBNodeSetParent(*(void**)state->wizAtree, (void*)lbl_80344C64);
+            }
+        }
+        GetPlayerAvgPos(avg, 0, 0, 0);
+        {
+            waypoint = FindClosestWaypoint((f64)lbl_803485EC, avg, 1);
+
+            if (waypoint != 0) {
+                s32 camera = 0;
+
+                CopyMat4((f32*)waypoint, (void*)lbl_80344C64);
+                if (hasLevelUp) {
+                    camera = 0;
+                } else if (lbl_80344C6C >= 100) {
+                    camera = 2;
+                } else if (lbl_80344C6C >= 0) {
+                    camera = 1;
+                }
+                SumnerCamActivate(camera, waypoint->id);
+            }
+        }
+        lbl_80344C74 = 1;
+    }
+
+    {
+        Player* player;
+
+        for (i = 0, player = gPlayers; i < 4; i++, player++) {
+            player->vibe_timer = 0;
+            player->vibe_timer2 = 0;
+        }
+    }
+    lbl_80344C70 += gFrameTicks;
+    i = lbl_80344C70;
+    i -= 120;
+    elapsed = i;
+    if (i < 0) {
+        return;
+    }
+
+    if (lbl_80343E4C >= 0) {
+        f32 captionScale = lbl_803485F0;
+        Player* players = gPlayers;
+        s32* gemColors = lbl_80124D84;
+
+        while ((i = lbl_80343E4C) < 4) {
+            Player* player;
+            char* classText;
+            char* scroll;
+            char* characterText;
+            char* levelText;
+            s32 level;
+
+            entry = (u8*)state;
+            entry += i * 4;
+            if (*(s32*)(entry + 76) > 0) {
+                player = &players[lbl_80343E4C];
+                scroll = GetScrollText(-1, 0x18, 0, scrollArgs);
+                classText = GetStringText(0x16, player->class_id, 0);
+                characterText = GetStringText(0x17, player->character, 0);
+                level = player->level / 10;
+                if (player->level == 99) {
+                    levelText = GetStringText(0x15, 0, 0);
+                } else {
+                    levelText = GetStringListText(0, player->character,
+                                                  level >> 1, 0);
+                }
+                sprintf(caption, scroll, classText, characterText, player->level,
+                        levelText);
+                done = CaptionTextSub(caption, captionScale, 6, elapsed >> 1,
+                                      0x138);
+
+                if (lbl_80343E58 < 0) {
+                    lbl_80343E58 = fn_8009CD80(lbl_80343E4C, player->character,
+                                               player->level);
+                }
+                if (lbl_80343E50 < 0 && elapsed >= 240) {
+                    lbl_80343E50 = StartLevelUpFX(0, player->class_id);
+                    SfxSetParent(lbl_80343E50, player->node);
+                }
+                if (lbl_80343E54 < 0 && elapsed >= 270) {
+                    s32* gem = gemColors;
+
+                    gem += player->class_id;
+                    lbl_80343E54 = StartGemFX(0, *gem);
+                    SfxSetParent(lbl_80343E54, player->node);
+                }
+                if (done == 0 || elapsed < 360 ||
+                    AudioSoundPlaying(lbl_80343E58) != 0) {
+                    break;
+                }
+
+                CaptionTextReset();
+                lbl_80343E50 = -1;
+                lbl_80343E4C++;
+                elapsed = 0;
+                lbl_80344C70 = 120;
+                lbl_80343E54 = -1;
+                lbl_80343E58 = -1;
+            } else {
+                lbl_80343E4C++;
+            }
+        }
+        if (lbl_80343E4C == 4) {
+            lbl_80343E4C = -1;
+        }
+        return;
+    }
+
+    if (lbl_80344C6C >= 100) {
+        s32 speech = lbl_80344C6C - 100;
+
+        argument = speech;
+        if (speech < 13) {
+            message = FindStringMessageListSub_8001FC4C(0, strings + 196);
+            argument = 0;
+            if (lbl_80343E58 < 1) {
+                fn_8009C4F0(0);
+                lbl_80343E58 = 1;
+            }
+        } else if (speech == 13) {
+            message = FindStringMessageListSub_8001FC4C(0, strings + 208);
+            argument = -1;
+        } else if (speech == 25) {
+            message = FindStringMessageListSub_8001FC4C(0, strings + 220);
+            argument = -1;
+        } else if (speech == 26) {
+            message = FindStringMessageListSub_8001FC4C(0, strings + 236);
+            argument = -1;
+        } else if (speech == 36) {
+            message = FindStringMessageListSub_8001FC4C(0, strings + 252);
+            argument = -1;
+        }
+        if (message >= 0 && argument == -1 && lbl_80343E58 < 2) {
+            fn_8009C4F0(speech);
+            lbl_80343E58 = 2;
+        }
+    } else if (lbl_80344C6C >= 0) {
+        s32 speech = lbl_80344C6C;
+
+        argument = speech;
+        if (speech < 9) {
+            message = FindStringMessageListSub_8001FC4C(0, strings + 264);
+            if (lbl_80343E58 < 1) {
+                fn_8009C688(argument);
+                lbl_80343E58 = 1;
+            }
+        } else if (speech == 15) {
+            message = FindStringMessageListSub_8001FC4C(0, strings + 276);
+            argument = -1;
+        } else if (speech == 16) {
+            message = FindStringMessageListSub_8001FC4C(0, strings + 288);
+            argument = -1;
+        }
+        if (message >= 0 && argument == -1 && lbl_80343E58 < 2) {
+            fn_8009C688(speech);
+            lbl_80343E58 = 2;
+        }
+    }
+
+    if (message >= 0) {
+        done = CaptionText(0, message, argument, elapsed >> 1, 0x138);
+    } else {
+        done = 1;
+    }
+    if (done != 0) {
+        lbl_80344C68 -= gClockFrameStep;
+    }
+    if (lbl_80344C68 <= lbl_80348588) {
+        SumnerSpeechEnd();
+    }
 }
 
 /* End the current Sumner speech: stop the camera move, spawn the reward
