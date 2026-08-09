@@ -2489,6 +2489,7 @@ s32 fn_8005D3D8(s32 index, u8* wobj)
     u8* sub = hdr + 4;
     u8* e;
     s32 t;
+    s32 bval;
 
     if (index >= 0) {
         e = gEnemies + index * 916;
@@ -2536,7 +2537,12 @@ s32 fn_8005D3D8(s32 index, u8* wobj)
         } else {
             t = 1;
         }
-        ret = (t != 0) ? 1 : 0;
+        if (t != 0) {
+            bval = 0;
+        } else {
+            bval = 1;
+        }
+        ret = bval;
         if (*(s16*)(wobj + 220) == 17) {
             ret = 0;
         }
@@ -2551,10 +2557,13 @@ s32 fn_8005D3D8(s32 index, u8* wobj)
             break;
         }
         t = *(s32*)e;
-        if (t == 30 || t == 29 || t == 32) {
-            ret = 0;
-            break;
-        }
+        if (t == 30) goto case8_blocked;
+        if (t == 29) goto case8_blocked;
+        if (t != 32) goto case8_damage_check;
+case8_blocked:
+        ret = 0;
+        break;
+case8_damage_check:
         if (t == 3 || t == 0) {
             s32 b = *(s8*)(wobj + 200);
             if (b == 2) goto dmg;
