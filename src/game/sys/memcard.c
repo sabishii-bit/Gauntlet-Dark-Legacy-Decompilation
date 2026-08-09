@@ -15,9 +15,6 @@
  * Functions are kept in address order (same-TU inlining depends on it).
  */
 #include "types.h"
-
-/* CARD work area, consumed by cardutil.c immediately before its manager. */
-u8 gCardBuf[0x310];
 #include "game/dcs.h"
 
 /* ---- libc ------------------------------------------------------------- */
