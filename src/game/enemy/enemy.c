@@ -1280,6 +1280,7 @@ extern f32 get_yaw(f32* to, f32* from);       /* dir angle from->to */
 extern void fn_80050394(s32 index);           /* AI-change transition hook */
 extern void set_enemy_trans(Enemy* e, f32 spd, f32 ang); /* accel along angle */
 extern f32 lbl_8011BF60[];    /* 0x8011BF60 imp retreat-speed ramp table */
+extern const f64 lbl_803469B8; /* 1.25 action-speed threshold */
 extern s32 lbl_80344748;      /* 0x80344748 current "IT" enemy slot */
 extern s32 RandInt(s32 n);
 extern u8* gCurLevel;         /* 0x8034483C active level record */
@@ -4819,7 +4820,7 @@ void set_enemy_trans(Enemy* enemy, f32 speed, f32 angle)
     if (enemy->type != gBossType && enemy->action != 1) {
         s32 action;
 
-        if (speed >= 1.25) {
+        if (speed >= lbl_803469B8) {
             action = 4;
         } else {
             action = 3;
