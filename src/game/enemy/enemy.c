@@ -3907,8 +3907,9 @@ void move_logic24(s32 index)
            + get_yaw(&gEnemies[lbl_80344748].objgrp.worldmat[3][0],
                          &e->objgrp.worldmat[3][0]));
     {
-        f64 a = e->ang;
-        if (a > 3.141592654) {
+        f64 a;
+
+        if ((a = e->ang) > 3.141592654) {
             a -= 6.283185308;
         } else if (a <= -3.141592654) {
             a = 6.283185308 + a;
