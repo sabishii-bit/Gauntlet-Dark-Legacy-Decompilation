@@ -81,7 +81,7 @@ extern void fn_8009D350(int a);
 extern void AudioCursorSelect(void);
 extern void EndTower(void);
 extern void fn_80053C70(void);
-extern void fn_80054E68(int a);
+extern void SetMaxFPS(int a);
 extern void init_next_level(int a);
 extern int init_next_level_8005638C(int a);
 extern int  LoadModel(void* a, void* b, int c, int d);
@@ -496,7 +496,7 @@ void init_credits(void) {
     int i;
     int* e;
 
-    fn_80054E68(30);
+    SetMaxFPS(30);
     lbl_80343B04 = -1;
     credits_scroll = 0;
     lbl_80343B0C = -1;
@@ -785,7 +785,7 @@ int ExitAttract(void) {
     lbl_80343B0C = -1;
     lbl_80343B10 = -1;
     lbl_80343B08 = -1;
-    fn_80054E68(30);
+    SetMaxFPS(30);
     return 1;
 }
 
@@ -829,7 +829,7 @@ void init_attract_mode(int screen) {
         cur_screen_kind = -1;
     }
 
-    fn_80054E68(30);
+    SetMaxFPS(30);
 
     /* advance to the next non-disabled list entry, then dispatch */
     kind = screen_list[cur_screen_idx].id & 0xFFFF;
