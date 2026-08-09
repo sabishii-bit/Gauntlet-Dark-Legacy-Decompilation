@@ -163,6 +163,11 @@ static f32 fabsf_(f32 x) {
     return slots[2];
 }
 
+static f32 fabsf_param(f32 x) {
+    *(u32*)&x &= 0x7FFFFFFF;
+    return x;
+}
+
 /* ================================================================== */
 
 #define STUB(address, name) void name(void) {}
@@ -324,15 +329,10 @@ f32 ModifyPlayerDpos(Player* p, f32* from, f32* dpos, u32 flags, s32 a5,
         dpos[2] = from[2];
         dpos[1] = slope;
     } else if (a5 >= 0 || a6 != 0) {
-        f32 ab[2];
         if (dpos[1] > lbl_80347B30) {
             dpos[1] = (f32)(dpos[1] * lbl_80347D20);
         }
-        ab[0] = dpos[1];
-        ab[1] = slope;
-        *(u32*)&ab[0] &= 0x7FFFFFFF;
-        *(u32*)&ab[1] &= 0x7FFFFFFF;
-        if (ab[1] > ab[0]) {
+        if (fabsf_param(slope) > fabsf_param(dpos[1])) {
             dpos[1] = (f32)(lbl_80347B00 * (dpos[1] + slope));
         }
     } else {
