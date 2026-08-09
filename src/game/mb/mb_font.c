@@ -540,7 +540,7 @@ void MBFontUpdateWindow(f32 scaleX, f32 scaleY)
 }
 
 /* 0x800B6B08 - full font reset: drop all fonts + lock saves, mark changed. */
-void fn_800B6B08(void)
+void MBInitFonts(void)
 {
     int i;
 
@@ -554,7 +554,7 @@ void fn_800B6B08(void)
 
 /* 0x800B6B80 - flag pass over the live messages: any marked message
  * (0x02000000) is hidden (bit 0). */
-void fn_800B6B80(void)
+void MBHideMarkedMessages(void)
 {
     int i;
 
@@ -566,14 +566,14 @@ void fn_800B6B80(void)
 }
 
 /* 0x800B6BC0 - reset the current-font attributes only. */
-void fn_800B6BC0(void)
+void MBResetFonts(void)
 {
     MBResetFontAttrs();
 }
 
 /* 0x800B6C20 - unlock fonts to `level`: restore the saved font count (mark
  * changed if it differs), reset attributes and drop the message lock. */
-void fn_800B6C20(int level)
+void MBResetUnlockedFonts(int level)
 {
     if (lbl_80344E10 != lbl_8029E454[level]) {
         lbl_80344E10 = lbl_8029E454[level];
@@ -584,7 +584,7 @@ void fn_800B6C20(int level)
 }
 
 /* 0x800B6C94 - full attribute reset + message unlock. */
-void fn_800B6C94(void)
+void MBResetFontData(void)
 {
     MBResetFontAttrs();
     lbl_80343EB0 = -1;

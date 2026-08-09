@@ -136,7 +136,7 @@ extern void MBSetFontScale(f32 sx, f32 sy);      /* 0x800B63F4 */
 extern void MBSetFontScaleSpace(f32 sx, f32 sy); /* 0x800B6418 */
 extern void* MBDrawText(s32 x, s32 y, u8* str);  /* 0x800B6588 */
 extern s32 MBNewFont(void* def, s32 space, s32 nglyphs, s32 perRow); /* 0x800B66E8 */
-extern void fn_800B6B08(void);                   /* 0x800B6B08 */
+extern void MBInitFonts(void);                   /* 0x800B6B08 */
 extern void* strcpy(void* dst, const void* src); /* 0x800E80D4 */
 extern void* strcat(void* dst, const void* src); /* 0x800E8064 */
 extern s32 stricmp(const u8* a, const u8* b);    /* 0x800C80EC */
@@ -1398,7 +1398,7 @@ void FontInit(void)
 /* ==== 0x80020E5C FontEndFrame ==== */
 void FontEndFrame(void)
 {
-    fn_800B6B08();
+    MBInitFonts();
     shadow_color = 0;
 }
 
