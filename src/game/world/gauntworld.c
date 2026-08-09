@@ -2,6 +2,7 @@
 #include "game/dyngrid.h"
 #include "game/item.h"
 #include "game/player.h"
+#include "game/worldobj.h"
 
 /* ==========================================================================
  * game/world/gauntworld.c  (NonMatching documentation slice)
@@ -126,6 +127,16 @@ extern s64   gControllerButtons;
 extern Player gPlayers[4];
 extern char  lbl_80346D08[5];
 extern char  lbl_80346D10[7];
+extern s32   gDemoMode;
+extern char  sObjectsFile[];
+extern void  AtreeDelete(void* atree);
+extern void  MBRemoveNode(void* node, s32 mode);
+extern void  MBTreeSetFlags(void* node, s32 flags, s32 value);
+extern s32   MBOX_NewObject(const char* name, void* matrix, s32 parent, u32 flags);
+extern WorldObj* FindWORLDOBJ(char* name);
+extern s32   towerGetLevelFlag(u8* record, s32 level);
+extern s32   WorldOpen(s32 world);
+extern s32   PlayerHasShard(s32 player, s32 shard);
 
 /* ---- module data (real names from symbols.txt) --------------------------- */
 extern s32   sWorldLevelTable[]; /* 0x8011C3C0 base; adjacent world tables    */
@@ -652,6 +663,120 @@ Item* fn_8005B558(s32 id)
         }
     }
     return 0;
+}
+
+void fn_8005B5B8(void)
+{
+    u32 level_flags[14];
+    char name[32];
+    f32 matrix[16];
+    char* strings = sObjectsFile;
+    s32 player;
+    s32 level;
+    Item* item;
+    s32 gate;
+    s32 item_index;
+    s32 world;
+    s32 enable;
+    s32 id;
+
+    for (level = 0; level < 14; level++) {
+        level_flags[level] = 0;
+    }
+
+    for (player = 0; player < 4; player++) {
+        Player* record = &gPlayers[player];
+
+        if (record->state != 0) {
+            for (level = 0; level < 14; level++) {
+                level_flags[level] |= towerGetLevelFlag((u8*)record, level);
+            }
+        }
+    }
+
+    for (item_index = 0; item_index < sNumItems; item_index++) {
+        item = &sItems[item_index];
+        enable = 0;
+
+        if (item->active != -1 && item->info->type == 9) {
+            id = *(s16*)&item->data[0];
+            world = id >> 8;
+            gate = id & 0xFF;
+
+            if (gDemoMode != 0) {
+                enable = 1;
+                switch (world) {
+                case 7:
+                    if (gate == 0) {
+                        enable = 0;
+                    }
+                    break;
+                case 11:
+                    if (gate == 3) {
+                        enable = 0;
+                    }
+                    break;
+                case 10:
+                    if (gate == 5) {
+                        enable = 0;
+                    }
+                    break;
+                }
+            } else {
+                switch (world) {
+                default:
+                    if (gate - 1 >= 0 &&
+                        ((1 << (gate - 1)) & level_flags[world]) == 0) {
+                        enable = 1;
+                    }
+                    break;
+                case 5:
+                case 6:
+                    if (WorldOpen(world) == 0) {
+                        enable = 1;
+                    }
+                    break;
+                case 8:
+                    if (WorldOpen(world) == 0) {
+                        enable = 1;
+                    } else if (gate == 3) {
+                        if (PlayerHasShard(-1, 0x1FFF) == 0) {
+                            enable = 1;
+                        }
+                    } else if (gate - 1 >= 0 &&
+                               ((1 << (gate - 1)) & level_flags[world]) == 0) {
+                        enable = 1;
+                    }
+                    break;
+                }
+            }
+
+            if (enable != 0) {
+                WorldObj* world_object;
+                s32 parent = *(s32*)((u8*)item->objgrp.node + 0x74);
+
+                CopyMat4((f32*)item->objgrp.node, matrix);
+                if (*(void**)&item->atree[0] != 0) {
+                    AtreeDelete(item->atree);
+                    *(s32*)&item->atree[0] = 0;
+                }
+                if (item->objgrp.node != 0) {
+                    MBRemoveNode(item->objgrp.node, 0);
+                    item->objgrp.node = 0;
+                }
+                item->objgrp.node = (struct mbnode*)MBOX_NewObject(
+                    &strings[0x100], matrix, parent, 0);
+                item->active = -0x8000;
+                sprintf(name, &strings[0x10C], world + 0x40, gate + 1);
+                world_object = FindWORLDOBJ(name);
+                if (world_object != 0) {
+                    MBTreeSetFlags(world_object->nodeptr, 2, 0);
+                } else {
+                    ErrorPrintf(&strings[0x120], name);
+                }
+            }
+        }
+    }
 }
 
 s32 fn_8005B8B0(void* owner)
@@ -1700,7 +1825,6 @@ extern void  DeleteItem(Item* item, s32 mode);
 extern void  start_magic(s32 owner, f32* pos, s32 value, s32 mode, f32 radius);
 extern void  StartFXMat(s32 fx, OBJGRP* grp);
 extern void  StartExplosion(f32 radius);
-extern s32   MBOX_NewObject(const char* name, void* node, f32 scale, u32 flags);
 extern s32   MBOX_ReallyFindObject(char* name, s32 a, s32 b, s32 c);
 extern void  MBTreeSetZsortAdd(void* node, s32 value, s32 mode);
 extern u8    EnemyDescType(char* desc);
