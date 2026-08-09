@@ -1995,6 +1995,7 @@ void sel_set_inactive(s32 slot)
     lbl_80121950[slot].state = 0;
 }
 
+#pragma opt_propagation off
 static s32 sel_set_choice(s32 player, s32 mode)
 {
     u8* menu = (u8*)&lbl_80121950[player];
@@ -2065,6 +2066,7 @@ static s32 sel_set_choice(s32 player, s32 mode)
     }
     return best;
 }
+#pragma opt_propagation reset
 
 s32 other_players_next_level(s32 idx)
 {
