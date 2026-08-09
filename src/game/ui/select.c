@@ -259,7 +259,7 @@ extern s32 PlayerLoadSaveFile(s32 i, s32 file);
 extern s32 PlayerWriteSaveFile(s32 i, s32 file);
 extern void add_vmu_file(s32 chan, s32 slot, s32 file, char* name, s32 flags,
                          s32 cls);
-extern s32 fn_80053B60(void);   /* front-end mode poll */
+extern s32 ShowLoading(void);   /* front-end mode poll */
 extern void fn_80053B20(void);  /* front-end teardown */
 extern void WritePlayerInfo(s32 i);
 extern s32 saveGetFreeBytes(s32 chan, s32 handle);
@@ -1269,7 +1269,7 @@ s32 do_player_select(void)
     }
 
     if (gGameMode == 0x400B) {
-        s32 r = fn_80053B60();
+        s32 r = ShowLoading();
         if (r == 0) {
             if (allIdle != 0 || lbl_80344BA8 != 0) {
                 DrawGlowText(lbl_80347F3C, -0x100, 0xEA, pool + 144);

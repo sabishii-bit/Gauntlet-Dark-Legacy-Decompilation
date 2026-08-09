@@ -696,7 +696,7 @@ void fn_80053B20(void)
 }
 
 /* 0x80053B60 -- start something at slot 1. */
-void fn_80053B60(void)
+void ShowLoading(void)
 {
     fn_80055F68(1, 0);
 }
