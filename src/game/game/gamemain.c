@@ -331,6 +331,12 @@ extern f64   lbl_80346B00;
 
 /* Called helpers (signatures picked to reproduce the argument setup). */
 extern void  InitEnemyMissiles(s32 idx);
+extern s32   fn_8005A1EC(const char* name, void** outData);
+extern s32   LoadModel(const char* name, void** outData, s32 initTexMods, s32 model);
+extern void  FatalErrorf(const char* fmt, ...);
+extern char  lbl_80112370[];
+extern int   sprintf(char* s, const char* fmt, ...);
+extern void* fn_80057ACC(s32 key);
 extern void  mbBlitInit3414(void* blit, s32 hide);
 extern void  reset_players(void);
 extern void  LoadPdataFile(void);
@@ -399,6 +405,158 @@ void fn_80050910(s32 arg0)
 {
     lbl_802511FC[arg0] = -lbl_802511FC[arg0];
     InitEnemyMissiles(arg0);
+}
+
+/* Allocate an enemy model slot without loading the model contents. */
+void AllocEnemy(s32 id, s32 model)
+{
+    char buf[68];
+    u8 unused[4];
+    char* fmt = lbl_80112370;
+    Row36* tbl = lbl_8011AF48;
+    s32* pool = lbl_80250E00;
+    char* name;
+    s32 i;
+
+    lbl_8034471C++;
+    if (lbl_8034471C > 8) {
+        FatalErrorf(fmt + 284, lbl_8034471C, 8);
+    }
+    pool[7 + lbl_8034471C] = id;
+
+    if (id == 29 || id == 33) {
+        for (i = 0; i < 44; i++) {
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
+                goto alloc_fmt1;
+            }
+        }
+        name = 0;
+alloc_fmt1:
+        sprintf(buf, fmt + 304, name, fn_80057ACC(id));
+    } else if (id == 32) {
+        for (i = 0; i < 44; i++) {
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
+                goto alloc_fmt2;
+            }
+        }
+        name = 0;
+alloc_fmt2:
+        sprintf(buf, fmt + 320, name, fn_80057ACC(id));
+    } else if (model == 4) {
+        for (i = 0; i < 44; i++) {
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
+                goto alloc_fmt3;
+            }
+        }
+        name = 0;
+alloc_fmt3:
+        sprintf(buf, fmt + 336, name);
+    } else if (model > 10) {
+        for (i = 0; i < 44; i++) {
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
+                goto alloc_fmt4;
+            }
+        }
+        name = 0;
+alloc_fmt4:
+        sprintf(buf, fmt + 352, name, model - 10);
+    } else {
+        for (i = 0; i < 44; i++) {
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
+                goto alloc_fmt5;
+            }
+        }
+        name = 0;
+alloc_fmt5:
+        sprintf(buf, fmt + 368, name);
+    }
+
+    id <<= 2;
+    *(s32*)((u8*)&pool[300] + id) =
+        fn_8005A1EC(buf, (void**)((u8*)pool + id + 1380));
+    *(s32*)((u8*)&pool[255] + id) = -model;
+}
+
+/* Load an enemy model and finish its per-type missile setup. */
+void LoadEnemy(s32 id, s32 model)
+{
+    char buf[68];
+    u8 unused[4];
+    char* fmt = lbl_80112370;
+    Row36* tbl = lbl_8011AF48;
+    s32* pool = lbl_80250E00;
+    char* name;
+    s32 i;
+    s32 offset;
+
+    lbl_8034471C++;
+    if (lbl_8034471C > 8) {
+        FatalErrorf(fmt + 284, lbl_8034471C, 8);
+    }
+    pool[7 + lbl_8034471C] = id;
+
+    if (id == 29 || id == 33) {
+        for (i = 0; i < 44; i++) {
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
+                goto load_fmt1;
+            }
+        }
+        name = 0;
+load_fmt1:
+        sprintf(buf, fmt + 304, name, fn_80057ACC(id));
+    } else if (id == 32) {
+        for (i = 0; i < 44; i++) {
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
+                goto load_fmt2;
+            }
+        }
+        name = 0;
+load_fmt2:
+        sprintf(buf, fmt + 320, name, fn_80057ACC(id));
+    } else if (model == 4) {
+        for (i = 0; i < 44; i++) {
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
+                goto load_fmt3;
+            }
+        }
+        name = 0;
+load_fmt3:
+        sprintf(buf, fmt + 336, name);
+    } else if (model > 10) {
+        for (i = 0; i < 44; i++) {
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
+                goto load_fmt4;
+            }
+        }
+        name = 0;
+load_fmt4:
+        sprintf(buf, fmt + 352, name, model - 10);
+    } else {
+        for (i = 0; i < 44; i++) {
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
+                goto load_fmt5;
+            }
+        }
+        name = 0;
+load_fmt5:
+        sprintf(buf, fmt + 368, name);
+    }
+
+    offset = id << 2;
+    *(s32*)((u8*)&pool[300] + offset) =
+        LoadModel(buf, (void**)((u8*)pool + offset + 1380), 0, -1);
+    *(s32*)((u8*)&pool[255] + offset) = model;
+    InitEnemyMissiles(id);
 }
 
 /* 0x80051164 -- clear the parallel per-slot tables of the pool. */
