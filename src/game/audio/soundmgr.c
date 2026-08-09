@@ -380,7 +380,7 @@ s32 sndRegisterList(s32* items, s32 count)
 }
 
 /* 0x80042A5C  cmd 0x4, by name */
-s32 sndCmd4(char* name, s32 b, s32 c, s32* outp)
+s32 sndCmd4(char* name, s32 b, s32 c, Node* outp)
 {
     SndState* s = &g;
     volatile s32 _fpad[2];
@@ -390,7 +390,7 @@ s32 sndCmd4(char* name, s32 b, s32 c, s32* outp)
     }
     memset(s->in, 0, 0x20);
     strncpy(s->name, name, 0x3ff);
-    s->in[0] = (s32)s;
+    s->in[0] = (s32)&g;
     s->in[1] = strlen(s->name) + 1;
     s->in[2] = b;
     s->in[3] = c;
@@ -402,10 +402,11 @@ s32 sndCmd4(char* name, s32 b, s32 c, s32* outp)
         dcsHandleRequest(0x4, s->in, s->out);
     }
     {
-        s32 r = s->out[0];
-        if (r >= 0) {
-            outp[1] = s->out[1];
-            sHeldNode = (Node*)outp;
+        u32 value = s->out[0];
+        s32 r = value;
+        if ((s32)value >= 0) {
+            outp->unk4 = s->out[1];
+            sHeldNode = outp;
         }
         return r;
     }
