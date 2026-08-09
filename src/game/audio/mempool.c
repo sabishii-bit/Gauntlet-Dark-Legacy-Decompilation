@@ -330,9 +330,29 @@ MemListNode* pool_alloc(MemPoolLists* pool, MemListNode* node) {
 }
 
 /* 0x800D5848  allocate at a fixed address */
+static inline MemListNode* pool_new_block(void)
+{
+    MemListNode* node;
+    s32 i;
+
+    node = NULL;
+    for (i = (s32)node; i < (s32)lbl_80345254; i++) {
+        MemListNode* candidate = &((MemListNode*)lbl_80345250)[i];
+
+        if (candidate->flags == 0) {
+            node = candidate;
+            break;
+        }
+    }
+    if (node == NULL) {
+        printf(MEMPOOL_STRINGS + 32);
+        printf(MEMPOOL_STRINGS + 44);
+    }
+    return node;
+}
+
 s32 pool_alloc_at(MemPoolLists* pool, MemListNode* node, s32 size,
                   u32 address) {
-    volatile u8 scratch[8];
     u32 endAddress;
     s32 result;
     u32 alignedSize;
@@ -341,14 +361,12 @@ s32 pool_alloc_at(MemPoolLists* pool, MemListNode* node, s32 size,
     MemListNode* freeNode;
     MemListNode* head;
     u32 alignmentMask;
-    s32 i;
     MemListNode* remainderNode;
     s32 remainderSize;
     u32 blockSize;
     s32 owner;
 
     result = 0;
-    (void)scratch;
     totalSize = 0;
     lastSize = 0;
     if (node->flags != 0) {
@@ -414,20 +432,7 @@ s32 pool_alloc_at(MemPoolLists* pool, MemListNode* node, s32 size,
                     remainderSize -= freeNode->key;
                     list_insert_size(&pool->primary, freeNode);
                     if (remainderSize != 0) {
-                        remainderNode = NULL;
-                        for (i = 0; i < (s32)lbl_80345254; i++) {
-                            MemListNode* candidate;
-
-                            candidate = &((MemListNode*)lbl_80345250)[i];
-                            if (candidate->flags == 0) {
-                                remainderNode = candidate;
-                                break;
-                            }
-                        }
-                        if (remainderNode == NULL) {
-                            printf(MEMPOOL_STRINGS + 32);
-                            printf(MEMPOOL_STRINGS + 44);
-                        }
+                        remainderNode = pool_new_block();
                         if (remainderNode == NULL) {
                             break;
                         }
