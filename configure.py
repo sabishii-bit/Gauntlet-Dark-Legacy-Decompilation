@@ -460,7 +460,7 @@ config.libs = [
             Object(NonMatching, "game/boss/bosscam.c", cflags=cflags_demo),
             Object(NonMatching, "game/pb/pb_diag.c", cflags=cflags_demo),
             Object(NonMatching, "game/audio/audio.c", cflags=cflags_demo),
-            Object(NonMatching, "game/audio/soundmgr.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
+            Object(Matching, "game/audio/soundmgr.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/sys/ml_mem.c", cflags=cflags_demo),
             Object(NonMatching, "game/mb/mb_blit.c", cflags=cflags_demo),
             Object(NonMatching, "game/enemy/enemy.c", cflags=cflags_demo),
