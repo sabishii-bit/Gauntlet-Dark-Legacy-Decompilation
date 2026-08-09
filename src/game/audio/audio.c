@@ -104,7 +104,7 @@ extern s32  lbl_80343B4C;        /* music volume, 0..255 */
 extern s32  lbl_80343B48;        /* sfx volume, 0..255 */
 extern s32  sMusicField2F4;      /* 0x803442F4: one-shot stream end counter */
 extern s32  lbl_803449A8;        /* 0x803449A8: extra suspend companion flag */
-extern const char lbl_803459B0[]; /* "ALL" (default startup mode) */
+extern const char lbl_803459B0; /* "ALL" (default startup mode) */
 extern const char lbl_803459A0[]; /* "streams" (stream file group) */
 extern const char lbl_80345990[]; /* "audio" (bank file group) */
 extern const char lbl_80345998[]; /* "%s.vbk" (bank filename format) */
@@ -1149,9 +1149,10 @@ void AudioSysSync(s32 dt)
 void audio_init(void)
 {
     s32 wasBusy;
+    s32 enable;
 
     sAudioQueBusy = 1;
-    if ((sFlags & 0x20) != 0) {
+    if ((gControllerButtons & 0x20) != 0) {
         sAudioSuspend = 1;
         lbl_803442A4 = 1;
         lbl_803449A8 = 1;
@@ -1159,29 +1160,31 @@ void audio_init(void)
     if (sAudioSuspend == 0) {
         sndTestAcquire(0);
     }
-    sAudioMute = 0;
+    enable = 0;
+    sAudioMute = enable;
     sndFxInitVoices();
     wasBusy = sAudioQueBusy;
     sAudioQueBusy = 1;
-    sAudioQueCount[0] = 0;
-    sAudioQueCount[1] = 0;
+    sAudioQueCount[0] = enable;
+    sAudioQueCount[1] = enable;
     sAudioQueFade[0] = lbl_80345930;
     sAudioQueFade[1] = lbl_80345930;
-    lbl_803442EC = 0;
+    lbl_803442EC = enable;
     if (wasBusy == 0) {
-        sAudioQueBusy = 0;
+        sAudioQueBusy = enable;
     }
-    AudioSetMode((char*)lbl_803459B0);
-    sAudioErrFlags = 0;
-    lbl_803442C8 = 0;
-    lbl_803442CC = 0;
-    sAudioReady = 0;
-    lbl_803442D4 = 0;
+    AudioSetMode((char*)&lbl_803459B0);
+    sAudioErrFlags = enable;
+    lbl_803442C8 = enable;
+    lbl_803442CC = enable;
+    sAudioReady = enable;
+    lbl_803442D4 = enable;
     if (sAudioSuspend == 0) {
         sndSysSetBit0(0);
         sndSysSetBit1(0);
-        *(s32*)(sAudioState + 4) = 0;
-        sndCmd3(sAudioInitFlag == 0 ? 1 : 0);
+        *(s32*)(sAudioState + 4) = enable;
+        enable = (sAudioInitFlag != 0) ? enable : 1;
+        sndCmd3(enable);
     }
     sAudioQueBusy = 0;
 }
