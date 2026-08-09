@@ -114,15 +114,25 @@ void sndSysSync(void);         /* sndSysSync */
 void sndTestAXCallback(void);  /* sndTestAXCallback */
 
 /* 0x8004229C */
+#ifdef __MWERKS__
+#pragma opt_propagation off
+#endif
 void sndSysInit(void)
 {
     BigState* big = &gBig;
+    u8* counterBase;
+    u8* row;
     s32 i, j;
 
-    for (i = 0; i < 9; i++) {
+    i = 0;
+    counterBase = (u8*)big + 0x10000;
+    while (i < 9) {
+        row = counterBase + i * 24;
+        row -= 20428;
         for (j = 0; j < 6; j++) {
-            big->arrB034[i][j] = 0;
+            *(s32*)(row + j * 4) = 0;
         }
+        i++;
     }
     lbl_8034466C = 0;
     memset(big->blk234, 0, 0xAE00);
@@ -131,8 +141,11 @@ void sndSysInit(void)
     lbl_80344664 = 0;
     lbl_80344660 = 0;
     for (i = 0; i < 4; i++) {
-        *(s32*)(big->arrA0[i]) = 0;
-        big->arr90[i] = 0;
+        BigState* arrayEntry = (BigState*)((u8*)big + i * 80);
+        BigState* indexEntry = (BigState*)((u8*)big + i * 4);
+
+        *(s32*)arrayEntry->arrA0[0] = 0;
+        indexEntry->arr90[0] = 0;
     }
     lbl_8034465C = 0;
     lbl_80344658 = 0;
@@ -142,6 +155,9 @@ void sndSysInit(void)
     gBossDead = 0;
     HealthMeterInit();
 }
+#ifdef __MWERKS__
+#pragma opt_propagation reset
+#endif
 
 /* 0x80042394 */
 void sndSysStub0(void) {}
