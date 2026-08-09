@@ -794,6 +794,9 @@ extern s32 lbl_803447E4;
 extern s32 lbl_80344B24;
 extern f64 lbl_80346898;
 extern f64 lbl_803468A8;
+extern f64 lbl_80346858;
+extern f64 lbl_80346890;
+extern f32 lbl_80344880;
 extern u8* gCurLevel;
 extern void RequestEnemyAction(Enemy* enemy, s32 action);
 
@@ -1035,6 +1038,146 @@ gravity:
     tr[1] += dh;
     *(f32*)(e + 0x294) = *(f32*)(e + 0x38) + dh;
     return result;
+}
+
+static s32 EnemyMovingAwayFromBirth(Enemy* enemy, f32* oldPosition,
+                                    f32* translation)
+{
+    f32 movedY;
+    f32 dy;
+    f32 movedX;
+    f32 dz;
+    f32 dx;
+    f32 movedZ;
+
+    dy = enemy->birth_pos[1] - oldPosition[1];
+    dx = enemy->birth_pos[0] - oldPosition[0];
+    movedY = dy + translation[1];
+    dz = enemy->birth_pos[2] - oldPosition[2];
+    movedX = dx + translation[0];
+    movedZ = dz + translation[2];
+    return movedZ * movedZ + (movedX * movedX + movedY * movedY) >
+           dz * dz + (dx * dx + dy * dy);
+}
+
+void* fn_80045C30(Enemy* enemy, f32 radius, f32 retryThreshold,
+                  f32* oldPosition, f32* translation, s32 collisionClass)
+{
+    u8* pool;
+    f32* floorYAddress;
+    void* floorObject;
+    f32 tolerance;
+    f32 distance;
+    f32 probe[3];
+    f32 step[3];
+    u8 unused[20];
+    f32 baseY;
+    f64 halfRadius;
+    f32 floorY;
+
+    (void)unused;
+    pool = (u8*)lbl_80250E00;
+    tolerance = (f32)(lbl_80346868 *
+                      (lbl_80346858 + (f64)(retryThreshold + radius)));
+    if (enemy->type == E_GOLEM || (f64)enemy->hht <= lbl_80346868) {
+        if (EnemyMovingAwayFromBirth(enemy, oldPosition, translation)) {
+            tolerance = (f32)(lbl_80346830 *
+                              (retryThreshold + radius));
+        }
+    }
+
+    step[0] = translation[0];
+    step[1] = translation[1];
+    step[2] = translation[2];
+    distance = radius + NormalVector(step);
+    step[0] *= distance;
+    step[1] *= distance;
+    step[2] *= distance;
+    probe[0] = oldPosition[0] + step[0];
+    probe[1] = oldPosition[1] + step[1];
+    probe[2] = oldPosition[2] + step[2];
+
+    halfRadius = lbl_80346830 * radius;
+    floorObject = (void*)FloorCollide(
+        probe, (s32)(pool + 0x300), 0, 2, (f32)halfRadius, enemy->hht,
+        (f32)(-enemy->hht - lbl_80346870));
+    if (floorObject != 0) {
+        EnemyWorldDamage(enemy, floorObject, oldPosition,
+                         (f32*)(pool + 0x330));
+    } else {
+        if ((f64)enemy->pushmag2 < lbl_80346878) {
+            translation[0] = translation[2] = lbl_80346820;
+        } else {
+            enemy->floory = (f32)((f64)lbl_80344880 - lbl_80346890);
+        }
+        return 0;
+    }
+
+    floorYAddress = (f32*)(pool + 0x334);
+    baseY = enemy->floory - enemy->flooroffset;
+    floorY = *floorYAddress;
+    distance = floorY - baseY;
+    if (distance < lbl_80346820) {
+        distance = -distance;
+    }
+    if (distance > tolerance) {
+        if ((f64)enemy->pushmag2 < lbl_80346878) {
+            f32 zero = *(volatile f32*)&lbl_80346820;
+            translation[2] = zero;
+            translation[0] = zero;
+        } else {
+            enemy->floory = floorY + enemy->flooroffset;
+        }
+        return 0;
+    }
+
+    if ((f64)retryThreshold > lbl_80346898) {
+        if ((f64)distance > lbl_80346858 * retryThreshold) {
+            probe[0] = oldPosition[0] + translation[0];
+            probe[1] = oldPosition[1] + translation[1];
+            probe[2] = oldPosition[2] + translation[2];
+            floorObject = (void*)FloorCollide(
+                probe, (s32)(pool + 0x300), 0, 2, (f32)halfRadius,
+                enemy->hht, (f32)(-enemy->hht - lbl_80346870));
+            if (floorObject == 0) {
+                translation[0] = translation[2] = lbl_80346820;
+                return 0;
+            }
+            floorY = *floorYAddress;
+        }
+    }
+
+    if ((u32)(collisionClass - 1) <= 1 ||
+        (collisionClass == 3 && lbl_80344730 != floorObject)) {
+        if (collisionClass != 1 && collisionClass != 3) {
+            goto collision_blocked;
+        }
+        if ((enemy->ai_flags & 1) != 0) {
+            goto collision_blocked;
+        }
+        if (SlideAlongWall(radius, oldPosition, translation,
+                           (f32*)(pool + 0x2F4), lbl_8023CA98[1]) < 0) {
+            f32 zero = lbl_80346820;
+            translation[2] = zero;
+            translation[0] = zero;
+            return 0;
+        }
+        enemy->floory = floorY + enemy->flooroffset;
+        goto collision_done;
+    collision_blocked:
+        {
+            f32 zero = lbl_80346820;
+            translation[2] = zero;
+            translation[0] = zero;
+            return 0;
+        }
+    }
+collision_done:
+    enemy->floory = floorY + enemy->flooroffset;
+    if (enemy->shadow != 0) {
+        CopyMat3((f32*)(pool + 0x300), (f32*)enemy->shadow);
+    }
+    return floorObject;
 }
 
 void fn_80046140(s32 index)
