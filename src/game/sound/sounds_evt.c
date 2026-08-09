@@ -1460,24 +1460,25 @@ void AudioPlayerEatFood(int pidx, int foodType)
         s32 snd_eat_default[1];
     } AudioFoodSoundIds;
     u8* player = &gPlayers[pidx * 13148];
+    u8* p = player;
     AudioFoodSoundIds* t = (AudioFoodSoundIds*)lbl_801232C8;
 
     if (RandInt(4) == 0) {
-        if (!(*(int*)(player + 292) & 0x400)) {
-            if (t->snd_eat[*(int*)(player + 8)][foodType] >= 0) {
-                int pan = AudioAng((int)(player + 68));
+        if (!(*(int*)(p + 292) & 0x400)) {
+            if (t->snd_eat[*(int*)(p + 8)][foodType] >= 0) {
+                int pan = AudioAng((int)(p + 68));
 
-                sndFxQueAdd(t->snd_eat[*(int*)(player + 8)][foodType],
+                sndFxQueAdd(t->snd_eat[*(int*)(p + 8)][foodType],
                             -1.0f, 1.0f, 192, pan, 66);
             }
         }
     } else {
         int id;
 
-        if ((id = t->snd_eat_default[*(int*)(player + 8)]) >= 0) {
-            int pan = AudioAng((int)(player + 68));
+        if ((id = t->snd_eat_default[*(int*)(p + 8)]) >= 0) {
+            int pan = AudioAng((int)(p + 68));
 
-            if (*(int*)(player + 292) & 0x400) {
+            if (*(int*)(p + 292) & 0x400) {
                 id = 97;
             }
             sndFxQueAdd(id, -1.0f, 1.0f, 192, pan, 66);
