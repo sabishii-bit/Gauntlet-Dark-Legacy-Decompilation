@@ -291,24 +291,15 @@ void CreateDynobjGrid(void)
  * (CalcMaxObjSize + InitDynobjList inlined). */
 extern f64 lbl_803466C8; /* 2.0 (sdata2) */
 
-void InitDynobjGrid(void)
+static inline s32 CalcMaxObjSize(void)
 {
     s32 i;
+    u32 hdr;
     s32 count;
+    s32 total;
     s32 ofs;
     s32 n;
-    s32 total;
-    u32 hdr;
     s16 objidx;
-    u8 unused[48];
-
-    num_dyngridx = (s32)((gWorldInfo.max_x - gWorldInfo.min_x) / dyngrid_width) + 1;
-    num_dyngridz = (s32)((gWorldInfo.max_z - gWorldInfo.min_z) / dyngrid_width) + 1;
-    dyngridsize = num_dyngridx * num_dyngridz;
-    dyngrid = (u16*)AllocMem(dyngridsize * 2);
-
-    dynobj_count = *gWorldInfo.objlisthdr >> 22;
-    dynobj_list = (DynObj*)AllocMem(dynobj_count * 68);
 
     hdr = *gWorldInfo.objlisthdr;
     count = hdr >> 22;
@@ -318,9 +309,27 @@ void InitDynobjGrid(void)
         objidx = *(s16*)((u8*)gWorldInfo.objlistpool + ofs);
         ofs += 2;
         dynobj_list[i].obj_idx = objidx;
-        n = (s32)(lbl_803466C8 * gWorldInfo.objs[objidx].radius / dyngrid_width);
+        n = (s32)(lbl_803466C8 * gWorldInfo.objs[objidx].radius /
+                  dyngrid_width);
         total += (n + 2) * (n + 2);
     }
+    return total;
+}
+
+void InitDynobjGrid(void)
+{
+    s32 total;
+    u8 unused[40];
+
+    num_dyngridx = (s32)((gWorldInfo.max_x - gWorldInfo.min_x) / dyngrid_width) + 1;
+    num_dyngridz = (s32)((gWorldInfo.max_z - gWorldInfo.min_z) / dyngrid_width) + 1;
+    dyngridsize = num_dyngridx * num_dyngridz;
+    dyngrid = (u16*)AllocMem(dyngridsize * 2);
+
+    dynobj_count = *gWorldInfo.objlisthdr >> 22;
+    dynobj_list = (DynObj*)AllocMem(dynobj_count * 68);
+
+    total = CalcMaxObjSize();
     dyngrid_count = total + 1;
     dyngrid_list = (s16*)AllocMem(dyngrid_count * 4);
     memset(dyngrid_list, 0, dyngrid_count * 4);
