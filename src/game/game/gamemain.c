@@ -677,7 +677,7 @@ void fn_80053A10(void)
 }
 
 /* 0x80053A38 -- hide the blit at lbl_803447B0 if present. */
-void fn_80053A38(void)
+void TransitionBlitHide(void)
 {
     if (lbl_803447B0 != 0) {
         mbBlitInit3414(lbl_803447B0, 1);
@@ -1154,7 +1154,7 @@ void game_init_data(void)
 }
 
 /* 0x80053A68 -- create/refresh the loading-screen blit. */
-void fn_80053A68(s32 arg0)
+void TransitionBlitShow(s32 arg0)
 {
     f32 coord;
     s32 sz;

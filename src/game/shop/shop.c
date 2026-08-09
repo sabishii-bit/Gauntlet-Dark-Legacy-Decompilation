@@ -102,7 +102,7 @@ extern void AudioEmptyCb2(void);
 extern void ShopMusicStart(void);
 extern void fn_800BC418(s32 startLine, s32 count);
 extern void fn_80053D08(s32 a, s32 b, s32 c);
-extern void fn_80053A68(s32 arg);
+extern void TransitionBlitShow(s32 arg);
 extern void setup_player_display(s32 player);
 extern void SelectLoadStart(void);
 extern void fn_80053C70(void);
@@ -121,7 +121,7 @@ extern void mbBlitSetupVerts(void* blit, f32 a, f32 b, f32 c, f32 d);
 extern s32 SelectLoadDone(void);
 extern void WritePlayerInfo(s32 player);
 extern void LoadPlyrData(s32 player, s32 pad, s32 mode);
-extern void fn_80053A38(void);
+extern void TransitionBlitHide(void);
 extern s32 fn_80053B60(void);
 extern void fn_8009FCA8(s32 flag);
 extern s32 sndFxUpdate(s32 mode);
@@ -166,12 +166,12 @@ s32 do_shop(void)
     }
     WritePlayerInfo(-1);
     if (loaded == 0) {
-        fn_80053A68(0);
+        TransitionBlitShow(0);
         DrawGlowText(lbl_80348328, 340, 260, lbl_8011495C);
         return 0;
     }
     if (lbl_80344C18 == 0) {
-        fn_80053A38();
+        TransitionBlitHide();
         if (gGameBusy != 0 || lbl_80344A28 != 0) {
             result = 0;
         } else {
@@ -1041,7 +1041,7 @@ static void shop_setup(void)
 
     LoadTowerAndSelect();
     if (lbl_80344C18 != 0) {
-        fn_80053A68(0);
+        TransitionBlitShow(0);
     }
     if (lbl_80344C18 == 0) {
         s32 boff = 0;
@@ -1248,13 +1248,13 @@ void init_shop(s32 fromMenu)
     }
     fn_800BC418(2, -1);
     fn_80053D08(-1, 0, -1);
-    fn_80053A68(0);
+    TransitionBlitShow(0);
     for (i = 0; i < 4; i++) {
         setup_player_display(i);
     }
     SelectLoadStart();
     if (lbl_80344C18 != 0) {
-        fn_80053A68(0);
+        TransitionBlitShow(0);
     }
     fn_80053C70();
 }
