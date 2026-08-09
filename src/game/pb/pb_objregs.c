@@ -1715,6 +1715,7 @@ void pbSetDODrawRegs(PbDOObj* obj, u32 handle)
 
 /* Emit a lightmap texture packet + reset the shared texture regs
  * (Xbox candidate: setLmapInfo). */
+#pragma opt_propagation off
 static void setLmapInfo(u32* pkt, s32 x, u32 y)
 {
     PbDrawState* st = &lbl_802C5430;
@@ -1732,6 +1733,7 @@ static void setLmapInfo(u32* pkt, s32 x, u32 y)
     st->f150 = 4;
     st->f154 = 5;
 }
+#pragma opt_propagation reset
 
 /* Default-hook installers: point gWinGlobals sub-blocks at the local
  * defaults (called from the Matching pb_global.c -- keep fn_ names). */
