@@ -77,7 +77,7 @@
  *                                  weapons/effects/world (cross-module).
  *   kill_enemy        0x8004EFE4      uncouple_enemy   0x8004F2D8
  *   generate_enemy    0x8004F4B4      check_enemy_pos  0x8004F9AC
- *   find_enemy_slot   0x8004FD00      SetEnemyObj      0x8004FE34
+ *   find_enemy_slot   0x8004FD00      init_enemy      0x8004FE34
  *
  * Still fn_XXXXXXXX (behaviour understood, exact PDB name not yet pinned):
  *   fn_80045C30 - distance/proximity collision + damage helper called by
@@ -4801,7 +4801,7 @@ f32 turn_enemy_ang(Enemy* e, f32 want)
 /* --- generate_enemy externs --- */
 extern s32 RandInt(s32 n);
 extern s32 check_enemy_pos(f32* start, f32* out, s32 slot);
-extern void SetEnemyObj(s32 slot, f32* pos, s32 type, s32 level, s32 spew);
+extern void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew);
 extern void UpdateObjWorldMat(f32* worldmat);              /* claim grid cell */
 extern void fn_8005A404(f32* worldmat, f32* coll_offset, f32* attn_offset);
 extern s32 InitAnim(f32 time, animinfo* info, s32 seq, s32 frame, s32 active);
@@ -5183,7 +5183,7 @@ s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
     if (slot < 0) {
         return -2;
     }
-    SetEnemyObj(slot, pos, type, level, spew);
+    init_enemy(slot, pos, type, level, spew);
     gEnemies[slot].generator = gen;
     e = &gEnemies[slot];
     if (gen == 0 || type == 30) {
@@ -6501,13 +6501,13 @@ extern f32 lbl_80344880;
 extern f32 lbl_80346A40;
 extern f64 lbl_80346A28;
 extern f32 FloorPos(f32 fallback, f32 radius, f32* position, s32 mode);
-extern void fn_80050618(u8* e, s32 type, s32 level, s32 one);
-extern void fn_80050054(s32 slot, s32 spew, f32 scale);
+extern void SetEnemyObj(u8* e, s32 type, s32 level, s32 one);
+extern void init_enemy_vars(s32 slot, s32 spew, f32 scale);
 extern void fn_8005A338(f32* worldmat, f32* coll_offset, f32* attn_offset);
 extern u16 AnimateATree(void* tree, s32 sequence, s32 transition);
 
 /* 0x8004FE34 - initialise a freshly claimed enemy slot's object state. */
-void SetEnemyObj(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
+void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
 {
     u8* e = (u8*)gEnemies + slot * 916;
     u8* tbl = (u8*)lbl_8011AF48;
@@ -6527,7 +6527,7 @@ void SetEnemyObj(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
     *(f32*)(e + 584) = z;
     *(s32*)(e + 180) = 1;
     *(s16*)(e + 724) = 0;
-    fn_80050618(e, type, level, 1);
+    SetEnemyObj(e, type, level, 1);
     if (level > 3) {
         level = 2;
     }
@@ -6552,7 +6552,7 @@ void SetEnemyObj(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
         *(f32*)(e + 56) = FloorPos(lbl_80344880, lbl_80346A40, pos, 2);
         MBTreeClearFlags(*(struct mbnode**)(e + 100), 2, 0);
         *(f32*)(e + 512) = scale;
-        fn_80050054(slot, spew, scale);
+        init_enemy_vars(slot, spew, scale);
         if (type == 30) {
             *(s16*)(e + 518) = level;
         }

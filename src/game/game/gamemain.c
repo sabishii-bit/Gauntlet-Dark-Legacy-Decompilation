@@ -162,6 +162,7 @@ extern s32   lbl_803448AC;
 extern s32   lbl_803448A8;
 extern s32   lbl_8034471C;
 extern s32   lbl_80344738;
+extern s32   lbl_80344734;
 extern void* lbl_803447B0;
 extern s32   gBossType;            /* 0x8034439C */
 extern s32   gGameMode;
@@ -174,12 +175,19 @@ extern s32   gSceneRoot;
 extern s32   gNumEnemies;          /* 0x80344744 */
 extern f32   lbl_80346820;
 extern f32   lbl_803468B0;
+extern f32   lbl_80346A80;
 extern u8    sMilestones[];
 extern s32   sNumMilestones;
 extern f64   __frsqrte(f64 x);
 extern s32   gIdentityMatrix[];       /* node template (ADDR16) */
 extern f32   lbl_80346A7C;
 extern u32   RandInt(u32 limit);
+extern void* sGoodWizObj;
+extern void* gWadAtreeHeaders[];
+extern s32   lbl_802512B0[];
+extern char* lbl_8011BFF8[];
+extern u8    lbl_80126EC0[];
+DECL_SECT(".sdata2") extern const char lbl_80346770[];
 
 static char sBossGenName[] = "BOSSGEN";   /* 0x80346AA4 (.sdata) */
 
@@ -189,6 +197,16 @@ extern void  AtreeAlloc(s32 a, s32 b);
 extern void  DoTexMods(void* data);
 extern s32   DoWorldAnimSub(void* track, void* animdata, void* animBase);
 extern void* MBNewNode(s32 parent, void* tmpl, s32 arg2);
+extern void  SfxDeleteParented(void* node, s32 arg1, s32 player);
+extern void  AtreeDelete(void* atree);
+extern void  MBRemoveNode(void* node, s32 recursive);
+extern s32   fn_80011BBC(void* model, const char* name, void* atreeOut,
+                         const char* work, s32 workSize);
+extern void  InitActions(void* atree, void* actionList, void* actionTable);
+extern void* MBOX_NewObject(const char* name, f32* matrix, void* parent, u32 flags);
+extern void* MBOX_ReallyFindObject(const char* name, s32 type1, s32 type2, s32 exact);
+extern void* MBNewObject(void* object, f32* matrix, void* parent, u32 flags);
+extern void  MBNodeSetParent(void* node, void* parent);
 
 /* game_init_data externs. */
 extern char  lbl_80112538[];       /* audio/init message string table */
@@ -383,6 +401,7 @@ void fn_800510A4(void);
 void fn_80052134(void);
 s32 fn_80051480(f32* pos);
 void fn_800552A4(f32 total, f32 current);
+char* fn_80051E1C(s32 world, s32 lvl, s32 flag);
 
 /* ================================================================== */
 /* Function bodies (address order).                                    */
@@ -531,6 +550,79 @@ void format_brain(s32 index)
     *(s32*)(enemy + 880) = PlayersAverageLevel();
     *(s32*)(enemy + 872) = 8;
     *(s32*)(enemy + 876) = RandInt(*(u32*)(enemy + 872));
+}
+
+/* Rebuild an enemy's animation tree, render object, actions, and shadow. */
+void SetEnemyObj(u8* enemy, s32 type, s32 level, s32 unused)
+{
+    void* object;
+    s32 shadowObject;
+    s32 shadowLevel;
+
+    if (*(s32*)enemy == 27) {
+        SfxDeleteParented(*(void**)(enemy + 100), 0, -1);
+    }
+    if (*(void**)(enemy + 108) != 0) {
+        AtreeDelete(enemy + 108);
+    }
+    if (*(void**)(enemy + 100) != 0) {
+        lbl_80344734 = 1;
+        MBRemoveNode(*(void**)(enemy + 100), 0);
+        lbl_80344734 = 0;
+    }
+    *(void**)(enemy + 108) = 0;
+    *(void**)(enemy + 100) = 0;
+    *(f32*)(enemy + 540) = lbl_80346820;
+
+    if (type == 31) {
+        *(void**)(enemy + 108) = (void*)fn_80011BBC(
+            sGoodWizObj, lbl_80346770, enemy + 108, lbl_80346770, 2048);
+        *(f32*)(enemy + 540) = lbl_80346A80;
+    } else if (gWadAtreeHeaders[type] != 0) {
+        char* name = fn_80051E1C(type, level, 0);
+        *(void**)(enemy + 108) = (void*)fn_80011BBC(
+            gWadAtreeHeaders[type], name, enemy + 108, name, 2048);
+    }
+
+    if (*(void**)(enemy + 108) != 0) {
+        *(void**)(enemy + 100) = MBNewNode(lbl_8034473C,
+                                            (void*)gIdentityMatrix, 1);
+        MBNodeSetParent(**(void***)(enemy + 108), *(void**)(enemy + 100));
+        InitActions(enemy + 108, enemy + 212, lbl_80126EC0);
+    } else {
+        InitActions(0, enemy + 212, lbl_80126EC0);
+    }
+
+    if (*(void**)(enemy + 100) == 0) {
+        char* name = fn_80051E1C(type, level, 1);
+        *(void**)(enemy + 100) = MBOX_NewObject(name, (f32*)gIdentityMatrix,
+                                                (void*)lbl_8034473C, 0);
+        MBTreeSetFlags(*(void**)(enemy + 100), 2048, 0);
+    }
+
+    if (*(void**)(enemy + 476) != 0) {
+        MBRemoveNode(*(void**)(enemy + 476), 0);
+        *(void**)(enemy + 476) = 0;
+    }
+
+    if (*(s32*)enemy != 30 && *(s32*)enemy != 0 &&
+        *(s32*)enemy != 31 && *(s32*)enemy != 21) {
+        shadowObject = lbl_802512B0[type];
+        if (level < 1) {
+            shadowLevel = 1;
+        } else if (level > 3) {
+            shadowLevel = 3;
+        } else {
+            shadowLevel = level;
+        }
+        level = shadowLevel - 1;
+        object = MBOX_ReallyFindObject(lbl_8011BFF8[level],
+                                       shadowObject, shadowObject, 1);
+        *(void**)(enemy + 476) = MBNewObject(object, (f32*)gIdentityMatrix,
+                                             0, 2176);
+        *(f32*)(*(u8**)(enemy + 476) + 84) = lbl_80346A80;
+        *(s16*)(*(u8**)(enemy + 476) + 104) = -32;
+    }
 }
 
 /* 0x800508A0 -- re-init texture-mod state for every active pool entry. */
