@@ -659,67 +659,56 @@ void* fn_80057ACC(s32 key);
 void fn_80050DD8(char* buf, s32 id, s32 qty)
 {
     char* fmt = lbl_80112370;
-    s32 off = 0;
-    u8* tbl = (u8*)lbl_8011AF48;
+    Row36* tbl = lbl_8011AF48;
     char* name;
     s32 i;
 
     if (id == 29 || id == 33) {
-        off = 0;
         for (i = 0; i < 44; i++) {
-            if (id == *(s32*)(tbl + off)) {
-                name = (char*)(tbl + off + 4);
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
                 goto f1;
             }
-            off += 36;
         }
         name = 0;
 f1:
         sprintf(buf, fmt + 304, name, fn_80057ACC(id));
     } else if (id == 32) {
-        off = 0;
         for (i = 0; i < 44; i++) {
-            if (id == *(s32*)(tbl + off)) {
-                name = (char*)(tbl + off + 4);
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
                 goto f2;
             }
-            off += 36;
         }
         name = 0;
 f2:
         sprintf(buf, fmt + 320, name, fn_80057ACC(id));
     } else if (qty == 4) {
-        off = 0;
         for (i = 0; i < 44; i++) {
-            if (id == *(s32*)(tbl + off)) {
-                name = (char*)(tbl + off + 4);
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
                 goto f3;
             }
-            off += 36;
         }
         name = 0;
 f3:
         sprintf(buf, fmt + 336, name);
     } else if (qty > 10) {
-        off = 0;
         for (i = 0; i < 44; i++) {
-            if (id == *(s32*)(tbl + off)) {
-                name = (char*)(tbl + off + 4);
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
                 goto f4;
             }
-            off += 36;
         }
         name = 0;
 f4:
         sprintf(buf, fmt + 352, name, qty - 10);
     } else {
-        off = 0;
         for (i = 0; i < 44; i++) {
-            if (id == *(s32*)(tbl + off)) {
-                name = (char*)(tbl + off + 4);
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
                 goto f5;
             }
-            off += 36;
         }
         name = 0;
 f5:
