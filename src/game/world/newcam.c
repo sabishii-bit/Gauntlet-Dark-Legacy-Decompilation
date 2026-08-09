@@ -106,6 +106,7 @@
  */
 
 #include "types.h"
+#include "game/camera.h"
 
 typedef struct Vec3 {
     f32 x;
@@ -174,6 +175,8 @@ extern const u8 lbl_80127D30[];
 extern double tan(double);
 /* rotate/derive a unit vector from a constant seed. */
 extern void YawVec3(const void* seed, Vec3* out, f32 angle);
+extern void PitchVec3(const f32* vector, f32* out, f32 angle);
+extern void CopyMat4(const f32* src, f32* dst);
 /* transform a point through the current matrix stack (dst <- M * src). */
 extern void MBWorldToScreen(Vec3* dst, const Vec3* src);
 extern void MBWorldToScreen3D(Vec3* dst, const Vec3* src);
@@ -186,6 +189,9 @@ extern void fn_8006DC64(NcCamera* cam, s32 arg1, f32* pt, s32 mode);
 extern void MBCameraUpdate(f32* position, f32* matrix);
 extern void MBWindowZoom(f32 zoom);
 extern void MBWindowProjection(f32 angle, f32 aspect);
+extern void DoShake(Vec3* position, Vec3* attention);
+extern void DebugCamControlInputs(void);
+extern void dbgTextPrintfCell(s32 color, s32 x, s32 line, char* fmt, ...);
 
 /* MB scene-tree node ops + the level-arrow blit factory (world/items.c). */
 extern s32  add_arrow(s32 kind, s32 refresh, s32 useAngles, f32* angles,
@@ -210,6 +216,10 @@ extern s32 lbl_80343CE0;   /* slow-motion / time-scaling enable */
 extern f32 gClockFrameStep; /* time scale (frame delta) */
 extern s32 lbl_80343CEC;   /* interpolation frame count (divisor) */
 extern s32 lbl_80343CF8;   /* active marker index (also the 3D selector) */
+extern u8  lbl_80344A74;
+extern s32 gControllerButtons;
+extern s32 sFlags;
+extern char lbl_801137D0[];
 
 /*
  * fn_80070144 -- step the camera yaw (0xEC) and pitch (0x104) toward the given
@@ -529,6 +539,75 @@ void fn_8006FE30(void) {
     GetYawPitch((f32*)lbl_80344A68 + 0x38, (f32*)lbl_80344A68 + 0x3b,
                 (f32*)lbl_80344A68 + 0x41);
 }
+
+/* Per-frame debug-camera update. */
+static inline u32 NcMaskMismatch(u32 value, u32 expected) {
+    return value ^ expected;
+}
+
+static inline u32 NcApplyMask(u32 value, u32 mask) {
+    return value & mask;
+}
+
+#pragma opt_propagation off
+s32 fn_8006FF1C(void) {
+    f32* cam;
+    f32 pitch;
+    u32 controller;
+    u32 zero;
+    u32 one;
+    u32 flags;
+
+    if (lbl_80344A7C == 0) {
+        lbl_80344A68 = &lbl_80274AA0;
+        CamReset(lbl_80344A68);
+        lbl_80344A7C = 1;
+    }
+    MBTreeSetAlpha(sTriggerCameras[lbl_80343CF8].node, lbl_80344A74, 0);
+    lbl_80344A74 += 8;
+    DebugCamControlInputs();
+
+    cam = (f32*)lbl_80344A68;
+    pitch = cam[0x41];
+    YawVec3(lbl_80127D40, (Vec3*)(cam + 0x38), -cam[0x3B]);
+    PitchVec3(cam + 0x38, cam + 0x38, -pitch);
+    DoShake((Vec3*)(cam + 0xC), (Vec3*)(cam + 0x29));
+
+    cam[0xC] = cam[0x38] * -cam[0x3D] + cam[0x29];
+    cam[0xD] = cam[0x39] * -cam[0x3D] + cam[0x2A];
+    cam[0xE] = cam[0x3A] * -cam[0x3D] + cam[0x2B];
+    CamLookInDir(cam + 0x38, (u32)cam);
+
+    CopyMat4(cam, &gCameras[0].mat[0][0]);
+    gCameras[0].wpos[0] = cam[0xC];
+    gCameras[0].wpos[1] = cam[0xD];
+    gCameras[0].wpos[2] = cam[0xE];
+    gCameras[0].attn[0] = cam[0x29];
+    gCameras[0].attn[1] = cam[0x2A];
+    gCameras[0].attn[2] = cam[0x2B];
+    MBCameraUpdate(cam + 0xC, cam);
+    MBWindowZoom(cam[0x43]);
+    if (cam[0x44] > 0.0) {
+        MBWindowProjection(
+            0.31830988614222805 * (180.0 * cam[0x43]),
+            1.0 / cam[0x44]);
+    }
+
+    controller = gControllerButtons;
+    zero = 0;
+    one = 1;
+    flags = sFlags;
+    if ((NcMaskMismatch(NcApplyMask(flags, one), zero) |
+         NcMaskMismatch(controller & zero, zero)) != 0) {
+        dbgTextPrintfCell(
+            0xFFFF00, 1, 0x20, lbl_801137D0,
+            0.31830988614222805 * (180.0 * cam[0x3B]),
+            0.31830988614222805 * (180.0 * cam[0x41]),
+            cam[0x3D], cam[0x40], cam[0x29], cam[0x2A], cam[0x2B]);
+    }
+    return 1;
+}
+#pragma opt_propagation reset
 
 /*
  * CurTransmitterBlink -- toggle the debug-overlay level arrow.  Non-zero idx shows it
