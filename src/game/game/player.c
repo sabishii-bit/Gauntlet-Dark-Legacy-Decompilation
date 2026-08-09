@@ -230,9 +230,26 @@ typedef struct PlayerModelSlot {
 static PlayerModelSlot player_multiple_models[4]; /* 0x514 (0x802753B4) */
 
 /* AppendItemToLevel template (0x802754E4, 0x50 bytes incl. name buf) */
-static s32  item_tmpl[10];         /* 0x644 (0x802754E4) type/count/flag/pos + trailer */
-static char item_name[0x14];       /* 0x66C (0x8027550C) item name buffer */
-static s32  item_tmpl2[5];         /* 0x680 (0x80275520) name ptr/flags/atree */
+typedef struct AppendedItemTemplate {
+    s32 type;
+    s32 count;
+    s16 active;
+    s16 pad0A;
+    f32 scale;
+    f32 radius;
+    f32 pos[3];
+    f32 rot[2];
+    char name[0x14];
+    u32 flags;
+    s16 field40;
+    s16 field42;
+    s16 field44;
+    s16 field46;
+    s16 field48;
+    s16 field4A;
+    void* atree;
+} AppendedItemTemplate;
+static AppendedItemTemplate appended_item_template; /* 0x644 (0x802754E4) */
 
 /* got-it ticker entries (0x80275534, 24 entries) */
 typedef struct GotIt {
@@ -4394,31 +4411,31 @@ void AppendBigapePowerupsToScene(void) {
 /* Instantiate a named pickup item at x/y/z via the item template.     */
 void AppendItemToLevel(f32 x, f32 y, f32 z, char* name, u32 flags) {
     u8 unused[24];
-    char* itemName = item_name;
+    char* itemName = appended_item_template.name;
     s32* item;
 
-    item_tmpl[0] = 1;
-    item_tmpl[1] = 9;
-    *(s16*)&item_tmpl[2] = 1;
-    *((s16*)&item_tmpl[2] + 1) = 0;
-    *(f32*)&item_tmpl[3] = 0.6f;
-    *(f32*)&item_tmpl[4] = 0.5f;
-    *(f32*)&item_tmpl[5] = 0.0f;
-    *(f32*)&item_tmpl[6] = 0.0f;
-    *(f32*)&item_tmpl[9] = 0.0f;
-    *(f32*)&item_tmpl[8] = 0.0f;
-    *(f32*)&item_tmpl[7] = 0.0f;
+    appended_item_template.type = 1;
+    appended_item_template.count = 9;
+    appended_item_template.active = 1;
+    appended_item_template.pad0A = 0;
+    appended_item_template.scale = 0.6f;
+    appended_item_template.radius = 0.5f;
+    appended_item_template.pos[0] = 0.0f;
+    appended_item_template.pos[1] = 0.0f;
+    appended_item_template.rot[1] = 0.0f;
+    appended_item_template.rot[0] = 0.0f;
+    appended_item_template.pos[2] = 0.0f;
     sprintf(itemName, name);
-    *(s32*)(itemName + 16) = 0;
-    item_tmpl2[0] = flags;
-    *(s16*)&item_tmpl2[1] = 0;
-    *((s16*)&item_tmpl2[1] + 1) = -1;
-    *(s16*)&item_tmpl2[2] = 0;
-    *((s16*)&item_tmpl2[2] + 1) = 0x10;
-    *(s16*)&item_tmpl2[3] = 0;
-    *((s16*)&item_tmpl2[3] + 1) = 0x1E;
-    item_tmpl2[4] = (s32)AtreeMatch(sPowerupsBuf, itemName, 0);
-    item = AddItem(item_tmpl, NULL);
+    *(s32*)&appended_item_template.name[16] = 0;
+    appended_item_template.flags = flags;
+    appended_item_template.field40 = 0;
+    appended_item_template.field42 = -1;
+    appended_item_template.field44 = 0;
+    appended_item_template.field46 = 0x10;
+    appended_item_template.field48 = 0;
+    appended_item_template.field4A = 0x1E;
+    appended_item_template.atree = AtreeMatch(sPowerupsBuf, itemName, 0);
+    item = AddItem((s32*)&appended_item_template, NULL);
     *((u8*)item + 0xCD) = 0;
     MBTreeClearFlags((void*)item[0x19], 2, 0);
     if (*(s32*)item[0] == 1) {
