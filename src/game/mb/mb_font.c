@@ -343,7 +343,8 @@ MBTextMsg* MBDrawText(int x, int y, const char* s)
     }
     len = strlen(s) + 1;
     if (lbl_80344E18 + len >= 4095) {
-        ErrorPrintf("TOO MANY DRAWTEXT CHARACTERS: %d");
+        ErrorPrintf("TOO MANY DRAWTEXT CHARACTERS: %d",
+                    lbl_80344E18 + len);
         return 0;
     }
     if (x < 0) {
@@ -352,8 +353,7 @@ MBTextMsg* MBDrawText(int x, int y, const char* s)
     if (y < 0 || y >= 384) {
         return 0;
     }
-    m = &lbl_8029F494[lbl_80344E20];
-    lbl_80344E20 = lbl_80344E20 + 1;
+    m = &lbl_8029F494[lbl_80344E20++];
     m->x = x;
     m->y = y;
     m->z = lbl_80344E4C;
