@@ -157,7 +157,7 @@ typedef struct CardMgrBuf {
     CardMgr mgr;
 } CardMgrBuf;
 
-static u8 gCardBuf[0x310];  /* @0x80321760 CARD work/scratch area */
+extern u8 gCardBuf[0x310];  /* @0x80321760 CARD work/scratch area */
 static CardMgr gCardMgr;    /* @0x80321A70 */
 
 /* control block addressed off gCardBuf (keeps gCardBuf as the base register) */
@@ -306,24 +306,29 @@ s32 cardGetResult(void) { return gCardMgr.result; }
 
 /* 0x800DC604 - post a command if the worker is idle, else return last result */
 static s32 cardSubmitCommand(s32 chan, s32 cmdType, s32 param1, void* param2, s32 param3) {
+    u8* base = gCardBuf;
+    s32* command;
     s32 ret;
     (void)param3;
-    OSLockMutex(&M.mutex);
-    if (M.command != -1) {
-        ret = M.result;
+#define BM (((CardMgrBuf*)base)->mgr)
+    OSLockMutex(&BM.mutex);
+    command = &BM.command;
+    if (*command != -1) {
+        ret = BM.result;
     } else {
-        M.command = chan;
-        M.cmdType = cmdType;
-        M.param1 = param1;
-        M.param2 = param2;
-        M.result = -1;
+        *command = chan;
+        BM.cmdType = cmdType;
+        BM.param1 = param1;
+        BM.param2 = param2;
+        BM.result = -1;
         if (cmdType != CARDCMD_LOAD) {
-            M.xferBytes = CARDGetXferredBytes(chan);
+            BM.xferBytes = CARDGetXferredBytes(chan);
         }
         ret = 0;
-        OSSignalCond(&M.cond);
+        OSSignalCond(&BM.cond);
     }
-    OSUnlockMutex(&M.mutex);
+    OSUnlockMutex((OSMutex*)(base + sizeof(gCardBuf)));
+#undef BM
     return ret;
 }
 
