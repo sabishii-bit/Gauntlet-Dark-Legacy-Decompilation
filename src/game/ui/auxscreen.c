@@ -442,41 +442,49 @@ s32 init_gamemovie(s32 type)
 /* ================================================================== */
 /* delete_map_blits (0xD8) -- free every blit built for the map.      */
 /* ================================================================== */
-/* NonMatching: 54/54 insns, opcodes match; target folds the +64 read into an
- * lwzu (update form) and reuses one fewer GPR -- a scheduling/regalloc residual. */
+/* Keep the advancing blit pointer explicit so MWCC selects the retail lwzu
+ * update form across the removal calls. */
+#pragma opt_common_subs off
+#pragma opt_propagation off
 void delete_map_blits(void)
 {
     u8* base = lbl_8023DFD0;
+    u8* p;
+    void* blit;
+    void** other;
+    s32 k;
     s32 i;
 
     for (i = 0; i < 4; i++) {
-        void** p = (void**)(base + i * 4);
-        void* blit = p[16];
-        p += 16;
+        p = base + i * 4;
+        blit = *(void**)(p += 64);
         if (blit != 0) {
             MBRemoveBlit(blit);
-            MBRemoveBlit(*(void**)(base + i * 4 + 80));
+            other = (void**)(base + i * 4);
+            MBRemoveBlit(other[20]);
         }
-        p[0] = 0;
-        *(void**)(base + i * 4 + 80) = 0;
+        *(void**)p = 0;
+        other = (void**)(base + i * 4);
+        other[20] = 0;
     }
     if (map_route_blit != 0) {
         MBRemoveBlit(map_route_blit);
     }
     map_route_blit = 0;
     for (i = 0; i < 8; i++) {
-        void** p = (void**)(base + i * 4);
-        void* blit = p[24];
-        p += 24;
+        p = base + i * 4;
+        blit = *(void**)(p += 96);
         if (blit != 0) {
             MBRemoveBlit(blit);
         }
-        p[0] = 0;
+        *(void**)p = 0;
     }
-    for (i = 0; i < 4; i++) {
-        del_player_blits(i);
+    for (k = 0; k < 4; k++) {
+        del_player_blits(k);
     }
 }
+#pragma opt_propagation reset
+#pragma opt_common_subs reset
 
 /* ================================================================== */
 /* CaptionTextReset (0x18) -- reset the caption scroller.             */
