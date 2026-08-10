@@ -1414,11 +1414,13 @@ retry:
 u8 vmu_exists(s32 chan, const char* name, s32* fileNoOut)
 {
     u8* top = (u8*) GetHiMemCacheTop();
-    s32 dirSize = 0x2D44C0;
-    s32 found = 0;
     u32 aramSize = 0x310000;
+    s32 dirSize = 0x2D44C0;
     u8* buf;
     u8* lo;
+    s32 found;
+
+    found = 0;
 
     sysSetFlags(64);
     top = (u8*) GetHiMemCacheTop();
@@ -1448,11 +1450,13 @@ u8 vmu_exists(s32 chan, const char* name, s32* fileNoOut)
             char stat[108];
             volatile u8 _pad1[12];
 
-            count--;
             off -= 23360;
+            count--;
             CARDGetStatus(chan, fileNo, stat);
             if (strcmp(stat, name) == 0) {
-                *fileNoOut = *(s32*) (buf + off + 23104);
+                u8* entry = buf + off;
+
+                *fileNoOut = *(s32*) (entry + 23104);
                 found = 1;
                 break;
             }
