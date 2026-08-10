@@ -975,7 +975,6 @@ void AudioStreamStop(void)
 void AudioClearTracks(void)
 {
     s32 i;
-    s32 j;
 
     if (sAudioSuspend != 0) {
         return;
@@ -984,9 +983,9 @@ void AudioClearTracks(void)
         *(s32*)((u8*)gAudioBankTbl + i * 292 + 304) = -1;
         *(s32*)((u8*)gAudioBankTbl + i * 292 + 308) = -1;
     }
-    for (j = 0; j < *(s32*)(sAudioBankTable + 4); j++) {
-        *(u16*)(*(u8**)(sAudioBankTable + 16) + j * 44 + 40) = 0;
-        *(u16*)(*(u8**)(sAudioBankTable + 16) + j * 44 + 42) = 0;
+    for (i = 0; i < *(s32*)(sAudioBankTable + 4); i++) {
+        *(u16*)(*(u8**)(sAudioBankTable + 16) + i * 44 + 40) = 0;
+        *(u16*)(*(u8**)(sAudioBankTable + 16) + i * 44 + 42) = 0;
     }
     sndCmd6();
 }
