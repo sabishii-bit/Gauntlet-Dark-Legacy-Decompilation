@@ -551,6 +551,92 @@ void fn_8005AC10(s32 player)
 
 extern u8 gWorldInfo[];
 extern f64 __fabs(f64 value);
+extern u8 sItemRuntime[];
+extern char* sArrowObjectNames[];
+extern void get_screen_pos(s32 camera, s32* x, s32* y, void* position);
+extern void DrawText(s32 x, s32 y, s32 font, u32 color,
+                     const char* format, ...);
+
+void fn_8005AF98(u8* record, s32* typeOut, s32* valueOut, s32* fieldOut,
+                 s32* stateOut, char** nameOut);
+f32 fn_8005B198(f32 radius, f32* position, Item** result);
+
+void fn_8005ACE0(f32* position)
+{
+    char** names = sArrowObjectNames;
+    char* runtime = (char*)sItemRuntime;
+    Item* item;
+    s32 type;
+    s32 value;
+    s32 field;
+    s32 state;
+    s32 x;
+    s32 y;
+    char* name;
+    s32 screenX;
+    s32 screenY;
+    s32 displayType;
+
+    fn_8005B198(20.0f, position, &item);
+    if (item == 0) {
+        return;
+    }
+
+    fn_8005AF98((u8*)item->info, &type, &value, &field, &state, &name);
+    get_screen_pos(0, &x, &y, (u8*)item + 52);
+
+    if (type == 2 && *(s16*)((u8*)item + 220) >= 0) {
+        fn_8005AF98(*(u8**)(gWorldInfo + 104) +
+                        *(s16*)((u8*)item + 220) * 80,
+                    &type, &value, &field, &state, &name);
+    }
+
+    screenX = x;
+    if (screenX <= 32 || screenX >= 480 ||
+        ((screenY = y), screenY < 0) || screenY >= 384) {
+        return;
+    }
+
+    displayType = type;
+    switch (displayType) {
+    case 1:
+        if ((u32)value >= 17) {
+            return;
+        }
+        DrawText(-screenX, screenY, 0, 0xFFFFFF, "%s:%s:%d(%d)",
+                 names[displayType + 43], names[value + 57], field,
+                 item->minplayers);
+        break;
+
+    case 5:
+    case 12:
+        if (*(u32*)((u8*)item + 220) == 0) {
+            return;
+        }
+        if (displayType == 12) {
+            sprintf(runtime + 3000, "ROT:");
+        } else if (value == 20 || value == 22) {
+            sprintf(runtime + 3000, "BRID:");
+        } else if (value == 21 || value == 23) {
+            sprintf(runtime + 3000, "DOOR:");
+        } else if ((u32)(value - 25) <= 1) {
+            sprintf(runtime + 3000, "ELEV:");
+        } else if (value >= 27 && value <= 29) {
+            sprintf(runtime + 3000, "LIFT:");
+        } else {
+            sprintf(runtime + 3000, "TRIG:");
+        }
+        DrawText(-x, y, 0, 0xFFFFFF, "%s:%s(%d)",
+                 runtime + 3000,
+                 *(char**)((u8*)item + 220), item->minplayers);
+        break;
+
+    default:
+        DrawText(-screenX, screenY, 0, 0xFFFFFF, "%s(%d)",
+                 names[displayType + 43], item->minplayers);
+        break;
+    }
+}
 
 void fn_8005AF98(u8* record, s32* typeOut, s32* valueOut, s32* fieldOut,
                  s32* stateOut, char** nameOut)
