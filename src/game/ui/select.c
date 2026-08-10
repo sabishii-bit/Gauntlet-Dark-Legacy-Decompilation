@@ -1351,18 +1351,30 @@ static s32 sel_set_choice(s32 player, s32 mode);
 
 static void do_sel_menu_8008E4F4(s32 player, u32 mode)
 {
-    s32* xp = (s32*)(lbl_80121688 + (player << 2));
-    char* pool = lbl_801143F8;
-    u8* pl = gPlayers + player * 13148;
-    f32 scale = lbl_80343DE0;
-    s32 lh = lbl_80343DDC;
-    s32 font = lbl_80344BC4;
-    s32 showSel = 1;
-    s32 showBack = 0;
-    s32 x = *xp;
-    s32 sz = (s32)(lbl_80347F60 * scale);
-    s32 sz2 = (s32)(lbl_80347F60 * scale);
+    s32* xp;
+    s32 lh;
+    s32 sz;
+    s32 sz2;
+    s32 font;
+    s32 showBack;
+    char* pool;
+    s32 showSel;
+    s32 x;
+    f32 scale;
+    u8* pl;
     char buf[32];
+
+    xp = (s32*)(lbl_80121688 + (player << 2));
+    pool = lbl_801143F8;
+    pl = gPlayers + player * 13148;
+    scale = lbl_80343DE0;
+    lh = lbl_80343DDC;
+    font = lbl_80344BC4;
+    showSel = 1;
+    showBack = 0;
+    x = *xp;
+    sz = (s32)(lbl_80347F60 * scale);
+    sz2 = (s32)(lbl_80347F60 * scale);
 
     switch (mode) {
     case 0:
@@ -1413,13 +1425,18 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
                           0xFFFFFF, lbl_80347F1C);
         if (*(s32*)(pl + 16) < 8) {
             t = 1;
-        } else if (*(u16*)(pl + 2700) &
-                   (1 << (*(s32*)(pl + 16) - 8))) {
-            t = 1;
         } else {
-            t = 0;
+            t = 1;
+            if (*(u16*)(pl + 2700) & (t << (*(s32*)(pl + 16) - 8))) {
+            } else {
+                t = 0;
+            }
         }
-        showSel = (t != 0) ? 1 : 0;
+        if (t != 0) {
+            showSel = 1;
+        } else {
+            showSel = 0;
+        }
         break;
     }
     case 5:
