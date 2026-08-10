@@ -140,9 +140,10 @@ static s16 ClampS16(f32 s) {
 }
 
 /* 0x800BB8E8 - 3D world point -> screen (s16 x,y), optional eye-space out */
+#pragma opt_propagation off
 void MBWindowProject(f32* pt, MBCamNode* node, f32* outEye, s16* outScr) {
     f32 rel[3];
-    u8 unusedd[4];
+    u8 unusedd[8];
     f32 eye[3];
     MBWINDOW* w = lbl_80344EE8;
     f32 persp;
@@ -161,8 +162,10 @@ void MBWindowProject(f32* pt, MBCamNode* node, f32* outEye, s16* outScr) {
     sx = w->xscale * (eye[0] * persp) + w->xcenter;
     sy = w->yscale * (eye[1] * persp) + w->ycenter;
 
-    outScr[0] = ClampS16(sx);
-    outScr[1] = ClampS16(sy);
+    outScr[0] = (s16)(sx < -32767.0 ? -32767.0 :
+                      sx > 32767.0 ? 32767.0 : sx);
+    outScr[1] = (s16)(sy < -32767.0 ? -32767.0 :
+                      sy > 32767.0 ? 32767.0 : sy);
 
     if (outEye != 0) {
         outEye[0] = eye[0];
@@ -170,6 +173,7 @@ void MBWindowProject(f32* pt, MBCamNode* node, f32* outEye, s16* outScr) {
         outEye[2] = eye[2];
     }
 }
+#pragma opt_propagation reset
 
 /* 0x800BBA34 - full view setup: sizes from the display info, rects, angles,
  * clip planes, identity transform. Returns the current window. */
