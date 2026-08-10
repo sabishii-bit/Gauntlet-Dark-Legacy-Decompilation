@@ -1582,105 +1582,119 @@ void cardRemovedCallback(int arg)
 u8* buildSaveImage(const char* name, void* hdr, int bannerTex, int iconTex,
                    int fmtA, int fmtB, const char* comment)
 {
-    u8* base = lbl_8025EE80 + 0x10000;
+    u8* pool = lbl_8025EE80;
+    char* rpool = lbl_801131C0;
     u8* out;
+    u8* hi;
     s32 blockSize;
     s32 total;
+    s32* sizePtr;
     int i;
     int bit;
-    u16* fmtWord = (u16*) (base - 19336);
-    u16* animWord = (u16*) (base - 19334);
 
-    memset(base - 19388, 0, 108);
+    fmtA = fmtA & 3;
+    fmtB = fmtB & 4;
+
+    memset(pool + 0x10000 - 19388, 0, 108);
     total = lbl_803449F0;
     blockSize = cardGetTotalBytes();
     total = (total + cardGetTotalBytes() - 1) / blockSize;
-    *(s32*) (base - 19356) = total * cardGetTotalBytes();
+    sizePtr = (s32*) (pool + 0x10000 - 19356);
+    *sizePtr = total * cardGetTotalBytes();
 
     if (lbl_803449F8 == 0) {
-        lbl_803449F8 = (u32) OSAllocFromHeap(__OSCurrHeap,
-                                             *(u32*) (base - 19356));
+        lbl_803449F8 = (u32) OSAllocFromHeap(__OSCurrHeap, *(u32*) sizePtr);
     }
-    memset((void*) lbl_803449F8, 0, *(u32*) (base - 19356));
+    memset((void*) lbl_803449F8, 0, *(u32*) sizePtr);
 
-    strncpy((char*) (base - 19388), name, 32);
+    strncpy((char*) (pool + 0x10000 - 19388), name, 32);
     out = (u8*) lbl_803449F8;
-    *(s32*) (base - 19332) = 0;
-    strncpy((char*) out, comment + 6176, 32);
+    hi = pool + 0x10000;
+    *(s32*) (hi - 19332) = 0;
+    strncpy((char*) out, (char*) hdr + 6176, 32);
     strncpy((char*) (out + 32), comment, 32);
-    *(s32*) (base - 19340) = (s32) ((u8*) out - (u8*) lbl_803449F8) + 64;
+    *(s32*) (hi - 19340) = (s32) ((out + 64) - (u8*) lbl_803449F8);
 
     /* banner */
-    if (bannerTex == 0) {
-        *(u8*) (base - 19342) = 2;
+    if ((u32) bannerTex == 0) {
+        *(u8*) (hi - 19342) = 2;
         memcpy(out + 64, (u8*) hdr + 32, 6144);
         out += 6208;
     } else {
         void** tex = (void**) TEXGet(bannerTex, 0);
-        s32 fmt = *(s32*) ((u8*) tex[0] + 4);
 
-        if (fmt == 9) {
-            *(u8*) (base - 19342) = 1;
-        } else if (fmt == 5) {
-            *(u8*) (base - 19342) = 2;
-        } else {
-            OSPanic(lbl_801131C0 + 608, 856, lbl_801131C0 + 920);
+        switch (*(s32*) ((u8*) tex[0] + 4)) {
+        case 5:
+            *(u8*) (hi - 19342) = 2;
+            break;
+        case 9:
+            *(u8*) (hi - 19342) = 1;
+            break;
+        default:
+            OSPanic(rpool + 608, 856, rpool + 920);
         }
-        if ((*(u8*) (base - 19342) & 3) == 2) {
-            memcpy(out + 64, (u8*) tex[0] + 8, 6144);
+        if ((*(u8*) (pool + 0x10000 - 19342) & 3) == 2) {
+            memcpy(out + 64, ((u8**) tex[0])[2], 6144);
             out += 6208;
         } else {
-            memcpy(out + 64, (u8*) tex[0] + 8, 3072);
-            memcpy(out + 3136, (u8*) tex[1] + 8, 512);
+            memcpy(out + 64, ((u8**) tex[0])[2], 3072);
+            memcpy(out + 3136, ((u8**) tex[1])[2], 512);
             out += 3648;
         }
     }
 
     /* icon animation frames */
-    if (iconTex != 0) {
-        int lastFrame = 0;
+    if ((u32) iconTex != 0) {
+        u16* fmtW = (u16*) (pool + 0x10000 - 19336);
+        u16* animW = (u16*) (pool + 0x10000 - 19334);
+        s32 lastFrame;
+        s32 j;
+        u8* hi2;
 
-        *fmtWord = 0;
-        for (i = 0, bit = 0; i < 8 && i < *(s32*) ((u8*) iconTex + 4);
-             i++, bit += 2) {
+        for (i = 0, bit = 0;
+             (u32) i < *(u32*) ((u8*) iconTex + 4) && i < 8; i++, bit += 2) {
             void** tex = (void**) TEXGet(iconTex, i);
-            s32 fmt = *(s32*) ((u8*) tex[0] + 4);
-            s32 code;
 
-            if (fmt == 5) {
-                code = 2;
-            } else if (fmt == 9) {
-                code = 1;
-            } else {
-                OSPanic(lbl_801131C0 + 608, 901, lbl_801131C0 + 956);
-                code = 0;
+            switch (*(s32*) ((u8*) tex[0] + 4)) {
+            case 5:
+                *fmtW = (u16) ((*fmtW & ~(3 << bit)) | (2 << bit));
+                break;
+            case 9:
+                *fmtW = (u16) ((*fmtW & ~(3 << bit)) | (1 << bit));
+                break;
+            default:
+                OSPanic(rpool + 608, 901, rpool + 956);
             }
-            *fmtWord = (u16) ((*fmtWord & ~(3 << bit)) | (code << bit));
-            *animWord = (u16) ((*animWord & ~(3 << bit)) | (fmtA << bit));
+            *animW = (u16) ((*animW & ~(3 << bit)) | (fmtA << bit));
         }
-        for (; i < 8; i++, bit += 2) {
-            *animWord = (u16) (*animWord & ~(3 << bit));
+
+        for (bit = i << 1; i < 8; i++, bit += 2) {
+            *(u16*) (pool + 0x10000 - 19334) &= ~(3 << bit);
         }
-        *(u8*) (base - 19342) |= fmtB;
 
-        for (i = 0, bit = 0; i < 8 && i < *(s32*) ((u8*) iconTex + 4);
-             i++, bit += 2) {
-            void** tex = (void**) TEXGet(iconTex, i);
-            s32 code = (*fmtWord >> bit) & 3;
+        hi2 = pool + 0x10000;
+        *(u8*) (hi2 - 19342) |= fmtB;
+        lastFrame = -1;
+        for (j = 0, bit = 0;
+             (u32) j < *(u32*) ((u8*) iconTex + 4) && j < 8; j++, bit += 2) {
+            void** tex = (void**) TEXGet(iconTex, j);
 
-            if (code == 2) {
-                memcpy(out, (u8*) tex[0] + 8, 2048);
+            switch ((*(u16*) (hi2 - 19336) >> bit) & 3) {
+            case 2:
+                memcpy(out, ((u8**) tex[0])[2], 2048);
                 out += 2048;
-            } else if (code == 1) {
-                memcpy(out, (u8*) tex[0] + 8, 1024);
-                lastFrame = i;
+                break;
+            case 1:
+                memcpy(out, ((u8**) tex[0])[2], 1024);
+                lastFrame = j;
                 out += 1024;
+                break;
             }
         }
         if (lastFrame >= 0) {
-            void** tex = (void**) TEXGet(iconTex, i);
+            void** tex = (void**) TEXGet(iconTex, j);
 
-            memcpy(out, (u8*) tex[1] + 8, 512);
+            memcpy(out, ((u8**) tex[1])[2], 512);
             out += 512;
         }
     }
