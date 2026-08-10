@@ -547,14 +547,16 @@ void WorldLoadModelDone(s32 a) {
 
 /* StartWorldLoad: multi-file "worlds"/"anim" load state machine. */
 s32 StartWorldLoad(s32 arg) {
+    char* name = gWorldName;
     char* buf = lbl_801151D8;
+
     if (world_load_state < 0)
         return 1;
     switch (world_load_state) {
     case 0:
         if (lbl_80344DA4 != 0) {
-            s32 size = FileSize(gWorldName, lbl_803487A0);
-            lbl_80344D7C = StartFileRead(gWorldName, lbl_803487A0, 0, size,
+            s32 size = FileSize(name, lbl_803487A0);
+            lbl_80344D7C = StartFileRead(name, lbl_803487A0, 0, size,
                                          lbl_80344DA4, BGLoadWorldFile);
             world_load_state = 1;
         } else {
@@ -571,8 +573,8 @@ s32 StartWorldLoad(s32 arg) {
         break;
     case 2:
         if (lbl_80344DA0 != 0) {
-            s32 size = FileSize(gWorldName, &buf[36]);
-            lbl_80344D7C = StartFileRead(gWorldName, &buf[36], 0, size,
+            s32 size = FileSize(name, &buf[36]);
+            lbl_80344D7C = StartFileRead(name, &buf[36], 0, size,
                                          lbl_80344DA0, BGLoadWorldFile);
             world_load_state = 3;
         } else {
@@ -587,10 +589,13 @@ s32 StartWorldLoad(s32 arg) {
             world_load_state = arg ? 100 : 4;
         }
         break;
-    case 4:
-        gWorldInfo.whitetex =
-            (s32)MBOX_FindTexture_Sub(&buf[48], 0, gWorldInfo.model, gWorldInfo.model, 1);
+    case 4: {
+        s32 model = *(s32*)(name + 360);
+
+        *(s32*)(name + 364) =
+            (s32)MBOX_FindTexture_Sub(&buf[48], 0, model, model, 1);
         world_load_state = 5;
+    }
         /* fall through */
     case 5:
     default:
