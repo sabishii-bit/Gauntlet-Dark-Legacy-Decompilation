@@ -712,12 +712,18 @@ void CritterDamagePlayer(Player *player, Critter *c,
 
     damage_player(playerIndex, damage, 1, damageFlags, direction);
 
-    gPlayers[playerIndex].bossdamage = 0.0f;
-    gPlayers[playerIndex].fxhittime =
-        (f32)(lbl_80346500 + (f64)sMusicFadeBase);
-
-    *(f32 *)((u8 *)c + playerIndex * 0x10 + 0x1BC) += damage;
-    *(f32 *)((u8 *)c + playerIndex * 0x10 + 0x1C0) = sMusicFadeBase;
+    {
+        u8 *hit;
+        u8 *counter;
+        hit = (u8 *)(playerIndex * sizeof(Player));
+        hit = (u8 *)gPlayers + (u32)hit;
+        ((Player *)hit)->bossdamage = lbl_80346470;
+        counter = (u8 *)c + playerIndex * 0x10;
+        ((Player *)hit)->fxhittime =
+            (f32)(lbl_80346500 + (f64)sMusicFadeBase);
+        *(f32 *)(counter + 0x1BC) += damage;
+        *(f32 *)(counter + 0x1C0) = sMusicFadeBase;
+    }
 }
 
 /* 0x800368DC -- add `amount` to a per-limb counter of the critter whose id
@@ -1545,7 +1551,7 @@ void CritterDamage(f32 damage, Critter *c, s32 player, u32 flags,
  * active players, then process every live critter, summing their results. */
 s32 ProcessCritterList(void)
 {
-    Player *player = gPlayers;
+    Player *player;
     s32 activePlayers;
     s32 i;
     s32 total;
@@ -1553,7 +1559,7 @@ s32 ProcessCritterList(void)
     activePlayers = 0;
     total = 0;
     lbl_80344664++;
-    for (i = 0; i < 4; i++, player++) {
+    for (player = gPlayers, i = 0; i < 4; i++, player++) {
         if (player->state == 1) {
             activePlayers++;
         }
@@ -2772,7 +2778,7 @@ s32 CritterGetDmove(CritterMove *a, CritterMove *b)
  * the candidate whose cooldown expires first. */
 s32 CritterFindMoveType(Critter *c, s32 type, s32 mode)
 {
-    CritterMove *move;
+    u8 *hdr;
     s32 timeOffset;
     s32 moveOffset;
     s32 i;
@@ -2780,24 +2786,25 @@ s32 CritterFindMoveType(Critter *c, s32 type, s32 mode)
     f32 best;
     f32 remaining;
 
+    hdr = (u8 *)c->hdr;
     i = 0;
     timeOffset = 0;
     moveOffset = 0;
     result = -1;
-    best = 0.0f;
+    best = lbl_80346470;
 
-    for (; i < *(s16 *)((u8 *)c->hdr + 0x110);
+    for (; i < *(s16 *)(hdr + 0x110);
          i++, timeOffset += 4, moveOffset += sizeof(CritterMove)) {
-        move = (CritterMove *)(*(u8 **)((u8 *)c->hdr + 0x124) + moveOffset);
+        CritterMove *move = (CritterMove *)(*(u8 **)(hdr + 0x124) + moveOffset);
         if ((move->flags & 4) == 0 && move->type == type) {
-            if ((f64)move->cooldown > 0.0) {
+            if ((f64)move->cooldown > lbl_80346488) {
                 remaining =
                     *(f32 *)((u8 *)c + 0x218 + timeOffset) +
                     move->cooldown - sMusicFadeBase;
             } else {
-                remaining = 0.0f;
+                remaining = *(volatile f32 *)&lbl_80346470;
             }
-            if ((f64)remaining <= 0.0 || mode != 0) {
+            if ((f64)remaining <= lbl_80346488 || mode != 0) {
                 if (result < 0 || remaining < best) {
                     best = remaining;
                     result = i;
