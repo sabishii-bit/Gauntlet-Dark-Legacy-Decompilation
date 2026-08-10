@@ -1453,7 +1453,7 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
     case 5:
         if (*(s32*)(pl + 13128) == 0) {
             s32 y = lbl_80343DE8 +
-                    ((s32*)(tbl + player * 232))[182] - lh * 6;
+                    *(s32*)(728 + (tbl + player * 232)) - lh * 6;
             s32 nx = -(x + 64);
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347F98);
             y += lh;
@@ -1470,7 +1470,7 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
         }
         /* fall through */
     case 10: {
-        s32 y = lbl_80343DE8 + ((s32*)(tbl + player * 232))[182] -
+        s32 y = lbl_80343DE8 + *(s32*)(728 + (tbl + player * 232)) -
                 lh * 3;
         s32 nx = -(x + 64);
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FA8);
@@ -1510,7 +1510,7 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
         break;
     }
     case 8: {
-        s32 y = lbl_80343DE8 + ((s32*)(tbl + player * 232))[182] -
+        s32 y = lbl_80343DE8 + *(s32*)(728 + (tbl + player * 232)) -
                 lh * 2;
         s32 nx = -(x + 64);
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 376);
@@ -1520,7 +1520,7 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
         break;
     }
     case 13: {
-        s32 y = lbl_80343DE8 + ((s32*)(tbl + player * 232))[182] -
+        s32 y = lbl_80343DE8 + *(s32*)(728 + (tbl + player * 232)) -
                 lh * 3;
         s32 nx = -(x + 64);
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 376);
