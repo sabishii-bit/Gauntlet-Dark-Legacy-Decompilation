@@ -156,7 +156,7 @@ extern s32 fn_8006DC2C(void* ps, f32* dpos, s32 arg);
 extern s32 camera_debug_supervisor(s32 a, f32* dpos);
 extern void MulBodyVecMat4(f32* in, f32* out, void* mtx);
 extern void MulVecMat4(f32* in, f32* out, void* mtx);
-extern void CalcFrustrumNormals(f32* a, f32* b, f32* c);
+extern void CalcFrustrumNormals(f32* a, f32* b, f32* c, f32 fov);
 extern void fn_8006DC64(void* camera, u8* ps, f32* dpos, s32 arg);
 
 /* level / camera-pose state and math libs */
@@ -331,16 +331,23 @@ limit_done:
  * control flow and rlwinm plane masks compile with different branch shapes). */
 void CamLimitPlayerDpos(void* camera, u8* ps, f32* dpos, s32 arg) {
     u8* buf = lbl_8023E880;
-    f32 viewpt[3];
+    f32 padTop[3];
     f32 world[3];
+    f32 padMid[3];
+    f32 viewpt[3];
+    f32 padLow[4];
     f32 radius0, radius1, dist;
-    s32 flags, planeLR;
-    f32 dx, dy, dz;
+    s32 planeLR, flags;
+    f32* py;
+    f32* pz;
+    f32 dy, dx, dz;
+    f32 v0, v1, v2;
 
     u8* cam = (u8*)camera;
 
     if (lbl_80343C5C != 0) {
-        CalcFrustrumNormals((f32*)(cam + 224), (f32*)(cam + 164), (f32*)(cam + 64));
+        CalcFrustrumNormals((f32*)(cam + 224), (f32*)(cam + 164), (f32*)(cam + 64),
+                            *(f32*)(cam + 236));
         fn_8006DC64(camera, ps, dpos, arg);
         return;
     }
@@ -357,38 +364,43 @@ void CamLimitPlayerDpos(void* camera, u8* ps, f32* dpos, s32 arg) {
     radius1 = lbl_80345B90 * *(f32*)(ps + 2132);
     MulBodyVecMat4(world, (f32*)(buf + 64), camera);
     dist = PointViewDist((f32*)(buf + 64), radius1);
-    if (dist >= lbl_80345B98) return;
-    if (dist >= radius0) return;
+    if (!(dist < lbl_80345B98)) return;
+    if (!(dist < radius0)) return;
 
     flags = gPointViewClipFlags;
-    planeLR = flags & 0x30;
-    if (arg != 0 && !(planeLR != 0 && (flags & 0x300) != 0) && (flags & 1) == 0) {
+    if (arg == 0 || ((planeLR = flags & 0x30) != 0 && (flags & 0x300) != 0) ||
+        (flags & 1) != 0) {
+        dpos[0] = lbl_80345BA0;
+        dpos[1] = lbl_80345BA0;
+        dpos[2] = lbl_80345BA0;
+    } else {
         if (flags == 0) return;
         MulBodyVecMat4((f32*)(ps + 84), viewpt, camera);
-        dx = *(f32*)(buf + 64) - viewpt[0];
-        dy = *(f32*)(buf + 68) - viewpt[1];
-        dz = *(f32*)(buf + 72) - viewpt[2];
+        py = (f32*)(buf + 68);
+        pz = (f32*)(buf + 72);
+        v0 = viewpt[0];
+        dx = *(f32*)(buf + 64) - v0;
+        v1 = viewpt[1];
+        dy = *py - v1;
+        v2 = viewpt[2];
+        dz = *pz - v2;
         if (planeLR != 0) {
             dx = lbl_80345BA0;
         } else if ((flags & 0x300) != 0) {
             dy = lbl_80345BA0;
         }
-        if (dz < lbl_80345BA0) {
-            if ((flags & 0x230) != 0) dz = lbl_80345BA0;
-        } else if (dz > lbl_80345BA0) {
-            if ((flags & 0x130) != 0) dz = lbl_80345BA0;
+        if (dz < lbl_80345BA0 && (flags & 0x230) != 0) {
+            dz = lbl_80345BA0;
+        } else if (dz > *(volatile f32*)&lbl_80345BA0 && (flags & 0x130) != 0) {
+            dz = lbl_80345BA0;
         }
-        *(f32*)(buf + 64) = viewpt[0] + dx;
-        *(f32*)(buf + 68) = viewpt[1] + dy;
-        *(f32*)(buf + 72) = viewpt[2] + dz;
+        *(f32*)(buf + 64) = v0 + dx;
+        *py = v1 + dy;
+        *pz = v2 + dz;
         MulVecMat4((f32*)(buf + 64), world, camera);
         dpos[0] = world[0] - *(f32*)(ps + 84);
         dpos[1] = world[1] - *(f32*)(ps + 88);
         dpos[2] = world[2] - *(f32*)(ps + 92);
-    } else {
-        dpos[0] = lbl_80345BA0;
-        dpos[1] = lbl_80345BA0;
-        dpos[2] = lbl_80345BA0;
     }
 }
 f32 PointViewDist(f32* point, f32 dist) {
