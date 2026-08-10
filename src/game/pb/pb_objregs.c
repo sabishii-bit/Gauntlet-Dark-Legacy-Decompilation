@@ -1337,7 +1337,6 @@ void fn_800C5D44(u32* pkt, s32 xy)
 /* Build the object-space texture basis and the draw-register packet. */
 s32 fn_800C5DA8(PbDOObj* obj, s32 arg, u8* node, f32* matrix)
 {
-    char* debugStrings;
     PbORGlobals* g = gWinGlobals;
     f32 inverse[16];
     f32 look[4];
@@ -1348,18 +1347,17 @@ s32 fn_800C5DA8(PbDOObj* obj, s32 arg, u8* node, f32* matrix)
     f32 savedUp[4];
     s32 debugFlags;
 
-    (void)arg;
     (void)node;
     debugFlags = 0;
-    debugStrings = lbl_801168D8;
     mat44InvRigid__FR5mat44R5mat44(inverse, matrix);
 
     if (lbl_80343F50->m3c != 0) {
         lbl_80343F50->m44++;
         if (lbl_80343F50->m44 > 20) {
             lbl_80343F50->m44 = 0;
-            debugFlags = lbl_80343F50->dbg;
-            if (debugFlags != 0) {
+            arg = lbl_80343F50->dbg;
+            debugFlags = arg;
+            if (arg != 0) {
                 bulletproof_printf(&lbl_80348F8C);
             }
         }
@@ -1374,14 +1372,15 @@ s32 fn_800C5DA8(PbDOObj* obj, s32 arg, u8* node, f32* matrix)
         vec4Cross__FR4vec4R4vec4R4vec4(up, right, look);
         if (debugFlags != 0) {
             if (debugFlags & 1) {
-                bulletproof_printf(debugStrings, look[0], look[1], look[2]);
+                bulletproof_printf("w look=<%6.3Lf %6.3Lf %6.3Lf>  ",
+                                   look[0], look[1], look[2]);
             }
             if (debugFlags & 0x40) {
-                bulletproof_printf(debugStrings + 0x20,
+                bulletproof_printf("w up=<%6.3Lf %6.3Lf %6.3Lf>  ",
                                    up[0], up[1], up[2]);
             }
             if (debugFlags & 2) {
-                bulletproof_printf(debugStrings + 0x40,
+                bulletproof_printf("w right=<%6.3Lf %6.3Lf %6.3Lf>  ",
                                    right[0], right[1], right[2]);
             }
         }
@@ -1405,11 +1404,11 @@ s32 fn_800C5DA8(PbDOObj* obj, s32 arg, u8* node, f32* matrix)
         }
     if (debugFlags != 0) {
             if (debugFlags & 0x80) {
-                bulletproof_printf(debugStrings + 0x64,
+                bulletproof_printf("c up=<%6.3Lf %6.3Lf %6.3Lf>  ",
                                    up[0], up[1], up[2]);
             }
             if (debugFlags & 4) {
-                bulletproof_printf(debugStrings + 0x84,
+                bulletproof_printf("c right=<%6.3Lf %6.3Lf %6.3Lf>  ",
                                    right[0], right[1], right[2]);
             }
         }
@@ -1435,10 +1434,11 @@ s32 fn_800C5DA8(PbDOObj* obj, s32 arg, u8* node, f32* matrix)
     }
     if (debugFlags != 0) {
         if (debugFlags & 0x100) {
-            bulletproof_printf(debugStrings + 0xA8, up[0], up[1], up[2]);
+            bulletproof_printf("m up=<%6.3Lf %6.3Lf %6.3Lf>  ",
+                               up[0], up[1], up[2]);
         }
         if (debugFlags & 8) {
-            bulletproof_printf(debugStrings + 0xC8,
+            bulletproof_printf("m right=<%6.3Lf %6.3Lf %6.3Lf>  ",
                                right[0], right[1], right[2]);
         }
     }
@@ -1447,19 +1447,21 @@ s32 fn_800C5DA8(PbDOObj* obj, s32 arg, u8* node, f32* matrix)
     vec4Normalize__FR4vec4R4vec4(up, up);
     if (debugFlags != 0) {
         if (debugFlags & 0x200) {
-            bulletproof_printf(debugStrings + 0xEC, up[0], up[1], up[2]);
+            bulletproof_printf("nm up=<%6.3Lf %6.3Lf %6.3Lf>  ",
+                               up[0], up[1], up[2]);
         }
         if (debugFlags & 0x10) {
-            bulletproof_printf(debugStrings + 0x10C,
+            bulletproof_printf("nm right=<%6.3Lf %6.3Lf %6.3Lf>  ",
                                right[0], right[1], right[2]);
         }
     }
     if (debugFlags != 0) {
         if (debugFlags & 0x400) {
-            bulletproof_printf(debugStrings + 0x130, up[0], up[1], up[2]);
+            bulletproof_printf("s up=<%6.3Lf %6.3Lf %6.3Lf>  ",
+                               up[0], up[1], up[2]);
         }
         if (debugFlags & 0x20) {
-            bulletproof_printf(debugStrings + 0x150,
+            bulletproof_printf("s right=<%6.3Lf %6.3Lf %6.3Lf>  ",
                                right[0], right[1], right[2]);
         }
     }
@@ -1487,27 +1489,28 @@ s32 fn_800C5DA8(PbDOObj* obj, s32 arg, u8* node, f32* matrix)
     obj->dirty = 4;
 
     if (lbl_80343F50->m18 != 0) {
+        f32 yaw;
         f32 length = pbSqrtAccurate(savedLook[0] * savedLook[0] +
                                     savedLook[2] * savedLook[2]);
-        f32 yaw;
 
         ((f32*)g->scr)[18] = atan(savedLook[1] / length);
         yaw = savedLook[2];
         ((f32*)g->scr)[19] = atan2(savedLook[0], yaw);
         if (debugFlags & 0x2000) {
-            s32 yawDegrees =
-                (s32)((lbl_80348FA0 * (f64)((f32*)g->scr)[19]) /
-                      lbl_80348FA8);
-            s32 pitchDegrees =
-                (s32)((lbl_80348FA0 * (f64)((f32*)g->scr)[18]) /
-                      lbl_80348FA8);
-            bulletproof_printf(debugStrings + 0x174,
+            s32 pitchDegrees;
+            s32 yawDegrees;
+
+            yawDegrees = (s32)((180.0 * (f64)((f32*)g->scr)[19]) /
+                               3.14159265358979323846);
+            pitchDegrees = (s32)((180.0 * (f64)((f32*)g->scr)[18]) /
+                                 3.14159265358979323846);
+            bulletproof_printf("yaw,pitch= %4d %4d",
                                yawDegrees, pitchDegrees);
         }
         yaw = ((f32*)g->scr)[18];
-        ((f32*)g->scr)[18] = (f32)((f64)yaw * lbl_80348FB0);
+        g->scr->f48 = (f32)((f64)yaw * lbl_80348FB0);
         yaw = ((f32*)g->scr)[19];
-        ((f32*)g->scr)[19] = (f32)((f64)yaw * lbl_80348FB8);
+        g->scr->f4c = (f32)((f64)yaw * lbl_80348FB8);
     }
     return 0;
 }
