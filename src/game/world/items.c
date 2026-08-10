@@ -493,10 +493,10 @@ Item* NewItemPtr(void)
 void AddItemInstList(void)
 {
     iteminst* instances = gWorldInfo.iteminst;
-    s32 i;
+    s32 i = 0;
     s32 instance_count = gWorldInfo.niteminsts;
     s32 visible_sum_coins = 0;
-    s32 instance_offset;
+    s32 instance_offset = 0;
     u8 frame_pad[8];
     f32 matrix[16];
     u8 unused[4];
@@ -506,13 +506,13 @@ void AddItemInstList(void)
     gMaxItems = instance_count + 500;
     sItems = AllocMem(gMaxItems * sizeof(Item));
 
-    for (i = 0, instance_offset = 0; i < instance_count;
-         i++, instance_offset += sizeof(iteminst)) {
+    for (; i < instance_count; i++, instance_offset += sizeof(iteminst)) {
         Item* item = NewItemPtr();
-        iteminst* instance =
-            (iteminst*)((u8*)instances + instance_offset);
+        iteminst* instance;
+        Item* vis;
 
-        if (instance->index < 0) {
+        if ((instance = (iteminst*)((u8*)instances + instance_offset))
+                ->index < 0) {
             FatalError(sNewItemBadIndex, 0x800000);
         }
         CopyMat3(gIdentityMatrix, matrix);
@@ -529,18 +529,22 @@ void AddItemInstList(void)
         matrix[14] = instance->pos[2];
         SetItem(item, instance, &gWorldInfo.iteminfo[instance->index],
                 matrix);
-        if (item != NULL && item->info != NULL && item->info->type == 1 &&
-            item->info->item.subtype == 1 && ItemVisible(item)) {
-            visible_sum_coins++;
+        vis = item;
+        if (item != NULL) {
+            iteminfo* info = item->info;
+
+            if (info != NULL && info->type == 1 &&
+                info->item.subtype == 1 && ItemVisible(vis)) {
+                visible_sum_coins++;
+            }
         }
     }
     sVisibleSumCoinCount = visible_sum_coins;
     fn_80062A00();
     {
-        s32 item_offset;
-        for (i = 0, item_offset = 0; i < sNumItems;
-             i++, item_offset += sizeof(Item)) {
-            AddItemSub((Item*)((u8*)sItems + item_offset));
+        s32 k;
+        for (k = 0; k < sNumItems; k++) {
+            AddItemSub(&sItems[k]);
         }
     }
     MatchTransporters();
@@ -2458,11 +2462,10 @@ void update_player_milestone(struct Player* player_ptr)
                     s32 old = *(s32*)(player + 0xA34 + j * 4);
 
                     if (old >= 0) {
-                        if (*(void**)(runtime + old * 0x68 + 0x3E74) !=
-                            NULL) {
-                            MBTreeClearFlags(
-                                *(void**)(runtime + old * 0x68 + 0x3E74),
-                                2, 0);
+                        u8* m = runtime + old * 0x68;
+
+                        if (*(void**)(m + 0x3E74) != NULL) {
+                            MBTreeClearFlags(*(void**)(m + 0x3E74), 2, 0);
                         }
                     }
                 }
@@ -2479,18 +2482,13 @@ void update_player_milestone(struct Player* player_ptr)
             s32 milestone_index = *(s32*)(player + 0xA34 + i * 4);
 
             if (milestone_index >= 0) {
-                if (*(void**)(runtime + milestone_index * 0x68 + 0x3E74) !=
-                    NULL) {
+                u8* m = runtime + milestone_index * 0x68;
+
+                if (*(void**)(m + 0x3E74) != NULL) {
                     if ((sShownMilestones & (1 << i)) != 0) {
-                        MBTreeClearFlags(
-                            *(void**)(runtime + milestone_index * 0x68 +
-                                     0x3E74),
-                            2, 0);
+                        MBTreeClearFlags(*(void**)(m + 0x3E74), 2, 0);
                     } else {
-                        MBTreeSetFlags(
-                            *(void**)(runtime + milestone_index * 0x68 +
-                                     0x3E74),
-                            2, 0);
+                        MBTreeSetFlags(*(void**)(m + 0x3E74), 2, 0);
                     }
                 }
             }
