@@ -472,7 +472,25 @@ static inline void AnimFixPos(anode* root, animinfo* info)
     info->setpanim = 1;
 }
 
-/* Sequence texmod helper recovered from the Xbox ATREE symbol stream. */
+/* Sequence texmod helper recovered from the Xbox ATREE symbol stream.
+ * DoAnimateTreeFrame needs the in-place (macro) expansion, which reuses the
+ * caller's own frame variable; DoAnimateTree needs the by-value inline. */
+#define DoSeqTexModsInPlace(context, frame, seq)                            \
+    {                                                                       \
+        s32 i;                                                              \
+        TEXMOD* texmod;                                                     \
+        s32 period;                                                         \
+                                                                            \
+        for (i = 0; i < (seq)->ntexmods; i++) {                             \
+            texmod = &(seq)->texmods[i];                                    \
+            period = texmod->frames * texmod->rate;                         \
+            if ((frame) > period && (seq)->wraps != 0 && period > 1) {      \
+                (frame) %= period;                                          \
+            }                                                               \
+            DoTexModSeqSub((context), texmod, (frame));                     \
+        }                                                                   \
+    }
+
 static inline void DoSeqTexMods(void* context, s32 frame, animseqdesc* seq)
 {
     s32 i;
@@ -496,8 +514,6 @@ static inline void DoSeqTexMods(void* context, s32 frame, animseqdesc* seq)
 
 /* DoAnimateTreeFrame: evaluate a fixed animation frame, run sequence texmods,
  * and recurse through AnimateNode. */
-#pragma opt_lifetimes off
-#pragma opt_propagation off
 s32 DoAnimateTreeFrame(atree* tree, s32 sequence, s32 frame, s32 recurse)
 {
     animinfo* info;
@@ -510,15 +526,14 @@ s32 DoAnimateTreeFrame(atree* tree, s32 sequence, s32 frame, s32 recurse)
     result = AnimateTreeFrame(0.0f, info, sequence, frame, frame);
     if (recurse > 0) {
         if (info->seqheader != NULL) {
+            void* obj = root->obj;
             seq = &info->seqheader[sequence];
-            DoSeqTexMods(root->obj, frame, seq);
+            DoSeqTexModsInPlace(obj, frame, seq);
         }
         AnimateNode(root, info, recurse);
     }
     return result;
 }
-#pragma opt_lifetimes reset
-#pragma opt_propagation reset
 
 s32 AnimateATree(atree* tree, s32 sequence, s32 last)
 {
@@ -865,12 +880,13 @@ int AtreeModel(void* bank)
 
 /* Match an animation tree, remember its per-bank scroll name, and instantiate
  * the selected tree into the caller's playback state. */
+#pragma opt_propagation off
 void* fn_80011BBC(atreeheader* hdr, char* name, void* state, char* scrollName,
                   u32 flags)
 {
-    s32 i = 0;
     s32 scrollOffset = 0;
     s32 bankOffset = 0;
+    s32 i = 0;
     u8 unused[8];
 
     for (; i < natreelists; i++, scrollOffset += 16, bankOffset += 4) {
@@ -880,9 +896,9 @@ void* fn_80011BBC(atreeheader* hdr, char* name, void* state, char* scrollName,
     }
 
     if (name != NULL) {
-        atreematch* list;
-        void* node;
         s32 matchOffset;
+        void* node;
+        atreematch* list;
 
         if (hdr == NULL) {
             FatalError("AtreeMatch with NULL atree", 0x804060);
@@ -890,9 +906,9 @@ void* fn_80011BBC(atreeheader* hdr, char* name, void* state, char* scrollName,
         list = hdr->list;
         matchOffset = 0;
         for (i = 0; i < hdr->num; i++) {
-            if (strcmp(name, (char*)list + matchOffset) == 0) {
-                node = (u8*)hdr +
-                    *(s32*)((u8*)list + matchOffset + 0x20);
+            if (strcmp(name, (char*)((u32)list + matchOffset)) == 0) {
+                atreematch* match = (atreematch*)((u8*)list + matchOffset);
+                node = (u8*)hdr + match->offset;
                 goto found;
             }
             matchOffset += sizeof(atreematch);
@@ -900,17 +916,20 @@ void* fn_80011BBC(atreeheader* hdr, char* name, void* state, char* scrollName,
         ErrorPrintf("No AtreeMatch: %s", name);
         node = NULL;
 found:
-        if (node == NULL) {
-            return node;
+        {
+            AtreeDefinition* def = (AtreeDefinition*)node;
+            if (node == NULL) {
+                return NULL;
+            }
+            return AtreeInitSub(def, (atree*)state, scrollName, flags, 1);
         }
-        return AtreeInitSub((AtreeDefinition*)node, (atree*)state, scrollName,
-                            flags, 1);
     }
 
     return AtreeInitSub(
         (AtreeDefinition*)((u8*)hdr + hdr->list[0].offset), (atree*)state,
         scrollName, flags, 1);
 }
+#pragma opt_propagation reset
 
 /* byte-order fixup helpers: the atree resource is little-endian on disk. */
 #define SWAP32(x)                                                             \
@@ -1159,16 +1178,16 @@ anode* AtreeInitSub(AtreeDefinition* definition, atree* tree,
                     const char* objectPrefix, u32 treeFlags, s32 reportError)
 {
     s32 rootIndex;
-    s32 nodeOffset;
     anode* nodes;
+    s32 nodeOffset;
     s32 i;
     anode* root;
     anode* node;
     anode* parent;
     AtreeNodeDef* nodeDefinition;
     AtreeDataBases* bases;
-    s32 objectIndex;
     s32 definitionOffset;
+    s32 objectIndex;
     s32 object;
     char name[16];
 

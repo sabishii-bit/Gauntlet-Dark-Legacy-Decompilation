@@ -706,14 +706,13 @@ void MBBlitOrder(MBBLIT* a, MBBLIT* b) {
 
 /* Recompute every live blit's screen position after a window change. */
 void MBBlitUpdateWindow(f32 xScale, f32 yScale) {
-    u8* base = (u8*)blitPool;
-    s32 remaining = blitCount;
     s32 offset = 0;
     s32 scaled;
-    MBBLIT* b;
+    s32 i;
+    u8* base = (u8*)blitPool;
 
-    while (remaining-- > 0) {
-        b = (MBBLIT*)(base + offset);
+    for (i = 0; i < blitCount; i++) {
+        MBBLIT* b = (MBBLIT*)(base + offset);
         if ((b->flags & 2) == 0 && (b->flags & 0x40) == 0) {
             scaled = (s32)(0.5 + (f32)((f32)b->x * xScale));
             b->x = (s16)scaled;
@@ -721,21 +720,20 @@ void MBBlitUpdateWindow(f32 xScale, f32 yScale) {
             b->y = (s16)scaled;
             scaled =
                 (s32)(0.5 + (f32)((f32)(u16)b->width * xScale));
-            b->width = (s16)scaled;
+            b->width = (u16)scaled;
             if ((b->flags & 0x100) == 0) {
                 scaled =
                     (s32)(0.5 + (f32)((f32)(u16)b->height * yScale));
-                b->height = (s16)scaled;
+                b->height = (u16)scaled;
             }
         }
         offset += sizeof(MBBLIT);
     }
 
     base = tempBlitPool;
-    remaining = tempBlitCount;
     offset = 0;
-    while (remaining-- > 0) {
-        b = (MBBLIT*)(base + offset);
+    for (i = 0; i < tempBlitCount; i++) {
+        MBBLIT* b = (MBBLIT*)(base + offset);
         if ((b->flags & 2) == 0 && (b->flags & 0x40) == 0) {
             scaled = (s32)(0.5 + (f32)((f32)b->x * xScale));
             b->x = (s16)scaled;
@@ -743,11 +741,11 @@ void MBBlitUpdateWindow(f32 xScale, f32 yScale) {
             b->y = (s16)scaled;
             scaled =
                 (s32)(0.5 + (f32)((f32)(u16)b->width * xScale));
-            b->width = (s16)scaled;
+            b->width = (u16)scaled;
             if ((b->flags & 0x100) == 0) {
                 scaled =
                     (s32)(0.5 + (f32)((f32)(u16)b->height * yScale));
-                b->height = (s16)scaled;
+                b->height = (u16)scaled;
             }
         }
         offset += sizeof(MBBLIT);
@@ -759,8 +757,8 @@ void MBBlitUpdateWindow(f32 xScale, f32 yScale) {
  * ===================================================================== */
 
 s32 MBDrawBlits(MBNODE* node) {
-    MBBLIT* b;
     s32* stats;
+    MBBLIT* b;
     MBWindow* window = gWinGlobals;
     f32 load;
 
@@ -771,15 +769,16 @@ s32 MBDrawBlits(MBNODE* node) {
     lbl_80343EA4 = -1;
     lbl_80343EA8 = -1;
     lbl_80343EAC = -1;
-    load = (f32)pbLoad;
     lbl_80344DDC =
         (f32)(window->scale->viewport0 + window->scale->viewport1);
     lbl_80344DE0 = (f32)(1.0 / (f64)lbl_80344DDC);
+    load = (f32)pbLoad;
     load -= lbl_80343EA0 * floorf(load / lbl_80343EA0);
     lbl_80344DD8 = load / lbl_80343EA0;
 
+    b = node->blits;
     stats = lbl_802C29F8;
-    for (b = node->blits; b != 0; b = b->next) {
+    for (; b != 0; b = b->next) {
         if ((b->flags & 1) == 0) {
             stats[10]++;
             DrawBlit(b);
@@ -787,9 +786,9 @@ s32 MBDrawBlits(MBNODE* node) {
     }
 
     if (node == gDiag_DE8) {
-        u8* base = tempQuadPool;
-        s32 i = 0;
         s32 offset = 0;
+        s32 i = 0;
+        u8* base = tempQuadPool;
 
         for (i = 0; i < tempQuadCount; i++) {
             DrawBlitFlatQuad((MBBLIT*)(base + offset));
@@ -798,9 +797,9 @@ s32 MBDrawBlits(MBNODE* node) {
         lbl_80344E00 = 1;
     }
     if (node == gDiag_DE8) {
-        u8* base = tempBlitPool;
-        s32 i = 0;
         s32 offset = 0;
+        s32 i = 0;
+        u8* base = tempBlitPool;
 
         for (i = 0; i < tempBlitCount; i++) {
             DrawBlit((MBBLIT*)(base + offset));
