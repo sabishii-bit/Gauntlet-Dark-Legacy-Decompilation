@@ -57,6 +57,8 @@ extern char lbl_801232DC[6][8]; /* material names used by music cues */
 extern char lbl_80114A48[]; /* SOUNDS string table */
 extern u8 gPlayers[];  /* player array, stride 0x335C */
 extern u8 sSpeechNameBuf[];  /* scratch name buffer; aliases per-class speech id tables at offsets */
+extern char lbl_80348534[8];  /* "SHOP_%c" fmt (sdata2) */
+extern char lbl_80114C9C[];   /* "S_SHOP_%c" fmt (rodata) */
 extern u8 lbl_8028BCB8[];
 extern u8 lbl_8028BCC0[];
 extern u8 lbl_8028BDE8[];
@@ -285,9 +287,9 @@ void ShopMusicStart(void)
     if ((signed char)ch >= 76) {
         ch = 65;
     }
-    sprintf((char*)sSpeechNameBuf, "SHOP_%c", (signed char)ch);
+    sprintf((char*)sSpeechNameBuf, lbl_80348534, (signed char)ch);
     AudioRegisterNameBanks((char*)sSpeechNameBuf, 0);
-    sprintf((char*)sSpeechNameBuf, "S_SHOP_%c", (signed char)ch);
+    sprintf((char*)sSpeechNameBuf, lbl_80114C9C, (signed char)ch);
     h = AudioFindSound((char*)sSpeechNameBuf, -1, 1);
     if (h >= 0) {
         sndFxPlayHandle(h, lbl_80343B4C, 1);
