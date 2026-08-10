@@ -6431,9 +6431,9 @@ s32 fn_8004646C(f32 rad, f32 hht, s32 index, f32* oldc, f32* newc, f32* newc2,
  * b!=0 restricts the sweep to the nearest live player. */
 s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
 {
+    s32 last;
     s32 i;
     s32 j;
-    s32 last;
     u8* p;
     u8* q;
     u8* e = (u8*)gEnemies + index * 916;
@@ -6442,11 +6442,12 @@ s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
     f32 best1;
     f32 best = lbl_803468B0;
     f32 hit[4];
+    u8 _pad4[4];
     f32 d;
     f32 dy;
     f32 dx;
     f32 dz;
-    u8 _spare[40];
+    u8 _spare[36];
 
     if (b != 0) {
         start = 0;
@@ -6456,8 +6457,8 @@ s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
             return -1;
         }
         best1 = best;
-        last = -1;
         p = (u8*)gPlayerWords;
+        last = -1;
         for (i = 0; i < 4; i++, p += 13148) {
             if (*(s32*)(p + 232) == 1) {
                 if (*(s16*)(p + 2588) > 2) {
@@ -6535,7 +6536,8 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
         level = 1;
     }
     {
-        u8* r = (u8*)((u32)tbl + t4);
+        u8* r = tbl;
+        r += t4;
         scale = *(f32*)(r + 2760);
     }
     if (type != 30) {
@@ -6570,3 +6572,5 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
         AnimateATree((void*)(e + 108), 0, 2);
     }
 }
+
+
