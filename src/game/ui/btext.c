@@ -937,12 +937,10 @@ char* GetStringTextSub(StrList* p, s32 msg, s32 idx, u32* fontOut)
 void StringInitSub(u32 mode, StrList* p)
 {
     char name[64];
-    char* stringPool = sBTextStringPool;
     s32 textSize;
     s32 textOffsetCount;
     s32 listOffsetCount;
     s32 definitionSize;
-    s32 offset;
     s32 i;
     u32 font;
     u8 swapped;
@@ -977,16 +975,23 @@ void StringInitSub(u32 mode, StrList* p)
         (value) = *(f32*)(swapScratch + (resultSlot));                        \
     } while (0)
 
-    if (mode != 0) {
-        if (gLanguageId == 1) {
-            sprintf(name, stringPool + 0x100, mode);
+    register StrList* list = p;
+#define p list
+
+    {
+        register char* stringPool = sBTextStringPool;
+
+        if (mode != 0) {
+            if (gLanguageId == 1) {
+                sprintf(name, stringPool + 0x100, mode);
+            } else {
+                sprintf(name, stringPool + 0x10C, mode);
+            }
+        } else if (gLanguageId == 1) {
+            strcpy(name, stringPool + 0x118);
         } else {
-            sprintf(name, stringPool + 0x10C, mode);
+            strcpy(name, stringPool + 0x128);
         }
-    } else if (gLanguageId == 1) {
-        strcpy(name, stringPool + 0x118);
-    } else {
-        strcpy(name, stringPool + 0x128);
     }
 
     swapped = MBSetupWad((s32*)p, (s32)AllocFile(sTextAssetDirectory, name));
@@ -1013,16 +1018,12 @@ void StringInitSub(u32 mode, StrList* p)
 
     if (swapped != 0) {
         textOffsetCount = ((s32)p->msgs - (s32)p->textOff) / 4;
-        i = 0;
-        offset = 0;
         listOffsetCount = ((s32)p->lists - (s32)p->listOff) / 4;
 
-        while (i < p->nFont) {
-            FontDesc* desc = (FontDesc*)((u8*)p->fontDesc + offset);
+        for (i = 0; i < p->nFont; i++) {
+            FontDesc* desc = &p->fontDesc[i];
 
             SWAP_BTEXT_WORD_AT(desc->color, 104);
-            i++;
-            offset += 0x14;
         }
         for (i = 0; i < textOffsetCount; i++) {
             SWAP_BTEXT_WORD_AT(p->textOff[i], 96);
@@ -1065,6 +1066,7 @@ void StringInitSub(u32 mode, StrList* p)
 #undef SWAP_BTEXT_FLOAT_AT
 #undef SWAP_BTEXT_WORD_AT
 #undef BTEXT_TAG
+#undef p
 }
 
 /* ==== 0x80020764 TextHeightMLines ==== */
