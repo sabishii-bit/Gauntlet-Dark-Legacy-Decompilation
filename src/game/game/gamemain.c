@@ -139,6 +139,7 @@ typedef struct Row36 {
 extern Row36 lbl_8011AF48[];       /* 44-entry, stride 36 lookup table   */
 extern s32  lbl_80257640[];        /* 4-entry threshold table            */
 extern void* lbl_80257630[];       /* two thermometer blits at [1],[2]   */
+extern u8    lbl_802575C0[];
 extern s32  gGameOptions[];        /* prefs/config block                 */
 extern s32  lbl_802577CC[];        /* 8 keys                             */
 extern s8*  lbl_8025776C[];        /* 8 parallel object pointers         */
@@ -146,6 +147,7 @@ extern s8*  lbl_8025776C[];        /* 8 parallel object pointers         */
 /* SDA-relative scalars (all in .sdata/.sbss). */
 extern s32   lbl_80343C0C;
 extern u64   gControllerButtons;
+extern s32   sFlags;
 extern s32   lbl_80344A2C;
 extern s32   lbl_8034476C;
 extern s32   lbl_80344768;
@@ -269,6 +271,20 @@ extern s32   lbl_803447F0;
 extern s32   lbl_803447F4;
 extern f32   lbl_80346AF4;
 extern f32   lbl_80346AF8;
+extern s32   lbl_80344810;
+extern f32   lbl_80344814;
+extern f32   lbl_80344818;
+extern f32   lbl_80346B60;
+extern f64   lbl_80346B68;
+extern f32   lbl_80346B20;
+extern f32   lbl_80346B70;
+extern f32   lbl_80346B74;
+extern f32   lbl_80346B78;
+DECL_SECT(".sdata2") extern const char lbl_80346B7C[];
+extern f32   lbl_80346B84;
+extern f32   lbl_80346B88;
+extern f64   lbl_80346AE8;
+extern f32   lbl_80346AD4;
 extern f32   lbl_80346BE0;
 extern f32   lbl_80346BE4;
 extern f32   lbl_80346BE8;
@@ -288,7 +304,9 @@ extern void  BossInit(void);
 extern void  GameCameraInit(void);
 extern void  BossCameraInit(void);
 extern void* MBOX_FindTexture(const char* name, s32 arg1);
+extern s32   MBOX_FindTexture_Err(const char* name, void** out, s32 flag);
 extern void* MBCreateBlit(s32 a, void* tex, s32 c, s32 d, s32 e, s32 f);
+extern void  mbInitBlitEntry(void* blit, u32 texture, s32 frame);
 extern void  mbBlitProject(void* blit, s32 a, s32 b);
 extern void  mbBlitCvtCoord(void* blit, f32 c);
 extern void  mbBlitSetupVerts(void* blit, f32 a, f32 b, f32 c, f32 d);
@@ -1519,6 +1537,72 @@ void fn_800552A4(f32 total, f32 current)
                      (f32)vertex, -1.0f);
     mbBlitProject(lbl_80257630[2], 0, Round((f32)offset) + 23);
     mbBlitCalcY(lbl_80257630[2], 106 - Round((f32)offset));
+}
+
+/* 0x800553B4 -- initialize the four timer/thermometer HUD blits. */
+void fn_800553B4(void)
+{
+    char* strings = lbl_80112538;
+    u8* state = lbl_802575C0;
+    void** blit1;
+    void** blit2;
+    void** blit3;
+    s32 offset;
+    s32 i;
+    s32 hide;
+    s32 texture;
+
+    if ((*(u32*)gCurLevel & 4) != 0) {
+        if ((gControllerButtons & 0x10) != 0) {
+            lbl_80344814 = lbl_80346B60;
+        } else {
+            lbl_80344814 =
+                (f32)(lbl_80346B68 + (f64)*(s16*)(gCurLevel + 12));
+        }
+        lbl_80344818 = lbl_80344814;
+    }
+
+    lbl_80344810 = 0;
+    *(void**)(state + 112) = MBCreateBlit(0, 0, 1, 1, -1, -1);
+    *(blit1 = (void**)(state + 116)) = MBCreateBlit(0, 0, 1, 24, -1, -1);
+    *(blit2 = (void**)(state + 120)) = MBCreateBlit(0, 0, 1, 106, -1, -1);
+    *(blit3 = (void**)(state + 124)) = MBCreateBlit(0, 0, 63, 58, -1, -1);
+
+    mbBlitCvtCoord(*(void**)(state + 112), lbl_80346B70);
+    mbBlitCvtCoord(*blit1, lbl_80346B74);
+    mbBlitCvtCoord(*blit2, lbl_80346B74);
+    mbBlitCvtCoord(*blit3, lbl_80346B78);
+
+    if ((gControllerButtons & 0x10) == 0) {
+        if ((*(u32*)gCurLevel & 4) != 0) {
+            hide = 0;
+        } else {
+            hide = 1;
+        }
+    } else {
+        hide = 1;
+    }
+    for (i = 0, offset = 0; i < 4; i++, offset += 4) {
+        void** entry = (void**)(state + offset);
+        mbBlitInit3414(entry[28], hide);
+    }
+    mbBlitInit3414(*blit3, 1);
+
+    texture = MBOX_FindTexture_Err(lbl_80346B7C, 0, 1);
+    mbInitBlitEntry(*(void**)(state + 112), texture, 0);
+    mbInitBlitEntry(*blit1,
+                    MBOX_FindTexture_Err(strings + 544, 0, 1), 0);
+    mbInitBlitEntry(*blit2,
+                    MBOX_FindTexture_Err(strings + 544, 0, 1), 0);
+    mbInitBlitEntry(*blit3,
+                    MBOX_FindTexture_Err(strings + 556, 0, 1), 0);
+
+    mbBlitSetupVerts(*blit1, lbl_80346B20, lbl_80346B20,
+                     lbl_80346B84, lbl_80346AD4);
+    mbBlitProject(*blit1, 0, 41);
+    mbBlitSetupVerts(*blit2, lbl_80346B20, lbl_80346B20,
+                     lbl_80346B88, lbl_80346AF0);
+    mbBlitProject(*blit2, 0, 23);
 }
 
 /* 0x80054070 -- load a world/level, measuring its heap usage. */
