@@ -733,9 +733,10 @@ s32 fn_800920E0(f32* pos, struct item* item, f32 scale)
     EffectPage* page = (EffectPage*)EffectInfo;
     s32 ret;
     s32 ro;
-    volatile f32 pyr[3];
+    u8 _hi[12];
     volatile f32 v[3];
-    u8 _spare[36];
+    volatile f32 pyr[3];
+    u8 _lo[24];
 
     if (scale <= lbl_80348078) {
         scale = lbl_80348100;
