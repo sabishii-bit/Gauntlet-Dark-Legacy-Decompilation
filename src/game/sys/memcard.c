@@ -623,12 +623,14 @@ void init_all_dir_info(void)
  */
 int MemCardCreateGaunt(int port, int slot)
 {
-    s32 off;
-    u8* base = lbl_80274578;
     int i;
+    u8* base;
+    u8 unused[144];
 
-    for (i = 0, off = 0; i < 8; i++, off += 16) {
-        u8* e = base + off;
+    i = 0;
+    base = lbl_80274578 + port * 132 + slot * 132;
+    for (; i < 8; i++) {
+        u8* e = base + i * 16;
 
         *(s32*) e = -1;
         *(s32*) (e + 4) = -1;
