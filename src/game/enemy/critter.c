@@ -157,7 +157,10 @@ extern s32   FindTexMod(void *atree, const char *name, void *unused);
 extern s32   AudioFindSound(const char *name, s32 bank, s32 global);
 extern s32   MBOX_FindTexture(const char *name, void *unused);
 extern s32   MBOX_FindTexture_Sub(const char *name, void *unused,
-                                  s32 model, s32 fallback);
+                                  s32 model, s32 fallback, s32 mode);
+extern s32   AtreeModel(void *atree);
+extern s32   InitCustomEffect(void *atree, char *name, s32 zmod, s32 alpha);
+extern s32   sprintf(char *dst, const char *fmt, ...);
 extern f64   atan2(f64 y, f64 x);
 extern void  YawMat3(f32 angle, f32 *matrix);
 extern u16   AnimateATree(void *tree, s32 sequence, s32 transition);
@@ -3858,39 +3861,43 @@ void CritterInitMoves(void *move)
 void CritterInitSfx(void *file, s32 index, void *atreeHeader)
 {
     u8 *entry;
-    s32 id;
     s32 model;
-    char name[40];
+    char name[32];
 
     if (index < 0) {
         return;
     }
     entry = *(u8 **)((u8 *)file + 0x4C) + index * 0x50;
     if (*(s32 *)(entry + 8) < 0) {
-        if ((*(u32 *)entry & 0x0F000100) == 0) {
-            *(s32 *)(entry + 8) = -1;
-        } else if (*(char *)(entry + 0x10) == '\0') {
-            *(s32 *)(entry + 8) = -1;
+        if ((*(u32 *)entry & 0x0F000100) != 0) {
+            if (*(char *)(entry + 0x10) != '\0') {
+                *(s32 *)(entry + 8) =
+                    FindTexMod(atreeHeader, (char *)(entry + 0x10), NULL);
+                if (*(s32 *)(entry + 8) <= 0) {
+                    model = AtreeModel(atreeHeader);
+                    *(s32 *)(entry + 8) = MBOX_FindTexture_Sub(
+                        (char *)(entry + 0x10), NULL, model, model, -1);
+                }
+                if (*(s32 *)(entry + 8) <= 0) {
+                    *(s32 *)(entry + 8) =
+                        MBOX_FindTexture((char *)(entry + 0x10), NULL);
+                }
+            } else {
+                *(s32 *)(entry + 8) = -1;
+            }
         } else {
-            id = FindTexMod(atreeHeader, (char *)(entry + 0x10), NULL);
-            if (id < 1) {
-                model = 0;
-                id = MBOX_FindTexture_Sub((char *)(entry + 0x10), NULL,
-                                           model, -1);
-            }
-            if (id < 1) {
-                id = MBOX_FindTexture((char *)(entry + 0x10), NULL);
-            }
-            *(s32 *)(entry + 8) = id;
+            *(s32 *)(entry + 8) = InitCustomEffect(
+                atreeHeader, (char *)(entry + 0x10),
+                *(s16 *)(entry + 0x44), *(s16 *)(entry + 0x46));
         }
     }
     if (*(s32 *)(entry + 0x0C) < 0) {
-        if (*(char *)(entry + 0x20) == '\0') {
-            *(s32 *)(entry + 0x0C) = -1;
-        } else {
-            memcpy(name, entry + 0x20, sizeof(name));
-            name[sizeof(name) - 1] = '\0';
+        if (*(char *)(entry + 0x20) != '\0') {
+            sprintf(name, (char *)(entry + 0x20),
+                    *(s8 *)((u8 *)gCurLevel + 8));
             *(s32 *)(entry + 0x0C) = AudioFindSound(name, 0, 1);
+        } else {
+            *(s32 *)(entry + 0x0C) = -1;
         }
     }
     CritterInitSfx(file, *(s32 *)(entry + 4), atreeHeader);
