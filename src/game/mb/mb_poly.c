@@ -376,6 +376,10 @@ done:
     ;
 }
 
+static f32 mbPolyFactor(void) {
+    return 0.0625f;
+}
+
 /* 0x800DE52C - set GX state and stream one instance's quad into the FIFO */
 s32 DoPolyInstSub(PolyInstance* inst, s32 useScratch) {
     volatile u8 frameTail[16];
@@ -387,8 +391,11 @@ s32 DoPolyInstSub(PolyInstance* inst, s32 useScratch) {
     s32 red;
     s32 green;
     s32 blue;
-    s32 bindTexture;
+    s32 depth;
     s32 i;
+    s32 j;
+    f32* scratch;
+    f32* out;
     volatile u8 unused[16];
     u8 mtx[0x30];
 
@@ -404,9 +411,8 @@ s32 DoPolyInstSub(PolyInstance* inst, s32 useScratch) {
     PSMTXIdentity(mtx);
     GXLoadPosMtxImm(mtx, 0);
 
-    bindTexture = useScratch;
-    useScratch = (s32)lbl_80343F5C;
-    if (bindTexture == 0) {
+    scratch = lbl_80343F5C;
+    if (useScratch == 0) {
         pbBlitSetTexture(inst->tex);
         pbBlitSetDrawRegs(0, 0, 0);
     }
@@ -424,31 +430,29 @@ s32 DoPolyInstSub(PolyInstance* inst, s32 useScratch) {
 
     for (i = 0; i < inst->type; i++) {
         PolyVert* vert = &inst->verts[i];
-        s32 depth = vert->sz;
-        if (depth <= 0) {
+        if ((depth = vert->sz) <= 0) {
             return 0;
         }
-        ((f32*)useScratch)[i * 5 + 2] =
+        out = &scratch[i * 5];
+        out[2] =
             (f32)((vert->sx - 0x6C00) * 2) /
                 (f32)*(s32*)(globals->display + 0x10) -
             1.0f;
-        ((f32*)useScratch)[i * 5 + 3] =
+        out[3] =
             1.0f -
             (f32)((vert->sy - 0x7200) * 2) /
                 (f32)*(s32*)(globals->display + 0x14);
-        ((f32*)useScratch)[i * 5 + 4] =
+        out[4] =
             1.0f -
             (f32)((u32)(*(s32*)(globals->screen + 0x34) - depth) * 2) /
                 (f32)*(s32*)(globals->screen + 0x34);
-        ((f32*)useScratch)[i * 5 + 0] =
-            ((f32)vert->u / (f32)texScale) * 0.0625f;
-        ((f32*)useScratch)[i * 5 + 1] =
-            ((f32)vert->v / (f32)texScale) * 0.0625f;
+        out[0] = ((f32)vert->u / (f32)texScale) * mbPolyFactor();
+        out[1] = ((f32)vert->v / (f32)texScale) * mbPolyFactor();
     }
 
     GXBegin(0xA0, 0, inst->type);
-    for (i = 0; i < inst->type; i++) {
-        f32* out = &((f32*)useScratch)[i * 5];
+    for (j = 0; j < inst->type; j++) {
+        out = &scratch[j * 5];
         GXPosition3f32(out[2], out[3], out[4]);
         GXColor4u8(red, green, blue, alpha);
         GXTexCoord2f32(out[0], out[1]);
