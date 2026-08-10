@@ -2079,9 +2079,10 @@ void move_logic04(s32 index)
  * object probe; a block on either rotates the heading and re-arms the timer. */
 void move_logic05(s32 index)
 {
-    Enemy* e = (Enemy*)((u8*)lbl_80250E00 + index * 916 + 3608);
-    f32 dist = e->rad;
-    f32 speed = ((f32*)lbl_80250E40)[e->type];
+    Enemy* e = (Enemy*)((u8*)lbl_80250E00 + index * 916);
+    s32 type;
+    f32 dist;
+    f32 speed;
     s32 it = lbl_80344748;
     s32 flee;
     f32 probe[3];
@@ -2089,20 +2090,29 @@ void move_logic05(s32 index)
     f32 probe2[3];
     u8 unused[56];
 
+    type = *(s32*)((u8*)e + 3608);
+    e = (Enemy*)((u8*)e + 3608);
+    dist = e->rad;
+    {
+        u8* t = (u8*)lbl_80250E00;
+        t += type * 4;
+        speed = *(f32*)(t + 64);
+    }
     if (it < 0) {
         flee = 0;
     } else {
-        Enemy* other = (Enemy*)((u8*)lbl_80250E00 + it * 916 + 3608);
-        if (other->state != 1) {
+        u8* other = (u8*)lbl_80250E00 + it * 916;
+        if (*(s32*)(other + 3788) != 1) {
             flee = 0;
-        } else if (other->actual_dist > e->sight) {
+        } else if (*(f32*)(other + 4244) > e->sight) {
             flee = 0;
         } else {
-            f32 dy = other->objgrp.worldmat[3][1] - e->objgrp.worldmat[3][1];
-            f32 dx = other->objgrp.worldmat[3][0] - e->objgrp.worldmat[3][0];
-            f32 dz = other->objgrp.worldmat[3][2] - e->objgrp.worldmat[3][2];
-            if (index != it && e->birth_style == 0 && e->dead_end <= 0
-                && dy * dy + dx * dx + dz * dz < 100.0) {
+            f32 dy, dx, dz;
+            if (index != it && e->birth_style == 0 && e->dead_end <= 0 &&
+                ((dy = *(f32*)(other + 3664) - e->objgrp.worldmat[3][1]),
+                 (dx = *(f32*)(other + 3660) - e->objgrp.worldmat[3][0]),
+                 (dz = *(f32*)(other + 3668) - e->objgrp.worldmat[3][2]),
+                 dy * dy + dx * dx + dz * dz < 100.0)) {
                 flee = -1;
             } else {
                 flee = 0;
@@ -3641,10 +3651,10 @@ void move_logic16(s32 index)
  * dealing 999 damage to the caught player. */
 void move_logic18(s32 index)
 {
+    s32 stuck;
     Enemy* e = &gEnemies[index];
     f32 leapspeed = 0.0f;
     s32 dend = e->dead_end;
-    s32 stuck;
     s16 sVar1;
     f32 a;
 
@@ -3656,39 +3666,38 @@ void move_logic18(s32 index)
     if (e->algorithm != e->prev_ai) {
         fn_80050394(index);
     }
-    if (e->closest < 0) {
-        a = e->ang;
-    } else if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
-        a = get_yaw(&gPlayerWords[e->closest][633], &e->objgrp.worldmat[3][0]);
+    if (e->closest >= 0) {
+        if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+            a = get_yaw(&gPlayerWords[e->closest][633],
+                        &e->objgrp.worldmat[3][0]);
+        } else {
+            a = get_yaw(&gPlayerWords[e->closest][17],
+                        &e->objgrp.worldmat[3][0]);
+        }
     } else {
-        a = get_yaw(&gPlayerWords[e->closest][17], &e->objgrp.worldmat[3][0]);
+        a = e->ang;
     }
     e->ang = a;
-    sVar1 = e->mode1;
-    if (sVar1 == 1) {
-        goto crouch;
-    }
-    if (sVar1 < 1 || sVar1 > 2) {
+    switch (e->mode1) {
+    default:
         if (e->closest >= 0 && e->actual_dist <= e->sight) {
             e->mode1++;
             e->flag1 = 60;
             e->flag2 = 0;
         }
         goto move;
-    }
-    goto leap;
-crouch:
-    if (e->closest >= 0 && e->action != 4
-        && (e->flag1 -= gFrameTicks) <= 0) {
-        RequestEnemyAction(e, 9);
-    }
-    if (e->action != 4) {
-        goto move;
-    }
-    e->mode1++;
-    fn_8009DD6C(&e->objgrp.attn_pos[0]);
-leap:
-    e->flag2 += gFrameTicks;
+    case 1:
+        if (e->closest >= 0 && e->action != 4
+            && (e->flag1 -= gFrameTicks) <= 0) {
+            RequestEnemyAction(e, 9);
+        }
+        if (e->action != 4) {
+            goto move;
+        }
+        e->mode1++;
+        fn_8009DD6C(&e->objgrp.attn_pos[0]);
+    case 2:
+        e->flag2 += gFrameTicks;
     if (e->recognized == 0 || e->closest < 0) {
         e->algorithm = (index & 1) + 5;
         do_ai(index);
@@ -3719,6 +3728,7 @@ leap:
         || fabsf_(e->ang - e->anghit) >= 0.10471975513333334) {
         e->dead_end = 0;
         set_enemy_trans(e, 1.5f, e->ang);
+    }
     }
 move:
     e->pyr[1] = turn_enemy_ang(e, e->ang);
