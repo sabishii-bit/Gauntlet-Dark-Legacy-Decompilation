@@ -223,20 +223,38 @@ void pool_free(MemPoolLists* pool, MemListNode* node) {
     }
 }
 
+/* shared free-slot search, inlined by pool_alloc and pool_alloc_at */
+static inline MemListNode* pool_new_block(void)
+{
+    MemListNode* node;
+    s32 i;
+
+    node = NULL;
+    for (i = (s32)node; i < (s32)lbl_80345254; i++) {
+        MemListNode* candidate = &((MemListNode*)lbl_80345250)[i];
+
+        if (candidate->flags == 0) {
+            node = candidate;
+            break;
+        }
+    }
+    if (node == NULL) {
+        printf(MEMPOOL_STRINGS + 32);
+        printf(MEMPOOL_STRINGS + 44);
+    }
+    return node;
+}
+
 /* 0x800D55A8  first-fit allocate (list_remove) */
 MemListNode* pool_alloc(MemPoolLists* pool, MemListNode* node) {
-    volatile u8 scratch[8];
     MemListNode* result;
     MemListNode* candidate;
     MemListNode* scan;
+    s32 merged;
     s32 owner;
     s32 remaining;
-    s32 i;
-    s32 merged;
-    MemListNode* freeNode;
 
     result = NULL;
-    (void)scratch;
     if (node->flags == 0) {
         return NULL;
     }
@@ -261,15 +279,19 @@ MemListNode* pool_alloc(MemPoolLists* pool, MemListNode* node) {
                 scan = scan->prev;
             }
             merged = 0;
-            if (candidate->flags + candidate->key == node->flags) {
+            owner = candidate->flags + candidate->key;
+            if (owner == node->flags) {
                 node->flags = candidate->flags;
                 node->key += candidate->key;
                 list_remove(&pool->primary, candidate);
                 merged = 1;
-            } else if (node->flags + node->key == candidate->flags) {
-                node->key += candidate->key;
-                list_remove(&pool->primary, candidate);
-                merged = 1;
+            } else {
+                owner = node->flags + node->key;
+                if (owner == candidate->flags) {
+                    node->key += candidate->key;
+                    list_remove(&pool->primary, candidate);
+                    merged = 1;
+                }
             }
 
             if (merged != 0) {
@@ -284,19 +306,7 @@ MemListNode* pool_alloc(MemPoolLists* pool, MemListNode* node) {
     }
 
     if (result == NULL) {
-        freeNode = NULL;
-        for (i = (s32)freeNode; i < (s32)lbl_80345254; i++) {
-            candidate = &((MemListNode*)lbl_80345250)[i];
-            if (candidate->flags == 0) {
-                freeNode = candidate;
-                break;
-            }
-        }
-        if (freeNode == NULL) {
-            printf(MEMPOOL_STRINGS + 32);
-            printf(MEMPOOL_STRINGS + 44);
-        }
-        result = freeNode;
+        result = pool_new_block();
     }
 
     if (result != NULL) {
@@ -330,27 +340,6 @@ MemListNode* pool_alloc(MemPoolLists* pool, MemListNode* node) {
 }
 
 /* 0x800D5848  allocate at a fixed address */
-static inline MemListNode* pool_new_block(void)
-{
-    MemListNode* node;
-    s32 i;
-
-    node = NULL;
-    for (i = (s32)node; i < (s32)lbl_80345254; i++) {
-        MemListNode* candidate = &((MemListNode*)lbl_80345250)[i];
-
-        if (candidate->flags == 0) {
-            node = candidate;
-            break;
-        }
-    }
-    if (node == NULL) {
-        printf(MEMPOOL_STRINGS + 32);
-        printf(MEMPOOL_STRINGS + 44);
-    }
-    return node;
-}
-
 s32 pool_alloc_at(MemPoolLists* pool, MemListNode* node, s32 size,
                   u32 address) {
     u32 endAddress;
@@ -545,16 +534,12 @@ s32 pool_dispose_and_alloc(MemPoolLists* pool, MemListNode* node, s32 size) {
 /* 0x800D5D2C  dispose a block */
 s32 pool_dispose(MemPoolLists* pool, u32 address, u32 size,
                  s32 alignment) {
-    volatile u8 scratch[8];
     MemListNode* node;
     MemListNode* next;
-    MemListNode* candidate;
     s32 owner;
-    s32 i;
     s32 result;
     MemListNode* freeNode;
 
-    (void)scratch;
     result = 0;
     owner = GetThreadId();
     if (owner != lbl_8034525C) {
@@ -580,7 +565,8 @@ s32 pool_dispose(MemPoolLists* pool, u32 address, u32 size,
             }
         } while (next != pool->secondary.head);
     }
-    pool->secondary.head = freeNode = NULL;
+    freeNode = NULL;
+    pool->secondary.head = freeNode;
 
     node = pool->primary.head;
     if (node != NULL) {
@@ -591,17 +577,7 @@ s32 pool_dispose(MemPoolLists* pool, u32 address, u32 size,
             next = next->next;
         }
     } else {
-        for (i = (u32)freeNode; i < (s32)lbl_80345254; i++) {
-            candidate = &((MemListNode*)lbl_80345250)[i];
-            if (candidate->flags == 0) {
-                freeNode = candidate;
-                break;
-            }
-        }
-        if (freeNode == NULL) {
-            printf(MEMPOOL_STRINGS + 32);
-            printf(MEMPOOL_STRINGS + 44);
-        }
+        freeNode = pool_new_block();
         node = freeNode;
     }
 
