@@ -272,7 +272,7 @@ void AudioStopMusicA(void)
 
 void ShopMusicStart(void)
 {
-    signed char ch;
+    int ch;
     int h;
 
     AudioKillBySound(0xC0000);
@@ -281,13 +281,13 @@ void ShopMusicStart(void)
     }
     sSelectStreamHandle = -1;
     sSelectStreamState = -1;
-    ch = (signed char)LevelLetter(0);
-    if (ch >= 76) {
+    ch = LevelLetter(0);
+    if ((signed char)ch >= 76) {
         ch = 65;
     }
-    sprintf((char*)sSpeechNameBuf, "SHOP_%c", ch);
+    sprintf((char*)sSpeechNameBuf, "SHOP_%c", (signed char)ch);
     AudioRegisterNameBanks((char*)sSpeechNameBuf, 0);
-    sprintf((char*)sSpeechNameBuf, "S_SHOP_%c", ch);
+    sprintf((char*)sSpeechNameBuf, "S_SHOP_%c", (signed char)ch);
     h = AudioFindSound((char*)sSpeechNameBuf, -1, 1);
     if (h >= 0) {
         sndFxPlayHandle(h, lbl_80343B4C, 1);
