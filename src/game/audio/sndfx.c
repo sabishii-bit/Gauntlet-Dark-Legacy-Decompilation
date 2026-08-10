@@ -325,8 +325,8 @@ void sndFxQueEmpty(void)
 /* sndFxQueUpdate: process both pending queues, starting the queued voices. */
 int sndFxQueUpdate(void)
 {
-    int did = 0;
     int mode;
+    int did = 0;
     u8 unused[8];
 
     if (sAudioSuspend != 0) {
@@ -351,10 +351,9 @@ int sndFxQueUpdate(void)
                 *fade = (f32)pbLoad + slots[0].f10;
             } else if ((f32)pbLoad >= *fade) {
                 /* shift remaining requests down */
-                QueSlot* slots = lbl_8023D398[mode];
                 int j;
                 for (j = 1; j < n; j++) {
-                    slots[j - 1] = slots[j];
+                    lbl_8023D398[mode][j - 1] = lbl_8023D398[mode][j];
                 }
                 *fade = 0.0f;
                 sAudioQueCount[mode] = sAudioQueCount[mode] - 1;
