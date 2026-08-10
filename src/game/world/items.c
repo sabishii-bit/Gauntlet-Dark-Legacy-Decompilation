@@ -685,58 +685,73 @@ void LinkItemTriggers(void)
 {
     char* strings = (char*)&sObjectsFile;
     Item* item;
-    Item* other;
     s32 i;
     s32 j;
-    s32 duplicate_count;
+    Item* other;
+    s32 nitems;
 
-    item = sItems;
-    for (i = 0; i < sNumItems; i++, item++) {
-        if (item->active != -1 && item->info->type == 5) {
-            for (j = 0, duplicate_count = 0, other = sItems;
-                 j < sNumItems; j++, other++) {
-                if (j != i && other->active != -1 &&
-                    other->info->type == 5 &&
-                    (*(s16*)&other->data[4] & 0x40) ==
-                        (*(s16*)&item->data[4] & 0x40) &&
-                    *(s8*)&item->data[6] > 0) {
-                    if (*(s8*)&other->data[6] == *(s8*)&item->data[6]) {
-                        *(s8*)&other->data[6] = 0;
-                        duplicate_count++;
+    {
+    Item* it1;
+    s32 i1;
+    s32 j1;
+    s32 dup1;
+    Item* ot1;
+
+    it1 = sItems;
+    for (i1 = 0; i1 < sNumItems; i1++, it1++) {
+        if (it1->active != -1 && it1->info->type == 5) {
+            for (dup1 = 0, j1 = 0, ot1 = sItems;
+                 j1 < sNumItems; j1++, ot1++) {
+                if (j1 != i1 && ot1->active != -1 &&
+                    ot1->info->type == 5 &&
+                    (*(s16*)&ot1->data[4] & 0x40) ==
+                        (*(s16*)&it1->data[4] & 0x40) &&
+                    *(s8*)&it1->data[6] > 0) {
+                    if (*(s8*)&ot1->data[6] == *(s8*)&it1->data[6]) {
+                        *(s8*)&ot1->data[6] = 0;
+                        dup1++;
                     }
+                    if (*(s8*)&ot1->data[7] != *(s8*)&it1->data[6]) {
+                        asm { b link_cont_j }
+                    }
+link_cont_j:;
                 }
             }
-            if (duplicate_count > 0) {
-                if (*(s16*)&item->data[4] & 0x40) {
+            if (dup1 > 0) {
+                if (*(s16*)&it1->data[4] & 0x40) {
                     ErrorPrintf(strings + 0x2EC,
-                                duplicate_count + 1,
-                                (s32)*(s8*)&item->data[6]);
+                                dup1 + 1,
+                                (s32)*(s8*)&it1->data[6]);
                 } else {
                     ErrorPrintf(strings + 0x310,
-                                duplicate_count + 1,
-                                (s32)*(s8*)&item->data[6]);
+                                dup1 + 1,
+                                (s32)*(s8*)&it1->data[6]);
                 }
             }
         }
     }
 
+    }
+
     item = sItems;
-    for (i = 0; i < sNumItems; i++, item++) {
+    for (i = 0; i < (nitems = sNumItems); i++, item++) {
         if (item->active != -1 && item->info->type == 5) {
             s8 next_id = *(s8*)&item->data[7];
 
             if (next_id != 0) {
                 other = sItems;
-                for (j = 0; j < sNumItems; j++, other++) {
+                for (j = 0; j < nitems; j++, other++) {
                     if (j != i && other->active != -1 &&
                         other->info->type == 5 &&
                         (*(s16*)&other->data[4] & 0x40) == 0 &&
                         next_id == *(s8*)&other->data[6]) {
-                        Item* chain = other;
+                        Item* chain;
                         s32 loop = 0;
+                        Item* next;
 
-                        while (chain != NULL) {
-                            Item* next = *(Item**)&chain->data[8];
+                        for (chain = other; chain != NULL;
+                             chain = next) {
+                            next = *(Item**)&chain->data[8];
                             if (next == item) {
                                 ErrorPrintf(strings + 0x32C,
                                             (s32)next_id,
@@ -744,7 +759,6 @@ void LinkItemTriggers(void)
                                 loop = 1;
                                 break;
                             }
-                            chain = next;
                         }
                         if (!loop) {
                             *(Item**)&item->data[8] = other;
