@@ -609,12 +609,15 @@ static f32 LimitCamVal2(f32 value, f32 target, f32 minVelocity,
                         f32 maxVelocity, f32 acceleration, f32 stopScale,
                         f32* velocity, s32 wrapAngle) {
     u8 unusedHigh[16];
-    f32 delta;
-    f32 accelerationStep;
-    f32 absDelta;
+    f32 ad;
+    f32 av;
     f32 oldVelocity;
+    f32 step;
+    f32 accelerationStep;
+    f32 delta;
+    f32 lim;
+    f32 absDelta;
     f32 absVelocity;
-    f32 candidate;
     f64 wrapped;
     u8 unusedLow[8];
 
@@ -631,47 +634,52 @@ static f32 LimitCamVal2(f32 value, f32 target, f32 minVelocity,
         delta = (f32)wrapped;
     }
 
-    target = stopScale * maxVelocity;
     absDelta = delta;
+    target = stopScale * maxVelocity;
+    step = gClockFrameStep;
     *(u32*)&absDelta &= 0x7FFFFFFF;
     oldVelocity = *velocity;
+    ad = absDelta;
     absVelocity = oldVelocity;
     *(u32*)&absVelocity &= 0x7FFFFFFF;
+    av = absVelocity;
+    lim = step * target;
 
-    if ((f64)stopScale > lbl_80345B98 &&
-        absVelocity < gClockFrameStep * target &&
-        absDelta < gClockFrameStep * target) {
+    if ((f64)stopScale > lbl_80345B98 && av < lim && ad < lim) {
         minVelocity = lbl_80345BA0;
-    } else if (absDelta <
-               gClockFrameStep * (absVelocity + accelerationStep)) {
+    } else if (ad < step * (av + accelerationStep)) {
         minVelocity = delta * gClockFrameReciprocal;
     } else {
-        if (absVelocity / acceleration >= absDelta / absVelocity) {
+        if (av / acceleration >= ad / av) {
             if ((f64)oldVelocity > lbl_80345B98) {
-                candidate = oldVelocity - accelerationStep;
-                if ((f64)candidate < lbl_80345B98) {
-                    candidate = lbl_80345BA0;
+                target = oldVelocity - accelerationStep;
+                if ((f64)target < lbl_80345B98) {
+                    target = lbl_80345BA0;
                 }
             } else {
-                candidate = oldVelocity + accelerationStep;
-                if ((f64)candidate > lbl_80345B98) {
-                    candidate = lbl_80345BA0;
+                target = oldVelocity + accelerationStep;
+                if ((f64)target > lbl_80345B98) {
+                    target = lbl_80345BA0;
                 }
             }
         } else if ((f64)delta > lbl_80345B98) {
-            candidate = oldVelocity + accelerationStep;
+            target = oldVelocity + accelerationStep;
         } else {
-            candidate = oldVelocity - accelerationStep;
+            target = oldVelocity - accelerationStep;
         }
 
-        if (!(candidate < minVelocity)) {
-            if (!(candidate > maxVelocity)) {
-                maxVelocity = candidate;
-            }
-            minVelocity = maxVelocity;
+        if (target < minVelocity) {
+            asm { b store_out }
         }
+        if (target > maxVelocity) {
+            asm { b set_min }
+        }
+        maxVelocity = target;
+    set_min:
+        minVelocity = maxVelocity;
     }
 
+store_out:
     *velocity = minVelocity;
     return minVelocity * gClockFrameStep + value;
 }
