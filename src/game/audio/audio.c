@@ -648,6 +648,7 @@ s32 AudioBankQueueName(char* bankName, char* partName, s32 arg)
     s32 partIdx;
     s32 bankIndex;
     s32 foundBank;
+    s32 partArg;
     u8* bankEntry;
 
     if (sAudioSuspend != 0) {
@@ -682,7 +683,7 @@ s32 AudioBankQueueName(char* bankName, char* partName, s32 arg)
         sAudioSuspend = 1;
         partIdx = -1;
     }
-    return AudioLoadPart(foundBank, partIdx, arg, 0);
+    return AudioLoadPart(foundBank, (partArg = partIdx), arg, 0);
 }
 
 /* AudioLoadPart: async DCS part loader.  Grabs a free queue slot, resolves the
