@@ -1201,8 +1201,10 @@ static s32 gNodeStackTop;          /* 0x803451bc */
 static s8  gNodeStackInit;         /* 0x803451c0 */
 static s32 gNodeStackDirty;        /* 0x80345190 */
 
+#pragma opt_propagation off
 s32 MBPsysSetDebugNode(u32 node, s32 remove) {
-    NodeStackOverlay* base = &gNodeState;
+    s32 v;
+    NodeStackOverlay* dst;
 
     if (gNodeStackInit == 0) {
         gNodeStackTop = 0;
@@ -1212,16 +1214,18 @@ s32 MBPsysSetDebugNode(u32 node, s32 remove) {
         if (remove != 0) {
             s32 count;
             s32 i;
+            NodeStackOverlay* src;
             s32 out;
 
             count = gNodeStackTop;
             i = 0;
             out = 0;
             while (i < count) {
-                NodeStackOverlay* src = (NodeStackOverlay*)((u8*)base + (i << 2));
-                NodeStackOverlay* dst = (NodeStackOverlay*)((u8*)base + (out << 2));
+                src = (NodeStackOverlay*)((u8*)&gNodeState + (i << 2));
+                dst = (NodeStackOverlay*)((u8*)&gNodeState + (out << 2));
 
-                dst->stack[0] = src->stack[0];
+                v = src->stack[0];
+                dst->stack[0] = v;
                 if (src->stack[0] == node) {
                     out--;
                 }
@@ -1233,19 +1237,20 @@ s32 MBPsysSetDebugNode(u32 node, s32 remove) {
             s32 top = gNodeStackTop;
 
             if (top > 99) {
-                base->stack[0] = node;
+                gNodeState.stack[0] = node;
             } else {
                 gNodeStackTop = top + 1;
-                base->stack[top] = node;
+                gNodeState.stack[top] = node;
             }
             gNodeStackDirty = 1;
         }
     }
     if (gNodeStackTop > 0) {
-        return base->stack[gNodeStackTop - 1];
+        return gNodeState.stack[gNodeStackTop - 1];
     }
     return 0;
 }
+#pragma opt_propagation reset
 
 /* ======================================================================= *
  *  Creation API                                                           *
