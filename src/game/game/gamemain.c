@@ -2203,13 +2203,12 @@ s32 fn_80057F44(s32 code, s32 mask)
     WorldDataType* types = sWorldDataTypes;
     s32 wt;
     s32 sub;
-    char* fatal;
     u32 i;
 
-    fatal = (char*)lbl_801129F8;
     for (;;) {
-        wt = code >> 8;
         sub = code & 0xFF;
+        wt = code;
+        wt >>= 8;
         if (sCurWorldType != wt) {
             for (i = 0; i < 14; i++) {
                 if (types[i].type == wt && types[i].available != 0) {
@@ -2225,7 +2224,7 @@ s32 fn_80057F44(s32 code, s32 mask)
                 }
             }
             if (i == 14) {
-                FatalError(fatal, 0x800000);
+                FatalError(lbl_801129F8, 0x800000);
             }
         } else {
             if (gWorldData != 0) {
