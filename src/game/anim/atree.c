@@ -1174,16 +1174,16 @@ anode* AtreeInitSub(AtreeDefinition* definition, atree* tree,
                     const char* objectPrefix, u32 treeFlags, s32 reportError)
 {
     s32 rootIndex;
-    s32 nodeOffset;
     anode* nodes;
+    s32 nodeOffset;
     s32 i;
     anode* root;
     anode* node;
     anode* parent;
     AtreeNodeDef* nodeDefinition;
     AtreeDataBases* bases;
-    s32 objectIndex;
     s32 definitionOffset;
+    s32 objectIndex;
     s32 object;
     char name[16];
 
