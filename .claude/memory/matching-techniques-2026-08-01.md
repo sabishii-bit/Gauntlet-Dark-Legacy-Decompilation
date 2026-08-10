@@ -800,3 +800,26 @@ assignment, and dead-variable reuse (parked at the documented cap).
 
 Early-out float comparisons in the same function needed `if (!(dist < x))
 return;` to produce retail's plain `bge` instead of a cror `>=` pair.
+
+## Do-while pins dual-induction register homes on constant-bound loops
+
+A `for (i = 0; i < K; i++)` with compile-time-constant K elides the entry
+guard, so switching to `i = 0; do { ... i++; } while (i < K);` changes no
+control flow — but it moves the loop-variable webs' creation point and pinned
+MemCardCreateGaunt's i/off/-1 homes to the retail r29/r31/r30 coloring
+(20 -> 6 real lines) where the for-loop form rotated them. Only safe when the
+bound is provably nonzero; on runtime bounds the guard difference changes
+structure.
+
+## The li->addi zero-copy family is a hard park (controlled-lab negative)
+
+Retail sometimes initializes a second zero register as `addi rY,rX,0` (a copy
+of an existing zero) instead of a fresh `li rY,0`. An eight-variant
+single-compile lab under the exact game-TU flags (for/do-while, decl-order,
+init-at-decl vs statement, u32/s32 split, pre-loop value use, register
+keyword, chained assignment) produced fresh `li` in every case; source-level
+copies (`off = i`, `off = (i = 0)`) are always constant-folded. The copy
+encode only appears where MWCC itself chains induction webs across SEQUENTIAL
+loops (critter's loops 2..8 entries). For single-loop functions the form is
+unreachable natively — stop spending attempts on it (MemCardCreateGaunt,
+dcsSampleAllocUpload, AudioBankQueueName class).
