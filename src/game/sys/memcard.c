@@ -1345,7 +1345,11 @@ int writeGauntletSave(void)
     u8* p;
     u32 sum;
     int i;
+    s32 zero;
+    u8 retryFlag;
+    u32 count;
 
+    zero = 0;
     serial[0] = 0;
     serial[1] = 0;
 
@@ -1374,13 +1378,23 @@ retry:
     }
     CARDGetSerialNo(0, serial);
 
-    if ((lbl_80344A20 != 0 || lbl_80344A24 != 0) &&
-        ((u32) lbl_80344A20 != serial[0] || (u32) lbl_80344A24 != serial[1])) {
-        if (saveMenuPrompt(rpool + 1516, lbl_80343C6C, 2) == 1) {
-            lbl_80344A24 = 0;
+    if (((((u32) lbl_80344A20) ^ zero) | (((u32) lbl_80344A24) ^ zero)) != 0 &&
+        ((serial[0] ^ (u32) lbl_80344A20) | (serial[1] ^ (u32) lbl_80344A24)) !=
+            0) {
+        switch (saveMenuPrompt(rpool + 1516, lbl_80343C6C, 2)) {
+        case 0:
+            retryFlag = 1;
+            break;
+        case 1:
+            lbl_80344A24 = zero;
             lbl_80344A18 = -1;
+            retryFlag = zero;
             lbl_80344A14 = -1;
-            lbl_80344A20 = 0;
+            lbl_80344A20 = zero;
+            break;
+        }
+        if (retryFlag) {
+            goto retry;
         }
         return 0;
     }
@@ -1391,8 +1405,10 @@ retry:
     *(u32*) (lbl_80343C74 + 4) = 0x4F4B4159;           /* "OKAY" */
     *(u32*) lbl_80343C74 = 0;
     sum = 0;
-    for (p = lbl_80343C74; p < lbl_80343C74 + 0x10000 - 23992; p++) {
-        sum += *p;
+    count = 0x10000 - 23992;
+    p = lbl_80343C74;
+    for (i = 0; i < count; i++) {
+        sum += *p++;
     }
     *(u32*) lbl_80343C74 = sum;
     memcpy(img, lbl_80343C74, 5193 * 8);
