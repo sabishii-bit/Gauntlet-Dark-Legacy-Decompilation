@@ -4223,20 +4223,19 @@ void CritterInitHeader(void *hdr, void *file)
     }
     for (i = 0; i < header->addAnimCount; i++) {
         p = header->addAnims + i * 0x30;
-        typeIndex = *(s16 *)p;
-        if (typeIndex > header->typeCount) {
+        if ((typeIndex = *(s16 *)p) > header->typeCount) {
             ErrorPrintf("CRITTER: AddAnim has addto idx %d > max %d",
                         typeIndex, header->typeCount);
         } else {
             type = header->types + typeIndex * 0x140;
-            tail = *(u8 **)(type + 0x134);
-            if (tail == NULL) {
-                *(u8 **)(type + 0x134) = p;
-            } else {
+            if (*(u8 **)(type + 0x134) != NULL) {
+                tail = *(u8 **)(type + 0x134);
                 while (*(u8 **)(tail + 8) != NULL) {
                     tail = *(u8 **)(tail + 8);
                 }
                 *(u8 **)(tail + 8) = p;
+            } else {
+                *(u8 **)(type + 0x134) = p;
             }
         }
     }
