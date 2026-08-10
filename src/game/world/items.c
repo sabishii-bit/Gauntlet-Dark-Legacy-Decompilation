@@ -693,9 +693,8 @@ void LinkItemTriggers(void)
     item = sItems;
     for (i = 0; i < sNumItems; i++, item++) {
         if (item->active != -1 && item->info->type == 5) {
-            duplicate_count = 0;
-            other = sItems;
-            for (j = 0; j < sNumItems; j++, other++) {
+            for (j = 0, duplicate_count = 0, other = sItems;
+                 j < sNumItems; j++, other++) {
                 if (j != i && other->active != -1 &&
                     other->info->type == 5 &&
                     (*(s16*)&other->data[4] & 0x40) ==
