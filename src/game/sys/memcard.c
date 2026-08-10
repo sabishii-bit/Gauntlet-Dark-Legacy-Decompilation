@@ -625,6 +625,7 @@ int MemCardCreateGaunt(int port, int slot)
 {
     int i;
     u8* base;
+    u32 transferSize;
     u8 unused[144];
 
     i = 0;
@@ -658,7 +659,8 @@ int MemCardCreateGaunt(int port, int slot)
     cardWaitResult();
     OSSetCurrentHeap(lbl_80344A08);
     OSDestroyHeap(lbl_80344A0C);
-    dcsAramReadTop((void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
+    base = (u8*) GetHiMemCacheTop();
+    dcsAramReadTop((void*)((u32)base - 0x310000), (transferSize = 0x310000));
     sysClearFlags(64);
     bulletproof_printf(lbl_801131C0);
     lbl_803449EC = 0;
@@ -684,6 +686,7 @@ s32 saveMount(s32 port, s32 slot, s32 doFormat)
     char* pool = lbl_801131C0;
     u8* top;
     u32 aramSize;
+    u32 transferSize;
     s32 probe;
     s32 r;
     u8 mounted = 0;
@@ -813,7 +816,8 @@ s32 saveMount(s32 port, s32 slot, s32 doFormat)
     cardWaitResult();
     OSSetCurrentHeap(lbl_80344A08);
     OSDestroyHeap(lbl_80344A0C);
-    dcsAramReadTop((void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
+    top = (u8*) GetHiMemCacheTop();
+    dcsAramReadTop((void*)((u32)top - 0x310000), (transferSize = 0x310000));
     sysClearFlags(64);
     lbl_80343C78 |= 0xFFFFFFFF;
 
@@ -1429,6 +1433,7 @@ u8 vmu_exists(s32 chan, const char* name, s32* fileNoOut)
     u8* top = (u8*) GetHiMemCacheTop();
     u32 aramSize = 0x310000;
     s32 dirSize = 0x2D44C0;
+    u32 transferSize;
     u8* buf;
     u8* lo;
     s32 found;
@@ -1484,7 +1489,8 @@ u8 vmu_exists(s32 chan, const char* name, s32* fileNoOut)
     cardWaitResult();
     OSSetCurrentHeap(lbl_80344A08);
     OSDestroyHeap(lbl_80344A0C);
-    dcsAramReadTop((void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
+    top = (u8*) GetHiMemCacheTop();
+    dcsAramReadTop((void*)((u32)top - 0x310000), (transferSize = 0x310000));
     sysClearFlags(64);
     return (u8)found;
 }
