@@ -766,7 +766,164 @@ static void GetBossAvgPos(f32* out, f32 t, f32* p4, f32* p5, s32 mode) {
 }
 #pragma opt_propagation reset
 /* Averaged view/aim vector (0x4B4, atan2 + sin/cos).  Parked: large fp body. */
-static void GetActualAvgVec(f32* out) { (void)out; }
+extern f64 NormalVector2D(f32* vec);
+extern f32 atan2(f32 y, f32 x);
+extern f32 sin(f32 x);
+extern f64 __fabs(f64 x);
+#define ABS(x) __fabs(x)
+extern const f64 lbl_80345C60;        /* flip threshold (~pi/2) */
+extern const f64 lbl_80345C68;        /* spread threshold scale */
+extern f32 lbl_80343B80;
+extern const f64 lbl_80345BE0;        /* weight step */
+extern char lbl_801117B8[];           /* string pool base (fmts at +0xCC/+0xF0) */
+
+static f32 GetActualAvgVec(f32* out, f32* pos, s32 useBoss) {
+    f32 v[3];
+    f32 v1x, v1y, v1z;
+    f32 v2x, v2y, v2z;
+    f32 w;
+    f64 best;
+    f64 second;
+    f64 dzero;
+    f64 len;
+    f32 yaw1;
+    f32 yaw2;
+    f32 avg;
+    f32 d;
+    char* fmts;
+    u8* p;
+    s32 count;
+    s32 i;
+    s32 off;
+    s32 zero;
+
+    w = lbl_80345BA0;
+    fmts = lbl_801117B8;
+    dzero = lbl_80345B98;
+    best = w;
+    second = w;
+    zero = 0;
+    count = 0;
+    i = -1;
+    off = -0x335C;
+    do {
+        if (i >= 0) {
+            p = gPlayers + off;
+            if (*(s32*)(p + 0xE8) == 1) {
+                if ((*(s16*)(p + 0x964) & 0x20) != 0) {
+                    v[0] = pos[0] - *(f32*)(p + 0xDC);
+                    v[1] = pos[1] - *(f32*)(p + 0xE0);
+                    v[2] = pos[2] - *(f32*)(p + 0xE4);
+                } else {
+                    v[0] = pos[0] - *(f32*)(p + 0x44);
+                    v[1] = pos[1] - *(f32*)(p + 0x48);
+                    v[2] = pos[2] - *(f32*)(p + 0x4C);
+                }
+                goto measure;
+            }
+        } else if (useBoss != 0) {
+            v[0] = pos[0] - *(f32*)(gBossObj + 0x4C);
+            v[1] = pos[1] - *(f32*)(gBossObj + 0x50);
+            v[2] = pos[2] - *(f32*)(gBossObj + 0x54);
+        measure:
+            len = NormalVector2D(v);
+            if (!(len <= best)) {
+                if (!(best <= dzero)) {
+                    v2x = v1x;
+                    v2y = v1y;
+                    v2z = v1z;
+                    second = best;
+                }
+                best = len;
+                v1x = v[0];
+                v1y = v[1];
+                count++;
+                v1z = v[2];
+            } else if (!(len <= second)) {
+                second = len;
+                v2x = v[0];
+                v2y = v[1];
+                count++;
+                v2z = v[2];
+            }
+            w = (f32)(w + lbl_80345BE0);
+        }
+        i++;
+        off += 0x335C;
+    } while (i < 4);
+
+    if (count == 0) {
+        w = lbl_80345BA0;
+        return w;
+    }
+    if (count == 1) {
+        avg = atan2(v1x, v1z);
+        if ((((sFlags & 1) ^ zero) | ((gControllerButtons & zero) ^ zero)) !=
+            0) {
+            dbgTextPrintfCell(0xFFFF00, 1, 0x22, fmts + 0xCC,
+                              lbl_80345BC8 * (lbl_80345BD0 * avg), v1x, v1y,
+                              v1z);
+        }
+    } else {
+        yaw1 = atan2(v1x, v1z);
+        yaw2 = atan2(v2x, v2z);
+        avg = (f32)(lbl_80345BA8 * (yaw1 + yaw2));
+        if (avg > lbl_80345B88) {
+            avg = (f32)(avg - lbl_80345BB8);
+        } else if (avg <= lbl_80345BC0) {
+            avg = (f32)(lbl_80345BB8 + avg);
+        }
+        d = avg - yaw1;
+        if (d > lbl_80345B88) {
+            d = (f32)(d - lbl_80345BB8);
+        } else if (d <= lbl_80345BC0) {
+            d = (f32)(lbl_80345BB8 + d);
+        }
+        if (ABS(d) > lbl_80345C60) {
+            avg = (f32)(lbl_80345B88 + avg);
+            if (avg > lbl_80345B88) {
+                avg = (f32)(avg - lbl_80345BB8);
+            } else if (avg <= lbl_80345BC0) {
+                avg = (f32)(lbl_80345BB8 + avg);
+            }
+        }
+        d = yaw1 - yaw2;
+        if (d > lbl_80345B88) {
+            d = (f32)(d - lbl_80345BB8);
+        } else if (d <= lbl_80345BC0) {
+            d = (f32)(lbl_80345BB8 + d);
+        }
+        if (ABS(d) > lbl_80345C68 * lbl_80345B88 * lbl_80343B80) {
+            d = *(f32*)((u8*)gGameCamera + 236) - avg;
+            if (d > lbl_80345B88) {
+                d = (f32)(d - lbl_80345BB8);
+            } else if (d <= lbl_80345BC0) {
+                d = (f32)(lbl_80345BB8 + d);
+            }
+            if (ABS(d) > lbl_80345C60) {
+                avg = (f32)(lbl_80345B88 + avg);
+                if (avg > lbl_80345B88) {
+                    avg = (f32)(avg - lbl_80345BB8);
+                } else if (avg <= lbl_80345BC0) {
+                    avg = (f32)(lbl_80345BB8 + avg);
+                }
+            }
+        }
+        if ((((sFlags & 1) ^ zero) | ((gControllerButtons & zero) ^ zero)) !=
+            0) {
+            dbgTextPrintfCell(0xFFFF00, 1, 0x22, fmts + 0xCC,
+                              lbl_80345BC8 * (lbl_80345BD0 * yaw1), v1x, v1y,
+                              v1z);
+            dbgTextPrintfCell(0xFFFF00, 1, 0x23, fmts + 0xF0,
+                              lbl_80345BC8 * (lbl_80345BD0 * yaw2), v2x, v2y,
+                              v2z);
+        }
+    }
+    out[0] = -sin(avg);
+    out[1] = lbl_80345BA0;
+    out[2] = -cos(avg);
+    return w;
+}
 
 void GameCameraInit(void) {
     gGameCamera = gGameCameraData;
@@ -868,6 +1025,6 @@ void bosscam_unused_refs(void) {
     BossCameraStart();
     (void)GetPlayerViewDist(&v);
     GetBossAvgPos(&v, 0.0f, &v, &v, 0);
-    GetActualAvgVec(&v);
+    GetActualAvgVec(&v, &v, 0);
     (void)LimitCamVal2(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, &v, 0);
 }
