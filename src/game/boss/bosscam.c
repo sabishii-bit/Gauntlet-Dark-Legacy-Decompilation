@@ -180,9 +180,9 @@ f32 PointViewDist(f32* point, f32 dist);
 #pragma opt_propagation off
 s32 TriggerCamUpdate(void)
 {
+    void* blit;
     u8* cameraBuffer;
     f32* position;
-    void* blit;
     f32 x;
     f32 y;
     f32 z;
@@ -205,9 +205,9 @@ s32 TriggerCamUpdate(void)
     MBCameraUpdate(position, (f32*)cameraBuffer);
     x = position[0];
     gCameras[0].attn[0] = x;
-    y = position[1];
+    y = *(f32*)(cameraBuffer + 52);
     gCameras[0].attn[1] = y;
-    z = position[2];
+    z = *(f32*)(cameraBuffer + 56);
     gCameras[0].attn[2] = z;
     gCameras[0].mat[3][0] = x;
     gCameras[0].mat[3][1] = y;
