@@ -1353,6 +1353,7 @@ static s32 sel_set_choice(s32 player, s32 mode);
 static void do_sel_menu_8008E4F4(s32 player, u32 mode)
 {
     s32* xp;
+    u8* tbl;
     s32 lh;
     s32 sz;
     s32 sz2;
@@ -1367,7 +1368,8 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
     char buf[32];
 
     scale0 = lbl_80343DE0;
-    xp = (s32*)(lbl_80121688 + (player << 2));
+    tbl = lbl_80121688;
+    xp = (s32*)(tbl + (player << 2));
     pool = lbl_801143F8;
     pl = gPlayers + player * 13148;
     scale = scale0;
@@ -1451,7 +1453,7 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
     case 5:
         if (*(s32*)(pl + 13128) == 0) {
             s32 y = lbl_80343DE8 +
-                    *(s32*)(lbl_80121688 + player * 232 + 728) - lh * 6;
+                    ((s32*)(tbl + player * 232))[182] - lh * 6;
             s32 nx = -(x + 64);
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347F98);
             y += lh;
@@ -1468,7 +1470,7 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
         }
         /* fall through */
     case 10: {
-        s32 y = lbl_80343DE8 + *(s32*)(lbl_80121688 + player * 232 + 728) -
+        s32 y = lbl_80343DE8 + ((s32*)(tbl + player * 232))[182] -
                 lh * 3;
         s32 nx = -(x + 64);
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FA8);
@@ -1508,7 +1510,7 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
         break;
     }
     case 8: {
-        s32 y = lbl_80343DE8 + *(s32*)(lbl_80121688 + player * 232 + 728) -
+        s32 y = lbl_80343DE8 + ((s32*)(tbl + player * 232))[182] -
                 lh * 2;
         s32 nx = -(x + 64);
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 376);
@@ -1518,7 +1520,7 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
         break;
     }
     case 13: {
-        s32 y = lbl_80343DE8 + *(s32*)(lbl_80121688 + player * 232 + 728) -
+        s32 y = lbl_80343DE8 + ((s32*)(tbl + player * 232))[182] -
                 lh * 3;
         s32 nx = -(x + 64);
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 376);
@@ -1533,7 +1535,6 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
         s32 st = *(s32*)(pl + 13128);
         s32 y = lbl_80343DD8 - lh * 5;
         s32 nx;
-        s32 yy;
         if (st == 0) goto fmt_none;
         if (st < 0) goto fmt_result;
         if (st >= 4) goto fmt_result;
@@ -1555,34 +1556,34 @@ fmt_none:
         break;
 fmt_prog:
         nx = -(x + 64);
-        yy = lbl_80343DD8;
-        DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, pool + 464);
-        yy += lh;
-        yy += lh;
-        DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, pool + 304);
-        yy += lh;
-        DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, pool + 480);
-        yy += lh;
-        DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, lbl_80347FD8);
-        yy += lh;
-        DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, lbl_80347FC0);
-        yy += lh;
-        DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, pool + 492);
+        y = lbl_80343DD8;
+        DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 464);
+        y += lh;
+        y += lh;
+        DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 304);
+        y += lh;
+        DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 480);
+        y += lh;
+        DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FD8);
+        y += lh;
+        DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FC0);
+        y += lh;
+        DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 492);
         showSel = 0;
         break;
 fmt_result:
         if (st >= 0) {
             nx = -(x + 64);
-            yy = lbl_80343DD8;
-            DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, lbl_80347FE0);
-            yy += lh;
-            DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, pool + 508);
+            y = lbl_80343DD8;
+            DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FE0);
+            y += lh;
+            DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 508);
         } else {
             nx = -(x + 64);
-            yy = lbl_80343DD8;
-            DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, lbl_80347FE0);
-            yy += lh;
-            DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, lbl_80347FE8);
+            y = lbl_80343DD8;
+            DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FE0);
+            y += lh;
+            DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FE8);
         }
         showSel = 0;
         break;
@@ -1592,7 +1593,6 @@ fmt_result:
         s32 st = *(s32*)(pl + 13128);
         s32 y = lbl_80343DD8 - lh * 5;
         s32 nx;
-        s32 yy;
         s32 fr;
         if (st == 0) goto cr_none;
         if (st < 0) goto cr_result;
@@ -1645,49 +1645,49 @@ cr_none:
         break;
 cr_prog:
         nx = -(x + 64);
-        yy = lbl_80343DD8;
-        DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, pool + 588);
-        yy += lh;
-        DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, pool + 600);
-        yy += lh;
-        DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, pool + 612);
-        yy += lh;
-        yy += lh;
-        DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, pool + 304);
-        yy += lh;
-        DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, pool + 480);
-        yy += lh;
-        DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, lbl_80347FD8);
-        yy += lh;
-        DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, lbl_80347FC0);
-        yy += lh;
-        DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, pool + 492);
+        y = lbl_80343DD8;
+        DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 588);
+        y += lh;
+        DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 600);
+        y += lh;
+        DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 612);
+        y += lh;
+        y += lh;
+        DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 304);
+        y += lh;
+        DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 480);
+        y += lh;
+        DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FD8);
+        y += lh;
+        DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FC0);
+        y += lh;
+        DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 492);
         showSel = 0;
         break;
 cr_result:
         if (st < 1000) goto cr_chk2;
         nx = -(x + 64);
-        yy = lbl_80343DD8;
-        DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, pool + 628);
-        yy += lh;
-        DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, pool + 644);
+        y = lbl_80343DD8;
+        DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 628);
+        y += lh;
+        DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 644);
         goto cr_done;
 cr_chk2:
         if (st < 0) goto cr_fail;
         nx = -(x + 64);
-        yy = lbl_80343DD8;
-        DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, pool + 656);
-        yy += lh;
-        DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, pool + 668);
+        y = lbl_80343DD8;
+        DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 656);
+        y += lh;
+        DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 668);
         goto cr_done;
 cr_fail:
         nx = -(x + 64);
-        yy = lbl_80343DD8;
-        DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, lbl_80347FF0);
-        yy += lh;
-        DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, pool + 656);
-        yy += lh;
-        DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, lbl_80347FE8);
+        y = lbl_80343DD8;
+        DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FF0);
+        y += lh;
+        DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 656);
+        y += lh;
+        DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FE8);
 cr_done:
         showSel = 0;
         break;
@@ -1703,9 +1703,9 @@ cr_done:
         if (st >= 4) goto io_result;
         goto io_prog;
 io_none:
+        yy = lbl_80343DD8;
         if (w == 0) goto io_prog;
         nx = -(x + 64);
-        yy = lbl_80343DD8;
         DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, pool + 680);
         yy += lh;
         DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, pool + 692);
@@ -1713,10 +1713,10 @@ io_none:
         DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, lbl_80347FF8);
         break;
 io_prog:
-        nx = -(x + 64);
         yy = lbl_80343DD8;
-        DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF,
+        DrawTextKeepScale(scale, -(x + 64), yy, font, 0xFFFFFF,
                           (w != 0) ? pool + 704 : pool + 716);
+        nx = -(x + 64);
         yy += lh;
         DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, lbl_80347FAC);
         yy += lh;
@@ -1735,20 +1735,19 @@ io_prog:
         showSel = 0;
         break;
 io_result:
-        if (st < 0) goto io_neg;
-        nx = -(x + 64);
         yy = lbl_80343DD8;
-        DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF,
+        if (st < 0) goto io_neg;
+        DrawTextKeepScale(scale, -(x + 64), yy, font, 0xFFFFFF,
                           (w != 0) ? lbl_80347F14 : lbl_80347F0C);
+        nx = -(x + 64);
         yy += lh;
         DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, pool + 732);
         goto io_done;
 io_neg:
         if (st >= -1) goto io_done;
-        nx = -(x + 64);
-        yy = lbl_80343DD8;
-        DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF,
+        DrawTextKeepScale(scale, -(x + 64), yy, font, 0xFFFFFF,
                           (w != 0) ? lbl_80347F14 : lbl_80347F0C);
+        nx = -(x + 64);
         yy += lh;
         DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, lbl_80347FE8);
 io_done:
