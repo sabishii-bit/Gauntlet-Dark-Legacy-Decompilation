@@ -194,7 +194,7 @@ extern void MBWorldToScreen3D(Vec3* dst, const Vec3* src);
 
 /* frustum point-clip test core (fn_8006DC64); the public entry fn_8006DC2C is
  * a thin wrapper that supplies the live standard-camera pointer. */
-extern void fn_8006DC64(NcCamera* cam, s32 arg1, f32* pt, s32 mode);
+extern s32 fn_8006DC64(NcCamera* cam, NcPlayer* player, Vec3* pt, s32 mode);
 
 /* MB window/camera projection layer (mb_camera.c / mb_window.c / pb_window.c). */
 extern void MBCameraUpdate(f32* position, f32* matrix);
@@ -666,8 +666,8 @@ void fn_8006ECD4(void) {
  * camera (lbl_80344A6C) and forwards the caller's arguments to the clip core.
  * [caller: bosscam]
  */
-void fn_8006DC2C(s32 arg1, f32* pt, s32 mode) {
-    fn_8006DC64(lbl_80344A6C, arg1, pt, mode);
+s32 fn_8006DC2C(NcPlayer* player, f32* pt, s32 mode) {
+    return fn_8006DC64(lbl_80344A6C, player, (Vec3*)pt, mode);
 }
 
 /*
