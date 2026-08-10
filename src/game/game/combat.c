@@ -238,7 +238,8 @@ s32 StartMissile(s32 owner, f32* position, f32* velocity, u32 damageType,
 extern f32 lbl_803463C0, lbl_8034633C, lbl_80346328, lbl_803463D0;
 extern f64 lbl_80346348, lbl_80346340, lbl_803463C8;
 extern char lbl_80111E28[];
-extern s32 lbl_80274E9C, WeaponStreakTex;
+extern s32 optionsAudioAndPrefs30[8];
+extern s32 WeaponStreakTex;
 extern u32 lbl_8011A178[], lbl_8011A188[];
 extern void* lbl_80282930[];
 void fn_80093E50();
@@ -1329,7 +1330,9 @@ s32 adjust_radius_8002B2D4(s32 camIdx)
     void* levelData = *(void**)((u8*)gCurLevel + 96);
     f32 val;
     f32 diff;
+    u8 _pad[8];
     f32 ad;
+    u8 _pad2[4];
     f32 step;
 
     if (lbl_80345F78 == desired) {
@@ -1354,23 +1357,25 @@ s32 adjust_radius_8002B2D4(s32 camIdx)
     if (ad < lbl_8034618C) {
         cam->radius = val;
         lbl_803443F4 = 1;
-        return -1;
+        goto done;
     }
-    step = (f32)(lbl_80346098 * (ad - lbl_8034618C) + lbl_8034618C);
+    desired = ad - lbl_8034618C;
+    step = (f32)(lbl_80346098 * desired + lbl_8034618C);
     if (step > lbl_80346158 && lbl_803444E4 == 0) {
         step = lbl_80346158;
     }
     if (val > cam->radius) {
         cam->radius = cam->radius + step;
         lbl_803443F4 = 1;
-        return -1;
+        goto done;
     }
     if (val < cam->radius) {
         if (lbl_80344418 == 0 || *(s16*)((u8*)levelData + 54) != 0) {
-            cam->radius = cam->radius - step;
+            cam->radius -= step;
             lbl_803443F4 = 1;
         }
     }
+done:
     return -1;
 }
 
@@ -2650,17 +2655,19 @@ void ChangeWindow(void)
 {
     f32 halfY;
     f32 halfX;
-    s32 centerX = (s32)(lbl_80345F18 *
-        (f64)(gCameraWindowRightLimit + gCameraWindowLeftLimit));
-    s32 centerY = (s32)(lbl_80345F18 *
-        (f64)(gCameraWindowTopLimit + gCameraWindowBottomLimit));
+    s32 centerX;
+    s32 centerY;
 
     halfX = (f32)(s32)(lbl_80345F18 *
         (f64)(gCameraWindowRightLimit - gCameraWindowLeftLimit)) *
         gCameraWindowScaleY;
+    centerX = (s32)(lbl_80345F18 *
+        (f64)(gCameraWindowRightLimit + gCameraWindowLeftLimit));
     halfY = (f32)(s32)(lbl_80345F18 *
         (f64)(gCameraWindowTopLimit - gCameraWindowBottomLimit)) *
         gCameraWindowScaleX;
+    centerY = (s32)(lbl_80345F18 *
+        (f64)(gCameraWindowTopLimit + gCameraWindowBottomLimit));
     lbl_803444AC = (s32)((f32)centerX - halfX);
     lbl_803444B0 = (s32)((f32)centerX + halfX);
     lbl_803444B4 = (s32)((f32)centerY + halfY);
@@ -2668,10 +2675,10 @@ void ChangeWindow(void)
     if (lbl_803444AC < gCameraWindowLeftLimit) {
         lbl_803444AC = gCameraWindowLeftLimit;
     }
-    if (gCameraWindowRightLimit < lbl_803444B0) {
+    if (lbl_803444B0 > gCameraWindowRightLimit) {
         lbl_803444B0 = gCameraWindowRightLimit;
     }
-    if (gCameraWindowTopLimit < lbl_803444B4) {
+    if (lbl_803444B4 > gCameraWindowTopLimit) {
         lbl_803444B4 = gCameraWindowTopLimit;
     }
     if (lbl_803444B8 < gCameraWindowBottomLimit) {
@@ -3248,8 +3255,8 @@ s32 StartMissile(s32 owner, f32* position, f32* velocity, u32 damageType,
     f32 color = lbl_803463C0;
     s32 wallSound = desc->wallSound;
     f32 vel[3];
+    s32 big;
     s32 fx;
-    u32 flg;
     f32 radius;
 
     if ((damageType & 0x480000) != 0) {
@@ -3274,55 +3281,57 @@ s32 StartMissile(s32 owner, f32* position, f32* velocity, u32 damageType,
         FatalError(lbl_80111E28, 0x800000);
     }
     if (owner > 0) {
-        if (lbl_80274E9C == 1) {
-            flg = extraFlags | 0x200F;
-        } else if (lbl_80274E9C == 2) {
-            flg = extraFlags | 0xF;
+        if (optionsAudioAndPrefs30[7] == 1) {
+            extraFlags |= 0x200F;
+        } else if (optionsAudioAndPrefs30[7] == 2) {
+            extraFlags |= 0xF;
         } else {
-            flg = extraFlags | 0x20E;
+            extraFlags |= 0x20E;
         }
         if ((damageType & 0x100000) != 0) {
-            flg &= ~0x4u;
+            extraFlags &= ~0x4u;
         }
     } else {
-        flg = extraFlags | 0x1107;
+        extraFlags |= 0x1107;
     }
-    if ((f64)desc->angularVelocity[0] == lbl_80346340 &&
-        (f64)desc->angularVelocity[1] == lbl_80346340 &&
-        (f64)desc->angularVelocity[2] == lbl_80346340) {
-        flg |= 0x20000;
+    if (lbl_80346340 == (f64)desc->angularVelocity[0] &&
+        lbl_80346340 == (f64)desc->angularVelocity[1] &&
+        lbl_80346340 == (f64)desc->angularVelocity[2]) {
+        extraFlags |= 0x20000;
     }
-    flg |= 0x1000000;
-    fx = StartFXTree(missileTree, position, flg, 0x80000, color);
+    extraFlags |= 0x1000000;
+    fx = StartFXTree(missileTree, position, extraFlags, 0x80000, color);
+    big = damageType & 0x2000000;
     radius = desc->collisionRadius;
-    if ((damageType & 0x2000000) != 0) {
+    if (big != 0) {
         radius = (f32)((f64)radius * lbl_803463C8);
     }
     fn_80093E50(fx, vel, desc->angularVelocity, desc->weight, radius);
-    SfxSetHit(fx, (s16)desc->hitEffect, desc->hitSound, wallSound);
+    SfxSetHit(fx, desc->hitEffect, desc->hitSound, wallSound);
     SfxSetDamage(fx, damageType | desc->damageType, owner, damageMag,
                  desc->hitRadius, lbl_80346328);
-    if ((damageType & 0x2000000) != 0) {
+    if (big != 0) {
         ScaleFX(fx, lbl_803463D0, lbl_803463D0, lbl_803463D0);
     }
     if (owner > 0) {
+        s32 tex = WeaponStreakTex;
         s32 vibColor;
         s32 vibIntensity;
-        if ((damageType & 0x100000) != 0 && (damageType & 0x2000000) == 0) {
+        if ((damageType & 0x100000) != 0 && big == 0) {
             vibColor = 0xFFFFFF;
             vibIntensity = 64;
         } else {
             u8* pl = (u8*)gPlayers + owner * PLAYER_STRIDE;
             vibColor = lbl_8011A178[*(s32*)(pl - 13144)];
             vibIntensity = lbl_8011A188[*(s32*)(pl - 13140)];
-            if ((damageType & 0x2000000) != 0) {
+            if (big != 0) {
                 vibIntensity += 64;
                 if ((u32)vibIntensity >= 255) {
                     vibIntensity = 255;
                 }
             }
         }
-        fn_80093D98(fx, WeaponStreakTex, vibColor, vibIntensity, lbl_80346328,
+        fn_80093D98(fx, tex, vibColor, vibIntensity, lbl_80346328,
             *(f32*)((u8*)lbl_80282930[owner - 1] + 0x17C));
     }
     return fx;
