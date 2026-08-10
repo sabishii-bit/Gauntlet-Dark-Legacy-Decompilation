@@ -654,17 +654,15 @@ void fn_8005AF98(u8* record, s32* typeOut, s32* valueOut, s32* fieldOut,
     char* nextName;
     s32 count;
     s32 i;
-    s32 childOffset;
     u8 unusedLow[16];
 
     if (*(s32*)record == -1) {
         count = *(s32*)(record + 4);
         fn_8005AF98(*(u8**)(gWorldInfo + 104) + *(s16*)(record + 8) * 80,
                     &type, &value, &field, &state, &name);
-        for (i = 1, childOffset = 2; i < count;
-             i++, childOffset += 2) {
+        for (i = 1; i < count; i++) {
             fn_8005AF98(*(u8**)(gWorldInfo + 104) +
-                            *(s16*)(record + childOffset + 8) * 80,
+                            *(s16*)(record + i * 2 + 8) * 80,
                         &nextType, &nextValue, &nextField, &nextState,
                         &nextName);
             if (nextType != type) {
