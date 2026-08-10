@@ -2651,17 +2651,19 @@ void ChangeWindow(void)
 {
     f32 halfY;
     f32 halfX;
-    s32 centerX = (s32)(lbl_80345F18 *
-        (f64)(gCameraWindowRightLimit + gCameraWindowLeftLimit));
-    s32 centerY = (s32)(lbl_80345F18 *
-        (f64)(gCameraWindowTopLimit + gCameraWindowBottomLimit));
+    s32 centerX;
+    s32 centerY;
 
     halfX = (f32)(s32)(lbl_80345F18 *
         (f64)(gCameraWindowRightLimit - gCameraWindowLeftLimit)) *
         gCameraWindowScaleY;
+    centerX = (s32)(lbl_80345F18 *
+        (f64)(gCameraWindowRightLimit + gCameraWindowLeftLimit));
     halfY = (f32)(s32)(lbl_80345F18 *
         (f64)(gCameraWindowTopLimit - gCameraWindowBottomLimit)) *
         gCameraWindowScaleX;
+    centerY = (s32)(lbl_80345F18 *
+        (f64)(gCameraWindowTopLimit + gCameraWindowBottomLimit));
     lbl_803444AC = (s32)((f32)centerX - halfX);
     lbl_803444B0 = (s32)((f32)centerX + halfX);
     lbl_803444B4 = (s32)((f32)centerY + halfY);
@@ -2669,10 +2671,10 @@ void ChangeWindow(void)
     if (lbl_803444AC < gCameraWindowLeftLimit) {
         lbl_803444AC = gCameraWindowLeftLimit;
     }
-    if (gCameraWindowRightLimit < lbl_803444B0) {
+    if (lbl_803444B0 > gCameraWindowRightLimit) {
         lbl_803444B0 = gCameraWindowRightLimit;
     }
-    if (gCameraWindowTopLimit < lbl_803444B4) {
+    if (lbl_803444B4 > gCameraWindowTopLimit) {
         lbl_803444B4 = gCameraWindowTopLimit;
     }
     if (lbl_803444B8 < gCameraWindowBottomLimit) {
