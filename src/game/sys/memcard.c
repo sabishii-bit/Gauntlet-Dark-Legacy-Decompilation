@@ -596,13 +596,15 @@ void init_all_dir_info(void)
     off = zero;
     base = lbl_80274578;
     fill = -1;
-    for (; i < 8; i++, off += 16) {
+    do {
         u8* e = base + off;
 
         *(s32*) e = fill;
         *(s32*) (e + 4) = fill;
         strcpy((char*) (e + 8), lbl_803472D8);
-    }
+        i++;
+        off += 16;
+    } while (i < 8);
     *(s32*) (base + 128) = zero;
     lbl_803449F0 = 0x10000 - 1400;
     cardInit();
