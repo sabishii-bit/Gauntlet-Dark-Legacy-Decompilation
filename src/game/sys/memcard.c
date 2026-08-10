@@ -209,7 +209,7 @@ void pageSaveCacheIn(void);
 void pageSaveCacheOut(void);
 s32 saveMenuPrompt(const char* msg, char** options, s32 count);
 void getSaveFileName(char* dst, s32 fileNo);
-u8 beginSaveCacheTransaction(void);
+int beginSaveCacheTransaction(void);
 void restoreSaveCache(u32 size);
 void beginSaveTransaction(void);
 int loadGauntletSave(void);
@@ -909,7 +909,7 @@ void set_directory_refresh_flags(u32 flags)
  * out of ARAM, build the save heap, allocate workArea + file + directory
  * buffers, then scan/load the card via loadGauntletSave.
  */
-u8 beginSaveCacheTransaction(void)
+int beginSaveCacheTransaction(void)
 {
     u8* buf;
     u32 size;
