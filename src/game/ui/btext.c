@@ -280,14 +280,18 @@ void DrawGlowTextMLines(f32 scale, s32 x, s32 y, s32* str)
 void DrawGlowText(f32 scale, s32 x, s32 y, u8* str)
 {
     s32 span = glow_radius * 2;
-    s32 phase = pbLoad - (pbLoad / (u32)(glow_period + span)) * (glow_period + span);
+    s32 phase = (u32)pbLoad % (u32)(glow_period + span);
     u32 prevFlags;
     u32 a;
     void* q;
+    u8* text;
+    u8 unused[8];
 
-    if (span < phase) {
+    text = str;
+
+    if (phase > span) {
         phase = 0;
-    } else if (glow_radius < phase) {
+    } else if (phase > glow_radius) {
         phase = span - phase;
     }
     MBSetFontScaleSpace(scale, scale);
@@ -296,14 +300,17 @@ void DrawGlowText(f32 scale, s32 x, s32 y, u8* str)
     MBSetFontColor(glow_color);
     a = (glow_radius + phase * 0xFF - 1) / glow_radius;
     MBSetFontAlpha(0x7F - (s32)a / 2);
-    q = MBDrawText(x, y, str);
+    q = MBDrawText(x, y, text);
     *(s16*)((s32)q + 0x26) = (s16)glow_text_extra;
     MBSetFontFlags(prevFlags);
     MBSetFontColor(0xFFFFFF);
     MBSetFontAlpha(0);
-    MBDrawText(x, y, str);
+    MBDrawText(x, y, text);
     MBSetFontScaleSpace(1.0f, 1.0f);
-    gDrawTextY = y + (s32)((f32)MBFontHeight(glow_font) * scale);
+    {
+        f32 h = (f32)MBFontHeight(glow_font);
+        gDrawTextY = y + (s32)(h *= scale);
+    }
 }
 
 /* ==== 0x8001ED24 ScrollTextNum ==== */
@@ -496,14 +503,13 @@ s32 DrawStringTextMLines(s32 x, s32 y, s32 spacing, s32 font, u32 color, s32 msg
     MsgEnt* entry;
     f32 scale;
     f32 shScale;
+    f32 height;
     s32 defaultFont;
     s32 fontHeight;
     s32 msgLine;
     s32 lineCount;
     s32 line;
-    s32 off;
-    s32* linePtr;
-    u32 text;
+    char* text;
     va_list ap;
     s32 lines[16];
     volatile u8 unused[20];
@@ -511,7 +517,6 @@ s32 DrawStringTextMLines(s32 x, s32 y, s32 spacing, s32 font, u32 color, s32 msg
     info = (BTextPoolView*)font_info;
     entry = &info->stringList.msgs[msg];
     msgLine = 0;
-    lineCount = msgLine;
     if (spacing < 0) {
         spacing = gLineSpacing;
     }
@@ -521,7 +526,8 @@ s32 DrawStringTextMLines(s32 x, s32 y, s32 spacing, s32 font, u32 color, s32 msg
     if (font < 0 || (font < 10 && defaultFont >= 10)) {
         font = defaultFont;
     }
-    fontHeight = (s32)(scale * (f32)MBFontHeight(font));
+    height = (f32)MBFontHeight(font);
+    fontHeight = (s32)(height *= scale);
     spacing += fontHeight;
     if ((y & 0x1000) != 0) {
         y &= ~0x1000;
@@ -529,34 +535,31 @@ s32 DrawStringTextMLines(s32 x, s32 y, s32 spacing, s32 font, u32 color, s32 msg
     }
 
     info->workBuf[0x400] = 0;
+    lineCount = 0;
     while (lineCount < entry->count) {
         if (lineCount == 16) {
             break;
         }
-        text = (u32)GetStringTextSub(&info->stringList, msg, msgLine++, 0);
-        if (text == 0) {
+        text = GetStringTextSub(&info->stringList, msg, msgLine++, 0);
+        if ((u32)text == 0) {
             if (lineCount == 0) {
                 ErrorPrintf("DrawStringTextMLines: Msg=%d idx=%d > max", msg, msgLine);
             }
             break;
         }
-        strcat(info->workBuf + 0x400, (char*)text);
+        strcat(info->workBuf + 0x400, text);
         strcat(info->workBuf + 0x400, "\n");
         lineCount++;
     }
 
     va_start(ap, msg);
     vsprintf((char*)info->workBuf, (char*)info->workBuf + 0x400, ap);
-    lineCount = FixMLineText((s32*)info->workBuf, (s32*)info->formatBuf, (s32*)lines);
+    FixMLineText((s32*)info->workBuf, (s32*)info->formatBuf, (s32*)lines);
     line = 0;
-    off = line;
-    linePtr = (s32*)(u32)lines;
     while (line < lineCount) {
-        DrawTextSub(scale, shScale, x, y, font, color,
-                    *(u8**)((s32)linePtr + off));
+        DrawTextSub(scale, shScale, x, y, font, color, (u8*)lines[line]);
         y += spacing;
         line++;
-        off += 4;
     }
     gDrawTextY = y;
     return y;
@@ -752,7 +755,7 @@ s32 DrawStringTextSub(StrList* p, s32 msg, s32 x, s32 y, s32 spacing, u32 font, 
     s32 n;
     s32 i;
     s32 lines[16];
-    volatile u8 unused[12];
+    volatile u8 unused[20];
 
     ret = 0;
     if (spacing < 0) {
