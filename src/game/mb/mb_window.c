@@ -124,21 +124,6 @@ void MBWindowTo3D(s16* scr, MBCamNode* node, f32* out, f32 depth) {
     out[2] = tmp[2] + node->pos[2];
 }
 
-/* Shared s16 screen clamp of MBWindowProject (defined before it so
- * -inline auto folds it into both call sites). */
-static s16 ClampS16(f32 s) {
-    double v;
-
-    if (s < -32767.0) {
-        v = -32767.0;
-    } else if (s > 32767.0) {
-        v = 32767.0;
-    } else {
-        v = s;
-    }
-    return (s16)v;
-}
-
 /* 0x800BB8E8 - 3D world point -> screen (s16 x,y), optional eye-space out */
 #pragma opt_propagation off
 void MBWindowProject(f32* pt, MBCamNode* node, f32* outEye, s16* outScr) {
@@ -175,14 +160,21 @@ void MBWindowProject(f32* pt, MBCamNode* node, f32* outEye, s16* outScr) {
 }
 #pragma opt_propagation reset
 
+/* Seed MWCC's private literal pool in the order used by the retail object. */
+static double mbWindowHalf(void) {
+    return 0.5;
+}
+
+static f32 mbWindowOne(void) {
+    return 1.0f;
+}
+
 /* 0x800BBA34 - full view setup: sizes from the display info, rects, angles,
  * clip planes, identity transform. Returns the current window. */
 MBWINDOW* fn_800BBA34(f32 ang, f32 hang) {
     MBWINDOW* w = lbl_80344EE8;
     s32 wpx;
     s32 hpx;
-    f32 fw;
-    f32 fh;
     u8 unused[16];
 
     wpx = gWinGlobals->disp->w;
@@ -196,14 +188,10 @@ MBWINDOW* fn_800BBA34(f32 ang, f32 hang) {
     w->halfW = 0.5 * w->width;
     w->halfH2 = 0.5 * w->height;
     w->unk198 = 0.0f;
-    fw = (f32)wpx;
-    fh = (f32)hpx;
     w->rect1[0] = 0.0f;
     w->rect2[0] = 0.0f;
-    w->rect1[1] = fw;
-    w->rect2[1] = fw;
-    w->rect1[2] = fh;
-    w->rect2[2] = fh;
+    w->rect2[1] = w->rect1[1] = (f32)wpx;
+    w->rect2[2] = w->rect1[2] = (f32)hpx;
     w->rect1[3] = 0.0f;
     w->rect2[3] = 0.0f;
     MBWindowSetAng(ang, hang);
