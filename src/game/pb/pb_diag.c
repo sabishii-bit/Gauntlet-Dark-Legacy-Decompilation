@@ -209,10 +209,21 @@ extern void sndFxResetVoices(void);
 void pbDiagDrawSoundRow(void);
 
 /* audio browser: bank/sound/voice playback console over the sound driver */
+typedef struct SndSlots {
+    u8  _pad0[28];
+    s32 slots[64];  /* 0x1C */
+} SndSlots;
+
+typedef struct VoiceRec {
+    u8  _pad0[20];
+    f32 dur;        /* 0x14 */
+    u8  _pad18[4];
+} VoiceRec;         /* 28-byte voice record */
+
 s32 pbDiagDrawAudio(void)
 {
-    u32* b = buttons;
     char* strs = lbl_80114E90;
+    u32* b = buttons;
     u8* bank;
     u8* snd;
     u8* sub;
@@ -252,13 +263,14 @@ s32 pbDiagDrawAudio(void)
     pbDiagDrawSoundRow();
     bank = sAudioBankTable->banks + gDiag_D28 * 9364;
     snd = bank + gDiag_D2C * 292 + 20;
-    sub = sAudioBankTable->subs + *(s32*)(snd + gDiag_D34 * 4 + 28) * 44;
+    sub = sAudioBankTable->subs + ((SndSlots*)snd)->slots[gDiag_D34] * 44;
     voice = sAudioBankTable->voices + *(s16*)(sub + 38) * 28;
     if (gDiag_D58 != 0 && sMusicFadeBase >= gDiag_D5C) {
         if (gDiag_D58 >= 2 && gDiag_D58 <= 4) {
             gDiag_D30 = gDiag_D30 + 1;
         } else if (gDiag_D58 > 4) {
-            gDiag_D30 = RandInt() + gDiag_D30 + 1;
+            v = RandInt() + gDiag_D30;
+            gDiag_D30 = v + 1;
         }
         while (gDiag_D30 >= *(s16*)(sub + 36)) {
             gDiag_D30 = gDiag_D30 - *(s16*)(sub + 36);
@@ -273,7 +285,7 @@ s32 pbDiagDrawAudio(void)
             sub = sAudioBankTable->subs + *(s32*)(q + gDiag_D34 * 4 + 48) * 44;
         }
         voice = sAudioBankTable->voices + *(s16*)(sub + 38) * 28;
-        if (*(f32*)(voice + gDiag_D30 * 28 + 20) > lbl_80348678) {
+        if (((VoiceRec*)voice)[gDiag_D30].dur > lbl_80348678) {
             if (*(s32*)(snd + 284) != gDiag_D34) {
                 AudioClearTracks();
                 gDiag_D60 = AudioBankQueueName(snd, sub + 16, 0);
@@ -285,12 +297,9 @@ s32 pbDiagDrawAudio(void)
             gDiag_D60 = v;
             gDiag_D54 = (v >> 8) & 0xFF;
             if (gDiag_D58 <= 2) {
-                dur = *(f32*)(voice + gDiag_D30 * 28 + 20);
+                dur = ((VoiceRec*)voice)[gDiag_D30].dur;
                 hold = lbl_80348680;
-                if (hold < dur) {
-                } else {
-                    hold = dur;
-                }
+                hold = (hold < dur) ? hold : dur;
                 gDiag_D5C = (f32)(sMusicFadeBase + hold);
             } else if (gDiag_D58 == 4) {
                 gDiag_D5C = (f32)(lbl_80348688 + sMusicFadeBase);
@@ -333,7 +342,7 @@ s32 pbDiagDrawAudio(void)
             if (gDiag_D34 < *(s32*)(snd + 24) - 1) {
                 gDiag_D34 = gDiag_D34 + 1;
                 sub = sAudioBankTable->subs +
-                      *(s32*)(snd + gDiag_D34 * 4 + 28) * 44;
+                      ((SndSlots*)snd)->slots[gDiag_D34] * 44;
             } else {
                 gDiag_D34 = 0;
                 gDiag_D2C = (gDiag_D2C + 1) % *(s32*)(bank + 16);
@@ -345,7 +354,7 @@ s32 pbDiagDrawAudio(void)
             if (gDiag_D34 > 0) {
                 gDiag_D34 = gDiag_D34 - 1;
                 sub = sAudioBankTable->subs +
-                      *(s32*)(snd + gDiag_D34 * 4 + 28) * 44;
+                      ((SndSlots*)snd)->slots[gDiag_D34] * 44;
             } else {
                 gDiag_D2C = gDiag_D2C - 1;
                 if (gDiag_D2C < 0) {
@@ -354,7 +363,7 @@ s32 pbDiagDrawAudio(void)
                 snd = bank + gDiag_D2C * 292 + 20;
                 gDiag_D34 = *(s32*)(snd + 24) - 1;
                 sub = sAudioBankTable->subs +
-                      *(s32*)(snd + gDiag_D34 * 4 + 28) * 44;
+                      ((SndSlots*)snd)->slots[gDiag_D34] * 44;
             }
         } else {
             break;
@@ -376,13 +385,10 @@ s32 pbDiagDrawAudio(void)
                 v = sndFxStartVoice(gDiag_D4C, id, gDiag_D40, 0, gDiag_D44, gDiag_D50);
                 gDiag_D60 = v;
                 gDiag_D54 = (v >> 8) & 0xFF;
-                dur = *(f32*)(voice + gDiag_D30 * 28 + 20);
+                dur = ((VoiceRec*)voice)[gDiag_D30].dur;
                 if (dur > lbl_80348678) {
                     hold = lbl_80348680;
-                    if (hold < dur) {
-                    } else {
-                        hold = dur;
-                    }
+                    hold = (hold < dur) ? hold : dur;
                     gDiag_D5C = (f32)(sMusicFadeBase + hold);
                 } else {
                     gDiag_D5C = lbl_8034869C + sMusicFadeBase;
@@ -399,7 +405,7 @@ s32 pbDiagDrawAudio(void)
         v = sndFxStartVoice(gDiag_D4C, id, gDiag_D40, 0, gDiag_D44, gDiag_D50);
         gDiag_D60 = v;
         gDiag_D54 = (v >> 8) & 0xFF;
-        dur = *(f32*)(voice + gDiag_D30 * 28 + 20);
+        dur = ((VoiceRec*)voice)[gDiag_D30].dur;
         if (dur > lbl_80348678) {
             hold = lbl_80348680;
             if (hold < dur) {
@@ -479,7 +485,7 @@ s32 pbDiagDrawAudio(void)
         v = sndFxStartVoice(gDiag_D4C, id, gDiag_D40, 0, gDiag_D44, gDiag_D50);
         gDiag_D60 = v;
         gDiag_D54 = (v >> 8) & 0xFF;
-        dur = *(f32*)(voice + gDiag_D30 * 28 + 20);
+        dur = ((VoiceRec*)voice)[gDiag_D30].dur;
         if (dur > lbl_80348678) {
             hold = lbl_80348680;
             if (hold < dur) {
