@@ -1349,6 +1349,7 @@ extern void* lbl_80344E48;
 extern s32 saveGetFreeBytes(s32 chan, s32 handle);
 static s32 sel_set_choice(s32 player, s32 mode);
 
+#pragma opt_propagation off
 static void do_sel_menu_8008E4F4(s32 player, u32 mode)
 {
     s32* xp;
@@ -1362,19 +1363,21 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
     s32 x;
     f32 scale;
     u8* pl;
+    f32 scale0;
     char buf[32];
 
+    scale0 = lbl_80343DE0;
     xp = (s32*)(lbl_80121688 + (player << 2));
     pool = lbl_801143F8;
     pl = gPlayers + player * 13148;
-    scale = lbl_80343DE0;
+    scale = scale0;
     lh = lbl_80343DDC;
     font = lbl_80344BC4;
     showSel = 1;
     showBack = 0;
     x = *xp;
-    sz = (s32)(lbl_80347F60 * scale);
-    sz2 = (s32)(lbl_80347F60 * scale);
+    sz = (s32)(lbl_80347F60 * scale0);
+    sz2 = (s32)(lbl_80347F60 * scale0);
 
     switch (mode) {
     case 0:
@@ -1393,13 +1396,15 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
         DrawTextKeepScale(lbl_80347F64, nx, 90, 6, 0xFFFFFF, lbl_80347F70);
         DrawTextKeepScale(lbl_80347F64, nx, 116, 6, 0xFFFFFF,
                           lbl_80347F78);
-        bx = *xp + sz + 10;
+        bx = *xp + sz;
+        bx += 10;
         y2 = lbl_80343DE4;
         lh = 20;
         x2 = bx - sz;
         MBNewTempBlit(lbl_80344E30, x2, y2, sz, sz2);
         MBNewTempBlit(lbl_80344E2C, bx, y2, sz, sz2);
-        tx = bx + (sz + 8);
+        tx = sz + 8;
+        tx = bx + tx;
         DrawTextKeepScale(scale, tx, y2 + 4, font, 0xFFFFFF, lbl_80347F1C);
         MBNewTempBlit(lbl_80344E38, x2, y2 + 20, sz, sz2);
         MBNewTempBlit(lbl_80344E34, bx, y2 + 20, sz, sz2);
@@ -1415,21 +1420,25 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
         break;
     }
     case 3: {
-        s32 bx = x + sz + 10;
+        s32 bx = x + sz;
         s32 by = lbl_80343DE4 + 52;
         s32 t;
+        bx += 10;
         lh = 20;
         MBNewTempBlit(lbl_80344E38, bx - sz, by, sz, sz2);
         MBNewTempBlit(lbl_80344E34, bx, by, sz, sz2);
-        DrawTextKeepScale(scale, bx + (sz + 8), lbl_80343DE4 + 56, font,
+        DrawTextKeepScale(scale, bx + (sz + 8), by + 4, font,
                           0xFFFFFF, lbl_80347F1C);
         if (*(s32*)(pl + 16) < 8) {
             t = 1;
         } else {
             t = 1;
-            if (*(u16*)(pl + 2700) & (t << (*(s32*)(pl + 16) - 8))) {
-            } else {
+            switch (*(u16*)(pl + 2700) & (t << (*(s32*)(pl + 16) - 8))) {
+            case 0:
                 t = 0;
+                break;
+            default:
+                break;
             }
         }
         if (t != 0) {
@@ -1769,8 +1778,9 @@ io_done:
 
     if (showSel != 0) {
         s32 bx = *xp + 20;
+        s32 t8 = sz + 8;
         MBNewTempBlit(lbl_80344E48, bx, 252, sz, sz2);
-        DrawTextKeepScale(scale, bx + (sz + 8), 256, font, 0xFFFFFF,
+        DrawTextKeepScale(scale, bx + t8, 256, font, 0xFFFFFF,
                           lbl_80348008);
     }
     if (showBack != 0) {
@@ -1782,11 +1792,15 @@ io_done:
             by = lh + 262;
         }
         bx = *xp + 20;
-        MBNewTempBlit(lbl_80344E44, bx, by, sz, sz2);
-        DrawTextKeepScale(scale, bx + (sz + 8), by + 4, font, 0xFFFFFF,
-                          lbl_80348010);
+        {
+            s32 t8 = sz + 8;
+            MBNewTempBlit(lbl_80344E44, bx, by, sz, sz2);
+            DrawTextKeepScale(scale, bx + t8, by + 4, font, 0xFFFFFF,
+                              lbl_80348010);
+        }
     }
 }
+#pragma opt_propagation reset
 
 void init_player_change(s32 idx, s32 arg1)
 {
