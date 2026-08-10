@@ -515,6 +515,7 @@ static f32 GetPlayerViewDist(void* mtx) {
     }
     return best;
 }
+#pragma opt_propagation off
 static void GetBossAvgPos(f32* out, f32 t, f32* p4, f32* p5, s32 mode) {
     f32* bpos = (f32*)(gBossObj + 76);
     s32 i;
@@ -524,10 +525,19 @@ static void GetBossAvgPos(f32* out, f32 t, f32* p4, f32* p5, s32 mode) {
         out[1] = bpos[1];
         out[2] = bpos[2];
     } else if (mode == 0) {
-        f32 s = t + lbl_80345BE0;
-        f32 r = lbl_80345BE0 / s;
-        f64 w = (s - lbl_80345BE0) * r;
-        out[0] = out[0] * w;
+        f64 c;
+        f32 s;
+        f32 o0;
+        f32 r;
+        f64 w;
+        f64 d;
+        c = lbl_80345BE0;
+        o0 = out[0];
+        s = t + c;
+        r = c / s;
+        d = s - c;
+        w = d * r;
+        out[0] = o0 * w;
         out[1] = out[1] * w;
         out[2] = out[2] * w;
         out[0] = bpos[0] * r + out[0];
@@ -556,17 +566,31 @@ static void GetBossAvgPos(f32* out, f32 t, f32* p4, f32* p5, s32 mode) {
             hi[2] = lbl_80345BA4;
         }
         for (i = 0; i < 3; i++) {
+            f32 h;
+            f32 l;
             f32 b = bpos[i];
-            f32 h = hi[i];
-            f32 l = lo[i];
-            if (h >= b) h = b;
-            hi[i] = h;
-            if (l <= b) l = b;
-            lo[i] = l;
-            out[i] = lbl_80345BA8 * (hi[i] + lo[i]);
+            f32* hp = &hi[i];
+            f32* lp;
+            h = *hp;
+            if (h < b) {
+                asm { b keep_h }
+            }
+            h = b;
+        keep_h:
+            *hp = h;
+            lp = &lo[i];
+            l = *lp;
+            if (l > b) {
+                asm { b keep_l }
+            }
+            l = b;
+        keep_l:
+            *lp = l;
+            out[i] = lbl_80345BA8 * (*hp + *lp);
         }
     }
 }
+#pragma opt_propagation reset
 /* Averaged view/aim vector (0x4B4, atan2 + sin/cos).  Parked: large fp body. */
 static void GetActualAvgVec(f32* out) { (void)out; }
 
