@@ -649,6 +649,154 @@ f32 fn_8005B198(f32 radius, f32* position, Item** result)
     return best_distance;
 }
 
+extern f64 lbl_80346EE8;
+extern f64 lbl_80346EF0;
+extern f64 lbl_80346EF8;
+extern f64 lbl_80346F00;
+extern f64 lbl_80346F08;
+extern f32 fqdist(f32 x, f32 y);
+
+/* Find the closest eligible world item in front of a directed probe. */
+f32 fn_8005B274(f32* position, f32 bias, f32 radius, f32* direction,
+                f32* resultPosition, Item** resultItem)
+{
+    f32 delta[3];
+    u8 unused[4];
+    f32 dot;
+    f32 weighted;
+    f32 absY;
+    f64 maxInset;
+    f64 normalScale;
+    f64 subtypeScale;
+    f64 heightScale;
+    f32 bestX;
+    f32 bestY;
+    f32 bestZ;
+    f32 distance;
+    f32 best;
+    f32 scale;
+    s32* sub;
+    s32 index;
+    s32 bestIndex;
+    s32 type;
+    s16 active;
+    u8* item;
+    u8* info;
+
+    scale = (f32)((lbl_80346EE8 - bias) / radius);
+    best = radius;
+    bestIndex = -1;
+    StartEnemyGrid(position, radius);
+    subtypeScale = lbl_80346EF8;
+    normalScale = lbl_80346F00;
+    maxInset = lbl_80346F08;
+    heightScale = lbl_80346EF0;
+
+    while ((index = NextGridEnemy()) >= 0) {
+        item = (u8*)&sItems[index];
+        active = *(s16*)(item + 196);
+        if (active == -1 || (active & 0x8100) != 0 ||
+            *(s8*)(item + 207) == -1) {
+            continue;
+        }
+        info = *(u8**)item;
+        type = *(s32*)info;
+        if (type == -1) {
+            continue;
+        }
+        if (*(s8*)(item + 205) != 0) {
+            continue;
+        }
+        sub = (s32*)(info + 4);
+        if ((active & 0x4000) == 0) {
+            continue;
+        }
+        switch (type) {
+        case 2:
+        case 10:
+            if (type == 2 && *sub != 43 && *sub != 44 && *sub != 45) {
+                continue;
+            }
+            if (type == 10 && *sub == 41) {
+                continue;
+            }
+            if ((*sub == 43 || *sub == 44 || *sub == 45) &&
+                *(s8*)(item + 200) > 0) {
+                continue;
+            }
+            goto check_type5;
+        case 5:
+check_type5:
+            if (type == 5 && *sub != 31) {
+                continue;
+            }
+            break;
+        case 3:
+            break;
+        default:
+            continue;
+        }
+
+        delta[0] = *(f32*)(item + 84) - position[0];
+        delta[1] = *(f32*)(item + 88) - position[1];
+        delta[2] = *(f32*)(item + 92) - position[2];
+        absY = delta[1];
+        *(u32*)&absY &= 0x7FFFFFFF;
+        if (absY > heightScale * *(f32*)((u8*)sub + 12)) {
+            continue;
+        }
+        distance = NormalVector(delta);
+        if (*(s32*)*(u8**)item != 3) {
+            if (*sub == 44) {
+                distance *= subtypeScale;
+            } else if (*sub == 45) {
+                distance *= subtypeScale;
+            } else {
+                distance *= normalScale;
+            }
+        }
+        distance -=
+            (((f64)*(f32*)((u8*)sub + 8) < maxInset)
+                ? (f64)*(f32*)((u8*)sub + 8) : maxInset);
+        if (distance > radius) {
+            continue;
+        }
+        {
+            f32 dotPart;
+            f32 weightedBase;
+            f32 q;
+
+            q = fqdist(delta[0], delta[2]);
+            weightedBase = distance * scale + bias;
+            dotPart = delta[2] * direction[2];
+            weighted = q * weightedBase;
+            dot = delta[0] * direction[0] + dotPart;
+            if (dot < weighted) {
+                continue;
+            }
+        }
+        if (distance < best) {
+            best = distance;
+            bestIndex = index;
+            bestX = delta[0];
+            bestY = delta[1];
+            bestZ = delta[2];
+        }
+    }
+
+    if (bestIndex >= 0) {
+        resultPosition[0] = bestX;
+        resultPosition[1] = bestY;
+        resultPosition[2] = bestZ;
+        if (resultItem != 0) {
+            *resultItem = &sItems[bestIndex];
+        }
+    } else if (resultItem != 0) {
+        *resultItem = 0;
+    }
+    return best;
+}
+
 /* Item-pool queries used by the world dispatcher and camera/UI code. */
 Item* fn_8005B558(s32 id)
 {
