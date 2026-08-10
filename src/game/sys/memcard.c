@@ -184,7 +184,7 @@ extern s32 lbl_80344A24;           /* card serial word 1                    */
 extern u32 lbl_80343C78;           /* directory refresh flags               */
 
 /* misc timing / UI globals */
-extern s32 sSeconds;               /* frame-driven second counter           */
+extern u32 sSeconds;               /* frame-driven second counter           */
 extern float lbl_803472F0;         /* probe time-out threshold (seconds)    */
 extern double lbl_803472F8;        /* int->double magic bias (0x43300000..) */
 extern void* gWinGlobals;
@@ -987,12 +987,10 @@ u8 loadGauntletSave(void)
     s32 scratch;
     s32 sel;
     s32 sel2;
-    u32 convBuf[2];
     s32 volatile bigSize;
     u8* volatile dirTab;
     char** volatile opts;
     void* volatile removedCb;
-    u32 volatile hiWord;
     u8 keepPair;
     u8 keepSerial;
     u8 keepSerial2;
@@ -1017,7 +1015,6 @@ u8 loadGauntletSave(void)
     s32 memSize;
     s32 sectorSize;
     u8 stat[112];
-    f64 kbias = lbl_803472F8;
     f32 timeout = lbl_803472F0;
     f32 startSec;
 
@@ -1025,7 +1022,6 @@ u8 loadGauntletSave(void)
     opts = (char**)&optionsAudioAndPrefs30;
     dirTab = lbl_80274578;
     removedCb = cardRemovedCallback;
-    hiWord = 0x43300000;
     bigSize = 0x10000;
 
 retry:
@@ -1041,15 +1037,11 @@ retry:
     }
 
     pbPulseTime();
-    convBuf[1] = sSeconds;
-    convBuf[0] = hiWord;
-    startSec = *(f64*)convBuf - kbias;
+    startSec = (f32)sSeconds;
     for (;;) {
         scan = CARDProbeEx(0, &memSize, &sectorSize);
         pbPulseTime();
-        convBuf[1] = sSeconds;
-        convBuf[0] = hiWord;
-        if ((f32)(*(f64*)convBuf - kbias) - startSec > timeout) {
+        if ((f32)sSeconds - startSec > timeout) {
             CARD_RETRY_PROMPT(dpool + 1052, keepTime);
         }
         if (scan != -1) {
@@ -1343,15 +1335,18 @@ int writeGauntletSave(void)
     u32 serial[2];
     u8* img;
     u8* p;
+    u8* q;
     u32 sum;
     int i;
     s32 zero;
     u8 retryFlag;
+    u8 retryFlag2;
     u32 count;
+    u32 big;
+    u32 okay;
 
-    zero = 0;
-    serial[0] = 0;
     serial[1] = 0;
+    serial[0] = 0;
 
     if (lbl_803449EC == 0) {
         lbl_803449EC = (u32) loadOpeningBanner();
@@ -1360,10 +1355,12 @@ int writeGauntletSave(void)
         }
         lbl_803449E8 = 0;
         lbl_803449E4 = 0;
-        TEXGetPalette(0, rpool + 672);
-        TEXGetPalette(0, rpool + 696);
+        TEXGetPalette((int)&lbl_803449E4, rpool + 672);
+        TEXGetPalette((int)&lbl_803449E8, rpool + 696);
     }
 
+    okay = 0x4F4B4159;
+    big = 0x10000;
 retry:
     for (i = 0; i < 2; i++) {
         pageSaveCacheOut();
@@ -1372,16 +1369,19 @@ retry:
     }
 
     cardMount(0, lbl_803449FC, cardRemovedCallback);
-    cardWaitResult();
-    if (cardGetResult() != 0) {
-        return 0;
+    if (cardWaitResult() != 0) {
+        asm { b mount_fail }
     }
     CARDGetSerialNo(0, serial);
-
+    goto mount_cont;
+mount_fail:
+    return 0;
+mount_cont:
+    zero = 0;
     if (((((u32) lbl_80344A20) ^ zero) | (((u32) lbl_80344A24) ^ zero)) != 0 &&
         ((serial[0] ^ (u32) lbl_80344A20) | (serial[1] ^ (u32) lbl_80344A24)) !=
             0) {
-        switch (saveMenuPrompt(rpool + 1516, lbl_80343C6C, 2)) {
+        switch (saveMenuPrompt(dpool + 1516, lbl_80343C6C, 2)) {
         case 0:
             retryFlag = 1;
             break;
@@ -1400,18 +1400,21 @@ retry:
     }
 
     /* stamp record header + checksum */
-    img = buildSaveImage(lbl_8011D550, rpool + 716, (int) lbl_803449EC,
-                         (int) lbl_803449E4, 2, 0, (char*) lbl_803449E8);
-    *(u32*) (lbl_80343C74 + 4) = 0x4F4B4159;           /* "OKAY" */
-    *(u32*) lbl_80343C74 = 0;
+    img = buildSaveImage(dpool + 1904, (void*) lbl_803449EC,
+                         (int) lbl_803449E4, (int) lbl_803449E8, 2, 0,
+                         (const char*) (rpool + 716));
+    *(u32*) (lbl_80343C74 + 4) = okay;                 /* "OKAY" */
     sum = 0;
-    count = 0x10000 - 23992;
-    p = lbl_80343C74;
-    for (i = 0; i < count; i++) {
-        sum += *p++;
-    }
     *(u32*) lbl_80343C74 = sum;
-    memcpy(img, lbl_80343C74, 5193 * 8);
+    p = lbl_80343C74;
+    q = p;
+    if ((count = big - 23992) != 0) {
+        for (; count != 0; count--) {
+            sum += *q++;
+        }
+    }
+    *(u32*) p = sum;
+    *(SaveBlob*) img = *(SaveBlob*) lbl_80343C74;
 
     for (i = 0; i < 2; i++) {
         pageSaveCacheOut();
@@ -1420,21 +1423,28 @@ retry:
     }
 
     cardWriteFile(0, lbl_8026A2C4, (void*) lbl_803449F8);
-    cardWaitResult();
-    if (cardGetResult() != 0) {
-        if (saveMenuPrompt(rpool + 1516, lbl_80343C6C, 2) == 1) {
-            lbl_80344A24 = 0;
+    if (cardWaitResult() != 0) {
+        switch (saveMenuPrompt(dpool + 1516, lbl_80343C6C, 2)) {
+        case 0:
+            retryFlag2 = 1;
+            break;
+        case 1:
+            retryFlag2 = 0;
+            lbl_80344A24 = retryFlag2;
             lbl_80344A18 = -1;
             lbl_80344A14 = -1;
-            lbl_80344A20 = 0;
-            return 0;
+            lbl_80344A20 = retryFlag2;
+            break;
         }
-        goto retry;
+        if (retryFlag2) {
+            goto retry;
+        }
+        return 0;
     }
 
     lbl_80344A24 = serial[1];
     lbl_80344A20 = serial[0];
-    cardReadFile(0, lbl_80344A04, (void*) lbl_803449F8);
+    cardLoadFile(0, lbl_80344A04);
     cardWaitResult();
     cardUnmount(0);
     cardWaitResult();
