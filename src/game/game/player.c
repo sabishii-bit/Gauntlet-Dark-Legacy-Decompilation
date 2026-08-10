@@ -2225,10 +2225,10 @@ extern void ClearPlyrData(s32 player);
 /* +0 keys(s16) +2 potions(s16) +4 runes(u16) +6 shards(u16) +0xA pottypes +0x30 gold */
 
 /* powerup slot view: p + 0x130 + i*0x10 (11 slots) */
-#define PUP_STRENGTH(p, i) PF(p, 0x130 + (i) * 0x10, f32)
-#define PUP_TYPE(p, i)     PF(p, 0x134 + (i) * 0x10, s32)
-#define PUP_TIMER(p, i)    PF(p, 0x138 + (i) * 0x10, f32)
-#define PUP_MASK(p, i)     PF(p, 0x13C + (i) * 0x10, u32)
+#define PUP_TIMELEFT(p, i)     PF(p, 0x130 + (i) * 0x10, f32)
+#define PUP_TYPE(p, i)         PF(p, 0x134 + (i) * 0x10, s32)
+#define PUP_ATTRIBUTEADD(p, i) PF(p, 0x138 + (i) * 0x10, f32)
+#define PUP_SPECIALFLAGS(p, i) PF(p, 0x13C + (i) * 0x10, u32)
 #define PUP_DIRTY(p, i)    PF(p, 0x1E0 + (i), u8)
 
 /* attribute norms / derived stats */
@@ -3261,8 +3261,8 @@ void load_player(s32 i) {
     PF(p, 0x128, s32) = 0;
     PF(p, 0x12C, s32) = 0;
     for (j = 0; j < 11; j++) {
-        if (PUP_TYPE(p, j) == 9 && (PUP_MASK(p, j) & 8)) {
-            PUP_STRENGTH(p, j) = 0.0f;
+        if (PUP_TYPE(p, j) == 9 && (PUP_SPECIALFLAGS(p, j) & 8)) {
+            PUP_TIMELEFT(p, j) = 0.0f;
         }
     }
     PF(p, 0x8C4, s32) = 0;
@@ -4322,7 +4322,7 @@ void PlayerProcessMikeyPUP(void* vp) {
             /* t == 1: hatch */
             slot = -1;
             for (j = 0; j < 11; j++) {
-                if (PUP_TYPE(p, j) == 9 && PUP_MASK(p, j) == 0x100000) {
+                if (PUP_TYPE(p, j) == 9 && PUP_SPECIALFLAGS(p, j) == 0x100000) {
                     slot = j;
                     break;
                 }
@@ -4357,7 +4357,7 @@ void PlayerProcessMikeyPUP(void* vp) {
             /* despawn */
             slot = -1;
             for (j = 0; j < 11; j++) {
-                if (PUP_TYPE(p, j) == 9 && PUP_MASK(p, j) == 0x100000) {
+                if (PUP_TYPE(p, j) == 9 && PUP_SPECIALFLAGS(p, j) == 0x100000) {
                     slot = j;
                     break;
                 }
@@ -4382,7 +4382,7 @@ void PlayerProcessMikeyPUP(void* vp) {
     PF(p, 0xA1C, s16) = t + 1;
     slot = -1;
     for (j = 0; j < 11; j++) {
-        if (PUP_TYPE(p, j) == 9 && PUP_MASK(p, j) == 0x100000) {
+        if (PUP_TYPE(p, j) == 9 && PUP_SPECIALFLAGS(p, j) == 0x100000) {
             slot = j;
             break;
         }
@@ -4601,10 +4601,10 @@ static f32 ClosestChest(void* vp) {
 /* Query (and tick) the slot holding powerup type/mask.  Returns the   */
 /* remaining state: 0 gone, 1 permanent, else the ticking timer.       */
 typedef struct PlayerPowerupState {
-    f32 strength;
+    f32 timeleft;
     s32 type;
-    f32 timer;
-    u32 mask;
+    f32 attributeadd;
+    u32 specialflags;
 } PlayerPowerupState;
 
 typedef struct PlayerPowerupOverlay {
@@ -4631,17 +4631,17 @@ s32 player_get_powerup_state(f32 dt, void* vp, s32 type, u32 mask) {
     if (j < 11) {
         PlayerPowerupOverlay* overlay = (PlayerPowerupOverlay*)p;
 
-        r = (s32)overlay->powerups[j].timer;
-        if ((s32)overlay->powerups[j].timer < 0) {
+        r = (s32)overlay->powerups[j].attributeadd;
+        if ((s32)overlay->powerups[j].attributeadd < 0) {
             r = 1;
         } else if (sMusicTrackHi != 0xD) {
             if (dt < 0.0f) {
-                overlay->powerups[j].timer = 0.0f;
+                overlay->powerups[j].attributeadd = 0.0f;
             } else {
-                overlay->powerups[j].timer -= dt;
+                overlay->powerups[j].attributeadd -= dt;
             }
-            if (overlay->powerups[j].timer <= 0.0f) {
-                overlay->powerups[j].strength = 0.0f;
+            if (overlay->powerups[j].attributeadd <= 0.0f) {
+                overlay->powerups[j].timeleft = 0.0f;
             }
         }
     }
@@ -4659,17 +4659,17 @@ void PlayerAddPowerup(f32 duration, f32 strength, void* vp, s32 type, u32 mask) 
 
     str = strength * PF(lbl_80282930[p->index], 0x58, f32);
     for (j = 0; j < 11; j++) {
-        if (PUP_TYPE(p, j) == type && PUP_MASK(p, j) == mask) {
+        if (PUP_TYPE(p, j) == type && PUP_SPECIALFLAGS(p, j) == mask) {
             if (duration > 0.0) {
-                PUP_TIMER(p, j) += duration;
+                PUP_ATTRIBUTEADD(p, j) += duration;
             }
-            if (PUP_STRENGTH(p, j) >= 0.0f && str > 0.0) {
-                PUP_STRENGTH(p, j) += 0.25 * str;
+            if (PUP_TIMELEFT(p, j) >= 0.0f && str > 0.0) {
+                PUP_TIMELEFT(p, j) += 0.25 * str;
             } else if (str < 0.0) {
-                PUP_STRENGTH(p, j) = str;
+                PUP_TIMELEFT(p, j) = str;
             }
             if (mask & 8) {
-                lbl_80344B20 = PUP_STRENGTH(p, j);
+                lbl_80344B20 = PUP_TIMELEFT(p, j);
             }
             return;
         }
@@ -4677,7 +4677,7 @@ void PlayerAddPowerup(f32 duration, f32 strength, void* vp, s32 type, u32 mask) 
     /* find the weakest/free slot */
     best = 1000000.0f;
     for (j = 0; j < 11; j++) {
-        w = PUP_STRENGTH(p, j);
+        w = PUP_TIMELEFT(p, j);
         if (w < 0.0f) {
             w = (PUP_TYPE(p, j) == type) ? 999999.0f : 1000000.0f;
         }
@@ -4689,10 +4689,10 @@ void PlayerAddPowerup(f32 duration, f32 strength, void* vp, s32 type, u32 mask) 
             break;
         }
     }
-    PUP_STRENGTH(p, pick) = str;
+    PUP_TIMELEFT(p, pick) = str;
     PUP_TYPE(p, pick) = type;
-    PUP_TIMER(p, pick) = duration;
-    PUP_MASK(p, pick) = mask;
+    PUP_ATTRIBUTEADD(p, pick) = duration;
+    PUP_SPECIALFLAGS(p, pick) = mask;
     if (mask & 8) {
         lbl_80344B20 = str;
     }
@@ -5073,7 +5073,7 @@ void mini_inventory_update(s32 i) {
         return;
     }
     if (tb->state == 1) {
-        if (PUP_STRENGTH(p, tb->sel) == 0.0 ||
+        if (PUP_TIMELEFT(p, tb->sel) == 0.0 ||
             (lbl_80240E38[i * 0xF] & 0x10000000)) {
             AudioCursorH();
             moved = 1;
@@ -5120,7 +5120,7 @@ void mini_inventory_update(s32 i) {
                 for (j = 0; j < lbl_80343D68; j++) {
                     tb->label = (char*)lbl_8011FCE8[j * 3 + 2];
                     if (lbl_8011FCE8[j * 3 + 1] ==
-                            (lbl_8011FCE8[j * 3 + 1] & (s32)PUP_MASK(p, tb->sel)) &&
+                            (lbl_8011FCE8[j * 3 + 1] & (s32)PUP_SPECIALFLAGS(p, tb->sel)) &&
                         PUP_TYPE(p, tb->sel) == lbl_8011FCE8[j * 3]) {
                         break;
                     }
@@ -5151,7 +5151,7 @@ void mini_inventory_update(s32 i) {
             for (j = 0; j < lbl_80343D68; j++) {
                 tb->label = (char*)lbl_8011FCE8[j * 3 + 2];
                 if (lbl_8011FCE8[j * 3 + 1] ==
-                        (lbl_8011FCE8[j * 3 + 1] & (s32)PUP_MASK(p, tb->sel)) &&
+                        (lbl_8011FCE8[j * 3 + 1] & (s32)PUP_SPECIALFLAGS(p, tb->sel)) &&
                     PUP_TYPE(p, tb->sel) == lbl_8011FCE8[j * 3]) {
                     break;
                 }
@@ -5221,7 +5221,7 @@ previous_slot:
         return -1;
     }
 check_slot:
-    if ((f64)p->powerup[sel].strength == 0.0) {
+    if ((f64)p->powerup[sel].timeleft == 0.0) {
         goto previous_slot;
     }
     return sel;
@@ -5255,7 +5255,7 @@ count_check:
         return -1;
     }
 check_slot:
-    if ((f64)p->powerup[sel].strength == 0.0) {
+    if ((f64)p->powerup[sel].timeleft == 0.0) {
         goto next_slot;
     }
     return sel;
