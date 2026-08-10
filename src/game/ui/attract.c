@@ -592,6 +592,15 @@ static void attract_start_screen2d(void) {
 /* Build a Screen2D entry (background blit "AAANULLOBJ", scroll texture */
 /* "Scroll_A", font and stream music) for the requested slot.          */
 /* ================================================================== */
+typedef struct AttractRecView {
+    u8 _pad[284];
+    s32 modelId;    /* abs 284 = rec+52 */
+    s32 fontFlag;   /* abs 288 = rec+56 */
+    s8 streamCh;    /* abs 292 = rec+60 (first stream-name char) */
+    u8 _pad2[15];
+    s32 streamArg;  /* abs 308 = rec+76 */
+} AttractRecView;
+
 int init_screen2d(int a, int slot) {
     char* base = lbl_80118188;
     char* p;
@@ -620,7 +629,7 @@ int init_screen2d(int a, int slot) {
     so = slot * 320;
     p = base + so + 232;
     lbl_80344224 = LoadModel(p + lbl_80344238 * 80, 0, 0, -1);
-    if (*(int*)(base + so + lbl_80344238 * 80 + 288) >= 0) {
+    if (((AttractRecView*)(base + so + lbl_80344238 * 80))->fontFlag >= 0) {
         FontInitSpecial((void*)gauntFontName, 8);
     }
 
@@ -630,14 +639,16 @@ int init_screen2d(int a, int slot) {
                                     *(int*)(base + i * 8 + 204));
     }
 
-    if ((sAudioOverride = 1) != 0 &&
-        *(signed char*)(base + so + lbl_80344238 * 80 + 292) != 0) {
-        AudioBuildStreamName(p + lbl_80344238 * 80 + 60,
-                             *(int*)(base + so + lbl_80344238 * 80 + 308));
+    if ((sAudioOverride = 1) != 0) {
+        int off = lbl_80344238 * 80;
+        AttractRecView* v = (AttractRecView*)(base + so + off);
+        if (v->streamCh != 0) {
+            AudioBuildStreamName(p + off + 60, v->streamArg);
+        }
     }
 
     lbl_80344298 = 0;
-    lbl_80344228 = *(int*)(base + so + lbl_80344238 * 80 + 284);
+    lbl_80344228 = ((AttractRecView*)(base + so + lbl_80344238 * 80))->modelId;
     lbl_80344230 = 0;
     lbl_80344234 = 0;
     lbl_8034422C = 0;

@@ -678,8 +678,8 @@ void msgDraw(void)
             DrawStringText(x, labelWidth, -1, gMessageFontFlags, 2, playerWorld);
             worldWidth = x + worldWidth;
             DrawStringText(worldWidth + 10, labelWidth, -1, gMessageFontFlags, 3, playerClass);
-            classWidth = worldWidth + classWidth;
-            DrawStringText(classWidth + 0x14, labelWidth, -1, gMessageFontFlags,
+            y = worldWidth + classWidth;
+            DrawStringText(y + 0x14, labelWidth, -1, gMessageFontFlags,
                            0x18, 0);
             DrawStringText(-gMessageCenterX, centerY, -1, gMessageFontFlags,
                            0x18, 1, gMessageValue);
