@@ -1793,13 +1793,13 @@ found_target_player:
             moveDelta[1] = cam->wpos[1] - cam->attn[1];
             moveDelta[2] = cam->wpos[2] - cam->attn[2];
             dx = moveDelta[0];
-            dy = moveDelta[1];
             dz = moveDelta[2];
+            dy = moveDelta[1];
             squaredX = dx * dx;
-            squaredZ = dz * dz;
+            dz *= dz;
             squaredY = dy * dy;
             distance = squaredX + squaredY;
-            distance = squaredZ + distance;
+            distance = dz + distance;
             if (distance > *(volatile f32*)&lbl_80345EC8) {
                 f64 guess = __frsqrte(distance);
                 guess = lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance);
