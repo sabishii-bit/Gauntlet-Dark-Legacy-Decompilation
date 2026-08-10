@@ -823,3 +823,17 @@ encode only appears where MWCC itself chains induction webs across SEQUENTIAL
 loops (critter's loops 2..8 entries). For single-loop functions the form is
 unreachable natively — stop spending attempts on it (MemCardCreateGaunt,
 dcsSampleAllocUpload, AudioBankQueueName class).
+
+## The zero-copy encode has a source origin after all: idiom-opaque zero locals
+
+writeGauntletSave's target shows the mechanism the zero-copy lab missed: a
+`s32 zero = 0;` local that participates in the (x ^ zero) | (y ^ zero) flag
+idiom stays materialized in a register (r23), and later zero assignments
+(`retryFlag = zero;`, `global = zero;`) then emit `addi rY,r23,0` and
+`stw r23` instead of fresh `li 0`. The lab's negative result stands only for
+zeros with no idiom participation. When a target mixes xor/or. compare blocks
+with addi-zero-copies, introduce ONE opaque zero local, use it in the idiom
+comparisons, and route every nearby zero store/init through it. (Also from
+this function: retail's prompt handling is a switch tree with retry-on-0 that
+our translation had simplified into always-return — check saveMenuPrompt
+callers for the same lost retry loop.)
