@@ -91,11 +91,16 @@ typedef struct PlayerCharSave {
  * player_get_powerup_state / PlayerAddPowerup / PlayerProcessMikeyPUP
  * (type 9 mask 0x100000 = mikey, mask 8 = x-ray range feed).
  */
+/* Field names are Midway's own (Xbox shell3D.pdb struct P_POWERUP).  Note the
+ * two f32s are overloaded by powerup class: for timed buffs `timeleft` is the
+ * real-time countdown (drained by gClockFrameStep) and `attributeadd` is 0; for
+ * charge items `attributeadd` is the use/charge count (−1.0 per use) and
+ * `timeleft` is pinned < 0 as a permanent/occupied flag. */
 typedef struct PlayerPowerup {
-    /* 0x00 */ f32 strength;         /* 0 = free slot, < 0 = permanent-strength */
+    /* 0x00 */ f32 timeleft;         /* time remaining; 0 = free slot, < 0 = permanent */
     /* 0x04 */ s32 type;             /* powerup class (9 = flagged specials) */
-    /* 0x08 */ f32 timer;            /* remaining time, < 0 = permanent */
-    /* 0x0C */ u32 mask;             /* subtype mask */
+    /* 0x08 */ f32 attributeadd;     /* stat-boost amount; also charge count for weapons */
+    /* 0x0C */ u32 specialflags;     /* subtype/flags mask */
 } PlayerPowerup;                     /* size 0x10 */
 
 /*
