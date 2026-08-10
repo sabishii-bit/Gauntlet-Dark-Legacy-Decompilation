@@ -85,6 +85,10 @@ void MulMat3(f32* lhs, f32* rhs, f32* out);
 void MulVec4Mat4(const f32* vector, f32* out, const f32* matrix);
 s32 MBWorldSphereClip(f32* sphere, f32 radius);
 s32 AnimateATree(void* tree, s32 sequence, s32 last);
+void serve_busy(s32 flags);
+void ClockOncePerFrame(void);
+s32 sndFxQueUpdate(void);
+void LoadVU1GameLogic(void);
 
 /* ---- screensaver-weapon struct array (this TU's .bss, stride 0x88) ---- */
 extern u8 lbl_80274620[];             /* node @+0x3c, atree @+0x40 */
@@ -490,27 +494,63 @@ void ScreenSaver(void)
     lbl_80344A48 = 0;
 }
 
+#pragma dont_inline on
 int draw_inventory_panel(int player)
 {
     (void)player;
     return 1;
 }
 
+#pragma opt_propagation off
+#pragma opt_lifetimes off
+#pragma opt_common_subs off
 void draw_fullscreen_inventory(void)
 {
+    int* states;
+    register int* slot;
     int done;
     int p;
+    int i;
+    int two;
+    int zero;
+    u8 unused[8];
 
-    do {
+    states = lbl_80274600;
+    p = 0;
+    for (i = 0; i < 4; i++) {
+        slot = &states[i];
+        two = 2;
+        states[i] = two;
+        slot[4] = 0;
+    }
+
+    while (p == 0) {
+        serve_busy(-1);
+        ClockOncePerFrame();
+        sndFxQueUpdate();
         done = 1;
         for (p = 0; p < 4; p++) {
             if (draw_inventory_panel(p) == 0) {
                 done = 0;
             }
         }
+        p = done;
         MBEndFrame();
-    } while (!done);
+    }
+
+    zero = 0;
+    for (i = 0; i < 4; i++) {
+        slot = &states[i];
+        states[i] = 2;
+        slot[4] = zero;
+    }
+    lbl_80344A44 = 0;
+    LoadVU1GameLogic();
 }
+#pragma opt_propagation reset
+#pragma opt_lifetimes reset
+#pragma opt_common_subs reset
+#pragma dont_inline off
 
 /* ---- small inventory-slot helpers ---- */
 
