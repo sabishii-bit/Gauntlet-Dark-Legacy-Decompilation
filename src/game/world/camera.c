@@ -3417,6 +3417,7 @@ s32 debug_camera_pos(s32 lastPlayer)
     s16 projected[2];
     u8 scratchPad[8];
     u8* playerData;
+    f32 savedPitch;
     f32 distance;
     f32 extent;
     f32 scale;
@@ -3428,8 +3429,8 @@ s32 debug_camera_pos(s32 lastPlayer)
     s32 cameraIndex;
     s32 offscreen;
     s32 previousAttention;
-    f32 savedPitch;
     f32 zeroValue;
+    f32 ratio;
 
     cameraIndex = 5;
     offscreen = 0;
@@ -3445,8 +3446,7 @@ s32 debug_camera_pos(s32 lastPlayer)
     scale = cam->delta[0] * cam->delta[0];
     distance = cam->delta[1] * cam->delta[1];
     extent = cam->delta[2] * cam->delta[2];
-    distance = scale + distance;
-    distance = extent + distance;
+    distance = extent + (distance = scale + distance);
     if (distance > lbl_80345EC8) {
         root = __frsqrte(distance);
         root = lbl_80345F18 * root *
@@ -3463,35 +3463,35 @@ s32 debug_camera_pos(s32 lastPlayer)
 
     extent = lbl_803444E8;
     if ((f64)extent < lbl_80345F90) {
-        lbl_80344468 = lbl_80345FA0;
         lbl_80344464 =
             (f32)(lbl_80345F98 * (f64)(u32)gFrameTicks);
+        lbl_80344468 = lbl_80345FA0;
     } else if ((f64)extent >= lbl_80345FA8) {
-        lbl_80344468 = lbl_80345FB8;
         lbl_80344464 =
             (f32)(lbl_80345FB0 * (f64)(u32)gFrameTicks);
+        lbl_80344468 = lbl_80345FB8;
     } else {
         difference = lbl_80345FA8 - (f64)extent;
         lbl_80344464 =
             (f32)(lbl_80345FC0 * difference + lbl_80345FB0);
         lbl_80344468 =
-            (f32)-(lbl_80345FD0 * difference * lbl_80345FD8 -
+            (f32)-(difference * lbl_80345FD0 * lbl_80345FD8 -
                    lbl_80345FC8);
     }
     if (lbl_80344960 < 0 && (f64)extent >= lbl_80345FE0) {
-        lbl_80344468 = lbl_80345FE8;
         lbl_80344464 = extent * (f32)(u32)gFrameTicks;
+        lbl_80344468 = lbl_80345FE8;
     }
 
     scale = lbl_80344464;
-    if (scale <= distance) {
+    if (distance >= scale) {
         if (distance > lbl_80344468) {
             distance = lbl_80344468;
         }
-        scale /= distance;
-        cam->delta[0] *= scale;
-        cam->delta[1] *= scale;
-        cam->delta[2] *= scale;
+        ratio = scale / distance;
+        cam->delta[0] *= ratio;
+        cam->delta[1] *= ratio;
+        cam->delta[2] *= ratio;
     }
     cam->attn[0] += cam->delta[0];
     cam->attn[1] += cam->delta[1];
@@ -3547,7 +3547,7 @@ s32 debug_camera_pos(s32 lastPlayer)
          player++, playerData += 0x335C) {
         if (*(s32*)(playerData + 0xE8) == 1) {
             MBWindowProject((f32*)(playerData + 0x54),
-                            (f32*)(state + cameraIndex * sizeof(Camera) + 0xCC),
+                            &((Camera*)(state + 0xC8))[cameraIndex].mat[0][0],
                             0, projected);
             screenX = (f32)projected[0];
             screenY = (f32)projected[1];
