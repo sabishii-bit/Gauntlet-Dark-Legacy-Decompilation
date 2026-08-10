@@ -508,7 +508,6 @@ s32 show_gold(s32 col)
     u8* shownT = tbl + col * 12 + 128;
     u8* targT = tbl + col * 12 + 80;
     u8* valT = tbl + col * 12 + 176;
-    s32 colorMask = 0x1000000;
     s32 ypos = *(s32*)(dpage + col * 4 + 112);
     s32 xbase = *(s32*)(dpage + col * 4 + 96);
     s32 done = 0;
@@ -556,7 +555,7 @@ s32 show_gold(s32 col)
             DrawGlowText(lbl_80348360, xbase + 16, drawX, buf);
         } else {
             DrawTextKeepScale(lbl_80348360, xbase + 16, drawX, 6,
-                              colorMask - 1, buf);
+                              0xFFFFFF, buf);
         }
     }
     fontY = *(s32*)(dpage + 184);
@@ -588,25 +587,33 @@ extern void AudioCursorSelect(void);
  * Returns 1 once the player confirms with Start. */
 static s32 shop_show_final_stats(u8* pl)
 {
-    char* pool = lbl_80114918;
-    s32 done = 0;
-    s32 cls = *(s32*)(pl + 12);
-    s32 idx = *(s32*)(pl + 0);
-    s32 timer = *(s32*)(pl + 2668);
-    f32 scale = lbl_80348330;
-    u8* stats = pl + (cls * 28 + 3088);
-    s32 xbase = *(s32*)((u8*)lbl_80122F30 + idx * 4);
-    s32 ypos = *(s32*)((u8*)lbl_80122F40 + idx * 4);
-    s32 x8 = xbase + 8;
-    s32 colorMask = 0x1000000;
-    s32 t = timer & 0xFFFF;
-    s32 nx;
     s32 y2;
-    s32 days;
     s32 hours;
+    char* pool;
+    s32 t;
+    s32 nx;
+    s32 x8;
+    s32 done;
+    u8* stats;
+    s32 timer;
+    s32 xbase;
+    s32 ypos;
+    s32 days;
     s32 mins;
+    f32 scale;
     f32 secs;
+    u8 _pad8[8];
     char buf[36];
+
+    pool = lbl_80114918;
+    done = 0;
+    stats = pl + *(s32*)(pl + 12) * 28 + 3088;
+    timer = *(s32*)(pl + 2668);
+    scale = lbl_80348330;
+    xbase = lbl_80122F30[*(s32*)pl];
+    ypos = lbl_80122F40[*(s32*)pl];
+    x8 = xbase + 8;
+    t = timer & 0xFFFF;
 
     if (t < 0xF000) {
         *(s32*)(pl + 2668) = timer + gFrameTicks;
@@ -616,7 +623,7 @@ static s32 shop_show_final_stats(u8* pl)
     if (t > 90 && t < 150) {
         DrawGlowText(scale, nx, 60, pool + 92);
     } else {
-        DrawTextKeepScale(scale, nx, 60, 6, colorMask - 1, pool + 92);
+        DrawTextKeepScale(scale, nx, 60, 6, 0xFFFFFF, pool + 92);
     }
     if (t > 90) {
         sprintf(buf, lbl_80348338, *(s32*)stats);
@@ -627,9 +634,9 @@ static s32 shop_show_final_stats(u8* pl)
         y2 = 116;
         DrawGlowText(scale, nx, 116, pool + 120);
     } else {
-        DrawTextKeepScale(scale, nx, 98, 6, colorMask - 1, pool + 108);
+        DrawTextKeepScale(scale, nx, 98, 6, 0xFFFFFF, pool + 108);
         y2 = 116;
-        DrawTextKeepScale(scale, nx, 116, 6, colorMask - 1, pool + 120);
+        DrawTextKeepScale(scale, nx, 116, 6, 0xFFFFFF, pool + 120);
     }
     if (t > 150) {
         sprintf(buf, lbl_80348338, *(s32*)(stats + 16));
@@ -638,7 +645,7 @@ static s32 shop_show_final_stats(u8* pl)
     if (t > 210 && t < 270) {
         DrawGlowText(scale, nx, y2 + 38, pool + 132);
     } else {
-        DrawTextKeepScale(scale, nx, y2 + 38, 6, colorMask - 1, pool + 132);
+        DrawTextKeepScale(scale, nx, y2 + 38, 6, 0xFFFFFF, pool + 132);
     }
     if (t > 210) {
         sprintf(buf, lbl_80348338, *(s32*)(stats + 20));
@@ -647,13 +654,13 @@ static s32 shop_show_final_stats(u8* pl)
     if (t > 270 && t < 330) {
         DrawGlowText(scale, nx, y2 + 76, pool + 144);
     } else {
-        DrawTextKeepScale(scale, nx, y2 + 76, 6, colorMask - 1, pool + 144);
+        DrawTextKeepScale(scale, nx, y2 + 76, 6, 0xFFFFFF, pool + 144);
     }
     secs = *(f32*)(stats + 24);
     days = (s32)(secs / lbl_80348340);
-    secs = (f32)-(lbl_80348340 * (f32)days - secs);
+    secs = (f32)-(lbl_80348340 * (f32)(s32)(secs / lbl_80348340) - secs);
     hours = (s32)(secs / lbl_80348348);
-    secs = (f32)-(lbl_80348348 * (f32)hours - secs);
+    secs = (f32)-(lbl_80348348 * (f32)(s32)(secs / lbl_80348348) - secs);
     mins = (s32)(secs / lbl_80348350);
     if (t > 270) {
         sprintf(buf, lbl_80348358, days);
