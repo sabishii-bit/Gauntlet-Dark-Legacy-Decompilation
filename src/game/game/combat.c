@@ -1330,7 +1330,9 @@ s32 adjust_radius_8002B2D4(s32 camIdx)
     void* levelData = *(void**)((u8*)gCurLevel + 96);
     f32 val;
     f32 diff;
+    u8 _pad[8];
     f32 ad;
+    u8 _pad2[4];
     f32 step;
 
     if (lbl_80345F78 == desired) {
@@ -1355,23 +1357,25 @@ s32 adjust_radius_8002B2D4(s32 camIdx)
     if (ad < lbl_8034618C) {
         cam->radius = val;
         lbl_803443F4 = 1;
-        return -1;
+        goto done;
     }
-    step = (f32)(lbl_80346098 * (ad - lbl_8034618C) + lbl_8034618C);
+    desired = ad - lbl_8034618C;
+    step = (f32)(lbl_80346098 * desired + lbl_8034618C);
     if (step > lbl_80346158 && lbl_803444E4 == 0) {
         step = lbl_80346158;
     }
     if (val > cam->radius) {
         cam->radius = cam->radius + step;
         lbl_803443F4 = 1;
-        return -1;
+        goto done;
     }
     if (val < cam->radius) {
         if (lbl_80344418 == 0 || *(s16*)((u8*)levelData + 54) != 0) {
-            cam->radius = cam->radius - step;
+            cam->radius -= step;
             lbl_803443F4 = 1;
         }
     }
+done:
     return -1;
 }
 
