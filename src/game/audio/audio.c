@@ -177,7 +177,7 @@ void AudioClearTracks(void);
 s32  AudioUnloadPart(char* bankName);
 s32  AudioSetMode(char* modeName);
 void AudioReset(s32 force);
-void AudioLoadComplete(s32* slot);
+void AudioLoadComplete(volatile s32* slot);
 
 /* command opcodes issued through sndRegisterList */
 #define SND_LIST_VOL  0x55AB
@@ -803,12 +803,18 @@ s32 AudioLoadPart(s32 bankIdx, s32 partIdx, s32 waitLevel, s32 flag)
  * descriptor; on success it records the returned voice handle in both the mode
  * bank table (+284/+288) and the ROM bank (+40/+42); on failure it retries up
  * to 5 times, then suspends audio. */
-void AudioLoadComplete(s32* slot)
+typedef struct AudioModeBankEntry {
+    u8 _pad00[28];
+    s32 partRomBank[64];
+} AudioModeBankEntry;
+
+void AudioLoadComplete(volatile s32* slot)
 {
     s32* desc = *(s32**)((u8*)slot + 16);
     u8* bankEntry = (u8*)gAudioBankTbl + desc[0] * 292 + 20;
+    AudioModeBankEntry* modeBank = (AudioModeBankEntry*)bankEntry;
     u8* romBank = *(u8**)(sAudioBankTable + 16)
-                  + *(s32*)(bankEntry + desc[1] * 4 + 28) * 44;
+                  + modeBank->partRomBank[desc[1]] * 44;
 
     if (slot[1] != 0) {
         ErrorPrintf(lbl_80111434, romBank + 16, desc[2], slot[1]);
@@ -821,10 +827,12 @@ void AudioLoadComplete(s32* slot)
         } else {
             sAudioSuspend = 1;
             lbl_803442A4 = 1;
+            return;
         }
     } else {
         u16 h0;
         u16 h1;
+        u32 unused;
         *(s32*)(bankEntry + 284) = desc[1];
         *(s16*)(romBank + 40) = (s16)slot[2];
         sndCmd7(*(s16*)(romBank + 40), &h0, &h1);
