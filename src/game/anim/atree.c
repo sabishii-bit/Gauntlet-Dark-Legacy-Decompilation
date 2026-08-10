@@ -472,7 +472,25 @@ static inline void AnimFixPos(anode* root, animinfo* info)
     info->setpanim = 1;
 }
 
-/* Sequence texmod helper recovered from the Xbox ATREE symbol stream. */
+/* Sequence texmod helper recovered from the Xbox ATREE symbol stream.
+ * DoAnimateTreeFrame needs the in-place (macro) expansion, which reuses the
+ * caller's own frame variable; DoAnimateTree needs the by-value inline. */
+#define DoSeqTexModsInPlace(context, frame, seq)                            \
+    {                                                                       \
+        s32 i;                                                              \
+        TEXMOD* texmod;                                                     \
+        s32 period;                                                         \
+                                                                            \
+        for (i = 0; i < (seq)->ntexmods; i++) {                             \
+            texmod = &(seq)->texmods[i];                                    \
+            period = texmod->frames * texmod->rate;                         \
+            if ((frame) > period && (seq)->wraps != 0 && period > 1) {      \
+                (frame) %= period;                                          \
+            }                                                               \
+            DoTexModSeqSub((context), texmod, (frame));                     \
+        }                                                                   \
+    }
+
 static inline void DoSeqTexMods(void* context, s32 frame, animseqdesc* seq)
 {
     s32 i;
@@ -496,8 +514,6 @@ static inline void DoSeqTexMods(void* context, s32 frame, animseqdesc* seq)
 
 /* DoAnimateTreeFrame: evaluate a fixed animation frame, run sequence texmods,
  * and recurse through AnimateNode. */
-#pragma opt_lifetimes off
-#pragma opt_propagation off
 s32 DoAnimateTreeFrame(atree* tree, s32 sequence, s32 frame, s32 recurse)
 {
     animinfo* info;
@@ -510,15 +526,14 @@ s32 DoAnimateTreeFrame(atree* tree, s32 sequence, s32 frame, s32 recurse)
     result = AnimateTreeFrame(0.0f, info, sequence, frame, frame);
     if (recurse > 0) {
         if (info->seqheader != NULL) {
+            void* obj = root->obj;
             seq = &info->seqheader[sequence];
-            DoSeqTexMods(root->obj, frame, seq);
+            DoSeqTexModsInPlace(obj, frame, seq);
         }
         AnimateNode(root, info, recurse);
     }
     return result;
 }
-#pragma opt_lifetimes reset
-#pragma opt_propagation reset
 
 s32 AnimateATree(atree* tree, s32 sequence, s32 last)
 {
