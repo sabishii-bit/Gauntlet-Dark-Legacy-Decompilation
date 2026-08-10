@@ -732,7 +732,7 @@ s32 pbDiagDrawInfo(void)
         gDiagMenuIdx = 1;
         gDiagListSel = 0;
         gDiag_D1C = 0;
-        *(s32*)((u8*)b + 456) = 0;
+        b[114] = 0;
         *(f32*)((u8*)b + 1552) = gd[36];
         *(f32*)((u8*)b + 1556) = gd[37];
         *(f32*)((u8*)b + 1560) = gd[38];
@@ -780,7 +780,7 @@ s32 pbDiagDrawInfo(void)
             entry = 0;
         }
         v = gDiagListSel;
-        if (v != (&b[gDiagMenuIdx])[68]) {
+        if (v != (s32)(&b[gDiagMenuIdx])[68]) {
             (&b[gDiagMenuIdx])[68] = v;
             gDiag_D24 = (f32)(s32)(&b[v])[132];
         }
@@ -814,24 +814,24 @@ s32 pbDiagDrawInfo(void)
             }
         }
     }
-    if (!(*(u32*)((u8*)b + 456) != 0 && (void*)entry == gDiag_D1C)) {
-        if (*(u32*)((u8*)b + 456) != 0) {
-            AtreeDelete((u8*)b + 456);
+    if (!(b[114] != 0 && (void*)entry == gDiag_D1C)) {
+        if (b[114] != 0) {
+            AtreeDelete((u8*)((u32)b + 456));
         }
         if (entry != 0) {
             s32 kept = gDiag_F00;
             if (gControllerButtons & 1) {
-                *(u32*)((u8*)b + 456) = AtreeInit(entry, (u8*)b + 456, 0, 0);
+                b[114] = AtreeInit(entry, (u8*)((u32)b + 456), 0, 0);
             } else {
-                *(u32*)((u8*)b + 456) =
-                    AtreeInit(entry, (u8*)b + 456, lbl_8023D000 + gDiagMenuIdx * 16, 0);
+                b[114] =
+                    AtreeInit(entry, (u8*)((u32)b + 456), lbl_8023D000 + gDiagMenuIdx * 16, 0);
             }
             if (gDiag_F00 != 0) {
                 gDiag_F00 = kept;
             }
-            MBNodeSetParent(*(u32*)((u8*)b + 456), gDiag_FC);
+            MBNodeSetParent(b[114], gDiag_FC);
         } else {
-            *(u32*)((u8*)b + 456) = 0;
+            b[114] = 0;
         }
         gDiag_D1C = entry;
         gDiag_D24 = lbl_803486B8;
@@ -854,9 +854,9 @@ s32 pbDiagDrawInfo(void)
             gDiag_D24 = lbl_80348670;
         }
         if (gDiag_D24 >= lbl_80348678) {
-            DoAnimateTreeFrame((u8*)b + 456, gDiagListSel, (s32)gDiag_D24, 2);
+            DoAnimateTreeFrame((u8*)((u32)b + 456), gDiagListSel, (s32)gDiag_D24, 2);
         }
-        MBTreeSetAmbientAdd(**(u32**)((u8*)b + 456),
+        MBTreeSetAmbientAdd(*(u32*)b[114],
                             (s32)(lbl_803486C8 * gDiag_D20), 1);
         if (menu != 0) {
             DoTexMods(menu);
