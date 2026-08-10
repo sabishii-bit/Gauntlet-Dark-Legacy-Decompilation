@@ -131,9 +131,13 @@ void G3DAnalogToStickXY(f32* outX, f32* outY, int rawX, int rawY) {
         flags |= 4;
     }
 
-    magnitude = (f32)rawY / (f32)rawX;
+    magnitude = (f32)rawY;
+    magnitude /= (f32)rawX;
     index = (s32)(128.0f * (1.0f / 256.0f + magnitude));
-    rawY = (s32)((f32)index * (1.0f / 128.0f) * (f32)rawX);
+    magnitude = (f32)index;
+    scale = 1.0f / 128.0f;
+    scale = magnitude * scale;
+    rawY = (s32)(scale * (f32)rawX);
     magnitude = g3dSqrt((f32)(rawX * rawX + rawY * rawY));
     scale = magnitude / curve->magnitude[index];
     *outX = scale * curve->x[index];
