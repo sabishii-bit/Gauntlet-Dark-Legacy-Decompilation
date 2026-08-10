@@ -104,7 +104,7 @@ static void (*gSysResetCallback)(void);    /* reset notification hook */
 
 static char* gMsgLines[2];          /* 0x80344030 two on-screen line buffers */
 static s32   gMsgMaxLen;            /* 0x80344038 max chars per line */
-static s32   gAssertFrames;         /* 0x80344800 frames spent in assert pump */
+static s32   lbl_80344800;          /* frames spent in assert pump */
 
 /* pad-manager block @0x80321AD8 (fields kept separate for readability) */
 static u32       gPadResetHoldTimer[4]; /* 0x80321B1C */
@@ -578,7 +578,7 @@ void sysAssertFailed(const char* msg, const char* file, int line) {
     }
     gSysFlags |= SF_ASSERT;
     while (SYS_FLAG(SF_ASSERT) == TRUE) {
-        gAssertFrames++;
+        lbl_80344800++;
         sysResetService();
         MBEndFrame();
     }
