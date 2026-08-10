@@ -254,12 +254,40 @@ extern void  serve_busy(s32 arg0);
 extern s32   AudioSysUpdate(s32 arg0);
 extern void  ResolveWorldData(s32 worldlevel);
 extern void  FatalError(const char* msg, s32 code);
-extern void  fn_80053D08(s32 a, s32 b, s32 c);
+s32          fn_80053D08(s32 a, s32 b, s32 c);
 extern void  SelectLoadStart(void);
 extern s32   SelectLoadDone(void);
 extern void  FontInitSpecial(void* def, s32 font);
 extern void  ShopLoadData(void);
 extern void  LoadItems(void);
+extern void  EndFireScroll(void);
+extern void  DeleteOptionBlits(void);
+extern void  SumnerEnd(void);
+extern void  Randomize(s32 seed);
+extern void  ResetPlayerMissiles(void);
+extern void  ClearAllPlyrData(void);
+extern void  InitializeClockIRQ(void);
+extern void  vibrators_off(void);
+extern void  WorldRestoreInitState(void);
+extern void  MBOX_ResetUnlockedModels(s32 mode);
+extern void  ResetTexmods(void);
+extern void  MBCompVertScaleAddUV(s32 a, s32 b, f32 x, f32 y, f32 z,
+                                  f32 u, f32 v);
+extern void  ResetWorlds(void);
+extern void  InitItems(void);
+extern void  sndSysInit(void);
+extern s32   good_wiz_enabled;
+extern s32   good_wiz_state;
+extern void* lbl_803447A0;
+extern void* lbl_803443E4;
+extern void* lbl_80344E48;
+extern void* lbl_80344E44;
+extern void* lbl_80344E40;
+extern void* lbl_80344E3C;
+extern void* lbl_80344E38;
+extern void* lbl_80344E34;
+extern void* lbl_80344E30;
+extern void* lbl_80344E2C;
 
 /* World-load / blit / fx externs. */
 extern s32   sWorldDataConst;      /* 0x80344848 */
@@ -271,6 +299,7 @@ extern s32   lbl_803447F0;
 extern s32   lbl_803447F4;
 extern f32   lbl_80346AF4;
 extern f32   lbl_80346AF8;
+extern f32   lbl_80346AFC;
 extern s32   lbl_80344810;
 extern f32   lbl_80344814;
 extern f32   lbl_80344818;
@@ -399,6 +428,7 @@ void game_main(void);
 void do_stats_display(void);
 void LoadTowerAndSelect(void);
 s32  init_next_level_8005638C(s32 arg0);
+s32  fn_80054070(s32 arg0, s32 arg1, s32 arg2);
 s32  init_next_level_8005638C(s32 arg0);
 void init_thermometer(void);
 void GetEnemyTypes(void);
@@ -1461,6 +1491,110 @@ void LoadTowerAndSelect(void)
         fn_80053D08(-1, 1, -1);
     }
 }
+
+/* 0x80053D08 -- tear down the current front-end/world state and load a wave. */
+#pragma opt_propagation off
+#pragma opt_lifetimes off
+s32 fn_80053D08(s32 wave, s32 mode, s32 loadResult)
+{
+    char* strings = lbl_80112538;
+    s32 result;
+    f32 zero;
+    u32 buttons;
+    s32 flagMask;
+    s32 flags;
+
+    EndFireScroll();
+    DeleteOptionBlits();
+    lbl_8034479C = (void*)(result = 0);
+    SumnerEnd();
+    AudioStopSelect();
+    good_wiz_enabled = result;
+    Randomize(0x12D687);
+    good_wiz_state = result;
+    ResetPlayerMissiles();
+    ClearAllPlyrData();
+    InitializeClockIRQ();
+    vibrators_off();
+
+    buttons = *(u32*)&gControllerButtons;
+    flagMask = 0x10;
+    flags = sFlags;
+    buttons &= result;
+    flagMask = flags & flagMask;
+    flagMask ^= result;
+    buttons ^= result;
+    if ((flagMask | buttons) != 0) {
+        LoadWorldData();
+    }
+
+    if (lbl_80343C10 >= 0) {
+        WorldRestoreInitState();
+        MBOX_ResetUnlockedModels(2);
+        AtreeInitLists(2);
+        ResetTexmods();
+        result = fn_80054070(wave, mode, loadResult);
+    } else if (loadResult < 0) {
+        bulletproof_printf(strings + 212, wave, BytesFree());
+        if (wave >= 0 && wave != sWorldDataConst) {
+            result = -1;
+            lbl_80343C10 = result;
+            lbl_80343DD4 = result;
+            lbl_80343B38 = result;
+            AudioStopSelect();
+            lbl_803448AC = result;
+            lbl_803448A8 = result;
+        }
+
+        fn_800BC418(2, -1);
+        if (wave == sWorldDataConst && (gGameMode & 0x8000) == 0) {
+            MBOX_ResetUnlockedModels(2);
+            AtreeInitLists(2);
+        } else {
+            MBOX_ResetUnlockedModels(1);
+            AtreeInitLists(1);
+        }
+
+        zero = lbl_80346AFC;
+        MBCompVertScaleAddUV(0, 0, zero, zero, zero, zero, zero);
+        ResetTexmods();
+        bulletproof_printf(strings + 240, BytesFree());
+        ResetWorlds();
+        bulletproof_printf(strings + 260, BytesFree());
+        fn_80051164();
+        bulletproof_printf(strings + 284, BytesFree());
+        InitItems();
+        bulletproof_printf(strings + 304, BytesFree());
+        sndSysInit();
+        bulletproof_printf(strings + 328, BytesFree());
+        result = fn_80054070(wave, mode, -1);
+        bulletproof_printf(strings + 348, BytesFree());
+    } else {
+        MBOX_ResetUnlockedModels(2);
+        AtreeInitLists(2);
+        zero = lbl_80346AFC;
+        MBCompVertScaleAddUV(0, 0, zero, zero, zero, zero, zero);
+        ResetTexmods();
+        result = fn_80054070(wave, mode, loadResult);
+    }
+
+    lbl_803447B0 = 0;
+    lbl_803447A0 = MBOX_FindTexture(strings + 364, 0);
+    lbl_803443E4 = MBOX_FindTexture(strings + 376, 0);
+    lbl_80344E48 = MBOX_FindTexture(strings + 388, 0);
+    lbl_80344E44 = MBOX_FindTexture(strings + 400, 0);
+    lbl_80344E40 = MBOX_FindTexture(strings + 412, 0);
+    lbl_80344E3C = MBOX_FindTexture(strings + 424, 0);
+    lbl_80344E38 = MBOX_FindTexture(strings + 436, 0);
+    lbl_80344E34 = MBOX_FindTexture(strings + 448, 0);
+    lbl_80344E30 = MBOX_FindTexture(strings + 460, 0);
+    lbl_80344E2C = MBOX_FindTexture(strings + 472, 0);
+    AudioRegisterMenu();
+    InitLighting(0);
+    return result;
+}
+#pragma opt_lifetimes reset
+#pragma opt_propagation reset
 
 /* 0x80054D18 -- choose and resolve the next world/level selection. */
 s32 next_world(void)
