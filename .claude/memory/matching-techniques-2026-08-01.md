@@ -755,3 +755,48 @@ MWCC still folds this to one `subf`, but the earlier cursor web receives the
 retail register. Building a packed flag word in two assignments likewise
 preserves the target's in-place `oris`/`or` sequence. Together these portable
 source shapes took `fn_800D9DF0` from a 56-line residual to 76/76 exact.
+
+## Two-branch float min/max via a tiny asm branch, not peephole-off
+
+Retail bosscam emits `fcmpo; bge set; b keep; set: fmr; keep: stfs` for float
+min/max updates. Plain C folds this to one inverted branch (or a cror pair for
+`>=`/`<=`), and a scoped `#pragma peephole off` overshoots by unfolding every
+other goto in the function. The minimal-asm-branch law from the 35.50% pass is
+the right tool, with the compare kept in C so `bge`/`ble` come from the negated
+single-bit forms:
+
+```c
+if (h < b) {
+    asm { b keep_h }
+}
+h = b;
+keep_h:
+hi[i] = h;
+```
+
+`GetBossAvgPos` also needed element pointers formed inside the loop
+(`f32* hp = &hi[i];` then `*hp`) to keep retail's per-iteration `addi/add`
+address forms, plus declaration-order FPR homes (short-lived compare operands
+declared before the loop-carried value) and a scoped `#pragma opt_propagation
+off` with c/s/o0/r/w declared in home order and a named `f64 d` for the
+subtraction so it does not coalesce into the minuend. That chain took the
+function from 40 real-diff lines to exact.
+
+## CamLimitPlayerDpos: five stacked laws, then a color tie
+
+The 604-byte clip driver combined several known levers: (1) invert the final
+if/else so the zero-dpos arm is emitted first, matching retail's physical
+layout; (2) rebuild the retail 128-byte frame with f32 pads around `world` and
+`viewpt` (u8 pads over-align); (3) a decompiler-dead `lfs` before
+`CalcFrustrumNormals` was actually a hidden fourth `f32 fov` argument — the
+callee's real prototype already existed in newcam.c; (4) `py`/`pz` typed field
+pointers materialize retail's early `addi r6/r7` and displacement stores;
+(5) cache `viewpt[0..2]` in named f32 locals (alias-driven reloads otherwise,
+since viewpt's address escapes into MulBodyVecMat4), and read the second
+clamp arm's zero constant through `*(volatile f32*)&lbl` to reproduce retail's
+un-CSE'd reload. Result 166 -> 36 real lines at exact length; the residue is
+one d-group/v-group FPR rotation that resisted declaration order, interleaved
+assignment, and dead-variable reuse (parked at the documented cap).
+
+Early-out float comparisons in the same function needed `if (!(dist < x))
+return;` to produce retail's plain `bge` instead of a cror `>=` pair.
