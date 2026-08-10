@@ -48,6 +48,7 @@
 #include "__va_arg.h"
 
 /* ---- boss-requirement table (this TU, .data 0x80121DD8, 12 x 0x24) ---- */
+typedef struct SelOptsView { u8 _pad[44]; u32 flags44; } SelOptsView;
 typedef struct BossRuneReq {
     s32 boss;      /* +0x00 */
     s32 _04;
@@ -124,10 +125,10 @@ extern void AudioSelectReset(void);
 extern void AudioStopSelect(void);
 extern void init_titlescreen(void);
 extern void init_attract_mode(s32 mode);
-extern void LoadTowerAndSelect(int a);
+extern void LoadTowerAndSelect();
 extern void remove_player_geo(int a);
 extern void msgInit(void);
-extern int  saveFileSize(int a);
+extern int  saveFileSize();
 extern void AudioSelect(s32 code);
 extern void AudioCursorSelect(void);
 extern void AudioCursorChar(void);
@@ -1772,16 +1773,17 @@ io_done:
 
 void init_player_change(s32 idx, s32 arg1)
 {
-    u8* pl = gPlayers + idx * 0x335C;
+    u8* pl;
     int i;
     u8* p;
     s32 v;
     s32 saved;
     s32 wflag;
 
+    p = gPlayers;
+    pl = p + idx * 0x335C;
     *(s32*)(pl + 0xE8) = 3;
 
-    p = gPlayers;
     for (i = 0; i < 4; i++, p += 0x335C) {
         if (i != idx) {
             s32 st = *(s32*)(p + 0xE8);
@@ -1791,7 +1793,7 @@ void init_player_change(s32 idx, s32 arg1)
             }
         }
     }
-    v = *(s32*)(gPlayers + idx * 0x335C + 0x830);
+    v = *(s32*)((u32)gPlayers + (u32)(idx * 0x335C) + 0x830);
 gotv:
     *(s32*)(pl + 0x830) = v;
 
@@ -1843,7 +1845,8 @@ int setup_file_entries(u8* pl, s32 fromLoad)
         nameOff = 0;
         entOff = 0;
         for (; k < count; k++, nameOff += 16, entOff += 36) {
-            e = eb + *(s32*)pl * 324 + entOff;
+            e = eb + *(s32*)pl * 324;
+            e += entOff;
             *(u32*)e = (u32)(row + nameOff + 8);
             *(s32*)(e + 4) = k + 1000;
             *(s32*)(e + 32) = 0;
@@ -1859,6 +1862,7 @@ int setup_file_entries(u8* pl, s32 fromLoad)
                 *(s32*)(e + 32) = -1;
             }
             if (*(s32*)(e + 32) == 0) {
+                continue;
             }
         }
         *(u32*)(lbl_80284A88 + *(s32*)pl * 324 + k * 36) = 0;
@@ -2440,7 +2444,7 @@ void init_player_select(s32 mode)
     u8 _spare[32];
 
     AudioStopSelect();
-    lbl_80344BB8 = saveFileSize(mode);
+    lbl_80344BB8 = saveFileSize();
     gGameMode = 0x400B;
     gGameBusy = 0;
     lbl_8034481C = 0;
@@ -2486,12 +2490,13 @@ void init_player_select(s32 mode)
         lbl_80344BB0 = 4;
     }
     fn_800BC418(2, -1);
-    LoadTowerAndSelect(0);
+    LoadTowerAndSelect();
     InitCamera(0);
+    i = 0;
     new_menu_accept(-1, 1);
     {
         u8* pl = gPlayers;
-        for (i = 0; i < 4; i++, pl += 13148) {
+        for (; i < 4; i++, pl += 13148) {
             if (*(s32*)(pl + 232) == 0 && (lbl_80344824 & (1 << i))) {
                 new_player(i);
             }
@@ -2513,14 +2518,15 @@ void init_player_select(s32 mode)
                 b = (void*)MBCreateBlit(0, 0,
                                         *(s32*)(e + 32) + *xp,
                                         *(s32*)(e + 36), -1, -1);
+                e += 32;
                 *(void**)(blits + joff) = b;
                 mbBlitInit3414(*(void**)(blits + joff), 1);
                 mbBlitCvtCoord(*(void**)(blits + joff),
-                               (f32)*(s32*)(e + 40));
+                               (f32)*(s32*)(e + 8));
                 *(s32*)(blits + joff + 4) = 0;
             }
             *(s32*)(pl + 2096) = sLastWorldLevel;
-            if (!(*(u32*)(gGameOptions + 44) & 1)) {
+            if (!(((SelOptsView*)gGameOptions)->flags44 & 1)) {
                 setup_tex(i, 0, 0, 0, pool + 868, i + 1);
                 setup_tex(i, 1, 0, 0, pool + 880, i + 1);
                 setup_tex(i, 9, 16384, 0, pool + 892);

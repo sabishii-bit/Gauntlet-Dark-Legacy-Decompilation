@@ -238,7 +238,6 @@ void ScreenSaverStartWeap(int idx)
         *(f32*)(copyDest + 0x3c) = spin;
     }
 }
-#pragma opt_propagation reset
 #pragma opt_common_subs reset
 #pragma opt_lifetimes reset
 
@@ -758,9 +757,11 @@ void animate_panel_piece(f32 progress, s32* piece, void* blit, s32 xOffset,
                             lbl_8011D658[tableIndex]));
         mbBlitCalcWidth(blit, x, y, lbl_803473E0);
 
+        x = piece[7];
+        y = piece[8];
         progress = lbl_80347378 - progress2;
-        x = (s32)((f32)piece[7] * progress + (f32)piece[7]);
-        y = (s32)((f32)piece[8] * progress + (f32)piece[8]);
+        x = (s32)((f32)x * progress + (f32)x);
+        y = (s32)((f32)y * progress + (f32)y);
         mbBlitProject(blit, x, y);
         MBBlitSetAlpha(blit, (s32)(lbl_803473F4 * progress));
         break;
@@ -790,15 +791,16 @@ void animate_panel_piece(f32 progress, s32* piece, void* blit, s32 xOffset,
         y = (s32)((f32)y + lbl_8034740C * dy);
         mbBlitCalcWidth(blit, x, y, lbl_803473E0);
 
-        x = (s32)((f32)piece[7] +
-                  lbl_80347410 * ((f32)piece[7] * progress));
-        y = (s32)((f32)piece[8] +
-                  lbl_80347410 * ((f32)piece[8] * progress));
+        x = piece[7];
+        y = piece[8];
+        x = (s32)((f32)x + lbl_80347410 * ((f32)x * progress));
+        y = (s32)((f32)y + lbl_80347410 * ((f32)y * progress));
         mbBlitProject(blit, x, y);
         MBBlitSetAlpha(blit, (s32)(lbl_803473F4 * progress));
         break;
     }
 }
+#pragma opt_propagation reset
 
 /*
  * Panel text/blit helper: lays out one label string into a temp blit,
