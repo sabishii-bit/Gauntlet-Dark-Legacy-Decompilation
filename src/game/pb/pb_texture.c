@@ -125,18 +125,24 @@ static void* sTlutRegionCallback(u32 name);
 void pbInitTlutRegions(void) {
     s32 i;
     u32 addr = 0xc0000;
+    u8* mgr = lbl_802C7438;
+    u8* slot;
 
     for (i = lbl_80348FC8[0]; i < lbl_80348FD0[0]; i++) {
-        GXInitTlutRegion(lbl_802C7438 + 0x30 + i * 0x10, addr, 1);
+        slot = mgr + i * 0x10;
+        GXInitTlutRegion(slot + 0x30, addr, 1);
         addr += 0x200;
     }
     for (; i < lbl_80348FD0[1]; i++) {
-        GXInitTlutRegion(lbl_802C7438 + 0x30 + i * 0x10, addr, 0x10);
+        slot = mgr + i * 0x10;
+        GXInitTlutRegion(slot + 0x30, addr, 0x10);
         addr += 0x2000;
     }
     GXSetTlutRegionCallback(sTlutRegionCallback);
-    for (i = 0; i < 0x2f; i++)
-        *(s32*)(lbl_802C7438 + 0x320 + i * 4) = -1;
+    for (i = 0; i < 0x2f; i++) {
+        slot = mgr + i * 4;
+        *(s32*)(slot + 0x320) = -1;
+    }
 }
 
 static void* sTlutRegionCallback(u32 name) {

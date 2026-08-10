@@ -717,3 +717,41 @@ normally inlines its loop body. A function-scoped `#pragma dont_inline on`
 restored the call and removed 23 extra instructions. `matchtool probe` reports
 the resulting 36-instruction function as `OK~` (only meaningful-vs-`lbl_`
 relocation names differ), and objdiff counts all 144 code bytes exact.
+
+## Separate portable destructor logic from C++ landing-pad residuals
+
+The movie-player destructor at `0x800DBF6C` is a useful diagnostic case. Its
+portable C logic is straightforward: restore the `0x801296F0` vtable,
+decrement `gDTextInitCount`, release the owned allocation when field `+0x18`
+is non-null, and optionally delete `this` when the signed deleting flag is
+positive. A 64-byte unused local reproduces the retail 88-byte frame. That
+translation raises the function from 2.00% to 77.56% fuzzy without changing
+the project's exact count.
+
+The remaining target-only instructions are two `__unexpected` landing-pad
+islands plus the C++ destructor frame-pointer/register web. Do not contort the
+portable C body or add handwritten PPC just to cover these when native reuse
+matters. Also validate the whole report after editing this TU: isolated exact
+assembly at earlier movie destructor seams can expose downstream objdiff
+false positives and reduce the reported exact percentage even though the
+edited function itself matches.
+
+## Seed an in-place pointer update before decoding its offset
+
+For LZ-style back-reference loops, two overlapping volatile webs can be
+structurally identical yet land in opposite registers: the packed token and
+the moving match cursor. Seed the cursor before loading the token, then
+subtract the decoded offset in place:
+
+```c
+match = dst;
+token = *src;
+offsetLow = src[1];
+src += 2;
+match -= ((token & 0xf0) << 4) | offsetLow;
+```
+
+MWCC still folds this to one `subf`, but the earlier cursor web receives the
+retail register. Building a packed flag word in two assignments likewise
+preserves the target's in-place `oris`/`or` sequence. Together these portable
+source shapes took `fn_800D9DF0` from a 56-line residual to 76/76 exact.

@@ -183,9 +183,13 @@ typedef struct Player {
     /* 0x08C8 */ char* floor_name;   /* current floor name [player.c debug] */
     /* 0x08CC */ u8  pad_08CC[8];
     /* 0x08D4 */ u32 obj_flags;      /* world-obj flags; 0x4000 = parented [player.c] */
-    /* 0x08D8 */ u8  pad_08D8[0x18];
+    /* 0x08D8 */ u8  pad_08D8[0x10];
+    /* 0x08E8 */ f32 fxhittime;      /* last critter-effect hit time [critter.c] */
+    /* 0x08EC */ u8  pad_08EC[4];
     /* 0x08F0 */ s32 action;         /* current action id (PlayerAttacking) [player.c] */
-    /* 0x08F4 */ u8  pad_08F4[0x28];
+    /* 0x08F4 */ u8  pad_08F4[0x20];
+    /* 0x0914 */ f32 bossdamage;     /* accumulated boss damage [critter.c] */
+    /* 0x0918 */ u8  pad_0918[4];
     /* 0x091C */ s32 count_91C;      /* per-frame countdown [player.c do_players] */
     /* 0x0920 */ s32 count_920;      /* exit-anim countdown [player.c do_players] */
     /* 0x0924 */ u8  pad_0924[4];

@@ -712,8 +712,8 @@ void CritterDamagePlayer(Player *player, Critter *c,
 
     damage_player(playerIndex, damage, 1, damageFlags, direction);
 
-    *(f32 *)((u8 *)&gPlayers[playerIndex] + 0x914) = 0.0f;
-    *(f32 *)((u8 *)&gPlayers[playerIndex] + 0x8E8) =
+    gPlayers[playerIndex].bossdamage = 0.0f;
+    gPlayers[playerIndex].fxhittime =
         (f32)(lbl_80346500 + (f64)sMusicFadeBase);
 
     *(f32 *)((u8 *)c + playerIndex * 0x10 + 0x1BC) += damage;

@@ -1394,7 +1394,7 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
 {
     char name[36];
     char child_name[32];
-    u8 stack_pad[16];
+    u8 stack_pad[8];
     char* strings = (char*)&sObjectsFile;
     iteminfo** infos = &gWorldInfo.iteminfo;
     iteminfo* info_base = *infos;
