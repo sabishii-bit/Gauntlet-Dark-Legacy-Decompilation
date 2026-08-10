@@ -286,7 +286,7 @@ extern char* strcat(char* dst, const char* src);
 extern s32   StartFXNoLoop(s32 type, f32* pos);
 extern void  CopyMat3(const f32* src, f32* dst);
 extern void  CopyMat4(const f32* src, f32* dst);
-extern void  MBTreeSetZMod(f32 value, void* node, s32 enable);
+extern void  MBTreeSetZMod(void* node, f32 value, s32 recurse);
 extern void  WPitchMat3(f32* matrix, f32 angle);
 extern void  WYawMat3(f32* matrix, f32 angle);
 extern void  WRollMat3(f32* matrix, f32 angle);
@@ -685,58 +685,73 @@ void LinkItemTriggers(void)
 {
     char* strings = (char*)&sObjectsFile;
     Item* item;
-    Item* other;
     s32 i;
     s32 j;
-    s32 duplicate_count;
+    Item* other;
+    s32 nitems;
 
-    item = sItems;
-    for (i = 0; i < sNumItems; i++, item++) {
-        if (item->active != -1 && item->info->type == 5) {
-            for (j = 0, duplicate_count = 0, other = sItems;
-                 j < sNumItems; j++, other++) {
-                if (j != i && other->active != -1 &&
-                    other->info->type == 5 &&
-                    (*(s16*)&other->data[4] & 0x40) ==
-                        (*(s16*)&item->data[4] & 0x40) &&
-                    *(s8*)&item->data[6] > 0) {
-                    if (*(s8*)&other->data[6] == *(s8*)&item->data[6]) {
-                        *(s8*)&other->data[6] = 0;
-                        duplicate_count++;
+    {
+    Item* it1;
+    s32 i1;
+    s32 j1;
+    s32 dup1;
+    Item* ot1;
+
+    it1 = sItems;
+    for (i1 = 0; i1 < sNumItems; i1++, it1++) {
+        if (it1->active != -1 && it1->info->type == 5) {
+            for (dup1 = 0, j1 = 0, ot1 = sItems;
+                 j1 < sNumItems; j1++, ot1++) {
+                if (j1 != i1 && ot1->active != -1 &&
+                    ot1->info->type == 5 &&
+                    (*(s16*)&ot1->data[4] & 0x40) ==
+                        (*(s16*)&it1->data[4] & 0x40) &&
+                    *(s8*)&it1->data[6] > 0) {
+                    if (*(s8*)&ot1->data[6] == *(s8*)&it1->data[6]) {
+                        *(s8*)&ot1->data[6] = 0;
+                        dup1++;
                     }
+                    if (*(s8*)&ot1->data[7] != *(s8*)&it1->data[6]) {
+                        asm { b link_cont_j }
+                    }
+link_cont_j:;
                 }
             }
-            if (duplicate_count > 0) {
-                if (*(s16*)&item->data[4] & 0x40) {
+            if (dup1 > 0) {
+                if (*(s16*)&it1->data[4] & 0x40) {
                     ErrorPrintf(strings + 0x2EC,
-                                duplicate_count + 1,
-                                (s32)*(s8*)&item->data[6]);
+                                dup1 + 1,
+                                (s32)*(s8*)&it1->data[6]);
                 } else {
                     ErrorPrintf(strings + 0x310,
-                                duplicate_count + 1,
-                                (s32)*(s8*)&item->data[6]);
+                                dup1 + 1,
+                                (s32)*(s8*)&it1->data[6]);
                 }
             }
         }
     }
 
+    }
+
     item = sItems;
-    for (i = 0; i < sNumItems; i++, item++) {
+    for (i = 0; i < (nitems = sNumItems); i++, item++) {
         if (item->active != -1 && item->info->type == 5) {
             s8 next_id = *(s8*)&item->data[7];
 
             if (next_id != 0) {
                 other = sItems;
-                for (j = 0; j < sNumItems; j++, other++) {
+                for (j = 0; j < nitems; j++, other++) {
                     if (j != i && other->active != -1 &&
                         other->info->type == 5 &&
                         (*(s16*)&other->data[4] & 0x40) == 0 &&
                         next_id == *(s8*)&other->data[6]) {
-                        Item* chain = other;
+                        Item* chain;
                         s32 loop = 0;
+                        Item* next;
 
-                        while (chain != NULL) {
-                            Item* next = *(Item**)&chain->data[8];
+                        for (chain = other; chain != NULL;
+                             chain = next) {
+                            next = *(Item**)&chain->data[8];
                             if (next == item) {
                                 ErrorPrintf(strings + 0x32C,
                                             (s32)next_id,
@@ -744,7 +759,6 @@ void LinkItemTriggers(void)
                                 loop = 1;
                                 break;
                             }
-                            chain = next;
                         }
                         if (!loop) {
                             *(Item**)&item->data[8] = other;
@@ -1398,7 +1412,7 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
 {
     char name[36];
     char child_name[32];
-    u8 stack_pad[8];
+    u8 stack_pad[20];
     char* strings = (char*)&sObjectsFile;
     iteminfo** infos = &gWorldInfo.iteminfo;
     iteminfo* info_base = *infos;
@@ -1411,6 +1425,7 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
     s32 item_index = (s32)(item - sItems);
     s32 i;
     s32 found;
+    s32 vis;
 
     /* Random descriptors contain a count and an array of s16 info indices. */
     while (info->type == -1) {
@@ -1431,7 +1446,7 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
     type = info->type;
     subtype = info->item.subtype;
 
-    if (type == 1) {
+    if (info->type == 1) {
         switch (subtype) {
         case 2:
             if (instance != NULL && *(s16*)&instance->params[0] > 1) {
@@ -1442,13 +1457,13 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
                     if (strcmp(sKeyringName, body->desc) != 0) {
                         continue;
                     }
-                    if (info_base->type != type) {
+                    if (type != info_base->type) {
                         continue;
                     }
-                    if (subtype > 0 && body->subtype != subtype) {
+                    if (subtype > 0 && subtype != body->subtype) {
                         continue;
                     }
-                    goto keyring_found;
+                    asm { b keyring_found }
                 }
                 found = -1;
 keyring_found:
@@ -1480,19 +1495,17 @@ keyring_found:
     {
         f32 radius = info->item.radius;
 
-        if (!(radius > info->item.height)) {
-            goto take_h;
+        if (radius > info->item.height) {
+            asm { b keep_r }
         }
-        goto keep_r;
-    take_h:
         radius = info->item.height;
     keep_r:
         item->visrad = (f32)(2.0 * (f64)radius);
     }
     item->objgrp.flags = 0;
     {
-        f32 x;
         f32 z;
+        f32 x;
         u8 abs_pad[24];
 
         z = item->coll_offset[2];
@@ -1516,13 +1529,13 @@ keyring_found:
     }
     item->playermask = 0;
     item->opener = -1;
-    found = 0;
-    switch (ItemVisible(item)) {
+    vis = 0;
+    switch (ItemVisible((Item*)&item->info)) {
     case 0:
-        found = 1;
+        vis = 1;
         break;
     }
-    item->minoff = (s8)found;
+    item->minoff = (s8)vis;
 
     atree_header = info->item.atreeheader;
     if (instance != NULL && instance->desc[0] != '\0') {
@@ -1578,12 +1591,12 @@ keyring_found:
             }
             DATA_U8(2) = 1;
         } else if (DATA_S16(0) == 29) {
-            if (gWadAtreeHeaders[29] != NULL) {
+            void** hdr = &gWadAtreeHeaders[29];
+            if (*hdr != NULL) {
                 item->active &= ~1;
                 attach_geometry = 1;
                 atree_header =
-                    (void*)AtreeMatch(gWadAtreeHeaders[29],
-                                     strings + 0x3B4, 1);
+                    (void*)AtreeMatch(*hdr, strings + 0x3B4, 1);
             } else if (CritterTypeLoaded(3, 0) != NULL) {
                 void* header;
 
@@ -1596,27 +1609,29 @@ keyring_found:
                     strings + 0x3B4, 1);
             }
             DATA_U8(2) = 1;
-        } else if (DATA_S16(0) == 30 &&
-                   gWadAtreeHeaders[30] != NULL) {
-            item->active &= ~1;
-            attach_geometry = 1;
-            switch (DATA_S8(2)) {
-            case 1:
-                DATA_U32(8) |= 1;
-                /* fallthrough */
-            case 0:
-                atree_header = (void*)AtreeMatch(
-                    gWadAtreeHeaders[30], strings + 0x3C0, 1);
-                DATA_U8(2) = 1;
-                break;
-            case 3:
-                DATA_U32(8) |= 1;
-                /* fallthrough */
-            case 2:
-                atree_header = (void*)AtreeMatch(
-                    gWadAtreeHeaders[30], strings + 0x3D0, 1);
-                DATA_U8(2) = 2;
-                break;
+        } else if (DATA_S16(0) == 30) {
+            void** hdr = &gWadAtreeHeaders[30];
+            if (*hdr != NULL) {
+                item->active &= ~1;
+                attach_geometry = 1;
+                switch (DATA_S8(2)) {
+                case 1:
+                    DATA_U32(8) |= 1;
+                    /* fallthrough */
+                case 0:
+                    atree_header = (void*)AtreeMatch(
+                        *hdr, strings + 0x3C0, 1);
+                    DATA_U8(2) = 1;
+                    break;
+                case 3:
+                    DATA_U32(8) |= 1;
+                    /* fallthrough */
+                case 2:
+                    atree_header = (void*)AtreeMatch(
+                        *hdr, strings + 0x3D0, 1);
+                    DATA_U8(2) = 2;
+                    break;
+                }
             }
         }
         break;
@@ -1662,8 +1677,9 @@ keyring_found:
                     ErrorPrintf(strings + 0x3E0,
                                 gWorldInfo.nwobjs, wobj_index);
                 } else {
-                    wobj = (u8*)gWorldInfo.wobjs + wobj_index * 0x3C;
-                    if (*(void**)(wobj + 0x28) == NULL) {
+                    u8* w = (u8*)gWorldInfo.wobjs + wobj_index * 0x3C;
+                    wobj = w;
+                    if (*(void**)(w + 0x28) == NULL) {
                         ErrorPrintf(strings + 0x3FC, wobj);
                         wobj = NULL;
                     }
@@ -1712,8 +1728,9 @@ keyring_found:
             case 104:
             case 199:
                 for (player = 0; player < 4; player++) {
-                    u8* p = gPlayers + player * 13148;
-                    if (*(s32*)(p + 0xE8) != 0) {
+                    u8* q = gPlayers + player * 13148;
+                    u8* p = q;
+                    if (*(s32*)(q + 0xE8) != 0) {
                         s32 player_index;
                         flags |= towerGetLevelFlag(p, 8);
                         player_index = *(s32*)(p + 0x0C);
@@ -1761,7 +1778,7 @@ keyring_found:
     case 3:
     {
         s32 enemy_type;
-        s32 count_index = 0;
+        s32 count_index;
 
         item->visrad *= 4.0;
         DATA_U8(2) = 0;
@@ -1781,13 +1798,13 @@ keyring_found:
                 if (strcmp("LOW", body->desc) != 0) {
                     continue;
                 }
-                if (candidate->type != type) {
+                if (type != candidate->type) {
                     continue;
                 }
-                    if (subtype > 0 && body->subtype != subtype) {
-                        continue;
-                    }
-                    goto low_item_found;
+                if (subtype > 0 && subtype != body->subtype) {
+                    continue;
+                }
+                asm { b low_item_found }
             }
             found = -1;
 low_item_found:
@@ -1799,10 +1816,13 @@ low_item_found:
             DATA_S8(7) = (s8)sEnemyDefaultAlgorithm[DATA_S16(0)];
         }
         DATA_S8(6) = (s8)PARAM_S16(0, 1);
-        if (DATA_S8(6) < 1) {
-            ErrorPrintf(strings + 0x424, DATA_S8(6),
-                        matrix[12], matrix[13], matrix[14]);
-            DATA_S8(6) = 1;
+        {
+            s32 n = DATA_S8(6);
+            if (n < 1) {
+                ErrorPrintf(strings + 0x424, n,
+                            matrix[12], matrix[13], matrix[14]);
+                DATA_S8(6) = 1;
+            }
         }
         DATA_S8(5) = -1;
         DATA_F32(12) = 0.0f;
@@ -1814,19 +1834,19 @@ low_item_found:
 
         enemy_type = DATA_S8(6) - 1;
         if (enemy_type < 0) {
-            count_index = 0;
-        } else {
-            if (enemy_type > 2) {
-                enemy_type = 2;
-            }
-            count_index = enemy_type;
+            asm { b count_index_done }
         }
+        if (enemy_type > 2) {
+            enemy_type = 2;
+        }
+        count_index = enemy_type;
+count_index_done:
         if (DATA_S8(3) == 0) {
-            s32* defaults = (s32*)(arrows + count_index);
+            s32* defaults = (s32*)((u8*)arrows + count_index * 4);
             DATA_S8(3) = (s8)defaults[12];
         }
         if (DATA_U8(11) == 0) {
-            s32* defaults = (s32*)(arrows + count_index);
+            s32* defaults = (s32*)((u8*)arrows + count_index * 4);
             DATA_U8(11) = (u8)defaults[15];
         }
         DATA_S8(3) = (s8)(DATA_S8(3) *
@@ -1868,8 +1888,9 @@ low_item_found:
                 (f32)*(s16*)((u8*)item->info + 0x40);
         }
         DATA_S16(4) = PARAM_S16(2, 0);
-        if (DATA_S16(4) != 0) {
-            scaled = -DATA_S16(4);
+        scaled = DATA_S16(4);
+        if ((s16)scaled != 0) {
+            scaled = -scaled;
             *(s16*)((u8*)item->info + 0x48) = (s16)(scaled * 3);
         }
         DATA_F32(0) *= *(f32*)(gCurLevel + 0xDC);
@@ -1910,7 +1931,9 @@ low_item_found:
         DATA_S16(12) = (s16)PARAM_S32(4, 0);
         if (instance != NULL && DATA_S16(12) == 0) {
             for (i = 0; i < strlen(instance->desc); i++) {
-                instance->desc[i] = (char)toupper(instance->desc[i]);
+                s32 off = i + 8;
+                char* c = (char*)instance + off;
+                *c = (char)toupper(*c);
             }
             DATA_S32(4) =
                 AudioFindSound(instance->desc,
@@ -1945,10 +1968,8 @@ low_item_found:
         if (DATA_S16(0) >= 54) {
             goto after_type10_active;
         }
-        if (DATA_S16(0) >= 51) {
-            goto set_type10_active;
-        } else {
-            goto after_type10_active;
+        if (DATA_S16(0) < 51) {
+            asm { b after_type10_active }
         }
 set_type10_active:
         item->active |= 0x40;
@@ -1971,8 +1992,10 @@ after_type10_active:
         DATA_F32(8) = (f32)*(s16*)((u8*)item->info + 0x4A);
         DATA_S32(12) = 0;
         DATA_S16(16) = 0;
-        subtype = item->info->item.subtype;
-        switch (subtype) {
+        {
+        s32 st = item->info->item.subtype;
+        subtype = st;
+        switch (st) {
         case 10:
             ((f32*)((u8*)runtime + 0x7214))[0] = matrix[12];
             ((f32*)((u8*)runtime + 0x7214))[1] = matrix[13];
@@ -1999,6 +2022,7 @@ after_type10_active:
         case 13:
             sSpecialItem13 = (s32)item;
             break;
+        }
         }
         break;
 
@@ -2034,16 +2058,16 @@ after_type10_active:
     UpdateObjWorldMat(&item->objgrp);
     fn_8005A404(&item->objgrp.worldmat[0][0],
                 item->coll_offset, item->coll_offset);
-    MBTreeSetZMod(20.0f, item->objgrp.node, 1);
+    MBTreeSetZMod(item->objgrp.node, 20.0f, 1);
 
     switch (type) {
     case 2:
         if (*(void**)item->atree != NULL) {
+            s32 mbidx;
             sprintf(child_name, "%sNULL1", name);
-            i = MBOX_ReallyFindObject(child_name, sItemFile0Handle,
-                                      sItemFile0Handle, -1);
-            if (i >= 0) {
-                void* node = AtreeFindMbidxNode(*(void**)item->atree, i);
+            if ((mbidx = MBOX_ReallyFindObject(child_name, sItemFile0Handle,
+                                               sItemFile0Handle, -1)) >= 0) {
+                void* node = AtreeFindMbidxNode(*(void**)item->atree, mbidx);
                 if (node != NULL) {
                     DATA_S32(8) = *(s32*)node;
                     MBTreeSetFlags(*(void**)node, 1, 0);
