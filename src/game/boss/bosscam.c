@@ -459,8 +459,170 @@ void BossCameraInit(void) {
 
 /* Main boss-camera update (0x4B4).  Dispatches BossCameraStart on the first
  * frame, then BossCamPlayerCalc / BossCamBossCalc; applies DoShake and the
- * LookInDirection pose.  Parked: large, many unknown gGameCamera fields. */
-void BossCameraUpdate(void) {}
+ * LookInDirection pose. */
+extern s32 gGameMode;
+extern s32 gBossActive;
+extern u8* CurTransmitter;
+extern s32 lbl_803447B8;              /* scripted-camera gate */
+extern s32 gScriptedCameraState;
+extern s32 lbl_8034453C;
+static void BossCamBossCalc(void);
+static void BossCamPlayerCalc(void);
+static void BossCameraStart(void);
+extern void FatalError(char* fmt, u32 code);
+extern void GetPlayerAvgPos(f32* out, void* a, f32* b, s32 c);
+extern void GetYawPitch(f32* dir, f32* yaw, f32* pitch);
+extern void DoShake(f32* pos, f32* attn);
+extern void ExtractYPR(void* mtx, f32* pyr);
+extern void dbgTextPrintfCell(s32 color, s32 a, s32 b, char* fmt, ...);
+extern f64 __frsqrte(f64 x);
+extern const f64 lbl_80345BB0;        /* 3.0 */
+extern const f64 lbl_80345BC8;        /* rad->deg scale A */
+extern const f64 lbl_80345BD0;        /* rad->deg scale B */
+extern char lbl_801117B8[];           /* "BossCamStartCalc called with no b..." */
+extern char lbl_801117E0[];           /* "BCAM Y=%.0f P=%.0f D=%.2f ..." */
+
+s32 BossCameraUpdate(void) {
+    f32 pitch;
+    f32 yaw;
+    f32 d2;
+    f32 dir[3];
+    f32 avg[3];
+    volatile f32 tmp;
+    f32* wp;
+    s32 zero;
+
+    if (lbl_803447B8 == 0) {
+        gScriptedCameraState = 0;
+    }
+    gCameraWindowScaleY = lbl_80345BA0;
+    if (lbl_803443A8 == 0) {
+        BossCameraStart();
+    }
+    if (gGameMode == 0x4013 || gGameMode == 0x400D || gGameMode == 0x4017) {
+        if (lbl_803443A8 == 0) {
+            lbl_803443A8 = 1;
+        }
+    } else {
+        if (lbl_803443D0 == 0) {
+            return 0;
+        }
+        if (lbl_803443A8 == 0) {
+            if (gBossObj == 0) {
+                FatalError(lbl_801117B8, 0x800000);
+            }
+            wp = (f32*)CurTransmitter;
+            lbl_803447B8 = 1;
+            GetPlayerAvgPos(avg, 0, 0, 1);
+            dir[0] = avg[0] - wp[1];
+            dir[1] = avg[1] - wp[2];
+            dir[2] = avg[2] - wp[3];
+            d2 = dir[2] * dir[2] + (d2 = dir[0] * dir[0] + dir[1] * dir[1]);
+            if (d2 > lbl_80345BA0) {
+                f64 y = __frsqrte(d2);
+                y = lbl_80345BA8 * y * (lbl_80345BB0 - y * y * d2);
+                y = lbl_80345BA8 * y * (lbl_80345BB0 - y * y * d2);
+                y = lbl_80345BA8 * y * (lbl_80345BB0 - y * y * d2);
+                tmp = (f32)(d2 * (lbl_80345BA8 * y * (lbl_80345BB0 - y * y * d2)));
+                d2 = tmp;
+            }
+            GetYawPitch(dir, &yaw, &pitch);
+            *(f32*)((u8*)gGameCamera + 164) = avg[0];
+            *(f32*)((u8*)gGameCamera + 168) = avg[1];
+            *(f32*)((u8*)gGameCamera + 172) = avg[2];
+            *(f32*)((u8*)gGameCamera + 176) = avg[0];
+            *(f32*)((u8*)gGameCamera + 180) = avg[1];
+            *(f32*)((u8*)gGameCamera + 184) = avg[2];
+            *(f32*)((u8*)gGameCamera + 236) = yaw;
+            *(f32*)((u8*)gGameCamera + 260) = pitch;
+            *(f32*)((u8*)gGameCamera + 244) = d2;
+        } else if (*(void**)((u8*)gCurLevel + 108) != 0) {
+            if (gBossActive == 0) {
+                BossCamPlayerCalc();
+            } else {
+                BossCamBossCalc();
+            }
+        }
+    }
+
+    {
+        f64 a;
+        wp = (f32*)((u8*)gGameCamera + 236);
+        a = *wp;
+        if (a > lbl_80345B88) {
+            a = a - lbl_80345BB8;
+        } else if (a <= lbl_80345BC0) {
+            a = lbl_80345BB8 + a;
+        }
+        *wp = a;
+    }
+    {
+        f64 a;
+        wp = (f32*)((u8*)gGameCamera + 260);
+        a = *wp;
+        if (a > lbl_80345B88) {
+            a = a - lbl_80345BB8;
+        } else if (a <= lbl_80345BC0) {
+            a = lbl_80345BB8 + a;
+        }
+        *wp = a;
+    }
+
+    YawVec3(lbl_80127D40, (f32*)((u8*)gGameCamera + 224),
+            -*(f32*)((u8*)gGameCamera + 236));
+    PitchVec3((f32*)((u8*)gGameCamera + 224), (f32*)((u8*)gGameCamera + 224),
+              -*(f32*)((u8*)gGameCamera + 260));
+    DoShake((f32*)((u8*)gGameCamera + 48), (f32*)((u8*)gGameCamera + 164));
+    *(f32*)((u8*)gGameCamera + 48) =
+        *(f32*)((u8*)gGameCamera + 224) * -*(f32*)((u8*)gGameCamera + 244) +
+        *(f32*)((u8*)gGameCamera + 164);
+    *(f32*)((u8*)gGameCamera + 52) =
+        *(f32*)((u8*)gGameCamera + 228) * -*(f32*)((u8*)gGameCamera + 244) +
+        *(f32*)((u8*)gGameCamera + 168);
+    *(f32*)((u8*)gGameCamera + 56) =
+        *(f32*)((u8*)gGameCamera + 232) * -*(f32*)((u8*)gGameCamera + 244) +
+        *(f32*)((u8*)gGameCamera + 172);
+    LookInDirection((f32*)((u8*)gGameCamera + 224), gGameCamera);
+
+    lbl_8034453C = 0;
+    gCameras[0].attn[0] = *(f32*)((u8*)gGameCamera + 164);
+    gCameras[0].attn[1] = *(f32*)((u8*)gGameCamera + 168);
+    gCameras[0].attn[2] = *(f32*)((u8*)gGameCamera + 172);
+    gCameras[0].wpos[0] = *(f32*)((u8*)gGameCamera + 48);
+    gCameras[0].wpos[1] = *(f32*)((u8*)gGameCamera + 52);
+    gCameras[0].wpos[2] = *(f32*)((u8*)gGameCamera + 56);
+    ExtractYPR(gGameCamera, gCameras[0].pyr);
+    wp = &gCameras[0].pyr[1];
+    gCameras[0].pyr[1] = gCameras[0].pyr[1] + lbl_80345B88;
+    {
+        f64 a;
+        a = *wp;
+        if (a > lbl_80345B88) {
+            a = a - lbl_80345BB8;
+        } else if (a <= lbl_80345BC0) {
+            a = lbl_80345BB8 + a;
+        }
+        *wp = a;
+    }
+    MBCameraUpdate((f32*)((u8*)gGameCamera + 48), (f32*)gGameCamera);
+    lbl_803443A8 = 1;
+
+    zero = 0;
+    if ((((sFlags & 1) ^ zero) | ((gControllerButtons & zero) ^ zero)) != 0 &&
+        (((sFlags & 16) ^ zero) | ((gControllerButtons & zero) ^ zero)) != 0) {
+        dbgTextPrintfCell(0xFFFF00, 1, 0x20, lbl_801117E0,
+                          lbl_80345BC8 * (lbl_80345BD0 *
+                              *(f32*)((u8*)gGameCamera + 236)),
+                          lbl_80345BC8 * (lbl_80345BD0 *
+                              *(f32*)((u8*)gGameCamera + 260)),
+                          (f64)*(f32*)((u8*)gGameCamera + 244),
+                          (f64)*(f32*)((u8*)gGameCamera + 256),
+                          (f64)*(f32*)((u8*)gGameCamera + 164),
+                          (f64)*(f32*)((u8*)gGameCamera + 168),
+                          (f64)*(f32*)((u8*)gGameCamera + 172));
+    }
+    return 1;
+}
 
 /* Boss-follow camera solve (0xE24, atan2 heavy).  GIANT -- parked per the
  * project's iteration policy; documented in the map above.  Calls
