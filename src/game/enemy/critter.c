@@ -3987,8 +3987,7 @@ void CritterInitHeader(void *hdr, void *file)
     header = (CritterFileHeader *)hdr;
     swapped = 0;
     if (header->state == 0) {
-        wad = header->wad;
-        swapped = MBSetupWad(wad, (s32)file);
+        swapped = MBSetupWad(wad = header->wad, (s32)file);
         header->sfx = (u8 *)MBGetFromWad(wad,
                                          CritterWadTag(lbl_8034665C),
                                          &header->sfxCount);
