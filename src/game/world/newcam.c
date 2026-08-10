@@ -246,7 +246,6 @@ s32 fn_80070144(f32 targetYaw, f32 targetPitch, NcCamera* cam) {
     u8* c = (u8*)cam;
     f32 step;
     f64 d;
-    s32 result;
 
     if (lbl_80343CE0 != 0) {
         if (gClockFrameStep <= 0.0) {
@@ -280,9 +279,7 @@ s32 fn_80070144(f32 targetYaw, f32 targetPitch, NcCamera* cam) {
         *(f32*)(c + 0x1AC) = 0.0f;
     }
 
-    if ((f32)(f64)lbl_80343CEC <= *(f32*)(c + 0x1AC)) {
-        result = 0;
-    } else {
+    if (*(f32*)(c + 0x1AC) < (f32)lbl_80343CEC) {
         d = *(f32*)(c + 0xF0) * step + *(f32*)(c + 0xEC);
         if (d > 3.141592654) {
             d = d - 6.283185308;
@@ -298,11 +295,11 @@ s32 fn_80070144(f32 targetYaw, f32 targetPitch, NcCamera* cam) {
             d = 6.283185308 + d;
         }
         *(f32*)(c + 0x104) = d;
-
-        *(f32*)(c + 0x1AC) = *(f32*)(c + 0x1AC) + step;
-        result = 1;
+    } else {
+        return 0;
     }
-    return result;
+    *(f32*)(c + 0x1AC) = *(f32*)(c + 0x1AC) + step;
+    return 1;
 }
 extern const f32 lbl_80127D20[3];  /* up ref: general */
 /* lbl_80127D40 (up ref: looking up) declared above for CurTransmitterBlink */

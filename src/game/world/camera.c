@@ -1403,12 +1403,15 @@ void camera_mode_follow(s32 camIdx)
                 if ((f64)distance < lbl_80345F28) {
                     transitionParts = 1;
                 }
+                {
+                f64 stepScale = lbl_80345F88;
                 cam->attn[0] = oldAttentionX +
-                    (f32)((f64)dx * lbl_80345F88);
+                    (f32)((f64)dx * stepScale);
                 cam->attn[1] = oldAttentionY +
-                    (f32)((f64)dy * lbl_80345F88);
+                    (f32)((f64)dy * stepScale);
                 cam->attn[2] = oldAttentionZ +
-                    (f32)((f64)dz * lbl_80345F88);
+                    (f32)((f64)dz * stepScale);
+                }
 
                 dx = cam->wpos[0] - oldPositionX;
                 dy = cam->wpos[1] - oldPositionY;
@@ -1430,12 +1433,15 @@ void camera_mode_follow(s32 camIdx)
                 if ((f64)distance < lbl_80345F28) {
                     transitionParts--;
                 }
+                {
+                f64 stepScale = lbl_80345F88;
                 cam->wpos[0] = oldPositionX +
-                    (f32)((f64)dx * lbl_80345F88);
+                    (f32)((f64)dx * stepScale);
                 cam->wpos[1] = oldPositionY +
-                    (f32)((f64)dy * lbl_80345F88);
+                    (f32)((f64)dy * stepScale);
                 cam->wpos[2] = oldPositionZ +
-                    (f32)((f64)dz * lbl_80345F88);
+                    (f32)((f64)dz * stepScale);
+                }
                 FOLLOW_RENDER(camIdx, cam, transitionPosition,
                               transitionAttention, transitionDirection);
             } else {
@@ -1503,10 +1509,8 @@ void camera_mode_follow(s32 camIdx)
             cam->avel[0] = zeroValue;
             cam->avel[1] = zeroValue;
             cam->avel[2] = zeroValue;
-            if (lbl_803443F4 != 0) {
-                FOLLOW_NORMALIZE_POSITION(cam, normalizeDefault,
-                                          followRadius);
-            }
+            FOLLOW_NORMALIZE_POSITION(cam, normalizeDefault,
+                                      followRadius);
             FOLLOW_RENDER(camIdx, cam, resetPosition, resetAttention,
                           resetDirection);
             ProcCamera(camIdx, 0);
@@ -1562,43 +1566,39 @@ void camera_mode_follow(s32 camIdx)
         distance = focusRoot;
     }
 
-    previousSpeed = lbl_80344464;
     targetExtent = lbl_803444E8;
     lbl_80344460 = lbl_80344464;
     if ((f64)targetExtent < lbl_80345F90) {
-        maximumStep = lbl_80345FA0;
-        desiredSpeed = (f32)(lbl_80345F98 *
-            ((f64)(u32)gFrameTicks - lbl_80345F50));
+        lbl_80344464 = (f32)(lbl_80345F98 * (f64)(u32)gFrameTicks);
+        lbl_80344468 = lbl_80345FA0;
     } else if ((f64)targetExtent >= lbl_80345FA8) {
-        maximumStep = lbl_80345FB8;
-        desiredSpeed = (f32)(lbl_80345FB0 *
-            ((f64)(u32)gFrameTicks - lbl_80345F50));
+        lbl_80344464 = (f32)(lbl_80345FB0 * (f64)(u32)gFrameTicks);
+        lbl_80344468 = lbl_80345FB8;
     } else {
         f64 extentDelta = lbl_80345FA8 - (f64)targetExtent;
-        desiredSpeed = (f32)(lbl_80345FC0 * extentDelta + lbl_80345FB0);
-        maximumStep = (f32)-(lbl_80345FD0 * extentDelta *
+        lbl_80344464 = (f32)(lbl_80345FC0 * extentDelta + lbl_80345FB0);
+        lbl_80344468 = (f32)-(lbl_80345FD0 * extentDelta *
             lbl_80345FD8 - lbl_80345FC8);
     }
-    lbl_80344464 = desiredSpeed;
-    lbl_80344468 = maximumStep;
 
     if (lbl_80344960 < 0 && (f64)targetExtent >= lbl_80345FE0) {
-        maximumStep = lbl_80345FE8;
-        desiredSpeed = (f32)((f64)targetExtent *
-            ((f64)(u32)gFrameTicks - lbl_80345F50));
+        lbl_80344464 = targetExtent * (f32)(u32)gFrameTicks;
+        lbl_80344468 = lbl_80345FE8;
     } else {
+        previousSpeed = lbl_80344460;
+        desiredSpeed = lbl_80344464;
         if (previousSpeed < desiredSpeed) {
             if ((f64)(desiredSpeed - previousSpeed) > lbl_80345F90) {
-                desiredSpeed = (f32)(lbl_80345F90 + (f64)previousSpeed);
+                lbl_80344464 = (f32)(lbl_80345F90 + (f64)previousSpeed);
             }
         } else if ((f64)(previousSpeed - desiredSpeed) > lbl_80345F90) {
-            desiredSpeed = (f32)((f64)previousSpeed - lbl_80345F90);
+            lbl_80344464 = (f32)((f64)previousSpeed - lbl_80345F90);
         }
     }
-    lbl_80344464 = desiredSpeed;
-    lbl_80344468 = maximumStep;
 
-    if (desiredSpeed <= distance) {
+    desiredSpeed = lbl_80344464;
+    if (distance >= desiredSpeed) {
+        maximumStep = lbl_80344468;
         if (distance > maximumStep) {
             distance = maximumStep;
         }
@@ -1793,13 +1793,13 @@ found_target_player:
             moveDelta[1] = cam->wpos[1] - cam->attn[1];
             moveDelta[2] = cam->wpos[2] - cam->attn[2];
             dx = moveDelta[0];
-            dy = moveDelta[1];
             dz = moveDelta[2];
+            dy = moveDelta[1];
             squaredX = dx * dx;
-            squaredZ = dz * dz;
+            dz *= dz;
             squaredY = dy * dy;
             distance = squaredX + squaredY;
-            distance = squaredZ + distance;
+            distance = dz + distance;
             if (distance > *(volatile f32*)&lbl_80345EC8) {
                 f64 guess = __frsqrte(distance);
                 guess = lbl_80345F18 * guess * (lbl_80345F20 - guess * guess * distance);
@@ -3417,6 +3417,7 @@ s32 debug_camera_pos(s32 lastPlayer)
     s16 projected[2];
     u8 scratchPad[8];
     u8* playerData;
+    f32 savedPitch;
     f32 distance;
     f32 extent;
     f32 scale;
@@ -3428,8 +3429,8 @@ s32 debug_camera_pos(s32 lastPlayer)
     s32 cameraIndex;
     s32 offscreen;
     s32 previousAttention;
-    f32 savedPitch;
     f32 zeroValue;
+    f32 ratio;
 
     cameraIndex = 5;
     offscreen = 0;
@@ -3445,8 +3446,7 @@ s32 debug_camera_pos(s32 lastPlayer)
     scale = cam->delta[0] * cam->delta[0];
     distance = cam->delta[1] * cam->delta[1];
     extent = cam->delta[2] * cam->delta[2];
-    distance = scale + distance;
-    distance = extent + distance;
+    distance = extent + (distance = scale + distance);
     if (distance > lbl_80345EC8) {
         root = __frsqrte(distance);
         root = lbl_80345F18 * root *
@@ -3463,35 +3463,35 @@ s32 debug_camera_pos(s32 lastPlayer)
 
     extent = lbl_803444E8;
     if ((f64)extent < lbl_80345F90) {
-        lbl_80344468 = lbl_80345FA0;
         lbl_80344464 =
             (f32)(lbl_80345F98 * (f64)(u32)gFrameTicks);
+        lbl_80344468 = lbl_80345FA0;
     } else if ((f64)extent >= lbl_80345FA8) {
-        lbl_80344468 = lbl_80345FB8;
         lbl_80344464 =
             (f32)(lbl_80345FB0 * (f64)(u32)gFrameTicks);
+        lbl_80344468 = lbl_80345FB8;
     } else {
         difference = lbl_80345FA8 - (f64)extent;
         lbl_80344464 =
             (f32)(lbl_80345FC0 * difference + lbl_80345FB0);
         lbl_80344468 =
-            (f32)-(lbl_80345FD0 * difference * lbl_80345FD8 -
+            (f32)-(difference * lbl_80345FD0 * lbl_80345FD8 -
                    lbl_80345FC8);
     }
     if (lbl_80344960 < 0 && (f64)extent >= lbl_80345FE0) {
-        lbl_80344468 = lbl_80345FE8;
         lbl_80344464 = extent * (f32)(u32)gFrameTicks;
+        lbl_80344468 = lbl_80345FE8;
     }
 
     scale = lbl_80344464;
-    if (scale <= distance) {
+    if (distance >= scale) {
         if (distance > lbl_80344468) {
             distance = lbl_80344468;
         }
-        scale /= distance;
-        cam->delta[0] *= scale;
-        cam->delta[1] *= scale;
-        cam->delta[2] *= scale;
+        ratio = scale / distance;
+        cam->delta[0] *= ratio;
+        cam->delta[1] *= ratio;
+        cam->delta[2] *= ratio;
     }
     cam->attn[0] += cam->delta[0];
     cam->attn[1] += cam->delta[1];
@@ -3547,7 +3547,7 @@ s32 debug_camera_pos(s32 lastPlayer)
          player++, playerData += 0x335C) {
         if (*(s32*)(playerData + 0xE8) == 1) {
             MBWindowProject((f32*)(playerData + 0x54),
-                            (f32*)(state + cameraIndex * sizeof(Camera) + 0xCC),
+                            &((Camera*)(state + 0xC8))[cameraIndex].mat[0][0],
                             0, projected);
             screenX = (f32)projected[0];
             screenY = (f32)projected[1];
