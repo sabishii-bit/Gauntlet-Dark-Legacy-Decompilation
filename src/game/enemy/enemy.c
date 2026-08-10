@@ -769,7 +769,7 @@ void do_enemy_move(s32 index)
 extern void* fn_80045C30(Enemy* e, f32 rad, f32 arg, f32* oldpos, f32* trans,
                          s32 collided);
 extern void MBNodeSetParent(void* node, void* parent);
-extern s32 FloorCollide(f32* pos, s32 a, s32 b, s32 mode, f32 x, f32 y, f32 z);
+extern void* FloorCollide(f32* pos, s32 a, s32 b, s32 mode, f32 x, f32 y, f32 z);
 extern s32 damage_enemy(Enemy* e, f32 amount, s32 dtype, s32 a, s32 b, s32 c,
                         s32 d);
 extern f64 lbl_80346860;
@@ -2079,9 +2079,10 @@ void move_logic04(s32 index)
  * object probe; a block on either rotates the heading and re-arms the timer. */
 void move_logic05(s32 index)
 {
-    Enemy* e = (Enemy*)((u8*)lbl_80250E00 + index * 916 + 3608);
-    f32 dist = e->rad;
-    f32 speed = ((f32*)lbl_80250E40)[e->type];
+    Enemy* e = (Enemy*)((u8*)lbl_80250E00 + index * 916);
+    s32 type;
+    f32 dist;
+    f32 speed;
     s32 it = lbl_80344748;
     s32 flee;
     f32 probe[3];
@@ -2089,20 +2090,29 @@ void move_logic05(s32 index)
     f32 probe2[3];
     u8 unused[56];
 
+    type = *(s32*)((u8*)e + 3608);
+    e = (Enemy*)((u8*)e + 3608);
+    dist = e->rad;
+    {
+        u8* t = (u8*)lbl_80250E00;
+        t += type * 4;
+        speed = *(f32*)(t + 64);
+    }
     if (it < 0) {
         flee = 0;
     } else {
-        Enemy* other = (Enemy*)((u8*)lbl_80250E00 + it * 916 + 3608);
-        if (other->state != 1) {
+        u8* other = (u8*)lbl_80250E00 + it * 916;
+        if (*(s32*)(other + 3788) != 1) {
             flee = 0;
-        } else if (other->actual_dist > e->sight) {
+        } else if (*(f32*)(other + 4244) > e->sight) {
             flee = 0;
         } else {
-            f32 dy = other->objgrp.worldmat[3][1] - e->objgrp.worldmat[3][1];
-            f32 dx = other->objgrp.worldmat[3][0] - e->objgrp.worldmat[3][0];
-            f32 dz = other->objgrp.worldmat[3][2] - e->objgrp.worldmat[3][2];
-            if (index != it && e->birth_style == 0 && e->dead_end <= 0
-                && dy * dy + dx * dx + dz * dz < 100.0) {
+            f32 dy, dx, dz;
+            if (index != it && e->birth_style == 0 && e->dead_end <= 0 &&
+                ((dy = *(f32*)(other + 3664) - e->objgrp.worldmat[3][1]),
+                 (dx = *(f32*)(other + 3660) - e->objgrp.worldmat[3][0]),
+                 (dz = *(f32*)(other + 3668) - e->objgrp.worldmat[3][2]),
+                 dy * dy + dx * dx + dz * dz < 100.0)) {
                 flee = -1;
             } else {
                 flee = 0;
@@ -3641,10 +3651,10 @@ void move_logic16(s32 index)
  * dealing 999 damage to the caught player. */
 void move_logic18(s32 index)
 {
+    s32 stuck;
     Enemy* e = &gEnemies[index];
     f32 leapspeed = 0.0f;
     s32 dend = e->dead_end;
-    s32 stuck;
     s16 sVar1;
     f32 a;
 
@@ -3656,39 +3666,38 @@ void move_logic18(s32 index)
     if (e->algorithm != e->prev_ai) {
         fn_80050394(index);
     }
-    if (e->closest < 0) {
-        a = e->ang;
-    } else if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
-        a = get_yaw(&gPlayerWords[e->closest][633], &e->objgrp.worldmat[3][0]);
+    if (e->closest >= 0) {
+        if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+            a = get_yaw(&gPlayerWords[e->closest][633],
+                        &e->objgrp.worldmat[3][0]);
+        } else {
+            a = get_yaw(&gPlayerWords[e->closest][17],
+                        &e->objgrp.worldmat[3][0]);
+        }
     } else {
-        a = get_yaw(&gPlayerWords[e->closest][17], &e->objgrp.worldmat[3][0]);
+        a = e->ang;
     }
     e->ang = a;
-    sVar1 = e->mode1;
-    if (sVar1 == 1) {
-        goto crouch;
-    }
-    if (sVar1 < 1 || sVar1 > 2) {
+    switch (e->mode1) {
+    default:
         if (e->closest >= 0 && e->actual_dist <= e->sight) {
             e->mode1++;
             e->flag1 = 60;
             e->flag2 = 0;
         }
         goto move;
-    }
-    goto leap;
-crouch:
-    if (e->closest >= 0 && e->action != 4
-        && (e->flag1 -= gFrameTicks) <= 0) {
-        RequestEnemyAction(e, 9);
-    }
-    if (e->action != 4) {
-        goto move;
-    }
-    e->mode1++;
-    fn_8009DD6C(&e->objgrp.attn_pos[0]);
-leap:
-    e->flag2 += gFrameTicks;
+    case 1:
+        if (e->closest >= 0 && e->action != 4
+            && (e->flag1 -= gFrameTicks) <= 0) {
+            RequestEnemyAction(e, 9);
+        }
+        if (e->action != 4) {
+            goto move;
+        }
+        e->mode1++;
+        fn_8009DD6C(&e->objgrp.attn_pos[0]);
+    case 2:
+        e->flag2 += gFrameTicks;
     if (e->recognized == 0 || e->closest < 0) {
         e->algorithm = (index & 1) + 5;
         do_ai(index);
@@ -3719,6 +3728,7 @@ leap:
         || fabsf_(e->ang - e->anghit) >= 0.10471975513333334) {
         e->dead_end = 0;
         set_enemy_trans(e, 1.5f, e->ang);
+    }
     }
 move:
     e->pyr[1] = turn_enemy_ang(e, e->ang);
@@ -5340,7 +5350,7 @@ void uncouple_enemy(s32 index) {
  * snap Y to the floor, then reject overlaps with world objects or other
  * enemies (unless the overlap is the enemy's own generator).  Returns 1 when
  * the position is usable, 0 when blocked by geometry/occupant, -1 on failure. */
-extern s32 FloorCollide(f32* pos, s32 a, s32 b, s32 mode, f32 x, f32 y, f32 z);
+extern void* FloorCollide(f32* pos, s32 a, s32 b, s32 mode, f32 x, f32 y, f32 z);
 extern u8 gFloorCollisionResult[]; /* 0x8023CAE0, floor Y at +0x34 */
 extern f32 lbl_80346A40;
 extern f32 lbl_80346A44;
@@ -5356,8 +5366,10 @@ s32 check_enemy_pos(f32* start, f32* out, s32 slot)
     f32 rad = e->rad;
     f32 hht = e->hht;
     f32 pos[3];
-    f32 half;
+    u8 _ppad[4];
+    f64 half;
     void* obj;
+    s32 grounded;
 
     if (out != NULL) {
         pos[0] = out[0] + start[0];
@@ -5375,12 +5387,18 @@ s32 check_enemy_pos(f32* start, f32* out, s32 slot)
     e->objgrp.worldmat[3][1] = pos[1];
     e->objgrp.worldmat[3][2] = pos[2];
     if (FloorCollide(pos, 0, 0, 2, lbl_80346A40, lbl_80346A44, lbl_80346A48)
-        == 0) {
+        != 0) {
+        grounded = 1;
+    } else {
+        grounded = 0;
+    }
+    if (grounded == 0) {
         return -1;
     }
     {
         f32 floorY = *(f32*)(gFloorCollisionResult + 0x34);
         f32 dy = floorY - start[1];
+        u8 _dpad[8];
 
         *(u32*)&dy &= 0x7FFFFFFF;
         if (dy > lbl_80346988) {
@@ -5392,11 +5410,11 @@ s32 check_enemy_pos(f32* start, f32* out, s32 slot)
     if (fn_80046680(rad, hht, slot, 1, start, pos) >= 0) {
         return 0;
     }
-    half = (f32)(lbl_80346830 * rad);
-    if (fn_8004646C(half, hht, slot, start, pos, 0, 0) >= 0) {
+    half = lbl_80346830 * rad;
+    if (fn_8004646C((f32)half, hht, slot, start, pos, 0, 0) >= 0) {
         return 0;
     }
-    obj = fn_8005EFAC(half, start, pos, 0, 0);
+    obj = fn_8005EFAC((f32)half, start, pos, 0, 0);
     if (obj != NULL && obj != e->generator) {
         if (fn_8005D3D8(-1, obj) != 0) {
             return 0;
@@ -6431,9 +6449,9 @@ s32 fn_8004646C(f32 rad, f32 hht, s32 index, f32* oldc, f32* newc, f32* newc2,
  * b!=0 restricts the sweep to the nearest live player. */
 s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
 {
+    s32 last;
     s32 i;
     s32 j;
-    s32 last;
     u8* p;
     u8* q;
     u8* e = (u8*)gEnemies + index * 916;
@@ -6442,11 +6460,12 @@ s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
     f32 best1;
     f32 best = lbl_803468B0;
     f32 hit[4];
+    u8 _pad4[4];
     f32 d;
     f32 dy;
     f32 dx;
     f32 dz;
-    u8 _spare[40];
+    u8 _spare[36];
 
     if (b != 0) {
         start = 0;
@@ -6456,8 +6475,8 @@ s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
             return -1;
         }
         best1 = best;
-        last = -1;
         p = (u8*)gPlayerWords;
+        last = -1;
         for (i = 0; i < 4; i++, p += 13148) {
             if (*(s32*)(p + 232) == 1) {
                 if (*(s16*)(p + 2588) > 2) {
@@ -6535,7 +6554,8 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
         level = 1;
     }
     {
-        u8* r = (u8*)((u32)tbl + t4);
+        u8* r = tbl;
+        r += t4;
         scale = *(f32*)(r + 2760);
     }
     if (type != 30) {
@@ -6570,3 +6590,6 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
         AnimateATree((void*)(e + 108), 0, 2);
     }
 }
+
+
+
