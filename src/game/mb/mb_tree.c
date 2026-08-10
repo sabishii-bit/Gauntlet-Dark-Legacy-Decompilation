@@ -820,8 +820,7 @@ MBTreeNode* MBNewNode(MBTreeNode* parent, const f32* matrix, s32 type)
     if (type == 0)
         type = 1;
 
-    node = lbl_80344EE0;
-    if (node != 0) {
+    if ((node = lbl_80344EE0) != 0) {
         lbl_80344EE0 = node->next;
     } else {
         node = AllocMem(0x80);
