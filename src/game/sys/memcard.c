@@ -670,32 +670,42 @@ int MemCardCreateGaunt(int port, int slot)
  * probe/mount/check status codes into the cached (state, present) pair and
  * returns 1 only when the card is fully ready (state 3, present 1).
  */
+#pragma opt_common_subs off
 s32 saveMount(s32 port, s32 slot, s32 doFormat)
 {
-    s32 idx = slot + port * 4;
-    char* pool = lbl_801131C0;
-    s32* pState;
-    s32* pPresent;
-    u8* top;
-    u32 aramSize;
     s32 memSize;
     s32 sectorSize;
+    s32 portOff;
+    s32 slotOff;
+    s32* pPresent;
+    s32* pState;
+    s32 chan;
+    char* pool = lbl_801131C0;
+    u8* top;
+    u32 aramSize;
     s32 probe;
     s32 r;
     u8 mounted = 0;
     u8 retry;
+    u32 lo;
+    u8 unused[20];
+    s32 idx;
 
+    portOff = port << 2;
+    idx = slot + portOff;
+    chan = idx;
     bulletproof_printf(pool + 148, port, slot);   /* "Entered SAVEMOUNT..." */
     if (idx > 1) {
         return 0;
     }
-    pState = &lbl_80344A18 + port + slot;
-    pPresent = &lbl_80344A14 + port + slot;
+    slotOff = slot << 2;
+    pState = (s32*) ((u8*) &lbl_80344A18 + (portOff + slotOff));
+    pPresent = (s32*) ((u8*) &lbl_80344A14 + (portOff + slotOff));
 
     /* poll the slot until CARDProbeEx reports a stable status */
     do {
         retry = 0;
-        probe = CARDProbeEx(idx, &memSize, &sectorSize);
+        probe = CARDProbeEx(chan, &memSize, &sectorSize);
         switch (probe) {
         case -128:
         case -3:
@@ -723,16 +733,16 @@ s32 saveMount(s32 port, s32 slot, s32 doFormat)
     sysSetFlags(64);
     top = (u8*) GetHiMemCacheTop();
     dcsAramWriteTop(top - 0x310000, aramSize);
-    lbl_80344A0C = OSCreateHeap(top - 0x310000, (top - 0x310000) + aramSize);
+    lbl_80344A0C = OSCreateHeap((void*) (lo = (u32) top - 0x310000), (void*) (lo + aramSize));
     lbl_80344A08 = OSSetCurrentHeap(lbl_80344A0C);
     lbl_80344A00 = (u8*) OSAllocFromHeap(__OSCurrHeap, 8192);
     lbl_803449FC = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x10000 - 24576);
     cardStart(lbl_80344A00 + 8192, 8192, 18);
     cardWaitResult();
-    cardMount(idx, lbl_803449FC, cardRemovedCallback);
+    cardMount(chan, lbl_803449FC, cardRemovedCallback);
     r = cardWaitResult();
 
-    *(s32*)((u8*)lbl_80344A10 + (port << 2) + (slot << 2)) = -1;
+    *(s32*) ((u8*) &lbl_80344A10 + (portOff + slotOff)) = -1;
     if (r == 0) {
         *pPresent = 1;
         *pState = 3;
@@ -756,7 +766,6 @@ s32 saveMount(s32 port, s32 slot, s32 doFormat)
             *pPresent = 0;
             *pState = 0;
             break;
-        case -4:
         case -3:
             *pState = -1;
             *pPresent = -1;
@@ -769,7 +778,7 @@ s32 saveMount(s32 port, s32 slot, s32 doFormat)
             break;
         }
         if (doFormat) {
-            cardFormat(idx);
+            cardFormat(chan);
             if (cardWaitResult() == 0) {
                 *pState = 3;
                 *pPresent = 1;
@@ -820,6 +829,7 @@ s32 saveMount(s32 port, s32 slot, s32 doFormat)
     }
     return -1;
 }
+#pragma opt_common_subs reset
 
 /*
  * InitPreferences - one-time preferences load with a full save-cache
