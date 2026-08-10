@@ -102,8 +102,7 @@ extern s32 gDiag_F0;
 extern s32 gDiag_DEC;
 extern s32 gDiag_E6C;
 extern s32 gDiag_E70;
-extern u32 gControllerButtons;
-extern u32 sFlags;
+extern u64 gControllerButtons;  /* low half = sFlags@803445CC */
 extern f32 gIdentityMatrix[];
 extern f32 lbl_803486B0;
 extern f32 lbl_803486B8;
@@ -175,6 +174,7 @@ extern s32 gDiag_D38;           /* focused column (0/1/2) */
 extern char lbl_803486A0[8];    /* "%s"-style row format (sdata2) */
 extern char lbl_803486A8[8];    /* sub-row format (sdata2) */
 extern int sprintf(char* dst, const char* fmt, ...);
+extern int printf(const char* fmt, ...);
 
 extern s32 gDiag_D3C;           /* audio column selector */
 extern s32 gDiag_D40;           /* volume A */
@@ -813,10 +813,8 @@ s32 pbDiagDrawInfo(void)
             AtreeDelete((u8*)b + 456);
         }
         if (entry != 0) {
-            s32 zero = 0;
-            s32 one = 1;
             s32 kept = gDiag_F00;
-            if ((gControllerButtons & zero) != zero || (sFlags & one) != zero) {
+            if (gControllerButtons & 1) {
                 *(u32*)((u8*)b + 456) = AtreeInit(entry, (u8*)b + 456, 0, 0);
             } else {
                 *(u32*)((u8*)b + 456) =
@@ -874,16 +872,12 @@ s32 pbDiagDrawInfo(void)
     if (w2 & 0x00800000) {
         gDiag_D20 = (f32)(gDiag_D20 - lbl_803486D0);
     }
-    {
-        s32 zero = 0;
-        s32 one = 1;
-        if ((gControllerButtons & zero) != zero || (sFlags & one) != zero) {
-            MBTreeSetAltTex(gDiag_FC, -2, gDiagWhiteObj, 1);
-            gDiag_D4 = one;
-        } else if (gDiag_D4 != 0) {
-            MBTreeSetAltTex(gDiag_FC, -1, 0, 1);
-            gDiag_D4 = zero;
-        }
+    if (gControllerButtons & 1) {
+        MBTreeSetAltTex(gDiag_FC, -2, gDiagWhiteObj, 1);
+        gDiag_D4 = 1;
+    } else if (gDiag_D4 != 0) {
+        MBTreeSetAltTex(gDiag_FC, -1, 0, 1);
+        gDiag_D4 = 0;
     }
     for (i = 0; i < lbl_80344CF8; i++) {
         sprintf(buf, lbl_803486D8, i);
@@ -961,32 +955,36 @@ void pbDiagDrawMenuB(DiagMenu* menu) {
     int line;
     int i;
     int off;
-    int start;
     int end;
+    u8 _spare[8];
     int count = menu->count;
 
     line = 3;
-    if (count < 38) {
-        end = count;
-        start = 0;
-    } else {
-        end = gDiagMenuList[gDiagMenuIdx] + 19;
-        if (end < 38) {
-            end = 38;
-        }
-        if (end >= count) {
+    {
+        int start;
+        if (count < 38) {
             end = count;
+            start = 0;
+        } else {
+            end = gDiagMenuList[gDiagMenuIdx] + 19;
+            if (end < 38) {
+                end = 38;
+            }
+            if (end >= count) {
+                end = count;
+            }
+            start = end - 38;
         }
-        start = end - 38;
+        if (menu == 0) {
+            return;
+        }
+        if (menu->strs == 0) {
+            return;
+        }
+        i = start;
     }
-    if (menu == 0) {
-        return;
-    }
-    if (menu->strs == 0) {
-        return;
-    }
-    off = start * 36;
-    for (i = start; i < end; i++) {
+    off = i * 36;
+    while (i < end) {
         if (i == gDiagMenuList[gDiagMenuIdx]) {
             fn_800C008C(0x00FFFF00, 1, line, menu->strs + off);
             strlen(menu->strs + off);
@@ -994,9 +992,34 @@ void pbDiagDrawMenuB(DiagMenu* menu) {
             fn_800C008C(0x00FFFFFF, 1, line, menu->strs + off);
         }
         line++;
+        i++;
         off += 36;
     }
 }
+
+/* buttons-block view for pbDiagDrawTexture: cursor table at +112, tile blits at +392 */
+typedef struct BtnView {
+    u8  _pad0[112];
+    s32 cursors[70];        /* 0x70: per-bank texture cursor (u32[.. ]) */
+    u32 blits[8];           /* 0x188 (392): 6 tile blit handles */
+    u32 f424;               /* 0x1A8 */
+} BtnView;
+
+/* wg->f30 object-view entry: 16-byte stride, view ptr at +4 */
+typedef struct ObjEnt {
+    s32 a;
+    struct DiagObjView* obj;
+    s32 c;
+    s32 d;
+} ObjEnt;
+
+/* wg->f30 texture-bank entry: 16-byte stride, bank ptr at +4, lock flag read at +16 */
+typedef struct TexBankEnt {
+    s32 a;                  /* 0x0 */
+    struct DiagTexBank* bank; /* 0x4 */
+    s32 c;
+    s32 d;
+} TexBankEnt;
 
 /* texture bank view: name at +0x20, slot count at +0x48, defs at +0x58 */
 typedef struct DiagTexBank {
@@ -1031,31 +1054,36 @@ void pbDiagDrawTexLabel();
  * per-bank texture cursor, tile refresh + highlight toggling */
 s32 pbDiagDrawTexture(void)
 {
-    u32* b = buttons;
     char buf[68];
-    u8* texdef;
-    int x;
-    WinGlobals* wg;
-    f32* gd;
-    DiagTexBank* tb;
-    s32* gdi = (s32*)gDiagData;
-    int i;
-    s32 old;
-    s32 old2;
-    s32 v;
-    u32 saved;
-    void* tex;
-    u32* bp;
-    u32 w;
+    register s32* gdi = (s32*)gDiagData;
+    u32* b = buttons;
+    register BtnView* bv = (BtnView*)buttons;
+    register u8* texdef;
+    register WinGlobals* wg;
+    register int x;
+    register DiagTexBank* tb;
+    register f32* gd;
+    register int i;
+    register s32 old;
+    register s32 old2;
+    register s32 v;
+    register u32 saved;
+    register void* tex;
+    register u32* bp;
+    register u32 w;
     u8 _spare[48];
     s32 rectX;
     s32 rectY;
     u8 _spare2[8];
+    register s16 tw;
+    register s16 th;
+    register u32 blit;
+    register u32* cp;
 
-    texdef = 0;
-    x = 0;
+    gd = (f32*)gdi;
     wg = gWinGlobals;
-    gd = gDiagData;
+    x = 0;
+    texdef = 0;
     if (gDiag_D00 == 0) {
         tex = MBOX_FindTexture_Err(lbl_80114FA8, 0, 1);
         gDiag_D00 = MBCreateBlit(gDiag_DEC, tex, 0, 0, 512, 384);
@@ -1071,12 +1099,15 @@ s32 pbDiagDrawTexture(void)
         if ((u32)(&b[0])[98] == 0) {
             fn_800C7864(0);
             for (i = 0; i < 6; i++) {
-                *(u32*)((u8*)b + i * 4 + 392) = MBCreateBlit(gDiag_DE8, 0,
+                tw = ((s16*)&gd[i])[164];
+                th = ((s16*)&gd[i])[165];
+                blit = MBCreateBlit(gDiag_DE8, 0,
                                            ((s16*)&gd[i * 4])[108],
                                            ((s16*)&gd[i * 4])[109],
-                                           ((s16*)&gd[i])[164],
-                                           ((s16*)&gd[i])[165]);
-                mbBlitUpdateEntry(*(u32*)((u8*)b + i * 4 + 392), -1, 0x01000200);
+                                           tw, th);
+                bp = &b[i];
+                bp[98] = blit;
+                mbBlitUpdateEntry(bp[98], -1, 0x01000200);
             }
         }
         if (gDiag_D04 != 0) {
@@ -1091,14 +1122,16 @@ s32 pbDiagDrawTexture(void)
         }
         if ((u32)(&b[0])[98] != 0) {
             for (i = 0; i < 6; i++) {
-                MBRemoveBlit(*(u32*)((u8*)b + i * 4 + 392));
+                bp = &b[i];
+                MBRemoveBlit(bp[98]);
             }
             (&b[0])[98] = 0;
         }
     }
     MBSetBGColor(*(s32*)((u32)gd + gDiag_D8 * 12), *(s32*)((u8*)gd + gDiag_D8 * 12 + 4),
                  *(s32*)((u8*)gd + gDiag_D8 * 12 + 8));
-    v = pbDiagCtrlInt(0, 0, gDiag_F4, 1, 0, gDiag_F0);
+    old2 = gDiag_F0;
+    v = pbDiagCtrlInt(0, 0, gDiag_F4, 1, 0, old2);
     gDiag_F4 = v;
     old = (s32)(&b[v])[28];
     tb = ((DiagTexBank**)&((s32*)wg->f30)[v * 4])[1];
@@ -1115,8 +1148,10 @@ s32 pbDiagDrawTexture(void)
         }
         if (gDiag_D10 >= 2) {
             for (i = 0; i < 6; i++) {
-                mbInitBlitEntry(*(u32*)((u8*)b + i * 4 + 392),
-                                (u16)(&b[gDiag_F4])[28] | (gDiag_F4 << 16), 0);
+                bp = &b[i];
+                cp = &b[gDiag_F4];
+                mbInitBlitEntry(bp[98],
+                                (u16)cp[28] | (gDiag_F4 << 16), 0);
             }
         } else if (gDiag_D04 != 0) {
             mbInitBlitEntry(gDiag_D04,
@@ -1254,6 +1289,7 @@ int bank;
 /* object-browser screen: spawn/manage the preview object, columns, HSV */
 s32 pbDiagDrawObject(void)
 {
+    char buf[68];
     f32* gd = gDiagData;
     s32* gdi = (s32*)gDiagData;
     s32* b = (s32*)buttons;
@@ -1264,8 +1300,7 @@ s32 pbDiagDrawObject(void)
     int i;
     s32 old;
     s32 ret;
-    s32 zero;
-    s32 one;
+    u8* row;
     u32 saved;
     f32* px;
     f32* py;
@@ -1274,7 +1309,6 @@ s32 pbDiagDrawObject(void)
     u8* t10;
     u8* fnd;
     void* tex;
-    char buf[68];
 
     x = 0;
     wg = gWinGlobals;
@@ -1296,9 +1330,10 @@ s32 pbDiagDrawObject(void)
     if (gDiag_D00 != 0) {
         MBBlitSetColor(gDiag_D00, (&gdi[gDiag_D8])[27]);
     }
-    v = pbDiagCtrlInt(0, 0, gDiag_F4, 1, 0, gDiag_F0);
+    old = gDiag_F0;
+    v = pbDiagCtrlInt(0, 0, gDiag_F4, 1, 0, old);
     gDiag_F4 = v;
-    obj = *(DiagObjView**)((u8*)wg->f30 + v * 16 + 4);
+    obj = ((ObjEnt*)wg->f30)[v].obj;
     old = (&b[v])[12];
     ret = pbDiagCtrlInt(1, 0, (&b[gDiag_F4])[12], 1, 0, obj->count);
     v = gDiag_F4;
@@ -1312,29 +1347,28 @@ s32 pbDiagDrawObject(void)
     }
     v = gDiag_F4;
     fnd = MBOX_ReallyFindObject(obj->rows + (&b[v])[12] * 24, v, v, 1) + gDiag_D0C;
-    if (gDiag_E6C != gDiag_F4 || gDiag_E70 != (&b[gDiag_F4])[12]) {
+    if (gDiag_F4 != gDiag_E6C || gDiag_E70 != (&b[gDiag_F4])[12]) {
         gDiag_E6C = gDiag_F4;
         gDiag_E70 = (&b[gDiag_F4])[12];
     }
     MBSetObject(gDiag_FC, fnd);
-    zero = 0;
-    one = 1;
-    if ((gControllerButtons & zero) != zero || (sFlags & one) != zero) {
+    if (gControllerButtons & 1) {
         MBTreeSetAltTex(gDiag_FC, -2, gDiagWhiteObj, 1);
-        gDiag_D4 = one;
+        gDiag_D4 = 1;
     } else if (gDiag_D4 != 0) {
         MBTreeSetAltTex(gDiag_FC, -1, 0, 1);
-        gDiag_D4 = zero;
+        gDiag_D4 = 0;
     }
     if (b[8] & 0x01000000) {
         v = gDiag_D0C + 1;
         gDiag_D0C = v;
-        if (v > *(s16*)(obj->rows + (&b[gDiag_F4])[12] * 24 + 22)) {
+        row = (u8*)obj->rows + (&b[gDiag_F4])[12] * 24;
+        if (v > *(s16*)(row + 22)) {
             gDiag_D0C = 0;
         }
     }
     pbDiagDrawColorBars();
-    CreatePYRMatrix(gDiag_FC, (u8*)b + 368);
+    CreatePYRMatrix(gDiag_FC, (u8*)((u32)b + 368));
     px = (f32*)((u8*)b + 384);
     py = (f32*)((u8*)b + 388);
     *(f32*)((u8*)gDiag_FC + 48) = *(f32*)((u8*)b + 380);
@@ -1357,7 +1391,7 @@ s32 pbDiagDrawObject(void)
     }
     fn_800C01C0(2, 43, strs + 656, *(f32*)(t10 + 4), *(s32*)(t10 + 32), *(s32*)(t10 + 36),
                 (u16)*(u32*)((u8*)gDiag_FC + 108), idx, *(s32*)(t10 + 40));
-    fn_800C01C0(2, 44, strs + 716, *(f32*)((u8*)b + 380), *px, *py,
+    fn_800C01C0(2, 44, strs + 716, *(f32*)((u32)b + 380), *px, *py,
                 *(f32*)((u8*)b + 368), *(f32*)((u8*)b + 372), *(f32*)((u8*)b + 376));
     fn_800C02F4(saved);
     pbDiagDrawStrRow((DiagStrRows*)obj);
