@@ -1343,7 +1343,6 @@ typedef struct MovieAudioState {
 u32 fn_800DA6A4(register u8* movie, register u32 decodeFrame, f32 elapsed)
 {
     u8 unused[24];
-    register u32 audioSize;
     register MovieAudioState* audio;
     u32 frame;
     register u32* chunk;
@@ -1359,16 +1358,15 @@ u32 fn_800DA6A4(register u8* movie, register u32 decodeFrame, f32 elapsed)
         elapsed = lbl_803493BC;
     }
 
-    audioSize = 0x10000;
-    fn_800DB3D4((u32*)(movie + 0x20), *(s32*)(movie + 0x1C), audioSize - 0x6000);
+    fn_800DB3D4((u32*)(movie + 0x20), *(s32*)(movie + 0x1C), 0xA000);
     if (movie[0x19] != 0) {
         if (movie[0x18] != 0) {
             s32 tag = gMovieAllocCount++;
             audio = AllocHiMem(sizeof(MovieAudioState), tag);
             if (audio != NULL) {
-                audio->command = sndCmd16(audioSize - 0x4000);
+                audio->command = sndCmd16(0xC000);
                 tag = gMovieAllocCount++;
-                audio->buffer = AllocHiMem(audioSize - 0x4000, tag);
+                audio->buffer = AllocHiMem(0xC000, tag);
                 audio->requestSize = 0;
                 audio->offset = 0;
                 audio->remaining = 0;
@@ -1466,6 +1464,7 @@ s32 fn_800DA920(u8* movie, const char* name)
         static const char sourceFile[16] = "MoviePlayer.cpp";
         u8 pathPad[4];
         char* dst;
+        char* tmpBase;
         register char c;
         register s32 i = 0;
         register char* cursor;
@@ -1476,8 +1475,7 @@ s32 fn_800DA920(u8* movie, const char* name)
             cursor++;
         }
         cursor = (char*)name;
-        dst = path;
-        dst += i;
+        dst = (tmpBase = path) + i;
         while ((c = *cursor) != '\0') {
             *dst = c;
             cursor++;
@@ -1548,11 +1546,7 @@ s32 fn_800DA920(u8* movie, const char* name)
     }
     {
         typedef void (*MovieConfigureFn)(u8*, u8*, s32);
-        register MovieConfigureFn dispatch;
-
-        dispatch = (MovieConfigureFn)*(u32**)(movie + 368);
-        dispatch = ((MovieConfigureFn*)dispatch)[4];
-        dispatch(movie + 336, movie + 284, 0);
+        (*(MovieConfigureFn**)(movie + 368))[4](movie + 336, movie + 284, 0);
     }
     MovieDecoderInitBuffers((u32*)(movie + 32), 0x80000, movie[24]);
     fn_800DB82C((u32*)(movie + 32), *(s32*)(movie + 28),

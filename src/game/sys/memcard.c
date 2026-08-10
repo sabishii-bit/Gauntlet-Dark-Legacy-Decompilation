@@ -227,22 +227,28 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
  * into the in-memory dir table, then commit the whole save record to the
  * card.  (Was labelled saveSave; the actual player-data save is saveSave
  * below - this one only touches the directory + full commit.)
- * PARKED 79/80: one extra addi copying `row` into its preserved register.
+ * PARKED 79/79 real 10: base-accumulator r0 web + slwi r5 in-place rotation.
  */
+#pragma opt_propagation off
 int add_vmu_file(int a, int b, int c, const char* name, u32 v0, u32 v1)
 {
-    u8* row = lbl_80274578;
     u8* rec;
+    u8* row;
     int result;
-    u8 unused[8]; /* matches original frame */
+    u8 unused[16]; /* matches original frame */
 
-    row += a * 132;
-    row += b * 132;
+    rec = lbl_80274578;
+    rec += a * 132;
+    row = rec + b * 132;
     rec = row + c * 16;
     strncpy((char*) (rec + 8), name, 8);
     *(u32*) rec = v0;
     *(u32*) (rec + 4) = v1;
-    result = ((u8) beginSaveCacheTransaction() == 1) ? 1 : 0;
+    if ((u8) beginSaveCacheTransaction() == 1) {
+        result = 1;
+    } else {
+        result = 0;
+    }
     if (result) {
         memcpy((u8*) lbl_80343C74 + 41416, row, 128);
         writeGauntletSave();
@@ -617,12 +623,14 @@ void init_all_dir_info(void)
  */
 int MemCardCreateGaunt(int port, int slot)
 {
-    s32 off;
-    u8* base = lbl_80274578;
     int i;
+    u8* base;
+    u8 unused[144];
 
-    for (i = 0, off = 0; i < 8; i++, off += 16) {
-        u8* e = base + off;
+    i = 0;
+    base = lbl_80274578 + port * 132 + slot * 132;
+    for (; i < 8; i++) {
+        u8* e = base + i * 16;
 
         *(s32*) e = -1;
         *(s32*) (e + 4) = -1;
@@ -662,32 +670,42 @@ int MemCardCreateGaunt(int port, int slot)
  * probe/mount/check status codes into the cached (state, present) pair and
  * returns 1 only when the card is fully ready (state 3, present 1).
  */
+#pragma opt_common_subs off
 s32 saveMount(s32 port, s32 slot, s32 doFormat)
 {
-    s32 idx = slot + port * 4;
-    char* pool = lbl_801131C0;
-    s32* pState;
-    s32* pPresent;
-    u8* top;
-    u32 aramSize;
     s32 memSize;
     s32 sectorSize;
+    s32 portOff;
+    s32 slotOff;
+    s32* pPresent;
+    s32* pState;
+    s32 chan;
+    char* pool = lbl_801131C0;
+    u8* top;
+    u32 aramSize;
     s32 probe;
     s32 r;
     u8 mounted = 0;
     u8 retry;
+    u32 lo;
+    u8 unused[20];
+    s32 idx;
 
+    portOff = port << 2;
+    idx = slot + portOff;
+    chan = idx;
     bulletproof_printf(pool + 148, port, slot);   /* "Entered SAVEMOUNT..." */
     if (idx > 1) {
         return 0;
     }
-    pState = &lbl_80344A18 + port + slot;
-    pPresent = &lbl_80344A14 + port + slot;
+    slotOff = slot << 2;
+    pState = (s32*) ((u8*) &lbl_80344A18 + (portOff + slotOff));
+    pPresent = (s32*) ((u8*) &lbl_80344A14 + (portOff + slotOff));
 
     /* poll the slot until CARDProbeEx reports a stable status */
     do {
         retry = 0;
-        probe = CARDProbeEx(idx, &memSize, &sectorSize);
+        probe = CARDProbeEx(chan, &memSize, &sectorSize);
         switch (probe) {
         case -128:
         case -3:
@@ -715,16 +733,16 @@ s32 saveMount(s32 port, s32 slot, s32 doFormat)
     sysSetFlags(64);
     top = (u8*) GetHiMemCacheTop();
     dcsAramWriteTop(top - 0x310000, aramSize);
-    lbl_80344A0C = OSCreateHeap(top - 0x310000, (top - 0x310000) + aramSize);
+    lbl_80344A0C = OSCreateHeap((void*) (lo = (u32) top - 0x310000), (void*) (lo + aramSize));
     lbl_80344A08 = OSSetCurrentHeap(lbl_80344A0C);
     lbl_80344A00 = (u8*) OSAllocFromHeap(__OSCurrHeap, 8192);
     lbl_803449FC = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x10000 - 24576);
     cardStart(lbl_80344A00 + 8192, 8192, 18);
     cardWaitResult();
-    cardMount(idx, lbl_803449FC, cardRemovedCallback);
+    cardMount(chan, lbl_803449FC, cardRemovedCallback);
     r = cardWaitResult();
 
-    *(s32*)((u8*)lbl_80344A10 + (port << 2) + (slot << 2)) = -1;
+    *(s32*) ((u8*) &lbl_80344A10 + (portOff + slotOff)) = -1;
     if (r == 0) {
         *pPresent = 1;
         *pState = 3;
@@ -748,7 +766,6 @@ s32 saveMount(s32 port, s32 slot, s32 doFormat)
             *pPresent = 0;
             *pState = 0;
             break;
-        case -4:
         case -3:
             *pState = -1;
             *pPresent = -1;
@@ -761,7 +778,7 @@ s32 saveMount(s32 port, s32 slot, s32 doFormat)
             break;
         }
         if (doFormat) {
-            cardFormat(idx);
+            cardFormat(chan);
             if (cardWaitResult() == 0) {
                 *pState = 3;
                 *pPresent = 1;
@@ -812,6 +829,7 @@ s32 saveMount(s32 port, s32 slot, s32 doFormat)
     }
     return -1;
 }
+#pragma opt_common_subs reset
 
 /*
  * InitPreferences - one-time preferences load with a full save-cache
@@ -1408,11 +1426,13 @@ retry:
 u8 vmu_exists(s32 chan, const char* name, s32* fileNoOut)
 {
     u8* top = (u8*) GetHiMemCacheTop();
-    s32 dirSize = 0x2D44C0;
-    s32 found = 0;
     u32 aramSize = 0x310000;
+    s32 dirSize = 0x2D44C0;
     u8* buf;
     u8* lo;
+    s32 found;
+
+    found = 0;
 
     sysSetFlags(64);
     top = (u8*) GetHiMemCacheTop();
@@ -1442,11 +1462,13 @@ u8 vmu_exists(s32 chan, const char* name, s32* fileNoOut)
             char stat[108];
             volatile u8 _pad1[12];
 
-            count--;
             off -= 23360;
+            count--;
             CARDGetStatus(chan, fileNo, stat);
             if (strcmp(stat, name) == 0) {
-                *fileNoOut = *(s32*) (buf + off + 23104);
+                u8* entry = buf + off;
+
+                *fileNoOut = *(s32*) (entry + 23104);
                 found = 1;
                 break;
             }

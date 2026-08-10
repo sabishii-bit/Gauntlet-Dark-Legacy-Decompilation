@@ -337,17 +337,18 @@ static s32 cardDoWrite(s32 chan, CARDStat* stat, void* data) {
     CARDFileInfo info;
     char name[0x21];
     char tmpName[0x21];
-    s32 existingFileNo;
-    s32 newFileNo;
     s32 reopened;
+    s32 newFileNo;
+    s32 existingFileNo;
     s32 res;
     u8* e;
     u8* end;
     int i;
 
     reopened = 0;
+    existingFileNo = 0;
     strncpy(name, stat->fileName, 0x20);
-    name[0x20] = 0;
+    name[0x20] = existingFileNo;
     if (strlen(name) >= 0x20) {
         return -12;
     }
@@ -356,7 +357,7 @@ static s32 cardDoWrite(s32 chan, CARDStat* stat, void* data) {
     }
     tmpName[0] = 0x7e;
     strncpy(tmpName + 1, stat->fileName, 0x1f);
-    tmpName[0x20] = 0;
+    tmpName[0x20] = existingFileNo;
 
     /* remember any pre-existing copy so we can delete it after the temp write */
     existingFileNo = -1;
@@ -388,10 +389,10 @@ static s32 cardDoWrite(s32 chan, CARDStat* stat, void* data) {
     res = CARDWrite(&info, data, stat->length, 0);
     CARDClose(&info);
     if (res < 0) {
-        return res;
+        goto fail;
     }
-    res = CARDSetStatus(chan, newFileNo, stat);
-    if (res < 0) {
+    if ((res = CARDSetStatus(chan, newFileNo, stat)) < 0) {
+    fail:
         return res;
     }
 
@@ -464,12 +465,19 @@ static s32 cardDoWrite(s32 chan, CARDStat* stat, void* data) {
         }
         if ((stat->bannerFormat & 4) == 4 && iconCount > 2) {
             int k;
-            for (k = 0; k < iconCount - 2; k++) {
-                s32 sp = (stat->iconSpeed >> ((iconCount - 2 - k) * 2)) & 3;
-                *(u32*)(e + 0x5ab4 + (iconCount + k) * 4) = *(u32*)(e + 0x5ab0);
-                *(u32*)(e + 0x5aec + (iconCount + k) * 4) =
-                    *(u32*)(e + 0x5aec + (iconCount - 2 - k) * 4);
+            int count = iconCount - 2;
+            int dstOff = i * 4;
+            int shift = count * 2;
+            int srcOff = count * 4;
+
+            for (k = 0; k < count; k++) {
+                s32 sp = (stat->iconSpeed >> shift) & 3;
+                *(u32*)(e + 0x5ab4 + dstOff) = *(u32*)(e + 0x5ab0);
+                *(u32*)(e + 0x5aec + dstOff) = *(u32*)(e + (srcOff + 0x5aec));
                 *(u32*)(e + 0x5ab0) += sp << 2;
+                shift -= 2;
+                srcOff -= 4;
+                dstOff += 4;
             }
         }
     }
@@ -561,8 +569,8 @@ static s32 cardDoLoad(s32 chan, void* dirBuf) {
         if ((st->bannerFormat != 0 || st->iconFormat != 0) &&
             st->offsetData <= st->length && st->iconAddr < st->offsetData) {
             s32 iconCount;
-            s32 ciCount;
             int spShift;
+            s32 ciCount;
             int fmtShift;
             s32 base;
             s32 len;
@@ -581,11 +589,12 @@ static s32 cardDoLoad(s32 chan, void* dirBuf) {
             DCFlushRange(e, st->offsetData - st->iconAddr);
 
             *(u32*)(e + 0x5ab0) = 0;
+            i = 0;
             iconCount = 0;
-            ciCount = 0;
             spShift = 0;
+            ciCount = 0;
             fmtShift = 0;
-            for (i = 0; i < 8; i++) {
+            for (; i < 8; i++) {
                 s32 sp = (st->iconSpeed >> spShift) & 3;
                 if (sp == 0) {
                     break;
