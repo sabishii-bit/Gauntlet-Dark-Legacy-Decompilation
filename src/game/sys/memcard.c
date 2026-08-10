@@ -227,22 +227,28 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
  * into the in-memory dir table, then commit the whole save record to the
  * card.  (Was labelled saveSave; the actual player-data save is saveSave
  * below - this one only touches the directory + full commit.)
- * PARKED 79/80: one extra addi copying `row` into its preserved register.
+ * PARKED 79/79 real 10: base-accumulator r0 web + slwi r5 in-place rotation.
  */
+#pragma opt_propagation off
 int add_vmu_file(int a, int b, int c, const char* name, u32 v0, u32 v1)
 {
-    u8* row = lbl_80274578;
     u8* rec;
+    u8* row;
     int result;
-    u8 unused[8]; /* matches original frame */
+    u8 unused[16]; /* matches original frame */
 
-    row += a * 132;
-    row += b * 132;
+    rec = lbl_80274578;
+    rec += a * 132;
+    row = rec + b * 132;
     rec = row + c * 16;
     strncpy((char*) (rec + 8), name, 8);
     *(u32*) rec = v0;
     *(u32*) (rec + 4) = v1;
-    result = ((u8) beginSaveCacheTransaction() == 1) ? 1 : 0;
+    if ((u8) beginSaveCacheTransaction() == 1) {
+        result = 1;
+    } else {
+        result = 0;
+    }
     if (result) {
         memcpy((u8*) lbl_80343C74 + 41416, row, 128);
         writeGauntletSave();
