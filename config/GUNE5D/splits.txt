@@ -366,6 +366,8 @@ game/mb/mb_window.c:
 	extab       start:0x800079B8 end:0x800079F0
 	extabindex  start:0x8000BEE4 end:0x8000BF38
 	.text       start:0x800BB804 end:0x800BC2EC
+	.sbss       start:0x80344EE8 end:0x80344EEC
+	.sdata2     start:0x80348CC8 end:0x80348D54
 
 game/ps2/ml_error.c:
 	extab       start:0x800079F0 end:0x80007A20
