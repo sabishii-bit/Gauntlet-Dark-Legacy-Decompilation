@@ -769,7 +769,7 @@ void do_enemy_move(s32 index)
 extern void* fn_80045C30(Enemy* e, f32 rad, f32 arg, f32* oldpos, f32* trans,
                          s32 collided);
 extern void MBNodeSetParent(void* node, void* parent);
-extern s32 FloorCollide(f32* pos, s32 a, s32 b, s32 mode, f32 x, f32 y, f32 z);
+extern void* FloorCollide(f32* pos, s32 a, s32 b, s32 mode, f32 x, f32 y, f32 z);
 extern s32 damage_enemy(Enemy* e, f32 amount, s32 dtype, s32 a, s32 b, s32 c,
                         s32 d);
 extern f64 lbl_80346860;
@@ -5340,7 +5340,7 @@ void uncouple_enemy(s32 index) {
  * snap Y to the floor, then reject overlaps with world objects or other
  * enemies (unless the overlap is the enemy's own generator).  Returns 1 when
  * the position is usable, 0 when blocked by geometry/occupant, -1 on failure. */
-extern s32 FloorCollide(f32* pos, s32 a, s32 b, s32 mode, f32 x, f32 y, f32 z);
+extern void* FloorCollide(f32* pos, s32 a, s32 b, s32 mode, f32 x, f32 y, f32 z);
 extern u8 gFloorCollisionResult[]; /* 0x8023CAE0, floor Y at +0x34 */
 extern f32 lbl_80346A40;
 extern f32 lbl_80346A44;
@@ -5356,8 +5356,10 @@ s32 check_enemy_pos(f32* start, f32* out, s32 slot)
     f32 rad = e->rad;
     f32 hht = e->hht;
     f32 pos[3];
-    f32 half;
+    u8 _ppad[4];
+    f64 half;
     void* obj;
+    s32 grounded;
 
     if (out != NULL) {
         pos[0] = out[0] + start[0];
@@ -5375,12 +5377,18 @@ s32 check_enemy_pos(f32* start, f32* out, s32 slot)
     e->objgrp.worldmat[3][1] = pos[1];
     e->objgrp.worldmat[3][2] = pos[2];
     if (FloorCollide(pos, 0, 0, 2, lbl_80346A40, lbl_80346A44, lbl_80346A48)
-        == 0) {
+        != 0) {
+        grounded = 1;
+    } else {
+        grounded = 0;
+    }
+    if (grounded == 0) {
         return -1;
     }
     {
         f32 floorY = *(f32*)(gFloorCollisionResult + 0x34);
         f32 dy = floorY - start[1];
+        u8 _dpad[8];
 
         *(u32*)&dy &= 0x7FFFFFFF;
         if (dy > lbl_80346988) {
@@ -5392,11 +5400,11 @@ s32 check_enemy_pos(f32* start, f32* out, s32 slot)
     if (fn_80046680(rad, hht, slot, 1, start, pos) >= 0) {
         return 0;
     }
-    half = (f32)(lbl_80346830 * rad);
-    if (fn_8004646C(half, hht, slot, start, pos, 0, 0) >= 0) {
+    half = lbl_80346830 * rad;
+    if (fn_8004646C((f32)half, hht, slot, start, pos, 0, 0) >= 0) {
         return 0;
     }
-    obj = fn_8005EFAC(half, start, pos, 0, 0);
+    obj = fn_8005EFAC((f32)half, start, pos, 0, 0);
     if (obj != NULL && obj != e->generator) {
         if (fn_8005D3D8(-1, obj) != 0) {
             return 0;
@@ -6572,5 +6580,6 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
         AnimateATree((void*)(e + 108), 0, 2);
     }
 }
+
 
 
