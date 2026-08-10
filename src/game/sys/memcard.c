@@ -458,7 +458,7 @@ int saveLoad(int port, int slot, int fileNo, void* dst)
 
         aramTop = (u8*) GetHiMemCacheTop();
         aramSize = 0x310000;
-        aramTop -= aramSize;
+        aramTop = aramTop - 0x310000;
         dcsAramReadTop(aramTop, aramSize);
     }
     sysClearFlags(64);
@@ -513,7 +513,7 @@ int saveSave(int port, int slot, int fileNo, void* src)
 
         aramTop = (u8*) GetHiMemCacheTop();
         aramSize = 0x310000;
-        aramTop -= aramSize;
+        aramTop = aramTop - 0x310000;
         dcsAramReadTop(aramTop, aramSize);
     }
     sysClearFlags(64);
