@@ -189,27 +189,58 @@ int RandInt(int range);                 /* 0x800BCCA8 */
 
 /* Set up one screensaver weapon: scene node + weapon object parented to it,
  * then seed its position/velocity from the per-weapon init table. */
+#pragma opt_propagation off
+#pragma opt_common_subs off
+#pragma opt_lifetimes off
 void ScreenSaverStartWeap(int idx)
 {
-    u8* w = (u8*)lbl_80274600 + idx * 0x88;
-    u8* t = lbl_8011D568 + idx * 0xc;
+    u8* initTable = lbl_8011D568;
+    u8* weaponTable = (u8*)lbl_80274600;
+    s32 offset;
+    u8* nodeSlot;
+    u8* position;
     void* atree;
+    void* node;
+    f32 spin;
 
-    *(void**)(w + 0x5c) = MBNewNode(lbl_80344A64, 0, 0);
-    atree = AtreeMatch(sPowerupsBuf, *(char**)(lbl_8011D568 + 0x744 + idx * 4), 0);
-    *(void**)(w + 0x60) = AtreeInit(atree, w + 0x60, 0, 0);
-    if (*(s32**)(w + 0x60) != 0 && **(s32**)(w + 0x60) != 0) {
-        MBNodeSetParent(**(s32**)(w + 0x60), *(void**)(w + 0x5c));
+    node = MBNewNode(lbl_80344A64, 0, 0);
+    offset = idx * 0x88;
+    nodeSlot = weaponTable + offset;
+    nodeSlot += 0x5c;
+    *(void**)nodeSlot = node;
+    atree = initTable + idx * 4;
+    atree = AtreeMatch(sPowerupsBuf, *(char**)((u8*)atree + 0x744), 0);
+    position = weaponTable + offset;
+    position += 0x20;
+    atree = AtreeInit(atree, position + 0x40, 0, 0);
+    {
+        u8* atreeDest = weaponTable + offset;
+
+        *(void**)(atreeDest + 0x60) = atree;
+        if (*(void**)(atreeDest + 0x60) != NULL &&
+            **(void***)(atreeDest + 0x60) != NULL) {
+            MBNodeSetParent(**(void***)(atreeDest + 0x60),
+                            *(void**)nodeSlot);
+        }
     }
-    *(u32*)(w + 0x20) = *(u32*)(t + 0x754);
-    *(u32*)(w + 0x24) = *(u32*)(t + 0x758);
-    *(u32*)(w + 0x28) = *(u32*)(t + 0x75c);
-    *(u32*)(w + 0x30) = *(u32*)(t + 0x784);
-    *(u32*)(w + 0x34) = *(u32*)(t + 0x788);
-    *(u32*)(w + 0x38) = *(u32*)(t + 0x78c);
-    *(f32*)(w + 0x2c) = lbl_80347398;
-    *(f32*)(w + 0x3c) = lbl_80347398;
+    atree = initTable + idx * 0x0c;
+    *(f32*)(position + 0x00) = *(f32*)((u8*)atree + 0x754);
+    {
+        u8* copyDest = weaponTable + offset;
+
+        *(f32*)(copyDest + 0x24) = *(f32*)((u8*)atree + 0x758);
+        *(f32*)(copyDest + 0x28) = *(f32*)((u8*)atree + 0x75c);
+        *(f32*)(copyDest + 0x30) = *(f32*)((u8*)atree + 0x784);
+        *(f32*)(copyDest + 0x34) = *(f32*)((u8*)atree + 0x788);
+        *(f32*)(copyDest + 0x38) = *(f32*)((u8*)atree + 0x78c);
+        spin = lbl_80347398;
+        *(f32*)(copyDest + 0x2c) = spin;
+        *(f32*)(copyDest + 0x3c) = spin;
+    }
 }
+#pragma opt_propagation reset
+#pragma opt_common_subs reset
+#pragma opt_lifetimes reset
 
 void ScreenSaverStart(void)
 {
