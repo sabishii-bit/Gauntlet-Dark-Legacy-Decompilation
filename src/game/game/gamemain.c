@@ -1601,17 +1601,24 @@ s32 next_world(void)
 {
     u8 unused[8];
     s32 world;
-    s32 forced = 0;
-    s32 state = lbl_8034481C;
+    s32 forced;
     s32 transitioning = 0;
+    s32 state = lbl_8034481C;
+    s32 t2;
 
     if (state >= 13 && state < 0x10000) {
         transitioning = 1;
     }
+    if (transitioning != 0) {
+        t2 = 1;
+    } else {
+        t2 = 0;
+    }
+    forced = 0;
     if (state >= 2) {
         forced = 1;
     }
-    if (transitioning) {
+    if (t2) {
         world = lbl_80344B84;
         forced = 1;
     } else if (sLastWorldLevel < 0) {
@@ -1622,15 +1629,17 @@ s32 next_world(void)
         lbl_8034481C = world + 0x10000;
         forced = 1;
     } else {
-        s32 i;
         s32 offset;
+        s32 i;
 
         world = -1;
         for (i = 0, offset = 0; i < 4; i++, offset += 13148) {
             s32 state = *(s32*)(gPlayers + offset + 232);
-            if (state != 0 && state != 2 &&
-                world < *(s32*)(gPlayers + offset + 2096)) {
-                world = *(s32*)(gPlayers + offset + 2096);
+            if (state != 0 && state != 2) {
+                state = *(s32*)(gPlayers + offset + 2096);
+                if (world < state) {
+                    world = state;
+                }
             }
         }
         if (world < 0) {

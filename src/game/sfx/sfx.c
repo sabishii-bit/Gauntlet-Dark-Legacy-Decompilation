@@ -482,7 +482,7 @@ void DmgFxAdd(s32 idx)
 
     if ((*(u32*)((u8*)e + 100) & 0x20) && *(f32*)((u8*)e + 156) > lbl_803480A8) {
         arc = lbl_803480C0 * acosf(*(f32*)((u8*)e + 156));
-        arc *= lbl_803480B8;
+        arc = lbl_803480B8 * arc;
         arc /= lbl_803480C8;
         cnt = Round((f32)arc) << 1;
         s = (f32)(lbl_80348098 * *(f32*)((u8*)e + 152));
@@ -733,9 +733,10 @@ s32 fn_800920E0(f32* pos, struct item* item, f32 scale)
     EffectPage* page = (EffectPage*)EffectInfo;
     s32 ret;
     s32 ro;
-    volatile f32 pyr[3];
+    u8 _hi[12];
     volatile f32 v[3];
-    u8 _spare[36];
+    volatile f32 pyr[3];
+    u8 _lo[24];
 
     if (scale <= lbl_80348078) {
         scale = lbl_80348100;
@@ -2027,6 +2028,10 @@ s32 fn_800945D0(f32* pos, f32* mat, s32 idx, s32 alt, s32 kind, f32 scale)
     s32 ret;
     s32 t = idx & 0xF;
     s32 tid;
+    u32 next;
+    u8* ep;
+    struct mbnode* nd;
+    Effect* e;
     f32 rad;
 
     if (kind == 11 || kind == 21) {
@@ -2052,14 +2057,14 @@ s32 fn_800945D0(f32* pos, f32* mat, s32 idx, s32 alt, s32 kind, f32 scale)
         rad = (f32)(lbl_803480B0 * scale);
     }
     if (tid == 4) {
-        u32 v = lbl_80344BD0;
-        lbl_80344BD0 = v + 1;
-        tid = (v & 1) + 6;
+        next = lbl_80344BD0 + 1;
+        tid = (lbl_80344BD0 & 1) + 6;
+        lbl_80344BD0 = next;
     }
     if (tid == 5) {
-        u32 v = lbl_80344BD0;
-        lbl_80344BD0 = v + 1;
-        tid = (v & 1) + 8;
+        next = lbl_80344BD0 + 1;
+        tid = (lbl_80344BD0 & 1) + 8;
+        lbl_80344BD0 = next;
     }
     ret = -1;
     if (tid < 0 || tid >= 218) {
@@ -2081,15 +2086,15 @@ s32 fn_800945D0(f32* pos, f32* mat, s32 idx, s32 alt, s32 kind, f32 scale)
         return ret;
     }
     if (mat != NULL && ret >= 0) {
-        Effect* e = &page->fx[ret];
+        ep = (u8*)page + ret * 240;
+        e = (Effect*)(ep + 2976);
         if (mat != NULL) {
             CopyMat3(mat, e->node);
         }
     }
     {
-        u8* ep = (u8*)page + ret * 240;
-        struct mbnode* nd;
-        Effect* e = (Effect*)(ep + 2976);
+        ep = (u8*)page + ret * 240;
+        e = (Effect*)(ep + 2976);
         if ((nd = *(struct mbnode**)(ep + 2996)) != NULL) {
             MBTreeSetFlags(nd, 8, 0);
             *(f32*)((u8*)e->node + 64) = rad;
