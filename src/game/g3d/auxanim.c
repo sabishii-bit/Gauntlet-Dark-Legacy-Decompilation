@@ -307,13 +307,17 @@ void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
     }
 }
 
+#pragma opt_lifetimes off
 float CalcTexScroll(float t, float lo, float hi, int frame, float* out)
 {
+    u8 unused[16];
     float result;
     int gt;
     float ret;
     float d4;
     float d5;
+    float span;
+    float scaled;
     double dret;
     int ih;
 
@@ -332,20 +336,26 @@ float CalcTexScroll(float t, float lo, float hi, int frame, float* out)
             d5 = ret;
         } else if (t < lo) {
             d5 = 1.0f;
-            d4 = (float)(hi * (float)(1.0 / lo));
-            ret = (float)((float)(t * (float)(1.0 / lo)) * ((1.0 - d4) - 2.0 * -d4) + 2.0 * -d4);
+            lo = (float)(1.0 / lo);
+            hi = (float)(hi * lo);
+            ret = (float)((float)(t * lo) * ((1.0 - hi) - 2.0 * -hi) + 2.0 * -hi);
         } else if (gt) {
             ret = 0.0f;
             d5 = 1.0f;
         } else if (t < hi) {
-            d4 = (float)(t - lo) / (float)(hi - lo);
-            d5 = (float)(hi * (float)(1.0 / lo));
-            dret = 1.0 - d5;
-            d5 = (float)(d4 * (d5 - 1.0) + 1.0);
+            t = (float)(t - lo);
+            span = (float)(hi - lo);
+            lo = (float)(1.0 / lo);
+            scaled = (float)(hi * lo);
+            d4 = t / span;
+            dret = 1.0 - scaled;
             ret = (float)(d4 * -dret + dret);
+            d5 = (float)(d4 * (scaled - 1.0) + 1.0);
         } else if (t < hi + lo) {
-            ret = (float)((float)(1.0 / lo) * (float)(t - hi));
-            d5 = (float)(hi * (float)(1.0 / lo));
+            lo = (float)(1.0 / lo);
+            dret = (float)(lo * (float)(t - hi));
+            ret = (float)dret;
+            d5 = (float)(hi * lo);
         } else {
             ret = 1.0f;
             d5 = (float)(hi * (float)(1.0 / lo));
@@ -357,6 +367,7 @@ float CalcTexScroll(float t, float lo, float hi, int frame, float* out)
     }
     return ret;
 }
+#pragma opt_lifetimes reset
 
 void ResetTexmods(void)
 {
