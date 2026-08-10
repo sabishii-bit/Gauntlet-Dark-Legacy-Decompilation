@@ -406,15 +406,15 @@ void InitItemInfoData(void)
     sKeyringAtree = 0;
 
     if (sGoodWizObj != 0 || sItemFile1Buf != 0 || sPowerupsBuf != 0) {
-        for (i = 0, offset = 0; i < info_count; i++, offset += 0x50) {
-            iteminfo* info = (iteminfo*)((u8*)infos + offset);
+        s32 j;
+
+        for (j = 0, offset = 0; j < info_count; j++, offset += 0x50) {
+            iteminfo* info;
             s32 also_wads;
 
-            if (info->type == 3) {
-                also_wads = 1;
-            } else {
-                also_wads = 0;
-            }
+            info = (iteminfo*)((u8*)infos + offset);
+            also_wads = (info->type == 3) ? 1 : 0;
+
             info->item.atreeheader = (void*)AtreeMatchAnyHeader(
                 info->item.desc, also_wads);
             if (info->type == 2 && info->item.subtype == 0x2F) {
@@ -430,23 +430,24 @@ void InitItemInfoData(void)
     }
 
     {
-        s32 overlay_offset = 0;
+        s32 overlay_offset;
 
         i = 0;
+        overlay_offset = 0;
         offset = 0;
         do {
             u8* player_runtime;
             u8* overlay_runtime;
             s32* node_slot;
-            s32 zero;
+            void* node;
 
+            node = MBNewNode(sItemsRootNode, 0, 4);
             player_runtime = runtime + offset;
-            *(void**)(player_runtime + 0x74B8) =
-                MBNewNode(sItemsRootNode, 0, 4);
-            zero = 0;
-            overlay_runtime = runtime + overlay_offset;
-            *(s32*)(player_runtime + 0x74A8) = zero;
-            *(s32*)(overlay_runtime + 0x74C8) = zero;
+            *(void**)(player_runtime + 0x74B8) = node;
+            overlay_runtime = runtime;
+            overlay_runtime += overlay_offset;
+            *(s32*)(player_runtime + 0x74A8) = 0;
+            *(s32*)(overlay_runtime + 0x74C8) = 0;
             *(s32*)(player_runtime + 0x7478) =
                 MBOX_NewObject(sSeeThroughObjectName, 0, (s32)sItemsRootNode,
                                0x04200000);
@@ -455,9 +456,9 @@ void InitItemInfoData(void)
             *(s16*)(*node_slot + 0x68) = -800;
             i++;
             overlay_offset += 0x48;
-            *(s32*)(player_runtime + 0x7498) = zero;
+            *(s32*)(player_runtime + 0x7498) = 0;
             offset += 4;
-            *(s32*)(player_runtime + 0x7488) = zero;
+            *(s32*)(player_runtime + 0x7488) = 0;
         } while (i < 4);
     }
 }
