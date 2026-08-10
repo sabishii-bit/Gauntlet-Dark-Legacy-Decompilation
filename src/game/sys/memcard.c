@@ -629,13 +629,14 @@ int MemCardCreateGaunt(int port, int slot)
 
     i = 0;
     base = lbl_80274578 + port * 132 + slot * 132;
-    for (; i < 8; i++) {
+    do {
         u8* e = base + i * 16;
 
         *(s32*) e = -1;
         *(s32*) (e + 4) = -1;
         strcpy((char*) (e + 8), lbl_803472D8);
-    }
+        i++;
+    } while (i < 8);
     if (saveMount(port, slot, 1) <= 0) {
         return 0;
     }
