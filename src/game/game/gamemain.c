@@ -2620,7 +2620,14 @@ extern f32 lbl_80346B20;
 extern f64 lbl_80346BC8;
 extern f64 lbl_80346BC0;
 extern f64 lbl_80346B38;
+extern f32 lbl_80346BD0;
+extern f64 lbl_80346BD8;
+extern char lbl_80112770[];
+extern char lbl_8011277C[];
 extern s32 mbBlitReset33F8(void* blit);
+extern s32 PlayerHasShard(s32 player, s32 shard);
+extern s32 PlayerHasRune(s32 player, s32 rune);
+extern s32 GetWorldOrder(s32 world);
 extern void fn_8009FF54(f32* pos);
 extern void fn_8009FFA4(f32* pos);
 
@@ -2688,5 +2695,75 @@ void fn_80055678(f32* a, f32* b)
         mbBlitProject((void*)lbl_803447A8[1], 0, Round((f32)lvl2) + 27);
         mbBlitCalcY((void*)lbl_803447A8[1], 102 - Round((f32)lvl2));
     }
+}
+#pragma opt_propagation on
+
+#pragma opt_propagation off
+void init_thermometer(void)
+{
+    s32 playerOffset;
+    s32* blits;
+    s32 player;
+    u8* playerData;
+    s32 enabled;
+    u8* players;
+    u32 texture;
+    f32 length;
+    f32 x;
+    f32 yCoord;
+    f32 z;
+    volatile f32 tmp[3];
+
+    enabled = 1;
+    playerOffset = 0;
+    lbl_80344790 = lbl_8034478C = playerOffset;
+    if ((gGameMode & 0x4000) != 0 && sSpecialItem10 != 0) {
+        players = gPlayers;
+        player = 0;
+        do {
+            playerData = players + playerOffset;
+            if (PlayerHasShard(player, *(s16*)(*(u32*)sSpecialItem10 + 64)) != 0) {
+                enabled = 1;
+                break;
+            }
+            if (sMusicTrackHi == 8) {
+                if ((*(u8*)(playerData + 7384 + *(s32*)(playerData + 12) * 14) & 4) != 0) {
+                    enabled = 0;
+                }
+            } else if (PlayerHasRune(player, GetWorldOrder(5)) != 0) {
+                enabled = 0;
+            }
+            player++;
+            playerOffset += 13148;
+        } while (player < 4);
+    }
+
+    lbl_803447A8[0] = (s32)MBCreateBlit(0, 0, 392, -1, -1, -1);
+    *(blits = &lbl_803447A8[1]) = (s32)MBCreateBlit(0, 0, 392, -1, -1, -1);
+    mbBlitCvtCoord((void*)lbl_803447A8[0], lbl_80346B78);
+    mbBlitCvtCoord((void*)*blits, lbl_80346B74);
+    mbBlitInit3414((void*)lbl_803447A8[0], enabled);
+    mbBlitInit3414((void*)*blits, enabled);
+    texture = MBOX_FindTexture_Err(lbl_80112770, 0, 1);
+    mbInitBlitEntry((void*)lbl_803447A8[0], texture, 0);
+    mbInitBlitEntry((void*)*blits, MBOX_FindTexture_Err(lbl_8011277C, 0, 1), 0);
+    mbBlitSetupVerts((void*)*blits, lbl_80346B20, lbl_80346B20,
+                     lbl_80346BD0, lbl_80346AF0);
+    mbBlitProject((void*)*blits, 0, 27);
+
+    x = ((f32*)gWorldInfo)[12];
+    yCoord = ((f32*)gWorldInfo)[13];
+    z = ((f32*)gWorldInfo)[14];
+    length = x * x + yCoord * yCoord + z * z;
+    if (length > lbl_80346AFC) {
+        f64 y = __frsqrte(length);
+        y = lbl_80346B90 * y * (lbl_80346B98 - y * y * length);
+        y = lbl_80346B90 * y * (lbl_80346B98 - y * y * length);
+        y = lbl_80346B90 * y * (lbl_80346B98 - y * y * length);
+        length = (f32)(length * (lbl_80346B90 * y * (lbl_80346B98 - y * y * length)));
+        tmp[0] = length;
+        length = tmp[0];
+    }
+    lbl_80343C08 = (f32)(lbl_80346BA8 / (lbl_80346BD8 * length));
 }
 #pragma opt_propagation on
