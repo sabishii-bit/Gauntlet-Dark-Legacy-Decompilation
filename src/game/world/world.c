@@ -147,7 +147,7 @@ extern char   lbl_80115244[];   /* printf fmt "---- ALLOC World Data [%dK]\n"  *
 extern char   lbl_80115264[];   /* "World psys: bad name: %s"                  */
 extern char   lbl_80115280[];   /* "Unable to find world psys '%c'"           */
 extern char   lbl_801152A0[];   /* "World obj with dynamic parent"            */
-extern char   lbl_803487B0[];   /* "PSYS"                                      */
+extern char   lbl_803487B0[5]; /* "PSYS"                                      */
 
 /* --- external API --- */
 extern void  MBTreeSetFlags();          /* set node display flag / show           */
@@ -190,7 +190,7 @@ extern void fn_80011DCC(void* psys);
 extern void InitDynobjGrid(void);
 
 /* forward declarations (same TU) */
-static void sSetupWorldHeader(void* hdr);
+static void sSetupWorldHeader(u32* w);
 void  BGLoadWorldFile(s32* h);
 void* NewWorldObject(WorldObj* obj, WorldObj* parent);
 s32   WorldPsysActivate(WorldObj* obj);
@@ -201,6 +201,12 @@ WorldObj* FindWorldObject(WorldObj* node, char* name);
 static const char lbl_80348798[] = "anim";
 static const char lbl_803487A0[] = "worlds";
 static const float lbl_80348778 = 0.0f;
+static const double lbl_80348768 = 0.0;  /* invgridsize fallback   */
+static const double lbl_80348788 = 0.5;  /* Newton half / center weight */
+static const double lbl_80348790 = 3.0;  /* Newton three            */
+static const double lbl_803487B8 = -1.0; /* psys spawn-pos negation */
+static const double lbl_803487A8 = 1.0;  /* invgridsize numerator  */
+extern f64 __frsqrte(f64 x);
 
 /* DoWorldAnimSub: advance one object's keyframe animation by one frame.
  * `wa` is the worldanim track; `panim` points at the object's animdata pointer
@@ -356,29 +362,40 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim, u8* animBase) {
  * distance via frsqrte+Newton; the squared-distance comparison used here
  * selects the identical object.) */
 struct mbnode* FindWorldAnimNode(f32* point, f32 maxdist) {
-    WorldObj* wobjs = (WorldObj*)gWorldInfo.wobjs;
+    char* base = gWorldName;
+    WorldObj* obj;
     WorldObj* best = NULL;
-    f32 bestd2 = maxdist * maxdist;
+    f32 bestd = maxdist;
     s32 i;
 
-    for (i = 0; i < gWorldInfo.nworldanims; i++) {
-        struct worldanim* wa = &gWorldInfo.worldanims[i];
-        WorldObj* obj;
+    for (i = 0; i < *(s32*)(base + 372); i++) {
+        u8* wa = *(u8**)(base + 368) + i * 16;
         f32 m[16]; /* node world-state; translation at +0x30 (index 12..14) */
-        f32 dx, dy, dz, d2;
+        u8 _pad[16];
+        f32 dx, dy, dz;
+        volatile f32 tmp;
+        f32 d2;
 
-        if (wa->data == NULL) {
+        if (*(u32*)(wa + 12) == 0) {
             continue;
         }
-        obj = &wobjs[wa->objidx];
+        obj = (WorldObj*)(*(u8**)(base + 232) + *(s16*)wa * 60);
         GetWorldMat(obj->nodeptr, m, 0);
-        dx = m[13] - point[1];
         dy = m[12] - point[0];
+        dx = m[13] - point[1];
         dz = m[14] - point[2];
-        d2 = dy * dy + dx * dx + dz * dz;
-        if (d2 < bestd2) {
+        d2 = dz * dz + (d2 = dy * dy + dx * dx);
+        if (d2 > lbl_80348778) {
+            f64 y = __frsqrte(d2);
+            y = lbl_80348788 * y * (lbl_80348790 - y * y * d2);
+            y = lbl_80348788 * y * (lbl_80348790 - y * y * d2);
+            y = lbl_80348788 * y * (lbl_80348790 - y * y * d2);
+            tmp = (f32)(d2 * (lbl_80348788 * y * (lbl_80348790 - y * y * d2)));
+            d2 = tmp;
+        }
+        if (d2 < bestd) {
             best = obj;
-            bestd2 = d2;
+            bestd = d2;
         }
     }
     if (best != NULL) {
@@ -421,21 +438,21 @@ void NewWorld(void* parent) {
 void WorldSaveInitState(void) {
     s32 i;
     s32 memBase;
+    char* base = gWorldName;
 
     WorldDisplay = 0;
     if (lbl_80344DA4 != 0) {
-        WorldObj* wobjs;
-        s32 count = *(s32*)lbl_80344DA4;
-        world_objects = InitWorldInfo(&gWorldInfo, lbl_80344DA4);
+        u8** wobjsp;
+        world_objects = InitWorldInfo((WorldInfo*)(base + 228), lbl_80344DA4);
         memBase = mlmMemUsed;
-        lbl_80344D74 = AllocMem(count * 4);
-        lbl_80344D78 = AllocMem(count * 12);
-        wobjs = (WorldObj*)gWorldInfo.wobjs;
-        for (i = 0; i < gWorldInfo.nwobjs; i++) {
-            lbl_80344D74[i] = (s32)wobjs[i].parent;
-            lbl_80344D78[i * 3 + 0] = wobjs[i].pos[0];
-            lbl_80344D78[i * 3 + 1] = wobjs[i].pos[1];
-            lbl_80344D78[i * 3 + 2] = wobjs[i].pos[2];
+        lbl_80344D74 = AllocMem(*(s32*)lbl_80344DA4 * 4);
+        lbl_80344D78 = AllocMem(*(s32*)lbl_80344DA4 * 12);
+        wobjsp = (u8**)(base + 232);
+        for (i = 0; i < *(s32*)(base + 324); i++) {
+            ((s32*)lbl_80344D74)[i] = *(s32*)(*wobjsp + i * 60 + 24);
+            lbl_80344D78[i * 3] = *(f32*)(*wobjsp + i * 60 + 28);
+            lbl_80344D78[i * 3 + 1] = *(f32*)(*wobjsp + i * 60 + 32);
+            lbl_80344D78[i * 3 + 2] = *(f32*)(*wobjsp + i * 60 + 36);
         }
         bulletproof_printf(lbl_801151D8, (mlmMemUsed - memBase) >> 10);
         lbl_80344D8C = world_root0;
@@ -447,10 +464,10 @@ void WorldSaveInitState(void) {
     }
 
     if (lbl_80344DA0 != 0) {
-        lbl_80344D98 = InitWorldInfo(&gWorldInfo2, lbl_80344DA0);
+        lbl_80344D98 = InitWorldInfo((WorldInfo*)(base + 64), lbl_80344DA0);
         lbl_80344D8C = world_root1;
         CreateWorldNode(lbl_80344D98, lbl_80344D98, 0);
-        MBTreeSetAltTex(world_root1, -2, gWorldInfo.whitetex, 1);
+        MBTreeSetAltTex(world_root1, -2, *(s32*)(base + 364), 1);
         WorldDisplay = 2;
     } else {
         lbl_80344D98 = 0;
@@ -463,24 +480,25 @@ void WorldSaveInitState(void) {
 /* WorldRestoreInitState: restore each object's snapshotted parent + position
  * and re-arm each active animation track. */
 void WorldRestoreInitState(void) {
-    WorldObj* wobjs = (WorldObj*)gWorldInfo.wobjs;
+    char* base = gWorldName;
     s32 i;
 
-    if (lbl_80344D74 == 0)
+    if (lbl_80344D74 == 0) {
         return;
-    if (lbl_80344D78 == 0)
-        return;
-    for (i = 0; i < gWorldInfo.nwobjs; i++) {
-        WorldObj* o = &wobjs[i];
-        o->flags &= 0xC31FFFFF;
-        o->parent = (struct WorldObj*)lbl_80344D74[i];
-        o->pos[0] = lbl_80344D78[i * 3 + 0];
-        o->pos[1] = lbl_80344D78[i * 3 + 1];
-        o->pos[2] = lbl_80344D78[i * 3 + 2];
     }
-    for (i = 0; i < gWorldInfo.nworldanims; i++) {
-        if (*(s32*)((char*)gWorldInfo.animdata + i * 0xA0) != 0) {
-            gWorldInfo.worldanims[i].curframe = lbl_80348778;
+    if (lbl_80344D78 != 0) {
+        u8** wobjsp = (u8**)(base + 232);
+        for (i = 0; i < *(s32*)(base + 324); i++) {
+            *(u32*)(*wobjsp + i * 60 + 16) &= 0xC31FFFFF;
+            *(u32*)(*wobjsp + i * 60 + 24) = ((u32*)lbl_80344D74)[i];
+            *(f32*)(*wobjsp + i * 60 + 28) = lbl_80344D78[i * 3];
+            *(f32*)(*wobjsp + i * 60 + 32) = lbl_80344D78[i * 3 + 1];
+            *(f32*)(*wobjsp + i * 60 + 36) = lbl_80344D78[i * 3 + 2];
+        }
+        for (i = 0; i < *(s32*)(base + 372); i++) {
+            if (*(u32*)(*(u8**)(base + 380) + i * 160) != 0) {
+                *(f32*)(*(u8**)(base + 368) + i * 16 + 8) = lbl_80348778;
+            }
         }
     }
 }
@@ -613,17 +631,21 @@ void BGLoadWorldFile(s32* h) {
     h[1] = h[1] + h[2];
 }
 
-/* LoadWorldDone: finish a world load - alloc buffers, copy name, report mem. */
+/* LoadWorldDone: finish a world load - alloc buffers, copy name, report mem.
+ * All gWorldName/gWorldInfo stores go through the single lbl_8028C9A8 base
+ * (gWorldName buffer; gWorldInfo fields live at +356/+360/+364). */
 s32 LoadWorldDone(char* name) {
+    s32* modelp;
     s32 freeBefore;
     s32 memBase;
+    char* base = gWorldName;
     s32 size;
     lbl_80344D88 = 0;
     lbl_80344D84 = 0;
     lbl_80344D80 = 0;
     if (name != 0 && FileExists(name, lbl_803487A0) != 0) {
         freeBefore = BytesFree();
-        gWorldInfo.model = MBOX_AllocModel(name);
+        *(modelp = (s32*)(base + 360)) = MBOX_AllocModel(name);
         lbl_80344D80 += freeBefore - BytesFree();
         memBase = mlmMemUsed;
         bulletproof_printf(lbl_80115214, name, memBase);
@@ -631,23 +653,23 @@ s32 LoadWorldDone(char* name) {
         lbl_80344DA4 = AllocMem(size);
         lbl_80344D88 += size;
         world_load_state = 0;
-        gWorldInfo.whitetex = 0;
-        lbl_80344DA0 = 0;
-        strcpy(gWorldName, name);
-        if (FileExists(name, lbl_80348798) != 0) {
-            size = FileSize(name, lbl_80348798);
-            gWorldInfo.atreelist = (struct atreelist*)AllocMem(size);
-            lbl_80344D84 += size;
-        } else {
-            gWorldInfo.atreelist = 0;
-        }
-        bulletproof_printf(lbl_80115230, mlmMemUsed,
-                           (mlmMemUsed - memBase) >> 10);
-        return gWorldInfo.model;
     } else {
         world_load_state = -1;
         return -1;
     }
+    *(s32*)(base + 364) = 0;
+    lbl_80344DA0 = 0;
+    strcpy(base, name);
+    if (FileExists(name, lbl_80348798) != 0) {
+        size = FileSize(name, lbl_80348798);
+        *(s32*)(base + 356) = (s32)AllocMem(size);
+        lbl_80344D84 += size;
+    } else {
+        *(s32*)(base + 356) = 0;
+    }
+    bulletproof_printf(lbl_80115230, mlmMemUsed,
+                       (mlmMemUsed - memBase) >> 10);
+    return *modelp;
 }
 
 /* sSetupWorldHeader: byte-swap the loaded world-file header in place.  Xbox is
@@ -655,11 +677,61 @@ s32 LoadWorldDone(char* name) {
  * to a 1-byte stub); on the big-endian GameCube the 0x78-byte header is 30
  * consecutive 32-bit words - a mix of counts/offsets, floats and two vec3s at
  * +0x24 and +0x30 - each of which is byte-reversed. */
-static void sSetupWorldHeader(void* hdr) {
-    u32* w = (u32*)hdr;
+/* byte-swap helpers: written through memory so each takes its value's
+ * address (matches the original's stack-slot swap sequences). */
+static u16 sSwapU16(u16 v) {
+    u8* b = (u8*)&v;
+    return (u16)((b[1] << 8) | b[0]);
+}
+
+static u32 sSwapU32(u32 v) {
+    u32 r;
+    u8* s = (u8*)&v;
+    u8* d = (u8*)&r;
+    d[0] = s[3];
+    d[1] = s[2];
+    d[2] = s[1];
+    d[3] = s[0];
+    return r;
+}
+
+static f32 sSwapF32(f32 v) {
+    f32 r;
+    *(u32*)&r = sSwapU32(*(u32*)&v);
+    return r;
+}
+
+static void sSetupWorldHeader(u32* w) {
+    f32* f = (f32*)w;
     s32 i;
-    for (i = 0; i < 30; i++) {
-        w[i] = WORLD_BSWAP32(w[i]);
+
+    w[0] = sSwapU32(w[0]);
+    w[1] = sSwapU32(w[1]);
+    w[2] = sSwapU32(w[2]);
+    w[3] = sSwapU32(w[3]);
+    w[4] = sSwapU32(w[4]);
+    w[5] = sSwapU32(w[5]);
+    w[6] = sSwapU32(w[6]);
+    w[7] = sSwapU32(w[7]);
+    w[8] = sSwapU32(w[8]);
+    f[15] = sSwapF32(f[15]);
+    w[16] = sSwapU32(w[16]);
+    w[17] = sSwapU32(w[17]);
+    w[18] = sSwapU32(w[18]);
+    w[19] = sSwapU32(w[19]);
+    w[20] = sSwapU32(w[20]);
+    w[21] = sSwapU32(w[21]);
+    w[22] = sSwapU32(w[22]);
+    w[23] = sSwapU32(w[23]);
+    w[24] = sSwapU32(w[24]);
+    w[25] = sSwapU32(w[25]);
+    w[26] = sSwapU32(w[26]);
+    w[27] = sSwapU32(w[27]);
+    w[28] = sSwapU32(w[28]);
+    w[29] = sSwapU32(w[29]);
+    for (i = 0; i < 3; i++) {
+        f[9 + i] = sSwapF32(f[9 + i]);
+        f[12 + i] = sSwapF32(f[12 + i]);
     }
 }
 
@@ -768,57 +840,62 @@ s32 WorldPsysDeActivate(WorldObj* o) {
 /* WorldPsysActivate: look up the "PSYS<id>" template in gWorldInfo.worldpsys
  * and spawn the particle system for this object (with GetWorldPsysIdx inlined
  * as the id search). */
+/* GetWorldPsysIdx (Xbox local fn, inlined here): find template by id char. */
+static s32 GetWorldPsysIdx(s8 id) {
+    char* base = gWorldName;
+    u8** wpsp = (u8**)(base + 384);
+    u8* tbl = *wpsp;
+    s32 i = 0;
+
+    for (; i < *(s32*)(base + 388); i++) {
+        if ((s8)tbl[i * 312 + 6] == id) {
+            return i;
+        }
+    }
+    ErrorPrintf(lbl_80115280, id);
+    return -1;
+}
+
 s32 WorldPsysActivate(WorldObj* obj) {
-    G3DNode* node;
+    char* base = gWorldName;
     char* tag;
-    s8 id;
-    s32 idx;
+    s32 i;
     f32 pos[3];
     f32* posp;
+    u8** wpsp;
 
     if (obj->flags & 0x00800000) {
         goto done;
     }
 
-    tag = strstr(obj->desc, lbl_803487B0);
+    tag = strstr((char*)obj, lbl_803487B0);
     if (tag == NULL) {
         ErrorPrintf(lbl_80115264, obj);
         return 0;
     }
 
-    /* GetWorldPsysIdx: match the id char after "PSYS" against the table. */
-    id = (s8)tag[4];
-    idx = -1;
-    {
-        s32 i;
-        for (i = 0; i < gWorldInfo.nworldpsys; i++) {
-            if ((s8)gWorldInfo.worldpsys[i].id == id) {
-                idx = i;
-                break;
-            }
-        }
-    }
-    if (idx < 0) {
-        ErrorPrintf(lbl_80115280, id);
+    wpsp = (u8**)(base + 384);
+    i = GetWorldPsysIdx((s8)tag[4]);
+    if (i < 0) {
         goto done;
     }
 
     posp = NULL;
-    if (obj->nctris > 0) {
-        struct coltri* ct = &((struct coltri*)gWorldInfo.ctris)[obj->ctriidx];
-        pos[0] = -ct->pos[0];
-        pos[1] = -ct->pos[1];
-        pos[2] = -ct->pos[2];
+    if (*(s16*)((u8*)obj + 54) > 0) {
+        u8* ct = *(u8**)(base + 236) + *(s32*)((u8*)obj + 56) * 40 + 8;
+        pos[0] = (f32)(lbl_803487B8 * *(f32*)ct);
+        pos[1] = (f32)(lbl_803487B8 * *(f32*)(ct + 4));
+        pos[2] = (f32)(lbl_803487B8 * *(f32*)(ct + 8));
         posp = pos;
     }
-    MBNewWorldPsys(0, obj->nodeptr, &gWorldInfo.worldpsys[idx],
-                obj->flags & 0x1000, obj, posp);
+    MBNewWorldPsys(0, *(void**)((u8*)obj + 40),
+                   *wpsp + i * 312,
+                   obj->flags & 0x1000, obj, posp);
     obj->flags &= ~0x00400000;
     obj->flags |= 0x00800000;
 
 done:
-    node = (G3DNode*)obj->nodeptr;
-    node->dflags &= ~2;
+    *(s32*)(*(u8**)((u8*)obj + 40) + 96) &= ~2;
     return 1;
 }
 
@@ -873,35 +950,6 @@ void* NewWorldObject(WorldObj* obj, WorldObj* parent) {
  * bounds/grid constants, allocate the coltri-checked and animdata arrays,
  * and arm the animation and particle-system tables.  Returns wobjs. */
 
-/* byte-swap helpers: written through memory so each takes its value's
- * address (matches the original's stack-slot swap sequences). */
-static u16 sSwapU16(u16 v) {
-    u8* b = (u8*)&v;
-    return (u16)((b[1] << 8) | b[0]);
-}
-
-static u32 sSwapU32(u32 v) {
-    u32 r;
-    u8* s = (u8*)&v;
-    u8* d = (u8*)&r;
-    d[0] = s[3];
-    d[1] = s[2];
-    d[2] = s[1];
-    d[3] = s[0];
-    return r;
-}
-
-static f32 sSwapF32(f32 v) {
-    u32 u;
-    f32 r;
-    u = sSwapU32(*(u32*)&v);
-    *(u32*)&r = u;
-    return r;
-}
-
-static const double lbl_80348768 = 0.0;  /* invgridsize fallback   */
-static const double lbl_80348788 = 0.5;  /* world center weight    */
-static const double lbl_803487A8 = 1.0;  /* invgridsize numerator  */
 
 WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
     s32* blob = (s32*)data;

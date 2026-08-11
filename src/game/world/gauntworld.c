@@ -236,80 +236,154 @@ void ResolveWorldData(int worldlevel)
  * Called only by ResolveWorldData.  Turns the packed per-level section indices
  * into absolute pointers, clamps negatives, normalises the audio volume/range
  * floats and resolves ambient-track sound handles via AudioFindSound. */
+extern char optionsAudioAndPrefs30[]; /* 0x80274E80 options block          */
+typedef struct OptsView {
+    u8  _pad[20];
+    s32 vol; /* +20: volume option index */
+} OptsView;
+extern f32  lbl_8011C748[3];           /* volume gain table                 */
+extern f64  lbl_80346C70;              /* -1.0 sentinel                     */
+extern f32  lbl_80346BE0;              /* 1.0                                */
+extern char lbl_80112788[];            /* string block (+716/+748/+776)     */
+
 static void ResolveWorldDataPointers(void)
 {
-    int i, j;
-    WorldLevel* lvl;
-    char nameBuf[0x38];
-    const float VOL_DEFAULT = 1.0f; /* f31 */
-    const float SENTINEL    = -1.0f;/* f30 */
+    char* strs = lbl_80112788;
+    u8* lvl;
+    s32 i;
+    f32 one;
+    f64 sent;
+    f32 d;
+    f32* gp;
+    f32 gain;
+    char nameBuf[12];
 
-    if (gWorldData->cameras == 0) {
-        FatalErrorf("World Data %s has no cameras\n", nameBuf);
+    if (*(u8**)((u8*)gWorldData + 36) == 0) {
+        FatalErrorf(strs + 716, nameBuf);
     }
-    if (gWorldData->audio == 0) {
-        FatalErrorf("World Data %s has no audio\n", nameBuf);
+    if (*(u8**)((u8*)gWorldData + 40) == 0) {
+        FatalErrorf(strs + 748, nameBuf);
     }
-
     sCurLevelHasCameras = -1;
+    sent = lbl_80346C70;
+    one = lbl_80346BE0;
 
-    for (i = 0; i < (int)gWorldData->numLevels; i++) {
-        lvl = &gWorldData->levels[i];
+    for (i = 0; i < *(s16*)((u8*)gWorldData + 24); i++) {
+        lvl = *(u8**)((u8*)gWorldData + 28) + i * 268;
 
-        /* section index -> pointer (idx<0 => NULL), written at 0x60/0x64/0x68/0x6C */
-        if (lvl->cameraIdx < 0) {
-            lvl->cameraIdx = 0;
+        if (*(s16*)(lvl + 88) < 0) {
+            *(s16*)(lvl + 88) = 0;
         }
-        *(u8**)((u8*)lvl + 0x60) = gWorldData->cameras + lvl->cameraIdx * 0x6C;
-        if (lvl->sec34Idx < 0) {
-            *(u8**)((u8*)lvl + 0x6C) = 0;
-        } else {
-            *(u8**)((u8*)lvl + 0x6C) = gWorldData->section34 + lvl->sec34Idx * 0x54;
+        *(u8**)(lvl + 96) =
+            *(u8**)((u8*)gWorldData + 36) + *(s16*)(lvl + 88) * 108;
+        {
+            s16 v34 = *(s16*)(lvl + 140);
+            if (v34 < 0) {
+                *(u8**)(lvl + 108) = 0;
+            } else {
+                *(u8**)(lvl + 108) = *(u8**)((u8*)gWorldData + 52) + v34 * 84;
+            }
         }
-        if (lvl->audioIdx < 0) {
-            lvl->audioIdx = 0;
+        if (*(s16*)(lvl + 90) < 0) {
+            *(s16*)(lvl + 90) = 0;
         }
-        *(u8**)((u8*)lvl + 0x64) = gWorldData->audio + lvl->audioIdx * 0x3C;
-        if (lvl->sec30Idx < 0) {
-            *(u8**)((u8*)lvl + 0x68) = 0;
-        } else {
-            *(u8**)((u8*)lvl + 0x68) = gWorldData->section30 + lvl->sec30Idx * 0x48;
+        *(u8**)(lvl + 100) =
+            *(u8**)((u8*)gWorldData + 40) + *(s16*)(lvl + 90) * 60;
+        {
+            s16 v30 = *(s16*)(lvl + 92);
+            if (v30 < 0) {
+                *(u8**)(lvl + 104) = 0;
+            } else {
+                *(u8**)(lvl + 104) = *(u8**)((u8*)gWorldData + 48) + v30 * 72;
+            }
         }
 
-        /* first level that owns cameras */
-        if ((lvl->flags2 & 1) && sCurLevelHasCameras < 0) {
+        if (*(s16*)(lvl + 4) != 0 && sCurLevelHasCameras < 0) {
             sCurLevelHasCameras = i;
         }
 
-        /* ambient track for camera levels (realm 0xC has none) */
-        if ((lvl->flags2 & 1) && sMusicTrackHi != 0xC) {
-            int snd;
-            sprintf(nameBuf, "%s_amb", lvl->name);
-            snd = AudioFindSound(nameBuf, 0, 1);
-            *(int*)(*(u8**)((u8*)lvl + 0x64) + 0x14) = snd;
+        if (*(s16*)(lvl + 4) != 0 && sMusicTrackHi != 12) {
+            sprintf(nameBuf, strs + 776, lvl + 8);
+            *(s32*)(*(u8**)(lvl + 100) + 20) = AudioFindSound(nameBuf, 0, 1);
         } else {
-            *(int*)(*(u8**)((u8*)lvl + 0x64) + 0x14) = -1;
+            *(s32*)(*(u8**)(lvl + 100) + 20) = -1;
         }
 
-        lvl->flags &= ~1u;
+        *(u32*)lvl &= ~1u;
 
-        if (lvl->resolved == 0) {
-            float* v = (float*)((u8*)lvl + 0xA8);
-            lvl->resolved = 1;
-            /* v[0..13]: replace SENTINEL with defaults, scale by realm gain,
-             * then take the reciprocal of the range fields (v[4],v[8],... ). */
-            for (j = 0; j < 14; j++) {
-                if (v[j] == SENTINEL) {
-                    v[j] = VOL_DEFAULT;
-                }
+        if (*(s16*)(lvl + 6) != 0) {
+            continue;
+        }
+        *(s16*)(lvl + 6) = 1;
+        {
+            if (sent == *(f32*)(lvl + 168)) {
+                *(f32*)(lvl + 168) = one;
             }
+            d = *(f32*)(lvl + 168);
+            if (sent == *(f32*)(lvl + 172)) {
+                *(f32*)(lvl + 172) = d;
+            }
+            if (sent == *(f32*)(lvl + 176)) {
+                *(f32*)(lvl + 176) = d;
+            }
+            if (sent == *(f32*)(lvl + 180)) {
+                *(f32*)(lvl + 180) = d;
+            }
+            if (sent == *(f32*)(lvl + 184)) {
+                *(f32*)(lvl + 184) = d;
+            }
+            if (sent == *(f32*)(lvl + 188)) {
+                *(f32*)(lvl + 188) = d;
+            }
+            if (sent == *(f32*)(lvl + 192)) {
+                *(f32*)(lvl + 192) = d;
+            }
+            if (sent == *(f32*)(lvl + 196)) {
+                *(f32*)(lvl + 196) = one;
+            }
+            if (sent == *(f32*)(lvl + 200)) {
+                *(f32*)(lvl + 200) = d;
+            }
+            if (sent == *(f32*)(lvl + 204)) {
+                *(f32*)(lvl + 204) = d;
+            }
+            if (sent == *(f32*)(lvl + 208)) {
+                *(f32*)(lvl + 208) = d;
+            }
+            if (sent == *(f32*)(lvl + 212)) {
+                *(f32*)(lvl + 212) = d;
+            }
+            if (sent == *(f32*)(lvl + 216)) {
+                *(f32*)(lvl + 216) = d;
+            }
+            if (sent == *(f32*)(lvl + 220)) {
+                *(f32*)(lvl + 220) = d;
+            }
+            {
+                gp = (f32*)((u8*)lbl_8011C748 +
+                            ((OptsView*)optionsAudioAndPrefs30)->vol * 4);
+                gain = *gp;
+                *(f32*)(lvl + 168) *= gain;
+                *(f32*)(lvl + 176) *= gain;
+                *(f32*)(lvl + 180) *= gain;
+                *(f32*)(lvl + 184) *= gain;
+                *(f32*)(lvl + 192) *= gain;
+                *(f32*)(lvl + 200) *= gain;
+                *(f32*)(lvl + 208) *= gain;
+                *(f32*)(lvl + 212) *= gain;
+                *(f32*)(lvl + 216) *= gain;
+                *(f32*)(lvl + 220) *= gain;
+            }
+            *(f32*)(lvl + 184) = one / *(f32*)(lvl + 184);
+            *(f32*)(lvl + 200) = one / *(f32*)(lvl + 200);
+            *(f32*)(lvl + 192) = one / *(f32*)(lvl + 192);
+            *(f32*)(lvl + 216) = one / *(f32*)(lvl + 216);
         }
     }
 
-    /* resolve every sound-table entry's handle (stride 0x18) */
-    for (i = 0; i < (int)gWorldData->numSounds; i++) {
-        u8* snd = gWorldData->sounds + i * 0x18;
-        *(int*)(snd + 0x10) = AudioFindSound((const char*)snd, 0, 1);
+    for (i = 0; i < *(s16*)((u8*)gWorldData + 26); i++) {
+        u8* snd = *(u8**)((u8*)gWorldData + 44) + i * 24;
+        *(s32*)(snd + 16) = AudioFindSound((const char*)snd, 0, 1);
     }
 }
 
@@ -322,27 +396,36 @@ static void ResolveWorldDataPointers(void)
  * (once), reads it in, and remembers the first realm id.  A missing file logs
  * "No world data file: %s" and clears the slot.  Finally the world-state
  * globals are reset and the world-registry hook (fn_80057F44) is primed. */
+extern char lbl_80257680[];        /* path scratch buffer */
+extern char lbl_80112A9C[];        /* "No world data file: %s\n" */
+extern u8 gGameOptions[];
+
 void LoadWorldData(void)
 {
-    int i;
+    u8* entry;
+    u32 i;
+    int size;
+    s32* ids;
+    char* path = lbl_80257680;
 
     for (i = 0; i < 14; i++) {
-        char* name = (char*)&sWorldDataTypes[i];      /* entry name (adjacent) */
-        char* path = (char*)0;                        /* sWorldPathBuf scratch */
-        sprintf(path, "%s.wad", name);
+        entry = (u8*)sWorldLevelTable + i * 44;
+        sprintf(path, "%s.wad", entry + 236);
+        ids = (s32*)(entry + 232);
         if (FileExists("wdata", path)) {
-            int size = FileSize("wdata", path);
-            /* mark loaded; remember first realm id */
+            size = FileSize("wdata", path);
+            ids[4] = 1;
             if (sFirstWorldId < 0) {
-                sFirstWorldId = sWorldDataTypes[i] << 8;
+                sFirstWorldId = ids[0] << 8;
             }
-            /* allocate the blob once, then read it in */
-            /* if (buf == 0) buf = AllocMem(size); */
-            AllocMem(size);
-            MLMReadFile("wdata", path, size, /*buf*/ 0);
+            entry = (u8*)sWorldLevelTable + i * 4;
+            if (*(void**)(entry += 848) == 0) {
+                *(void**)entry = AllocMem(size);
+            }
+            MLMReadFile("wdata", path, size, *(void**)entry);
         } else {
-            ErrorPrintf("No world data file: %s\n", path);
-            /* buf = 0 */
+            ErrorPrintf(lbl_80112A9C, path);
+            *(void**)((u8*)sWorldLevelTable + i * 4 + 848) = 0;
         }
     }
 
@@ -353,7 +436,8 @@ void LoadWorldData(void)
     sCurLevelHasCameras = -1;
     gWorldData = 0;
     gCurLevel  = 0;
-    fn_80057F44();                 /* prime the world registry */
+    *(s32*)(gGameOptions + 36) =
+        fn_80057F44(*(s32*)(gGameOptions + 36), 1);
     sWorldDataConst = 0xD00;
 }
 
@@ -1183,42 +1267,41 @@ int fn_8005EE18(Item* item, s32 arg)
     int result = 0;
     iteminfo* info = item->info;
     s32* sub = (s32*)info + 1;
+    u8 _pad[8];
 
     switch (info->type) {
+    case -1:
+        break;
     case 1:
-        if (item->activetime <= 0) {
-            if (*(u32*)&item->data[0xC] == 0) {
-                if (*sub == 4) {
-                    result = 1;
-                }
-            } else {
-                result = 0;
-            }
-        } else {
+        if (item->activetime > 0) {
             result = 0;
+        } else if (*(u32*)&item->data[0xC] != 0) {
+            result = 0;
+        } else {
+            switch (*sub) {
+            case 4:
+                result = 1;
+            }
         }
         break;
     case 2:
     case 7:
         result = 1;
         break;
-    case 3:
-        if (item->data[6] != 0) {
-            result = 1;
+    case 3: {
+        s32 t;
+        if (t = ((s8)item->data[6] ? 0 : 1)) {
+            break;
         }
+        result = 1;
         break;
+    }
     case 4:
         result = 1;
         break;
     case 10:
         switch (*sub) {
         case 0x1E:
-            break;
-        case 0x28:
-        case 0x31:
-        case 0x33:
-        case 0x35:
-            result = 0;
             break;
         case 0x29:
             if (*(s16*)&item->data[2] > 0) {
@@ -1230,6 +1313,12 @@ int fn_8005EE18(Item* item, s32 arg)
                 fn_8009D91C(&item->objgrp.worldmat[3][0]);
                 item->active |= 1;
             }
+            result = 0;
+            break;
+        case 0x28:
+        case 0x31:
+        case 0x33:
+        case 0x35:
             result = 0;
             break;
         default:
