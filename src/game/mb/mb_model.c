@@ -312,13 +312,12 @@ int MBOX_FindTexture_Err(const char* name, void** out, int flag) {
 
 /* ---- 0x800B8B64 : binary-search the texture-def table by name ---- */
 int MBOX_FindTexture_Sub(const char* name, int p2, int lo, int hi, int flag) {
-    char key[0x24];
     char* destination;
     void** out = (void**)p2;
     u8* g;
     void* result;
     s32 model;
-    s8 character;
+    char key[0x24];
 
     destination = key;
     result = NULL;
@@ -326,13 +325,10 @@ int MBOX_FindTexture_Sub(const char* name, int p2, int lo, int hi, int flag) {
     while (*name == ' ' || *name == '\t' || *name == '\n') {
         name++;
     }
-    character = *name;
-    while (character != '\0' && character != ' ' && character != '\t' &&
-           character != '\n') {
-        *destination = (char)toupper(character);
+    while (*name != '\0' && *name != ' ' && *name != '\t' && *name != '\n') {
+        *destination = (char)toupper(*name);
         name++;
         destination++;
-        character = *name;
     }
     *destination = '\0';
     if (lo < 0) {
