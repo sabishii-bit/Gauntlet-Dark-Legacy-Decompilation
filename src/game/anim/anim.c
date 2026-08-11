@@ -73,39 +73,38 @@ void InitAnimInfo(animinfo* info, u8 flags)
 /* SetupAnimHeader @0x8000E994 -- byte-swap the animheader's first 7 words
  * (loaded little-endian), then relocate its 5 section pointers to absolute
  * addresses in `dst` (in place when dst is NULL). */
+static u32 swapw(u32 w)
+{
+    u32 out;
+    u8* s = (u8*)&w;
+    u8* d = (u8*)&out;
+    d[0] = s[3];
+    d[1] = s[2];
+    d[2] = s[1];
+    d[3] = s[0];
+    return out;
+}
+
 int* SetupAnimHeader(int* hdr, int* dst)
 {
-#define SWAP(i)                                                               \
-    {                                                                         \
-        union {                                                               \
-            u32 w;                                                            \
-            u8 b[4];                                                          \
-        } s, d;                                                               \
-        s.w = hdr[i];                                                         \
-        d.b[0] = s.b[3];                                                      \
-        d.b[1] = s.b[2];                                                      \
-        d.b[2] = s.b[1];                                                      \
-        d.b[3] = s.b[0];                                                      \
-        hdr[i] = d.w;                                                         \
-    }
-    SWAP(0);
-    SWAP(1);
-    SWAP(2);
-    SWAP(3);
-    SWAP(4);
-    SWAP(5);
-    SWAP(6);
-#undef SWAP
+    int* p = (int*)(int)hdr;
+    p[0] = swapw(p[0]);
+    p[1] = swapw(p[1]);
+    p[2] = swapw(p[2]);
+    p[3] = swapw(p[3]);
+    p[4] = swapw(p[4]);
+    p[5] = swapw(p[5]);
+    p[6] = swapw(p[6]);
     if (dst == NULL) {
-        dst = hdr;
+        dst = p;
     }
-    dst[0] = hdr[0] + (int)hdr;
-    dst[1] = hdr[1] + (int)hdr;
-    dst[2] = hdr[2] + (int)hdr;
-    dst[3] = hdr[3] + (int)hdr;
-    dst[4] = hdr[4] + (int)hdr;
-    dst[5] = hdr[5];
-    dst[6] = hdr[6];
+    dst[0] = p[0] + (int)hdr;
+    dst[1] = p[1] + (int)hdr;
+    dst[2] = p[2] + (int)hdr;
+    dst[3] = p[3] + (int)hdr;
+    dst[4] = p[4] + (int)hdr;
+    dst[5] = p[5];
+    dst[6] = p[6];
     return dst;
 }
 
