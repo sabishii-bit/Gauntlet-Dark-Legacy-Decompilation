@@ -477,7 +477,6 @@ void AudioBuildMusicName(void)
     strings = lbl_80114A48;
     for (i = 0, off = 0; i < 6; i++, off += 8) {
         s32* cue;
-        int found;
 
         material = (char*)lbl_801232DC + off;
         if (material[0] == '*') {
@@ -487,9 +486,8 @@ void AudioBuildMusicName(void)
         } else {
             sprintf(buf, strings + 716, material, (s8)LevelLetter(0));
         }
-        found = AudioFindSound(buf, -1, 0);
         cue = (s32*)(buf + off);
-        cue[16] = found;
+        cue[16] = AudioFindSound(buf, -1, 0);
         if (*(cue += 16) < 0) {
             continue;
         }
