@@ -936,6 +936,7 @@ void do_vibe(s32 plyr, s32 inten, s32 time)
 {
     if (lbl_80240E30[plyr].hasActuator != 0 && inten >= 0) {
         f32 v;
+        s32 pad;
         s32* pp;
         u8 act[8];
 
@@ -944,11 +945,10 @@ void do_vibe(s32 plyr, s32 inten, s32 time)
         } else if (inten > 4) {
             inten = 4;
         }
-        pp = &lbl_8011A258[plyr];
         v = lbl_8011AE8C[inten];
+        pp = &lbl_8011A258[plyr];
+        pad = *pp;
         if (lbl_803445E0 == 0) {
-            s32 pad = *pp;
-
             memset(act, 0, 6);
             act[0] = 0;
             act[1] = (u8)(s32)(v * 255.0f);
@@ -1258,37 +1258,33 @@ s32 joyReadPad(s32 pad, u8* buf)
 #pragma dont_inline off
 
 /* 0x80032778  re-enable player controls (clears everything first) */
-void EnablePlayerControls(void)
+static void reset_player_controls(s32 z, s32 n)
 {
     int i, j;
 
-    lbl_803445FC = 0;
-    for (i = 0; i < 4; i++) {
+    lbl_803445FC = z;
+    i = z;
+    do {
         ClearPlayerControl(i, 0);
-        for (j = 0; j < 12; j++) {
-            lbl_80240828[i][j] = 0;
-            lbl_802408E8[i][j] = 0;
+        for (j = z; j < n; j++) {
+            lbl_80240828[i][j] = z;
+            lbl_802408E8[i][j] = z;
         }
-        lbl_80240F90[i] = 0;
-    }
+        lbl_80240F90[i] = z;
+        i++;
+    } while (i < 4);
     ClearAllPlayerControls(4);
+}
+
+void EnablePlayerControls(void)
+{
+    reset_player_controls(0, 12);
 }
 
 /* 0x80032814  disable player controls (clears everything, then flags) */
 void DisablePlayerControls(void)
 {
-    int i, j;
-
-    lbl_803445FC = 0;
-    for (i = 0; i < 4; i++) {
-        ClearPlayerControl(i, 0);
-        for (j = 0; j < 12; j++) {
-            lbl_80240828[i][j] = 0;
-            lbl_802408E8[i][j] = 0;
-        }
-        lbl_80240F90[i] = 0;
-    }
-    ClearAllPlayerControls(4);
+    reset_player_controls(0, 12);
     lbl_803445FC = 1;
 }
 
@@ -1320,16 +1316,22 @@ void ClearControls(void)
 
 /* 0x80032964  full per-player init: button records, control structs,
  * repeat state, schemes/actuator flags, then the joystick angle table */
+static void clear_button_records(u8* p)
+{
+    int j;
+
+    for (j = 0; j < 13; j++) {
+        *(u32*)(p + j * 8 + 4) = *(u32*)(p + j * 8) = 0;
+    }
+}
+
 void InitPlayerControls(void)
 {
     int i, j;
 
     lbl_803445FC = 0;
     for (i = 0; i < 4; i++) {
-        for (j = 0; j < 13; j++) {
-            *(u32*)(lbl_80240AE8[i] + j * 8) = 0;
-            *(u32*)(lbl_80240AE8[i] + j * 8 + 4) = 0;
-        }
+        clear_button_records(lbl_80240AE8[i]);
         lbl_80240E30[i].ctl = 0;
         lbl_80240E30[i].levels = 0;
         lbl_80240E30[i].edges = 0;
@@ -1356,14 +1358,21 @@ void InitPlayerControls(void)
 
 /* 0x80032A80  reset every player's control struct (negative code also
  * wipes the raw pad arrays first) */
+static void clear_pad_levels(void)
+{
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        lbl_802407C8[i] = lbl_802407D8[i] = lbl_802407B8[i] = lbl_802407E8[i] = lbl_802407F8[i] = 0;
+    }
+}
+
 void ClearAllPlayerControls(s32 code)
 {
     int i;
 
     if (code < 0) {
-        for (i = 0; i < 4; i++) {
-            lbl_802407C8[i] = lbl_802407D8[i] = lbl_802407B8[i] = lbl_802407E8[i] = lbl_802407F8[i] = 0;
-        }
+        clear_pad_levels();
         code = -code;
     }
     for (i = 0; i < 4; i++) {
