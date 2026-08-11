@@ -1356,14 +1356,21 @@ void InitPlayerControls(void)
 
 /* 0x80032A80  reset every player's control struct (negative code also
  * wipes the raw pad arrays first) */
+static void clear_pad_levels(void)
+{
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        lbl_802407C8[i] = lbl_802407D8[i] = lbl_802407B8[i] = lbl_802407E8[i] = lbl_802407F8[i] = 0;
+    }
+}
+
 void ClearAllPlayerControls(s32 code)
 {
     int i;
 
     if (code < 0) {
-        for (i = 0; i < 4; i++) {
-            lbl_802407C8[i] = lbl_802407D8[i] = lbl_802407B8[i] = lbl_802407E8[i] = lbl_802407F8[i] = 0;
-        }
+        clear_pad_levels();
         code = -code;
     }
     for (i = 0; i < 4; i++) {
