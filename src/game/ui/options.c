@@ -2231,16 +2231,13 @@ static void next_rune_hint(s32 advance)
         n = rune_hint_index + 1;
         for (;;) {
             if (n >= 0xD) {
-                rune_hint_num = 1;
                 n = n % 0xD;
+                rune_hint_num = 1;
             }
             i = n;
-            off = n << 2;
-            for (; i < 0xD; i++, off += 4) {
-                if (rune_hint_num != 0) {
-                    break;
-                }
-                if (PlayerHasShard(-1, *(s32*)((u8*)rune_idx_table + off) - 1) == 0) {
+            for (; i < 0xD; i++) {
+                s32 id = rune_idx_table[i] - 1;
+                if (rune_hint_num != 0 || PlayerHasShard(-1, id) == 0) {
                     break;
                 }
             }
@@ -2250,23 +2247,22 @@ static void next_rune_hint(s32 advance)
             if (rune_hint_num > 1) {
                 rune_hint_num = 1;
                 rune_hint_index = 0;
-                i = rune_hint_index;
-                break;
+                goto have_index;
             }
             rune_hint_num++;
             n = 1;
         }
         rune_hint_index = i;
-
+have_index:
         /* per-player: mask lives in the current-level record (stride 0xF0,
          * level index at record+0xC) */
         bit = 1 << (rune_idx_table[rune_hint_index] - 1);
         for (p = 0; p < 4; p++) {
             u8* rec = &gPlayers[p * PREC_STRIDE];
-            if (pass == 0 && (*(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDDC) & bit) != 0) {
+            if (pass == 0 && (bit & *(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDDC)) != 0) {
                 pass = 1;
             }
-            if ((*(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDDE) & bit) != 0) {
+            if ((bit & *(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDDE)) != 0) {
                 pass = 2;
             }
         }
@@ -2297,16 +2293,15 @@ static void next_legend_hint(s32 advance)
     n = legend_hint_index + 1;
     for (;;) {
         if (n >= 10) {
-            legend_hint_num = 1;
             n = n % 10;
+            legend_hint_num = 1;
         }
         if (n == 0) {
             n = 1;
         }
         i = n;
-        off = n << 2;
-        for (; i < 10; i++, off += 4) {
-            id = *(s32*)((u8*)crystal_order + off);
+        for (; i < 10; i++) {
+            id = crystal_order[i];
             if (WorldOpen(id) != 0 &&
                 (legend_hint_num != 0 || towerGetRuneNearStat(-1, id) == 0)) {
                 break;
@@ -2325,13 +2320,14 @@ static void next_legend_hint(s32 advance)
     }
     legend_hint_index = i;
 have_index:
-    bit = 1 << crystal_order[legend_hint_index];
+    id = crystal_order[legend_hint_index];
+    bit = 1 << id;
     for (p = 0; p < 4; p++) {
         u8* rec = &gPlayers[p * PREC_STRIDE];
-        if (pass == 0 && (*(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDE0) & bit) != 0) {
+        if (pass == 0 && (bit & *(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDE0)) != 0) {
             pass = 1;
         }
-        if ((*(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDE2) & bit) != 0) {
+        if ((bit & *(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDE2)) != 0) {
             pass = 2;
         }
     }
@@ -2361,16 +2357,15 @@ static void next_boss_hint(s32 advance)
     n = boss_hint_index + 1;
     for (;;) {
         if (n >= 0xB) {
-            boss_hint_num = 1;
             n = n % 0xB;
+            boss_hint_num = 1;
         }
         if (n == 0) {
             n = 1;
         }
         i = n;
-        off = n << 2;
-        for (; i < 0xB; i++, off += 4) {
-            id = *(s32*)((u8*)crystal_order + off);
+        for (; i < 0xB; i++) {
+            id = crystal_order[i];
             if (WorldOpen(id) != 0 &&
                 (boss_hint_num != 0 || PlayerHasRune(-1, id) == 0)) {
                 break;
@@ -2389,13 +2384,14 @@ static void next_boss_hint(s32 advance)
     }
     boss_hint_index = i;
 have_index:
-    bit = 1 << crystal_order[boss_hint_index];
+    id = crystal_order[boss_hint_index];
+    bit = 1 << id;
     for (p = 0; p < 4; p++) {
         u8* rec = &gPlayers[p * PREC_STRIDE];
-        if (pass == 0 && (*(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDE4) & bit) != 0) {
+        if (pass == 0 && (bit & *(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDE4)) != 0) {
             pass = 1;
         }
-        if ((*(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDE6) & bit) != 0) {
+        if ((bit & *(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDE6)) != 0) {
             pass = 2;
         }
     }
