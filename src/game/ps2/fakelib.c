@@ -248,10 +248,18 @@ int sDvdReadSync(void* fileInfo, void* buf, int len, int offset)
 /* 0x800AED50: buffered read through the 32-aligned cache window */
 int sceRead(int fd, void* buf, int len)
 {
-    SCEFILE* f = SCEHANDLE(fd);
-    u32 a = f->pos & ~31;
-    s32 span = (((len + 31) + f->pos) & ~31) - a;
+    s32 span;
+    s32 rem;
     s32 copied;
+    SCEFILE* f;
+    u32 a;
+
+    f = SCEHANDLE(fd);
+    rem = len;
+    a = rem + 31;
+    span = (f->pos + a) & ~31;
+    a = f->pos & ~31;
+    span = span - a;
 
     if (a < f->winOff || a >= f->winOff + f->chunk) {
         f->winOff = a;
@@ -277,13 +285,14 @@ int sceRead(int fd, void* buf, int len)
         f->cursor += n;
     }
 
-    copied = f->winOff + f->chunk - f->pos;
-    if (len < copied) {
+    copied = f->winOff + f->chunk;
+    copied = copied - f->pos;
+    if (rem < copied) {
         copied = len;
     }
     memcpy(buf, f->buf + (f->bufOff + f->pos - f->winOff), copied);
     f->pos += copied;
-    len -= copied;
+    rem -= copied;
 
     while (span > f->chunk) {
         f->winOff = f->cursor;
@@ -293,9 +302,9 @@ int sceRead(int fd, void* buf, int len)
         }
         f->cursor += f->chunk;
         f->pos += f->chunk;
-        memcpy((u8*) buf + copied, f->buf + f->bufOff, f->chunk);
         span -= f->chunk;
-        len -= f->chunk;
+        memcpy((u8*) buf + copied, f->buf + f->bufOff, f->chunk);
+        rem -= f->chunk;
         copied += f->chunk;
     }
 
@@ -305,10 +314,10 @@ int sceRead(int fd, void* buf, int len)
             return -1;
         }
         f->cursor += span;
-        if (len > 0) {
-            memcpy((u8*) buf + copied, f->buf + f->bufOff, len);
-            copied += len;
-            f->pos += len;
+        if (rem > 0) {
+            memcpy((u8*) buf + copied, f->buf + f->bufOff, rem);
+            copied += rem;
+            f->pos += rem;
         }
     }
     return copied;
