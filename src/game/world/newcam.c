@@ -164,6 +164,7 @@ typedef struct NcPlayer {
 extern NcPlayer  gPlayers[4];   /* the 4 player records (game/player.h Player[]) */
 extern f32       gDefaultPlayerPosition[3];   /* default position when no player is valid */
 extern NcCamera  lbl_80274AA0;      /* DebugCamera instance */
+extern NcCamera  lbl_80274C50;      /* standard camera instance */
 extern NcCamera* lbl_80344A6C;      /* live standard-camera pointer (frustum query) */
 extern NcCamera* lbl_80344A68;      /* DebugCam: pointer to the live debug camera */
 extern s32       lbl_80344A70;
@@ -200,6 +201,7 @@ extern s32 fn_8006DC64(NcCamera* cam, NcPlayer* player, Vec3* pt, s32 mode);
 extern void MBCameraUpdate(f32* position, f32* matrix);
 extern void MBWindowZoom(f32 zoom);
 extern void MBWindowProjection(f32 angle, f32 aspect);
+extern void pbUpdateMatricies(void);
 extern void DoShake(Vec3* position, Vec3* attention);
 extern void DebugCamControlInputs(void);
 extern void dbgTextPrintfCell(s32 color, s32 x, s32 line, char* fmt, ...);
@@ -225,6 +227,7 @@ extern void FatalError(char* message, s32 code);
 extern f32 SlowNormalVector(f32* vector);
 
 extern s32 lbl_80343CE0;   /* slow-motion / time-scaling enable */
+extern s32 lbl_80343CD0;   /* consecutive successful camera updates required */
 extern f32 gClockFrameStep; /* time scale (frame delta) */
 extern s32 lbl_80343CEC;   /* interpolation frame count (divisor) */
 extern s32 lbl_80343CF8;   /* active marker index (also the 3D selector) */
@@ -355,10 +358,11 @@ void CamLookInDir(f32* dir, u32 mat) {
 }
 
 void CamReset(NcCamera* cam);   /* defined below; forward decl for early callers */
+void fn_8006F418(NcCamera* camera, f32* target);
 
 /* per-mode camera updaters + the combat camera-tick hook (game/game/combat.c). */
 extern void fn_8006F16C(s32 arg);
-extern void fn_8006DF34(NcCamera* cam);
+extern s32 fn_8006DF34(NcCamera* cam);
 extern void fn_8006E654(void);
 extern void write_stage_info(s32 mode);
 
@@ -887,7 +891,114 @@ s32 CamGetPlayerAvgPos(Vec3* out, s32 flags) {
     return count != 0;
 }
 
-void fn_8006F418(NcCamera* camera, f32* target)
+/* Initialise and converge the standard camera.  A non-zero argument performs
+ * the full player/trigger-camera setup; zero selects the lightweight reset
+ * path used by UpdateCam's lazy initialisation. */
+void fn_8006F16C(s32 initialise)
+{
+    u8 unused[8];
+    Vec3 average;
+    NcMarker* marker;
+    f32* camera;
+    f32* yawp;
+    u8* c;
+    f32 yawv;
+    f32* dir;
+    f32* cbase;
+    s32 result;
+    f32 pitch;
+    f32 pitchc;
+    f32 bound;
+    f64 yaw;
+    s32 iterations;
+    s32 successes;
+
+    lbl_80344A6C = &lbl_80274C50;
+    if (initialise != 0) {
+        CamReset(lbl_80344A6C);
+        CamGetPlayerAvgPos(&average, 2);
+        marker = (NcMarker*)fn_8006FCDC((f32*)&average);
+        camera = (f32*)lbl_80344A6C + 0x41;
+        yawp = (f32*)((u8*)lbl_80344A6C + 236);
+
+        if (marker != 0) {
+            yaw = (f64)*(f32*)((u8*)marker + 0x18) - 3.141592654;
+            if (yaw > 3.141592654) {
+                yaw -= 6.283185308;
+            } else if (yaw <= -3.141592654) {
+                yaw = 6.283185308 + yaw;
+            }
+            *yawp = (f32)yaw;
+        } else {
+            *yawp = 0.0f;
+        }
+
+        if (marker != 0) {
+            *camera = -*(f32*)((u8*)marker + 0x14);
+        } else {
+            *camera = 0.0f;
+        }
+
+        if (lbl_80344768 > 1) {
+            pitchc = *camera;
+            bound = -(*(f32**)((u8*)gCurLevel + 0x60))[2];
+            if (pitchc < bound) {
+                asm { b keep_pitch }
+            }
+            pitchc = bound;
+        keep_pitch:
+            *camera = pitchc;
+        }
+
+        c = (u8*)lbl_80344A6C;
+        yawv = *(f32*)(c + 236);
+        dir = (f32*)(c + 224);
+        pitch = *(f32*)(c + 260);
+        YawVec3(lbl_80127D40, (Vec3*)dir, -yawv);
+        PitchVec3(dir, dir, -pitch);
+
+        lbl_80344A6C->attention.x = average.x;
+        lbl_80344A6C->attention.y = average.y;
+        lbl_80344A6C->attention.z = average.z;
+        lbl_80344A6C->distance = (*(f32**)((u8*)gCurLevel + 0x60))[11];
+        lbl_80344A6C->level_height = (*(f32**)((u8*)gCurLevel + 0x60))[12];
+        lbl_80344A6C->position.x =
+            lbl_80344A6C->direction.x * -lbl_80344A6C->distance + lbl_80344A6C->attention.x;
+        lbl_80344A6C->position.y =
+            lbl_80344A6C->direction.y * -lbl_80344A6C->distance + lbl_80344A6C->attention.y;
+        lbl_80344A6C->position.z =
+            lbl_80344A6C->direction.z * -lbl_80344A6C->distance + lbl_80344A6C->attention.z;
+
+        CamLookInDir((f32*)&lbl_80344A6C->direction, (u32)lbl_80344A6C);
+        MBCameraUpdate((f32*)&lbl_80344A6C->position, (f32*)lbl_80344A6C);
+        MBWindowZoom(lbl_80344A6C->zoom);
+        if ((f64)lbl_80344A6C->aspect > 0.0) {
+            MBWindowProjection(
+                0.31830988614222805 * (180.0 * lbl_80344A6C->zoom),
+                1.0 / lbl_80344A6C->aspect);
+        }
+
+        pbUpdateMatricies();
+        iterations = 0;
+        cbase = (f32*)lbl_80344A6C;
+        successes = iterations;
+        while (successes < lbl_80343CD0 && iterations < 100) {
+            result = fn_8006DF34((NcCamera*)cbase);
+            pbUpdateMatricies();
+            if (result != 0) {
+                successes = 0;
+            } else {
+                successes++;
+            }
+            iterations++;
+        }
+    } else {
+        CamReset(lbl_80344A6C);
+        fn_8006F418(lbl_80344A6C, (f32*)lbl_80344A70);
+    }
+}
+
+void fn_8006F418(NcCamera* cbase, f32* target)
 {
     u8 unused_high[24];
     Vec3 average;
@@ -927,31 +1038,31 @@ void fn_8006F418(NcCamera* camera, f32* target)
         pitch = limit;
     }
 
-    YawVec3(lbl_80127D40, &camera->direction, -yaw);
-    PitchVec3((f32*)&camera->direction, (f32*)&camera->direction, -pitch);
-    camera->yaw = yaw;
-    camera->pitch = pitch;
+    YawVec3(lbl_80127D40, &cbase->direction, -yaw);
+    PitchVec3((f32*)&cbase->direction, (f32*)&cbase->direction, -pitch);
+    cbase->yaw = yaw;
+    cbase->pitch = pitch;
 
     if (target != 0) {
-        camera->position.x = target[1];
-        camera->position.y = target[2];
-        camera->position.z = target[3];
+        cbase->position.x = target[1];
+        cbase->position.y = target[2];
+        cbase->position.z = target[3];
     }
 
-    camera->level_height = (*(f32**)((u8*)gCurLevel + 0x60))[0x0C];
-    CamLookInDir((f32*)&camera->direction, (u32)camera);
-    MBCameraUpdate((f32*)&camera->position, (f32*)camera);
-    MBWindowZoom(camera->zoom);
-    if (camera->aspect > 0.0) {
+    cbase->level_height = (*(f32**)((u8*)gCurLevel + 0x60))[0x0C];
+    CamLookInDir((f32*)&cbase->direction, (u32)cbase);
+    MBCameraUpdate((f32*)&cbase->position, (f32*)cbase);
+    MBWindowZoom(cbase->zoom);
+    if (cbase->aspect > 0.0) {
         MBWindowProjection(
-            0.31830988614222805 * (180.0 * camera->zoom),
-            1.0 / camera->aspect);
+            0.31830988614222805 * (180.0 * cbase->zoom),
+            1.0 / cbase->aspect);
     }
 
     CamGetPlayerAvgPos(&average, 4);
-    dz = camera->position.z - average.z;
-    dx = camera->position.x - average.x;
-    dy = camera->position.y - average.y;
+    dz = cbase->position.z - average.z;
+    dx = cbase->position.x - average.x;
+    dy = cbase->position.y - average.y;
     if ((distance = (dx * dx + dy * dy) + dz * dz) > 0.0f) {
         f64 guess = __frsqrte((f64)distance);
         guess = 0.5 * guess * (3.0 - guess * guess * distance);
@@ -961,10 +1072,10 @@ void fn_8006F418(NcCamera* camera, f32* target)
                      (0.5 * guess * (3.0 - guess * guess * distance)));
         distance = root;
     }
-    camera->distance = distance;
-    camera->attention.x = camera->direction.x * camera->distance + camera->position.x;
-    camera->attention.y = camera->direction.y * camera->distance + camera->position.y;
-    camera->attention.z = camera->direction.z * camera->distance + camera->position.z;
+    cbase->distance = distance;
+    cbase->attention.x = cbase->direction.x * cbase->distance + cbase->position.x;
+    cbase->attention.y = cbase->direction.y * cbase->distance + cbase->position.y;
+    cbase->attention.z = cbase->direction.z * cbase->distance + cbase->position.z;
 }
 
 /*
