@@ -510,6 +510,7 @@ s32 DrawStringTextMLines(s32 x, s32 y, s32 spacing, s32 font, u32 color, s32 msg
     s32 lineCount;
     s32 line;
     char* text;
+    u32 rv;
     va_list ap;
     s32 lines[16];
     volatile u8 unused[20];
@@ -540,8 +541,9 @@ s32 DrawStringTextMLines(s32 x, s32 y, s32 spacing, s32 font, u32 color, s32 msg
         if (lineCount == 16) {
             break;
         }
-        text = GetStringTextSub(&info->stringList, msg, msgLine++, 0);
-        if ((u32)text == 0) {
+        rv = (u32)GetStringTextSub(&info->stringList, msg, msgLine++, 0);
+        text = (char*)rv;
+        if (rv == 0) {
             if (lineCount == 0) {
                 ErrorPrintf("DrawStringTextMLines: Msg=%d idx=%d > max", msg, msgLine);
             }
