@@ -193,33 +193,52 @@ void ExtractPYR(const f32* matrix, f32* angles)
     f32 angle1;
     f32 angle2;
     f32 magnitude;
+    f32 y;
+    f32 x;
+    f32 r;
 
     *(u32*)&absValue &= 0x7FFFFFFF;
     if (__fabs(1.0 - absValue) < 0.0001) {
         f64 lockedAngle;
-        angle0 = atan2(matrix[9], matrix[5]);
-        if (matrix[2] > 0.0f) {
+        f32 s = matrix[5];
+        angle0 = atan2(matrix[9], s);
+        if (matrix[2] > gMlFmathZero) {
             lockedAngle = -1.570796327;
         } else {
             lockedAngle = 1.570796327;
         }
         angle1 = lockedAngle;
-        angle2 = 0.0f;
+        angle2 = *(volatile f32*)&gMlFmathZero;
     } else {
         angle0 = atan2(-matrix[6], matrix[10]);
         magnitude = cos(angle0);
         if (magnitude == 0.0) {
             if (angle0 > 0.0) {
-                angle1 = atan2(-matrix[2], -matrix[6]);
-                angle2 = atan2(-matrix[8], -matrix[9]);
+                f32 a = -matrix[6];
+                angle1 = atan2(-matrix[2], a);
+                y = matrix[8];
+                x = matrix[9];
+                y = -y;
+                x = -x;
+                angle2 = atan2(y, x);
             } else {
-                angle1 = atan2(-matrix[2], matrix[6]);
-                angle2 = atan2(matrix[8], matrix[9]);
+                r = atan2(-matrix[2], matrix[6]);
+                x = matrix[9];
+                y = matrix[8];
+                angle1 = r;
+                angle2 = atan2(y, x);
             }
         } else {
             magnitude = matrix[10] / magnitude;
-            angle1 = atan2(-matrix[2], magnitude);
-            angle2 = atan2(-matrix[1] / magnitude, matrix[0] / magnitude);
+            y = -matrix[2];
+            r = atan2(y, magnitude);
+            y = matrix[1];
+            x = matrix[0];
+            y = -y;
+            x = x / magnitude;
+            y = y / magnitude;
+            angle1 = r;
+            angle2 = atan2(y, x);
         }
     }
     angles[0] = angle0;
