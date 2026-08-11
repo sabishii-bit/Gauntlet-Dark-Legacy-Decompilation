@@ -639,10 +639,11 @@ void cam_orient_to_80029E8C(s32 camIdx)
 /* Walk-mode camera completion/cleanup predicate. */
 s32 MoveCam_walk_8002A024(s32 camIdx)
 {
-    Camera* cam = &gCameras[camIdx];
     s32 done;
+    Camera* cam = &gCameras[camIdx];
 
-    if (lbl_803444F0 == 1) {
+    switch (lbl_803444F0) {
+    case 1: {
         u8* p = gPlayers;
         s32 i;
         done = 1;
@@ -651,29 +652,31 @@ s32 MoveCam_walk_8002A024(s32 camIdx)
                 done = 0;
             }
         }
-    } else {
+        break;
+    }
+    default:
         done = 1;
+        break;
     }
     if (done != 0) {
-        s32 oldMode = cam->a_mode;
+        s32 oldMode;
         lbl_803447B8 = 0;
         lbl_803444F0 = -1;
         lbl_803444EC = -1;
         gScriptedCameraState = 0;
         lbl_8034453C = 0;
+        oldMode = cam->a_mode;
         if (cam->c_mode != 0) {
             cam->pc_mode = cam->c_mode;
             cam->c_mode = CAM_OFF;
         }
-        if (cam->a_mode != oldMode) {
+        if (oldMode != cam->a_mode) {
             cam->pa_mode = cam->a_mode;
             cam->a_mode = oldMode;
         }
         cam->state = 0;
-        if ((((gControllerButtons & cam->state) ^ cam->state) |
-             ((sFlags & 4) ^ cam->state)) != 0) {
-            lbl_803445D4 |= 4;
-            sPreviousFlags = sPreviousFlags;
+        if ((*(u64*)&gControllerButtons & 4) != 0) {
+            *(u64*)&sPreviousFlags |= 4;
         }
     }
     return done == 0;
