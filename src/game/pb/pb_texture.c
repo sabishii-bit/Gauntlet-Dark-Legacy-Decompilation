@@ -42,7 +42,7 @@ void* AllocMem32(u32 size);
 void pbSetTexture(void* texObj);                     /* pb_objregs.c */
 extern void fn_800C6AB4(int);                        /* pb_objregs.c */
 extern void* MBRomTexPtr(int, int);                  /* pb model helper */
-extern void FatalErrorf(char* fmt, int, int, int, int, void*); /* dbg printf */
+extern void FatalErrorf(char* fmt, ...); /* dbg printf */
 
 /* ------------------------------------------------------------------ */
 /* module structs (offsets verified against the disassembly)           */
@@ -297,28 +297,28 @@ void fn_800C7214(s32 id) {
 /* Load lightmap TLUTs for every model, reporting overflow via the debug
  * printf ("Lightmaps > %dK, %d/%d: %s"). */
 void fn_800C72DC(void) {
-    u8* mgr = gWinGlobals->tbl;
-    s32 loaded = 0;
     s32 m;
+    s32 loaded = 0;
+    PbTexMgr* wg = gWinGlobals;
 
     lbl_80345110 = 1;
-    for (m = 0; m < *(s32*)mgr; m++) {
-        u8* e = mgr + m * 0x10;
-        u8* desc;
-        s32 t, n;
+    for (m = 0; m < *(s32*)wg->tbl; m++) {
+        u8* e = (u8*)wg->tbl + m * 0x10;
+        u8** ep = (u8**)(e + 0x4);
+        s32 t;
+        s32 base;
         if (*(s32*)(e + 0x10) != 0)
             continue;
-        desc = *(u8**)(e + 0x4);
-        n = *(u16*)(desc + 0x7e);
-        if (n == 0)
+        if (*(u16*)(*ep + 0x7e) == 0)
             continue;
-        for (t = 0; t < *(u16*)(desc + 0x7e); t++) {
-            s32 key = (*(u16*)(desc + 0x7c) << 16) | (u16)(*(u16*)(desc + 0x7c) + t);
-            if (fn_800C7558(key) == 0) {
-                FatalErrorf(lbl_80116AC0, 0x200, m + 1, t + 1,
-                            *(u16*)(*(u8**)(e + 0x4) + 0x7e), *(void**)(mgr + m * 0x10 + 0x4));
-                loaded++;
+        base = *(u16*)(*ep + 0x7c);
+        for (t = 0; t < *(u16*)(*ep + 0x7e); t++) {
+            if (fn_800C7558((m << 16) | (u16)(base + t)) == 0) {
+                u8* tb = (u8*)wg->tbl + 0x4;
+                FatalErrorf(lbl_80116AC0, 0x200, t + 1, *(u16*)(*ep + 0x7e),
+                            *(void**)(m * 0x10 + tb));
             }
+            loaded++;
         }
     }
     if (loaded == 0)
