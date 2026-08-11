@@ -1312,7 +1312,8 @@ extern f32 lbl_8011C044[];    /* 0x8011C044 flee corner search-angle offsets */
 extern f64 __frsqrte(f64 x);
 extern s32 ErrorPrintf(const char* fmt, ...);
 extern s32 sFlags;            /* 0x803445CC packed config flags */
-extern s32 gControllerButtons;      /* 0x803445C8 companion config word */
+extern u64 gControllerButtons;      /* 0x803445C8 config-word pair (hi) + sFlags (lo) */
+extern u8 lbl_80112370[];           /* enemy debug string table */
 extern u8 sLookoutParams[];     /* 0x802584A8 prowl-node table (stride 0x6C) */
 extern s32 sNumLookoutParams;      /* 0x80344900 prowl-node count */
 extern u8 sMilestones[];     /* 0x8025B604 milestone-node table (stride 0x68) */
@@ -3238,27 +3239,38 @@ void move_logic12(s32 index)
  * chain to the idle algorithm and cuts itself loose. */
 void move_logic13(s32 index)
 {
-    Enemy* e = (Enemy*)((u8*)lbl_80250E00 + index * 916 + 3608);
-    struct item* gen = e->generator;
+    u8* e0;
+    u8* base = (u8*)lbl_80250E00;
+    Enemy* e;
+    struct item* gen;
     s32 it = lbl_80344748;
     s32 flee;
+    u8* p;
+    u8* strs = lbl_80112370;
+    u8 _pad[32];
 
+    p = base + index * 916;
+    gen = *(struct item**)(p + 4264);
+    e0 = p + 3608;
+    e = (Enemy*)(u8*)e0;
     if (it < 0) {
         flee = 0;
     } else {
-        Enemy* other = (Enemy*)((u8*)lbl_80250E00 + it * 916 + 3608);
-        if (other->state != 1) {
+        u8* other = base + it * 916;
+        if (*(s32*)(other + 3788) != 1) {
             flee = 0;
-        } else if (other->actual_dist > e->sight) {
+        } else if (*(f32*)(other + 4244) > *(f32*)(e0 + 768)) {
             flee = 0;
+        } else if (index == it || *(s16*)(e0 + 728) != 0 || *(s32*)(e0 + 856) > 0) {
+            goto flee_zero13;
         } else {
-            f32 dy = other->objgrp.worldmat[3][1] - e->objgrp.worldmat[3][1];
-            f32 dx = other->objgrp.worldmat[3][0] - e->objgrp.worldmat[3][0];
-            f32 dz = other->objgrp.worldmat[3][2] - e->objgrp.worldmat[3][2];
-            if (index != it && e->birth_style == 0 && e->dead_end <= 0
-                && dy * dy + dx * dx + dz * dz < 100.0) {
+            f32 dx = *(f32*)(other + 3660) - *(f32*)(e0 + 52);
+            f32 dy = *(f32*)(other + 3664) - *(f32*)(e0 + 56);
+            f32 dz = *(f32*)(other + 3668) - *(f32*)(e0 + 60);
+            if (dx * dx + dy * dy + dz * dz < lbl_803468D8) {
                 flee = -1;
             } else {
+            flee_zero13:
                 flee = 0;
             }
         }
@@ -3273,15 +3285,15 @@ void move_logic13(s32 index)
         do_ai(index);
         return;
     }
-    if (sFlags & 0x10) {
+    if (gControllerButtons & 0x10) {
         if (index == e->prev_enemy) {
-            ErrorPrintf("E%02X==PREV", index);
+            ErrorPrintf((char*)(strs + 196), index);
         }
         if (index == e->next_enemy) {
-            ErrorPrintf("E%02X==NEXT", index);
+            ErrorPrintf((char*)(strs + 208), index);
         }
         if (e->prev_enemy >= 0 && e->prev_enemy == e->next_enemy) {
-            ErrorPrintf("E%02X: prev==next (%02X)", index, e->prev_enemy);
+            ErrorPrintf((char*)(strs + 220), index, e->prev_enemy);
         }
     }
     if (gen == 0 || e->prev_enemy < 0) {
@@ -3293,21 +3305,23 @@ void move_logic13(s32 index)
         format_brain(index);
     }
     {
-        Enemy* prev = (Enemy*)((u8*)lbl_80250E00 + e->prev_enemy * 916 + 3608);
+        Enemy* prev;
         f32 dy;
         f32 dx;
         f32 dz;
         f32 dist2;
 
-        e->ang = get_yaw(&prev->objgrp.worldmat[3][0], &e->objgrp.worldmat[3][0]);
+        p = base + e->prev_enemy * 916;
+        prev = (Enemy*)(p + 3608);
+        e->ang = get_yaw((f32*)(p + 3660), &e->objgrp.worldmat[3][0]);
         set_enemy_trans(e, 1.0f, e->ang);
         e->pyr[1] = turn_enemy_ang(e, e->ang);
         do_enemy_move(index);
-        dy = prev->objgrp.worldmat[3][1] - e->objgrp.worldmat[3][1];
         dx = prev->objgrp.worldmat[3][0] - e->objgrp.worldmat[3][0];
+        dy = prev->objgrp.worldmat[3][1] - e->objgrp.worldmat[3][1];
         dz = prev->objgrp.worldmat[3][2] - e->objgrp.worldmat[3][2];
-        dist2 = dy * dy + dx * dx + dz * dz;
-        if (dist2 > 0.0f) {
+        dist2 = dx * dx + dy * dy + dz * dz;
+        if (dist2 > lbl_80346820) {
             volatile f32 tmp;
             f64 y = __frsqrte(dist2);
             y = 0.5 * y * (3.0 - y * y * dist2);
@@ -3320,14 +3334,14 @@ void move_logic13(s32 index)
             e->lost += gFrameTicks;
             if (e->lost >= 180) {
                 s32 n = e->prev_enemy;
-                Enemy* p = (Enemy*)((u8*)lbl_80250E00 + n * 916 + 3608);
+                Enemy* q = (Enemy*)(base + n * 916 + 3608);
                 do {
-                    p->algorithm = 7;
-                    p->old_ai = 7;
-                    p->next_enemy = -1;
-                    n = p->prev_enemy;
-                    p->prev_enemy = -1;
-                    p = (Enemy*)((u8*)lbl_80250E00 + n * 916 + 3608);
+                    q->algorithm = 7;
+                    q->old_ai = 7;
+                    q->next_enemy = -1;
+                    n = q->prev_enemy;
+                    q->prev_enemy = -1;
+                    q = (Enemy*)(base + n * 916 + 3608);
                 } while (n >= 0);
                 e->prev_enemy = -1;
             }
