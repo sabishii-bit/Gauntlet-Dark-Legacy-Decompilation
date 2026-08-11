@@ -1089,7 +1089,7 @@ static char* findWorldName(s32 world)
 
     for (i = 0; i < 44; i++) {
         u8* e = (u8*)lbl_8011AF48 + off;
-        if (*(s32*)e == world) {
+        if (world == *(s32*)e) {
             return (char*)(e + 4);
         }
         off += 36;
