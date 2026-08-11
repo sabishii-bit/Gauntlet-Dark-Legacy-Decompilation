@@ -639,10 +639,11 @@ void cam_orient_to_80029E8C(s32 camIdx)
 /* Walk-mode camera completion/cleanup predicate. */
 s32 MoveCam_walk_8002A024(s32 camIdx)
 {
-    Camera* cam = &gCameras[camIdx];
     s32 done;
+    Camera* cam = &gCameras[camIdx];
 
-    if (lbl_803444F0 == 1) {
+    switch (lbl_803444F0) {
+    case 1: {
         u8* p = gPlayers;
         s32 i;
         done = 1;
@@ -651,29 +652,31 @@ s32 MoveCam_walk_8002A024(s32 camIdx)
                 done = 0;
             }
         }
-    } else {
+        break;
+    }
+    default:
         done = 1;
+        break;
     }
     if (done != 0) {
-        s32 oldMode = cam->a_mode;
+        s32 oldMode;
         lbl_803447B8 = 0;
         lbl_803444F0 = -1;
         lbl_803444EC = -1;
         gScriptedCameraState = 0;
         lbl_8034453C = 0;
+        oldMode = cam->a_mode;
         if (cam->c_mode != 0) {
             cam->pc_mode = cam->c_mode;
             cam->c_mode = CAM_OFF;
         }
-        if (cam->a_mode != oldMode) {
+        if (oldMode != cam->a_mode) {
             cam->pa_mode = cam->a_mode;
             cam->a_mode = oldMode;
         }
         cam->state = 0;
-        if ((((gControllerButtons & cam->state) ^ cam->state) |
-             ((sFlags & 4) ^ cam->state)) != 0) {
-            lbl_803445D4 |= 4;
-            sPreviousFlags = sPreviousFlags;
+        if ((*(u64*)&gControllerButtons & 4) != 0) {
+            *(u64*)&sPreviousFlags |= 4;
         }
     }
     return done == 0;
@@ -1326,52 +1329,52 @@ f32 get_cam_dist(s32 camIdx)
 s32 adjust_radius_8002B2D4(s32 camIdx)
 {
     Camera* cam = &gCameras[camIdx];
+    f32 r;
     f32 desired = get_cam_dist(camIdx);
     void* levelData = *(void**)((u8*)gCurLevel + 96);
-    f32 val;
-    f32 diff;
     u8 _pad[8];
     f32 ad;
     u8 _pad2[4];
-    f32 step;
+    f32 k;
 
     if (lbl_80345F78 == desired) {
         return 0;
     }
-    val = desired;
     if (desired < cam->radius && lbl_803443FC > 0) {
         lbl_803443FC = 0;
-        val = cam->radius;
+        desired = cam->radius;
     }
-    if (val > cam->radius && lbl_803443FC < 0) {
+    if (desired > cam->radius && lbl_803443FC < 0) {
         lbl_803443FC = 0;
-        val = cam->radius;
+        desired = cam->radius;
     }
-    if (lbl_80344960 < 0 && val > cam->radius && cam->radius > lbl_80344528) {
-        val = cam->radius;
+    if (lbl_80344960 < 0) {
+        if (desired > (r = cam->radius) && r > lbl_80344528) {
+            desired = r;
+        }
     }
 
-    diff = val - cam->radius;
-    ad = diff;
+    k = lbl_8034618C;
+    ad = desired - cam->radius;
     *(u32*)&ad &= 0x7FFFFFFF;
-    if (ad < lbl_8034618C) {
-        cam->radius = val;
+    if (ad < k) {
+        cam->radius = desired;
         lbl_803443F4 = 1;
         goto done;
     }
-    desired = ad - lbl_8034618C;
-    step = (f32)(lbl_80346098 * desired + lbl_8034618C);
-    if (step > lbl_80346158 && lbl_803444E4 == 0) {
-        step = lbl_80346158;
+    r = ad - k;
+    r = (f32)(lbl_80346098 * r + k);
+    if (r > lbl_80346158 && lbl_803444E4 == 0) {
+        r = lbl_80346158;
     }
-    if (val > cam->radius) {
-        cam->radius = cam->radius + step;
+    if (desired > cam->radius) {
+        cam->radius = cam->radius + r;
         lbl_803443F4 = 1;
         goto done;
     }
-    if (val < cam->radius) {
+    if (desired < cam->radius) {
         if (lbl_80344418 == 0 || *(s16*)((u8*)levelData + 54) != 0) {
-            cam->radius -= step;
+            cam->radius -= r;
             lbl_803443F4 = 1;
         }
     }
@@ -2966,49 +2969,68 @@ void PlayerDamagedItem(void* player, void* item, s32 flag)
 {
     s32* info = *(s32**)item;
     s32 type = info[0];
+    s32 t;
 
     if (type == 2) {
-        return;
+        goto out;
     }
-    if (type > 2) {
-        if (type < 4) {
-            s32 t;
-            if (flag != 0) {
-                PF(player, 0x918, s32) = 0;
-                PF(player, PF(player, 0x0C, s32) * 0x1C + 0xC20, s32) =
-                    PF(player, PF(player, 0x0C, s32) * 0x1C + 0xC20, s32) + 1;
-            }
-            t = PF(item, 0xDC, s16);
-            if (t == -2) {
-                t = 1;
-            } else if (t == -3) {
-                t = 2;
-            } else if (t < 0) {
-                t = 0;
-            }
-            if (flag == 0) {
-                AddExp(PF(player, 0, s32), lbl_8011BB20[t] * 5, 0);
-            } else {
-                AddExp(PF(player, 0, s32), lbl_8011BBA8[t] * 5, 0);
-            }
-        }
-    } else if (type >= 1) {
-        if (PF(item, 0xC6, s16) < 1 && info[1] == 4) {
-            s32 pos[3];
-            s32 vec[3];
-            s32 fx;
-            pos[0] = *(s32*)((u8*)item + 0x44);
-            pos[1] = *(s32*)((u8*)item + 0x48);
-            pos[2] = *(s32*)((u8*)item + 0x4C);
-            vec[0] = *(s32*)((u8*)player + 0x54);
-            vec[1] = *(s32*)((u8*)player + 0x58);
-            vec[2] = *(s32*)((u8*)player + 0x5C);
-            fx = start_magic(PF(player, 0, s32), pos, info[0xF], 0,
-                             lbl_80346310);
-            msgPost(fx, 0xE, PF(player, 0, s32), (u32)vec);
-            DeleteItem(item, 1);
-        }
+    if (type >= 2) {
+        goto big;
     }
+    if (type >= 1) {
+        goto small;
+    }
+    goto out;
+big:
+    if (type >= 4) {
+        goto out;
+    }
+    if (flag != 0) {
+        PF(player, 0x918, s32) = 0;
+    }
+    if (flag != 0) {
+        PF(player, PF(player, 0x0C, s32) * 0x1C + 0xC20, s32) =
+            PF(player, PF(player, 0x0C, s32) * 0x1C + 0xC20, s32) + 1;
+    }
+    t = PF(item, 0xDC, s16);
+    if (t == -2) {
+        t = 1;
+    } else if (t == -3) {
+        t = 2;
+    } else if (t < 0) {
+        t = 0;
+    }
+    if (flag != 0) {
+        AddExp(PF(player, 0, s32), lbl_8011BBA8[t] * 5, 0);
+    } else {
+        AddExp(PF(player, 0, s32), lbl_8011BB20[t] * 5, 0);
+    }
+    goto out;
+small:
+    if (PF(item, 0xC6, s16) > 0) {
+        goto out;
+    }
+    switch (info[1]) {
+    case 4:
+    {
+        f32 pos[3];
+        f32 vec[3];
+        s32 magic = info[0xF];
+        pos[0] = *(f32*)((u8*)item + 0x44);
+        pos[1] = *(f32*)((u8*)item + 0x48);
+        pos[2] = *(f32*)((u8*)item + 0x4C);
+        vec[0] = *(f32*)((u8*)player + 0x54);
+        vec[1] = *(f32*)((u8*)player + 0x58);
+        vec[2] = *(f32*)((u8*)player + 0x5C);
+        start_magic(PF(player, 0, s32), (s32*)pos, magic, 0,
+                    lbl_80346310);
+        msgPost(0xE, PF(player, 0, s32), (u32)vec);
+        DeleteItem(item, 1);
+        break;
+    }
+    }
+out:
+    return;
 }
 
 extern f64 lbl_80346318, lbl_80346320;
@@ -3204,18 +3226,24 @@ s32 MissileCollideEnemy(f32 radius, f32* from, f32* to, f32* hit,
     for (i = firstEnemy; i < 25; i++) {
         u8* enemy = gEnemies + i * ENEMY_STRIDE;
         s32 state = PF(enemy, 0xB4, s32);
+        f32* cool;
         if ((state == 1 || state == 6) &&
             (!respectCooldown ||
-             PF(enemy, 0x2B4 + cooldownSlot * 4, f32) <= sMusicFadeBase)) {
-            f32 enemyRadius = radius + PF(enemy, 0x238, f32);
-            f32 enemyHeight = radius + PF(enemy, 0x23C, f32);
-            f32 dx = PF(enemy, 0x54, f32) - to[0];
-            f32 dy = PF(enemy, 0x58, f32) - to[1];
+             !(sMusicFadeBase < (cool = (f32*)(enemy + 0x2B4))[cooldownSlot]))) {
+            u8 _pad[8];
+            f32 dx;
+            f32 enemyRadius;
             f32 dz = PF(enemy, 0x5C, f32) - to[2];
-            if (dx * dx + dz * dz <= enemyRadius * enemyRadius + horizontalLen2 &&
-                dy <= verticalLen2 + enemyHeight &&
+            f32 enemyHeight;
+            f32 eh2;
+            enemyRadius = radius + PF(enemy, 0x238, f32);
+            dx = PF(enemy, 0x54, f32) - to[0];
+            enemyHeight = radius + PF(enemy, 0x23C, f32);
+            eh2 = enemyHeight;
+            if (!(dx * dx + dz * dz > enemyRadius * enemyRadius + horizontalLen2) &&
+                !(PF(enemy, 0x58, f32) - to[1] > verticalLen2 + enemyHeight) &&
                 LineCylinderCollide((f32*)(enemy + 0x54), enemyRadius,
-                                    enemyHeight, from, to, hit, 0)) {
+                                    eh2, from, to, hit, 0)) {
                 return i;
             }
         }

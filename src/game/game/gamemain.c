@@ -1033,11 +1033,11 @@ s16* FindWobjWanim(void* wobj)
 /* Advance every active world-object animation track. */
 void DoWorldAnimation(void)
 {
+    u8* data_off;
+    u8* track_off;
     s32* wi;
     s32* count;
     s32* header;
-    u8* data_off;
-    u8* track_off;
     s32 i;
     u8* anim_base;
 
@@ -1047,13 +1047,13 @@ void DoWorldAnimation(void)
     if ((lbl_80344768 > 0 || (gGameMode & 0x8000) != 0) &&
         (lbl_803443BC <= 10 || lbl_803443BC >= 100000) &&
         gWorldInfo[36] != 0 && (void*)gWorldInfo[37] != NULL) {
-        data_off = NULL;
-        track_off = NULL;
         wi = gWorldInfo;
         count = &wi[36];
         header = (s32*)wi[37];
         anim_base = (u8*)header[3];
         i = 0;
+        data_off = NULL;
+        track_off = NULL;
         lbl_803441B8 = header[0];
         lbl_803441B4 = header[1];
         lbl_803441B0 = header[2];
@@ -1089,7 +1089,7 @@ static char* findWorldName(s32 world)
 
     for (i = 0; i < 44; i++) {
         u8* e = (u8*)lbl_8011AF48 + off;
-        if (*(s32*)e == world) {
+        if (world == *(s32*)e) {
             return (char*)(e + 4);
         }
         off += 36;
@@ -1929,15 +1929,15 @@ void SetPlayerVars(void)
 #pragma opt_propagation reset
 
 /* 0x80050FB0 -- resolve a type id through the override tables. */
-s32 GetEnemyType(s32 arg0, s32 arg1)
+s32 GetEnemyType(s32 w, s32 l)
 {
-    s32 result = arg0;
+    s32 result = w;
 
-    if (arg0 == 3) {
+    if (w == 3) {
         result = lbl_802577AC[1];
     }
-    if ((u32)(arg0 - 4) <= 1) {
-        if (arg1 >= 4 && lbl_802577AC[4] >= 0) {
+    if ((u32)(w - 4) <= 1) {
+        if (l >= 4 && lbl_802577AC[4] >= 0) {
             result = lbl_802577AC[4];
         } else if (lbl_802577AC[2] >= 0) {
             result = lbl_802577AC[2];
@@ -1946,14 +1946,16 @@ s32 GetEnemyType(s32 arg0, s32 arg1)
         }
     }
     if (result == -1) {
-        char* name = 0;
+        char* name;
         s32 i;
         for (i = 0; i < 44; i++) {
-            if (lbl_8011AF48[i].f0 == arg0) {
+            if (w == lbl_8011AF48[i].f0) {
                 name = (char*)&lbl_8011AF48[i].f4;
-                break;
+                goto have_name;
             }
         }
+        name = 0;
+have_name:
         ErrorPrintf(lbl_801124EC, name);
     }
     return result;
@@ -2091,8 +2093,8 @@ s32 fn_80051480(f32* pos)
             d = tmp;
         }
         if (d < best_dist) {
-            best_dist = d;
             best_idx = i;
+            best_dist = d;
         }
         node += 104;
     }
