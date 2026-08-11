@@ -20,14 +20,21 @@
 extern u8* lbl_80282930[4];
 extern void ClearCustomEffect(s32 index);
 extern void* player_multiple_models[];
-extern u8 lbl_802828B0[];
+typedef struct PsfxPdataBuf {
+    char  name[0x20];  /* 0x00 : sprintf'd "<class>.wad" filename */
+    s32   cur[4];      /* 0x20 : per-player currently-loaded class */
+    void* bufs[4];     /* 0x30 : per-player load buffers */
+    s32   sizes[16];   /* 0x40 : per-class pdata file sizes */
+    s32   flags[4];    /* 0x80 */
+} PsfxPdataBuf;
+extern PsfxPdataBuf lbl_802828B0;
 extern u8 lbl_8012006C[];
 extern void* lbl_80120E00[16];
 extern char lbl_801142A0[];
 extern char lbl_80114288[];
 extern char lbl_801142D4[];
-extern char lbl_80347E44[];
-extern char lbl_80347E4C[];
+extern const char lbl_80347E44[7];   /* "%s.wad" (sdata2) */
+extern const char lbl_80347E4C[6];   /* "pdata"  (sdata2) */
 extern s32 mlmLastFileSize;
 extern char lbl_80347E3C[];
 extern void* InitCustomEffect();
@@ -548,11 +555,11 @@ void fn_8008A678(s32* player, u32* rec, void* p11, s32 p12, void* p13)
             rec[3] = 0xFFFFFFFF;
         } else {
             u32* node;
-            sprintf(lbl_802828B0, lbl_80347E3C, (char*)(player + 0x1B0),
+            sprintf((char*)&lbl_802828B0, lbl_80347E3C, (char*)(player + 0x1B0),
                     (char*)(rec + 8));
             node = (u32*)AtreeFindMbidxNode(
                 (s32*)player[0x1F],
-                MBOX_ReallyFindObject(lbl_802828B0, player[0x1FD],
+                MBOX_ReallyFindObject((char*)&lbl_802828B0, player[0x1FD],
                                       player[0x1FD], 1, p13));
             if (node == 0) {
                 rec[3] = 0xFFFFFFFF;
@@ -681,7 +688,7 @@ void LoadPlyrData(s32 plr, s32 cls, s32 resolve)
         return;
     }
 
-    if (cls != *(s32*)(lbl_802828B0 + 0x20 + plr * 4) ||
+    if (cls != *(s32*)((u8*)&lbl_802828B0 + 0x20 + plr * 4) ||
         (*(s32*)(gPlayers + plr * 0x335C + 0xE8) != 0 && resolve != 0)) {
         if ((sFlags & 0x10) == 0 || fn_80055F68(0, -1) == 0) {
             mode = 1;
@@ -706,32 +713,32 @@ void LoadPlyrData(s32 plr, s32 cls, s32 resolve)
 
     if (mode == 2) {
         /* forced re-read of the class file from disk */
-        sprintf(lbl_802828B0, "%s.wad", (char*)lbl_8012006C + cls * 4);
-        if (FileExists("pdata", lbl_802828B0)) {
+        sprintf((char*)&lbl_802828B0, "%s.wad", (char*)lbl_8012006C + cls * 4);
+        if (FileExists("pdata", (char*)&lbl_802828B0)) {
             if (lbl_80120E00[cls] == 0) {
-                lbl_80120E00[cls] = AllocFile("pdata", lbl_802828B0);
-                *(s32*)(lbl_802828B0 + 0x40 + cls * 4) = mlmLastFileSize;
-            } else if (!MLMReadFile("pdata", lbl_802828B0,
-                                    *(s32*)(lbl_802828B0 + 0x40 + cls * 4),
+                lbl_80120E00[cls] = AllocFile("pdata", (char*)&lbl_802828B0);
+                *(s32*)((u8*)&lbl_802828B0 + 0x40 + cls * 4) = mlmLastFileSize;
+            } else if (!MLMReadFile("pdata", (char*)&lbl_802828B0,
+                                    *(s32*)((u8*)&lbl_802828B0 + 0x40 + cls * 4),
                                     lbl_80120E00[cls])) {
                 FatalErrorf("pdata file %s: file on disk go too large for buffer",
-                            lbl_802828B0);
+                            (char*)&lbl_802828B0);
             }
         } else {
-            ErrorPrintf("No player data file: %s", lbl_802828B0);
+            ErrorPrintf("No player data file: %s", (char*)&lbl_802828B0);
             lbl_80120E00[cls] = 0;
-            *(s32*)(lbl_802828B0 + 0x40 + cls * 4) = 0;
+            *(s32*)((u8*)&lbl_802828B0 + 0x40 + cls * 4) = 0;
         }
     }
 
     if (lbl_80120E00[cls] == 0) {
-        FatalErrorf("No player data file: %s", lbl_802828B0);
+        FatalErrorf("No player data file: %s", (char*)&lbl_802828B0);
         return;
     }
 
-    memcpy(*(void**)(lbl_802828B0 + 0x30 + plr * 4), lbl_80120E00[cls],
-           *(s32*)(lbl_802828B0 + 0x40 + cls * 4));
-    swapped = MBSetupWad(wad, *(void**)(lbl_802828B0 + 0x30 + plr * 4));
+    memcpy(*(void**)((u8*)&lbl_802828B0 + 0x30 + plr * 4), lbl_80120E00[cls],
+           *(s32*)((u8*)&lbl_802828B0 + 0x40 + cls * 4));
+    swapped = MBSetupWad(wad, *(void**)((u8*)&lbl_802828B0 + 0x30 + plr * 4));
 
     hdr = (PsfxHeader*)MBGetFromWad(wad, WADTAG(lbl_80347E54), &n1);
     lbl_80282930[plr] = (u8*)hdr;
@@ -741,7 +748,7 @@ void LoadPlyrData(s32 plr, s32 cls, s32 resolve)
     hdr->moves = MBGetFromWad(wad, WADTAG(lbl_80347E64), &n3);
     hdr = (PsfxHeader*)lbl_80282930[plr];
     hdr->resolved = 0;
-    *(s32*)(lbl_802828B0 + 0x20 + plr * 4) = cls;
+    *(s32*)((u8*)&lbl_802828B0 + 0x20 + plr * 4) = cls;
 
     if (swapped) {
         /* header rows: 0x180 bytes each */
@@ -856,34 +863,36 @@ void LoadPlyrData(s32 plr, s32 cls, s32 resolve)
 void LoadPdataFile(void)
 {
     u8 unused[8];
-    u8* temp = lbl_802828B0;
+    u8* temp = (u8*)&lbl_802828B0;
     u8* sizePtr;
     s32 maxSize;
-    s32 index;
     s32 offset;
+    s32 index;
+    s32 zero2;
 
     maxSize = 0;
     index = 0;
     offset = 0;
     do {
-        *(void**)((u8*)lbl_80120E00 + offset) = 0;
-        sprintf(temp, "%s.wad", lbl_8012006C + offset);
-        if (FileExists("pdata", temp)) {
-            if (*(void**)((u8*)lbl_80120E00 + offset) == 0) {
-                *(void**)((u8*)lbl_80120E00 + offset) =
-                    AllocFile("pdata", temp);
+        void** slot = (void**)((u8*)lbl_80120E00 + offset);
+        void* zed = NULL;
+        *slot = zed;
+        sprintf(temp, lbl_80347E44, lbl_8012006C + offset);
+        if (FileExists(lbl_80347E4C, temp)) {
+            if (*slot == NULL) {
+                *slot = AllocFile(lbl_80347E4C, temp);
                 sizePtr = temp + offset;
                 *(u32*)(sizePtr + 0x40) = mlmLastFileSize;
-            } else if (!MLMReadFile("pdata", temp,
+            } else if (!MLMReadFile(lbl_80347E4C, temp,
                                     *(u32*)((sizePtr = temp + offset) + 0x40),
-                                    *(void**)((u8*)lbl_80120E00 + offset))) {
-                FatalErrorf("pdata file %s: file on disk go too large for buffer", temp);
+                                    *slot)) {
+                FatalErrorf(lbl_801142A0, temp);
             }
         } else {
-            ErrorPrintf("No player data file: %s", temp);
-            *(void**)((u8*)lbl_80120E00 + offset) = 0;
+            ErrorPrintf(lbl_801142D4, temp);
+            *slot = zed;
             sizePtr = temp + offset;
-            *(u32*)(sizePtr + 0x40) = 0;
+            *(u32*)(sizePtr + 0x40) = (u32)zed;
         }
         sizePtr = temp + offset;
         if (*(s32*)(sizePtr + 0x40) > maxSize) {
@@ -894,12 +903,13 @@ void LoadPdataFile(void)
     } while (index < 16);
 
     index = 0;
+    zero2 = index;
     offset = 0;
     do {
         sizePtr = temp + offset;
         *(s32*)(sizePtr + 0x20) = -1;
         *(void**)(sizePtr + 0x30) = AllocMem(maxSize);
-        *(s32*)(sizePtr + 0x80) = 0;
+        *(s32*)(sizePtr + 0x80) = zero2;
         index++;
         offset += 4;
     } while (index < 4);
