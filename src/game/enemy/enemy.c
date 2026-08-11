@@ -346,6 +346,11 @@ extern f64 lbl_80346930;        /* 0.26179938783333334 */
 extern f64 lbl_80346840;        /* pi wrap high */
 extern f64 lbl_80346848;        /* 2*pi */
 extern f64 lbl_80346850;        /* -pi wrap low */
+extern f64 lbl_80346858;        /* 0.1 */
+extern f64 lbl_80346830;        /* 0.5 */
+extern f32 lbl_803468B0;        /* 100000.0f */
+extern f64 lbl_803468B8;        /* 3.0 */
+extern f64 lbl_80346948;        /* 4.0 */
 
 void do_enemy_move(s32 index)
 {
@@ -1799,13 +1804,20 @@ void move_logic00(s32 index)
 void move_logic01(s32 index)
 {
     s32 stuck;
-    Enemy* e = (Enemy*)((u8*)lbl_80250E00 + index * 916 + 3608);
-    s32 dead0 = *(s32*)((u8*)lbl_80250E00 + index * 916 + 4464);
+    u8* base = (u8*)lbl_80250E00;
+    u8* row01;
+    u8* e0;
+    Enemy* e;
     s32 it;
+    s32 dead0;
     s32 flee;
     f32 a;
-    u8 unused[32];
+    u8 unused[24];
 
+    row01 = base + index * 916;
+    dead0 = *(s32*)(row01 + 4464);
+    e0 = row01 + 3608;
+    e = (Enemy*)(u8*)e0;
     if (dead0 > 0) {
         stuck = 1;
     } else {
@@ -1815,19 +1827,21 @@ void move_logic01(s32 index)
     if (it < 0) {
         flee = 0;
     } else {
-        Enemy* other = (Enemy*)((u8*)lbl_80250E00 + it * 916 + 3608);
-        if (other->state != 1) {
+        u8* other = base + it * 916;
+        if (*(s32*)(other + 3788) != 1) {
             flee = 0;
-        } else if (other->actual_dist > e->sight) {
+        } else if (*(f32*)(other + 4244) > *(f32*)(e0 + 768)) {
             flee = 0;
+        } else if (index == it || *(s16*)(e0 + 728) != 0 || dead0 > 0) {
+            goto flee_zero01;
         } else {
-            f32 dy = other->objgrp.worldmat[3][1] - e->objgrp.worldmat[3][1];
-            f32 dx = other->objgrp.worldmat[3][0] - e->objgrp.worldmat[3][0];
-            f32 dz = other->objgrp.worldmat[3][2] - e->objgrp.worldmat[3][2];
-            if (index != it && e->birth_style == 0 && dead0 <= 0
-                && dy * dy + dx * dx + dz * dz < 100.0) {
+            f32 dx = *(f32*)(other + 3660) - *(f32*)(e0 + 52);
+            f32 dy = *(f32*)(other + 3664) - *(f32*)(e0 + 56);
+            f32 dz = *(f32*)(other + 3668) - *(f32*)(e0 + 60);
+            if (dx * dx + dy * dy + dz * dz < lbl_803468D8) {
                 flee = -1;
             } else {
+            flee_zero01:
                 flee = 0;
             }
         }
@@ -1847,11 +1861,12 @@ void move_logic01(s32 index)
     }
     if (e->closest < 0 || e->operation_count < e->operation_speed) {
         a = e->ang;
-    } else if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
-        e->ang = get_yaw(&gPlayerWords[e->closest][633], &e->objgrp.worldmat[3][0]);
-        a = e->ang;
     } else {
-        e->ang = get_yaw(&gPlayerWords[e->closest][17], &e->objgrp.worldmat[3][0]);
+        if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
+            e->ang = get_yaw(&gPlayerWords[e->closest][633], &e->objgrp.worldmat[3][0]);
+        } else {
+            e->ang = get_yaw(&gPlayerWords[e->closest][17], &e->objgrp.worldmat[3][0]);
+        }
         a = e->ang;
     }
     e->ang = a;
@@ -1859,9 +1874,11 @@ void move_logic01(s32 index)
         e->dead_end -= gFrameTicks;
     }
     {
-        f32 d = e->ang - e->anghit;
-        *(u32*)&d &= 0x7FFFFFFF;
-        if (e->dead_end <= 0 || d >= 0.10471975513333334) {
+        f32 d;
+        u8 _blk01[8];
+        if (e->dead_end <= 0
+            || ((d = e->ang - e->anghit), (*(u32*)&d &= 0x7FFFFFFF),
+                d >= 0.10471975513333334)) {
             e->dead_end = 0;
             set_enemy_trans(e, 1.0f, e->ang);
         }
@@ -2103,235 +2120,250 @@ void move_logic04(s32 index)
  * timer (rotating -pi/2 and cycling a 4-count), then sweep two clearance probes:
  * a near ray (rad+0.5) via FastWallCollide and a far ray (speed) via the shared
  * object probe; a block on either rotates the heading and re-arms the timer. */
+#pragma opt_propagation off
 void move_logic05(s32 index)
 {
-    Enemy* e = (Enemy*)((u8*)lbl_80250E00 + index * 916);
+    s32 it = lbl_80344748;
+    u8* base = (u8*)lbl_80250E00;
+    u8* e0 = base + index * 916;
     s32 type;
     f32 dist;
     f32 speed;
-    s32 it = lbl_80344748;
     s32 flee;
+    u8* t;
+    f32 probe2[3];
     f32 probe[3];
     f32 probeEnd[3];
-    f32 probe2[3];
-    u8 unused[56];
+    u8 _pad05[56];
 
-    type = *(s32*)((u8*)e + 3608);
-    e = (Enemy*)((u8*)e + 3608);
-    dist = e->rad;
-    {
-        u8* t = (u8*)lbl_80250E00;
-        t += type * 4;
-        speed = *(f32*)(t + 64);
-    }
+    type = *(s32*)(e0 += 3608);
+    e0 = (u8*)(Enemy*)e0;
+    dist = *(f32*)(e0 + 568);
+    t = base;
+    t += type * 4;
+    speed = *(f32*)(t + 64);
     if (it < 0) {
         flee = 0;
     } else {
-        u8* other = (u8*)lbl_80250E00 + it * 916;
+        u8* other = base + it * 916;
         if (*(s32*)(other + 3788) != 1) {
             flee = 0;
-        } else if (*(f32*)(other + 4244) > e->sight) {
+        } else if (*(f32*)(other + 4244) > *(f32*)(e0 + 768)) {
             flee = 0;
+        } else if (index == it || *(s16*)(e0 + 728) != 0 || *(s32*)(e0 + 856) > 0) {
+            goto flee_zero05;
         } else {
-            f32 dy, dx, dz;
-            if (index != it && e->birth_style == 0 && e->dead_end <= 0 &&
-                ((dy = *(f32*)(other + 3664) - e->objgrp.worldmat[3][1]),
-                 (dx = *(f32*)(other + 3660) - e->objgrp.worldmat[3][0]),
-                 (dz = *(f32*)(other + 3668) - e->objgrp.worldmat[3][2]),
-                 dy * dy + dx * dx + dz * dz < 100.0)) {
+            f32 dx = *(f32*)(other + 3660) - *(f32*)(e0 + 52);
+            f32 dy = *(f32*)(other + 3664) - *(f32*)(e0 + 56);
+            f32 dz = *(f32*)(other + 3668) - *(f32*)(e0 + 60);
+            if (dx * dx + dy * dy + dz * dz < lbl_803468D8) {
                 flee = -1;
             } else {
+            flee_zero05:
                 flee = 0;
             }
         }
     }
     if (flee != 0) {
-        e->algorithm = 24;
+        *(s16*)(e0 + 784) = 24;
         do_ai(index);
         return;
     }
-    if (e->algorithm != e->prev_ai) {
+    if (*(s16*)(e0 + 784) != *(s16*)(e0 + 788)) {
         format_brain(index);
     }
-    if (e->dead_end > 0) {
-        if ((e->dead_end -= gFrameTicks) <= 0) {
-            e->ang = e->ang - 1.570796327;
+    if (*(s32*)(e0 + 856) > 0) {
+        if ((*(s32*)(e0 + 856) -= gFrameTicks) <= 0) {
+            *(f32*)(e0 + 588) = *(f32*)(e0 + 588) - lbl_80346918;
             {
-                f64 a = e->ang;
-                if (a > 3.141592654) {
-                    a -= 6.283185308;
-                } else if (a <= -3.141592654) {
-                    a = 6.283185308 + a;
+                f64 a = *(f32*)(e0 + 588);
+                if (a > lbl_80346840) {
+                    a -= lbl_80346848;
+                } else if (a <= lbl_80346850) {
+                    a = lbl_80346848 + a;
                 }
-                e->ang = a;
+                *(f32*)(e0 + 588) = a;
             }
-            if (++e->count >= 4) {
-                e->count = 0;
+            if (++*(s32*)(e0 + 860) >= 4) {
+                *(s32*)(e0 + 860) = 0;
             }
         }
     }
-    probe[0] = e->objgrp.worldmat[3][0];
-    probe[1] = e->objgrp.worldmat[3][1];
-    probe[2] = e->objgrp.worldmat[3][2];
-    probe[1] += 0.1 + e->rad;
+    probe[0] = *(f32*)(e0 + 52);
+    probe[1] = *(f32*)(e0 + 56);
+    probe[2] = *(f32*)(e0 + 60);
+    probe[1] += lbl_80346858 + *(f32*)(e0 + 568);
     probeEnd[0] = probe[0];
     probeEnd[1] = probe[1];
     probeEnd[2] = probe[2];
-    dist = dist + 0.5;
-    probeEnd[0] += dist * sin(e->ang);
-    probeEnd[2] += dist * cos(e->ang);
+    dist += lbl_80346830;
+    probeEnd[0] += dist * sin(*(f32*)(e0 + 588));
+    probeEnd[2] += dist * cos(*(f32*)(e0 + 588));
     if (FastWallCollide(probe, probeEnd, 0, 2) != 0) {
-        e->ang = e->ang - 1.570796327;
+        *(f32*)(e0 + 588) = *(f32*)(e0 + 588) - lbl_80346918;
         {
-            f64 a = e->ang;
-            if (a > 3.141592654) {
-                a -= 6.283185308;
-            } else if (a <= -3.141592654) {
-                a = 6.283185308 + a;
+            f64 a = *(f32*)(e0 + 588);
+            if (a > lbl_80346840) {
+                a -= lbl_80346848;
+            } else if (a <= lbl_80346850) {
+                a = lbl_80346848 + a;
             }
-            e->ang = a;
+            *(f32*)(e0 + 588) = a;
         }
-        if (e->dead_end <= 0) {
-            e->dead_end = 20;
+        if (*(s32*)(e0 + 856) <= 0) {
+            *(s32*)(e0 + 856) = 20;
         }
     } else {
         probe2[0] = probe[0];
         probe2[1] = probe[1];
         probe2[2] = probe[2];
-        probe2[0] += speed * sin(e->ang);
-        probe2[2] += speed * cos(e->ang);
+        probe2[0] += speed * sin(*(f32*)(e0 + 588));
+        probe2[2] += speed * cos(*(f32*)(e0 + 588));
         if (fn_8004C8CC(probe2, index) == 0) {
-            e->ang = e->ang - 1.570796327;
+            *(f32*)(e0 + 588) = *(f32*)(e0 + 588) - lbl_80346918;
             {
-                f64 a = e->ang;
-                if (a > 3.141592654) {
-                    a -= 6.283185308;
-                } else if (a <= -3.141592654) {
-                    a = 6.283185308 + a;
+                f64 a = *(f32*)(e0 + 588);
+                if (a > lbl_80346840) {
+                    a -= lbl_80346848;
+                } else if (a <= lbl_80346850) {
+                    a = lbl_80346848 + a;
                 }
-                e->ang = a;
+                *(f32*)(e0 + 588) = a;
             }
-            if (e->dead_end <= 0) {
-                e->dead_end = 20;
+            if (*(s32*)(e0 + 856) <= 0) {
+                *(s32*)(e0 + 856) = 20;
             }
         }
     }
-    set_enemy_trans(e, 1.0f, e->ang);
-    e->pyr[1] = turn_enemy_ang(e, e->ang);
+    set_enemy_trans((Enemy*)e0, lbl_803468F0, *(f32*)(e0 + 588));
+    *(f32*)(e0 + 580) = turn_enemy_ang((Enemy*)e0, *(f32*)(e0 + 588));
     do_enemy_move(index);
 }
+#pragma opt_propagation reset
 
 /* move_logic06 @0x80047BF0 (state 6, mirror of move_logic05).  Same IT-flee and
  * two-probe clearance search, but every heading correction rotates +pi/2 instead
  * of -pi/2, so it sweeps the opposite way around an obstacle. */
+#pragma opt_propagation off
 void move_logic06(s32 index)
 {
-    Enemy* e = (Enemy*)((u8*)lbl_80250E00 + index * 916 + 3608);
-    f32 dist = e->rad;
-    f32 speed = ((f32*)lbl_80250E40)[e->type];
     s32 it = lbl_80344748;
+    u8* base = (u8*)lbl_80250E00;
+    u8* e0 = base + index * 916;
+    s32 type;
+    f32 dist;
+    f32 speed;
     s32 flee;
+    u8* t;
+    f32 probe2[3];
     f32 probe[3];
     f32 probeEnd[3];
-    f32 probe2[3];
-    u8 unused[56];
+    u8 _pad06[56];
 
+    type = *(s32*)(e0 += 3608);
+    e0 = (u8*)(Enemy*)e0;
+    dist = *(f32*)(e0 + 568);
+    t = base;
+    t += type * 4;
+    speed = *(f32*)(t + 64);
     if (it < 0) {
         flee = 0;
     } else {
-        Enemy* other = (Enemy*)((u8*)lbl_80250E00 + it * 916 + 3608);
-        if (other->state != 1) {
+        u8* other = base + it * 916;
+        if (*(s32*)(other + 3788) != 1) {
             flee = 0;
-        } else if (other->actual_dist > e->sight) {
+        } else if (*(f32*)(other + 4244) > *(f32*)(e0 + 768)) {
             flee = 0;
+        } else if (index == it || *(s16*)(e0 + 728) != 0 || *(s32*)(e0 + 856) > 0) {
+            goto flee_zero06;
         } else {
-            f32 dy = other->objgrp.worldmat[3][1] - e->objgrp.worldmat[3][1];
-            f32 dx = other->objgrp.worldmat[3][0] - e->objgrp.worldmat[3][0];
-            f32 dz = other->objgrp.worldmat[3][2] - e->objgrp.worldmat[3][2];
-            if (index != it && e->birth_style == 0 && e->dead_end <= 0
-                && dy * dy + dx * dx + dz * dz < 100.0) {
+            f32 dx = *(f32*)(other + 3660) - *(f32*)(e0 + 52);
+            f32 dy = *(f32*)(other + 3664) - *(f32*)(e0 + 56);
+            f32 dz = *(f32*)(other + 3668) - *(f32*)(e0 + 60);
+            if (dx * dx + dy * dy + dz * dz < lbl_803468D8) {
                 flee = -1;
             } else {
+            flee_zero06:
                 flee = 0;
             }
         }
     }
     if (flee != 0) {
-        e->algorithm = 24;
+        *(s16*)(e0 + 784) = 24;
         do_ai(index);
         return;
     }
-    if (e->algorithm != e->prev_ai) {
+    if (*(s16*)(e0 + 784) != *(s16*)(e0 + 788)) {
         format_brain(index);
     }
-    if (e->dead_end > 0) {
-        if ((e->dead_end -= gFrameTicks) <= 0) {
-            e->ang = e->ang + 1.570796327;
+    if (*(s32*)(e0 + 856) > 0) {
+        if ((*(s32*)(e0 + 856) -= gFrameTicks) <= 0) {
+            *(f32*)(e0 + 588) = *(f32*)(e0 + 588) + lbl_80346918;
             {
-                f64 a = e->ang;
-                if (a > 3.141592654) {
-                    a -= 6.283185308;
-                } else if (a <= -3.141592654) {
-                    a = 6.283185308 + a;
+                f64 a = *(f32*)(e0 + 588);
+                if (a > lbl_80346840) {
+                    a -= lbl_80346848;
+                } else if (a <= lbl_80346850) {
+                    a = lbl_80346848 + a;
                 }
-                e->ang = a;
+                *(f32*)(e0 + 588) = a;
             }
-            if (++e->count >= 4) {
-                e->count = 0;
+            if (++*(s32*)(e0 + 860) >= 4) {
+                *(s32*)(e0 + 860) = 0;
             }
         }
     }
-    probe[0] = e->objgrp.worldmat[3][0];
-    probe[1] = e->objgrp.worldmat[3][1];
-    probe[2] = e->objgrp.worldmat[3][2];
-    probe[1] += 0.1 + e->rad;
+    probe[0] = *(f32*)(e0 + 52);
+    probe[1] = *(f32*)(e0 + 56);
+    probe[2] = *(f32*)(e0 + 60);
+    probe[1] += lbl_80346858 + *(f32*)(e0 + 568);
     probeEnd[0] = probe[0];
     probeEnd[1] = probe[1];
     probeEnd[2] = probe[2];
-    dist = dist + 0.5;
-    probeEnd[0] += dist * sin(e->ang);
-    probeEnd[2] += dist * cos(e->ang);
+    dist += lbl_80346830;
+    probeEnd[0] += dist * sin(*(f32*)(e0 + 588));
+    probeEnd[2] += dist * cos(*(f32*)(e0 + 588));
     if (FastWallCollide(probe, probeEnd, 0, 2) != 0) {
-        e->ang = e->ang + 1.570796327;
+        *(f32*)(e0 + 588) = *(f32*)(e0 + 588) + lbl_80346918;
         {
-            f64 a = e->ang;
-            if (a > 3.141592654) {
-                a -= 6.283185308;
-            } else if (a <= -3.141592654) {
-                a = 6.283185308 + a;
+            f64 a = *(f32*)(e0 + 588);
+            if (a > lbl_80346840) {
+                a -= lbl_80346848;
+            } else if (a <= lbl_80346850) {
+                a = lbl_80346848 + a;
             }
-            e->ang = a;
+            *(f32*)(e0 + 588) = a;
         }
-        if (e->dead_end <= 0) {
-            e->dead_end = 20;
+        if (*(s32*)(e0 + 856) <= 0) {
+            *(s32*)(e0 + 856) = 20;
         }
     } else {
         probe2[0] = probe[0];
         probe2[1] = probe[1];
         probe2[2] = probe[2];
-        probe2[0] += speed * sin(e->ang);
-        probe2[2] += speed * cos(e->ang);
+        probe2[0] += speed * sin(*(f32*)(e0 + 588));
+        probe2[2] += speed * cos(*(f32*)(e0 + 588));
         if (fn_8004C8CC(probe2, index) == 0) {
-            e->ang = e->ang + 1.570796327;
+            *(f32*)(e0 + 588) = *(f32*)(e0 + 588) + lbl_80346918;
             {
-                f64 a = e->ang;
-                if (a > 3.141592654) {
-                    a -= 6.283185308;
-                } else if (a <= -3.141592654) {
-                    a = 6.283185308 + a;
+                f64 a = *(f32*)(e0 + 588);
+                if (a > lbl_80346840) {
+                    a -= lbl_80346848;
+                } else if (a <= lbl_80346850) {
+                    a = lbl_80346848 + a;
                 }
-                e->ang = a;
+                *(f32*)(e0 + 588) = a;
             }
-            if (e->dead_end <= 0) {
-                e->dead_end = 20;
+            if (*(s32*)(e0 + 856) <= 0) {
+                *(s32*)(e0 + 856) = 20;
             }
         }
     }
-    set_enemy_trans(e, 1.0f, e->ang);
-    e->pyr[1] = turn_enemy_ang(e, e->ang);
+    set_enemy_trans((Enemy*)e0, lbl_803468F0, *(f32*)(e0 + 588));
+    *(f32*)(e0 + 580) = turn_enemy_ang((Enemy*)e0, *(f32*)(e0 + 588));
     do_enemy_move(index);
 }
-
+#pragma opt_propagation reset
 /* move_logic07 @0x80047F9C (state 7, rat-style corner-hugging chase).  IT-flee /
  * recognized gates, face a milestone/player, then when the dead_end timer allows
  * pick a corner-avoidance heading (fn_8004CE38 route + lbl_8011C0A4 offset table),
@@ -3498,26 +3530,36 @@ void move_logic14(s32 index)
  * milestone likewise) snaps it back to the chase algorithm. */
 void move_logic15(s32 index)
 {
-    Enemy* e = (Enemy*)((u8*)lbl_80250E00 + index * 916 + 3608);
+    u8* base = (u8*)lbl_80250E00;
+    u8* row15;
+    u8* e0;
+    Enemy* e;
     s32 it = lbl_80344748;
     s32 flee;
+    f32 ady;
+    u8 _pad15[40];
 
+    row15 = base + index * 916;
+    e0 = row15 + 3608;
+    e = (Enemy*)(u8*)e0;
     if (it < 0) {
         flee = 0;
     } else {
-        Enemy* other = (Enemy*)((u8*)lbl_80250E00 + it * 916 + 3608);
-        if (other->state != 1) {
+        u8* other = base + it * 916;
+        if (*(s32*)(other + 3788) != 1) {
             flee = 0;
-        } else if (other->actual_dist > e->sight) {
+        } else if (*(f32*)(other + 4244) > *(f32*)(e0 + 768)) {
             flee = 0;
+        } else if (index == it || *(s16*)(e0 + 728) != 0 || *(s32*)(e0 + 856) > 0) {
+            goto flee_zero15;
         } else {
-            f32 dy = other->objgrp.worldmat[3][1] - e->objgrp.worldmat[3][1];
-            f32 dx = other->objgrp.worldmat[3][0] - e->objgrp.worldmat[3][0];
-            f32 dz = other->objgrp.worldmat[3][2] - e->objgrp.worldmat[3][2];
-            if (index != it && e->birth_style == 0 && e->dead_end <= 0
-                && dy * dy + dx * dx + dz * dz < 100.0) {
+            f32 dx = *(f32*)(other + 3660) - *(f32*)(e0 + 52);
+            f32 dy = *(f32*)(other + 3664) - *(f32*)(e0 + 56);
+            f32 dz = *(f32*)(other + 3668) - *(f32*)(e0 + 60);
+            if (dx * dx + dy * dy + dz * dz < lbl_803468D8) {
                 flee = -1;
             } else {
+            flee_zero15:
                 flee = 0;
             }
         }
@@ -3540,30 +3582,29 @@ void move_logic15(s32 index)
     if (e->algorithm != e->prev_ai) {
         format_brain(index);
     }
-    {
-        s32 mode = e->mode1;
-    if (mode != 1) {
-        s32 best_idx = -1;
-        f32 best_dist = 100000.0;
+    switch (e->mode1) {
+    case 0: {
         u8* n = sLookoutParams;
+        s32 best_idx = -1;
+        f32 best_dist = lbl_803468B0;
         s32 i;
+        f32 ex = e->objgrp.worldmat[3][0];
+        f32 ey = e->objgrp.worldmat[3][1];
+        f32 ez = e->objgrp.worldmat[3][2];
 
-        if (mode > 0 || mode < 0) {
-            goto move;
-        }
         for (i = 0; i < sNumLookoutParams; i++) {
-            if (*(s16*)(n + 0x68) >= 0) {
-                f32 dy = *(f32*)(n + 0x34) - e->objgrp.worldmat[3][1];
-                f32 dx = *(f32*)(n + 0x30) - e->objgrp.worldmat[3][0];
-                f32 dz = *(f32*)(n + 0x38) - e->objgrp.worldmat[3][2];
-                f32 d = dy * dy + dx * dx + dz * dz;
-                if (d > 0.0f) {
+            if (*(s16*)(n + 104) >= 0) {
+                f32 dx = *(f32*)(n + 48) - ex;
+                f32 dy = *(f32*)(n + 52) - ey;
+                f32 dz = *(f32*)(n + 56) - ez;
+                f32 d;
+                if ((d = dx * dx + dy * dy + dz * dz) > lbl_80346820) {
                     volatile f32 tmp;
                     f64 y = __frsqrte(d);
-                    y = 0.5 * y * (3.0 - y * y * d);
-                    y = 0.5 * y * (3.0 - y * y * d);
-                    y = 0.5 * y * (3.0 - y * y * d);
-                    tmp = (f32)(d * (0.5 * y * (3.0 - y * y * d)));
+                    y = lbl_80346830 * y * (lbl_803468B8 - y * y * d);
+                    y = lbl_80346830 * y * (lbl_803468B8 - y * y * d);
+                    y = lbl_80346830 * y * (lbl_803468B8 - y * y * d);
+                    tmp = (f32)(d * (lbl_80346830 * y * (lbl_803468B8 - y * y * d)));
                     d = tmp;
                 }
                 if (d < best_dist) {
@@ -3576,20 +3617,25 @@ void move_logic15(s32 index)
         e->flag1 = best_idx;
         e->mode1 = 1;
     }
-    {
+    case 1: {
         u8* n = sLookoutParams + e->flag1 * 108;
         f32 dy;
         f32 dx;
         f32 dz;
 
-        e->ang = get_yaw((f32*)(n + 0x30), &e->objgrp.worldmat[3][0]);
-        dy = *(f32*)(n + 0x34) - e->objgrp.worldmat[3][1];
-        dx = *(f32*)(n + 0x30) - e->objgrp.worldmat[3][0];
-        dz = *(f32*)(n + 0x38) - e->objgrp.worldmat[3][2];
-        if (fabsf_(dy) < 4.0 && fqdist(dx, dz) < 1.0) {
-            e->flag1 = *(s16*)(n + 0x68);
+        e->ang = get_yaw((f32*)(n + 48), &e->objgrp.worldmat[3][0]);
+        dy = *(f32*)(n + 52) - e->objgrp.worldmat[3][1];
+        dx = *(f32*)(n + 48) - e->objgrp.worldmat[3][0];
+        dz = *(f32*)(n + 56) - e->objgrp.worldmat[3][2];
+        ady = dy;
+        *(u32*)&ady &= 0x7FFFFFFF;
+        if (ady < lbl_80346948 && fqdist(dx, dz) < lbl_80346810) {
+            e->flag1 = *(s16*)(n + 104);
         }
+        break;
     }
+    default:
+        break;
     }
 move:
     set_enemy_trans(e, 1.0f, e->ang);
@@ -3603,14 +3649,22 @@ move:
  * then fires a run-attack action, aiming the leap 180deg + a ramp offset. */
 void move_logic16(s32 index)
 {
-    Enemy* e = (Enemy*)((u8*)lbl_80250E00 + index * 916 + 3608);
-    s32 dend = *(s32*)((u8*)lbl_80250E00 + index * 916 + 4464);
-    f32 leapspeed = 0.0f;
-    s32 it;
-    s32 flee;
     s32 stuck;
+    u8* base = (u8*)lbl_80250E00;
+    u8* row16;
+    u8* e0;
+    Enemy* e;
+    s32 it;
+    s32 dend;
+    f32 leapspeed = lbl_80346820;
+    s32 flee;
     f32 a;
+    u8 _pad16[24];
 
+    row16 = base + index * 916;
+    dend = *(s32*)(row16 + 4464);
+    e0 = row16 + 3608;
+    e = (Enemy*)(u8*)e0;
     if (dend > 0) {
         stuck = 1;
     } else {
@@ -3620,19 +3674,21 @@ void move_logic16(s32 index)
     if (it < 0) {
         flee = 0;
     } else {
-        Enemy* other = (Enemy*)((u8*)lbl_80250E00 + it * 916 + 3608);
-        if (other->state != 1) {
+        u8* other = base + it * 916;
+        if (*(s32*)(other + 3788) != 1) {
             flee = 0;
-        } else if (other->actual_dist > e->sight) {
+        } else if (*(f32*)(other + 4244) > *(f32*)(e0 + 768)) {
             flee = 0;
+        } else if (index == it || *(s16*)(e0 + 728) != 0 || dend > 0) {
+            goto flee_zero16;
         } else {
-            f32 dy = other->objgrp.worldmat[3][1] - e->objgrp.worldmat[3][1];
-            f32 dx = other->objgrp.worldmat[3][0] - e->objgrp.worldmat[3][0];
-            f32 dz = other->objgrp.worldmat[3][2] - e->objgrp.worldmat[3][2];
-            if (index != it && e->birth_style == 0 && dend <= 0
-                && dy * dy + dx * dx + dz * dz < 100.0) {
+            f32 dx = *(f32*)(other + 3660) - *(f32*)(e0 + 52);
+            f32 dy = *(f32*)(other + 3664) - *(f32*)(e0 + 56);
+            f32 dz = *(f32*)(other + 3668) - *(f32*)(e0 + 60);
+            if (dx * dx + dy * dy + dz * dz < lbl_803468D8) {
                 flee = -1;
             } else {
+            flee_zero16:
                 flee = 0;
             }
         }
@@ -3645,16 +3701,24 @@ void move_logic16(s32 index)
     if (e->algorithm != e->prev_ai) {
         format_brain(index);
     }
-    if (e->closest < 0) {
-        a = e->ang;
-    } else if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
-        a = get_yaw(&gPlayerWords[e->closest][633], &e->objgrp.worldmat[3][0]);
-    } else {
-        a = get_yaw(&gPlayerWords[e->closest][17], &e->objgrp.worldmat[3][0]);
+    {
+        s16 c = e->closest;
+        if (c >= 0) {
+            if (*(s16*)&gPlayerWords[c][647] > 2) {
+                a = get_yaw(&gPlayerWords[c][633], &e->objgrp.worldmat[3][0]);
+            } else {
+                a = get_yaw(&gPlayerWords[c][17], &e->objgrp.worldmat[3][0]);
+            }
+        } else {
+            a = e->ang;
+        }
     }
     e->ang = a;
-    if (e->closest >= 0) {
-        f32 dvert = e->objgrp.worldmat[3][1] - gPlayerWords[e->closest][18];
+    {
+    s16 c16 = e->closest;
+    if (c16 >= 0) {
+        u8* gp = (u8*)&gPlayers + c16 * 13148;
+        f32 dvert = e->objgrp.worldmat[3][1] - *(f32*)(gp + 72);
         if (e->visactive != 0 && dvert >= -10.0 && dvert <= 10.0) {
             if (e->flag1 == 0) {
                 if (e->actual_dist <= 0.6 * e->sight) {
@@ -3697,6 +3761,7 @@ void move_logic16(s32 index)
                 e->dead_end = 0;
             }
         }
+    }
     }
     e->pyr[1] = turn_enemy_ang(e, e->ang);
     do_enemy_move(index);
@@ -4083,29 +4148,36 @@ void move_logic21(s32 index)
  * ending (mode1 -1) when the path loops back on itself. */
 void move_logic22(s32 index)
 {
-    Enemy* e = (Enemy*)((u8*)lbl_80250E00 + index * 916 + 3608);
+    u8* row22 = (u8*)lbl_80250E00 + index * 916;
+    u8* base = (u8*)lbl_80250E00;
+    u8* e0;
+    Enemy* e;
     s32 it = lbl_80344748;
     s32 flee;
     s32 mode1;
     f32 buf1[19];
     f32 buf2[3];
 
+    e0 = row22 + 3608;
+    e = (Enemy*)(u8*)e0;
     if (it < 0) {
         flee = 0;
     } else {
-        Enemy* other = (Enemy*)((u8*)lbl_80250E00 + it * 916 + 3608);
-        if (other->state != 1) {
+        u8* other = base + it * 916;
+        if (*(s32*)(other + 3788) != 1) {
             flee = 0;
-        } else if (other->actual_dist > e->sight) {
+        } else if (*(f32*)(other + 4244) > *(f32*)(e0 + 768)) {
             flee = 0;
+        } else if (index == it || *(s16*)(e0 + 728) != 0 || *(s32*)(e0 + 856) > 0) {
+            goto flee_zero22;
         } else {
-            f32 dy = other->objgrp.worldmat[3][1] - e->objgrp.worldmat[3][1];
-            f32 dx = other->objgrp.worldmat[3][0] - e->objgrp.worldmat[3][0];
-            f32 dz = other->objgrp.worldmat[3][2] - e->objgrp.worldmat[3][2];
-            if (index != it && e->birth_style == 0 && e->dead_end <= 0
-                && dy * dy + dx * dx + dz * dz < 100.0) {
+            f32 dx = *(f32*)(other + 3660) - *(f32*)(e0 + 52);
+            f32 dy = *(f32*)(other + 3664) - *(f32*)(e0 + 56);
+            f32 dz = *(f32*)(other + 3668) - *(f32*)(e0 + 60);
+            if (dx * dx + dy * dy + dz * dz < lbl_803468D8) {
                 flee = -1;
             } else {
+            flee_zero22:
                 flee = 0;
             }
         }
@@ -4332,14 +4404,22 @@ void move_logic28(s32 index)
  * off lbl_8011BF60 and fires a lunge (action 3) aimed 180deg + ramp when flag1==1. */
 void move_logic29(s32 index)
 {
-    Enemy* e = (Enemy*)((u8*)lbl_80250E00 + index * 916 + 3608);
-    s32 dend = *(s32*)((u8*)lbl_80250E00 + index * 916 + 4464);
-    f32 leapspeed = 0.0f;
-    s32 it;
-    s32 flee;
     s32 stuck;
+    u8* base = (u8*)lbl_80250E00;
+    u8* row29;
+    u8* e0;
+    Enemy* e;
+    s32 it;
+    s32 dend;
+    f32 leapspeed = lbl_80346820;
+    s32 flee;
     f32 a;
+    u8 _pad29[32];
 
+    row29 = base + index * 916;
+    dend = *(s32*)(row29 + 4464);
+    e0 = row29 + 3608;
+    e = (Enemy*)(u8*)e0;
     if (dend > 0) {
         stuck = 1;
     } else {
@@ -4349,19 +4429,21 @@ void move_logic29(s32 index)
     if (it < 0) {
         flee = 0;
     } else {
-        Enemy* other = (Enemy*)((u8*)lbl_80250E00 + it * 916 + 3608);
-        if (other->state != 1) {
+        u8* other = base + it * 916;
+        if (*(s32*)(other + 3788) != 1) {
             flee = 0;
-        } else if (other->actual_dist > e->sight) {
+        } else if (*(f32*)(other + 4244) > *(f32*)(e0 + 768)) {
             flee = 0;
+        } else if (index == it || *(s16*)(e0 + 728) != 0 || dend > 0) {
+            goto flee_zero29;
         } else {
-            f32 dy = other->objgrp.worldmat[3][1] - e->objgrp.worldmat[3][1];
-            f32 dx = other->objgrp.worldmat[3][0] - e->objgrp.worldmat[3][0];
-            f32 dz = other->objgrp.worldmat[3][2] - e->objgrp.worldmat[3][2];
-            if (index != it && e->birth_style == 0 && dend <= 0
-                && dy * dy + dx * dx + dz * dz < 100.0) {
+            f32 dx = *(f32*)(other + 3660) - *(f32*)(e0 + 52);
+            f32 dy = *(f32*)(other + 3664) - *(f32*)(e0 + 56);
+            f32 dz = *(f32*)(other + 3668) - *(f32*)(e0 + 60);
+            if (dx * dx + dy * dy + dz * dz < lbl_803468D8) {
                 flee = -1;
             } else {
+            flee_zero29:
                 flee = 0;
             }
         }
@@ -4379,16 +4461,24 @@ void move_logic29(s32 index)
     if (e->algorithm != e->prev_ai) {
         format_brain(index);
     }
-    if (e->closest < 0) {
-        a = e->ang;
-    } else if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
-        a = get_yaw(&gPlayerWords[e->closest][633], &e->objgrp.worldmat[3][0]);
-    } else {
-        a = get_yaw(&gPlayerWords[e->closest][17], &e->objgrp.worldmat[3][0]);
+    {
+        s16 c = e->closest;
+        if (c >= 0) {
+            if (*(s16*)&gPlayerWords[c][647] > 2) {
+                a = get_yaw(&gPlayerWords[c][633], &e->objgrp.worldmat[3][0]);
+            } else {
+                a = get_yaw(&gPlayerWords[c][17], &e->objgrp.worldmat[3][0]);
+            }
+        } else {
+            a = e->ang;
+        }
     }
     e->ang = a;
-    if (e->closest >= 0) {
-        f32 dvert = e->objgrp.worldmat[3][1] - gPlayerWords[e->closest][18];
+    {
+    s16 c29 = e->closest;
+    if (c29 >= 0) {
+        u8* gp = (u8*)&gPlayers + c29 * 13148;
+        f32 dvert = e->objgrp.worldmat[3][1] - *(f32*)(gp + 72);
         if (e->visactive != 0 && dvert >= -10.0 && dvert <= 10.0) {
             if (e->flag1 == 0) {
                 if (e->actual_dist <= 8.0) {
@@ -4450,6 +4540,7 @@ void move_logic29(s32 index)
                 e->dead_end = 0;
             }
         }
+    }
     }
     e->pyr[1] = turn_enemy_ang(e, e->ang);
     do_enemy_move(index);
