@@ -1033,11 +1033,11 @@ s16* FindWobjWanim(void* wobj)
 /* Advance every active world-object animation track. */
 void DoWorldAnimation(void)
 {
+    u8* data_off;
+    u8* track_off;
     s32* wi;
     s32* count;
     s32* header;
-    u8* data_off;
-    u8* track_off;
     s32 i;
     u8* anim_base;
 
@@ -1047,13 +1047,13 @@ void DoWorldAnimation(void)
     if ((lbl_80344768 > 0 || (gGameMode & 0x8000) != 0) &&
         (lbl_803443BC <= 10 || lbl_803443BC >= 100000) &&
         gWorldInfo[36] != 0 && (void*)gWorldInfo[37] != NULL) {
-        data_off = NULL;
-        track_off = NULL;
         wi = gWorldInfo;
         count = &wi[36];
         header = (s32*)wi[37];
         anim_base = (u8*)header[3];
         i = 0;
+        data_off = NULL;
+        track_off = NULL;
         lbl_803441B8 = header[0];
         lbl_803441B4 = header[1];
         lbl_803441B0 = header[2];
