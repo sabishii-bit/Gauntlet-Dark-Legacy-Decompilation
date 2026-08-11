@@ -479,24 +479,25 @@ void WorldSaveInitState(void) {
 /* WorldRestoreInitState: restore each object's snapshotted parent + position
  * and re-arm each active animation track. */
 void WorldRestoreInitState(void) {
-    WorldObj* wobjs = (WorldObj*)gWorldInfo.wobjs;
+    char* base = gWorldName;
     s32 i;
 
-    if (lbl_80344D74 == 0)
+    if (lbl_80344D74 == 0) {
         return;
-    if (lbl_80344D78 == 0)
-        return;
-    for (i = 0; i < gWorldInfo.nwobjs; i++) {
-        WorldObj* o = &wobjs[i];
-        o->flags &= 0xC31FFFFF;
-        o->parent = (struct WorldObj*)lbl_80344D74[i];
-        o->pos[0] = lbl_80344D78[i * 3 + 0];
-        o->pos[1] = lbl_80344D78[i * 3 + 1];
-        o->pos[2] = lbl_80344D78[i * 3 + 2];
     }
-    for (i = 0; i < gWorldInfo.nworldanims; i++) {
-        if (*(s32*)((char*)gWorldInfo.animdata + i * 0xA0) != 0) {
-            gWorldInfo.worldanims[i].curframe = lbl_80348778;
+    if (lbl_80344D78 != 0) {
+        u8** wobjsp = (u8**)(base + 232);
+        for (i = 0; i < *(s32*)(base + 324); i++) {
+            *(u32*)(*wobjsp + i * 60 + 16) &= 0xC31FFFFF;
+            *(u32*)(*wobjsp + i * 60 + 24) = ((u32*)lbl_80344D74)[i];
+            *(f32*)(*wobjsp + i * 60 + 28) = lbl_80344D78[i * 3];
+            *(f32*)(*wobjsp + i * 60 + 32) = lbl_80344D78[i * 3 + 1];
+            *(f32*)(*wobjsp + i * 60 + 36) = lbl_80344D78[i * 3 + 2];
+        }
+        for (i = 0; i < *(s32*)(base + 372); i++) {
+            if (*(u32*)(*(u8**)(base + 380) + i * 160) != 0) {
+                *(f32*)(*(u8**)(base + 368) + i * 16 + 8) = lbl_80348778;
+            }
         }
     }
 }
