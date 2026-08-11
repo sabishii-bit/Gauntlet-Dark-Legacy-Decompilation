@@ -4404,14 +4404,22 @@ void move_logic28(s32 index)
  * off lbl_8011BF60 and fires a lunge (action 3) aimed 180deg + ramp when flag1==1. */
 void move_logic29(s32 index)
 {
-    Enemy* e = (Enemy*)((u8*)lbl_80250E00 + index * 916 + 3608);
-    s32 dend = *(s32*)((u8*)lbl_80250E00 + index * 916 + 4464);
-    f32 leapspeed = 0.0f;
-    s32 it;
-    s32 flee;
     s32 stuck;
+    u8* base = (u8*)lbl_80250E00;
+    u8* row29;
+    u8* e0;
+    Enemy* e;
+    s32 it;
+    s32 dend;
+    f32 leapspeed = lbl_80346820;
+    s32 flee;
     f32 a;
+    u8 _pad29[32];
 
+    row29 = base + index * 916;
+    dend = *(s32*)(row29 + 4464);
+    e0 = row29 + 3608;
+    e = (Enemy*)(u8*)e0;
     if (dend > 0) {
         stuck = 1;
     } else {
@@ -4421,19 +4429,21 @@ void move_logic29(s32 index)
     if (it < 0) {
         flee = 0;
     } else {
-        Enemy* other = (Enemy*)((u8*)lbl_80250E00 + it * 916 + 3608);
-        if (other->state != 1) {
+        u8* other = base + it * 916;
+        if (*(s32*)(other + 3788) != 1) {
             flee = 0;
-        } else if (other->actual_dist > e->sight) {
+        } else if (*(f32*)(other + 4244) > *(f32*)(e0 + 768)) {
             flee = 0;
+        } else if (index == it || *(s16*)(e0 + 728) != 0 || dend > 0) {
+            goto flee_zero29;
         } else {
-            f32 dy = other->objgrp.worldmat[3][1] - e->objgrp.worldmat[3][1];
-            f32 dx = other->objgrp.worldmat[3][0] - e->objgrp.worldmat[3][0];
-            f32 dz = other->objgrp.worldmat[3][2] - e->objgrp.worldmat[3][2];
-            if (index != it && e->birth_style == 0 && dend <= 0
-                && dy * dy + dx * dx + dz * dz < 100.0) {
+            f32 dx = *(f32*)(other + 3660) - *(f32*)(e0 + 52);
+            f32 dy = *(f32*)(other + 3664) - *(f32*)(e0 + 56);
+            f32 dz = *(f32*)(other + 3668) - *(f32*)(e0 + 60);
+            if (dx * dx + dy * dy + dz * dz < lbl_803468D8) {
                 flee = -1;
             } else {
+            flee_zero29:
                 flee = 0;
             }
         }
@@ -4451,16 +4461,24 @@ void move_logic29(s32 index)
     if (e->algorithm != e->prev_ai) {
         format_brain(index);
     }
-    if (e->closest < 0) {
-        a = e->ang;
-    } else if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
-        a = get_yaw(&gPlayerWords[e->closest][633], &e->objgrp.worldmat[3][0]);
-    } else {
-        a = get_yaw(&gPlayerWords[e->closest][17], &e->objgrp.worldmat[3][0]);
+    {
+        s16 c = e->closest;
+        if (c >= 0) {
+            if (*(s16*)&gPlayerWords[c][647] > 2) {
+                a = get_yaw(&gPlayerWords[c][633], &e->objgrp.worldmat[3][0]);
+            } else {
+                a = get_yaw(&gPlayerWords[c][17], &e->objgrp.worldmat[3][0]);
+            }
+        } else {
+            a = e->ang;
+        }
     }
     e->ang = a;
-    if (e->closest >= 0) {
-        f32 dvert = e->objgrp.worldmat[3][1] - gPlayerWords[e->closest][18];
+    {
+    s16 c29 = e->closest;
+    if (c29 >= 0) {
+        u8* gp = (u8*)&gPlayers + c29 * 13148;
+        f32 dvert = e->objgrp.worldmat[3][1] - *(f32*)(gp + 72);
         if (e->visactive != 0 && dvert >= -10.0 && dvert <= 10.0) {
             if (e->flag1 == 0) {
                 if (e->actual_dist <= 8.0) {
@@ -4522,6 +4540,7 @@ void move_logic29(s32 index)
                 e->dead_end = 0;
             }
         }
+    }
     }
     e->pyr[1] = turn_enemy_ang(e, e->ang);
     do_enemy_move(index);
