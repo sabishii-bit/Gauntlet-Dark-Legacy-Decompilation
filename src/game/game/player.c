@@ -405,7 +405,7 @@ extern void MBBlitSetColor(void* blit, u32 rgb);
 extern void MBBlitSetAlpha(void* blit, s32 alpha);
 extern void mbBlitCalcWidth(void* blit, s32 x, s32 y, f64 z);
 extern void mbBlitProject(void* blit, s32 w, s32 h);
-extern void mbBlitCvtCoord(void* blit, f64 z);
+extern void mbBlitCvtCoord(void* blit, f32 z);
 extern void mbBlitUpdateEntry(void* blit, u32 mask, u32 set);
 extern void* MBRomTexPtr(u32 tex);
 extern f32 MBSetFontZ(f32 z);
@@ -686,10 +686,10 @@ void del_player_blits(s32 i) {
 
 /* Per-frame HUD driver: one player, or all (< 0) + the "IT" tag. */
 void WritePlayerInfo(s32 pnum) {
+    Player* p;
     s32 i;
     s32 first;
     s32 end;
-    Player* p;
     u8 unused[8];
 
     if ((!(gGameMode & 0x8000) || lbl_80344298 == 0) &&
