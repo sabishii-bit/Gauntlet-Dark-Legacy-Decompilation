@@ -5427,28 +5427,42 @@ s32 check_enemy_pos(f32* start, f32* out, s32 slot)
  * Recycles the least-important live enemy through kill_enemy when the array is
  * full; returns -1 when the request cannot be satisfied. */
 s32 find_enemy_slot(s32 type, s32 level) {
-    Enemy* enemy = gEnemies;
-    s32 best_visible = 1;
-    s32 index = 0;
-    s32 best_index = 0;
-    s32 count = gNumEnemies;
-    f32 best_distance = lbl_80346820;
+    s32 enemy_state;
+    Enemy* enemy;
+    s32 index;
+    s32 best_visible;
+    s32 visible;
+    f64 invis_add;
+    f64 dying_mult;
+    f32 distance;
+    f32 best_distance;
+    s32 best_index;
+    s32 count;
+
+    best_visible = 1;
+    index = 0;
+    best_index = 0;
+    count = gNumEnemies;
+    best_distance = lbl_80346820;
+    dying_mult = lbl_80346878;
+    invis_add = lbl_80346A20;
+    enemy = gEnemies;
 
     for (index = 0; index < count; index++, enemy++) {
-        s32 enemy_state = enemy->state;
+        enemy_state = enemy->state;
 
         if (enemy_state == INACTIVE) {
             return index;
         }
         if (enemy->type != E_IT) {
-            f32 distance = enemy->actual_dist;
-            s32 visible = enemy->visactive;
+            distance = enemy->actual_dist;
+            visible = enemy->visactive;
 
             if (enemy_state == DYING || enemy_state == SLEEP ||
                 enemy->birth_style != 0) {
-                distance *= lbl_80346878;
+                distance *= dying_mult;
             } else if (visible == 0) {
-                distance += lbl_80346A20;
+                distance += invis_add;
             }
             if (distance > best_distance) {
                 best_distance = distance;
@@ -5467,10 +5481,11 @@ s32 find_enemy_slot(s32 type, s32 level) {
     }
     kill_enemy(best_index);
     {
+        Enemy* k = (Enemy*)((u8*)gEnemies + best_index * 916);
         f32 reset_distance = lbl_803468F0;
 
-        gEnemies[best_index].close_dist = reset_distance;
-        gEnemies[best_index].actual_dist = reset_distance;
+        k->close_dist = reset_distance;
+        k->actual_dist = reset_distance;
     }
     return best_index;
 }
