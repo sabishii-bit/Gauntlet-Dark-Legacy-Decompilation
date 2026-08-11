@@ -3226,18 +3226,24 @@ s32 MissileCollideEnemy(f32 radius, f32* from, f32* to, f32* hit,
     for (i = firstEnemy; i < 25; i++) {
         u8* enemy = gEnemies + i * ENEMY_STRIDE;
         s32 state = PF(enemy, 0xB4, s32);
+        f32* cool;
         if ((state == 1 || state == 6) &&
             (!respectCooldown ||
-             PF(enemy, 0x2B4 + cooldownSlot * 4, f32) <= sMusicFadeBase)) {
-            f32 enemyRadius = radius + PF(enemy, 0x238, f32);
-            f32 enemyHeight = radius + PF(enemy, 0x23C, f32);
-            f32 dx = PF(enemy, 0x54, f32) - to[0];
-            f32 dy = PF(enemy, 0x58, f32) - to[1];
+             !(sMusicFadeBase < (cool = (f32*)(enemy + 0x2B4))[cooldownSlot]))) {
+            u8 _pad[8];
+            f32 dx;
+            f32 enemyRadius;
             f32 dz = PF(enemy, 0x5C, f32) - to[2];
-            if (dx * dx + dz * dz <= enemyRadius * enemyRadius + horizontalLen2 &&
-                dy <= verticalLen2 + enemyHeight &&
+            f32 enemyHeight;
+            f32 eh2;
+            enemyRadius = radius + PF(enemy, 0x238, f32);
+            dx = PF(enemy, 0x54, f32) - to[0];
+            enemyHeight = radius + PF(enemy, 0x23C, f32);
+            eh2 = enemyHeight;
+            if (!(dx * dx + dz * dz > enemyRadius * enemyRadius + horizontalLen2) &&
+                !(PF(enemy, 0x58, f32) - to[1] > verticalLen2 + enemyHeight) &&
                 LineCylinderCollide((f32*)(enemy + 0x54), enemyRadius,
-                                    enemyHeight, from, to, hit, 0)) {
+                                    eh2, from, to, hit, 0)) {
                 return i;
             }
         }
