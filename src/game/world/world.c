@@ -190,7 +190,7 @@ extern void fn_80011DCC(void* psys);
 extern void InitDynobjGrid(void);
 
 /* forward declarations (same TU) */
-static void sSetupWorldHeader(void* hdr);
+static void sSetupWorldHeader(u32* w);
 void  BGLoadWorldFile(s32* h);
 void* NewWorldObject(WorldObj* obj, WorldObj* parent);
 s32   WorldPsysActivate(WorldObj* obj);
@@ -659,11 +659,61 @@ s32 LoadWorldDone(char* name) {
  * to a 1-byte stub); on the big-endian GameCube the 0x78-byte header is 30
  * consecutive 32-bit words - a mix of counts/offsets, floats and two vec3s at
  * +0x24 and +0x30 - each of which is byte-reversed. */
-static void sSetupWorldHeader(void* hdr) {
-    u32* w = (u32*)hdr;
+/* byte-swap helpers: written through memory so each takes its value's
+ * address (matches the original's stack-slot swap sequences). */
+static u16 sSwapU16(u16 v) {
+    u8* b = (u8*)&v;
+    return (u16)((b[1] << 8) | b[0]);
+}
+
+static u32 sSwapU32(u32 v) {
+    u32 r;
+    u8* s = (u8*)&v;
+    u8* d = (u8*)&r;
+    d[0] = s[3];
+    d[1] = s[2];
+    d[2] = s[1];
+    d[3] = s[0];
+    return r;
+}
+
+static f32 sSwapF32(f32 v) {
+    f32 r;
+    *(u32*)&r = sSwapU32(*(u32*)&v);
+    return r;
+}
+
+static void sSetupWorldHeader(u32* w) {
+    f32* f = (f32*)w;
     s32 i;
-    for (i = 0; i < 30; i++) {
-        w[i] = WORLD_BSWAP32(w[i]);
+
+    w[0] = sSwapU32(w[0]);
+    w[1] = sSwapU32(w[1]);
+    w[2] = sSwapU32(w[2]);
+    w[3] = sSwapU32(w[3]);
+    w[4] = sSwapU32(w[4]);
+    w[5] = sSwapU32(w[5]);
+    w[6] = sSwapU32(w[6]);
+    w[7] = sSwapU32(w[7]);
+    w[8] = sSwapU32(w[8]);
+    f[15] = sSwapF32(f[15]);
+    w[16] = sSwapU32(w[16]);
+    w[17] = sSwapU32(w[17]);
+    w[18] = sSwapU32(w[18]);
+    w[19] = sSwapU32(w[19]);
+    w[20] = sSwapU32(w[20]);
+    w[21] = sSwapU32(w[21]);
+    w[22] = sSwapU32(w[22]);
+    w[23] = sSwapU32(w[23]);
+    w[24] = sSwapU32(w[24]);
+    w[25] = sSwapU32(w[25]);
+    w[26] = sSwapU32(w[26]);
+    w[27] = sSwapU32(w[27]);
+    w[28] = sSwapU32(w[28]);
+    w[29] = sSwapU32(w[29]);
+    for (i = 0; i < 3; i++) {
+        f[9 + i] = sSwapF32(f[9 + i]);
+        f[12 + i] = sSwapF32(f[12 + i]);
     }
 }
 
@@ -876,32 +926,6 @@ void* NewWorldObject(WorldObj* obj, WorldObj* parent) {
  * data), resolve the embedded offsets into pointers, derive the world
  * bounds/grid constants, allocate the coltri-checked and animdata arrays,
  * and arm the animation and particle-system tables.  Returns wobjs. */
-
-/* byte-swap helpers: written through memory so each takes its value's
- * address (matches the original's stack-slot swap sequences). */
-static u16 sSwapU16(u16 v) {
-    u8* b = (u8*)&v;
-    return (u16)((b[1] << 8) | b[0]);
-}
-
-static u32 sSwapU32(u32 v) {
-    u32 r;
-    u8* s = (u8*)&v;
-    u8* d = (u8*)&r;
-    d[0] = s[3];
-    d[1] = s[2];
-    d[2] = s[1];
-    d[3] = s[0];
-    return r;
-}
-
-static f32 sSwapF32(f32 v) {
-    u32 u;
-    f32 r;
-    u = sSwapU32(*(u32*)&v);
-    *(u32*)&r = u;
-    return r;
-}
 
 static const double lbl_80348768 = 0.0;  /* invgridsize fallback   */
 static const double lbl_80348788 = 0.5;  /* world center weight    */
