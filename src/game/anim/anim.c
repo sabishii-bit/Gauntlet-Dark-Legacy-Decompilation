@@ -25,7 +25,7 @@ extern f64 lbl_803457E8;
 extern u32 lbl_803441B8, lbl_803441B4, lbl_803441B0;
 void ErrorPrintf(char* fmt, ...);      /* 0x800BC6E0 */
 extern f32 gClockTime;                 /* 0x80344584 */
-extern f64 lbl_803457C0;
+extern const f64 lbl_803457C0;
 extern char lbl_80110758[];
 f32 floorf(f32 x);                     /* 0x800EAA1C */
 f32 fabsf(f32 x);
@@ -70,42 +70,47 @@ void InitAnimInfo(animinfo* info, u8 flags)
     }
 }
 
+typedef struct SEQVIEW {
+    u8 pad[0x26];
+    s16 flags26;
+    u8 pad2[8];
+} SEQVIEW;
+
 /* SetupAnimHeader @0x8000E994 -- byte-swap the animheader's first 7 words
  * (loaded little-endian), then relocate its 5 section pointers to absolute
  * addresses in `dst` (in place when dst is NULL). */
+static u32 swapw(u32 w)
+{
+    u32 out;
+    u8* s = (u8*)&w;
+    u8* d = (u8*)&out;
+    d[0] = s[3];
+    d[1] = s[2];
+    d[2] = s[1];
+    d[3] = s[0];
+    return out;
+}
+
 int* SetupAnimHeader(int* hdr, int* dst)
 {
-#define SWAP(i)                                                               \
-    {                                                                         \
-        union {                                                               \
-            u32 w;                                                            \
-            u8 b[4];                                                          \
-        } s, d;                                                               \
-        s.w = hdr[i];                                                         \
-        d.b[0] = s.b[3];                                                      \
-        d.b[1] = s.b[2];                                                      \
-        d.b[2] = s.b[1];                                                      \
-        d.b[3] = s.b[0];                                                      \
-        hdr[i] = d.w;                                                         \
-    }
-    SWAP(0);
-    SWAP(1);
-    SWAP(2);
-    SWAP(3);
-    SWAP(4);
-    SWAP(5);
-    SWAP(6);
-#undef SWAP
+    int* p = (int*)(int)hdr;
+    p[0] = swapw(p[0]);
+    p[1] = swapw(p[1]);
+    p[2] = swapw(p[2]);
+    p[3] = swapw(p[3]);
+    p[4] = swapw(p[4]);
+    p[5] = swapw(p[5]);
+    p[6] = swapw(p[6]);
     if (dst == NULL) {
-        dst = hdr;
+        dst = p;
     }
-    dst[0] = hdr[0] + (int)hdr;
-    dst[1] = hdr[1] + (int)hdr;
-    dst[2] = hdr[2] + (int)hdr;
-    dst[3] = hdr[3] + (int)hdr;
-    dst[4] = hdr[4] + (int)hdr;
-    dst[5] = hdr[5];
-    dst[6] = hdr[6];
+    dst[0] = p[0] + (int)hdr;
+    dst[1] = p[1] + (int)hdr;
+    dst[2] = p[2] + (int)hdr;
+    dst[3] = p[3] + (int)hdr;
+    dst[4] = p[4] + (int)hdr;
+    dst[5] = p[5];
+    dst[6] = p[6];
     return dst;
 }
 
@@ -122,38 +127,41 @@ s32 AnimDone(void* anim)
  * mask of what happened (1=restarted, 2=looped/finished, 4=holding, 8=event). */
 u32 AnimateTree(f32 time, animinfo* info, s32 seq, s32 frame, s32 mode)
 {
-    u32 result = 0;
+    s32 result = 0;
     s32 restart = 0;
     s32 status;
     s32 curseq;
     s32 done;
-    s16 rep;
+    s32 rep;
+    u8 unused[8];
 
     lbl_803441B8 = ((u32*)info->animheader)[0];
     lbl_803441B4 = ((u32*)info->animheader)[1];
     lbl_803441B0 = ((u32*)info->animheader)[2];
     status = CalcAnimInfo(info);
     curseq = info->animseq;
-    done = (info->stage & 0xFF) == 0xFF;
-    rep = info->repeat;
-    if (mode == 2) {
+    done = ((info->stage & 0xFF) == 0xFF) ? 1 : 0;
+    rep = *(s16*)&info->repeat;
+    switch (mode) {
+    case 0:
+        if (done && seq != curseq) {
+            restart = 1;
+        }
+        break;
+    case 1:
+        if (done) {
+            restart = 1;
+        }
+        break;
+    case 2:
         if (done || seq != curseq) {
             restart = 1;
         }
-    } else if (mode < 2) {
-        if (mode == 0) {
-            if (done && seq != curseq) {
-                restart = 1;
-            }
-        } else if (mode >= 0) {
-            if (done) {
-                restart = 1;
-            }
-        } else {
-            restart = 1;
-        }
-    } else {
+        break;
+    case 3:
+    default:
         restart = 1;
+        break;
     }
     if (restart) {
         s32 initret;
@@ -161,17 +169,15 @@ u32 AnimateTree(f32 time, animinfo* info, s32 seq, s32 frame, s32 mode)
             (f64)info->starttime < (f64)info->atime - lbl_803457C0) {
             info->starttime = (f32)((f64)info->atime - lbl_803457C0);
         }
-        initret = InitAnim(time, info, seq, frame, 1);
-        if (initret < 1) {
+        if ((initret = InitAnim(time, info, seq, frame, 1)) <= 0) {
             FatalErrorf(lbl_80110730, initret, seq, info->numseqs);
         }
-        if ((*(u16*)((u8*)info->seqheader + curseq * 0x30 + 0x26) & 1) != 0) {
-            result = 8;
+        if ((((SEQVIEW*)info->seqheader)[curseq].flags26 & 1) != 0) {
+            result |= 8;
         }
         result |= 1;
     }
-    if (((result & 1) != 0 || status == 0xF) &&
-        (status = CalcAnimInfo(info)) == 0xF) {
+    if (((result & 1) != 0 || status == 0xF) && CalcAnimInfo(info) == 0xF) {
         CalcAnimInfo(info);
     }
     if (result != 0 && (done || (info->stage & 0xFF) == 0xFF)) {
@@ -188,7 +194,7 @@ s32 InitAnim(f32 time, animinfo* info, s32 seq, s32 frame, s32 active)
 {
     u8* s;
     s16 nf;
-    u16 rep;
+    s16 rep;
     f32 sc;
 
     if (seq >= info->numseqs) {
@@ -202,32 +208,32 @@ s32 InitAnim(f32 time, animinfo* info, s32 seq, s32 frame, s32 active)
     info->active = (s16)active;
     s = (u8*)info->seqheader + seq * 0x30;
     nf = *(s16*)(s + 0x20);
-    rep = *(u16*)(s + 0x24);
-    if (*(s16*)(s + 0x22) < 1) {
-        info->seqscale = info->animscale;
-    } else {
-        info->seqscale = (f32)(lbl_803457C0 * (f64)(f32)*(s16*)(s + 0x22) *
+    rep = *(s16*)(s + 0x24);
+    if (*(s16*)(s + 0x22) > 0) {
+        info->seqscale = (f32)((f64)*(s16*)(s + 0x22) * lbl_803457C0 *
                                (f64)info->animscale);
+    } else {
+        info->seqscale = info->animscale;
     }
-    if (nf < frame) {
+    if (frame > nf) {
         frame = 0;
     }
     sc = info->seqscale * lbl_803441A8;
     info->frame = (f32)frame;
-    if (time == lbl_803457B4) {
+    if (time != lbl_803457B4) {
+        info->starttime =
+            (f32)((f64)-(info->frame * sc - info->atime) - lbl_803457C0);
+        info->transtime =
+            (f32)((f64)(info->atime + time) - lbl_803457C0);
+    } else {
         info->starttime = -(info->frame * sc - info->atime);
         info->transtime = lbl_803457B4;
-    } else {
-        info->starttime =
-            (f32)(-(f64)(info->frame * sc - info->atime) - lbl_803457C0);
-        info->transtime =
-            (f32)((f64)(f32)((f64)info->atime + time) - lbl_803457C0);
     }
     info->setpanim = 1;
     info->transfrac = lbl_803457B4;
     info->animseq0 = info->animseq;
     info->animseq = seq;
-    info->stage &= 0xf000;
+    info->stage &= 0xFFFFF000;
     info->repeat = rep;
     info->numframes = nf;
     return 1;
@@ -237,11 +243,13 @@ s32 InitAnim(f32 time, animinfo* info, s32 seq, s32 frame, s32 active)
  * transition fraction while the trans window is open. */
 s32 CalcAnimInfo(animinfo* info)
 {
-    f64 sc;
-    f64 at;
-    f64 inv;
-    f64 t;
-    f64 fl;
+    f32 scf;
+    f32 inv;
+    f32 t;
+    f32 fl;
+    u8 unused1[16];
+    f32 d;
+    u8 unused2[8];
     s32 nf;
 
     if (info == NULL) {
@@ -252,10 +260,11 @@ s32 CalcAnimInfo(animinfo* info)
         info->setpanim = 0;
     }
     if ((info->stage & 0xFF) == 0xFF) {
-        if ((info->stage & 0x100) == 0) {
+        if ((info->stage & 0x100) != 0) {
+            info->stage = info->stage & 0xFFFFFF00;
+        } else {
             return 0;
         }
-        info->stage = info->stage & 0xFF00;
     }
     if (info->active == 0) {
         return 0;
@@ -267,28 +276,28 @@ s32 CalcAnimInfo(animinfo* info)
         info->starttime = info->atime;
         return 0;
     }
-    sc = (f64)(info->seqscale * lbl_803441A8);
-    at = (f64)info->atime;
-    inv = lbl_803457D0 / sc;
-    if ((f64)info->transtime > at) {
+    scf = info->seqscale * lbl_803441A8;
+    inv = (f32)(lbl_803457D0 / (f64)scf);
+    if (info->transtime > info->atime) {
         info->transfrac = (info->atime - info->starttime) /
                           (info->transtime - info->starttime);
-        return 0;
-    }
+    } else {
     if (info->animseq0 != info->animseq) {
-        info->starttime = -(f32)((f64)info->frame * sc - at);
+        info->starttime = -(info->frame * scf - info->atime);
         info->transtime = lbl_803457B4;
         info->transfrac = lbl_803457B4;
         info->animseq0 = info->animseq;
         info->setpanim = 1;
     }
-    t = (info->atime - info->starttime) * (f32)inv;
+    fl = info->atime - info->starttime;
+    t = fl * inv;
     fl = floorf((f32)(lbl_803457D8 + t));
     if ((info->flags & 2) == 0 ||
-        (f64)fabsf((f32)(t - fl)) < lbl_803457E0 || sc < (f64)lbl_803441A8) {
+        (d = t - fl, *(u32*)&d &= 0x7FFFFFFF, (f64)d < lbl_803457E0) ||
+        scf < lbl_803441A8) {
         t = fl;
     }
-    if (lbl_803457D8 + (f32)(nf - 1) <= t) {
+    if ((f64)t >= lbl_803457D8 + (f64)(f32)(nf - 1)) {
         info->stage |= 0xFF;
         info->frame = (f32)(nf - 1);
         if (info->repeat != 0) {
@@ -297,14 +306,15 @@ s32 CalcAnimInfo(animinfo* info)
             info->setpanim = 1;
             return 15;
         }
-        info->stage &= 0xFEFF;
+        info->stage &= 0xFFFFFEFF;
         info->transfrac = lbl_803457B4;
         return 0;
     }
     if (t < lbl_803457B4) {
         t = lbl_803457B4;
     }
-    info->frame = (f32)t;
+    info->frame = t;
+    }
     return 1;
 }
 /* SetupAnimHeader @0x8000F184 -- snap an animinfo to sequence `seq`, frame

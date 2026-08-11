@@ -1271,36 +1271,46 @@ static void do_screenmenu(void)
 
 static void do_controlsmenu(OPTMENU* m, s32 player)
 {
+    u8* base = lbl_8011DD20;
     s32 style;
     s32 i;
+    s32 off;
     s32 w;
     s32 h;
     s32 x;
 
-    style = control_style;
     if (player >= 0) {
-        for (i = 0; i < 3; i++) {
-            mbBlitCalcWidth(ctl_blits[i].blit, ctl_blits[i].x, ctl_blits[i].y, -1.0f);
-            mbBlitProject(ctl_blits[i].blit, ctl_blits[i].w, ctl_blits[i].h);
+        style = control_style;
+        for (i = 0, off = 0; i < 3; i++, off += 24) {
+            mbBlitCalcWidth(*(void**)(base + off + 7660),
+                            *(s32*)(base + off + 7644),
+                            *(s32*)(base + off + 7648), -1.0f);
+            {
+                CTLBLIT* b = (CTLBLIT*)(base + off + 7640);
+                mbBlitProject(b->blit, b->w, b->h);
+            }
         }
         SetDrawStringScale(OPTCTL_SCALE);
         gLineSpacing = OPTCTL_DY;
-        for (i = 0; i < 16; i++) {
+        for (i = 0, off = 0; i < 16; i++, off += 12) {
             s32 msg = GetStringListMsg(3, style);
             w = StringTextWidth(OPTCTL_SCALE, msg, i);
             h = StringTextHeight(OPTCTL_SCALE, msg, i, -1);
-            if (ctl_label_pos[i].mode == 1) {
-                x = -(ctl_label_pos[i].dx + 0x100);
-            } else if (ctl_label_pos[i].mode == 2) {
-                x = -((ctl_label_pos[i].dx + 0x100) - w / 2);
+            {
+            s32* L = (s32*)((u8*)(base + off) + 7448);
+            if (L[0] == 1) {
+                x = -(L[1] + 0x100);
+            } else if (L[0] == 2) {
+                x = -((L[1] + 0x100) - w / 2);
             } else {
-                x = -(ctl_label_pos[i].dx + w / 2 + 0x100);
+                x = -(L[1] + w / 2 + 0x100);
             }
-            DrawStringText(x, ctl_label_pos[i].dy - h / 2, OPTCTL_FONT,
-                           (optmenu_rgb_ctls[2] & 0xFF) |
-                           ((optmenu_rgb_ctls[0] & 0xFF) << 16) |
-                           ((optmenu_rgb_ctls[1] & 0xFF) << 8),
+            DrawStringText(x, L[2] - h / 2, OPTCTL_FONT,
+                           (*(s32*)(base + 236) & 0xFF) |
+                           ((*(s32*)(base + 228) & 0xFF) << 16) |
+                           ((*(s32*)(base + 232) & 0xFF) << 8),
                            msg, i);
+            }
         }
         RestoreDrawStringScale();
         gLineSpacing = 0;
@@ -1313,33 +1323,33 @@ static void do_controlsmenu(OPTMENU* m, s32 player)
 
 static void do_audiomenu(OPTMENU* m)
 {
+    s32* sm;
     s32 i;
-    s32 off;
     OPTITEM* it;
     s32 fh;
-    s32* sm;
     s32 act;
+    u8 unused[8];
+    OPTGLOBALS* og = (OPTGLOBALS*)&optglobals;
 
     i = 0;
-    off = 0;
     fh = FontHeight(m->scale, OPTMENU_FONT);
     sfx_sound_count += vb_elapsed_menu;
-    sm = &optglobals.sound_mode;
-    for (;; i++, off += 0x24) {
-        it = (OPTITEM*)((u8*)m->items + off);
+    sm = &og->sound_mode;
+    for (;; i++) {
+        it = &m->items[i];
         if (it->text == NULL) {
             break;
         }
         act = (i == m->sel) ? 0 : 1;
         switch (it->code) {
         case 0x17:
-            position_audioslider(&optglobals.music, m->x,
-                                 it->draw_y + (fh + OPTMENU_VOL_DY),
+            position_audioslider(&og->music, m->x,
+                                 it->draw_y + fh + OPTMENU_VOL_DY,
                                  OPTAUDIO_VOL_WIDTH, OPTAUDIO_VOL_HEIGHT, act);
             break;
         case 0x18:
-            position_audioslider(&optglobals.sfx, m->x,
-                                 it->draw_y + (fh + OPTMENU_VOL_DY),
+            position_audioslider(&og->sfx, m->x,
+                                 it->draw_y + fh + OPTMENU_VOL_DY,
                                  OPTAUDIO_VOL_WIDTH, OPTAUDIO_VOL_HEIGHT, act);
             break;
         case 0x19:
@@ -2231,16 +2241,13 @@ static void next_rune_hint(s32 advance)
         n = rune_hint_index + 1;
         for (;;) {
             if (n >= 0xD) {
-                rune_hint_num = 1;
                 n = n % 0xD;
+                rune_hint_num = 1;
             }
             i = n;
-            off = n << 2;
-            for (; i < 0xD; i++, off += 4) {
-                if (rune_hint_num != 0) {
-                    break;
-                }
-                if (PlayerHasShard(-1, *(s32*)((u8*)rune_idx_table + off) - 1) == 0) {
+            for (; i < 0xD; i++) {
+                s32 id = rune_idx_table[i] - 1;
+                if (rune_hint_num != 0 || PlayerHasShard(-1, id) == 0) {
                     break;
                 }
             }
@@ -2250,23 +2257,22 @@ static void next_rune_hint(s32 advance)
             if (rune_hint_num > 1) {
                 rune_hint_num = 1;
                 rune_hint_index = 0;
-                i = rune_hint_index;
-                break;
+                goto have_index;
             }
             rune_hint_num++;
             n = 1;
         }
         rune_hint_index = i;
-
+have_index:
         /* per-player: mask lives in the current-level record (stride 0xF0,
          * level index at record+0xC) */
         bit = 1 << (rune_idx_table[rune_hint_index] - 1);
         for (p = 0; p < 4; p++) {
             u8* rec = &gPlayers[p * PREC_STRIDE];
-            if (pass == 0 && (*(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDDC) & bit) != 0) {
+            if (pass == 0 && (bit & *(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDDC)) != 0) {
                 pass = 1;
             }
-            if ((*(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDDE) & bit) != 0) {
+            if ((bit & *(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDDE)) != 0) {
                 pass = 2;
             }
         }
@@ -2297,16 +2303,15 @@ static void next_legend_hint(s32 advance)
     n = legend_hint_index + 1;
     for (;;) {
         if (n >= 10) {
-            legend_hint_num = 1;
             n = n % 10;
+            legend_hint_num = 1;
         }
         if (n == 0) {
             n = 1;
         }
         i = n;
-        off = n << 2;
-        for (; i < 10; i++, off += 4) {
-            id = *(s32*)((u8*)crystal_order + off);
+        for (; i < 10; i++) {
+            id = crystal_order[i];
             if (WorldOpen(id) != 0 &&
                 (legend_hint_num != 0 || towerGetRuneNearStat(-1, id) == 0)) {
                 break;
@@ -2325,13 +2330,14 @@ static void next_legend_hint(s32 advance)
     }
     legend_hint_index = i;
 have_index:
-    bit = 1 << crystal_order[legend_hint_index];
+    id = crystal_order[legend_hint_index];
+    bit = 1 << id;
     for (p = 0; p < 4; p++) {
         u8* rec = &gPlayers[p * PREC_STRIDE];
-        if (pass == 0 && (*(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDE0) & bit) != 0) {
+        if (pass == 0 && (bit & *(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDE0)) != 0) {
             pass = 1;
         }
-        if ((*(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDE2) & bit) != 0) {
+        if ((bit & *(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDE2)) != 0) {
             pass = 2;
         }
     }
@@ -2361,16 +2367,15 @@ static void next_boss_hint(s32 advance)
     n = boss_hint_index + 1;
     for (;;) {
         if (n >= 0xB) {
-            boss_hint_num = 1;
             n = n % 0xB;
+            boss_hint_num = 1;
         }
         if (n == 0) {
             n = 1;
         }
         i = n;
-        off = n << 2;
-        for (; i < 0xB; i++, off += 4) {
-            id = *(s32*)((u8*)crystal_order + off);
+        for (; i < 0xB; i++) {
+            id = crystal_order[i];
             if (WorldOpen(id) != 0 &&
                 (boss_hint_num != 0 || PlayerHasRune(-1, id) == 0)) {
                 break;
@@ -2389,13 +2394,14 @@ static void next_boss_hint(s32 advance)
     }
     boss_hint_index = i;
 have_index:
-    bit = 1 << crystal_order[boss_hint_index];
+    id = crystal_order[boss_hint_index];
+    bit = 1 << id;
     for (p = 0; p < 4; p++) {
         u8* rec = &gPlayers[p * PREC_STRIDE];
-        if (pass == 0 && (*(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDE4) & bit) != 0) {
+        if (pass == 0 && (bit & *(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDE4)) != 0) {
             pass = 1;
         }
-        if ((*(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDE6) & bit) != 0) {
+        if ((bit & *(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDE6)) != 0) {
             pass = 2;
         }
     }
