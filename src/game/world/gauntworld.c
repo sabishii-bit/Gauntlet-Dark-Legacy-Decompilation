@@ -322,27 +322,36 @@ static void ResolveWorldDataPointers(void)
  * (once), reads it in, and remembers the first realm id.  A missing file logs
  * "No world data file: %s" and clears the slot.  Finally the world-state
  * globals are reset and the world-registry hook (fn_80057F44) is primed. */
+extern char lbl_80257680[];        /* path scratch buffer */
+extern char lbl_80112A9C[];        /* "No world data file: %s\n" */
+extern u8 gGameOptions[];
+
 void LoadWorldData(void)
 {
-    int i;
+    u8* entry;
+    u32 i;
+    int size;
+    s32* ids;
+    char* path = lbl_80257680;
 
     for (i = 0; i < 14; i++) {
-        char* name = (char*)&sWorldDataTypes[i];      /* entry name (adjacent) */
-        char* path = (char*)0;                        /* sWorldPathBuf scratch */
-        sprintf(path, "%s.wad", name);
+        entry = (u8*)sWorldLevelTable + i * 44;
+        sprintf(path, "%s.wad", entry + 236);
+        ids = (s32*)(entry + 232);
         if (FileExists("wdata", path)) {
-            int size = FileSize("wdata", path);
-            /* mark loaded; remember first realm id */
+            size = FileSize("wdata", path);
+            ids[4] = 1;
             if (sFirstWorldId < 0) {
-                sFirstWorldId = sWorldDataTypes[i] << 8;
+                sFirstWorldId = ids[0] << 8;
             }
-            /* allocate the blob once, then read it in */
-            /* if (buf == 0) buf = AllocMem(size); */
-            AllocMem(size);
-            MLMReadFile("wdata", path, size, /*buf*/ 0);
+            entry = (u8*)sWorldLevelTable + i * 4;
+            if (*(void**)(entry += 848) == 0) {
+                *(void**)entry = AllocMem(size);
+            }
+            MLMReadFile("wdata", path, size, *(void**)entry);
         } else {
-            ErrorPrintf("No world data file: %s\n", path);
-            /* buf = 0 */
+            ErrorPrintf(lbl_80112A9C, path);
+            *(void**)((u8*)sWorldLevelTable + i * 4 + 848) = 0;
         }
     }
 
@@ -353,7 +362,8 @@ void LoadWorldData(void)
     sCurLevelHasCameras = -1;
     gWorldData = 0;
     gCurLevel  = 0;
-    fn_80057F44();                 /* prime the world registry */
+    *(s32*)(gGameOptions + 36) =
+        fn_80057F44(*(s32*)(gGameOptions + 36), 1);
     sWorldDataConst = 0xD00;
 }
 
