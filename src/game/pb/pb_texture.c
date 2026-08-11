@@ -329,17 +329,44 @@ void fn_800C72DC(void) {
 }
 
 /* Allocate + load a palette TLUT into a hardware region (GCN-only). */
-int fn_800C73E0(s32 key) {
-    void* buf;
-    s32 region = fn_800C6BB4((u8)(key >> 8), key);
-    buf = AllocMem32(0x200);
-    GXInitTlutObj((u8*)&lbl_802C7438 + 0x30 + region * 0x10, buf, 0, 0x100);
-    GXLoadTlut((u8*)&lbl_802C7438 + 0x30 + region * 0x10, region);
-    (void)lbl_803450E8;
-    (void)lbl_803450EC;
-    (void)lbl_80345108;
-    (void)lbl_80345114;
-    return region;
+void fn_800C73E0(void) {
+    u8* mgr = (u8*)&lbl_802C7438;
+    s32 i;
+
+    if (lbl_80345114 == 1) {
+        DCFlushRange((void*)lbl_803450E8, 4);
+        GXInitTlutObj(mgr + 0x5AC, (void*)lbl_803450E8, 2, 16);
+        DCFlushRange((void*)lbl_803450EC, 4);
+        GXInitTlutObj(mgr + 0x5BC, (void*)lbl_803450EC, 2, 0x100);
+        lbl_80345114 = 2;
+    }
+    if (lbl_80345114 == 2) {
+        s32* cur;
+        s32 region;
+        u64 bit;
+        if (*(s32*)(mgr + 0x5B8) == -1) {
+            cur = (s32*)(mgr + 0x5B8);
+            *cur = fn_800C6BB4(0, 0xFFFF0000);
+            region = *cur;
+            bit = __shl2i(0, 1, region);
+            lbl_803450E0 |= bit;
+            lbl_80345108 = lbl_80345108 + 1;
+            GXLoadTlut(mgr + 0x5AC, region);
+        }
+    }
+    if (lbl_80345114 == 0) {
+        lbl_803450E8 = (s32)AllocMem32(0x20);
+        lbl_803450EC = (s32)AllocMem32(0x200);
+        for (i = 0; i < 16; i++) {
+            ((u16*)lbl_803450E8)[i] = (i * 2048) | 0xFFF;
+        }
+        for (i = 0; i < 256; i++) {
+            ((u16*)lbl_803450EC)[i] = (i * 128) | 0xFFF;
+        }
+        *(s32*)(mgr + 0x5C8) = -1;
+        *(s32*)(mgr + 0x5B8) = -1;
+        lbl_80345114 = 1;
+    }
 }
 
 /* Ensure a texture's TLUT is resident, loading it if necessary, and bind it
