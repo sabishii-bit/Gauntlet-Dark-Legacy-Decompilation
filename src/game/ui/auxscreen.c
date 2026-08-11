@@ -367,21 +367,23 @@ void calc_wizard_pos(f32* out)
     out[2] = gBossPos[2];
 
     for (i = 0; i < 4; i++) {
+        s32 st;
         u8* p = arr + i * 0x335C;
-        s32 st = *(s32*)(p + 232);
+        st = *(s32*)(p + 232);
         if (st == 1 || st == 8) {
+            f32* py = (f32*)(p + 72);
             out[0] = out[0] + *(f32*)(p + 68);
             out[1] = out[1] + *(f32*)(p + 72);
             out[2] = out[2] + *(f32*)(p + 76);
-            if (count == 1.0f) {
-                out[1] = (f32)(2.0 * (double)*(f32*)(p + 72));
+            if (1.0 == count) {
+                out[1] = (f32)(2.0 * (double)*py);
             }
-            count = count + 1.0f;
+            count += 1.0;
         }
     }
-    out[0] = out[0] / count;
-    out[1] = out[1] / count;
-    out[2] = out[2] / count;
+    for (i = 0; i < 3; i++) {
+        out[i] = out[i] / count;
+    }
 }
 
 /* ================================================================== */
