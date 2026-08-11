@@ -1183,42 +1183,41 @@ int fn_8005EE18(Item* item, s32 arg)
     int result = 0;
     iteminfo* info = item->info;
     s32* sub = (s32*)info + 1;
+    u8 _pad[8];
 
     switch (info->type) {
+    case -1:
+        break;
     case 1:
-        if (item->activetime <= 0) {
-            if (*(u32*)&item->data[0xC] == 0) {
-                if (*sub == 4) {
-                    result = 1;
-                }
-            } else {
-                result = 0;
-            }
-        } else {
+        if (item->activetime > 0) {
             result = 0;
+        } else if (*(u32*)&item->data[0xC] != 0) {
+            result = 0;
+        } else {
+            switch (*sub) {
+            case 4:
+                result = 1;
+            }
         }
         break;
     case 2:
     case 7:
         result = 1;
         break;
-    case 3:
-        if (item->data[6] != 0) {
-            result = 1;
+    case 3: {
+        s32 t;
+        if (t = ((s8)item->data[6] ? 0 : 1)) {
+            break;
         }
+        result = 1;
         break;
+    }
     case 4:
         result = 1;
         break;
     case 10:
         switch (*sub) {
         case 0x1E:
-            break;
-        case 0x28:
-        case 0x31:
-        case 0x33:
-        case 0x35:
-            result = 0;
             break;
         case 0x29:
             if (*(s16*)&item->data[2] > 0) {
@@ -1230,6 +1229,12 @@ int fn_8005EE18(Item* item, s32 arg)
                 fn_8009D91C(&item->objgrp.worldmat[3][0]);
                 item->active |= 1;
             }
+            result = 0;
+            break;
+        case 0x28:
+        case 0x31:
+        case 0x33:
+        case 0x35:
             result = 0;
             break;
         default:
