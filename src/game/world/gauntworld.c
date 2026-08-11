@@ -236,80 +236,154 @@ void ResolveWorldData(int worldlevel)
  * Called only by ResolveWorldData.  Turns the packed per-level section indices
  * into absolute pointers, clamps negatives, normalises the audio volume/range
  * floats and resolves ambient-track sound handles via AudioFindSound. */
+extern char optionsAudioAndPrefs30[]; /* 0x80274E80 options block          */
+typedef struct OptsView {
+    u8  _pad[20];
+    s32 vol; /* +20: volume option index */
+} OptsView;
+extern f32  lbl_8011C748[3];           /* volume gain table                 */
+extern f64  lbl_80346C70;              /* -1.0 sentinel                     */
+extern f32  lbl_80346BE0;              /* 1.0                                */
+extern char lbl_80112788[];            /* string block (+716/+748/+776)     */
+
 static void ResolveWorldDataPointers(void)
 {
-    int i, j;
-    WorldLevel* lvl;
-    char nameBuf[0x38];
-    const float VOL_DEFAULT = 1.0f; /* f31 */
-    const float SENTINEL    = -1.0f;/* f30 */
+    char* strs = lbl_80112788;
+    u8* lvl;
+    s32 i;
+    f32 one;
+    f64 sent;
+    f32 d;
+    f32* gp;
+    f32 gain;
+    char nameBuf[12];
 
-    if (gWorldData->cameras == 0) {
-        FatalErrorf("World Data %s has no cameras\n", nameBuf);
+    if (*(u8**)((u8*)gWorldData + 36) == 0) {
+        FatalErrorf(strs + 716, nameBuf);
     }
-    if (gWorldData->audio == 0) {
-        FatalErrorf("World Data %s has no audio\n", nameBuf);
+    if (*(u8**)((u8*)gWorldData + 40) == 0) {
+        FatalErrorf(strs + 748, nameBuf);
     }
-
     sCurLevelHasCameras = -1;
+    sent = lbl_80346C70;
+    one = lbl_80346BE0;
 
-    for (i = 0; i < (int)gWorldData->numLevels; i++) {
-        lvl = &gWorldData->levels[i];
+    for (i = 0; i < *(s16*)((u8*)gWorldData + 24); i++) {
+        lvl = *(u8**)((u8*)gWorldData + 28) + i * 268;
 
-        /* section index -> pointer (idx<0 => NULL), written at 0x60/0x64/0x68/0x6C */
-        if (lvl->cameraIdx < 0) {
-            lvl->cameraIdx = 0;
+        if (*(s16*)(lvl + 88) < 0) {
+            *(s16*)(lvl + 88) = 0;
         }
-        *(u8**)((u8*)lvl + 0x60) = gWorldData->cameras + lvl->cameraIdx * 0x6C;
-        if (lvl->sec34Idx < 0) {
-            *(u8**)((u8*)lvl + 0x6C) = 0;
-        } else {
-            *(u8**)((u8*)lvl + 0x6C) = gWorldData->section34 + lvl->sec34Idx * 0x54;
+        *(u8**)(lvl + 96) =
+            *(u8**)((u8*)gWorldData + 36) + *(s16*)(lvl + 88) * 108;
+        {
+            s16 v34 = *(s16*)(lvl + 140);
+            if (v34 < 0) {
+                *(u8**)(lvl + 108) = 0;
+            } else {
+                *(u8**)(lvl + 108) = *(u8**)((u8*)gWorldData + 52) + v34 * 84;
+            }
         }
-        if (lvl->audioIdx < 0) {
-            lvl->audioIdx = 0;
+        if (*(s16*)(lvl + 90) < 0) {
+            *(s16*)(lvl + 90) = 0;
         }
-        *(u8**)((u8*)lvl + 0x64) = gWorldData->audio + lvl->audioIdx * 0x3C;
-        if (lvl->sec30Idx < 0) {
-            *(u8**)((u8*)lvl + 0x68) = 0;
-        } else {
-            *(u8**)((u8*)lvl + 0x68) = gWorldData->section30 + lvl->sec30Idx * 0x48;
+        *(u8**)(lvl + 100) =
+            *(u8**)((u8*)gWorldData + 40) + *(s16*)(lvl + 90) * 60;
+        {
+            s16 v30 = *(s16*)(lvl + 92);
+            if (v30 < 0) {
+                *(u8**)(lvl + 104) = 0;
+            } else {
+                *(u8**)(lvl + 104) = *(u8**)((u8*)gWorldData + 48) + v30 * 72;
+            }
         }
 
-        /* first level that owns cameras */
-        if ((lvl->flags2 & 1) && sCurLevelHasCameras < 0) {
+        if (*(s16*)(lvl + 4) != 0 && sCurLevelHasCameras < 0) {
             sCurLevelHasCameras = i;
         }
 
-        /* ambient track for camera levels (realm 0xC has none) */
-        if ((lvl->flags2 & 1) && sMusicTrackHi != 0xC) {
-            int snd;
-            sprintf(nameBuf, "%s_amb", lvl->name);
-            snd = AudioFindSound(nameBuf, 0, 1);
-            *(int*)(*(u8**)((u8*)lvl + 0x64) + 0x14) = snd;
+        if (*(s16*)(lvl + 4) != 0 && sMusicTrackHi != 12) {
+            sprintf(nameBuf, strs + 776, lvl + 8);
+            *(s32*)(*(u8**)(lvl + 100) + 20) = AudioFindSound(nameBuf, 0, 1);
         } else {
-            *(int*)(*(u8**)((u8*)lvl + 0x64) + 0x14) = -1;
+            *(s32*)(*(u8**)(lvl + 100) + 20) = -1;
         }
 
-        lvl->flags &= ~1u;
+        *(u32*)lvl &= ~1u;
 
-        if (lvl->resolved == 0) {
-            float* v = (float*)((u8*)lvl + 0xA8);
-            lvl->resolved = 1;
-            /* v[0..13]: replace SENTINEL with defaults, scale by realm gain,
-             * then take the reciprocal of the range fields (v[4],v[8],... ). */
-            for (j = 0; j < 14; j++) {
-                if (v[j] == SENTINEL) {
-                    v[j] = VOL_DEFAULT;
-                }
+        if (*(s16*)(lvl + 6) != 0) {
+            continue;
+        }
+        *(s16*)(lvl + 6) = 1;
+        {
+            if (sent == *(f32*)(lvl + 168)) {
+                *(f32*)(lvl + 168) = one;
             }
+            d = *(f32*)(lvl + 168);
+            if (sent == *(f32*)(lvl + 172)) {
+                *(f32*)(lvl + 172) = d;
+            }
+            if (sent == *(f32*)(lvl + 176)) {
+                *(f32*)(lvl + 176) = d;
+            }
+            if (sent == *(f32*)(lvl + 180)) {
+                *(f32*)(lvl + 180) = d;
+            }
+            if (sent == *(f32*)(lvl + 184)) {
+                *(f32*)(lvl + 184) = d;
+            }
+            if (sent == *(f32*)(lvl + 188)) {
+                *(f32*)(lvl + 188) = d;
+            }
+            if (sent == *(f32*)(lvl + 192)) {
+                *(f32*)(lvl + 192) = d;
+            }
+            if (sent == *(f32*)(lvl + 196)) {
+                *(f32*)(lvl + 196) = one;
+            }
+            if (sent == *(f32*)(lvl + 200)) {
+                *(f32*)(lvl + 200) = d;
+            }
+            if (sent == *(f32*)(lvl + 204)) {
+                *(f32*)(lvl + 204) = d;
+            }
+            if (sent == *(f32*)(lvl + 208)) {
+                *(f32*)(lvl + 208) = d;
+            }
+            if (sent == *(f32*)(lvl + 212)) {
+                *(f32*)(lvl + 212) = d;
+            }
+            if (sent == *(f32*)(lvl + 216)) {
+                *(f32*)(lvl + 216) = d;
+            }
+            if (sent == *(f32*)(lvl + 220)) {
+                *(f32*)(lvl + 220) = d;
+            }
+            {
+                gp = (f32*)((u8*)lbl_8011C748 +
+                            ((OptsView*)optionsAudioAndPrefs30)->vol * 4);
+                gain = *gp;
+                *(f32*)(lvl + 168) *= gain;
+                *(f32*)(lvl + 176) *= gain;
+                *(f32*)(lvl + 180) *= gain;
+                *(f32*)(lvl + 184) *= gain;
+                *(f32*)(lvl + 192) *= gain;
+                *(f32*)(lvl + 200) *= gain;
+                *(f32*)(lvl + 208) *= gain;
+                *(f32*)(lvl + 212) *= gain;
+                *(f32*)(lvl + 216) *= gain;
+                *(f32*)(lvl + 220) *= gain;
+            }
+            *(f32*)(lvl + 184) = one / *(f32*)(lvl + 184);
+            *(f32*)(lvl + 200) = one / *(f32*)(lvl + 200);
+            *(f32*)(lvl + 192) = one / *(f32*)(lvl + 192);
+            *(f32*)(lvl + 216) = one / *(f32*)(lvl + 216);
         }
     }
 
-    /* resolve every sound-table entry's handle (stride 0x18) */
-    for (i = 0; i < (int)gWorldData->numSounds; i++) {
-        u8* snd = gWorldData->sounds + i * 0x18;
-        *(int*)(snd + 0x10) = AudioFindSound((const char*)snd, 0, 1);
+    for (i = 0; i < *(s16*)((u8*)gWorldData + 26); i++) {
+        u8* snd = *(u8**)((u8*)gWorldData + 44) + i * 24;
+        *(s32*)(snd + 16) = AudioFindSound((const char*)snd, 0, 1);
     }
 }
 
