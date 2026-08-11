@@ -1929,15 +1929,15 @@ void SetPlayerVars(void)
 #pragma opt_propagation reset
 
 /* 0x80050FB0 -- resolve a type id through the override tables. */
-s32 GetEnemyType(s32 arg0, s32 arg1)
+s32 GetEnemyType(s32 w, s32 l)
 {
-    s32 result = arg0;
+    s32 result = w;
 
-    if (arg0 == 3) {
+    if (w == 3) {
         result = lbl_802577AC[1];
     }
-    if ((u32)(arg0 - 4) <= 1) {
-        if (arg1 >= 4 && lbl_802577AC[4] >= 0) {
+    if ((u32)(w - 4) <= 1) {
+        if (l >= 4 && lbl_802577AC[4] >= 0) {
             result = lbl_802577AC[4];
         } else if (lbl_802577AC[2] >= 0) {
             result = lbl_802577AC[2];
@@ -1946,14 +1946,16 @@ s32 GetEnemyType(s32 arg0, s32 arg1)
         }
     }
     if (result == -1) {
-        char* name = 0;
+        char* name;
         s32 i;
         for (i = 0; i < 44; i++) {
-            if (lbl_8011AF48[i].f0 == arg0) {
+            if (w == lbl_8011AF48[i].f0) {
                 name = (char*)&lbl_8011AF48[i].f4;
-                break;
+                goto have_name;
             }
         }
+        name = 0;
+have_name:
         ErrorPrintf(lbl_801124EC, name);
     }
     return result;
