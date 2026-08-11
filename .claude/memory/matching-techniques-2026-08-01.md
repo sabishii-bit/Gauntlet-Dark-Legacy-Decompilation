@@ -945,3 +945,21 @@ on a following deref-with-update test (AudioBuildMusicName).
 - Multi-def-escape law did NOT stop substitution of an adjacent def+use
   pointer (q = pot+mul; load; ... q = other): the sceRead form worked because
   the second def preceded most uses; adjacent-first-use defs still substitute.
+
+## Inline-boundary laws (sfx explosion family, cycle 2)
+
+- A global-load ARGUMENT to an inline helper is evaluated at the inline
+  boundary (hoisted above the callee's branches). Clone the helper with the
+  constant read INSIDE the body to sink the load under its guard
+  (StartThrowGutsX device).
+- Caller-scoped `#pragma opt_propagation off` preserves an inlined flag test
+  on a CONSTANT argument (`(tf&15)>=5` with literal tf) that otherwise folds
+  under every flag preset.
+- `p = base; p += i*stride; q = p + K;` multi-def pointer chains reproduce
+  retail's add-then-addi struct addressing (proven in 5 fns); single-def
+  pointers refold to indexed forms.
+- MWCC block-scope stack slots allocate bottom-up in reverse encounter order;
+  sibling blocks never overlay — emulate retail inner-local slots with
+  `u8 _gN[K]` block pads (solved move_logic10's 392-byte frame).
+- Scoped `#pragma opt_propagation off` + `f32* q = (f32*)(tbl + i*4); q[K]`
+  is the only form keeping big-displacement table loads as `add; lfs disp`.
