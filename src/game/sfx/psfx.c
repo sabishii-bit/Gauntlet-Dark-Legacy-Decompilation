@@ -36,7 +36,7 @@ extern char lbl_801142D4[];
 extern const char lbl_80347E44[7];   /* "%s.wad" (sdata2) */
 extern const char lbl_80347E4C[6];   /* "pdata"  (sdata2) */
 extern s32 mlmLastFileSize;
-extern char lbl_80347E3C[];
+extern const char lbl_80347E3C[5];  /* "%s%s" (sdata2) */
 extern void* InitCustomEffect();
 extern s32 MBOX_FindTexture_Sub();
 extern s32 AudioFindSound();
@@ -522,50 +522,47 @@ void PlayerSfxInitData(s32* player, u32* records, s32 count, void* param4)
 
 /* fn_8008A678 @0x8008A678 -- resolve one record's custom-effect handle (rec[2])
  * and audio/mbox handle (rec[3]) if not already set. */
-void fn_8008A678(s32* player, u32* rec, void* p11, s32 p12, void* p13)
+void fn_8008A678(s32* player, u32* rec, void* p11)
 {
     if ((s32)rec[2] == -1) {
         if ((rec[0] & 0xF000100) != 0) {
             s32 alt = ((s32*)player_multiple_models)[*player * 0x13 + 4];
             rec[2] = MBOX_FindTexture_Sub((char*)(rec + 4), 0, alt, alt, 0);
-            p12 = alt;
             alt = ((s32*)player_multiple_models)[*player * 0x13 + 13];
-            if (rec[2] == 0) {
+            if ((s32)rec[2] == 0) {
                 rec[2] = MBOX_FindTexture_Sub((char*)(rec + 4), 0, alt, alt, 0);
-                p12 = alt;
             }
-            if (rec[2] == 0) {
-                p12 = -1;
+            if ((s32)rec[2] == 0) {
                 rec[2] = MBOX_FindTexture_Sub((char*)(rec + 4), 0, -1, -1, 0);
             }
         } else {
-            p12 = *(s16*)((u8*)rec + 0x32);
             rec[2] = (u32)InitCustomEffect(p11, (char*)(rec + 4),
-                                           *(s16*)((u8*)rec + 0x30), p12);
+                                           *(s16*)((u8*)rec + 0x30),
+                                           *(s16*)((u8*)rec + 0x32));
         }
     }
     if ((s32)rec[3] == -1) {
-        if ((rec[0] & 0xF000000) == 0) {
-            if (*(char*)(rec + 8) == 0) {
-                rec[3] = 0xFFFFFFFF;
+        if ((rec[0] & 0xF000000) != 0) {
+            if (*(char*)(rec + 8) != 0) {
+                u32* node;
+                void* obj;
+                sprintf((char*)&lbl_802828B0, lbl_80347E3C,
+                        (char*)(player + 0x1B0), (char*)(rec + 8));
+                obj = MBOX_ReallyFindObject((char*)&lbl_802828B0, player[0x1FD],
+                                            player[0x1FD], 1);
+                node = (u32*)AtreeFindMbidxNode((s32*)player[0x1F], obj);
+                if (node != 0) {
+                    rec[3] = *node;
+                } else {
+                    rec[3] = 0xFFFFFFFF;
+                }
             } else {
-                rec[3] = AudioFindSound((char*)(rec + 8), 0, 1, p12);
+                rec[3] = 0xFFFFFFFF;
             }
-        } else if (*(char*)(rec + 8) == 0) {
-            rec[3] = 0xFFFFFFFF;
+        } else if (*(char*)(rec + 8) != 0) {
+            rec[3] = AudioFindSound((char*)(rec + 8), 0, 1);
         } else {
-            u32* node;
-            sprintf((char*)&lbl_802828B0, lbl_80347E3C, (char*)(player + 0x1B0),
-                    (char*)(rec + 8));
-            node = (u32*)AtreeFindMbidxNode(
-                (s32*)player[0x1F],
-                MBOX_ReallyFindObject((char*)&lbl_802828B0, player[0x1FD],
-                                      player[0x1FD], 1, p13));
-            if (node == 0) {
-                rec[3] = 0xFFFFFFFF;
-            } else {
-                rec[3] = *node;
-            }
+            rec[3] = 0xFFFFFFFF;
         }
     }
 }
