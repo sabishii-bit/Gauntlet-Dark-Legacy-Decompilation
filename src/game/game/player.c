@@ -491,7 +491,7 @@ void load_player(s32 player);
 void load_player_geo(s32 player, void* p);
 s32 set_hidden_player(void* p);
 s32 load_player_model(s32 player, void* p, s32 alt, char* name);
-s32 load_player_model_sub(s32 player, void* p, char* name, void* slot);
+s32 load_player_model_sub(s32 player, void* p, s32 cls, char* name, void* slot);
 void player_get_from_save(void* p, s32 chartype);
 void player_store_in_save(void* p);
 void PlayerUpdateAtts(void* p);
@@ -2108,6 +2108,9 @@ extern char* lbl_8012006C[];  /* per-class dir names */
 extern char* lbl_80120184[];  /* per-class R_WRIST node names */
 extern char* lbl_80120144[];  /* per-class L_WRIST node names */
 extern s32 lbl_80120598[];    /* per-class weapon-variant flag */
+extern u8 lbl_80113AE0[];     /* .rodata fmt block base (fmts at +1464..+1520) */
+extern char lbl_80114098[];   /* "players\%s\sfx%s" */
+extern char lbl_80347A38[];   /* "rb" (sdata2) */
 extern char* lbl_801205D8[];  /* rune world tags (4) */
 extern char* lbl_801205F8[];  /* crystal color tags (8) */
 extern char* lbl_8011FCD4[];  /* POTION_ICON_* names (5) */
@@ -2123,7 +2126,7 @@ extern void FatalErrorf(const char* fmt, ...);
 extern int bulletproof_printf(const char* fmt, ...);
 extern s32 BytesFree(void);
 extern char* AllocMem(u32 size, s32 pool, char* tag);
-extern char* AllocFile(char* name, char* mode, u32 sizehint, char* buf);
+extern char* AllocFile(char* name, char* mode, u32 sizehint);
 extern void MLMReadFile(char* name, char* mode, u32 size, char* buf);
 extern void* AtreeMatch(void* bank, char* name, s32 a);
 extern u32 MBOX_LoadModelFixed(char* name, u32 arena, s32 a, char* b, u32 c);
@@ -3916,69 +3919,95 @@ s32 set_hidden_player(void* vp) {
 /* Load the class model + sfx model set into player slot i.            */
 s32 load_player_model(s32 i, void* vp, s32 alt, char* name) {
     Player* p = vp;
-    u32 arena;
-    u32 sfx;
-    s32 pad;
+    u8* pot = (u8*) potionicon_tab;
+    s32 prod;
+    u8* q;
+    s32 cls;
+    s32 ret;
+    s32 t;
+    s32 raw;
 
-    pad = p->class_id;
-    arena = load_player_model_sub(i, p, name, &player_multiple_models[i]);
-    if (pad < 0 || pad > 3) {
-        pad = i;
+    prod = i * 76;
+    q = pot + i * 13148;
+    cls = *(s32*) (q + 3140);
+    ret = load_player_model_sub(i, vp, cls, name, pot + prod + 1300);
+    raw = *(s32*) ((u8*) p + 12);
+    t = raw;
+    if (raw >= 8) {
+        t -= 8;
     }
-    sprintf(tbuf, "players\\%s\\sfx%s", lbl_8012006C[p->char_type], lbl_801200F4[pad]);
-    sfx = MBOX_LoadModelFixed(tbuf, (u32)player_multiple_models[i].sfx_arena, 0, NULL,
-                              player_multiple_models[i].sfx_max);
-    player_multiple_models[i].sfx_arena = (void*)sfx;
-    MLMReadFile(tbuf, "rb", player_multiple_models[i].sfx_buf_max, player_multiple_models[i].sfx_buf);
-    player_multiple_models[i].sfx_remap = fn_8001267C((u16*)player_multiple_models[i].sfx_buf, sfx,
-                                          player_multiple_models[i].sfx_remap);
-    InitTexMods(player_multiple_models[i].model_buf, (u32)player_multiple_models[i].arena);
-    InitTexMods(player_multiple_models[i].anim_buf, (u32)player_multiple_models[i].arena);
-    InitTexMods(player_multiple_models[i].sfx_buf, (u32)player_multiple_models[i].sfx_arena);
-    return arena;
+    if (cls < 0 || cls >= 4) {
+        cls = i;
+    }
+    sprintf((char*) pot + 1268, lbl_80114098,
+            (char*) lbl_8012006C + t * 4, lbl_801200F4[cls]);
+    q = pot + prod;
+    cls = MBOX_LoadModelFixed((char*) pot + 1268, *(u32*) (q + 1360), 0, NULL,
+                              *(u32*) (q + 1352));
+    *(s32*) (q + 1352) = cls;
+    MLMReadFile((char*) pot + 1268, lbl_80347A38, *(u32*) (q + 1364),
+                *(char**) (q + 1372));
+    *(s32*) (q + 1356) =
+        fn_8001267C(*(u16**) (q + 1372), cls, *(s32*) (q + 1356));
+    InitTexMods(*(void**) (q + 1336), *(u32*) (q + 1316));
+    InitTexMods(*(void**) (q + 1348), *(u32*) (q + 1316));
+    InitTexMods(*(void**) (q + 1372), *(u32*) (q + 1352));
+    return ret;
 }
 
 /* Load one class model + anim set into a model slot.                  */
-s32 load_player_model_sub(s32 i, void* vp, char* name, void* vslot) {
-    Player* p = vp;
+s32 load_player_model_sub(s32 i, void* vp, s32 cls_in, char* name, void* vslot) {
     PlayerModelSlot* slot = vslot;
-    u32 arena;
-    s32 cls;
+    u8* pot = (u8*) potionicon_tab;
+    u8* tab = (u8*) lbl_8011FC48;
+    u8* fmt = (u8*) lbl_80113AE0;
+    u8* q;
     s32 tier;
-    s32 pad;
+    s32 ct;
+    s32 ct8;
+    s32 cls;
+    u32 arena;
 
-    cls = p->character;
-    tier = p->level / 10;
-    pad = p->class_id;
-    if (name == NULL) {
-        if (lbl_80120598[cls] == 0) {
-            sprintf(tbuf, "players\\%s\\%s", lbl_8012006C[cls], lbl_801200F4[pad]);
-        } else {
-            sprintf(tbuf, "players\\%s\\%s%d0", lbl_8012006C[cls],
-                        lbl_801200F4[pad], tier);
-        }
-    } else {
-        sprintf(tbuf, "players\\%s\\%s", lbl_8012006C[cls], name);
+    q = (u8*) vp;
+    tier = ((Player*) vp)->level / 10;
+    ct = *(s32*) (q + 12);
+    q = pot + i * 13148;
+    cls = *(s32*) (q + 3140);
+    ct8 = ct;
+    if (ct >= 8) {
+        ct8 -= 8;
     }
-    arena = MBOX_LoadModelFixed(tbuf, (u32)slot->arena, 0, NULL, slot->model_max);
-    if ((s32)slot->anim_max < 1) {
-        slot->model_buf = AllocFile(tbuf, "rb", slot->anim_max, NULL);
+    if (name != NULL) {
+        sprintf((char*) pot + 1268, (char*) fmt + 1484, tab + ct * 4 + 1060, name);
+    } else if (*(s32*) (tab + ct * 4 + 2384) != 0) {
+        sprintf((char*) pot + 1268, (char*) fmt + 1500, tab + ct * 4 + 1060,
+                *(char**) (tab + cls * 4 + 1196), tier);
     } else {
-        MLMReadFile(tbuf, "rb", slot->anim_max, slot->model_buf);
+        sprintf((char*) pot + 1268, (char*) fmt + 1484, tab + ct * 4 + 1060,
+                *(char**) (tab + cls * 4 + 1196));
     }
-    slot->anim_remap2 = fn_8001267C((u16*)slot->model_buf, arena, slot->anim_remap2);
-    slot->anim_remap = (s32)arena;
-    slot->cur_class = cls;
-    slot->cur_pad = pad;
+    arena = MBOX_LoadModelFixed((char*) pot + 1268, slot->model_max, 0, NULL,
+                                (u32) slot->arena);
+    if ((s32) slot->anim_max > 0) {
+        MLMReadFile((char*) pot + 1268, lbl_80347A38, slot->anim_max, slot->model_buf);
+    } else {
+        slot->model_buf = AllocFile((char*) pot + 1268, lbl_80347A38, slot->anim_max);
+    }
+    slot->anim_remap2 = fn_8001267C((u16*) slot->model_buf, arena, slot->anim_remap2);
+    slot->arena = (void*) arena;
+    slot->cur_class = ct;
+    slot->cur_pad = cls;
     slot->cur_tier = tier;
-    slot->cur_override = (s32)name;
-    sprintf(tbuf, "players\\%s\\anim", lbl_8012006C[p->char_type]);
-    if ((s32)slot->model_buf_max < 1) {
-        slot->anim_buf = AllocFile(tbuf, "rb", slot->model_buf_max, NULL);
+    slot->cur_override = (s32) name;
+    sprintf((char*) pot + 1268, (char*) fmt + 1520, tab + ct8 * 4 + 1060);
+    if ((s32) slot->model_buf_max > 0) {
+        MLMReadFile((char*) pot + 1268, lbl_80347A38, slot->model_buf_max,
+                    slot->anim_buf);
     } else {
-        MLMReadFile(tbuf, "rb", slot->model_buf_max, slot->anim_buf);
+        slot->anim_buf = AllocFile((char*) pot + 1268, lbl_80347A38,
+                                   slot->model_buf_max);
     }
-    slot->sfx_remap = fn_8001267C((u16*)slot->anim_buf, arena, slot->sfx_remap);
+    slot->anim_remap = fn_8001267C((u16*) slot->anim_buf, arena, slot->anim_remap);
     return arena;
 }
 
