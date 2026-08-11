@@ -32,6 +32,7 @@ extern u8 lbl_80118250[];
 extern s32 gFrameTicks;  /* integer frame delta */
 extern s32 gClockStepTicks; /* caption frame delta */
 extern f32 sMusicFadeBase;  /* float frame delta */
+extern f32 gClockFrameStep;
 /* Assorted engine handles read by DoGoodWizard/init_gamemovie. */
 extern void* sMusicTrackHi;
 extern void* lbl_80344BD4;
@@ -297,34 +298,28 @@ void calc_good_wiz_attn(s32 reset, s32 force)
     f32 target;
     f32 delta;
     f32 mtxbuf[3];
+    u8 unused[32];
 
-    if (force == 0) {
-        if (good_wiz_plyr_attn >= 0) {
-            u8* p = gPlayers + good_wiz_plyr_attn * 0x335C;
-            if (*(s32*)(p + 232) == 1) {
-                goto have_target;
-            }
+    if (force == 0 && good_wiz_plyr_attn >= 0) {
+        u8* p = gPlayers + good_wiz_plyr_attn * 0x335C;
+        if (*(s32*)(p + 232) == 1) {
+            goto have_target;
         }
-        {
-            s32 tries = 4;
-            s32 found = 0;
-            do {
-                s32 n = good_wiz_plyr_attn + 1;
-                if (n >= 4) {
-                    n = 0;
-                }
-                good_wiz_plyr_attn = n;
-                {
-                    u8* p = gPlayers + good_wiz_plyr_attn * 0x335C;
-                    if (*(s32*)(p + 232) == 1) {
-                        break;
-                    }
-                }
-                found++;
-            } while (--tries);
-            if (found == 4) {
-                return;
+    }
+    {
+        s32 tries;
+        s32 found = 0;
+        for (tries = 4; tries != 0; tries--) {
+            if ((good_wiz_plyr_attn = good_wiz_plyr_attn + 1) >= 4) {
+                good_wiz_plyr_attn = 0;
             }
+            if (*(s32*)(gPlayers + good_wiz_plyr_attn * 0x335C + 232) == 1) {
+                break;
+            }
+            found++;
+        }
+        if (found == 4) {
+            return;
         }
     }
 
@@ -337,7 +332,7 @@ have_target:
     }
     delta = target - good_wiz_yaw;
     if (reset == 0) {
-        f32 lim = (f32)(1.5707963267948966 * (double)sMusicFadeBase);
+        f32 lim = (f32)(1.5707963267948966 * (double)gClockFrameStep);
         if (delta > lim) {
             delta = lim;
         }
