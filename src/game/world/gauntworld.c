@@ -2154,8 +2154,7 @@ s32 fn_8005FB48(f32 radius, f32* from, f32* to, f32* limitPosition,
     s32 itemIndex;
     s32 bestIndex;
     register s32 stop;
-    register f32* toPtr;
-    register f32* fromPtr;
+    s32 off;
     f32 delta[3];
     f32 zero;
     f64 zeroDouble;
@@ -2167,25 +2166,23 @@ s32 fn_8005FB48(f32 radius, f32* from, f32* to, f32* limitPosition,
     s32 subtype;
 
     stop = stopAtFirst;
-    toPtr = to;
-    fromPtr = from;
     bestIndex = -1;
     if (limitPosition != 0) {
-        delta[0] = limitPosition[0] - fromPtr[0];
+        delta[0] = limitPosition[0] - from[0];
         delta[1] = sItemZero;
-        delta[2] = limitPosition[2] - fromPtr[2];
+        delta[2] = limitPosition[2] - from[2];
         limitDistance = fqdist(delta[0], delta[2]);
     } else {
         limitDistance = lbl_80347004;
     }
 
-    itemIndex = 0;
+    off = 0;
     zeroDouble = sZeroDouble;
-    from = 0;
+    itemIndex = 0;
     zero = sItemZero;
     for (; itemIndex < sNumItems;
-         itemIndex++, from = (f32*)((u8*)from + sizeof(Item))) {
-        item = (Item*)((u8*)sItems + (s32)from);
+         itemIndex++, off += sizeof(Item)) {
+        item = (Item*)((u8*)sItems + off);
         if (item->active == -1) {
             continue;
         }
@@ -2241,7 +2238,7 @@ subtype_41:
 
 eligible_item:
         if (info->item.coltype == 4) {
-            if ((f64)(s32)fn_8005FDA8((u8*)item, fromPtr, toPtr, 0, 0,
+            if ((f64)(s32)fn_8005FDA8((u8*)item, from, to, 0, 0,
                                        radius) >= zeroDouble) {
                 hit = 1;
             } else {
@@ -2251,13 +2248,13 @@ eligible_item:
             hit = LineCylinderCollide(&item->objgrp.coll_pos[0],
                                       info->item.radius + radius,
                                       info->item.height + radius,
-                                      fromPtr, toPtr, delta, 0);
+                                      from, to, delta, 0);
         }
 
         if (hit != 0) {
-            delta[0] = item->objgrp.coll_pos[0] - fromPtr[0];
+            delta[0] = item->objgrp.coll_pos[0] - from[0];
             delta[1] = zero;
-            delta[2] = item->objgrp.coll_pos[2] - fromPtr[2];
+            delta[2] = item->objgrp.coll_pos[2] - from[2];
             distance = fqdist(delta[0], delta[2]);
             if (bestIndex >= 0 && distance >= zero) {
                 continue;
