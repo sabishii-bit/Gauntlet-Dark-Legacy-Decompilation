@@ -201,6 +201,11 @@ WorldObj* FindWorldObject(WorldObj* node, char* name);
 static const char lbl_80348798[] = "anim";
 static const char lbl_803487A0[] = "worlds";
 static const float lbl_80348778 = 0.0f;
+static const double lbl_80348768 = 0.0;  /* invgridsize fallback   */
+static const double lbl_80348788 = 0.5;  /* Newton half / center weight */
+static const double lbl_80348790 = 3.0;  /* Newton three            */
+static const double lbl_803487A8 = 1.0;  /* invgridsize numerator  */
+extern f64 __frsqrte(f64 x);
 
 /* DoWorldAnimSub: advance one object's keyframe animation by one frame.
  * `wa` is the worldanim track; `panim` points at the object's animdata pointer
@@ -356,29 +361,40 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim, u8* animBase) {
  * distance via frsqrte+Newton; the squared-distance comparison used here
  * selects the identical object.) */
 struct mbnode* FindWorldAnimNode(f32* point, f32 maxdist) {
-    WorldObj* wobjs = (WorldObj*)gWorldInfo.wobjs;
+    char* base = gWorldName;
+    WorldObj* obj;
     WorldObj* best = NULL;
-    f32 bestd2 = maxdist * maxdist;
+    f32 bestd = maxdist;
     s32 i;
 
-    for (i = 0; i < gWorldInfo.nworldanims; i++) {
-        struct worldanim* wa = &gWorldInfo.worldanims[i];
-        WorldObj* obj;
+    for (i = 0; i < *(s32*)(base + 372); i++) {
+        u8* wa = *(u8**)(base + 368) + i * 16;
         f32 m[16]; /* node world-state; translation at +0x30 (index 12..14) */
-        f32 dx, dy, dz, d2;
+        u8 _pad[16];
+        f32 dx, dy, dz;
+        volatile f32 tmp;
+        f32 d2;
 
-        if (wa->data == NULL) {
+        if (*(u32*)(wa + 12) == 0) {
             continue;
         }
-        obj = &wobjs[wa->objidx];
+        obj = (WorldObj*)(*(u8**)(base + 232) + *(s16*)wa * 60);
         GetWorldMat(obj->nodeptr, m, 0);
-        dx = m[13] - point[1];
         dy = m[12] - point[0];
+        dx = m[13] - point[1];
         dz = m[14] - point[2];
-        d2 = dy * dy + dx * dx + dz * dz;
-        if (d2 < bestd2) {
+        d2 = dz * dz + (d2 = dy * dy + dx * dx);
+        if (d2 > lbl_80348778) {
+            f64 y = __frsqrte(d2);
+            y = lbl_80348788 * y * (lbl_80348790 - y * y * d2);
+            y = lbl_80348788 * y * (lbl_80348790 - y * y * d2);
+            y = lbl_80348788 * y * (lbl_80348790 - y * y * d2);
+            tmp = (f32)(d2 * (lbl_80348788 * y * (lbl_80348790 - y * y * d2)));
+            d2 = tmp;
+        }
+        if (d2 < bestd) {
             best = obj;
-            bestd2 = d2;
+            bestd = d2;
         }
     }
     if (best != NULL) {
@@ -927,9 +943,6 @@ void* NewWorldObject(WorldObj* obj, WorldObj* parent) {
  * bounds/grid constants, allocate the coltri-checked and animdata arrays,
  * and arm the animation and particle-system tables.  Returns wobjs. */
 
-static const double lbl_80348768 = 0.0;  /* invgridsize fallback   */
-static const double lbl_80348788 = 0.5;  /* world center weight    */
-static const double lbl_803487A8 = 1.0;  /* invgridsize numerator  */
 
 WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
     s32* blob = (s32*)data;
