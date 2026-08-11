@@ -1320,16 +1320,22 @@ void ClearControls(void)
 
 /* 0x80032964  full per-player init: button records, control structs,
  * repeat state, schemes/actuator flags, then the joystick angle table */
+static void clear_button_records(u8* p)
+{
+    int j;
+
+    for (j = 0; j < 13; j++) {
+        *(u32*)(p + j * 8 + 4) = *(u32*)(p + j * 8) = 0;
+    }
+}
+
 void InitPlayerControls(void)
 {
     int i, j;
 
     lbl_803445FC = 0;
     for (i = 0; i < 4; i++) {
-        for (j = 0; j < 13; j++) {
-            *(u32*)(lbl_80240AE8[i] + j * 8) = 0;
-            *(u32*)(lbl_80240AE8[i] + j * 8 + 4) = 0;
-        }
+        clear_button_records(lbl_80240AE8[i]);
         lbl_80240E30[i].ctl = 0;
         lbl_80240E30[i].levels = 0;
         lbl_80240E30[i].edges = 0;
