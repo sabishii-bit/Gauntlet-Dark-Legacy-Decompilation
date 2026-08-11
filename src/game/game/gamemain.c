@@ -2091,8 +2091,8 @@ s32 fn_80051480(f32* pos)
             d = tmp;
         }
         if (d < best_dist) {
-            best_dist = d;
             best_idx = i;
+            best_dist = d;
         }
         node += 104;
     }
