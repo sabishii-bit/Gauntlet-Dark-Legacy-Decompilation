@@ -910,3 +910,38 @@ on a following deref-with-update test (AudioBuildMusicName).
   DIRECT typed extern global (reloc opacity); any pointer var re-folds to
   `(mul+const)+base`; direct global rematerializes lis/addi per BB. Both
   can't hold at once -- parked 28 (schedule class).
+
+
+## player.c small-fn lane (2026-08-11)
+
+- **Volatile-array spill lever (NEW, cracked a documented park)**:
+  PlayerSetParent went EXACT by declaring `volatile f32 d[3]` and writing the
+  three subtractions as explicit per-component statements -- volatile forces
+  each fsubs result to a stack slot before the calls and reloads after,
+  reproducing retail's no-saved-FPR frame (-40 vs our f29-f31 -64). Use when
+  target stores FP temps to stack across calls instead of using saved FPRs.
+- WritePlayerInfo EXACT: `Player* p` declared FIRST flips the p/i r27/r28 web
+  swap (decl-order homes law works for GPR pointer webs); plus
+  mbBlitCvtCoord's prototype was f64 -- target lfs proves f32 arg.
+- ExpToLevel parked 18 (3-web volatile rotation rate/hi/need r4/r5/r6 vs
+  r6/r4/r5; 5 variants incl. lv-as-loop-counter, split decls/inits).
+- mini_inventory_draw_label 75->26: pooled-base access via
+  `(u8*)potionicon_tab + i*40 + 2404` casts DOES reloc as potionicon_tab with
+  target displacements (draw_label had few enough refs); switch(st) with
+  case1/case3 grouped + case2, precomputed x/y args, two-step
+  `y = A - 25; y += 128 - slide;` (single-expr reassociates). Residual: MWCC
+  CSEs our (sym+i*40) into ONE add while target emits TWO (r6 direct-form +
+  r9 pointer-form) -- pooling-era duplicate-add wall, same family as sceOpen.
+- load_player_model/_sub REWRITTEN from target asm (semantics were wrong):
+  sub takes 5 args (r5 = class, unused inside; sub re-reads class from
+  gPlayers[i]+4 via pool base +3140); dir-name tables are INLINE char[4] rows
+  passed WITHOUT deref ((char*)lbl_8012006C + t*4, and in sub
+  lbl_8011FC48+1060/+1196/+2384 block offsets); fmts = lbl_80113AE0+1484/1500/
+  1520, lbl_80114098; "rb" = sdata2 lbl_80347A38; char_type clamp t-=8 at >=8;
+  AllocFile is 3-arg. Parked at 73/141 real: the pooled-base duplicate-add +
+  disp-vs-lwzx walls (pointer var refolds i*13148+3140 into lwzx; direct
+  statics with MANY refs anchor to ...bss.0 section reloc instead of
+  potionicon_tab -- possible -pool flag difference worth a cflags experiment).
+- Multi-def-escape law did NOT stop substitution of an adjacent def+use
+  pointer (q = pot+mul; load; ... q = other): the sceRead form worked because
+  the second def preceded most uses; adjacent-first-use defs still substitute.
