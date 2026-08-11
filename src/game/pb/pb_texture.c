@@ -122,6 +122,9 @@ extern s32 lbl_80343F8C;
 /* debug string */
 extern char lbl_80116AC0[];  /* "Lightmaps > %dK, %d/%d: %s" */
 
+/* per-size-class TLUT region u64 bitmasks (.data, 8 bytes per class) */
+extern const u64 lbl_80116AB0[];
+
 /* ================================================================== */
 
 /* GX callback: map a tlut_name to its GXTlutRegionObj (stride 0x10). */
@@ -162,31 +165,66 @@ int fn_800C6BB4(u8 sizeClass, s32 handle) {
     u8* mgr = (u8*)&lbl_802C7438;
     s32 first = lbl_80348FC8[sizeClass];
     s32 last  = lbl_80348FD0[sizeClass];
+    u64 held;
     s32 i;
-    s32 mask_lo, mask_hi;
 
     for (i = first; i < last; i++) {
-        if (mgr[i] >= 0xff)
-            break;
-        mgr[i]++;
+        if (mgr[i] < 0xff)
+            mgr[i]++;
     }
 
-    mask_lo = (s32)lbl_803450D8;
-    mask_hi = (s32)lbl_803450E0;
-    (void)mask_lo;
-    (void)mask_hi;
-
-    /* find / evict a region slot (see disassembly) */
-    for (i = first; i < last; i++) {
-        u64 bit = __shl2i(0, 1, i);
-        if ((lbl_803450D8 & bit) == 0) {
-            lbl_803450D8 |= bit;
-            mgr[i] = 0;
-            *(s32*)(mgr + 0x320 + i * 4) = handle;
-            return i;
+    held = lbl_803450D8;
+    if ((lbl_80116AB0[sizeClass] & held) != lbl_80116AB0[sizeClass]) {
+        s32 z = 0;
+        while (first < last) {
+            if ((held & __shl2i(0, 1, first)) == z)
+                break;
+            first++;
+        }
+        {
+            u8* q;
+            lbl_803450D8 |= __shl2i(0, 1, first);
+            q = mgr + first * 4;
+            mgr[first] = z;
+            *(s32*)(q += 0x320) = handle;
+            return first;
         }
     }
-    return first;
+    {
+        s32 j = first + 1;
+        s32 best = mgr[first];
+        u8* p = mgr + j;
+        u64 locks = lbl_803450E0;
+        s32 z2 = 0;
+        u8* hp;
+        u32 old;
+        s32 hi;
+        u32 lo;
+
+        for (; j < last; j++, p++) {
+            if ((locks & __shl2i(0, 1, j)) == z2) {
+                if (*p > best) {
+                    best = *p;
+                    first = j;
+                }
+            }
+        }
+        hp = mgr + first * 4;
+        old = *(s32*)(hp += 0x320);
+        hi = (s16)(old >> 16);
+        lo = old & 0xFFFF;
+        if (hi != -1) {
+            u8* desc = *(u8**)((u8*)gWinGlobals->tbl + hi * 16 + 4);
+            u8* t = *(u8**)(desc + 0x80) + (s16)lo * 48;
+            t[44] = -1;
+            t[45] = -1;
+        } else {
+            *(s32*)(mgr + (s16)lo * 16 + 0x5B8) = -1;
+        }
+        mgr[first] = 0;
+        *(s32*)hp = handle;
+        return first;
+    }
 }
 
 /* Build the GX texture objects for model `id`'s texture list. */
