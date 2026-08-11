@@ -877,3 +877,36 @@ return register and the pointer copy becomes the separate addi
 (DrawStringTextMLines, 23 -> 4 real at exact length). Also: direct
 call-result store (`slot[i] = call();` with no temp) restores lwzu fusion
 on a following deref-with-update test (AudioBuildMusicName).
+
+
+## ml_fmath/fakelib quick-win lane (2026-08-11)
+
+- **Multi-def var escapes forward-substitution**: MWCC reassociates
+  `pos + len + 31` to `(pos+len)+31` (const last) through ANY single-use
+  named temp, parens, u32/s32 casts, or cast-transit. The ONLY source form
+  that kept `addi rT,len,31` as a separate early insn was reusing a
+  MULTI-DEF variable (`a = rem + 31; span = (pos + a) & ~31; a = pos & ~31;
+  span -= a;`) -- a var with a second def is never substituted (sceRead,
+  183->24, opcode-identical).
+- **Nonvolatile homes via decl order + param alias local**: sceRead's
+  homes landed after declaring `span, rem, copied, f` in that order
+  (colored r31,r30,r29,r28) with `rem = len` as an explicit local; keeping
+  one later `copied = len` (not rem) preserved the entry `mr r30,r5`.
+- **Second-atan2 pre-call temp block (Extract*)**: `r = atan2(...); y = ...;
+  x = ...; angleN = r; angleM = atan2(y, x);` produces the fmr-transit pair;
+  in-place fneg/fdivs come from two-step `y = m[k]; y = -y; y = y/mag;`.
+  ExtractPYR exact with: x-def BEFORE y-def in the no-neg branch, volatile
+  reload of gMlFmathZero for the lock-branch zero, `s = matrix[5]` arg2-first
+  temp for the lock atan2. ExtractYPR (mirrored) parks at 18 real: a
+  2-region f0/f3 rotation (r-transit vs y web) resisted decl order,
+  statement placement, and direct-assign variants -- park class.
+- **MulMat3 row law**: rows as 3-accumulator compound chains (`t0 = a1*b4;
+  t1 = a1*b5; t2 = a1*b6; t0 += a0*b0; ...`) match the fmuls/fmadds stream
+  (plain expressions swap the fmuls to a0*b0). Single-def long-lived vars
+  color f3.. in DECL order (b0,b1,b2,b4,...; per-row a0/a2 as DISTINCT
+  single-def names -> f12/f13 with reuse); `u = a1*b4` split in row1 only
+  gives the uncoalesced first madd. Parks at 20 real (row1 a1/t0 tie).
+- sceOpen wall: `(base + i*88) + 1440` disp-last form only survives from a
+  DIRECT typed extern global (reloc opacity); any pointer var re-folds to
+  `(mul+const)+base`; direct global rematerializes lis/addi per BB. Both
+  can't hold at once -- parked 28 (schedule class).

@@ -147,36 +147,54 @@ void ExtractYPR(const f32* matrix, f32* angles)
     f32 absValue = matrix[9];
     u8 unused[48];
     f32 angle2;
-    f32 angle1;
     f32 angle0;
+    f32 angle1;
     f32 magnitude;
+    f32 r;
+    f32 y;
+    f32 x;
 
     *(u32*)&absValue &= 0x7FFFFFFF;
     if (__fabs(1.0 - absValue) < 0.0001) {
         f64 lockedAngle;
         angle1 = atan2(-matrix[2], matrix[0]);
-        if (matrix[9] > 0.0f) {
+        if (matrix[9] > gMlFmathZero) {
             lockedAngle = 1.570796327;
         } else {
             lockedAngle = -1.570796327;
         }
         angle0 = lockedAngle;
-        angle2 = 0.0f;
+        angle2 = *(volatile f32*)&gMlFmathZero;
     } else {
         angle2 = atan2(-matrix[1], matrix[5]);
         magnitude = cos(angle2);
         if (magnitude == 0.0) {
             if (angle2 > 0.0) {
-                angle0 = atan2(-matrix[1], matrix[9]);
-                angle1 = atan2(-matrix[4], matrix[6]);
+                f32 a = -matrix[1];
+                r = atan2(matrix[9], a);
+                x = -matrix[4];
+                y = matrix[6];
+                angle0 = r;
+                angle1 = atan2(y, x);
             } else {
-                angle0 = atan2(matrix[1], matrix[9]);
-                angle1 = atan2(-matrix[6], matrix[4]);
+                x = matrix[1];
+                r = atan2(matrix[9], x);
+                y = matrix[6];
+                y = -y;
+                x = matrix[4];
+                angle0 = r;
+                angle1 = atan2(y, x);
             }
         } else {
             magnitude = matrix[5] / magnitude;
-            angle0 = atan2(matrix[9], magnitude);
-            angle1 = atan2(matrix[8] / magnitude, matrix[10] / magnitude);
+            y = matrix[9];
+            r = atan2(y, magnitude);
+            y = matrix[8];
+            x = matrix[10];
+            y = y / magnitude;
+            x = x / magnitude;
+            angle0 = r;
+            angle1 = atan2(y, x);
         }
     }
     angles[0] = angle0;
@@ -706,8 +724,10 @@ void BodyVector(const f32* vector, f32* out, const f32* matrix)
 /* Multiply the rotational 3x3 portions of two column-major mat44s. */
 void MulMat3(f32* lhs, f32* rhs, f32* out)
 {
-    f32 b4, b5, b6, b0, b1, b2, b8, b9, b10;
-    f32 a0, a1, a2;
+    f32 b0, b1, b2, b4, b5, b6, b8, b9, b10;
+    f32 t0, t1, t2, u;
+    f32 a0, a2, c0, c2, d0, d2;
+    f32 a1;
 
     lhs[15] = rhs[15] = 0.0f;
     b4 = rhs[4];
@@ -722,21 +742,48 @@ void MulMat3(f32* lhs, f32* rhs, f32* out)
     a2 = lhs[2];
     b9 = rhs[9];
     b10 = rhs[10];
-    out[0] = a1 * b4 + a0 * b0 + a2 * b8;
-    out[1] = a1 * b5 + a0 * b1 + a2 * b9;
-    out[2] = a1 * b6 + a0 * b2 + a2 * b10;
+    u = a1 * b4;
+    t1 = a1 * b5;
+    t0 = u + a0 * b0;
+    t2 = a1 * b6;
+    t1 += a0 * b1;
+    t0 += a2 * b8;
+    t2 += a0 * b2;
+    t1 += a2 * b9;
+    out[0] = t0;
+    t2 += a2 * b10;
+    out[1] = t1;
+    out[2] = t2;
     a1 = lhs[5];
-    a0 = lhs[4];
-    a2 = lhs[6];
-    out[4] = a1 * b4 + a0 * b0 + a2 * b8;
-    out[5] = a1 * b5 + a0 * b1 + a2 * b9;
-    out[6] = a1 * b6 + a0 * b2 + a2 * b10;
+    c0 = lhs[4];
+    c2 = lhs[6];
+    t0 = a1 * b4;
+    t1 = a1 * b5;
+    t2 = a1 * b6;
+    t0 += c0 * b0;
+    t1 += c0 * b1;
+    t2 += c0 * b2;
+    t0 += c2 * b8;
+    t1 += c2 * b9;
+    t2 += c2 * b10;
+    out[4] = t0;
+    out[5] = t1;
+    out[6] = t2;
     a1 = lhs[9];
-    a0 = lhs[8];
-    a2 = lhs[10];
-    out[8] = a1 * b4 + a0 * b0 + a2 * b8;
-    out[9] = a1 * b5 + a0 * b1 + a2 * b9;
-    out[10] = a1 * b6 + a0 * b2 + a2 * b10;
+    d0 = lhs[8];
+    d2 = lhs[10];
+    t0 = a1 * b4;
+    t1 = a1 * b5;
+    t2 = a1 * b6;
+    t0 += d0 * b0;
+    t1 += d0 * b1;
+    t2 += d0 * b2;
+    t0 += d2 * b8;
+    t1 += d2 * b9;
+    t2 += d2 * b10;
+    out[8] = t0;
+    out[9] = t1;
+    out[10] = t2;
 }
 
 static inline f32 mlSqrtAccurate(f32 value)
