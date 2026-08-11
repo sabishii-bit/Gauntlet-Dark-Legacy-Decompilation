@@ -1313,33 +1313,33 @@ static void do_controlsmenu(OPTMENU* m, s32 player)
 
 static void do_audiomenu(OPTMENU* m)
 {
+    s32* sm;
     s32 i;
-    s32 off;
     OPTITEM* it;
     s32 fh;
-    s32* sm;
     s32 act;
+    u8 unused[8];
+    OPTGLOBALS* og = (OPTGLOBALS*)&optglobals;
 
     i = 0;
-    off = 0;
     fh = FontHeight(m->scale, OPTMENU_FONT);
     sfx_sound_count += vb_elapsed_menu;
-    sm = &optglobals.sound_mode;
-    for (;; i++, off += 0x24) {
-        it = (OPTITEM*)((u8*)m->items + off);
+    sm = &og->sound_mode;
+    for (;; i++) {
+        it = &m->items[i];
         if (it->text == NULL) {
             break;
         }
         act = (i == m->sel) ? 0 : 1;
         switch (it->code) {
         case 0x17:
-            position_audioslider(&optglobals.music, m->x,
-                                 it->draw_y + (fh + OPTMENU_VOL_DY),
+            position_audioslider(&og->music, m->x,
+                                 it->draw_y + fh + OPTMENU_VOL_DY,
                                  OPTAUDIO_VOL_WIDTH, OPTAUDIO_VOL_HEIGHT, act);
             break;
         case 0x18:
-            position_audioslider(&optglobals.sfx, m->x,
-                                 it->draw_y + (fh + OPTMENU_VOL_DY),
+            position_audioslider(&og->sfx, m->x,
+                                 it->draw_y + fh + OPTMENU_VOL_DY,
                                  OPTAUDIO_VOL_WIDTH, OPTAUDIO_VOL_HEIGHT, act);
             break;
         case 0x19:
