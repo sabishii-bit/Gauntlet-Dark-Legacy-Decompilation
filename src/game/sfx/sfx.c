@@ -1993,7 +1993,58 @@ s32 fn_80094080(f32* pos, s32 index)
     return idx;
 }
 
-/* 0x80094164 fn_80094164 -- doc-only (Start*, big). */
+extern s32 lbl_8034482C;
+
+/* page-explicit clone of StartFXSubGuts: taking the page as a param lets the
+ * caller compute EffectInfo once in its prologue (target hoists it to r31). */
+static s32 StartFXSubGutsP(EffectPage* page, s32 type, f32* pos, u32 fla, u32 flb, f32 time)
+{
+    s32 idx = -1;
+    EffectHeader* h;
+
+    if (type < 0 || type >= MAXEFFECTTYPES) {
+        ErrorPrintf("Bad Effect type: %d", type);
+        return -1;
+    }
+    h = &page->info[type];
+    if (h->atree != NULL && (idx = StartFXTree(h->atree, pos, fla, flb, time)) >= 0) {
+        MBTreeSetZsortAdd(page->fx[idx].node, h->zmod, 1);
+        MBTreeSetAlpha(page->fx[idx].node, h->alpha, 1);
+        page->fx[idx].type = (fx_type)type;
+    }
+    return idx;
+}
+
+/* 0x80094164 -- start a table-selected magic fx: table picked by the
+ * beam-mode global and `which` (four duplicated StartFXSubGutsP inlines).
+ * STRUCTURAL MATCH, 183/183, opcode streams identical. PARKED residual:
+ * duplicated-inline renum in arms 2-4 only (arm 1 byte-exact) -- target
+ * colors type=r26/h=r27/base=r28/mul=r29/ret=r30 there, ours rotates to
+ * type=r30/ret=r29/h=r26/mul=r28/base=r27. Exhausted: ret-var vs direct
+ * returns (identical output, axis dead), caller-local type staging (adds
+ * addi copies), ternary select (breaks inlining). Do not re-run. */
+s32 fn_80094164(f32* pos, u32 idx, s32 which)
+{
+    MagicView* tbl = (MagicView*)lbl_80122088;
+    EffectPage* page = (EffectPage*)EffectInfo;
+    u32 m = idx & 0xF;
+    s32 ret;
+
+    if (lbl_8034482C != 0) {
+        if (which != 0) {
+            ret = StartFXSubGutsP(page, tbl->kindidB[m], pos, 0, 0x880, 0.0f);
+        } else {
+            ret = StartFXSubGutsP(page, tbl->kindidA[m], pos, 0, 0x880, 0.0f);
+        }
+    } else {
+        if (which != 0) {
+            ret = StartFXSubGutsP(page, tbl->kindidD[m], pos, 0, 0x880, 0.0f);
+        } else {
+            ret = StartFXSubGutsP(page, tbl->kindidC[m], pos, 0, 0x880, 0.0f);
+        }
+    }
+    return ret;
+}
 
 /* start a table-selected fx (table chosen by `which`) at pos.
  * STRUCTURAL: two duplicated StartFXSubGuts inlines; residual is a
