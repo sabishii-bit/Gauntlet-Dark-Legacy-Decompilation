@@ -74,7 +74,15 @@ extern PbTexMgr* gWinGlobals;
 /* TLUT region manager: 0x30-byte header, then GXTlutRegionObj[] at +0x30,
  * an s32 handle table at +0x320, and per-region bookkeeping at +0x52c/+0x580.
  * dtk splits it into lbl_802C7438 (header) + lbl_802C7468 (the +0x30 body). */
-extern u8 lbl_802C7438[];   /* TLUT manager base   (0x802C7438) */
+typedef struct PbTlutMgrView {
+    u8  _00[0x30];           /* 0x000 : per-class use counts / header */
+    u8  regions[0x2f][0x10]; /* 0x030 : GXTlutRegionObj[] */
+    s32 handles[0x2f];       /* 0x320 : per-region texture handle */
+    u8  _3dc[0x150];         /* 0x3dc */
+    u32 owners[0x15];        /* 0x52c : owning texture entry per lightmap */
+    u16 keys[0x15];          /* 0x580 : lightmap TLUT keys */
+} PbTlutMgrView;
+extern PbTlutMgrView lbl_802C7438; /* TLUT manager base (0x802C7438) */
 extern u8 lbl_802C7468[];   /* &mgr.regions[0]     (0x802C7468) */
 
 extern u8 lbl_802C7A08[];   /* default PbTexCtx     (0x802C7A08, 0x2C8) */
@@ -91,10 +99,8 @@ extern const s32 lbl_80348FE0[2];
 extern u8 lbl_801283C0[];
 
 /* TLUT region allocation bitmasks + state (.sbss) */
-extern s32 lbl_803450D8;
-extern s32 lbl_803450DC;
-extern s32 lbl_803450E0;
-extern s32 lbl_803450E4;
+extern u64 lbl_803450D8;   /* 64-bit residency mask (lo half = 0x803450DC) */
+extern u64 lbl_803450E0;   /* 64-bit lock mask      (lo half = 0x803450E4) */
 extern s32 lbl_803450E8;
 extern s32 lbl_803450EC;
 extern s32 lbl_80345108;
@@ -125,7 +131,7 @@ static void* sTlutRegionCallback(u32 name);
 void pbInitTlutRegions(void) {
     s32 i;
     u32 addr = 0xc0000;
-    u8* mgr = lbl_802C7438;
+    u8* mgr = (u8*)&lbl_802C7438;
     u8* slot;
 
     for (i = lbl_80348FC8[0]; i < lbl_80348FD0[0]; i++) {
@@ -153,7 +159,7 @@ static void* sTlutRegionCallback(u32 name) {
  * class is not resident allocate the least-used region slot and remap it.
  * Returns the region index (a texture handle). GCN-only. */
 int fn_800C6BB4(u8 sizeClass, s32 handle) {
-    u8* mgr = lbl_802C7438;
+    u8* mgr = (u8*)&lbl_802C7438;
     s32 first = lbl_80348FC8[sizeClass];
     s32 last  = lbl_80348FD0[sizeClass];
     s32 i;
@@ -165,17 +171,16 @@ int fn_800C6BB4(u8 sizeClass, s32 handle) {
         mgr[i]++;
     }
 
-    mask_lo = lbl_803450D8;
-    mask_hi = lbl_803450DC;
+    mask_lo = (s32)lbl_803450D8;
+    mask_hi = (s32)lbl_803450E0;
     (void)mask_lo;
     (void)mask_hi;
 
     /* find / evict a region slot (see disassembly) */
     for (i = first; i < last; i++) {
-        s64 bit = __shl2i(0, 1, i);
-        if (((lbl_803450D8 & (s32)(bit >> 32)) | (lbl_803450DC & (s32)bit)) == 0) {
-            lbl_803450D8 |= (s32)(bit >> 32);
-            lbl_803450DC |= (s32)bit;
+        u64 bit = __shl2i(0, 1, i);
+        if ((lbl_803450D8 & bit) == 0) {
+            lbl_803450D8 |= bit;
             mgr[i] = 0;
             *(s32*)(mgr + 0x320 + i * 4) = handle;
             return i;
@@ -233,35 +238,32 @@ void fn_800C70C4(void) {}
 
 /* Free the TLUT regions held by model `id` and clear the residency masks. */
 void fn_800C70C8(s32 id) {
-    u8* mgr = lbl_802C7438;
-    u8* desc = *(u8**)((u8*)gWinGlobals->tbl + id * 0x10 + 0x4);
+    u8* e4 = (u8*)gWinGlobals->tbl + id * 0x10 + 0x4;
+    u8* desc;
     u8* tex;
+    s32 region;
     s32 i;
 
-    if (*(s32*)(desc + 0xc) != 0)
+    if (*(s32*)(e4 + 0xc) != 0)
         return;
-    desc = *(u8**)desc;
+    desc = *(u8**)e4;
     tex = *(u8**)(desc + 0x80);
     if (tex == 0)
         return;
 
-    for (i = 0; i < *(s32*)(desc + 0x48); i++) {
-        s32 region = (s8)tex[i * 0x30 + 0x2d];
-        if (region != -1) {
-            s64 bit = __shl2i(0, 1, region);
-            lbl_803450DC &= ~(s32)bit;
-            lbl_803450E4 &= ~(s32)bit;
-            lbl_803450D8 &= ~(s32)(bit >> 32);
-            lbl_803450E0 &= ~(s32)(bit >> 32);
-            *(s32*)(mgr + 0x320 + region * 4) = -1;
+    for (i = 0; i < *(u32*)(desc + 0x48); i++) {
+        if ((region = (s8)tex[i * 0x30 + 0x2d]) != -1) {
+            u64 bit = __shl2i(0, 1, region);
+            lbl_803450D8 &= ~bit;
+            lbl_803450E0 &= ~bit;
+            lbl_802C7438.handles[region] = -1;
         }
     }
     for (i = 0; i < 0x15; i++) {
-        u8* p = mgr + i * 4;
-        if (*(u32*)(p + 0x52c) >= (u32)desc &&
-            *(u32*)(p + 0x52c) <= (u32)(desc + (*(s32*)(desc + 0x48) - 1) * 0x30)) {
-            *(s32*)(p + 0x52c) = 0;
-            *(s16*)(mgr + i * 2 + 0x580) = 0xffff;
+        if (lbl_802C7438.owners[i] >= (u32)tex &&
+            lbl_802C7438.owners[i] <= (u32)(tex + (*(s32*)(desc + 0x48) - 1) * 0x30)) {
+            lbl_802C7438.owners[i] = 0;
+            lbl_802C7438.keys[i] = 0xFFFF;
         }
     }
 }
@@ -331,8 +333,8 @@ int fn_800C73E0(s32 key) {
     void* buf;
     s32 region = fn_800C6BB4((u8)(key >> 8), key);
     buf = AllocMem32(0x200);
-    GXInitTlutObj(lbl_802C7438 + 0x30 + region * 0x10, buf, 0, 0x100);
-    GXLoadTlut(lbl_802C7438 + 0x30 + region * 0x10, region);
+    GXInitTlutObj((u8*)&lbl_802C7438 + 0x30 + region * 0x10, buf, 0, 0x100);
+    GXLoadTlut((u8*)&lbl_802C7438 + 0x30 + region * 0x10, region);
     (void)lbl_803450E8;
     (void)lbl_803450EC;
     (void)lbl_80345108;
@@ -348,7 +350,7 @@ int fn_800C7558(s32 key) {
     if (palette == 0)
         return 0;
     region = fn_800C6BB4((u8)(key >> 20), key);
-    GXLoadTlut(lbl_802C7438 + 0x30 + region * 0x10, region);
+    GXLoadTlut((u8*)&lbl_802C7438 + 0x30 + region * 0x10, region);
     GXInitTexObjTlut((void*)gWinGlobals->tbl, region);
     (void)lbl_80345108;
     (void)lbl_8034510C;
