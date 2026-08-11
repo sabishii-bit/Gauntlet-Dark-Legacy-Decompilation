@@ -936,6 +936,7 @@ void do_vibe(s32 plyr, s32 inten, s32 time)
 {
     if (lbl_80240E30[plyr].hasActuator != 0 && inten >= 0) {
         f32 v;
+        s32 pad;
         s32* pp;
         u8 act[8];
 
@@ -944,11 +945,10 @@ void do_vibe(s32 plyr, s32 inten, s32 time)
         } else if (inten > 4) {
             inten = 4;
         }
-        pp = &lbl_8011A258[plyr];
         v = lbl_8011AE8C[inten];
+        pp = &lbl_8011A258[plyr];
+        pad = *pp;
         if (lbl_803445E0 == 0) {
-            s32 pad = *pp;
-
             memset(act, 0, 6);
             act[0] = 0;
             act[1] = (u8)(s32)(v * 255.0f);
