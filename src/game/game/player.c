@@ -622,12 +622,14 @@ void PlayerUnsetGrabbed(Player* p, s32 restore) {
 
 /* Attach the player under a carrier node at offset pos (critter.c). */
 void PlayerSetParent(Player* p, void* parent, f32* pos) {
-    f32 d[3];
+    volatile f32 d[3];
 
     if (pos == NULL) {
         pos = lbl_80127D00;
     }
-    VecSub(d, pos, p->anchor_pos);
+    d[0] = pos[0] - p->anchor_pos[0];
+    d[1] = pos[1] - p->anchor_pos[1];
+    d[2] = pos[2] - p->anchor_pos[2];
     p->saved_pos[0] = p->pos[0];
     p->saved_pos[1] = p->pos[1];
     p->saved_pos[2] = p->pos[2];
@@ -1403,12 +1405,13 @@ static s32 ModifyExp(Player* p, s32 delta) {
  * rate = lv*30 maintained incrementally, 99-step guard). */
 s32 ExpToLevel(s32 exp) {
     s32 need;
-    s32 lv = 99;
-    s32 rate = 2970;
+    s32 rate;
+    s32 lv;
     s32 product;
-    s32 guard;
 
-    for (guard = 99; guard != 0; guard--) {
+    lv = 99;
+    rate = 2970;
+    for (; lv != 0; lv--) {
         if (lv <= 60) {
             need = (lv - 1) * (rate + 1000);
         } else {
@@ -1419,7 +1422,6 @@ s32 ExpToLevel(s32 exp) {
         if (exp >= need) {
             return lv;
         }
-        lv--;
         rate -= 30;
     }
     return 1;
@@ -5174,19 +5176,29 @@ void mini_inventory_update(s32 i) {
 
 /* Draw the selected-powerup label + remaining-time bar.               */
 void mini_inventory_draw_label(s32 i) {
-    TbInfo* tb = &tb_info[i];
+    char* label;
+    TbInfo* tb;
     u8 st;
+    s32 x;
     s32 y;
 
-    if (tb->label == NULL) {
+    tb = (TbInfo*) ((u8*) potionicon_tab + i * 40 + 2368);
+    label = *(char**) ((u8*) potionicon_tab + i * 40 + 2404);
+    if (label == NULL) {
         return;
     }
-    st = PUP_DIRTY(P(i), tb->sel);
-    y = tb->y_top + (0x67 - tb->slide);
-    if (st == 2) {
-        DrawGlowText(0.09f, tb->x_right + 0xC, y, (char*)tb->label);
-    } else if (st == 1 || st == 3) {
-        DrawTextKeepScale(0.09f, tb->x_right + 0xC, y, 6, 0xFFFFFF, (char*)tb->label);
+    st = *(u8*) ((u8*) potionicon_tab + i * 13148 + tb->sel + 3616);
+    y = *(s32*) ((u8*) potionicon_tab + i * 40 + 2388) - 25;
+    y += 128 - tb->slide;
+    x = *(s32*) ((u8*) potionicon_tab + i * 40 + 2380) + 12;
+    switch (st) {
+    case 1:
+    case 3:
+        DrawTextKeepScale(0.09f, x, y, 6, 0xFFFFFF, label);
+        break;
+    case 2:
+        DrawGlowText(0.09f, x, y, label);
+        break;
     }
 }
 
