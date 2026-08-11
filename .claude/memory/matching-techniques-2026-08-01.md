@@ -837,3 +837,32 @@ comparisons, and route every nearby zero store/init through it. (Also from
 this function: retail's prompt handling is a switch tree with retry-on-0 that
 our translation had simplified into always-return — check saveMenuPrompt
 callers for the same lost retry loop.)
+
+## Wave-3 agent laws (2026-08-10, consolidated from three flip reports)
+
+- **Inlined-static device cracks two hard parks at once**: reconstructing a
+  dead Xbox-local helper as a small `static` (below auto-inline threshold)
+  whose body RETURNS FROM INSIDE A LOOP produces both the unfoldable
+  `bne latch; b out` two-branch pair and the `addi rX,rI,0` derived-induction
+  zero-copy seed. First confirmed break in the zero-copy family without xor
+  idiom (ResolveWorldDataPointers/GetWorldPsysIdx).
+- Compound assignment (`+=`, `*=`) preserves lhs-first operand order on
+  commutative FP ops; `a = a + b` gets canonicalized.
+- Adjacent sbss mask words are often one u64 global: inline u64 &=/|=/compare
+  kills `__shr2i/__shr2u` calls; lo-half reloc emits `sym+0x4` (byte-exact).
+- Struct-GLOBAL disp law: `extern StructType sym; sym.arr[i]` keeps member
+  displacements (`add; stw disp(r)`); ANY pointer variable re-folds to
+  `addi; stwx`. Direct-global form rematerializes `&sym` per loop.
+- lbzu killer: test `*name` directly in the loop condition; caching into a
+  char var fuses `name++`+load into lbzu.
+- `*(s32*)(p += K)` produces `lwzu disp(base)`.
+- Anonymous-lbl big-displacement tables: reference everything off ONE extern
+  base (`lbl_X + K`); separate named externs can never match.
+- Empty `case N:` merged with `default:` shifts the MWCC switch pivot.
+- Block-scope locals cost 8 stack bytes even when register-allocated; hoist
+  decls to function scope to hit retail frames.
+- One-case switch = beq/b applies with peephole ON too (if(x==k) arms).
+- Assignment-in-condition ternary `if (t = (v ? 0 : 1))` reproduces the
+  branch-materialized `!v` that plain `!` folds away.
+- FPR const homes follow decl order of receiving locals; load emission
+  follows init-statement order.
