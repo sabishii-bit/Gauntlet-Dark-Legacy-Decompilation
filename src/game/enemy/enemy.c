@@ -1873,11 +1873,12 @@ void move_logic02(s32 index)
     u8* e0;
     u8* base = (u8*)lbl_80250E00;
     Enemy* e;
-    s32 it = lbl_80344748;
+    s32 it;
     s32 flee;
     u8 unused[16];
 
     e0 = base + index * 916 + 3608;
+    it = lbl_80344748;
     e = (Enemy*)e0;
     if (it < 0) {
         flee = 0;
@@ -2015,27 +2016,34 @@ void move_logic03(s32 index)
  * and, on expiry, rolls to the ON_EXIT taunt (algorithm/old_ai = 2, play = 4). */
 void move_logic04(s32 index)
 {
-    Enemy* e = (Enemy*)((u8*)lbl_80250E00 + index * 916 + 3608);
-    s32 it = lbl_80344748;
+    u8* e0;
+    u8* base = (u8*)lbl_80250E00;
+    Enemy* e;
+    s32 it;
     s32 flee;
     u8 unused[16];
 
+    e0 = base + index * 916 + 3608;
+    it = lbl_80344748;
+    e = (Enemy*)e0;
     if (it < 0) {
         flee = 0;
     } else {
-        Enemy* other = (Enemy*)((u8*)lbl_80250E00 + it * 916 + 3608);
-        if (other->state != 1) {
+        u8* other = base + it * 916;
+        if (*(s32*)(other + 3788) != 1) {
             flee = 0;
-        } else if (other->actual_dist > e->sight) {
+        } else if (*(f32*)(other + 4244) > *(f32*)(e0 + 768)) {
             flee = 0;
+        } else if (index == it || *(s16*)(e0 + 728) != 0 || *(s32*)(e0 + 856) > 0) {
+            goto flee_zero;
         } else {
-            f32 dy = other->objgrp.worldmat[3][1] - e->objgrp.worldmat[3][1];
-            f32 dx = other->objgrp.worldmat[3][0] - e->objgrp.worldmat[3][0];
-            f32 dz = other->objgrp.worldmat[3][2] - e->objgrp.worldmat[3][2];
-            if (index != it && e->birth_style == 0 && e->dead_end <= 0
-                && dy * dy + dx * dx + dz * dz < 100.0) {
+            f32 dx = *(f32*)(other + 3660) - *(f32*)(e0 + 52);
+            f32 dy = *(f32*)(other + 3664) - *(f32*)(e0 + 56);
+            f32 dz = *(f32*)(other + 3668) - *(f32*)(e0 + 60);
+            if (dx * dx + dy * dy + dz * dz < lbl_803468D8) {
                 flee = -1;
             } else {
+            flee_zero:
                 flee = 0;
             }
         }
@@ -2055,13 +2063,13 @@ void move_logic04(s32 index)
     }
     if (e->dead_end > 0) {
         if ((e->dead_end -= gFrameTicks) <= 0) {
-            e->ang -= 0.7853981635;
+            e->ang -= lbl_80346908;
             {
                 f64 a = e->ang;
-                if (a > 3.141592654) {
-                    a -= 6.283185308;
-                } else if (a <= -3.141592654) {
-                    a = 6.283185308 + a;
+                if (a > lbl_80346840) {
+                    a -= lbl_80346848;
+                } else if (a <= lbl_80346850) {
+                    a = lbl_80346848 + a;
                 }
                 e->ang = a;
             }
