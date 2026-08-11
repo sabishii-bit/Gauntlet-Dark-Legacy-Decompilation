@@ -1326,52 +1326,52 @@ f32 get_cam_dist(s32 camIdx)
 s32 adjust_radius_8002B2D4(s32 camIdx)
 {
     Camera* cam = &gCameras[camIdx];
+    f32 r;
     f32 desired = get_cam_dist(camIdx);
     void* levelData = *(void**)((u8*)gCurLevel + 96);
-    f32 val;
-    f32 diff;
     u8 _pad[8];
     f32 ad;
     u8 _pad2[4];
-    f32 step;
+    f32 k;
 
     if (lbl_80345F78 == desired) {
         return 0;
     }
-    val = desired;
     if (desired < cam->radius && lbl_803443FC > 0) {
         lbl_803443FC = 0;
-        val = cam->radius;
+        desired = cam->radius;
     }
-    if (val > cam->radius && lbl_803443FC < 0) {
+    if (desired > cam->radius && lbl_803443FC < 0) {
         lbl_803443FC = 0;
-        val = cam->radius;
+        desired = cam->radius;
     }
-    if (lbl_80344960 < 0 && val > cam->radius && cam->radius > lbl_80344528) {
-        val = cam->radius;
+    if (lbl_80344960 < 0) {
+        if (desired > (r = cam->radius) && r > lbl_80344528) {
+            desired = r;
+        }
     }
 
-    diff = val - cam->radius;
-    ad = diff;
+    k = lbl_8034618C;
+    ad = desired - cam->radius;
     *(u32*)&ad &= 0x7FFFFFFF;
-    if (ad < lbl_8034618C) {
-        cam->radius = val;
+    if (ad < k) {
+        cam->radius = desired;
         lbl_803443F4 = 1;
         goto done;
     }
-    desired = ad - lbl_8034618C;
-    step = (f32)(lbl_80346098 * desired + lbl_8034618C);
-    if (step > lbl_80346158 && lbl_803444E4 == 0) {
-        step = lbl_80346158;
+    r = ad - k;
+    r = (f32)(lbl_80346098 * r + k);
+    if (r > lbl_80346158 && lbl_803444E4 == 0) {
+        r = lbl_80346158;
     }
-    if (val > cam->radius) {
-        cam->radius = cam->radius + step;
+    if (desired > cam->radius) {
+        cam->radius = cam->radius + r;
         lbl_803443F4 = 1;
         goto done;
     }
-    if (val < cam->radius) {
+    if (desired < cam->radius) {
         if (lbl_80344418 == 0 || *(s16*)((u8*)levelData + 54) != 0) {
-            cam->radius -= step;
+            cam->radius -= r;
             lbl_803443F4 = 1;
         }
     }
