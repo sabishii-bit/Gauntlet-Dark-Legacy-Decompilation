@@ -70,6 +70,12 @@ void InitAnimInfo(animinfo* info, u8 flags)
     }
 }
 
+typedef struct SEQVIEW {
+    u8 pad[0x26];
+    s16 flags26;
+    u8 pad2[8];
+} SEQVIEW;
+
 /* SetupAnimHeader @0x8000E994 -- byte-swap the animheader's first 7 words
  * (loaded little-endian), then relocate its 5 section pointers to absolute
  * addresses in `dst` (in place when dst is NULL). */
@@ -121,38 +127,41 @@ s32 AnimDone(void* anim)
  * mask of what happened (1=restarted, 2=looped/finished, 4=holding, 8=event). */
 u32 AnimateTree(f32 time, animinfo* info, s32 seq, s32 frame, s32 mode)
 {
-    u32 result = 0;
+    s32 result = 0;
     s32 restart = 0;
     s32 status;
     s32 curseq;
     s32 done;
-    s16 rep;
+    s32 rep;
+    u8 unused[8];
 
     lbl_803441B8 = ((u32*)info->animheader)[0];
     lbl_803441B4 = ((u32*)info->animheader)[1];
     lbl_803441B0 = ((u32*)info->animheader)[2];
     status = CalcAnimInfo(info);
     curseq = info->animseq;
-    done = (info->stage & 0xFF) == 0xFF;
-    rep = info->repeat;
-    if (mode == 2) {
+    done = ((info->stage & 0xFF) == 0xFF) ? 1 : 0;
+    rep = *(s16*)&info->repeat;
+    switch (mode) {
+    case 0:
+        if (done && seq != curseq) {
+            restart = 1;
+        }
+        break;
+    case 1:
+        if (done) {
+            restart = 1;
+        }
+        break;
+    case 2:
         if (done || seq != curseq) {
             restart = 1;
         }
-    } else if (mode < 2) {
-        if (mode == 0) {
-            if (done && seq != curseq) {
-                restart = 1;
-            }
-        } else if (mode >= 0) {
-            if (done) {
-                restart = 1;
-            }
-        } else {
-            restart = 1;
-        }
-    } else {
+        break;
+    case 3:
+    default:
         restart = 1;
+        break;
     }
     if (restart) {
         s32 initret;
@@ -160,17 +169,15 @@ u32 AnimateTree(f32 time, animinfo* info, s32 seq, s32 frame, s32 mode)
             (f64)info->starttime < (f64)info->atime - lbl_803457C0) {
             info->starttime = (f32)((f64)info->atime - lbl_803457C0);
         }
-        initret = InitAnim(time, info, seq, frame, 1);
-        if (initret < 1) {
+        if ((initret = InitAnim(time, info, seq, frame, 1)) <= 0) {
             FatalErrorf(lbl_80110730, initret, seq, info->numseqs);
         }
-        if ((*(u16*)((u8*)info->seqheader + curseq * 0x30 + 0x26) & 1) != 0) {
-            result = 8;
+        if ((((SEQVIEW*)info->seqheader)[curseq].flags26 & 1) != 0) {
+            result |= 8;
         }
         result |= 1;
     }
-    if (((result & 1) != 0 || status == 0xF) &&
-        (status = CalcAnimInfo(info)) == 0xF) {
+    if (((result & 1) != 0 || status == 0xF) && CalcAnimInfo(info) == 0xF) {
         CalcAnimInfo(info);
     }
     if (result != 0 && (done || (info->stage & 0xFF) == 0xFF)) {
