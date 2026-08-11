@@ -2969,49 +2969,68 @@ void PlayerDamagedItem(void* player, void* item, s32 flag)
 {
     s32* info = *(s32**)item;
     s32 type = info[0];
+    s32 t;
 
     if (type == 2) {
-        return;
+        goto out;
     }
-    if (type > 2) {
-        if (type < 4) {
-            s32 t;
-            if (flag != 0) {
-                PF(player, 0x918, s32) = 0;
-                PF(player, PF(player, 0x0C, s32) * 0x1C + 0xC20, s32) =
-                    PF(player, PF(player, 0x0C, s32) * 0x1C + 0xC20, s32) + 1;
-            }
-            t = PF(item, 0xDC, s16);
-            if (t == -2) {
-                t = 1;
-            } else if (t == -3) {
-                t = 2;
-            } else if (t < 0) {
-                t = 0;
-            }
-            if (flag == 0) {
-                AddExp(PF(player, 0, s32), lbl_8011BB20[t] * 5, 0);
-            } else {
-                AddExp(PF(player, 0, s32), lbl_8011BBA8[t] * 5, 0);
-            }
-        }
-    } else if (type >= 1) {
-        if (PF(item, 0xC6, s16) < 1 && info[1] == 4) {
-            s32 pos[3];
-            s32 vec[3];
-            s32 fx;
-            pos[0] = *(s32*)((u8*)item + 0x44);
-            pos[1] = *(s32*)((u8*)item + 0x48);
-            pos[2] = *(s32*)((u8*)item + 0x4C);
-            vec[0] = *(s32*)((u8*)player + 0x54);
-            vec[1] = *(s32*)((u8*)player + 0x58);
-            vec[2] = *(s32*)((u8*)player + 0x5C);
-            fx = start_magic(PF(player, 0, s32), pos, info[0xF], 0,
-                             lbl_80346310);
-            msgPost(fx, 0xE, PF(player, 0, s32), (u32)vec);
-            DeleteItem(item, 1);
-        }
+    if (type >= 2) {
+        goto big;
     }
+    if (type >= 1) {
+        goto small;
+    }
+    goto out;
+big:
+    if (type >= 4) {
+        goto out;
+    }
+    if (flag != 0) {
+        PF(player, 0x918, s32) = 0;
+    }
+    if (flag != 0) {
+        PF(player, PF(player, 0x0C, s32) * 0x1C + 0xC20, s32) =
+            PF(player, PF(player, 0x0C, s32) * 0x1C + 0xC20, s32) + 1;
+    }
+    t = PF(item, 0xDC, s16);
+    if (t == -2) {
+        t = 1;
+    } else if (t == -3) {
+        t = 2;
+    } else if (t < 0) {
+        t = 0;
+    }
+    if (flag != 0) {
+        AddExp(PF(player, 0, s32), lbl_8011BBA8[t] * 5, 0);
+    } else {
+        AddExp(PF(player, 0, s32), lbl_8011BB20[t] * 5, 0);
+    }
+    goto out;
+small:
+    if (PF(item, 0xC6, s16) > 0) {
+        goto out;
+    }
+    switch (info[1]) {
+    case 4:
+    {
+        f32 pos[3];
+        f32 vec[3];
+        s32 magic = info[0xF];
+        pos[0] = *(f32*)((u8*)item + 0x44);
+        pos[1] = *(f32*)((u8*)item + 0x48);
+        pos[2] = *(f32*)((u8*)item + 0x4C);
+        vec[0] = *(f32*)((u8*)player + 0x54);
+        vec[1] = *(f32*)((u8*)player + 0x58);
+        vec[2] = *(f32*)((u8*)player + 0x5C);
+        start_magic(PF(player, 0, s32), (s32*)pos, magic, 0,
+                    lbl_80346310);
+        msgPost(0xE, PF(player, 0, s32), (u32)vec);
+        DeleteItem(item, 1);
+        break;
+    }
+    }
+out:
+    return;
 }
 
 extern f64 lbl_80346318, lbl_80346320;
