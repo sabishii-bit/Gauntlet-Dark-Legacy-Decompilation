@@ -333,6 +333,8 @@ next_enemy:
 }
 
 extern f64 lbl_803468D8;        /* 100.0 */
+extern f64 lbl_80346988;        /* 6.0 */
+extern f64 lbl_803469A0;        /* 90.0 */
 extern f64 lbl_80346900;        /* 8.0 */
 extern f64 lbl_80346908;        /* pi/4 */
 extern f64 lbl_80346840;        /* pi wrap high */
@@ -4441,14 +4443,16 @@ void move_logic30(s32 index)
             flee = 0;
         } else if (*(f32*)(op + 4244) > e->sight) {
             flee = 0;
+        } else if (index == it || e->birth_style != 0 || e->dead_end > 0) {
+            goto flee_zero30;
         } else {
-            f32 dy = *(f32*)(op + 3664) - e->objgrp.worldmat[3][1];
             f32 dx = *(f32*)(op + 3660) - e->objgrp.worldmat[3][0];
+            f32 dy = *(f32*)(op + 3664) - e->objgrp.worldmat[3][1];
             f32 dz = *(f32*)(op + 3668) - e->objgrp.worldmat[3][2];
-            if (index != it && e->birth_style == 0 && e->dead_end <= 0
-                && dy * dy + dx * dx + dz * dz < 100.0) {
+            if (dx * dx + dy * dy + dz * dz < lbl_803468D8) {
                 flee = -1;
             } else {
+            flee_zero30:
                 flee = 0;
             }
         }
@@ -4463,7 +4467,7 @@ void move_logic30(s32 index)
         do_ai(index);
         return;
     }
-    if (e->closest >= 0 && e->actual_dist <= 6.0) {
+    if (e->closest >= 0 && e->actual_dist <= lbl_80346988) {
         e->algorithm = 7;
         do_ai(index);
         return;
@@ -4472,7 +4476,7 @@ void move_logic30(s32 index)
         format_brain(index);
     }
     if (e->dead_end <= 0 && (e->counter1 -= gFrameTicks) <= 0) {
-        s32 n = (s32)(90.0 * *(f32*)(gCurLevel + 192));
+        s32 n = (s32)(lbl_803469A0 * *(f32*)(gCurLevel + 192));
         s32 r = RandInt(10) + 20;
         if (e->dead_end <= 0) {
             e->dead_end = r;
