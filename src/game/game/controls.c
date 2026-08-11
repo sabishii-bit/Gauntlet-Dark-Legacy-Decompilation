@@ -1258,37 +1258,33 @@ s32 joyReadPad(s32 pad, u8* buf)
 #pragma dont_inline off
 
 /* 0x80032778  re-enable player controls (clears everything first) */
-void EnablePlayerControls(void)
+static void reset_player_controls(s32 z, s32 n)
 {
     int i, j;
 
-    lbl_803445FC = 0;
-    for (i = 0; i < 4; i++) {
+    lbl_803445FC = z;
+    i = z;
+    do {
         ClearPlayerControl(i, 0);
-        for (j = 0; j < 12; j++) {
-            lbl_80240828[i][j] = 0;
-            lbl_802408E8[i][j] = 0;
+        for (j = z; j < n; j++) {
+            lbl_80240828[i][j] = z;
+            lbl_802408E8[i][j] = z;
         }
-        lbl_80240F90[i] = 0;
-    }
+        lbl_80240F90[i] = z;
+        i++;
+    } while (i < 4);
     ClearAllPlayerControls(4);
+}
+
+void EnablePlayerControls(void)
+{
+    reset_player_controls(0, 12);
 }
 
 /* 0x80032814  disable player controls (clears everything, then flags) */
 void DisablePlayerControls(void)
 {
-    int i, j;
-
-    lbl_803445FC = 0;
-    for (i = 0; i < 4; i++) {
-        ClearPlayerControl(i, 0);
-        for (j = 0; j < 12; j++) {
-            lbl_80240828[i][j] = 0;
-            lbl_802408E8[i][j] = 0;
-        }
-        lbl_80240F90[i] = 0;
-    }
-    ClearAllPlayerControls(4);
+    reset_player_controls(0, 12);
     lbl_803445FC = 1;
 }
 
