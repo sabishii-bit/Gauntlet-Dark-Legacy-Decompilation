@@ -25,7 +25,7 @@ extern f64 lbl_803457E8;
 extern u32 lbl_803441B8, lbl_803441B4, lbl_803441B0;
 void ErrorPrintf(char* fmt, ...);      /* 0x800BC6E0 */
 extern f32 gClockTime;                 /* 0x80344584 */
-extern f64 lbl_803457C0;
+extern const f64 lbl_803457C0;
 extern char lbl_80110758[];
 f32 floorf(f32 x);                     /* 0x800EAA1C */
 f32 fabsf(f32 x);
@@ -188,7 +188,7 @@ s32 InitAnim(f32 time, animinfo* info, s32 seq, s32 frame, s32 active)
 {
     u8* s;
     s16 nf;
-    u16 rep;
+    s16 rep;
     f32 sc;
 
     if (seq >= info->numseqs) {
@@ -202,32 +202,32 @@ s32 InitAnim(f32 time, animinfo* info, s32 seq, s32 frame, s32 active)
     info->active = (s16)active;
     s = (u8*)info->seqheader + seq * 0x30;
     nf = *(s16*)(s + 0x20);
-    rep = *(u16*)(s + 0x24);
-    if (*(s16*)(s + 0x22) < 1) {
-        info->seqscale = info->animscale;
-    } else {
-        info->seqscale = (f32)(lbl_803457C0 * (f64)(f32)*(s16*)(s + 0x22) *
+    rep = *(s16*)(s + 0x24);
+    if (*(s16*)(s + 0x22) > 0) {
+        info->seqscale = (f32)((f64)*(s16*)(s + 0x22) * lbl_803457C0 *
                                (f64)info->animscale);
+    } else {
+        info->seqscale = info->animscale;
     }
-    if (nf < frame) {
+    if (frame > nf) {
         frame = 0;
     }
     sc = info->seqscale * lbl_803441A8;
     info->frame = (f32)frame;
-    if (time == lbl_803457B4) {
+    if (time != lbl_803457B4) {
+        info->starttime =
+            (f32)((f64)-(info->frame * sc - info->atime) - lbl_803457C0);
+        info->transtime =
+            (f32)((f64)(info->atime + time) - lbl_803457C0);
+    } else {
         info->starttime = -(info->frame * sc - info->atime);
         info->transtime = lbl_803457B4;
-    } else {
-        info->starttime =
-            (f32)(-(f64)(info->frame * sc - info->atime) - lbl_803457C0);
-        info->transtime =
-            (f32)((f64)(f32)((f64)info->atime + time) - lbl_803457C0);
     }
     info->setpanim = 1;
     info->transfrac = lbl_803457B4;
     info->animseq0 = info->animseq;
     info->animseq = seq;
-    info->stage &= 0xf000;
+    info->stage &= 0xFFFFF000;
     info->repeat = rep;
     info->numframes = nf;
     return 1;
