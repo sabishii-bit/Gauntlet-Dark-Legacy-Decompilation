@@ -237,11 +237,13 @@ s32 InitAnim(f32 time, animinfo* info, s32 seq, s32 frame, s32 active)
  * transition fraction while the trans window is open. */
 s32 CalcAnimInfo(animinfo* info)
 {
-    f64 sc;
-    f64 at;
-    f64 inv;
-    f64 t;
-    f64 fl;
+    f32 scf;
+    f32 inv;
+    f32 t;
+    f32 fl;
+    u8 unused1[16];
+    f32 d;
+    u8 unused2[8];
     s32 nf;
 
     if (info == NULL) {
@@ -252,10 +254,11 @@ s32 CalcAnimInfo(animinfo* info)
         info->setpanim = 0;
     }
     if ((info->stage & 0xFF) == 0xFF) {
-        if ((info->stage & 0x100) == 0) {
+        if ((info->stage & 0x100) != 0) {
+            info->stage = info->stage & 0xFFFFFF00;
+        } else {
             return 0;
         }
-        info->stage = info->stage & 0xFF00;
     }
     if (info->active == 0) {
         return 0;
@@ -267,28 +270,28 @@ s32 CalcAnimInfo(animinfo* info)
         info->starttime = info->atime;
         return 0;
     }
-    sc = (f64)(info->seqscale * lbl_803441A8);
-    at = (f64)info->atime;
-    inv = lbl_803457D0 / sc;
-    if ((f64)info->transtime > at) {
+    scf = info->seqscale * lbl_803441A8;
+    inv = (f32)(lbl_803457D0 / (f64)scf);
+    if (info->transtime > info->atime) {
         info->transfrac = (info->atime - info->starttime) /
                           (info->transtime - info->starttime);
-        return 0;
-    }
+    } else {
     if (info->animseq0 != info->animseq) {
-        info->starttime = -(f32)((f64)info->frame * sc - at);
+        info->starttime = -(info->frame * scf - info->atime);
         info->transtime = lbl_803457B4;
         info->transfrac = lbl_803457B4;
         info->animseq0 = info->animseq;
         info->setpanim = 1;
     }
-    t = (info->atime - info->starttime) * (f32)inv;
+    fl = info->atime - info->starttime;
+    t = fl * inv;
     fl = floorf((f32)(lbl_803457D8 + t));
     if ((info->flags & 2) == 0 ||
-        (f64)fabsf((f32)(t - fl)) < lbl_803457E0 || sc < (f64)lbl_803441A8) {
+        (d = t - fl, *(u32*)&d &= 0x7FFFFFFF, (f64)d < lbl_803457E0) ||
+        scf < lbl_803441A8) {
         t = fl;
     }
-    if (lbl_803457D8 + (f32)(nf - 1) <= t) {
+    if ((f64)t >= lbl_803457D8 + (f64)(f32)(nf - 1)) {
         info->stage |= 0xFF;
         info->frame = (f32)(nf - 1);
         if (info->repeat != 0) {
@@ -297,14 +300,15 @@ s32 CalcAnimInfo(animinfo* info)
             info->setpanim = 1;
             return 15;
         }
-        info->stage &= 0xFEFF;
+        info->stage &= 0xFFFFFEFF;
         info->transfrac = lbl_803457B4;
         return 0;
     }
     if (t < lbl_803457B4) {
         t = lbl_803457B4;
     }
-    info->frame = (f32)t;
+    info->frame = t;
+    }
     return 1;
 }
 /* SetupAnimHeader @0x8000F184 -- snap an animinfo to sequence `seq`, frame
