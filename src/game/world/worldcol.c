@@ -204,81 +204,92 @@ u32 WeaponWallCollide(f32 radius, void* from, void* to, f32* normal) {
 /* SlideAlongWall @0x8000D034 -- push a horizontal move `vel` back out of a wall
  * plane (point `wallpt`, unit `normal`), sliding it along the surface unless the
  * remaining motion is too shallow, in which case the axis is zeroed. */
+#define WZERO64 (*(volatile f64*)&lbl_80345730)
+#define WZERO32 (*(volatile f32*)&lbl_8034572C)
+
 u32 SlideAlongWall(f32 radius, f32* pos, f32* vel, f32* wallpt, f32* normal)
 {
     u32 result;
-    f64 vz = (f64)vel[2];
-    f64 vx = (f64)vel[0];
-    f64 pen;
-    f64 avz;
-    f64 avx;
-    f64 dotx;
-    f64 dotz;
+    s32 flag;
+    f32 vz = vel[2];
+    f32 vx = vel[0];
+    f32 pen;
+    f32 dotx;
+    f32 dotz;
+    f32 avx;
+    f32 adotx;
+    f32 avz;
+    f32 adotz;
+    f32 z1;
 
-    pen = (f64)(f32)(
-        (f64)(f32)(
-            (f64)((f32)((f64)pos[0] + vx) - wallpt[0]) * (f64)normal[0] +
-            (f64)(((f32)((f64)pos[2] + vz) - wallpt[2]) * normal[2])) -
-        radius);
-    avz = vz;
-    if (vz < lbl_80345730) {
-        avz = -vz;
+    pen = ((pos[0] + vx) - wallpt[0]) * normal[0] +
+          ((pos[2] + vz) - wallpt[2]) * normal[2] - radius;
+    if (vz < WZERO64) {
+        vz = -vz;
     }
-    avx = vx;
-    if (vx < lbl_80345730) {
+    if (vx < WZERO64) {
         avx = -vx;
+    } else {
+        avx = vx;
     }
-    if ((f64)lbl_8034572C <= pen) {
-        return 0;
+    if (avx < vz) {
+        flag = 1;
+    } else {
+        flag = 0;
     }
-    dotx = (f64)(f32)((f64)normal[0] * pen);
+    if (!(pen < lbl_8034572C)) {
+        goto ret0;
+    }
+    dotx = normal[0] * pen;
     result = 1;
-    if (avx < avz ||
-        ((f64)lbl_8034572C < vx && (f64)lbl_8034572C < dotx) ||
-        (vx < (f64)lbl_8034572C && dotx < (f64)lbl_8034572C)) {
-        f64 avx2 = vx;
-        f64 adotx;
-        if (vx < lbl_80345730) {
-            avx2 = -vx;
+    if (flag != 0 || (vx > lbl_8034572C && dotx > lbl_8034572C) ||
+        ((z1 = WZERO32, vx < z1) && dotx < z1)) {
+        if (vx < WZERO64) {
+            vx = -vx;
         }
-        adotx = dotx;
-        if (dotx < lbl_80345730) {
+        if (dotx < WZERO64) {
             adotx = -dotx;
-        }
-        if (lbl_80345738 * radius + avx2 <= adotx) {
-            result = 0xFFFFFFFF;
-            vel[0] = lbl_8034572C;
         } else {
-            vel[0] = (f32)((f64)vel[0] - dotx);
+            adotx = dotx;
+        }
+        if (adotx < lbl_80345738 * radius + vx) {
+            vel[0] = vel[0] - dotx;
+        } else {
+            result = 0xFFFFFFFF;
+            vel[0] = WZERO32;
         }
     }
-    dotz = (f64)(f32)((f64)normal[2] * pen);
-    if (avx < avz) {
-        if ((f64)vel[2] <= (f64)lbl_8034572C || dotz <= (f64)lbl_8034572C) {
-            if ((f64)lbl_8034572C <= (f64)vel[2]) {
+    dotz = normal[2] * pen;
+    if (flag != 0) {
+        z1 = WZERO32;
+        if (!(vel[2] > z1 && dotz > z1)) {
+            z1 = WZERO32;
+            if (!(vel[2] < z1)) {
                 return result;
             }
-            if ((f64)lbl_8034572C <= dotz) {
+            if (!(dotz < z1)) {
                 return result;
             }
         }
     }
-    avz = (f64)vel[2];
-    if (avz < lbl_80345730) {
+    avz = vel[2];
+    if (avz < WZERO64) {
         avz = -avz;
     }
-    {
-        f64 adotz = dotz;
-        if (dotz < lbl_80345730) {
-            adotz = -dotz;
-        }
-        if (adotz < lbl_80345738 * radius + avz) {
-            vel[2] = (f32)((f64)vel[2] - dotz);
-            return result;
-        }
+    if (dotz < WZERO64) {
+        adotz = -dotz;
+    } else {
+        adotz = dotz;
     }
-    vel[2] = lbl_8034572C;
-    return 0xFFFFFFFF;
+    if (adotz < lbl_80345738 * radius + avz) {
+        vel[2] = vel[2] - dotz;
+        return result;
+    }
+    result = 0xFFFFFFFF;
+    vel[2] = WZERO32;
+    return result;
+ret0:
+    return 0;
 }
 
 u32 EnemyWallCollide(f32 radius, void* from, void* to, f32* normal) {
