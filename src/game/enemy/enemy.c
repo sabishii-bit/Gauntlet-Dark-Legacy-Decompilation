@@ -334,6 +334,10 @@ next_enemy:
 
 extern f64 lbl_803468D8;        /* 100.0 */
 extern f64 lbl_80346988;        /* 6.0 */
+extern f64 lbl_803468F8;        /* 0.10471975513333334 */
+extern f32 lbl_80346964;        /* 1.5f */
+extern f64 lbl_80346968;        /* 240.0 */
+extern f32 lbl_80346970;        /* 999.0f */
 extern f64 lbl_803469A0;        /* 90.0 */
 extern f64 lbl_80346900;        /* 8.0 */
 extern f64 lbl_80346908;        /* pi/4 */
@@ -3682,7 +3686,7 @@ void move_logic18(s32 index)
 {
     s32 stuck;
     Enemy* e = &gEnemies[index];
-    f32 leapspeed = 0.0f;
+    f32 leapspeed = lbl_80346820;
     s32 dend = e->dead_end;
     s16 sVar1;
     f32 a;
@@ -3709,6 +3713,7 @@ void move_logic18(s32 index)
     e->ang = a;
     switch (e->mode1) {
     default:
+    case 0:
         if (e->closest >= 0 && e->actual_dist <= e->sight) {
             e->mode1++;
             e->flag1 = 60;
@@ -3745,18 +3750,18 @@ void move_logic18(s32 index)
         e->ang = e->ang + leapspeed;
         {
             f64 av = e->ang;
-            if (av > 3.141592654) {
-                av -= 6.283185308;
-            } else if (av <= -3.141592654) {
-                av = 6.283185308 + av;
+            if (av > lbl_80346840) {
+                av -= lbl_80346848;
+            } else if (av <= lbl_80346850) {
+                av = lbl_80346848 + av;
             }
             e->ang = av;
         }
     }
     if (e->dead_end <= 0
-        || fabsf_(e->ang - e->anghit) >= 0.10471975513333334) {
+        || fabsf_(e->ang - e->anghit) >= lbl_803468F8) {
         e->dead_end = 0;
-        set_enemy_trans(e, 1.5f, e->ang);
+        set_enemy_trans(e, lbl_80346964, e->ang);
     }
     }
 move:
@@ -3765,9 +3770,9 @@ move:
     if (e->moved != 0) {
         e->dead_end = 0;
     }
-    if ((f64)e->flag2 >= 240.0 || e->coll_pnum >= 0) {
+    if ((f64)e->flag2 >= lbl_80346968 || e->coll_pnum >= 0) {
         lbl_80344748 = -1;
-        damage_enemy(e, 999.0f, -2, 1, 0, 0, 0);
+        damage_enemy(e, lbl_80346970, -2, 1, 0, 0, 0);
     } else if (stuck == 0 && e->dead_end > 0) {
         e->anghit = e->ang;
         e->counter1 = 0;
