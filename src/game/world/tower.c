@@ -950,6 +950,7 @@ int sumnerSpeechActive(void) {
 
 /* Run the Sumner speech: fetch scroll/string/list text, show captions,
  * play the speech audio, and advance the wizard animation. */
+#pragma opt_propagation off
 void SumnerDoSpeech(void) {
     s32 scrollArgs[2];
     char caption[256];
@@ -997,22 +998,20 @@ void SumnerDoSpeech(void) {
             }
         }
         GetPlayerAvgPos(avg, 0, 0, 0);
-        {
-            waypoint = FindClosestWaypoint((f64)lbl_803485EC, avg, 1);
+        waypoint = FindClosestWaypoint((f64)lbl_803485EC, avg, 1);
 
-            if (waypoint != 0) {
-                s32 camera = 0;
+        if (waypoint != 0) {
+            s32 camera = 0;
 
-                CopyMat4((f32*)waypoint, (void*)lbl_80344C64);
-                if (hasLevelUp) {
-                    camera = 0;
-                } else if (lbl_80344C6C >= 100) {
-                    camera = 2;
-                } else if (lbl_80344C6C >= 0) {
-                    camera = 1;
-                }
-                SumnerCamActivate(camera, waypoint->id);
+            CopyMat4((f32*)waypoint, (void*)lbl_80344C64);
+            if (hasLevelUp) {
+                camera = 0;
+            } else if (lbl_80344C6C >= 100) {
+                camera = 2;
+            } else if (lbl_80344C6C >= 0) {
+                camera = 1;
             }
+            SumnerCamActivate(camera, waypoint->id);
         }
         lbl_80344C74 = 1;
     }
@@ -1026,8 +1025,7 @@ void SumnerDoSpeech(void) {
         }
     }
     lbl_80344C70 += gFrameTicks;
-    i = lbl_80344C70;
-    i -= 120;
+    i = lbl_80344C70 - 120;
     elapsed = i;
     if (i < 0) {
         return;
@@ -1037,8 +1035,9 @@ void SumnerDoSpeech(void) {
         f32 captionScale = lbl_803485F0;
         Player* players = gPlayers;
         s32* gemColors = lbl_80124D84;
+        register s32 playerIndex;
 
-        while ((i = lbl_80343E4C) < 4) {
+        while ((playerIndex = lbl_80343E4C) < 4) {
             Player* player;
             char* classText;
             char* scroll;
@@ -1046,9 +1045,8 @@ void SumnerDoSpeech(void) {
             char* levelText;
             s32 level;
 
-            entry = (u8*)state;
-            entry += i * 4;
-            if (*(s32*)(entry + 76) > 0) {
+            if (((TowerMsgState*)((u8*)state + playerIndex * 4))
+                    ->levelUpLevel[0] > 0) {
                 player = &players[lbl_80343E4C];
                 scroll = GetScrollText(-1, 0x18, 0, scrollArgs);
                 classText = GetStringText(0x16, player->class_id, 0);
@@ -1086,8 +1084,10 @@ void SumnerDoSpeech(void) {
                 }
 
                 CaptionTextReset();
+                playerIndex = lbl_80343E4C;
                 lbl_80343E50 = -1;
-                lbl_80343E4C++;
+                playerIndex++;
+                lbl_80343E4C = playerIndex;
                 elapsed = 0;
                 lbl_80344C70 = 120;
                 lbl_80343E54 = -1;
@@ -1133,17 +1133,17 @@ void SumnerDoSpeech(void) {
     } else if (lbl_80344C6C >= 0) {
         s32 speech = lbl_80344C6C;
 
-        argument = speech;
-        if (speech < 9) {
+        argument = lbl_80344C6C;
+        if (lbl_80344C6C < 9) {
             message = FindStringMessageListSub_8001FC4C(0, strings + 264);
             if (lbl_80343E58 < 1) {
                 fn_8009C688(argument);
                 lbl_80343E58 = 1;
             }
-        } else if (speech == 15) {
+        } else if (lbl_80344C6C == 15) {
             message = FindStringMessageListSub_8001FC4C(0, strings + 276);
             argument = -1;
-        } else if (speech == 16) {
+        } else if (lbl_80344C6C == 16) {
             message = FindStringMessageListSub_8001FC4C(0, strings + 288);
             argument = -1;
         }
@@ -1154,7 +1154,8 @@ void SumnerDoSpeech(void) {
     }
 
     if (message >= 0) {
-        done = CaptionText(0, message, argument, elapsed >> 1, 0x138);
+        done = CaptionText(0, message, argument, (done = elapsed >> 1),
+                           0x138);
     } else {
         done = 1;
     }
@@ -1165,6 +1166,7 @@ void SumnerDoSpeech(void) {
         SumnerSpeechEnd();
     }
 }
+#pragma opt_propagation reset
 
 /* End the current Sumner speech: stop the camera move, spawn the reward
  * effects and clean up caption/wizard state.  Internal. */
