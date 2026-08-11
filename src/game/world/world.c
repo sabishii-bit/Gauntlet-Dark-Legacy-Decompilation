@@ -437,21 +437,21 @@ void NewWorld(void* parent) {
 void WorldSaveInitState(void) {
     s32 i;
     s32 memBase;
+    char* base = gWorldName;
 
     WorldDisplay = 0;
     if (lbl_80344DA4 != 0) {
-        WorldObj* wobjs;
-        s32 count = *(s32*)lbl_80344DA4;
-        world_objects = InitWorldInfo(&gWorldInfo, lbl_80344DA4);
+        u8** wobjsp;
+        world_objects = InitWorldInfo((WorldInfo*)(base + 228), lbl_80344DA4);
         memBase = mlmMemUsed;
-        lbl_80344D74 = AllocMem(count * 4);
-        lbl_80344D78 = AllocMem(count * 12);
-        wobjs = (WorldObj*)gWorldInfo.wobjs;
-        for (i = 0; i < gWorldInfo.nwobjs; i++) {
-            lbl_80344D74[i] = (s32)wobjs[i].parent;
-            lbl_80344D78[i * 3 + 0] = wobjs[i].pos[0];
-            lbl_80344D78[i * 3 + 1] = wobjs[i].pos[1];
-            lbl_80344D78[i * 3 + 2] = wobjs[i].pos[2];
+        lbl_80344D74 = AllocMem(*(s32*)lbl_80344DA4 * 4);
+        lbl_80344D78 = AllocMem(*(s32*)lbl_80344DA4 * 12);
+        wobjsp = (u8**)(base + 232);
+        for (i = 0; i < *(s32*)(base + 324); i++) {
+            ((s32*)lbl_80344D74)[i] = *(s32*)(*wobjsp + i * 60 + 24);
+            lbl_80344D78[i * 3] = *(f32*)(*wobjsp + i * 60 + 28);
+            lbl_80344D78[i * 3 + 1] = *(f32*)(*wobjsp + i * 60 + 32);
+            lbl_80344D78[i * 3 + 2] = *(f32*)(*wobjsp + i * 60 + 36);
         }
         bulletproof_printf(lbl_801151D8, (mlmMemUsed - memBase) >> 10);
         lbl_80344D8C = world_root0;
@@ -463,10 +463,10 @@ void WorldSaveInitState(void) {
     }
 
     if (lbl_80344DA0 != 0) {
-        lbl_80344D98 = InitWorldInfo(&gWorldInfo2, lbl_80344DA0);
+        lbl_80344D98 = InitWorldInfo((WorldInfo*)(base + 64), lbl_80344DA0);
         lbl_80344D8C = world_root1;
         CreateWorldNode(lbl_80344D98, lbl_80344D98, 0);
-        MBTreeSetAltTex(world_root1, -2, gWorldInfo.whitetex, 1);
+        MBTreeSetAltTex(world_root1, -2, *(s32*)(base + 364), 1);
         WorldDisplay = 2;
     } else {
         lbl_80344D98 = 0;
