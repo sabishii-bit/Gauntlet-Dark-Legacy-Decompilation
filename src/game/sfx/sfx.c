@@ -675,6 +675,27 @@ static s32 StartFXSubGuts(s32 type, f32* pos, u32 fla, u32 flb, f32 time)
 }
 
 
+/* page-explicit clone of StartFXSubGuts: taking the page as a param lets the
+ * caller compute EffectInfo once in its prologue (target hoists it to r31). */
+static s32 StartFXSubGutsP(EffectPage* page, s32 type, f32* pos, u32 fla, u32 flb, f32 time)
+{
+    s32 idx = -1;
+    EffectHeader* h;
+
+    if (type < 0 || type >= MAXEFFECTTYPES) {
+        ErrorPrintf("Bad Effect type: %d", type);
+        return -1;
+    }
+    h = &page->info[type];
+    if (h->atree != NULL && (idx = StartFXTree(h->atree, pos, fla, flb, time)) >= 0) {
+        MBTreeSetZsortAdd(page->fx[idx].node, h->zmod, 1);
+        MBTreeSetAlpha(page->fx[idx].node, h->alpha, 1);
+        page->fx[idx].type = (fx_type)type;
+    }
+    return idx;
+}
+
+
 s32 StartEnemyAtkFX(f32* pos, s32 n)
 {
     EffectPage* page = (EffectPage*)EffectInfo;
@@ -727,7 +748,12 @@ extern f64 lbl_803480E0;
 extern f32 lbl_803480FC;
 
 /* 0x800920E0 -- spawn the treasure-bag toss fx: scaled launch direction,
- * random spin, then attach the item to spawn on completion. */
+ * random spin, then attach the item to spawn on completion.
+ * STRUCTURAL MATCH 112/112, opcode streams identical (multi-def u8* p
+ * device keeps add(page,ret*240)+addi 2976). PARKED renum residual:
+ * {pos=r26,hdr=r28,ret=r29,base=r27} vs ours {r28,r26,r27,r29} + f0/f2
+ * const-home swap. Exhausted: f32 z zero-local (adds stack slot, still
+ * f2), decl-order/param-alias homes (no effect). Do not re-run. */
 s32 fn_800920E0(f32* pos, struct item* item, f32 scale)
 {
     EffectPage* page = (EffectPage*)EffectInfo;
@@ -767,8 +793,13 @@ s32 fn_800920E0(f32* pos, struct item* item, f32 scale)
         page->fx[ret].wall_sound = 0;
     }
     if (ret >= 0) {
-        Effect* e = &page->fx[ret];
-        f32 yaw = atan2(v[0], v[2]);
+        Effect* e;
+        f32 yaw;
+        u8* p = (u8*)page;
+
+        p += ret * 240;
+        e = (Effect*)(p + 2976);
+        yaw = atan2(v[0], v[2]);
         e->vel[0] = v[0];
         e->vel[1] = v[1];
         e->vel[2] = v[2];
@@ -838,7 +869,12 @@ typedef struct ComboFxView {
 } ComboFxView;
 
 /* Spawn the combo sphere for a player class and the optional colored combo
- * burst.  The class tables share the packed magic/effect definition page. */
+ * burst.  The class tables share the packed magic/effect definition page.
+ * STRUCTURAL MATCH 150/150, opcode streams identical (GutsP inlines,
+ * assignment-in-condition first guts, flags locals, multi-def p for the
+ * colors address). PARKED: renum in the color-region mulli (r25 vs r24)
+ * and second guts cluster (r22/r23/r26 rotation). Exhausted: type-local
+ * staging (adds mr), plain-Guts (remat lis), open-coded hybrid (worse). */
 s32 StartComboFX(f32* pos, s32 typeIndex, s32 colorIndex)
 {
     ComboFxView* table = (ComboFxView*)lbl_80122088;
@@ -846,31 +882,18 @@ s32 StartComboFX(f32* pos, s32 typeIndex, s32 colorIndex)
     s32 ret = -1;
 
     if (colorIndex >= 0) {
-        s32 type = table->mainType;
         u32 flags = 0x80980;
-        EffectHeader* header;
 
-        ret = -1;
-        if (type < 0 || type >= MAXEFFECTTYPES) {
-            ErrorPrintf("Bad Effect type: %d", type);
-            ret = -1;
-        } else {
-            header = &page->info[type];
-            if (header->atree != NULL) {
-                ret = StartFXTree(header->atree, pos, 0, flags, 0.0f);
-                if (ret >= 0) {
-                    MBTreeSetZsortAdd(page->fx[ret].node, header->zmod, 1);
-                    MBTreeSetAlpha(page->fx[ret].node, header->alpha, 1);
-                    page->fx[ret].type = (fx_type)type;
-                }
-            }
-        }
-        if (ret >= 0) {
+        if ((ret = StartFXSubGutsP(page, table->mainType, pos, 0, flags, 0.0f)) >= 0) {
             f32* color;
 
             MBTreeSetColor(page->fx[ret].node, lbl_8011A178[colorIndex], 1);
             MBTreeSetAmbientAdd(page->fx[ret].node, 0x1FF, 1);
-            color = table->colors[table->colorpick[colorIndex]];
+            {
+                u8* p = (u8*)table;
+                p += table->colorpick[colorIndex] * 12;
+                color = (f32*)(p + 24);
+            }
             if (ret >= 0) {
                 page->fx[ret].lightrad = lbl_803480EC;
                 if (color != NULL) {
@@ -887,24 +910,8 @@ s32 StartComboFX(f32* pos, s32 typeIndex, s32 colorIndex)
     }
     if (typeIndex >= 0) {
         u32 flags = 0x400880;
-        s32 type = table->types[typeIndex];
-        s32 subret = -1;
-        EffectHeader* header;
+        s32 subret = StartFXSubGutsP(page, table->types[typeIndex], pos, 0, flags, 0.0f);
 
-        if (type < 0 || type >= MAXEFFECTTYPES) {
-            ErrorPrintf("Bad Effect type: %d", type);
-            subret = -1;
-        } else {
-            header = &page->info[type];
-            if (header->atree != NULL) {
-                subret = StartFXTree(header->atree, pos, 0, flags, 0.0f);
-                if (subret >= 0) {
-                    MBTreeSetZsortAdd(page->fx[subret].node, header->zmod, 1);
-                    MBTreeSetAlpha(page->fx[subret].node, header->alpha, 1);
-                    page->fx[subret].type = (fx_type)type;
-                }
-            }
-        }
         ret = subret;
         if (subret >= 0) {
             MBTreeSetAmbientAdd(page->fx[ret].node, 0x1FF, 1);
@@ -1094,50 +1101,69 @@ extern f64 lbl_80348120;
 extern f32 lbl_80348130;
 extern f32 lbl_80348134;
 
+/* throw-specialized guts clone: time constant lives inside the body so its
+ * load stays below the atree branch (arg-eval at an inline call site hoists
+ * a global-load argument above the inlined bounds checks). */
+static s32 StartThrowGutsX(EffectPage* page, s32 type, f32* pos)
+{
+    s32 idx = -1;
+    EffectHeader* h;
+
+    if (type < 0 || type >= MAXEFFECTTYPES) {
+        ErrorPrintf("Bad Effect type: %d", type);
+        return -1;
+    }
+    h = &page->info[type];
+    if (h->atree != NULL && (idx = StartFXTree(h->atree, pos, 0x20010E, 0x800, lbl_80348130)) >= 0) {
+        MBTreeSetZsortAdd(page->fx[idx].node, h->zmod, 1);
+        MBTreeSetAlpha(page->fx[idx].node, h->alpha, 1);
+        page->fx[idx].type = (fx_type)type;
+    }
+    return idx;
+}
+
 /* 0x80092B58 StartThrowMagicFX -- spawn a thrown-magic projectile: def id
- * from the magic table, launch velocity/yaw from vel, damage + light setup. */
+ * from the magic table, launch velocity/yaw from vel, damage + light setup.
+ * STRUCTURAL MATCH 167/167 via StartThrowGutsX clone (time const inside the
+ * inlinee sinks its lfs below the atree branch; a GutsP time argument gets
+ * hoisted at arg-eval), vz arg2-first atan2 temp, ep multi-def address
+ * blocks. PARKED residual: one clrlwi (t4) 3 slots early + renum (rad/size
+ * f30<->f31, e web r23 vs r3/r20, fxh r3/r4). Exhausted: t4 stmt placement
+ * x4, cast-transit, assignment-in-index, sz param-copy, e/ep chain forms.
+ * Do not re-run. */
 s32 StartThrowMagicFX(f32* pos, f32* vel, s32 type, s32 player, s32 snd,
                       f32 weight, f32 dmg, f32 size)
 {
     MagicView* tbl = (MagicView*)lbl_80122088;
     EffectPage* page = (EffectPage*)EffectInfo;
-    s32 tid;
+    f32 sz = size;
     s32 t4;
     s32 ret;
     s32 cp;
     f32* cp3;
-    f32* pv;
     f32 rad;
     s32 fxh;
     u32 fl;
-    s32 ro;
+    Effect* e;
+    f32 yaw;
+    f32 vz;
+    u8* ep;
+    u8* e4;
 
-    rad = (f32)(lbl_80348128 * size);
+    rad = (f32)(lbl_80348128 * sz);
     if (rad > lbl_80348118) {
         rad = lbl_803480A0;
     }
-    tid = tbl->throwid[type & 0xF];
     t4 = type & 0xF;
-    ret = -1;
-    if (tid < 0 || tid >= 218) {
-        ErrorPrintf(lbl_80114790, tid);
-        ret = -1;
-    } else {
-        EffectHeader* hdr = &page->info[tid];
-        if (hdr->atree != NULL) {
-            ret = StartFXTree(hdr->atree, pos, 0x20010E, 0x800, lbl_80348130);
-            if (ret >= 0) {
-                ro = ret * 240;
-                MBTreeSetZsortAdd(page->fx[ret].node, hdr->zmod, 1);
-                MBTreeSetAlpha(page->fx[ret].node, hdr->alpha, 1);
-                page->fx[ret].type = (fx_type)tid;
-            }
-        }
-    }
+    ret = StartThrowGutsX(page, tbl->throwid[type & 0xF], pos);
     if (ret >= 0) {
-        Effect* e = &page->fx[ret];
+        ep = (u8*)page;
+        ep += ret * 240;
+        ep += 2976;
+        e = (Effect*)ep;
         if (vel != NULL) {
-            f32 yaw = atan2(vel[0], vel[2]);
+            vz = vel[2];
+            yaw = atan2(vel[0], vz);
             e->vel[0] = vel[0];
             e->vel[1] = vel[1];
             e->vel[2] = vel[2];
@@ -1145,11 +1171,10 @@ s32 StartThrowMagicFX(f32* pos, f32* vel, s32 type, s32 player, s32 snd,
                 YawMat3(e->node, yaw);
             }
         }
-        pv = tbl->pyr;
-        if (pv != NULL) {
-            e->pyrvel[0] = pv[0];
-            e->pyrvel[1] = pv[1];
-            e->pyrvel[2] = pv[2];
+        if (tbl->pyr != NULL) {
+            e->pyrvel[0] = tbl->pyr[0];
+            e->pyrvel[1] = tbl->pyr[1];
+            e->pyrvel[2] = tbl->pyr[2];
         }
         if (weight >= lbl_80348078) {
             e->weight = weight;
@@ -1158,28 +1183,34 @@ s32 StartThrowMagicFX(f32* pos, f32* vel, s32 type, s32 player, s32 snd,
     }
     fxh = tbl->magicid[t4];
     if (ret >= 0) {
-        page->fx[ret].fxhit = fxh;
-        page->fx[ret].hit_audio = snd;
-        page->fx[ret].wall_sound = snd;
+        e4 = (u8*)page;
+        e4 += ret * 240;
+        *(s16*)(e4 + 3166) = fxh;
+        *(s32*)(e4 + 3180) = snd;
+        *(s32*)(e4 + 3184) = snd;
     }
     fl = type;
     if (ret >= 0) {
-        Effect* e = &page->fx[ret];
+        ep = (u8*)page;
+        ep += ret * 240;
+        e = (Effect*)(ep + 2976);
         if ((s32)(fl & 0xF) >= 5) {
             fl &= ~0xC;
         }
         e->damage = dmg;
         e->damagetype = (DMG_TYPE)fl;
-        e->damageradius = size;
+        e->damageradius = sz;
         e->damagedelay = lbl_80348068;
         e->owner = player + 1;
     }
     page->fx[ret].hitscale = rad;
     cp = tbl->coloridx[t4];
-    cp3 = tbl->colors[cp];
+    e4 = (u8*)tbl;
+    e4 += cp * 12;
+    cp3 = (f32*)(e4 + 24);
     if (ret >= 0) {
-        u8* e4 = (u8*)page + ret * 240;
-        *(f32*)(e4 + 2992) = (f32)(lbl_80348120 * size);
+        e4 = (u8*)page + ret * 240;
+        *(f32*)(e4 + 2992) = (f32)(lbl_80348120 * sz);
         if (cp3 != NULL) {
             *(f32*)(e4 + 2976) = cp3[0];
             *(f32*)(e4 + 2980) = cp3[1];
@@ -1211,7 +1242,10 @@ static void SetMagicParams(u8* base, s32 idx, s32 tf, f32 power, f32 scale,
                            s32 owner)
 {
     if (idx >= 0) {
-        MagicFxView* fx = (MagicFxView*)((u32)base + idx * 240 + 2976);
+        u8* mp = base;
+        MagicFxView* fx;
+        mp += idx * 240;
+        fx = (MagicFxView*)(mp + 2976);
         if ((tf & 15) >= 5) {
             tf = tf & ~0xC;
         }
@@ -1235,7 +1269,54 @@ extern f64 lbl_803480A8;
 extern f32 lbl_803480EC;
 
 /* 0x80092FC0 SuicideExplosion -- the potion/suicide blast: main explosion,
- * smoke, flash, plus a deathmatch-mode variant. */
+ * smoke, flash, plus a deathmatch-mode variant.
+ * STRUCTURAL MATCH 255/255, opcode streams identical. KEY DEVICES: scoped
+ * #pragma opt_propagation off around the fn keeps the inlined (tf&15)>=5
+ * test on constant tf (folds otherwise); SetSuicideParamsA/B clones keep
+ * the scale-constant lfs under the idx guard; cast-transit e4; direct
+ * tbl->colors[0][i]; _spare[16] frame pad. PARKED: renum only (ret r29
+ * vs r28, y-block r3/r5, r24/r26). */
+/* per-branch SetMagicParams clones for SuicideExplosion: the scale constant
+ * lives inside the body so its lfs stays under the idx guard (a global-load
+ * argument is evaluated at the inline boundary), and the caller's scoped
+ * opt_propagation off keeps the (tf&15)>=5 test on a constant tf. */
+static void SetSuicideParamsA(u8* base, s32 idx, s32 tf, f32 power)
+{
+    if (idx >= 0) {
+        u8* mp = base;
+        MagicFxView* fx;
+        mp += idx * 240;
+        fx = (MagicFxView*)(mp + 2976);
+        if ((tf & 15) >= 5) {
+            tf = tf & ~0xC;
+        }
+        fx->power = power;
+        fx->flags = tf;
+        fx->scale = lbl_80348138;
+        fx->timer = 0.0f;
+        fx->owner = 0;
+    }
+}
+
+static void SetSuicideParamsB(u8* base, s32 idx, s32 tf, f32 power)
+{
+    if (idx >= 0) {
+        u8* mp = base;
+        MagicFxView* fx;
+        mp += idx * 240;
+        fx = (MagicFxView*)(mp + 2976);
+        if ((tf & 15) >= 5) {
+            tf = tf & ~0xC;
+        }
+        fx->power = power;
+        fx->flags = tf;
+        fx->scale = lbl_80348144;
+        fx->timer = 0.0f;
+        fx->owner = 0;
+    }
+}
+
+#pragma opt_propagation off
 s32 SuicideExplosion(f32* pos, f32 dmg)
 {
     MagicView* tbl = (MagicView*)lbl_80122088;
@@ -1247,6 +1328,7 @@ s32 SuicideExplosion(f32* pos, f32 dmg)
     struct mbnode* nd;
     u8* ha;
     f32 y;
+    u8 _spare[16];
 
     if (sMusicTrackHi == 11 || sMusicTrackHi == 7) {
         a = StartFXSub(25, pos, 43, 0x800, lbl_80348068);
@@ -1259,12 +1341,14 @@ s32 SuicideExplosion(f32* pos, f32 dmg)
             page->fx[a].wall_sound = 0;
         }
         ret = a;
-        fl = 2048;
-        SetMagicParams((u8*)page, a, fl, dmg, lbl_80348138, -1);
+        SetSuicideParamsA((u8*)page, a, 2048, dmg);
         ro = a * 240;
         nd = page->fx[a].node;
-        y = *(f32*)((u32)nd + 52);
-        *(f32*)((u32)nd + 52) = (f32)(y + lbl_803480A8);
+        {
+            f32* yp = (f32*)nd;
+            y = yp[13];
+            yp[13] = (f32)(y + lbl_803480A8);
+        }
         if (a >= 0) {
             *(s16*)((u8*)page + ro + 3168) = 26;
             *(s16*)((u8*)page + ro + 3170) = 27;
@@ -1305,8 +1389,7 @@ s32 SuicideExplosion(f32* pos, f32 dmg)
         ro = ret * 240;
         ha = (u8*)page + 3180;
         *(s32*)(ha + ro) = 4;
-        fl = 1057;
-        SetMagicParams((u8*)page, ret, fl, dmg, lbl_80348144, -1);
+        SetSuicideParamsB((u8*)page, ret, 1057, dmg);
         {
             u8* ep = (u8*)page + ro;
             e3 = (Effect*)(ep + 2976);
@@ -1342,13 +1425,12 @@ s32 SuicideExplosion(f32* pos, f32 dmg)
             }
         }
         if (ret >= 0) {
-            u8* e4 = (u8*)page + ro;
-            f32* c = tbl->colors[0];
+            u8* e4 = (u8*)((u32)page + (u32)ro);
             *(f32*)(e4 + 2992) = (f32)(lbl_80348150 * lbl_803480EC);
-            if (c != NULL) {
-                e3->lightcolor[0] = c[0];
-                *(f32*)(e4 + 2980) = c[1];
-                *(f32*)(e4 + 2984) = c[2];
+            if (tbl->colors[0] != NULL) {
+                e3->lightcolor[0] = tbl->colors[0][0];
+                *(f32*)(e4 + 2980) = tbl->colors[0][1];
+                *(f32*)(e4 + 2984) = tbl->colors[0][2];
             } else {
                 e3->lightcolor[0] = light_color[0];
                 *(f32*)(e4 + 2980) = light_color[1];
@@ -1370,6 +1452,7 @@ s32 SuicideExplosion(f32* pos, f32 dmg)
     }
     return ret;
 }
+#pragma opt_propagation reset
 
 extern f64 lbl_803480F0;        /* death launch velocity factor */
 extern f32 lbl_803480F8;        /* death timer preset */
@@ -1517,7 +1600,13 @@ extern void MBPsysFlame(s32 a, struct mbnode* node, f32* dir, f32 t, f32 x,
                         f32 y);
 
 /* 0x800933BC StartExplosion -- typed explosion at an object: per-type node
- * radius/morph setup, light, then deathmatch debris flames. */
+ * radius/morph setup, light, then deathmatch debris flames.
+ * NEAR-STRUCTURAL 342/343 (was 27 op-diffs, now 14 micro-placements):
+ * fixed via ep-multi-def blocks, at-temp atree read, yp[13] y-bump, dr
+ * loop-hoist, direct tbl->colors[0][i], SetMagicParams mp-multi-def body.
+ * PARKED: 4x e-addi placed before the nd lwz (nd-first stmt adds mr,
+ * comma form spills), pv-copy lwz/lfs order, case25 shared-add CSE
+ * (cast-transit no-op), flame-block addi CSE. */
 s32 StartExplosion(u8* en, s32 type, f32 dmg)
 {
     MagicView* tbl = (MagicView*)lbl_80122088;
@@ -1554,8 +1643,10 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
         rad = lbl_80348158;
         fl = 1057;
         {
-            u8* ep = (u8*)page + ro;
-            Effect* e = (Effect*)(ep + 2976);
+            u8* ep = (u8*)page;
+            Effect* e;
+            ep += ro;
+            e = (Effect*)(ep + 2976);
             if ((nd = *(struct mbnode**)(ep + 2996)) != NULL) {
                 f32 k1;
                 MBTreeSetFlags(nd, 8, 0);
@@ -1569,12 +1660,16 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
         {
             struct mbnode* n2 = *(struct mbnode**)(nb + ro);
             EffectHeader* hdr = &page->info[29];
+            struct atreeheader* at;
             f32 y;
             r2 = -1;
-            y = *(f32*)((u32)n2 + 52);
-            *(f32*)((u32)n2 + 52) = (f32)(y + lbl_80348160);
-            if (hdr->atree != NULL) {
-                r2 = StartFXTree(hdr->atree, (f32*)(en + 48), 0, 0,
+            {
+                f32* yp = (f32*)n2;
+                y = yp[13];
+                yp[13] = (f32)(y + lbl_80348160);
+            }
+            if ((at = page->info[29].atree) != NULL) {
+                r2 = StartFXTree(at, (f32*)(en + 48), 0, 0,
                                  lbl_80348068);
                 if (r2 >= 0) {
                     s32 ro2 = r2 * 240;
@@ -1586,15 +1681,22 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
                 }
             }
             if (r2 >= 0) {
-                Effect* e = &page->fx[r2];
+                u8* mp2 = (u8*)page;
+                Effect* e;
+                mp2 += r2 * 240;
+                e = (Effect*)(mp2 + 2976);
                 if (en != NULL) {
                     CopyMat3((f32*)en, e->node);
                 }
                 if ((f32*)(en + 48) != NULL) {
                     f32* pv = (f32*)(en + 48);
-                    *(f32*)((u8*)e->node + 48) = pv[0];
-                    *(f32*)((u8*)e->node + 52) = pv[1];
-                    *(f32*)((u8*)e->node + 56) = pv[2];
+                    f32 t0;
+                    t0 = pv[0];
+                    *(f32*)((u8*)e->node + 48) = t0;
+                    t0 = pv[1];
+                    *(f32*)((u8*)e->node + 52) = t0;
+                    t0 = pv[2];
+                    *(f32*)((u8*)e->node + 56) = t0;
                 }
             }
         }
@@ -1606,8 +1708,10 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
         rad = lbl_80348158;
         fl = 1057;
         {
-            u8* ep = (u8*)page + ro;
-            Effect* e = (Effect*)(ep + 2976);
+            u8* ep = (u8*)page;
+            Effect* e;
+            ep += ro;
+            e = (Effect*)(ep + 2976);
             if ((nd = *(struct mbnode**)(ep + 2996)) != NULL) {
                 f32 k1;
                 MBTreeSetFlags(nd, 8, 0);
@@ -1617,9 +1721,15 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
                 *(f32*)((u8*)e->node + 72) = k1;
             }
         }
-        nd = *(struct mbnode**)((u8*)page + ro + 2996);
-        y = *(f32*)((u32)nd + 52);
-        *(f32*)((u32)nd + 52) = (f32)(y + lbl_80348150);
+        {
+            u8* ep = (u8*)page;
+            f32* yp;
+            ep += ro;
+            nd = *(struct mbnode**)(ep + 2996);
+            yp = (f32*)nd;
+            y = yp[13];
+            yp[13] = (f32)(y + lbl_80348150);
+        }
         break;
     }
     default: {
@@ -1627,8 +1737,10 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
         rad = lbl_80348144;
         fl = 1057;
         {
-            u8* ep = (u8*)page + ro;
-            Effect* e = (Effect*)(ep + 2976);
+            u8* ep = (u8*)page;
+            Effect* e;
+            ep += ro;
+            e = (Effect*)(ep + 2976);
             if ((nd = *(struct mbnode**)(ep + 2996)) != NULL) {
                 f32 k1;
                 MBTreeSetFlags(nd, 8, 0);
@@ -1649,15 +1761,20 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
         rad = lbl_80348174;
         fl = 2048;
         if (ret >= 0) {
-            Effect* e = (Effect*)((u8*)page + ro + 2976);
+            u8* mp = (u8*)page;
+            Effect* e;
+            mp += ro;
+            e = (Effect*)(mp + 2976);
             e->fxmorph = 26;
             e->fxmorph2 = 27;
             e->flags |= 0x4000;
             e->morphtime = lbl_80348170;
         }
         {
-            u8* ep = (u8*)page + ro;
-            Effect* e = (Effect*)(ep + 2976);
+            u8* ep = (u8*)page;
+            Effect* e;
+            ep += ro;
+            e = (Effect*)(ep + 2976);
             if ((nd = *(struct mbnode**)(ep + 2996)) != NULL) {
                 f32 k1;
                 MBTreeSetFlags(nd, 8, 0);
@@ -1672,12 +1789,11 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
     }
     if ((fl & 1) && ret >= 0) {
         u8* e4 = (u8*)page + ret * 240;
-        f32* c = tbl->colors[0];
         *(f32*)(e4 + 2992) = (f32)(lbl_80348150 * rad);
-        if (c != NULL) {
-            *(f32*)(e4 + 2976) = c[0];
-            *(f32*)(e4 + 2980) = c[1];
-            *(f32*)(e4 + 2984) = c[2];
+        if (tbl->colors[0] != NULL) {
+            *(f32*)(e4 + 2976) = tbl->colors[0][0];
+            *(f32*)(e4 + 2980) = tbl->colors[0][1];
+            *(f32*)(e4 + 2984) = tbl->colors[0][2];
         } else {
             *(f32*)(e4 + 2976) = light_color[0];
             *(f32*)(e4 + 2980) = light_color[1];
@@ -1686,6 +1802,7 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
     }
     SetMagicParams((u8*)page, ret, fl, dmg, rad, -1);
     if (sMusicTrackHi == 10 && type == 24) {
+        f32 dr = lbl_80348144;
         f64 kA = lbl_80348180;
         f64 kB = lbl_80348188;
         f64 kC = lbl_80348190;
@@ -1711,7 +1828,7 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
                 page->fx[d].wall_sound = -1;
             }
             if (d >= 0) {
-                page->fx[d].damageradius = lbl_80348144;
+                page->fx[d].damageradius = dr;
                 page->fx[d].hitcount = 180;
                 MBPsysFlame(0, page->fx[d].node, lbl_80127D50, ft,
                             lbl_80348134, lbl_8034813C);
@@ -1994,26 +2111,6 @@ s32 fn_80094080(f32* pos, s32 index)
 }
 
 extern s32 lbl_8034482C;
-
-/* page-explicit clone of StartFXSubGuts: taking the page as a param lets the
- * caller compute EffectInfo once in its prologue (target hoists it to r31). */
-static s32 StartFXSubGutsP(EffectPage* page, s32 type, f32* pos, u32 fla, u32 flb, f32 time)
-{
-    s32 idx = -1;
-    EffectHeader* h;
-
-    if (type < 0 || type >= MAXEFFECTTYPES) {
-        ErrorPrintf("Bad Effect type: %d", type);
-        return -1;
-    }
-    h = &page->info[type];
-    if (h->atree != NULL && (idx = StartFXTree(h->atree, pos, fla, flb, time)) >= 0) {
-        MBTreeSetZsortAdd(page->fx[idx].node, h->zmod, 1);
-        MBTreeSetAlpha(page->fx[idx].node, h->alpha, 1);
-        page->fx[idx].type = (fx_type)type;
-    }
-    return idx;
-}
 
 /* 0x80094164 -- start a table-selected magic fx: table picked by the
  * beam-mode global and `which` (four duplicated StartFXSubGutsP inlines).
