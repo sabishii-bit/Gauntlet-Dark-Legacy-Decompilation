@@ -147,7 +147,7 @@ extern char   lbl_80115244[];   /* printf fmt "---- ALLOC World Data [%dK]\n"  *
 extern char   lbl_80115264[];   /* "World psys: bad name: %s"                  */
 extern char   lbl_80115280[];   /* "Unable to find world psys '%c'"           */
 extern char   lbl_801152A0[];   /* "World obj with dynamic parent"            */
-extern char   lbl_803487B0[];   /* "PSYS"                                      */
+extern char   lbl_803487B0[5]; /* "PSYS"                                      */
 
 /* --- external API --- */
 extern void  MBTreeSetFlags();          /* set node display flag / show           */
@@ -204,6 +204,7 @@ static const float lbl_80348778 = 0.0f;
 static const double lbl_80348768 = 0.0;  /* invgridsize fallback   */
 static const double lbl_80348788 = 0.5;  /* Newton half / center weight */
 static const double lbl_80348790 = 3.0;  /* Newton three            */
+static const double lbl_803487B8 = -1.0; /* psys spawn-pos negation */
 static const double lbl_803487A8 = 1.0;  /* invgridsize numerator  */
 extern f64 __frsqrte(f64 x);
 
@@ -839,57 +840,62 @@ s32 WorldPsysDeActivate(WorldObj* o) {
 /* WorldPsysActivate: look up the "PSYS<id>" template in gWorldInfo.worldpsys
  * and spawn the particle system for this object (with GetWorldPsysIdx inlined
  * as the id search). */
+/* GetWorldPsysIdx (Xbox local fn, inlined here): find template by id char. */
+static s32 GetWorldPsysIdx(s8 id) {
+    char* base = gWorldName;
+    u8** wpsp = (u8**)(base + 384);
+    u8* tbl = *wpsp;
+    s32 i = 0;
+
+    for (; i < *(s32*)(base + 388); i++) {
+        if ((s8)tbl[i * 312 + 6] == id) {
+            return i;
+        }
+    }
+    ErrorPrintf(lbl_80115280, id);
+    return -1;
+}
+
 s32 WorldPsysActivate(WorldObj* obj) {
-    G3DNode* node;
+    char* base = gWorldName;
     char* tag;
-    s8 id;
-    s32 idx;
+    s32 i;
     f32 pos[3];
     f32* posp;
+    u8** wpsp;
 
     if (obj->flags & 0x00800000) {
         goto done;
     }
 
-    tag = strstr(obj->desc, lbl_803487B0);
+    tag = strstr((char*)obj, lbl_803487B0);
     if (tag == NULL) {
         ErrorPrintf(lbl_80115264, obj);
         return 0;
     }
 
-    /* GetWorldPsysIdx: match the id char after "PSYS" against the table. */
-    id = (s8)tag[4];
-    idx = -1;
-    {
-        s32 i;
-        for (i = 0; i < gWorldInfo.nworldpsys; i++) {
-            if ((s8)gWorldInfo.worldpsys[i].id == id) {
-                idx = i;
-                break;
-            }
-        }
-    }
-    if (idx < 0) {
-        ErrorPrintf(lbl_80115280, id);
+    wpsp = (u8**)(base + 384);
+    i = GetWorldPsysIdx((s8)tag[4]);
+    if (i < 0) {
         goto done;
     }
 
     posp = NULL;
-    if (obj->nctris > 0) {
-        struct coltri* ct = &((struct coltri*)gWorldInfo.ctris)[obj->ctriidx];
-        pos[0] = -ct->pos[0];
-        pos[1] = -ct->pos[1];
-        pos[2] = -ct->pos[2];
+    if (*(s16*)((u8*)obj + 54) > 0) {
+        u8* ct = *(u8**)(base + 236) + *(s32*)((u8*)obj + 56) * 40 + 8;
+        pos[0] = (f32)(lbl_803487B8 * *(f32*)ct);
+        pos[1] = (f32)(lbl_803487B8 * *(f32*)(ct + 4));
+        pos[2] = (f32)(lbl_803487B8 * *(f32*)(ct + 8));
         posp = pos;
     }
-    MBNewWorldPsys(0, obj->nodeptr, &gWorldInfo.worldpsys[idx],
-                obj->flags & 0x1000, obj, posp);
+    MBNewWorldPsys(0, *(void**)((u8*)obj + 40),
+                   *wpsp + i * 312,
+                   obj->flags & 0x1000, obj, posp);
     obj->flags &= ~0x00400000;
     obj->flags |= 0x00800000;
 
 done:
-    node = (G3DNode*)obj->nodeptr;
-    node->dflags &= ~2;
+    *(s32*)(*(u8**)((u8*)obj + 40) + 96) &= ~2;
     return 1;
 }
 
