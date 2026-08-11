@@ -271,25 +271,24 @@ void fn_800C7214(s32 id) {
     u8* mgr = gWinGlobals->tbl;
     u8* e = mgr + id * 0x10 + 0x4;
     u8* desc = *(u8**)e;
-    s32 i;
-
+    u8* t;
     s32 shift;
+    s32 i;
 
     if (*(s32*)(e + 0xc) > 7)
         return;
 
     shift = *(s32*)(desc + 0x70);
     for (i = 0; i < *(u32*)(desc + 0x48); i++) {
-        u8* t = *(u8**)(desc + 0x58) + i * 0x10;
+        t = *(u8**)(desc + 0x58) + i * 0x10;
         *(s16*)(t + 0xe) = -1;
         t[0x1] = (s8)id;
-        if (*(u16*)(t + 0xa) >= 1 && *(u16*)(t + 0xc) >= 1) {
-            if (*(u16*)(t + 0x2) & 0x100) {
-                *(u16*)(t + 0x2) |= 0x100;
-                *(s32*)(t + 0x4) = 0;
-            } else {
-                *(s32*)(t + 0x4) = shift + *(s32*)(t + 0x4);
-            }
+        if (*(u16*)(t + 0xa) < 1 || *(u16*)(t + 0xc) < 1 ||
+            (*(u16*)(t + 0x2) & 0x100)) {
+            *(u16*)(t + 0x2) |= 0x100;
+            *(s32*)(t + 0x4) = 0;
+        } else {
+            *(s32*)(t + 0x4) = shift + *(s32*)(t + 0x4);
         }
     }
     pbSetupTextures(id);
