@@ -3138,29 +3138,38 @@ void move_logic10(s32 index)
  * flag the egg, and hatch back when the egg reports ready. */
 void move_logic12(s32 index)
 {
-    Enemy* e = (Enemy*)((u8*)lbl_80250E00 + index * 916 + 3608);
-    struct item* gen = *(struct item**)((u8*)lbl_80250E00 + index * 916 + 4264);
+    u8* e0;
+    u8* base = (u8*)lbl_80250E00;
+    Enemy* e;
+    struct item* gen;
     s32 it = lbl_80344748;
     s32 flee;
     f32 a;
+    u8* p;
     u8 unused[16];
 
+    p = base + index * 916;
+    gen = *(struct item**)(p + 4264);
+    e0 = p + 3608;
+    e = (Enemy*)(u8*)e0;
     if (it < 0) {
         flee = 0;
     } else {
-        Enemy* other = (Enemy*)((u8*)lbl_80250E00 + it * 916 + 3608);
-        if (other->state != 1) {
+        u8* other = base + it * 916;
+        if (*(s32*)(other + 3788) != 1) {
             flee = 0;
-        } else if (other->actual_dist > e->sight) {
+        } else if (*(f32*)(other + 4244) > *(f32*)(e0 + 768)) {
             flee = 0;
+        } else if (index == it || *(s16*)(e0 + 728) != 0 || *(s32*)(e0 + 856) > 0) {
+            goto flee_zero;
         } else {
-            f32 dy = other->objgrp.worldmat[3][1] - e->objgrp.worldmat[3][1];
-            f32 dx = other->objgrp.worldmat[3][0] - e->objgrp.worldmat[3][0];
-            f32 dz = other->objgrp.worldmat[3][2] - e->objgrp.worldmat[3][2];
-            if (index != it && e->birth_style == 0 && e->dead_end <= 0
-                && dy * dy + dx * dx + dz * dz < 100.0) {
+            f32 dx = *(f32*)(other + 3660) - *(f32*)(e0 + 52);
+            f32 dy = *(f32*)(other + 3664) - *(f32*)(e0 + 56);
+            f32 dz = *(f32*)(other + 3668) - *(f32*)(e0 + 60);
+            if (dx * dx + dy * dy + dz * dz < lbl_803468D8) {
                 flee = -1;
             } else {
+            flee_zero:
                 flee = 0;
             }
         }
@@ -3203,9 +3212,10 @@ void move_logic12(s32 index)
         break;
     case 1:
         if (gen != 0 && *((u8*)gen + 230) == 7) {
-            e->dest[0] = 0.0f;
-            e->dest[1] = 0.0f;
-            e->dest[2] = 0.0f;
+            f32 z = lbl_80346820;
+            e->dest[0] = z;
+            e->dest[1] = z;
+            e->dest[2] = z;
             e->mode1 = 2;
         }
         break;
