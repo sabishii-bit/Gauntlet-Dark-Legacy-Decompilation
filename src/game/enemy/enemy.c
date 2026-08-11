@@ -332,6 +332,9 @@ next_enemy:
     return best_distance;
 }
 
+extern f64 lbl_803468D8;        /* 100.0 */
+extern f64 lbl_80346900;        /* 8.0 */
+extern f64 lbl_80346908;        /* pi/4 */
 extern f64 lbl_80346840;        /* pi wrap high */
 extern f64 lbl_80346848;        /* 2*pi */
 extern f64 lbl_80346850;        /* -pi wrap low */
@@ -1277,7 +1280,7 @@ void fn_80046140(s32 index)
 /* --- move_logic shared externs --- */
 extern void RequestEnemyAction(Enemy* e, s32 action);
 extern f32 get_yaw(f32* to, f32* from);       /* dir angle from->to */
-extern void fn_80050394(s32 index);           /* AI-change transition hook */
+extern void format_brain(s32 index);           /* AI-change transition hook */
 extern void set_enemy_trans(Enemy* e, f32 spd, f32 ang); /* accel along angle */
 extern f32 lbl_8011BF60[];    /* 0x8011BF60 imp retreat-speed ramp table */
 extern const f64 lbl_803469B8; /* 1.25 action-speed threshold */
@@ -1716,7 +1719,7 @@ void move_logic00(s32 index)
         return;
     }
     if (e->algorithm != e->prev_ai) {
-        fn_80050394(index);
+        format_brain(index);
     }
     if (e->dead_end > 0) {
         e->dead_end -= gFrameTicks;
@@ -1831,7 +1834,7 @@ void move_logic01(s32 index)
         return;
     }
     if (e->algorithm != e->prev_ai) {
-        fn_80050394(index);
+        format_brain(index);
     }
     if (e->closest < 0 || e->operation_count < e->operation_speed) {
         a = e->ang;
@@ -1867,27 +1870,33 @@ void move_logic01(s32 index)
  * timer, wobbling the heading by pi/4 and periodically re-rolling to ON_EXIT. */
 void move_logic02(s32 index)
 {
-    Enemy* e = (Enemy*)((u8*)lbl_80250E00 + index * 916 + 3608);
+    u8* e0;
+    u8* base = (u8*)lbl_80250E00;
+    Enemy* e;
     s32 it = lbl_80344748;
     s32 flee;
     u8 unused[16];
 
+    e0 = base + index * 916 + 3608;
+    e = (Enemy*)e0;
     if (it < 0) {
         flee = 0;
     } else {
-        Enemy* other = (Enemy*)((u8*)lbl_80250E00 + it * 916 + 3608);
-        if (other->state != 1) {
+        u8* other = base + it * 916;
+        if (*(s32*)(other + 3788) != 1) {
             flee = 0;
-        } else if (other->actual_dist > e->sight) {
+        } else if (*(f32*)(other + 4244) > *(f32*)(e0 + 768)) {
             flee = 0;
+        } else if (index == it || *(s16*)(e0 + 728) != 0 || *(s32*)(e0 + 856) > 0) {
+            goto flee_zero;
         } else {
-            f32 dy = other->objgrp.worldmat[3][1] - e->objgrp.worldmat[3][1];
-            f32 dx = other->objgrp.worldmat[3][0] - e->objgrp.worldmat[3][0];
-            f32 dz = other->objgrp.worldmat[3][2] - e->objgrp.worldmat[3][2];
-            if (index != it && e->birth_style == 0 && e->dead_end <= 0
-                && dy * dy + dx * dx + dz * dz < 100.0) {
+            f32 dx = *(f32*)(other + 3660) - *(f32*)(e0 + 52);
+            f32 dy = *(f32*)(other + 3664) - *(f32*)(e0 + 56);
+            f32 dz = *(f32*)(other + 3668) - *(f32*)(e0 + 60);
+            if (dx * dx + dy * dy + dz * dz < lbl_803468D8) {
                 flee = -1;
             } else {
+            flee_zero:
                 flee = 0;
             }
         }
@@ -1897,23 +1906,23 @@ void move_logic02(s32 index)
         do_ai(index);
         return;
     }
-    if (e->closest >= 0 && e->close_dist <= 8.0) {
+    if (e->closest >= 0 && e->close_dist <= lbl_80346900) {
         e->algorithm = 0;
         do_ai(index);
         return;
     }
     if (e->algorithm != e->prev_ai) {
-        fn_80050394(index);
+        format_brain(index);
     }
     if (e->dead_end > 0) {
         if ((e->dead_end -= gFrameTicks) <= 0) {
-            e->ang += 0.7853981635;
+            e->ang += lbl_80346908;
             {
                 f64 a = e->ang;
-                if (a > 3.141592654) {
-                    a -= 6.283185308;
-                } else if (a <= -3.141592654) {
-                    a = 6.283185308 + a;
+                if (a > lbl_80346840) {
+                    a -= lbl_80346848;
+                } else if (a <= lbl_80346850) {
+                    a = lbl_80346848 + a;
                 }
                 e->ang = a;
             }
@@ -1925,10 +1934,10 @@ void move_logic02(s32 index)
             }
         }
     }
-    if (e->coll_pnum >= 0) {
-        e->ang = get_yaw(&gPlayerWords[e->coll_pnum][17], &e->objgrp.worldmat[3][0]);
+    if ((it = e->coll_pnum) >= 0) {
+        e->ang = get_yaw(&gPlayerWords[it][17], &e->objgrp.worldmat[3][0]);
     }
-    set_enemy_trans(e, 1.0f, e->ang);
+    set_enemy_trans(e, lbl_803468F0, e->ang);
     e->pyr[1] = turn_enemy_ang(e, e->ang);
     do_enemy_move(index);
 }
@@ -2036,13 +2045,13 @@ void move_logic04(s32 index)
         do_ai(index);
         return;
     }
-    if (e->closest >= 0 && e->close_dist <= 8.0) {
+    if (e->closest >= 0 && e->close_dist <= lbl_80346900) {
         e->algorithm = 0;
         do_ai(index);
         return;
     }
     if (e->algorithm != e->prev_ai) {
-        fn_80050394(index);
+        format_brain(index);
     }
     if (e->dead_end > 0) {
         if ((e->dead_end -= gFrameTicks) <= 0) {
@@ -2125,7 +2134,7 @@ void move_logic05(s32 index)
         return;
     }
     if (e->algorithm != e->prev_ai) {
-        fn_80050394(index);
+        format_brain(index);
     }
     if (e->dead_end > 0) {
         if ((e->dead_end -= gFrameTicks) <= 0) {
@@ -2236,7 +2245,7 @@ void move_logic06(s32 index)
         return;
     }
     if (e->algorithm != e->prev_ai) {
-        fn_80050394(index);
+        format_brain(index);
     }
     if (e->dead_end > 0) {
         if ((e->dead_end -= gFrameTicks) <= 0) {
@@ -2354,7 +2363,7 @@ void move_logic07(s32 index)
         return;
     }
     if (e->algorithm != e->prev_ai) {
-        fn_80050394(index);
+        format_brain(index);
     }
     if (e->closest < 0) {
         face = e->ang;
@@ -2487,7 +2496,7 @@ void move_logic08(s32 index)
         return;
     }
     if (e->algorithm != e->prev_ai) {
-        fn_80050394(index);
+        format_brain(index);
     }
     fn_80051568(index);
     if (e->guard_closest >= 0) {
@@ -2603,7 +2612,7 @@ void move_logic08(s32 index)
  *   GetMilestonePos x6, find_neighbor_milestone x2, update_enemy_milestone x1
  *                     - milestone-network navigation (shares the move_logic22 stack)
  *   turn_enemy_ang x5, set_enemy_trans x5, do_enemy_move x5 - one move per sub-mode
- *   fn_80050394 x5   - AI-change transition per sub-mode
+ *   format_brain x5   - AI-change transition per sub-mode
  *   fqdist x4, fn_8004CE38 x3, fn_8004C8CC x3 - dist checks + corner probes
  *   do_ai x2         - the flee/chase bail-outs
  * Frame: 392 bytes, saves r25-r31 (_savefpr_25), pool base lbl_8011AF48 held in a
@@ -2667,7 +2676,7 @@ void move_logic10(s32 index)
             skip = 0;
         } else {
             if (e->algorithm != e->prev_ai) {
-                fn_80050394(index);
+                format_brain(index);
             }
             if (e->closest < 0) {
                 face = e->ang;
@@ -2687,7 +2696,7 @@ void move_logic10(s32 index)
         }
         if (skip == 0) {
             if (e->algorithm != e->prev_ai) {
-                fn_80050394(index);
+                format_brain(index);
             }
             if (e->plr_ms < 0) {
                 s32 got = 0;
@@ -2845,7 +2854,7 @@ void move_logic10(s32 index)
             skip = 0;
         } else {
             if (e->algorithm != e->prev_ai) {
-                fn_80050394(index);
+                format_brain(index);
             }
             if (e->closest < 0) {
                 face = e->ang;
@@ -2865,7 +2874,7 @@ void move_logic10(s32 index)
         }
         if (skip == 0) {
             if (e->algorithm != e->prev_ai) {
-                fn_80050394(index);
+                format_brain(index);
             }
             if (e->collided < 5) {
                 if (e->closest < 0) {
@@ -2953,7 +2962,7 @@ void move_logic10(s32 index)
     } else {
         /* -- mode 2+: follow the player's recorded milestone trail -- */
         if (e->algorithm != e->prev_ai) {
-            fn_80050394(index);
+            format_brain(index);
         }
         if (e->plr_ms < 0) {
             if (e->stuck_count < 5) {
@@ -3159,7 +3168,7 @@ void move_logic12(s32 index)
         return;
     }
     if (e->algorithm != e->prev_ai) {
-        fn_80050394(index);
+        format_brain(index);
     }
     if (e->closest >= 0) {
         if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
@@ -3257,7 +3266,7 @@ void move_logic13(s32 index)
         return;
     }
     if (e->algorithm != e->prev_ai) {
-        fn_80050394(index);
+        format_brain(index);
     }
     {
         Enemy* prev = (Enemy*)((u8*)lbl_80250E00 + e->prev_enemy * 916 + 3608);
@@ -3345,13 +3354,13 @@ void move_logic14(s32 index)
         do_ai(index);
         return;
     }
-    if (e->closest >= 0 && e->close_dist <= 8.0) {
+    if (e->closest >= 0 && e->close_dist <= lbl_80346900) {
         e->algorithm = 0;
         do_ai(index);
         return;
     }
     if (e->algorithm != e->prev_ai) {
-        fn_80050394(index);
+        format_brain(index);
     }
     if (e->closest < 0) {
         face = e->ang;
@@ -3473,7 +3482,7 @@ void move_logic15(s32 index)
         }
     }
     if (e->algorithm != e->prev_ai) {
-        fn_80050394(index);
+        format_brain(index);
     }
     {
         s32 mode = e->mode1;
@@ -3578,7 +3587,7 @@ void move_logic16(s32 index)
         return;
     }
     if (e->algorithm != e->prev_ai) {
-        fn_80050394(index);
+        format_brain(index);
     }
     if (e->closest < 0) {
         a = e->ang;
@@ -3664,7 +3673,7 @@ void move_logic18(s32 index)
         stuck = 0;
     }
     if (e->algorithm != e->prev_ai) {
-        fn_80050394(index);
+        format_brain(index);
     }
     if (e->closest >= 0) {
         if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
@@ -3771,7 +3780,7 @@ void move_logic19(s32 index)
         return;
     }
     if (e->algorithm != e->prev_ai) {
-        fn_80050394(index);
+        format_brain(index);
     }
     if (e->closest >= 0) {
         if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
@@ -3852,7 +3861,7 @@ void move_logic20(s32 index)
         return;
     }
     if (e->algorithm != e->prev_ai) {
-        fn_80050394(index);
+        format_brain(index);
     }
     if (e->closest < 0) {
         face = e->ang;
@@ -3972,7 +3981,7 @@ void move_logic21(s32 index)
         return;
     }
     if (e->algorithm != e->prev_ai) {
-        fn_80050394(index);
+        format_brain(index);
     }
     if (e->dead_end > 0 && (c = e->counter1) < 8) {
         e->counter1 = c + 1;
@@ -4055,7 +4064,7 @@ void move_logic22(s32 index)
         return;
     }
     if (e->algorithm != e->prev_ai) {
-        fn_80050394(index);
+        format_brain(index);
     }
     mode1 = e->mode1;
     if (mode1 == 0) {
@@ -4132,7 +4141,7 @@ void move_logic23(s32 index)
     f32 a;
 
     if (e->algorithm != e->prev_ai) {
-        fn_80050394(index);
+        format_brain(index);
     }
     if (e->closest >= 0) {
         if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
@@ -4177,7 +4186,7 @@ void move_logic24(s32 index)
         stuck = 0;
     }
     if (e->algorithm != e->prev_ai) {
-        fn_80050394(index);
+        format_brain(index);
     }
     if (e->dead_end > 0 && (c = e->counter1) < 8) {
         e->counter1 = c + 1;
@@ -4225,7 +4234,7 @@ void move_logic28(s32 index)
         return;
     }
     if (e->algorithm != e->prev_ai) {
-        fn_80050394(index);
+        format_brain(index);
     }
     if (e->closest >= 0) {
         if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
@@ -4311,7 +4320,7 @@ void move_logic29(s32 index)
         return;
     }
     if (e->algorithm != e->prev_ai) {
-        fn_80050394(index);
+        format_brain(index);
     }
     if (e->closest < 0) {
         a = e->ang;
@@ -4442,7 +4451,7 @@ void move_logic30(s32 index)
         return;
     }
     if (e->algorithm != e->prev_ai) {
-        fn_80050394(index);
+        format_brain(index);
     }
     if (e->dead_end <= 0 && (e->counter1 -= gFrameTicks) <= 0) {
         s32 n = (s32)(90.0 * *(f32*)(gCurLevel + 192));
@@ -4501,7 +4510,7 @@ void move_logic31(s32 index)
     u8 unused[16];
 
     if (e->algorithm != e->prev_ai) {
-        fn_80050394(index);
+        format_brain(index);
     }
     if (e->closest >= 0) {
         if (*(s16*)&gPlayerWords[e->closest][647] > 2) {
