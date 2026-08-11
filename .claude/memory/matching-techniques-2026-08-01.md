@@ -866,3 +866,14 @@ callers for the same lost retry loop.)
   branch-materialized `!v` that plain `!` folds away.
 - FPR const homes follow decl order of receiving locals; load emission
   follows init-statement order.
+
+## Unfuse mr. into cmplwi + addi with a u32 staging variable
+
+When retail tests a call result and separately copies it
+(`cmplwi r3,0; addi r4,r3,0; bne`), a plain `p = call(); if (p == 0)`
+fuses into `mr. r4,r3`. Stage through an integer:
+`rv = (u32)call(); p = (char*)rv; if (rv == 0)` — the test binds to the
+return register and the pointer copy becomes the separate addi
+(DrawStringTextMLines, 23 -> 4 real at exact length). Also: direct
+call-result store (`slot[i] = call();` with no temp) restores lwzu fusion
+on a following deref-with-update test (AudioBuildMusicName).
