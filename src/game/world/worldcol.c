@@ -1026,54 +1026,53 @@ void CreateMat3Norm(f32 scale, f32* mtx, f32* normal)
  * to the endpoints, store the closest point in `out`, and score the distance. */
 void PointLineColl(f32* point, f32* start, f32* end, f32* out)
 {
-    f32 scratch[6];
     f32 seg[3];
-    f64 len;
-    f64 dx;
-    f64 dy;
-    f64 dz;
-    f64 t;
+    f32 scratch[6];
+    f32 len;
+    f32 t;
+    f32 dz;
+    f32 dx;
+    f32 dy;
 
     seg[0] = end[0] - start[0];
     seg[1] = end[1] - start[1];
     seg[2] = end[2] - start[2];
-    len = (f64)NormalVector(seg);
-    dz = point[2] - start[2];
+    len = NormalVector(seg);
+    dx = point[0] - start[0];
     dy = point[1] - start[1];
-    dx = (f64)(f32)((f64)point[0] - (f64)start[0]);
-    t = (f64)(f32)(dz * (f64)seg[2] +
-                   (f64)(f32)(dx * (f64)seg[0] + (f64)(f32)(dy * (f64)seg[1])));
-    if ((f64)lbl_8034572C < t) {
-        if (t < len) {
-            if (out == 0) {
-                out = scratch;
-            }
-            out[0] = (f32)((f64)seg[0] * t + (f64)start[0]);
-            out[1] = (f32)((f64)seg[1] * t + (f64)start[1]);
-            out[2] = (f32)((f64)seg[2] * t + (f64)start[2]);
-            dy = point[1] - out[1];
-            len = (f64)fqdist((f64)(point[0] - out[0]),
-                              (f64)(point[2] - out[2]));
-            fqdist(len, dy);
-        } else {
-            dy = point[1] - end[1];
-            len = (f64)fqdist((f64)(f32)((f64)point[0] - (f64)end[0]),
-                              (f64)(point[2] - end[2]));
-            fqdist(len, dy);
-            if (out != 0) {
-                out[0] = end[0];
-                out[1] = end[1];
-                out[2] = end[2];
-            }
-        }
-    } else {
-        len = (f64)fqdist(dx, dz);
+    dz = point[2] - start[2];
+    t = dx * seg[0] + dy * seg[1] + dz * seg[2];
+    if (t <= lbl_8034572C) {
+        len = fqdist(dx, dz);
         fqdist(len, dy);
         if (out != 0) {
             out[0] = start[0];
             out[1] = start[1];
             out[2] = start[2];
         }
+    } else if (t >= len) {
+        dx = point[0] - end[0];
+        dz = point[2] - end[2];
+        dy = point[1] - end[1];
+        len = fqdist(dx, dz);
+        fqdist(len, dy);
+        if (out != 0) {
+            out[0] = end[0];
+            out[1] = end[1];
+            out[2] = end[2];
+        }
+    } else {
+        if (out == 0) {
+            out = scratch;
+        }
+        out[0] = seg[0] * t + start[0];
+        out[1] = seg[1] * t + start[1];
+        out[2] = seg[2] * t + start[2];
+        dx = point[0] - out[0];
+        dz = point[2] - out[2];
+        dy = point[1] - out[1];
+        len = fqdist(dx, dz);
+        fqdist(len, dy);
     }
 }
 
