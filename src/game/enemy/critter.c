@@ -1877,7 +1877,7 @@ void CritterProcessSafeRocks(void)
             CollectSafeRocks(big->safeRockIndices, 16, lbl_80344650);
         count = lbl_80344658;
         for (i = 0; i < count; i++) {
-            big->safeRockTimers[i] = 0.0f;
+            gBig.safeRockTimers[i] = 0.0f;
         }
         if (count <= 0) {
             lbl_80344658 = -1;
@@ -1886,10 +1886,10 @@ void CritterProcessSafeRocks(void)
         }
     } else if (lbl_80344658 > 0) {
         for (i = 0; i < lbl_80344658; i++) {
-            if ((f64)big->safeRockTimers[i] > 0.0) {
-                big->safeRockTimers[i] -= gClockFrameStep;
-                if ((f64)big->safeRockTimers[i] <= 0.0) {
-                    SafeRockActivate(big->safeRockIndices[i]);
+            if ((f64)gBig.safeRockTimers[i] > 0.0) {
+                gBig.safeRockTimers[i] -= gClockFrameStep;
+                if ((f64)gBig.safeRockTimers[i] <= 0.0) {
+                    SafeRockActivate(gBig.safeRockIndices[i]);
                 }
             }
         }
