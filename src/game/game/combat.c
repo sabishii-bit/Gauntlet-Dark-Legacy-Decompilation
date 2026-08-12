@@ -2719,7 +2719,8 @@ void ProcCamera_8002E548(s32 camIdx, s32 useRecorderPosition)
     if (cam->state == 0) {
         return;
     }
-    if (cam->a_mode == ATN_FREE) {
+    if (cam->a_mode == ATN_FREE && cam->c_mode != CAM_OBJEYE &&
+        cam->c_mode != CAM_VECDIST) {
         CreateYPRMatrix(&cam->mat[0][0], cam->pyr);
     }
     if (gGameBusy == 0 && gGameplayPauseTimer == 0) {
