@@ -208,42 +208,64 @@ static const double lbl_803487B8 = -1.0; /* psys spawn-pos negation */
 static const double lbl_803487A8 = 1.0;  /* invgridsize numerator  */
 extern f64 __frsqrte(f64 x);
 
+/* byte-swap helpers: written through memory so each takes its value's
+ * address (matches the original's stack-slot swap sequences).  Defined
+ * before DoWorldAnimSub so they inline into its stream-header fixup. */
+static u16 sSwapU16(u16 v) {
+    u8* b = (u8*)&v;
+    return (u16)((b[1] << 8) | b[0]);
+}
+
+static u32 sSwapU32(u32 v) {
+    u32 r;
+    u8* s = (u8*)&v;
+    u8* d = (u8*)&r;
+    d[0] = s[3];
+    d[1] = s[2];
+    d[2] = s[1];
+    d[3] = s[0];
+    return r;
+}
+
+static f32 sSwapF32(f32 v) {
+    f32 r;
+    *(u32*)&r = sSwapU32(*(u32*)&v);
+    return r;
+}
+
 /* DoWorldAnimSub: advance one object's keyframe animation by one frame.
  * `wa` is the worldanim track; `panim` points at the object's animdata pointer
  * (panim[0] is the little-endian keyframe stream). `animBase` is the shared
  * animation-data block used by the stream's byte-swapped +4 offset. Returns
  * the swapped mode word from the stream header, or 0 when nothing animated. */
 s32 DoWorldAnimSub(struct worldanim* wa, void** panim, u8* animBase) {
-    WorldObj* wobjs = (WorldObj*)gWorldInfo.wobjs;
-    WorldObj* obj = &wobjs[wa->objidx];
+    WorldObj* obj = &((WorldObj*)gWorldInfo.wobjs)[wa->objidx];
     void* data = panim[0];
     G3DNode* node;
     u8* d;
     u8* sequence;
     u32 f;
+    s32 m1;
     s32 mode;
-    s32 nframes;
-    f32 dt = gClockFrameStep;
-    f32 xf[16]; /* sampled transform (pos @16, scale @32) from CalcAnimData */
+    s32 hdr2;
+    f32 xf[11]; /* sampled transform (pos @16, scale @32) from CalcAnimData */
 
     if (data == NULL) {
         return 0;
     }
-    node = (G3DNode*)obj->nodeptr;
-    if (node == NULL) {
+    if ((node = (G3DNode*)obj->nodeptr) == NULL) {
         return 0;
     }
 
     /* Derive the per-track direction/mode bits from the object flags. */
     f = obj->flags;
-    if (f & 0x00100000) {
-        if (f & 0x00200000) {
-            wa->state &= ~1;           /* both set -> disable this frame */
-        } else {
-            wa->state |= 1;
-            wa->state &= ~0x300;
-            wa->state |= 2;
-        }
+    m1 = f & 0x00100000;
+    if (m1 && (f & 0x00200000)) {
+        wa->state &= ~1;               /* both set -> disable this frame */
+    } else if (m1) {
+        wa->state |= 1;
+        wa->state &= ~0x300;
+        wa->state |= 2;
     } else if (f & 0x00200000) {
         wa->state |= 1;
         wa->state &= ~0x300;
@@ -259,18 +281,19 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim, u8* animBase) {
         return 0;
     }
 
-    /* Read the stream header (stored little-endian). */
+    /* Read the stream header (stored little-endian).  Byte-swaps go through
+     * memory (the sSwap* helpers), matching the original's stack-slot swaps. */
     d = (u8*)data;
-    mode = WORLD_BSWAP16(*(u16*)(d + 0));
-    sequence = animBase + WORLD_BSWAP32(*(u32*)(d + 4));
+    sequence = animBase + sSwapU32(*(u32*)(d + 4));
+    mode = sSwapU16(*(u16*)(d + 0));
+    hdr2 = sSwapU16(*(u16*)(d + 2));
 
     if ((mode & 0xFFF) == 0) {
         /* No keyframes: reset to the template pose. */
         CopyMat4(gIdentityMatrix, node);
         ZeroAnimData(panim);
     } else {
-        nframes = wa->nframes;
-        if (CalcAnimData(panim, xf, sequence, mode, 0, nframes, wa->curframe) != 0) {
+        if (CalcAnimData(panim, xf, sequence, mode, hdr2, wa->nframes, wa->curframe) != 0) {
             /* Rotation. */
             if (mode & 7) {
                 if (mode & 0x8000) {
@@ -296,7 +319,7 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim, u8* animBase) {
     }
 
     /* Time step, unless globally paused or dt has stalled. */
-    if ((lbl_803447DC != 0 && (wa->state & 0x100)) || dt <= 0.0f) {
+    if ((lbl_803447DC != 0 && (wa->state & 0x100)) || gClockFrameStep <= 0.0) {
         return mode;
     }
 
@@ -305,8 +328,8 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim, u8* animBase) {
 
     if (wa->state & 2) {
         /* Reverse. */
-        wa->curframe = wa->curframe - 30.0f * dt;
-        if (wa->curframe < 0.0f) {
+        wa->curframe = wa->curframe - 30.0 * gClockFrameStep;
+        if (wa->curframe < 0.0) {
             if (wa->state & 0x200) {          /* ping-pong */
                 wa->curframe = 0.0f;
                 wa->state ^= 2;
@@ -322,7 +345,7 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim, u8* animBase) {
                 obj->flags &= ~0x08000000;
             }
             obj->flags |= 0x00400000;
-        } else if ((s32)wa->curframe >= wa->nframes - 2) {
+        } else if ((s16)wa->curframe >= wa->nframes - 2) {
             if (obj->flags & 0x10000000) {
                 obj->flags &= ~0x10000000;
                 MBTreeClearFlags(obj->nodeptr, 2, 0);
@@ -330,8 +353,8 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim, u8* animBase) {
         }
     } else {
         /* Forward. */
-        wa->curframe = wa->curframe + 30.0f * dt;
-        if ((s32)wa->curframe >= wa->nframes - 1) {
+        wa->curframe = wa->curframe + 30.0 * gClockFrameStep;
+        if ((s16)wa->curframe >= wa->nframes - 1) {
             if (wa->state & 0x200) {          /* ping-pong */
                 wa->curframe = (f32)(wa->nframes - 1);
                 wa->state ^= 2;
@@ -347,7 +370,7 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim, u8* animBase) {
                 obj->flags &= ~0x08000000;
             }
             obj->flags |= 0x00800000;
-        } else if ((s32)wa->curframe <= 1) {
+        } else if ((s16)wa->curframe <= 1) {
             if (obj->flags & 0x10000000) {
                 obj->flags &= ~0x10000000;
                 MBTreeClearFlags(obj->nodeptr, 2, 0);
@@ -676,31 +699,8 @@ s32 LoadWorldDone(char* name) {
  * little-endian so the file needs no fixup there (the Xbox build compiles this
  * to a 1-byte stub); on the big-endian GameCube the 0x78-byte header is 30
  * consecutive 32-bit words - a mix of counts/offsets, floats and two vec3s at
- * +0x24 and +0x30 - each of which is byte-reversed. */
-/* byte-swap helpers: written through memory so each takes its value's
- * address (matches the original's stack-slot swap sequences). */
-static u16 sSwapU16(u16 v) {
-    u8* b = (u8*)&v;
-    return (u16)((b[1] << 8) | b[0]);
-}
-
-static u32 sSwapU32(u32 v) {
-    u32 r;
-    u8* s = (u8*)&v;
-    u8* d = (u8*)&r;
-    d[0] = s[3];
-    d[1] = s[2];
-    d[2] = s[1];
-    d[3] = s[0];
-    return r;
-}
-
-static f32 sSwapF32(f32 v) {
-    f32 r;
-    *(u32*)&r = sSwapU32(*(u32*)&v);
-    return r;
-}
-
+ * +0x24 and +0x30 - each of which is byte-reversed.  (The byte-swap helpers
+ * sSwapU16/sSwapU32/sSwapF32 are defined above, before DoWorldAnimSub.) */
 static void sSetupWorldHeader(u32* w) {
     f32* f = (f32*)w;
     s32 i;
