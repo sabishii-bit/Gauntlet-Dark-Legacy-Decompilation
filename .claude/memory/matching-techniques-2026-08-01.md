@@ -963,3 +963,61 @@ on a following deref-with-update test (AudioBuildMusicName).
   `u8 _gN[K]` block pads (solved move_logic10's 392-byte frame).
 - Scoped `#pragma opt_propagation off` + `f32* q = (f32*)(tbl + i*4); q[K]`
   is the only form keeping big-displacement table loads as `add; lfs disp`.
+
+## movieplayer/pb_objregs/pb_window sweep (2026-08-12, portable-C worker)
+
+Swept all three TUs; unmatched non-park functions were exhausted. Findings:
+
+- **fn_800DBE98 (movieplayer DText color-convert) cracked to OPCODE-IDENTICAL**
+  (real 68->64), remaining diff is a frame-size/FPR-lifetime park. Sign-form
+  recipe: target's YUV->index math is fnmsubs chains. `a - E4*x - E8*y` (left-
+  assoc, no parens on the subtractions) gives the two `fnmsubs` (`-(E4*x)+a`
+  then `-(E8*y)+prev`); wrap the whole additive tail in ONE paren under
+  `fVar4 + (...)` so the trailing `+fVar4` is a separate `fadds`, e.g.
+  `gDTextBuf[(int)(fVar4 + (fVar1 - E4*fVar3 - E8*fVar2))]`. The obfuscated
+  `+ -(E8*y - -(E4*x - a))` double-negation form emits fmsubs/fmadds (WRONG
+  sign). Also ordered the three `(f32)(u32)param_2[k]` conversions to match the
+  byte-read order (2,0,1). PARK residual: target frame 88 uses 6 distinct
+  8-byte double slots (3 int->double conv @64/72/80 + 3 fctiwz stores
+  @40/48/56); ours packs to 64 by reusing conv slots for the fctiwz stores.
+  MWCC temp-slot reuse did NOT yield to statement reorder or splitting the conv
+  from its D8-subtract -- genuine allocator artifact. Change was RESTORED (not
+  exact); re-apply from here if the frame is cracked.
+
+- **movieplayer C++-destructor family = needs-asm park**: fn_800D8784,
+  fn_800DB008, dtor carry a dead `addi r3,rFP,K; bl __unexpected; b` edge plus
+  an r31 frame-pointer asm epilogue (`mr r12,r31; lmw r30,K(r12); lwz r1,0(r1)`)
+  from inlined dtor exception cleanup. Portable C cannot emit __unexpected --
+  write as `asm` like neighbors fn_800DBA80/fn_800DBF6C. Tell: gMovieAllocCount--
+  + __dl__FPv/__dla__FPv/dtor calls in the body.
+
+- **fn_800D860C/fn_800D86C8 (YUV->RGBA pack) = reassociation park**: identical
+  channel math but MWCC splits the +16 bias on ONE chroma term into `+8 +8`
+  while the sibling term keeps a single `+16` -- asymmetric, scheduling-driven,
+  not source-forceable.
+
+- **pbDrawVerts (pb_objregs) = loop-unswitch regalloc cascade park**: MWCC auto-
+  unswitches the in-loop `if (sVtxFormat==1)` into two loop copies, giving the
+  byte-offset its OWN reg per copy (r4/r3, two `li 0`); ours shares one reg and
+  puts the GX WGFifo base (`lis -13311`) in a different reg, so every
+  `stfs/stb -32768(rN)` operand differs (real 107 from a 1-insn root). Manual
+  source unswitch did NOT fix the FIFO-base reg and ADDED frame. Reverted.
+
+- **pbSetDODrawRegs = pre-spill + r3/r4 rotation park**: target reads
+  `(u16)handle` (clrlwi) and `obj->nregs` (lwz 184) off RAW param regs r4/r3
+  before the r28/r27 saves; unreachable from C.
+
+- **pbWinSetup = multi-park**: FP int-conv scheduling + register rotation
+  (r30/r25) + zero-copy idiom (`li r6,0; addi r4,r6,0`).
+
+- **pbProjCalc (pb_window endgame)**: root residual = MWCC CSE-ing the `0.0f`
+  clamp constant (sdata2 pool load) into one FPR across the four
+  `g->current->{left,right,top,bottom} < 0.0f` checks; target reloads
+  `lfs 0(0),lbl` fresh per compare. Needs a no-CSE reload of pooled 0.0f
+  (volatile-address-of-label w/ the real symbol) -- symbol unresolved this pass.
+  608 insns, also statement-order diffs; left parked.
+
+- Remaining large structural parks: fn_800DACD8/fn_800DB3D4 (compiler return-0
+  tail-merge vs inline `li 0;b` duplication), fn_800D93D4 (cross-inline mismatch),
+  fn_800D8F28/fn_800D91B4/fn_800D87FC/fn_800D8BCC + PlayVQMovie (stub) +
+  sDrawGeom (1328 real) = big.
