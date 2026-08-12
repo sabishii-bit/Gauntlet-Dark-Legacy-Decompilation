@@ -31,7 +31,12 @@ move on. Two identical A/B rebuilds on the same axis = dead; stop immediately.
   P5  Pre-prologue lis/addi copy, or li/addi zero-copy WITHOUT an xor idiom
       present. (WITH a zero local that can be an xor idiom → see L14, fixable.)
   P6  Goto-pair family — target emits `Bcc lbl; b other` where we emit a single
-      branch (or vice-versa). Branch-layout canonicalization.
+      branch (or vice-versa). Branch-layout canonicalization. CONFIRMED
+      unreachable across ALL presets (demo/sdk/runtime/inline1 x 1.2.5/1.2.5n).
+      In BIG functions an insn-COUNT gap can be ENTIRELY verbose goto-pair
+      codegen for `if(!cond) stmt;` — NOT missing logic (our -O4 emits an
+      inverted single `bne`, and MWCC deletes empty-then if-else rather than
+      forming a goto-pair). Do not mistake such a gap for reconstruction work.
   P7  String-pool / literal immediates — order of pooled float/string consts.
   P8  Frame-size spill cascade — off-by-N frame size ripples every stw/lwz
       offset. Almost always a spurious extra local/temp; if you can't remove
@@ -94,6 +99,14 @@ L27 lwzu/promote-copy coupling (recognize -> PARK). `x = *(T*)(p += N)` emits a
     `lwzu` directly INTO a callee-saved home is unreachable -- both source forms
     cost +1 insn. Tell: an extra `mr rCalleeSaved,rTemp` right after an `lwzu`
     with early use of the loaded value -> P8, park.
+L28 Inlined-literal const-fold park (a P1 sub-case). A constant held in a
+    CALLEE-SAVED register across a call — especially a SINGLE-USE one (tell:
+    `mtctr rCalleeSaved` for a constant loop bound; no cost model hoists a
+    single-use constant into a callee-saved home) — is a NON-folded inlined
+    parameter in the target. At `-inline auto`, MWCC folds literal args to
+    immediates and re-materializes (`li`) after each call, so it cannot keep
+    them in callee-saved homes. `volatile` on the param does NOT prevent the
+    fold (the literal folds before the qualifier matters). Recognize -> PARK.
 
 --- Branch layout ---
 L13 One-case switch = `beq/b`. A switch with a single real case emits a compare-
