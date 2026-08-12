@@ -1244,6 +1244,7 @@ static u32 mbInitBlitEntry(MBBLIT* b, int tex, int delta) {
 }
 
 static void mbBlitProject(MBBLIT* b, int width, int height) {
+    MBWindow* win = gWinGlobals;
     u32 autoFlags = 0;
 
     if (width < 0 || height < 0) {
@@ -1267,19 +1268,21 @@ static void mbBlitProject(MBBLIT* b, int width, int height) {
         }
     }
     if (width != 0) {
-        if ((b->flags & 0x40) == 0) {
-            b->width = (s16)(width * gWinGlobals->scale->x);
+        if ((b->flags & 0x40) != 0) {
+            width <<= 4;
         } else {
-            b->width = width << 4;
+            width = width * win->scale->x;
         }
+        *(u16*)&b->width = width;
         b->flags &= ~0x400;
     }
     if (height != 0) {
-        if ((b->flags & 0x140) == 0) {
-            b->height = (s16)(height * gWinGlobals->scale->y);
+        if ((b->flags & 0x140) != 0) {
+            height <<= 4;
         } else {
-            b->height = height << 4;
+            height = height * win->scale->y;
         }
+        *(u16*)&b->height = height;
         b->flags &= ~0x800;
     }
     b->flags |= autoFlags;
