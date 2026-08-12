@@ -457,9 +457,7 @@ int saveLoad(int port, int slot, int fileNo, void* dst)
         register u32 aramSize;
 
         aramTop = (u8*) GetHiMemCacheTop();
-        aramSize = 0x310000;
-        aramTop = aramTop - 0x310000;
-        dcsAramReadTop(aramTop, aramSize);
+        dcsAramReadTop((void*)((u32)aramTop - 0x310000), (aramSize = 0x310000));
     }
     sysClearFlags(64);
     bulletproof_printf(MEMCARD_STRING_POOL);
@@ -512,9 +510,7 @@ int saveSave(int port, int slot, int fileNo, void* src)
         register u32 aramSize;
 
         aramTop = (u8*) GetHiMemCacheTop();
-        aramSize = 0x310000;
-        aramTop = aramTop - 0x310000;
-        dcsAramReadTop(aramTop, aramSize);
+        dcsAramReadTop((void*)((u32)aramTop - 0x310000), (aramSize = 0x310000));
     }
     sysClearFlags(64);
     bulletproof_printf(MEMCARD_STRING_POOL);
