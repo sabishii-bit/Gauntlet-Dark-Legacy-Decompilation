@@ -94,6 +94,7 @@ extern f64   lbl_80346528;
 extern f64   lbl_80346530;
 extern f64   lbl_80346538;
 extern f64   lbl_80346540;
+extern f32   lbl_80346548;
 extern f32   lbl_8034654C;
 extern f64   lbl_80346600;
 
@@ -1047,41 +1048,73 @@ void CritterInsertTarget(CritterTargetState *state, CritterTargetRecord *target)
 f32 CritterCalcTarget(Critter *c, f32 *moveTarget, f32 *target,
                       CritterTargetRecord *record)
 {
-    f32 delta[3];
     f32 forward[3];
+    f32 delta[3];
     f32 distance;
     f32 vertical;
     f32 dot;
     f32 score;
+    f32 absdot;
+    f32 absdot2;
 
-    if (moveTarget != NULL &&
-        (*(f32 *)((u8 *)c + 0x110) < moveTarget[4] ||
-         (moveTarget[5] > 0.0f &&
-          moveTarget[5] <= *(f32 *)((u8 *)c + 0x110)))) {
-        return lbl_80346508;
+    if (moveTarget != NULL) {
+        if (*(f32 *)((u8 *)c + 0x110) < moveTarget[4]) {
+            return lbl_80346518;
+        }
+        if (moveTarget[5] > lbl_80346488 &&
+            *(f32 *)((u8 *)c + 0x110) >= moveTarget[5]) {
+            return lbl_80346518;
+        }
     }
 
     delta[0] = target[0] - c->pos[0];
-    delta[1] = 0.0f;
+    delta[1] = target[1] - c->pos[1];
     delta[2] = target[2] - c->pos[2];
-    vertical = target[1] - c->pos[1];
+    vertical = delta[1];
+    delta[1] = lbl_80346470;
     distance = SlowNormalVector(delta);
-    forward[0] = c->mtx[2][0];
-    forward[1] = 0.0f;
-    forward[2] = c->mtx[2][2];
-    SlowNormalVector(forward);
-    dot = delta[0] * forward[0] + delta[2] * forward[2];
 
     if (moveTarget != NULL) {
-        f32 height = vertical < 0.0f ? -vertical : vertical;
-        if (distance < moveTarget[0] ||
-            (moveTarget[1] > 0.0f && moveTarget[1] < distance) ||
-            (moveTarget[7] > 0.0f && moveTarget[7] < height) ||
-            dot < moveTarget[3]) {
-            return lbl_80346508;
+        if (distance < moveTarget[0]) {
+            return lbl_8034651C;
+        }
+        if (moveTarget[1] > lbl_80346488 && distance > moveTarget[1]) {
+            return lbl_80346520;
+        }
+        if (vertical < lbl_80346470) {
+            vertical = -vertical;
+        }
+        if (moveTarget[7] > lbl_80346488 && vertical > moveTarget[7]) {
+            return lbl_80346548;
+        }
+        YawVec3((f32 *)((u8 *)c + 0x2C), forward, -moveTarget[2]);
+        forward[1] = lbl_80346470;
+        SlowNormalVector(forward);
+        dot = delta[0] * forward[0] + delta[2] * forward[2];
+        if (dot < moveTarget[3]) {
+            return lbl_80346524;
+        }
+        if (dot > lbl_803464F8) {
+            absdot = dot;
+            *(u32 *)&absdot &= 0x7FFFFFFF;
+            score = distance / absdot;
+        } else {
+            score = lbl_8034654C * distance;
+        }
+    } else {
+        forward[0] = c->mtx[2][0];
+        forward[1] = lbl_80346470;
+        forward[2] = c->mtx[2][2];
+        SlowNormalVector(forward);
+        dot = delta[0] * forward[0] + delta[2] * forward[2];
+        if (dot > lbl_803464F8) {
+            absdot2 = dot;
+            *(u32 *)&absdot2 &= 0x7FFFFFFF;
+            score = distance / absdot2;
+        } else {
+            score = lbl_8034654C * distance;
         }
     }
-    score = dot <= 0.0f ? lbl_8034654C * distance : distance / dot;
     if (record != NULL) {
         f32 *out = (f32 *)record;
         out[1] = dot;
