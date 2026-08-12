@@ -696,23 +696,31 @@ s32 PlayerMotion_DamageTarget(Player* p, s32 targetId, s32 a3, s32 a4, s32 a5,
 STUB(0x80086C78, PlayerGetTarget)
 /* NOTE: correct body; not yet byte-exact (far-field PF address-CSE parks an
  * extra nonvolatile -- needs a 0x93C..0x94C struct overlay; light-touch cap). */
+typedef struct {
+    u8  _pad[0x93C];
+    s32 counter; /* 0x93C */
+    s32 timer;   /* 0x940 */
+} TransView;
+
 s32 DoTransporter(Player* p, f32* pos, f32* out, f32 a) {
-    s32 timer = PF(p, 0x940, s32);
+    TransView* tv = (TransView*)p;
+    s32 timer = tv->timer;
+    f32 local[3];
+    f32 _pad[2];
 
     if (timer > 0) {
         s32 t = timer - gFrameTicks * 2;
-        PF(p, 0x940, s32) = t;
+        tv->timer = t;
         if (t < 0) {
-            PF(p, 0x940, s32) = 0;
+            tv->timer = 0;
         }
-        t = PF(p, 0x940, s32);
-        if (t < 30) {
-            MBTreeSetAlpha(p->node, t * 255 / 29, 1);
-        } else {
+        t = tv->timer;
+        if (t >= 30) {
             MBTreeSetAlpha(p->node, 255 - (t - 30) * 255 / 30, 1);
+        } else {
+            MBTreeSetAlpha(p->node, t * 255 / 29, 1);
         }
-        if (timer >= 30 && PF(p, 0x940, s32) < 30) {
-            f32 local[3];
+        if (timer >= 30 && tv->timer < 30) {
             local[0] = PF(p, 0x944, f32);
             local[1] = PF(p, 0x948, f32);
             local[2] = PF(p, 0x94C, f32);
@@ -720,31 +728,32 @@ s32 DoTransporter(Player* p, f32* pos, f32* out, f32 a) {
             out[0] = local[0] - pos[0];
             out[2] = local[2] - pos[2];
             out[1] = gFloorCollisionResult[13] - PF(p, 0x48, f32);
-            PF(p, 0x93C, s32) = 1;
+            tv->counter = 1;
             msgPost(9, p->index, (u32)&p->col_pos);
             return 2;
         }
         return 1;
     } else {
         u8* tp = (u8*)fn_8005B8B0(p);
-        if (tp == NULL) {
-            if (PF(p, 0x93C, s32) > 0) {
-                PF(p, 0x93C, s32) = PF(p, 0x93C, s32) - 1;
-            }
-        } else if (PF(p, 0x93C, s32) < 1) {
-            f32 local[3];
-            local[0] = PF(tp, 0x34, f32);
-            local[1] = PF(tp, 0x38, f32);
-            local[2] = PF(tp, 0x3C, f32);
-            PF(p, 0x944, f32) = local[0];
-            PF(p, 0x948, f32) = local[1];
-            PF(p, 0x94C, f32) = local[2];
-            if (PointVisible(-a, local) != 0) {
-                if (FloorCollide(a, 4.0f, -10.0f, local, NULL, 0, 1) != 0) {
-                    fn_8009C98C(local);
-                    PF(p, 0x940, s32) = 60;
+        if (tp != NULL) {
+            if (tv->counter <= 0) {
+                local[0] = PF(tp, 0x34, f32);
+                local[1] = PF(tp, 0x38, f32);
+                local[2] = PF(tp, 0x3C, f32);
+                PF(p, 0x944, f32) = local[0];
+                PF(p, 0x948, f32) = local[1];
+                PF(p, 0x94C, f32) = local[2];
+                if (PointVisible(-a, local) != 0) {
+                    if (FloorCollide(a, 4.0f, -10.0f, local, NULL, 0, 1) != 0) {
+                        fn_8009C98C(local);
+                        tv->timer = 60;
+                    }
+                    return 1;
                 }
-                return 1;
+            }
+        } else {
+            if (tv->counter > 0) {
+                tv->counter = tv->counter - 1;
             }
         }
         return 0;
