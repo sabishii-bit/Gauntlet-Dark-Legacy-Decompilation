@@ -3541,58 +3541,65 @@ void CritterInitColnodes(Critter *c)
  * critter type and link the allocated records into the instance. */
 void CritterAddAnimInsts(Critter *c, f32 *matrix)
 {
-    u8 *definition;
-    CritterSubnode *tail;
+    u8 *node;
     CritterSubnode *record;
+    CritterSubnode *tail;
     void *parent;
-    s32 slot;
+    s32 i;
+    s32 total;
 
-    definition = *(u8 **)((u8 *)c->hdr + 0x134);
-    while (definition != NULL) {
-        record = NULL;
-        for (slot = 0; slot < lbl_80344668; slot++) {
-            CritterSubnode *candidate =
-                (CritterSubnode *)(lbl_802411B0 + slot * 0x54);
-            if (candidate->mbnode == NULL) {
-                record = candidate;
+    node = *(u8 **)((u8 *)c->hdr + 0x134);
+    while (node != NULL) {
+        total = lbl_80344668;
+        for (i = 0; i < total; i++) {
+            if (((CritterSubnode *)(lbl_802411B0 + i * 0x54))->mbnode == NULL) {
                 break;
             }
         }
-        if (record == NULL && slot < 16) {
-            record = (CritterSubnode *)(lbl_802411B0 + slot * 0x54);
-            lbl_80344668 = slot + 1;
-        }
-        if (record == NULL) {
-            ErrorPrintf("Too many Critter Anim Insts\n");
-            return;
-        }
-        memset(record, 0, 0x54);
-        if (c->subnodes == NULL) {
-            c->subnodes = record;
+        if (i >= 1) {
+            ErrorPrintf("Too many Critter Anim Insts: %d", i);
+            record = NULL;
         } else {
-            tail = (CritterSubnode *)c->subnodes;
-            while (tail->next != NULL) {
-                tail = tail->next;
+            if (i == total) {
+                lbl_80344668 = lbl_80344668 + 1;
             }
-            tail->next = record;
+            record = (CritterSubnode *)(lbl_802411B0 + i * 0x54);
         }
-
-        parent = c->anim;
-        if ((*(u16 *)(definition + 2) & 1) != 0 &&
-            *(char *)(definition + 0x18) != '\0') {
-            void *found = AtreeFindNode(&c->colhandle,
-                                        (char *)(definition + 0x18), 8);
-            if (found != NULL) {
-                parent = found;
+        if (record != NULL) {
+            if (c->subnodes != NULL) {
+                tail = (CritterSubnode *)c->subnodes;
+                while (tail->next != NULL) {
+                    tail = tail->next;
+                }
+                tail->next = record;
+            } else {
+                c->subnodes = record;
+            }
+            if (*(void **)(node + 4) != NULL) {
+                parent = lbl_8034473C;
+                if ((*(s16 *)(node + 2) & 1) != 0) {
+                    if (*(s8 *)(node + 0x18) != 0) {
+                        parent = AtreeFindNode(&c->colhandle,
+                                               (char *)(node + 0x18), 8);
+                        if (parent == NULL) {
+                            parent = c->anim;
+                        }
+                    } else {
+                        parent = c->anim;
+                    }
+                }
+                record->mbnode = MBNewNode(parent, matrix, 1);
+                *(f32 *)((u8 *)record->mbnode + 0x30) = *(f32 *)(node + 0x20);
+                *(f32 *)((u8 *)record->mbnode + 0x34) = *(f32 *)(node + 0x24);
+                *(f32 *)((u8 *)record->mbnode + 0x38) = *(f32 *)(node + 0x28);
+                record->atree =
+                    AtreeInit(*(void **)(node + 4), record, 0, 0x800);
+                MBNodeSetParent(*(void **)record->atree, record->mbnode);
+            } else {
+                ErrorPrintf("Bad critter anim inst: %s", (char *)(node + 0x10));
             }
         }
-        record->mbnode = MBNewNode(parent, matrix, 1);
-        record->atree = AtreeInit(*(void **)(definition + 4), record, 0,
-                                  0x800);
-        if (record->atree != NULL) {
-            MBNodeSetParent(*(void **)record->atree, record->mbnode);
-        }
-        definition = *(u8 **)(definition + 8);
+        node = *(u8 **)(node + 8);
     }
 }
 
