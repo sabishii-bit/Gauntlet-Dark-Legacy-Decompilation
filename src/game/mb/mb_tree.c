@@ -627,40 +627,53 @@ void MBCompVertScaleAddUV(void) {}
 /* 0x800BAD94 - MBNodeSetParent */
 void MBNodeSetParent(MBTreeNode* node, MBTreeNode* new_parent)
 {
+    u8 unused[8];
     MBTreeNode* old_parent;
     MBTreeNode* previous;
-    MBTreeNode* root;
 
     old_parent = node->parent;
-    root = lbl_80344ECC;
     if (old_parent == 0 || old_parent != new_parent) {
-        if (old_parent == 0 || old_parent->child != node) {
-            previous = MBNodePrevNode(node);
+        if (old_parent != 0 && old_parent->child == node) {
+            old_parent->child = node->next;
+        } else {
+            MBTreeNode* current;
+
+            if (old_parent == 0)
+                current = lbl_80344ECC;
+            else
+                current = old_parent->child;
+            if (current == 0) {
+                previous = 0;
+            } else if (current == node) {
+                previous = 0;
+            } else {
+                while (current != 0 && current->next != node)
+                    current = current->next;
+                if (current == 0)
+                    previous = 0;
+                else
+                    previous = current;
+            }
             if (previous != 0)
                 previous->next = node->next;
-        } else {
-            old_parent->child = node->next;
         }
 
         node->next = 0;
         node->parent = new_parent;
         if (new_parent == 0) {
-            root = node;
-            if (lbl_80344ECC != 0) {
+            if (lbl_80344ECC == 0) {
+                lbl_80344ECC = node;
+            } else {
                 previous = MBNodeLastSibling(lbl_80344ECC);
                 previous->next = node;
-                root = lbl_80344ECC;
             }
         } else if (new_parent->child == 0) {
             new_parent->child = node;
-            root = lbl_80344ECC;
         } else {
             previous = MBNodeLastSibling(new_parent->child);
             previous->next = node;
-            root = lbl_80344ECC;
         }
     }
-    lbl_80344ECC = root;
 }
 
 /* 0x800BAEAC - MBRemoveNode */
@@ -962,3 +975,4 @@ MBTreeNode* MBNodePrevNode(MBTreeNode* node)
     }
     return current;
 }
+
