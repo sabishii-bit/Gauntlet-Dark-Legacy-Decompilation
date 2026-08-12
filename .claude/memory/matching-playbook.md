@@ -22,6 +22,9 @@ move on. Two identical A/B rebuilds on the same axis = dead; stop immediately.
       otherwise identical. Allocator seed differs; source-unreachable.
   P2  D-form vs X-form addressing — target `add rX,base,idx; lwz d(rX)` vs our
       `lwzx`/`addi+lwzx` (or reverse). Canonicalization, source-unreachable.
+      ALSO: MWCC canonicalizes commutative-add operand order — the add's
+      destination/reused-operand register does NOT change if you swap `p[i]` to
+      `i[p]`. Don't attempt that rewrite to flip an add-register tie.
   P3  Truncation-CSE — clrlwi / (u16)/(u8) cast reused vs recomputed. The
       compiler's choice; adding/removing casts just moves the diff.
   P4  FPR-lifetime tie — two fp temps swap homes, spill/reload order flips.
@@ -58,7 +61,11 @@ L4  `li r,0` + `and` (not `andi.`) = a 64-bit / low-half flag test. Model the
 L5  Declaration order sets register & FPR homes. When homes are off by a
     permutation, reorder local declarations to match target home assignment.
     Split one var into separate "webs" (distinct locals per live-range) when the
-    target keeps them in different registers.
+    target keeps them in different registers. NUDGE: a decl-initializer
+    (`s32 x = g;`) homes `x` one GPR LOWER than a body assignment (`x = g;`
+    placed after the pointer/speed setup) — use to shift a single var by one.
+    LIMIT: L5 does NOT reach live-range-driven 2-register swaps or whole-function
+    rotations (those are P1, park).
 L6  Callback/volatile-web ordering: `volatile` roots + decl order reproduce
     inlined-callee stack slots and coalescing decisions.
 
@@ -79,6 +86,14 @@ L11 do-while pins dual-induction register homes on CONSTANT-bound loops. Convert
     `for` to `do{}while` when the target has no pre-guard.
 L12 Full-induction rewrite: express the loop body in terms of `i` and strides,
     not running pointers, so the induction variables color in target order.
+L27 lwzu/promote-copy coupling (recognize -> PARK). `x = *(T*)(p += N)` emits a
+    fused `lwzu` (single web, no separate addi) ONLY when the post-updated
+    pointer flows through a following reassignment (e.g. a no-op self-cast
+    `p = (U*)p`). But that reassignment splits `p` into two webs, forcing an `mr`
+    promote-copy when p's persistent home is callee-saved. So a target that fuses
+    `lwzu` directly INTO a callee-saved home is unreachable -- both source forms
+    cost +1 insn. Tell: an extra `mr rCalleeSaved,rTemp` right after an `lwzu`
+    with early use of the loaded value -> P8, park.
 
 --- Branch layout ---
 L13 One-case switch = `beq/b`. A switch with a single real case emits a compare-
@@ -99,6 +114,23 @@ L19 char/u8 local through a `v`-style scratch emits `extsb` — match the signed
     narrow type.
 L20 Split a double expression, then use compound assignment (`+=`), to recover a
     two-instruction sequence the target computes in place.
+
+--- Float multiply operand order (the lever AND its two park-traps) ---
+L26 Reordering the C operands of a float multiply CAN re-home the FPRs to match.
+    Try it FIRST on any float-multiply FPR diff. But two sub-cases are PARKS, not
+    flips — recognize them and stop:
+    (a) TRAP: the multiplicand is a freshly-converted int (the s16/s32 -> f64
+        magic conversion). The conversion pins its own FPRs first; writing the
+        constant as the LEFT operand forces it to load before the conversion
+        idiom, which rotates EVERY FPR in the block (turns a P4 home-swap into a
+        P1 whole-block rotation — strictly worse). The just-converted value's
+        home is unreachable via source operand order → park.
+    (b) TRAP: result-register coalescing. MWCC lands the product in whichever
+        operand is a dead temp / the eventual store (result) register. A
+        two-constant home-swap where one constant coalesces with the final
+        result register (`fmul fRES,fX,fRES` vs `fmul fRES,fRES,fX`) is a P4 tie
+        — the accumulator's final home is fixed by the store, so no source
+        operand order reaches it → park.
 
 --- Inlining control ---
 L21 Inlined-static device: a `static` helper defined BEFORE its caller inlines;
