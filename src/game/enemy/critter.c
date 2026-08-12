@@ -295,6 +295,7 @@ s32  CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4);
 s32  CritterDoSfxSub(Critter *c, void *sfx, f32 *position,
                      s32 parented, u32 flags);
 void CritterDoParticle(Critter *c, void *sfx, s32 node);
+void DmgFxNodeUpdate(void *node, s32 absolute, f32 rx, f32 rz, f32 rotp, f32 roty);
 Critter *CritterNewInst(s32 type, s32 subtype, void *object);
 void CritterInitGeo(Critter *c, void *object);
 void CritterAddHealthMeter(Critter *c);
@@ -2114,43 +2115,65 @@ store_move_node:
     c->moveMatrix[2] = c->moveOrigin[2];
     return GetWorldMat(c->obj_d0, c->worldMoveMatrix, NULL);
 }
+/* Displacement overlay for the per-move sound/particle trigger fields
+ * (0x58..0x5E within CritterMove); a struct-member view keeps MWCC emitting
+ * direct base+disp loads instead of a hoisted address register. */
+typedef struct CritterMoveFx {
+    u8  _padFx[0x58];
+    s16 sfx;        /* 0x58 */
+    s16 sfxFrame;   /* 0x5A */
+    s16 sfx2;       /* 0x5C */
+    s16 sfx2Frame;  /* 0x5E */
+} CritterMoveFx;
+
 /* 0x8003B300 -- activate frame-gated move actions, sounds and particles. */
 void CritterActivate(Critter *c, CritterMove *move, s32 frame)
 {
+    CritterMoveFx *fx = (CritterMoveFx *)move;
     u32 events;
-    u16 oldFlags;
+    s16 oldFlags;
+    u8 *entry;
 
-    oldFlags = (u16)c->moveFlags;
-    events = CritterCopyAnim(c, move, frame);
-    if ((events & 1) != 0) {
-        if (move->type != 0x85) {
-            c->moveFlags |= 1;
+    if (c->emitter != NULL) {
+        DmgFxNodeUpdate(c->emitter, 0, 0.0f, 0.0f, 0.0f, 0.0f);
+    }
+    if (*(s32 *)((u8 *)move + 0x40) >= 0) {
+        events = CritterCopyAnim(c, move, frame);
+        oldFlags = c->moveFlags;
+        if ((events & 1) != 0) {
+            if (move->type != 0x85) {
+                c->moveFlags = oldFlags | 1;
+            }
+            if (*(s16 *)((u8 *)move + 0x48) >= 0) {
+                CritterAnimInterrupt(c, *(s16 *)((u8 *)move + 0x48), 1,
+                                     !(oldFlags & 1));
+            }
         }
-        if (*(s16 *)((u8 *)move + 0x48) >= 0) {
-            CritterAnimInterrupt(c, *(s16 *)((u8 *)move + 0x48), 1,
-                                 (oldFlags & 1) == 0);
+        if ((events & 2) != 0) {
+            if (move->type != 0x85) {
+                c->moveFlags |= 2;
+            }
+            if (*(s16 *)((u8 *)move + 0x4A) >= 0) {
+                CritterAnimInterrupt(c, *(s16 *)((u8 *)move + 0x4A), 2,
+                                     !(oldFlags & 2));
+            }
         }
     }
-    if ((events & 2) != 0) {
-        if (move->type != 0x85) {
-            c->moveFlags |= 2;
-        }
-        if (*(s16 *)((u8 *)move + 0x4A) >= 0) {
-            CritterAnimInterrupt(c, *(s16 *)((u8 *)move + 0x4A), 2,
-                                 (oldFlags & 2) == 0);
+    if (*(s16 *)((u8 *)move + 0x48) >= 0) {
+        entry = *(u8 **)(*(u8 **)((u8 *)c->hdr + 0x130) + 0x44) +
+                *(s16 *)((u8 *)move + 0x48) * 0x50;
+        if ((*(s16 *)(entry + 2) & 0x4000) && c->unkAC8 > lbl_80346488 &&
+            *(s16 *)(entry + 0) != 1) {
+            return;
         }
     }
-    if ((c->moveSfxFlags & 1) == 0 &&
-        *(s16 *)((u8 *)move + 0x58) >= 0 &&
-        frame >= *(s16 *)((u8 *)move + 0x5A)) {
+    if ((c->moveSfxFlags & 1) == 0 && fx->sfx >= 0 && frame >= fx->sfxFrame) {
         c->moveSfxFlags |= 1;
-        CritterDoSfx(c, *(s16 *)((u8 *)move + 0x58), NULL, 1, -1);
+        CritterDoSfx(c, fx->sfx, NULL, 1, -1);
     }
-    if ((c->moveSfxFlags & 2) == 0 &&
-        *(s16 *)((u8 *)move + 0x5C) >= 0 &&
-        frame >= *(s16 *)((u8 *)move + 0x5E)) {
+    if ((c->moveSfxFlags & 2) == 0 && fx->sfx2 >= 0 && frame >= fx->sfx2Frame) {
         c->moveSfxFlags |= 2;
-        CritterDoSfx(c, *(s16 *)((u8 *)move + 0x5C), NULL, 1, -1);
+        CritterDoSfx(c, fx->sfx2, NULL, 1, -1);
     }
 }
 
