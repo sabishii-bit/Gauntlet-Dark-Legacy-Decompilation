@@ -372,7 +372,7 @@ u32 DoAnimation(int* node, animinfo* info, f32* outmtx, s32* outrot,
     } so, sd;
     s32 pose[12];
 
-    if (*node == 0) {
+    if (*(u32*)node == 0) {
         return 0;
     }
     key = (u16*)(*node + info->animseq * 8);
@@ -421,21 +421,21 @@ u32 DoAnimation(int* node, animinfo* info, f32* outmtx, s32* outrot,
                 outmtx[0xE] = *(f32*)&pose[6] + posoff[2];
             }
             if (outrot != NULL) {
-                outrot[0] = pose[8];
-                outrot[1] = pose[9];
-                outrot[2] = pose[10];
+                *(f32*)&outrot[0] = *(f32*)&pose[8];
+                *(f32*)&outrot[1] = *(f32*)&pose[9];
+                *(f32*)&outrot[2] = *(f32*)&pose[10];
             }
         }
         if (info->transfrac == lbl_803457B4) {
-            node[0xC] = pose[0];
-            node[0xD] = pose[1];
-            node[0xE] = pose[2];
-            node[0x18] = pose[4];
-            node[0x19] = pose[5];
-            node[0x1A] = pose[6];
-            node[0x24] = pose[8];
-            node[0x25] = pose[9];
-            node[0x26] = pose[10];
+            *(f32*)&node[0xC] = *(f32*)&pose[0];
+            *(f32*)&node[0xD] = *(f32*)&pose[1];
+            *(f32*)&node[0xE] = *(f32*)&pose[2];
+            *(f32*)&node[0x18] = *(f32*)&pose[4];
+            *(f32*)&node[0x19] = *(f32*)&pose[5];
+            *(f32*)&node[0x1A] = *(f32*)&pose[6];
+            *(f32*)&node[0x24] = *(f32*)&pose[8];
+            *(f32*)&node[0x25] = *(f32*)&pose[9];
+            *(f32*)&node[0x26] = *(f32*)&pose[10];
         }
     }
     return flags;
