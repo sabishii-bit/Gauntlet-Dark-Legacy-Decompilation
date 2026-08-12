@@ -1,4 +1,10 @@
-# Matching techniques found on 2026-08-01
+# Matching techniques found on 2026-08-01  [DETAILED ARCHIVE]
+
+>>> READ `matching-playbook.md` FIRST. It holds the deduped canonical PARK
+>>> CLASSES + ACTIVE LAWS + WORKFLOW. This file is now the DETAILED ARCHIVE of
+>>> per-function narratives — dive in ONLY for the one function-story you need.
+>>> Do NOT read it end-to-end and do NOT append new laws here (report new laws
+>>> in your final message; the primary consolidates into the playbook).
 
 These recipes produced real 100% function matches under the retail MWCC
 profile.  Validate each use with `tools/gdl/fndiff.py --clean`; none of these
