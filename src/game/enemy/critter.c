@@ -2156,20 +2156,20 @@ void CritterActivate(Critter *c, CritterMove *move, s32 frame)
  * move while skipping pattern-marker entries. */
 void CritterGetNextMove(Critter *c)
 {
+    s16 count;
     CritterMove *moves;
     CritterMove *move;
     Critter *child;
-    s16 count;
     s16 linked;
     s32 childrenDone;
 
     moves = *(CritterMove **)((u8 *)c->hdr + 0x124);
     count = *(s16 *)((u8 *)c->hdr + 0x110);
+    move = &moves[c->curmove];
     if (c->curmove < 0) {
         c->nextmove = 0;
         return;
     }
-    move = &moves[c->curmove];
     linked = move->link;
     if (linked >= 0) {
         c->nextmove = linked;
@@ -2199,23 +2199,27 @@ void CritterGetNextMove(Critter *c)
 
     c->nextmove = c->curmove + 1;
     for (;;) {
+        move = &moves[c->nextmove];
         if (c->nextmove >= count) {
             c->nextmove = 0;
+            continue;
         }
-        move = &moves[c->nextmove];
-        if (move->type != 0xF0 && move->link != c->curmove) {
-            break;
+        if (move->type == 0xF0) {
+            c->nextmove++;
+            continue;
         }
-        c->nextmove++;
+        if (move->link == c->curmove) {
+            c->nextmove++;
+            continue;
+        }
+        break;
     }
     for (child = c->next; child != NULL; child = child->next) {
         child->nextmove = -1;
     }
     if (c->curmove >= 0 && moves[c->curmove].type == 0x11) {
         MBTreeClearFlags(c->anim, 1, 0);
-        if (c->anim != NULL && *(void **)((u8 *)c->anim + 0x78) != NULL) {
-            MBTreeClearFlags(*(void **)((u8 *)c->anim + 0x78), 2, 2);
-        }
+        MBTreeClearFlags(*(void **)((u8 *)c->anim + 0x78), 2, 2);
     }
 }
 /* 0x8003B67C -- choose the closest ready move in the 0x30..0x39 family. */
