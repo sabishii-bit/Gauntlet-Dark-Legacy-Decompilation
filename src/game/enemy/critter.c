@@ -855,9 +855,11 @@ f32 CritterReCalcTarget(Critter *c, f32 *moveTarget, s32 target)
 
     entry = (f32 *)((u8 *)c + 0x12C + target * 0x24);
     if (moveTarget != NULL) {
-        if (*(f32 *)((u8 *)c + 0x110) < moveTarget[4] ||
-            (moveTarget[4] < moveTarget[5] &&
-             moveTarget[5] <= *(f32 *)((u8 *)c + 0x110))) {
+        if (*(f32 *)((u8 *)c + 0x110) < moveTarget[4]) {
+            return lbl_80346518;
+        }
+        if (moveTarget[5] > moveTarget[4] &&
+            *(f32 *)((u8 *)c + 0x110) >= moveTarget[5]) {
             return lbl_80346518;
         }
     }
@@ -867,19 +869,19 @@ f32 CritterReCalcTarget(Critter *c, f32 *moveTarget, s32 target)
         if (range < moveTarget[0]) {
             return lbl_8034651C;
         }
-        if (moveTarget[1] > 0.0f && moveTarget[1] < range) {
+        if (moveTarget[1] > lbl_80346488 && range > moveTarget[1]) {
             return lbl_80346520;
         }
-        forward[0] = c->mtx[2][0];
-        forward[1] = 0.0f;
-        forward[2] = c->mtx[2][2];
+        YawVec3((f32 *)((u8 *)c + 0x2C), forward, -moveTarget[2]);
+        forward[1] = lbl_80346470;
         SlowNormalVector(forward);
         dot = entry[5] * forward[0] + entry[7] * forward[2];
         if (dot < moveTarget[3]) {
             return lbl_80346524;
         }
     }
-    return range * entry[4];
+    range = range * entry[4];
+    return range;
 }
 
 /* 0x80036C70 -- choose the single best live player target. */
