@@ -95,6 +95,7 @@ extern f64   lbl_80346530;
 extern f64   lbl_80346538;
 extern f64   lbl_80346540;
 extern f32   lbl_8034654C;
+extern f64   lbl_80346600;
 
 /* -- external helpers -- */
 extern void *AllocFile(const char *wad, const char *name);
@@ -141,6 +142,8 @@ extern void  CopyMat4(const f32 *src, f32 *dst);
 extern void  MulVec4Mat3(const f32 *src, f32 *dst, const f32 *matrix);
 extern void  UnparentMatrix(void *node, f32 *matrix);
 extern void *lbl_8034473C;
+extern s32   gBossType;
+extern f32   lbl_8011AEAC[];
 extern s32   gFrameTicks;
 extern u32   lbl_80344BF8;
 extern u8    lbl_802411B0[0x540];
@@ -2536,14 +2539,13 @@ void CritterChildGetPattern(Critter *c)
 {
     CritterMove *move;
 
-    c->nextmove = -1;
+    move = &(*(CritterMove **)((u8 *)c->hdr + 0x124))[c->curmove];
     if (c->state == 1) {
         c->nextmove = (s16)CritterFindMoveType(c, 0x11, 1);
-    } else if (c->curmove >= 0) {
-        move = &(*(CritterMove **)((u8 *)c->hdr + 0x124))[c->curmove];
-        if (move->link >= 0) {
-            c->nextmove = move->link;
-        }
+    } else if (lbl_8034489C >= 3 && lbl_8034489C <= 5 && gBossType == 35) {
+        c->nextmove = (s16)CritterFindMoveType(c, 0x20, 0);
+    } else if (move->link >= 0) {
+        c->nextmove = move->link;
     }
     if (c->nextmove < 0 && (c->counterState & 0x120) != 0) {
         if ((c->counterState & 0x100) != 0) {
@@ -2552,6 +2554,11 @@ void CritterChildGetPattern(Critter *c)
         if (c->nextmove < 0) {
             c->nextmove = (s16)CritterFindMoveType(c, 0x41, 0);
         }
+    }
+    if (c->nextmove < 0 &&
+        c->counterValue >=
+            (f32)(s32)(lbl_80346600 * lbl_8011AEAC[lbl_8034465C])) {
+        c->nextmove = (s16)CritterFindMoveType(c, 0x22, 0);
     }
     if (c->nextmove < 0 && (c->counterState & 0x10) != 0) {
         c->nextmove = (s16)CritterFindMoveType(c, 0x40, 0);
