@@ -70,8 +70,10 @@ extern f32   lbl_803447D8;            /* boss/player damage scaling gate        
 extern volatile f32 sMusicFadeBase;   /* 0x80344594 shared game-time / fade base   */
 extern f32   lbl_80346480;
 extern f32   lbl_80346470;
+extern f64   lbl_80346478;
 extern f64   lbl_80346488;
 extern f64   lbl_80346490;
+extern f64   lbl_80346498;
 extern f32   lbl_803464B8;
 extern f64   lbl_803464F8;
 extern f64   lbl_80346500;
@@ -208,7 +210,7 @@ extern char  lbl_8011219C[];          /* move-type lookup failure message       
 struct CritterDamageDef;
 void CritterCollideEnemies(Critter *c, f32 *delta);
 void CritterCollideItems(Critter *c, f32 *delta);
-void CritterCollidePlayers(Critter *c, f32 *delta);
+s32 CritterCollidePlayers(Critter *c, f32 *delta);
 void CritterCollideWorld(Critter *c, f32 *delta);
 void CritterWorldDamage(Critter *c, void *surface, f32 *origin,
                         f32 *contact);
@@ -388,42 +390,92 @@ void CritterCollideItems(Critter *c, f32 *delta)
 
 /* 0x800351B0 -- separate active players from a translating critter and feed
  * the displacement into their push vectors. */
-void CritterCollidePlayers(Critter *c, f32 *delta)
+s32 CritterCollidePlayers(Critter *c, f32 *delta)
 {
     Player *player;
-    f32 separation[3];
-    f32 distance;
+    f32 dest[3];
+    f32 contact[3];
+    f32 sep[3];
+    f32 radiusX;
+    f32 radiusZ;
+    f32 combined;
+    f32 combinedZ;
+    f32 length;
     f32 penetration;
-    f32 radius;
+    f32 scale;
+    f64 maxPen;
+    f64 minPen;
+    f64 pushScale;
+    s32 result;
+    s32 count;
     s32 i;
 
-    radius = *(f32 *)((u8 *)c->hdr + 0x7C);
+    radiusX = *(f32 *)((u8 *)c->hdr + 0x7C);
+    radiusZ = *(f32 *)((u8 *)c->hdr + 0x78);
+    dest[0] = c->pos[0] + delta[0];
+    dest[1] = c->pos[1] + delta[1];
+    dest[2] = c->pos[2] + delta[2];
+    result = 0;
+    count = 0;
+    maxPen = lbl_80346498;
+    minPen = lbl_80346490;
+    pushScale = lbl_80346478;
     for (i = 0; i < 4; i++) {
         player = &gPlayers[i];
-        if ((player->state != 1 && player->state != 4) ||
-            (*(u16 *)((u8 *)player + 0x964) & 0x20) != 0) {
+        if (player->state != 1 && player->state != 4) {
             continue;
         }
-        separation[0] = *(f32 *)((u8 *)player + 0x64) -
-                        (c->pos[0] + delta[0]);
-        separation[1] = 0.0f;
-        separation[2] = *(f32 *)((u8 *)player + 0x6C) -
-                        (c->pos[2] + delta[2]);
-        distance = separation[0] * separation[0] +
-                   separation[2] * separation[2];
-        if (distance > 0.0f) {
-            distance = (f32)NormalVector2D(separation);
+        if ((*(s16 *)((u8 *)player + 0x964) & 0x20) != 0) {
+            continue;
         }
-        penetration = radius - distance;
-        if (penetration > 0.0f) {
-            *(f32 *)((u8 *)player + 0x870) +=
-                separation[0] * penetration * 0.5f;
-            *(f32 *)((u8 *)player + 0x878) +=
-                separation[2] * penetration * 0.5f;
-            delta[0] = 0.0f;
-            delta[2] = 0.0f;
+        combined = radiusX + *(f32 *)((u8 *)player + 0x850);
+        combinedZ = radiusZ + *(f32 *)((u8 *)player + 0x854);
+        if ((*(s32 *)((u8 *)c->hdr + 0x5C) & 0x100) != 0) {
+            result = CritterMoveNodeColSub(
+                c, delta, (f32 *)((u8 *)player + 100), contact, NULL, 0);
+            if (result != 0) {
+                sep[0] = *(f32 *)((u8 *)player + 100) -
+                         *(f32 *)((u8 *)c + result * 92 + 1240);
+                sep[1] = *(f32 *)((u8 *)player + 104) -
+                         *(f32 *)((u8 *)c + result * 92 + 1244);
+                sep[2] = *(f32 *)((u8 *)player + 108) -
+                         *(f32 *)((u8 *)c + result * 92 + 1248);
+            }
+        } else {
+            result = LineCylinderCollide((f32 *)((u8 *)player + 100), combined,
+                                         combinedZ, &c->pos[0], dest, contact, 1);
+            if (result != 0) {
+                sep[0] = *(f32 *)((u8 *)player + 100) - dest[0];
+                sep[1] = *(f32 *)((u8 *)player + 104) - dest[1];
+                sep[2] = *(f32 *)((u8 *)player + 108) - dest[2];
+            }
+        }
+        if (result != 0) {
+            count++;
+            length = NormalVector(sep);
+            penetration = combined - length;
+            if (penetration < minPen) {
+                penetration = minPen;
+            } else if (penetration > maxPen) {
+                penetration = maxPen;
+            }
+            scale = (f32)penetration;
+            sep[0] = sep[0] * scale;
+            sep[1] = sep[1] * scale;
+            sep[2] = sep[2] * scale;
+            *(f32 *)((u8 *)player + 0x870) =
+                (f32)(pushScale * sep[0] + *(f32 *)((u8 *)player + 0x870));
+            *(f32 *)((u8 *)player + 0x874) =
+                (f32)(pushScale * sep[1] + *(f32 *)((u8 *)player + 0x874));
+            *(f32 *)((u8 *)player + 0x878) =
+                (f32)(pushScale * sep[2] + *(f32 *)((u8 *)player + 0x878));
         }
     }
+    if (result != 0) {
+        delta[2] = lbl_80346470;
+        delta[0] = lbl_80346470;
+    }
+    return count;
 }
 
 /* 0x80035408 -- integrate the world-contact portion of a movement delta and
