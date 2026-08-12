@@ -128,6 +128,28 @@ L19 char/u8 local through a `v`-style scratch emits `extsb` — match the signed
 L20 Split a double expression, then use compound assignment (`+=`), to recover a
     two-instruction sequence the target computes in place.
 
+--- Float/int conversion & frame codegen (reconstruction laws) ---
+L29 Assignment-in-condition loads straight into the callee-saved home. Target
+    does `lwz rHome; cmpwi rHome`, but `p = load; if (p==NULL)` emits
+    `lwz r0; cmpwi r0; mr rHome`. Rewrite as `if ((p = load) == NULL)` so MWCC
+    loads directly into p's home — removes the mr AND the +1-insn branch-offset
+    ripple it causes. (Worth trying whenever a load feeds an immediate null/zero
+    test into a value that persists.)
+L30 `(s16)floatval` = `fctiwz` + read-back + `extsh`; `(s32)floatval` OMITS the
+    `extsh`. A stray `extsh` after a float->int conversion means the cast target
+    is s16, not s32 (int analogue of L19).
+L31 Oversized scratch arrays inflate the frame. Size a scratch array to EXACTLY
+    max-index-used+1 (`xf[11]` not `xf[16]`); extra elements push MWCC's
+    fctiwz/magic-conversion double temp to a higher slot, rippling frame size and
+    every r1-offset (a self-inflicted P8). Trim to kill a frame-size cascade.
+L32 `s32` vs `u32` for a `f & MASK` flag local controls `cmpwi` vs `cmplwi` on a
+    later `if (flag)` re-test. Make the saved-flag local SIGNED to reuse the
+    register with signed `cmpwi`; unsigned gives `cmplwi`.
+L33 A DOUBLE-literal multiplier forces FMA+frsp. `K * dt` with K a double literal
+    (`30.0`) emits `fnmsub/fmadd` then `frsp`; a float literal (`30.0f`) emits
+    the single-precision `*s` form with no frsp. Pick the literal type the target
+    shows (companion to L3).
+
 --- Float multiply operand order (the lever AND its two park-traps) ---
 L26 Reordering the C operands of a float multiply CAN re-home the FPRs to match.
     Try it FIRST on any float-multiply FPR diff. But two sub-cases are PARKS, not
