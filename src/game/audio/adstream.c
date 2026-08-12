@@ -323,11 +323,11 @@ s32 adsMoveRawToCooked(ADSTREAM* stream) {
 
     self = stream;
     divisor = self->blocks;
-    if (divisor <= 1) {
-        divisor = 1;
-    } else {
-        dead = divisor;
+    if (divisor > 1) {
+        asm { b Ldiv_done }
     }
+    divisor = 1;
+Ldiv_done:;
 
     ringRead = self->ringRead;
     padding = 0;
@@ -342,13 +342,13 @@ s32 adsMoveRawToCooked(ADSTREAM* stream) {
     rawEnd = (u8*)self->buffer + ringSize;
     destination = (u8*)self->cookedPtr + ringWrite;
 
-    if (available >= space) {
-        available = space;
-    } else {
-        dead = available;
+    if (available < space) {
+        asm { b Lavail_done }
     }
+    available = space;
+Lavail_done:;
     copySize = available;
-    if (copySize < half && ringWrite != half) {
+    if (available < half && ringWrite != half) {
         source = initialSource;
     }
     if (chunk != 0) {
@@ -439,9 +439,11 @@ s32 adsMoveRawToCooked(ADSTREAM* stream) {
         }
     }
 
-    available = divisor * (copySize + padding);
-    self->ringRead -= available;
-    self->ringPtr = (u8*)self->ringPtr + available;
+    {
+        u32 consumed = divisor * (copySize + padding);
+        self->ringRead -= consumed;
+        self->ringPtr = (u8*)self->ringPtr + consumed;
+    }
     if ((u8*)self->ringPtr >= rawEnd) {
         self->ringPtr = (u8*)self->ringPtr - self->ringSize;
     }
