@@ -2341,7 +2341,7 @@ void update_class_spec(s32 player)
     PlayerModel(player);
     setup_player_display(player);
     setup_tex(player, 2, 0, 0, pool + 168,
-              lbl_801200B0 + (*(s32*)(pl + 12) & 7) * 4);
+              lbl_801200B0[*(s32*)(pl + 12) & 7]);
     boff = player * 132;
     eWeap = blitBase + boff;
     mbBlitProject(*(void**)(eWeap += 24), -1, 320);
@@ -2375,7 +2375,7 @@ substate:
             setup_tex(player, 8, 0, 0, pool + 232);
         } else {
             setup_tex(player, 8, 0, 0, lbl_80347F58,
-                      lbl_801200B0 + cls * 4);
+                      lbl_801200B0[cls]);
         }
         break;
     case 0:
@@ -2406,12 +2406,12 @@ substate:
             setup_tex(player, 3, 0, 0, lbl_80347F4C);
         } else {
             setup_tex(player, 3, 0, 0, pool + 156,
-                      lbl_801200B0 + spec * 4);
+                      lbl_801200B0[spec]);
         }
         if (texName != 0) {
             (void)pbLoad;
             setup_tex(player, 8, 0, 0, lbl_80347F58,
-                      lbl_801200B0 + *(s32*)(pl + 16) * 4);
+                      lbl_801200B0[*(s32*)(pl + 16)]);
         } else {
             mbBlitInit3414(*(void**)eB, 1);
             mbBlitInit3414(*(void**)eC, 1);
