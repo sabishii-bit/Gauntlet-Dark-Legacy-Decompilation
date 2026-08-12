@@ -256,15 +256,18 @@ void DrawGlowText(f32 scale, s32 x, s32 y, u8* str);
 
 void DrawGlowTextMLines(f32 scale, s32 x, s32 y, s32* str)
 {
+    f32 fh;
     s32 lh;
     s32 n;
     s32 i;
     void* lines[16];
+    volatile u8 unused[4];
 
-    lh = (s32)((f32)MBFontHeight(glow_font) * scale);
+    fh = (f32)MBFontHeight(glow_font);
+    lh = (s32)(fh * scale);
     n = FixMLineText(str, (s32*)gTextFormatBuf, (s32*)lines);
     if (y < 0) {
-        y = -(y + (n * lh) / 2);
+        y = -(y + (lh * n) / 2);
     }
     for (i = 0; i < n; i++) {
         DrawGlowText(scale, x, y, ((u8**)lines)[i]);
