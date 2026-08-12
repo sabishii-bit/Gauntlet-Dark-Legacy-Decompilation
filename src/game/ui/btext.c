@@ -1164,15 +1164,12 @@ s32 DrawTextMLines(f32 scale, s32 x, s32 y, u32 font, u32 color, s32* str)
     s32 lh = (s32)((f32)MBFontHeight(font) * scale);
     s32 n;
     s32 i;
-    s32 off;
     void* lines[17];
 
     n = FixMLineText(str, (s32*)gTextFormatBuf, (s32*)lines);
-    off = 0;
     for (i = 0; i < n; i++) {
-        DrawTextSub(scale, 1.0f, x, y, font, color, *(u8**)((s32)lines + off));
+        DrawTextSub(scale, 1.0f, x, y, font, color, ((u8**)lines)[i]);
         y += lh;
-        off += 4;
     }
     return n * lh;
 }
