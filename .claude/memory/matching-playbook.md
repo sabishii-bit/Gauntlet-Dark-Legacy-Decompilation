@@ -149,6 +149,21 @@ L33 A DOUBLE-literal multiplier forces FMA+frsp. `K * dt` with K a double litera
     (`30.0`) emits `fnmsub/fmadd` then `frsp`; a float literal (`30.0f`) emits
     the single-precision `*s` form with no frsp. Pick the literal type the target
     shows (companion to L3).
+L34 Single-bit-test boolean form. `!(x & bit)` materialized as a bool emits
+    `clrlwi/rlwinm; cntlzw; srwi` (NO neg); `(x & bit) == 0` emits a REDUNDANT
+    `neg` first. For a materialized boolean of a single-bit test, write the
+    `!(...)` form. (High-value lever; flipped CritterActivate.)
+L35 Int->float magic-conversion width follows the CAST TARGET: `(f32)(s32)x`
+    ends the conversion in `fsubs` (single); `(f64)(s32)x` ends in `fsub`
+    (double). Match the target's fsubs/fsub (companion to L30/L33).
+L36 Loop-invariant f64 const hoisted into a SAVED FPR: copy it into a local
+    BEFORE the loop (`f64 k = lbl_...;`) and use the local inside; MWCC then
+    keeps it in a saved reg instead of reloading `lfd` every iteration.
+L37 5-arg direct call to a 6-param function (K&R/mismatched-proto passthrough,
+    no r8 set in asm) is NOT reproducible via a function-pointer cast (that
+    emits an indirect `blrl`). Passing the real 6th arg keeps a direct `bl` at
+    the cost of one extra `li` -> treat that `li` as a park UNLESS a caller-side
+    5-param declaration is introduced.
 
 --- Float multiply operand order (the lever AND its two park-traps) ---
 L26 Reordering the C operands of a float multiply CAN re-home the FPRs to match.
