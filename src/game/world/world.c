@@ -651,8 +651,8 @@ s32 LoadWorldDone(char* name) {
         bulletproof_printf(lbl_80115214, name, memBase);
         size = FileSize(name, lbl_803487A0);
         lbl_80344DA4 = AllocMem(size);
-        lbl_80344D88 += size;
         world_load_state = 0;
+        lbl_80344D88 += size;
     } else {
         world_load_state = -1;
         return -1;
