@@ -1158,10 +1158,12 @@ s32 DrawNormalText(f32 scale, u8* str, s32 color)
 
 s32 DrawTextMLines(f32 scale, s32 x, s32 y, u32 font, u32 color, s32* str)
 {
-    s32 lh = (s32)((f32)MBFontHeight(font) * scale);
+    f32 fh = (f32)MBFontHeight(font);
+    s32 lh = (s32)(fh * scale);
     s32 n;
     s32 i;
     void* lines[17];
+    volatile u8 unused[4];
 
     n = FixMLineText(str, (s32*)gTextFormatBuf, (s32*)lines);
     for (i = 0; i < n; i++) {
