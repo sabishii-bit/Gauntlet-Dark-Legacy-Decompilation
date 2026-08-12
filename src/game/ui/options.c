@@ -275,13 +275,13 @@ extern void* MBDrawText(s32 x, s32 y, char* text);
 extern void MBWorldToScreen3D(f32* pos, f32* out);
 
 /* scene node helpers */
-extern void* MBNewNode(f32 a, f32* b, s32 c);
+extern void* MBNewNode(void* a, f32* b, s32 c);
 extern void MBTreeClearFlags(void* node, s32 a, s32 b);
-extern void* MBTreeSetFlags(void* node, s32 a, s32 b);
+extern void MBTreeSetFlags(void* node, u32 a, s32 b);
 extern void* MBRemoveNode(void* node, s32 a);
 extern void MBNodeSetParent(void* node, void* parent);
-extern void* AtreeMatch(void* tree, u32 rgb, char* name, s32 d);
-extern void* AtreeInit(void* tree, void* node, void* msg, s32 a, s32 b);
+extern void* AtreeMatch(void* tree, char* name, s32 report);
+extern void* AtreeInit(void* header, void* out, s32 flags, s32 size);
 extern void AtreeDelete(void* msg);
 extern void AnimateATree(void* msg, s32 a, s32 b, s32 x, s32 y);
 extern void CopyMat3(f32* dst, f32* src);
@@ -2123,34 +2123,32 @@ void start_optmenu_nostack(OPTMENU* m, s32 sel)
     void* match;
 
     h = 0;
-    if (sel > -2) {
+    if (sel >= -1) {
         m->player = sel;
     }
 
-    if ((m->flags & 0x80) == 0) {
-        m->font = 0;
-    } else {
-        m->font = (s32)MBOX_FindTexture("FONT32GAR0", NULL);
-    }
+    m->font = ((m->flags & 0x80) != 0)
+                  ? (s32)MBOX_FindTexture("FONT32GAR0", NULL)
+                  : 0;
 
     if (m->num_items == 0) {
         n = 0;
-        for (it = m->items; it->text != NULL; it++) {
+        for (i = 0; m->items[i].text != NULL; i++) {
             n++;
         }
         m->num_items = n;
     }
 
-    if (m->icon == 0) {
-        m->icon_node = NULL;
-    } else {
-        m->icon_node = MBNewNode(0.0f, NULL, 0);
-        node = MBTreeSetFlags(m->icon_node, 8, 0);
-        match = AtreeMatch(node, sPowerupsBuf, "ICON_ARROW", 0);
-        m->icon_node = AtreeInit(node, match, m->msg, 0, 0);
-        if (m->icon_node != NULL && *(void**)m->icon_node != NULL) {
-            MBNodeSetParent(*(void**)m->icon_node, m->icon_node);
+    if ((u32)m->icon != 0) {
+        m->icon_node = MBNewNode(NULL, NULL, 0);
+        MBTreeSetFlags(m->icon_node, 8, 0);
+        match = AtreeMatch((void*)sPowerupsBuf, "ICON_ARROW", 0);
+        *(void**)m->msg = AtreeInit(match, m->msg, 0, 0);
+        if (*(void**)m->msg != NULL && **(void***)m->msg != NULL) {
+            MBNodeSetParent(**(void***)m->msg, m->icon_node);
         }
+    } else {
+        m->icon_node = NULL;
     }
     if (m->icon_node != NULL) {
         *(f32*)((u8*)m->icon_node + 0x40) = 1.0f;
@@ -2164,21 +2162,22 @@ void start_optmenu_nostack(OPTMENU* m, s32 sel)
     m->finish_timer = 0;
     m->time = 0;
 
-    if (m->h < 1) {
-        fh = FontHeight(m->scale, OPTMENU_FONT);
+    if (m->h <= 0) {
+        i = OPTMENU_FONT;
+        fh = FontHeight(m->scale, i);
         for (i = 0; i < m->num_items; i++) {
             h += fh + m->items[i].dy;
         }
         m->h = h;
     }
 
-    if (m->w < 1) {
+    if (m->w <= 0) {
         w = 0;
         MBSetFont(OPTMENU_FONT);
         MBSetFontScale(m->scale, m->scale);
         for (i = 0; i < m->num_items; i++) {
             s32 tw = MBFontStringWidth(m->items[i].text);
-            if (w < tw) {
+            if (tw > w) {
                 w = tw;
             }
         }
@@ -2192,9 +2191,7 @@ void start_optmenu_nostack(OPTMENU* m, s32 sel)
         m->y = -(m->y + m->h / 2);
     }
 
-    if (m->blit_name == NULL) {
-        m->title_blit = NULL;
-    } else {
+    if (m->blit_name != NULL) {
         if (m->bw < 0) {
             m->bw = m->w + OPTMENU_MARGIN_X * 2;
         }
@@ -2209,14 +2206,16 @@ void start_optmenu_nostack(OPTMENU* m, s32 sel)
         }
         m->title_blit = mbNewBlitSized(m->blit_name, m->bx, m->by, m->bw, m->bh);
         mbBlitCvtCoord(m->title_blit, OPTMENU_SCROLLZ);
+    } else {
+        m->title_blit = NULL;
     }
 
-    if (m->burn_name == NULL) {
-        m->burn_blit = NULL;
-    } else {
+    if (m->burn_name != NULL) {
         m->burn_blit = mbNewBlitSized(m->burn_name, m->ux, m->uy, m->uw, m->uh);
         m->burn_frames = MBBlitGetTex(m->burn_blit);
         mbBlitCvtCoord(m->title_blit, (f32)(OPTMENU_SCROLLZ - 1.0));
+    } else {
+        m->burn_blit = NULL;
     }
 }
 
