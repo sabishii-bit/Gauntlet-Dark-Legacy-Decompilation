@@ -1021,3 +1021,34 @@ Swept all three TUs; unmatched non-park functions were exhausted. Findings:
   tail-merge vs inline `li 0;b` duplication), fn_800D93D4 (cross-inline mismatch),
   fn_800D8F28/fn_800D91B4/fn_800D87FC/fn_800D8BCC + PlayVQMovie (stub) +
   sDrawGeom (1328 real) = big.
+
+## Re-sweep 2026-08-12 (items/sfx/combat, larger law book)
+
+- **Missing-condition law (productive re-sweep class):** when base has FEWER
+  insns than target AND `--ops` shows an extra `cmpwi;beq/bne` chain in target,
+  it is a DROPPED guard, not a tie. Read the disasm field offsets against the
+  struct header and add the missing terms. EXACT WIN: ProcCamera_8002E548 --
+  guard was `a_mode==ATN_FREE`; target also gated on c_mode: added
+  `&& cam->c_mode != CAM_OBJEYE && cam->c_mode != CAM_VECDIST` (0xEC=c_mode,
+  0xF8=a_mode; values 4/5). Adding the two `!=` terms flipped it to EXACT and
+  the incidental gCameras-vs-gCameraState base-reg diff resolved itself.
+- **fabs-after-call scheduling PARK (LineCylinderCollide):** target does the
+  bit-trick fabs on a SCRATCH stack slot AFTER a call, lazily (2nd `||` operand),
+  keeping the array element signed at its own slot. Not source-reproducible:
+  in-place `*(u32*)&delta[1] &= 0x7FFFFFFF` forces delta[] to memory (right
+  materialization, 119/121) but does fabs in-place = 2 insns short of the
+  scratch copy; ANY copy form (dy inner/func-scope, comma) makes MWCC promote
+  delta[] to scalars (115). Real sub-fixes that DID stick: ternary fabs ->
+  bit-trick (`stfs;lwz;clrlwi;stw;lfs` vs branch `bge;fneg`), and f32->f64
+  compare constants (`0.001f`->`0.001`, `-0.01f`->`-0.01`) flip lfs->lfd.
+- **u64-pair sFlags PARK confirmed (AddItemSub):** the paired manual idiom
+  `((sFlags&M)^z)|((gControllerButtons&z)^z)` that names the low load `sFlags`
+  (vs `gControllerButtons+0x4`, same addr) only survives when the fn has a LOOP
+  (bosscam TriggerCamUpdate); loopless fn folds `&z` (z=0) to one rlwinm. Leave
+  the s64 form: `(gControllerButtons&0x10)` = 93/93 real-0 (reloc-name-only).
+- Everything else in these 3 TUs is register-rotation / scheduler / assoc
+  (fn_80091AC0 base+i*stride) / block-layout (PlaceItem beq vs bne;b) / FPR-tie
+  (DistanceToClosestPlayer, FindClosestWaypoint, InitLighting, MissileCollideEnemy)
+  / D-form-vs-X-form (SetPlayerStartPos stfsu/lwzx) / prologue-lis-addi (LoadItems),
+  OR already reloc-name-only matching (~8 combat + ~30 sfx fns show `real 0`).
+  sfx Start*FX clones share the StartFXSubGuts inline nonvolatile-color rotation.
