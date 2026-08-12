@@ -757,7 +757,7 @@ s32 DrawStringTextSub(StrList* p, s32 msg, s32 x, s32 y, s32 spacing, u32 font, 
     s32 n;
     s32 i;
     s32 lines[16];
-    volatile u8 unused[20];
+    volatile u8 unused[12];
 
     ret = 0;
     if (spacing < 0) {
