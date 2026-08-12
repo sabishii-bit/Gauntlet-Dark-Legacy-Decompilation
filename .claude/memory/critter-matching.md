@@ -196,3 +196,67 @@ loader functions. `fndiff.py --classify` reports no target-only functions. The T
 must remain `NonMatching`: most recovered bodies still need ordinary compiler-match
 iteration, but there are no longer missing C implementations blocking native-port
 work.
+
+## Small-delta pass (2026-08-11)
+
+Verified exact additions:
+
+- `CritterGetNextMove` (0x8003B558) - exact.
+- `CritterReCalcTarget` (0x80036B5C) - exact.
+
+Reusable findings:
+
+25. Split `A || B` (or a multi-term break condition) that yields the SAME
+    return/continue value into SEPARATE `if` statements, each with its own
+    `return v;` / `x++; continue;`. MWCC then emits duplicated return/continue
+    blocks matching the retail, instead of merging them into one shared block via
+    `cror`/`beq`. Fixed both the `CritterGetNextMove` main loop
+    (`if(type==0xF0){nextmove++;continue;} if(link==curmove){nextmove++;continue;}
+    break;`) and the two `lbl_80346518` returns in `CritterReCalcTarget`.
+26. Float-compare OPERAND ORDER selects the branch mnemonic and register web:
+    write `a > b` vs `b < a` to pick the fcmpo operand order (bge vs ble), and
+    `a >= b` vs `b <= a` to pick `cror gt` vs `cror lt` AND the f-reg
+    that holds the long-lived operand. `CritterReCalcTarget` needed
+    `moveTarget[5] > moveTarget[4]`, `range > moveTarget[1]`, and
+    `*(f32*)((u8*)c+0x110) >= moveTarget[5]`.
+27. A source `> 0.0f` emits `lfs` (single 0.0); the retail compares against the
+    f64 zero `lbl_80346488` with `lfd`. Write `x > lbl_80346488` (the f64 extern)
+    to get the `lfd`. Same as the GetTargetSub finding.
+28. To force `fmuls fN,fN,f0; fmr f1,fN` (compute-in-saved-reg then move to the
+    return reg) instead of `fmuls f1,fN,f0`, reassign the result back into the
+    saved-reg-colored local before returning: `range = range * entry[4];
+    return range;`.
+29. Declaration-order of the FIRST local can flip a WHOLE-FUNCTION volatile-GPR
+    rotation to exact. `CritterGetNextMove` was opcode-identical but rotated
+    `{count,child,childrenDone}`; declaring `s16 count;` as the first local (before
+    `moves`) gave count the survivor reg r7 and made all 108 exact. Root cause: the
+    child loop's throwaway `extsh.` scratch must land in r0 to evict `count`; the
+    decl order controls whether count starts in r0.
+30. `CritterReCalcTarget` recovered a `YawVec3((f32*)((u8*)c+0x2C), forward,
+    -moveTarget[2]); forward[1]=lbl_80346470; SlowNormalVector(forward);` block in
+    place of the earlier manual `forward[]=c->mtx[2][..]` reconstruction. The dot
+    is `entry[5]*forward[0] + entry[7]*forward[2]` (fmadds with the 2nd product as
+    addend). `entry` computed once as `c + 0x12C + target*0x24` stays a base pointer
+    (multi-field), so no add+disp canonicalization issue there.
+
+Parked near-matches (all hit documented HARD PARKs; restored to skeleton):
+
+- `CritterGetTargetSub` - structural rewrite reaches 65/65, real 2. ONLY residual
+  is the single final indexed load `*(s32*)(c+0x12C+best*0x24)`: retail is
+  `mulli; add c,off; lwz 300(base)` (add+disp) but MWCC always canonicalizes to
+  `mulli; addi c,300; lwzx` for a SINGLE-use scaled index (tried [75], typed
+  records[best].words00[0], `+0x12C` last, named u8* rec). add+disp-vs-addi+lwzx
+  hard park. The rewrite (best/bestScore hoisted above the null check;
+  `target[6] > lbl_80346488 && c->unk4AC > target[6]` short-circuit;
+  `if(best>=0) return load; if(mode&&parent) best=recurse; return best;`) is
+  correct and worth re-applying if the canonicalization park is ever cracked.
+- `CritterLineNodeColSub` - 75/75 opcode-identical, 3-way saved-FPR rotation
+  {zero,radius,dotThreshold}. zero (only FP local) wants f29 but gets f31; params
+  radius/dotThreshold can't be reordered. Decl-order and assignment-order of zero
+  have no effect. Param-vs-local saved-FPR coloring is not source-controllable.
+- `CritterRemoveColnodeSub` (77/78), `CritterMoveDone`, `CritterUpdateSkinfx`
+  (142/141), `ProcessCritterList` (49/50) - zero-register-reuse (`mr` vs `li`) +
+  add+disp/lha canonicalization + prologue scheduler ties. Multi-park.
+- Under-implemented (need semantic recovery, not codegen polish): CritterActivate,
+  CritterChildGetPattern, CritterExpNodeColSub (missing bl calls / float math),
+  CritterDropItem, CritterWorldDamage.
