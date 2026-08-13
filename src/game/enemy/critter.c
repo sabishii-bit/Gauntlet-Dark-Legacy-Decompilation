@@ -216,8 +216,9 @@ void CritterWorldDamage(Critter *c, void *surface, f32 *origin,
                         f32 *contact);
 void CritterNodeEnemyCollide(Critter *c, void *damageDef);
 s32  SafeRockNearestTarget(s32 player);
-void CritterLookAtPlayer(Critter *c, void *move);
-void NodeLookAtPos(void *node, f32 *target, f32 *yaw, f32 *pitch);
+void CritterLookAtPlayer(Critter *c, CritterMove *move);
+void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
+                   f32 d, f32 *pitch);
 void CritterFirePlayerCollide(Critter *c, struct CritterDamageDef *damage);
 void CritterNodePlayerCollide(Critter *c, struct CritterDamageDef *damage,
                               s32 enabled);
@@ -598,31 +599,58 @@ s32 SafeRockNearestTarget(s32 player)
 }
 
 /* 0x80035D08 -- aim the two optional look-at nodes at the selected player. */
-void CritterLookAtPlayer(Critter *c, void *move)
+void CritterLookAtPlayer(Critter *c, CritterMove *move)
 {
     f32 target[3];
+    struct CritterHeader *hdr;
     f32 *targetPtr;
+    s32 look;
 
-    targetPtr = NULL;
-    if (c->unk124 >= 0 && c->unk124 < 4) {
-        memcpy(target, (u8 *)&gPlayers[c->unk124] + 0x64, sizeof(target));
+    look = 0;
+    hdr = c->hdr;
+    if (move != NULL && (move->type == 16 || move->type == 0)) {
+        return;
+    }
+    if (move != NULL) {
+        if (move->type == 17 || (move->flags & 1)) {
+            look = 1;
+        }
+    }
+    if (c->pausecnt > 0) {
+        look = 1;
+    }
+    if (c->unkAC6 > 0) {
+        look = 1;
+        c->unkAC6 -= gFrameTicks;
+    }
+    if (look == 0 && c->unk124 >= 0) {
+        Player *p = &gPlayers[c->unk124];
+        target[0] = *(f32 *)((u8 *)p + 0x54);
+        target[1] = *(f32 *)((u8 *)p + 0x58);
+        target[2] = *(f32 *)((u8 *)p + 0x5C);
         targetPtr = target;
+    } else {
+        targetPtr = NULL;
     }
     if (c->hitnode0 != NULL) {
         NodeLookAtPos(c->hitnode0, targetPtr,
+                      *(f32 *)((u8 *)hdr + 0x60), lbl_80346470,
                       (f32 *)((u8 *)c + 0x100),
+                      *(f32 *)((u8 *)hdr + 0x68), *(f32 *)((u8 *)hdr + 0x70),
                       (f32 *)((u8 *)c + 0x108));
     }
     if (c->hitnode1 != NULL) {
         NodeLookAtPos(c->hitnode1, targetPtr,
+                      *(f32 *)((u8 *)hdr + 0x64), lbl_80346470,
                       (f32 *)((u8 *)c + 0x104),
+                      *(f32 *)((u8 *)hdr + 0x6C), *(f32 *)((u8 *)hdr + 0x74),
                       (f32 *)((u8 *)c + 0x10C));
     }
-    (void)move;
 }
 
 /* 0x80035E48 -- smoothly yaw and pitch a scene node toward a world point. */
-void NodeLookAtPos(void *node, f32 *target, f32 *yaw, f32 *pitch)
+void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
+                   f32 d, f32 *pitch)
 {
     f32 matrix[12];
     f32 dx;
