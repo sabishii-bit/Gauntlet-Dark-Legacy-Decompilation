@@ -4252,6 +4252,7 @@ void CritterDelInst(Critter *c)
  * counters without leaving temporary texture flags on the attachment node. */
 void CritterUpdateSkinfx(Critter *c)
 {
+    s32 offset;
     s32 i;
     u8 *node;
     u32 savedFlags;
@@ -4259,13 +4260,17 @@ void CritterUpdateSkinfx(Critter *c)
     savedFlags = 0;
     ProcessSkinFX((f32 *)((u8 *)c + 0xE0), c->anim, c->hitnode2);
     if (c->hitnode2 != NULL) {
-        savedFlags = *(u32 *)((u8 *)c->hitnode2 + 0x60);
-        *(u32 *)((u8 *)c->hitnode2 + 0x60) = savedFlags | 0x10;
+        u32 *flags = (u32 *)c->hitnode2;
+        savedFlags = *(flags += 0x18);
+        *flags = savedFlags | 0x10;
     }
 
-    for (i = 0; i < *(s16 *)((u8 *)c->hdr + 0x118); i++) {
-        node = (u8 *)c + 0x4F8 + i * 0x5C;
-        if (*(s32 *)(node + 0x50) > 0) {
+    for (i = 0, offset = 0; i < *(s16 *)((u8 *)c->hdr + 0x118);
+        i++, offset += 0x5C) {
+        u8 *base = (u8 *)c + offset;
+        s32 counter = *(s32 *)(base + 0x548);
+        node = base + 0x4F8;
+        if (counter > 0) {
             MBTreeSetAltTex(*(void **)(node + 8), 0xFFFFFFFC,
                             lbl_80344BF8, 1);
             MBTreeSetAmbientAdd(*(void **)(node + 8), 0xFF, 1);
@@ -4278,19 +4283,19 @@ void CritterUpdateSkinfx(Critter *c)
     }
 
     if (c->unkABC > 0) {
-        c->unkABC--;
         MBTreeSetAltTex(c->anim, 0xFFFFFFFC, lbl_80344BF8, 1);
         MBTreeSetAmbientAdd(c->anim, 0xFF, 1);
+        c->unkABC--;
     } else if (c->unkABC == 0) {
         MBTreeSetAltTex(c->anim, 0xFFFFFFFF, 0, 1);
         MBTreeSetAmbientAdd(c->anim, 0, 1);
         c->unkABC = -1;
     }
     if (c->pausecnt > 0) {
-        c->pausecnt -= (s16)gFrameTicks;
+        c->pausecnt -= gFrameTicks;
         if (c->pausecnt <= 0) {
-            c->pausecnt = 0;
             MBTreeSetAltTex(c->anim, 0xFFFFFFFF, 0, 1);
+            c->pausecnt = 0;
         } else if (c->pausecnt < 180 && (c->pausecnt & 8) != 0) {
             MBTreeSetAltTex(c->anim, 0xFFFFFFFF, 0, 1);
         } else {
@@ -4302,6 +4307,7 @@ void CritterUpdateSkinfx(Critter *c)
         c->unkABE -= 16;
         if (c->unkABE < 0) {
             c->unkABE = 0;
+            ambient = 0;
         }
         MBTreeSetAmbientAdd(c->anim, ambient, 1);
     }
