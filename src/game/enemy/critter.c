@@ -279,7 +279,7 @@ void CritterLookAtPlayer(Critter *c, CritterMove *move);
 void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
                    f32 d, f32 *pitch);
 void CritterFirePlayerCollide(Critter *c, struct CritterDamageDef *damage);
-void CritterNodePlayerCollide(Critter *c, struct CritterDamageDef *damage,
+s32 CritterNodePlayerCollide(Critter *c, struct CritterDamageDef *damage,
                               s32 enabled);
 void CritterAwardExp(s32 who, f32 amount);
 struct CritterDamageDef;
@@ -355,7 +355,7 @@ extern f32 lbl_80346470;
 s32  CritterGetDmove(CritterMove *a, CritterMove *b);
 s32  CritterFindMoveType(Critter *c, s32 type, s32 mode);
 void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active);
-void CritterDoTexmodNode(Critter *c, s32 action, s32 local,
+s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local,
                          f32 *position);
 s32  CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4);
 s32  CritterDoSfxSub(Critter *c, void *sfx, f32 *position,
@@ -654,6 +654,7 @@ void CritterWorldDamage(Critter *c, void *surface, f32 *origin,
 }
 
 /* 0x800359F0 -- damage swarm enemies intersecting an active critter node. */
+#pragma dont_inline on
 s32 CritterNodeEnemyCollide(Critter *c, void *damageDef)
 {
     u8 *dmg = (u8 *)damageDef;
@@ -711,6 +712,7 @@ s32 CritterNodeEnemyCollide(Critter *c, void *damageDef)
     }
     return count;
 }
+#pragma dont_inline off
 
 /* 0x80035BC8 -- choose an available safe rock, or the available rock nearest
  * a requested player. */
@@ -846,6 +848,7 @@ void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
 }
 
 /* 0x80036138 -- test the critter's forward fire segment against players. */
+#pragma dont_inline on
 void CritterFirePlayerCollide(Critter *c, struct CritterDamageDef *damage)
 {
     f32 delta[3];
@@ -865,9 +868,11 @@ void CritterFirePlayerCollide(Critter *c, struct CritterDamageDef *damage)
         }
     }
 }
+#pragma dont_inline off
 
 /* 0x80036424 -- test an expanded critter node/body volume against players. */
-void CritterNodePlayerCollide(Critter *c, struct CritterDamageDef *damage,
+#pragma dont_inline on
+s32 CritterNodePlayerCollide(Critter *c, struct CritterDamageDef *damage,
                               s32 enabled)
 {
     f32 delta[3];
@@ -890,6 +895,7 @@ void CritterNodePlayerCollide(Critter *c, struct CritterDamageDef *damage,
         }
     }
 }
+#pragma dont_inline off
 /* 0x80036740 -- award experience to one player (who >= 0) or all four active
  * players (who < 0), by the integer part of `amount`. */
 void CritterAwardExp(s32 who, f32 amount)
@@ -3350,28 +3356,155 @@ s32 CritterFindMoveType(Critter *c, s32 type, s32 mode)
     }
     return result;
 }
+/* -- externs used by CritterAnimInterrupt -- */
+extern void *SfxGetNode(s32 node);
+extern void  PlayerSetParent(Player *p, void *node, f32 *offset);
+extern void  PlayerUnsetParent(Player *p);
+extern void  DmgFxCircleUpdate(void *fx, f32 radius, s32 flag);
+extern void *DmgFxCircleAdd(void *emitter, f32 a, f32 b, f32 c, f32 *v, s32 z);
+extern void  DmgFxConeUpdate(void *fx, f32 a, f32 b, f32 c, f32 d, s32 flag);
+extern void *DmgFxConeAdd(void *emitter, f32 a, f32 b, f32 c, f32 d, f32 *v,
+                          s32 z);
+extern void  BossSpewCoins(f32 *origin, f32 *dir, f32 angle);
+extern f32   acosf(f32 x);
+extern s32   gGameOptions[];
+extern f32   lbl_80127D00[];
+extern f64   lbl_80346610;
+extern f32   lbl_803464F0;
 /* 0x8003CA98 -- dispatch one move action descriptor on activation or release. */
 void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
 {
+    CritterBigState *big = &gBig;
     u8 *desc;
     s16 type;
+    s32 node;
+    s32 i;
 
-    if (action < 0) {
-        return;
-    }
-    desc = *(u8 **)(*(u8 **)((u8 *)c->hdr + 0x130) + 0x44) +
-           action * 0x50;
+    desc = *(u8 **)(*(u8 **)((u8 *)c->hdr + 0x130) + 0x44) + action * 0x50;
     type = *(s16 *)desc;
     switch (type) {
+    case 5:
+        if (active) {
+            for (i = 0; i < lbl_80344658; i++) {
+                node = CritterDoTexmodNode(c, action, 0, lbl_80127D00);
+                if (node >= 0) {
+                    MBNodeSetParent(
+                        SfxGetNode(node),
+                        ItemGetNode(
+                            (void *)*(u32 *)((u8 *)big + i * 4 + 0x50)));
+                }
+            }
+        }
+        break;
+    case 6:
+        if (active) {
+            if (lbl_80344658 != 0) {
+                lbl_80344654 = SafeRockNearestTarget(c->unk124);
+                if (lbl_80344654 >= 0) {
+                    node = CritterDoTexmodNode(c, action, 0, lbl_80127D00);
+                    if (node >= 0) {
+                        s32 frames;
+                        MBNodeSetParent(
+                            SfxGetNode(node),
+                            ItemGetNode(
+                                (void *)big->safeRockIndices[lbl_80344654]));
+                        frames = -1;
+                        if (node >= 0) {
+                            frames = *(s16 *)(Effects + node * 240 + 0x2C);
+                        }
+                        frames = frames - 1;
+                        big->safeRockTimers[lbl_80344654] =
+                            (f32)(lbl_80346610 * (f64)frames);
+                    }
+                }
+            }
+        }
+        break;
+    case 8:
+        if (active) {
+            CritterDoTexmodNode(c, action, 0, c->targetPos);
+        }
+        break;
     case 0:
-    case 4:
+        CritterNodePlayerCollide(c, (CritterDamageDef *)desc, 1);
+        CritterNodeEnemyCollide(c, desc);
         if (active) {
             CritterDoTexmodNode(c, action, 1, NULL);
+        }
+        if (c->emitter != NULL) {
+            DmgFxCircleUpdate(c->emitter, *(f32 *)(desc + 0x0C), 1);
+        } else if ((gControllerButtons & 0x10) && gGameOptions[8]) {
+            c->emitter = DmgFxCircleAdd(c->obj_d0, *(f32 *)(desc + 0x0C),
+                                        *(f32 *)(desc + 0x1C),
+                                        *(f32 *)(desc + 0x14),
+                                        (f32 *)(desc + 0x20), 0);
+        }
+        break;
+    case 4:
+        CritterFirePlayerCollide(c, (CritterDamageDef *)desc);
+        if (active) {
+            CritterDoTexmodNode(c, action, 1, NULL);
+        }
+        if (c->emitter != NULL) {
+            DmgFxConeUpdate(c->emitter, *(f32 *)(desc + 0x08),
+                            *(f32 *)(desc + 0x0C), *(f32 *)(desc + 0x1C),
+                            *(f32 *)(desc + 0x14), 1);
+        } else if ((gControllerButtons & 0x10) && gGameOptions[8]) {
+            c->emitter = DmgFxConeAdd(c->obj_d0, *(f32 *)(desc + 0x08),
+                                      *(f32 *)(desc + 0x0C),
+                                      *(f32 *)(desc + 0x1C),
+                                      *(f32 *)(desc + 0x14),
+                                      (f32 *)(desc + 0x20), 0);
         }
         break;
     case 1:
         if (active) {
             CritterDoTexmodNode(c, action, 0, c->moveOrigin);
+        }
+        break;
+    case 7:
+        if (phase == 1) {
+            if (c->unk128 < 0) {
+                node = CritterNodePlayerCollide(c, (CritterDamageDef *)desc, 0);
+                if (node >= 0) {
+                    Player *pp = &gPlayers[node];
+                    PlayerSetParent(pp, c->obj_d0, (f32 *)(desc + 0x20));
+                    c->unk128 = (s16)node;
+                    if (*(s16 *)(desc + 0x42) >= 0) {
+                        SfxSetParent(
+                            CritterDoSfx(c, *(s16 *)(desc + 0x42), NULL, 0, -1),
+                            *(void **)((u8 *)pp + 0x74));
+                    }
+                }
+            }
+            if (active) {
+                CritterDoTexmodNode(c, action, 0, c->moveOrigin);
+            }
+            if (c->emitter != NULL) {
+                DmgFxCircleUpdate(c->emitter, *(f32 *)(desc + 0x0C), 1);
+            } else if ((gControllerButtons & 0x10) && gGameOptions[8]) {
+                c->emitter = DmgFxCircleAdd(c->obj_d0, *(f32 *)(desc + 0x0C),
+                                            *(f32 *)(desc + 0x1C),
+                                            *(f32 *)(desc + 0x14),
+                                            (f32 *)(desc + 0x20), 0);
+            }
+        } else if (phase == 2) {
+            if (c->unk128 >= 0) {
+                Player *pp = &gPlayers[c->unk128];
+                f32 dir[3];
+                PlayerUnsetParent(pp);
+                dir[0] = *(f32 *)((u8 *)c->mbnode + 0x20);
+                dir[1] = *(f32 *)((u8 *)c->mbnode + 0x24);
+                dir[2] = *(f32 *)((u8 *)c->mbnode + 0x28);
+                dir[1] = lbl_803464F0;
+                NormalVector(dir);
+                dir[0] = dir[0] * *(f32 *)(desc + 0x30);
+                dir[1] = dir[1] * *(f32 *)(desc + 0x30);
+                dir[2] = dir[2] * *(f32 *)(desc + 0x30);
+                CritterDamagePlayer(pp, c, (CritterDamageDef *)desc, 0x8050,
+                                    dir, 0);
+                c->unk128 = -1;
+            }
         }
         break;
     case 2:
@@ -3380,19 +3513,19 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
             CritterDoTexmodNode(c, action, 1, NULL);
         }
         break;
-    case 7:
-        if (phase == 1 && c->unk128 < 0) {
-            c->unk128 = (s16)CritterGetTargetSub(c, (f32 *)(desc + 0x20), 0);
-            if (active) {
-                CritterDoTexmodNode(c, action, 0, c->moveOrigin);
-            }
-        } else if (phase == 2) {
-            c->unk128 = -1;
-        }
-        break;
-    case 8:
+    case 9:
         if (active) {
-            CritterDoTexmodNode(c, action, 0, c->targetPos);
+            f32 v[3];
+            f32 angle = acosf(*(f32 *)(desc + 0x18));
+            v[0] = *(f32 *)((u8 *)c + 0x3F8);
+            v[1] = *(f32 *)((u8 *)c + 0x3FC);
+            v[2] = *(f32 *)((u8 *)c + 0x400);
+            YawVec3(v, v, *(f32 *)(desc + 0x14));
+            PitchVec3(v, v, *(f32 *)(desc + 0x1C));
+            v[0] = v[0] * *(f32 *)(desc + 0x30);
+            v[1] = v[1] * *(f32 *)(desc + 0x30);
+            v[2] = v[2] * *(f32 *)(desc + 0x30);
+            BossSpewCoins(c->moveOrigin, v, angle);
         }
         break;
     default:
@@ -3405,7 +3538,7 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
 
 /* 0x8003D0A4 -- execute the visual/sound payload attached to an action
  * descriptor at either a supplied world position or the critter node. */
-void CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
+s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
 {
     u8 *container;
     u8 *desc;
