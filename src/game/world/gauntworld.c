@@ -517,6 +517,7 @@ void fn_8005A338(OBJGRP* group, f32* collOffset, f32* attnOffset)
     }
 }
 
+#pragma dont_inline on
 void UpdateObjWorldMat(OBJGRP* group)
 {
     if (group != 0 && group->node != 0) {
@@ -525,6 +526,7 @@ void UpdateObjWorldMat(OBJGRP* group)
                        *(void**)((u8*)group->node + 0x74));
     }
 }
+#pragma dont_inline off
 
 void fn_8005A404(OBJGRP* group, f32* collOffset, f32* attnOffset)
 {
@@ -2830,7 +2832,7 @@ void fn_8005DE50(Player* a, Item* b)
     iteminfo* ev;
     iteminfodata* it;
     s32 ret;
-    s16 flag;
+    s32 flag;
 
     ret = 0;
     if (b == NULL)
@@ -2846,7 +2848,10 @@ void fn_8005DE50(Player* a, Item* b)
     case 1: { /* gold */
         s32 gold = *(s32*)&b->data[4];
         PlayerGiveGold(a->index, gold);
-        ((GwCharGoldRow*)((u8*)a + a->character * 28))->v += gold;
+        {
+            GwCharGoldRow* row = (GwCharGoldRow*)((u8*)a + a->character * 28);
+            row->v += gold;
+        }
         fn_8009CFA8(a->index, gold);
         add_got_it(a->index, it->subtype, gold);
         *(s16*)((u8*)a + 0x95C) = 1;
@@ -2883,9 +2888,7 @@ void fn_8005DE50(Player* a, Item* b)
             add_got_it(a->index, it->subtype, *(s32*)&b->data[4]);
             *(s16*)((u8*)a + 0x95C) = 1;
             ret = 1;
-        } else if (a->item_body_lo >= lbl_803448A4) {
-            msgPost(4, a->index, (char*)a->col_pos);
-        } else {
+        } else if (a->item_body_lo < lbl_803448A4) {
             s32 room = lbl_803448A4 - a->item_body_lo;
             if (gNumType7Items != 0)
                 msgPost(8, a->index, (char*)a->col_pos);
@@ -2896,6 +2899,8 @@ void fn_8005DE50(Player* a, Item* b)
             fn_8009CDF8(a->index);
             add_got_it(a->index, it->subtype, *(s32*)&b->data[4]);
             *(s16*)((u8*)a + 0x95C) = 1;
+        } else {
+            msgPost(4, a->index, (char*)a->col_pos);
         }
         break;
     }
