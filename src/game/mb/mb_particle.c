@@ -1463,32 +1463,91 @@ MBObject* createPsysNode(s32 a, s32 b, s32 c, s32 d) {
 }
 
 /* 0x800D08FC - allocate + default-init a psys descriptor (0x130 bytes) */
+extern const f32 lbl_803492A4;   /* 0.06f */
+extern char lbl_80116ED8[];      /* "particle2_a"  */
+extern char lbl_80116EE4[];      /* "particle2_xp" */
+
+struct TexPageEnt {
+    u32 f0;
+    u8* obj;
+    u32 f8;
+    u32 fC;
+};
+
 static Psys* allocPsys(s32 fromArena) {
-    f64 f1 = 0.0, f2 = 0.0, f3 = 0.0, f4 = 0.0, f5 = 0.0, f6 = 0.0, f7 = 0.0,
-        f8 = 0.0;
+    u8 unused[8];
+    u8* pi = (u8*)psysInfo;
+    u8* gw = (u8*)gWinGlobals;
+    u8* g = pi + 64;
     Psys* p;
-    s32 id = gPsysIdCounter++;
-    if (fromArena == 0) {
-        p = (Psys*)allocPsysMem(0x130, gPsysIdCounter);
+    s32 off;
+    s32 k;
+    f32 one;
+    f32 zero;
+
+    *(s32*)(pi + 80) += 1;
+    if (fromArena != 0) {
+        p = (Psys*)AllocMem(304);
+        *(s32*)(pi + 100) += 304;
     } else {
-        p = (Psys*)AllocMem(0x130);
+        p = (Psys*)allocPsysMem(304, *(s32*)(g + 16));
     }
     if (p == NULL) {
         return NULL;
     }
-    memset(p, 0, 0x130);
-    gPsysActive++;
-    p->id = gPsysIdCounter;
-    p->e_life = 300;
-    p->e_fade = 300;
-    p->p_speed = 1.0f;
-    p->dir_max = 0x14;
-    if (gDefTexA == 0 || gDefTexXp == 0) {
-        s32 ta = MBOX_FindTexture("particle2_a", 0);
-        s32 tx = MBOX_FindTexture("particle2_xp", 0);
-        gDefTexA = ta;
-        gDefTexXp = tx;
+    memset(p, 0, 304);
+    *(s32*)(pi + 64) += 1;
+    *(void**)((u8*)p + 36) = *(void**)(pi + 68);
+    *(Psys**)(pi + 68) = p;
+    *(u16*)((u8*)p + 44) |= 0x4000;
+    *(s32*)((u8*)p + 0) = *(s32*)(g + 16);
+    *(u16*)((u8*)p + 58) = 300;
+    *(u16*)((u8*)p + 60) = 300;
+    one = lbl_8034915C;
+    zero = lbl_80349154;
+    *(f32*)((u8*)p + 68) = zero;
+    *(f32*)((u8*)p + 72) = one;
+    *(f32*)((u8*)p + 76) = zero;
+    *(f32*)((u8*)p + 64) = lbl_80349184;
+    *(f32*)((u8*)p + 80) = zero;
+    *(f32*)((u8*)p + 84) = zero;
+    *(f32*)((u8*)p + 88) = zero;
+    *(f32*)((u8*)p + 204) = zero;
+    *(f32*)((u8*)p + 208) = one;
+    *(f32*)((u8*)p + 212) = one;
+    *(f32*)((u8*)p + 216) = one;
+    *(f32*)((u8*)p + 220) = one;
+    *(u8*)((u8*)p + 96) = 20;
+    *(u8*)((u8*)p + 97) = 10;
+    *(f32*)((u8*)p + 132) = lbl_803492A4;
+    off = 0;
+    for (k = 0; k < 5; k++) {
+        f32* src = (f32*)(pi + off);
+        f32* dst = (f32*)((u8*)p + off);
+        dst[56] = src[58];
+        dst[57] = src[58];
+        dst[58] = src[58];
+        dst[59] = src[58];
+        off += 16;
     }
+    if (*(u32*)(g + 32) == 0 || *(u32*)(g + 28) == 0) {
+        s32 texA = MBOX_FindTexture(lbl_80116ED8, 0);
+        s32 texXp = MBOX_FindTexture(lbl_80116EE4, 0);
+        if (texA != 0) {
+            *(u8**)(g + 28) =
+                *(u8**)((*(struct TexPageEnt**)(gw + 48))[texA >> 16].obj + 88) +
+                (texA & 0xFFFF) * 16;
+            *(u8**)(g + 32) =
+                *(u8**)((*(struct TexPageEnt**)(gw + 48))[texXp >> 16].obj + 88) +
+                (texXp & 0xFFFF) * 16;
+        } else {
+            *(u8**)(g + 28) =
+                *(u8**)((*(struct TexPageEnt**)(gw + 48))[0].obj + 88);
+            *(s32*)(g + 32) = 0;
+        }
+    }
+    *(s32*)((u8*)p + 136) = 0;
+    *(s32*)((u8*)p + 140) = 0;
     return p;
 }
 
