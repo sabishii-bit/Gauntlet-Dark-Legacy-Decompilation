@@ -101,7 +101,7 @@ extern f32 gCameraWindowScaleY;
 extern s32 gFrameTicks;
 extern s32 lbl_803447DC;
 extern void* lbl_80257630[4];
-extern s32 gControllerButtons;
+extern s64 gControllerButtons;
 extern s32 sFlags;
 extern s32 lbl_80344BF8;
 extern s32 lbl_80343BA8;
@@ -482,15 +482,16 @@ extern const f64 lbl_80345BD0;        /* rad->deg scale B */
 extern char lbl_801117B8[];           /* "BossCamStartCalc called with no b..." */
 extern char lbl_801117E0[];           /* "BCAM Y=%.0f P=%.0f D=%.2f ..." */
 
+#pragma opt_propagation off
 s32 BossCameraUpdate(void) {
     f32 pitch;
     f32 yaw;
     f32 d2;
+    u8 anglePad[4];
     f32 dir[3];
     f32 avg[3];
     volatile f32 tmp;
     f32* wp;
-    s32 zero;
 
     if (lbl_803447B8 == 0) {
         gScriptedCameraState = 0;
@@ -606,10 +607,8 @@ s32 BossCameraUpdate(void) {
     }
     MBCameraUpdate((f32*)((u8*)gGameCamera + 48), (f32*)gGameCamera);
     lbl_803443A8 = 1;
-
-    zero = 0;
-    if ((((sFlags & 1) ^ zero) | ((gControllerButtons & zero) ^ zero)) != 0 &&
-        (((sFlags & 16) ^ zero) | ((gControllerButtons & zero) ^ zero)) != 0) {
+    if ((gControllerButtons & 1) != 0 &&
+        (gControllerButtons & 16) != 0) {
         dbgTextPrintfCell(0xFFFF00, 1, 0x20, lbl_801117E0,
                           lbl_80345BC8 * (lbl_80345BD0 *
                               *(f32*)((u8*)gGameCamera + 236)),
@@ -623,6 +622,7 @@ s32 BossCameraUpdate(void) {
     }
     return 1;
 }
+#pragma opt_propagation reset
 
 /* Boss-follow camera solve (0xE24, atan2 heavy).  GIANT -- parked per the
  * project's iteration policy; documented in the map above.  Calls
