@@ -2906,28 +2906,29 @@ void fn_8005DE50(Player* a, Item* b)
         s32 j;
         s32 r;
         s8  op;
-        if (a->item_body_hi >= lbl_803448A0) {
+        if (a->item_body_hi < lbl_803448A0) {
+            s32 prop = it->properties;
+            for (j = 0; j < *(s32*)&b->data[4]; j++) {
+                if (a->item_body_hi >= lbl_803448A0)
+                    break;
+                *(s32*)((u8*)a + a->item_body_hi * 4 + 13056) = prop;
+                a->item_body_hi++;
+            }
+            r = msgPost(7, a->index, (char*)a->col_pos);
+            if (r < 0)
+                r = msgPost(94, a->index, (char*)a->col_pos);
+            if (r < 0)
+                msgPost(95, a->index, (char*)a->col_pos);
+            op = b->opener;
+            if (op >= 0 && op != a->index)
+                fn_8009F748(op);
+            fn_8009D038(a->index);
+            add_got_it(a->index, it->subtype, 0);
+            *(s16*)((u8*)a + 0x95C) = 1;
+            ret = 1;
+        } else {
             msgPost(3, a->index, (char*)a->col_pos);
-            break;
         }
-        for (j = 0; j < *(s32*)&b->data[4]; j++) {
-            if (a->item_body_hi >= lbl_803448A0)
-                break;
-            *(s32*)((u8*)a + a->item_body_hi * 4 + 13056) = it->properties;
-            a->item_body_hi++;
-        }
-        r = msgPost(7, a->index, (char*)a->col_pos);
-        if (r < 0)
-            r = msgPost(94, a->index, (char*)a->col_pos);
-        if (r < 0)
-            msgPost(95, a->index, (char*)a->col_pos);
-        op = b->opener;
-        if (op >= 0 && op != a->index)
-            fn_8009F748(op);
-        fn_8009D038(a->index);
-        add_got_it(a->index, it->subtype, 0);
-        *(s16*)((u8*)a + 0x95C) = 1;
-        ret = 1;
         break;
     }
     case 3: { /* potion (heal / damage) */
