@@ -142,6 +142,7 @@ extern u32   RandInt(u32 limit);
 extern s32   NextGridEnemy(void);
 extern void  StartEnemyGrid(f32 *position, f32 radius);
 extern s32   fn_8005D5C8(Critter *c, u8 *item);
+extern void *FindClosestWaypoint(f64 maxDist, f32 *pos, s32 all);
 extern f32   fn_8005F0F4(void *item, f32 *nodepos, f32 *center, f32 *out,
                          f32 radius, f32 height);
 extern f32   fn_8005C1DC(u8 *item, s32 a, s32 b, void *hdr, f32 damage);
@@ -3445,8 +3446,9 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
         root->alivecnt++;
         childIndex = *(s16 *)(childHeader + 0x11C);
     }
-    if (*(s16 *)(*(u8 **)(header + 0x120) + 0x20) == 8) {
-        root->particle = NULL;
+    if (*(s16 *)(*(u8 **)((u8 *)root->hdr + 0x120) + 0x20) == 8) {
+        root->particle = FindClosestWaypoint(lbl_80346594,
+                                             (f32 *)((u8 *)root + 0x3C), 0);
     }
     return root;
 }
