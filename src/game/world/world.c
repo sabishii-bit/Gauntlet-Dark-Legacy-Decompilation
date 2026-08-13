@@ -115,7 +115,8 @@ typedef struct FInfo {
 } FInfo;
 
 /* --- the two separated globals preceding gWorldInfo --- */
-extern char      gWorldName[64];  /* 0x8028C9A8 current world directory name  */
+extern char      lbl_8028C9A8[64]; /* current world directory name */
+#define gWorldName lbl_8028C9A8
 extern WorldInfo gWorldInfo2;     /* 0x8028C9E8 secondary / overlay world     */
 /* gWorldInfo (0x8028CA8C) comes from game/worldinfo.h */
 
@@ -233,6 +234,10 @@ static f32 sSwapF32(f32 v) {
     f32 r;
     *(u32*)&r = sSwapU32(*(u32*)&v);
     return r;
+}
+
+static int sWorldFloatEqual(f32 a, f32 b) {
+    return a == b;
 }
 
 /* DoWorldAnimSub: advance one object's keyframe animation by one frame.
@@ -1155,7 +1160,7 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
     }
     wi->gridsize = fblob[0xF];
     gsz = fblob[0xF];
-    if (gsz != lbl_80348778) {
+    if (!sWorldFloatEqual(gsz, lbl_80348778)) {
         inv = lbl_803487A8 / gsz;
     } else {
         inv = lbl_80348768;
