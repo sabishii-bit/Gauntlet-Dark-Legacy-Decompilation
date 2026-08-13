@@ -78,6 +78,9 @@ L6  Callback/volatile-web ordering: `volatile` roots + decl order reproduce
 L7  Struct-displacement view kills address-CSE. Access `g->field` through a
     typed struct pointer instead of `*(T*)(BASE+off)`; the compiler stops
     CSE-ing the folded address constant. (Biggest single exact-flip lever.)
+    ALSO fixes a MIS-HOMED PARAMETER: an address-CSE of `*(T*)((u8*)obj+off)`
+    touched 3+ times across calls consumes a callee-saved reg, pushing the first
+    param off its target home (e.g. r30); carving `obj->field` frees it.
 L8  Cast-transit does NOT CSE — routing a value through a cast breaks a CSE the
     target also breaks.
 L9  Typed array base: keep a typed `T *base = ...; base[i]` when the target
@@ -129,6 +132,10 @@ L15 De Morgan branch layout — invert a compound condition + swap arms to match
 --- 64-bit / bit-tricks ---
 L16 u64 pair-globals: a 64-bit global split across two words. Low word via the
     `(x & 0) ^ 0` idiom; high word via `bit << 32`. Model as the u64 it is.
+    GDL SPECIFIC: `gControllerButtons` is a u64 whose LOW word aliases `sFlags`;
+    `(gControllerButtons & 0x80) != 0` compiles to a convoluted 8-insn block
+    (`li hi,0; and; li lo,0x80; and; xor,_0; xor,_0; or.`) — recognize it as a
+    plain `(u64 & imm) != 0`, not two separate flag tests.
 L17 bit-trick fabs: `*(u32*)&x &= 0x7FFFFFFF` (not `fabs()`), when target clears
     the sign bit in a GPR.
 L18 u16-pointer store emits `sth` with NO `extsh`. Store through a `u16*` so the
@@ -151,6 +158,19 @@ L53 Early-exit-as-else branch layout: write `if(!cond){main}else{exit}`, NOT
     `if(cond){exit;break;} main`. MWCC then keeps the main path as fall-through
     and branches to the later-placed exit, matching the target's bge/blt-to-exit
     (companion to L15).
+L54 Cache a cross-call global array/const ADDRESS into a local pointer
+    (`T* p = gGlobal;`) to collapse a whole-function GPR permutation (GPR
+    analogue of L36). When a global's address is used before AND after a call,
+    MWCC re-materializes it and the register pressure pushes params/locals off
+    their target callee-saved homes; binding it to a local gives it a stable
+    callee-saved reg and the whole coloring falls into place (turned
+    CritterInitGeo 318->103 in one edit).
+L55 A constant (e.g. `-1`) that inits several fields AND later seeds a cross-call
+    accumulator should be ONE local, reused: `mt=-1; c->a=mt; c->b=mt; ...;
+    mt=Find();` reproduces the target's single `li rN,-1` kept in a callee-saved
+    reg for both the stores and the accumulator. Separate literals split it into
+    two materializations. (Only effective once the owning object is already in
+    its correct register.)
 L19 char/u8 local through a `v`-style scratch emits `extsb` — match the signed
     narrow type.
 L20 Split a double expression, then use compound assignment (`+=`), to recover a
@@ -332,6 +352,13 @@ the tree is pruned, and parallel appends create duplicates.) Instead:
     adds them here canonically.
   * Report parked functions as: `PARK <fn> — <P#> <one-line reason>`.
   * Report exacts as: `EXACT <fn> — committed <hash>` (only if built green).
+
+PRIMARY MERGE DISCIPLINE (mandatory): after cherry-picking ANY worker wave,
+rebuild and compare matched% against the pre-wave value AND spot-check the TU's
+previously-exact functions. Workers reporting "clean/only P-class residuals"
+have silently (a) shrunk OTHER functions' `unused[N]` pads and (b) regressed an
+exact fn from a header/field change. A wave that drops matched% must be fixed
+(restore the broken fn) or the offending commit reverted before pushing.
 
 WORKTREE EDIT HAZARD (bit 2 workers, wasted build cycles + risked main): a
 worktree-isolated agent's Edit/Read tools resolve an ABSOLUTE
