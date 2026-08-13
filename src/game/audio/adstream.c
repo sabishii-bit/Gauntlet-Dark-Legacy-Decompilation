@@ -337,9 +337,8 @@ Ldiv_done:;
     ringWrite = self->ringWrite;
     half = halfVoiceLoop;
     space = half - ringWrite;
-    ringSize = self->ringSize;
     chunk = self->frameAlign;
-    rawEnd = (u8*)self->buffer + ringSize;
+    rawEnd = (u8*)self->buffer + (ringSize = self->ringSize);
     destination = (u8*)self->cookedPtr + ringWrite;
 
     if (available < space) {
@@ -432,9 +431,10 @@ Lavail_done:;
 
     if ((s32)copySize >= 16) {
         u32 count = self->blocks;
+        s32 i;
         u8* end = destination;
 
-        for (; count > 0; count--) {
+        for (i = 0; i < count; i++) {
             end += halfVoiceLoop;
         }
     }
