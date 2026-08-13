@@ -2990,8 +2990,9 @@ big:
         PF(player, 0x918, s32) = 0;
     }
     if (flag != 0) {
-        PF(player, PF(player, 0x0C, s32) * 0x1C + 0xC20, s32) =
-            PF(player, PF(player, 0x0C, s32) * 0x1C + 0xC20, s32) + 1;
+        s32* count = (s32*)((u8*)player +
+                           PF(player, 0x0C, s32) * 0x1C);
+        count[0xC20 / sizeof(s32)] = count[0xC20 / sizeof(s32)] + 1;
     }
     t = PF(item, 0xDC, s16);
     if (t == -2) {
