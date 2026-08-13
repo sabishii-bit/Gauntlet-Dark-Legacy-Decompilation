@@ -201,6 +201,21 @@ L45 Typed-row-pointer forces the D-form indexed store (concrete P2-avoidance).
     `T* row=(T*)(base+i*stride); row[k]` emits `add row,base,idx; stw
     (k*sizeof)(row)`; the folded `*(T*)(base+i*stride+k*sizeof)` emits the
     `addi; stwx` X-form. Use the typed-row form when the target shows D-form.
+L46 Shared set-flag block => short-circuit `||` (inverse of L25). When a switch/if
+    arm sets `x |= bit` from TWO paths and the target shows ONE `ori` reached by
+    both a `beq` (fast-guard) and a fall-through (computed condition), write
+    `if (guard || computed) x |= bit;`. Two separate `if{x|=bit}` emit two `ori`.
+    (L25 splits an `||` when the target DUPLICATES the block; L46 merges when it
+    SHARES the block.)
+L47 Embed statements in a `||` operand via an inlinable static helper. To put an
+    inner `if`+local (e.g. a manual fmod) inside a `||` second operand that must
+    be skipped when the first operand is true, factor it into a `static` helper
+    returning the value; at `-O4 -inline auto` it inlines (leaving a deadstripped
+    standalone = fndiff BASE_ONLY) and reuses ONE int<->float conversion slot.
+L48 Float `<=` compare-form is a NaN-semantics tell. `a <= b` emits
+    `fcmpo; cror eq,lt,eq; b(n)e` (IEEE-strict, NaN->false); `!(a > b)` emits the
+    sloppy not-gt `bgt`/`ble` (NaN->true). Pick per the target's cror-vs-ble.
+    (The accompanying `ble->then; b->skip` goto-pair layout itself stays P6.)
 
 --- Float multiply operand order (the lever AND its two park-traps) ---
 L26 Reordering the C operands of a float multiply CAN re-home the FPRs to match.
@@ -287,6 +302,16 @@ the tree is pruned, and parallel appends create duplicates.) Instead:
     adds them here canonically.
   * Report parked functions as: `PARK <fn> — <P#> <one-line reason>`.
   * Report exacts as: `EXACT <fn> — committed <hash>` (only if built green).
+
+WORKTREE EDIT HAZARD (bit 2 workers, wasted build cycles + risked main): a
+worktree-isolated agent's Edit/Read tools resolve an ABSOLUTE
+`W:/Repositories/Gauntlet-Dark-Legacy-Decompilation/src/...` path to the MAIN
+checkout, NOT your worktree — silently editing main while your worktree file
+stays stale (ninja keeps compiling the old code; `--ops` hides the frame/reg
+drift that would reveal it). FIX: edit via Bash/Python on WORKTREE-RELATIVE
+paths (your cwd is the worktree), OR pass the FULL
+`.claude/worktrees/<name>/src/...` path to Edit. Sanity-check with `git status`
+in BOTH trees before committing.
 
 Worktree .git repair (if git errors with `gitdir: /w/...`): fix via BASH, not
 the Edit tool — `echo "gitdir: W:/Repositories/Gauntlet-Dark-Legacy-Decompilation/.git/worktrees/<name>" > .git`
