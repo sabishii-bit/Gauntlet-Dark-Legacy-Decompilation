@@ -182,6 +182,7 @@ extern Player gPlayers[]; /* gPlayerRecords[4], stride 0x335C */
 #define gPlayerRecords gPlayers
 #define PREC_STRIDE 0x335C
 #define P(i)          (&gPlayerRecords[i])
+#define PT(i)         ((Player*)((u8*)potionicon_tab + (i) * PREC_STRIDE + 0xC40))
 #define PF(p, off, T) (*(T*)((u8*)(p) + (off)))
 
 /* ------------------------------------------------------------------ */
@@ -2796,9 +2797,8 @@ void damage_player(s32 i, f32 dmg_in, u32 flags, f32* dir) {
  * grab proxy, clears got-it entries, and drops the keyring item.
  */
 static inline void player_dies(s32 i) {
-    Player* p = P(i);
+    Player* p = PT(i);
     s32* chest;
-    s32 keys;
     s32 j;
     f32 m[16];
 
@@ -2808,17 +2808,13 @@ static inline void player_dies(s32 i) {
     }
     MBTreeSetFlags((void*)lbl_8025EC68[i], 1, 0);
     /* restore the see-thru chest proxy to its tree */
-    if (lbl_8025EC88[i] != NULL) {
-        u8* ch = lbl_8025EC88[i];
-        u8* node = *(u8**)(ch + 100);
-        if (node != NULL) {
-            MBNodeSetParent(node, (void*)lbl_8025EC98[i]);
-            MBTreeSetAlpha(node, 0, 1);
-            CopyMat3((f32*)lbl_8025ECA8[i], (f32*)node);
-            *(s32*)(node + 0x30) = *(s32*)(lbl_8025ECA8[i] + 0x30);
-            *(s32*)(node + 0x34) = *(s32*)(lbl_8025ECA8[i] + 0x34);
-            *(s32*)(node + 0x38) = *(s32*)(lbl_8025ECA8[i] + 0x38);
-        }
+    if (lbl_8025EC88[i] != NULL && *(u8**)(lbl_8025EC88[i] + 100) != NULL) {
+        MBNodeSetParent(*(u8**)(lbl_8025EC88[i] + 100), (void*)lbl_8025EC98[i]);
+        MBTreeSetAlpha(*(u8**)(lbl_8025EC88[i] + 100), 0, 1);
+        CopyMat3((f32*)lbl_8025ECA8[i], *(f32**)(lbl_8025EC88[i] + 100));
+        *(f32*)(*(u8**)(lbl_8025EC88[i] + 100) + 0x30) = *(f32*)(lbl_8025ECA8[i] + 0x30);
+        *(f32*)(*(u8**)(lbl_8025EC88[i] + 100) + 0x34) = *(f32*)(lbl_8025ECA8[i] + 0x34);
+        *(f32*)(*(u8**)(lbl_8025EC88[i] + 100) + 0x38) = *(f32*)(lbl_8025ECA8[i] + 0x38);
     }
     lbl_8025EC88[i] = NULL;
     for (j = 0; j < 24; j++) {
@@ -2834,17 +2830,16 @@ static inline void player_dies(s32 i) {
             }
         }
     }
-    keys = PF(p, 0x1EB8, s32);
-    if (keys > 0 && sMusicTrackHi != 0xD) {
+    if (PF(p, 0x1EB8, s32) > 0 && sMusicTrackHi != 0xD) {
         CopyMat4(gIdentityMatrix, m);
         m[12] = death_pos[0];
         m[13] = death_pos[1];
         m[14] = death_pos[2];
         CopyMat4(p->mat, m);
         if (gBossType < 0) {
-            chest = PlaceItem(1, 2, (keys == 1) ? "KEY" : "KEYRING", m);
+            chest = PlaceItem(1, 2, (PF(p, 0x1EB8, s32) == 1) ? "KEY" : "KEYRING", m);
             if (chest != NULL) {
-                chest[0x38] = keys;
+                chest[0x38] = PF(p, 0x1EB8, s32);
             }
         }
     }
@@ -2860,7 +2855,7 @@ static inline void player_dies(s32 i) {
 
 /* Kill player i outright (health gone): teardown + dead-display.      */
 void kill_player(s32 i) {
-    Player* p = P(i);
+    Player* p = PT(i);
 
     if (p->state != 0) {
         if (p->node != NULL) {
@@ -2877,7 +2872,7 @@ void kill_player(s32 i) {
 /* Park player i (level change / joined-late slot). In the tower the   */
 /* slot just goes back to selecting with saved-health restore.         */
 void inactivate_player(s32 i) {
-    Player* p = P(i);
+    Player* p = PT(i);
 
     if (sMusicTrackHi == 0xD) {
         p->state = 1;
@@ -2900,7 +2895,7 @@ void inactivate_player(s32 i) {
 
 /* Hard-drop player i out of the game (slot free).                     */
 void abort_player(s32 i) {
-    Player* p = P(i);
+    Player* p = PT(i);
     s32 j;
 
     PF(p, 0x3328, s32) = 0;
