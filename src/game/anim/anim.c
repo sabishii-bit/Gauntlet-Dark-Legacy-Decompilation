@@ -70,7 +70,7 @@ void InitAnimInfo(animinfo* info, u8 flags)
     }
 }
 
-typedef struct SEQVIEW {
+typedef struct atreeseq {
     u8 pad[0x26];
     s16 flags26;
     u8 pad2[8];
@@ -165,6 +165,7 @@ u32 AnimateTree(f32 time, animinfo* info, s32 seq, s32 frame, s32 mode)
     }
     if (restart) {
         s32 initret;
+
         if (!done ||
             (f64)info->starttime < (f64)info->atime - lbl_803457C0) {
             info->starttime = (f32)((f64)info->atime - lbl_803457C0);
@@ -172,7 +173,7 @@ u32 AnimateTree(f32 time, animinfo* info, s32 seq, s32 frame, s32 mode)
         if ((initret = InitAnim(time, info, seq, frame, 1)) <= 0) {
             FatalErrorf(lbl_80110730, initret, seq, info->numseqs);
         }
-        if ((((SEQVIEW*)info->seqheader)[curseq].flags26 & 1) != 0) {
+        if ((info->seqheader[curseq].flags26 & 1) != 0) {
             result |= 8;
         }
         result |= 1;
