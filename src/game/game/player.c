@@ -4721,15 +4721,15 @@ s32 player_get_powerup_state(f32 dt, void* vp, s32 type, u32 mask) {
 /* Add/extend a powerup slot.  mask & 8 also drives the x-ray range.   */
 void PlayerAddPowerup(f32 duration, f32 strength, void* vp, s32 type, u32 mask) {
     Player* p = vp;
+    f32 best = 1000000.0f;
     f32 str;
     f32 w;
-    f32 best;
     s32 j;
     s32 pick = 0;
 
     str = strength * PF(lbl_80282930[p->index], 0x58, f32);
     for (j = 0; j < 11; j++) {
-        if (PUP_TYPE(p, j) == type && PUP_SPECIALFLAGS(p, j) == mask) {
+        if (PUP_TYPE(p, j) == type && (s32)PUP_SPECIALFLAGS(p, j) == (s32)mask) {
             if (duration > 0.0) {
                 PUP_ATTRIBUTEADD(p, j) += duration;
             }
@@ -4745,13 +4745,12 @@ void PlayerAddPowerup(f32 duration, f32 strength, void* vp, s32 type, u32 mask) 
         }
     }
     /* find the weakest/free slot */
-    best = 1000000.0f;
     for (j = 0; j < 11; j++) {
         w = PUP_TIMELEFT(p, j);
         if (w < 0.0f) {
             w = (PUP_TYPE(p, j) == type) ? 999999.0f : 1000000.0f;
         }
-        if (best == 2000000.0f || w == 0.0 || (w >= 0.0 && w < best)) {
+        if (best == 2000000.0 || w == 0.0 || (w >= 0.0 && w < best)) {
             pick = j;
             best = w;
         }
