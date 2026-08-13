@@ -3116,13 +3116,15 @@ void CritterGetDoAction(Critter *c)
     c->counterState &= ~0x130;
 }
 
-static s32 CritterAnimMod(s32 delta, f32 period)
+static f32 CritterAnimMod(s32 delta, f32 period)
 {
+    f64 absPeriod;
     f32 t = (f32)delta;
-    if (__fabs(period) <= __fabs(t)) {
-        t = t - period * (f32)(s64)(t / period);
+    absPeriod = __fabs(period);
+    if (absPeriod > __fabs(t)) {
+        return t;
     }
-    return (s32)t;
+    return t - period * (f32)(s64)(t / period);
 }
 
 /* 0x8003C11C -- convert move frame windows into the two activation edges
@@ -3130,7 +3132,7 @@ static s32 CritterAnimMod(s32 delta, f32 period)
 u32 CritterCopyAnim(Critter *c, CritterMove *move, s32 frame)
 {
     u32 result;
-    u8 unused[8];
+    u8 unused[16];
 
     result = 0;
     switch (move->type) {
@@ -3180,7 +3182,7 @@ u32 CritterCopyAnim(Critter *c, CritterMove *move, s32 frame)
         if (frame >= first && frame <= *(s16 *)((u8 *)move + 0x50)) {
             period = *(f32 *)((u8 *)move + 0x4C);
             if (period <= lbl_80346488 ||
-                CritterAnimMod(frame - first, period) == 0) {
+                (s32)CritterAnimMod(frame - first, period) == 0) {
                 result |= 1;
             }
         }
@@ -3189,16 +3191,16 @@ u32 CritterCopyAnim(Critter *c, CritterMove *move, s32 frame)
             frame <= *(s16 *)((u8 *)move + 0x52)) {
             period = *(f32 *)((u8 *)move + 0x4C);
             if (period <= lbl_80346488 ||
-                CritterAnimMod(frame - second, period) == 0) {
+                (s32)CritterAnimMod(frame - second, period) == 0) {
                 result |= 2;
             }
         }
         break;
     }
     case 0x88: {
-        s32 second;
         s16 idx;
         s16 flags;
+        s32 second;
         if ((c->moveFlags & 1) == 0 && frame >= *(s32 *)((u8 *)move + 0x40) &&
             (idx = c->unk124) >= 0) {
             GetPlayerColPos(idx, c->targetPos);
