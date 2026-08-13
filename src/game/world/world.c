@@ -510,14 +510,14 @@ void WorldSaveInitState(void) {
 /* WorldRestoreInitState: restore each object's snapshotted parent + position
  * and re-arm each active animation track. */
 void WorldRestoreInitState(void) {
-    char* base = gWorldName;
-    s32 i;
+    char* base = lbl_8028C9A8;
 
-    if (lbl_80344D74 == 0) {
+    if ((lbl_80344D74 == 0) || (lbl_80344D78 == 0)) {
         return;
     }
-    if (lbl_80344D78 != 0) {
+    {
         u8** wobjsp = (u8**)(base + 232);
+        s32 i;
         for (i = 0; i < *(s32*)(base + 324); i++) {
             *(u32*)(*wobjsp + i * 60 + 16) &= 0xC31FFFFF;
             *(u32*)(*wobjsp + i * 60 + 24) = ((u32*)lbl_80344D74)[i];
