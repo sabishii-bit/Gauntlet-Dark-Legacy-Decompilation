@@ -176,6 +176,19 @@ L39 Double sentinel in an f32 COMPARISON: an `f32` local compared against a larg
 L40 Signed `cmpw` for flag-EQUALITY: `(u32field == u32mask)` emits `cmplw`; cast
     BOTH sides to `s32` to get the target's signed `cmpw` on an equality of
     bit-flag values (companion to L32, which covers a re-tested saved flag).
+L41 Leftover-float mismatched call (recognize -> often PARK the residual `li`).
+    A helper with float params can be called from a TU-local caller with FEWER
+    args (floats omitted) — the callee reads the caller's already-computed values
+    left in f1/f2. A 6-param decl with the float params omitted can still set up
+    the right registers for a 7-param callee when the declared pointer params
+    land the GPR args correctly (proven by CritterCollidePlayers). COROLLARY: you
+    cannot fix such a callee's declaration without breaking EVERY caller that
+    depends on the leftover-float form — treat cross-fn signature changes here as
+    coupled/park unless you reconstruct all callers together.
+L42 `a ? a : NULL` emits a redundant `load; cmplwi; bne; li 0`. When the target
+    shows a load followed by a null-test that stores 0 in the null case (a
+    semantic no-op), the source is a self-ternary `x ? x : NULL`, NOT a plain
+    assignment (which the optimizer collapses). Write the self-ternary.
 
 --- Float multiply operand order (the lever AND its two park-traps) ---
 L26 Reordering the C operands of a float multiply CAN re-home the FPRs to match.
