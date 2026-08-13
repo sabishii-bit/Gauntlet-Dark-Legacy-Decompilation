@@ -26,17 +26,20 @@ extern f32 sndFxQueAddEx(int a, int b, f32 c, f32 d, int e, int f, int g);
 extern void sndFxQueEmpty(void);
 extern int sndFxUpdate(int a);
 extern void sndFxResetVoices(void);
-extern void sndFxPlay3DTracked(int a, int b, int c, int d);
+extern int sndFxPlay3DTracked(int a, int b, int c, int d);
 extern int sndFxPlayHandle(int a, int b, int c);
 extern void sndFxPlay3D(int a, int b, int c, int d);
 extern void AudioSetTrackPan(int a, int b);
 extern void AudioSetTrackVolMusic(int a, int b);
 extern int AudioMaskByEvent(int a);
+extern u32 AudioMaskBySound(int sound);
+extern u32 AudioMaskByInstance(u32 instance);
 extern int AudioSoundExists(int a);
 extern void AudioKillByEvent(int a);
 extern void AudioKillBySound(int a);
 extern void AudioKillMask(void);
 extern int AudioAng(int a);
+extern void AudioSetTrackVolSfx(u32 mask, s32 volume);
 extern void AudioBankLoadName(char* a, char* b, int c);
 extern void AudioStreamPlay(int a, int b, int c);
 extern void AudioStreamStop(void);
@@ -87,6 +90,22 @@ extern s32 sMusicSlot2;
 extern f32 sMusicFadeBase;
 extern f32 sMusicFadeCur;
 extern u8 sInputFlag;
+extern s32 gGameMode;
+extern s32 gTriggerCameraState;
+extern s32 lbl_803447B4;
+extern s32 lbl_803447DC;
+extern f32 lbl_80348484;
+extern f32 lbl_80348494;
+extern f64 lbl_803484A0;
+extern f64 lbl_803484A8;
+extern f32 lbl_803484B0;
+extern f64 lbl_803484B8;
+extern f32 lbl_803484C0;
+extern f32 lbl_8034851C;
+extern f64 lbl_80348520;
+extern char lbl_80114C6C[];
+extern s32 sumnerSpeechActive(void);
+extern void FatalErrorf(const char* format, ...);
 
 /* forward decls */
 void AudioWithName(int id, int pidx, f32 vol, int s4, int s5);
@@ -701,4 +720,93 @@ void AudioAmbientUpdate(void)
         }
         AudioKillBySound(83);
     }
+}
+
+s32 AudioSecretProc(f32 scale, s32 sound, f32* position, u32 flags,
+                    s32* instance, s32* mask)
+{
+    s32 result;
+    s32 volume;
+    s32 mode;
+    f32 scaled;
+
+    if (sound < 0) {
+        return 0;
+    }
+
+    scaled = lbl_8034851C * scale;
+    volume = (s32)(scaled * *(f32*)(gCurLevel + 0x98));
+    if (sumnerSpeechActive() != 0 || gTriggerCameraState != 0 ||
+        lbl_803447DC != 0) {
+        volume = 0x10;
+    }
+    mode = 0x70;
+    if (gGameMode == 0x4014 || gGameMode == 0x400C || lbl_803447B4 != 0) {
+        goto stop;
+    }
+
+    if (volume < 0) {
+        volume = 0;
+    }
+    if (sMusicTrackHi == 12 && sMusicTrackLo == 0) {
+        s32 adjusted;
+        volume *= 4;
+        if (volume < 0x40) {
+            adjusted = 0x40;
+        } else if (volume > 0xFF) {
+            adjusted = 0xFF;
+        } else {
+            adjusted = volume;
+        }
+        volume = adjusted;
+    }
+    if ((flags & 2) != 0) {
+        mode = 3;
+    }
+
+    result = 1;
+    if (*mask != 0 && (*mask & AudioMaskBySound(sound)) == 0) {
+        *mask = 0;
+    }
+    if (*mask == 0) {
+        if (*instance == 0) {
+            *instance = sndFxPlay3DTracked(sound, (s32)position, volume, mode) & 0xFFFF;
+            result = 3;
+        }
+        if (*instance != 0) {
+            *mask = AudioMaskByInstance(*instance);
+            if ((*mask & (*mask - 1)) != 0) {
+                FatalErrorf(lbl_80114C6C, sound, *instance, *mask);
+            }
+            result = 2;
+        }
+    }
+    if (*mask != 0) {
+        s32 pan = AudioAng((s32)position);
+        AudioSetTrackVolSfx(*mask, volume);
+        AudioSetTrackPan(*mask, pan);
+    }
+    if ((flags & 1) != 0) {
+        f64 maximum;
+        f64 computed;
+        f32 value;
+        sMusicFadeCur = sMusicFadeBase + lbl_80348484;
+        computed = -(lbl_80348520 * scale - (maximum = lbl_803484A0));
+        value = (f32)computed;
+        if (value < lbl_803484A8) {
+            value = lbl_803484B0;
+        } else if (value < lbl_803484B8) {
+            value = lbl_803484C0;
+        } else if (value > maximum) {
+            value = lbl_80348494;
+        }
+        sMusicVolScale = value;
+    }
+    return result;
+
+stop:
+    *instance = 0;
+    *mask = 0;
+    AudioKillBySound(sound);
+    return 0;
 }
