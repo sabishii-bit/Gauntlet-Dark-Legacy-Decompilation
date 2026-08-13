@@ -4357,12 +4357,13 @@ static void PlayerProcessSkinFX(void* vp, void* node) {
         }
     }
     if (ps->atree != NULL) {
+        void* h = ps->atree;
         s32 a2 = 0;
         s32 a3 = 0;
         if (gGameMode == 0x4010 && (PF(p, 0x124, u32) & 0x80)) {
-            MBTreeSetFlags(*(void**)ps->atree, 2, 0);
+            MBTreeSetFlags(*(void**)h, 2, 0);
         } else {
-            MBTreeClearFlags(*(void**)ps->atree, 2, 0);
+            MBTreeClearFlags(*(void**)h, 2, 0);
             if (PF(p, 0x900, u32) & 0x10000000) {
                 a2 = 1;
                 a3 = 2;
