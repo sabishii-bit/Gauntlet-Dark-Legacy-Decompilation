@@ -246,16 +246,20 @@ static int sWorldFloatEqual(f32 a, f32 b) {
  * animation-data block used by the stream's byte-swapped +4 offset. Returns
  * the swapped mode word from the stream header, or 0 when nothing animated. */
 s32 DoWorldAnimSub(struct worldanim* wa, void** panim, u8* animBase) {
-    WorldObj* obj = &((WorldObj*)gWorldInfo.wobjs)[wa->objidx];
-    void* data = panim[0];
+    s32 mode;
+    WorldObj* obj;
     G3DNode* node;
+    void* data;
     u8* d;
     u8* sequence;
     u32 f;
     s32 m1;
-    s32 mode;
     s32 hdr2;
+    f32 curframe;
     f32 xf[11]; /* sampled transform (pos @16, scale @32) from CalcAnimData */
+
+    obj = &((WorldObj*)gWorldInfo.wobjs)[wa->objidx];
+    data = panim[0];
 
     if (data == NULL) {
         return 0;
@@ -300,7 +304,8 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim, u8* animBase) {
         CopyMat4(gIdentityMatrix, node);
         ZeroAnimData(panim);
     } else {
-        if (CalcAnimData(panim, xf, sequence, mode, hdr2, wa->nframes, wa->curframe) != 0) {
+        curframe = wa->curframe;
+        if (CalcAnimData(panim, xf, sequence, mode, hdr2, wa->nframes, curframe) != 0) {
             /* Rotation. */
             if (mode & 7) {
                 if (mode & 0x8000) {
