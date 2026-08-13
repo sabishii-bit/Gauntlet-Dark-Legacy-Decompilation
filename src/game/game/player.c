@@ -2379,7 +2379,7 @@ static s32 do_weakening(void* vp, s32 active) {
     if (active != 0 && p->health <= 150.0f) {
         t = PF(p, 0x1F6, s16) - gFrameTicks;
         PF(p, 0x1F6, s16) = t;
-        if (t < 1) {
+        if (t <= 0) {
             if (sMusicTrackHi != 0xD && (PF(p, 0x120, u32) & 0x110000) == 0) {
                 AudioHeartBeat(p->index);
             }
