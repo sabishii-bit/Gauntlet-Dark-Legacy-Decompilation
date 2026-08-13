@@ -956,6 +956,7 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
     u8* base = (u8*)data;
     f32* fblob = (f32*)data;
     s32 memBase = mlmMemUsed;
+    char* wg = gWorldName; /* base ptr; gWorldInfo.inited is *(s32*)(wg+228) */
     s32 i;
     s32 k;
     s32 n;
@@ -971,7 +972,7 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
     wi->iteminst = (struct iteminst*)(base + blob[0x15]);
     wi->locators = (struct locator*)(base + blob[0x17]);
 
-    if (gWorldInfo.inited == 0) {
+    if (*(s32*)(wg + 228) == 0) {
         /* world objects (stride 0x3C) */
         for (i = 0; i < blob[0]; i++) {
             p = (u8*)wi->wobjs + i * 0x3C;
@@ -1171,11 +1172,11 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
     }
 
     if (version >= 1 && blob[0x19] != 0) {
-        if (gWorldInfo.inited == 0) {
+        if (*(s32*)(wg + 228) == 0) {
             wi->animheader = SetupAnimHeader(base + blob[0x19], 0);
         }
         wi->worldanims = (struct worldanim*)(base + blob[0x1B]);
-        if (gWorldInfo.inited == 0) {
+        if (*(s32*)(wg + 228) == 0) {
             for (i = 0; i < blob[0x1A]; i++) {
                 p = (u8*)wi->worldanims + i * 0x10;
                 *(u16*)(p + 0x00) = sSwapU16(*(u16*)(p + 0x00));
@@ -1188,7 +1189,7 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
         }
         wi->nworldanims = blob[0x1A];
         wi->animdata = AllocMem(blob[0x1A] * 0xA0);
-        if (gWorldInfo.inited == 0) {
+        if (*(s32*)(wg + 228) == 0) {
             for (i = 0; i < blob[0x1A]; i++) {
                 p = (u8*)wi->animdata + i * 0xA0;
                 *(u16*)(p + 0x08) = sSwapU16(*(u16*)(p + 0x08));
@@ -1242,7 +1243,7 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
     } else {
         wi->worldpsys = (struct WORLDPSYS*)(base + blob[0x1D]);
         wi->nworldpsys = blob[0x1C];
-        if (gWorldInfo.inited == 0) {
+        if (*(s32*)(wg + 228) == 0) {
             for (i = 0; i < blob[0x1C]; i++) {
                 fn_80011DCC((u8*)wi->worldpsys + i * 0x138);
             }
