@@ -382,8 +382,7 @@ void fn_800C73E0(void) {
         s32* cur;
         s32 region;
         u64 bit;
-        if (*(s32*)(mgr + 0x5B8) == -1) {
-            cur = (s32*)(mgr + 0x5B8);
+        if (*(cur = (s32*)(mgr + 0x5B8)) == -1) {
             *cur = fn_800C6BB4(0, 0xFFFF0000);
             region = *cur;
             bit = __shl2i(0, 1, region);
