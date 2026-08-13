@@ -2234,16 +2234,18 @@ s32 fn_800945D0(f32* pos, f32* mat, s32 idx, s32 alt, s32 kind, f32 scale)
         return ret;
     }
     if (mat != NULL && ret >= 0) {
-        ep = (u8*)page + ret * 240;
-        e = (Effect*)(ep + 2976);
+        ep = (u8*)page;
+        ep += ret * 240;
+        e = (Effect*)(ep += 2976);
         if (mat != NULL) {
             CopyMat3(mat, e->node);
         }
     }
     {
-        ep = (u8*)page + ret * 240;
-        e = (Effect*)(ep + 2976);
-        if ((nd = *(struct mbnode**)(ep + 2996)) != NULL) {
+        ep = (u8*)page;
+        ep += ret * 240;
+        e = (Effect*)(ep += 2976);
+        if ((nd = e->node) != NULL) {
             MBTreeSetFlags(nd, 8, 0);
             *(f32*)((u8*)e->node + 64) = rad;
             *(f32*)((u8*)e->node + 68) = rad;
