@@ -244,6 +244,8 @@ void do_titlescreen(void) {
     int i;
     int firstPad;
     int menu;
+    int blink;
+    register int divisor;
 
     if (lbl_80344298 != 0) {
         TitleMenuEnd();
@@ -253,9 +255,11 @@ void do_titlescreen(void) {
         return;
     }
 
+    divisor = 10;
     lbl_803445DC = 1;
     lbl_80344270 = lbl_80344270 + gClockStepTicks;
-    mbInitBlitEntry(lbl_80344264, lbl_8034426C, (lbl_80344270 >> 2) % 10);
+    blink = lbl_80344270 >> 2;
+    mbInitBlitEntry(lbl_80344264, lbl_8034426C, blink % divisor);
     if (lbl_80344270 < 60) {
         MBBlitSetAlpha(lbl_80344264, 255 - (lbl_80344270 * 255) / 60);
     }
