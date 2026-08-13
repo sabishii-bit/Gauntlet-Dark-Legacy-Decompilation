@@ -111,6 +111,14 @@ L28 Inlined-literal const-fold park (a P1 sub-case). A constant held in a
 --- Branch layout ---
 L13 One-case switch = `beq/b`. A switch with a single real case emits a compare-
     equal + branch; write it as `switch` not `if` (or vice-versa) to match.
+L49 Jump-table `switch` case bodies are emitted in SOURCE DECLARATION ORDER, not
+    case-value order (the jump table itself adjusts automatically). To match a
+    jumbled target block layout, reorder the source `case` labels to the
+    target's PHYSICAL body sequence — dump the jump-table data object
+    (`build/GUNE5D/asm/auto_*_data.s`) to read the exact case->block map,
+    shared-case groups, and compiler-filled gaps. (Independently confirmed on
+    CritterCopyAnim + InitWorldInfo; the single biggest structural lever on
+    switch-heavy functions.)
 L14 `<1` ⇒ `<=0` compare form. Signed `x < 1` and `x <= 0` emit different
     compares; pick the one the target shows.
 L15 De Morgan branch layout — invert a compound condition + swap arms to match
@@ -123,6 +131,12 @@ L17 bit-trick fabs: `*(u32*)&x &= 0x7FFFFFFF` (not `fabs()`), when target clears
     the sign bit in a GPR.
 L18 u16-pointer store emits `sth` with NO `extsh`. Store through a `u16*` so the
     value isn't sign-extended first.
+L50 Byte-swap-through-memory helper: `return b[0] | (b[1]<<8)` vs
+    `(b[1]<<8) | b[0]` flips the `rlwimi` dest/source register tie by commutative
+    operand order — the LOW-byte operand written FIRST becomes the rlwimi
+    destination/result register. High-value when the helper is INLINED at many
+    sites (one reorder erased 408 diff lines in InitWorldInfo + improved
+    DoWorldAnimSub).
 L19 char/u8 local through a `v`-style scratch emits `extsb` — match the signed
     narrow type.
 L20 Split a double expression, then use compound assignment (`+=`), to recover a
