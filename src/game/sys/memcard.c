@@ -1488,7 +1488,7 @@ mount_cont:
 u8 vmu_exists(s32 chan, const char* name, s32* fileNoOut)
 {
     u8* top = (u8*) GetHiMemCacheTop();
-    u32 aramSize = 0x310000;
+    u32 aramSize;
     s32 dirSize = 0x2D44C0;
     u32 transferSize;
     u8* buf;
@@ -1496,6 +1496,7 @@ u8 vmu_exists(s32 chan, const char* name, s32* fileNoOut)
     s32 found;
 
     found = 0;
+    aramSize = 0x310000;
 
     sysSetFlags(64);
     top = (u8*) GetHiMemCacheTop();
@@ -1516,10 +1517,13 @@ u8 vmu_exists(s32 chan, const char* name, s32* fileNoOut)
     buf = (u8*) OSAllocFromHeap(__OSCurrHeap, dirSize);
     cardLoadFile(chan, buf);
     if (cardWaitResult() == 0) {
-        s32 count = cardLock();
+        s32 count;
         s32 off;
 
-        while (off = count * 23360, count != 0) {
+        count = cardLock();
+        goto initLoop;
+loopBody:
+        {
             s32 fileNo = *(s32*) (buf + off - 256);
             volatile u8 _pad0[12];
             char stat[108];
@@ -1533,9 +1537,17 @@ u8 vmu_exists(s32 chan, const char* name, s32* fileNoOut)
 
                 *fileNoOut = *(s32*) (entry + 23104);
                 found = 1;
-                break;
+                goto loopEnd;
             }
         }
+        goto loopTest;
+initLoop:
+        off = count * 23360;
+loopTest:
+        if (count != 0) {
+            goto loopBody;
+        }
+loopEnd:
         cardUnlock();
         cardWaitResult();
     }
