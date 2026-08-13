@@ -1102,9 +1102,9 @@ void InvertMat4(const f32* matrix, f32* out)
     f32 dot;
 
     sceSamp0TransposeMatrix(out, matrix);
-    out[3] = 0.0f;
-    out[7] = 0.0f;
-    out[11] = 0.0f;
+    out[3] = gMlFmathZero;
+    out[7] = gMlFmathZero;
+    out[11] = gMlFmathZero;
     dot = matrix[12] * matrix[0] + matrix[13] * matrix[1] +
           matrix[14] * matrix[2];
     out[12] = (f32)(-1.0 * dot);
@@ -1114,7 +1114,7 @@ void InvertMat4(const f32* matrix, f32* out)
     dot = matrix[12] * matrix[8] + matrix[13] * matrix[9] +
           matrix[14] * matrix[10];
     out[14] = (f32)(-1.0 * dot);
-    out[15] = gMlFmathZero;
+    out[15] = 0.0f;
 }
 
 /* 0x800BE8C8 */
