@@ -5007,6 +5007,9 @@ static inline s32 CritterWadTag(char *s)
     return (s[0] << 24) | (s[1] << 16) | (s[2] << 8) | s[3];
 }
 
+#define CRITTER_SFX_TAG(s) \
+    (((s)[0] << 24) | ((s)[1] << 16) | ((s)[2] << 8) | (s)[3])
+
 static inline u16 CritterSwap16(u16 v)
 {
     u8 *p = (u8 *)&v;
@@ -5049,9 +5052,10 @@ void CritterInitHeader(void *hdr, void *file)
     header = (CritterFileHeader *)hdr;
     swapped = 0;
     if (header->state == 0) {
-        swapped = MBSetupWad(wad = header->wad, (s32)file);
+        wad = header->wad;
+        swapped = MBSetupWad(wad, (s32)file);
         header->sfx = (u8 *)MBGetFromWad(wad,
-                                         CritterWadTag(lbl_8034665C),
+                                         CRITTER_SFX_TAG(lbl_8034665C),
                                          &header->sfxCount);
         header->damage = (u8 *)MBGetFromWad(wad,
                                             CritterWadTag(lbl_80346664),
@@ -5093,8 +5097,9 @@ void CritterInitHeader(void *hdr, void *file)
             *(f32 *)(p + 0x40) = CritterSwapF(*(f32 *)(p + 0x40));
             *(u32 *)(p + 0x48) = CritterSwap32(*(u32 *)(p + 0x48));
             *(f32 *)(p + 0x4C) = CritterSwapF(*(f32 *)(p + 0x4C));
-            for (j = 0; j < 12; j += 4) {
-                *(f32 *)(p + 0x30 + j) = CritterSwapF(*(f32 *)(p + 0x30 + j));
+            for (j = 0; j < 3; j++) {
+                *(f32 *)(p + 0x30 + j * 4) =
+                    CritterSwapF(*(f32 *)(p + 0x30 + j * 4));
             }
         }
 
@@ -5119,8 +5124,9 @@ void CritterInitHeader(void *hdr, void *file)
             *(f32 *)(p + 0x3C) = CritterSwapF(*(f32 *)(p + 0x3C));
             *(f32 *)(p + 0x48) = CritterSwapF(*(f32 *)(p + 0x48));
             *(u32 *)(p + 0x04) = CritterSwap32(*(u32 *)(p + 0x04));
-            for (j = 0; j < 12; j += 4) {
-                *(f32 *)(p + 0x20 + j) = CritterSwapF(*(f32 *)(p + 0x20 + j));
+            for (j = 0; j < 3; j++) {
+                *(f32 *)(p + 0x20 + j * 4) =
+                    CritterSwapF(*(f32 *)(p + 0x20 + j * 4));
             }
         }
 
@@ -5171,8 +5177,9 @@ void CritterInitHeader(void *hdr, void *file)
             *(f32 *)(p + 0x44) = CritterSwapF(*(f32 *)(p + 0x44));
             *(f32 *)(p + 0x48) = CritterSwapF(*(f32 *)(p + 0x48));
             *(f32 *)(p + 0x4C) = CritterSwapF(*(f32 *)(p + 0x4C));
-            for (j = 0; j < 16; j += 2) {
-                *(u16 *)(p + 0x20 + j) = CritterSwap16(*(u16 *)(p + 0x20 + j));
+            for (j = 0; j < 8; j++) {
+                *(u16 *)(p + 0x20 + j * 2) =
+                    CritterSwap16(*(u16 *)(p + 0x20 + j * 2));
             }
         }
 
@@ -5187,8 +5194,9 @@ void CritterInitHeader(void *hdr, void *file)
             *(f32 *)(p + 0x2C) = CritterSwapF(*(f32 *)(p + 0x2C));
             *(f32 *)(p + 0x40) = CritterSwapF(*(f32 *)(p + 0x40));
             *(f32 *)(p + 0x44) = CritterSwapF(*(f32 *)(p + 0x44));
-            for (j = 0; j < 12; j += 4) {
-                *(f32 *)(p + 0x20 + j) = CritterSwapF(*(f32 *)(p + 0x20 + j));
+            for (j = 0; j < 3; j++) {
+                *(f32 *)(p + 0x20 + j * 4) =
+                    CritterSwapF(*(f32 *)(p + 0x20 + j * 4));
             }
         }
 
@@ -5256,11 +5264,15 @@ void CritterInitHeader(void *hdr, void *file)
             *(f32 *)(p + 0x94) = CritterSwapF(*(f32 *)(p + 0x94));
             *(f32 *)(p + 0x98) = CritterSwapF(*(f32 *)(p + 0x98));
             *(f32 *)(p + 0x9C) = CritterSwapF(*(f32 *)(p + 0x9C));
-            for (j = 0; j < 12; j += 4) {
-                *(f32 *)(p + 0xA0 + j) = CritterSwapF(*(f32 *)(p + 0xA0 + j));
-                *(f32 *)(p + 0xC0 + j) = CritterSwapF(*(f32 *)(p + 0xC0 + j));
-                *(f32 *)(p + 0xD0 + j) = CritterSwapF(*(f32 *)(p + 0xD0 + j));
-                *(f32 *)(p + 0x100 + j) = CritterSwapF(*(f32 *)(p + 0x100 + j));
+            for (j = 0; j < 3; j++) {
+                *(f32 *)(p + 0xA0 + j * 4) =
+                    CritterSwapF(*(f32 *)(p + 0xA0 + j * 4));
+                *(f32 *)(p + 0xC0 + j * 4) =
+                    CritterSwapF(*(f32 *)(p + 0xC0 + j * 4));
+                *(f32 *)(p + 0xD0 + j * 4) =
+                    CritterSwapF(*(f32 *)(p + 0xD0 + j * 4));
+                *(f32 *)(p + 0x100 + j * 4) =
+                    CritterSwapF(*(f32 *)(p + 0x100 + j * 4));
             }
         }
 
@@ -5270,8 +5282,9 @@ void CritterInitHeader(void *hdr, void *file)
             *(u16 *)(p + 0x02) = CritterSwap16(*(u16 *)(p + 0x02));
             *(u32 *)(p + 0x04) = CritterSwap32(*(u32 *)(p + 0x04));
             *(u32 *)(p + 0x08) = CritterSwap32(*(u32 *)(p + 0x08));
-            for (j = 0; j < 12; j += 4) {
-                *(f32 *)(p + 0x20 + j) = CritterSwapF(*(f32 *)(p + 0x20 + j));
+            for (j = 0; j < 3; j++) {
+                *(f32 *)(p + 0x20 + j * 4) =
+                    CritterSwapF(*(f32 *)(p + 0x20 + j * 4));
             }
         }
     }
