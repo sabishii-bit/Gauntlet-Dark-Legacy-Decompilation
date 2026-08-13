@@ -148,9 +148,7 @@ MBObject* createPsysNode(s32 a, s32 b, s32 c, s32 d);
 MBObject* MBNewPsysDescrip(s32 a, s32 b, s32 c, void* cfg);
 MBObject* MBPsysFirework(s32 a, s32 b, s32 count, s32 m0, s32 m1, s32 m2,
                          f32 rate, f32 power, f32 sc0, f32 sc1, f32 sc2);
-MBObject* MBPsysFlame(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                      f64 f8, s32 a, s32 tex, f32* verts, s32 b, s32 c, s32 d,
-                      s32 e, s32 g);
+MBObject* MBPsysFlame(f32 f1, f32 f2, f32 f3, s32 a, s32 tex, f32* verts);
 
 /* ======================================================================= *
  *  Emit-mode integrators (psys->ppos_func, per live particle over time)   *
@@ -1334,11 +1332,75 @@ MBObject* MBPsysFirework(s32 a, s32 b, s32 count, s32 m0, s32 m1, s32 m2,
 #pragma dont_inline off
 
 /* 0x800CF8EC - flame preset */
-MBObject* MBPsysFlame(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                      f64 f8, s32 a, s32 tex, f32* verts, s32 b, s32 c, s32 d,
-                      s32 e, s32 g) {
-    return MBNewPsysDescrip((s32)f1, tex, 0, verts);
+extern f32 lbl_80349154;         /* 0.0f  */
+extern f32 lbl_80349220;         /* 10.0f */
+extern const f32 lbl_8034915C;   /* 1.0f  */
+extern const f32 lbl_80349184;   /* -1.0f */
+extern const f32 lbl_8034926C;   /* 0.3f  */
+extern const f32 lbl_80349270;   /* 0.15f */
+extern const f32 lbl_80349280;   /* 0.13f */
+extern const f64 lbl_803491A0;   /* 0.5   */
+extern const f64 lbl_803491F0;   /* 0.1   */
+extern const f64 lbl_80349278;   /* 0.2   */
+extern const f64 lbl_80349288;   /* 0.94  */
+extern const f64 lbl_80349290;   /* 1.06  */
+
+#pragma dont_inline on
+MBObject* MBPsysFlame(f32 f1, f32 f2, f32 f3, s32 a, s32 tex, f32* verts) {
+    u8* pi = (u8*)psysInfo;
+    f32 w;
+
+    if (f3 <= lbl_80349154) {
+        *(f32*)(pi + 3408) = lbl_8034926C;
+        *(f32*)(pi + 3412) = lbl_80349270;
+    } else {
+        *(f32*)(pi + 3408) = (f32)(lbl_80349278 * f3);
+        *(f32*)(pi + 3412) = (f32)(lbl_803491F0 * f3);
+    }
+    w = (f32)(f2 * lbl_803491A0);
+    if (w <= lbl_80349154) {
+        *(f32*)(pi + 3444) = lbl_80349280;
+        *(f32*)(pi + 3448) = lbl_80349280;
+        *(f32*)(pi + 3452) = lbl_80349280;
+    } else {
+        *(f32*)(pi + 3444) = w;
+        *(f32*)(pi + 3448) = w;
+        *(f32*)(pi + 3452) = w;
+    }
+    if (f1 <= lbl_80349154) {
+        *(f32*)(pi + 3400) = lbl_80349220;
+        *(f32*)(pi + 3404) = lbl_8034915C;
+    } else {
+        *(f32*)(pi + 3400) = f1;
+        *(f32*)(pi + 3404) = (f32)(lbl_803491F0 * f1);
+    }
+    if (verts != NULL) {
+        f32 vx = verts[0];
+        f32 vy = verts[1];
+        f32 vz = verts[2];
+        f32 mag = vx * vx + vy * vy + vz * vz;
+        if (lbl_80349154 == mag) {
+            vx = lbl_80349154;
+            vy = lbl_80349184;
+            vz = lbl_80349154;
+        } else if (mag < lbl_80349288 || mag > lbl_80349290) {
+            mag = mbInvSqrtLookup(mag);
+            vx = vx * mag;
+            vy = vy * mag;
+            vz = vz * mag;
+        }
+        *(f32*)(pi + 3428) = vx;
+        *(f32*)(pi + 3432) = vy;
+        *(f32*)(pi + 3436) = vz;
+    } else {
+        f32 z = lbl_80349154;
+        *(f32*)(pi + 3428) = z;
+        *(f32*)(pi + 3432) = lbl_80349184;
+        *(f32*)(pi + 3436) = z;
+    }
+    return MBNewPsysDescrip(a, tex, 0, (void*)(pi + 3340));
 }
+#pragma dont_inline off
 
 /* 0x800D079C - default psys node (no descriptor), stores render flags */
 MBObject* MBNewPsysDefault(void* matrix, MBObject* parent, s32 flags,
