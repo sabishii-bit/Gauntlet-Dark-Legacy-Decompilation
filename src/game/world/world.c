@@ -1126,7 +1126,7 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
             *(u16*)(p + 0x02) = sSwapU16(*(u16*)(p + 0x02));
             for (k = 0; k < 3; k++) {
                 *(f32*)(p + 0x04 + k * 4) = sSwapF32(*(f32*)(p + 0x04 + k * 4));
-                *(u32*)(p + 0x10 + k * 4) = sSwapU32(*(u32*)(p + 0x10 + k * 4));
+                *(f32*)(p + 0x10 + k * 4) = sSwapF32(*(f32*)(p + 0x10 + k * 4));
             }
         }
     }
@@ -1183,7 +1183,7 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
                 *(u16*)(p + 0x02) = sSwapU16(*(u16*)(p + 0x02));
                 *(u16*)(p + 0x04) = sSwapU16(*(u16*)(p + 0x04));
                 *(u16*)(p + 0x06) = sSwapU16(*(u16*)(p + 0x06));
-                *(u32*)(p + 0x08) = sSwapU32(*(u32*)(p + 0x08));
+                *(f32*)(p + 0x08) = sSwapF32(*(f32*)(p + 0x08));
                 *(u32*)(p + 0x0C) = sSwapU32(*(u32*)(p + 0x0C));
             }
         }
