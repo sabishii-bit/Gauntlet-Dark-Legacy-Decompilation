@@ -745,9 +745,9 @@ link_cont_j:;
                         other->info->type == 5 &&
                         (*(s16*)&other->data[4] & 0x40) == 0 &&
                         next_id == *(s8*)&other->data[6]) {
-                        Item* chain;
-                        s32 loop = 0;
                         Item* next;
+                        s32 loop = 0;
+                        Item* chain;
 
                         for (chain = other; chain != NULL;
                              chain = next) {
