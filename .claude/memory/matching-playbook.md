@@ -164,6 +164,18 @@ L37 5-arg direct call to a 6-param function (K&R/mismatched-proto passthrough,
     emits an indirect `blrl`). Passing the real 6th arg keeps a direct `bl` at
     the cost of one extra `li` -> treat that `li` as a park UNLESS a caller-side
     5-param declaration is introduced.
+L38 Merge-reuse local. A struct-field value loaded for a null/zero check is
+    reused in the fall-through branch but RE-READ in a merge-reached (else)
+    branch of a short-circuit `&&`. Bind it to an explicit local (`T h = p->f;`)
+    to force ONE load reused across the merge — removes the reload and its
+    branch-offset ripple.
+L39 Double sentinel in an f32 COMPARISON: an `f32` local compared against a large
+    sentinel emits `lfd` (double) when the literal is written `2000000.0`, `lfs`
+    (single) when `2000000.0f`. Pick the width the target's lfd/lfs shows
+    (comparison companion to L33, which covers multiplies).
+L40 Signed `cmpw` for flag-EQUALITY: `(u32field == u32mask)` emits `cmplw`; cast
+    BOTH sides to `s32` to get the target's signed `cmpw` on an equality of
+    bit-flag values (companion to L32, which covers a re-tested saved flag).
 
 --- Float multiply operand order (the lever AND its two park-traps) ---
 L26 Reordering the C operands of a float multiply CAN re-home the FPRs to match.
