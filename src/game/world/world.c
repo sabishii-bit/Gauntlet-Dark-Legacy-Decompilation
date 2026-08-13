@@ -213,7 +213,7 @@ extern f64 __frsqrte(f64 x);
  * before DoWorldAnimSub so they inline into its stream-header fixup. */
 static u16 sSwapU16(u16 v) {
     u8* b = (u8*)&v;
-    return (u16)((b[1] << 8) | b[0]);
+    return (u16)(b[0] | (b[1] << 8));
 }
 
 static u32 sSwapU32(u32 v) {
