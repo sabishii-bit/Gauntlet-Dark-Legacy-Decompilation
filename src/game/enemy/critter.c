@@ -4297,6 +4297,8 @@ void CritterInitColnodes(Critter *c)
     s32 i;
     s16 nodeIndex;
 
+    f32 zerof = lbl_80346470;
+
     header = (u8 *)c->hdr;
     if (*(s16 *)(header + 0x118) <= 0) {
         return;
@@ -4304,26 +4306,91 @@ void CritterInitColnodes(Critter *c)
     descriptor = *(u8 **)(*(u8 **)(header + 0x130) + 0x3C) +
                  *(s16 *)(header + 0x11A) * 0x50;
     c->unkAB8 = -1;
-    for (i = 0; i < *(s16 *)(header + 0x118); i++, descriptor += 0x50) {
+    for (i = 0; i < *(s16 *)((u8 *)c->hdr + 0x118);
+         i++, descriptor += 0x50) {
         record = (u8 *)c + 0x4F8 + i * 0x5C;
         *(u8 **)record = descriptor;
         nodeIndex = *(s16 *)(descriptor + 0x14);
         if (nodeIndex < 0) {
             *(void **)(record + 4) = NULL;
         } else {
-            *(void **)(record + 4) =
-                *(void **)((u8 *)c->anodes + nodeIndex * 0x28);
-            if (*(void **)(record + 4) == NULL) {
-                *(void **)(record + 4) = c->anim;
+            void *node = c->anim;
+            if (nodeIndex >= 0) {
+                node = *(void **)((u8 *)c->anodes + nodeIndex * 0x28);
+                if (node == NULL) {
+                    node = c->anim;
+                }
             }
+            *(void **)(record + 4) = node;
         }
         *(void **)(record + 8) = *(void **)(record + 4);
+        if (*(void **)(record + 4) != NULL) {
+            char *name = (char *)*(u8 **)record + 0x30;
+            s8 ch = name[0];
+            if (ch != 0) {
+                if (ch == '-') {
+                    s32 n = name[1] - '0';
+                    while (n > 0) {
+                        *(void **)(record + 8) =
+                            *(void **)(*(u8 **)(record + 8) + 0x74);
+                        n--;
+                    }
+                } else if (ch == '+') {
+                    s32 n = name[1] - '0';
+                    while (n > 0) {
+                        *(void **)(record + 8) =
+                            *(void **)(*(u8 **)(record + 8) + 0x78);
+                        n--;
+                    }
+                } else {
+                    s32 idx = -1;
+                    void *atc = *(void **)((u8 *)c->hdr + 0x138);
+                    void *node;
+                    if (atc != NULL && name != NULL && ch != 0 &&
+                        name[1] != 0) {
+                        idx = AtreeFindNodeIdx(*(void **)((u8 *)atc + 0xC),
+                                               *(s32 *)((u8 *)atc + 0x10),
+                                               name, 0x10);
+                    }
+                    node = c->anim;
+                    if (idx >= 0) {
+                        node = *(void **)((u8 *)c->anodes + idx * 0x28);
+                        if (node == NULL) {
+                            node = c->anim;
+                        }
+                    }
+                    *(void **)(record + 8) = node;
+                }
+            }
+        }
         MBTreeSetZsortAdd(*(void **)(record + 4),
                           *(s16 *)(descriptor + 0x16), 1);
         *(s32 *)(record + 0x50) = -1;
+        *(f32 *)(record + 0x58) = zerof;
         *(f32 *)(record + 0x54) =
             *(f32 *)(descriptor + 0x44) * c->health;
-        *(f32 *)(record + 0x58) = 0.0f;
+        {
+            s16 sfxidx = *(s16 *)(descriptor + 0x12);
+            void *hdr130 = *(void **)((u8 *)c->hdr + 0x130);
+            void *sfxparam =
+                *(void **)(*(u8 **)((u8 *)c->hdr + 0x120) + 0x28);
+            if (sfxidx >= 0) {
+                u8 *psys =
+                    *(u8 **)((u8 *)hdr130 + 0x44) + sfxidx * 0x50;
+                CritterInitSfx(hdr130, *(s16 *)(psys + 0x40), sfxparam);
+                CritterInitSfx(hdr130, *(s16 *)(psys + 0x44), sfxparam);
+                CritterInitSfx(hdr130, *(s16 *)(psys + 0x46), sfxparam);
+                CritterInitSfx(hdr130, *(s16 *)(psys + 0x42), sfxparam);
+                if (*(s16 *)psys == 6) {
+                    lbl_80344650 = 1;
+                }
+            }
+        }
+        if ((gControllerButtons & 0x10) && gGameOptions[8]) {
+            *(void **)(record + 0x4C) = DmgFxCircleAdd(
+                *(void **)(record + 4), *(f32 *)(descriptor + 0x2C), zerof,
+                zerof, (f32 *)(descriptor + 0x20), 127);
+        }
     }
 }
 
