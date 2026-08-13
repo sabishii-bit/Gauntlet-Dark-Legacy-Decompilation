@@ -522,7 +522,7 @@ f64 SlowNormalVector2D(f32* vector)
     u8 unused[8];
     volatile f32 root;
 
-    if (magnitude > 0.0f) {
+    if (magnitude > gMlFmathZero) {
         f64 guess = __frsqrte(original);
         guess = 0.5 * guess * (3.0 - original * (guess * guess));
         guess = 0.5 * guess * (3.0 - original * (guess * guess));
@@ -538,7 +538,7 @@ f64 SlowNormalVector2D(f32* vector)
     else
         scale = (f32)(1.0 / length);
     vector[0] *= scale;
-    vector[1] = 0.0f;
+    vector[1] = gMlFmathZero;
     vector[2] *= scale;
     return length;
 }
@@ -554,7 +554,7 @@ f32 NormalVector2D(f32* vector)
     else
         scale = (f32)(1.0 / length);
     vector[0] *= scale;
-    vector[1] = 0.0f;
+    vector[1] = gMlFmathZero;
     vector[2] *= scale;
     return length;
 }
@@ -570,7 +570,7 @@ f64 SlowNormalVector(f32* vector)
     u8 unused[8];
     volatile f32 root;
 
-    if (magnitude > 0.0f) {
+    if (magnitude > gMlFmathZero) {
         f64 guess = __frsqrte(original);
         guess = 0.5 * guess * (3.0 - original * (guess * guess));
         guess = 0.5 * guess * (3.0 - original * (guess * guess));
