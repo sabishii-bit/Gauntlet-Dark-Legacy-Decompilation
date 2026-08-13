@@ -1378,11 +1378,14 @@ MBObject* MBPsysFlame(f32 f1, f32 f2, f32 f3, s32 a, s32 tex, f32* verts) {
         f32 vx = verts[0];
         f32 vy = verts[1];
         f32 vz = verts[2];
-        f32 mag = vx * vx + vy * vy + vz * vz;
+        f32 mag;
+        mag = vy * vy;
+        mag = vx * vx + mag;
+        mag = vz * vz + mag;
         if (lbl_80349154 == mag) {
-            vx = lbl_80349154;
-            vy = lbl_80349184;
             vz = lbl_80349154;
+            vy = lbl_80349184;
+            vx = (vz = vz);
         } else if (mag < lbl_80349288 || mag > lbl_80349290) {
             mag = mbInvSqrtLookup(mag);
             vx = vx * mag;
