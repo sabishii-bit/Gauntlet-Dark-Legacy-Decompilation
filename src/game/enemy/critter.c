@@ -987,7 +987,7 @@ void CritterSetFxHitTime(s32 slot, s32 id, f32 amount)
  * player or the current waypoint chain. */
 s32 CritterGetTarget(Critter *c, f32 *out)
 {
-    u8 unused[8];
+    u8 unused[16];
     void *waypoint;
     f64 minimum_distance;
     s32 result;
@@ -1560,7 +1560,7 @@ s32 CritterLineNodeColSub(Critter *c, f32 *origin, f32 *forward,
     f64 zero;
     f32 distance;
     u8 *record;
-    u8 unused[8];
+    u8 unused[16];
 
     i = 0;
     offset = 0;
