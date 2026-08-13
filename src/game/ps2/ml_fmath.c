@@ -177,24 +177,28 @@ void ExtractYPR(const f32* matrix, f32* angles)
                 angle0 = r;
                 angle1 = atan2(y, x);
             } else {
+                f32 rr;
+                f32 yy;
                 x = matrix[1];
-                r = atan2(matrix[9], x);
-                y = matrix[6];
-                y = -y;
+                rr = atan2(matrix[9], x);
+                yy = matrix[6];
+                yy = -yy;
                 x = matrix[4];
-                angle0 = r;
-                angle1 = atan2(y, x);
+                angle0 = rr;
+                angle1 = atan2(yy, x);
             }
         } else {
+            f32 yy;
+            f32 rr;
             magnitude = matrix[5] / magnitude;
             y = matrix[9];
-            r = atan2(y, magnitude);
-            y = matrix[8];
+            rr = atan2(y, magnitude);
+            yy = matrix[8];
             x = matrix[10];
-            y = y / magnitude;
+            yy = yy / magnitude;
             x = x / magnitude;
-            angle0 = r;
-            angle1 = atan2(y, x);
+            angle0 = rr;
+            angle1 = atan2(yy, x);
         }
     }
     angles[0] = angle0;
