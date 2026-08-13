@@ -28,6 +28,20 @@ extern f32 gBossPos[3];
 /* .data tables referenced by the wizard/movie logic. */
 extern u8 gIdentityMatrix[];
 extern u8 lbl_80118250[];
+/* Pooled rodata format/name strings (map-screen blit builders). */
+extern char lbl_801116F0[];   /* "%s..." level-name format table base */
+extern char lbl_801116FC[];   /* "LOADING" glow-text string */
+/* .sdata float tunables (sda21). */
+extern f32 lbl_80345A08;      /* route-height threshold */
+extern f32 lbl_80345A40;      /* loading glow-text depth */
+extern f32 lbl_80345A98;      /* route blit depth (do_mapscreen) */
+extern f32 lbl_80345A9C;      /* bg blit depth */
+extern f32 lbl_80345AA0;      /* fg blit depth */
+extern f32 lbl_80345AB4;      /* route blit depth (init) */
+/* .sdata strings passed by address (sda21). */
+extern char lbl_80345AA4[];   /* "%s..." route-model format */
+extern char lbl_80345AAC[];   /* route-model suffix appended by strcat */
+extern s32 gGameBusy;
 /* Per-frame time deltas (engine globals in the .sbss window). */
 extern s32 gFrameTicks;  /* integer frame delta */
 extern s32 gClockStepTicks; /* caption frame delta */
@@ -129,7 +143,8 @@ extern s32 fn_80055F68(s32 a, s32 b);
 extern s32 AudioSysUpdate(s32 a);
 extern void* AudioRegisterNameBanks(void* p, s32 a);
 extern s32 sprintf(char* buf, const char* fmt, ...);
-extern s32 MBOX_FindTexture_Sub(char* name, s32 a, s32 b, s32 c);
+extern s32 MBOX_FindTexture_Sub(char* name, s32* p, s32 a, s32 b, s32 c);
+extern void fn_8009FD38(void);
 extern void* MBCreateBlit(s32 a, s32 b, s32 c, s32 d, s32 e, s32 f);
 extern void mbBlitCvtCoord(void* blit, f32 z);
 extern void MBBlitSetAlpha(void* blit, s32 alpha);
@@ -685,18 +700,54 @@ s32 do_mapscreen(s32 skip)
 s32 init_mapscreen(s32 timer, s32 movie)
 {
     u8* base = lbl_8023DFD0;
+    char* fmt = lbl_801116F0;
     s32 i;
+    s32 lvl;
     s32 rv;
+    void* route;
+    s32* ent;
+    void* blit;
+    u8 unused[16];
 
     AudioEmptyCb2();
     MapMusicStart();
     next_world();
     gGameMode = 16399;
+    lvl = sLastWorldLevel;
     fn_80053D08(-2, 1, -1);
     for (i = 0; i < 4; i++) {
         setup_player_display(i);
     }
-    rv = init_next_level(sLastWorldLevel);
+    rv = init_next_level(lvl);
+
+    if (movie == 0 && *(void**)((u8*)gCurLevel + 104) != 0) {
+        sprintf((char*)base, fmt + 24, (char*)gCurLevel + 8);
+        map_bg_blit = LoadModel((char*)base, 0, 0, -1);
+        for (i = 0; i < 4; i++) {
+            ent = (s32*)(lbl_80118250 + i * 8);
+            sprintf((char*)base, fmt + 40, (char*)gCurLevel + 8, i);
+            blit = MBNewBlit(base, ent[0], ent[1]);
+            *(void**)(base + i * 4 + 64) = blit;
+            mbBlitCvtCoord(*(void**)(base + i * 4 + 64), lbl_80345A9C);
+            sprintf((char*)base, fmt + 52, (char*)gCurLevel + 8, i);
+            blit = MBNewBlit(base, ent[0], ent[1]);
+            *(void**)(base + i * 4 + 80) = blit;
+            mbBlitCvtCoord(*(void**)(base + i * 4 + 80), lbl_80345AA0);
+            MBBlitSetAlpha(*(void**)(base + i * 4 + 80), 255);
+        }
+    } else {
+        void* blit = MBCreateBlit(0, (s32)MBOX_FindTexture(fmt + 68, 0),
+                                  0, 0, 512, 320);
+        *(void**)(base + 64) = blit;
+        mbBlitCvtCoord(*(void**)(base + 64), lbl_80345A9C);
+        *(s32*)(base + 76) = 0;
+        *(s32*)(base + 72) = 0;
+        *(s32*)(base + 68) = 0;
+        *(s32*)(base + 92) = 0;
+        *(s32*)(base + 88) = 0;
+        *(s32*)(base + 84) = 0;
+        *(s32*)(base + 80) = 0;
+    }
 
     map_load_timer = timer;
     map_load_progress = 0;
@@ -705,6 +756,20 @@ s32 init_mapscreen(s32 timer, s32 movie)
     map_route_blit = 0;
     map_fade_frame = 0;
     map_fade_alpha = 0;
+
+    route = *(void**)((u8*)gCurLevel + 104);
+    route = route ? route : (void*)0;
+    if (movie == 0 && route != 0 && *(f32*)route >= lbl_80345A08) {
+        sprintf((char*)base, lbl_80345AA4, (char*)gCurLevel + 8);
+        strcat((char*)base, lbl_80345AAC);
+        map_route_blit = MBNewBlit(base, (s32)*(f32*)route,
+                                   (s32)*(f32*)((u8*)route + 4));
+        if (map_route_blit != 0) {
+            mbBlitInit3414(map_route_blit, 1);
+        }
+        MBBlitSetAlpha(map_route_blit, 255);
+        mbBlitCvtCoord(map_route_blit, lbl_80345AB4);
+    }
 
     for (i = 0; i < 8; i++) {
         *(s32*)(base + i * 4 + 96) = 0;
