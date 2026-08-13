@@ -3118,13 +3118,15 @@ void fn_8005DE50(Player* a, Item* b)
         ControllerMessageBox(1 << a->index, -1, *(s32*)&b->data[4] - 1, -1);
         ret = 1;
         break;
-    case 15: /* boss record */
+    case 15: { /* boss record */
+        s32 amount = *(s32*)&b->data[4];
         ret = 1;
-        StartGemFX(b->objgrp.worldmat[3], *(s32*)&b->data[4]);
-        towerAdvanceBossRecord(-1, *(s32*)&b->data[4]);
+        StartGemFX(b->objgrp.worldmat[3], amount);
+        towerAdvanceBossRecord(-1, amount);
         fn_8009D038(a->index);
-        add_got_it(a->index, it->subtype, *(s32*)&b->data[4]);
+        add_got_it(a->index, it->subtype, amount);
         break;
+    }
     case 16: /* level record */
         towerAdvanceLevelRecord(-1, *(s32*)&b->data[4]);
         fn_8009D038(a->index);
