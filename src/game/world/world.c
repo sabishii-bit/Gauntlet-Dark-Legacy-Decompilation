@@ -963,6 +963,7 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
     s32 version;
     u8* p;
     f64 inv;
+    f32 gsz;
 
     wi->wobjs = (struct worldobj*)(base + blob[1]);
     wi->ctris = (struct coltri*)(base + blob[3]);
@@ -1151,8 +1152,9 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
             (f32)(lbl_80348788 * wi->worldsize[i] + wi->worldmin[i]);
     }
     wi->gridsize = fblob[0xF];
-    if (fblob[0xF] != lbl_80348778) {
-        inv = lbl_803487A8 / fblob[0xF];
+    gsz = fblob[0xF];
+    if (gsz != lbl_80348778) {
+        inv = lbl_803487A8 / gsz;
     } else {
         inv = lbl_80348768;
     }
