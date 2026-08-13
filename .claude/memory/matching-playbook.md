@@ -189,6 +189,18 @@ L42 `a ? a : NULL` emits a redundant `load; cmplwi; bne; li 0`. When the target
     shows a load followed by a null-test that stores 0 in the null case (a
     semantic no-op), the source is a self-ternary `x ? x : NULL`, NOT a plain
     assignment (which the optimizer collapses). Write the self-ternary.
+L43 Clamp/compute in a scalar LOCAL, then assign the global ONCE. `g = expr;
+    if(g<lo)g=lo; else if(g>hi)g=hi;` emits a `stw` to the global inside EACH
+    clamp branch; instead `t=g; if(t<lo)t=lo; ...; g=t;` clamps in a register and
+    stores once at the merge — matches a target with a single trailing `stw`.
+L44 Frame-GROW complement to L31. When the target's fctiwz/stfd conversion temps
+    sit at a HIGHER r1 offset than yours (fndiff "frame delta +N"), add an
+    unreferenced `u8 unused[N];` local; MWCC reserves it and shifts the
+    conversion slots UP to match. (L31 trims; L44 grows.)
+L45 Typed-row-pointer forces the D-form indexed store (concrete P2-avoidance).
+    `T* row=(T*)(base+i*stride); row[k]` emits `add row,base,idx; stw
+    (k*sizeof)(row)`; the folded `*(T*)(base+i*stride+k*sizeof)` emits the
+    `addi; stwx` X-form. Use the typed-row form when the target shows D-form.
 
 --- Float multiply operand order (the lever AND its two park-traps) ---
 L26 Reordering the C operands of a float multiply CAN re-home the FPRs to match.
