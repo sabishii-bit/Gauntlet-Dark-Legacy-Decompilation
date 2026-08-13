@@ -3377,8 +3377,12 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
     CritterBigState *big = &gBig;
     u8 *desc;
     s16 type;
-    s32 node;
     s32 i;
+    s32 node;
+    Player *pp;
+    f32 v[3];
+    f32 dir[3];
+    u8 unused[16];
 
     desc = *(u8 **)(*(u8 **)((u8 *)c->hdr + 0x130) + 0x44) + action * 0x50;
     type = *(s16 *)desc;
@@ -3388,10 +3392,9 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
             for (i = 0; i < lbl_80344658; i++) {
                 node = CritterDoTexmodNode(c, action, 0, lbl_80127D00);
                 if (node >= 0) {
-                    MBNodeSetParent(
-                        SfxGetNode(node),
-                        ItemGetNode(
-                            (void *)*(u32 *)((u8 *)big + i * 4 + 0x50)));
+                    u8 *row = (u8 *)big + i * 4;
+                    MBNodeSetParent(SfxGetNode(node),
+                                    ItemGetNode((void *)*(u32 *)(row + 0x50)));
                 }
             }
         }
@@ -3467,7 +3470,7 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
             if (c->unk128 < 0) {
                 node = CritterNodePlayerCollide(c, (CritterDamageDef *)desc, 0);
                 if (node >= 0) {
-                    Player *pp = &gPlayers[node];
+                    pp = &gPlayers[node];
                     PlayerSetParent(pp, c->obj_d0, (f32 *)(desc + 0x20));
                     c->unk128 = (s16)node;
                     if (*(s16 *)(desc + 0x42) >= 0) {
@@ -3490,8 +3493,7 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
             }
         } else if (phase == 2) {
             if (c->unk128 >= 0) {
-                Player *pp = &gPlayers[c->unk128];
-                f32 dir[3];
+                pp = &gPlayers[c->unk128];
                 PlayerUnsetParent(pp);
                 dir[0] = *(f32 *)((u8 *)c->mbnode + 0x20);
                 dir[1] = *(f32 *)((u8 *)c->mbnode + 0x24);
@@ -3515,7 +3517,6 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
         break;
     case 9:
         if (active) {
-            f32 v[3];
             f32 angle = acosf(*(f32 *)(desc + 0x18));
             v[0] = *(f32 *)((u8 *)c + 0x3F8);
             v[1] = *(f32 *)((u8 *)c + 0x3FC);
