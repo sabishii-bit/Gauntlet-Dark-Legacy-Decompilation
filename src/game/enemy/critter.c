@@ -2913,6 +2913,7 @@ static s32 CritterAnimMod(s32 delta, f32 period)
 u32 CritterCopyAnim(Critter *c, CritterMove *move, s32 frame)
 {
     u32 result;
+    u8 unused[8];
 
     result = 0;
     switch (move->type) {
