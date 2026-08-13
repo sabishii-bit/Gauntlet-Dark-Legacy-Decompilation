@@ -962,6 +962,7 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
     s32 n;
     s32 version;
     u8* p;
+    f64 inv;
 
     wi->wobjs = (struct worldobj*)(base + blob[1]);
     wi->ctris = (struct coltri*)(base + blob[3]);
@@ -1151,10 +1152,11 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
     }
     wi->gridsize = fblob[0xF];
     if (fblob[0xF] != lbl_80348778) {
-        wi->invgridsize = (f32)(lbl_803487A8 / fblob[0xF]);
+        inv = lbl_803487A8 / fblob[0xF];
     } else {
-        wi->invgridsize = (f32)lbl_80348768;
+        inv = lbl_80348768;
     }
+    wi->invgridsize = (f32)inv;
     wi->gridnumx = blob[0x10];
     wi->gridnumz = blob[0x11];
     wi->checknum = 1;
@@ -1237,10 +1239,7 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
         wi->animdata = 0;
     }
 
-    if (version < 2 || blob[0x1D] == 0) {
-        wi->worldpsys = 0;
-        wi->nworldpsys = 0;
-    } else {
+    if (version >= 2 && blob[0x1D] != 0) {
         wi->worldpsys = (struct WORLDPSYS*)(base + blob[0x1D]);
         wi->nworldpsys = blob[0x1C];
         if (*(s32*)(wg + 228) == 0) {
@@ -1248,6 +1247,9 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
                 fn_80011DCC((u8*)wi->worldpsys + i * 0x138);
             }
         }
+    } else {
+        wi->worldpsys = 0;
+        wi->nworldpsys = 0;
     }
 
     wi->inited = 1;
