@@ -157,8 +157,8 @@ typedef struct CardMgrBuf {
     CardMgr mgr;
 } CardMgrBuf;
 
-static u8 gCardBuf[0x310];  /* @0x80321760 CARD work/scratch area */
-static CardMgr gCardMgr;    /* @0x80321A70 */
+u8 gCardBuf[0x310] = { 0 }; /* @0x80321760 CARD work/scratch area */
+CardMgr gCardMgr = { 0 };   /* @0x80321A70 */
 
 /* control block addressed off gCardBuf (keeps gCardBuf as the base register) */
 #define M (((CardMgrBuf*)gCardBuf)->mgr)
