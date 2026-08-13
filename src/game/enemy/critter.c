@@ -978,7 +978,7 @@ void CritterSetFxHitTime(s32 slot, s32 id, f32 amount)
  * player or the current waypoint chain. */
 s32 CritterGetTarget(Critter *c, f32 *out)
 {
-    u8 unused[16];
+    u8 unused[8];
     void *waypoint;
     f64 minimum_distance;
     s32 result;
@@ -1551,7 +1551,7 @@ s32 CritterLineNodeColSub(Critter *c, f32 *origin, f32 *forward,
     f64 zero;
     f32 distance;
     u8 *record;
-    u8 unused[16];
+    u8 unused[8];
 
     i = 0;
     offset = 0;
@@ -2106,7 +2106,7 @@ s32 CritterGolemAI(Critter *c)
     f32 best;
     s32 anim32;
     f64 one;
-    u8 unused[16];
+    u8 unused[8];
 
     CritterGetSingleTargetPlayer(c);
     one = lbl_80346490;
@@ -2137,9 +2137,9 @@ s32 CritterGolemAI(Critter *c)
         }
     }
 
-    mt = -1;
     move0 = &(*(CritterMove **)((u8 *)c->hdr + 0x124))[
                 c->curmove < 0 ? 0 : c->curmove];
+    mt = -1;
     c->nextmove = mt;
     c->unk11E = mt;
     c->unk126 = mt;
@@ -3031,7 +3031,7 @@ static s32 CritterAnimMod(s32 delta, f32 period)
 u32 CritterCopyAnim(Critter *c, CritterMove *move, s32 frame)
 {
     u32 result;
-    u8 unused[16];
+    u8 unused[8];
 
     result = 0;
     switch (move->type) {
