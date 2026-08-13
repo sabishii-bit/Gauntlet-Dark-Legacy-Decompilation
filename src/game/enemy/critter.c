@@ -67,6 +67,7 @@ extern s32   lbl_80344654;            /* 0x80344654 selected safe-rock slot     
 extern s32   lbl_80344658;            /* 0x80344658 collected safe-rock count      */
 extern f32   gClockFrameStep;         /* 0x80344590 frame delta                     */
 extern f32   lbl_803447D8;            /* boss/player damage scaling gate             */
+extern f32   lbl_80343BEC;            /* 0x80343BEC tunable float (10.0)             */
 extern volatile f32 sMusicFadeBase;   /* 0x80344594 shared game-time / fade base   */
 extern f32   lbl_80346480;
 extern f32   lbl_80346470;
@@ -1112,39 +1113,83 @@ void CritterResolveMultipleTargets(Critter *c)
 /* 0x80036FBC -- collect and distance-sort all eligible player targets. */
 void CritterGetTargetPlayers(Critter *c)
 {
-    CritterTargetRecord target;
+    f32 targetpos[3];
+    CritterTargetRecord record;
     Player *player;
     s32 i;
     f32 score;
     f32 damage;
+    f32 base;
+    f32 ratio;
+    f32 thr;
+    f32 result;
+    f64 clamped;
+    f64 pt01;
+    f64 one;
+    f64 huge;
+    f64 thousand;
+    f64 zero;
 
     c->targetCount = 0;
     if (c->health <= 0.0f) {
         return;
     }
-    for (i = 0; i < 4; i++) {
-        player = &gPlayers[i];
+    pt01 = lbl_80346540;
+    one = lbl_80346490;
+    thousand = lbl_80346528;
+    zero = lbl_80346488;
+    huge = lbl_80346510;
+    player = gPlayers;
+    for (i = 0; i < 4; i++, player++) {
         if (player->state != 1) {
             continue;
         }
-        memset(&target, 0, sizeof(target));
-        target.words00[0] = i;
-        score = CritterCalcTarget(c, (f32 *)((u8 *)c->hdr + 0x80),
-                                  (f32 *)((u8 *)player + 0x64), &target);
-        if (score >= (f32)lbl_80346510) {
-            continue;
+        if ((player->flags & 4) && c->state != 0) {
+            if (*(s16 *)((u8 *)*(void **)((u8 *)c->hdr + 0x120) + 0x20) != 4) {
+                continue;
+            }
         }
-        damage = c->unk1BC[i][2];
-        if (damage > 0.0f) {
-            target.words10[0] = (u32)(c->unk1BC[i][0] / damage);
+        targetpos[0] = *(f32 *)((u8 *)player + 0x64);
+        targetpos[1] = *(f32 *)((u8 *)player + 0x68);
+        targetpos[2] = *(f32 *)((u8 *)player + 0x6C);
+        score = CritterCalcTarget(c, (f32 *)((u8 *)c->hdr + 0x80), targetpos,
+                                  &record);
+        if (c->particle != NULL) {
+            thr = c->unkAD0;
+            if (thr > zero && score > thr) {
+                continue;
+            }
         }
-        target.distance = score;
-        CritterInsertTarget((CritterTargetState *)c, &target);
+        if (sMusicFadeBase < player->fxhittime) {
+            record.distance = record.distance * thousand;
+        }
+        if (score < huge) {
+            record.words00[0] = i;
+            damage = c->unk1BC[i][2];
+            base = c->unk1BC[i][0];
+            if (damage < one) {
+                result = one + lbl_80343BEC;
+            } else {
+                ratio = base / damage;
+                if (ratio < pt01) {
+                    clamped = pt01;
+                } else {
+                    clamped = lbl_80343BEC;
+                    if (ratio <= lbl_80343BEC) {
+                        clamped = ratio;
+                    }
+                }
+                result = clamped;
+            }
+            *(f32 *)&record.words10[0] = result;
+            record.distance = record.distance * *(f32 *)&record.words10[0];
+            CritterInsertTarget((CritterTargetState *)c, &record);
+        }
     }
     for (i = 0; i < c->targetCount; i++) {
         s32 index = *(s32 *)((u8 *)c + 0x12C + i * 0x24);
         if (index >= 0) {
-            gBig.scratch[index] += 1.0f;
+            gBig.scratch[index] += lbl_803464A8;
         }
     }
 }

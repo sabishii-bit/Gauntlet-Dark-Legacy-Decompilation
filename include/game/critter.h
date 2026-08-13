@@ -173,7 +173,8 @@ typedef struct Critter {
     s16 pausecnt;             /* 0xAC4 anim pause counter (CritterAnimate)     */
     s16 unkAC6;               /* 0xAC6 (init 0)                              */
     f32 unkAC8;               /* 0xAC8 (init 0)                              */
-    u8  _blkACC[8];           /* 0xACC .. 0xAD4                            */
+    u8  _blkACC[4];           /* 0xACC .. 0xAD0                            */
+    f32 unkAD0;               /* 0xAD0 target-score gate threshold          */
     void *particle;           /* 0xAD4 particle handle (FindClosestWaypoint)           */
     struct Critter *next;     /* 0xAD8 sibling in active critter list          */
     struct Critter *parent;   /* 0xADC parent critter (NULL if root)           */
