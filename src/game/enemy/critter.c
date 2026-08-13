@@ -166,7 +166,7 @@ extern s32  *StartFileRead(char *name, const char *wad, s32 mode, s32 size,
 extern void  fn_8001267C(s32 handle, s32 index, s32 flag);
 extern void  InitTexMods(s32 handle, s32 index);
 extern s32   MBOX_BGLoadModelDone(void);
-extern void  MBOX_BGLoadModelStart(const char *name, s32 model, void *arg);
+extern void  MBOX_BGLoadModelStart(const char *name, s32 model);
 extern s32   AtreeHeaderFindSeq(void *atree, const char *name);
 extern s32   FindTexMod(void *atree, const char *name, void *unused);
 extern s32   AudioFindSound(const char *name, s32 bank, s32 global);
@@ -327,7 +327,7 @@ s32  CritterLoadFile(const char *wad, const char *name);
 /* Background type-file loader callbacks. */
 s32 CritterLoadDone(s32 maxBytes);
 void CritterBGLoadFile(s32 *loader);
-void CritterLoadStartNext(void);
+s32 CritterLoadStartNext(void);
 void CritterLoadAllTypes(s32 arg);
 struct CritterHeader *CritterTypeLoaded(s32 type, s32 subtype);
 void CritterAllocType(void *hdr, void *move, s32 arg);
@@ -3814,44 +3814,75 @@ void CritterBGLoadFile(s32 *loader)
 
 /* 0x8003F5D4 -- find the next unloaded critter resource and start its model
  * request.  Returns through the module globals consumed by CritterLoadDone. */
-void CritterLoadStartNext(void)
+s32 CritterLoadStartNext(void)
 {
-    s32 file;
-    s32 type;
-    u8 *container;
-    u8 *header;
-    u8 *resource;
+    char buf[32];
+    u8 *fmtbase;
+    u8 *tableBase;
+    s32 i;
+    s32 j;
+    u8 *entry;
+    u8 *sub;
+    u8 *desc;
+    s32 k;
 
-    for (file = 0; file < lbl_80344660; file++) {
-        container = lbl_80241070[file];
-        if (*(s32 *)container != 1) {
+    fmtbase = (u8 *)lbl_801120E0;
+    tableBase = (u8 *)lbl_80241070;
+    for (i = 0; i < lbl_80344660; i++) {
+        entry = tableBase + i * 80;
+        if (*(s32 *)entry != 1) {
             continue;
         }
-        header = *(u8 **)(container + 0x14);
-        for (type = 0; type < *(s32 *)(container + 0x10);
-             type++, header += 0x140) {
-            resource = *(u8 **)(header + 0x120);
-            if (resource == NULL) {
+        for (j = 0; j < *(s32 *)(entry + 0x10); j++) {
+            sub = *(u8 **)(entry + 0x14) + j * 320;
+            desc = *(u8 **)(sub + 0x120);
+            if (desc == NULL) {
                 continue;
             }
-            if (*(s16 *)(resource + 0x24) == 2) {
-                return;
-            }
-            if (*(s16 *)(resource + 0x24) == 3) {
-                CritterLoadFinish(header);
-                continue;
-            }
-            if (*(s16 *)(resource + 0x24) == 0) {
-                MBOX_BGLoadModelStart((char *)(resource + 0x10),
-                                      *(s16 *)(resource + 0x22), resource);
+            switch (*(s16 *)(desc + 0x24)) {
+            case 0:
+                break;
+            case 1:
+                switch (*(s16 *)(desc + 0x20)) {
+                case 3:
+                case 8:
+                    sprintf(buf, (char *)&fmtbase[416], desc,
+                            (u8 *)gWorldData + 4);
+                    break;
+                case 7:
+                    for (k = 0; k < 8; k++) {
+                        s32 *e2 = lbl_8025776C[k];
+                        if (*e2 == 32) {
+                            sprintf(buf, (char *)&fmtbase[432], desc,
+                                    (u8 *)e2 + 16);
+                            break;
+                        }
+                    }
+                    break;
+                default:
+                    sprintf(buf, (char *)&fmtbase[448], desc);
+                    break;
+                }
+                MBOX_BGLoadModelStart(buf, *(s16 *)(desc + 0x22));
+                crit_load_desc = desc;
                 lbl_80344640 = NULL;
-                crit_load_desc = resource;
-                *(s16 *)(resource + 0x24) = 1;
-                return;
+                return 1;
+            case 2:
+                return 1;
+            case 3:
+                CritterLoadFinish(sub);
+                break;
+            case 4:
+                break;
+            default:
+                break;
             }
         }
-        *(s32 *)container = 2;
+        if (j == *(s32 *)(entry + 0x10)) {
+            *(s32 *)entry = 2;
+        }
     }
+    return 0;
 }
 
 /* 0x8003F784 -- for every loaded type/subtype header, register each of its
