@@ -3592,13 +3592,15 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     void *node;
     void *n;
     s32 idx;
+    f32 *gid;
 
+    gid = gIdentityMatrix;
     header = (u8 *)c->hdr;
-    c->mbnode = MBNewNode(lbl_8034473C, gIdentityMatrix, 1);
+    c->mbnode = MBNewNode(lbl_8034473C, gid, 1);
     *(f32 *)((u8 *)c + 0xF8) =
         atan2(*(f32 *)((u8 *)object + 0x20), *(f32 *)((u8 *)object + 0x28));
     *(f32 *)((u8 *)c + 0xFC) = *(f32 *)((u8 *)c + 0xF8);
-    CopyMat3(gIdentityMatrix, &c->mtx[0][0]);
+    CopyMat3(gid, &c->mtx[0][0]);
     c->vel[0] = *(f32 *)((u8 *)object + 0x30);
     c->vel[1] = *(f32 *)((u8 *)object + 0x34);
     c->vel[2] = *(f32 *)((u8 *)object + 0x38);
