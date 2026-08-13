@@ -1513,8 +1513,8 @@ extern void* AtreeMatchAnyHeader(char* name, s32 mode);
 extern void  fn_8009190C(OBJGRP* grp, s32 evt);
 extern s32   gNextItemIdx;
 extern u8    gWorldInfo[];
-extern char  lbl_80346F10[];     /* "CHICKEN"  */
-extern char  lbl_80346F18[];     /* "APPLE"    */
+extern const char lbl_80346F10[8];     /* "CHICKEN"  */
+extern const char lbl_80346F18[6];     /* "APPLE"    */
 extern char  lbl_80346F20[];     /* "TREAS_GOLD" (sdata2 copy)   */
 extern char  lbl_80346F28[];     /* "TREAS_SILVER" (sdata2 copy) */
 extern f32   lbl_80346F30;
@@ -2809,9 +2809,7 @@ extern void towerAdvanceLevelRecord(s32 a, s32 b);
 
 extern char  lbl_80112C50[];      /* .rodata string (absolute)  */
 extern char  lbl_80112C5C[];      /* .rodata string (absolute)  */
-extern char  lbl_80346F10[8];     /* .sdata2 string (sda21)     */
-extern char  lbl_80346F18[6];     /* .sdata2 string (sda21)     */
-extern char  lbl_80346FEC[7];     /* .sdata2 string (sda21)     */
+extern const char lbl_80346FEC[7];/* .sdata2 string (sda21)     */
 extern f32   lbl_80346FE8;        /* .sdata2 float              */
 extern f32   sItemFloorRadius;    /* .sdata2 float              */
 extern s32   lbl_80344810;        /* .sbss                      */
