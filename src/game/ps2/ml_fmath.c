@@ -725,7 +725,7 @@ void BodyVector(const f32* vector, f32* out, const f32* matrix)
 void MulMat3(f32* lhs, f32* rhs, f32* out)
 {
     f32 b0, b1, b2, b4, b5, b6, b8, b9, b10;
-    f32 t0, t1, t2, u;
+    f32 t2, t1, t0, u;
     f32 a0, a2, c0, c2, d0, d2;
     f32 a1;
 
