@@ -2844,14 +2844,13 @@ void fn_8005DE50(Player* a, Item* b)
 
     switch (it->subtype) {
     case 1: { /* gold */
-        s32 gold = *(s32*)&b->data[4];
-        PlayerGiveGold(a->index, gold);
+        PlayerGiveGold(a->index, *(s32*)&b->data[4]);
         {
             GwCharGoldRow* row = (GwCharGoldRow*)((u8*)a + a->character * 28);
-            row->v += gold;
+            row->v += *(s32*)&b->data[4];
         }
-        fn_8009CFA8(a->index, gold);
-        add_got_it(a->index, it->subtype, gold);
+        fn_8009CFA8(a->index, *(s32*)&b->data[4]);
+        add_got_it(a->index, it->subtype, *(s32*)&b->data[4]);
         *(s16*)((u8*)a + 0x95C) = 1;
         if (sMusicTrackHi == 12) {
             if (towerAwardWorldRunes() != 0) {
