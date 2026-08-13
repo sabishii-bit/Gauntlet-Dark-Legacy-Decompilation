@@ -118,7 +118,9 @@ L49 Jump-table `switch` case bodies are emitted in SOURCE DECLARATION ORDER, not
     (`build/GUNE5D/asm/auto_*_data.s`) to read the exact case->block map,
     shared-case groups, and compiler-filled gaps. (Independently confirmed on
     CritterCopyAnim + InitWorldInfo; the single biggest structural lever on
-    switch-heavy functions.)
+    switch-heavy functions.) Order the source cases by ASCENDING target BLOCK
+    ADDRESS (from the jump table), not by case value — wrong order = whole-case
+    block-position diffs.
 L14 `<1` ⇒ `<=0` compare form. Signed `x < 1` and `x <= 0` emit different
     compares; pick the one the target shows.
 L15 De Morgan branch layout — invert a compound condition + swap arms to match
@@ -137,6 +139,18 @@ L50 Byte-swap-through-memory helper: `return b[0] | (b[1]<<8)` vs
     destination/result register. High-value when the helper is INLINED at many
     sites (one reorder erased 408 diff lines in InitWorldInfo + improved
     DoWorldAnimSub).
+L51 Over-caching a memory field in a C local forces a callee-saved `mr` where the
+    target RELOADS (`lwz`) the field per call-arg. Cache a field across ONLY the
+    one call that needs it; otherwise access `p->field` directly each use so MWCC
+    reloads like the target.
+L52 `.sdata2` read-only data needs `extern const T x[N];` for EMB_SDA21
+    addressing — a non-const sized `T x[N]` still emits absolute lis/addi. The
+    `const` (not just the size) is the real sdata2/rodata-split lever (split at
+    ~8 bytes). Applies to strings and const tables alike.
+L53 Early-exit-as-else branch layout: write `if(!cond){main}else{exit}`, NOT
+    `if(cond){exit;break;} main`. MWCC then keeps the main path as fall-through
+    and branches to the later-placed exit, matching the target's bge/blt-to-exit
+    (companion to L15).
 L19 char/u8 local through a `v`-style scratch emits `extsb` — match the signed
     narrow type.
 L20 Split a double expression, then use compound assignment (`+=`), to recover a
@@ -251,7 +265,9 @@ L26 Reordering the C operands of a float multiply CAN re-home the FPRs to match.
 --- Inlining control ---
 L21 Inlined-static device: a `static` helper defined BEFORE its caller inlines;
     this cracks bne/b splits and seeds zero-copies. Force with the definition
-    order; block with `#pragma dont_inline`.
+    order; block with `#pragma dont_inline`. NOTE: to STOP an in-TU global callee
+    from auto-inlining, wrap the CALLEE's DEFINITION in `#pragma dont_inline
+    on/off` — `#pragma auto_inline off` around the CALLER does NOT work.
 L22 Selective manual-inline: when the compiler won't inline a tiny helper the
     target inlined, paste the body at the call site.
 L23 The inliner runs POST-gcse — inlined helper bodies are NOT re-CSE'd against
