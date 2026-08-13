@@ -239,6 +239,17 @@ extern f32   gIdentityMatrix[12];
 DECL_SECT(".sdata2") extern const char lbl_80346644[];
 extern void *gCurLevel;               /* current level record (->0xAC hp scale)   */
 extern char  lbl_8011219C[];          /* move-type lookup failure message          */
+extern void *MBOX_ReallyFindObject(const char *name, s32 type1, s32 type2,
+                                    s32 exact);
+extern void *MBNewObject(void *object, f32 *matrix, void *parent, u32 flags);
+extern void *FloorCollide(f32 *pos, s32 a, s32 b, s32 mode, f32 x, f32 y,
+                          f32 z);
+extern u8    gFloorCollisionResult[]; /* 0x8023CAE0 world-collide result, mtx+Y   */
+extern char *lbl_8011AEA0[3];         /* 0x8011AEA0 shadow model-name table        */
+extern f32   lbl_80346588;
+extern f32   lbl_8034658C;
+extern f32   lbl_80346618;
+extern f32   lbl_80346640;
 
 /* -- CRITTER.OBJ internal roster (forward declarations) -- */
 struct CritterDamageDef;
@@ -338,7 +349,7 @@ s32  CritterDoSfxSub(Critter *c, void *sfx, f32 *position,
 void CritterDoParticle(Critter *c, void *sfx, s32 node);
 void DmgFxNodeUpdate(void *node, s32 absolute, f32 rx, f32 rz, f32 rotp, f32 roty);
 Critter *CritterNewInst(s32 type, s32 subtype, void *object);
-void CritterInitGeo(Critter *c, void *object);
+void CritterInitGeo(Critter *c, void *object, s32 subtype);
 void CritterAddHealthMeter(Critter *c);
 void CritterInitInst(Critter *c, struct CritterHeader *hdr);
 Critter *CritterEmptyInst(void);
@@ -3503,7 +3514,7 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
         return NULL;
     }
     CritterInitInst(root, (struct CritterHeader *)header);
-    CritterInitGeo(root, object);
+    CritterInitGeo(root, object, subtype);
     CritterAddAnimInsts(root, &root->mtx[0][0]);
     CritterInitColnodes(root);
     CritterAddHealthMeter(root);
@@ -3520,7 +3531,7 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
         }
         CritterInitInst(child, (struct CritterHeader *)childHeader);
         memcpy(child->mtx, root->mtx, sizeof(root->mtx));
-        CritterInitGeo(child, NULL);
+        CritterInitGeo(child, NULL, 0);
         CritterAddAnimInsts(child, &child->mtx[0][0]);
         CritterInitColnodes(child);
         CritterAddHealthMeter(child);
@@ -3574,59 +3585,117 @@ Critter *CritterEmptyInst(void)
 }
 /* 0x8003E3E8 -- instantiate the model/animation tree and cache the principal
  * scene nodes and world-space transforms used by movement and collision. */
-void CritterInitGeo(Critter *c, void *object)
+void CritterInitGeo(Critter *c, void *object, s32 subtype)
 {
     u8 *header;
-    void *atree;
-    s16 nodeIndex;
+    s32 atreeFlags;
+    void *node;
+    void *n;
+    s32 idx;
 
     header = (u8 *)c->hdr;
-    c->mbnode = MBNewNode(lbl_8034473C, &c->mtx[0][0], 1);
-    c->animtimer = 0.0f;
-    *(f32 *)((u8 *)c + 0xFC) = 0.0f;
+    c->mbnode = MBNewNode(lbl_8034473C, gIdentityMatrix, 1);
+    *(f32 *)((u8 *)c + 0xF8) =
+        atan2(*(f32 *)((u8 *)object + 0x20), *(f32 *)((u8 *)object + 0x28));
+    *(f32 *)((u8 *)c + 0xFC) = *(f32 *)((u8 *)c + 0xF8);
+    CopyMat3(gIdentityMatrix, &c->mtx[0][0]);
+    c->vel[0] = *(f32 *)((u8 *)object + 0x30);
+    c->vel[1] = *(f32 *)((u8 *)object + 0x34);
+    c->vel[2] = *(f32 *)((u8 *)object + 0x38);
+    YawMat3(*(f32 *)((u8 *)c + 0xFC), &c->mtx[0][0]);
 
-    atree = AtreeInit(*(void **)(header + 0x138), &c->colhandle, 0,
-                      (*(u32 *)(header + 0x5C) & 0x1000) == 0 ? 0x800 : 0);
-    c->colhandle = atree;
-    c->anim = atree != NULL ? *(void **)atree : NULL;
-    if (c->anim != NULL) {
-        MBNodeSetParent(c->anim, c->mbnode);
+    atreeFlags = 0;
+    if ((*(u32 *)(header + 0x5C) & 0x1000) == 0) {
+        atreeFlags |= 0x800;
+    }
+    c->colhandle = AtreeInit(*(void **)(header + 0x138), &c->colhandle, 0,
+                             atreeFlags);
+    c->anim = *(void **)c->colhandle;
+    MBNodeSetParent(*(void **)c->colhandle, c->mbnode);
+
+    if ((*(u32 *)(header + 0x5C) & 1) != 0) {
+        s16 shadowType = *(s16 *)(*(u8 **)((u8 *)c->hdr + 0x120) + 0x22);
+        s32 shadowIdx = subtype > 2 ? 1 : subtype;
+        node = MBOX_ReallyFindObject(lbl_8011AEA0[shadowIdx], shadowType,
+                                     shadowType, 1);
+        c->shadow = MBNewObject(node, gIdentityMatrix, NULL, 0x880);
+        *(f32 *)((u8 *)c->shadow + 0x30) = c->vel[0];
+        *(f32 *)((u8 *)c->shadow + 0x34) = c->vel[1];
+        *(f32 *)((u8 *)c->shadow + 0x38) = c->vel[2];
+        *(f32 *)((u8 *)c->shadow + 0x54) = lbl_80346640;
+        *(s16 *)((u8 *)c->shadow + 0x68) = -32;
     }
 
-    c->hitnode0 = NULL;
-    nodeIndex = *(s16 *)(header + 0x56);
-    if (nodeIndex >= 0 && c->anodes != NULL) {
-        c->hitnode0 = *(void **)((u8 *)c->anodes + nodeIndex * 0x28);
-    }
-    c->hitnode1 = NULL;
-    nodeIndex = *(s16 *)(header + 0x58);
-    if (nodeIndex >= 0 && c->anodes != NULL) {
-        c->hitnode1 = *(void **)((u8 *)c->anodes + nodeIndex * 0x28);
-    }
-    c->hitnode2 = NULL;
-    nodeIndex = *(s16 *)(header + 0x5A);
-    if (nodeIndex >= 0 && c->anodes != NULL) {
-        c->hitnode2 = *(void **)((u8 *)c->anodes + nodeIndex * 0x28);
-    }
-
-    if (object != NULL) {
-        memcpy(c->pos, (u8 *)object + 0x30, sizeof(c->pos));
+    idx = *(s16 *)(header + 0x56);
+    if (idx < 0) {
+        node = NULL;
     } else {
-        c->pos[0] = c->mtx[0][3];
-        c->pos[1] = c->mtx[1][3];
-        c->pos[2] = c->mtx[2][3];
+        n = *(void **)((u8 *)c->anodes + idx * 0x28);
+        node = n ? n : NULL;
     }
-    c->movevec[0] = c->pos[0];
-    c->movevec[1] = c->pos[1] + *(f32 *)(header + 0xB4);
-    c->movevec[2] = c->pos[2];
+    c->hitnode0 = node;
+    if ((*(u32 *)(header + 0x5C) & 0x10) != 0 && c->hitnode0 != NULL &&
+        *(void **)((u8 *)c->hitnode0 + 0x74) != NULL) {
+        c->hitnode0 = *(void **)((u8 *)c->hitnode0 + 0x74);
+    }
+    idx = *(s16 *)(header + 0x58);
+    if (idx < 0) {
+        node = NULL;
+    } else {
+        n = *(void **)((u8 *)c->anodes + idx * 0x28);
+        node = n ? n : NULL;
+    }
+    c->hitnode1 = node;
+    idx = *(s16 *)(header + 0x5A);
+    if (idx < 0) {
+        node = NULL;
+    } else {
+        n = *(void **)((u8 *)c->anodes + idx * 0x28);
+        node = n ? n : NULL;
+    }
+    c->hitnode2 = node;
+
+    if (FloorCollide(c->vel, 0, 0, 2, lbl_803464B8, lbl_80346588,
+                     lbl_8034658C) != 0) {
+        c->vel[1] = *(f32 *)(gFloorCollisionResult + 0x34) +
+                    *(f32 *)(header + 0xB0);
+        if (c->shadow != NULL) {
+            CopyMat3((f32 *)gFloorCollisionResult, c->shadow);
+            *(f32 *)((u8 *)c->shadow + 0x30) = c->vel[0];
+            *(f32 *)((u8 *)c->shadow + 0x34) = c->vel[1];
+            *(f32 *)((u8 *)c->shadow + 0x38) = c->vel[2];
+            *(f32 *)((u8 *)c->shadow + 0x34) =
+                *(f32 *)(gFloorCollisionResult + 0x34);
+        }
+    } else {
+        c->vel[1] = c->vel[1] + *(f32 *)(header + 0xB0);
+    }
+
+    CopyMat4(&c->mtx[0][0], c->mbnode);
+    UnparentMatrix(c->mbnode, *(f32 **)((u8 *)c->mbnode + 0x74));
+    CopyMat3(&c->mtx[0][0], (f32 *)((u8 *)c + 0x3D8));
+    *(f32 *)((u8 *)c + 0x418) = c->vel[0];
+    *(f32 *)((u8 *)c + 0x41C) = c->vel[1];
+    *(f32 *)((u8 *)c + 0x420) = c->vel[2];
+    MulVec4Mat3((f32 *)(header + 0xC0), c->pos, &c->mtx[0][0]);
+    c->pos[0] = c->vel[0] + c->pos[0];
+    c->pos[1] = c->vel[1] + c->pos[1];
+    c->pos[2] = c->vel[2] + c->pos[2];
+    c->movevec[0] = c->vel[0];
+    c->movevec[1] = c->vel[1] + *(f32 *)(header + 0xB4);
+    c->movevec[2] = c->vel[2];
     c->obj_d0 = c->anim;
-    if (c->obj_d0 != NULL) {
-        GetWorldMat(c->obj_d0, c->worldMoveMatrix, NULL);
+    GetWorldMat(c->obj_d0, c->worldMoveMatrix, NULL);
+
+    if (*(f32 *)((u8 *)c->hdr + 0xA4) < lbl_80346618) {
+        *(f32 *)((u8 *)c + 0x49C) = *(f32 *)((u8 *)c->hdr + 0xA0);
+        *(f32 *)((u8 *)c + 0x4A0) = *(f32 *)((u8 *)c->hdr + 0xA4);
+        *(f32 *)((u8 *)c + 0x4A4) = *(f32 *)((u8 *)c->hdr + 0xA8);
     } else {
-        memcpy(c->worldMoveMatrix, c->mtx, sizeof(c->worldMoveMatrix));
+        *(f32 *)((u8 *)c + 0x49C) = *(f32 *)((u8 *)c + 0x418);
+        *(f32 *)((u8 *)c + 0x4A0) = *(f32 *)((u8 *)c + 0x41C);
+        *(f32 *)((u8 *)c + 0x4A4) = *(f32 *)((u8 *)c + 0x420);
     }
-    memcpy(c->moveOrigin, c->pos, sizeof(c->moveOrigin));
-    memcpy(c->moveMatrix, c->pos, sizeof(c->moveMatrix));
 }
 /* 0x8003E7D0 -- create the optional HUD meter and attach the optional
  * in-world red health-fill geometry described by the critter header. */
