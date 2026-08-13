@@ -46,7 +46,7 @@ extern void FontInitSpecial(void* a, int b);
 extern int  MBNewBlit(void* a, int b, int c);
 extern int  MBCreateBlit(int a, int b, int c, int d, int e, int f);
 extern void MBRemoveBlit(int handle);
-extern void mbInitBlitEntry(void);
+extern void mbInitBlitEntry(int a, int b, int c);
 extern void mbBlitInit3414(int a, int b);
 extern void mbBlitCvtCoord(int a, float b);
 extern void LoadWorldData(void);
@@ -115,7 +115,7 @@ const char* attract_screen_name_80014F34(int kind);
 
 /* 64-bit attract flag word at 0x803445C8 (its low half aliases sFlags).
  * Masked tests compile to the and/and/xor/xor/or. long-long idiom. */
-#define ATTRACT_FLAGS64 gControllerButtons
+#define ATTRACT_FLAGS64 (*(u64*)&gControllerButtons)
 
 /* ------------------------------------------------------------------ */
 /* Module state (real globals live in .sdata/.sbss; kept file-local    */
@@ -132,6 +132,11 @@ static int  screen2d_slot;
 static int  start_pressed;
 static int  attract_music;
 extern int  sFlags;
+extern int  lbl_803445DC;
+extern int  lbl_80344620;
+extern int  lbl_80343B40;
+extern int  options_state;
+extern int  optmenu_abortall;
 extern int  lbl_80118200[];
 extern char lbl_80111238[];
 extern const char lbl_80111294[];
@@ -213,7 +218,7 @@ int lbl_80344218;
 unsigned int gFrameTicks;
 int gGameBusy;
 int gClockStepTicks;
-long long gControllerButtons;
+extern s32 gControllerButtons;
 int lbl_80344778;
 int lbl_80344794;
 int lbl_803447C0;
@@ -233,40 +238,116 @@ extern float creditsTextScale;
 /* Start", run the idle timeout, and hand back to init_attract_mode.   */
 /* ================================================================== */
 void do_titlescreen(void) {
+    char* base = lbl_80110900;
+    int drawLoading = 1;
+    int off;
     int i;
-    int alpha;
+    int firstPad;
+    int menu;
 
-    if (did_titlesound != 0) {
+    if (lbl_80344298 != 0) {
         TitleMenuEnd();
         AudioSelectReset();
         init_attract_mode(-1);
-        attract_state = ATTRACT_RUN;
+        lbl_803445DC = 0;
         return;
     }
 
-    titlescreen_timeout += 1;
-    alpha = (titlescreen_timeout < 60)
-              ? (titlescreen_timeout * 255) / 60
-              : 255;
-    MBBlitSetAlpha(cur_screen_id, alpha);
-
-    for (i = 0; i < 4; i++) {
-        mbBlitCvtCoord(credit_text[i] != 0, 1.0f);
+    lbl_803445DC = 1;
+    lbl_80344270 = lbl_80344270 + gClockStepTicks;
+    mbInitBlitEntry(lbl_80344264, lbl_8034426C, (lbl_80344270 >> 2) % 10);
+    if (lbl_80344270 < 60) {
+        MBBlitSetAlpha(lbl_80344264, 255 - (lbl_80344270 * 255) / 60);
     }
 
-    if (SelectLoadDone() == 0 || fn_80055F68(1, 0) == 0) {
-        titlescreen_timeout = 0;
+    i = 0;
+    off = 0;
+    do {
+        mbBlitCvtCoord(*(int*)((char*)lbl_8023D1F0 + off), lbl_80343B3C);
+        i++;
+        off += 4;
+    } while (i < 4);
+
+    if (SelectLoadDone() == 0) {
+        drawLoading = 0;
+    }
+    if (fn_80055F68(1, 0) == 0) {
+        drawLoading = 0;
     }
 
-    /* "Press Start" prompt + logo, then poll for Start to leave. */
-    DrawGlowText(-256, 320, credit_text[0x228 / 4], 1.0f);
-    if (FireScrollActive() == 0) {
-        mbBlitInit3414(cur_screen_id, 1);
+    firstPad = controls_first_active_player();
+    if (firstPad < 0) {
+        new_start(-1);
     }
-    if (titlescreen_timeout > 1800) {
-        TitleMenuEnd();
-        EndTower();
-        did_titlesound = 1;
+    if (firstPad >= 0 && options_state == 0 && optmenu_abortall == 0) {
+        AudioCursorSelect();
+        TitleMenuInit(firstPad);
+    }
+
+    if (options_state == 0 && optmenu_abortall == 0) {
+        DrawGlowText(-256, 320, base + 2208, screen2dTextScale);
+        if ((ATTRACT_FLAGS64 & 0x10) != 0 &&
+            (lbl_80344620 & 0x0F000000) != 0) {
+            lbl_80344260 = 0;
+        }
+    }
+
+    menu = TitleMenu(lbl_80343B40);
+    if (FireScrollActive() != 0 ||
+        (options_state != 0 && options_state != 2)) {
+        mbBlitInit3414(lbl_80344264, 1);
+    } else {
+        mbBlitInit3414(lbl_80344264, 0);
+    }
+
+    if (menu == 2) {
+        if (lbl_80344268 == 0) {
+            lbl_80344268 = 1;
+            fn_8009D350(firstPad);
+        }
+        if (lbl_80344274 > 0) {
+            int a;
+            lbl_80344274 = lbl_80344274 - gClockStepTicks;
+            a = 255 - (lbl_80344274 * 60) / 30;
+            if (a < 8) {
+                mbBlitInit3414(lbl_80344264, 1);
+            } else {
+                MBBlitSetAlpha(lbl_80344264, a);
+                drawLoading = 0;
+            }
+        }
+        if (drawLoading) {
+            DrawGlowText(-256, 320, base + 2220, screen2dTextScale);
+            TitleMenuEnd();
+            LoadWorldData();
+            lbl_803445DC = 0;
+            init_player_select(0);
+            HintMenu(-1);
+        } else {
+            DrawGlowText(-256, 320, base + 2220, screen2dTextScale);
+        }
+    } else if (menu == 1) {
+        lbl_80344260 = 1800;
+    } else {
+        if (options_state == 0 || options_state == 2) {
+            lbl_80344260 = lbl_80344260 - gClockStepTicks;
+        }
+        if (drawLoading) {
+            if (lbl_80344260 < 30) {
+                MBBlitSetAlpha(lbl_80344264,
+                               255 - (lbl_80344260 * 255) / 30);
+            } else {
+                MBBlitSetAlpha(lbl_80344264, 0);
+            }
+            if (lbl_80344260 <= 0) {
+                MBBlitSetAlpha(lbl_80344264, 255);
+                lbl_80344298 = 1;
+                lbl_803445DC = 0;
+                TitleMenuEnd();
+                AudioSelectReset();
+                EndTower();
+            }
+        }
     }
 }
 
