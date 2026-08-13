@@ -527,7 +527,7 @@ void PlayersRestoreHealth(void);
 void change_player(s32 i, s32 type);
 void new_player(s32 i);
 void damage_player(s32 i, f32 dmg, u32 flags, f32* dir);
-void do_heal_players(void* p, f32 amount);
+void do_heal_players(void* p, f32* mat, f32 amount);
 s32 PlayerOnMovingObject(void);
 s32 OtherPlayerOnOtherMovingObject(s32 i, u8* obj);
 void GetPlayerPos(s32 i, f32* out);
@@ -2464,41 +2464,68 @@ s32 OtherPlayerOnOtherMovingObject(s32 i, u8* obj) {
 }
 
 /* Heal-others potion: heal every other player in range of p.          */
-void do_heal_players(void* vp, f32 amount) {
+void do_heal_players(void* vp, f32* mat, f32 amount) {
     Player* p = vp;
     Player* q;
     f32 cap;
     f32 give;
+    f32 giveq;
     f32 d;
+    s32 lvl;
     s32 i;
+    s32 typ;
 
-    give = 0.25f * amount;
-    q = P(0);
-    for (i = 0; i < 4; i++, q++) {
-        if (i != p->index && q->state == 1) {
+    typ = -1;
+    lvl = p->level;
+    if (lvl >= 75) {
+        /* heal caster (heal_player inlined, return discarded) */
+        cap = 100.0 * (lvl - 1) + 500.0;
+        give = amount * (f32)(0.016 * (lvl - 75) + 0.1);
+        if (cap > 9999.0f) {
+            cap = 9999.0f;
+        }
+        if (!(give > 0.0f && p->health >= cap)) {
+            p->health += give;
+            if (p->health > cap) {
+                p->health = cap;
+            }
+        }
+        giveq = 0.5 * give;
+        typ = 50;
+        for (i = 0; i < 4; i++) {
+            if (i == p->index) {
+                continue;
+            }
+            q = (Player*)((u8*)gPlayers + i * 13148);
+            if (q->state != 1) {
+                continue;
+            }
             d = fqdist(p->pos[0] - q->pos[0], p->pos[2] - q->pos[2]);
             if (d < p->magic_power) {
-                cap = 0.5 * (q->level - 1) + 30.0;
+                cap = 100.0 * (q->level - 1) + 500.0;
                 if (cap > 9999.0f) {
                     cap = 9999.0f;
                 }
-                if (give <= 0.0f || q->health < cap) {
-                    q->health += give;
+                if (!(giveq > 0.0f && q->health >= cap)) {
+                    q->health += giveq;
                     if (q->health > cap) {
                         q->health = cap;
                     }
                 }
             }
         }
+        msgPost(0x93, p->index, (u32)p->pos);
     }
-    msgPost(0x93, p->index, (u32)p->pos);
+    if (typ >= 0) {
+        fn_8009190C(mat, typ);
+    }
 }
 
 /* Heal one player; 0 = already full, 1 = capped, 2 = healed.          */
 s32 heal_player(f32 amount, Player* p) {
     f32 cap;
 
-    cap = 0.5 * (p->level - 1) + 30.0;
+    cap = 100.0 * (p->level - 1) + 500.0;
     if (cap > 9999.0f) {
         cap = 9999.0f;
     }
@@ -2518,7 +2545,7 @@ f32 player_max_health(void* vp) {
     Player* p = vp;
     f32 cap;
 
-    cap = 0.5 * (p->level - 1) + 30.0;
+    cap = 100.0 * (p->level - 1) + 500.0;
     if (cap > 9999.0f) {
         cap = 9999.0f;
     }
