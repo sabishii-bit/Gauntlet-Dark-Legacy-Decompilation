@@ -2143,9 +2143,10 @@ void SetItemGeo(Item* item, void* atree_header, char* name, u32 flags)
         }
         AnimateATree(item->atree, item->daction, 2);
     } else {
-        s32 object = ItemFindMBObjectL1(name);
+        u32 rv = (u32)ItemFindMBObjectL1(name);
+        s32 object = (s32)rv;
 
-        if (object < 0) {
+        if ((s32)rv < 0) {
             ErrorPrintf(sSetItemFailedFmt, name);
             if (item->objgrp.node == NULL) {
                 item->objgrp.node =
