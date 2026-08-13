@@ -3131,8 +3131,8 @@ void fn_8005DE50(Player* a, Item* b)
         towerAdvanceLevelRecord(-1, *(s32*)&b->data[4]);
         fn_8009D038(a->index);
         add_got_it(a->index, it->subtype, *(s32*)&b->data[4]);
-        StartGemFX(b->objgrp.worldmat[3], 256);
         ret = 1;
+        StartGemFX(b->objgrp.worldmat[3], 256);
         break;
     }
 
