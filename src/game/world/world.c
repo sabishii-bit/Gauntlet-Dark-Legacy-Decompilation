@@ -1063,24 +1063,9 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
             *(u16*)(p + 0x04) = sSwapU16(*(u16*)(p + 0x04));
             *(u16*)(p + 0x06) = sSwapU16(*(u16*)(p + 0x06));
             switch (*(s32*)((u8*)wi->iteminfo + *(s16*)p * 0x50)) {
-            case 1:
-                *(u16*)(p + 0x30) = sSwapU16(*(u16*)(p + 0x30));
-                break;
             case 2:
                 *(u16*)(p + 0x34) = sSwapU16(*(u16*)(p + 0x34));
                 *(u32*)(p + 0x30) = sSwapU32(*(u32*)(p + 0x30));
-                break;
-            case 3:
-                *(u16*)(p + 0x30) = sSwapU16(*(u16*)(p + 0x30));
-                *(u16*)(p + 0x32) = sSwapU16(*(u16*)(p + 0x32));
-                *(u16*)(p + 0x34) = sSwapU16(*(u16*)(p + 0x34));
-                *(u16*)(p + 0x36) = sSwapU16(*(u16*)(p + 0x36));
-                break;
-            case 4:
-                *(u16*)(p + 0x30) = sSwapU16(*(u16*)(p + 0x30));
-                *(u16*)(p + 0x32) = sSwapU16(*(u16*)(p + 0x32));
-                *(u16*)(p + 0x38) = sSwapU16(*(u16*)(p + 0x38));
-                *(u32*)(p + 0x34) = sSwapU32(*(u32*)(p + 0x34));
                 break;
             case 5:
                 *(u16*)(p + 0x30) = sSwapU16(*(u16*)(p + 0x30));
@@ -1088,16 +1073,20 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
                 *(u16*)(p + 0x38) = sSwapU16(*(u16*)(p + 0x38));
                 *(u16*)(p + 0x3A) = sSwapU16(*(u16*)(p + 0x3A));
                 break;
-            case 6:
+            case 4:
                 *(u16*)(p + 0x30) = sSwapU16(*(u16*)(p + 0x30));
                 *(u16*)(p + 0x32) = sSwapU16(*(u16*)(p + 0x32));
+                *(u16*)(p + 0x38) = sSwapU16(*(u16*)(p + 0x38));
+                *(f32*)(p + 0x34) = sSwapF32(*(f32*)(p + 0x34));
+                break;
+            case 3:
+                *(u16*)(p + 0x30) = sSwapU16(*(u16*)(p + 0x30));
+                *(u16*)(p + 0x32) = sSwapU16(*(u16*)(p + 0x32));
+                *(u16*)(p + 0x34) = sSwapU16(*(u16*)(p + 0x34));
+                *(u16*)(p + 0x36) = sSwapU16(*(u16*)(p + 0x36));
                 break;
             case 9:
                 *(u32*)(p + 0x30) = sSwapU32(*(u32*)(p + 0x30));
-                break;
-            case 10:
-                *(u16*)(p + 0x30) = sSwapU16(*(u16*)(p + 0x30));
-                *(u16*)(p + 0x32) = sSwapU16(*(u16*)(p + 0x32));
                 break;
             case 11:
                 *(u32*)(p + 0x30) = sSwapU32(*(u32*)(p + 0x30));
@@ -1105,14 +1094,25 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
                 break;
             case 12:
                 *(u32*)(p + 0x30) = sSwapU32(*(u32*)(p + 0x30));
-                *(u32*)(p + 0x34) = sSwapU32(*(u32*)(p + 0x34));
-                *(u32*)(p + 0x38) = sSwapU32(*(u32*)(p + 0x38));
+                *(f32*)(p + 0x34) = sSwapF32(*(f32*)(p + 0x34));
+                *(f32*)(p + 0x38) = sSwapF32(*(f32*)(p + 0x38));
                 break;
             case 13:
                 *(u16*)(p + 0x38) = sSwapU16(*(u16*)(p + 0x38));
                 *(u16*)(p + 0x3A) = sSwapU16(*(u16*)(p + 0x3A));
-                *(u32*)(p + 0x30) = sSwapU32(*(u32*)(p + 0x30));
+                *(f32*)(p + 0x30) = sSwapF32(*(f32*)(p + 0x30));
                 *(u32*)(p + 0x34) = sSwapU32(*(u32*)(p + 0x34));
+                break;
+            case 6:
+                *(u16*)(p + 0x30) = sSwapU16(*(u16*)(p + 0x30));
+                *(u16*)(p + 0x32) = sSwapU16(*(u16*)(p + 0x32));
+                break;
+            case 1:
+                *(u16*)(p + 0x30) = sSwapU16(*(u16*)(p + 0x30));
+                break;
+            case 10:
+                *(u16*)(p + 0x30) = sSwapU16(*(u16*)(p + 0x30));
+                *(u16*)(p + 0x32) = sSwapU16(*(u16*)(p + 0x32));
                 break;
             }
             for (k = 0; k < 3; k++) {
