@@ -479,7 +479,7 @@ void inactivate_player(s32 player);
 void abort_player(s32 player);
 s32 activate_player(s32 player);
 void PlayerProcessPowerups(void* p, s32 a, s32* b);
-static void PlayerProcessSkinFX(void* p, void* node);
+static void PlayerProcessSkinFX(void* p);
 void check_player_atts(void* p, s32 chartype, s32* stats);
 static void do_got_it_8007FC80(void);
 void mini_inventory_update(s32 player);
@@ -1883,7 +1883,7 @@ void do_players(void) {
                         PF(PF(p, 0x6C8, u8*), 0x30, u32) = p->pos[0];
                         PF(PF(p, 0x6C8, u8*), 0x34, u32) = p->pos[1];
                         PF(PF(p, 0x6C8, u8*), 0x38, u32) = p->pos[2];
-                        PlayerProcessSkinFX(p, PF(p, 0x6C8, void*));
+                        PlayerProcessSkinFX(p);
                         if (p->character == 0xC) {
                             MBTreeSetScale(1.6f, 1.6f, 1.6f, p->node);
                         } else if (p->level < 99) {
@@ -4324,12 +4324,11 @@ static int PlayerSetupSkinTree(PlayerSkinView* p, void* atree, void* parent) {
 }
 
 /* Level-tier halo/glow overlay (30+/80+ levels, brighter at 99).       */
-static void PlayerProcessSkinFX(void* vp, void* node) {
+static void PlayerProcessSkinFX(void* vp) {
     Player* p = vp;
     PlayerSkinView* ps = vp;
     s32 fresh = 0;
 
-    (void)node;
     if (p->level >= 0x50) {
         fresh = PlayerSetupSkinTree(ps, FamiliarTree[p->index][1], p->node);
     } else if (p->level >= 0x1E) {
