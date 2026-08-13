@@ -141,6 +141,10 @@ extern void  SafeRockActivate(s32 index);
 extern u32   RandInt(u32 limit);
 extern s32   NextGridEnemy(void);
 extern void  StartEnemyGrid(f32 *position, f32 radius);
+extern s32   fn_8005D5C8(Critter *c, u8 *item);
+extern f32   fn_8005F0F4(void *item, f32 *nodepos, f32 *center, f32 *out,
+                         f32 radius, f32 height);
+extern f32   fn_8005C1DC(u8 *item, s32 a, s32 b, void *hdr, f32 damage);
 extern s32   NextGridItem(void);
 extern void  StartItemGrid(f32 radius, f32 *position);
 extern void  MulVecMat3(const f32 *vector, f32 *out, const f32 *matrix);
@@ -236,7 +240,7 @@ extern char  lbl_8011219C[];          /* move-type lookup failure message       
 /* -- CRITTER.OBJ internal roster (forward declarations) -- */
 struct CritterDamageDef;
 void CritterCollideEnemies(Critter *c, f32 *delta);
-void CritterCollideItems(Critter *c, f32 *delta);
+s32 CritterCollideItems(Critter *c, f32 *delta);
 s32 CritterCollidePlayers(Critter *c, f32 *delta);
 void CritterCollideWorld(Critter *c, f32 *delta);
 void CritterWorldDamage(Critter *c, void *surface, f32 *origin,
@@ -389,31 +393,91 @@ void CritterCollideEnemies(Critter *c, f32 *delta)
 
 /* 0x80034F60 -- stop translation against collidable item records returned by
  * the item grid. */
-void CritterCollideItems(Critter *c, f32 *delta)
+s32 CritterCollideItems(Critter *c, f32 *delta)
 {
+    f32 center[3];
+    f32 out[3];
     u8 *item;
-    f32 dx;
-    f32 dz;
+    u8 *node;
+    u8 *desc;
+    f64 dzero;
+    f32 result;
     f32 radius;
+    f32 height;
+    f32 zerof;
+    f32 damage;
     s32 index;
+    s32 type;
+    s32 hit;
+    s32 j;
+    f32 *cpos;
 
-    if (sItems == NULL) {
-        return;
-    }
+    cpos = c->pos;
     radius = *(f32 *)((u8 *)c->hdr + 0x7C);
-    StartEnemyGrid(c->pos, radius);
+    height = *(f32 *)((u8 *)c->hdr + 0x78);
+    result = lbl_80346480;
+    center[0] = c->pos[0] + delta[0];
+    center[1] = c->pos[1] + delta[1];
+    center[2] = c->pos[2] + delta[2];
+    StartEnemyGrid(center, radius);
+    dzero = lbl_80346488;
+    zerof = lbl_80346470;
     while ((index = NextGridEnemy()) >= 0) {
         item = sItems + index * 0xF0;
-        if (*(s32 *)item == 0) {
+        type = fn_8005D5C8(c, item);
+        if (type == 0) {
             continue;
         }
-        dx = *(f32 *)(item + 0x34) - (c->pos[0] + delta[0]);
-        dz = *(f32 *)(item + 0x3C) - (c->pos[2] + delta[2]);
-        if (dx * dx + dz * dz <= radius * radius) {
-            delta[0] = 0.0f;
-            delta[2] = 0.0f;
+        if ((*(u32 *)((u8 *)c->hdr + 0x5C) & 0x100) != 0) {
+            for (j = 0; j < *(s16 *)((u8 *)c->hdr + 0x118); j++) {
+                node = (u8 *)c + 0x4F8 + j * 0x5C;
+                if (*(void **)(node + 4) == NULL) {
+                    continue;
+                }
+                if (*(f32 *)(node + 0x58) >= *(f32 *)(node + 0x54)) {
+                    continue;
+                }
+                desc = *(u8 **)node;
+                if ((*(s16 *)(desc + 0x10) & 8) == 0) {
+                    continue;
+                }
+                center[0] = *(f32 *)(node + 0x3C) + delta[0];
+                center[1] = *(f32 *)(node + 0x40) + delta[1];
+                center[2] = *(f32 *)(node + 0x44) + delta[2];
+                desc = *(u8 **)node;
+                result = fn_8005F0F4(item, (f32 *)(node + 0x3C), center, out,
+                                     *(f32 *)(desc + 0x2C),
+                                     *(f32 *)(desc + 0x2C));
+                if (result >= dzero) {
+                    break;
+                }
+            }
+        } else {
+            center[0] = cpos[0] + delta[0];
+            center[1] = cpos[1] + delta[1];
+            center[2] = cpos[2] + delta[2];
+            result = fn_8005F0F4(item, cpos, center, out, radius, height);
+        }
+        hit = 0;
+        if (result >= dzero) {
+            if (type != 2) {
+                if (type == 3) {
+                    damage = *(f32 *)((u8 *)c->hdr + 0xB8) *
+                             *(f32 *)((u8 *)gCurLevel + 0xBC);
+                    if (fn_8005C1DC(item, 0, -1, c->hdr, damage) != zerof) {
+                        hit = 1;
+                    }
+                } else {
+                    hit = 1;
+                }
+            }
+        }
+        if (hit) {
+            delta[2] = zerof;
+            delta[0] = zerof;
         }
     }
+    return 0;
 }
 
 /* 0x800351B0 -- separate active players from a translating critter and feed
