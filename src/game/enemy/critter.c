@@ -99,6 +99,15 @@ extern f64   lbl_80346540;
 extern f32   lbl_80346548;
 extern f32   lbl_8034654C;
 extern f64   lbl_80346600;
+extern f64   lbl_80346630;
+extern f32   lbl_8034663C;
+extern f32   lbl_80346638;
+extern f32   lbl_803464A8;
+extern f32   lbl_803464E8;
+extern char  lbl_801121D4[];
+extern u8    Effects[];
+extern void  MBPsysSetEVolume(void *psys, f32 a, f32 b);
+extern void  MBPsysSetPParm(void *psys, s32 n, f32 a, f32 b, f32 c, f32 d);
 
 /* -- external helpers -- */
 extern void *AllocFile(const char *wad, const char *name);
@@ -3186,29 +3195,56 @@ s32 CritterDoSfxSub(Critter *c, void *sfx, f32 *position,
 /* 0x8003DE70 -- create and configure a particle system from one descriptor. */
 void CritterDoParticle(Critter *c, void *sfx, s32 node)
 {
-    u8 *entry;
+    u8 *s = (u8 *)sfx;
+    f32 rate;
+    f32 speed;
+    f32 etime;
+    s32 tex;
+    u32 flags;
+    u32 kind;
     void *parent;
     void *psys;
-    f32 matrix[12];
-    f32 rate;
 
-    entry = (u8 *)sfx;
-    parent = c->obj_d0 != NULL ? c->obj_d0 : c->mbnode;
-    if ((*(u32 *)entry & 0x4000) != 0 && node >= 0 &&
-        node < *(s16 *)((u8 *)c->hdr + 0x118)) {
-        parent = *(void **)((u8 *)c + 0x4FC + node * 0x5C);
+    rate = (f32)(lbl_80346630 * *(f32 *)(s + 0x40));
+    flags = *(u32 *)s;
+    tex = *(s32 *)(s + 8);
+    etime = *(f32 *)(s + 0x3C);
+    speed = (f32)(lbl_80346540 * (f64)*(s16 *)(s + 0x46));
+    kind = flags & 0x0F000000;
+    if ((flags & 0x4000) && node >= 0) {
+        parent = *(void **)((u8 *)Effects + node * 240 + 0x14);
+    } else if (c->obj_d0 != NULL) {
+        parent = c->obj_d0;
+    } else {
+        parent = c->mbnode;
     }
-    memcpy(matrix, c->mtx, sizeof(matrix));
-    psys = MBNewPsysDefault(matrix, parent, 0, 1);
+    switch (kind) {
+    case 0x02000000:
+        psys = MBNewPsysDefault(gIdentityMatrix, parent, 0, 1);
+        if (psys != NULL) {
+            MBPsysSetEVolume(psys, lbl_80346638, lbl_80346638);
+            MBTreeSetFlags(psys, 0x880, 1);
+            MBPsysSetPParm(psys, 3, lbl_803464A8, lbl_803464A8, lbl_803464A8,
+                           lbl_80346470);
+        }
+        break;
+    case 0x01000000:
+    default:
+        psys = MBNewPsysDefault(gIdentityMatrix, parent, 0, 1);
+        MBPsysSetEVolume(psys, lbl_803464E8, lbl_803464E8);
+        break;
+    }
     if (psys == NULL) {
-        ErrorPrintf("Critter unable to generate psys\n");
-        return;
+        ErrorPrintf(lbl_801121D4);
+    } else {
+        *(f32 *)((u8 *)psys + 0x30) = *(f32 *)(s + 0x30);
+        *(f32 *)((u8 *)psys + 0x34) = *(f32 *)(s + 0x34);
+        *(f32 *)((u8 *)psys + 0x38) = *(f32 *)(s + 0x38);
+        MBPsysSetPTex(psys, tex);
+        MBPsysSetERate4(rate, rate, rate, rate, psys);
+        MBPsysSetETime(etime, lbl_8034663C, psys);
+        MBPsysSetPSpeed(speed, psys);
     }
-    MBPsysSetPTex(psys, *(s32 *)(entry + 8));
-    rate = *(f32 *)(entry + 0x40) * 0.01f;
-    MBPsysSetERate4(rate, rate, rate, rate, psys);
-    MBPsysSetETime(*(f32 *)(entry + 0x3C), 0.01f, psys);
-    MBPsysSetPSpeed(*(s16 *)(entry + 0x46) * 0.01f, psys);
 }
 /* 0x8003E048 -- allocate and initialize a root critter and the child chain
  * described by its loaded type header. */
