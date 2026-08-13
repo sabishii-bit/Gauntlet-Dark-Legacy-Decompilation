@@ -4201,9 +4201,9 @@ move:
 void move_logic20(s32 index)
 {
     Enemy* e = &gEnemies[index];
-    f32 speed = ((f32*)lbl_80250E40)[e->type];
     s32 found = 0;
     u8* tbl = (u8*)lbl_8011AF48;
+    f32 speed = ((f32*)lbl_80250E40)[e->type];
     f32 cand;
     f32* q;
     f32 probe[3];
@@ -4296,7 +4296,8 @@ void move_logic20(s32 index)
             e->stuck_count = 0;
         }
         if (e->stuck_count > 10) {
-            f64 a = (f32)(3.141592654 + lbl_80344720);
+            f64 sum = 3.141592654 + lbl_80344720;
+            f64 a = (f32)sum;
             if (a > 3.141592654) {
                 a -= 6.283185308;
             } else if (a <= -3.141592654) {
@@ -7021,6 +7022,5 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
         AnimateATree((void*)(e + 108), 0, 2);
     }
 }
-
 
 
