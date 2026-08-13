@@ -250,6 +250,11 @@ extern f32   lbl_80346588;
 extern f32   lbl_8034658C;
 extern f32   lbl_80346618;
 extern f32   lbl_80346640;
+extern void  BossActivate(void *obj, s32 flag);
+extern s32   gTriggerCameraState;
+extern void  MBTreeSetAlpha(void *node, s32 alpha, s32 propagate);
+extern f32   lbl_803464EC;
+extern f64   lbl_803465C0;
 
 /* -- CRITTER.OBJ internal roster (forward declarations) -- */
 struct CritterDamageDef;
@@ -2090,43 +2095,145 @@ void CritterUpdateCounters(Critter *c)
 /* 0x800396A4 -- run the compact golem/general AI path. */
 s32 CritterGolemAI(Critter *c)
 {
+    CritterMove *move0;
     CritterMove *move;
+    CritterMove *nm;
     Critter *child;
+    s32 mt;
+    s32 i;
+    f32 speed;
+    f32 ratio;
+    f32 best;
+    s32 anim32;
+    f64 one;
+    u8 unused[16];
 
-    CritterGetTargetPlayers(c);
-    CritterResolveMultipleTargets(c);
-    if (c->state == 0 && c->targetCount != 0) {
+    CritterGetSingleTargetPlayer(c);
+    one = lbl_80346490;
+    ratio = c->health /
+            (one + *(f32 *)((u8 *)c->hdr + 0xE4) *
+                       *(f32 *)((u8 *)gCurLevel + 0xAC));
+    speed = one - ratio;
+    speed = lbl_803464E8 + speed * lbl_803464EC;
+    c->invRateScale = one / speed;
+    c->rateScale = speed;
+
+    if (c->state == 0) {
+        if (c->particle == NULL) {
+            best = lbl_80346470;
+            for (i = 0; i < c->targetCount; i++) {
+                f32 v = *(f32 *)((u8 *)c + 0x134 + i * 0x24);
+                if (v > best) {
+                    best = v;
+                }
+            }
+        }
         c->state = 3;
-    }
-    if (c->nextmove < 0) {
-        CritterGetDoAction(c);
-    }
-    if (c->nextmove < 0) {
-        CritterLookForCriticalMove(c);
-    }
-    if (c->nextmove < 0) {
-        CritterLookForReady(c);
-    }
-    if (c->nextmove < 0) {
-        c->nextmove = (s16)CritterFindMoveType(c, 0x20, 1);
+        for (child = c->next; child != NULL; child = child->next) {
+            child->state = 3;
+        }
+        if (*(s16 *)(*(u8 **)((u8 *)c->hdr + 0x120) + 0x20) == 4) {
+            BossActivate(c, 1);
+        }
     }
 
-    CritterAnimate(c);
-    move = c->curmove >= 0
-               ? &(*(CritterMove **)((u8 *)c->hdr + 0x124))[c->curmove]
-               : NULL;
-    if (move != NULL) {
+    mt = -1;
+    move0 = &(*(CritterMove **)((u8 *)c->hdr + 0x124))[
+                c->curmove < 0 ? 0 : c->curmove];
+    c->nextmove = mt;
+    c->unk11E = mt;
+    c->unk126 = mt;
+    CritterGetDoAction(c);
+
+    if (gTriggerCameraState != 0) {
+        if (c->nextmove < 0) {
+            if (c->rateScale < lbl_803465C0) {
+                mt = CritterFindMoveType(c, 0x21, 0);
+            }
+            if (mt < 0) {
+                mt = CritterFindMoveType(c, 0x20, 1);
+            }
+            c->nextmove = (s16)mt;
+        }
+    } else if (lbl_803447DC == 0) {
+        if (c->nextmove < 0) {
+            CritterLookForCriticalMove(c);
+        }
+        if (c->nextmove < 0) {
+            CritterChildCriticalMove(c);
+        }
+        if (c->nextmove < 0) {
+            CritterLookForReady(c);
+        }
+        if (c->nextmove < 0) {
+            mt = -1;
+            if (c->rateScale < lbl_803465C0) {
+                mt = CritterFindMoveType(c, 0x21, 0);
+            }
+            if (mt < 0) {
+                mt = CritterFindMoveType(c, 0x20, 1);
+            }
+            c->nextmove = (s16)mt;
+        }
+    }
+
+    if (c->nextmove < 0) {
+        c->nextmove = c->curmove;
+    }
+
+    nm = &(*(CritterMove **)((u8 *)c->hdr + 0x124))[c->nextmove];
+    if (lbl_803447DC == 0 || c->curmove < 0 ||
+        move0->type == 0x11 || nm->type == 0x11 ||
+        move0->type == 0x10 || nm->type == 0x10) {
+        CritterAnimate(c);
+    }
+
+    if (c->curmove < 0) {
+        c->curmove = 0;
+    }
+    anim32 = (s32)*(f32 *)((u8 *)c + 0x90);
+    move = &(*(CritterMove **)((u8 *)c->hdr + 0x124))[c->curmove];
+    if (move->type == 0x11) {
+        if (AnimDone(c->sound)) {
+            CritterDropItem(c);
+            CritterDelInst(c);
+            return 0;
+        }
+        {
+            s32 dur = *(s32 *)((u8 *)move + 0x40);
+            if (dur > 0) {
+                s32 elapsed = anim32 - dur;
+                s32 total = *(s16 *)((u8 *)c + 0x88) - dur;
+                if (elapsed > 0 && total > 0) {
+                    MBTreeSetAlpha(c->anim, 255 - elapsed * 255 / total, 1);
+                }
+            }
+        }
+    }
+
+    if (move->type == 0x11 || lbl_803447DC == 0) {
         CritterMoveSetup(c, move);
-        CritterActivate(c, move, (s32)c->animtimer);
+        CritterActivate(c, move, anim32);
         if (!CritterTranslate(c, move)) {
             CritterRotate(c, move);
         }
+        CritterLookAtPlayer(c, move);
     }
-    for (child = c->next; child != NULL; child = child->next) {
-        if (child->nextmove < 0) {
-            CritterChildGetPattern(child);
+
+    if (lbl_80346490 == lbl_803447D8) {
+        if (c->mbnode != NULL) {
+            MBTreeClearFlags(c->mbnode, 8, 0);
         }
-        CritterAnimate(child);
+        if (c->shadow != NULL) {
+            MBTreeClearFlags(c->shadow, 8, 0);
+        }
+    } else {
+        if (c->mbnode != NULL) {
+            MBTreeSetScale(lbl_803447D8, lbl_803447D8, lbl_803447D8, c->mbnode);
+        }
+        if (c->shadow != NULL) {
+            MBTreeSetScale(lbl_803447D8, lbl_803447D8, lbl_803447D8, c->shadow);
+        }
     }
     return 1;
 }
@@ -2924,7 +3031,7 @@ static s32 CritterAnimMod(s32 delta, f32 period)
 u32 CritterCopyAnim(Critter *c, CritterMove *move, s32 frame)
 {
     u32 result;
-    u8 unused[8];
+    u8 unused[16];
 
     result = 0;
     switch (move->type) {
