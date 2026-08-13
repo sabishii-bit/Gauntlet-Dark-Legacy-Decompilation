@@ -4679,6 +4679,7 @@ typedef struct PlayerPowerupState {
 typedef struct PlayerPowerupOverlay {
     u8 pad[0x130];
     PlayerPowerupState powerups[11];
+    u8 dirty[11];
 } PlayerPowerupOverlay;
 
 s32 player_get_powerup_state(f32 dt, void* vp, s32 type, u32 mask) {
@@ -4719,6 +4720,7 @@ s32 player_get_powerup_state(f32 dt, void* vp, s32 type, u32 mask) {
 
 /* Add/extend a powerup slot.  mask & 8 also drives the x-ray range.   */
 void PlayerAddPowerup(f32 duration, f32 strength, void* vp, s32 type, u32 mask) {
+    PlayerPowerupOverlay* overlay = vp;
     Player* p = vp;
     f32 best = 1000000.0f;
     f32 str;
@@ -4728,43 +4730,44 @@ void PlayerAddPowerup(f32 duration, f32 strength, void* vp, s32 type, u32 mask) 
 
     str = strength * PF(lbl_80282930[p->index], 0x58, f32);
     for (j = 0; j < 11; j++) {
-        if (PUP_TYPE(p, j) == type && (s32)PUP_SPECIALFLAGS(p, j) == (s32)mask) {
+        if (overlay->powerups[j].type == type &&
+            (s32)overlay->powerups[j].specialflags == (s32)mask) {
             if (duration > 0.0) {
-                PUP_ATTRIBUTEADD(p, j) += duration;
+                overlay->powerups[j].attributeadd += duration;
             }
-            if (PUP_TIMELEFT(p, j) >= 0.0f && str > 0.0) {
-                PUP_TIMELEFT(p, j) += 0.25 * str;
+            if (overlay->powerups[j].timeleft >= 0.0f && str > 0.0) {
+                overlay->powerups[j].timeleft += 0.25 * str;
             } else if (str < 0.0) {
-                PUP_TIMELEFT(p, j) = str;
+                overlay->powerups[j].timeleft = str;
             }
             if (mask & 8) {
-                lbl_80344B20 = PUP_TIMELEFT(p, j);
+                lbl_80344B20 = overlay->powerups[j].timeleft;
             }
             return;
         }
     }
     /* find the weakest/free slot */
     for (j = 0; j < 11; j++) {
-        w = PUP_TIMELEFT(p, j);
+        w = overlay->powerups[j].timeleft;
         if (w < 0.0f) {
-            w = (PUP_TYPE(p, j) == type) ? 999999.0f : 1000000.0f;
+            w = (overlay->powerups[j].type == type) ? 999999.0f : 1000000.0f;
         }
         if (best == 2000000.0 || w == 0.0 || (w >= 0.0 && w < best)) {
-            pick = j;
             best = w;
+            pick = j;
         }
         if (best == 0.0) {
             break;
         }
     }
-    PUP_TIMELEFT(p, pick) = str;
-    PUP_TYPE(p, pick) = type;
-    PUP_ATTRIBUTEADD(p, pick) = duration;
-    PUP_SPECIALFLAGS(p, pick) = mask;
+    overlay->powerups[pick].timeleft = str;
+    overlay->powerups[pick].type = type;
+    overlay->powerups[pick].attributeadd = duration;
+    overlay->powerups[pick].specialflags = mask;
     if (mask & 8) {
         lbl_80344B20 = str;
     }
-    PUP_DIRTY(p, pick) = 1;
+    overlay->dirty[pick] = 1;
 }
 
 /* Attribute bump helpers (per-character bonus + norm recompute).      */
