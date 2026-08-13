@@ -654,6 +654,10 @@ s32 do_mapscreen(s32 skip)
 {
     u8* base = lbl_8023DFD0;
     s32 done = 1;
+    s32 i;
+    s32 j;
+    f32 thresh;
+    u8 unused[8];
 
     switch (map_load_state) {
     case 0:
@@ -689,7 +693,89 @@ s32 do_mapscreen(s32 skip)
     }
 
     map_load_progress += gFrameTicks;
-    (void)done;
+    if (skip == 0 && *(void**)((u8*)gCurLevel + 104) != 0) {
+        thresh = lbl_80345A08;
+        for (i = 0; i < 8; i++) {
+            void* p104 = *(void**)((u8*)gCurLevel + 104);
+            f32* ent = p104 ? (f32*)((u8*)p104 + i * 8 + 8) : (f32*)0;
+            void** row;
+            if (ent == 0 || *ent < thresh) {
+                i = 8;
+                break;
+            }
+            row = (void**)(base + i * 4);
+            if (row[24] == 0) {
+                s32 tex;
+                if (map_load_progress <= i * 30) {
+                    break;
+                }
+                sprintf((char*)base, lbl_801116F0, (char*)gCurLevel + 8, i + 1);
+                tex = MBOX_FindTexture_Sub((char*)base, 0, (s32)map_bg_blit,
+                                           (s32)map_bg_blit, 1);
+                row[24] = MBCreateBlit(0, tex, (s32)ent[0], (s32)ent[1], -1, -1);
+                mbBlitCvtCoord(row[24], lbl_80345A98);
+                fn_8009FD38();
+            }
+        }
+        if (map_route_blit != 0 && i == 8) {
+            map_fade_frame += gFrameTicks;
+            if (map_fade_frame > map_load_len) {
+                s32 over = map_fade_frame - map_load_len;
+                s32 clamped;
+                if (over < map_load_step) {
+                    done = 0;
+                }
+                map_fade_alpha = over << 2;
+                clamped = map_fade_alpha;
+                if (clamped < 0) {
+                    clamped = 0;
+                } else if (clamped > 255) {
+                    clamped = 255;
+                }
+                map_fade_alpha = clamped;
+                MBBlitSetAlpha(map_route_blit, map_fade_alpha);
+                for (j = 0; j < 4; j++) {
+                    void** frow = (void**)(base + j * 4);
+                    MBBlitSetAlpha(frow[20], 255 - map_fade_alpha);
+                }
+                if (map_fade_alpha == 255) {
+                    DrawGlowText(340, 320, lbl_801116FC, lbl_80345A40);
+                } else {
+                    map_load_timer = 60;
+                }
+            } else {
+                s32 a = map_fade_a;
+                s32 period = map_fade_b + a * 2;
+                s32 rem = map_fade_frame % period;
+                s32 alpha;
+                s32 inv;
+                if (rem > a * 2) {
+                    rem = 0;
+                } else if (rem > a) {
+                    rem = a * 2 - rem;
+                }
+                alpha = (a + rem * 255 - 1) / a;
+                if (alpha < 4) {
+                    alpha = 4;
+                } else if (alpha > 250) {
+                    alpha = 250;
+                }
+                inv = 255 - alpha;
+                mbBlitInit3414(map_route_blit, 0);
+                MBBlitSetAlpha(map_route_blit, inv);
+                map_load_timer = 60;
+            }
+        } else {
+            map_load_timer = 60;
+        }
+    }
+
+    map_load_timer -= gFrameTicks;
+    if (gGameBusy == 0 && map_load_state == 99 && done != 0 &&
+        map_load_timer <= 0) {
+        AudioStopMusicB();
+        return 1;
+    }
     return 0;
 }
 
