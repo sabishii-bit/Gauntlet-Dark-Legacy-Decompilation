@@ -3403,12 +3403,12 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
     u8 *childHeader;
     s16 childIndex;
 
-    if (type < 0 || type >= 9 || subtype < 0 || subtype >= 6) {
+    header = (u8 *)gCritterHeaders[type][subtype];
+    if (header == NULL) {
         ErrorPrintf("No Critter type %d subtype %d loaded\n", type, subtype);
         return NULL;
     }
-    header = (u8 *)gCritterHeaders[type][subtype];
-    if (header == NULL || *(void **)(header + 0x138) == NULL) {
+    if (*(void **)(header + 0x138) == NULL) {
         return NULL;
     }
 
