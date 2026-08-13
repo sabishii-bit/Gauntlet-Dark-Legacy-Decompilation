@@ -2220,19 +2220,19 @@ s32 CritterGolemAI(Critter *c)
         CritterLookAtPlayer(c, move);
     }
 
-    if (lbl_80346490 == lbl_803447D8) {
-        if (c->mbnode != NULL) {
-            MBTreeClearFlags(c->mbnode, 8, 0);
-        }
-        if (c->shadow != NULL) {
-            MBTreeClearFlags(c->shadow, 8, 0);
-        }
-    } else {
+    if (lbl_80346490 != lbl_803447D8) {
         if (c->mbnode != NULL) {
             MBTreeSetScale(lbl_803447D8, lbl_803447D8, lbl_803447D8, c->mbnode);
         }
         if (c->shadow != NULL) {
             MBTreeSetScale(lbl_803447D8, lbl_803447D8, lbl_803447D8, c->shadow);
+        }
+    } else {
+        if (c->mbnode != NULL) {
+            MBTreeClearFlags(c->mbnode, 8, 0);
+        }
+        if (c->shadow != NULL) {
+            MBTreeClearFlags(c->shadow, 8, 0);
         }
     }
     return 1;
