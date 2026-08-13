@@ -1027,13 +1027,7 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
         for (i = 0; i < blob[0x12]; i++) {
             p = (u8*)wi->iteminfo + i * 0x50;
             *(u32*)p = sSwapU32(*(u32*)p);
-            if (*(s32*)p == -1) {
-                *(u32*)(p + 0x04) = sSwapU32(*(u32*)(p + 0x04));
-                for (k = 0; k < 16; k++) {
-                    *(u16*)(p + 0x08 + k * 2) =
-                        sSwapU16(*(u16*)(p + 0x08 + k * 2));
-                }
-            } else {
+            if (*(s32*)p != -1) {
                 *(u16*)(p + 0x08) = sSwapU16(*(u16*)(p + 0x08));
                 *(u16*)(p + 0x0A) = sSwapU16(*(u16*)(p + 0x0A));
                 *(u16*)(p + 0x40) = sSwapU16(*(u16*)(p + 0x40));
@@ -1053,6 +1047,12 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
                 for (k = 0; k < 3; k++) {
                     *(f32*)(p + 0x1C + k * 4) =
                         sSwapF32(*(f32*)(p + 0x1C + k * 4));
+                }
+            } else {
+                *(u32*)(p + 0x04) = sSwapU32(*(u32*)(p + 0x04));
+                for (k = 0; k < 16; k++) {
+                    *(u16*)(p + 0x08 + k * 2) =
+                        sSwapU16(*(u16*)(p + 0x08 + k * 2));
                 }
             }
         }
