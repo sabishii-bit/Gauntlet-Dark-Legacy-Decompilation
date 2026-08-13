@@ -255,6 +255,15 @@ extern s32   gTriggerCameraState;
 extern void  MBTreeSetAlpha(void *node, s32 alpha, s32 propagate);
 extern f32   lbl_803464EC;
 extern f64   lbl_803465C0;
+extern u64   gControllerButtons;      /* 0x803445C8 (low word aliases sFlags)     */
+extern void  SetSkinFX(void *fx, s32 base, s32 frames, s32 loops, f32 rate);
+extern void  AudioPlay3DSel(s32 sound, s32 volume, f32 *position, s32 selector);
+extern void  ShakeCamera(s32 type, s32 count, s32 delay, f32 radius,
+                         s32 priority);
+extern void  SafeRockSetup(void);
+extern s32   lbl_802897B8[];          /* 0x802897B8 skinfx palette table          */
+extern char  lbl_801121C0[];          /* 0x801121C0 killfx overflow message       */
+extern f32   lbl_80346570;
 
 /* -- CRITTER.OBJ internal roster (forward declarations) -- */
 struct CritterDamageDef;
@@ -3438,50 +3447,119 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
 {
     u8 *entry;
     u32 flags;
-    f32 position[3];
+    f32 color[3];
+    f32 world[3];
+    f32 mtxTmp[16];
+    f32 scale;
     s32 result;
     s32 i;
 
+    result = -1;
     if (sfx < 0) {
         return -1;
     }
-    entry = *(u8 **)(*(u8 **)((u8 *)c->hdr + 0x130) + 0x4C) +
-            sfx * 0x50;
+    entry = *(u8 **)(*(u8 **)((u8 *)c->hdr + 0x130) + 0x4C) + sfx * 0x50;
     flags = *(u32 *)entry;
-    result = -1;
-    position[0] = *(f32 *)(entry + 0x30);
-    position[1] = *(f32 *)(entry + 0x34);
-    position[2] = *(f32 *)(entry + 0x38);
+
+    if ((flags & 0x400) != 0) {
+        if ((gControllerButtons & 0x80) != 0) {
+            return -1;
+        }
+        MBTreeSetFlags(c->anim, 1, 0);
+        MBTreeSetFlags(*(void **)((u8 *)c->anim + 0x78), 2, 2);
+    }
+
+    if (c->mbnode != NULL && (*(u32 *)((u8 *)c->mbnode + 0x60) & 8) != 0) {
+        scale = *(f32 *)((u8 *)c->mbnode + 0x44);
+    } else {
+        scale = lbl_803464A8;
+    }
+    color[0] = *(f32 *)(entry + 0x30) * scale;
+    color[1] = *(f32 *)(entry + 0x34) * scale;
+    color[2] = *(f32 *)(entry + 0x38) * scale;
 
     if ((flags & 0x0F000000) != 0) {
         CritterDoParticle(c, entry, arg4);
     } else if ((flags & 0x100) != 0) {
-        ProcessSkinFX((f32 *)((u8 *)c + 0xE0), c->anim,
-                      *(void **)(entry + 8));
+        if (*(s32 *)(entry + 8) >= 0) {
+            SetSkinFX((u8 *)c + 0xE0, *(s32 *)(entry + 8),
+                      (s32)(lbl_80346630 * *(f32 *)(entry + 0x3C)),
+                      *(s16 *)(entry + 0x44), *(f32 *)(entry + 0x40));
+        } else {
+            SetSkinFX((u8 *)c + 0xE0, lbl_802897B8[c->counterState & 0xF], 10,
+                      0, lbl_803464E8);
+        }
     } else if ((flags & 0x200) != 0) {
         for (i = 0; i < *(s16 *)((u8 *)c->hdr + 0x118); i++) {
             u8 *node = (u8 *)c + 0x4F8 + i * 0x5C;
-            if ((*(u16 *)(*(u8 **)node + 0x10) & 1) == 0) {
-                f32 nodePos[3];
-                nodePos[0] = *(f32 *)(node + 0x3C) + position[0];
-                nodePos[1] = *(f32 *)(node + 0x40) + position[1];
-                nodePos[2] = *(f32 *)(node + 0x44) + position[2];
-                result = CritterDoSfxSub(c, entry, nodePos, 0, flags);
+            if ((*(s16 *)(*(u8 **)node + 0x10) & 1) == 0) {
+                world[0] = *(f32 *)(node + 0x3C) + color[0];
+                world[1] = *(f32 *)(node + 0x40) + color[1];
+                world[2] = *(f32 *)(node + 0x44) + color[2];
+                result = CritterDoSfxSub(c, entry, world, 0, flags);
             }
         }
+    } else if (*(s32 *)(entry + 8) < 0) {
+        result = -1;
     } else {
-        f32 *world = parent != NULL ? (f32 *)parent : c->vel;
-        position[0] += world[0];
-        position[1] += world[1];
-        position[2] += world[2];
-        result = CritterDoSfxSub(c, entry, position, arg3, flags);
+        if ((flags & 0x801) != 0) {
+            arg3 = 1;
+            world[0] = color[0];
+            world[1] = color[1];
+            world[2] = color[2];
+        } else if ((flags & 0x80) != 0) {
+            arg3 = 0;
+            world[0] = *(f32 *)((u8 *)c + 0x418) + color[0];
+            world[1] = *(f32 *)((u8 *)c + 0x41C) + color[1];
+            world[2] = *(f32 *)((u8 *)c + 0x420) + color[2];
+        } else if ((flags & 0x40) != 0) {
+            if (c->obj_d0 != NULL) {
+                GetWorldMat(c->obj_d0, mtxTmp, color);
+                world[0] = mtxTmp[12];
+                world[1] = mtxTmp[13];
+                world[2] = mtxTmp[14];
+            } else {
+                world[0] = c->vel[0];
+                world[1] = c->vel[1];
+                world[2] = c->vel[2];
+            }
+            if (parent != NULL) {
+                world[0] += ((f32 *)parent)[0];
+                world[1] += ((f32 *)parent)[1];
+                world[2] += ((f32 *)parent)[2];
+            }
+            arg3 = 0;
+        } else if (parent != NULL) {
+            world[0] = color[0] + ((f32 *)parent)[0];
+            world[1] = color[1] + ((f32 *)parent)[1];
+            world[2] = color[2] + ((f32 *)parent)[2];
+        } else {
+            world[0] = color[0];
+            world[1] = color[1];
+            world[2] = color[2];
+        }
+        result = CritterDoSfxSub(c, entry, world, arg3, flags);
     }
 
-    if ((flags & 0x40000) != 0) {
+    if (*(s32 *)(entry + 0xC) >= 0) {
+        if (c->curmove >= 0 &&
+            (*(CritterMove **)((u8 *)c->hdr + 0x124))[c->curmove].type == 17) {
+            AudioPlay3DSel(*(s32 *)(entry + 0xC), 224, c->vel, 0);
+        } else {
+            AudioPlay3DSel(*(s32 *)(entry + 0xC), 224, c->vel, 1);
+        }
+    }
+    if ((flags & 2) != 0) {
+        ShakeCamera(0, 0, 90, lbl_80346570, 100);
+    }
+    if ((flags & 0x20) != 0) {
+        SafeRockSetup();
+    }
+    if ((*(u32 *)entry & 0x40000) != 0) {
         if (c->unkABA < 0) {
             c->unkABA = (s16)result;
         } else {
-            ErrorPrintf("Critter -> 1 killfx\n");
+            ErrorPrintf(lbl_801121C0);
         }
     }
     if (*(s32 *)(entry + 4) >= 0) {
