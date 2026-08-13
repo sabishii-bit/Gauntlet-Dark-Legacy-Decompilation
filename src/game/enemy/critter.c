@@ -17,6 +17,7 @@
  */
 #include "types.h"
 #include "game/critter.h"
+#include "game/effect.h"
 #include "game/enemy.h"
 #include "game/player.h"
 
@@ -110,7 +111,7 @@ extern f32   lbl_80346638;
 extern f32   lbl_803464A8;
 extern f32   lbl_803464E8;
 extern char  lbl_801121D4[];
-extern u8    Effects[];
+extern Effect Effects[];
 extern void  MBPsysSetEVolume(void *psys, f32 a, f32 b);
 extern void  MBPsysSetPParm(void *psys, s32 n, f32 a, f32 b, f32 c, f32 d);
 
@@ -223,7 +224,7 @@ extern void *MBNewPsysDefault(const f32 *matrix, void *parent,
 extern void  MBPsysSetPTex(void *psys, s32 texture);
 extern void  MBPsysSetERate4(f32 a, f32 b, f32 c, f32 d, void *psys);
 extern void  MBPsysSetETime(f32 life, f32 variance, void *psys);
-extern void  MBPsysSetPSpeed(f32 speed, void *psys);
+extern void  MBPsysSetPSpeed(void *psys, f32 speed);
 extern void *PlaceItem(s32 type, s32 subtype, const char *name, f32 *position);
 extern void  AddItemSub(void *item);
 extern void  fn_800920E0(f32 *position, void *item);
@@ -3857,7 +3858,7 @@ void CritterDoParticle(Critter *c, void *sfx, s32 node)
     speed = (f32)(lbl_80346540 * (f64)*(s16 *)(s + 0x46));
     kind = flags & 0x0F000000;
     if ((flags & 0x4000) && node >= 0) {
-        parent = *(void **)((u8 *)Effects + node * 240 + 0x14);
+        parent = Effects[node].node;
     } else if (c->obj_d0 != NULL) {
         parent = c->obj_d0;
     } else {
@@ -3888,7 +3889,7 @@ void CritterDoParticle(Critter *c, void *sfx, s32 node)
         MBPsysSetPTex(psys, tex);
         MBPsysSetERate4(rate, rate, rate, rate, psys);
         MBPsysSetETime(etime, lbl_8034663C, psys);
-        MBPsysSetPSpeed(speed, psys);
+        MBPsysSetPSpeed(psys, speed);
     }
 }
 /* 0x8003E048 -- allocate and initialize a root critter and the child chain
