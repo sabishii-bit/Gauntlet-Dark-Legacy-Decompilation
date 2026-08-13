@@ -57,9 +57,11 @@
  * and only becomes the 0x534-byte byte-swap here because the GameCube is
  * big-endian.  GetWorldPsysIdx (Xbox local) is inlined into WorldPsysActivate.
  *
- * Only a compilable subset of bodies is transcribed; matching is out of scope
- * (NonMatching, DOL bytes substituted).  InitWorldInfo (~0x1660) is parked and
- * documented, not reconstructed. */
+ * Most bodies are transcribed; the TU stays NonMatching (DOL bytes
+ * substituted).  InitWorldInfo (0x1660 bytes) is fully reconstructed: opcode
+ * streams are identical (1432/1432 insns) and only a single fcmpu operand-order
+ * canonicalization (the gridsize != 0.0 test) plus semantic-name reloc
+ * differences remain. */
 
 #define WORLD_BSWAP16(v) \
     ((u16)((((u16)(v) & 0xFF) << 8) | (((u16)(v) >> 8) & 0xFF)))
