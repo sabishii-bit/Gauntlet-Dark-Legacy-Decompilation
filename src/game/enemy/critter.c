@@ -142,6 +142,12 @@ extern s32   NextGridEnemy(void);
 extern void  StartEnemyGrid(f32 *position, f32 radius);
 extern s32   NextGridItem(void);
 extern void  StartItemGrid(f32 radius, f32 *position);
+extern void  MulVecMat3(const f32 *vector, f32 *out, const f32 *matrix);
+extern s32   LineCylinderCollide(f32 *p1, f32 a, f32 b, f32 *p2, f32 *dest,
+                                 f32 *contact, s32 flag);
+extern void  damage_enemy(void *enemy, s32 a, s32 b, f32 radius, void *p1,
+                          void *p2, s32 c);
+extern s32   lbl_803447DC;
 extern void  damage_player(s32 player, f32 damage, s32 mode, u32 flags,
                            f32 *direction);
 extern f32   NormalVector(f32 *vector);
@@ -234,7 +240,7 @@ s32 CritterCollidePlayers(Critter *c, f32 *delta);
 void CritterCollideWorld(Critter *c, f32 *delta);
 void CritterWorldDamage(Critter *c, void *surface, f32 *origin,
                         f32 *contact);
-void CritterNodeEnemyCollide(Critter *c, void *damageDef);
+s32 CritterNodeEnemyCollide(Critter *c, void *damageDef);
 s32  SafeRockNearestTarget(s32 player);
 void CritterLookAtPlayer(Critter *c, CritterMove *move);
 void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
@@ -555,31 +561,62 @@ void CritterWorldDamage(Critter *c, void *surface, f32 *origin,
 }
 
 /* 0x800359F0 -- damage swarm enemies intersecting an active critter node. */
-void CritterNodeEnemyCollide(Critter *c, void *damageDef)
+s32 CritterNodeEnemyCollide(Critter *c, void *damageDef)
 {
-    Enemy *enemy;
+    u8 *dmg = (u8 *)damageDef;
+    f32 out[3];
+    f32 pos[3];
     f32 delta[3];
+    f32 f26v;
     f32 radius;
-    s32 i;
+    f32 bx;
+    f32 by;
+    f32 bz;
+    f64 k;
+    f64 zero;
+    s32 count;
+    s32 idx;
+    u8 *e;
 
-    if (damageDef == NULL) {
-        return;
-    }
-    radius = *(f32 *)((u8 *)damageDef + 0x0C);
-    for (i = 0; i < gNumEnemies; i++) {
-        enemy = &gEnemies[i];
-        if (enemy->state != ACTIVE) {
+    radius = *(f32 *)(dmg + 0x2C) * *(f32 *)((u8 *)gCurLevel + 0xBC);
+    f26v = *(f32 *)(dmg + 0x0C);
+    count = 0;
+    MulVecMat3((f32 *)(dmg + 0x20), out, c->worldMoveMatrix);
+    pos[0] = c->moveOrigin[0] + out[0];
+    bx = c->moveMatrix[0] + out[0];
+    by = c->moveMatrix[1] + out[1];
+    pos[1] = c->moveOrigin[1] + out[1];
+    bz = c->moveMatrix[2] + out[2];
+    pos[2] = c->moveOrigin[2] + out[2];
+    StartItemGrid(f26v, pos);
+    k = lbl_80346478;
+    zero = lbl_80346488;
+    while ((idx = NextGridItem()) >= 0) {
+        s32 state;
+        e = (u8 *)&gEnemies[idx];
+        state = *(s32 *)(e + 0xB4);
+        if (state != 1 && state != 6 && (state != 8 || lbl_803447DC == 0)) {
             continue;
         }
-        delta[0] = enemy->trans[0] - c->moveOrigin[0];
-        delta[1] = enemy->trans[1] - c->moveOrigin[1];
-        delta[2] = enemy->trans[2] - c->moveOrigin[2];
-        if (NormalVector(delta) <= radius + enemy->rad) {
-            enemy->pushed[0] += delta[0] * *(f32 *)((u8 *)damageDef + 0x2C);
-            enemy->pushed[1] += delta[1] * *(f32 *)((u8 *)damageDef + 0x2C);
-            enemy->pushed[2] += delta[2] * *(f32 *)((u8 *)damageDef + 0x2C);
+        if (*(s32 *)e == 31) {
+            continue;
+        }
+        if (radius > zero && sMusicFadeBase < *(f32 *)(e + 0x2B4)) {
+            continue;
+        }
+        if (LineCylinderCollide((f32 *)(e + 0x54), *(f32 *)(e + 0x238) + f26v,
+                                *(f32 *)(e + 0x23C) + f26v, pos, pos, out, 0)) {
+            delta[0] = pos[0] - bx;
+            delta[1] = pos[1] - by;
+            delta[2] = pos[2] - bz;
+            delta[0] = (f32)(k * delta[0]);
+            delta[1] = (f32)(k * delta[1]);
+            delta[2] = (f32)(k * delta[2]);
+            damage_enemy(e, -1, 0, radius, out, delta, 1);
+            count++;
         }
     }
+    return count;
 }
 
 /* 0x80035BC8 -- choose an available safe rock, or the available rock nearest
