@@ -4296,62 +4296,78 @@ void PlayerProcessPowerups(void* vp, s32 state, s32* c) {
     (void)c;
 }
 
-/* Level-tier halo/glow overlay (25+/80+ levels, gold at 99).          */
+/* Struct view over the familiar/halo atree state at Player+0x748.  A    */
+/* typed member (displacement) read keeps &atree out of an address-CSE.  */
+typedef struct PlayerSkinView {
+    u8 pad0[0x748];
+    /* 0x748 */ void* atree;   /* level-tier halo/familiar atree handle */
+    u8 pad1[4];
+    /* 0x750 */ u32 src_id;    /* source id, compared with atree word[1] */
+} PlayerSkinView;
+
+/* Rebuild a level-tier halo atree if its source changed; inlined per   */
+/* tier by PlayerProcessSkinFX.  Returns 1 when a fresh tree was built.  */
+static int PlayerSetupSkinTree(PlayerSkinView* p, void* atree, void* parent) {
+    if (p->atree != NULL) {
+        if (atree == NULL || p->src_id != ((u32*)atree)[1]) {
+            AtreeDelete(&p->atree);
+        }
+    }
+    if (p->atree == NULL && atree != NULL) {
+        p->atree = (void*)AtreeInit(atree, &p->atree, 0, 0x800);
+        MBTreeSetFlags(*(void**)p->atree, 0x10, 0);
+        MBNodeSetParent(*(void**)p->atree, parent);
+        MBTreeSetAlpha(*(void**)p->atree, 0, 1);
+        return 1;
+    }
+    return 0;
+}
+
+/* Level-tier halo/glow overlay (30+/80+ levels, brighter at 99).       */
 static void PlayerProcessSkinFX(void* vp, void* node) {
     Player* p = vp;
-    void** src;
+    PlayerSkinView* ps = vp;
     s32 fresh = 0;
-    s32 h;
 
     (void)node;
     if (p->level >= 0x50) {
-        src = &FamiliarTree[p->index][1];
+        fresh = PlayerSetupSkinTree(ps, FamiliarTree[p->index][1], p->node);
     } else if (p->level >= 0x1E) {
-        src = &FamiliarTree[p->index][0];
+        fresh = PlayerSetupSkinTree(ps, FamiliarTree[p->index][0], p->node);
     } else {
-        if (PF(p, 0x748, s32) != 0) {
-            AtreeDelete((void**)((u8*)p + 0x748));
-        }
-        src = NULL;
-    }
-    if (src != NULL) {
-        if (PF(p, 0x748, s32) != 0 &&
-            (*src == NULL || PF(p, 0x750, s32) != *((s32*)*src + 1))) {
-            AtreeDelete((void**)((u8*)p + 0x748));
-        }
-        if (PF(p, 0x748, s32) == 0 && *src != NULL) {
-            PF(p, 0x748, s32) = AtreeInit(*src, (u8*)p + 0x748, 0, 0x800);
-            MBTreeSetFlags(*(void**)PF(p, 0x748, s32*), 0x10, 0);
-            MBNodeSetParent(*(void**)PF(p, 0x748, s32*), p->node);
-            MBTreeSetAlpha(*(void**)PF(p, 0x748, s32*), 0, 1);
-            fresh = 1;
+        if (ps->atree != NULL) {
+            AtreeDelete(&ps->atree);
         }
     }
-    if (fresh && (h = PF(p, 0x748, s32)) != 0) {
-        u8* cls = lbl_80282930[p->index];
-        if (p->level < 99) {
-            *(s32*)(h + 0x10) = *(s32*)(cls + 0x164);
-            *(s32*)(h + 0x14) = *(s32*)(cls + 0x168);
-            *(s32*)(h + 0x18) = *(s32*)(cls + 0x16C);
-            *(s32*)(*(u8**)h + 0x30) = *(s32*)(cls + 0x164);
-            *(s32*)(*(u8**)h + 0x34) = *(s32*)(cls + 0x168);
-            *(s32*)(*(u8**)h + 0x38) = *(s32*)(cls + 0x16C);
+    if (fresh != 0 && ps->atree != NULL) {
+        if (p->level >= 99) {
+            *(f32*)((u8*)ps->atree + 0x10) = 1.5 * *(f32*)(lbl_80282930[p->index] + 0x164);
+            *(f32*)((u8*)ps->atree + 0x14) = 1.5 * *(f32*)(lbl_80282930[p->index] + 0x168);
+            *(f32*)((u8*)ps->atree + 0x18) = 1.5 * *(f32*)(lbl_80282930[p->index] + 0x16C);
+            *(f32*)(*(u8**)ps->atree + 0x30) = 1.5 * *(f32*)(lbl_80282930[p->index] + 0x164);
+            *(f32*)(*(u8**)ps->atree + 0x34) = 1.5 * *(f32*)(lbl_80282930[p->index] + 0x168);
+            *(f32*)(*(u8**)ps->atree + 0x38) = 1.5 * *(f32*)(lbl_80282930[p->index] + 0x16C);
         } else {
-            *(f32*)(h + 0x10) = 1.5 * *(f32*)(cls + 0x164);
-            *(f32*)(h + 0x14) = 1.5 * *(f32*)(cls + 0x168);
-            *(f32*)(h + 0x18) = 1.5 * *(f32*)(cls + 0x16C);
-            *(f32*)(*(u8**)h + 0x30) = 1.5 * *(f32*)(cls + 0x164);
-            *(f32*)(*(u8**)h + 0x34) = 1.5 * *(f32*)(cls + 0x168);
-            *(f32*)(*(u8**)h + 0x38) = 1.5 * *(f32*)(cls + 0x16C);
+            *(f32*)((u8*)ps->atree + 0x10) = *(f32*)(lbl_80282930[p->index] + 0x164);
+            *(f32*)((u8*)ps->atree + 0x14) = *(f32*)(lbl_80282930[p->index] + 0x168);
+            *(f32*)((u8*)ps->atree + 0x18) = *(f32*)(lbl_80282930[p->index] + 0x16C);
+            *(f32*)(*(u8**)ps->atree + 0x30) = *(f32*)(lbl_80282930[p->index] + 0x164);
+            *(f32*)(*(u8**)ps->atree + 0x34) = *(f32*)(lbl_80282930[p->index] + 0x168);
+            *(f32*)(*(u8**)ps->atree + 0x38) = *(f32*)(lbl_80282930[p->index] + 0x16C);
         }
     }
-    if (PF(p, 0x748, s32) != 0) {
+    if (ps->atree != NULL) {
+        s32 a2 = 0;
+        s32 a3 = 0;
         if (gGameMode == 0x4010 && (PF(p, 0x124, u32) & 0x80)) {
-            MBTreeSetFlags(*(void**)PF(p, 0x748, s32*), 2, 0);
+            MBTreeSetFlags(*(void**)ps->atree, 2, 0);
         } else {
-            MBTreeClearFlags(*(void**)PF(p, 0x748, s32*), 2, 0);
-            AnimateATree((void**)((u8*)p + 0x748), (PF(p, 0x900, u32) & 0x10000000) != 0,
-                        (PF(p, 0x900, u32) & 0x10000000) ? 2 : 0);
+            MBTreeClearFlags(*(void**)ps->atree, 2, 0);
+            if (PF(p, 0x900, u32) & 0x10000000) {
+                a2 = 1;
+                a3 = 2;
+            }
+            AnimateATree(&ps->atree, a2, a3);
         }
     }
 }
