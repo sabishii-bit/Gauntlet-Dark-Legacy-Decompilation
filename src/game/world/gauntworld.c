@@ -2772,9 +2772,387 @@ found_gen:
     return (f32)ret;
 }
 
-s32 fn_8005DE50(void* a, void* b)
+/* --------------------------------------------------------------------------
+ * fn_8005DE50  0x8005DE50  size 0x0ABC - item-pickup effect state machine
+ * Called once per frame from do_players (player.c) for the item a player is
+ * currently touching:  fn_8005DE50(player, player->special_collision_item).
+ * Dispatches on the item info subtype (b->info->item.subtype) and applies the
+ * pickup effect (gold / count / potion / milestone / powerup / shard / rune /
+ * boss / level), then reparents + re-shows the item's scene node.
+ * ------------------------------------------------------------------------ */
+extern void PlayerGiveGold(s32 player, s32 amount);
+extern void fn_8009CFA8(s32 player, s32 amount);
+extern void add_got_it(s32 player, s32 subtype, s32 count);
+extern s32  towerAwardWorldRunes(void);
+extern s32  fn_8009FB30(void);
+extern s32  FindStringMessageListSub_8001FC4C(s32 a, char* name);
+extern void ControllerMessageBox(s32 a, s32 b, s32 c, s32 d);
+extern void fn_8009CDF8(s32 player);
+extern void fn_8009F748(s32 player);
+extern void fn_8009D038(s32 player);
+extern s32  heal_player(f32 amount, Player* p);
+extern void damage_player(s32 i, f32 dmg, s32 a, s32 b, s32 c);
+extern void AudioPlayerSeverePain(s32 player);
+extern void AudioPlayerEatFood(s32 player, s32 kind);
+extern void PlayerAddPowerup(f32 duration, f32 strength, void* p, s32 type,
+                             u32 mask);
+extern void fn_8009CEE0(s32 player, s32 subtype, s32 flags);
+extern void PlayerGiveShard(s32 player, s32 shard);
+extern void fn_8009CE38(s32 player);
+extern void StartGemFX(f32* pos, s32 kind);
+extern void AudioNumRunesFound(s32 count);
+extern void towerSetRuneNear(s32 player, s32 value);
+extern void towerAdvanceBossRecord(s32 a, s32 b);
+extern void towerAdvanceLevelRecord(s32 a, s32 b);
+
+extern char  lbl_80112C50[];      /* .rodata string (absolute)  */
+extern char  lbl_80112C5C[];      /* .rodata string (absolute)  */
+extern char  lbl_80346F10[8];     /* .sdata2 string (sda21)     */
+extern char  lbl_80346F18[6];     /* .sdata2 string (sda21)     */
+extern char  lbl_80346FEC[7];     /* .sdata2 string (sda21)     */
+extern f32   lbl_80346FE8;        /* .sdata2 float              */
+extern f32   sItemFloorRadius;    /* .sdata2 float              */
+extern s32   lbl_80344810;        /* .sbss                      */
+extern f32   lbl_80344818;        /* .sbss float                */
+extern s32   lbl_803448A0;        /* .sbss                      */
+extern s32   lbl_803448A4;        /* .sbss                      */
+extern s32   gNumType7Items;      /* .sbss                      */
+extern s32   welcome_timer;       /* .sbss                      */
+extern s32   sSpecialItem10;      /* .sbss                      */
+extern void* sItemsRootNode;      /* .sbss                      */
+extern f32   sItemZero;
+extern f64   sZeroDouble;
+
+typedef struct GwCharGoldRow { u8 _pad[3108]; s32 v; } GwCharGoldRow;
+
+void fn_8005DE50(Player* a, Item* b)
 {
-    return 0;
+    iteminfo* ev;
+    iteminfodata* it;
+    s32 ret;
+    s16 flag;
+
+    ret = 0;
+    if (b == NULL)
+        return;
+    ev = b->info;
+    if (ev == NULL)
+        return;
+    if (a == NULL)
+        return;
+    it = &ev->item;
+
+    switch (it->subtype) {
+    case 1: { /* gold */
+        s32 gold = *(s32*)&b->data[4];
+        PlayerGiveGold(a->index, gold);
+        ((GwCharGoldRow*)((u8*)a + a->character * 28))->v += gold;
+        fn_8009CFA8(a->index, gold);
+        add_got_it(a->index, it->subtype, gold);
+        *(s16*)((u8*)a + 0x95C) = 1;
+        if (sMusicTrackHi == 12) {
+            if (towerAwardWorldRunes() != 0) {
+                s32 h = fn_8009FB30();
+                ControllerMessageBox(-1,
+                    FindStringMessageListSub_8001FC4C(0, lbl_80112C50), 0, h);
+                lbl_80344810 = 1;
+                lbl_80344818 = sItemFloorRadius;
+            }
+        } else if (*(s32*)&b->data[4] >= 25) {
+            s8 op;
+            msgPost(17, a->index, (char*)a->col_pos);
+            op = b->opener;
+            if (op >= 0 && op != a->index)
+                fn_8009F748(op);
+        }
+        ret = 1;
+        break;
+    }
+    case 2: { /* accumulating count (clamped to lbl_803448A4) */
+        if (a->item_body_lo + *(s32*)&b->data[4] <= lbl_803448A4) {
+            s8 op;
+            if (gNumType7Items != 0)
+                msgPost(8, a->index, (char*)a->col_pos);
+            else
+                msgPost(2, a->index, (char*)a->col_pos);
+            a->item_body_lo += *(s32*)&b->data[4];
+            op = b->opener;
+            if (op >= 0 && op != a->index)
+                fn_8009F748(op);
+            fn_8009CDF8(a->index);
+            add_got_it(a->index, it->subtype, *(s32*)&b->data[4]);
+            *(s16*)((u8*)a + 0x95C) = 1;
+            ret = 1;
+        } else if (a->item_body_lo >= lbl_803448A4) {
+            msgPost(4, a->index, (char*)a->col_pos);
+        } else {
+            s32 room = lbl_803448A4 - a->item_body_lo;
+            if (gNumType7Items != 0)
+                msgPost(8, a->index, (char*)a->col_pos);
+            else
+                msgPost(2, a->index, (char*)a->col_pos);
+            a->item_body_lo += room;
+            *(s32*)&b->data[4] -= room;
+            fn_8009CDF8(a->index);
+            add_got_it(a->index, it->subtype, *(s32*)&b->data[4]);
+            *(s16*)((u8*)a + 0x95C) = 1;
+        }
+        break;
+    }
+    case 4: { /* milestone list */
+        s32 j;
+        s32 r;
+        s8  op;
+        if (a->item_body_hi >= lbl_803448A0) {
+            msgPost(3, a->index, (char*)a->col_pos);
+            break;
+        }
+        for (j = 0; j < *(s32*)&b->data[4]; j++) {
+            if (a->item_body_hi >= lbl_803448A0)
+                break;
+            *(s32*)((u8*)a + a->item_body_hi * 4 + 13056) = it->properties;
+            a->item_body_hi++;
+        }
+        r = msgPost(7, a->index, (char*)a->col_pos);
+        if (r < 0)
+            r = msgPost(94, a->index, (char*)a->col_pos);
+        if (r < 0)
+            msgPost(95, a->index, (char*)a->col_pos);
+        op = b->opener;
+        if (op >= 0 && op != a->index)
+            fn_8009F748(op);
+        fn_8009D038(a->index);
+        add_got_it(a->index, it->subtype, 0);
+        *(s16*)((u8*)a + 0x95C) = 1;
+        ret = 1;
+        break;
+    }
+    case 3: { /* potion (heal / damage) */
+        s8 op;
+        f32 amt = (f32)*(s32*)&b->data[4];
+        if ((a->flags & 0x400) && strcmp(it->desc, lbl_80346F10) == 0)
+            amt = lbl_80346FE8;
+        if (amt >= sItemZero) {
+            if (heal_player(amt, a) == 0) {
+                msgPost(133, a->index, (char*)a->col_pos);
+                break;
+            }
+        } else {
+            damage_player(a->index, -amt, 0, 2048, 0);
+        }
+        if (*(s32*)&b->data[4] >= 100)
+            msgPost(15, a->index, (char*)a->col_pos);
+        else if (*(s32*)&b->data[4] >= 50)
+            msgPost(16, a->index, (char*)a->col_pos);
+        else if (*(s32*)&b->data[4] < 0)
+            msgPost(28, a->index, (char*)a->col_pos);
+        op = b->opener;
+        if (op >= 0 && op != a->index)
+            fn_8009F748(op);
+        add_got_it(a->index, it->subtype, (s32)amt);
+        if (amt < sZeroDouble) {
+            *(s16*)((u8*)a + 0x95C) = 3;
+            AudioPlayerSeverePain(a->index);
+        } else {
+            s32 kind = 0;
+            *(s16*)((u8*)a + 0x95C) = 1;
+            if (strcmp(it->desc, lbl_80112C5C) == 0)
+                kind = 3;
+            else if (strcmp(it->desc, lbl_80346F18) == 0)
+                kind = 1;
+            else if (strcmp(it->desc, lbl_80346FEC) == 0)
+                kind = 2;
+            AudioPlayerEatFood(a->index, kind);
+        }
+        ret = 1;
+        break;
+    }
+    case 5:
+    case 6:
+    case 7:
+    case 8:
+    case 9: { /* powerup */
+        s32 flags220 = *(u32*)&b->data[0];
+        s32 snd = -1;
+        if (it->subtype == 9 && (flags220 & 0xF000) && (a->flags & 0xF000))
+            break;
+        PlayerAddPowerup((f32)*(s32*)&b->data[4], *(f32*)&b->data[8], a,
+                         it->subtype, flags220);
+        switch (it->subtype) {
+        case 5: {
+            s32 lownib = flags220 & 0xF;
+            if (flags220 & 0x80000)
+                snd = 37;
+            else if (flags220 & 0x400000)
+                snd = 47;
+            else if (flags220 & 0x200000)
+                snd = 38;
+            else if (flags220 & 0x100000)
+                snd = 48;
+            else if (flags220 & 0x10000000)
+                snd = 86;
+            else if (flags220 & 0x20000000)
+                snd = 87;
+            else if (lownib == 1)
+                snd = 40;
+            else if (lownib == 2)
+                snd = 41;
+            else if (lownib == 3)
+                snd = 42;
+            else if (lownib == 4)
+                snd = 43;
+            break;
+        }
+        case 6:
+            if (flags220 & 0x100000)
+                snd = 54;
+            else if (flags220 & 0x10000)
+                snd = 35;
+            else if (flags220 & 0x80000)
+                snd = 49;
+            else if (flags220 & 0x20000)
+                snd = 52;
+            else if (flags220 & 0x200000)
+                snd = 91;
+            else if (flags220 & 0x400000)
+                snd = 92;
+            else if (flags220 & 0x2000)
+                snd = 132;
+            break;
+        case 7:
+            snd = 32;
+            break;
+        case 8:
+            snd = 33;
+            break;
+        case 9:
+            if (flags220 & 0x4)
+                snd = 36;
+            else if (flags220 & 0x2)
+                snd = 39;
+            else if (flags220 & 0x8)
+                snd = 51;
+            else if (flags220 & 0x1)
+                snd = 53;
+            else if (flags220 & 0x10)
+                snd = 81;
+            else if (flags220 & 0x20)
+                snd = 82;
+            else if (flags220 & 0x40)
+                snd = 83;
+            else if (flags220 & 0x80)
+                snd = 84;
+            else if (flags220 & 0x100)
+                snd = 88;
+            else if (flags220 & 0x200)
+                snd = 89;
+            else if (flags220 & 0x400)
+                snd = 93;
+            else if (flags220 & 0x2000)
+                snd = 98;
+            else if (flags220 & 0x1000)
+                snd = 99;
+            else if (flags220 & 0x8000)
+                snd = 100;
+            else if (flags220 & 0x4000)
+                snd = 100;
+            else if (flags220 & 0x80000)
+                snd = 113;
+            else if (flags220 & 0x100000)
+                snd = 148;
+            else if (flags220 & 0x200000)
+                snd = 149;
+            else if (flags220 & 0x400000)
+                snd = 150;
+            break;
+        }
+        if (snd >= 0)
+            msgPost(snd, a->index, (char*)a->col_pos);
+        fn_8009CEE0(a->index, it->subtype, flags220);
+        add_got_it(a->index, it->subtype, 0);
+        *(s16*)((u8*)a + 0x95C) = 1;
+        ret = 1;
+        break;
+    }
+    case 10: { /* shard */
+        s32 i;
+        s32 mask;
+        s32 count;
+        if (PlayerHasShard(a->index, ev->item.value) != 0) {
+            msgPost(90, a->index, (char*)a->col_pos);
+            ret = 0;
+            break;
+        }
+        for (i = 0; i < 4; i++)
+            PlayerGiveShard(i, b->info->item.value);
+        fn_8009CE38(a->index);
+        add_got_it(a->index, it->subtype, *(s32*)&b->data[4]);
+        welcome_timer = 300;
+        StartGemFX(b->objgrp.worldmat[3], 1024);
+        sSpecialItem10 = 0;
+        mask = 0;
+        count = 0;
+        for (i = 0; i < 4; i++) {
+            if (gPlayers[i].state != 0)
+                mask |= gPlayers[i].shards;
+        }
+        for (i = 0; i < 13; i++) {
+            if (mask & (1 << i))
+                count++;
+        }
+        AudioNumRunesFound(count);
+        ret = 1;
+        break;
+    }
+    case 13: /* rune */
+        msgPost(*(s32*)&b->data[4] + 113, a->index, (char*)a->col_pos);
+        towerSetRuneNear(a->index, *(s32*)&b->data[4]);
+        fn_8009D038(a->index);
+        add_got_it(a->index, it->subtype, *(s32*)&b->data[4]);
+        ret = 1;
+        break;
+    case 14: /* controller message */
+        ControllerMessageBox(1 << a->index, -1, *(s32*)&b->data[4] - 1, -1);
+        ret = 1;
+        break;
+    case 15: /* boss record */
+        ret = 1;
+        StartGemFX(b->objgrp.worldmat[3], *(s32*)&b->data[4]);
+        towerAdvanceBossRecord(-1, *(s32*)&b->data[4]);
+        fn_8009D038(a->index);
+        add_got_it(a->index, it->subtype, *(s32*)&b->data[4]);
+        break;
+    case 16: /* level record */
+        towerAdvanceLevelRecord(-1, *(s32*)&b->data[4]);
+        fn_8009D038(a->index);
+        add_got_it(a->index, it->subtype, *(s32*)&b->data[4]);
+        StartGemFX(b->objgrp.worldmat[3], 256);
+        ret = 1;
+        break;
+    }
+
+    flag = ((s8)b->opener == -1) ? 8 : 15;
+    if (ret != 0) {
+        if (flag < 0)
+            b->activetime = 16;
+        else
+            b->activetime = flag;
+        b->active |= 0x100;
+        if (*(void**)&b->data[0xC] != NULL) {
+            if (*(void**)((u8*)b->objgrp.node + 116) != sItemsRootNode) {
+                MBNodeSetParent(b->objgrp.node, sItemsRootNode);
+                UpdateObjWorldMat(&b->objgrp);
+            }
+            {
+                Item* other = *(Item**)&b->data[0xC];
+                if (flag < 0)
+                    other->activetime = 16;
+                else
+                    other->activetime = flag;
+                other->active |= 0x100;
+            }
+        }
+    }
 }
 
 void fn_800606FC(void)
