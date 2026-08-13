@@ -77,6 +77,10 @@ extern f64   lbl_80346490;
 extern f64   lbl_80346498;
 extern f32   lbl_803464B8;
 extern f64   lbl_803464F8;
+extern f64   lbl_803464C8;
+extern f64   lbl_803464D0;
+extern f64   lbl_803464D8;
+extern f64   lbl_803464E0;
 extern f64   lbl_80346500;
 extern f32   lbl_80346590;
 extern f32   lbl_80346594;
@@ -120,6 +124,9 @@ extern void *memcpy(void *dst, const void *src, u32 n);
 extern void  ErrorPrintf(const char *fmt, ...);
 extern void  MBRemoveNode(void *node, s32 kind);
 extern s32   GetWorldMat(void *node, f32 *matrix, f32 *offset);
+extern void  GetYawPitch(const f32 *vector, f32 *yaw, f32 *pitch);
+extern void  ExtractPYR(void *matrix, f32 *angles);
+extern void  CreatePYRMatrix(void *matrix, const f32 *angles);
 extern s32   HealthMeterStart(void *header, s32 x, s32 y, s32 width,
                               s32 height, s32 style, f32 health);
 extern void *AtreeMatch(void *header, const char *name, s32 report);
@@ -804,47 +811,123 @@ void CritterLookAtPlayer(Critter *c, CritterMove *move)
 void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
                    f32 d, f32 *pitch)
 {
-    f32 matrix[12];
-    f32 dx;
-    f32 dy;
-    f32 dz;
-    f32 wantedYaw;
-    f32 wantedPitch;
-    f32 yawDelta;
-    f32 step;
+    union { f64 _align; f32 v[3]; } pyrU;
+    f32 delta[3];
+    f32 nodeYaw;
+    f32 nodePitch;
+    f32 yawv;
+    f32 pitchv;
+    f32 matrix[16];
+#define pyr (pyrU.v)
 
-    wantedYaw = 0.0f;
-    wantedPitch = 0.0f;
-    if (node != NULL && target != NULL) {
+    if (target != NULL) {
         GetWorldMat(node, matrix, NULL);
-        dx = target[0] - matrix[9];
-        dy = target[1] - matrix[10];
-        dz = target[2] - matrix[11];
-        wantedYaw = (f32)atan2(dx, dz);
-        wantedPitch = (f32)atan2(dy, dx * dx + dz * dz);
-    }
-    step = 0.08f * gClockFrameStep;
-    yawDelta = wantedYaw - *yaw;
-    while (yawDelta > 3.1415927f) {
-        yawDelta -= 6.2831855f;
-    }
-    while (yawDelta < -3.1415927f) {
-        yawDelta += 6.2831855f;
-    }
-    if (yawDelta > step) {
-        *yaw += step;
-    } else if (yawDelta < -step) {
-        *yaw -= step;
+        GetYawPitch(&matrix[8], &nodeYaw, &nodePitch);
+        delta[0] = target[0] - matrix[12];
+        delta[1] = target[1] - matrix[13];
+        delta[2] = target[2] - matrix[14];
+        GetYawPitch(delta, &yawv, &pitchv);
+        yawv = yawv - nodeYaw;
+        pitchv = pitchv - nodePitch;
+        yawv = yawv + b;
+        pitchv = pitchv + d;
     } else {
-        *yaw = wantedYaw;
+        yawv = lbl_80346470;
+        pitchv = lbl_80346470;
     }
-    if (wantedPitch - *pitch > step) {
-        *pitch += step;
-    } else if (wantedPitch - *pitch < -step) {
-        *pitch -= step;
-    } else {
-        *pitch = wantedPitch;
+
+    {
+        f64 nd;
+        f32 r;
+        f32 step;
+        f32 dd = yawv - *yaw;
+        if (dd > lbl_803464C8) {
+            nd = dd - lbl_803464D0;
+        } else if (dd <= lbl_803464D8) {
+            nd = lbl_803464D0 + dd;
+        } else {
+            nd = dd;
+        }
+        r = (f32)nd;
+        step = (f32)(lbl_803464E0 * gClockFrameStep);
+        if (r > step) {
+            r = step;
+        }
+        if (r < -step) {
+            r = -step;
+        }
+        yawv = *yaw + r;
+        *yaw = yawv;
     }
+
+    {
+        f64 nd;
+        f32 r;
+        f32 step;
+        f32 dd = pitchv - *pitch;
+        if (dd > lbl_803464C8) {
+            nd = dd - lbl_803464D0;
+        } else if (dd <= lbl_803464D8) {
+            nd = lbl_803464D0 + dd;
+        } else {
+            nd = dd;
+        }
+        r = (f32)nd;
+        step = (f32)(lbl_803464E0 * gClockFrameStep);
+        if (r > step) {
+            r = step;
+        }
+        if (r < -step) {
+            r = -step;
+        }
+        pitchv = *pitch + r;
+        *pitch = pitchv;
+    }
+
+    ExtractPYR(node, pyr);
+    {
+        f64 nd;
+        f32 r;
+        f32 dd = yawv - pyr[1];
+        if (dd > lbl_803464C8) {
+            nd = dd - lbl_803464D0;
+        } else if (dd <= lbl_803464D8) {
+            nd = lbl_803464D0 + dd;
+        } else {
+            nd = dd;
+        }
+        r = (f32)nd;
+        if (r > a) {
+            r = a;
+        }
+        if (r < -a) {
+            r = -a;
+        }
+        pyr[1] = pyr[1] + r;
+    }
+
+    {
+        f64 nd;
+        f32 r;
+        f32 dd = pitchv - pyr[0];
+        if (dd > lbl_803464C8) {
+            nd = dd - lbl_803464D0;
+        } else if (dd <= lbl_803464D8) {
+            nd = lbl_803464D0 + dd;
+        } else {
+            nd = dd;
+        }
+        r = (f32)nd;
+        if (r > c) {
+            r = c;
+        }
+        if (r < -c) {
+            r = -c;
+        }
+        pyr[0] = pyr[0] + r;
+    }
+    CreatePYRMatrix(node, pyr);
+#undef pyr
 }
 
 /* 0x80036138 -- test the critter's forward fire segment against players. */
