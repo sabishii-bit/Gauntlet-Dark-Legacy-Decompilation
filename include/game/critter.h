@@ -120,7 +120,9 @@ typedef struct Critter {
     void *emitter;            /* 0x0D4 particle/emitter handle (MBRemoveNode)   */
     s32  emitterset;          /* 0x0D8 emitter-present flag                    */
     void *hitnode2;           /* 0x0DC hit/attach node (hdr->0x5A index)       */
-    u8  _blk0E0[0x38];        /* 0x0E0 .. 0x118                              */
+    u8  _blk0E0[0x30];        /* 0x0E0 .. 0x110                              */
+    f32 rateScale;            /* 0x110 move-rate scale (health-derived)       */
+    f32 invRateScale;         /* 0x114 1.0 / rateScale                        */
     s16 curmove;              /* 0x118 current move index                     */
     s16 nextmove;             /* 0x11A next move index                        */
     s16 unk11C;               /* 0x11C (init -1)                              */
