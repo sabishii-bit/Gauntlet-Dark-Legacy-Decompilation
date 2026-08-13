@@ -1715,22 +1715,108 @@ void MBPsysSetETime(f32 dur, f32 rep, MBObject* node) {
  *  Per-frame driver, removal, and pool management                         *
  * ======================================================================= */
 
-/* 0x800D1074 - advance the clock, free queued psys, spawn deferred effects.
- * Documented reconstruction (NonMatching). */
-void MBPsysStartFrame(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                      f64 f8) {
-    MBObject* node = gPsysRmQueue;
-    gPsysFrame++;
-    gPsysFrameFrac = 0.0f;
+/* 0x800D1074 - advance the clock, free queued psys, spawn deferred effects. */
+extern s8  lbl_803451A8;
+extern s32 lbl_803451A4;
+extern s8  lbl_803451B0;
+extern s32 lbl_803451AC;
+extern s32 gClockElapsedTime;
+extern s32 lbl_80345188;
+extern s32 lbl_8034519C;
+extern s32 lbl_803451A0;
+extern s32 lbl_8034518C;
+extern const f32 lbl_803492A8;   /* 10000000.0f */
+extern const f32 lbl_80343FC8;   /* 2.0f  */
+extern const f32 lbl_80343FCC;   /* 3.0f  */
+extern s32 lbl_80343FD0;         /* 255   */
+extern s32 lbl_80343FD4;
+extern s32 lbl_80343FD8;
+extern s32 lbl_80343FDC;
+extern const f32 lbl_80343FE0;   /* 0.01f */
+extern const f32 lbl_80343FE4;   /* 0.5f  */
+extern const f32 lbl_80343FE8;   /* 0.1f  */
+extern const f32 lbl_80343FEC;   /* 0.28f */
+extern const f32 lbl_80343FF0;   /* 2.0f  */
+
+#pragma dont_inline on
+void MBPsysStartFrame(void) {
+    u8 unused[8];
+    u8* pi = (u8*)psysInfo;
+    u8* g = pi + 64;
+    u8* g2;
+    u32 clock;
+    MBObject* node;
+    u32 config;
+    u32 dbg;
+
+    if (lbl_803451A8 == 0) {
+        lbl_803451A4 = 0;
+        lbl_803451A8 = 1;
+    }
+    if (lbl_803451B0 == 0) {
+        lbl_803451AC = 0;
+        lbl_803451B0 = 1;
+    }
+    clock = gClockElapsedTime + 5000000;
+    lbl_80345188 = 0;
+    if (clock > 150000000) {
+        *(s32*)(g + 20) += 1;
+        *(f32*)(g + 24) = lbl_80349154;
+        if (lbl_803451AC <= 15) {
+            lbl_803451AC = 15;
+        }
+    } else if (lbl_803451AC != 0) {
+        *(s32*)(g + 20) += 1;
+        *(f32*)(g + 24) = lbl_80349154;
+        if (lbl_803451AC <= 15) {
+            lbl_803451AC -= 1;
+        }
+    } else {
+        *(f32*)(g + 24) = (f32)(u32)clock / lbl_803492A8;
+        *(s32*)(g + 20) += (s32)*(f32*)(g + 24);
+        *(f32*)(g + 24) = *(f32*)(g + 24) - (f32)(s32)*(f32*)(g + 24);
+    }
+
+    node = *(MBObject**)(pi + 76);
+    g2 = pi + 64;
     while (node != NULL) {
-        MBObject* next = node->child;
+        MBObject* next = *(MBObject**)((u8*)node + 36);
         freePsys(node);
         node = next;
     }
-    gPsysRmQueue = NULL;
-    gPsysRemoved = 0;
-    (void)MBPsysSetDebugNode(0, 0);
+    *(s32*)(g2 + 12) = 0;
+    *(s32*)(g2 + 8) = 0;
+
+    if ((config = *(u32*)(g + 100)) != 0) {
+        g2 = pi + 64;
+        if ((dbg = *(u32*)(pi + 168)) == 0) {
+            dbg = MBPsysSetDebugNode(0, 0);
+        }
+        *(s32*)(g2 + 108) = (s32)MBNewPsysDescrip(0, dbg, 0, (void*)config);
+        *(s32*)(g + 100) = 0;
+    }
+
+    if (lbl_8034519C != 0) {
+        if (lbl_8034519C == 1) {
+            dbg = MBPsysSetDebugNode(0, 0);
+            lbl_803451A0 = (s32)MBPsysFirework(0, dbg, lbl_80343FD0, lbl_80343FD4,
+                                               lbl_80343FD8, lbl_80343FDC,
+                                               lbl_80343FC8, lbl_80343FCC,
+                                               lbl_80343FE0, lbl_80343FE4,
+                                               lbl_80343FE8);
+        } else if (lbl_8034519C == 2) {
+            dbg = MBPsysSetDebugNode(0, 0);
+            lbl_803451A0 = (s32)MBPsysFlame(lbl_80349220, lbl_80343FEC,
+                                            lbl_80343FF0, 0, dbg, 0);
+        }
+        lbl_8034519C = 0;
+    }
+
+    if (lbl_8034518C != 0) {
+        lbl_8034518C = 0;
+    }
 }
+#pragma dont_inline off
 
 /* 0x800D12F0 - MBRemovePsys: mark a psys node for removal */
 void MBRemovePsys(MBObject* node) {
