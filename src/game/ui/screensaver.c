@@ -505,23 +505,63 @@ void ScreenSaverEnd(void)
     }
 }
 
+int fn_80055F68(int a, int b);
+void DoTexMods(void);
+void PlayerControls(void);
+extern u8 lbl_80240E30[];
+
 void ScreenSaver(void)
 {
-    int i;
+    u8* weap = (u8*)lbl_80274600;
+    s32 exit = 0;
+    s32 i;
 
-    if ((gGameMode & 0x8000) != 0) {
-        return;
+    if ((gGameMode & 0x8000) != 0 || gGameMode == 0x400E || gGameMode == 0x4015 ||
+        fn_80055F68(0, 0) == 0) {
+        lbl_80344A48 = 0;
+    } else {
+        lbl_80344A48 += gClockStepTicks;
+        for (i = 0; i < 4; i++) {
+            u8* wr = weap + i * 4;
+            u8* pr = lbl_80240E30 + i * 60;
+            if (*(void**)(wr + 576) != *(void**)(pr + 4)) {
+                lbl_80344A48 = 0;
+            }
+        }
+        if ((gControllerButtons & 1) != 0) {
+            lbl_80344A48 = 36000;
+        }
+        if ((u32)lbl_80344A48 < 36000) {
+            for (i = 0; i < 4; i++) {
+                u8* pr = lbl_80240E30 + i * 60;
+                u8* wr = weap + i * 4;
+                *(void**)(wr + 576) = *(void**)(pr + 4);
+            }
+        } else {
+            ScreenSaverStart();
+            while (exit == 0) {
+                serve_busy(-1);
+                ClockOncePerFrame();
+                if (sPowerupsBuf != NULL) {
+                    DoTexMods();
+                }
+                for (i = 0; i < 4; i++) {
+                    ScreenSaverUpdateWeap(i);
+                }
+                PlayerControls();
+                for (i = 0; i < 4; i++) {
+                    u8* pr = lbl_80240E30 + i * 60;
+                    u8* wr = weap + i * 4;
+                    if (*(void**)(pr + 4) != *(void**)(wr + 576)) {
+                        exit = 1;
+                    }
+                }
+                MBEndFrame();
+            }
+            ScreenSaverEnd();
+            lbl_80344A48 = 0;
+        }
     }
-    lbl_80344A48 += 1;
-    if (lbl_80344A48 < 36000) {
-        return;
-    }
-    ScreenSaverStart();
-    for (i = 0; i < 4; i++) {
-        ScreenSaverUpdateWeap(i);
-    }
-    ScreenSaverEnd();
-    lbl_80344A48 = 0;
 }
 
 #pragma dont_inline on
