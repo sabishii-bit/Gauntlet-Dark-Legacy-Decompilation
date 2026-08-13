@@ -2795,7 +2795,7 @@ void damage_player(s32 i, f32 dmg_in, u32 flags, f32* dir) {
  * law; the standalone copy deadstrips).  Stops motion, unhooks the
  * grab proxy, clears got-it entries, and drops the keyring item.
  */
-static void player_dies(s32 i) {
+static inline void player_dies(s32 i) {
     Player* p = P(i);
     s32* chest;
     s32 keys;
