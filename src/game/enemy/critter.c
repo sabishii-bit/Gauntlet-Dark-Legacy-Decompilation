@@ -156,6 +156,15 @@ extern s32  *lbl_80344640;
 extern s32   lbl_80344630;
 extern s32   lbl_80344634;
 extern s32   lbl_80344638;
+extern char  lbl_801120E0[];          /* 0x801120E0 rodata format-string anchor    */
+extern s32  *lbl_8025776C[8];         /* 0x8025776C item/def pointer table          */
+DECL_SECT(".sdata2") extern const char lbl_8034664C[]; /* 0x8034664C wad name       */
+extern void *gWorldData;              /* 0x80344838 world data record                */
+extern s32   FileSize(char *name, const char *wad);
+extern s32  *StartFileRead(char *name, const char *wad, s32 mode, s32 size,
+                           s32 arg, void *callback);
+extern void  fn_8001267C(s32 handle, s32 index, s32 flag);
+extern void  InitTexMods(s32 handle, s32 index);
 extern s32   MBOX_BGLoadModelDone(void);
 extern void  MBOX_BGLoadModelStart(const char *name, s32 model, void *arg);
 extern s32   AtreeHeaderFindSeq(void *atree, const char *name);
@@ -3737,34 +3746,61 @@ s32 CritterLoadFile(const char *wad, const char *name)
  * the texture/model-finalization stage. */
 s32 CritterLoadDone(s32 maxBytes)
 {
-    u8 *resource;
+    char buf[36];
+    u8 *desc;
+    char *fmtbase;
+    s32 result;
+    s32 *handle;
+    s32 size;
+    s32 i;
 
-    resource = (u8 *)crit_load_desc;
-    if (resource == NULL) {
-        return 1;
-    }
-    if (*(s16 *)(resource + 0x24) != 1) {
-        if (lbl_80344640 == NULL) {
-            return 1;
+    result = 0;
+    fmtbase = lbl_801120E0;
+    desc = (u8 *)crit_load_desc;
+    if (*(s16 *)(desc + 0x24) == 1) {
+        if (MBOX_BGLoadModelDone() != 0) {
+            *(s16 *)(desc + 0x24) = 2;
+            switch (*(s16 *)(desc + 0x20)) {
+            case 3:
+            case 8:
+                sprintf(buf, &fmtbase[416], desc, (u8 *)gWorldData + 4);
+                break;
+            case 7:
+                for (i = 0; i < 8; i++) {
+                    s32 *entry = lbl_8025776C[i];
+                    if (*entry == 32) {
+                        sprintf(buf, &fmtbase[432], desc, (u8 *)entry + 16);
+                        break;
+                    }
+                }
+                break;
+            default:
+                sprintf(buf, &fmtbase[448], desc);
+                break;
+            }
+            size = FileSize(buf, lbl_8034664C);
+            if (maxBytes != 0 && size > maxBytes) {
+                size = maxBytes;
+            }
+            lbl_80344640 = StartFileRead(buf, lbl_8034664C, 0, size,
+                                         *(s32 *)(desc + 0x28),
+                                         (void *)CritterBGLoadFile);
         }
-        if (lbl_80344640[4] == 0) {
-            return 0;
+    } else {
+        handle = lbl_80344640;
+        if (handle != NULL) {
+            if (*(handle += 4) != 0) {
+                *handle = -1;
+                *(s16 *)(desc + 0x24) = 3;
+                fn_8001267C(*(s32 *)(desc + 0x28), *(s16 *)(desc + 0x22), -1);
+                InitTexMods(*(s32 *)(desc + 0x28), *(s16 *)(desc + 0x22));
+                result = 1;
+            }
+        } else {
+            result = 1;
         }
-        lbl_80344640[4] = -1;
-        *(s16 *)(resource + 0x24) = 3;
-        return 1;
     }
-    if (!MBOX_BGLoadModelDone()) {
-        return 0;
-    }
-    *(s16 *)(resource + 0x24) = 2;
-    /* The original begins the companion texture read here.  Keeping the
-     * loader context live lets CritterBGLoadFile advance the same request. */
-    if (maxBytes < 0) {
-        maxBytes = 0;
-    }
-    (void)maxBytes;
-    return 0;
+    return result;
 }
 
 /* 0x8003F5B4 -- advance a background loader unless it has finished (state 2). */
