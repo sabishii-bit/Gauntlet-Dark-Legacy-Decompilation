@@ -165,6 +165,8 @@ extern s32  *StartFileRead(char *name, const char *wad, s32 mode, s32 size,
                            s32 arg, void *callback);
 extern void  fn_8001267C(s32 handle, s32 index, s32 flag);
 extern void  InitTexMods(s32 handle, s32 index);
+extern s32   LoadModel(char *name, void *out, s32 a, s32 b);
+extern s32   fn_8005A1EC(char *name, void *out);
 extern s32   MBOX_BGLoadModelDone(void);
 extern void  MBOX_BGLoadModelStart(const char *name, s32 model);
 extern s32   AtreeHeaderFindSeq(void *atree, const char *name);
@@ -3913,35 +3915,58 @@ struct CritterHeader *CritterTypeLoaded(s32 type, s32 subtype)
  * it in the type/subtype lookup table. */
 void CritterAllocType(void *hdr, void *move, s32 arg)
 {
-    u8 *container;
-    u8 *typeHeader;
-    u8 *resource;
-    s16 type;
-    s16 subtype;
+    char buf[32];
+    u8 *desc;
+    u8 *fmtbase;
+    s32 k;
+#define m ((u8 *)move)
 
-    container = (u8 *)hdr;
-    typeHeader = (u8 *)move;
-    *(u8 **)(typeHeader + 0x130) = container;
-    resource = *(u8 **)(container + 0x1C) +
-               *(s16 *)(typeHeader + 0x50) * 0x30;
-    *(u8 **)(typeHeader + 0x120) = resource;
-
-    if (*(s16 *)(resource + 0x22) < 0) {
-        if (arg == 0) {
-            *(void **)(typeHeader + 0x138) = NULL;
-        } else {
-            CritterLoadFinish(typeHeader);
+    *(void **)(m + 0x130) = hdr;
+    fmtbase = (u8 *)lbl_801120E0;
+    desc = *(u8 **)((u8 *)hdr + 0x1C) + *(s16 *)(m + 0x50) * 48;
+    *(u8 **)(m + 0x120) = desc;
+    if (*(s16 *)(desc + 0x22) < 0) {
+        switch (*(s16 *)(desc + 0x20)) {
+        case 3:
+        case 8:
+            sprintf(buf, (char *)&fmtbase[416], desc, (u8 *)gWorldData + 4);
+            break;
+        case 7:
+            for (k = 0; k < 8; k++) {
+                s32 *e2 = lbl_8025776C[k];
+                if (*e2 == 32) {
+                    sprintf(buf, (char *)&fmtbase[432], desc, (u8 *)e2 + 16);
+                    break;
+                }
+            }
+            break;
+        default:
+            sprintf(buf, (char *)&fmtbase[448], desc);
+            break;
         }
-    } else if (arg != 0) {
-        CritterLoadFinish(typeHeader);
+        if (arg != 0) {
+            *(s16 *)(desc + 0x22) = LoadModel(buf, (u8 *)desc + 0x28, 0, -1);
+            *(s16 *)(desc + 0x24) = 2;
+            if (*(u8 **)(desc + 0x28) != NULL) {
+                InitTexMods(*(s32 *)(desc + 0x28), *(s16 *)(desc + 0x22));
+                *(s16 *)(desc + 0x24) = 3;
+            }
+        } else {
+            *(s16 *)(desc + 0x22) = fn_8005A1EC(buf, (u8 *)desc + 0x28);
+            *(s16 *)(desc + 0x24) = 1;
+        }
+        *(s16 *)(desc + 0x26) = lbl_80344664;
     }
-
-    type = *(s16 *)(resource + 0x20);
-    subtype = *(s16 *)(typeHeader + 0x52);
-    if (type >= 0 && type < 9 && subtype >= 0 && subtype < 6) {
-        gCritterHeaders[type][subtype] =
-            (struct CritterHeader *)typeHeader;
+    if (arg != 0) {
+        CritterLoadFinish(m);
+    } else {
+        *(s32 *)(m + 0x138) = 0;
     }
+    if (*(s16 *)(m + 0x52) >= 0) {
+        gCritterHeaders[*(s16 *)(desc + 0x20)][*(s16 *)(m + 0x52)] =
+            (struct CritterHeader *)m;
+    }
+#undef m
 }
 
 /* 0x8003F9F4 -- resolve the animation tree and named attachment nodes for a
