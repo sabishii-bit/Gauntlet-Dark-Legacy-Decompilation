@@ -231,6 +231,8 @@ extern void *lbl_80241020[16];
 extern s32   SafeRockActive(void *rock);
 extern void *ItemGetNode(void *rock);
 extern s32   PlayerAttacking(s32 player, s32 mode);
+extern void  GetPlayerColPos(s32 i, f32 *out);
+extern f64   __fabs(f64 x);
 extern char  lbl_8011221C[];          /* 0x8011221C critter-overflow message      */
 extern const char lbl_80112238[];
 extern f32   gIdentityMatrix[12];
@@ -2897,30 +2899,112 @@ void CritterGetDoAction(Critter *c)
     c->counterState &= ~0x130;
 }
 
+static s32 CritterAnimMod(s32 delta, f32 period)
+{
+    f32 t = (f32)delta;
+    if (__fabs(period) <= __fabs(t)) {
+        t = t - period * (f32)(s64)(t / period);
+    }
+    return (s32)t;
+}
+
 /* 0x8003C11C -- convert move frame windows into the two activation edges
  * consumed by CritterActivate. */
 u32 CritterCopyAnim(Critter *c, CritterMove *move, s32 frame)
 {
     u32 result;
-    s32 first;
-    s32 second;
 
     result = 0;
-    first = *(s32 *)((u8 *)move + 0x40);
-    second = *(s32 *)((u8 *)move + 0x44);
-    if (first >= 0 && frame >= first &&
-        frame <= *(s16 *)((u8 *)move + 0x50)) {
-        result |= 1;
+    switch (move->type) {
+    case 0x80:
+    case 0x83:
+    case 0x86: {
+        s32 second;
+        if (frame >= *(s32 *)((u8 *)move + 0x40) &&
+            frame <= *(s16 *)((u8 *)move + 0x50)) {
+            result |= 1;
+        }
+        second = *(s32 *)((u8 *)move + 0x44);
+        if (second >= 0 && frame >= second &&
+            frame <= *(s16 *)((u8 *)move + 0x52)) {
+            result |= 2;
+        }
+        break;
     }
-    if (second >= 0 && frame >= second &&
-        frame <= *(s16 *)((u8 *)move + 0x52)) {
-        result |= 2;
+    case 0x81: {
+        s32 second;
+        if (frame >= *(s32 *)((u8 *)move + 0x40) &&
+            frame <= *(s16 *)((u8 *)move + 0x50)) {
+            result |= 1;
+        }
+        second = *(s32 *)((u8 *)move + 0x44);
+        if (second >= 0 && (c->moveFlags & 2) == 0 && frame >= second) {
+            result |= 2;
+        }
+        break;
     }
-    if (move->type == 0x88 && (c->moveFlags & 1) == 0 &&
-        frame >= first && c->unk124 >= 0) {
-        memcpy(c->targetPos, (u8 *)&gPlayers[c->unk124] + 0x64,
-               sizeof(c->targetPos));
-        result |= 1;
+    case 0x84: {
+        s16 flags = c->moveFlags;
+        s32 second;
+        if ((flags & 1) == 0 && frame >= *(s32 *)((u8 *)move + 0x40)) {
+            result |= 1;
+        }
+        second = *(s32 *)((u8 *)move + 0x44);
+        if (second >= 0 && (flags & 2) == 0 && frame >= second) {
+            result |= 2;
+        }
+        break;
+    }
+    case 0x85: {
+        s32 first = *(s32 *)((u8 *)move + 0x40);
+        s32 second;
+        f32 period;
+        if (frame >= first && frame <= *(s16 *)((u8 *)move + 0x50)) {
+            period = *(f32 *)((u8 *)move + 0x4C);
+            if (period <= lbl_80346488 ||
+                CritterAnimMod(frame - first, period) == 0) {
+                result |= 1;
+            }
+        }
+        second = *(s32 *)((u8 *)move + 0x44);
+        if (second >= 0 && frame >= second &&
+            frame <= *(s16 *)((u8 *)move + 0x52)) {
+            period = *(f32 *)((u8 *)move + 0x4C);
+            if (period <= lbl_80346488 ||
+                CritterAnimMod(frame - second, period) == 0) {
+                result |= 2;
+            }
+        }
+        break;
+    }
+    case 0x88: {
+        s32 second;
+        s16 idx;
+        s16 flags;
+        if ((c->moveFlags & 1) == 0 && frame >= *(s32 *)((u8 *)move + 0x40) &&
+            (idx = c->unk124) >= 0) {
+            GetPlayerColPos(idx, c->targetPos);
+            result |= 1;
+        }
+        second = *(s32 *)((u8 *)move + 0x44);
+        if (second >= 0 && ((flags = c->moveFlags) & 1) != 0 &&
+            (flags & 2) == 0 && frame >= second) {
+            result |= 2;
+        }
+        break;
+    }
+    default: {
+        s16 flags = c->moveFlags;
+        s32 second;
+        if ((flags & 1) == 0 && frame >= *(s32 *)((u8 *)move + 0x40)) {
+            result |= 1;
+        }
+        second = *(s32 *)((u8 *)move + 0x44);
+        if (second >= 0 && (flags & 2) == 0 && frame >= second) {
+            result |= 2;
+        }
+        break;
+    }
     }
     return result;
 }
