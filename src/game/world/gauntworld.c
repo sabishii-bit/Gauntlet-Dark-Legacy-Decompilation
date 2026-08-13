@@ -647,6 +647,11 @@ void fn_8005AF98(u8* record, s32* typeOut, s32* valueOut, s32* fieldOut,
                  s32* stateOut, char** nameOut);
 f32 fn_8005B198(f32 radius, f32* position, Item** result);
 
+static inline u8* world_record_at(u8** records, s16 index)
+{
+    return *records + index * 80;
+}
+
 void fn_8005ACE0(f32* position)
 {
     char** names = sArrowObjectNames;
@@ -738,16 +743,18 @@ void fn_8005AF98(u8* record, s32* typeOut, s32* valueOut, s32* fieldOut,
     s32 nextState;
     char* name;
     char* nextName;
+    u8** worldRecords;
     s32 count;
     s32 i;
-    u8 unusedLow[16];
+    u8 unusedLow[8];
 
     if (*(s32*)record == -1) {
+        worldRecords = (u8**)(gWorldInfo + 104);
         count = *(s32*)(record + 4);
-        fn_8005AF98(*(u8**)(gWorldInfo + 104) + *(s16*)(record + 8) * 80,
+        fn_8005AF98(world_record_at(worldRecords, *(s16*)(record + 8)),
                     &type, &value, &field, &state, &name);
         for (i = 1; i < count; i++) {
-            fn_8005AF98(*(u8**)(gWorldInfo + 104) +
+            fn_8005AF98(*worldRecords +
                             *(s16*)(record + i * 2 + 8) * 80,
                         &nextType, &nextValue, &nextField, &nextState,
                         &nextName);
