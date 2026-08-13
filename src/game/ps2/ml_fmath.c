@@ -423,7 +423,7 @@ static inline void createDirNormalize(f32* vector, volatile f32* root)
                  vector[2] * vector[2];
     f32 scale;
 
-    if (length > 0.0f) {
+    if (length > gMlFmathZero) {
         f64 guess = __frsqrte(length);
         guess = 0.5 * guess * (3.0 - guess * guess * length);
         guess = 0.5 * guess * (3.0 - guess * guess * length);
@@ -467,7 +467,7 @@ void CreateDirMatrix(f32* matrix, f32* direction, f32* up)
         angles[0] = (f32)(0.5 * atan2(direction[1], distance));
         distance = direction[2];
         angles[1] = atan2(direction[0], distance);
-        angles[2] = 0.0f;
+        angles[2] = gMlFmathZero;
         CreateYPRMatrix(matrix, angles);
         return;
     }
@@ -485,9 +485,9 @@ void CreateDirMatrix(f32* matrix, f32* direction, f32* up)
     matrix[0] = matrix[5] * matrix[10] - matrix[6] * matrix[9];
     matrix[1] = matrix[6] * matrix[8] - matrix[4] * matrix[10];
     matrix[2] = matrix[4] * matrix[9] - matrix[5] * matrix[8];
-    matrix[3] = 0.0f;
-    matrix[7] = 0.0f;
-    matrix[11] = 0.0f;
+    matrix[3] = gMlFmathZero;
+    matrix[7] = gMlFmathZero;
+    matrix[11] = gMlFmathZero;
     matrix[15] = 1.0f;
 }
 #pragma opt_propagation reset
