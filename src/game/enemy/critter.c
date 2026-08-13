@@ -4479,32 +4479,36 @@ void CritterInitColnodes(Critter *c)
 
 /* 0x8003F1F0 -- instantiate every auxiliary animation tree attached to a
  * critter type and link the allocated records into the instance. */
+static CritterSubnode *CritterNewAnimInst(void)
+{
+    s32 i;
+    s32 total = lbl_80344668;
+
+    for (i = 0; i < total; i++) {
+        if (((CritterSubnode *)(lbl_802411B0 + i * 0x54))->mbnode == NULL) {
+            break;
+        }
+    }
+    if (i >= 1) {
+        ErrorPrintf("Too many Critter Anim Insts: %d", i);
+        return NULL;
+    }
+    if (i == total) {
+        lbl_80344668 = lbl_80344668 + 1;
+    }
+    return (CritterSubnode *)(lbl_802411B0 + i * 0x54);
+}
+
 void CritterAddAnimInsts(Critter *c, f32 *matrix)
 {
     u8 *node;
     CritterSubnode *record;
     CritterSubnode *tail;
     void *parent;
-    s32 i;
-    s32 total;
 
     node = *(u8 **)((u8 *)c->hdr + 0x134);
     while (node != NULL) {
-        total = lbl_80344668;
-        for (i = 0; i < total; i++) {
-            if (((CritterSubnode *)(lbl_802411B0 + i * 0x54))->mbnode == NULL) {
-                break;
-            }
-        }
-        if (i >= 1) {
-            ErrorPrintf("Too many Critter Anim Insts: %d", i);
-            record = NULL;
-        } else {
-            if (i == total) {
-                lbl_80344668 = lbl_80344668 + 1;
-            }
-            record = (CritterSubnode *)(lbl_802411B0 + i * 0x54);
-        }
+        record = CritterNewAnimInst();
         if (record != NULL) {
             if (c->subnodes != NULL) {
                 tail = (CritterSubnode *)c->subnodes;
