@@ -288,9 +288,9 @@ void CreateYPRMatrix(f32* matrix, const f32* angles)
     matrix[2] = s1 * c2 + b * s2;
     matrix[6] = -s1 * s2 + b * c2;
     matrix[10] = c1 * c0;
-    matrix[3] = 0.0f;
-    matrix[7] = 0.0f;
-    matrix[11] = 0.0f;
+    matrix[3] = gMlFmathZero;
+    matrix[7] = gMlFmathZero;
+    matrix[11] = gMlFmathZero;
     matrix[15] = 1.0f;
 }
 
@@ -317,9 +317,9 @@ void CreateRYPMatrix(f32* matrix, const f32* angles)
     matrix[2] = s1;
     matrix[6] = c1 * s0;
     matrix[10] = c1 * c0;
-    matrix[3] = 0.0f;
-    matrix[7] = 0.0f;
-    matrix[11] = 0.0f;
+    matrix[3] = gMlFmathZero;
+    matrix[7] = gMlFmathZero;
+    matrix[11] = gMlFmathZero;
     matrix[15] = 1.0f;
 }
 
@@ -348,9 +348,9 @@ void CreatePYRMatrix(f32* matrix, const f32* angles)
     matrix[2] = b * c2 + s0 * s2;
     matrix[6] = b * -s2 + s0 * c2;
     matrix[10] = c0 * c1;
-    matrix[3] = 0.0f;
-    matrix[7] = 0.0f;
-    matrix[11] = 0.0f;
+    matrix[3] = gMlFmathZero;
+    matrix[7] = gMlFmathZero;
+    matrix[11] = gMlFmathZero;
     matrix[15] = 1.0f;
 }
 
