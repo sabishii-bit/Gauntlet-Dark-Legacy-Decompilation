@@ -2153,32 +2153,37 @@ void move_logic04(s32 index)
  * timer (rotating -pi/2 and cycling a 4-count), then sweep two clearance probes:
  * a near ray (rad+0.5) via FastWallCollide and a far ray (speed) via the shared
  * object probe; a block on either rotates the heading and re-arms the timer. */
+typedef struct EnemyMovePage05 {
+    u8 _0000[64];
+    f32 speed[45];
+    u8 _00f4[3364];
+    Enemy enemies[25];
+} EnemyMovePage05;
 #pragma opt_propagation off
 void move_logic05(s32 index)
 {
+    EnemyMovePage05* page = (EnemyMovePage05*)lbl_80250E00;
+    Enemy* e;
+    u8* e0;
     s32 it = lbl_80344748;
-    u8* base = (u8*)lbl_80250E00;
-    u8* e0 = base + index * 916;
     s32 type;
     f32 dist;
     f32 speed;
     s32 flee;
-    u8* t;
     f32 probe2[3];
     f32 probe[3];
     f32 probeEnd[3];
     u8 _pad05[56];
 
+    e0 = (u8*)page + index * 916;
     type = *(s32*)(e0 += 3608);
-    e0 = (u8*)(Enemy*)e0;
-    dist = *(f32*)(e0 + 568);
-    t = base;
-    t += type * 4;
-    speed = *(f32*)(t + 64);
+    e = (Enemy*)e0;
+    dist = e->rad;
+    speed = page->speed[type];
     if (it < 0) {
         flee = 0;
     } else {
-        u8* other = base + it * 916;
+        u8* other = (u8*)page + it * 916;
         if (*(s32*)(other + 3788) != 1) {
             flee = 0;
         } else if (*(f32*)(other + 4244) > *(f32*)(e0 + 768)) {
@@ -2268,8 +2273,8 @@ void move_logic05(s32 index)
             }
         }
     }
-    set_enemy_trans((Enemy*)e0, lbl_803468F0, *(f32*)(e0 + 588));
-    *(f32*)(e0 + 580) = turn_enemy_ang((Enemy*)e0, *(f32*)(e0 + 588));
+    set_enemy_trans(e, lbl_803468F0, *(f32*)(e0 + 588));
+    *(f32*)(e0 + 580) = turn_enemy_ang(e, *(f32*)(e0 + 588));
     do_enemy_move(index);
 }
 #pragma opt_propagation reset
@@ -3494,7 +3499,6 @@ void move_logic12(s32 index)
         break;
     }
 }
-
 /* move_logic13 @0x80049C70 (state 13, zombie chain-follower).  Follows its
  * prev_enemy link toward the chain head; if the debug flag is set it dumps the
  * prev/next indices.  Each frame it faces its parent, measures the gap (inline
@@ -7022,5 +7026,3 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
         AnimateATree((void*)(e + 108), 0, 2);
     }
 }
-
-
