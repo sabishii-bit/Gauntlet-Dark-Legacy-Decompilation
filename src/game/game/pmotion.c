@@ -1245,11 +1245,13 @@ STUB(0x80088938, fn_80088938)
 /* 0x80088EF4 - find the nearest other player inside p's forward-facing cone
  * (within maxDist, dot >= minDot), gated by a stack of state/anim/floor
  * eligibility checks.  Returns that player's index, or -1 if none. */
-s32 fn_80088EF4(Player* p, f32 maxDist, f32 minDot) {
-    f32 face[3];
+s32 fn_80088EF4(Player* p, f32 range, f32 minDot) {
     f32 diff[3];
-    s32 closest = -1;
+    f32 face[3];
+    u8 unused[4];
+    f32 maxDist = range;
     s32 i;
+    s32 closest = -1;
     WorldObj* floor;
 
     if (PF(p, 0x6B8, u32) != 0 || PF(p, 0x6BC, u32) != 0 ||
@@ -1299,7 +1301,7 @@ s32 fn_80088EF4(Player* p, f32 maxDist, f32 minDot) {
         if ((PF(op, 0x124, u32) & 0x400) != 0) {
             continue;
         }
-        if (PF(p, 0x834, s32) != 0 && gBossType >= 0) {
+        if (p->quest_state != 0 && gBossType >= 0) {
             continue;
         }
         floor = (WorldObj*)PF(op, 0x8C4, u32);
@@ -1309,7 +1311,7 @@ s32 fn_80088EF4(Player* p, f32 maxDist, f32 minDot) {
         diff[0] = op->pos[0] - p->pos[0];
         diff[1] = op->pos[1] - p->pos[1];
         diff[2] = op->pos[2] - p->pos[2];
-        if (fabsf_(diff[1]) > lbl_80347B28) {
+        if (fabsf_param(diff[1]) > 3.0) {
             continue;
         }
         d = NormalVector2D(diff);
