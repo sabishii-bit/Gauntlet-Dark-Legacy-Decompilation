@@ -112,7 +112,7 @@ static s32          gPolyState;       /* 0x80345300 high-water instance count */
 static s32          gPolyHeaderCount; /* 0x80345304 */
 static s16          gPolyTexOfs;      /* 0x80345308 running tex offset */
 static s32          gPolyVertOffset;  /* 0x8034530C arena allocation cursor */
-static PolyContext* gPolyCtx;         /* 0x80345310 default context */
+PolyContext*        gPolyCtx;         /* 0x80345310 default context; shared with MBTreeInit */
 
 /* --- forward decls (DOL order) --- */
 PolyHeader* MBCreatePolyHeader(s32 capacity);
@@ -376,7 +376,7 @@ done:
     ;
 }
 
-static f32 mbPolyFactor(void) {
+static inline f32 mbPolyFactor(void) {
     return 0.0625f;
 }
 
