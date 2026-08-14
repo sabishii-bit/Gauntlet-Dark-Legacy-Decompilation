@@ -821,8 +821,9 @@ void DoExit(Player* p) {
 s32 PlayerCollideEnemies(Player* p, s32 a2, f32* pos, f32* out, s32 a5,
                          s32* out2, f32 range, f32 p2) {
     f32 hit[3];
+    f32 d;
     f32 best = lbl_80347B30;
-    f64 thresh = lbl_80347B08;
+    u8* item;
     u8* last = NULL;
     s32 lastResult = 0;
     s32 count = 0;
@@ -834,32 +835,27 @@ s32 PlayerCollideEnemies(Player* p, s32 a2, f32* pos, f32* out, s32 a5,
         StartEnemyGrid(pos, range);
     }
 
-    for (;;) {
-        u8* item;
-        s32 type;
-        f32 d;
+    while ((idx = NextGridEnemy()) >= 0) {
         s32 result;
 
-        idx = NextGridEnemy();
-        if (idx < 0) {
-            break;
-        }
         item = sItems + idx * 240;
-        type = **(s32**)item;
 
         {
             s32 skip = 0;
-            if (type == 8) {
+            switch (**(s32**)item) {
+            case 1:
+                if (PF(item, 0xE8, u32) != 0) {
+                    skip = 1;
+                }
+                break;
+            case 8: {
                 s8 sub = PF(item, 0xC8, s8);
-                if ((sub == 2 || sub == 4) && (PF(item, 0xC4, s16) & 1)) {
-                    skip = 0;
-                } else {
+                if ((sub != 2 && sub != 4) ||
+                    (PF(item, 0xC4, s16) & 1) == 0) {
                     skip = 1;
                 }
-            } else if (type < 8) {
-                if (type == 1 && PF(item, 0xE8, s32) != 0) {
-                    skip = 1;
-                }
+                break;
+            }
             }
             if (skip) {
                 continue;
@@ -867,19 +863,26 @@ s32 PlayerCollideEnemies(Player* p, s32 a2, f32* pos, f32* out, s32 a5,
         }
 
         d = fn_8005F0F4(item, a2, pos, hit, range, p2);
-        if (!(d >= thresh)) {
+        if (!(d >= 0.0)) {
             continue;
         }
         result = fn_8005D730(p, item);
-        if (result == 1) {
-            count++;
-        }
-        type = **(s32**)item;
-        if (type != 10 && type >= 9 && type < 12) {
-            PF(p, 0x8AC, u8*) = item;
+        if (result != 0) {
+            if (result == 1) {
+                count++;
+            }
+            {
+                switch (**(s32**)item) {
+                case 9:
+                case 11:
+                    p->special_collision_item = item;
+                    break;
+                }
+            }
         }
         if (last == NULL ||
-            (result != 0 && (d < best || lastResult == 0 || type == 10))) {
+            (result != 0 &&
+             (d < best || lastResult == 0 || **(s32**)item == 10))) {
             best = d;
             last = item;
             lastResult = result;
