@@ -106,7 +106,7 @@ extern s32  sMusicField2F4;      /* 0x803442F4: one-shot stream end counter */
 extern s32  lbl_803449A8;        /* 0x803449A8: extra suspend companion flag */
 extern const char lbl_803459B0; /* "ALL" (default startup mode) */
 extern const char lbl_803459A0[]; /* "streams" (stream file group) */
-extern const char lbl_80345990[]; /* "audio" (bank file group) */
+extern const char lbl_80345990; /* "audio" (bank file group) */
 extern const char lbl_80345998[]; /* "%s.vbk" (bank filename format) */
 extern const u8 lbl_80111348[];   /* 0xB4-byte AllocFile load descriptor */
 
@@ -553,21 +553,196 @@ s32 AudioSetMode(char* modeName)
     return result;
 }
 
+typedef union AudioWordBytes {
+    u32 value;
+    u8 bytes[4];
+} AudioWordBytes;
+
+typedef union AudioHalfBytes {
+    u16 value;
+    u8 bytes[2];
+} AudioHalfBytes;
+
+typedef union AudioRomFloatBytes {
+    f32 value;
+    u8 bytes[4];
+} AudioRomFloatBytes;
+
+typedef struct AudioLoadFrame {
+    u8 unused[164];
+    AudioRomFloatBytes float2Src;
+    AudioRomFloatBytes float2Dst;
+    AudioRomFloatBytes float1Src;
+    AudioRomFloatBytes float1Dst;
+    AudioRomFloatBytes float2Input;
+    AudioRomFloatBytes float2Output;
+    AudioRomFloatBytes float1Input;
+    AudioRomFloatBytes float1Output;
+    AudioWordBytes soundSrc;
+    AudioWordBytes soundDst;
+    AudioHalfBytes half42;
+    AudioHalfBytes half40;
+    AudioHalfBytes half38;
+    AudioHalfBytes half36;
+    AudioWordBytes bankSrc;
+    AudioWordBytes bankDst;
+    AudioWordBytes arraySrc;
+    AudioWordBytes arrayDst;
+    AudioWordBytes part5Src;
+    AudioWordBytes part5Dst;
+    AudioWordBytes part4Src;
+    AudioWordBytes part4Dst;
+    AudioWordBytes part3Src;
+    AudioWordBytes part3Dst;
+    AudioWordBytes part2Src;
+    AudioWordBytes part2Dst;
+    AudioWordBytes part1Src;
+    AudioWordBytes part1Dst;
+    AudioWordBytes modeSrc;
+    AudioWordBytes modeDst;
+    AudioWordBytes root6Src;
+    AudioWordBytes root6Dst;
+    AudioWordBytes root5Src;
+    AudioWordBytes root5Dst;
+    AudioWordBytes root4Src;
+    AudioWordBytes root4Dst;
+    AudioWordBytes root3Src;
+    AudioWordBytes root3Dst;
+    AudioWordBytes root2Src;
+    AudioWordBytes root2Dst;
+    AudioWordBytes root1Src;
+    AudioWordBytes root1Dst;
+} AudioLoadFrame;
+
+#define AUDIO_SWAP_WORD_AT(src, dst, ptr) do { \
+    (src).value = *(ptr); \
+    *(volatile u8*)&(dst).bytes[0] = *(volatile u8*)&(src).bytes[3]; \
+    *(volatile u8*)&(dst).bytes[1] = *(volatile u8*)&(src).bytes[2]; \
+    *(volatile u8*)&(dst).bytes[2] = *(volatile u8*)&(src).bytes[1]; \
+    *(volatile u8*)&(dst).bytes[3] = *(volatile u8*)&(src).bytes[0]; \
+    *(ptr) = (dst).value; \
+} while (0)
+
+#define AUDIO_SWAP_ROOT_AT(src, dst, offset) do { \
+    (src).value = *(u32*)(sAudioBankTable + (offset)); \
+    *(volatile u8*)&(dst).bytes[0] = *(volatile u8*)&(src).bytes[3]; \
+    *(volatile u8*)&(dst).bytes[1] = *(volatile u8*)&(src).bytes[2]; \
+    *(volatile u8*)&(dst).bytes[2] = *(volatile u8*)&(src).bytes[1]; \
+    *(volatile u8*)&(dst).bytes[3] = *(volatile u8*)&(src).bytes[0]; \
+    *(u32*)((*(u8* volatile*)&sAudioBankTable) + (offset)) = (dst).value; \
+} while (0)
+
+#define AUDIO_SWAP_HALF_AT(src, ptr) do { \
+    (src).value = *(ptr); \
+    *(ptr) = (u16)(((src).bytes[0]) | ((src).bytes[1] << 8)); \
+} while (0)
+
+#define AUDIO_SWAP_FLOAT_AT(input, src, dst, output, ptr) do { \
+    (input).value = *(ptr); \
+    (src) = (input); \
+    *(volatile u8*)&(dst).bytes[0] = *(volatile u8*)&(src).bytes[3]; \
+    *(volatile u8*)&(dst).bytes[1] = *(volatile u8*)&(src).bytes[2]; \
+    *(volatile u8*)&(dst).bytes[2] = *(volatile u8*)&(src).bytes[1]; \
+    *(volatile u8*)&(dst).bytes[3] = *(volatile u8*)&(src).bytes[0]; \
+    (output) = (dst); \
+    *(ptr) = (output).value; \
+} while (0)
+
 /* AudioLoadRom: load the "audio" ROM group (via a 0xB4-byte load descriptor at
  * lbl_80111348) into hi-mem, then byte-reverse every u32 field of its little-
  * endian descriptor tree into GameCube big-endian in place.
  *
- * PARKED GIANT (0x508 bytes / 322 insns): the body is an almost fully unrolled
- * sequence of the 4-byte reversal idiom seen in AudioSetListenerPos -- root
- * header words at +0/+4/+8/+12, then a walk of the bank (stride 44), part and
- * sound tables swapping each field, rebasing the root's file offsets to absolute
- * pointers.  The original bytes stay linked (NonMatching); the exact field
- * roster is not reconstructed here. */
+ * sequence of the 4-byte reversal idiom seen in AudioSetListenerPos. */
+#ifdef __MWERKS__
+#pragma opt_lifetimes off
+#endif
 void AudioLoadRom(void)
 {
-    sAudioBankTable = (u8*)AllocFile((char*)lbl_80345990, (void*)lbl_80111348);
-    /* ... 322-insn in-place LE->BE descriptor-tree swap omitted (see above) ... */
+    AudioLoadFrame frame;
+    s32 modeIndex;
+    s32 partIndex;
+    u8* mode;
+    u8* part;
+    s32 modeOffset;
+    s32 partOffset;
+    s32 wordIndex;
+    s32 soundIndex;
+    s32 bankIndex;
+    u8* bank;
+    u8* sound;
+    u8* table;
+
+    sAudioBankTable = (u8*)AllocFile((char*)&lbl_80345990, (void*)lbl_80111348);
+
+    AUDIO_SWAP_ROOT_AT(frame.root1Src, frame.root1Dst, 0);
+    AUDIO_SWAP_ROOT_AT(frame.root2Src, frame.root2Dst, 4);
+    AUDIO_SWAP_ROOT_AT(frame.root3Src, frame.root3Dst, 8);
+    AUDIO_SWAP_ROOT_AT(frame.root4Src, frame.root4Dst, 12);
+    AUDIO_SWAP_ROOT_AT(frame.root5Src, frame.root5Dst, 16);
+    AUDIO_SWAP_ROOT_AT(frame.root6Src, frame.root6Dst, 20);
+
+    {
+        u8* root;
+        root = sAudioBankTable;
+        *(u32*)(root + 12) = (u32)root + *(u32*)(root + 12);
+        root = sAudioBankTable;
+        *(u32*)(root + 16) = (u32)root + *(u32*)(root + 16);
+        root = sAudioBankTable;
+        *(u32*)(root + 20) = (u32)root + *(u32*)(root + 20);
+    }
+
+    modeOffset = 0;
+    for (modeIndex = 0; modeIndex < *(s32*)(sAudioBankTable + 0);
+         modeIndex++, modeOffset += 9364) {
+        mode = *(u8**)(sAudioBankTable + 12) + modeOffset;
+        AUDIO_SWAP_WORD_AT(frame.modeSrc, frame.modeDst, (u32*)(mode + 16));
+        partIndex = 0;
+        partOffset = 0;
+        while (partIndex < *(s32*)(mode + 16)) {
+            part = mode + 20 + partOffset;
+            AUDIO_SWAP_WORD_AT(frame.part1Src, frame.part1Dst, (u32*)(part + 16));
+            AUDIO_SWAP_WORD_AT(frame.part2Src, frame.part2Dst, (u32*)(part + 20));
+            AUDIO_SWAP_WORD_AT(frame.part3Src, frame.part3Dst, (u32*)(part + 24));
+            AUDIO_SWAP_WORD_AT(frame.part4Src, frame.part4Dst, (u32*)(part + 284));
+            AUDIO_SWAP_WORD_AT(frame.part5Src, frame.part5Dst, (u32*)(part + 288));
+            for (wordIndex = 0; wordIndex < 64; wordIndex++) {
+                AUDIO_SWAP_WORD_AT(frame.arraySrc, frame.arrayDst,
+                                   (u32*)(part + 28 + wordIndex * 4));
+            }
+            partIndex++;
+            partOffset += 292;
+        }
+    }
+
+    bankIndex = 0;
+    modeIndex = 0;
+    while ((table = sAudioBankTable, bankIndex < *(s32*)(table + 4))) {
+        bank = *(u8**)(table + 16) + modeIndex;
+        AUDIO_SWAP_WORD_AT(frame.bankSrc, frame.bankDst, (u32*)(bank + 32));
+        AUDIO_SWAP_HALF_AT(frame.half36, (u16*)(bank + 36));
+        AUDIO_SWAP_HALF_AT(frame.half38, (u16*)(bank + 38));
+        AUDIO_SWAP_HALF_AT(frame.half40, (u16*)(bank + 40));
+        AUDIO_SWAP_HALF_AT(frame.half42, (u16*)(bank + 42));
+        bankIndex++;
+        modeIndex += 44;
+    }
+
+    soundIndex = 0;
+    modeIndex = 0;
+    while ((table = sAudioBankTable, soundIndex < *(s32*)(table + 8))) {
+        sound = *(u8**)(table + 20) + modeIndex;
+        AUDIO_SWAP_WORD_AT(frame.soundSrc, frame.soundDst, (u32*)(sound + 16));
+        AUDIO_SWAP_FLOAT_AT(frame.float1Input, frame.float1Src, frame.float1Dst,
+                            frame.float1Output, (f32*)(sound + 20));
+        AUDIO_SWAP_FLOAT_AT(frame.float2Input, frame.float2Src, frame.float2Dst,
+                            frame.float2Output, (f32*)(sound + 24));
+        soundIndex++;
+        modeIndex += 28;
+    }
 }
+#ifdef __MWERKS__
+#pragma opt_lifetimes reset
+#endif
 
 /* ---------------------------------------------------------------- */
 /* bank part registration / async load                              */
@@ -746,7 +921,7 @@ s32 AudioLoadPart(s32 bankIdx, s32 partIdx, s32 waitLevel, s32 flag)
     savedBusy = sAudioQueBusy;
     sAudioQueBusy = 1;
     sprintf(name, lbl_80345998, (char*)romBank);   /* "%s.vbk" */
-    if (FileMap((char*)lbl_80345990, name, &mapPtr, 256, &mapSz1, &mapSz2) == 0) {
+    if (FileMap((char*)&lbl_80345990, name, &mapPtr, 256, &mapSz1, &mapSz2) == 0) {
         ErrorPrintf("Audio Bank bad file: %s", name);
     } else {
         queueSlot = sAudioState + slot * 36;
