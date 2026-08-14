@@ -1295,6 +1295,19 @@ s32 get_display_mode(s32 i) {
 /* experience / gold                                                   */
 /* ------------------------------------------------------------------ */
 
+static inline s32 CalcLevelExp(s32 lv) {
+    s32 product;
+    s32 result;
+
+    if (lv <= 60) {
+        return (lv - 1) * (lv * 30 + 1000);
+    }
+    product = (lv - 60) * 4600;
+    result = 0x28550;
+    result += product;
+    return result;
+}
+
 /* Give exp; mode -2 scales by level bracket, mode 1 charges the power
  * meter, mode >= 0 forwards into an attached familiar. */
 s32 AddExp(s32 pnum, s32 amount, s32 mode) {
@@ -1362,41 +1375,28 @@ s32 AddExp(s32 pnum, s32 amount, s32 mode) {
 static s32 ModifyExp(Player* p, s32 delta) {
     s32 res = 0;
     s32 need;
+    u8 unused[8];
 
     p->exp = p->exp + delta;
     if (p->exp < 0) {
         p->exp = 0;
     }
     if (delta > 0) {
-        need = p->level;
-        if (need + 1 <= 60) {
-            need = need * ((need + 1) * 30 + 1000);
-        } else {
-            need = (need - 59) * 4600 + 0x28550;
-        }
-        while (need <= p->exp && p->level < 99) {
+        need = CalcLevelExp(p->level + 1);
+        while (p->exp >= need && p->level < 99) {
             res = 1;
             p->level = p->level + 1;
             check_player_atts(p, p->character, NULL);
-            need = p->level;
-            if (need + 1 <= 60) {
-                need = need * ((need + 1) * 30 + 1000);
-            } else {
-                need = (need - 59) * 4600 + 0x28550;
-            }
+            need = CalcLevelExp(p->level + 1);
         }
     } else if (delta < 0) {
         while ((need = p->level) > 1) {
-            if (need <= 60) {
-                need = (need - 1) * (need * 30 + 1000);
-            } else {
-                need = (need - 60) * 4600 + 0x28550;
-            }
-            if (need <= p->exp) {
+            need = CalcLevelExp(need);
+            if (p->exp >= need) {
                 break;
             }
             res = -1;
-            p->level = p->level - 1;
+            p->level = *(volatile s32*)&p->level - 1;
             check_player_atts(p, p->character, NULL);
         }
     }
