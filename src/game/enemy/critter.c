@@ -3666,13 +3666,18 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
 s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
 {
     u8 *entry;
-    u32 flags;
-    f32 color[3];
-    f32 world[3];
-    f32 mtxTmp[16];
-    f32 scale;
     s32 result;
-    s32 i;
+    u32 flags;
+    f32 mtxTmp[16];
+    u32 unusedHigh;
+    f32 world[3];
+    u32 unusedLow;
+    f32 color[3];
+    f32 scale;
+    f32 skinValue;
+    s32 nodeCount;
+    s32 audio;
+    s16 skinParam;
 
     result = -1;
     if (sfx < 0) {
@@ -3701,17 +3706,22 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
     if ((flags & 0x0F000000) != 0) {
         CritterDoParticle(c, entry, arg4);
     } else if ((flags & 0x100) != 0) {
+        skinValue = *(f32 *)(entry + 0x40);
+        nodeCount = (s32)(lbl_80346630 * *(f32 *)(entry + 0x3C));
+        skinParam = *(s16 *)(entry + 0x44);
         if (*(s32 *)(entry + 8) >= 0) {
             SetSkinFX((u8 *)c + 0xE0, *(s32 *)(entry + 8),
-                      (s32)(lbl_80346630 * *(f32 *)(entry + 0x3C)),
-                      *(s16 *)(entry + 0x44), *(f32 *)(entry + 0x40));
+                      nodeCount, skinParam, skinValue);
         } else {
             SetSkinFX((u8 *)c + 0xE0, lbl_802897B8[c->counterState & 0xF], 10,
                       0, lbl_803464E8);
         }
     } else if ((flags & 0x200) != 0) {
-        for (i = 0; i < *(s16 *)((u8 *)c->hdr + 0x118); i++) {
-            u8 *node = (u8 *)c + 0x4F8 + i * 0x5C;
+        nodeCount = 0;
+        arg4 = 0;
+        for (; nodeCount < *(s16 *)((u8 *)c->hdr + 0x118);
+             nodeCount++, arg4 += 0x5C) {
+            u8 *node = (u8 *)c + 0x4F8 + arg4;
             if ((*(s16 *)(*(u8 **)node + 0x10) & 1) == 0) {
                 world[0] = *(f32 *)(node + 0x3C) + color[0];
                 world[1] = *(f32 *)(node + 0x40) + color[1];
@@ -3719,9 +3729,7 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
                 result = CritterDoSfxSub(c, entry, world, 0, flags);
             }
         }
-    } else if (*(s32 *)(entry + 8) < 0) {
-        result = -1;
-    } else {
+    } else if (*(s32 *)(entry + 8) >= 0) {
         if ((flags & 0x801) != 0) {
             arg3 = 1;
             world[0] = color[0];
@@ -3744,29 +3752,32 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
                 world[2] = c->vel[2];
             }
             if (parent != NULL) {
-                world[0] += ((f32 *)parent)[0];
-                world[1] += ((f32 *)parent)[1];
-                world[2] += ((f32 *)parent)[2];
+                world[0] = ((f32 *)parent)[0] + world[0];
+                world[1] = ((f32 *)parent)[1] + world[1];
+                world[2] = ((f32 *)parent)[2] + world[2];
             }
             arg3 = 0;
         } else if (parent != NULL) {
-            world[0] = color[0] + ((f32 *)parent)[0];
-            world[1] = color[1] + ((f32 *)parent)[1];
-            world[2] = color[2] + ((f32 *)parent)[2];
+            world[0] = ((f32 *)parent)[0] + color[0];
+            world[1] = ((f32 *)parent)[1] + color[1];
+            world[2] = ((f32 *)parent)[2] + color[2];
         } else {
             world[0] = color[0];
             world[1] = color[1];
             world[2] = color[2];
         }
         result = CritterDoSfxSub(c, entry, world, arg3, flags);
+    } else {
+        result = -1;
     }
 
-    if (*(s32 *)(entry + 0xC) >= 0) {
+    audio = *(s32 *)(entry + 0xC);
+    if (audio >= 0) {
         if (c->curmove >= 0 &&
             (*(CritterMove **)((u8 *)c->hdr + 0x124))[c->curmove].type == 17) {
-            AudioPlay3DSel(*(s32 *)(entry + 0xC), 224, c->vel, 0);
+            AudioPlay3DSel(audio, 224, c->vel, 0);
         } else {
-            AudioPlay3DSel(*(s32 *)(entry + 0xC), 224, c->vel, 1);
+            AudioPlay3DSel(audio, 224, c->vel, 1);
         }
     }
     if ((flags & 2) != 0) {
@@ -3776,10 +3787,10 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
         SafeRockSetup();
     }
     if ((*(u32 *)entry & 0x40000) != 0) {
-        if (c->unkABA < 0) {
-            c->unkABA = (s16)result;
-        } else {
+        if (c->unkABA >= 0) {
             ErrorPrintf(lbl_801121C0);
+        } else {
+            c->unkABA = (s16)result;
         }
     }
     if (*(s32 *)(entry + 4) >= 0) {
