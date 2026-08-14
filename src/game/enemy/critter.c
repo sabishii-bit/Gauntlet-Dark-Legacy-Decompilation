@@ -667,17 +667,20 @@ void CritterWorldDamage(Critter *c, void *surface, f32 *origin,
 #pragma dont_inline on
 s32 CritterNodeEnemyCollide(Critter *c, void *damageDef)
 {
+    u8 unusedHigh[8];
     u8 *dmg = (u8 *)damageDef;
-    f32 out[3];
     f32 pos[3];
+    u8 unusedMid[20];
+    f32 out[3];
+    u8 unusedLow[4];
     f32 delta[3];
-    f32 f26v;
-    f32 radius;
+    f64 zero;
     f32 bx;
     f32 by;
     f32 bz;
+    f32 radius;
+    f32 f26v;
     f64 k;
-    f64 zero;
     s32 count;
     s32 idx;
     u8 *e;
@@ -686,11 +689,11 @@ s32 CritterNodeEnemyCollide(Critter *c, void *damageDef)
     f26v = *(f32 *)(dmg + 0x0C);
     count = 0;
     MulVecMat3((f32 *)(dmg + 0x20), out, c->worldMoveMatrix);
-    pos[0] = c->moveOrigin[0] + out[0];
     bx = c->moveMatrix[0] + out[0];
     by = c->moveMatrix[1] + out[1];
-    pos[1] = c->moveOrigin[1] + out[1];
     bz = c->moveMatrix[2] + out[2];
+    pos[0] = c->moveOrigin[0] + out[0];
+    pos[1] = c->moveOrigin[1] + out[1];
     pos[2] = c->moveOrigin[2] + out[2];
     StartItemGrid(f26v, pos);
     k = lbl_80346478;
