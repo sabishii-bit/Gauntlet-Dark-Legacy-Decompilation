@@ -552,6 +552,10 @@ game/mb/mb_poly.c:
 	extab       start:0x80008628 end:0x80008668
 	extabindex  start:0x8000CDE4 end:0x8000CE44
 	.text       start:0x800DDE34 end:0x800DE928
+	.rodata     start:0x801177F8 end:0x80117843
+	.bss        start:0x80321C30 end:0x80326F30
+	.sbss       start:0x80345300 end:0x80345318
+	.sdata2     start:0x803493F8 end:0x80349438
 
 TRK_MINNOW_DOLPHIN/Portable/mainloop.c:
 	.text       start:0x800DE928 end:0x800DEA90
