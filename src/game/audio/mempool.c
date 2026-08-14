@@ -245,6 +245,26 @@ static inline MemListNode* pool_new_block(void)
     return node;
 }
 
+static inline s32 pool_merge_adjacent(MemPoolLists* pool,
+                                      MemListNode* candidate,
+                                      MemListNode* node, s32 merged)
+{
+    if ((void*)(candidate->flags + candidate->key) == (void*)node->flags) {
+        node->flags = candidate->flags;
+        node->key += candidate->key;
+        list_remove(&pool->primary, candidate);
+        merged = 1;
+    } else {
+        if ((void*)(node->flags + node->key) == (void*)candidate->flags) {
+            node->key += candidate->key;
+            list_remove(&pool->primary, candidate);
+            merged = 1;
+        }
+    }
+
+    return merged;
+}
+
 /* 0x800D55A8  first-fit allocate (list_remove) */
 MemListNode* pool_alloc(MemPoolLists* pool, MemListNode* node) {
     MemListNode* result;
@@ -278,21 +298,7 @@ MemListNode* pool_alloc(MemPoolLists* pool, MemListNode* node) {
             if (scan != pool->primary.head) {
                 scan = scan->prev;
             }
-            merged = 0;
-            owner = candidate->flags + candidate->key;
-            if (owner == node->flags) {
-                node->flags = candidate->flags;
-                node->key += candidate->key;
-                list_remove(&pool->primary, candidate);
-                merged = 1;
-            } else {
-                owner = node->flags + node->key;
-                if (owner == candidate->flags) {
-                    node->key += candidate->key;
-                    list_remove(&pool->primary, candidate);
-                    merged = 1;
-                }
-            }
+            merged = pool_merge_adjacent(pool, candidate, node, 0);
 
             if (merged != 0) {
                 if (result == NULL) {
