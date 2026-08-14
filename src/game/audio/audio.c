@@ -1468,56 +1468,75 @@ s32 AudioFindSound(char* name, s32 maxLen, s32 warn)
 /* AudioTrackRegister: fill (or find-and-fill) a spatial voice descriptor slot
  * with the sound's resolved index, listener params and an expiry tick computed
  * from the sound's duration in seconds (dur * 60 frames + now). */
+typedef struct AudioTrackBank {
+    u8 pad[38];
+    s16 firstSound;
+    u8 tail[4];
+} AudioTrackBank;
+
+typedef struct AudioTrackSound {
+    u8 pad[20];
+    f32 duration;
+    u8 tail[4];
+} AudioTrackSound;
+
+#pragma opt_propagation off
 void AudioTrackRegister(s32 slot, s32 packedId, s32 a, s32 b, s32 c)
 {
     s32* d;
     f32 dur;
-    u8* snd;
+    AudioTrackBank* bank;
+    AudioTrackSound* sound;
+    u8 unused[32];
 
     if (slot >= 0) {
         d = gAudioVoiceDesc[slot];
-        snd = *(u8**)(sAudioBankTable + 16) + (packedId >> 16) * 44;
-        d[0] = (packedId & 0xFFF) + *(s16*)(snd + 38);
+        bank = (AudioTrackBank*)*(u8**)(sAudioBankTable + 16) +
+               (packedId >> 16);
+        d[0] = (packedId & 0xFFF) + bank->firstSound;
         d[1] = d[0];
         d[2] = packedId;
         d[3] = pbLoad;
         d[4] = a;
         d[5] = b;
         d[6] = c;
-        snd = *(u8**)(sAudioBankTable + 20) + d[0] * 28;
-        dur = *(f32*)(snd + 20);
+        sound = (AudioTrackSound*)*(u8**)(sAudioBankTable + 20) + d[0];
+        dur = sound->duration;
         if (dur > lbl_80345930) {
-            d[7] = (s32)(lbl_80345940 * dur + (f32)pbLoad);
+            d[7] = (s32)(lbl_80345940 * dur + (f32)d[3]);
         } else {
             d[7] = -1;
         }
     } else {
         s32 i;
+        s32* entry;
         /* free-slot rescan (the shipped table start index leaves this path
          * effectively inert, but the body is preserved verbatim) */
         for (i = 12; i < 12; i++) {
-            d = gAudioVoiceDesc[i];
-            if (d[0] < 0) {
-                snd = *(u8**)(sAudioBankTable + 16) + (packedId >> 16) * 44;
-                d[0] = (packedId & 0xFFF) + *(s16*)(snd + 38);
-                d[1] = d[0];
-                d[2] = packedId;
-                d[3] = pbLoad;
-                d[4] = a;
-                d[5] = b;
-                d[6] = c;
-                snd = *(u8**)(sAudioBankTable + 20) + d[0] * 28;
-                dur = *(f32*)(snd + 20);
+            entry = gAudioVoiceDesc[i];
+            if (entry[0] < 0) {
+                bank = (AudioTrackBank*)*(u8**)(sAudioBankTable + 16) +
+                       (packedId >> 16);
+                entry[0] = (packedId & 0xFFF) + bank->firstSound;
+                entry[1] = entry[0];
+                entry[2] = packedId;
+                entry[3] = pbLoad;
+                entry[4] = a;
+                entry[5] = b;
+                entry[6] = c;
+                sound = (AudioTrackSound*)*(u8**)(sAudioBankTable + 20) + entry[0];
+                dur = sound->duration;
                 if (dur > lbl_80345930) {
-                    d[7] = (s32)(lbl_80345940 * dur + (f32)pbLoad);
+                    entry[7] = (s32)(lbl_80345940 * dur + (f32)entry[3]);
                 } else {
-                    d[7] = -1;
+                    entry[7] = -1;
                 }
                 break;
             }
         }
     }
 }
+#pragma opt_propagation reset
 
 /* AudioIsActive: true when audio is not muted. */
 s32 AudioIsActive(void)
