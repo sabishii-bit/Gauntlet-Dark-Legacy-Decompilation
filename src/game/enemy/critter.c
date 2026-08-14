@@ -821,6 +821,10 @@ void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
     f32 yawv;
     f32 pitchv;
     f32 matrix[16];
+    f32 dd;
+    f64 nd;
+    f32 r;
+    f32 step;
 #define pyr (pyrU.v)
 
     if (target != NULL) {
@@ -840,10 +844,7 @@ void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
     }
 
     {
-        f64 nd;
-        f32 r;
-        f32 step;
-        f32 dd = yawv - *yaw;
+        dd = yawv - *yaw;
         if (dd > lbl_803464C8) {
             nd = dd - lbl_803464D0;
         } else if (dd <= lbl_803464D8) {
@@ -889,15 +890,12 @@ void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
 
     ExtractPYR(node, pyr);
     {
-        f64 nd;
-        f32 r;
-        f32 dd = yawv - pyr[1];
-        if (dd > lbl_803464C8) {
-            nd = dd - lbl_803464D0;
-        } else if (dd <= lbl_803464D8) {
-            nd = lbl_803464D0 + dd;
-        } else {
-            nd = dd;
+        f32 *pyrYaw = &pyr[1];
+        nd = yawv - *pyrYaw;
+        if (nd > lbl_803464C8) {
+            nd = nd - lbl_803464D0;
+        } else if (nd <= lbl_803464D8) {
+            nd = lbl_803464D0 + nd;
         }
         r = (f32)nd;
         if (r > a) {
@@ -906,19 +904,16 @@ void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
         if (r < -a) {
             r = -a;
         }
-        pyr[1] = pyr[1] + r;
+        *pyrYaw += r;
     }
 
     {
-        f64 nd;
-        f32 r;
-        f32 dd = pitchv - pyr[0];
-        if (dd > lbl_803464C8) {
-            nd = dd - lbl_803464D0;
-        } else if (dd <= lbl_803464D8) {
-            nd = lbl_803464D0 + dd;
-        } else {
-            nd = dd;
+        f32 *pyrPitch = &pyr[0];
+        nd = pitchv - *pyrPitch;
+        if (nd > lbl_803464C8) {
+            nd = nd - lbl_803464D0;
+        } else if (nd <= lbl_803464D8) {
+            nd = lbl_803464D0 + nd;
         }
         r = (f32)nd;
         if (r > c) {
@@ -927,7 +922,7 @@ void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
         if (r < -c) {
             r = -c;
         }
-        pyr[0] = pyr[0] + r;
+        *pyrPitch += r;
     }
     CreatePYRMatrix(node, pyr);
 #undef pyr
