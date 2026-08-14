@@ -4661,56 +4661,66 @@ void CritterRemoveColnodeSub(Critter *c, CritterColnode *node, s32 mode)
         node = next;
     }
 }
+static inline void *CritterColnodeAnimNode(Critter *c, s32 index)
+{
+    void *node = c->anim;
+    void *candidate;
+
+    if (index < 0) {
+        return node;
+    }
+    candidate = *(void **)((u8 *)c->anodes + index * 0x28);
+    if (candidate == NULL) {
+        candidate = node;
+    }
+    return candidate;
+}
 /* 0x8003EEF8 -- bind each collision descriptor to its animation node and
  * initialize its health, flash and optional damage-effect state. */
 void CritterInitColnodes(Critter *c)
 {
     u8 *header;
+    s32 i;
+    u8 *descriptorBase;
     u8 *descriptor;
     u8 *record;
-    s32 i;
-    s16 nodeIndex;
-
-    f32 zerof = lbl_80346470;
+    char *name;
+    s8 ch;
+    s32 nodeIndex;
+    f32 zerof;
+    u8 unused[8];
 
     header = (u8 *)c->hdr;
     if (*(s16 *)(header + 0x118) <= 0) {
         return;
     }
-    descriptor = *(u8 **)(*(u8 **)(header + 0x130) + 0x3C) +
-                 *(s16 *)(header + 0x11A) * 0x50;
+    descriptorBase = *(u8 **)(*(u8 **)(header + 0x130) + 0x3C) +
+                     *(s16 *)(header + 0x11A) * 0x50;
     c->unkAB8 = -1;
-    for (i = 0; i < *(s16 *)((u8 *)c->hdr + 0x118);
-         i++, descriptor += 0x50) {
+    zerof = lbl_80346470;
+    for (i = 0; i < *(s16 *)((u8 *)c->hdr + 0x118); i++) {
         record = (u8 *)c + 0x4F8 + i * 0x5C;
-        *(u8 **)record = descriptor;
-        nodeIndex = *(s16 *)(descriptor + 0x14);
-        if (nodeIndex < 0) {
-            *(void **)(record + 4) = NULL;
+        *(u8 **)record = descriptorBase + i * 0x50;
+        nodeIndex = *(s16 *)(*(u8 **)record + 0x14);
+        if ((s16)nodeIndex >= 0) {
+            *(void **)(record + 4) = CritterColnodeAnimNode(c, nodeIndex);
         } else {
-            void *node = c->anim;
-            if (nodeIndex >= 0) {
-                node = *(void **)((u8 *)c->anodes + nodeIndex * 0x28);
-                if (node == NULL) {
-                    node = c->anim;
-                }
-            }
-            *(void **)(record + 4) = node;
+            *(void **)(record + 4) = NULL;
         }
         *(void **)(record + 8) = *(void **)(record + 4);
         if (*(void **)(record + 4) != NULL) {
-            char *name = (char *)*(u8 **)record + 0x30;
-            s8 ch = name[0];
+            descriptor = *(u8 **)record;
+            ch = *(s8 *)(name = (char *)descriptor + 0x30);
             if (ch != 0) {
                 if (ch == '-') {
-                    s32 n = name[1] - '0';
+                    s32 n = *(s8 *)(*(u8 **)record + 0x31) - '0';
                     while (n > 0) {
                         *(void **)(record + 8) =
                             *(void **)(*(u8 **)(record + 8) + 0x74);
                         n--;
                     }
                 } else if (ch == '+') {
-                    s32 n = name[1] - '0';
+                    s32 n = *(s8 *)(*(u8 **)record + 0x31) - '0';
                     while (n > 0) {
                         *(void **)(record + 8) =
                             *(void **)(*(u8 **)(record + 8) + 0x78);
@@ -4719,38 +4729,30 @@ void CritterInitColnodes(Critter *c)
                 } else {
                     s32 idx = -1;
                     void *atc = *(void **)((u8 *)c->hdr + 0x138);
-                    void *node;
                     if (atc != NULL && name != NULL && ch != 0 &&
                         name[1] != 0) {
                         idx = AtreeFindNodeIdx(*(void **)((u8 *)atc + 0xC),
                                                *(s32 *)((u8 *)atc + 0x10),
                                                name, 0x10);
                     }
-                    node = c->anim;
-                    if (idx >= 0) {
-                        node = *(void **)((u8 *)c->anodes + idx * 0x28);
-                        if (node == NULL) {
-                            node = c->anim;
-                        }
-                    }
-                    *(void **)(record + 8) = node;
+                    *(void **)(record + 8) = CritterColnodeAnimNode(c, idx);
                 }
             }
         }
         MBTreeSetZsortAdd(*(void **)(record + 4),
-                          *(s16 *)(descriptor + 0x16), 1);
+                          *(s16 *)(*(u8 **)record + 0x16), 1);
         *(s32 *)(record + 0x50) = -1;
         *(f32 *)(record + 0x58) = zerof;
         *(f32 *)(record + 0x54) =
-            *(f32 *)(descriptor + 0x44) * c->health;
+            *(f32 *)(*(u8 **)record + 0x44) * c->health;
         {
-            s16 sfxidx = *(s16 *)(descriptor + 0x12);
+            u8 *psys;
+            s32 sfxidx = *(s16 *)(*(u8 **)record + 0x12);
             void *hdr130 = *(void **)((u8 *)c->hdr + 0x130);
             void *sfxparam =
                 *(void **)(*(u8 **)((u8 *)c->hdr + 0x120) + 0x28);
             if (sfxidx >= 0) {
-                u8 *psys =
-                    *(u8 **)((u8 *)hdr130 + 0x44) + sfxidx * 0x50;
+                psys = *(u8 **)((u8 *)hdr130 + 0x44) + sfxidx * 0x50;
                 CritterInitSfx(hdr130, *(s16 *)(psys + 0x40), sfxparam);
                 CritterInitSfx(hdr130, *(s16 *)(psys + 0x44), sfxparam);
                 CritterInitSfx(hdr130, *(s16 *)(psys + 0x46), sfxparam);
@@ -4762,8 +4764,9 @@ void CritterInitColnodes(Critter *c)
         }
         if ((gControllerButtons & 0x10) && gGameOptions[8]) {
             *(void **)(record + 0x4C) = DmgFxCircleAdd(
-                *(void **)(record + 4), *(f32 *)(descriptor + 0x2C), zerof,
-                zerof, (f32 *)(descriptor + 0x20), 127);
+                *(void **)(record + 4), *(f32 *)(*(u8 **)record + 0x2C),
+                lbl_80346470, lbl_80346470,
+                (f32 *)(*(u8 **)record + 0x20), 127);
         }
     }
 }
