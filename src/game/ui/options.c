@@ -211,12 +211,13 @@ extern u8 gPlayers[];            /* gPlayerRecords[4], stride 0x335C */
 /* pad state (controls TU) */
 extern u32 lbl_80240E34[];  /* per-player, stride 0xF words */
 extern u32 lbl_80240E38[];
+extern u8 lbl_80240E30[];
 extern s32 lbl_80240E5C[];  /* per-player control style */
 extern s32 lbl_80240E60[];  /* per-pad setting (radio menu 0xF) */
 extern u32 lbl_80240E64[];  /* per-pad boolean (radio menu 0x10) */
 extern u32 lbl_80240E68[];  /* per-pad boolean (radio menu 0x11) */
-extern u32 lbl_80240FB0;    /* global buttons held */
-extern u32 lbl_80240FC0;    /* global buttons pressed */
+extern u32 lbl_80240FB0[4];    /* global buttons held */
+extern u32 lbl_80240FC0[4];    /* global buttons pressed */
 extern u32 lbl_8034461C;    /* any-pad pressed mask */
 extern u32 lbl_80344620;    /* any-pad held mask */
 
@@ -224,6 +225,7 @@ extern u32 lbl_80344620;    /* any-pad held mask */
 extern s32 gGameMode;    /* game state (0x8009 in-game, 0x4010 tower) */
 extern s32 lbl_803447B8;
 extern u32 sFlags;    /* pause/movie flags */
+extern u64 gControllerButtons;
 extern s32 lbl_803445D8;
 extern s32 gClockStepTicks; /* vb_elapsed */
 extern s32 sLastWorldLevel;
@@ -586,7 +588,7 @@ int DoOptions(void)
     /* menu clock: full speed, or (paused w/ button held) 2, else 0 */
     if ((sFlags & 8) == 0) {
         vb_elapsed_menu = gClockStepTicks;
-    } else if ((lbl_80240FB0 & 0x2000000) == 0 && (lbl_80240FC0 & 0x1000000) == 0) {
+    } else if ((lbl_80240FB0[0] & 0x2000000) == 0 && (lbl_80240FC0[0] & 0x1000000) == 0) {
         vb_elapsed_menu = 0;
     } else {
         vb_elapsed_menu = 2;
@@ -1429,20 +1431,24 @@ s32 do_optmenu(OPTMENU* m, s32 allowNav)
     s32 code;
 
     /* menu clock (same policy as DoOptions) */
-    if ((sFlags & 8) == 0) {
-        vb_elapsed_menu = gClockStepTicks;
-    } else if ((lbl_80240FB0 & 0x2000000) == 0 && (lbl_80240FC0 & 0x1000000) == 0) {
-        vb_elapsed_menu = 0;
+    if ((gControllerButtons & 8) != 0) {
+        if ((lbl_80240FB0[0] & 0x2000000) != 0 ||
+            (lbl_80240FC0[0] & 0x1000000) != 0) {
+            vb_elapsed_menu = 2;
+        } else {
+            vb_elapsed_menu = 0;
+        }
     } else {
-        vb_elapsed_menu = 2;
+        vb_elapsed_menu = gClockStepTicks;
     }
     m->time += vb_elapsed_menu;
 
-    pressed = lbl_8034461C;
-    held = lbl_80344620;
     if (m->player >= 0) {
-        pressed = lbl_80240E38[m->player * 0xF];
-        held = lbl_80240E34[m->player * 0xF];
+        pressed = *(u32*)(lbl_80240E30 + m->player * 60 + 8);
+        held = *(u32*)(lbl_80240E30 + m->player * 60 + 4);
+    } else {
+        pressed = lbl_8034461C;
+        held = lbl_80344620;
     }
 
     if (m->num_items == 0) {
@@ -1459,19 +1465,21 @@ s32 do_optmenu(OPTMENU* m, s32 allowNav)
         m->sel = 0;
     }
 
-    if (m->player < 0 || (lbl_80344824 & (1 << m->player)) != 0) {
+    if (m->player >= 0 && (lbl_80344824 & (1 << m->player)) == 0) {
+        optmenu_nochoice = 1;
+    } else {
         if (m->state == 2) {
             if ((pressed & 0x40000) != 0) {
                 pressed |= 0x2000000;
             }
             optmenu_nochoice = 0;
-        } else if (m->title == NULL) {
+        } else if (m->title != NULL) {
+            if ((pressed & 0x40000) != 0) {
+                optmenu_nochoice = 1;
+            }
+        } else {
             optmenu_nochoice = 0;
-        } else if ((pressed & 0x40000) != 0) {
-            optmenu_nochoice = 1;
         }
-    } else {
-        optmenu_nochoice = 1;
     }
 
     if (optmenu_nochoice != 0) {
@@ -1480,14 +1488,15 @@ s32 do_optmenu(OPTMENU* m, s32 allowNav)
 
     if ((pressed & 0x2000000) != 0) {
         /* A / select */
-        if (m->items[m->sel].value < 0) {
+        if (m->items[m->sel].value >= 0) {
+            if ((m->flags & 0x400) != 0) {
+                AudioCursorSelect();
+            }
+            return m->items[m->sel].code;
+        } else {
             AudioBuzzer();
             return 0;
         }
-        if ((m->flags & 0x400) != 0) {
-            AudioCursorSelect();
-        }
-        return m->items[m->sel].code;
     }
     if ((pressed & 0x8000000) != 0) {
         /* B / back */
