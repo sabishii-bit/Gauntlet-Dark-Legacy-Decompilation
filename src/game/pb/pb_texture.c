@@ -229,23 +229,144 @@ int fn_800C6BB4(u8 sizeClass, s32 handle) {
 
 /* Build the GX texture objects for model `id`'s texture list. */
 void pbSetupTextures(s32 id) {
-    u8* mgr = gWinGlobals->tbl;
-    u8* desc = *(u8**)(mgr + id * 0x10 + 0x4);
-    u8* texObjs = *(u8**)(desc + 0x80);
-    u8* texList = *(u8**)(desc + 0x58);
-    s32 count = *(s32*)(desc + 0x48);
+    u8* lookup;
+    u8* desc;
+    u8* obj;
     s32 i;
+    u32 width;
+    u32 height;
+    u8* data;
+    u8* texObjs;
+    s32 bitsPerPixel;
+    s32 texOffset;
+    s32 objOffset;
+    s32 formatOffset;
+    s32 format;
+    s32 paletteEntries;
+    u8 unused[12];
 
-    for (i = 0; i < count; i++) {
-        u8* obj = texObjs + i * 0x30;
-        u8* tex = texList + i * 0x10;
-        obj[0x2c] = 0xff;
-        obj[0x2d] = 0xff;
-        /* format dispatch + GXInitTexObj / GXInitTexObjCI / GXInitTlutObj,
-         * followed by GXInitTexObjUserData(obj, -1). See disassembly. */
-        (void)tex;
-        (void)lbl_801283C0;
-        GXInitTexObjUserData(obj, (void*)-1);
+    lookup = lbl_801283C0;
+    i = 0;
+    texOffset = 0;
+    objOffset = 0;
+    desc = *(u8**)((u8*)gWinGlobals->tbl + id * 0x10 + 4);
+    texObjs = *(u8**)(desc + 0x80);
+
+    while ((u32)i < *(u32*)(desc + 0x48)) {
+        u8* tex;
+        u8* texBase;
+        s32 previousOffset;
+        u32 currentData;
+        u32* previous;
+        s32 j;
+        u8 found;
+
+        obj = texObjs + objOffset;
+        *(s8*)(obj + 0x2C) = -1;
+        found = 0;
+        *(s8*)(obj + 0x2D) = -1;
+        tex = (texBase = *(u8**)(desc + 0x58)) + texOffset;
+
+        if ((*(u16*)(tex + 2) & 0x100) == 0) {
+            j = 0;
+            previousOffset = 0;
+            while ((u32)j < (u32)i && !found) {
+                previous = *(u32**)(desc + 0x58);
+                if ((currentData = *(u32*)(tex + 4)) ==
+                    (previous = (u32*)((u8*)previous + previousOffset))[1]) {
+                    s32 paletteIndex = *(s16*)((u8*)previous + 0xE);
+                    found = 1;
+                    *(u16*)(tex + 0xE) = paletteIndex;
+                }
+                j++;
+                previousOffset += 0x10;
+            }
+
+            if (!found) {
+                s32 type;
+                s32 subtype;
+
+                *(u16*)(tex + 0xE) = (s16)i;
+                type = *(u8*)tex >> 4;
+                width = *(u16*)(tex + 0xA);
+                height = *(u16*)(tex + 0xC);
+                data = *(u8**)(tex + 4);
+                subtype = *(u8*)tex & 7;
+
+                if ((type & 8) != 0) {
+                    if (type == 8) {
+                        format = 0x13;
+                    } else {
+                        format = 0x14;
+                    }
+                } else {
+                    if (type > 0) {
+                        s32 loadedFormat;
+
+                        formatOffset = type * 4;
+                        {
+                            u8* entry = lookup;
+                            entry += formatOffset;
+                            loadedFormat = *(s32*)(entry + 0x28);
+                        }
+                        paletteEntries = 0x100;
+                        if ((format = loadedFormat, loadedFormat == 0x14)) {
+                            paletteEntries = 0x10;
+                        }
+                        DCFlushRange(data, paletteEntries << 1);
+                        GXInitTlutObj(obj + 0x20, data, 2,
+                                     (u16)paletteEntries);
+                        {
+                            u8* entry = lookup;
+                            entry += formatOffset;
+                            data += *(s32*)(entry + 0x3C);
+                        }
+                    } else {
+                        u8* subtypeEntry = lookup;
+                        subtypeEntry += subtype * 4;
+                        format = *(s32*)(subtypeEntry + 0x50);
+                    }
+                }
+
+                switch (format) {
+                case 0x14:
+                    bitsPerPixel = 4;
+                    break;
+                case 0x13:
+                case 0x1B:
+                    bitsPerPixel = 8;
+                    break;
+                case 2:
+                    bitsPerPixel = 0x10;
+                    break;
+                }
+
+                {
+                    s32 imageBits = width * height;
+                    s32 imageBytes;
+                    imageBits = bitsPerPixel * imageBits;
+                    imageBytes = imageBits / 8;
+                    DCFlushRange(data, imageBytes);
+                }
+                if (bitsPerPixel <= 8) {
+                    s32 paletteClass;
+                    paletteClass = 0;
+                    if (bitsPerPixel == 8) {
+                        paletteClass = 1;
+                    }
+                    GXInitTexObjCI(obj, data, (u16)width, (u16)height,
+                                   lbl_80348FD8[paletteClass], 1, 1, 0,
+                                   lbl_80348FE0[paletteClass]);
+                } else {
+                    GXInitTexObj(obj, data, (u16)width, (u16)height, 5,
+                                 1, 1, 0);
+                }
+                GXInitTexObjUserData(obj, (void*)-1);
+            }
+        }
+        i++;
+        texOffset += 0x10;
+        objOffset += 0x30;
     }
 }
 
