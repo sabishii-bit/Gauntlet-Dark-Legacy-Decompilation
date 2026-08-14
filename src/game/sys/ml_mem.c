@@ -40,7 +40,7 @@ extern char* strncat(char* d, const char* s, u32 n);
 extern char* strrchr(const char* s, int c);
 
 /* ---- PS2-style file shim (game/ps2/fakelib.c) ---- */
-extern int sceOpen(const char* path, int flags);
+extern int sceOpen(const char* path, ...);
 extern int sceRead(int fd, void* buf, int len);
 extern int sceSifLoadElfPart(int fd, int arg, int* status);
 extern int sceLseek(int fd, int off, int whence);
@@ -92,6 +92,8 @@ extern const char mlmPathFmt[3];    /* "%s"    */
 extern const char mlmExtDefault[5]; /* ".ps2"  */
 extern const char mlmPathSeparator[2];
 extern const char mlmGameSubdirectory[]; /* "/gauntlet/" */
+extern char lbl_801161B0[];
+extern void ErrorPrintf(const char* fmt, ...);
 
 /* forward decls (address order kept) */
 int do_threaded_io(MLFILE* f);
@@ -672,36 +674,58 @@ int MLMReadFile(char* wad, char* name, int maxLen, void* dest)
     return read;
 }
 
-int xReadFileSection(char* wad, char* name, int maxLen, void* dest)
+#pragma opt_propagation off
+int xReadFileSection(char* wad, char* name, register int maxLen, register void* dest)
 {
     char full[256];
+    char tmp[256];
     int fd;
     int size;
     int read;
+    register void* output;
+    register int limit;
+    const char* strings = lbl_801161B0;
 
-    get_path(full, wad, name);
+    limit = maxLen;
+    output = dest;
+
+    if (wad != NULL) {
+        sprintf(tmp, mlmPathFmtWad, wad, name);
+    } else {
+        sprintf(tmp, mlmPathFmt, name);
+    }
+    if (!(name[0] == 'W' && name[1] == 'A' && name[2] == 'D') &&
+        strrchr(tmp, '.') == NULL) {
+        strcat(tmp, mlmExtDefault);
+    }
+    strcpy(full, mlmRootPath);
+    if (tmp[0] != '/') {
+        strcat(full, strings + 136);
+    }
+    strcat(full, tmp);
     fd = sceOpen(full, 1);
     if (fd < 0) {
-        bulletproof_printf("Can't load '%s' failed on open\n", full);
+        ErrorPrintf(strings + 588, full);
         return -1;
     }
     size = sceLseek(fd, 0, 2);
     if (size < 0) {
         sceClose(fd);
-        bulletproof_printf("Can't load '%s' failed on Lseek\n", full);
+        ErrorPrintf(strings + 624, full);
         return -1;
     }
     sceLseek(fd, 0, 0);
     if (size & 0xf) {
         size += 0x10 - (size & 0xf);
     }
-    if (maxLen < 1 || size < maxLen) {
-        maxLen = size;
+    if (limit <= 0 || limit > size) {
+        limit = size;
     }
-    read = sceRead(fd, dest, maxLen);
+    read = sceRead(fd, output, limit);
     sceClose(fd);
     return read;
 }
+#pragma opt_propagation reset
 
 void ClearMemLocks(void)
 {
