@@ -483,7 +483,7 @@ static void PlayerProcessSkinFX(void* p);
 void check_player_atts(void* p, s32 chartype, s32* stats);
 static void do_got_it_8007FC80(void);
 void mini_inventory_update(s32 player);
-s32 heal_player(f32 amount, Player* p);
+s32 heal_player(Player* p, f32 amount);
 f32 player_max_health(void* p);
 s32 player_can_be_damaged(void* p);
 void kill_player(s32 player);
@@ -2523,7 +2523,7 @@ void do_heal_players(void* vp, f32* mat, f32 amount) {
 }
 
 /* Heal one player; 0 = already full, 1 = capped, 2 = healed.          */
-s32 heal_player(f32 amount, Player* p) {
+s32 heal_player(Player* p, f32 amount) {
     f32 cap;
 
     cap = 100.0 * (p->level - 1) + 500.0;

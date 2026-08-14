@@ -2797,9 +2797,9 @@ extern s32  fn_8009FB30(void);
 extern s32  FindStringMessageListSub_8001FC4C(s32 a, char* name);
 extern void ControllerMessageBox(s32 a, s32 b, s32 c, s32 d);
 extern void fn_8009CDF8(s32 player);
-extern void fn_8009F748(s32 player);
+extern void fn_8009F748(s32 player, s32 sourcePlayer);
 extern void fn_8009D038(s32 player);
-extern s32  heal_player(f32 amount, Player* p);
+extern s32  heal_player(Player* p, f32 amount);
 extern void damage_player(s32 i, f32 dmg, s32 a, s32 b, s32 c);
 extern void AudioPlayerSeverePain(s32 player);
 extern void AudioPlayerEatFood(s32 player, s32 kind);
@@ -2830,14 +2830,13 @@ extern void* sItemsRootNode;      /* .sbss                      */
 extern f32   sItemZero;
 extern f64   sZeroDouble;
 
-typedef struct GwCharGoldRow { u8 _pad[3108]; s32 v; } GwCharGoldRow;
-
 void fn_8005DE50(Player* a, Item* b)
 {
     iteminfo* ev;
     iteminfodata* it;
     s32 ret;
     s32 flag;
+    u8 unused[8];
 
     ret = 0;
     if (b == NULL)
@@ -2845,16 +2844,20 @@ void fn_8005DE50(Player* a, Item* b)
     ev = b->info;
     if (ev == NULL)
         return;
+    if (a != NULL)
+        goto process_item;
     if (a == NULL)
-        return;
-    it = &ev->item;
-
-    switch (it->subtype) {
+        goto done;
+    goto done;
+process_item:
+    switch ((it = &ev->item)->subtype) {
     case 1: { /* gold */
-        PlayerGiveGold(a->index, *(s32*)&b->data[4]);
+        s32 amount = *(s32*)&b->data[4];
+        PlayerGiveGold(a->index, amount);
         {
-            GwCharGoldRow* row = (GwCharGoldRow*)((u8*)a + a->character * 28);
-            row->v += *(s32*)&b->data[4];
+            s32* row = (s32*)a;
+            row += a->character * 7;
+            row[777] += amount;
         }
         fn_8009CFA8(a->index, *(s32*)&b->data[4]);
         add_got_it(a->index, it->subtype, *(s32*)&b->data[4]);
@@ -2872,7 +2875,7 @@ void fn_8005DE50(Player* a, Item* b)
             msgPost(17, a->index, (char*)a->col_pos);
             op = b->opener;
             if (op >= 0 && op != a->index)
-                fn_8009F748(op);
+                fn_8009F748(op, a->index);
         }
         ret = 1;
         break;
@@ -2887,7 +2890,7 @@ void fn_8005DE50(Player* a, Item* b)
             a->item_body_lo += *(s32*)&b->data[4];
             op = b->opener;
             if (op >= 0 && op != a->index)
-                fn_8009F748(op);
+                fn_8009F748(op, a->index);
             fn_8009CDF8(a->index);
             add_got_it(a->index, it->subtype, *(s32*)&b->data[4]);
             *(s16*)((u8*)a + 0x95C) = 1;
@@ -2927,7 +2930,7 @@ void fn_8005DE50(Player* a, Item* b)
                 msgPost(95, a->index, (char*)a->col_pos);
             op = b->opener;
             if (op >= 0 && op != a->index)
-                fn_8009F748(op);
+                fn_8009F748(op, a->index);
             fn_8009D038(a->index);
             add_got_it(a->index, it->subtype, 0);
             *(s16*)((u8*)a + 0x95C) = 1;
@@ -2943,7 +2946,7 @@ void fn_8005DE50(Player* a, Item* b)
         if ((a->flags & 0x400) && strcmp(it->desc, lbl_80346F10) == 0)
             amt = lbl_80346FE8;
         if (amt >= sItemZero) {
-            if (heal_player(amt, a) == 0) {
+            if (heal_player(a, amt) == 0) {
                 msgPost(133, a->index, (char*)a->col_pos);
                 break;
             }
@@ -2958,7 +2961,7 @@ void fn_8005DE50(Player* a, Item* b)
             msgPost(28, a->index, (char*)a->col_pos);
         op = b->opener;
         if (op >= 0 && op != a->index)
-            fn_8009F748(op);
+            fn_8009F748(op, a->index);
         add_got_it(a->index, it->subtype, (s32)amt);
         if (amt < sZeroDouble) {
             *(s16*)((u8*)a + 0x95C) = 3;
@@ -2982,12 +2985,18 @@ void fn_8005DE50(Player* a, Item* b)
     case 7:
     case 8:
     case 9: { /* powerup */
-        s32 flags220 = *(u32*)&b->data[0];
-        s32 snd = -1;
-        if (it->subtype == 9 && (flags220 & 0xF000) && (a->flags & 0xF000))
+        s32* data;
+        s32 snd;
+        s32 flags220;
+        s32 subtype;
+        data = (s32*)&b->data[0];
+        flags220 = data[0];
+        snd = -1;
+        subtype = it->subtype;
+        if (subtype == 9 && (flags220 & 0xF000) && (a->flags & 0xF000))
             break;
-        PlayerAddPowerup((f32)*(s32*)&b->data[4], *(f32*)&b->data[8], a,
-                         it->subtype, flags220);
+        PlayerAddPowerup((f32)data[1], *(f32*)&data[2], a,
+                         subtype, flags220);
         switch (it->subtype) {
         case 5: {
             s32 lownib = flags220 & 0xF;
@@ -3100,8 +3109,8 @@ void fn_8005DE50(Player* a, Item* b)
         welcome_timer = 300;
         StartGemFX(b->objgrp.worldmat[3], 1024);
         sSpecialItem10 = 0;
-        mask = 0;
         count = 0;
+        mask = 0;
         for (i = 0; i < 4; i++) {
             if (gPlayers[i].state != 0)
                 mask |= gPlayers[i].shards;
@@ -3165,6 +3174,8 @@ void fn_8005DE50(Player* a, Item* b)
             }
         }
     }
+done:
+    ;
 }
 
 void fn_800606FC(void)
