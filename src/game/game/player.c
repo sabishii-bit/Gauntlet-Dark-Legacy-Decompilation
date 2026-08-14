@@ -330,6 +330,7 @@ extern s32 lbl_80344298;
 extern s32 lbl_80344824;   /* active-player mask */
 extern s32 lbl_80344760;
 extern u32 sFlags;   /* sFlags: pause/movie */
+extern u64 gControllerButtons;
 extern s32 gFrameTicks;   /* frame delta (int) */
 extern s32 gClockStepTicks; /* vb elapsed */
 extern f32 gClockFrameStep; /* frame delta (float) */
@@ -465,7 +466,7 @@ extern void update_class_spec(s32 player);
 extern s32 StartShieldFX(f32 scale, f32 power, f32* pos, u32 flags, s16 player, s32 d);
 extern s32 StartMagicFX(f32 scale, f32 power, f32* pos, u32 flags, s16 player, s32 d);
 extern void StartThrowMagicFX(f32 a, f32 b, f32 c, f32 d, f32* pos, f32* vel, u32 flags, s32 p, s32 col);
-extern s32 StartLevelUpFX(f32 scale, f32 power, s32 a, u32 flags, s16 player, s32 d);
+extern s32 StartLevelUpFX(s32 arg0, s32 classId);
 extern s32 StartMagicHealFX(f32* pos);
 extern s32 PlaceEffectOnFloor(s32 fx, f32* pos);
 extern void SfxSetParent(s32 fx, void* node);
@@ -1301,19 +1302,19 @@ s32 AddExp(s32 pnum, s32 amount, s32 mode) {
     s32 res;
 
     if (mode == -2) {
-        s32 lv = p->level;
+        s32 lv;
         s32 delta;
 
-        if (amount < 0 && lv == 99) {
+        if (amount < 0 && p->level == 99) {
             return 0;
         }
-        if (lv < 0x3D) {
+        lv = p->level;
+        if (lv <= 60) {
             delta = (lv - 1) * 0x3C + 1000;
         } else {
             delta = 0x11F8;
         }
         amount = amount * (s32)(0.01 * (f32)delta);
-        mode = -2;
     } else {
         f32 dist = PF(gCurLevel, 0x9C, f32);
         f32 fac = PF(gCurLevel, 0xA0, f32);
@@ -1324,8 +1325,9 @@ s32 AddExp(s32 pnum, s32 amount, s32 mode) {
             }
         }
         amount = (s32)((f32)amount * fac);
-        if (sFlags & 0x10) {
-            amount = (s32)((f32)amount * 5.0);
+        if (gControllerButtons & 0x10) {
+            f64 five = 5.0;
+            amount = (s32)((f64)amount * five);
         }
     }
     res = ModifyExp(p, amount);
@@ -1341,13 +1343,12 @@ s32 AddExp(s32 pnum, s32 amount, s32 mode) {
         if (amount < 0) {
             AudioExp(pnum, -1);
         } else if (amount > 0) {
-            f32* pos = p->col_pos;
             s32 fx;
 
-            msgPost(0x22, pnum, (u32)pos);
-            fx = StartLevelUpFX(0.0f, 0.0f, 0, p->class_id, (s16)(u32)pos, 0);
+            msgPost(0x22, pnum, (u32)p->col_pos);
+            fx = StartLevelUpFX(0, p->class_id);
             SfxSetParent(fx, p->node);
-            p->got_timer = (f32)(p->got_timer + 100.0);
+            PF(p, 0x1EB4, f32) += 100.0;
         }
     }
     if (mode >= 0 && PF(p, 0x6B8, s32*) != NULL) {
