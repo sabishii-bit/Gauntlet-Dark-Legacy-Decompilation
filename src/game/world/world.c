@@ -853,11 +853,10 @@ s32 WorldPsysDeActivate(WorldObj* o) {
  * and spawn the particle system for this object (with GetWorldPsysIdx inlined
  * as the id search). */
 /* GetWorldPsysIdx (Xbox local fn, inlined here): find template by id char. */
-static s32 GetWorldPsysIdx(s8 id) {
-    char* base = gWorldName;
-    u8** wpsp = (u8**)(base + 384);
-    u8* tbl = *wpsp;
-    s32 i = 0;
+static s32 GetWorldPsysIdx(s8 id, char* base, u8* tbl) {
+    s32 i;
+
+    i = 0;
 
     for (; i < *(s32*)(base + 388); i++) {
         if ((s8)tbl[i * 312 + 6] == id) {
@@ -886,8 +885,8 @@ s32 WorldPsysActivate(WorldObj* obj) {
         return 0;
     }
 
-    wpsp = (u8**)(base + 384);
-    i = GetWorldPsysIdx((s8)tag[4]);
+    i = GetWorldPsysIdx((s8)tag[4], base,
+                        *(wpsp = (u8**)(base + 384)));
     if (i < 0) {
         goto done;
     }
