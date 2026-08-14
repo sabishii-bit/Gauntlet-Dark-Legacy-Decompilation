@@ -785,61 +785,77 @@ static void show_crystals(Player* p) {
 }
 
 /* Rune-stone / crystal collection icons; live while welcome_timer runs. */
+#pragma opt_propagation off
 void ShowRuneStones(void) {
     s32 i;
     s32 j;
     void* blit;
+    u8* p;
     s32 state;
+    s32 hide;
+    s32 result;
+    s32 result2;
+    u8 _spare[8];
 
-    if (welcome_timer < 1 || options_state != 0) {
-        for (i = 0; i < 4; i++) {
-            for (j = 0; j < 8; j++) {
-                blit = crystal_blit[i][j];
-                if (blit != NULL) {
-                    mbBlitInit3414(blit, 1);
-                }
-            }
-        }
-    } else {
-        welcome_timer -= gFrameTicks;
-        if (welcome_timer < 0) {
+    if (welcome_timer > 0 && options_state == 0) {
+        if ((welcome_timer -= gFrameTicks) < 0) {
             welcome_timer = 0;
         }
         for (i = 0; i < 4; i++) {
-            Player* p = P(i);
+            s16 hud_flags2;
 
-            state = p->state;
-            if (!(p->hud_flags2 & 2)) {
-                p->hud_flags2 |= 2;
-                if ((u32)(state - 1) < 2 || (u32)(state - 4) < 2) {
+            p = (u8*)potionicon_tab + i * PREC_STRIDE;
+            hud_flags2 = *(s16*)(p + 5542);
+            state = *(s32*)(p + 3368);
+            p += 3136;
+            if (!(hud_flags2 & 2)) {
+                ((Player*)p)->hud_flags2 = hud_flags2 | 2;
+                if ((u32)(state - 1) <= 1 || (u32)(state - 4) <= 1) {
                     for (j = 0; j < 8; j++) {
-                        blit = crystal_blit[i][j];
-                        if (blit != NULL) {
-                            mbBlitInit3414(
-                                blit,
-                                (p->char_save[p->character].rune_stones & (1 << j)) == 0);
+                        if ((blit = crystal_blit[i][j]) != NULL) {
+                            if ((((Player*)p)->char_save[((Player*)p)->character].rune_stones &
+                                 (1 << j)) != 0) {
+                                hide = 0;
+                            } else {
+                                hide = 1;
+                            }
+                            result2 = hide;
+                            mbBlitInit3414(blit, result2);
                         }
                     }
                 } else {
                     for (j = 0; j < 8; j++) {
-                        blit = crystal_blit[i][j];
-                        if (blit != NULL) {
+                        if ((blit = crystal_blit[i][j]) != NULL) {
                             mbBlitInit3414(blit, 1);
                         }
                     }
                 }
                 if (!(gGameMode & 0x8000) && (state == 1 || state == 5)) {
                     for (j = 0; j < 12; j++) {
-                        blit = rune_blit[i][j];
-                        if (blit != NULL) {
-                            mbBlitInit3414(blit, (p->shards & (1 << j)) == 0);
+                        if ((blit = rune_blit[i][j]) != NULL) {
+                            if ((((Player*)p)->shards & (1 << j)) != 0) {
+                                hide = 0;
+                            } else {
+                                hide = 1;
+                            }
+                            result = hide;
+                            mbBlitInit3414(blit, result);
                         }
                     }
                 }
             }
         }
+    } else {
+        for (i = 0; i < 4; i++) {
+            for (j = 0; j < 8; j++) {
+                if ((blit = crystal_blit[i][j]) != NULL) {
+                    mbBlitInit3414(blit, 1);
+                }
+            }
+        }
     }
 }
+#pragma opt_propagation reset
 
 /* Name/level/health/keys/potions writer for one player's HUD row. */
 static void write_health_and_items(s32 i) {
