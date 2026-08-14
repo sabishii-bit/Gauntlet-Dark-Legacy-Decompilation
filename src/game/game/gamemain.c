@@ -370,12 +370,31 @@ extern s32   lbl_80344850;
 extern s32   lbl_80344854;
 extern s32   lbl_80344858;
 extern s32   lbl_8034485C;
+extern s32   lbl_80343C30;
+extern s32   lbl_80344870;
+extern u32   lbl_80344874;
+extern s32*  lbl_80344878;
+extern s32   lbl_8025778C[];
+DECL_SECT(".sdata2") extern const char lbl_80346BF8[];
 extern s32   lbl_80344D80;
 extern s32   lbl_80344D84;
 extern s32   lbl_80344D88;
 extern s32   dbgTextEnable;
 extern s32   mlmMemUsed;
 extern void  ErrorPrintf(const char* fmt, ...);
+extern void  WorldLoadModelDone(void* world);
+extern s32   WorldLoadModelStart(void);
+extern s32   StartWorldLoad(s32 arg0);
+extern s32   StartLoadWorldAnim(void* world);
+extern s32   FinishLoadWorldAnim(void);
+extern void  MBOX_BGLoadModelStart(char* name, void* model);
+extern s32   MBOX_BGLoadModelDone(void);
+extern s32   FileSize(char* wad, const char* name);
+extern s32*  StartFileRead(char* wad, const char* name, s32 mode, s32 size,
+                           void* dest, void* callback);
+extern s32   CritterLoadStartNext(void);
+extern s32   CritterLoadDone(s32 maxBytes);
+extern void  fn_8001267C(void* header, void* object, s32 arg2);
 
 /* fn_800521E8 / SetPlayerVars externs. */
 extern s32   gGameBusy;
@@ -2004,6 +2023,193 @@ void PrintWorldMemSizes(void)
     lbl_80344850 = 0;
 }
 #pragma opt_propagation reset
+
+/* 0x80055F68 -- asynchronous world/model/atree/critter load state machine. */
+#pragma dont_inline on
+s32 fn_80055F68(s32 arg0, s32 arg1)
+{
+    register u8* table = (u8*)lbl_80257680;
+    char name[264];
+    volatile u8 unused[4];
+    s32 type;
+    s32 qty;
+    s32 size;
+
+    if (lbl_80343C30 < 0) {
+        return -1;
+    }
+    if (arg1 < 0) {
+        if (lbl_80343C30 != 0) {
+            return 0;
+        }
+        return 1;
+    }
+
+    if (lbl_80343C30 == 12) goto state12;
+    if (lbl_80343C30 >= 12) goto dispatch_high;
+    if (lbl_80343C30 == 4) goto state4;
+    if (lbl_80343C30 >= 4) goto dispatch_mid;
+    if (lbl_80343C30 == 1) goto state1;
+    if (lbl_80343C30 >= 1) goto dispatch_low;
+    if (lbl_80343C30 >= 0) goto state0;
+    goto invalid;
+
+dispatch_low:
+    if (lbl_80343C30 >= 3) goto state3;
+    goto state2;
+
+dispatch_mid:
+    if (lbl_80343C30 == 10) goto state10;
+    if (lbl_80343C30 >= 10) goto state11;
+    if (lbl_80343C30 >= 6) goto invalid;
+    goto state5;
+
+dispatch_high:
+    if (lbl_80343C30 == 21) goto state21;
+    if (lbl_80343C30 >= 21) goto dispatch_very_high;
+    if (lbl_80343C30 == 14) goto state14;
+    if (lbl_80343C30 < 14) goto state13;
+    if (lbl_80343C30 >= 20) goto state20;
+    goto invalid;
+
+dispatch_very_high:
+    if (lbl_80343C30 == 100) goto invalid;
+    if (lbl_80343C30 >= 100) goto invalid;
+    if (lbl_80343C30 == 30) goto state30;
+    goto invalid;
+
+state0:
+    WorldLoadModelDone(table + 0xAC);
+    lbl_80343C30 = 1;
+    goto done;
+
+state1:
+    if (WorldLoadModelStart() != 0) {
+        lbl_80343C30 = arg1 != 0 ? 100 : 2;
+        lbl_80344874 = pbLoad;
+    }
+    goto done;
+
+state2:
+    if (StartWorldLoad(arg1) != 0) {
+        lbl_80343C30 = arg1 != 0 ? 100 : 3;
+        lbl_80344874 = pbLoad;
+    }
+    goto done;
+
+state3:
+    if (StartLoadWorldAnim(table + 0xAC) != 0) {
+        lbl_80343C30 = 4;
+    } else {
+        lbl_80343C30 = 5;
+    }
+    goto done;
+
+state4:
+    if (FinishLoadWorldAnim() != 0) {
+        lbl_80343C30 = 5;
+        lbl_80344874 = pbLoad;
+    }
+    goto done;
+
+state5:
+    lbl_80343C30 = 10;
+state10:
+    type = *(s32*)(table + 0x14C + lbl_80344870 * 4);
+    arg1 = type;
+    if (type >= 0) {
+        qty = *(s32*)(table + 0x10C + lbl_80344870 * 4);
+        fn_80050DD8(name, arg1, qty);
+        MBOX_BGLoadModelStart(name, (void*)lbl_802512B0[arg1]);
+        lbl_80343C30 = 11;
+    } else {
+        lbl_80343C30 = 14;
+    }
+    goto done;
+
+state11:
+    if (MBOX_BGLoadModelDone() != 0) {
+        lbl_80343C30 = arg1 != 0 ? 100 : 12;
+        lbl_80344874 = pbLoad;
+    }
+    goto done;
+
+state12:
+    {
+        type = *(s32*)(table + 0x14C + lbl_80344870 * 4);
+        if (gWadAtreeHeaders[type] != 0) {
+            qty = *(s32*)(table + 0x10C + lbl_80344870 * 4);
+            fn_80050DD8(name, type, qty);
+            size = FileSize(name, lbl_80346BF8);
+            lbl_80344878 = StartFileRead(name, lbl_80346BF8, 0, size,
+                                         gWadAtreeHeaders[type], fn_8005636C);
+            lbl_80343C30 = 13;
+        } else {
+            lbl_80343C30 = 14;
+        }
+    }
+    goto done;
+
+state13:
+    if (lbl_80344878[4] != 0) {
+        s32* entry;
+
+        lbl_80344878[4] = -1;
+        entry = (s32*)table;
+        entry += lbl_80344870;
+        type = entry[0x53];
+        fn_8001267C(gWadAtreeHeaders[type], (void*)lbl_802512B0[type], -1);
+        lbl_80343C30 = arg1 != 0 ? 100 : 14;
+        lbl_80344874 = pbLoad;
+    }
+    goto done;
+
+state14:
+    {
+        s32 next;
+        s32* entry = (s32*)table;
+
+        entry += lbl_80344870;
+        type = entry[0x53];
+    if (type >= 0) {
+        fn_80050910(type);
+    }
+        next = lbl_80344870 + 1;
+        lbl_80344870 = next;
+    if (next >= 8) {
+        lbl_80343C30 = 20;
+    } else {
+        lbl_80343C30 = 10;
+    }
+    }
+    goto done;
+
+state20:
+    if (CritterLoadStartNext() != 0) {
+        lbl_80343C30 = 21;
+    } else {
+        lbl_80343C30 = 30;
+    }
+    goto done;
+
+state21:
+    if (CritterLoadDone(0) != 0) {
+        lbl_80343C30 = arg1 != 0 ? 100 : 20;
+        lbl_80344874 = pbLoad;
+    }
+    goto done;
+
+state30:
+    lbl_80343C30 = 100;
+    goto done;
+
+invalid:
+    lbl_80343C30 = -1;
+    return 1;
+done:
+    return 0;
+}
+#pragma dont_inline reset
 
 /* 0x80056698 -- resolve a world/level then tally its memory footprint. */
 s32 fn_80056698(s32 arg0, s32 arg1)
