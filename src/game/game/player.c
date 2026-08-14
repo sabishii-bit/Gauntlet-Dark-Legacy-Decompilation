@@ -2936,18 +2936,19 @@ void GetPlayerPos(s32 i, f32* out) {
 }
 
 /* Tear down the in-world player geo (nodes, weapon, mikey, atree).    */
+#pragma opt_common_subs off
 void remove_player_geo(s32 i) {
     Player* p = P(i);
     u8* kid;
 
-    if (PF(p, 0x6D0, s32) != 0) {
-        MBPsysSetDebugNode(PF(p, 0x6D0, s32), 1);
+    if (PF(p, 0x6D0, u32) != 0) {
+        MBPsysSetDebugNode(PF(p, 0x6D0, u32), 1);
     }
-    if (PF(p, 0x6CC, s32) != 0) {
-        MBPsysSetDebugNode(PF(p, 0x6CC, s32), 1);
+    if (PF(p, 0x6CC, u32) != 0) {
+        MBPsysSetDebugNode(PF(p, 0x6CC, u32), 1);
     }
-    if (PF(p, 0x6D4, s32) != 0) {
-        MBPsysSetDebugNode(PF(p, 0x6D4, s32), 1);
+    if (PF(p, 0x6D4, u32) != 0) {
+        MBPsysSetDebugNode(PF(p, 0x6D4, u32), 1);
     }
     if (PF(p, 0x7F8, s32) >= 0) {
         DelSpecialTexmod(PF(p, 0x7F8, s32));
@@ -2956,13 +2957,13 @@ void remove_player_geo(s32 i) {
         MBRemoveNode(PF(p, 0x6E0, void*), 0);
         PF(p, 0x6E0, void*) = NULL;
     }
-    if (PF(p, 0x748, s32) != 0) {
+    if (PF(p, 0x748, u32) != 0) {
         AtreeDelete((void**)((u8*)p + 0x748));
     }
-    if (PF(p, 0x790, s32) != 0) {
+    if (PF(p, 0x790, u32) != 0) {
         AtreeDelete((void**)((u8*)p + 0x790));
     }
-    if (PF(p, 0x6E4, s32) != 0) {
+    if (PF(p, 0x6E4, u32) != 0) {
         AtreeDelete((void**)((u8*)p + 0x6E4));
     }
     if (PF(p, 0x730, void*) != NULL) {
@@ -2989,30 +2990,32 @@ void remove_player_geo(s32 i) {
         MBRemoveNode(PF(p, 0x968, void*), 0);
         PF(p, 0x968, void*) = NULL;
     }
-    if (PF(p, 0x96C, s32) != 0) {
+    if (PF(p, 0x96C, u32) != 0) {
         AtreeDelete((void**)((u8*)p + 0x96C));
     }
     PF(p, 0xA1C, s16) = 0;
-    if (PF(p, 0x96C, s32) != 0) {
+    if (PF(p, 0x96C, u32) != 0) {
         AtreeDelete((void**)((u8*)p + 0x96C));
     }
     if (PF(p, 0xA14, void*) != NULL) {
         MBRemoveNode(PF(p, 0xA14, void*), 1);
         PF(p, 0xA14, void*) = NULL;
     }
-    if (PF(p, 0xA14, u8*) != NULL && *(s32*)(PF(p, 0xA14, u8*) + 0x78) != 0) {
+    if (PF(p, 0xA14, u8*) != NULL && *(u32*)(PF(p, 0xA14, u8*) + 0x78) != 0) {
         ErrorPrintf("mikey objgrp OBJ NODE HAS KIDS AFTER ALL REMOVED\n");
     }
     /* orphan any remaining children back onto the world */
-    if (p->node != NULL && *(s32*)(p->node + 0x78) != 0) {
-        while ((kid = *(u8**)(*(u8**)(p->node + 0x78) + 0x7C)) != NULL) {
-            MBNodeSetParent(kid, *(void**)(p->node + 0x74));
+    if (p->node != NULL && *(u32*)(p->node + 0x78) != 0) {
+        u8* node;
+        while ((node = p->node,
+                kid = *(u8**)(*(u8**)(node + 0x78) + 0x7C)) != NULL) {
+            MBNodeSetParent(kid, *(void**)(node + 0x74));
         }
     }
     SfxDeleteParented(p->node, 1, i);
     AtreeDelete((void**)((u8*)p + 0x7C));
     if (p->node != NULL) {
-        if (*(s32*)(p->node + 0x78) != 0) {
+        if (p->node != NULL && *(u32*)(p->node + 0x78) != 0) {
             ErrorPrintf("PLAYER OBJ NODE HAS KIDS AFTER ALL REMOVED\n");
         }
         MBRemoveNode(p->node, 1);
@@ -3022,6 +3025,7 @@ void remove_player_geo(s32 i) {
     PF(p, 0x6C8, void*) = NULL;
     ClearPlyrData(i);
 }
+#pragma opt_common_subs reset
 
 /* ------------------------------------------------------------------ */
 /* character switch / lifecycle                                        */
