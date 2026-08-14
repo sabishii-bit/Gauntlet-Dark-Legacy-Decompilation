@@ -68,6 +68,8 @@ extern s32   lbl_80344654;            /* 0x80344654 selected safe-rock slot     
 extern s32   lbl_80344658;            /* 0x80344658 collected safe-rock count      */
 extern f32   gClockFrameStep;         /* 0x80344590 frame delta                     */
 extern f32   lbl_803447D8;            /* boss/player damage scaling gate             */
+extern s32   sMusicTrackHi;
+extern void *lbl_80344EB4;
 extern f32   lbl_80343BEC;            /* 0x80343BEC tunable float (10.0)             */
 extern volatile f32 sMusicFadeBase;   /* 0x80344594 shared game-time / fade base   */
 extern f32   lbl_80346480;
@@ -213,7 +215,7 @@ extern u16   AnimateATree(void *tree, s32 sequence, s32 transition);
 extern s32   AnimDone(void *animation);
 extern void  MBTreeClearFlags(void *node, u32 flags, s32 mode);
 extern s32   StartFXSub(s32 effect, f32 *position, u32 flags,
-                        u32 treeFlags, u32 effectFlags, s32 owner);
+                        u32 treeFlags, f32 time);
 extern void  SfxSetOwner(s32 effect, s32 owner);
 extern void  SfxSetParent(s32 effect, void *parent);
 extern void  SfxSetMat(s32 effect, f32 *matrix, void *unused);
@@ -366,7 +368,7 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active);
 s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local,
                          f32 *position);
 s32  CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4);
-s32  CritterDoSfxSub(Critter *c, void *sfx, f32 *position,
+s32  CritterDoSfxSub(Critter *c, u8 *sfx, f32 *position,
                      s32 parented, u32 flags);
 void CritterDoParticle(Critter *c, void *sfx, s32 node);
 void DmgFxNodeUpdate(void *node, s32 absolute, f32 rx, f32 rz, f32 rotp, f32 roty);
@@ -3801,53 +3803,74 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
 
 /* 0x8003DC64 -- create one ordinary effect and apply owner, parent, color
  * and scale properties encoded by the critter sound descriptor. */
-s32 CritterDoSfxSub(Critter *c, void *sfx, f32 *position,
+s32 CritterDoSfxSub(Critter *c, u8 *sfx, f32 *position,
                     s32 parented, u32 flags)
 {
-    u8 *entry;
+    u32 color;
     u32 treeFlags;
     u32 effectFlags;
+    s32 useSceneRoot;
     s32 result;
+    s32 effect;
     void *parent;
+    u8 *effectData;
+    f32 scale;
 
-    entry = (u8 *)sfx;
-    if (*(s32 *)(entry + 8) < 0) {
-        return -1;
-    }
+    effect = *(s32 *)(sfx + 8);
+    if (effect < 0) goto fail;
     treeFlags = 0x800;
     effectFlags = 0;
-    if ((flags & 4) != 0) {
-        treeFlags = 0x80880;
-    }
+    if ((flags & 4) != 0) treeFlags |= 0x80080;
     if ((flags & 0x100000) != 0) treeFlags |= 0x80040;
     if ((flags & 0x1000) != 0) treeFlags |= 0x801000;
     if ((flags & 0x80000) != 0) treeFlags |= 0x40000000;
+    useSceneRoot = flags & 0x2000;
+    if (useSceneRoot != 0) treeFlags &= ~0x800;
     if ((flags & 0x10) != 0) effectFlags |= 0x200000;
+    if ((flags & 0x8000) != 0) {
+        effectFlags |= sMusicTrackHi == 8 ? 0x08000000 : 0x10000;
+    }
     if ((flags & 0x10000) != 0) effectFlags |= 0x400000;
     if ((flags & 0x20000) != 0) effectFlags |= 0x02000000;
+    if ((flags & 0x400000) != 0) effectFlags |= 0x04000000;
+    if ((flags & 0x800000) != 0) effectFlags |= 0x20000000;
 
-    result = StartFXSub(*(s32 *)(entry + 8), position, effectFlags,
-                        treeFlags, effectFlags, c->id);
-    if (result < 0) {
-        return result;
-    }
-    SfxSetOwner(result, (u16)c->id | 0x1000);
-    if ((flags & 0x40) != 0) {
+    result = StartFXSub(effect, position, effectFlags, treeFlags,
+                        *(f32 *)(sfx + 0x3C));
+    SfxSetOwner(result, c->id | 0x1000);
+    if (useSceneRoot != 0) {
+        SfxSetParent(result, lbl_80344EB4);
+    } else if ((flags & 0x40) != 0) {
         SfxSetMat(result, (f32 *)c->mbnode, NULL);
     } else if (parented) {
-        parent = (flags & 1) != 0 ? c->anim : c->obj_d0;
-        if ((flags & 0x800) != 0 && c->anim != NULL) {
+        if ((flags & 0x800) != 0) {
             parent = *(void **)((u8 *)c->anim + 0x74);
+        } else if ((flags & 1) != 0) {
+            parent = c->anim;
+        } else {
+            parent = c->obj_d0;
         }
         SfxSetParent(result, parent);
     }
-    if (*(s32 *)(entry + 0x48) != -1 && c->mbnode != NULL) {
-        MBTreeSetColor(c->mbnode, *(s32 *)(entry + 0x48), 1);
+    color = *(u32 *)(sfx + 0x48);
+    if (color != 0xFFFFFFFF) {
+        effectData = (u8 *)Effects;
+        effectData += result * sizeof(Effect);
+        MBTreeSetColor(**(void ***)(effectData += 0x18), color, 1);
     }
-    if (*(f32 *)(entry + 0x4C) != 1.0f && c->mbnode != NULL) {
-        f32 scale = *(f32 *)(entry + 0x4C);
-        MBTreeSetScale(scale, scale, scale, c->mbnode);
+    scale = *(f32 *)(sfx + 0x4C);
+    if (c->mbnode != NULL &&
+        (*(u32 *)((u8 *)c->mbnode + 0x60) & 8) != 0) {
+        scale *= *(f32 *)((u8 *)c->mbnode + 0x44);
     }
+    if (scale != 1.0) {
+        MBTreeSetScale(scale, scale, scale, Effects[result].node);
+    }
+    goto done;
+
+fail:
+    result = -1;
+done:
     return result;
 }
 
