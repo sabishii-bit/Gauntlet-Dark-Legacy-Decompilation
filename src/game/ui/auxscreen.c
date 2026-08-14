@@ -312,11 +312,13 @@ void calc_good_wiz_attn(s32 reset, s32 force)
     u8* base = lbl_8023DFD0;
     f32 target;
     f32 delta;
+    u8 unused[16];
     f32 mtxbuf[3];
-    u8 unused[32];
+    u8 unused2[16];
 
     if (force == 0 && good_wiz_plyr_attn >= 0) {
-        u8* p = gPlayers + good_wiz_plyr_attn * 0x335C;
+        u8* p = gPlayers;
+        p += good_wiz_plyr_attn * 0x335C;
         if (*(s32*)(p + 232) == 1) {
             goto have_target;
         }
@@ -340,9 +342,12 @@ void calc_good_wiz_attn(s32 reset, s32 force)
 
 have_target:
     {
-        u8* p = gPlayers + good_wiz_plyr_attn * 0x335C;
-        f32 dx = *(f32*)(p + 68) - *(f32*)(base + 1464);
-        f32 dz = *(f32*)(p + 76) - *(f32*)(base + 1472);
+        u8* p = gPlayers;
+        f32 dx;
+        f32 dz;
+        p += good_wiz_plyr_attn * 0x335C;
+        dx = *(f32*)(p + 68) - *(f32*)(base + 1464);
+        dz = *(f32*)(p + 76) - *(f32*)(base + 1472);
         target = atan2(dx, dz);
     }
     delta = target - good_wiz_yaw;
