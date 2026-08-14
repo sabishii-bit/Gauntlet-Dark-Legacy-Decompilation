@@ -3287,11 +3287,29 @@ extern u8 gGameOptions[];
 extern char* lbl_8011C848[];    /* random name table (+80: per-player colors) */
 extern s16 lbl_80343C40[4];     /* per-player text x offsets (sdata) */
 extern f32 lbl_80346DB0;        /* draw scale */
+extern s16 lbl_80343C38[4];
+extern f32 lbl_80346DB4;
+extern u32 lbl_8011C898[4];
+extern u32 pbLoad;
 extern s32 RandInt(s32 range);
 extern char* strcpy(char* d, const char* s);
 extern void DrawTextKeepScale(f32 scale, s32 x, s32 y, u32 font, u32 color, u8* str);
-extern s32 fn_8005A868(void);
+extern s32 new_menu_accept(s32 player, s32 allow_start);
+extern s32 new_menu_back(s32 player);
+extern s32 new_up(s32 player);
+extern s32 new_down(s32 player);
+extern void AudioCursorH(void);
+extern void AudioCursorV(void);
+extern void AudioClick2(s32 player, s32 select);
+extern s32 fn_8005A868(s32 player);
 extern s32 gFrameTicks;
+
+typedef struct WorldNameControl {
+    u32 _pad00[3];
+    u32 repeat;
+    u32 _pad10[11];
+} WorldNameControl;
+extern WorldNameControl lbl_80240E30[4];
 
 s32 fn_8005A738(s32 player)
 {
@@ -3306,7 +3324,7 @@ s32 fn_8005A738(s32 player)
         return -1;
     }
     if (*(s32*)((u8*)p + 13100) == 0) {
-        if ((ret = fn_8005A868()) <= 0) {
+        if ((ret = fn_8005A868(player)) <= 0) {
             goto out;
         }
         *(s32*)((u32)p + 13100) = 1;
@@ -3329,6 +3347,127 @@ s32 fn_8005A738(s32 player)
     }
 out:
     return ret;
+}
+
+s32 fn_8005A868(s32 player)
+{
+    s32 accept;
+    s32 skip;
+    s32 i;
+    u16 x;
+    u32 color;
+    u32 white;
+    char text[2];
+    Player* p;
+    u32* repeat;
+
+    p = &gPlayers[player];
+    accept = new_menu_accept(player, 0);
+    if (accept == 0) {
+        repeat = (u32*)lbl_80240E30;
+        repeat += player * 15;
+        if ((*(repeat += 3) & 0x40000030) != 0) {
+            switch (p->world_name_tail) {
+            default:
+                p->world_name_tail++;
+                break;
+            case 'Z':
+                p->world_name_tail = '_';
+                break;
+            case '_':
+                p->world_name_tail = '0';
+                break;
+            case '9':
+                p->world_name_tail = '@';
+                break;
+            case '@':
+                p->world_name_tail = 'A';
+                break;
+            }
+            AudioCursorV();
+        }
+        if ((*repeat & 0x800000C0) != 0) {
+            switch (p->world_name_tail) {
+            default:
+                p->world_name_tail--;
+                break;
+            case 'A':
+                p->world_name_tail = '@';
+                break;
+            case '@':
+                p->world_name_tail = '9';
+                break;
+            case '0':
+                p->world_name_tail = '_';
+                break;
+            case '_':
+                p->world_name_tail = 'Z';
+                break;
+            }
+            AudioCursorV();
+        }
+    }
+
+    if ((new_down(player) != 0 || new_menu_back(player) != 0) &&
+        p->world_name_len > 0) {
+        p->world_name_len--;
+        p->world_name_tail = (s8)p->name[p->world_name_len];
+        p->name[p->world_name_len] = 0;
+        AudioCursorH();
+    }
+
+    if (accept != 0 || new_up(player) != 0) {
+        skip = 0;
+        if (p->world_name_tail == '@') {
+            if (accept != 0) {
+                p->world_name_len = 6;
+            } else {
+                skip = 1;
+            }
+        } else if (p->world_name_tail == '<') {
+            if (p->world_name_len > 0) {
+                p->world_name_len--;
+                p->name[p->world_name_len] = 0;
+            }
+        } else {
+            if (p->world_name_len + 1 < 7) {
+                p->name[p->world_name_len] = (s8)p->world_name_tail;
+                p->name[p->world_name_len + 1] = 0;
+            }
+            p->world_name_len++;
+        }
+        if (skip == 0) {
+            p->world_name_tail = '@';
+            AudioClick2(player, 1);
+        }
+    }
+
+    white = 0xFFFFFF;
+    x = lbl_80343C38[player] - 30;
+    text[1] = 0;
+    for (i = 0; i < p->world_name_len; i++, x += 18) {
+        text[0] = p->name[i];
+        DrawTextKeepScale(lbl_80346DB4, (u16)x - 4, 340, 7,
+                          lbl_8011C898[player], (u8*)text);
+    }
+    if (i < 6) {
+        color = (pbLoad & 0x10) ? white : 0x404040;
+        text[0] = (s8)p->world_name_tail;
+        DrawTextKeepScale(lbl_80346DB4, (u16)x - 4, 340, 7, color,
+                          (u8*)text);
+        x += 18;
+    }
+    i++;
+    while (i < 6) {
+        DrawTextKeepScale(lbl_80346DB4, (u16)x - 4, 340, 7, white,
+                          (u8*)"");
+        i++;
+        x += 18;
+    }
+    if (p->world_name_len >= 6) {
+        return 1;
+    }
+    return 0;
 }
 
 /* 0x8005D3D8 - can this world object block/affect the given enemy? */
