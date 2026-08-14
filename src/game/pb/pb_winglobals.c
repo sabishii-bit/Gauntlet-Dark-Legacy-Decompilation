@@ -431,23 +431,13 @@ void fn_800C1120(void)
     fn_800C1004();
 }
 
-/* Deci2Call(unused, (u16)flags, data). The u16 narrow sits between mflr and
- * the LR spill; no C form reproduces that interleave (u16/K&R/register/proto
- * permutations, O1 all land it after stwu; peephole-on breaks the whole TU),
- * so hand asm. NOTE: asm fns emit no extab entry -- this blocks the Matching
- * flip (orig extab 0x30 vs ours 0x28) and dtk rejects a mid-TU extabindex
- * split boundary, so the TU stays NonMatching with all fns byte-exact. */
-asm void fn_800C1148(void)
+/* Deci2Call(unused, (u16)flags, data). */
+#pragma peephole on
+void fn_800C1148(s32 unused, s32 flags, void* data)
 {
-    mflr r0
-    rlwinm r4, r4, 0, 16, 31
-    stw r0, 4(r1)
-    stwu r1, -8(r1)
-    bl Deci2Call
-    lwz r0, 0xc(r1)
-    addi r1, r1, 8
-    mtlr r0
+    Deci2Call(unused, (u16)flags, data);
 }
+#pragma peephole off
 
 void fn_800C116C(void)
 {
