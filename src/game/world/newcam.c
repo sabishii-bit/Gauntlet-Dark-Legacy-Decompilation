@@ -263,8 +263,7 @@ s32 fn_80070144(f32 targetYaw, f32 targetPitch, NcCamera* cam) {
     if (lbl_80343CF8 != *(s32*)(c + 0x1A8)) {
         *(s32*)(c + 0x1A8) = lbl_80343CF8;
 
-        d = (f32)(targetYaw - *(f32*)(c + 0xEC));
-        if (d > 3.141592654) {
+        if ((d = (f32)(targetYaw - *(f32*)(c + 0xEC))) > 3.141592654) {
             d = d - 6.283185308;
         } else if (d <= -3.141592654) {
             d = 6.283185308 + d;
