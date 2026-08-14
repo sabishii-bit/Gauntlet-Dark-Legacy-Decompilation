@@ -169,6 +169,9 @@ extern void  damage_player(s32 player, f32 damage, s32 mode, u32 flags,
 extern f32   NormalVector(f32 *vector);
 extern f32   NormalVector2D(f32 *vector);
 extern f32   SlowNormalVector(f32 *vector);
+extern f32   fqdist(f32 x, f32 z);
+extern s32   fn_8005FB48(f32 radius, f32 *from, f32 *to,
+                         f32 *limitPosition, s32 stopAtFirst);
 extern void  ProcessSkinFX(f32 *state, void *root, void *node);
 extern void *MBNewNode(void *parent, const f32 *matrix, s32 mode);
 extern void  CopyMat3(const f32 *src, f32 *dst);
@@ -931,28 +934,124 @@ void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
 #undef pyr
 }
 
+static inline void CritterDamagePlayerInline(Player *player, Critter *c,
+                                              u8 *damageDef, u32 flags,
+                                              f32 *direction, s32 playSfx,
+                                              f64 damageGate, f64 damageScale,
+                                              f32 zero, f64 hitTimeBase)
+{
+    u32 damageFlags;
+    s32 playerIndex;
+    f32 damage;
+    u8 *descriptor;
+    u8 *counter;
+    u8 *hit;
+
+    damageFlags = *(u32 *)(damageDef + 4) | flags;
+    playerIndex = player->index;
+    damage = *(f32 *)(damageDef + 0x2C) *
+             *(f32 *)((u8 *)gCurLevel + 0xBC);
+    if (playSfx != 0 && *(s16 *)(damageDef + 0x42) >= 0) {
+        CritterDoSfx(c, *(s16 *)(damageDef + 0x42), &player->pos[0], 0, -1);
+        damageFlags |= 0x01000000;
+    }
+    descriptor = *(u8 **)((u8 *)c->hdr + 0x120);
+    if (*(s16 *)(descriptor + 0x20) != 4 &&
+        (f64)lbl_803447D8 < damageGate) {
+        damage = (f32)((f64)damage * damageScale);
+    }
+    damage_player(playerIndex, damage, 1, damageFlags, direction);
+    hit = (u8 *)gPlayers + playerIndex * sizeof(Player);
+    ((Player *)hit)->bossdamage = zero;
+    ((Player *)hit)->fxhittime =
+        (f32)(hitTimeBase + (f64)sMusicFadeBase);
+    counter = (u8 *)c + playerIndex * 0x10;
+    *(f32 *)(counter + 0x1BC) += damage;
+    *(f32 *)(counter + 0x1C0) = sMusicFadeBase;
+}
+
 /* 0x80036138 -- test the critter's forward fire segment against players. */
-#pragma dont_inline on
 void CritterFirePlayerCollide(Critter *c, struct CritterDamageDef *damage)
 {
+    u8 *dmg = (u8 *)damage;
+    u8 framePad[8];
+    f32 start[3];
+    u8 startPad[4];
+    f32 end[3];
+    u8 endPad[4];
     f32 delta[3];
+    u8 deltaPad[4];
+    f32 transformed[3];
+    u8 transformedPad[4];
+    f32 playerPos[3];
+    u8 unused[16];
     Player *player;
+    f32 maxDistance;
+    f32 radius;
+    f32 minDistance;
+    f32 distance;
+    f32 zeroForCollision;
+    f64 hitTimeBase;
+    f32 zeroForDamage;
+    f64 damageScale;
+    f64 damageGate;
     s32 i;
+
+    maxDistance = *(f32 *)(dmg + 0x0C);
+    radius = *(f32 *)(dmg + 0x08);
+    minDistance = *(f32 *)(dmg + 0x10);
+    delta[0] = *(f32 *)((u8 *)c + 0x3B8);
+    delta[1] = *(f32 *)((u8 *)c + 0x3BC);
+    delta[2] = *(f32 *)((u8 *)c + 0x3C0);
+    NormalVector(delta);
+    YawVec3(delta, delta, *(f32 *)(dmg + 0x14));
+    PitchVec3(delta, delta, *(f32 *)(dmg + 0x1C));
+    MulVecMat3((f32 *)(dmg + 0x20), transformed,
+               (f32 *)((u8 *)c + 0x398));
+    start[0] = *(f32 *)((u8 *)c + 0x3C8) + transformed[0];
+    start[1] = *(f32 *)((u8 *)c + 0x3CC) + transformed[1];
+    start[2] = *(f32 *)((u8 *)c + 0x3D0) + transformed[2];
+    end[0] = delta[0] * maxDistance + start[0];
+    end[1] = delta[1] * maxDistance + start[1];
+    end[2] = delta[2] * maxDistance + start[2];
+    damageGate = *(volatile f64 *)&lbl_80346490;
+    damageScale = *(volatile f64 *)&lbl_803464F8;
+    zeroForCollision = *(volatile f32 *)&lbl_80346470;
+    zeroForDamage = *(volatile f32 *)&lbl_80346470;
+    hitTimeBase = *(volatile f64 *)&lbl_80346500;
 
     for (i = 0; i < 4; i++) {
         player = &gPlayers[i];
-        if (player->state != 1) {
+        if (player->state != 1 || sMusicFadeBase < player->fxhittime) {
             continue;
         }
-        delta[0] = *(f32 *)((u8 *)player + 0x64) - c->moveOrigin[0];
-        delta[1] = *(f32 *)((u8 *)player + 0x68) - c->moveOrigin[1];
-        delta[2] = *(f32 *)((u8 *)player + 0x6C) - c->moveOrigin[2];
-        if (NormalVector(delta) <= *(f32 *)((u8 *)damage + 0x0C)) {
-            CritterDamagePlayer(player, c, damage, 0, delta, 1);
+        playerPos[0] = *(f32 *)((u8 *)player + 0x64);
+        playerPos[1] = *(f32 *)((u8 *)player + 0x68);
+        playerPos[2] = *(f32 *)((u8 *)player + 0x6C);
+        delta[0] = playerPos[0] - start[0];
+        delta[1] = playerPos[1] - start[1];
+        delta[2] = playerPos[2] - start[2];
+        distance = fqdist(delta[0], delta[2]);
+        if (distance < minDistance || distance > maxDistance) {
+            continue;
         }
+        if (!LineCylinderCollide(playerPos,
+                                 *(f32 *)((u8 *)player + 0x850) + radius,
+                                 *(f32 *)((u8 *)player + 0x854) + radius,
+                                 start, end, transformed, 0)) {
+            continue;
+        }
+        if (fn_8005FB48(zeroForCollision, start, playerPos, playerPos, 1) >= 0) {
+            continue;
+        }
+        delta[0] = end[0] - start[0];
+        delta[1] = end[1] - start[1];
+        delta[2] = end[2] - start[2];
+        NormalVector2D(delta);
+        CritterDamagePlayerInline(player, c, dmg, 0, delta, 1, damageGate,
+                                  damageScale, zeroForDamage, hitTimeBase);
     }
 }
-#pragma dont_inline off
 
 /* 0x80036424 -- test an expanded critter node/body volume against players. */
 #pragma dont_inline on
