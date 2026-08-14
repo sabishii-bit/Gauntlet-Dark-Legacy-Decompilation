@@ -244,6 +244,7 @@ extern void *lbl_80241020[16];
 extern s32   SafeRockActive(void *rock);
 extern void *ItemGetNode(void *rock);
 extern s32   PlayerAttacking(s32 player, s32 mode);
+extern s32   player_can_be_damaged(void *player);
 extern void  GetPlayerColPos(s32 i, f32 *out);
 extern f64   __fabs(f64 x);
 extern char  lbl_8011221C[];          /* 0x8011221C critter-overflow message      */
@@ -970,6 +971,43 @@ static inline void CritterDamagePlayerInline(Player *player, Critter *c,
     *(f32 *)(counter + 0x1C0) = sMusicFadeBase;
 }
 
+static inline void CritterDamagePlayerInlineNode(Player *player, Critter *c,
+                                                  u8 *damageDef, u32 flags,
+                                                  f32 *direction, s32 playSfx,
+                                                  f64 damageGate,
+                                                  f64 damageScale, f32 zero,
+                                                  f64 hitTimeBase,
+                                                  f32 *damage)
+{
+    u32 damageFlags;
+    s32 playerIndex;
+    u8 *descriptor;
+    u8 *counter;
+    u8 *hit;
+
+    damageFlags = *(u32 *)(damageDef + 4) | flags;
+    playerIndex = player->index;
+    *damage = *(f32 *)(damageDef + 0x2C) *
+              *(f32 *)((u8 *)gCurLevel + 0xBC);
+    if (playSfx != 0 && *(s16 *)(damageDef + 0x42) >= 0) {
+        CritterDoSfx(c, *(s16 *)(damageDef + 0x42), &player->pos[0], 0, -1);
+        damageFlags |= 0x01000000;
+    }
+    descriptor = *(u8 **)((u8 *)c->hdr + 0x120);
+    if (*(s16 *)(descriptor + 0x20) != 4 &&
+        (f64)lbl_803447D8 < damageGate) {
+        *damage = (f32)((f64)*damage * damageScale);
+    }
+    damage_player(playerIndex, *damage, 1, damageFlags, direction);
+    hit = (u8 *)gPlayers + playerIndex * sizeof(Player);
+    ((Player *)hit)->bossdamage = zero;
+    ((Player *)hit)->fxhittime =
+        (f32)(hitTimeBase + (f64)sMusicFadeBase);
+    counter = (u8 *)c + playerIndex * 0x10;
+    *(f32 *)(counter + 0x1BC) += *damage;
+    *(f32 *)(counter + 0x1C0) = sMusicFadeBase;
+}
+
 /* 0x80036138 -- test the critter's forward fire segment against players. */
 void CritterFirePlayerCollide(Critter *c, struct CritterDamageDef *damage)
 {
@@ -1054,31 +1092,108 @@ void CritterFirePlayerCollide(Critter *c, struct CritterDamageDef *damage)
 }
 
 /* 0x80036424 -- test an expanded critter node/body volume against players. */
-#pragma dont_inline on
 s32 CritterNodePlayerCollide(Critter *c, struct CritterDamageDef *damage,
                               s32 enabled)
 {
-    f32 delta[3];
+    u8 *dmg = (u8 *)damage;
+    u8 framePad[16];
+    f32 start[3];
+    u8 startGap[20];
+    f32 transformed[3];
+    u8 transformedPad[4];
+    f32 deltaFromNode[3];
+    u8 nodePad[4];
+    f32 deltaFromCritter[3];
+    u8 critterPad[4];
+    f32 playerPos[3];
+    u8 unused[12];
     Player *player;
+    f64 hitTimeBase;
+    f32 zeroDamage;
+    f64 damageScale;
+    f64 damageGate;
+    f64 half;
+    f32 zeroY;
+    f64 zeroRadius;
+    f32 playerDamage;
+    f32 distance;
+    f32 nodeX;
+    f32 nodeY;
+    f32 nodeZ;
     f32 radius;
+    f32 expansion;
+    f32 bestDistance;
     s32 i;
+    s32 bestPlayer;
 
-    radius = enabled ? *(f32 *)((u8 *)damage + 0x2C) : 0.0f;
+    radius = (f32)(enabled != 0
+                       ? (f64)(*(f32 *)(dmg + 0x2C) *
+                               *(f32 *)((u8 *)gCurLevel + 0xBC))
+                       : lbl_80346488);
+    expansion = *(f32 *)(dmg + 0x0C);
+    bestDistance = lbl_80346508;
+    bestPlayer = -1;
+    MulVecMat3((f32 *)(dmg + 0x20), transformed,
+               (f32 *)((u8 *)c + 0x398));
+    nodeX = *(f32 *)((u8 *)c + 0x428) + transformed[0];
+    nodeY = *(f32 *)((u8 *)c + 0x42C) + transformed[1];
+    nodeZ = *(f32 *)((u8 *)c + 0x430) + transformed[2];
+    start[0] = *(f32 *)((u8 *)c + 0x3C8) + transformed[0];
+    start[1] = *(f32 *)((u8 *)c + 0x3CC) + transformed[1];
+    start[2] = *(f32 *)((u8 *)c + 0x3D0) + transformed[2];
+    half = *(volatile f64 *)&lbl_80346478;
+    damageGate = *(volatile f64 *)&lbl_80346490;
+    damageScale = *(volatile f64 *)&lbl_803464F8;
+    zeroY = *(volatile f32 *)&lbl_80346470;
+    zeroRadius = *(volatile f64 *)&lbl_80346488;
+    zeroDamage = *(volatile f32 *)&lbl_80346470;
+    hitTimeBase = *(volatile f64 *)&lbl_80346500;
+
     for (i = 0; i < 4; i++) {
         player = &gPlayers[i];
-        if (player->state != 1 || !PlayerAttacking(i, 0)) {
+        if (player->state != 1 || player_can_be_damaged(player) == 0) {
             continue;
         }
-        delta[0] = *(f32 *)((u8 *)player + 0x64) - c->pos[0];
-        delta[1] = *(f32 *)((u8 *)player + 0x68) - c->pos[1];
-        delta[2] = *(f32 *)((u8 *)player + 0x6C) - c->pos[2];
-        if (NormalVector(delta) <=
-            radius + *(f32 *)((u8 *)c->hdr + 0x7C)) {
-            CritterDamagePlayer(player, c, damage, 0, delta, 1);
+        if (radius > zeroRadius && sMusicFadeBase < player->fxhittime) {
+            continue;
+        }
+        playerPos[0] = *(f32 *)((u8 *)player + 0x64);
+        playerPos[1] = *(f32 *)((u8 *)player + 0x68);
+        playerPos[2] = *(f32 *)((u8 *)player + 0x6C);
+        if (!LineCylinderCollide(playerPos,
+                                 *(f32 *)((u8 *)player + 0x850) + expansion,
+                                 *(f32 *)((u8 *)player + 0x854) + expansion,
+                                 start, start, transformed, 0)) {
+            continue;
+        }
+        deltaFromNode[0] = start[0] - nodeX;
+        deltaFromNode[1] = start[1] - nodeY;
+        deltaFromNode[2] = start[2] - nodeZ;
+        deltaFromCritter[0] = playerPos[0] - c->pos[0];
+        *(volatile f32 *)&deltaFromCritter[1] =
+            playerPos[1] - c->pos[1];
+        deltaFromCritter[2] = playerPos[2] - c->pos[2];
+        deltaFromCritter[1] = zeroY;
+        NormalVector(deltaFromNode);
+        distance = NormalVector(deltaFromCritter);
+        if (distance < bestDistance) {
+            bestPlayer = i;
+            bestDistance = distance;
+        }
+        if (radius > zeroRadius) {
+            transformed[0] = deltaFromNode[0] + deltaFromCritter[0];
+            transformed[1] = deltaFromNode[1] + deltaFromCritter[1];
+            transformed[2] = deltaFromNode[2] + deltaFromCritter[2];
+            transformed[0] = (f32)(half * (f64)transformed[0]);
+            transformed[1] = (f32)(half * (f64)transformed[1]);
+            transformed[2] = (f32)(half * (f64)transformed[2]);
+            CritterDamagePlayerInlineNode(player, c, dmg, 0, transformed, 1,
+                                          damageGate, damageScale, zeroDamage,
+                                          hitTimeBase, &playerDamage);
         }
     }
+    return bestPlayer;
 }
-#pragma dont_inline off
 /* 0x80036740 -- award experience to one player (who >= 0) or all four active
  * players (who < 0), by the integer part of `amount`. */
 void CritterAwardExp(s32 who, f32 amount)
