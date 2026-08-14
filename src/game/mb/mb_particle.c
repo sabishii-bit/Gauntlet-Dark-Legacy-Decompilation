@@ -1746,10 +1746,11 @@ void MBPsysStartFrame(void) {
     u8 unused[8];
     u8* pi = (u8*)psysInfo;
     u8* g = pi + 64;
-    u8* g2;
     u32 clock;
     MBObject* node;
-    u32 config;
+    MBObject* next;
+    u8* g2;
+    u8* g3;
     u32 dbg;
 
     if (lbl_803451A8 == 0) {
@@ -1783,34 +1784,38 @@ void MBPsysStartFrame(void) {
     node = *(MBObject**)(pi + 76);
     g2 = pi + 64;
     while (node != NULL) {
-        MBObject* next = *(MBObject**)((u8*)node + 36);
+        next = *(MBObject**)((u8*)node + 36);
         freePsys(node);
         node = next;
     }
     *(s32*)(g2 + 12) = 0;
     *(s32*)(g2 + 8) = 0;
 
-    if ((config = *(u32*)(g + 100)) != 0) {
-        g2 = pi + 64;
+    if ((next = *(MBObject**)(g + 100)) != NULL) {
+        g3 = pi + 64;
         if ((dbg = *(u32*)(pi + 168)) == 0) {
             dbg = MBPsysSetDebugNode(0, 0);
         }
-        *(s32*)(g2 + 108) = (s32)MBNewPsysDescrip(0, dbg, 0, (void*)config);
+        *(s32*)(g3 + 108) = (s32)MBNewPsysDescrip(0, dbg, 0, next);
         *(s32*)(g + 100) = 0;
     }
 
     if (lbl_8034519C != 0) {
         if (lbl_8034519C == 1) {
+            f32 rate;
+            f32 power;
+
             dbg = MBPsysSetDebugNode(0, 0);
+            rate = lbl_80343FC8;
+            power = lbl_80343FCC;
             lbl_803451A0 = (s32)MBPsysFirework(0, dbg, lbl_80343FD0, lbl_80343FD4,
                                                lbl_80343FD8, lbl_80343FDC,
-                                               lbl_80343FC8, lbl_80343FCC,
-                                               lbl_80343FE0, lbl_80343FE4,
-                                               lbl_80343FE8);
+                                               rate, power, lbl_80343FE0,
+                                               lbl_80343FE4, lbl_80343FE8);
         } else if (lbl_8034519C == 2) {
-            dbg = MBPsysSetDebugNode(0, 0);
             lbl_803451A0 = (s32)MBPsysFlame(lbl_80349220, lbl_80343FEC,
-                                            lbl_80343FF0, 0, dbg, 0);
+                                            lbl_80343FF0, 0,
+                                            (s32)MBPsysSetDebugNode(0, 0), 0);
         }
         lbl_8034519C = 0;
     }
