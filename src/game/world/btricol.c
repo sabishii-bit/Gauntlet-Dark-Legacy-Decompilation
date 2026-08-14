@@ -27,6 +27,18 @@ typedef struct ColFrame {
     f32 t; /* 0x8 */
 } ColFrame;
 
+typedef struct WorldTri {
+    s16 layerLo;
+    s16 layerHi;
+    f32 scale;
+    Vec norm;
+    Vec center;
+    s16 x0;
+    s16 z0;
+    s16 x1;
+    s16 z1;
+} WorldTri;
+
 /* Read-only collision-query line, owned elsewhere (.bss 0x8023F7E8). */
 extern f32 gColQueryLine[8]; /* [0..2] = p0, [4..6] = p1 */
 extern const f64 lbl_80345D40;
@@ -39,11 +51,11 @@ extern const f64 lbl_80345DA8;
 extern f64 __frsqrte(f64 value);
 
 /* PSVEC-style helpers in the g3d math library. */
-extern f32  fqdist(f32 a, f32 b, f32 c, f32 d, f32 e, f32 f);
+extern f32  fqdist(f32 x, f32 z);
 extern void SlowNormalVector(Vec* out, Vec* a, Vec* b);
 
 /* forward decls (address order) */
-f32         TriLineCol(Vec* tri, Vec* out, f32 radius);
+s32         TriLineCol(WorldTri* tri, Vec* out);
 f32         BTriLineCol(Vec* tri, Vec* out, f32 radius);
 static void BodyVectorNorm(Vec* in, Vec* out, ColFrame* f, f32 c);
 static void WorldVectorNorm(Vec* out, f32 x, f32 y, f32 z, f32 c,
@@ -263,18 +275,108 @@ static f32 LineLineDist3D2D(Vec* a0, Vec* a1, Vec* outA, f32* outTa,
 /* TriLineCol -- collide the query line (gColQueryLine) against a       */
 /* single triangle, returning the hit fraction (-1 when no hit).       */
 /* ------------------------------------------------------------------ */
-f32 TriLineCol(Vec* tri, Vec* out, f32 radius) {
-    Vec local;
-    ColFrame frame;
-    frame.c = tri->x;
-    frame.s = tri->y;
-    frame.t = tri->z;
-    local.x = gColQueryLine[0];
-    local.y = gColQueryLine[1];
-    local.z = gColQueryLine[2];
-    BodyVectorNorm(&local, out, &frame, radius);
-    WorldVectorNorm(&local, local.x, local.y, local.z, radius, &frame);
-    return -1.0f;
+static f32 btri_fabsf(f32 x) {
+    *(u32*)&x &= 0x7fffffff;
+    return x;
+}
+
+s32 TriLineCol(WorldTri* tri, Vec* out) {
+    u8 padHigh[20];
+    Vec norm;
+    u8 pad3[4];
+    Vec tpB;
+    u8 pad2[4];
+    Vec tpA;
+    u8 pad1[4];
+    Vec v1;
+    u8 pad0[4];
+    f32 cx;
+    f32 cy;
+    f32 cz;
+    f32 v3x;
+    f32 v3z;
+    f32 dx1;
+    f32 dz1;
+    f32 tpx;
+    f32 tpz;
+    f32 t;
+    f32 x0;
+    f32 z0;
+    f32 x1;
+    f32 z1;
+    u8 unused[8];
+
+    cx = tri->center.x;
+    cy = tri->center.y;
+    cz = tri->center.z;
+    norm.x = tri->norm.x;
+    norm.y = tri->norm.y;
+    norm.z = tri->norm.z;
+    v1.x = gColQueryLine[4] - cx;
+    v1.y = gColQueryLine[5] - cy;
+    v1.z = gColQueryLine[6] - cz;
+    BodyVectorNorm(&v1, &tpB, (ColFrame*)&norm, tri->scale);
+    if ((f64)tpB.y < 0.0) {
+        return 0;
+    }
+
+    v1.x = gColQueryLine[0] - cx;
+    v1.y = gColQueryLine[1] - cy;
+    v1.z = gColQueryLine[2] - cz;
+    BodyVectorNorm(&v1, &tpA, (ColFrame*)&norm, tri->scale);
+    if (tpB.y < tpA.y) {
+        return 0;
+    }
+    if ((tpB.y > 0.0 && tpA.y > 0.0) ||
+        (tpB.y < 0.0 && tpA.y < 0.0)) {
+        return 0;
+    }
+
+    dx1 = tpA.x - tpB.x;
+    dz1 = tpA.z - tpB.z;
+    if ((f64)fqdist(dx1, dz1) > 0.01) {
+        f32 ayB;
+        f32 ayA;
+        f32 sum;
+        sum = (ayB = btri_fabsf(tpB.y)) +
+              (ayA = btri_fabsf(tpA.y));
+        if (sum == 0.0f) {
+            t = (f32)(1000.0 * (f64)btri_fabsf(tpB.y));
+        } else {
+            t = btri_fabsf(tpB.y) / sum;
+        }
+        tpx = dx1 * t + tpB.x;
+        tpz = dz1 * t + tpB.z;
+    } else {
+        tpx = tpB.x;
+        tpz = tpB.z;
+    }
+
+    x0 = (f32)((f64)tri->x0 * 0.015625);
+    z0 = (f32)((f64)tri->z0 * 0.015625);
+    x1 = (f32)((f64)tri->x1 * 0.015625);
+    z1 = (f32)((f64)tri->z1 * 0.015625);
+
+    v3x = x0 * tpz - z0 * tpx;
+    if ((f64)v3x > 0.0) {
+        return 0;
+    }
+    v3x = (x1 - x0) * (tpz - z0) - (z1 - z0) * (tpx - x0);
+    if ((f64)v3x > 0.0) {
+        return 0;
+    }
+    v3z = -x1 * (tpz - z1) - (-z1 * (tpx - x1));
+    if ((f64)v3z > 0.0) {
+        return 0;
+    }
+
+    if (out != 0) {
+        WorldVectorNorm(out, tpx, 0.0f, tpz, tri->scale, (ColFrame*)&norm);
+        out->x += cx;
+        out->y += cy;
+        out->z += cz;
+    }
+    return 1;
 }
 
 /* ------------------------------------------------------------------ */
