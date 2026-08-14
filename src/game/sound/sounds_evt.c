@@ -1612,7 +1612,7 @@ void AudioPlayerEatSFX(int pidx)
 #pragma scheduling on
 #endif
 
-void fn_8009F748(int pidx)
+void fn_8009F748(int pidx, int sourcePlayer)
 {
     u8* player = &gPlayers[pidx * 13148];
 
