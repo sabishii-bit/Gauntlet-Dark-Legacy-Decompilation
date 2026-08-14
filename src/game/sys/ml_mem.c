@@ -205,32 +205,50 @@ int MBSetupWad(int* wad, int base)
 }
 
 /* open a file into the async handle slot */
-MLFILE* StartFileRead(char* wad, char* name, int compress, char* dest)
+MLFILE* StartFileRead(char* wad, char* name, int mode, int sizeHint,
+                      char* dest, void* callback)
 {
-    char path[256];
     char full[256];
-    MLFILE* f;
+    char path[256];
     int slot;
-    int fd;
+    MLFILE* f;
     int size;
+    int fd;
 
     if (alloctot != 0) {
         gErrorCode = 0xff;
-        bulletproof_printf("Temporary high memory in use by %s\n", name);
+        FatalErrorf("Temporary high memory in use by somebody else when StartFileRead called.  Check if another file is being read!");
     }
-    slot = (finfo_list[0].state != -1);
+    for (slot = 0; slot < 1; slot++) {
+        f = &finfo_list[slot];
+        if (f->done == -1) {
+            break;
+        }
+    }
     if (slot == 1) {
         gErrorCode = 0xff;
-        bulletproof_printf("Too many open files (%d)\n", 1);
+        FatalErrorf("Too many open files: %d", slot);
         return NULL;
     }
     f = &finfo_list[slot];
-    get_path(path, wad, name);
-    strcpy(full, path);
+    if (wad != NULL) {
+        sprintf(path, mlmPathFmtWad, wad, name);
+    } else {
+        sprintf(path, mlmPathFmt, name);
+    }
+    if ((name[0] != 'W' || name[1] != 'A' || name[2] != 'D') &&
+        strrchr(path, '.') == NULL) {
+        strcat(path, mlmExtDefault);
+    }
+    strcpy(full, mlmRootPath);
+    if (path[0] != '/') {
+        strcat(full, "/\0\0\0.ps2");
+    }
+    strcat(full, path);
     fd = sceOpen(full, 1);
     if (fd < 0) {
         gErrorCode = 0xff;
-        bulletproof_printf("Can't open '%s'\n", full);
+        FatalErrorf("Can't open: %s.\n", full);
         return NULL;
     }
     size = sceLseek(fd, 0, 2);
@@ -238,13 +256,23 @@ MLFILE* StartFileRead(char* wad, char* name, int compress, char* dest)
         size += 0x10 - (size & 0xf);
     }
     strncpy(f->name, full, 0x100);
-    f->totalSize = size;
-    sceLseek(fd, 0, 0);
     f->buffer = dest;
+    f->unk08 = sizeHint;
+    sceLseek(fd, 0, 0);
+    f->state = (int)callback;
+    f->totalSize = size;
     f->bytesRead = 0;
-    f->done = 0;
+    f->compressed = 0;
+    sceClose(fd);
+    fd = sceOpen(full, 0x8001);
+    if (fd < 0) {
+        gErrorCode = 0xff;
+        FatalErrorf("Can't open: %s.\n", full);
+        return NULL;
+    }
     f->fd = fd;
-    f->state = 0;
+    f->active = 0;
+    f->done = 0;
     return f;
 }
 
