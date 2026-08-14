@@ -44,7 +44,14 @@ extern s32 gTriggerCameraState;
 extern s32 gBossType;
 extern s32 lbl_80344768;
 extern s32 lbl_803447B4;
-extern f32 lbl_80240E30[]; /* control-pad state array, stride 15 f32 */
+typedef union ControlState {
+    f32 values[15];
+    struct {
+        u8 pad[56];
+        s32 flag;
+    } control;
+} ControlState;
+extern ControlState lbl_80240E30[]; /* control-pad state array, stride 15 f32 */
 extern f32 sMusicFadeBase; /* sMusicFadeBase */
 
 /* ------------------------------------------------------------------ */
@@ -122,6 +129,13 @@ extern void fn_80094164(void* pos, u32 flags, s32 a3);
 extern void SetSkinFX(void* node, s32 tex, s32 a3, s32 a4, f32 dur);
 extern void StartEnemyGrid(f32* pos, f32 range);
 extern s32 NextGridEnemy(void);
+extern void StartItemGrid(f32 radius, f32* position);
+extern s32 NextGridItem(void);
+extern s32 FastWallCollide(f32* from, f32* to, f32* normal, s32 mode);
+extern void CritterCollideStart(f32 radius, f32* position, s32 unused);
+extern void* CritterMoveNodeCol(f32 radius, f32 zero, f32* from, f32* to,
+                                f32* hit, s32 ignore, s32 mode);
+extern s32 lbl_803447DC;
 extern f32 fn_8005F0F4(void* item, s32 a2, f32* pos, f32* hit, f32 range, f32 p2);
 extern s32 fn_8005D730(Player* p, void* item);
 extern u8* sItems;
@@ -781,7 +795,7 @@ void DoExit(Player* p) {
             p->idle_timer += gFrameTicks;
         } else if (fn_8005B8FC(p) != 0) {
             if (lbl_80344804 != 0 ||
-                0.0 == (f64)lbl_80240E30[p->index * 15 + 8]) {
+                0.0 == (f64)lbl_80240E30[p->index].values[8]) {
                 p->idle_timer += gFrameTicks;
             }
         } else {
@@ -953,6 +967,137 @@ s32 PlayerCollidePlayers(Player* p, f32 range, f32 p3, f32* from, f32* to,
 }
 s32 PlayerCollideItems(Player* p, f32 range, f32 height, f32* from, f32* to,
                        f32* hit) {
+    f32 localHit[12];
+    volatile u8 unused[12];
+    f32 best = lbl_80347B30;
+    s32 closest = -1;
+    s32 count = 0;
+    s32 index;
+    u8* object;
+
+    StartItemGrid(range, to);
+    {
+    object = gEnemies;
+    goto item_test;
+item_body:
+    {
+        u8* item;
+        s32 state;
+        f32 collisionRange;
+        f32 collisionHeight;
+        f32 dx;
+        f32 dy;
+        f32 dz;
+        f32 distance;
+
+        item = object + index * 0x394;
+        state = *(s32*)(item + 0xB4);
+        if (state != 1 && state != 6 &&
+            (state != 8 || lbl_803447DC == 0)) {
+            goto item_test;
+        }
+        if (*(s32*)item == 0x1F) {
+            goto item_test;
+        }
+
+        collisionRange = range + *(f32*)(item + 0x238);
+        collisionHeight = height + *(f32*)(item + 0x23C);
+        dx = *(f32*)(item + 0x54) - to[0];
+        dy = *(f32*)(item + 0x58) - to[1];
+        dz = *(f32*)(item + 0x5C) - to[2];
+        if (dx * dx + dz * dz < collisionRange * collisionRange &&
+            fabsf_(dy) < *(f32*)(item + 0x23C) &&
+            LineCylinderCollide((f32*)(item + 0x54), collisionRange,
+                                collisionHeight, from, to,
+                                localHit, 1) != 0) {
+                distance = fqdist(localHit[0] - to[0], localHit[2] - to[2]);
+                if (closest < 0 || distance < best) {
+                    best = distance;
+                    closest = index;
+                    hit[0] = localHit[0];
+                    hit[1] = localHit[1];
+                    hit[2] = localHit[2];
+                }
+                count++;
+        }
+    }
+item_test:
+    if ((index = NextGridItem()) >= 0) {
+        goto item_body;
+    }
+    }
+
+    if (closest >= 0) {
+        u8* item = gEnemies + closest * 0x394;
+        if (FastWallCollide(from, (f32*)(item + 0x54), 0, 0) != 0) {
+            closest = -1;
+        }
+    }
+
+    CritterCollideStart(range, to, 0);
+    {
+        object = CritterMoveNodeCol(range, lbl_80347B30, from, to,
+                                    localHit, -1, 2);
+        if (object != 0 &&
+            *(s16*)(*(u8**)(*(u8**)(object + 4) + 0x120) + 0x20) == 4 &&
+            (PF(p, 0x8D4, u32) & 0x8000) != 0) {
+            object = 0;
+        }
+        if (object != 0) {
+            f32 distance = fqdist(localHit[0] - to[0], localHit[2] - to[2]);
+            if (closest < 0 || distance < best) {
+                closest = *(s16*)object | 0x10000;
+                hit[0] = localHit[0];
+                hit[1] = localHit[1];
+                hit[2] = localHit[2];
+            }
+            count++;
+        }
+    }
+
+    if (closest < 0) {
+        hit[0] = from[0];
+        hit[1] = from[1];
+        hit[2] = from[2];
+    } else if (lbl_80240E30[p->index].control.flag == 0) {
+        if (count == 1) {
+            f32 dx;
+            f32 dz;
+            f32 distance;
+            f32 zero;
+            s32 radius;
+
+            if (closest >= 0x10000) {
+                u8* critter = gCritterPool + (closest & 0xFFFF) * 0xAE0;
+                zero = lbl_80347B30;
+                dx = to[0] - *(f32*)(critter + 0x5C);
+                dz = to[2] - *(f32*)(critter + 0x64);
+                radius = (s32)*(f32*)(*(u8**)(critter + 4) + 0x7C);
+            } else {
+                u8* item = gEnemies + closest * 0x394;
+                zero = lbl_80347B30;
+                dx = to[0] - *(f32*)(item + 0x54);
+                dz = to[2] - *(f32*)(item + 0x5C);
+                radius = (s32)*(f32*)(item + 0x238);
+            }
+            distance = fqdist(dx, dz);
+            if (distance > lbl_80347D68) {
+                f32 scale = (range + radius - distance) / distance;
+                hit[0] = dx * scale + to[0];
+                hit[1] = zero * scale + to[1];
+                hit[2] = dz * scale + to[2];
+            } else {
+                hit[0] = from[0];
+                hit[1] = from[1];
+                hit[2] = from[2];
+            }
+        } else {
+            hit[0] = from[0];
+            hit[1] = from[1];
+            hit[2] = from[2];
+        }
+    }
+    return closest;
 }
 extern f32 lbl_80347B30; /* 0.0f (sdata2) */
 extern f64 lbl_80347BE8; /* 0.01 (sdata2) */
