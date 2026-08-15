@@ -1247,79 +1247,128 @@ extern void AudioClearActiveTracks(void);
 extern void AudioSetupBossStreams(s32 idx, void* data);
 extern char lbl_801129D4[];
 
+#pragma opt_lifetimes off
 void GetEnemyTypes(void)
 {
+    typedef struct {
+        u8 pad0[0xEC];
+        u8* ent;
+        u8 pad1[0x1C];
+        s32 subtype;
+        u8 pad2[0x1C];
+        s32 reverse;
+        u8 pad3[0x1C];
+        s32 type;
+    } EnemyTypeRow;
     u8* tbl = (u8*)lbl_80257680;
-    u8* etab = *(u8**)(gWorldData + 0x20);
-    s32 seen1e = 0;
     s32 i;
+    s32 seen1e = 0;
+    u8* etab = *(u8**)(gWorldData + 0x20);
+    s32 off;
+    s32 levelOff;
 
     AudioClearActiveTracks();
-    for (i = 0; i < 8; i++) {
-        u8* slot = tbl + i * 4;
+    i = 0;
+    off = 0;
+    levelOff = 0;
+    for (; i < 8; i++, off += 4, levelOff += 2) {
         s32 type;
         s32 t14c;
+        u8* ent;
+        u8* subWords;
+        u8* typeWords;
 
         if (i < 6) {
-            type = *(s16*)(gCurLevel + i * 2 + 0x4C);
+            type = *(s16*)(gCurLevel + levelOff + 0x4C);
         } else {
             type = -1;
         }
         if (type >= 0) {
-            u8* ent = etab + type * 0x18;
+            ent = etab + type * 0x18;
 
-            *(s32*)(slot + 0x14C) = *(s32*)ent;
-            *(s32*)(slot + 0x10C) = *(s32*)(ent + 0x4);
+            {
+                EnemyTypeRow* slot = (EnemyTypeRow*)tbl;
+                slot = (EnemyTypeRow*)((u8*)slot + off);
+                slot->type = *(s32*)ent;
+                slot->subtype = *(s32*)(ent + 0x4);
+            }
             if (*(s32*)(ent + 0x4) != 9 && *(s32*)(ent + 0x4) != 5) {
                 AudioSetupBossStreams(i, ent + 0x8);
             }
-            *(u8**)(slot + 0xEC) = ent;
+            {
+                EnemyTypeRow* slot = (EnemyTypeRow*)tbl;
+                slot = (EnemyTypeRow*)((u8*)slot + off);
+                slot->ent = ent;
+            }
         } else if (*(s32*)(gCurLevel + 0x44) < 0 && *(s32*)gWorldData != 0xD &&
                    seen1e == 0) {
-            *(s32*)(slot + 0x14C) = 0x1E;
-            *(s32*)(slot + 0x10C) = 0;
-            *(s32*)(slot + 0xEC) = 0;
+            *(s32*)(tbl + off + 0x14C) = 0x1E;
+            *(s32*)(tbl + off + 0x10C) = 0;
+            *(s32*)(tbl + off + 0xEC) = 0;
         } else {
-            *(s32*)(slot + 0x14C) = -1;
-            *(s32*)(slot + 0x10C) = 0;
-            *(s32*)(slot + 0xEC) = 0;
+            *(s32*)(tbl + off + 0x14C) = -1;
+            *(s32*)(tbl + off + 0x10C) = 0;
+            *(s32*)(tbl + off + 0xEC) = 0;
         }
 
-        t14c = *(s32*)(slot + 0x14C);
+        typeWords = tbl;
+        typeWords += off;
+        t14c = *(s32*)(typeWords += 0x14C);
         if (t14c == 0x1E) {
             seen1e = 1;
         }
         if (t14c >= 0) {
-            if (*(s32*)(slot + 0x10C) == 0) {
-                *(s32*)(slot + 0x10C) = GetEnemySubtype(t14c);
+            subWords = tbl;
+            subWords += off;
+            if (*(s32*)(subWords += 0x10C) == 0) {
+                *(s32*)subWords = GetEnemySubtype(t14c);
             }
-            if (*(s32*)(slot + 0x10C) <= 0) {
-                ErrorPrintf(lbl_801129D4, t14c);
+            if (*(s32*)subWords <= 0) {
+                ErrorPrintf(lbl_801129D4, *(s32*)typeWords, *(s32*)subWords);
             }
         }
     }
 
     for (i = 0; i < 8; i++) {
-        *(s32*)(tbl + i * 4 + 0x12C) = -1;
+        EnemyTypeRow* row = (EnemyTypeRow*)tbl;
+        row = (EnemyTypeRow*)((u8*)row + i * 4);
+        row->reverse = -1;
     }
     for (i = 0; i < 8; i++) {
-        s32 idx = *(s32*)(tbl + i * 4 + 0x10C);
+        EnemyTypeRow* row = (EnemyTypeRow*)tbl;
+        s32 idx;
+        row = (EnemyTypeRow*)((u8*)row + i * 4);
+        idx = row->subtype;
 
         if (idx < 6) {
-            *(s32*)(tbl + idx * 4 + 0x12C) = *(s32*)(tbl + i * 4 + 0x14C);
+            s32 rowType = row->type;
+            row = (EnemyTypeRow*)tbl;
+            row = (EnemyTypeRow*)((u8*)row + idx * 4);
+            row->reverse = rowType;
         }
     }
     if (gGameOptions[2] < 2) {
         for (i = 0; i < 8; i++) {
-            if (*(s32*)(tbl + i * 4 + 0x10C) == 2) {
-                *(s32*)(tbl + i * 4 + 0x10C) = 4;
+            u8* words;
+            words = tbl;
+            words += i * 4;
+            if (*(s32*)(words += 0x10C) == 2) {
+                *(s32*)words = 4;
             } else {
-                *(s32*)(tbl + i * 4 + 0x14C) = -1;
+                s32 value;
+                words = tbl;
+                words += i * 4;
+                value = *(s32*)(words += 0x14C);
+                if (value >= 0 && value < 28) {
+                    *(s32*)words = -1;
+                } else {
+                    *(volatile s32*)words = -1;
+                }
             }
         }
     }
 }
-
+#pragma opt_lifetimes reset
 /* 0x80057978 -- map an enemy type id to its shared subtype class. */
 s32 GetEnemySubtype(s32 type)
 {
