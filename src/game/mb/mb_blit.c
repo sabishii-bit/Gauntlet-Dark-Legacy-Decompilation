@@ -705,14 +705,14 @@ void MBBlitOrder(MBBLIT* a, MBBLIT* b) {
 }
 
 /* Recompute every live blit's screen position after a window change. */
+#pragma opt_propagation off
 void MBBlitUpdateWindow(f32 xScale, f32 yScale) {
-    s32 offset = 0;
     s32 scaled;
     s32 i;
-    u8* base = (u8*)blitPool;
+    MBBLIT* base = blitPool;
 
     for (i = 0; i < blitCount; i++) {
-        MBBLIT* b = (MBBLIT*)(base + offset);
+        MBBLIT* b = &base[i];
         if ((b->flags & 2) == 0 && (b->flags & 0x40) == 0) {
             scaled = (s32)(0.5 + (f32)((f32)b->x * xScale));
             b->x = (s16)scaled;
@@ -727,13 +727,11 @@ void MBBlitUpdateWindow(f32 xScale, f32 yScale) {
                 b->height = (u16)scaled;
             }
         }
-        offset += sizeof(MBBLIT);
     }
 
-    base = tempBlitPool;
-    offset = 0;
+    base = (MBBLIT*)tempBlitPool;
     for (i = 0; i < tempBlitCount; i++) {
-        MBBLIT* b = (MBBLIT*)(base + offset);
+        MBBLIT* b = &base[i];
         if ((b->flags & 2) == 0 && (b->flags & 0x40) == 0) {
             scaled = (s32)(0.5 + (f32)((f32)b->x * xScale));
             b->x = (s16)scaled;
@@ -748,9 +746,9 @@ void MBBlitUpdateWindow(f32 xScale, f32 yScale) {
                 b->height = (u16)scaled;
             }
         }
-        offset += sizeof(MBBLIT);
     }
 }
+#pragma opt_propagation reset
 
 /* =====================================================================
  * Drawing (GX pipeline) - stubbed pending full decompile
