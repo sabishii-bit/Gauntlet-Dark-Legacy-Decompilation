@@ -125,6 +125,7 @@ extern void  HealthMeterUpdate(void *meter, f32 cur, f32 max);
 extern void *memset(void *dst, int c, u32 n);
 extern void *memcpy(void *dst, const void *src, u32 n);
 extern void  ErrorPrintf(const char *fmt, ...);
+extern void  FatalError(const char *msg, int code);
 extern void  MBRemoveNode(void *node, s32 kind);
 extern s32   GetWorldMat(void *node, f32 *matrix, f32 *offset);
 extern void  GetYawPitch(const f32 *vector, f32 *yaw, f32 *pitch);
@@ -397,7 +398,7 @@ s32 CritterLoadStartNext(void);
 void CritterLoadAllTypes(s32 arg);
 struct CritterHeader *CritterTypeLoaded(s32 type, s32 subtype);
 void CritterAllocType(void *hdr, void *move, s32 arg);
-void CritterLoadFinish(void *typeHeader);
+void CritterLoadFinish(u8 *header);
 void CritterInitAllMoves(void);
 void CritterInitMoves(void *move);
 void CritterInitSfx(void *file, s32 index, void *atreeHeader);
@@ -5074,58 +5075,71 @@ void CritterAllocType(void *hdr, void *move, s32 arg)
 
 /* 0x8003F9F4 -- resolve the animation tree and named attachment nodes for a
  * type after its model resource has loaded. */
-void CritterLoadFinish(void *typeHeaderPtr)
+void CritterLoadFinish(u8 *header)
 {
-    u8 *header;
-    u8 *resource;
     u8 *parent;
     u8 *attachment;
     void *atree;
     s32 index;
+    f64 name[4];
+    u8 unused[8];
 
-    header = (u8 *)typeHeaderPtr;
     if (*(void **)(header + 0x138) != NULL) {
         return;
     }
-    resource = *(u8 **)(header + 0x120);
     if (*(s16 *)(header + 0x11E) < 0) {
+        sprintf((char *)name, "%s%s",
+                (char *)(*(u8 **)(header + 0x120) + 0x10), header);
         *(void **)(header + 0x138) =
-            AtreeMatch(*(void **)(resource + 0x28),
-                       (char *)(resource + 0x10), 0);
+            AtreeMatch(*(void **)(*(u8 **)(header + 0x120) + 0x28),
+                       (char *)name, 0);
         if (*(void **)(header + 0x138) == NULL) {
-            ErrorPrintf("Critter can not find atree %s\n",
-                        (char *)(resource + 0x10));
+            ErrorPrintf("Critter can not find atree %s", (char *)name);
         }
     } else {
         parent = *(u8 **)(*(u8 **)(header + 0x130) + 0x14) +
                  *(s16 *)(header + 0x11E) * 0x140;
         *(void **)(header + 0x138) = *(void **)(parent + 0x138);
+        if (*(void **)(parent + 0x138) == NULL) {
+            FatalError("Child critter defined before parent", 0x800000);
+        }
     }
 
     for (attachment = *(u8 **)(header + 0x134);
          attachment != NULL;
          attachment = *(u8 **)(attachment + 8)) {
         *(void **)(attachment + 4) =
-            AtreeMatch(*(void **)(resource + 0x28),
+            AtreeMatch(*(void **)(*(u8 **)(header + 0x120) + 0x28),
                        (char *)(attachment + 0x10), 1);
     }
 
     atree = *(void **)(header + 0x138);
     index = -1;
-    if (atree != NULL && *(char *)(header + 0x20) != '\0') {
-        index = AtreeFindNodeIdx(atree, *(s32 *)((u8 *)atree + 0x10),
+    if (atree != NULL && (header + 0x20) != NULL &&
+        *(char *)(header + 0x20) != '\0' &&
+        *(char *)(header + 0x21) != '\0') {
+        index = AtreeFindNodeIdx(*(void **)((u8 *)atree + 0x0C),
+                                 *(s32 *)((u8 *)atree + 0x10),
                                  (char *)(header + 0x20), 0x10);
     }
     *(s16 *)(header + 0x56) = (s16)index;
     index = -1;
-    if (atree != NULL && *(char *)(header + 0x30) != '\0') {
-        index = AtreeFindNodeIdx(atree, *(s32 *)((u8 *)atree + 0x10),
+    atree = *(void **)(header + 0x138);
+    if (atree != NULL && (header + 0x30) != NULL &&
+        *(char *)(header + 0x30) != '\0' &&
+        *(char *)(header + 0x31) != '\0') {
+        index = AtreeFindNodeIdx(*(void **)((u8 *)atree + 0x0C),
+                                 *(s32 *)((u8 *)atree + 0x10),
                                  (char *)(header + 0x30), 0x10);
     }
     *(s16 *)(header + 0x58) = (s16)index;
     index = -1;
-    if (atree != NULL && *(char *)(header + 0x40) != '\0') {
-        index = AtreeFindNodeIdx(atree, *(s32 *)((u8 *)atree + 0x10),
+    atree = *(void **)(header + 0x138);
+    if (atree != NULL && (header + 0x40) != NULL &&
+        *(char *)(header + 0x40) != '\0' &&
+        *(char *)(header + 0x41) != '\0') {
+        index = AtreeFindNodeIdx(*(void **)((u8 *)atree + 0x0C),
+                                 *(s32 *)((u8 *)atree + 0x10),
                                  (char *)(header + 0x40), 0x10);
     }
     *(s16 *)(header + 0x5A) = (s16)index;
@@ -5289,8 +5303,6 @@ extern char lbl_8034667C[8]; /* "NODE" */
 extern char lbl_80346684[8]; /* "DESC" */
 extern char lbl_8034668C[8]; /* "TYPE" */
 extern char lbl_80346694[8]; /* "ADDA" */
-extern void FatalError(const char *msg, int code);
-
 static inline s32 CritterWadTag(char *s)
 {
     return (s[0] << 24) | (s[1] << 16) | (s[2] << 8) | s[3];
