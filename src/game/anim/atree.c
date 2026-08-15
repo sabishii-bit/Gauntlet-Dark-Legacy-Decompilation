@@ -633,34 +633,49 @@ void AnimateNode(anode* node, animinfo* info, s32 recurse)
 
 /* ---------------- tree traversal / teardown ---------------- */
 
-anode* AtreeFindMbidxNode(anode* node, int mbidx)
+anode* AtreeFindMbidxNode(anode* node, int mbidx);
+
+static inline anode* AtreeFindMbidxNodeChild(anode* node, int mbidx)
 {
     anode* found;
-    anode* child;
 
     if (node == NULL) {
         return NULL;
     }
-    for (; node != NULL; node = node->next) {
+    while (node != NULL) {
         if (node->obj != NULL && *(u32*)((char*)node->obj + 0x6C) == (u32)mbidx) {
             return node;
         }
-        child = node->child;
-        if (child != NULL) {
-            for (; child != NULL; child = child->next) {
-                if ((child->obj != NULL &&
-                     (found = child, *(u32*)((char*)child->obj + 0x6C) == (u32)mbidx)) ||
-                    (child->child != NULL &&
-                     (found = AtreeFindMbidxNode(child->child, mbidx), found != NULL))) {
-                    goto done;
-                }
-            }
-            found = NULL;
-        done:
+        if (node->child != NULL) {
+            found = AtreeFindMbidxNode(node->child, mbidx);
             if (found != NULL) {
                 return found;
             }
         }
+        node = node->next;
+    }
+    return NULL;
+}
+
+anode* AtreeFindMbidxNode(anode* node, int mbidx)
+{
+    u8 unused[4];
+    anode* found;
+
+    if (node == NULL) {
+        return NULL;
+    }
+    while (node != NULL) {
+        if (node->obj != NULL && *(u32*)((char*)node->obj + 0x6C) == (u32)mbidx) {
+            return node;
+        }
+        if (node->child != NULL) {
+            found = AtreeFindMbidxNodeChild(node->child, mbidx);
+            if (found != NULL) {
+                return found;
+            }
+        }
+        node = node->next;
     }
     return NULL;
 }
