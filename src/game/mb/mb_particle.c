@@ -249,14 +249,18 @@ static s32 getNewPosRectShare(Psys* p, MBObject* node, s32 z) {
 #pragma opt_propagation off
 static s32 getNewPosRectUnique(Psys* p, MBObject* node, s32 z) {
     f32 ry, rx, rz;
-    Psys* psys = p;
+    Psys* psys;
     s32 idx;
-    u8* use = p->pos_use_lst;
-    s32 count = p->pos_max;
-    MBObject* obj = node;
+    s32 count;
+    u8* use;
+    MBObject* obj;
     s32 first;
     s32 used;
 
+    psys = p;
+    use = p->pos_use_lst;
+    obj = node;
+    count = p->pos_max;
     idx = (s32)(3.051850947599719e-05 * (f64)(f32)count *
                 (f64)(f32)(pbRand() & 0x7fff));
     if (idx >= count) {
@@ -284,19 +288,21 @@ foundPos:
     if (psys->pos_use_lst[idx] > 1) {
         return idx;
     }
-    use = (u8*)psys->init_pos_lst[idx];
-    rx = (f32)((f64)psys->e_vol[0] *
-               (3.051850947599719e-05 * (f64)(f32)(pbRand() & 0x7fff) - 0.5));
-    ry = (f32)((f64)psys->e_vol[1] *
-               (3.051850947599719e-05 * (f64)(f32)(pbRand() & 0x7fff) - 0.5));
-    rz = (f32)((f64)psys->e_vol[2] *
-               (3.051850947599719e-05 * (f64)(f32)(pbRand() & 0x7fff) - 0.5));
-    ((f32*)use)[0] = rx * obj->mat[0][0] + ry * obj->mat[1][0] +
-                     rz * obj->mat[2][0] + obj->mat[3][0];
-    ((f32*)use)[1] = rx * obj->mat[0][1] + ry * obj->mat[1][1] +
-                     rz * obj->mat[2][1] + obj->mat[3][1];
-    ((f32*)use)[2] = rx * obj->mat[0][2] + ry * obj->mat[1][2] +
-                     rz * obj->mat[2][2] + obj->mat[3][2];
+    {
+        f32* slot = psys->init_pos_lst[idx];
+        rx = (f32)((f64)psys->e_vol[0] *
+                   (3.051850947599719e-05 * (f64)(f32)(pbRand() & 0x7fff) - 0.5));
+        ry = (f32)((f64)psys->e_vol[1] *
+                   (3.051850947599719e-05 * (f64)(f32)(pbRand() & 0x7fff) - 0.5));
+        rz = (f32)((f64)psys->e_vol[2] *
+                   (3.051850947599719e-05 * (f64)(f32)(pbRand() & 0x7fff) - 0.5));
+        slot[0] = rx * obj->mat[0][0] + ry * obj->mat[1][0] +
+                  rz * obj->mat[2][0] + obj->mat[3][0];
+        slot[1] = rx * obj->mat[0][1] + ry * obj->mat[1][1] +
+                  rz * obj->mat[2][1] + obj->mat[3][1];
+        slot[2] = rx * obj->mat[0][2] + ry * obj->mat[1][2] +
+                  rz * obj->mat[2][2] + obj->mat[3][2];
+    }
     return idx;
 }
 #pragma opt_lifetimes reset
