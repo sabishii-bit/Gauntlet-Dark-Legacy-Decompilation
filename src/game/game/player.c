@@ -2021,7 +2021,12 @@ void do_players(void) {
 extern char* lbl_80343D6C;    /* active hidden-character code ptr (set_hidden_player) */
 extern s32 lbl_80343D68;      /* mini-inventory label table count */
 extern s32 lbl_80343DAC;      /* bigape powerup table count */
-extern f32 lbl_80343D7C[];    /* att ranges: dmg lo/hi, armor, magic, speed, mdmg, mspd */
+extern f32 lbl_80343D7C[2];   /* damage range */
+extern f32 lbl_80343D84[2];   /* armor range */
+extern f32 lbl_80343D8C[2];   /* magic range */
+extern f32 lbl_80343D94[2];   /* speed range */
+extern f32 lbl_80343D9C[2];   /* missile damage range */
+extern f32 lbl_80343DA4[2];   /* missile speed range */
 extern s32 gGameOptions;      /* NoDamage? cheat (1 = no damage, 2.. = invuln) */
 extern s32 lbl_80257594;      /* Unlimited? cheat (3 = unlimited turbo) */
 extern s32 lbl_802575A8;      /* Access? cheat (levels open) */
@@ -3625,27 +3630,36 @@ void player_save_controls(s32 i) {
 }
 
 /* Derive the combat stats from the attribute norms x class ranges.    */
+static inline f32 player_scale_att(f32* att, f32* range)
+{
+    return 0.01 * *att * (range[1] - range[0]) + range[0];
+}
+
+#pragma opt_propagation off
 void PlayerUpdateAtts(void* vp) {
     Player* p = vp;
-    f32* r = lbl_80343D7C;
+    u8 unused[96];
+    s32 character;
 
     LoadPlyrData(p->index, p->character, NULL);
-    if (p->character != 2 || HIDDEN_CODE(p) != lbl_80343D6C) {
-        check_player_atts(p, p->character, NULL);
+    character = p->character;
+    if (character != 2 || HIDDEN_CODE(p) != lbl_80343D6C) {
+        check_player_atts(p, character, NULL);
     }
-    STAT_DMG(p)   = 0.01 * ATT_FIGHT(p) * (r[1] - r[0]) + r[0];
-    STAT_ARMOR(p) = 0.01 * ATT_ARMOR(p) * (r[3] - r[2]) + r[2];
-    STAT_MAGIC(p) = 0.01 * ATT_MAGIC(p) * (r[5] - r[4]) + r[4];
-    STAT_SPEED(p) = 0.01 * ATT_SPEED(p) * (r[7] - r[6]) + r[6];
+    p->stat_damage = player_scale_att(&p->att_fight, lbl_80343D7C);
+    p->stat_armor = player_scale_att(&p->att_armor, lbl_80343D84);
+    p->magic_power = player_scale_att(&p->att_magic, lbl_80343D8C);
+    p->light_range = player_scale_att(&p->att_speed, lbl_80343D94);
     if (p->char_type == 2 || p->char_type == 6) {
         /* magic-missile classes scale missiles on magic */
-        STAT_MDMG(p) = 0.01 * ATT_MAGIC(p) * (r[9] - r[8]) + r[8];
-        STAT_MSPD(p) = 0.01 * ATT_MAGIC(p) * (r[11] - r[10]) + r[10];
+        p->stat_missile_dmg = player_scale_att(&p->att_magic, lbl_80343D9C);
+        p->stat_missile_spd = player_scale_att(&p->att_magic, lbl_80343DA4);
     } else {
-        STAT_MDMG(p) = 0.01 * ATT_FIGHT(p) * (r[9] - r[8]) + r[8];
-        STAT_MSPD(p) = 0.01 * ATT_FIGHT(p) * (r[11] - r[10]) + r[10];
+        p->stat_missile_dmg = player_scale_att(&p->att_fight, lbl_80343D9C);
+        p->stat_missile_spd = player_scale_att(&p->att_fight, lbl_80343DA4);
     }
 }
+#pragma opt_propagation reset
 
 /* Zero the per-character bonus stats for all 16 characters.           */
 void set_player_default_atts(void* p) {
