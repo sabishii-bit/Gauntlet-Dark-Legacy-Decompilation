@@ -1299,7 +1299,9 @@ static void mbBlitProject(MBBLIT* b, int width, int height) {
 
 static void mbBlitSetupVerts(MBBLIT* b, f32 u0, f32 u1, f32 v0, f32 v1) {
     MBTextureDef* texture = MBRomTexPtr(b->tex);
-    f32 swap;
+    s16 swap;
+    f32 width;
+    f32 height;
 
     if ((b->flags & 0x20) != 0) {
         swap = u0;
@@ -1311,16 +1313,18 @@ static void mbBlitSetupVerts(MBBLIT* b, f32 u0, f32 u1, f32 v0, f32 v1) {
         v0 = v1;
         v1 = swap;
     }
+    width = texture->width;
+    height = texture->height;
     if (u0 >= 0.0f) {
-        b->u0 = (s16)(u0 * texture->width * 16.0f + 0.5f);
+        b->u0 = (s16)(u0 * width * 16.0 + 0.5);
     }
     if (u1 >= 0.0f) {
-        b->u1 = (s16)(u1 * texture->width * 16.0f + 0.5f);
+        b->u1 = (s16)(u1 * width * 16.0 + 0.5);
     }
     if (v0 >= 0.0f) {
-        b->v0 = (s16)(v0 * texture->height * 16.0f + 0.5f);
+        b->v0 = (s16)(v0 * height * 16.0 + 0.5);
     }
     if (v1 >= 0.0f) {
-        b->v1 = (s16)(v1 * texture->height * 16.0f + 0.5f);
+        b->v1 = (s16)(v1 * height * 16.0 + 0.5);
     }
 }
