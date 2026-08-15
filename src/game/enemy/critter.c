@@ -365,6 +365,7 @@ u32  CritterCopyAnim(Critter *c, CritterMove *move, s32 frame);
 void CritterAnimate(Critter *c);
 void CritterMoveDone(Critter *c, s32 moveIndex);
 extern s32 lbl_8034489C;
+extern s32 lbl_80344628;
 extern f64 lbl_80346608;
 extern f32 lbl_80346470;
 s32  CritterGetDmove(CritterMove *a, CritterMove *b);
@@ -3309,12 +3310,11 @@ void CritterGetDoAction(Critter *c)
     Critter *child;
     s32 aiType;
 
+    move = &(*(CritterMove **)((u8 *)c->hdr + 0x124))[c->curmove];
     aiType = *(s16 *)(*(u8 **)((u8 *)c->hdr + 0x120) + 0x20);
-    move = c->curmove >= 0
-               ? &(*(CritterMove **)((u8 *)c->hdr + 0x124))[c->curmove]
-               : NULL;
-    c->nextmove = -1;
-    if (c->curmove < 0 || c->state == 0 || c->state == 2) {
+    if (c->curmove < 0 || c->state == 0) {
+        c->nextmove = (s16)CritterFindMoveType(c, 0, 1);
+    } else if (c->state == 2) {
         c->nextmove = (s16)CritterFindMoveType(c, 0, 1);
     } else if (move->type == 0) {
         c->nextmove = (s16)CritterFindMoveType(c, 0x10, 0);
@@ -3322,10 +3322,14 @@ void CritterGetDoAction(Critter *c)
         c->nextmove = (s16)CritterFindMoveType(c, 0x11, 1);
     } else if (move->link >= 0) {
         c->nextmove = move->link;
-    } else if (aiType == 4 && move->type == 0x10) {
-        c->nextmove = (s16)CritterFindMoveType(c, 0x20, 0);
-    } else {
+    } else if ((u32)(lbl_8034489C - 1) <= 1) {
         c->nextmove = (s16)CritterFindMoveType(c, 0x20, 1);
+    } else if (lbl_8034489C == 3 && move->type != 0x22) {
+        c->nextmove = (s16)CritterFindMoveType(c, 0x22, 1);
+    } else if (lbl_8034489C >= 3 && lbl_8034489C <= 5 && gBossType == 0x23) {
+        c->nextmove = (s16)CritterFindMoveType(c, 0x20, 0);
+    } else if (move->type == 0x10 && aiType == 4) {
+        c->nextmove = (s16)CritterFindMoveType(c, 0x20, 0);
     }
 
     if (c->nextmove < 0 && (c->counterState & 0x120) != 0) {
@@ -3336,8 +3340,16 @@ void CritterGetDoAction(Critter *c)
             c->nextmove = (s16)CritterFindMoveType(c, 0x41, 0);
         }
     }
+    if (c->nextmove < 0 &&
+        c->counterValue >=
+            (f32)(s32)(lbl_80346600 * lbl_8011AEAC[lbl_8034465C])) {
+        c->nextmove = (s16)CritterFindMoveType(c, 0x22, 0);
+    }
     if (c->nextmove < 0 && (c->counterState & 0x10) != 0) {
         c->nextmove = (s16)CritterFindMoveType(c, 0x40, 0);
+    }
+    if (c->nextmove <= 1 && c->nextmove >= 0) {
+        lbl_80344628++;
     }
     if (c->nextmove >= 0 && c->unk11C >= 0) {
         c->unk11C = -1;
