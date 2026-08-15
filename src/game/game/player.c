@@ -4394,91 +4394,121 @@ static void PlayerProcessSkinFX(void* vp) {
 }
 
 /* Mikey powerup: hatch/despawn state machine + orbit anim.            */
+typedef struct PlayerMikeyState {
+    u8 pad_000[0x96C];
+    void* atree;
+    u8 pad_970[0x34];
+    s16 anim_state;
+    u8 pad_9A6[0xE];
+    f32 matrix[16];
+    f32 saved_pos[3];
+    u8 pad_A00[4];
+    f32 fx_pos[3];
+    u8 pad_A10[4];
+    void* node;
+    s32 field_A18;
+    s16 state;
+} PlayerMikeyState;
+
+static inline s32 PlayerFindMikeyPUP(Player* p)
+{
+    s32 i;
+
+    for (i = 0; i < 11; i++) {
+        if (p->powerup[i].type != 9) {
+            continue;
+        }
+        if (p->powerup[i].specialflags != 0x100000) {
+            continue;
+        }
+        return i;
+    }
+    return -1;
+}
+
 void PlayerProcessMikeyPUP(void* vp) {
     Player* p = vp;
-    s16 t = PF(p, 0xA1C, s16);
+    PlayerMikeyState* mp = vp;
+    u8 unused[8];
+    s32 t = mp->state;
     void* atree;
     s32 slot;
-    s32 j;
+    s32 one;
 
-    if (t != 2) {
-        if (t < 2) {
-            if (t == 0) {
-                return;
-            }
-            if (t < 0) {
-                return;
-            }
-            /* t == 1: hatch */
-            slot = -1;
-            for (j = 0; j < 11; j++) {
-                if (PUP_TYPE(p, j) == 9 && PUP_SPECIALFLAGS(p, j) == 0x100000) {
-                    slot = j;
-                    break;
-                }
-            }
-            if (slot < 0) {
-                return;
-            }
-            if (PUP_DIRTY(p, slot) != 2) {
-                return;
-            }
-            atree = AtreeMatch(sPowerupsBuf, "MIKEYPUP_ON", 1);
-            PF(p, 0x96C, s32) = AtreeInit(atree, (u8*)p + 0x96C, 0, 0);
-            PF(p, 0x9A4, s16) = 1;
-            PF(p, 0xA14, void*) = MBNewNode(lbl_80344BD4, gIdentityMatrix, 1);
-            PF(p, 0xA18, s32) = 0;
-            MBNodeSetParent(*(void**)PF(p, 0x96C, s32*), PF(p, 0xA14, void*));
-            *(f32*)(PF(p, 0xA14, u8*) + 0x30) = p->col_pos[0];
-            *(f32*)(PF(p, 0xA14, u8*) + 0x34) = p->col_pos[1];
-            *(f32*)(PF(p, 0xA14, u8*) + 0x38) = p->col_pos[2];
-            CopyMat4((f32*)PF(p, 0xA14, void*), (f32*)((u8*)p + 0x9B4));
-            PF(p, 0x9F4, s32) = *(s32*)(PF(p, 0xA14, u8*) + 0x30);
-            PF(p, 0x9F8, s32) = *(s32*)(PF(p, 0xA14, u8*) + 0x34);
-            PF(p, 0x9FC, s32) = *(s32*)(PF(p, 0xA14, u8*) + 0x38);
-            PF(p, 0xA04, s32) = PF(p, 0x9F4, s32);
-            PF(p, 0xA08, s32) = PF(p, 0x9F8, s32);
-            PF(p, 0xA0C, s32) = PF(p, 0x9FC, s32);
-            PF(p, 0xA1C, s16) = 2;
-            PUP_DIRTY(p, slot) = 1;
-            return;
-        }
-        if (t == 300) {
-            /* despawn */
-            slot = -1;
-            for (j = 0; j < 11; j++) {
-                if (PUP_TYPE(p, j) == 9 && PUP_SPECIALFLAGS(p, j) == 0x100000) {
-                    slot = j;
-                    break;
-                }
-            }
-            AtreeDelete((void**)((u8*)p + 0x96C));
-            MBRemoveNode(PF(p, 0xA14, void*), 1);
-            PF(p, 0xA14, s32) = 0;
-            PF(p, 0xA1C, s16) = 0;
-            if (slot >= 0) {
-                PUP_DIRTY(p, slot) = 1;
-            }
-            return;
-        }
+    if (t == 2) {
+        goto live;
     }
+    if (t < 2) {
+        if (t == 0) {
+            return;
+        }
+        if (t >= 0) {
+            goto hatch;
+        }
+        goto live;
+    }
+    if (t == 300) {
+        goto despawn;
+    }
+    goto live;
+
+hatch:
+    slot = PlayerFindMikeyPUP(p);
+    if (slot < 0) {
+        return;
+    }
+    if (p->powerup_state[slot] != 2) {
+        return;
+    }
+    atree = AtreeMatch(sPowerupsBuf, "MIKEYPUP_ON", 1);
+    mp->atree = (void*)AtreeInit(atree, &mp->atree, 0, 0);
+    one = 1;
+    mp->anim_state = one;
+    mp->node = MBNewNode(lbl_80344BD4, gIdentityMatrix, 1);
+    mp->field_A18 = 0;
+    MBNodeSetParent(*(void**)mp->atree, mp->node);
+    {
+        f32 x = *(f32*)((u8*)p + 0x64);
+        f32 y = *(f32*)((u8*)p + 0x68);
+        f32 z = *(f32*)((u8*)p + 0x6C);
+        *(f32*)((u8*)mp->node + 0x30) = x;
+        *(f32*)((u8*)mp->node + 0x34) = y;
+        *(f32*)((u8*)mp->node + 0x38) = z;
+    }
+    CopyMat4((f32*)mp->node, mp->matrix);
+    mp->saved_pos[0] = *(f32*)((u8*)mp->node + 0x30);
+    mp->saved_pos[1] = *(f32*)((u8*)mp->node + 0x34);
+    mp->saved_pos[2] = *(f32*)((u8*)mp->node + 0x38);
+    mp->fx_pos[0] = mp->saved_pos[0];
+    mp->fx_pos[1] = mp->saved_pos[1];
+    mp->fx_pos[2] = mp->saved_pos[2];
+    mp->state = 2;
+    p->powerup_state[slot] = one;
+    return;
+
+despawn:
+    slot = PlayerFindMikeyPUP(p);
+    AtreeDelete(&mp->atree);
+    MBRemoveNode(mp->node, 1);
+    mp->node = NULL;
+    mp->state = 0;
+    p->powerup_state[slot] = 1;
+    return;
+
+live:
     /* live: tick anim + sparkles */
-    MBTreeClearFlags(*(void**)PF(p, 0x96C, s32*), 2, 0);
-    AnimateATree((void**)((u8*)p + 0x96C), 0, 0);
-    t = PF(p, 0xA1C, s16);
-    if (t < 0x3C && t == (t / 10) * 10) {
-        StartGemFX((f32*)((u8*)p + 0xA04), rand() % 4 + 1);
-    }
-    PF(p, 0xA1C, s16) = t + 1;
-    slot = -1;
-    for (j = 0; j < 11; j++) {
-        if (PUP_TYPE(p, j) == 9 && PUP_SPECIALFLAGS(p, j) == 0x100000) {
-            slot = j;
-            break;
+    MBTreeClearFlags(*(void**)mp->atree, 2, 0);
+    AnimateATree(&mp->atree, 0, 0);
+    {
+        s32 timer = mp->state;
+        if (timer < 0x3C && timer % 10 == 0) {
+            StartGemFX(mp->fx_pos, rand() % 4 + 1);
         }
     }
-    if (slot >= 0 && PUP_DIRTY(p, slot) == 2) {
-        PF(p, 0xA1C, s16) = 300;
+    mp->state++;
+    slot = PlayerFindMikeyPUP(p);
+    if (slot >= 0 && p->powerup_state[slot] == 2) {
+        mp->state = 300;
     }
 }
 
