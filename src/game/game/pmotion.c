@@ -410,11 +410,34 @@ int PlayerCollideWalls(Player* p, s32 unused, f32* dpos, f32* from, f32* to) {
     return count;
 }
 
-/* NOTE: correct body; not yet byte-exact (0x8EC address-CSE + flags-mask CSE
- * + switch lowering residuals -- parked per light-touch cap). */
+static inline void PlayerMotion_FloorFXDamage(Player* p, u32 flags, f32* dv)
+{
+    switch (((flags >> 16) & 0xF) << 16) {
+    case 0x10000:
+    case 0x60000:
+    default:
+        p->floor_fx_time = 1.0 + sMusicFadeBase;
+        damage_player(p->index, 5.0f, 1, 0, NULL);
+        break;
+    case 0x20000:
+        damage_player(p->index, 10.0f, 1, 16, dv);
+        p->floor_fx_time = 1.0 + sMusicFadeBase;
+        break;
+    case 0x30000:
+    case 0x40000:
+    case 0x50000:
+        p->floor_fx_time = 1.0 + sMusicFadeBase;
+        damage_player(p->index, 15.0f, 1, 32, dv);
+        fn_8009C850((u8*)p + 0x64);
+        break;
+    }
+}
+
 void PlayerMotion_FloorFX(Player* p, WorldObj* obj, f32* v1, f32* v2) {
     f32 dv[3];
-    u32 flags = WorldObjGetAllFlags(obj);
+    u32 flags;
+
+    flags = WorldObjGetAllFlags(obj);
 
     if ((flags & 0xF0000) == 0) {
         return;
@@ -425,7 +448,7 @@ void PlayerMotion_FloorFX(Player* p, WorldObj* obj, f32* v1, f32* v2) {
     if (PF(p, 0x204, s32) >= 31) {
         return;
     }
-    if (sMusicFadeBase < PF(p, 0x8EC, f32)) {
+    if (sMusicFadeBase < p->floor_fx_time) {
         return;
     }
 
@@ -433,24 +456,7 @@ void PlayerMotion_FloorFX(Player* p, WorldObj* obj, f32* v1, f32* v2) {
     dv[1] = 0.0f;
     dv[2] = v1[2] - v2[2];
     NormalVector2D(dv);
-
-    switch (flags & 0xF0000) {
-    case 0x20000:
-        damage_player(p->index, 10.0f, 1, 16, dv);
-        PF(p, 0x8EC, f32) = 1.0 + sMusicFadeBase;
-        break;
-    case 0x30000:
-    case 0x40000:
-    case 0x50000:
-        PF(p, 0x8EC, f32) = 1.0 + sMusicFadeBase;
-        damage_player(p->index, 15.0f, 1, 32, dv);
-        fn_8009C850((u8*)p + 0x64);
-        break;
-    default:
-        PF(p, 0x8EC, f32) = 1.0 + sMusicFadeBase;
-        damage_player(p->index, 5.0f, 1, 0, NULL);
-        break;
-    }
+    PlayerMotion_FloorFXDamage(p, flags, dv);
 }
 /* 0x80086470 - advance the player's queued knockback: dispatch on the hit-type
  * flag bits to a reaction code + velocity impulse, retarget the facing angle
