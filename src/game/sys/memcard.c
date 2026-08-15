@@ -692,6 +692,7 @@ s32 saveMount(s32 port, s32 slot, s32 doFormat)
     u32 lo;
     u8 unused[20];
     s32 idx;
+    s32* serial;
 
     portOff = port << 2;
     idx = slot + portOff;
@@ -701,8 +702,8 @@ s32 saveMount(s32 port, s32 slot, s32 doFormat)
         return 0;
     }
     slotOff = slot << 2;
-    pState = (s32*) ((u8*) &lbl_80344A18 + (portOff + slotOff));
-    pPresent = (s32*) ((u8*) &lbl_80344A14 + (portOff + slotOff));
+    pState = (s32*) ((u8*) &lbl_80344A18 + portOff + slotOff);
+    pPresent = (s32*) ((u8*) &lbl_80344A14 + portOff + slotOff);
 
     /* poll the slot until CARDProbeEx reports a stable status */
     do {
@@ -744,7 +745,7 @@ s32 saveMount(s32 port, s32 slot, s32 doFormat)
     cardMount(chan, lbl_803449FC, cardRemovedCallback);
     r = cardWaitResult();
 
-    *(s32*) ((u8*) &lbl_80344A10 + (portOff + slotOff)) = -1;
+    *(s32*) ((u8*) &lbl_80344A10 + portOff + slotOff) = -1;
     if (r == 0) {
         *pPresent = 1;
         *pState = 3;
@@ -825,11 +826,16 @@ s32 saveMount(s32 port, s32 slot, s32 doFormat)
     }
     bulletproof_printf(pool + 212);               /* "SAVEMOUNT RETURNING -1"*/
     {
-        s32* serial = &lbl_80344A20 + port * 2 + slot * 2;
-
-        serial[1] = 0;
-        serial[0] = 0;
+        s32 serialSlotOff;
+        s32 serialPortOff;
+        s32* serialBase;
+        serialPortOff = port << 3;
+        serialSlotOff = slot << 3;
+        serialSlotOff = serialPortOff + serialSlotOff;
+        serialBase = &lbl_80344A20;
+        serial = (s32*) ((u8*) serialBase + serialSlotOff);
     }
+    serial[0] = serial[1] = 0;
     return -1;
 }
 #pragma opt_common_subs reset
