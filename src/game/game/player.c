@@ -502,8 +502,8 @@ static void create_player_blits(s32 i);
 static void GetMaxPlayerModelSize(void);
 void PlayerProcessMikeyPUP(void* p);
 void AppendItemToLevel(f32 x, f32 y, f32 z, char* name, u32 flags);
-static s32 do_see_thru(void* p);
-static f32 ClosestChest(void* p);
+static void do_see_thru(void* p);
+static s32 ClosestChest(void* p);
 void PlayerAddPowerup(f32 duration, f32 strength, void* p, s32 type, u32 mask);
 void kill_got_it(s32 player);
 void SetPlayerWindows(s32 on);
@@ -2047,7 +2047,7 @@ typedef struct BigapePowerupSpawn {
 extern BigapePowerupInfo lbl_80120274[3];
 extern BigapePowerupSpawn lbl_8012028C[];
 extern u8* sItems;      /* gItems base (stride 0xF0) */
-extern s32 lbl_8028CAF4;      /* floor tree table (stride 0x50) */
+extern u8 gWorldInfo[];
 extern void* sKeyringAtree;    /* see-thru tree (low) */
 extern void* sDeathIconAtree;    /* see-thru tree (high) */
 extern s32 lbl_8025EC68[4];   /* see-thru: player tree node */
@@ -4542,66 +4542,65 @@ void AppendItemToLevel(f32 x, f32 y, f32 z, char* name, u32 flags) {
  * and swap the player onto the transparent variant; end_see_thru is
  * the state == -1 restore block (inlined, Xbox local).
  */
-static s32 do_see_thru(void* vp) {
+static void do_see_thru(void* vp) {
     Player* p = vp;
-    s32 i = p->index;
+    u8 unused[16];
     u8* chest = NULL;
-    void* tree;
+    s32 i = p->index;
     s32* fl;
+    s32 closest;
+    void* tree;
     s32 floor_id;
-    s32 j;
+    register s32 j;
 
     if (sItems == NULL) {
-        return 0;
+        return;
     }
-    j = (s32)ClosestChest(p);
-    if (j >= 0) {
-        chest = sItems + j * 0xF0;
+    closest = ClosestChest(p);
+    if (closest >= 0) {
+        chest = sItems + closest * 0xF0;
         if (!PointVisible(0.5f * *(f32*)(*(u8**)chest + 0xC), (s32*)(chest + 0x44))) {
             chest = NULL;
         }
     }
-    if (chest == NULL) {
-        lbl_8025EC78[i] = -1;
-    } else {
+    if (chest != NULL) {
         floor_id = *(s16*)(chest + 0xDC);
-        fl = (s32*)(lbl_8028CAF4 + floor_id * 0x50);
+        fl = *(s32**)(gWorldInfo + 0x68) + floor_id * 0x14;
         while (*fl == -1) {
-            floor_id = *(s16*)((u8*)fl + RandItemIdx(j, fl[1], 0) * 2 + 8);
-            fl = (s32*)(lbl_8028CAF4 + floor_id * 0x50);
+            s16 next_floor = *(s16*)((u8*)fl + RandItemIdx(closest, fl[1], 0) * 2 + 8);
+            floor_id = next_floor;
+            fl = *(s32**)(gWorldInfo + 0x68) + floor_id * 0x14;
         }
-        tree = sDeathIconAtree;
-        if (*fl != 4 && (*fl != 1 || fl[1] != 2 || *(s16*)(chest + 0xEC) < 2)) {
-            tree = (void*)fl[0x13];
-        } else if (*fl == 1) {
+        if (*fl == 4) {
+            tree = sDeathIconAtree;
+        } else if (*fl == 1 && fl[1] == 2 && *(s16*)(chest + 0xEC) > 1) {
             tree = sKeyringAtree;
+        } else {
+            tree = (void*)fl[0x13];
         }
         for (j = 0; j < 4; j++) {
             if (j != i && lbl_8025EC88[j] == chest) {
                 tree = NULL;
             }
         }
-        if (tree == NULL) {
-            lbl_8025EC78[i] = -1;
-        } else {
+        if (tree != NULL) {
             s32 fresh = 0;
             if (lbl_8025EC88[i] != chest) {
-                u8* old = lbl_8025EC88[i];
-                if (old != NULL && *(s32*)(old + 100) != 0) {
-                    MBNodeSetParent(*(void**)(old + 100), (void*)lbl_8025EC98[i]);
-                    MBTreeSetAlpha(*(void**)(old + 100), 0, 1);
-                    CopyMat3((f32*)lbl_8025ECA8[i], *(f32**)(old + 100));
-                    *(s32*)(*(u8**)(old + 100) + 0x30) = *(s32*)(lbl_8025ECA8[i] + 0x30);
-                    *(s32*)(*(u8**)(old + 100) + 0x34) = *(s32*)(lbl_8025ECA8[i] + 0x34);
-                    *(s32*)(*(u8**)(old + 100) + 0x38) = *(s32*)(lbl_8025ECA8[i] + 0x38);
+                if (lbl_8025EC88[i] != NULL && *(void**)(lbl_8025EC88[i] + 100) != NULL) {
+                    MBNodeSetParent(*(void**)(lbl_8025EC88[i] + 100), (void*)lbl_8025EC98[i]);
+                    MBTreeSetAlpha(*(void**)(lbl_8025EC88[i] + 100), 0, 1);
+                    CopyMat3((f32*)lbl_8025ECA8[i], *(f32**)(lbl_8025EC88[i] + 100));
+                    *(f32*)(*(u8**)(lbl_8025EC88[i] + 100) + 0x30) = *(f32*)(lbl_8025ECA8[i] + 0x30);
+                    *(f32*)(*(u8**)(lbl_8025EC88[i] + 100) + 0x34) = *(f32*)(lbl_8025ECA8[i] + 0x34);
+                    *(f32*)(*(u8**)(lbl_8025EC88[i] + 100) + 0x38) = *(f32*)(lbl_8025ECA8[i] + 0x38);
                 }
                 MBTreeSetAlpha(*(void**)(chest + 100), 0xC0, 1);
                 lbl_8025EC98[i] = *(s32*)(*(u8**)(chest + 100) + 0x74);
                 MBNodeSetParent(lbl_8025ECA8[i], (void*)lbl_8025EC98[i]);
                 CopyMat3(*(f32**)(chest + 100), (f32*)lbl_8025ECA8[i]);
-                *(s32*)(lbl_8025ECA8[i] + 0x30) = *(s32*)(*(u8**)(chest + 100) + 0x30);
-                *(s32*)(lbl_8025ECA8[i] + 0x34) = *(s32*)(*(u8**)(chest + 100) + 0x34);
-                *(s32*)(lbl_8025ECA8[i] + 0x38) = *(s32*)(*(u8**)(chest + 100) + 0x38);
+                *(f32*)(lbl_8025ECA8[i] + 0x30) = *(f32*)(*(u8**)(chest + 100) + 0x30);
+                *(f32*)(lbl_8025ECA8[i] + 0x34) = *(f32*)(*(u8**)(chest + 100) + 0x34);
+                *(f32*)(lbl_8025ECA8[i] + 0x38) = *(f32*)(*(u8**)(chest + 100) + 0x38);
                 CopyMat4(gIdentityMatrix, *(f32**)(chest + 100));
                 lbl_8025EC88[i] = chest;
                 fresh = 1;
@@ -4620,14 +4619,18 @@ static s32 do_see_thru(void* vp) {
             }
             if (fresh) {
                 MBNodeSetParent((void*)lbl_8025EC68[i], NULL);
-                MBNodeSetParent(*(void**)(chest + 100), NULL);
+                MBNodeSetParent(*(void**)(lbl_8025EC88[i] + 100), NULL);
                 MBNodeSetParent(*(void**)lbl_8025ECB8[i][0], lbl_8025ECA8[i]);
                 MBNodeSetParent((void*)lbl_8025EC68[i], lbl_8025ECA8[i]);
-                MBNodeSetParent(*(void**)(chest + 100), lbl_8025ECA8[i]);
+                MBNodeSetParent(*(void**)(lbl_8025EC88[i] + 100), lbl_8025ECA8[i]);
                 AudioPlayerXray(i);
             }
             MBTreeClearFlags((void*)lbl_8025EC68[i], 1, 0);
+        } else {
+            lbl_8025EC78[i] = -1;
         }
+    } else {
+        lbl_8025EC78[i] = -1;
     }
     if (lbl_8025EC78[i] == -1) {
         /* end_see_thru (inlined) */
@@ -4636,32 +4639,31 @@ static s32 do_see_thru(void* vp) {
         }
         MBTreeSetFlags((void*)lbl_8025EC68[i], 1, 0);
         if (lbl_8025EC88[i] != NULL) {
-            u8* old = lbl_8025EC88[i];
-            if (*(s32*)(old + 100) != 0) {
-                MBNodeSetParent(*(void**)(old + 100), (void*)lbl_8025EC98[i]);
-                MBTreeSetAlpha(*(void**)(old + 100), 0, 1);
-                CopyMat3((f32*)lbl_8025ECA8[i], *(f32**)(old + 100));
-                *(s32*)(*(u8**)(old + 100) + 0x30) = *(s32*)(lbl_8025ECA8[i] + 0x30);
-                *(s32*)(*(u8**)(old + 100) + 0x34) = *(s32*)(lbl_8025ECA8[i] + 0x34);
-                *(s32*)(*(u8**)(old + 100) + 0x38) = *(s32*)(lbl_8025ECA8[i] + 0x38);
+            if (*(void**)(lbl_8025EC88[i] + 100) != NULL) {
+                MBNodeSetParent(*(void**)(lbl_8025EC88[i] + 100), (void*)lbl_8025EC98[i]);
+                MBTreeSetAlpha(*(void**)(lbl_8025EC88[i] + 100), 0, 1);
+                CopyMat3((f32*)lbl_8025ECA8[i], *(f32**)(lbl_8025EC88[i] + 100));
+                *(f32*)(*(u8**)(lbl_8025EC88[i] + 100) + 0x30) = *(f32*)(lbl_8025ECA8[i] + 0x30);
+                *(f32*)(*(u8**)(lbl_8025EC88[i] + 100) + 0x34) = *(f32*)(lbl_8025ECA8[i] + 0x34);
+                *(f32*)(*(u8**)(lbl_8025EC88[i] + 100) + 0x38) = *(f32*)(lbl_8025ECA8[i] + 0x38);
             }
         }
         lbl_8025EC88[i] = NULL;
     }
-    return 0;
 }
 
 /* Index of the closest openable chest to p (squared/NR distance).     */
-static f32 ClosestChest(void* vp) {
+static s32 ClosestChest(void* vp) {
     Player* p = vp;
     u8* it;
     s32 j;
+    s32 closest = -1;
     s32 st;
     f32 dx, dy, dz;
     f32 d;
-    f32 best = 250000.0f;
+    f32 best = 100.0f;
 
-    StartEnemyGrid(p->pos, 60.0f);
+    StartEnemyGrid(p->pos, 10.0f);
     while ((j = NextGridEnemy()) >= 0) {
         it = sItems + j * 0xF0;
         if (*(s16*)(it + 0xC4) == -1) {
@@ -4673,7 +4675,7 @@ static f32 ClosestChest(void* vp) {
         if (*(u8*)(it + 0xCD) != 0 || *(u8*)(it + 0xC8) != 0) {
             continue;
         }
-        st = *(s32*)(lbl_8028CAF4 + *(s16*)(it + 0xDC) * 0x50);
+        st = *(*(s32**)(gWorldInfo + 0x68) + *(s16*)(it + 0xDC) * 0x14);
         if (st != -1 && st != 4 && st != 1) {
             continue;
         }
@@ -4683,9 +4685,10 @@ static f32 ClosestChest(void* vp) {
         d = dz * dz + dx * dx + dy * dy;
         if (d < best) {
             best = d;
+            closest = j;
         }
     }
-    return best;
+    return closest;
 }
 
 /* Query (and tick) the slot holding powerup type/mask.  Returns the   */
