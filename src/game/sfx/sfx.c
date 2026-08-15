@@ -1460,40 +1460,64 @@ extern f32 lbl_803480FC;        /* death power preset */
 extern void MBTreeSetZsortAdd(struct mbnode* node, s32 v, s32 a);
 extern void MBTreeSetAlpha(struct mbnode* node, s32 v, s32 a);
 
+static void SetEnemyDeathParams(u8* base, s32 idx, s32 tf)
+{
+    if (idx >= 0) {
+        MagicFxView* mp = (MagicFxView*)(base + idx * 240);
+        mp = (MagicFxView*)((u8*)mp + 2976);
+        if ((tf & 15) >= 5) {
+            tf &= ~0xC;
+        }
+        mp->power = lbl_803480FC;
+        mp->flags = tf;
+        mp->scale = 0.0f;
+        mp->timer = 0.0f;
+        mp->owner = 0;
+    }
+}
+
+#pragma opt_propagation off
 s32 StartEnemyDeathFX(u8* en)
 {
     u8* base = (u8*)EffectInfo;
-    u8* hdr = base + 1056;
     s32 idx;
-    s32 off;
+    u8* ep;
+    u8* q = base + 1056;
     u8* fxp;
-    u8* q;
+    s32 off;
     struct mbnode* node;
     f32 yaw;
-    f32 v[3];
-    f32* vp = v;
+    f32 v[5];
+    f32* vp = &v[2];
+    u32 flags;
 
+    ep = en;
+    flags = 0x8C01;
     idx = -1;
-    if (*(void**)(base + 1056) == 0) {
+    if (*(void**)q == 0) {
         goto done;
     }
     idx = -1;
-    if (*(void**)(base + 1056) != 0 &&
-        (idx = StartFXTree(*(struct atreeheader**)(base + 1056), (f32*)(en + 48),
-                           0x8C01, 0x20800, 0.0f)) >= 0) {
+    if (*(void**)q != 0 &&
+        (idx = StartFXTree(*(struct atreeheader**)q, (f32*)(ep + 48),
+                           flags, 0x20800, 0.0f)) >= 0) {
         off = idx * 240;
-        fxp = base + off;
+        fxp = base;
+        fxp += off;
         node = *(struct mbnode**)(fxp += 2996);
-        MBTreeSetZsortAdd(node, *(s32*)(hdr + 4), 1);
-        MBTreeSetAlpha(*(struct mbnode**)fxp, *(s32*)(hdr + 8), 1);
-        *(s32*)(base + off + 3072) = 88;
+        MBTreeSetZsortAdd(node, *(s32*)(q + 4), 1);
+        MBTreeSetAlpha(*(struct mbnode**)fxp, *(s32*)(q + 8), 1);
+        fxp = base + off;
+        *(s32*)(fxp + 3072) = 88;
     }
-    v[0] = (f32)(lbl_803480F0 * *(f32*)(en + 32));
-    v[1] = (f32)(lbl_803480F0 * *(f32*)(en + 36));
-    v[2] = (f32)(lbl_803480F0 * *(f32*)(en + 40));
+    v[2] = (f32)(lbl_803480F0 * *(f32*)(ep + 32));
+    v[3] = (f32)(lbl_803480F0 * *(f32*)(ep + 36));
+    v[4] = (f32)(lbl_803480F0 * *(f32*)(ep + 40));
     if (idx >= 0) {
-        q = base + idx * 240 + 2976;
-        yaw = atan2(vp[0], vp[2]);
+        q = base + idx * 240;
+        q += 2976;
+        yaw = vp[2];
+        yaw = atan2(vp[0], yaw);
         *(f32*)(q + 128) = vp[0];
         *(f32*)(q + 132) = vp[1];
         *(f32*)(q + 136) = vp[2];
@@ -1503,17 +1527,18 @@ s32 StartEnemyDeathFX(u8* en)
         *(f32*)(q + 160) = 0.0f;
         *(f32*)(q + 152) = lbl_803480F8;
     }
-    SetMagicParams(base, idx, 0x100020, lbl_803480FC, 0.0f, -1);
+    SetEnemyDeathParams(base, idx, 0x100020);
     if (idx >= 0) {
         u8* r = base + idx * 240;
         *(u16*)(r + 3168) = 89;
-        *(u16*)(r + 3170) = -1;
+        *(s16*)(r + 3170) = -1;
         *(u32*)(r + 3076) = *(u32*)(r + 3076) | 0x4000;
         *(f32*)(r + 3092) = lbl_803480F8;
     }
 done:
     return idx;
 }
+#pragma opt_propagation reset
 
 
 extern f64 lbl_80348128;        /* magic scale factor */
