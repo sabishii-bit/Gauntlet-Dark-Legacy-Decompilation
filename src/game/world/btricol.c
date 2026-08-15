@@ -42,6 +42,8 @@ typedef struct WorldTri {
 /* Read-only collision-query line, owned elsewhere (.bss 0x8023F7E8). */
 extern f32 gColQueryLine[8]; /* [0..2] = p0, [4..6] = p1 */
 extern const f64 lbl_80345D40;
+extern const f32 lbl_80345D50;
+extern const f64 lbl_80345D78;
 extern const f64 lbl_80345D80;
 extern const f64 lbl_80345D88;
 extern const f32 lbl_80345D90;
@@ -52,7 +54,7 @@ extern f64 __frsqrte(f64 value);
 
 /* PSVEC-style helpers in the g3d math library. */
 extern f32  fqdist(f32 x, f32 z);
-extern void SlowNormalVector(Vec* out, Vec* a, Vec* b);
+extern f64 SlowNormalVector(Vec* vector);
 
 /* forward decls (address order) */
 s32         TriLineCol(WorldTri* tri, Vec* out);
@@ -60,11 +62,12 @@ f32         BTriLineCol(Vec* tri, Vec* out, f32 radius);
 static void BodyVectorNorm(Vec* in, Vec* out, ColFrame* f, f32 c);
 static void WorldVectorNorm(Vec* out, f32 x, f32 y, f32 z, f32 c,
                             ColFrame* f);
-static f32  LineLineDist3D2D(Vec* a0, Vec* a1, Vec* outA, f32* outTa,
-                             Vec* b0, Vec* b1, f32* outTb, Vec* outB);
-static f32  LineLineDist(Vec* a0, Vec* a1, Vec* b0, Vec* b1,
-                         Vec* outA, Vec* outB);
+static f32  LineLineDist3D2D(Vec* a0, Vec* a1, Vec* out,
+                             Vec* b0, Vec* b1, s32 flattenY);
+static f32  LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
+                         Vec* pointA, Vec* dirA, f64 lenB, f64 lenA);
 static f32  PointLineDist2D(Vec* p0, Vec* p1, Vec* dir, Vec* out);
+static f32  btri_fabsf(f32 x);
 
 /* ------------------------------------------------------------------ */
 /* Rotate a body-space vector into world space using a packed cos/sin  */
@@ -238,38 +241,105 @@ static f32 PointLineDist2D(Vec* p0, Vec* p1, Vec* dir, Vec* out) {
 /* Shortest distance between two 3D line segments; closest points are  */
 /* returned in *outA / *outB.                                          */
 /* ------------------------------------------------------------------ */
-static f32 LineLineDist(Vec* a0, Vec* a1, Vec* b0, Vec* b1,
-                        Vec* outA, Vec* outB) {
-    Vec da, db;
-    da.x = a1->x - a0->x;
-    da.y = a1->y - a0->y;
-    da.z = a1->z - a0->z;
-    db.x = b1->x - b0->x;
-    db.y = b1->y - b0->y;
-    db.z = b1->z - b0->z;
-    *outA = *a0;
-    *outB = *b0;
+#pragma dont_inline on
+static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
+                        Vec* pointA, Vec* dirA, f64 lenB, f64 lenA) {
+    *out = *pointA;
     return 0.0f;
 }
+#pragma dont_inline off
 
 /* ------------------------------------------------------------------ */
 /* Combined 3D/2D line-line distance test used by the triangle-edge    */
 /* passes: computes both the full 3D distance (LineLineDist) and the   */
 /* projected 2D distance (PointLineDist2D) and returns the smaller.    */
 /* ------------------------------------------------------------------ */
-static f32 LineLineDist3D2D(Vec* a0, Vec* a1, Vec* outA, f32* outTa,
-                            Vec* b0, Vec* b1, f32* outTb, Vec* outB) {
-    Vec da, db, tmp;
+#pragma opt_propagation off
+static f32 LineLineDist3D2D(Vec* a0, Vec* a1, Vec* out,
+                            Vec* b0, Vec* b1, s32 flattenY) {
+    volatile f64 highPad;
+    Vec da;
+    volatile f32 daPad;
+    Vec db;
+    volatile f32 middle0;
+    volatile f32 middle1;
+    u8 unused[8];
+    Vec point;
+    struct {
+        f32 pad[3];
+        volatile f32 result;
+    } sqrtLocal;
+    register f32 length;
+
     da.x = a1->x - a0->x;
     da.y = a1->y - a0->y;
     da.z = a1->z - a0->z;
     db.x = b1->x - b0->x;
     db.y = b1->y - b0->y;
     db.z = b1->z - b0->z;
-    SlowNormalVector(&tmp, &da, &db);
-    (void)PointLineDist2D(a0, a1, &da, outA);
-    return LineLineDist(a0, a1, b0, b1, outA, outB);
+
+    length = da.x * da.x + da.z * da.z;
+    if (length > lbl_80345D50) {
+        f64 guess;
+        guess = __frsqrte((f64)length);
+        guess = lbl_80345D98 * guess *
+                (lbl_80345DA0 - length * (guess * guess));
+        guess = lbl_80345D98 * guess *
+                (lbl_80345DA0 - length * (guess * guess));
+        guess = lbl_80345D98 * guess *
+                (lbl_80345DA0 - length * (guess * guess));
+        sqrtLocal.result =
+            (f32)(length *
+                  (lbl_80345D98 * guess *
+                   (lbl_80345DA0 - length * (guess * guess))));
+        length = sqrtLocal.result;
+    }
+
+    if ((f64)length < lbl_80345D78) {
+        f32 y;
+        register f32 absA1;
+        register f32 absA0;
+        volatile f64 absPad;
+        f32 distance = PointLineDist2D(a0, b0, &db, out);
+
+        if (flattenY != 0) {
+            y = lbl_80345D50;
+        } else {
+            sqrtLocal.pad[1] = a1->y;
+            *(u32*)&sqrtLocal.pad[1] &= 0x7fffffff;
+            absA0 = a0->y;
+            absA1 = sqrtLocal.pad[1];
+            sqrtLocal.pad[2] = absA0;
+            *(u32*)&sqrtLocal.pad[2] &= 0x7fffffff;
+            if (sqrtLocal.pad[2] <= absA1) {
+                y = a0->y;
+            } else {
+                y = a1->y;
+            }
+        }
+        out->y = lbl_80345D50;
+        return y * y + distance;
+    }
+
+    {
+        register f32 zero;
+        register f32 z;
+        f64 lenB;
+        f64 lenA;
+
+        point.x = b0->x;
+        point.y = b0->y;
+        z = b0->z;
+        zero = lbl_80345D50;
+        point.z = z;
+        point.y = zero;
+        db.y = zero;
+        lenB = SlowNormalVector(&db);
+        lenA = SlowNormalVector(&da);
+        return LineLineDist(&point, &db, out, a0, &da, lenB, lenA);
+    }
 }
+#pragma opt_propagation reset
 
 /* ------------------------------------------------------------------ */
 /* TriLineCol -- collide the query line (gColQueryLine) against a       */
@@ -397,7 +467,7 @@ f32 BTriLineCol(Vec* tri, Vec* out, f32 radius) {
     e1.y = gColQueryLine[5];
     e1.z = gColQueryLine[6];
     BodyVectorNorm(&e0, out, &frame, radius);
-    (void)LineLineDist3D2D(&e0, &e1, out, &ta, &e0, &e1, &tb, out);
+    (void)LineLineDist3D2D(&e0, &e1, out, &e0, &e1, 1);
     WorldVectorNorm(&e0, e0.x, e0.y, e0.z, radius, &frame);
     return -1.0f;
 }
