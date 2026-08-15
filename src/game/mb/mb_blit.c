@@ -353,19 +353,20 @@ void mbBlitCalcY(MBBLIT* b, s32 y) {
 }
 
 void mbBlitCalcClip(MBBLIT* b, f32 xScale, f32 yScale) {
-    s32 scaled;
+    f32 scaled;
+    u8 unused[16];
 
     if (xScale > 0.0) {
-        scaled = (s32)(0.5 + (f32)((f32)(u16)b->width * xScale));
+        scaled = (s32)(0.5 + (f32)((f32)*(u16*)&b->width * xScale));
         if ((b->flags & 0x1000) != 0) {
-            b->x -= (s16)(0.5 * (scaled - (u16)b->width));
+            b->x -= (s16)(0.5 * (scaled - *(u16*)&b->width));
         }
         b->width = (s16)scaled;
     }
     if (yScale > 0.0) {
-        scaled = (s32)(0.5 + (f32)((f32)(u16)b->height * yScale));
+        scaled = (s32)(0.5 + (f32)((f32)*(u16*)&b->height * yScale));
         if ((b->flags & 0x1000) != 0) {
-            b->y -= (s16)(0.5 * (scaled - (u16)b->height));
+            b->y -= (s16)(0.5 * (scaled - *(u16*)&b->height));
         }
         b->height = (s16)scaled;
     }
