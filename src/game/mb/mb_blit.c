@@ -555,28 +555,38 @@ MBBLIT* mbNewBlitSized(int name, int x, int y, int w, int h) {
 /* Per-frame temporary blit (32-entry ring, not linked to a node). */
 MBBLIT* MBNewTempBlit(int a, int b, int c, int d, int e) {
     MBBLIT* blit;
+    MBWindow* window;
+    s32 value;
     if (tempBlitCount >= MB_TEMPBLIT_MAX) {
         FatalError(str_TooManyTempBlits, 0x800000);
     }
     tempBlitCount++;
     blit = (MBBLIT*)&tempBlitPool[(tempBlitCount - 1) * 0x38];
     blit->flags = 0;
-    blit->tex = -1;
     blit->prev = 0;
     blit->next = 0;
+    blit->tex = -1;
     blit->color0 = 0x80808080;
     blit->color1 = 0x80808080;
     blit->color2 = 0x80808080;
     blit->color3 = 0x80808080;
     mbInitBlitEntry(blit, a, 0);
-    if ((blit->flags & 0x40) == 0) {
-        blit->x = (s16)(b * gWinGlobals->scale->x);
-        blit->y = (s16)(c * gWinGlobals->scale->y);
+    window = gWinGlobals;
+    if ((blit->flags & 0x40) != 0) {
+        value = b << 4;
     } else {
-        blit->x = b << 4;
-        blit->y = c << 4;
+        value = b * window->scale->x;
     }
-    blit->depth = __cvt_fp2unsigned(32.0f);
+    blit->x = (s16)value;
+    if ((blit->flags & 0x40) != 0) {
+        value = c << 4;
+    } else {
+        value = c * window->scale->y;
+    }
+    blit->y = (s16)value;
+    if (lbl_80348AD4 >= 0.0) {
+        blit->depth = (u32)(f32)(s32)(32.0 * lbl_80348AD4);
+    }
     mbBlitProject(blit, d, e);
     mbBlitSetupVerts(blit, 0.0f, 1.0f, 0.0f, 1.0f);
     return blit;
