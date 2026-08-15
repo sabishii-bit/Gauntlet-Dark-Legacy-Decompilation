@@ -326,8 +326,9 @@ f32  CritterCalcTarget(Critter *c, f32 *moveTarget, f32 *target,
                         s32 ignore, s32 mode);
 s32  CritterMoveNodeColSub(Critter *c, f32 *origin, f32 *destination,
                            f32 *point, f32 *contact, s32 first);
-s32  CritterExpNodeColSub(Critter *c, f32 *origin, f32 radius,
-                          f32 height, f32 *contact, s32 mode);
+s32  CritterExpNodeColSub(Critter *c, f32 radius, f32 squaredExpand,
+                          f32 height, f32 *origin, f32 *destination,
+                          f32 *contact, s32 mode);
 s32  CritterExpCollide(f32 *origin, f32 *forward, f32 radius,
                        f32 dot, f32 *contact, s32 timedId);
 s32  CritterLineNodeColSub(Critter *c, f32 *origin, f32 *forward,
@@ -1785,34 +1786,52 @@ s32 CritterMoveNodeColSub(Critter *c, f32 *origin, f32 *destination,
 
 /* 0x800378C8 -- test an expanded sphere/capsule against one critter's active
  * hit nodes. */
-s32 CritterExpNodeColSub(Critter *c, f32 *origin, f32 radius,
-                         f32 height, f32 *contact, s32 mode)
+s32 CritterExpNodeColSub(Critter *c, f32 radius, f32 squaredExpand,
+                         f32 height, f32 *origin, f32 *destination,
+                         f32 *contact, s32 mode)
 {
-    f32 delta[3];
+    f32 dx;
+    f32 dy;
+    f32 dz;
     f32 nodeRadius;
+    u8 *base;
     u8 *node;
     s32 i;
+    s32 offset;
 
-    for (i = 0; i < *(s16 *)((u8 *)c->hdr + 0x118); i++) {
-        node = (u8 *)c + 0x4F8 + i * 0x5C;
-        if (*(void **)(node + 4) == NULL ||
-            *(f32 *)(node + 0x58) >= *(f32 *)(node + 0x54)) {
-            continue;
+    offset = 0;
+    i = 0;
+    while (offset < *(s16 *)((u8 *)c->hdr + 0x118)) {
+        base = (u8 *)c + i;
+        node = base + 0x4F8;
+        if (*(void **)(base + 0x4FC) == NULL) {
+            goto next;
         }
-        if (mode == 2 && (*(u16 *)(*(u8 **)node + 0x10) & 8) == 0) {
-            continue;
+        if (*(f32 *)(node + 0x58) >= *(f32 *)(node + 0x54)) {
+            goto next;
         }
-        delta[0] = *(f32 *)(node + 0x3C) - origin[0];
-        delta[1] = *(f32 *)(node + 0x40) - origin[1];
-        delta[2] = *(f32 *)(node + 0x44) - origin[2];
-        nodeRadius = radius + *(f32 *)(*(u8 **)node + 0x2C);
-        if (delta[0] * delta[0] + delta[2] * delta[2] <=
-                nodeRadius * nodeRadius &&
-            delta[1] <= nodeRadius + height) {
-            memcpy(contact, delta, sizeof(delta));
-            c->unkAB8 = (s16)i;
-            return 1;
+        if (mode != 2 || (*(s16 *)(*(u8 **)node + 0x10) & 8) != 0) {
+            dz = *(f32 *)(node + 0x44) - destination[2];
+            nodeRadius = radius + *(f32 *)(*(u8 **)node + 0x2C);
+            dx = *(f32 *)(node + 0x3C) - destination[0];
+            if (dx * dx + dz * dz >
+                nodeRadius * nodeRadius + squaredExpand) {
+                goto next;
+            }
+            dy = *(f32 *)(node + 0x40) - destination[1];
+            if (dy > nodeRadius + height) {
+                goto next;
+            }
+            if (LineCylinderCollide((f32 *)(node + 0x3C), nodeRadius,
+                                    nodeRadius, origin, destination,
+                                    contact, mode)) {
+                c->unkAB8 = (s16)offset;
+                return 1;
+            }
         }
+    next:
+        offset++;
+        i += 0x5C;
     }
     c->unkAB8 = -1;
     return 0;
@@ -1836,7 +1855,8 @@ s32 CritterExpCollide(f32 *origin, f32 *forward, f32 radius,
             continue;
         }
         if ((*(u32 *)((u8 *)c->hdr + 0x5C) & 2) != 0 &&
-            CritterExpNodeColSub(c, origin, radius, 0.0f, contact, 1)) {
+            CritterExpNodeColSub(c, radius, 0.0f, 0.0f, origin, origin,
+                                 contact, 1)) {
             return 1;
         }
         delta[0] = c->pos[0] - origin[0];
