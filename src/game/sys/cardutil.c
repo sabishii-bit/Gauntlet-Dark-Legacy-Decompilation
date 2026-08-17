@@ -282,14 +282,10 @@ s32 cardWaitResult(void) {
     u8 unused[8];
     register CardMgr* m = &gCardMgr;
     register s32 r;
-    asm { wait: }
-    VIWaitForRetrace();
-    asm {
-        lwz r0, 48(m)
-        cmpwi r0, -1
-        mr r, r0
-        beq wait
-    }
+    do {
+        VIWaitForRetrace();
+        r = m->result;
+    } while (r == -1);
     return r;
 }
 

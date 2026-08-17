@@ -874,11 +874,7 @@ int InitPreferences(void)
         OSSetCurrentHeap(lbl_80344A08);
         OSDestroyHeap(lbl_80344A0C);
         aramTop = (u8*)GetHiMemCacheTop();
-        asm {
-            lis aramSize, 49
-            addis aramTop, aramTop, -49
-        }
-        dcsAramReadTop(aramTop, aramSize);
+        dcsAramReadTop(aramTop - 0x310000, aramSize = 0x310000);
         sysClearFlags(64);
         bulletproof_printf(lbl_801131C0);
         lbl_803449EC = 0;
@@ -1775,15 +1771,11 @@ s32 memCardErrorPrompt(const char* msg)
     case 0:
         return 1;
     case 1:
-        asm {
-            li r0, 0
-            stw r0, lbl_80344A24
-            li r4, -1
-            li r, 0
-            stw r4, lbl_80344A18
-            stw r4, lbl_80344A14
-            stw r0, lbl_80344A20
-        }
+        lbl_80344A24 = 0;
+        lbl_80344A18 = -1;
+        lbl_80344A14 = -1;
+        lbl_80344A20 = 0;
+        r = 0;
         break;
     }
     return r;
