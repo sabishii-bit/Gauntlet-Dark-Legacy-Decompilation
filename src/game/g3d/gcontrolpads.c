@@ -189,66 +189,37 @@ int G3DControlPadButtonPressed(int pad, int button)
  * The two masks are remnants of the SDK DEMOPadRead implementation: one
  * records disconnected channels and the other every usable channel. Midway
  * removed the later PADReset/PADRecalibrate calls, leaving both masks dead.
- * Keep the original instruction schedule here because this compiler otherwise
- * rematerializes their shared zero and recolors the two loop temporaries.
  */
-#pragma opt_propagation off
-void G3DReadControlPadStates(register u32 managerHigh)
+void G3DReadControlPadStates(void)
 {
-    register PADStatus* status;
+    PADStatus* status;
+    u32 disconnected;
+    u32 usable;
+    int i;
 
-    managerHigh = 0x80290000;
-    asm {
-        li r29, 0
-        addi r31, managerHigh, 0x645C
-        mr r30, r29
-        stw r29, 0(r31)
-    }
+    disconnected = 0;
+    usable = disconnected;
+    gPadManager.count = 0;
     status = G3DGetPadStatusBuffer();
-    asm {
-        addi r8, r31, 8
-        li r0, 4
-        stw status, 8(r31)
-        mtctr r0
-        addi r7, r29, 0
-    }
-    asm {
-        opword 0x387D0000
-        lis r5, -32768
-    loop:
-        lwz r4, 0(r8)
-        addi r0, status, 10
-        srw r6, r5, r7
-        lbzx r0, r4, r0
-        extsb r0, r0
-        cmpwi r0, -1
-        beq disconnected
-        bge nonnegative
-        cmpwi r0, -3
-        bge add
-        b skip
-    nonnegative:
-        cmpwi r0, 1
-        bge skip
-        b add
-    disconnected:
-        or r29, r29, r6
-    add:
-        lwz r0, 0(r31)
-        or r30, r30, r6
-        slwi r0, r0, 2
-        add r4, r31, r0
-        stw r7, 12(r4)
-        lwz r4, 0(r31)
-        addi r0, r4, 1
-        stw r0, 0(r31)
-    skip:
-        addi r7, r7, 1
-        addi status, status, 12
-        bdnz loop
+    gPadManager.status = status;
+    for (i = 0; i < 4; i++) {
+        u32 bit = 0x80000000 >> i;
+        s32 err = status[i].err;
+
+        if (err == -1) {
+            disconnected |= bit;
+        } else if (err >= 0) {
+            if (err >= 1) {
+                continue;
+            }
+        } else if (err < -3) {
+            continue;
+        }
+        usable |= bit;
+        gPadManager.map[gPadManager.count] = i;
+        gPadManager.count++;
     }
 }
-#pragma opt_propagation reset
 
 int G3DGetActivePadCount(void)
 {

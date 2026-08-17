@@ -133,7 +133,6 @@ static inline f64 mbSqrt(f64 x)
         } else if (x == 0.0) {                                                  \
             (result) = 0.0;                                                      \
         } else {                                                                 \
-            asm { opword 0xFC082800 }                                            \
             if (x != 0.0) {                                                      \
                 (result) = *(f32*)__float_nan;                                   \
             } else {                                                             \
