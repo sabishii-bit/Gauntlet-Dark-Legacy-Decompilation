@@ -2035,44 +2035,19 @@ void ReadControls(void)
 }
 
 /* 0x800347A0  one-time controls init */
-asm void InitControls(void)
+void InitControls(void)
 {
-    nofralloc
-    mflr r0
-    lis r3,lbl_802407B8@ha
-    stw r0,4(r1)
-    stwu r1,-16(r1)
-    stw r31,12(r1)
-    addi r31,r3,lbl_802407B8@l
-    bl init_controls
-    li r0,4
-    li r5,0
-    mtctr r0
-    addi r3,r5,0
-clear_loop:
-    add r4,r31,r3
-    stw r5,64(r4)
-    stw r5,48(r4)
-    stwx r5,r31,r3
-    addi r3,r3,4
-    stw r5,32(r4)
-    stw r5,16(r4)
-    bdnz clear_loop
-    bl init_all_dir_info
-    li r0,1
-    stw r0,ctrls_initialized(r0)
-    lwz r0,20(r1)
-    lwz r31,12(r1)
-    addi r1,r1,16
-    mtlr r0
-    blr
+    u32* p;
+    int i;
+
+    p = lbl_802407B8;
+    init_controls();
+    for (i = 0; i < 4; i++) {
+        p[i + 4] = p[i + 8] = p[i] = p[i + 12] = p[i + 16] = 0;
+    }
+    init_all_dir_info();
+    ctrls_initialized = 1;
 }
-#ifdef __MWERKS__
-/* Function-level assembly disables these passes for following C functions. */
-#pragma optimization_level 4
-#pragma peephole on
-#pragma scheduling on
-#endif
 
 /* 0x8003480C  poll both multitap ports; latch new connections */
 void serve_mtap(s32 which)
@@ -2182,102 +2157,6 @@ void init_controls(void)
 }
 
 /* 0x80034B3C  bring one multitap port up (joyGetStatus pump + open) */
-#ifdef __MWERKS__
-/* Portable C below is exact except for MWCC rematerializing the else-arm's
- * live one instead of copying it from r28. */
-asm void MtapOpenPort(s32 port, s32 flag)
-{
-    nofralloc
-    mflr r0
-    stw r0,4(r1)
-    stwu r1,-56(r1)
-    stmw r27,36(r1)
-    addi r29,r3,0
-    lwz r0,lbl_803445EC(r0)
-    cmpwi r0,0
-    beq done
-    slwi r31,r29,2
-    li r30,lbl_80344610
-    add r30,r30,r31
-    lwz r0,0(r30)
-    cmpwi r0,1
-    beq done
-wait_busy:
-    lwz r0,lbl_803445E0(r0)
-    cmplwi r0,0
-    bne wait_busy
-    addi r3,r31,0
-    li r4,0
-    bl joyGetStatus
-    lwz r0,0(r30)
-    cmpwi r0,2
-    beq done
-    lis r3,lbl_80240AC8@ha
-    slwi r4,r29,4
-    addi r0,r3,lbl_80240AC8@l
-    add r3,r0,r4
-    lwz r0,0(r3)
-    cmpwi r0,0
-    bne done
-    li r28,1
-    li r0,1001
-    stw r28,lbl_803445E0(r0)
-    li r27,lbl_80343BE0
-    stw r0,lbl_803445E4(r0)
-    add r27,r27,r31
-    lwz r0,0(r27)
-    cmpwi r0,0
-    bne connection_known
-    mr r3,r29
-    bl sceMtapGetConnection
-    stw r28,0(r27)
-    b connection_done
-connection_known:
-    mr r3,r28
-connection_done:
-    li r0,1002
-    cmpwi r3,0
-    stw r0,lbl_803445E4(r0)
-    beq release
-    mr r3,r29
-    bl sceMtapPortOpen
-    li r0,1003
-    cmpwi r3,0
-    stw r0,lbl_803445E4(r0)
-    beq release
-    li r28,2
-    crclr 6
-    stw r28,0(r30)
-    lis r3,lbl_801120D0@ha
-    addi r3,r3,lbl_801120D0@l
-    lwz r0,lbl_803445D8(r0)
-    addi r4,r29,0
-    rlwinm r0,r0,0,24,19
-    stw r0,lbl_803445D8(r0)
-    bl bulletproof_printf
-    li r0,1013
-    stw r0,lbl_803445E4(r0)
-    addi r3,r29,2
-    bl sceMtapGetConnection
-    addi r3,r29,2
-    bl sceMtapPortOpen
-    cmpwi r3,0
-    beq release
-    li r3,lbl_80344608
-    stwx r28,r3,r31
-release:
-    li r3,1099
-    li r0,0
-    stw r3,lbl_803445E4(r0)
-    stw r0,lbl_803445E0(r0)
-done:
-    lmw r27,36(r1)
-    lwz r0,60(r1)
-    addi r1,r1,56
-    mtlr r0
-    blr
-}
-#else
 void MtapOpenPort(s32 port, s32 flag)
 {
     if (lbl_803445EC != 0) {
@@ -2320,12 +2199,6 @@ void MtapOpenPort(s32 port, s32 flag)
     }
     (void)flag;
 }
-#endif
-#ifdef __MWERKS__
-#pragma optimization_level 4
-#pragma peephole on
-#pragma scheduling on
-#endif
 
 /* 0x80034C88  float sqrt via frsqrte + 4 Newton refinements (same idiom
  * as g3dpad.c g3dSqrt; GC-only, no Xbox counterpart) */
