@@ -2512,75 +2512,6 @@ s32 NextAttractWave(s32 worldLevel)
 /* 0x80057D94 -- move backward to a level accepted by waveMask, wrapping
  * through the loaded-world table when the current world is exhausted. */
 #pragma opt_propagation off
-#ifdef __MWERKS__
-asm s32 PrevWorldLevel(s32 waveMask)
-{
-    nofralloc
-    lwz r7, gWorldData(r0)
-    lis r4, sWorldLevelTable@ha
-    lwz r8, sCurWorldIndex(r0)
-    addi r6, r4, sWorldLevelTable@l
-    cmplwi r7, 0
-    addi r9, r8, 0
-    bne prev_have_world
-    lis r3, gGameOptions@ha
-    addi r3, r3, gGameOptions@l
-    lwz r3, 36(r3)
-    blr
-prev_have_world:
-    cmpwi r3, -1
-    bne prev_get_level
-    li r10, -1
-    b prev_check_wrap
-prev_get_level:
-    lha r4, 22(r7)
-    cmpwi r3, 0
-    addi r10, r4, -1
-    beq prev_check_wrap
-    mulli r4, r10, 268
-    b prev_wave_test
-prev_wave_next:
-    addi r10, r10, -1
-    addi r4, r4, -268
-prev_wave_test:
-    cmpwi r10, 0
-    blt prev_check_wrap
-    lwz r5, 28(r7)
-    addi r0, r4, 4
-    lhax r0, r5, r0
-    and. r0, r3, r0
-    beq prev_wave_next
-prev_check_wrap:
-    cmpwi r10, 0
-    bge prev_return
-    li r10, 0
-prev_world_loop:
-    addic. r9, r9, -1
-    bge prev_world_valid
-    li r9, 13
-prev_world_valid:
-    mulli r4, r9, 44
-    add r3, r6, r4
-    lwz r0, 248(r3)
-    cmpwi r0, 0
-    bne prev_world_found
-    cmpw r9, r8
-    bne prev_world_loop
-prev_world_found:
-    add r3, r6, r4
-    lwz r3, 252(r3)
-    cmpwi r3, 0
-    blt prev_return
-    addi r10, r3, -1
-prev_return:
-    mulli r0, r9, 44
-    add r3, r6, r0
-    lwz r0, 232(r3)
-    slwi r3, r0, 8
-    rlwimi r3, r10, 0, 24, 31
-    blr
-}
-#else
 s32 PrevWorldLevel(s32 waveMask)
 {
     register s32 currentWorld;
@@ -2608,15 +2539,13 @@ s32 PrevWorldLevel(s32 waveMask)
     if (level < 0) {
         level = 0;
         for (;;) {
-            s32 entryOffset;
             WorldLevelTableNav* entry;
 
             worldIndex--;
             if (worldIndex < 0) {
                 worldIndex = 13;
             }
-            entryOffset = worldIndex * 44;
-            entry = (WorldLevelTableNav*)((u8*)worldTable + entryOffset);
+            entry = (WorldLevelTableNav*)((u8*)worldTable + worldIndex * 44);
             if (entry->worlds[0].loaded != 0 || worldIndex == currentWorld) {
                 break;
             }
@@ -2628,14 +2557,7 @@ s32 PrevWorldLevel(s32 waveMask)
     return (worldTable->worlds[worldIndex].worldId << 8) |
            (level & 0xFF);
 }
-#endif
 #pragma opt_propagation on
-
-#ifdef __MWERKS__
-#pragma optimization_level 4
-#pragma peephole on
-#pragma scheduling on
-#endif
 
 /* 0x80057E6C -- move forward to a level accepted by waveMask, wrapping
  * through the loaded-world table when the current world is exhausted. */
