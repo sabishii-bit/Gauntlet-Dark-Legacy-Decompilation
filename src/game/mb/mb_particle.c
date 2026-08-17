@@ -405,38 +405,6 @@ static void getCurrentDir(Psys* p, MBObject* node, f32* out) {
 
 /* 0x800CDB74 - fast sin/cos polynomial; returns cos, writes sin */
 static f32 getSinCos(f32 ang, f32* sinOut) {
-#ifdef __MWERKS__
-    asm {
-        lfd f0, lbl_803491C8
-        fsub f5, f0, f1
-        fcmpo cr0, f1, f0
-        frsp f5, f5
-        ble folded
-        lfd f0, lbl_803491D0
-        fsub f1, f0, f1
-        frsp f1, f1
-    folded:
-        fmuls f6, f5, f5
-        lfs f3, lbl_803491D8
-        fmuls f7, f1, f1
-        lfs f2, lbl_803491DC
-        lfs f0, lbl_803491E0
-        fmuls f4, f6, f3
-        fmuls f8, f7, f3
-        fadds f3, f2, f4
-        fadds f2, f2, f8
-        fmuls f3, f6, f3
-        fmuls f4, f7, f2
-        fadds f2, f0, f3
-        fadds f0, f0, f4
-        fmuls f2, f6, f2
-        fmuls f3, f7, f0
-        fmadds f0, f5, f2, f5
-        fmadds f1, f1, f3, f1
-        stfs f0, 0(r3)
-    }
-#else
-    f32 one;
     f32 negative;
     f32 coefficient;
     f32 st;
@@ -451,7 +419,6 @@ static f32 getSinCos(f32 ang, f32* sinOut) {
     }
     s2 = s * s;
     a2 = ang * ang;
-    one = 1.0f;
     negative = -0.16f;
     coefficient = 0.008f;
     st = s2 * coefficient;
@@ -460,13 +427,11 @@ static f32 getSinCos(f32 ang, f32* sinOut) {
     negative = negative + at;
     coefficient = s2 * coefficient;
     st = a2 * negative;
-    negative = one + coefficient;
-    one = one + st;
+    negative = 1.0f + coefficient;
+    coefficient = a2 * (1.0f + st);
     negative = s2 * negative;
-    coefficient = a2 * one;
     *sinOut = s * negative + s;
     return ang * coefficient + ang;
-#endif
 }
 
 /* 0x800CD330 - cycling (shared) cone direction */
@@ -522,21 +487,15 @@ static s32 getNewDirConeUnique(register Psys* p, register MBObject* node, s32 z)
     f32 sn2, sn;
     f32 cs, cs2;
     f32 arg;
-    register Psys* psys;
+    register Psys* psys = p;
     register s32 idx;
-    register s32 count;
-    register u8* use;
-    register MBObject* obj;
+    register s32 count = p->dir_max;
+    register u8* use = p->dir_use_lst;
+    register MBObject* obj = node;
     s32 first;
     s32 used;
     f32 angle;
 
-    asm {
-        mr psys, p
-        lwz use, 20(p)
-        mr obj, node
-        lhz count, 48(p)
-    }
     idx = (s32)(3.051850947599719e-05 * (f64)(f32)count *
                 (f64)(f32)(pbRand() & 0x7fff));
     if (idx >= count) {
@@ -2059,9 +2018,9 @@ bad_block:
 static void initPresetList(void) {
     u8* byteStart;
     u8* byteEnd;
-    register PsysPresetRecord* preset;
+    PsysPresetRecord* preset;
     u32 sum;
-    register u8* cursor;
+    u8* cursor;
     s32 bytes;
     s32 i;
 
@@ -2074,13 +2033,10 @@ static void initPresetList(void) {
     }
 
     for (i = 8; i >= 0; i--) {
-        preset = &psysPresetTable[i];
-        if (preset->id < 0x101) {
+        if ((preset = &psysPresetTable[i])->id < 0x101) {
             preset->checksum = 0;
         } else {
-            asm {
-                addi cursor, preset, 0
-            }
+            cursor = (u8*)preset;
             byteStart = (u8*)preset + 64;
             byteEnd = (u8*)preset + 96;
             sum = 0;
