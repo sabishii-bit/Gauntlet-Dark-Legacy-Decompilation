@@ -398,3 +398,7 @@ fn_8003B1CC               # gate, 77/76 best; outer node-selection if collapses 
 CritterProcessSafeRocks   # isel, 63/63; three base+offset address canonicalizations, 12 real best
 CritterChildCriticalMove # renum+init, 201/201 full two-pass body; 3 second-loop zero-init
                           # instructions differ, remaining 180 real lines are saved-GPR coloring
+MissileCollideEnemy        # renum, 86/86; FPR home tie on raw field loads (0x5C->f1 vs f2, 0x238->f3 vs f1);
+                           # stmt-order swap (dx before enemyRadius) regressed 8->16, reverted (combat)
+fn_80051164                # zero-copy, 27/27; two addi-from-r3 zero copies (P5 family) + base/zero reg
+                           # homes + loop2 D-form vs X-form store (gamemain)
