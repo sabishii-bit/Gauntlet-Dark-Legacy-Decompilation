@@ -1019,38 +1019,28 @@ void WPitchMat3(register f32* matrix, f32 angle)
     u8 unused0[8];
     f32 magnitude = angle;
     u8 unused1[8];
+    s32 row;
 
     *(u32*)&magnitude &= 0x7FFFFFFF;
     if ((f64)magnitude < 0.0001)
         return;
     {
-        register f32 s = sin(angle);
-        register f32 c = cos(angle);
-        register s32 count;
-        register s32 offset;
-        register f32* v;
-        register f32* aPtr;
-        register f32 newB;
-        register f32 newA;
-        register f32 a;
-        register f32 b;
-        asm {
-            li count, 3
-            mtctr count
-            li offset, 0
-        loop:
-            add v, matrix, offset
-            lfs a, 4(v)
-            addi aPtr, v, 4
-            lfsu b, 8(v)
-            addi offset, offset, 16
-            fmuls newB, s, a
-            fmuls newA, s, b
-            fmadds newB, c, b, newB
-            fmsubs newA, c, a, newA
-            stfs newB, 0(v)
-            stfs newA, 0(aPtr)
-            bdnz loop
+        f32 s = sin(angle);
+        f32 c = cos(angle);
+        for (row = 0; row < 3; row++) {
+            f32* v = matrix + row * 4;
+            f32* aPtr;
+            f32 a;
+            f32 b;
+            f32 newB;
+            f32 newA;
+            a = v[1];
+            aPtr = v + 1;
+            b = *(v += 2);
+            newA = c * a - s * b;
+            newB = c * b + s * a;
+            *v = newB;
+            *aPtr = newA;
         }
     }
 }
