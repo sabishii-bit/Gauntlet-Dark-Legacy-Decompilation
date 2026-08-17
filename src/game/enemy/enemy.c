@@ -2409,34 +2409,32 @@ void move_logic06(s32 index)
 #pragma opt_propagation off
 void move_logic07(s32 index)
 {
-    u8* base = (u8*)lbl_80250E00;
-    u8* e0 = base + index * 916;
+    u8* tbl = (u8*)lbl_8011AF48;
+    EnemyMovePage05* page = (EnemyMovePage05*)lbl_80250E00;
     Enemy* e;
+    u8* e0;
+    s32 it = lbl_80344748;
     s32 type;
     f32 speed;
-    u8* tbl = (u8*)lbl_8011AF48;
-    s32 it;
     s32 flee;
     s32 found = 0;
     f32 cand;
     f32* q;
-    u8* t;
     f32 probe[3];
     u8 unusedA[20];
     f32 d1;
     f32 d2;
     u8 unusedB[16];
 
-    type = *(s32*)(e0 += 3608);
+    e0 = (u8*)page + index * 916;
+    type = *(s32*)(e0 + 3608);
+    e0 += 3608;
     e = (Enemy*)(u8*)e0;
-    t = base;
-    t += type * 4;
-    speed = *(f32*)(t + 64);
-    it = lbl_80344748;
+    speed = page->speed[type];
     if (it < 0) {
         flee = 0;
     } else {
-        u8* other = base + it * 916;
+        u8* other = (u8*)page + it * 916;
         if (*(s32*)(other + 3788) != 1) {
             flee = 0;
         } else if (*(f32*)(other + 4244) > *(f32*)(e0 + 768)) {
