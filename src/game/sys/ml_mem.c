@@ -438,73 +438,6 @@ void* AllocMem(u32 size)
     return result;
 }
 
-#ifdef __MWERKS__
-asm void* AllocMem32(int size)
-{
-    nofralloc
-    mflr r0
-    stw r0, 4(r1)
-    stwu r1, -40(r1)
-    stmw r29, 28(r1)
-    lwz r5, mlmMemUsed(r0)
-    lwz r0, mlmMemLimit(r0)
-    addi r4, r5, 31
-    clrrwi r4, r4, 5
-    subf r31, r5, r4
-    add r29, r3, r31
-    subf r0, r5, r0
-    cmpw r0, r29
-    bge alloc32_room
-    li r3, 0
-    b alloc32_done
-alloc32_room:
-    lwz r0, mlmMemReserved(r0)
-    cmpwi r0, 0
-    beq alloc32_align
-    lis r3, 0xa1
-    crclr 4*cr1+eq
-    addi r0, r3, -24576
-    lis r3, lbl_801162F4@ha
-    stw r0, gErrorCode(r0)
-    addi r3, r3, lbl_801162F4@l
-    bl FatalErrorf
-alloc32_align:
-    clrlwi. r0, r29, 28
-    beq alloc32_commit
-    subfic r0, r0, 16
-    add r29, r29, r0
-alloc32_commit:
-    lwz r3, mlmMemUsed(r0)
-    lwz r5, mlmMemLimit(r0)
-    add r0, r3, r29
-    lwz r4, mlmMemBase(r0)
-    stw r0, mlmMemUsed(r0)
-    srawi r0, r3, 2
-    addze r0, r0
-    lwz r6, mlmMemUsed(r0)
-    slwi r0, r0, 2
-    add r30, r4, r0
-    cmpw r6, r5
-    ble alloc32_return
-    lis r3, 0xc1
-    crclr 4*cr1+eq
-    addi r0, r3, -16384
-    lis r3, lbl_8011631C@ha
-    stw r0, gErrorCode(r0)
-    addi r3, r3, lbl_8011631C@l
-    addi r4, r29, 0
-    subf r5, r5, r6
-    bl FatalErrorf
-alloc32_return:
-    add r3, r30, r31
-alloc32_done:
-    lmw r29, 28(r1)
-    lwz r0, 44(r1)
-    addi r1, r1, 40
-    mtlr r0
-    blr
-}
-#else
 void* AllocMem32(int size)
 {
     u8 unused[8];
@@ -520,7 +453,7 @@ void* AllocMem32(int size)
     }
     if (mlmMemReserved != 0) {
         gErrorCode = 0xa0a000;
-        FatalErrorf("AllocMem() called while mem reserved\n");
+        FatalErrorf(lbl_801162F4);
     }
     if (size & 0xf) {
         size += 0x10 - (size & 0xf);
@@ -529,12 +462,10 @@ void* AllocMem32(int size)
     mlmMemUsed += size;
     if (mlmMemUsed > mlmMemLimit) {
         gErrorCode = 0xc0c000;
-        FatalErrorf("AllocMem failed %d bytes (exceeds by %d)\n",
-                    size, mlmMemUsed - mlmMemLimit);
+        FatalErrorf(lbl_8011631C, size, mlmMemUsed - mlmMemLimit);
     }
     return (u8*)result + pad;
 }
-#endif
 
 #ifdef __MWERKS__
 #pragma optimization_level 4

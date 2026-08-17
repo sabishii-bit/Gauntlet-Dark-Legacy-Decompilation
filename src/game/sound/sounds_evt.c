@@ -1489,88 +1489,6 @@ void AudioPlayerEatFood(int pidx, int foodType)
     }
 }
 
-#ifdef __MWERKS__
-asm void AudioPlayerEatSFX(int pidx)
-{
-    nofralloc
-    mflr r0
-    mulli r5, r3, 13148
-    stw r0, 4(r1)
-    lis r3, gPlayers@ha
-    stwu r1, -8(r1)
-    addi r0, r3, gPlayers@l
-    add r3, r0, r5
-    lwz r4, 284(r3)
-    andis. r0, r4, 0x58
-    beq eat_switch
-    addi r4, r3, 68
-    li r3, 66
-    li r5, 127
-    li r6, 40
-    bl sndFxPlay3DAtten
-    b eat_done
-eat_switch:
-    clrlwi r0, r4, 28
-    cmpwi r0, 3
-    beq eat_case3
-    bge eat_ge3
-    cmpwi r0, 1
-    beq eat_case1
-    bge eat_case2
-    b eat_default
-eat_ge3:
-    cmpwi r0, 5
-    bge eat_default
-    b eat_case4
-eat_case1:
-    addi r4, r3, 68
-    li r3, 68
-    li r5, 127
-    li r6, 40
-    bl sndFxPlay3DAtten
-    b eat_done
-eat_case2:
-    addi r4, r3, 68
-    li r3, 70
-    li r5, 127
-    li r6, 40
-    bl sndFxPlay3DAtten
-    b eat_done
-eat_case3:
-    addi r4, r3, 68
-    li r3, 69
-    li r5, 127
-    li r6, 40
-    bl sndFxPlay3DAtten
-    b eat_done
-eat_case4:
-    addi r4, r3, 68
-    li r3, 67
-    li r5, 127
-    li r6, 40
-    bl sndFxPlay3DAtten
-    b eat_done
-eat_default:
-    lis r3, gPlayers@ha
-    addi r0, r3, gPlayers@l
-    add r5, r0, r5
-    lwz r4, 8(r5)
-    lis r3, lbl_801236A4@ha
-    addi r0, r3, lbl_801236A4@l
-    slwi r3, r4, 2
-    add r3, r0, r3
-    lwz r3, 0(r3)
-    addi r4, r5, 68
-    li r5, 127
-    li r6, 42
-    bl sndFxPlay3DAtten
-eat_done:
-    lwz r0, 12(r1)
-    addi r1, r1, 8
-    mtlr r0
-    blr
-}
-#else
 void AudioPlayerEatSFX(int pidx)
 {
     int f284;
@@ -1604,7 +1522,6 @@ void AudioPlayerEatSFX(int pidx)
         }
     }
 }
-#endif
 
 #ifdef __MWERKS__
 #pragma optimization_level 4
