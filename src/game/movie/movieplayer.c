@@ -2063,110 +2063,41 @@ u8 fn_800DBD00(void* self, s32 x) {
     return c;
 }
 
-asm u32* fn_800DBD30(u32* self, s16 deleting) {
-    nofralloc
-    mflr r0
-    stw r0, 4(r1)
-    stwu r1, -88(r1)
-    stmw r29, 76(r1)
-    mr. r29, r3
-    addi r31, r1, 0
-    addi r30, r4, 0
-    beq dtext_outer_cleanup_done
-    lis r3, lbl_801296CC@ha
-    addi r0, r3, lbl_801296CC@l
-    stw r0, 32(r29)
-    lwz r0, 48(r29)
-    cmplwi r0, 0
-    beq dtext_outer_release
-    lwz r3, gMovieAllocCount(r0)
-    addi r0, r3, -1
-    stw r0, gMovieAllocCount(r0)
-    lwz r0, gMovieAllocCount(r0)
-    cmpwi r0, 0
-    bne dtext_outer_release
-    bl ResetAllocTot
-    b dtext_outer_release
-dtext_outer_unexpected_first:
-    addi r3, r31, 44
-    bl __unexpected
-dtext_outer_hang_first:
-    b dtext_outer_hang_first
-dtext_outer_release:
-    lwz r5, lbl_803452B8(r0)
-    addi r3, r29, 0
-    li r4, 0
-    addi r0, r5, -1
-    stw r0, lbl_803452B8(r0)
-    bl fn_800DBF6C
-    extsh. r0, r30
-    ble dtext_outer_cleanup_done
-    cmplwi r29, 0
-    beq dtext_outer_cleanup_done
-    lwz r3, gMovieAllocCount(r0)
-    addi r0, r3, -1
-    stw r0, gMovieAllocCount(r0)
-    lwz r0, gMovieAllocCount(r0)
-    cmpwi r0, 0
-    bne dtext_outer_cleanup_done
-    bl ResetAllocTot
-    b dtext_outer_cleanup_done
-dtext_outer_unexpected_second:
-    addi r3, r31, 16
-    bl __unexpected
-dtext_outer_hang_second:
-    b dtext_outer_hang_second
-dtext_outer_cleanup_done:
-    mr r12, r31
-    lwz r0, 92(r31)
-    mr r3, r29
-    lmw r29, 76(r12)
-    lwz r1, 0(r1)
-    mtlr r0
-    blr
+/* Destroy an outer DText object (vtable lbl_801296CC) and optionally release it. */
+u32* fn_800DBD30(u32* self, s16 deleting) {
+    if (self != NULL) {
+        self[8] = (u32)lbl_801296CC;
+        if (self[12] != 0) {
+            gMovieAllocCount--;
+            if (gMovieAllocCount == 0) {
+                ResetAllocTot();
+            }
+        }
+        lbl_803452B8--;
+        fn_800DBF6C(self, 0);
+        if (deleting > 0 && self != NULL) {
+            gMovieAllocCount--;
+            if (gMovieAllocCount == 0) {
+                ResetAllocTot();
+            }
+        }
+    }
+    return self;
 }
 
-asm u32* fn_800DBE04(u32* p) {
-    nofralloc
-    mflr r0
-    stw r0, 4(r1)
-    stwu r1, -24(r1)
-    stw r31, 20(r1)
-    mr r31, r3
-    bl DTextInitColorRamp
-    lis r3, lbl_801296CC@ha
-    addi r0, r3, lbl_801296CC@l
-    stw r0, 32(r31)
-    lwz r0, lbl_803452B8(r0)
-    cmplwi r0, 0
-    bne dtext_table_done
-    li r0, 256
-    lis r3, lbl_80321340@ha
-    mtctr r0
-    addi r0, r3, lbl_80321340@l
-    li r7, 0
-    li r3, 0
-    li r6, 255
-dtext_table_loop:
-    addi r4, r3, 128
-    divw r5, r4, r6
-    add r4, r0, r7
-    stb r5, 0(r4)
-    addi r7, r7, 1
-    addi r3, r3, 31
-    bdnz dtext_table_loop
-dtext_table_done:
-    lwz r4, lbl_803452B8(r0)
-    li r0, 0
-    addi r3, r31, 0
-    addi r4, r4, 1
-    stw r4, lbl_803452B8(r0)
-    stw r0, 48(r31)
-    lwz r0, 28(r1)
-    lwz r31, 20(r1)
-    addi r1, r1, 24
-    mtlr r0
-    blr
+/* Construct an outer DText object (base init + lbl_80321340 ramp, first time only). */
+u32* fn_800DBE04(u32* p) {
+    int i;
+    DTextInitColorRamp(p);
+    p[8] = (u32)lbl_801296CC;
+    if (lbl_803452B8 == 0) {
+        for (i = 0; i < 256; i++) {
+            lbl_80321340[i] = (u8)((i * 31 + 128) / 255);
+        }
+    }
+    lbl_803452B8++;
+    p[12] = 0;
+    return p;
 }
 
 #ifdef __MWERKS__
@@ -2192,64 +2123,24 @@ void fn_800DBE98(u32 param_1, u8* param_2) {
 }
 
 /* Destroy a DText renderer and optionally release the object itself. */
-asm u32* fn_800DBF6C(u32* self, s16 deleting) {
-    nofralloc
-    mflr r0
-    stw r0, 4(r1)
-    stwu r1, -88(r1)
-    stmw r29, 76(r1)
-    mr. r29, r3
-    addi r31, r1, 0
-    addi r30, r4, 0
-    beq dtext_cleanup_done
-    lis r3, lbl_801296F0@ha
-    addi r0, r3, lbl_801296F0@l
-    stw r0, 32(r29)
-    lwz r3, gDTextInitCount(r0)
-    addi r0, r3, -1
-    stw r0, gDTextInitCount(r0)
-    lwz r0, 24(r29)
-    cmplwi r0, 0
-    beq dtext_maybe_delete
-    lwz r3, gMovieAllocCount(r0)
-    addi r0, r3, -1
-    stw r0, gMovieAllocCount(r0)
-    lwz r0, gMovieAllocCount(r0)
-    cmpwi r0, 0
-    bne dtext_maybe_delete
-    bl ResetAllocTot
-    b dtext_maybe_delete
-dtext_unexpected_first:
-    addi r3, r31, 44
-    bl __unexpected
-dtext_hang_first:
-    b dtext_hang_first
-dtext_maybe_delete:
-    extsh. r0, r30
-    ble dtext_cleanup_done
-    cmplwi r29, 0
-    beq dtext_cleanup_done
-    lwz r3, gMovieAllocCount(r0)
-    addi r0, r3, -1
-    stw r0, gMovieAllocCount(r0)
-    lwz r0, gMovieAllocCount(r0)
-    cmpwi r0, 0
-    bne dtext_cleanup_done
-    bl ResetAllocTot
-    b dtext_cleanup_done
-dtext_unexpected_second:
-    addi r3, r31, 16
-    bl __unexpected
-dtext_hang_second:
-    b dtext_hang_second
-dtext_cleanup_done:
-    mr r12, r31
-    lwz r0, 92(r31)
-    mr r3, r29
-    lmw r29, 76(r12)
-    lwz r1, 0(r1)
-    mtlr r0
-    blr
+u32* fn_800DBF6C(u32* self, s16 deleting) {
+    if (self != NULL) {
+        self[8] = (u32)lbl_801296F0;
+        gDTextInitCount--;
+        if (self[6] != 0) {
+            gMovieAllocCount--;
+            if (gMovieAllocCount == 0) {
+                ResetAllocTot();
+            }
+        }
+        if (deleting > 0 && self != NULL) {
+            gMovieAllocCount--;
+            if (gMovieAllocCount == 0) {
+                ResetAllocTot();
+            }
+        }
+    }
+    return self;
 }
 
 /* 0x800DC034 init the DText debug-overlay 256-entry colour ramp (gDTextColorRamp/gDTextBuf) */
@@ -2258,60 +2149,21 @@ typedef struct DTextRampEntry {
     u8 value;
 } DTextRampEntry;
 
-asm u32* DTextInitColorRamp(u32* p) {
-    nofralloc
-    mflr r0
-    lis r4, lbl_801296F0@ha
-    stw r0, 4(r1)
-    addi r0, r4, lbl_801296F0@l
-    stwu r1, -24(r1)
-    stmw r30, 16(r1)
-    addi r31, r3, 0
-    stw r0, 32(r3)
-    lis r3, gDTextColorRamp@ha
-    addi r30, r3, gDTextColorRamp@l
-    lwz r0, gDTextInitCount(r0)
-    cmplwi r0, 0
-    bne dtext_init_finish
-    addi r3, r30, 0
-    li r4, 0
-    li r5, 256
-    bl memset
-    addi r3, r30, 512
-    li r4, 255
-    li r5, 256
-    bl memset
-    li r0, 256
-    mtctr r0
-    li r4, 0
-dtext_identity_loop:
-    lwz r3, gDTextBuf(r0)
-    stbx r4, r3, r4
-    addi r4, r4, 1
-    bdnz dtext_identity_loop
-    li r0, 32
-    li r6, 0
-    mtctr r0
-    addi r3, r6, 0
-    li r5, 31
-dtext_ramp_loop:
-    addi r0, r3, 16
-    divw r0, r0, r5
-    add r4, r30, r6
-    stb r0, 768(r4)
-    addi r6, r6, 1
-    addi r3, r3, 255
-    bdnz dtext_ramp_loop
-dtext_init_finish:
-    lwz r4, gDTextInitCount(r0)
-    li r0, 0
-    addi r3, r31, 0
-    addi r4, r4, 1
-    stw r4, gDTextInitCount(r0)
-    stw r0, 24(r31)
-    lwz r0, 28(r1)
-    lmw r30, 16(r1)
-    addi r1, r1, 24
-    mtlr r0
-    blr
+u32* DTextInitColorRamp(u32* p) {
+    int i;
+    u8* ramp = gDTextColorRamp;
+    p[8] = (u32)lbl_801296F0;
+    if (gDTextInitCount == 0) {
+        memset(ramp, 0, 256);
+        memset(ramp + 512, 255, 256);
+        for (i = 0; i < 256; i++) {
+            gDTextBuf[i] = (u8)i;
+        }
+        for (i = 0; i < 32; i++) {
+            ((DTextRampEntry*)(ramp + i))->value = (u8)((i * 255 + 16) / 31);
+        }
+    }
+    gDTextInitCount++;
+    p[6] = 0;
+    return p;
 }
