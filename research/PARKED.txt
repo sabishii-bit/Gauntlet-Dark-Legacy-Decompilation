@@ -402,3 +402,6 @@ MissileCollideEnemy        # renum, 86/86; FPR home tie on raw field loads (0x5C
                            # stmt-order swap (dx before enemyRadius) regressed 8->16, reverted (combat)
 fn_80051164                # zero-copy, 27/27; two addi-from-r3 zero copies (P5 family) + base/zero reg
                            # homes + loop2 D-form vs X-form store (gamemain)
+fn_800C1004                # isel+renum, 71/71; byte-splat (x&FF)|x<<8|x<<16|x<<24 rlwimi-chain order +
+                           # r7-r10 volatile coloring + u64 mask slot 8 vs 16; C fuzzy kept, TU demoted
+                           # Matching->NonMatching 2026-08-17 (user: no-asm directive beats link status)

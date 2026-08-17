@@ -340,6 +340,19 @@ Rules that never change:
   - Fuzzy-% improvement is NOT proof of a match. Only byte-exact counts.
   - Never overwrite an unrelated dirty file; check `git status` first.
 
+USER DIRECTIVE 2026-08-17 (overrides older "write as asm" memory notes):
+NO `asm` function bodies anywhere in game code — not even when asm is the only
+known byte-exact form. A fuzzy C version is strictly preferable. Consequence:
+converting a Matching-TU asm function to fuzzy C breaks the sha1 link, so the
+TU must be demoted to NonMatching (user-approved resolution; DOL bytes stay
+identical). Documented C-asm walls: movieplayer `__unexpected` EH pads are
+C-unreachable (fuzzy accepted); gcontrolpads.c:201-249 (opword + regalloc
+blocks, extab-shifts when C'd) and mb_main.c:136 (`opword 0xFC082800` NaN
+generation) remain asm — both in Matching TUs, still need exact-C solutions.
+  - Workers prepare commits on isolated branches and NEVER push; the
+    integrator audits (no-asm grep + fndiff re-run + full green build) and
+    only then cherry-picks and pushes.
+
 ===============================================================================
 PART 4 — MEMORY PROTOCOL  (how workers report; how redundancy is prevented)
 ===============================================================================
