@@ -255,16 +255,10 @@ int G3DGetActivePadCount(void)
     return gPadManager.count;
 }
 
-asm int G3DIsPadEnabled(int pad)
+int G3DIsPadEnabled(int pad)
 {
-    nofralloc
-    lis r4, gPadManager@ha
-    lwz r0, gPadManager@l(r4)
-    cmpw r3, r0
-    blt active
-    li r3, 0
-    blr
-active:
-    li r3, 1
-    blr
+    if (pad >= gPadManager.count) {
+        return 0;
+    }
+    return 1;
 }
