@@ -343,84 +343,48 @@ void fn_800C0FE8(void)
 
 /* Advance the per-frame texture-stamp flip and clear the matching bit
  * out of every loaded bank's slot stamps (u64 per slot). */
-asm void fn_800C1004(void)
+void fn_800C1004(void)
 {
-    stwu r1, -24(r1)
-    lwz r3, lbl_80343F78
-    lwz r7, gWinGlobals
-    addi r0, r3, 1
-    stw r3, lbl_80343F7C
-    cmpwi r0, 2
-    stw r0, lbl_80343F78
-    blt skip_wrap
-    li r0, 0
-    stw r0, lbl_80343F78
-skip_wrap:
-    lwz r3, lbl_80343F78
-    cmpwi r3, 0
-    blt post_loop
-    li r0, 1
-    slw r3, r0, r3
-    rlwinm r0, r3, 16, 8, 15
-    rlwimi r0, r3, 24, 0, 7
-    rlwimi r0, r3, 8, 16, 23
-    rlwimi r0, r3, 0, 24, 31
-    not r0, r0
-    stw r0, 8(r1)
-    li r8, 0
-    li r3, 0
-    lwz r0, 8(r1)
-    stw r0, 12(r1)
-    lwz r9, 8(r1)
-    lwz r10, 12(r1)
-    b bank_check
-bank_next:
-    add r4, r4, r3
-    lwz r0, 16(r4)
-    addi r4, r4, 4
-    cmpwi r0, 0
-    bne bank_step
-    lwz r5, 0(r4)
-    lwz r4, 72(r5)
-    cmplwi r4, 0
-    beq bank_step
-    addi r0, r4, 7
-    lwz r11, 120(r5)
-    srwi. r0, r0, 3
-    li r4, 0
-    mtctr r0
-    ble bank_step
-stamp_loop:
-    add r6, r11, r4
-    lwz r0, 0(r6)
-    add r5, r11, r4
-    lwz r6, 4(r6)
-    addi r4, r4, 8
-    and r0, r0, r9
-    and r6, r6, r10
-    stw r6, 4(r5)
-    stw r0, 0(r5)
-    bdnz stamp_loop
-bank_step:
-    addi r8, r8, 1
-    addi r3, r3, 16
-bank_check:
-    lwz r4, 48(r7)
-    lwz r0, 0(r4)
-    cmpw r8, r0
-    blt bank_next
-post_loop:
-    lwz r0, lbl_80343F78
-    lis r4, lbl_803450F4@ha
-    lis r3, lbl_803450FC@ha
-    slwi r5, r0, 2
-    addi r0, r4, lbl_803450F4@l
-    add r4, r0, r5
-    addi r0, r3, lbl_803450FC@l
-    lwz r4, 0(r4)
-    add r3, r0, r5
-    stw r4, 0(r3)
-    addi r1, r1, 24
+    u64 mask;
+    PbWGGlobals* g = gWinGlobals;
+    s32 stamp = lbl_80343F78;
+    s32 i;
+    u32 bit;
+    u32 m;
+    u32* mw;
+
+    lbl_80343F7C = stamp;
+    stamp = stamp + 1;
+    lbl_80343F78 = stamp;
+    if (stamp >= 2) {
+        lbl_80343F78 = 0;
+    }
+    stamp = lbl_80343F78;
+    if (stamp >= 0) {
+        bit = 1 << stamp;
+        m = ~(((bit << 16) & 0xFF0000) | ((bit << 24) & 0xFF000000) |
+              ((bit << 8) & 0xFF00) | (bit & 0xFF));
+        mw = (u32*)&mask;
+        mw[0] = m;
+        mw[1] = mw[0];
+        for (i = 0; i < g->banks->m0; i++) {
+            s32* rp = (s32*)&g->banks[i];
+            PbWGBank** bpp = (PbWGBank**)(rp + 1);
+            if (rp[4] == 0) {
+                PbWGBank* bank = *bpp;
+                u32 n = bank->nslots;
+                if (n != 0) {
+                    u64* stamps = (u64*)bank->stamps;
+                    u32 q = (n + 7) >> 3;
+                    s32 k;
+                    for (k = 0; k < (s32)q; k++) {
+                        stamps[k] &= mask;
+                    }
+                }
+            }
+        }
+    }
+    lbl_803450FC[lbl_80343F78] = lbl_803450F4[lbl_80343F78];
 }
 
 /* Per-frame window maintenance driver. */
