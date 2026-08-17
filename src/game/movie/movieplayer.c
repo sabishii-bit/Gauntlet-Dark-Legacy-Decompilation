@@ -699,137 +699,11 @@ void fn_800D967C(register int param_1, register int param_2) {
 }
 
 /* Initialize a VQ frame buffer and its 16-bit component selectors. */
-#ifdef __MWERKS__
-asm u32 fn_800D96B0(u32* self, u32 unused, u8* header)
-{
-    nofralloc
-    mflr r0
-    stw r0,4(r1)
-    stwu r1,-72(r1)
-    stmw r28,56(r1)
-    addi r31,r1,0
-    addi r30,r5,0
-    mr r29,r3
-    lwz r0,4(r5)
-    stw r0,0(r3)
-    lwz r0,8(r5)
-    cmpwi r0,0
-    blt negative_height
-    b height_done
-negative_height:
-    neg r0,r0
-height_done:
-    stw r0,4(r29)
-    lhz r0,14(r30)
-    stw r0,8(r29)
-    lwz r3,0(r29)
-    addi r0,r3,31
-    srawi r0,r0,5
-    addze r0,r0
-    stw r0,40(r29)
-    lwz r3,4(r29)
-    lwz r0,40(r29)
-    srawi r3,r3,2
-    addze r3,r3
-    mullw r0,r3,r0
-    stw r0,44(r29)
-    lwz r3,0(r29)
-    lhz r0,14(r30)
-    srawi r5,r3,1
-    lwz r4,4(r29)
-    addze r5,r5
-    lwz r3,44(r29)
-    mullw r4,r5,r4
-    srawi r5,r4,1
-    addze r5,r5
-    srawi r4,r5,3
-    cmplwi r0,16
-    addi r28,r5,6146
-    addze r4,r4
-    add r28,r28,r4
-    add r28,r28,r3
-    bne selectors_done
-    lwz r0,16(r30)
-    cmplwi r0,0
-    bne selectors_custom
-    li r0,0
-    stb r0,52(r29)
-    li r3,5
-    li r0,10
-    stb r3,55(r29)
-    stb r3,53(r29)
-    stb r3,57(r29)
-    stb r0,54(r29)
-    stb r3,56(r29)
-    b selectors_done
-selectors_custom:
-    cmplwi r0,3
-    bne selectors_done
-    mr r3,r29
-    lwz r4,40(r30)
-    bl fn_800DBD00
-    stb r3,52(r29)
-    mr r3,r29
-    lwz r4,40(r30)
-    bl fn_800DBCCC
-    stb r3,55(r29)
-    mr r3,r29
-    lwz r4,44(r30)
-    bl fn_800DBD00
-    stb r3,53(r29)
-    mr r3,r29
-    lwz r4,44(r30)
-    bl fn_800DBCCC
-    stb r3,57(r29)
-    mr r3,r29
-    lwz r4,48(r30)
-    bl fn_800DBD00
-    stb r3,54(r29)
-    mr r3,r29
-    lwz r4,48(r30)
-    bl fn_800DBCCC
-    stb r3,56(r29)
-selectors_done:
-    lwz r0,24(r29)
-    cmplwi r0,0
-    beq allocate
-    beq allocate
-    lwz r3,gMovieAllocCount(r0)
-    addi r0,r3,-1
-    stw r0,gMovieAllocCount(r0)
-    lwz r0,gMovieAllocCount(r0)
-    cmpwi r0,0
-    bne allocate
-    bl ResetAllocTot
-    b allocate
-unexpected:
-    addi r3,r31,32
-    bl __unexpected
-unexpected_done:
-    b unexpected_done
-allocate:
-    lwz r4,gMovieAllocCount(r0)
-    addi r3,r28,308
-    addi r0,r4,1
-    stw r0,gMovieAllocCount(r0)
-    bl AllocHiMem
-    stw r3,24(r29)
-    li r0,0
-    mr r12,r31
-    stw r0,28(r29)
-    li r3,0
-    lwz r0,76(r31)
-    lmw r28,56(r12)
-    lwz r1,0(r1)
-    mtlr r0
-    blr
-}
-#else
 u32 fn_800D96B0(u32* self, u32 unused, u8* header)
 {
     s32 height;
     s32 halfPixels;
-    u32 tag;
+    s32 size;
 
     (void)unused;
     self[0] = *(u32*)(header + 4);
@@ -839,15 +713,18 @@ u32 fn_800D96B0(u32* self, u32 unused, u8* header)
     self[10] = ((s32)self[0] + 31) / 32;
     self[11] = ((s32)self[1] / 4) * self[10];
     halfPixels = (((s32)self[0] / 2) * (s32)self[1]) / 2;
+    size = halfPixels + 6146;
+    size += halfPixels / 8;
+    size += self[11];
 
     if (*(u16*)(header + 14) == 16) {
         if (*(u32*)(header + 16) == 0) {
             ((u8*)self)[52] = 0;
-            ((u8*)self)[53] = 5;
-            ((u8*)self)[54] = 10;
             ((u8*)self)[55] = 5;
-            ((u8*)self)[56] = 5;
+            ((u8*)self)[53] = 5;
             ((u8*)self)[57] = 5;
+            ((u8*)self)[54] = 10;
+            ((u8*)self)[56] = 5;
         } else if (*(u32*)(header + 16) == 3) {
             ((u8*)self)[52] = fn_800DBD00(self, *(s32*)(header + 40));
             ((u8*)self)[55] = fn_800DBCCC(self, *(s32*)(header + 40));
@@ -858,16 +735,16 @@ u32 fn_800D96B0(u32* self, u32 unused, u8* header)
         }
     }
 
-    if (self[6] != 0 && --gMovieAllocCount == 0) {
-        ResetAllocTot();
+    if (self[6] != 0) {
+        gMovieAllocCount--;
+        if (gMovieAllocCount == 0) {
+            ResetAllocTot();
+        }
     }
-    tag = (u32)gMovieAllocCount++;
-    self[6] = (u32)AllocHiMem((u32)(halfPixels + halfPixels / 8) +
-                              self[11] + 6454, tag);
+    self[6] = (u32)AllocHiMem((u32)size + 308, (u32)gMovieAllocCount++);
     self[7] = 0;
     return 0;
 }
-#endif
 #ifdef __MWERKS__
 #pragma optimization_level 4
 #pragma peephole on
@@ -1040,105 +917,36 @@ int fn_800D9C34(int p) {
 }
 #pragma dont_inline off
 
-#pragma dont_inline on
-asm void fn_800D9C5C(int* p, int n) {
-    nofralloc
-    mflr r0
-    stw r0, 4(r1)
-    stwu r1, -72(r1)
-    stmw r28, 56(r1)
-    addi r31, r1, 0
-    addi r28, r3, 0
-    addi r29, r4, 0
-    lwz r0, 0(r3)
-    cmplwi r0, 0
-    beq allocate
-    lwz r3, gMovieAllocCount(r0)
-    addi r0, r3, -1
-    stw r0, gMovieAllocCount(r0)
-    lwz r0, gMovieAllocCount(r0)
-    cmpwi r0, 0
-    bne allocate
-    bl ResetAllocTot
-    b allocate
-unexpected:
-    addi r3, r31, 28
-    bl __unexpected
-hang:
-    b hang
-allocate:
-    li r30, 0
-    stw r30, 0(r28)
-    stw r29, 4(r28)
-    lwz r4, gMovieAllocCount(r0)
-    lwz r3, 4(r28)
-    addi r0, r4, 1
-    stw r0, gMovieAllocCount(r0)
-    bl AllocHiMem
-    stw r3, 0(r28)
-    mr r12, r31
-    stw r30, 12(r28)
-    stw r30, 8(r28)
-    lwz r0, 76(r31)
-    lmw r28, 56(r12)
-    lwz r1, 0(r1)
-    mtlr r0
-    blr
+void fn_800D9C5C(int* p, int n) {
+    if (*(u32*)p != 0) {
+        gMovieAllocCount--;
+        if (gMovieAllocCount == 0) {
+            ResetAllocTot();
+        }
+    }
+    p[0] = 0;
+    p[1] = n;
+    p[0] = (int)AllocHiMem(p[1], (u32)gMovieAllocCount++);
+    p[3] = 0;
+    p[2] = 0;
 }
-#pragma dont_inline off
 
-asm int* fn_800D9CF4(int* p, s16 releaseAgain) {
-    nofralloc
-    mflr r0
-    stw r0, 4(r1)
-    stwu r1, -88(r1)
-    stmw r29, 76(r1)
-    mr. r29, r3
-    addi r31, r1, 0
-    addi r30, r4, 0
-    beq cleanup_done
-    lwz r0, 0(r29)
-    cmplwi r0, 0
-    beq maybe_release_again
-    lwz r3, gMovieAllocCount(r0)
-    addi r0, r3, -1
-    stw r0, gMovieAllocCount(r0)
-    lwz r0, gMovieAllocCount(r0)
-    cmpwi r0, 0
-    bne maybe_release_again
-    bl ResetAllocTot
-    b maybe_release_again
-unexpected_first_cleanup:
-    addi r3, r31, 44
-    bl __unexpected
-hang_first_cleanup:
-    b hang_first_cleanup
-maybe_release_again:
-    extsh. r0, r30
-    ble cleanup_done
-    cmplwi r29, 0
-    beq cleanup_done
-    lwz r3, gMovieAllocCount(r0)
-    addi r0, r3, -1
-    stw r0, gMovieAllocCount(r0)
-    lwz r0, gMovieAllocCount(r0)
-    cmpwi r0, 0
-    bne cleanup_done
-    bl ResetAllocTot
-    b cleanup_done
-unexpected_second_cleanup:
-    addi r3, r31, 16
-    bl __unexpected
-hang_second_cleanup:
-    b hang_second_cleanup
-cleanup_done:
-    mr r12, r31
-    lwz r0, 92(r31)
-    mr r3, r29
-    lmw r29, 76(r12)
-    lwz r1, 0(r1)
-    mtlr r0
-    blr
+int* fn_800D9CF4(int* p, s16 releaseAgain) {
+    if (p != 0) {
+        if (*(u32*)p != 0) {
+            gMovieAllocCount--;
+            if (gMovieAllocCount == 0) {
+                ResetAllocTot();
+            }
+        }
+        if (releaseAgain > 0 && p != 0) {
+            gMovieAllocCount--;
+            if (gMovieAllocCount == 0) {
+                ResetAllocTot();
+            }
+        }
+    }
+    return p;
 }
 
 #ifdef __MWERKS__
@@ -1156,21 +964,12 @@ void fn_800D9DA4(u32* p) {
 }
 #pragma dont_inline off
 
-asm int fn_800D9DBC(u32 param_1, char* param_2, int param_3, u8* param_4) {
-    nofralloc
-    mflr r0
-    addi r3, r4, 0
-    stw r0, 4(r1)
-    addi r4, r5, 0
-    addi r5, r6, 0
-    stwu r1, -32(r1)
-    addi r6, r1, 24
-    bl fn_800D9DF0
-    lwz r0, 36(r1)
-    lwz r3, 24(r1)
-    addi r1, r1, 32
-    mtlr r0
-    blr
+int fn_800D9DBC(u32 param_1, char* param_2, int param_3, u8* param_4) {
+    int outLen;
+
+    (void)param_1;
+    fn_800D9DF0(param_2, param_3, param_4, &outLen);
+    return outLen;
 }
 
 #ifdef __MWERKS__
@@ -1682,36 +1481,6 @@ u32* fn_800DB008(u32* self, s16 deleting) {
     return self;
 }
 
-#ifdef __MWERKS__
-asm u32* fn_800DB0F8(u32* p) {
-    nofralloc
-    mflr r0
-    lis r4, lbl_801296A4@ha
-    stw r0, 4(r1)
-    addi r4, r4, lbl_801296A4@l
-    stwu r1, -24(r1)
-    stw r31, 20(r1)
-    stw r3, 8(r1)
-    lis r3, lbl_8012968C@ha
-    addi r0, r3, lbl_8012968C@l
-    lwz r31, 8(r1)
-    stw r4, 0(r31)
-    addi r3, r31, 32
-    stw r0, 0(r31)
-    bl fn_800DBC64
-    addi r3, r31, 336
-    bl fn_800DBE04
-    li r0, 0
-    stw r0, 28(r31)
-    mr r3, r31
-    stw r0, 400(r31)
-    lwz r0, 28(r1)
-    lwz r31, 20(r1)
-    addi r1, r1, 24
-    mtlr r0
-    blr
-}
-#else
 u32* fn_800DB0F8(u32* volatile p) {
     u32* self = p;
 
@@ -1723,7 +1492,6 @@ u32* fn_800DB0F8(u32* volatile p) {
     self[100] = 0;
     return self;
 }
-#endif
 
 #ifdef __MWERKS__
 #pragma optimization_level 4
