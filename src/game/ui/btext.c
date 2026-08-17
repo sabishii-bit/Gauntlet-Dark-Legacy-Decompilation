@@ -1169,7 +1169,6 @@ void DrawText(s32 x, s32 y, u32 flags, u32 color, const char* fmt, ...)
 s32 DrawTextSub(register f32 scale, f32 shScale, s32 x, s32 y, u32 flags,
                 u32 color, u8* str)
 {
-    register f32 fontHeight;
     f64 shadowProduct;
     f32 shadowSpace;
     s32 font;
@@ -1180,9 +1179,11 @@ s32 DrawTextSub(register f32 scale, f32 shScale, s32 x, s32 y, u32 flags,
     font = flags & 0xFF;
     oldFlags = 0;
     if (y > 0 && (y & 0x1000)) {
+        f32 fontHeight;
+
         y &= ~0x1000;
         fontHeight = (f32)MBFontHeight(flags);
-        asm { fmuls fontHeight, fontHeight, scale }
+        fontHeight *= scale;
         height = (s32)fontHeight;
         y -= height / 2;
     }
@@ -1220,10 +1221,7 @@ s32 DrawTextSub(register f32 scale, f32 shScale, s32 x, s32 y, u32 flags,
     if (sBTextOneDouble != (f64)shScale) {
         MBSetFontScale(sBTextOne, sBTextOne);
     }
-    {
-        u8 unused[8];
-        return result;
-    }
+    return result;
 }
 
 /* ==== 0x80020C3C TextMLines ==== */
