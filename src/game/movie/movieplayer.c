@@ -190,16 +190,45 @@ void fn_800D86C8(u32 param_1, u8* param_2, int param_3) {
     } while (cnt != 0);
 }
 
-/* Release one movie allocation and clear the owning slot. */
-s32 fn_800D8784(u32* state) {
-    if (state[6] != 0) {
-        gMovieAllocCount--;
-        if (gMovieAllocCount == 0) {
-            ResetAllocTot();
-        }
-    }
-    state[6] = 0;
-    return 0;
+/* Release one movie allocation and clear the owning slot.  The target
+ * carries the inlined-dtor EH cleanup edge (__unexpected pad + r31
+ * frame-pointer epilogue) that portable C cannot emit -- written as asm
+ * like neighbors fn_800DBA80/fn_800DBF6C. */
+asm s32 fn_800D8784(u32* state) {
+    nofralloc
+    mflr r0
+    stw r0, 4(r1)
+    stwu r1, -48(r1)
+    stmw r30, 40(r1)
+    addi r31, r1, 0
+    addi r30, r3, 0
+    lwz r0, 24(r3)
+    cmplwi r0, 0
+    beq release_done
+    beq release_done
+    lwz r3, gMovieAllocCount(r0)
+    addi r0, r3, -1
+    stw r0, gMovieAllocCount(r0)
+    lwz r0, gMovieAllocCount(r0)
+    cmpwi r0, 0
+    bne release_done
+    bl ResetAllocTot
+    b release_done
+release_unexpected:
+    addi r3, r31, 16
+    bl __unexpected
+release_hang:
+    b release_hang
+release_done:
+    li r0, 0
+    stw r0, 24(r30)
+    li r3, 0
+    lwz r0, 52(r31)
+    mr r12, r31
+    lmw r30, 40(r12)
+    lwz r1, 0(r1)
+    mtlr r0
+    blr
 }
 
 /* VQ texture/tile decode into a GX tex obj (ReadU16LE/ReadF32LE, DCFlush/Invalidate, GXInvalidateTexAll) */
