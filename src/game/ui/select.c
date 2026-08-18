@@ -2470,7 +2470,9 @@ void init_player_select(s32 mode)
 {
     char* pool = lbl_801143F8;
     u8* page = lbl_80121688;
-    s32 i;
+    s32 i2;
+    s32* xp;
+    u8* blits;
     u8 _spare[32];
 
     AudioStopSelect();
@@ -2490,11 +2492,12 @@ void init_player_select(s32 mode)
     }
     {
         u8* pl = gPlayers;
-        for (i = 0; i < 4; i++, pl += 13148) {
-            if (!(lbl_80344824 & (1 << i))) {
-                abort_player(i);
+        s32 i1;
+        for (i1 = 0; i1 < 4; i1++, pl += 13148) {
+            if (!(lbl_80344824 & (1 << i1))) {
+                abort_player(i1);
             }
-            *(s32*)pl = i;
+            *(s32*)pl = i1;
             if (*(s32*)(pl + 232) == 4) {
                 *(s32*)(pl + 232) = 1;
             }
@@ -2505,7 +2508,7 @@ void init_player_select(s32 mode)
             if (*(s32*)(pl + 232) == 1) {
                 *(s32*)(pl + 232) = 3;
                 player_store_in_save(pl);
-                remove_player_geo(i);
+                remove_player_geo(i1);
             }
         }
     }
@@ -2522,33 +2525,34 @@ void init_player_select(s32 mode)
     fn_800BC418(2, -1);
     LoadTowerAndSelect();
     InitCamera(0);
-    i = 0;
+    i2 = 0;
     new_menu_accept(-1, 1);
     {
         u8* pl = gPlayers;
-        for (; i < 4; i++, pl += 13148) {
-            if (*(s32*)(pl + 232) == 0 && (lbl_80344824 & (1 << i))) {
-                new_player(i);
+        for (; i2 < 4; i2++, pl += 13148) {
+            if (*(s32*)(pl + 232) == 0 && (lbl_80344824 & (1 << i2))) {
+                new_player(i2);
             }
         }
     }
     {
+        s32 i3;
         u8* pl = gPlayers;
+        s32 j;
         s32 o132 = 0;
         s32 o4 = 0;
-        s32 j;
-        for (i = 0; i < 4;
-             i++, o132 += 132, o4 += 4, pl += 13148) {
-            s32* xp = (s32*)(page + o4);
-            u8* blits = lbl_80284878 + o132;
+        for (i3 = 0; i3 < 4;
+             i3++, o132 += 132, o4 += 4, pl += 13148) {
             s32 joff = 0;
+            xp = (s32*)(page + o4);
+            blits = lbl_80284878 + o132;
             for (j = 0; j < 11; j++, joff += 12) {
                 u8* e = page + joff;
                 void* b;
-                b = (void*)MBCreateBlit(0, 0,
-                                        *(s32*)(e + 32) + *xp,
-                                        *(s32*)(e + 36), -1, -1);
+                s32 w = *(s32*)(e + 32) + *xp;
+                s32 h = *(s32*)(e + 36);
                 e += 32;
+                b = (void*)MBCreateBlit(0, 0, w, h, -1, -1);
                 *(void**)(blits + joff) = b;
                 mbBlitInit3414(*(void**)(blits + joff), 1);
                 mbBlitCvtCoord(*(void**)(blits + joff),
@@ -2557,11 +2561,11 @@ void init_player_select(s32 mode)
             }
             *(s32*)(pl + 2096) = sLastWorldLevel;
             if (!(((SelOptsView*)gGameOptions)->flags44 & 1)) {
-                setup_tex(i, 0, 0, 0, pool + 868, i + 1);
-                setup_tex(i, 1, 0, 0, pool + 880, i + 1);
-                setup_tex(i, 9, 16384, 0, pool + 892);
-                setup_tex(i, 10, 16384, 0, pool + 904);
-                update_class_spec(i);
+                setup_tex(i3, 0, 0, 0, pool + 868, i3 + 1);
+                setup_tex(i3, 1, 0, 0, pool + 880, i3 + 1);
+                setup_tex(i3, 9, 16384, 0, pool + 892);
+                setup_tex(i3, 10, 16384, 0, pool + 904);
+                update_class_spec(i3);
             }
             mbBlitCalcWidth(*(void**)(blits + 108),
                             *(s32*)(page + 140) + *xp,
