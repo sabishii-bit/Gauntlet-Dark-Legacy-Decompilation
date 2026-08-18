@@ -3501,36 +3501,37 @@ void move_logic12(s32 index)
  * prev/next indices.  Each frame it faces its parent, measures the gap (inline
  * sqrt), and after 180 frames "lost" (parent too far) snaps the whole downstream
  * chain to the idle algorithm and cuts itself loose. */
+#pragma opt_propagation off
 void move_logic13(s32 index)
 {
-    u8* e0;
+    u8* strs = lbl_80112370;
     u8* base = (u8*)lbl_80250E00;
     Enemy* e;
     struct item* gen;
-    s32 it = lbl_80344748;
-    s32 flee;
     u8* p;
-    u8* strs = lbl_80112370;
+    s32 it;
+    s32 flee;
     u8 _pad[32];
 
     p = base + index * 916;
+    it = lbl_80344748;
     gen = *(struct item**)(p + 4264);
-    e0 = p + 3608;
-    e = (Enemy*)(u8*)e0;
+    p += 3608;
+    e = (Enemy*)(u8*)p;
     if (it < 0) {
         flee = 0;
     } else {
         u8* other = base + it * 916;
         if (*(s32*)(other + 3788) != 1) {
             flee = 0;
-        } else if (*(f32*)(other + 4244) > *(f32*)(e0 + 768)) {
+        } else if (*(f32*)(other + 4244) > *(f32*)(p + 768)) {
             flee = 0;
-        } else if (index == it || *(s16*)(e0 + 728) != 0 || *(s32*)(e0 + 856) > 0) {
+        } else if (index == it || *(s16*)(p + 728) != 0 || *(s32*)(p + 856) > 0) {
             goto flee_zero13;
         } else {
-            f32 dx = *(f32*)(other + 3660) - *(f32*)(e0 + 52);
-            f32 dy = *(f32*)(other + 3664) - *(f32*)(e0 + 56);
-            f32 dz = *(f32*)(other + 3668) - *(f32*)(e0 + 60);
+            f32 dx = *(f32*)(other + 3660) - *(f32*)(p + 52);
+            f32 dy = *(f32*)(other + 3664) - *(f32*)(p + 56);
+            f32 dz = *(f32*)(other + 3668) - *(f32*)(p + 60);
             if (dx * dx + dy * dy + dz * dz < lbl_803468D8) {
                 flee = -1;
             } else {
@@ -3576,8 +3577,11 @@ void move_logic13(s32 index)
         f32 dist2;
 
         p = base + e->prev_enemy * 916;
-        prev = (Enemy*)(p + 3608);
-        e->ang = get_yaw((f32*)(p + 3660), &e->objgrp.worldmat[3][0]);
+        {
+            f32* ysrc = (f32*)(p + 3660);
+            prev = (Enemy*)(p += 3608);
+            e->ang = get_yaw(ysrc, &e->objgrp.worldmat[3][0]);
+        }
         set_enemy_trans(e, 1.0f, e->ang);
         e->pyr[1] = turn_enemy_ang(e, e->ang);
         do_enemy_move(index);
@@ -3597,21 +3601,25 @@ void move_logic13(s32 index)
         if (dist2 >= 15.0) {
             e->lost += gFrameTicks;
             if (e->lost >= 180) {
+                Enemy* q;
                 s32 n = e->prev_enemy;
-                Enemy* q = (Enemy*)(base + n * 916 + 3608);
+                q = (Enemy*)(base + n * 916);
+                q = (Enemy*)((u8*)q + 3608);
                 do {
                     q->algorithm = 7;
                     q->old_ai = 7;
                     q->next_enemy = -1;
                     n = q->prev_enemy;
                     q->prev_enemy = -1;
-                    q = (Enemy*)(base + n * 916 + 3608);
+                    q = (Enemy*)(base + n * 916);
+                    q = (Enemy*)((u8*)q + 3608);
                 } while (n >= 0);
                 e->prev_enemy = -1;
             }
         }
     }
 }
+#pragma opt_propagation reset
 
 /* move_logic14 @0x80049FD4 (state 14, plague zig-zag skirmisher).  If a player is
  * within 8 units it switches to the chase algorithm; otherwise it strafes: swing
