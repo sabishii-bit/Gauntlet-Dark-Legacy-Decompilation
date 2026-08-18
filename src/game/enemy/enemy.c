@@ -3406,36 +3406,37 @@ void move_logic10(s32 index)
 /* move_logic12 @0x80049A1C (state 12, maggot-egg tether).  Shares the IT-flee /
  * chase gate, then runs a small generator-egg state machine: snap to the dest,
  * flag the egg, and hatch back when the egg reports ready. */
+#pragma opt_propagation off
 void move_logic12(s32 index)
 {
-    u8* e0;
     u8* base = (u8*)lbl_80250E00;
     Enemy* e;
     struct item* gen;
-    s32 it = lbl_80344748;
     s32 flee;
     f32 a;
     u8* p;
+    s32 it;
     u8 unused[16];
 
     p = base + index * 916;
+    it = lbl_80344748;
     gen = *(struct item**)(p + 4264);
-    e0 = p + 3608;
-    e = (Enemy*)(u8*)e0;
+    p += 3608;
+    e = (Enemy*)(u8*)p;
     if (it < 0) {
         flee = 0;
     } else {
         u8* other = base + it * 916;
         if (*(s32*)(other + 3788) != 1) {
             flee = 0;
-        } else if (*(f32*)(other + 4244) > *(f32*)(e0 + 768)) {
+        } else if (*(f32*)(other + 4244) > *(f32*)(p + 768)) {
             flee = 0;
-        } else if (index == it || *(s16*)(e0 + 728) != 0 || *(s32*)(e0 + 856) > 0) {
+        } else if (index == it || *(s16*)(p + 728) != 0 || *(s32*)(p + 856) > 0) {
             goto flee_zero;
         } else {
-            f32 dx = *(f32*)(other + 3660) - *(f32*)(e0 + 52);
-            f32 dy = *(f32*)(other + 3664) - *(f32*)(e0 + 56);
-            f32 dz = *(f32*)(other + 3668) - *(f32*)(e0 + 60);
+            f32 dx = *(f32*)(other + 3660) - *(f32*)(p + 52);
+            f32 dy = *(f32*)(other + 3664) - *(f32*)(p + 56);
+            f32 dz = *(f32*)(other + 3668) - *(f32*)(p + 60);
             if (dx * dx + dy * dy + dz * dz < lbl_803468D8) {
                 flee = -1;
             } else {
@@ -3494,6 +3495,7 @@ void move_logic12(s32 index)
         break;
     }
 }
+#pragma opt_propagation reset
 /* move_logic13 @0x80049C70 (state 13, zombie chain-follower).  Follows its
  * prev_enemy link toward the chain head; if the debug flag is set it dumps the
  * prev/next indices.  Each frame it faces its parent, measures the gap (inline
