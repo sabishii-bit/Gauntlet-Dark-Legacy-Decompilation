@@ -158,6 +158,27 @@ extern void get_actual_screen_pos(s32 camera, f32* x, f32* y, f32* position);
 extern void* fn_8005EFAC(f32 radius, f32* from, f32* position, s32 a4, s32 a5);
 extern s32 PlayerCollidePlayers(Player* p, f32 range, f32 height, f32* from,
                                 f32* to, f32* hit, s32 stopFirst);
+extern s32 sMusicTrackHi;
+extern u8* CurTransmitter;
+extern f32 lbl_80120BF0[]; /* spawn-spread table: per-player pairs at [8+2i],
+                              direction ring pairs at [16+2i] */
+extern f32 gDefaultPlayerPosition[];
+extern f32 sPlayerStartPositions[];
+extern f32 gPlayerStartYaw;
+extern u8 gIdentityMatrix[];
+extern void YawMat3(f32* mat, f32 yaw);
+extern void CopyMat4(f32* src, f32* dst);
+extern s32 RandInt(s32 limit);
+extern void fn_8005A338(f32* mat, f32* fwd, f32* anchor);
+extern void UpdatePlayerWorldMat(Player* p, s32 a2);
+extern void ErrorPrintf(const char* fmt, ...);
+extern char lbl_80114220[]; /* get_player_pos fallback format string */
+extern f32 sin(f32 angle);
+extern f32 cos(f32 angle);
+extern f32 lbl_80347B14; /* 4.0f (FloorCollide rad2) */
+extern f32 lbl_80347B18; /* -10.0f (FloorCollide drop) */
+extern f32 lbl_80347B1C; /* 99999.0f (spawn-kill critter damage) */
+extern f32 lbl_80347B20; /* 9999.0f (spawn-kill enemy damage) */
 
 /* Player-motion transform context (arg to PlayerNewFloor / collision fns):
  * a 3x3-ish orient block at 0x10 and the current floor WorldObj* at 0x44. */
@@ -186,7 +207,276 @@ static f32 fabsf_param(f32 x) {
 
 #define STUB(address, name) void name(void) {}
 
-STUB(0x8008091C, get_player_pos)
+/* get_player_pos spawn view: kills the PF() address-CSE on the rotation
+ * triple and the floor-object word (L7 -- struct-displacement view). */
+typedef struct PSpawnView {
+    u8  _000[0xC4];
+    f32 rot[3];          /* 0xC4 euler rotation */
+    u8  _0D0[0x7F0];
+    u32 floor_flags;     /* 0x8C0 */
+    u32 floor_obj;       /* 0x8C4 */
+} PSpawnView;
+#define SV(p) ((PSpawnView*)(p))
+
+/* 0x8008091C - compute the spawn position for player `playerIdx`: gate on the
+ * music state, then (in attract/0x400C modes) first try to drop next to an
+ * already-placed earlier player using the per-player spread pair; otherwise
+ * rotate through the other players from a random start and try the 16-slot
+ * direction ring around each candidate's collision position.  On total
+ * failure fall back to the level's default start (ring-searched, then the
+ * fixed start positions).  `mode` 1 forces the default-start fallback; mode 2
+ * accepts a failed partner probe anyway. */
+s32 try_location(u8* motion, Player* p, f32* position, f32* resultPosition,
+                 s32* resultItem, s32 findFloor);
+void get_player_pos(s32 playerIdx, s32 mode) {
+    f32 pos2[3];
+    f32 pos[3];
+    f32 resultPos[3];
+    u8 unused_74[12];
+    f32 mat[16];
+    s32 resultItem = -1;
+    u8 unused_8[24];
+    s32 partner = -1;
+    s32 found = -1;
+    Player* p;
+    Player* other;
+    f32 r;
+    f32 sx;
+    f32 sz;
+    f32 s;
+    f32 c;
+    f32 ang;
+    f32 y;
+    f64 halfR;
+    f64 thresh;
+    s32 ok;
+    s32 rand4;
+    s32 i;
+    s32 j;
+    s32 idx;
+    s32 k;
+    u8* ctx = lbl_80282850;
+    f32* spread = lbl_80120BF0;
+
+    if (sMusicTrackHi < 0) {
+        return;
+    }
+    p = &gPlayers[playerIdx];
+    *(volatile u32*)&SV(p)->floor_obj = 0;
+    if (p->state != 1 && p->state != 4) {
+        return;
+    }
+    fn_8005A338(p->mat, p->anchor_fwd, p->anchor_pos);
+    rand4 = RandInt(4);
+
+    if (gGameMode == 0x400C || lbl_803447B8 != 0) {
+        for (i = 0; i < 4; i++) {
+            if (i >= playerIdx) {
+                break;
+            }
+            other = &gPlayers[i];
+            if (other->state == 1 || other->state == 4) {
+                if ((other->hud_flags & 0x20) == 0) {
+                    break;
+                }
+            }
+        }
+        if (mode == 1) {
+            found = -2;
+        }
+        if (i != playerIdx && i < 4) {
+            other = &gPlayers[i];
+            PF(other, 0x8B4, f32) = other->pos[1];
+            CopyMat4(other->mat, p->mat);
+            SV(p)->rot[0] = SV(other)->rot[0];
+            SV(p)->rot[1] = SV(other)->rot[1];
+            SV(p)->rot[2] = SV(other)->rot[2];
+            pos[0] = other->col_pos[0];
+            pos[1] = other->col_pos[1];
+            pos[2] = other->col_pos[2];
+            r = 0.5 + PF(other, 0x850, f32);
+            sx = r * (spread[8 + playerIdx * 2] - spread[8 + i * 2]);
+            sz = r * (spread[9 + playerIdx * 2] - spread[9 + i * 2]);
+            ang = CurTransmitter != NULL ? *(f32*)(CurTransmitter + 24) : 0.0;
+            s = sin(ang);
+            c = cos(ang);
+            pos[0] += sx * c + sz * s;
+            c = cos(ang);
+            s = sin(ang);
+            pos[2] += -sx * s + sz * c;
+            if (try_location((u8*)other, p, pos, resultPos, &resultItem, 1) != 0) {
+                found = i;
+            } else if (mode == 2) {
+                CopyMat4(other->mat, p->mat);
+                found = i;
+            }
+        }
+    }
+
+    if (found == -1) {
+        f64 half = lbl_80347B00;
+        for (j = 0; j < 4; j++) {
+            idx = (rand4 + j) % 4;
+            if (idx == playerIdx) {
+                continue;
+            }
+            other = &gPlayers[idx];
+            if (other->state != 1 && other->state != 4 && other->state != 8) {
+                continue;
+            }
+            if (other->node == NULL) {
+                continue;
+            }
+            partner = idx;
+            if ((other->hud_flags & 0x20) != 0) {
+                pos2[0] = other->saved_pos[0];
+                pos2[1] = other->saved_pos[1];
+                pos2[2] = other->saved_pos[2];
+            } else {
+                pos2[0] = other->pos[0];
+                pos2[1] = other->pos[1];
+                pos2[2] = other->pos[2];
+            }
+            *(volatile u32*)&SV(other)->floor_obj = FloorCollide(lbl_80347B10, lbl_80347B14,
+                lbl_80347B18, pos2, (f32*)(ctx + 24), 1, 1);
+            if (*(void**)(ctx + 92) != NULL) {
+                PF(other, 0x8C0, u32) = PF(*(void**)(ctx + 92), 0x10, u32);
+            } else {
+                PF(other, 0x8C0, u32) = 0;
+            }
+            PF(other, 0x8B4, f32) = *(f32*)(ctx + 76);
+            CopyMat3(other->mat, p->mat);
+            p->pos[0] = pos2[0];
+            p->pos[1] = pos2[1];
+            p->pos[2] = pos2[2];
+            SV(p)->rot[0] = SV(other)->rot[0];
+            SV(p)->rot[1] = SV(other)->rot[1];
+            SV(p)->rot[2] = SV(other)->rot[2];
+            r = half + PF(other, 0x850, f32);
+            k = 0;
+            do {
+                pos[0] = other->col_pos[0];
+                pos[1] = other->col_pos[1];
+                pos[2] = other->col_pos[2];
+                pos[0] += r * spread[16 + k * 2];
+                pos[2] += r * spread[17 + k * 2];
+                if (try_location((u8*)other, p, pos, resultPos, &resultItem, 1) != 0) {
+                    found = idx;
+                    break;
+                }
+                k++;
+            } while (k < 16);
+            if (found >= 0) {
+                MBNodeSetParent(p->node, *(void**)(other->node + 0x74));
+                *(volatile u32*)&SV(p)->floor_obj = *(volatile u32*)&SV(other)->floor_obj;
+                break;
+            }
+        }
+    }
+
+    if (found < 0) {
+        if (partner >= 0) {
+            other = &gPlayers[partner];
+            CopyMat4(other->mat, p->mat);
+            SV(p)->rot[0] = SV(other)->rot[0];
+            SV(p)->rot[1] = SV(other)->rot[1];
+            SV(p)->rot[2] = SV(other)->rot[2];
+            if (resultItem >= 0) {
+                p->pos[0] = resultPos[0];
+                p->pos[1] = resultPos[1];
+                p->pos[2] = resultPos[2];
+                if (resultItem >= 0x10000) {
+                    CritterDamage(gCritterPool + (resultItem & 0xFFFF) * 2784,
+                                  -2, 0, 0, NULL, 1, lbl_80347B1C);
+                } else {
+                    damage_enemy(gEnemies + resultItem * 916,
+                                 -2, 0, 0, NULL, 1, lbl_80347B20);
+                }
+            } else {
+                PF(p, 0x8B4, f32) = FloorPos(p->pos[1], lbl_80347B10, p->pos, 1);
+                p->pos[1] = PF(p, 0x8B4, f32);
+                MBNodeSetParent(p->node, *(void**)(other->node + 0x74));
+                *(volatile u32*)&SV(p)->floor_obj = *(volatile u32*)&SV(other)->floor_obj;
+                ErrorPrintf(lbl_80114220);
+            }
+        } else {
+            CopyMat4((f32*)gIdentityMatrix, mat);
+            YawMat3(mat, gPlayerStartYaw);
+            r = 0.5 + PF(p, 0x850, f32);
+            pos[0] = gDefaultPlayerPosition[0];
+            pos[1] = gDefaultPlayerPosition[1];
+            pos[2] = gDefaultPlayerPosition[2];
+            halfR = 0.5 * r;
+            y = FloorPos(lbl_80344880, halfR, pos, 1);
+            if (*(void**)((u8*)gFloorCollisionResult + 0x44) == NULL) {
+                ok = 0;
+            } else {
+                f32 d = y - pos[1];
+                *(u32*)&d &= 0x7FFFFFFF;
+                if (d > lbl_80347B28) {
+                    ok = 0;
+                } else {
+                    pos[1] = y;
+                    ok = 1;
+                }
+            }
+            i = 0;
+            thresh = lbl_80347B28;
+            do {
+                f32 d;
+                if (ok != 0) {
+                    break;
+                }
+                pos[0] = gDefaultPlayerPosition[0];
+                pos[1] = gDefaultPlayerPosition[1];
+                pos[2] = gDefaultPlayerPosition[2];
+                pos[0] += r * spread[16 + i * 2];
+                pos[2] += r * spread[17 + i * 2];
+                y = FloorPos(lbl_80344880, halfR, pos, 1);
+                if (*(void**)((u8*)gFloorCollisionResult + 0x44) == NULL) {
+                    ok = 0;
+                } else {
+                    d = y - pos[1];
+                    *(u32*)&d &= 0x7FFFFFFF;
+                    if (d > thresh) {
+                        ok = 0;
+                    } else {
+                        pos[1] = y;
+                        ok = 1;
+                    }
+                }
+                i++;
+            } while (i < 16);
+            if (ok == 0) {
+                pos[0] = sPlayerStartPositions[0];
+                pos[1] = sPlayerStartPositions[1];
+                pos[2] = sPlayerStartPositions[2];
+            }
+            mat[12] = pos[0];
+            mat[13] = pos[1];
+            mat[14] = pos[2];
+            y = FloorPos(pos[1], lbl_80347B10, &mat[12], 1);
+            mat[13] = y;
+            PF(p, 0x8B4, f32) = y;
+            CopyMat4(mat, p->mat);
+            SV(p)->rot[0] = 0.0f;
+            SV(p)->rot[1] = gPlayerStartYaw;
+            SV(p)->rot[2] = 0.0f;
+        }
+    } else {
+        if (gGameMode == 0x400C) {
+            CopyMat4((f32*)gIdentityMatrix, mat);
+            YawMat3(mat, gPlayerStartYaw);
+            CopyMat3(mat, p->mat);
+            SV(p)->rot[0] = 0.0f;
+            SV(p)->rot[1] = gPlayerStartYaw;
+            SV(p)->rot[2] = 0.0f;
+        }
+    }
+
+    p->vibe_on = 0;
+    UpdatePlayerWorldMat(p, 0);
+}
 s32 PlayerCollideItems(Player* p, f32 range, f32 height, f32* from, f32* to,
                        f32* hit);
 
