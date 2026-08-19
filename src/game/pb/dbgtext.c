@@ -294,6 +294,7 @@ void fn_800C03E0(s32 mode)
 {
     u8 unused[96];
     u32* tblA = lbl_802C45CC;
+    char* fmts = lbl_80116450;
     DbgRow* tblB = lbl_80127DE8;
     u32 shift = 10;
     u32 div;
@@ -314,10 +315,10 @@ void fn_800C03E0(s32 mode)
     qline = 20;
 
     if (lbl_8034475C == 3) {
-        dbgTextPrintfPx(0xFFFFFF, 240, 12, lbl_80116450 + 32);
+        dbgTextPrintfPx(0xFFFFFF, 240, 12, fmts + 32);
+#define DBGROW3 ((DbgRow*)((u8*)lbl_80344F78 + i * 28))
         for (i = 0; i < 74; i++) {
-            DbgRow* row = (DbgRow*)((u8*)lbl_80344F78 + i * 28);
-            s32 id = row->id;
+            s32 id = DBGROW3->id;
             u32 dv;
             u32 pct;
             u32 w;
@@ -329,9 +330,10 @@ void fn_800C03E0(s32 mode)
             if (dv != 0 && pct == 0) {
                 pct = 1;
             }
-            dbgTextPrintfPx(row->color, 0, line, lbl_80116450 + 64,
+            dbgTextPrintfPx(DBGROW3->color, 0, line, fmts + 64,
                             pct * 100 / div, pct);
-            dbgTextPrintfPx(row->color, (id + 11) * 8, line, row->name);
+            dbgTextPrintfPx(DBGROW3->color, (id + 11) * 8, line,
+                            DBGROW3->name);
             w = pct * 96;
             if ((s32)(w / 4882) > 0) {
                 quad = MBNewTempQuad();
@@ -339,16 +341,17 @@ void fn_800C03E0(s32 mode)
                 mbBlitProject(quad, w / 4882, 4);
                 MBBlitSetColor(quad, 0x10101);
             }
-            if ((s32)row->color > 0) {
+            if ((s32)DBGROW3->color > 0) {
                 quad = MBNewTempQuad();
                 mbBlitCalcWidth(quad, 241, qline + 2, lbl_80348EF0);
                 mbBlitProject(quad, w / 4882, 4);
-                MBBlitSetColor(quad, row->color);
+                MBBlitSetColor(quad, DBGROW3->color);
             }
         next3:
             line += 8;
             qline += 8;
         }
+#undef DBGROW3
         j = qline - 20;
         for (k = 0, i = 0; k < 3; k++, i += 12) {
             quad = MBNewTempQuad();
@@ -359,7 +362,7 @@ void fn_800C03E0(s32 mode)
     }
 
     if (lbl_8034475C == 2) {
-        dbgTextPrintfPx(0xFFFFFF, 240, line - 8, lbl_80116450 + 76);
+        dbgTextPrintfPx(0xFFFFFF, 240, line - 8, fmts + 76);
         for (i = 0; i < 24; i++) {
             DbgRow* row = &tblB[i];
             s32 id = row->id;
@@ -371,7 +374,7 @@ void fn_800C03E0(s32 mode)
             }
             dv = tblA[i * 4 + 3];
             pct = dv >> 10;
-            dbgTextPrintfPx(row->color, 0, line, lbl_80116450 + 64,
+            dbgTextPrintfPx(row->color, 0, line, fmts + 64,
                             pct * 100 / div, pct);
             dbgTextPrintfPx(*(u32*)&row->color, (id + 11) * 8, line,
                             row->name);
@@ -423,25 +426,25 @@ void fn_800C03E0(s32 mode)
         pct = dv >> 10;
         i = 4;
         lx = (tblB[i].id + 9) * 8;
-        dbgTextPrintfPx(0xFFFFFF, 0, line, lbl_80116450 + 64,
+        dbgTextPrintfPx(0xFFFFFF, 0, line, fmts + 64,
                         pct * 100 / div, pct);
         dbgTextPrintfPx(0xFFFFFF, lx, line, tblB[i].name);
         dv = tblA[23];
         pct = dv >> 10;
         i = 5;
-        dbgTextPrintfPx(0xFFFFFF, 0, line + 8, lbl_80116450 + 64,
+        dbgTextPrintfPx(0xFFFFFF, 0, line + 8, fmts + 64,
                         pct * 100 / div, pct);
         dbgTextPrintfPx(0xFFFFFF, lx, line + 8, tblB[i].name);
         dv = tblA[35];
         pct = dv >> 10;
         i = 8;
-        dbgTextPrintfPx(0xFFFFFF, 0, line + 16, lbl_80116450 + 64,
+        dbgTextPrintfPx(0xFFFFFF, 0, line + 16, fmts + 64,
                         pct * 100 / div, pct);
         dbgTextPrintfPx(0xFFFFFF, lx, line + 16, tblB[i].name);
         dv = tblA[3];
         pct = dv >> 10;
         i = 0;
-        dbgTextPrintfPx(0xFFFFFF, 0, line + 24, lbl_80116450 + 64,
+        dbgTextPrintfPx(0xFFFFFF, 0, line + 24, fmts + 64,
                         pct * 100 / div, pct);
         dbgTextPrintfPx(0xFFFFFF, lx, line + 24, tblB[i].name);
         line += 32;
