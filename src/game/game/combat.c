@@ -639,6 +639,7 @@ void cam_orient_to_80029E8C(s32 camIdx)
 /* Walk-mode camera completion/cleanup predicate. */
 s32 MoveCam_walk_8002A024(s32 camIdx)
 {
+    s32 oldMode;
     s32 done;
     Camera* cam = &gCameras[camIdx];
 
@@ -659,7 +660,6 @@ s32 MoveCam_walk_8002A024(s32 camIdx)
         break;
     }
     if (done != 0) {
-        s32 oldMode;
         lbl_803447B8 = 0;
         lbl_803444F0 = -1;
         lbl_803444EC = -1;
@@ -2656,25 +2656,23 @@ extern s32 lbl_803444AC, lbl_803444B0, lbl_803444B4, lbl_803444B8, lbl_803444BC;
 
 void ChangeWindow(void)
 {
-    f32 halfY;
-    f32 halfX;
+    s32 halfXi;
+    s32 halfYi;
     s32 centerX;
     s32 centerY;
 
-    halfX = (f32)(s32)(lbl_80345F18 *
-        (f64)(gCameraWindowRightLimit - gCameraWindowLeftLimit)) *
-        gCameraWindowScaleY;
+    halfXi = (s32)(lbl_80345F18 *
+        (f64)(gCameraWindowRightLimit - gCameraWindowLeftLimit));
     centerX = (s32)(lbl_80345F18 *
         (f64)(gCameraWindowRightLimit + gCameraWindowLeftLimit));
-    halfY = (f32)(s32)(lbl_80345F18 *
-        (f64)(gCameraWindowTopLimit - gCameraWindowBottomLimit)) *
-        gCameraWindowScaleX;
+    halfYi = (s32)(lbl_80345F18 *
+        (f64)(gCameraWindowTopLimit - gCameraWindowBottomLimit));
     centerY = (s32)(lbl_80345F18 *
         (f64)(gCameraWindowTopLimit + gCameraWindowBottomLimit));
-    lbl_803444AC = (s32)((f32)centerX - halfX);
-    lbl_803444B0 = (s32)((f32)centerX + halfX);
-    lbl_803444B4 = (s32)((f32)centerY + halfY);
-    lbl_803444B8 = (s32)((f32)centerY - halfY);
+    lbl_803444AC = (s32)((f32)centerX - (f32)halfXi * gCameraWindowScaleY);
+    lbl_803444B0 = (s32)((f32)centerX + (f32)halfXi * gCameraWindowScaleY);
+    lbl_803444B4 = (s32)((f32)centerY + (f32)halfYi * gCameraWindowScaleX);
+    lbl_803444B8 = (s32)((f32)centerY - (f32)halfYi * gCameraWindowScaleX);
     if (lbl_803444AC < gCameraWindowLeftLimit) {
         lbl_803444AC = gCameraWindowLeftLimit;
     }
