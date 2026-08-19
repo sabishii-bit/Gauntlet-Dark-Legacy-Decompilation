@@ -417,34 +417,40 @@ void fn_800C03E0(s32 mode)
     }
 
     if (lbl_8034475C == 1) {
+        s32 j;
+        s32 x;
+        s32 bid;
         s32 lx;
         u32 dv;
         u32 pct;
         s32 i;
 
+        j = 0;
+        x = j * 8;
         dv = tblA[19];
         pct = dv >> 10;
         i = 4;
-        lx = (tblB[i].id + 9) * 8;
-        dbgTextPrintfPx(0xFFFFFF, 0, line, fmts + 64,
+        bid = tblB[i].id;
+        dbgTextPrintfPx(0xFFFFFF, x, line, fmts + 64,
                         pct * 100 / div, pct);
+        lx = (bid + 9) * 8;
         dbgTextPrintfPx(0xFFFFFF, lx, line, tblB[i].name);
         dv = tblA[23];
         pct = dv >> 10;
         i = 5;
-        dbgTextPrintfPx(0xFFFFFF, 0, line + 8, fmts + 64,
+        dbgTextPrintfPx(0xFFFFFF, x, line + 8, fmts + 64,
                         pct * 100 / div, pct);
         dbgTextPrintfPx(0xFFFFFF, lx, line + 8, tblB[i].name);
         dv = tblA[35];
         pct = dv >> 10;
         i = 8;
-        dbgTextPrintfPx(0xFFFFFF, 0, line + 16, fmts + 64,
+        dbgTextPrintfPx(0xFFFFFF, x, line + 16, fmts + 64,
                         pct * 100 / div, pct);
         dbgTextPrintfPx(0xFFFFFF, lx, line + 16, tblB[i].name);
         dv = tblA[3];
         pct = dv >> 10;
         i = 0;
-        dbgTextPrintfPx(0xFFFFFF, 0, line + 24, fmts + 64,
+        dbgTextPrintfPx(0xFFFFFF, x, line + 24, fmts + 64,
                         pct * 100 / div, pct);
         dbgTextPrintfPx(0xFFFFFF, lx, line + 24, tblB[i].name);
         line += 32;
