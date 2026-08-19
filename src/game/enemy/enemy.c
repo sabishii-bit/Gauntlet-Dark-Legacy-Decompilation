@@ -3766,34 +3766,34 @@ void move_logic14(s32 index)
  * table for the nearest active node, then each frame faces the current node and
  * advances to the node's link when it arrives.  A player inside 0.8*sight (and its
  * milestone likewise) snaps it back to the chase algorithm. */
+#pragma opt_propagation off
 void move_logic15(s32 index)
 {
     u8* base = (u8*)lbl_80250E00;
     u8* row15;
-    u8* e0;
     Enemy* e;
     s32 it = lbl_80344748;
     s32 flee;
     f32 ady;
-    u8 _pad15[40];
+    u8 _pad15[48];
 
     row15 = base + index * 916;
-    e0 = row15 + 3608;
-    e = (Enemy*)(u8*)e0;
+    row15 += 3608;
+    e = (Enemy*)(u8*)row15;
     if (it < 0) {
         flee = 0;
     } else {
         u8* other = base + it * 916;
         if (*(s32*)(other + 3788) != 1) {
             flee = 0;
-        } else if (*(f32*)(other + 4244) > *(f32*)(e0 + 768)) {
+        } else if (*(f32*)(other + 4244) > *(f32*)(row15 + 768)) {
             flee = 0;
-        } else if (index == it || *(s16*)(e0 + 728) != 0 || *(s32*)(e0 + 856) > 0) {
+        } else if (index == it || *(s16*)(row15 + 728) != 0 || *(s32*)(row15 + 856) > 0) {
             goto flee_zero15;
         } else {
-            f32 dx = *(f32*)(other + 3660) - *(f32*)(e0 + 52);
-            f32 dy = *(f32*)(other + 3664) - *(f32*)(e0 + 56);
-            f32 dz = *(f32*)(other + 3668) - *(f32*)(e0 + 60);
+            f32 dx = *(f32*)(other + 3660) - *(f32*)(row15 + 52);
+            f32 dy = *(f32*)(other + 3664) - *(f32*)(row15 + 56);
+            f32 dz = *(f32*)(other + 3668) - *(f32*)(row15 + 60);
             if (dx * dx + dy * dy + dz * dz < lbl_803468D8) {
                 flee = -1;
             } else {
@@ -3825,6 +3825,8 @@ void move_logic15(s32 index)
         u8* n = sLookoutParams;
         s32 best_idx = -1;
         f32 best_dist = lbl_803468B0;
+        f32 thresh = lbl_80346820;
+        f32 d;
         s32 i;
         f32 ex = e->objgrp.worldmat[3][0];
         f32 ey = e->objgrp.worldmat[3][1];
@@ -3835,8 +3837,7 @@ void move_logic15(s32 index)
                 f32 dx = *(f32*)(n + 48) - ex;
                 f32 dy = *(f32*)(n + 52) - ey;
                 f32 dz = *(f32*)(n + 56) - ez;
-                f32 d;
-                if ((d = dx * dx + dy * dy + dz * dz) > lbl_80346820) {
+                if ((d = dx * dx + dy * dy + dz * dz) > thresh) {
                     volatile f32 tmp;
                     f64 y = __frsqrte(d);
                     y = lbl_80346830 * y * (lbl_803468B8 - y * y * d);
@@ -3880,6 +3881,7 @@ move:
     e->pyr[1] = turn_enemy_ang(e, e->ang);
     do_enemy_move(index);
 }
+#pragma opt_propagation reset
 
 /* move_logic16 @0x8004A78C (state 16, ice leap-attacker).  Faces the target, and
  * when the player is at a shallow height difference it arms (flag1) inside 0.6*
