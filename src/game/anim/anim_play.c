@@ -15,7 +15,40 @@
 extern f32 light_color[4];
 extern const f32 lbl_803457F0;
 extern f64 lbl_803457F8, lbl_80345800, lbl_80345808;
-void GetAnimAngXYZVal();
+
+/*
+ * Per-node anim channel state (0x9C bytes): three channel groups (PYR, XYZ,
+ * scale), each holding current/previous keyframe values plus a third vector
+ * used as the transition source by CalcAnimation.
+ */
+typedef struct AnimData {
+    u32 unk00;          /* 0x00 */
+    u32 unk04;          /* 0x04 */
+    s16 curkey;         /* 0x08 */
+    s16 prevkey;        /* 0x0A */
+    s32 keynum;         /* 0x0C */
+    f32 pyr[3];         /* 0x10 current PYR    */
+    u32 unk1C;          /* 0x1C */
+    f32 prevpyr[3];     /* 0x20 previous PYR   */
+    u32 unk2C;          /* 0x2C */
+    f32 unk30[3];       /* 0x30 */
+    u32 unk3C;          /* 0x3C */
+    f32 xyz[3];         /* 0x40 current XYZ    */
+    u32 unk4C;          /* 0x4C */
+    f32 prevxyz[3];     /* 0x50 previous XYZ   */
+    u32 unk5C;          /* 0x5C */
+    f32 unk60[3];       /* 0x60 */
+    u32 unk6C;          /* 0x6C */
+    f32 scale[3];       /* 0x70 current scale  */
+    u32 unk7C;          /* 0x7C */
+    f32 prevscale[3];   /* 0x80 previous scale */
+    u32 unk8C;          /* 0x8C */
+    f32 unk90[3];       /* 0x90 */
+    u32 unk9C;          /* 0x9C */
+} AnimData;
+
+s32 GetAnimAngXYZVal(f32 frame, AnimData* data, f32* pose, u32* keydata, s32 flags, s32 keysize,
+                     s32 numframes);
 
 void ZeroAnimData(void* data)
 {
@@ -78,9 +111,11 @@ void InitAnimData(u32* data, u32 arg)
     v[30] = light_color[2];
 }
 
-void CalcAnimData()
+/* CalcAnimData @0x8000F740 -- straight passthrough into GetAnimAngXYZVal. */
+s32 CalcAnimData(f32 frame, AnimData* data, f32* pose, u32* keydata, s32 flags, s32 keysize,
+                 s32 numframes)
 {
-    GetAnimAngXYZVal();
+    return GetAnimAngXYZVal(frame, data, pose, keydata, flags, keysize, numframes);
 }
 
 /* InterpXYZ @0x8000F74C -- linear-interpolate a 3-vector by `frac`. */
@@ -119,7 +154,344 @@ void InterpPYR(f32 frac, f32* a, f32* b, f32* out)
         }
     }
 }
-STUB(0x8000F7F4, GetAnimAngXYZVal)
+/*
+ * GetAnimAngXYZVal @0x8000F7F4 -- evaluate one node's anim channels at
+ * `frame`, writing the PYR/XYZ/scale triples into `pose`.  Channel records
+ * are packed: a set bitmask in `flags` (low 16 bits) selects which of the
+ * nine channels carry data; lbl_80118100 maps channel slot to mask bit.
+ * When the 0x2000 flag is set the records after key 0 hold per-channel byte
+ * indices into the shared delta tables (lbl_803441B8/B4/B0) instead of
+ * absolute floats.  Xbox locals: GetPYR/GetXYZ/GetScale (+Comp variants),
+ * NextKey (fn_80010904) and PrevKey (fn_80010850).
+ */
+
+extern u32 lbl_80118100[10];
+extern f32* lbl_803441B8;
+extern f32* lbl_803441B4;
+extern f32* lbl_803441B0;
+extern const f32 lbl_80345810;
+extern f64 lbl_80345818, lbl_80345820, lbl_80345828, lbl_80345830;
+extern f32 lbl_8023CBA0[256];
+
+int fn_80010850(u32* bits, s32 n, s32* out);
+u32 fn_80010904(u32* bits, s32 start, s32 total);
+
+/* Byte-swap a float through memory (anim data is little-endian). */
+static inline f32 SwapFloat(f32 v)
+{
+    union {
+        u32 w;
+        u8 b[4];
+    } s, d;
+    u32 w;
+
+    s.w = *(u32*)&v;
+    *(volatile u8*)&d.b[0] = *(volatile u8*)&s.b[3];
+    *(volatile u8*)&d.b[1] = *(volatile u8*)&s.b[2];
+    *(volatile u8*)&d.b[2] = *(volatile u8*)&s.b[1];
+    *(volatile u8*)&d.b[3] = *(volatile u8*)&s.b[0];
+    w = d.w;
+    return *(f32*)&w;
+}
+
+static inline s32 GetPYR(f32* dst, f32* src, s32 flags, s32 n, u32* mask, f32 dflt)
+{
+    s32 i;
+
+    for (i = 0; i < 3; i++) {
+        if ((s16)flags & mask[i]) {
+            dst[i] = SwapFloat(src[n]);
+            n++;
+        } else {
+            dst[i] = dflt;
+        }
+    }
+    return n;
+}
+
+static inline s32 GetPYRComp(f32* dst, u8* src, s32 flags, s32 n, u32* mask)
+{
+    s32 i;
+
+    for (i = 0; i < 3; i++) {
+        if ((s16)flags & mask[i]) {
+            dst[i] += SwapFloat(lbl_803441B8[*src]);
+            src++;
+            n++;
+        }
+    }
+    return n;
+}
+
+static inline s32 GetXYZ(f32* dst, f32* src, s32 flags, s32 n, u32* mask, f32 dflt)
+{
+    s32 i;
+
+    for (i = 0; i < 3; i++) {
+        if ((s16)flags & mask[i + 3]) {
+            dst[i] = SwapFloat(src[n]);
+            n++;
+        } else {
+            dst[i] = dflt;
+        }
+    }
+    return n;
+}
+
+static inline s32 GetXYZComp(f32* dst, u8* src, s32 flags, s32 n, u32* mask)
+{
+    s32 i;
+
+    for (i = 0; i < 3; i++) {
+        if ((s16)flags & mask[i + 3]) {
+            dst[i] += SwapFloat(lbl_803441B4[*src]);
+            src++;
+            n++;
+        }
+    }
+    return n;
+}
+
+static inline s32 GetScale(f32* dst, f32* src, s32 flags, s32 n, u32* mask, f32 dflt)
+{
+    s32 i;
+
+    for (i = 0; i < 3; i++) {
+        if ((s16)flags & mask[i + 6]) {
+            dst[i] = SwapFloat(src[n]);
+            n++;
+        } else {
+            dst[i] = dflt;
+        }
+    }
+    return n;
+}
+
+static inline s32 GetScaleComp(f32* dst, u8* src, s32 flags, s32 n, u32* mask)
+{
+    s32 i;
+
+    for (i = 0; i < 3; i++) {
+        if ((s16)flags & mask[i + 6]) {
+            dst[i] += SwapFloat(lbl_803441B0[*src]);
+            src++;
+            n++;
+        }
+    }
+    return n;
+}
+
+s32 GetAnimAngXYZVal(f32 frame, AnimData* data, f32* pose, u32* keydata, s32 flags, s32 keysize,
+                     s32 numframes)
+{
+    s32 curkey = data->curkey;
+    s32 prevkey = data->prevkey;
+    s32 keynum = data->keynum;
+    u32* bits = keydata;
+    u32* mask = lbl_80118100;
+    f32* cpyr = data->pyr;
+    f32* ppyr = data->prevpyr;
+    f32* oxyz = pose + 4;
+    f32* cxyz = data->xyz;
+    f32* pxyz = data->prevxyz;
+    f32* oscale = pose + 8;
+    f32* cscale = data->scale;
+    f32* pscale = data->prevscale;
+    s32 comp;
+    u8* rec;
+    s32 n;
+    s32 next;
+    s32 diff;
+    s32 i;
+    f32 t;
+
+    if (flags & 0x4000) {
+        n = GetPYR(pose, (f32*)keydata, flags, 0, mask, lbl_803457F0);
+        n = GetXYZ(oxyz, (f32*)keydata, flags, n, mask, lbl_803457F0);
+        GetScale(oscale, (f32*)keydata, flags, n, mask, lbl_80345810);
+        data->curkey = 0;
+        return 1;
+    }
+    if (lbl_80345818 == frame) {
+        if (curkey == 0 && prevkey == 0) {
+            return 0;
+        }
+        keydata += (numframes + 31) >> 5;
+        n = GetPYR(cpyr, (f32*)keydata, flags, 0, mask, lbl_803457F0);
+        pose[0] = cpyr[0];
+        pose[1] = cpyr[1];
+        pose[2] = cpyr[2];
+        ppyr[0] = cpyr[0];
+        ppyr[1] = cpyr[1];
+        ppyr[2] = cpyr[2];
+        n = GetXYZ(cxyz, (f32*)keydata, flags, n, mask, lbl_803457F0);
+        oxyz[0] = cxyz[0];
+        oxyz[1] = cxyz[1];
+        oxyz[2] = cxyz[2];
+        pxyz[0] = cxyz[0];
+        pxyz[1] = cxyz[1];
+        pxyz[2] = cxyz[2];
+        GetScale(cscale, (f32*)keydata, flags, n, mask, lbl_80345810);
+        oscale[0] = cscale[0];
+        oscale[1] = cscale[1];
+        oscale[2] = cscale[2];
+        pscale[0] = cscale[0];
+        pscale[1] = cscale[1];
+        pscale[2] = cscale[2];
+        data->curkey = 0;
+        data->prevkey = 0;
+        if (flags & 0x2000) {
+            data->keynum = -1;
+        } else {
+            data->keynum = 0;
+        }
+        return 1;
+    }
+    keydata += (numframes + 31) >> 5;
+    if (curkey < 0) {
+        n = GetPYR(cpyr, (f32*)keydata, flags, 0, mask, lbl_803457F0);
+        ppyr[0] = cpyr[0];
+        ppyr[1] = cpyr[1];
+        ppyr[2] = cpyr[2];
+        n = GetXYZ(cxyz, (f32*)keydata, flags, n, mask, lbl_803457F0);
+        pxyz[0] = cxyz[0];
+        pxyz[1] = cxyz[1];
+        pxyz[2] = cxyz[2];
+        GetScale(cscale, (f32*)keydata, flags, n, mask, lbl_80345810);
+        pscale[0] = cscale[0];
+        pscale[1] = cscale[1];
+        pscale[2] = cscale[2];
+        curkey = 0;
+        prevkey = 0;
+        if (flags & 0x2000) {
+            keynum = -1;
+        } else {
+            keynum = 0;
+        }
+    }
+    comp = flags & 0x2000;
+    if (comp) {
+        keydata += keysize;
+    }
+    {
+        f32 one = lbl_80345810;
+        f32 zero = lbl_803457F0;
+
+        while (prevkey < frame) {
+        if (prevkey > curkey) {
+            cpyr[0] = ppyr[0];
+            cpyr[1] = ppyr[1];
+            cpyr[2] = ppyr[2];
+            cxyz[0] = pxyz[0];
+            cxyz[1] = pxyz[1];
+            cxyz[2] = pxyz[2];
+            cscale[0] = pscale[0];
+            cscale[1] = pscale[1];
+            cscale[2] = pscale[2];
+            curkey = prevkey;
+        }
+        next = fn_80010904(bits, prevkey, numframes);
+        if (next >= 0) {
+            prevkey = next;
+            keynum++;
+            if (comp) {
+                rec = (u8*)keydata + keynum * keysize;
+                n = GetPYRComp(ppyr, rec, flags, 0, mask);
+                n = GetXYZComp(pxyz, rec + n, flags, n, mask);
+                GetScaleComp(pscale, rec + n, flags, n, mask);
+            } else {
+                n = GetPYR(ppyr, (f32*)keydata + keynum * keysize, flags, 0, mask, zero);
+                n = GetXYZ(pxyz, (f32*)keydata + keynum * keysize, flags, n, mask, zero);
+                GetScale(pscale, (f32*)keydata + keynum * keysize, flags, n, mask, one);
+            }
+        } else {
+            frame = prevkey;
+        }
+        }
+    }
+    {
+        f32 one2 = lbl_80345810;
+        f32 zero2 = lbl_803457F0;
+
+        while (curkey > frame) {
+        if (curkey < prevkey) {
+            ppyr[0] = cpyr[0];
+            ppyr[1] = cpyr[1];
+            ppyr[2] = cpyr[2];
+            pxyz[0] = cxyz[0];
+            pxyz[1] = cxyz[1];
+            pxyz[2] = cxyz[2];
+            pscale[0] = cscale[0];
+            pscale[1] = cscale[1];
+            pscale[2] = cscale[2];
+            prevkey = curkey;
+        }
+        next = fn_80010850(bits, curkey, &keynum);
+        if (next >= 0) {
+            curkey = next;
+            if (comp) {
+                rec = (u8*)keydata + keynum * keysize;
+                n = GetPYRComp(cpyr, rec, flags, 0, mask);
+                n = GetXYZComp(cxyz, rec + n, flags, n, mask);
+                GetScaleComp(cscale, rec + n, flags, n, mask);
+            } else {
+                n = GetPYR(cpyr, (f32*)keydata + keynum * keysize, flags, 0, mask, zero2);
+                n = GetXYZ(cxyz, (f32*)keydata + keynum * keysize, flags, n, mask, zero2);
+                GetScale(cscale, (f32*)keydata + keynum * keysize, flags, n, mask, one2);
+            }
+        } else {
+            frame = curkey;
+        }
+        }
+    }
+    if (curkey < prevkey && prevkey - frame > lbl_80345820) {
+        diff = prevkey - curkey;
+        if (diff < 256) {
+            t = (frame - curkey) * lbl_8023CBA0[diff];
+        } else {
+            t = (frame - curkey) / diff;
+        }
+        for (i = 0; i < 3; i++) {
+            f32 d = ppyr[i] - cpyr[i];
+
+            if (d > lbl_80345828 && d < lbl_80345830) {
+                pose[i] = d * t + cpyr[i];
+            } else {
+                pose[i] = cpyr[i];
+            }
+        }
+        for (i = 0; i < 3; i++) {
+            oxyz[i] = t * (pxyz[i] - cxyz[i]) + cxyz[i];
+        }
+        for (i = 0; i < 3; i++) {
+            oscale[i] = t * (pscale[i] - cscale[i]) + cscale[i];
+        }
+    } else {
+        pose[0] = ppyr[0];
+        pose[1] = ppyr[1];
+        pose[2] = ppyr[2];
+        oxyz[0] = pxyz[0];
+        oxyz[1] = pxyz[1];
+        oxyz[2] = pxyz[2];
+        oscale[0] = pscale[0];
+        oscale[1] = pscale[1];
+        oscale[2] = pscale[2];
+    }
+    for (i = 0; i < 3; i++) {
+        f64 v = pose[i];
+
+        if (v > lbl_803457F8) {
+            v -= lbl_80345800;
+        } else if (v <= lbl_80345808) {
+            v += lbl_80345800;
+        }
+        pose[i] = v;
+    }
+    data->curkey = curkey;
+    data->prevkey = prevkey;
+    data->keynum = keynum;
+    return 1;
+}
 /* fn_80010850 @0x80010850 -- scan `n` bits of a byte-swapped bitfield; return
  * the index of the highest set bit and store the total set count via `out`. */
 int fn_80010850(u32* bits, s32 n, s32* out)
