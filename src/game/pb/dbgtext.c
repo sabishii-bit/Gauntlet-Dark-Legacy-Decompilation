@@ -33,9 +33,9 @@ int vsprintf(char* str, const char* fmt, va_list ap);
 s32 MBSetFontColor(s32 color);                       /* mb_font.c */
 u32* MBDrawSysText(s32 x, s32 y, char* text);        /* mb_font.c */
 void* MBNewTempQuad(void);                           /* mb_blit.c */
-s32 mbBlitCalcWidth(void*);                          /* mb_blit.c */
-void mbBlitProject(void*);                           /* mb_blit.c */
-void MBBlitSetColor(void*);
+s32 mbBlitCalcWidth(void*, s32 x, s32 y, f32 depth); /* mb_blit.c */
+void mbBlitProject(void*, s32 a, s32 c);             /* mb_blit.c */
+void MBBlitSetColor(void*, u32 bright);              /* mb_blit.c */
 void dbgTextPrintfPx(s32 color, s32 x, s32 line, char* fmt, ...);
 void fn_800C03E0(s32 mode);
 
@@ -273,17 +273,215 @@ void fn_800C0394(void)
     fn_800C03E0(4);
 }
 
-/* Large debug-quad / graph renderer (parked structural stub). */
+/* Debug-table record (28-byte stride): name used as the row's fmt label. */
+typedef struct DbgRow {
+    /* 0x00 */ char name[16];
+    /* 0x10 */ s32  id;      /* <0 = unused slot */
+    /* 0x14 */ u32  color;
+    /* 0x18 */ u32  _pad;
+} DbgRow;
+
+extern s32 lbl_8034475C;        /* debug page/mode selector               */
+extern char lbl_80116450[];     /* rodata: 8 colors + scale/fmt strings   */
+extern DbgRow lbl_80127DE8[];   /* 24-entry debug row table (.data)       */
+extern f32  lbl_80348EF0;       /* quad depth constant                    */
+extern char lbl_80348EF4[];     /* mode-5 row fmt (sdata2 string)         */
+
+/* Large debug-quad / graph renderer: per-mode text rows + bar quads.
+ * Dispatch is on the global lbl_8034475C (the mode parameter is unused in
+ * the original).  Returns the advanced line cursor. */
 void fn_800C03E0(s32 mode)
 {
-    /* draws pooled debug quads via MBNewTempQuad/mbBlitProject and labels
-     * them through dbgTextPrintfPx; reconstruction deferred. */
+    u8 unused[96];
+    u32* tblA = lbl_802C45CC;
+    DbgRow* tblB = lbl_80127DE8;
+    u32 shift = 10;
+    u32 div;
+    s32 line;
+    s32 qline;
+    s32 i;
+    s32 j;
+    s32 k;
+    void* quad;
+
     (void)mode;
-    dbgTextPrintfPx(0, 0, 0, (char*)lbl_802C45CC);
-    MBNewTempQuad();
-    mbBlitCalcWidth(0);
-    mbBlitProject(0);
-    MBBlitSetColor(0);
+    div = tblA[19] >> 10;
+    if (div == 0) {
+        div = 1000000;
+    }
+    dbgTextFlagA = 1;
+    line = 20;
+    qline = 20;
+
+    if (lbl_8034475C == 3) {
+        dbgTextPrintfPx(0xFFFFFF, 240, 12, lbl_80116450 + 32);
+        for (i = 0; i < 74; i++) {
+            DbgRow* row = (DbgRow*)((u8*)lbl_80344F78 + i * 28);
+            s32 id = row->id;
+            u32 dv;
+            u32 pct;
+            u32 w;
+            if (id < 0) {
+                goto next3;
+            }
+            dv = ((u32*)lbl_80344F7C)[i * 4 + 3];
+            pct = dv >> 10;
+            if (dv != 0 && pct == 0) {
+                pct = 1;
+            }
+            dbgTextPrintfPx(row->color, 0, line, lbl_80116450 + 64,
+                            pct * 100 / div, pct);
+            dbgTextPrintfPx(row->color, (id + 11) * 8, line, row->name);
+            w = pct * 96;
+            if ((s32)(w / 4882) > 0) {
+                quad = MBNewTempQuad();
+                mbBlitCalcWidth(quad, 241, qline + 1, lbl_80348EF0);
+                mbBlitProject(quad, w / 4882, 4);
+                MBBlitSetColor(quad, 0x10101);
+            }
+            if ((s32)row->color > 0) {
+                quad = MBNewTempQuad();
+                mbBlitCalcWidth(quad, 241, qline + 2, lbl_80348EF0);
+                mbBlitProject(quad, w / 4882, 4);
+                MBBlitSetColor(quad, row->color);
+            }
+        next3:
+            line += 8;
+            qline += 8;
+        }
+        j = qline - 20;
+        for (k = 0, i = 0; k < 3; k++, i += 12) {
+            quad = MBNewTempQuad();
+            mbBlitCalcWidth(quad, (i + 30) * 8, 20, lbl_80348EF0);
+            mbBlitProject(quad, j, 2);
+            MBBlitSetColor(quad, 0xFFFFFF);
+        }
+    }
+
+    if (lbl_8034475C == 2) {
+        dbgTextPrintfPx(0xFFFFFF, 240, line - 8, lbl_80116450 + 76);
+        for (i = 0; i < 24; i++) {
+            DbgRow* row = &tblB[i];
+            s32 id = row->id;
+            u32 dv;
+            u32 pct;
+            u32 w;
+            if (id < 0) {
+                goto next2;
+            }
+            dv = tblA[i * 4 + 3];
+            pct = dv >> 10;
+            dbgTextPrintfPx(row->color, 0, line, lbl_80116450 + 64,
+                            pct * 100 / div, pct);
+            dbgTextPrintfPx(*(u32*)&row->color, (id + 11) * 8, line,
+                            row->name);
+            w = pct * 48;
+            j = (s32)(w / 4882);
+            if (j > 0) {
+                quad = MBNewTempQuad();
+                mbBlitCalcWidth(quad, 241, qline + 1, lbl_80348EF0);
+                mbBlitProject(quad, w / 4882, 4);
+                MBBlitSetColor(quad, 0x10101);
+            }
+            if (j > 0) {
+                quad = MBNewTempQuad();
+                mbBlitCalcWidth(quad, 241, qline + 2, lbl_80348EF0);
+                mbBlitProject(quad, w / 4882, 4);
+                MBBlitSetColor(quad, *(u32*)&row->color);
+            }
+        next2:
+            line += 8;
+            qline += 8;
+        }
+        j = qline - 20;
+        for (k = 0, i = 0; k < 6; k++, i += 6) {
+            quad = MBNewTempQuad();
+            mbBlitCalcWidth(quad, (i + 30) * 8, 20, lbl_80348EF0);
+            mbBlitProject(quad, j, 2);
+            MBBlitSetColor(quad, 0xFFFFFF);
+        }
+    }
+
+    if (lbl_8034475C == 5) {
+        for (i = 0; i < 24; i++) {
+            DbgRow* row = &tblB[i];
+            u32 dv = tblA[i * 4 + 3];
+            dbgTextPrintfPx(row->color, 0, line, lbl_80348EF4,
+                            dv >> shift);
+            line += 8;
+            qline += 8;
+        }
+    }
+
+    if (lbl_8034475C == 1) {
+        s32 lx;
+        u32 dv;
+        u32 pct;
+        s32 i;
+
+        dv = tblA[19];
+        pct = dv >> 10;
+        i = 4;
+        lx = (tblB[i].id + 9) * 8;
+        dbgTextPrintfPx(0xFFFFFF, 0, line, lbl_80116450 + 64,
+                        pct * 100 / div, pct);
+        dbgTextPrintfPx(0xFFFFFF, lx, line, tblB[i].name);
+        dv = tblA[23];
+        pct = dv >> 10;
+        i = 5;
+        dbgTextPrintfPx(0xFFFFFF, 0, line + 8, lbl_80116450 + 64,
+                        pct * 100 / div, pct);
+        dbgTextPrintfPx(0xFFFFFF, lx, line + 8, tblB[i].name);
+        dv = tblA[35];
+        pct = dv >> 10;
+        i = 8;
+        dbgTextPrintfPx(0xFFFFFF, 0, line + 16, lbl_80116450 + 64,
+                        pct * 100 / div, pct);
+        dbgTextPrintfPx(0xFFFFFF, lx, line + 16, tblB[i].name);
+        dv = tblA[3];
+        pct = dv >> 10;
+        i = 0;
+        dbgTextPrintfPx(0xFFFFFF, 0, line + 24, lbl_80116450 + 64,
+                        pct * 100 / div, pct);
+        dbgTextPrintfPx(0xFFFFFF, lx, line + 24, tblB[i].name);
+        line += 32;
+        qline += 32;
+    }
+
+    if (lbl_8034475C == 4) {
+        for (i = 0; i < 2; i++) {
+            DbgRow* row = &tblB[i];
+            u32 dv = tblA[i * 4 + 3];
+            u32 pct = dv >> 10;
+            u32 w = pct * 48;
+            if ((s32)(w / 4882) > 0) {
+                quad = MBNewTempQuad();
+                mbBlitCalcWidth(quad, 241, qline + 1, lbl_80348EF0);
+                mbBlitProject(quad, w / 4882, 4);
+                MBBlitSetColor(quad, 0x10101);
+            }
+            if ((s32)(w / 4882) > 0) {
+                quad = MBNewTempQuad();
+                mbBlitCalcWidth(quad, 241, qline + 2, lbl_80348EF0);
+                mbBlitProject(quad, w / 4882, 4);
+                MBBlitSetColor(quad, row->color);
+            }
+            line += 8;
+            qline += 8;
+        }
+        j = qline - 20;
+        for (k = 0, i = 0; k < 6; k++, i += 6) {
+            quad = MBNewTempQuad();
+            mbBlitCalcWidth(quad, (i + 30) * 8, 20, lbl_80348EF0);
+            mbBlitProject(quad, j, 2);
+            MBBlitSetColor(quad, 0xFFFFFF);
+        }
+    }
+
+    for (i = 74; i > 0; i--) {
+    }
+    dbgTextFlagA = 0;
+    return;
 }
 
 /* Latch a graph slot: move its accumulator to the display field. */
