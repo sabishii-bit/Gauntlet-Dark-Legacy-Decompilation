@@ -2099,7 +2099,7 @@ extern s32 lbl_80344B84;      /* battle-tower level id */
 extern s32 gClockFrameNumber; /* frame parity counter */
 extern s32 lbl_80344DA4;      /* world loaded */
 extern s32 lbl_803447D0;      /* level-clear/exit progress state */
-extern s32 lbl_803447A8[2];   /* cleared at init_players */
+extern s32 lbl_803447A8[];   /* cleared at init_players (2 elems; unsized = absolute addr) */
 extern f32 lbl_80344B20;      /* x-ray range (mask & 8 powerup strength) */
 extern s32 lbl_803447C0;      /* widescreen/mode flag (rune13 blit) */
 
@@ -4094,6 +4094,7 @@ void DoPlayerTexMods(s32 i) {
 void init_players(void) {
     s32 i;
     u32 tex;
+    GotIt* g;
 
     lbl_80344B24 = -1;
     it_blit = NULL;
@@ -4107,15 +4108,15 @@ void init_players(void) {
         lbl_803447A8[i] = 0;
     }
     lbl_80344B2C = MBNewNode(gSceneRoot, gIdentityMatrix, 1);
-    for (i = 0; i < 24; i++) {
-        got_it[i].state = 0;
-        if (got_it[i].blit2 != NULL) {
-            MBRemoveBlit(got_it[i].blit2);
-            got_it[i].blit2 = NULL;
+    for (i = 0, g = got_it; i < 24; i++, g++) {
+        g->state = 0;
+        if (g->blit2 != NULL) {
+            MBRemoveBlit(g->blit2);
+            g->blit2 = NULL;
         }
-        if (got_it[i].blit1 != NULL) {
-            MBRemoveBlit(got_it[i].blit1);
-            got_it[i].blit1 = NULL;
+        if (g->blit1 != NULL) {
+            MBRemoveBlit(g->blit1);
+            g->blit1 = NULL;
         }
     }
     welcome_timer = 0;
