@@ -1169,7 +1169,6 @@ void DrawText(s32 x, s32 y, u32 flags, u32 color, const char* fmt, ...)
 s32 DrawTextSub(register f32 scale, f32 shScale, s32 x, s32 y, u32 flags,
                 u32 color, u8* str)
 {
-    f64 shadowProduct;
     f32 shadowSpace;
     s32 font;
     s32 oldFlags;
@@ -1204,8 +1203,7 @@ s32 DrawTextSub(register f32 scale, f32 shScale, s32 x, s32 y, u32 flags,
     }
     if (flags & 0x100) {
         MBSetFontColor(shadow_color);
-        shadowProduct = sBTextShadowSpacing * scale;
-        shadowSpace = (f32)shadowProduct;
+        shadowSpace = (f32)(sBTextShadowSpacing * scale);
         MBSetFontScaleSpace(shadowSpace, shadowSpace);
         MBSetFontScale(shScale, scale);
         MBDrawText(x - 2, y - 2, str);
