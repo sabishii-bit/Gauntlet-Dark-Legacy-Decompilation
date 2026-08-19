@@ -83,6 +83,12 @@ typedef struct MilestoneParam {
     s32 active;
 } MilestoneParam; /* 0x68 */
 
+typedef struct PlayerStart {
+    f32 x;
+    f32 y;
+    f32 z;
+} PlayerStart;
+
 typedef struct ItemRuntime {
     /* 0x0000 */ f32 wobjX[150];
     /* 0x0258 */ f32 wobjNodeY[150];
@@ -91,10 +97,11 @@ typedef struct ItemRuntime {
     /* 0x0960 */ f32 wobjValue[150];
     char itemPath[0x20];
     f32 playerStartYaw[14];
-    f32 playerStartPositions[14][3];
+    PlayerStart playerStartPositions[14];
     LookoutParam lookoutParams[20];
     TriggerCamera* sumnerCameras[3][14];
-    TriggerCamera* runeCameras[17];
+    TriggerCamera* runeCameras[3];
+    TriggerCamera* startCameras[14];
     TriggerCamera triggerCameras[256];
     MilestoneParam milestones[128];
     u8 _pad7214[0xC];
@@ -2542,18 +2549,16 @@ void update_player_milestone(struct Player* player_ptr)
  */
 void AddLocatorInstList(void)
 {
+    char* strings = (char*)&sObjectsFile;
     locator* locators = gWorldInfo.locators;
     s32 locator_count = gWorldInfo.nlocators;
     ItemRuntime* runtime = &sItemRuntime;
-    char* strings = (char*)&sObjectsFile;
     f32 boss_matrix[16];
     u8 unused[12];
     f64 pi;
     f32 invalid_start;
     s32 i;
     s32 selected;
-    s32 yaw_offset;
-    s32 position_offset;
 
     sNumMilestones = 0;
     sNumTriggerCameras = 0;
@@ -2569,13 +2574,9 @@ void AddLocatorInstList(void)
     }
     invalid_start = sInvalidPlayerStartYFloat;
     sLastPlayerStart = 0;
-    yaw_offset = 0;
-    position_offset = 0;
     for (i = 0; i < 14; i++) {
-        *(f32*)((u8*)runtime + position_offset + 3092) = invalid_start;
-        *(TriggerCamera**)((u8*)runtime + yaw_offset + 5596) = NULL;
-        position_offset += 12;
-        yaw_offset += 4;
+        runtime->playerStartPositions[i].y = invalid_start;
+        runtime->startCameras[i] = NULL;
     }
     runtime->runeCameras[0] = NULL;
     runtime->runeCameras[1] = NULL;
@@ -2613,7 +2614,7 @@ void AddLocatorInstList(void)
                 if (loc->index > sLastTransmitter) {
                     sLastTransmitter = loc->index;
                 }
-                runtime->runeCameras[loc->index + 3] = camera;
+                runtime->startCameras[loc->index] = camera;
                 camera->type = 3;
             }
             camera->handle =
@@ -2678,9 +2679,9 @@ void AddLocatorInstList(void)
             if (loc->index > sLastPlayerStart) {
                 sLastPlayerStart = loc->index;
             }
-            runtime->playerStartPositions[loc->index][0] = loc->pos[0];
-            runtime->playerStartPositions[loc->index][1] = loc->pos[1];
-            runtime->playerStartPositions[loc->index][2] = loc->pos[2];
+            runtime->playerStartPositions[loc->index].x = loc->pos[0];
+            runtime->playerStartPositions[loc->index].y = loc->pos[1];
+            runtime->playerStartPositions[loc->index].z = loc->pos[2];
             runtime->playerStartYaw[loc->index] = loc->pyr[1];
             gPlayerStartYaw = loc->pyr[1];
             break;
@@ -2724,16 +2725,16 @@ void AddLocatorInstList(void)
         selected = 0;
     }
     gDefaultPlayerPosition[0] =
-        runtime->playerStartPositions[selected][0];
+        runtime->playerStartPositions[selected].x;
     gDefaultPlayerPosition[1] =
         ((f32*)((u8*)runtime + 3092))[selected * 3];
     gDefaultPlayerPosition[2] =
-        runtime->playerStartPositions[selected][2];
+        runtime->playerStartPositions[selected].z;
     gPlayerStartYaw = runtime->playerStartYaw[selected];
-    if (runtime->runeCameras[selected + 3] == NULL) {
+    if (runtime->startCameras[selected] == NULL) {
         selected = 0;
     }
-    CurTransmitter = (s32)runtime->runeCameras[selected + 3];
+    CurTransmitter = (s32)runtime->startCameras[selected];
 }
 
 #undef ADD_TRANSMITTER
