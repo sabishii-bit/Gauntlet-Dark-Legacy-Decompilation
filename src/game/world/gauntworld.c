@@ -84,8 +84,8 @@ struct WorldLevel {
 };
 
 /* ---- real callees (names already resolved in config/GUNE5D/symbols.txt) --- */
-extern void* MBSetupWad(void* ctx, void* wadData);
-extern void* MBGetFromWad(void* ctx, int fourcc, int arg, int* outLen);
+extern s32   MBSetupWad(void* ctx, void* wadData);
+extern void* MBGetFromWad(void* ctx, s32 tag, s32* outLen);
 extern int   MBSetObject();
 extern void* MBGetFromWad2();
 extern int   AudioFindSound(const char* name, int a, int b);
@@ -156,6 +156,60 @@ extern WorldLevel* gCurLevel;    /* 0x8034483C active level record            */
 /* forward decl of the static BE fix-up pass */
 static void ResolveWorldDataPointers(void);
 
+/* ---- WAD section tags (.sdata2 4-char strings) --------------------------- */
+extern char lbl_80346CB8[8]; /* "WRLD" - world header                        */
+extern char lbl_80346CC0[8]; /* "LEVL" - level array                         */
+extern char lbl_80346CC8[8]; /* "ENMY" - enemy section                       */
+extern char lbl_80346CD0[8]; /* "CAMS" - camera array                        */
+extern char lbl_80346CD8[8]; /* "AUDS" - audio array                         */
+extern char lbl_80346CE0[8]; /* "SNDS" - sound table                         */
+extern char lbl_80346CE8[8]; /* "MAPS" - map section                         */
+extern char lbl_80346CF0[8]; /* "BCAM" - boss-camera section                 */
+
+extern char  lbl_802576C0[]; /* WAD context buffer                           */
+extern char  lbl_80112788[]; /* world-data string block                      */
+extern s32   lbl_8034487C;   /* "WRLD" section length                        */
+extern char* lbl_80344888;   /* active realm secondary name                  */
+extern WorldLevel* lbl_80344840; /* next camera-owning level record          */
+extern s32   lbl_803448A0;
+extern s32   lbl_803448A4;
+extern s32   lbl_803448B8;   /* active realm == 12                           */
+
+/* ---- WAD section tag + in-place big-endian fixup helpers (same idioms as
+ * critter.c's matched CritterWadTag/CritterSwap16/CritterSwap32) ---------- */
+static inline s32 WorldWadTag(char* s)
+{
+    return (s[0] << 24) | (s[1] << 16) | (s[2] << 8) | s[3];
+}
+
+static inline u16 WorldSwap16(u16 v)
+{
+    u8* p = (u8*)&v;
+    return (u16)(p[0] | (p[1] << 8));
+}
+
+static inline u32 WorldSwap32(u32 v)
+{
+    u32 r;
+    u8* s = (u8*)&v;
+    u8* d = (u8*)&r;
+    d[0] = s[3];
+    d[1] = s[2];
+    d[2] = s[1];
+    d[3] = s[0];
+    return r;
+}
+
+static inline f32 WorldSwapF(f32 v)
+{
+    u32 r = WorldSwap32(*(u32*)&v);
+    return *(f32*)&r;
+}
+
+#define WSWAP16(p, off) *(u16*)((p) + (off)) = WorldSwap16(*(u16*)((p) + (off)))
+#define WSWAP32(p, off) *(u32*)((p) + (off)) = WorldSwap32(*(u32*)((p) + (off)))
+#define WSWAPF(p, off)  *(f32*)((p) + (off)) = WorldSwapF(*(f32*)((p) + (off)))
+
 /* --------------------------------------------------------------------------
  * ResolveWorldData(worldlevel)  0x80058078
  *
@@ -166,68 +220,300 @@ static void ResolveWorldDataPointers(void);
  *
  *   worldlevel = (realmType << 8) | levelIndex
  *
- * The bulk of the 0x1C3C body is the mechanical per-field endian swap of the
- * header, the level array (stride 0x10C), the camera array (0x6C), the audio
- * array (0x3C) and the string/anim tables.  That swap is documented rather
- * than transcribed here; the control flow and the resolve/cache tail are
- * reconstructed faithfully. */
+ * The realm records live 232 bytes past sWorldLevelTable (the adjacent
+ * sWorldDataTypes object), stride 0x2C; the per-realm WAD pointers are another
+ * 848 bytes past sWorldLevelTable, stride 4.  Array section counts are derived
+ * from the gap between consecutive section pointers. */
 void ResolveWorldData(int worldlevel)
 {
-    int realm;
     int level;
-    int i;
+    int realm;
+    u32 i;
+    u8* rec;
+    int off;
+    u8* wt;
+    char* strs;
+    void* ctx;
+    s32 setup;
+    int n;
+    int j;
+    int k;
+    int count;
+    u8* p;
+    u8* q;
 
+    wt = (u8*)sWorldLevelTable;
+    strs = lbl_80112788;
     if (worldlevel < 0) {
         return;
     }
-    realm = worldlevel >> 8;
     level = worldlevel & 0xFF;
 
-    if (sCurWorldType != realm) {
-        for (i = 0; i < 14; i++) {
-            if (realm != sWorldDataTypes[i]) {
+    if (sCurWorldType != (realm = worldlevel >> 8)) {
+        off = 0;
+        for (i = 0; i < 14; i++, off += 44) {
+            rec = wt + off;
+            rec += 232;
+            if (realm != *(s32*)rec) {
                 continue;
             }
-            /* loaded flag lives beside the type table */
-            if (sWorldLevelTable[i * 0xB + 0x4] == 0) {
-                FatalErrorf("No world data %s\n", &sWorldLevelTable[i]);
+            if (*(s32*)(rec + 16) != 0) {
+                ctx = lbl_802576C0;
+                {
+                    void** wadtab = (void**)(wt + i * 4);
+                    setup = MBSetupWad(ctx, wadtab[212]);
+                }
+                gWorldData = (WorldData*)MBGetFromWad(ctx,
+                                                      WorldWadTag(lbl_80346CB8),
+                                                      &lbl_8034487C);
+                if ((u8)setup) {
+                    gWorldData->id = WorldSwap32(gWorldData->id);
+                    WSWAP16((u8*)gWorldData, 20);
+                    WSWAP16((u8*)gWorldData, 22);
+                    WSWAP16((u8*)gWorldData, 24);
+                    WSWAP16((u8*)gWorldData, 26);
+                }
+                if (lbl_8034487C == 0) {
+                    FatalErrorf(strs + 640, i);
+                }
+                gWorldData->levels = (WorldLevel*)MBGetFromWad(ctx,
+                                                               WorldWadTag(lbl_80346CC0), 0);
+                gWorldData->section20 = MBGetFromWad(ctx,
+                                                     WorldWadTag(lbl_80346CC8), 0);
+                gWorldData->cameras = (u8*)MBGetFromWad(ctx,
+                                                        WorldWadTag(lbl_80346CD0), 0);
+                gWorldData->audio = (u8*)MBGetFromWad(ctx,
+                                                      WorldWadTag(lbl_80346CD8), 0);
+                gWorldData->sounds = (u8*)MBGetFromWad(ctx,
+                                                       WorldWadTag(lbl_80346CE0), 0);
+                gWorldData->section30 = (u8*)MBGetFromWad(ctx,
+                                                          WorldWadTag(lbl_80346CE8), 0);
+                gWorldData->section34 = (u8*)MBGetFromWad(ctx,
+                                                          WorldWadTag(lbl_80346CF0), 0);
+                sCurWorldType  = realm;
+                sCurWorldIndex = i;
+                if ((u8)setup) {
+                    n = 0;
+                    off = 0;
+                    while (n < gWorldData->numLevels) {
+                        p = (u8*)gWorldData->levels + off;
+                        WSWAP32(p, 96);
+                        WSWAP32(p, 100);
+                        WSWAP32(p, 104);
+                        WSWAP32(p, 108);
+                        WSWAP32(p, 0);
+                        WSWAP16(p, 4);
+                        WSWAP16(p, 6);
+                        WSWAP16(p, 12);
+                        WSWAP16(p, 14);
+                        WSWAP32(p, 68);
+                        WSWAP32(p, 72);
+                        WSWAP16(p, 88);
+                        WSWAP16(p, 90);
+                        WSWAP16(p, 140);
+                        WSWAP16(p, 142);
+                        WSWAP16(p, 144);
+                        WSWAP16(p, 146);
+                        WSWAPF(p, 148);
+                        WSWAPF(p, 152);
+                        WSWAPF(p, 156);
+                        WSWAPF(p, 160);
+                        WSWAPF(p, 164);
+                        WSWAPF(p, 168);
+                        WSWAPF(p, 172);
+                        WSWAPF(p, 176);
+                        WSWAPF(p, 180);
+                        WSWAPF(p, 184);
+                        WSWAPF(p, 188);
+                        WSWAPF(p, 192);
+                        WSWAPF(p, 196);
+                        WSWAPF(p, 200);
+                        WSWAPF(p, 204);
+                        WSWAPF(p, 208);
+                        WSWAPF(p, 212);
+                        WSWAPF(p, 216);
+                        WSWAPF(p, 220);
+                        WSWAP32(p, 224);
+                        WSWAP32(p, 228);
+                        WSWAP32(p, 232);
+                        WSWAPF(p, 236);
+                        WSWAPF(p, 264);
+                        WSWAP16(p, 92);
+                        for (j = 0; j < 3; j++) {
+                            q = p + j * 4;
+                            WSWAPF(q, 252);
+                            q += 240;
+                            *(f32*)q = WorldSwapF(*(f32*)q);
+                        }
+                        for (j = 0; j < 6; j++) {
+                            WSWAP16(p, 76 + j * 2);
+                        }
+                        WSWAPF(p, 116);
+                        WSWAPF(p, 120);
+                        WSWAPF(p, 124);
+                        WSWAPF(p, 128);
+                        WSWAPF(p, 132);
+                        WSWAPF(p, 136);
+                        n++;
+                        off += 268;
+                    }
+                    n = 0;
+                    off = 0;
+                    while (n < gWorldData->numSounds) {
+                        p = (u8*)gWorldData->sounds + off;
+                        WSWAP32(p, 16);
+                        WSWAP16(p, 20);
+                        WSWAP16(p, 22);
+                        n++;
+                        off += 24;
+                    }
+                    count = (u32)((u8*)gWorldData->section34 -
+                                  (u8*)gWorldData->section20) / 24;
+                    off = 0;
+                    while (count > 0) {
+                        p = (u8*)gWorldData->section20 + off;
+                        WSWAP32(p, 0);
+                        WSWAP32(p, 4);
+                        off += 24;
+                        count--;
+                    }
+                    count = (u32)((u8*)gWorldData->sounds -
+                                  (u8*)gWorldData->cameras) / 108;
+                    n = 0;
+                    off = 0;
+                    while (n < count) {
+                        p = (u8*)gWorldData->cameras + off;
+                        WSWAP16(p, 0);
+                        WSWAP16(p, 2);
+                        WSWAPF(p, 4);
+                        WSWAPF(p, 8);
+                        WSWAP16(p, 38);
+                        WSWAPF(p, 40);
+                        WSWAPF(p, 44);
+                        WSWAPF(p, 48);
+                        WSWAP16(p, 52);
+                        WSWAP16(p, 54);
+                        WSWAPF(p, 56);
+                        WSWAPF(p, 60);
+                        WSWAPF(p, 64);
+                        WSWAPF(p, 68);
+                        WSWAPF(p, 72);
+                        WSWAPF(p, 76);
+                        WSWAPF(p, 80);
+                        WSWAPF(p, 84);
+                        WSWAPF(p, 88);
+                        WSWAPF(p, 92);
+                        WSWAPF(p, 96);
+                        WSWAPF(p, 100);
+                        WSWAPF(p, 104);
+                        for (j = 0; j < 3; j++) {
+                            q = p + j * 4;
+                            WSWAPF(q, 12);
+                            WSWAPF(q, 24);
+                        }
+                        n++;
+                        off += 108;
+                    }
+                    count = (u32)((u8*)gWorldData->section30 -
+                                  (u8*)gWorldData->audio) / 60;
+                    n = 0;
+                    off = 0;
+                    while (n < count) {
+                        p = (u8*)gWorldData->audio + off;
+                        WSWAP16(p, 16);
+                        WSWAP16(p, 18);
+                        WSWAP32(p, 20);
+                        WSWAP16(p, 40);
+                        WSWAP16(p, 42);
+                        for (j = 0; j < 8; j++) {
+                            WSWAP16(p, 44 + j * 2);
+                        }
+                        n++;
+                        off += 60;
+                    }
+                    count = (u32)((u8*)gWorldData->levels -
+                                  (u8*)gWorldData->section30) / 72;
+                    n = 0;
+                    off = 0;
+                    while (n < count) {
+                        p = (u8*)gWorldData->section30 + off;
+                        for (j = 0; j < 2; j++) {
+                            WSWAPF(p, j * 4);
+                        }
+                        for (k = 0; k < 8; k++) {
+                            for (j = 0; j < 2; j++) {
+                                WSWAPF(p, 8 + k * 8 + j * 4);
+                            }
+                        }
+                        n++;
+                        off += 72;
+                    }
+                    count = (u32)((u8*)gWorldData->cameras -
+                                  (u8*)gWorldData->section34) / 84;
+                    n = 0;
+                    off = 0;
+                    while (n < count) {
+                        p = (u8*)gWorldData->section34 + off;
+                        WSWAP32(p, 0);
+                        WSWAPF(p, 4);
+                        WSWAPF(p, 8);
+                        WSWAPF(p, 12);
+                        WSWAPF(p, 16);
+                        WSWAPF(p, 20);
+                        WSWAPF(p, 24);
+                        WSWAPF(p, 28);
+                        WSWAPF(p, 32);
+                        for (j = 0; j < 3; j++) {
+                            q = p + j * 4;
+                            WSWAPF(q, 36);
+                            WSWAPF(q, 48);
+                            WSWAPF(q, 60);
+                            q += 72;
+                            *(f32*)q = WorldSwapF(*(f32*)q);
+                        }
+                        n++;
+                        off += 84;
+                    }
+                }
+                p = wt + off;
+                p += 252;
+                if (*(s32*)p < 0) {
+                    *(s32*)p = gWorldData->numLevels;
+                }
+                ResolveWorldDataPointers();
+                lbl_80344888 = (char*)(rec + 28);
                 break;
             }
-            /* set up the realm WAD and pull its sections */
-            MBSetupWad(0, (void*)sWorldLevelTable[i]);
-            gWorldData = (WorldData*)MBGetFromWad(0, 'whdr', 0, 0);
-            /* ... byte-swap header + level/camera/audio/anim tables ... */
-            gWorldData->levels    = (WorldLevel*)MBGetFromWad(0, 'levs', 0, 0);
-            gWorldData->section20 =              MBGetFromWad(0, 'sc20', 0, 0);
-            gWorldData->cameras   = (u8*)        MBGetFromWad(0, 'cams', 0, 0);
-            gWorldData->audio     = (u8*)        MBGetFromWad(0, 'audi', 0, 0);
-            /* ... (further MBGetFromWad sections + swaps omitted) ... */
-            ResolveWorldDataPointers();
-            sCurWorldType  = realm;
-            sCurWorldIndex = i;
-            break;
+            FatalErrorf(strs + 672, rec + 4);
+        }
+        if (i == 14) {
+            FatalErrorf(strs + 692, realm);
         }
     }
 
-    if (gWorldData == 0) {
-        return;
-    }
-    if (level >= (int)gWorldData->numLevels) {
+    if (level < 0 || level >= gWorldData->numLevels) {
         level = 0;
     }
     gWorldData->curLevel = (s16)level;
-    gCurLevel      = &gWorldData->levels[level];
+    gCurLevel = &gWorldData->levels[level];
     sMusicTrackLo  = level;
     sMusicTrackHi  = realm;
+    lbl_803448B8 = (realm == 12);
     sLastWorldLevel = worldlevel;
     gBossType      = gCurLevel->bossType;
 
     /* first level (from the current one) that owns cameras */
-    for (i = level; i < (int)gWorldData->numLevels; i++) {
-        if (gWorldData->levels[i].flags2 & 1) {
+    count = gWorldData->numLevels;
+    for (level = level + 1; level < count; level++) {
+        if (gWorldData->levels[level].flags2 & 1) {
             break;
         }
     }
+    if (level < count) {
+        lbl_80344840 = &gWorldData->levels[level];
+    }
+    lbl_803448A4 = 9;
+    lbl_803448A0 = 9;
 }
 
 /* --------------------------------------------------------------------------
