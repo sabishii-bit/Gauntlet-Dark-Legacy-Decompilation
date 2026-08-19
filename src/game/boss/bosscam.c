@@ -101,7 +101,7 @@ extern f32 gCameraWindowScaleY;
 extern s32 gFrameTicks;
 extern s32 lbl_803447DC;
 extern void* lbl_80257630[4];
-extern s32 gControllerButtons;    /* hi word; low word aliases sFlags */
+extern s64 gControllerButtons;
 extern s32 sFlags;
 extern s32 lbl_80344BF8;
 extern s32 lbl_80343BA8;
@@ -188,8 +188,6 @@ s32 TriggerCamUpdate(void)
     f32 z;
     s32 i;
     s32 offset;
-    s32 zero;
-    s32 two;
 
     cameraBuffer = lbl_8023E880;
     if (gTriggerCameraState == 0) {
@@ -248,10 +246,7 @@ s32 TriggerCamUpdate(void)
                     offset += 4;
                 } while (i < 4);
             }
-            zero = 0;
-            two = 2;
-            if ((((sFlags & two) ^ zero) |
-                 ((gControllerButtons & zero) ^ zero)) != 0) {
+            if ((gControllerButtons & 2) != 0) {
                 fn_8006ECD4();
             } else {
                 do_camera();
@@ -492,7 +487,6 @@ s32 BossCameraUpdate(void) {
     f32 avg[3];
     volatile f32 tmp;
     f32* wp;
-    s32 zero;
 
     if (lbl_803447B8 == 0) {
         gScriptedCameraState = 0;
@@ -608,9 +602,8 @@ s32 BossCameraUpdate(void) {
     }
     MBCameraUpdate((f32*)((u8*)gGameCamera + 48), (f32*)gGameCamera);
     lbl_803443A8 = 1;
-    zero = 0;
-    if ((((sFlags & 1) ^ zero) | ((gControllerButtons & zero) ^ zero)) != 0 &&
-        (((sFlags & 16) ^ zero) | ((gControllerButtons & zero) ^ zero)) != 0) {
+    if ((gControllerButtons & 1) != 0 &&
+        (gControllerButtons & 16) != 0) {
         dbgTextPrintfCell(0xFFFF00, 1, 0x20, lbl_801117E0,
                           lbl_80345BC8 * (lbl_80345BD0 *
                               *(f32*)((u8*)gGameCamera + 236)),
@@ -664,9 +657,6 @@ static void BossCamLimitAttn(f32* target) {
     f32 len;
     f32 dot;
     s32 i;
-    s32 zero;
-    s32 one;
-    s32 sixteen;
     s32 width;
     s32 col;
 
@@ -744,16 +734,11 @@ static void BossCamLimitAttn(f32* target) {
             *(f32*)((u8*)gGameCamera + 184);
     }
 
-    zero = 0;
-    sixteen = 16;
-    if ((((sFlags & sixteen) ^ zero) | ((gControllerButtons & zero) ^ zero)) !=
-        0) {
+    if ((gControllerButtons & 16) != 0) {
         sprintf(buf, lbl_80111858, (f64)target[0], (f64)target[1],
                 (f64)target[2]);
         width = strlen(buf) + 2;
-        one = 1;
-        if ((((sFlags & one) ^ zero) | ((gControllerButtons & zero) ^ zero)) !=
-            0) {
+        if ((gControllerButtons & 1) != 0) {
             col = 63 - width;
             dbgTextPrintfCell(0xFFFF00, col, 34, lbl_80111870,
                               (f64)*(f32*)((u8*)gGameCamera + 176),
@@ -922,14 +907,12 @@ static f32 GetActualAvgVec(f32* out, f32* pos, s32 useBoss) {
     s32 count;
     s32 i;
     s32 off;
-    s32 zero;
 
     w = lbl_80345BA0;
     fmts = lbl_801117B8;
     dzero = lbl_80345B98;
     best = w;
     second = w;
-    zero = 0;
     count = 0;
     i = -1;
     off = -0x335C;
@@ -985,8 +968,7 @@ static f32 GetActualAvgVec(f32* out, f32* pos, s32 useBoss) {
     }
     if (count == 1) {
         avg = atan2(v1x, v1z);
-        if ((((sFlags & 1) ^ zero) | ((gControllerButtons & zero) ^ zero)) !=
-            0) {
+        if ((gControllerButtons & 1) != 0) {
             dbgTextPrintfCell(0xFFFF00, 1, 0x22, fmts + 0xCC,
                               lbl_80345BC8 * (lbl_80345BD0 * avg), v1x, v1y,
                               v1z);
@@ -1036,8 +1018,7 @@ static f32 GetActualAvgVec(f32* out, f32* pos, s32 useBoss) {
                 }
             }
         }
-        if ((((sFlags & 1) ^ zero) | ((gControllerButtons & zero) ^ zero)) !=
-            0) {
+        if ((gControllerButtons & 1) != 0) {
             dbgTextPrintfCell(0xFFFF00, 1, 0x22, fmts + 0xCC,
                               lbl_80345BC8 * (lbl_80345BD0 * yaw1), v1x, v1y,
                               v1z);
