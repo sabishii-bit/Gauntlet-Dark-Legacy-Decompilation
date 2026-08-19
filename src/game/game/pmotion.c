@@ -156,6 +156,18 @@ extern f32 FloorPos(f32 fallback, f32 radius, f32* position, s32 mode);
 extern void fn_8005A404(f32* dst, f32* src1, f32* src2);
 extern void get_actual_screen_pos(s32 camera, f32* x, f32* y, f32* position);
 extern void* fn_8005EFAC(f32 radius, f32* from, f32* position, s32 a4, s32 a5);
+extern f32 lbl_80347C88; /* 30.0f default target range */
+extern f32 lbl_80347D58; /* 200.0f boss target range */
+extern u8* gBossObj;
+extern s32 optionsAudioAndPrefs30[];
+extern f32 CritterLineRootColSub(f32 a, f32 b, void* critter, f32* pos,
+                                 f32* dir, f32* out);
+extern f32 closest_enemy(f32 a, f32 b, f32* pos, f32* dir, f32* out, s32* id,
+                         s32 range);
+extern u8* CritterLineCollide(f32 a, f32 b, f32* pos, f32* dir, f32* hit,
+                              f32* dist);
+extern f32 fn_8005B274(f32 a, f32 b, f32* pos, f32* dir, f32* hit, u8** obj);
+extern void FatalError(const char* msg, s32 code);
 extern s32 PlayerCollidePlayers(Player* p, f32 range, f32 height, f32* from,
                                 f32* to, f32* hit, s32 stopFirst);
 extern s32 sMusicTrackHi;
@@ -1003,7 +1015,195 @@ s32 PlayerMotion_DamageTarget(Player* p, s32 targetId, s32 a3, s32 a4, s32 a5,
     }
     return result;
 }
-STUB(0x80086C78, PlayerGetTarget)
+/* 0x80086C78 - pick p's current melee target: start from the incoming
+ * *outId/*outObj, validate/replace it through the critter/enemy/boss
+ * eligibility probes (range + facing dot), run the closest_enemy /
+ * CritterLineCollide / fn_8005B274 sweeps, then the versus-mode player scan.
+ * If nothing survived, fall back to the lunge-direction vector.  Returns the
+ * winning distance (limit when no target).  The `flag` local is 0 on every
+ * retail path; the boss-id block under it is dead but shipped. */
+f32 PlayerGetTarget(Player* p, f32* pos, f32* dir, f32* out, s32* outId,
+                    u8** outObj) {
+    f32 dist;
+    u8 unused_40[16];
+    f32 vec[3];
+    s32 id = *outId;
+    s32 flag = 0;
+    u8* obj = outObj != NULL ? *outObj : NULL;
+    u8 unused_8[12];
+    f32 ty;
+    f32 tz;
+    f32 tx;
+    f32 best;
+    f32 limit;
+    f32 dotThresh;
+    f32 d;
+    s32 i;
+
+    best = limit = lbl_80347C88;
+
+    if (gBossObj != NULL) {
+        limit = lbl_80347D58;
+        best = limit;
+    }
+
+    if (id >= 0x10000) {
+        u8* critter = &gCritterPool[(id & 0xFFFF) * 2784];
+        tx = PF(critter, 0x5C, f32);
+        ty = PF(critter, 0x60, f32);
+        tz = PF(critter, 0x64, f32);
+        best = CritterLineRootColSub(lbl_80347D08, lbl_80347B30, critter,
+                                     pos, dir, out);
+    } else if (id >= 0) {
+        u8* enemy = &gEnemies[id * 916];
+        if (*(s32*)enemy != 31) {
+            f32 dot;
+            tx = PF(enemy, 0x54, f32);
+            ty = PF(enemy, 0x58, f32);
+            tz = PF(enemy, 0x5C, f32);
+            out[0] = tx - pos[0];
+            out[1] = ty - pos[1];
+            out[2] = tz - pos[2];
+            d = NormalVector(out);
+            best = d - PF(enemy, 0x238, f32);
+            if (best > lbl_80347B30 || *(s32*)enemy == 30) {
+                dot = out[0] * dir[0] + out[1] * dir[1] + out[2] * dir[2];
+                if (dot < lbl_80347B10) {
+                    best = limit;
+                } else {
+                    flag = 0;
+                }
+            } else {
+                flag = 0;
+            }
+        }
+    }
+
+    if (best >= limit) {
+        if (obj != NULL && *(s8*)(obj + 0xCF) >= 0) {
+            f32 dot;
+            out[0] = PF(obj, 0x54, f32) - pos[0];
+            out[1] = PF(obj, 0x58, f32) - pos[1];
+            out[2] = PF(obj, 0x5C, f32) - pos[2];
+            d = NormalVector2D(out);
+            dot = out[0] * dir[0] + out[1] * dir[1] + out[2] * dir[2];
+            best = d - PF(*(void**)obj, 0xC, f32);
+            if (dot < lbl_80347D08) {
+                best = limit;
+            } else {
+                flag = 0;
+            }
+        }
+    }
+
+    if (best >= limit) {
+        u8* critter;
+        if (optionsAudioAndPrefs30[5] >= 1) {
+            dotThresh = lbl_80347D08;
+        } else {
+            dotThresh = lbl_80347B10;
+        }
+        best = closest_enemy(dotThresh, limit, pos, dir, out, &id,
+                             (s32)PF(p, 0x108, f32));
+        critter = CritterLineCollide(dotThresh, limit, pos, dir, vec, &dist);
+        if (critter != NULL && dist < best) {
+            if (*(void**)(critter + 4) == NULL) {
+                FatalError("Ack!", 0x800000);
+            }
+            best = dist;
+            out[0] = vec[0];
+            out[1] = vec[1];
+            out[2] = vec[2];
+            id = *(s16*)critter | 0x10000;
+        }
+        dist = fn_8005B274(dotThresh, limit, pos, dir, vec, &obj);
+        if (dist < best) {
+            best = dist;
+            out[0] = vec[0];
+            out[1] = vec[1];
+            out[2] = vec[2];
+            id = -1;
+            flag = 0;
+        }
+    }
+
+    if (optionsAudioAndPrefs30[7] == 2 && best >= limit) {
+        dotThresh = lbl_80347D08;
+        for (i = 0; i < 4; i++) {
+            Player* op = &gPlayers[i];
+            f32 dot;
+            if (op == p) {
+                continue;
+            }
+            if (op->state != 1) {
+                continue;
+            }
+            out[0] = op->pos[0] - pos[0];
+            out[1] = op->pos[1] - pos[1];
+            out[2] = op->pos[2] - pos[2];
+            dist = NormalVector(out);
+            dot = out[0] * dir[0] + out[1] * dir[1] + out[2] * dir[2];
+            if (dot < dotThresh) {
+                continue;
+            }
+            dist = dist - PF(op, 0x850, f32);
+            if (dist >= best) {
+                continue;
+            }
+            best = dist;
+        }
+    }
+
+    if (flag != 0) {
+        if (id < 0) {
+            id = *(s16*)gBossObj | 0x10000;
+        }
+    } else if (best >= limit) {
+        f32 dx;
+        f32 dz;
+        f32 dy;
+        id = -1;
+        dx = pos[0] - PF(p, 0x64, f32);
+        dz = pos[2] - PF(p, 0x6C, f32);
+        dy = pos[1] - PF(p, 0x68, f32);
+        d = fqdist(dx, dz);
+        if (d < lbl_80347D50) {
+            out[1] = lbl_80347B30;
+        } else {
+            out[1] = dy / d;
+        }
+        out[0] = sin(PF(p, 0xC8, f32));
+        out[2] = cos(PF(p, 0xC8, f32));
+        NormalVector(out);
+    }
+
+    if (id >= 0) {
+        u8* ci = (u8*)p->collision_item;
+        if (ci != NULL && **(s32**)ci == 7) {
+            vec[0] = tx - pos[0];
+            vec[1] = ty - pos[1];
+            vec[2] = tz - pos[2];
+            NormalVector(vec);
+            vec[0] = vec[0] * (lbl_80347C28 * PF(p, 0x850, f32)) + pos[0];
+            vec[1] = vec[1] * (lbl_80347C28 * PF(p, 0x850, f32)) + pos[1];
+            vec[2] = vec[2] * (lbl_80347C28 * PF(p, 0x850, f32)) + pos[2];
+            dist = fn_8005F0F4(ci, (s32)pos, vec, 0, PF(p, 0x850, f32),
+                               PF(p, 0x854, f32));
+            if (dist >= lbl_80347B08) {
+                id = -1;
+                best = limit;
+            }
+        }
+    }
+
+    if (outId != NULL) {
+        *outId = id;
+    }
+    if (outObj != NULL) {
+        *outObj = obj;
+    }
+    return best;
+}
 /* NOTE: correct body; not yet byte-exact (far-field PF address-CSE parks an
  * extra nonvolatile -- needs a 0x93C..0x94C struct overlay; light-touch cap). */
 typedef struct {
