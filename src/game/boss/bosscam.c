@@ -18,18 +18,18 @@
  *
  * Status: NonMatching, but most of the small/medium functions are now real
  * reconstructions verified against the extracted target (fndiff):
- *   MATCHING (byte-exact):   TriggerCameraEnd, BossCameraInit, GameCameraInit,
- *                            BossCameraStart
+ *   MATCHING (byte-exact):   TriggerCameraEnd, CameraLimitPlayerDpos,
+ *                            BossCameraInit, BossCameraStart,
+ *                            GetPlayerViewDist, GetBossAvgPos, GameCameraInit
  *   NEAR (correct logic, regalloc/scheduler/idiom residuals only):
- *       PointViewDist, CameraLimitPlayerDpos, GetPlayerViewDist,
- *       GetBossAvgPos, TriggerCameraActivate
- *   FAITHFUL (reconstructed, NonMatching -- intricate clip-flag control flow):
- *       CamLimitPlayerDpos
- *   PARKED as documented stubs (large fp-math / giant / unresolved prototype):
- *       TriggerCamUpdate (0x244, blit driver + (x&0)^0 flag idiom),
- *       BossCameraUpdate (0x4B4), BossCamBossCalc (0xE24, GIANT),
- *       BossCamPlayerCalc (0x5C0), BossCamLimitAttn (0x3C4),
- *       GetActualAvgVec (0x4B4), LimitCamVal2 (0x160)
+ *       PointViewDist (real 0, pool-name noise), TriggerCamUpdate,
+ *       TriggerCameraActivate, BossCameraUpdate, CamLimitPlayerDpos,
+ *       LimitCamVal2, GetActualAvgVec
+ *   FAITHFUL (reconstructed, NonMatching -- residual codegen ties):
+ *       BossCamLimitAttn (full body; residual = LimitCamVal2 arg fmr
+ *       coalescing tie + loop-body schedule tie, 238/241 insns)
+ *   PARKED as documented stubs (large fp-math / giant):
+ *       BossCamBossCalc (0xE24, GIANT), BossCamPlayerCalc (0x5C0)
  * Because bosscam.c is configured NonMatching (linked False) it is linked from
  * the original DOL bytes, so the tree stays sha1-green regardless of the source.
  * All globals/constants are referenced as out-of-object symbols because this TU
@@ -101,7 +101,7 @@ extern f32 gCameraWindowScaleY;
 extern s32 gFrameTicks;
 extern s32 lbl_803447DC;
 extern void* lbl_80257630[4];
-extern s64 gControllerButtons;
+extern s32 gControllerButtons;    /* hi word; low word aliases sFlags */
 extern s32 sFlags;
 extern s32 lbl_80344BF8;
 extern s32 lbl_80343BA8;
@@ -492,6 +492,7 @@ s32 BossCameraUpdate(void) {
     f32 avg[3];
     volatile f32 tmp;
     f32* wp;
+    s32 zero;
 
     if (lbl_803447B8 == 0) {
         gScriptedCameraState = 0;
@@ -607,8 +608,9 @@ s32 BossCameraUpdate(void) {
     }
     MBCameraUpdate((f32*)((u8*)gGameCamera + 48), (f32*)gGameCamera);
     lbl_803443A8 = 1;
-    if ((gControllerButtons & 1) != 0 &&
-        (gControllerButtons & 16) != 0) {
+    zero = 0;
+    if ((((sFlags & 1) ^ zero) | ((gControllerButtons & zero) ^ zero)) != 0 &&
+        (((sFlags & 16) ^ zero) | ((gControllerButtons & zero) ^ zero)) != 0) {
         dbgTextPrintfCell(0xFFFF00, 1, 0x20, lbl_801117E0,
                           lbl_80345BC8 * (lbl_80345BD0 *
                               *(f32*)((u8*)gGameCamera + 236)),
@@ -635,8 +637,133 @@ static void BossCamBossCalc(void) {}
 static void BossCamPlayerCalc(void) {}
 
 /* Clamp the camera attention/look target + distance via LimitCamVal2 (0x3C4).
- * Parked: uses sprintf/strlen debug print + several unknown camera fields. */
-static void BossCamLimitAttn(f32* target) { (void)target; }
+ * target points at the desired attention (look-at) position.  If the desired
+ * delta is tiny the camera snaps; otherwise the approach speed (cam+212, with
+ * velocity state at cam+216) and the per-axis direction (cam+188, velocity
+ * state at cam+200) are rate-limited and the attention is re-aimed. */
+static f32 LimitCamVal2(f32 value, f32 target, f32 minVelocity,
+                        f32 maxVelocity, f32 acceleration, f32 stopScale,
+                        f32* velocity, s32 wrapAngle);
+extern f32 NormalVector(f32* vec);
+extern s32 sprintf(char* s, const char* fmt, ...);
+extern size_t strlen(const char* s);
+extern const f32 lbl_80343B98;        /* max approach speed (200.0f) */
+extern const f32 lbl_80343B9C;        /* approach acceleration (75.0f) */
+extern const f32 lbl_80343BA0;        /* max per-axis dir speed (20.0f) */
+extern const f32 lbl_80343BA4;        /* per-axis dir acceleration (20.0f) */
+extern const f64 lbl_80345C40;        /* snap distance threshold (0.001) */
+extern const f64 lbl_80345C48;        /* direction flip dot threshold (0.965) */
+extern char lbl_80111858[];           /* " ATN:%.2Lf %.2Lf %.2Lf" */
+extern char lbl_80111870[];           /* " REF:%.2f %.2f %.2f" */
+
+#pragma opt_propagation off
+static void BossCamLimitAttn(f32* target) {
+    char buf[36];
+    f32 v[3];
+    f32 pad[11];
+    f32 len;
+    f32 dot;
+    s32 i;
+    s32 zero;
+    s32 one;
+    s32 sixteen;
+    s32 width;
+    s32 col;
+
+    v[0] = target[0] - *(f32*)((u8*)gGameCamera + 176);
+    v[1] = target[1] - *(f32*)((u8*)gGameCamera + 180);
+    v[2] = target[2] - *(f32*)((u8*)gGameCamera + 184);
+    len = NormalVector(v);
+
+    if (len <= lbl_80345C40) {
+        *(f32*)((u8*)gGameCamera + 212) = lbl_80345BA0;
+        *(f32*)((u8*)gGameCamera + 216) = lbl_80345BA0;
+        *(f32*)((u8*)gGameCamera + 188) = lbl_80345BA0;
+        *(f32*)((u8*)gGameCamera + 192) = lbl_80345BA0;
+        *(f32*)((u8*)gGameCamera + 196) = lbl_80345BA0;
+        *(f32*)((u8*)gGameCamera + 200) = lbl_80345BA0;
+        *(f32*)((u8*)gGameCamera + 204) = lbl_80345BA0;
+        *(f32*)((u8*)gGameCamera + 208) = lbl_80345BA0;
+        *(f32*)((u8*)gGameCamera + 164) = target[0];
+        *(f32*)((u8*)gGameCamera + 168) = target[1];
+        *(f32*)((u8*)gGameCamera + 172) = target[2];
+        *(f32*)((u8*)gGameCamera + 176) = target[0];
+        *(f32*)((u8*)gGameCamera + 180) = target[1];
+        *(f32*)((u8*)gGameCamera + 184) = target[2];
+    } else if (*(f32*)((u8*)gGameCamera + 212) <= lbl_80345B98) {
+        *(f32*)((u8*)gGameCamera + 212) = LimitCamVal2(
+            *(f32*)((u8*)gGameCamera + 212), len,
+            -lbl_80343B98, lbl_80343B98, lbl_80343B9C, lbl_80345BA0,
+            (f32*)((u8*)gGameCamera + 216), 0);
+        *(f32*)((u8*)gGameCamera + 188) = v[0];
+        *(f32*)((u8*)gGameCamera + 192) = v[1];
+        *(f32*)((u8*)gGameCamera + 196) = v[2];
+        *(f32*)((u8*)gGameCamera + 200) = lbl_80345BA0;
+        *(f32*)((u8*)gGameCamera + 204) = lbl_80345BA0;
+        *(f32*)((u8*)gGameCamera + 208) = lbl_80345BA0;
+        *(f32*)((u8*)gGameCamera + 164) =
+            *(f32*)((u8*)gGameCamera + 188) * *(f32*)((u8*)gGameCamera + 212) +
+            *(f32*)((u8*)gGameCamera + 176);
+        *(f32*)((u8*)gGameCamera + 168) =
+            *(f32*)((u8*)gGameCamera + 192) * *(f32*)((u8*)gGameCamera + 212) +
+            *(f32*)((u8*)gGameCamera + 180);
+        *(f32*)((u8*)gGameCamera + 172) =
+            *(f32*)((u8*)gGameCamera + 196) * *(f32*)((u8*)gGameCamera + 212) +
+            *(f32*)((u8*)gGameCamera + 184);
+    } else {
+        dot = v[0] * *(f32*)((u8*)gGameCamera + 188) +
+              v[1] * *(f32*)((u8*)gGameCamera + 192) +
+              v[2] * *(f32*)((u8*)gGameCamera + 196);
+        if (dot < lbl_80345C48) {
+            *(f32*)((u8*)gGameCamera + 212) = lbl_80345BA0;
+            *(f32*)((u8*)gGameCamera + 176) = *(f32*)((u8*)gGameCamera + 164);
+            *(f32*)((u8*)gGameCamera + 180) = *(f32*)((u8*)gGameCamera + 168);
+            *(f32*)((u8*)gGameCamera + 184) = *(f32*)((u8*)gGameCamera + 172);
+        } else {
+            *(f32*)((u8*)gGameCamera + 212) = LimitCamVal2(
+                *(f32*)((u8*)gGameCamera + 212), len,
+                -lbl_80343B98, lbl_80343B98, lbl_80343B9C, lbl_80345BA0,
+                (f32*)((u8*)gGameCamera + 216), 0);
+        }
+        i = 0;
+        do {
+            *(f32*)((u8*)gGameCamera + 188 + i * 4) = LimitCamVal2(
+                *(f32*)((u8*)gGameCamera + 188 + i * 4), v[i],
+                -lbl_80343BA0, lbl_80343BA0, lbl_80343BA4, lbl_80345BA0,
+                (f32*)((u8*)gGameCamera + 200 + i * 4), 0);
+            i++;
+        } while (i < 3);
+        *(f32*)((u8*)gGameCamera + 164) =
+            *(f32*)((u8*)gGameCamera + 188) * *(f32*)((u8*)gGameCamera + 212) +
+            *(f32*)((u8*)gGameCamera + 176);
+        *(f32*)((u8*)gGameCamera + 168) =
+            *(f32*)((u8*)gGameCamera + 192) * *(f32*)((u8*)gGameCamera + 212) +
+            *(f32*)((u8*)gGameCamera + 180);
+        *(f32*)((u8*)gGameCamera + 172) =
+            *(f32*)((u8*)gGameCamera + 196) * *(f32*)((u8*)gGameCamera + 212) +
+            *(f32*)((u8*)gGameCamera + 184);
+    }
+
+    zero = 0;
+    sixteen = 16;
+    if ((((sFlags & sixteen) ^ zero) | ((gControllerButtons & zero) ^ zero)) !=
+        0) {
+        sprintf(buf, lbl_80111858, (f64)target[0], (f64)target[1],
+                (f64)target[2]);
+        width = strlen(buf) + 2;
+        one = 1;
+        if ((((sFlags & one) ^ zero) | ((gControllerButtons & zero) ^ zero)) !=
+            0) {
+            col = 63 - width;
+            dbgTextPrintfCell(0xFFFF00, col, 34, lbl_80111870,
+                              (f64)*(f32*)((u8*)gGameCamera + 176),
+                              (f64)*(f32*)((u8*)gGameCamera + 180),
+                              (f64)*(f32*)((u8*)gGameCamera + 184));
+            dbgTextPrintfCell(0xFFFF00, col, 35, buf);
+        }
+    }
+}
+#pragma opt_propagation reset
 static void BossCameraStart(void) {
     lbl_803443D0 = *(u8**)(gCurLevel + 0x6C);
     if (lbl_803443D0 != 0) {
