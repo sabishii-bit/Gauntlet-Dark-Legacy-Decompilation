@@ -85,7 +85,7 @@ int  sprintf();
 BOOL       sysPollResetButton(void);
 void       sysFadeToBlack(void);
 BOOL       sysResetReady(void);
-BOOL       padUpdate(void);
+u8         padUpdate(void);
 void       sysClearFlags(u32 mask);
 void       sysSetFlags(u32 mask);
 BOOL       sysTestFlags(u32 mask);
@@ -119,6 +119,7 @@ static PADStatus* gPadPrev = gPadStatusBuf[1]; /* 0x8034403C */
 
 /* 0x800DD180 - per-frame reset/eject state machine + pad pump */
 void sysResetService(void) {
+    u8 unused[32];
     s32 i;
 
     if (gMsgCallback) {
@@ -137,15 +138,15 @@ void sysResetService(void) {
         break;
 
     case 1:
-        if (gSysFlags & SF_ASSERT) {
-            if (gSysFlags & SF_RESET_TRIGGER) {
+        if (SYS_FLAG(SF_ASSERT)) {
+            if (SYS_FLAG(SF_RESET_TRIGGER)) {
                 if (gMsgCallback) {
                     gMsgCallback("RESET RELEASED..");
                 }
                 gSysFlags &= ~SF_ASSERT;
                 gSysFlags &= ~SF_RESET_TRIGGER;
             }
-            if (gSysFlags & SF_ASSERT) {
+            if (SYS_FLAG(SF_ASSERT)) {
                 if (gMsgCallback) {
                     gMsgCallback(gMsgLines[0]);
                 }
@@ -154,9 +155,9 @@ void sysResetService(void) {
                 }
             }
         }
-        if (!(gSysFlags & SF_NO_RESET)) {
+        if (!SYS_FLAG(SF_NO_RESET)) {
             sysPollResetButton();
-            if (gSysFlags & (SF_RESET_TRIGGER | SF_RESET_HELD)) {
+            if (SYS_FLAG(SF_RESET_TRIGGER) || SYS_FLAG(SF_RESET_HELD)) {
                 if (gMsgCallback) {
                     gMsgCallback("RESET INVOKED..");
                 }
@@ -180,15 +181,15 @@ void sysResetService(void) {
         break;
 
     case 2:
-        if (gSysFlags & SF_ASSERT) {
-            if (gSysFlags & SF_RESET_TRIGGER) {
+        if (SYS_FLAG(SF_ASSERT)) {
+            if (SYS_FLAG(SF_RESET_TRIGGER)) {
                 if (gMsgCallback) {
                     gMsgCallback("RESET RELEASED..");
                 }
                 gSysFlags &= ~SF_ASSERT;
                 gSysFlags &= ~SF_RESET_TRIGGER;
             }
-            if (gSysFlags & SF_ASSERT) {
+            if (SYS_FLAG(SF_ASSERT)) {
                 if (gMsgCallback) {
                     gMsgCallback(gMsgLines[0]);
                 }
@@ -197,9 +198,9 @@ void sysResetService(void) {
                 }
             }
         }
-        if (!(gSysFlags & SF_NO_RESET)) {
+        if (!SYS_FLAG(SF_NO_RESET)) {
             sysPollResetButton();
-            if (gSysFlags & (SF_RESET_TRIGGER | SF_RESET_HELD)) {
+            if (SYS_FLAG(SF_RESET_TRIGGER) || SYS_FLAG(SF_RESET_HELD)) {
                 if (gMsgCallback) {
                     gMsgCallback("RESET INVOKED..");
                 }
@@ -219,7 +220,7 @@ void sysResetService(void) {
                 gSysFlags &= ~SF_RESET_REQ;
             }
         }
-        if (gSysFlags & SF_RESET_REQ) {
+        if (SYS_FLAG(SF_RESET_REQ)) {
             gSysFlags &= ~SF_RECALIB;
             for (i = 0; i < 4; i++) {
                 if (gPadCur[0].err == PAD_ERR_NONE && gPadStartHoldTimer[i] > 3000) {
@@ -347,7 +348,7 @@ BOOL sysResetReady(void) {
 }
 
 /* 0x800DD910 - swap pad buffers, read all pads, update reset hold timers */
-BOOL padUpdate(void) {
+u8 padUpdate(void) {
     u32 resetMask = 0;
     s32 i;
 
@@ -386,7 +387,7 @@ BOOL padUpdate(void) {
         }
     }
 
-    if (gSysFlags & SF_RECALIB) {
+    if (SYS_FLAG(SF_RECALIB)) {
         PADRecalibrate(0xF0000000);
     } else if (resetMask != 0) {
         PADReset(resetMask);
