@@ -28,7 +28,7 @@ int PlayerHasShard(int player, int shard);
 
 void TowerNeedGargItemsMsg(int who, int slot);
 void TowerNeedCrystalsMsg(int who, int slot);
-void TowerCheckMessages(void);
+void TowerCheckMessages(s32 mode);
 void EnterTower(void);
 
 int GetWorldOrder(int world);

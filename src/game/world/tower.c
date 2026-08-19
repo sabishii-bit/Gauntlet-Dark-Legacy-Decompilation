@@ -73,6 +73,34 @@ extern void  fn_8009C688(s32 idx);
 extern s32   StartLevelUpFX(f32* pos, s32 color);
 extern s32   StartGemFX(f32* pos, s32 color);
 void SumnerSpeechEnd(void);
+int  sumnerCheckLevelUp(void);
+void SumnerDoSpeech(void);
+
+/* --- TowerCheckMessages / EnterTower externs --- */
+extern s32   gGameMode;
+extern s32   gGameBusy;
+extern s32   gTriggerCameraState;
+extern s32   lbl_80344A28;
+extern s32   lbl_803448C8;    /* current world id (EnterTower start-pos lookup) */
+extern s32   lbl_803443BC;    /* scripted-camera timers (bosscam) */
+extern s32   lbl_803443C0;
+extern f32   lbl_80344C48;    /* tower-message cooldown timestamp */
+extern f64   lbl_803485B0;    /* 3.0 - message cooldown period */
+extern f64   lbl_803485B8;    /* 1.0 */
+extern f64   lbl_803485C8;    /* 1/30 frame time */
+extern f32   lbl_803485A0;    /* 2.0 */
+extern u8    Effects[];       /* live fx pool, stride 0xF0 (game/effect.h) */
+extern f32   gClockTime;
+extern void  WindowCamActivate(s32 mode);
+extern void  RuneCamActivate(s32 mode);
+extern void  ActivateSpecialTrigger(s32 id, s32 flag);
+extern void  MBTreeClearFlags(void* obj, u32 flags, s32 recurse);
+extern s32   AnimateATree(void* tree, s32 seq, s32 mode);
+extern s32   fn_8009C5B8(s32 idx);
+extern s32   fn_8009C620(s32 idx);
+extern void  fn_8005B5B8(void);
+extern void  SetPlayerStartPos(s32 pos);
+extern void  AtreeKillPsys(void* tree);
 
 extern s32 lbl_80343C10;
 extern double lbl_803485F8;   /* 0.0 */
@@ -88,7 +116,7 @@ extern f32  lbl_8028C2A8[];   /* garg-item "need items" message cooldown timers 
  * own symbol lbl_8028C2A8.) */
 typedef struct {
     f32   cooldown[8];         /* 0x00 crystal "need crystals" msg cooldowns */
-    u8    _pad20[0x0C];        /* 0x20 */
+    f32   gargCooldown[3];     /* 0x20 garg-item cooldowns (alias lbl_8028C2A8) */
     char  effectName[0x20];    /* 0x2C temporary SHARD/RUNE effect name */
     s32   levelUpLevel[4];     /* 0x4C per-player level-up scratch slots */
     void* wizAtree;            /* 0x5C WIZARD (level-up) atree instance */
@@ -175,12 +203,18 @@ extern s32 lbl_80344C88;
 extern s32 lbl_80344C90;
 extern void* sGoodWizObj;  /* GWIZ animation/effect object              */
 
-extern s32 lbl_80124C70[9];
-extern s32 crystal_order[14];
-extern s32 lbl_80124D4C[14];
-extern s32 lbl_80124D84[4];
-extern s32 lbl_80124D94[3];
-extern s32 lbl_80124DA0[9];
+s32 lbl_80124C70[9] = {0, 15, 100, 125, 150, 175, 200, 225, 250};
+char lbl_80124C94[9][8] = {
+    "TOWER", "ORANGE", "RED", "PURPLE", "BLUE", "GREEN", "YELLOW", "WHITE",
+    "BLACK"
+};
+s32 lbl_80124CDC[3] = {12, 20, 28};
+char lbl_80124CE8[3][14] = {"FANGS", "FEATHERS", "CLAWS"};
+s32 crystal_order[14] = {13, 7, 2, 1, 11, 4, 3, 9, 10, 5, 6, 8, 0, 0};
+s32 lbl_80124D4C[14] = {0, 3, 2, 6, 5, 0, 0, 1, 0, 7, 8, 4, 0, 0};
+s32 lbl_80124D84[4] = {6, 4, 2, 5};
+s32 lbl_80124D94[3] = {12, 20, 28};
+s32 lbl_80124DA0[9] = {10, 11, 9, 8, 16, 12, 15, 14, 13};
 extern f32 lbl_80348588;
 extern f32 lbl_8034858C;
 extern f32 lbl_80348590;
@@ -890,12 +924,638 @@ void TowerNeedCrystalsMsg(int who, int slot) {
  * caption resets, Sumner animation matching, world-object lookups and the
  * speech/level-up/effect helpers (SumnerDoSpeech/SumnerSpeechEnd/
  * sumnerCheckLevelUp). */
-void TowerCheckMessages(void) {
+void TowerCheckMessages(s32 mode) {
+    char* strings = lbl_80114D50;
+    TowerMsgState* state = &lbl_8028C288;
+    s32 bosses[8];
+    s32 levels[3];
+    s32 i;
+    s32 j;
+    s32 msg;
+    s32 arg;
+
+    if (sMusicTrackHi == 13) {
+        if (gGameMode == 16400) {
+            SumnerDoSpeech();
+            if (sSumnerObj != 0) {
+                if (AnimateATree(&state->gwizAtree, lbl_80344C90,
+                                 lbl_80344C54 != 0 ? 2 : 0) != 0) {
+                    lbl_80344C90++;
+                    if (lbl_80344C90 > 2) {
+                        lbl_80344C90 = 0;
+                    }
+                    lbl_80344C54 = 0;
+                }
+            }
+            if (lbl_80344C64 != 0) {
+                AnimateATree(&state->wizAtree, lbl_80344C8C, 0);
+            }
+        }
+        if (gScriptedCameraState != 0) {
+            return;
+        }
+        if (lbl_803447B8 != 0) {
+            return;
+        }
+        switch (lbl_80344C7C) {
+        case 0:
+            break;
+        case 10:
+            if (lbl_803443C0 < 250) {
+                fn_8009C460(2);
+                lbl_80344C7C++;
+                break;
+            }
+            /* fall through */
+        case 11:
+            if (lbl_803443BC <= 4 && lbl_803443C0 <= 4) {
+                u8* object;
+
+                WindowCamActivate(1);
+                lbl_80344C88 = (s32)fn_8005B558(0x500);
+                MBTreeSetAlpha(*(void**)(lbl_80344C88 + 100), 255, 1);
+                object = (u8*)FindWORLDOBJ(strings + 44);
+                if (object != 0) {
+                    MBTreeClearFlags(*(void**)(object + 40), 2, 0);
+                }
+                lbl_80344C84 = *(s32*)(object + 40);
+                MBTreeSetAlpha((void*)lbl_80344C84, 255, 1);
+                lbl_80344C80 = 180;
+                lbl_80344C7C = 116;
+                fn_8009C460(11);
+            }
+            break;
+        case 14:
+            if (lbl_803443C0 < 250) {
+                fn_8009C460(2);
+                lbl_80344C7C++;
+                break;
+            }
+            /* fall through */
+        case 15:
+        case 16:
+            if (lbl_803443BC <= 4 && lbl_803443C0 <= 4) {
+                lbl_80344C6C = lbl_80344C7C;
+                lbl_80344C68 = lbl_803485A0;
+                lbl_80344C70 = 0;
+                lbl_80344C7C = 0;
+                CaptionTextReset();
+            }
+            break;
+        case 21:
+            lbl_80344C88 = (s32)fn_8005B558(0x600);
+            MBTreeSetAlpha(*(void**)(lbl_80344C88 + 100), 255, 1);
+            if (lbl_803443BC <= 4 && lbl_803443C0 <= 4) {
+                RuneCamActivate(0);
+                lbl_80344C84 = 0;
+                lbl_80344C80 = 180;
+                lbl_80344C7C = 126;
+            }
+            break;
+        case 20:
+        case 22:
+        case 24:
+            if (lbl_803443C0 < 250) {
+                fn_8009C460(1);
+                lbl_80344C7C++;
+            }
+            break;
+        case 30:
+        case 32:
+            if (lbl_803443C0 < 220) {
+                fn_8009C460(1);
+                lbl_80344C7C++;
+            }
+            break;
+        case 23:
+        case 33:
+            lbl_80344C7C = 0;
+            break;
+        case 25:
+        case 26:
+        case 36:
+            if (lbl_803443BC <= 4 && lbl_803443C0 <= 4) {
+                lbl_80344C70 = 0;
+                lbl_80344C68 = lbl_803485A0;
+                lbl_80344C6C = lbl_80344C7C + 100;
+                lbl_80344C7C = 0;
+                CaptionTextReset();
+            }
+            break;
+        case 31:
+            if (lbl_803443BC <= 4 && lbl_803443C0 <= 4) {
+                RuneCamActivate(2);
+                ActivateSpecialTrigger(255, 0);
+                lbl_80344C88 = (s32)fn_8005B558(0x803);
+                MBTreeSetAlpha(*(void**)(lbl_80344C88 + 100), 255, 1);
+                lbl_80344C84 = 0;
+                lbl_80344C80 = 180;
+                lbl_80344C7C = 136;
+            }
+            break;
+        default:
+            if (lbl_80344C7C < 0) {
+                lbl_80344C7C = 0;
+            } else {
+                s32 alpha;
+
+                lbl_80344C80 -= gFrameTicks;
+                if (lbl_80344C80 <= 0) {
+                    lbl_80344C80 = 0;
+                    lbl_80344C7C -= 100;
+                }
+                alpha = lbl_80344C80 * 255 / 180;
+                MBTreeSetAlpha((void*)lbl_80344C84, alpha, 1);
+                if (lbl_80344C88 != 0) {
+                    MBTreeSetAlpha(*(void**)(lbl_80344C88 + 100), alpha, 1);
+                }
+            }
+            break;
+        }
+        if (gTriggerCameraState != 0) {
+            return;
+        }
+        if (gGameBusy != 0) {
+            return;
+        }
+        if (lbl_80344A28 != 0) {
+            return;
+        }
+        sumnerCheckLevelUp();
+        if (mode != 0) {
+            u32 runeGot = 0;
+            u32 runeBanked = 0;
+            u32 shardGot = 0;
+            u32 shardBanked = 0;
+            u16 newRunes;
+            u16 newShards;
+            s32 rune;
+            s32 shard;
+
+            for (i = 0; i < 4; i++) {
+                Player* p = &gPlayers[i];
+
+                if (p->state != 0 &&
+                    *(u32*)((u8*)p + 0xF0) != (u32)lbl_80343D6C) {
+                    u32 v = p->runes;
+
+                    runeGot |= v;
+                    *(u16*)((u8*)p + p->character * 240 + 3540) |= v;
+                    runeBanked |= *(u16*)((u8*)p + p->character * 240 + 8736);
+                    *(u16*)((u8*)p + p->character * 240 + 8736) |= p->runes;
+                }
+            }
+            {
+                u16 got16 = runeGot;
+                u16 banked16 = runeBanked;
+
+                newRunes = got16 & (got16 ^ banked16);
+            }
+            for (rune = 1; rune <= 8; rune++) {
+                if (newRunes & (1 << rune)) {
+                    if ((u32)lbl_80344C64 == 0) {
+                        void* atree =
+                            (void*)AtreeMatch(sGoodWizObj, (char*)&lbl_803485A4, 0);
+
+                        if (atree != 0) {
+                            state->wizAtree =
+                                (void*)AtreeInit(atree, &state->wizAtree, 0,
+                                                 0xC00880);
+                            lbl_80344C64 =
+                                (s32)MBNewNode(gSceneRoot, gIdentityMatrix, 1);
+                            MBNodeSetParent(*(void**)state->wizAtree,
+                                            (void*)lbl_80344C64);
+                        }
+                    }
+                    lbl_80344C6C = rune;
+                    lbl_80344C68 = lbl_80348590;
+                    lbl_80344C70 = 0;
+                    DisablePlayerControls();
+                    lbl_80344C8C = 0;
+                    CaptionTextReset();
+                    break;
+                }
+            }
+            for (i = 0; i < 4; i++) {
+                Player* p = &gPlayers[i];
+
+                if (p->state != 0 &&
+                    *(u32*)((u8*)p + 0xF0) != (u32)lbl_80343D6C) {
+                    u32 v = p->shards;
+
+                    shardGot |= v;
+                    *(u16*)((u8*)p + p->character * 240 + 3542) |= v;
+                    shardBanked |= *(u16*)((u8*)p + p->character * 240 + 8738);
+                    *(u16*)((u8*)p + p->character * 240 + 8738) |= p->shards;
+                }
+            }
+            {
+                u16 got16 = shardGot;
+
+                shardBanked = (u16)shardBanked;
+                newShards = got16 & (got16 ^ (u16)shardBanked);
+            }
+            for (shard = 0; shard < 13; shard++) {
+                if (newShards & (1 << shard)) {
+                    if ((u32)lbl_80344C64 == 0) {
+                        void* atree =
+                            (void*)AtreeMatch(sGoodWizObj, (char*)&lbl_803485A4, 0);
+
+                        if (atree != 0) {
+                            state->wizAtree =
+                                (void*)AtreeInit(atree, &state->wizAtree, 0,
+                                                 0xC00880);
+                            lbl_80344C64 =
+                                (s32)MBNewNode(gSceneRoot, gIdentityMatrix, 1);
+                            MBNodeSetParent(*(void**)state->wizAtree,
+                                            (void*)lbl_80344C64);
+                        }
+                    }
+                    if (shard <= 13) {
+                        lbl_80344C6C = shard + 100;
+                        lbl_80344C68 = lbl_80348590;
+                        lbl_80344C70 = 0;
+                    } else {
+                        lbl_80344C6C = shard + 100;
+                        lbl_80344C68 = lbl_80348588;
+                        SumnerSpeechEnd();
+                    }
+                    DisablePlayerControls();
+                    lbl_80344C8C = 0;
+                    CaptionTextReset();
+                    break;
+                }
+            }
+            if (shard == 13) {
+                if (lbl_803448AC == 8 && lbl_803448A8 == 2 &&
+                    !(shardBanked & 0x1000)) {
+                    if ((u32)lbl_80344C64 == 0) {
+                        void* atree =
+                            (void*)AtreeMatch(sGoodWizObj, (char*)&lbl_803485A4, 0);
+
+                        if (atree != 0) {
+                            state->wizAtree =
+                                (void*)AtreeInit(atree, &state->wizAtree, 0,
+                                                 0xC00880);
+                            lbl_80344C64 =
+                                (s32)MBNewNode(gSceneRoot, gIdentityMatrix, 1);
+                            MBNodeSetParent(*(void**)state->wizAtree,
+                                            (void*)lbl_80344C64);
+                        }
+                    }
+                    lbl_80344C6C = 113;
+                    lbl_80344C68 = lbl_80348590;
+                    lbl_80344C70 = 0;
+                    DisablePlayerControls();
+                    lbl_80344C8C = 0;
+                    CaptionTextReset();
+                    lbl_803448AC = -1;
+                    lbl_803448A8 = -1;
+                }
+                if ((shardBanked & 0xFFF) == 0xFFF && (newRunes & 0x200) != 0) {
+                    if ((u32)lbl_80344C64 == 0) {
+                        void* atree =
+                            (void*)AtreeMatch(sGoodWizObj, (char*)&lbl_803485A4, 0);
+
+                        if (atree != 0) {
+                            state->wizAtree =
+                                (void*)AtreeInit(atree, &state->wizAtree, 0,
+                                                 0xC00880);
+                            lbl_80344C64 =
+                                (s32)MBNewNode(gSceneRoot, gIdentityMatrix, 1);
+                            MBNodeSetParent(*(void**)state->wizAtree,
+                                            (void*)lbl_80344C64);
+                        }
+                    }
+                    lbl_80344C6C = 114;
+                    lbl_80344C68 = lbl_80348588;
+                    SumnerSpeechEnd();
+                    DisablePlayerControls();
+                    lbl_80344C8C = 0;
+                    CaptionTextReset();
+                }
+            }
+        }
+        if (sMusicFadeBase - lbl_80344C48 >= 3.0) {
+            for (j = 0; j < 3; j++) {
+                s32* best = &levels[j];
+
+                *best = 0;
+                for (i = 0; i < 4; i++) {
+                    Player* p = &gPlayers[i];
+
+                    if (p->state != 0 &&
+                        *(u32*)((u8*)p + 0xF0) != (u32)lbl_80343D6C) {
+                        s16 val =
+                            *(s16*)((u8*)p + p->character * 240 + 3560 + j * 2);
+
+                        if (*best >= 0 && (val < 0 || val > *best)) {
+                            *best = val;
+                        }
+                    }
+                }
+                if (*best == lbl_80124CDC[j]) {
+                    msg = FindStringMessageListSub_8001FC4C(0, strings + 60);
+                    arg = fn_8009C5B8(j);
+                    ControllerMessageBox(-1, msg, j, arg);
+                    for (i = 0; i < 4; i++) {
+                        Player* p = &gPlayers[i];
+                        s16* val = (s16*)((u8*)(j * 2) + (s32)p +
+                                          p->character * 240 + 3560);
+
+                        if (*val == lbl_80124CDC[j]) {
+                            *val = -1;
+                            *(s16*)((u8*)(j * 2) + (s32)p +
+                                    p->character * 240 + 8756) = -1;
+                        }
+                    }
+                    lbl_80344C48 = sMusicFadeBase;
+                }
+            }
+            for (j = 0; j < 8; j++) {
+                if (lbl_80124C70[j] != 0) {
+                    s32* best = &bosses[j];
+
+                    *best = 0;
+                    for (i = 0; i < 4; i++) {
+                        Player* p = &gPlayers[i];
+
+                        if (p->state != 0 &&
+                            *(u32*)((u8*)p + 0xF0) != (u32)lbl_80343D6C) {
+                            s16 val = *(s16*)((u8*)p + p->character * 240 +
+                                              3566 + j * 2);
+
+                            if (*best >= 0 && (val < 0 || val > *best)) {
+                                *best = val;
+                            }
+                        }
+                    }
+                    if (*best == lbl_80124C70[j]) {
+                        msg = FindStringMessageListSub_8001FC4C(0, strings + 76);
+                        arg = fn_8009C620(j);
+                        ControllerMessageBox(-1, msg, j, arg);
+                        for (i = 0; i < 4; i++) {
+                            Player* p = &gPlayers[i];
+                            s16* val = (s16*)((u8*)(j * 2) + (s32)p +
+                                              p->character * 240 + 3566);
+
+                            if (*val == lbl_80124C70[j]) {
+                                *val = -1;
+                                *(s16*)((u8*)(j * 2) + (s32)p +
+                                        p->character * 240 + 8762) = -1;
+                            }
+                        }
+                        lbl_80344C48 = sMusicFadeBase;
+                    }
+                }
+            }
+        }
+    }
 }
 
 /* Enter the hub tower: spawn the collected RUNE%d/SHARD%d/RUNE13 (+wizard)
  * effects, set up the display and hand off to TowerCheckMessages. */
+/* Enter the hub tower: spawn the collected RUNE%d/SHARD%d/RUNE13 (+wizard)
+ * effects, set up the display and hand off to TowerCheckMessages. */
 void EnterTower(void) {
+    char* strings = lbl_80114D50;
+    TowerMsgState* state = &lbl_8028C288;
+    f32 world[12];
+    s32 effectState[6];
+    s32 i;
+    s32 j;
+    s32 k;
+    s32 count;
+    s32 pos;
+    s32 req;
+    s32 worldId;
+    s32 st;
+    s32 effect;
+    s32 fx;
+    u32 runes;
+    u32 shards;
+    u32 runeMask;
+    u32 shardMask;
+    s32 have13;
+    u8* object;
+
+    lbl_80344C4C++;
+    lbl_80344C58 = lbl_80348588;
+    if (lbl_80343E48 >= 0) {
+        pos = lbl_80343E48;
+    } else {
+        for (k = 0; k < 14; k++) {
+            if (lbl_803448C8 == crystal_order[k]) {
+                goto found;
+            }
+        }
+        k = 0;
+    found:
+        pos = k;
+    }
+    SetPlayerStartPos(pos);
+    lbl_80343E48 = -1;
+    lbl_80344C48 = lbl_803485B8 + sMusicFadeBase;
+    {
+        f32 zero = lbl_80348588;
+
+        for (i = 0; i < 8; i++) {
+            state->cooldown[i] = zero;
+        }
+        for (i = 0; i < 3; i++) {
+            state->gargCooldown[i] = zero;
+        }
+    }
+    for (j = 0; j < 3; j++) {
+        req = lbl_80124D94[j];
+        count = 0;
+        for (i = 0; i < 4; i++) {
+            Player* p;
+
+            if (gDemoMode != 0) {
+                break;
+            }
+            p = &gPlayers[i];
+            if (p->state == 0) {
+                st = 0;
+            } else if (*(u32*)((u8*)p + 0xF0) == (u32)lbl_80343D6C) {
+                st = 2;
+            } else {
+                s32 val = ((s16*)((u8*)p + p->character * 240 + 3560))[j];
+
+                if (val < 0) {
+                    st = 2;
+                } else if (val == req) {
+                    st = 1;
+                } else {
+                    st = 0;
+                }
+            }
+            if (st == 2) {
+                break;
+            }
+            count++;
+        }
+        if (count < 4) {
+            ActivateSpecialTrigger(j + 101, 1);
+            if (j == 2) {
+                ActivateSpecialTrigger(104, 1);
+                ActivateSpecialTrigger(199, 1);
+            }
+        }
+    }
+    for (j = 0; j < 8; j++) {
+        req = lbl_80124C70[j];
+        worldId = crystal_order[j];
+        if (req != 0) {
+            count = 0;
+            for (i = 0; i < 4; i++) {
+                Player* p;
+
+                if (gDemoMode != 0 &&
+                    (worldId == 7 || (u32)(worldId - 10) <= 1)) {
+                    break;
+                }
+                p = &gPlayers[i];
+                if (p->state == 0) {
+                    st = 0;
+                } else if (*(u32*)((u8*)p + 0xF0) == (u32)lbl_80343D6C) {
+                    st = 2;
+                } else {
+                    s32 val = ((s16*)((u8*)p + p->character * 240 + 3566))[j];
+
+                    if (val < 0) {
+                        st = 2;
+                    } else if (val == req) {
+                        st = 1;
+                    } else {
+                        st = 0;
+                    }
+                }
+                if (st == 2) {
+                    break;
+                }
+                count++;
+            }
+            if (count < 4) {
+                ActivateSpecialTrigger(j, 1);
+            }
+        }
+    }
+    runes = 0;
+    for (i = 0; i < 4; i++) {
+        Player* p = &gPlayers[i];
+
+        if (p->state != 0) {
+            if (*(u32*)((u8*)p + 0xF0) == (u32)lbl_80343D6C) {
+                runes = 0x7FE;
+            } else {
+                runes |= *(u16*)((u8*)p + p->character * 240 + 8736);
+            }
+        }
+    }
+    runeMask = (u16)runes;
+    if (runeMask != 0) {
+        object = (u8*)FindWORLDOBJ(strings + 88);
+        if (object != 0) {
+            GetWorldMat(*(f32**)(object + 40), world, 0);
+            for (j = 1; j < 9; j++) {
+                if (runeMask & (1 << j)) {
+                    sprintf(state->effectName, &lbl_803485C0, j);
+                    effect = InitCustomEffect(0, state->effectName, 0, 0);
+                    if (object != 0 && effect >= 0) {
+                        u8* e;
+                        u8* ai;
+
+                        fx = StartFXSub(lbl_80348588, effect, effectState,
+                                        0x80000, 0x800);
+                        SfxSetParent(fx, gSceneRoot);
+                        e = (u8*)Effects + fx * 240;
+                        ai = e + 28;
+                        *(f32*)(ai + 32) =
+                            (f32)(gClockTime -
+                                  lbl_803485C8 * *(s16*)(e + 44));
+                        *(f32*)(ai + 24) = *(s16*)(ai + 16);
+                        AtreeKillPsys(e + 24);
+                    }
+                }
+            }
+        } else {
+            ErrorPrintf(strings + 104);
+        }
+    }
+    if ((runes & 0x1FE) != 0x1FE) {
+        MBTreeSetFlags(*(void**)((u8*)FindWORLDOBJ(strings + 44) + 40), 2, 0);
+    }
+    shards = 0;
+    for (i = 0; i < 4; i++) {
+        Player* p = &gPlayers[i];
+
+        if (p->state != 0) {
+            if (*(u32*)((u8*)p + 0xF0) == (u32)lbl_80343D6C) {
+                shards = 0x1FFF;
+            } else {
+                shards |= *(u16*)((u8*)p + p->character * 240 + 8738);
+            }
+        }
+    }
+    shardMask = (u16)shards;
+    if (shardMask != 0) {
+        have13 = shardMask & 0x1000;
+        if (have13 != 0) {
+            ActivateSpecialTrigger(255, 1);
+        }
+        object = (u8*)FindWORLDOBJ(strings + 128);
+        if (object != 0) {
+            GetWorldMat(*(f32**)(object + 40), world, 0);
+            for (j = 0; j < 12; j++) {
+                if (shardMask & (1 << j)) {
+                    sprintf(state->effectName, &lbl_803485D0, j + 1);
+                    effect = InitCustomEffect(0, state->effectName, 0, 0);
+                    if (object != 0 && effect >= 0) {
+                        u8* e;
+                        u8* ai;
+
+                        fx = StartFXSub(lbl_80348588, effect, effectState,
+                                        0x80000, 0x800);
+                        SfxSetParent(fx, gSceneRoot);
+                        e = (u8*)Effects + fx * 240;
+                        ai = e + 28;
+                        *(f32*)(ai + 32) =
+                            (f32)(gClockTime -
+                                  lbl_803485C8 * *(s16*)(ai + 16));
+                        *(f32*)(ai + 24) = *(s16*)(ai + 16);
+                    }
+                }
+            }
+        } else {
+            ErrorPrintf(strings + 140);
+        }
+        object = (u8*)FindWORLDOBJ(strings + 164);
+        if (object != 0) {
+            if (have13 != 0) {
+                u8* e;
+                u8* ai;
+
+                GetWorldMat(*(f32**)(object + 40), world, 0);
+                effect = InitCustomEffect(0, &lbl_803485D8, 0, 0);
+                if (object != 0 && effect >= 0) {
+                    fx = StartFXSub(lbl_80348588, effect, effectState, 0x80000,
+                                    0x800);
+                    SfxSetParent(fx, gSceneRoot);
+                    e = (u8*)Effects + fx * 240;
+                    ai = e + 28;
+                    *(f32*)(ai + 32) =
+                        (f32)(gClockTime - lbl_803485C8 * *(s16*)(e + 44));
+                    *(f32*)(ai + 24) = *(s16*)(ai + 16);
+                }
+            }
+        } else {
+            ErrorPrintf(strings + 176);
+        }
+    }
+    fn_8005B5B8();
+    TowerCheckMessages(1);
 }
 
 /* Update the good-wizard presence/timer from per-player progress (field
