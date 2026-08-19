@@ -784,7 +784,7 @@ void animate_panel_piece(f32 progress, s32* piece, void* blit, s32 xOffset,
     switch (phase) {
     case 0:
         progress2 = progress * progress;
-        tableIndex = (piece[1] + piece[2] +
+        tableIndex = (piece[2] + piece[1] +
                       (s32)(lbl_80347408 *
                             (lbl_803473E0 * (progress2 * progress)))) %
                      60;
