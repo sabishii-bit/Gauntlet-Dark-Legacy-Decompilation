@@ -3390,9 +3390,9 @@ void CalcTargetDir(f32* velocity, f32 targetScale, f32 speed,
 }
 
 /* EnemyStartMissile constants + helpers */
-extern f64 lbl_80346318, lbl_80346368, lbl_80346360, lbl_80346370;
+extern f64 lbl_80346318, lbl_80346360, lbl_80346370;
 extern f64 lbl_80346378, lbl_80346388, lbl_80346390, lbl_80346398;
-extern f32 lbl_80346358, lbl_8034635C, lbl_80346380, lbl_80346334;
+extern f32 lbl_80346368, lbl_80346358, lbl_8034635C, lbl_80346380, lbl_80346334;
 extern f32 lbl_80346384, lbl_803447D8;
 extern u8 lbl_8011A1B4[];
 f32 NormalVector(f32* v);
@@ -3408,8 +3408,15 @@ s32 EnemyStartMissile(void* enemy, f32* launchPos, f32* target, s32 slot)
     MissileInfo* desc = &EnemyMissileInfo[enemyType][slot];
     void* tree = EnemyMissileTree[enemyType][slot];
     f32 dir[3];
+    f32 aim[3];
+    f32 spawn[3];
+    f32 flat[3];
+    f32 _pad[3];
     f32 speed;
     f32 invSpeed;
+    f32 height;
+    u32 flags;
+    u32 extraFlags = 0;
     s32 fx;
 
     if (tree == 0) {
@@ -3425,96 +3432,99 @@ s32 EnemyStartMissile(void* enemy, f32* launchPos, f32* target, s32 slot)
         NormalVector(dir);
     } else {
         f32 spread = slot == 1 ? lbl_80346358 : lbl_8034635C;
+        f32 weight = desc->weight;
         f64 rnd = Random(lbl_80346368);
         f32 lead = (f32)((f64)PF(gCurLevel, 0xC8, f32) *
                          (lbl_80346360 + rnd) + (f64)spread);
-        f32 horiz = (f32)fqdist(dir[0], dir[2]);
-        f32 hn = horiz > lbl_80346348 ?
-                 (f32)(lbl_80346318 / (f64)horiz) : (f32)lbl_80346318;
-        dir[0] = (f32)((f64)dir[0] * hn);
-        dir[2] = (f32)((f64)dir[2] * hn);
+        f32 horiz = fqdist(dir[0], dir[2]);
+        f32 hn = (f32)(horiz > lbl_80346348 ?
+                       lbl_80346318 / (f64)horiz : lbl_80346318);
+        dir[0] = dir[0] * hn;
+        dir[2] = dir[2] * hn;
         dir[1] = (f32)((f64)invSpeed *
-            (lbl_80346370 * (f64)desc->weight * (f64)(f32)((f64)horiz * invSpeed) +
-             (f64)((f32)((f64)dir[1] + (f64)lead) * (f32)((f64)speed * hn))));
+            (lbl_80346370 * (f64)weight * (f64)(horiz * invSpeed) +
+             (f64)((dir[1] + lead) * (speed * hn))));
     }
-    if ((f64)dir[1] < lbl_80346340) {
+    if (dir[1] < lbl_80346340) {
         dir[1] = lbl_80346328;
     }
+    flat[0] = dir[0];
+    flat[1] = dir[1];
+    flat[2] = dir[2];
+    NormalVector2D(flat);
+    if (flat[0] * PF(enemy, 0x24, f32) + flat[2] * PF(enemy, 0x2C, f32) <
+        lbl_80346378) {
+        return 0;
+    }
     {
-        f32 flat[3];
-        flat[0] = dir[0];
-        flat[1] = dir[1];
-        flat[2] = dir[2];
-        NormalVector2D(flat);
-        if (lbl_80346378 <=
-            flat[0] * PF(enemy, 0x24, f32) + flat[2] * PF(enemy, 0x2C, f32)) {
-            u32 flags = PF(enemy, 0xC4, u32);
-            u32 extraFlags = 0;
-            f32 spawn[3];
-            f32 aim[3];
-            f32 height = slot == 2 ? lbl_80346328 : lbl_80346380;
-            aim[0] = target[0];
-            aim[2] = target[2];
-            switch (enemyType) {
-            case 4:
-                if (slot == 0) height = lbl_80346334;
-                break;
-            case 7:
-            case 0x18:
-                if (slot == 2) height = lbl_80346334;
-                break;
-            case 0xD:
-                if (slot == 0) height = lbl_80346384;
-                break;
-            case 0xE:
-                if (slot == 2) height = lbl_80346384;
-                else if (slot == 0) height = lbl_80346334;
-                break;
-            case 0x11:
-                height = lbl_8034633C;
-                aim[0] = (f32)(lbl_80346388 * (f64)dir[0] + (f64)aim[0]);
-                aim[2] = (f32)(lbl_80346388 * (f64)dir[2] + (f64)aim[2]);
-                break;
-            case 0x17:
-                if (slot == 0) {
-                    height = lbl_80346328;
-                } else if (slot == 1) {
-                    height = lbl_80346328;
-                    aim[0] = (f32)-(lbl_80346390 * (f64)dir[0] - (f64)aim[0]);
-                    aim[2] = (f32)-(lbl_80346390 * (f64)dir[2] - (f64)aim[2]);
-                }
-                break;
-            case 0x1B:
+        flags = PF(enemy, 0xC4, u32);
+        aim[0] = target[0];
+        aim[1] = target[1];
+        aim[2] = target[2];
+        height = slot == 2 ? lbl_80346328 : lbl_80346380;
+        switch (PF(enemy, 0x00, s32)) {
+        case 4:
+            if (slot == 0) height = lbl_80346334;
+            break;
+        case 0xD:
+            if (slot == 0) height = lbl_80346384;
+            break;
+        case 7:
+        case 0x18:
+            if (slot == 2) height = lbl_80346334;
+            break;
+        case 0xE:
+            if (slot == 2) height = lbl_80346384;
+            else if (slot == 0) height = lbl_80346334;
+            break;
+        case 0x11:
+            height = lbl_8034633C;
+            aim[0] = (f32)(lbl_80346388 * (f64)dir[0] + (f64)aim[0]);
+            aim[2] = (f32)(lbl_80346388 * (f64)dir[2] + (f64)aim[2]);
+            break;
+        case 0x17:
+            if (slot == 0) {
                 height = lbl_80346328;
-                extraFlags = 0x8000000;
-                flags |= 0x100000;
-                break;
+            } else if (slot == 1) {
+                height = lbl_80346328;
+                aim[0] = (f32)-(lbl_80346390 * (f64)dir[0] - (f64)aim[0]);
+                aim[2] = (f32)-(lbl_80346390 * (f64)dir[2] - (f64)aim[2]);
             }
-            aim[1] = (f32)((f64)target[1] + (f64)height);
-            spawn[0] = (f32)(lbl_80346398 * (f64)dir[0] + (f64)aim[0]);
-            spawn[1] = (f32)(lbl_80346398 * (f64)dir[1] + (f64)aim[1]);
-            spawn[2] = (f32)(lbl_80346398 * (f64)dir[2] + (f64)aim[2]);
-            if (WeaponWallCollide(aim, spawn, 0) == 0 &&
-                fn_8005ED44(desc->collisionRadius, aim, spawn, 0, 0, -1) == 0) {
-                f32 damage = desc->damage;
-                if (lbl_803447D8 < lbl_80346318) {
-                    damage = (f32)((f64)damage * lbl_80346370);
-                }
-                if (slot == 0) flags |= 0x20000;
-                if (slot == 2) flags |= 0x40000;
-                fx = StartMissile(0, spawn, dir, flags, desc, tree, 0,
-                                  extraFlags, speed, damage);
-                if (lbl_803447D8 < lbl_80346318) {
-                    ScaleFX(fx, lbl_803447D8, lbl_803447D8, lbl_803447D8);
-                }
-                if (slot == 1) {
-                    SfxSetLight(lbl_80346368, fx, lbl_8011A1B4);
-                }
-                return fx;
+            break;
+        case 0x1B:
+            height = lbl_80346328;
+            extraFlags |= 0x8000000;
+            flags |= 0x100000;
+            break;
+        }
+        aim[1] = aim[1] + height;
+        spawn[0] = (f32)(lbl_80346398 * (f64)dir[0] + (f64)aim[0]);
+        spawn[1] = (f32)(lbl_80346398 * (f64)dir[1] + (f64)aim[1]);
+        spawn[2] = (f32)(lbl_80346398 * (f64)dir[2] + (f64)aim[2]);
+        if ((u32)WeaponWallCollide(aim, spawn, 0, desc->collisionRadius) != 0) {
+            return 0;
+        }
+        if ((u32)fn_8005ED44(aim, spawn, 0, 0, -1, desc->collisionRadius) != 0) {
+            return 0;
+        }
+        {
+            f32 damage = desc->damage;
+            if (lbl_803447D8 < lbl_80346318) {
+                damage = (f32)((f64)damage * lbl_80346370);
             }
+            if (slot == 0) flags |= 0x20000;
+            if (slot == 2) flags |= 0x40000;
+            fx = StartMissile(0, spawn, dir, flags, desc, tree, 0,
+                              extraFlags, speed, damage);
+        }
+        if (lbl_803447D8 < lbl_80346318) {
+            ScaleFX(fx, lbl_803447D8, lbl_803447D8, lbl_803447D8);
+        }
+        if (slot == 1) {
+            SfxSetLight(fx, lbl_8011A1B4, lbl_80346368);
         }
     }
-    return 0;
+    return 1;
 }
 
 extern u8 lbl_8011A1A8[];
