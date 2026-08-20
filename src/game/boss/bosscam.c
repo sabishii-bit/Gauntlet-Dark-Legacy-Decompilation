@@ -859,7 +859,7 @@ static void GetBossAvgPos(f32* out, f32 t, f32* p4, f32* p5, s32 mode) {
             f32* lp;
             h = *hp;
             if (h < b) {
-                asm { b keep_h }
+                goto keep_h;
             }
             h = b;
         keep_h:
@@ -867,7 +867,7 @@ static void GetBossAvgPos(f32* out, f32 t, f32* p4, f32* p5, s32 mode) {
             lp = &lo[i];
             l = *lp;
             if (l > b) {
-                asm { b keep_l }
+                goto keep_l;
             }
             l = b;
         keep_l:
@@ -1108,10 +1108,10 @@ static f32 LimitCamVal2(f32 value, f32 target, f32 minVelocity,
         }
 
         if (target < minVelocity) {
-            asm { b store_out }
+            goto store_out;
         }
         if (target > maxVelocity) {
-            asm { b set_min }
+            goto set_min;
         }
         maxVelocity = target;
     set_min:

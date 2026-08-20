@@ -1184,7 +1184,7 @@ retry:
 
     cardLoadFile(0, lbl_80344A04);
     if (cardWaitResult() != 0) {
-        asm { b scan_done }
+        goto scan_done;
     }
     {
         result = cardLock();
@@ -1401,7 +1401,7 @@ retry:
 
     cardMount(0, lbl_803449FC, cardRemovedCallback);
     if (cardWaitResult() != 0) {
-        asm { b mount_fail }
+        goto mount_fail;
     }
     CARDGetSerialNo(0, serial);
     goto mount_cont;

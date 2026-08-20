@@ -77,7 +77,7 @@ u32 regFind(REGLIST* list, char* name)
             if (gstrcmp(name, node->name) != 0) {
                 goto next;
             }
-            asm { b found }
+            goto found;
 next:
             node = node->next;
         }

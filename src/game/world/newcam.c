@@ -942,7 +942,7 @@ void fn_8006F16C(s32 initialise)
             pitchc = *camera;
             bound = -(*(f32**)((u8*)gCurLevel + 0x60))[2];
             if (pitchc < bound) {
-                asm { b keep_pitch }
+                goto keep_pitch;
             }
             pitchc = bound;
         keep_pitch:

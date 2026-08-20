@@ -360,7 +360,7 @@ void DoPolyInst(PolyInstance* inst, s32 mode, s32 phase) {
     if (inst->type >= 3) {
         goto draw;
     }
-    asm { b done }
+    goto done;
 draw:
     if (phase != 0) {
         if (mode == 11) {

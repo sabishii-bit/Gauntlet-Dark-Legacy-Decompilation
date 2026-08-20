@@ -324,7 +324,7 @@ s32 adsMoveRawToCooked(ADSTREAM* stream) {
     self = stream;
     divisor = self->blocks;
     if (divisor > 1) {
-        asm { b Ldiv_done }
+        goto Ldiv_done;
     }
     divisor = 1;
 Ldiv_done:;
@@ -342,7 +342,7 @@ Ldiv_done:;
     destination = (u8*)self->cookedPtr + ringWrite;
 
     if (available < space) {
-        asm { b Lavail_done }
+        goto Lavail_done;
     }
     available = space;
 Lavail_done:;

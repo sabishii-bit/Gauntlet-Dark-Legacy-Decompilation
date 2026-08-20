@@ -137,7 +137,7 @@ void PlayerDoWeapTrail(PlayerTrailState* player)
         goto done;
     }
     if (gFrameTicks == 0) {
-        asm { b done }
+        goto done;
     }
 
 ticks_active:

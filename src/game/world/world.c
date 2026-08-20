@@ -756,7 +756,7 @@ WorldObj* FindWORLDOBJ(char* name) {
         if (strcmp(name, node->desc) != 0) {
             goto search_children;
         }
-        asm { b done }
+        goto done;
 search_children:
         index = node->childidx;
         if (index >= 0) {

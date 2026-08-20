@@ -282,7 +282,7 @@ void InitTexMods(atreeseq* seq, int texidx)
 
     if (seq != NULL) {
         if (texidx < 0) {
-            asm { b done }
+            goto done;
         }
         for (i = 0; i < seq->ntexmods; i++) {
             tm = (TEXMOD*)((char*)seq->texmods + i * 0x58);
