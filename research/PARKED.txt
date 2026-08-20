@@ -417,3 +417,4 @@ getNewPosRectShare         # P9, lhz 32(r3) load-order swap vs 34(r3) (mb_partic
 getNewDirConeUnique        # P9, lhz 48(r3) load-order swap vs mr/lwz pair (mb_particle)
 WPitchMat3                 # L27, lfsu update-form load vs folded lfs (ml_fmath; WRollMat3/WYawMat3 same family)
 fn_8001267C                # swap-scratch cascade: per-SWAP16 slot/register order + r23/r24 save tier; frame 592 matched via pad but cascade stays (atree)
+MBOX_FindTexture_Sub       # P8/P5: key[] slot at r1+28 vs r1+32 (+4) + prologue copy order (mb_model)
