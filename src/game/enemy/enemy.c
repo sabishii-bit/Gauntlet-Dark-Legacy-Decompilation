@@ -1392,9 +1392,7 @@ void fn_8004DB3C(Enemy* enemy, s32 delta)
 
     if (delta <= 0 || alpha < 255) {
         if (delta < 0 && alpha == 0) {
-            asm {
-                b fade_done
-            }
+            goto fade_done;
         }
         value = alpha + delta * gFrameTicks;
         if (value < 0) {
@@ -1414,9 +1412,7 @@ void fn_8004DB3C(Enemy* enemy, s32 delta)
             MBTreeClearFlags(enemy->shadow, 2, 0);
         }
     }
-    asm {
-    fade_done:
-    }
+fade_done:;
 }
 
 /* Select and launch an enemy missile, then dispatch its positional sound. */

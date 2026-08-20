@@ -1942,7 +1942,7 @@ void DoShake(Vec3* posA, Vec3* posB) {
         return;
     }
     if (gGameBusy | gGameplayPauseTimer) {
-        asm { b shake_done }
+        goto shake_done;
     }
 
     elapsed = gFrameTicks;
@@ -2998,7 +2998,7 @@ f32 camera_approach_yaw(void* cam, f32 target) {
     }
     result = target;
     if (snap != 0) {
-        asm { b approach_adjust_done }
+        goto approach_adjust_done;
     }
     {
         if (direction > 0) {
@@ -3067,7 +3067,7 @@ f32 camera_lerp_yaw(f32 current, f32 target) {
     }
     result = target;
     if (snap != 0) {
-        asm { b lerp_adjust_done }
+        goto lerp_adjust_done;
     }
     {
         if (direction > 0) {

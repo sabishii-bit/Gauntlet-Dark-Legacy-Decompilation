@@ -719,7 +719,7 @@ void LinkItemTriggers(void)
                         dup1++;
                     }
                     if (*(s8*)&ot1->data[7] != *(s8*)&it1->data[6]) {
-                        asm { b link_cont_j }
+                        goto link_cont_j;
                     }
 link_cont_j:;
                 }
@@ -1470,7 +1470,7 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
                     if (subtype > 0 && subtype != body->subtype) {
                         continue;
                     }
-                    asm { b keyring_found }
+                    goto keyring_found;
                 }
                 found = -1;
 keyring_found:
@@ -1503,7 +1503,7 @@ keyring_found:
         f32 radius = info->item.radius;
 
         if (radius > info->item.height) {
-            asm { b keep_r }
+            goto keep_r;
         }
         radius = info->item.height;
     keep_r:
@@ -1811,7 +1811,7 @@ keyring_found:
                 if (subtype > 0 && subtype != body->subtype) {
                     continue;
                 }
-                asm { b low_item_found }
+                goto low_item_found;
             }
             found = -1;
 low_item_found:
@@ -1841,7 +1841,7 @@ low_item_found:
 
         enemy_type = DATA_S8(6) - 1;
         if (enemy_type < 0) {
-            asm { b count_index_done }
+            goto count_index_done;
         }
         if (enemy_type > 2) {
             enemy_type = 2;
@@ -1976,7 +1976,7 @@ count_index_done:
             goto after_type10_active;
         }
         if (DATA_S16(0) < 51) {
-            asm { b after_type10_active }
+            goto after_type10_active;
         }
 set_type10_active:
         item->active |= 0x40;

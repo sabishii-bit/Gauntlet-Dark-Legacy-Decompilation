@@ -1307,7 +1307,7 @@ void DoAudioTallySFX(int sel)
     if (sel <= 10) {
         goto valid;
     }
-    asm { b done }
+    goto done;
 valid:
     sndFxPlayHandle(lbl_801234B8[sel], 224, sel + 21);
 done:
@@ -1336,7 +1336,7 @@ void AudioEnterNextStage(void)
     if (*(int*)(entry + 16) < 0) {
         goto invalid_entry;
     }
-    asm { b valid_entry }
+    goto valid_entry;
 invalid_entry:
     entry = 0;
 valid_entry:

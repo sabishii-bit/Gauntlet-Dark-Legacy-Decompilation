@@ -2836,7 +2836,7 @@ s32 CritterMoveSetup(Critter *c, CritterMove *move)
         nodeIndex = move->node;
         node = c->anim;
         if (nodeIndex < 0) {
-            asm { b store_move_node }
+            goto store_move_node;
         }
         candidate = ((void **)((u8 *)c->anodes +
                                nodeIndex * 0x28))[0];
