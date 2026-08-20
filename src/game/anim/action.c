@@ -88,67 +88,101 @@ s32 DoEnemyAction(void* enemy)
 {
     s32* e = (s32*)enemy;
     f32* ef = (f32*)enemy;
+    u8* e70 = (u8*)e + 0x70; /* interruptible flag at +0x34, walk rate at +0x10 */
     s32* defs = e + 0x35; /* ACTIONDEF[34] at +0xD4 */
     s32 next = e[0x34];   /* +0xD0 requested action */
-    s32 cur = e[0x33];    /* +0xCC current action */
-    s32 mode = 2;
-    s16 interruptible = 1;
-    s32 sw;
+    s32* node;            /* atree node at +0x6C */
     s32 act;
+    s32 cur;
+    s32 mode = 2;
+    s32 interruptible = 1;
+    s32 sw;
     s32 seq;
     s32 result;
-    s32 ret;
     s32 type;
 
-    sw = cur;
-    if (next > 0x1B) {
-        sw = 0;
-    }
+    node = e + 0x1B;
+    cur = e[0x33];        /* +0xCC current action */
     act = next;
+    if (act >= 0x1C) {
+        sw = 0;
+    } else {
+        sw = cur;
+    }
     switch (sw) {
-    case 0:
-        interruptible = 1;
-        if (e[0] == 0x1D) {
-            if (next < 0x1C) {
-                mode = 0;
+    case 1:
+        type = e[0];
+        mode = 0;
+        interruptible = 0;
+        if (type == 1 || type == 4 || type == 10 || type == 7) {
+            if (defs[3 * 2] >= 0) {
+                act = 3;
             } else {
+                act = 4;
+            }
+        }
+        break;
+    case 0:
+        if (e[0] == 0x1D) {
+            if (next >= 0x1C) {
                 mode = 2;
+            } else {
+                mode = 0;
             }
             interruptible = 0;
         }
         if (e[0] == 0x1B) {
             mode = 2;
         } else if (next == 3 && defs[9 * 2] >= 0) {
-            mode = 0;
             act = 9;
-        } else if (next == 4 && defs[11 * 2] >= 0) {
             mode = 0;
+        } else if (next == 4 && defs[11 * 2] >= 0) {
             act = 0xB;
+            mode = 0;
         } else if (next == 0xC || next == 0xE || next == 0x10) {
             mode = 0;
         }
         break;
-    case 1:
-        type = e[0];
-        mode = 0;
-        interruptible = 0;
-        if (type == 1 || type == 4 || type == 10 || type == 7) {
-            if (defs[3 * 2] < 0) {
+    case 0xB:
+        if (next >= 0x1C) {
+            mode = 2;
+        } else {
+            mode = 0;
+            interruptible = 0;
+            if (defs[4 * 2] >= 0) {
                 act = 4;
             } else {
                 act = 3;
             }
         }
         break;
-    case 2:
-        mode = 0;
-        interruptible = 0;
+    case 9:
+        if (next >= 0x1C) {
+            mode = 2;
+        } else {
+            mode = 0;
+            interruptible = 0;
+            if (defs[3 * 2] >= 0) {
+                act = 3;
+            } else {
+                act = 4;
+            }
+        }
+        break;
+    case 8:
+    case 10:
+        if (next >= 0x1C) {
+            mode = 2;
+        } else {
+            mode = 0;
+            interruptible = 0;
+            act = 0;
+        }
         break;
     case 3:
     case 5:
     case 6:
     case 7:
-        interruptible = 1;
         if (e[0] == 0x1D && next == 0) {
             mode = 0;
             interruptible = 0;
@@ -163,190 +197,8 @@ s32 DoEnemyAction(void* enemy)
         break;
     case 4:
         if (next == 0 && defs[10 * 2] >= 0) {
-            mode = 0;
             act = 10;
-        }
-        break;
-    case 8:
-    case 10:
-        if (next < 0x1C) {
             mode = 0;
-            interruptible = 0;
-            act = 0;
-        } else {
-            mode = 2;
-        }
-        break;
-    case 9:
-        if (next < 0x1C) {
-            mode = 0;
-            interruptible = 0;
-            if (defs[3 * 2] < 0) {
-                act = 4;
-            } else {
-                act = 3;
-            }
-        } else {
-            mode = 2;
-        }
-        break;
-    case 0xB:
-        if (next < 0x1C) {
-            mode = 0;
-            interruptible = 0;
-            if (defs[4 * 2] < 0) {
-                act = 3;
-            } else {
-                act = 4;
-            }
-        } else {
-            mode = 2;
-        }
-        break;
-    case 0xC:
-        mode = 0;
-        interruptible = 0;
-        if (next < 0x1C) {
-            act = 0xD;
-        } else {
-            mode = 2;
-        }
-        break;
-    case 0xD:
-        mode = 0;
-        interruptible = 0;
-        if (next < 0x1C) {
-            if (defs[14 * 2] < 0) {
-                if (next == 0xC) {
-                    act = 0xC;
-                }
-            } else {
-                act = 0xE;
-            }
-        } else {
-            mode = 2;
-        }
-        break;
-    case 0xE:
-        mode = 0;
-        interruptible = 0;
-        if (next < 0x1C) {
-            act = 0xF;
-        } else {
-            mode = 2;
-        }
-        break;
-    case 0xF:
-        mode = 0;
-        interruptible = 0;
-        if (next < 0x1C) {
-            if (next == 0xC) {
-                act = 0xC;
-            }
-        } else {
-            mode = 2;
-        }
-        break;
-    case 0x10:
-        mode = 0;
-        interruptible = 0;
-        if (next < 0x1C) {
-            act = 0x11;
-        } else {
-            mode = 2;
-        }
-        break;
-    case 0x11:
-        mode = 0;
-        interruptible = 0;
-        if (next > 0x1B) {
-            mode = 2;
-        }
-        break;
-    case 0x12:
-        mode = 0;
-        interruptible = 0;
-        if (next < 0x1C) {
-            act = 0x13;
-        } else {
-            mode = 2;
-        }
-        break;
-    case 0x13:
-        if (next == 0 && e[0xA1] >= 0) {
-            act = 0xC;
-        }
-        break;
-    case 0x14:
-        mode = 0;
-        interruptible = 0;
-        if (next < 0x1C) {
-            act = 0x15;
-        } else {
-            mode = 2;
-        }
-        break;
-    case 0x15:
-        if (next == 0 && e[0xA1] >= 0) {
-            act = 0xC;
-        }
-        break;
-    case 0x16:
-        mode = 0;
-        interruptible = 0;
-        if (next < 0x1C) {
-            if (next == 0x16) {
-                act = 0x17;
-            }
-        } else {
-            mode = 2;
-        }
-        break;
-    case 0x17:
-        mode = 0;
-        interruptible = 0;
-        if (next < 0x1C) {
-            if (next == 0x16) {
-                act = 0x16;
-            }
-        } else {
-            mode = 2;
-        }
-        break;
-    case 0x18:
-        if (defs[0x18 * 2] < 0) {
-            act = 0x19;
-            cur = 0x19;
-        }
-        /* fallthrough */
-    case 0x19:
-        mode = 0;
-        interruptible = 0;
-        if (next < 0x1C) {
-            act = 0x1A;
-        } else {
-            mode = 2;
-        }
-        break;
-    case 0x1A:
-        mode = 0;
-        interruptible = 0;
-        if (next < 0x1C) {
-            if (next == 0x18) {
-                act = 0x19;
-            } else if (next == 0) {
-                act = 0x1B;
-            }
-        } else {
-            mode = 2;
-        }
-        break;
-    case 0x1B:
-        mode = 0;
-        interruptible = 0;
-        act = 0;
-        if (next > 0x1B) {
-            mode = 2;
         }
         break;
     case 0x1C:
@@ -364,18 +216,178 @@ s32 DoEnemyAction(void* enemy)
         mode = 0;
         interruptible = 0;
         break;
+    case 0x20:
+        mode = 0;
+        interruptible = 0;
+        break;
     case 0x1F:
         mode = 0;
         interruptible = 0;
         break;
-    case 0x20:
+    case 2:
         mode = 0;
         interruptible = 0;
+        break;
+    case 0xC:
+        mode = 0;
+        interruptible = 0;
+        if (next >= 0x1C) {
+            mode = 2;
+        } else {
+            act = 0xD;
+        }
+        break;
+    case 0xD:
+        mode = 0;
+        interruptible = 0;
+        if (next >= 0x1C) {
+            mode = 2;
+        } else {
+            if (defs[14 * 2] >= 0) {
+                act = 0xE;
+            } else {
+                if (next == 0xC) {
+                    act = 0xC;
+                }
+            }
+        }
+        break;
+    case 0xE:
+        mode = 0;
+        interruptible = 0;
+        if (next >= 0x1C) {
+            mode = 2;
+        } else {
+            act = 0xF;
+        }
+        break;
+    case 0xF:
+        mode = 0;
+        interruptible = 0;
+        if (next >= 0x1C) {
+            mode = 2;
+        } else {
+            if (next == 0xC) {
+                act = 0xC;
+            }
+        }
+        break;
+    case 0x10:
+        mode = 0;
+        interruptible = 0;
+        if (next >= 0x1C) {
+            mode = 2;
+        } else {
+            act = 0x11;
+        }
+        break;
+    case 0x11:
+        mode = 0;
+        interruptible = 0;
+        if (next >= 0x1C) {
+            mode = 2;
+        }
+        break;
+    case 0x12:
+        mode = 0;
+        interruptible = 0;
+        if (next >= 0x1C) {
+            mode = 2;
+        } else {
+            act = 0x13;
+        }
+        break;
+    case 0x13:
+        if (next == 0 && e[0xA1] >= 0) {
+            act = 0xC;
+        }
+        break;
+    case 0x14:
+        mode = 0;
+        interruptible = 0;
+        if (next >= 0x1C) {
+            mode = 2;
+        } else {
+            act = 0x15;
+        }
+        break;
+    case 0x15:
+        if (next == 0 && e[0xA1] >= 0) {
+            act = 0xC;
+        }
+        break;
+    case 0x16:
+        mode = 0;
+        interruptible = 0;
+        if (next >= 0x1C) {
+            mode = 2;
+        } else {
+            if (next == 0x16) {
+                act = 0x17;
+            }
+        }
+        break;
+    case 0x17:
+        mode = 0;
+        interruptible = 0;
+        if (next >= 0x1C) {
+            mode = 2;
+        } else {
+            if (next == 0x16) {
+                act = 0x16;
+            }
+        }
+        break;
+    case 0x18:
+        if (defs[0x18 * 2] < 0) {
+            act = 0x19;
+            cur = 0x19;
+        }
+        /* fallthrough */
+    case 0x19:
+        mode = 0;
+        interruptible = 0;
+        if (next >= 0x1C) {
+            mode = 2;
+        } else {
+            act = 0x1A;
+        }
+        break;
+    case 0x1A:
+        mode = 0;
+        interruptible = 0;
+        if (next >= 0x1C) {
+            mode = 2;
+        } else {
+            if (next == 0x18) {
+                act = 0x19;
+            } else if (next == 0) {
+                act = 0x1B;
+            }
+        }
+        break;
+    case 0x1B:
+        mode = 0;
+        interruptible = 0;
+        act = 0;
+        if (next >= 0x1C) {
+            mode = 2;
+        }
+        break;
+    case 0x21:
         break;
     }
 
     /* missing-sequence fallbacks */
     switch (act) {
+    case 0xE:
+    case 0x10:
+    case 0x12:
+    case 0x14:
+        if (defs[act * 2] < 0) {
+            act = 0xC;
+        }
+        break;
     case 3:
     case 0xB:
         if (defs[act * 2] < 0) {
@@ -395,14 +407,6 @@ s32 DoEnemyAction(void* enemy)
             act = 0;
         }
         break;
-    case 0xE:
-    case 0x10:
-    case 0x12:
-    case 0x14:
-        if (defs[act * 2] < 0) {
-            act = 0xC;
-        }
-        break;
     case 0x19:
         if (defs[act * 2] < 0) {
             act = 0x18;
@@ -412,11 +416,12 @@ s32 DoEnemyAction(void* enemy)
 
     seq = defs[act * 2];
     if (seq < 0 && act == 0x20) {
-        seq = e[0x6F];
+        seq = defs[0x3A];
     }
     if (seq < 0) {
-        seq = defs[0];
-        if (seq < 0) {
+        if (defs[0] >= 0) {
+            seq = defs[0];
+        } else {
             seq = 0;
         }
         interruptible = 1;
@@ -424,12 +429,13 @@ s32 DoEnemyAction(void* enemy)
             mode = 2;
         }
     }
-    *(s16*)((u8*)e + 0xA4) = interruptible;
-    result = AnimateATree((u8*)e + 0x6C, seq, mode);
+    *(s16*)(e70 + 0x34) = interruptible;
+    result = AnimateATree(node, seq, mode);
 
-    ret = cur;
     if (result != 0) {
         switch (cur) {
+        case 0:
+            break;
         case 0xC:
         case 0xE:
         case 0x12:
@@ -443,14 +449,14 @@ s32 DoEnemyAction(void* enemy)
                 e[0xB4] |= 2;
             }
             break;
-        case 0x16:
-            if (act == 0x17) {
-                e[0xB4] |= 0x10;
-            }
-            break;
         case 0x18:
         case 0x19:
             if (act == 0x1A) {
+                e[0xB4] |= 0x10;
+            }
+            break;
+        case 0x16:
+            if (act == 0x17) {
                 e[0xB4] |= 0x10;
             }
             break;
@@ -482,13 +488,12 @@ s32 DoEnemyAction(void* enemy)
     }
 
     if (result != 0) {
-        f32 accum = 0.0f;
         f32 dur = 0.0f;
+        f32 accum = 0.0f;
 
-        if (act > 0x17 && act < 0x1B) {
+        if (act >= 0x18 && act <= 0x1A) {
             dur = ef[0xDE] * *(f32*)(gCurLevel + 0xC0) + ef[0xE0];
         }
-        ret = act;
         if (dur > 0.0) {
             while (dur > 1.0) {
                 accum = (f32)(accum + 1.0);
@@ -497,12 +502,13 @@ s32 DoEnemyAction(void* enemy)
             ef[0xE0] = dur;
             ef[0xDF] = accum;
             if (ef[0xDF] >= 1.0) {
-                ef[0xDF] = (f32)(0.0333333333 * (s32)*(s16*)((u8*)e + 0x80) +
+                ef[0xDF] = (f32)(0.0333333333 * (s32)*(s16*)(e70 + 0x10) +
                                  ef[0xDF]);
             }
         }
+        return act;
     }
-    return ret;
+    return cur;
 }
 
 /* 0x800AC068  player action sequencer: advances the player action state
