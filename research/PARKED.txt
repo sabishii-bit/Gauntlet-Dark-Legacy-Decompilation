@@ -409,3 +409,4 @@ LoadWorldDone              # P5, 84/84: lbl_8028C9A8 address materializes via r0
 StartWorldLoad             # P5/pre-RA: param copy addi r30 hoisted above stwu in ours, after in target; L+1 (world)
 dcsSampleAllocUpload       # zero-copy idiom: target li r26,0 + addi-copies to r27/r29 (found/channel/chanoff
                            # share one li via copies); ours li x3. chained/chanoff variants regressed (dcs)
+InitAnim                   # P4 FPR-home tie on seqscale 3-mul (poolconst f3/animscale f0 vs ours swapped); assoc fix didn't rehome (anim)
