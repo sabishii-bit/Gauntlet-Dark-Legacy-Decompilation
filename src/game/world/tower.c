@@ -1218,7 +1218,7 @@ void TowerCheckMessages(s32 mode) {
                     lbl_803448AC = -1;
                     lbl_803448A8 = -1;
                 }
-                if ((s32)(shardBanked & 0xFFF) == 0xFFF &&
+                if (((s32)shardBanked & 0xFFF) == 0xFFF &&
                     (newRunes & 0x200) != 0) {
                     if ((u32)lbl_80344C64 == 0) {
                         void* atree =
@@ -1367,15 +1367,11 @@ void EnterTower(void) {
     SetPlayerStartPos(pos);
     lbl_80343E48 = -1;
     lbl_80344C48 = lbl_803485B8 + sMusicFadeBase;
-    {
-        f32 zero = lbl_80348588;
-
-        for (i = 0; i < 8; i++) {
-            state->cooldown[i] = zero;
-        }
-        for (i = 0; i < 3; i++) {
-            state->gargCooldown[i] = zero;
-        }
+    for (i = 0; i < 8; i++) {
+        state->cooldown[i] = lbl_80348588;
+    }
+    for (i = 0; i < 3; i++) {
+        *(&state->cooldown[i] + 8) = lbl_80348588;
     }
     for (j = 0; j < 3; j++) {
         req = lbl_80124D94[j];
@@ -1474,6 +1470,8 @@ void EnterTower(void) {
         object = (u8*)FindWORLDOBJ(strings + 88);
         if (object != 0) {
             GetWorldMat(*(f32**)(object + 40), world, 0);
+            {
+            f64 scale = lbl_803485C8;
             for (j = 1; j < 9; j++) {
                 if (runeMask & (1 << j)) {
                     sprintf(state->effectName, &lbl_803485C0, j);
@@ -1482,18 +1480,18 @@ void EnterTower(void) {
                         u8* e;
                         u8* ai;
 
-                        fx = StartFXSub(lbl_80348588, effect, effectState,
+                        fx = StartFXSub(lbl_80348588, effect, world + 12,
                                         0x80000, 0x800);
                         SfxSetParent(fx, gSceneRoot);
                         e = (u8*)Effects + fx * 240;
                         ai = e + 28;
                         *(f32*)(ai + 32) =
-                            (f32)(gClockTime -
-                                  lbl_803485C8 * *(s16*)(e + 44));
+                            (f32)(gClockTime - scale * *(s16*)(e + 44));
                         *(f32*)(ai + 24) = *(s16*)(ai + 16);
                         AtreeKillPsys(e + 24);
                     }
                 }
+            }
             }
         } else {
             ErrorPrintf(strings + 104);
@@ -1523,6 +1521,8 @@ void EnterTower(void) {
         object = (u8*)FindWORLDOBJ(strings + 128);
         if (object != 0) {
             GetWorldMat(*(f32**)(object + 40), world, 0);
+            {
+            f64 scale = lbl_803485C8;
             for (j = 0; j < 12; j++) {
                 if (shardMask & (1 << j)) {
                     sprintf(state->effectName, &lbl_803485D0, j + 1);
@@ -1531,17 +1531,17 @@ void EnterTower(void) {
                         u8* e;
                         u8* ai;
 
-                        fx = StartFXSub(lbl_80348588, effect, effectState,
+                        fx = StartFXSub(lbl_80348588, effect, world + 12,
                                         0x80000, 0x800);
                         SfxSetParent(fx, gSceneRoot);
                         e = (u8*)Effects + fx * 240;
                         ai = e + 28;
                         *(f32*)(ai + 32) =
-                            (f32)(gClockTime -
-                                  lbl_803485C8 * *(s16*)(ai + 16));
+                            (f32)(gClockTime - scale * *(s16*)(ai + 16));
                         *(f32*)(ai + 24) = *(s16*)(ai + 16);
                     }
                 }
+            }
             }
         } else {
             ErrorPrintf(strings + 140);
@@ -1551,17 +1551,18 @@ void EnterTower(void) {
             if (have13 != 0) {
                 u8* e;
                 u8* ai;
+                f64 scale = lbl_803485C8;
 
                 GetWorldMat(*(f32**)(object + 40), world, 0);
                 effect = InitCustomEffect(0, &lbl_803485D8, 0, 0);
                 if (object != 0 && effect >= 0) {
-                    fx = StartFXSub(lbl_80348588, effect, effectState, 0x80000,
+                    fx = StartFXSub(lbl_80348588, effect, world + 12, 0x80000,
                                     0x800);
                     SfxSetParent(fx, gSceneRoot);
                     e = (u8*)Effects + fx * 240;
                     ai = e + 28;
                     *(f32*)(ai + 32) =
-                        (f32)(gClockTime - lbl_803485C8 * *(s16*)(e + 44));
+                        (f32)(gClockTime - scale * *(s16*)(e + 44));
                     *(f32*)(ai + 24) = *(s16*)(ai + 16);
                 }
             }
