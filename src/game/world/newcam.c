@@ -120,24 +120,36 @@ typedef struct Vec3 {
  * named; offsets are read from the GC target asm.  Padded to 0x1B0 so the fields
  * stay byte-accurate for the reconstructions below.
  */
+typedef struct NcPlane {
+    Vec3 normal;
+    f32 unused;
+} NcPlane;
+
 typedef struct NcCamera {
     u8  _000[0x030];
     Vec3 position;     /* 0x030 world position */
-    u8  _03C[0x0A4 - 0x03C];
-    Vec3 attention;    /* 0x0A4 look-at point */
-    u8  _0B0[0x0DC - 0x0B0];
-    f32 level_height;  /* 0x0DC level camera height */
+    u8  _03C[0x040 - 0x03C];
+    NcPlane planes[4]; /* 0x040 frustum plane normals (CalcDist output) */
+    u8  _080[0x0A4 - 0x080];
+    Vec3 attention;    /* 0x0A4 look-at point (debug cam: translate accum) */
+    Vec3 attn_prev;    /* 0x0B0 previous attention (debug cam) */
+    Vec3 velocity;     /* 0x0BC per-frame attention step (scripted path) */
+    u8  _0C8[0x0DC - 0x0C8];
+    f32 dist_current;  /* 0x0DC clamped working distance (init: bounds max) */
     Vec3 direction;    /* 0x0E0 forward vector */
     f32 yaw;           /* 0x0EC */
-    u8  _0F0[0x0F4 - 0x0F0];
-    f32 distance;      /* 0x0F4 follow distance */
-    u8  _0F8[0x104 - 0x0F8];
+    f32 yaw_rate;      /* 0x0F0 per-frame yaw step (scripted path) */
+    f32 distance;      /* 0x0F4 smoothed follow distance */
+    f32 dist_rate;     /* 0x0F8 per-frame distance step (scripted path) */
+    u8  _0FC[0x100 - 0x0FC];
+    f32 field_100;     /* 0x100 (debug HUD "(%.2f)" value) */
     f32 pitch;         /* 0x104 */
-    u8  _108[0x10C - 0x108];
+    f32 pitch_rate;    /* 0x108 per-frame pitch step (scripted path) */
     f32 zoom;          /* 0x10C */
     f32 aspect;        /* 0x110 */
-    u8  _114[0x1A4 - 0x114];
-    s32 field_1A4;     /* 0x1A4 */
+    Vec3 ring_pos[9];  /* 0x114 attention history ring */
+    f32 ring_dist[9];  /* 0x180 distance history ring */
+    s32 field_1A4;     /* 0x1A4 history ring index (mod lbl_80343CD0) */
     s32 field_1A8;     /* 0x1A8 (reset to -1) */
     f32 field_1AC;     /* 0x1AC */
 } NcCamera;            /* 0x1B0 */
@@ -169,11 +181,17 @@ extern NcCamera* lbl_80344A6C;      /* live standard-camera pointer (frustum que
 extern NcCamera* lbl_80344A68;      /* DebugCam: pointer to the live debug camera */
 extern s32       lbl_80344A70;
 extern s32       lbl_80344A7C;      /* debug-camera active flag */
+extern s32       lbl_80344A80;      /* debug-camera controls enable */
+extern u32       lbl_80344A84;      /* debug-camera input bitmask */
+extern u32       lbl_80344A88;      /* previous input bitmask (accel ramp) */
 extern s32       lbl_80344A8C;
 extern s32       lbl_80344A90;      /* StdCam freeze flag */
 extern s32       lbl_80343CD4;
 extern f32       lbl_80343CD8;
 extern f32       lbl_80343CDC;
+extern f32       lbl_80343CE4;      /* max-distance scale (0.9375) */
+extern f32       lbl_80343CE8;      /* min-distance scale (0.8) */
+extern f32       lbl_80343CFC;      /* debug-camera speed ramp factor */
 extern void*     gCurLevel;         /* level record; +0x60 = active CAMERA* (bounds) */
 
 /* NEWCAM projection-parameter block: the live MB window pointer (mb_window.c
@@ -184,6 +202,8 @@ extern const u8 lbl_80127D30[];
 
 /* ----- external helpers (G3D math layer) ----- */
 extern double tan(double);
+extern double cos(double);
+extern double sin(double);
 extern double __frsqrte(double);
 /* rotate/derive a unit vector from a constant seed. */
 extern void YawVec3(const void* seed, Vec3* out, f32 angle);
@@ -369,6 +389,8 @@ extern s32       gGameBusy;   /* master camera-disable flag */
 extern void*     gFrameTicks;   /* camera-enable gate (nonzero to run) */
 extern s32       gGameMode;   /* camera-path mode selector (0x4010 = scripted) */
 extern s32       gScriptedCameraState;   /* scripted-path sub-state */
+extern f32*      CurTransmitter;  /* active transmitter marker record (f32 view) */
+extern s32       lbl_803447B8;    /* scripted-path done flag (cleared on finish) */
 
 /*
  * UpdateCam -- top-level per-frame camera dispatcher.  Runs only when the
@@ -422,11 +444,15 @@ s32 UpdateCam(void) {
  */
 typedef struct NcMarker {
     u8    flag;       /* 0x00 nonzero = record disabled */
-    u8    _01[3];
+    u8    dist;       /* 0x01 nonzero = fixed camera-distance override */
+    u8    _02[2];
     f32   x;          /* 0x04 */
     f32   y;          /* 0x08 */
     f32   z;          /* 0x0C */
-    u8    _10[0x24 - 0x10];
+    u8    _10[0x14 - 0x10];
+    f32   pitch;      /* 0x14 */
+    f32   yaw;        /* 0x18 */
+    u8    _1C[0x24 - 0x1C];
     void* node;       /* 0x24 scene node handle */
 } NcMarker;           /* 0x28 */
 
@@ -960,7 +986,7 @@ void fn_8006F16C(s32 initialise)
         lbl_80344A6C->attention.y = average.y;
         lbl_80344A6C->attention.z = average.z;
         lbl_80344A6C->distance = (*(f32**)((u8*)gCurLevel + 0x60))[11];
-        lbl_80344A6C->level_height = (*(f32**)((u8*)gCurLevel + 0x60))[12];
+        lbl_80344A6C->dist_current = (*(f32**)((u8*)gCurLevel + 0x60))[12];
         lbl_80344A6C->position.x =
             lbl_80344A6C->direction.x * -lbl_80344A6C->distance + lbl_80344A6C->attention.x;
         lbl_80344A6C->position.y =
@@ -1048,7 +1074,7 @@ void fn_8006F418(NcCamera* cbase, f32* target)
         cbase->position.z = target[3];
     }
 
-    cbase->level_height = (*(f32**)((u8*)gCurLevel + 0x60))[0x0C];
+    cbase->dist_current = (*(f32**)((u8*)gCurLevel + 0x60))[0x0C];
     CamLookInDir((f32*)&cbase->direction, (u32)cbase);
     MBCameraUpdate((f32*)&cbase->position, (f32*)cbase);
     MBWindowZoom(cbase->zoom);
@@ -1110,11 +1136,6 @@ void CalcFrustrumNormals(const Vec3* look, const Vec3* unused, Vec3* out, f32 fo
     out[0].y = tl.z * tr.x - tl.x * tr.z;
     out[0].z = tl.x * tr.y - tl.y * tr.x;
 }
-
-typedef struct NcPlane {
-    Vec3 normal;
-    f32 unused;
-} NcPlane;
 
 typedef struct NcLevelData {
     u8 pad_00[0x60];
@@ -1208,14 +1229,456 @@ f32 CalcDist(Vec3* look, Vec3* point, NcPlane* planes, f32 fov, f32 current)
 #undef NC_DOT
 
 /*
- * DebugCamControlInputs [0x800704EC, size 0x444] -- NOT reconstructed (giant,
- * input handling).  Reads the debug-cam input bitmask (lbl_80344A84) and, per
- * direction bit, rotates yaw (0xEC) / pitch (0x104) and translates the debug
- * camera (0xA4 / 0xAC) by the current speed (gClockFrameStep) scaled through the
- * yaw/pitch sin/cos.  Caller: fn_8006FF1C (DebugCamUpdate path).
- *
- * The remaining fn_ bodies (the fn_8006DF34 / fn_8006E654 / fn_8006F16C
- * per-mode updaters, the fn_8006DC64 frustum point-clip test, and the small
- * fn_8006ECD4 / fn_8006FBAC / fn_8006FCDC / fn_8006FE30 / fn_80070144 /
- * CamLookInDir helpers) are left as documented-only; see the .text map above.
+ * fn_8006DF34 -- standard-camera per-frame update (UpdateCam's normal path).
+ * Pulls the player average into the attention-history ring, converges yaw/pitch
+ * toward the selected trigger camera (fn_80070144), smooths the attention and
+ * follow distance over the ring (1/N average of the per-slot deltas), clamps
+ * the working distance to the level camera bounds (with the marker's fixed
+ * distance override), then rebuilds the basis and pushes the camera to the MB
+ * layer and gCameras[0].  Returns 1 while anything is still moving.
+ * [callers: UpdateCam, fn_8006F16C, fn_8006E654]
  */
+s32 fn_8006DF34(NcCamera* cam) {
+    Vec3 avg;
+    NcMarker* marker;
+    NcCameraBounds* bounds;
+    f32 yawT;
+    f32 pitchT;
+    f32 pitch;
+    f64 d;
+    f64 inv;
+    f32 sx;
+    f32 sy;
+    f32 sz;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 sd;
+    f32 dd;
+    f32 mn;
+    f32 mx;
+    s32 interp;
+    s32 moved;
+    s32 distMoved;
+    s32 count;
+    s32 end;
+    s32 idx;
+    s8 i;
+    u32 controller;
+    u32 zero;
+    u32 one;
+    u32 flags;
+
+    if (CamGetPlayerAvgPos(&avg, 5) == 0) {
+        return 1;
+    }
+
+    cam->field_1A4 = (cam->field_1A4 + 1) % lbl_80343CD0;
+    cam->ring_pos[cam->field_1A4].x = avg.x;
+    cam->ring_pos[cam->field_1A4].y = avg.y;
+    cam->ring_pos[cam->field_1A4].z = avg.z;
+
+    CamGetPlayerAvgPos(&avg, 2);
+    marker = (NcMarker*)fn_8006FCDC((f32*)&avg);
+
+    MBTreeSetAlpha(sTriggerCameras[lbl_80343CF8].node, lbl_80344A74, 0);
+    lbl_80344A74 += 8;
+
+    if (lbl_80344A78 != NULL) {
+        CopyMat4((f32*)gIdentityMatrix, (f32*)lbl_80344A78);
+        ((f32*)lbl_80344A78)[12] = avg.x;
+        ((f32*)lbl_80344A78)[13] = avg.y;
+        ((f32*)lbl_80344A78)[14] = avg.z;
+    }
+
+    if (marker != NULL) {
+        d = marker->yaw - 3.141592654;
+        if (d > 3.141592654) {
+            d -= 6.283185308;
+        } else if (d <= -3.141592654) {
+            d = 6.283185308 + d;
+        }
+        yawT = d;
+    } else {
+        yawT = 0.0f;
+    }
+
+    if (marker != NULL) {
+        pitchT = -marker->pitch;
+    } else {
+        pitchT = 0.0f;
+    }
+
+    if (lbl_80344768 > 1) {
+        f32 bound = -(*(f32**)((u8*)gCurLevel + 0x60))[2];
+        if (pitchT < bound) {
+            bound = pitchT;
+        }
+        pitchT = bound;
+    }
+
+    interp = fn_80070144(yawT, pitchT, cam);
+
+    count = lbl_80343CD0;
+    sx = 0.0f;
+    sy = 0.0f;
+    sz = 0.0f;
+    i = cam->field_1A4;
+    end = cam->field_1A4 + count;
+    for (; i < end; i++) {
+        idx = i % count;
+        sx += cam->ring_pos[idx].x - cam->attention.x;
+        sy += cam->ring_pos[idx].y - cam->attention.y;
+        sz += cam->ring_pos[idx].z - cam->attention.z;
+    }
+    inv = 1.0 / count;
+    moved = 1;
+    dx = sx * inv;
+    dy = sy * inv;
+    dz = sz * inv;
+    cam->attention.x += dx;
+    cam->attention.y += dy;
+    cam->attention.z += dz;
+    if (dx == 0.0 && dy == 0.0 && dz == 0.0) {
+        moved = 0;
+    }
+
+    bounds = ((NcLevelData*)gCurLevel)->camera;
+    mn = bounds->minimum_distance;
+    mx = bounds->maximum_distance;
+    if (mn >= mx) {
+        cam->dist_current = mn;
+    } else if (lbl_80344768 == 1 && lbl_80344A8C == 0) {
+        cam->dist_current = mn * lbl_80343CE8;
+    } else if (marker->dist == 0) {
+        cam->dist_current = mx * lbl_80343CE4;
+    } else {
+        cam->dist_current = marker->dist;
+    }
+
+    cam->ring_dist[cam->field_1A4] =
+        CalcDist(&cam->direction, &cam->ring_pos[cam->field_1A4], cam->planes,
+                 cam->yaw, cam->dist_current);
+
+    count = lbl_80343CD0;
+    sd = 0.0f;
+    i = cam->field_1A4;
+    end = cam->field_1A4 + count;
+    for (; i < end; i++) {
+        idx = i % count;
+        sd += cam->ring_dist[idx] - cam->distance;
+    }
+    inv = 1.0 / count;
+    dd = sd * inv;
+    cam->distance += dd;
+    distMoved = dd != 0.0;
+
+    pitch = cam->pitch;
+    YawVec3(lbl_80127D40, &cam->direction, -cam->yaw);
+    PitchVec3((f32*)&cam->direction, (f32*)&cam->direction, -pitch);
+    DoShake(&cam->position, &cam->attention);
+
+    cam->position.x = cam->direction.x * -cam->distance + cam->attention.x;
+    cam->position.y = cam->direction.y * -cam->distance + cam->attention.y;
+    cam->position.z = cam->direction.z * -cam->distance + cam->attention.z;
+    CamLookInDir((f32*)&cam->direction, (u32)cam);
+
+    CopyMat4((f32*)cam, &gCameras[0].mat[0][0]);
+    gCameras[0].wpos[0] = cam->position.x;
+    gCameras[0].wpos[1] = cam->position.y;
+    gCameras[0].wpos[2] = cam->position.z;
+    gCameras[0].attn[0] = cam->attention.x;
+    gCameras[0].attn[1] = cam->attention.y;
+    gCameras[0].attn[2] = cam->attention.z;
+    MBCameraUpdate((f32*)&cam->position, (f32*)cam);
+    MBWindowZoom(cam->zoom);
+    if (cam->aspect > 0.0) {
+        MBWindowProjection(
+            0.31830988614222805 * (180.0 * cam->zoom),
+            1.0 / cam->aspect);
+    }
+
+    controller = gControllerButtons;
+    zero = 0;
+    one = 1;
+    flags = sFlags;
+    if ((NcMaskMismatch(NcApplyMask(flags, one), zero) |
+         NcMaskMismatch(controller & zero, zero)) != 0) {
+        dbgTextPrintfCell(
+            0xFFFF00, 1, 0x20, lbl_801137D0,
+            0.31830988614222805 * (180.0 * cam->yaw),
+            0.31830988614222805 * (180.0 * cam->pitch),
+            cam->distance, cam->field_100,
+            cam->attention.x, cam->attention.y, cam->attention.z);
+    }
+
+    if (distMoved != 0 || interp != 0) {
+        return 1;
+    }
+    if (moved != 0) {
+        return 1;
+    }
+    return 0;
+}
+
+/*
+ * fn_8006E654 -- scripted-camera-path update (UpdateCam's gGameMode 0x4010
+ * sub-state 1).  On the first frame (lbl_80344A70 == lbl_80343CD4) it builds a
+ * scratch camera at the active transmitter, converges it, and derives the
+ * per-frame yaw/pitch/distance/attention rates to walk the live camera over
+ * lbl_80343CD4 frames; every frame it integrates those rates, re-rings the
+ * history, and pushes the result out.  When the countdown expires it
+ * re-converges (9 ticks), clears the scripted state, and stops the path.
+ * [caller: UpdateCam]
+ */
+void fn_8006E654(void) {
+    NcCamera tmp;
+    NcCamera* cam;
+    f64 d;
+    f32 pitch;
+    s32 iter;
+    s32 ok;
+    s32 result;
+    s32 i;
+    u32 controller;
+    u32 zero;
+    u32 one;
+    u32 flags;
+
+    if (lbl_80344A70 == lbl_80343CD4) {
+        CamReset(&tmp);
+        fn_8006F418(&tmp, CurTransmitter);
+
+        iter = 0;
+        ok = 0;
+        while (ok < lbl_80343CD0 && iter < 100) {
+            result = fn_8006DF34(&tmp);
+            pbUpdateMatricies();
+            if (result != 0) {
+                ok = 0;
+            } else {
+                ok++;
+            }
+            iter++;
+        }
+
+        cam = lbl_80344A6C;
+        d = tmp.yaw - cam->yaw;
+        if (d > 3.141592654) {
+            d -= 6.283185308;
+        } else if (d <= -3.141592654) {
+            d = 6.283185308 + d;
+        }
+        cam->yaw_rate = d / lbl_80343CD4;
+
+        d = tmp.pitch - cam->pitch;
+        if (d > 3.141592654) {
+            d -= 6.283185308;
+        } else if (d <= -3.141592654) {
+            d = 6.283185308 + d;
+        }
+        cam->pitch_rate = d / lbl_80343CD4;
+
+        cam->dist_rate = (tmp.distance - cam->distance) / lbl_80343CD4;
+
+        cam->velocity.x = tmp.attention.x - cam->attention.x;
+        cam->velocity.y = tmp.attention.y - cam->attention.y;
+        cam->velocity.z = tmp.attention.z - cam->attention.z;
+        cam->velocity.x = cam->velocity.x * (1.0 / lbl_80343CD4);
+        cam->velocity.y = cam->velocity.y * (1.0 / lbl_80343CD4);
+        cam->velocity.z = cam->velocity.z * (1.0 / lbl_80343CD4);
+    }
+
+    cam = lbl_80344A6C;
+    d = cam->yaw + cam->yaw_rate;
+    if (d > 3.141592654) {
+        d -= 6.283185308;
+    } else if (d <= -3.141592654) {
+        d = 6.283185308 + d;
+    }
+    cam->yaw = d;
+
+    d = cam->pitch + cam->pitch_rate;
+    if (d > 3.141592654) {
+        d -= 6.283185308;
+    } else if (d <= -3.141592654) {
+        d = 6.283185308 + d;
+    }
+    cam->pitch = d;
+
+    cam->distance += cam->dist_rate;
+    cam->attention.x += cam->velocity.x;
+    cam->attention.y += cam->velocity.y;
+    cam->attention.z += cam->velocity.z;
+
+    cam->field_1A4 = (cam->field_1A4 + 1) % lbl_80343CD0;
+    cam->ring_pos[cam->field_1A4].x = cam->attention.x;
+    cam->ring_pos[cam->field_1A4].y = cam->attention.y;
+    cam->ring_pos[cam->field_1A4].z = cam->attention.z;
+    cam->ring_dist[cam->field_1A4] = cam->distance;
+
+    pitch = cam->pitch;
+    YawVec3(lbl_80127D40, &cam->direction, -cam->yaw);
+    PitchVec3((f32*)&cam->direction, (f32*)&cam->direction, -pitch);
+    DoShake(&cam->position, &cam->attention);
+
+    cam->position.x = cam->direction.x * -cam->distance + cam->attention.x;
+    cam->position.y = cam->direction.y * -cam->distance + cam->attention.y;
+    cam->position.z = cam->direction.z * -cam->distance + cam->attention.z;
+    CamLookInDir((f32*)&cam->direction, (u32)cam);
+
+    CopyMat4((f32*)cam, &gCameras[0].mat[0][0]);
+    gCameras[0].wpos[0] = cam->position.x;
+    gCameras[0].wpos[1] = cam->position.y;
+    gCameras[0].wpos[2] = cam->position.z;
+    gCameras[0].attn[0] = cam->attention.x;
+    gCameras[0].attn[1] = cam->attention.y;
+    gCameras[0].attn[2] = cam->attention.z;
+    MBCameraUpdate((f32*)&cam->position, (f32*)cam);
+    MBWindowZoom(cam->zoom);
+    if (cam->aspect > 0.0) {
+        MBWindowProjection(
+            0.31830988614222805 * (180.0 * cam->zoom),
+            1.0 / cam->aspect);
+    }
+
+    controller = gControllerButtons;
+    zero = 0;
+    one = 1;
+    flags = sFlags;
+    if ((NcMaskMismatch(NcApplyMask(flags, one), zero) |
+         NcMaskMismatch(controller & zero, zero)) != 0) {
+        dbgTextPrintfCell(
+            0xFFFF00, 1, 0x20, lbl_801137D0,
+            0.31830988614222805 * (180.0 * cam->yaw),
+            0.31830988614222805 * (180.0 * cam->pitch),
+            cam->distance, cam->field_100,
+            cam->attention.x, cam->attention.y, cam->attention.z);
+    }
+
+    if (lbl_80344A70 <= 0) {
+        for (i = 0; i < 9; i++) {
+            fn_8006DF34(lbl_80344A6C);
+            pbUpdateMatricies();
+        }
+        lbl_803447B8 = 0;
+        lbl_80344A70--;
+        gScriptedCameraState = 0;
+    }
+    lbl_80344A70--;
+}
+
+/*
+ * DebugCamControlInputs -- per-button-bit debug camera driver.  Clamps the
+ * frame step (min 0.0333), precomputes cos/sin of the debug camera yaw/pitch,
+ * then per rlwinm-tested bit of the input bitmask (lbl_80344A84): bit 0x40000
+ * resets the camera; an unchanged bitmask ramps the speed factor
+ * (lbl_80343CFC += 0.05, else reset to 0.5); 0xC/0x3 rotate yaw, 0xF0/0x30
+ * rotate pitch (0.349 rad/s scaled); 0x4000000/0x1000000 strafe, 0x8000000/
+ * 0x2000000 drive forward/back, 0x400000/0x800000 fly up/down (all at 10x the
+ * scaled speed through the trig terms); 0x100000/0x200000 adjust the zoom.
+ * Finally it mirrors the translate into attn_prev and wraps yaw/pitch into
+ * [-PI,PI].  [caller: fn_8006FF1C]
+ */
+void DebugCamControlInputs(void) {
+    f32 speed;
+    f64 cyaw;
+    f64 syaw;
+    f64 cpitch;
+    f64 spitch;
+    f64 d;
+    f64 step;
+    u8 unused[32];
+
+    step = gClockFrameStep;
+    if (step <= 0.0333) {
+        step = 0.0333;
+    }
+    speed = step;
+    cyaw = cos(lbl_80344A68->yaw);
+    syaw = sin(lbl_80344A68->yaw);
+    cpitch = cos(lbl_80344A68->pitch);
+    spitch = sin(lbl_80344A68->pitch);
+
+    if (lbl_80344A80 == 0) {
+        return;
+    }
+
+    if (lbl_80344A84 & 0x40000) {
+        CamReset(lbl_80344A68);
+    }
+    if (lbl_80344A84 == lbl_80344A88) {
+        lbl_80343CFC += 0.05;
+    } else {
+        lbl_80343CFC = 0.5f;
+    }
+    lbl_80344A88 = lbl_80344A84;
+    speed = speed * lbl_80343CFC;
+
+    if (lbl_80344A84 & 0xC) {
+        lbl_80344A68->yaw += 0.3490658504444445 * speed;
+    }
+    if (lbl_80344A84 & 0x3) {
+        lbl_80344A68->yaw -= 0.3490658504444445 * speed;
+    }
+    if (lbl_80344A84 & 0xC0) {
+        lbl_80344A68->pitch += 0.3490658504444445 * speed;
+    }
+    if (lbl_80344A84 & 0x30) {
+        lbl_80344A68->pitch -= 0.3490658504444445 * speed;
+    }
+    if (lbl_80344A84 & 0x4000000) {
+        lbl_80344A68->attention.x -= 10.0 * cyaw * speed;
+        lbl_80344A68->attention.z += 10.0 * syaw * speed;
+    }
+    if (lbl_80344A84 & 0x1000000) {
+        lbl_80344A68->attention.x += 10.0 * cyaw * speed;
+        lbl_80344A68->attention.z -= 10.0 * syaw * speed;
+    }
+    if (lbl_80344A84 & 0x8000000) {
+        lbl_80344A68->attention.x += 10.0 * syaw * speed;
+        lbl_80344A68->attention.y += 10.0 * spitch * speed;
+        lbl_80344A68->attention.z += 10.0 * cyaw * speed;
+    }
+    if (lbl_80344A84 & 0x2000000) {
+        lbl_80344A68->attention.x -= 10.0 * syaw * speed;
+        lbl_80344A68->attention.y -= 10.0 * spitch * speed;
+        lbl_80344A68->attention.z -= 10.0 * cyaw * speed;
+    }
+    if (lbl_80344A84 & 0x400000) {
+        lbl_80344A68->attention.x -= speed * (10.0 * syaw * spitch);
+        lbl_80344A68->attention.y += 10.0 * cpitch * speed;
+        lbl_80344A68->attention.z -= speed * (10.0 * cyaw * spitch);
+    }
+    if (lbl_80344A84 & 0x800000) {
+        lbl_80344A68->attention.x += speed * (10.0 * syaw * spitch);
+        lbl_80344A68->attention.y -= 10.0 * cpitch * speed;
+        lbl_80344A68->attention.z += speed * (10.0 * cyaw * spitch);
+    }
+    if (lbl_80344A84 & 0x100000) {
+        lbl_80344A68->zoom += (f64)speed;
+    }
+    if (lbl_80344A84 & 0x200000) {
+        lbl_80344A68->zoom -= (f64)speed;
+    }
+
+    lbl_80344A68->attn_prev.x = lbl_80344A68->attention.x;
+    lbl_80344A68->attn_prev.y = lbl_80344A68->attention.y;
+    lbl_80344A68->attn_prev.z = lbl_80344A68->attention.z;
+
+    d = lbl_80344A68->yaw;
+    if (d > 3.141592654) {
+        d -= 6.283185308;
+    } else if (d <= -3.141592654) {
+        d = 6.283185308 + d;
+    }
+    lbl_80344A68->yaw = d;
+
+    d = lbl_80344A68->pitch;
+    if (d > 3.141592654) {
+        d -= 6.283185308;
+    } else if (d <= -3.141592654) {
+        d = 6.283185308 + d;
+    }
+    lbl_80344A68->pitch = d;
+}
