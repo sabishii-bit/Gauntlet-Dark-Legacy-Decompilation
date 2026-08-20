@@ -57,13 +57,9 @@ extern s32 lbl_80344F80;
 /* Reset the overlay state. */
 void dbgTextInit(void)
 {
-    asm {
-        li r0,0
-        lis r3,255
-        stw r0,dbgTextActive(r0)
-        stw r3,dbgTextColor(r0)
-        stw r0,dbgTextLine(r0)
-    }
+    dbgTextActive = 0;
+    dbgTextColor = 0x00FF0000;
+    dbgTextLine = 0;
 }
 
 /* Formatted debug text at (cell x, cell line); line==-1 auto-advances. */

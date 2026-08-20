@@ -448,24 +448,15 @@ s32 CalcAnimation(register u8* mtx, register u8* pose, u32* p3,
                   register animinfo* info, u32 p5, s32 p6)
 {
     s32 ok;
-    register u8* poseLocal;
-    register u8* pyrMtx;
-    register f32* pyr;
-    register u8* xyzMtx;
-    register f32* xyz;
-    register u8* xyzMtx2;
-    register animinfo* infoLocal;
+    register u8* poseLocal = pose;
+    register u8* pyrMtx = mtx + 48;
+    register f32* pyr = (f32*)(pose + 16);
+    register u8* xyzMtx = mtx + 96;
+    register f32* xyz = (f32*)(pose + 32);
+    register u8* xyzMtx2 = mtx + 144;
+    register animinfo* infoLocal = info;
     f32 tf;
 
-    asm {
-        mr poseLocal, pose
-        mr infoLocal, info
-        addi pyrMtx, mtx, 48
-        addi pyr, poseLocal, 16
-        addi xyzMtx, mtx, 96
-        addi xyz, poseLocal, 32
-        addi xyzMtx2, mtx, 144
-    }
     tf = info->transfrac;
     ok = GetAnimAngXYZVal(info->frame, mtx, pose, p3, p5, p6,
                           info->numframes);

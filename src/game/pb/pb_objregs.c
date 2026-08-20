@@ -1748,7 +1748,6 @@ void fn_800C6960(void)
     if (g->hook14) {
         return;
     }
-    asm {}
     g->hook14 = lbl_803450B8;
 }
 
@@ -1763,7 +1762,6 @@ void fn_800C698C(void)
     if (g->hook20) {
         return;
     }
-    asm {}
     g->hook20 = lbl_803450C0;
 }
 
@@ -1778,7 +1776,6 @@ void fn_800C69B8(void)
     if (g->hook24) {
         return;
     }
-    asm {}
     g->hook24 = lbl_803450C8;
 }
 
@@ -1793,7 +1790,6 @@ void fn_800C69E4(void)
     if (g->hook34) {
         return;
     }
-    asm {}
     g->hook34 = lbl_803450D0;
 }
 
