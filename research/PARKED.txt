@@ -413,3 +413,5 @@ InitAnim                   # P4 FPR-home tie on seqscale 3-mul (poolconst f3/ani
 fn_800DB0F8                # sched, 25/25: volatile-param spill vs callee-save order in prologue (movieplayer)
 DoPolyInst                 # P6 goto-pair family (bge/b pairs unreachable in C; was asm-device exact) (mb_poly)
 fn_800D967C                # renum, vtable double-deref: intermediate lands r6 vs target r12-reuse (movieplayer)
+getNewPosRectShare         # P9, lhz 32(r3) load-order swap vs 34(r3) (mb_particle)
+getNewDirConeUnique        # P9, lhz 48(r3) load-order swap vs mr/lwz pair (mb_particle)
