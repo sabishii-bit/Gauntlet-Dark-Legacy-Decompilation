@@ -916,7 +916,6 @@ void fn_800C33D0(void)
     if (g->m60) {
         return;
     }
-    asm {}
     g->m60 = &lbl_80344FB8;
 }
 
