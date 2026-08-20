@@ -933,6 +933,21 @@ void TowerNeedCrystalsMsg(int who, int slot) {
     }
 }
 
+/* Summon the good wizard's WIZARD atree + node once (shared helper, inlined
+ * at every call site in the original TU). */
+static void towerSummonWizard(TowerMsgState* state) {
+    if ((u32)lbl_80344C64 == 0) {
+        void* atree = (void*)AtreeMatch(sGoodWizObj, (char*)&lbl_803485A4, 0);
+
+        if (atree != 0) {
+            state->wizAtree = (void*)AtreeInit(atree, &state->wizAtree, 0,
+                                               0xC00880);
+            lbl_80344C64 = (s32)MBNewNode(gSceneRoot, gIdentityMatrix, 1);
+            MBNodeSetParent(*(void**)state->wizAtree, (void*)lbl_80344C64);
+        }
+    }
+}
+
 /* Per-frame tower message/state dispatcher.  Served by do_players; drives
  * caption resets, Sumner animation matching, world-object lookups and the
  * speech/level-up/effect helpers (SumnerDoSpeech/SumnerSpeechEnd/
@@ -1111,10 +1126,9 @@ void TowerCheckMessages(s32 mode) {
                 if (p->state != 0 &&
                     *(u32*)((u8*)p + 0xF0) != (u32)lbl_80343D6C) {
                     u8* rec = (u8*)p + p->character * 240;
-                    u32 v = p->runes;
 
-                    runeGot |= v;
-                    *(u16*)(rec + 3540) |= v;
+                    runeGot |= p->runes;
+                    *(u16*)(rec + 3540) |= p->runes;
                     runeBanked |= *(u16*)(rec + 8736);
                     *(u16*)((u8*)p + p->character * 240 + 8736) |= p->runes;
                 }
@@ -1122,20 +1136,7 @@ void TowerCheckMessages(s32 mode) {
             newRunes = (u16)((u16)runeGot & ((u16)runeGot ^ (u16)runeBanked));
             for (rune = 1; rune <= 8; rune++) {
                 if (newRunes & (1 << rune)) {
-                    if ((u32)lbl_80344C64 == 0) {
-                        void* atree =
-                            (void*)AtreeMatch(sGoodWizObj, (char*)&lbl_803485A4, 0);
-
-                        if (atree != 0) {
-                            state->wizAtree =
-                                (void*)AtreeInit(atree, &state->wizAtree, 0,
-                                                 0xC00880);
-                            lbl_80344C64 =
-                                (s32)MBNewNode(gSceneRoot, gIdentityMatrix, 1);
-                            MBNodeSetParent(*(void**)state->wizAtree,
-                                            (void*)lbl_80344C64);
-                        }
-                    }
+                    towerSummonWizard(state);
                     lbl_80344C6C = rune;
                     lbl_80344C68 = lbl_80348590;
                     lbl_80344C70 = 0;
@@ -1151,10 +1152,9 @@ void TowerCheckMessages(s32 mode) {
                 if (p->state != 0 &&
                     *(u32*)((u8*)p + 0xF0) != (u32)lbl_80343D6C) {
                     u8* rec = (u8*)p + p->character * 240;
-                    u32 v = p->shards;
 
-                    shardGot |= v;
-                    *(u16*)(rec + 3542) |= v;
+                    shardGot |= p->shards;
+                    *(u16*)(rec + 3542) |= p->shards;
                     shardBanked |= *(u16*)(rec + 8738);
                     *(u16*)((u8*)p + p->character * 240 + 8738) |= p->shards;
                 }
@@ -1163,20 +1163,7 @@ void TowerCheckMessages(s32 mode) {
             newShards = (u16)((u16)shardGot & ((u16)shardGot ^ (u16)shardBanked));
             for (shard = 0; shard < 13; shard++) {
                 if (newShards & (1 << shard)) {
-                    if ((u32)lbl_80344C64 == 0) {
-                        void* atree =
-                            (void*)AtreeMatch(sGoodWizObj, (char*)&lbl_803485A4, 0);
-
-                        if (atree != 0) {
-                            state->wizAtree =
-                                (void*)AtreeInit(atree, &state->wizAtree, 0,
-                                                 0xC00880);
-                            lbl_80344C64 =
-                                (s32)MBNewNode(gSceneRoot, gIdentityMatrix, 1);
-                            MBNodeSetParent(*(void**)state->wizAtree,
-                                            (void*)lbl_80344C64);
-                        }
-                    }
+                    towerSummonWizard(state);
                     if (shard <= 13) {
                         lbl_80344C6C = shard + 100;
                         lbl_80344C68 = lbl_80348590;
@@ -1195,20 +1182,7 @@ void TowerCheckMessages(s32 mode) {
             if (shard == 13) {
                 if (lbl_803448AC == 8 && lbl_803448A8 == 2 &&
                     !(shardBanked & 0x1000)) {
-                    if ((u32)lbl_80344C64 == 0) {
-                        void* atree =
-                            (void*)AtreeMatch(sGoodWizObj, (char*)&lbl_803485A4, 0);
-
-                        if (atree != 0) {
-                            state->wizAtree =
-                                (void*)AtreeInit(atree, &state->wizAtree, 0,
-                                                 0xC00880);
-                            lbl_80344C64 =
-                                (s32)MBNewNode(gSceneRoot, gIdentityMatrix, 1);
-                            MBNodeSetParent(*(void**)state->wizAtree,
-                                            (void*)lbl_80344C64);
-                        }
-                    }
+                    towerSummonWizard(state);
                     lbl_80344C6C = 113;
                     lbl_80344C68 = lbl_80348590;
                     lbl_80344C70 = 0;
@@ -1220,20 +1194,7 @@ void TowerCheckMessages(s32 mode) {
                 }
                 if (((s32)shardBanked & 0xFFF) == 0xFFF &&
                     (newRunes & 0x200) != 0) {
-                    if ((u32)lbl_80344C64 == 0) {
-                        void* atree =
-                            (void*)AtreeMatch(sGoodWizObj, (char*)&lbl_803485A4, 0);
-
-                        if (atree != 0) {
-                            state->wizAtree =
-                                (void*)AtreeInit(atree, &state->wizAtree, 0,
-                                                 0xC00880);
-                            lbl_80344C64 =
-                                (s32)MBNewNode(gSceneRoot, gIdentityMatrix, 1);
-                            MBNodeSetParent(*(void**)state->wizAtree,
-                                            (void*)lbl_80344C64);
-                        }
-                    }
+                    towerSummonWizard(state);
                     lbl_80344C6C = 114;
                     lbl_80344C68 = lbl_80348588;
                     SumnerSpeechEnd();
@@ -1371,7 +1332,7 @@ void EnterTower(void) {
         state->cooldown[i] = lbl_80348588;
     }
     for (i = 0; i < 3; i++) {
-        *(&state->cooldown[i] + 8) = lbl_80348588;
+        ((f32*)((u8*)state + i * 4))[8] = lbl_80348588;
     }
     for (j = 0; j < 3; j++) {
         req = lbl_80124D94[j];
@@ -1497,7 +1458,7 @@ void EnterTower(void) {
             ErrorPrintf(strings + 104);
         }
     }
-    if ((runes & 0x1FE) != 0x1FE) {
+    if (((s32)runes & 0x1FE) != 0x1FE) {
         MBTreeSetFlags(*(void**)((u8*)FindWORLDOBJ(strings + 44) + 40), 2, 0);
     }
     shards = 0;
