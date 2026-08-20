@@ -140,6 +140,7 @@ void AudioWithName(int id, int pidx, f32 vol, int s4, int s5)
 {
     u8* player = &gPlayers[pidx * 0x335C];
     s32* T = (s32*)sSpeechNameBuf;
+    s32 (*T16)[16] = (s32(*)[16])sSpeechNameBuf;
     int track;
     int flag;
     int f12;
@@ -156,10 +157,10 @@ void AudioWithName(int id, int pidx, f32 vol, int s4, int s5)
         b = (id != -1) ? 0x1002A : 0x1002B;
     } else if (sCurSelectTrack != 0) {
         a = (id != -1) ? T[cls + 164] : T[cls + 168];
-        b = (id != -1) ? T[cls * 16 + f12 + 172] : T[cls * 16 + f12 + 236];
+        b = (id != -1) ? T16[cls][f12 + 172] : T16[cls][f12 + 236];
     } else {
         a = (id != -1) ? T[cls + 28] : T[cls + 32];
-        b = (id != -1) ? T[cls * 16 + f12 + 36] : T[cls * 16 + f12 + 100];
+        b = (id != -1) ? T16[cls][f12 + 36] : T16[cls][f12 + 100];
     }
 
     if (id >= 0) {
