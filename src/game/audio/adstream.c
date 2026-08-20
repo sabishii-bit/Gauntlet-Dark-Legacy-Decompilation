@@ -558,6 +558,7 @@ s32 _AdsThread(void) {
     u32 i;
     ADSTREAM* base = &gADS;
     s32 sv;
+    s32 lock;
     u8 unused[8];
 
     s = 0;
@@ -576,7 +577,7 @@ s32 _AdsThread(void) {
     }
     switch (s->status) {
     case 0x2000:
-        dcsMemLockOwner(0, 0);
+        lock = dcsMemLockOwner(0, 0);
         if (s->keyCount != 0) {
             i = 0;
             s->keyCount = i;
@@ -596,7 +597,7 @@ s32 _AdsThread(void) {
             dcsMemLockOwner(0, 1);
             adsFeed(s);
         } else {
-            dcsMemLockOwner(0);
+            dcsMemLockOwner(0, lock);
         }
         break;
     case 0x1000:
