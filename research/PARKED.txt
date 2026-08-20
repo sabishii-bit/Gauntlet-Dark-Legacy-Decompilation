@@ -410,3 +410,4 @@ StartWorldLoad             # P5/pre-RA: param copy addi r30 hoisted above stwu i
 dcsSampleAllocUpload       # zero-copy idiom: target li r26,0 + addi-copies to r27/r29 (found/channel/chanoff
                            # share one li via copies); ours li x3. chained/chanoff variants regressed (dcs)
 InitAnim                   # P4 FPR-home tie on seqscale 3-mul (poolconst f3/animscale f0 vs ours swapped); assoc fix didn't rehome (anim)
+fn_800DB0F8                # sched, 25/25: volatile-param spill vs callee-save order in prologue (movieplayer)
