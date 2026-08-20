@@ -412,3 +412,4 @@ dcsSampleAllocUpload       # zero-copy idiom: target li r26,0 + addi-copies to r
 InitAnim                   # P4 FPR-home tie on seqscale 3-mul (poolconst f3/animscale f0 vs ours swapped); assoc fix didn't rehome (anim)
 fn_800DB0F8                # sched, 25/25: volatile-param spill vs callee-save order in prologue (movieplayer)
 DoPolyInst                 # P6 goto-pair family (bge/b pairs unreachable in C; was asm-device exact) (mb_poly)
+fn_800D967C                # renum, vtable double-deref: intermediate lands r6 vs target r12-reuse (movieplayer)
