@@ -2745,13 +2745,15 @@ extern char lbl_80343BF8[5];    /* level letter table */
 
 char* fn_80051E1C(s32 world, s32 lvl, s32 flag)
 {
-    char* buf = (char*)lbl_80250E00;
     s32 n;
     u32 i;
+    char* buf;
 
-    n = lvl;
+    buf = (char*)lbl_80250E00;
     if (lvl == 0) {
         n = 1;
+    } else {
+        n = lvl;
     }
     if (lvl >= 4) {
         goto chk8;
