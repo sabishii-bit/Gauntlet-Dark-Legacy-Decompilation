@@ -407,3 +407,5 @@ fn_800C1004                # isel+renum, 71/71; byte-splat (x&FF)|x<<8|x<<16|x<<
                            # Matching->NonMatching 2026-08-17 (user: no-asm directive beats link status)
 LoadWorldDone              # P5, 84/84: lbl_8028C9A8 address materializes via r0+mr to r28 (target: direct addi r28); rest is branch-offset noise (world)
 StartWorldLoad             # P5/pre-RA: param copy addi r30 hoisted above stwu in ours, after in target; L+1 (world)
+dcsSampleAllocUpload       # zero-copy idiom: target li r26,0 + addi-copies to r27/r29 (found/channel/chanoff
+                           # share one li via copies); ours li x3. chained/chanoff variants regressed (dcs)
