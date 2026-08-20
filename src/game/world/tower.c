@@ -322,54 +322,67 @@ void towerRuneNearAudio(void) {
 /* Is a world unlocked?  Checks cumulative rune/shard masks and per-player
  * level records against the world's requirement table.  Heavily called (UI). */
 int WorldOpen(int world) {
+    s32 result = 0;
     s32 requirement;
+    s32 best;
     s32 player;
-    s32 best = 0;
+    s32 met;
 
-    if (world == 8) {
-        if (PlayerHasRune(-1, 0x7FE) != 0) {
-            return 1;
-        }
-        return 0;
-    }
-    if (world == 6) {
-        if (PlayerHasRune(-1, 0x3FE) == 0) {
-            return 0;
-        }
-        if (PlayerHasShard(-1, 0xFFF) != 0) {
-            return 1;
-        }
-        return 0;
-    }
-    if (world == 5) {
+    switch (world) {
+    case 13:
+        result = 1;
+        break;
+    case 5:
         if (PlayerHasRune(-1, 0x1FE) != 0) {
-            return 1;
+            result = 1;
         }
-        return 0;
-    }
-    if (world == 13) {
-        return 1;
-    }
-
-    requirement = lbl_80124D4C[world];
-    for (player = 0; player < 4; player++) {
-        if (gPlayers[player].state != 0) {
-            s32 status = towerLevelStatus(player, requirement);
-            s32 value;
-
-            if (status != 0) {
-                return 1;
-            }
-            value = ((s16*)&TOWER_SAVE(player)->completion2)[requirement];
-            if (value > best) {
-                best = value;
+        break;
+    case 6:
+        if (PlayerHasRune(-1, 0x3FE) != 0) {
+            if (PlayerHasShard(-1, 0xFFF) != 0) {
+                result = 1;
             }
         }
+        break;
+    case 8:
+        if (PlayerHasRune(-1, 0x7FE) != 0) {
+            result = 1;
+        }
+        break;
+    default:
+        requirement = lbl_80124D4C[world];
+        best = 0;
+        for (player = best; player < 4; player++) {
+            Player* p = &gPlayers[player];
+
+            if (p->state != 0) {
+                u8* levelRecord;
+                s32 value;
+
+                if (towerLevelStatus(player, requirement) != 0) {
+                    met = 1;
+                    goto done;
+                }
+                levelRecord = (u8*)(requirement * 2);
+                value = *(s16*)(levelRecord + (s32)p + p->character * 240 +
+                                3566);
+                if (best <= value) {
+                    best = value;
+                }
+            }
+        }
+        if (best >= lbl_80124C70[requirement]) {
+            met = 1;
+        } else {
+            met = 0;
+        }
+    done:
+        if (met != 0) {
+            result = 1;
+        }
+        break;
     }
-    if (lbl_80124C70[requirement] <= best) {
-        return 1;
-    }
-    return 0;
+    return result;
 }
 
 /* Award world runes to active players after the dwell timer elapses
@@ -927,8 +940,8 @@ void TowerNeedCrystalsMsg(int who, int slot) {
 void TowerCheckMessages(s32 mode) {
     char* strings = lbl_80114D50;
     TowerMsgState* state = &lbl_8028C288;
-    s32 bosses[8];
     s32 levels[3];
+    s32 bosses[8];
     s32 i;
     s32 j;
     s32 msg;
@@ -947,7 +960,7 @@ void TowerCheckMessages(s32 mode) {
                     lbl_80344C54 = 0;
                 }
             }
-            if (lbl_80344C64 != 0) {
+            if ((u32)lbl_80344C64 != 0) {
                 AnimateATree(&state->wizAtree, lbl_80344C8C, 0);
             }
         }
@@ -1066,7 +1079,7 @@ void TowerCheckMessages(s32 mode) {
                 }
                 alpha = lbl_80344C80 * 255 / 180;
                 MBTreeSetAlpha((void*)lbl_80344C84, alpha, 1);
-                if (lbl_80344C88 != 0) {
+                if ((u32)lbl_80344C88 != 0) {
                     MBTreeSetAlpha(*(void**)(lbl_80344C88 + 100), alpha, 1);
                 }
             }
@@ -1087,8 +1100,8 @@ void TowerCheckMessages(s32 mode) {
             u32 runeBanked = 0;
             u32 shardGot = 0;
             u32 shardBanked = 0;
-            u16 newRunes;
-            u16 newShards;
+            u32 newRunes;
+            u32 newShards;
             s32 rune;
             s32 shard;
 
@@ -1097,20 +1110,16 @@ void TowerCheckMessages(s32 mode) {
 
                 if (p->state != 0 &&
                     *(u32*)((u8*)p + 0xF0) != (u32)lbl_80343D6C) {
+                    u8* rec = (u8*)p + p->character * 240;
                     u32 v = p->runes;
 
                     runeGot |= v;
-                    *(u16*)((u8*)p + p->character * 240 + 3540) |= v;
-                    runeBanked |= *(u16*)((u8*)p + p->character * 240 + 8736);
+                    *(u16*)(rec + 3540) |= v;
+                    runeBanked |= *(u16*)(rec + 8736);
                     *(u16*)((u8*)p + p->character * 240 + 8736) |= p->runes;
                 }
             }
-            {
-                u16 got16 = runeGot;
-                u16 banked16 = runeBanked;
-
-                newRunes = got16 & (got16 ^ banked16);
-            }
+            newRunes = (u16)((u16)runeGot & ((u16)runeGot ^ (u16)runeBanked));
             for (rune = 1; rune <= 8; rune++) {
                 if (newRunes & (1 << rune)) {
                     if ((u32)lbl_80344C64 == 0) {
@@ -1141,20 +1150,17 @@ void TowerCheckMessages(s32 mode) {
 
                 if (p->state != 0 &&
                     *(u32*)((u8*)p + 0xF0) != (u32)lbl_80343D6C) {
+                    u8* rec = (u8*)p + p->character * 240;
                     u32 v = p->shards;
 
                     shardGot |= v;
-                    *(u16*)((u8*)p + p->character * 240 + 3542) |= v;
-                    shardBanked |= *(u16*)((u8*)p + p->character * 240 + 8738);
+                    *(u16*)(rec + 3542) |= v;
+                    shardBanked |= *(u16*)(rec + 8738);
                     *(u16*)((u8*)p + p->character * 240 + 8738) |= p->shards;
                 }
             }
-            {
-                u16 got16 = shardGot;
-
-                shardBanked = (u16)shardBanked;
-                newShards = got16 & (got16 ^ (u16)shardBanked);
-            }
+            shardBanked = (u16)shardBanked;
+            newShards = (u16)((u16)shardGot & ((u16)shardGot ^ (u16)shardBanked));
             for (shard = 0; shard < 13; shard++) {
                 if (newShards & (1 << shard)) {
                     if ((u32)lbl_80344C64 == 0) {
@@ -1212,7 +1218,8 @@ void TowerCheckMessages(s32 mode) {
                     lbl_803448AC = -1;
                     lbl_803448A8 = -1;
                 }
-                if ((shardBanked & 0xFFF) == 0xFFF && (newRunes & 0x200) != 0) {
+                if ((s32)(shardBanked & 0xFFF) == 0xFFF &&
+                    (newRunes & 0x200) != 0) {
                     if ((u32)lbl_80344C64 == 0) {
                         void* atree =
                             (void*)AtreeMatch(sGoodWizObj, (char*)&lbl_803485A4, 0);
@@ -1239,15 +1246,17 @@ void TowerCheckMessages(s32 mode) {
         if (sMusicFadeBase - lbl_80344C48 >= 3.0) {
             for (j = 0; j < 3; j++) {
                 s32* best = &levels[j];
+                u32 curWorld = lbl_80343D6C;
 
                 *best = 0;
                 for (i = 0; i < 4; i++) {
                     Player* p = &gPlayers[i];
 
                     if (p->state != 0 &&
-                        *(u32*)((u8*)p + 0xF0) != (u32)lbl_80343D6C) {
-                        s16 val =
-                            *(s16*)((u8*)p + p->character * 240 + 3560 + j * 2);
+                        *(u32*)((u8*)p + 0xF0) != curWorld) {
+                        u8* levelRecord = (u8*)(j * 2);
+                        s32 val = *(s16*)(levelRecord + (s32)p +
+                                          p->character * 240 + 3560);
 
                         if (*best >= 0 && (val < 0 || val > *best)) {
                             *best = val;
@@ -1275,15 +1284,17 @@ void TowerCheckMessages(s32 mode) {
             for (j = 0; j < 8; j++) {
                 if (lbl_80124C70[j] != 0) {
                     s32* best = &bosses[j];
+                    u32 curWorld = lbl_80343D6C;
 
                     *best = 0;
                     for (i = 0; i < 4; i++) {
                         Player* p = &gPlayers[i];
 
                         if (p->state != 0 &&
-                            *(u32*)((u8*)p + 0xF0) != (u32)lbl_80343D6C) {
-                            s16 val = *(s16*)((u8*)p + p->character * 240 +
-                                              3566 + j * 2);
+                            *(u32*)((u8*)p + 0xF0) != curWorld) {
+                            u8* levelRecord = (u8*)(j * 2);
+                            s32 val = *(s16*)(levelRecord + (s32)p +
+                                              p->character * 240 + 3566);
 
                             if (*best >= 0 && (val < 0 || val > *best)) {
                                 *best = val;
@@ -1381,7 +1392,9 @@ void EnterTower(void) {
             } else if (*(u32*)((u8*)p + 0xF0) == (u32)lbl_80343D6C) {
                 st = 2;
             } else {
-                s32 val = ((s16*)((u8*)p + p->character * 240 + 3560))[j];
+                u8* levelRecord = (u8*)(j * 2);
+                s32 val = *(s16*)(levelRecord + (s32)p + p->character * 240 +
+                                  3560);
 
                 if (val < 0) {
                     st = 2;
@@ -1422,7 +1435,9 @@ void EnterTower(void) {
                 } else if (*(u32*)((u8*)p + 0xF0) == (u32)lbl_80343D6C) {
                     st = 2;
                 } else {
-                    s32 val = ((s16*)((u8*)p + p->character * 240 + 3566))[j];
+                    u8* levelRecord = (u8*)(j * 2);
+                    s32 val = *(s16*)(levelRecord + (s32)p + p->character * 240 +
+                                      3566);
 
                     if (val < 0) {
                         st = 2;
