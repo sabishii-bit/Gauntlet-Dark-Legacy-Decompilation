@@ -305,7 +305,6 @@ void fn_800C0F70(void)
     if (g->proj) {
         return;
     }
-    asm {}
     g->proj = (PbWGProj*)lbl_802C4DA0;
 }
 
@@ -337,7 +336,6 @@ void fn_800C0FE8(void)
     if (g->hook28) {
         return;
     }
-    asm {}
     g->hook28 = lbl_80344F88;
 }
 
