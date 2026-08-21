@@ -164,10 +164,19 @@ typedef struct NcPlayer {
     f32 pos[3];        /* 0x044 world position (x,y,z) */
     u8  _050[0x054 - 0x050];
     f32 campos[3];     /* 0x054 camera-follow target */
-    u8  _060[0x0DC - 0x060];
+    u8  _060[0x064 - 0x060];
+    Vec3 clip_pos;     /* 0x064 collision origin used by camera clipping */
+    u8  _070[0x0DC - 0x070];
     f32 altpos[3];     /* 0x0DC alternate follow target (when flag 0x964 bit26 set) */
     s32 state;         /* 0x0E8 1=active 4=(also camera-tracked) */
-    u8  _0EC[0x964 - 0x0EC];
+    u8  _0EC[0x850 - 0x0EC];
+    f32 collision_radius; /* 0x850 */
+    f32 collision_height; /* 0x854 */
+    u8  _858[0x8B4 - 0x858];
+    f32 floor_y;       /* 0x8B4 */
+    u8  _8B8[0x8CC - 0x8B8];
+    f32 camera_floor_y; /* 0x8CC */
+    u8  _8D0[0x964 - 0x8D0];
     s16 ncflags;       /* 0x964 bit26 selects altpos and excludes from GetPlayerAvgPos */
     u8  _966[0x335C - 0x966];
 } NcPlayer;            /* 0x335C */
@@ -245,14 +254,21 @@ extern void FatalError(char* message, s32 code);
 
 /* normalize a Vec3 in place, returning its original length (ps2/ml_fmath.c). */
 extern f32 SlowNormalVector(f32* vector);
+extern f32 NormalVector(f32* vector);
+extern void* PlayerWallCollide(f32 radius, void* from, void* to, f32* normal);
+extern s32 PlayerCollideFloor(NcPlayer* player, Vec3* pos, Vec3* delta, s32 mode,
+                              f32 radius, f32 height);
 
 extern s32 lbl_80343CE0;   /* slow-motion / time-scaling enable */
 extern s32 lbl_80343CD0;   /* consecutive successful camera updates required */
 extern f32 gClockFrameStep; /* time scale (frame delta) */
 extern s32 lbl_80343CEC;   /* interpolation frame count (divisor) */
 extern s32 lbl_80343CF8;   /* active marker index (also the 3D selector) */
+extern f32 lbl_80343CF0;   /* maximum camera-correction slope */
 extern s32 lbl_80344768;
 extern u8  lbl_80344A74;
+extern f32 lbl_80344B34;
+extern void* lbl_80344B38;
 extern s32 gControllerButtons;
 extern s32 sFlags;
 extern char lbl_801137D0[];
@@ -694,6 +710,121 @@ void fn_8006ECD4(void) {
  */
 s32 fn_8006DC2C(NcPlayer* player, f32* pt, s32 mode) {
     return fn_8006DC64(lbl_80344A6C, player, (Vec3*)pt, mode);
+}
+
+/*
+ * Clip a proposed player-relative camera displacement against the four live
+ * camera frustum planes.  Planes that face the selected player anchor promote
+ * the return value from 1 to 5.  If the displacement also points through that
+ * plane, project it onto the plane's horizontal tangent, reject the projection
+ * when it collides with the world/floor or exceeds the allowed slope, and keep
+ * the player's cached camera-floor height synchronized with the collision
+ * system.  The fourth plane uses the player's world position; the other three
+ * use the dedicated collision origin at 0x64.
+ */
+s32 fn_8006DC64(NcCamera* cam, NcPlayer* player, Vec3* pt, s32 mode) {
+    Vec3 destination;
+    Vec3 collisionNormal;
+    Vec3 horizontal;
+    u8 unused[32];
+    Vec3 cameraPos;
+    Vec3 delta;
+    f32 outputY;
+    f32 planeDot;
+    f32 moveDot;
+    f32 lengthSq;
+    f32 limitSq;
+    f32 correction;
+    s32 result;
+    s32 i;
+
+    cameraPos.x = cam->direction.x * -cam->dist_current + cam->attention.x;
+    cameraPos.y = cam->direction.y * -cam->dist_current + cam->attention.y;
+    cameraPos.z = cam->direction.z * -cam->dist_current + cam->attention.z;
+
+    delta.x = player->clip_pos.x + pt->x - cameraPos.x;
+    delta.y = player->clip_pos.y + pt->y - cameraPos.y;
+    delta.z = player->clip_pos.z + pt->z - cameraPos.z;
+    outputY = pt->y;
+    result = 1;
+
+    for (i = 0; i < 4; i++) {
+        NcPlane* plane = &cam->planes[i];
+
+        if (i == 3) {
+            delta.x = player->pos[0] + pt->x - cameraPos.x;
+            delta.y = player->pos[1] + pt->y - cameraPos.y;
+            delta.z = player->pos[2] + pt->z - cameraPos.z;
+        }
+
+        planeDot = delta.x * plane->normal.x +
+                   delta.y * plane->normal.y +
+                   delta.z * plane->normal.z;
+        if ((f64)planeDot <= 0.0) {
+            continue;
+        }
+
+        result = 5;
+        horizontal.x = plane->normal.x;
+        horizontal.y = 0.0f;
+        horizontal.z = plane->normal.z;
+        NormalVector((f32*)&horizontal);
+
+        moveDot = pt->x * plane->normal.x +
+                  pt->y * plane->normal.y +
+                  pt->z * plane->normal.z;
+        if ((f64)moveDot <= 0.0) {
+            continue;
+        }
+
+        outputY = 0.0f;
+        if (mode == 0) {
+            pt->x = 0.0f;
+            pt->y = 0.0f;
+            pt->z = 0.0f;
+            continue;
+        }
+
+        correction = -(pt->x * horizontal.x +
+                       pt->y * horizontal.y +
+                       pt->z * horizontal.z);
+        pt->x += horizontal.x * correction;
+        pt->y += horizontal.y * correction;
+        pt->z += horizontal.z * correction;
+
+        destination.x = player->clip_pos.x + pt->x;
+        destination.y = player->clip_pos.y + pt->y;
+        destination.z = player->clip_pos.z + pt->z;
+        if (PlayerWallCollide(player->collision_radius, &player->clip_pos,
+                              &destination, (f32*)&collisionNormal) != NULL ||
+            PlayerCollideFloor(player, &player->clip_pos, pt, 1,
+                               player->collision_radius,
+                               player->collision_height) <= 0) {
+            pt->x = 0.0f;
+            pt->y = 0.0f;
+            pt->z = 0.0f;
+        }
+
+        moveDot = pt->x * plane->normal.x +
+                  pt->y * plane->normal.y +
+                  pt->z * plane->normal.z;
+        lengthSq = pt->x * pt->x + pt->y * pt->y + pt->z * pt->z;
+        limitSq = lbl_80343CF0 * lbl_80343CF0 * lengthSq;
+        if (moveDot * moveDot > limitSq) {
+            pt->x = 0.0f;
+            pt->y = 0.0f;
+            pt->z = 0.0f;
+        }
+
+        if (lbl_80344B38 != NULL) {
+            player->camera_floor_y = lbl_80344B34;
+        } else {
+            player->camera_floor_y = player->floor_y;
+        }
+    }
+
+    pt->y = outputY;
+    return result;
 }
 
 /*
