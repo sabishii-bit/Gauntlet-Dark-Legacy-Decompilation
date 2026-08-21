@@ -323,10 +323,12 @@ void CritterInsertTarget(struct CritterTargetState *state,
                          struct CritterTargetRecord *target);
 f32  CritterCalcTarget(Critter *c, f32 *moveTarget, f32 *target,
                        struct CritterTargetRecord *record);
- s32 CritterMoveNodeCol(f32 *origin, f32 *destination, f32 *contact,
-                        s32 ignore, s32 mode);
-s32  CritterMoveNodeColSub(Critter *c, f32 *origin, f32 *destination,
-                           f32 *point, f32 *contact, s32 first);
+void *CritterMoveNodeCol(f32 radius, f32 height, f32 *origin,
+                         f32 *destination, f32 *contact, s32 ignore,
+                         s32 mode);
+s32  CritterMoveNodeColSub(Critter *c, f32 radius, f32 height,
+                           f32 *offset, f32 *lineStart, f32 *contact,
+                           s32 first);
 s32  CritterExpNodeColSub(Critter *c, f32 radius, f32 squaredExpand,
                           f32 height, f32 *origin, f32 *destination,
                           f32 *contact, s32 mode);
@@ -569,7 +571,9 @@ s32 CritterCollidePlayers(Critter *c, f32 *delta)
         combinedZ = radiusZ + *(f32 *)((u8 *)player + 0x854);
         if ((*(s32 *)((u8 *)c->hdr + 0x5C) & 0x100) != 0) {
             result = CritterMoveNodeColSub(
-                c, delta, (f32 *)((u8 *)player + 100), contact, NULL, 0);
+                c, *(f32 *)((u8 *)player + 0x850),
+                *(f32 *)((u8 *)player + 0x854), delta,
+                (f32 *)((u8 *)player + 100), contact, 0);
             if (result != 0) {
                 sep[0] = *(f32 *)((u8 *)player + 100) -
                          *(f32 *)((u8 *)c + result * 92 + 1240);
@@ -1708,82 +1712,160 @@ f32 CritterCalcTarget(Critter *c, f32 *moveTarget, f32 *target,
     return score;
 }
 #pragma dont_inline off
-/* 0x800374FC -- sweep a movement segment against every other live critter. */
-s32 CritterMoveNodeCol(f32 *origin, f32 *destination, f32 *contact,
-                       s32 ignore, s32 mode)
-{
-    Critter *c;
-    s32 i;
-    s32 result;
 
-    result = 0;
-    for (i = 0; i < lbl_8034466C; i++) {
-        c = &gCritterPool[i];
-        if (c->hdr == NULL || c == lbl_80344648 || i == ignore) {
-            continue;
+static inline s32 CritterMoveNoHit(Critter *c, s32 id)
+{
+    Critter *relative;
+
+    if (CritterNoHitSub(c, id)) {
+        return 1;
+    }
+    relative = c->parent;
+    if (relative != NULL) {
+        if (CritterNoHitSub(relative, id)) {
+            return 1;
         }
-        if ((*(u32 *)((u8 *)c->hdr + 0x5C) & 2) != 0) {
-            result = CritterMoveNodeColSub(c, origin, destination,
-                                           destination, contact, mode);
-        }
-        if (!result) {
-            f32 delta[3];
-            f32 radius;
-            delta[0] = c->pos[0] - destination[0];
-            delta[1] = c->pos[1] - destination[1];
-            delta[2] = c->pos[2] - destination[2];
-            radius = *(f32 *)((u8 *)c->hdr + 0x7C);
-            if (NormalVector(delta) <= radius) {
-                memcpy(contact, delta, sizeof(delta));
-                result = 1;
+    } else {
+        relative = c->next;
+        while (relative != NULL) {
+            if (CritterNoHitSub(relative, id)) {
+                return 1;
             }
-        }
-        if (result) {
-            break;
+            relative = relative->next;
         }
     }
-    return result;
+    return 0;
+}
+
+/* 0x800374FC -- sweep a movement segment against every other live critter. */
+void *CritterMoveNodeCol(f32 radius, f32 height, f32 *origin,
+                         f32 *destination, f32 *contact, s32 ignore,
+                         s32 mode)
+{
+    Critter *c;
+    f32 dz;
+    f32 dx;
+    f32 dy;
+    f32 horizontalSquared;
+    f32 verticalSquared;
+    u8 unused[8];
+    s32 result;
+
+    dz = destination[2] - origin[2];
+    dx = destination[0] - origin[0];
+    dy = destination[1] - origin[1];
+    horizontalSquared = dx * dx + dz * dz;
+    verticalSquared = dy * dy;
+    result = 0;
+    while (lbl_80344644 < lbl_8034466C) {
+        c = &gCritterPool[lbl_80344644++];
+        if (c->hdr == NULL || c == lbl_80344648) {
+            continue;
+        }
+        if (ignore >= 0) {
+            if (CritterMoveNoHit(c, ignore)) {
+                continue;
+            }
+        }
+        if ((*(u32 *)((u8 *)c->hdr + 0x5C) & 2) != 0) {
+            result = CritterExpNodeColSub(c, radius, horizontalSquared,
+                                          verticalSquared, origin, destination,
+                                          contact, mode);
+        }
+        if (!result) {
+            f32 verticalRadius;
+            f32 horizontalRadius;
+            s32 collided;
+
+            horizontalRadius = radius + *(f32 *)((u8 *)c->hdr + 0x7C);
+            dz = c->pos[2] - destination[2];
+            verticalRadius = radius + *(f32 *)((u8 *)c->hdr + 0x78);
+            dx = c->pos[0] - destination[0];
+            if (dx * dx + dz * dz >
+                horizontalRadius * horizontalRadius + horizontalSquared) {
+                collided = 0;
+            } else if (c->pos[1] - destination[1] >
+                       verticalRadius + verticalSquared) {
+                collided = 0;
+            } else if (LineCylinderCollide(c->pos, horizontalRadius,
+                                           verticalRadius, origin, destination,
+                                           contact, mode)) {
+                collided = 1;
+            } else {
+                collided = 0;
+            }
+            result = collided;
+        }
+        if (result) {
+            return c;
+        }
+    }
+    return NULL;
 }
 
 /* 0x80037734 -- sweep against one critter's active collision nodes and keep
  * either the first or nearest contact. */
-s32 CritterMoveNodeColSub(Critter *c, f32 *origin, f32 *destination,
-                          f32 *point, f32 *contact, s32 first)
+s32 CritterMoveNodeColSub(Critter *c, f32 radius, f32 height,
+                          f32 *offsetVec, f32 *lineStart, f32 *contact,
+                          s32 first)
 {
-    f32 delta[3];
+    f32 nodePosition[3];
+    u8 positionPad[20];
+    f32 hit[3];
     f32 best;
     f32 distance;
-    f32 radius;
+    f32 nodeRadius;
+    u8 *base;
     u8 *node;
+    u8 *nodeDef;
+    s32 byteOffset;
     s32 i;
-    s32 result;
+    s32 resultIndex;
 
-    result = 0;
+    resultIndex = -1;
+    i = 0;
+    byteOffset = 0;
     best = lbl_80346480;
-    for (i = 0; i < *(s16 *)((u8 *)c->hdr + 0x118); i++) {
-        node = (u8 *)c + 0x4F8 + i * 0x5C;
-        if (*(void **)(node + 4) == NULL ||
+    while (i < *(s16 *)((u8 *)c->hdr + 0x118)) {
+        base = (u8 *)c + byteOffset;
+        node = base + 0x4F8;
+        if (*(void **)(base + 0x4FC) == NULL ||
             *(f32 *)(node + 0x58) >= *(f32 *)(node + 0x54) ||
-            (*(u16 *)(*(u8 **)node + 0x10) & 8) == 0) {
-            continue;
+            (*(s16 *)(*(u8 **)node + 0x10) & 8) == 0) {
+            goto next;
         }
-        delta[0] = point[0] - *(f32 *)(node + 0x3C);
-        delta[1] = point[1] - *(f32 *)(node + 0x40);
-        delta[2] = point[2] - *(f32 *)(node + 0x44);
-        distance = NormalVector(delta);
-        radius = *(f32 *)(*(u8 **)node + 0x2C);
-        if (distance <= radius && (!result || distance < best)) {
-            memcpy(contact, delta, sizeof(delta));
-            best = distance;
-            result = 1;
+        nodeDef = *(u8 **)node;
+        nodeRadius = *(f32 *)(nodeDef + 0x2C);
+        nodePosition[0] = *(f32 *)(node += 0x3C) + offsetVec[0];
+        nodePosition[1] = *(f32 *)(node + 4) + offsetVec[1];
+        nodePosition[2] = *(f32 *)(node + 8) + offsetVec[2];
+        if (LineCylinderCollide(lineStart, radius + nodeRadius,
+                                height + nodeRadius, (f32 *)node,
+                                nodePosition, hit, 1)) {
             if (first) {
-                break;
+                contact[0] = hit[0];
+                contact[1] = hit[1];
+                contact[2] = hit[2];
+                return i + 1;
+            }
+            distance = fqdist(lineStart[0] - nodePosition[0],
+                              lineStart[2] - nodePosition[2]);
+            if (resultIndex < 0 || distance < best) {
+                best = distance;
+                resultIndex = i;
+                contact[0] = hit[0];
+                contact[1] = hit[1];
+                contact[2] = hit[2];
             }
         }
+next:
+        i++;
+        byteOffset += 0x5C;
     }
-    (void)origin;
-    (void)destination;
-    return result;
+    if (resultIndex >= 0) {
+        return resultIndex + 1;
+    }
+    return 0;
 }
 
 /* 0x800378C8 -- test an expanded sphere/capsule against one critter's active
