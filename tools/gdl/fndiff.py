@@ -323,21 +323,18 @@ def main():
             return 1
 
     target, base = parse(target_o), parse(base_o)
-    names = args[1:] or sorted(
+    names = [re.sub(r"_80[0-9A-Fa-f]{6}$", "", name)
+             if not name.startswith("fn_") else name
+             for name in args[1:]] or sorted(
         set(target) | set(base), key=lambda n: list(target).index(n) if n in target else 999
     )
 
     for name in names:
         t, b = target.get(name), base.get(name)
-        if t == b:
-            if classify_only:
-                print(f"EXACT               {name}")
-            elif clean:
-                print(f"== {name}: EXACT, 0 real diff lines")
-            elif list_only or args[1:]:
-                print(f"OK   {name}")
-            continue
         if t is None or b is None:
+            if t is None and b is None:
+                print(f"MISSING-IN-BOTH  {name}")
+                continue
             if classify_only:
                 category = "BASE_ONLY" if t is None else "TARGET_ONLY"
                 print(f"{category:<19} {name}")
@@ -345,6 +342,14 @@ def main():
             side = "target" if t is None else "base"
             print(f"ONLY-IN-{'BASE' if t is None else 'TARGET'}  {name}"
                   f"  (extra {side} fns are usually deadstripped statics)")
+            continue
+        if t == b:
+            if classify_only:
+                print(f"EXACT               {name}")
+            elif clean:
+                print(f"== {name}: EXACT, 0 real diff lines")
+            elif list_only or args[1:]:
+                print(f"OK   {name}")
             continue
         if classify_only:
             category = classify_function(t, b)
