@@ -454,7 +454,6 @@ s32 CalcAnimation(register u8* mtx, register u8* pose, u32* p3,
     register u8* xyzMtx = mtx + 96;
     register f32* xyz = (f32*)(pose + 32);
     register u8* xyzMtx2 = mtx + 144;
-    register animinfo* infoLocal = info;
     f32 tf;
 
     tf = info->transfrac;
@@ -466,7 +465,7 @@ s32 CalcAnimation(register u8* mtx, register u8* pose, u32* p3,
             InterpXYZ(tf, xyzMtx, pyr, pyr);
             InterpXYZ(tf, xyzMtx2, xyz, xyz);
         }
-        if ((infoLocal->flags & 1) != 0) {
+        if ((info->flags & 1) != 0) {
             *(f32*)(poseLocal + 4) = -*(f32*)(poseLocal + 4);
             *(f32*)(poseLocal + 8) = -*(f32*)(poseLocal + 8);
             *pyr = -*pyr;
