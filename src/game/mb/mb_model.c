@@ -59,7 +59,7 @@ extern void  MBResetUnlockedFonts(int level); /* MB unlock helper */
 extern void  MBResetFonts(void);              /* MB reset helper */
 extern void  MBTreeInit(void);             /* mb_objects reset */
 extern void  fn_800B9E4C(void);             /* mb_objects init */
-extern void* FatalErrorf(void* def, void* name); /* object-def build */
+extern void  FatalErrorf(const char* fmt, ...);
 
 extern int   strncmp(const char*, const char*, u32);
 extern int   strcmp(const char*, const char*);
@@ -448,21 +448,84 @@ int MBOX_FindObject(const char* name) {
 }
 
 /* ---- 0x800B8E94 : find-or-register an object def by name ---- */
+#pragma opt_propagation off
 int MBOX_ReallyFindObject(const char* name, int a, int b, int create) {
-    u8* g = gWinGlobals;
-    char nm[0x10];
-    void* def;
+    u8 unused[8];
+    char nm[16];
+    const char* strings;
+    u8* win;
+    u8* slot;
+    u8* model;
+    u8* found;
+    int slotIndex;
+    int slotOffset;
+    int objectIndex;
 
-    strncpy(nm, name, 0xf);
-    def = bsearch(nm, g, (u32)lbl_80344E8C, 0x40, objcmp);
-    if (def == 0 && create) {
-        strcpy(nm, name);
-        FatalErrorf(g, nm);
+    strings = lbl_80115DA8;
+    found = NULL;
+    win = gWinGlobals;
+    if (a < 0) {
+        a = 0;
     }
-    (void)a;
-    (void)b;
-    return -1;
+    if (b < 0 || b >= lbl_80344E8C) {
+        b = lbl_80344E8C - 1;
+    }
+
+    if (name == NULL || *(const s8*)name == 0) {
+        strcpy(nm, strings + 580);
+    } else {
+        strncpy(nm, name, 16);
+    }
+
+    slotIndex = a;
+    slotOffset = slotIndex * 16;
+    for (; slotIndex <= b; slotIndex++, slotOffset += 16) {
+        slot = *(u8**)(win + 48) + slotOffset;
+        if (*(s32*)(slot + 16) == 0) {
+            model = *(u8**)(slot + 4);
+            found = bsearch(nm, *(void**)(model + 92),
+                            *(u32*)(model + 76), 24, objcmp);
+            if (found != NULL) {
+                break;
+            }
+        }
+    }
+
+    if (found == NULL) {
+        if (create == -1) {
+            return -1;
+        }
+
+        strcpy(nm, strings + 580);
+        slotIndex = 0;
+        slotOffset = 0;
+        for (; slotIndex < lbl_80344E8C; slotIndex++, slotOffset += 16) {
+            slot = *(u8**)(win + 48) + slotOffset;
+            if (*(s32*)(slot + 16) == 0) {
+                model = *(u8**)(slot + 4);
+                found = bsearch(nm, *(void**)(model + 92),
+                                *(u32*)(model + 76), 24, objcmp);
+                if (found != NULL) {
+                    break;
+                }
+            }
+        }
+    }
+
+    if (found == NULL) {
+        FatalErrorf(strings + 592, name, nm);
+    }
+
+    slot = *(u8**)(win + 48) + slotIndex * 16;
+    model = *(u8**)(slot + 4);
+    if (*(u32*)(model + 76) == 0) {
+        objectIndex = (found - *(u8**)(model + 92)) / 24;
+    } else {
+        objectIndex = *(s16*)(found + 20);
+    }
+    return (u16)objectIndex | (slotIndex << 16);
 }
+#pragma opt_propagation reset
 
 /* ---- 0x800B9068 : object-name comparator (15 chars, null-safe) ---- */
 static int objcmp(const void* a, const void* b) {
