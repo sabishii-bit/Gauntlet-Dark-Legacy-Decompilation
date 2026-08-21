@@ -2025,6 +2025,11 @@ extern f32 lbl_80343D7C[2];   /* damage range */
 extern f32 lbl_80343D84[2];   /* armor range */
 extern f32 lbl_80343D8C[2];   /* magic range */
 extern f32 lbl_80343D94[2];   /* speed range */
+extern f32 lbl_803477AC;
+extern f32 lbl_803477B4;
+extern f64 lbl_803478B0;
+extern f64 lbl_80347A40;
+extern f64 __frsqrte(f64 value);
 extern f32 lbl_80343D9C[2];   /* missile damage range */
 extern f32 lbl_80343DA4[2];   /* missile speed range */
 extern s32 gGameOptions;      /* NoDamage? cheat (1 = no damage, 2.. = invuln) */
@@ -4697,37 +4702,63 @@ static void do_see_thru(void* vp) {
     }
 }
 
-/* Index of the closest openable chest to p (squared/NR distance).     */
+/* Index of the closest openable chest to p (Newton-refined distance). */
 static s32 ClosestChest(void* vp) {
     Player* p = vp;
+    u8* world;
+    u8* itemInfo;
     u8* it;
+    u8* state;
     s32 j;
     s32 closest = -1;
     s32 st;
-    f32 dx, dy, dz;
-    f32 d;
-    f32 best = 100.0f;
+    register f32 dx, dy, dz;
+    register f32 d;
+    f64 half;
+    f32 zero;
+    f32 best;
+    f64 three;
+    u8 unused[36];
+    volatile f32 root;
+    u8 rootPad[4];
 
-    StartEnemyGrid(p->pos, 10.0f);
+    best = lbl_803477B4;
+    StartEnemyGrid(p->pos, best);
+    zero = lbl_803477AC;
+    half = lbl_803478B0;
+    world = gWorldInfo;
+    three = lbl_80347A40;
     while ((j = NextGridEnemy()) >= 0) {
         it = sItems + j * 0xF0;
+        itemInfo = *(u8**)it;
         if (*(s16*)(it + 0xC4) == -1) {
             continue;
         }
-        if (*(s32*)*(u8**)it != 2) {
+        if (*(s32*)itemInfo != 2) {
             continue;
         }
-        if (*(u8*)(it + 0xCD) != 0 || *(u8*)(it + 0xC8) != 0) {
+        if (*(s8*)(it + 0xCD) != 0 || *(s8*)(it + 0xC8) != 0) {
             continue;
         }
-        st = *(*(s32**)(gWorldInfo + 0x68) + *(s16*)(it + 0xDC) * 0x14);
+        state = *(u8**)(world + 0x68);
+        state += *(s16*)(it + 0xDC) * 0x50;
+        st = *(s32*)state;
         if (st != -1 && st != 4 && st != 1) {
             continue;
         }
-        dx = *(f32*)(it + 0x34) - p->pos[0];
-        dy = *(f32*)(it + 0x38) - p->pos[1];
-        dz = *(f32*)(it + 0x3C) - p->pos[2];
-        d = dz * dz + dx * dx + dy * dy;
+        dx = *(volatile f32*)(it + 0x34) - p->pos[0];
+        dy = *(volatile f32*)(it + 0x38) - p->pos[1];
+        dz = *(volatile f32*)(it + 0x3C) - p->pos[2];
+        d = dz * dz + (d = dx * dx + dy * dy);
+        if (d > zero) {
+            f64 estimate = __frsqrte(d);
+            estimate = half * estimate * (three - estimate * estimate * d);
+            estimate = half * estimate * (three - estimate * estimate * d);
+            estimate = half * estimate * (three - estimate * estimate * d);
+            root = (f32)(d * (half * estimate *
+                              (three - estimate * estimate * d)));
+            d = root;
+        }
         if (d < best) {
             best = d;
             closest = j;
