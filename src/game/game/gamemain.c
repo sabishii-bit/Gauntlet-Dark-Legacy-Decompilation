@@ -2512,6 +2512,12 @@ s32 NextAttractWave(s32 worldLevel)
 
 /* 0x80057D94 -- move backward to a level accepted by waveMask, wrapping
  * through the loaded-world table when the current world is exhausted. */
+static inline WorldLevelTableNav* PrevWorldEntry(WorldLevelTableNav* table,
+                                                 s32 offset)
+{
+    return (WorldLevelTableNav*)((u8*)table + offset);
+}
+
 #pragma opt_propagation off
 s32 PrevWorldLevel(s32 waveMask)
 {
@@ -2540,13 +2546,15 @@ s32 PrevWorldLevel(s32 waveMask)
     if (level < 0) {
         level = 0;
         for (;;) {
-            WorldLevelTableNav* entry;
+            register WorldLevelTableNav* entry;
+            register s32 offset;
 
             worldIndex--;
             if (worldIndex < 0) {
                 worldIndex = 13;
             }
-            entry = (WorldLevelTableNav*)((u8*)worldTable + worldIndex * 44);
+            offset = worldIndex * 44;
+            entry = PrevWorldEntry(worldTable, offset);
             if (entry->worlds[0].loaded != 0 || worldIndex == currentWorld) {
                 break;
             }
