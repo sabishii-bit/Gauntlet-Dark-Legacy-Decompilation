@@ -2153,11 +2153,13 @@ extern void FatalError(const char* fmt, ...);
 extern void FatalErrorf(const char* fmt, ...);
 extern int bulletproof_printf(const char* fmt, ...);
 extern s32 BytesFree(void);
-extern char* AllocMem(u32 size, s32 pool, char* tag);
+extern void* AllocMem(u32 size);
 extern char* AllocFile(char* name, char* mode, u32 sizehint);
 extern void MLMReadFile(char* name, char* mode, u32 size, char* buf);
 extern void* AtreeMatch(void* bank, char* name, s32 a);
 extern u32 MBOX_LoadModelFixed(char* name, u32 arena, s32 a, char* b, u32 c);
+extern void* MBOX_AllocModelMem(s32 objectSize, s32 textureSize,
+                               const char* name);
 extern void CopyMat3(f32* src, f32* dst);
 
 extern void MBTreeSetAmbientAdd(void* node, s32 frame, s32 mode);
@@ -4230,24 +4232,27 @@ void setup_player_models(void) {
     PlayerModelSlot* s;
     s32 i;
     s32 free0;
+    u8 unused[8];
 
     GetMaxPlayerModelSize();
     for (i = 0; i < 4; i++) {
-        s = &player_multiple_models[i];
+        void* arena;
+
         free0 = BytesFree();
         bulletproof_printf("Player %d -- MEM %d\n", i, free0);
         sprintf(tbuf, "PLAYER %d", i);
-        s->arena = (void*)MBOX_LoadModelFixed(tbuf, s->model_max, (s32)s->arena_max,
-                                              tbuf, 0);
+        s = &player_multiple_models[i];
+        arena = MBOX_AllocModelMem(s->model_max, (s32)s->arena_max, tbuf);
         s->cur_class = -1;
         s->cur_override = 0;
-        s->model_buf = AllocMem(s->model_buf_max, (s32)s->arena_max, tbuf);
+        s->arena = arena;
+        s->model_buf = AllocMem(s->model_buf_max);
         s->anim_remap = -1;
-        s->anim_buf = AllocMem(s->anim_max, (s32)s->arena_max, tbuf);
+        s->anim_buf = AllocMem(s->anim_max);
         s->anim_remap2 = -1;
-        s->sfx_arena = (void*)MBOX_LoadModelFixed(tbuf, s->sfx_max, (s32)s->sfx_arena_max,
-                                                  tbuf, 0);
-        s->sfx_buf = AllocMem(s->sfx_buf_max, (s32)s->sfx_arena_max, tbuf);
+        s->sfx_arena =
+            MBOX_AllocModelMem(s->sfx_max, (s32)s->sfx_arena_max, tbuf);
+        s->sfx_buf = AllocMem(s->sfx_buf_max);
         s->sfx_remap = -1;
     }
 }
