@@ -168,37 +168,52 @@ int MBGetFromWad(int* wad, int key, int* sizeOut)
 }
 
 /* byte-swap a just-loaded WAD directory in place */
+typedef union MbSwapWord {
+    u32 word;
+    u8 byte[4];
+} MbSwapWord;
+
+typedef struct MbSwapPair {
+    MbSwapWord src;
+    MbSwapWord dst;
+} MbSwapPair;
+
+typedef struct MbSwapWorkspace {
+    u8 unused[48];
+    MbSwapPair pair[6];
+} MbSwapWorkspace;
+
+#define MB_SWAP32_AT(output, value, swap) do { \
+    (swap).src.word = (value); \
+    (swap).dst.byte[0] = (swap).src.byte[3]; \
+    (swap).dst.byte[1] = (swap).src.byte[2]; \
+    (swap).dst.byte[2] = (swap).src.byte[1]; \
+    (swap).dst.byte[3] = (swap).src.byte[0]; \
+    (output) = (swap).dst.word; \
+} while (0)
+
 int MBSetupWad(int* wad, int base)
 {
-    u8* p;
-    u32 v;
-    u32 count;
     u32 i;
+    u32 offset;
+    MbSwapWorkspace work;
 
     if (wad == NULL) {
         return 0;
     }
     *wad = base;
-    p = (u8*)*wad;
-    wad[2] = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
-    p = (u8*)(*wad + 4);
-    wad[1] = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
+    MB_SWAP32_AT(wad[2], *(u32*)*wad, work.pair[5]);
+    MB_SWAP32_AT(wad[1], *(u32*)(*wad + 4), work.pair[4]);
     if ((u32)wad[2] >= (u32)mlmMemBase) {
         return 0;
     }
     wad[2] += base;
-    p = (u8*)*wad;
-    v = wad[2];
-    p[0] = (u8)(v >> 24); p[1] = (u8)(v >> 16); p[2] = (u8)(v >> 8); p[3] = (u8)v;
-    count = wad[1];
-    for (i = 0; i < count; i++) {
-        int* e = (int*)(wad[2] + i * 0x10);
-        u8* q = (u8*)e;
-        v = e[0]; q[0] = (u8)(v >> 24); q[1] = (u8)(v >> 16); q[2] = (u8)(v >> 8); q[3] = (u8)v;
-        q = (u8*)&e[1];
-        v = e[1]; q[0] = (u8)(v >> 24); q[1] = (u8)(v >> 16); q[2] = (u8)(v >> 8); q[3] = (u8)v;
-        q = (u8*)&e[2];
-        v = e[2]; q[0] = (u8)(v >> 24); q[1] = (u8)(v >> 16); q[2] = (u8)(v >> 8); q[3] = (u8)v;
+    MB_SWAP32_AT(*(u32*)*wad, wad[2], work.pair[3]);
+    for (i = 0, offset = 0; i < (u32)wad[1]; i++, offset += 0x10) {
+        int* e = (int*)(wad[2] + offset);
+        MB_SWAP32_AT(e[0], e[0], work.pair[2]);
+        MB_SWAP32_AT(e[1], e[1], work.pair[1]);
+        MB_SWAP32_AT(e[2], e[2], work.pair[0]);
         e[1] += base;
     }
     return 1;
