@@ -4319,39 +4319,51 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
 }
 /* 0x8003E2E8 -- reserve the first free critter pool slot, wipe it, and stamp
  * it with a fresh index + rolling unique id. */
+#pragma opt_propagation off
+#pragma opt_common_subs off
 Critter *CritterEmptyInst(void)
 {
-    s32 i;
+    u8 *c;
     s32 byte_offset;
-    Critter *c;
+    s32 i;
+    s32 count;
+    s32 scan_offset;
+    u8 *scan;
     CritterBigState *big;
 
     big = &gBig;
-    for (i = 0; i < lbl_8034466C; i++) {
-        if (big->pool[i].hdr == NULL) {
+    count = lbl_8034466C;
+    for (i = 0, scan_offset = 0; i < count;
+         i++, scan_offset += sizeof(Critter)) {
+        scan = (u8 *)big + scan_offset;
+        if (*(void **)(scan + 0x238) == NULL) {
             break;
         }
     }
     if (i >= 16) {
-        ErrorPrintf(lbl_8011221C, i, lbl_8034466C);
+        ErrorPrintf(lbl_8011221C, i, count);
         return NULL;
     }
-    if (i == lbl_8034466C) {
+    if (i == count) {
         lbl_8034466C++;
         if (lbl_8034466C > gCritterCountMax) {
             gCritterCountMax = lbl_8034466C;
         }
     }
     byte_offset = i * sizeof(Critter);
-    c = (Critter *)((u8 *)big + 0x234 + byte_offset);
+    c = (u8 *)big + byte_offset;
+    c += 0x234;
     memset(c, 0, sizeof(Critter));
-    c->index = (s16)i;
-    *(s16 *)((u8 *)big + 0x236 + byte_offset) = gCritterNextID;
+    *(s16 *)c = (s16)i;
+    scan = (u8 *)big + byte_offset;
+    *(s16 *)(scan + 0x236) = gCritterNextID;
     if ((u16)(gCritterNextID = gCritterNextID + 1) > 4095) {
         gCritterNextID = 1;
     }
-    return c;
+    return (Critter *)c;
 }
+#pragma opt_common_subs reset
+#pragma opt_propagation reset
 /* 0x8003E3E8 -- instantiate the model/animation tree and cache the principal
  * scene nodes and world-space transforms used by movement and collision. */
 void CritterInitGeo(Critter *c, void *object, s32 subtype)
