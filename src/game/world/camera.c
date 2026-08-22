@@ -2966,6 +2966,8 @@ void camera_mode_orbit(s32 camIdx)
  * step (scaled by the frame delta).  Returns the new yaw; the caller stores
  * it back.  Snaps to the target once within one step.
  */
+#pragma opt_lifetimes off
+#pragma opt_propagation off
 f32 camera_approach_yaw(void* cam, f32 target) {
     s32 snap;
     s32 direction;
@@ -3000,17 +3002,15 @@ f32 camera_approach_yaw(void* cam, f32 target) {
         direction = -1;
     }
     result = target;
-    if (snap != 0) {
-        goto approach_adjust_done;
-    }
-    {
+    switch (snap) {
+    case 0:
         if (direction > 0) {
             result = (f32)(current + step);
         } else {
             result = (f32)(current - step);
         }
+        break;
     }
-approach_adjust_done:
     if (result > 3.141592654) {
         result = result - 6.283185308;
     } else if (result <= -3.141592654) {
@@ -3018,6 +3018,8 @@ approach_adjust_done:
     }
     return (f32)result;
 }
+#pragma opt_lifetimes reset
+#pragma opt_propagation reset
 
 /*
  * camera_lerp_yaw -- rate-limit one angle (`current`) toward another
