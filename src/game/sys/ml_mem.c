@@ -61,6 +61,9 @@ extern int mlmMemUsed;    /* low watermark; lo-alloc increments it      */
 extern u8* mlmMemBase;    /* base of the managed block                  */
 extern int mlmLockStack[8];
 extern int gLowMemMode;   /* selects a smaller managed block            */
+extern int gDemoMode;
+extern int __OSCurrHeap;
+extern int pbLoad;
 
 /* ================= file-system state ================= */
 typedef struct MLFILE {
@@ -348,36 +351,40 @@ int do_threaded_io(MLFILE* f)
  *  allocator core (decompiled)                                    *
  * ============================================================== */
 
+static inline void InitMemHandlerClearLocks(void)
+{
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        mlmLockStack[i] = 0;
+    }
+}
+
 void InitMemHandler(void)
 {
-    int base;
-    int size;
-
-    mlmMemLimit = 0x1c88000;
-    if (gLowMemMode != 0) {
-        mlmMemLimit = 0x1b88000;
+    mlmMemLimit = 0x1c00000;
+    mlmMemLimit += 0x8000;
+    mlmMemLimit += 0x80000;
+    if (gDemoMode != 0) {
+        mlmMemLimit -= 0x100000;
     }
-    base = OSCheckHeap(DemoHeap);
-    mlmMemLimit = base - 0x1000;
-    mlmMemBase = OSAllocFromHeap(DemoHeap, mlmMemLimit);
-    while (mlmMemBase == NULL) {
-        mlmMemLimit -= 0x4000;
-        mlmMemBase = OSAllocFromHeap(DemoHeap, mlmMemLimit);
+    mlmMemLimit = OSCheckHeap(DemoHeap);
+    mlmMemLimit -= 0x1000;
+    mlmMemBase = OSAllocFromHeap(__OSCurrHeap, mlmMemLimit);
+    if (mlmMemBase == NULL) {
+        while (mlmMemBase == NULL) {
+            mlmMemLimit -= 0x4000;
+            mlmMemBase = OSAllocFromHeap(__OSCurrHeap, mlmMemLimit);
+        }
     }
-    size = mlmMemLimit;
     memset(mlmMemBase, 0, mlmMemLimit);
-    bulletproof_printf("Available Memory = %d\n", size);
+    bulletproof_printf("Available Memory = %d\n", mlmMemLimit);
     mlmMemUsed = 0;
     mlmMemBase = (u8*)(((u32)mlmMemBase + 0x3f) & 0xffffffc0);
     mlmMemLimit = (mlmMemLimit & 0xffffffc0) - 0x40;
-    {
-        int i;
-        for (i = 0; i < 8; i++) {
-            mlmLockStack[i] = 0;
-        }
-    }
-    finfo_list[0].state = -1;
-    alloctot = 0;
+    InitMemHandlerClearLocks();
+    finfo_list[0].done = -1;
+    pbLoad = 0;
 }
 
 int FileSystemReading(void)
