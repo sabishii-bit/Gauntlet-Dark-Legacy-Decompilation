@@ -686,10 +686,12 @@ typedef struct AttractRecView {
     s32 streamArg;  /* abs 308 = rec+76 */
 } AttractRecView;
 
+#pragma opt_propagation off
+#pragma opt_common_subs off
 int init_screen2d(int a, int slot) {
     char* base = lbl_80118188;
+    register int so;
     char* p;
-    int so;
     char buf[28];
     int i;
 
@@ -712,28 +714,46 @@ int init_screen2d(int a, int slot) {
     lbl_8034423C = slot;
     lbl_80344238 = lbl_80343B14;
     so = slot * 320;
-    p = base + so + 232;
+    p = base + so;
+    p += 232;
     lbl_80344224 = LoadModel(p + lbl_80344238 * 80, 0, 0, -1);
-    if (((AttractRecView*)(base + so + lbl_80344238 * 80))->fontFlag >= 0) {
-        FontInitSpecial((void*)gauntFontName, 8);
+    {
+        char* slotBase = base + so;
+        char* row = slotBase + lbl_80344238 * 80;
+        if (((AttractRecView*)row)->fontFlag >= 0) {
+            FontInitSpecial((void*)gauntFontName, 8);
+        }
     }
 
     for (i = 0; i < 4; i++) {
+        char* blitDef;
         sprintf(buf, numberedTextureFmt, p + lbl_80344238 * 80 + 32, i);
-        lbl_8023D1E0[i] = MBNewBlit(buf, *(int*)(base + i * 8 + 200),
-                                    *(int*)(base + i * 8 + 204));
+        blitDef = base + i * 8;
+        lbl_8023D1E0[i] = MBNewBlit(buf, *(int*)(blitDef + 200),
+                                    *(int*)(blitDef + 204));
     }
 
     if ((sAudioOverride = 1) != 0) {
-        int off = lbl_80344238 * 80;
-        AttractRecView* v = (AttractRecView*)(base + so + off);
+        char* slotBase;
+        char* row;
+        int off;
+        AttractRecView* v;
+
+        slotBase = base + so;
+        off = lbl_80344238 * 80;
+        row = slotBase + off;
+        v = (AttractRecView*)row;
         if (v->streamCh != 0) {
             AudioBuildStreamName(p + off + 60, v->streamArg);
         }
     }
 
     lbl_80344298 = 0;
-    lbl_80344228 = ((AttractRecView*)(base + so + lbl_80344238 * 80))->modelId;
+    {
+        char* slotBase = base + so;
+        char* row = slotBase + lbl_80344238 * 80;
+        lbl_80344228 = ((AttractRecView*)row)->modelId;
+    }
     lbl_80344230 = 0;
     lbl_80344234 = 0;
     lbl_8034422C = 0;
@@ -745,6 +765,8 @@ int init_screen2d(int a, int slot) {
     fn_80053C70();
     return lbl_80343B04;
 }
+#pragma opt_propagation reset
+#pragma opt_common_subs reset
 
 /* ================================================================== */
 /* do_flyby  (ATTRACT.OBJ)                                            */
