@@ -964,44 +964,59 @@ extern u32 gFrameTicks;
 
 void calc_cam_pyr_8002A97C(s32 camIdx, s32 resetDelta)
 {
+    u8 unusedBefore[8];
+    union {
+        f32 value;
+        u32 bits;
+    } absDiff;
+    u8 unusedAfter[8];
     Camera* cam = &gCameras[camIdx];
     f64 dv;
-    f64 dv3;
     f32 v;
-    f32 zero = lbl_80345EC8;
+    f64 dv3;
+    f32 angle;
+    f32 delta;
 
-    cam->pyr[2] = zero;
-    if (resetDelta != 0) {
-        cam->pyr_delta[0] = zero;
-        cam->pyr_delta[1] = zero;
-        cam->pyr_delta[2] = zero;
+    {
+        f32 zero = lbl_80345EC8;
+        cam->pyr[2] = zero;
+        if (resetDelta != 0) {
+            cam->pyr_delta[0] = zero;
+            cam->pyr_delta[1] = zero;
+            cam->pyr_delta[2] = zero;
+        }
     }
     if (gWorldInfo.wobjs == 0) {
         cam->pyr[0] = lbl_8034616C;
-        cam->pyr[1] = zero;
-        cam->pyr[2] = zero;
+        {
+            f32 zero = lbl_80345EC8;
+            cam->pyr[1] = zero;
+            cam->pyr[2] = zero;
+        }
         goto apply;
     }
     if (gNumTransmitters != 0) {
-        f32 rate = (f32)(lbl_80346170 * (f64)(u32)gFrameTicks);
-        f32 diff = lbl_80344530 - lbl_80344408;
         f32 step;
-        if (diff < 0.0f) {
-            diff = -diff;
-        }
-        step = (f32)(lbl_80346070 * (f64)diff);
+        f32 rate = (f32)(lbl_80346170 * (f64)(u32)gFrameTicks);
+        f32 target = lbl_80344530;
+        absDiff.value = target - *(volatile f32*)&lbl_80344408;
+        absDiff.bits &= 0x7FFFFFFF;
+        step = (f32)(lbl_80346070 * (f64)absDiff.value);
         if (step < rate) {
             step = rate;
         }
-        if (lbl_80344530 <= lbl_80344408) {
-            lbl_80344408 = lbl_80344408 - step;
-            if (lbl_80344408 <= lbl_80344530) {
-                lbl_80344408 = lbl_80344530;
-            }
-        } else {
-            lbl_80344408 = lbl_80344408 + step;
-            if (lbl_80344530 <= lbl_80344408) {
-                lbl_80344408 = lbl_80344530;
+        {
+            f32 current = lbl_80344408;
+            if (target > current) {
+                lbl_80344408 = current + step;
+                if (target <= lbl_80344408) {
+                    lbl_80344408 = target;
+                }
+            } else {
+                lbl_80344408 = current - step;
+                if (target >= lbl_80344408) {
+                    lbl_80344408 = target;
+                }
             }
         }
     }
@@ -1010,33 +1025,46 @@ void calc_cam_pyr_8002A97C(s32 camIdx, s32 resetDelta)
         goto apply;
     }
 
-    dv3 = lbl_8028CABC;
-    if (lbl_80344538 == 2) {
-        dv = lbl_8028CAC8 - cam->attn[0];
-    } else if (lbl_80344538 < 2) {
-        if (lbl_80344538 <= 0) {
-            dv = cam->attn[0] - lbl_8028CAC8;
-        } else {
-            dv = lbl_8028CAD0 - cam->attn[2];
-            dv3 = lbl_8028CAC4;
+    {
+        s32 mode = lbl_80344538;
+        f32 centerX;
+        f32 centerZ;
+        f32 sizeZ;
+
+        dv3 = gWorldInfo.worldsize[0];
+        centerX = gWorldInfo.worldcenter[0];
+        sizeZ = gWorldInfo.worldsize[2];
+        centerZ = gWorldInfo.worldcenter[2];
+        switch (mode) {
+        default:
+        case 0:
+            dv = cam->attn[0] - centerX;
+            break;
+        case 2:
+            dv = centerX - cam->attn[0];
+            break;
+        case 1:
+            dv = centerZ - cam->attn[2];
+            dv3 = sizeZ;
+            break;
+        case 3:
+            dv = cam->attn[2] - centerZ;
+            dv3 = sizeZ;
+            break;
         }
-    } else if (lbl_80344538 > 3) {
-        dv = cam->attn[0] - lbl_8028CAC8;
-    } else {
-        dv = cam->attn[2] - lbl_8028CAD0;
-        dv3 = lbl_8028CAC4;
-    }
-    v = lbl_80344534;
-    if (gScriptedCameraState == 0) {
-        v = lbl_80118B60[lbl_80344538];
+        if (gScriptedCameraState != 0) {
+            v = lbl_80344534;
+        } else {
+            v = lbl_80118B60[mode];
+        }
     }
     cam->pyr[1] = FixAngle((f32)((f64)v + dv / (lbl_80345EF0 * dv3)));
 
 apply:
     if (gNumTransmitters == 0) {
-        if (lbl_80346178 <=
-            (f32)((f64)cam->pyr[0] + (f64)cam->pyr_delta[0])) {
-            cam->pyr[0] = (f32)(lbl_80346178 - (f64)cam->pyr_delta[0]);
+        angle = cam->pyr[0];
+        if ((f64)(angle += (delta = cam->pyr_delta[0])) >= lbl_80346178) {
+            cam->pyr[0] = (f32)(lbl_80346178 - (f64)delta);
         }
         cam->pyr[0] = cam->pyr[0] + cam->pyr_delta[0];
         cam->pyr[1] = cam->pyr[1] + cam->pyr_delta[1];
