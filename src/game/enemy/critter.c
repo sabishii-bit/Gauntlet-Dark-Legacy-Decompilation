@@ -758,33 +758,46 @@ s32 CritterNodeEnemyCollide(Critter *c, void *damageDef)
  * a requested player. */
 s32 SafeRockNearestTarget(s32 player)
 {
-    f32 matrix[12];
-    f32 dx;
-    f32 dz;
+    f32 matrix[16];
+    u8 unused[40];
+    f32 playerX;
+    f32 playerZ;
+    f32 distance;
     f32 best;
-    s32 bestIndex;
     s32 i;
+    s32 bestIndex;
     void *node;
 
     bestIndex = -1;
     best = lbl_803464C0;
+    if (player < 0) {
+        s32 sum;
+        for (i = 0; i < lbl_80344658; i++) {
+            node = lbl_80241020[i];
+            sum = *(volatile s32 *)&lbl_80344654 + i;
+            sum++;
+            bestIndex = sum % lbl_80344658;
+            if (SafeRockActive(node) == 0) {
+                return bestIndex;
+            }
+        }
+        return -1;
+    }
+    playerX = *(f32 *)((u8 *)&gPlayers[player] + 0x44);
+    playerZ = *(f32 *)((u8 *)&gPlayers[player] + 0x4C);
     for (i = 0; i < lbl_80344658; i++) {
         if (SafeRockActive(lbl_80241020[i]) != 0) {
             continue;
-        }
-        if (player < 0) {
-            return i;
         }
         node = ItemGetNode(lbl_80241020[i]);
         if (node == NULL) {
             continue;
         }
         GetWorldMat(node, matrix, NULL);
-        dx = matrix[9] - *(f32 *)((u8 *)&gPlayers[player] + 0x64);
-        dz = matrix[11] - *(f32 *)((u8 *)&gPlayers[player] + 0x6C);
-        if (dx * dx + dz * dz < best) {
-            best = dx * dx + dz * dz;
+        distance = fqdist(matrix[12] - playerX, matrix[14] - playerZ);
+        if (distance < best) {
             bestIndex = i;
+            best = distance;
         }
     }
     return bestIndex;
