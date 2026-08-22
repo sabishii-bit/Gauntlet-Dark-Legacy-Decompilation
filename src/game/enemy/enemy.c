@@ -3597,9 +3597,9 @@ void move_logic13(s32 index)
         if (dist2 >= 15.0) {
             e->lost += gFrameTicks;
             if (e->lost >= 180) {
+                s32 n;
                 Enemy* q;
-                s32 n = e->prev_enemy;
-                q = (Enemy*)(base + n * 916);
+                q = (Enemy*)(base + e->prev_enemy * 916);
                 q = (Enemy*)((u8*)q + 3608);
                 do {
                     q->algorithm = 7;
