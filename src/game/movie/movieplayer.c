@@ -909,6 +909,7 @@ int fn_800D9C34(int p) {
 }
 #pragma dont_inline off
 
+#pragma dont_inline on
 void fn_800D9C5C(int* p, int n) {
     if (*(u32*)p != 0) {
         gMovieAllocCount--;
@@ -922,6 +923,7 @@ void fn_800D9C5C(int* p, int n) {
     p[3] = 0;
     p[2] = 0;
 }
+#pragma dont_inline off
 
 int* fn_800D9CF4(int* p, s16 releaseAgain) {
     if (p != 0) {
