@@ -79,6 +79,7 @@ extern f64   lbl_80346488;
 extern f64   lbl_80346490;
 extern f64   lbl_80346498;
 extern f32   lbl_803464B8;
+extern f32   lbl_803464BC;
 extern f64   lbl_803464F8;
 extern f64   lbl_803464C8;
 extern f64   lbl_803464D0;
@@ -169,6 +170,7 @@ extern void  damage_player(s32 player, f32 damage, s32 mode, u32 flags,
                            f32 *direction);
 extern f32   NormalVector(f32 *vector);
 extern f32   NormalVector2D(f32 *vector);
+extern u32   WorldObjGetAllFlags(void *object);
 extern f32   SlowNormalVector(f32 *vector);
 extern f32   fqdist(f32 x, f32 z);
 extern s32   fn_8005FB48(f32 radius, f32 *from, f32 *to,
@@ -646,32 +648,46 @@ void CritterCollideWorld(Critter *c, f32 *delta)
 void CritterWorldDamage(Critter *c, void *surface, f32 *origin,
                         f32 *contact)
 {
+    u32 allFlags;
     u32 material;
     u32 flags;
     f32 direction[3];
     f32 damage;
 
-    if (surface == NULL) {
+    flags = 0;
+    damage = lbl_80346470;
+    if (((allFlags = WorldObjGetAllFlags(surface)) & 0xF0000) == 0) {
         return;
     }
-    material = *(u32 *)((u8 *)surface + 0x10) & 0xF0000;
-    flags = 0;
-    damage = 0.0f;
-    if (material == 0x10000 || material == 0x20000) {
-        damage = 1.0f;
-        flags = material == 0x20000 ? 0x10 : 0;
-    } else if (material >= 0x30000 && material <= 0x50000) {
-        damage = 2.0f;
-        flags = 0x20;
-    }
-    if (damage <= 0.0f) {
+    if ((allFlags & 0x02000000) != 0 &&
+        (allFlags & 0x08000000) == 0) {
         return;
     }
     direction[0] = origin[0] - contact[0];
-    direction[1] = 0.0f;
+    direction[1] = lbl_80346470;
     direction[2] = origin[2] - contact[2];
-    NormalVector(direction);
-    CritterDamage(damage, c, -1, flags, contact, direction, 1);
+    NormalVector2D(direction);
+    material = allFlags & 0xF0000;
+    switch (material) {
+    case 0x10000:
+        damage = lbl_803464B8;
+        break;
+    case 0x20000:
+        damage = lbl_803464B8;
+        flags = 0x10;
+        break;
+    case 0x30000:
+    case 0x40000:
+    case 0x50000:
+        damage = lbl_803464BC;
+        flags = 0x20;
+        break;
+    case 0x60000:
+        break;
+    }
+    if (damage > lbl_80346488) {
+        CritterDamage(damage, c, -1, flags, contact, direction, 1);
+    }
 }
 
 /* 0x800359F0 -- damage swarm enemies intersecting an active critter node. */
