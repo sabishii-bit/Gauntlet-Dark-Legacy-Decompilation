@@ -253,6 +253,7 @@ extern void  GetPlayerColPos(s32 i, f32 *out);
 extern f64   __fabs(f64 x);
 extern char  lbl_8011221C[];          /* 0x8011221C critter-overflow message      */
 extern const char lbl_80112238[];
+extern char  lbl_801122F0[];
 extern f32   gIdentityMatrix[12];
 DECL_SECT(".sdata2") extern const char lbl_80346644[];
 extern void *gCurLevel;               /* current level record (->0xAC hp scale)   */
@@ -405,7 +406,7 @@ struct CritterHeader *CritterTypeLoaded(s32 type, s32 subtype);
 void CritterAllocType(void *hdr, void *move, s32 arg);
 void CritterLoadFinish(u8 *header);
 void CritterInitAllMoves(void);
-void CritterInitMoves(void *move);
+void CritterInitMoves(u8 *header);
 void CritterInitSfx(void *file, s32 index, void *atreeHeader);
 void CritterInitHeader(void *hdr, void *file);
 
@@ -5386,19 +5387,23 @@ void CritterInitAllMoves(void)
 
 /* 0x8003FC4C -- resolve animation/node names and every sound/particle
  * dependency referenced by a loaded type's move and collision tables. */
-void CritterInitMoves(void *move)
+void CritterInitMoves(u8 *header)
 {
-    u8 *header;
+    volatile u8 unused[8];
     u8 *container;
-    u8 *entry;
-    u8 *colnode;
     void *atree;
+    u8 *moves;
+    u8 *colnodes;
+    u8 *entry;
     s32 i;
     s32 index;
 
-    header = (u8 *)move;
     atree = *(void **)(header + 0x138);
     container = *(u8 **)(header + 0x130);
+    moves = *(u8 **)(container + 0x2C) +
+            *(s16 *)(header + 0x112) * 0x90;
+    colnodes = *(u8 **)(container + 0x3C) +
+               *(s16 *)(header + 0x11A) * 0x50;
     if (atree == NULL) {
         return;
     }
@@ -5412,42 +5417,103 @@ void CritterInitMoves(void *move)
         lbl_80344638 = *(s16 *)(header + 0x118);
     }
 
-    entry = *(u8 **)(container + 0x2C) +
-            *(s16 *)(header + 0x112) * 0x90;
-    for (i = 0; i < *(s16 *)(header + 0x110); i++, entry += 0x90) {
-        if (*(s16 *)(entry + 0x0C) < 0 && *(char *)(entry + 0x20) != '\0') {
-            index = AtreeHeaderFindSeq(atree, (char *)(entry + 0x20));
-            *(s16 *)(entry + 0x0C) = (s16)(index < 0 ? 0 : index);
+    i = 0;
+    while (i < *(s16 *)(header + 0x110)) {
+        entry = moves + i * 0x90;
+        if (*(s32 *)entry >= 0x30 && *(s32 *)entry <= 0x39) {
+            *(u32 *)(header + 0x5C) |= 0x10000;
         }
-        if (*(s16 *)(entry + 0x0E) < 0 &&
-            *(char *)(entry + 0x30) != '\0') {
-            *(s16 *)(entry + 0x0E) =
-                (s16)AtreeFindNodeIdx(atree,
-                                      *(s32 *)((u8 *)atree + 0x10),
-                                      (char *)(entry + 0x30), 0x10);
+        if (*(s16 *)(entry + 0x0C) >= 0) {
+            goto next_move;
+        }
+        if (*(char *)(entry + 0x20) != '\0') {
+            index = AtreeHeaderFindSeq(atree, (char *)(entry + 0x20));
+            *(s16 *)(entry + 0x0C) = (s16)index;
+            if (*(s16 *)(entry + 0x0C) < 0) {
+                ErrorPrintf(lbl_801122F0,
+                            (char *)(*(u8 **)(header + 0x120) + 0x10),
+                            (char *)(entry + 0x20));
+                *(s16 *)(entry + 0x0C) = 0;
+            }
+        }
+        index = -1;
+        {
+            void *lookupAtree = *(void **)(header + 0x138);
+        if (lookupAtree != NULL && (entry + 0x30) != NULL &&
+            *(char *)(entry + 0x30) != '\0' &&
+            *(char *)(entry + 0x31) != '\0') {
+            index = AtreeFindNodeIdx(*(void **)((u8 *)lookupAtree + 0x0C),
+                                     *(s32 *)((u8 *)lookupAtree + 0x10),
+                                     (char *)(entry + 0x30), 0x10);
+        }
+        }
+        *(s16 *)(entry + 0x0E) = (s16)index;
+
+        index = *(s16 *)(entry + 0x48);
+        {
+            u8 *sfx;
+            void *sfxHeader;
+            sfxHeader = *(void **)(*(u8 **)(header + 0x120) + 0x28);
+        if (index >= 0) {
+            sfx = *(u8 **)(container + 0x44) + index * 0x50;
+            CritterInitSfx(container, *(s16 *)(sfx + 0x40), sfxHeader);
+            CritterInitSfx(container, *(s16 *)(sfx + 0x44), sfxHeader);
+            CritterInitSfx(container, *(s16 *)(sfx + 0x46), sfxHeader);
+            CritterInitSfx(container, *(s16 *)(sfx + 0x42), sfxHeader);
+            if (*(s16 *)sfx == 6) {
+                lbl_80344650 = 1;
+            }
+        }
+        }
+        {
+            u8 *sfx;
+            void *sfxHeader;
+            index = *(s16 *)(entry + 0x4A);
+            sfxHeader = *(void **)(*(u8 **)(header + 0x120) + 0x28);
+        if (index >= 0) {
+            sfx = *(u8 **)(container + 0x44) + index * 0x50;
+            CritterInitSfx(container, *(s16 *)(sfx + 0x40), sfxHeader);
+            CritterInitSfx(container, *(s16 *)(sfx + 0x44), sfxHeader);
+            CritterInitSfx(container, *(s16 *)(sfx + 0x46), sfxHeader);
+            CritterInitSfx(container, *(s16 *)(sfx + 0x42), sfxHeader);
+            if (*(s16 *)sfx == 6) {
+                lbl_80344650 = 1;
+            }
+        }
         }
         CritterInitSfx(container, *(s16 *)(entry + 0x58),
                        *(void **)(*(u8 **)(header + 0x120) + 0x28));
         CritterInitSfx(container, *(s16 *)(entry + 0x5C),
                        *(void **)(*(u8 **)(header + 0x120) + 0x28));
+next_move:
+        i++;
     }
 
-    colnode = *(u8 **)(container + 0x3C) +
-              *(s16 *)(header + 0x11A) * 0x50;
-    for (i = 0; i < *(s16 *)(header + 0x118);
-         i++, colnode += 0x50) {
+    {
+    s32 colIndex = 0;
+    while (colIndex < *(s16 *)(header + 0x118)) {
+        u8 *colnode;
+        void *lookupAtree;
+        colnode = colnodes + colIndex * 0x50;
         index = -1;
-        if (*(char *)colnode != '\0') {
-            index = AtreeFindNodeIdx(atree,
-                                     *(s32 *)((u8 *)atree + 0x10),
+        lookupAtree = *(void **)(header + 0x138);
+        if (lookupAtree != NULL && colnode != NULL &&
+            *(char *)colnode != '\0' && *(char *)(colnode + 1) != '\0') {
+            index = AtreeFindNodeIdx(*(void **)((u8 *)lookupAtree + 0x0C),
+                                     *(s32 *)((u8 *)lookupAtree + 0x10),
                                      (char *)colnode, 0x10);
         }
         *(s16 *)(colnode + 0x14) = (s16)index;
+        colIndex++;
     }
-    *(u8 **)(header + 0x124) =
-        *(u8 **)(container + 0x2C) + *(s16 *)(header + 0x112) * 0x90;
-    *(u8 **)(header + 0x12C) = colnode -
-        *(s16 *)(header + 0x118) * 0x50;
+    }
+
+    CritterInitSfx(container, *(s16 *)(header + 0xF4),
+                   *(void **)(*(u8 **)(header + 0x120) + 0x28));
+    CritterInitSfx(container, *(s16 *)(header + 0xF6),
+                   *(void **)(*(u8 **)(header + 0x120) + 0x28));
+    *(u8 **)(header + 0x124) = moves;
+    *(u8 **)(header + 0x12C) = colnodes;
     *(u8 **)(header + 0x128) =
         *(u8 **)(container + 0x34) + *(s16 *)(header + 0x116) * 0x50;
 }
