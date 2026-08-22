@@ -173,6 +173,7 @@
 
 #include "types.h"
 #include "game/player.h"
+#include "game/effect.h"
 
 /* ------------------------------------------------------------------ */
 /* player records                                                      */
@@ -313,6 +314,8 @@ extern f32 gIdentityMatrix[];   /* identity matrix */
 
 /* effects (sfx TU) */
 extern u8 lbl_80285BCC[]; /* gEffects[]: stride 0xF0, +0 node ptr */
+extern Effect Effects[];
+extern const f64 lbl_80347880;
 
 /* enemies/world debug */
 extern s32 lbl_802575B0;  /* debug HUD mode (1 = pos, 2 = XP) */
@@ -456,18 +459,19 @@ extern void AudioPlayerBreath(s32 player);
 extern void fn_8009FEA0(s32 player);
 extern void fn_8009FEFC(s32 player);
 extern void AudioExp(s32 player, s32 a);
-extern void AudioPotion(u32 color, f32* pos, s32 heal, s32 d);
+extern void AudioPotion(u32 color, f32* pos, s32 heal);
 extern void update_player_milestone(Player* player);
 extern void fn_8005ACE0(void);
 extern void fn_8005DE50(void* p, s32* req);
 extern void update_class_spec(s32 player);
 
 /* sfx */
-extern s32 StartShieldFX(f32 scale, f32 power, f32* pos, u32 flags, s16 player, s32 d);
-extern s32 StartMagicFX(f32 scale, f32 power, f32* pos, u32 flags, s16 player, s32 d);
-extern void StartThrowMagicFX(f32 a, f32 b, f32 c, f32 d, f32* pos, f32* vel, u32 flags, s32 p, s32 col);
+extern s32 StartShieldFX(f32* pos, s32 type, s32 player, f32 dmg, f32 size);
+extern s32 StartMagicFX(f32* pos, s32 type, s32 player, f32 power, f32 scale);
+extern s32 StartThrowMagicFX(f32* pos, f32* vel, s32 type, s32 player, s32 snd,
+                            f32 weight, f32 dmg, f32 size);
 extern s32 StartLevelUpFX(s32 arg0, s32 classId);
-extern s32 StartMagicHealFX(f32* pos);
+extern s32 StartMagicHealFX(f32* pos, f32 scale);
 extern s32 PlaceEffectOnFloor(s32 fx, f32* pos);
 extern void SfxSetParent(s32 fx, void* node);
 
@@ -1483,7 +1487,7 @@ void PlayerGiveGold(s32 i, s32 amount) {
 /* ------------------------------------------------------------------ */
 
 /* Launch potion-magic FX + sound for a player (pnum < 0: generic). */
-void start_magic(s32 pnum, f32* pos, u32 flags, s32 mode) {
+void start_magic(s32 pnum, f32* pos, u32 flags, s32 mode, f32 power_scale) {
     Player* p;
     f32 scale;
     f32 power;
@@ -1492,62 +1496,71 @@ void start_magic(s32 pnum, f32* pos, u32 flags, s32 mode) {
     f32 vpos[3];
     f32 vel[3];
     f32 pw;
+    f64 tmp;
 
     scale = 1.0f;
     p = NULL;
-    if (pnum < 0) {
-        scale = 0.8f;
-        power = (f32)(20.0 * sMusicFadeBase);
-    } else {
+    if (pnum >= 0) {
         p = P(pnum);
-        power = (f32)(p->magic_power * sMusicFadeBase);
+        power = p->magic_power * power_scale;
         if (pnum == DamageColor(flags)) {
-            power = (f32)(power * 1.1);
-            scale = (f32)(scale + 0.1);
+            power *= 1.1;
+            scale += 0.1;
         }
-        if (p->level > 0x18) {
+        if (p->level >= 0x19) {
             flags |= 0x800000;
         }
+    } else {
+        scale = 0.8f;
+        power = (f32)(20.0 * power_scale);
     }
     color = flags & 0xF;
     if (color == 0) {
-        color = (randpottype % 4) + 1;
+        color = (randpottype++ % 4) + 1;
         flags |= color;
-        randpottype++;
     }
     flags |= 0x200;
     if (pnum < 0) {
         mode = 0;
     }
-    if (mode < 2) {
-        if (mode == 1) {
-            fx = StartShieldFX((f32)(25.0 * scale), (f32)(0.25 * power), pos, flags | 0x200,
-                             (s16)pnum, mode);
-            MBNodeSetParent(*(void**)(lbl_80285BCC + fx * 0xF0), p->node);
-            if (pnum >= 0) {
-                AudioPotion(color, pos, 1, mode);
-            }
-        } else {
-            fx = StartMagicFX((f32)(40.0 * scale), power, pos, flags | 0x200, (s16)pnum, mode);
-            PlaceEffectOnFloor(fx, NULL);
-            if (pnum >= 0) {
-                AudioPotion(color, pos, 0, mode);
-            }
+    if (mode >= 2) {
+        pw = (f32)(-1.5 * (f64)p->throw_str + 5.0);
+
+        vel[0] = p->mat[8];
+        vel[1] = p->mat[9];
+        vel[2] = p->mat[10];
+        vpos[0] = pos[0];
+        vpos[1] = pos[1];
+        vpos[2] = pos[2];
+        vpos[0] = (f32)(2.0 * vel[0] + vpos[0]);
+        vpos[1] = (f32)(2.0 * vel[1] + vpos[1]);
+        vpos[2] = (f32)(2.0 * vel[2] + vpos[2]);
+        vpos[1] += 4.0;
+        tmp = *(volatile f32*)&vel[0];
+        vel[0] = (f32)(tmp * lbl_80347880);
+        vel[1] = 0.707f;
+        vel[2] = (f32)((f64)vel[2] * lbl_80347880);
+        vel[0] *= pw;
+        vel[1] *= pw;
+        vel[2] *= pw;
+        StartThrowMagicFX(vpos, vel, flags, pnum, color + 7, 100.0f,
+                          (f32)(40.0 * scale), (f32)(0.75 * power));
+    } else if (mode == 1) {
+        fx = StartShieldFX(NULL, flags, pnum, (f32)(25.0 * scale),
+                           (f32)(0.25 * power));
+        MBNodeSetParent(Effects[fx].node, p->node);
+        if (pnum >= 0) {
+            AudioPotion(color, pos, 1);
         }
     } else {
-        f32 h = (f32)(1.5 * -(f32)p->throw_str + 5.0);
-
-        vpos[0] = (f32)(2.0 * p->mat[8] + pos[0]);
-        vpos[2] = (f32)(2.0 * p->mat[10] + pos[2]);
-        vpos[1] = (f32)((f32)(2.0 * p->mat[9] + pos[1]) + 4.0);
-        vel[0] = (f32)(p->mat[8] * 0.707) * h;
-        vel[1] = 0.707f * h;
-        vel[2] = (f32)(p->mat[10] * 0.707) * h;
-        StartThrowMagicFX(100.0f, (f32)(40.0 * scale), (f32)(0.75 * power), 1.5, vpos, vel,
-                    flags | 0x200, pnum, color + 7);
+        fx = StartMagicFX(pos, flags, pnum, (f32)(40.0 * scale), power);
+        PlaceEffectOnFloor(fx, NULL);
+        if (pnum >= 0) {
+            AudioPotion(color, pos, 0);
+        }
     }
-    if (p != NULL && p->level > 0x4A && mode != 1) {
-        fx = StartMagicHealFX(NULL);
+    if (p != NULL && p->level >= 0x4B && mode != 1) {
+        fx = StartMagicHealFX(NULL, power);
         SfxSetParent(fx, p->node);
     }
 }
