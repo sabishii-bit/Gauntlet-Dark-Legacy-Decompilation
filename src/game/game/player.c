@@ -742,36 +742,45 @@ void WritePlayerInfo(s32 pnum) {
 
 /* Corner ticker for the most recent crystal/boss-item/coin pickup. */
 static void show_crystals(Player* p) {
-    s32 type;
+    s32 i;
     s32 cnt;
     s32 total;
-    s32 i;
+    s32 type;
     void* tex;
 
-    if (welcome_timer < 1 && options_state == 0 && gGameMode == 0x4010 &&
-        (f64)p->got_timer > 0.0) {
+    if (welcome_timer > 0) {
+        return;
+    }
+    if (options_state != 0) {
+        return;
+    }
+    switch (gGameMode) {
+    case 0x4010:
+        break;
+    default:
+        return;
+    }
+
+    if ((f64)p->got_timer > 0.0) {
         i = p->index;
         p->got_timer = p->got_timer - gClockFrameStep;
-        total = sVisibleSumCoinCount;
         type = p->got_type;
-        if (type < 0x200) {
-            if (type < 0x100) {
-                cnt = towerBossStatus(i, type);
-                total = lbl_80124C70[type];
-                sprintf(tbuf, "SM_CRYSTAL_%s", &lbl_80124C94[type * 8]);
-            } else {
-                type -= 0x100;
-                cnt = towerGetLevelRecord(i, type);
-                total = lbl_80124CDC[type];
-                sprintf(tbuf, "SM_%s", &lbl_80124CE8[type * 0xE]);
-            }
-        } else {
+        if (type >= 0x200) {
             cnt = p->got_count;
+            total = sVisibleSumCoinCount;
             if (type - 0x200 < 0x10) {
                 sprintf(tbuf, "16_%sCOIN", &lbl_801200B0[(type - 0x200) * 4]);
             } else {
                 sprintf(tbuf, "16_SUM");
             }
+        } else if (type >= 0x100) {
+            cnt = towerGetLevelRecord(i, type -= 0x100);
+            total = lbl_80124CDC[type];
+            sprintf(tbuf, "SM_%s", &lbl_80124CE8[type * 0xE]);
+        } else {
+            cnt = towerBossStatus(i, type);
+            total = lbl_80124C70[type];
+            sprintf(tbuf, "SM_CRYSTAL_%s", &lbl_80124C94[type * 8]);
         }
         tbuf[14] = 0;
         tex = MBOX_FindTexture(tbuf, NULL);
