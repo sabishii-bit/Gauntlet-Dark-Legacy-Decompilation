@@ -192,14 +192,18 @@ void fn_800C1498(void)
     while (*(volatile s32*)&lbl_80344F90 == 0) {
     }
     v = *(volatile s32*)&lbl_80344F90;
-    if (v == 2) {
-        return;
-    }
-    if (v >= 2 && v < 4) {
+    switch (v) {
+    case 2:
+        break;
+    case 3:
         sceGsSyncPath(0);
-        return;
+        break;
+    case 0:
+    case 1:
+    default:
+        lbl_80344F90 = 0;
+        break;
     }
-    lbl_80344F90 = 0;
 }
 
 /* pb-module close stub (referenced from pb_global.c -- keep fn_) */
