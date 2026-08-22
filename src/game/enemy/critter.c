@@ -332,8 +332,8 @@ s32  CritterMoveNodeColSub(Critter *c, f32 radius, f32 height,
 s32  CritterExpNodeColSub(Critter *c, f32 radius, f32 squaredExpand,
                           f32 height, f32 *origin, f32 *destination,
                           f32 *contact, s32 mode);
-s32  CritterExpCollide(f32 *origin, f32 *forward, f32 radius,
-                       f32 dot, f32 *contact, s32 timedId);
+Critter *CritterExpCollide(f32 *origin, f32 *forward, f32 radius,
+                           f32 dot, f32 *contact, s32 timedId);
 s32  CritterLineNodeColSub(Critter *c, f32 *origin, f32 *forward,
                            f32 *delta, f32 radius, f32 dotThreshold);
 void CritterCollideStart(s32 unused, void *ctx);
@@ -1923,39 +1923,57 @@ s32 CritterExpNodeColSub(Critter *c, f32 radius, f32 squaredExpand,
 
 /* 0x80037A10 -- expanded collision query across all critter roots, excluding
  * families that already own the supplied timed hit id. */
-s32 CritterExpCollide(f32 *origin, f32 *forward, f32 radius,
-                      f32 dot, f32 *contact, s32 timedId)
+Critter *CritterExpCollide(f32 *origin, f32 *forward, f32 radius,
+                           f32 dot, f32 *contact, s32 timedId)
 {
     Critter *c;
+    u8 unused2[8];
     f32 delta[3];
+    u8 unused[16];
     f32 bodyRadius;
     f32 distance;
-    s32 i;
+    s32 result;
 
-    for (i = 0; i < lbl_8034466C; i++) {
-        c = &gCritterPool[i];
-        if (c->hdr == NULL || c == lbl_80344648 ||
-            CritterNoHit(c, timedId)) {
+    result = 0;
+    if (contact == NULL) {
+        contact = delta;
+    }
+    while (lbl_80344644 < lbl_8034466C) {
+        c = &gCritterPool[lbl_80344644++];
+        if (c->hdr == NULL || c == lbl_80344648) {
             continue;
         }
-        if ((*(u32 *)((u8 *)c->hdr + 0x5C) & 2) != 0 &&
-            CritterExpNodeColSub(c, radius, 0.0f, 0.0f, origin, origin,
-                                 contact, 1)) {
-            return 1;
+        if (CritterMoveNoHit(c, timedId)) {
+            continue;
         }
-        delta[0] = c->pos[0] - origin[0];
-        delta[1] = c->pos[1] - origin[1];
-        delta[2] = c->pos[2] - origin[2];
-        distance = NormalVector(delta);
-        bodyRadius = radius + *(f32 *)((u8 *)c->hdr + 0x7C);
-        if (distance <= bodyRadius &&
-            (dot <= 0.0f ||
-             delta[0] * forward[0] + delta[2] * forward[2] >= dot)) {
-            memcpy(contact, delta, sizeof(delta));
-            return 1;
+        if ((*(u32 *)((u8 *)c->hdr + 0x5C) & 2) != 0) {
+            result = CritterLineNodeColSub(c, origin, forward, contact,
+                                           radius, dot);
+        }
+        if (!result) {
+            s32 collided;
+
+            contact[0] = c->pos[0] - origin[0];
+            contact[1] = c->pos[1] - origin[1];
+            contact[2] = c->pos[2] - origin[2];
+            distance = NormalVector2D(contact);
+            bodyRadius = radius + *(f32 *)((u8 *)c->hdr + 0x7C);
+            if (distance > bodyRadius) {
+                collided = 0;
+            } else if (dot > 0.0 &&
+                       contact[0] * forward[0] +
+                       contact[2] * forward[2] < dot) {
+                collided = 0;
+            } else {
+                collided = 1;
+            }
+            result = collided;
+        }
+        if (result) {
+            return c;
         }
     }
-    return 0;
+    return NULL;
 }
 /* 0x80037C08 -- find an active collision node within `radius` and, when
  * requested, inside the caller's forward-facing half-space. */
