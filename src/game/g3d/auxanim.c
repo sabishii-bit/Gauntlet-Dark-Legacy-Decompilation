@@ -191,55 +191,81 @@ void DoTexModSub(TEXMOD* tm)
 {
     short scr;
     int mode;
+    int tex;
+    int counter;
     u32 rate;
     float scale;
+    float t;
     float sign;
     float v;
 
+    if (tm->tex < 0) {
+        return;
+    }
     rate = tm->rate;
-    if (tm->tex >= 0 && ((int)rate <= 0 || InfFrame % rate == 0)) {
-        tm->counter++;
-        mode = tm->frames;
-        if (mode < 0) {
-            mode = -mode;
-        }
-        if (tm->counter >= mode) {
-            tm->counter = 0;
-        }
-        mode = tm->src;
-        if (mode == -3) {
-            scr = tm->scrollIdx;
-            sign = (float)tm->frames;
-            scale = 1.0f;
-            if ((float)tm->frames < 0.0f) {
-                sign = -sign;
-                scale = -1.0f;
-            }
-            v = CalcTexScroll((float)(tm->counter - tm->unk4e), 0.0f, sign, tm->counter, (float*)0);
-            lbl_802C2E28[scr].y1 = scale * v;
+    if ((int)rate > 0 && InfFrame % rate != 0) {
+        return;
+    }
+
+    tm->counter++;
+    mode = tm->frames;
+    if (mode < 0) {
+        mode = -mode;
+    }
+    if (tm->counter >= mode) {
+        tm->counter = 0;
+    }
+
+    mode = tm->src;
+    if (mode == -3) {
+        goto scroll_y1;
+    }
+    if (mode < -3) {
+        if (mode == -6) {
+            goto exit;
         } else {
-            if (mode < -3) {
-                if (mode == -6) {
-                    return;
-                }
-            } else if (mode < -1) {
-                scr = tm->scrollIdx;
-                sign = (float)tm->frames;
-                scale = 1.0f;
-                if ((float)tm->frames < 0.0f) {
-                    sign = -sign;
-                    scale = -1.0f;
-                }
-                v = CalcTexScroll((float)(tm->counter - tm->unk4e), 0.0f, sign, tm->counter, (float*)0);
-                lbl_802C2E28[scr].y0 = scale * v;
-                return;
-            }
-            if (tm->tex >= 0) {
-                void* p = MBRomTexPtr(mode + tm->counter);
-                MBSetRomTexture(tm->tex, p);
-            }
+            goto texture;
         }
     }
+    if (mode >= -1) {
+        goto texture;
+    }
+
+    counter = tm->counter;
+    t = (float)(counter - tm->unk4e);
+    sign = (float)tm->frames;
+    scr = tm->scrollIdx;
+    scale = 1.0f;
+    if ((float)tm->frames < 0.0f) {
+        sign = -sign;
+        scale = -1.0f;
+    }
+    v = CalcTexScroll(t, 0.0f, sign, counter, (float*)0);
+    lbl_802C2E28[scr].y0 = scale * v;
+    return;
+
+scroll_y1:
+    counter = tm->counter;
+    t = (float)(counter - tm->unk4e);
+    sign = (float)tm->frames;
+    scr = tm->scrollIdx;
+    scale = 1.0f;
+    if ((float)tm->frames < 0.0f) {
+        sign = -sign;
+        scale = -1.0f;
+    }
+    v = CalcTexScroll(t, 0.0f, sign, counter, (float*)0);
+    lbl_802C2E28[scr].y1 = scale * v;
+    return;
+
+texture:
+    tex = tm->tex;
+    if (tex >= 0) {
+        void* p = MBRomTexPtr(mode + tm->counter);
+        MBSetRomTexture(tex, p);
+    }
+exit:
+    return;
 }
 
 void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
