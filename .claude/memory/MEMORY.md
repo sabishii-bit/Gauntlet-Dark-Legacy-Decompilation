@@ -1,5 +1,7 @@
 # Memory Index
 
+- [Exact matching workflow and handoff policy (2026-08-21)](exact-main-workflow-2026-08-21.md) - CURRENT USER-DIRECTED AUTHORITY: portable C/C++ only; no handwritten assembly/raw code; exact-only retention; isolated Codex checkout; root-only direct commits/pushes to `main`; no remote worker branches; full verification and handoff checklist. Overrides conflicting older workflow notes.
+
 - [35.50% closeout techniques](threshold-35-50-2026-07-31.md) - exact branch-shape recovery with tiny inline-asm branches, signed halfword temporaries for `lha`/`extsh`, source-level `goto` for shared-store CFGs, and function-scope FP temporaries for allocator recovery
 - [Matching workflow policy](matching-workflow-policy.md) - USER-AGREED: matchtool.py (now tools/gdl/) probe first (covers BOTH proven compilers 1.2.5n+1.2.5 in one table), xbmod.py for REAL names, /XboxPDB types; no archive-wide compiler sweeps; timebox+accept regalloc-only residuals
 - [Combat boundary and missile layouts](combat-boundary-and-missile-layout-2026-07-31.md) - corrected COMBAT/CONTROLS seam, exact MISSILEDESC/MISSILEINFO partitions, ResetPlayerMissiles exact, and MWCC loop/frame matching techniques
