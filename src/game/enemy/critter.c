@@ -285,7 +285,7 @@ extern f32   lbl_80346570;
 
 /* -- CRITTER.OBJ internal roster (forward declarations) -- */
 struct CritterDamageDef;
-void CritterCollideEnemies(Critter *c, f32 *delta);
+s32  CritterCollideEnemies(Critter *c, f32 *delta);
 s32 CritterCollideItems(Critter *c, f32 *delta);
 s32 CritterCollidePlayers(Critter *c, f32 *delta);
 void CritterCollideWorld(Critter *c, f32 *delta);
@@ -413,32 +413,92 @@ void CritterInitHeader(void *hdr, void *file);
 
 /* 0x80034CFC -- stop or deflect this frame's translation when it overlaps
  * a live swarm enemy. */
-void CritterCollideEnemies(Critter *c, f32 *delta)
+s32 CritterCollideEnemies(Critter *c, f32 *delta)
 {
-    Enemy *enemy;
-    f32 dx;
-    f32 dz;
+    u8 unusedHigh[16];
+    f32 contact[3];
+    u8 unusedMid[4];
+    f32 center[3];
+    f32 bestContact[3];
+    u8 unusedLow[8];
+    u8 *enemy;
+    s32 bestIndex;
+    f32 *cpos;
+    f32 best;
     f32 radius;
-    f32 distance2;
+    f32 height;
+    f32 combinedRadius;
+    f32 combinedHeight;
+    f32 distance;
     s32 index;
+    s32 hit;
 
+    cpos = c->pos;
+    best = lbl_80346470;
     radius = *(f32 *)((u8 *)c->hdr + 0x7C);
-    StartItemGrid(radius, c->pos);
+    height = *(f32 *)((u8 *)c->hdr + 0x78);
+    center[0] = cpos[0] + delta[0];
+    bestIndex = -1;
+    center[1] = cpos[1] + delta[1];
+    center[2] = cpos[2] + delta[2];
+    StartItemGrid(radius, center);
     while ((index = NextGridItem()) >= 0) {
-        enemy = &gEnemies[index];
-        if (enemy->state != ACTIVE && enemy->state != ON_EXIT) {
+        enemy = (u8 *)&gEnemies[index];
+        if (*(s32 *)(enemy + 0xB4) != 1 &&
+            *(s32 *)(enemy + 0xB4) != 6 &&
+            (*(s32 *)(enemy + 0xB4) != 8 || lbl_803447DC == 0)) {
             continue;
         }
-        dx = enemy->trans[0] - (c->pos[0] + delta[0]);
-        dz = enemy->trans[2] - (c->pos[2] + delta[2]);
-        distance2 = dx * dx + dz * dz;
-        if (distance2 <= (radius + enemy->rad) * (radius + enemy->rad)) {
-            delta[0] = 0.0f;
-            delta[2] = 0.0f;
-            enemy->pushed[0] += dx * -0.5f;
-            enemy->pushed[2] += dz * -0.5f;
+        if (*(s32 *)enemy == 31) {
+            continue;
+        }
+        combinedRadius = radius + *(f32 *)(enemy + 0x238);
+        combinedHeight = height + *(f32 *)(enemy + 0x23C);
+        if ((*(u32 *)((u8 *)c->hdr + 0x5C) & 0x100) != 0) {
+            hit = CritterMoveNodeColSub(c, combinedRadius, combinedHeight, delta,
+                    (f32 *)(enemy + 0x54), contact, 1);
+        } else {
+            contact[0] = *(f32 *)(enemy + 0x54) - center[0];
+            contact[1] = *(f32 *)(enemy + 0x58) - center[1];
+            contact[2] = *(f32 *)(enemy + 0x5C) - center[2];
+            if (contact[0] * contact[0] + contact[2] * contact[2] >
+                combinedRadius * combinedRadius) {
+                continue;
+            }
+            hit = LineCylinderCollide((f32 *)(enemy + 0x54), combinedRadius,
+                    combinedHeight, cpos, center,
+                    contact, 1);
+        }
+        if (hit == 0) {
+            continue;
+        }
+        distance = fqdist(contact[0] - center[0],
+                          contact[2] - center[2]);
+        if (bestIndex < 0 || distance < best) {
+            best = distance;
+            bestIndex = index;
+            bestContact[0] = contact[0];
+            bestContact[1] = contact[1];
+            bestContact[2] = contact[2];
         }
     }
+    if (bestIndex >= 0) {
+        if (*(s16 *)(*(u8 **)((u8 *)c->hdr + 0x120) + 0x20) == 3) {
+            enemy = (u8 *)&gEnemies[bestIndex];
+            if ((f64)*(f32 *)(enemy + 0x23C) <= lbl_80346478) {
+                damage_enemy(enemy, -1, 0,
+                             *(f32 *)((u8 *)c->hdr + 0xB8) *
+                             *(f32 *)((u8 *)gCurLevel + 0xBC),
+                             bestContact, NULL, 1);
+                return 0;
+            }
+        }
+        distance = lbl_80346470;
+        delta[2] = distance;
+        delta[0] = distance;
+        return 1;
+    }
+    return 0;
 }
 
 /* 0x80034F60 -- stop translation against collidable item records returned by
