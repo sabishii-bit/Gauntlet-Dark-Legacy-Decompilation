@@ -1941,7 +1941,10 @@ void DoShake(Vec3* posA, Vec3* posB) {
     if (!shaking) {
         return;
     }
-    if (gGameBusy | gGameplayPauseTimer) {
+    switch (gGameBusy | gGameplayPauseTimer) {
+    case 0:
+        break;
+    default:
         goto shake_done;
     }
 
