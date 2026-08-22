@@ -235,7 +235,8 @@ extern void  MBPsysSetETime(f32 life, f32 variance, void *psys);
 extern void  MBPsysSetPSpeed(void *psys, f32 speed);
 extern void *PlaceItem(s32 type, s32 subtype, const char *name, f32 *position);
 extern void  AddItemSub(void *item);
-extern void  fn_800920E0(f32 *position, void *item);
+extern void  fn_800920E0(f32 *position, void *item, f32 scale);
+extern char  lbl_803465EC;
 extern void  msgPost(s32 message, s32 target, s32 value);
 extern char *fn_80057ACC(s32 slot);
 extern s32   toupper(s32 c);
@@ -2768,39 +2769,58 @@ void CritterProcessSafeRocks(void)
 void CritterDropItem(Critter *c)
 {
     void *item;
-    char name[40];
-    char *source;
-    s32 i;
+    char name[32];
     s32 type;
 
-    item = *(void **)((u8 *)c + 0xACC);
+    item = NULL;
     type = 0;
-    if (item != NULL) {
-        *(void **)((u8 *)c + 0xACC) = NULL;
+    if (*(void **)((u8 *)c + 0xACC) != NULL) {
+        item = *(void **)((u8 *)c + 0xACC);
+        *(void **)c->_blkACC = NULL;
         type = 1;
-    } else if (*(s16 *)(*(u8 **)((u8 *)c->hdr + 0x120) + 0x20) == 7) {
-        source = fn_80057ACC(0x20);
-        for (i = 0; i < (s32)sizeof(name) - 1 && source[i] != '\0'; i++) {
-            name[i] = (char)toupper(source[i]);
+    } else {
+        switch (*(s16 *)(*(u8 **)((u8 *)c->hdr + 0x120) + 0x20)) {
+        case 7: {
+            char *p;
+
+            sprintf(name, &lbl_803465EC, fn_80057ACC(0x20));
+            p = name;
+            while (*p != '\0') {
+                *p = (char)toupper(*p);
+                p++;
+            }
+            item = PlaceItem(1, 0x10, name, NULL);
+            type = 2;
+            break;
         }
-        name[i] = '\0';
-        item = PlaceItem(1, 0x10, name, NULL);
-        type = 2;
+        }
     }
     if (item == NULL) {
         return;
     }
-    if (*(s16 *)(*(u8 **)((u8 *)c->hdr + 0x120) + 0x20) == 8) {
+    switch (*(s16 *)(*(u8 **)((u8 *)c->hdr + 0x120) + 0x20)) {
+    case 8:
         msgPost(0x86, -1, 0);
-    } else if (*(s16 *)(*(u8 **)((u8 *)c->hdr + 0x120) + 0x20) == 7) {
+        break;
+    case 7:
         msgPost(0x8A, -1, 0);
+        break;
     }
-    if (type == 0) {
-        memcpy((u8 *)item + 0x34, (u8 *)c + 0x438, 12);
-        AddItemSub(item);
-    } else {
-        fn_800920E0((f32 *)((u8 *)c + 0x438), item);
+    if (type != 0) {
+        *(u8 *)((u8 *)item + 0xCD) = 10;
+        fn_800920E0((f32 *)((u8 *)c + 0x438), item, lbl_80346470);
+        return;
     }
+
+    *(u8 *)((u8 *)item + 0xCD) = 0;
+    MBTreeClearFlags(*(void **)((u8 *)item + 0x64), 2, 0);
+    if (**(s32 **)((u8 *)item + 0x0) == 1) {
+        *(s16 *)((u8 *)item + 0xEC) = 60;
+    }
+    *(f32 *)((u8 *)item + 0x34) = *(f32 *)((u8 *)c + 0x438);
+    *(f32 *)((u8 *)item + 0x38) = *(f32 *)((u8 *)c + 0x43C);
+    *(f32 *)((u8 *)item + 0x3C) = *(f32 *)((u8 *)c + 0x440);
+    AddItemSub(item);
 }
 
 /* 0x8003A9C4 -- integrate scripted translation and knockback, then clamp the

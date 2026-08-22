@@ -130,6 +130,10 @@ extern const f64 lbl_803491D0;
 extern const f32 lbl_803491D8;
 extern const f32 lbl_803491DC;
 extern const f32 lbl_803491E0;
+extern f32 lbl_80349154;
+extern const f64 lbl_80349168;
+extern const f64 lbl_803491A0;
+extern const f64 lbl_803491F8;
 static f32  getSinCos(f32 ang, f32* sinOut);
 static void DrawPsysSub(void);
 static void setupNewPMode_800CDCE4(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
@@ -730,16 +734,119 @@ s32 MBTraversePsys(MBObject* node, void* fn) {
  *  Emitter setup                                                          *
  * ======================================================================= */
 
-/* 0x800CE758 - recompute per-emit interpolation rates for a psys.
- * Documented reconstruction (NonMatching). */
+#pragma opt_propagation off
 static void setupParms(Psys* p) {
+    f32 lifeStart;
+    f32 lifeEnd;
+    f32 fadeStart;
+    f32 fadeEnd;
+    f32 fadeRate;
+    f32 emitterLifeRate;
+    f32 emitterFadeRate;
+    f32 fadeProduct;
+    f32 maxWidth;
+    u8* win;
+    u8* globals;
+    PsysParm* parm;
+
+    win = (u8*)gWinGlobals;
     if (p->e_life == 0) {
         p->e_life = 1;
     }
+
+    if (p->e_fade == 0) {
+        fadeRate = lbl_80349154;
+    } else {
+        fadeRate = (f32)(lbl_80349168 / (f64)p->e_fade);
+    }
+    emitterFadeRate = fadeRate;
+
+    lifeStart = p->e_rate.i.life_start;
+    lifeEnd = p->e_rate.i.life_end;
+    fadeStart = p->e_rate.i.fade_start;
+    fadeEnd = p->e_rate.i.fade_end;
+    emitterLifeRate = (f32)(lbl_80349168 / (f64)p->e_life);
+    fadeProduct = (f32)p->e_life * emitterFadeRate;
+    p->e_rate.o.life_start = lifeStart;
+    p->e_rate.o.life_slope = emitterLifeRate * (lifeEnd - lifeStart);
+
+    if (lbl_803491F8 == emitterFadeRate) {
+        p->e_rate.o.fade_start = fadeStart;
+        p->e_rate.o.fade_slope = 0.0f;
+    } else {
+        p->e_rate.o.fade_start = fadeProduct * (fadeStart - fadeEnd) + fadeStart;
+        p->e_rate.o.fade_slope = emitterFadeRate * (fadeEnd - fadeStart);
+    }
+
+    maxWidth = p->p_parms[4].i.life_start;
+    lifeEnd = p->p_parms[4].i.life_end;
+    maxWidth = lifeEnd > maxWidth ? lifeEnd : maxWidth;
+    fadeStart = p->p_parms[4].i.fade_start;
+    fadeStart = fadeStart > maxWidth ? fadeStart : maxWidth;
+    fadeEnd = p->p_parms[4].i.fade_end;
+    fadeEnd = fadeEnd > fadeStart ? fadeEnd : fadeStart;
+    p->max_width = (f32)(lbl_803491A0 * fadeEnd);
+
+    {
+        f32 pLifeStart;
+        f32 pLifeEnd;
+        f32 pLifeRate;
+        f32 pFadeRate;
+        f32 pFadeProduct;
+        f32 pFadeStart;
+        f32 pFadeEnd;
+
+        if (p->p_life == 0) {
+            p->p_life = 1;
+        }
+
+        if (p->p_fade == 0) {
+            pFadeRate = lbl_80349154;
+        } else {
+            pFadeRate = (f32)(lbl_80349168 / (f64)p->p_fade);
+        }
+        pLifeRate = (f32)(lbl_80349168 / (f64)p->p_life);
+        pFadeProduct = (f32)p->p_life * pFadeRate;
+
+        parm = &p->p_parms[5];
+        while (parm-- != &p->p_parms[0]) {
+            pLifeStart = parm->i.life_start;
+            pLifeEnd = parm->i.life_end;
+            pFadeStart = parm->i.fade_start;
+            pFadeEnd = parm->i.fade_end;
+
+            if (lbl_803491F8 == pLifeRate || pLifeStart == pLifeEnd) {
+                parm->o.life_start = pLifeStart;
+                parm->k.life_anim = 0;
+            } else {
+                parm->o.life_start = pLifeStart;
+                parm->o.life_slope = pLifeRate * (pLifeEnd - pLifeStart);
+            }
+
+            if (lbl_803491F8 == pFadeRate || pFadeStart == pFadeEnd) {
+                parm->o.fade_start = pFadeStart;
+                parm->k.fade_anim = 0;
+            } else {
+                parm->o.fade_start = pFadeProduct * (pFadeStart - pFadeEnd) + pFadeStart;
+                parm->o.fade_slope = pFadeRate * (pFadeEnd - pFadeStart);
+            }
+        }
+    }
+
     if (p->p_tex == NULL) {
-        p->p_tex = (struct ROMTEX*)gDefTexA;
+        globals = (u8*)&lbl_80128710;
+        p->p_tex = *(struct ROMTEX**)(globals + 0x1c);
+        if ((((MBObject*)p->node)->flags & 0x00800000) != 0 &&
+            *(struct ROMTEX**)(globals + 0x20) != NULL) {
+            p->p_tex = *(struct ROMTEX**)(globals + 0x20);
+        }
+        if (p->p_tex == NULL) {
+            p->p_tex = *(struct ROMTEX**)(*(u8**)(*(u8**)(win + 0x30) + 4) + 0x58);
+            p->flags |= 0x30;
+        }
     }
 }
+#pragma opt_propagation reset
 
 /* 0x800CDCE4 - choose spawn generators + size the ring/index/usage buffers.
  * Wires dir_func/pos_func/ppos_func based on the emit distribution and
