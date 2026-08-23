@@ -2904,6 +2904,154 @@ void fn_80051C78(void)
     }
 }
 
+/* 0x800511D0 - from a given milestone, pick the next milestone whose
+ * direction (relative to the source's facing) is within the tolerance,
+ * preferring the nearest one (with a second-best fallback by |dy|). */
+extern f32  atan2(f32 y, f32 x);
+extern f64  lbl_80346840;          /* pi   */
+extern f64  lbl_80346848;          /* 2pi  */
+extern f64  lbl_80346850;          /* -pi  */
+extern char lbl_80112518[];        /* "no next milestone" error fmt */
+extern f32  get_yaw(f32* to, f32* from);
+extern f64  lbl_803468B8;          /* 3.0 */
+
+#pragma opt_common_subs off
+#pragma opt_propagation off
+s32 fn_800511D0(s32 arg0, f32 arg1)
+{
+    u8 unusedHi[12];
+    f32 pos[3];
+    f32 bestDist;
+    f32 secondDist;
+    f32 bestDy;
+    f32 secondDy;
+    f32 tolerance;
+    f64 kThree;
+    f64 kHalf;
+    f32 kZero;
+    f64 k2Pi;
+    f64 kNegPi;
+    f64 kPi;
+    f32 base;
+    s32 second;
+    s32 milestone;
+    u8* m;
+    s32 i;
+    s32 best;
+    u8 unusedLo[28];
+
+    bestDist = lbl_803468B0;
+    best = -1;
+    secondDist = bestDist;
+    bestDy = bestDist;
+    second = -1;
+    secondDy = bestDist;
+    tolerance = arg1;
+    milestone = arg0;
+    if (milestone < 0) {
+        return milestone;
+    }
+
+    m = sMilestones + milestone * 104;
+    pos[0] = *(f32*)(m + 48);
+    pos[1] = *(f32*)(m + 52);
+    pos[2] = *(f32*)(m + 56);
+    {
+        f32 x = *(f32*)(m + 40);
+        f32 r = atan2(*(f32*)(m + 32), x);
+        f64 p = lbl_80346840;
+        f32 a = (f32)(p + r);
+        f64 t;
+        if (a > p) {
+            t = a - lbl_80346848;
+        } else if (a <= lbl_80346850) {
+            t = lbl_80346848 + a;
+        } else {
+            t = a;
+        }
+        base = (f32)t;
+    }
+
+    kZero = lbl_80346820;
+    kHalf = lbl_80346830;
+    kThree = lbl_803468B8;
+    kNegPi = lbl_80346850;
+    k2Pi = lbl_80346848;
+    kPi = lbl_80346840;
+    {
+        u8* m0 = sMilestones;
+        m = m0;
+    }
+    for (i = 0; i < sNumMilestones; i++, m += 104) {
+        f32 d;
+        f64 nd;
+        f32 ad;
+        f32 dx;
+        f32 dy;
+        f32 dz;
+        f32 dist;
+
+        if (i == milestone) {
+            continue;
+        }
+        d = get_yaw((f32*)(m + 48), pos) - base;
+        if (d > kPi) {
+            nd = d - k2Pi;
+        } else if (d <= kNegPi) {
+            nd = k2Pi + d;
+        } else {
+            nd = d;
+        }
+        ad = (f32)nd;
+        *(u32*)&ad &= 0x7FFFFFFF;
+        if (ad <= tolerance) {
+            dy = *(f32*)(m + 52) - pos[1];
+            dx = *(f32*)(m + 48) - pos[0];
+            dz = *(f32*)(m + 56) - pos[2];
+            dist = dx * dx + dy * dy;
+            dist = dz * dz + dist;
+            if (dist > kZero) {
+                volatile f32 tmp;
+                f64 y = __frsqrte(dist);
+                y = kHalf * y * (kThree - y * y * dist);
+                y = kHalf * y * (kThree - y * y * dist);
+                y = kHalf * y * (kThree - y * y * dist);
+                tmp = (f32)(dist * (kHalf * y * (kThree - y * y * dist)));
+                dist = tmp;
+            }
+            if (dist < bestDist) {
+                f32 t1 = dy;
+                secondDist = bestDist;
+                second = best;
+                secondDy = bestDy;
+                *(u32*)&t1 &= 0x7FFFFFFF;
+                bestDist = dist;
+                best = i;
+                bestDy = t1;
+            } else if (dist < secondDist) {
+                f32 t2 = dy;
+                secondDist = dist;
+                second = i;
+                *(u32*)&t2 &= 0x7FFFFFFF;
+                secondDy = t2;
+            }
+        }
+    }
+
+    if (bestDy > secondDy) {
+        best = second;
+    }
+    if (best < 0) {
+        if ((gControllerButtons & 0x10) != 0) {
+            ErrorPrintf(lbl_80112518, milestone);
+        }
+        best = milestone;
+    }
+    return best;
+}
+#pragma opt_propagation reset
+#pragma opt_common_subs on
+
 /* 0x80051E1C - format a world/level display name (uppercased) */
 extern char lbl_80346A90[8];    /* "%s" fmt */
 extern char lbl_80346A98[8];    /* "%s %c" fmt */
