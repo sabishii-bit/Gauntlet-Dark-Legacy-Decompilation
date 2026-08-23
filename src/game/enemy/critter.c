@@ -144,6 +144,8 @@ extern void  MBTreeSetZsortAdd(void *node, s32 value, s32 mode);
 extern void *AtreeFindNode(void *tree, const char *name, s32 length);
 extern s32   AtreeFindNodeIdx(void *tree, s32 count, const char *name,
                               s32 length);
+extern void  AtreeNodeSetParent(void *node, void *parent, void *root,
+                                s32 reparent);
 extern void  SfxDeleteParented(void *sfx, s32 a, s32 b);
 extern void  BossDeath(void);
 extern void  del_target(void *mtx);
@@ -4443,14 +4445,22 @@ void CritterDoParticle(Critter *c, void *sfx, s32 node)
 }
 /* 0x8003E048 -- allocate and initialize a root critter and the child chain
  * described by its loaded type header. */
+typedef struct CritterChildLinks {
+    u32 words[18];
+} CritterChildLinks;
+
 Critter *CritterNewInst(s32 type, s32 subtype, void *object)
 {
+    u8 *childDef;
+    u8 *header;
     Critter *root;
     Critter *tail;
-    Critter *child;
-    u8 *header;
     u8 *childHeader;
-    s16 childIndex;
+    Critter *child;
+    void *node;
+    u8 *geo;
+    s32 nodeIndex;
+    s32 childIndex;
 
     header = (u8 *)gCritterHeaders[type][subtype];
     if (header == NULL) {
@@ -4471,32 +4481,80 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
     CritterInitColnodes(root);
     CritterAddHealthMeter(root);
 
-    root->alivecnt = 0;
-    tail = root;
     childIndex = *(s16 *)(header + 0x11C);
+    root->childcnt = 0;
+    tail = root;
     while (childIndex >= 0) {
         childHeader = *(u8 **)(*(u8 **)(header + 0x130) + 0x14) +
                       childIndex * 0x140;
         child = CritterEmptyInst();
-        if (child == NULL) {
-            break;
-        }
         CritterInitInst(child, (struct CritterHeader *)childHeader);
-        memcpy(child->mtx, root->mtx, sizeof(root->mtx));
-        CritterInitGeo(child, NULL, 0);
-        CritterAddAnimInsts(child, &child->mtx[0][0]);
+        childDef = (u8 *)child->hdr;
+        geo = *(u8 **)((u8 *)root->hdr + 0x138);
+        *(CritterChildLinks *)&child->colhandle =
+            *(CritterChildLinks *)&root->colhandle;
+
+        nodeIndex = AtreeFindNodeIdx(*(void **)(geo + 0x0C),
+                                     *(s32 *)(geo + 0x10),
+                                     (char *)child->hdr + 0x10, 0x10);
+        child->colhandle = (u8 *)root->anodes + nodeIndex * 0x28;
+        AtreeNodeSetParent(child->colhandle, NULL, NULL, 0);
+        child->anim = *(void **)child->colhandle;
+
+        nodeIndex = *(s16 *)(childDef + 0x56);
+        if (nodeIndex < 0) {
+            node = NULL;
+        } else {
+            node = *(void **)((u8 *)child->anodes + nodeIndex * 0x28);
+            if (node == NULL) {
+                node = NULL;
+            }
+        }
+        child->hitnode0 = node;
+        if ((*(u32 *)(childDef + 0x5C) & 0x10) != 0 &&
+            child->hitnode0 != NULL &&
+            *(void **)((u8 *)child->hitnode0 + 0x74) != NULL) {
+            child->hitnode0 = *(void **)((u8 *)child->hitnode0 + 0x74);
+        }
+
+        nodeIndex = *(s16 *)(childDef + 0x58);
+        if (nodeIndex < 0) {
+            node = NULL;
+        } else {
+            node = *(void **)((u8 *)child->anodes + nodeIndex * 0x28);
+            if (node == NULL) {
+                node = NULL;
+            }
+        }
+        child->hitnode1 = node;
+
+        nodeIndex = *(s16 *)(childDef + 0x5A);
+        if (nodeIndex < 0) {
+            node = NULL;
+        } else {
+            node = *(void **)((u8 *)child->anodes + nodeIndex * 0x28);
+            if (node == NULL) {
+                node = NULL;
+            }
+        }
+        child->hitnode2 = node;
+
         CritterInitColnodes(child);
         CritterAddHealthMeter(child);
 
-        child->parent = root;
         tail->next = child;
         tail = child;
-        root->alivecnt++;
+        child->parent = root;
         childIndex = *(s16 *)(childHeader + 0x11C);
+        root->childcnt++;
     }
-    if (*(s16 *)(*(u8 **)((u8 *)root->hdr + 0x120) + 0x20) == 8) {
+    switch (*(s16 *)(*(u8 **)((u8 *)root->hdr + 0x120) + 0x20)) {
+    case 8:
         root->particle = FindClosestWaypoint(lbl_80346594,
                                              (f32 *)((u8 *)root + 0x3C), 0);
+        break;
+    default:
+        break;
     }
     return root;
 }
