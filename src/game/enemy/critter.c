@@ -1524,34 +1524,51 @@ f32 CritterReCalcTarget(Critter *c, f32 *moveTarget, s32 target)
 /* 0x80036C70 -- choose the single best live player target. */
 void CritterGetSingleTargetPlayer(Critter *c)
 {
+    f32 targetpos[3];
     CritterTargetRecord candidate;
     Player *player;
     s32 i;
     f32 score;
+    f32 one;
+    f64 thousand;
+    f64 zero;
 
     c->targetCount = 0;
     if (c->health <= 0.0f) {
         return;
     }
-    for (i = 0; i < 4; i++) {
-        player = &gPlayers[i];
+    one = lbl_803464A8;
+    thousand = lbl_80346528;
+    zero = lbl_80346488;
+    player = gPlayers;
+    for (i = 0; i < 4; i++, player++) {
         if (player->state != 1 || (*(u32 *)((u8 *)player + 0x124) & 4) != 0) {
             continue;
         }
-        memset(&candidate, 0, sizeof(candidate));
-        candidate.words00[0] = i;
+        targetpos[0] = *(f32 *)((u8 *)player + 0x64);
+        targetpos[1] = *(f32 *)((u8 *)player + 0x68);
+        targetpos[2] = *(f32 *)((u8 *)player + 0x6C);
         score = CritterCalcTarget(c, (f32 *)((u8 *)c->hdr + 0x80),
-                                  (f32 *)((u8 *)player + 0x64),
+                                  targetpos,
                                   &candidate);
+        if (c->particle != NULL && c->unkAD0 > zero && score > c->unkAD0) {
+            continue;
+        }
+        if (sMusicFadeBase < player->fxhittime) {
+            score = score * thousand;
+        }
         if (c->targetCount == 0 ||
             score < ((CritterTargetState *)c)->records[0].distance) {
-            candidate.distance = score;
             c->targetCount = 1;
+            candidate.distance = score;
+            candidate.words00[0] = i;
+            *(f32 *)&candidate.words10[0] = one;
             ((CritterTargetState *)c)->records[0] = candidate;
         }
     }
     if (c->targetCount != 0) {
-        *(s32 *)((u8 *)c + 0xAD4) = 0;
+        c->particle = NULL;
+        gBig.scratch[*(s32 *)((u8 *)c + 0x12C)] += lbl_803464A8;
     }
 }
 
