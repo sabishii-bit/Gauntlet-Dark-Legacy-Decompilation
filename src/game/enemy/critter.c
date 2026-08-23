@@ -1738,31 +1738,53 @@ void CritterGetSingleTargetPlayer(Critter *c)
  * critter and its child chain. */
 void CritterResolveMultipleTargets(Critter *c)
 {
-    Critter *child;
-    Critter *owner;
+    s32 threshold;
     s32 i;
-    s32 j;
+    s32 outerOffset;
     s32 player;
-    f32 best;
+    f32 decrement;
 
-    if (c->alivecnt <= 0 || c->unk11C >= 0) {
+    if (c->alivecnt <= 0) {
         return;
     }
-    for (i = 0; i < c->targetCount; i++) {
-        player = *(s32 *)((u8 *)c + 0x12C + i * 0x24);
-        while (gBig.scratch[player] > 4.0f) {
+    if (c->unk11C >= 0) {
+        return;
+    }
+    decrement = lbl_803464A8;
+    outerOffset = 0;
+    for (i = 0; i < c->targetCount; i++, outerOffset += 0x24) {
+        CritterTargetRecord *record = (CritterTargetRecord *)
+            ((u8 *)c + 0x12C + outerOffset);
+        player = (s32)record->words00[0];
+        if (*(f32 *)&record->words10[0] > lbl_80346490) {
+            threshold = 2;
+        } else if (*(f32 *)&record->words10[0] > lbl_80346530) {
+            threshold = 3;
+        } else {
+            threshold = 4;
+        }
+        while (gBig.scratch[player] > threshold) {
+            Critter *child;
+            Critter *owner;
+            s32 selected;
+            s32 j;
+            f32 best;
+
             owner = NULL;
             best = 0.0f;
+            selected = 0;
             for (child = c->next; child != NULL; child = child->next) {
                 if (child->unk11C >= 0) {
                     continue;
                 }
                 for (j = 0; j < child->targetCount; j++) {
-                    u8 *entry = (u8 *)child + 0x12C + j * 0x24;
-                    if (*(s32 *)entry == player &&
-                        (owner == NULL || *(f32 *)(entry + 0x0C) > best)) {
+                    CritterTargetRecord *entry;
+                    entry = &((CritterTargetState *)child)->records[j];
+                    if ((s32)entry->words00[0] == player &&
+                        (owner == NULL || entry->distance > best)) {
                         owner = child;
-                        best = *(f32 *)(entry + 0x0C);
+                        best = entry->distance;
+                        selected = j;
                         break;
                     }
                 }
@@ -1770,16 +1792,14 @@ void CritterResolveMultipleTargets(Critter *c)
             if (owner == NULL) {
                 break;
             }
-            for (j = 0; j + 1 < owner->targetCount; j++) {
-                u8 *dst = (u8 *)owner + 0x12C + j * 0x24;
-                u8 *src = dst + 0x24;
-                if (*(s32 *)dst == player) {
-                    memcpy(dst, src, 0x24);
-                }
+            for (j = selected; j < owner->targetCount - 1; j++) {
+                ((CritterTargetState *)owner)->records[j] =
+                    ((CritterTargetState *)owner)->records[j + 1];
             }
             owner->targetCount--;
-            gBig.scratch[player] -= 1.0f;
+            gBig.scratch[player] -= decrement;
         }
+        record++;
     }
 }
 
