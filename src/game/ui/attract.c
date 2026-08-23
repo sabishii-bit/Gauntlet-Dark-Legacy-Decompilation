@@ -60,7 +60,7 @@ extern long long OSGetTime(void);
 
 extern void AudioStreamStop(void);
 extern int  AudioSysUpdate(int a);
-extern void sndFxInit(int a, int b);
+extern void sndFxInit();
 extern int  sndVoiceStart(int a, int b);          /* sndFxInit (sndfx) */
 extern int  any_level(int mask);                /* pad-held query      */
 extern int  any(int mask);                /* pad-pressed query   */
@@ -107,7 +107,7 @@ extern void* DrawTextKeepScale(float scale, int x, int y, int flags,
                                u32 color, const char* text);
 
 /* forward decls (project style) */
-void init_attract_mode(int screen);
+int init_attract_mode(int screen);
 int  scroll_credits(void);
 static int  attract_check_input(int block);
 static void attract_start_screen2d(void);
@@ -950,59 +950,177 @@ int ExitAttract(void) {
 /* the matching init_* routine.  Called by main() as (-1) at boot and  */
 /* (0x8004) when returning from a game.                                */
 /* ================================================================== */
-void init_attract_mode(int screen) {
+extern int sMainFrames;
+extern int lbl_80344200;
+extern int lbl_80344A2C;
+extern int lbl_80343B00;
+extern int lbl_80345030;
+extern u8 gGameOptions[];
+extern unsigned char lbl_8034421C;
+extern int lbl_80344288;
+extern char lbl_803458F0[4];
+extern int lbl_803445D4;
+extern int sPreviousFlags;
+
+int init_attract_mode(int screen) {
+    u8* tbl = (u8*)lbl_80118188;
+    int ret = 0;
+    int skip;
     int i;
-    int found;
-    int kind;
+    int off;
+    int cur;
+    int a4;
+    int f8v;
+    int fcv;
+    int id;
 
-    if (attract_state == ATTRACT_EXIT) {
-        return;
+    if (lbl_80344298 == 2) {
+        return 0;
     }
-
-    /* tear down current screen */
+    sMainFrames = 0;
     controls_remove_active_player(-1);
-    AudioReset(cur_screen_id);
-    cur_screen_id = 0;
+    AudioReset(lbl_80344200);
+    lbl_80344200 = 0;
     AudioEmptyCb1();
     fn_800BC4E4();
-
     if (any_level(0x400000) != 0 && any_level(0x800000) != 0) {
         screen = 0x8000;
     }
-
-    /* locate `screen` in the screen list */
     if (screen >= 0) {
-        found = 0;
-        for (i = 0; i < 13; i++) {
-            if (screen_list[i].id == screen) {
-                cur_screen_idx = found;
-                break;
+        for (i = 0, off = 0; i < 13; i++, off += 8) {
+            id = *(s32*)(tbl + off + 16);
+            if (screen == id) {
+                if ((u32)screen != 0x8002 || lbl_803441F8 == 0 ||
+                    *(s32*)(tbl + off + 20) == 4) {
+                    lbl_80344294 = i;
+                    break;
+                }
             }
-            found++;
         }
-        cur_screen_kind = -1;
+        lbl_80343B14 = -1;
+        lbl_803441F4 = 0;
     }
-
     SetMaxFPS(30);
-
-    /* advance to the next non-disabled list entry, then dispatch */
-    kind = screen_list[cur_screen_idx].id & 0xFFFF;
-    switch (kind) {
-    case SCR_KIND_CREDITS:
+    a4 = lbl_803449A4;
+    f8v = lbl_803441F8;
+    fcv = lbl_803441FC;
+    do {
+        skip = 0;
+        cur = lbl_80344294;
+        lbl_80344290 = *(s32*)(tbl + cur * 8 + 16);
+        lbl_80344294 = cur + 1;
+        switch ((u32)lbl_80344290) {
+        case 0x8000:
+            if (screen < 0 && (lbl_803441F4 & 0xF) != 15) {
+                skip = 1;
+            }
+            break;
+        case 0x8009:
+            if (lbl_803441F4 > 0) {
+                skip = 1;
+            }
+            break;
+        case 0x8001:
+        case 0x8002:
+            if (a4 != 0) {
+                skip = 1;
+            }
+            if (*(s32*)(tbl + cur * 8 + 20) == 4 && f8v == 0) {
+                skip = 1;
+            }
+            break;
+        case 0x8004:
+            lbl_80345030 = 0;
+            if (*(s32*)(tbl + cur * 8 + 20) == 0 && fcv != 0) {
+                skip = 1;
+            }
+            break;
+        case 0x8003:
+        case 0x8005:
+        case 0x8006:
+        case 0x8007:
+        case 0x8008:
+            break;
+        }
+        if (*(s32*)(tbl + lbl_80344294 * 8 + 16) < 0) {
+            s32 wrap = lbl_80343B14 + 1;
+            lbl_80344294 = 0;
+            lbl_803441F4 = lbl_803441F4 + 1;
+            lbl_80343B14 = wrap;
+            if (wrap >= 4) {
+                lbl_80343B14 = 0;
+            }
+        }
+        if (lbl_80343B14 < 0) {
+            lbl_80343B14 = 0;
+        }
+    } while (skip != 0);
+    if (lbl_80344294 >= 0) {
+        switch (*(s32*)(tbl + lbl_80344294 * 8 + 16)) {
+        case 0x8006:
+        case 0x8003:
+        case 0x8008:
+            if (lbl_80344A2C != 0 || lbl_80343B00 < 0) {
+                lbl_80343B00 = *(s32*)(gGameOptions + 36);
+            } else if ((ATTRACT_FLAGS64 & 0x80) == 0) {
+                lbl_80343B00 = NextAttractWave();
+            }
+            break;
+        }
+    }
+    if (lbl_80343B00 < 0) {
+        lbl_80343B00 = *(s32*)(gGameOptions + 36);
+    }
+    lbl_80343B0C = -1;
+    switch ((u32)lbl_80344290) {
+    default:
+    case 0x8000:
+    case 0x8005:
+    case 0x8007:
         init_credits();
         break;
-    case SCR_KIND_SCREEN2D:
-        init_screen2d(cur_screen_id, screen_list[cur_screen_idx].flags);
-        break;
-    case SCR_KIND_FLYBY:
-        init_movie(-1, screen_list[cur_screen_idx].flags);
-        break;
-    case SCR_KIND_TITLE:
-        init_titlescreen();
-        break;
-    default:
+    case 0x8004: {
+        s32 sty = *(s32*)(tbl + cur * 8 + 20);
+        if (sty == 0) {
+            lbl_80343B0C = -1;
+        } else {
+            lbl_80343B0C = lbl_80343B00;
+        }
+        init_screen2d(lbl_80343B0C, sty);
         break;
     }
+    case 0x8001:
+    case 0x8002:
+        ret = init_movie(-1, *(s32*)(tbl + cur * 8 + 20));
+        break;
+    case 0x8003:
+    case 0x8006:
+    case 0x8008:
+        if (lbl_80343B00 != lbl_80343B10) {
+            lbl_80343B10 = -1;
+        }
+        if (lbl_8034421C == 0) {
+            lbl_80344280 = 0;
+            lbl_8034421C = 1;
+        }
+        lbl_80344288 = 0;
+        sndFxInit(0x8008);
+        fn_80053C70();
+        fn_80057024();
+        InitCamera(0);
+        lbl_80344208 = MBNewBlit(&lbl_803458F0, 368, -304);
+        if ((ATTRACT_FLAGS64 & 4) != 0) {
+            lbl_803445D4 |= 4;
+            sPreviousFlags = sPreviousFlags;
+        }
+        sAudioOverride = 0;
+        lbl_80344298 = 0;
+        break;
+    case 0x8009:
+        init_titlescreen();
+        break;
+    }
+    return ret;
 }
 
 /* screen-kind -> printable name (used by the on-screen debug overlay) */
