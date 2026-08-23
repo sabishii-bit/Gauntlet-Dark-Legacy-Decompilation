@@ -48,7 +48,7 @@ int DrawNormalText(f32 scale, char* text, int font);
 int FontHeight(f32 scale, int font);
 int TextMLines(char* text);
 void DrawTextSub(f32 scale, f32 x, u32 color, int y, int font, u32 flags, char* text);
-void msgUpdate(void* frame);
+void msgUpdate();
 void sndTestStopAll(void);
 
 /* ---- MB blit library (other TUs) ---- */
@@ -169,13 +169,128 @@ extern int lbl_80274610[4];     /* per-weapon slot B */
  * the unit compiles and objdiff has something to diff against.
  * ============================================================ */
 
+void sysResetService(void);
+void vibrators_off(void);
+void MBHideMarkedMessages(void);
+void MBLockMessages(int depth);
+void MBUnlockMessages(int depth);
+void MBBlitSetColor(void* blit, u32 color);
+int strcmp(const char* a, const char* b);
+char* strcpy(char* dst, const char* src);
+extern char lbl_802A5D1C[];       /* current model name */
+extern char lbl_80347368[8];      /* "ATTRACT"-ish sdata name */
+extern void* lbl_80343CC8;        /* message-box texture */
+extern u8 lbl_802A4AA4[];         /* scroll-list context */
+extern int lbl_80344A4C;          /* message font */
+extern f32 lbl_80344A50;          /* message font scale */
+extern f32 lbl_80347374;
+extern f32 lbl_8034737C;
+extern void* lbl_80344BF8;        /* full-screen fade texture */
+extern char gTextWorkBuf[];
+extern char gTextFormatBuf[];
+
 void ScrollMessageBox(char* msg)
 {
-    (void)msg;
+    char* lines[17];
+    u8 pad44[44];
+    u8* g;
+    s32 busy;
+    s32 e04;
+    void* blit;
+    u8* hdr;
+    void* quad;
+    s32 nlines;
+    s32 wmax;
+    s32 i;
+    s32 boxw;
+    s32 boxh;
+    s32 x;
+    s32 y;
+    s32 w;
+    f32 sA;
+    f32 sB;
+
+    gDiskErrorShown = 1;
+    g = (u8*)gWinGlobals;
+    busy = gGameBusy;
+    blit = 0;
+    lbl_80344A5D = 1;
+    e04 = lbl_80344E04;
+    hdr = 0;
+    sA = lbl_8034737C;
+    sB = lbl_80347378;
+    sysResetService();
     sndTestStopAll();
-    gModalRenderDepth += 1;
+    vibrators_off();
+    gGameBusy = 1;
+    gModalRenderDepth++;
+    msgUpdate();
+    MBHideMarkedMessages();
+    MBLockMessages(gModalRenderDepth - 1);
+    lbl_80344E04 = 0;
+    if ((u32)gWinGlobals != 0) {
+        if (*(u8**)(g + 48) != 0) {
+            hdr = *(u8**)(g + 48) + 4;
+        }
+    }
+    if (hdr != 0 && *(s32*)(hdr + 12) == 0 &&
+        strcmp(lbl_802A5D1C, lbl_80347368) == 0) {
+        blit = MBNewBlit(lbl_80343CC8, 0, 0);
+    } else {
+        quad = MBNewTempQuad();
+    }
+    if (*(u32*)(lbl_802A4AA4 + 24) != 0) {
+        lbl_80344A4C = 6;
+        lbl_80344A50 = lbl_80347370;
+    } else {
+        lbl_80344A4C = 0;
+        lbl_80344A50 = lbl_80347374;
+    }
+    nlines = FixMLineText(msg, gTextWorkBuf, lines);
+    wmax = 0;
+    for (i = 0; i < nlines; i++) {
+        w = DrawNormalText(lbl_80344A50, lines[i], lbl_80344A4C);
+        if (w > wmax) {
+            wmax = w;
+        }
+    }
+    boxw = wmax + 96;
+    wmax = FontHeight(lbl_80344A50, lbl_80344A4C);
+    boxh = (wmax + 4) * TextMLines(msg) + 60;
+    if (boxw < 256) {
+        boxw = 256;
+    } else if (boxw > 512) {
+        boxw = 512;
+    }
+    x = 256 - boxw / 2;
+    y = 160 - boxh / 2;
+    if (blit != 0) {
+        mbBlitProject(blit, boxw, boxh);
+        mbBlitCalcWidth(blit, x, y, sA);
+    } else {
+        mbBlitProject(quad, boxw, boxh);
+        mbBlitCalcWidth(quad, x, y, sA);
+        MBBlitSetColor(quad, -1);
+    }
+    strcpy(gTextFormatBuf, msg);
+    y += 32;
+    for (i = 0; i < nlines; i++) {
+        DrawTextSub(lbl_80344A50, sA, -256, y, lbl_80344A4C, 0x160C03,
+                    lines[i]);
+        y += wmax;
+    }
+    quad = MBNewTempBlit(lbl_80344BF8, 0, 0, 640, 480);
+    mbBlitProject(quad, 640, 480);
+    mbBlitCalcWidth(quad, 0, 0, sB);
+    MBBlitSetColor(quad, 0xFF000000);
     MBEndFrame();
-    gModalRenderDepth -= 1;
+    if (blit != 0) {
+        MBRemoveBlit(blit);
+    }
+    MBUnlockMessages(gModalRenderDepth - 1);
+    gGameBusy = busy;
+    gModalRenderDepth--;
+    lbl_80344E04 = e04;
 }
 
 void* MBNewNode();                     /* 0x800BB29C */
@@ -846,7 +961,6 @@ void animate_panel_piece(f32 progress, s32* piece, void* blit, s32 xOffset,
  * Panel text/blit helper: lays out one label string into a temp blit,
  * positions it, and returns the blit handle (or NULL). Skeleton.
  */
-char* strcpy(char* dst, const char* src); /* 0x800E80D4 */
 int MBOX_FindTexture_Err();            /* 0x800B8B34 */
 u32 MBRomTexPtr(int texid);            /* 0x800BA024 */
 int sprintf(char* dst, const char* fmt, ...); /* 0x800C9BD0 */
