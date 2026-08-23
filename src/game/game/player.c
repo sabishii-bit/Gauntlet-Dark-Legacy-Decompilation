@@ -384,7 +384,7 @@ extern f32 lbl_80344504;
 extern s32 lbl_80344508;
 extern s32 lbl_8034450C;
 extern s32 lbl_80344510;
-extern f32 dbgTextFlagA;
+extern s32 dbgTextFlagA;
 extern s32 lbl_80344E44;   /* HUD button texture ids */
 extern s32 lbl_80344E48;
 extern s32 lbl_80343D70;
@@ -1005,39 +1005,78 @@ tail:
 }
 
 /* Debug HUD: floor name, position, facing. */
+extern u8 lbl_80113AE0[];
+typedef struct PlayerControlState {
+    u32 ctl;
+    u32 levels;
+    u32 edges;
+    u32 repeatEdges;
+    s32 specialTimer;
+    s32 specialResult;
+    s32 specialLast;
+    f32 leftAngle;
+    f32 leftMagnitude;
+    f32 rightAngle;
+    f32 rightMagnitude;
+    s32 scheme;
+    s32 hasActuator;
+    s32 unk34;
+    s32 unk38;
+} PlayerControlState;
+extern PlayerControlState lbl_80240E30[4];
+#pragma opt_common_subs off
+#pragma opt_lifetimes off
 static void debug_player_pos(s32 i) {
-    f32 ang[2];
-    f32 y;
-    f32 out1[5];
-    f32 out2;
+    Player* p;
+    struct {
+        u8 head[4];
+        f32 screen[2];
+        u8 gap[8];
+        volatile f32 y;
+        f32 actualX;
+        u8 tail[16];
+    } work;
+    u16* x;
+    char* fmt;
+    u8* base;
     char* name;
+    char* floor;
+    f32 magnitude;
     s32 oldflags;
 
+    fmt = (char*)lbl_80113AE0;
+    base = (u8*)potionicon_tab;
+    p = (Player*)((u8*)(p = (Player*)(base + i * 0x335C)) + 0xC40);
+    name = fmt + 908;
     if (gGameMode == 0x4010) {
         fn_800C02F4(0x80FF80);
-        get_actual_screen_pos(0, &out2, out1, P(i)->col_pos);
+        get_actual_screen_pos(0, &work.actualX, (f32*)&work.y, p->col_pos);
         dbgTextFlagA = 1;
-        name = P(i)->floor_name;
-        if (name == NULL || lbl_80240E50[i * 0xF] == 0.0f) {
-            name = "NO FLOOR";
-            if (P(i)->floor_name2 != NULL) {
-                name = P(i)->floor_name2;
-            }
+        floor = p->floor_name;
+        if (floor != NULL &&
+            (magnitude = lbl_80240E30[i].leftMagnitude)) {
+            name = floor;
+        } else if (p->floor_name2 != NULL) {
+            name = p->floor_name2;
         }
         oldflags = MBSetFontFlags(0x40000);
-        y = 330.0f;
-        DrawText(lbl_80120238[i] + 8, (s32)y, 1, 0xFFFFFF, name);
-        y += 10.0f;
-        sprintf(tbuf, "%.1Lf %.1Lf %.1Lf", P(i)->pos[0], P(i)->pos[1],
-                P(i)->pos[2]);
-        DrawText(lbl_80120238[i] + 8, (s32)y, 1, 0xFFFFFF, tbuf);
-        y += 10.0f;
-        MBWorldToScreen(ang, P(i)->pos);
-        sprintf(tbuf, "%.0Lf %.0Lf", ang[0], ang[1]);
-        DrawText(lbl_80120238[i] + 8, (s32)y, 1, 0xFFFFFF, tbuf);
+        work.y = 330.0f;
+        x = &lbl_80120238[i];
+        DrawText(*x + 8, (s32)work.y, 1, 0xFFFFFF, name);
+        work.y += 10.0f;
+        sprintf((char*)base + 0x4F4, fmt + 920,
+                p->pos[0], p->pos[1], p->pos[2]);
+        DrawText(*x + 8, (s32)work.y, 1, 0xFFFFFF, (char*)base + 0x4F4);
+        work.y += 10.0f;
+        MBWorldToScreen(work.screen, p->pos);
+        sprintf((char*)base + 0x4F4, fmt + 940,
+                work.screen[0], work.screen[1]);
+        DrawText(*x + 8, (s32)work.y, 1, 0xFFFFFF, (char*)base + 0x4F4);
         MBSetFontFlags(oldflags);
     }
 }
+#pragma opt_lifetimes reset
+#pragma opt_common_subs reset
 
 /* Gold counter, right-aligned, 99999 cap. */
 static void write_gold(s32 i, s32 show) {
@@ -2090,23 +2129,6 @@ extern u8* lbl_8025ECA8[4];   /* see-thru: proxy node */
 extern void* lbl_8025ECB8[4][0x12]; /* see-thru: overlay handle (stride 0x48) */
 extern u8* lbl_80282930[4];   /* per-player class record (att bases at +0x28..) */
 extern void* FamiliarTree[4][2]; /* level-tier halo atrees */
-typedef struct PlayerControlState {
-    u32 ctl;
-    u32 levels;
-    u32 edges;
-    u32 repeatEdges;
-    s32 specialTimer;
-    s32 specialResult;
-    s32 specialLast;
-    f32 leftAngle;
-    f32 leftMagnitude;
-    f32 rightAngle;
-    f32 rightMagnitude;
-    s32 scheme;
-    s32 hasActuator;
-    s32 unk34;
-    s32 unk38;
-} PlayerControlState;
 extern PlayerControlState lbl_80240E30[4];
 extern u32 lbl_80240E5C[];    /* pad config words, stride 0xF */
 extern u32 lbl_80240E60[];
