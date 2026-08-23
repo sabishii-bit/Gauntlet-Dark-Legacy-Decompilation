@@ -458,7 +458,6 @@ int MBOX_ReallyFindObject(const char* name, int a, int b, int create) {
     u8* model;
     u8* found;
     int slotIndex;
-    int slotOffset;
     int objectIndex;
 
     strings = lbl_80115DA8;
@@ -478,9 +477,8 @@ int MBOX_ReallyFindObject(const char* name, int a, int b, int create) {
     }
 
     slotIndex = a;
-    slotOffset = slotIndex * 16;
-    for (; slotIndex <= b; slotIndex++, slotOffset += 16) {
-        slot = *(u8**)(win + 48) + slotOffset;
+    for (; slotIndex <= b; slotIndex++) {
+        slot = *(u8**)(win + 48) + slotIndex * 16;
         if (*(s32*)(slot + 16) == 0) {
             model = *(u8**)(slot + 4);
             found = bsearch(nm, *(void**)(model + 92),
@@ -498,9 +496,8 @@ int MBOX_ReallyFindObject(const char* name, int a, int b, int create) {
 
         strcpy(nm, strings + 580);
         slotIndex = 0;
-        slotOffset = 0;
-        for (; slotIndex < lbl_80344E8C; slotIndex++, slotOffset += 16) {
-            slot = *(u8**)(win + 48) + slotOffset;
+        for (; slotIndex < lbl_80344E8C; slotIndex++) {
+            slot = *(u8**)(win + 48) + slotIndex * 16;
             if (*(s32*)(slot + 16) == 0) {
                 model = *(u8**)(slot + 4);
                 found = bsearch(nm, *(void**)(model + 92),
