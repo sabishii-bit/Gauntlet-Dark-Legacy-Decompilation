@@ -494,6 +494,156 @@ static s32 PlayersAverageLevel(void)
     return totalLevel / activePlayers;
 }
 
+extern f64 lbl_80346A70;
+extern f64 lbl_80346830;
+extern f32 lbl_803468F0;
+extern f64 lbl_80346A30;
+extern f64 lbl_80346A28;
+extern f32 lbl_80346A78;
+extern f64 lbl_80346810;
+void format_brain();
+
+/* Xbox PDB: init_enemy_vars -- reset a spawned enemy's combat variables. */
+void init_enemy_vars(s32 slot, s32 spew, f32 scale)
+{
+    u8* e;
+    u8* tbl;
+    s32 i4;
+    f32 z;
+    f32 z2;
+    f32 t;
+    f32 hi;
+    f32 lo;
+    f32 spd;
+    f32 ht;
+    s32 tier;
+    s32 ty;
+    u8* row;
+    f32 fv;
+    s16 sv;
+
+    e = (u8*)gEnemies + slot * 916;
+    tbl = (u8*)lbl_8011AF48;
+    z = lbl_80346820;
+    *(f32*)(e + 484) = z;
+    *(s32*)(e + 824) = -1;
+    *(s32*)(e + 820) = -1;
+    *(s32*)(e + 204) = 0;
+    *(s32*)(e + 520) = 0;
+    *(s32*)(e + 524) = 0;
+    *(s16*)(e + 630) = -1;
+    *(s16*)(e + 628) = -1;
+    *(f32*)(e + 768) = (f32)(lbl_80346A70 * *(f32*)(gCurLevel + 180));
+    fv = lbl_803468F0;
+    *(f32*)(e + 632) = fv;
+    *(f32*)(e + 636) = fv;
+    row = tbl + *(s32*)e * 4;
+    *(f32*)(e + 572) = (f32)(lbl_80346830 * ((f32*)row)[452]);
+    row = tbl + *(s32*)e * 4;
+    *(f32*)(e + 568) = ((f32*)row)[486];
+    *(s16*)(e + 510) = 0;
+    *(s32*)(e + 644) = -1;
+    *(s32*)(e + 648) = -1;
+    *(s32*)(e + 652) = 0;
+    *(s32*)(e + 664) = 0;
+    *(s32*)(e + 860) = 0;
+    *(s16*)(e + 640) = 0;
+    *(s16*)(e + 642) = 0;
+    *(s16*)(e + 716) = -1;
+    *(s16*)(e + 718) = 0;
+    *(s32*)(e + 720) = 0;
+    *(f32*)(e + 672) = z;
+    *(s32*)(e + 676) = 0;
+    for (i4 = 0; i4 < 20; i4 += 4) {
+        *(f32*)(e + i4 + 692) = z;
+    }
+    z2 = lbl_80346820;
+    *(f32*)(e + 680) = z2;
+    *(f32*)(e + 684) = z2;
+    *(f32*)(e + 688) = z2;
+    *(f32*)(e + 604) = z2;
+    *(f32*)(e + 608) = z2;
+    *(f32*)(e + 612) = z2;
+    *(f32*)(e + 616) = z2;
+    *(s32*)(e + 624) = 0;
+    *(s32*)(e + 656) = 0;
+    *(s32*)(e + 912) = -1;
+    *(f32*)(e + 888) = lbl_803468F0;
+    *(f32*)(e + 892) = z2;
+    *(f32*)(e + 896) = z2;
+    *(s16*)(e + 516) = 0;
+    row = tbl + *(s32*)e * 4;
+    t = *(f32*)(gCurLevel + 172) * ((f32*)row)[690];
+    hi = (f32)(lbl_80346A30 * t);
+    lo = (f32)(lbl_80346A28 * t);
+    tier = 0;
+    if (scale > hi) {
+        tier = 3;
+    } else if (scale > lo) {
+        tier = 2;
+    } else if (scale > z2) {
+        tier = 1;
+    }
+    *(s16*)(e + 518) = (s16)tier;
+    *(s16*)(e + 792) = 0;
+    *(s16*)(e + 790) = 0;
+    *(s32*)(e + 800) = 0;
+    *(s32*)(e + 796) = 0;
+    *(s32*)(e + 808) = 0;
+    *(s32*)(e + 804) = 0;
+    *(s16*)(e + 734) = 0;
+    *(s32*)(e + 812) = 0;
+    *(f32*)(e + 780) = lbl_80346A78;
+    *(f32*)(e + 776) = z2;
+    *(f32*)(e + 772) = z2;
+    *(s16*)(e + 730) = 1;
+    *(s16*)(e + 732) = 1;
+    *(s32*)(e + 900) = 0;
+    *(s32*)(e + 480) = -1;
+    *(s32*)(e + 904) = 0;
+    if (spew == 1) {
+        spew = 0;
+    }
+    if (spew == 10) {
+        spew = 7;
+    }
+    if (spew < 0 || spew > 31) {
+        row = tbl + *(s32*)e * 4;
+        *(s16*)(e + 784) = (s16)((s32*)row)[894];
+    } else {
+        *(s16*)(e + 784) = (s16)spew;
+    }
+    sv = *(s16*)(e + 784);
+    *(s16*)(e + 786) = sv;
+    *(s16*)(e + 788) = sv;
+    format_brain();
+    row = tbl + *(s32*)e * 4;
+    *(f32*)(e + 184) = (f32)(lbl_80346810 / ((f32*)row)[588]);
+    ty = *(s32*)e;
+    row = tbl + ty * 4;
+    t = *(f32*)(gCurLevel + 172) * ((f32*)row)[690];
+    ht = *(f32*)(e + 512);
+    hi = (f32)(lbl_80346A30 * t);
+    lo = (f32)(lbl_80346A28 * t);
+    spd = *(f32*)(gCurLevel + 188) * ((f32*)row)[622];
+    if (!(ht > hi)) {
+        if (ty != 30) {
+            if (ht > lo) {
+                spd = (f32)(lbl_80346A30 * spd);
+            } else {
+                spd = (f32)(lbl_80346A28 * spd);
+            }
+        }
+    }
+    *(f32*)(e + 188) = spd;
+    row = tbl + *(s32*)e * 4;
+    *(f32*)(e + 192) = ((f32*)row)[656];
+    row = tbl + *(s32*)e * 4;
+    *(s32*)(e + 196) = ((s32*)row)[928];
+    row = tbl + *(s32*)e * 4;
+    *(s32*)(e + 200) = ((s32*)row)[962];
+}
+
 /* Xbox PDB: format_brain -- initialize a newly allocated enemy's AI state. */
 void format_brain(s32 index)
 {
@@ -2802,7 +2952,6 @@ extern f64 lbl_80346A88;        /* health floor */
 extern f32 lbl_803468B0;        /* big initial distance */
 extern f32 lbl_803469D4;        /* grid radius */
 extern f32 lbl_80346820;        /* 0.0f */
-extern f64 lbl_80346830;        /* 0.5 */
 extern f64 lbl_803468B8;        /* 3.0 */
 extern f64 __frsqrte(f64 x);
 extern void StartEnemyGrid(f32* pos, f32 radius);
