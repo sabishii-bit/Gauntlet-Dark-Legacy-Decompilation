@@ -1451,19 +1451,20 @@ done:
     return result;
 }
 #pragma dont_inline on
+#pragma opt_propagation off
 /* 0x80036A58 */ s32 CritterGetTargetSub(Critter *c, f32 *target, s32 mode)
 {
     s32 i;
     s32 best;
     f32 bestScore;
 
-    if (target != NULL &&
-        (target[6] <= 0.0f || c->unk4AC <= target[6])) {
+    best = -1;
+    bestScore = lbl_80346508;
+    if (target != NULL && (f64)target[6] > lbl_80346488 &&
+        c->unk4AC > target[6]) {
         return -1;
     }
 
-    best = -1;
-    bestScore = lbl_80346508;
     for (i = 0; i < c->targetCount; i++) {
         f32 score = CritterReCalcTarget(c, target, i);
         if (best < 0 || score < bestScore) {
@@ -1474,14 +1475,15 @@ done:
     if (mode == 0 && (f64)bestScore >= lbl_80346510) {
         best = -1;
     }
-    if (best < 0) {
-        if (mode != 0 && c->parent != NULL) {
-            return CritterGetTargetSub(c->parent, target, mode);
-        }
-        return -1;
+    if (best >= 0) {
+        u32 address = (u32)c + best * 0x24;
+        best = *(s32 *)(address + 0x12C);
+    } else if (mode != 0 && c->parent != NULL) {
+        best = CritterGetTargetSub(c->parent, target, mode);
     }
-    return *(s32 *)((u8 *)c + 0x12C + best * 0x24);
+    return best;
 }
+#pragma opt_propagation reset
 #pragma dont_inline off
 /* 0x80036B5C -- score one entry in the critter's target list against the
  * optional move targeting constraints. */
