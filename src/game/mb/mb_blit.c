@@ -53,10 +53,10 @@ typedef struct MBBLIT {
     /* 0x0C */ u32 depth;      /* z / scale, from float via __cvt_fp2unsigned */
     /* 0x10 */ s16 width;
     /* 0x12 */ s16 height;
-    /* 0x14 */ s16 u0;
-    /* 0x16 */ s16 u1;
-    /* 0x18 */ s16 v0;
-    /* 0x1A */ s16 v1;
+    /* 0x14 */ u16 u0;
+    /* 0x16 */ u16 u1;
+    /* 0x18 */ u16 v0;
+    /* 0x1A */ u16 v1;
     /* 0x1C */ u32 color0;     /* four RGBA corner colors, init 0x80808080 */
     /* 0x20 */ u32 color1;
     /* 0x24 */ u32 color2;
@@ -407,56 +407,65 @@ s32 mbBlitStub343C(MBBLIT* b) {
 }
 
 u32 mbBlitUpdateEntry(MBBLIT* b, u32 keepMask, u32 setBits) {
-    u32 oldFlags = b->flags;
-    u32 newFlags = (oldFlags & keepMask) | setBits;
-    u32 changed = oldFlags ^ newFlags;
+    u32 oldFlags;
+    u32 newFlags;
+    u32 changed;
     s16 swap;
 
-    if (changed != 0) {
-        if ((changed & 0x140) == 0) {
-            b->flags = newFlags;
-        } else {
-            s32 x;
-            s32 y;
-            s32 width;
-            s32 height;
-            s32 value;
-            MBWindow* window;
+    newFlags = b->flags & keepMask;
+    newFlags |= setBits;
+    changed = newFlags ^ b->flags;
+    oldFlags = b->flags;
+    if (changed == 0) {
+        return oldFlags;
+    }
 
-            mbBlitCalcRect(b, &x, &y, 0);
-            mbBlitCalcX(b, &width, &height);
-            b->flags = newFlags;
-            window = gWinGlobals;
-            if ((b->flags & 0x40) != 0) {
-                value = x << 4;
-            } else {
-                value = (s32)(x * window->scale->x);
-            }
-            b->x = (s16)value;
-            if ((b->flags & 0x40) != 0) {
-                value = y << 4;
-            } else {
-                value = (s32)(y * window->scale->y);
-            }
-            b->y = (s16)value;
-            if (lbl_80348AD0 >= 0.0f) {
-                b->depth =
-                    (u32)(f32)(s32)(32.0 * (f64)lbl_80348AD0);
-            }
-            mbBlitProject(b, width, height);
+    if ((changed & 0x140) != 0) {
+        s32 x;
+        s32 y;
+        s32 width;
+        s32 height;
+        volatile s32 pad;
+        MBWindow* window;
+        s32 xValue;
+        s32 yValue;
+
+        mbBlitCalcRect(b, &x, &y, 0);
+        mbBlitCalcX(b, &width, &height);
+        b->flags = newFlags;
+        yValue = y;
+        xValue = x;
+        window = gWinGlobals;
+        if ((b->flags & 0x40) != 0) {
+            xValue <<= 4;
+        } else {
+            xValue = (s32)(xValue * window->scale->x);
         }
-        if ((changed & 0x20) != 0) {
-            swap = b->u0;
-            b->u0 = b->u1;
-            b->u1 = swap;
+        b->x = (s16)xValue;
+        if ((b->flags & 0x40) != 0) {
+            yValue <<= 4;
+        } else {
+            yValue = (s32)(yValue * window->scale->y);
         }
-        if ((changed & 0x80) != 0) {
-            swap = b->v0;
-            b->v0 = b->v1;
-            b->v1 = swap;
+        b->y = (s16)yValue;
+        if (lbl_80348AD0 >= 0.0) {
+            b->depth = (u32)(f32)(s32)(32.0 * (f64)lbl_80348AD0);
         }
+        mbBlitProject(b, width, height);
+    } else {
         b->flags = newFlags;
     }
+    if ((changed & 0x20) != 0) {
+        swap = *(s16*)&b->u0;
+        b->u0 = b->u1;
+        b->u1 = swap;
+    }
+    if ((changed & 0x80) != 0) {
+        swap = *(s16*)&b->v0;
+        b->v0 = b->v1;
+        b->v1 = swap;
+    }
+    b->flags = newFlags;
     return oldFlags;
 }
 
