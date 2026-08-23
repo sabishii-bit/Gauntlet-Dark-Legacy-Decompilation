@@ -616,10 +616,11 @@ u32 fn_800D91B4(u32* param_1, int param_2, char* param_3, int param_4, u32 param
 }
 
 /* VQ frame parser: dispatches the fn_800D87FC/8BCC/8F28/91B4 decoders */
+#pragma opt_propagation off
 u32 fn_800D93D4(u32* param_1, u32 param_2, int param_3, char* param_4, int param_5, u32 param_6) {
     int iVar4;
     int iVar1;
-    short sVar3;
+    u8 hasAlpha;
     u8 auStack_20[8];
 
     iVar4 = *(int*)(param_3 + 0x14);
@@ -629,42 +630,43 @@ u32 fn_800D93D4(u32* param_1, u32 param_2, int param_3, char* param_4, int param
         param_4 = param_4 + 8;
     }
     fn_800D9DBC((u32)auStack_20, param_4, iVar4, (u8*)param_1[6]);
-    sVar3 = ReadU16LE((u8*)(param_1[6] + 2));
-    if (sVar3 == 0) {
+    hasAlpha = (u16)ReadU16LE((u8*)(param_1[6] + 2)) != 0;
+    if (hasAlpha == 0) {
         switch (*(int*)(param_5 + 0x10)) {
-        case 0x32595559:
-            return fn_800D87FC(param_1, param_3, param_4, 1, param_5, param_6);
         case 0:
         case 3:
-            if (*(short*)(param_5 + 0xe) == 0x18) {
+            if (*(u16*)(param_5 + 0xe) == 0x18) {
                 return fn_800D8F28((int*)param_1, param_3, param_4, param_5, param_6);
             }
-            if (*(short*)(param_5 + 0xe) == 0x10) {
+            if (*(u16*)(param_5 + 0xe) == 0x10) {
                 return fn_800D87FC(param_1, param_3, param_4, 2, param_5, param_6);
             }
             break;
         case 0x59565955:
             return fn_800D87FC(param_1, param_3, param_4, 0, param_5, param_6);
+        case 0x32595559:
+            return fn_800D87FC(param_1, param_3, param_4, 1, param_5, param_6);
         }
     } else {
         switch (*(int*)(param_5 + 0x10)) {
-        case 0x32595559:
-            return fn_800D8BCC(param_1, param_3, param_4, 1, param_5, param_6);
         case 0:
         case 3:
-            if (*(short*)(param_5 + 0xe) == 0x18) {
+            if (*(u16*)(param_5 + 0xe) == 0x18) {
                 return fn_800D91B4(param_1, param_3, param_4, param_5, param_6);
             }
-            if (*(short*)(param_5 + 0xe) == 0x10) {
+            if (*(u16*)(param_5 + 0xe) == 0x10) {
                 return fn_800D8BCC(param_1, param_3, param_4, 2, param_5, param_6);
             }
             break;
         case 0x59565955:
             return fn_800D8BCC(param_1, param_3, param_4, 0, param_5, param_6);
+        case 0x32595559:
+            return fn_800D8BCC(param_1, param_3, param_4, 1, param_5, param_6);
         }
     }
     return 0xffffffff;
 }
+#pragma opt_propagation reset
 
 void fn_800D9614(u32* param_1, u32* param_2) {
     u32 arg1 = param_2[1];
