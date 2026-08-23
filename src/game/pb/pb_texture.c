@@ -41,7 +41,7 @@ long long __shl2i(int hi, int lo, int shift);
 void* AllocMem32(u32 size);
 void pbSetTexture(void* texObj);                     /* pb_objregs.c */
 extern void fn_800C6AB4(int);                        /* pb_objregs.c */
-extern void* MBRomTexPtr(int, int);                  /* pb model helper */
+extern void* MBRomTexPtr(int);                       /* pb model helper */
 extern void FatalErrorf(char* fmt, ...); /* dbg printf */
 
 /* ------------------------------------------------------------------ */
@@ -529,17 +529,120 @@ void fn_800C73E0(void) {
 
 /* Ensure a texture's TLUT is resident, loading it if necessary, and bind it
  * to the texture object (GXInitTexObjTlut). Returns non-zero on success. */
+typedef struct PbRomTexture {
+    u8 format;
+    s8 model;
+    u16 flags;
+    u8 _pad04[10];
+    s16 index;
+} PbRomTexture;
+
+typedef struct PbTextureObject {
+    u8 _pad00[0x20];
+    u8 tlutObject[0x0C];
+    s8 region;
+    s8 paletteRegion;
+    u8 _pad2E[2];
+} PbTextureObject;
+
 int fn_800C7558(s32 key) {
-    void* palette = MBRomTexPtr(key >> 12, key);
+    PbTexMgr* globals;
+    u8* modelDesc;
+    PbRomTexture* rom;
+    PbTextureObject* texture;
+    u8* manager;
+    u8* special;
+    s32 model;
+    s32 texnum;
+    s32 format;
+    u8 which;
+    s32 newLoad;
     s32 region;
-    if (palette == 0)
-        return 0;
-    region = fn_800C6BB4((u8)(key >> 20), key);
-    GXLoadTlut((u8*)&lbl_802C7438 + 0x30 + region * 0x10, region);
-    GXInitTexObjTlut((void*)gWinGlobals->tbl, region);
-    (void)lbl_80345108;
-    (void)lbl_8034510C;
-    (void)lbl_801283C0;
+    s32 i;
+    u8 pathPad[8];
+
+    model = (u32)key >> 16;
+    texnum = (u16)key;
+    manager = (u8*)&lbl_802C7438;
+    which = 1;
+    globals = gWinGlobals;
+    modelDesc = *(u8**)((u8*)globals->tbl + model * 0x10 + 4);
+    rom = (PbRomTexture*)(*(u8**)(modelDesc + 0x58) + texnum * 0x10);
+    if (*(s32*)((u8*)globals->tbl + model * 0x10 + 0x10) != 0 ||
+        (rom->flags & 0x100) != 0) {
+        model = 0;
+        texnum = 0;
+        rom = (PbRomTexture*)MBRomTexPtr(0);
+    }
+    if (lbl_80345110 == 0) {
+        u8* used = *(u8**)(*(u8**)((u8*)globals->tbl + model * 0x10 + 4) +
+                              0x78);
+        used[texnum] |= 1 << lbl_80343F78;
+    }
+
+    format = rom->format >> 4;
+    if ((format & 8) == 0 && format <= 0) {
+        return 1;
+    }
+    model = rom->model;
+    texnum = rom->index;
+    modelDesc = *(u8**)((u8*)globals->tbl + model * 0x10 + 4);
+    texture = (PbTextureObject*)(*(u8**)(modelDesc + 0x80) + texnum * 0x30);
+    if ((format & 8) != 0) {
+        newLoad = 1;
+        region = 1;
+        if (format != 8) {
+            region = 0;
+            which = 0;
+        }
+        special = manager + region * 0x10 + 0x5AC;
+        if (*(s32*)(special + 0x0C) == -1) {
+            if (which == 0) {
+                lbl_80345108++;
+            } else {
+                lbl_8034510C++;
+            }
+            region = fn_800C6BB4(which,
+                                  0xFFFF0000 | (u16)which);
+            *(s32*)(special + 0x0C) = region;
+            GXLoadTlut(special, region);
+            newLoad = 0;
+        }
+        region = *(s32*)(special + 0x0C);
+        if (texture->region != region) {
+            GXInitTexObjTlut(texture, region);
+            texture->region = (s8)region;
+        }
+    } else {
+        newLoad = 1;
+        if (*(s32*)(lbl_801283C0 + format * 4) == 0x14) {
+            which = 0;
+        }
+        if (texture->paletteRegion == -1) {
+            if (which == 0) {
+                lbl_80345108++;
+            } else {
+                lbl_8034510C++;
+            }
+            region = fn_800C6BB4(which,
+                                  (model << 16) | (u16)texnum);
+            texture->region = (s8)region;
+            texture->paletteRegion = (s8)region;
+            GXLoadTlut(texture->tlutObject, texture->paletteRegion);
+            GXInitTexObjTlut(texture, texture->paletteRegion);
+            newLoad = 0;
+        }
+    }
+    if (newLoad != 0) {
+        s32 first = lbl_80348FC8[which];
+        s32 last = lbl_80348FD0[which];
+        for (i = first; i < last; i++) {
+            if (manager[i] < 0xFF) {
+                manager[i]++;
+            }
+        }
+        manager[texture->region] = 0;
+    }
     return 1;
 }
 
