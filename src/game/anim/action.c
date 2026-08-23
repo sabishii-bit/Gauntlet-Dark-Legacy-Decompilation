@@ -496,7 +496,7 @@ s32 DoEnemyAction(void* enemy)
         }
         if (dur > 0.0) {
             while (dur > 1.0) {
-                accum = (f32)(accum + 1.0);
+                accum += 1.0;
                 dur = (f32)(dur - 1.0);
             }
             ef[0xE0] = dur;
