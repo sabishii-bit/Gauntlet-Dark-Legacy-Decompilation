@@ -215,7 +215,7 @@ extern s32   MBOX_FindTexture_Sub(const char *name, void *unused,
 extern s32   AtreeModel(void *atree);
 extern s32   InitCustomEffect(void *atree, char *name, s32 zmod, s32 alpha);
 extern s32   sprintf(char *dst, const char *fmt, ...);
-extern f64   atan2(f64 y, f64 x);
+extern f32   atan2(f32 y, f32 x);
 extern void  YawMat3(f32 angle, f32 *matrix);
 extern u16   AnimateATree(void *tree, s32 sequence, s32 transition);
 extern s32   AnimDone(void *animation);
@@ -2964,48 +2964,86 @@ s32 CritterTranslate(Critter *c, CritterMove *move)
  * or explicit facing, clamping angular speed by the move and header rates. */
 void CritterRotate(Critter *c, CritterMove *move)
 {
-    f32 wanted;
-    f32 current;
     f32 delta;
-    f32 step;
+    f32 turn;
+    f32 limit;
+    volatile f64 highPad;
     f32 target[3];
+    u8 unused[8];
 
-    current = *(f32 *)((u8 *)c + 0xFC);
-    wanted = current;
+    turn = *(f32 *)((u8 *)move + 0x88);
+    limit = *(f32 *)((u8 *)c->hdr + 0xCC);
     if ((move->flags & 0x20) != 0) {
-        wanted = *(f32 *)((u8 *)c + 0xF8);
-    } else if (c->unk128 < 0) {
-        if (c->unk124 >= 0 && *(f32 *)((u8 *)move + 0x88) > 0.0f) {
-            memcpy(target, (u8 *)&gPlayers[c->unk124] + 0x64,
-                   sizeof(target));
-            wanted = (f32)atan2(target[0] - c->vel[0],
-                                target[2] - c->vel[2]);
+        delta = *(f32 *)((u8 *)c + 0xF8) - *(f32 *)((u8 *)c + 0xFC);
+    } else if (c->unk128 >= 0) {
+        delta = lbl_80346470;
+    } else {
+        if (c->unk124 >= 0 && (f64)turn > 0.0) {
+            GetPlayerColPos(c->unk124, target);
+            target[0] -= c->vel[0];
+            target[1] -= c->vel[1];
+            target[2] -= c->vel[2];
+            if ((*(u32 *)((u8 *)c->hdr + 0x5C) & 0x400) != 0) {
+                register f32 z = target[2];
+                delta = atan2(target[0], z) - *(f32 *)((u8 *)c + 0xFC);
+            } else {
+                register f32 z = target[2];
+                f32 angle = atan2(target[0], z) - *(f32 *)((u8 *)c + 0xF8);
+                f64 wideAngle;
+                f32 clamped;
+                if ((f64)angle > 3.141592654) {
+                    wideAngle = (f64)angle - 6.283185308;
+                } else if ((f64)angle <= -3.141592654) {
+                    wideAngle = 6.283185308 + (f64)angle;
+                } else {
+                    wideAngle = angle;
+                }
+                angle = (f32)wideAngle;
+                clamped = angle < -limit ? -limit :
+                          angle > limit ? limit : angle;
+                delta = (*(f32 *)((u8 *)c + 0xF8) + clamped) -
+                        *(f32 *)((u8 *)c + 0xFC);
+            }
         } else if (c->particle != NULL && c->targetCount == 0) {
             target[0] = *(f32 *)((u8 *)c->particle + 0x30) - c->vel[0];
+            target[1] = *(f32 *)((u8 *)c->particle + 0x34) - c->vel[1];
             target[2] = *(f32 *)((u8 *)c->particle + 0x38) - c->vel[2];
-            wanted = (f32)atan2(target[0], target[2]);
+            {
+                register f32 z = target[2];
+                delta = atan2(target[0], z) - *(f32 *)((u8 *)c + 0xFC);
+            }
+        } else {
+            delta = lbl_80346470;
         }
     }
 
-    delta = wanted - current;
-    while (delta > 3.1415927f) {
-        delta -= 6.2831855f;
+    if ((f64)delta != 0.0) {
+        f64 wideDelta = delta;
+        f32 wrapped;
+        f32 turnStep;
+        if (wideDelta > 3.141592654) {
+            wideDelta -= 6.283185308;
+        } else if (wideDelta <= -3.141592654) {
+            wideDelta = 6.283185308 + wideDelta;
+        }
+        wrapped = (f32)wideDelta;
+        turnStep = turn * gClockFrameStep;
+        if (c->unkAC6 > 0) {
+            turnStep *= 0.1;
+        }
+        if (wrapped < -turnStep) {
+            delta = -turnStep;
+        } else {
+            if (wrapped > turnStep) {
+                wrapped = turnStep;
+            }
+            delta = wrapped;
+        }
+        *(f32 *)((u8 *)c + 0xFC) =
+            *(f32 *)((u8 *)c + 0xFC) + delta;
+        CopyMat3((f32 *)gIdentityMatrix, &c->mtx[0][0]);
+        YawMat3(*(f32 *)((u32)c + 0xFC), &c->mtx[0][0]);
     }
-    while (delta < -3.1415927f) {
-        delta += 6.2831855f;
-    }
-    step = *(f32 *)((u8 *)move + 0x88) * gClockFrameStep;
-    if (c->unkAC6 > 0) {
-        step *= 0.5f;
-    }
-    if (delta > step) {
-        delta = step;
-    } else if (delta < -step) {
-        delta = -step;
-    }
-    *(f32 *)((u8 *)c + 0xFC) = current + delta;
-    CopyMat3((f32 *)gIdentityMatrix, &c->mtx[0][0]);
-    YawMat3(*(f32 *)((u8 *)c + 0xFC), &c->mtx[0][0]);
 }
 /* 0x8003B1CC -- select the critter's current target/node and refresh the
  * world-space movement matrix used by the active move. */
