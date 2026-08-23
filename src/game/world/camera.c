@@ -3034,11 +3034,11 @@ f32 camera_lerp_yaw(f32 current, f32 target) {
     f64 wrapped;
     f64 result;
     f32 delta;
+    f32 step;
     struct {
         u8 pad[8];
         f32 value;
     } absWork;
-    f32 step;
 
     raw = (f32)(target - current);
     snap = 0;
@@ -3052,12 +3052,13 @@ f32 camera_lerp_yaw(f32 current, f32 target) {
         wrapped = raw;
     }
     delta = (f32)wrapped;
+    wrapped = lbl_80346068;
     absWork.value = delta;
     *(u32*)&absWork.value &= 0x7FFFFFFF;
-    if ((f64)absWork.value <= 0.017453292522222223) {
+    if ((f64)absWork.value <= wrapped) {
         snap = 1;
     } else {
-        step = (f32)(0.017453292522222223 * (f64)(u32)gFrameTicks);
+        step = (f32)(wrapped * (f64)(u32)gFrameTicks);
         if ((f64)delta >= (f64)lbl_80345EC8) {
             if ((f64)delta <= (f64)step) {
                 snap = 1;
@@ -3071,7 +3072,10 @@ f32 camera_lerp_yaw(f32 current, f32 target) {
         }
     }
     result = target;
-    if (snap != 0) {
+    switch (snap) {
+    case 0:
+        break;
+    default:
         goto lerp_adjust_done;
     }
     {
