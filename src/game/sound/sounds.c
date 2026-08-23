@@ -41,7 +41,7 @@ extern void AudioKillMask(void);
 extern int AudioAng(int a);
 extern void AudioSetTrackVolSfx(u32 mask, s32 volume);
 extern void AudioBankLoadName(char* a, char* b, int c);
-extern void AudioStreamPlay(int a, int b, int c);
+extern int AudioStreamPlay();
 extern void AudioStreamStop(void);
 extern int AudioSysUpdate(int a);
 extern void audio_init(void);
@@ -475,6 +475,126 @@ void AudioRegisterNameBanks(char* name, int flag)
     if (flag == 0) {
         while (AudioSysUpdate(1) != 0) {
             serve_busy(-1);
+        }
+    }
+}
+
+extern s32 sAudioMute;
+extern s32 lbl_803442F0;
+extern s32 lbl_803442F8;
+extern char lbl_8012330C[];      /* per-select stream suffix chars */
+extern char lbl_80348528[4];     /* "%s" */
+extern char lbl_80348570[8];
+extern char lbl_80348578[8];
+extern char lbl_8034852C[6];     /* ".ads" */
+extern char lbl_80348580[4];
+extern char lbl_80114CC0[];      /* missing-stream error fmt */
+extern char lbl_80114CE0[];      /* stream-play error fmt */
+int FileExists(char* mode, char* name);
+void ErrorPrintf(const char* fmt, ...);
+void sndSysSetBit0(int v);
+int sndSysFrameCallback(void);
+char* strcat(char* dst, const char* src);
+
+void AudioSetupLevelStreams(void)
+{
+    char* nb;
+    char buf[16];
+    u8* lvl;
+    u8* lvl2;
+    s32 err;
+    s32 mode;
+    s32 idx;
+    s32 chans;
+    s32 tmp;
+
+    nb = (char*)sSpeechNameBuf;
+    err = 0;
+    mode = 0;
+    if (sndSysFrameCallback() != 0) {
+        if (sMusicSubIndex == sSelectStreamState) {
+            return;
+        }
+        if (sMusicSubState < 1) {
+            return;
+        }
+        if (sMusicSubState < 2 && sCurMusicVol > 3) {
+            return;
+        }
+        if (*(s16*)(*(u8**)(gCurLevel + 100) + 40) <= 1) {
+            sMusicSubIndex = 0;
+            sMusicSubState = 0;
+            return;
+        }
+    }
+    lvl = *(u8**)(gCurLevel + 100);
+    if (lvl == NULL) {
+        return;
+    }
+    if (sAudioMute != 0) {
+        return;
+    }
+    idx = sMusicSubIndex;
+    if (idx < 0) {
+        idx = 0;
+    }
+    if (idx >= *(s16*)(lvl + 40)) {
+        idx = *(s16*)(lvl + 40) - 1;
+    }
+    if (idx != sSelectStreamState) {
+        sMusicField2F4 = 0;
+    }
+    if (idx != sSelectStreamState || sMusicField2F4 != lbl_803442F8) {
+        lbl_803442F0 = 0;
+    } else {
+        lbl_803442F0 = lbl_803442F0 + 1;
+    }
+    tmp = sMusicField2F4;
+    sSelectStreamState = idx;
+    lbl_803442F8 = tmp;
+    lvl2 = *(u8**)(gCurLevel + 100);
+    chans = *(s16*)(lvl2 + 42);
+    if (*(s16*)(lvl2 + 40) == 1) {
+        sprintf(buf, lbl_80348528, (char*)(lvl2 + 24));
+    } else {
+        sprintf(buf, lbl_80348570, (char*)(lvl2 + 24),
+                (signed char)lbl_8012330C[sSelectStreamState]);
+    }
+    if (*(s16*)(*(u8**)(gCurLevel + 100) + sSelectStreamState * 2 + 44) > 1) {
+        sprintf(nb, lbl_80348578, buf, sMusicField2F4 + 1);
+    } else {
+        strcpy(nb, buf);
+    }
+    strcat(nb, lbl_8034852C);
+    lvl2 = *(u8**)(gCurLevel + 100);
+    if (sMusicField2F4 + 1 ==
+        *(s16*)(lvl2 + sSelectStreamState * 2 + 44)) {
+        mode = 1;
+    }
+    if (mode != 0 && *(s16*)(lvl2 + 40) == 1) {
+        mode = 2;
+    }
+    if (FileExists(lbl_80348580, nb) == 0) {
+        ErrorPrintf(lbl_80114CC0, nb);
+        err = -1;
+    } else {
+        sprintf(sStreamNameBuf, lbl_80348528, nb);
+        tmp = 0;
+        sMusicSubState = tmp;
+        if (AudioStreamPlay((u16)(s32)((f32)sCurMusicVol *
+                                       *(f32*)(gCurLevel + 148)),
+                            mode, chans, tmp) < 0) {
+            ErrorPrintf(lbl_80114CE0, nb);
+            err = -2;
+        }
+    }
+    if (err != 0) {
+        AudioStreamStop();
+        if (mode != 0) {
+            sndSysSetBit0(1);
+        } else {
+            sMusicField2F4 = sMusicField2F4 + 1;
+            sndSysSetBit0(0);
         }
     }
 }
