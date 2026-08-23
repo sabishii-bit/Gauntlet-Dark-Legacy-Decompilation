@@ -773,33 +773,69 @@ int init_screen2d(int a, int slot) {
 /* Per-frame in-engine camera flyby: advance the world, time the run   */
 /* with OSGetTime, draw "Press Start" and bail out on input/timeout.   */
 /* ================================================================== */
-int do_flyby(void) {
-    if (sFlags != 0) {
-        return 0;
-    }
+extern int lbl_80344A80;
+extern unsigned int lbl_80240FC0[];
+extern unsigned int lbl_80240FB0[];
+extern int lbl_8034429C;
+extern long long lbl_80344278;   /* previous OSGetTime sample */
+extern long long lbl_80344280;   /* accumulated tick delta */
+extern int sMainTimerTicks;
+extern float lbl_80344220;       /* measured frame rate */
+extern void ProcessEffects(void);
 
-    if (attract_state != ATTRACT_RUN) {
-        long long t = OSGetTime();
-        (void)t;
+void do_flyby(void) {
+    char* strs = lbl_80110900;
+    int trig = 0;
+    int idx;
+    f32 seconds;
+
+    if (gGameBusy != 0) {
+        return;
+    }
+    if (lbl_80344A80 != 0 || (lbl_80240FC0[0] & 0x00300000)) {
+        trig = 1;
+    }
+    if (trig == 0) {
+        lbl_80344778 += gFrameTicks;
+    }
+    if (lbl_80344298 != 0) {
+        lbl_80344280 += OSGetTime() - lbl_80344278;
+        seconds = (f32)(lbl_80344280 / (s64)(*(u32*)0x800000F8 >> 2));
+        lbl_80344278 = 0;
+        lbl_80344220 = (f32)sMainTimerTicks / seconds;
+        lbl_803441F0 = 0;
         AudioSelectReset();
         init_targets();
-        if (attract_music != 0) {
-            MBRemoveBlit(attract_music);
-            attract_music = 0;
+        if (lbl_80344208 != 0) {
+            MBRemoveBlit(lbl_80344208);
+            lbl_80344208 = 0;
         }
         init_attract_mode(-1);
-        return 0;
+        return;
     }
-
-    screen2d_timer += 1;
-    if (screen2d_timer > 60) {
+    if (trig == 0 && lbl_80344298 == 0) {
+        if ((lbl_8034429C > 30 && (ATTRACT_FLAGS64 & 4) == 0) ||
+            lbl_80344778 > 3600) {
+            lbl_80344298 = 1;
+        }
+    }
+    if (lbl_80344778 > 60) {
         attract_check_input(0);
     }
     ProcessEffects();
-    ProcessEffects();
-    fn_800C7874();
-    DrawGlowText(-256, 320, credit_text[0x8A0 / 4], 1.0f);
-    return 0;
+    idx = fn_800C7874();
+    if (lbl_80240FB0[1] & 0x00400000) {
+        idx += 4;
+        bulletproof_printf(strs + 2436, idx);
+        fn_800C7864(idx);
+    }
+    if (lbl_80240FB0[1] & 0x00800000) {
+        bulletproof_printf(strs + 2436, idx - 4);
+        fn_800C7864(idx - 4);
+    }
+    if (lbl_80344298 == 0) {
+        DrawGlowText(-256, 320, strs + 2208, screen2dTextScale);
+    }
 }
 
 /* ================================================================== */
