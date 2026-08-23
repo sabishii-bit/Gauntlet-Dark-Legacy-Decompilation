@@ -798,24 +798,29 @@ s32 MovieValidateFrameFormat(u32 param_1, int param_2, s32 unused) {
     return 0;
 }
 
+#pragma opt_propagation off
 u32 fn_800D99AC(u32 a, int* src, u8* dst) {
-    register u32 r;
-    register u8* out = dst;
+    u32 r;
 
-    if (out == 0) {
+    if (dst == 0) {
         r = 56;
     } else {
-        u32 prod;
+        u32 width;
+        u32 height;
 
         memcpy(dst, src, *src);
-        prod = *(u32*)(out + 4) * *(u32*)(out + 8);
+        width = *(u32*)(dst + 4);
+        a = 24;
+        height = *(u32*)(dst + 8);
+        src = (int*)0;
         r = 0;
-        *(u16*)(out + 14) = 24;
-        *(u32*)(out + 16) = 0;
-        *(u32*)(out + 20) = prod * 3;
+        *(u16*)(dst + 14) = a;
+        *(u32*)(dst + 16) = (u32)src;
+        *(u32*)(dst + 20) = width * height * 3;
     }
     return r;
 }
+#pragma opt_propagation reset
 
 u32 fn_800D9A14(u32* param_1, u8* param_2, int param_3, u8 param_4) {
     u32 writeOffset;
