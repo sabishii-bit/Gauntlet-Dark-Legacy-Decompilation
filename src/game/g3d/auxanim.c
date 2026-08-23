@@ -37,6 +37,16 @@ typedef struct SCROLL {
     /* 0x0C */ float y1;
 } SCROLL; /* 0x10 */
 
+typedef struct ROMTEXTURE {
+    /* 0x00 */ u16 unk0;
+    /* 0x02 */ u16 flags;
+    /* 0x04 */ u8 pad04[4];
+    /* 0x08 */ union {
+        s16 s;
+        u16 u;
+    } scrollIdx;
+} ROMTEXTURE;
+
 extern TEXMOD special_texmods[5];
 extern int special_texmod_num;
 extern int texmod_scrollidx;
@@ -130,7 +140,7 @@ void InitTexMod(TEXMOD* tm, int texidx)
     int tex;
     int mode;
     void* p;
-    void* t;
+    ROMTEXTURE* t;
     int scrIdx;
 
     if (tm->src == -4 || tm->src == -5) {
@@ -148,34 +158,39 @@ void InitTexMod(TEXMOD* tm, int texidx)
         tm->tex = tex;
         mode = tm->src;
         if (mode < 0) {
-            if (mode < -3) {
-                if (mode == -6) {
-                    MBRomTexPtr(tex);
-                    MBOX_FindTexture(tm->name2, 0);
+            switch (mode) {
+            case -6:
+                MBRomTexPtr(tex);
+                MBOX_FindTexture(tm->name2, 0);
+                break;
+            case -1:
+                texidx = MBOX_FindTexture(tm->name2, 0);
+                MBCopyTexture(texidx, tex);
+                tm->src = texidx;
+                break;
+            case -3:
+            case -2:
+                if (tm->flag != -1) {
+                    break;
                 }
-            } else if (mode == -1) {
-                mode = MBOX_FindTexture(tm->name2, 0);
-                MBCopyTexture(mode, tex);
-                tm->src = mode;
-            } else if (mode < -1 && tm->flag == -1) {
                 t = MBRomTexPtr(tex);
-                if ((*(u16*)((int)t + 2) & 0x40) != 0) {
-                    tm->scrollIdx = *(short*)((int)t + 8);
+                if ((t->flags & 0x40) != 0) {
+                    tm->scrollIdx = t->scrollIdx.s;
                 } else {
-                    scrIdx = texmod_scrollidx;
-                    if (scrIdx < 0x40) {
+                    if ((scrIdx = texmod_scrollidx) >= 0x40) {
+                        ErrorPrintf("> Max %d scrolling textures", scrIdx);
+                    } else {
                         texmod_scrollidx = scrIdx + 1;
-                        *(u16*)((int)t + 2) |= 0x40;
-                        *(short*)((int)t + 8) = (short)scrIdx;
+                        t->flags |= 0x40;
+                        t->scrollIdx.u = scrIdx;
                         lbl_802C2E28[scrIdx].y0 = 0.0f;
                         lbl_802C2E28[scrIdx].y1 = 0.0f;
                         lbl_802C2E28[scrIdx].x0 = 1.0f;
                         lbl_802C2E28[scrIdx].x1 = 1.0f;
                         tm->scrollIdx = (short)scrIdx;
-                    } else {
-                        ErrorPrintf("> Max %d scrolling textures", scrIdx);
                     }
                 }
+                break;
             }
         } else {
             if ((mode & 0xffff0000) == 0) {
