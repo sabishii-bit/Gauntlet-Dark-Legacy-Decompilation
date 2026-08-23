@@ -78,6 +78,8 @@ extern f64   lbl_80346478;
 extern f64   lbl_80346488;
 extern f64   lbl_80346490;
 extern f64   lbl_80346498;
+extern f64   lbl_803464A0;
+extern f64   lbl_803464B0;
 extern f32   lbl_803464B8;
 extern f32   lbl_803464BC;
 extern f64   lbl_803464F8;
@@ -267,6 +269,10 @@ extern void *MBNewObject(void *object, f32 *matrix, void *parent, u32 flags);
 extern void *FloorCollide(f32 *pos, s32 a, s32 b, s32 mode, f32 x, f32 y,
                           f32 z);
 extern u8    gFloorCollisionResult[]; /* 0x8023CAE0 world-collide result, mtx+Y   */
+extern f32   lbl_8023CA98[];
+extern void *EnemyWallCollide(f32 radius, f32 *from, f32 *to, f32 *normal);
+extern s32   SlideAlongWall(f32 radius, f32 *pos, f32 *vel, f32 *wallpt,
+                            f32 *normal);
 extern char *lbl_8011AEA0[3];         /* 0x8011AEA0 shadow model-name table        */
 extern f32   lbl_80346588;
 extern f32   lbl_8034658C;
@@ -292,7 +298,7 @@ struct CritterDamageDef;
 s32  CritterCollideEnemies(Critter *c, f32 *delta);
 s32 CritterCollideItems(Critter *c, f32 *delta);
 s32 CritterCollidePlayers(Critter *c, f32 *delta);
-void CritterCollideWorld(Critter *c, f32 *delta);
+u32 CritterCollideWorld(Critter *c, f32 *delta);
 void CritterWorldDamage(Critter *c, void *surface, f32 *origin,
                         f32 *contact);
 s32 CritterNodeEnemyCollide(Critter *c, void *damageDef);
@@ -688,24 +694,175 @@ s32 CritterCollidePlayers(Critter *c, f32 *delta)
 
 /* 0x80035408 -- integrate the world-contact portion of a movement delta and
  * cache a floor point/status for item drops and shadows. */
-void CritterCollideWorld(Critter *c, f32 *delta)
-{
-    f32 nextY;
-    f32 floorY;
+typedef struct CritterWorldHeader {
+    u8 _pad000[0x5C];
+    u32 flags;
+    u8 _pad060[0x18];
+    f32 radius;
+    f32 wallRadius;
+    u8 _pad080[0x30];
+    f32 floorOffset;
+    u8 _pad0B4[0x64];
+    s16 hitNodeCount;
+} CritterWorldHeader;
 
-    nextY = c->pos[1] + delta[1];
-    floorY = *(f32 *)((u8 *)c + 0x43C);
-    if (nextY < floorY) {
-        delta[1] += floorY - nextY;
-        if (c->knockbackVelocity[1] < 0.0f) {
-            c->knockbackVelocity[1] = 0.0f;
+u32 CritterCollideWorld(Critter *c, f32 *delta)
+{
+    f32 probe[3];
+    f32 direction[3];
+    u8 unusedMid[12];
+    f32 floorResult[15];
+    f32 contact[3];
+    u8 unusedLow[4];
+    void *surface;
+    f32 *from;
+    f32 wallRadius;
+    f32 radius;
+    f32 bottom;
+    f32 baseY;
+    f32 floorY;
+    f32 minRise;
+    f32 reachLimit;
+    f32 reach;
+    f32 length;
+    f32 difference;
+    u32 result;
+    s32 i;
+    s32 offset;
+    s32 grounded;
+
+    from = c->pos;
+    surface = NULL;
+    minRise = (f32)(lbl_803464A0 * (f64)gClockFrameStep);
+    wallRadius = ((CritterWorldHeader *)c->hdr)->wallRadius;
+    radius = ((CritterWorldHeader *)c->hdr)->radius;
+    if ((((CritterWorldHeader *)c->hdr)->flags & 0x100) != 0) {
+        offset = 0;
+        for (i = 0; i < ((CritterWorldHeader *)c->hdr)->hitNodeCount;
+             i++, offset += sizeof(CritterHitNode)) {
+            CritterHitNode *hitNode =
+                (CritterHitNode *)((u8 *)c->hitnodes + offset);
+            if (hitNode->active == NULL) {
+                continue;
+            }
+            if (hitNode->activeFrom >= hitNode->activeUntil) {
+                continue;
+            }
+            if ((*(s16 *)((u8 *)hitNode->descriptor + 0x10) & 8) == 0) {
+                continue;
+            }
+            from = (f32 *)((u8 *)hitNode + 0x3C);
+            probe[0] = from[0] + delta[0];
+            probe[1] = from[1] + delta[1];
+            probe[2] = from[2] + delta[2];
+            surface = EnemyWallCollide(
+                *(f32 *)((u8 *)hitNode->descriptor + 0x2C), from, probe,
+                contact);
+            if (surface != NULL) {
+                break;
+            }
         }
-        *(u32 *)((u8 *)c + 0x448) |= 0x10;
     } else {
-        *(u32 *)((u8 *)c + 0x448) &= ~0x10;
+        probe[0] = from[0] + delta[0];
+        probe[1] = from[1] + delta[1];
+        probe[2] = from[2] + delta[2];
+        surface = EnemyWallCollide(wallRadius, from, probe, contact);
     }
-    *(f32 *)((u8 *)c + 0x438) = c->pos[0] + delta[0];
-    *(f32 *)((u8 *)c + 0x440) = c->pos[2] + delta[2];
+
+    result = 0;
+    if (surface != NULL) {
+        CritterWorldDamage(c, surface, c->pos, contact);
+        if ((*(u32 *)((u8 *)surface + 0x10) & 0x38) == 0) {
+            if (SlideAlongWall(wallRadius, from, delta, contact,
+                               lbl_8023CA98 + 4) < 0) {
+                delta[2] = delta[0] = lbl_80346470;
+                result = 2;
+            }
+        }
+    }
+
+    direction[0] = delta[0];
+    direction[1] = delta[1];
+    direction[2] = delta[2];
+    length = NormalVector(direction);
+    reach = wallRadius + length;
+    reachLimit = (f32)(lbl_80346478 * (f64)reach);
+    probe[0] = c->pos[0] + direction[0] * reach;
+    probe[1] = c->pos[1] + direction[1] * reach;
+    probe[2] = c->pos[2] + direction[2] * reach;
+    bottom = (f32)(-radius - lbl_80346498);
+    grounded = 0;
+    if ((surface = FloorCollide(probe, (s32)floorResult, 0, 2,
+                                lbl_803464A8, radius, bottom)) != NULL) {
+        CritterWorldDamage(c, surface, c->pos, floorResult + 12);
+        grounded = 1;
+        baseY = c->pos[1] - ((CritterWorldHeader *)c->hdr)->floorOffset;
+        *(f32 *)((u8 *)c + 0x438) = floorResult[12];
+        *(f32 *)((u8 *)c + 0x43C) = floorResult[13];
+        *(f32 *)((u8 *)c + 0x440) = floorResult[14];
+        floorY = floorResult[13];
+        difference = floorY - baseY;
+        if (difference < lbl_80346470) {
+            difference = -difference;
+        }
+        if (difference > reachLimit) {
+            grounded = 0;
+        } else if ((f64)length > lbl_80346488 &&
+                   difference > (f32)(lbl_803464B0 * (f64)length)) {
+            probe[0] = c->pos[0] + delta[0];
+            probe[1] = c->pos[1] + delta[1];
+            probe[2] = c->pos[2] + delta[2];
+            surface = FloorCollide(probe, (s32)floorResult, 0, 2,
+                                   lbl_803464A8, radius, bottom);
+            if (surface == NULL) {
+                grounded = 0;
+            } else {
+                *(f32 *)((u8 *)c + 0x438) = floorResult[12];
+                *(f32 *)((u8 *)c + 0x43C) = floorResult[13];
+                *(f32 *)((u8 *)c + 0x440) = floorResult[14];
+                floorY = floorResult[13];
+            }
+        }
+        if (grounded == 0) {
+            surface = FloorCollide(c->pos, (s32)floorResult, 0, 2,
+                                   lbl_803464A8, radius, bottom);
+            if (surface == NULL) {
+                floorY = baseY;
+            } else {
+                floorY = floorResult[13];
+                *(f32 *)((u8 *)c + 0x438) = floorResult[12];
+                *(f32 *)((u8 *)c + 0x43C) = floorResult[13];
+                *(f32 *)((u8 *)c + 0x440) = floorResult[14];
+            }
+        }
+        difference = floorY - baseY;
+        if (difference < minRise) {
+            difference = minRise;
+        }
+        delta[1] += difference;
+    }
+    if (grounded == 0) {
+        result |= 0x10;
+        delta[2] = delta[0] = lbl_80346470;
+    }
+    *(u32 *)((u8 *)c + 0x448) = result;
+    if (surface != NULL) {
+        if (*(void **)((u8 *)surface + 0x28) != NULL &&
+            (*(u32 *)((u8 *)surface + 0x10) & 0x1000) != 0) {
+            MBNodeSetParent(c->mbnode, *(void **)((u8 *)surface + 0x28));
+        } else {
+            MBNodeSetParent(c->mbnode, lbl_8034473C);
+        }
+        if (c->shadow != NULL) {
+            CopyMat3(floorResult, (f32 *)c->shadow);
+            *(f32 *)((u8 *)c->shadow + 0x30) = c->pos[0];
+            *(f32 *)((u8 *)c->shadow + 0x34) = c->pos[1];
+            *(f32 *)((u8 *)c->shadow + 0x38) = c->pos[2];
+            *(f32 *)((u8 *)c->shadow + 0x34) =
+                (f32)(lbl_803464B0 + (f64)floorResult[13]);
+        }
+    }
+    return result;
 }
 
 /* 0x800358B0 -- translate collision material flags into a critter damage
