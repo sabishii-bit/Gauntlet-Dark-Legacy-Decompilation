@@ -680,10 +680,210 @@ void ScreenSaver(void)
 }
 
 #pragma dont_inline on
+int MBOX_FindTexture_Err();
+u32 MBRomTexPtr(int texid);
+int sprintf(char* dst, const char* fmt, ...);
+extern char lbl_803473EC[2];    /* rune-name suffix */
+extern char lbl_803473D8;      /* piece-name format */
+extern f32 lbl_803473E4;
+extern f32 lbl_803473E8;
+extern s32 lbl_80343CA4;
+extern void* lbl_80344E48;
+extern char lbl_801137B4[];
+extern f32 lbl_803473F8;
+extern char lbl_803473FC[6];    /* corner label */
+extern s32 lbl_80124C70[][1];
+int towerGetRuneNearStat(s32 player, s32 stat);
+int PlayerHasRune(s32 player, s32 rune);
+void print_n_of_m(s32 style, s32 n, s32 m, s32 x, u32 node);
+void DrawGlowText(s32 color, s32 y, void* text, f32 scale);
+int DrawTextKeepScale();
+void animate_panel_piece(f32 progress, s32* piece, void* blit, s32 xOffset,
+                         s32 phase);
+extern u8 gPlayers[];
+
 int draw_inventory_panel(int player)
 {
-    (void)player;
-    return 1;
+    u8* base;
+    u8* state;
+    u8* pl;
+    u8* cfg;
+    u8* row;
+    void** blits1;
+    void** blits2;
+    void** blits3;
+    s32 xoff;
+    s32 mode;
+    s32 yshift;
+    s32 result;
+    s32 i;
+    u32 j;
+    s32 off;
+    s32 boff;
+    s32 poff48;
+    f32 prog;
+    void* b;
+    char* name;
+    char bufA[32];
+    char bufB[32];
+    char bufC[32];
+    s32 t;
+    u8* tex;
+
+    base = (u8*)lbl_80274600;
+    state = base + player * 4;
+    pl = gPlayers + player * 13148;
+    cfg = (u8*)lbl_8011D568;
+    xoff = player << 7;
+    result = 0;
+    yshift = 0;
+    mode = *(s32*)state;
+    if (mode == 0) {
+        prog = (f32)*(s32*)(state + 16) / lbl_803473E4;
+    } else {
+        prog = (f32)*(s32*)(state + 16) / lbl_803473E8;
+    }
+    if (*(s32*)(pl + 232) == 0) {
+        return 1;
+    }
+    poff48 = player * 48;
+    blits1 = (void**)(base + poff48 + 992);
+    if (*blits1 == 0) {
+        for (i = 0, boff = 0, off = 0; i < 12;
+             i++, boff += 4, off += 36) {
+            row = cfg + off;
+            name = *(char**)(row = row + 528);
+            if (name == NULL) {
+                b = 0;
+            } else {
+                strcpy(bufA, name);
+                t = MBOX_FindTexture_Err(bufA, 0, 1);
+                b = MBNewBlit(bufA, 0, 0);
+                tex = (u8*)MBRomTexPtr(t);
+                mbBlitCalcWidth(b, *(s32*)(row + 4) + xoff, *(s32*)(row + 8),
+                                lbl_803473E0);
+                if (tex != NULL) {
+                    mbBlitProject(b, *(u16*)(tex + 10), *(u16*)(tex + 12));
+                    *(s32*)(row + 28) = *(u16*)(tex + 10);
+                    *(s32*)(row + 32) = *(u16*)(tex + 12);
+                }
+            }
+            ((void**)blits1)[i] = b;
+        }
+        blits2 = (void**)(base + poff48 + 736);
+        for (j = 0, boff = 0, off = 0; j < 12;
+             j++, boff += 4, off += 36) {
+            s32 r = towerGetRuneNearStat(player, j);
+            row = cfg + off;
+            name = *(char**)(row = row + 1428);
+            if (name == NULL) {
+                b = 0;
+            } else {
+                if ((r ? NULL : lbl_803473EC) != NULL) {
+                    sprintf(bufB, &lbl_803473D8, name,
+                            r ? NULL : lbl_803473EC);
+                } else {
+                    strcpy(bufB, name);
+                }
+                t = MBOX_FindTexture_Err(bufB, 0, 1);
+                b = MBNewBlit(bufB, 0, 0);
+                tex = (u8*)MBRomTexPtr(t);
+                mbBlitCalcWidth(b, *(s32*)(row + 4) + xoff, *(s32*)(row + 8),
+                                lbl_803473E0);
+                if (tex != NULL) {
+                    mbBlitProject(b, *(u16*)(tex + 10), *(u16*)(tex + 12));
+                    *(s32*)(row + 28) = *(u16*)(tex + 10);
+                    *(s32*)(row + 32) = *(u16*)(tex + 12);
+                }
+            }
+            ((void**)blits2)[j] = b;
+        }
+        blits3 = (void**)(base + player * 36 + 592);
+        for (j = 0, boff = 0, off = 0; j < 9;
+             j++, boff += 4, off += 36) {
+            if (PlayerHasRune(player, j)) {
+                row = cfg + off;
+                name = *(char**)(row = row + 960);
+                if (name == NULL) {
+                    b = 0;
+                } else {
+                    strcpy(bufC, name);
+                    t = MBOX_FindTexture_Err(bufC, 0, 1);
+                    b = MBNewBlit(bufC, 0, 0);
+                    tex = (u8*)MBRomTexPtr(t);
+                    mbBlitCalcWidth(b, *(s32*)(row + 4) + xoff,
+                                    *(s32*)(row + 8), lbl_803473E0);
+                    if (tex != NULL) {
+                        mbBlitProject(b, *(u16*)(tex + 10),
+                                      *(u16*)(tex + 12));
+                        *(s32*)(row + 28) = *(u16*)(tex + 10);
+                        *(s32*)(row + 32) = *(u16*)(tex + 12);
+                    }
+                }
+                ((void**)blits3)[j] = b;
+            } else {
+                ((void**)blits3)[j] = 0;
+            }
+        }
+    }
+    for (i = 0, boff = 0, off = 0; i < 12; i++, boff += 4, off += 36) {
+        animate_panel_piece(prog, (s32*)(cfg + off + 528),
+                            ((void**)blits1)[i], xoff, mode);
+    }
+    blits2 = (void**)(base + poff48 + 736);
+    for (j = 0, boff = 0, off = 0; j < 12; j++, boff += 4, off += 36) {
+        animate_panel_piece(prog, (s32*)(cfg + off + 1428),
+                            ((void**)blits2)[j], xoff, mode);
+    }
+    blits3 = (void**)(base + player * 36 + 592);
+    for (j = 0, boff = 0, off = 0; j < 9; j++, boff += 4, off += 36) {
+        animate_panel_piece(prog, (s32*)(cfg + off + 960),
+                            ((void**)blits3)[j], xoff, mode);
+    }
+    switch (mode) {
+    case 0:
+        yshift = (s32)(lbl_803473F4 * (lbl_80347378 - prog));
+        break;
+    case 1:
+        yshift = 0;
+        break;
+    case 2:
+        yshift = (s32)(lbl_803473F4 * prog);
+        break;
+    }
+    print_n_of_m(1, *(s16*)(pl + *(s32*)(pl + 12) * 240 + 3560), 12, xoff,
+                 yshift);
+    print_n_of_m(2, *(s16*)(pl + *(s32*)(pl + 12) * 240 + 3562), 20, xoff,
+                 yshift);
+    print_n_of_m(3, *(s16*)(pl + *(s32*)(pl + 12) * 240 + 3564), 28, xoff,
+                 yshift);
+    for (i = 0, boff = 0, off = 0; i < 8; i++, boff += 4, off += 2) {
+        print_n_of_m(i + 4,
+                     *(s16*)(pl + *(s32*)(pl + 12) * 240 + off + 3568),
+                     *(s32*)((u8*)lbl_80124C70 + boff + 4), xoff, yshift);
+    }
+    switch (*(s32*)state) {
+    case 0:
+        *(s32*)(base + player * 4 + 16) +=
+            lbl_80343CA4 * (s32)gClockStepTicks;
+        if (*(s32*)(base + player * 4 + 16) >= 120) {
+            *(s32*)state = 1;
+        }
+        break;
+    case 2:
+        *(s32*)(base + player * 4 + 16) +=
+            lbl_80343CA4 * (s32)gClockStepTicks;
+        if (*(s32*)(base + player * 4 + 16) >= 15) {
+            result = 1;
+        }
+        break;
+    }
+    if (*(s32*)state != 2) {
+        MBNewTempBlit(lbl_80344E48, xoff + 16, 280, 16, 16);
+        DrawGlowText(xoff + 40, 280, lbl_801137B4, lbl_80347370);
+    }
+    DrawTextKeepScale(lbl_803473F8, -(xoff + 64), 8, 6, 0, lbl_803473FC);
+    return result;
 }
 
 #pragma opt_propagation off
