@@ -2466,6 +2466,7 @@ extern void mbBlitCvtCoord(void* blit, f32 c);
 extern void mbBlitCalcWidth(void* blit, s32 x, s32 w, f32 h);
 void update_class_spec(s32 player);
 
+#pragma opt_propagation off
 void init_player_select(s32 mode)
 {
     char* pool = lbl_801143F8;
@@ -2528,29 +2529,30 @@ void init_player_select(s32 mode)
     i2 = 0;
     new_menu_accept(-1, 1);
     {
-        u8* pl = gPlayers;
-        for (; i2 < 4; i2++, pl += 13148) {
+        u8* pl;
+        for (pl = gPlayers; i2 < 4; i2++, pl += 13148) {
             if (*(s32*)(pl + 232) == 0 && (lbl_80344824 & (1 << i2))) {
                 new_player(i2);
             }
         }
     }
     {
-        s32 i3;
-        u8* pl = gPlayers;
+        s32 i3 = 0;
+        u8* pl;
         s32 j;
         s32 o132 = 0;
         s32 o4 = 0;
-        for (i3 = 0; i3 < 4;
+        for (pl = gPlayers; i3 < 4;
              i3++, o132 += 132, o4 += 4, pl += 13148) {
-            s32 joff = 0;
+            s32 joff;
             xp = (s32*)(page + o4);
             blits = lbl_80284878 + o132;
-            for (j = 0; j < 11; j++, joff += 12) {
+            for (j = 0, joff = 0; j < 11; j++, joff += 12) {
                 u8* e = page + joff;
                 void* b;
-                s32 w = *(s32*)(e + 32) + *xp;
+                s32 w = *(s32*)(e + 32);
                 s32 h = *(s32*)(e + 36);
+                w += *xp;
                 e += 32;
                 b = (void*)MBCreateBlit(0, 0, w, h, -1, -1);
                 *(void**)(blits + joff) = b;
@@ -2587,6 +2589,7 @@ void init_player_select(s32 mode)
     lbl_80344BA4 = 0;
     fn_80053C70();
 }
+#pragma opt_propagation reset
 
 #pragma opt_propagation off
 void hide_select_blits(s32 arg0, s32 flag)
