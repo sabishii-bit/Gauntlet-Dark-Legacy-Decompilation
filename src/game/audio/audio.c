@@ -754,19 +754,23 @@ void AudioLoadRom(void)
  * previous occupant and kicks the async loader. */
 s32 AudioBankLoadName(char* bankName, char* partName, s32 mode)
 {
-    s32 bankIdx;
     s32 partIdx;
-    s32 foundPart;
+    s32 bankIdx;
     s32 i;
+    s32 busy;
     u8* bankEntry;
 
     if (sAudioSuspend != 0) {
         return 1;
     }
-    for (bankIdx = 0; bankIdx < gAudioBankTbl[4]; bankIdx++) {
-        if (strncmp((char*)((u8*)gAudioBankTbl + bankIdx * 292 + 20), bankName, 16) == 0) {
+    bankIdx = 0;
+    i = bankIdx;
+    while (bankIdx < gAudioBankTbl[4]) {
+        if (strncmp((char*)((u8*)gAudioBankTbl + i + 20), bankName, 16) == 0) {
             break;
         }
+        bankIdx++;
+        i += 292;
     }
     if (bankIdx == gAudioBankTbl[4]) {
         sAudioSuspend = 1;
@@ -784,35 +788,38 @@ s32 AudioBankLoadName(char* bankName, char* partName, s32 mode)
         sAudioSuspend = 1;
         partIdx = -1;
     }
-    foundPart = partIdx;
+    partName = (char*)partIdx;
     if (*(s32*)(bankEntry + 284) == partIdx) {
         return 2;
     }
-    for (;;) {
-        if (sAudioSuspend != 0) {
-            break;
-        }
+    goto poll_load;
+drain_load:
+    lbl_803442A8 = 0;
+    FreeHiMem(1);
+poll_load:
+    if (sAudioSuspend != 0) {
+        busy = 0;
+    } else {
+        i = 0;
         lbl_803442A8 = 0;
         sndSysUpdate(lbl_80345950);
         if (sAudioMute != 0) {
-            s32 j;
             lbl_803442B4++;
-            for (j = 10000; j != 0; j--) {
+            for (i = 10000; i != 0; i--) {
             }
         } else {
             lbl_803442B4 = 0;
         }
-        if (sAudioMute == 0) {
-            break;
-        }
-        lbl_803442A8 = 0;
-        FreeHiMem(1);
+        busy = sAudioMute;
+    }
+    if (busy != 0) {
+        goto drain_load;
     }
     if (*(s32*)(bankEntry + 284) == partIdx) {
         return 2;
     }
     AudioUnloadPart(bankName);
-    return AudioLoadPart(bankIdx, foundPart, mode, 0);
+    return AudioLoadPart(bankIdx, (s32)partName, mode, 0);
 }
 
 /* AudioBankQueueName: resolve bankName -> bank index and partName -> part index
