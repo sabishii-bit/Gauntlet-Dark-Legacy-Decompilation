@@ -98,6 +98,7 @@ extern f64   lbl_80346550;
 extern f32   lbl_803464C0;
 extern f32   lbl_803465F8;
 extern f32   lbl_80346508;
+extern f64   lbl_80346558;
 extern f64   lbl_80346510;
 extern f32   lbl_80346518;
 extern f32   lbl_8034651C;
@@ -354,10 +355,10 @@ void CritterCollideStart(s32 unused, void *ctx);
 s32  CritterNoHit(Critter *c, s32 id);
 s32  CritterNoHitSub(Critter *c, s32 id);
 void fn_80037ED0(f32 add, Critter *c, s32 id);
-void CritterLineCollide(Critter *skip, f32 *origin, f32 *forward,
-                        f32 radius, f32 *out, f32 *score);
-f32  CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward,
-                           f32 radius, f32 *out);
+Critter *CritterLineCollide(f32 dotThresh, f32 limit, f32 *origin,
+                            f32 *forward, f32 *out, f32 *score);
+f32  CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward, f32 *out,
+                           f32 dotThresh, f32 limit);
 void CritterDamage(f32 damage, Critter *c, s32 player, u32 flags,
                    f32 *hitPosition, f32 *direction, s32 source);
 s32  ProcessCritter(Critter *c);
@@ -2412,96 +2413,175 @@ void fn_80037ED0(f32 add, Critter *c, s32 id)
 }
 /* 0x80037F84 -- find the nearest live critter intersected by a directed
  * safe-rock query, considering both roots and their child chains. */
-void CritterLineCollide(Critter *skip, f32 *origin, f32 *forward,
-                        f32 radius, f32 *out, f32 *score)
+Critter *CritterLineCollide(f32 dotThresh, f32 limit, f32 *origin,
+                            f32 *forward, f32 *out, f32 *score)
 {
-    Critter *root;
-    Critter *candidate;
-    f32 delta[3];
-    f32 best;
-    f32 value;
+    f32 contact[3];
+    Critter *pool;
+    Critter *cur;
+    Critter *bestC;
+    s32 count;
     s32 i;
+    f32 cx;
+    f32 cy;
+    f32 cz;
+    f32 best;
+    f32 d;
+    u8 pad24[24];
 
     best = lbl_80346508;
-    for (i = 0; i < lbl_8034466C; i++) {
-        root = &gCritterPool[i];
-        if (root->hdr == NULL || root->state <= 1 || root->parent != NULL) {
-            continue;
-        }
-        for (candidate = root; candidate != NULL; candidate = candidate->next) {
-            if (candidate == skip) {
-                continue;
-            }
-            value = CritterLineRootColSub(candidate, origin, forward,
-                                          radius, delta);
-            if (value < best) {
-                best = value;
-                if (out != NULL) {
-                    memcpy(out, delta, sizeof(delta));
+    pool = gCritterPool;
+    cur = NULL;
+    bestC = NULL;
+    i = -1;
+    while ((count = lbl_8034466C) >= 0) {
+        if (cur != NULL && cur->next != NULL) {
+            cur = cur->next;
+        } else {
+            i++;
+            for (; i < count; i++) {
+                cur = &pool[i];
+                if (cur->state >= 2 && cur->parent == NULL) {
+                    break;
                 }
             }
+            if (i >= count) {
+                break;
+            }
+        }
+        d = CritterLineRootColSub(cur, origin, forward, contact, dotThresh,
+                                  limit);
+        if (d < best) {
+            best = d;
+            cx = contact[0];
+            cy = contact[1];
+            bestC = cur;
+            cz = contact[2];
         }
     }
-    if (out != NULL && best >= 1000000.0f) {
-        memcpy(out, forward, sizeof(delta));
+    if (out != NULL) {
+        if (best >= lbl_80346558) {
+            if (out != NULL) {
+                out[0] = forward[0];
+                out[1] = forward[1];
+                out[2] = forward[2];
+            }
+        } else {
+            out[0] = cx;
+            out[1] = cy;
+            out[2] = cz;
+        }
     }
     if (score != NULL) {
         *score = best;
     }
+    return bestC;
 }
 
 /* 0x800380F0 -- score a swept point against a critter's active hit nodes,
  * falling back to its body radius when it has no qualifying node. */
-f32 CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward,
-                          f32 radius, f32 *out)
+f32 CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward, f32 *out,
+                          f32 dotThresh, f32 limit)
 {
     f32 delta[3];
-    f32 best;
-    f32 distance;
-    f32 along;
-    f32 nodeRadius;
-    u8 *node;
+    s32 off;
+    u8 *hdr;
     s32 i;
+    u8 *node;
+    u8 *row;
+    u8 *nodeDef;
+    f32 best;
+    f32 bestScore;
+    f32 slope;
+    f32 nd;
+    f32 dr;
+    f32 dist;
+    f32 q;
+    f32 dot;
+    f32 thresh;
+    f32 score;
+    f32 nodeMax;
+    f64 eps2;
 
-    best = lbl_80346508;
-    if (c->health <= 0.0f || c->state <= 1) {
-        return best;
+    best = *(volatile f32 *)&lbl_80346508;
+    hdr = (u8 *)c->hdr;
+    bestScore = best;
+    if (limit > *(volatile f64 *)&lbl_80346488) {
+        slope = (lbl_80346490 - dotThresh) / limit;
+    } else {
+        slope = lbl_80346470;
     }
-    if ((*(u32 *)((u8 *)c->hdr + 0x5C) & 2) != 0) {
-        for (i = 0; i < *(s16 *)((u8 *)c->hdr + 0x118); i++) {
-            node = (u8 *)c + 0x4F8 + i * 0x5C;
-            if (*(void **)(node + 4) == NULL ||
-                *(f32 *)(node + 0x58) >= *(f32 *)(node + 0x54)) {
+    if (c->health <= lbl_80346470) {
+        return lbl_80346508;
+    }
+    if (c->state < 2) {
+        return lbl_80346508;
+    }
+    if ((*(u32 *)(hdr + 92) & 2) != 0) {
+        eps2 = lbl_80346488;
+        for (i = 0, off = 0; i < *(s16 *)(hdr + 280); i++, off += 92) {
+            row = (u8 *)c + off;
+            node = row + 1272;
+            if (*(void **)(row + 1276) == NULL) {
                 continue;
             }
-            delta[0] = *(f32 *)(node + 0x3C) - origin[0];
-            delta[1] = *(f32 *)(node + 0x40) - origin[1];
-            delta[2] = *(f32 *)(node + 0x44) - origin[2];
-            distance = NormalVector(delta);
-            nodeRadius = *(f32 *)(*(u8 **)node + 0x2C);
-            if (radius > 0.0f && distance > radius) {
+            if (*(f32 *)(node + 88) >= *(f32 *)(node + 84)) {
                 continue;
             }
-            along = delta[0] * forward[0] + delta[2] * forward[2];
-            if (along > 0.0f && distance - nodeRadius < best) {
-                best = distance - nodeRadius;
-                memcpy(out, delta, sizeof(delta));
+            delta[0] = *(f32 *)(node + 60) - origin[0];
+            delta[1] = *(f32 *)(node + 64) - origin[1];
+            delta[2] = *(f32 *)(node + 68) - origin[2];
+            dist = NormalVector(delta);
+            if (limit > eps2 && dist > limit) {
+                continue;
+            }
+            nodeDef = *(u8 **)node;
+            nodeMax = *(f32 *)(nodeDef + 24);
+            if (nodeMax > eps2 && dist > nodeMax) {
+                continue;
+            }
+            nd = dist - *(f32 *)(nodeDef + 44);
+            q = fqdist(delta[0], delta[2]);
+            dot = delta[0] * forward[0] + delta[2] * forward[2];
+            if (slope > eps2) {
+                thresh = q * (nd * slope + dotThresh);
+            } else {
+                thresh = dotThresh;
+            }
+            if (dot <= thresh) {
+                continue;
+            }
+            score = nd / (*(f32 *)(*(u8 **)node + 28) * (dot - thresh));
+            if (score < bestScore) {
+                out[0] = delta[0];
+                bestScore = score;
+                best = nd;
+                out[1] = delta[1];
+                out[2] = delta[2];
             }
         }
-    }
-    if (best >= lbl_80346508) {
-        delta[0] = c->pos[0] - origin[0];
-        delta[1] = c->pos[1] - origin[1];
-        delta[2] = c->pos[2] - origin[2];
-        distance = NormalVector(delta);
-        nodeRadius = *(f32 *)((u8 *)c->hdr + 0x7C);
-        along = delta[0] * forward[0] + delta[2] * forward[2];
-        if ((radius <= 0.0f || distance <= radius) && along > 0.0f) {
-            best = distance - nodeRadius;
-            memcpy(out, delta, sizeof(delta));
+        if (best < lbl_80346558) {
+            return best;
         }
     }
-    return best;
+    delta[0] = c->pos[0] - origin[0];
+    delta[1] = c->pos[1] - origin[1];
+    delta[2] = c->pos[2] - origin[2];
+    dist = NormalVector(delta);
+    if (limit > *(volatile f64 *)&lbl_80346488 && dist > limit) {
+        return lbl_80346508;
+    }
+    dr = dist - *(f32 *)((u8 *)c->hdr + 124);
+    q = fqdist(delta[0], delta[2]);
+    dot = delta[0] * forward[0] + delta[2] * forward[2];
+    thresh = q * (dr * slope + dotThresh);
+    if (dot <= thresh) {
+        return lbl_80346508;
+    }
+    out[0] = delta[0];
+    out[1] = delta[1];
+    out[2] = delta[2];
+    return dr;
 }
 
 /* 0x800383A8 -- apply damage to a critter/hit node, accumulate combat
