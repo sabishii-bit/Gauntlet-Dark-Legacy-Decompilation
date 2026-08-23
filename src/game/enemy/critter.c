@@ -107,6 +107,7 @@ extern f64   lbl_80346528;
 extern f64   lbl_80346530;
 extern f64   lbl_80346538;
 extern f64   lbl_80346540;
+extern f32   lbl_803465F4;
 extern f32   lbl_80346548;
 extern f32   lbl_8034654C;
 extern f64   lbl_80346600;
@@ -295,10 +296,10 @@ extern f32   lbl_80346570;
 
 /* -- CRITTER.OBJ internal roster (forward declarations) -- */
 struct CritterDamageDef;
-s32  CritterCollideEnemies(Critter *c, f32 *delta);
-s32 CritterCollideItems(Critter *c, f32 *delta);
-s32 CritterCollidePlayers(Critter *c, f32 *delta);
-u32 CritterCollideWorld(Critter *c, f32 *delta);
+s32  CritterCollideEnemies();
+s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits);
+s32 CritterCollidePlayers(Critter *c, f32 *delta, s32 hits);
+u32 CritterCollideWorld();
 void CritterWorldDamage(Critter *c, void *surface, f32 *origin,
                         f32 *contact);
 s32 CritterNodeEnemyCollide(Critter *c, void *damageDef);
@@ -423,7 +424,9 @@ void CritterInitHeader(void *hdr, void *file);
 
 /* 0x80034CFC -- stop or deflect this frame's translation when it overlaps
  * a live swarm enemy. */
-s32 CritterCollideEnemies(Critter *c, f32 *delta)
+s32 CritterCollideEnemies(c, delta)
+Critter *c;
+f32 *delta;
 {
     u8 unusedHigh[16];
     f32 contact[3];
@@ -513,7 +516,7 @@ s32 CritterCollideEnemies(Critter *c, f32 *delta)
 
 /* 0x80034F60 -- stop translation against collidable item records returned by
  * the item grid. */
-s32 CritterCollideItems(Critter *c, f32 *delta)
+s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
 {
     f32 center[3];
     f32 out[3];
@@ -602,7 +605,7 @@ s32 CritterCollideItems(Critter *c, f32 *delta)
 
 /* 0x800351B0 -- separate active players from a translating critter and feed
  * the displacement into their push vectors. */
-s32 CritterCollidePlayers(Critter *c, f32 *delta)
+s32 CritterCollidePlayers(Critter *c, f32 *delta, s32 hits)
 {
     Player *player;
     f32 dest[3];
@@ -706,7 +709,9 @@ typedef struct CritterWorldHeader {
     s16 hitNodeCount;
 } CritterWorldHeader;
 
-u32 CritterCollideWorld(Critter *c, f32 *delta)
+u32 CritterCollideWorld(c, delta)
+Critter *c;
+f32 *delta;
 {
     f32 probe[3];
     f32 direction[3];
@@ -3087,77 +3092,209 @@ void CritterDropItem(Critter *c)
  * result through world and critter collision. */
 s32 CritterTranslate(Critter *c, CritterMove *move)
 {
-    f32 forward[3];
+    u8 pad16[16];
     f32 delta[3];
+    f32 t0;
+    f32 t1;
+    f32 t2;
+    u8 pad4[4];
+    f32 contact[3];
+    f32 dest[3];
+    register f32 zero;
     f32 speed;
-    f32 length;
+    f32 spd;
+    f32 dx;
+    f32 dz;
+    f32 fx;
+    f32 fz;
+    f32 ax;
+    f32 az;
+    f32 bz;
+    f32 bx;
+    f32 tx;
+    f32 tz;
+    f32 gz;
+    f64 kdamp;
+    f32 nx;
+    f32 ny;
+    f32 nz;
+    f32 dist;
+    f32 scale;
+    s32 result = 0;
+    s32 hits;
+    s32 pr;
+    s32 tmpr;
+    f32 rad;
+    u8 pad24[24];
 
     speed = *(f32 *)((u8 *)c->hdr + 0xAC);
+    spd = *(f32 *)((u8 *)gCurLevel + 0xB0) *
+          (move->readyDistance * gClockFrameStep);
     if (speed <= 0.0f) {
         return 0;
     }
-    speed *= *(f32 *)((u8 *)gCurLevel + 0xB0) *
-             move->readyDistance * gClockFrameStep;
     if (move->type == 0x38) {
-        forward[0] = c->targetPos[0] - c->vel[0];
-        forward[1] = c->targetPos[1] - c->vel[1];
-        forward[2] = c->targetPos[2] - c->vel[2];
-        NormalVector2D(forward);
-    } else if ((*(u32 *)((u8 *)c->hdr + 0x5C) & 0x40) != 0) {
-        forward[0] = c->worldMoveMatrix[8];
-        forward[1] = 0.0f;
-        forward[2] = c->worldMoveMatrix[10];
-        NormalVector2D(forward);
+        delta[0] = c->targetPos[0] - c->vel[0];
+        delta[1] = c->targetPos[1] - c->vel[1];
+        delta[2] = c->targetPos[2] - c->vel[2];
+        tx = delta[0];
+        tz = delta[2];
+        dist = fqdist(tx, tz);
+        if (dist > lbl_80346488) {
+            scale = lbl_80346490 / dist;
+            tx *= scale;
+            tz *= scale;
+        }
+        dx = tx * spd;
+        dz = tz * spd;
     } else {
-        forward[0] = c->mtx[2][0];
-        forward[1] = 0.0f;
-        forward[2] = c->mtx[2][2];
-        NormalVector2D(forward);
+        if ((*(u32 *)((u8 *)c->hdr + 0x5C) & 0x40) != 0) {
+            ax = *(f32 *)((u8 *)c + 1016);
+            az = *(f32 *)((u8 *)c + 1024);
+            dist = fqdist(ax, az);
+            if (dist > lbl_80346488) {
+                scale = lbl_80346490 / dist;
+                ax *= scale;
+                az *= scale;
+            }
+            fx = ax;
+            fz = az;
+        } else {
+            bx = c->mtx[2][0];
+            bz = c->mtx[2][2];
+            dist = fqdist(bx, bz);
+            if (dist > lbl_80346488) {
+                scale = lbl_80346490 / dist;
+                bx *= scale;
+                bz *= scale;
+            }
+            fx = bx;
+            fz = bz;
+        }
+        switch (move->type) {
+        default:
+            dx = spd * fx;
+            dz = spd * fz;
+            break;
+        case 0x35:
+            dx = -spd * fx;
+            dz = -spd * fz;
+            break;
+        case 0x32:
+            dz = spd * fx;
+            dx = -spd * fz;
+            break;
+        case 0x33:
+            dx = spd * fz;
+            dz = -spd * fx;
+            break;
+        case 0x36:
+            dx = spd * fx;
+            dz = spd * fz;
+            dz = dz + dx;
+            dx = -spd * fz + dx;
+            break;
+        case 0x37:
+            dx = spd * fx;
+            dz = spd * fz;
+            break;
+        }
     }
-
-    switch (move->type) {
-    case 0x32:
-        delta[0] = -forward[2] * speed;
-        delta[2] = forward[0] * speed;
-        break;
-    case 0x33:
-        delta[0] = forward[2] * speed;
-        delta[2] = -forward[0] * speed;
-        break;
-    case 0x35:
-        delta[0] = -forward[0] * speed;
-        delta[2] = -forward[2] * speed;
-        break;
-    case 0x36:
-        delta[0] = (forward[0] - forward[2]) * speed;
-        delta[2] = (forward[0] + forward[2]) * speed;
-        break;
-    default:
-        delta[0] = forward[0] * speed;
-        delta[2] = forward[2] * speed;
-        break;
-    }
-    delta[1] = 0.0f;
+    delta[0] = dx;
+    zero = lbl_80346470;
+    delta[1] = zero;
+    delta[2] = dz;
     delta[0] += c->knockbackVelocity[0] * gClockFrameStep;
     delta[1] += c->knockbackVelocity[1] * gClockFrameStep;
     delta[2] += c->knockbackVelocity[2] * gClockFrameStep;
-    c->knockbackVelocity[0] *= 0.8f;
-    c->knockbackVelocity[1] *= 0.8f;
-    c->knockbackVelocity[2] *= 0.8f;
-    length = NormalVector(delta);
-    if (length > speed * 2.0f && speed > 0.0f) {
-        delta[0] *= speed * 2.0f;
-        delta[1] *= speed * 2.0f;
-        delta[2] *= speed * 2.0f;
-    } else {
-        delta[0] *= length;
-        delta[1] *= length;
-        delta[2] *= length;
+    kdamp = lbl_803465C0;
+    nx = c->vel[0] + delta[0];
+    ny = c->vel[1] + delta[1];
+    nz = c->vel[2] + delta[2];
+    c->knockbackVelocity[0] = (f32)(kdamp * c->knockbackVelocity[0]);
+    c->knockbackVelocity[1] = (f32)(kdamp * c->knockbackVelocity[1]);
+    c->knockbackVelocity[2] = (f32)(kdamp * c->knockbackVelocity[2]);
+    t0 = c->knockbackVelocity[0];
+    *(u32 *)&t0 &= 0x7FFFFFFF;
+    if (t0 < lbl_80346540) {
+        c->knockbackVelocity[0] = zero;
     }
-    c->vel[0] += delta[0];
-    c->vel[1] += delta[1];
-    c->vel[2] += delta[2];
-    return 0;
+    t1 = c->knockbackVelocity[1];
+    *(u32 *)&t1 &= 0x7FFFFFFF;
+    if (t1 < lbl_80346540) {
+        c->knockbackVelocity[1] = lbl_80346470;
+    }
+    t2 = c->knockbackVelocity[2];
+    *(u32 *)&t2 &= 0x7FFFFFFF;
+    if (t2 < lbl_80346540) {
+        c->knockbackVelocity[2] = lbl_80346470;
+    }
+    gz = lbl_80346470;
+    if (c->knockbackVelocity[1] > gz) {
+        c->knockbackVelocity[1] =
+            c->knockbackVelocity[1] - lbl_803465F4 * gClockFrameStep;
+        if (c->knockbackVelocity[1] < gz) {
+            c->knockbackVelocity[1] = gz;
+        }
+    }
+    if (*(s16 *)(*(u8 **)((u8 *)c->hdr + 0x120) + 0x20) == 4) {
+        delta[0] = nx - c->movePathPos[0];
+        delta[1] = ny - c->movePathPos[1];
+        delta[2] = nz - c->movePathPos[2];
+        if (c->state != 1) {
+            dist = fqdist(delta[0], delta[2]);
+            c->unk4AC = dist;
+            if ((*(u32 *)((u8 *)c->hdr + 0x5C) & 0x20) != 0) {
+                if (delta[0] > speed) {
+                    delta[0] = speed;
+                }
+                if (delta[0] < -speed) {
+                    delta[0] = -speed;
+                }
+                if (delta[2] > speed) {
+                    delta[2] = speed;
+                }
+                if (delta[2] < -speed) {
+                    delta[2] = -speed;
+                }
+            } else if (dist > speed) {
+                scale = speed / dist;
+                delta[0] *= scale;
+                delta[2] *= scale;
+            }
+        }
+        c->vel[0] = c->movePathPos[0] + delta[0];
+        c->vel[1] = c->movePathPos[1] + delta[1];
+        c->vel[2] = c->movePathPos[2] + delta[2];
+    } else {
+        delta[0] = nx - c->vel[0];
+        delta[1] = ny - c->vel[1];
+        delta[2] = nz - c->vel[2];
+        hits = CritterCollideWorld(c, delta, 0);
+        hits += CritterCollideItems(c, delta, hits);
+        tmpr = CritterCollidePlayers(c, delta, hits);
+        hits = hits + tmpr;
+        pr = tmpr;
+        CritterCollideEnemies(c, delta, hits);
+        rad = *(f32 *)((u8 *)c->hdr + 0x7C);
+        dest[0] = c->pos[0] + delta[0];
+        dest[1] = c->pos[1] + delta[1];
+        dest[2] = c->pos[2] + delta[2];
+        lbl_80344644 = 0;
+        lbl_80344648 = c;
+        if (CritterMoveNodeCol(rad, lbl_80346470,
+                               &c->pos[0], dest, contact, -1, 1) != NULL) {
+            delta[2] = lbl_80346470;
+            delta[0] = lbl_80346470;
+        }
+        c->vel[0] = c->vel[0] + delta[0];
+        c->vel[1] = c->vel[1] + delta[1];
+        c->vel[2] = c->vel[2] + delta[2];
+        if (pr != 0) {
+            result = 1;
+        }
+    }
+    return result;
 }
 /* 0x8003AF4C -- turn the critter toward the move-selected player, waypoint
  * or explicit facing, clamping angular speed by the move and header rates. */

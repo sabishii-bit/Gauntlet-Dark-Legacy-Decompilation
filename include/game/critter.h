@@ -153,7 +153,8 @@ typedef struct Critter {
     s8  alivecnt;             /* 0x44F live child count (ProcessCritter)       */
     u8  healthbar[0x48];      /* 0x450 health-bar object (AtreeDelete)         */
     void *damageflash;        /* 0x498 damage-flash object (MBTreeSetScale)       */
-    u8  _blk49C[0x10];        /* 0x49C .. 0x4AC                             */
+    f32 movePathPos[3];       /* 0x49C waypoint-move anchor position          */
+    u8  _res4A8[4];           /* 0x4A8                                        */
     f32 unk4AC;               /* 0x4AC (init 0)                              */
     f32 health;               /* 0x4B0 current hp                             */
     f32 counterValue;         /* 0x4B4 transient move/event counter           */
