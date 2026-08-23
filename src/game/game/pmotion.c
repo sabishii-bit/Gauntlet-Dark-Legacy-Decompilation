@@ -47,12 +47,40 @@ extern s32 lbl_803447B4;
 typedef union ControlState {
     f32 values[15];
     struct {
+        s32 ctl;
+        u32 levels;
+        u32 edges;
+        u32 repedges;
+        s32 spResult;
+        s32 spLast;
+        s32 spTimer;
+        f32 lx;
+        f32 ly;
+        f32 rx;
+        f32 ry;
+        s32 scheme;
+        s32 hasActuator;
+        s32 unk34;
+        s32 flag;
+    } pad;
+    struct {
         u8 pad[56];
         s32 flag;
     } control;
 } ControlState;
+typedef struct PlayerActionMotionView {
+    u8 pad_000[0x8F4];
+    s32 heldHistory;
+    s32 edgeHistory;
+    u8 pad_8FC[0x5A];
+    s16 actionFlags;
+    s16 actionTicks;
+} PlayerActionMotionView;
 extern ControlState lbl_80240E30[]; /* control-pad state array, stride 15 f32 */
 extern f32 sMusicFadeBase; /* sMusicFadeBase */
+extern s64 gControllerButtons;
+extern s32 sFlags;
+extern s32 gGameOptions[];
 
 /* ------------------------------------------------------------------ */
 /* extern functions                                                    */
@@ -122,6 +150,13 @@ extern f32 lbl_80347D48; /* impulse scale (light) */
 extern f64 lbl_80347B50; /* +pi */
 extern f64 lbl_80347B60; /* 2pi */
 extern f64 lbl_80347B68; /* -pi */
+extern f64 lbl_80347C00;
+extern f64 lbl_80347C78;
+extern f32 lbl_80347C6C;
+extern f64 lbl_80347CE8;
+extern f64 lbl_80347D80;
+extern f64 lbl_80347D88;
+extern f64 lbl_80347D90;
 extern f64 lbl_80347C38; /* facing-flip threshold */
 extern s32 lbl_80344BF8; /* skin-fx texture id */
 extern f32 atan2(f32 y, f32 x);
@@ -143,6 +178,7 @@ extern void MBTreeSetAlpha(void* node, s32 alpha, s32 mode);
 extern void* fn_8005B8B0(Player* p);
 extern s32 PointVisible(f32 y, f32* pos);
 extern void fn_8009C98C(f32* pos);
+extern s32 fn_80088EF4(Player* p, f32 range, f32 minDot);
 extern f32 gFloorCollisionResult[]; /* transporter table (0x34 = target height) */
 extern f32 lbl_80344880;
 extern f64 lbl_80347B38;
@@ -1740,7 +1776,196 @@ s32 fn_80088714(f32 range, Player* p, f32* pos, f32* dpos) {
     }
     return result;
 }
-STUB(0x80088938, fn_80088938)
+s32 fn_80088938(Player* p, f32 angle) {
+    ControlState* ctl = &lbl_80240E30[p->index];
+    PlayerActionMotionView* motion = (PlayerActionMotionView*)p;
+    f64 wrapped;
+    f32 facing;
+    s32 action;
+
+    angle = angle + ctl->pad.lx - PF(p, 0x894, f32);
+    if ((f64)angle > lbl_80347B50) {
+        wrapped = (f64)angle - lbl_80347B60;
+    } else if ((f64)angle <= lbl_80347B68) {
+        wrapped = lbl_80347B60 + (f64)angle;
+    } else {
+        wrapped = (f64)angle;
+    }
+    facing = (f32)wrapped;
+
+    if (PF(p, 0x834, s32) != 0 && gBossType >= 0) {
+        ctl->pad.edges &= ~0x900;
+        ctl->pad.levels &= ~0x900;
+    }
+
+    if ((PF(p, 0x124, u32) & 0x400) != 0 &&
+        (ctl->pad.levels & 0x400) != 0) {
+        ctl->pad.levels &= ~0x400;
+        ctl->pad.levels |= 0x200;
+    }
+
+    if ((gControllerButtons & 0x10) != 0 || gGameOptions[6] != 0) {
+        if ((ctl->pad.edges & 0x2000) != 0) {
+            ctl->pad.edges &= ~0x2000;
+            ctl->pad.edges |= 0x800;
+        }
+    }
+
+    action = 0;
+    if ((PF(p, 0x964, s16) & 0x40) != 0) {
+        action = 0x27;
+    } else if ((PF(p, 0x964, s16) & 0x10) != 0) {
+        action = 0x26;
+    } else if ((PF(p, 0x964, s16) & 0x80) != 0) {
+        action = 0x17;
+    } else if (((gControllerButtons & 0x10) != 0 || gGameOptions[6] != 0) &&
+               (ctl->pad.levels & 0x08000000) != 0) {
+        action = 0x1D;
+    }
+
+    if (action > 0) {
+        goto final_action;
+    }
+    if ((ctl->pad.levels & 0x10000) != 0) {
+            if ((motion->actionFlags & 0x80) == 0) {
+            action = 0x19;
+        }
+    } else if ((ctl->pad.levels & 0x8000) != 0) {
+        if ((motion->actionFlags & 0x80) == 0) {
+            action = 0x1A;
+        }
+    } else if ((ctl->pad.levels & 0x100) != 0) {
+        if ((motion->actionFlags & 0x80) == 0) {
+            action = 0x18;
+        }
+    } else if (motion->actionFlags == 0x80) {
+        motion->actionFlags = 0;
+    }
+    if (action > 0) {
+        goto final_action;
+    }
+    if ((ctl->pad.levels & 0x20000) != 0 &&
+        (f64)PF(p, 0x828, f32) >= lbl_80347BB8) {
+        s32 target = fn_80088EF4(p, lbl_80347C6C, lbl_80347D08);
+        if (target >= 0) {
+            PF(p, 0x6BC, Player*) = &gPlayerRecords[target];
+            action = 0x16;
+            goto final_action;
+        }
+    }
+
+    if ((ctl->pad.levels & 0x800) != 0 &&
+        (ctl->pad.edges & 0x200) != 0 &&
+        (f64)PF(p, 0x828, f32) >= lbl_80347B08) {
+        action = 0x15;
+        goto final_action;
+    }
+
+    if ((ctl->pad.edges & 0x1000) != 0) {
+        action = 2;
+        goto final_action;
+    } else if ((f64)ctl->pad.ry > lbl_80347B08) {
+        if ((f64)ctl->pad.ly > lbl_80347B08) {
+            f64 delta = ctl->pad.rx - ctl->pad.lx;
+            f32 dir;
+            if (delta > lbl_80347B50) {
+                delta -= lbl_80347B60;
+            } else if (delta <= lbl_80347B68) {
+                delta = lbl_80347B60 + delta;
+            }
+            dir = (f32)delta;
+            if ((f64)dir > lbl_80347CE8 || (f64)dir < lbl_80347D80) {
+                action = 0x12;
+            } else if ((f64)dir > lbl_80347D88) {
+                action = 0x14;
+            } else if ((f64)dir < lbl_80347D90) {
+                action = 0x13;
+            } else {
+                action = 0x11;
+            }
+        } else if ((ctl->pad.levels & 0x400) != 0) {
+            action = 0x10;
+        } else {
+            action = 0x0F;
+        }
+        goto selected;
+    } else if ((ctl->pad.levels & 0x4000) != 0 &&
+               (f64)ctl->pad.ly > lbl_80347B08) {
+        if ((ctl->pad.levels & 0x600) != 0) {
+            if ((f64)facing > lbl_80347CE8 || (f64)facing < lbl_80347D80) {
+                action = 0x12;
+            } else if ((f64)facing > lbl_80347D88) {
+                action = 0x14;
+            } else if ((f64)facing < lbl_80347D90) {
+                action = 0x13;
+            } else {
+                action = 0x11;
+            }
+        } else {
+            if ((f64)facing > lbl_80347CE8 || (f64)facing < lbl_80347D80) {
+                action = 0x0A;
+            } else if ((f64)facing > lbl_80347D88) {
+                action = 0x0C;
+            } else if ((f64)facing < lbl_80347D90) {
+                action = 0x0B;
+            } else {
+                action = 9;
+            }
+        }
+        goto selected;
+    } else if ((ctl->pad.edges & 0x2000) != 0 &&
+               (f64)PF(p, 0x828, f32) >= lbl_80347C78) {
+        action = 7;
+        goto selected;
+    } else if ((ctl->pad.levels & 0x200) != 0) {
+        action = 0x0F;
+        goto selected;
+    } else if ((ctl->pad.levels & 0x400) != 0) {
+        action = 0x10;
+    }
+
+selected:
+    if (action <= 0) {
+        if ((f64)ctl->pad.ly > lbl_80347C00) {
+            action = 0x0D;
+        } else if ((f64)ctl->pad.ly > *(volatile f64*)&lbl_80347B08) {
+            action = 8;
+        } else {
+            action = 1;
+        }
+    }
+final_action:
+    switch (p->anim_208) {
+    case 0x73:
+        if (action == 0x18) {
+            if ((motion->actionFlags & 4) != 0) {
+                motion->actionFlags |= 2;
+            }
+        } else {
+            motion->actionFlags |= 4;
+        }
+        break;
+    case 0x74:
+        break;
+    case 0x75:
+        if ((u32)(action - 0x18) <= 1) {
+            if ((motion->actionFlags & 8) == 0) {
+                motion->actionTicks += gFrameTicks;
+            }
+        } else {
+            motion->actionFlags |= 8;
+        }
+        break;
+    }
+
+    if ((ctl->pad.levels & 0x600) != 0) {
+        motion->edgeHistory |= ctl->pad.levels ^ motion->heldHistory;
+        motion->heldHistory |= ctl->pad.levels;
+    } else if (motion->heldHistory != 0) {
+        motion->heldHistory = 0;
+    }
+    return action;
+}
 /* 0x80088EF4 - find the nearest other player inside p's forward-facing cone
  * (within maxDist, dot >= minDot), gated by a stack of state/anim/floor
  * eligibility checks.  Returns that player's index, or -1 if none. */
