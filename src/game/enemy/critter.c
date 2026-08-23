@@ -114,6 +114,7 @@ extern f32   lbl_80346638;
 extern f32   lbl_803464A8;
 extern f32   lbl_803464E8;
 extern char  lbl_801121D4[];
+extern char  lbl_80112174[];
 extern Effect Effects[];
 extern void  MBPsysSetEVolume(void *psys, f32 a, f32 b);
 extern void  MBPsysSetPParm(void *psys, s32 n, f32 a, f32 b, f32 c, f32 d);
@@ -3747,53 +3748,128 @@ u32 CritterCopyAnim(Critter *c, CritterMove *move, s32 frame)
 
 /* 0x8003C40C -- select/blend the active sequence, animate auxiliary trees,
  * and hand completed moves to CritterMoveDone. */
+typedef struct CritterAnimPatternRow {
+    u8 _pad00[0x22];
+    s16 sequence[8];
+    u8 _pad32[0x1E];
+} CritterAnimPatternRow;
+
+typedef struct CritterAnimateHeader {
+    u8 _pad000[0x124];
+    CritterMove *moves;
+    CritterAnimPatternRow *patterns;
+} CritterAnimateHeader;
+
+#pragma opt_propagation off
 void CritterAnimate(Critter *c)
 {
-    CritterMove *moves;
     CritterMove *current;
     CritterMove *next;
     u8 *subnode;
+    s32 currentIndex;
     s32 nextIndex;
+    s32 selectedSequence;
     s32 sequence;
     s32 transition;
+    register s32 doneResult;
     u16 done;
+    u64 controllerFlag;
+    s32 candidate;
 
-    moves = *(CritterMove **)((u8 *)c->hdr + 0x124);
-    nextIndex = c->nextmove;
-    current = c->curmove >= 0 ? &moves[c->curmove] : NULL;
-    next = nextIndex >= 0 ? &moves[nextIndex] : NULL;
-    if (next == NULL) {
-        next = current;
-        nextIndex = c->curmove;
+    current = NULL;
+    next = NULL;
+    currentIndex = c->curmove;
+    if (c->unk11E < 0 || c->unk120 < 0 || c->unk120 >= 8) {
+        goto requested_move;
     }
-    if (next == NULL) {
-        return;
+    candidate = ((CritterAnimateHeader *)c->hdr)
+                    ->patterns[c->unk11E]
+                    .sequence[c->unk120];
+    if (candidate < 0) {
+requested_move:
+        candidate = c->nextmove;
     }
-    sequence = next->anim;
-    transition = current == NULL ? 3 : CritterGetDmove(current, next);
-    if (c->rate > sMusicFadeBase && current != NULL) {
+    nextIndex = candidate;
+    if (currentIndex >= 0) {
+        current = &((CritterAnimateHeader *)c->hdr)->moves[currentIndex];
+    }
+    if (candidate >= 0) {
+        next = &((CritterAnimateHeader *)c->hdr)->moves[candidate];
+    }
+
+    if (next == NULL) {
         sequence = current->anim;
         transition = 0;
-        nextIndex = c->curmove;
+    } else {
+        controllerFlag = gControllerButtons & 0x80;
+        if (controllerFlag == 0 && next != current && next->unk08 >= 0xF00 &&
+            (current == NULL || current->unk56 != 0)) {
+            sequence = next->anim;
+            transition = 3;
+        } else if (c->rate > sMusicFadeBase) {
+            sequence = current != NULL ? current->anim : -1;
+            nextIndex = currentIndex;
+            transition = 0;
+        } else {
+            selectedSequence = 0;
+            if (controllerFlag != (u64)(u32)selectedSequence) {
+                if (next != NULL) {
+                    selectedSequence = next->anim;
+                }
+                sequence = selectedSequence;
+                if (current == NULL) {
+                    transition = 3;
+                } else if (current != next && current->type == 1) {
+                    transition = 3;
+                } else {
+                    transition = 1;
+                }
+            } else {
+                sequence = next->anim;
+                if (current != NULL) {
+                    transition = CritterGetDmove(current, next);
+                } else {
+                    transition = 3;
+                }
+            }
+        }
     }
 
-    if (c->pausecnt <= 0) {
-        done = AnimateATree(&c->colhandle, sequence, transition);
-    } else {
+    if (sequence < 0) {
+        FatalError(lbl_80112174, 0x800000);
+    }
+    if (current != next && transition == 0 && sMusicFadeBase > c->rate &&
+        AnimDone(&c->sound[0])) {
+        transition = 1;
+    }
+
+    if (c->pausecnt > 0) {
         c->animtimer += gClockFrameStep;
         done = 0;
+    } else {
+        done = AnimateATree(&c->colhandle, sequence, transition);
     }
-    for (subnode = (u8 *)c->subnodes;
-         subnode != NULL; subnode = *(u8 **)(subnode + 0x50)) {
+    if (current != NULL && current == next && current->type == 0) {
+        done = 0;
+    }
+    for (subnode = (u8 *)c->subnodes; subnode != NULL;
+         subnode = *(u8 **)(subnode + 0x50)) {
+        if (sequence >= *(s16 *)(subnode + 0x10)) {
+            sequence = 0;
+        }
         AnimateATree(subnode, sequence, transition);
     }
-    c->movedone = (s16)(done & 3);
-    if ((done & 3) != 0) {
+
+    done &= 3;
+    doneResult = (s16)done;
+    c->movedone = (s16)doneResult;
+    if ((s16)doneResult != 0) {
         CritterMoveDone(c, nextIndex);
     } else if (nextIndex < 0 && AnimDone(&c->sound[0])) {
         c->curmove = -1;
     }
 }
+#pragma opt_propagation reset
 
 /* 0x8003C6FC -- record cooldown/pattern progress and install the move that
  * just completed its blend. */
