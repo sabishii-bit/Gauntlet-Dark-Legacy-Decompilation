@@ -1665,6 +1665,12 @@ s32 fn_80053D08(s32 wave, s32 mode, s32 loadResult)
 #pragma opt_propagation reset
 
 /* 0x80054D18 -- choose and resolve the next world/level selection. */
+#pragma opt_propagation off
+static inline s32 load_world_option(s32* options)
+{
+    return options[9];
+}
+
 s32 next_world(void)
 {
     u8 unused[8];
@@ -1673,6 +1679,7 @@ s32 next_world(void)
     s32 transitioning = 0;
     s32 state = lbl_8034481C;
     s32 t2;
+    register s32 selected;
 
     if (state >= 13 && state < 0x10000) {
         transitioning = 1;
@@ -1690,21 +1697,22 @@ s32 next_world(void)
         world = lbl_80344B84;
         forced = 1;
     } else if (sLastWorldLevel < 0) {
-        world = gGameOptions[9];
-        if ((world >> 8) >= 14) {
+        selected = load_world_option(gGameOptions);
+        world = selected;
+        if ((selected >> 8) >= 14) {
             world = sFirstWorldId;
         }
         lbl_8034481C = world + 0x10000;
         forced = 1;
     } else {
-        s32 offset;
         s32 i;
 
         world = -1;
-        for (i = 0, offset = 0; i < 4; i++, offset += 13148) {
-            s32 state = *(s32*)(gPlayers + offset + 232);
+        for (i = 0, transitioning = 0; i < 4; i++, transitioning += 13148) {
+            u8* player = gPlayers + transitioning;
+            state = *(s32*)(player + 232);
             if (state != 0 && state != 2) {
-                state = *(s32*)(gPlayers + offset + 2096);
+                state = *(s32*)(player + 2096);
                 if (world < state) {
                     world = state;
                 }
@@ -1724,6 +1732,7 @@ s32 next_world(void)
     }
     return world;
 }
+#pragma opt_propagation reset
 
 /* 0x800552A4 -- animate the two halves of the loading thermometer. */
 void fn_800552A4(f32 total, f32 current)
