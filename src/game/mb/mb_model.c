@@ -37,13 +37,13 @@
 /* ---- externs: sibling-TU functions (resolved via symbols.txt) ---- */
 extern int   StartFileRead(const char* name, void* buf, int a, int b, int c, int d);
 extern int   FileSize(const char* dir, const char* name);
-extern int   MLMReadFile(const char* name, void* buf, int size);
+extern int   MLMReadFile(const char* dir, const char* name, void* buf, int size);
 extern void* AllocMem(int size);
 extern void* GetMemBase(void);
 extern int   BytesFree(void);
 extern void  LockMem(void);
 extern void  FreeUnlockedMem(int slot);
-extern void  FatalError(const char* fmt, ...);
+extern void  FatalError(const char* fmt, int code);
 extern void  ErrorPrintf(const char* fmt, ...);
 extern void  bulletproof_printf(const char* fmt, ...);
 extern int   MBNewObject(int idx, int a, int b, int c);
@@ -52,7 +52,7 @@ extern void  MBInitPsys(void);
 extern u32   pbGetCPUTime(void);
 extern void  pbSetTime(int t);
 
-extern int   fn_800C7214(void* p);          /* MB file/texture post-load */
+extern int   fn_800C7214(int slot);         /* MB file/texture post-load */
 extern void  fn_800C7884(int a);            /* MB texture-region reset */
 extern void  MBLockFonts(int slot);         /* MB lock helper */
 extern void  MBResetUnlockedFonts(int level); /* MB unlock helper */
@@ -76,21 +76,22 @@ extern s32  lbl_80344E8C;        /* current model/object-def count */
 extern s32  gClockFrameNumber;   /* bulletproof_printf channel arg */
 extern s32  mlmMemUsed;          /* 0x80344F44 : MLM bytes used by models */
 
-extern u8   lbl_802A5CF0[0x1C];  /* background-load context block */
+extern u8   lbl_802A5CF0[];      /* background-load context block */
 extern s32  lbl_802A5D0C[4];     /* per-slot model-count lock points */
 extern u8   lbl_802A5D1C[0x49C]; /* MBOX_LoadModelFixed scratch/header buf */
 
 extern const char lbl_80115DA8[]; /* "objects.ngc" */
 extern const char lbl_80115DB4[]; /* "textures.ngc" (+ pooled MBOX-loading log strings) */
 extern const char lbl_80115F24[]; /* pooled model-error strings ("bad version", "> max models") */
-extern const char lbl_80348C28[]; /* "static" */
+extern const char lbl_80348C28[7]; /* "static" */
+extern u8 lbl_80129740[];        /* static fallback model buffer */
 extern const char lbl_80348C30[4]; /* "???" */
 
 /* forward declarations (GCN emit order = reverse Xbox source order) */
 static void  BGLoadTextures(void* rq);
 static void  BGLoadObjects(void* rq);
-int          MBOX_LoadModelFixed(const char* dir, int a, int b, int c, int type);
-static int   SetupModel(void* model, const char* name, int slot);
+int          MBOX_LoadModelFixed(const char* dir, void* buf, int a, int b, int slot);
+static int   SetupModel();
 int          MBOX_AllocModelMem(int objSize, int texSize, const char* dir);
 int          MBOX_FindTexture_Sub(const char* name, int p2, int lo, int hi, int flag);
 static int   texcmp(const void* a, const void* b);
@@ -100,50 +101,126 @@ static int   objcmp(const void* a, const void* b);
 
 /* ---- 0x800B7758 : finish a pending background model load ---- */
 int MBOX_BGLoadModelDone(void) {
-    u8* g = gWinGlobals;
-    u32 t;
+    char* strs;
+    u8* tbl;
+    s32 slot;
+    u8* g;
+    u8* ent;
+    u8* row;
+    u8* nm;
+    u8* h;
+    s32 state;
+    s32 zero;
 
-    if (lbl_80344E88 < 0) {
-        return 0;
+    strs = (char*)lbl_80115DA8;
+    tbl = lbl_802A5CF0;
+    slot = lbl_80344E88;
+    g = gWinGlobals;
+    if (slot < 0) {
+        return 1;
     }
-    StartFileRead(lbl_80115DA8, (void*)&lbl_802A5CF0, 0, 0, 0, 0);
-    bulletproof_printf(lbl_80115DB4,
-                       lbl_80344E88, g, gClockFrameNumber);
-    SetupModel((void*)g, lbl_80115DA8, lbl_80344E88);
-    t = pbGetCPUTime();
-
-    StartFileRead(lbl_80115DB4, (void*)&lbl_802A5CF0, 0, 0, 0, 0);
-    bulletproof_printf(lbl_80115DB4,
-                       lbl_80344E88, g, gClockFrameNumber);
-    fn_800C7214((void*)g);
-    (void)t;
-
-    lbl_80344E88 = -1;
-    return 1;
+    ent = tbl + slot * 24;
+    state = *(s32*)(ent + 728);
+    row = *(u8**)(g + 48) + (slot << 4) + 4;
+    ent += 716;
+    switch (state) {
+    case 0:
+        nm = tbl + (slot << 5) + 44;
+        *(s32*)(row + 12) = 2;
+        *(s32*)(ent + 0) = StartFileRead((const char*)nm, strs, 0,
+                                         *(s32*)(row + 4), *(s32*)row,
+                                         (int)BGLoadObjects);
+        *(s32*)(ent + 12) = 1;
+        bulletproof_printf(strs + 28, slot, nm, gClockFrameNumber);
+        break;
+    case 1:
+        h = *(u8**)(ent + 0);
+        if (*(s32*)(h + 16) == 0) {
+            break;
+        }
+        *(s32*)(h + 16) = -1;
+        SetupModel(slot, tbl + (slot << 5) + 44);
+        *(s32*)(ent + 0) = 0;
+        *(s32*)(ent + 12) = 2;
+        *(s32*)(ent + 20) = pbGetCPUTime();
+        if (*(s32*)(row + 12) >= 9) {
+            return 1;
+        }
+        *(s32*)(row + 12) = 4;
+        break;
+    case 2:
+        nm = tbl + (slot << 5) + 44;
+        *(s32*)(row + 12) = 3;
+        *(s32*)(ent + 4) = StartFileRead((const char*)nm, strs + 12, 0,
+                                         *(s32*)(row + 8),
+                                         *(s32*)row + *(s32*)(row + 4),
+                                         (int)BGLoadTextures);
+        *(s32*)(ent + 12) = 3;
+        bulletproof_printf(strs + 72, slot, nm, gClockFrameNumber);
+        break;
+    case 3:
+        h = *(u8**)(ent + 4) + 16;
+        if (*(s32*)h == 0) {
+            break;
+        }
+        *(s32*)h = -1;
+        zero = 0;
+        *(s32*)(ent + 4) = zero;
+        *(s32*)(ent + 12) = 4;
+        *(s32*)(ent + 20) = pbGetCPUTime();
+        fn_800C7214(slot);
+        if (*(s32*)(row + 12) >= 9) {
+            return 1;
+        }
+        *(s32*)(row + 12) = zero;
+        break;
+    case 4:
+        bulletproof_printf(strs + 120, slot, tbl + (slot << 5) + 44,
+                           gClockFrameNumber);
+        lbl_80344E88 = -1;
+        *(s32*)(ent + 16) = 1;
+        return 1;
+    }
+    return 0;
 }
 
 /* ---- 0x800B79AC : begin the next background model load ---- */
-int MBOX_BGLoadModelStart(int slot) {
-    u8* g = gWinGlobals;
-    char* names = (char*)g;
+int MBOX_BGLoadModelStart(const char* dir, int slot) {
+    s32 objSize;
+    char* strs = (char*)lbl_80115DA8;
+    u8* tbl;
+    u8* g;
+    u8* row;
+    u8* ent;
+    s32 texSize;
+    s32 zero;
 
+    tbl = lbl_802A5CF0;
+    g = gWinGlobals;
     pbSetTime(0);
-    if (lbl_80344E88 != 0) {
-        FatalError(lbl_80115F24);
+    if (lbl_80344E88 >= 0) {
+        FatalError(strs + 160, 0x800000);
     }
-    FileSize((const char*)g, lbl_80115DA8);
-    FileSize((const char*)g, lbl_80115DB4);
-    MBOX_AllocModelMem(0, 0, (const char*)g);
-    bulletproof_printf(lbl_80115DB4, slot, g);
-
+    if (slot < 0) {
+        objSize = FileSize(dir, strs);
+        texSize = FileSize(dir, strs + 12);
+        slot = MBOX_AllocModelMem(objSize, texSize, dir);
+    }
+    row = *(u8**)(g + 48) + (slot << 4) + 4;
+    *(s32*)(row + 12) = 6;
+    bulletproof_printf(strs + 200, slot, dir, *(s32*)(row + 4));
     lbl_80344E88 = slot;
-    *(const char**)(names + 0x2cc) = lbl_80115DA8;
-    *(const char**)(names + 0x2d0) = lbl_80115DA8;
-    *(const char**)(names + 0x2d4) = lbl_80115DA8;
-    *(const char**)(names + 0x2d8) = lbl_80115DA8;
-    *(const char**)(names + 0x2dc) = lbl_80115DA8;
-    *(u32*)(names + 0x2e0) = pbGetCPUTime();
-    strncpy(names, lbl_80115DA8, 0x40);
+    ent = tbl + slot * 24;
+    zero = 0;
+    *(s32*)(ent + 716) = zero;
+    *(s32*)(ent + 720) = zero;
+    *(s32*)(ent + 724) = zero;
+    *(s32*)(ent + 728) = zero;
+    *(s32*)(ent + 732) = zero;
+    *(s32*)(ent + 736) = pbGetCPUTime();
+    ent = tbl + slot * 32;
+    strncpy((char*)(ent + 44), dir, 32);
+    *(u8*)(tbl + slot * 32 + 75) = zero;
     lbl_80344E88 = slot;
     return slot;
 }
@@ -176,41 +253,68 @@ int MBBackgroundLoading(void) {
 
 /* ---- 0x800B7B24 : load a single model (default flags) ---- */
 int MBOX_LoadModel(const char* dir) {
-    return MBOX_LoadModelFixed(dir, 0, 0, 0, -1);
+    return MBOX_LoadModelFixed(dir, NULL, 0, 0, -1);
 }
 
 /* ---- 0x800B7B54 : load a single model file into a fixed slot ---- */
-int MBOX_LoadModelFixed(const char* dir, int a, int b, int c, int type) {
-    u8* g = gWinGlobals;
-    void* buf;
-    int r;
+int MBOX_LoadModelFixed(const char* dir, void* buf, int a, int b, int slot) {
+    char* strs;
+    u8* g;
+    u8* row;
+    u8* base;
+    s32 objSize;
+    s32 off;
+    s32 got;
 
-    FileSize(dir, lbl_80115DA8);
-    FileSize(dir, lbl_80115DB4);
-    buf = (void*)(u32)MBOX_AllocModelMem(0, 0, dir);
-    strncpy((char*)&lbl_802A5D1C, dir, 0x1f);
-    if (strcmp(dir, lbl_80348C28) == 0) {
-        MLMReadFile(dir, buf, 0);
-        bulletproof_printf(lbl_80115DB4, a, dir);
-        r = SetupModel(buf, dir, a);
-        if (r == 2) {
-            ErrorPrintf(lbl_80115F24, a, dir);
-            fn_800C7214(buf);
-        }
-    } else {
-        MLMReadFile(dir, buf, 0);
-        ErrorPrintf(lbl_80115F24, a, dir);
-        fn_800C7214(buf);
+    strs = (char*)lbl_80115DA8;
+    g = gWinGlobals;
+    if (slot < 0) {
+        objSize = FileSize(dir, strs);
+        slot = MBOX_AllocModelMem(objSize, FileSize(dir, strs + 12), dir);
     }
-    (void)b;
-    (void)c;
-    (void)type;
-    (void)g;
-    return a;
+    off = slot << 4;
+    row = *(u8**)(g + 48) + off + 4;
+    base = *(u8**)row;
+    *(s32*)(row + 12) = 2;
+    strncpy((char*)(lbl_802A5D1C + (slot << 5)), dir, 32);
+    *(u8*)(lbl_802A5D1C + (slot << 5) + 31) = 0;
+    if (strcmp(dir, lbl_80348C28) != 0) {
+        got = MLMReadFile(dir, strs, buf, (int)base);
+        bulletproof_printf(strs + 244, slot, dir, *(s32*)(row + 4));
+        if ((u32)got > (u32)*(s32*)(row + 4)) {
+            ErrorPrintf(strs + 288, slot, dir, got);
+        }
+    }
+    strncpy((char*)(base + 32), dir, 32);
+    *(u8*)(base + 63) = 0;
+    SetupModel(slot, dir);
+    if (*(s32*)(row + 12) != 2) {
+        return slot;
+    }
+    *(s32*)(row + 12) = 1;
+    if (strcmp(dir, lbl_80348C28) == 0) {
+        fn_800C7214(slot);
+    } else {
+        u8* row2 = *(u8**)(gWinGlobals + 48) + off + 4;
+        got = MLMReadFile(dir, strs + 12, (void*)*(s32*)(row2 + 8),
+                          *(s32*)(*(u8**)row2 + 112));
+        if ((u32)((got + 15) & ~15) > (u32)*(s32*)(row2 + 8)) {
+            ErrorPrintf(strs + 336, dir);
+        }
+        fn_800C7214(slot);
+    }
+    if (*(s32*)(row + 12) != 1) {
+        return slot;
+    }
+    *(s32*)(row + 12) = 0;
+    return slot;
 }
 
 /* ---- 0x800B7D44 : parse/verify a loaded ngc model block (giant) ---- */
-static int SetupModel(void* model, const char* name, int slot) {
+static int SetupModel(slot, name)
+int slot;
+const char* name;
+{
     /* NonMatching skeleton: the real body is a ~0xAB8 inlined ngc-format
      * parser that walks the model header, validates the version word, and
      * builds the GX display-list / vertex data. Parked. */
@@ -219,7 +323,6 @@ static int SetupModel(void* model, const char* name, int slot) {
     strncpy(nm, name, 0x3f);
     ErrorPrintf(lbl_80115F24,
                 slot, name, 0, 0);
-    (void)model;
     (void)g;
     return 0;
 }
@@ -232,24 +335,83 @@ int MBOX_AllocModel(const char* dir) {
 }
 
 /* ---- 0x800B8854 : allocate a model-memory block from the MLM arena ---- */
-int MBOX_AllocModelMem(int objSize, int texSize, const char* dir) {
-    u8* g = gWinGlobals;
-    void* base;
-    int size = objSize + texSize;
+typedef struct ModelRec {
+    s32 unk0;      /* 0x00 */
+    u8* base;      /* 0x04 model memory base */
+    s32 objBytes;  /* 0x08 */
+    s32 texBytes;  /* 0x0C */
+    s32 locked;    /* 0x10 */
+} ModelRec;
 
-    if (strcmp(dir, lbl_80348C28) == 0) {
-        size = objSize;
+int MBOX_AllocModelMem(int objSize, int texSize, const char* dir) {
+    char* strs;
+    u8* g;
+    s32* counter;
+    u8* row;
+    u8* aligned;
+    s32 slot;
+    s32 off;
+    s32 objAlloc;
+    s32 texAlloc;
+    s32 want;
+    s32 memUsed;
+    s32 pad;
+
+    objAlloc = (objSize + 255) & ~255;
+    texAlloc = (texSize + 15) & ~15;
+    strs = (char*)lbl_80115DA8;
+    g = gWinGlobals;
+    counter = *(s32**)(g + 48);
+    slot = (*counter)++;
+    off = slot << 4;
+    lbl_80344E8C = **(s32**)(g + 48);
+    row = *(u8**)(g + 48);
+    row += off;
+    *(s32*)(row + 16) = 8;
+    row = *(u8**)(g + 48);
+    row += off;
+    *(s32*)(row + 4) = 0;
+    row = *(u8**)(g + 48);
+    row += off;
+    *(s32*)(row + 8) = 0;
+    row = *(u8**)(g + 48);
+    row += off;
+    *(s32*)(row + 12) = 0;
+    if (strcmp(dir, lbl_80348C28) != 0) {
+        want = objAlloc + texAlloc;
+        texAlloc = BytesFree();
+        memUsed = mlmMemUsed;
+        if (slot >= 21) {
+            FatalError(strs + 432, 0x800000);
+        }
+        if (want > texAlloc) {
+            FatalError(strs + 464, 0x800000);
+        }
+        aligned = GetMemBase();
+        pad = 256 - (s32)((u32)aligned & 0xFF);
+        want += pad;
+        aligned += pad;
+        AllocMem(want);
+        texAlloc = texAlloc - BytesFree() - objAlloc;
+        row = *(u8**)(g + 48);
+        row += off;
+        *(u8**)(row + 4) = aligned;
+    } else {
+        row = *(u8**)(g + 48);
+        row += off;
+        *(u8**)(row + 4) = lbl_80129740;
     }
-    if (BytesFree() < size) {
-        FatalError(lbl_80115F24);
-    }
-    base = GetMemBase();
-    AllocMem(size);
-    mlmMemUsed = mlmMemUsed + size;
-    bulletproof_printf(lbl_80115DB4, size);
-    (void)g;
-    (void)base;
-    return size;
+    row = *(u8**)(g + 48);
+    row += off;
+    *(s32*)(row + 8) = objAlloc;
+    row = *(u8**)(g + 48);
+    row += off;
+    *(s32*)(row + 12) = texAlloc;
+    bulletproof_printf(strs + 508, slot, (dir != NULL) ? dir : strs + 496,
+                       memUsed >> 10);
+    bulletproof_printf(strs + 552, mlmMemUsed >> 10, objAlloc >> 10,
+                       texAlloc >> 10);
+    return slot;
 }
 
 /* ---- 0x800B89EC : lock the current model set at a slot ---- */
