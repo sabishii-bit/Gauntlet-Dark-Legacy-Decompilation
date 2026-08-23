@@ -756,10 +756,10 @@ void AtreeRemovePsysSub(anode* node)
 
 anode* AtreeRemoveNode(anode* node, int keep, anode* root)
 {
+    u8 unused[8];
     anode* c1;
     anode* c2;
     anode* last;
-    anode* p;
     anode* parent;
     anode* prev;
 
@@ -768,8 +768,7 @@ anode* AtreeRemoveNode(anode* node, int keep, anode* root)
     }
     if (keep != 0) {
         for (c1 = node->child; c1 != NULL; c1 = c1->next) {
-            c2 = c1->child;
-            if (c2 != NULL) {
+            if ((c2 = c1->child) != NULL) {
                 for (; c2 != NULL; c2 = c2->next) {
                     if (c2->child != NULL) {
                         AtreeRemoveNodeChild(c2->child);
@@ -781,45 +780,77 @@ anode* AtreeRemoveNode(anode* node, int keep, anode* root)
         }
     }
     parent = node->parent;
-    if (parent == NULL || parent->child != node) {
-        if (node == root) {
-            if (keep == 0 && (root = node->child) != NULL) {
-                root->parent = NULL;
-                last = node->child;
-                for (p = last->next; p != NULL && p != last; p = p->next) {
-                    last = p;
-                }
-                last->next = node->next;
-            } else {
-                root = node->next;
-            }
-        } else {
-            prev = AtreeNodePrevNode(node, root);
-            if (prev != NULL) {
-                if (keep == 0 && node->child != NULL) {
-                    prev->next = node->child;
-                    node->child->parent = prev->parent;
-                    last = node->child;
-                    for (p = last->next; p != NULL && p != last; p = p->next) {
-                        last = p;
-                    }
-                    last->next = node->next;
-                } else {
-                    prev->next = node->next;
-                }
-            }
+    if (parent != NULL && parent->child == node) {
+        if (keep != 0) {
+            goto parent_no_child;
         }
-    } else if (keep == 0 && node->child != NULL) {
+        if (node->child != NULL) {
+            goto parent_with_child;
+        }
+parent_no_child:
+        parent->child = node->next;
+        goto unlink_done;
+parent_with_child:
         parent->child = node->child;
         node->child->parent = parent;
         last = node->child;
-        for (p = last->next; p != NULL && p != last; p = p->next) {
-            last = p;
+        c1 = last->next;
+        c2 = last;
+        while (c1 != NULL && c1 != last) {
+            c2 = c1;
+            c1 = c1->next;
         }
-        last->next = node->next;
-    } else {
-        parent->child = node->next;
+        c2->next = node->next;
+        goto unlink_done;
     }
+    if (node == root) {
+        if (keep != 0) {
+            goto root_no_child;
+        }
+        if ((c1 = node->child) != NULL) {
+            goto root_with_child;
+        }
+root_no_child:
+        root = node->next;
+        goto unlink_done;
+root_with_child:
+        c1->parent = NULL;
+        root = c1;
+        last = node->child;
+        c1 = last->next;
+        c2 = last;
+        while (c1 != NULL && c1 != last) {
+            c2 = c1;
+            c1 = c1->next;
+        }
+        c2->next = node->next;
+        goto unlink_done;
+    }
+    prev = AtreeNodePrevNode(node, root);
+    if (prev == NULL) {
+        goto unlink_done;
+    }
+    if (keep != 0) {
+        goto prev_no_child;
+    }
+    if (node->child != NULL) {
+        goto prev_with_child;
+    }
+prev_no_child:
+    prev->next = node->next;
+    goto unlink_done;
+prev_with_child:
+    prev->next = node->child;
+    node->child->parent = prev->parent;
+    last = node->child;
+    c1 = last->next;
+    c2 = last;
+    while (c1 != NULL && c1 != last) {
+        c2 = c1;
+        c1 = c1->next;
+    }
+    c2->next = node->next;
+unlink_done:
     AtreeRemoveNodeSub(node);
     return root;
 }
