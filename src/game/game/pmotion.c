@@ -1703,7 +1703,204 @@ int PlayerCheckFloor(Player* p, WorldObj* obj, f32* dpos) {
     return result;
 }
 
-STUB(0x80088068, PlayerCollideFloor)
+extern f64 lbl_80347B28;
+extern f32 lbl_80347B30;
+extern f64 lbl_80347D68;
+extern f64 lbl_80347D10;
+extern f32 lbl_80347BF8;
+extern f64 lbl_80347BD0;
+extern f64 lbl_80347D70;
+extern f64 lbl_80347BA8;
+extern s32 lbl_80344B38;
+extern f32 lbl_80344B34;
+extern u8  lbl_8023CB28[];
+
+/* 0x80088068 - clamp a player displacement against the floor mesh: snap to
+ * the hit height, slide on steep slopes, honour moving-floor ownership. */
+s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
+                       f32 height)
+{
+    f32 end[3];
+    f32 nrm[3];
+    f32 ts;
+    f32 ts2;
+    u8* ctx;
+    u8* fhp;
+    f32 zoff;
+    f32 dq;
+    f32 fh;
+    f32 dx;
+    f32 dz;
+    f32 d;
+    f32 lim;
+    u32 hit;
+    s32 fA;
+    s32 fB;
+    f32 zv;
+
+    ctx = lbl_80282850;
+    end[0] = pos[0] + dpos[0];
+    zoff = (f32)-(lbl_80347B28 + height);
+    end[1] = pos[1] + dpos[1];
+    end[2] = pos[2] + dpos[2];
+    hit = FloorCollide(rad, lbl_80347B30, zoff, end, (f32*)(ctx + 24), 1, 1);
+    lbl_80344B38 = *(s32*)(lbl_8023CB28 + 68);
+    lbl_80344B34 = *(f32*)(lbl_8023CB28 + 52);
+    dq = fqdist(dpos[0], dpos[2]);
+    {
+        u32 fl = WorldObjGetAllFlags(*(WorldObj**)(p + 2244));
+        fA = fl & 0x0C000000;
+        fB = fl & 0x20000000;
+    }
+    if (fA != 0 && fB != 0 && *(u32*)(p + 2244) != hit) {
+        zv = lbl_80347B30;
+        dpos[0] = zv;
+        dpos[1] = zv;
+        dpos[2] = zv;
+        if (hit != 0) {
+            return -1;
+        }
+        return -2;
+    }
+    if (hit == 0) {
+        if ((f64)dq < lbl_80347D68) {
+            *(s32*)(p + 2244) = 0;
+        }
+        if (!(*(u32*)(p + 2260) & 0x8000)) {
+            zv = lbl_80347B30;
+            dpos[0] = zv;
+            dpos[2] = zv;
+        }
+        *(f32*)(p + 2228) = lbl_80344880;
+        return -2;
+    }
+    fhp = ctx + 76;
+    fh = *(f32*)(ctx + 76);
+    ts = fh - *(f32*)(p + 2228);
+    *(u32*)&ts &= 0x7FFFFFFF;
+    if (*(u32*)(p + 2260) & 0x8000) {
+        if ((f64)(*(f32*)(p + 72) - fh) < lbl_80347D10) {
+            *(u32*)(p + 2260) &= ~0x8000;
+        } else {
+            return 0;
+        }
+    }
+    if ((f64)dq < lbl_80347D68 && *(s32*)(p + 236) == 1) {
+        if ((f64)ts > lbl_80347B28 || (*(u32*)(hit + 16) & 0x1000)) {
+            *(f32*)(p + 2228) = fh;
+        }
+        if ((f64)ts > lbl_80347D68) {
+            return 1;
+        }
+        return 0;
+    }
+    lim = lbl_80347BF8;
+    if (*(u32*)(ctx + 92) == *(u32*)(p + 2244)) {
+        lim = (f32)(lim + lbl_80347BD0);
+    }
+    if (ts > lim) {
+        *(f32*)(p + 2228) = *(f32*)(p + 72);
+        zv = lbl_80347B30;
+        dpos[0] = zv;
+        dpos[2] = zv;
+        return 0;
+    }
+    if (mode == 2 && hit != (u32)lbl_80344B30) {
+        SlideAlongWall(pos, dpos, ctx, (f32*)(lbl_8023CA98 + 16), rad);
+        end[0] = pos[0] + dpos[0];
+        end[1] = pos[1] + dpos[1];
+        end[2] = pos[2] + dpos[2];
+        hit = FloorCollide(rad, lbl_80347B30, zoff, end, (f32*)(ctx + 24), 0,
+                           1);
+        if (fA != 0 && fB != 0 && *(u32*)(p + 2244) != hit) {
+            zv = lbl_80347B30;
+            dpos[0] = zv;
+            dpos[1] = zv;
+            dpos[2] = zv;
+            return -1;
+        }
+        if (hit != 0) {
+            *(f32*)(p + 2228) = *(f32*)fhp;
+            return 2;
+        }
+        zv = lbl_80347B30;
+        dpos[0] = zv;
+        dpos[2] = zv;
+        return 0;
+    }
+    dx = end[0] - *(f32*)(ctx + 72);
+    dz = end[2] - *(f32*)(ctx + 80);
+    dq = dpos[1] * (end[1] - *(f32*)fhp) + dpos[0] * dx + dpos[2] * dz;
+    d = fqdist(dx, dz);
+    if ((f64)d < lbl_80347D68 && mode == 0) {
+        nrm[0] = dpos[0];
+        nrm[1] = dpos[1];
+        nrm[2] = dpos[2];
+        NormalVector(nrm);
+        nrm[0] = nrm[0] * rad;
+        nrm[1] = nrm[1] * rad;
+        nrm[2] = nrm[2] * rad;
+        end[0] = end[0] + nrm[0];
+        end[1] = end[1] + nrm[1];
+        end[2] = end[2] + nrm[2];
+        hit = FloorCollide(rad, lbl_80347B30, zoff, end, 0, 1, 1);
+        if (fA != 0 && fB != 0 && *(u32*)(p + 2244) != hit) {
+            zv = lbl_80347B30;
+            dpos[0] = zv;
+            dpos[1] = zv;
+            dpos[2] = zv;
+            return -1;
+        }
+        if (hit != 0) {
+            ts2 = *(f32*)((u8*)gFloorCollisionResult + 52) - fh;
+            *(u32*)&ts2 &= 0x7FFFFFFF;
+            if ((*(u32*)(*(u32*)((u8*)gFloorCollisionResult + 68) + 16) & 8)
+                && (f64)ts2 < lbl_80347BA8) {
+                d = lbl_80347B30;
+            } else {
+                dx = end[0] - *(f32*)((u8*)gFloorCollisionResult + 48);
+                dz = end[2] - *(f32*)((u8*)gFloorCollisionResult + 56);
+                dq = dpos[1] *
+                         (end[1] - *(f32*)((u8*)gFloorCollisionResult + 52)) +
+                     dpos[0] * dx + dpos[2] * dz;
+                d = fqdist(dx, dz);
+            }
+        } else {
+            d = rad;
+            dx = nrm[0];
+            dz = nrm[2];
+            dq = lbl_80347B30;
+        }
+    }
+    if ((f64)d < lbl_80347D68 || dq < lbl_80347B30) {
+        *(f32*)(p + 2228) = fh;
+        if ((f64)d < lbl_80347D68 || (f64)dq < lbl_80347D70) {
+            return 1;
+        }
+        return 2;
+    }
+    dpos[0] = dpos[0] - dx;
+    dpos[2] = dpos[2] - dz;
+    end[0] = pos[0] + dpos[0];
+    end[1] = pos[1] + dpos[1];
+    end[2] = pos[2] + dpos[2];
+    hit = FloorCollide(rad, lbl_80347B30, zoff, end, (f32*)(ctx + 24), 0, 1);
+    if (fA != 0 && fB != 0 && *(u32*)(p + 2244) != hit) {
+        zv = lbl_80347B30;
+        dpos[0] = zv;
+        dpos[1] = zv;
+        dpos[2] = zv;
+        return -1;
+    }
+    if (hit != 0) {
+        *(f32*)(p + 2228) = *(f32*)fhp;
+        return 2;
+    }
+    zv = lbl_80347B30;
+    dpos[0] = zv;
+    dpos[2] = zv;
+    return 0;
+}
 
 int PlayerCheckMovingFloor_80088688(Player* p) {
     f32 drop = -(3.0 + (f64)PF(p, 0x854, f32));
