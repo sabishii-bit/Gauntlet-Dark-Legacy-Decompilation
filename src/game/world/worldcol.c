@@ -767,6 +767,9 @@ static void WorldObjCollide(f32 rad, WObj* obj, s32 count, s16* list, f32* mtx)
     f32 reach;
     f32 lim;
     f32 t;
+    f32 nx;
+    f32 ny;
+    f32 nz;
     f32 ymax;
     f32 ymin;
     f32 d;
@@ -793,23 +796,23 @@ static void WorldObjCollide(f32 rad, WObj* obj, s32 count, s16* list, f32* mtx)
     v[2] = p[2] - (qz = res->qpos[2]);
     reach = obj->radius + rad;
     lim = reach + lbl_803441A0;
-    t = v[1] * res->qnorm[1] + v[0] * res->qnorm[0] + v[2] * res->qnorm[2];
-    if (t > lim) {
+    t = v[0] * (nx = res->qnorm[0]) + v[1] * (ny = res->qnorm[1]) +
+        v[2] * (nz = res->qnorm[2]);
+    if (t > lim || t < -reach) {
         return;
     }
-    if (t < -reach) {
-        return;
-    }
-    v[0] = res->qnorm[0] * t + qx;
-    v[1] = res->qnorm[1] * t + qy;
-    v[2] = res->qnorm[2] * t + qz;
+    v[0] = nx * t + qx;
+    v[1] = ny * t + qy;
+    v[2] = nz * t + qz;
     v[0] = p[0] - v[0];
     v[1] = p[1] - v[1];
     v[2] = p[2] - v[2];
-    if (v[0] * v[0] + v[1] * v[1] + v[2] * v[2] >= reach * reach) {
-        return;
+    if (v[0] * v[0] + v[1] * v[1] + v[2] * v[2] < reach * reach) {
+        goto sphere_hit;
     }
+    return;
 
+sphere_hit:
     flags = obj->flags;
     if ((flags & 0x1000000) != 0) {
         MulBodyVecMat4(res->qpos, lbl_8023F7F8, mtx);
@@ -824,9 +827,9 @@ static void WorldObjCollide(f32 rad, WObj* obj, s32 count, s16* list, f32* mtx)
             ymax = m2[5] * (lbl_8034419C - m2[13]);
             ymin = m2[5] * (lbl_80344198 - m2[13]);
         } else {
-            lbl_8023F7F8[0] = res->qpos[0] - m2[12];
-            lbl_8023F7F8[1] = res->qpos[1] - m2[13];
-            lbl_8023F7F8[2] = res->qpos[2] - m2[14];
+            lbl_8023F7F8[0] = qx - m2[12];
+            lbl_8023F7F8[1] = qy - m2[13];
+            lbl_8023F7F8[2] = qz - m2[14];
             lbl_8023F7E8[0] = res->qdir2[0] - m2[12];
             lbl_8023F7E8[1] = res->qdir2[1] - m2[13];
             lbl_8023F7E8[2] = res->qdir2[2] - m2[14];
@@ -834,9 +837,9 @@ static void WorldObjCollide(f32 rad, WObj* obj, s32 count, s16* list, f32* mtx)
             ymin = lbl_80344198 - m2[13];
         }
     } else {
-        lbl_8023F7F8[0] = res->qpos[0];
-        lbl_8023F7F8[1] = res->qpos[1];
-        lbl_8023F7F8[2] = res->qpos[2];
+        lbl_8023F7F8[0] = qx;
+        lbl_8023F7F8[1] = qy;
+        lbl_8023F7F8[2] = qz;
         lbl_8023F7E8[0] = res->qdir2[0];
         lbl_8023F7E8[1] = res->qdir2[1];
         lbl_8023F7E8[2] = res->qdir2[2];
@@ -849,8 +852,8 @@ static void WorldObjCollide(f32 rad, WObj* obj, s32 count, s16* list, f32* mtx)
                         obj->flags & 0x40);
     if (d >= lbl_80345730) {
         if ((obj->flags & 0x200) != 0) {
-            f32* q = &res->bestAlt;
-            if (d < *q) {
+            f32* q;
+            if (d < *(q = &res->bestAlt)) {
                 res->objAlt = obj;
                 *q = d;
                 res->hitAlt[0] = v[0];
