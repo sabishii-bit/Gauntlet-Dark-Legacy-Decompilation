@@ -1212,17 +1212,188 @@ void FireScrollReset(void)
     gFireScrollCircleBlits[0] = 0;
 }
 
+#pragma dont_inline on
 int ticks_for_firescroll(void)
 {
     return 0;
 }
+#pragma dont_inline off
 
 /*
  * 4-player interactive dialog / message box (~ControllerMessageBox): runs a
  * modal loop drawing the prompt and polling all four pads until one accepts
  * or cancels, returning the chosen option. Giant; skeleton.
  */
-int ControllerMessageBox(void)
+int ScrollTextNum(s32 a, s32 msg);
+int ScrollTextWidth(s32 a, s32 msg, s32 pos, f32 scale);
+int ScrollTextHeight(s32 a, s32 msg, s32 pos, s32 b, f32 scale);
+void WritePlayerInfo(s32 idx);
+void EnablePlayerControls(void);
+void mbBlitInit3414(void* blit, s32 a);
+void AudioSysSync(s32 a);
+void AudioMusicVolUpdate(void);
+void DrawScrollText(s32 a, s32 color, s32 y, s32 b, s32 c, u32 flags, s32 msg,
+                    s32 pos);
+void DrawGlowText(s32 color, s32 y, void* text, f32 scale);
+int fn_80054CDC(void);
+void AudioKillBySound(s32 snd);
+void MBBlitOrder(void* a, void* b);
+extern s32 gDrawTextY;
+extern s32 lbl_80344E44;
+extern f32 lbl_80343C80;
+extern void* lbl_80343C84;
+extern void* lbl_80343C88;
+extern s32 lbl_803445D8;
+extern u8 gPlayers[];
+
+#pragma opt_propagation off
+int ControllerMessageBox(s32 mask, s32 msg, s32 count, s32 sound)
 {
+    s32 busySave;
+    s32 maskSave;
+    u8* e30;
+    s32 end;
+    s32 ticks;
+    s32 i;
+    s32 pos;
+    s32 quiet;
+    s32 w;
+    s32 h;
+    s32 boxw;
+    s32 x;
+    s32 y;
+    s32 yy;
+    u32 flags;
+    s32 minw;
+    void* blit;
+    void* bbl;
+    s32 ty;
+    s32 nbut;
+    u32 buttons;
+
+    maskSave = mask;
+    busySave = gGameBusy;
+    pos = count;
+    if (pos < 0) {
+        ticks = 0;
+        end = ScrollTextNum(0, msg) - 1;
+    } else {
+        ticks = pos;
+        end = pos;
+    }
+    EnablePlayerControls();
+    for (i = 0; i < 4; i++) {
+        WritePlayerInfo(i);
+    }
+    gGameBusy = 1;
+    gModalRenderDepth++;
+    msgUpdate();
+    MBHideMarkedMessages();
+    MBLockMessages(gModalRenderDepth - 1);
+    lbl_80344E04 = 1;
+    minw = DrawNormalText(lbl_80343C80, lbl_80343C84, 6) + 32;
+    blit = MBNewBlit(lbl_80343C88, 0, 0);
+    bbl = MBCreateBlit(0, lbl_80344E44, 190, 8, 20, 20);
+    e30 = lbl_80240E30;
+    for (pos = ticks; pos <= end; pos++) {
+        w = ScrollTextWidth(0, msg, pos, lbl_80347378) + 96;
+        h = ScrollTextHeight(0, msg, pos, 4, lbl_80347378) + 96;
+        if (w < minw) {
+            boxw = minw;
+        } else if (w > 512) {
+            boxw = 512;
+        } else {
+            boxw = w;
+        }
+        x = 256 - boxw / 2;
+        y = 160 - h / 2;
+        yy = y + 32;
+        flags = 0x160C03;
+        ticks = 15;
+        mbBlitProject(blit, boxw, h);
+        mbBlitCalcWidth(blit, x, y, lbl_803473C8);
+    frame_top:
+            serve_busy(-5);
+            quiet = sndFxQueUpdate() ? 0 : 1;
+            AudioSysSync(1);
+            if (sound < 0) {
+                quiet = 1;
+            }
+            ClockOncePerFrame();
+            sndFxQueUpdate();
+            PlayerControls();
+            if (lbl_803445D8 != 0) {
+                ticks_for_firescroll();
+            }
+            ScreenSaver();
+            AudioMusicVolUpdate();
+            DrawScrollText(0, -256, yy, 4, -1, flags, msg, pos);
+            ty = gDrawTextY;
+            mbBlitInit3414(bbl, 0);
+            mbBlitCalcWidth(bbl, 190, ty + 8, lbl_803473C8);
+            DrawGlowText(-256, ty + 8, lbl_80343C84, lbl_80343C80);
+            MBEndFrame();
+            if (ticks <= 0) {
+                s32 off4;
+                s32 off5;
+                nbut = 0;
+                buttons = 0;
+                off4 = 0;
+                off5 = 0;
+                for (i = 0; i < 4; i++, off4 += 60, off5 += 13148) {
+                    if ((maskSave & (1 << i)) != 0) {
+                        u8* pp = gPlayers + off5;
+                        if (*(s32*)(pp + 232) != 0) {
+                            u8* pb = e30 + off4;
+                            nbut++;
+                            buttons |= *(u32*)(pb + 8);
+                        }
+                    }
+                }
+                if ((buttons & 0x08000000) == 0 && nbut != 0) {
+                    goto frame_check;
+                }
+                if (sound >= 0 && quiet == 0) {
+                    AudioKillBySound(sound);
+                }
+                goto frame_done;
+            } else if (ticks > 0) {
+                ticks -= gClockStepTicks;
+            }
+        frame_check:
+            if (fn_80054CDC() != 0) {
+                goto frame_done;
+            }
+            goto frame_top;
+    frame_done:
+        if ((gControllerButtons & 8) == 0) {
+            ClearAllPlayerControls(2);
+        }
+    }
+    MBRemoveBlit(bbl);
+    MBBlitOrder((void*)StartFireScroll((char*)lbl_80343C88, -1, x, y, w, h, 0,
+                                       lbl_80347398),
+                blit);
+    for (;;) {
+        serve_busy(-1);
+        ClockOncePerFrame();
+        sndFxQueUpdate();
+        DrawScrollText(0, -256, yy, 4, -1, flags, msg, pos - 1);
+        if (ServeFireScroll() == 0) {
+            break;
+        }
+        MBEndFrame();
+    }
+    MBRemoveBlit(blit);
+    MBUnlockMessages(gModalRenderDepth - 1);
+    gModalRenderDepth--;
+    for (i = 0; i < 4; i++) {
+        *(s16*)(gPlayers + i * 13148 + 2406) = 0;
+    }
+    lbl_80344E04 = 0;
+    gGameBusy = busySave;
+    ClearAllPlayerControls(4);
+    LoadVU1GameLogic();
     return 0;
 }
+#pragma opt_propagation on
