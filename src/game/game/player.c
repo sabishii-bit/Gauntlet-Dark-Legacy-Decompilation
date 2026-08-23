@@ -485,7 +485,7 @@ void abort_player(s32 player);
 s32 activate_player(s32 player);
 void PlayerProcessPowerups(void* p, s32 a, s32* b);
 static void PlayerProcessSkinFX(void* p);
-void check_player_atts(void* p, s32 chartype, s32* stats);
+void check_player_atts(void* p, s32 chartype, f32* stats);
 static void do_got_it_8007FC80(void);
 void mini_inventory_update(s32 player);
 s32 heal_player(Player* p, f32 amount);
@@ -4970,12 +4970,13 @@ void PlayerIncFight(void* vp, u32 amount) {
  * the class max) + per-character bonus, clamped to 999.  The repeated
  * min(cap, base + (level-1)*5) is the auto-inlined player_max_att.
  */
-void check_player_atts(void* vp, s32 chartype, s32* stats) {
+void check_player_atts(void* vp, s32 chartype, f32* stats) {
     Player* p = vp;
-    u8* cls;
+    s32 index;
     f32 cap;
     f32 v;
 
+    index = p->index;
     if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
         ATT_FIGHT(p) = 0.9f;
         ATT_ARMOR(p) = 0.9f;
@@ -4984,37 +4985,34 @@ void check_player_atts(void* vp, s32 chartype, s32* stats) {
         return;
     }
     if (stats == NULL) {
-        stats = CHAR_STATS(p, chartype);
+        stats = (f32*)CHAR_STATS(p, chartype);
     }
-    LoadPlyrData(p->index, chartype, NULL);
-    cls = lbl_80282930[p->index];
+    LoadPlyrData(index, chartype, NULL);
 
-    cap = PF(cls, 0x2C, f32);
-    v = PF(cls, 0x28, f32) + (f32)((p->level - 1) * 5);
+    v = *(volatile f32*)(lbl_80282930[index] + 0x28) +
+        (f32)((p->level - 1) * 5);
+    cap = *(volatile f32*)(lbl_80282930[index] + 0x2C);
     if (v < cap) {
         cap = v;
     }
     ATT_FIGHT(p) = (cap + stats[2] < 999.0) ? cap + stats[2] : 999.0;
 
-    cap = PF(cls, 0x3C, f32);
-    v = PF(cls, 0x38, f32) + (f32)((p->level - 1) * 5);
-    if (v < cap) {
-        cap = v;
-    }
+    v = PF(lbl_80282930[index], 0x38, f32) +
+        (f32)((p->level - 1) * 5);
+    cap = PF(lbl_80282930[index], 0x3C, f32);
+    cap = v < cap ? v : cap;
     ATT_ARMOR(p) = (cap + stats[3] < 999.0) ? cap + stats[3] : 999.0;
 
-    cap = PF(cls, 0x44, f32);
-    v = PF(cls, 0x40, f32) + (f32)((p->level - 1) * 5);
-    if (v < cap) {
-        cap = v;
-    }
+    v = PF(lbl_80282930[index], 0x40, f32) +
+        (f32)((p->level - 1) * 5);
+    cap = PF(lbl_80282930[index], 0x44, f32);
+    cap = v < cap ? v : cap;
     ATT_MAGIC(p) = (cap + stats[4] < 999.0) ? cap + stats[4] : 999.0;
 
-    cap = PF(cls, 0x34, f32);
-    v = PF(cls, 0x30, f32) + (f32)((p->level - 1) * 5);
-    if (v < cap) {
-        cap = v;
-    }
+    v = PF(lbl_80282930[index], 0x30, f32) +
+        (f32)((p->level - 1) * 5);
+    cap = PF(lbl_80282930[index], 0x34, f32);
+    cap = v < cap ? v : cap;
     ATT_SPEED(p) = (cap + stats[5] < 999.0) ? cap + stats[5] : 999.0;
 }
 
