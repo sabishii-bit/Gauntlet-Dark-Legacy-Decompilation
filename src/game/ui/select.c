@@ -2655,44 +2655,29 @@ extern f32 lbl_80348050;   /* zoom-in scale step */
 s32 serve_blits(s32 player)
 {
     u8* page = lbl_80121688;
-    s32* xp = (s32*)(lbl_80121688 + player * 4);
     u8* blits = lbl_80284878 + player * 132;
+    s32* xp = (s32*)(lbl_80121688 + player * 4);
+    f64 kb = lbl_80348040;
+    f64 ka = lbl_80348048;
+    f32 kf = lbl_80348050;
     s32 count = 0;
     s32 j;
     s32 off;
 
     for (j = 0, off = 0; j < 11; j++, off += 12) {
         u8* e = blits + off;
+        s32* sp = (s32*)(e + 4);
         u8* h = *(u8**)e;
-        u8* pe = page + off;
 
         switch (*(u32*)(e + 4)) {
+        case 0:
+            break;
+
         case 1: /* hide */
-            *(s32*)(e + 4) = 0;
+            *sp = 0;
             *(s32*)(e + 8) = 0;
             mbBlitInit3414(h, 1);
             break;
-
-        case 2: { /* fly out right while fading */
-            s32 t;
-            s32 u;
-            *(s32*)(e + 8) += gFrameTicks;
-            t = *(s32*)(e + 8);
-            u = t * t;
-            mbBlitCalcWidth(h, *(s32*)(pe + 0x20) + (*xp + u / 8), u + t * 3,
-                            (f32)*(s32*)(pe + 0x28));
-            MBBlitSetAlpha(h, u);
-            mbBlitProject(h, 0x80, 0x100 - u);
-            if (u < 0x100) {
-                mbBlitInit3414(h, 0);
-            } else {
-                *(s32*)(e + 4) = 0;
-                *(s32*)(e + 8) = 0;
-                mbBlitInit3414(h, 1);
-            }
-            count++;
-            break;
-        }
 
         case 3: { /* looping pulse */
             u8* tex = MBRomTexPtr(*(u32*)(h + 4));
@@ -2707,17 +2692,70 @@ s32 serve_blits(s32 player)
             if (amp >= 0x20) {
                 amp = 0x20 - (amp & 0x1F);
             }
-            f = (f32)(lbl_80348048 * (f64)amp + lbl_80348040);
+            f = (f32)(ka * (f64)amp + kb);
             du = (s32)((f32)w * f);
             dv = (s32)((f32)ht * f);
-            mbBlitCalcWidth(h, *(s32*)(pe + 0x20) - du / 2 + *xp,
-                            *(s32*)(pe + 0x24) - dv / 2,
-                            (f32)*(s32*)(pe + 0x28));
+            {
+                u8* pe = page + off;
+                mbBlitCalcWidth(h, *(s32*)(pe + 0x20) - du / 2 + *xp,
+                                *(s32*)(pe + 0x24) - dv / 2,
+                                (f32)*(s32*)(pe + 0x28));
+            }
             mbBlitProject(h, du, dv);
             break;
         }
 
+        case 2: { /* fly out right while fading */
+            s32 t;
+            s32 u;
+            *(s32*)(e + 8) += gFrameTicks;
+            t = *(s32*)(e + 8);
+            u = t * t;
+            {
+                u8* pe = page + off;
+                mbBlitCalcWidth(h, *(s32*)(pe + 0x20) + (*xp + u / 8),
+                                u + t * 3, (f32)*(s32*)(pe + 0x28));
+            }
+            MBBlitSetAlpha(h, u);
+            mbBlitProject(h, 0x80, 0x100 - u);
+            if (u >= 0x100) {
+                *sp = 0;
+                *(s32*)(e + 8) = 0;
+                mbBlitInit3414(h, 1);
+            } else {
+                mbBlitInit3414(h, 0);
+            }
+            count++;
+            break;
+        }
+
+        case 6: /* fade out (7 = delayed fade out) */
+        case 7: {
+            s32 half;
+            s32 a;
+            s32 x;
+            x = *(s32*)(e += 8) + gFrameTicks;
+            *(s32*)e = x;
+            half = x >> 1;
+            if (*sp == 7) {
+                half -= 0x10;
+                if (half < 0) {
+                    half = 0;
+                }
+            }
+            a = half * half;
+            MBBlitSetAlpha(h, a);
+            if (a >= 0x100) {
+                *sp = 0;
+                *(s32*)e = 0;
+                mbBlitInit3414(h, 1);
+            }
+            count++;
+            break;
+        }
+
         case 4: { /* zoom in from center */
+            s32* tp = (s32*)(e + 8);
             u8* tex;
             s32 w;
             s32 ht;
@@ -2732,16 +2770,19 @@ s32 serve_blits(s32 player)
             a = half * half;
             w = *(u16*)(tex + 10);
             ht = *(u16*)(tex + 12);
-            f = (f32)(0x100 - a) * lbl_80348050;
+            f = (f32)(0x100 - a) * kf;
             du = (s32)((f32)w * f);
             dv = (s32)((f32)ht * f);
-            mbBlitCalcWidth(h, w / 2 + *(s32*)(pe + 0x20) - du / 2 + *xp,
-                            ht / 2 + *(s32*)(pe + 0x24) - dv / 2,
-                            (f32)*(s32*)(pe + 0x28));
+            {
+                u8* pe = page + off;
+                mbBlitCalcWidth(h, w / 2 + *(s32*)(pe + 0x20) - du / 2 + *xp,
+                                ht / 2 + *(s32*)(pe + 0x24) - dv / 2,
+                                (f32)*(s32*)(pe + 0x28));
+            }
             mbBlitProject(h, du, dv);
             if (a >= 0x100) {
-                *(s32*)(e + 4) = 0;
-                *(s32*)(e + 8) = 0;
+                *sp = 0;
+                *tp = 0;
                 mbBlitInit3414(h, 1);
             }
             count++;
@@ -2750,39 +2791,18 @@ s32 serve_blits(s32 player)
 
         case 5: { /* fade in */
             s32 a;
-            *(s32*)(e + 8) += gFrameTicks;
-            a = *(s32*)(e + 8) >> 1;
+            s32 x;
+            x = *(s32*)(e += 8) + gFrameTicks;
+            a = x >> 1;
+            *(s32*)e = x;
             a = a * a;
             if (a > 0x100) {
                 a = 0x100;
             }
             MBBlitSetAlpha(h, 0x100 - a);
             if (a >= 0x100) {
-                *(s32*)(e + 4) = 0;
-                *(s32*)(e + 8) = 0;
-            }
-            count++;
-            break;
-        }
-
-        case 6: /* fade out (7 = delayed fade out) */
-        case 7: {
-            s32 half;
-            s32 a;
-            *(s32*)(e + 8) += gFrameTicks;
-            half = *(s32*)(e + 8) >> 1;
-            if (*(s32*)(e + 4) == 7) {
-                half -= 0x10;
-                if (half < 0) {
-                    half = 0;
-                }
-            }
-            a = half * half;
-            MBBlitSetAlpha(h, a);
-            if (a >= 0x100) {
-                *(s32*)(e + 4) = 0;
-                *(s32*)(e + 8) = 0;
-                mbBlitInit3414(h, 1);
+                *sp = 0;
+                *(s32*)e = 0;
             }
             count++;
             break;
