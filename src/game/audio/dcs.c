@@ -1365,8 +1365,6 @@ s32 BankParseHeader(u32* header, s32* byteSwapped, u32* version) {
 /* 0x800D415C  parse a VAG sample header */
 #pragma opt_lifetimes off
 s32 VagParseHeader(void* file, u32* header, DcsSampleData* sample) {
-    char signature[4];
-    DcsVagExtraHeader extraHeader;
     s32 zero;
     s32 result;
     u32 word;
@@ -1374,31 +1372,35 @@ s32 VagParseHeader(void* file, u32* header, DcsSampleData* sample) {
     zero = 0;
     result = 0;
     word = header[0];
-    signature[0] = (s8)(word >> 24);
-    signature[1] = (word >> 16) & 0xFF;
-    signature[2] = (word >> 8) & 0xFF;
-    signature[3] = word & 0xFF;
-    sample->predScale = zero;
+    {
+        char signature[4];
+        signature[0] = (s8)(word >> 24);
+        signature[1] = (word >> 16) & 0xFF;
+        signature[2] = (word >> 8) & 0xFF;
+        signature[3] = word & 0xFF;
+        sample->predScale = zero;
 
-    if (strncmp(signature, "pGAV", 4) == 0) {
-        u32* swappedLength = &sample->swappedLength;
-        sample->length = (u32)swappedLength;
-        *swappedLength = DCS_SWAP32(header[3]);
-        sample->sampleRate = (DCS_SWAP32(header[4]) << 12) / 48000;
-        header[1] = DCS_SWAP32(header[1]);
-    } else if (strncmp(signature, "VAGp", 4) == 0) {
-        sample->swappedLength = sample->length = header[3];
-        sample->sampleRate = (header[4] << 12) / 48000;
-    } else {
-        printf("DCSERROR: ");
-        printf("VagParseHeader NOT A VAG!\n");
-        sample->sampleRate = zero;
-        result = -1;
-        sample->length = zero;
-        sample->swappedLength = zero;
+        if (strncmp(signature, "pGAV", 4) == 0) {
+            u32* swappedLength = &sample->swappedLength;
+            sample->length = (u32)swappedLength;
+            *swappedLength = DCS_SWAP32(header[3]);
+            sample->sampleRate = (DCS_SWAP32(header[4]) << 12) / 48000;
+            header[1] = DCS_SWAP32(header[1]);
+        } else if (strncmp(signature, "VAGp", 4) == 0) {
+            sample->swappedLength = sample->length = header[3];
+            sample->sampleRate = (header[4] << 12) / 48000;
+        } else {
+            printf("DCSERROR: ");
+            printf("VagParseHeader NOT A VAG!\n");
+            sample->sampleRate = zero;
+            result = -1;
+            sample->length = zero;
+            sample->swappedLength = zero;
+        }
     }
 
     if (header[1] == 0x28) {
+        DcsVagExtraHeader extraHeader;
         if (FileBufGet(file, &extraHeader, 96) != 96) {
             result = -1;
         }
