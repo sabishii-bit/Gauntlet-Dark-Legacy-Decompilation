@@ -111,6 +111,10 @@ extern f64   lbl_80346540;
 extern f32   lbl_803465F4;
 extern f32   lbl_80346548;
 extern f32   lbl_8034654C;
+extern f32   lbl_80346560;
+extern f64   lbl_80346568;
+extern const char lbl_80346574[];
+extern f64   lbl_80346580;
 extern f64   lbl_80346600;
 extern f64   lbl_80346630;
 extern f32   lbl_8034663C;
@@ -133,6 +137,7 @@ extern void *memcpy(void *dst, const void *src, u32 n);
 extern void  ErrorPrintf(const char *fmt, ...);
 extern void  FatalError(const char *msg, int code);
 extern void  MBRemoveNode(void *node, s32 kind);
+extern void  MBSetObject(void *node, s32 object);
 extern s32   GetWorldMat(void *node, f32 *matrix, f32 *offset);
 extern void  GetYawPitch(const f32 *vector, f32 *yaw, f32 *pitch);
 extern void  ExtractPYR(void *matrix, f32 *angles);
@@ -313,6 +318,13 @@ extern s32   DoAnimateTreeFrame(void *tree, s32 sequence, s32 frame,
                                 s32 recurse);
 extern void  DrawText(s32 x, s32 y, s32 font, u32 color,
                       const char *format, ...);
+extern void  ModifyDamage(f32 armor, f32 *damage, u32 *damageType,
+                          u32 shield);
+extern void  do_heal_players(void *player, f32 *matrix, f32 amount);
+extern s32   fn_800945D0(f32 *position, f32 *matrix, s32 damageType,
+                         s32 alternate, s32 kind, f32 scale);
+extern void  BossDying(void);
+extern f32   lbl_8011AEC0[];
 
 /* -- CRITTER.OBJ internal roster (forward declarations) -- */
 struct CritterDamageDef;
@@ -378,8 +390,8 @@ Critter *CritterLineCollide(f32 dotThresh, f32 limit, f32 *origin,
                             f32 *forward, f32 *out, f32 *score);
 f32  CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward, f32 *out,
                            f32 dotThresh, f32 limit);
-void CritterDamage(f32 damage, Critter *c, s32 player, u32 flags,
-                   f32 *hitPosition, f32 *direction, s32 source);
+s32 CritterDamage(f32 damage, Critter *c, s32 player, u32 flags,
+                  f32 *hitPosition, f32 *direction, s32 source);
 s32  ProcessCritter(Critter *c);
 s32  ProcessCritterList(void);
 void CritterDoKnockback(Critter *c);
@@ -2605,81 +2617,301 @@ f32 CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward, f32 *out,
 
 /* 0x800383A8 -- apply damage to a critter/hit node, accumulate combat
  * bookkeeping and transition a depleted critter into its death state. */
-void CritterDamage(f32 damage, Critter *c, s32 player, u32 flags,
-                   f32 *hitPosition, f32 *direction, s32 source)
+#pragma dont_inline on
+s32 CritterDamage(f32 damage, Critter *c, s32 player, u32 flags,
+                  f32 *hitPosition, f32 *direction, s32 source)
 {
-    f32 applied;
-    f32 maximum;
-    u8 *node;
+    u8 *header;
+    u8 *descriptor;
+    u8 *hitNode;
+    CritterMove *move;
+    Critter *child;
+    Critter *parent;
+    Player *playerData;
+    f32 creditedDamage;
+    f32 ratio;
+    f32 livingChildren;
+    f32 childDamage;
+    f32 damageScale;
+    s32 critterClass;
+    s32 experience;
+    s32 firstPlayer;
+    s32 lastPlayer;
     s32 i;
 
-    if (c == NULL || c->hdr == NULL || c->state <= 1 || damage <= 0.0f) {
-        return;
+    if (c->hdr == NULL) {
+        return -1;
     }
-    applied = damage;
-    if (c->curmove >= 0) {
-        CritterMove *move =
-            &(*(CritterMove **)((u8 *)c->hdr + 0x124))[c->curmove];
-        if (move->type == 0x23) {
-            applied *= 0.5f;
-            flags &= ~0x130;
+    if (c->state < 2) {
+        return -1;
+    }
+
+    header = (u8 *)c->hdr;
+    move = &(*(CritterMove **)(header + 0x124))[c->curmove];
+    if (move->type == 35) {
+        damage = (f32)((f64)damage * lbl_80346500);
+        flags &= ~0x130;
+        if (*(s16 *)((u8 *)move + 0x5A) >= 1000 &&
+            (c->moveSfxFlags & 1) == 0 &&
+            *(s16 *)((u8 *)move + 0x58) >= 0) {
+            c->moveSfxFlags |= 1;
+            CritterDoSfx(c, *(s16 *)((u8 *)move + 0x58), NULL, 1, -1);
         }
     }
 
-    if (c->unkAB8 >= 0 && (flags & 0x100320) == 0) {
-        node = (u8 *)c + 0x4F8 + c->unkAB8 * 0x5C;
-        if (*(f32 *)(node + 0x58) < *(f32 *)(node + 0x54)) {
-            applied *= *(f32 *)(*(u8 **)node + 0x40);
-            if (*(f32 *)(node + 0x58) + applied >
-                *(f32 *)(node + 0x54)) {
-                applied = *(f32 *)(node + 0x54) -
-                          *(f32 *)(node + 0x58);
-            }
-            *(f32 *)(node + 0x58) += applied;
-            if (*(f32 *)(node + 0x58) >= *(f32 *)(node + 0x54)) {
-                *(s32 *)(node + 0x50) = 8;
-            }
-        }
+    ModifyDamage(*(f32 *)(header + 0xBC), &damage, &flags,
+                 *(u32 *)(header + 0xE0));
+    descriptor = *(u8 **)(header + 0x120);
+    critterClass = *(s16 *)(descriptor + 0x20);
+
+    if (gGameOptions[0] == 3 && player >= 0) {
+        damage = lbl_80346560;
     }
-    if (applied <= 0.0f) {
-        return;
+    if (critterClass != 4 &&
+        (f64)lbl_803447D8 < lbl_80346490) {
+        damage = (f32)((f64)damage * lbl_80346478);
     }
 
-    c->counterState |= (s32)flags;
-    c->counterValue += applied;
-    c->counterTime = sMusicFadeBase;
+    c->counterValue += damage;
+    if (critterClass == 4 &&
+        (lbl_8034489C < 1 || lbl_8034489C > 4)) {
+        damage *= lbl_8011AEC0[lbl_8034465C];
+    }
+
+    if (player >= 0) {
+        f32 maximumHealth;
+
+        maximumHealth = *(f32 *)(header + 0xE4) *
+                        *(f32 *)((u8 *)gCurLevel + 0xAC);
+        creditedDamage = lbl_80346470;
+        if (damage >= creditedDamage) {
+            creditedDamage = c->health;
+            if (damage <= creditedDamage) {
+                creditedDamage = damage;
+            }
+        }
+
+        ratio = (f32)((f64)creditedDamage /
+                      (lbl_80346490 + (f64)maximumHealth));
+        if ((f64)ratio > lbl_80346490) {
+            ratio = lbl_803464A8;
+        }
+        experience = (s32)(ratio * *(f32 *)(header + 0xE8));
+        if (critterClass == 4) {
+            experience *= lbl_8034465C;
+        }
+
+        firstPlayer = player;
+        if (player >= 0) {
+            lastPlayer = player + 1;
+        } else {
+            firstPlayer = 0;
+            lastPlayer = 4;
+        }
+        playerData = &gPlayers[firstPlayer];
+        for (i = firstPlayer; i < lastPlayer; i++, playerData++) {
+            if (playerData->state == 1) {
+                AddExp(i, experience, 0);
+            }
+        }
+
+        c->unk1BC[player][2] += creditedDamage;
+        c->unk1BC[player][3] = sMusicFadeBase;
+        if (flags & 0x00800000) {
+            do_heal_players(&gPlayers[player], &c->mtx[0][0],
+                            creditedDamage);
+        }
+
+        if (critterClass != 4 &&
+            *(f32 *)((u8 *)gCurLevel + 0x9C) > lbl_80346470) {
+            s32 level;
+
+            playerData = &gPlayers[player];
+            level = *(s32 *)((u8 *)playerData + 0x3324);
+            damageScale = lbl_803464A8;
+            if ((f32)level < *(f32 *)((u8 *)gCurLevel + 0x9C)) {
+                damageScale = (f32)(lbl_80346490 -
+                    lbl_80346568 *
+                    (f64)(*(f32 *)((u8 *)gCurLevel + 0x9C) -
+                          (f32)level));
+            }
+            if ((f64)damageScale < lbl_803464B0) {
+                damageScale = lbl_80346570;
+            }
+            damage *= damageScale;
+        }
+    }
+
+    if ((flags & 0x00100320) == 0 && c->unkAB8 >= 0) {
+        hitNode = (u8 *)c + 0x4F8 + c->unkAB8 * 0x5C;
+        if (*(f32 *)(hitNode + 0x58) >= *(f32 *)(hitNode + 0x54)) {
+            damage = lbl_80346470;
+        } else {
+            u8 *hitDescriptor;
+
+            hitDescriptor = *(u8 **)hitNode;
+            damage *= *(f32 *)(hitDescriptor + 0x40);
+            if (*(f32 *)(hitNode + 0x58) + damage >
+                *(f32 *)(hitNode + 0x54)) {
+                damage = *(f32 *)(hitNode + 0x54) -
+                         *(f32 *)(hitNode + 0x58);
+                if (*(s16 *)(hitDescriptor + 0x10) & 2) {
+                    char objectName[40];
+                    s32 object;
+
+                    if (*(s16 *)(hitDescriptor + 0x12) >= 0) {
+                        CritterDoTexmodNode(c,
+                            *(s16 *)(hitDescriptor + 0x12), 0,
+                            (f32 *)(hitNode + 0x3C));
+                    }
+                    sprintf(objectName, lbl_80346574,
+                            *(u8 **)(header + 0x120) + 0x10,
+                            hitDescriptor);
+                    object = (s32)MBOX_ReallyFindObject(objectName,
+                            *(s16 *)(descriptor + 0x22),
+                            *(s16 *)(descriptor + 0x22), 1);
+                    if (*(void **)(hitNode + 4) != NULL) {
+                        if (object >= 0) {
+                            MBSetObject(*(void **)(hitNode + 4), object);
+                        }
+                        for (i = 0; i < *(s32 *)((u8 *)c + 0xB0); i++) {
+                            u8 *anode;
+
+                            anode = *(u8 **)((u8 *)c + 0xB4) + i * 0x28;
+                            if (*(void **)anode == *(void **)(hitNode + 4)) {
+                                s32 j;
+
+                                *(s32 *)(anode + 0x20) = 0;
+                                *(void **)anode = NULL;
+                                for (j = 0; j < *(s16 *)(header + 0x110); j++) {
+                                    if ((*(CritterMove **)(header + 0x124))[j].node == i) {
+                                        (*(CritterMove **)(header + 0x124))[j].node = -1;
+                                    }
+                                }
+                            }
+                        }
+                        if ((*(s16 *)(hitDescriptor + 0x10) & 4) &&
+                            *(void **)((u8 *)*(void **)(hitNode + 4) + 0x78) != NULL) {
+                            CritterRemoveColnodeSub(c,
+                                *(struct CritterColnode **)
+                                    ((u8 *)*(void **)(hitNode + 4) + 0x78), 2);
+                        }
+                    }
+                    if (*(void **)(hitNode + 0x4C) != NULL) {
+                        MBRemoveNode(*(void **)(hitNode + 0x4C), 1);
+                        *(void **)(hitNode + 0x4C) = NULL;
+                    }
+                }
+            }
+            *(f32 *)(hitNode + 0x58) += damage;
+        }
+    }
+
+    if ((f64)damage <= lbl_80346488) {
+        return 0;
+    }
+
+    c->counterState |= flags;
     if (direction != NULL) {
         c->knockbackInput[0] += direction[0];
         c->knockbackInput[1] += direction[1];
         c->knockbackInput[2] += direction[2];
     }
+    c->counterTime = sMusicFadeBase;
     if (hitPosition == NULL) {
         hitPosition = c->movevec;
     }
-    c->health -= applied;
-    if (player >= 0 && player < 4) {
-        c->unk1BC[player][2] += applied;
-        c->unk1BC[player][3] = sMusicFadeBase;
+    c->health -= damage;
+
+#define CRITTER_DIE(victim)                                                   \
+    do {                                                                       \
+        Critter *deathChild;                                                   \
+        (victim)->state = 1;                                                   \
+        CritterAwardExp(-1, (f32)(lbl_80346580 *                             \
+                                  (f64)*(f32 *)((u8 *)(victim)->hdr + 0xE8))); \
+        if ((victim)->parent == NULL) {                                        \
+            for (deathChild = (victim)->next; deathChild != NULL;              \
+                 deathChild = deathChild->next) {                              \
+                deathChild->health = lbl_803464A8;                             \
+            }                                                                  \
+        }                                                                      \
+        if (*(s16 *)(*(u8 **)((u8 *)(victim)->hdr + 0x120) + 0x20) == 4 &&    \
+            (victim)->parent == NULL) {                                        \
+            BossDying();                                                       \
+        }                                                                      \
+    } while (0)
+
+    if ((f64)c->health <= lbl_80346488) {
+        if (c->state != 1) {
+            CRITTER_DIE(c);
+        }
+        if (player >= 0) {
+            playerData = &gPlayers[player];
+            (*(s32 *)((u8 *)playerData + 0xC10 +
+                      playerData->character * 0x1C))++;
+        }
+        return 1;
     }
-    if (source >= 0) {
-        c->unkABC = 8;
-    }
-    maximum = *(f32 *)((u8 *)c->hdr + 0xE4) *
-              *(f32 *)((u8 *)gCurLevel + 0xAC);
-    if (c->health < 0.0f) {
-        c->health = 0.0f;
-    } else if (c->health > maximum) {
-        c->health = maximum;
-    }
-    if (c->health <= 0.0f) {
-        c->state = 3;
-        for (i = 0; i < 4; i++) {
-            if (c->unk1BC[i][2] > 0.0f) {
-                CritterAwardExp(i, c->unk1BC[i][2]);
+
+    parent = c->parent;
+    if (parent != NULL) {
+        parent->health -= damage;
+        if ((f64)parent->health <= lbl_80346488) {
+            if (parent->state != 1) {
+                CRITTER_DIE(parent);
+            }
+            return 1;
+        }
+    } else if (c->childcnt > 0) {
+        livingChildren = lbl_80346470;
+        for (child = c->next; child != NULL; child = child->next) {
+            if (child->state >= 2) {
+                livingChildren = (f32)((f64)livingChildren +
+                                       lbl_80346490);
+            }
+        }
+        if ((f64)livingChildren > lbl_80346488) {
+            childDamage = (f32)(lbl_803464F8 *
+                                (f64)(damage / livingChildren));
+            for (child = c->next; child != NULL; child = child->next) {
+                if (child->state >= 2) {
+                    child->health -= childDamage;
+                    if ((f64)child->health <= lbl_80346488 &&
+                        child->state != 1) {
+                        CRITTER_DIE(child);
+                    }
+                }
             }
         }
     }
+
+#undef CRITTER_DIE
+
+    if ((flags & 0x01000000) == 0) {
+        if ((flags & 0xF) == 0) {
+            if (source == 2 && *(s16 *)(header + 0xF6) >= 0) {
+                CritterDoSfx(c, *(s16 *)(header + 0xF6), hitPosition, 0, -1);
+            } else {
+                CritterDoSfx(c, *(s16 *)(header + 0xF4), hitPosition, 0, -1);
+            }
+        } else {
+            fn_800945D0(hitPosition, &c->mtx[0][0], flags, 0,
+                        critterClass, *(f32 *)(header + 0x78));
+        }
+
+        if (flags & 0x00100320) {
+            c->unkABC = 2;
+        } else if (c->unkAB8 >= 0) {
+            hitNode = (u8 *)c + 0x4F8 + c->unkAB8 * 0x5C;
+            *(s32 *)(hitNode + 0x50) = 2;
+        }
+    }
+    if (c->particle != NULL) {
+        c->particle = NULL;
+    }
+    return 0;
 }
+#pragma dont_inline off
 /* 0x80038D18 -- per-frame critter list step: reset per-player scratch, count
  * active players, then process every live critter, summing their results. */
 s32 ProcessCritterList(void)
