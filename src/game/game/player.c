@@ -532,7 +532,7 @@ s32 PlayerWriteSaveFile(s32 i, s32 slot);
 void PlayersRestoreHealth(void);
 void change_player(s32 i, s32 type);
 void new_player(s32 i);
-void damage_player(s32 i, f32 dmg, u32 flags, f32* dir);
+s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir);
 void do_heal_players(void* p, f32* mat, f32 amount);
 s32 PlayerOnMovingObject(void);
 s32 OtherPlayerOnOtherMovingObject(s32 i, u8* obj);
@@ -2093,13 +2093,13 @@ extern f64 lbl_80347A40;
 extern f64 __frsqrte(f64 value);
 extern f32 lbl_80343D9C[2];   /* missile damage range */
 extern f32 lbl_80343DA4[2];   /* missile speed range */
-extern s32 gGameOptions;      /* NoDamage? cheat (1 = no damage, 2.. = invuln) */
+extern s32 gGameOptions[];    /* [0]: NoDamage cheat (1 = no damage, 2.. = invuln) */
 extern s32 lbl_80257594;      /* Unlimited? cheat (3 = unlimited turbo) */
 extern s32 lbl_802575A8;      /* Access? cheat (levels open) */
 extern s32 lbl_80257630[4];   /* per-player targeting state cleared at init */
 extern s32 good_wiz_state;      /* cutscene/no-damage global */
 extern s32 gBoss398;      /* boss floor index */
-extern s32 lbl_80251CCC[];    /* floor records, stride 0xE5 words */
+extern u8 gEnemies[];         /* Enemy[25], stride 0x394 */
 extern s32 gNumEnemies;      /* enemy count */
 extern s32 lbl_80251F44[];    /* enemy records target field, stride 0xE5 words */
 typedef struct BigapePowerupInfo {
@@ -2224,7 +2224,7 @@ extern s32 fn_8005B8FC(void* p);
 extern f32 fqdist(f32 dx, f32 dz);
 extern void fn_8009190C(f32* pos, s32 amount);
 extern s32 ModifyDamage(f32 armor, f32* dmg, u32* flags, u32 shield);
-extern f64 atan2(f64 x, f64 z);
+extern f32 atan2(f32 x, f32 z);
 extern void StartBlockFX(f32 dmg, s32 player);
 extern void fn_8009FFF4(s32 kind, s32 player);
 extern void AudioPlayerPain(s32 player);
@@ -2655,33 +2655,50 @@ extern u8 lbl_801201C4;       /* weakening default period */
  * through the sfx TU, and the death path posts msg 0xD, drops the meter
  * and got-it entries, and parks state 8 (dying).
  */
-void damage_player(s32 i, f32 dmg_in, u32 flags, f32* dir) {
-    Player* p = P(i);
+s32 damage_player(s32 i, f32 dmg_in, s32 mode, u32 flags, f32* dir) {
     f32 dmg = dmg_in;
+    f32 reduced_dmg;
     u32 fl = flags;
+    Player* p = P(i);
+    s32 result = 0;
     s32 invuln;
-    s32 hp_new;
     s32 hp_old;
+    s32 hp_new;
     f32 hp;
-    f64 red;
-    u16 hf;
+    f32 red;
+    s16 hf;
 
-    if (p->state != 1 || gTriggerCameraState != 0 || (fl & 0x200) != 0) {
-        return;
+    if (p->state != 1) {
+        return 0;
+    }
+    if (gTriggerCameraState != 0) {
+        return 0;
+    }
+    if ((fl & 0x200) != 0) {
+        return 0;
     }
     if (player_can_be_damaged(p) == 0) {
-        return;
+        return 0;
     }
 
-    invuln = gGameOptions;
+    invuln = gGameOptions[0];
     if (invuln < 2) {
-        invuln = (invuln >= 1 && dmg == 999999.0f) ? 1 : 0;
+        if (invuln >= 1 && dmg != 999999.0f) {
+            invuln = 1;
+        } else {
+            invuln = 0;
+        }
     }
     if ((fl & 0x8000) == 0) {
-        if (invuln > 2 || p->state == 4 || good_wiz_state != 0 ||
-            (gBossType >= 0 && gBoss398 >= 0 &&
-             lbl_80251CCC[gBoss398 * 0xE5] != 1)) {
-            return;
+        if (invuln > 2 || p->state == 4) {
+            return 0;
+        }
+        if (good_wiz_state != 0) {
+            return 0;
+        }
+        if (gBossType >= 0 && gBoss398 >= 0 &&
+            *(s32*)(gEnemies + gBoss398 * 0x394 + 0xB4) != 1) {
+            return 0;
         }
         if (dmg > 1.0) {
             dmg = dmg * PF(gCurLevel, 0xA4, f32);
@@ -2693,52 +2710,69 @@ void damage_player(s32 i, f32 dmg_in, u32 flags, f32* dir) {
     }
     if (dmg > 0.05f) {
         hf = p->hud_flags;
-        if ((hf & 0x600) == 0) {
-            /* front hit: "ouch" speech occasionally */
-            if (dmg > 40.0f && (fl & 0x10160) && (hf & 0x2000) == 0 &&
-                sMusicFadeBase > 5.0) {
-                msgPost(0x7D, p->index, (u32)&p->name);
-            }
-        } else {
+        if ((hf & 0x600) != 0) {
             /* shielded/back arc */
-            if ((hf & 0x200) == 0) {
-                dmg = dmg * 0.25;
-            } else if (dir == NULL) {
-                dmg = 0.0f;
-            } else {
-                red = atan2(dir[0], dir[2]) - PF(p, 0x894, f32);
-                if (red > 3.141592653589793) {
-                    red = red - 6.283185307179586;
-                } else if (red <= -3.141592653589793) {
-                    red = red + 6.283185307179586;
-                }
-                if ((f32)red <= -1.5707963267948966 || (f32)red >= 1.5707963267948966) {
-                    dmg = dmg * 0.25;
+            if (hf & 0x200) {
+                if (dir == NULL) {
+                    reduced_dmg = 0.0f;
                 } else {
-                    dmg = 0.0f;
+                    red = atan2(dir[0], dir[2]) - PF(p, 0x894, f32);
+                    if (red > 3.141592653589793) {
+                        red = red - 6.283185307179586;
+                    } else if (red <= -3.141592653589793) {
+                        red = red + 6.283185307179586;
+                    }
+                    if (red > -1.5707963267948966 && red < 1.5707963267948966) {
+                        reduced_dmg = 0.0f;
+                    } else {
+                        reduced_dmg = dmg * 0.25;
+                    }
                 }
+            } else {
+                reduced_dmg = dmg * 0.25;
             }
-            if (dmg_in - dmg > 0.5 && PF(p, 0x1FE, s16) < 1) {
-                f64 clank = 0.75 * dmg;
+            if (dmg - reduced_dmg > 0.5 && p->timer_1FE <= 0) {
+                f32 clank = (f32)(0.75 * reduced_dmg);
                 if (clank < 0.1) {
                     clank = 0.1;
                 } else if (clank > 1.0) {
                     clank = 1.0;
                 }
-                StartBlockFX((f32)clank, p->index);
-                PF(p, 0x1FE, s16) = (s16)(s32)(5.0 * clank);
+                StartBlockFX(clank, p->index);
+                p->timer_1FE = (s16)(s32)(5.0 * clank);
                 p->hud_flags |= 0x2000;
             }
-            if ((fl & 0x10160) == 0) {
-                fl &= ~0x10;
-            } else {
+            if (fl & 0x10160) {
                 fl = (fl & 0xFFFEFE9F) | 0x10;
+            } else {
+                fl &= ~0x10;
+            }
+            dmg = reduced_dmg;
+        } else {
+            /* front hit: "ouch" speech occasionally */
+            if (dmg > 40.0f && (fl & 0x10160) && (hf & 0x2000) == 0 &&
+                sMusicFadeBase > 5.0) {
+                msgPost(0x7D, p->index, (u32)p->col_pos);
             }
         }
     }
 
     hp = p->health;
-    if (dmg >= 0.0) {
+    if (dmg < 0.0) {
+        /* negative damage heals */
+        p->health = hp - dmg;
+        if (fl & 0x8000) {
+            if (fl & 0xF) {
+                PF(p, 0x8D4, u32) &= ~0xF;
+            }
+            PF(p, 0x8D4, u32) |= fl;
+            if (dir != NULL) {
+                PF(p, 0x8DC, f32) += dir[0];
+                PF(p, 0x8E0, f32) += dir[1];
+                PF(p, 0x8E4, f32) += dir[2];
+            }
+        }
+    } else {
         if (invuln == 0 && (fl & 0x8000) == 0) {
             p->health = hp - dmg;
         }
@@ -2758,10 +2792,10 @@ void damage_player(s32 i, f32 dmg_in, u32 flags, f32* dir) {
             }
             if (dmg > 0.0f) {
                 if (fl & 0x800) {
-                    PF(p, 0x898, f32) = 1.0f + sMusicFadeBase;
+                    PF(p, 0x898, f32) = 1.0 + sMusicFadeBase;
                 }
                 if (fl & 0x1000) {
-                    PF(p, 0x898, f32) = 4.0f + sMusicFadeBase;
+                    PF(p, 0x898, f32) = 4.0 + sMusicFadeBase;
                 }
                 if (fl & 0x10040) {
                     do_vibe(i, 3, 0x1E);
@@ -2774,82 +2808,13 @@ void damage_player(s32 i, f32 dmg_in, u32 flags, f32* dir) {
                 }
             }
         }
-    } else {
-        /* negative damage heals */
-        p->health = hp - dmg;
-        if (fl & 0x8000) {
-            if (fl & 0xF) {
-                PF(p, 0x8D4, u32) &= ~0xF;
-            }
-            PF(p, 0x8D4, u32) |= fl;
-            if (dir != NULL) {
-                PF(p, 0x8DC, f32) += dir[0];
-                PF(p, 0x8E0, f32) += dir[1];
-                PF(p, 0x8E4, f32) += dir[2];
-            }
-        }
     }
 
-    if (p->health >= 1.0) {
-        /* grunt tiers on crossing 150/50 hp; big-hit speech (msg 0xD) */
-        hp_old = (s32)(0.25 + hp);
-        hp_new = (s32)(0.25 + p->health);
-        if (hp_old >= 0x97 && hp_new <= 0x96) {
-            if (msgPost(0xD, i, (u32)&p->name) == 0) {
-                fn_8009FFF4(1, i);
-            }
-        } else if (hp_old >= 0x33 && hp_new <= 0x32) {
-            fn_8009FFF4((gClockFrameNumber & 1) ? 3 : 2, i);
-        } else {
-            s32 kind = (s32)dmg;
-            if (kind == 2) {
-                if (dmg > 0.0f) {
-                    AudioPlayerPain(i);
-                }
-                PF(p, 0x8D0, f32) = 0.0f;
-            } else if (kind == 3) {
-                AudioPlayerPoison(i);
-                PF(p, 0x8D0, f32) = 0.0f;
-            } else if (kind != 0) {
-                if (hp_old - hp_new < 0x3D) {
-                    if (PF(p, 0x8D0, f32) >= 45.0) {
-                        PF(p, 0x8D0, f32) -= 45.0;
-                        if (dmg > 0.0f) {
-                            AudioPlayerPain(i);
-                        }
-                    }
-                } else {
-                    if (dmg > 0.0f) {
-                        AudioPlayerPain(i);
-                    }
-                    PF(p, 0x8D0, f32) = 0.0f;
-                }
-            }
-        }
-        /* gore burst on heavy hit */
-        if (dmg >= 1.0 && (fl & 0x800) == 0) {
-            if (PF(p, 0x1F0, s16) < 1) {
-                s32 kind2 = 0;
-                if (fl & 0x20000) {
-                    kind2 = 1;
-                } else if (fl & 0x40000) {
-                    kind2 = 2;
-                }
-                if (dmg > 0.0f) {
-                    AudioPlayerHit(dmg, i, kind2);
-                }
-                PF(p, 0x1F0, s16) = 0x1E;
-            }
-        } else if (dmg >= 1.0) {
-            if (dmg > 0.0f) {
-                AudioPlayerSeverePain(i);
-            }
-        }
-    } else {
+    if (p->health < 1.0) {
         /* death */
         AudioPlayerDies(i);
         p->state = 8;
-        PF(p, 0x1920, s32) = 4;
+        PF(p, 0x920, s32) = 4;
         p->health = 0.0f;
         PF(p, 0x828, f32) = 0.0f;
         kill_got_it(i);
@@ -2860,7 +2825,69 @@ void damage_player(s32 i, f32 dmg_in, u32 flags, f32* dir) {
                 it_blit = NULL;
             }
         }
+        result = 1;
+    } else {
+        /* grunt tiers on crossing 150/50 hp; big-hit speech (msg 0xD) */
+        hp_old = (s32)(0.25 + hp);
+        hp_new = (s32)(0.25 + p->health);
+        if (dmg > 0.0f) {
+            PF(p, 0x924, f32) += dmg;
+        }
+        if (hp_old > 150 && hp_new <= 150) {
+            if (msgPost(0xD, i, (u32)p->col_pos) == 0) {
+                fn_8009FFF4(1, i);
+            }
+        } else if (hp_old > 50 && hp_new <= 50) {
+            if (gClockFrameNumber % 2 == 0) {
+                fn_8009FFF4(2, i);
+            } else {
+                fn_8009FFF4(3, i);
+            }
+        } else {
+            if (mode == 2) {
+                if (dmg > 0.0f) {
+                    AudioPlayerPain(i);
+                }
+                PF(p, 0x924, f32) = 0.0f;
+            } else if (mode == 3) {
+                AudioPlayerPoison(i);
+                PF(p, 0x924, f32) = 0.0f;
+            } else if (mode != 0) {
+                if (hp_old - hp_new > 60) {
+                    if (dmg > 0.0f) {
+                        AudioPlayerPain(i);
+                    }
+                    PF(p, 0x924, f32) = 0.0f;
+                    mode = 0;
+                } else if (PF(p, 0x924, f32) >= 45.0) {
+                    PF(p, 0x924, f32) -= 45.0;
+                    if (dmg > 0.0f) {
+                        AudioPlayerPain(i);
+                    }
+                    mode = 0;
+                }
+            }
+        }
+        if (mode == 1) {
+            if (fl & 0x800) {
+                if (dmg > 0.0f) {
+                    AudioPlayerSeverePain(i);
+                }
+            } else if (p->timer_1F0 <= 0) {
+                s32 kind2 = 0;
+                if (fl & 0x20000) {
+                    kind2 = 1;
+                } else if (fl & 0x40000) {
+                    kind2 = 2;
+                }
+                if (dmg > 0.0f) {
+                    AudioPlayerHit(dmg, i, kind2);
+                }
+                p->timer_1F0 = 0x1E;
+            }
+        }
     }
+    return result;
 }
 
 /*
@@ -3906,7 +3933,7 @@ s32 set_hidden_player(void* vp) {
                 lbl_80257594 = 3;
             }
             if (saveMenuPrompt("NoDamage?", NULL, 2) == 0) {
-                gGameOptions = 1;
+                gGameOptions[0] = 1;
             }
             if (saveMenuPrompt("Shards?", NULL, 2) == 0) {
                 PF(p, 0x1EC8, u16) = 0xFFFF;
@@ -3965,7 +3992,7 @@ s32 set_hidden_player(void* vp) {
             /* plus the full unlock block (same as Worlds?) */
             lbl_802575A8 = 1;
             lbl_80257594 = 3;
-            gGameOptions = 1;
+            gGameOptions[0] = 1;
             PF(p, 0x1EC8, u16) = 0xFFFF;
             PF(p, 0x1ECA, u16) = 0xFFFF;
             for (j = 0; j < 16; j++) {
