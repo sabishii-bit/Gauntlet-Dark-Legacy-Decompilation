@@ -89,7 +89,6 @@ typedef struct BossGameCameraView {
 } BossGameCameraView;
 
 /* bosscam-owned .sbss scratch (referenced externally, see split notes) */
-extern s32 lbl_803443A8;
 extern s32 lbl_803443AC;
 extern s32 gTriggerCameraState;
 extern s32 lbl_803443B8;
@@ -144,6 +143,7 @@ extern void CamReset(void* camera);
 
 /* Player array (stride 0x335C) and boss gating state used by the dpos clamps */
 extern u8 gPlayers[];             /* base of the 4 player structs */
+extern s32 lbl_803443A8;
 extern s32 gBossDead;
 extern s32 gBossDying;
 extern s32 gBossType;
@@ -627,7 +627,188 @@ static void BossCamBossCalc(void) {}
 
 /* Player-follow camera solve (0x5C0).  Parked: large fp-math body sharing
  * LimitCamVal2 and PointViewDist. */
-static void BossCamPlayerCalc(void) {}
+static f32 LimitCamVal2(f32 value, f32 target, f32 minVelocity,
+                        f32 maxVelocity, f32 acceleration, f32 stopScale,
+                        f32* velocity, s32 wrapAngle);
+extern u8* fn_8006FBAC(f32* pos);
+extern s32 lbl_803444E0;
+extern f64 lbl_80345BF8;
+extern f64 lbl_80345C00;
+extern f64 lbl_80345C08;
+extern f64 lbl_80345C10;
+extern f64 lbl_80345C38;
+extern f64 lbl_80345C30;
+extern const f32 lbl_80343B98;
+extern const f32 lbl_80343B9C;
+extern f32 lbl_80343B88;
+extern f32 lbl_80343B8C;
+extern f32 lbl_80343B90;
+extern f32 lbl_80343B94;
+extern f32 lbl_80345C2C;
+extern char lbl_80111838[];
+
+static void BossCamPlayerCalc(void)
+{
+    f32 avg[3];
+    f32 tpos[3];
+    f32 d[3];
+    f32 rootslot;
+    f32 absd;
+    f32 range;
+    f32 tyaw;
+    f32 tpitch;
+    f32 minview;
+    f32 pdist;
+    u8* tr;
+    u8* cam;
+    u8* p;
+    u32 fl;
+    s32 i;
+    s32 off;
+    f64 t;
+
+    lbl_803444E0 = 0;
+    range = (f32)(lbl_80345B90 * *(f32*)((u8*)lbl_803443D0 + 24));
+    *(f32*)((u8*)gGameCamera + 220) = range;
+    if (lbl_80343C5C != 0) {
+        *(f32*)((u8*)gGameCamera + 220) =
+            *(f32*)((u8*)gGameCamera + 220) * lbl_80343B84;
+    }
+    GetPlayerAvgPos(avg, 0, 0, 2);
+    if (lbl_803447B8 != 0) {
+        tr = CurTransmitter;
+    } else {
+        tr = fn_8006FBAC(avg);
+    }
+    if (tr != NULL) {
+        f32 y = (f32)(*(f32*)(tr + 24) - lbl_80345B88);
+        if (y > lbl_80345B88) {
+            tyaw = (f32)(y - lbl_80345BB8);
+        } else if (y <= lbl_80345BC0) {
+            tyaw = (f32)(lbl_80345BB8 + y);
+        } else {
+            tyaw = y;
+        }
+    } else {
+        tyaw = lbl_80345BA0;
+    }
+    if (tr != NULL) {
+        tpitch = -*(f32*)(tr + 20);
+    } else {
+        tpitch = lbl_80345BA0;
+    }
+    fl = *(u32*)lbl_803443D0 & ~0x300;
+    minview = lbl_80345BA4;
+    for (i = 0, off = 0; i < 4; i++, off += 13148) {
+        p = gPlayers + off;
+        if (*(s32*)(p + 232) != 1) {
+            continue;
+        }
+        tpos[0] = *(f32*)(p + 84) + *(f32*)(p + 2184);
+        tpos[1] = *(f32*)(p + 88) + *(f32*)(p + 2188);
+        tpos[2] = *(f32*)(p + 92) + *(f32*)(p + 2192);
+        pdist = *(f32*)(p + 2132);
+        MulBodyVecMat4(tpos, lbl_8023E8C0, gGameCamera);
+        pdist = PointViewDist(lbl_8023E8C0, pdist);
+        if (pdist < minview) {
+            minview = pdist;
+        }
+    }
+    *(f32*)((u8*)gGameCamera + 256) = minview;
+    {
+        f32 vd = *(f32*)((u8*)gGameCamera + 256);
+        f32 r3v = *(f32*)((u8*)gGameCamera + 244);
+        if (vd < lbl_80345BA0) {
+            fl |= 512;
+            r3v = (f32)(r3v + lbl_80345C00);
+        } else if (vd < lbl_80345BF8 && r3v < range) {
+            fl |= 512;
+            r3v = (f32)(lbl_80345BF8 * (lbl_80345C08 - vd) + r3v);
+        } else if (vd < lbl_80345C10 && r3v < range &&
+                   (*(u32*)lbl_803443D0 & 0x200)) {
+            fl |= 512;
+            r3v = (f32)(lbl_80345BF8 * (lbl_80345C08 - vd) + r3v);
+        } else if (vd > lbl_80345C08) {
+            fl |= 256;
+            r3v = (f32)(r3v - lbl_80345BF8 * (vd - lbl_80345C08));
+        } else if (vd > lbl_80345C10 && (*(u32*)lbl_803443D0 & 0x100)) {
+            fl |= 256;
+            r3v = (f32)(r3v - lbl_80345BF8 * (vd - lbl_80345C10));
+        }
+        *(u32*)lbl_803443D0 = fl;
+        if (r3v < *(f32*)((u8*)lbl_803443D0 + 16)) {
+            t = *(f32*)((u8*)lbl_803443D0 + 16);
+        } else if (r3v > lbl_80345BF8 * range) {
+            t = lbl_80345BF8 * range;
+        } else {
+            t = r3v;
+        }
+        range = (f32)t;
+    }
+    if (lbl_803447B8 != 0) {
+        absd = range - *(f32*)((u8*)gGameCamera + 244);
+        *(u32*)&absd &= 0x7FFFFFFF;
+        if ((f64)absd < lbl_80345C38) {
+            lbl_803447B8 = 0;
+        }
+    }
+    if (lbl_803443A8 == 0) {
+        f32 d2;
+        *(f32*)((u8*)gGameCamera + 164) = avg[0];
+        *(f32*)((u8*)gGameCamera + 168) = avg[1];
+        *(f32*)((u8*)gGameCamera + 172) = avg[2];
+        *(f32*)((u8*)gGameCamera + 176) = avg[0];
+        *(f32*)((u8*)gGameCamera + 180) = avg[1];
+        *(f32*)((u8*)gGameCamera + 184) = avg[2];
+        d[0] = *(f32*)((u8*)gGameCamera + 164) - *(f32*)((u8*)lbl_80344EE8 + 148);
+        d[1] = *(f32*)((u8*)gGameCamera + 168) - *(f32*)((u8*)lbl_80344EE8 + 152);
+        d[2] = *(f32*)((u8*)gGameCamera + 172) - *(f32*)((u8*)lbl_80344EE8 + 156);
+        d2 = d[0] * d[0];
+        d2 = d[1] * d[1] + d2;
+        d2 = d[2] * d[2] + d2;
+        if (d2 > lbl_80345BA0) {
+            f64 estimate = __frsqrte(d2);
+            estimate = lbl_80345BA8 * estimate *
+                       (lbl_80345BB0 - estimate * estimate * d2);
+            estimate = lbl_80345BA8 * estimate *
+                       (lbl_80345BB0 - estimate * estimate * d2);
+            estimate = lbl_80345BA8 * estimate *
+                       (lbl_80345BB0 - estimate * estimate * d2);
+            rootslot = (f32)(d2 *
+                             (lbl_80345BA8 * estimate *
+                              (lbl_80345BB0 - estimate * estimate * d2)));
+            d2 = rootslot;
+        }
+        *(f32*)((u8*)gGameCamera + 244) = d2;
+        GetYawPitch(d, (f32*)((u8*)gGameCamera + 236),
+                    (f32*)((u8*)gGameCamera + 260));
+    } else {
+        *(f32*)((u8*)gGameCamera + 164) = avg[0];
+        *(f32*)((u8*)gGameCamera + 168) = avg[1];
+        *(f32*)((u8*)gGameCamera + 172) = avg[2];
+        *(f32*)((u8*)gGameCamera + 176) = avg[0];
+        *(f32*)((u8*)gGameCamera + 180) = avg[1];
+        *(f32*)((u8*)gGameCamera + 184) = avg[2];
+        *(f32*)((u8*)gGameCamera + 236) = LimitCamVal2(
+            *(f32*)((u8*)gGameCamera + 236), tyaw, -lbl_80343B88,
+            lbl_80343B88, lbl_80343B8C, lbl_80345C2C,
+            (f32*)((u8*)gGameCamera + 240), 1);
+        *(f32*)((u8*)gGameCamera + 244) = LimitCamVal2(
+            *(f32*)((u8*)gGameCamera + 244), range,
+            (f32)(lbl_80345C30 * -lbl_80343B98), lbl_80343B98,
+            lbl_80343B9C, lbl_80345C2C, (f32*)((u8*)gGameCamera + 248), 0);
+        *(f32*)((u8*)gGameCamera + 260) = LimitCamVal2(
+            *(f32*)((u8*)gGameCamera + 260), tpitch, -lbl_80343B90,
+            lbl_80343B90, lbl_80343B94, lbl_80345C2C,
+            (f32*)((u8*)gGameCamera + 264), 1);
+        if ((gControllerButtons & 1) != 0 && (gControllerButtons & 16) != 0) {
+            dbgTextPrintfCell(0x00FFFF00, 1, 33, lbl_80111838,
+                              (f32)(lbl_80345BC8 * (lbl_80345BD0 * tyaw)),
+                              range,
+                              (f32)(lbl_80345BC8 * (lbl_80345BD0 * tpitch)));
+        }
+    }
+}
 
 /* Clamp the camera attention/look target + distance via LimitCamVal2 (0x3C4).
  * target points at the desired attention (look-at) position.  If the desired
@@ -640,8 +821,6 @@ static f32 LimitCamVal2(f32 value, f32 target, f32 minVelocity,
 extern f32 NormalVector(f32* vec);
 extern s32 sprintf(char* s, const char* fmt, ...);
 extern size_t strlen(const char* s);
-extern const f32 lbl_80343B98;        /* max approach speed (200.0f) */
-extern const f32 lbl_80343B9C;        /* approach acceleration (75.0f) */
 extern const f32 lbl_80343BA0;        /* max per-axis dir speed (20.0f) */
 extern const f32 lbl_80343BA4;        /* per-axis dir acceleration (20.0f) */
 extern const f64 lbl_80345C40;        /* snap distance threshold (0.001) */
