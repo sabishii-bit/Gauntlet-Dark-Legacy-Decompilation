@@ -72,6 +72,15 @@ void  pbBlitSetTexture(s32 tex);
 
 extern void* gWinGlobals;
 extern f32   gVpScaleY;
+extern f32   gCameraMtx[16];
+extern f32*  lbl_80344EE8;   /* active view/frustum basis */
+extern s32   lbl_80345188;   /* quads drawn this frame */
+extern f32   lbl_803451D4;   /* screen cull min x */
+extern f32   lbl_803451D8;   /* screen cull max x */
+extern f32   lbl_803451DC;   /* screen cull min y */
+extern f32   lbl_803451E0;   /* screen cull max y */
+extern f32   lbl_803451E4;   /* min quad width */
+extern f32   lbl_803451E8;   /* min quad height */
 extern f32   psysInfo[];     /* per-parm scale/min/max config table */
 extern char  lbl_80116F30[]; /* "freePsysMem: bad free block..." */
 
@@ -135,7 +144,7 @@ extern const f64 lbl_80349168;
 extern const f64 lbl_803491A0;
 extern const f64 lbl_803491F8;
 static f32  getSinCos(f32 ang, f32* sinOut);
-static void DrawPsysSub(void);
+static void DrawPsysSub(f32* pos, u32 color, s32 c, s32 sx, s32 sy, f32 size);
 static void setupNewPMode_800CDCE4(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
                           f64 f7, f64 f8, Psys* p);
 static void setupParms(Psys* p);
@@ -659,12 +668,154 @@ static s32 getNewDirSingle1(Psys* p, MBObject* node) {
 /* 0x800CC8F4 - project one particle sprite and submit a GX quad.
  * Documented flow: cull against the psys screen-rect, back-project two
  * corners, then GXBegin(GX_QUADS) and stream 4 verts to the FIFO. */
-static void DrawPsysSub(void) {
-    f32 eye[3];
+static void DrawPsysSub(f32* pos, u32 color, s32 c, s32 sx, s32 sy, f32 size) {
+    f32 v[3];
     f32 corner[4];
-    __as__4vec3FRC4vec3((u32)eye, (u32)corner);
-    sceSamp0MultVec(corner, (f32*)&gWinGlobals, eye);
+    f32 out1[4];
+    f32 out2[4];
+    s32 ix, iy;
+    u8 rgba[4];
+    u32 cw;
+    u8* win;
+    f32* row;
+    f32 nhs;
+    f32 x1, y1;
+    f32 x2, y2, z1;
+    f32 d;
+    f32 u0, u1, v0, v1;
+    u32 a;
+    u8 rr, gg, bb;
+    s32 sa, sb;
+
+    win = (u8*)gWinGlobals;
+    row = lbl_80344EE8 + 25;
+    if (lbl_80345188 > 2048) {
+        return;
+    }
+
+    a = (color >> 24) & 0xFE;
+    rr = color >> 16;
+    gg = color >> 8;
+    bb = color;
+    if (a > 255) {
+        a = 255;
+    }
+    rgba[0] = rr;
+    rgba[1] = gg;
+    rgba[2] = bb;
+    rgba[3] = a;
+    cw = *(u32*)rgba;
+    GXSetChanMatColor(4, &cw);
+
+    size *= 0.5;
+    nhs = -size;
+    v[0] = row[0] * nhs + pos[0];
+    v[1] = row[1] * nhs + pos[1];
+    v[2] = row[2] * nhs + pos[2];
+    v[0] = row[4] * nhs + v[0];
+    v[1] = row[5] * nhs + v[1];
+    v[2] = row[6] * nhs + v[2];
+    __as__4vec3FRC4vec3((u32)corner, (u32)v);
+    sceSamp0MultVec(out1, gCameraMtx, corner);
+
+    z1 = out1[2];
+    if (z1 <= (*(f32**)(win + 4))[22]) {
+        return;
+    }
+    if (z1 >= (*(f32**)(win + 4))[23]) {
+        return;
+    }
+    x1 = (out1[0] * (*(f32**)(win + 4))[32]) / z1;
+    y1 = (out1[1] * (*(f32**)(win + 4))[37]) / z1;
+    if (x1 < lbl_803451D4) {
+        return;
+    }
+    if (x1 >= lbl_803451D8) {
+        return;
+    }
+    if (y1 < lbl_803451DC) {
+        return;
+    }
+    if (y1 >= lbl_803451E0) {
+        return;
+    }
+
+    v[0] = row[0] * size + pos[0];
+    v[1] = row[1] * size + pos[1];
+    v[2] = row[2] * size + pos[2];
+    v[0] = row[4] * size + v[0];
+    v[1] = row[5] * size + v[1];
+    v[2] = row[6] * size + v[2];
+    __as__4vec3FRC4vec3((u32)corner, (u32)v);
+    sceSamp0MultVec(out2, gCameraMtx, corner);
+
+    x2 = (out2[0] * (*(f32**)(win + 4))[32]) / out2[2];
+    y2 = (out2[1] * (*(f32**)(win + 4))[37]) / out2[2];
+    if (x2 < lbl_803451D4) {
+        return;
+    }
+    if (x2 >= lbl_803451D8) {
+        return;
+    }
+    if (y2 < lbl_803451DC) {
+        return;
+    }
+    if (y2 >= lbl_803451E0) {
+        return;
+    }
+
+    d = x2 - x1;
+    if (d < 0.0f) {
+        d = -d;
+    }
+    if (d < lbl_803451E4) {
+        return;
+    }
+    d = y2 - y1;
+    if (d < 0.0f) {
+        d = -d;
+    }
+    if (d < lbl_803451E8) {
+        return;
+    }
+
+    out1[2] = -1.0f * out1[2];
+    fn_800C7914(&ix, &iy);
+
+    sa = (s16)(s32)(sx * 16.0 + 0.5) - 8;
+    sb = (s16)(s32)(sy * 16.0 + 0.5) - 8;
+    u0 = (8.0f / (f32)ix) * 0.0625f;
+    u1 = ((f32)sa / (f32)ix) * 0.0625f;
+    v0 = (8.0f / (f32)iy) * 0.0625f;
+    v1 = ((f32)sb / (f32)iy) * 0.0625f;
+
     GXBegin(0x98, 0, 4);
+    x2 = out1[2];
+    y2 = out1[1];
+    z1 = out1[0];
+    d = out2[0];
+    nhs = out2[1];
+    *(volatile f32*)0xCC008000 = z1;
+    *(volatile f32*)0xCC008000 = y2;
+    *(volatile f32*)0xCC008000 = x2;
+    *(volatile f32*)0xCC008000 = u0;
+    *(volatile f32*)0xCC008000 = v0;
+    *(volatile f32*)0xCC008000 = z1;
+    *(volatile f32*)0xCC008000 = nhs;
+    *(volatile f32*)0xCC008000 = x2;
+    *(volatile f32*)0xCC008000 = u0;
+    *(volatile f32*)0xCC008000 = v1;
+    *(volatile f32*)0xCC008000 = d;
+    *(volatile f32*)0xCC008000 = y2;
+    *(volatile f32*)0xCC008000 = x2;
+    *(volatile f32*)0xCC008000 = u1;
+    *(volatile f32*)0xCC008000 = v0;
+    *(volatile f32*)0xCC008000 = d;
+    *(volatile f32*)0xCC008000 = nhs;
+    *(volatile f32*)0xCC008000 = x2;
+    *(volatile f32*)0xCC008000 = u1;
+    *(volatile f32*)0xCC008000 = v1;
+    lbl_80345188 = lbl_80345188 + 1;
 }
 
 /* 0x800CBC4C - per-frame emitter state machine + particle draw pass.
@@ -688,7 +839,7 @@ void MBDrawPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
         (void)listFindHandle(p->id, (s32)&gPsysRmQueue);
     }
     if (p->p_lst != NULL) {
-        DrawPsysSub();
+        DrawPsysSub((f32*)p->p_lst, 0, 0, 0, 0, 0.0f);
     }
 }
 
