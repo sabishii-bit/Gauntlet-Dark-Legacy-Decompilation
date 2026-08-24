@@ -6677,13 +6677,20 @@ void do_enemies(void)
 
     {
         u8* e = pool + 0xE18;
+        f32 skinOne = lbl_803468F0;
+        f64 zero = lbl_80346810;
+        f64 bossRise = lbl_80346818;
+        f32 zeroFloat = lbl_80346820;
+        f64 pushDamping = lbl_80346940;
+        f64 pushEpsilon = lbl_80346878;
+        f32 verticalDamping = lbl_803469C0;
 
         for (i = 0; i < gNumEnemies; i++, e += 0x394) {
             s32 state;
 
             *(s16*)(e + 0x312) = *(s16*)(e + 0x310);
             *(s32*)(e + 0x36C) += gFrameTicks;
-            if (*(f32*)(e + 0x37C) > 0.0f) {
+            if (*(f32*)(e + 0x37C) > zeroFloat) {
                 *(f32*)(e + 0x37C) -= gClockFrameStep;
             }
             if (*(s32*)e == 0) {
@@ -6693,7 +6700,8 @@ void do_enemies(void)
             }
 
             state = *(s32*)(e + 0xB4);
-            if (state == 1) {
+            switch (state) {
+            case 1:
                 if (*(s32*)e == gBossType) {
                     shown++;
                     goto tail;
@@ -6726,12 +6734,12 @@ void do_enemies(void)
                 ProcessSkinFX((f32*)(e + 0x1E4), *(void**)(e + 0x64), 0);
                 UpdateObjWorldMat((f32*)(e + 0x4));
                 goto tail;
-            } else if (state == 6) {
+            case 6:
                 fn_8005A338((f32*)(e + 0x4), (f32*)(e + 0x22C),
                             (f32*)(e + 0x220));
                 shown++;
                 goto tail;
-            } else if (state == 8) {
+            case 8:
                 fn_8005A338((f32*)(e + 0x4), (f32*)(e + 0x22C),
                             (f32*)(e + 0x220));
                 shown++;
@@ -6748,7 +6756,7 @@ void do_enemies(void)
                     if (alpha < 0xFF) {
                         MBTreeSetAlpha(*(struct mbnode**)(e + 0x64), alpha, 1);
                         *(s32*)(e + 0x388) = alpha + gFrameTicks * 4;
-                        *(f32*)(e + 0x38) = (f32)(lbl_80346818 * gClockFrameStep +
+                        *(f32*)(e + 0x38) = (f32)(bossRise * gClockFrameStep +
                                                   *(f32*)(e + 0x38));
                         UpdateObjWorldMat((f32*)(e + 0x4));
                         goto sync;
@@ -6802,6 +6810,9 @@ void do_enemies(void)
                     *(f32*)(n + 0x34) = *(f32*)(e + 0x38);
                     *(f32*)(n + 0x38) = *(f32*)(e + 0x3C);
                 }
+                break;
+            default:
+                break;
             }
 
         tail:
@@ -6810,39 +6821,39 @@ void do_enemies(void)
             if (*(s32*)(e + 0x36C) >= *(s32*)(e + 0x368)) {
                 *(s32*)(e + 0x36C) -= *(s32*)(e + 0x368);
             }
-            *(f32*)(e + 0x25C) = (f32)(lbl_80346940 * *(f32*)(e + 0x25C));
-            *(f32*)(e + 0x260) = (f32)(lbl_80346940 * *(f32*)(e + 0x260));
-            *(f32*)(e + 0x264) = (f32)(lbl_80346940 * *(f32*)(e + 0x264));
+            *(f32*)(e + 0x25C) = (f32)(pushDamping * *(f32*)(e + 0x25C));
+            *(f32*)(e + 0x260) = (f32)(pushDamping * *(f32*)(e + 0x260));
+            *(f32*)(e + 0x264) = (f32)(pushDamping * *(f32*)(e + 0x264));
             {
                 f32 v = *(f32*)(e + 0x25C);
                 *(u32*)&v &= 0x7FFFFFFF;
-                if (v < lbl_80346878) {
-                    *(f32*)(e + 0x25C) = 0.0f;
+                if (v < pushEpsilon) {
+                    *(f32*)(e + 0x25C) = zeroFloat;
                 }
             }
             {
                 f32 v = *(f32*)(e + 0x260);
                 *(u32*)&v &= 0x7FFFFFFF;
-                if (v < lbl_80346878) {
-                    *(f32*)(e + 0x260) = 0.0f;
+                if (v < pushEpsilon) {
+                    *(f32*)(e + 0x260) = zeroFloat;
                 }
             }
             {
                 f32 v = *(f32*)(e + 0x264);
                 *(u32*)&v &= 0x7FFFFFFF;
-                if (v < lbl_80346878) {
-                    *(f32*)(e + 0x264) = 0.0f;
+                if (v < pushEpsilon) {
+                    *(f32*)(e + 0x264) = zeroFloat;
                 }
             }
-            if (*(f32*)(e + 0x260) > 0.0f) {
-                f32 nv = *(f32*)(e + 0x260) - lbl_803469C0 * gClockFrameStep;
+            if (*(f32*)(e + 0x260) > zeroFloat) {
+                f32 nv = *(f32*)(e + 0x260) - verticalDamping * gClockFrameStep;
                 *(f32*)(e + 0x260) = nv;
-                if (nv < 0.0f) {
-                    *(f32*)(e + 0x260) = 0.0f;
+                if (nv < zeroFloat) {
+                    *(f32*)(e + 0x260) = zeroFloat;
                 }
             }
             if (gBossType < 0) {
-                if ((f64)lbl_803447D8 == lbl_80346810) {
+                if ((f64)lbl_803447D8 == zero) {
                     if (*(u32*)(e + 0x64) != 0) {
                         u8* n = *(u8**)(e + 0x64);
                         MBTreeSetFlags((struct mbnode*)n, 8, 0);
@@ -6861,16 +6872,16 @@ void do_enemies(void)
                     if (*(u32*)(e + 0x64) != 0) {
                         u8* n = *(u8**)(e + 0x64);
                         MBTreeClearFlags((struct mbnode*)n, 8, 0);
-                        *(f32*)(n + 0x40) = lbl_803468F0;
-                        *(f32*)(n + 0x44) = lbl_803468F0;
-                        *(f32*)(n + 0x48) = lbl_803468F0;
+                        *(f32*)(n + 0x40) = skinOne;
+                        *(f32*)(n + 0x44) = skinOne;
+                        *(f32*)(n + 0x48) = skinOne;
                     }
                     if (*(u32*)(e + 0x1DC) != 0) {
                         u8* n = *(u8**)(e + 0x1DC);
                         MBTreeClearFlags((struct mbnode*)n, 8, 0);
-                        *(f32*)(n + 0x40) = lbl_803468F0;
-                        *(f32*)(n + 0x44) = lbl_803468F0;
-                        *(f32*)(n + 0x48) = lbl_803468F0;
+                        *(f32*)(n + 0x40) = skinOne;
+                        *(f32*)(n + 0x44) = skinOne;
+                        *(f32*)(n + 0x48) = skinOne;
                     }
                 }
             }
