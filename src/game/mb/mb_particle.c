@@ -163,8 +163,7 @@ extern const f64 lbl_803491A0;
 extern const f64 lbl_803491F8;
 static f32  getSinCos(f32 ang, f32* sinOut);
 static void DrawPsysSub(f32* pos, u32 color, s32 c, s32 sx, s32 sy, f32 size);
-static void setupNewPMode_800CDCE4(f32 d0, f32 a0, f32 b0, f32 est, f32 elife,
-                          f32 efade, f32 pl, f32 el, Psys* p);
+static void setupNewPMode_800CDCE4(Psys* p);
 static void setupParms(Psys* p);
 static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wp, f32* over);
 static Psys* allocPsys(s32 flag);
@@ -905,7 +904,7 @@ s32 MBDrawPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
     }
     case 1:
         setupParms(p);
-        setupNewPMode_800CDCE4(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, p);
+        setupNewPMode_800CDCE4(p);
         p->p_oldest_ptr = NULL;
         p->p_oldest_age = 0;
         p->p_newest_age = 0;
@@ -1479,8 +1478,15 @@ static void setupParms(Psys* p) {
  * Wires dir_func/pos_func/ppos_func based on the emit distribution and
  * animation flags, then carves the per-psys buffers out of the block pool (or
  * the world arena). Giant (NonMatching); documented flow. */
-static void setupNewPMode_800CDCE4(f32 d0, f32 a0, f32 b0, f32 est, f32 elife,
-                          f32 efade, f32 pl, f32 el, Psys* p) {
+static void setupNewPMode_800CDCE4(Psys* p) {
+    f32 d0;
+    f32 a0;
+    f32 b0;
+    f32 est = lbl_80349154;
+    f32 elife;
+    f32 efade;
+    f32 pl = lbl_80349154;
+    f32 el;
     char* strs = (char*)lbl_80116D70;
     s32*  pi = (s32*)psysInfo;
     u16 fl = p->flags;
