@@ -783,7 +783,7 @@ extern unsigned int lbl_80240FB0[];
 extern int lbl_8034429C;
 extern long long lbl_80344278;   /* previous OSGetTime sample */
 extern long long lbl_80344280;   /* accumulated tick delta */
-extern int sMainTimerTicks;
+extern u32 sMainTimerTicks;
 extern float lbl_80344220;       /* measured frame rate */
 extern void ProcessEffects(void);
 
