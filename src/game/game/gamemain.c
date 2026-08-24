@@ -4424,6 +4424,324 @@ extern void InitEffects(void);
 extern void InitItemInfoData(void);
 extern void CritterInitAllMoves(void);
 
+extern f64  lbl_80346C10;
+extern f64  lbl_80346C38;
+extern f64  lbl_80346C18;
+extern f64  lbl_80346C20;
+extern f64  lbl_80346C28;
+extern f64  lbl_80346C40;
+extern f64  lbl_80346C58;
+extern f64  lbl_80346C70;
+extern f64  lbl_80346C78;
+extern f64  lbl_80346C88;
+extern f32  lbl_80346C4C;
+extern f32  lbl_80346C50;
+extern f32  lbl_80346C80;
+extern f32  lbl_80346C84;
+extern char lbl_80346C48[8];
+extern s32  lbl_803447B4;
+extern void* lbl_803447B0;
+extern u8*  gBossObj;
+extern s32  gBossDead;
+extern f32  gClockTime;
+extern u8   Effects[];
+extern void DoGoodWizard(void);
+extern void ProcessSpewItems(void);
+extern s32  CamGetPlayerAvgPos(f32* pos, s32 mode);
+extern void StartEnterFX(f32* pos);
+extern void fn_8009D288(f32* pos);
+extern void fn_80067AE0(f32 a, f32 b);
+extern s32  sndFxQueUpdate(void);
+extern void* MBOX_FindObject(char* name);
+extern void MBSetObject(void* a, void* b);
+extern s32  DeleteEffect(s32 idx, s32 mode);
+extern void fn_8009C9DC(s32 mode, void* pos);
+
+/* 0x8005674C - per-frame world state update (fades, boss timers, wobjs). */
+#pragma dont_inline on
+void world_update(void)
+{
+    char* strs = lbl_80112788;
+    u8* tbl = (u8*)lbl_80257680;
+    s32 cond;
+    s32 i;
+    s32 off;
+    s32 kill;
+    f32 d;
+    f32 pos[3];
+    f32 a;
+
+    cond = 1;
+    if (lbl_803447B8 != 0 && *(s32*)(gCurLevel + 0x48) == 0) {
+        cond = 0;
+    }
+    lbl_8034488C = cond ? 1 : 0;
+    if (gGameBusy | gGameplayPauseTimer) {
+        return;
+    }
+    DoWorldAnimation();
+    SetupDynGrid();
+    CreateDynobjGrid();
+    if (gBossType >= 0 && gGameMode == 0x4010) {
+        if (good_wiz_state) {
+            DoGoodWizard();
+        }
+        ProcessSpewItems();
+    }
+    if (gGameMode == 0x4010 || gGameMode == 0x400c) {
+        if (lbl_803447B8 != 0) {
+            d = sMusicFadeBase - lbl_80344860;
+            if (d < lbl_80346C10) {
+                a = (f32)(lbl_80346C18 *
+                          (lbl_80346C20 - (f32)(lbl_80346C28 * d)));
+                MBCompVertScaleAddUV(lbl_8034486C, 0, a, a, lbl_80346C30,
+                                     lbl_80346BF0, lbl_80346BF0);
+            } else {
+                if (!lbl_80344868) {
+                    u8* lv = gCurLevel;
+                    u8* hdr = lv + 0x70;
+                    s32 col = 0;
+
+                    if (*(f32*)(lv + 0x80) > lbl_80346BF0) {
+                        col = (hdr[1] << 16) | (hdr[2] << 8) | hdr[3];
+                    }
+                    MBCompVertScaleAddUV(
+                        col, hdr[0], *(f32*)(hdr + 0xc), *(f32*)(hdr + 0x10),
+                        (f32)(lbl_80346C10 * *(f32*)(hdr + 0x14)),
+                        (f32)(lbl_80346C10 * *(f32*)(hdr + 0x18)),
+                        (f32)(lbl_80346C38 * *(f32*)(hdr + 8)));
+                    lbl_80344868 = 1;
+                }
+                if (lbl_803447B8 == 1) {
+                    lbl_803447B8 = 2;
+                    if (CamGetPlayerAvgPos(pos, 2)) {
+                        StartEnterFX(pos);
+                        fn_8009D288(pos);
+                    } else {
+                        StartEnterFX(gDefaultPlayerPosition);
+                        fn_8009D288(gDefaultPlayerPosition);
+                    }
+                }
+                if (d >= lbl_80346C40 && gScriptedCameraState > 1) {
+                    gScriptedCameraState = 1;
+                }
+            }
+        } else {
+            if (!lbl_80344868) {
+                u8* lv = gCurLevel;
+                u8* hdr = lv + 0x70;
+                s32 col = 0;
+
+                if (*(f32*)(lv + 0x80) > lbl_80346BF0) {
+                    col = (hdr[1] << 16) | (hdr[2] << 8) | hdr[3];
+                }
+                MBCompVertScaleAddUV(
+                    col, hdr[0], *(f32*)(hdr + 0xc), *(f32*)(hdr + 0x10),
+                    (f32)(lbl_80346C10 * *(f32*)(hdr + 0x14)),
+                    (f32)(lbl_80346C10 * *(f32*)(hdr + 0x18)),
+                    (f32)(lbl_80346C38 * *(f32*)(hdr + 8)));
+                lbl_80344868 = 1;
+            }
+        }
+    }
+    {
+        u8* lv = gCurLevel;
+
+        cond = 0;
+        if ((s8)lv[8] == (s8)lbl_80346C48[0] &&
+            ((s8)lv[9] == 0 || (s8)lv[9] == (s8)lbl_80346C48[1]) &&
+            ((s8)lv[10] == 0 || (s8)lv[10] == (s8)lbl_80346C48[2]) &&
+            ((s8)lv[11] == 0 || (s8)lv[11] == (s8)lbl_80346C48[3])) {
+            cond = 1;
+        }
+    }
+    if (cond && gGameMode == 0x4010 && gBossObj != NULL &&
+        *(s32*)(gBossObj + 8) != 0) {
+        {
+            u32 w = (u32)FindWORLDOBJ(strs + 0xd0);
+
+            if (w != 0 && *(u32*)(w + 0x28) != 0) {
+                *(s32*)(*(u32*)(w + 0x28) + 0x60) |= 2;
+            } else {
+                ErrorPrintf(strs + 0xdc);
+            }
+        }
+        {
+            u32 w = (u32)FindWORLDOBJ(strs + 0xfc);
+
+            if (w != 0 && *(u32*)(w + 0x28) != 0) {
+                *(s32*)(*(u32*)(w + 0x28) + 0x60) |= 2;
+            } else {
+                ErrorPrintf(strs + 0x108);
+            }
+        }
+    }
+    {
+        f64 k1 = lbl_80346C58;
+        f64 k2 = lbl_80346C60;
+
+        for (i = 0, off = 0; i < lbl_8034484C; i++, off += 4) {
+            u8* row = tbl + off;
+            u32 wo = *(u32*)(row + 0x4c);
+            u32 node;
+            f32* timer;
+
+            if (wo == 0) {
+                continue;
+            }
+            node = *(u32*)(wo + 0x28);
+            if (node == 0) {
+                continue;
+            }
+            if (*(s32*)(node + 0x60) & 2) {
+                timer = (f32*)(row + 0x5c);
+                if (sMusicFadeBase >= *timer) {
+                    fn_80067AE0(lbl_80346C4C, lbl_80346C50);
+                    MBTreeClearFlags((void*)*(s32*)(wo + 0x28), 2, 0);
+                    *timer = (f32)(k1 + sMusicFadeBase);
+                }
+            } else {
+                timer = (f32*)(row + 0x5c);
+                if (sMusicFadeBase >= *timer) {
+                    MBTreeSetFlags((void*)node, 2, 0);
+                    *timer = (f32)(k2 + sMusicFadeBase +
+                                   Random(lbl_80346C68));
+                }
+            }
+        }
+    }
+    if (gGameMode == 0x4010 && lbl_803447B4 != 0) {
+        if (lbl_80344864 == lbl_80346C70) {
+            lbl_80344864 = sMusicFadeBase;
+            if (gBossType != 0x2c) {
+                TransitionBlitShow(0);
+            }
+            if (lbl_803447B0 != NULL) {
+                MBBlitSetAlpha(lbl_803447B0, 255);
+            }
+            MBCompVertScaleAddUV(0, 0, lbl_80346BF0, lbl_80346BF0,
+                                 lbl_80346BF0, lbl_80346BF0, lbl_80346BF0);
+        } else {
+            d = sMusicFadeBase - lbl_80344864;
+            if (d < lbl_80346C78) {
+                if (lbl_803447B0 != NULL) {
+                    MBBlitSetAlpha(lbl_803447B0,
+                                   (s32)(lbl_80346C18 *
+                                         (lbl_80346C20 - lbl_80346C28 * d)));
+                }
+                sLevelAmbientScale = (f32)(lbl_80346C20 - d);
+            } else {
+                if (lbl_803447B0 != NULL) {
+                    MBBlitSetAlpha(lbl_803447B0, 0);
+                }
+                sLevelAmbientScale = lbl_80346C80;
+                if (!sndFxQueUpdate()) {
+                    lbl_803447B4 = 2;
+                }
+            }
+        }
+    }
+    PrintWorldMemSizes();
+    if (gBossDead) {
+        lbl_8034489C = 99;
+    }
+    switch (lbl_8034489C) {
+    case 2:
+        if (lbl_80344898 == lbl_80346C70) {
+            switch (gBossType) {
+            case 0x29:
+            case 0x2a:
+                lbl_80344898 = (f32)(lbl_80346C20 + sMusicFadeBase);
+                break;
+            case 0x23:
+                lbl_80344898 = (f32)(lbl_80346C20 + sMusicFadeBase);
+                break;
+            default:
+                lbl_80344898 = (f32)(lbl_80346C40 + sMusicFadeBase);
+                break;
+            }
+        } else if (sMusicFadeBase >= lbl_80344898) {
+            lbl_8034489C = 3;
+            lbl_80344898 = lbl_80346BF0;
+        }
+        fn_80067AE0(lbl_80346C4C, lbl_80346C84);
+        break;
+    case 3:
+        fn_80067AE0(lbl_80346C4C, lbl_80346C84);
+        break;
+    case 4:
+        lbl_8034489C = 5;
+        lbl_80344898 = sMusicFadeBase;
+        break;
+    case 5:
+        kill = 0;
+        d = sMusicFadeBase - lbl_80344898;
+        switch (gBossType) {
+        case 0x27:
+        case 0x28:
+            if ((f32)(lbl_80346C88 - d) <= lbl_80346C70) {
+                kill = 1;
+                *(f32*)(gBossObj + 0xac8) = lbl_80346BF0;
+            }
+            break;
+        case 0x2a:
+            if ((f32)(lbl_80346C88 - d) <= lbl_80346C70) {
+                kill = 1;
+                *(f32*)(gBossObj + 0xac8) = lbl_80346BF0;
+            }
+            break;
+        case 0x24:
+            if ((f32)(lbl_80346C88 - d) <= lbl_80346C70) {
+                kill = 1;
+            }
+            break;
+        case 0x26:
+            if ((f32)(lbl_80346C88 - d) <= lbl_80346C70) {
+                void* found = MBOX_FindObject(strs + 0x128);
+                u32 o = *(u32*)(gBossObj + 0xcc);
+
+                if (o != 0 && *(u32*)(o + 0x78) != 0) {
+                    MBSetObject((void*)*(s32*)(o + 0x78), found);
+                }
+                *(u16*)(gBossObj + 0xac6) = 0;
+                lbl_8034489C = 6;
+            }
+            break;
+        }
+        if (kill) {
+            if (lbl_80344894 >= 0) {
+                lbl_80344894 = DeleteEffect(lbl_80344894, 1);
+                fn_8009C9DC(3, gBossObj + 0x4c);
+                fn_8009C9DC(4, gBossObj + 0x4c);
+            }
+            lbl_8034489C = 6;
+        }
+        if (lbl_80344890 >= 0) {
+            u8* e = Effects + lbl_80344890 * 0xf0;
+            f32 dt = *(f32*)(e + 0x68) - gClockTime;
+
+            if (dt < lbl_80346C40) {
+                if (!(*(s32*)(e + 0x64) & 0x4020)) {
+                    u32 o = *(u32*)(e + 0x14);
+
+                    if (o != 0) {
+                        s32 al = (s32)(lbl_80346C90 * dt);
+
+                        while (al > 255) {
+                            al -= 255;
+                        }
+                        MBTreeSetAlpha(
+                            (void*)*(s32*)(*(s32*)(o + 0x78) + 0x78), al, 2);
+                    }
+                }
+            }
+        }
+        break;
+    }
+}
+
+#pragma dont_inline reset
+
 void fn_80057024(void)
 {
     u8* tbl = (u8*)lbl_80257680;
