@@ -1770,13 +1770,18 @@ s32 memCardErrorPrompt(const char* msg)
     switch (r) {
     case 0:
         return 1;
-    case 1:
-        lbl_80344A24 = 0;
-        lbl_80344A18 = -1;
-        lbl_80344A14 = -1;
-        lbl_80344A20 = 0;
-        r = 0;
+    case 1: {
+        register s32 zero = 0;
+        lbl_80344A24 = zero;
+        {
+            register s32 neg = -1;
+            r = zero;
+            lbl_80344A18 = neg;
+            lbl_80344A14 = neg;
+        }
+        lbl_80344A20 = zero;
         break;
+    }
     }
     return r;
 }
