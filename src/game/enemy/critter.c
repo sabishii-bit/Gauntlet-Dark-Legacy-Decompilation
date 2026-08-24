@@ -294,6 +294,25 @@ extern void  SafeRockSetup(void);
 extern s32   lbl_802897B8[];          /* 0x802897B8 skinfx palette table          */
 extern char  lbl_801121C0[];          /* 0x801121C0 killfx overflow message       */
 extern f32   lbl_80346570;
+extern f32   lbl_8034464C;
+extern u32   sFlags;
+extern s32   gBossDead;
+extern s32   gGameOptions[];
+extern f64   lbl_803465C8;
+extern f64   lbl_803465D0;
+extern f64   lbl_803465D8;
+extern const char lbl_803465E0[];
+extern const char lbl_803465E4[];
+extern const char lbl_803465E8[];
+extern char  lbl_80112104[];
+extern char  lbl_8011213C[];
+extern char *strcpy(char *dst, const char *src);
+extern f32   acosf(f32 value);
+extern void  camera_request_change(s32 value, s32 mode);
+extern s32   DoAnimateTreeFrame(void *tree, s32 sequence, s32 frame,
+                                s32 recurse);
+extern void  DrawText(s32 x, s32 y, s32 font, u32 color,
+                      const char *format, ...);
 
 /* -- CRITTER.OBJ internal roster (forward declarations) -- */
 struct CritterDamageDef;
@@ -3052,30 +3071,360 @@ s32 CritterGolemAI(Critter *c)
  * coordinated root/child animation pass. */
 s32 CritterBossAI(Critter *c)
 {
+    char moveName[32];
     Critter *child;
-    f32 maximum;
+    CritterMove *move;
+    CritterMove *childMove;
+    u8 *header;
+    u8 *surface;
+    f32 best;
     f32 speed;
+    f32 ratio;
+    f32 duration;
+    f32 angle;
+    f32 distance;
+    f32 dot;
+    f32 clamped;
+    s32 frame;
+    s32 childFrame;
+    s32 moveIndex;
+    s32 moveType;
+    s32 selected;
+    s32 linkedChildren;
+    s32 done;
+    s32 i;
+    f64 one;
 
     CritterGetTargetPlayers(c);
-    maximum = 1.0f + *(f32 *)((u8 *)c->hdr + 0xE4) *
-                       *(f32 *)((u8 *)gCurLevel + 0xAC);
-    speed = 1.0f - c->health / maximum;
-    speed = 0.8f + speed * 0.4f;
-    *(f32 *)((u8 *)c + 0x110) = speed;
-    *(f32 *)((u8 *)c + 0x114) = 1.0f / speed;
+    header = (u8 *)c->hdr;
+    one = lbl_80346490;
+    ratio = c->health /
+            (one + *(f32 *)(header + 0xE4) *
+                       *(f32 *)((u8 *)gCurLevel + 0xAC));
+    speed = one - ratio;
+    speed = lbl_803464E8 + speed * lbl_803464EC;
+    c->invRateScale = one / speed;
+    c->rateScale = speed;
+
     for (child = c->next; child != NULL; child = child->next) {
         CritterGetTargetPlayers(child);
-        *(f32 *)((u8 *)child + 0x110) = speed;
-        *(f32 *)((u8 *)child + 0x114) = 1.0f / speed;
+        header = (u8 *)child->hdr;
+        ratio = child->health /
+                (one + *(f32 *)(header + 0xE4) *
+                           *(f32 *)((u8 *)gCurLevel + 0xAC));
+        speed = one - ratio;
+        speed = lbl_803464E8 + speed * lbl_803464EC;
+        child->invRateScale = one / speed;
+        child->rateScale = speed;
     }
+
+    header = (u8 *)c->hdr;
     CritterResolveMultipleTargets(c);
-    if (c->state == 0 && c->targetCount != 0) {
-        c->state = 3;
-        for (child = c->next; child != NULL; child = child->next) {
-            child->state = 3;
+    CritterProcessSafeRocks();
+
+    if (c->state == 0) {
+        if ((f64)lbl_8034464C == lbl_80346488) {
+            if ((*(u32 *)(header + 0x5C) & 0x80) == 0) {
+                lbl_8034464C = (f32)(lbl_80346478 + (f64)sMusicFadeBase);
+            }
+        } else if ((f64)sMusicFadeBase >= (f64)lbl_8034464C) {
+            best = lbl_80346470;
+            for (i = 0; i < c->targetCount; i++) {
+                f32 candidate = *(f32 *)((u8 *)c + 0x134 + i * 0x24);
+                if (candidate > best) {
+                    best = candidate;
+                }
+            }
+            if ((f64)best <= lbl_80346488) {
+                best = lbl_803464C0;
+            }
+            distance = *(f32 *)(header + 0xEC);
+            if ((f64)distance <= lbl_80346488 || best < distance) {
+                c->state = 3;
+                for (child = c->next; child != NULL; child = child->next) {
+                    child->state = 3;
+                }
+                if (*(s16 *)(*(u8 **)(header + 0x120) + 0x20) == 4) {
+                    BossActivate(c, 1);
+                }
+            }
         }
     }
-    return CritterGolemAI(c);
+
+    if (c->unk128 >= 0) {
+        camera_request_change(30, 2);
+    }
+
+    moveIndex = c->curmove;
+    if (moveIndex < 0) {
+        moveIndex = 0;
+    }
+    header = (u8 *)c->hdr;
+    move = (CritterMove *)(*(u8 **)(header + 0x124) + moveIndex * 0x90);
+
+    if ((sFlags & 0x80) != 0) {
+        CritterGetNextMove(c);
+    } else {
+        c->nextmove = -1;
+        c->unk11E = -1;
+        c->unk126 = -1;
+        CritterGetDoAction(c);
+        if (c->nextmove < 0) {
+            CritterLookForCriticalMove(c);
+        }
+        if (c->nextmove < 0) {
+            CritterChildCriticalMove(c);
+            linkedChildren = 0;
+            for (child = c->next; child != NULL; child = child->next) {
+                child->nextmove = -1;
+                child->unk11E = -1;
+                child->unk126 = -1;
+                if (c->unk11C >= 0) {
+                    if (c->unk11C < *(s16 *)((u8 *)child->hdr + 0x114)) {
+                        child->unk11C = c->unk11C;
+                        child->unk120 = c->unk120;
+                        child->nextmove = *(s16 *)(
+                            *(u8 **)((u8 *)child->hdr + 0x128) +
+                            child->unk11C * 0x50 + child->unk120 * 2 + 0x20);
+                    }
+                } else if (c->nextmove < 0) {
+                    CritterChildGetPattern(child);
+                    if (child->nextmove < 0) {
+                        CritterChildCriticalMove(child);
+                    }
+                    selected = child->nextmove;
+                    if (selected < 0) {
+                        selected = -1;
+                        if ((f64)child->rateScale < lbl_803465C0) {
+                            selected = CritterFindMoveType(child, 0x21, 0);
+                        }
+                        if (selected < 0) {
+                            selected = CritterFindMoveType(child, 0x20, 1);
+                        }
+                        child->nextmove = (s16)selected;
+                    } else if (child->unk11C >= 0) {
+                        linkedChildren++;
+                    } else {
+                        childMove = (CritterMove *)(
+                            *(u8 **)((u8 *)child->hdr + 0x124) +
+                            selected * 0x90);
+                        if (childMove->type >= 0x7F) {
+                            linkedChildren++;
+                        }
+                    }
+                }
+            }
+            if (linkedChildren != 0) {
+                c->nextmove = (s16)CritterFindMoveType(c, 1, 1);
+            }
+        }
+        if (c->nextmove < 0 && move->type < 0x7F) {
+            CritterLookForReady(c);
+        }
+        if (c->nextmove < 0) {
+            selected = -1;
+            if ((f64)c->rateScale < lbl_803465C0) {
+                selected = CritterFindMoveType(c, 0x21, 0);
+            }
+            if (selected < 0) {
+                selected = CritterFindMoveType(c, 0x20, 1);
+            }
+            c->nextmove = (s16)selected;
+        }
+    }
+
+    CritterAnimate(c);
+    if (c->curmove < 0) {
+        c->curmove = 0;
+    }
+    move = (CritterMove *)(*(u8 **)((u8 *)c->hdr + 0x124) +
+                           c->curmove * 0x90);
+    frame = (s32)*(f32 *)((u8 *)c + 0x90);
+
+    for (child = c->next; child != NULL; child = child->next) {
+        if (child->state == 1) {
+            child->nextmove = (s16)CritterFindMoveType(child, 0x11, 1);
+            CritterAnimate(child);
+        } else if ((move->type == 1 || c->unk11C >= 0) &&
+                   (lbl_8034489C < 2 || lbl_8034489C > 3) &&
+                   (child->curmove >= 0 || child->nextmove >= 0)) {
+            CritterAnimate(child);
+        } else {
+            DoAnimateTreeFrame((u8 *)child + 0x74, *(s16 *)((u8 *)c + 0x86),
+                               frame, 1);
+            child->movedone = c->movedone;
+            child->curmove = -1;
+            child->unk11C = -1;
+            child->unk120 = -1;
+            if (move->type == 1) {
+                child->nextmove = 0;
+            }
+        }
+    }
+
+    duration = *(f32 *)((u8 *)move + 0x8C);
+    done = AnimDone(c->sound);
+    if ((f64)duration > lbl_80346488) {
+        if (move->type == 0x11) {
+            if (done == 0) {
+                c->rate = sMusicFadeBase + duration;
+            } else if ((f64)sMusicFadeBase >= (f64)c->rate &&
+                       (sFlags & 0x80) == 0) {
+                CritterDelInst(c);
+                return 0;
+            } else if ((sFlags & 0x80) == 0) {
+                f32 remaining = c->rate - sMusicFadeBase;
+                gBossDead = 1;
+                if ((f64)remaining < lbl_803464F8) {
+                    s32 fade = 255 -
+                        (s32)(lbl_80346478 * (lbl_803465C8 * remaining));
+                    MBTreeSetAlpha(c->anim, fade, 1);
+                }
+            }
+        } else if (done == 0 || (f64)c->rate == lbl_80346488) {
+            c->rate = sMusicFadeBase + duration;
+        }
+    } else {
+        c->rate = lbl_80346470;
+    }
+
+    moveType = move->type;
+    if (moveType == 0x10) {
+        if (move->link < 0 && done != 0 && lbl_8034489C == 1) {
+            lbl_8034489C = 2;
+        }
+    } else if (moveType == 0x22) {
+        if (done != 0 && lbl_8034489C == 3) {
+            lbl_8034489C = 4;
+        }
+    }
+    if (lbl_8034489C >= 2 && lbl_8034489C < 4) {
+        c->unkABE = 0xFF;
+    }
+
+    CritterMoveSetup(c, move);
+    CritterActivate(c, move, frame);
+    CritterTranslate(c, move);
+    CritterRotate(c, move);
+    CritterLookAtPlayer(c, move);
+
+    for (child = c->next; child != NULL; child = child->next) {
+        childMove = NULL;
+        if (child->curmove >= 0) {
+            childFrame = (s32)*(f32 *)((u8 *)child + 0x90);
+            childMove = (CritterMove *)(
+                *(u8 **)((u8 *)child->hdr + 0x124) + child->curmove * 0x90);
+            CritterMoveSetup(child, childMove);
+            CritterActivate(child, childMove, childFrame);
+            CritterTranslate(child, childMove);
+            CritterRotate(child, childMove);
+        }
+        CritterLookAtPlayer(child, childMove);
+    }
+
+    if (FloorCollide(c->vel, 0, 0, 2, lbl_803464B8,
+                     lbl_80346588, lbl_8034658C) != NULL) {
+        c->vel[1] = *(f32 *)(gFloorCollisionResult + 0x34) +
+                    *(f32 *)((u8 *)c->hdr + 0xB0);
+        if (c->state == 0 && (f64)lbl_8034464C == lbl_80346488 &&
+            (*(u32 *)((u8 *)c->hdr + 0x5C) & 0x80) != 0) {
+            s32 surfaceFlags = 0;
+            surface = *(u8 **)(gFloorCollisionResult + 0x44);
+            if (surface != NULL) {
+                surfaceFlags = (s8)surface[0x16];
+                if (*(u8 **)(surface + 0x18) != NULL) {
+                    surfaceFlags |= (s8)(*(u8 **)(surface + 0x18))[0x16];
+                }
+            }
+            if ((surfaceFlags & 0x10) != 0) {
+                lbl_8034464C = (f32)(lbl_80346478 + (f64)sMusicFadeBase);
+                BossActivate(c, 0);
+            }
+        }
+        if (c->shadow != NULL) {
+            CopyMat3((f32 *)gFloorCollisionResult, c->shadow);
+            *(f32 *)((u8 *)c->shadow + 0x30) = c->vel[0];
+            *(f32 *)((u8 *)c->shadow + 0x34) = c->vel[1];
+            *(f32 *)((u8 *)c->shadow + 0x38) = c->vel[2];
+            *(f32 *)((u8 *)c->shadow + 0x34) =
+                (f32)(lbl_803464B0 +
+                      (f64)*(f32 *)(gFloorCollisionResult + 0x34));
+        }
+    }
+
+    if ((sFlags & 0x10) != 0 && gGameOptions[8] != 0) {
+        distance = lbl_80346480;
+        angle = distance;
+        if (c->targetCount > 0) {
+            angle = *(f32 *)((u8 *)c + 0x134);
+            if ((f64)angle >= lbl_80346510) {
+                angle = distance;
+            }
+            dot = *(f32 *)((u8 *)c + 0x130);
+            if ((f64)dot < lbl_80346550) {
+                clamped = (f32)lbl_80346550;
+            } else if ((f64)dot > lbl_80346490) {
+                clamped = (f32)lbl_80346490;
+            } else {
+                clamped = dot;
+            }
+            distance = (f32)(lbl_803465D0 *
+                             (lbl_803465D8 * (f64)acosf(clamped)));
+        }
+        if (c->unk11C >= 0) {
+            sprintf(moveName, lbl_803465E0, c->unk11C);
+        } else {
+            strcpy(moveName, lbl_803465E4);
+        }
+        DrawText(8, 214, 0, 0xFFFFFF, lbl_80112104, moveName,
+                 (u8 *)move + 0x10, (s32)c->health,
+                 (s32)(lbl_80346594 * c->rateScale),
+                 (s32)(lbl_803464F8 + *(f32 *)((u8 *)c + 0x90)),
+                 c->unk124, (s32)(lbl_803464F8 + angle),
+                 (s32)(lbl_803464F8 + distance));
+
+        i = 0;
+        for (child = c->next; child != NULL; child = child->next, i++) {
+            distance = lbl_80346480;
+            angle = distance;
+            if (child->targetCount > 0) {
+                angle = *(f32 *)((u8 *)child + 0x134);
+                if ((f64)angle >= lbl_80346510) {
+                    angle = distance;
+                }
+                dot = *(f32 *)((u8 *)child + 0x130);
+                if ((f64)dot < lbl_80346550) {
+                    dot = (f32)lbl_80346550;
+                } else if ((f64)dot > lbl_80346490) {
+                    dot = (f32)lbl_80346490;
+                }
+                distance = (f32)(lbl_803465D0 *
+                                 (lbl_803465D8 * (f64)acosf(dot)));
+            }
+            if (child->unk11C >= 0) {
+                sprintf(moveName, lbl_803465E0, child->unk11C);
+            } else {
+                strcpy(moveName, lbl_803465E4);
+            }
+            childMove = NULL;
+            childFrame = -1;
+            if (child->curmove >= 0) {
+                childMove = (CritterMove *)(
+                    *(u8 **)((u8 *)child->hdr + 0x124) +
+                    child->curmove * 0x90);
+                childFrame = (s32)*(f32 *)((u8 *)child + 0x90);
+            }
+            DrawText(8, 224 + i * 10, 0, 0xFFFFFF, lbl_8011213C, i,
+                     moveName,
+                     childMove != NULL ? (char *)childMove + 0x10
+                                       : (char *)lbl_803465E8,
+                     (s32)child->health,
+                     (s32)(lbl_80346594 * child->rateScale), childFrame,
+                     child->unk124, (s32)(lbl_803464F8 + angle),
+                     (s32)(lbl_803464F8 + distance));
+        }
+    }
+    return 1;
 }
 /* 0x8003A73C -- collect the level's safe rocks once, then count down each
  * reactivation timer and restore the corresponding item when it expires. */
