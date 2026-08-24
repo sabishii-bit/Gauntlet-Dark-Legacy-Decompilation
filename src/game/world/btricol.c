@@ -50,6 +50,7 @@ extern const f32 lbl_80345D90;
 extern const f64 lbl_80345D98;
 extern const f64 lbl_80345DA0;
 extern const f64 lbl_80345DA8;
+extern const f32 lbl_80345DB0;
 extern f64 __frsqrte(f64 value);
 
 /* PSVEC-style helpers in the g3d math library. */
@@ -65,7 +66,7 @@ static void WorldVectorNorm(Vec* out, f32 x, f32 y, f32 z, f32 c,
 static f32  LineLineDist3D2D(Vec* a0, Vec* a1, Vec* out,
                              Vec* b0, Vec* b1, s32 flattenY);
 static f32  LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
-                         Vec* pointA, Vec* dirA, f64 lenB, f64 lenA);
+                         Vec* pointA, Vec* dirA, f32 lenB, f32 lenA);
 static f32  PointLineDist2D(Vec* p0, Vec* p1, Vec* dir, Vec* out);
 static f32  btri_fabsf(f32 x);
 
@@ -243,9 +244,234 @@ static f32 PointLineDist2D(Vec* p0, Vec* p1, Vec* dir, Vec* out) {
 /* ------------------------------------------------------------------ */
 #pragma dont_inline on
 static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
-                        Vec* pointA, Vec* dirA, f64 lenB, f64 lenA) {
-    *out = *pointA;
-    return 0.0f;
+                        Vec* pointA, Vec* dirA, f32 lenB, f32 lenA) {
+    Vec cpB;
+    Vec cpP;
+    Vec dstTmp;
+    Vec cpA;
+    Vec tmpA;
+    Vec tmpB;
+    Vec* endB;
+    Vec* endA;
+    Vec* dst;
+    f32 cx;
+    f32 cy;
+    f32 cz;
+    f32 denom;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 tB;
+    f32 tA;
+    f32 t;
+    f32 inv;
+    f32 dA2;
+    f32 dB2;
+
+    cy = dirB->z * dirA->x - dirB->x * dirA->z;
+    cx = dirB->y * dirA->z - dirB->z * dirA->y;
+    cz = dirB->x * dirA->y - dirB->y * dirA->x;
+    denom = cx * cx + cy * cy;
+    denom = cz * cz + denom;
+    dx = pointA->x - pointB->x;
+    dy = pointA->y - pointB->y;
+    dz = pointA->z - pointB->z;
+    if (denom != lbl_80345D50) {
+        endB = NULL;
+        endA = NULL;
+        inv = (f32)(lbl_80345DA8 / denom);
+        {
+            f32 a1 = cz * (dx * dirA->y);
+            f32 a2 = cx * (dy * dirA->z);
+            f32 a3 = cy * (dz * dirA->x);
+            f32 b1 = dz * (cx * dirA->y);
+            f32 b2 = dx * (cy * dirA->z);
+            f32 b3 = dy * (cz * dirA->x);
+            f32 num = a1 + a2;
+
+            num = a3 + num;
+            num = num - b1;
+            num = num - b2;
+            num = num - b3;
+            tB = inv * num;
+        }
+        if (tB <= lbl_80345D50) {
+            endB = pointB;
+        } else if (tB >= lenB) {
+            tmpB.x = pointB->x + dirB->x * lenB;
+            tmpB.y = pointB->y + dirB->y * lenB;
+            tmpB.z = pointB->z + dirB->z * lenB;
+            endB = &tmpB;
+        }
+        {
+            f32 a1 = cz * (dx * dirB->y);
+            f32 a2 = cx * (dy * dirB->z);
+            f32 a3 = cy * (dz * dirB->x);
+            f32 b1 = dz * (cx * dirB->y);
+            f32 b2 = dx * (cy * dirB->z);
+            f32 b3 = dy * (cz * dirB->x);
+            f32 num = a1 + a2;
+
+            num = a3 + num;
+            num = num - b1;
+            num = num - b2;
+            num = num - b3;
+            tA = inv * num;
+        }
+        if (tA <= lbl_80345D50) {
+            endA = pointA;
+        } else if (tA >= lenA) {
+            tmpA.x = pointA->x + dirA->x * lenA;
+            tmpA.y = pointA->y + dirA->y * lenA;
+            tmpA.z = pointA->z + dirA->z * lenA;
+            endA = &tmpA;
+        }
+        if (endB == NULL && endA == NULL) {
+            goto interior;
+        }
+        if (endB != NULL) {
+            Vec* cp = &cpA;
+
+            t = (endB->y - pointA->y) * dirA->y;
+            t = (endB->x - pointA->x) * dirA->x + t;
+            t = (endB->z - pointA->z) * dirA->z + t;
+            if (t < lbl_80345D50) {
+                cp->x = pointA->x;
+                cp->y = pointA->y;
+                cp->z = pointA->z;
+            } else if (t >= lenA) {
+                cp->x = pointA->x + dirA->x * lenA;
+                cp->y = pointA->y + dirA->y * lenA;
+                cp->z = pointA->z + dirA->z * lenA;
+            } else {
+                cp->x = pointA->x + dirA->x * t;
+                cp->y = pointA->y + dirA->y * t;
+                cp->z = pointA->z + dirA->z * t;
+            }
+            dy = cp->y - endB->y;
+            dx = cp->x - endB->x;
+            dz = cp->z - endB->z;
+            dB2 = dz * dz + (dx * dx + (dy * dy));
+        } else {
+            dB2 = lbl_80345DB0;
+        }
+        if (endA != NULL) {
+            dst = out;
+            if (out == NULL) {
+                dst = &dstTmp;
+            }
+            t = (endA->y - pointB->y) * dirB->y;
+            t = (endA->x - pointB->x) * dirB->x + t;
+            t = (endA->z - pointB->z) * dirB->z + t;
+            if (t < lbl_80345D50) {
+                dst->x = pointB->x;
+                dst->y = pointB->y;
+                dst->z = pointB->z;
+            } else if (t >= lenB) {
+                dst->x = pointB->x + dirB->x * lenB;
+                dst->y = pointB->y + dirB->y * lenB;
+                dst->z = pointB->z + dirB->z * lenB;
+            } else {
+                dst->x = pointB->x + dirB->x * t;
+                dst->y = pointB->y + dirB->y * t;
+                dst->z = pointB->z + dirB->z * t;
+            }
+            dy = dst->y - endA->y;
+            dx = dst->x - endA->x;
+            dz = dst->z - endA->z;
+            dA2 = dz * dz + (dx * dx + (dy * dy));
+        } else {
+            dA2 = lbl_80345DB0;
+        }
+        if (dB2 < dA2) {
+            out->x = endB->x;
+            out->y = endB->y;
+            out->z = endB->z;
+            return dB2;
+        }
+        return dA2;
+    interior:
+        out->x = pointB->x + dirB->x * tB;
+        out->y = pointB->y + dirB->y * tB;
+        out->z = pointB->z + dirB->z * tB;
+        tmpA.x = pointA->x + dirA->x * tA;
+        tmpA.y = pointA->y + dirA->y * tA;
+        tmpA.z = pointA->z + dirA->z * tA;
+        dy = tmpA.y - out->y;
+        dx = tmpA.x - out->x;
+        dz = tmpA.z - out->z;
+        return dz * dz + (dx * dx + (dy * dy));
+    } else {
+        t = dy * dirB->y;
+        t = dx * dirB->x + t;
+        t = dz * dirB->z + t;
+        if (t < lbl_80345D50) {
+            f32 u = (pointB->y - pointA->y) * dirA->y;
+
+            u = (pointB->x - pointA->x) * dirA->x + u;
+            u = (pointB->z - pointA->z) * dirA->z + u;
+            {
+            Vec* cp = &cpP;
+
+            if (u < lbl_80345D50) {
+                cp->x = pointA->x;
+                cp->y = pointA->y;
+                cp->z = pointA->z;
+            } else if (u >= lenA) {
+                cp->x = pointA->x + dirA->x * lenA;
+                cp->y = pointA->y + dirA->y * lenA;
+                cp->z = pointA->z + dirA->z * lenA;
+            } else {
+                cp->x = pointA->x + dirA->x * u;
+                cp->y = pointA->y + dirA->y * u;
+                cp->z = pointA->z + dirA->z * u;
+            }
+            dy = cp->y - pointB->y;
+            dx = cp->x - pointB->x;
+            out->x = pointB->x;
+            dz = cp->z - pointB->z;
+            out->y = pointB->y;
+            out->z = pointB->z;
+            }
+            return dz * dz + (dx * dx + (dy * dy));
+        } else if (t >= lenB) {
+            out->x = pointB->x + dirB->x * lenB;
+            out->y = pointB->y + dirB->y * lenB;
+            out->z = pointB->z + dirB->z * lenB;
+            t = (out->y - pointA->y) * dirA->y;
+            t = (out->x - pointA->x) * dirA->x + t;
+            t = (out->z - pointA->z) * dirA->z + t;
+            {
+            Vec* cp = &cpB;
+
+            if (t < lbl_80345D50) {
+                cp->x = pointA->x;
+                cp->y = pointA->y;
+                cp->z = pointA->z;
+            } else if (t >= lenA) {
+                cp->x = pointA->x + dirA->x * lenA;
+                cp->y = pointA->y + dirA->y * lenA;
+                cp->z = pointA->z + dirA->z * lenA;
+            } else {
+                cp->x = pointA->x + dirA->x * t;
+                cp->y = pointA->y + dirA->y * t;
+                cp->z = pointA->z + dirA->z * t;
+            }
+            dy = cp->y - out->y;
+            dx = cp->x - out->x;
+            dz = cp->z - out->z;
+            }
+            return dz * dz + (dx * dx + (dy * dy));
+        } else {
+            out->x = pointB->x + dirB->x * t;
+            out->y = pointB->y + dirB->y * t;
+            out->z = pointB->z + dirB->z * t;
+            dy = out->y - pointA->y;
+            dx = out->x - pointA->x;
+            dz = out->z - pointA->z;
+            return dz * dz + (dx * dx + (dy * dy));
+        }
+    }
 }
 #pragma dont_inline off
 
