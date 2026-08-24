@@ -1244,29 +1244,68 @@ void fn_8006F418(NcCamera* cbase, f32* target)
  * and cross products with fmsubs and reads the two half-FOV tangents from the
  * NewCam projection block (lbl_80344EE8 +0x1C/+0x20).
  */
+extern f64 lbl_803474A0;
+
 void CalcFrustrumNormals(const Vec3* look, const Vec3* unused, Vec3* out, f32 fov) {
-    Vec3 seed;
-    f32 tanH, tanV;
-    Vec3 tl, tr, bl, br; /* frustum corner directions */
+    f32 up[3];
+    u8 pad60[60];
+    f32 tx;
+    f32 ty;
+    f32 cx;
+    f32 cy;
+    f32 cz;
+    f32 r1x, r1y, r1z;
+    f32 r2x, r2y, r2z;
+    f32 r3x, r3y, r3z;
+    f32 r4x, r4y, r4z;
+    f32 px, py, pz;
+    f32 mx, my, mz;
+    f32* o = (f32*)out;
 
-    (void)unused;
-
-    YawVec3(lbl_80127D30, &seed, fov);
-    tanH = (f32)tan((f64)(*(f32*)((u8*)lbl_80344EE8 + 0x1C) * -fov));
-    tanV = (f32)tan((f64)(*(f32*)((u8*)lbl_80344EE8 + 0x20) * -fov));
-
-    /* seed scaled by tanH gives the horizontal frustum spread; look.y +/- ...
-     * gives the vertical spread.  Corners = look +/- spreads. */
-    tl.x = look->x + seed.x * tanH; tl.y = look->y + seed.y; tl.z = look->z + seed.z;
-    tr.x = look->x - seed.x * tanH; tr.y = tl.y;             tr.z = tl.z;
-    bl = tl; br = tr;
-    (void)tanV; (void)bl; (void)br;
-
-    /* out[0..3] = cross(edge_i, edge_j): inward frustum plane normals */
-    out[0].x = tl.y * tr.z - tl.z * tr.y;
-    out[0].y = tl.z * tr.x - tl.x * tr.z;
-    out[0].z = tl.x * tr.y - tl.y * tr.x;
+    YawVec3((Vec3*)lbl_80127D30, (Vec3*)up, -fov);
+    cx = look->y * up[2] - look->z * up[1];
+    cy = look->z * up[0] - look->x * up[2];
+    cz = look->x * up[1] - look->y * up[0];
+    tx = (f32)tan(*(f32*)((u8*)lbl_80344EE8 + 28) * lbl_803474A0);
+    ty = (f32)tan(*(f32*)((u8*)lbl_80344EE8 + 32) * lbl_803474A0);
+    up[0] = up[0] * tx;
+    cx = cx * ty;
+    cy = cy * ty;
+    cz = cz * ty;
+    up[1] = up[1] * tx;
+    up[2] = up[2] * tx;
+    py = look->y + up[1];
+    my = look->y - up[1];
+    mz = look->z - up[2];
+    pz = look->z + up[2];
+    mx = look->x - up[0];
+    px = look->x + up[0];
+    r1y = py + cy;
+    r2z = mz + cz;
+    r1z = pz + cz;
+    r2x = mx + cx;
+    r3y = py - cy;
+    r3x = px - cx;
+    r2y = my + cy;
+    r4z = mz - cz;
+    r1x = px + cx;
+    r3z = pz - cz;
+    r4y = my - cy;
+    r4x = mx - cx;
+    o[0] = r2y * r1z - r2z * r1y;
+    o[1] = r2z * r1x - r2x * r1z;
+    o[2] = r2x * r1y - r2y * r1x;
+    o[4] = r1y * r3z - r1z * r3y;
+    o[5] = r1z * r3x - r1x * r3z;
+    o[6] = r1x * r3y - r1y * r3x;
+    o[8] = r4y * r2z - r4z * r2y;
+    o[9] = r4z * r2x - r4x * r2z;
+    o[10] = r4x * r2y - r4y * r2x;
+    o[12] = r3y * r4z - r3z * r4y;
+    o[13] = r3z * r4x - r3x * r4z;
+    o[14] = r3x * r4y - r3y * r4x;
 }
+
 
 typedef struct NcLevelData {
     u8 pad_00[0x60];
