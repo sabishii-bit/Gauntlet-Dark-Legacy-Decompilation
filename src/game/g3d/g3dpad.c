@@ -329,19 +329,19 @@ void G3DUpdatePadStatus(void) {
                  ((s32)pad->status.stickY >> 31))) {
                 aggregate->stickY = pad->status.stickY;
             }
-            if (((aggregate->substickX ^
-                  ((s32)aggregate->substickX >> 31)) -
+            if (((((s32)aggregate->substickX >> 31) ^
+                  aggregate->substickX) -
                  ((s32)aggregate->substickX >> 31)) <
-                ((pad->status.substickX ^
-                  ((s32)pad->status.substickX >> 31)) -
+                ((((s32)pad->status.substickX >> 31) ^
+                  pad->status.substickX) -
                  ((s32)pad->status.substickX >> 31))) {
                 aggregate->substickX = pad->status.substickX;
             }
-            if (((aggregate->substickY ^
-                  ((s32)aggregate->substickY >> 31)) -
+            if (((((s32)aggregate->substickY >> 31) ^
+                  aggregate->substickY) -
                  ((s32)aggregate->substickY >> 31)) <
-                ((pad->status.substickY ^
-                  ((s32)pad->status.substickY >> 31)) -
+                ((((s32)pad->status.substickY >> 31) ^
+                  pad->status.substickY) -
                  ((s32)pad->status.substickY >> 31))) {
                 aggregate->substickY = pad->status.substickY;
             }
