@@ -3494,7 +3494,7 @@ s32 LineCylinderCollide(f32* center, f32 radius, f32 halfHeight,
                         f32* from, f32* to, f32* hit, s32 directional)
 {
     f32 closest[3];
-    f32 delta[3];
+    volatile f32 delta[3];
     f32 fromDir[3];
     f32 centerDir[3];
     f32 distance;
