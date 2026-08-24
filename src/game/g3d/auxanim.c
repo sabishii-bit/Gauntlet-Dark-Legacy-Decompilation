@@ -329,7 +329,7 @@ void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
             k = d2 / fr;
         }
         MBTreeSetAlpha(ctx,
-                       (s32)((f32)(lbl_803459D8 - k) * lbl_803459E0), 1);
+                       (s32)(f32)((f32)(lbl_803459D8 - k) * lbl_803459E0), 1);
         break;
     }
     case -5: {
