@@ -518,7 +518,8 @@ s32 AudioQueUpdate(s32 bank) {
 
 /* 0x800D285C  open file, read bank header/calls/vags */
 s32 dcsBankLoad(void* bank, s32 mode) {
-    DcsBankData* table = dcsBankData.banks;
+    DcsData* data = &dcsBankData;
+    DcsBankData* table = data->banks;
     s32 bankNumber = 0;
     s32 error = 0;
     s32 oldCallCount = lbl_80345200;
@@ -558,7 +559,7 @@ s32 dcsBankLoad(void* bank, s32 mode) {
                     error = 1;
                 } else {
                     entry->handle = oldCallCount;
-                    lbl_80345224 = dcsBankData.callStart[oldCallCount];
+                    lbl_80345224 = data->callStart[oldCallCount];
                     bankNumber = (s32)(entry - table) + 1;
                     error = dcsReadVags(file, header);
                     if (error != 0) {
