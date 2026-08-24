@@ -107,7 +107,7 @@ s32 find_enemy_slot(s32 type, s32 level);
 void kill_enemy(s32 index);
 void uncouple_enemy(s32 index);
 void do_enemy_move(s32 index);
-s32 do_enemy_collide(s32 index);
+s32 do_enemy_collide(s32 index, f32 retryThreshold);
 f32 turn_enemy_ang(Enemy* e, f32 want);
 s32 do_ai(s32 index);
 void move_logic00(s32 index);
@@ -363,6 +363,7 @@ void do_enemy_move(s32 index)
     f32 hht = e->hht;
     s32 blocked = 0;
     s32 collide;
+    f32 moveDistance;
     s32 result;
     s32 n;
     Enemy* other;
@@ -394,13 +395,14 @@ void do_enemy_move(s32 index)
     e->trans[0] += e->pushed[0] * gClockFrameStep;
     e->trans[1] += e->pushed[1] * gClockFrameStep;
     e->trans[2] += e->pushed[2] * gClockFrameStep;
-    if (fqdist(e->trans[0], e->trans[2]) > 0.001) {
+    moveDistance = fqdist(e->trans[0], e->trans[2]);
+    if (moveDistance > 0.001) {
         e->moved = 1;
     } else {
         e->moved = 0;
     }
 
-    collide = do_enemy_collide(index);
+    collide = do_enemy_collide(index, moveDistance);
 
     /* commit the move to the world matrix + collision point */
     oldpos[0] = e->objgrp.worldmat[3][0];
@@ -818,19 +820,22 @@ extern f32 lbl_80344880;
 extern u8* gCurLevel;
 extern void RequestEnemyAction(Enemy* enemy, s32 action);
 
-s32 do_enemy_collide(s32 index)
+s32 do_enemy_collide(s32 index, f32 retryThreshold)
 {
     u8* pool = (u8*)lbl_80250E00;
     u8* e = (u8*)&gEnemies[index];
     f32* tr = (f32*)(e + 0x210);
     f32 dt = (f32)(lbl_80346860 * gClockFrameStep);
-    s16 behavior = *(s16*)(e + 0x310);
+    s32 behavior = *(s16*)(e + 0x310);
     s32 result = 0;
     f32 rad;
     f32 slideRad;
     void* hit = NULL;
     f32 oldpos[3];
     f32 dh;
+    u8 unused[16];
+
+    (void)unused;
 
     if (*(s32*)e == 0x1F || *(s32*)(e + 0x358) <= 0) {
         *(s16*)(e + 0x1FE) = 0;
@@ -851,6 +856,7 @@ s32 do_enemy_collide(s32 index)
     if (*(s16*)(e + 0x280) != 0) {
         if (*(s32*)e == 0x1D) {
             f32 np[3];
+            s32 wallResult;
             slideRad = (f32)(lbl_80346830 * rad);
             slideRad = (f32)(slideRad * lbl_80346838);
             np[0] = oldpos[0] + tr[0];
@@ -862,25 +868,26 @@ s32 do_enemy_collide(s32 index)
                 EnemyWorldDamage((Enemy*)e, lbl_80344730, oldpos,
                                  (f32*)(pool + 0x2F4));
                 if (*(u32*)((u8*)lbl_80344730 + 0x10) & 0x38) {
-                    result = 0;
-                } else if (!(*(u32*)(e + 0x330) & 1)) {
-                    if (SlideAlongWall(slideRad, oldpos, tr,
+                    wallResult = 0;
+                } else {
+                    if (!(*(u32*)(e + 0x330) & 1) &&
+                        SlideAlongWall(slideRad, oldpos, tr,
                                        (f32*)(pool + 0x2F4),
                                        lbl_8023CA98[1]) < 0) {
                         tr[2] = 0.0f;
                         tr[0] = 0.0f;
-                        result = 2;
+                        wallResult = 2;
                     } else {
-                        result = 1;
+                        wallResult = 1;
                     }
-                } else {
-                    result = 1;
                 }
             } else {
-                result = 0;
+                wallResult = 0;
             }
+            result = wallResult;
         } else {
             f32 np[3];
+            s32 wallResult;
             slideRad = (f32)(rad * lbl_80346838);
             np[0] = oldpos[0] + tr[0];
             np[1] = oldpos[1] + tr[1];
@@ -891,27 +898,27 @@ s32 do_enemy_collide(s32 index)
                 EnemyWorldDamage((Enemy*)e, lbl_80344730, oldpos,
                                  (f32*)(pool + 0x2F4));
                 if (*(u32*)((u8*)lbl_80344730 + 0x10) & 0x38) {
-                    result = 0;
-                } else if (!(*(u32*)(e + 0x330) & 1)) {
-                    if (SlideAlongWall(slideRad, oldpos, tr,
+                    wallResult = 0;
+                } else {
+                    if (!(*(u32*)(e + 0x330) & 1) &&
+                        SlideAlongWall(slideRad, oldpos, tr,
                                        (f32*)(pool + 0x2F4),
                                        lbl_8023CA98[1]) < 0) {
                         tr[2] = 0.0f;
                         tr[0] = 0.0f;
-                        result = 2;
+                        wallResult = 2;
                     } else {
-                        result = 1;
+                        wallResult = 1;
                     }
-                } else {
-                    result = 1;
                 }
             } else {
-                result = 0;
+                wallResult = 0;
             }
+            result = wallResult;
         }
     }
 
-    hit = fn_80045C30((Enemy*)e, rad, 0.0f, oldpos, tr, result);
+    hit = fn_80045C30((Enemy*)e, rad, retryThreshold, oldpos, tr, result);
     if (hit != NULL) {
         *(void**)(e + 0x298) = hit;
         if ((f64)*(f32*)(e + 0x23C) <= lbl_80346868) {
@@ -923,7 +930,7 @@ s32 do_enemy_collide(s32 index)
         }
     } else {
         void* mp = *(void**)(e + 0x298);
-        if (mp != NULL && (*(u32*)((u8*)mp + 0x10) & 0x1000)) {
+        if (mp != NULL && !(*(u32*)((u8*)mp + 0x10) & 0x1000)) {
             goto reparent;
         }
         tr[2] = 0.0f;
@@ -941,8 +948,9 @@ s32 do_enemy_collide(s32 index)
 
 reparent:
     if (hit != NULL) {
-        void* parent = *(void**)((u8*)hit + 0x28);
-        if (parent != NULL && (*(u32*)((u8*)hit + 0x10) & 0x1000)) {
+        void* parent;
+        if ((parent = *(void**)((u8*)hit + 0x28)) != NULL &&
+            (*(u32*)((u8*)hit + 0x10) & 0x1000)) {
             MBNodeSetParent(*(void**)(e + 0x64), parent);
         } else {
             MBNodeSetParent(*(void**)(e + 0x64), (void*)lbl_8034473C);
@@ -950,17 +958,17 @@ reparent:
     }
     *(s32*)(e + 0x29C) = (hit != NULL) ? *(s32*)((u8*)hit + 0x10) : 0;
 
-    if ((f64)fqdist(tr[0], tr[2]) >= lbl_80346878) {
+    if (!((f64)fqdist(tr[0], tr[2]) < lbl_80346878)) {
         goto gravity;
     }
 
     if (behavior == 0) {
-        if (ABS(*(s32*)(e + 0x354)) > 2) {
-            (*(s16*)(e + 0x364))++;
-            fn_8004D030(index, 0x3C);
-        } else {
+        if (ABS(*(s32*)(e + 0x354)) <= 2) {
             (*(s16*)(e + 0x364))++;
             fn_8004D030(index, 5);
+        } else {
+            (*(s16*)(e + 0x364))++;
+            fn_8004D030(index, 0x3C);
         }
         if (*(s16*)(e + 0x364) >= 9) {
             *(s32*)(e + 0x354) = -*(s32*)(e + 0x354) * 2;
@@ -971,60 +979,63 @@ reparent:
             }
         }
     } else if (behavior == 7) {
-        if (ABS(*(s32*)(e + 0x354)) > 2) {
+        if (ABS(*(s32*)(e + 0x354)) <= 2) {
+            (*(s16*)(e + 0x364))++;
+            fn_8004D030(index, 0xA);
+        } else {
             fn_8004D030(index, 0x3C);
             *(f32*)(e + 0x24C) = lbl_80344720;
             *(f32*)(e + 0x244) = lbl_80344720;
             *(s16*)(e + 0x364) = 0;
             *(s32*)(e + 0x354) = 0;
-        } else {
-            (*(s16*)(e + 0x364))++;
-            fn_8004D030(index, 0xA);
         }
         if (*(s16*)(e + 0x364) >= 7) {
             *(s32*)(e + 0x354) = -*(s32*)(e + 0x354) * 2;
             *(s16*)(e + 0x364) = 0;
         }
     } else if (behavior == 8) {
-        if (ABS(*(s32*)(e + 0x354)) > 2) {
+        if (ABS(*(s32*)(e + 0x354)) <= 2) {
+            (*(s16*)(e + 0x364))++;
+            fn_8004D030(index, 5);
+        } else {
             fn_8004D030(index, 0x3C);
             *(f32*)(e + 0x24C) = lbl_80344720;
             *(f32*)(e + 0x244) = lbl_80344720;
             *(s16*)(e + 0x364) = 0;
             *(s32*)(e + 0x354) = 0;
-        } else {
-            (*(s16*)(e + 0x364))++;
-            fn_8004D030(index, 5);
         }
         if (*(s16*)(e + 0x364) >= 7) {
             *(s32*)(e + 0x354) = -*(s32*)(e + 0x354) * 2;
             *(s16*)(e + 0x364) = 0;
         }
     } else if (behavior == 0xA) {
-        if (ABS(*(s32*)(e + 0x354)) > 2) {
+        if (ABS(*(s32*)(e + 0x354)) <= 2) {
+            (*(s16*)(e + 0x364))++;
+            fn_8004D030(index, 0xA);
+        } else {
             fn_8004D030(index, 0x3C);
             *(f32*)(e + 0x24C) = lbl_80344720;
             *(f32*)(e + 0x244) = lbl_80344720;
             *(s16*)(e + 0x364) = 0;
             *(s32*)(e + 0x354) = 0;
-        } else {
-            (*(s16*)(e + 0x364))++;
-            fn_8004D030(index, 0xA);
         }
         if (*(s16*)(e + 0x364) >= 7) {
             *(s32*)(e + 0x354) = -*(s32*)(e + 0x354) * 2;
             *(s16*)(e + 0x364) = 0;
         }
     } else if (behavior == 0x14) {
-        if (ABS(*(s32*)(e + 0x354)) > 2) {
+        if (ABS(*(s32*)(e + 0x354)) <= 2) {
             (*(s16*)(e + 0x364))++;
             fn_8004D030(index, 3);
         } else {
             f64 a;
+            f64 high;
+
             fn_8004D030(index, 0x1E);
-            *(f32*)(e + 0x24C) = (f32)(lbl_80346840 + lbl_80344720);
+            high = lbl_80346840;
+            *(f32*)(e + 0x24C) = (f32)(high + lbl_80344720);
             a = *(f32*)(e + 0x24C);
-            if (a > lbl_80346840) {
+            if (a > high) {
                 a -= lbl_80346848;
             } else if (a <= lbl_80346850) {
                 a += lbl_80346848;
@@ -6408,11 +6419,11 @@ void do_enemies(void)
                 if (lbl_803447DC != 0) {
                     *(f32*)(e + 0x90) += gClockFrameStep;
                     fn_8004DC2C((Enemy*)e);
-                    do_enemy_collide(i);
+                    do_enemy_collide(i, lbl_80346820);
                 } else if (gTriggerCameraState != 0) {
                     *(s32*)(e + 0xD0) = 0;
                     *(s32*)(e + 0xCC) = DoEnemyAction((Enemy*)e);
-                    do_enemy_collide(i);
+                    do_enemy_collide(i, lbl_80346820);
                     fn_8004DC2C((Enemy*)e);
                 } else {
                     fn_800516F8(i);
