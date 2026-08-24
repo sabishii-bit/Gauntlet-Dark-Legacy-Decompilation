@@ -1756,8 +1756,12 @@ s32 CheckSpecials(s32 plyr, u32 lev)
 {
     s32 found;
     u32 i;
+    u8* progress;
+    u32 byte_lev;
     u8 unused[16];
 
+    progress = lbl_80240AE8[plyr];
+    byte_lev = lev & 0xFF;
     found = 0;
     for (i = 0; i < 13; i++) {
         SMOVE* mv = &lbl_8011A2A8[i];
@@ -1765,11 +1769,11 @@ s32 CheckSpecials(s32 plyr, u32 lev)
         u32 l;
 
         if (mv->byteMode != 0) {
-            l = lev & 0xFF;
+            l = byte_lev;
         } else {
             l = lev;
         }
-        rec = (s32*)(lbl_80240AE8[plyr] + i * 8);
+        rec = (s32*)(progress + i * 8);
         for (;;) {
             s32 stage = rec[0];
             u32 mask = mv->st[stage].mask;
@@ -1803,18 +1807,22 @@ s32 CheckSpecials(s32 plyr, u32 lev)
                 if (hv == -1) {
                     found = mv->id;
                 } else {
+                    s32* count;
+                    s32 count_value;
                     s32 h;
 
-                    rec[1]++;
-                    h = *ph;
+                    count = &rec[1];
+                    count_value = *count;
+                    *count = count_value + 1;
+                    h = *(volatile s32*)ph;
                     switch (h) {
                     case 0:
                         h = 6;
                         break;
                     }
-                    if (rec[1] > h) {
+                    if (*count > h) {
                         rec[0] = 0;
-                        rec[1] = 0;
+                        *count = 0;
                     }
                 }
                 goto next_move;
@@ -1834,7 +1842,7 @@ s32 CheckSpecials(s32 plyr, u32 lev)
     }
     if (found != 0) {
         for (i = 0; i < 13; i++) {
-            s32* rec = (s32*)(lbl_80240AE8[plyr] + i * 8);
+            s32* rec = (s32*)(progress + i * 8);
 
             rec[0] = 0;
             rec[1] = 0;
