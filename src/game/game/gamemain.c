@@ -3564,3 +3564,215 @@ void init_thermometer(void)
     lbl_80343C08 = (f32)(lbl_80346BA8 / (lbl_80346BD8 * length));
 }
 #pragma opt_propagation on
+
+/* 0x8005351C -- world/level entry orchestrator (only caller: game_main). */
+extern s32  opt_restart_request;
+extern void AudioReset(s32 force);
+extern void fn_800BC4E4(void);
+extern s32  good_wiz_exit_timer;
+extern s32  lbl_80344808;
+extern s32  lbl_80344804;
+extern s32  lbl_803447C8;
+extern s32  lbl_803447C4;
+extern s32  lbl_80343C04;
+extern s32  lbl_80343C00;
+extern s32  sMusicTrackLo;
+extern s32  lbl_803448B4;
+extern s32  lbl_803448B0;
+extern void SetScrollLevelMsgList(s32 mode, void* list);
+extern void sumnerUpdatePresence(void);
+void fn_80057024(void);
+extern void SetupDynGrid(void);
+extern void CreateDynobjGrid(void);
+extern void player_store_in_save(u8* pl);
+extern void PlayerRestoreState(s32 player);
+extern void EnterTower(void);
+extern void InitCamera(s32 mode);
+extern s32  lbl_80344824;
+extern void load_player(s32 player);
+extern void add_target(void* mat);
+extern void LoadPlyrData(s32 player, s32 pad, s32 mode);
+extern void CopyMat3(f32* src, f32* dst);
+extern f32  lbl_80257650[];
+extern void UpdatePlayerWorldMat(void* player, s32 force);
+extern void setup_player_display(s32 player);
+extern void PlayerSaveState(s32 player, s32 mode);
+extern void camera_mode_level(s32 mode);
+extern s32  lbl_803447D0;
+extern void LoadAllRecords(void);
+extern void BGMusicStart(void);
+extern void SetPlayerWindows(s32 mode);
+extern void fn_8006F16C(s32 arg0);
+extern void fn_8005B988(void);
+extern void do_enemies(void);
+extern void AudioMusicVolUpdate(void);
+extern s32  welcome_timer;
+
+typedef struct PlayerSaveBlk {
+    s32 w[1293];                    /* 5172 bytes */
+} PlayerSaveBlk;
+
+void fn_8005351C(void)
+{
+    u8 unused[8];
+    s32 t = 0;
+    s32 state = lbl_8034481C;
+    s32 inTower;
+    s32 isSelect;
+    s32 off;
+    u8* tbl;
+    f32* idmat;
+    s32 i;
+    u8* p;
+
+    if (state >= 13 && state < 0x10000) {
+        t = 1;
+    }
+    if (t != 0) {
+        inTower = 1;
+    } else {
+        inTower = 0;
+    }
+    if (state == 2) {
+        isSelect = 1;
+    } else {
+        isSelect = 0;
+    }
+
+    opt_restart_request = 0;
+    AudioReset(0);
+    fn_800BC4E4();
+    gGameMode = 0x400C;
+    gGameBusy = 0;
+    good_wiz_exit_timer = 0;
+    lbl_80344808 = 0;
+    lbl_80344804 = 0;
+    lbl_803447E8 = 0;
+    lbl_80344780 = 0;
+    lbl_803447D4 = lbl_80346AF0;
+    lbl_803447D8 = lbl_80346AF0;
+    lbl_803447C8 = 0;
+    lbl_803447C4 = 0;
+
+    if (lbl_80343C10 < 0) {
+        next_world();
+        if (lbl_80343C04 != sLastWorldLevel) {
+            lbl_80343C00 = -1;
+        }
+        lbl_8034481C = 0;
+        fn_80053D08(sLastWorldLevel, 1, lbl_80343C00);
+        fn_80053C70();
+    } else {
+        fn_80053D08(sWorldDataConst, 1, lbl_80343C10);
+        fn_80053C70();
+    }
+
+    InitLighting(1);
+    lbl_803448B4 = sMusicTrackHi;
+    lbl_803448B0 = sMusicTrackLo;
+    lbl_80343C00 = -1;
+    SetScrollLevelMsgList(0, gCurLevel + 8);
+    {
+        u8* e = (u8*)gEnemies;
+        for (i = 0; i < 25; i++, e += 916) {
+            *(s32*)(e + 180) = 0;
+            *(s32*)(e + 100) = 0;
+        }
+    }
+    sumnerUpdatePresence();
+    fn_80057024();
+    SetupDynGrid();
+    CreateDynobjGrid();
+
+    if (sMusicTrackHi == 13) {
+        s32 one = 1;
+        for (i = 0, p = gPlayers; i < 4; i++, p += 13148) {
+            s32 st = *(s32*)(p + 232);
+            if (st == 1) {
+                player_store_in_save(p);
+            } else if (st == 11) {
+                PlayerRestoreState(i);
+                *(s32*)(p + 232) = one;
+            }
+        }
+        EnterTower();
+    }
+
+    if (sMusicTrackHi != 12 && inTower == 0) {
+        lbl_803447CC = 0;
+    }
+
+    InitCamera(0);
+    {
+        idmat = (f32*)gIdentityMatrix;
+        tbl = (u8*)lbl_80257650;
+        for (i = 0, off = 0, p = gPlayers; i < 4; i++, off += 12, p += 13148) {
+            *(s32*)(p + 2096) = sLastWorldLevel;
+            *(s32*)(p + 116) = 0;
+            *(s32*)(p + 124) = 0;
+            if ((lbl_80344824 & (1 << i)) && *(s32*)(p + 232) != 11) {
+                *(s32*)(p + 232) = 1;
+                load_player(i);
+                add_target(p + 20);
+                LoadPlyrData(i, *(s32*)(p + 12), 1);
+                if (isSelect != 0) {
+                    f32* v;
+                    CopyMat3(idmat, (f32*)(p + 20));
+                    v = (f32*)(tbl + off);
+                    *(f32*)(p + 68) = v[0];
+                    *(f32*)(p + 72) = v[1];
+                    *(f32*)(p + 76) = v[2];
+                    UpdatePlayerWorldMat(p, 0);
+                }
+            }
+            setup_player_display(i);
+        }
+    }
+
+    if (inTower == 0) {
+        s32 off2;
+        u8* base = gPlayers;
+        for (i = 0, off2 = 0; i < 4; i++, off2 += 13148) {
+            u8* q = base + off2;
+            if (*(s32*)(q + 232) != 0) {
+                if (sMusicTrackHi == 13) {
+                    PlayerSaveState(i, 0);
+                } else if (sMusicTrackHi != 12) {
+                    PlayerSaveState(i, 1);
+                }
+                if (*(s32*)(q + 7872) == 0) {
+                    *(s32*)(q + 7872) = 1;
+                    *(s8*)(q + 2699) = 0;
+                }
+            }
+        }
+        camera_mode_level(0);
+        lbl_803447D0 = 0;
+        fn_80051C78();
+    } else {
+        LoadAllRecords();
+        lbl_80344B84 = -1;
+    }
+
+    BGMusicStart();
+    SetPlayerWindows(0);
+    fn_8006F16C(inTower);
+    fn_8005B988();
+    do_enemies();
+    fn_800553B4();
+    init_thermometer();
+    AudioMusicVolUpdate();
+    {
+        s32 mt = sMusicTrackHi;
+        if (mt != 12) {
+            welcome_timer = 300;
+        }
+        if (mt == 13) {
+            for (i = 0, p = gPlayers; i < 4; i++, p += 13148) {
+                if (*(s32*)(p + 232) == 1) {
+                    *(PlayerSaveBlk*)(p + 7884) = *(PlayerSaveBlk*)(p + 2688);
+                }
+            }
+        }
+    }
+}
