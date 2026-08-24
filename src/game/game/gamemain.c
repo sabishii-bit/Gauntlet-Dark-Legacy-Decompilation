@@ -4303,16 +4303,15 @@ void fn_80054E78(void)
             active = 0;
             if ((gControllerButtons & 0x10) != 0 &&
                 (gGameOptions[9] >> 8) == 12) {
+                s32 player_off;
                 u8* p;
+
                 lbl_8034481C = 2;
-                {
-                    u8* b0 = gPlayers;
-                    p = b0;
-                }
-                for (off = 0; off < 48;
-                     off += 12, p += 13148) {
+                p = gPlayers;
+                for (player_off = 0; player_off < 48;
+                     player_off += 12, p += 13148) {
                     if (*(s32*)(p + 232) != 0) {
-                        u8* row = state + off;
+                        u8* row = state + player_off;
                         *(f32*)(row + 144) = *(f32*)(p + 68);
                         *(f32*)(row + 148) = *(f32*)(p + 72);
                         *(f32*)(row + 152) = *(f32*)(p + 76);
