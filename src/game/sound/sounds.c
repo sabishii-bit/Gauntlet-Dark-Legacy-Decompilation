@@ -323,10 +323,13 @@ void AudioStopMusicB(void)
 
 void MapMusicStart(void)
 {
-    char* buf = (char*)sSpeechNameBuf;
-    int ch = LevelLetter(0);
+    char* buf;
+    int ch;
+    int ch2;
     int h;
 
+    buf = (char*)sSpeechNameBuf;
+    ch = LevelLetter(0);
     AudioKillBySound(0xC0000);
     if (sSelectStreamHandle >= 0) {
         AudioStreamStop();
@@ -341,7 +344,8 @@ void MapMusicStart(void)
     }
     sprintf(buf, "MAP_%c", (signed char)ch);
     AudioRegisterNameBanks(buf, 0);
-    sprintf(buf, "S_MAP_%c", (signed char)LevelLetter(0));
+    ch2 = LevelLetter(0);
+    sprintf(buf, "S_MAP_%c", (signed char)ch2);
     h = AudioFindSound(buf, -1, 1);
     if (h >= 0) {
         sndFxPlayHandle(h, lbl_80343B4C, 1);
