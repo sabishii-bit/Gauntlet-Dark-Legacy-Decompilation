@@ -1971,49 +1971,23 @@ extern u8 gEnemies[];
  * atree to a treasure/food model, retarget generators, pop doors/walls). */
 void fn_8005BA1C(Item* item, u8* player)
 {
+    char* objects = sObjectsFile;
     s32 evt = -1;                                 /* r25: fx event         */
     s32 msg = -1;                                 /* r24: message code     */
     iteminfo* info = item->info;
     s32* sub = (s32*)((u8*)info + 4);
     s32 rank = *(s32*)(player + 0x3324);          /* accumulated gold rank */
-    u32 mode = *(u32*)(player + 8) & 3;
+    s32 mode = *(u32*)(player + 8) & 3;
     void* hdr;
     s32 k;
+    u8* world;
+    u8** records;
     u8* rec;
 
     switch (info->type) {
     case 1:
         switch (*sub) {
         case 2:
-            break;
-        case 1:
-            if (mode != 0) {
-                break;
-            }
-            if (*(s32*)&item->data[4] > 10) {
-                break;
-            }
-            if (rank >= 0x32) {
-                hdr = AtreeMatch(sPowerupsBuf, &sObjectsFile[0x130], 1);
-                if (*(u32*)&item->atree[0] != 0) {
-                    AtreeDelete(item->atree);
-                }
-                *(void**)&item->atree[0] = AtreeInit(hdr, item->atree, 0, 0x800);
-                MBNodeSetParent(**(void***)&item->atree[0], item->objgrp.node);
-                *(s32*)&item->data[4] = 200;
-                evt = 0x30;
-                msg = 0x8C;
-            } else if (rank >= 0x19) {
-                hdr = AtreeMatch(sPowerupsBuf, &sObjectsFile[0x13C], 1);
-                if (*(u32*)&item->atree[0] != 0) {
-                    AtreeDelete(item->atree);
-                }
-                *(void**)&item->atree[0] = AtreeInit(hdr, item->atree, 0, 0x800);
-                MBNodeSetParent(**(void***)&item->atree[0], item->objgrp.node);
-                *(s32*)&item->data[4] = 100;
-                evt = 0x30;
-                msg = 0x8B;
-            }
             break;
         case 3:
             if (mode != 2) {
@@ -2047,6 +2021,35 @@ void fn_8005BA1C(Item* item, u8* player)
                 msg = 0x8F;
             }
             break;
+        case 1:
+            if (mode != 0) {
+                break;
+            }
+            if (*(s32*)&item->data[4] > 10) {
+                break;
+            }
+            if (rank >= 0x32) {
+                hdr = AtreeMatch(sPowerupsBuf, &objects[0x130], 1);
+                if (*(u32*)&item->atree[0] != 0) {
+                    AtreeDelete(item->atree);
+                }
+                *(void**)&item->atree[0] = AtreeInit(hdr, item->atree, 0, 0x800);
+                MBNodeSetParent(**(void***)&item->atree[0], item->objgrp.node);
+                *(s32*)&item->data[4] = 200;
+                evt = 0x30;
+                msg = 0x8C;
+            } else if (rank >= 0x19) {
+                hdr = AtreeMatch(sPowerupsBuf, &objects[0x13C], 1);
+                if (*(u32*)&item->atree[0] != 0) {
+                    AtreeDelete(item->atree);
+                }
+                *(void**)&item->atree[0] = AtreeInit(hdr, item->atree, 0, 0x800);
+                MBNodeSetParent(**(void***)&item->atree[0], item->objgrp.node);
+                *(s32*)&item->data[4] = 100;
+                evt = 0x30;
+                msg = 0x8B;
+            }
+            break;
         }
         break;
 
@@ -2054,12 +2057,57 @@ void fn_8005BA1C(Item* item, u8* player)
         if (*(s16*)&item->data[0] < 0) {
             break;
         }
-        rec = *(u8**)(gWorldInfo + 0x68) + *(s16*)&item->data[0] * 0x50;
+        world = gWorldInfo;
+        records = (u8**)(world + 0x68);
+        rec = *records + *(s16*)&item->data[0] * 0x50;
         if (*(s32*)rec != 1) {
             break;
         }
         switch (*(s32*)(rec + 4)) {
         case 2:
+            break;
+        case 3:
+            if (item->action > 0) {
+                break;
+            }
+            if (mode != 2) {
+                break;
+            }
+            if (*(s16*)(rec + 0x40) <= -100) {
+                if (rank < 0x32) {
+                    break;
+                }
+                rec = *records;
+                for (k = 0; k < *(s32*)(world + 0x74); k++) {
+                    if (strcmp(lbl_80346F10, (char*)(rec + 0x28)) == 0 &&
+                        *(s32*)rec == 1 && *(s32*)(rec + 4) == 3) {
+                        goto found_chicken;
+                    }
+                    rec += 0x50;
+                }
+                k = -1;
+found_chicken:
+                *(s16*)&item->data[0] = (s16)k;
+                evt = 0x2F;
+                msg = 0x90;
+            } else if (*(s16*)(rec + 0x40) < 0) {
+                if (rank < 0x19) {
+                    break;
+                }
+                rec = *records;
+                for (k = 0; k < *(s32*)(world + 0x74); k++) {
+                    if (strcmp(lbl_80346F18, (char*)(rec + 0x28)) == 0 &&
+                        *(s32*)rec == 1 && *(s32*)(rec + 4) == 3) {
+                        goto found_apple;
+                    }
+                    rec += 0x50;
+                }
+                k = -1;
+found_apple:
+                *(s16*)&item->data[0] = (s16)k;
+                evt = 0x2F;
+                msg = 0x8F;
+            }
             break;
         case 1:
             if (mode != 0) {
@@ -2082,9 +2130,9 @@ void fn_8005BA1C(Item* item, u8* player)
                 *(s16*)&item->data[0x10] = 200;
                 if (item->action == 0) {
                     *(s16*)&item->data[0x10] = 200;
-                    rec = *(u8**)(gWorldInfo + 0x68);
+                    rec = *records;
                     for (k = 0; k < *(s32*)(gWorldInfo + 0x74); k++) {
-                        if (strcmp(&sObjectsFile[0x130],
+                        if (strcmp(&objects[0x130],
                                    (char*)(rec + 0x28)) == 0 &&
                             *(s32*)rec == 1 && *(s32*)(rec + 4) == 1) {
                             goto found_gold;
@@ -2112,9 +2160,9 @@ found_gold:
                 }
                 if (item->action == 0) {
                     *(s16*)&item->data[0x10] = 100;
-                    rec = *(u8**)(gWorldInfo + 0x68);
+                    rec = *records;
                     for (k = 0; k < *(s32*)(gWorldInfo + 0x74); k++) {
-                        if (strcmp(&sObjectsFile[0x13C],
+                        if (strcmp(&objects[0x13C],
                                    (char*)(rec + 0x28)) == 0 &&
                             *(s32*)rec == 1 && *(s32*)(rec + 4) == 1) {
                             goto found_silver;
@@ -2131,49 +2179,22 @@ found_silver:
                 msg = 0x8B;
             }
             break;
-        case 3:
-            if (item->action > 0) {
-                break;
-            }
-            if (mode != 2) {
-                break;
-            }
-            if (*(s16*)(rec + 0x40) <= -100) {
-                if (rank < 0x32) {
-                    break;
-                }
-                rec = *(u8**)(gWorldInfo + 0x68);
-                for (k = 0; k < *(s32*)(gWorldInfo + 0x74); k++) {
-                    if (strcmp(lbl_80346F10, (char*)(rec + 0x28)) == 0 &&
-                        *(s32*)rec == 1 && *(s32*)(rec + 4) == 3) {
-                        goto found_chicken;
-                    }
-                    rec += 0x50;
-                }
-                k = -1;
-found_chicken:
-                *(s16*)&item->data[0] = (s16)k;
-                evt = 0x2F;
-                msg = 0x90;
-            } else if (*(s16*)(rec + 0x40) < 0) {
-                if (rank < 0x19) {
-                    break;
-                }
-                rec = *(u8**)(gWorldInfo + 0x68);
-                for (k = 0; k < *(s32*)(gWorldInfo + 0x74); k++) {
-                    if (strcmp(lbl_80346F18, (char*)(rec + 0x28)) == 0 &&
-                        *(s32*)rec == 1 && *(s32*)(rec + 4) == 3) {
-                        goto found_apple;
-                    }
-                    rec += 0x50;
-                }
-                k = -1;
-found_apple:
-                *(s16*)&item->data[0] = (s16)k;
-                evt = 0x2F;
-                msg = 0x8F;
-            }
+        }
+        break;
+
+    case 10:
+        if (*sub == 0x29 || *sub == 0x2B) {
             break;
+        }
+        if (mode != 3) {
+            break;
+        }
+        if (rank >= 0x32) {
+            fn_8005C1DC(item, lbl_80346F30, 0, *(s32*)player);
+            msg = 0x92;
+        } else {
+            *(s16*)&item->data[4] = 4;
+            msg = 0x91;
         }
         break;
 
@@ -2222,22 +2243,6 @@ found_apple:
             item->activetime = 0x258;
             AnimateATree(item->atree, item->daction, 3);
             msg = 0x8D;
-        }
-        break;
-
-    case 10:
-        if (*sub == 0x29 || *sub == 0x2B) {
-            break;
-        }
-        if (mode != 3) {
-            break;
-        }
-        if (rank >= 0x32) {
-            fn_8005C1DC(item, lbl_80346F30, 0, *(s32*)player);
-            msg = 0x92;
-        } else {
-            *(s16*)&item->data[4] = 4;
-            msg = 0x91;
         }
         break;
     }
