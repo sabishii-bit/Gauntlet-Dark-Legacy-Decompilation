@@ -280,6 +280,7 @@ u32 fn_800D87FC(u32* param_1, int param_2, char* param_3, int param_4, int param
         break;
     case 2: {
         int i;
+        int o;
         u8* p;
         u8 sh1;
         u8 sh0;
@@ -291,12 +292,14 @@ u32 fn_800D87FC(u32* param_1, int param_2, char* param_3, int param_4, int param
         n = count * 4;
         i = 0;
         p = pal;
+        o = i;
         for (; i < n; i++) {
             fn_800DBE98((u32)param_1, p);
-            *(u16*)(pal + i * 2) = (((p[0] >> sh0) << *((u8*)param_1 + 0x36))
-                                | ((p[1] >> sh1) << *((u8*)param_1 + 0x35)))
-                                | ((p[2] >> sh2) << *((u8*)param_1 + 0x34));
+            *(u16*)(pal + o) = (((p[0] >> sh0) << *((u8*)param_1 + 0x36))
+                              | ((p[1] >> sh1) << *((u8*)param_1 + 0x35)))
+                              | ((p[2] >> sh2) << *((u8*)param_1 + 0x34));
             p += 3;
+            o += 2;
         }
         break;
     }
@@ -348,7 +351,7 @@ u32 fn_800D87FC(u32* param_1, int param_2, char* param_3, int param_4, int param
                     b = x >> 3;
                     if ((1 << (b & 7)) & brow[b / 8]) {
                         u32 idx;
-                        u32 val;
+                        u16 val;
                         u8* entry;
 
                         idx = *ip;
