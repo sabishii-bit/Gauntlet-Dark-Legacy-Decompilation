@@ -1473,7 +1473,8 @@ void fn_8005D04C(void)
 extern f32 fqdist(f32 x, f32 y);
 extern void MBTreeSetFlags(void* node, s32 flags, s32 value);
 extern int fn_8005EE18(Item* item, s32 arg);
-extern f32 fn_8005F0F4(Item* item, f32 a, f32 b, s32 c, f32* pos, s32 d);
+extern f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out,
+                       f32 radius, f32 height);
 extern void fn_8009D91C(f32* pos);
 
 s32 fn_8005D0C4(s32 id, f32* position)
@@ -1690,7 +1691,8 @@ Item* fn_8005ED44(f32 radius, s32 a2, f32* position, s32 a4, s32 a5, s32 a6)
     while ((idx = NextGridEnemy()) >= 0) {
         item = &sItems[idx];
         if (fn_8005EE18(item, a6) != 0) {
-            f32 d = fn_8005F0F4(item, radius, radius, a2, position, a4);
+            f32 d = fn_8005F0F4(item, (f32*)a2, position, (f32*)a4,
+                                radius, radius);
             if (d >= 0.0 && d < best_dist) {
                 best_dist = d;
                 best = item;
@@ -1817,7 +1819,8 @@ Item* fn_8005EFAC(f32 radius, s32 a2, f32* position, s32 a4, s32 a5)
             continue;
         }
         {
-            f32 d = fn_8005F0F4(item, radius, scaled, a2, position, a4);
+            f32 d = fn_8005F0F4(item, (f32*)a2, position, (f32*)a4,
+                                radius, scaled);
             if (d >= 0.0 && d < best_dist) {
                 best_dist = d;
                 best = item;
@@ -2269,35 +2272,40 @@ static f32 wfabsf_(f32 x)
     return x;
 }
 
-f32 fn_8005F0F4(Item* item, f32 a, f32 b, s32 c, f32* pos, s32 d)
+f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
 {
-    f32* from = (f32*)c;
-    f32* out = (f32*)d;
     iteminfo* info;
+    iteminfodata* data;
     s32* sub;
-    s16 coltype;
+    s32 coltype;
     s32 keep;
     s32 type;
     f32 R;
     f32 dist;
     f32 cx, cz;
-    f32 dv[3];
     f32 nv[3];
     f32 mv[3];
     f32 hitpt[3];
     f32 norm[3];
     f32 f1, f2, f3, f4;
 
-    if (item->active == -1 || (item->active & 0x8100) != 0) {
+    if (item->active == -1) {
+        return sNoDistance;
+    }
+    if ((item->active & 0x8100) != 0) {
         return sNoDistance;
     }
     info = item->info;
-    if (info->type == -1 || item->minoff != 0) {
+    if (info->type == -1) {
         return sNoDistance;
     }
-    sub = (s32*)((u8*)info + 4);
-    coltype = info->item.coltype;
-    R = info->item.radius;
+    if (item->minoff != 0) {
+        return sNoDistance;
+    }
+    data = &info->item;
+    sub = &data->subtype;
+    coltype = data->coltype;
+    R = data->radius;
     if (coltype == 0) {
         return sNoDistance;
     }
@@ -2307,13 +2315,24 @@ f32 fn_8005F0F4(Item* item, f32 a, f32 b, s32 c, f32* pos, s32 d)
 
     keep = 1;
     switch (info->type) {
+    case 7:
+        if (item->action > 1 ||
+            (item->action == 1 && item->activetime > 0x1E)) {
+            keep = 0;
+        }
+        break;
+    case 9:
+        if (*sub != 0x32) {
+            R = (f32)(R + ((f64)lbl_80344768 - lbl_80346EE8));
+        }
+        break;
     case 2:
         if (*sub == 0x2B && item->action == 2) {
             keep = 0;
         }
         break;
     case 3:
-        if (item->armor < 0 && info->item.height <= sNewtonThree) {
+        if (item->armor < 0 && data->height <= sNewtonThree) {
             keep = 0;
         }
         break;
@@ -2324,6 +2343,14 @@ f32 fn_8005F0F4(Item* item, f32 a, f32 b, s32 c, f32* pos, s32 d)
             R = *(f32*)&item->data[0xC];
         }
         coltype = 1;
+        break;
+    case 10:
+        if (*sub < 0x2E && *sub > 0x2A && item->action > 0) {
+            keep = 0;
+        }
+        break;
+    case 13:
+        keep = 0;
         break;
     case 5:
         if ((item->active & 0x400) != 0) {
@@ -2345,25 +2372,6 @@ f32 fn_8005F0F4(Item* item, f32 a, f32 b, s32 c, f32* pos, s32 d)
             R = (f32)(R * lbl_80346EF0);
         }
         break;
-    case 7:
-        if (item->action > 1 ||
-            (item->action == 1 && item->activetime > 0x1E)) {
-            keep = 0;
-        }
-        break;
-    case 9:
-        if (*sub != 0x32) {
-            R = (f32)(R + ((f64)lbl_80344768 - lbl_80346EE8));
-        }
-        break;
-    case 10:
-        if (*sub < 0x2E && *sub > 0x2A && item->action > 0) {
-            keep = 0;
-        }
-        break;
-    case 13:
-        keep = 0;
-        break;
     }
     if (keep == 0) {
         return sNoDistance;
@@ -2374,30 +2382,31 @@ f32 fn_8005F0F4(Item* item, f32 a, f32 b, s32 c, f32* pos, s32 d)
     cz = item->objgrp.coll_pos[2];
     f1 = (f32)(cx - pos[0]);
     f2 = (f32)(cz - pos[2]);
-    if (R * R < f1 * f1 + f2 * f2) {
+    if (f1 * f1 + f2 * f2 > R * R) {
         return sNoDistance;
     }
 
-    dv[0] = (f32)(pos[0] - cx);
-    dv[1] = pos[1] - item->objgrp.coll_pos[1];
-    dv[2] = (f32)(pos[2] - cz);
-    if (coltype != 2 &&
-        (f32)(info->item.height + b) < wfabsf_(dv[1])) {
-        return sNoDistance;
+    nv[0] = (f32)(pos[0] - cx);
+    nv[1] = pos[1] - item->objgrp.coll_pos[1];
+    nv[2] = (f32)(pos[2] - cz);
+    if (coltype != 2) {
+        if (wfabsf_(nv[1]) > (f32)(data->height + b)) {
+            return sNoDistance;
+        }
     }
-    dist = fqdist(dv[0], dv[2]);
-    if (R < dist) {
+    dist = fqdist(nv[0], nv[2]);
+    if (dist > R) {
         return sNoDistance;
     }
 
     if (coltype == 3) {
         /* oriented box footprint */
-        if (wfabsf_(dv[0] * item->objgrp.worldmat[0][0] +
-                    dv[2] * item->objgrp.worldmat[0][2]) <=
-            (f32)(info->item.xdim + a)) {
-            if ((f32)(info->item.zdim + a) <
-                wfabsf_(dv[0] * item->objgrp.worldmat[2][0] +
-                        dv[2] * item->objgrp.worldmat[2][2])) {
+        if (wfabsf_(nv[0] * item->objgrp.worldmat[0][0] +
+                    nv[2] * item->objgrp.worldmat[0][2]) <=
+            (f32)(data->xdim + a)) {
+            if (wfabsf_(nv[0] * item->objgrp.worldmat[2][0] +
+                        nv[2] * item->objgrp.worldmat[2][2]) >
+                (f32)(data->zdim + a)) {
                 keep = 0;
             }
         } else {
@@ -2408,8 +2417,8 @@ f32 fn_8005F0F4(Item* item, f32 a, f32 b, s32 c, f32* pos, s32 d)
             if (coltype < 1) {
                 keep = 0;
             } else {
-                dist = fqdist(dist, dv[1]);
-                if (R < dist) {
+                dist = fqdist(dist, nv[1]);
+                if (dist > R) {
                     keep = 0;
                 }
             }
@@ -2424,6 +2433,11 @@ f32 fn_8005F0F4(Item* item, f32 a, f32 b, s32 c, f32* pos, s32 d)
     }
     if (keep == 0) {
         return sNoDistance;
+    }
+
+    dist -= R;
+    if (dist < sZeroDouble) {
+        dist = sItemZero;
     }
 
     /* soft types accept immediately at the probe point */
@@ -2452,38 +2466,42 @@ accept_at_pos:
     if (coltype == 3) {
         f1 = nv[0] * item->objgrp.worldmat[0][0] +
              nv[2] * item->objgrp.worldmat[0][2];
-        if (wfabsf_(f1) <= (f32)(info->item.xdim + a)) {
-            f2 = nv[0] * item->objgrp.worldmat[2][0] +
-                 nv[2] * item->objgrp.worldmat[2][2];
-            if (wfabsf_(f2) <= (f32)(info->item.zdim + a)) {
-                nv[0] = (f32)(pos[0] - cx);
-                nv[2] = (f32)(pos[2] - cz);
-                f3 = nv[0] * item->objgrp.worldmat[0][0] +
-                     nv[2] * item->objgrp.worldmat[0][2];
-                if (((sItemZero <= f1 || f3 <= f1) &&
-                     (f1 <= sItemZero || f1 <= f3)) &&
-                    (f4 = nv[0] * item->objgrp.worldmat[2][0] +
-                          nv[2] * item->objgrp.worldmat[2][2],
-                     (sItemZero <= f2 || f4 <= f2)) &&
-                    (f2 <= sItemZero || f2 <= f4)) {
-                    keep = 1;
-                }
+        if (wfabsf_(f1) > (f32)(data->xdim + a)) {
+            goto los_done;
+        }
+        f2 = nv[0] * item->objgrp.worldmat[2][0] +
+             nv[2] * item->objgrp.worldmat[2][2];
+        if (wfabsf_(f2) > (f32)(data->zdim + a)) {
+            goto los_done;
+        }
+        nv[0] = (f32)(pos[0] - cx);
+        nv[2] = (f32)(pos[2] - cz);
+        f3 = nv[0] * item->objgrp.worldmat[0][0] +
+             nv[2] * item->objgrp.worldmat[0][2];
+        if (f1 < sItemZero) {
+            if (f3 > f1) {
+                goto los_done;
             }
+        } else if (f1 > sItemZero && f3 < f1) {
+            goto los_done;
         }
-    } else if (coltype < 3) {
-        if (coltype == 1) {
-            keep = 1;
-        } else {
-            if (fqdist(nv[0], nv[2]) <= R) {
-                keep = 1;
+        f4 = nv[0] * item->objgrp.worldmat[2][0] +
+             nv[2] * item->objgrp.worldmat[2][2];
+        if (f2 < sItemZero) {
+            if (f4 > f2) {
+                goto los_done;
             }
+        } else if (f2 > sItemZero && f4 < f2) {
+            goto los_done;
         }
-    } else if (coltype > 4) {
-        if (fqdist(nv[0], nv[2]) <= R) {
-            keep = 1;
-        }
+        keep = 1;
+    } else if (coltype == 1) {
+        keep = 1;
+    } else if (coltype != 4 && fqdist(nv[0], nv[2]) <= R) {
+        keep = 1;
     }
 
+los_done:
     if (keep != 0) {
         nv[0] = pos[0] - from[0];
         nv[1] = sItemZero;
@@ -2507,33 +2525,35 @@ accept_at_pos:
                  nv[2] * item->objgrp.worldmat[0][2];
             f4 = nv[0] * item->objgrp.worldmat[2][0] +
                  nv[2] * item->objgrp.worldmat[2][2];
-            f2 = (f32)(info->item.xdim + a) - wfabsf_(f3);
-            f1 = (f32)(info->item.zdim + a) - wfabsf_(f4);
-            if (sItemZero < f2 || sItemZero < f1) {
-                if (f1 <= f2 || f2 <= sItemZero) {
-                    if (f2 <= f1 || f1 <= sItemZero) {
-                        out[0] = from[0];
-                        out[1] = from[1];
-                        out[2] = from[2];
-                    } else if (f4 <= sItemZero) {
-                        f1 = -f1;
+            f2 = (f32)(data->xdim + a) - wfabsf_(f3);
+            f1 = (f32)(data->zdim + a) - wfabsf_(f4);
+            if (f2 > sItemZero || f1 > sItemZero) {
+                if (f2 < f1 && f2 > sItemZero) {
+                    if (f3 > sItemZero) {
+                        out[0] = item->objgrp.worldmat[0][0] * f2 + pos[0];
+                        out[1] = item->objgrp.worldmat[0][1] * f2 + pos[1];
+                        out[2] = item->objgrp.worldmat[0][2] * f2 + pos[2];
+                    } else {
+                        f2 = -f2;
+                        out[0] = item->objgrp.worldmat[0][0] * f2 + pos[0];
+                        out[1] = item->objgrp.worldmat[0][1] * f2 + pos[1];
+                        out[2] = item->objgrp.worldmat[0][2] * f2 + pos[2];
+                    }
+                } else if (f1 < f2 && f1 > sItemZero) {
+                    if (f4 > sItemZero) {
                         out[0] = item->objgrp.worldmat[2][0] * f1 + pos[0];
                         out[1] = item->objgrp.worldmat[2][1] * f1 + pos[1];
                         out[2] = item->objgrp.worldmat[2][2] * f1 + pos[2];
                     } else {
+                        f1 = -f1;
                         out[0] = item->objgrp.worldmat[2][0] * f1 + pos[0];
                         out[1] = item->objgrp.worldmat[2][1] * f1 + pos[1];
                         out[2] = item->objgrp.worldmat[2][2] * f1 + pos[2];
                     }
-                } else if (f3 <= sItemZero) {
-                    f2 = -f2;
-                    out[0] = item->objgrp.worldmat[0][0] * f2 + pos[0];
-                    out[1] = item->objgrp.worldmat[0][1] * f2 + pos[1];
-                    out[2] = item->objgrp.worldmat[0][2] * f2 + pos[2];
                 } else {
-                    out[0] = item->objgrp.worldmat[0][0] * f2 + pos[0];
-                    out[1] = item->objgrp.worldmat[0][1] * f2 + pos[1];
-                    out[2] = item->objgrp.worldmat[0][2] * f2 + pos[2];
+                    out[0] = from[0];
+                    out[1] = from[1];
+                    out[2] = from[2];
                 }
             } else {
                 out[0] = from[0];
@@ -5705,8 +5725,8 @@ s32 fn_8005D20C(s32 index, f32* from, f32* to, s32 ticking)
     obj = 0;
     blocked = 0;
     if (ticking == 0 && *(u32*)(e + 652) != 0) {
-        d = fn_8005F0F4((Item*)*(u32*)(e + 652), rad,
-                        (f32)(lbl_80346FB8 * rad), (s32)from, to, (s32)0);
+        d = fn_8005F0F4((Item*)*(u32*)(e + 652), from, to, 0, rad,
+                        (f32)(lbl_80346FB8 * rad));
         obj = (d >= sZeroDouble) ? *(u32*)(e + 652) : 0;
     } else {
         if (ticking != 0) {
@@ -5721,8 +5741,8 @@ s32 fn_8005D20C(s32 index, f32* from, f32* to, s32 ticking)
                 *(s32*)(e + 812) = (t2 < 30) ? t1 : 30;
             }
             if (obj != 0) {
-                d = fn_8005F0F4((Item*)obj, rad, (f32)(lbl_80346FB8 * rad),
-                                (s32)from, to, (s32)0);
+                d = fn_8005F0F4((Item*)obj, from, to, 0, rad,
+                                (f32)(lbl_80346FB8 * rad));
                 obj = (d >= sZeroDouble) ? obj : 0;
             }
         }
