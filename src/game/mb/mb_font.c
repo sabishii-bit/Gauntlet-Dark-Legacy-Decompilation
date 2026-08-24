@@ -74,8 +74,10 @@ typedef struct MBFont MBFont;
  * state.  The live font-pointer table starts at +0x66DC. */
 typedef struct MBFontState {
     s32 space[35];
-    u8 _pad008C[0x6650];
-    MBFont* fonts[35];
+    u8 _pad008C[0x1040];
+    MBTextMsg msgs[499];       /* 0x10CC */
+    u8 _pad6690[0x4C];
+    MBFont* fonts[35];         /* 0x66DC */
 } MBFontState;
 
 extern MBFontState mbfont_space;
@@ -373,16 +375,241 @@ MBTextMsg* MBDrawText(int x, int y, const char* s)
 
 /* ==== rasteriser ==== */
 
+extern s32 lbl_80344E2C;
+extern s32 lbl_80344E30;
+extern s32 lbl_80344E34;
+extern s32 lbl_80344E38;
+extern s32 lbl_80344E3C;
+extern s32 lbl_80344E40;
+extern s32 lbl_80344E44;
+extern s32 lbl_80344E48;
+extern u8* gWinGlobals;
+extern f32 lbl_80343EB4;
+extern f64 lbl_80348B48;
+extern f64 lbl_80348B50;
+extern f32 lbl_80348B58;
+extern f64 lbl_80348B60;
+extern f32 lbl_80348B68;
+extern f64 lbl_80348B70;
+
+/* local blit-entry scratch handed to the mbBlit pipeline */
+typedef struct MBBlitEnt {
+    u32 flags;     /* 0x00 copied from msg->flags */
+    u8  rec[0x18]; /* 0x04 glyph record; +4 s16 px, +6 s16 py, +8 s32 depth,
+                    *      +0xc u16 u, +0xe u16 v */
+    u32 color;     /* 0x1C */
+} MBBlitEnt;
+
 /* 0x800B5DEC - MBRenderText : rasterise queued messages through the pb blit
- * pipeline. NonMatching stub: documented call shape only. */
+ * pipeline in two layer passes (flag-8 messages render on the second). */
 void MBRenderText(void)
 {
+    u8* st = (u8*)&mbfont_space;
+    u8* wg = gWinGlobals;
+    s32 layer = 2;
+    MBBlitEnt e;
+    s32 spaceW;
+    s32 baseY;
+    s32 sy2;
+    s32 sx2;
+    u8* pRec;
+    u32 white;
+    s32 sx;
+    s32 sy;
+    s32 i;
+    s32 off;
+    s32 x;
+    s32 y;
+    s32 c;
+    s32 hb;
+    s32 extra;
+    s32 glyph;
+    s32 adv;
+    s32 doClip;
+    s32 t;
+    f32 clipX;
+    f32 clipY;
+    f64 half;
+    f64 kdepth;
+    f32 zsp;
+    f64 zsc;
+    f32* wp;
+    char* text;
+    MBFont* font;
+    MBTextMsg* msg;
+
+    if (lbl_80344E28) {
+        lbl_80344E28 = 0;
+        return;
+    }
+    wp = *(f32**)(wg + 0x38);
+    sx = (s32)(lbl_80348B50 + lbl_80343EB4 * wp[0]);
+    sy = (s32)(lbl_80348B50 + lbl_80343EB4 * wp[1]);
     mbBlitGetPage();
-    mbInitBlitEntry();
-    mbBlitProject();
-    mbBlitSetupVerts((void*)0, 0.0f, 0.0f, 0.0f, 0.0f);
-    mbBlitCalcClip();
-    DrawBlit();
+    half = lbl_80348B50;
+    kdepth = lbl_80348B70;
+    zsp = lbl_80348B58;
+    zsc = lbl_80348B60;
+    pRec = e.rec;
+    sx2 = sx << 1;
+    sy2 = sy << 1;
+    white = 0x80808080;
+    do {
+        for (i = 0, off = 0; i < lbl_80344E20; i++, off += 0x2c) {
+            msg = ((MBFontState*)(st + off))->msgs;
+            if (msg->flags & 1) {
+                continue;
+            }
+            if (msg->flags & 8) {
+                if (layer != 0) {
+                    layer = 1;
+                    continue;
+                }
+            } else {
+                if (layer == 0) {
+                    continue;
+                }
+            }
+            t = msg->font;
+            baseY = msg->y;
+            x = msg->x;
+            font = mbfont_space.fonts[t];
+            clipX = msg->xspace;
+            clipY = msg->yspace;
+            if (font == NULL) {
+                continue;
+            }
+            e.color = msg->color;
+            e.flags = msg->flags;
+            {
+                s32 u = 1;
+                if (msg->xspace == zsp && msg->yspace == zsc) {
+                    u = 0;
+                }
+                doClip = u ? 1 : 0;
+            }
+            spaceW = (s32)(msg->xscale * (f32)mbfont_space.space[t]);
+            text = msg->text;
+            while ((c = *(u8*)text) != 0) {
+                y = baseY;
+                hb = -1;
+                extra = 0;
+                if (c == 0x2a) {
+                    switch (*(u8*)(text + 1)) {
+                    case 'X':
+                        hb = lbl_80344E48;
+                        break;
+                    case 'T':
+                        hb = lbl_80344E44;
+                        break;
+                    case 'O':
+                        hb = lbl_80344E3C;
+                        break;
+                    case 'S':
+                        hb = lbl_80344E40;
+                        break;
+                    case 'L':
+                        hb = lbl_80344E38;
+                        break;
+                    case 'R':
+                        hb = lbl_80344E34;
+                        break;
+                    case 'U':
+                        hb = lbl_80344E30;
+                        break;
+                    case 'D':
+                        hb = lbl_80344E2C;
+                        break;
+                    default:
+                        if (c < font->count) {
+                            glyph = *(u16*)(font->cells + c * 0x24 + 0x20);
+                        } else {
+                            glyph = 0;
+                        }
+                        break;
+                    }
+                    if (hb <= 0 && glyph == 0) {
+                        goto next_char;
+                    }
+                } else {
+                    if (font->flags & 1) {
+                        if (c >= 0x80) {
+                            extra = c - 0x80;
+                            c = *(u8*)++text;
+                        } else if (c >= '0' && c <= '9') {
+                        } else if (c == '.') {
+                            c = 0x3a;
+                        } else if (c == '-') {
+                            c = 0x3b;
+                        } else {
+                            goto next_char;
+                        }
+                        glyph = *(u16*)(font->cells + c * 0x24 + 0x20);
+                    } else {
+                        if (c == 0) {
+                            goto next_char;
+                        }
+                        if (c >= font->count) {
+                            goto next_char;
+                        }
+                        glyph = *(u16*)(font->cells + c * 0x24 + 0x20);
+                        if (glyph == 0) {
+                            if (c == 0x20) {
+                                x += spaceW;
+                            }
+                            goto next_char;
+                        }
+                    }
+                }
+                memcpy(pRec, font->cells + c * 0x24 + 4, 0x18);
+                if (hb > 0) {
+                    text++;
+                    adv = font->height + 4;
+                    if (msg->flags & 0x4000) {
+                        x += (s32)((f32)adv * msg->xscale);
+                        goto next_char;
+                    }
+                    y -= 2;
+                    mbInitBlitEntry(&e, hb, 0);
+                    mbBlitProject(&e, adv, adv);
+                    mbBlitSetupVerts(&e, lbl_80348B68, zsp, lbl_80348B68,
+                                     zsp);
+                    e.color = white;
+                    adv -= 2;
+                } else {
+                    if (msg->seq >= 0) {
+                        mbInitBlitEntry(&e, msg->seq, 0);
+                    } else if (extra > 0) {
+                        mbInitBlitEntry(&e, -1, extra);
+                    }
+                    adv = glyph;
+                }
+                wp = *(f32**)(wg + 0x38);
+                *(s16*)(e.rec + 4) =
+                    (s16)(s32)(half + (f32)x * wp[0]);
+                wp = *(f32**)(wg + 0x38);
+                *(s16*)(e.rec + 6) =
+                    (s16)(s32)(half + (f32)y * wp[1]);
+                *(s32*)(e.rec + 8) = (s32)(kdepth * msg->z);
+                if (doClip) {
+                    mbBlitCalcClip(&e, clipX, clipY);
+                }
+                if (msg->flags & 0x4000) {
+                    *(s16*)(e.rec + 4) -= sx;
+                    *(s16*)(e.rec + 6) -= sy;
+                    *(u16*)(e.rec + 0xc) += sx2;
+                    *(u16*)(e.rec + 0xe) += sy2;
+                }
+                x += (s32)((f32)adv * msg->xscale);
+                DrawBlit(&e);
+                if (hb > 0) {
+                    e.color = msg->color;
+                }
+            next_char:
+                text++;
+            }
+        }
+    } while (--layer == 0);
     mbBlitSetPage();
 }
 
