@@ -3865,7 +3865,9 @@ extern void fn_80054E78(void);
 #pragma dont_inline on
 void game_main(void)
 {
+    u8 unused[8];
     s32 i;
+    s32 reset_player;
     s32 cond;
     s32 flag;
     s32 flag2;
@@ -3949,8 +3951,8 @@ void game_main(void)
         FireScrollReset();
         TriggerCameraEnd();
         TowerInit();
-        for (i = 0; i < 4; i++) {
-            abort_player(i);
+        for (reset_player = 0; reset_player < 4; reset_player++) {
+            abort_player(reset_player);
         }
         bulletproof_printf(strs + 0x200);
         fn_80053D08(-1, 0, -1);
@@ -4049,9 +4051,10 @@ void game_main(void)
         if (AudioSysUpdate(100000)) {
             break;
         }
-        for (i = 0; i < 4; i++) {
-            if (lbl_80344824 & (1 << i)) {
-                continue;
+        {
+            u32 player_mask = *(volatile u32*)&lbl_80344824;
+            for (i = 0; i < 4; i++) {
+                !!(player_mask & (1 << i));
             }
         }
         fn_8005351C();
@@ -4129,8 +4132,7 @@ void game_main(void)
         do_enemies();
         fn_8004E67C();
         if (do_players() && !sndFxUpdate(1)) {
-            lvl = (u8)lbl_803448CC;
-            lvl = (lvl & 0xFF) | (lbl_803448D0 << 8);
+            lvl = (lbl_803448CC & 0xFF) | (lbl_803448D0 << 8);
             if (!lbl_80344824) {
                 i = 0;
                 gGameMode = 0x4014;
