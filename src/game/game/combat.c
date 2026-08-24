@@ -3600,7 +3600,11 @@ s32 EnemyStartMissile(void* enemy, f32* launchPos, f32* target, s32 slot)
         aim[0] = target[0];
         aim[1] = target[1];
         aim[2] = target[2];
-        height = slot == 2 ? lbl_80346328 : lbl_80346380;
+        if (slot == 2) {
+            height = lbl_80346328;
+        } else {
+            height = lbl_80346380;
+        }
         switch (PF(enemy, 0x00, s32)) {
         case 4:
             if (slot == 0) height = lbl_80346334;
