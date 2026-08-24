@@ -683,8 +683,8 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
     u8 pktClip;
     u8 vClip;
     u8 kick;
-    u8 spec;
-    u8 flat;
+    s32 spec;
+    register u8 flat;
     u32 tag;
     u32 cnt;
     u32 tmp;
@@ -778,21 +778,21 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
     lbl_80345094 = lbl_80345090;
     lbl_8034509C = lbl_80345098;
     lbl_803450A2 = lbl_803450A0;
-    if (spec || lbl_80345040) {
+    if ((u8)spec || lbl_80345040) {
         envSave = *(PbGfxEnv*)(st + 0x128);
         texSave = *(PbGfxEnv*)(st + 0x168);
     }
     if (lbl_80345040) {
         SetMultiPassTextureParams(1);
         SetVertexFormat(1);
-    } else if (spec) {
+    } else if ((u8)spec) {
         SetMultiPassTextureParams(2);
         SetVertexFormat(0);
     } else {
         SetMultiPassTextureParams(0);
         SetVertexFormat(0);
     }
-    if (spec || lbl_80345040) {
+    if ((u8)spec || lbl_80345040) {
         fn_800C7928(*(u32*)(st + 0x168), 1);
     }
     sSetGFXEnv((PbGfxEnv*)(st + 0x128));
@@ -1022,7 +1022,7 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
             pbDrawVerts((s32)cnt - start, st + start * 0x24 + 0x1A8);
         }
     }
-    if (spec || lbl_80345040) {
+    if ((u8)spec || lbl_80345040) {
         *(PbGfxEnv*)(st + 0x128) = envSave;
         *(PbGfxEnv*)(st + 0x168) = texSave;
     }
