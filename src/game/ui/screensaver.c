@@ -432,19 +432,6 @@ void ScreenSaverUpdateWeap(s32 idx)
     register s32 weaponIndex = idx;
     ScreenSaverWeapon* weapons = (ScreenSaverWeapon*)lbl_80274600;
     ScreenSaverWeapon* weapon = &weapons[weaponIndex];
-    f32* position = weapon->position;
-    f32* positionY = &weapon->position[1];
-    f32* positionZ = &weapon->position[2];
-    f32* velocity = weapon->velocity;
-    f32* velocityY = &weapon->velocity[1];
-    f32* velocityZ = &weapon->velocity[2];
-    f32* angleValue = &weapon->angle;
-    s32* collisionState = &weapon->collisionState;
-    s32* elapsed = &weapon->elapsed;
-    s32* duration = &weapon->duration;
-    s32* resetAt = &weapon->resetAt;
-    void** node = &weapon->node;
-    u8* atree = weapon->atree;
     u8* initialTable = lbl_8011D568;
     f32 matrix[12];
     volatile f32 unused[5];
@@ -455,33 +442,45 @@ void ScreenSaverUpdateWeap(s32 idx)
 
     frameStep = (f32)gClockStepTicks / lbl_80347390;
     movementStep = frameStep * lbl_80343CB8;
-    *elapsed += gClockStepTicks;
-    if (*elapsed < *duration) {
+    weapon->elapsed += gClockStepTicks;
+    if (weapon->elapsed < weapon->duration) {
         return;
     }
 
-    if (*duration > 0) {
+    if (weapon->duration > 0) {
         u8* table = initialTable + weaponIndex * 0xC;
+        void** node = &weapon->node;
 
         if (*node == NULL) {
             ScreenSaverStartWeap(weaponIndex);
         }
-        position[0] = *(f32*)(table + 0x754);
-        *positionY = *(f32*)(table + 0x758);
-        *positionZ = *(f32*)(table + 0x75C);
-        velocity[0] = *(f32*)(table + 0x784);
-        *velocityY = *(f32*)(table + 0x788);
-        *velocityZ = *(f32*)(table + 0x78C);
-        NormalVector(velocity);
-        *angleValue = lbl_80347398;
-        *collisionState = 0;
+        weapon->position[0] = *(f32*)(table + 0x754);
+        weapon->position[1] = *(f32*)(table + 0x758);
+        weapon->position[2] = *(f32*)(table + 0x75C);
+        weapon->velocity[0] = *(f32*)(table + 0x784);
+        weapon->velocity[1] = *(f32*)(table + 0x788);
+        weapon->velocity[2] = *(f32*)(table + 0x78C);
+        NormalVector(weapon->velocity);
+        weapon->angle = lbl_80347398;
+        weapon->collisionState = 0;
         weapon->jitterX = (f32)((f64)lbl_80343CB8 *
                               (lbl_803473A0 + (f64)Random(lbl_803473A8)));
         weapon->jitterY = (f32)((f64)lbl_80343CB4 *
                               (lbl_803473A0 + (f64)Random(lbl_803473A8)));
-        *duration = 0;
+        weapon->duration = 0;
         MBTreeClearFlags((s32)*node, 2, 0);
     }
+
+    {
+    f32* position = weapon->position;
+    f32* velocity = weapon->velocity;
+    f32* positionY = &weapon->position[1];
+    f32* velocityY = &weapon->velocity[1];
+    f32* positionZ = &weapon->position[2];
+    f32* velocityZ = &weapon->velocity[2];
+    f32* angleValue = &weapon->angle;
+    s32* collisionState;
+    void** node;
 
     position[0] += movementStep * velocity[0];
     *positionY += movementStep * *velocityY;
@@ -500,6 +499,7 @@ void ScreenSaverUpdateWeap(s32 idx)
 
     CreateDirMatrix(matrix, velocity, NULL);
     PitchMat3(matrix, *angleValue);
+    node = &weapon->node;
     MulMat3(matrix, (f32*)lbl_80344EE8 + 25, (f32*)*node);
     MulVec4Mat4(position, screenPosition,
                 (f32*)lbl_80344EE8 + 25);
@@ -512,6 +512,7 @@ void ScreenSaverUpdateWeap(s32 idx)
         collision = MBWorldSphereClip(screenPosition, lbl_803473C8);
     }
 
+    collisionState = &weapon->collisionState;
     if (*collisionState > 0) {
         f32 spread;
 
@@ -547,25 +548,25 @@ void ScreenSaverUpdateWeap(s32 idx)
         case 5:
             *velocityZ =
                 -(f32)(lbl_80347388 + (f64)Random(lbl_80347370));
-            if (*resetAt < *elapsed) {
+            if (weapon->elapsed > weapon->resetAt) {
                 u8* table = initialTable + weaponIndex * 0xC;
                 s32 delay;
 
                 position[0] = *(f32*)(table + 0x754);
                 *positionY = *(f32*)(table + 0x758);
                 *positionZ = *(f32*)(table + 0x75C);
-                *elapsed = 0;
+                weapon->elapsed = 0;
                 delay = (s32)(lbl_80347380 *
                               ((f64)lbl_80343CC0 *
                                (lbl_80347388 +
                                 (f64)Random(lbl_80347378))));
-                *duration = delay + 1;
-                *resetAt =
+                weapon->duration = delay + 1;
+                weapon->resetAt =
                     (s32)(lbl_80347380 *
                           ((f64)lbl_80343CC4 *
                            (lbl_80347388 +
                             (f64)Random(lbl_80347378))));
-                AtreeDelete(atree);
+                AtreeDelete(weapon->atree);
                 *node = (void*)MBRemoveNode((s32)*node, 1);
                 return;
             }
@@ -588,7 +589,8 @@ void ScreenSaverUpdateWeap(s32 idx)
     *(f32*)((u8*)*node + 0x30) = screenPosition[0];
     *(f32*)((u8*)*node + 0x34) = screenPosition[1];
     *(f32*)((u8*)*node + 0x38) = screenPosition[2];
-    AnimateATree(atree, 0, 0);
+    AnimateATree(weapon->atree, 0, 0);
+    }
 }
 
 void ScreenSaverEnd(void)
