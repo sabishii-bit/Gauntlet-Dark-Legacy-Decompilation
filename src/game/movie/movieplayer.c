@@ -31,6 +31,32 @@
  * are valid C identifiers) so the unit compiles for the NonMatching link.
  */
 #include "types.h"
+#include "dolphin/pad.h"
+#include "dolphin/gx/GXVert.h"
+
+typedef struct MovieGXColor {
+    u8 r, g, b, a;
+} MovieGXColor;
+
+typedef struct MovieGXTexObj {
+    u32 data[8];
+} MovieGXTexObj;
+
+extern void GXInitTexObj(MovieGXTexObj* obj, void* data, u16 width, u16 height,
+                         u32 format, u32 wrapS, u32 wrapT, u8 mipmap);
+extern void GXLoadTexObj(MovieGXTexObj* obj, u8 map);
+extern void GXSetChanMatColor(s32 channel, MovieGXColor color);
+extern void GXSetZMode(u8 compareEnable, u32 compare, u8 updateEnable);
+extern void GXBegin(u32 primitive, u32 format, u16 vertices);
+
+#define MOVIE_GX_TRUE 1
+#define MOVIE_GX_GEQUAL 6
+#define MOVIE_GX_TRIANGLES 0x90
+#define MOVIE_GX_VTXFMT0 0
+#define MOVIE_GX_COLOR0A0 4
+#define MOVIE_GX_TEXMAP0 0
+#define MOVIE_GX_TF_RGB565 4
+#define MOVIE_GX_CLAMP 1
 
 /* --- externs: allocator + alloc-balance counter (ml_mem.c) --- */
 extern s32 gMovieAllocCount;
@@ -44,6 +70,17 @@ extern void* memset(void* dst, int c, u32 n);
 extern void DCInvalidateRange(void* addr, u32 nBytes);
 extern void DCFlushRange(void* addr, u32 nBytes);
 extern void GXInvalidateTexAll(void);
+extern void SetMultiPassTextureParams(s32 stages);
+extern void SetCullMode(s32 mode);
+extern void SetPerspectiveMode(s32 mode);
+extern void SetViewportHeight(f32 height);
+extern void SetVertexFormat(s32 format);
+extern void fn_800C6AB4(s32 mode);
+extern PADStatus* G3DGetPadStatusBuffer(void);
+extern void sysResetService(void);
+extern u32 pbPulseTime(void);
+extern void DEMOSwapBuffers(void);
+extern void DEMODoneRender(void);
 
 /* --- audio stream pump (soundmgr / adstream) --- */
 extern void adsPoll(void);
@@ -66,13 +103,20 @@ extern u32 lbl_801296F0[];
 extern u32 lbl_803452B8;
 extern u32 gDTextInitCount;
 extern u8 lbl_80321340[];
+extern MovieGXTexObj lbl_80321308;
 extern u8 gMovieAudioCallback[];
 extern u8 gDTextColorRamp[];
 extern u8* gDTextBuf;
+extern u8 lbl_80344A5D;
+extern s32 sSeconds;
 
 /* --- sdata2 float pool (movie YUV->RGB matrix coeffs) --- */
 extern const f32 lbl_80349390;
 extern const f32 lbl_80349394;
+extern const f32 lbl_80349398;
+extern const f32 lbl_8034939C;
+extern const f32 lbl_803493A0;
+extern const f64 lbl_803493A8;
 extern const f64 lbl_803493B0;
 extern const f32 lbl_803493B8;
 extern const f32 lbl_803493BC;
@@ -100,10 +144,15 @@ void fn_800DB3D4(u32* stream, s32 fd, u32 length);
 void fn_800DB29C(int stream);
 u32* fn_800DB36C(int stream);
 void fn_800DB82C(u32* stream, int fd, u32 offset);
+void fn_800DA60C(u8* movie);
+u32 fn_800DA6A4(u8* movie, u32 decodeFrame, f32 elapsed);
+s32 fn_800DA920(u8* movie, const char* name);
 u32 fn_800DACD8(int movie, u8* header);
 u8 MovieDecoderInitBuffers(u32* decoder, u32 size, u32 hasAudio);
 void fn_800D9F20(int audio);
 u32* fn_800DBF6C(u32* self, s16 deleting);
+u32* fn_800DB008(u32* self, s16 deleting);
+u32* fn_800DB0F8(u32* self);
 u8 fn_800DBCCC(void* self, s32 x);
 u8 fn_800DBD00(void* self, s32 x);
 extern u32 __cvt_fp2unsigned(f64 value);
@@ -111,6 +160,9 @@ extern s32 sndCmd16(s32 size);
 extern s32 sndCmdA(s32 volume, s32 arg1, s32 arg2, void* callback);
 extern s32 lbl_80343B4C;
 extern u8 gMovieFrameTimeReset;
+extern void* __construct_new_array(void* block, void* ctor, void* dtor,
+                                   u32 size, u32 count);
+extern void __destroy_new_array(void* block, void* dtor);
 
 /* --- little-endian container readers (parse the PC-format .avi header) ---
  * Defined at file-end in the original (callers see only a prototype), so they
@@ -1143,8 +1195,194 @@ void fn_800D9F20(int param_1) {
 }
 
 /* 0x800D9FEC top-level VQ movie playback loop: sets up GX/TEV, decodes+presents each frame (DEMODoneRender/DEMOSwapBuffers), polls pads (G3DGetPadStatusBuffer) to allow skipping, pumps audio (adsPoll/sndCmd17). Xbox: PlayVQMovie. Called by test_movies. */
-void PlayVQMovie(void) {
+typedef struct MovieAudioState {
+    s32 command;
+    u8* buffer;
+    s32 remaining;
+    s32 offset;
+    s32 requestSize;
+    u8 active;
+    u8 _pad[3];
+} MovieAudioState;
+
+#define MOVIE_SETUP_DRAW_STATE()                                             \
+    {                                                                        \
+        MovieGXColor color;                                                  \
+                                                                             \
+        color.r = 0xff;                                                      \
+        color.g = 0xff;                                                      \
+        color.b = 0xff;                                                      \
+        color.a = 0xff;                                                      \
+        SetMultiPassTextureParams(0);                                        \
+        SetCullMode(0);                                                      \
+        SetPerspectiveMode(0);                                               \
+        SetViewportHeight(lbl_80349394);                                     \
+        SetVertexFormat(2);                                                  \
+        fn_800C6AB4(1);                                                      \
+        GXInvalidateTexAll();                                                \
+        GXLoadTexObj(&lbl_80321308, MOVIE_GX_TEXMAP0);                       \
+        GXSetChanMatColor(MOVIE_GX_COLOR0A0, color);                         \
+        GXSetZMode(MOVIE_GX_TRUE, MOVIE_GX_GEQUAL, MOVIE_GX_TRUE);           \
+    }
+
+void PlayVQMovie(const char* name)
+{
+    typedef s32 (*MovieOpenMethod)(u8*, const char*);
+    typedef u32 (*MovieUpdateMethod)(u8*, u32, f32);
+    typedef void (*MovieCloseMethod)(u8*);
+    u8* movie;
+    u8* texture;
+    s32* dimensions;
+    s32 height;
+    s32 paddedHeight;
+    s32 scan;
+    s32 oneBits;
+    s32 shifts;
+    s32 textureBytes;
+    s32 stopCount;
+    s32 lastTime;
+    s32 now;
+    s32 i;
+    f32 texV;
+    f32 elapsed;
+    PADStatus* pads;
+    u8 unused[40];
+    PADStatus previousPads[4];
+
+    movie = AllocHiMem(472, (u32)gMovieAllocCount++);
+    movie = __construct_new_array(movie, (void*)fn_800DB0F8,
+                                  (void*)fn_800DB008, 464, 1);
+    gMovieStreamState = movie;
+    ((MovieOpenMethod)(*(u32**)movie)[3])(movie, name);
+
+    dimensions = (s32*)(movie + 408);
+    if (dimensions[0] != 512) {
+        ((MovieCloseMethod)(*(u32**)movie)[5])(movie);
+        __destroy_new_array(gMovieStreamState, (void*)fn_800DB008);
+        ResetAllocTot();
+        return;
+    }
+
+    height = dimensions[1];
+    oneBits = 0;
+    shifts = 0;
+    scan = height;
+    while (scan != 0) {
+        if ((scan & 1) != 0) {
+            oneBits++;
+        }
+        shifts++;
+        scan >>= 1;
+    }
+    paddedHeight = height;
+    if (oneBits > 1) {
+        paddedHeight = 1 << shifts;
+    }
+
+    texV = (f32)height / (f32)paddedHeight;
+    textureBytes = dimensions[0] * paddedHeight * 2;
+    texture = AllocHiMem((u32)textureBytes, (u32)gMovieAllocCount++);
+    memset(texture, 0, (u32)textureBytes);
+    GXInitTexObj(&lbl_80321308, texture, (u16)dimensions[0],
+                 (u16)paddedHeight, MOVIE_GX_TF_RGB565, MOVIE_GX_CLAMP,
+                 MOVIE_GX_CLAMP, 0);
+    MOVIE_SETUP_DRAW_STATE();
+
+    pads = G3DGetPadStatusBuffer();
+    for (i = 0; i < 4; i++) {
+        previousPads[i] = pads[i];
+    }
+    pbPulseTime();
+    lastTime = sSeconds;
+    elapsed = lbl_80349390;
+    stopCount = 0;
+
+    while (stopCount < 3 &&
+           ((MovieUpdateMethod)(*(u32**)movie)[4])(
+               movie, (u32)texture, elapsed) != 0) {
+        if (stopCount != 0) {
+            stopCount++;
+        }
+
+        if (lbl_80344A5D != 0) {
+            MOVIE_SETUP_DRAW_STATE();
+            lbl_80344A5D = 0;
+        }
+
+        sysResetService();
+        for (i = 0; i < 4; i++) {
+            if (pads[i].err == 0 && previousPads[i].err == 0 &&
+                pads[i].button != 0 && previousPads[i].button == 0) {
+                MOVIE_SETUP_DRAW_STATE();
+                stopCount++;
+            }
+            previousPads[i] = pads[i];
+        }
+
+        DCFlushRange(texture, (u32)textureBytes);
+        DEMOSwapBuffers();
+        GXBegin(MOVIE_GX_TRIANGLES, MOVIE_GX_VTXFMT0, 6);
+        GXPosition3f32(lbl_80349398, lbl_80349398, lbl_8034939C);
+        GXTexCoord2f32(lbl_80349390, texV);
+        GXPosition3f32(lbl_80349394, lbl_80349398, lbl_8034939C);
+        GXTexCoord2f32(lbl_80349394, texV);
+        GXPosition3f32(lbl_80349394, lbl_80349394, lbl_8034939C);
+        GXTexCoord2f32(lbl_80349394, lbl_80349390);
+        GXPosition3f32(lbl_80349394, lbl_80349394, lbl_8034939C);
+        GXTexCoord2f32(lbl_80349394, lbl_80349390);
+        GXPosition3f32(lbl_80349398, lbl_80349394, lbl_8034939C);
+        GXTexCoord2f32(lbl_80349390, lbl_80349390);
+        GXPosition3f32(lbl_80349398, lbl_80349398, lbl_8034939C);
+        GXTexCoord2f32(lbl_80349390, texV);
+        DEMODoneRender();
+        GXSetZMode(MOVIE_GX_TRUE, MOVIE_GX_GEQUAL, MOVIE_GX_TRUE);
+
+        {
+            MovieAudioState* audio = *(MovieAudioState**)(movie + 400);
+
+            if (audio->active != 0) {
+                adsPoll();
+                if (audio->remaining != 0) {
+                    audio->remaining -= sndCmd17(
+                        (s32)(audio->buffer + audio->requestSize) -
+                            audio->remaining,
+                        audio->remaining);
+                }
+                if (audio->remaining == 0) {
+                    s32 request = *(s32*)(movie + 264) - audio->offset;
+
+                    if (request > 0xc000) {
+                        request = 0xc000;
+                    }
+                    audio->requestSize = request;
+                    if ((u8)fn_800DB2F4((s32)(movie + 32), audio->buffer,
+                                        audio->offset,
+                                        audio->requestSize) != 0) {
+                        audio->remaining = audio->requestSize;
+                        audio->offset += audio->requestSize;
+                    }
+                }
+            }
+        }
+
+        pbPulseTime();
+        now = sSeconds;
+        elapsed = (f32)(now - lastTime) / lbl_803493A0;
+        lastTime = now;
+    }
+
+    ((MovieCloseMethod)(*(u32**)movie)[5])(movie);
+    if (texture != NULL) {
+        gMovieAllocCount--;
+        if (gMovieAllocCount == 0) {
+            ResetAllocTot();
+        }
+    }
+    __destroy_new_array(gMovieStreamState, (void*)fn_800DB008);
+    ResetAllocTot();
 }
+
+#undef MOVIE_SETUP_DRAW_STATE
 
 /* movie close/cleanup (AudioStreamStop, operator delete, sceClose) */
 extern void AudioStreamStop(void);
@@ -1184,16 +1422,6 @@ void fn_800DA60C(register u8* m)
     *(s32*)(self + 28) = 0;
 }
 #pragma dont_inline off
-
-typedef struct MovieAudioState {
-    s32 command;
-    u8* buffer;
-    s32 remaining;
-    s32 offset;
-    s32 requestSize;
-    u8 active;
-    u8 _pad[3];
-} MovieAudioState;
 
 /* Advance the VQ stream by one presentation interval and prime its audio. */
 u32 fn_800DA6A4(register u8* movie, register u32 decodeFrame, f32 elapsed)
