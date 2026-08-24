@@ -57,7 +57,7 @@ BOOL  MBWorldSphereVisible3(f64 radius, void* bounds);              /* frustum/s
 f32   mbInvSqrtLookup(f64 x);                                 /* rsqrt / normalize */
 f64   fqdist(f64 a, f64 b);                          /* hypot accumulate */
 void  pbBlitSetTexture(s32 tex);                               /* bind texture page */
-void  pbBlitSetDrawRegs(u32 a, u32 b);                          /* set blend/tev mode */
+void  pbBlitSetDrawRegs(u32 a, u32 b, u32 c);                   /* set blend/tev mode */
 void  fn_800C7914(void* a, void* b);                      /* project helper */
 void  __as__4vec3FRC4vec3(u32 a, u32 b);                          /* copy vec */
 void  sceSamp0MultVec(void* out, const f32* m, const f32* v);
@@ -72,8 +72,35 @@ void  pbBlitSetTexture(s32 tex);
 
 extern void* gWinGlobals;
 extern f32   gVpScaleY;
+extern f32   gCameraMtx[16];
+extern f32*  lbl_80344EE8;   /* active view/frustum basis */
+extern s32   lbl_80345188;   /* quads drawn this frame */
+extern f32   lbl_803451D4;   /* screen cull min x */
+extern f32   lbl_803451D8;   /* screen cull max x */
+extern f32   lbl_803451DC;   /* screen cull min y */
+extern f32   lbl_803451E0;   /* screen cull max y */
+extern f32   lbl_803451E4;   /* min quad width */
+extern f32   lbl_803451E8;   /* min quad height */
+extern f32 lbl_80349150;
+extern const f32 lbl_8034915C;
+extern f32 lbl_80349158;
+extern f32 lbl_80349160;
+extern const f64 lbl_80349170;
+extern f32 lbl_80349178;
+extern f32 lbl_8034917C;
+extern f32 lbl_80349180;
+extern const f32 lbl_80349184;
+extern f32 lbl_80349188;
+extern s32 lbl_803451C4;
+extern s32 lbl_803451C8;
+extern s32 lbl_803451CC;
+extern s32 lbl_803451D0;
+extern f32 lbl_803451EC;
+extern f32 lbl_803451F0;
+
 extern f32   psysInfo[];     /* per-parm scale/min/max config table */
 extern char  lbl_80116F30[]; /* "freePsysMem: bad free block..." */
+extern char  lbl_80116D70[]; /* TU string block base */
 
 typedef struct PsysModuleGlobals {
     u8 pad00[0x54];
@@ -135,9 +162,9 @@ extern const f64 lbl_80349168;
 extern const f64 lbl_803491A0;
 extern const f64 lbl_803491F8;
 static f32  getSinCos(f32 ang, f32* sinOut);
-static void DrawPsysSub(void);
-static void setupNewPMode_800CDCE4(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
-                          f64 f7, f64 f8, Psys* p);
+static void DrawPsysSub(f32* pos, u32 color, s32 c, s32 sx, s32 sy, f32 size);
+static void setupNewPMode_800CDCE4(f32 d0, f32 a0, f32 b0, f32 est, f32 elife,
+                          f32 efade, f32 pl, f32 el, Psys* p);
 static void setupParms(Psys* p);
 static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wp, f32* over);
 static Psys* allocPsys(s32 flag);
@@ -659,37 +686,637 @@ static s32 getNewDirSingle1(Psys* p, MBObject* node) {
 /* 0x800CC8F4 - project one particle sprite and submit a GX quad.
  * Documented flow: cull against the psys screen-rect, back-project two
  * corners, then GXBegin(GX_QUADS) and stream 4 verts to the FIFO. */
-static void DrawPsysSub(void) {
-    f32 eye[3];
+static void DrawPsysSub(f32* pos, u32 color, s32 c, s32 sx, s32 sy, f32 size) {
+    f32 v[3];
     f32 corner[4];
-    __as__4vec3FRC4vec3((u32)eye, (u32)corner);
-    sceSamp0MultVec(corner, (f32*)&gWinGlobals, eye);
+    f32 out1[4];
+    f32 out2[4];
+    s32 ix, iy;
+    u8 rgba[4];
+    u32 cw;
+    u8* win;
+    f32* row;
+    f32 nhs;
+    f32 x1, y1;
+    f32 x2, y2, z1;
+    f32 d;
+    f32 u0, u1, v0, v1;
+    u32 a;
+    u8 rr, gg, bb;
+    s32 sa, sb;
+
+    win = (u8*)gWinGlobals;
+    row = lbl_80344EE8 + 25;
+    if (lbl_80345188 > 2048) {
+        return;
+    }
+
+    a = (color >> 24) & 0xFE;
+    rr = color >> 16;
+    gg = color >> 8;
+    bb = color;
+    if (a > 255) {
+        a = 255;
+    }
+    rgba[0] = rr;
+    rgba[1] = gg;
+    rgba[2] = bb;
+    rgba[3] = a;
+    cw = *(u32*)rgba;
+    GXSetChanMatColor(4, &cw);
+
+    size *= 0.5;
+    nhs = -size;
+    v[0] = row[0] * nhs + pos[0];
+    v[1] = row[1] * nhs + pos[1];
+    v[2] = row[2] * nhs + pos[2];
+    v[0] = row[4] * nhs + v[0];
+    v[1] = row[5] * nhs + v[1];
+    v[2] = row[6] * nhs + v[2];
+    __as__4vec3FRC4vec3((u32)corner, (u32)v);
+    sceSamp0MultVec(out1, gCameraMtx, corner);
+
+    z1 = out1[2];
+    if (z1 <= (*(f32**)(win + 4))[22]) {
+        return;
+    }
+    if (z1 >= (*(f32**)(win + 4))[23]) {
+        return;
+    }
+    x1 = (out1[0] * (*(f32**)(win + 4))[32]) / z1;
+    y1 = (out1[1] * (*(f32**)(win + 4))[37]) / z1;
+    if (x1 < lbl_803451D4) {
+        return;
+    }
+    if (x1 >= lbl_803451D8) {
+        return;
+    }
+    if (y1 < lbl_803451DC) {
+        return;
+    }
+    if (y1 >= lbl_803451E0) {
+        return;
+    }
+
+    v[0] = row[0] * size + pos[0];
+    v[1] = row[1] * size + pos[1];
+    v[2] = row[2] * size + pos[2];
+    v[0] = row[4] * size + v[0];
+    v[1] = row[5] * size + v[1];
+    v[2] = row[6] * size + v[2];
+    __as__4vec3FRC4vec3((u32)corner, (u32)v);
+    sceSamp0MultVec(out2, gCameraMtx, corner);
+
+    x2 = (out2[0] * (*(f32**)(win + 4))[32]) / out2[2];
+    y2 = (out2[1] * (*(f32**)(win + 4))[37]) / out2[2];
+    if (x2 < lbl_803451D4) {
+        return;
+    }
+    if (x2 >= lbl_803451D8) {
+        return;
+    }
+    if (y2 < lbl_803451DC) {
+        return;
+    }
+    if (y2 >= lbl_803451E0) {
+        return;
+    }
+
+    d = x2 - x1;
+    if (d < 0.0f) {
+        d = -d;
+    }
+    if (d < lbl_803451E4) {
+        return;
+    }
+    d = y2 - y1;
+    if (d < 0.0f) {
+        d = -d;
+    }
+    if (d < lbl_803451E8) {
+        return;
+    }
+
+    out1[2] = -1.0f * out1[2];
+    fn_800C7914(&ix, &iy);
+
+    sa = (s16)(s32)(sx * 16.0 + 0.5) - 8;
+    sb = (s16)(s32)(sy * 16.0 + 0.5) - 8;
+    u0 = (8.0f / (f32)ix) * 0.0625f;
+    u1 = ((f32)sa / (f32)ix) * 0.0625f;
+    v0 = (8.0f / (f32)iy) * 0.0625f;
+    v1 = ((f32)sb / (f32)iy) * 0.0625f;
+
     GXBegin(0x98, 0, 4);
+    x2 = out1[2];
+    y2 = out1[1];
+    z1 = out1[0];
+    d = out2[0];
+    nhs = out2[1];
+    *(volatile f32*)0xCC008000 = z1;
+    *(volatile f32*)0xCC008000 = y2;
+    *(volatile f32*)0xCC008000 = x2;
+    *(volatile f32*)0xCC008000 = u0;
+    *(volatile f32*)0xCC008000 = v0;
+    *(volatile f32*)0xCC008000 = z1;
+    *(volatile f32*)0xCC008000 = nhs;
+    *(volatile f32*)0xCC008000 = x2;
+    *(volatile f32*)0xCC008000 = u0;
+    *(volatile f32*)0xCC008000 = v1;
+    *(volatile f32*)0xCC008000 = d;
+    *(volatile f32*)0xCC008000 = y2;
+    *(volatile f32*)0xCC008000 = x2;
+    *(volatile f32*)0xCC008000 = u1;
+    *(volatile f32*)0xCC008000 = v0;
+    *(volatile f32*)0xCC008000 = d;
+    *(volatile f32*)0xCC008000 = nhs;
+    *(volatile f32*)0xCC008000 = x2;
+    *(volatile f32*)0xCC008000 = u1;
+    *(volatile f32*)0xCC008000 = v1;
+    lbl_80345188 = lbl_80345188 + 1;
 }
 
 /* 0x800CBC4C - per-frame emitter state machine + particle draw pass.
  * Documented flow: run the emitter phase machine (psys->e_phase: 0 delay .. 8
  * dead), emit new particles via pos_func/dir_func, age the ring through
  * ppos_func and draw each live particle with DrawPsysSub. Giant (NonMatching). */
-void MBDrawPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                MBObject* node) {
+s32 MBDrawPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
+               MBObject* node, void* arg) {
+    typedef struct PSlot {
+        f32 cur;
+        f32 start;
+        f32 slope;
+        struct PSlot* next;
+    } PSlot;
+    u8* pi = (u8*)psysInfo;
     Psys* p = (Psys*)node->data.psys;
-    s32 phase = p->e_phase;
-    s32 dt = gPsysFrame - p->e_last_time;
-    if ((u32)dt > 0xf) {
+    f32 rate = lbl_80349150;
+    u32 dt;
+    u32 age;
+    f32 agef;
+    u16* ringbase;
+    u16* ringend;
+    u16* oldest;
+    u16* newest;
+    u16* emitStart;
+    u16* cursor;
+    u16* stop;
+    u16 entry;
+    u32 agemask;
+    s32 age_bits, dir_bits, shiftDA;
+    s32 plsum;
+    s32 over;
+    u32 color;
+    u32 cmask;
+    PSlot* list;
+    PSlot slots[5];
+    f32 pos[4];
+    f32 budget;
+    s32 texw, texh;
+    PsysPPosFunc ppfn;
+    u16 dmask;
+    u8* blk;
+
+    *(s16*)(pi + 148) = -1;
+    blk = pi + 64;
+    *(s16*)(pi + 150) = -1;
+    list = NULL;
+    dt = *(u32*)(pi + 84) - p->e_last_time;
+    if (dt > 15) {
         dt = 1;
     }
-    lbl_80128710.dirSlot = -1;
-    lbl_80128710.posSlot = -1;
-    if (phase == 0) {
+    age = p->e_age + dt;
+    p->e_last_time = *(u32*)(blk + 20);
+    agef = (f32)age;
+
+    switch (p->e_phase) {
+    case 0:
+    {
+        u32 d = p->e_delay;
+        if (d != 0) {
+            if (age <= d) {
+                p->e_age = age;
+                return 0;
+            }
+            age -= d;
+            dt = age;
+        }
+        p->e_phase = 1;
+    }
+    case 1:
         setupParms(p);
-        setupNewPMode_800CDCE4(f1, f2, f3, f4, f5, f6, f7, 0.0, p);
+        setupNewPMode_800CDCE4(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, p);
+        p->p_oldest_ptr = NULL;
+        p->p_oldest_age = 0;
+        p->p_newest_age = 0;
+        p->p_newest_ptr = (u16*)((u8*)p->p_lst + p->p_max * 2 - 2);
+        p->p_save_cnt = lbl_80349154;
+        p->nearest_z = lbl_80349158;
+        if (p->p_lst == NULL) {
+            s32* h = listFindHandle((s32)p, (s32)blk);
+            *(s32*)(pi + 64) = *(s32*)(pi + 64) - 1;
+            *h = (s32)p->next;
+            p->next = NULL;
+            *(s32*)(pi + 72) = *(s32*)(pi + 72) + 1;
+            p->next = *(Psys**)(pi + 76);
+            *(Psys**)(pi + 76) = p;
+            p->flags |= 0x8000;
+            p->e_phase = 8;
+            p->e_phase = 8;
+            return 0;
+        }
+        if (dt == 0) {
+            dt = 1;
+            age += 1;
+            agef = agef + lbl_8034915C;
+        }
         p->e_phase = 2;
-        (void)listFindHandle(p->id, (s32)&gPsysRmQueue);
+        if (p->flags & 1) {
+            rate = lbl_80349160;
+            dt = 1;
+            p->e_phase = 6;
+            age = 1;
+            goto phaseD;
+        }
+        if ((p->flags & 2) && p->e_life == 0xFFFF) {
+            p->e_phase = 4;
+    case 4:
+            rate = p->e_rate.o.life_start;
+            goto phaseD;
+        }
+    case 2:
+        if (age <= p->e_life) {
+            rate = p->e_rate.o.life_slope * agef + p->e_rate.o.life_start;
+            goto phaseD;
+        }
+        if ((p->flags & 2) && p->e_fade == 0xFFFF) {
+            p->e_phase = 5;
+    case 5:
+            rate = p->e_rate.o.fade_start;
+            goto phaseD;
+        }
+        p->e_phase = 3;
+    case 3:
+        if (age <= (u32)p->e_life + p->e_fade) {
+            rate = p->e_rate.o.fade_slope * agef + p->e_rate.o.fade_start;
+            goto phaseD;
+        }
+        if (p->flags & 2) {
+            p->e_phase = 2;
+            age = 0;
+            rate = p->e_rate.o.life_start;
+            goto phaseD;
+        }
+        p->e_phase = 6;
+    case 6:
+        rate = lbl_80349154;
+        p->p_save_cnt = lbl_80349154;
+        if (p->p_oldest_ptr == NULL) {
+    case 7:
+        {
+            s32* h = listFindHandle((s32)p, (s32)blk);
+            *(s32*)(pi + 64) = *(s32*)(pi + 64) - 1;
+            *h = (s32)p->next;
+            p->next = NULL;
+            *(s32*)(pi + 72) = *(s32*)(pi + 72) + 1;
+            p->next = *(Psys**)(pi + 76);
+            *(Psys**)(pi + 76) = p;
+            p->flags |= 0x8000;
+            p->e_phase = 8;
+            p->e_phase = 8;
+        }
+    case 8:
+            return 0;
+        }
+        break;
     }
-    if (p->p_lst != NULL) {
-        DrawPsysSub();
+phaseD:
+    if (p->e_isvis == 0 || (node->flags & 0x200000)) {
+        rate = lbl_80349154;
     }
+    p->e_age = age;
+    ringbase = p->p_lst;
+    ringend = ringbase + p->p_max;
+    if (rate > lbl_80349154) {
+        f32 rr = p->e_rate_rand;
+        if (rr > lbl_80349154) {
+            u32 r = pbRand() & 0x7FFF;
+            rate = (f32)(rate * (rr * (lbl_80349170 * (f32)r - 1.0) + 1.0));
+        }
+    }
+    {
+        u32 nfl = node->flags;
+        u32 m;
+        if (p->p_tex != NULL) {
+            pbBlitSetTexture(p->p_texidx);
+            texw = *(u16*)((u8*)p->p_tex + 10);
+            texh = *(u16*)((u8*)p->p_tex + 12);
+        } else {
+            texw = 16;
+            texh = 16;
+        }
+        m = 0;
+        if (p->flags & 0x20) {
+            m |= 0x100000;
+        } else if (p->flags & 0x10) {
+            m |= 0x200000;
+        }
+        pbBlitSetDrawRegs(m, nfl, 0);
+    }
+    plsum = (u32)p->p_life + p->p_fade;
+    age_bits = p->age_bits;
+    dir_bits = p->dir_bits;
+    dmask = (1 << dir_bits) - 1;
+    agemask = (1 << age_bits) - 1;
+    shiftDA = dir_bits + age_bits;
+    newest = p->p_newest_ptr;
+    oldest = p->p_oldest_ptr;
+    over = (s32)(dt + p->p_oldest_age) - plsum;
+    if (over >= 0 && oldest != NULL) {
+        entry = *oldest;
+        stop = (newest >= oldest) ? newest : ringend - 1;
+        do {
+            if (p->pos_use_lst != NULL) {
+                p->pos_use_lst[(s32)entry >> shiftDA] -= 1;
+            }
+            if (p->dir_use_lst != NULL) {
+                p->dir_use_lst[dmask & ((s32)entry >> age_bits)] -= 1;
+            }
+            if (oldest == stop) {
+                if (oldest == newest) {
+                    newest = ringend - 1;
+                    oldest = NULL;
+                    break;
+                }
+                oldest = ringbase - 1;
+                stop = newest;
+            }
+            oldest += 1;
+            entry = *oldest;
+            over -= (agemask & 0xFFFF) & entry;
+        } while (over >= 0);
+        if (oldest != NULL) {
+            p->pos_last = (s32)entry >> shiftDA;
+            p->dir_last = dmask & ((s32)entry >> age_bits);
+        } else {
+            p->pos_last = 0xFFFF;
+            p->dir_last = 0xFFFF;
+        }
+    }
+    p->p_oldest_age = plsum + over;
+    budget = rate * (f32)dt + p->p_save_cnt;
+    stop = (oldest > newest) ? oldest : ringend;
+    emitStart = (newest == ringend - 1) ? ringbase : newest + 1;
+    cursor = emitStart;
+    if (cursor == oldest) {
+        p->p_save_cnt = lbl_80349154;
+        p->p_newest_age = p->p_newest_age + dt;
+    } else {
+        f32 startBudget = budget;
+        f64 one = 1.0;
+        f32 zero = lbl_80349154;
+        while (budget > zero) {
+            s32 posIdx;
+            s32 dirIdx;
+            if ((posIdx = ((s32(*)(Psys*,void*,s32))p->pos_func)(p, arg, 0)) < 0) {
+                break;
+            }
+            dirIdx = ((s32(*)(Psys*,void*,s32))p->dir_func)(p, arg, 0);
+            if (dirIdx < 0) {
+                if (p->pos_use_lst != NULL) {
+                    p->pos_use_lst[dirIdx] -= 1;
+                }
+                break;
+            }
+            budget = (f32)(budget - one);
+            *cursor = (posIdx << shiftDA) | (dirIdx << age_bits);
+            cursor += 1;
+            if (cursor == stop) {
+                if (cursor != ringend) {
+                    break;
+                }
+                if (oldest == NULL) {
+                    oldest = emitStart;
+                }
+                if (oldest == ringbase) {
+                    break;
+                }
+                cursor = ringbase;
+                stop = oldest;
+            }
+        }
+        p->p_save_cnt = (budget > lbl_80349154) ? lbl_80349154 : budget;
+        if (budget == startBudget) {
+            p->p_newest_age = p->p_newest_age + dt;
+        } else {
+            u16* scan;
+            u16* limit;
+            s32 filled = 0;
+            f32 acc;
+            u32 am16 = agemask & 0xFFFF;
+            if (oldest == NULL) {
+                oldest = emitStart;
+            }
+            p->p_newest_ptr = (cursor == ringbase) ? ringend - 1 : cursor - 1;
+            limit = (emitStart < cursor) ? emitStart : ringbase - 1;
+            acc = rate;
+            scan = cursor;
+            while (1) {
+                scan -= 1;
+                acc = acc - lbl_8034915C;
+                if (scan == limit) {
+                    if (scan == emitStart) {
+                        break;
+                    }
+                    scan = ringend - 1;
+                    limit = emitStart;
+                    if (scan == emitStart) {
+                        break;
+                    }
+                }
+                if (acc <= lbl_80349154) {
+                    u32 n = 0;
+                    do {
+                        acc = acc + rate;
+                        n += 1;
+                        filled += 1;
+                        if (acc > lbl_80349154) {
+                            break;
+                        }
+                    } while (n != am16);
+                    *scan = *scan | n;
+                }
+            }
+            if (oldest == emitStart) {
+                p->p_oldest_age = filled;
+                p->p_newest_age = 0;
+            } else {
+                s32 carry;
+                u16 e;
+                u32 ev;
+                u16* lim2;
+                carry = p->p_newest_age;
+                p->p_newest_age = 0;
+                carry = (carry + dt) - filled;
+                e = *scan;
+                ev = e;
+                lim2 = (scan >= cursor) ? ringend : cursor;
+                if (carry > (s32)am16) {
+                    do {
+                        *scan = (u16)ev | (u16)agemask;
+                        scan += 1;
+                        if (scan == lim2) {
+                            if (scan == cursor) {
+                                e = 0;
+                                carry = am16 & *scan;
+                                p->p_newest_age = carry;
+                                break;
+                            }
+                            lim2 = cursor;
+                            scan = ringbase;
+                        }
+                        e = *scan;
+                        ev = e;
+                        carry = carry + ((am16 & ev) - am16);
+                    } while (carry > (s32)am16);
+                    e = e & ~(u16)agemask;
+                }
+                *scan = e | (u16)carry;
+            }
+        }
+    }
+    p->p_oldest_ptr = oldest;
+    {
+        u16* prevOld = oldest - 1;
+        f32 plf = (f32)(u32)p->p_life;
+        f32 page;
+        u32 e8;
+        u16* wrapStop;
+        color = 0xFFFFFFFF;
+        cmask = 0;
+        page = (f32)(u32)p->p_newest_age;
+        cursor = p->p_newest_ptr;
+        wrapStop = (oldest > cursor) ? ringbase - 1 : prevOld;
+        e8 = *cursor;
+        if (page < plf) {
+            PSlot* sl = &slots[4];
+            f32* src = (f32*)&p->p_parms[4];
+            list = NULL;
+            cmask = 0;
+            do {
+                if (*(s32*)(src + 1) == 0) {
+                    sl->cur = src[0];
+                } else {
+                    sl->start = src[0];
+                    sl->slope = src[1];
+                    sl->next = list;
+                    list = sl;
+                    if (sl <= &slots[3]) {
+                        cmask = cmask | (0xFF << (sl - slots) * 8);
+                    }
+                }
+                src -= 4;
+                sl -= 1;
+            } while (sl != &slots[0] - 1);
+            color = ((s32)(p->p_parms[1].k.life_value) << 8) |
+                    (s32)(p->p_parms[0].k.life_value) |
+                    ((s32)(p->p_parms[2].k.life_value) << 16) |
+                    ((s32)(p->p_parms[3].k.life_value) << 24);
+        }
+        ppfn = p->ppos_func;
+        {
+            u8* g = (u8*)gWinGlobals;
+            u8* w = *(u8**)(g + 56);
+            lbl_803451C4 = *(s32*)(w + 8) - 256;
+            lbl_803451C8 = *(s32*)(*(u8**)(g + 56) + 8) +
+                           *(s32*)(*(u8**)(g + 56) + 16) + 256;
+            lbl_803451CC = *(s32*)(*(u8**)(g + 56) + 12) - 256;
+            lbl_803451D0 = *(s32*)(*(u8**)(g + 56) + 12) +
+                           *(s32*)(*(u8**)(g + 56) + 20) - 256;
+            lbl_803451EC = lbl_80349178 /
+                           ((f32)(*(s32*)(*(u8**)(g + 56) + 16)) * lbl_8034917C *
+                            lbl_80349180);
+            lbl_803451E4 = lbl_803451EC * lbl_8034917C;
+            lbl_803451D4 = lbl_80349184 - lbl_803451EC;
+            lbl_803451D8 = lbl_8034915C + lbl_803451EC;
+            lbl_803451F0 = lbl_80349178 /
+                           ((f32)(*(s32*)(*(u8**)(g + 56) + 20)) * lbl_8034917C *
+                            lbl_80349180);
+            lbl_803451E8 = lbl_803451F0 * lbl_8034917C;
+            lbl_803451DC = lbl_80349184 - lbl_803451F0;
+            lbl_803451E0 = lbl_8034915C + lbl_803451F0;
+        }
+        p->p_nactive = 0;
+        if (oldest != NULL) {
+            do {
+                u32 ent = e8 & 0xFFFF;
+                s32 dIdx = (s32)ent >> age_bits;
+                s32 pIdx = (s32)ent >> shiftDA;
+                u32 di = dmask & dIdx;
+                if (page >= plf) {
+                    PSlot* sl = &slots[4];
+                    s32* src = (s32*)&p->p_parms[4];
+                    plf = lbl_80349188;
+                    cmask = 0;
+                    list = NULL;
+                    do {
+                        if (src[3] == 0) {
+                            sl->cur = *(f32*)(src + 2);
+                        } else {
+                            sl->start = *(f32*)(src + 2);
+                            sl->slope = *(f32*)(src + 3);
+                            sl->next = list;
+                            list = sl;
+                            if (sl <= &slots[3]) {
+                                cmask = cmask | (0xFF << (sl - slots) * 8);
+                            }
+                        }
+                        src -= 4;
+                        sl -= 1;
+                    } while (sl != &slots[0] - 1);
+                    color = ((s32)(p->p_parms[1].k.fade_value) << 8) |
+                            (s32)(p->p_parms[0].k.fade_value) |
+                            ((s32)(p->p_parms[2].k.fade_value) << 16) |
+                            ((s32)(p->p_parms[3].k.fade_value) << 24);
+                }
+                ppfn(p, pos, p->init_dir_lst[di], p->init_pos_lst[pIdx], page);
+                pos[3] = lbl_8034915C;
+                SetMultiPassTextureParams(0);
+                SetVertexFormat(2);
+                SetCullMode(0);
+                SetPerspectiveMode(1);
+                SetViewportHeight(gVpScaleY);
+                {
+                    PSlot* sl = list;
+                    if (cmask != 0) {
+                        color = color & ~cmask;
+                        while (sl != NULL && sl <= &slots[3]) {
+                            s32 v = (s32)(sl->slope * page + sl->start);
+                            color = color | (v << (sl - slots) * 8);
+                            sl = sl->next;
+                        }
+                    }
+                    for (; sl != NULL; sl = sl->next) {
+                        sl->cur = sl->slope * page + sl->start;
+                    }
+                }
+                p->p_nactive = p->p_nactive + 1;
+                DrawPsysSub(pos, color, p->p_texidx, texw, texh,
+                            slots[4].cur / *(f32*)(pi + 284) * node->scale[1]);
+                cursor -= 1;
+                if (cursor == wrapStop) {
+                    if (cursor == prevOld) {
+                        break;
+                    }
+                    cursor = ringend - 1;
+                    wrapStop = prevOld;
+                }
+                e8 = *cursor;
+                page = page + (f32)(s32)(agemask & 0xFFFF & ent);
+            } while (1);
+        }
+    }
+    return 0;
 }
 
 /* 0x800CDBE0 - visibility pre-cull; sets psys->e_isvis draw flag */
@@ -852,59 +1479,448 @@ static void setupParms(Psys* p) {
  * Wires dir_func/pos_func/ppos_func based on the emit distribution and
  * animation flags, then carves the per-psys buffers out of the block pool (or
  * the world arena). Giant (NonMatching); documented flow. */
-static void setupNewPMode_800CDCE4(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
-                          f64 f7, f64 f8, Psys* p) {
+static void setupNewPMode_800CDCE4(f32 d0, f32 a0, f32 b0, f32 est, f32 elife,
+                          f32 efade, f32 pl, f32 el, Psys* p) {
+    char* strs = (char*)lbl_80116D70;
+    s32*  pi = (s32*)psysInfo;
+    u16 fl = p->flags;
+    s32 n;
+    s32 nPos, nDir;
+    s32 hasDir, dirUse, posUse;
+    s32 ringHalf, total;
+    u8* buf;
     void* posFn;
     void* dirFn;
-    void* ppFn;
-    s32   mode = (s32)p->dir_bits;   /* distribution: single/frame/sphere/cone */
-    s32   count = (s16)p->dir_max;
-    s32   ringBytes;
-    void* buf;
-    s32   shared = (p->flags & 0x80) != 0;
+    s32 posMode, dirMode;
+    s32 posCap, dirCap;
+    s32 mode0, flag40, r8;
+    s32 vf, va;
+    s32 bits;
+    u8* nxt;
+    s32 b;
+    s32 one;
+    u16 pm;
+    u16 dm;
+    s32 ab;
 
-    if (count < 1) {
-        count = 1;
-    }
-    switch (mode) {
-    case 0:  dirFn = shared ? (void*)getNewDirFrame : (void*)getNewDirSingle1; break;
-    case 2:  dirFn = (void*)getNewDirSphere; break;
-    case 4:  dirFn = (void*)getNewDirConeUnique; break;
-    default: dirFn = (void*)getNewDirConeShare; break;
-    }
-    switch (mode) {
-    case 0:  posFn = shared ? (void*)getNewPosFrame : (void*)getNewPosSingle1; break;
-    case 2:  posFn = (void*)getNewPosRectUnique; break;
-    default: posFn = (void*)getNewPosRectShare; break;
-    }
-    if (p->p_speed != 0.0f) {
-        ppFn = (p->p_gravity != 0.0f) ? (void*)getPPosSpeedGrav : (void*)getPPosSpeed;
+    if ((fl & 1) || p->p_max != 0) {
+        if ((u32)(n = p->p_max) == 0) {
+            n = (s32)(30.0 * p->e_rate.o.life_start);
+        }
     } else {
-        ppFn = (p->p_gravity != 0.0f) ? (void*)getPPosGrav : (void*)getPPosLinear;
+        f32 c0;
+        f32 part1;
+        s32 n32;
+        s32 limE;
+
+        pl = (f32)p->p_life + (f32)p->p_fade;
+        el = (f32)p->e_life + (f32)p->e_fade;
+        elife = (f32)p->e_life;
+        efade = (f32)p->e_fade;
+        a0 = p->e_rate.o.life_start;
+        b0 = p->e_rate.o.fade_start;
+        c0 = p->e_rate.o.life_slope;
+        d0 = p->e_rate.o.fade_slope;
+        part1 = el;
+        if (el > pl) {
+            if (c0 <= 0.0f && d0 < 0.0f) {
+                if (pl > elife) {
+                    f32 rem = pl - elife;
+                    f32 t0 = c0 * elife;
+                    f32 t1 = d0 * rem;
+                    f32 q0 = (f32)(0.5 * t0 + a0);
+                    f32 q1 = (f32)(0.5 * t1 + b0);
+                    q1 = q1 * rem;
+                    est = (q0 * elife + q1) / pl;
+                } else {
+                    f32 t0 = c0 * pl;
+                    est = (f32)(0.5 * t0 + a0);
+                }
+            } else if (c0 <= 0.0f) {
+                if (pl > elife) {
+                    f32 rem = pl - elife;
+                    f32 t0 = c0 * elife;
+                    f32 t1 = d0 * rem;
+                    f32 q0 = (f32)(0.5 * t0 + a0);
+                    f32 q1 = (f32)(0.5 * t1 + b0);
+                    q1 = q1 * rem;
+                    part1 = (q0 * elife + q1) / pl;
+                } else {
+                    f32 t0 = c0 * pl;
+                    part1 = (f32)(0.5 * t0 + a0);
+                }
+                if (pl > efade) {
+                    f32 rem = pl - efade;
+                    f32 nc = -c0;
+                    f32 t1 = d0 * efade;
+                    f32 mid = c0 * elife + a0;
+                    f32 t2 = nc * rem;
+                    f32 q1 = (f32)(0.5 * t1 + b0);
+                    f32 q2 = (f32)(0.5 * t2 + mid);
+                    q1 = q1 * efade;
+                    est = (q2 * rem + q1) / pl;
+                } else {
+                    f32 nd = -d0;
+                    f32 mid = d0 * efade + b0;
+                    nd = nd * pl;
+                    est = (f32)(0.5 * nd + mid);
+                }
+                if (part1 > est) {
+                    est = part1;
+                }
+            } else if (d0 < 0.0f) {
+                f32 up;
+                f32 dn;
+                f32 x = d0 / b0;
+                x = -x;
+                up = pl * x;
+                dn = pl - up;
+                if (up > elife) {
+                    up = elife;
+                    dn = pl - elife;
+                } else if (dn > efade) {
+                    dn = efade;
+                    up = pl - efade;
+                }
+                {
+                    f32 nc = -c0;
+                    f32 t1 = d0 * dn;
+                    f32 mid = c0 * elife + a0;
+                    f32 t2 = nc * up;
+                    f32 q1 = (f32)(0.5 * t1 + b0);
+                    f32 q2 = (f32)(0.5 * t2 + mid);
+                    q1 = q1 * dn;
+                    est = (q2 * up + q1) / pl;
+                }
+            } else {
+                if (pl > efade) {
+                    f32 rem = pl - efade;
+                    f32 nc = -c0;
+                    f32 t1 = d0 * efade;
+                    f32 mid = c0 * elife + a0;
+                    f32 t2 = nc * rem;
+                    f32 q1 = (f32)(0.5 * t1 + b0);
+                    f32 q2 = (f32)(0.5 * t2 + mid);
+                    q1 = q1 * efade;
+                    est = (q2 * rem + q1) / pl;
+                } else {
+                    f32 nd = -d0;
+                    f32 mid = d0 * efade + b0;
+                    nd = nd * pl;
+                    est = (f32)(0.5 * nd + mid);
+                }
+            }
+        } else {
+            f32 t1 = d0 * efade;
+            f32 t0 = c0 * elife;
+            pl = part1;
+            {
+                f32 q1 = (f32)(0.5 * t1 + b0);
+                f32 q0 = (f32)(0.5 * t0 + a0);
+                q1 = q1 * efade;
+                q0 = q0 * elife + q1;
+                est = q0 / part1;
+            }
+        }
+        n32 = (s32)(est * pl);
+        limE = p->p_max;
+        if ((u32)limE == 0) {
+            limE = 300;
+        }
+        if (n32 < limE) {
+            limE = n32;
+        }
+        n = limE;
+    }
+    if (n < 1) {
+        n = 1;
     }
 
-    p->flags |= 4 | 8;
-    p->dir_func = (PsysDirFunc)dirFn;
+    mode0 = (fl & 0x80) ? 1 : 0;
+    if (0.0 == p->e_angle) {
+        dirMode = 0;
+    } else if (-1.0 == p->e_angle) {
+        dirMode = 2;
+    } else {
+        dirMode = 4;
+    }
+    vf = 1;
+    va = vf;
+    dirMode |= mode0;
+    if (0.0 == p->e_vol[0] && 0.0 == p->e_vol[1]) {
+        va = 0;
+    }
+    if ((u8)va == 0) {
+        if (0.0 == p->e_vol[2]) {
+            vf = 0;
+        }
+    }
+    r8 = (u8)vf;
+    flag40 = (fl & 0x40) ? 1 : 0;
+    posMode = (r8 != 0) ? 2 : 0;
+    posMode |= flag40;
+    if (fl & 1) {
+        s32 dm2;
+        if (0.0 == p->e_angle) {
+            dm2 = 0;
+        } else if (-1.0 == p->e_angle) {
+            dm2 = 3;
+        } else {
+            dm2 = 5;
+        }
+        dirMode = dm2;
+        if (r8 != 0) {
+            dm2 = 3;
+        } else {
+            dm2 = 0;
+        }
+        posMode = dm2;
+    }
+
+    pm = p->pos_max;
+    posUse = 0;
+    posCap = 100;
+    if (pm != 0) {
+        posCap = pm;
+    }
+    if (posCap > n) {
+        posCap = n;
+    }
+    switch (posMode) {
+    case 0:
+    {
+        void* t = (void*)getNewPosSingle1;
+        p->flags |= 4;
+        posFn = t;
+        nPos = 1;
+        break;
+    }
+    case 1:
+        nPos = (s32)pl;
+        p->flags |= 4;
+        posFn = (void*)getNewPosFrame;
+        break;
+    case 2:
+    case 4:
+    {
+        s32 t2;
+        if (pl < 10.0f) {
+            t2 = n;
+        } else {
+            t2 = (s32)(10.0f * est);
+        }
+        if (t2 < 8) {
+            t2 = 8;
+        }
+        if (t2 < 1) {
+            nPos = 1;
+        } else if (t2 > n) {
+            nPos = n;
+        } else {
+            nPos = t2;
+        }
+        if (pm != 0) {
+            nPos = pm;
+        }
+    }
+        p->flags |= 4;
+        posFn = (void*)getNewPosRectUnique;
+        posUse = 1;
+        break;
+    default:
+        p->flags |= 4;
+        posFn = (void*)getNewPosRectShare;
+        nPos = n;
+        break;
+    }
+    if (nPos > posCap) {
+        nPos = posCap;
+    }
+
+    dm = p->dir_max;
+    hasDir = 1;
+    dirUse = 0;
+    dirCap = 31;
+    if (dm != 0) {
+        dirCap = dm;
+    }
+    if (dirCap > n) {
+        dirCap = n;
+    }
+    switch (dirMode) {
+    case 0:
+        p->flags |= 8;
+        dirFn = (void*)getNewDirSingle1;
+        nDir = 1;
+        break;
+    case 1:
+        nDir = (s32)pl;
+        p->flags |= 8;
+        dirFn = (void*)getNewDirFrame;
+        break;
+    case 2:
+    case 3:
+        nDir = pi[34];
+        dirFn = (void*)getNewDirSphere;
+        p->init_dir_lst = (f32(*)[3])pi[35];
+        hasDir = 0;
+        dirCap = nDir;
+        p->dir_use_lst = (u8*)pi[36];
+        break;
+    case 4:
+    {
+        s32 t3;
+        if (pl < 10.0f) {
+            t3 = n;
+        } else {
+            t3 = (s32)(10.0f * est);
+        }
+        if (t3 < 8) {
+            t3 = 8;
+        }
+        if (t3 < 1) {
+            nDir = 1;
+        } else if (t3 > n) {
+            nDir = n;
+        } else {
+            nDir = t3;
+        }
+    }
+        if (dm != 0) {
+            nDir = dm;
+        }
+        p->flags |= 8;
+        dirFn = (void*)getNewDirConeUnique;
+        dirUse = 1;
+        break;
+    default:
+        p->flags |= 8;
+        dirFn = (void*)getNewDirConeShare;
+        nDir = n;
+        break;
+    }
+    if (nDir > dirCap) {
+        nDir = dirCap;
+    }
+    if (nDir < 1) {
+        nDir = 1;
+    }
+    if (nDir > 31) {
+        nDir = 31;
+    }
+
+    {
+        u16 pm2 = p->pos_max;
+        s32 lim2;
+        if (pm2 == 0 && nPos > 100) {
+            nPos = 100;
+        }
+        if (pm2 == 0 && nPos > 100) {
+            nPos = 100;
+        }
+        lim2 = 100;
+        if (pm2 != 0) {
+            lim2 = pm2;
+        }
+        if (nPos >= lim2) {
+            nPos = lim2;
+        }
+    }
+
+    bits = 0;
+    if (p->init_dir_lst == (f32(*)[3])pi[35]) {
+        bits |= 1;
+    }
+    if (0.0 != p->p_drag) {
+        bits |= 2;
+    }
+    if (0.0 != p->p_gravity) {
+        bits |= 4;
+    }
+    switch (bits) {
+    case 0: p->ppos_func = getPPosLinear;    break;
+    case 1: p->ppos_func = getPPosSpeed;     break;
+    case 2: p->ppos_func = getPPosLinear;    break;
+    case 3: p->ppos_func = getPPosSpeed;     break;
+    case 4: p->ppos_func = getPPosGrav;      break;
+    case 5: p->ppos_func = getPPosSpeedGrav; break;
+    case 6: p->ppos_func = getPPosGrav;      break;
+    case 7: p->ppos_func = getPPosSpeedGrav; break;
+    }
+
+    p->p_max = n;
+    ringHalf = (n + 1) & ~1;
+    p->pos_max = nPos;
+    p->dir_max = nDir;
     p->pos_func = (PsysPosFunc)posFn;
-    p->ppos_func = (PsysPPosFunc)ppFn;
-
-    ringBytes = count * 2 + count * 0xc + count * 0xc;
-    if (p->worldname == NULL) {
-        buf = allocPsysMem(ringBytes, p->id);
+    p->dir_func = (PsysDirFunc)dirFn;
+    if (hasDir != 0) {
+        hasDir = nDir;
+    }
+    if (posUse != 0) {
+        posUse = nPos;
+    }
+    if (dirUse != 0) {
+        dirUse = nDir;
+    }
+    total = ringHalf * 2 + hasDir * 12 + nPos * 12 + dirUse + posUse;
+    if (p->worldname != NULL) {
+        buf = AllocMem(total);
+        pi[25] += total;
     } else {
-        buf = AllocMem(ringBytes);
-        (void)0; /*
-                       0, 0, 0, 0, 0, 0); */
+        buf = allocPsysMem(total, p->id);
     }
     if (buf == NULL) {
-        ErrorPrintf("No mem for psys id=%d", p->id);
+        if (p->worldname != NULL) {
+            ErrorPrintf(strs + 176, p->worldname);
+        } else {
+            ErrorPrintf(strs + 204, p->id);
+        }
         p->p_lst = NULL;
         return;
     }
-    memset(buf, 0, ringBytes);
+    memset(buf, 0, total);
     p->p_lst = (u16*)buf;
-    p->init_pos_lst = (f32(*)[3])((u8*)buf + count * 2);
-    p->init_dir_lst = (f32(*)[3])((u8*)p->init_pos_lst + count * 0xc);
+    nxt = (u8*)p->p_lst + ringHalf * 2;
+    if (hasDir != 0) {
+        p->init_dir_lst = (f32(*)[3])nxt;
+        nxt = (u8*)p->init_dir_lst + (u32)hasDir * 12;
+    }
+    if (nPos != 0) {
+        p->init_pos_lst = (f32(*)[3])nxt;
+        nxt = (u8*)p->init_pos_lst + (u32)nPos * 12;
+    }
+    if (dirUse != 0) {
+        p->dir_use_lst = nxt;
+        nxt = p->dir_use_lst + dirUse;
+    }
+    if (posUse != 0) {
+        p->pos_use_lst = nxt;
+    }
+    one = 1;
+    for (b = 0; (one << b) < nDir + 1; b++) {
+    }
+    p->dir_bits = b;
+    for (b = 0; (one << b) < nPos + 1; b++) {
+    }
+    p->pos_bits = b;
+    ab = 16 - p->dir_bits - p->pos_bits;
+    p->age_bits = ab;
+    if (ab < 1) {
+        ErrorPrintf(strs + 228, p->pos_bits, p->dir_bits,
+                    p->dir_bits + p->pos_bits + 1, 16);
+        {
+            Psys* q = (Psys*)((MBObject*)p->node)->data.psys;
+            if (q->e_phase < 7) {
+                q->e_phase = 7;
+            }
+        }
+    } else {
+        p->dir_next = nDir - 1;
+        p->pos_next = nPos - 1;
+        p->dir_last = 0xFFFF;
+        p->pos_last = 0xFFFF;
+    }
 }
 
 /* ======================================================================= *
@@ -945,9 +1961,12 @@ typedef struct WorldPsys {
     /* 0xB8 */ f32 e_delay;
 } WorldPsys;
 
+extern const f64 lbl_80349260;   /* 1/255 double */
+
 static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) {
     WorldPsys* wp = (WorldPsys*)wpd;
-    f32* tbl;
+    char* strs = (char*)lbl_80116D70;
+    f32* pif = (f32*)psysInfo;
     f32 t0, t1, t2, t3;
     f64 v, mn, mx, sc;
     u32 used;
@@ -961,24 +1980,20 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
         (s32)((u8*)&wp->flagmask - (u8*)wp) != 0xc ||
         (s32)((u8*)&wp->used - (u8*)wp) != 0x10 ||
         (s32)((u8*)&wp->e_delay - (u8*)wp) != 0xb8) {
-        ErrorPrintf("setWorldParms: WORLDPSYS type is bad");
+        ErrorPrintf(strs + 276);
         return;
     }
 
     if (wp->used & 0x1) {   /* inherit from a built-in preset first */
-        u8* base = (u8*)psysInfo;
-        s32 i = 0;
-        for (;;) {
-            s16 id = *(s16*)(base + i + 0x130);
-            u8* pre = base + i + 0x12c;
-            if (id == -1) {
-                break;
-            }
+        s32 i;
+        s16 id;
+        u8* pre;
+        for (i = 0; (pre = (u8*)pif + i), (id = *(s16*)(pre + 304)),
+                    (pre += 300), id != -1; i += 312) {
             if (wp->preset == id) {
                 setWorldParms(node, p, (PsysDescrip*)pre, 0);
                 break;
             }
-            i += 0x138;
         }
     }
     if (wp->used & 0x2) {
@@ -1023,23 +2038,21 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
     }
     if (wp->used & 0x80000) {
         v = 30.0 * wp->e_delay;
-        p->e_delay = (u16)(s32)((v <= 0.0) ? 0.0 : v);
+        p->e_delay = (u16)(s32)((v > 0.0) ? v : 0.0);
     }
     if (wp->used & 0x80) {
         p->e_dir[0] = wp->e_dir[0];
         p->e_dir[1] = wp->e_dir[1];
         p->e_dir[2] = wp->e_dir[2];
+    } else if (over != 0 &&
+               (over[0] != 0.0f || over[1] != 0.0f || over[2] != 0.0f)) {
+        p->e_dir[0] = over[0];
+        p->e_dir[1] = over[1];
+        p->e_dir[2] = over[2];
     } else {
-        if (over == 0 ||
-            (over[0] == 0.0f && over[1] == 0.0f && over[2] == 0.0f)) {
-            p->e_dir[0] = 0.0f;
-            p->e_dir[1] = 1.0f;
-            p->e_dir[2] = 0.0f;
-        } else {
-            p->e_dir[0] = over[0];
-            p->e_dir[1] = over[1];
-            p->e_dir[2] = over[2];
-        }
+        p->e_dir[0] = 0.0f;
+        p->e_dir[1] = 1.0f;
+        p->e_dir[2] = 0.0f;
     }
     if (wp->used & 0x100) {
         p->e_vol[0] = wp->e_vol[0];
@@ -1068,128 +2081,247 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
         Psys* q;
         /* red (lane 16) */
         q = (Psys*)node->data.psys;
-        t3 = (f32)((1.0 / 255.0) * (f32)((wp->rgba[3] >> 16) & 0xff));
-        t2 = (f32)((1.0 / 255.0) * (f32)((wp->rgba[2] >> 16) & 0xff));
-        t1 = (f32)((1.0 / 255.0) * (f32)((wp->rgba[1] >> 16) & 0xff));
+        t3 = (f32)(lbl_80349260 * (f32)(wp->rgba[3] >> 16 & 0xff));
+        t2 = (f32)(lbl_80349260 * (f32)(wp->rgba[2] >> 16 & 0xff));
+        t1 = (f32)(lbl_80349260 * (f32)(wp->rgba[1] >> 16 & 0xff));
+        t0 = (f32)(lbl_80349260 * (f32)(wp->rgba[0] >> 16 & 0xff));
         if (q->e_phase > 1) {
-            ErrorPrintf("Setting PSYS attribute after draw begins");
+            ErrorPrintf(strs + 316);
         } else {
-            f32 sc, mn, mx, fv;
-            tbl = (f32*)((u8*)&lbl_80128710 + 0x9c + 2 * 0x10);
-            sc = tbl[0]; mn = tbl[1]; mx = tbl[2];
-            t0 = (f32)((1.0 / 255.0) * (f32)((wp->rgba[0] >> 16) & 0xff));
-            fv = t0 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[2].i.life_start = fv;
-            fv = t1 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[2].i.life_end = fv;
-            fv = t2 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[2].i.fade_start = fv;
-            fv = t3 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[2].i.fade_end = fv;
+            f32 sc = pif[63];
+            f32 lo = pif[64];
+            f32 hi = pif[65];
+            {
+                f32 fv = t0 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[2].i.life_start = fv;
+            }
+            {
+                f32 fv = t1 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[2].i.life_end = fv;
+            }
+            {
+                f32 fv = t2 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[2].i.fade_start = fv;
+            }
+            t3 = t3 * sc;
+            if (!(t3 < lo)) {
+                if (!(t3 > hi)) {
+                    hi = t3;
+                }
+                lo = hi;
+            }
+            q->p_parms[2].i.fade_end = lo;
         }
         /* green (lane 8) */
         q = (Psys*)node->data.psys;
-        t3 = (f32)((1.0 / 255.0) * (f32)((wp->rgba[3] >> 8) & 0xff));
-        t2 = (f32)((1.0 / 255.0) * (f32)((wp->rgba[2] >> 8) & 0xff));
-        t1 = (f32)((1.0 / 255.0) * (f32)((wp->rgba[1] >> 8) & 0xff));
+        t3 = (f32)(lbl_80349260 * (f32)(wp->rgba[3] >> 8 & 0xff));
+        t2 = (f32)(lbl_80349260 * (f32)(wp->rgba[2] >> 8 & 0xff));
+        t1 = (f32)(lbl_80349260 * (f32)(wp->rgba[1] >> 8 & 0xff));
+        t0 = (f32)(lbl_80349260 * (f32)(wp->rgba[0] >> 8 & 0xff));
         if (q->e_phase > 1) {
-            ErrorPrintf("Setting PSYS attribute after draw begins");
+            ErrorPrintf(strs + 316);
         } else {
-            f32 sc, mn, mx, fv;
-            tbl = (f32*)((u8*)&lbl_80128710 + 0x9c + 1 * 0x10);
-            sc = tbl[0]; mn = tbl[1]; mx = tbl[2];
-            t0 = (f32)((1.0 / 255.0) * (f32)((wp->rgba[0] >> 8) & 0xff));
-            fv = t0 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[1].i.life_start = fv;
-            fv = t1 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[1].i.life_end = fv;
-            fv = t2 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[1].i.fade_start = fv;
-            fv = t3 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[1].i.fade_end = fv;
+            f32 sc = pif[59];
+            f32 lo = pif[60];
+            f32 hi = pif[61];
+            {
+                f32 fv = t0 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[1].i.life_start = fv;
+            }
+            {
+                f32 fv = t1 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[1].i.life_end = fv;
+            }
+            {
+                f32 fv = t2 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[1].i.fade_start = fv;
+            }
+            t3 = t3 * sc;
+            if (!(t3 < lo)) {
+                if (!(t3 > hi)) {
+                    hi = t3;
+                }
+                lo = hi;
+            }
+            q->p_parms[1].i.fade_end = lo;
         }
         /* blue (lane 0) */
         q = (Psys*)node->data.psys;
-        t3 = (f32)((1.0 / 255.0) * (f32)(wp->rgba[3] & 0xff));
-        t2 = (f32)((1.0 / 255.0) * (f32)(wp->rgba[2] & 0xff));
-        t1 = (f32)((1.0 / 255.0) * (f32)(wp->rgba[1] & 0xff));
+        t3 = (f32)(lbl_80349260 * (f32)(wp->rgba[3] & 0xff));
+        t2 = (f32)(lbl_80349260 * (f32)(wp->rgba[2] & 0xff));
+        t1 = (f32)(lbl_80349260 * (f32)(wp->rgba[1] & 0xff));
+        t0 = (f32)(lbl_80349260 * (f32)(wp->rgba[0] & 0xff));
         if (q->e_phase > 1) {
-            ErrorPrintf("Setting PSYS attribute after draw begins");
+            ErrorPrintf(strs + 316);
         } else {
-            f32 sc, mn, mx, fv;
-            tbl = (f32*)((u8*)&lbl_80128710 + 0x9c);
-            sc = tbl[0]; mn = tbl[1]; mx = tbl[2];
-            t0 = (f32)((1.0 / 255.0) * (f32)(wp->rgba[0] & 0xff));
-            fv = t0 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[0].i.life_start = fv;
-            fv = t1 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[0].i.life_end = fv;
-            fv = t2 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[0].i.fade_start = fv;
-            fv = t3 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[0].i.fade_end = fv;
+            f32 sc = pif[55];
+            f32 lo = pif[56];
+            f32 hi = pif[57];
+            {
+                f32 fv = t0 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[0].i.life_start = fv;
+            }
+            {
+                f32 fv = t1 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[0].i.life_end = fv;
+            }
+            {
+                f32 fv = t2 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[0].i.fade_start = fv;
+            }
+            t3 = t3 * sc;
+            if (!(t3 < lo)) {
+                if (!(t3 > hi)) {
+                    hi = t3;
+                }
+                lo = hi;
+            }
+            q->p_parms[0].i.fade_end = lo;
         }
     }
     if (wp->used & 0x20000) {  /* alpha / intensity envelope (lane 24) */
-        Psys* q = (Psys*)node->data.psys;
-        t3 = (f32)((1.0 / 255.0) * (f32)(wp->rgba[3] >> 24));
-        t2 = (f32)((1.0 / 255.0) * (f32)(wp->rgba[2] >> 24));
-        t1 = (f32)((1.0 / 255.0) * (f32)(wp->rgba[1] >> 24));
+        Psys* q;
+        q = (Psys*)node->data.psys;
+        t3 = (f32)(lbl_80349260 * (f32)(wp->rgba[3] >> 24));
+        t2 = (f32)(lbl_80349260 * (f32)(wp->rgba[2] >> 24));
+        t1 = (f32)(lbl_80349260 * (f32)(wp->rgba[1] >> 24));
+        t0 = (f32)(lbl_80349260 * (f32)(wp->rgba[0] >> 24));
         if (q->e_phase > 1) {
-            ErrorPrintf("Setting PSYS attribute after draw begins");
+            ErrorPrintf(strs + 316);
         } else {
-            f32 sc, mn, mx, fv;
-            tbl = (f32*)((u8*)&lbl_80128710 + 0x9c + 3 * 0x10);
-            sc = tbl[0]; mn = tbl[1]; mx = tbl[2];
-            t0 = (f32)((1.0 / 255.0) * (f32)(wp->rgba[0] >> 24));
-            fv = t0 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[3].i.life_start = fv;
-            fv = t1 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[3].i.life_end = fv;
-            fv = t2 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[3].i.fade_start = fv;
-            fv = t3 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[3].i.fade_end = fv;
+            f32 sc = pif[67];
+            f32 lo = pif[68];
+            f32 hi = pif[69];
+            {
+                f32 fv = t0 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[3].i.life_start = fv;
+            }
+            {
+                f32 fv = t1 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[3].i.life_end = fv;
+            }
+            {
+                f32 fv = t2 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[3].i.fade_start = fv;
+            }
+            t3 = t3 * sc;
+            if (!(t3 < lo)) {
+                if (!(t3 > hi)) {
+                    hi = t3;
+                }
+                lo = hi;
+            }
+            q->p_parms[3].i.fade_end = lo;
         }
     }
     if (wp->used & 0x40000) {  /* particle width envelope */
-        Psys* q = (Psys*)node->data.psys;
-        f32 w3 = wp->width[3];
-        f32 w2 = wp->width[2];
+        Psys* q;
+        q = (Psys*)node->data.psys;
+        t3 = wp->width[3];
+        t2 = wp->width[2];
+        t1 = wp->width[1];
+        t0 = wp->width[0];
         if (q->e_phase > 1) {
-            ErrorPrintf("Setting PSYS attribute after draw begins");
+            ErrorPrintf(strs + 316);
         } else {
-            f32 mn, mx, fv;
-            tbl = (f32*)((u8*)&lbl_80128710 + 0x9c + 4 * 0x10);
-            sc = tbl[0]; mn = tbl[1]; mx = tbl[2];
-            fv = (f32)(wp->width[0] * sc);
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[4].i.life_start = fv;
-            fv = (f32)(wp->width[1] * sc);
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[4].i.life_end = fv;
-            fv = (f32)(w2 * sc);
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[4].i.fade_start = fv;
-            fv = (f32)(w3 * sc);
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[4].i.fade_end = fv;
+            f32 sc = pif[71];
+            f32 lo = pif[72];
+            f32 hi = pif[73];
+            {
+                f32 fv = t0 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[4].i.life_start = fv;
+            }
+            {
+                f32 fv = t1 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[4].i.life_end = fv;
+            }
+            {
+                f32 fv = t2 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[4].i.fade_start = fv;
+            }
+            t3 = t3 * sc;
+            if (!(t3 < lo)) {
+                if (!(t3 > hi)) {
+                    hi = t3;
+                }
+                lo = hi;
+            }
+            q->p_parms[4].i.fade_end = lo;
         }
     }
     if (wp->used & 0x4000) {   /* bind particle texture by name */
@@ -1220,37 +2352,37 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
     mask = wp->flagmask;
     fl = p->flags;
     if (mask & 1) {
-        fl = (fl & 0xff3f) | ((wp->flagval & 1) ? 0xc0 : 0);
+        fl = (fl & ~0xc0) | ((wp->flagval & 1) ? 0xc0 : 0);
     }
     if (mask & 2) {
-        fl = (fl & 0xfffe) | ((wp->flagval & 2) != 0);
+        fl = (fl & ~1) | ((wp->flagval & 2) ? 1 : 0);
     }
     if (mask & 4) {
-        fl = (fl & 0xfffd) | ((wp->flagval & 4) ? 2 : 0);
+        fl = (fl & ~2) | ((wp->flagval & 4) ? 2 : 0);
     }
     if (mask & 0x40) {
-        fl = (fl & 0xffdf) | ((wp->flagval & 0x40) ? 0x20 : 0);
+        fl = (fl & ~0x20) | ((wp->flagval & 0x40) ? 0x20 : 0);
     }
     if (mask & 0x20) {
-        fl = (fl & 0xffef) | ((wp->flagval & 0x20) ? 0x10 : 0);
+        fl = (fl & ~0x10) | ((wp->flagval & 0x20) ? 0x10 : 0);
     }
     p->flags = fl;
     mask = wp->flagmask;
     nfl = node->flags;
     if (mask & 0x80) {
-        nfl = (nfl & 0xff7fffff) | ((wp->flagval & 0x80) ? 0x800000 : 0);
+        nfl = (nfl & ~0x800000) | ((wp->flagval & 0x80) ? 0x800000 : 0);
     }
     if (mask & 0x100) {
-        nfl = (nfl & 0xbfffffff) | ((wp->flagval & 0x100) ? 0x40000000 : 0);
+        nfl = (nfl & ~0x40000000) | ((wp->flagval & 0x100) ? 0x40000000 : 0);
     }
     if (mask & 0x200) {
-        nfl = (nfl & 0xfffff7ff) | ((wp->flagval & 0x200) ? 0x800 : 0);
+        nfl = (nfl & ~0x800) | ((wp->flagval & 0x200) ? 0x800 : 0);
     }
     if (mask & 0x400) {
-        nfl = (nfl & 0xffffffbf) | ((wp->flagval & 0x400) ? 0x40 : 0);
+        nfl = (nfl & ~0x40) | ((wp->flagval & 0x400) ? 0x40 : 0);
     }
     if (mask & 0x800) {
-        nfl = (nfl & 0xffffff7f) | ((wp->flagval & 0x800) ? 0x80 : 0);
+        nfl = (nfl & ~0x80) | ((wp->flagval & 0x800) ? 0x80 : 0);
     }
     node->flags = nfl;
 }
@@ -1359,14 +2491,517 @@ MBObject* MBNewWorldPsys(s32 a, s32 b, PsysDescrip* wp, s32 d, char* name,
 }
 
 /* 0x800CFB38 - build a psys node from a preset descriptor */
+extern const f64 lbl_80349218;   /* -1.0 */
+extern const f64 lbl_80349248;   /* 1/30 */
+extern const f64 lbl_80349258;   /* -0.0355555... gravity scale */
+extern const f64 lbl_80349260;   /* 1/255 double */
+extern const f32 lbl_803492A0;   /* 1/255 */
+
 MBObject* MBNewPsysDescrip(s32 a, s32 b, s32 c, void* cfg) {
-    MBObject* node = createPsysNode(a, b, 0, 1);
-    if (node != NULL && cfg != NULL) {
-        setWorldParms(node, (Psys*)node->data.psys, (PsysDescrip*)cfg, 0);
+    PsysDescrip* wp = (PsysDescrip*)cfg;
+    char* strs = (char*)lbl_80116D70;
+    f32* pif = (f32*)psysInfo;
+    Psys* p;
+    MBObject* node;
+    Psys* q;
+    u32 used;
+
+    used = wp->fields_used;
+    if (used & 8) {
+        b = (s32)wp->parent;
+    }
+    if ((u32)b == 0) {
+        return NULL;
+    }
+    if ((node = createPsysNode(a, b, 0, 1)) == NULL) {
+        return NULL;
+    }
+    p = (Psys*)node->data.psys;
+
+    if (wp->fields_used & 1) {
+        p->p_max = wp->max_particles;
+    }
+    if (wp->fields_used & 2) {
+        p->dir_max = wp->max_directions;
+    }
+    if (wp->fields_used & 4) {
+        p->pos_max = wp->max_positions;
+    }
+    if (wp->fields_used & 0x20) {
+        f32 lf0;
+        f32 lf1;
+        q = (Psys*)node->data.psys;
+        lf1 = wp->e_lifefade[1];
+        lf0 = wp->e_lifefade[0];
+        if (q->e_phase > 1) {
+            ErrorPrintf(strs + 316);
+        } else {
+            f64 v;
+            v = 30.0 * lf0;
+            q->e_life = (u16)(s32)((v < 1.0) ? 1.0 : (v > 65535.0) ? 65535.0 : v);
+            v = 30.0 * lf1;
+            q->e_fade = (u16)(s32)((v < 0.0) ? 0.0 : (v > 65535.0) ? 65535.0 : v);
+            q->flags &= ~1;
+            if (lf0 < lbl_80349154) {
+                q->e_life = 0xFFFF;
+                q->flags |= 2;
+            } else if (lf1 < lbl_80349154) {
+                q->e_fade = 0xFFFF;
+                q->flags |= 2;
+            }
+        }
+    }
+    if (wp->fields_used & 0x40) {
+        f32 lf0;
+        f32 lf1;
+        q = (Psys*)node->data.psys;
+        lf1 = wp->p_lifefade[1];
+        lf0 = wp->p_lifefade[0];
+        if (q->e_phase > 1) {
+            ErrorPrintf(strs + 316);
+        } else {
+            f64 v;
+            v = 30.0 * lf0;
+            q->p_life = (u8)(s32)((v < 1.0) ? 1.0 : (v > 255.0) ? 255.0 : v);
+            v = 30.0 * lf1;
+            q->p_fade = (u8)(s32)((v < 0.0) ? 0.0 : (v > 255.0) ? 255.0 : v);
+        }
+    }
+    if (wp->fields_used & 0x100) {
+        f32 d0;
+        f32 d1;
+        f32 d2;
+        q = (Psys*)node->data.psys;
+        d2 = wp->e_dir[2];
+        d1 = wp->e_dir[1];
+        d0 = wp->e_dir[0];
+        if (q->e_phase > 1) {
+            ErrorPrintf(strs + 316);
+        } else {
+            q->e_dir[0] = d0;
+            q->e_dir[1] = d1;
+            q->e_dir[2] = d2;
+        }
+    }
+    if (wp->fields_used & 0x200) {
+        f32 ang;
+        q = (Psys*)node->data.psys;
+        ang = wp->e_angle;
+        if (q->e_phase > 1) {
+            ErrorPrintf(strs + 316);
+        } else {
+            setPTimeVal(ang, q);
+        }
+    }
+    if (wp->fields_used & 0x400) {
+        f32 v0;
+        f32 v1;
+        f32 v2;
+        q = (Psys*)node->data.psys;
+        v2 = wp->e_vol[2];
+        v1 = wp->e_vol[1];
+        v0 = wp->e_vol[0];
+        if (q->e_phase > 1) {
+            ErrorPrintf(strs + 316);
+        } else {
+            q->e_vol[0] = v0;
+            q->e_vol[1] = v1;
+            q->e_vol[2] = v2;
+        }
+    }
+    if (wp->fields_used & 0x800) {
+        f32 r3v;
+        f32 r2v;
+        f32 r1v;
+        f32 r0v;
+        q = (Psys*)node->data.psys;
+        r3v = wp->e_rate[3];
+        r2v = wp->e_rate[2];
+        r1v = wp->e_rate[1];
+        r0v = wp->e_rate[0];
+        if (q->e_phase > 1) {
+            ErrorPrintf(strs + 316);
+        } else {
+            q->e_rate.o.life_start = (f32)(lbl_80349248 * r0v);
+            q->e_rate.o.life_slope = (f32)(lbl_80349248 * r1v);
+            q->e_rate.o.fade_start = (f32)(lbl_80349248 * r2v);
+            q->e_rate.o.fade_slope = (f32)(lbl_80349248 * r3v);
+        }
+    }
+    if (wp->fields_used & 0x1000) {
+        p->p_gravity = (f32)(lbl_80349258 * wp->p_gravity);
+    }
+    if (wp->fields_used & 0x2000) {
+        p->p_drag = (f32)(lbl_80349218 * wp->p_drag);
+    }
+    if (wp->fields_used & 0x4000) {
+        f32 sp;
+        q = (Psys*)node->data.psys;
+        sp = wp->p_speed;
+        if (q->e_phase > 1) {
+            ErrorPrintf(strs + 316);
+        } else {
+            q->p_speed = (f32)(lbl_80349248 * sp);
+        }
+    }
+    if (wp->fields_used & 0x8000) {
+        s32 tex = MBOX_FindTexture(wp->p_texname1, 0);
+        u8* g = (u8*)gWinGlobals;
+        q = (Psys*)node->data.psys;
+        q->p_texidx = tex;
+        {
+            u8* t1 = *(u8**)(g + 48);
+            t1 += ((u32)tex >> 16) << 4;
+            q->p_tex = (struct ROMTEX*)(*(s32*)(*(u8**)(t1 + 4) + 88) +
+                                        (((u32)tex & 0xFFFF) << 4));
+        }
+    }
+    if (wp->fields_used & 0x10000) {
+        s32 tex = MBOX_FindTexture(wp->p_texname2, 0);
+        u8* g = (u8*)gWinGlobals;
+        q = (Psys*)node->data.psys;
+        q->p_texidx = tex;
+        {
+            u8* t1 = *(u8**)(g + 48);
+            t1 += ((u32)tex >> 16) << 4;
+            q->p_tex = (struct ROMTEX*)(*(s32*)(*(u8**)(t1 + 4) + 88) +
+                                        (((u32)tex & 0xFFFF) << 4));
+        }
+    }
+    if (wp->fields_used & 0x20000) {
+        u32 tex = wp->p_texidx;
+        u8* g = (u8*)gWinGlobals;
+        q = (Psys*)node->data.psys;
+        q->p_texidx = tex;
+        {
+            u8* t1 = *(u8**)(g + 48);
+            t1 += (tex >> 16) << 4;
+            q->p_tex = (struct ROMTEX*)(*(s32*)(*(u8**)(t1 + 4) + 88) +
+                                        ((tex & 0xFFFF) << 4));
+        }
+    }
+    if (wp->fields_used & 0x40000) {
+        q = (Psys*)node->data.psys;
+        q->p_texidx = wp->p_texidx;
+        q = (Psys*)node->data.psys;
+        q->p_tex = wp->p_romtex;
+    }
+    if (wp->fields_used & 0x80000) {
+        f32 x3, x2, x1, x0;
+        {
+            q = (Psys*)node->data.psys;
+            x3 = lbl_803492A0 * (f32)(wp->p_rgba[3] >> 24);
+            x2 = lbl_803492A0 * (f32)(wp->p_rgba[2] >> 24);
+            x1 = lbl_803492A0 * (f32)(wp->p_rgba[1] >> 24);
+            x0 = lbl_803492A0 * (f32)(wp->p_rgba[0] >> 24);
+            if (q->e_phase > 1) {
+                ErrorPrintf(strs + 316);
+            } else {
+                f32 sc = pif[67];
+                f32 lo = pif[68];
+                f32 hi = pif[69];
+                {
+                    f32 v = x0 * sc;
+                    if (v < lo) {
+                        v = lo;
+                    } else if (v > hi) {
+                        v = hi;
+                    }
+                    q->p_parms[3].o.life_start = v;
+                }
+                {
+                    f32 v = x1 * sc;
+                    if (v < lo) {
+                        v = lo;
+                    } else if (v > hi) {
+                        v = hi;
+                    }
+                    q->p_parms[3].o.life_slope = v;
+                }
+                {
+                    f32 v = x2 * sc;
+                    if (v < lo) {
+                        v = lo;
+                    } else if (v > hi) {
+                        v = hi;
+                    }
+                    q->p_parms[3].o.fade_start = v;
+                }
+                x3 = x3 * sc;
+                if (!(x3 < lo)) {
+                    if (!(x3 > hi)) {
+                        hi = x3;
+                    }
+                    lo = hi;
+                }
+                q->p_parms[3].o.fade_slope = lo;
+            }
+        }
+        {
+            q = (Psys*)node->data.psys;
+            x3 = lbl_803492A0 * (f32)(wp->p_rgba[3] >> 16 & 0xFF);
+            x2 = lbl_803492A0 * (f32)(wp->p_rgba[2] >> 16 & 0xFF);
+            x1 = lbl_803492A0 * (f32)(wp->p_rgba[1] >> 16 & 0xFF);
+            x0 = lbl_803492A0 * (f32)(wp->p_rgba[0] >> 16 & 0xFF);
+            if (q->e_phase > 1) {
+                ErrorPrintf(strs + 316);
+            } else {
+                f32 sc = pif[63];
+                f32 lo = pif[64];
+                f32 hi = pif[65];
+                {
+                    f32 v = x0 * sc;
+                    if (v < lo) {
+                        v = lo;
+                    } else if (v > hi) {
+                        v = hi;
+                    }
+                    q->p_parms[2].o.life_start = v;
+                }
+                {
+                    f32 v = x1 * sc;
+                    if (v < lo) {
+                        v = lo;
+                    } else if (v > hi) {
+                        v = hi;
+                    }
+                    q->p_parms[2].o.life_slope = v;
+                }
+                {
+                    f32 v = x2 * sc;
+                    if (v < lo) {
+                        v = lo;
+                    } else if (v > hi) {
+                        v = hi;
+                    }
+                    q->p_parms[2].o.fade_start = v;
+                }
+                x3 = x3 * sc;
+                if (!(x3 < lo)) {
+                    if (!(x3 > hi)) {
+                        hi = x3;
+                    }
+                    lo = hi;
+                }
+                q->p_parms[2].o.fade_slope = lo;
+            }
+        }
+        {
+            q = (Psys*)node->data.psys;
+            x3 = lbl_803492A0 * (f32)(wp->p_rgba[3] >> 8 & 0xFF);
+            x2 = lbl_803492A0 * (f32)(wp->p_rgba[2] >> 8 & 0xFF);
+            x1 = lbl_803492A0 * (f32)(wp->p_rgba[1] >> 8 & 0xFF);
+            x0 = lbl_803492A0 * (f32)(wp->p_rgba[0] >> 8 & 0xFF);
+            if (q->e_phase > 1) {
+                ErrorPrintf(strs + 316);
+            } else {
+                f32 sc = pif[59];
+                f32 lo = pif[60];
+                f32 hi = pif[61];
+                {
+                    f32 v = x0 * sc;
+                    if (v < lo) {
+                        v = lo;
+                    } else if (v > hi) {
+                        v = hi;
+                    }
+                    q->p_parms[1].o.life_start = v;
+                }
+                {
+                    f32 v = x1 * sc;
+                    if (v < lo) {
+                        v = lo;
+                    } else if (v > hi) {
+                        v = hi;
+                    }
+                    q->p_parms[1].o.life_slope = v;
+                }
+                {
+                    f32 v = x2 * sc;
+                    if (v < lo) {
+                        v = lo;
+                    } else if (v > hi) {
+                        v = hi;
+                    }
+                    q->p_parms[1].o.fade_start = v;
+                }
+                x3 = x3 * sc;
+                if (!(x3 < lo)) {
+                    if (!(x3 > hi)) {
+                        hi = x3;
+                    }
+                    lo = hi;
+                }
+                q->p_parms[1].o.fade_slope = lo;
+            }
+        }
+        {
+            q = (Psys*)node->data.psys;
+            x3 = lbl_803492A0 * (f32)(wp->p_rgba[3] & 0xFF);
+            x2 = lbl_803492A0 * (f32)(wp->p_rgba[2] & 0xFF);
+            x1 = lbl_803492A0 * (f32)(wp->p_rgba[1] & 0xFF);
+            x0 = lbl_803492A0 * (f32)(wp->p_rgba[0] & 0xFF);
+            if (q->e_phase > 1) {
+                ErrorPrintf(strs + 316);
+            } else {
+                f32 sc = pif[55];
+                f32 lo = pif[56];
+                f32 hi = pif[57];
+                {
+                    f32 v = x0 * sc;
+                    if (v < lo) {
+                        v = lo;
+                    } else if (v > hi) {
+                        v = hi;
+                    }
+                    q->p_parms[0].o.life_start = v;
+                }
+                {
+                    f32 v = x1 * sc;
+                    if (v < lo) {
+                        v = lo;
+                    } else if (v > hi) {
+                        v = hi;
+                    }
+                    q->p_parms[0].o.life_slope = v;
+                }
+                {
+                    f32 v = x2 * sc;
+                    if (v < lo) {
+                        v = lo;
+                    } else if (v > hi) {
+                        v = hi;
+                    }
+                    q->p_parms[0].o.fade_start = v;
+                }
+                x3 = x3 * sc;
+                if (!(x3 < lo)) {
+                    if (!(x3 > hi)) {
+                        hi = x3;
+                    }
+                    lo = hi;
+                }
+                q->p_parms[0].o.fade_slope = lo;
+            }
+        }
+    }
+    if (wp->fields_used & 0x100000) {
+        f32 x3, x2, x1, x0;
+        q = (Psys*)node->data.psys;
+        x3 = wp->p_width[3];
+        x2 = wp->p_width[2];
+        x1 = wp->p_width[1];
+        x0 = wp->p_width[0];
+        if (q->e_phase > 1) {
+            ErrorPrintf(strs + 316);
+        } else {
+            f32 sc = pif[71];
+            f32 lo = pif[72];
+            f32 hi = pif[73];
+            {
+                f32 v = x0 * sc;
+                if (v < lo) {
+                    v = lo;
+                } else if (v > hi) {
+                    v = hi;
+                }
+                q->p_parms[4].o.life_start = v;
+            }
+            {
+                f32 v = x1 * sc;
+                if (v < lo) {
+                    v = lo;
+                } else if (v > hi) {
+                    v = hi;
+                }
+                q->p_parms[4].o.life_slope = v;
+            }
+            {
+                f32 v = x2 * sc;
+                if (v < lo) {
+                    v = lo;
+                } else if (v > hi) {
+                    v = hi;
+                }
+                q->p_parms[4].o.fade_start = v;
+            }
+            x3 = x3 * sc;
+            if (!(x3 < lo)) {
+                if (!(x3 > hi)) {
+                    hi = x3;
+                }
+                lo = hi;
+            }
+            q->p_parms[4].o.fade_slope = lo;
+        }
+    }
+    {
+        s8 d = wp->dynamic;
+        if (d != 0) {
+            switch (d) {
+            case -1:
+                p->flags &= ~0xC0;
+                break;
+            case 2:
+                p->flags |= 0x80;
+                break;
+            case 3:
+                p->flags |= 0x40;
+                break;
+            case 1:
+            default:
+                p->flags |= 0xC0;
+                break;
+            }
+        }
+    }
+    if (wp->oneshot > 0) {
+        u16 keep;
+        q = (Psys*)node->data.psys;
+        keep = p->p_max;
+        if (q->e_phase > 1) {
+            ErrorPrintf(strs + 316);
+        } else {
+            q->flags |= 1;
+            q->p_max = keep;
+        }
+    }
+    if (wp->forever > 0) {
+        q = (Psys*)node->data.psys;
+        if (q->e_phase > 1) {
+            ErrorPrintf(strs + 316);
+        } else {
+            q->flags |= 2;
+        }
+    }
+    if (wp->notex_rgb > 0) {
+        p->flags |= 0x10;
+    }
+    if (wp->notex_a > 0) {
+        p->flags |= 0x20;
+    }
+    if (wp->fbadd > 0) {
+        node->flags |= 0x800000;
+    }
+    if (wp->fbmul > 0) {
+        node->flags |= 0x40000000;
+    }
+    if (wp->sort > 0) {
+        node->flags |= 0x800;
+    }
+    if (wp->nozcompare > 0) {
+        node->flags |= 0x40;
+    }
+    if (wp->nozwrite > 0) {
+        node->flags |= 0x80;
     }
     return node;
 }
 
+extern const f64 lbl_80349248;   /* 1/30 */
+extern const f64 lbl_80349258;   /* -0.0355555... gravity scale */
+extern const f64 lbl_80349260;   /* 1/255 double */
+extern const f32 lbl_803492A0;   /* 1/255 */
 extern f64 lbl_80349298;        /* firework rate divisor */
 extern f64 lbl_80349210;        /* firework power scale */
 extern MBObject* lbl_80344EBC;
