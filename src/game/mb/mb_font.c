@@ -404,38 +404,39 @@ typedef struct MBBlitEnt {
  * pipeline in two layer passes (flag-8 messages render on the second). */
 void MBRenderText(void)
 {
-    u8* st = (u8*)&mbfont_space;
+    MBFontState* st = &mbfont_space;
     u8* wg = gWinGlobals;
     s32 layer = 2;
+    u8 stackGap[4];
     MBBlitEnt e;
-    s32 spaceW;
-    s32 baseY;
-    s32 sy2;
-    s32 sx2;
+    u8 unused[20];
+    MBBlitEnt* ent = &e;
     u8* pRec;
+    s32 sx2;
+    s32 sy2;
+    s32 baseY;
+    s32 spaceW;
     u32 white;
     s32 sx;
     s32 sy;
     s32 i;
-    s32 off;
     s32 x;
     s32 y;
     s32 c;
-    s32 hb;
     s32 extra;
-    s32 glyph;
-    s32 adv;
     s32 doClip;
     s32 t;
+    f64 half;
+    f64 zsc;
+    f32 zsp;
     f32 clipX;
     f32 clipY;
-    f64 half;
     f64 kdepth;
-    f32 zsp;
-    f64 zsc;
     f32* wp;
     char* text;
+    s32 hb;
     MBFont* font;
+    s32 glyph;
     MBTextMsg* msg;
 
     if (lbl_80344E28) {
@@ -455,8 +456,8 @@ void MBRenderText(void)
     sy2 = sy << 1;
     white = 0x80808080;
     do {
-        for (i = 0, off = 0; i < lbl_80344E20; i++, off += 0x2c) {
-            msg = ((MBFontState*)(st + off))->msgs;
+        for (i = 0; i < lbl_80344E20; i++) {
+            msg = &st->msgs[i];
             if (msg->flags & 1) {
                 continue;
             }
@@ -479,11 +480,11 @@ void MBRenderText(void)
             if (font == NULL) {
                 continue;
             }
-            e.color = msg->color;
-            e.flags = msg->flags;
+            ent->color = msg->color;
+            ent->flags = msg->flags;
             {
                 s32 u = 1;
-                if (msg->xspace == zsp && msg->yspace == zsc) {
+                if (zsp == msg->xspace && zsc == msg->yspace) {
                     u = 0;
                 }
                 doClip = u ? 1 : 0;
@@ -564,46 +565,45 @@ void MBRenderText(void)
                 memcpy(pRec, font->cells + c * 0x24 + 4, 0x18);
                 if (hb > 0) {
                     text++;
-                    adv = font->height + 4;
+                    glyph = font->height + 4;
                     if (msg->flags & 0x4000) {
-                        x += (s32)((f32)adv * msg->xscale);
+                        x += (s32)((f32)glyph * msg->xscale);
                         goto next_char;
                     }
                     y -= 2;
-                    mbInitBlitEntry(&e, hb, 0);
-                    mbBlitProject(&e, adv, adv);
-                    mbBlitSetupVerts(&e, lbl_80348B68, zsp, lbl_80348B68,
+                    mbInitBlitEntry(ent, hb, 0);
+                    mbBlitProject(ent, glyph, glyph);
+                    mbBlitSetupVerts(ent, lbl_80348B68, zsp, lbl_80348B68,
                                      zsp);
-                    e.color = white;
-                    adv -= 2;
+                    ent->color = white;
+                    glyph -= 2;
                 } else {
                     if (msg->seq >= 0) {
-                        mbInitBlitEntry(&e, msg->seq, 0);
+                        mbInitBlitEntry(ent, msg->seq, 0);
                     } else if (extra > 0) {
-                        mbInitBlitEntry(&e, -1, extra);
+                        mbInitBlitEntry(ent, -1, extra);
                     }
-                    adv = glyph;
                 }
                 wp = *(f32**)(wg + 0x38);
-                *(s16*)(e.rec + 4) =
+                *(s16*)(ent->rec + 4) =
                     (s16)(s32)(half + (f32)x * wp[0]);
                 wp = *(f32**)(wg + 0x38);
-                *(s16*)(e.rec + 6) =
+                *(s16*)(ent->rec + 6) =
                     (s16)(s32)(half + (f32)y * wp[1]);
-                *(s32*)(e.rec + 8) = (s32)(kdepth * msg->z);
+                *(s32*)(ent->rec + 8) = (s32)(kdepth * msg->z);
                 if (doClip) {
-                    mbBlitCalcClip(&e, clipX, clipY);
+                    mbBlitCalcClip(ent, clipX, clipY);
                 }
                 if (msg->flags & 0x4000) {
-                    *(s16*)(e.rec + 4) -= sx;
-                    *(s16*)(e.rec + 6) -= sy;
-                    *(u16*)(e.rec + 0xc) += sx2;
-                    *(u16*)(e.rec + 0xe) += sy2;
+                    *(s16*)(ent->rec + 4) -= sx;
+                    *(s16*)(ent->rec + 6) -= sy;
+                    *(u16*)(ent->rec + 0xc) += sx2;
+                    *(u16*)(ent->rec + 0xe) += sy2;
                 }
-                x += (s32)((f32)adv * msg->xscale);
-                DrawBlit(&e);
+                x += (s32)((f32)glyph * msg->xscale);
+                DrawBlit(ent);
                 if (hb > 0) {
-                    e.color = msg->color;
+                    ent->color = msg->color;
                 }
             next_char:
                 text++;
