@@ -1411,89 +1411,80 @@ s32 fn_800DA920(u8* movie, const char* name)
 
 /* VQ .avi header parser (ReadF32LE/ReadU16LE/ReadU32LE) */
 u32 fn_800DACD8(int param_1, u8* param_2) {
-    int iVar1;
-    u32 uVar2;
-    int iVar3;
-    int iVar4;
-    u16 uVar6;
-    int iVar5;
-    u8* puVar7;
+    u8* q;
+    int ofs;
+    int strl;
+    u8* p;
 
     *(u8*)(param_1 + 0x18) = 0;
-    iVar1 = ReadF32LE(param_2);
-    if (iVar1 == 0x46464952 && (iVar1 = ReadF32LE(param_2 + 8), iVar1 == 0x20495641)) {
-        iVar1 = ReadF32LE(param_2 + 0x1c);
-        iVar3 = ReadF32LE(param_2 + iVar1 + 0x20);
-        if (iVar3 == 0x5453494c) {
-            iVar3 = ReadF32LE(param_2 + iVar1 + 0x20 + 4);
-            puVar7 = param_2 + iVar1 + 0x30;
-            iVar4 = ReadF32LE(puVar7 + 4);
-            if (iVar4 == 0x73646976) {
-                *(u32*)(param_1 + 0xb4) = ReadF32LE(puVar7 + 4);
-                *(u32*)(param_1 + 0xb8) = ReadF32LE(puVar7 + 8);
-                *(u32*)(param_1 + 0xbc) = ReadF32LE(puVar7 + 0xc);
-                *(u32*)(param_1 + 0xc0) = ReadF32LE(puVar7 + 0x10);
-                *(u16*)(param_1 + 0xc4) = ReadU16LE(puVar7 + 0x14);
-                *(u16*)(param_1 + 0xc6) = ReadU16LE(puVar7 + 0x16);
-                *(u32*)(param_1 + 200) = ReadF32LE(puVar7 + 0x18);
-                *(u32*)(param_1 + 0xcc) = ReadF32LE(puVar7 + 0x1c);
-                *(u32*)(param_1 + 0xd0) = ReadF32LE(puVar7 + 0x20);
-                *(u32*)(param_1 + 0xd4) = ReadF32LE(puVar7 + 0x24);
-                *(u32*)(param_1 + 0xd8) = ReadF32LE(puVar7 + 0x28);
-                *(u32*)(param_1 + 0xdc) = ReadF32LE(puVar7 + 0x2c);
-                *(u32*)(param_1 + 0xe0) = ReadF32LE(puVar7 + 0x30);
-                *(u32*)(param_1 + 0xe4) = ReadF32LE(puVar7 + 0x34);
-                iVar4 = ReadF32LE(puVar7);
-                iVar4 = iVar1 + 0x30 + iVar4;
-                iVar5 = ReadF32LE(param_2 + iVar4 + 4);
-                if (iVar5 == 0x66727473) {
-                    *(u32*)(param_1 + 0x194) = ReadF32LE(param_2 + iVar4 + 0xc);
-                    *(u32*)(param_1 + 0x198) = ReadU32LE(param_2 + iVar4 + 0x10);
-                    *(u32*)(param_1 + 0x19c) = ReadU32LE(param_2 + iVar4 + 0x14);
-                    *(u16*)(param_1 + 0x1a0) = ReadU16LE(param_2 + iVar4 + 0x18);
-                    *(u16*)(param_1 + 0x1a2) = ReadU16LE(param_2 + iVar4 + 0x1a);
-                    *(u32*)(param_1 + 0x1a4) = ReadF32LE(param_2 + iVar4 + 0x1c);
-                    *(u32*)(param_1 + 0x1a8) = ReadF32LE(param_2 + iVar4 + 0x20);
-                    *(u32*)(param_1 + 0x1ac) = ReadU32LE(param_2 + iVar4 + 0x24);
-                    *(u32*)(param_1 + 0x1b0) = ReadU32LE(param_2 + iVar4 + 0x28);
-                    *(u32*)(param_1 + 0x1b4) = ReadF32LE(param_2 + iVar4 + 0x2c);
-                    *(u32*)(param_1 + 0x1b8) = ReadF32LE(param_2 + iVar4 + 0x30);
-                    *(u32*)(param_1 + 0x1bc) = ReadF32LE(param_2 + iVar4 + 0x34);
-                    *(u32*)(param_1 + 0x1c0) = ReadF32LE(param_2 + iVar4 + 0x38);
-                    *(u32*)(param_1 + 0x1c4) = ReadF32LE(param_2 + iVar4 + 0x3c);
-                    puVar7 = param_2 + iVar1 + 0x20 + iVar3 + 8;
-                    iVar1 = ReadF32LE(puVar7);
-                    if (iVar1 == 0x5453494c && (iVar1 = ReadF32LE(puVar7 + 0x14), iVar1 == 0x73647561)) {
-                        *(u8*)(param_1 + 0x18) = 1;
-                        *(u32*)(param_1 + 0xe8) = ReadF32LE(puVar7 + 0x14);
-                        *(u32*)(param_1 + 0xec) = ReadF32LE(puVar7 + 0x18);
-                        *(u32*)(param_1 + 0xf0) = ReadF32LE(puVar7 + 0x1c);
-                        *(u32*)(param_1 + 0xf4) = ReadF32LE(puVar7 + 0x20);
-                        *(u16*)(param_1 + 0xf8) = ReadU16LE(puVar7 + 0x24);
-                        *(u16*)(param_1 + 0xfa) = ReadU16LE(puVar7 + 0x26);
-                        *(u32*)(param_1 + 0xfc) = ReadF32LE(puVar7 + 0x28);
-                        *(u32*)(param_1 + 0x100) = ReadF32LE(puVar7 + 0x2c);
-                        *(u32*)(param_1 + 0x104) = ReadF32LE(puVar7 + 0x30);
-                        *(u32*)(param_1 + 0x108) = ReadF32LE(puVar7 + 0x34);
-                        *(u32*)(param_1 + 0x10c) = ReadF32LE(puVar7 + 0x38);
-                        *(u32*)(param_1 + 0x110) = ReadF32LE(puVar7 + 0x3c);
-                        *(u32*)(param_1 + 0x114) = ReadF32LE(puVar7 + 0x40);
-                        *(u32*)(param_1 + 0x118) = ReadF32LE(puVar7 + 0x44);
-                    }
-                    uVar2 = 1;
-                } else {
-                    uVar2 = 0;
-                }
-            } else {
-                uVar2 = 0;
-            }
-        } else {
-            uVar2 = 0;
-        }
-    } else {
-        uVar2 = 0;
+    if (ReadF32LE(param_2) != 0x46464952 || ReadF32LE(param_2 + 8) != 0x20495641) {
+        return 0;
     }
-    return uVar2;
+    ofs = ReadF32LE(param_2 + 0x1C) + 0x20;
+    p = param_2 + ofs;
+    if (ReadF32LE(p) != 0x5453494C) {
+        return 0;
+    }
+    strl = ReadF32LE(p + 4) + 8;
+    strl += ofs;
+    ofs += 0x10;
+    p = (q = param_2 + ofs) + 4;
+    if (ReadF32LE(p) != 0x73646976) {
+        return 0;
+    }
+    *(u32*)(param_1 + 0xB4) = ReadF32LE(p);
+    *(u32*)(param_1 + 0xB8) = ReadF32LE(p + 4);
+    *(u32*)(param_1 + 0xBC) = ReadF32LE(p + 8);
+    *(u32*)(param_1 + 0xC0) = ReadF32LE(p + 0xC);
+    *(u16*)(param_1 + 0xC4) = ReadU16LE(p + 0x10);
+    *(u16*)(param_1 + 0xC6) = ReadU16LE(p + 0x12);
+    *(u32*)(param_1 + 0xC8) = ReadF32LE(p + 0x14);
+    *(u32*)(param_1 + 0xCC) = ReadF32LE(p + 0x18);
+    *(u32*)(param_1 + 0xD0) = ReadF32LE(p + 0x1C);
+    *(u32*)(param_1 + 0xD4) = ReadF32LE(p + 0x20);
+    *(u32*)(param_1 + 0xD8) = ReadF32LE(p + 0x24);
+    *(u32*)(param_1 + 0xDC) = ReadF32LE(p + 0x28);
+    *(u32*)(param_1 + 0xE0) = ReadF32LE(p + 0x2C);
+    *(u32*)(param_1 + 0xE4) = ReadF32LE(p + 0x30);
+    ofs += ReadF32LE(q);
+    if (ReadF32LE(param_2 + (ofs + 4)) != 0x66727473) {
+        return 0;
+    }
+    q = param_2 + (u32)ofs + 0xC;
+    *(u32*)(param_1 + 0x194) = ReadF32LE(q);
+    *(u32*)(param_1 + 0x198) = ReadU32LE(q + 4);
+    *(u32*)(param_1 + 0x19C) = ReadU32LE(q + 8);
+    *(u16*)(param_1 + 0x1A0) = ReadU16LE(q + 0xC);
+    *(u16*)(param_1 + 0x1A2) = ReadU16LE(q + 0xE);
+    *(u32*)(param_1 + 0x1A4) = ReadF32LE(q + 0x10);
+    *(u32*)(param_1 + 0x1A8) = ReadF32LE(q + 0x14);
+    *(u32*)(param_1 + 0x1AC) = ReadU32LE(q + 0x18);
+    *(u32*)(param_1 + 0x1B0) = ReadU32LE(q + 0x1C);
+    *(u32*)(param_1 + 0x1B4) = ReadF32LE(q + 0x20);
+    *(u32*)(param_1 + 0x1B8) = ReadF32LE(q + 0x24);
+    *(u32*)(param_1 + 0x1BC) = ReadF32LE(q + 0x28);
+    *(u32*)(param_1 + 0x1C0) = ReadF32LE(q + 0x2C);
+    *(u32*)(param_1 + 0x1C4) = ReadF32LE(q + 0x30);
+    q = param_2 + strl;
+    if (ReadF32LE(q) == 0x5453494C && ReadF32LE(q + 0x14) == 0x73647561) {
+        q = (u8*)((u32)q + 0x14);
+        *(u8*)(param_1 + 0x18) = 1;
+        *(u32*)(param_1 + 0xE8) = ReadF32LE(q);
+        *(u32*)(param_1 + 0xEC) = ReadF32LE(q + 4);
+        *(u32*)(param_1 + 0xF0) = ReadF32LE(q + 8);
+        *(u32*)(param_1 + 0xF4) = ReadF32LE(q + 0xC);
+        *(u16*)(param_1 + 0xF8) = ReadU16LE(q + 0x10);
+        *(u16*)(param_1 + 0xFA) = ReadU16LE(q + 0x12);
+        *(u32*)(param_1 + 0xFC) = ReadF32LE(q + 0x14);
+        *(u32*)(param_1 + 0x100) = ReadF32LE(q + 0x18);
+        *(u32*)(param_1 + 0x104) = ReadF32LE(q + 0x1C);
+        *(u32*)(param_1 + 0x108) = ReadF32LE(q + 0x20);
+        *(u32*)(param_1 + 0x10C) = ReadF32LE(q + 0x24);
+        *(u32*)(param_1 + 0x110) = ReadF32LE(q + 0x28);
+        *(u32*)(param_1 + 0x114) = ReadF32LE(q + 0x2C);
+        *(u32*)(param_1 + 0x118) = ReadF32LE(q + 0x30);
+    }
+    return 1;
 }
 
 /* MoviePlayer teardown (AudioStreamStop, operator delete, dtor_800DBB94) */
