@@ -108,21 +108,21 @@ s32 good_wiz_exit_timer;
 extern s32 GetBossBeatFlag(void* p);
 extern s32 GetBossNumRunes(void* p);
 extern void* AtreeMatch(void* atree, char* name, s32 flag);
-extern void* AtreeInit(void* dst, void* src, s32 a);
+extern void* AtreeInit(void* header, void* tree, s32 flags, s32 size);
 extern void* MBNewNode(void* p, void* tbl, s32 a);
 extern void MBNodeSetParent(void* a, void* b);
 extern void calc_wizard_pos(f32* out);
-extern void CopyMat4(void* p);
+extern void CopyMat4(void* dst, void* src);
 extern void add_target(void* p);
 extern void calc_good_wiz_attn(s32 reset, s32 force);
 extern s32 hide_rune_stones(void* p);
 extern void MBTreeSetAlpha(void* p, s32 alpha, s32 a);
 extern void AnimateATree(void* p, s32 a, s32 b);
-extern void fn_8009C710(s32 speech);
-extern s32 CaptionText(char* a, char* b, s32 line, s32 page, s32 flags);
+extern void fn_8009C710(s32 speech, s32 arg);
+extern s32 CaptionText(s32 a, s32 id, s32 idx, s32 frame, s32 flags);
 extern s32 fn_800629B0(void);
 extern s32 sndFxUpdate(s32 a);
-extern void SetSkinFX(void* fx, s32 frames, f32 rate, f32 base, f32 loops); /* was mislabeled StartFXMat */
+extern void SetSkinFX(void* fx, void* tex, f32 rate, s32 a, s32 b); /* was mislabeled StartFXMat */
 extern void PlayVQMovie(char* name);
 extern void AudioStopSelect(void);
 extern void AudioSelectReset(void);
@@ -134,10 +134,10 @@ extern void del_player_blits(s32 i);
 extern f32 atan2(f32 y, f32 x);
 extern void CreatePYRMatrix(void* mtx, void* v);
 extern void UpdateObjWorldMat(void* mtx);
-extern char* GetScrollText(char* a, char* b, s32 line, s32* out);
-extern f32 GetScrollScale(char* a, char* b, s32 line);
+extern char* GetScrollText(s32 a, s32 b, s32 line, s32* out);
+extern f32 GetScrollScale(s32 a, s32 b, s32 line);
 extern s32 CaptionTextSub(char* text, f32 scale, s32 font, s32 rows, s32 y);
-extern s32 ScrollTextNum(char* a, char* b);
+extern s32 ScrollTextNum(s32 a, s32 b);
 extern void AudioEnterNextStage(void);
 extern s32 fn_80055F68(s32 a, s32 b);
 extern s32 AudioSysUpdate(s32 a);
@@ -176,97 +176,333 @@ s32 do_gamemovie(void);
 /* DoGoodWizard -- the on-map "good wizard" state machine (0x8D4).     */
 /* Structural best-effort; NonMatching.                                */
 /* ================================================================== */
+extern s32 gBossType;
+extern const f64 lbl_803459F0;
+extern const f64 lbl_803459F8;
+extern char lbl_80345A00[8];
+extern const f32 lbl_80345A0C;
+extern const f32 lbl_80345A10;
+extern const f64 lbl_80345A18;
+extern const f64 lbl_80345A20;
+extern const f64 lbl_80345A28;
+extern const f32 lbl_80345A30;
+
 void DoGoodWizard(void)
 {
+    u8* base = lbl_8023DFD0;
     s32 i;
-    u16 acc3540 = 0;
-    u16 acc3542 = 0;
+    s32 off;
+    s32 acc3542 = 0;
+    s32 acc3540 = 0;
     s32 quality;
-    s32 have;
     s32 want;
+    s32 cap;
+    s32 c;
+    s32 frame2;
     f32 pos[3];
+    void* node;
+    void** pp;
 
-    for (i = 0; i < 4; i++) {
-        u8* p = gPlayers + i * 0x335C;
+    for (i = 0, off = 0; i < 4; i++, off += 0x335C) {
+        u8* p = gPlayers + off;
+
         if (*(s32*)(p + 232) == 1) {
             u8* slot = p + *(s32*)(p + 12) * 240;
+
             acc3542 |= *(u16*)(slot + 3542);
             acc3540 |= *(u16*)(slot + 3540);
         }
     }
-
-    have = GetBossBeatFlag(sMusicTrackHi);
+    quality = GetBossBeatFlag(sMusicTrackHi);
     want = GetBossNumRunes(sMusicTrackHi);
-    if (have != (have & acc3542)) {
-        if ((acc3542 & have) != 0) {
-            quality = 1;
+    if (quality == (quality & acc3542)) {
+        if (want > 1) {
+            quality = 3;
         } else {
-            quality = 0;
+            quality = 2;
         }
-    } else if (want > 1) {
-        quality = 3;
+    } else if (acc3542 & quality) {
+        quality = 1;
     } else {
-        quality = 2;
+        quality = 0;
     }
-
-    if (good_wiz_state > 11) {
-        good_wiz_enabled = 0;
-        goto tail;
-    }
-
     switch (good_wiz_state) {
-    case 0:
-        if (wiz_mode == 42 || wiz_mode == 44) {
-            good_wiz_timer = 10.0f + sMusicFadeBase;
+    case 1:
+        if (gBossType == 0x2a || gBossType == 0x2c) {
+            good_wiz_timer = (f32)(lbl_803459F0 + sMusicFadeBase);
         } else {
-            good_wiz_timer = 5.0f + sMusicFadeBase;
+            good_wiz_timer = (f32)(lbl_803459F8 + sMusicFadeBase);
         }
         good_wiz_state++;
+    case 2:
         if (sMusicFadeBase >= good_wiz_timer) {
             good_wiz_state++;
         }
         break;
-
-    case 1:
-        AtreeMatch(sItemFile1Buf, "WIZARD", 1);
-        *(void**)(lbl_8023DFD0 + 1520) =
-            AtreeInit(lbl_8023DFD0 + 1520, (void*)0x88001880, 0);
-        *(u16*)(lbl_8023DFD0 + 1576) = 1;
-        *(void**)(lbl_8023DFD0 + 1512) =
-            MBNewNode(lbl_80344BD4, gIdentityMatrix, 1);
-        MBNodeSetParent(*(void**)(*(void**)(lbl_8023DFD0 + 1520)),
-                    *(void**)(lbl_8023DFD0 + 1512));
-        *(s32*)(lbl_8023DFD0 + 1516) = 0;
-        if (wiz_mode - 42 > 1) {
-            calc_wizard_pos(pos);
-            pos[1] = pos[1] + 3.0f;
+    case 3:
+        *(void**)(base + 0x5f0) =
+            AtreeInit(AtreeMatch(sItemFile1Buf, lbl_80345A00, 1),
+                      base + 0x5f0, 0, 0x881880);
+        *(u16*)(base + 0x628) = 1;
+        pp = (void**)(base + 0x5e8);
+        *pp = MBNewNode(lbl_80344BD4, gIdentityMatrix, 1);
+        MBNodeSetParent(**(void***)(base + 0x5f0), *pp);
+        *(s32*)(base + 0x5ec) = 0;
+        if ((u32)(gBossType - 0x2a) <= 1) {
+            pos[0] = lbl_80345A08;
+            pos[1] = lbl_80345A0C;
+            pos[2] = lbl_80345A10;
         } else {
-            pos[0] = 0.0f;
-            pos[1] = -12.0f;
-            pos[2] = 6.0f;
+            calc_wizard_pos(pos);
+            pos[1] = (f32)(pos[1] + lbl_80345A18);
         }
+        node = *pp;
+        *(f32*)((u8*)node + 0x30) = pos[0];
+        node = *pp;
+        *(f32*)((u8*)node + 0x34) = pos[1];
+        node = *pp;
+        *(f32*)((u8*)node + 0x38) = pos[2];
+        node = *pp;
+        CopyMat4(node, base + 0x588);
+        node = *pp;
+        *(f32*)(base + 0x5c8) = *(f32*)((u8*)node + 0x30);
+        node = *pp;
+        *(f32*)(base + 0x5cc) = *(f32*)((u8*)node + 0x34);
+        node = *pp;
+        *(f32*)(base + 0x5d0) = *(f32*)((u8*)node + 0x38);
+        *(f32*)(base + 0x5cc) = (f32)(*(f32*)(base + 0x5cc) + lbl_803459F0);
+        *(f32*)(base + 0x5d8) = *(f32*)(base + 0x5c8);
+        *(f32*)(base + 0x5dc) = *(f32*)(base + 0x5cc);
+        *(f32*)(base + 0x5e0) = *(f32*)(base + 0x5d0);
+        if (gBossType < 0x2a) {
+            add_target(base + 0x588);
+        }
+        good_wiz_yaw = lbl_80345A08;
+        good_wiz_plyr_attn = (s32)sMusicTrackHi % 4;
+        calc_good_wiz_attn(1, 1);
+        all_rune_stones = 0;
+        if (gBossType == 0x2a) {
+            all_rune_stones = hide_rune_stones(base + 0x4c0);
+        }
+        good_wiz_alpha = 255;
         good_wiz_state++;
         break;
-
-    default:
+    case 4:
+        if (good_wiz_alpha > 0) {
+            good_wiz_alpha -= 4;
+        }
+        if (good_wiz_alpha < 0) {
+            good_wiz_alpha = 0;
+        }
+        MBTreeSetAlpha(**(void***)(base + 0x5f0), good_wiz_alpha, 1);
+        AnimateATree(base + 0x5f0, 0, 0);
+        calc_good_wiz_attn(0, 0);
+        if (good_wiz_alpha != 0) {
+            break;
+        }
+        good_wiz_speech_idx = 0;
+        good_wiz_state++;
+        good_wiz_speech_frame = 0;
+        good_wiz_speech_pause = 0;
+        if (gBossType >= 0x2a) {
+            fn_8009C710(gBossType, all_rune_stones);
+        } else {
+            fn_8009C710(gBossType, 0);
+        }
+    case 5:
+        good_wiz_speech_frame += gFrameTicks;
+        if (good_wiz_speech_idx >= 0) {
+            frame2 = good_wiz_speech_frame >> 1;
+            switch (gBossType) {
+            case 0x23:
+                cap = 0x93;
+                break;
+            case 0x22:
+                cap = 0x94;
+                break;
+            case 0x24:
+                cap = 0x95;
+                break;
+            case 0x25:
+                cap = 0x96;
+                break;
+            case 0x29:
+                cap = 0x99;
+                break;
+            case 0x27:
+                cap = 0x97;
+                break;
+            case 0x28:
+                cap = 0x9a;
+                break;
+            case 0x26:
+                cap = 0x98;
+                break;
+            case 0x2a:
+                cap = 0x9f;
+                break;
+            case 0x2b:
+                cap = 0xa2;
+                break;
+            case 0x2c:
+                cap = 0xa3;
+                break;
+            default:
+                cap = -1;
+                break;
+            }
+            if (cap >= 0) {
+                c = CaptionText(-1, cap, good_wiz_speech_idx, frame2, 0x10);
+                if (c > 0) {
+                    if (good_wiz_speech_pause < 60) {
+                        good_wiz_speech_pause += gFrameTicks;
+                    } else {
+                        good_wiz_speech_pause = 0;
+                        good_wiz_speech_idx++;
+                        good_wiz_speech_frame = 0;
+                        calc_good_wiz_attn(0, 1);
+                    }
+                } else if (c < 0) {
+                    good_wiz_speech_idx = -1;
+                    good_wiz_timer = (f32)(lbl_80345A20 + sMusicFadeBase);
+                }
+            } else {
+                good_wiz_speech_idx = -1;
+                good_wiz_timer = sMusicFadeBase;
+            }
+        } else if (sMusicFadeBase >= good_wiz_timer) {
+            good_wiz_speech_idx = 0;
+            good_wiz_state++;
+            good_wiz_speech_frame = 0;
+            good_wiz_speech_pause = 0;
+            if (gBossType < 0x2a) {
+                fn_8009C710(gBossType, quality + 1);
+            }
+        }
+        AnimateATree(base + 0x5f0, 0, 0);
+        calc_good_wiz_attn(0, 0);
         break;
-    }
+    case 6:
+        good_wiz_speech_frame += gFrameTicks;
+        if (good_wiz_speech_idx >= 0) {
+            frame2 = good_wiz_speech_frame >> 1;
+            if (gBossType == 0x2a) {
+                if (all_rune_stones) {
+                    cap = 0xa0;
+                } else {
+                    cap = 0xa1;
+                }
+            } else if (gBossType > 0x2a) {
+                cap = -1;
+            } else if (gBossType >= 0x22) {
+                if (quality == 0) {
+                    cap = 0x9b;
+                } else if (quality == 1) {
+                    cap = 0x9c;
+                } else if (quality == 2) {
+                    cap = 0x9d;
+                } else {
+                    cap = 0x9e;
+                }
+            } else {
+                cap = -1;
+            }
+            if (cap >= 0) {
+                c = CaptionText(-1, cap, good_wiz_speech_idx, frame2, 0x10);
+                if (c > 0) {
+                    if (good_wiz_speech_pause < 60) {
+                        good_wiz_speech_pause += gFrameTicks;
+                    } else {
+                        good_wiz_speech_pause = 0;
+                        good_wiz_speech_idx++;
+                        good_wiz_speech_frame = 0;
+                        calc_good_wiz_attn(0, 1);
+                    }
+                } else if (c < 0) {
+                    good_wiz_speech_idx = -1;
+                    good_wiz_timer = (f32)(lbl_80345A28 + sMusicFadeBase);
+                }
+            } else {
+                good_wiz_speech_idx = -1;
+                good_wiz_timer = sMusicFadeBase;
+            }
+        } else if (sMusicFadeBase >= good_wiz_timer) {
+            good_wiz_speech_idx = 0;
+            good_wiz_state++;
+            good_wiz_speech_frame = 0;
+            good_wiz_speech_pause = 0;
+            if (gBossType < 0x2a) {
+                s32 sel = 5;
 
-tail:
-    if (good_wiz_state >= 9 && fn_800629B0() == 0) {
-        if (WizDelayNoGold < good_wiz_exit_timer) {
+                if ((acc3540 & 0x3FE) == 0x3FE && acc3542 == 0xFFF) {
+                    sel = 7;
+                } else if ((acc3540 & 0x1FE) == 0x1FE) {
+                    sel = 6;
+                }
+                fn_8009C710(gBossType, sel);
+            }
+        }
+        AnimateATree(base + 0x5f0, 0, 0);
+        calc_good_wiz_attn(0, 0);
+        break;
+    case 7:
+        good_wiz_speech_frame += gFrameTicks;
+        if (good_wiz_speech_idx >= 0) {
+            good_wiz_speech_idx = -1;
+            good_wiz_timer = sMusicFadeBase;
+        } else if (sMusicFadeBase >= good_wiz_timer) {
+            good_wiz_speech_idx = 0;
+            good_wiz_state++;
+            good_wiz_speech_frame = 0;
+            good_wiz_speech_pause = 0;
+        }
+        AnimateATree(base + 0x5f0, 0, 0);
+        calc_good_wiz_attn(0, 0);
+        break;
+    case 8:
+        if (fn_800629B0() != 0 || all_rune_stones != 0) {
+            good_wiz_exit_timer = WizDelayGoldLeft;
+        } else {
             good_wiz_exit_timer = WizDelayNoGold;
         }
+        good_wiz_state++;
+    case 9:
+        AnimateATree(base + 0x5f0, 0, 0);
+        calc_good_wiz_attn(0, 0);
+        if (sndFxUpdate(1) == 0) {
+            good_wiz_state++;
+        }
+        break;
+    case 10:
+        AnimateATree(base + 0x5f0, 0, 0);
+        calc_good_wiz_attn(0, 0);
+        if (good_wiz_exit_timer <= wiz_exit_min) {
+            for (i = 0, off = 0; i < 4; i++, off += 0x335C) {
+                u8* p = gPlayers + off;
+
+                if (*(s32*)(p + 232) == 1) {
+                    SetSkinFX(p + 0x7dc, lbl_80344BEC, lbl_80345A30, 10, 1);
+                }
+            }
+            good_wiz_state++;
+        }
+        break;
+    case 11:
+        AnimateATree(base + 0x5f0, 0, 0);
+        calc_good_wiz_attn(0, 0);
+        break;
+    case 0:
+    default:
+        good_wiz_enabled = 0;
+        break;
     }
-    (void)quality;
-    (void)acc3540;
-    (void)have;
-    (void)want;
+    if (good_wiz_state >= 9 && fn_800629B0() == 0) {
+        good_wiz_exit_timer = (WizDelayNoGold < good_wiz_exit_timer)
+                                  ? WizDelayNoGold
+                                  : good_wiz_exit_timer;
+    }
 }
 
-/* ================================================================== */
-/* StartGoodWizard (0x10) -- arms the good-wizard sequence.           */
-/* Folds with LooseBallAnims::Destroy in the DOL.                     */
 /* ================================================================== */
 void StartGoodWizard(void)
 {
@@ -517,32 +753,32 @@ void CaptionTextReset(void)
 /* CaptionText (0xF8) -- lay out and advance a caption block.         */
 /* ================================================================== */
 #pragma opt_lifetimes off
-s32 CaptionText(char* a, char* b, s32 line, s32 page, s32 flags)
+s32 CaptionText(s32 a, s32 id, s32 idx, s32 frame, s32 flags)
 {
     f32 w = 0.6669999957f;
     s32 n;
     s32 tmp;
 
-    if (line >= 0) {
-        caption_line = line;
+    if (idx >= 0) {
+        caption_line = idx;
         caption_page = 0;
     }
-    n = (s32)GetScrollText(a, b, caption_line, &tmp);
-    w = w * GetScrollScale(a, b, caption_line);
-    n = CaptionTextSub((char*)n, w, tmp, page, flags);
+    n = (s32)GetScrollText(a, id, caption_line, &tmp);
+    w = w * GetScrollScale(a, id, caption_line);
+    n = CaptionTextSub((char*)n, w, tmp, frame, flags);
     if (n == 0) {
         goto done;
     }
-    if (line >= 0) {
+    if (idx >= 0) {
         goto done;
     }
     {
-        s32 total = ScrollTextNum(a, b);
+        s32 total = ScrollTextNum(a, id);
         if (caption_line + 1 < total) {
             caption_timer = caption_timer - gClockStepTicks;
             if (caption_timer <= 0) {
                 caption_line = caption_line + 1;
-                caption_page = page;
+                caption_page = frame;
                 caption_timer = 60;
             }
             n = 0;
