@@ -119,8 +119,12 @@ extern f64   lbl_80346600;
 extern f64   lbl_80346630;
 extern f32   lbl_8034663C;
 extern f32   lbl_80346638;
+extern f64   lbl_80346620;
+extern f32   lbl_80346628;
+extern f32   lbl_8034662C;
 extern f32   lbl_803464A8;
 extern f32   lbl_803464E8;
+extern f32   gClockTime;
 extern char  lbl_801121D4[];
 extern char  lbl_80112174[];
 extern Effect Effects[];
@@ -173,6 +177,8 @@ extern f32   fn_8005C1DC(u8 *item, s32 a, s32 b, void *hdr, f32 damage);
 extern s32   NextGridItem(void);
 extern void  StartItemGrid(f32 radius, f32 *position);
 extern void  MulVecMat3(const f32 *vector, f32 *out, const f32 *matrix);
+extern void  MulVecMat4(const f32 *vector, f32 *out, const f32 *matrix);
+extern void  MulBodyVecMat4(const f32 *vector, f32 *out, const f32 *matrix);
 extern s32   LineCylinderCollide(f32 *p1, f32 a, f32 b, f32 *p2, f32 *dest,
                                  f32 *contact, s32 flag);
 extern void  damage_enemy(void *enemy, s32 a, s32 b, f32 radius, void *p1,
@@ -229,6 +235,19 @@ extern s32   InitCustomEffect(void *atree, char *name, s32 zmod, s32 alpha);
 extern s32   sprintf(char *dst, const char *fmt, ...);
 extern f32   atan2(f32 y, f32 x);
 extern void  YawMat3(f32 angle, f32 *matrix);
+extern void  WPitchMat3(f32 *matrix, f32 angle);
+extern void  YawVec3(f32 *source, f32 *out, f32 angle);
+extern void  PitchVec3(f32 *source, f32 *out, f32 angle);
+extern f32   Random(f32 range);
+extern void  CalcTargetDir(f32 *velocity, f32 targetScale, f32 speed,
+                           f32 gravity, f32 lift);
+extern void  PlaceEffectOnFloor(s32 effect, f32 *matrix);
+extern void  SfxSetHit(s32 effect, s32 hitEffect, s32 hitAudio,
+                       s32 wallSound);
+extern void  SfxSetMorph(f32 time, s32 effect, s32 morph1, s32 morph2);
+extern void  fn_80093E50(s32 effect, f32 *velocity, f32 *angularVelocity,
+                         f32 weight, f32 radius);
+extern void  DmgFxAdd(s32 effect);
 extern u16   AnimateATree(void *tree, s32 sequence, s32 transition);
 extern s32   AnimDone(void *animation);
 extern void  MBTreeClearFlags(void *node, u32 flags, s32 mode);
@@ -5197,40 +5216,244 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
  * descriptor at either a supplied world position or the critter node. */
 s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
 {
+    f32 world[3];
+    u8 worldPad[4];
+    f32 velocity[3];
+    u8 velocityPad[4];
+    f32 offset[3];
+    f32 angularVelocity[3];
     u8 *container;
     u8 *desc;
-    f32 offset[3];
-    f32 world[3];
-    s32 sfx;
+    u8 *sfxDesc;
+    u8 *hitDesc;
+    u8 *morphDesc;
+    u32 flags;
+    s32 result;
+    s32 morph;
+    f32 scale;
+    f32 radius;
+    f32 damage;
+    f32 damageRadius;
+    f32 speed;
+    f32 yaw;
 
     container = *(u8 **)((u8 *)c->hdr + 0x130);
     desc = *(u8 **)(container + 0x44) + action * 0x50;
-    offset[0] = *(f32 *)(desc + 0x20);
-    offset[1] = *(f32 *)(desc + 0x24);
-    offset[2] = *(f32 *)(desc + 0x28);
+    if ((*(s16 *)(desc + 2) & 0x4000) != 0 &&
+        (f64)c->unkAC8 > lbl_80346488 && *(s16 *)desc != 1) {
+        return -1;
+    }
+    if (c->mbnode != NULL &&
+        (*(u32 *)((u8 *)c->mbnode + 0x60) & 8) != 0) {
+        scale = *(f32 *)((u8 *)c->mbnode + 0x44);
+    } else {
+        scale = lbl_803464A8;
+    }
+    offset[0] = *(f32 *)(desc + 0x20) * scale;
+    offset[1] = *(f32 *)(desc + 0x24) * scale;
+    offset[2] = *(f32 *)(desc + 0x28) * scale;
     if (local) {
-        MulVec4Mat3(offset, world, &c->mtx[0][0]);
+        world[0] = offset[0];
+        world[1] = offset[1];
+        world[2] = offset[2];
         if (position != NULL) {
+            MulBodyVecMat4(position, position, &c->mtx[0][0]);
             world[0] += position[0];
             world[1] += position[1];
             world[2] += position[2];
-        } else {
-            world[0] += c->vel[0];
-            world[1] += c->vel[1];
-            world[2] += c->vel[2];
         }
+    } else if (position != NULL) {
+        MulVecMat3(offset, world, &c->mtx[0][0]);
+        world[0] += position[0];
+        world[1] += position[1];
+        world[2] += position[2];
     } else {
-        world[0] = offset[0] + (position != NULL ? position[0] : c->vel[0]);
-        world[1] = offset[1] + (position != NULL ? position[1] : c->vel[1]);
-        world[2] = offset[2] + (position != NULL ? position[2] : c->vel[2]);
+        MulVecMat4(offset, world, &c->mtx[0][0]);
     }
-    sfx = *(s16 *)(desc + 0x40);
-    if (sfx >= 0) {
-        CritterDoSfx(c, sfx, world, local, -1);
+
+    result = CritterDoSfx(c, *(s16 *)(desc + 0x40), world, local, -1);
+    if (result < 0) {
+        goto done;
     }
-    if (*(s16 *)(desc + 0x42) >= 0) {
-        CritterDoSfx(c, *(s16 *)(desc + 0x42), world, local, -1);
+
+    flags = 0x801;
+    sfxDesc = *(u8 **)(container + 0x4C) + *(s16 *)(desc + 0x40) * 0x50;
+    radius = *(f32 *)(desc + 0x2C);
+    if (*(s16 *)(*(u8 **)((u8 *)c->hdr + 0x120) + 0x20) != 4) {
+        flags |= 8;
+        fn_80037ED0(lbl_80346618, c, Effects[result].id);
     }
+
+    switch (*(s16 *)desc) {
+    case 1:
+        flags |= 6;
+        if ((*(s16 *)(desc + 2) & 0x4000) != 0 &&
+            (f64)c->unkAC8 > lbl_80346488) {
+            Effects[result].endtime = gClockTime + c->unkAC8;
+        }
+        break;
+    case 2:
+        flags |= 0x30;
+        break;
+    case 3:
+    case 5:
+    case 6:
+        flags |= 0x20;
+        break;
+    case 8:
+        flags |= 0x20;
+        break;
+    case 4:
+        radius = lbl_80346480;
+        flags = 0;
+        break;
+    }
+
+    if ((*(u32 *)(desc + 4) & 0x00020000) != 0) {
+        flags |= 0x00020000;
+    }
+    if ((*(s16 *)(desc + 2) & 0x40) != 0) {
+        flags &= ~6;
+    }
+    if ((*(s16 *)(desc + 2) & 0x1000) != 0) {
+        flags &= ~1;
+    }
+    if ((*(s16 *)(desc + 2) & 0x2000) != 0) {
+        flags |= 0x400;
+    }
+    Effects[result].flags |= flags;
+
+    if ((*(u32 *)sfxDesc & 0x10) != 0 && *(s16 *)(desc + 0x42) < 0) {
+        PlaceEffectOnFloor(result, (f32 *)Effects[result].node);
+    }
+    if (*(s16 *)desc != 1) {
+        if (*(f32 *)(desc + 0x14) != lbl_80346470) {
+            YawMat3(*(f32 *)(desc + 0x14), (f32 *)Effects[result].node);
+        }
+        if (*(f32 *)(desc + 0x1C) != lbl_80346470) {
+            WPitchMat3((f32 *)Effects[result].node, *(f32 *)(desc + 0x1C));
+        }
+    }
+
+    if (radius >= lbl_80346470) {
+        damage = radius * *(f32 *)((u8 *)gCurLevel + 0xBC);
+        damageRadius = *(f32 *)(desc + 0x0C) * scale;
+        radius = *(f32 *)(desc + 8) * scale;
+        Effects[result].damage = damage;
+        Effects[result].mindp = *(f32 *)(desc + 0x18);
+        Effects[result].damageradius = damageRadius;
+        Effects[result].damagetype = *(DMG_TYPE *)(desc + 4);
+
+        if (*(s16 *)(desc + 0x42) >= 0) {
+            hitDesc = *(u8 **)(container + 0x4C) +
+                      *(s16 *)(desc + 0x42) * 0x50;
+            SfxSetHit(result, *(s32 *)(hitDesc + 8), *(s32 *)(hitDesc + 0xC),
+                      *(s32 *)(hitDesc + 0xC));
+            if ((*(u32 *)hitDesc & 0x10) != 0) {
+                Effects[result].flags |= 0x200000;
+            }
+        }
+
+        if (*(s16 *)(desc + 0x44) >= 0) {
+            morphDesc = *(u8 **)(container + 0x4C) +
+                        *(s16 *)(desc + 0x44) * 0x50;
+            morph = 0;
+            if (*(s16 *)(desc + 0x46) >= 0) {
+                morph = *(s32 *)(*(u8 **)(container + 0x4C) +
+                                  *(s16 *)(desc + 0x46) * 0x50 + 8);
+            }
+            speed = *(f32 *)(desc + 0x3C);
+            if (speed <= lbl_80346470) {
+                speed = lbl_803464BC;
+            }
+            SfxSetMorph(speed, result, *(s32 *)(morphDesc + 8), morph);
+            if ((*(s16 *)(desc + 2) & 0x800) != 0) {
+                Effects[result].flags |= 0x8000;
+            }
+            if ((*(u32 *)(desc + 4) & 0x04000000) != 0) {
+                Effects[result].webtime = speed;
+                Effects[result].flags &= ~0x20;
+            }
+        }
+
+        if (*(f32 *)(desc + 0x30) > lbl_80346470) {
+            speed = c->rateScale;
+            if ((f64)speed < lbl_803464F8) {
+                speed = (f32)lbl_803464F8;
+            } else if ((f64)speed > lbl_80346620) {
+                speed = (f32)lbl_80346620;
+            }
+            speed = (f32)(lbl_80346530 *
+                          ((f64)speed - lbl_803464F8)) *
+                        (*(f32 *)(desc + 0x34) - *(f32 *)(desc + 0x30)) +
+                    *(f32 *)(desc + 0x30);
+
+            if ((*(s16 *)(desc + 2) & 4) != 0) {
+                velocity[0] = *(f32 *)((u8 *)c + 0x2C);
+                velocity[1] = *(f32 *)((u8 *)c + 0x30);
+                velocity[2] = *(f32 *)((u8 *)c + 0x34);
+            } else if ((*(s16 *)(desc + 2) & 1) != 0 && c->unk124 >= 0) {
+                GetPlayerColPos(c->unk124, velocity);
+                velocity[0] -= *(f32 *)((u8 *)Effects[result].node + 0x30);
+                velocity[1] -= *(f32 *)((u8 *)Effects[result].node + 0x34);
+                velocity[2] -= *(f32 *)((u8 *)Effects[result].node + 0x38);
+            } else {
+                velocity[0] = *(f32 *)((u8 *)c + 0x2C);
+                velocity[1] = *(f32 *)((u8 *)c + 0x30);
+                velocity[2] = *(f32 *)((u8 *)c + 0x34);
+                velocity[1] = lbl_80346628;
+            }
+
+            if ((*(s16 *)(desc + 2) & 8) == 0) {
+                CalcTargetDir(velocity, speed,
+                              (f32)(lbl_80346490 / (f64)speed),
+                              *(f32 *)(desc + 0x38),
+                              lbl_80346470);
+            } else {
+                NormalVector(velocity);
+            }
+
+            if (*(s16 *)desc == 1) {
+                if (*(f32 *)(desc + 0x14) != lbl_80346470 ||
+                    *(f32 *)(desc + 0x48) != lbl_80346470) {
+                    yaw = *(f32 *)(desc + 0x14);
+                    if (*(f32 *)(desc + 0x48) > lbl_80346470) {
+                        yaw = (f32)((f64)yaw +
+                                    lbl_803464F8 *
+                                        -(f64)*(f32 *)(desc + 0x48) +
+                                    (f64)Random(*(f32 *)(desc + 0x48)));
+                    }
+                    YawVec3(velocity, velocity, yaw);
+                }
+                if ((*(s16 *)(desc + 2) & 8) != 0 &&
+                    *(f32 *)(desc + 0x1C) != lbl_80346470) {
+                    PitchVec3(velocity, velocity, *(f32 *)(desc + 0x1C));
+                }
+            }
+            velocity[0] *= speed;
+            velocity[1] *= speed;
+            velocity[2] *= speed;
+
+            if ((*(u32 *)sfxDesc & 8) != 0) {
+                angularVelocity[0] = Random(lbl_8034662C);
+                angularVelocity[1] = lbl_80346470;
+                angularVelocity[2] = Random(lbl_8034662C);
+                fn_80093E50(result, velocity, angularVelocity,
+                            *(f32 *)(desc + 0x38), radius);
+            } else {
+                fn_80093E50(result, velocity, NULL, *(f32 *)(desc + 0x38),
+                            radius);
+            }
+        } else {
+            fn_80093E50(result, NULL, NULL, *(f32 *)(desc + 0x38), radius);
+        }
+
+        if ((gControllerButtons & 0x10) != 0 && gGameOptions[8] != 0) {
+            DmgFxAdd(result);
+        }
+    }
+done:
+    return result;
 }
 /* 0x8003D7E0 */
 s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
