@@ -2202,6 +2202,23 @@ extern s32 lbl_80120598[];    /* per-class weapon-variant flag */
 extern u8 lbl_80113AE0[];     /* .rodata fmt block base (fmts at +1464..+1520) */
 extern char lbl_80114098[];   /* "players\%s\sfx%s" */
 extern char lbl_80347A38[];   /* "rb" (sdata2) */
+extern char* lbl_80347734;
+extern char* lbl_80347738;
+extern char* lbl_80347740;
+extern char lbl_803479C8[];
+extern char lbl_803479D0[];
+extern char lbl_803479D8[];
+extern char lbl_803479E0[];
+extern char lbl_803479E8[];
+extern char lbl_803479F0[];
+extern char lbl_803479F8[];
+extern char lbl_80347A00[];
+extern char lbl_80347A08[];
+extern char lbl_80347A10[];
+extern char lbl_80347A18[];
+extern char lbl_80347A20[];
+extern char lbl_80347A28[];
+extern char lbl_80347A30[];
 extern char lbl_80347A68[];
 extern char lbl_80347A70[];
 extern char lbl_80347A78[];
@@ -2306,9 +2323,9 @@ extern s32 saveLoad(s32 a, s32 b, s32 c, void* buf, s32* size);
 extern s32 saveSave(s32 a, s32 b, s32 c, void* buf, s32 size);
 extern s32 InitPreferences(s32 a, s32 b);
 extern s32 memCardErrorPrompt();
-extern s32 saveMenuPrompt(char* prompt, s32* colors, s32 n);
+extern s32 saveMenuPrompt(const char* prompt, char** options, s32 n);
 extern s32 OptionsSetup(s32 a);
-extern void ControlsUpdate(s32 a, s32* b, s32 c);
+extern void ControlsUpdate(void);
 extern void ReadControls(void);
 extern s32 any_level(u32 button);
 extern s32 any(u32 button);
@@ -3943,98 +3960,171 @@ void load_player_geo(s32 i, void* vp) {
  */
 s32 set_hidden_player(void* vp) {
     Player* p = vp;
-    char* nm = (char*)p + 0xA80;
+    u8* rodata = lbl_80113AE0;
+    u8* data = (u8*)lbl_8011FC48;
+    char* access_options[3];
+    char* fly_options[2];
+    char* unlimited_options[2];
+    char* nodamage_options[2];
+    char* shards_options[2];
+    char* runes_options[2];
+    char* cheats_options[2];
+    char* select_options[2];
+    char* worlds_options[2];
+    char* all_fly_options[2];
+    char* all_unlimited_options[2];
+    char* all_nodamage_options[2];
+    char* all_shards_options[2];
+    char* all_runes_options[2];
+    char* all_cheats_options[2];
     s32 pick = -1;
     u32 pups = 0;
     s32 match = 0;
     s32 j;
 
-    if (strncmp(nm, "ACCESS", 6) == 0) {
+    if (strncmp((char*)p + 0xA80, lbl_803479E0, 6) == 0) {
         pick = 0x10;
         match = 1;
     }
     /* the interactive cheat menu (start+trigger names) */
-    if ((strncmp(nm, "CHEATS", 6) == 0 || strncmp(nm, "SELECT", 6) == 0 ||
-         strncmp(nm, "WORLDS", 6) == 0) &&
+    if ((strncmp((char*)p + 0xA80, lbl_803479C8, 6) == 0 ||
+         strncmp((char*)p + 0xA80, lbl_803479D0, 6) == 0 ||
+         strncmp((char*)p + 0xA80, lbl_803479D8, 6) == 0) &&
         any_level(0x100000) != 0 && any_level(0x400000) != 0) {
-        if (saveMenuPrompt("Access?", NULL, 2) == 0) {
-            if (saveMenuPrompt("Levels?", NULL, 2) == 0) {
-                lbl_802575A8 = 1;
+        access_options[0] = lbl_80347734;
+        access_options[1] = lbl_80347738;
+        access_options[2] = lbl_80347740;
+        match = saveMenuPrompt(lbl_803479E8, access_options, 2) == 0;
+        if (match != 0) {
+            fly_options[0] = lbl_80347734;
+            fly_options[1] = lbl_80347738;
+            if (saveMenuPrompt(lbl_803479F0, fly_options, 2) == 0) {
+                gGameOptions[6] = 1;
             }
-            if (saveMenuPrompt("Unlimited?", NULL, 2) == 0) {
-                lbl_80257594 = 3;
+            unlimited_options[0] = lbl_80347734;
+            unlimited_options[1] = lbl_80347738;
+            if (saveMenuPrompt((char*)rodata + 1360,
+                               unlimited_options, 2) == 0) {
+                gGameOptions[1] = 3;
             }
-            if (saveMenuPrompt("NoDamage?", NULL, 2) == 0) {
+            nodamage_options[0] = lbl_80347734;
+            nodamage_options[1] = lbl_80347738;
+            if (saveMenuPrompt((char*)rodata + 1372,
+                               nodamage_options, 2) == 0) {
                 gGameOptions[0] = 1;
             }
-            if (saveMenuPrompt("Shards?", NULL, 2) == 0) {
+            shards_options[0] = lbl_80347734;
+            shards_options[1] = lbl_80347738;
+            if (saveMenuPrompt(lbl_803479F8, shards_options, 2) == 0) {
                 PF(p, 0x1EC8, u16) = 0xFFFF;
             }
-            if (saveMenuPrompt("Runes?", NULL, 2) == 0) {
+            runes_options[0] = lbl_80347734;
+            runes_options[1] = lbl_80347738;
+            if (saveMenuPrompt(lbl_80347A00, runes_options, 2) == 0) {
                 PF(p, 0x1ECA, u16) = 0xFFFF;
             }
-            if (saveMenuPrompt("Cheats?", NULL, 2) == 0) {
+            cheats_options[0] = lbl_80347734;
+            cheats_options[1] = lbl_80347738;
+            if (saveMenuPrompt(lbl_80347A08, cheats_options, 2) == 0) {
                 pups = 0xFFFFFFFF;
             }
-            if (saveMenuPrompt("Select a character?", NULL, 2) == 0) {
-                /* d-pad browse through the hidden character list */
+            select_options[0] = lbl_80347734;
+            select_options[1] = lbl_80347738;
+            if (saveMenuPrompt((char*)rodata + 1384,
+                               select_options, 2) == 0) {
                 while (any(0x80000000) == 0) {
                     if (any(0x40000000) != 0) {
                         pick++;
-                        if (pick >= 0 && pick < 27) {
-                            saveMenuPrompt(Hidden[pick].name, NULL, 1);
+                        if ((u32)pick < 27) {
+                            saveMenuPrompt(((HiddenChar*)(data + 2512))[pick].name,
+                                           &access_options[2], 1);
                         }
-                        if (pick >= 27) {
-                            pick = (rand() & 0xFF) % 27;
-                            saveMenuPrompt("Rand??", NULL, 1);
+                        if ((u32)pick >= 27) {
+                            pick = (u8)rand() % 27;
+                            saveMenuPrompt(lbl_80347A10,
+                                           &access_options[2], 1);
                             break;
                         }
                     }
-                    ControlsUpdate(0, NULL, 0);
+                    ControlsUpdate();
                     ReadControls();
                 }
             }
-            if (saveMenuPrompt("Worlds?", NULL, 2) == 0) {
+            worlds_options[0] = lbl_80347734;
+            worlds_options[1] = lbl_80347738;
+            if (saveMenuPrompt((char*)rodata + 1408,
+                               worlds_options, 2) == 0) {
                 for (j = 0; j < 16; j++) {
                     memset((u8*)p + 0x1CD0 + p->character * 0xE, 0xFF, 0xE);
                     memset(CHAR_ITEMS(p, j) + 0x1E, 0xFF, 0x20);
-                    *(u16*)(CHAR_ITEMS(p, p->character) + 0xC) = 0xFFFF;
-                    *(u16*)(CHAR_ITEMS(p, p->character) + 0x18) = 0xFFFF;
+                    *(u16*)(CHAR_ITEMS(p, p->character) + 0) = 0xFFFF;
+                    *(s16*)(CHAR_ITEMS(p, p->character) + 0x10) = -1;
+                    *(s16*)(CHAR_ITEMS(p, p->character) + 0x12) = -1;
+                    *(s16*)(CHAR_ITEMS(p, p->character) + 0x14) = -1;
                 }
             }
-            saveMenuPrompt("Mike and Bob say, Thank You for Playing!", NULL, 1);
+            saveMenuPrompt((char*)rodata + 1420,
+                           &access_options[2], 1);
         }
     }
     /* one-shot cheat names */
     if (any_level(0x100000) != 0 && any_level(0x400000) != 0) {
-        if (strncmp(nm, "RANDOM", 6) == 0) {
+        if (strncmp((char*)p + 0xA80, lbl_80347A18, 6) == 0) {
             match = 1;
             pick = (rand() & 0xFF) % 27;
             pups = rand();
         }
-        if (strncmp(nm, "SECRET", 6) == 0) {
+        if (strncmp((char*)p + 0xA80, lbl_80347A20, 6) == 0) {
             match = 1;
             pick = 5;
             pups = rand();
         }
-        if (strncmp(nm, "ALLFUL", 6) == 0) {
+        if (strncmp((char*)p + 0xA80, lbl_80347A28, 6) == 0) {
             match = 1;
             pick = 1;
             pups = rand();
-            /* plus the full unlock block (same as Worlds?) */
-            lbl_802575A8 = 1;
-            lbl_80257594 = 3;
-            gGameOptions[0] = 1;
-            PF(p, 0x1EC8, u16) = 0xFFFF;
-            PF(p, 0x1ECA, u16) = 0xFFFF;
+            all_fly_options[0] = lbl_80347734;
+            all_fly_options[1] = lbl_80347738;
+            if (saveMenuPrompt(lbl_803479F0, all_fly_options, 2) == 0) {
+                gGameOptions[6] = 1;
+            }
+            all_unlimited_options[0] = lbl_80347734;
+            all_unlimited_options[1] = lbl_80347738;
+            if (saveMenuPrompt((char*)rodata + 1360,
+                               all_unlimited_options, 2) == 0) {
+                gGameOptions[1] = 3;
+            }
+            all_nodamage_options[0] = lbl_80347734;
+            all_nodamage_options[1] = lbl_80347738;
+            if (saveMenuPrompt((char*)rodata + 1372,
+                               all_nodamage_options, 2) == 0) {
+                gGameOptions[0] = 1;
+            }
+            all_shards_options[0] = lbl_80347734;
+            all_shards_options[1] = lbl_80347738;
+            if (saveMenuPrompt(lbl_803479F8, all_shards_options, 2) == 0) {
+                PF(p, 0x1EC8, u16) = 0xFFFF;
+            }
+            all_runes_options[0] = lbl_80347734;
+            all_runes_options[1] = lbl_80347738;
+            if (saveMenuPrompt(lbl_80347A00, all_runes_options, 2) == 0) {
+                PF(p, 0x1ECA, u16) = 0xFFFF;
+            }
+            all_cheats_options[0] = lbl_80347734;
+            all_cheats_options[1] = lbl_80347738;
+            if (saveMenuPrompt(lbl_80347A08, all_cheats_options, 2) == 0) {
+                pups = 0xFFFFFFFF;
+            }
             for (j = 0; j < 16; j++) {
                 memset((u8*)p + 0x1CD0 + p->character * 0xE, 0xFF, 0xE);
                 memset(CHAR_ITEMS(p, j) + 0x1E, 0xFF, 0x20);
-                *(u16*)(CHAR_ITEMS(p, p->character) + 0xC) = 0xFFFF;
-                *(u16*)(CHAR_ITEMS(p, p->character) + 0x18) = 0xFFFF;
+                *(s16*)(CHAR_ITEMS(p, p->character) + 0x10) = -1;
+                *(s16*)(CHAR_ITEMS(p, p->character) + 0x12) = -1;
+                *(s16*)(CHAR_ITEMS(p, p->character) + 0x14) = -1;
+                *(u16*)(CHAR_ITEMS(p, p->character) + 0) = 0xFFFF;
             }
         }
-        if (strncmp(nm, "TOWER?", 6) == 0) {
+        if (strncmp((char*)p + 0xA80, lbl_80347A30, 6) == 0) {
             match = 1;
             pick = 0x17;
             pups = rand();
@@ -4042,32 +4132,35 @@ s32 set_hidden_player(void* vp) {
     }
     if (HIDDEN_CODE(p) == NULL) {
         for (j = 0; j < 27; j++) {
-            if ((strncmp(nm, Hidden[j].name, 6) == 0 &&
-                 (Hidden[j].unlocked == 0 || lbl_80344828 > 1)) ||
+            HiddenChar* hidden = (HiddenChar*)(data + 2512) + j;
+            if ((strncmp((char*)p + 0xA80, hidden->name, 6) == 0 &&
+                 (hidden->unlocked == 0 || lbl_80344828 > 1)) ||
                 (match && pick == j)) {
-                p->class_id = Hidden[j].class_id;
-                p->character = Hidden[j].char_type;
-                HIDDEN_CODE(p) = Hidden[j].code;
+                p->class_id = hidden->class_id;
+                p->character = hidden->char_type;
+                HIDDEN_CODE(p) = hidden->code;
                 return 1;
             }
         }
         for (j = 0; j < 27; j++) {
-            if (strncmp(nm, Cheats[j].name, 6) == 0 || (pups & (1 << j))) {
-                switch (Cheats[j].type) {
+            PupCheat* cheat = (PupCheat*)(data + 3484) + j;
+            if (strncmp((char*)p + 0xA80, cheat->name, 6) == 0 ||
+                (pups & (1 << j))) {
+                switch (cheat->type) {
                 case 1:
-                    p->gold = (s32)Cheats[j].value;
+                    p->gold = (s32)cheat->value;
                     break;
                 case 2:
-                    PF(p, 0x1EB8, s32) = (s32)Cheats[j].value;
+                    PF(p, 0x1EB8, s32) = (s32)cheat->value;
                     break;
                 case 4:
-                    PF(p, 0x1EBC, s32) = (s32)Cheats[j].value;
+                    PF(p, 0x1EBC, s32) = (s32)cheat->value;
                     break;
                 default:
-                    PlayerAddPowerup(Cheats[j].value, 1.0f, p,
-                                     Cheats[j].type, Cheats[j].mask);
-                    if (Cheats[j].type == 9) {
-                        PF(p, 0x124, u32) |= Cheats[j].mask;
+                    PlayerAddPowerup(cheat->value, 1.0f, p,
+                                     cheat->type, cheat->mask);
+                    if (cheat->type == 9) {
+                        PF(p, 0x124, u32) |= cheat->mask;
                     }
                     break;
                 }
