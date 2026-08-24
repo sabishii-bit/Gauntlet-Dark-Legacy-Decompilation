@@ -461,6 +461,7 @@ void do_credits(void) {
 /* ================================================================== */
 int scroll_credits(void) {
     char** text;
+    char** entry;
     int y;
     int result;
     int alive;
@@ -483,8 +484,9 @@ int scroll_credits(void) {
             break;
         }
         if (y < 384) {
+            entry = (char**)((u8*)text + offset);
             line = DrawText(32, 383 - y, 13, 0xFFFFFF,
-                            ((char**)((u8*)text + offset))[337]);
+                            entry[337]);
             if (line != NULL) {
                 if (384 - y < 16) {
                     MBFontMsgSetAlpha((int)line,
@@ -515,9 +517,10 @@ int scroll_credits(void) {
             break;
         }
         if (y < 384) {
+            entry = (char**)((u8*)text + offset);
             line = DrawTextKeepScale(creditsTextScale, 32, 383 - y, 13,
                                      0xFFFFFF,
-                                     ((char**)((u8*)text + offset))[429]);
+                                     entry[429]);
             if (line != NULL) {
                 if (384 - y < 16) {
                     MBFontMsgSetAlpha((int)line,
@@ -541,9 +544,10 @@ int scroll_credits(void) {
             break;
         }
         if (y < 384) {
+            entry = (char**)((u8*)text + offset);
             line = DrawTextKeepScale(creditsTextScale, 32, 383 - y, 13,
                                      0xFFFFFF,
-                                     ((char**)((u8*)text + offset))[469]);
+                                     entry[469]);
             if (line != NULL) {
                 if (384 - y < 16) {
                     MBFontMsgSetAlpha((int)line,
