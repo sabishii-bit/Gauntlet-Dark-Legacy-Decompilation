@@ -1414,6 +1414,7 @@ u32 fn_800DACD8(int param_1, u8* param_2) {
     u8* q;
     int ofs;
     int strl;
+    int chunk_ofs;
     u8* p;
 
     *(u8*)(param_1 + 0x18) = 0;
@@ -1447,7 +1448,8 @@ u32 fn_800DACD8(int param_1, u8* param_2) {
     *(u32*)(param_1 + 0xE0) = ReadF32LE(p + 0x2C);
     *(u32*)(param_1 + 0xE4) = ReadF32LE(p + 0x30);
     ofs += ReadF32LE(q);
-    if (ReadF32LE(param_2 + (ofs + 4)) != 0x66727473) {
+    chunk_ofs = ofs + 4;
+    if (ReadF32LE(param_2 + chunk_ofs) != 0x66727473) {
         return 0;
     }
     q = param_2 + (u32)ofs + 0xC;
