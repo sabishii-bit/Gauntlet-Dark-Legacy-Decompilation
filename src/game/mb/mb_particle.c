@@ -1900,14 +1900,515 @@ MBObject* MBNewWorldPsys(s32 a, s32 b, PsysDescrip* wp, s32 d, char* name,
 }
 
 /* 0x800CFB38 - build a psys node from a preset descriptor */
+extern const f64 lbl_80349218;   /* -1.0 */
+extern const f64 lbl_80349248;   /* 1/30 */
+extern const f64 lbl_80349258;   /* -0.0355555... gravity scale */
+extern const f32 lbl_803492A0;   /* 1/255 */
+
 MBObject* MBNewPsysDescrip(s32 a, s32 b, s32 c, void* cfg) {
-    MBObject* node = createPsysNode(a, b, 0, 1);
-    if (node != NULL && cfg != NULL) {
-        setWorldParms(node, (Psys*)node->data.psys, (PsysDescrip*)cfg, 0);
+    PsysDescrip* wp = (PsysDescrip*)cfg;
+    char* strs = (char*)lbl_80116D70;
+    f32* pif = (f32*)psysInfo;
+    Psys* p;
+    MBObject* node;
+    Psys* q;
+    u32 used;
+
+    used = wp->fields_used;
+    if (used & 8) {
+        b = (s32)wp->parent;
+    }
+    if ((u32)b == 0) {
+        return NULL;
+    }
+    if ((node = createPsysNode(a, b, 0, 1)) == NULL) {
+        return NULL;
+    }
+    p = (Psys*)node->data.psys;
+
+    if (wp->fields_used & 1) {
+        p->p_max = wp->max_particles;
+    }
+    if (wp->fields_used & 2) {
+        p->dir_max = wp->max_directions;
+    }
+    if (wp->fields_used & 4) {
+        p->pos_max = wp->max_positions;
+    }
+    if (wp->fields_used & 0x20) {
+        f32 lf0;
+        f32 lf1;
+        q = (Psys*)node->data.psys;
+        lf1 = wp->e_lifefade[1];
+        lf0 = wp->e_lifefade[0];
+        if (q->e_phase > 1) {
+            ErrorPrintf(strs + 316);
+        } else {
+            f64 v;
+            v = 30.0 * lf0;
+            q->e_life = (u16)(s32)((v < 1.0) ? 1.0 : (v > 65535.0) ? 65535.0 : v);
+            v = 30.0 * lf1;
+            q->e_fade = (u16)(s32)((v < 0.0) ? 0.0 : (v > 65535.0) ? 65535.0 : v);
+            q->flags &= ~1;
+            if (lf0 < lbl_80349154) {
+                q->e_life = 0xFFFF;
+                q->flags |= 2;
+            } else if (lf1 < lbl_80349154) {
+                q->e_fade = 0xFFFF;
+                q->flags |= 2;
+            }
+        }
+    }
+    if (wp->fields_used & 0x40) {
+        f32 lf0;
+        f32 lf1;
+        q = (Psys*)node->data.psys;
+        lf1 = wp->p_lifefade[1];
+        lf0 = wp->p_lifefade[0];
+        if (q->e_phase > 1) {
+            ErrorPrintf(strs + 316);
+        } else {
+            f64 v;
+            v = 30.0 * lf0;
+            q->p_life = (u8)(s32)((v < 1.0) ? 1.0 : (v > 255.0) ? 255.0 : v);
+            v = 30.0 * lf1;
+            q->p_fade = (u8)(s32)((v < 0.0) ? 0.0 : (v > 255.0) ? 255.0 : v);
+        }
+    }
+    if (wp->fields_used & 0x100) {
+        f32 d0;
+        f32 d1;
+        f32 d2;
+        q = (Psys*)node->data.psys;
+        d2 = wp->e_dir[2];
+        d1 = wp->e_dir[1];
+        d0 = wp->e_dir[0];
+        if (q->e_phase > 1) {
+            ErrorPrintf(strs + 316);
+        } else {
+            q->e_dir[0] = d0;
+            q->e_dir[1] = d1;
+            q->e_dir[2] = d2;
+        }
+    }
+    if (wp->fields_used & 0x200) {
+        f32 ang;
+        q = (Psys*)node->data.psys;
+        ang = wp->e_angle;
+        if (q->e_phase > 1) {
+            ErrorPrintf(strs + 316);
+        } else {
+            setPTimeVal(ang, q);
+        }
+    }
+    if (wp->fields_used & 0x400) {
+        f32 v0;
+        f32 v1;
+        f32 v2;
+        q = (Psys*)node->data.psys;
+        v2 = wp->e_vol[2];
+        v1 = wp->e_vol[1];
+        v0 = wp->e_vol[0];
+        if (q->e_phase > 1) {
+            ErrorPrintf(strs + 316);
+        } else {
+            q->e_vol[0] = v0;
+            q->e_vol[1] = v1;
+            q->e_vol[2] = v2;
+        }
+    }
+    if (wp->fields_used & 0x800) {
+        f32 r3v;
+        f32 r2v;
+        f32 r1v;
+        f32 r0v;
+        q = (Psys*)node->data.psys;
+        r3v = wp->e_rate[3];
+        r2v = wp->e_rate[2];
+        r1v = wp->e_rate[1];
+        r0v = wp->e_rate[0];
+        if (q->e_phase > 1) {
+            ErrorPrintf(strs + 316);
+        } else {
+            q->e_rate.o.life_start = (f32)(lbl_80349248 * r0v);
+            q->e_rate.o.life_slope = (f32)(lbl_80349248 * r1v);
+            q->e_rate.o.fade_start = (f32)(lbl_80349248 * r2v);
+            q->e_rate.o.fade_slope = (f32)(lbl_80349248 * r3v);
+        }
+    }
+    if (wp->fields_used & 0x1000) {
+        p->p_gravity = (f32)(lbl_80349258 * wp->p_gravity);
+    }
+    if (wp->fields_used & 0x2000) {
+        p->p_drag = (f32)(lbl_80349218 * wp->p_drag);
+    }
+    if (wp->fields_used & 0x4000) {
+        f32 sp;
+        q = (Psys*)node->data.psys;
+        sp = wp->p_speed;
+        if (q->e_phase > 1) {
+            ErrorPrintf(strs + 316);
+        } else {
+            q->p_speed = (f32)(lbl_80349248 * sp);
+        }
+    }
+    if (wp->fields_used & 0x8000) {
+        s32 tex = MBOX_FindTexture(wp->p_texname1, 0);
+        u8* g = (u8*)gWinGlobals;
+        q = (Psys*)node->data.psys;
+        q->p_texidx = tex;
+        {
+            u8* t1 = *(u8**)(g + 48);
+            t1 += ((u32)tex >> 16) << 4;
+            q->p_tex = (struct ROMTEX*)(*(s32*)(*(u8**)(t1 + 4) + 88) +
+                                        (((u32)tex & 0xFFFF) << 4));
+        }
+    }
+    if (wp->fields_used & 0x10000) {
+        s32 tex = MBOX_FindTexture(wp->p_texname2, 0);
+        u8* g = (u8*)gWinGlobals;
+        q = (Psys*)node->data.psys;
+        q->p_texidx = tex;
+        {
+            u8* t1 = *(u8**)(g + 48);
+            t1 += ((u32)tex >> 16) << 4;
+            q->p_tex = (struct ROMTEX*)(*(s32*)(*(u8**)(t1 + 4) + 88) +
+                                        (((u32)tex & 0xFFFF) << 4));
+        }
+    }
+    if (wp->fields_used & 0x20000) {
+        u32 tex = wp->p_texidx;
+        u8* g = (u8*)gWinGlobals;
+        q = (Psys*)node->data.psys;
+        q->p_texidx = tex;
+        {
+            u8* t1 = *(u8**)(g + 48);
+            t1 += (tex >> 16) << 4;
+            q->p_tex = (struct ROMTEX*)(*(s32*)(*(u8**)(t1 + 4) + 88) +
+                                        ((tex & 0xFFFF) << 4));
+        }
+    }
+    if (wp->fields_used & 0x40000) {
+        q = (Psys*)node->data.psys;
+        q->p_texidx = wp->p_texidx;
+        q = (Psys*)node->data.psys;
+        q->p_tex = wp->p_romtex;
+    }
+    if (wp->fields_used & 0x80000) {
+        f32 x3, x2, x1, x0;
+        {
+            q = (Psys*)node->data.psys;
+            x3 = lbl_803492A0 * (f32)(wp->p_rgba[3] >> 24);
+            x2 = lbl_803492A0 * (f32)(wp->p_rgba[2] >> 24);
+            x1 = lbl_803492A0 * (f32)(wp->p_rgba[1] >> 24);
+            x0 = lbl_803492A0 * (f32)(wp->p_rgba[0] >> 24);
+            if (q->e_phase > 1) {
+                ErrorPrintf(strs + 316);
+            } else {
+                f32 sc = pif[67];
+                f32 lo = pif[68];
+                f32 hi = pif[69];
+                {
+                    f32 v = x0 * sc;
+                    if (v < lo) {
+                        v = lo;
+                    } else if (v > hi) {
+                        v = hi;
+                    }
+                    q->p_parms[3].o.life_start = v;
+                }
+                {
+                    f32 v = x1 * sc;
+                    if (v < lo) {
+                        v = lo;
+                    } else if (v > hi) {
+                        v = hi;
+                    }
+                    q->p_parms[3].o.life_slope = v;
+                }
+                {
+                    f32 v = x2 * sc;
+                    if (v < lo) {
+                        v = lo;
+                    } else if (v > hi) {
+                        v = hi;
+                    }
+                    q->p_parms[3].o.fade_start = v;
+                }
+                x3 = x3 * sc;
+                if (!(x3 < lo)) {
+                    if (!(x3 > hi)) {
+                        hi = x3;
+                    }
+                    lo = hi;
+                }
+                q->p_parms[3].o.fade_slope = lo;
+            }
+        }
+        {
+            q = (Psys*)node->data.psys;
+            x3 = lbl_803492A0 * (f32)(wp->p_rgba[3] >> 16 & 0xFF);
+            x2 = lbl_803492A0 * (f32)(wp->p_rgba[2] >> 16 & 0xFF);
+            x1 = lbl_803492A0 * (f32)(wp->p_rgba[1] >> 16 & 0xFF);
+            x0 = lbl_803492A0 * (f32)(wp->p_rgba[0] >> 16 & 0xFF);
+            if (q->e_phase > 1) {
+                ErrorPrintf(strs + 316);
+            } else {
+                f32 sc = pif[63];
+                f32 lo = pif[64];
+                f32 hi = pif[65];
+                {
+                    f32 v = x0 * sc;
+                    if (v < lo) {
+                        v = lo;
+                    } else if (v > hi) {
+                        v = hi;
+                    }
+                    q->p_parms[2].o.life_start = v;
+                }
+                {
+                    f32 v = x1 * sc;
+                    if (v < lo) {
+                        v = lo;
+                    } else if (v > hi) {
+                        v = hi;
+                    }
+                    q->p_parms[2].o.life_slope = v;
+                }
+                {
+                    f32 v = x2 * sc;
+                    if (v < lo) {
+                        v = lo;
+                    } else if (v > hi) {
+                        v = hi;
+                    }
+                    q->p_parms[2].o.fade_start = v;
+                }
+                x3 = x3 * sc;
+                if (!(x3 < lo)) {
+                    if (!(x3 > hi)) {
+                        hi = x3;
+                    }
+                    lo = hi;
+                }
+                q->p_parms[2].o.fade_slope = lo;
+            }
+        }
+        {
+            q = (Psys*)node->data.psys;
+            x3 = lbl_803492A0 * (f32)(wp->p_rgba[3] >> 8 & 0xFF);
+            x2 = lbl_803492A0 * (f32)(wp->p_rgba[2] >> 8 & 0xFF);
+            x1 = lbl_803492A0 * (f32)(wp->p_rgba[1] >> 8 & 0xFF);
+            x0 = lbl_803492A0 * (f32)(wp->p_rgba[0] >> 8 & 0xFF);
+            if (q->e_phase > 1) {
+                ErrorPrintf(strs + 316);
+            } else {
+                f32 sc = pif[59];
+                f32 lo = pif[60];
+                f32 hi = pif[61];
+                {
+                    f32 v = x0 * sc;
+                    if (v < lo) {
+                        v = lo;
+                    } else if (v > hi) {
+                        v = hi;
+                    }
+                    q->p_parms[1].o.life_start = v;
+                }
+                {
+                    f32 v = x1 * sc;
+                    if (v < lo) {
+                        v = lo;
+                    } else if (v > hi) {
+                        v = hi;
+                    }
+                    q->p_parms[1].o.life_slope = v;
+                }
+                {
+                    f32 v = x2 * sc;
+                    if (v < lo) {
+                        v = lo;
+                    } else if (v > hi) {
+                        v = hi;
+                    }
+                    q->p_parms[1].o.fade_start = v;
+                }
+                x3 = x3 * sc;
+                if (!(x3 < lo)) {
+                    if (!(x3 > hi)) {
+                        hi = x3;
+                    }
+                    lo = hi;
+                }
+                q->p_parms[1].o.fade_slope = lo;
+            }
+        }
+        {
+            q = (Psys*)node->data.psys;
+            x3 = lbl_803492A0 * (f32)(wp->p_rgba[3] & 0xFF);
+            x2 = lbl_803492A0 * (f32)(wp->p_rgba[2] & 0xFF);
+            x1 = lbl_803492A0 * (f32)(wp->p_rgba[1] & 0xFF);
+            x0 = lbl_803492A0 * (f32)(wp->p_rgba[0] & 0xFF);
+            if (q->e_phase > 1) {
+                ErrorPrintf(strs + 316);
+            } else {
+                f32 sc = pif[55];
+                f32 lo = pif[56];
+                f32 hi = pif[57];
+                {
+                    f32 v = x0 * sc;
+                    if (v < lo) {
+                        v = lo;
+                    } else if (v > hi) {
+                        v = hi;
+                    }
+                    q->p_parms[0].o.life_start = v;
+                }
+                {
+                    f32 v = x1 * sc;
+                    if (v < lo) {
+                        v = lo;
+                    } else if (v > hi) {
+                        v = hi;
+                    }
+                    q->p_parms[0].o.life_slope = v;
+                }
+                {
+                    f32 v = x2 * sc;
+                    if (v < lo) {
+                        v = lo;
+                    } else if (v > hi) {
+                        v = hi;
+                    }
+                    q->p_parms[0].o.fade_start = v;
+                }
+                x3 = x3 * sc;
+                if (!(x3 < lo)) {
+                    if (!(x3 > hi)) {
+                        hi = x3;
+                    }
+                    lo = hi;
+                }
+                q->p_parms[0].o.fade_slope = lo;
+            }
+        }
+    }
+    if (wp->fields_used & 0x100000) {
+        f32 x3, x2, x1, x0;
+        q = (Psys*)node->data.psys;
+        x3 = wp->p_width[3];
+        x2 = wp->p_width[2];
+        x1 = wp->p_width[1];
+        x0 = wp->p_width[0];
+        if (q->e_phase > 1) {
+            ErrorPrintf(strs + 316);
+        } else {
+            f32 sc = pif[71];
+            f32 lo = pif[72];
+            f32 hi = pif[73];
+            {
+                f32 v = x0 * sc;
+                if (v < lo) {
+                    v = lo;
+                } else if (v > hi) {
+                    v = hi;
+                }
+                q->p_parms[4].o.life_start = v;
+            }
+            {
+                f32 v = x1 * sc;
+                if (v < lo) {
+                    v = lo;
+                } else if (v > hi) {
+                    v = hi;
+                }
+                q->p_parms[4].o.life_slope = v;
+            }
+            {
+                f32 v = x2 * sc;
+                if (v < lo) {
+                    v = lo;
+                } else if (v > hi) {
+                    v = hi;
+                }
+                q->p_parms[4].o.fade_start = v;
+            }
+            x3 = x3 * sc;
+            if (!(x3 < lo)) {
+                if (!(x3 > hi)) {
+                    hi = x3;
+                }
+                lo = hi;
+            }
+            q->p_parms[4].o.fade_slope = lo;
+        }
+    }
+    {
+        s8 d = wp->dynamic;
+        if (d != 0) {
+            switch (d) {
+            case -1:
+                p->flags &= ~0xC0;
+                break;
+            case 2:
+                p->flags |= 0x80;
+                break;
+            case 3:
+                p->flags |= 0x40;
+                break;
+            case 1:
+            default:
+                p->flags |= 0xC0;
+                break;
+            }
+        }
+    }
+    if (wp->oneshot > 0) {
+        u16 keep;
+        q = (Psys*)node->data.psys;
+        keep = p->p_max;
+        if (q->e_phase > 1) {
+            ErrorPrintf(strs + 316);
+        } else {
+            q->flags |= 1;
+            q->p_max = keep;
+        }
+    }
+    if (wp->forever > 0) {
+        q = (Psys*)node->data.psys;
+        if (q->e_phase > 1) {
+            ErrorPrintf(strs + 316);
+        } else {
+            q->flags |= 2;
+        }
+    }
+    if (wp->notex_rgb > 0) {
+        p->flags |= 0x10;
+    }
+    if (wp->notex_a > 0) {
+        p->flags |= 0x20;
+    }
+    if (wp->fbadd > 0) {
+        node->flags |= 0x800000;
+    }
+    if (wp->fbmul > 0) {
+        node->flags |= 0x40000000;
+    }
+    if (wp->sort > 0) {
+        node->flags |= 0x800;
+    }
+    if (wp->nozcompare > 0) {
+        node->flags |= 0x40;
+    }
+    if (wp->nozwrite > 0) {
+        node->flags |= 0x80;
     }
     return node;
 }
 
+extern const f64 lbl_80349248;   /* 1/30 */
+extern const f64 lbl_80349258;   /* -0.0355555... gravity scale */
+extern const f32 lbl_803492A0;   /* 1/255 */
 extern f64 lbl_80349298;        /* firework rate divisor */
 extern f64 lbl_80349210;        /* firework power scale */
 extern MBObject* lbl_80344EBC;
