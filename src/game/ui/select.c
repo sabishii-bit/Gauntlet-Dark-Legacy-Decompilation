@@ -293,11 +293,11 @@ s32 do_player_select(void)
     u8* page = lbl_80121688;
     s32 allIdle = 1;
     s32 anySelecting = 0;
-    u32 servedMask = 0;
+    s32 servedMask = 0;
     s32 i;
     u8* pl;
-    u8* padp;
-    s32* xpp;
+    s32 padoff;
+    s32 xoff;
     s32 poff;
     s32 boff;
     s32 moff;
@@ -356,13 +356,13 @@ s32 do_player_select(void)
         }
     }
 
-    padp = lbl_80240E30;
-    xpp = (s32*)page;
+    padoff = 0;
+    xoff = 0;
     poff = 0;
     boff = 0;
     moff = 0;
     pl = gPlayers;
-    for (i = 0; i < 4; i++, padp += 60, poff += 13148, xpp += 1,
+    for (i = 0; i < 4; i++, padoff += 60, poff += 13148, xoff += 4,
         boff += 132, moff += 232, pl += 13148) {
         s32 costume = *(s32*)(pl + 4);
         s32 st;
@@ -387,18 +387,23 @@ s32 do_player_select(void)
                     if (*(s32*)((page + moff + 712) + 108) == 0) {
                         setup_sel_menu(i, 0);
                         if (vmu_directory_exists() > 1 && saveExists() != 0) {
-                            u8* e = *(u8**)((page + moff + 712) + 28);
+                            u8* base = *(u8**)((page + moff + 712) + 28);
                             s32 k = 0;
+                            s32 off = k;
                             s32 found = -1;
-                            for (;; e += 36, k++) {
-                                if (*(u32*)e == 0) {
+                            for (;;) {
+                                u8* en = base + off;
+                                if (*(u32*)en == 0) {
                                     break;
                                 }
-                                if (*(s32*)(e + 4) == 1001 &&
-                                    *(s32*)(e + 32) >= 0) {
-                                    found = k;
-                                    break;
+                                if (*(s32*)(en + 4) == 1001) {
+                                    if (*(s32*)(en + 32) >= 0) {
+                                        found = k;
+                                        break;
+                                    }
                                 }
+                                k++;
+                                off += 36;
                             }
                             if (found >= 0) {
                                 *(s32*)((page + moff + 712) + 116) = found;
@@ -438,18 +443,23 @@ s32 do_player_select(void)
                 if (*(s32*)((page + moff + 712) + 108) == 0) {
                     setup_sel_menu(i, 1);
                     if (vmu_directory_exists() < 2 || saveExists() == 0) {
-                        u8* e = *(u8**)((page + moff + 712) + 28);
+                        u8* base = *(u8**)((page + moff + 712) + 28);
                         s32 k = 0;
+                        s32 off = k;
                         s32 found = -1;
-                        for (;; e += 36, k++) {
-                            if (*(u32*)e == 0) {
+                        for (;;) {
+                            u8* en = base + off;
+                            if (*(u32*)en == 0) {
                                 break;
                             }
-                            if (*(s32*)(e + 4) == 1005 &&
-                                *(s32*)(e + 32) >= 0) {
-                                found = k;
-                                break;
+                            if (*(s32*)(en + 4) == 1005) {
+                                if (*(s32*)(en + 32) >= 0) {
+                                    found = k;
+                                    break;
+                                }
                             }
+                            k++;
+                            off += 36;
                         }
                         if (found >= 0) {
                             *(s32*)((page + moff + 712) + 116) = found;
@@ -1008,18 +1018,23 @@ s32 do_player_select(void)
                             *(s32*)(pl + 0x3338) = *(s32*)(pl + 0x333C);
                             setup_sel_menu(i, *(s32*)(pl + 0x3338));
                             {
-                                u8* e = *(u8**)((page + moff + 712) + 28);
+                                u8* base = *(u8**)((page + moff + 712) + 28);
                                 s32 k = 0;
+                                s32 off = k;
                                 s32 found = -1;
-                                for (;; e += 36, k++) {
-                                    if (*(u32*)e == 0) {
+                                for (;;) {
+                                    u8* en = base + off;
+                                    if (*(u32*)en == 0) {
                                         break;
                                     }
-                                    if (*(s32*)(e + 4) == 1005 &&
-                                        *(s32*)(e + 32) >= 0) {
-                                        found = k;
-                                        break;
+                                    if (*(s32*)(en + 4) == 1005) {
+                                        if (*(s32*)(en + 32) >= 0) {
+                                            found = k;
+                                            break;
+                                        }
                                     }
+                                    k++;
+                                    off += 36;
                                 }
                                 if (found >= 0) {
                                     *(s32*)((page + moff + 712) + 116) = found;
@@ -1187,18 +1202,23 @@ s32 do_player_select(void)
                             *(s32*)(pl + 0x3338) = 1;
                             setup_sel_menu(i, *(s32*)(pl + 0x3338));
                             {
-                                u8* e = *(u8**)((page + moff + 712) + 28);
+                                u8* base = *(u8**)((page + moff + 712) + 28);
                                 s32 k = 0;
+                                s32 off = k;
                                 s32 found = -1;
-                                for (;; e += 36, k++) {
-                                    if (*(u32*)e == 0) {
+                                for (;;) {
+                                    u8* en = base + off;
+                                    if (*(u32*)en == 0) {
                                         break;
                                     }
-                                    if (*(s32*)(e + 4) == 1005 &&
-                                        *(s32*)(e + 32) >= 0) {
-                                        found = k;
-                                        break;
+                                    if (*(s32*)(en + 4) == 1005) {
+                                        if (*(s32*)(en + 32) >= 0) {
+                                            found = k;
+                                            break;
+                                        }
                                     }
+                                    k++;
+                                    off += 36;
                                 }
                                 if (found >= 0) {
                                     *(s32*)((page + moff + 712) + 116) = found;
@@ -1241,11 +1261,9 @@ s32 do_player_select(void)
                 update_class_attr(i);
             }
             break;
-        case 1:
-            break;
         case 3: /* character locked in */
             if (allIdle == 0 && !(servedMask & (1 << i))) {
-                s32 nx = -(*xpp + 64);
+                s32 nx = -(*(s32*)(page + xoff) + 64);
                 DrawTextKeepScale(lbl_80347F54, nx, 0x8E, 0, 0xFFFFFF,
                                   pool + 180);
                 DrawTextKeepScale(lbl_80347F54, nx, 0x9A, 0, 0xFFFFFF,
@@ -1254,7 +1272,7 @@ s32 do_player_select(void)
                                   pool + 208);
                 DrawTextKeepScale(lbl_80347F54, nx, 0xB2, 0, 0xFFFFFF,
                                   pool + 220);
-                if (*(u32*)(padp + 8) & 0x40000) {
+                if (*(u32*)(lbl_80240E30 + padoff + 8) & 0x40000) {
                     *(s32*)(pl + 0xE8) = 2;
                     *(s32*)(pl + 0x3338) = 1;
                     *(s32*)(pl + 0x333C) = 1;
@@ -1267,6 +1285,8 @@ s32 do_player_select(void)
                 setup_tex(i, 8, 0, 0, lbl_80347F58,
                           lbl_801200B0[*(s32*)(pl + 0xC)]);
             }
+            break;
+        case 1:
             break;
         default:
             *(s32*)((blitbase + boff) + 0x1C) = 1;
