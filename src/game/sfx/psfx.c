@@ -1070,9 +1070,9 @@ typedef struct PsfxHeader {
     /* 0x24 */ s32 resolved; /* handles resolved this level     */
 } PsfxHeader;
 
-extern char lbl_80347E54[]; /* header-chunk wad tag  */
-extern char lbl_80347E5C[]; /* record-chunk wad tag  */
-extern char lbl_80347E64[]; /* move-chunk wad tag    */
+extern char lbl_80347E54[8]; /* header-chunk wad tag  */
+extern char lbl_80347E5C[8]; /* record-chunk wad tag  */
+extern char lbl_80347E64[8]; /* move-chunk wad tag    */
 extern u32 gControllerButtons;
 extern u32 sFlags;
 extern s32 fn_80055F68(s32 a, s32 b);
@@ -1087,15 +1087,17 @@ extern void PlayerSfxInitData(s32* player, u32* records, s32 count, void* param4
  * forces a disk re-read), copy it into the player's load buffer, pull the
  * three chunks out of the wad, byte-swap every record when the archive is
  * foreign-endian, then resolve the effect/sound handles. */
+#pragma dont_inline on
 void LoadPlyrData(s32 plr, s32 cls, s32 resolve)
 {
     s32 wad[4];
     s32 n1;
     s32 n2;
     s32 n3;
+    volatile u8 unused[600];
     PsfxHeader* hdr;
     u8* p;
-    s32 mode;
+    s32 mode = 0;
     s32 i;
     s32 j;
     s32 k;
@@ -1111,7 +1113,8 @@ void LoadPlyrData(s32 plr, s32 cls, s32 resolve)
 
     if (cls != *(s32*)((u8*)&lbl_802828B0 + 0x20 + plr * 4) ||
         (*(s32*)(gPlayers + plr * 0x335C + 0xE8) != 0 && resolve != 0)) {
-        if ((sFlags & 0x10) == 0 || fn_80055F68(0, -1) == 0) {
+        if ((*(u64*)&gControllerButtons & 0x10) == 0 ||
+            fn_80055F68(0, -1) == 0) {
             mode = 1;
         } else {
             mode = 2;
@@ -1279,6 +1282,7 @@ void LoadPlyrData(s32 plr, s32 cls, s32 resolve)
         hdr->resolved = 1;
     }
 }
+#pragma dont_inline off
 /* LoadPdataFile @0x8008BAF0 -- preflight all 16 class pdata files, retain
  * their largest size, then allocate four reusable player load buffers. */
 void LoadPdataFile(void)
