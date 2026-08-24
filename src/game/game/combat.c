@@ -351,6 +351,22 @@ extern s32 lbl_80344510, lbl_8034450C, sNumTriggerCameras, lbl_8034429C, lbl_803
 #define TC_Y(i) (*(f32*)(sTriggerCameras + (i) * 0x28 + 8))
 #define TC_Z(i) (*(f32*)(sTriggerCameras + (i) * 0x28 + 0xC))
 
+/* Address-taken roots, absolute-value temporaries, and closest-point output.
+ * Their order is fixed by CameraSupervisor's target stack accesses. */
+typedef struct CombatCameraSupervisorScratch {
+    u8 _pad00[0x20];
+    f32 pitchRateDelta;
+    f32 pitchRate;
+    f32 yawRateDelta;
+    f32 yawRate;
+    volatile f32 selectedRoot;
+    volatile f32 projectedRoot;
+    volatile f32 segmentRoot;
+    volatile f32 candidateRoot;
+    u8 _pad40[4];
+    f32 closest[3];
+} CombatCameraSupervisorScratch;
+
 /*
  * CameraSupervisor -- trigger-camera (rail) selector for camera camIdx.  Finds
  * the two nearest active rail nodes, blends between them along the segment,
@@ -359,226 +375,266 @@ extern s32 lbl_80344510, lbl_8034450C, sNumTriggerCameras, lbl_8034429C, lbl_803
 void CameraSupervisor(s32 camIdx)
 {
     Camera* cam = &gCameras[camIdx];
-    s32 prevBest = lbl_80344510;
-    s32 prevSel = lbl_80344508;
+    s32 oldNearest = lbl_80344510;
+    s32 oldSelected = lbl_80344508;
     s32 count = 0;
-    s32 idx = 0;
-    s32 off = 0;
-    s32 n = sNumTriggerCameras;
-    f64 d11 = lbl_80345EC8;
-    f64 d14 = lbl_80345EC8;
-    f64 d15 = lbl_80345EC8;
-    f64 d17 = lbl_80345EC8;
-    f64 d18 = lbl_80346030;
-    f64 d19 = lbl_80346030;
-    f64 d12, d13, d16;
-    f32 local_68, local_64, local_60;
-    s32 sel;
-    s32 best;
+    s32 index = 0;
+    s32 offset = 0;
+    s32 remaining = sNumTriggerCameras;
+    s32 nearest;
+    s32 second;
+    u8* nearestTrigger;
+    u8* secondTrigger;
+    f32 nearestDistance = lbl_80346030;
+    f32 secondDistance = nearestDistance;
+    f32 nearestYaw = lbl_80345EC8;
+    f32 secondYaw = nearestYaw;
+    f32 nearestPitch = nearestYaw;
+    f32 secondPitch = nearestYaw;
+    f32 distance;
+    f32 combinedDistance;
+    f32 segmentLength;
+    f32 projectedDistance;
+    f32 projectedRatio;
+    f32 selectedDistance;
+    f32 rateDelta;
+    CombatCameraSupervisorScratch scratch;
+    f64 root;
 
-    if (sNumTriggerCameras > 0) {
-        do {
-            if (sTriggerCameras[off] == 1 &&
-                *(s16*)(sTriggerCameras + off + 2) != 0) {
-                f32 fy = cam->wpos[1] - *(f32*)(sTriggerCameras + off + 8);
-                f32 fx = cam->wpos[0] - *(f32*)(sTriggerCameras + off + 4);
-                f32 fz = cam->wpos[2] - *(f32*)(sTriggerCameras + off + 0xC);
-                d13 = fz * fz + fx * fx + fy * fy;
-                if (lbl_80345EC8 < d13) {
-                    d12 = __frsqrte(d13);
-                    d12 = lbl_80345F18 * d12 * -(d13 * d12 * d12 - lbl_80345F20);
-                    d12 = lbl_80345F18 * d12 * -(d13 * d12 * d12 - lbl_80345F20);
-                    d12 = lbl_80345F18 * d12 * -(d13 * d12 * d12 - lbl_80345F20);
-                    d13 = (f32)(d13 * lbl_80345F18 * d12 *
-                                -(d13 * d12 * d12 - lbl_80345F20));
+    if (remaining > 0) {
+        for (; index < remaining; index++, offset += 0x28) {
+            if (sTriggerCameras[offset] == 1 &&
+                *(s16*)(sTriggerCameras + offset + 2) != 0) {
+                f32 dy = cam->wpos[1] -
+                    *(f32*)(sTriggerCameras + offset + 8);
+                f32 dx = cam->wpos[0] -
+                    *(f32*)(sTriggerCameras + offset + 4);
+                f32 dz = cam->wpos[2] -
+                    *(f32*)(sTriggerCameras + offset + 0xC);
+
+                distance = dy * dy;
+                distance = dx * dx + distance;
+                distance = dz * dz + distance;
+                if ((f64)distance > (f64)lbl_80345EC8) {
+                    root = __frsqrte(distance);
+                    root = lbl_80345F18 * root *
+                           -(distance * root * root - lbl_80345F20);
+                    root = lbl_80345F18 * root *
+                           -(distance * root * root - lbl_80345F20);
+                    root = lbl_80345F18 * root *
+                           -(distance * root * root - lbl_80345F20);
+                    scratch.candidateRoot =
+                        (f32)(distance * lbl_80345F18 * root *
+                        -(distance * root * root - lbl_80345F20));
+                    distance = scratch.candidateRoot;
                 }
-                if (d19 <= d13) {
-                    if (d13 < d18) {
-                        count++;
-                        d15 = *(f32*)(sTriggerCameras + off + 0x18);
-                        d11 = *(f32*)(sTriggerCameras + off + 0x14);
-                        d18 = d13;
-                        lbl_8034450C = idx;
-                    }
-                } else {
+
+                if (distance < nearestDistance) {
                     count++;
                     lbl_8034450C = lbl_80344510;
-                    d18 = d19;
-                    d11 = d14;
-                    d14 = *(f32*)(sTriggerCameras + off + 0x14);
-                    d15 = d17;
-                    d17 = *(f32*)(sTriggerCameras + off + 0x18);
-                    d19 = d13;
-                    lbl_80344510 = idx;
-                }
-            }
-            idx++;
-            off += 0x28;
-            n--;
-        } while (n != 0);
-    }
-    best = lbl_80344510;
-    if (count == 1) {
-        lbl_8034450C = lbl_80344510;
-        d18 = d19;
-        d11 = d14;
-        d15 = d17;
-    }
-    sel = lbl_8034450C;
-    if (count != 0) {
-        d18 = (f32)(d19 + d18);
-        if (count == 1 || lbl_80345F78 == d18) {
-            lbl_8034429C = lbl_8034429C + gFrameTicks;
-        } else {
-            f32 sx, sy, sz;
-            PointLineColl(&cam->wpos[0],
-                (f32*)(sTriggerCameras + 4 + lbl_80344510 * 0x28),
-                (f32*)(sTriggerCameras + 4 + lbl_8034450C * 0x28),
-                &local_68);
-            sz = TC_Z(best) - TC_Z(sel);
-            sx = TC_X(best) - TC_X(sel);
-            sy = TC_Y(best) - TC_Y(sel);
-            d16 = sz * sz + sx * sx + sy * sy;
-            if (lbl_80345EC8 < d16) {
-                d13 = __frsqrte(d16);
-                d13 = lbl_80345F18 * d13 * -(d16 * d13 * d13 - lbl_80345F20);
-                d13 = lbl_80345F18 * d13 * -(d16 * d13 * d13 - lbl_80345F20);
-                d13 = lbl_80345F18 * d13 * -(d16 * d13 * d13 - lbl_80345F20);
-                d16 = (f32)(d16 * lbl_80345F18 * d13 *
-                            -(d16 * d13 * d13 - lbl_80345F20));
-            }
-            sz = TC_Z(best) - local_60;
-            sx = TC_X(best) - local_68;
-            sy = TC_Y(best) - local_64;
-            d13 = sz * sz + sx * sx + sy * sy;
-            if (lbl_80345EC8 < d13) {
-                d12 = __frsqrte(d13);
-                d12 = lbl_80345F18 * d12 * -(d13 * d12 * d12 - lbl_80345F20);
-                d12 = lbl_80345F18 * d12 * -(d13 * d12 * d12 - lbl_80345F20);
-                d12 = lbl_80345F18 * d12 * -(d13 * d12 * d12 - lbl_80345F20);
-                d13 = (f32)(d13 * lbl_80345F18 * d12 *
-                            -(d13 * d12 * d12 - lbl_80345F20));
-            }
-            lbl_8034445C = (f32)(d19 / d18);
-            d18 = lbl_8034445C;
-            if (d18 < lbl_80345F28) {
-                if (lbl_80346098 <= d18) {
-                    lbl_8034445C = (f32)-(lbl_803460E8 * (d18 - lbl_80345F28) -
-                                          lbl_80345FE0);
-                }
-            } else {
-                lbl_8034445C = lbl_80345F80;
-            }
-            if (lbl_80345F18 < (f32)(d13 / d16)) {
-                lbl_80344534 = (f32)d15;
-                lbl_80344530 = (f32)d11;
-                lbl_80344508 = lbl_8034450C;
-                if (d11 <= (f64)lbl_80344408) {
-                    lbl_80344404 = -1;
-                } else {
-                    lbl_80344404 = 1;
-                }
-            } else {
-                lbl_80344534 = (f32)d17;
-                lbl_80344530 = (f32)d14;
-                lbl_80344508 = lbl_80344510;
-                if (d14 <= (f64)lbl_80344408) {
-                    lbl_80344404 = -1;
-                } else {
-                    lbl_80344404 = 1;
-                }
-            }
-            d18 = (f32)(lbl_80344534 - cam->pyr[1]);
-            if (lbl_80345F68 <= d18) {
-                if (lbl_80345F78 <= d18) {
-                    if (lbl_80345F58 <= d18) {
-                        lbl_80344400 = -1;
-                    } else {
-                        lbl_80344400 = 1;
-                    }
-                } else {
-                    lbl_80344400 = -1;
-                }
-            } else {
-                lbl_80344400 = 1;
-            }
-            if (prevSel != lbl_80344508) {
-                f32 ax, ay, az;
-                az = cam->wpos[2] - TC_Y(lbl_80344508);
-                ax = cam->wpos[0] - TC_X(lbl_80344508);
-                ay = cam->wpos[1] - TC_Z(lbl_80344508);
-                d18 = az * az + ax * ax + ay * ay;
-                if (lbl_80345EC8 < d18) {
-                    d11 = __frsqrte(d18);
-                    d11 = lbl_80345F18 * d11 * -(d18 * d11 * d11 - lbl_80345F20);
-                    d11 = lbl_80345F18 * d11 * -(d18 * d11 * d11 - lbl_80345F20);
-                    d11 = lbl_80345F18 * d11 * -(d18 * d11 * d11 - lbl_80345F20);
-                    d18 = (f32)(d18 * lbl_80345F18 * d11 *
-                                -(d18 * d11 * d11 - lbl_80345F20));
-                }
-                d18 = (f32)(d18 * lbl_803460F0);
-                if (lbl_80345F78 == d18) {
-                    lbl_8034444C = lbl_80345EC8;
-                    lbl_80344454 = lbl_80345EC8;
-                    lbl_80344450 = lbl_80345EC8;
-                    lbl_80344458 = lbl_80345EC8;
-                } else {
-                    f32 av;
-                    if (d18 < lbl_80345FE0) {
-                        d18 = lbl_80345F80;
-                    }
-                    d11 = (f32)(lbl_80344534 - cam->pyr[1]);
-                    if (lbl_80345F58 < d11) {
-                        d11 = (f32)(lbl_80345F60 - d11);
-                    }
-                    av = (f32)(d11 / d18);
-                    if (av < 0.0f) {
-                        av = -av;
-                    }
-                    lbl_8034444C = av;
-                    if (lbl_803460F8 <= lbl_8034444C) {
-                        lbl_8034444C = lbl_80346100;
-                    }
-                    d11 = lbl_80344454;
-                    av = (f32)((f64)lbl_8034444C - d11);
-                    if (av < 0.0f) {
-                        av = -av;
-                    }
-                    if (lbl_803460D8 <= av) {
-                        if (lbl_8034444C <= d11) {
-                            lbl_8034444C = (f32)(d11 - lbl_803460D8);
-                        } else {
-                            lbl_8034444C = (f32)(lbl_803460D8 + d11);
-                        }
-                    }
-                    av = (f32)((f64)(lbl_80344530 - lbl_80344408) / d18);
-                    if (av < 0.0f) {
-                        av = -av;
-                    }
-                    lbl_80344450 = av;
-                    if (lbl_80346108 <= lbl_80344450) {
-                        lbl_80344450 = lbl_80346110;
-                    }
-                    d18 = lbl_80344458;
-                    av = (f32)((f64)lbl_80344450 - d18);
-                    if (av < 0.0f) {
-                        av = -av;
-                    }
-                    if (lbl_80346118 <= av) {
-                        if (lbl_80344450 <= d18) {
-                            lbl_80344450 = (f32)(d18 - lbl_80346118);
-                        } else {
-                            lbl_80344450 = (f32)(lbl_80346118 + d18);
-                        }
-                    }
-                    lbl_80344454 = lbl_8034444C;
-                    lbl_80344458 = lbl_80344450;
+                    secondDistance = nearestDistance;
+                    secondYaw = nearestYaw;
+                    secondPitch = nearestPitch;
+                    lbl_80344510 = index;
+                    nearestDistance = distance;
+                    nearestYaw = *(f32*)(sTriggerCameras + offset + 0x18);
+                    nearestPitch = *(f32*)(sTriggerCameras + offset + 0x14);
+                } else if (distance < secondDistance) {
+                    lbl_8034450C = index;
+                    secondDistance = distance;
+                    count++;
+                    secondYaw = *(f32*)(sTriggerCameras + offset + 0x18);
+                    secondPitch = *(f32*)(sTriggerCameras + offset + 0x14);
                 }
             }
         }
     }
-    if (prevBest >= 0 && prevBest == lbl_8034450C) {
-        *(s16*)(sTriggerCameras + prevBest * 0x28 + 2) = 0;
+
+    if (count == 1) {
+        lbl_8034450C = lbl_80344510;
+        secondDistance = nearestDistance;
+        secondYaw = nearestYaw;
+        secondPitch = nearestPitch;
+    }
+    if (count == 0) {
+        goto deactivate_previous;
+    }
+
+    nearest = lbl_80344510;
+    second = lbl_8034450C;
+    combinedDistance = nearestDistance + secondDistance;
+    nearestTrigger = sTriggerCameras + nearest * 0x28;
+    secondTrigger = sTriggerCameras + second * 0x28;
+    if (count == 1 || (f64)combinedDistance == lbl_80345F78) {
+        lbl_8034429C += gFrameTicks;
+        return;
+    }
+
+    {
+        f32 sx;
+        f32 sy;
+        f32 sz;
+
+        PointLineColl(&cam->wpos[0], (f32*)(nearestTrigger + 4),
+            (f32*)(secondTrigger + 4), scratch.closest);
+
+        sy = *(f32*)(nearestTrigger + 8) - *(f32*)(secondTrigger + 8);
+        sx = *(f32*)(nearestTrigger + 4) - *(f32*)(secondTrigger + 4);
+        sz = *(f32*)(nearestTrigger + 0xC) -
+             *(f32*)(secondTrigger + 0xC);
+        segmentLength = sy * sy;
+        segmentLength = sx * sx + segmentLength;
+        segmentLength = sz * sz + segmentLength;
+        if ((f64)segmentLength > (f64)lbl_80345EC8) {
+            root = __frsqrte(segmentLength);
+            root = lbl_80345F18 * root *
+                   -(segmentLength * root * root - lbl_80345F20);
+            root = lbl_80345F18 * root *
+                   -(segmentLength * root * root - lbl_80345F20);
+            root = lbl_80345F18 * root *
+                   -(segmentLength * root * root - lbl_80345F20);
+            scratch.segmentRoot =
+                (f32)(segmentLength * lbl_80345F18 * root *
+                -(segmentLength * root * root - lbl_80345F20));
+            segmentLength = scratch.segmentRoot;
+        }
+
+        sy = *(f32*)(nearestTrigger + 8) - scratch.closest[1];
+        sx = *(f32*)(nearestTrigger + 4) - scratch.closest[0];
+        sz = *(f32*)(nearestTrigger + 0xC) - scratch.closest[2];
+        projectedDistance = sy * sy;
+        projectedDistance = sx * sx + projectedDistance;
+        projectedDistance = sz * sz + projectedDistance;
+        if ((f64)projectedDistance > (f64)lbl_80345EC8) {
+            root = __frsqrte(projectedDistance);
+            root = lbl_80345F18 * root *
+                   -(projectedDistance * root * root - lbl_80345F20);
+            root = lbl_80345F18 * root *
+                   -(projectedDistance * root * root - lbl_80345F20);
+            root = lbl_80345F18 * root *
+                   -(projectedDistance * root * root - lbl_80345F20);
+            scratch.projectedRoot =
+                (f32)(projectedDistance * lbl_80345F18 * root *
+                -(projectedDistance * root * root - lbl_80345F20));
+            projectedDistance = scratch.projectedRoot;
+        }
+
+        lbl_8034445C = nearestDistance / combinedDistance;
+        distance = lbl_8034445C;
+        if ((f64)distance >= lbl_80345F28) {
+            lbl_8034445C = lbl_80345F80;
+        } else if ((f64)distance >= lbl_80346098) {
+            lbl_8034445C = (f32)-(lbl_803460E8 *
+                (distance - lbl_80345F28) - lbl_80345FE0);
+        }
+
+        projectedRatio = projectedDistance / segmentLength;
+        if ((f64)projectedRatio <= lbl_80345F18) {
+            lbl_80344534 = nearestYaw;
+            lbl_80344530 = nearestPitch;
+            lbl_80344508 = lbl_80344510;
+            lbl_80344404 = nearestPitch <= lbl_80344408 ? -1 : 1;
+        } else {
+            lbl_80344534 = secondYaw;
+            lbl_80344530 = secondPitch;
+            lbl_80344508 = lbl_8034450C;
+            lbl_80344404 = secondPitch <= lbl_80344408 ? -1 : 1;
+        }
+
+        distance = lbl_80344534 - cam->pyr[1];
+        if ((f64)distance < lbl_80345F68) {
+            lbl_80344400 = 1;
+        } else if ((f64)distance < lbl_80345F78) {
+            lbl_80344400 = -1;
+        } else if ((f64)distance < lbl_80345F58) {
+            lbl_80344400 = 1;
+        } else {
+            lbl_80344400 = -1;
+        }
+
+        if (oldSelected != lbl_80344508) {
+            f32 dx = cam->wpos[0] - TC_X(lbl_80344508);
+            f32 dy = cam->wpos[1] - TC_Y(lbl_80344508);
+            f32 dz = cam->wpos[2] - TC_Z(lbl_80344508);
+
+            selectedDistance = dy * dy;
+            selectedDistance = dx * dx + selectedDistance;
+            selectedDistance = dz * dz + selectedDistance;
+            if ((f64)selectedDistance > (f64)lbl_80345EC8) {
+                root = __frsqrte(selectedDistance);
+                root = lbl_80345F18 * root *
+                       -(selectedDistance * root * root - lbl_80345F20);
+                root = lbl_80345F18 * root *
+                       -(selectedDistance * root * root - lbl_80345F20);
+                root = lbl_80345F18 * root *
+                       -(selectedDistance * root * root - lbl_80345F20);
+                scratch.selectedRoot =
+                    (f32)(selectedDistance * lbl_80345F18 * root *
+                    -(selectedDistance * root * root - lbl_80345F20));
+                selectedDistance = scratch.selectedRoot;
+            }
+
+            selectedDistance *= lbl_803460F0;
+            if ((f64)selectedDistance == lbl_80345F78) {
+                lbl_8034444C = lbl_80345EC8;
+                lbl_80344454 = lbl_80345EC8;
+                lbl_80344450 = lbl_80345EC8;
+                lbl_80344458 = lbl_80345EC8;
+            } else {
+                if ((f64)selectedDistance < lbl_80345FE0) {
+                    selectedDistance = lbl_80345F80;
+                }
+
+                distance = lbl_80344534 - cam->pyr[1];
+                if ((f64)distance > lbl_80345F58) {
+                    distance = (f32)(lbl_80345F60 - distance);
+                }
+                scratch.yawRate = distance / selectedDistance;
+                *(u32*)&scratch.yawRate &= 0x7FFFFFFF;
+                lbl_8034444C = scratch.yawRate;
+                if ((f64)lbl_8034444C >= lbl_803460F8) {
+                    lbl_8034444C = lbl_80346100;
+                }
+
+                rateDelta = lbl_8034444C - lbl_80344454;
+                scratch.yawRateDelta = rateDelta;
+                *(u32*)&scratch.yawRateDelta &= 0x7FFFFFFF;
+                if ((f64)scratch.yawRateDelta >= lbl_803460D8) {
+                    if (lbl_8034444C > lbl_80344454) {
+                        lbl_8034444C = (f32)(lbl_80344454 + lbl_803460D8);
+                    } else {
+                        lbl_8034444C = (f32)(lbl_80344454 - lbl_803460D8);
+                    }
+                }
+
+                scratch.pitchRate =
+                    (lbl_80344530 - lbl_80344408) / selectedDistance;
+                *(u32*)&scratch.pitchRate &= 0x7FFFFFFF;
+                lbl_80344450 = scratch.pitchRate;
+                if ((f64)lbl_80344450 >= lbl_80346108) {
+                    lbl_80344450 = lbl_80346110;
+                }
+
+                rateDelta = lbl_80344450 - lbl_80344458;
+                scratch.pitchRateDelta = rateDelta;
+                *(u32*)&scratch.pitchRateDelta &= 0x7FFFFFFF;
+                if ((f64)scratch.pitchRateDelta >= lbl_80346118) {
+                    if (lbl_80344450 > lbl_80344458) {
+                        lbl_80344450 = (f32)(lbl_80344458 + lbl_80346118);
+                    } else {
+                        lbl_80344450 = (f32)(lbl_80344458 - lbl_80346118);
+                    }
+                }
+
+                lbl_80344454 = lbl_8034444C;
+                lbl_80344458 = lbl_80344450;
+            }
+        }
+    }
+
+deactivate_previous:
+    if (oldNearest >= 0 && oldNearest == lbl_8034450C) {
+        *(s16*)(sTriggerCameras + oldNearest * 0x28 + 2) = 0;
     }
 }
 
