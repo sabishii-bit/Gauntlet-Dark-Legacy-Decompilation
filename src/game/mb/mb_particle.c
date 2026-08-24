@@ -1486,9 +1486,12 @@ typedef struct WorldPsys {
     /* 0xB8 */ f32 e_delay;
 } WorldPsys;
 
+extern const f64 lbl_80349260;   /* 1/255 double */
+
 static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) {
     WorldPsys* wp = (WorldPsys*)wpd;
-    f32* tbl;
+    char* strs = (char*)lbl_80116D70;
+    f32* pif = (f32*)psysInfo;
     f32 t0, t1, t2, t3;
     f64 v, mn, mx, sc;
     u32 used;
@@ -1502,24 +1505,20 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
         (s32)((u8*)&wp->flagmask - (u8*)wp) != 0xc ||
         (s32)((u8*)&wp->used - (u8*)wp) != 0x10 ||
         (s32)((u8*)&wp->e_delay - (u8*)wp) != 0xb8) {
-        ErrorPrintf("setWorldParms: WORLDPSYS type is bad");
+        ErrorPrintf(strs + 276);
         return;
     }
 
     if (wp->used & 0x1) {   /* inherit from a built-in preset first */
-        u8* base = (u8*)psysInfo;
-        s32 i = 0;
-        for (;;) {
-            s16 id = *(s16*)(base + i + 0x130);
-            u8* pre = base + i + 0x12c;
-            if (id == -1) {
-                break;
-            }
+        s32 i;
+        s16 id;
+        u8* pre;
+        for (i = 0; (pre = (u8*)pif + i), (id = *(s16*)(pre + 304)),
+                    (pre += 300), id != -1; i += 312) {
             if (wp->preset == id) {
                 setWorldParms(node, p, (PsysDescrip*)pre, 0);
                 break;
             }
-            i += 0x138;
         }
     }
     if (wp->used & 0x2) {
@@ -1564,23 +1563,21 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
     }
     if (wp->used & 0x80000) {
         v = 30.0 * wp->e_delay;
-        p->e_delay = (u16)(s32)((v <= 0.0) ? 0.0 : v);
+        p->e_delay = (u16)(s32)((v > 0.0) ? v : 0.0);
     }
     if (wp->used & 0x80) {
         p->e_dir[0] = wp->e_dir[0];
         p->e_dir[1] = wp->e_dir[1];
         p->e_dir[2] = wp->e_dir[2];
+    } else if (over != 0 &&
+               (over[0] != 0.0f || over[1] != 0.0f || over[2] != 0.0f)) {
+        p->e_dir[0] = over[0];
+        p->e_dir[1] = over[1];
+        p->e_dir[2] = over[2];
     } else {
-        if (over == 0 ||
-            (over[0] == 0.0f && over[1] == 0.0f && over[2] == 0.0f)) {
-            p->e_dir[0] = 0.0f;
-            p->e_dir[1] = 1.0f;
-            p->e_dir[2] = 0.0f;
-        } else {
-            p->e_dir[0] = over[0];
-            p->e_dir[1] = over[1];
-            p->e_dir[2] = over[2];
-        }
+        p->e_dir[0] = 0.0f;
+        p->e_dir[1] = 1.0f;
+        p->e_dir[2] = 0.0f;
     }
     if (wp->used & 0x100) {
         p->e_vol[0] = wp->e_vol[0];
@@ -1609,128 +1606,247 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
         Psys* q;
         /* red (lane 16) */
         q = (Psys*)node->data.psys;
-        t3 = (f32)((1.0 / 255.0) * (f32)((wp->rgba[3] >> 16) & 0xff));
-        t2 = (f32)((1.0 / 255.0) * (f32)((wp->rgba[2] >> 16) & 0xff));
-        t1 = (f32)((1.0 / 255.0) * (f32)((wp->rgba[1] >> 16) & 0xff));
+        t3 = (f32)(lbl_80349260 * (f32)(wp->rgba[3] >> 16 & 0xff));
+        t2 = (f32)(lbl_80349260 * (f32)(wp->rgba[2] >> 16 & 0xff));
+        t1 = (f32)(lbl_80349260 * (f32)(wp->rgba[1] >> 16 & 0xff));
+        t0 = (f32)(lbl_80349260 * (f32)(wp->rgba[0] >> 16 & 0xff));
         if (q->e_phase > 1) {
-            ErrorPrintf("Setting PSYS attribute after draw begins");
+            ErrorPrintf(strs + 316);
         } else {
-            f32 sc, mn, mx, fv;
-            tbl = (f32*)((u8*)&lbl_80128710 + 0x9c + 2 * 0x10);
-            sc = tbl[0]; mn = tbl[1]; mx = tbl[2];
-            t0 = (f32)((1.0 / 255.0) * (f32)((wp->rgba[0] >> 16) & 0xff));
-            fv = t0 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[2].i.life_start = fv;
-            fv = t1 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[2].i.life_end = fv;
-            fv = t2 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[2].i.fade_start = fv;
-            fv = t3 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[2].i.fade_end = fv;
+            f32 sc = pif[63];
+            f32 lo = pif[64];
+            f32 hi = pif[65];
+            {
+                f32 fv = t0 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[2].i.life_start = fv;
+            }
+            {
+                f32 fv = t1 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[2].i.life_end = fv;
+            }
+            {
+                f32 fv = t2 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[2].i.fade_start = fv;
+            }
+            t3 = t3 * sc;
+            if (!(t3 < lo)) {
+                if (!(t3 > hi)) {
+                    hi = t3;
+                }
+                lo = hi;
+            }
+            q->p_parms[2].i.fade_end = lo;
         }
         /* green (lane 8) */
         q = (Psys*)node->data.psys;
-        t3 = (f32)((1.0 / 255.0) * (f32)((wp->rgba[3] >> 8) & 0xff));
-        t2 = (f32)((1.0 / 255.0) * (f32)((wp->rgba[2] >> 8) & 0xff));
-        t1 = (f32)((1.0 / 255.0) * (f32)((wp->rgba[1] >> 8) & 0xff));
+        t3 = (f32)(lbl_80349260 * (f32)(wp->rgba[3] >> 8 & 0xff));
+        t2 = (f32)(lbl_80349260 * (f32)(wp->rgba[2] >> 8 & 0xff));
+        t1 = (f32)(lbl_80349260 * (f32)(wp->rgba[1] >> 8 & 0xff));
+        t0 = (f32)(lbl_80349260 * (f32)(wp->rgba[0] >> 8 & 0xff));
         if (q->e_phase > 1) {
-            ErrorPrintf("Setting PSYS attribute after draw begins");
+            ErrorPrintf(strs + 316);
         } else {
-            f32 sc, mn, mx, fv;
-            tbl = (f32*)((u8*)&lbl_80128710 + 0x9c + 1 * 0x10);
-            sc = tbl[0]; mn = tbl[1]; mx = tbl[2];
-            t0 = (f32)((1.0 / 255.0) * (f32)((wp->rgba[0] >> 8) & 0xff));
-            fv = t0 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[1].i.life_start = fv;
-            fv = t1 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[1].i.life_end = fv;
-            fv = t2 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[1].i.fade_start = fv;
-            fv = t3 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[1].i.fade_end = fv;
+            f32 sc = pif[59];
+            f32 lo = pif[60];
+            f32 hi = pif[61];
+            {
+                f32 fv = t0 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[1].i.life_start = fv;
+            }
+            {
+                f32 fv = t1 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[1].i.life_end = fv;
+            }
+            {
+                f32 fv = t2 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[1].i.fade_start = fv;
+            }
+            t3 = t3 * sc;
+            if (!(t3 < lo)) {
+                if (!(t3 > hi)) {
+                    hi = t3;
+                }
+                lo = hi;
+            }
+            q->p_parms[1].i.fade_end = lo;
         }
         /* blue (lane 0) */
         q = (Psys*)node->data.psys;
-        t3 = (f32)((1.0 / 255.0) * (f32)(wp->rgba[3] & 0xff));
-        t2 = (f32)((1.0 / 255.0) * (f32)(wp->rgba[2] & 0xff));
-        t1 = (f32)((1.0 / 255.0) * (f32)(wp->rgba[1] & 0xff));
+        t3 = (f32)(lbl_80349260 * (f32)(wp->rgba[3] & 0xff));
+        t2 = (f32)(lbl_80349260 * (f32)(wp->rgba[2] & 0xff));
+        t1 = (f32)(lbl_80349260 * (f32)(wp->rgba[1] & 0xff));
+        t0 = (f32)(lbl_80349260 * (f32)(wp->rgba[0] & 0xff));
         if (q->e_phase > 1) {
-            ErrorPrintf("Setting PSYS attribute after draw begins");
+            ErrorPrintf(strs + 316);
         } else {
-            f32 sc, mn, mx, fv;
-            tbl = (f32*)((u8*)&lbl_80128710 + 0x9c);
-            sc = tbl[0]; mn = tbl[1]; mx = tbl[2];
-            t0 = (f32)((1.0 / 255.0) * (f32)(wp->rgba[0] & 0xff));
-            fv = t0 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[0].i.life_start = fv;
-            fv = t1 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[0].i.life_end = fv;
-            fv = t2 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[0].i.fade_start = fv;
-            fv = t3 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[0].i.fade_end = fv;
+            f32 sc = pif[55];
+            f32 lo = pif[56];
+            f32 hi = pif[57];
+            {
+                f32 fv = t0 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[0].i.life_start = fv;
+            }
+            {
+                f32 fv = t1 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[0].i.life_end = fv;
+            }
+            {
+                f32 fv = t2 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[0].i.fade_start = fv;
+            }
+            t3 = t3 * sc;
+            if (!(t3 < lo)) {
+                if (!(t3 > hi)) {
+                    hi = t3;
+                }
+                lo = hi;
+            }
+            q->p_parms[0].i.fade_end = lo;
         }
     }
     if (wp->used & 0x20000) {  /* alpha / intensity envelope (lane 24) */
-        Psys* q = (Psys*)node->data.psys;
-        t3 = (f32)((1.0 / 255.0) * (f32)(wp->rgba[3] >> 24));
-        t2 = (f32)((1.0 / 255.0) * (f32)(wp->rgba[2] >> 24));
-        t1 = (f32)((1.0 / 255.0) * (f32)(wp->rgba[1] >> 24));
+        Psys* q;
+        q = (Psys*)node->data.psys;
+        t3 = (f32)(lbl_80349260 * (f32)(wp->rgba[3] >> 24));
+        t2 = (f32)(lbl_80349260 * (f32)(wp->rgba[2] >> 24));
+        t1 = (f32)(lbl_80349260 * (f32)(wp->rgba[1] >> 24));
+        t0 = (f32)(lbl_80349260 * (f32)(wp->rgba[0] >> 24));
         if (q->e_phase > 1) {
-            ErrorPrintf("Setting PSYS attribute after draw begins");
+            ErrorPrintf(strs + 316);
         } else {
-            f32 sc, mn, mx, fv;
-            tbl = (f32*)((u8*)&lbl_80128710 + 0x9c + 3 * 0x10);
-            sc = tbl[0]; mn = tbl[1]; mx = tbl[2];
-            t0 = (f32)((1.0 / 255.0) * (f32)(wp->rgba[0] >> 24));
-            fv = t0 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[3].i.life_start = fv;
-            fv = t1 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[3].i.life_end = fv;
-            fv = t2 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[3].i.fade_start = fv;
-            fv = t3 * sc;
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[3].i.fade_end = fv;
+            f32 sc = pif[67];
+            f32 lo = pif[68];
+            f32 hi = pif[69];
+            {
+                f32 fv = t0 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[3].i.life_start = fv;
+            }
+            {
+                f32 fv = t1 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[3].i.life_end = fv;
+            }
+            {
+                f32 fv = t2 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[3].i.fade_start = fv;
+            }
+            t3 = t3 * sc;
+            if (!(t3 < lo)) {
+                if (!(t3 > hi)) {
+                    hi = t3;
+                }
+                lo = hi;
+            }
+            q->p_parms[3].i.fade_end = lo;
         }
     }
     if (wp->used & 0x40000) {  /* particle width envelope */
-        Psys* q = (Psys*)node->data.psys;
-        f32 w3 = wp->width[3];
-        f32 w2 = wp->width[2];
+        Psys* q;
+        q = (Psys*)node->data.psys;
+        t3 = wp->width[3];
+        t2 = wp->width[2];
+        t1 = wp->width[1];
+        t0 = wp->width[0];
         if (q->e_phase > 1) {
-            ErrorPrintf("Setting PSYS attribute after draw begins");
+            ErrorPrintf(strs + 316);
         } else {
-            f32 mn, mx, fv;
-            tbl = (f32*)((u8*)&lbl_80128710 + 0x9c + 4 * 0x10);
-            sc = tbl[0]; mn = tbl[1]; mx = tbl[2];
-            fv = (f32)(wp->width[0] * sc);
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[4].i.life_start = fv;
-            fv = (f32)(wp->width[1] * sc);
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[4].i.life_end = fv;
-            fv = (f32)(w2 * sc);
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[4].i.fade_start = fv;
-            fv = (f32)(w3 * sc);
-            if (fv < mn) fv = mn; else if (mx < fv) fv = mx;
-            q->p_parms[4].i.fade_end = fv;
+            f32 sc = pif[71];
+            f32 lo = pif[72];
+            f32 hi = pif[73];
+            {
+                f32 fv = t0 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[4].i.life_start = fv;
+            }
+            {
+                f32 fv = t1 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[4].i.life_end = fv;
+            }
+            {
+                f32 fv = t2 * sc;
+                if (fv < lo) {
+                    fv = lo;
+                } else if (fv > hi) {
+                    fv = hi;
+                }
+                q->p_parms[4].i.fade_start = fv;
+            }
+            t3 = t3 * sc;
+            if (!(t3 < lo)) {
+                if (!(t3 > hi)) {
+                    hi = t3;
+                }
+                lo = hi;
+            }
+            q->p_parms[4].i.fade_end = lo;
         }
     }
     if (wp->used & 0x4000) {   /* bind particle texture by name */
@@ -1761,37 +1877,37 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
     mask = wp->flagmask;
     fl = p->flags;
     if (mask & 1) {
-        fl = (fl & 0xff3f) | ((wp->flagval & 1) ? 0xc0 : 0);
+        fl = (fl & ~0xc0) | ((wp->flagval & 1) ? 0xc0 : 0);
     }
     if (mask & 2) {
-        fl = (fl & 0xfffe) | ((wp->flagval & 2) != 0);
+        fl = (fl & ~1) | ((wp->flagval & 2) ? 1 : 0);
     }
     if (mask & 4) {
-        fl = (fl & 0xfffd) | ((wp->flagval & 4) ? 2 : 0);
+        fl = (fl & ~2) | ((wp->flagval & 4) ? 2 : 0);
     }
     if (mask & 0x40) {
-        fl = (fl & 0xffdf) | ((wp->flagval & 0x40) ? 0x20 : 0);
+        fl = (fl & ~0x20) | ((wp->flagval & 0x40) ? 0x20 : 0);
     }
     if (mask & 0x20) {
-        fl = (fl & 0xffef) | ((wp->flagval & 0x20) ? 0x10 : 0);
+        fl = (fl & ~0x10) | ((wp->flagval & 0x20) ? 0x10 : 0);
     }
     p->flags = fl;
     mask = wp->flagmask;
     nfl = node->flags;
     if (mask & 0x80) {
-        nfl = (nfl & 0xff7fffff) | ((wp->flagval & 0x80) ? 0x800000 : 0);
+        nfl = (nfl & ~0x800000) | ((wp->flagval & 0x80) ? 0x800000 : 0);
     }
     if (mask & 0x100) {
-        nfl = (nfl & 0xbfffffff) | ((wp->flagval & 0x100) ? 0x40000000 : 0);
+        nfl = (nfl & ~0x40000000) | ((wp->flagval & 0x100) ? 0x40000000 : 0);
     }
     if (mask & 0x200) {
-        nfl = (nfl & 0xfffff7ff) | ((wp->flagval & 0x200) ? 0x800 : 0);
+        nfl = (nfl & ~0x800) | ((wp->flagval & 0x200) ? 0x800 : 0);
     }
     if (mask & 0x400) {
-        nfl = (nfl & 0xffffffbf) | ((wp->flagval & 0x400) ? 0x40 : 0);
+        nfl = (nfl & ~0x40) | ((wp->flagval & 0x400) ? 0x40 : 0);
     }
     if (mask & 0x800) {
-        nfl = (nfl & 0xffffff7f) | ((wp->flagval & 0x800) ? 0x80 : 0);
+        nfl = (nfl & ~0x80) | ((wp->flagval & 0x800) ? 0x80 : 0);
     }
     node->flags = nfl;
 }
@@ -1903,6 +2019,7 @@ MBObject* MBNewWorldPsys(s32 a, s32 b, PsysDescrip* wp, s32 d, char* name,
 extern const f64 lbl_80349218;   /* -1.0 */
 extern const f64 lbl_80349248;   /* 1/30 */
 extern const f64 lbl_80349258;   /* -0.0355555... gravity scale */
+extern const f64 lbl_80349260;   /* 1/255 double */
 extern const f32 lbl_803492A0;   /* 1/255 */
 
 MBObject* MBNewPsysDescrip(s32 a, s32 b, s32 c, void* cfg) {
@@ -2408,6 +2525,7 @@ MBObject* MBNewPsysDescrip(s32 a, s32 b, s32 c, void* cfg) {
 
 extern const f64 lbl_80349248;   /* 1/30 */
 extern const f64 lbl_80349258;   /* -0.0355555... gravity scale */
+extern const f64 lbl_80349260;   /* 1/255 double */
 extern const f32 lbl_803492A0;   /* 1/255 */
 extern f64 lbl_80349298;        /* firework rate divisor */
 extern f64 lbl_80349210;        /* firework power scale */
