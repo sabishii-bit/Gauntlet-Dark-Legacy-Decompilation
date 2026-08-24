@@ -1533,6 +1533,152 @@ s32 fn_8005D0C4(s32 id, f32* position)
     return best_idx;
 }
 
+extern u32 sItemRandSeed;
+extern void* AtreeInit(void* hdr, void* atree, s32 a, s32 flags);
+extern void MBNodeSetParent(void* node, void* parent);
+extern void* sChestAtree;
+extern s32 sDeathItemInfo;
+extern char sKeyringName[8];
+extern Item* NewItemPtr_800642C8(void);
+extern void AddItemSub(Item* item);
+extern f32 sArrowFloorRadius;
+extern u8 gWadAtreeHeaders[];
+extern u8 sEnemyDefaultAlgorithm[];
+extern void fn_8009DAF8(void);
+
+/* 0x8005E90C - resolve an item's world-record binding: reroll random slots,
+ * spawn the linked pickup/chest contents, seed timers and child algorithm. */
+void fn_8005E90C(Item* item, s32* inst)
+{
+    u8* it = (u8*)item;
+    u8** tblp;
+    u8* row;
+    u8* def;
+    u8* ni;
+    s32 idx;
+    s32 delta;
+    s32 i;
+    u32 fl;
+    s32 t;
+
+    idx = *(s16*)(it + 220);
+    def = *(u8**)it;
+    if (idx < 0) {
+        return;
+    }
+    tblp = (u8**)(gWorldInfo + 104);
+    row = *tblp + idx * 80;
+    delta = (s32)(it - (u8*)sItems);
+    while (*(s32*)row == -1) {
+        s32 n = *(s32*)(row + 4);
+        s32 r;
+        t = delta / 240;
+        if (n != 0) {
+            r = ((sItemRandSeed >> 5) + t) % (u32)n;
+        } else {
+            r = 0;
+        }
+        sItemRandSeed = sItemRandSeed + 439;
+        *(s16*)(it + 220) = *(s16*)(row + r * 2 + 8);
+        row = *tblp + *(s16*)(it + 220) * 80;
+    }
+    if (*(s32*)(def + 4) == 48 && *(s32*)row == 1 && *(s32*)(row + 4) == 1) {
+        fl = 0;
+        if (sChestAtree != NULL) {
+            if (*(u32*)(it + 108) != 0) {
+                AtreeDelete(it + 108);
+            }
+            fl |= 0x800;
+            fl |= *(u32*)(def + 56);
+            *(void**)(it + 108) = AtreeInit(sChestAtree, it + 108, 0, fl);
+            MBNodeSetParent(*(void**)*(u8**)(it + 108), *(void**)(it + 100));
+        }
+        *(s32*)it = sDeathItemInfo;
+        *(s32*)(it + 224) = *(s16*)(row + 64);
+        return;
+    }
+    if (*(s32*)(def + 4) == 47) {
+        *(s32*)(it + 224) = *(s16*)(row + 64);
+        return;
+    }
+    if (*(s32*)(def + 4) == 44) {
+        *(s16*)(it + 196) |= 64;
+        fn_8009DAF8();
+        return;
+    }
+    if (*(s32*)row == 1 && *(s32*)(row + 4) == 2 && *(s16*)(it + 236) > 1) {
+        u8* q = *tblp;
+        for (i = 0; i < *(s32*)(gWorldInfo + 116); i++, q += 80) {
+            if (strcmp(sKeyringName, (char*)(q + 4 + 36)) == 0 &&
+                *(s32*)q == 1 && *(s32*)(q + 4) == 2) {
+                break;
+            }
+        }
+        if (i >= *(s32*)(gWorldInfo + 116)) {
+            i = -1;
+        }
+        row = *tblp + i * 80;
+    }
+    if (*(s32*)row == 1 && *(u32*)(it + 228) != 0) {
+        ni = (u8*)NewItemPtr_800642C8();
+        SetItem((Item*)ni, NULL, (void*)row, gIdentityMatrix);
+        def = ni;
+        MBNodeSetParent(*(void**)(ni + 100), *(void**)(it + 228));
+        *(u8**)(it + 232) = ni;
+        *(u8**)(ni + 232) = it;
+        *(s8*)(ni + 203) = (s8)(inst != NULL ? *inst : -1);
+        MBTreeSetFlags(*(void**)(def + 100), 8, 0);
+        *(f32*)(*(u8**)(ni + 100) + 64) = sArrowFloorRadius;
+        *(f32*)(*(u8**)(ni + 100) + 68) = sArrowFloorRadius;
+        *(f32*)(*(u8**)(ni + 100) + 72) = sArrowFloorRadius;
+    } else {
+        ni = (u8*)NewItemPtr_800642C8();
+        if (it + 4 != NULL) {
+            SetItem((Item*)ni, NULL, (void*)row, (f32*)(it + 4));
+            AddItemSub((Item*)ni);
+        } else {
+            SetItem((Item*)ni, NULL, (void*)row, gIdentityMatrix);
+        }
+        if (*(s32*)(def + 4) == 43) {
+            def = ni;
+            *(s8*)(ni + 203) = (s8)(inst != NULL ? *inst : -2);
+        } else {
+            def = ni;
+            if (*(s32*)row == 1) {
+                *(u8**)(ni + 232) = it;
+            }
+            *(s8*)(ni + 203) = (s8)(inst != NULL ? *inst : -1);
+        }
+    }
+    switch (*(s32*)row) {
+    case 1:
+        switch (*(s32*)(row + 4)) {
+        case 14:
+            *(s32*)(def + 224) = *(s16*)(it + 236);
+            break;
+        case 2:
+            *(s32*)(def + 224) = *(s16*)(it + 236);
+            if (*(s32*)(def + 224) < 1) {
+                *(s32*)(def + 224) = 1;
+            }
+            break;
+        }
+        *(s16*)(def + 236) = 30;
+        break;
+    case 4:
+        *(u32*)(def + 228) |= 1;
+        if (*(s16*)(def + 220) == 30 && *(u32*)(gWadAtreeHeaders + 120) != 0) {
+            MBTreeSetFlags(*(void**)*(u8**)(def + 108), 2, 0);
+            if (*(s16*)(it + 236) != 0) {
+                *(u8*)(def + 222) = 2;
+                *(s8*)(def + 223) = (s8)*(s32*)(sEnemyDefaultAlgorithm + 120);
+            }
+        }
+        *(s16*)(def + 238) = -1;
+        break;
+    }
+}
+
 Item* fn_8005ED44(f32 radius, s32 a2, f32* position, s32 a4, s32 a5, s32 a6)
 {
     Item* item;
@@ -2580,7 +2726,7 @@ extern u8    EnemyDescType(char* desc);
 extern char* EnemyTypePrefix(s32 type);
 extern void  AudioPlayEvt101(f32* pos);
 extern void  AudioExplodeWall(f32* pos, s32 health);
-extern f32   fn_8005E90C(Item* item, void* inst);
+void fn_8005E90C(Item* item, s32* inst);
 extern void  fn_8009DA78(f32* pos);
 extern void  fn_8009DA28(f32* pos);
 extern void  fn_8009D9D8(f32* pos);
