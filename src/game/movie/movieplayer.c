@@ -275,8 +275,8 @@ u32 fn_800D87FC(u32* param_1, int param_2, char* param_3, int param_4, int param
             bits = *ip;
             bp = ip + 1;
             ip += (nbits + 7) / 8;
-            d8 = dir << 3;
-            d2 = dir << 1;
+            d8 = dir * 8;
+            d2 = dir * 2;
             nb = 0;
             for (y = 0; y < (int)param_1[1]; y += 2) {
                 u8* dst;
@@ -326,8 +326,8 @@ u32 fn_800D87FC(u32* param_1, int param_2, char* param_3, int param_4, int param
             int d2;
             int y;
 
-            d8 = dir << 3;
-            d2 = dir << 1;
+            d8 = dir * 8;
+            d2 = dir * 2;
             param_1[0] <<= 1;
             for (y = 0; y < (int)param_1[1]; y += 2) {
                 u8* dst;
@@ -436,11 +436,11 @@ u32 fn_800D8BCC(u32* param_1, int param_2, char* param_3, int param_4, int param
 
             w = param_1[0];
             bp = ip + 1;
-            d8 = dir << 3;
+            d8 = dir * 8;
             bits = *ip;
             ip += ((w / 2) * (int)param_1[1]) / 2 / 8;
             param_1[0] = w << 1;
-            d2 = dir << 1;
+            d2 = dir * 2;
             nb = 0;
             for (y = 0; y < (int)param_1[1]; y += 2) {
                 u8* dst;
@@ -483,8 +483,8 @@ u32 fn_800D8BCC(u32* param_1, int param_2, char* param_3, int param_4, int param
             int d2;
             int y;
 
-            d8 = dir << 3;
-            d2 = dir << 1;
+            d8 = dir * 8;
+            d2 = dir * 2;
             param_1[0] <<= 1;
             for (y = 0; y < (int)param_1[1]; y += 2) {
                 u8* dst;
