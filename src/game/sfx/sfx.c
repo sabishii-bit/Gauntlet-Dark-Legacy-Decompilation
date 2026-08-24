@@ -2395,6 +2395,580 @@ s32 StartFXTree(struct atreeheader* hdr, f32* pos, u32 fla, u32 flb, f32 time)
  * CritterDamage / grids), morphs (ChangeEffect), streaks (UpdateFXStreak),
  * skinfx, child/parent bookkeeping, item spawning (PlaceItem), boss hooks. */
 
+extern s32 gGameBusy;
+extern s32 gGameplayPauseTimer;
+extern f32 gClockFrameStep;
+extern f32 lbl_80344880;
+extern void GetWorldMat(struct mbnode* node, f32* matrix, f32* offset);
+extern void CreateDirMatrix(f32* matrix, f32* direction, f32* up);
+extern void PitchMat3(f32* matrix, f32 angle);
+extern void RollMat3(f32* matrix, f32 angle);
+extern void UnparentMatrix(struct mbnode* node, f32* matrix);
+extern f32 NormalVector2D(f32* vector);
+extern s32 AnimateATree(void* tree, s32 sequence, s32 transition);
+extern s32 damage_player();
+extern s32 damage_enemy();
+extern s32 CritterDamage();
+extern void CritterSetFxHitTime(f32 damage, s32 player, s32 owner);
+extern void PlayerDamagedEnemy();
+extern void StartEnemyGrid(f32* pos, f32 radius);
+extern s32 NextGridEnemy(void);
+extern void StartItemGrid(f32 radius, f32* pos);
+extern s32 NextGridItem(void);
+extern void CritterCollideStart(f32 radius, f32* pos, s32 unused);
+extern void* CritterExpCollide();
+extern void* MissileCollidePlayer(f32* oldpos, f32* newpos, f32* hitpos);
+extern s32 MissileCollideEnemy();
+extern s32 WeaponWallCollide(f32* oldpos, f32* newpos, f32* hitpos);
+extern u32 WorldObjGetAllFlags(void* object);
+extern void WorldObjectExplode(void* object);
+extern f32 FloorPos(f32 fallback, f32 radius, f32* position, s32 mode);
+extern void ReflectVector(f32* vector, f32* normal, f32* out);
+extern void BossGenerateEnemy(f32* matrix);
+extern struct item* PlaceItem(s32 type, s32 subtype, char* name, f32* matrix);
+extern void AddItemSub(struct item* item);
+extern void fn_8009D5E0(f32* pos);
+extern void fn_8009EF7C();
+extern void fn_800C0ADC(f32 radius, f32 intensity);
+extern f32 fn_8005F0F4();
+extern void fn_8005BA1C();
+extern f32 fn_8005C1DC();
+extern void* fn_8005ED44();
+extern void PlayerDamagedItem();
+extern void fn_80037ED0();
+extern s32 RandInt(s32 limit);
+extern void MBPsysFirework();
+extern void DmgFxAdd(s32 idx);
+extern u8 gEnemies[];
+extern s32 lbl_8034466C;
+
+void ChangeEffect(s32 idx, s32 type, u32 newflags);
+static void UpdateFXStreak(Effect* e, f32* pos);
+struct fxitem;
+static s32 SfxSkipItem_80096FF4(struct fxitem* item, u32 a, u32 b);
+
+/* Advance every live effect.  The Xbox names for the principal locals are
+ * `mat`, `omat`, `pos`, `opos`, `dir`, `hitpos`, `hit`, `moved`, and
+ * `collision`.  The GC target keeps those same values in a 0x2f0-byte frame. */
+void ProcessEffects(void)
+{
+    s32 i;
+    u8 framePad[304];
+    f32 mat[16];
+    f32 targetmat[16];
+    f32 oldpos[3];
+    f32 pos[3];
+    f32 dir[3];
+    f32 hitpos[3];
+    f32 normal[3];
+    f32 travel;
+    f32 radius;
+    f32 remaining;
+    f32 fade;
+
+    (void)framePad;
+    if (gGameBusy != 0 || gGameplayPauseTimer != 0) {
+        return;
+    }
+
+    for (i = 0; i < NumEffects; i++) {
+        Effect* e = &Effects[i];
+        u32 flags;
+        s32 moved;
+        s32 hit;
+        s32 mode;
+        s32 j;
+
+        if (e->endtime <= 0.0f || e->node == NULL) {
+            continue;
+        }
+
+        moved = 0;
+        hit = 0;
+        mode = 0;
+        GetWorldMat(e->node, mat, NULL);
+        oldpos[0] = mat[12];
+        oldpos[1] = mat[13];
+        oldpos[2] = mat[14];
+        flags = e->flags;
+
+        if ((flags & 0x40000000) && e->targetnode != NULL) {
+            GetWorldMat(e->targetnode, targetmat, NULL);
+            dir[0] = targetmat[12] - mat[12];
+            dir[1] = targetmat[13] - mat[13];
+            dir[2] = targetmat[14] - mat[14];
+            NormalVector(dir);
+            e->vel[0] = dir[0] * e->weight;
+            e->vel[1] = dir[1] * e->weight;
+            e->vel[2] = dir[2] * e->weight;
+            pos[0] = oldpos[0] + e->vel[0] * gClockFrameStep;
+            pos[1] = oldpos[1] + e->vel[1] * gClockFrameStep;
+            pos[2] = oldpos[2] + e->vel[2] * gClockFrameStep;
+            moved = 1;
+        } else if ((flags & 0xc000) == 0xc000) {
+            pos[0] = oldpos[0];
+            pos[1] = oldpos[1];
+            pos[2] = oldpos[2];
+        } else {
+            if (e->vel[0] != 0.0f || e->vel[1] != 0.0f || e->vel[2] != 0.0f) {
+                pos[0] = oldpos[0] + e->vel[0] * gClockFrameStep;
+                pos[1] = oldpos[1] + e->vel[1] * gClockFrameStep;
+                pos[2] = oldpos[2] + e->vel[2] * gClockFrameStep;
+                moved = 1;
+            } else {
+                pos[0] = oldpos[0];
+                pos[1] = oldpos[1];
+                pos[2] = oldpos[2];
+            }
+            e->vel[0] -= e->dragx * gClockFrameStep;
+            e->vel[1] -= e->weight * gClockFrameStep;
+            e->vel[2] -= e->dragz * gClockFrameStep;
+        }
+
+        if (moved && pos[1] + e->colrad * 2.0f < lbl_80344880 - 25.0f) {
+            e->node = NULL;
+            DeleteEffect(i, 1);
+            continue;
+        }
+
+        if (!(flags & 0x20000)) {
+            if (e->pyrvel[0] != 0.0f) {
+                PitchMat3(mat, e->pyrvel[0] * gClockFrameStep);
+                moved = 1;
+            }
+            if (e->pyrvel[1] != 0.0f) {
+                YawMat3((struct mbnode*)mat, e->pyrvel[1] * gClockFrameStep);
+                moved = 1;
+            }
+            if (e->pyrvel[2] != 0.0f) {
+                RollMat3(mat, e->pyrvel[2] * gClockFrameStep);
+                moved = 1;
+            }
+        } else {
+            CreateDirMatrix(mat, e->vel, NULL);
+            moved = 1;
+        }
+
+        remaining = e->endtime - gClockTime;
+        if (flags & 0x20) {
+            mode = (flags & 0x10) ? 2 : 1;
+            radius = remaining;
+            if (radius > 1.0f) {
+                radius = 1.0f;
+            }
+        } else if (e->morphtime > 0.0f) {
+            mode = 4;
+            radius = 0.0f;
+        } else {
+            mode = 0;
+            radius = e->colrad;
+        }
+
+        if (flags & 0x800000) {
+            fade = 0.0f;
+        } else if (flags & 0x100000) {
+            fade = 3.0f + radius;
+        } else if (radius < 0.2f) {
+            fade = 0.2f;
+        } else {
+            fade = radius;
+        }
+        if (e->lightrad > 0.0f) {
+            f32 lightpos[3];
+            f32 intensity;
+            lightpos[0] = pos[0];
+            lightpos[1] = pos[1] + 1.0f;
+            lightpos[2] = pos[2];
+            intensity = fade * e->lightrad;
+            fn_800C0ADC(intensity, e->lightcolor[0]);
+        }
+        if (e->dmgdebug != NULL && (flags & 0x20)) {
+            f32 scale = 0.01f * radius;
+            e->dmgdebug->scale[0] = scale;
+            e->dmgdebug->scale[1] = e->mindp < -1.0f ? scale * 0.5f : scale;
+            e->dmgdebug->scale[2] = scale;
+        }
+        if (e->morphtime > 0.0f && e->fxmorph <= 0 && remaining < e->morphtime) {
+            s32 alpha = (s32)(255.0f * (remaining / e->morphtime));
+            if (alpha < 0) {
+                alpha = 0;
+            } else if (alpha > 255) {
+                alpha = 255;
+            }
+            MBTreeSetAlpha(e->node, alpha, 1);
+        }
+        if (e->fxfade != 0.0f && e->fxmorph <= 0 && remaining < e->fxfade) {
+            MBTreeSetAlpha(e->node, (s32)(255.0f * (remaining / e->fxfade)), 1);
+        }
+        if (flags & 0x08410000) {
+            MBTreeClearFlags(e->node, 8, 0);
+        }
+        if ((flags & 0x10000) && e->maxtime - remaining < 0.1f) {
+            f32 scale = 5.0f * (e->maxtime - remaining) + 0.5f;
+            MBTreeSetFlags(e->node, 8, 0);
+            e->node->scale[0] = scale;
+            e->node->scale[1] = scale;
+            e->node->scale[2] = scale;
+        }
+        if ((flags & 0x400000) && e->fxmorph == 0 && remaining < 0.2f) {
+            f32 scale = 5.0f * remaining + 0.001f;
+            MBTreeSetFlags(e->node, 8, 0);
+            e->node->scale[0] = scale;
+            e->node->scale[1] = scale;
+            e->node->scale[2] = scale;
+        }
+        if ((flags & 0x08000000) && e->maxtime > 0.0f &&
+            e->maxtime - remaining < 1.0f / e->maxtime) {
+            f32 scale = 0.99f * (e->maxtime - remaining) * e->maxtime + 0.01f;
+            MBTreeSetFlags(e->node, 8, 0);
+            e->node->scale[0] = scale;
+            e->node->scale[1] = scale;
+            e->node->scale[2] = scale;
+        }
+        if (e->streak != NULL) {
+            UpdateFXStreak(e, pos);
+        }
+
+        dir[0] = pos[0] - oldpos[0];
+        dir[1] = pos[1] - oldpos[1];
+        dir[2] = pos[2] - oldpos[2];
+        travel = NormalVector(dir);
+
+        /* Direct player hits.  The target scans the four fixed player
+         * records before using its swept-missile helper. */
+        if ((flags & 1) && hit == 0) {
+            for (j = 0; j < 4; j++) {
+                u8* player = gPlayers + j * 13148;
+                f32* playerpos = (f32*)(player + 84);
+                f32 delta[3];
+                f32 dist;
+                delta[0] = playerpos[0] - pos[0];
+                delta[1] = playerpos[1] - pos[1];
+                delta[2] = playerpos[2] - pos[2];
+                dist = NormalVector2D(delta);
+                if (dist <= radius + *(f32*)(player + 2128)) {
+                    delta[0] = dir[0] * 0.25f;
+                    delta[1] = 0.0f;
+                    delta[2] = dir[2] * 0.25f;
+                    hit = damage_player(*(s32*)player, e->damage, 1,
+                                        e->damagetype, delta);
+                    if (e->owner >= 4096) {
+                        CritterSetFxHitTime(e->damage, *(s32*)player,
+                                           e->owner & 0xfff);
+                    }
+                    if (hit != 0) {
+                        break;
+                    }
+                }
+            }
+
+            if (hit == 0 && mode != 0) {
+                u8* player = (u8*)MissileCollidePlayer(oldpos, pos, hitpos);
+                if (player != NULL && *(s32*)player != e->owner - 1) {
+                    if ((e->flags & 0x200000) == 0) {
+                        dir[0] = e->vel[0];
+                        dir[1] = e->vel[1];
+                        dir[2] = e->vel[2];
+                        NormalVector(dir);
+                        hit = damage_player(*(s32*)player, e->damage, 1,
+                                            e->damagetype, dir);
+                        if (hit == 0) {
+                            hit = 2;
+                        } else {
+                            hit = 3;
+                        }
+                    } else {
+                        fn_8009EF7C(0, hitpos);
+                        e->flags |= 8;
+                        e->flags &= ~0xc00;
+                        e->vel[0] *= -1.0f;
+                        e->vel[1] *= -1.0f;
+                        e->vel[2] *= -1.0f;
+                        pos[0] += e->vel[0] * gClockFrameStep;
+                        pos[1] += e->vel[1] * gClockFrameStep;
+                        pos[2] += e->vel[2] * gClockFrameStep;
+                        if (e->flags & 0x20000) {
+                            CreateDirMatrix(mat, e->vel, NULL);
+                        }
+                        moved = 1;
+                    }
+                }
+            }
+        }
+
+        if ((flags & 8) && hit == 0 && radius > 0.0f) {
+            s32 enemyIndex;
+            StartEnemyGrid(pos, radius);
+            while ((enemyIndex = NextGridEnemy()) >= 0) {
+                void* enemy = gEnemies + enemyIndex * 916;
+                f32 enemyDelta[3];
+                f32 enemyDist;
+                enemyDelta[0] = *(f32*)((u8*)enemy + 84) - pos[0];
+                enemyDelta[1] = *(f32*)((u8*)enemy + 88) - pos[1];
+                enemyDelta[2] = *(f32*)((u8*)enemy + 92) - pos[2];
+                enemyDist = NormalVector2D(enemyDelta);
+                if (enemyDist > radius + *(f32*)((u8*)enemy + 568)) {
+                    continue;
+                }
+                e->debugcount++;
+                hit = damage_enemy(enemy, e->owner - 1, e->damagetype, 0,
+                                   enemyDelta, e->damage, 2);
+                if (hit >= 0) {
+                    if (e->owner > 0) {
+                        PlayerDamagedEnemy(gPlayers + (e->owner - 1) * 13148,
+                                           enemy, 0, hit, 0);
+                    }
+                    hit = hit == 0 ? 2 : 3;
+                    break;
+                }
+            }
+
+            if (hit == 0 && mode != 0) {
+                s32 enemyIndex = MissileCollideEnemy(oldpos, pos, hitpos, 0,
+                                                     e->owner - 1, 0);
+                if (enemyIndex >= 0) {
+                    void* enemy = gEnemies + enemyIndex * 916;
+                    dir[0] = e->vel[0];
+                    dir[1] = e->vel[1];
+                    dir[2] = e->vel[2];
+                    NormalVector(dir);
+                    e->debugcount++;
+                    hit = damage_enemy(enemy, e->owner - 1, e->damagetype,
+                                       0, dir, e->damage, 2);
+                    if (hit >= 0) {
+                        if (e->owner > 0) {
+                            PlayerDamagedEnemy(gPlayers + (e->owner - 1) * 13148,
+                                               enemy, 0, hit, 0);
+                        }
+                        hit = hit == 0 ? 2 : 3;
+                        if (mode == 0) {
+                            pos[0] = hitpos[0];
+                            pos[1] = hitpos[1];
+                            pos[2] = hitpos[2];
+                            moved = 1;
+                        }
+                    } else {
+                        hit = 2;
+                    }
+                }
+            }
+        }
+
+        if ((flags & 8) && hit == 0 && lbl_8034466C != 0 && radius > 0.0f) {
+            void* critter;
+            CritterCollideStart(radius, pos, 0);
+            critter = CritterExpCollide(pos, normal, dir, radius,
+                                        e->mindp, e->id);
+            if (critter != NULL) {
+                fn_80037ED0(critter, e->id);
+                e->debugcount++;
+                dir[0] = e->vel[0];
+                dir[1] = e->vel[1];
+                dir[2] = e->vel[2];
+                NormalVector(dir);
+                hit = CritterDamage(critter, e->owner - 1, e->damagetype,
+                                    0, dir, e->damage, 2);
+                hit = hit < 0 ? 2 : (hit == 0 ? 2 : 3);
+            }
+        }
+
+        if ((flags & 2) && hit == 0 && radius > 0.0f) {
+            struct fxitem* item;
+            item = (struct fxitem*)fn_8005ED44(radius, oldpos, pos, hitpos,
+                                               1, e->owner - 1);
+            if (item != NULL) {
+                s32 skip = SfxSkipItem_80096FF4(item, e->flags,
+                                                (u32)e->damagetype);
+                if (skip != 1) {
+                    f32 itemHit = fn_8005C1DC(e->damage, item,
+                                             (u32)e->damagetype,
+                                             e->owner - 1, hitpos);
+                    e->debugcount++;
+                    if (itemHit >= 0.0f && e->owner > 0) {
+                        PlayerDamagedItem(gPlayers + (e->owner - 1) * 13148,
+                                          item, itemHit == 0.0f);
+                    }
+                    if (itemHit < -1.0f) {
+                        hit = -1;
+                    } else if (itemHit < 0.0f) {
+                        hit = 1;
+                    } else {
+                        hit = itemHit == 0.0f ? 3 : 2;
+                    }
+                    if (mode == 0) {
+                        pos[0] = hitpos[0];
+                        pos[1] = hitpos[1];
+                        pos[2] = hitpos[2];
+                        moved = 1;
+                    }
+                }
+            }
+        }
+
+        if ((flags & 4) && hit == 0) {
+            s32 wall = WeaponWallCollide(oldpos, pos, hitpos);
+            if (wall != 0) {
+                pos[0] = hitpos[0];
+                pos[1] = hitpos[1];
+                pos[2] = hitpos[2];
+                moved = 1;
+                if (!(e->flags & 0x200000)) {
+                    hit = 1;
+                } else {
+                    ReflectVector(e->vel, normal, e->vel);
+                    if (e->vel[1] > 0.0f) {
+                        e->vel[1] *= 0.4f;
+                    }
+                    if (e->flags & 0x20000) {
+                        CreateDirMatrix(mat, e->vel, NULL);
+                    }
+                }
+            }
+        }
+
+        if (hit == 0 && (flags & 0x40) && e->vel[1] < 0.0f) {
+            f32 floor = FloorPos(lbl_80344880, e->colrad, pos, 0);
+            if (pos[1] - (floor + 0.1f) < 0.1f) {
+                e->vel[0] = 0.0f;
+                e->vel[1] = 0.0f;
+                e->vel[2] = 0.0f;
+                e->weight = 0.0f;
+                pos[1] = floor + 0.1f;
+                moved = 1;
+            }
+        }
+
+        if (e->damageradius > 0.0f && !(e->flags & 0x4020) &&
+            remaining <= 0.0667f) {
+            if (e->flags & 0x10000000) {
+                s32 c0 = RandInt(6);
+                s32 c1 = RandInt(6);
+                s32 count = e->debugcount - (e->debugcount >> 2) +
+                            RandInt(e->debugcount >> 1);
+                struct mbnode* fireNode = MBNewNode(lbl_80344BD4, mat, 1);
+                MBPsysFirework(0, fireNode, count, lbl_80122088[c0],
+                               lbl_80122088[c1], e->damageradius, 0.0f,
+                               0.01f, 0.2f, 0.1f, 0xff000000);
+                hit = -2;
+            } else {
+                hit = 1;
+            }
+        }
+        if (e->minendtime > 0.0f && gClockTime < e->minendtime) {
+            hit = 0;
+        }
+
+        if (hit < 0) {
+            e->endtime = gClockTime;
+            e->hitcount = 0;
+        } else if (hit != 0) {
+            s32 morph = e->fxmorph;
+            if (hit == 1 && e->wall_sound != 0) {
+                fn_8009DB24(e->wall_sound, hitpos);
+            } else if (hit != 1 && e->hit_audio != 0) {
+                fn_8009DB24(e->hit_audio, hitpos);
+            }
+            if (morph > 0 && morph < MAXEFFECTTYPES) {
+                u32 newflags = e->morphtime > 0.0f ? 0x880 : 0;
+                ChangeEffect(i, morph, newflags);
+                ZeroEffect(i);
+                GetWorldMat(e->node, mat, NULL);
+                if (e->hitscale != 1.0f) {
+                    MBTreeSetFlags(e->node, 8, 0);
+                    e->node->scale[0] = e->hitscale;
+                    e->node->scale[1] = e->hitscale;
+                    e->node->scale[2] = e->hitscale;
+                }
+                if (e->webtime > 0.0f) {
+                    e->endtime = gClockTime + e->webtime;
+                    e->maxtime = e->webtime;
+                    e->hitcount = 0;
+                    e->flags &= 0xf67cfbfb;
+                    if (!(e->damagetype & 0x200)) {
+                        e->flags &= ~2;
+                    }
+                    e->flags |= 0x28;
+                    if (e->owner != 0) {
+                        e->flags |= 1;
+                    }
+                    if (e->dmgdebug != NULL) {
+                        MBRemoveNode(e->dmgdebug, 1);
+                        e->dmgdebug = NULL;
+                        DmgFxAdd(i);
+                    }
+                } else {
+                    e->flags &= 0xfe7dfbf9;
+                    e->flags |= 0x100000;
+                }
+            } else {
+                e->endtime = gClockTime;
+                e->hitcount = 0;
+            }
+        }
+
+        if ((e->flags & 0x300000) != 0) {
+            targetmat[12] = pos[0];
+            targetmat[13] = pos[1];
+            targetmat[14] = pos[2];
+            if (FloorCollide(e->colrad + 1.0f, e->colrad + 5.0f, -10.0f,
+                             targetmat + 12, NULL, 1, 0)) {
+                CopyMat4(gFloorCollisionResult, targetmat);
+                targetmat[13] += 0.1f;
+            } else {
+                CopyMat3(gIdentityMatrix, targetmat);
+            }
+            pos[0] = targetmat[12];
+            pos[1] = targetmat[13];
+            pos[2] = targetmat[14];
+            moved = 1;
+        }
+        if (e->flags & 0x04000000) {
+            BossGenerateEnemy(mat);
+            e->flags &= ~0x04000000;
+            e->flags |= 0x400;
+        }
+
+        if (gClockTime >= e->endtime - 0.03332f &&
+            !(e->flags & 0x80000)) {
+            if ((e->flags & 0x4000) && e->fxmorph2 > 0 &&
+                e->fxmorph2 < MAXEFFECTTYPES) {
+                ChangeEffect(i, e->fxmorph2, 0);
+                e->endtime = gClockTime + e->maxtime;
+                e->maxtime = e->endtime - gClockTime;
+                e->hitcount = 1;
+            } else {
+                if (e->flags & 0x02000000) {
+                    PlaceItem(3, 0, "BOSSGEN", mat);
+                }
+                if (e->flags & 0x04000000) {
+                    BossGenerateEnemy(mat);
+                }
+                if (e->additem != NULL) {
+                    u8* item = (u8*)e->additem;
+                    item[0xcd] = 0;
+                    *(f32*)(item + 0x34) = mat[12];
+                    *(f32*)(item + 0x38) = mat[13];
+                    *(f32*)(item + 0x3c) = mat[14];
+                    AddItemSub(e->additem);
+                }
+                DeleteEffect(i, 1);
+                continue;
+            }
+        }
+
+        if (ATREE_ROOT(e) != NULL) {
+            AnimateATree(&e->atree[0], 0, 0);
+        }
+        if (moved) {
+            mat[12] = pos[0];
+            mat[13] = pos[1];
+            mat[14] = pos[2];
+            CopyMat4(mat, e->node);
+            UnparentMatrix(e->node, (f32*)e->node->parent);
+        }
+    }
+}
+
 /* Minimal item view for SfxSkipItem (full layout: include/game/item.h).
  * def->type drives the skip policy; armor/active gate pickups. */
 struct fxitemdef {
