@@ -56,7 +56,7 @@ extern f64 __frsqrte(f64 value);
 
 /* PSVEC-style helpers in the g3d math library. */
 extern f32  fqdist(f32 x, f32 z);
-extern f64 SlowNormalVector(Vec* vector);
+extern f32 SlowNormalVector(Vec* vector);
 
 /* forward decls (address order) */
 s32         TriLineCol(WorldTri* tri, Vec* out);
@@ -551,8 +551,8 @@ static f32 LineLineDist3D2D(Vec* a0, Vec* a1, Vec* out,
     {
         register f32 zero;
         register f32 z;
-        f64 lenB;
-        f64 lenA;
+        f32 lenB;
+        f32 lenA;
 
         point.x = b0->x;
         point.y = b0->y;
