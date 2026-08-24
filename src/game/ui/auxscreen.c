@@ -185,6 +185,7 @@ extern const f32 lbl_80345A10;
 extern const f64 lbl_80345A18;
 extern const f64 lbl_80345A20;
 extern const f64 lbl_80345A28;
+extern const f64 lbl_80345A48;
 extern const f32 lbl_80345A30;
 
 void DoGoodWizard(void)
@@ -610,7 +611,7 @@ have_target:
 void calc_wizard_pos(f32* out)
 {
     u8* arr = gPlayers;
-    f32 count = 1.0f;
+    f32 count = lbl_80345A40;
     s32 i;
 
     out[0] = gBossPos[0];
@@ -626,10 +627,10 @@ void calc_wizard_pos(f32* out)
             out[0] = out[0] + *(f32*)(p + 68);
             out[1] = out[1] + *(f32*)(p + 72);
             out[2] = out[2] + *(f32*)(p + 76);
-            if (1.0 == count) {
-                out[1] = (f32)(2.0 * (double)*py);
+            if (lbl_80345A48 == count) {
+                out[1] = (f32)(lbl_80345A28 * (f64)*py);
             }
-            count += 1.0;
+            count = (f32)(count + lbl_80345A48);
         }
     }
     for (i = 0; i < 3; i++) {
