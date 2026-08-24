@@ -83,6 +83,7 @@ extern f32   lbl_803451E4;   /* min quad width */
 extern f32   lbl_803451E8;   /* min quad height */
 extern f32   psysInfo[];     /* per-parm scale/min/max config table */
 extern char  lbl_80116F30[]; /* "freePsysMem: bad free block..." */
+extern char  lbl_80116D70[]; /* TU string block base */
 
 typedef struct PsysModuleGlobals {
     u8 pad00[0x54];
@@ -145,8 +146,8 @@ extern const f64 lbl_803491A0;
 extern const f64 lbl_803491F8;
 static f32  getSinCos(f32 ang, f32* sinOut);
 static void DrawPsysSub(f32* pos, u32 color, s32 c, s32 sx, s32 sy, f32 size);
-static void setupNewPMode_800CDCE4(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
-                          f64 f7, f64 f8, Psys* p);
+static void setupNewPMode_800CDCE4(f32 d0, f32 a0, f32 b0, f32 est, f32 elife,
+                          f32 efade, f32 pl, f32 el, Psys* p);
 static void setupParms(Psys* p);
 static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wp, f32* over);
 static Psys* allocPsys(s32 flag);
@@ -834,7 +835,7 @@ void MBDrawPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
     lbl_80128710.posSlot = -1;
     if (phase == 0) {
         setupParms(p);
-        setupNewPMode_800CDCE4(f1, f2, f3, f4, f5, f6, f7, 0.0, p);
+        setupNewPMode_800CDCE4(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, p);
         p->e_phase = 2;
         (void)listFindHandle(p->id, (s32)&gPsysRmQueue);
     }
@@ -1003,59 +1004,448 @@ static void setupParms(Psys* p) {
  * Wires dir_func/pos_func/ppos_func based on the emit distribution and
  * animation flags, then carves the per-psys buffers out of the block pool (or
  * the world arena). Giant (NonMatching); documented flow. */
-static void setupNewPMode_800CDCE4(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6,
-                          f64 f7, f64 f8, Psys* p) {
+static void setupNewPMode_800CDCE4(f32 d0, f32 a0, f32 b0, f32 est, f32 elife,
+                          f32 efade, f32 pl, f32 el, Psys* p) {
+    char* strs = (char*)lbl_80116D70;
+    s32*  pi = (s32*)psysInfo;
+    u16 fl = p->flags;
+    s32 n;
+    s32 nPos, nDir;
+    s32 hasDir, dirUse, posUse;
+    s32 ringHalf, total;
+    u8* buf;
     void* posFn;
     void* dirFn;
-    void* ppFn;
-    s32   mode = (s32)p->dir_bits;   /* distribution: single/frame/sphere/cone */
-    s32   count = (s16)p->dir_max;
-    s32   ringBytes;
-    void* buf;
-    s32   shared = (p->flags & 0x80) != 0;
+    s32 posMode, dirMode;
+    s32 posCap, dirCap;
+    s32 mode0, flag40, r8;
+    s32 vf, va;
+    s32 bits;
+    u8* nxt;
+    s32 b;
+    s32 one;
+    u16 pm;
+    u16 dm;
+    s32 ab;
 
-    if (count < 1) {
-        count = 1;
-    }
-    switch (mode) {
-    case 0:  dirFn = shared ? (void*)getNewDirFrame : (void*)getNewDirSingle1; break;
-    case 2:  dirFn = (void*)getNewDirSphere; break;
-    case 4:  dirFn = (void*)getNewDirConeUnique; break;
-    default: dirFn = (void*)getNewDirConeShare; break;
-    }
-    switch (mode) {
-    case 0:  posFn = shared ? (void*)getNewPosFrame : (void*)getNewPosSingle1; break;
-    case 2:  posFn = (void*)getNewPosRectUnique; break;
-    default: posFn = (void*)getNewPosRectShare; break;
-    }
-    if (p->p_speed != 0.0f) {
-        ppFn = (p->p_gravity != 0.0f) ? (void*)getPPosSpeedGrav : (void*)getPPosSpeed;
+    if ((fl & 1) || p->p_max != 0) {
+        if ((u32)(n = p->p_max) == 0) {
+            n = (s32)(30.0 * p->e_rate.o.life_start);
+        }
     } else {
-        ppFn = (p->p_gravity != 0.0f) ? (void*)getPPosGrav : (void*)getPPosLinear;
+        f32 c0;
+        f32 part1;
+        s32 n32;
+        s32 limE;
+
+        pl = (f32)p->p_life + (f32)p->p_fade;
+        el = (f32)p->e_life + (f32)p->e_fade;
+        elife = (f32)p->e_life;
+        efade = (f32)p->e_fade;
+        a0 = p->e_rate.o.life_start;
+        b0 = p->e_rate.o.fade_start;
+        c0 = p->e_rate.o.life_slope;
+        d0 = p->e_rate.o.fade_slope;
+        part1 = el;
+        if (el > pl) {
+            if (c0 <= 0.0f && d0 < 0.0f) {
+                if (pl > elife) {
+                    f32 rem = pl - elife;
+                    f32 t0 = c0 * elife;
+                    f32 t1 = d0 * rem;
+                    f32 q0 = (f32)(0.5 * t0 + a0);
+                    f32 q1 = (f32)(0.5 * t1 + b0);
+                    q1 = q1 * rem;
+                    est = (q0 * elife + q1) / pl;
+                } else {
+                    f32 t0 = c0 * pl;
+                    est = (f32)(0.5 * t0 + a0);
+                }
+            } else if (c0 <= 0.0f) {
+                if (pl > elife) {
+                    f32 rem = pl - elife;
+                    f32 t0 = c0 * elife;
+                    f32 t1 = d0 * rem;
+                    f32 q0 = (f32)(0.5 * t0 + a0);
+                    f32 q1 = (f32)(0.5 * t1 + b0);
+                    q1 = q1 * rem;
+                    part1 = (q0 * elife + q1) / pl;
+                } else {
+                    f32 t0 = c0 * pl;
+                    part1 = (f32)(0.5 * t0 + a0);
+                }
+                if (pl > efade) {
+                    f32 rem = pl - efade;
+                    f32 nc = -c0;
+                    f32 t1 = d0 * efade;
+                    f32 mid = c0 * elife + a0;
+                    f32 t2 = nc * rem;
+                    f32 q1 = (f32)(0.5 * t1 + b0);
+                    f32 q2 = (f32)(0.5 * t2 + mid);
+                    q1 = q1 * efade;
+                    est = (q2 * rem + q1) / pl;
+                } else {
+                    f32 nd = -d0;
+                    f32 mid = d0 * efade + b0;
+                    nd = nd * pl;
+                    est = (f32)(0.5 * nd + mid);
+                }
+                if (part1 > est) {
+                    est = part1;
+                }
+            } else if (d0 < 0.0f) {
+                f32 up;
+                f32 dn;
+                f32 x = d0 / b0;
+                x = -x;
+                up = pl * x;
+                dn = pl - up;
+                if (up > elife) {
+                    up = elife;
+                    dn = pl - elife;
+                } else if (dn > efade) {
+                    dn = efade;
+                    up = pl - efade;
+                }
+                {
+                    f32 nc = -c0;
+                    f32 t1 = d0 * dn;
+                    f32 mid = c0 * elife + a0;
+                    f32 t2 = nc * up;
+                    f32 q1 = (f32)(0.5 * t1 + b0);
+                    f32 q2 = (f32)(0.5 * t2 + mid);
+                    q1 = q1 * dn;
+                    est = (q2 * up + q1) / pl;
+                }
+            } else {
+                if (pl > efade) {
+                    f32 rem = pl - efade;
+                    f32 nc = -c0;
+                    f32 t1 = d0 * efade;
+                    f32 mid = c0 * elife + a0;
+                    f32 t2 = nc * rem;
+                    f32 q1 = (f32)(0.5 * t1 + b0);
+                    f32 q2 = (f32)(0.5 * t2 + mid);
+                    q1 = q1 * efade;
+                    est = (q2 * rem + q1) / pl;
+                } else {
+                    f32 nd = -d0;
+                    f32 mid = d0 * efade + b0;
+                    nd = nd * pl;
+                    est = (f32)(0.5 * nd + mid);
+                }
+            }
+        } else {
+            f32 t1 = d0 * efade;
+            f32 t0 = c0 * elife;
+            pl = part1;
+            {
+                f32 q1 = (f32)(0.5 * t1 + b0);
+                f32 q0 = (f32)(0.5 * t0 + a0);
+                q1 = q1 * efade;
+                q0 = q0 * elife + q1;
+                est = q0 / part1;
+            }
+        }
+        n32 = (s32)(est * pl);
+        limE = p->p_max;
+        if ((u32)limE == 0) {
+            limE = 300;
+        }
+        if (n32 < limE) {
+            limE = n32;
+        }
+        n = limE;
+    }
+    if (n < 1) {
+        n = 1;
     }
 
-    p->flags |= 4 | 8;
-    p->dir_func = (PsysDirFunc)dirFn;
+    mode0 = (fl & 0x80) ? 1 : 0;
+    if (0.0 == p->e_angle) {
+        dirMode = 0;
+    } else if (-1.0 == p->e_angle) {
+        dirMode = 2;
+    } else {
+        dirMode = 4;
+    }
+    vf = 1;
+    va = vf;
+    dirMode |= mode0;
+    if (0.0 == p->e_vol[0] && 0.0 == p->e_vol[1]) {
+        va = 0;
+    }
+    if ((u8)va == 0) {
+        if (0.0 == p->e_vol[2]) {
+            vf = 0;
+        }
+    }
+    r8 = (u8)vf;
+    flag40 = (fl & 0x40) ? 1 : 0;
+    posMode = (r8 != 0) ? 2 : 0;
+    posMode |= flag40;
+    if (fl & 1) {
+        s32 dm2;
+        if (0.0 == p->e_angle) {
+            dm2 = 0;
+        } else if (-1.0 == p->e_angle) {
+            dm2 = 3;
+        } else {
+            dm2 = 5;
+        }
+        dirMode = dm2;
+        if (r8 != 0) {
+            dm2 = 3;
+        } else {
+            dm2 = 0;
+        }
+        posMode = dm2;
+    }
+
+    pm = p->pos_max;
+    posUse = 0;
+    posCap = 100;
+    if (pm != 0) {
+        posCap = pm;
+    }
+    if (posCap > n) {
+        posCap = n;
+    }
+    switch (posMode) {
+    case 0:
+    {
+        void* t = (void*)getNewPosSingle1;
+        p->flags |= 4;
+        posFn = t;
+        nPos = 1;
+        break;
+    }
+    case 1:
+        nPos = (s32)pl;
+        p->flags |= 4;
+        posFn = (void*)getNewPosFrame;
+        break;
+    case 2:
+    case 4:
+    {
+        s32 t2;
+        if (pl < 10.0f) {
+            t2 = n;
+        } else {
+            t2 = (s32)(10.0f * est);
+        }
+        if (t2 < 8) {
+            t2 = 8;
+        }
+        if (t2 < 1) {
+            nPos = 1;
+        } else if (t2 > n) {
+            nPos = n;
+        } else {
+            nPos = t2;
+        }
+        if (pm != 0) {
+            nPos = pm;
+        }
+    }
+        p->flags |= 4;
+        posFn = (void*)getNewPosRectUnique;
+        posUse = 1;
+        break;
+    default:
+        p->flags |= 4;
+        posFn = (void*)getNewPosRectShare;
+        nPos = n;
+        break;
+    }
+    if (nPos > posCap) {
+        nPos = posCap;
+    }
+
+    dm = p->dir_max;
+    hasDir = 1;
+    dirUse = 0;
+    dirCap = 31;
+    if (dm != 0) {
+        dirCap = dm;
+    }
+    if (dirCap > n) {
+        dirCap = n;
+    }
+    switch (dirMode) {
+    case 0:
+        p->flags |= 8;
+        dirFn = (void*)getNewDirSingle1;
+        nDir = 1;
+        break;
+    case 1:
+        nDir = (s32)pl;
+        p->flags |= 8;
+        dirFn = (void*)getNewDirFrame;
+        break;
+    case 2:
+    case 3:
+        nDir = pi[34];
+        dirFn = (void*)getNewDirSphere;
+        p->init_dir_lst = (f32(*)[3])pi[35];
+        hasDir = 0;
+        dirCap = nDir;
+        p->dir_use_lst = (u8*)pi[36];
+        break;
+    case 4:
+    {
+        s32 t3;
+        if (pl < 10.0f) {
+            t3 = n;
+        } else {
+            t3 = (s32)(10.0f * est);
+        }
+        if (t3 < 8) {
+            t3 = 8;
+        }
+        if (t3 < 1) {
+            nDir = 1;
+        } else if (t3 > n) {
+            nDir = n;
+        } else {
+            nDir = t3;
+        }
+    }
+        if (dm != 0) {
+            nDir = dm;
+        }
+        p->flags |= 8;
+        dirFn = (void*)getNewDirConeUnique;
+        dirUse = 1;
+        break;
+    default:
+        p->flags |= 8;
+        dirFn = (void*)getNewDirConeShare;
+        nDir = n;
+        break;
+    }
+    if (nDir > dirCap) {
+        nDir = dirCap;
+    }
+    if (nDir < 1) {
+        nDir = 1;
+    }
+    if (nDir > 31) {
+        nDir = 31;
+    }
+
+    {
+        u16 pm2 = p->pos_max;
+        s32 lim2;
+        if (pm2 == 0 && nPos > 100) {
+            nPos = 100;
+        }
+        if (pm2 == 0 && nPos > 100) {
+            nPos = 100;
+        }
+        lim2 = 100;
+        if (pm2 != 0) {
+            lim2 = pm2;
+        }
+        if (nPos >= lim2) {
+            nPos = lim2;
+        }
+    }
+
+    bits = 0;
+    if (p->init_dir_lst == (f32(*)[3])pi[35]) {
+        bits |= 1;
+    }
+    if (0.0 != p->p_drag) {
+        bits |= 2;
+    }
+    if (0.0 != p->p_gravity) {
+        bits |= 4;
+    }
+    switch (bits) {
+    case 0: p->ppos_func = getPPosLinear;    break;
+    case 1: p->ppos_func = getPPosSpeed;     break;
+    case 2: p->ppos_func = getPPosLinear;    break;
+    case 3: p->ppos_func = getPPosSpeed;     break;
+    case 4: p->ppos_func = getPPosGrav;      break;
+    case 5: p->ppos_func = getPPosSpeedGrav; break;
+    case 6: p->ppos_func = getPPosGrav;      break;
+    case 7: p->ppos_func = getPPosSpeedGrav; break;
+    }
+
+    p->p_max = n;
+    ringHalf = (n + 1) & ~1;
+    p->pos_max = nPos;
+    p->dir_max = nDir;
     p->pos_func = (PsysPosFunc)posFn;
-    p->ppos_func = (PsysPPosFunc)ppFn;
-
-    ringBytes = count * 2 + count * 0xc + count * 0xc;
-    if (p->worldname == NULL) {
-        buf = allocPsysMem(ringBytes, p->id);
+    p->dir_func = (PsysDirFunc)dirFn;
+    if (hasDir != 0) {
+        hasDir = nDir;
+    }
+    if (posUse != 0) {
+        posUse = nPos;
+    }
+    if (dirUse != 0) {
+        dirUse = nDir;
+    }
+    total = ringHalf * 2 + hasDir * 12 + nPos * 12 + dirUse + posUse;
+    if (p->worldname != NULL) {
+        buf = AllocMem(total);
+        pi[25] += total;
     } else {
-        buf = AllocMem(ringBytes);
-        (void)0; /*
-                       0, 0, 0, 0, 0, 0); */
+        buf = allocPsysMem(total, p->id);
     }
     if (buf == NULL) {
-        ErrorPrintf("No mem for psys id=%d", p->id);
+        if (p->worldname != NULL) {
+            ErrorPrintf(strs + 176, p->worldname);
+        } else {
+            ErrorPrintf(strs + 204, p->id);
+        }
         p->p_lst = NULL;
         return;
     }
-    memset(buf, 0, ringBytes);
+    memset(buf, 0, total);
     p->p_lst = (u16*)buf;
-    p->init_pos_lst = (f32(*)[3])((u8*)buf + count * 2);
-    p->init_dir_lst = (f32(*)[3])((u8*)p->init_pos_lst + count * 0xc);
+    nxt = (u8*)p->p_lst + ringHalf * 2;
+    if (hasDir != 0) {
+        p->init_dir_lst = (f32(*)[3])nxt;
+        nxt = (u8*)p->init_dir_lst + (u32)hasDir * 12;
+    }
+    if (nPos != 0) {
+        p->init_pos_lst = (f32(*)[3])nxt;
+        nxt = (u8*)p->init_pos_lst + (u32)nPos * 12;
+    }
+    if (dirUse != 0) {
+        p->dir_use_lst = nxt;
+        nxt = p->dir_use_lst + dirUse;
+    }
+    if (posUse != 0) {
+        p->pos_use_lst = nxt;
+    }
+    one = 1;
+    for (b = 0; (one << b) < nDir + 1; b++) {
+    }
+    p->dir_bits = b;
+    for (b = 0; (one << b) < nPos + 1; b++) {
+    }
+    p->pos_bits = b;
+    ab = 16 - p->dir_bits - p->pos_bits;
+    p->age_bits = ab;
+    if (ab < 1) {
+        ErrorPrintf(strs + 228, p->pos_bits, p->dir_bits,
+                    p->dir_bits + p->pos_bits + 1, 16);
+        {
+            Psys* q = (Psys*)((MBObject*)p->node)->data.psys;
+            if (q->e_phase < 7) {
+                q->e_phase = 7;
+            }
+        }
+    } else {
+        p->dir_next = nDir - 1;
+        p->pos_next = nPos - 1;
+        p->dir_last = 0xFFFF;
+        p->pos_last = 0xFFFF;
+    }
 }
 
 /* ======================================================================= *
