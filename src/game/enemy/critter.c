@@ -135,7 +135,7 @@ extern void  MBPsysSetPParm(void *psys, s32 n, f32 a, f32 b, f32 c, f32 d);
 extern void *AllocFile(const char *wad, const char *name);
 extern void *NextWaypoint(void *player);
 extern void  AddExp(s32 player, s32 amount, s32 kind);
-extern void  HealthMeterUpdate(void *meter, f32 cur, f32 max);
+extern void  HealthMeterUpdate(f32 value, s32 meter);
 extern void *memset(void *dst, int c, u32 n);
 extern void *memcpy(void *dst, const void *src, u32 n);
 extern void  ErrorPrintf(const char *fmt, ...);
@@ -2958,28 +2958,32 @@ s32 ProcessCritterList(void)
     }
     return total;
 }
+#pragma dont_inline on
 /* 0x80038DDC -- update one root critter and its child chain, including world
  * transforms, hit nodes, AI, animation, skin effects and render matrices. */
 s32 ProcessCritter(Critter *c)
 {
     Critter *child;
     u8 *node;
+    CritterMove *move;
     s32 i;
     s32 type;
+    s32 alive;
+    s32 allDead;
+    f32 scale;
 
     if (c->parent != NULL) {
         return 0;
     }
-    c->alivecnt = 0;
+    alive = 0;
     for (child = c->next; child != NULL; child = child->next) {
         if (child->health > 0.0f) {
-            c->alivecnt++;
+            alive++;
         }
     }
+    c->alivecnt = (s8)alive;
 
-    if (c->mbnode != NULL) {
-        GetWorldMat(c->mbnode, &c->mtx[0][0], NULL);
-    }
+    GetWorldMat(c->mbnode, &c->mtx[0][0], NULL);
     c->movevec[0] = c->vel[0];
     c->movevec[1] = c->vel[1] + *(f32 *)((u8 *)c->hdr + 0xB4);
     c->movevec[2] = c->vel[2];
@@ -3000,30 +3004,36 @@ s32 ProcessCritter(Critter *c)
     CritterDoKnockback(c);
     CritterUpdateCounters(c);
     if (c->healthmtr >= 0) {
-        HealthMeterUpdate((void *)(s32)c->healthmtr, c->health,
-                          *(f32 *)((u8 *)c->hdr + 0xE4));
+        HealthMeterUpdate(c->health, c->healthmtr);
     }
     if (c->damageflash != NULL) {
-        f32 maximum = *(f32 *)((u8 *)c->hdr + 0xE4) *
-                      *(f32 *)((u8 *)gCurLevel + 0xAC);
-        f32 scale = maximum > 0.0f ? c->health / maximum : 0.0f;
-        if (scale > 0.0f) {
-            MBTreeSetScale(scale, 1.0f, 1.0f, c->damageflash);
-        } else {
+        scale = c->health /
+                (*(f32 *)((u8 *)c->hdr + 0xE4) *
+                 *(f32 *)((u8 *)gCurLevel + 0xAC));
+        if ((f64)c->health <= lbl_80346488) {
             AtreeDelete(&c->healthbar[0]);
             c->damageflash = NULL;
+        } else {
+            MBTreeSetScale(scale, lbl_803464A8, lbl_803464A8,
+                           c->damageflash);
         }
     }
 
     for (child = c->next; child != NULL; child = child->next) {
         CopyMat4(&c->mtx[0][0], &child->mtx[0][0]);
-        memcpy(child->movevec, c->movevec, sizeof(c->movevec));
-        memcpy(child->pos, c->pos, sizeof(c->pos));
+        child->movevec[0] = c->movevec[0];
+        child->movevec[1] = c->movevec[1];
+        child->movevec[2] = c->movevec[2];
+        child->pos[0] = c->pos[0];
+        child->pos[1] = c->pos[1];
+        child->pos[2] = c->pos[2];
         if (child->obj_d0 != NULL) {
             GetWorldMat(child->obj_d0, child->worldMoveMatrix, NULL);
             child->vel[0] = child->moveOrigin[0];
             child->vel[1] = child->moveOrigin[1];
             child->vel[2] = child->moveOrigin[2];
+        } else {
+            CopyMat4(&c->mtx[0][0], child->worldMoveMatrix);
         }
         for (i = 0; i < *(s16 *)((u8 *)child->hdr + 0x118); i++) {
             node = (u8 *)child + 0x4F8 + i * 0x5C;
@@ -3035,29 +3045,98 @@ s32 ProcessCritter(Critter *c)
             }
         }
         CritterUpdateCounters(child);
+        if (child->healthmtr >= 0) {
+            HealthMeterUpdate(child->health, child->healthmtr);
+        }
+        if (child->damageflash != NULL) {
+            scale = child->health /
+                    (*(f32 *)((u8 *)child->hdr + 0xE4) *
+                     *(f32 *)((u8 *)gCurLevel + 0xAC));
+            if ((f64)child->health <= lbl_80346488) {
+                AtreeDelete(&child->healthbar[0]);
+                child->damageflash = NULL;
+            } else {
+                MBTreeSetScale(scale, lbl_803464A8, lbl_803464A8,
+                               child->damageflash);
+            }
+        }
     }
 
-    if (c->state == 3 && c->health <= 0.0f) {
-        c->state = 1;
-        CritterAwardExp(-1, *(f32 *)((u8 *)c->hdr + 0xE8));
+    if (c->state == 3) {
+        allDead = 1;
         for (child = c->next; child != NULL; child = child->next) {
-            child->health = 1.0f;
+            if (allDead > 0 && (f64)child->health <= lbl_80346488) {
+                allDead++;
+            } else {
+                allDead = 0;
+            }
+        }
+        if (allDead > 1) {
+            c->health = lbl_80346480;
+        }
+        if ((f64)c->health <= lbl_80346488 && c->state != 1) {
+            c->state = 1;
+            CritterAwardExp(
+                -1, (f32)(lbl_80346580 *
+                          (f64)*(f32 *)((u8 *)c->hdr + 0xE8)));
+            if (c->parent == NULL) {
+                for (child = c->next; child != NULL; child = child->next) {
+                    child->health = lbl_803464A8;
+                }
+            }
+            type = *(s16 *)(*(u8 **)((u8 *)c->hdr + 0x120) + 0x20);
+            if (type == 4 && c->parent == NULL) {
+                BossDying();
+            }
         }
     }
 
     type = *(s16 *)(*(u8 **)((u8 *)c->hdr + 0x120) + 0x20);
-    if (type == 4) {
+    switch (type) {
+    case 4:
         if (!CritterBossAI(c)) {
             return 0;
         }
-    } else if (type == 3 || type == 7 || type == 8) {
+        break;
+    case 3:
+    case 7:
+    case 8:
         if (!CritterGolemAI(c)) {
             return 0;
         }
-    } else {
+        break;
+    case 0:
+    case 1:
+    case 2:
+    case 5:
+    case 6:
         CritterAnimate(c);
+        if (FloorCollide(c->vel, 0, 0, 2, lbl_803464B8,
+                         lbl_80346588, lbl_8034658C) != NULL) {
+            c->vel[1] =
+                *(f32 *)(gFloorCollisionResult + 0x34) +
+                *(f32 *)((u8 *)c->hdr + 0xB0);
+            if (c->shadow != NULL) {
+                CopyMat3((f32 *)gFloorCollisionResult, (f32 *)c->shadow);
+                *(f32 *)((u8 *)c->shadow + 0x30) = c->vel[0];
+                *(f32 *)((u8 *)c->shadow + 0x34) = c->vel[1];
+                *(f32 *)((u8 *)c->shadow + 0x38) = c->vel[2];
+                *(f32 *)((u8 *)c->shadow + 0x34) =
+                    (f32)(lbl_803464B0 +
+                          (f64)*(f32 *)(gFloorCollisionResult + 0x34));
+            }
+        }
+        break;
     }
 
+    move = &(*(CritterMove **)((u8 *)c->hdr + 0x124))[c->curmove];
+    if ((move->flags & 8) != 0) {
+        if ((*(u32 *)((u8 *)c->anim + 0x60) & 0x40) == 0) {
+            MBTreeSetFlags(c->anim, 0x40, 1);
+        }
+    } else if ((*(u32 *)((u8 *)c->anim + 0x60) & 0x40) != 0) {
+        MBTreeClearFlags(c->anim, 0x40, 1);
+    }
     CritterUpdateSkinfx(c);
     for (child = c->next; child != NULL; child = child->next) {
         CritterUpdateSkinfx(child);
@@ -3071,12 +3150,20 @@ s32 ProcessCritter(Critter *c)
         *(s16 *)(*(u8 **)((u8 *)c->hdr + 0x120) + 0x26) =
             lbl_80344664;
     }
-    if (c->mbnode != NULL) {
-        CopyMat4(&c->mtx[0][0], (f32 *)c->mbnode);
-        UnparentMatrix(c->mbnode, &c->mtx[0][0]);
-    }
+    CopyMat4(&c->mtx[0][0], (f32 *)c->mbnode);
+    UnparentMatrix(c->mbnode, *(f32 **)((u8 *)c->mbnode + 0x74));
+
+    c->movevec[0] = c->vel[0];
+    c->movevec[1] = c->vel[1] + *(f32 *)((u8 *)c->hdr + 0xB4);
+    c->movevec[2] = c->vel[2];
+    MulVec4Mat3((f32 *)((u8 *)c->hdr + 0xC0), c->pos,
+                &c->mtx[0][0]);
+    c->pos[0] += c->vel[0];
+    c->pos[1] += c->vel[1];
+    c->pos[2] += c->vel[2];
     return 1;
 }
+#pragma dont_inline off
 /* 0x8003946C -- consume a critter's pending knockback vector, applying the
  * damage-class scale and clamping the accumulated velocity. */
 void CritterDoKnockback(Critter *c)
