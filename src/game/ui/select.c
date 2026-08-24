@@ -82,9 +82,9 @@ s32 vmu_directory_exists();
 extern s32 gGameMode;
 extern char lbl_801143F8[];  /* select-screen string pool             */
 extern char* lbl_80120104[]; /* per-class texture-name pointer table  */
-extern char lbl_80347F44[];  /* "?" texture name (sdata)              */
-extern char lbl_80347F4C[];  /* unarmed spec label fmt (sdata)        */
-extern char lbl_80347F58[];  /* "%s NAME" fmt (sdata)                 */
+extern char lbl_80347F44[8];  /* "?" texture name (sdata)              */
+extern char lbl_80347F4C[12];  /* unarmed spec label fmt (sdata)        */
+extern char lbl_80347F58[8];  /* "%s NAME" fmt (sdata)                 */
 extern void* pbLoad;
 void PlayerModel(s32 player);
 void setup_player_display(s32 player);
@@ -380,8 +380,8 @@ s32 do_player_select(void)
         case 2:
             switch (*(u32*)(pl + 0x3338)) {
             case 0: /* top select menu */
-                menu = page + moff + 712;
                 *(s32*)(pl + 0x333C) = *(s32*)(pl + 0x3338);
+                menu = page + moff + 712;
                 if (gControllerButtons & 4) {
                     *(s32*)(pl + 0xE8) = 3;
                     strcpy((char*)(pl + 0xA80), lbl_80347F40);
@@ -441,8 +441,8 @@ s32 do_player_select(void)
                 }
                 break;
             case 1: { /* load/save menu */
-                menu = page + moff + 712;
                 *(s32*)(pl + 0x333C) = *(s32*)(pl + 0x3338);
+                menu = page + moff + 712;
                 if (*(s32*)(menu + 108) == 0) {
                     setup_sel_menu(i, 1);
                     if (vmu_directory_exists() < 2 || saveExists() == 0) {
