@@ -983,16 +983,20 @@ void end_inventory_panel(int player)
     void** p;
     int i;
 
-    p = (void**)(base + player * 16 + 928);
+    p = (void**)(base + player * 16);
+    p = (void**)((u8*)p + 928);
     for (i = 0; i < 4; i++) { if (*p) { MBRemoveBlit(*p); } *p = 0; p++; }
 
-    p = (void**)(base + player * 48 + 992);
+    p = (void**)(base + player * 48);
+    p = (void**)((u8*)p + 992);
     for (i = 0; i < 12; i++) { if (*p) { MBRemoveBlit(*p); } *p = 0; p++; }
 
-    p = (void**)(base + player * 48 + 736);
+    p = (void**)(base + player * 48);
+    p = (void**)((u8*)p + 736);
     for (i = 0; i < 12; i++) { if (*p) { MBRemoveBlit(*p); } *p = 0; p++; }
 
-    p = (void**)(base + player * 36 + 592);
+    p = (void**)(base + player * 36);
+    p = (void**)((u8*)p + 592);
     for (i = 0; i < 9; i++) { if (*p) { MBRemoveBlit(*p); } *p = 0; p++; }
 }
 
