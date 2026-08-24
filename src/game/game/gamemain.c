@@ -843,6 +843,7 @@ void SetEnemyObj(u8* enemy, s32 type, s32 level, s32 unused)
 }
 
 /* 0x800508A0 -- re-init texture-mod state for every active pool entry. */
+#pragma dont_inline on
 void fn_800508A0(void)
 {
     s32 i;
@@ -856,6 +857,7 @@ void fn_800508A0(void)
         }
     }
 }
+#pragma dont_inline off
 
 /* 0x80050910 -- negate one entry of the sign-flip table, then notify. */
 void fn_80050910(s32 arg0)
@@ -3902,4 +3904,226 @@ void fn_80054E78(void)
             }
         }
     }
+}
+
+/* 0x80057024 -- world initializer (enemies/effects/critters; level start). */
+extern f32  sMusicFadeBase;
+extern f32  lbl_80346C94;
+extern f64  lbl_80346C98;
+extern f64  lbl_80346C60;
+extern f32  lbl_80346C68;
+extern f32  lbl_80346C90;
+extern f32  lbl_80346C30;
+extern f32  lbl_80346CB0;
+extern f32  lbl_80346CB4;
+extern f32  lbl_80346BF0;
+extern f32  lbl_80346BE0;
+extern f32  gPlayerStartYaw;
+extern f32  sLevelAmbientScale;
+extern s32  gBoss398;
+extern s32  gNumType7Items;
+extern f32  lbl_80344860;
+extern f32  lbl_80344864;
+extern s32  lbl_80344868;
+extern f32  lbl_80344880;
+extern s32  lbl_803447FC;
+extern s32  lbl_803447F8;
+extern s32  lbl_8034489C;
+extern f32  lbl_80344898;
+extern s32  lbl_80344894;
+extern s32  lbl_80344890;
+extern s32  lbl_8034488C;
+extern s32  lbl_80344888;
+extern s32  lbl_8034484C;
+extern s32  lbl_8034486C;
+extern s32  lbl_80344884;
+extern s32  lbl_8023E558[];
+extern f32  gDefaultPlayerPosition[3];
+DECL_SECT(".sdata2") extern const char lbl_80346C00[];
+DECL_SECT(".sdata2") extern const char lbl_80346CA0[];
+DECL_SECT(".sdata2") extern const char lbl_80346CA4[];
+DECL_SECT(".sdata2") extern const char lbl_80346CA8[];
+extern s32  towerGetRuneNearStat(s32 player, s32 world);
+extern void WorldSaveInitState(void);
+extern s32  FindWORLDOBJ(char* name);
+extern char* strcpy(char* dst, const char* src);
+extern f32  Random(f32 range);
+extern void AddItemInstList(void);
+extern void AddLocatorInstList(void);
+extern void InitDynGrid(f32 a, f32 b);
+extern void fn_8005D04C(void);
+extern void SumnerInit(void);
+extern void mini_inventory_setup(void);
+extern void AppendBigapePowerupsToScene(void);
+extern void SetupWeaponPowerupTexMods(void);
+extern void SetupItemTexMods(void);
+extern void DoPlayerTexMods(s32 idx);
+extern void InitEffects(void);
+extern void InitItemInfoData(void);
+extern void CritterInitAllMoves(void);
+
+void fn_80057024(void)
+{
+    u8* tbl = (u8*)lbl_80257680;
+    char* fmt = lbl_80112788;
+    f32 z = lbl_80346BF0;
+    s32 off;
+    s32 i;
+    u8* p;
+
+    lbl_80344860 = sMusicFadeBase;
+    lbl_80344864 = z;
+    lbl_80344868 = 0;
+    lbl_80344880 = lbl_80346C94;
+    lbl_803447FC = 18000;
+    lbl_803447F8 = 18000;
+    gDefaultPlayerPosition[0] = z;
+    gDefaultPlayerPosition[1] = z;
+    gDefaultPlayerPosition[2] = z;
+    gPlayerStartYaw = z;
+    gBoss398 = -1;
+    lbl_8034489C = 0;
+    lbl_80344898 = z;
+    lbl_80344894 = -1;
+    lbl_80344890 = -1;
+    gNumType7Items = 0;
+    lbl_8034488C = 0;
+
+    if (gBossType >= 0 && gBossType < 43) {
+        lbl_8034489C = 0;
+        for (i = 0, off = 0, p = gPlayers; i < 4; i++, off += 13148) {
+            u8* q = p + off;
+            s32 st = *(s32*)(q + 232);
+            if (st == 1 || st == 5 || st == 3) {
+                if (lbl_8034489C != 0) {
+                    *(s32*)(q + 2100) = 0;
+                } else if (towerGetRuneNearStat(i, sMusicTrackHi) != 0) {
+                    *(s32*)(q + 2100) = 1;
+                    lbl_8034489C = 1;
+                    lbl_80344898 = z;
+                } else {
+                    *(s32*)(q + 2100) = 0;
+                }
+            }
+        }
+    }
+
+    WorldSaveInitState();
+    lbl_80344880 = (f32)(*(f32*)((u8*)gWorldInfo + 28) - lbl_80346C98);
+    GetEnemyTypes();
+
+    if (gGameOptions[2] < 2 && gBossType < 0 && sMusicTrackHi != 13 &&
+        lbl_80344738 < 0) {
+        lbl_80344738 = LoadModel(lbl_80346C00, 0, 0, -1);
+    }
+
+    {
+        s32* pool = lbl_802511FC;
+        for (off = 0, i = 0; i < 8; i++, off += 4) {
+            s32 raw = *(s32*)(tbl + off + 332);
+            s32 t = raw;
+            if (raw < 32) {
+                if (raw == 29) {
+                    continue;
+                }
+            } else {
+                if (raw >= 45) {
+                    goto chk;
+                }
+                continue;
+            }
+chk:
+            if (t >= 0) {
+                s32* pe = pool + t;
+                if (pe[0] == 0) {
+                    LoadEnemy(t, *(s32*)(tbl + off + 268));
+                }
+            }
+        }
+    }
+
+    {
+        s32 free0 = BytesFree();
+        if (!(gGameMode & 0x8000)) {
+            LoadWeapons();
+        }
+        LoadPowerups(lbl_80344888);
+        lbl_80344858 = lbl_80344858 + (free0 - BytesFree());
+        free0 = BytesFree();
+        LoadItems();
+        lbl_8034485C = free0 - BytesFree();
+    }
+
+    if (*(void**)((u8*)gWorldInfo + 128) != 0) {
+        InitTexMods(*(void**)((u8*)gWorldInfo + 128),
+                    *(s32*)((u8*)gWorldInfo + 132));
+    }
+    fn_800508A0();
+    SetupWeaponPowerupTexMods();
+    SetupItemTexMods();
+    i = 0;
+    do {
+        DoPlayerTexMods(i);
+        i++;
+    } while (i < 4);
+    InitEffects();
+    InitItemInfoData();
+    CritterInitAllMoves();
+
+    if (InLevel(lbl_80346CA0)) {
+        lbl_8034484C = 4;
+        strcpy((char*)(tbl + 108), fmt + 312);
+    } else if (InLevel(lbl_80346CA4)) {
+        lbl_8034484C = 4;
+        strcpy((char*)(tbl + 108), fmt + 328);
+    } else {
+        lbl_8034484C = 0;
+    }
+
+    {
+        f64 kOff = lbl_80346C60;
+        for (i = 0, off = 0; i < lbl_8034484C; i++, off += 4) {
+            sprintf((char*)tbl, lbl_80346CA8, tbl + 108, i + 1);
+            *(s32*)(tbl + off + 76) = FindWORLDOBJ((char*)tbl);
+            if (*(void**)(tbl + off + 76) != 0 &&
+                *(void**)(*(u8**)(tbl + off + 76) + 40) != 0) {
+                MBTreeSetFlags(*(void**)(*(u8**)(tbl + off + 76) + 40), 2, 0);
+            } else {
+                ErrorPrintf(fmt + 344, tbl);
+            }
+            *(f32*)(tbl + off + 92) =
+                (f32)(kOff + sMusicFadeBase + Random(lbl_80346C68));
+        }
+    }
+
+    world_update();
+    AddItemInstList();
+    AddLocatorInstList();
+    if (gBossType >= 0) {
+        InitDynGrid(lbl_80346C68, lbl_80346CB0);
+    } else {
+        InitDynGrid(lbl_80346CB4, lbl_80346CB0);
+    }
+    SetupDynGrid();
+    CreateDynobjGrid();
+    fn_8005D04C();
+    good_wiz_state = 0;
+    lbl_8023E558[24] = 0;
+    lbl_80344884 = 0;
+    if (sMusicTrackHi == 13) {
+        SumnerInit();
+    }
+    if (gGameMode == 0x4010 || gGameMode == 0x400C) {
+        MBCompVertScaleAddUV(lbl_8034486C, 0, lbl_80346C90, lbl_80346C90,
+                             lbl_80346C30, lbl_80346BF0, lbl_80346BF0);
+    } else {
+        MBCompVertScaleAddUV(0, 0, lbl_80346BF0, lbl_80346BF0, lbl_80346BF0,
+                             lbl_80346BF0, lbl_80346BF0);
+        sLevelAmbientScale = lbl_80346BE0;
+    }
+    if (!(gGameMode & 0x8000)) {
+        lbl_80344850 = 1;
+    }
+    mini_inventory_setup();
+    AppendBigapePowerupsToScene();
 }
