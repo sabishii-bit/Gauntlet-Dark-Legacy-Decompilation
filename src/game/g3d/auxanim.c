@@ -283,68 +283,85 @@ exit:
     return;
 }
 
+extern f64 lbl_803459C8;
+extern f64 lbl_803459D0;
+extern f64 lbl_803459D8;
+extern f64 lbl_803459E0;
+extern f32 lbl_803459B8;
+extern f32 lbl_803459BC;
+
 void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
 {
-    int mode;
-    int f;
-    float lo;
-    float out;
-    float v;
+    f32 out;
+    f32 r;
+    f32 k;
+    s32 f;
 
-    if (tm != 0) {
-        mode = tm->src;
-        if (mode == -4) {
-            v = (float)(frame - tm->unk4e);
-            lo = (float)(tm->frames);
-            if (v <= 0.0f || lo <= 0.0) {
-                lo = 0.0f;
-            } else if ((float)(frame - tm->unk4e) < lo) {
-                lo = (float)(frame - tm->unk4e) / lo;
-            } else {
-                lo = 1.0f;
-            }
-            mode = (int)((float)(1.0 - lo) * 255.0);
-            MBTreeSetAlpha(ctx, mode, 1);
+    if (tm == NULL) {
+        return;
+    }
+    switch (tm->src) {
+    case -2: {
+        f32 ra = (f32)tm->rate;
+        f32 de = (f32)(frame - tm->unk4e);
+        f32 fr2 = (f32)tm->frames;
+        r = CalcTexScroll(de, ra, fr2, frame, &out);
+        MBTreeSetUVScaleAdd(out, r, lbl_803459BC, lbl_803459B8, ctx, 1);
+        break;
+    }
+    case -3: {
+        f32 ra = (f32)tm->rate;
+        f32 de = (f32)(frame - tm->unk4e);
+        f32 fr2 = (f32)tm->frames;
+        r = CalcTexScroll(de, ra, fr2, frame, &out);
+        MBTreeSetUVScaleAdd(lbl_803459BC, lbl_803459B8, out, r, ctx, 1);
+        break;
+    }
+    case -4: {
+        f32 d1 = (f32)(frame - tm->unk4e);
+        f32 fr = (f32)tm->frames;
+        f32 d2 = (f32)(frame - tm->unk4e);
+        if (d1 <= lbl_803459B8 || fr <= lbl_803459D0) {
+            k = lbl_803459B8;
+        } else if (d2 >= fr) {
+            k = lbl_803459BC;
         } else {
-            if (mode < -4) {
-                if (mode == -6) {
-                    return;
-                }
-                if (mode > -7) {
-                    v = (float)(frame - tm->unk4e);
-                    lo = (float)(tm->frames);
-                    if (v <= 0.0f || lo <= 0.0) {
-                        lo = 0.0f;
-                    } else if ((float)(frame - tm->unk4e) < lo) {
-                        lo = (float)(frame - tm->unk4e) / lo;
-                    } else {
-                        lo = 1.0f;
-                    }
-                    MBTreeSetAlpha(ctx, (int)(lo * 255.0), 1);
-                    return;
-                }
-            } else if (mode == -2) {
-                v = CalcTexScroll((float)(frame - tm->unk4e), (float)tm->rate, (float)tm->frames, frame, &out);
-                MBTreeSetUVScaleAdd(out, v, 1.0f, 0.0f, ctx, 1);
-                return;
-            } else if (mode < -2) {
-                v = CalcTexScroll((float)(frame - tm->unk4e), (float)tm->rate, (float)tm->frames, frame, &out);
-                MBTreeSetUVScaleAdd(1.0f, 0.0f, out, v, ctx, 1);
-                return;
-            }
-            f = frame - tm->unk4e;
-            if (f < 0) {
-                f = 0;
-            } else {
-                if (tm->rate > 0) {
-                    f = f / tm->rate;
-                }
-                if (tm->frames <= f) {
-                    f = tm->frames - 1;
-                }
-            }
-            MBTreeSetAltTex(ctx, (u32)tm->tex & 0xffff, mode + f, 1);
+            k = d2 / fr;
         }
+        MBTreeSetAlpha(ctx,
+                       (s32)((f32)(lbl_803459D8 - k) * lbl_803459E0), 1);
+        break;
+    }
+    case -5: {
+        f32 d1 = (f32)(frame - tm->unk4e);
+        f32 fr = (f32)tm->frames;
+        f32 d2 = (f32)(frame - tm->unk4e);
+        if (d1 <= lbl_803459B8 || fr <= lbl_803459D0) {
+            k = lbl_803459B8;
+        } else if (d2 >= fr) {
+            k = lbl_803459BC;
+        } else {
+            k = d2 / fr;
+        }
+        MBTreeSetAlpha(ctx, (s32)(f32)(k * lbl_803459E0), 1);
+        break;
+    }
+    case -6:
+        break;
+    default:
+        f = frame - tm->unk4e;
+        if (f < 0) {
+            f = 0;
+        } else {
+            if (tm->rate > 0) {
+                f = f / tm->rate;
+            }
+            if (f >= tm->frames) {
+                f = tm->frames - 1;
+            }
+        }
+        MBTreeSetAltTex(ctx, (u16)tm->tex, tm->src + f, 1);
+        break;
     }
 }
 
