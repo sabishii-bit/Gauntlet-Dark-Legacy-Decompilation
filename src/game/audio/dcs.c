@@ -1215,6 +1215,7 @@ void dcsVoiceUpdate(s32 channel) {
     s32 scaled;
     s32 pan;
     s32 sign;
+    volatile u8 unused[8];
 
     if (volume < 0) {
         volume = 0;
