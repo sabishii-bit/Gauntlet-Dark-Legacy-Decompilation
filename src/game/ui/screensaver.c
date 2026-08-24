@@ -1027,8 +1027,11 @@ void draw_panels(void)
     register s32 zero;
     register s32 slot;
 
-    if (gFireScrollCircleBlits[0] != 0) {
-        return;
+    {
+        register s32 busy = (gFireScrollCircleBlits[0] != 0) ? 1 : 0;
+        if (busy != 0) {
+            return;
+        }
     }
     if (lbl_80344A44 == 0) {
         pieces = lbl_8011DA6C;
