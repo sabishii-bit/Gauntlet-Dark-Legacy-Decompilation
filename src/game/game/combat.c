@@ -2889,6 +2889,16 @@ void ProcCamera_8002E548(s32 camIdx, s32 useRecorderPosition)
 extern s32 sFlags;
 extern f64 lbl_803460C0, lbl_803460C8;
 void fn_800C02F4(s32 color);
+void dbgTextPrintfCol(s32 column, s32 row, char* format, ...);
+extern s32 EnemyDescType(char* desc);
+extern char* lbl_8011B578[];
+
+#define DEBUG_TYPE_NAME(type) \
+    (*(char**)((u8*)lbl_80118B60 + 0x10 + (type) * 4))
+#define DEBUG_SUBTYPE_NAME(subtype) \
+    (*(char**)((u8*)lbl_80118B60 + 0x48 + (subtype) * 4))
+#define DEBUG_ACTION_NAME(action) \
+    (*(char**)((u8*)lbl_80118B60 + 0x134 + (action) * 4))
 
 /*
  * screen_limitation -- debug overlay printing camera camIdx's world position,
@@ -2926,53 +2936,184 @@ void screen_limitation(s32 camIdx)
     }
     pitch = (s32)(lbl_803460B0 * lbl_803460B8 * (f64)*(f32*)((u8*)cam + 0xA4));
     fn_800C02F4(0xFF00);
-    dbgTextPrintfCol(wpos[0], wpos[1], wpos[2], 1, row - 0xC,
-                     "CAM %2f/%2f/%2f", wpos[0], wpos[1], wpos[2]);
-    dbgTextPrintfCol(attn[0], attn[1], attn[2], 1, row - 0xB,
-                     "ATN %2f/%2f/%2f", attn[0], attn[1], attn[2]);
-    dbgTextPrintfCol(yawDeg, *(f32*)((u8*)cam + 0xA8), attn[2], 1, row - 0xA,
-                     "YAW %1f/%2f", yawDeg);
-    dbgTextPrintfCol(lbl_803460B8, lbl_803460B0, attn[2], 1, row - 9,
-                     "PITCH %d", pitch);
-    dbgTextPrintfCol(*(f32*)((u8*)cam + 0xC4), lbl_803460B0, attn[2], 1, row - 8,
-                     "DISTANCE %2f", *(f32*)((u8*)cam + 0xC4));
+    dbgTextPrintfCol(1, row - 0xC, "CAM: %.2f %.2f %.2f    ",
+                     wpos[0], wpos[1], wpos[2]);
+    dbgTextPrintfCol(1, row - 0xB, "ATN: %.2f %.2f %.2f    ",
+                     attn[0], attn[1], attn[2]);
+    dbgTextPrintfCol(1, row - 0xA, "YAW=%.1f(%.2f)    ",
+                     yawDeg, *(f32*)((u8*)cam + 0xA8));
+    dbgTextPrintfCol(1, row - 9, "PITCH=%d    ", pitch);
+    dbgTextPrintfCol(1, row - 8, "DISTANCE:  %.2f    ",
+                     *(f32*)((u8*)cam + 0xC4));
+    dbgTextPrintfCol(1, row - 7, "CAM=");
     switch (cMode) {
-    case 0:  dbgTextPrintfCol(0, 0, 0, 5, row - 7, "OFF"); break;
-    case 1:  dbgTextPrintfCol(0, 0, 0, 5, row - 7, "FREE"); break;
-    case 2:  dbgTextPrintfCol(0, 0, 0, 5, row - 7, "LOCK"); break;
-    case 3:  dbgTextPrintfCol(0, 0, 0, 5, row - 7, "GAME"); break;
-    case 4:  dbgTextPrintfCol(0, 0, 0, 5, row - 7, "TETHER"); break;
-    case 5:  dbgTextPrintfCol(0, 0, 0, 5, row - 7, "VECDIST"); break;
-    case 6:  dbgTextPrintfCol(0, 0, 0, 5, row - 7, "POINT"); break;
-    case 7:  dbgTextPrintfCol(0, 0, 0, 5, row - 7, "DRAGON"); break;
-    case 8:  dbgTextPrintfCol(0, 0, 0, 5, row - 7, "CHIMERA"); break;
-    case 9:  dbgTextPrintfCol(0, 0, 0, 5, row - 7, "GENIE"); break;
-    case 10: dbgTextPrintfCol(0, 0, 0, 5, row - 7, "DRIDER"); break;
-    case 11: dbgTextPrintfCol(0, 0, 0, 5, row - 7, "DEMON"); break;
-    case 12: dbgTextPrintfCol(0, 0, 0, 5, row - 7, "BOSS"); break;
-    default: dbgTextPrintfCol(0, 0, 0, 5, row - 7, "UNKNOWN"); break;
+    case 0:  dbgTextPrintfCol(5, row - 7, "OFF   "); break;
+    case 1:  dbgTextPrintfCol(5, row - 7, "FREE   "); break;
+    case 2:  dbgTextPrintfCol(5, row - 7, "LOCK   "); break;
+    case 3:  dbgTextPrintfCol(5, row - 7, "GAME   "); break;
+    case 4:  dbgTextPrintfCol(5, row - 7, "OBJEYE "); break;
+    case 5:  dbgTextPrintfCol(5, row - 7, "VECDIST"); break;
+    case 6:  dbgTextPrintfCol(5, row - 7, "POINT  "); break;
+    case 7:  dbgTextPrintfCol(5, row - 7, "DRAGON "); break;
+    case 8:  dbgTextPrintfCol(5, row - 7, "CHIMERA"); break;
+    case 9:  dbgTextPrintfCol(5, row - 7, "GENIE  "); break;
+    case 10: dbgTextPrintfCol(5, row - 7, "DRIDER "); break;
+    case 11: dbgTextPrintfCol(5, row - 7, "DEMON  "); break;
+    case 12: dbgTextPrintfCol(5, row - 7, "BOSS   "); break;
+    default: dbgTextPrintfCol(5, row - 7, "UNKNOWN"); break;
     }
+
+    dbgTextPrintfCol(0xE, row - 7, "ATN=");
     switch (aMode) {
-    case 0:  dbgTextPrintfCol(0, 0, 0, 0x12, row - 7, "FREE"); break;
-    case 1:  dbgTextPrintfCol(0, 0, 0, 0x12, row - 7, "LOCK"); break;
-    case 2:  dbgTextPrintfCol(0, 0, 0, 0x12, row - 7, "TARGET"); break;
-    case 3:  dbgTextPrintfCol(0, 0, 0, 0x12, row - 7, "OBJECT"); break;
-    case 4:  dbgTextPrintfCol(0, 0, 0, 0x12, row - 7, "POINT"); break;
-    case 5:  dbgTextPrintfCol(0, 0, 0, 0x12, row - 7, "PLAYER %02X",
-                              *(s32*)((u8*)cam + 0x104)); break;
-    case 6:  dbgTextPrintfCol(0, 0, 0, 0x12, row - 7, "ENEMY %02X",
-                              *(s32*)((u8*)cam + 0x108)); break;
-    case 7:  dbgTextPrintfCol(0, 0, 0, 0x12, row - 7, "ITEM %02X",
-                              *(s32*)((u8*)cam + 0x10C)); break;
-    case 8:  dbgTextPrintfCol(0, 0, 0, 0x12, row - 7, "MILESTONE %02X",
-                              *(s32*)((u8*)cam + 0x110)); break;
-    case 9:  dbgTextPrintfCol(0, 0, 0, 0x12, row - 7, "LOOKOUT %02X",
-                              *(s32*)((u8*)cam + 0x114)); break;
-    case 10: dbgTextPrintfCol(0, 0, 0, 0x12, row - 7, "CAMERA %02X",
-                              *(s32*)((u8*)cam + 0x118)); break;
-    default: dbgTextPrintfCol(0, 0, 0, 0x12, row - 7, "UNKNOWN"); break;
+    case 0:
+        dbgTextPrintfCol(0x12, row - 7, "FREE        ");
+        dbgTextPrintfCol(0xE, row - 6, "                               ");
+        break;
+    case 1:
+        dbgTextPrintfCol(0x12, row - 7, "LOCK        ");
+        dbgTextPrintfCol(0xE, row - 6, "                               ");
+        break;
+    case 3:
+        dbgTextPrintfCol(0x12, row - 7, "OBJECT      ");
+        dbgTextPrintfCol(0xE, row - 6, "                               ");
+        break;
+    case 2:
+        dbgTextPrintfCol(0x12, row - 7, "TARGET      ");
+        dbgTextPrintfCol(0xE, row - 6, "                               ");
+        break;
+    case 4:
+        dbgTextPrintfCol(0x12, row - 7, "POINT       ");
+        dbgTextPrintfCol(0xE, row - 6, "                               ");
+        break;
+    case 5:
+        dbgTextPrintfCol(0x12, row - 7, "PLAYER %02X   ",
+                         *(s32*)((u8*)cam + 0x100));
+        dbgTextPrintfCol(0xE, row - 6, "                               ");
+        break;
+    case 6: {
+        s32 enemy = *(s32*)((u8*)cam + 0x104);
+        u8* e = gEnemies + enemy * ENEMY_STRIDE;
+
+        dbgTextPrintfCol(0x12, row - 7, "ENEMY %02X    ", enemy);
+        dbgTextPrintfCol(0xE, row - 6, "%s (AI=%d)                     ",
+                         lbl_8011B578[*(s32*)e], *(s16*)(e + 0x310));
+        break;
     }
-    dbgTextPrintfCol(0, 0, 0, 1, row - 6, "MODE %d", *(s32*)((u8*)cam + 0xD0));
+    case 8:
+        dbgTextPrintfCol(0x12, row - 7, "MILESTONE %02X",
+                         *(s32*)((u8*)cam + 0x10C));
+        dbgTextPrintfCol(0xE, row - 6, "                               ");
+        break;
+    case 9:
+        dbgTextPrintfCol(0x12, row - 7, "LOOKOUT %02X  ",
+                         *(s32*)((u8*)cam + 0x110));
+        dbgTextPrintfCol(0xE, row - 6, "                               ");
+        break;
+    case 10:
+        dbgTextPrintfCol(0x12, row - 7, "CAMERA %02X   ",
+                         *(s32*)((u8*)cam + 0x114));
+        dbgTextPrintfCol(0xE, row - 6, "                               ");
+        break;
+    case 7: {
+        s32 index = *(s32*)((u8*)cam + 0x108);
+        u8* item = sItems + index * 0xF0;
+        u8* info = *(u8**)item;
+        s32 type = *(s32*)info;
+        char* typeName;
+
+        if (type < 0) {
+            type = 0;
+        }
+        typeName = DEBUG_TYPE_NAME(type);
+        dbgTextPrintfCol(0x12, row - 7, "ITEM %02X (%dP)", index,
+                         (s8)item[0xCC]);
+        switch (*(s32*)info) {
+        case 2: {
+            u8* record = (u8*)gWorldInfo.iteminfo + *(s16*)(item + 0xDC) * 0x50;
+            s32 recordType = *(s32*)record;
+
+            if (recordType < 0) {
+                recordType = 0;
+            }
+            if (recordType == 4) {
+                dbgTextPrintfCol(0xE, row - 6, "%s (%s)                        ",
+                                 typeName,
+                                 lbl_8011B578[EnemyDescType((char*)record + 0x28)]);
+            } else if (recordType == 1) {
+                dbgTextPrintfCol(0xE, row - 6, "%s (%s)                        ",
+                                 typeName, DEBUG_SUBTYPE_NAME(*(s32*)(record + 4)));
+            } else if (*(s32*)(info + 4) == 0x30) {
+                dbgTextPrintfCol(0xE, row - 6, "%s (%s)                        ",
+                                 typeName, DEBUG_TYPE_NAME(recordType));
+            } else {
+                record = (u8*)gWorldInfo.iteminfo + *(s16*)(record + 8) * 0x50;
+                dbgTextPrintfCol(0xE, row - 6, "%s (%s)                        ",
+                                 typeName, DEBUG_SUBTYPE_NAME(*(s32*)(record + 4)));
+            }
+            break;
+        }
+        case 3:
+            dbgTextPrintfCol(0xE, row - 6, "%s (%s-%d) Lv%d Max=%d   ",
+                             typeName, lbl_8011B578[*(s16*)(item + 0xDC)],
+                             (s8)item[0xE3], (s8)item[0xE2], (s8)item[0xDF]);
+            break;
+        case 7:
+            dbgTextPrintfCol(0xE, row - 6, "%s (%s)                      ",
+                             typeName, DEBUG_ACTION_NAME((s8)item[0xC8]));
+            break;
+        case 11:
+            dbgTextPrintfCol(0xE, row - 6, "%s (%d)                      ",
+                             typeName, *(s32*)(item + 0xDC));
+            break;
+        case 8:
+        case 9:
+            dbgTextPrintfCol(0xE, row - 6, "%s                          ", typeName);
+            break;
+        case 10:
+            if ((s8)item[0xCF] >= 0) {
+                dbgTextPrintfCol(0xE, row - 6, "%s (HP=%d)                    ",
+                                 typeName, *(s16*)(item + 0xD0));
+            } else {
+                dbgTextPrintfCol(0xE, row - 6, "%s (%s)            ",
+                                 typeName, (char*)info + 0x28);
+            }
+            break;
+        case 12:
+            dbgTextPrintfCol(0xE, row - 6, "%s (GRP=%d)                  ",
+                             typeName, *(s32*)(info + 4));
+            break;
+        case 13:
+            dbgTextPrintfCol(0xE, row - 6, "%s (%s: RAD=%d)             ",
+                             typeName, (char*)info + 0x28,
+                             (s32)*(f32*)(item + 0xDC));
+            break;
+        case -1: {
+            s32 subtype = *(s32*)(info + 4);
+            if (subtype < 0) {
+                subtype = 0;
+            }
+            dbgTextPrintfCol(0xE, row - 6, "%s (%s)                      ",
+                             typeName, DEBUG_SUBTYPE_NAME(subtype));
+            break;
+        }
+        default: {
+            s32 subtype = *(s32*)(info + 4);
+            if (subtype < 0) {
+                subtype = 0;
+            }
+            dbgTextPrintfCol(0xE, row - 6, "%s (%s)                      ",
+                             typeName, DEBUG_SUBTYPE_NAME(subtype));
+            break;
+        }
+        }
+        break;
+    }
+    default:
+        dbgTextPrintfCol(0x12, row - 7, "UNKNOWN     ");
+        dbgTextPrintfCol(0xE, row - 6, "                               ");
+        break;
+    }
+    dbgTextPrintfCol(1, row - 6, "MODE=%d ", *(s32*)((u8*)cam + 0xD0));
     fn_800C02F4(-1);
 }
 
