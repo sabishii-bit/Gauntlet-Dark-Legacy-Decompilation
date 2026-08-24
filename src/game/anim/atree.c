@@ -1005,55 +1005,97 @@ found:
 extern int* SetupAnimHeader(int* hdr, int* dst);
 extern void InitOAnimList(void* hdr, int arg);
 
+static inline u16 AtreeNodeSwap16(u16 value)
+{
+    u8* bytes;
+
+    bytes = (u8*)&value;
+    return (u16)(bytes[0] | (bytes[1] << 8));
+}
+
+static inline u32 AtreeNodeSwap32(u32 value)
+{
+    u32 result;
+    u8* source;
+    u8* destination;
+
+    source = (u8*)&value;
+    destination = (u8*)&result;
+    destination[0] = source[3];
+    destination[1] = source[2];
+    destination[2] = source[1];
+    destination[3] = source[0];
+    return result;
+}
+
+static inline f32 AtreeNodeSwapF32(f32 value)
+{
+    u32 result;
+
+    result = AtreeNodeSwap32(*(u32*)&value);
+    return *(f32*)&result;
+}
+
+#define NODE_SWAP32(data, offset)                                             \
+    *(u32*)((data) + (offset)) =                                             \
+        AtreeNodeSwap32(*(u32*)((data) + (offset)))
+#define NODE_SWAPF32(data, offset)                                            \
+    *(f32*)((data) + (offset)) =                                             \
+        AtreeNodeSwapF32(*(f32*)((data) + (offset)))
+
 /* fn_80011DCC @0x80011DCC -- byte-swap one 0x138-byte atree node-definition
  * record (v8+ headers) from little-endian disk order. */
 void fn_80011DCC(u32* p)
 {
     u8* b = (u8*)p;
+    u8* field;
     s32 i;
 
-    SWAP32(p[0]);
-    SWAP16(*(u16*)(b + 4));
-    SWAP32(p[2]);
-    SWAP32(p[3]);
-    SWAP32(p[4]);
-    SWAP32(p[5]);
-    SWAP32(p[6]);
-    SWAP32(p[7]);
-    SWAP32(p[0xC]);
-    SWAP32(p[0xD]);
-    SWAP32(p[0xE]);
-    SWAP32(p[0xF]);
-    SWAP32(p[0x22]);
-    SWAP32(p[0x23]);
-    SWAP32(p[0x24]);
-    SWAP32(p[0x25]);
-    SWAP32(p[0x2E]);
-    SWAP32(p[0x2F]);
-    SWAP32(p[0x30]);
-    SWAP32(p[0x31]);
-    SWAP32(p[0x4A]);
-    SWAP32(p[0x4B]);
-    SWAP32(p[0x4C]);
-    SWAP32(p[0x4D]);
+    NODE_SWAP32(b, 0x00);
+    *(u16*)(b + 0x04) = AtreeNodeSwap16(*(u16*)(b + 0x04));
+    NODE_SWAP32(b, 0x08);
+    NODE_SWAP32(b, 0x0C);
+    NODE_SWAP32(b, 0x10);
+    NODE_SWAP32(b, 0x14);
+    NODE_SWAP32(b, 0x18);
+    NODE_SWAP32(b, 0x1C);
+    NODE_SWAP32(b, 0x30);
+    NODE_SWAP32(b, 0x34);
+    NODE_SWAPF32(b, 0x38);
+    NODE_SWAP32(b, 0x3C);
+    NODE_SWAPF32(b, 0x88);
+    NODE_SWAPF32(b, 0x8C);
+    NODE_SWAPF32(b, 0x90);
+    NODE_SWAPF32(b, 0x94);
+    NODE_SWAPF32(b, 0xB8);
+    NODE_SWAPF32(b, 0xBC);
+    NODE_SWAPF32(b, 0xC0);
+    NODE_SWAPF32(b, 0xC4);
+    NODE_SWAPF32(b, 0x128);
+    NODE_SWAPF32(b, 0x12C);
+    NODE_SWAPF32(b, 0x130);
+    NODE_SWAP32(b, 0x134);
     for (i = 0; i < 2; i++) {
-        SWAP32(*(u32*)(b + 0x20 + i * 4));
-        SWAP32(*(u32*)(b + 0x28 + i * 4));
+        field = b + i * 4;
+        NODE_SWAPF32(field, 0x20);
+        NODE_SWAPF32(field, 0x28);
     }
     for (i = 0; i < 3; i++) {
-        SWAP32(*(u32*)(b + 0x60 + i * 4));
-        SWAP32(*(u32*)(b + 0x6C + i * 4));
+        field = b + i * 4;
+        NODE_SWAPF32(field, 0x60);
+        NODE_SWAPF32(field, 0x6C);
     }
     for (i = 0; i < 4; i++) {
-        SWAP32(*(u32*)(b + 0xA8 + i * 4));
-        SWAP32(*(u32*)(b + 0x98 + i * 4));
-        SWAP32(*(u32*)(b + 0x78 + i * 4));
-        SWAP32(*(u32*)(b + 0xC8 + i * 4));
-        SWAP32(*(u32*)(b + 0xD8 + i * 4));
-        SWAP32(*(u32*)(b + 0xE8 + i * 4));
-        SWAP32(*(u32*)(b + 0xF8 + i * 4));
-        SWAP32(*(u32*)(b + 0x108 + i * 4));
-        SWAP32(*(u32*)(b + 0x118 + i * 4));
+        field = b + i * 4;
+        NODE_SWAPF32(field, 0xA8);
+        NODE_SWAP32(field, 0x98);
+        NODE_SWAPF32(field, 0x78);
+        NODE_SWAPF32(field, 0xC8);
+        NODE_SWAPF32(field, 0xD8);
+        NODE_SWAPF32(field, 0xE8);
+        NODE_SWAPF32(field, 0xF8);
+        NODE_SWAPF32(field, 0x108);
+        NODE_SWAPF32(field, 0x118);
     }
 }
 
