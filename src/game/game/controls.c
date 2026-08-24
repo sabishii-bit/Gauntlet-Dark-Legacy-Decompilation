@@ -1125,33 +1125,22 @@ s32 joyGetStatus(s32 pad, u8* buf)
 }
 #pragma dont_inline off
 
-/* one pressure-mode button record: mode 3 + raw pressure byte */
-#define SET_PBTN(idx, v)      \
-    buf[idx] = 3;             \
-    buf[(idx) + 1] = (v);
-
-/* one digital button record: mode 1 + 0xFF when the (active-low) report
- * bit is clear */
-#define SET_DBTN(idx, byt, bit)                  \
-    buf[idx] = 1;                                \
-    if (((byt) & (bit)) != 0) {                  \
-        buf[(idx) + 1] = 0;                      \
-    } else {                                     \
-        buf[(idx) + 1] = 0xFF;                   \
+#define SET_CLAMPED_BUTTON(idx, mode, expr)         \
+    {                                               \
+        s32 t = (expr);                             \
+        buf[idx] = (mode);                          \
+        buf[(idx) + 1] =                            \
+            (t > 0) ? ((t < 0xFF) ? t : 0xFF) : 0; \
     }
 
-/* one analog-stick direction record: mode 3 + clamped 0..255 excursion */
-#define SET_ABTN(idx, expr)                      \
-    buf[idx] = 3;                                \
-    {                                            \
-        s32 t = (expr);                          \
-        if (t < 1) {                             \
-            buf[(idx) + 1] = 0;                  \
-        } else if (t < 0xFF) {                   \
-            buf[(idx) + 1] = t;                  \
-        } else {                                 \
-            buf[(idx) + 1] = 0xFF;               \
-        }                                        \
+#define SET_PBTN(idx, value) SET_CLAMPED_BUTTON(idx, 3, (value))
+#define SET_ABTN(idx, value) SET_CLAMPED_BUTTON(idx, 3, (value))
+#define SET_DBTN(idx, byt, bit)              \
+    buf[idx] = 1;                            \
+    if (((byt) & (bit)) != 0) {              \
+        buf[(idx) + 1] = 0;                  \
+    } else {                                 \
+        buf[(idx) + 1] = 0xFF;               \
     }
 
 /* 0x80031E74  read one pad via scePadRead and translate the PS2-format
