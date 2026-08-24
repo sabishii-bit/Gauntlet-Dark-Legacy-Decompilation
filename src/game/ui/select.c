@@ -602,7 +602,8 @@ s32 do_player_select(void)
                 }
                 break;
             case 5: /* pick a memory card (load) */
-                if (*(s32*)(pl + 0x3348) == 0) {
+                switch (*(s32*)(pl + 0x3348)) {
+                case 0:
                     if (*(s32*)((page + moff + 712) + 108) == 0) {
                         setup_sel_menu(i, 15);
                     }
@@ -619,6 +620,7 @@ s32 do_player_select(void)
                         break;
                     }
                     do_sel_menu_8008E4F4(i, 5);
+                    break;
                 }
                 if (*(s32*)(pl + 0x3348) != 0) {
                     if (*(s32*)((page + moff + 712) + 108) == 0) {
@@ -631,10 +633,13 @@ s32 do_player_select(void)
                         choice = -1;
                     }
                     do_sel_menu_8008E4F4(i, 5);
-                    if (choice == -1) {
+                    switch (choice) {
+                    case -1:
                         remove_optmenu((page + moff + 712));
                         *(s32*)(pl + 0x3338) = *(s32*)(pl + 0x333C);
-                    } else if (choice > 999) {
+                        break;
+                    default:
+                    if (choice >= 1000) {
                         s32 r;
                         set_directory_refresh_flags(-1);
                         remove_optmenu((page + moff + 712));
@@ -674,6 +679,8 @@ s32 do_player_select(void)
                             *(s32*)(pl + 0x3338) = 8;
                         }
                     }
+                        break;
+                    }
                 }
                 break;
             case 7: /* "no files" notice */
@@ -699,17 +706,21 @@ s32 do_player_select(void)
                 }
                 setup_file_entries(pl, 0);
                 do_sel_menu_8008E4F4(i, 8);
-                if (choice == -1) {
+                switch (choice) {
+                case -1:
                     remove_optmenu((page + moff + 712));
                     *(s32*)(pl + 0x3338) = 5;
-                } else if (choice > 999) {
-                    if (verify_vmu_file_ok(pl, choice - 1000) != 0) {
+                    break;
+                default:
+                    if (choice >= 1000 &&
+                        verify_vmu_file_ok(pl, choice - 1000) != 0) {
                         remove_optmenu((page + moff + 712));
                         *(s32*)(pl + 0x3338) = 9;
                         *(s32*)(pl + 0x3354) = choice - 1000;
                         *(s32*)(pl + 0x3358) = choice - 1000;
                         *(s32*)(pl + 0x3348) = 0;
                     }
+                    break;
                 }
                 break;
             case 9: { /* load-file progress */
@@ -779,10 +790,13 @@ s32 do_player_select(void)
                     choice = -1;
                 }
                 do_sel_menu_8008E4F4(i, 10);
-                if (choice == -1) {
+                switch (choice) {
+                case -1:
                     remove_optmenu((page + moff + 712));
                     *(s32*)(pl + 0x3338) = *(s32*)(pl + 0x333C);
-                } else if (choice > 999) {
+                    break;
+                default:
+                if (choice >= 1000) {
                     s32 r;
                     set_directory_refresh_flags(-1);
                     remove_optmenu((page + moff + 712));
@@ -847,6 +861,8 @@ s32 do_player_select(void)
                     } else {
                         *(s32*)(pl + 0x3338) = 13;
                     }
+                }
+                    break;
                 }
                 break;
             case 6:  /* mount / create-file confirm + progress */
@@ -992,16 +1008,21 @@ s32 do_player_select(void)
                     choice = -1;
                 }
                 do_sel_menu_8008E4F4(i, 13);
-                if (choice == -1) {
+                switch (choice) {
+                case -1:
                     remove_optmenu((page + moff + 712));
                     *(s32*)(pl + 0x3338) = 10;
-                } else if (choice > 999 && lbl_80344BB4 == 0) {
-                    remove_optmenu((page + moff + 712));
-                    *(s32*)(pl + 0x3338) = 14;
-                    *(s32*)(pl + 0x3354) = choice - 1000;
-                    *(s32*)(pl + 0x3358) = choice - 1000;
-                    *(s32*)(pl + 0x3348) = 0;
-                    lbl_80344BB4 = 0x1E;
+                    break;
+                default:
+                    if (choice >= 1000 && lbl_80344BB4 == 0) {
+                        remove_optmenu((page + moff + 712));
+                        *(s32*)(pl + 0x3338) = 14;
+                        *(s32*)(pl + 0x3354) = choice - 1000;
+                        *(s32*)(pl + 0x3358) = choice - 1000;
+                        *(s32*)(pl + 0x3348) = 0;
+                        lbl_80344BB4 = 0x1E;
+                    }
+                    break;
                 }
                 break;
             case 14: { /* write-file progress */
@@ -1131,24 +1152,15 @@ s32 do_player_select(void)
                 s32 sel = *(s32*)(pl + 0x10);
                 s32 moved = 0;
                 s32 step = 0;
-                s32 newsel;
                 s32 known;
                 char* texname;
 
                 choice = do_optmenu((page + moff + 712), 0);
                 do_sel_menu_8008E4F4(i, 3);
                 switch (choice) {
-                case 3:
-                    step = -1;
-                    moved = 1;
-                    break;
-                case 4:
-                    step = 1;
-                    moved = 1;
-                    break;
                 case 7:
                     costume++;
-                    if (costume > 3) {
+                    if (costume >= 4) {
                         costume = 0;
                     }
                     moved = 1;
@@ -1160,22 +1172,31 @@ s32 do_player_select(void)
                     }
                     moved = 1;
                     break;
+                case 3:
+                    step = -1;
+                    moved = 1;
+                    break;
+                case 4:
+                    step = 1;
+                    moved = 1;
+                    break;
                 case -1:
                     *(s32*)(pl + 0x3338) = *(s32*)(pl + 0x333C);
                     if (*(s32*)(pl + 0x3338) == 0) {
                         new_player(i);
                     }
-                    mbBlitInit3414(*(void**)((blitbase + boff) + 0x24), 1);
+                    mbBlitInit3414(*(void**)(blitbase + (boff + 36)), 1);
                     break;
                 }
-                if (moved || sel + step != *(s32*)(pl + 0x10) ||
-                    *(s32*)(pl + 0xEC) != 2) {
+                sel += step;
+                if (!(moved == 0 && sel == *(s32*)(pl + 0x10) &&
+                      *(s32*)(pl + 0xEC) == 2)) {
                     *(s32*)(pl + 0xEC) = 2;
-                    newsel = LimitSeltype(pl, sel + step, step);
-                    if (newsel != 16) {
-                        LoadPlyrData(i, newsel, 0);
+                    sel = LimitSeltype(pl, sel, step);
+                    if (sel != 16) {
+                        LoadPlyrData(i, sel, 0);
                     }
-                    if (moved || newsel != *(s32*)(pl + 0x10)) {
+                    if (moved != 0 || sel != *(s32*)(pl + 0x10)) {
                         if (*(s32*)(pl + 0x10) < 8) {
                             known = 1;
                         } else if (*(u16*)(pl + 0xA8C) &
@@ -1203,7 +1224,7 @@ s32 do_player_select(void)
                             servedMask |= 1 << i;
                         }
                     }
-                    *(s32*)(pl + 0x10) = newsel;
+                    *(s32*)(pl + 0x10) = sel;
                     *(s32*)(pl + 4) = costume;
                 }
                 if (new_menu_accept(i, 0) != 0) {
