@@ -174,7 +174,7 @@ extern f32 gCameras[];              /* 0x8023F8D0 */
 s32  AudioLoadPart(s32 bankIdx, s32 partIdx, s32 waitLevel, s32 flag);
 void AudioStreamStop(void);
 void AudioClearTracks(void);
-s32  AudioUnloadPart(char* bankName);
+void AudioUnloadPart(char* bankName);
 s32  AudioSetMode(char* modeName);
 void AudioReset(s32 force);
 void AudioLoadComplete(volatile s32* slot);
@@ -1178,7 +1178,7 @@ void AudioClearTracks(void)
  * loaded part -- but only if no other loaded mode bank still points at the same
  * ROM bank (otherwise it is left in place and a "still in use" note is logged).
  * Either way the mode bank's part slot (+284/+288) is reset to -1. */
-s32 AudioUnloadPart(char* bankName)
+void AudioUnloadPart(char* bankName)
 {
     s32 i;
     s32 j;
@@ -1189,7 +1189,7 @@ s32 AudioUnloadPart(char* bankName)
     u16 handle;
 
     if (sAudioSuspend != 0) {
-        return 0;
+        return;
     }
     for (i = 0; i < gAudioBankTbl[4]; i++) {
         if (strncmp((char*)((u8*)gAudioBankTbl + i * 292 + 20), bankName, 16) == 0) {
@@ -1203,7 +1203,7 @@ s32 AudioUnloadPart(char* bankName)
     bankEntry = (u8*)gAudioBankTbl + i * 292 + 20;
     partId = *(s32*)(bankEntry + 284);
     if (partId < 0) {
-        return 0;
+        return;
     }
     romBankId = *(s32*)(bankEntry + partId * 4 + 28);
     romBank = *(u8**)(sAudioBankTable + 16) + romBankId * 44;
@@ -1227,7 +1227,6 @@ s32 AudioUnloadPart(char* bankName)
     }
     *(s32*)(bankEntry + 284) = -1;
     *(s32*)(bankEntry + 288) = -1;
-    return 0;
 }
 
 /* ---------------------------------------------------------------- */
