@@ -445,14 +445,15 @@ void ScreenSaverUpdateWeap(s32 idx)
     s32* resetAt = &weapon->resetAt;
     void** node = &weapon->node;
     u8* atree = weapon->atree;
+    u8* initialTable = lbl_8011D568;
     f32 matrix[12];
+    volatile f32 unused[5];
     f32 screenPosition[3];
-    u8 unused[40];
     f32 frameStep;
     f32 movementStep;
     s32 collision;
 
-    frameStep = (f32)((f64)gClockStepTicks / lbl_80347390);
+    frameStep = (f32)gClockStepTicks / lbl_80347390;
     movementStep = frameStep * lbl_80343CB8;
     *elapsed += gClockStepTicks;
     if (*elapsed < *duration) {
@@ -460,7 +461,7 @@ void ScreenSaverUpdateWeap(s32 idx)
     }
 
     if (*duration > 0) {
-        u8* table = lbl_8011D568 + weaponIndex * 0xC;
+        u8* table = initialTable + weaponIndex * 0xC;
 
         if (*node == NULL) {
             ScreenSaverStartWeap(weaponIndex);
@@ -547,7 +548,7 @@ void ScreenSaverUpdateWeap(s32 idx)
             *velocityZ =
                 -(f32)(lbl_80347388 + (f64)Random(lbl_80347370));
             if (*resetAt < *elapsed) {
-                u8* table = lbl_8011D568 + weaponIndex * 0xC;
+                u8* table = initialTable + weaponIndex * 0xC;
                 s32 delay;
 
                 position[0] = *(f32*)(table + 0x754);
