@@ -4317,6 +4317,273 @@ extern char lbl_80112CA4[];
 extern char lbl_80112CD4[];
 extern char* lbl_8011C8F0[];
 
+extern u8 sItemRuntime[];
+extern f64 lbl_80347100;
+extern f64 lbl_803470F0;
+extern f64 lbl_803470F8;
+extern f32 lbl_803470E8;
+extern f32 sItemSearchDistance;
+extern s32 lbl_80344A28;
+extern s32 lbl_803447B8;
+extern f32 gClockFrameStep;
+extern s32 sNumItemWobjs;
+extern s32 did_generate(void* w, s32 a);
+extern void AudioBridgeClose(f32* pos);
+extern void AudioBridgeOpen(f32* pos);
+extern void AudioWorldObjectMotion(f32* pos, s32 d);
+extern s32 fn_8009D694(s32 mode, f32* pos, s32 d);
+extern void WorldPsysActivate(void* w);
+extern void WorldPsysDeActivate(void* w);
+extern void MBTreeSetAlpha(void* node, s32 alpha, s32 mode);
+extern void MBTreeClearFlags(void* node, s32 flags, s32 value);
+
+/* 0x80062A00 - per-frame world-object motion pump: bridge/door audio cues,
+ * fade-in/out alpha ramps, door open/close latching, continuous sliders. */
+void fn_80062A00(void)
+{
+    u8* rt;
+    u8* row;
+    u8* w;
+    u8* node;
+    s32 heard;
+    s32 i;
+    s32 off;
+    s32 st;
+    s32 prev;
+    s32 gen;
+    s32 kind;
+    s32 flags8;
+    s32 act;
+    s32 a;
+    s32 on;
+    u32 fl16;
+    u32 fl;
+    f32 pos[3];
+    f32 dcur;
+    f32 delta;
+    f32 step;
+    f64 kHi;
+    f64 kRate;
+    f64 kLo;
+    f32 dist;
+    f32 kMoving;
+    f32 zero;
+
+    rt = sItemRuntime;
+    kHi = lbl_80347100;
+    kRate = lbl_803470F0;
+    kLo = lbl_803470F8;
+    dist = sItemSearchDistance;
+    kMoving = lbl_803470E8;
+    zero = sItemZero;
+    heard = 0;
+    i = 0;
+    off = 0;
+    for (; i < sNumItemWobjs; i++, off += 4) {
+        row = rt + off;
+        w = *(u8**)(row + 29216);
+        st = (s8)*(u8*)(w + 22);
+        prev = (s8)*(u8*)(w + 23);
+        gen = did_generate(w, 1);
+        pos[0] = *(f32*)(*(u8**)(w + 40) + 48);
+        pos[1] = *(f32*)(*(u8**)(w + 40) + 52);
+        pos[2] = *(f32*)(*(u8**)(w + 40) + 56);
+        dcur = *(f32*)(row + 2400);
+        kind = *(s16*)(w + 20) & 0xFF;
+        flags8 = (*(s16*)(w + 20) >> 8) & 0xFF;
+        if (!(dcur >= zero) && lbl_80344A28 == 0 && lbl_803447B8 == 0) {
+            if (kind == 20 || kind == 22) {
+                if ((st ^ prev) & 0x20) {
+                    if (st & 0x20) {
+                        AudioBridgeClose(pos);
+                    } else {
+                        AudioBridgeOpen(pos);
+                    }
+                }
+            } else if (dcur >= dist) {
+                if (kMoving == dcur) {
+                    if ((st & 0x20) && !(prev & 0x20) &&
+                        (*(u32*)(w + 16) & 0x00C00000)) {
+                        AudioWorldObjectMotion(pos, (s32)(dcur - dist));
+                    }
+                } else if ((st ^ prev) & 0x10) {
+                    AudioWorldObjectMotion(pos, (s32)(dcur - dist));
+                }
+            } else {
+                if (st & 0x10) {
+                    if (heard == 0) {
+                        heard = fn_8009D694(0, pos, (s32)dcur);
+                    }
+                } else if (prev & 0x10) {
+                    fn_8009D694(2, pos, (s32)dcur);
+                }
+            }
+        }
+        *(u8*)(w + 23) = st;
+        *(u8*)(w + 53) = 0;
+        fl16 = *(u32*)(w + 16);
+        if (fl16 & 0x800) {
+            act = 0;
+            if (st & 0x20) {
+                WorldPsysActivate(w);
+            } else {
+                WorldPsysDeActivate(w);
+            }
+        } else if (flags8 & 0x10) {
+            if (flags8 & 0x20) {
+                if (st & 47) {
+                    on = 1;
+                }
+            } else {
+                if (!(st & 0xF)) {
+                    on = 1;
+                }
+            }
+            *(s8*)(w + 53) = (s8)(on != 0 ? 255 : 0);
+            act = 0;
+            node = *(void**)(w + 40);
+            if (node == NULL) {
+                goto tail;
+            }
+            if (*(u32*)(node + 96) & 0x200) {
+                a = 255 - *(u8*)(node + 83);
+            } else {
+                a = 0;
+            }
+            if (on != 0) {
+                if (a >= 255) {
+                    goto tail;
+                }
+                if (lbl_803447B8 != 0) {
+                    a = 255;
+                } else {
+                    a = a + (gFrameTicks << 3);
+                }
+                if (a >= 248) {
+                    MBTreeSetFlags(node, 2, 0);
+                    MBTreeSetAlpha(*(void**)(w + 40), 255, 1);
+                } else {
+                    MBTreeClearFlags(node, 2, 0);
+                    MBTreeSetAlpha(*(void**)(w + 40), a, 1);
+                    act = 1;
+                }
+            } else {
+                MBTreeClearFlags(node, 2, 0);
+                if (a == 0) {
+                    goto tail;
+                }
+                if (lbl_803447B8 != 0) {
+                    a = 0;
+                } else {
+                    a = a - (gFrameTicks << 3);
+                }
+                act = 1;
+                if (a < 0) {
+                    a = 0;
+                }
+                MBTreeSetAlpha(*(void**)(w + 40), a, 1);
+            }
+        } else if (fl16 & 0x02000000) {
+            if (!(flags8 & 8) && gen >= 2) {
+                *(u32*)(w + 16) = fl16 | 0x00300000;
+                *(u8*)(w + 22) = *(u8*)(w + 22) & ~0x10;
+                goto next;
+            }
+            act = 1;
+            if (flags8 & 0x20) {
+                if (st & 0xF) {
+                    *(u32*)(w + 16) &= ~0x00300000;
+                    st |= 48;
+                } else if (fl16 & 0x00800000) {
+                    *(u32*)(w + 16) |= 0x00300000;
+                    st &= ~0x30;
+                    act = 0;
+                }
+            } else {
+                if (st & 0x20) {
+                    *(u32*)(w + 16) |= 0x00200000;
+                    *(u32*)(w + 16) &= ~0x00100000;
+                } else {
+                    *(u32*)(w + 16) |= 0x00100000;
+                    *(u32*)(w + 16) &= ~0x00200000;
+                }
+                fl = *(u32*)(w + 16);
+                if (fl & 0x00100000) {
+                    if (fl & 0x00400000) {
+                        act = 0;
+                    } else if ((fl & 0x00200000) && (fl & 0x00800000)) {
+                        act = 0;
+                    }
+                } else if ((fl & 0x00200000) && (fl & 0x00800000)) {
+                    act = 0;
+                }
+            }
+        } else {
+            if (!(flags8 & 8) && gen >= 2) {
+                *(f32*)(*(u8**)(w + 40) + 52) =
+                    *(f32*)(row + 600) + *(f32*)row;
+                goto next;
+            }
+            if (st & 0x20) {
+                delta = *(f32*)(row + 1800) - *(f32*)row;
+            } else {
+                delta = *(f32*)(row + 1200) - *(f32*)row;
+            }
+            step = (f32)(kRate * gClockFrameStep);
+            act = 1;
+            if (delta > kLo) {
+                if (delta > step) {
+                    delta = step;
+                }
+            } else if (delta < kHi) {
+                if (delta < -step) {
+                    delta = -step;
+                }
+            } else {
+                if (flags8 & 0x20) {
+                    st ^= 0x20;
+                } else {
+                    act = 0;
+                }
+            }
+            if (act != 0) {
+                *(f32*)row = *(f32*)row + delta;
+                *(u32*)(w + 16) |= 0x08000000;
+            } else {
+                *(u32*)(w + 16) &= ~0x08000000;
+            }
+            *(f32*)(*(u8**)(w + 40) + 52) = *(f32*)(row + 600) + *(f32*)row;
+        }
+    tail:
+        if (act != 0) {
+            if (!(flags8 & 8)) {
+                *(u8*)(w + 53) = 1;
+            }
+            if (!(st & 0x10)) {
+                st |= 0x10;
+            }
+            *(u32*)(w + 16) |= 0x20000000;
+        } else {
+            st &= ~0x30;
+            *(u32*)(w + 16) &= ~0x20000000;
+        }
+        if (!(flags8 & 71)) {
+            if (flags8 & 0x10) {
+                if (gen == 0) {
+                    st = 0;
+                }
+            } else {
+                st = 0;
+            }
+        }
+        *(s8*)(w + 22) = (s8)st;
+    next:;
+    }
+    if (heard == 0) {
+        fn_8009D694(-1, 0, 0);
+    }
+}
+
 /* 0x80060114 - convert a pending enemy-spawn item into a live critter or
  * generated enemy once it becomes visible, then retire the item slot. */
 void fn_80060114(Item* item, f32* pos, f32* dir)
