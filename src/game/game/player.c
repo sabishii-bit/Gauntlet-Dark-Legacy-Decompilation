@@ -5765,7 +5765,8 @@ static void do_got_it_8007FC80(void) {
     s32 i;
 
     for (i = 0, g = got_it; i < 24; i++, g++) {
-        if (g->state == 2) {
+        switch (g->state) {
+        case 2:
             /* sliding up into place */
             if (g->blit1 != NULL) {
                 mbBlitCalcRect(g->blit1, NULL, &y[0], NULL);
@@ -5778,7 +5779,8 @@ static void do_got_it_8007FC80(void) {
                 mbBlitCalcY(g->blit1, y[0]);
                 mbBlitCalcY(g->blit2, y[0] + 0x10);
             }
-        } else if (g->state == 4) {
+            break;
+        case 4:
             /* sliding down out */
             if (g->blit1 != NULL) {
                 mbBlitCalcRect(g->blit1, NULL, &y[0], NULL);
@@ -5789,46 +5791,41 @@ static void do_got_it_8007FC80(void) {
                 mbBlitCalcY(g->blit1, y[0]);
                 mbBlitCalcY(g->blit2, y[0] + 0x10);
             }
-        } else if (g->state == 3) {
+            break;
+        case 3:
             /* holding */
             g->timer -= gFrameTicks;
             if (g->timer < 1) {
                 g->state++;
             }
-        } else if (g->state < 0) {
-            if (g->state > -2) {
-                g->state = 0;
-                if (g->blit1 != NULL) {
-                    MBRemoveBlit(g->blit1);
-                    g->blit1 = NULL;
-                    MBRemoveBlit(g->blit2);
-                    g->blit2 = NULL;
-                }
+            break;
+        case -1:
+            g->state = 0;
+            if (g->blit1 != NULL) {
+                MBRemoveBlit(g->blit1);
+                g->blit1 = NULL;
+                MBRemoveBlit(g->blit2);
+                g->blit2 = NULL;
             }
-        } else if (g->state == 1) {
+            break;
+        case 1:
             /* create the pair */
             x = lbl_80120238[g->player];
             sprintf(buf, "%d", g->count);
             switch (g->type) {
-            case 1:
-                g->blit1 = MBNewBlit(buf, x, 0);
-                if (sMusicTrackHi == 0xC) {
-                    g->blit2 = MBNewBlit("COINHUD", x, 0);
-                } else if (g->count < 0xB) {
-                    g->blit2 = MBNewBlit("KEY", x, 0);
-                } else {
-                    g->blit2 = MBNewBlit("KEYS", x, 0);
-                }
-                break;
             case 2:
                 g->blit1 = MBNewBlit(buf, x, 0);
-                g->blit2 = MBNewBlit((g->count < 2) ? "KEY" : "KEY_RING", x, 0);
+                if (g->count > 1) {
+                    g->blit2 = MBNewBlit("KEY_RING", x, 0);
+                } else {
+                    g->blit2 = MBNewBlit("KEY", x, 0);
+                }
                 break;
             case 3:
                 g->blit1 = MBNewBlit(buf, x, 0);
                 if (g->count >= 100) {
                     g->blit2 = MBNewBlit("MEAT", x, 0);
-                } else if (g->count < -99) {
+                } else if (g->count <= -100) {
                     g->blit2 = MBNewBlit("BADMEAT", x, 0);
                 } else if (g->count < 0) {
                     g->blit2 = MBNewBlit("BADFRUIT", x, 0);
@@ -5839,6 +5836,16 @@ static void do_got_it_8007FC80(void) {
             case 4:
                 g->blit1 = MBNewBlit(buf, x, 0);
                 g->blit2 = MBNewBlit("MAGIC", x, 0);
+                break;
+            case 1:
+                g->blit1 = MBNewBlit(buf, x, 0);
+                if (sMusicTrackHi == 0xC) {
+                    g->blit2 = MBNewBlit("COINHUD", x, 0);
+                } else if (g->count > 10) {
+                    g->blit2 = MBNewBlit("KEYS", x, 0);
+                } else {
+                    g->blit2 = MBNewBlit("KEY", x, 0);
+                }
                 break;
             case 5:
             case 6:
@@ -5852,10 +5859,6 @@ static void do_got_it_8007FC80(void) {
                 g->blit1 = MBNewBlit(buf, x, 0);
                 g->blit2 = MBNewBlit("RUNESTONE", x, 0);
                 break;
-            case 0xD:
-                g->blit1 = MBNewBlit(buf, x, 0);
-                g->blit2 = MBNewBlit("LEGEND", x, 0);
-                break;
             case 0xF:
                 g->blit1 = MBNewBlit(buf, x, 0);
                 g->blit2 = MBNewBlit("CRYSTAL", x, 0);
@@ -5863,6 +5866,10 @@ static void do_got_it_8007FC80(void) {
             case 0x10:
                 g->blit1 = MBNewBlit(buf, x, 0);
                 g->blit2 = MBNewBlit("GOLDNICON", x, 0);
+                break;
+            case 0xD:
+                g->blit1 = MBNewBlit(buf, x, 0);
+                g->blit2 = MBNewBlit("LEGEND", x, 0);
                 break;
             default:
                 g->state = 0;
@@ -5877,6 +5884,9 @@ static void do_got_it_8007FC80(void) {
                 mbBlitCalcWidth(g->blit2, x, 400, 0.16f);
             }
             g->state++;
+            break;
+        default:
+            break;
         }
     }
 }
