@@ -249,7 +249,10 @@ void ScrollMessageBox(char* msg)
     nlines = FixMLineText(msg, gTextWorkBuf, lines);
     wmax = 0;
     for (i = 0; i < nlines; i++) {
-        w = DrawNormalText(lbl_80344A50, lines[i], lbl_80344A4C);
+        char* line = lines[i];
+        s32 font = lbl_80344A4C;
+
+        w = DrawNormalText(lbl_80344A50, line, font);
         if (w > wmax) {
             wmax = w;
         }
@@ -275,7 +278,9 @@ void ScrollMessageBox(char* msg)
     strcpy(gTextFormatBuf, msg);
     y += 32;
     for (i = 0; i < nlines; i++) {
-        DrawTextSub(lbl_80344A50, sA, -256, y, lbl_80344A4C, 0x160C03,
+        s32 font = lbl_80344A4C;
+
+        DrawTextSub(lbl_80344A50, sA, -256, y, font, 0x160C03,
                     lines[i]);
         y += wmax;
     }
