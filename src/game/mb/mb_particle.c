@@ -57,7 +57,7 @@ BOOL  MBWorldSphereVisible3(f64 radius, void* bounds);              /* frustum/s
 f32   mbInvSqrtLookup(f64 x);                                 /* rsqrt / normalize */
 f64   fqdist(f64 a, f64 b);                          /* hypot accumulate */
 void  pbBlitSetTexture(s32 tex);                               /* bind texture page */
-void  pbBlitSetDrawRegs(u32 a, u32 b);                          /* set blend/tev mode */
+void  pbBlitSetDrawRegs(u32 a, u32 b, u32 c);                   /* set blend/tev mode */
 void  fn_800C7914(void* a, void* b);                      /* project helper */
 void  __as__4vec3FRC4vec3(u32 a, u32 b);                          /* copy vec */
 void  sceSamp0MultVec(void* out, const f32* m, const f32* v);
@@ -81,6 +81,23 @@ extern f32   lbl_803451DC;   /* screen cull min y */
 extern f32   lbl_803451E0;   /* screen cull max y */
 extern f32   lbl_803451E4;   /* min quad width */
 extern f32   lbl_803451E8;   /* min quad height */
+extern f32 lbl_80349150;
+extern const f32 lbl_8034915C;
+extern f32 lbl_80349158;
+extern f32 lbl_80349160;
+extern const f64 lbl_80349170;
+extern f32 lbl_80349178;
+extern f32 lbl_8034917C;
+extern f32 lbl_80349180;
+extern const f32 lbl_80349184;
+extern f32 lbl_80349188;
+extern s32 lbl_803451C4;
+extern s32 lbl_803451C8;
+extern s32 lbl_803451CC;
+extern s32 lbl_803451D0;
+extern f32 lbl_803451EC;
+extern f32 lbl_803451F0;
+
 extern f32   psysInfo[];     /* per-parm scale/min/max config table */
 extern char  lbl_80116F30[]; /* "freePsysMem: bad free block..." */
 extern char  lbl_80116D70[]; /* TU string block base */
@@ -823,25 +840,483 @@ static void DrawPsysSub(f32* pos, u32 color, s32 c, s32 sx, s32 sy, f32 size) {
  * Documented flow: run the emitter phase machine (psys->e_phase: 0 delay .. 8
  * dead), emit new particles via pos_func/dir_func, age the ring through
  * ppos_func and draw each live particle with DrawPsysSub. Giant (NonMatching). */
-void MBDrawPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-                MBObject* node) {
+s32 MBDrawPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
+               MBObject* node, void* arg) {
+    typedef struct PSlot {
+        f32 cur;
+        f32 start;
+        f32 slope;
+        struct PSlot* next;
+    } PSlot;
+    u8* pi = (u8*)psysInfo;
     Psys* p = (Psys*)node->data.psys;
-    s32 phase = p->e_phase;
-    s32 dt = gPsysFrame - p->e_last_time;
-    if ((u32)dt > 0xf) {
+    f32 rate = lbl_80349150;
+    u32 dt;
+    u32 age;
+    f32 agef;
+    u16* ringbase;
+    u16* ringend;
+    u16* oldest;
+    u16* newest;
+    u16* emitStart;
+    u16* cursor;
+    u16* stop;
+    u16 entry;
+    u32 agemask;
+    s32 age_bits, dir_bits, shiftDA;
+    s32 plsum;
+    s32 over;
+    u32 color;
+    u32 cmask;
+    PSlot* list;
+    PSlot slots[5];
+    f32 pos[4];
+    f32 budget;
+    s32 texw, texh;
+    PsysPPosFunc ppfn;
+    u16 dmask;
+    u8* blk;
+
+    *(s16*)(pi + 148) = -1;
+    blk = pi + 64;
+    *(s16*)(pi + 150) = -1;
+    list = NULL;
+    dt = *(u32*)(pi + 84) - p->e_last_time;
+    if (dt > 15) {
         dt = 1;
     }
-    lbl_80128710.dirSlot = -1;
-    lbl_80128710.posSlot = -1;
-    if (phase == 0) {
+    age = p->e_age + dt;
+    p->e_last_time = *(u32*)(blk + 20);
+    agef = (f32)age;
+
+    switch (p->e_phase) {
+    case 0:
+    {
+        u32 d = p->e_delay;
+        if (d != 0) {
+            if (age <= d) {
+                p->e_age = age;
+                return 0;
+            }
+            age -= d;
+            dt = age;
+        }
+        p->e_phase = 1;
+    }
+    case 1:
         setupParms(p);
         setupNewPMode_800CDCE4(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, p);
+        p->p_oldest_ptr = NULL;
+        p->p_oldest_age = 0;
+        p->p_newest_age = 0;
+        p->p_newest_ptr = (u16*)((u8*)p->p_lst + p->p_max * 2 - 2);
+        p->p_save_cnt = lbl_80349154;
+        p->nearest_z = lbl_80349158;
+        if (p->p_lst == NULL) {
+            s32* h = listFindHandle((s32)p, (s32)blk);
+            *(s32*)(pi + 64) = *(s32*)(pi + 64) - 1;
+            *h = (s32)p->next;
+            p->next = NULL;
+            *(s32*)(pi + 72) = *(s32*)(pi + 72) + 1;
+            p->next = *(Psys**)(pi + 76);
+            *(Psys**)(pi + 76) = p;
+            p->flags |= 0x8000;
+            p->e_phase = 8;
+            p->e_phase = 8;
+            return 0;
+        }
+        if (dt == 0) {
+            dt = 1;
+            age += 1;
+            agef = agef + lbl_8034915C;
+        }
         p->e_phase = 2;
-        (void)listFindHandle(p->id, (s32)&gPsysRmQueue);
+        if (p->flags & 1) {
+            rate = lbl_80349160;
+            dt = 1;
+            p->e_phase = 6;
+            age = 1;
+            goto phaseD;
+        }
+        if ((p->flags & 2) && p->e_life == 0xFFFF) {
+            p->e_phase = 4;
+    case 4:
+            rate = p->e_rate.o.life_start;
+            goto phaseD;
+        }
+    case 2:
+        if (age <= p->e_life) {
+            rate = p->e_rate.o.life_slope * agef + p->e_rate.o.life_start;
+            goto phaseD;
+        }
+        if ((p->flags & 2) && p->e_fade == 0xFFFF) {
+            p->e_phase = 5;
+    case 5:
+            rate = p->e_rate.o.fade_start;
+            goto phaseD;
+        }
+        p->e_phase = 3;
+    case 3:
+        if (age <= (u32)p->e_life + p->e_fade) {
+            rate = p->e_rate.o.fade_slope * agef + p->e_rate.o.fade_start;
+            goto phaseD;
+        }
+        if (p->flags & 2) {
+            p->e_phase = 2;
+            age = 0;
+            rate = p->e_rate.o.life_start;
+            goto phaseD;
+        }
+        p->e_phase = 6;
+    case 6:
+        rate = lbl_80349154;
+        p->p_save_cnt = lbl_80349154;
+        if (p->p_oldest_ptr == NULL) {
+    case 7:
+        {
+            s32* h = listFindHandle((s32)p, (s32)blk);
+            *(s32*)(pi + 64) = *(s32*)(pi + 64) - 1;
+            *h = (s32)p->next;
+            p->next = NULL;
+            *(s32*)(pi + 72) = *(s32*)(pi + 72) + 1;
+            p->next = *(Psys**)(pi + 76);
+            *(Psys**)(pi + 76) = p;
+            p->flags |= 0x8000;
+            p->e_phase = 8;
+            p->e_phase = 8;
+        }
+    case 8:
+            return 0;
+        }
+        break;
     }
-    if (p->p_lst != NULL) {
-        DrawPsysSub((f32*)p->p_lst, 0, 0, 0, 0, 0.0f);
+phaseD:
+    if (p->e_isvis == 0 || (node->flags & 0x200000)) {
+        rate = lbl_80349154;
     }
+    p->e_age = age;
+    ringbase = p->p_lst;
+    ringend = ringbase + p->p_max;
+    if (rate > lbl_80349154) {
+        f32 rr = p->e_rate_rand;
+        if (rr > lbl_80349154) {
+            u32 r = pbRand() & 0x7FFF;
+            rate = (f32)(rate * (rr * (lbl_80349170 * (f32)r - 1.0) + 1.0));
+        }
+    }
+    {
+        u32 nfl = node->flags;
+        u32 m;
+        if (p->p_tex != NULL) {
+            pbBlitSetTexture(p->p_texidx);
+            texw = *(u16*)((u8*)p->p_tex + 10);
+            texh = *(u16*)((u8*)p->p_tex + 12);
+        } else {
+            texw = 16;
+            texh = 16;
+        }
+        m = 0;
+        if (p->flags & 0x20) {
+            m |= 0x100000;
+        } else if (p->flags & 0x10) {
+            m |= 0x200000;
+        }
+        pbBlitSetDrawRegs(m, nfl, 0);
+    }
+    plsum = (u32)p->p_life + p->p_fade;
+    age_bits = p->age_bits;
+    dir_bits = p->dir_bits;
+    dmask = (1 << dir_bits) - 1;
+    agemask = (1 << age_bits) - 1;
+    shiftDA = dir_bits + age_bits;
+    newest = p->p_newest_ptr;
+    oldest = p->p_oldest_ptr;
+    over = (s32)(dt + p->p_oldest_age) - plsum;
+    if (over >= 0 && oldest != NULL) {
+        entry = *oldest;
+        stop = (newest >= oldest) ? newest : ringend - 1;
+        do {
+            if (p->pos_use_lst != NULL) {
+                p->pos_use_lst[(s32)entry >> shiftDA] -= 1;
+            }
+            if (p->dir_use_lst != NULL) {
+                p->dir_use_lst[dmask & ((s32)entry >> age_bits)] -= 1;
+            }
+            if (oldest == stop) {
+                if (oldest == newest) {
+                    newest = ringend - 1;
+                    oldest = NULL;
+                    break;
+                }
+                oldest = ringbase - 1;
+                stop = newest;
+            }
+            oldest += 1;
+            entry = *oldest;
+            over -= (agemask & 0xFFFF) & entry;
+        } while (over >= 0);
+        if (oldest != NULL) {
+            p->pos_last = (s32)entry >> shiftDA;
+            p->dir_last = dmask & ((s32)entry >> age_bits);
+        } else {
+            p->pos_last = 0xFFFF;
+            p->dir_last = 0xFFFF;
+        }
+    }
+    p->p_oldest_age = plsum + over;
+    budget = rate * (f32)dt + p->p_save_cnt;
+    stop = (oldest > newest) ? oldest : ringend;
+    emitStart = (newest == ringend - 1) ? ringbase : newest + 1;
+    cursor = emitStart;
+    if (cursor == oldest) {
+        p->p_save_cnt = lbl_80349154;
+        p->p_newest_age = p->p_newest_age + dt;
+    } else {
+        f32 startBudget = budget;
+        f64 one = 1.0;
+        f32 zero = lbl_80349154;
+        while (budget > zero) {
+            s32 posIdx;
+            s32 dirIdx;
+            if ((posIdx = ((s32(*)(Psys*,void*,s32))p->pos_func)(p, arg, 0)) < 0) {
+                break;
+            }
+            dirIdx = ((s32(*)(Psys*,void*,s32))p->dir_func)(p, arg, 0);
+            if (dirIdx < 0) {
+                if (p->pos_use_lst != NULL) {
+                    p->pos_use_lst[dirIdx] -= 1;
+                }
+                break;
+            }
+            budget = (f32)(budget - one);
+            *cursor = (posIdx << shiftDA) | (dirIdx << age_bits);
+            cursor += 1;
+            if (cursor == stop) {
+                if (cursor != ringend) {
+                    break;
+                }
+                if (oldest == NULL) {
+                    oldest = emitStart;
+                }
+                if (oldest == ringbase) {
+                    break;
+                }
+                cursor = ringbase;
+                stop = oldest;
+            }
+        }
+        p->p_save_cnt = (budget > lbl_80349154) ? lbl_80349154 : budget;
+        if (budget == startBudget) {
+            p->p_newest_age = p->p_newest_age + dt;
+        } else {
+            u16* scan;
+            u16* limit;
+            s32 filled = 0;
+            f32 acc;
+            u32 am16 = agemask & 0xFFFF;
+            if (oldest == NULL) {
+                oldest = emitStart;
+            }
+            p->p_newest_ptr = (cursor == ringbase) ? ringend - 1 : cursor - 1;
+            limit = (emitStart < cursor) ? emitStart : ringbase - 1;
+            acc = rate;
+            scan = cursor;
+            while (1) {
+                scan -= 1;
+                acc = acc - lbl_8034915C;
+                if (scan == limit) {
+                    if (scan == emitStart) {
+                        break;
+                    }
+                    scan = ringend - 1;
+                    limit = emitStart;
+                    if (scan == emitStart) {
+                        break;
+                    }
+                }
+                if (acc <= lbl_80349154) {
+                    u32 n = 0;
+                    do {
+                        acc = acc + rate;
+                        n += 1;
+                        filled += 1;
+                        if (acc > lbl_80349154) {
+                            break;
+                        }
+                    } while (n != am16);
+                    *scan = *scan | n;
+                }
+            }
+            if (oldest == emitStart) {
+                p->p_oldest_age = filled;
+                p->p_newest_age = 0;
+            } else {
+                s32 carry;
+                u16 e;
+                u32 ev;
+                u16* lim2;
+                carry = p->p_newest_age;
+                p->p_newest_age = 0;
+                carry = (carry + dt) - filled;
+                e = *scan;
+                ev = e;
+                lim2 = (scan >= cursor) ? ringend : cursor;
+                if (carry > (s32)am16) {
+                    do {
+                        *scan = (u16)ev | (u16)agemask;
+                        scan += 1;
+                        if (scan == lim2) {
+                            if (scan == cursor) {
+                                e = 0;
+                                carry = am16 & *scan;
+                                p->p_newest_age = carry;
+                                break;
+                            }
+                            lim2 = cursor;
+                            scan = ringbase;
+                        }
+                        e = *scan;
+                        ev = e;
+                        carry = carry + ((am16 & ev) - am16);
+                    } while (carry > (s32)am16);
+                    e = e & ~(u16)agemask;
+                }
+                *scan = e | (u16)carry;
+            }
+        }
+    }
+    p->p_oldest_ptr = oldest;
+    {
+        u16* prevOld = oldest - 1;
+        f32 plf = (f32)(u32)p->p_life;
+        f32 page;
+        u32 e8;
+        u16* wrapStop;
+        color = 0xFFFFFFFF;
+        cmask = 0;
+        page = (f32)(u32)p->p_newest_age;
+        cursor = p->p_newest_ptr;
+        wrapStop = (oldest > cursor) ? ringbase - 1 : prevOld;
+        e8 = *cursor;
+        if (page < plf) {
+            PSlot* sl = &slots[4];
+            f32* src = (f32*)&p->p_parms[4];
+            list = NULL;
+            cmask = 0;
+            do {
+                if (*(s32*)(src + 1) == 0) {
+                    sl->cur = src[0];
+                } else {
+                    sl->start = src[0];
+                    sl->slope = src[1];
+                    sl->next = list;
+                    list = sl;
+                    if (sl <= &slots[3]) {
+                        cmask = cmask | (0xFF << (sl - slots) * 8);
+                    }
+                }
+                src -= 4;
+                sl -= 1;
+            } while (sl != &slots[0] - 1);
+            color = ((s32)(p->p_parms[1].k.life_value) << 8) |
+                    (s32)(p->p_parms[0].k.life_value) |
+                    ((s32)(p->p_parms[2].k.life_value) << 16) |
+                    ((s32)(p->p_parms[3].k.life_value) << 24);
+        }
+        ppfn = p->ppos_func;
+        {
+            u8* g = (u8*)gWinGlobals;
+            u8* w = *(u8**)(g + 56);
+            lbl_803451C4 = *(s32*)(w + 8) - 256;
+            lbl_803451C8 = *(s32*)(*(u8**)(g + 56) + 8) +
+                           *(s32*)(*(u8**)(g + 56) + 16) + 256;
+            lbl_803451CC = *(s32*)(*(u8**)(g + 56) + 12) - 256;
+            lbl_803451D0 = *(s32*)(*(u8**)(g + 56) + 12) +
+                           *(s32*)(*(u8**)(g + 56) + 20) - 256;
+            lbl_803451EC = lbl_80349178 /
+                           ((f32)(*(s32*)(*(u8**)(g + 56) + 16)) * lbl_8034917C *
+                            lbl_80349180);
+            lbl_803451E4 = lbl_803451EC * lbl_8034917C;
+            lbl_803451D4 = lbl_80349184 - lbl_803451EC;
+            lbl_803451D8 = lbl_8034915C + lbl_803451EC;
+            lbl_803451F0 = lbl_80349178 /
+                           ((f32)(*(s32*)(*(u8**)(g + 56) + 20)) * lbl_8034917C *
+                            lbl_80349180);
+            lbl_803451E8 = lbl_803451F0 * lbl_8034917C;
+            lbl_803451DC = lbl_80349184 - lbl_803451F0;
+            lbl_803451E0 = lbl_8034915C + lbl_803451F0;
+        }
+        p->p_nactive = 0;
+        if (oldest != NULL) {
+            do {
+                u32 ent = e8 & 0xFFFF;
+                s32 dIdx = (s32)ent >> age_bits;
+                s32 pIdx = (s32)ent >> shiftDA;
+                u32 di = dmask & dIdx;
+                if (page >= plf) {
+                    PSlot* sl = &slots[4];
+                    s32* src = (s32*)&p->p_parms[4];
+                    plf = lbl_80349188;
+                    cmask = 0;
+                    list = NULL;
+                    do {
+                        if (src[3] == 0) {
+                            sl->cur = *(f32*)(src + 2);
+                        } else {
+                            sl->start = *(f32*)(src + 2);
+                            sl->slope = *(f32*)(src + 3);
+                            sl->next = list;
+                            list = sl;
+                            if (sl <= &slots[3]) {
+                                cmask = cmask | (0xFF << (sl - slots) * 8);
+                            }
+                        }
+                        src -= 4;
+                        sl -= 1;
+                    } while (sl != &slots[0] - 1);
+                    color = ((s32)(p->p_parms[1].k.fade_value) << 8) |
+                            (s32)(p->p_parms[0].k.fade_value) |
+                            ((s32)(p->p_parms[2].k.fade_value) << 16) |
+                            ((s32)(p->p_parms[3].k.fade_value) << 24);
+                }
+                ppfn(p, pos, p->init_dir_lst[di], p->init_pos_lst[pIdx], page);
+                pos[3] = lbl_8034915C;
+                SetMultiPassTextureParams(0);
+                SetVertexFormat(2);
+                SetCullMode(0);
+                SetPerspectiveMode(1);
+                SetViewportHeight(gVpScaleY);
+                {
+                    PSlot* sl = list;
+                    if (cmask != 0) {
+                        color = color & ~cmask;
+                        while (sl != NULL && sl <= &slots[3]) {
+                            s32 v = (s32)(sl->slope * page + sl->start);
+                            color = color | (v << (sl - slots) * 8);
+                            sl = sl->next;
+                        }
+                    }
+                    for (; sl != NULL; sl = sl->next) {
+                        sl->cur = sl->slope * page + sl->start;
+                    }
+                }
+                p->p_nactive = p->p_nactive + 1;
+                DrawPsysSub(pos, color, p->p_texidx, texw, texh,
+                            slots[4].cur / *(f32*)(pi + 284) * node->scale[1]);
+                cursor -= 1;
+                if (cursor == wrapStop) {
+                    if (cursor == prevOld) {
+                        break;
+                    }
+                    cursor = ringend - 1;
+                    wrapStop = prevOld;
+                }
+                e8 = *cursor;
+                page = page + (f32)(s32)(agemask & 0xFFFF & ent);
+            } while (1);
+        }
+    }
+    return 0;
 }
 
 /* 0x800CDBE0 - visibility pre-cull; sets psys->e_isvis draw flag */
