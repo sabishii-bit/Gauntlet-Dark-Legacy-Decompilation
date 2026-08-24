@@ -3571,8 +3571,8 @@ s32 EnemyStartMissile(void* enemy, f32* launchPos, f32* target, s32 slot)
         NormalVector(dir);
     } else {
         f32 spread = slot == 1 ? lbl_80346358 : lbl_8034635C;
-        f32 weight = desc->weight;
         f64 rnd = Random(lbl_80346368);
+        f32 weight = desc->weight;
         f32 lead = (f32)((f64)PF(gCurLevel, 0xC8, f32) *
                          (lbl_80346360 + rnd) + (f64)spread);
         f32 horiz = fqdist(dir[0], dir[2]);
