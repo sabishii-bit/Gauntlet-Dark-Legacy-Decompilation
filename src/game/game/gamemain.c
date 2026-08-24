@@ -4548,12 +4548,13 @@ void world_update(void)
     {
         u8* lv = gCurLevel;
 
-        cond = 0;
         if ((s8)lv[8] == (s8)lbl_80346C48[0] &&
             ((s8)lv[9] == 0 || (s8)lv[9] == (s8)lbl_80346C48[1]) &&
             ((s8)lv[10] == 0 || (s8)lv[10] == (s8)lbl_80346C48[2]) &&
             ((s8)lv[11] == 0 || (s8)lv[11] == (s8)lbl_80346C48[3])) {
             cond = 1;
+        } else {
+            cond = 0;
         }
     }
     if (cond && gGameMode == 0x4010 && gBossObj != NULL &&
