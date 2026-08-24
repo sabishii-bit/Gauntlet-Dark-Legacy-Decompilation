@@ -444,11 +444,10 @@ extern void  MBWindowTo3D(f32 depth, s16* screen, f32* camera, f32* out);
 
 /* Forward decls for same-TU functions referenced before definition. */
 void game_main(void);
-void do_stats_display(void);
+s32  do_stats_display(void);
 void LoadTowerAndSelect(void);
-s32  init_next_level_8005638C(s32 arg0);
+static s32 init_next_level(s32 arg0);
 s32  fn_80054070(s32 arg0, s32 arg1, s32 arg2);
-s32  init_next_level_8005638C(s32 arg0);
 void init_thermometer(void);
 void GetEnemyTypes(void);
 void game_init_data(void);
@@ -843,6 +842,7 @@ void SetEnemyObj(u8* enemy, s32 type, s32 level, s32 unused)
 }
 
 /* 0x800508A0 -- re-init texture-mod state for every active pool entry. */
+#pragma dont_inline on
 void fn_800508A0(void)
 {
     s32 i;
@@ -856,6 +856,7 @@ void fn_800508A0(void)
         }
     }
 }
+#pragma dont_inline off
 
 /* 0x80050910 -- negate one entry of the sign-flip table, then notify. */
 void fn_80050910(s32 arg0)
@@ -1373,11 +1374,13 @@ s32 fn_80057BC8(s32 type)
 }
 
 /* 0x8005403C -- lock the model box, then run AtreeListLock. */
+#pragma dont_inline on
 void LockModels(s32 arg0)
 {
     MBOX_LockModels();
     AtreeListLock(arg0);
 }
+#pragma dont_inline off
 
 /* 0x8005636C -- advance a two-field counter unless it is parked at 2. */
 void fn_8005636C(s32* s)
@@ -1701,7 +1704,7 @@ void LoadTowerAndSelect(void)
         FontInitSpecial(lbl_80112600, 8);
         ShopLoadData();
         LoadItems();
-        lbl_80343C10 = init_next_level_8005638C(sWorldDataConst);
+        lbl_80343C10 = init_next_level(sWorldDataConst);
         if (gDemoMode == 0) {
             opt_force_player = 0;
         }
@@ -2428,7 +2431,7 @@ s32 fn_80056698(s32 arg0, s32 arg1)
 
     ResolveWorldData(arg0);
     if (arg1 < 0) {
-        init_next_level_8005638C(arg0);
+        init_next_level(arg0);
         while (fn_80055F68(0, 0) == 0) {
             serve_busy(-1);
         }
@@ -2904,6 +2907,154 @@ void fn_80051C78(void)
     }
 }
 
+/* 0x800511D0 - from a given milestone, pick the next milestone whose
+ * direction (relative to the source's facing) is within the tolerance,
+ * preferring the nearest one (with a second-best fallback by |dy|). */
+extern f32  atan2(f32 y, f32 x);
+extern f64  lbl_80346840;          /* pi   */
+extern f64  lbl_80346848;          /* 2pi  */
+extern f64  lbl_80346850;          /* -pi  */
+extern char lbl_80112518[];        /* "no next milestone" error fmt */
+extern f32  get_yaw(f32* to, f32* from);
+extern f64  lbl_803468B8;          /* 3.0 */
+
+#pragma opt_common_subs off
+#pragma opt_propagation off
+s32 fn_800511D0(s32 arg0, f32 arg1)
+{
+    u8 unusedHi[12];
+    f32 pos[3];
+    f32 bestDist;
+    f32 secondDist;
+    f32 bestDy;
+    f32 secondDy;
+    f32 tolerance;
+    f64 kThree;
+    f64 kHalf;
+    f32 kZero;
+    f64 k2Pi;
+    f64 kNegPi;
+    f64 kPi;
+    f32 base;
+    s32 second;
+    s32 milestone;
+    u8* m;
+    s32 i;
+    s32 best;
+    u8 unusedLo[28];
+
+    bestDist = lbl_803468B0;
+    best = -1;
+    secondDist = bestDist;
+    bestDy = bestDist;
+    second = -1;
+    secondDy = bestDist;
+    tolerance = arg1;
+    milestone = arg0;
+    if (milestone < 0) {
+        return milestone;
+    }
+
+    m = sMilestones + milestone * 104;
+    pos[0] = *(f32*)(m + 48);
+    pos[1] = *(f32*)(m + 52);
+    pos[2] = *(f32*)(m + 56);
+    {
+        f32 x = *(f32*)(m + 40);
+        f32 r = atan2(*(f32*)(m + 32), x);
+        f64 p = lbl_80346840;
+        f32 a = (f32)(p + r);
+        f64 t;
+        if (a > p) {
+            t = a - lbl_80346848;
+        } else if (a <= lbl_80346850) {
+            t = lbl_80346848 + a;
+        } else {
+            t = a;
+        }
+        base = (f32)t;
+    }
+
+    kZero = lbl_80346820;
+    kHalf = lbl_80346830;
+    kThree = lbl_803468B8;
+    kNegPi = lbl_80346850;
+    k2Pi = lbl_80346848;
+    kPi = lbl_80346840;
+    {
+        u8* m0 = sMilestones;
+        m = m0;
+    }
+    for (i = 0; i < sNumMilestones; i++, m += 104) {
+        f32 d;
+        f64 nd;
+        f32 ad;
+        f32 dx;
+        f32 dy;
+        f32 dz;
+        f32 dist;
+
+        if (i == milestone) {
+            continue;
+        }
+        d = get_yaw((f32*)(m + 48), pos) - base;
+        if (d > kPi) {
+            nd = d - k2Pi;
+        } else if (d <= kNegPi) {
+            nd = k2Pi + d;
+        } else {
+            nd = d;
+        }
+        ad = (f32)nd;
+        *(u32*)&ad &= 0x7FFFFFFF;
+        if (ad <= tolerance) {
+            dy = *(f32*)(m + 52) - pos[1];
+            dx = *(f32*)(m + 48) - pos[0];
+            dz = *(f32*)(m + 56) - pos[2];
+            dist = dx * dx + dy * dy;
+            dist = dz * dz + dist;
+            if (dist > kZero) {
+                volatile f32 tmp;
+                f64 y = __frsqrte(dist);
+                y = kHalf * y * (kThree - y * y * dist);
+                y = kHalf * y * (kThree - y * y * dist);
+                y = kHalf * y * (kThree - y * y * dist);
+                tmp = (f32)(dist * (kHalf * y * (kThree - y * y * dist)));
+                dist = tmp;
+            }
+            if (dist < bestDist) {
+                f32 t1 = dy;
+                secondDist = bestDist;
+                second = best;
+                secondDy = bestDy;
+                *(u32*)&t1 &= 0x7FFFFFFF;
+                bestDist = dist;
+                best = i;
+                bestDy = t1;
+            } else if (dist < secondDist) {
+                f32 t2 = dy;
+                secondDist = dist;
+                second = i;
+                *(u32*)&t2 &= 0x7FFFFFFF;
+                secondDy = t2;
+            }
+        }
+    }
+
+    if (bestDy > secondDy) {
+        best = second;
+    }
+    if (best < 0) {
+        if ((gControllerButtons & 0x10) != 0) {
+            ErrorPrintf(lbl_80112518, milestone);
+        }
+        best = milestone;
+    }
+    return best;
+}
+#pragma opt_propagation reset
+#pragma opt_common_subs on
+
 /* 0x80051E1C - format a world/level display name (uppercased) */
 extern char lbl_80346A90[8];    /* "%s" fmt */
 extern char lbl_80346A98[8];    /* "%s %c" fmt */
@@ -3018,6 +3169,156 @@ void fn_80051568(s32 index)
             *(s32*)(e + 832) = i;
             *(s32*)(e + 828) = 1;
         }
+    }
+}
+
+/* 0x800516F8 -- pick the closest eligible player target for an enemy. */
+extern s32 lbl_80344B24;           /* forced "it" player index */
+extern f64 lbl_80346870;
+extern f64 lbl_80346868;
+
+#define DIST3(dst, av, bv, kZ, kH, kT)     {         f32 dy_ = (av)[1] - (bv)[1];         f32 dx_ = (av)[0] - (bv)[0];         f32 dz_ = (av)[2] - (bv)[2];         (dst) = dx_ * dx_ + dy_ * dy_;         (dst) = dz_ * dz_ + (dst);         if ((dst) > (kZ)) {             volatile f32 tmp_;             f64 y_ = __frsqrte((dst));             y_ = (kH) * y_ * ((kT) - y_ * y_ * (dst));             y_ = (kH) * y_ * ((kT) - y_ * y_ * (dst));             y_ = (kH) * y_ * ((kT) - y_ * y_ * (dst));             tmp_ = (f32)((dst) * ((kH) * y_ * ((kT) - y_ * y_ * (dst))));             (dst) = tmp_;         }     }
+
+void fn_800516F8(s32 slot)
+{
+    u8 unused[44];
+    f32 ad;
+    u8* p;
+    u8* e;
+    s32 i;
+    s32 t;
+    f64 kK;
+    f64 kThree;
+    f64 kHalf;
+    f32 kZero;
+    f32 dist;
+    f64 kPi;
+    f32 range;
+    f32 bestSpecial;
+    u8 padLo[4];
+
+    e = (u8*)gEnemies + slot * 916;
+    bestSpecial = lbl_803468B0;
+
+    for (i = 0, p = gPlayers; i < 4; i++, p += 13148) {
+        if (*(s32*)(p + 232) == 1) {
+            break;
+        }
+    }
+    if (i >= 4) {
+        *(s16*)(e + 734) = 0;
+    }
+
+    t = lbl_80344B24;
+    if (t >= 0 && *(s32*)(gPlayers + t * 13148 + 232) == 1 &&
+        !(*(u32*)(gPlayers + t * 13148 + 292) & 4) &&
+        !(*(s32*)e == 30 && (*(u32*)(gPlayers + t * 13148 + 288) & 0x80000))) {
+        u8* q;
+        *(s16*)(e + 630) = *(s16*)(e + 628);
+        *(s16*)(e + 628) = (s16)lbl_80344B24;
+        q = gPlayers + lbl_80344B24 * 13148;
+        {
+            f32 fd;
+            if (*(s16*)(q + 2588) > 2) {
+                DIST3(fd, (f32*)(e + 84), (f32*)(q + 2564),
+                      lbl_80346820, lbl_80346830, lbl_803468B8);
+            } else {
+                DIST3(fd, (f32*)(e + 84), (f32*)(q + 100),
+                      lbl_80346820, lbl_80346830, lbl_803468B8);
+            }
+            *(f32*)(e + 636) = fd;
+        }
+        *(f32*)(e + 632) = *(f32*)(e + 636) +
+                           *(f32*)(gPlayers + lbl_80344B24 * 13148 + 2600);
+    } else {
+        s32 go = 1;
+        s32 cur;
+        if ((lbl_80344800 & 7) != (slot & 7) && *(s16*)(e + 628) >= 0) {
+            go = 0;
+        }
+        cur = *(s16*)(e + 628);
+        if ((s16)cur >= 0 &&
+            *(s32*)(gPlayers + cur * 13148 + 232) != 1) {
+            go = -1;
+        }
+        if (go != 0) {
+            f32 big;
+            *(s16*)(e + 630) = (s16)cur;
+            *(s16*)(e + 628) = -1;
+            big = lbl_803468B0;
+            *(f32*)(e + 632) = big;
+            *(f32*)(e + 636) = big;
+            if (*(s32*)e == 30) {
+                *(s32*)(e + 808) = -1;
+            }
+            kPi = lbl_80346840;
+            kK = lbl_80346870;
+            kZero = lbl_80346820;
+            kHalf = lbl_80346830;
+            kThree = lbl_803468B8;
+            {
+                for (; i < 4; i++, p += 13148) {
+                    if (*(s32*)(p + 232) != 1) {
+                        continue;
+                    }
+                    if (*(u32*)(p + 292) & 4) {
+                        continue;
+                    }
+                    if (*(s16*)(p + 2588) > 2) {
+                        DIST3(dist, (f32*)(e + 84), (f32*)(p + 2564),
+                              kZero, kHalf, kThree);
+                    } else {
+                        DIST3(dist, (f32*)(e + 84), (f32*)(p + 100),
+                              kZero, kHalf, kThree);
+                    }
+                    range = dist;
+                    if (range > *(f32*)(e + 768)) {
+                        continue;
+                    }
+                    if (*(s32*)e == 30 && (*(u32*)(p + 288) & 0x80000)) {
+                        if (range < bestSpecial) {
+                            bestSpecial = range;
+                            *(s32*)(e + 808) = i;
+                        }
+                        continue;
+                    }
+                    if (range > kK * *(f32*)(e + 568)) {
+                        range += *(f32*)(p + 2600);
+                    }
+                    if (!(range < *(f32*)(e + 632))) {
+                        continue;
+                    }
+                    if (*(f32*)(e + 764) < kPi) {
+                        ad = get_yaw((f32*)(p + 100), (f32*)(e + 84)) -
+                             *(f32*)(e + 580);
+                        *(u32*)&ad &= 0x7FFFFFFF;
+                        if (ad > *(f32*)(e + 764)) {
+                            continue;
+                        }
+                    }
+                    *(f32*)(e + 632) = range;
+                    *(f32*)(e + 636) = dist;
+                    *(s16*)(e + 628) = (s16)i;
+                }
+            }
+        }
+    }
+
+    if (*(s16*)(e + 628) >= 0) {
+        if (*(f32*)(e + 636) <= *(f32*)(e + 768)) {
+            u8* base;
+            *(s16*)(e + 734) = 1;
+            base = gPlayers;
+            (*(s32*)(base + *(s16*)(e + 628) * 13148 + 2596))++;
+            {
+                u8* r = base + *(s16*)(e + 628) * 13148;
+                *(f32*)(r + 2600) = (f32)(*(f32*)(r + 2600) + lbl_80346868);
+            }
+        }
+    } else {
+        f32 big = lbl_803468B0;
+        *(f32*)(e + 636) = big;
+        *(f32*)(e + 632) = big;
     }
 }
 
@@ -3266,3 +3567,962 @@ void init_thermometer(void)
     lbl_80343C08 = (f32)(lbl_80346BA8 / (lbl_80346BD8 * length));
 }
 #pragma opt_propagation on
+
+/* 0x8005351C -- world/level entry orchestrator (only caller: game_main). */
+extern s32  opt_restart_request;
+extern void AudioReset(s32 force);
+extern void fn_800BC4E4(void);
+extern s32  good_wiz_exit_timer;
+extern s32  lbl_80344808;
+extern s32  lbl_80344804;
+extern s32  lbl_803447C8;
+extern s32  lbl_803447C4;
+extern s32  lbl_80343C04;
+extern s32  lbl_80343C00;
+extern s32  sMusicTrackLo;
+extern s32  lbl_803448B4;
+extern s32  lbl_803448B0;
+extern void SetScrollLevelMsgList(s32 mode, void* list);
+extern void sumnerUpdatePresence(void);
+void fn_80057024(void);
+extern void SetupDynGrid(void);
+extern void CreateDynobjGrid(void);
+extern void player_store_in_save(u8* pl);
+extern void PlayerRestoreState(s32 player);
+extern void EnterTower(void);
+extern void InitCamera(s32 mode);
+extern s32  lbl_80344824;
+extern void load_player(s32 player);
+extern void add_target(void* mat);
+extern void LoadPlyrData(s32 player, s32 pad, s32 mode);
+extern void CopyMat3(f32* src, f32* dst);
+extern f32  lbl_80257650[];
+extern void UpdatePlayerWorldMat(void* player, s32 force);
+extern void setup_player_display(s32 player);
+extern void PlayerSaveState(s32 player, s32 mode);
+extern void camera_mode_level(s32 mode);
+extern s32  lbl_803447D0;
+extern void LoadAllRecords(void);
+extern void BGMusicStart(void);
+extern void SetPlayerWindows(s32 mode);
+extern void fn_8006F16C(s32 arg0);
+extern void fn_8005B988(void);
+extern void do_enemies(void);
+extern void AudioMusicVolUpdate(void);
+extern s32  welcome_timer;
+
+typedef struct PlayerSaveBlk {
+    s32 w[1293];                    /* 5172 bytes */
+} PlayerSaveBlk;
+
+void fn_8005351C(void)
+{
+    u8 unused[8];
+    s32 t = 0;
+    s32 state = lbl_8034481C;
+    s32 inTower;
+    s32 isSelect;
+    s32 off;
+    u8* tbl;
+    f32* idmat;
+    s32 i;
+    u8* p;
+
+    if (state >= 13 && state < 0x10000) {
+        t = 1;
+    }
+    if (t != 0) {
+        inTower = 1;
+    } else {
+        inTower = 0;
+    }
+    if (state == 2) {
+        isSelect = 1;
+    } else {
+        isSelect = 0;
+    }
+
+    opt_restart_request = 0;
+    AudioReset(0);
+    fn_800BC4E4();
+    gGameMode = 0x400C;
+    gGameBusy = 0;
+    good_wiz_exit_timer = 0;
+    lbl_80344808 = 0;
+    lbl_80344804 = 0;
+    lbl_803447E8 = 0;
+    lbl_80344780 = 0;
+    lbl_803447D4 = lbl_80346AF0;
+    lbl_803447D8 = lbl_80346AF0;
+    lbl_803447C8 = 0;
+    lbl_803447C4 = 0;
+
+    if (lbl_80343C10 < 0) {
+        next_world();
+        if (lbl_80343C04 != sLastWorldLevel) {
+            lbl_80343C00 = -1;
+        }
+        lbl_8034481C = 0;
+        fn_80053D08(sLastWorldLevel, 1, lbl_80343C00);
+        fn_80053C70();
+    } else {
+        fn_80053D08(sWorldDataConst, 1, lbl_80343C10);
+        fn_80053C70();
+    }
+
+    InitLighting(1);
+    lbl_803448B4 = sMusicTrackHi;
+    lbl_803448B0 = sMusicTrackLo;
+    lbl_80343C00 = -1;
+    SetScrollLevelMsgList(0, gCurLevel + 8);
+    {
+        u8* e = (u8*)gEnemies;
+        for (i = 0; i < 25; i++, e += 916) {
+            *(s32*)(e + 180) = 0;
+            *(s32*)(e + 100) = 0;
+        }
+    }
+    sumnerUpdatePresence();
+    fn_80057024();
+    SetupDynGrid();
+    CreateDynobjGrid();
+
+    if (sMusicTrackHi == 13) {
+        s32 one = 1;
+        for (i = 0, p = gPlayers; i < 4; i++, p += 13148) {
+            s32 st = *(s32*)(p + 232);
+            if (st == 1) {
+                player_store_in_save(p);
+            } else if (st == 11) {
+                PlayerRestoreState(i);
+                *(s32*)(p + 232) = one;
+            }
+        }
+        EnterTower();
+    }
+
+    if (sMusicTrackHi != 12 && inTower == 0) {
+        lbl_803447CC = 0;
+    }
+
+    InitCamera(0);
+    {
+        idmat = (f32*)gIdentityMatrix;
+        tbl = (u8*)lbl_80257650;
+        for (i = 0, off = 0, p = gPlayers; i < 4; i++, off += 12, p += 13148) {
+            *(s32*)(p + 2096) = sLastWorldLevel;
+            *(s32*)(p + 116) = 0;
+            *(s32*)(p + 124) = 0;
+            if ((lbl_80344824 & (1 << i)) && *(s32*)(p + 232) != 11) {
+                *(s32*)(p + 232) = 1;
+                load_player(i);
+                add_target(p + 20);
+                LoadPlyrData(i, *(s32*)(p + 12), 1);
+                if (isSelect != 0) {
+                    f32* v;
+                    CopyMat3(idmat, (f32*)(p + 20));
+                    v = (f32*)(tbl + off);
+                    *(f32*)(p + 68) = v[0];
+                    *(f32*)(p + 72) = v[1];
+                    *(f32*)(p + 76) = v[2];
+                    UpdatePlayerWorldMat(p, 0);
+                }
+            }
+            setup_player_display(i);
+        }
+    }
+
+    if (inTower == 0) {
+        s32 off2;
+        u8* base = gPlayers;
+        for (i = 0, off2 = 0; i < 4; i++, off2 += 13148) {
+            u8* q = base + off2;
+            if (*(s32*)(q + 232) != 0) {
+                if (sMusicTrackHi == 13) {
+                    PlayerSaveState(i, 0);
+                } else if (sMusicTrackHi != 12) {
+                    PlayerSaveState(i, 1);
+                }
+                if (*(s32*)(q + 7872) == 0) {
+                    *(s32*)(q + 7872) = 1;
+                    *(s8*)(q + 2699) = 0;
+                }
+            }
+        }
+        camera_mode_level(0);
+        lbl_803447D0 = 0;
+        fn_80051C78();
+    } else {
+        LoadAllRecords();
+        lbl_80344B84 = -1;
+    }
+
+    BGMusicStart();
+    SetPlayerWindows(0);
+    fn_8006F16C(inTower);
+    fn_8005B988();
+    do_enemies();
+    fn_800553B4();
+    init_thermometer();
+    AudioMusicVolUpdate();
+    {
+        s32 mt = sMusicTrackHi;
+        if (mt != 12) {
+            welcome_timer = 300;
+        }
+        if (mt == 13) {
+            for (i = 0, p = gPlayers; i < 4; i++, p += 13148) {
+                if (*(s32*)(p + 232) == 1) {
+                    *(PlayerSaveBlk*)(p + 7884) = *(PlayerSaveBlk*)(p + 2688);
+                }
+            }
+        }
+    }
+}
+
+/* 0x80054E78 -- per-frame level-timer / thermometer HUD update. */
+extern s32  lbl_803447B8;
+extern s32  gGameplayPauseTimer;
+extern f32  gClockFrameStep;
+extern f32  lbl_80346B08;
+extern f64  lbl_80346B18;
+extern f64  lbl_80346B28;
+extern f64  lbl_80346B30;
+extern f64  lbl_80346B40;
+extern f64  lbl_80346B48;
+extern f64  lbl_80346B50;
+DECL_SECT(".sdata2") extern const char lbl_80346B58[];
+extern void MBRemoveBlit(s32 blit);
+extern void AudioFootstep(s32 n);
+extern void fn_8009FA84(void);
+extern void DoAudioTallySFX(s32 n);
+extern void init_got_it(void);
+extern void DrawText(s32 x, s32 y, s32 flags, s32 color, ...);
+
+void fn_80054E78(void)
+{
+    u8* state = (u8*)lbl_802575C0;
+    s32 active;
+    s32 i;
+    s32 off;
+
+    if (lbl_803447B8 != 0) {
+        active = 0;
+    } else {
+        active = 1;
+    }
+
+    if ((gControllerButtons & 0x10) == 0) {
+        if (active != 0 && (*(u32*)gCurLevel & 4) && *(void**)(state + 124) != 0) {
+            mbBlitInit3414(*(void**)(state + 124), 0);
+        }
+        if (lbl_80344818 > lbl_80346AF0 + (f32)*(s16*)(gCurLevel + 12)) {
+            lbl_80344814 = lbl_80346B08;
+            lbl_80344818 = lbl_80346B08;
+        }
+    }
+
+    if ((*(u32*)gCurLevel & 4) && (gGameBusy | gGameplayPauseTimer) == 0 &&
+        (gControllerButtons & 4) == 0 && active != 0) {
+        f32 t;
+        f32 nt;
+        s32 oldi;
+
+        t = lbl_80344818;
+        oldi = (s32)t;
+        lbl_80344818 = t - gClockFrameStep;
+        nt = lbl_80344818;
+        if (nt <= lbl_80346B10) {
+            for (i = 0, off = 0; i < 4; i++, off += 4) {
+                u8* q = state + off;
+                u32 v = *(u32*)(q += 112);
+                if (v != 0) {
+                    MBRemoveBlit(v);
+                    *(u32*)q = 0;
+                }
+            }
+            lbl_80344818 = lbl_80346AFC;
+            active = 0;
+            if ((gControllerButtons & 0x10) != 0 &&
+                (gGameOptions[9] >> 8) == 12) {
+                u8* p;
+                lbl_8034481C = 2;
+                {
+                    u8* b0 = gPlayers;
+                    p = b0;
+                }
+                for (off = 0; off < 48;
+                     off += 12, p += 13148) {
+                    if (*(s32*)(p + 232) != 0) {
+                        u8* row = state + off;
+                        *(f32*)(row + 144) = *(f32*)(p + 68);
+                        *(f32*)(row + 148) = *(f32*)(p + 72);
+                        *(f32*)(row + 152) = *(f32*)(p + 76);
+                    }
+                }
+            } else {
+                lbl_8034481C = 13;
+            }
+            init_got_it();
+        } else if (lbl_80344810 == 0) {
+            s32 n = (s32)nt;
+            if (oldi != (s32)nt) {
+                AudioFootstep(n);
+                if (n == 8) {
+                    fn_8009FA84();
+                } else if (n <= 5 && lbl_8034481C == 0) {
+                    DoAudioTallySFX(n);
+                }
+            }
+        }
+
+        if (active != 0) {
+            f64 k = lbl_80346B18;
+            f32 total = (f32)(k * lbl_80344814);
+            f32 curv = (f32)(k * lbl_80344818);
+            f32 frac = (total - curv) / total;
+            void** b;
+            f64 v1;
+            f64 v2;
+
+            b = (void**)(state + 116);
+            mbBlitSetupVerts(*b, lbl_80346B20, lbl_80346B20,
+                             (f32)((lbl_80346B30 * frac + lbl_80346B28) *
+                                   lbl_80346B38),
+                             lbl_80346B20);
+            v1 = lbl_80346B40 * frac;
+            mbBlitProject(*b, 0, 41 - Round((f32)v1));
+            mbBlitCalcY(*b, Round((f32)v1) + 24);
+
+            b = (void**)(state + 120);
+            v2 = lbl_80346B50 * frac;
+            mbBlitSetupVerts(*b, lbl_80346B20, lbl_80346B20,
+                             (f32)((lbl_80346B48 - v2) * lbl_80346B38),
+                             lbl_80346B20);
+            mbBlitProject(*b, 0, Round((f32)v2) + 23);
+            mbBlitCalcY(*b, 106 - Round((f32)v2));
+
+            if ((gControllerButtons & 0x10) != 0) {
+                DrawText(-256, 8, 6, 0xFFFFFF, lbl_80346B58,
+                         lbl_80344814 - lbl_80344818);
+            } else if ((gControllerButtons & 0x10) != 0) {
+                DrawText(-256, 8, 6, 0xFFFFFF, lbl_80346B58, lbl_80344818);
+            }
+        }
+    }
+}
+
+/* 0x80057024 -- world initializer (enemies/effects/critters; level start). */
+extern f32  sMusicFadeBase;
+extern f32  lbl_80346C94;
+extern f64  lbl_80346C98;
+extern f64  lbl_80346C60;
+extern f32  lbl_80346C68;
+extern f32  lbl_80346C90;
+extern f32  lbl_80346C30;
+extern f32  lbl_80346CB0;
+extern f32  lbl_80346CB4;
+extern f32  lbl_80346BF0;
+extern f32  lbl_80346BE0;
+extern f32  gPlayerStartYaw;
+extern f32  sLevelAmbientScale;
+extern s32  gBoss398;
+extern s32  gNumType7Items;
+extern f32  lbl_80344860;
+extern f32  lbl_80344864;
+extern s32  lbl_80344868;
+extern f32  lbl_80344880;
+extern s32  lbl_803447FC;
+extern s32  lbl_803447F8;
+extern s32  lbl_8034489C;
+extern f32  lbl_80344898;
+extern s32  lbl_80344894;
+extern s32  lbl_80344890;
+extern s32  lbl_8034488C;
+extern s32  lbl_80344888;
+extern s32  lbl_8034484C;
+extern s32  lbl_8034486C;
+extern s32  lbl_80344884;
+extern s32  lbl_8023E558[];
+extern f32  gDefaultPlayerPosition[3];
+DECL_SECT(".sdata2") extern const char lbl_80346C00[];
+DECL_SECT(".sdata2") extern const char lbl_80346CA0[];
+DECL_SECT(".sdata2") extern const char lbl_80346CA4[];
+DECL_SECT(".sdata2") extern const char lbl_80346CA8[];
+extern s32  towerGetRuneNearStat(s32 player, s32 world);
+extern void WorldSaveInitState(void);
+extern s32  FindWORLDOBJ(char* name);
+extern char* strcpy(char* dst, const char* src);
+extern f32  Random(f32 range);
+extern void AddItemInstList(void);
+extern void AddLocatorInstList(void);
+extern void InitDynGrid(f32 a, f32 b);
+extern void fn_8005D04C(void);
+extern void SumnerInit(void);
+extern void mini_inventory_setup(void);
+extern void AppendBigapePowerupsToScene(void);
+extern void SetupWeaponPowerupTexMods(void);
+extern void SetupItemTexMods(void);
+extern void DoPlayerTexMods(s32 idx);
+extern void InitEffects(void);
+extern void InitItemInfoData(void);
+extern void CritterInitAllMoves(void);
+
+void fn_80057024(void)
+{
+    u8* tbl = (u8*)lbl_80257680;
+    char* fmt = lbl_80112788;
+    f32 z = lbl_80346BF0;
+    s32 off;
+    s32 i;
+    u8* p;
+
+    lbl_80344860 = sMusicFadeBase;
+    lbl_80344864 = z;
+    lbl_80344868 = 0;
+    lbl_80344880 = lbl_80346C94;
+    lbl_803447FC = 18000;
+    lbl_803447F8 = 18000;
+    gDefaultPlayerPosition[0] = z;
+    gDefaultPlayerPosition[1] = z;
+    gDefaultPlayerPosition[2] = z;
+    gPlayerStartYaw = z;
+    gBoss398 = -1;
+    lbl_8034489C = 0;
+    lbl_80344898 = z;
+    lbl_80344894 = -1;
+    lbl_80344890 = -1;
+    gNumType7Items = 0;
+    lbl_8034488C = 0;
+
+    if (gBossType >= 0 && gBossType < 43) {
+        lbl_8034489C = 0;
+        for (i = 0, off = 0, p = gPlayers; i < 4; i++, off += 13148) {
+            u8* q = p + off;
+            s32 st = *(s32*)(q + 232);
+            if (st == 1 || st == 5 || st == 3) {
+                if (lbl_8034489C != 0) {
+                    *(s32*)(q + 2100) = 0;
+                } else if (towerGetRuneNearStat(i, sMusicTrackHi) != 0) {
+                    *(s32*)(q + 2100) = 1;
+                    lbl_8034489C = 1;
+                    lbl_80344898 = z;
+                } else {
+                    *(s32*)(q + 2100) = 0;
+                }
+            }
+        }
+    }
+
+    WorldSaveInitState();
+    lbl_80344880 = (f32)(*(f32*)((u8*)gWorldInfo + 28) - lbl_80346C98);
+    GetEnemyTypes();
+
+    if (gGameOptions[2] < 2 && gBossType < 0 && sMusicTrackHi != 13 &&
+        lbl_80344738 < 0) {
+        lbl_80344738 = LoadModel(lbl_80346C00, 0, 0, -1);
+    }
+
+    {
+        s32* pool = lbl_802511FC;
+        for (off = 0, i = 0; i < 8; i++, off += 4) {
+            s32 raw = *(s32*)(tbl + off + 332);
+            s32 t = raw;
+            if (raw < 32) {
+                if (raw == 29) {
+                    continue;
+                }
+            } else {
+                if (raw >= 45) {
+                    goto chk;
+                }
+                continue;
+            }
+chk:
+            if (t >= 0) {
+                s32* pe = pool + t;
+                if (pe[0] == 0) {
+                    LoadEnemy(t, *(s32*)(tbl + off + 268));
+                }
+            }
+        }
+    }
+
+    {
+        s32 free0 = BytesFree();
+        if (!(gGameMode & 0x8000)) {
+            LoadWeapons();
+        }
+        LoadPowerups(lbl_80344888);
+        lbl_80344858 = lbl_80344858 + (free0 - BytesFree());
+        free0 = BytesFree();
+        LoadItems();
+        lbl_8034485C = free0 - BytesFree();
+    }
+
+    if (*(void**)((u8*)gWorldInfo + 128) != 0) {
+        InitTexMods(*(void**)((u8*)gWorldInfo + 128),
+                    *(s32*)((u8*)gWorldInfo + 132));
+    }
+    fn_800508A0();
+    SetupWeaponPowerupTexMods();
+    SetupItemTexMods();
+    i = 0;
+    do {
+        DoPlayerTexMods(i);
+        i++;
+    } while (i < 4);
+    InitEffects();
+    InitItemInfoData();
+    CritterInitAllMoves();
+
+    if (InLevel(lbl_80346CA0)) {
+        lbl_8034484C = 4;
+        strcpy((char*)(tbl + 108), fmt + 312);
+    } else if (InLevel(lbl_80346CA4)) {
+        lbl_8034484C = 4;
+        strcpy((char*)(tbl + 108), fmt + 328);
+    } else {
+        lbl_8034484C = 0;
+    }
+
+    {
+        f64 kOff = lbl_80346C60;
+        for (i = 0, off = 0; i < lbl_8034484C; i++, off += 4) {
+            sprintf((char*)tbl, lbl_80346CA8, tbl + 108, i + 1);
+            *(s32*)(tbl + off + 76) = FindWORLDOBJ((char*)tbl);
+            if (*(void**)(tbl + off + 76) != 0 &&
+                *(void**)(*(u8**)(tbl + off + 76) + 40) != 0) {
+                MBTreeSetFlags(*(void**)(*(u8**)(tbl + off + 76) + 40), 2, 0);
+            } else {
+                ErrorPrintf(fmt + 344, tbl);
+            }
+            *(f32*)(tbl + off + 92) =
+                (f32)(kOff + sMusicFadeBase + Random(lbl_80346C68));
+        }
+    }
+
+    world_update();
+    AddItemInstList();
+    AddLocatorInstList();
+    if (gBossType >= 0) {
+        InitDynGrid(lbl_80346C68, lbl_80346CB0);
+    } else {
+        InitDynGrid(lbl_80346CB4, lbl_80346CB0);
+    }
+    SetupDynGrid();
+    CreateDynobjGrid();
+    fn_8005D04C();
+    good_wiz_state = 0;
+    lbl_8023E558[24] = 0;
+    lbl_80344884 = 0;
+    if (sMusicTrackHi == 13) {
+        SumnerInit();
+    }
+    if (gGameMode == 0x4010 || gGameMode == 0x400C) {
+        MBCompVertScaleAddUV(lbl_8034486C, 0, lbl_80346C90, lbl_80346C90,
+                             lbl_80346C30, lbl_80346BF0, lbl_80346BF0);
+    } else {
+        MBCompVertScaleAddUV(0, 0, lbl_80346BF0, lbl_80346BF0, lbl_80346BF0,
+                             lbl_80346BF0, lbl_80346BF0);
+        sLevelAmbientScale = lbl_80346BE0;
+    }
+    if (!(gGameMode & 0x8000)) {
+        lbl_80344850 = 1;
+    }
+    mini_inventory_setup();
+    AppendBigapePowerupsToScene();
+}
+
+
+/* 0x8005638C -- build the "levels/level%s" path and load a level. */
+extern u32  lbl_803448D0;
+extern s32  lbl_803448CC;
+extern s32  lbl_803448C8;
+extern s32  lbl_803448C4;
+DECL_SECT(".sdata2") extern const char lbl_80346C04[];
+extern s32  LoadWorldDone(void* name);
+extern void CritterLoadFile(const char* wad, const char* name);
+extern void CritterLoadAllTypes(s32 arg0);
+
+#pragma opt_common_subs off
+static s32 init_next_level(s32 arg0)
+{
+    char* fmt = lbl_80112788;
+    u8* tbl = (u8*)lbl_80257680;
+    s32 result;
+    s32 i;
+    s32 off;
+
+    lbl_80344874 = pbLoad;
+    if (arg0 < 0) {
+        LoadWorldDone(0);
+        lbl_80343C30 = -1;
+        return -1;
+    }
+    ResolveWorldData(arg0);
+    {
+        s32 hi = sMusicTrackHi;
+        s32 lo = sMusicTrackLo;
+        lbl_803448D0 = hi;
+        lbl_803448CC = lo;
+        if (hi != 13) {
+            lbl_803448C8 = hi;
+            lbl_803448C4 = lo;
+        }
+    }
+    sprintf((char*)(tbl + 172), fmt, gCurLevel + 8);
+    lbl_80344854 = mlmMemUsed;
+    lbl_80343C30 = 0;
+    result = LoadWorldDone(tbl + 172);
+    GetEnemyTypes();
+
+    if (gGameOptions[2] < 2 && gBossType < 0 && arg0 != sWorldDataConst &&
+        lbl_80344738 < 0) {
+        lbl_80344738 = LoadModel(lbl_80346C00, 0, 0, -1);
+    }
+
+    for (i = 0, off = 0; i < 8; i++, off += 4) {
+        u8* q = tbl + off;
+        u8* w = tbl + off;
+        s32 t = *(s32*)(q += 332);
+        s32 flag;
+
+        *(s32*)(w += 140) = 0;
+        flag = 1;
+        switch (t) {
+        case 34:
+            CritterLoadFile(lbl_80346C04, fmt + 16);
+            break;
+        case 35:
+            CritterLoadFile(lbl_80346C04, fmt + 28);
+            break;
+        case 36:
+            CritterLoadFile(lbl_80346C04, fmt + 40);
+            break;
+        case 37:
+            CritterLoadFile(lbl_80346C04, fmt + 52);
+            break;
+        case 38:
+            CritterLoadFile(lbl_80346C04, fmt + 64);
+            break;
+        case 39:
+            CritterLoadFile(lbl_80346C04, fmt + 76);
+            break;
+        case 41:
+            CritterLoadFile(lbl_80346C04, fmt + 88);
+            break;
+        case 40:
+            CritterLoadFile(lbl_80346C04, fmt + 100);
+            break;
+        case 42:
+            CritterLoadFile(lbl_80346C04, fmt + 112);
+            break;
+        case 43:
+            CritterLoadFile(lbl_80346C04, fmt + 124);
+            break;
+        case 44:
+            CritterLoadFile(lbl_80346C04, fmt + 136);
+            break;
+        case 29:
+            if (sMusicTrackHi == 9) {
+                CritterLoadFile(lbl_80346C04, fmt + 148);
+            } else if (sMusicTrackHi == 6) {
+                CritterLoadFile(lbl_80346C04, fmt + 160);
+            } else {
+                CritterLoadFile(lbl_80346C04, fmt + 172);
+            }
+            break;
+        case 33:
+            CritterLoadFile(lbl_80346C04, fmt + 184);
+            break;
+        case 32: {
+            char buf[24];
+            sprintf(buf, fmt + 196, *(char**)(tbl + off + 236) + 16);
+            CritterLoadFile(lbl_80346C04, buf);
+            break;
+        }
+        default:
+            flag = 0;
+            if (t >= 0) {
+                *(s32*)w = BytesFree();
+                AllocEnemy(t, *(s32*)(tbl + off + 268));
+                *(s32*)w = *(s32*)w - BytesFree();
+            }
+            break;
+        }
+        if (flag != 0) {
+            *(s32*)q = -1;
+        }
+    }
+
+    CritterLoadAllTypes(0);
+    lbl_80344870 = 0;
+    if (arg0 != sWorldDataConst) {
+        InitItems();
+    }
+    lbl_80344858 = 0;
+    LockModels(2);
+    return result;
+}
+#pragma opt_common_subs on
+
+/* 0x800522E8 -- "FINAL STATS" end-of-level tally and display. */
+extern s32  lbl_8011C300[];        /* per-class stats screen layout table */
+extern u8   lbl_80240E30[];        /* per-class 60-byte descriptor table  */
+DECL_SECT(".sdata2") extern const f32  lbl_80346ABC;
+DECL_SECT(".sdata2") extern const char lbl_80346AC0[];
+DECL_SECT(".sdata2") extern const char lbl_80346AC4[];
+DECL_SECT(".sdata2") extern const char lbl_80346AC8[];
+DECL_SECT(".sdata2") extern const f32  lbl_80346AD0;
+DECL_SECT(".sdata2") extern const char lbl_80346AD8[];
+DECL_SECT(".sdata2") extern const char lbl_80346AE0[];
+extern f32  lbl_80346AE4;
+extern void DrawTextKeepScale(f32 scale, s32 x, s32 y, s32 flags, s32 color,
+                              const char* fmt);
+extern s32  DrawNormalText(f32 scale, char* s, s32 flags);
+extern void WritePlayerInfo(s32 player);
+extern void fn_8009FCA8(s32 arg0);
+extern void AudioStopMusicA(void);
+extern s32  strcmp(const char* a, const char* b);
+
+#define STAT_ROW(colp, lab, valoff)                                         \
+    {                                                                       \
+        s32 c_;                                                             \
+        u8* row_;                                                           \
+        s32 w_;                                                             \
+        char buf_[12];                                                      \
+        c_ = *(s32*)p;                                                      \
+        row_ = (u8*)layout + c_ * 4;                                        \
+        DrawTextKeepScale(lbl_80346AD4, *(s32*)(row_ + 32) + 7,             \
+                          *(colp) + *(s32*)(row_ + 80), 7, 0xFFFFFF, lab);  \
+        {                                                                               u8* v_ = state + *(s32*)p * 4;                                              sprintf(buf_, lbl_80346AE0, *(s32*)(v_ + (valoff)));                    }                                                                   \
+        w_ = DrawNormalText(lbl_80346AD4, buf_, 7);                         \
+        c_ = *(s32*)p;                                                      \
+        row_ = (u8*)layout + c_ * 4;                                        \
+        DrawTextKeepScale(lbl_80346AD4, *(s32*)(row_ + 64) - w_,            \
+                          *(colp) + *(s32*)(row_ + 80), 7, 0xFFFFFF, buf_); \
+    }
+
+#define TIME_ROW(colp)                                                      \
+    {                                                                       \
+        s32 c_;                                                             \
+        u8* row_;                                                           \
+        s32 t_;                                                             \
+        s32 sec_;                                                           \
+        s32 min_;                                                           \
+        s32 w_;                                                             \
+        char buf_[12];                                                      \
+        c_ = *(s32*)p;                                                      \
+        t_ = *(s32*)(state + c_ * 4 + 64) / 60;                             \
+        row_ = (u8*)layout + c_ * 4;                                        \
+        DrawTextKeepScale(lbl_80346AD4, *(s32*)(row_ + 32) + 7,             \
+                          *(colp) + *(s32*)(row_ + 80), 7, 0xFFFFFF,        \
+                          msgs + 36);                                       \
+        sec_ = t_ % 60;                                                     \
+        t_ /= 60;                                                           \
+        min_ = t_ % 60;                                                     \
+        t_ /= 60;                                                           \
+        sprintf(buf_, msgs + 48, t_, min_, sec_);                           \
+        w_ = DrawNormalText(lbl_80346AD4, buf_, 7);                         \
+        c_ = *(s32*)p;                                                      \
+        row_ = (u8*)layout + c_ * 4;                                        \
+        DrawTextKeepScale(lbl_80346AD4, *(s32*)(row_ + 64) - w_,            \
+                          *(colp) + *(s32*)(row_ + 80), 7, 0xFFFFFF, buf_); \
+    }
+
+#define STAT_TALLY(accOff, tgtOff, ok)                                          {                                                                               s32 c_ = *(s32*)p;                                                          u8* b_ = state + c_ * 4;                                                    s32 amt_ = *(s32*)(b_ + 96);                                                if (gGameBusy != 0) {                                                           ok = 0;                                                                 } else {                                                                        u8* a_;                                                                     if (*(s32*)(lbl_80240E30 + c_ * 60 + 4) & 0x0F000000) {                         amt_ *= 6;                                                              }                                                                           b_ = state + c_ * 4;                                                        *(s32*)(b_ + (accOff)) = *(s32*)(b_ + (accOff)) + amt_;                     a_ = state + *(s32*)p * 4;                                                  if (*(s32*)(a_ += (accOff)) <                                                   *(s32*)((u8*)p + *(s32*)(p + 12) * 28 + (tgtOff))) {                        ok = 0;                                                                 } else {                                                                        *(s32*)a_ =                                                                     *(s32*)((u8*)p + *(s32*)(p + 12) * 28 + (tgtOff));                      ok = 1;                                                                 }                                                                       }                                                                       }
+
+s32 do_stats_display(void)
+{
+    char* msgs;
+    u8* state = lbl_802575C0;
+    s32* layout = lbl_8011C300;
+    u8* p;
+    s32* col1;
+    s32* col2;
+    s32* col3;
+    s32* colT;
+    s32 i;
+    s32 off;
+    s32 stalled = 0;
+    s32 done = 1;
+    f32 k60;
+
+    msgs = lbl_80112538;
+    DrawTextKeepScale(lbl_80346ABC, -256, 0, 7, 0xFFFFFF, msgs);
+    k60 = lbl_80346AE4;
+    col1 = (s32*)((u8*)layout + 100);
+    col2 = (s32*)((u8*)layout + 104);
+    col3 = (s32*)((u8*)layout + 108);
+    colT = (s32*)((u8*)layout + 116);
+
+    for (i = 0, off = 0, p = gPlayers; i < 4; i++, off += 4, p += 13148) {
+        s32 st = *(s32*)(p + 232);
+        char nbuf[12];
+
+        if (st != 1 && st != 5 && st != 4) {
+            continue;
+        }
+        sprintf(nbuf, lbl_80346AC0, p + 2688);
+        if (strcmp(nbuf, lbl_80346AC4) == 0) {
+            strcpy(nbuf, lbl_80346AC8);
+        }
+        {
+            s32 c = *(s32*)p;
+            u8* row = (u8*)layout + c * 4;
+            DrawTextKeepScale(lbl_80346AD0, -*(s32*)(row + 48),
+                              *(s32*)((u8*)layout + 96) + *(s32*)(row + 80),
+                              7, 0xFFFFFF, nbuf);
+        }
+
+        switch (*(u32*)(p + 2660)) {
+        case 0: {
+            u8* sp = state + off;
+            s32 on = (*(s32*)(sp + 64) == 0);
+            s32* t96;
+            *(s32*)(sp + 16) = on;
+            t96 = (s32*)(sp + 96);
+            *(s32*)(sp + 48) = on;
+            *(s32*)(sp + 32) = on;
+            *(s32*)(sp + 80) = 480;
+            (*(s32*)(p + 2660))++;
+            *t96 = *(s32*)((u8*)p + *(s32*)(p + 12) * 28 + 3088) / 60;
+            if (*t96 < 1) {
+                *t96 = 1;
+            }
+        }
+        case 1: {
+            s32 ok;
+            done = 0;
+            STAT_TALLY(32, 3088, ok);
+            if (ok != 0) {
+                u8* sp2 = state + off;
+                (*(s32*)(p + 2660))++;
+                *(s32*)(sp2 + 96) =
+                    *(s32*)((u8*)p + *(s32*)(p + 12) * 28 + 3104) / 60;
+                if (*(s32*)(sp2 += 96) < 1) {
+                    *(s32*)sp2 = 1;
+                }
+            } else {
+                stalled = 1;
+            }
+            STAT_ROW(col1, lbl_80346AD8, 32);
+            break;
+        }
+        case 2: {
+            s32 ok;
+            done = 0;
+            STAT_ROW(col1, lbl_80346AD8, 32);
+            STAT_TALLY(48, 3104, ok);
+            if (ok != 0) {
+                u8* sp2 = state + off;
+                (*(s32*)(p + 2660))++;
+                *(s32*)(sp2 + 96) =
+                    *(s32*)((u8*)p + *(s32*)(p + 12) * 28 + 3108) / 60;
+                if (*(s32*)(sp2 += 96) < 1) {
+                    *(s32*)sp2 = 1;
+                }
+            } else {
+                stalled = 1;
+            }
+            STAT_ROW(col2, msgs + 12, 48);
+            break;
+        }
+        case 3: {
+            s32 ok;
+            done = 0;
+            STAT_ROW(col1, lbl_80346AD8, 32);
+            STAT_ROW(col2, msgs + 12, 48);
+            STAT_TALLY(16, 3108, ok);
+            if (ok != 0) {
+                u8* sp2 = state + off;
+                (*(s32*)(p + 2660))++;
+                *(s32*)(sp2 + 96) =
+                    (s32)(*(f32*)((u8*)p + *(s32*)(p + 12) * 28 + 3112) /
+                          k60);
+                if (*(s32*)(sp2 += 96) < 60) {
+                    *(s32*)sp2 = 60;
+                }
+                if (*(s32*)sp2 < 1) {
+                    *(s32*)sp2 = 1;
+                }
+            } else {
+                stalled = 1;
+            }
+            STAT_ROW(col3, msgs + 24, 16);
+            break;
+        }
+        case 4:
+            (*(s32*)(p + 2660))++;
+        case 5: {
+            done = 0;
+            STAT_ROW(col1, lbl_80346AD8, 32);
+            STAT_ROW(col2, msgs + 12, 48);
+            STAT_ROW(col3, msgs + 24, 16);
+            {
+                s32 c = *(s32*)p;
+                s32 amt = *(s32*)(state + c * 4 + 96);
+                s32 ok;
+                if (gGameBusy != 0) {
+                    ok = 0;
+                } else {
+                    u8* a;
+                    f32 tgt;
+                    if (*(s32*)(lbl_80240E30 + c * 60 + 4) & 0x0F000000) {
+                        amt *= 6;
+                    }
+                    *(s32*)(state + c * 4 + 64) += amt;
+                    a = state + *(s32*)p * 4;
+                    tgt = *(f32*)((u8*)p + *(s32*)(p + 12) * 28 + 3112);
+                    if ((f32)*(s32*)(a += 64) < tgt) {
+                        ok = 0;
+                    } else {
+                        *(s32*)a = (s32)tgt;
+                        ok = 1;
+                    }
+                }
+                if (ok != 0) {
+                    (*(s32*)(p + 2660))++;
+                } else {
+                    stalled = 1;
+                }
+            }
+            TIME_ROW(colT);
+            break;
+        }
+        case 6: {
+            u8* sp;
+            done = 0;
+            STAT_ROW(col1, lbl_80346AD8, 32);
+            STAT_ROW(col2, msgs + 12, 48);
+            STAT_ROW(col3, msgs + 24, 16);
+            TIME_ROW(colT);
+            sp = state + off;
+            *(s32*)(sp + 80) = *(s32*)(sp + 80) - gFrameTicks;
+            if (*(s32*)(sp + 80) <= 0) {
+                (*(s32*)(p + 2660))++;
+            }
+            break;
+        }
+        default:
+            STAT_ROW(col1, lbl_80346AD8, 32);
+            STAT_ROW(col2, msgs + 12, 48);
+            STAT_ROW(col3, msgs + 24, 16);
+            TIME_ROW(colT);
+            break;
+        }
+    }
+
+    WritePlayerInfo(-1);
+    fn_8009FCA8(stalled);
+    if (done != 0) {
+        s32 j;
+        s32 o;
+        for (j = 0, o = 0; j < 4; j++, o += 4) {
+            MBRemoveBlit(*(s32*)(state + o));
+        }
+        AudioStopMusicA();
+    }
+    return done;
+}
