@@ -5424,11 +5424,11 @@ typedef struct CritterAnimNode {
 void CritterRemoveColnodeSub(Critter *c, CritterColnode *node, s32 mode)
 {
     CritterColnode *next;
-    s32 i;
-    s32 j;
     s32 animOffset;
     s32 moveOffset;
     s32 hitOffset;
+    s32 i;
+    s32 j;
 
     while (node != NULL) {
         if (node->child != NULL) {
@@ -5440,16 +5440,18 @@ void CritterRemoveColnodeSub(Critter *c, CritterColnode *node, s32 mode)
         for (i = 0, animOffset = 0; i < c->anodeCount;
              i++, animOffset += sizeof(CritterAnimNode)) {
             if (*(CritterColnode **)((u8 *)c->anodes + animOffset) == node) {
+                j = 0;
                 *(void **)((u8 *)c->anodes + animOffset + 0x20) = NULL;
                 *(CritterColnode **)((u8 *)c->anodes + animOffset) = NULL;
-                for (j = 0, moveOffset = 0;
-                     j < *(s16 *)((u8 *)c->hdr + 0x110);
-                     j++, moveOffset += sizeof(CritterMove)) {
+                moveOffset = j;
+                while (j < *(s16 *)((u8 *)c->hdr + 0x110)) {
                     if (*(s16 *)(*(u8 **)((u8 *)c->hdr + 0x124) +
                                  moveOffset + 0x0E) == i) {
                         *(s16 *)(*(u8 **)((u8 *)c->hdr + 0x124) +
                                  moveOffset + 0x0E) = -1;
                     }
+                    j++;
+                    moveOffset += sizeof(CritterMove);
                 }
             }
         }
@@ -5457,8 +5459,9 @@ void CritterRemoveColnodeSub(Critter *c, CritterColnode *node, s32 mode)
         for (i = 0, hitOffset = 0;
              i < *(s16 *)((u8 *)c->hdr + 0x118);
              i++, hitOffset += 0x5C) {
-            if (*(void **)((u8 *)c + 0x4FC + hitOffset) == node) {
-                *(void **)((u8 *)c + 0x4FC + hitOffset) = NULL;
+            u8 *hitRecord = (u8 *)c + hitOffset;
+            if (*(void **)(hitRecord + 0x4FC) == node) {
+                *(void **)(hitRecord + 0x4FC) = NULL;
             }
         }
 
