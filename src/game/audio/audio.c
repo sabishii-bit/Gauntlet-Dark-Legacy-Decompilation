@@ -105,7 +105,7 @@ extern s32  lbl_80343B48;        /* sfx volume, 0..255 */
 extern s32  sMusicField2F4;      /* 0x803442F4: one-shot stream end counter */
 extern s32  lbl_803449A8;        /* 0x803449A8: extra suspend companion flag */
 extern const char lbl_803459B0; /* "ALL" (default startup mode) */
-extern const char lbl_803459A0[]; /* "streams" (stream file group) */
+extern const char lbl_803459A0[8]; /* "streams" (stream file group) */
 extern const char lbl_80345990; /* "audio" (bank file group) */
 extern const char lbl_80345998[]; /* "%s.vbk" (bank filename format) */
 extern const u8 lbl_80111348[];   /* 0xB4-byte AllocFile load descriptor */
@@ -1052,8 +1052,10 @@ extern void AudioStreamEndCbOnce(void);
  * mapped block to the driver (sndCmd8), install the loop/one-shot end callback
  * and start playback.  Returns 1 on success, -1 on any failure, 0 if audio is
  * suspended or a stream is already running. */
-s32 AudioStreamPlay(u16 id, s32 loopMode, s32 vol)
+s32 AudioStreamPlay(s32 id, s32 loopMode, s32 vol)
 {
+    u8* state = sAudioState;
+    volatile u8 unused[256];
     s32 dataPtr;
     s32 sz1;
     s32 sz2;
@@ -1066,28 +1068,28 @@ s32 AudioStreamPlay(u16 id, s32 loopMode, s32 vol)
     if (lbl_803442A4 != 0) {
         return 0;
     }
-    if (FileMap((char*)lbl_803459A0, (char*)(sAudioState + 1048), &dataPtr, 256,
+    if (FileMap((char*)lbl_803459A0, (char*)(state + 1048), &dataPtr, 256,
                 &sz1, &sz2) == 0) {
-        ErrorPrintf("Audio Stream bad file: %s", (char*)(sAudioState + 1048));
+        ErrorPrintf("Audio Stream bad file: %s", (char*)(state + 1048));
     } else {
         resp = sndCmd8((u16*)&dataPtr, sz1, sz2);
         if (resp == -4) {
-            ErrorPrintf("Audio Stream no buffer memory: %s", (char*)(sAudioState + 1048));
+            ErrorPrintf("Audio Stream no buffer memory: %s", (char*)(state + 1048));
         } else if (resp < 0) {
-            ErrorPrintf("Audio Stream bad file: %s", (char*)(sAudioState + 1048));
+            ErrorPrintf("Audio Stream bad file: %s", (char*)(state + 1048));
         } else {
             sndCmdB();
-            *(void**)(sAudioState + 12) =
+            *(void**)(state + 12) =
                 (loopMode != 0) ? (void*)AudioStreamEndCbLoop : (void*)AudioStreamEndCbOnce;
-            if (loopMode >= 2) {
+            if (loopMode < 2) {
                 loopMode = 0;
             }
-            resp = sndCmdA(id, (loopMode != 0) ? 1 : 0, vol, sAudioState);
+            resp = sndCmdA((u16)id, (loopMode != 0) ? 1 : 0, vol, state);
             if (resp >= -1) {
                 sndSysSetBit0(1);
                 result = 1;
             } else {
-                ErrorPrintf("Audio Stream Err: %s", (char*)(sAudioState + 1048));
+                ErrorPrintf("Audio Stream Err: %s", (char*)(state + 1048));
             }
         }
     }
