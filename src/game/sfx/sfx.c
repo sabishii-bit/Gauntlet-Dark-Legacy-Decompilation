@@ -2789,6 +2789,352 @@ static void ZeroEffect(s32 idx)
  * resolves atree names (AtreeMatch/FindTexMod), fills EffectInfo[], stores
  * the skinfx frame bases (lbl_80344BE0..BF8) and weapon/powerup buffers. */
 
+extern u8 lbl_80122118[];        /* fx def script rows, stride 40 */
+extern void MBNodeOrder(struct mbnode* a, struct mbnode* b);
+extern struct mbnode* lbl_80344EB0;
+extern char lbl_80348290[];
+extern char lbl_80348298[];
+extern char lbl_803482A0[];
+extern char lbl_803482A8[];
+extern char lbl_803482B0[];
+extern char lbl_803482B8[];
+extern char lbl_803482C0[];
+extern char lbl_803482C8[];
+extern char lbl_803482D0[];
+extern char lbl_803482D8[];
+extern char lbl_803482DC[];
+extern char lbl_803482E0[];
+extern u32 gWadAtreeHeaders[];
+extern s32 lbl_80251148[];
+extern s32 lbl_802511FC[];
+extern s32 sGoodWizObjHack;
+extern s32 InLevel(char* name);
+extern void* FindTexMod(void* buf, char* name, s32 flag);
+extern s32 MBOX_FindTexture_Sub(char* name, s32 a, s32 b, s32 c, s32 flag);
+extern void* sPowerupsHandle;
+extern void* sWeaponsHandle;
+extern s32 lbl_80344BF8;
+extern s32 lbl_80344BF4;
+extern s32 lbl_80344BF0;
+extern void* lbl_80344BEC;
+extern s32 lbl_80344BE8;
+
+/* 0x80097AA4 InitEffects - reset the live effect pool, resolve every fx def
+ * row against the weapon/powerup wads, and seed the per-type skin fx. */
+void InitEffects(void)
+{
+    char* strs = lbl_80114790;
+    u8* ei = (u8*)EffectInfo;
+    u8* tbl;
+    u8* row;
+    u8* hp;
+    s32 i;
+    s32 o12;
+    s32 o40;
+    s32 got;
+    s32 v32;
+    s32 v36;
+    s32* p960;
+    s32* p972;
+    s32* p984;
+    s32* p996;
+    s32* p1008;
+    s32* p1020;
+    s32* p1032;
+    s32* p1044;
+    s32* p1056;
+    s32* p1068;
+    s32* p1140;
+    s32* p1152;
+
+    for (i = 0, o12 = 0; i < 64; i++, o12 += 240) {
+        *(s32*)(ei + o12 + 2996) = 0;
+        *(s32*)(ei + o12 + 3000) = 0;
+        *(s32*)(ei + o12 + 3188) = 0;
+    }
+    NumEffects = 0;
+    lbl_80344BD8 = 0;
+    lbl_80343DF0 = 256;
+    lbl_80344BD4 = MBNewNode(0, gIdentityMatrix, 4);
+    MBTreeSetFlags(lbl_80344BD4, 4, 0);
+    MBNodeOrder(lbl_80344EB0, lbl_80344BD4);
+    tbl = lbl_80122118;
+    for (i = 0, o12 = 0, o40 = 0; i < 80; i++, o12 += 12, o40 += 40) {
+        row = tbl + o40;
+        v36 = *(s32*)(row + 36);
+        v32 = *(s32*)(row + 32);
+        if (sWeaponsBuf == NULL || row == NULL || *(s8*)row == 0) {
+            *(s32*)(ei + o12) = 0;
+        } else {
+            *(s32*)(ei + o12) = (s32)AtreeMatch(sWeaponsBuf, (char*)row, 0);
+        }
+        *(s32*)(ei + o12 + 4) = v32;
+        *(s32*)(ei + o12 + 8) = v36;
+        got = (*(s32*)(ei + o12) != 0) ? 1 : 0;
+        if (got == 0) {
+            v36 = *(s32*)(row + 36);
+            v32 = *(s32*)(row + 32);
+            if (sPowerupsBuf == NULL || row == NULL || *(s8*)row == 0) {
+                *(s32*)(ei + o12) = 0;
+            } else {
+                *(s32*)(ei + o12) =
+                    (s32)AtreeMatch(sPowerupsBuf, (char*)row, 0);
+                if (*(s32*)(ei + o12) == 0) {
+                    ErrorPrintf(strs + 48, row);
+                }
+            }
+            *(s32*)(ei + o12 + 4) = v32;
+            *(s32*)(ei + o12 + 8) = v36;
+        }
+    }
+    for (; i < 218; i++, o12 += 12) {
+        *(s32*)(ei + o12) = 0;
+        *(s32*)(ei + o12 + 4) = 0;
+        *(s32*)(ei + o12 + 8) = 0;
+    }
+    p960 = (s32*)(ei + 960);
+    p972 = (s32*)(ei + 972);
+    p984 = (s32*)(ei + 984);
+    p996 = (s32*)(ei + 996);
+    p1008 = (s32*)(ei + 1008);
+    p1020 = (s32*)(ei + 1020);
+    p1032 = (s32*)(ei + 1032);
+    p1044 = (s32*)(ei + 1044);
+    p1056 = (s32*)(ei + 1056);
+    p1068 = (s32*)(ei + 1068);
+    p1140 = (s32*)(ei + 1140);
+    p1152 = (s32*)(ei + 1152);
+    for (i = 0, o12 = 0; i < 45; i++, o12 += 4) {
+        lbl_80251148[i] = 0;
+        hp = (u8*)gWadAtreeHeaders[i];
+        if (hp == NULL) {
+            *(s32*)(ei + o12 + 2796) = -1;
+            *(s32*)(ei + o12 + 2616) = -1;
+            continue;
+        }
+        if (lbl_802511FC[i] != 4 && *p960 == 0) {
+            if (hp == NULL || *(s8*)(strs + 68) == 0) {
+                *p960 = 0;
+            } else {
+                *p960 = (s32)AtreeMatch(hp, strs + 68, 0);
+            }
+            *(s32*)(ei + 964) = -512;
+            *(s32*)(ei + 968) = 0;
+        }
+        if (*p972 == 0) {
+            if (hp == NULL || *(s8*)lbl_80348290 == 0) {
+                *p972 = 0;
+            } else {
+                *p972 = (s32)AtreeMatch(hp, lbl_80348290, 0);
+            }
+            *(s32*)(ei + 976) = -512;
+            *(s32*)(ei + 980) = 0;
+            lbl_80251148[i] = 1;
+        }
+        if (*p984 == 0) {
+            if (hp == NULL || *(s8*)lbl_80348298 == 0) {
+                *p984 = 0;
+            } else {
+                *p984 = (s32)AtreeMatch(hp, lbl_80348298, 0);
+            }
+            *(s32*)(ei + 988) = -512;
+            *(s32*)(ei + 992) = 0;
+            lbl_80251148[i] = 1;
+        }
+        if (*p996 == 0) {
+            if (hp == NULL || *(s8*)lbl_803482A0 == 0) {
+                *p996 = 0;
+            } else {
+                *p996 = (s32)AtreeMatch(hp, lbl_803482A0, 0);
+            }
+            *(s32*)(ei + 1000) = -512;
+            *(s32*)(ei + 1004) = 0;
+            lbl_80251148[i] = 1;
+        }
+        if (i == 11 || i == 21) {
+            if (hp == NULL || *(s8*)lbl_803482A8 == 0) {
+                *p1008 = 0;
+            } else {
+                *p1008 = (s32)AtreeMatch(hp, lbl_803482A8, 0);
+                if (*p1008 == 0) {
+                    ErrorPrintf(strs + 48, lbl_803482A8);
+                }
+            }
+            *(s32*)(ei + 1012) = -512;
+            *(s32*)(ei + 1016) = 0;
+            if (hp == NULL || *(s8*)lbl_803482B0 == 0) {
+                *p1020 = 0;
+            } else {
+                *p1020 = (s32)AtreeMatch(hp, lbl_803482B0, 0);
+                if (*p1020 == 0) {
+                    ErrorPrintf(strs + 48, lbl_803482B0);
+                }
+            }
+            *(s32*)(ei + 1024) = -512;
+            *(s32*)(ei + 1028) = 0;
+        }
+        if (i == 27) {
+            if (hp == NULL || *(s8*)lbl_803482B8 == 0) {
+                *p1032 = 0;
+            } else {
+                *p1032 = (s32)AtreeMatch(hp, lbl_803482B8, 0);
+                if (*p1032 == 0) {
+                    ErrorPrintf(strs + 48, lbl_803482B8);
+                }
+            }
+            *(s32*)(ei + 1036) = -512;
+            *(s32*)(ei + 1040) = 0;
+            if (hp == NULL || *(s8*)lbl_803482C0 == 0) {
+                *p1044 = 0;
+            } else {
+                *p1044 = (s32)AtreeMatch(hp, lbl_803482C0, 0);
+                if (*p1044 == 0) {
+                    ErrorPrintf(strs + 48, lbl_803482C0);
+                }
+            }
+            *(s32*)(ei + 1048) = -512;
+            *(s32*)(ei + 1052) = 0;
+            if (hp == NULL || *(s8*)(strs + 80) == 0) {
+                *p1056 = 0;
+            } else {
+                *p1056 = (s32)AtreeMatch(hp, strs + 80, 0);
+                if (*p1056 == 0) {
+                    ErrorPrintf(strs + 48, strs + 80);
+                }
+            }
+            *(s32*)(ei + 1060) = -512;
+            *(s32*)(ei + 1064) = 0;
+            if (hp == NULL || *(s8*)(strs + 92) == 0) {
+                *p1068 = 0;
+            } else {
+                *p1068 = (s32)AtreeMatch(hp, strs + 92, 0);
+                if (*p1068 == 0) {
+                    ErrorPrintf(strs + 48, strs + 92);
+                }
+            }
+            *(s32*)(ei + 1072) = -512;
+            *(s32*)(ei + 1076) = 0;
+        }
+        if (i == 30) {
+            if (hp == NULL || *(s8*)(strs + 104) == 0) {
+                *p1140 = 0;
+            } else {
+                *p1140 = (s32)AtreeMatch(hp, strs + 104, 0);
+                if (*p1140 == 0) {
+                    ErrorPrintf(strs + 48, strs + 104);
+                }
+            }
+            *(s32*)(ei + 1144) = -512;
+            *(s32*)(ei + 1148) = 0;
+            if (hp == NULL || *(s8*)(strs + 116) == 0) {
+                *p1152 = 0;
+            } else {
+                *p1152 = (s32)AtreeMatch(hp, strs + 116, 0);
+                if (*p1152 == 0) {
+                    ErrorPrintf(strs + 48, strs + 116);
+                }
+            }
+            *(s32*)(ei + 1156) = -512;
+            *(s32*)(ei + 1160) = 0;
+        }
+        *(s32*)(ei + o12 + 2796) =
+            InitCustomEffectSub(hp, lbl_803482C8, 0, 0, 0);
+        *(s32*)(ei + o12 + 2616) =
+            InitCustomEffectSub(hp, lbl_803482D0, 0, 0, 0);
+    }
+    if ((u32)(sMusicTrackHi - 5) <= 1) {
+        *(s32*)(ei + 2796) =
+            InitCustomEffectSub(sGoodWizObj, lbl_803482C8, 0, 0, 0);
+        *(s32*)(ei + 2616) =
+            InitCustomEffectSub(sGoodWizObj, lbl_803482D0, 0, 0, 0);
+    }
+    if (gBossType >= 0) {
+        if (sItemFile1Buf == NULL || *(s8*)(strs + 128) == 0) {
+            *(s32*)(ei + 1080) = 0;
+        } else {
+            *(s32*)(ei + 1080) = (s32)AtreeMatch(sItemFile1Buf, strs + 128, 0);
+        }
+        *(s32*)(ei + 1084) = 0;
+        *(s32*)(ei + 1088) = 0;
+        if (sItemFile1Buf == NULL || *(s8*)(strs + 140) == 0) {
+            *(s32*)(ei + 1092) = 0;
+        } else {
+            *(s32*)(ei + 1092) = (s32)AtreeMatch(sItemFile1Buf, strs + 140, 0);
+        }
+        *(s32*)(ei + 1096) = 0;
+        *(s32*)(ei + 1100) = 0;
+        if (sItemFile1Buf == NULL || *(s8*)(strs + 152) == 0) {
+            *(s32*)(ei + 1116) = 0;
+        } else {
+            *(s32*)(ei + 1116) = (s32)AtreeMatch(sItemFile1Buf, strs + 152, 0);
+        }
+        *(s32*)(ei + 1120) = 0;
+        *(s32*)(ei + 1124) = 0;
+        if (sItemFile1Buf == NULL || *(s8*)(strs + 164) == 0) {
+            *(s32*)(ei + 1104) = 0;
+        } else {
+            *(s32*)(ei + 1104) = (s32)AtreeMatch(sItemFile1Buf, strs + 164, 0);
+        }
+        *(s32*)(ei + 1108) = 0;
+        *(s32*)(ei + 1112) = 0;
+    }
+    if (*p984 == 0) {
+        *(s32*)(ei + 984) = *(s32*)(ei + 972);
+        *(s32*)(ei + 988) = *(s32*)(ei + 976);
+        *(s32*)(ei + 992) = *(s32*)(ei + 980);
+    }
+    if (*p996 == 0) {
+        *(s32*)(ei + 996) = *(s32*)(ei + 972);
+        *(s32*)(ei + 1000) = *(s32*)(ei + 976);
+        *(s32*)(ei + 1004) = *(s32*)(ei + 980);
+    }
+    if (InLevel(lbl_803482D8) != 0 || InLevel(lbl_803482DC) != 0) {
+        if (sItemFile1Buf == NULL || *(s8*)(strs + 176) == 0) {
+            *(s32*)(ei + 360) = 0;
+        } else {
+            *(s32*)(ei + 360) = (s32)AtreeMatch(sItemFile1Buf, strs + 176, 0);
+            if (*(s32*)(ei + 360) == 0) {
+                ErrorPrintf(strs + 48, strs + 176);
+            }
+        }
+        *(s32*)(ei + 364) = 0;
+        *(s32*)(ei + 368) = 0;
+    }
+    if (sGoodWizObj == NULL || *(s8*)(strs + 188) == 0) {
+        *(s32*)(ei + 1128) = 0;
+    } else {
+        *(s32*)(ei + 1128) = (s32)AtreeMatch(sGoodWizObj, strs + 188, 0);
+    }
+    *(s32*)(ei + 1132) = -512;
+    *(s32*)(ei + 1136) = 0;
+    got = (*(s32*)(ei + 1128) != 0) ? 1 : 0;
+    if (got == 0) {
+        if (sItemFile1Buf == NULL || *(s8*)(strs + 188) == 0) {
+            *(s32*)(ei + 1128) = 0;
+        } else {
+            *(s32*)(ei + 1128) = (s32)AtreeMatch(sItemFile1Buf, strs + 188, 0);
+        }
+        *(s32*)(ei + 1132) = -512;
+        *(s32*)(ei + 1136) = 0;
+    }
+    lbl_80344BF8 = MBOX_FindTexture_Sub(strs + 200, 0, (s32)sPowerupsHandle,
+                                        (s32)sPowerupsHandle, 1);
+    lbl_80344BF4 = MBOX_FindTexture_Sub(strs + 212, 0, (s32)sWeaponsHandle,
+                                        (s32)sWeaponsHandle, 1);
+    lbl_80344BF0 = MBOX_FindTexture_Sub(strs + 228, 0, (s32)sWeaponsHandle,
+                                        (s32)sWeaponsHandle, 1);
+    lbl_80344BEC = FindTexMod(sWeaponsBuf, strs + 240, 0);
+    lbl_80344BE8 = MBOX_FindTexture_Sub(lbl_803482E0, 0, (s32)sPowerupsHandle,
+                                        (s32)sPowerupsHandle, 0);
+    if (lbl_8034482C != 0) {
+        *(s32*)(ei + 18336) = (s32)FindTexMod(sWeaponsBuf, strs + 252, 0);
+    } else {
+        *(s32*)(ei + 18336) = (s32)FindTexMod(sWeaponsBuf, strs + 264, 0);
+    }
+    *(s32*)(ei + 18340) = (s32)FindTexMod(sWeaponsBuf, strs + 276, 0);
+    *(s32*)(ei + 18344) = (s32)FindTexMod(sWeaponsBuf, strs + 288, 0);
+}
+
 void ClearCustomEffect(s32 type)
 {
     if (type < 0) {
