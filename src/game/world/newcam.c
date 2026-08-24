@@ -1602,6 +1602,7 @@ s32 fn_8006DF34(NcCamera* cam) {
  * [caller: UpdateCam]
  */
 void fn_8006E654(void) {
+    u8 unused[16];
     NcCamera tmp;
     NcCamera* cam;
     f64 d;
@@ -1632,61 +1633,72 @@ void fn_8006E654(void) {
             iter++;
         }
 
-        cam = lbl_80344A6C;
-        d = tmp.yaw - cam->yaw;
+        d = tmp.yaw - lbl_80344A6C->yaw;
         if (d > 3.141592654) {
             d -= 6.283185308;
         } else if (d <= -3.141592654) {
             d = 6.283185308 + d;
         }
-        cam->yaw_rate = d / lbl_80343CD4;
+        lbl_80344A6C->yaw_rate = d / lbl_80343CD4;
 
-        d = tmp.pitch - cam->pitch;
+        d = tmp.pitch - lbl_80344A6C->pitch;
         if (d > 3.141592654) {
             d -= 6.283185308;
         } else if (d <= -3.141592654) {
             d = 6.283185308 + d;
         }
-        cam->pitch_rate = d / lbl_80343CD4;
+        lbl_80344A6C->pitch_rate = d / lbl_80343CD4;
 
-        cam->dist_rate = (tmp.distance - cam->distance) / lbl_80343CD4;
+        lbl_80344A6C->dist_rate =
+            (tmp.distance - lbl_80344A6C->distance) / lbl_80343CD4;
 
-        cam->velocity.x = tmp.attention.x - cam->attention.x;
-        cam->velocity.y = tmp.attention.y - cam->attention.y;
-        cam->velocity.z = tmp.attention.z - cam->attention.z;
-        cam->velocity.x = cam->velocity.x * (1.0 / lbl_80343CD4);
-        cam->velocity.y = cam->velocity.y * (1.0 / lbl_80343CD4);
-        cam->velocity.z = cam->velocity.z * (1.0 / lbl_80343CD4);
+        lbl_80344A6C->velocity.x =
+            tmp.attention.x - lbl_80344A6C->attention.x;
+        lbl_80344A6C->velocity.y =
+            tmp.attention.y - lbl_80344A6C->attention.y;
+        lbl_80344A6C->velocity.z =
+            tmp.attention.z - lbl_80344A6C->attention.z;
+        lbl_80344A6C->velocity.x =
+            lbl_80344A6C->velocity.x * (1.0 / lbl_80343CD4);
+        lbl_80344A6C->velocity.y =
+            lbl_80344A6C->velocity.y * (1.0 / lbl_80343CD4);
+        lbl_80344A6C->velocity.z =
+            lbl_80344A6C->velocity.z * (1.0 / lbl_80343CD4);
     }
+
+    d = lbl_80344A6C->yaw + lbl_80344A6C->yaw_rate;
+    if (d > 3.141592654) {
+        d -= 6.283185308;
+    } else if (d <= -3.141592654) {
+        d = 6.283185308 + d;
+    }
+    lbl_80344A6C->yaw = d;
+
+    d = lbl_80344A6C->pitch + lbl_80344A6C->pitch_rate;
+    if (d > 3.141592654) {
+        d -= 6.283185308;
+    } else if (d <= -3.141592654) {
+        d = 6.283185308 + d;
+    }
+    lbl_80344A6C->pitch = d;
+
+    lbl_80344A6C->distance += lbl_80344A6C->dist_rate;
+    lbl_80344A6C->attention.x += lbl_80344A6C->velocity.x;
+    lbl_80344A6C->attention.y += lbl_80344A6C->velocity.y;
+    lbl_80344A6C->attention.z += lbl_80344A6C->velocity.z;
+
+    lbl_80344A6C->field_1A4 =
+        (lbl_80344A6C->field_1A4 + 1) % lbl_80343CD0;
+    lbl_80344A6C->ring_pos[lbl_80344A6C->field_1A4].x =
+        lbl_80344A6C->attention.x;
+    lbl_80344A6C->ring_pos[lbl_80344A6C->field_1A4].y =
+        lbl_80344A6C->attention.y;
+    lbl_80344A6C->ring_pos[lbl_80344A6C->field_1A4].z =
+        lbl_80344A6C->attention.z;
+    lbl_80344A6C->ring_dist[lbl_80344A6C->field_1A4] =
+        lbl_80344A6C->distance;
 
     cam = lbl_80344A6C;
-    d = cam->yaw + cam->yaw_rate;
-    if (d > 3.141592654) {
-        d -= 6.283185308;
-    } else if (d <= -3.141592654) {
-        d = 6.283185308 + d;
-    }
-    cam->yaw = d;
-
-    d = cam->pitch + cam->pitch_rate;
-    if (d > 3.141592654) {
-        d -= 6.283185308;
-    } else if (d <= -3.141592654) {
-        d = 6.283185308 + d;
-    }
-    cam->pitch = d;
-
-    cam->distance += cam->dist_rate;
-    cam->attention.x += cam->velocity.x;
-    cam->attention.y += cam->velocity.y;
-    cam->attention.z += cam->velocity.z;
-
-    cam->field_1A4 = (cam->field_1A4 + 1) % lbl_80343CD0;
-    cam->ring_pos[cam->field_1A4].x = cam->attention.x;
-    cam->ring_pos[cam->field_1A4].y = cam->attention.y;
-    cam->ring_pos[cam->field_1A4].z = cam->attention.z;
-    cam->ring_dist[cam->field_1A4] = cam->distance;
-
     pitch = cam->pitch;
     YawVec3(lbl_80127D40, &cam->direction, -cam->yaw);
     PitchVec3((f32*)&cam->direction, (f32*)&cam->direction, -pitch);
