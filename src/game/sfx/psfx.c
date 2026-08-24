@@ -238,7 +238,7 @@ extern s32 PlayerStartMissile(u8* p, f32* vec, u32 mask, s32 mode, f32 a,
                               f32 b);
 extern void MBRemovePolyInst(void* inst);
 extern void player_get_powerup_state(u8* p, s32 kind, u32 mask, f32 dt);
-void fn_800898DC(u8* p, u8* row, s32 mode, u8* other);
+s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other);
 void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1);
 
 /* 0x80089350 - run one player-sfx sequence row for the [t0,t1) frame window,
@@ -439,7 +439,208 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
     }
 }
 
-void fn_800898DC(u8* p, u8* row, s32 mode, u8* other) {}
+extern s32 optionsAudioAndPrefs30[];
+extern void MulBodyVecMat4(f32* in, f32* out, void* mtx);
+extern void PlaceEffectOnFloor(s32 fx, void* node);
+extern void YawMat3(void* node, f32 yaw);
+extern void PitchMat3(void* node, f32 pitch);
+extern void SfxSetHit(s32 fx, u32 a, u32 b, u32 c);
+extern void SfxSetMorph(s32 fx, u32 a, s32 b, f32 t);
+extern void SfxSetLight(s32 fx, void* color, f32 rad);
+extern void PitchVec3(f32* in, f32* out, f32 pitch);
+extern f32 Random(f32 range);
+extern void fn_80093E50(s32 fx, f32* vel, f32* rnd, f32 a, f32 b);
+extern void DmgFxAdd(s32 fx);
+extern f32 gClockTime;
+extern u32 gControllerButtons;
+s32 DoPlyrSfxSub(u8* player, s32 recordIndex, f32* offset, s32 absolute,
+                 s32 effectIndex);
+extern u8 lbl_80120DA0[];
+extern f64 lbl_80347DF8;
+extern f32 lbl_80347E00;
+extern f64 lbl_80347E08;
+extern f32 lbl_80347E10;
+extern f64 lbl_80347E18;
+extern f32 lbl_80347E20;
+
+/* 0x800898DC - start one player effect from a sequence row: spawn through
+ * DoPlyrSfxSub, then seed flags, lifetime, hit/morph links and velocity. */
+s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
+{
+    f32 pos[3];
+    f32 vel[3];
+    f32 rnd[3];
+    s32 pidx;
+    u8** hdrp;
+    u8* seq;
+    u8* sub;
+    u32* flp;
+    u32 fl;
+    s32 fx;
+    f32 health;
+
+    pidx = *(s32*)p;
+    if (mode != 0) {
+        pos[0] = *(f32*)(row + 44);
+        pos[1] = *(f32*)(row + 48);
+        pos[2] = *(f32*)(row + 52);
+        if (other != NULL) {
+            MulBodyVecMat4((f32*)other, (f32*)other, p + 20);
+            pos[0] = *(f32*)other + pos[0];
+            pos[1] = *(f32*)(other + 4) + pos[1];
+            pos[2] = *(f32*)(other + 8) + pos[2];
+        }
+    } else {
+        if (other != NULL) {
+            MulVecMat3((f32*)(row + 44), pos, (f32*)(p + 20));
+            pos[0] = *(f32*)other + pos[0];
+            pos[1] = *(f32*)(other + 4) + pos[1];
+            pos[2] = *(f32*)(other + 8) + pos[2];
+        } else {
+            MulVecMat4((f32*)(row + 44), pos, (f32*)(p + 20));
+        }
+    }
+    mode = DoPlyrSfxSub(p, *(s16*)(row + 72), pos, mode, -1);
+    if (mode < 0) {
+        return mode;
+    }
+    fx = mode;
+    hdrp = &lbl_80282930[pidx];
+    seq = *(u8**)(*hdrp + 4) + *(s16*)(row + 72) * 80;
+    fl = 0;
+    switch (*(s16*)row) {
+    case 2:
+        fl |= 14;
+        break;
+    case 3:
+        fl |= 58;
+        break;
+    case 4:
+    case 6:
+    case 7:
+        fl |= 42;
+        break;
+    case 9:
+        fl |= 42;
+        break;
+    }
+    fl |= 256;
+    if (*(s32*)((u8*)optionsAudioAndPrefs30 + 28) == 2) {
+        fl |= 1;
+    } else {
+        fl |= 512;
+    }
+    if (*(s16*)(row + 2) & 0x40) {
+        fl &= ~4;
+    }
+    if (*(u32*)(row + 4) & 0x00020000) {
+        fl |= 0x20000;
+    }
+    flp = (u32*)&Effects[fx].flags;
+    *flp |= fl;
+    if ((*(u32*)seq & 0x10) && *(s16*)(row + 74) < 0) {
+        PlaceEffectOnFloor(fx, Effects[fx].node);
+    }
+    if (lbl_80347DA0 != *(f32*)(row + 32)) {
+        YawMat3(Effects[fx].node, *(f32*)(row + 32));
+    }
+    if (lbl_80347DA0 != *(f32*)(row + 40)) {
+        PitchMat3(Effects[fx].node, *(f32*)(row + 40));
+    }
+    health = *(f32*)(row + 56);
+    if (health < lbl_80347DA0) {
+        health = *(f32*)(p + 260) * -health;
+    }
+    if (health > lbl_80347DA0) {
+        u8* fx2 = (u8*)&Effects[fx];
+        *(f32*)(fx2 + 172) = health;
+        *(f32*)(fx2 + 156) = *(f32*)(row + 36);
+        *(f32*)(fx2 + 184) = *(f32*)(row + 12);
+        *(u32*)(fx2 + 180) = *(u32*)(row + 4);
+        *(f32*)(fx2 + 124) = *(f32*)(row + 20);
+        if (*(f32*)(row + 24) > lbl_80347DC0) {
+            *(f32*)(fx2 + 112) = gClockTime + *(f32*)(row + 24);
+        }
+        Effects[fx].owner = pidx + 1;
+        if (*(s16*)(row + 74) >= 0) {
+            sub = *(u8**)(*hdrp + 4) + *(s16*)(row + 74) * 80;
+            SfxSetHit(fx, *(u32*)(sub + 8), *(u32*)(sub + 12),
+                      *(u32*)(sub + 12));
+            if (*(u32*)sub & 0x10) {
+                *flp |= 0x200000;
+            }
+        }
+        if (*(s16*)(row + 76) >= 0) {
+            SfxSetMorph(fx,
+                        *(u32*)(*(u8**)(*hdrp + 4) + *(s16*)(row + 76) * 80 +
+                                8),
+                        0, *(f32*)(row + 28));
+            if (*(s16*)(row + 2) & 0x800) {
+                *flp |= 0x8000;
+            }
+        }
+        if (*(f32*)(row + 12) != lbl_80347DA0) {
+            SfxSetLight(fx, lbl_80120DA0 + *(s32*)(p + 8) * 12,
+                        (f32)(lbl_80347DF8 * *(f32*)(row + 12)));
+        } else if (*(f32*)(row + 8) != lbl_80347DA0) {
+            SfxSetLight(fx, lbl_80120DA0 + *(s32*)(p + 8) * 12,
+                        (f32)(lbl_80347DF8 * *(f32*)(row + 8)));
+        }
+        if (*(f32*)(row + 60) > lbl_80347DA0) {
+            f32 spd = lbl_80347E00 * (*(f32*)(row + 64) - *(f32*)(row + 60)) +
+                      *(f32*)(row + 60);
+            if (*(s16*)(row + 2) & 4) {
+                vel[0] = *(f32*)(p + 52);
+                vel[1] = *(f32*)(p + 56);
+                vel[2] = *(f32*)(p + 60);
+            } else {
+                f32 vy = *(f32*)(p + 2236);
+                if (*(u32*)(p + 2240) & 8) {
+                    if (vy > lbl_80347E08) {
+                        vy = lbl_80347E10;
+                    }
+                    if (vy > lbl_80347DA0 && vy < lbl_80347E18) {
+                        vy = lbl_80347E00;
+                    }
+                }
+                vel[0] = *(f32*)(p + 52) * spd;
+                vel[1] = vy * spd;
+                vel[2] = *(f32*)(p + 60) * spd;
+            }
+            if (*(s16*)row == 2) {
+                if (lbl_80347DA0 != *(f32*)(row + 32)) {
+                    YawVec3(vel, vel, *(f32*)(row + 32));
+                }
+                if ((*(s16*)(row + 2) & 8) &&
+                    lbl_80347DA0 != *(f32*)(row + 40)) {
+                    PitchVec3(vel, vel, *(f32*)(row + 40));
+                }
+            }
+            if (*(u32*)seq & 8) {
+                rnd[0] = Random(lbl_80347E20);
+                rnd[1] = lbl_80347DA0;
+                rnd[2] = Random(lbl_80347E20);
+                fn_80093E50(fx, vel, rnd, *(f32*)(row + 68),
+                            *(f32*)(row + 8));
+            } else {
+                fn_80093E50(fx, vel, 0, *(f32*)(row + 68), *(f32*)(row + 8));
+            }
+        } else {
+            fn_80093E50(fx, 0, 0, *(f32*)(row + 68), *(f32*)(row + 8));
+        }
+        if ((*(u64*)&gControllerButtons & 16) != 0 &&
+            (*(u64*)&gControllerButtons & 1) != 0) {
+            DmgFxAdd(fx);
+        }
+    } else {
+        if (*(s16*)(row + 74) >= 0) {
+            sub = *(u8**)(*hdrp + 4) + *(s16*)(row + 74) * 80;
+            SfxSetHit(fx, *(u32*)(sub + 8), *(u32*)(sub + 12),
+                      *(u32*)(sub + 12));
+        }
+    }
+    return fx;
+}
 
 typedef struct PlayerSfxRecord {
     u32 flags;          /* 0x00 */
@@ -898,7 +1099,6 @@ void LoadPlyrData(s32 plr, s32 cls, s32 resolve)
     s32 off;
     u8 swapped;
 
-    mode = 0;
     if (plr < 0) {
         return;
     }
