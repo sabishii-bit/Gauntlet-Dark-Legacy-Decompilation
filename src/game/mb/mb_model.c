@@ -91,7 +91,7 @@ extern const char lbl_80348C30[4]; /* "???" */
 static void  BGLoadTextures(void* rq);
 static void  BGLoadObjects(void* rq);
 int          MBOX_LoadModelFixed(const char* dir, void* buf, int a, int b, int slot);
-static int   SetupModel();
+static void  SetupModel();
 int          MBOX_AllocModelMem(int objSize, int texSize, const char* dir);
 int          MBOX_FindTexture_Sub(const char* name, int p2, int lo, int hi, int flag);
 static int   texcmp(const void* a, const void* b);
@@ -310,21 +310,217 @@ int MBOX_LoadModelFixed(const char* dir, void* buf, int a, int b, int slot) {
     return slot;
 }
 
+static inline u16 ModelSwap16(u16 value)
+{
+    u8* bytes;
+
+    bytes = (u8*)&value;
+    return (u16)(bytes[0] | (bytes[1] << 8));
+}
+
+static inline u32 ModelSwap32(u32 value)
+{
+    u32 result;
+    u8* source;
+    u8* destination;
+
+    source = (u8*)&value;
+    destination = (u8*)&result;
+    destination[0] = source[3];
+    destination[1] = source[2];
+    destination[2] = source[1];
+    destination[3] = source[0];
+    return result;
+}
+
+static inline f32 ModelSwapF32(f32 value)
+{
+    u32 result;
+
+    result = ModelSwap32(*(u32*)&value);
+    return *(f32*)&result;
+}
+
+#define MODEL_U16(data, offset) (*(u16*)((data) + (offset)))
+#define MODEL_S16(data, offset) (*(s16*)((data) + (offset)))
+#define MODEL_U32(data, offset) (*(u32*)((data) + (offset)))
+#define MODEL_S32(data, offset) (*(s32*)((data) + (offset)))
+#define MODEL_F32(data, offset) (*(f32*)((data) + (offset)))
+
 /* ---- 0x800B7D44 : parse/verify a loaded ngc model block (giant) ---- */
-static int SetupModel(slot, name)
+static void SetupModel(slot, name)
 int slot;
 const char* name;
 {
-    /* NonMatching skeleton: the real body is a ~0xAB8 inlined ngc-format
-     * parser that walks the model header, validates the version word, and
-     * builds the GX display-list / vertex data. Parked. */
-    u8* g = gWinGlobals;
-    char nm[0x40];
-    strncpy(nm, name, 0x3f);
-    ErrorPrintf(lbl_80115F24,
-                slot, name, 0, 0);
-    (void)g;
-    return 0;
+    u8* globals;
+    u8* model;
+    u8* records;
+    u8* record;
+    u8* packed;
+    u8* elements;
+    u32 version;
+    u8 swapData;
+    u32 i;
+    s32 j;
+    s32 trimIndex;
+    s32 offset;
+    s32 packedOffset;
+    s32 elementOffset;
+    s32 count;
+    s32 recordIndex;
+
+    globals = gWinGlobals;
+    model = *(u8**)(*(u8**)(globals + 48) + (slot << 4) + 4);
+    swapData = 1;
+
+    MODEL_U32(model, 64) = ModelSwap32(MODEL_U32(model, 64));
+    if (MODEL_U32(model, 64) != 0xF00B000D) {
+        swapData = 0;
+        MODEL_U32(model, 64) = ModelSwap32(MODEL_U32(model, 64));
+    }
+
+    if (swapData) {
+        MODEL_U32(model, 68) = ModelSwap32(MODEL_U32(model, 68));
+        MODEL_U32(model, 72) = ModelSwap32(MODEL_U32(model, 72));
+        MODEL_U32(model, 76) = ModelSwap32(MODEL_U32(model, 76));
+        MODEL_U32(model, 80) = ModelSwap32(MODEL_U32(model, 80));
+        MODEL_U32(model, 84) = ModelSwap32(MODEL_U32(model, 84));
+        MODEL_U32(model, 88) = ModelSwap32(MODEL_U32(model, 88));
+        MODEL_U32(model, 92) = ModelSwap32(MODEL_U32(model, 92));
+        MODEL_U32(model, 96) = ModelSwap32(MODEL_U32(model, 96));
+        MODEL_U32(model, 100) = ModelSwap32(MODEL_U32(model, 100));
+        MODEL_U32(model, 104) = ModelSwap32(MODEL_U32(model, 104));
+        MODEL_U32(model, 108) = ModelSwap32(MODEL_U32(model, 108));
+        MODEL_U32(model, 112) = ModelSwap32(MODEL_U32(model, 112));
+        MODEL_U32(model, 116) = ModelSwap32(MODEL_U32(model, 116));
+        MODEL_U32(model, 120) = ModelSwap32(MODEL_U32(model, 120));
+        MODEL_U16(model, 124) = ModelSwap16(MODEL_U16(model, 124));
+        MODEL_U16(model, 126) = ModelSwap16(MODEL_U16(model, 126));
+    }
+
+    version = MODEL_U32(model, 64);
+    if (version != 0xF00B000D) {
+        ErrorPrintf(lbl_80115F24, slot, model + 32, version, 0xF00B000D);
+    }
+    strncpy((char*)(model + 32), name, 32);
+    model[63] = 0;
+
+    MODEL_U32(model, 84) = (u32)model + MODEL_U32(model, 84);
+    MODEL_U32(model, 88) = (u32)model + MODEL_U32(model, 88);
+    MODEL_U32(model, 92) = (u32)model + MODEL_U32(model, 92);
+    MODEL_U32(model, 96) = (u32)model + MODEL_U32(model, 96);
+    MODEL_U32(model, 100) = (u32)model + MODEL_U32(model, 100);
+    MODEL_U32(model, 104) = (u32)model + MODEL_U32(model, 104);
+    MODEL_U32(model, 120) = (u32)model + MODEL_U32(model, 120);
+    MODEL_U32(model, 108) = (u32)model + MODEL_U32(model, 108);
+    MODEL_U32(model, 112) = (u32)model +
+                            MODEL_U32(*(u8**)(globals + 48) + (slot << 4), 8);
+    MODEL_U32(model, 116) = (u32)model +
+                            MODEL_U32(*(u8**)(globals + 48) + (slot << 4), 8) +
+                            MODEL_U32(*(u8**)(globals + 48) + (slot << 4), 12);
+
+    records = (u8*)MODEL_U32(model, 88);
+    if (swapData) {
+        offset = 0;
+        for (i = 0; i < MODEL_U32(model, 68); i++, offset += 64) {
+            record = (u8*)MODEL_U32(model, 84) + offset;
+            MODEL_F32(record, 0) = ModelSwapF32(MODEL_F32(record, 0));
+            MODEL_F32(record, 4) = ModelSwapF32(MODEL_F32(record, 4));
+            MODEL_U32(record, 8) = ModelSwap32(MODEL_U32(record, 8));
+            MODEL_U32(record, 12) = ModelSwap32(MODEL_U32(record, 12));
+            MODEL_U16(record, 16) = ModelSwap16(MODEL_U16(record, 16));
+            MODEL_U16(record, 18) = ModelSwap16(MODEL_U16(record, 18));
+            MODEL_U16(record, 20) = ModelSwap16(MODEL_U16(record, 20));
+            MODEL_U16(record, 22) = ModelSwap16(MODEL_U16(record, 22));
+            MODEL_U32(record, 24) = ModelSwap32(MODEL_U32(record, 24));
+            MODEL_U32(record, 28) = ModelSwap32(MODEL_U32(record, 28));
+            MODEL_U32(record, 32) = ModelSwap32(MODEL_U32(record, 32));
+            MODEL_U32(record, 36) = ModelSwap32(MODEL_U32(record, 36));
+            MODEL_U32(record, 40) = ModelSwap32(MODEL_U32(record, 40));
+            MODEL_U32(record, 44) = ModelSwap32(MODEL_U32(record, 44));
+        }
+
+        offset = 0;
+        for (i = 0; i < MODEL_U32(model, 72); i++, offset += 64) {
+            record = records + offset;
+            MODEL_U16(record, 8) = ModelSwap16(MODEL_U16(record, 8));
+            MODEL_U32(record, 12) = ModelSwap32(MODEL_U32(record, 12));
+            MODEL_U16(record, 18) = ModelSwap16(MODEL_U16(record, 18));
+            MODEL_U16(record, 22) = ModelSwap16(MODEL_U16(record, 22));
+            MODEL_U16(record, 24) = ModelSwap16(MODEL_U16(record, 24));
+        }
+
+        offset = 0;
+        packedOffset = 0;
+        for (i = 0; i < MODEL_U32(model, 72); i++, offset += 64, packedOffset += 16) {
+            record = records + offset;
+            packed = records + packedOffset;
+            packed[0] = record[0];
+            MODEL_U16(packed, 2) = MODEL_U16(record, 8);
+            MODEL_U32(packed, 4) = MODEL_U32(record, 12);
+            MODEL_U16(packed, 8) = MODEL_U16(record, 18);
+            MODEL_U16(packed, 10) = MODEL_U16(record, 22);
+            MODEL_U16(packed, 12) = MODEL_U16(record, 24);
+        }
+        MODEL_U32(model, 128) = (u32)records + MODEL_U32(model, 72) * 16;
+
+        offset = 0;
+        for (i = 0; i < MODEL_U32(model, 76); i++, offset += 24) {
+            record = (u8*)MODEL_U32(model, 92) + offset;
+            MODEL_F32(record, 16) = ModelSwapF32(MODEL_F32(record, 16));
+            MODEL_U16(record, 20) = ModelSwap16(MODEL_U16(record, 20));
+            MODEL_U16(record, 22) = ModelSwap16(MODEL_U16(record, 22));
+        }
+
+        offset = 0;
+        for (i = 0; i < MODEL_U32(model, 80); i++, offset += 36) {
+            record = (u8*)MODEL_U32(model, 96) + offset;
+            MODEL_U16(record, 30) = ModelSwap16(MODEL_U16(record, 30));
+            MODEL_U16(record, 32) = ModelSwap16(MODEL_U16(record, 32));
+            MODEL_U16(record, 34) = ModelSwap16(MODEL_U16(record, 34));
+        }
+    }
+
+    count = (s32)MODEL_U32(model, 80);
+    offset = (count - 1) * 36;
+    for (trimIndex = count - 1; trimIndex >= 0; trimIndex--, offset -= 36) {
+        if (*(s8*)((u8*)MODEL_U32(model, 96) + offset) != 0) {
+            break;
+        }
+        MODEL_U32(model, 80)--;
+    }
+
+    offset = 0;
+    for (i = 0; i < MODEL_U32(model, 68); i++, offset += 64) {
+        record = (u8*)MODEL_U32(model, 84) + offset;
+        MODEL_U32(record, 44) = 0;
+        count = MODEL_S32(record, 12);
+        if (count < 1 || MODEL_U16(record, 16) < 1 || MODEL_U32(record, 28) == 0 ||
+            (count > 1 && MODEL_U32(record, 24) == 0)) {
+            MODEL_S32(record, 12) = 0;
+            continue;
+        }
+
+        MODEL_U32(record, 24) = (u32)model + MODEL_U32(record, 24);
+        MODEL_U32(record, 28) = (u32)model + MODEL_U32(record, 28);
+        if (swapData) {
+            elementOffset = 0;
+            for (j = 0; j < count - 1; j++, elementOffset += 8) {
+                elements = (u8*)MODEL_U32(record, 24) + elementOffset;
+                MODEL_U16(elements, 0) = ModelSwap16(MODEL_U16(elements, 0));
+                MODEL_U16(elements, 2) = ModelSwap16(MODEL_U16(elements, 2));
+                MODEL_U16(elements, 4) = ModelSwap16(MODEL_U16(elements, 4));
+                MODEL_U16(elements, 6) = ModelSwap16(MODEL_U16(elements, 6));
+            }
+        }
+    }
+
+    offset = 0;
+    for (i = 0; i < MODEL_U32(model, 76); i++, offset += 24) {
+        record = (u8*)MODEL_U32(model, 92) + offset;
+        recordIndex = MODEL_S16(record, 20);
+        *(u8**)((u8*)MODEL_U32(model, 84) + recordIndex * 64 + 44) = record;
+    }
 }
 
 /* ---- 0x800B87FC : compute+allocate model memory for a named model ---- */
