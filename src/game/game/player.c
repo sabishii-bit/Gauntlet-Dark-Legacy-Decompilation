@@ -1111,54 +1111,52 @@ static void write_gold(s32 i, s32 show) {
 static void draw_power_meter(s32 i) {
     Player* p = P(i);
     s32 j;
-    u32 zone0;
-    u32 zone;
+    s32 zone0;
+    s32 zone;
     f32 pw;
-    f64 frac;
+    f32 frac;
     s32 state;
     u32 rgb;
     u32 rgb2;
     u16* tex;
     s32 w;
+    u8 unused[0x30];
 
     for (j = 0; j < 7; j++) {
         mbBlitInit3414(pm_blit[i][j], 1);
     }
-    if ((f64)(f32)(0.01 * p->power_level) >= 0.4) {
-        if ((f64)(f32)(0.01 * p->power_level) >= 0.99) {
-            zone0 = 3;
-        } else {
-            zone0 = 2;
-        }
-    } else {
+    pw = (f32)(0.01 * p->power_level);
+    if (pw < 0.4) {
         zone0 = 1;
+    } else if (pw < 0.99) {
+        zone0 = 2;
+    } else {
+        zone0 = 3;
     }
     if ((f64)p->power_target > 100.0) {
         p->power_target = 100.0f;
     }
-    if (p->power_level <= p->power_target) {
-        p->power_level = p->power_level + (f32)gFrameTicks;
-        if (p->power_target < p->power_level) {
+    if (p->power_level < p->power_target) {
+        p->power_level = p->power_level + (f32)(u32)gFrameTicks;
+        if (p->power_level > p->power_target) {
             p->power_level = p->power_target;
         }
     } else {
-        p->power_level = p->power_level - (f32)(gFrameTicks << 1);
+        p->power_level = p->power_level - (f32)((u32)gFrameTicks << 1);
         if (p->power_level < p->power_target) {
             p->power_level = p->power_target;
         }
     }
     frac = (f32)(0.01 * p->power_level);
-    if (frac >= 0.4) {
-        if (frac >= 0.99) {
-            zone = 3;
-            frac = 1.0f;
-        } else {
-            zone = 2;
-            frac = (f32)((f32)(frac - 0.4f) / 0.6f);
-        }
-    } else {
+    if (frac < 0.4) {
         zone = 1;
-        frac = (f32)(frac / (f64)0.4f);
+        frac = frac / 0.4f;
+    } else if (frac < 0.99) {
+        zone = 2;
+        frac = (frac - 0.4f) / 0.6f;
+    } else {
+        zone = 3;
+        frac = 1.0f;
     }
     if (zone0 == zone && zone0 == 3 && p->meter_flash == 0) {
         zone0 = -1;
@@ -1175,9 +1173,40 @@ static void draw_power_meter(s32 i) {
     mbBlitInit3414(pm_blit[i][0], 0);
     mbBlitInit3414(pm_blit[i][2], 0);
     state = p->meter_flash;
-    if (state == 1) {
+    switch (state) {
+    case 0: {
+        s32 a = (s32)(127.0 * frac + 128.0);
+
+        rgb = 0;
+        rgb2 = 0;
+        if (zone == 1) {
+            rgb = ((a & 0xFF) << 16) | ((a & 0xFF) << 8);
+            rgb2 = 0;
+        } else if (zone == 0) {
+            rgb = (a & 0xFF) << 8;
+            rgb2 = 0;
+        } else if (zone < 4) {
+            rgb = (a & 0xFF) << 16;
+            rgb2 = 0xFFFF00;
+        }
+        tex = (u16*)MBRomTexPtr(PF((u8*)pm_blit[i][0], 4, u32));
+        w = (s32)((f32)(s32)tex[5] * frac) >> 1;
+        if (w < 1) {
+            w = 1;
+        }
+        mbBlitCalcWidth(pm_blit[i][0],
+                        (pm_bar_x + i * 0x80 + ((s32)tex[5] / 2)) - w, pm_bar_y,
+                        (f32)pm_bar_z);
+        mbBlitProject(pm_blit[i][0], w << 1, 0);
+        mbBlitCalcWidth(pm_blit[i][1], pm_frame_x + i * 0x80, pm_frame_y,
+                        (f32)pm_frame_z);
+        MBBlitSetColor(pm_blit[i][0], rgb);
+        MBBlitSetColor(pm_blit[i][1], rgb2);
+        break;
+    }
+    case 1:
         j = p->meter_timer >> 2;
-        if (j > 4 && j < 10) {
+        if (j >= 5 && j < 10) {
             j = 4 - (j - 5);
         }
         if (j < 5) {
@@ -1186,42 +1215,13 @@ static void draw_power_meter(s32 i) {
         } else {
             p->meter_flash = 0;
         }
-    } else if (state < 1) {
-        if (state >= 0) {
-            u32 a = (u32)(127.0 * frac + 128.0);
-
-            rgb = 0;
-            rgb2 = 0;
-            if (zone == 1) {
-                rgb = ((a & 0xFF) << 16) | ((a & 0xFF) << 8);
-                rgb2 = 0;
-            } else if (zone == 0) {
-                rgb = (a & 0xFF) << 8;
-                rgb2 = 0;
-            } else if (zone < 4) {
-                rgb = (a & 0xFF) << 16;
-                rgb2 = 0xFFFF00;
-            }
-            tex = (u16*)MBRomTexPtr(PF((u8*)pm_blit[i][0], 4, u32));
-            w = (s32)((f32)tex[5] * frac) >> 1;
-            if (w < 1) {
-                w = 1;
-            }
-            mbBlitCalcWidth(pm_blit[i][0],
-                            (pm_bar_x + i * 0x80 + ((s32)tex[5] >> 1)) - w, pm_bar_y,
-                            (f32)pm_bar_z);
-            mbBlitProject(pm_blit[i][0], w << 1, 0);
-            mbBlitCalcWidth(pm_blit[i][1], pm_frame_x + i * 0x80, pm_frame_y,
-                            (f32)pm_frame_z);
-            MBBlitSetColor(pm_blit[i][0], rgb);
-            MBBlitSetColor(pm_blit[i][1], rgb2);
-        }
-    } else if (state < 3) {
+        break;
+    case 2:
         j = (p->meter_timer << 9) / 0x78;
-        if (j > 0xFF && j < 0x200) {
+        if (j > 0xFF && j <= 0x1FF) {
             j = 0x1FF - j;
         }
-        if (j < 0x100) {
+        if (j <= 0xFF) {
             mbBlitInit3414(pm_blit[i][3], 0);
             MBBlitSetAlpha(pm_blit[i][3], 0xFF - j);
         } else {
@@ -1229,6 +1229,7 @@ static void draw_power_meter(s32 i) {
         }
         MBBlitSetColor(pm_blit[i][0], 0xFF0000);
         MBBlitSetColor(pm_blit[i][1], 0xFF0000);
+        break;
     }
     p->meter_timer = p->meter_timer + gFrameTicks;
 }
