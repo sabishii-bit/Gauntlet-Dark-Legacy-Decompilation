@@ -469,6 +469,7 @@ void InitOAnimList(OANIMHDR* hdr, int arg)
     u16 h;
     u32 v;
     u8 r[4];
+    u8 unused[16];
     u8* s;
     int i;
     int off;
