@@ -3591,7 +3591,7 @@ extern void player_store_in_save(u8* pl);
 extern void PlayerRestoreState(s32 player);
 extern void EnterTower(void);
 extern void InitCamera(s32 mode);
-extern s32  lbl_80344824;
+extern u32  lbl_80344824;
 extern void load_player(s32 player);
 extern void add_target(void* mat);
 extern void LoadPlyrData(s32 player, s32 pad, s32 mode);
@@ -3798,6 +3798,462 @@ extern void fn_8009FA84(void);
 extern void DoAudioTallySFX(s32 n);
 extern void init_got_it(void);
 extern void DrawText(s32 x, s32 y, s32 flags, s32 color, ...);
+
+extern s32  opt_quit_request;
+extern s32  lbl_803441FC;
+extern s32  lbl_80344794;
+extern s32  lbl_80344C18;
+extern s32  gScriptedCameraState;
+extern f32  gCameras[];
+extern f32  lbl_8025EA04[];
+extern void* lbl_80344EA8;
+extern char lbl_80346AB0[8];
+extern s32  lbl_80344788;
+extern u8   lbl_80344798;
+extern u32  lbl_803448D0;
+extern s32  lbl_803448CC;
+
+extern s32  OptionsDone(void);
+extern void AudioSelectReset(void);
+extern void fn_8009D34C(void);
+extern void TriggerCameraEnd(void);
+extern void AudioClearInputFlag(void);
+extern void init_targets(void);
+extern void end_all_optmenus(void);
+extern void FireScrollReset(void);
+extern void TowerInit(void);
+extern void fn_800520C8(void);
+extern void fn_8004E67C(void);
+extern void do_flyby(void);
+extern void do_credits(void);
+extern void do_screen2d(void);
+extern void do_movie(void);
+extern void do_titlescreen(void);
+extern void check_prefs_loaded(void);
+extern void init_titlescreen(void);
+extern void ProcessEffects(void);
+extern void fn_80055AFC(void);
+extern void SetPlayerVars(void);
+extern void fn_8009D530(void);
+extern void abort_player(s32 player);
+extern void kill_player(s32 player);
+extern void init_player_select(s32 mode);
+extern void init_shop(s32 mode);
+extern s32  init_gamemovie(s32 mode);
+extern void WritePlayerInfo(s32 player);
+extern s32  fn_80055F68(s32 a, s32 b);
+extern s32  FileSystemBusy(void);
+extern s32  new_start(s32 a);
+extern s32  assigned_controller(s32 a);
+extern void assign_controller(s32 a);
+extern s32  ExitAttract(void);
+extern s32  do_players(void);
+extern s32  do_player_select(void);
+extern s32  do_mapscreen(s32 mode);
+extern s32  do_gamemovie(void);
+extern s32  do_shop(void);
+extern s32  check_active_players(void);
+extern s32  sndFxUpdate(s32 a);
+extern void fn_8009D610(s32 a, s32 b);
+extern s32  next_world(void);
+extern s32  init_mapscreen(s32 a, s32 b);
+extern void towerRecordLevelBeaten(u32 a, s32 b);
+extern s32  pbDiagDrawMenu(void);
+extern void fn_80054E78(void);
+
+/* 0x80054230 - top-level per-frame game mode dispatcher. */
+#pragma dont_inline on
+void game_main(void)
+{
+    s32 i;
+    s32 cond;
+    s32 flag;
+    s32 flag2;
+    s32 lvl;
+    s32 next;
+    s32 all;
+    s32 v;
+    s32 c;
+    char* strs = lbl_80112538;
+
+    lbl_80344800++;
+    if (gGameMode & 0x4000) {
+        for (i = 0; i < 4; i++) {
+            if (lbl_80257640[i] > 120) {
+                lbl_80344A2C = 1;
+            }
+        }
+    }
+    if (opt_quit_request && OptionsDone()) {
+        i = 0;
+        opt_quit_request = i;
+        gGameMode = 0x4014;
+        gGameBusy = i;
+        AudioStopSelect();
+        AudioSelectReset();
+        fn_8009D34C();
+        lbl_80344774 = i;
+        lbl_80344778 = 240;
+        for (; i < 4; i++) {
+            abort_player(i);
+        }
+        lbl_80344824 = 0;
+        TriggerCameraEnd();
+    }
+    if (opt_restart_request) {
+        if (gGameMode == 0x4010 && sMusicTrackHi != 13) {
+            if (OptionsDone()) {
+                for (i = 0; i < 4; i++) {
+                    kill_player(i);
+                }
+            }
+        } else {
+            opt_restart_request = 0;
+        }
+    }
+    if (gGameMode & 0x8000) {
+        if (gControllerButtons & 4) {
+            if (!assigned_controller(0)) {
+                assign_controller(0);
+            }
+        }
+    }
+    if (lbl_80344A2C && gGameMode != 0x400e) {
+        while (!fn_80055F68(0, 1)) {
+            serve_busy(-1);
+        }
+        while (!MBOX_BGLoadModelDone()) {
+            serve_busy(-1);
+        }
+        while (FileSystemBusy()) {
+            serve_busy(-1);
+        }
+        while (AudioSysUpdate(10)) {
+            serve_busy(-1);
+        }
+        while (FileSystemBusy()) {
+            serve_busy(-1);
+        }
+        bulletproof_printf(strs + 0x1e4);
+        AudioStopSelect();
+        AudioSelectReset();
+        bulletproof_printf(strs + 0x1f0);
+        v = 0;
+        alpha = v;
+        fn_800520C8();
+        AudioClearInputFlag();
+        init_targets();
+        lbl_80344A2C = v;
+        options_state = v;
+        end_all_optmenus();
+        FireScrollReset();
+        TriggerCameraEnd();
+        TowerInit();
+        for (i = 0; i < 4; i++) {
+            abort_player(i);
+        }
+        bulletproof_printf(strs + 0x200);
+        fn_80053D08(-1, 0, -1);
+        bulletproof_printf(strs + 0x210);
+        i = -1;
+        lbl_80343C10 = i;
+        lbl_80343DD4 = i;
+        lbl_80343B38 = i;
+        AudioStopSelect();
+        lbl_803448AC = i;
+        lbl_803448A8 = i;
+        while (!MBOX_BGLoadModelDone()) {
+        }
+        init_attract_mode(0x8009);
+    }
+    cond = 0;
+    if (lbl_8034481C >= 13 && lbl_8034481C < 0x10000) {
+        cond = 1;
+    }
+    flag = cond ? 1 : 0;
+    SetPlayerVars();
+    if (lbl_803447D8 > lbl_803447D4 && gGameMode == 0x4010) {
+        fn_8009D530();
+    }
+    c = gGameMode;
+    switch (c) {
+    default:
+        if (c >= 0x8000) {
+            switch (c) {
+            default:
+            case 0x8000:
+            case 0x8007:
+                do_credits();
+                goto attract_tail;
+            case 0x8004:
+            case 0x8005:
+                if (!lbl_80344798) {
+                    lbl_80344798 = 1;
+                    check_prefs_loaded();
+                }
+                do_screen2d();
+                goto attract_tail;
+            case 0x8001:
+            case 0x8002:
+                do_movie();
+                goto attract_tail;
+            case 0x8009:
+                do_titlescreen();
+                goto attract_tail;
+            case 0x8003:
+            case 0x8006:
+            case 0x8008:
+                world_update();
+                fn_8005B988();
+                do_enemies();
+                fn_8004E67C();
+                do_flyby();
+            attract_tail:
+        if (gGameMode != 0x8009 && gGameMode != 0x400b && lbl_803441FC > 1) {
+            v = new_start(-1);
+            if (gGameMode & 0x8000) {
+                if (gControllerButtons & 4) {
+                    if (assigned_controller(0)) {
+                        v = 1;
+                    }
+                }
+            }
+            if (v) {
+                lbl_80344794 = 1;
+            }
+        }
+                if (lbl_80344794) {
+                    if (ExitAttract()) {
+                        lbl_80344794 = 0;
+                        init_titlescreen();
+                    }
+                }
+                break;
+            }
+        }
+        break;
+    case 0x400b:
+        if (!(gGameOptions[11] & 1)) {
+            WritePlayerInfo(-1);
+        }
+        if (gGameBusy) {
+            break;
+        }
+        do_players();
+        if (gGameMode == 0x8009) {
+            break;
+        }
+        if (!do_player_select()) {
+            break;
+        }
+        if (AudioSysUpdate(100000)) {
+            break;
+        }
+        for (i = 0; i < 4; i++) {
+            if (lbl_80344824 & (1 << i)) {
+                continue;
+            }
+        }
+        fn_8005351C();
+        break;
+    case 0x400f:
+        WritePlayerInfo(-1);
+        if (do_mapscreen(flag) && !AudioSysUpdate(100000)) {
+            ResolveWorldData(lbl_80343C04);
+            if (!init_gamemovie(flag)) {
+                fn_8005351C();
+            }
+        } else {
+            do_players();
+        }
+        break;
+    case 0x400e:
+        c = do_gamemovie();
+        if (c == 2) {
+            init_shop(0);
+        } else if (c) {
+            fn_8005351C();
+        }
+        break;
+    case 0x400c:
+        gGameMode = 0x4010;
+        WritePlayerInfo(-1);
+        AudioMusicVolUpdate();
+        if (!gGameBusy && sMusicTrackHi != 12) {
+            lbl_803447CC += gFrameTicks;
+        }
+        SetPlayerWindows(0);
+        break;
+    case 0x4010:
+        lbl_803447E4 = 0;
+        if (!(gGameBusy | gGameplayPauseTimer | gScriptedCameraState)) {
+            if (good_wiz_exit_timer > 0) {
+                if ((good_wiz_exit_timer -= gFrameTicks) <= 0) {
+                    lbl_80344808 = 1;
+                }
+            }
+        }
+        fn_80054E78();
+        fn_80055678(lbl_8025EA04, gCameras + 75);
+        if (!lbl_803447B8 && lbl_8034479C == 0) {
+            lbl_8034479C = MBOX_NewObject(lbl_80346AB0, 0, lbl_80344EA8, 8);
+        }
+        if (sMusicTrackHi == 13 && !options_state && !lbl_803447B8) {
+            if (check_active_players()) {
+                init_player_select(1);
+                break;
+            }
+        }
+        AudioMusicVolUpdate();
+        if (!gGameBusy && sMusicTrackHi != 12) {
+            lbl_803447CC += gFrameTicks;
+        }
+        if (!lbl_80344824) {
+            i = 0;
+            gGameMode = 0x4014;
+            gGameBusy = i;
+            AudioStopSelect();
+            AudioSelectReset();
+            fn_8009D34C();
+            lbl_80344774 = i;
+            lbl_80344778 = 240;
+            for (; i < 4; i++) {
+                abort_player(i);
+            }
+            lbl_80344824 = 0;
+            TriggerCameraEnd();
+            break;
+        }
+        world_update();
+        fn_8005B988();
+        do_enemies();
+        fn_8004E67C();
+        if (do_players() && !sndFxUpdate(1)) {
+            lvl = (u8)lbl_803448CC;
+            lvl = (lvl & 0xFF) | (lbl_803448D0 << 8);
+            if (!lbl_80344824) {
+                i = 0;
+                gGameMode = 0x4014;
+                gGameBusy = i;
+                AudioStopSelect();
+                AudioSelectReset();
+                fn_8009D34C();
+                lbl_80344774 = i;
+                lbl_80344778 = 240;
+                for (; i < 4; i++) {
+                    abort_player(i);
+                }
+                lbl_80344824 = 0;
+                TriggerCameraEnd();
+                break;
+            }
+            fn_8009D610(2, 0);
+            if (lvl == sWorldDataConst) {
+                i = -1;
+                lbl_80343C10 = i;
+                lbl_80343DD4 = i;
+                lbl_80343B38 = i;
+                AudioStopSelect();
+                lbl_803448AC = i;
+                lbl_803448A8 = i;
+                lbl_80343C04 = next_world();
+                ResolveWorldData(lbl_80343C04);
+                lbl_80343C00 = init_mapscreen(120, 0);
+                break;
+            }
+            next = -1;
+            cond = 0;
+            if (lbl_8034481C >= 13 && lbl_8034481C < 0x10000) {
+                cond = 1;
+            }
+            flag2 = cond ? 1 : 0;
+            all = 1;
+            for (i = 0; i < 4; i++) {
+                v = *(s32*)(gPlayers + i * 13148 + 0xe8);
+                if (v != 0 && v != 11) {
+                    all = 0;
+                }
+            }
+            if (all) {
+                next = sWorldDataConst;
+            } else if (flag2) {
+                next = lbl_80344B84;
+            } else if (opt_restart_request) {
+                next = sWorldDataConst;
+            } else if (lbl_8034481C == 0 || lbl_8034481C == 12) {
+                if (gBossType == 0x2c) {
+                    init_gamemovie(0x2c);
+                    sLastWorldLevel = sWorldDataConst;
+                    next = -2;
+                } else if (gBossType == 0x2b) {
+                    init_gamemovie(0x2b);
+                    sLastWorldLevel = sWorldDataConst;
+                    next = -2;
+                } else if ((s32)lbl_803448D0 == 12) {
+                    next = lvl + 1;
+                } else if ((s32)lbl_803448D0 == 5 && lbl_803448CC == 0) {
+                    next = lvl + 1;
+                } else if ((s32)lbl_803448D0 == 6 && lbl_803448CC == 0) {
+                    next = lvl + 1;
+                } else {
+                    next = sWorldDataConst;
+                }
+            }
+            if (!all) {
+                towerRecordLevelBeaten(lbl_803448D0, lbl_803448CC);
+            }
+            if (next != -2) {
+                if (next == sWorldDataConst) {
+                    init_shop(0);
+                } else {
+                    if (next >= 0) {
+                        lbl_80343C04 = next;
+                        ResolveWorldData(lbl_80343C04);
+                    } else {
+                        lbl_80343C04 = sLastWorldLevel;
+                    }
+                    lbl_80343C00 = init_mapscreen(120, flag2);
+                }
+            }
+        } else {
+            ProcessEffects();
+            fn_80055AFC();
+        }
+        break;
+    case 0x4012:
+        c = do_shop();
+        if (c) {
+            if (c == 2 && !lbl_80344C18) {
+                init_player_select(2);
+            } else {
+                fn_8005351C();
+            }
+        } else {
+            do_players();
+        }
+        break;
+    case 0x4014:
+        world_update();
+        fn_8005B988();
+        do_enemies();
+        do_players();
+        fn_800521E8();
+        break;
+    case 0x4016:
+        if (do_stats_display()) {
+            init_gamemovie(0x2c);
+        } else {
+            do_players();
+        }
+        break;
+    case 0x800A:
+        if (pbDiagDrawMenu() == 2) {
+            gGameMode = lbl_80344788;
+        }
+        break;
+    }
+}
+#pragma dont_inline reset
 
 void fn_80054E78(void)
 {
