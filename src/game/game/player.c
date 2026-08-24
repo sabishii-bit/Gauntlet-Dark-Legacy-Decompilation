@@ -2185,7 +2185,7 @@ extern u32 lbl_80240E60[];
 extern u32 lbl_80240E64[];
 extern u32 lbl_80240E68[];
 extern s32 lbl_80344828;      /* hidden-characters-allowed count */
-extern s32 sWeaponsBuf;      /* weapons-in-hand enabled */
+extern void* sWeaponsBuf;    /* weapons-in-hand enabled */
 extern void* gSceneRoot;    /* HUD camera parent */
 extern s32 got_max_player_sizes;      /* got_max_player_sizes once-flag */
 extern s32 lbl_80344B28;      /* INVENTORY file handle */
@@ -2264,7 +2264,7 @@ extern s32 strncmp(const char* a, const char* b, u32 n);
 extern void* memset(void* p, int c, u32 n);
 extern void* memcpy(void* d, const void* s, u32 n);
 extern f64 __fabs(f64 x);
-extern void FatalError(const char* fmt, ...);
+extern void FatalError(const char* text, s32 errorCode);
 extern void FatalErrorf(const char* fmt, ...);
 extern int bulletproof_printf(const char* fmt, ...);
 extern s32 BytesFree(void);
@@ -2337,7 +2337,7 @@ extern void InitActions(void* atree, void* animctx, s32 bank);
 extern s32 MBOX_ReallyFindObject(char* name, s32 a, s32 b, s32 dir);
 extern s32* AtreeFindMbidxNode(void* atree, s32 idx);
 extern void* MBNewObject(s32 node, f32* mat, void* c, u32 flags);
-extern void MBPsysSetDebugNode(s32 node, s32 a);
+extern void MBPsysSetDebugNode(void* node, s32 a);
 extern s32 AddSpecialTexmod(s32 model, char* fmt, char* code, char* d, s32 e, s32 f);
 extern void* MBCreateBlit(s32 a, u32 tex, s32 x, s32 y, s32 w, s32 h);
 extern s32 MBBlitGetTex(void* blit);
@@ -3121,13 +3121,13 @@ void remove_player_geo(s32 i) {
     u8* kid;
 
     if (PF(p, 0x6D0, u32) != 0) {
-        MBPsysSetDebugNode(PF(p, 0x6D0, u32), 1);
+        MBPsysSetDebugNode(PF(p, 0x6D0, void*), 1);
     }
     if (PF(p, 0x6CC, u32) != 0) {
-        MBPsysSetDebugNode(PF(p, 0x6CC, u32), 1);
+        MBPsysSetDebugNode(PF(p, 0x6CC, void*), 1);
     }
     if (PF(p, 0x6D4, u32) != 0) {
-        MBPsysSetDebugNode(PF(p, 0x6D4, u32), 1);
+        MBPsysSetDebugNode(PF(p, 0x6D4, void*), 1);
     }
     if (PF(p, 0x7F8, s32) >= 0) {
         DelSpecialTexmod(PF(p, 0x7F8, s32));
@@ -3845,6 +3845,8 @@ void set_player_default_atts(void* p) {
  */
 void load_player_geo(s32 i, void* vp) {
     Player* p = vp;
+    u8* strings = lbl_80113AE0;
+    u8* data = (u8*)lbl_8011FC48;
     char name[20];
     char* c;
     s32* nd;
@@ -3854,46 +3856,54 @@ void load_player_geo(s32 i, void* vp) {
     s32 n;
 
     if (p->node != NULL) {
-        FatalError("PLAYER.OBJ NODE EXISTS BEFORE LOAD %x", 0x800000);
+        FatalError((char*)strings + 1236, 0x800000);
     }
     if (lbl_80344828 > 0) {
         set_hidden_player(p);
     }
-    if (HIDDEN_CODE(p) == NULL) {
+    {
+        char* hidden = p->hidden_code;
+        if (hidden != NULL) {
+            PF(p, 0x7F4, u32) = load_player_model(i, p, i, hidden);
+            goto model_ready;
+        }
         if (p->character == player_multiple_models[i].cur_class &&
             p->class_id == player_multiple_models[i].cur_pad &&
-            player_multiple_models[i].cur_override == 0 &&
+            (void*)player_multiple_models[i].cur_override == NULL &&
             p->level / 10 == player_multiple_models[i].cur_tier) {
-            PF(p, 0x7F4, void*) = player_multiple_models[i].arena;
-        } else {
-            PF(p, 0x7F4, u32) = load_player_model(i, p, -1, NULL);
+            goto reuse_model;
         }
-    } else {
-        PF(p, 0x7F4, u32) = load_player_model(i, p, i, HIDDEN_CODE(p));
+        PF(p, 0x7F4, u32) = load_player_model(i, p, -1, NULL);
+        goto model_ready;
+reuse_model:
+        PF(p, 0x7F4, void*) = player_multiple_models[i].arena;
     }
+model_ready:
     pad = p->class_id;
     LoadPlyrData(i, p->character, NULL);
     if (sWeaponsBuf != 0) {
         InitPlayerMissiles(p);
     }
     cls = p->character;
-    if (HIDDEN_CODE(p) == NULL) {
-        strcpy(name, lbl_80120104[pad]);
-    } else {
-        strcpy(name, HIDDEN_CODE(p));
+    c = p->hidden_code;
+    if (c != NULL) {
+        strcpy(name, c);
         for (c = name; *c != 0; c++) {
             *c = (char)toupper(*c);
         }
+    } else {
+        strcpy(name, *(char**)(data + 1212 + pad * 4));
     }
-    sprintf(tbuf, "%s%s%s", lbl_801200B0 + cls * 4, name, "");
+    sprintf(tbuf, "%s%s%s", data + 1128 + cls * 4, name, "");
     strncpy((char*)p + 0x6C0, tbuf, 8);
     p->node = MBNewNode(lbl_80344B2C, gIdentityMatrix, 1);
     PF(p, 0x78, s32) = 0;
-    n = fn_80011BBC(player_multiple_models[i].model_buf, (char*)(lbl_801200B0 + p->char_type * 4),
+    n = fn_80011BBC(player_multiple_models[i].model_buf,
+                    (char*)(data + 1128 + p->char_type * 4),
                     (u8*)p + 0x7C, tbuf, 0x800);
     PF(p, 0x7C, s32) = n;
-    if (PF(p, 0x7C, s32) == 0) {
-        FatalErrorf("Player Atree %s not found", lbl_801200B0 + p->char_type * 4);
+    if (PF(p, 0x7C, void*) == NULL) {
+        FatalErrorf((char*)strings + 1280, data + 1128 + p->char_type * 4);
     }
     MBNodeSetParent(*(void**)PF(p, 0x7C, s32*), p->node);
     InitActions((u8*)p + 0x7C, (u8*)p + 0x210, 0x80126C68);
@@ -3903,49 +3913,76 @@ void load_player_geo(s32 i, void* vp) {
     }
     PF(p, 0x744, s32) = 0;
     /* attachment nodes */
-    sprintf(tbuf, "%s%s", (char*)p + 0x6C0, lbl_80120184[cls]);
+    sprintf(tbuf, "%s%s", (char*)p + 0x6C0,
+            *(char**)(data + 1340 + cls * 4));
     n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
     nd = AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
-    PF(p, 0x6D0, s32) = (nd == NULL) ? 0 : *nd;
-    sprintf(tbuf, "%s%s", (char*)p + 0x6C0, lbl_80120144[cls]);
-    n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
-    nd = AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
-    PF(p, 0x6CC, s32) = (nd == NULL) ? 0 : *nd;
-    sprintf(tbuf, "%sCFGLOW", (char*)p + 0x6C0);
-    n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), -1);
-    nd = (n < 0) ? NULL : AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
-    PF(p, 0x6D8, s32) = (nd == NULL) ? 0 : *nd;
     if (nd != NULL) {
+        PF(p, 0x6D0, s32) = *nd;
+    } else {
+        PF(p, 0x6D0, s32) = 0;
+    }
+    sprintf(tbuf, "%s%s", (char*)p + 0x6C0,
+            *(char**)(data + 1276 + cls * 4));
+    n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
+    nd = AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
+    if (nd != NULL) {
+        PF(p, 0x6CC, s32) = *nd;
+    } else {
+        PF(p, 0x6CC, s32) = 0;
+    }
+    sprintf(tbuf, (char*)strings + 1308, (char*)p + 0x6C0);
+    n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), -1);
+    if (n < 0) {
+        nd = NULL;
+    } else {
+        nd = AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
+    }
+    if (nd != NULL) {
+        PF(p, 0x6D8, s32) = *nd;
         MBTreeSetFlags((void*)*nd, 0x800810, 0);
+    } else {
+        PF(p, 0x6D8, s32) = 0;
     }
     sprintf(tbuf, "%sHEAD", (char*)p + 0x6C0);
     n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
     nd = AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
-    PF(p, 0x6D4, s32) = (nd == NULL) ? 0 : *nd;
+    if (nd != NULL) {
+        PF(p, 0x6D4, s32) = *nd;
+    } else {
+        PF(p, 0x6D4, s32) = 0;
+    }
     sprintf(tbuf, "%sTORSO", (char*)p + 0x6C0);
     n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
     nd = AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
-    PF(p, 0x6DC, s32) = (nd == NULL) ? 0 : *nd;
+    if (nd != NULL) {
+        PF(p, 0x6DC, s32) = *nd;
+    } else {
+        PF(p, 0x6DC, s32) = 0;
+    }
     /* weapon */
     if (sWeaponsBuf != 0) {
         tier = (p->level >= 0x32) ? 2 : (p->level >= 10) ? 1 : 0;
-        if (lbl_80120598[p->character] == 0 && p->character < 8 && HIDDEN_CODE(p) == NULL) {
-            sprintf(tbuf, "WEAP %s HD%d", lbl_80120104[pad], tier + 1);
+        if (*(s32*)(data + 2384 + p->character * 4) == 0 &&
+            p->character < 8 && p->hidden_code == NULL) {
+            sprintf(tbuf, (char*)strings + 1332,
+                    *(char**)(data + 1212 + pad * 4), tier + 1);
         } else {
-            sprintf(tbuf, "WEAP_HOLD", cls, tier);
+            sprintf(tbuf, (char*)strings + 1320);
         }
         n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
         PF(p, 0x6E0, void*) = MBNewObject(n, NULL, (void*)PF(p, 0x6D0, s32), 0x810);
         PF(p, 0x7F8, s32) = -1;
         if (p->char_type == 7) {
             *(u32*)(PF(p, 0x6E0, u8*) + 0x60) |= 0x4000000;
-            PF(p, 0x7F8, s32) = AddSpecialTexmod(PF(p, 0x7F4, s32), "%s%s", (char*)player_multiple_models[i].sfx_arena,
+            PF(p, 0x7F8, s32) = AddSpecialTexmod(PF(p, 0x7F4, s32), "%s%s",
+                                            (char*)player_multiple_models[i].sfx_arena,
                                             "", 5, 1);
         }
     }
     /* live combat fields */
-    PF(p, 0x72C, s32) = 0;
     PF(p, 0x730, s32) = 0;
+    PF(p, 0x72C, s32) = 0;
     PF(p, 0x734, s32) = 0;
     PF(p, 0x748, s32) = 0;
     PF(p, 0x790, s32) = 0;
@@ -3960,23 +3997,31 @@ void load_player_geo(s32 i, void* vp) {
     PF(p, 0x96C, s32) = 0;
     PF(p, 0xA14, s32) = 0;
     /* shadow */
-    n = MBOX_ReallyFindObject("SHADOWL1", PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
+    n = MBOX_ReallyFindObject((char*)strings + 1348, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
     PF(p, 0x6C8, void*) = MBNewObject(n, gIdentityMatrix, NULL, 0x880);
     *(s16*)(PF(p, 0x6C8, u8*) + 0x68) = -0x24;
     PF(p, 0x7FC, f32) = 0.0f;
-    if (PF(p, 0x6D0, s32) != 0) {
-        MBPsysSetDebugNode(PF(p, 0x6D0, s32), 0);
-    } else if (PF(p, 0x6CC, s32) != 0) {
-        MBPsysSetDebugNode(PF(p, 0x6CC, s32), 0);
-    } else if (PF(p, 0x6D4, s32) != 0) {
-        MBPsysSetDebugNode(PF(p, 0x6D4, s32), 0);
+    nd = PF(p, 0x6D0, s32*);
+    if (nd != NULL) {
+        MBPsysSetDebugNode(nd, 0);
+    } else {
+        nd = PF(p, 0x6CC, s32*);
+        if (nd != NULL) {
+            MBPsysSetDebugNode(nd, 0);
+        } else {
+            nd = PF(p, 0x6D4, s32*);
+            if (nd != NULL) {
+                MBPsysSetDebugNode(nd, 0);
+            }
+        }
     }
     MBTreeSetFlags(p->node, 2, 0);
-    if (PF(p, 0x6C8, s32) != 0) {
+    nd = PF(p, 0x6C8, s32*);
+    if (nd != NULL) {
         if (sMusicTrackHi == 0xC && sMusicTrackLo == 8) {
-            MBTreeSetFlags(PF(p, 0x6C8, void*), 2, 1);
+            MBTreeSetFlags(nd, 2, 1);
         } else {
-            MBTreeSetFlags(PF(p, 0x6C8, void*), 2, 0);
+            MBTreeSetFlags(nd, 2, 0);
         }
     }
 }
