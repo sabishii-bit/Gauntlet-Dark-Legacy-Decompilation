@@ -1552,7 +1552,11 @@ void camera_mode_follow(s32 camIdx)
     dx = cam->delta[0];
     dy = cam->delta[1];
     dz = cam->delta[2];
-    distance = dz * dz + dx * dx + dy * dy;
+    previousSpeed = dx * dx;
+    desiredSpeed = dy * dy;
+    maximumStep = dz * dz;
+    distance = previousSpeed + desiredSpeed;
+    distance = maximumStep + distance;
     if (distance > lbl_80345EC8) {
         root = __frsqrte(distance);
         root = lbl_80345F18 * root *
@@ -1636,6 +1640,7 @@ void camera_mode_follow(s32 camIdx)
         ((cam->radius >= lbl_80344528 && lbl_80344960 < 0) ||
          ((f64)cam->radius >= lbl_80345FF0 && lbl_80344960 >= 0)) &&
         (lbl_803444F4 == 0 || lbl_80344534 != savedYaw)) {
+        Camera* backupCamera;
         s32 backupAttentionMode;
         playerData = (Player*)gPlayers;
         projectionMatrix = (f32*)(state + 0xCC);
@@ -1660,16 +1665,17 @@ void camera_mode_follow(s32 camIdx)
             lbl_80344530 = savedPitch;
             lbl_80344534 = savedYaw;
         }
-        backupAttentionMode = backup->a_mode;
-        if (backup->c_mode != CAM_OFF) {
-            backup->pc_mode = backup->c_mode;
-            backup->c_mode = CAM_OFF;
+        backupCamera = backup;
+        backupAttentionMode = backupCamera->a_mode;
+        if (backupCamera->c_mode != CAM_OFF) {
+            backupCamera->pc_mode = backupCamera->c_mode;
+            backupCamera->c_mode = CAM_OFF;
         }
-        if (backupAttentionMode != backup->a_mode) {
-            backup->pa_mode = backup->a_mode;
-            backup->a_mode = (ATN_MODE)backupAttentionMode;
+        if (backupAttentionMode != backupCamera->a_mode) {
+            backupCamera->pa_mode = backupCamera->a_mode;
+            backupCamera->a_mode = (ATN_MODE)backupAttentionMode;
         }
-        backup->state = 0;
+        backupCamera->state = 0;
     }
 }
 #undef backup
