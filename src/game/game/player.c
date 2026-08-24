@@ -5399,8 +5399,7 @@ void mini_inventory_draw_label(s32 i) {
     s32 y;
 
     tb = (TbInfo*) ((u8*) potionicon_tab + i * 40 + 2368);
-    label = *(char**) ((u8*) potionicon_tab + i * 40 + 2404);
-    if (label == NULL) {
+    if ((label = *(char**) ((u8*) potionicon_tab + i * 40 + 2404)) == NULL) {
         return;
     }
     st = *(u8*) ((u8*) potionicon_tab + i * 13148 + tb->sel + 3616);
