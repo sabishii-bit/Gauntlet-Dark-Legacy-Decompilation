@@ -744,25 +744,27 @@ s32 do_player_select(void)
                 if (t >= 0) {
                     *(s32*)(pl + 0x3348) += gFrameTicks;
                     if (*(s32*)(pl + 0x3348) >= 0x78) {
-                        if (set_hidden_player(pl) == 0) {
-                            *(s32*)(pl + 0x10) =
-                                LimitSeltype(pl, *(s32*)(pl + 0xC), 0);
-                            *(s32*)(pl + 0x3338) = 4;
-                        } else {
+                        if (set_hidden_player(pl) != 0) {
                             s32 pi = *(s32*)pl;
                             u8* b;
                             init_player_change(pi, *(s32*)(pl + 0xC));
                             b = blitbase + pi * 132;
                             *(s32*)(b + 0x1C) = 5;
                             *(s32*)(b + 0x20) = 0;
-                            mbBlitInit3414(*(void**)(b + 0x18), 0);
-                            MBBlitSetAlpha(*(void**)(b + 0x18), 0xFF);
+                            mbBlitInit3414(
+                                *(void**)(blitbase + (pi * 132 + 24)), 0);
+                            MBBlitSetAlpha(
+                                *(void**)(blitbase + (pi * 132 + 24)), 0xFF);
                             *(s32*)(b + 0x28) = 7;
                             *(s32*)(b + 0x2C) = 0;
                             *(s32*)(b + 0x4C) = 1;
                             *(s32*)(b + 0x50) = 0;
                             *(s32*)(b + 0x40) = 1;
                             *(s32*)(b + 0x44) = 0;
+                        } else {
+                            *(s32*)(pl + 0x10) =
+                                LimitSeltype(pl, *(s32*)(pl + 0xC), 0);
+                            *(s32*)(pl + 0x3338) = 4;
                         }
                         *(s32*)(pl + 0x3328) = 1;
                         *(s32*)(pl + 0x3348) = -1;
@@ -1118,25 +1120,27 @@ s32 do_player_select(void)
                     *(s32*)(pl + 0x3348) = 2;
                 }
                 if (fn_8005A738(i) != 0) {
-                    if (set_hidden_player(pl) == 0) {
-                        *(s32*)(pl + 0x10) =
-                            LimitSeltype(pl, *(s32*)(pl + 0xC), 0);
-                        *(s32*)(pl + 0x3338) = 4;
-                    } else {
+                    if (set_hidden_player(pl) != 0) {
                         s32 pi = *(s32*)pl;
                         u8* b;
                         init_player_change(pi, *(s32*)(pl + 0xC));
                         b = blitbase + pi * 132;
                         *(s32*)(b + 0x1C) = 5;
                         *(s32*)(b + 0x20) = 0;
-                        mbBlitInit3414(*(void**)(b + 0x18), 0);
-                        MBBlitSetAlpha(*(void**)(b + 0x18), 0xFF);
+                        mbBlitInit3414(*(void**)(blitbase + (pi * 132 + 24)),
+                                       0);
+                        MBBlitSetAlpha(*(void**)(blitbase + (pi * 132 + 24)),
+                                       0xFF);
                         *(s32*)(b + 0x28) = 7;
                         *(s32*)(b + 0x2C) = 0;
                         *(s32*)(b + 0x4C) = 1;
                         *(s32*)(b + 0x50) = 0;
                         *(s32*)(b + 0x40) = 1;
                         *(s32*)(b + 0x44) = 0;
+                    } else {
+                        *(s32*)(pl + 0x10) =
+                            LimitSeltype(pl, *(s32*)(pl + 0xC), 0);
+                        *(s32*)(pl + 0x3338) = 4;
                     }
                     *(SaveSnap*)(pl + 0x1ECC) = *(SaveSnap*)(pl + 0xA80);
                 }
@@ -1183,7 +1187,7 @@ s32 do_player_select(void)
                     if (*(s32*)(pl + 0x3338) == 0) {
                         new_player(i);
                     }
-                    mbBlitInit3414(*(void**)(blitbase + (boff + 36)), 1);
+                    mbBlitInit3414(*(void**)((blitbase + boff) + 0x24), 1);
                     break;
                 }
                 sel += step;
@@ -1269,7 +1273,7 @@ s32 do_player_select(void)
                                       lbl_801200B0[*(s32*)(pl + 0x10) & 7]);
                             mbBlitProject(*(void**)((blitbase + boff) + 0x18), -1, 320);
                             if (*(s32*)(pl + 0x10) == 16 ||
-                                *(s32*)(pl + 0xF0) != 0) {
+                                *(u32*)(pl + 0xF0) != 0) {
                                 wflag = 0;
                             }
                             if (*(s32*)(pl + 0x1EC0) == 0) {
@@ -1291,7 +1295,7 @@ s32 do_player_select(void)
                                       lbl_801200B0[picked & 7]);
                             mbBlitProject(*(void**)((blitbase + boff) + 0x18),
                                           -1, 320);
-                            if (*(s32*)(p2 + 0xF0) != 0) {
+                            if (*(u32*)(p2 + 0xF0) != 0) {
                                 wflag = 0;
                             } else {
                                 wflag = 1;
