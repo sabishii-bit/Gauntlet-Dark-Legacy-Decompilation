@@ -683,15 +683,15 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
     u8 pktClip;
     u8 vClip;
     u8 kick;
-    s32 spec;
-    s32 flat;
+    u8 spec;
+    u8 flat;
     u32 tag;
     u32 cnt;
     u32 tmp;
     f32 qv;
     u32 posw;
-    u32 pfmt;
-    u32 cfmt;
+    s32 pfmt;
+    s32 cfmt;
     u32 step;
     u32 posStride;
     u32 colStride;
@@ -823,11 +823,11 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
             break;
         }
         cnt = pbSwap32(data[idx + 1]);
-        tmp = pbSwap32(*(u32*)(data + idx + 3));
-        qv = *(f32*)&tmp;
-        flat = (one == qv);
         posPtr = (u8*)(data + idx + 6);
         idx += 5;
+        tmp = pbSwap32(data[idx - 2]);
+        qv = *(f32*)&tmp;
+        flat = (one == qv);
         posw = pbSwap32(data[idx]);
         pfmt = posw >> 24;
         if (pfmt == 0x69) {
@@ -951,7 +951,8 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
                 vec4Scale__FR4vec4R4vec4f(lit, (f32*)(st + 0x1F48), d);
                 vec4Add__FR4vec4R4vec4R4vec4(lit, lit, litbase);
             }
-            vec3Clamp__FR4vec4R4vec4ff(lit, lit, zero, colorMax);
+            vec3Clamp__FR4vec4R4vec4ff(lit, lit, lbl_80348F60,
+                                       lbl_80348F74);
             if (vClip) {
                 lit[2] = zero;
                 lit[1] = zero;
@@ -981,7 +982,8 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
                         vec4Add__FR4vec4R4vec4R4vec4(lit, lit, sc);
                     }
                 }
-                vec3Clamp__FR4vec4R4vec4ff(lit, lit, zero, colorMax);
+                vec3Clamp__FR4vec4R4vec4ff(lit, lit, lbl_80348F60,
+                                           lbl_80348F74);
             }
             vec4FTOI__FPlR4vec4(iout, lit);
             {
