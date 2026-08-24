@@ -3215,6 +3215,325 @@ found_gen:
 }
 
 /* --------------------------------------------------------------------------
+ * fn_8005D730  0x8005D730  size 0x0720 - resolve a player's collision with a
+ * live world item.  The outer switch selects the broad item class; individual
+ * cases queue pickups, activate generators, apply hazards, or update the
+ * per-player mask carried by linked trigger items.
+ * ------------------------------------------------------------------------ */
+extern void GetPlayerPos(s32 player, f32* position);
+extern void PlayerGiveGold(s32 player, s32 amount);
+extern void add_got_it(s32 player, s32 subtype, s32 count);
+extern void fn_8009D038(s32 player);
+extern void fn_8009D078(f32* position);
+extern void fn_8009D0A8(f32* position, s32 subtype);
+extern void fn_8009D8CC(f32* position);
+extern void fn_8009F06C(f32* position, s32 subtype);
+extern void damage_player(s32 player, f32 damage, s32 type, s32 flags,
+                          f32* direction);
+extern s32 SumnerAnimate(s32 player);
+extern s32 lbl_8034476C;
+extern f64 lbl_80346FD0;
+extern const char lbl_80346FD8[7];
+extern f64 lbl_80346FE0;
+extern f32 sMusicFadeBase;
+
+s32 fn_8005D730(Player* player, Item* item)
+{
+    s32 result;
+    iteminfo* info;
+    iteminfodata* data;
+    f32 playerPos[3];
+    f32 itemPos[3];
+    u8 unused[48];
+
+    result = 0;
+    info = item->info;
+    data = &info->item;
+    GetPlayerPos(player->index, playerPos);
+    itemPos[0] = item->objgrp.coll_pos[0];
+    itemPos[1] = item->objgrp.coll_pos[1];
+    itemPos[2] = item->objgrp.coll_pos[2];
+
+    switch (info->type) {
+    case 1:
+        if (*(s16*)&item->data[0x10] <= 0 && player->speech_req == NULL) {
+            player->speech_req = (s32*)item;
+        }
+        break;
+
+    case 2:
+        result = 1;
+        if (item->action == 2) {
+            if (info->item.subtype == 47) {
+                s32 amount;
+
+                if ((amount = *(s32*)&item->data[4]) >= 25) {
+                    msgPost(17, player->index, (char*)player->col_pos);
+                }
+                PlayerGiveGold(player->index, amount);
+                fn_8009D038(player->index);
+                add_got_it(player->index, 1, amount);
+                item->activetime = 8;
+                item->active |= 0x100;
+                {
+                    s32* row = (s32*)player;
+
+                    row += player->character * 7;
+                    row[777] += amount;
+                }
+            } else {
+                Item* linked = *(Item**)&item->data[0xC];
+
+                if (linked != NULL) {
+                    result = 0;
+                    if (player->speech_req == NULL) {
+                        player->speech_req = (s32*)linked;
+                    }
+                }
+            }
+        } else if ((item->active & 0x10) != 0 && item->action == 0 &&
+                   (item->active & 1) == 0) {
+            s32 allow;
+
+            if (player->item_body_lo > 0) {
+                player->item_body_lo--;
+                allow = -1;
+            } else if ((*(u32*)(gGameOptions + 4) & 1) != 0) {
+                allow = -1;
+            } else {
+                allow = 0;
+            }
+
+            if (allow != 0) {
+                fn_8009D078(itemPos);
+                item->active |= 1;
+                item->opener = (s8)player->index;
+                if (*(s16*)&item->data[0] >= 0) {
+                    fn_8005E90C(item, (s32*)player);
+                }
+            } else if (msgPost(2, player->index,
+                               (char*)player->col_pos) == 0 &&
+                       data->subtype == 48) {
+                msgPost(23, player->index, (char*)player->col_pos);
+            }
+        }
+        break;
+
+    case 3:
+        {
+            s32 inverted;
+
+            if (*(s8*)&item->data[6] != 0) {
+                inverted = 0;
+            } else {
+                inverted = 1;
+            }
+            if (inverted != 0) {
+                result = 0;
+            } else {
+                result = 1;
+            }
+        }
+        break;
+
+    case 4:
+        if (*(f32*)&item->data[0xC] >= sZeroDouble) {
+            *(u32*)&item->data[8] |= 1;
+        }
+        if (fqdist(itemPos[0] - playerPos[0],
+                   itemPos[2] - playerPos[2]) <= data->radius) {
+            result = 1;
+        } else {
+            result = 0;
+        }
+        break;
+
+    case 7:
+        if (item->action == 0 && (item->active & 1) == 0) {
+            f32 dot;
+
+            dot = (playerPos[0] - *(f32*)((u8*)player + 0x87C)) *
+                      (itemPos[0] - playerPos[0]) +
+                  (playerPos[2] - *(f32*)((u8*)player + 0x884)) *
+                      (itemPos[2] - playerPos[2]);
+            if (dot < sItemZero) {
+                result = 1;
+            } else {
+                s32 allow;
+
+                if (player->item_body_lo > 0) {
+                    player->item_body_lo--;
+                    allow = -1;
+                } else if ((*(u32*)(gGameOptions + 4) & 1) != 0) {
+                    allow = -1;
+                } else {
+                    allow = 0;
+                }
+
+                if (allow != 0) {
+                    item->active |= 1;
+                    fn_8009D0A8(itemPos, data->subtype);
+                } else {
+                    msgPost(1, player->index,
+                            (char*)&item->objgrp.worldmat[3][0]);
+                    result = 1;
+                }
+            }
+        } else {
+            result = 1;
+        }
+        break;
+
+    case 8:
+        if ((player->flags & 1) == 0 &&
+            sMusicFadeBase >= player->fxhittime) {
+            s32 subtype = data->subtype;
+            s32 damageType = 2;
+            s32 flags = info->item.properties | 0x80;
+            f32 damage = *(f32*)&item->data[0];
+
+            if (subtype == 0 || (u32)(subtype - 3) <= 1) {
+                damageType = 3;
+            }
+            if ((flags & 0x30) != 0) {
+                f32 direction[3];
+
+                direction[0] =
+                    (f32)(lbl_80346FD0 * item->objgrp.worldmat[2][0]);
+                direction[1] =
+                    (f32)(lbl_80346FD0 * item->objgrp.worldmat[2][1]);
+                direction[2] =
+                    (f32)(lbl_80346FD0 * item->objgrp.worldmat[2][2]);
+                damage_player(player->index, damage, damageType, flags,
+                              direction);
+            } else {
+                damage_player(player->index, damage, damageType, flags, NULL);
+            }
+
+            if (sMusicTrackHi == 3 && subtype == 1 &&
+                strcmp(info->item.desc, lbl_80346FD8) == 0) {
+                subtype = 6;
+            }
+            fn_8009F06C(playerPos, subtype);
+            player->fxhittime =
+                (f32)(lbl_80346FE0 * (f64)(item->activetime + 1) +
+                      sMusicFadeBase);
+            msgPost(21, player->index, (char*)player->col_pos);
+        }
+        break;
+
+    case 9:
+        *(u32*)&item->data[4] |= 1 << player->index;
+        result = 2;
+        break;
+
+    case 10:
+        switch (data->subtype) {
+        case 49:
+            if ((item->active & 1) == 0) {
+                fn_8009D8CC(&item->objgrp.worldmat[3][0]);
+                item->active |= 1;
+            }
+            break;
+        case 40:
+        case 53:
+            if ((item->active & 1) == 0) {
+                fn_8009D91C(&item->objgrp.worldmat[3][0]);
+                item->active |= 1;
+            }
+            break;
+        case 41:
+            if (*(s16*)&item->data[2] > 0) {
+                result = 1;
+            }
+            break;
+        case 51:
+        case 52:
+            break;
+        default:
+            result = 1;
+            break;
+        }
+        break;
+
+    case 12:
+        if (item->info->item.subtype == 2 && (item->active & 1) == 0) {
+            item->active |= 1;
+        }
+        break;
+
+    case 11:
+        result = 2;
+        break;
+
+    case 5: {
+        s16 flags = *(s16*)&item->data[4];
+
+        if ((flags & 0x100) != 0) {
+            u8* record = *(u8**)&item->data[0];
+
+            if (record != NULL && (u8*)player->floor_name2 != record) {
+                u8* worldRecords = *(u8**)(gWorldInfo + 4);
+                u8* wanted = (u8*)player->floor_name2;
+                s32 index = *(s16*)(record + 0x2E);
+                s32 found = 0;
+
+                while (index >= 0) {
+                    record = worldRecords + index * 0x3C;
+                    if (record == wanted) {
+                        found = 1;
+                        break;
+                    }
+                    index = *(s16*)(record + 0x2C);
+                }
+                if (found == 0) {
+                    result = 0;
+                    break;
+                }
+            }
+            if (item->playermask == 0 && lbl_8034476C > 1 &&
+                (flags & 0x400) != 0) {
+                msgPost(126, player->index, (char*)player->col_pos);
+            }
+        } else if (item->playermask == 0 && lbl_8034476C > 1 &&
+                   (flags & 0x400) != 0) {
+            msgPost(127, player->index, (char*)player->col_pos);
+        }
+
+        if ((*(s16*)&item->data[4] & 0x40) != 0) {
+            item->playermask |= 1 << player->index;
+        } else {
+            Item* linked = item;
+            s32 one = 1;
+
+            while (linked != NULL) {
+                linked->playermask |= one << player->index;
+                linked = *(Item**)&linked->data[8];
+            }
+        }
+
+        if (sMusicTrackHi == 13) {
+            s32 marker = *(u8*)&item->data[6];
+
+            if (marker == 0xF0) {
+                if ((item->playermask & 0xF) != 0) {
+                    if ((item->playermask & 0x10) == 0 &&
+                        SumnerAnimate(player->index) != 0) {
+                        item->playermask |= 0x10;
+                    }
+                } else {
+                    item->playermask = 0;
+                }
+            }
+        }
+        break;
+    }
+    }
+
+    return result;
+}
+
+/* --------------------------------------------------------------------------
  * fn_8005DE50  0x8005DE50  size 0x0ABC - item-pickup effect state machine
  * Called once per frame from do_players (player.c) for the item a player is
  * currently touching:  fn_8005DE50(player, player->special_collision_item).
@@ -3233,7 +3552,7 @@ extern void fn_8009CDF8(s32 player);
 extern void fn_8009F748(s32 player, s32 sourcePlayer);
 extern void fn_8009D038(s32 player);
 extern s32  heal_player(Player* p, f32 amount);
-extern void damage_player(s32 i, f32 dmg, s32 a, s32 b, s32 c);
+extern void damage_player(s32 i, f32 dmg, s32 a, s32 b, f32* direction);
 extern void AudioPlayerSeverePain(s32 player);
 extern void AudioPlayerEatFood(s32 player, s32 kind);
 extern void PlayerAddPowerup(f32 duration, f32 strength, void* p, s32 type,
@@ -6050,4 +6369,3 @@ void fn_80060114(Item* item, f32* pos, f32* dir)
         gNextItemIdx = idx;
     }
 }
-
