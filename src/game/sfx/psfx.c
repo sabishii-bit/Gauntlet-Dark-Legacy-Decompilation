@@ -217,8 +217,229 @@ ticks_active:
 done:
     ;
 }
-STUB(0x80089350, fn_80089350)
-STUB(0x800898DC, fn_800898DC)
+extern f32 lbl_80347DA4;
+extern f32 lbl_80347DA8;
+extern f32 lbl_80347DAC;
+extern f32 lbl_80347DB0;
+extern f32 lbl_80347DB4;
+extern f32 lbl_80347DB8;
+extern f64 lbl_80347DC0;
+extern f32 lbl_80347DC8;
+extern f64 lbl_80347DD0;
+extern f64 lbl_80347DD8;
+extern f32 lbl_80347DE0;
+extern f64 lbl_80347DE8;
+extern s32 pmissile_sfxidx[];
+extern void fn_80067AE0(s32 flags, f32 a, f32 b);
+extern void msgPost(s32 id, s32 player, void* ptr);
+extern void MBTreeClearFlags(void* node, u32 flags, s32 recurse);
+extern void YawVec3(f32* src, f32* out, f32 yaw);
+extern s32 PlayerStartMissile(u8* p, f32* vec, u32 mask, s32 mode, f32 a,
+                              f32 b);
+extern void MBRemovePolyInst(void* inst);
+extern void player_get_powerup_state(u8* p, s32 kind, u32 mask, f32 dt);
+void fn_800898DC(u8* p, u8* row, s32 mode, u8* other);
+void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1);
+
+/* 0x80089350 - run one player-sfx sequence row for the [t0,t1) frame window,
+ * chaining to the linked row when done. */
+void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
+{
+    f32 buf[3];
+    f32 conv[2];
+    u8* row;
+    s32 fl;
+    s32 n;
+    u32 mask;
+    f32 sf;
+    f32 ef;
+    f32 acc;
+    f32 frac;
+    f32 rate;
+    f32 scale;
+    f32 k;
+    s32 i;
+    s32 o;
+
+    if (idx < 0) {
+        return;
+    }
+    row = *(u8**)(lbl_80282930[*(s32*)p] + 8) + idx * 88;
+    sf = (f32)*(s16*)(row + 80);
+    ef = (f32)*(s16*)(row + 82);
+    if (!(t1 >= sf)) {
+        if (ef < lbl_80347DA0 || t0 < ef) {
+            fl = *(s16*)(row + 2);
+            if (fl & 0x2000) {
+                fn_80067AE0(fl, lbl_80347DA4, lbl_80347DA8);
+                {
+                    f32 v = lbl_80347DAC;
+                    *(f32*)(p + 2044) = v;
+                    if (p2 != NULL) {
+                        *(f32*)(p2 + 2044) = v;
+                    }
+                }
+            } else if (fl & 0x20) {
+                fn_80067AE0(fl, lbl_80347DA4, lbl_80347DB0);
+                {
+                    f32 v = lbl_80347DAC;
+                    *(f32*)(p + 2044) = v;
+                    if (p2 != NULL) {
+                        *(f32*)(p2 + 2044) = v;
+                    }
+                }
+            } else if (fl & 0x10) {
+                fn_80067AE0(fl, lbl_80347DA4, lbl_80347DB4);
+                {
+                    f32 v = lbl_80347DAC;
+                    *(f32*)(p + 2044) = v;
+                    if (p2 != NULL) {
+                        *(f32*)(p2 + 2044) = v;
+                    }
+                }
+            }
+        }
+    }
+    if (ef < lbl_80347DA0) {
+        ef = sf;
+    } else {
+        ef = ef + lbl_80347DB8;
+    }
+    {
+        f32 one = lbl_80347DB8;
+        if (t0 < one && t1 >= one && *(s16*)(row + 84) >= 0) {
+            msgPost(*(s16*)(row + 84), *(s32*)p, row + 84);
+        }
+    }
+    if (*(s16*)(row + 2) & 0x400) {
+        if (t1 >= sf && t1 < ef) {
+            if (*(void**)(p + 1760) != NULL) {
+                MBTreeSetFlags(*(void**)(p + 1760), 2, 0);
+            }
+        } else {
+            if (*(void**)(p + 1760) != NULL) {
+                MBTreeClearFlags(*(void**)(p + 1760), 2, 0);
+            }
+        }
+    }
+    if (*(s16*)(row + 2) & 0x80) {
+        ef = sf;
+    }
+    if (t1 >= sf && t0 < ef) {
+        if (lbl_80347DA0 != *(f32*)(row + 56)) {
+            *(f32*)(p + 2088) = *(f32*)(p + 2088) - *(f32*)(p + 2320);
+            *(f32*)(p + 2320) = lbl_80347DA0;
+        }
+        lbl_80344B40 = p2;
+        switch (*(s16*)row) {
+        case 2:
+            fn_800898DC(p, row, 0, other);
+            break;
+        case 3:
+        case 4:
+            fn_800898DC(p, row, 1, other);
+            break;
+        case 10:
+            n = 0;
+            if (t1 == t0) {
+                break;
+            }
+            mask = *(u32*)(p + 284) & 0xFFB7FFFF;
+            if (sf == ef) {
+                if (lbl_80347DC0 == (f64)*(f32*)(row + 20)) {
+                    YawVec3((f32*)(p + 52), buf, *(f32*)(row + 32));
+                    n = PlayerStartMissile(p, buf, mask, 0, lbl_80347DC8,
+                                           lbl_80347DAC);
+                } else {
+                    f64 kx;
+                    f64 ky;
+                    f64 kone;
+                    acc = lbl_80347DA0;
+                    kx = lbl_80347DD0;
+                    ky = lbl_80347DD8;
+                    kone = lbl_80347DE8;
+                    while (acc < kone) {
+                        YawVec3((f32*)(p + 52), buf,
+                                *(f32*)(row + 32) * acc);
+                        buf[0] = (f32)(buf[0] * kx);
+                        buf[1] = (f32)(buf[1] * ky);
+                        buf[2] = (f32)(buf[2] * kx);
+                        n += PlayerStartMissile(p, buf, mask, 0,
+                                                lbl_80347DE0, lbl_80347DAC);
+                        acc = (f32)(acc + kone / *(f32*)(row + 20));
+                    }
+                }
+            } else {
+                rate = *(f32*)(row + 20);
+                if ((f64)rate > lbl_80347DC0) {
+                    frac = t1 - sf;
+                    if (!(__fabs(rate) > __fabs(frac))) {
+                        frac = frac - rate * (f32)(u64)(frac / rate);
+                    }
+                    if ((s32)frac != 0) {
+                        break;
+                    }
+                }
+                fl = *(s16*)(row + 2);
+                scale = *(f32*)(row + 32);
+                if (fl & 0x300) {
+                    if (ef > sf) {
+                        k = (t1 - sf) / (ef - sf);
+                    } else {
+                        k = lbl_80347DB8;
+                    }
+                    if (fl & 0x200) {
+                        k = (f32)(lbl_80347DE8 - k);
+                    }
+                    scale = scale * k;
+                }
+                YawVec3((f32*)(p + 52), buf, scale);
+                buf[1] = lbl_80347DB8;
+                buf[0] = buf[0] * *(f32*)(row + 44);
+                buf[1] = buf[1] * *(f32*)(row + 48);
+                buf[2] = buf[2] * *(f32*)(row + 52);
+                n = PlayerStartMissile(p, buf, mask, 0, lbl_80347DC8,
+                                       lbl_80347DAC);
+                for (i = 0, o = 0; i < n; i++, o += 4) {
+                    s32 ei = *(s32*)((u8*)pmissile_sfxidx + o);
+                    u8* fx;
+                    if (ei < 0) {
+                        continue;
+                    }
+                    fx = (u8*)Effects + ei * 240;
+                    if (*(f32*)(row + 68) > lbl_80347DA0) {
+                        *(f32*)(fx + 160) =
+                            *(f32*)(fx + 160) * *(f32*)(row + 68);
+                    }
+                    if (*(s16*)(row + 2) & 0x1000) {
+                        if (*(void**)(fx + 212) != NULL) {
+                            MBRemovePolyInst(*(void**)(fx + 212));
+                            *(s32*)(fx + 212) = 0;
+                        }
+                    }
+                }
+                if (t1 > lbl_80347DB8 + sf) {
+                    n = 0;
+                }
+            }
+            if (n > 0 && (*(u32*)(p + 284) & 0x00100000)) {
+                player_get_powerup_state(p, 5, 0x100000, lbl_80347DB8);
+            }
+            break;
+        case 0:
+        case 5:
+            break;
+        default:
+            fn_800898DC(p, row, 1, other);
+            break;
+        }
+    }
+    if (*(s16*)(row + 78) >= 0) {
+        fn_80089350(p, *(s16*)(row + 78), p2, other, t0, t1);
+    }
+}
+
+void fn_800898DC(u8* p, u8* row, s32 mode, u8* other) {}
 
 typedef struct PlayerSfxRecord {
     u32 flags;          /* 0x00 */
