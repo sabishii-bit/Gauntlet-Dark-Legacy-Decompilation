@@ -144,6 +144,7 @@ u32 ReadF32LE(u8* p) {
 
 /* --- VQ decode / GX present / file-stream bodies (parked NonMatching) --- */
 
+#pragma dont_inline on
 void fn_800D860C(u32 param_1, u8* param_2, int param_3) {
     u8* p;
     int i;
@@ -190,6 +191,8 @@ void fn_800D86C8(u32 param_1, u8* param_2, int param_3) {
     } while (cnt != 0);
 }
 
+#pragma dont_inline off
+
 /* Release one movie allocation and clear the owning slot. */
 s32 fn_800D8784(u32* state) {
     if (state[6] != 0) {
@@ -204,134 +207,165 @@ s32 fn_800D8784(u32* state) {
 
 /* VQ texture/tile decode into a GX tex obj (ReadU16LE/ReadF32LE, DCFlush/Invalidate, GXInvalidateTexAll) */
 u32 fn_800D87FC(u32* param_1, int param_2, char* param_3, int param_4, int param_5, u32 param_6) {
-    u8 bVar1;
-    u8 bVar2;
-    u8 bVar3;
-    u16 uVar7;
-    int iVar4;
-    u32 uVar6;
-    u32 uVar9;
-    u8* pbVar8;
-    u8* pbVar10;
-    int iVar11;
-    u32 uVar12;
-    u32* puVar13;
-    u32* puVar14;
-    u32 uVar15;
-    u32 uVar16;
-    u32 uVar17;
-    u32 uVar18;
-    u8* pbVar19;
-    int iVar20;
-    int iVar21;
+    int count;
+    int nbits;
+    u8* hdr8;
+    u8* pal;
+    u8* ip;
 
-    uVar7 = ReadU16LE((u8*)param_1[6]);
-    uVar6 = uVar7;
-    iVar4 = ReadF32LE((u8*)(param_1[6] + 4));
-    iVar20 = param_1[6] + 8;
-    pbVar8 = (u8*)(iVar20 + param_1[0xb]);
-    pbVar19 = pbVar8 + uVar6 * 0xc;
-    DCInvalidateRange((void*)param_6, *param_1 * param_1[1] * 2);
-    if (param_4 == 1) {
-        fn_800D860C((u32)param_1, pbVar8, uVar6);
-        goto present;
-    } else {
-        if (param_4 < 1) {
-            if (-1 < param_4) {
-                fn_800D86C8((u32)param_1, pbVar8, uVar6);
-                goto present;
-            }
-        } else if (param_4 < 3) {
-            bVar3 = *((u8*)param_1 + 0x39);
-            bVar1 = *(u8*)(param_1 + 0xe);
-            bVar2 = *((u8*)param_1 + 0x37);
-            iVar11 = 0;
-            pbVar10 = pbVar8;
-            for (iVar21 = 0; iVar21 < (int)(uVar6 << 2); iVar21 = iVar21 + 1) {
-                fn_800DBE98((u32)param_1, pbVar10);
-                *(u16*)(pbVar8 + iVar11) =
-                    (u16)(((u32)pbVar10[2] >> (8 - bVar2 & 0x3f)) << *(u8*)(param_1 + 0xd)) |
-                    (u16)(((u32)*pbVar10 >> (8 - bVar1 & 0x3f)) << *((u8*)param_1 + 0x36)) |
-                    (u16)(((u32)pbVar10[1] >> (8 - bVar3 & 0x3f)) << *((u8*)param_1 + 0x35));
-                pbVar10 = pbVar10 + 3;
-                iVar11 = iVar11 + 2;
-            }
-            goto present;
+    count = ReadU16LE((u8*)param_1[6]);
+    nbits = ReadF32LE((u8*)param_1[6] + 4);
+    hdr8 = (u8*)(param_1[6] + 8);
+    pal = hdr8 + param_1[0xB];
+    ip = pal + count * 12;
+    DCInvalidateRange((void*)param_6, param_1[0] * param_1[1] * 2);
+    switch (param_4) {
+    case 0:
+        fn_800D86C8((u32)param_1, pal, count);
+        break;
+    case 1:
+        fn_800D860C((u32)param_1, pal, count);
+        break;
+    case 2: {
+        int i;
+        u8* p;
+        u8 sh1;
+        u8 sh0;
+        u8 sh2;
+        int n;
+        sh1 = 8 - *((u8*)param_1 + 0x39);
+        sh0 = 8 - *((u8*)param_1 + 0x38);
+        sh2 = 8 - *((u8*)param_1 + 0x37);
+        n = count * 4;
+        i = 0;
+        p = pal;
+        for (; i < n; i++) {
+            fn_800DBE98((u32)param_1, p);
+            *(u16*)(pal + i * 2) = (((p[0] >> sh0) << *((u8*)param_1 + 0x36))
+                                | ((p[1] >> sh1) << *((u8*)param_1 + 0x35)))
+                                | ((p[2] >> sh2) << *((u8*)param_1 + 0x34));
+            p += 3;
         }
-        return 0xffffffff;
+        break;
     }
-present:
-    if (*(int*)(param_5 + 8) < 0) {
-        iVar11 = -1;
-        uVar15 = param_1[1] - 1;
-    } else {
-        uVar15 = 0;
-        iVar11 = 1;
+    default:
+        return -1;
     }
-    if (uVar6 < 0x101) {
-        *param_1 = *param_1 << 1;
-        for (uVar6 = 0; (int)uVar6 < (int)param_1[1]; uVar6 = uVar6 + 2) {
-            uVar12 = param_1[10];
-            puVar13 = (u32*)(param_6 + (uVar15 & 0xfffffffc) * *param_1 + (uVar15 & 3) * 8);
-            puVar14 = puVar13 + iVar11 * 2;
-            uVar16 = 0;
-            do {
-                uVar9 = (int)uVar16 >> 3;
-                if ((1 << (uVar9 & 7) &
-                     (u32)*(u8*)(iVar20 + ((int)uVar6 >> 2) * uVar12 + ((int)uVar16 >> 6))) != 0) {
-                    bVar3 = *pbVar19;
-                    pbVar19 = pbVar19 + 1;
-                    *puVar13 = *(u32*)(pbVar8 + (u32)bVar3 * 8);
-                    *puVar14 = *(u32*)(pbVar8 + (u32)bVar3 * 8 + 4);
-                }
-                iVar4 = (uVar16 & 4) * 6 + 4;
-                uVar16 = uVar16 + 4;
-                puVar13 = (u32*)((int)puVar13 + iVar4);
-                puVar14 = (u32*)((int)puVar14 + iVar4);
-            } while ((int)uVar16 < (int)*param_1);
-            uVar15 = uVar15 + iVar11 * 2;
+
+    {
+        int dir;
+        int row;
+
+        if (*(int*)(param_5 + 8) < 0) {
+            dir = -1;
+            row = param_1[1] - 1;
+        } else {
+            row = 0;
+            dir = 1;
         }
-        uVar6 = *param_1;
-        *param_1 = (int)uVar6 >> 1;
-    } else {
-        uVar6 = iVar4 + 7;
-        uVar12 = *pbVar19;
-        *param_1 = *param_1 << 1;
-        pbVar10 = pbVar19 + 1;
-        pbVar19 = pbVar19 + ((int)uVar6 >> 3);
-        uVar6 = 0;
-        for (uVar16 = 0; (int)uVar16 < (int)param_1[1]; uVar16 = uVar16 + 2) {
-            uVar9 = param_1[10];
-            puVar13 = (u32*)(param_6 + (uVar15 & 0xfffffffc) * *param_1 + (uVar15 & 3) * 8);
-            puVar14 = puVar13 + iVar11 * 2;
-            uVar17 = 0;
-            do {
-                uVar18 = (int)uVar17 >> 3;
-                if ((1 << (uVar18 & 7) &
-                     (u32)*(u8*)(iVar20 + ((int)uVar16 >> 2) * uVar9 + ((int)uVar17 >> 6))) != 0) {
-                    bVar3 = *pbVar19;
-                    uVar18 = uVar6 & 0x3f;
-                    uVar6 = uVar6 + 1;
-                    *puVar13 = *(u32*)(pbVar8 + (((int)uVar12 >> uVar18 & 1U) << 8 | (u32)bVar3) * 8);
-                    pbVar19 = pbVar19 + 1;
-                    *puVar14 = *(u32*)(pbVar8 + (((int)uVar12 >> uVar18 & 1U) << 8 | (u32)bVar3) * 8 + 4);
-                    if ((uVar6 & 0xff) == 8) {
-                        uVar12 = *pbVar10;
-                        uVar6 = 0;
-                        pbVar10 = pbVar10 + 1;
+        if (count > 0x100) {
+            u8 bits;
+            u8 nb;
+            u8* bp;
+            int d8;
+            int d2;
+            int y;
+
+            param_1[0] <<= 1;
+            bits = *ip;
+            bp = ip + 1;
+            ip += (nbits + 7) / 8;
+            d8 = dir << 3;
+            d2 = dir << 1;
+            nb = 0;
+            for (y = 0; y < (int)param_1[1]; y += 2) {
+                u8* dst;
+                u8* dst2;
+                u8* brow;
+                int x;
+
+                dst = (u8*)param_6 + (row & ~3) * param_1[0];
+                dst += (row & 3) * 8;
+                dst2 = dst + d8;
+                brow = hdr8 + (y / 4) * param_1[10];
+                x = 0;
+                do {
+                    int b;
+                    int adv;
+
+                    b = x >> 3;
+                    if ((1 << (b & 7)) & brow[b / 8]) {
+                        u32 idx;
+                        u32 val;
+                        u8* entry;
+
+                        idx = *ip;
+                        val = idx;
+                        val |= ((bits >> nb) & 1) << 8;
+                        entry = pal + val * 8;
+                        *(u32*)dst = *(u32*)entry;
+                        nb++;
+                        ip++;
+                        *(u32*)dst2 = *(u32*)(entry + 4);
+                        if (nb == 8) {
+                            bits = *bp;
+                            nb = 0;
+                            bp++;
+                        }
                     }
-                }
-                iVar4 = (uVar17 & 4) * 6 + 4;
-                uVar17 = uVar17 + 4;
-                puVar13 = (u32*)((int)puVar13 + iVar4);
-                puVar14 = (u32*)((int)puVar14 + iVar4);
-            } while ((int)uVar17 < (int)*param_1);
-            uVar15 = uVar15 + iVar11 * 2;
+                    adv = (x & 4) * 6 + 4;
+                    x += 4;
+                    dst += adv;
+                    dst2 += adv;
+                } while (x < (int)param_1[0]);
+                row += d2;
+            }
+            param_1[0] = (int)param_1[0] / 2;
+        } else {
+            int d8;
+            int d2;
+            int y;
+
+            d8 = dir << 3;
+            d2 = dir << 1;
+            param_1[0] <<= 1;
+            for (y = 0; y < (int)param_1[1]; y += 2) {
+                u8* dst;
+                u8* dst2;
+                u8* brow;
+                int x;
+
+                dst = (u8*)param_6 + (row & ~3) * param_1[0];
+                dst += (row & 3) * 8;
+                dst2 = dst + d8;
+                brow = hdr8 + (y / 4) * param_1[10];
+                x = 0;
+                do {
+                    int b;
+                    int adv;
+
+                    b = x >> 3;
+                    if ((1 << (b & 7)) & brow[b / 8]) {
+                        u32 idx;
+                        u8* entry;
+
+                        idx = *ip;
+                        ip++;
+                        entry = pal + idx * 8;
+                        *(u32*)dst = *(u32*)entry;
+                        *(u32*)dst2 = *(u32*)(entry + 4);
+                    }
+                    adv = (x & 4) * 6 + 4;
+                    x += 4;
+                    dst += adv;
+                    dst2 += adv;
+                } while (x < (int)param_1[0]);
+                row += d2;
+            }
+            param_1[0] = (int)param_1[0] / 2;
         }
-        uVar6 = *param_1;
-        *param_1 = (int)uVar6 >> 1;
     }
-    DCFlushRange((void*)param_6, *param_1 * param_1[1] * 2);
+    DCFlushRange((void*)param_6, param_1[0] * param_1[1] * 2);
     GXInvalidateTexAll();
     param_1[7] = param_1[7] + 1;
     return 0;
