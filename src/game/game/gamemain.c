@@ -444,7 +444,7 @@ extern void  MBWindowTo3D(f32 depth, s16* screen, f32* camera, f32* out);
 
 /* Forward decls for same-TU functions referenced before definition. */
 void game_main(void);
-void do_stats_display(void);
+s32  do_stats_display(void);
 void LoadTowerAndSelect(void);
 static s32 init_next_level(s32 arg0);
 s32  fn_80054070(s32 arg0, s32 arg1, s32 arg2);
@@ -1885,6 +1885,7 @@ s32 next_world(void)
     }
     return world;
 }
+#pragma opt_propagation reset
 
 /* 0x800552A4 -- animate the two halves of the loading thermometer. */
 void fn_800552A4(f32 total, f32 current)
@@ -2155,6 +2156,7 @@ void SetPlayerVars(void)
     }
     fn_8005207C(count1, count2, count3);
 }
+#pragma opt_propagation reset
 
 /* 0x80050FB0 -- resolve a type id through the override tables. */
 s32 GetEnemyType(s32 w, s32 l)
@@ -2231,6 +2233,7 @@ void PrintWorldMemSizes(void)
     bulletproof_printf(fmt + 568, mlmMemUsed);
     lbl_80344850 = 0;
 }
+#pragma opt_propagation reset
 
 /* 0x80055F68 -- asynchronous world/model/atree/critter load state machine. */
 #pragma dont_inline on
@@ -2765,6 +2768,7 @@ s32 NextWorldLevel(s32 waveMask)
     }
     return (sWorldDataTypes[worldIndex].type << 8) | (level & 0xFF);
 }
+#pragma opt_propagation reset
 
 /* 0x80057F44 - validate/normalize a world+level code, resolve it, and walk
  * forward until a level matching the wave mask is found */
@@ -3048,6 +3052,7 @@ s32 fn_800511D0(s32 arg0, f32 arg1)
     }
     return best;
 }
+#pragma opt_propagation reset
 #pragma opt_common_subs on
 
 /* 0x80051E1C - format a world/level display name (uppercased) */
@@ -4261,3 +4266,263 @@ static s32 init_next_level(s32 arg0)
     return result;
 }
 #pragma opt_common_subs on
+
+/* 0x800522E8 -- "FINAL STATS" end-of-level tally and display. */
+extern s32  lbl_8011C300[];        /* per-class stats screen layout table */
+extern u8   lbl_80240E30[];        /* per-class 60-byte descriptor table  */
+DECL_SECT(".sdata2") extern const f32  lbl_80346ABC;
+DECL_SECT(".sdata2") extern const char lbl_80346AC0[];
+DECL_SECT(".sdata2") extern const char lbl_80346AC4[];
+DECL_SECT(".sdata2") extern const char lbl_80346AC8[];
+DECL_SECT(".sdata2") extern const f32  lbl_80346AD0;
+DECL_SECT(".sdata2") extern const char lbl_80346AD8[];
+DECL_SECT(".sdata2") extern const char lbl_80346AE0[];
+extern f32  lbl_80346AE4;
+extern void DrawTextKeepScale(f32 scale, s32 x, s32 y, s32 flags, s32 color,
+                              const char* fmt);
+extern s32  DrawNormalText(f32 scale, char* s, s32 flags);
+extern void WritePlayerInfo(s32 player);
+extern void fn_8009FCA8(s32 arg0);
+extern void AudioStopMusicA(void);
+extern s32  strcmp(const char* a, const char* b);
+
+#define STAT_ROW(colp, lab, valoff)                                         \
+    {                                                                       \
+        s32 c_;                                                             \
+        u8* row_;                                                           \
+        s32 w_;                                                             \
+        char buf_[12];                                                      \
+        c_ = *(s32*)p;                                                      \
+        row_ = (u8*)layout + c_ * 4;                                        \
+        DrawTextKeepScale(lbl_80346AD4, *(s32*)(row_ + 32) + 7,             \
+                          *(colp) + *(s32*)(row_ + 80), 7, 0xFFFFFF, lab);  \
+        {                                                                               u8* v_ = state + *(s32*)p * 4;                                              sprintf(buf_, lbl_80346AE0, *(s32*)(v_ + (valoff)));                    }                                                                   \
+        w_ = DrawNormalText(lbl_80346AD4, buf_, 7);                         \
+        c_ = *(s32*)p;                                                      \
+        row_ = (u8*)layout + c_ * 4;                                        \
+        DrawTextKeepScale(lbl_80346AD4, *(s32*)(row_ + 64) - w_,            \
+                          *(colp) + *(s32*)(row_ + 80), 7, 0xFFFFFF, buf_); \
+    }
+
+#define TIME_ROW(colp)                                                      \
+    {                                                                       \
+        s32 c_;                                                             \
+        u8* row_;                                                           \
+        s32 t_;                                                             \
+        s32 sec_;                                                           \
+        s32 min_;                                                           \
+        s32 w_;                                                             \
+        char buf_[12];                                                      \
+        c_ = *(s32*)p;                                                      \
+        t_ = *(s32*)(state + c_ * 4 + 64) / 60;                             \
+        row_ = (u8*)layout + c_ * 4;                                        \
+        DrawTextKeepScale(lbl_80346AD4, *(s32*)(row_ + 32) + 7,             \
+                          *(colp) + *(s32*)(row_ + 80), 7, 0xFFFFFF,        \
+                          msgs + 36);                                       \
+        sec_ = t_ % 60;                                                     \
+        t_ /= 60;                                                           \
+        min_ = t_ % 60;                                                     \
+        t_ /= 60;                                                           \
+        sprintf(buf_, msgs + 48, t_, min_, sec_);                           \
+        w_ = DrawNormalText(lbl_80346AD4, buf_, 7);                         \
+        c_ = *(s32*)p;                                                      \
+        row_ = (u8*)layout + c_ * 4;                                        \
+        DrawTextKeepScale(lbl_80346AD4, *(s32*)(row_ + 64) - w_,            \
+                          *(colp) + *(s32*)(row_ + 80), 7, 0xFFFFFF, buf_); \
+    }
+
+#define STAT_TALLY(accOff, tgtOff, ok)                                          {                                                                               s32 c_ = *(s32*)p;                                                          u8* b_ = state + c_ * 4;                                                    s32 amt_ = *(s32*)(b_ + 96);                                                if (gGameBusy != 0) {                                                           ok = 0;                                                                 } else {                                                                        u8* a_;                                                                     if (*(s32*)(lbl_80240E30 + c_ * 60 + 4) & 0x0F000000) {                         amt_ *= 6;                                                              }                                                                           b_ = state + c_ * 4;                                                        *(s32*)(b_ + (accOff)) = *(s32*)(b_ + (accOff)) + amt_;                     a_ = state + *(s32*)p * 4;                                                  if (*(s32*)(a_ += (accOff)) <                                                   *(s32*)((u8*)p + *(s32*)(p + 12) * 28 + (tgtOff))) {                        ok = 0;                                                                 } else {                                                                        *(s32*)a_ =                                                                     *(s32*)((u8*)p + *(s32*)(p + 12) * 28 + (tgtOff));                      ok = 1;                                                                 }                                                                       }                                                                       }
+
+s32 do_stats_display(void)
+{
+    char* msgs;
+    u8* state = lbl_802575C0;
+    s32* layout = lbl_8011C300;
+    u8* p;
+    s32* col1;
+    s32* col2;
+    s32* col3;
+    s32* colT;
+    s32 i;
+    s32 off;
+    s32 stalled = 0;
+    s32 done = 1;
+    f32 k60;
+
+    msgs = lbl_80112538;
+    DrawTextKeepScale(lbl_80346ABC, -256, 0, 7, 0xFFFFFF, msgs);
+    k60 = lbl_80346AE4;
+    col1 = (s32*)((u8*)layout + 100);
+    col2 = (s32*)((u8*)layout + 104);
+    col3 = (s32*)((u8*)layout + 108);
+    colT = (s32*)((u8*)layout + 116);
+
+    for (i = 0, off = 0, p = gPlayers; i < 4; i++, off += 4, p += 13148) {
+        s32 st = *(s32*)(p + 232);
+        char nbuf[12];
+
+        if (st != 1 && st != 5 && st != 4) {
+            continue;
+        }
+        sprintf(nbuf, lbl_80346AC0, p + 2688);
+        if (strcmp(nbuf, lbl_80346AC4) == 0) {
+            strcpy(nbuf, lbl_80346AC8);
+        }
+        {
+            s32 c = *(s32*)p;
+            u8* row = (u8*)layout + c * 4;
+            DrawTextKeepScale(lbl_80346AD0, -*(s32*)(row + 48),
+                              *(s32*)((u8*)layout + 96) + *(s32*)(row + 80),
+                              7, 0xFFFFFF, nbuf);
+        }
+
+        switch (*(u32*)(p + 2660)) {
+        case 0: {
+            u8* sp = state + off;
+            s32 on = (*(s32*)(sp + 64) == 0);
+            s32* t96;
+            *(s32*)(sp + 16) = on;
+            t96 = (s32*)(sp + 96);
+            *(s32*)(sp + 48) = on;
+            *(s32*)(sp + 32) = on;
+            *(s32*)(sp + 80) = 480;
+            (*(s32*)(p + 2660))++;
+            *t96 = *(s32*)((u8*)p + *(s32*)(p + 12) * 28 + 3088) / 60;
+            if (*t96 < 1) {
+                *t96 = 1;
+            }
+        }
+        case 1: {
+            s32 ok;
+            done = 0;
+            STAT_TALLY(32, 3088, ok);
+            if (ok != 0) {
+                u8* sp2 = state + off;
+                (*(s32*)(p + 2660))++;
+                *(s32*)(sp2 + 96) =
+                    *(s32*)((u8*)p + *(s32*)(p + 12) * 28 + 3104) / 60;
+                if (*(s32*)(sp2 += 96) < 1) {
+                    *(s32*)sp2 = 1;
+                }
+            } else {
+                stalled = 1;
+            }
+            STAT_ROW(col1, lbl_80346AD8, 32);
+            break;
+        }
+        case 2: {
+            s32 ok;
+            done = 0;
+            STAT_ROW(col1, lbl_80346AD8, 32);
+            STAT_TALLY(48, 3104, ok);
+            if (ok != 0) {
+                u8* sp2 = state + off;
+                (*(s32*)(p + 2660))++;
+                *(s32*)(sp2 + 96) =
+                    *(s32*)((u8*)p + *(s32*)(p + 12) * 28 + 3108) / 60;
+                if (*(s32*)(sp2 += 96) < 1) {
+                    *(s32*)sp2 = 1;
+                }
+            } else {
+                stalled = 1;
+            }
+            STAT_ROW(col2, msgs + 12, 48);
+            break;
+        }
+        case 3: {
+            s32 ok;
+            done = 0;
+            STAT_ROW(col1, lbl_80346AD8, 32);
+            STAT_ROW(col2, msgs + 12, 48);
+            STAT_TALLY(16, 3108, ok);
+            if (ok != 0) {
+                u8* sp2 = state + off;
+                (*(s32*)(p + 2660))++;
+                *(s32*)(sp2 + 96) =
+                    (s32)(*(f32*)((u8*)p + *(s32*)(p + 12) * 28 + 3112) /
+                          k60);
+                if (*(s32*)(sp2 += 96) < 60) {
+                    *(s32*)sp2 = 60;
+                }
+                if (*(s32*)sp2 < 1) {
+                    *(s32*)sp2 = 1;
+                }
+            } else {
+                stalled = 1;
+            }
+            STAT_ROW(col3, msgs + 24, 16);
+            break;
+        }
+        case 4:
+            (*(s32*)(p + 2660))++;
+        case 5: {
+            done = 0;
+            STAT_ROW(col1, lbl_80346AD8, 32);
+            STAT_ROW(col2, msgs + 12, 48);
+            STAT_ROW(col3, msgs + 24, 16);
+            {
+                s32 c = *(s32*)p;
+                s32 amt = *(s32*)(state + c * 4 + 96);
+                s32 ok;
+                if (gGameBusy != 0) {
+                    ok = 0;
+                } else {
+                    u8* a;
+                    f32 tgt;
+                    if (*(s32*)(lbl_80240E30 + c * 60 + 4) & 0x0F000000) {
+                        amt *= 6;
+                    }
+                    *(s32*)(state + c * 4 + 64) += amt;
+                    a = state + *(s32*)p * 4;
+                    tgt = *(f32*)((u8*)p + *(s32*)(p + 12) * 28 + 3112);
+                    if ((f32)*(s32*)(a += 64) < tgt) {
+                        ok = 0;
+                    } else {
+                        *(s32*)a = (s32)tgt;
+                        ok = 1;
+                    }
+                }
+                if (ok != 0) {
+                    (*(s32*)(p + 2660))++;
+                } else {
+                    stalled = 1;
+                }
+            }
+            TIME_ROW(colT);
+            break;
+        }
+        case 6: {
+            u8* sp;
+            done = 0;
+            STAT_ROW(col1, lbl_80346AD8, 32);
+            STAT_ROW(col2, msgs + 12, 48);
+            STAT_ROW(col3, msgs + 24, 16);
+            TIME_ROW(colT);
+            sp = state + off;
+            *(s32*)(sp + 80) = *(s32*)(sp + 80) - gFrameTicks;
+            if (*(s32*)(sp + 80) <= 0) {
+                (*(s32*)(p + 2660))++;
+            }
+            break;
+        }
+        default:
+            STAT_ROW(col1, lbl_80346AD8, 32);
+            STAT_ROW(col2, msgs + 12, 48);
+            STAT_ROW(col3, msgs + 24, 16);
+            TIME_ROW(colT);
+            break;
+        }
+    }
+
+    WritePlayerInfo(-1);
+    fn_8009FCA8(stalled);
+    if (done != 0) {
+        s32 j;
+        s32 o;
+        for (j = 0, o = 0; j < 4; j++, o += 4) {
+            MBRemoveBlit(*(s32*)(state + o));
+        }
+        AudioStopMusicA();
+    }
+    return done;
+}
