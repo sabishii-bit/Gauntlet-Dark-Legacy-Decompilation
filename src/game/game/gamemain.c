@@ -446,9 +446,8 @@ extern void  MBWindowTo3D(f32 depth, s16* screen, f32* camera, f32* out);
 void game_main(void);
 void do_stats_display(void);
 void LoadTowerAndSelect(void);
-s32  init_next_level_8005638C(s32 arg0);
+static s32 init_next_level(s32 arg0);
 s32  fn_80054070(s32 arg0, s32 arg1, s32 arg2);
-s32  init_next_level_8005638C(s32 arg0);
 void init_thermometer(void);
 void GetEnemyTypes(void);
 void game_init_data(void);
@@ -1375,11 +1374,13 @@ s32 fn_80057BC8(s32 type)
 }
 
 /* 0x8005403C -- lock the model box, then run AtreeListLock. */
+#pragma dont_inline on
 void LockModels(s32 arg0)
 {
     MBOX_LockModels();
     AtreeListLock(arg0);
 }
+#pragma dont_inline off
 
 /* 0x8005636C -- advance a two-field counter unless it is parked at 2. */
 void fn_8005636C(s32* s)
@@ -1703,7 +1704,7 @@ void LoadTowerAndSelect(void)
         FontInitSpecial(lbl_80112600, 8);
         ShopLoadData();
         LoadItems();
-        lbl_80343C10 = init_next_level_8005638C(sWorldDataConst);
+        lbl_80343C10 = init_next_level(sWorldDataConst);
         if (gDemoMode == 0) {
             opt_force_player = 0;
         }
@@ -2427,7 +2428,7 @@ s32 fn_80056698(s32 arg0, s32 arg1)
 
     ResolveWorldData(arg0);
     if (arg1 < 0) {
-        init_next_level_8005638C(arg0);
+        init_next_level(arg0);
         while (fn_80055F68(0, 0) == 0) {
             serve_busy(-1);
         }
@@ -4127,3 +4128,136 @@ chk:
     mini_inventory_setup();
     AppendBigapePowerupsToScene();
 }
+
+
+/* 0x8005638C -- build the "levels/level%s" path and load a level. */
+extern u32  lbl_803448D0;
+extern s32  lbl_803448CC;
+extern s32  lbl_803448C8;
+extern s32  lbl_803448C4;
+DECL_SECT(".sdata2") extern const char lbl_80346C04[];
+extern s32  LoadWorldDone(void* name);
+extern void CritterLoadFile(const char* wad, const char* name);
+extern void CritterLoadAllTypes(s32 arg0);
+
+#pragma opt_common_subs off
+static s32 init_next_level(s32 arg0)
+{
+    char* fmt = lbl_80112788;
+    u8* tbl = (u8*)lbl_80257680;
+    s32 result;
+    s32 i;
+    s32 off;
+
+    lbl_80344874 = pbLoad;
+    if (arg0 < 0) {
+        LoadWorldDone(0);
+        lbl_80343C30 = -1;
+        return -1;
+    }
+    ResolveWorldData(arg0);
+    {
+        s32 hi = sMusicTrackHi;
+        s32 lo = sMusicTrackLo;
+        lbl_803448D0 = hi;
+        lbl_803448CC = lo;
+        if (hi != 13) {
+            lbl_803448C8 = hi;
+            lbl_803448C4 = lo;
+        }
+    }
+    sprintf((char*)(tbl + 172), fmt, gCurLevel + 8);
+    lbl_80344854 = mlmMemUsed;
+    lbl_80343C30 = 0;
+    result = LoadWorldDone(tbl + 172);
+    GetEnemyTypes();
+
+    if (gGameOptions[2] < 2 && gBossType < 0 && arg0 != sWorldDataConst &&
+        lbl_80344738 < 0) {
+        lbl_80344738 = LoadModel(lbl_80346C00, 0, 0, -1);
+    }
+
+    for (i = 0, off = 0; i < 8; i++, off += 4) {
+        u8* q = tbl + off;
+        u8* w = tbl + off;
+        s32 t = *(s32*)(q += 332);
+        s32 flag;
+
+        *(s32*)(w += 140) = 0;
+        flag = 1;
+        switch (t) {
+        case 34:
+            CritterLoadFile(lbl_80346C04, fmt + 16);
+            break;
+        case 35:
+            CritterLoadFile(lbl_80346C04, fmt + 28);
+            break;
+        case 36:
+            CritterLoadFile(lbl_80346C04, fmt + 40);
+            break;
+        case 37:
+            CritterLoadFile(lbl_80346C04, fmt + 52);
+            break;
+        case 38:
+            CritterLoadFile(lbl_80346C04, fmt + 64);
+            break;
+        case 39:
+            CritterLoadFile(lbl_80346C04, fmt + 76);
+            break;
+        case 41:
+            CritterLoadFile(lbl_80346C04, fmt + 88);
+            break;
+        case 40:
+            CritterLoadFile(lbl_80346C04, fmt + 100);
+            break;
+        case 42:
+            CritterLoadFile(lbl_80346C04, fmt + 112);
+            break;
+        case 43:
+            CritterLoadFile(lbl_80346C04, fmt + 124);
+            break;
+        case 44:
+            CritterLoadFile(lbl_80346C04, fmt + 136);
+            break;
+        case 29:
+            if (sMusicTrackHi == 9) {
+                CritterLoadFile(lbl_80346C04, fmt + 148);
+            } else if (sMusicTrackHi == 6) {
+                CritterLoadFile(lbl_80346C04, fmt + 160);
+            } else {
+                CritterLoadFile(lbl_80346C04, fmt + 172);
+            }
+            break;
+        case 33:
+            CritterLoadFile(lbl_80346C04, fmt + 184);
+            break;
+        case 32: {
+            char buf[24];
+            sprintf(buf, fmt + 196, *(char**)(tbl + off + 236) + 16);
+            CritterLoadFile(lbl_80346C04, buf);
+            break;
+        }
+        default:
+            flag = 0;
+            if (t >= 0) {
+                *(s32*)w = BytesFree();
+                AllocEnemy(t, *(s32*)(tbl + off + 268));
+                *(s32*)w = *(s32*)w - BytesFree();
+            }
+            break;
+        }
+        if (flag != 0) {
+            *(s32*)q = -1;
+        }
+    }
+
+    CritterLoadAllTypes(0);
+    lbl_80344870 = 0;
+    if (arg0 != sWorldDataConst) {
+        InitItems();
+    }
+    lbl_80344858 = 0;
+    LockModels(2);
+    return result;
+}
+#pragma opt_common_subs on
