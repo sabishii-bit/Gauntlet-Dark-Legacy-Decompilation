@@ -2183,6 +2183,7 @@ s32 camera_collide_step(s32 camIdx, f32 blendThreshold)
     s32 remaining;
     s32 loopSelection;
     f32 bestPitch = *(volatile f32*)&lbl_80345EC8;
+    f32 distanceFloor;
     f32 secondYaw = bestPitch;
     f32 nearestYaw = bestPitch;
     f32 bestYaw = bestPitch;
@@ -2221,6 +2222,7 @@ s32 camera_collide_step(s32 camIdx, f32 blendThreshold)
     offset = 0;
     remaining = sNumTriggerCameras;
     loopSelection = lbl_80344508;
+    distanceFloor = *(volatile f32*)&lbl_80345EC8;
     for (; index < remaining; index++, offset += 0x28) {
             if (sTriggerCameras[offset] == 0 &&
                 *(s16*)(sTriggerCameras + offset + 2) != 0) {
@@ -2235,7 +2237,7 @@ s32 camera_collide_step(s32 camIdx, f32 blendThreshold)
                 distance = dy * dy;
                 distance = dx * dx + distance;
                 distance = dz * dz + distance;
-                if ((f64)distance > (f64)lbl_80345EC8) {
+                if ((f64)distance > (f64)distanceFloor) {
                     root = __frsqrte(distance);
                     root = lbl_80345F18 * root *
                            -(root * root * distance - lbl_80345F20);
