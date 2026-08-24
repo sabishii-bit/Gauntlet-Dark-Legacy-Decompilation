@@ -143,7 +143,7 @@ def compile_one(mwcc: Path, flags, src: Path, out_o: Path):
     # the target scheduler/epilogue shape into the retail object.
     if mwcc.parent.name == "1.2.5e":
         vanilla = mwcc.parent / "mwcceppc.125.exe"
-        frank = mwcc.parent / "frank.py"
+        frank = REPO / "tools" / "gdl" / "frank.py"
         out_vanilla = out_o.with_suffix(".vanilla.o")
         out_profile = out_o.with_suffix(".profile.o")
         messages = []

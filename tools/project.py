@@ -61,8 +61,10 @@ class Object:
             "extra_asflags": [],
             "extra_cflags": [],
             "extra_clang_flags": [],
+            "frank_profile_mw_version": None,
             "lib": None,
             "mw_version": None,
+            "postprocess": None,
             "progress_category": None,
             "scratch_preset_id": None,
             "shift_jis": None,
@@ -1026,13 +1028,24 @@ def generate_build_ninja(
 
             # Add MWCC build rule
             lib_name = obj.options["lib"]
+            frank_profile_mw_version = obj.options["frank_profile_mw_version"]
+            postprocess = obj.options["postprocess"]
+            compile_output = obj.src_obj_path
+            if frank_profile_mw_version is not None or postprocess is not None:
+                compile_output = (
+                    obj.src_obj_path.parent
+                    / ".postprocess"
+                    / "body"
+                    / obj.src_obj_path.name
+                )
+                compile_output.parent.mkdir(parents=True, exist_ok=True)
             build_rule = "mwcc"
             build_implcit = mwcc_implicit
             variables = {
                 "mw_version": Path(obj.options["mw_version"]),
                 "cflags": cflags_str,
-                "basedir": os.path.dirname(obj.src_obj_path),
-                "basefile": obj.src_obj_path.with_suffix(""),
+                "basedir": os.path.dirname(compile_output),
+                "basefile": compile_output.with_suffix(""),
             }
 
             if obj.options["shift_jis"] and obj.options["extab_padding"] is not None:
@@ -1050,15 +1063,69 @@ def generate_build_ninja(
                 variables["extab_padding"] = "".join(
                     f"{i:02x}" for i in obj.options["extab_padding"]
                 )
+            if frank_profile_mw_version is not None or postprocess is not None:
+                if obj.options["extab_padding"] is not None:
+                    sys.exit("Frank/object postprocessing does not support extab padding")
             n.comment(f"{obj.name}: {lib_name} (linked {obj.completed})")
             n.build(
-                outputs=obj.src_obj_path,
+                outputs=compile_output,
                 rule=build_rule,
                 inputs=src_path,
                 variables=variables,
                 implicit=build_implcit,
                 order_only="pre-compile",
             )
+
+            pipeline_output = compile_output
+            if frank_profile_mw_version is not None:
+                used_compiler_versions.add(frank_profile_mw_version)
+                profile_output = (
+                    obj.src_obj_path.parent
+                    / ".postprocess"
+                    / "profile"
+                    / obj.src_obj_path.name
+                )
+                profile_output.parent.mkdir(parents=True, exist_ok=True)
+                profile_variables = dict(variables)
+                profile_variables.update(
+                    {
+                        "mw_version": Path(frank_profile_mw_version),
+                        "basedir": os.path.dirname(profile_output),
+                        "basefile": profile_output.with_suffix(""),
+                    }
+                )
+                n.build(
+                    outputs=profile_output,
+                    rule=build_rule,
+                    inputs=src_path,
+                    variables=profile_variables,
+                    implicit=build_implcit,
+                    order_only="pre-compile",
+                )
+                pipeline_output = (
+                    obj.src_obj_path
+                    if postprocess is None
+                    else obj.src_obj_path.parent
+                    / ".postprocess"
+                    / "frank"
+                    / obj.src_obj_path.name
+                )
+                pipeline_output.parent.mkdir(parents=True, exist_ok=True)
+                n.build(
+                    outputs=pipeline_output,
+                    rule="frank",
+                    inputs=[compile_output, profile_output],
+                    implicit="tools/gdl/frank.py",
+                )
+
+            if postprocess is not None:
+                n.build(
+                    outputs=obj.src_obj_path,
+                    rule=postprocess["rule"],
+                    inputs=pipeline_output,
+                    variables=postprocess.get("variables", None),
+                    implicit=postprocess.get("implicit", None),
+                )
 
             # Add ctx build rule
             if obj.ctx_path is not None:

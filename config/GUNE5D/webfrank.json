@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "units": {
+    "game/g3d/sndvoice": [
+      {
+        "function": "sndVoiceUpdateAll",
+        "before_sha256": "68029e86e2e0eed5217f0ebf8aedcbf02d8705372e5ba42ae63b104d24d89b71",
+        "after_sha256": "5b88e0fd5a096acbf6a638aa9231470596847ada850df7fa740905e4753ed3c2",
+        "recolors": [
+          {
+            "start": "0x9f8",
+            "end": "0xb3c",
+            "gpr": {
+              "7": 8
+            }
+          },
+          {
+            "start": "0xb3c",
+            "end": "0xb5c",
+            "gpr": {
+              "7": 8,
+              "8": 9
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

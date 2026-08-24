@@ -405,7 +405,22 @@ config.libs = [
             Object(Matching, "game/ps2/ml_error.c", cflags=cflags_demo),
             Object(Matching, "game/ps2/ml_ffsincos.c", cflags=cflags_demo),
             Object(NonMatching, "game/ps2/ml_fmath.c", cflags=cflags_demo),
-            Object(NonMatching, "game/g3d/sndvoice.c", mw_version="GC/1.2.5n"),
+            Object(
+                NonMatching,
+                "game/g3d/sndvoice.c",
+                mw_version="GC/1.2.5n",
+                postprocess={
+                    "rule": "webfrank",
+                    "implicit": [
+                        "tools/gdl/webfrank.py",
+                        "config/GUNE5D/webfrank.json",
+                    ],
+                    "variables": {
+                        "webfrank_config": "config/GUNE5D/webfrank.json",
+                        "webfrank_unit": "game/g3d/sndvoice",
+                    },
+                },
+            ),
             Object(Matching, "game/g3d/gpads.c", mw_version="GC/1.2.5n"),
             Object(NonMatching, "game/sys/registry.c", mw_version="GC/1.2.5n"),
             Object(Matching, "game/sys/gutil.c", mw_version="GC/1.2.5n"),
@@ -783,6 +798,16 @@ exc_nmw_obj = f"build/{config.version}/src/Runtime.PPCEABI.H/NMWException.o"
 exc_ppc_obj = f"build/{config.version}/src/Runtime.PPCEABI.H/ExceptionPPC.o"
 exc_stamp = f"build/{config.version}/src/Runtime.PPCEABI.H/exception_fixup.stamp"
 config.custom_build_rules = [
+    {
+        "name": "frank",
+        "command": "$python tools/gdl/frank.py $in $out --verbose",
+        "description": "FRANK $out",
+    },
+    {
+        "name": "webfrank",
+        "command": "$python tools/gdl/webfrank.py $in $out $webfrank_config $webfrank_unit",
+        "description": "WEBFRANK $out",
+    },
     {
         "name": "fix_exception_objects",
         "command": f"$python tools/fix_exception_objects.py {exc_nmw_obj} {exc_ppc_obj} $out",

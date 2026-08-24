@@ -21,6 +21,11 @@ With no --variant args, runs the built-in battery. Objects/artifacts go to
 the scratch dir (never the build tree). Compiler defaults to GC/1.2.5n; a
 variant starting with "CC=" swaps the compiler dir instead of adding flags:
   --variant "CC=2.7"
+
+For the profile-patched 1.2.5e compiler, ``FRANK_BODY`` selects the normal
+compiler whose object supplies sections and relocations. Omitting it reproduces
+decomp.me's official vanilla-1.2.5 pairing:
+  --variant "CC=1.2.5e;FRANK_BODY=1.2.5n"
 """
 import argparse
 import difflib
@@ -89,6 +94,7 @@ BATTERY = [
     "-schedule on",
     "CC=1.2.5",
     "CC=1.2.5e",
+    "CC=1.2.5e;FRANK_BODY=1.2.5n",
     "CC=1.1p1",
     "CC=1.3.2",
     "CC=2.0p1",
@@ -141,6 +147,7 @@ def disasm_fn(obj: Path, fn: str):
 def compile_variant(src: Path, variant: str, tag: str, base):
     base_flags, cc_default = base
     cc_dir = cc_default
+    frank_body = None
     flags = list(base_flags)
     extra = []
     for tok in variant.split(";"):
@@ -149,6 +156,8 @@ def compile_variant(src: Path, variant: str, tag: str, base):
             continue
         if tok.startswith("CC="):
             cc_dir = tok[3:]
+        elif tok.startswith("FRANK_BODY="):
+            frank_body = tok[len("FRANK_BODY="):]
         elif tok.startswith("PROC="):
             flags[flags.index("gekko")] = tok[5:]
         else:
@@ -162,8 +171,13 @@ def compile_variant(src: Path, variant: str, tag: str, base):
     obj = outdir / (src.stem + ".o")
     args = flags + extra + lang + ["-c", str(src)]
     if cc_dir == "1.2.5e":
-        vanilla = cc.parent / "mwcceppc.125.exe"
-        frank = cc.parent / "frank.py"
+        if frank_body:
+            vanilla = ROOT / f"build/compilers/GC/{frank_body}/mwcceppc.exe"
+        else:
+            vanilla = cc.parent / "mwcceppc.125.exe"
+        frank = ROOT / "tools/gdl/frank.py"
+        if not vanilla.exists():
+            return None, f"no Frank body compiler {vanilla}"
         vanilla_dir = outdir / "vanilla"
         profile_dir = outdir / "profile"
         vanilla_dir.mkdir(exist_ok=True)
