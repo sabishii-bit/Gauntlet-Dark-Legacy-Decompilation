@@ -368,11 +368,14 @@ u8 padUpdate(void) {
     for (i = 0; i < 4; i++) {
         u32 bit = 0x80000000u >> i;
         s8 err = gPadCur[i].err;
-        if (err == PAD_ERR_NO_CONTROLLER) {
+        switch (err) {
+        case PAD_ERR_NO_CONTROLLER:
             resetMask |= bit;
-        } else if (err == PAD_ERR_TRANSFER) {
+            break;
+        case PAD_ERR_TRANSFER:
             gPadErrMask |= bit;
-        } else if (err == PAD_ERR_NONE) {
+            break;
+        case PAD_ERR_NONE:
             gPadErrMask |= bit;
             if (gPadCur[i].button == PAD_RESET_COMBO_A) {
                 gPadStartHoldTimer[i] += gFrameDeltaTicks;
@@ -384,6 +387,7 @@ u8 padUpdate(void) {
             } else {
                 gPadResetHoldTimer[i] = 0;
             }
+            break;
         }
     }
 
