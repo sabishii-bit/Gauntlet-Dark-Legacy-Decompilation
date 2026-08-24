@@ -1299,9 +1299,11 @@ int fn_8009FB30(void)
     return id;
 }
 
-void DoAudioTallySFX(int sel)
+void DoAudioTallySFX(int sel_)
 {
-    if (sel < 0) {
+    int sel;
+
+    if ((sel = sel_) < 0) {
         goto done;
     }
     if (sel <= 10) {
@@ -1345,13 +1347,15 @@ valid_entry:
             int sound_id = *(int*)(entry + 16);
 
             if (good_wiz_state <= 2) {
-                sndFxQueAddEx(1, sound_id, -1.0f, -1.0f, 224, 127, 2);
+                sndFxQueAddEx(1, sound_id, lbl_80348480, lbl_80348480, 224,
+                              127, 2);
             }
             {
                 int next_id = *(int*)(*(u8**)(gCurLevel + 100) + 20);
 
                 if (good_wiz_state <= 2) {
-                    sndFxQueAddEx(1, next_id, -1.0f, -1.0f, 224, 127, 2);
+                    sndFxQueAddEx(1, next_id, lbl_80348480, lbl_80348480, 224,
+                                  127, 2);
                 }
             }
         }
