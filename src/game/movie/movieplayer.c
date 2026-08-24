@@ -1660,17 +1660,19 @@ ret:
 
 /* VQ codebook/frame reader (memcpy, ReadF32LE, sceRead) */
 void fn_800DB3D4(u32* stream, s32 fd, volatile u32 length) {
-    u8 unused[16];
     u32 available;
     u32 chunkOffset;
     u32 chunkSize;
     u32 chunkEnd;
-    u32 nextTag;
+    u32 sz;
+    u32 pos;
     u32 offset;
     u32 tag;
     u8* chunk;
     u32* node;
     u32* next;
+    s32 len;
+    u8 unused[16];
 
     if (stream[7] == 0 && stream[4] <= stream[6] - 0x800) {
         goto request_more;
@@ -1692,17 +1694,18 @@ void fn_800DB3D4(u32* stream, s32 fd, volatile u32 length) {
         chunkOffset = node[2];
         chunkEnd = chunkOffset + node[1];
         if (chunkEnd >= stream[6] - 0x800) {
-            if (available = stream[4] - chunkOffset) {
+            available = stream[4] - chunkOffset;
+            if (available) {
                 if (stream[5] > stream[4]) {
                     return;
                 }
-                if (stream[5] > available) {
-                    memcpy((void*)stream[0], (u8*)stream[0] + chunkOffset, available);
-                    stream[4] = available;
-                    node[2] = 0;
-                    goto request_more;
+                if (!(stream[5] > available)) {
+                    return;
                 }
-                return;
+                memcpy((void*)stream[0], (u8*)stream[0] + chunkOffset, available);
+                stream[4] = available;
+                node[2] = 0;
+                goto request_more;
             }
         }
 
@@ -1722,7 +1725,7 @@ void fn_800DB3D4(u32* stream, s32 fd, volatile u32 length) {
         node[5] = 0;
         offset = 0;
         do {
-            chunk = (u8*)stream[0] + node[2] + offset;
+            chunk = (u8*)(node[2] + offset + (u32)stream[0]);
             tag = ReadF32LE(chunk);
             chunkSize = ReadF32LE(chunk + 4);
             if (tag == 0x5453494c) {
@@ -1752,21 +1755,21 @@ void fn_800DB3D4(u32* stream, s32 fd, volatile u32 length) {
                 }
                 offset = (offset + 1) & 0xfffffffe;
             }
-        } while (offset < node[1]);
+        } while (offset < (sz = node[1]));
 
         if (stream[10] == stream[11] || stream[13] == stream[12]) {
             goto request_more;
         }
-        chunkEnd = node[2] + node[1];
-        if (chunkEnd + 8 > stream[4]) {
+        pos = node[2] + sz;
+        if (pos + 8 > stream[4]) {
             goto request_more;
         }
-        if (chunkEnd < stream[6]) {
-            nextTag = ReadF32LE((u8*)stream[0] + chunkEnd);
+        if (pos >= stream[6]) {
+            tag = ReadF32LE((u8*)stream[0]);
         } else {
-            nextTag = ReadF32LE((u8*)stream[0]);
+            tag = ReadF32LE((u8*)stream[0] + pos);
         }
-        switch (nextTag) {
+        switch (tag) {
         case 0x62643030:
         case 0x63643030:
         case 0x5453494c:
@@ -1778,18 +1781,19 @@ void fn_800DB3D4(u32* stream, s32 fd, volatile u32 length) {
             return;
         }
 
-        chunkEnd = node[2] + node[1] + 4;
-        if (chunkEnd < stream[6]) {
-            chunkSize = ReadF32LE((u8*)stream[0] + chunkEnd);
-        } else {
+        pos = node[1] + 4;
+        if (pos + node[2] >= stream[6]) {
             chunkSize = ReadF32LE((u8*)stream[0]);
+        } else {
+            chunkSize = ReadF32LE((u8*)stream[0] + (node[2] + node[1]) + 4);
         }
         *node = stream[22];
         stream[22] = *(u32*)stream[22];
         next = (u32*)*node;
         next[0] = 0;
-        next[2] = chunkEnd - 4;
-        next[1] = chunkSize + (chunkSize & 1) + 8;
+        next[2] = chunkEnd;
+        chunkSize += chunkSize & 1;
+        next[1] = chunkSize + 8;
         next[8] = 0;
         next[9] = 0;
         next[6] = 0;
@@ -1799,12 +1803,14 @@ void fn_800DB3D4(u32* stream, s32 fd, volatile u32 length) {
 
 request_more:
     length = (length + 0x7ff) & 0xfffff800;
-    if (stream[4] < stream[5]) {
-        available = (stream[5] - stream[4]) - 0x800;
-    } else if (stream[5] == 0) {
-        available = (stream[6] - stream[4]) - 0x800;
+    if (stream[4] >= stream[5]) {
+        if (stream[5] != 0) {
+            available = stream[6] - stream[4];
+        } else {
+            available = (stream[6] - stream[4]) - 0x800;
+        }
     } else {
-        available = stream[6] - stream[4];
+        available = (stream[5] - stream[4]) - 0x800;
     }
     if ((s32)available < (s32)length) {
         length = available;
@@ -1816,8 +1822,9 @@ request_more:
         length = 0;
     }
     length &= 0xfffff800;
-    if ((s32)length > 0 && stream[13] < stream[12]) {
-        sceRead(fd, (void*)stream[2], length);
+    len = length;
+    if (len > 0 && stream[13] < stream[12]) {
+        sceRead(fd, (void*)stream[2], len);
         stream[7] = length;
     }
 }
