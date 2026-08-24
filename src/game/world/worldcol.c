@@ -894,6 +894,9 @@ static f32 CTriListCollide(f32 radius, s32 base, s32 count, WorldTri** outTri,
     f32 d;
     f32 dd;
     f32 dot;
+    f32 dy;
+    f32 dx;
+    f32 dz;
     f32 hit[9];
 
     rad = radius;
@@ -955,16 +958,18 @@ static f32 CTriListCollide(f32 radius, s32 base, s32 count, WorldTri** outTri,
             }
             if ((lbl_80344188 & 0x10) != 0) {
                 if (zd == d) {
-                    dd = (hit[1] - org[1]) * (hit[1] - org[1]) +
-                         (hit[0] - org[0]) * (hit[0] - org[0]) +
-                         (hit[2] - org[2]) * (hit[2] - org[2]);
+                    dy = hit[1] - org[1];
+                    dx = hit[0] - org[0];
+                    dz = hit[2] - org[2];
+                    dd = (dy * dy + dx * dx) + dz * dz;
                 } else {
                     dd = k788 * d;
                 }
             } else {
-                dd = (hit[1] - org[1]) * (hit[1] - org[1]) +
-                     (hit[0] - org[0]) * (hit[0] - org[0]) +
-                     (hit[2] - org[2]) * (hit[2] - org[2]);
+                dy = hit[1] - org[1];
+                dx = hit[0] - org[0];
+                dz = hit[2] - org[2];
+                dd = (dy * dy + dx * dx) + dz * dz;
             }
             dot = res->qnorm[1] * tri->ny + res->qnorm[0] * tri->nx +
                   res->qnorm[2] * tri->nz;
