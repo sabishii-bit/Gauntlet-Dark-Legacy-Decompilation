@@ -2000,7 +2000,7 @@ int setup_file_entries(u8* pl, s32 fromLoad)
             if (verify_vmu_file_ok(pl, k) == 0) {
                 *(s32*)(e + 32) = -1;
             }
-            if (*(s32*)(e + 32) == 0) {
+            if (*(volatile s32*)(e + 32) == 0) {
                 continue;
             }
         }
