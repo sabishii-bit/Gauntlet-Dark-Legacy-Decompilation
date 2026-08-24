@@ -704,6 +704,13 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
     u16 nv;
     s32 i;
     f32 x;
+    f32 zero;
+    f32 one;
+    f32 normalDiv;
+    f32 curveLinear;
+    f32 curveCubic;
+    f32 zBiasDiv;
+    f32 colorMax;
 
     lbl_80345080 = *(f64*)(s + 0x60);
     *(u32*)(st + 0x128) = *(u32*)(st + 0x148);
@@ -799,6 +806,13 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
     end = ((hdr & 0xFFFF) + 1) * 4;
     idx = 2;
     pkt = 0;
+    zero = lbl_80348F60;
+    one = lbl_80348F50;
+    normalDiv = lbl_80348F5C;
+    curveLinear = lbl_80348F64;
+    curveCubic = lbl_80348F68;
+    zBiasDiv = lbl_80348F70;
+    colorMax = lbl_80348F74;
     while (idx < end) {
         pktClip = clipFlag;
         if (!(pkt >= (s32)lbl_803450A4 && pkt < (s32)lbl_80343F68)) {
@@ -811,7 +825,7 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
         cnt = pbSwap32(data[idx + 1]);
         tmp = pbSwap32(*(u32*)(data + idx + 3));
         qv = *(f32*)&tmp;
-        flat = (lbl_80348F50 == qv);
+        flat = (one == qv);
         posPtr = (u8*)(data + idx + 6);
         idx += 5;
         posw = pbSwap32(data[idx]);
@@ -878,10 +892,10 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
             vec4Div__FR4vec4R4vec4f(tc, tc, lbl_80348F58);
             /* packed normal + strip-kick bit */
             nv = pbSwap16(*(u16*)nrmPtr);
-            nrm[0] = (f32)((s32)(s16)(nv & 0x1F) - 15) / lbl_80348F5C;
-            nrm[1] = (f32)((s32)(s16)((nv >> 5) & 0x1F) - 15) / lbl_80348F5C;
-            nrm[2] = (f32)((s32)(s16)((nv >> 10) & 0x1F) - 15) / lbl_80348F5C;
-            nrm[3] = lbl_80348F60;
+            nrm[0] = (f32)((s32)(s16)(nv & 0x1F) - 15) / normalDiv;
+            nrm[1] = (f32)((s32)(s16)((nv >> 5) & 0x1F) - 15) / normalDiv;
+            nrm[2] = (f32)((s32)(s16)((nv >> 10) & 0x1F) - 15) / normalDiv;
+            nrm[3] = zero;
             kick = ((nv >> 15) & 1) != 0;
             if (uv2Ptr != 0) {
                 u16 v2 = pbSwap16(*(u16*)uv2Ptr);
@@ -897,9 +911,9 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
                 tc[1] = tb[2] + (tb[0] + tb[1]);
                 if (lbl_80345050 & 0x40) {
                     x = tc[0];
-                    tc[0] = lbl_80348F64 * x + lbl_80348F68 * (x * (x * x));
+                    tc[0] = curveLinear * x + curveCubic * (x * (x * x));
                     x = tc[1];
-                    tc[1] = lbl_80348F64 * x + lbl_80348F68 * (x * (x * x));
+                    tc[1] = curveLinear * x + curveCubic * (x * (x * x));
                 }
             }
             tc[0] = tc[0] * *(f32*)(tbl + 0xF0) + *(f32*)(tbl + 0x100);
@@ -920,7 +934,7 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
             }
             vec3Div__FR4vec3R4vec3f(pos, pos, lbl_80348F6C);
             sceSamp0MultVec(xf, (f32*)(st + 0x1F88), pos);
-            xf[2] = xf[2] + lbl_8034506C / lbl_80348F70;
+            xf[2] = xf[2] + lbl_8034506C / zBiasDiv;
             /* lighting */
             if (lbl_80345040) {
                 __as__4vec4FRC4vec4(lit, litbase);
@@ -928,21 +942,21 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
             } else {
                 f32 d = DotProduct__8Math3D_BFR4vec3R4vec3((f32*)(st + 0x1FC8),
                                                            nrm);
-                if (d < lbl_80348F60) {
-                    d = lbl_80348F60;
+                if (d < zero) {
+                    d = zero;
                 }
-                if (d > lbl_80348F50) {
-                    d = lbl_80348F50;
+                if (d > one) {
+                    d = one;
                 }
                 vec4Scale__FR4vec4R4vec4f(lit, (f32*)(st + 0x1F48), d);
                 vec4Add__FR4vec4R4vec4R4vec4(lit, lit, litbase);
             }
-            vec3Clamp__FR4vec4R4vec4ff(lit, lit, lbl_80348F60, lbl_80348F74);
+            vec3Clamp__FR4vec4R4vec4ff(lit, lit, zero, colorMax);
             if (vClip) {
-                lit[2] = lbl_80348F60;
-                lit[1] = lbl_80348F60;
-                lit[0] = lbl_80348F60;
-                lit[3] = lbl_80348F74;
+                lit[2] = zero;
+                lit[1] = zero;
+                lit[0] = zero;
+                lit[3] = colorMax;
             }
             if (lbl_80345044 != 0) {
                 u32 lo = 0;
@@ -955,20 +969,19 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
                     vec4Sub__FR4vec4R4vec4R4vec4(diff, (f32*)L, pos);
                     d = DotProduct__8Math3D_BFR4vec3R4vec3(diff, nrm);
                     dd = DotProduct__8Math3D_BFR4vec3R4vec3(diff, diff);
-                    att = -(*(f32*)(L + 0xC) * dd - lbl_80348F50);
-                    if (d > lbl_80348F60 && att > lbl_80348F60) {
+                    att = -(*(f32*)(L + 0xC) * dd - one);
+                    if (d > zero && att > zero) {
                         f32 w = *(f32*)(L + 0x1C) * att;
                         w = d * w / dd;
-                        if (w > lbl_80348F50) {
-                            w = lbl_80348F50;
+                        if (w > one) {
+                            w = one;
                         }
                         vec4Scale__FR4vec4R4vec4f(sc, (f32*)(L + 0x10), w);
-                        sc[3] = lbl_80348F60;
+                        sc[3] = zero;
                         vec4Add__FR4vec4R4vec4R4vec4(lit, lit, sc);
                     }
                 }
-                vec3Clamp__FR4vec4R4vec4ff(lit, lit, lbl_80348F60,
-                                           lbl_80348F74);
+                vec3Clamp__FR4vec4R4vec4ff(lit, lit, zero, colorMax);
             }
             vec4FTOI__FPlR4vec4(iout, lit);
             {
