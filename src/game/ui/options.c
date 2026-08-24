@@ -120,7 +120,7 @@ typedef struct OPTMENU {
     s32* rgb_hi;     /* 0x30 flash color trio */
     f32 scale;       /* 0x34 text scale */
     s32 icon;        /* 0x38 nonzero: selection arrow icon */
-    u32 icon_rgb;    /* 0x3C icon color */
+    f32 icon_scale;  /* 0x3C selection-icon uniform scale */
     s32 icon_dx;     /* 0x40 icon x offset */
     char* blit_name; /* 0x44 backdrop blit texture name */
     s32 bx, by, bw, bh; /* 0x48..0x54 backdrop rect (-1 = auto) */
@@ -285,16 +285,16 @@ extern void MBNodeSetParent(void* node, void* parent);
 extern void* AtreeMatch(void* tree, char* name, s32 report);
 extern void* AtreeInit(void* header, void* out, s32 flags, s32 size);
 extern void AtreeDelete(void* msg);
-extern void AnimateATree(void* msg, s32 a, s32 b, s32 x, s32 y);
+extern void AnimateATree(void* msg, s32 a, s32 b);
 extern void CopyMat3(f32* dst, f32* src);
-extern void* PitchMat3(void);
+extern void PitchMat3(f32* matrix, f32 angle);
 extern s32 StartFireScroll(char* name, s32 a, s32 x, s32 y, s32 w, s32 h, s32 e, f32 z);
 extern void MBBlitOrder(s32 scroll, void* blit);
 
 /* text (auxscreen/btext) */
 extern s32 FontHeight(f32 scale, s32 font);
-extern void* DrawNormalText(f32 scale, s32 x, s32 y, s32 font, u32 rgb, char* text);
-extern s32 DrawTextKeepScale(f32 scale, char* text, s32 font);
+extern void* DrawTextKeepScale(f32 scale, s32 x, s32 y, s32 font, u32 rgb, char* text);
+extern s32 DrawNormalText(f32 scale, char* text, s32 font);
 extern void SetDrawStringScale(f32 scale);
 extern void RestoreDrawStringScale(void);
 extern void DrawStringText(s32 x, s32 y, s32 font, u32 rgb, s32 msg, s32 line);
@@ -1568,9 +1568,13 @@ s32 do_optmenu(OPTMENU* m, s32 allowNav)
 /* 0x80072AA4 show_optmenu                                             */
 /* ================================================================== */
 
+extern f64 lbl_803475C0;
+extern f64 lbl_803475C8;
+
 void show_optmenu(OPTMENU* m)
 {
     void* winset = gWinGlobals;
+    u8* data = lbl_8011DD20;
     s32 idx;
     s32 itofs;
     s32 font2;
@@ -1582,6 +1586,7 @@ void show_optmenu(OPTMENU* m)
     s32 savedFlags;
     s32 sel;
     OPTITEM* it;
+    s32 delta[3];
     s32 rgb[3];
     u32 color;
     s32 hifont;
@@ -1613,33 +1618,30 @@ void show_optmenu(OPTMENU* m)
     }
 
     /* fade in / fade out alpha */
-    if ((m->flags & 0x20) == 0) {
+    if ((m->flags & 0x20) != 0) {
         if (m->finish_timer != 0) {
-            return;
+            fade = (m->finish_timer * 0xFF) / OPTMENU_FINISH_FRAMES;
+        } else if (m->time < OPTMENU_FINISH_FRAMES) {
+            fade = ((OPTMENU_FINISH_FRAMES - m->time) * 0xFF) /
+                   OPTMENU_FINISH_FRAMES;
         }
-    } else if (m->finish_timer == 0) {
-        if (m->time < OPTMENU_FINISH_FRAMES) {
-            fade = ((OPTMENU_FINISH_FRAMES - m->time) * 0xFF) / OPTMENU_FINISH_FRAMES;
-        }
-    } else {
-        fade = (m->finish_timer * 0xFF) / OPTMENU_FINISH_FRAMES;
+    } else if (m->finish_timer != 0) {
+        return;
     }
 
     /* garamond font intro frames */
     hifont = 0;
     if (m->font != 0) {
         s32 fr;
-        if (m->finish_timer == 0) {
-            fr = (m->time - 10) / 2;
-        } else {
+        if (m->finish_timer != 0) {
             fr = 6 - (m->finish_timer * 6) / OPTMENU_FINISH_FRAMES;
+        } else {
+            fr = (m->time - 10) / 2;
         }
-        hifont = m->font;
-        if (fr >= 0) {
-            hifont = 0;
-            if (fr < 6) {
-                hifont = m->font + fr;
-            }
+        if (fr < 0) {
+            hifont = m->font;
+        } else if (fr < 6) {
+            hifont = m->font + fr;
         }
     }
 
@@ -1648,14 +1650,13 @@ void show_optmenu(OPTMENU* m)
         x = -(m->bx + m->bw / 2);
         y = m->by + OPTMENU_MARGIN_TITLE;
         if (OPTMENU_SHADOW != 0) {
-            DrawNormalText(m->title_scale, x + OPTMENU_SHADOW, y + OPTMENU_SHADOW, OPTMENU_FONT, 0,
-                           m->title);
+            DrawTextKeepScale(m->title_scale, x + OPTMENU_SHADOW,
+                              y + OPTMENU_SHADOW, OPTMENU_FONT, 0, m->title);
         }
-        txt = DrawNormalText(m->title_scale, x, y, OPTMENU_FONT,
-                             (optmenu_rgb_text[2] & 0xFF) |
-                             ((optmenu_rgb_text[0] & 0xFF) << 16) |
-                             ((optmenu_rgb_text[1] & 0xFF) << 8),
-                             m->title);
+        txt = DrawTextKeepScale(m->title_scale, x, y, OPTMENU_FONT,
+                                ((*(s32*)(data + 220) & 0xFF) << 8) |
+                                ((*(s32*)(data + 216) & 0xFF) << 16) |
+                                (*(s32*)(data + 224) & 0xFF), m->title);
         if (font2 != 0) {
             *(s16*)((u8*)txt + 0x26) = font2;
         }
@@ -1699,21 +1700,7 @@ void show_optmenu(OPTMENU* m)
             } else if ((s32)ph > OPTMENU_FADE) {
                 ph = t2 - ph;
             }
-            if (optmenu_choice_twice == 0) {
-                s32 k;
-                for (k = 0; k < 3; k++) {
-                    s32 d = m->rgb_hi[k] - m->rgb_on[k];
-                    s32 v = m->rgb_on[k] + (OPTMENU_FADE + (s32)ph * d - 1) / OPTMENU_FADE;
-                    if (v < 0) {
-                        v = 0;
-                    } else if (v > 0xFF) {
-                        v = 0xFF;
-                    }
-                    rgb[k] = v;
-                }
-                scale = (f32)(scale * m->scale *
-                              (1.0 + (f32)(lbl_80343BC8 * ((f32)(s32)ph / (f32)OPTMENU_FADE))));
-            } else {
+            if (optmenu_choice_twice != 0) {
                 s32 v = (OPTMENU_FADE + 0xFF * (s32)ph - 1) / OPTMENU_FADE;
                 alpha = alpha + (0x7F - v / 2);
                 if ((s32)alpha > 0xFF) {
@@ -1729,6 +1716,23 @@ void show_optmenu(OPTMENU* m)
                     }
                 }
                 MBSetFontFlags(0x4000);
+            } else {
+                s32 k;
+                for (k = 0; k < 3; k++) {
+                    s32 v;
+                    delta[k] = m->rgb_hi[k] - m->rgb_on[k];
+                    v = m->rgb_on[k] +
+                        (OPTMENU_FADE + (s32)ph * delta[k] - 1) /
+                            OPTMENU_FADE;
+                    if (v < 0) {
+                        v = 0;
+                    } else if (v > 0xFF) {
+                        v = 0xFF;
+                    }
+                    rgb[k] = v;
+                }
+                scale = (f32)(scale * m->scale *
+                              (1.0 + (f32)(lbl_80343BC8 * ((f32)(s32)ph / (f32)OPTMENU_FADE))));
             }
             ph = 0;
             font2 = 0;
@@ -1763,8 +1767,8 @@ void show_optmenu(OPTMENU* m)
             x = m->x;
             text = it->text;
         } else {
-            s32 w1 = DrawTextKeepScale(m->scale, it->text, OPTMENU_FONT);
-            s32 w2 = DrawTextKeepScale(m->scale, " ~ ", OPTMENU_FONT);
+            s32 w1 = DrawNormalText(m->scale, it->text, OPTMENU_FONT);
+            s32 w2 = DrawNormalText(m->scale, " ~ ", OPTMENU_FONT);
             text = it->text2;
             x = m->x + w1 + w2;
         }
@@ -1776,12 +1780,12 @@ void show_optmenu(OPTMENU* m)
         } else {
             *(s16*)((u8*)txt + 0x26) = hi2;
         }
-        w = DrawTextKeepScale(m->scale, text, OPTMENU_FONT);
+        w = DrawNormalText(m->scale, text, OPTMENU_FONT);
         x = x + w;
 
         if (it->on > 0 && it->on == part + 1) {
             txt = MBDrawText(x, y, " ~");
-            w = DrawTextKeepScale(m->scale, " ~", OPTMENU_FONT);
+            w = DrawNormalText(m->scale, " ~", OPTMENU_FONT);
             x = x + w;
             if (hi2 == 0) {
                 if (font2 != 0) {
@@ -1817,11 +1821,11 @@ void show_optmenu(OPTMENU* m)
         s32 p = m->player;
         y = m->by + OPTMENU_MARGIN_PLAYER;
         sprintf(optglobals.tbuf, "Player %d", p + 1);
-        txt = DrawNormalText(optplyr_scale, -(p * 100 + 0x6A), y, OPTMENU_FONT,
-                             (optmenu_rgb_text[2] & 0xFF) |
-                             ((optmenu_rgb_text[0] & 0xFF) << 16) |
-                             ((optmenu_rgb_text[1] & 0xFF) << 8),
-                             optglobals.tbuf);
+        txt = DrawTextKeepScale(optplyr_scale, -(p * 100 + 0x6A), y,
+                                OPTMENU_FONT,
+                                ((*(s32*)(data + 220) & 0xFF) << 8) |
+                                ((*(s32*)(data + 216) & 0xFF) << 16) |
+                                (*(s32*)(data + 224) & 0xFF), optglobals.tbuf);
         if (font2 != 0) {
             *(s16*)((u8*)txt + 0x26) = (s16)font2;
         }
@@ -1829,22 +1833,34 @@ void show_optmenu(OPTMENU* m)
 
     /* selection icon glide */
     if (m->icon_node != NULL) {
+        f64 dangle;
+        f32 angle;
         s32 tx = m->x;
         s32 t;
-        u32 ty;
+        s32 ty;
+
+        if ((m->sel & 1) != 0) {
+            dangle = lbl_803475C0;
+        } else {
+            dangle = lbl_803475C8;
+        }
+        angle = (f32)dangle;
         if (tx < 0) {
             tx = -(tx + m->w / 2);
         }
         t = m->icon_t;
         ty = lh / 2 + m->items[m->sel].draw_y;
         if (t == 0) {
-            if (ty != (u32)m->icon_y) {
+            if (ty != m->icon_y) {
                 m->icon_t = 1;
                 ty = m->icon_y;
             }
         } else if (t < OPTMENU_ICON_TIME) {
             m->icon_t = t + vb_elapsed_menu;
             ty = m->icon_y + ((ty - m->icon_y) * m->icon_t) / OPTMENU_ICON_TIME;
+            angle = (f32)((f64)angle +
+                          lbl_803475C0 * (f64)m->icon_t /
+                              (f64)OPTMENU_ICON_TIME);
         } else {
             m->icon_y = ty;
             m->icon_t = 0;
@@ -1856,12 +1872,12 @@ void show_optmenu(OPTMENU* m)
             v[2] = optmenu_icon_z;
             MBWorldToScreen3D((f32*)((u8*)m->icon_node + 0x30), v);
         }
-        *(u32*)((u8*)m->icon_node + 0x40) = m->icon_rgb;
-        *(u32*)((u8*)m->icon_node + 0x44) = m->icon_rgb;
-        *(u32*)((u8*)m->icon_node + 0x48) = m->icon_rgb;
+        *(f32*)((u8*)m->icon_node + 0x40) = m->icon_scale;
+        *(f32*)((u8*)m->icon_node + 0x44) = m->icon_scale;
+        *(f32*)((u8*)m->icon_node + 0x48) = m->icon_scale;
         CopyMat3((f32*)(*((u8**)winset + 1) + 0x240), (f32*)m->icon_node);
-        PitchMat3();
-        AnimateATree(m->msg, 0, 0, tx, ty);
+        PitchMat3((f32*)m->icon_node, angle);
+        AnimateATree(m->msg, 0, 0);
     }
 
     /* burn blit animation */
@@ -1873,8 +1889,9 @@ void show_optmenu(OPTMENU* m)
     if ((m->flags & 0xF) != 0 && m->finish_timer == 0) {
         s32 n = 0;
         s32 px;
-        s32 sz;
-        u32 py;
+        s32 sx;
+        s32 sy;
+        s32 py;
         u32 rgbp;
         s32 pw;
         char* pc;
@@ -1885,38 +1902,41 @@ void show_optmenu(OPTMENU* m)
             }
         }
         px = 0x200 / (n + 1);
-        sz = (s32)(32.0f * msg_scale);
+        sx = sy = (s32)(32.0f * msg_scale);
         py = m->prompt_y;
-        rgbp = (optmenu_rgb_text[2] & 0xFF) | ((optmenu_rgb_text[0] & 0xFF) << 16) |
-               ((optmenu_rgb_text[1] & 0xFF) << 8);
+        rgbp = ((*(s32*)(data + 220) & 0xFF) << 8) |
+               ((*(s32*)(data + 216) & 0xFF) << 16) |
+               (*(s32*)(data + 224) & 0xFF);
         idx = 0;
         if ((m->flags & 1) != 0) {
             if (OPTMSG_SHADOW != 0) {
-                DrawNormalText(msg_scale, -(px + OPTMSG_SHADOW), py + OPTMSG_SHADOW,
-                               OPTMENU_FONT, 0, "Back");
+                DrawTextKeepScale(msg_scale, -(px + OPTMSG_SHADOW),
+                                  py + OPTMSG_SHADOW, OPTMENU_FONT, 0, "Back");
             }
-            txt = DrawNormalText(msg_scale, -px, py, OPTMENU_FONT, rgbp, "Back");
+            txt = DrawTextKeepScale(msg_scale, -px, py, OPTMENU_FONT, rgbp,
+                                    "Back");
             if (font2 != 0) {
                 *(s16*)((u8*)txt + 0x26) = (s16)font2;
             }
-            pw = DrawTextKeepScale(msg_scale, "Back", OPTMENU_FONT);
-            MBNewTempBlit(lbl_80344E44, ((px - pw / 2) - sz) - 4, py, sz, sz);
+            pw = DrawNormalText(msg_scale, "Back", OPTMENU_FONT);
+            MBNewTempBlit(lbl_80344E44, ((px - pw / 2) - sx) - 4, py, sx, sy);
             idx = px;
         }
         if ((m->flags & 4) != 0) {
             idx = idx + px;
             if (OPTMSG_SHADOW != 0) {
-                DrawNormalText(msg_scale, -(idx + OPTMSG_SHADOW), py + OPTMSG_SHADOW,
-                               OPTMENU_FONT, 0, "Change");
+                DrawTextKeepScale(msg_scale, -(idx + OPTMSG_SHADOW),
+                                  py + OPTMSG_SHADOW, OPTMENU_FONT, 0, "Change");
             }
-            txt = DrawNormalText(msg_scale, -idx, py, OPTMENU_FONT, rgbp, "Change");
+            txt = DrawTextKeepScale(msg_scale, -idx, py, OPTMENU_FONT, rgbp,
+                                    "Change");
             if (font2 != 0) {
                 *(s16*)((u8*)txt + 0x26) = (s16)font2;
             }
-            pw = DrawTextKeepScale(msg_scale, "Change", OPTMENU_FONT);
-            px = ((idx - pw / 2) - sz) - 4;
-            MBNewTempBlit(lbl_80344E38, px - sz, py, sz, sz);
-            MBNewTempBlit(lbl_80344E34, px, py, sz, sz);
+            pw = DrawNormalText(msg_scale, "Change", OPTMENU_FONT);
+            px = ((idx - pw / 2) - sx) - 4;
+            MBNewTempBlit(lbl_80344E38, px - sx, py, sx, sy);
+            MBNewTempBlit(lbl_80344E34, px, py, sx, sy);
         }
         if ((m->flags & 2) != 0) {
             if ((m->flags & 0x102) == 0x102) {
@@ -1926,28 +1946,29 @@ void show_optmenu(OPTMENU* m)
             }
             idx = idx + px;
             if (OPTMSG_SHADOW != 0) {
-                DrawNormalText(msg_scale, -(idx + OPTMSG_SHADOW), py + OPTMSG_SHADOW,
-                               OPTMENU_FONT, 0, pc);
+                DrawTextKeepScale(msg_scale, -(idx + OPTMSG_SHADOW),
+                                  py + OPTMSG_SHADOW, OPTMENU_FONT, 0, pc);
             }
-            txt = DrawNormalText(msg_scale, -idx, py, OPTMENU_FONT, rgbp, pc);
+            txt = DrawTextKeepScale(msg_scale, -idx, py, OPTMENU_FONT, rgbp, pc);
             if (font2 != 0) {
                 *(s16*)((u8*)txt + 0x26) = (s16)font2;
             }
-            pw = DrawTextKeepScale(msg_scale, pc, OPTMENU_FONT);
-            MBNewTempBlit(lbl_80344E48, ((idx - pw / 2) - sz) - 4, py, sz, sz);
+            pw = DrawNormalText(msg_scale, pc, OPTMENU_FONT);
+            MBNewTempBlit(lbl_80344E48, ((idx - pw / 2) - sx) - 4, py, sx, sy);
         }
         if ((m->flags & 8) != 0) {
             idx = idx + px;
             if (OPTMSG_SHADOW != 0) {
-                DrawNormalText(msg_scale, -(idx + OPTMSG_SHADOW), py + OPTMSG_SHADOW,
-                               OPTMENU_FONT, 0, "Center");
+                DrawTextKeepScale(msg_scale, -(idx + OPTMSG_SHADOW),
+                                  py + OPTMSG_SHADOW, OPTMENU_FONT, 0, "Center");
             }
-            txt = DrawNormalText(msg_scale, -idx, py, OPTMENU_FONT, rgbp, "Center");
+            txt = DrawTextKeepScale(msg_scale, -idx, py, OPTMENU_FONT, rgbp,
+                                    "Center");
             if (font2 != 0) {
                 *(s16*)((u8*)txt + 0x26) = (s16)font2;
             }
-            pw = DrawTextKeepScale(msg_scale, "Center", OPTMENU_FONT);
-            MBNewTempBlit(lbl_80344E3C, ((idx - pw / 2) - sz) - 4, py, sz, sz);
+            pw = DrawNormalText(msg_scale, "Center", OPTMENU_FONT);
+            MBNewTempBlit(lbl_80344E3C, ((idx - pw / 2) - sx) - 4, py, sx, sy);
         }
     }
 }
