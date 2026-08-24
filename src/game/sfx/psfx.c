@@ -759,8 +759,11 @@ s32 DoPlyrSfxSub(u8* player, s32 recordIndex, f32* offset,
     }
 
     if ((flags & 0x100) != 0) {
+        f32 rate = record->rate;
+        s32 loops = record->skinLoops;
+
         SetSkinFX(player + 0x7DC, record->texture, (s32)record->duration,
-                  record->skinLoops, record->rate);
+                  loops, rate);
     } else if ((flags & 0x0F000000) != 0) {
         PsfxDoParticle(player, record, effectIndex);
     } else if ((flags & 0x200) == 0) {
