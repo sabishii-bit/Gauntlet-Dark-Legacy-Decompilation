@@ -2662,7 +2662,9 @@ level_player_found:
         cam2->pyr[1] = *(f32*)(CurTransmitter + 0x18);
         cam2->pyr[2] = *(f32*)(CurTransmitter + 0x1C);
         cam2->pyr[0] = -cam2->pyr[0];
-        cam2->pyr[1] = (f32)((f64)cam2->pyr[1] + CAM_PI);
+        wrappedAngle = cam2->pyr[1];
+        wrappedAngle += CAM_PI;
+        cam2->pyr[1] = (f32)wrappedAngle;
         wrappedAngle = cam2->pyr[1];
         if (wrappedAngle > CAM_PI) {
             wrappedAngle -= CAM_2PI;
@@ -2698,7 +2700,9 @@ level_player_found:
         cam2->attn[0] = cam2->wpos[0] + scratch.transformed.x;
         cam2->attn[1] = cam2->wpos[1] + scratch.transformed.y;
         cam2->attn[2] = cam2->wpos[2] + scratch.transformed.z;
-        cam2->pyr[1] = (f32)((f64)cam2->pyr[1] + CAM_PI);
+        wrappedAngle = cam2->pyr[1];
+        wrappedAngle += CAM_PI;
+        cam2->pyr[1] = (f32)wrappedAngle;
         wrappedAngle = cam2->pyr[1];
         if (wrappedAngle > CAM_PI) {
             wrappedAngle -= CAM_2PI;
