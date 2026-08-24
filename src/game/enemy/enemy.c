@@ -196,7 +196,9 @@ extern const f32 lbl_80346A68;
 extern const f32 lbl_80346A6C;
 typedef struct EnemyPlayerView {
     s32 index;
-    u8 _004[0x054 - 0x004];
+    u8 _004[0x00C - 0x004];
+    s32 character;
+    u8 _010[0x054 - 0x010];
     f32 position[3];
     u8 _060[0x064 - 0x060];
     f32 damage_position[3];
@@ -209,7 +211,11 @@ typedef struct EnemyPlayerView {
     u8 _956[0xA1E - 0x956];
     s16 attack_reflect;
     s16 attack_heal;
-    u8 _A22[0x335C - 0xA22];
+    u8 _A22[0x1EB4 - 0xA22];
+    f32 health;
+    u8 _1EB8[0x3324 - 0x1EB8];
+    s32 level;
+    u8 _3328[0x335C - 0x3328];
 } EnemyPlayerView;
 typedef union EnemyPlayerArray {
     f32 words[4][3287];
@@ -5004,36 +5010,315 @@ extern s32 lbl_80344734;      /* node-delete reentry guard */
 extern s32 ErrorPrintf(const char* fmt, ...);
 extern char lbl_80112468[];
 
-/* damage_enemy @0x8004E6F8 - SKELETON + NOTES.  Apply damage + knockback to an
- * enemy and run the on-hit FX / heal / death cascade.  Global; called from the
- * world-collision damage path and from move_logic18's "IT" catch.  572 GC insns;
- * only the state guard is reconstructed under the light-touch pass.
- *
- * Signature (from asm): s32 damage_enemy(Enemy* e, f32 amount, s32 dtype,
- *   s32 knock, s32 srcflags, s32 arg6, s32 arg7).  f1=amount is stashed to the
- *   frame, r5(dtype) stashed, r6/r7/r8 held in nonvolatiles, e->health cached in
- *   f31 (0x200).  Returns -1 when the target is already DECORATION(7)/DYING(8).
- *
- * Full-body call inventory (tools/gdl/fnasm.py game/enemy/enemy damage_enemy):
- *   SetSkinFX x4                 - hit-flash skin FX ramps
- *   SuicideExplosion x2, fn_8009DAC8 x2, fn_800945D0 x2 - death / burst FX
- *   uncouple_enemy x2, CopyMat4 x2 - detach from the generator chain, snapshot xform
- *   heal_player / do_heal_players  - life-steal heal on kill
- *   fn_8009DE88/DE5C/DF7C/DD48, MBTreeSetAmbientAdd, MBTreeClearFlags - node FX
- *   AudioPlayEvt103, msgPost, fn_80050618/8002F5D8/8005A3B8/8005A404 - sfx + msgs
- * Frame 176, saves r26-r31 + f31.
- * TODO: transcribe damage application + knockback integration + the death branch
- * (Ghidra decompile_function 0x8004E6F8). */
+extern s32 heal_player(EnemyPlayerView* player, f32 amount);
+extern void do_heal_players(void* player, f32* matrix, f32 amount);
+extern void ModifyDamage(f32 armor, f32* damage, u32* damage_type, u32 shield);
+extern void CopyMat4(f32* source, f32* destination);
+extern void UpdateObjWorldMat(f32* matrix);
+extern void fn_8005A404(f32* matrix, f32* coll_offset, f32* attn_offset);
+extern void SetEnemyObj();
+extern void AudioPlayEvt101(f32* position);
+extern void AudioPlayEvt103(f32* position);
+extern void fn_8009DD48(void);
+extern void fn_8009DE5C(s32 type, f32* position);
+extern void fn_8009DE88(Enemy* enemy, s32 mode);
+extern void fn_8009DF7C(Enemy* enemy, s32 mode);
+extern void fn_800945D0(u8* position, u8* matrix, s32 damage_type, s32 alt,
+                        u32 type, f32 scale);
+extern void MBTreeSetAmbientAdd(struct mbnode* node, s32 value, s32 recurse);
+extern void SetSkinFX(skinfx* fx, s32 base, s32 frames, s32 loops, f32 rate);
+extern s32 gBossType;
+extern s32 lbl_80344768;
+extern f32 lbl_803447D8;
+extern s32 lbl_80344BE0;
+extern s32 lbl_80344BE4;
+extern s32 lbl_802897B8[];
+extern f32 lbl_8011B900[];
+extern f32 lbl_8011BA10[];
+extern f64 lbl_80346938;
+extern f64 lbl_80346948;
+extern f32 lbl_803469B0;
+extern f64 lbl_80346A08;
+extern f64 lbl_80346A10;
+extern f64 lbl_80346A18;
+extern f64 lbl_80346A28;
+extern f64 lbl_80346A30;
+
+/* Apply damage and accumulated hit direction, then run the enemy-specific
+ * heal, reaction, death, sound, skin and burst-effect cascades. */
 #pragma dont_inline on
-s32 damage_enemy(Enemy* e, f32 amount, s32 dtype, s32 knock, s32 srcflags, s32 arg6, s32 arg7)
+s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
+                 s32 effect_position_arg, s32 hit_direction_arg,
+                 s32 play_effects)
 {
+    EnemyPlayerView* player = NULL;
+    f32* effect_position = (f32*)effect_position_arg;
+    f32* hit_direction = (f32*)hit_direction_arg;
+    f32 old_health = e->health;
+    f32 saved_matrix[16];
+    f32 effect_pos[3];
+    f32 fight;
+    s32 enemy_index;
+
     if (e->state == DECORATION) {
         return -1;
     }
     if (e->state == DYING) {
         return -1;
     }
-    /* --- remaining ~560 insns of damage application / FX / death not transcribed --- */
+    if (e->type == E_IT) {
+        return -1;
+    }
+
+    if (player_index >= 0) {
+        player = &gEnemyPlayers[player_index];
+    }
+    if (player != NULL) {
+        lbl_803447E4 = 1;
+    }
+
+    if (e->type == E_DEATH) {
+        if ((damage_type & 0x200) != 0) {
+            if (player != NULL && player->level > 75) {
+                f32 level = (f32)(player->level - 75);
+                f32 heal_scale =
+                    (f32)(lbl_80346A10 * level + lbl_80346A08);
+                heal_player(player, e->health * heal_scale);
+            }
+            e->health = lbl_80346820;
+        } else if (e->state == SLEEP) {
+            if (play_effects != 0) {
+                fn_8009DE5C(e->type, &e->objgrp.worldmat[3][0]);
+            }
+            {
+                s32 endurance = e->endurance - 1;
+                e->endurance = endurance;
+                if ((s16)endurance > 0) {
+                    return 0;
+                }
+                e->state = ACTIVE;
+                if (play_effects != 0) {
+                    AudioPlayEvt103(&e->objgrp.worldmat[3][0]);
+                }
+                CopyMat4(&e->objgrp.worldmat[0][0], saved_matrix);
+                SetEnemyObj((u8*)e, e->type, 1);
+                CopyMat4(saved_matrix, &e->objgrp.worldmat[0][0]);
+                UpdateObjWorldMat(&e->objgrp.worldmat[0][0]);
+                fn_8005A404(&e->objgrp.worldmat[0][0], e->coll_offset,
+                             e->attn_offset);
+                MBTreeClearFlags(e->objgrp.node, 2, 0);
+            }
+            return 0;
+        } else if (player != NULL && (player->flags & 0x80000) != 0) {
+            e->health = (f32)(e->health - lbl_80346810);
+            if (e->org_lvl == 2) {
+                AddExp(player_index, 1, -2);
+            } else {
+                player->health = (f32)(player->health + lbl_80346810);
+            }
+        } else {
+            e->health = (f32)(e->health - lbl_80346810);
+            if (player != NULL) {
+                msgPost(0, player_index, player->position);
+            }
+        }
+
+        if ((f64)e->health <= (f64)lbl_80346820) {
+            if (play_effects != 0) {
+                AudioPlayEvt101(&e->objgrp.worldmat[3][0]);
+            }
+            e->health = lbl_80346820;
+            enemy_index = (s32)(e - gEnemies);
+            e->state = DYING;
+            e->area = (s16)player_index;
+            if (e->algorithm == 18) {
+                SuicideExplosion(e->objgrp.coll_pos,
+                    (f32)(lbl_803468A8 * *(f32*)(gCurLevel + 0xBC)));
+                fn_8009DAC8(e->objgrp.coll_pos);
+            }
+            uncouple_enemy(enemy_index);
+            if (player != NULL) {
+                u8* character = (u8*)player + player->character * 28;
+                s32* kills = (s32*)(character + 0xC10);
+                (*kills)++;
+            }
+            return 1;
+        }
+        return 0;
+    }
+
+    e->watchdog = 0;
+    if ((damage_type & 0x800000) != 0 && player != NULL) {
+        f32 healed = amount;
+        if (healed > e->health) {
+            healed = e->health;
+        }
+        do_heal_players(player, &e->objgrp.worldmat[0][0], healed);
+    }
+
+    if (player_index >= 0 && *(f32*)(gCurLevel + 0x9C) > lbl_80346820) {
+        f32 level = (f32)player->level;
+        f32 target_level = *(f32*)(gCurLevel + 0x9C);
+        f32 scale = lbl_803468F0;
+
+        if (level < target_level) {
+            scale = (f32)(lbl_80346810 -
+                          lbl_80346878 * (target_level - level));
+        } else if (level > target_level) {
+            scale = (f32)(lbl_80346810 +
+                          lbl_80346858 * (level - target_level));
+        }
+        amount *= scale;
+    }
+
+    ModifyDamage(e->atts.armor, &amount, (u32*)&damage_type,
+                 e->atts.armortype);
+    if ((f64)lbl_803447D8 < lbl_80346810) {
+        amount = (f32)(amount * lbl_80346868);
+    }
+    if (player_index >= 0 && (f64)amount < lbl_80346810) {
+        amount = lbl_80346820;
+    }
+
+    e->damage += amount;
+    if ((damage_type & 0xF) != 0) {
+        e->damagetype &= ~0xF;
+    }
+    e->damagetype |= damage_type;
+    if (hit_direction != NULL) {
+        e->damagedir[0] = hit_direction[0] + e->damagedir[0];
+        e->damagedir[1] = hit_direction[1] + e->damagedir[1];
+        e->damagedir[2] = hit_direction[2] + e->damagedir[2];
+    }
+
+    effect_pos[0] = e->objgrp.attn_pos[0];
+    effect_pos[1] = e->objgrp.attn_pos[1];
+    effect_pos[2] = e->objgrp.attn_pos[2];
+
+    if (e->type == E_GOLEM) {
+        if (lbl_80344768 >= 3) {
+            amount = (f32)(amount * lbl_80346A18);
+        } else if (lbl_80344768 >= 2) {
+            amount = (f32)(amount * lbl_80346830);
+        }
+    }
+    if (amount <= lbl_80346820) {
+        play_effects = 0;
+    } else {
+        e->damage_count++;
+    }
+
+    {
+        f64 applied;
+
+        if (gGameOptions[0] == 3) {
+            applied = lbl_80346A20;
+        } else {
+            applied = amount;
+        }
+        e->health = (f32)((f64)e->health - applied);
+    }
+
+    fight = *(f32*)(gCurLevel + 0xBC) * lbl_8011B900[e->type];
+    {
+        f32 threshold = *(f32*)(gCurLevel + 0xAC) * lbl_8011BA10[e->type];
+        f32 upper = (f32)(lbl_80346A30 * threshold);
+        f32 lower = (f32)(lbl_80346A28 * threshold);
+
+        if (e->health > upper) {
+            goto store_fight;
+        }
+        if (e->type == E_DEATH) {
+            goto store_fight;
+        }
+        if (e->health > lower) {
+            fight = (f32)(lbl_80346A30 * fight);
+        } else {
+            fight = (f32)(lbl_80346A28 * fight);
+        }
+    }
+store_fight:
+    e->atts.fight = fight;
+
+    if (e->algorithm == 12 && e->mode1 < 2 && e->generator != NULL) {
+        ((u8*)e->generator)[0xE6] = 7;
+        ((u8*)e->generator)[0xE0] = 3;
+    } else if (e->algorithm == 15 && e->generator != NULL) {
+        ((u8*)e->generator)[0xE3] = 0;
+    }
+
+    if ((f64)e->health <= lbl_80346898) {
+        if (e->type == gBossType) {
+            if ((f64)old_health > lbl_80346898 && player != NULL) {
+                u8* character = (u8*)player + player->character * 28;
+                s32* kills = (s32*)(character + 0xC10);
+                (*kills)++;
+            }
+            return 1;
+        }
+
+        if (play_effects != 0) {
+            if (e->algorithm == 18) {
+                fn_8009DD48();
+            }
+            fn_8009DF7C(e, play_effects);
+        }
+        e->health = lbl_80346820;
+        enemy_index = (s32)(e - gEnemies);
+        e->state = DYING;
+        e->area = (s16)player_index;
+        if (e->algorithm == 18) {
+            SuicideExplosion(e->objgrp.coll_pos,
+                (f32)(lbl_803468A8 * *(f32*)(gCurLevel + 0xBC)));
+            fn_8009DAC8(e->objgrp.coll_pos);
+        }
+        uncouple_enemy(enemy_index);
+        if (player != NULL) {
+            u8* character = (u8*)player + player->character * 28;
+            s32* kills = (s32*)(character + 0xC10);
+            (*kills)++;
+        }
+
+        if (player_index >= -1) {
+            if (e->objgrp.node != NULL) {
+                if (e->type == E_GOLEM && (damage_type & 0xF) == 0) {
+                    SetSkinFX(&e->skinfx, lbl_80344BE4, 15, 0,
+                              lbl_803469B0);
+                } else if (e->type == E_TREEFOLK &&
+                           (damage_type & 0xF) == 0) {
+                    SetSkinFX(&e->skinfx, lbl_80344BE0, 10, 0,
+                              lbl_803469B0);
+                } else if (e->type == E_KNIGHT &&
+                           (damage_type & 0xF) == 0) {
+                    SetSkinFX(&e->skinfx, lbl_80344BE0, 10, 0,
+                              lbl_803469B0);
+                } else if ((f64)e->hht > lbl_80346868) {
+                    SetSkinFX(&e->skinfx,
+                              lbl_802897B8[damage_type & 0xF], 10, 0,
+                              lbl_803469B0);
+                }
+                MBTreeSetAmbientAdd(e->objgrp.node, 999, 1);
+            }
+            if ((damage_type & 0x1000000) == 0 && e->type != gBossType) {
+                fn_800945D0((u8*)effect_pos, (u8*)&e->objgrp,
+                            damage_type, 1, e->type, e->hht);
+            }
+        }
+        return 1;
+    }
+
+    if (play_effects != 0) {
+        fn_8009DE88(e, play_effects);
+    }
+    if ((damage_type & 0x1000000) == 0 && e->type != gBossType) {
+        if (effect_position != NULL && (f64)e->hht >= lbl_80346948) {
+            effect_pos[0] = *(f32*)((u8*)effect_position + 0);
+            effect_pos[1] = *(f32*)((u8*)effect_position + 4);
+            effect_pos[2] = *(f32*)((u8*)effect_position + 8);
+        }
+        fn_800945D0((u8*)effect_pos, (u8*)&e->objgrp,
+                    damage_type, 0, e->type, e->hht);
+    }
     return 0;
 }
 #pragma dont_inline off
