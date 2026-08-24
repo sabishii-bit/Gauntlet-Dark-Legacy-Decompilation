@@ -503,9 +503,9 @@ void AudioSetupLevelStreams(void)
     u8* lvl;
     u8* lvl2;
     s32 err;
-    s32 mode;
     s32 idx;
     s32 chans;
+    s32 mode;
     s32 tmp;
 
     nb = (char*)sSpeechNameBuf;
@@ -560,7 +560,9 @@ void AudioSetupLevelStreams(void)
         sprintf(buf, lbl_80348570, (char*)(lvl2 + 24),
                 (signed char)lbl_8012330C[sSelectStreamState]);
     }
-    if (*(s16*)(*(u8**)(gCurLevel + 100) + sSelectStreamState * 2 + 44) > 1) {
+    lvl2 = *(u8**)(gCurLevel + 100);
+    lvl2 += sSelectStreamState * 2;
+    if (*(s16*)(lvl2 + 44) > 1) {
         sprintf(nb, lbl_80348578, buf, sMusicField2F4 + 1);
     } else {
         strcpy(nb, buf);
