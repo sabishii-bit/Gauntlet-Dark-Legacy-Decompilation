@@ -1843,34 +1843,30 @@ s32 CheckSpecials(s32 plyr, u32 lev)
 /* boolean press for one button record (inlined all through ReadControls) */
 static s32 btn_down(u8* rec)
 {
-    if ((rec[0] & 1) == 0) {
-        return 0;
-    }
-    if ((rec[0] & 2) == 0) {
-        if (rec[1] == 0) {
-            return 0;
+    if (rec[0] & 1) {
+        if (rec[0] & 2) {
+            if (rec[1] > 5) {
+                return 1;
+            }
+        } else if (rec[1] != 0) {
+            return 1;
         }
-        return 1;
     }
-    if (rec[1] < 6) {
-        return 0;
-    }
-    return 1;
+    return 0;
 }
 
 /* raw analog value for one button record (inlined in ReadControls) */
-static u32 btn_val(u8* rec)
+static s32 btn_val(u8* rec)
 {
-    if ((rec[0] & 1) == 0) {
-        return 0;
-    }
-    if ((rec[0] & 2) == 0) {
-        if (rec[1] == 0) {
-            return 0;
+    if (rec[0] & 1) {
+        if (rec[0] & 2) {
+            return rec[1];
         }
-        return 0xFF;
+        if (rec[1] != 0) {
+            return 0xFF;
+        }
     }
-    return rec[1];
+    return 0;
 }
 
 /* 0x80033C5C  top-level pad read: joyGetStatus every pad, translate the
@@ -1894,6 +1890,7 @@ void ReadControls(void)
         if (ok != 0) {
             s32 bStart, bSel, bL2, bL1, bR2, bR1, bTri, bCir, bX, bSq;
             s32 scheme, analog, analog2;
+            s32 pad_type;
             s32 d0, d1, d2, d3;
             s32 s8, sA, sC, sE;
             s32 r0, r1, r2, r3;
@@ -1905,10 +1902,27 @@ void ReadControls(void)
             } else {
                 scheme = lbl_80240E30[lbl_8011A268[pad]].scheme;
             }
-            analog = lbl_80240AB8[pad] == 2 || lbl_80240AB8[pad] == 3 ||
-                     lbl_80240AB8[pad] == 5;
-            analog2 = lbl_80240AB8[pad] == 2 || lbl_80240AB8[pad] == 3 ||
-                      lbl_80240AB8[pad] == 5;
+            pad_type = lbl_80240AB8[pad];
+            switch (pad_type) {
+            case 2:
+            case 3:
+            case 5:
+                analog = 1;
+                break;
+            default:
+                analog = 0;
+                break;
+            }
+            switch (pad_type) {
+            case 2:
+            case 3:
+            case 5:
+                analog2 = 1;
+                break;
+            default:
+                analog2 = 0;
+                break;
+            }
             d0 = get_button(&rec[0], 1);
             d1 = get_button(&rec[2], 1);
             d2 = get_button(&rec[4], 1);
@@ -1948,29 +1962,49 @@ void ReadControls(void)
             bX = btn_down(&rec[0x1A]);
             bSq = btn_down(&rec[0x14]);
             lbl_80240F60[pad] |= r0 | r1 << 2 | r2 << 4 | r3 << 6;
+            if (d0 != 0) {
+                d0 = 1;
+            } else {
+                d0 = 0;
+            }
+            if (d1 != 0) {
+                d1 = 1;
+            } else {
+                d1 = 0;
+            }
+            if (d2 != 0) {
+                d2 = 1;
+            } else {
+                d2 = 0;
+            }
+            if (d3 != 0) {
+                d3 = 1;
+            } else {
+                d3 = 0;
+            }
             lbl_80240F70[pad] |=
                 s8 | sA << 2 | sC << 4 | sE << 6 | bStart << 0x12 | bSel << 0x13 |
                 bL1 << 0x14 | bL2 << 0x15 | bR1 << 0x16 | bR2 << 0x17 | bCir << 0x18 |
-                bX << 0x19 | bSq << 0x1A | bTri << 0x1B | (d0 != 0) << 0x1C |
-                (d1 != 0) << 0x1D | (d2 != 0) << 0x1E | (d3 != 0) << 0x1F;
+                bX << 0x19 | bSq << 0x1A | bTri << 0x1B | d0 << 0x1C |
+                d1 << 0x1D | d2 << 0x1E | d3 << 0x1F;
             if (analog != 0) {
-                u32 a, b, c, d;
+                s32 a, b, c, d;
                 f32 fh, fv, m2, mag;
+                f32* left_angle = &lbl_80240F40[pad];
+                f32* left_mag = &lbl_80240F50[pad];
+                f32* right_angle = &lbl_80240F20[pad];
+                f32* right_mag = &lbl_80240F30[pad];
 
                 /* left stick -> angle + magnitude */
                 a = btn_val(&rec[8]);
                 b = btn_val(&rec[0xA]);
                 c = btn_val(&rec[0xC]);
                 d = btn_val(&rec[0xE]);
-                if (d <= c) {
-                    d = -c;
-                }
-                if (a <= b) {
-                    a = -b;
-                }
+                d = (d > c) ? d : -c;
+                a = (a > b) ? a : -b;
                 fv = (f32)((s32)d) * (1.0 / 255.0);
                 fh = (f32)((s32)a) * (1.0 / 255.0);
-                lbl_80240F40[pad] = atan2(fh, fv);
+                *left_angle = atan2(fh, fv);
                 m2 = fv * fv + fh * fh;
                 mag = m2;
                 if (m2 > 0.0f) {
@@ -1982,24 +2016,20 @@ void ReadControls(void)
                     mag = (f32)(m2 * (0.5 * g * (3.0 - g * g * m2)));
                 }
                 if (mag < 1.0f) {
-                    lbl_80240F50[pad] = fn_80034C88(m2);
+                    *left_mag = fn_80034C88(m2);
                 } else {
-                    lbl_80240F50[pad] = 1.0f;
+                    *left_mag = 1.0f;
                 }
                 /* right stick -> angle + magnitude */
                 a = btn_val(&rec[0x1C]);
                 b = btn_val(&rec[0x1E]);
                 c = btn_val(&rec[0x20]);
                 d = btn_val(&rec[0x22]);
-                if (d <= c) {
-                    d = -c;
-                }
-                if (a <= b) {
-                    a = -b;
-                }
+                d = (d > c) ? d : -c;
+                a = (a > b) ? a : -b;
                 fv = (f32)((s32)d) * (1.0 / 255.0);
                 fh = (f32)((s32)a) * (1.0 / 255.0);
-                lbl_80240F20[pad] = atan2(fh, fv);
+                *right_angle = atan2(fh, fv);
                 m2 = fv * fv + fh * fh;
                 mag = m2;
                 if (m2 > 0.0f) {
@@ -2011,14 +2041,14 @@ void ReadControls(void)
                     mag = (f32)(m2 * (0.5 * g * (3.0 - g * g * m2)));
                 }
                 if (mag < 1.0f) {
-                    lbl_80240F30[pad] = fn_80034C88(m2);
+                    *right_mag = fn_80034C88(m2);
                 } else {
-                    lbl_80240F30[pad] = 1.0f;
+                    *right_mag = 1.0f;
                 }
                 /* scheme 3: right stick result IS the movement stick */
-                if (scheme == 3 && lbl_80240F30[pad] != 0.0f) {
-                    lbl_80240F50[pad] = lbl_80240F30[pad];
-                    lbl_80240F40[pad] = lbl_80240F20[pad];
+                if (scheme == 3 && *right_mag != 0.0f) {
+                    *left_mag = *right_mag;
+                    *left_angle = *right_angle;
                 }
             } else {
                 lbl_80240F40[pad] = 0.0f;
