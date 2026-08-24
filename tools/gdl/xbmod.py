@@ -16,8 +16,15 @@ import re
 import sys
 from pathlib import Path
 
-# tools/gdl/xbmod.py -> parent(gdl).parent(tools).parent(repo root) / research/...
-TXT = Path(__file__).resolve().parent.parent.parent / "research" / "xbox_symbols" / "functions_by_module.txt"
+# The generated text inventory is private workflow memory, but older checkouts
+# kept it under research/.  Prefer the current location and retain the legacy
+# fallback so the helper works across both layouts.
+ROOT = Path(__file__).resolve().parent.parent.parent
+TXT_CANDIDATES = (
+    ROOT / ".claude" / "memory" / "xbox_symbols" / "functions_by_module.txt",
+    ROOT / "research" / "xbox_symbols" / "functions_by_module.txt",
+)
+TXT = next((path for path in TXT_CANDIDATES if path.exists()), TXT_CANDIDATES[0])
 
 MOD_RE = re.compile(r"^== \.\\Release\\(.+?) \(")
 SYM_RE = re.compile(r"^\[(\d{4}):([0-9A-Fa-f]{8})\]\s+([0-9A-Fa-f]+)\s+([GLD])\s+(.*)$")
