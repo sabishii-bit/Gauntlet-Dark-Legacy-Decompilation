@@ -958,31 +958,29 @@ s32 do_player_select(void)
                     break;
                 }
                 default:
-                    if (t < 1000) {
-                        if (t >= 0) {
-                            *(s32*)(pl + 0x3348) += gFrameTicks;
-                            if (*(s32*)(pl + 0x3348) >= 0x78) {
-                                if (*(s32*)(pl + 0x3338) == 6) {
-                                    *(s32*)(pl + 0x3338) = 5;
-                                    *(s32*)(pl + 0x3348) = 1;
-                                } else {
-                                    *(s32*)(pl + 0x3338) = 13;
-                                    setup_file_entries(pl, 1);
-                                    *(s32*)(pl + 0x3348) = 0;
-                                }
-                            }
-                        } else {
-                            *(s32*)(pl + 0x3348) -= gFrameTicks;
-                            if (*(s32*)(pl + 0x3348) <= -0x78) {
-                                *(s32*)(pl + 0x3338) = *(s32*)(pl + 0x333C);
-                                *(s32*)(pl + 0x3348) = 0;
-                            }
-                        }
-                    } else {
+                    if (t >= 1000) {
                         *(s32*)(pl + 0x3348) += gFrameTicks;
                         if (*(s32*)(pl + 0x3348) >= 0x460) {
                             *(s32*)(pl + 0x3348) = 0;
                             *(s32*)(pl + 0x3338) = *(s32*)(pl + 0x333C);
+                        }
+                    } else if (t >= 0) {
+                        *(s32*)(pl + 0x3348) += gFrameTicks;
+                        if (*(s32*)(pl + 0x3348) >= 0x78) {
+                            if (*(s32*)(pl + 0x3338) == 6) {
+                                *(s32*)(pl + 0x3338) = 5;
+                                *(s32*)(pl + 0x3348) = 1;
+                            } else {
+                                *(s32*)(pl + 0x3338) = 13;
+                                setup_file_entries(pl, 1);
+                                *(s32*)(pl + 0x3348) = 0;
+                            }
+                        }
+                    } else {
+                        *(s32*)(pl + 0x3348) -= gFrameTicks;
+                        if (*(s32*)(pl + 0x3348) <= -0x78) {
+                            *(s32*)(pl + 0x3338) = *(s32*)(pl + 0x333C);
+                            *(s32*)(pl + 0x3348) = 0;
                         }
                     }
                     break;
@@ -1238,31 +1236,7 @@ s32 do_player_select(void)
                     }
                     if (known) {
                         AudioCursorSelect();
-                        if (*(s32*)(pl + 0x3328) == 0) {
-                            s32 picked = *(s32*)(pl + 0x10);
-                            u8* p2 = gPlayers + poff;
-                            s32 saved;
-                            s32 wflag;
-                            *(s32*)(p2 + 0xE8) = 3;
-                            *(s32*)(p2 + 0x830) = other_players_next_level(i);
-                            saved = *(s32*)(p2 + 0xF0);
-                            change_player(i, picked);
-                            *(s32*)(p2 + 0xF0) = saved;
-                            setup_tex(i, 2, 0, 0, pool + 168,
-                                      lbl_801200B0[picked & 7]);
-                            mbBlitProject(*(void**)((blitbase + boff) + 0x18),
-                                          -1, 320);
-                            if (*(s32*)(p2 + 0xF0) != 0) {
-                                wflag = 0;
-                            } else {
-                                wflag = 1;
-                            }
-                            if (*(s32*)(p2 + 0x1EC0) == 0) {
-                                AudioWelcomeBack(i, wflag);
-                            } else {
-                                AudioWelcome(i, wflag);
-                            }
-                        } else {
+                        if (*(s32*)(pl + 0x3328) != 0) {
                             s32 wflag = 1;
                             change_player(i, *(s32*)(pl + 0x10));
                             *(s32*)(pl + 0x3328) = 1;
@@ -1299,6 +1273,30 @@ s32 do_player_select(void)
                                 wflag = 0;
                             }
                             if (*(s32*)(pl + 0x1EC0) == 0) {
+                                AudioWelcomeBack(i, wflag);
+                            } else {
+                                AudioWelcome(i, wflag);
+                            }
+                        } else {
+                            s32 picked = *(s32*)(pl + 0x10);
+                            u8* p2 = gPlayers + poff;
+                            s32 saved;
+                            s32 wflag;
+                            *(s32*)(p2 + 0xE8) = 3;
+                            *(s32*)(p2 + 0x830) = other_players_next_level(i);
+                            saved = *(s32*)(p2 + 0xF0);
+                            change_player(i, picked);
+                            *(s32*)(p2 + 0xF0) = saved;
+                            setup_tex(i, 2, 0, 0, pool + 168,
+                                      lbl_801200B0[picked & 7]);
+                            mbBlitProject(*(void**)((blitbase + boff) + 0x18),
+                                          -1, 320);
+                            if (*(s32*)(p2 + 0xF0) != 0) {
+                                wflag = 0;
+                            } else {
+                                wflag = 1;
+                            }
+                            if (*(s32*)(p2 + 0x1EC0) == 0) {
                                 AudioWelcomeBack(i, wflag);
                             } else {
                                 AudioWelcome(i, wflag);
