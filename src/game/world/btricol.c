@@ -42,6 +42,7 @@ typedef struct WorldTri {
 /* Read-only collision-query line, owned elsewhere (.bss 0x8023F7E8). */
 extern f32 gColQueryLine[8]; /* [0..2] = p0, [4..6] = p1 */
 extern const f64 lbl_80345D40;
+extern const f32 lbl_80345D70;
 extern const f32 lbl_80345D50;
 extern const f64 lbl_80345D78;
 extern const f64 lbl_80345D80;
@@ -59,7 +60,7 @@ extern f64 SlowNormalVector(Vec* vector);
 
 /* forward decls (address order) */
 s32         TriLineCol(WorldTri* tri, Vec* out);
-f32         BTriLineCol(Vec* tri, Vec* out, f32 radius);
+f32         BTriLineCol(WorldTri* tri, Vec* out, f32 radius);
 static void BodyVectorNorm(Vec* in, Vec* out, ColFrame* f, f32 c);
 static void WorldVectorNorm(Vec* out, f32 x, f32 y, f32 z, f32 c,
                             ColFrame* f);
@@ -679,21 +680,228 @@ s32 TriLineCol(WorldTri* tri, Vec* out) {
 /* BTriLineCol -- swept (radius > 0) triangle / line collision built    */
 /* on the LineLineDist3D2D edge tests and the frame transforms.        */
 /* ------------------------------------------------------------------ */
-f32 BTriLineCol(Vec* tri, Vec* out, f32 radius) {
-    Vec e0, e1;
-    ColFrame frame;
-    f32 ta, tb;
-    frame.c = tri->x;
-    frame.s = tri->y;
-    frame.t = tri->z;
-    e0.x = gColQueryLine[0];
-    e0.y = gColQueryLine[1];
-    e0.z = gColQueryLine[2];
-    e1.x = gColQueryLine[4];
-    e1.y = gColQueryLine[5];
-    e1.z = gColQueryLine[6];
-    BodyVectorNorm(&e0, out, &frame, radius);
-    (void)LineLineDist3D2D(&e0, &e1, out, &e0, &e1, 1);
-    WorldVectorNorm(&e0, e0.x, e0.y, e0.z, radius, &frame);
-    return -1.0f;
+f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
+    Vec tmp2;
+    u8 padA[8];
+    Vec tmp1;
+    u8 padB[4];
+    Vec ex1;
+    u8 padC[4];
+    Vec ex0;
+    u8 padD[4];
+    Vec zero2;
+    u8 padE[8];
+    Vec o2;
+    u8 padF[4];
+    Vec v1;
+    u8 padG[4];
+    Vec tpA;
+    u8 padH[4];
+    Vec tpB;
+    u8 padI[4];
+    Vec norm;
+    f32 zero;
+    f32 px;
+    f32 pz;
+    f32 dist;
+    f32 r2;
+    f32 cx;
+    f32 cy;
+    f32 cz;
+    f32 dx;
+    f32 dz;
+    f32 num;
+    f32 d;
+    s32 cross;
+
+    zero = lbl_80345D50;
+    cx = tri->center.x;
+    cy = tri->center.y;
+    cz = tri->center.z;
+    px = zero;
+    dist = zero;
+    pz = zero;
+    norm.x = tri->norm.x;
+    norm.y = tri->norm.y;
+    norm.z = tri->norm.z;
+    v1.x = gColQueryLine[4] - cx;
+    v1.y = gColQueryLine[5] - cy;
+    v1.z = gColQueryLine[6] - cz;
+    BodyVectorNorm(&v1, &tpB, (ColFrame*)&norm, tri->scale);
+    if ((f64)tpB.y < lbl_80345D40) {
+        return lbl_80345D70;
+    }
+    v1.x = gColQueryLine[0] - cx;
+    v1.y = gColQueryLine[1] - cy;
+    v1.z = gColQueryLine[2] - cz;
+    BodyVectorNorm(&v1, &tpA, (ColFrame*)&norm, tri->scale);
+    if (tpB.y < tpA.y) {
+        return lbl_80345D70;
+    }
+    r2 = radius * radius;
+    if ((tpB.y > lbl_80345D40 && tpA.y > lbl_80345D40) ||
+        (tpB.y < lbl_80345D40 && tpA.y < lbl_80345D40)) {
+        if ((tpB.y > radius && tpA.y > radius) ||
+            (tpB.y < -radius && tpA.y < -radius)) {
+            return lbl_80345D70;
+        }
+        cross = 0;
+    } else {
+        f32 ayA;
+        f32 ayB;
+        f32 sum;
+        f32 t;
+
+        cross = 1;
+        dx = tpA.x - tpB.x;
+        dz = tpA.z - tpB.z;
+        if ((f64)fqdist(dx, dz) > lbl_80345D78) {
+            sum = (ayA = btri_fabsf(tpA.y)) + (ayB = btri_fabsf(tpB.y));
+            if (lbl_80345D40 == sum) {
+                cross = 0;
+            } else {
+                t = btri_fabsf(tpB.y) / sum;
+                px = tpB.x + dx * t;
+                pz = tpB.z + dz * t;
+            }
+        } else {
+            px = tpB.x;
+            pz = tpB.z;
+        }
+    }
+    zero2.x = zero;
+    zero2.y = zero;
+    zero2.z = zero;
+    ex0.x = (f32)((f64)tri->x0 * 0.015625);
+    ex0.z = (f32)((f64)tri->z0 * 0.015625);
+    ex1.x = (f32)((f64)tri->x1 * 0.015625);
+    ex1.z = (f32)((f64)tri->z1 * 0.015625);
+    if (cross != 0) {
+        cross = 1;
+        num = ex0.x * pz - ex0.z * px;
+        if ((f64)num > lbl_80345D40) {
+            dist = LineLineDist3D2D(&tpB, &tpA, &o2, &zero2, &ex0, 1);
+            cross = 0;
+        }
+        num = (ex1.x - ex0.x) * (pz - ex0.z) - (ex1.z - ex0.z) * (px - ex0.x);
+        if ((f64)num > lbl_80345D40) {
+            d = LineLineDist3D2D(&tpB, &tpA, &tmp1, &ex0, &ex1, 1);
+            if (cross != 0 || d < dist) {
+                dist = d;
+                o2.x = tmp1.x;
+                o2.y = tmp1.y;
+                o2.z = tmp1.z;
+            }
+            cross = 0;
+        }
+        num = -ex1.z * (px - ex1.x) - (-ex1.x * (pz - ex1.z));
+        if ((f64)num > lbl_80345D40) {
+            d = LineLineDist3D2D(&tpB, &tpA, &tmp1, &zero2, &ex1, 1);
+            if (cross != 0 || d < dist) {
+                dist = d;
+                o2.x = tmp1.x;
+                o2.y = tmp1.y;
+                o2.z = tmp1.z;
+            }
+            cross = 0;
+        }
+        if (cross == 0) {
+            if (dist > r2) {
+                return lbl_80345D70;
+            }
+        } else {
+            o2.x = px;
+            o2.y = zero;
+            o2.z = pz;
+        }
+    } else {
+        s32 okB = 1;
+        s32 okA = 1;
+        s32 side;
+
+        if (btri_fabsf(tpB.y) < btri_fabsf(tpA.y)) {
+            side = 1;
+        } else if (tpB.y == tpA.y) {
+            side = 3;
+        } else {
+            side = 2;
+        }
+        num = ex0.x * tpB.z - ex0.z * tpB.x;
+        if ((f64)num > lbl_80345D40) {
+            okB = 0;
+            if (!(side & 2)) {
+                goto classified;
+            }
+        }
+        num = ex0.x * tpA.z - ex0.z * tpA.x;
+        if ((f64)num > lbl_80345D40) {
+            okA = 0;
+            if (!(side & 1)) {
+                goto classified;
+            }
+        }
+        num = (ex1.x - ex0.x) * (tpB.z - ex0.z) - (ex1.z - ex0.z) * (tpB.x - ex0.x);
+        if ((f64)num > lbl_80345D40) {
+            okB = 0;
+            if (!(side & 2)) {
+                goto classified;
+            }
+        }
+        num = (ex1.x - ex0.x) * (tpA.z - ex0.z) - (ex1.z - ex0.z) * (tpA.x - ex0.x);
+        if ((f64)num > lbl_80345D40) {
+            okA = 0;
+            if (!(side & 1)) {
+                goto classified;
+            }
+        }
+        num = -ex1.z * (tpB.x - ex1.x) - (-ex1.x * (tpB.z - ex1.z));
+        if ((f64)num > lbl_80345D40) {
+            okB = 0;
+            if (!(side & 2)) {
+                goto classified;
+            }
+        }
+        num = -ex1.z * (tpA.x - ex1.x) - (-ex1.x * (tpA.z - ex1.z));
+        if ((f64)num > lbl_80345D40) {
+            okA = 0;
+        }
+    classified:
+        if (okB && (side & 1)) {
+            o2.x = tpB.x;
+            o2.y = tpB.y;
+            o2.z = tpB.z;
+            o2.y = zero;
+        } else if (okA && (side & 2)) {
+            o2.x = tpA.x;
+            o2.y = tpA.y;
+            o2.z = tpA.z;
+            o2.y = zero;
+        } else {
+            dist = LineLineDist3D2D(&tpB, &tpA, &o2, &zero2, &ex0, 0);
+            d = LineLineDist3D2D(&tpB, &tpA, &tmp2, &ex0, &ex1, 0);
+            if (d < dist) {
+                dist = d;
+                o2.x = tmp2.x;
+                o2.y = tmp2.y;
+                o2.z = tmp2.z;
+            }
+            d = LineLineDist3D2D(&tpB, &tpA, &tmp2, &zero2, &ex1, 0);
+            if (d < dist) {
+                dist = d;
+                o2.x = tmp2.x;
+                o2.y = tmp2.y;
+                o2.z = tmp2.z;
+            }
+            if (dist > r2) {
+                return lbl_80345D70;
+            }
+        }
+    }
+    if (out != NULL) {
+        WorldVectorNorm(out, o2.x, o2.y, o2.z, tri->scale, (ColFrame*)&norm);
+        out->x += cx;
+        out->y += cy;
+        out->z += cz;
+    }
+    return dist;
 }
