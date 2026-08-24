@@ -2585,7 +2585,6 @@ extern s32 LineCylinderCollide(f32* center, f32 radius, f32 halfHeight,
                                f32* from, f32* to, f32* hit,
                                s32 directional);
 extern f32 lbl_80347004;
-extern f64 lbl_80346ED8;
 extern f64 sZeroDouble;
 
 s32 fn_8005FB48(f32 radius, f32* from, f32* to, f32* limitPosition,
@@ -4292,3 +4291,222 @@ void ActivateSpecialTrigger(s32 type, s32 flag)
         }
     }
 }
+
+extern s32 lbl_8034488C;
+extern f32 lbl_80347014;
+extern s32 gNumPlayers;
+extern u8 gCameras[];
+extern f64 sArrowFloorYOffset;
+extern f64 lbl_80347018;
+extern f32 lbl_803447D8;
+extern void MBTreeSetScale(void* node, f32 x, f32 y, f32 z);
+extern u8* CritterNewInst(s32 type, s32 sub, void* mat);
+extern s32 generate_enemy(f32* pos, s32 kind, s32 a, f32* dir, s32 b, s32 c,
+                          s32 d, f32 radius);
+extern f64 atan2(f64 y, f64 x);
+extern f64 sPi;
+extern f64 sTwoPi;
+extern f64 sNegativePi;
+extern void CreateYPRMatrix(f32* mtx, f32* pyr);
+extern void CopyMat3(f32* src, void* dst);
+extern f32 sNoNearbyPlayerDistance;
+extern f64 sItemFloorYOffset;
+extern f32 sItemFloorRadius;
+extern char* lbl_8011B578[];
+extern char lbl_80112CA4[];
+extern char lbl_80112CD4[];
+extern char* lbl_8011C8F0[];
+
+/* 0x80060114 - convert a pending enemy-spawn item into a live critter or
+ * generated enemy once it becomes visible, then retire the item slot. */
+void fn_80060114(Item* item, f32* pos, f32* dir)
+{
+    u8* it = (u8*)item;
+    u8* sp;
+    s32 kind;
+    u8* crit;
+    u8* e;
+    s32 g;
+    s32 idx;
+    f32 root;
+    f32 d2;
+
+    sp = it + 220;
+    kind = *(s16*)(it + 220);
+    if (kind < 0) {
+        return;
+    }
+    if ((gGameMode & 0x8000) && (u32)gGameMode != 0x8006 &&
+        (u32)gGameMode != 0x8003) {
+        return;
+    }
+    if (lbl_8034488C == 0) {
+        return;
+    }
+    if (*(s32*)(gGameOptions + 8) == 0) {
+        return;
+    }
+    if (MBWorldSphereVisible3((f32*)(it + 52),
+                              lbl_80347014 * *(f32*)(it + 212)) == 0) {
+        return;
+    }
+    if (*(s16*)(it + 220) == 31 && gNumPlayers <= 1) {
+        return;
+    }
+    {
+        f32 dy = *(f32*)(gCameras + 304) - *(f32*)(it + 56);
+        f32 dx = *(f32*)(gCameras + 300) - *(f32*)(it + 52);
+        f32 dz = *(f32*)(gCameras + 308) - *(f32*)(it + 60);
+        d2 = dy * dy;
+        d2 = dx * dx + d2;
+        d2 = dz * dz + d2;
+        if (d2 > sItemZero) {
+            f64 estimate = __frsqrte(d2);
+            estimate = sArrowFloorYOffset * estimate *
+                       (sNewtonThree - estimate * estimate * d2);
+            estimate = sArrowFloorYOffset * estimate *
+                       (sNewtonThree - estimate * estimate * d2);
+            estimate = sArrowFloorYOffset * estimate *
+                       (sNewtonThree - estimate * estimate * d2);
+            root = (f32)(d2 *
+                         (sArrowFloorYOffset * estimate *
+                          (sNewtonThree - estimate * estimate * d2)));
+            d2 = root;
+        }
+        if ((f64)d2 > lbl_80347018) {
+            return;
+        }
+    }
+    if (kind == 29 || kind == 30 || kind == 32) {
+        if (lbl_80346EE8 != (f64)lbl_803447D8 && *(void**)(it + 100) != NULL) {
+            MBTreeSetScale(*(void**)(it + 100), lbl_803447D8, lbl_803447D8,
+                           lbl_803447D8);
+        }
+        if (!(*(u32*)(it + 228) & 1)) {
+            return;
+        }
+        if (!(*(s16*)(it + 196) & 1)) {
+            *(s16*)(it + 196) |= 1;
+            *(u8*)(it + 202) = 1;
+            return;
+        }
+        if (*(s16*)(it + 198) > 0) {
+            return;
+        }
+    }
+    crit = 0;
+    pos[0] = *(f32*)(it + 84);
+    pos[1] = *(f32*)(it + 88);
+    pos[2] = *(f32*)(it + 92);
+    dir[0] = *(f32*)(it + 36);
+    dir[1] = *(f32*)(it + 40);
+    dir[2] = *(f32*)(it + 44);
+    switch (kind) {
+    case 29:
+        crit = CritterNewInst(3, 0, it + 4);
+        break;
+    case 33:
+        crit = CritterNewInst(8, 0, it + 4);
+        break;
+    case 32:
+        crit = CritterNewInst(7, 0, it + 4);
+        break;
+    }
+    if (crit != NULL) {
+        if (*(u32*)(it + 108) != 0) {
+            AtreeDelete(it + 108);
+            *(s32*)(it + 108) = 0;
+        }
+        if (*(void**)(it + 100) != NULL) {
+            MBRemoveNode(*(void**)(it + 100), 0);
+            *(s32*)(it + 100) = 0;
+        }
+        *(s16*)(it + 196) = -1;
+        idx = (s32)(it - (u8*)sItems) / 240;
+        if (idx < gNextItemIdx) {
+            gNextItemIdx = idx;
+        }
+        if (*(f32*)(sp + 12) > sZeroDouble) {
+            *(f32*)(crit + 2768) =
+                *(f32*)(sp + 12) * *(f32*)(gCurLevel + 180);
+        }
+        if (*(s16*)(sp + 18) >= 0) {
+            *(u8**)(crit + 2764) =
+                (u8*)sItems + *(s16*)(sp + 18) * 240;
+        }
+        return;
+    }
+    g = generate_enemy(pos, kind, (s8)*(u8*)(sp + 2), dir, (s8)*(u8*)(sp + 3),
+                       0, 1, sItemFloorRadius);
+    if (g >= 0) {
+        f64 yaw;
+        e = gEnemies + g * 916;
+        *(s16*)(e + 728) = 1;
+        *(s16*)(e + 724) = 1;
+        *(f32*)(e + 588) = atan2(dir[0], *(f32*)((u8*)dir + 32));
+        yaw = *(f32*)(e + 588);
+        if (yaw > sPi) {
+            yaw = yaw - sTwoPi;
+        } else if (yaw <= sNegativePi) {
+            yaw = sTwoPi + yaw;
+        }
+        *(f32*)(e + 588) = yaw;
+        *(f32*)(e + 592) = *(f32*)(e + 588);
+        *(f32*)(e + 580) = *(f32*)(e + 588);
+        {
+            f32 mtx[12];
+            CreateYPRMatrix(mtx, (f32*)(e + 576));
+            CopyMat3(mtx, e + 4);
+        }
+        UpdateObjWorldMat((OBJGRP*)(e + 4));
+        *(f32*)(e + 748) = *(f32*)(e + 52);
+        *(f32*)(e + 752) = *(f32*)(e + 56);
+        *(f32*)(e + 756) = *(f32*)(e + 60);
+        if (*(s32*)e != 31 && *(s32*)e != 30 && (s8)*(u8*)(sp + 2) == 0) {
+            *(s32*)(e + 180) = 6;
+        } else if ((s8)*(u8*)(sp + 2) < 4) {
+            *(s32*)(e + 524) = 30;
+        }
+        if (*(s32*)e == 30) {
+            *(f32*)(e + 768) = sNoNearbyPlayerDistance;
+        } else if (*(f32*)(sp + 12) > sZeroDouble) {
+            *(f32*)(e + 768) =
+                *(f32*)(sp + 12) * *(f32*)(gCurLevel + 180);
+        }
+        if (*(s16*)(sp + 16) > 0) {
+            if (*(s16*)(sp + 16) == 1) {
+                *(f32*)(e + 888) = sItemZero;
+            } else {
+                *(f32*)(e + 888) =
+                    (f32)(sItemFloorYOffset * (f64)*(s16*)(sp + 16));
+            }
+        }
+        if (*(s16*)(sp + 18) >= 0) {
+            *(u8**)(e + 900) = (u8*)sItems + *(s16*)(sp + 18) * 240;
+        }
+    } else if (g > -99) {
+        if ((s8)*(u8*)(sp + 2) >= 4 || *(s32*)e > 1) {
+            if (g == -5) {
+                ErrorPrintf(lbl_80112CA4, lbl_8011B578[kind],
+                            (s8)*(u8*)(sp + 2));
+            } else {
+                ErrorPrintf(lbl_80112CD4, lbl_8011B578[kind],
+                            (s8)*(u8*)(sp + 3), lbl_8011C8F0[-(g + 1)]);
+            }
+        }
+    }
+    if (*(u32*)(it + 108) != 0) {
+        AtreeDelete(it + 108);
+        *(s32*)(it + 108) = 0;
+    }
+    if (*(void**)(it + 100) != NULL) {
+        MBRemoveNode(*(void**)(it + 100), 0);
+        *(s32*)(it + 100) = 0;
+    }
+    *(s16*)(it + 196) = -1;
+    idx = (s32)(it - (u8*)sItems) / 240;
+    if (idx < gNextItemIdx) {
+        gNextItemIdx = idx;
+    }
+}
+
