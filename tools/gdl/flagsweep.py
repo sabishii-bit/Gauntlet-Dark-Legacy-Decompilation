@@ -88,6 +88,7 @@ BATTERY = [
     "-schedule off",
     "-schedule on",
     "CC=1.2.5",
+    "CC=1.2.5e",
     "CC=1.1p1",
     "CC=1.3.2",
     "CC=2.0p1",
@@ -158,12 +159,40 @@ def compile_variant(src: Path, variant: str, tag: str, base):
     outdir = SCRATCH / tag
     outdir.mkdir(parents=True, exist_ok=True)
     lang = ["-lang=c++"] if src.suffix == ".cpp" else []
-    cmd = [str(cc)] + flags + extra + lang + ["-c", str(src), "-o", str(outdir)]
-    r = subprocess.run(cmd, capture_output=True, text=True, cwd=str(ROOT))
     obj = outdir / (src.stem + ".o")
-    if r.returncode != 0 or not obj.exists():
-        msg = (r.stdout + r.stderr).strip().replace("\n", " | ")[:200]
-        return None, f"compile failed: {msg}"
+    args = flags + extra + lang + ["-c", str(src)]
+    if cc_dir == "1.2.5e":
+        vanilla = cc.parent / "mwcceppc.125.exe"
+        frank = cc.parent / "frank.py"
+        vanilla_dir = outdir / "vanilla"
+        profile_dir = outdir / "profile"
+        vanilla_dir.mkdir(exist_ok=True)
+        profile_dir.mkdir(exist_ok=True)
+        messages = []
+        for compiler, output_dir in ((vanilla, vanilla_dir), (cc, profile_dir)):
+            r = subprocess.run(
+                [str(compiler)] + args + ["-o", str(output_dir)],
+                capture_output=True, text=True, cwd=str(ROOT),
+            )
+            messages.append(r.stdout + r.stderr)
+            if r.returncode:
+                msg = "\n".join(messages).strip().replace("\n", " | ")[:200]
+                return None, f"compile failed: {msg}"
+        r = subprocess.run(
+            [sys.executable, str(frank), str(vanilla_dir / obj.name),
+             str(profile_dir / obj.name), str(obj)],
+            capture_output=True, text=True, cwd=str(ROOT),
+        )
+        messages.append(r.stdout + r.stderr)
+        if r.returncode != 0 or not obj.exists():
+            msg = "\n".join(messages).strip().replace("\n", " | ")[:200]
+            return None, f"compile failed: {msg}"
+    else:
+        cmd = [str(cc)] + args + ["-o", str(outdir)]
+        r = subprocess.run(cmd, capture_output=True, text=True, cwd=str(ROOT))
+        if r.returncode != 0 or not obj.exists():
+            msg = (r.stdout + r.stderr).strip().replace("\n", " | ")[:200]
+            return None, f"compile failed: {msg}"
     return obj, None
 
 

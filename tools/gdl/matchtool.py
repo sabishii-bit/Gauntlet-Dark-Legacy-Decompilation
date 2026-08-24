@@ -135,8 +135,35 @@ def matrix_presets():
 def compile_one(mwcc: Path, flags, src: Path, out_o: Path):
     # the unit's own directory is always searchable (local headers)
     extra = ["-i", str(src.parent)]
+    args = COMMON + flags + extra + ["-c", str(src)]
+
+    # decomp.me's "GC MW 1.2.5e" is a hybrid profile scheduler, not a
+    # standalone compiler revision.  It compiles once with retail 1.2.5,
+    # once with EpochFlame's profile-patched binary, then lets frank.py merge
+    # the target scheduler/epilogue shape into the retail object.
+    if mwcc.parent.name == "1.2.5e":
+        vanilla = mwcc.parent / "mwcceppc.125.exe"
+        frank = mwcc.parent / "frank.py"
+        out_vanilla = out_o.with_suffix(".vanilla.o")
+        out_profile = out_o.with_suffix(".profile.o")
+        messages = []
+        for compiler, output in ((vanilla, out_vanilla), (mwcc, out_profile)):
+            r = subprocess.run(
+                [str(compiler)] + args + ["-o", str(output)],
+                capture_output=True, text=True, cwd=str(REPO),
+            )
+            messages.append(r.stderr or r.stdout)
+            if r.returncode:
+                return r.returncode, "\n".join(messages)
+        r = subprocess.run(
+            [sys.executable, str(frank), str(out_vanilla), str(out_profile), str(out_o)],
+            capture_output=True, text=True, cwd=str(REPO),
+        )
+        messages.append(r.stderr or r.stdout)
+        return r.returncode, "\n".join(messages)
+
     r = subprocess.run(
-        [str(mwcc)] + COMMON + flags + extra + ["-c", str(src), "-o", str(out_o)],
+        [str(mwcc)] + args + ["-o", str(out_o)],
         capture_output=True, text=True, cwd=str(REPO),
     )
     return r.returncode, (r.stderr or r.stdout)
