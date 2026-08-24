@@ -12,7 +12,7 @@ Usage (from repo root):
   python tools/gdl/nearmiss.py --grep sfx     # one TU family
   python tools/gdl/nearmiss.py --parked skip  # hide fns listed in PARKED.txt
 
-research/PARKED.txt (optional): one function name per line (comments with
+.claude/memory/PARKED.txt (optional): one function name per line (comments with
 '#'), the residuals already diagnosed as allocator-quirk walls. Default is to
 mark them [PARKED] rather than hide, so the queue stays honest.
 """

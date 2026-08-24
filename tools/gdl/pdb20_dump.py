@@ -1,7 +1,7 @@
 import struct
 
 PATH = '<repo-root>/research/xbox_symbols/shell3D.pdb'
-OUT = '<repo-root>/research/xbox_symbols/functions_by_module.txt'
+OUT = '<repo-root>/.claude/memory/xbox_symbols/functions_by_module.txt'
 d = open(PATH, 'rb').read()
 
 page_size, start_page, num_pages = struct.unpack_from('<IHH', d, 0x2C)

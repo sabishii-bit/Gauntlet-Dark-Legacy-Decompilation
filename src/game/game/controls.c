@@ -18,7 +18,7 @@
  *    LR-saving fns (first row fn=0x8003119C, last row fn=0x80034B3C,
  *    bracketed by 0x8003101C / 0x80034CFC rows).
  *
- * Names from the Xbox PDB (research/xbox_symbols/functions_by_module.txt).
+ * Names from the Xbox PDB (.claude/memory/xbox_symbols/functions_by_module.txt).
  * NOTE two symbols are pinned by Matching main.c and keep their old names:
  *  - "PlayerControls" @0x80032B84 is really PlayerControls (per-frame
  *    master: ReadControls -> PlayerControls -> vibes -> CheckSpecials ->

@@ -50,7 +50,7 @@
  *   parent     0xADC  lwz   (parent critter; NULL for a root critter)
  * GC-vs-Xbox delta: the Xbox PDB has no CRITTER struct to compare, so no field
  * delta can be stated; the Xbox and GC share the CRITTER.OBJ function roster
- * 1:1 (see research/xbox_symbols/functions_by_module.txt), so the record is
+ * 1:1 (see .claude/memory/xbox_symbols/functions_by_module.txt), so the record is
  * expected to be the same Midway source struct.
  */
 
