@@ -1882,7 +1882,6 @@ s32 next_world(void)
     }
     return world;
 }
-#pragma opt_propagation reset
 
 /* 0x800552A4 -- animate the two halves of the loading thermometer. */
 void fn_800552A4(f32 total, f32 current)
@@ -2153,7 +2152,6 @@ void SetPlayerVars(void)
     }
     fn_8005207C(count1, count2, count3);
 }
-#pragma opt_propagation reset
 
 /* 0x80050FB0 -- resolve a type id through the override tables. */
 s32 GetEnemyType(s32 w, s32 l)
@@ -2230,7 +2228,6 @@ void PrintWorldMemSizes(void)
     bulletproof_printf(fmt + 568, mlmMemUsed);
     lbl_80344850 = 0;
 }
-#pragma opt_propagation reset
 
 /* 0x80055F68 -- asynchronous world/model/atree/critter load state machine. */
 #pragma dont_inline on
@@ -2765,7 +2762,6 @@ s32 NextWorldLevel(s32 waveMask)
     }
     return (sWorldDataTypes[worldIndex].type << 8) | (level & 0xFF);
 }
-#pragma opt_propagation reset
 
 /* 0x80057F44 - validate/normalize a world+level code, resolve it, and walk
  * forward until a level matching the wave mask is found */
@@ -3049,7 +3045,6 @@ s32 fn_800511D0(s32 arg0, f32 arg1)
     }
     return best;
 }
-#pragma opt_propagation reset
 #pragma opt_common_subs on
 
 /* 0x80051E1C - format a world/level display name (uppercased) */
@@ -3772,6 +3767,138 @@ void fn_8005351C(void)
                 if (*(s32*)(p + 232) == 1) {
                     *(PlayerSaveBlk*)(p + 7884) = *(PlayerSaveBlk*)(p + 2688);
                 }
+            }
+        }
+    }
+}
+
+/* 0x80054E78 -- per-frame level-timer / thermometer HUD update. */
+extern s32  lbl_803447B8;
+extern s32  gGameplayPauseTimer;
+extern f32  gClockFrameStep;
+extern f32  lbl_80346B08;
+extern f64  lbl_80346B18;
+extern f64  lbl_80346B28;
+extern f64  lbl_80346B30;
+extern f64  lbl_80346B40;
+extern f64  lbl_80346B48;
+extern f64  lbl_80346B50;
+DECL_SECT(".sdata2") extern const char lbl_80346B58[];
+extern void MBRemoveBlit(s32 blit);
+extern void AudioFootstep(s32 n);
+extern void fn_8009FA84(void);
+extern void DoAudioTallySFX(s32 n);
+extern void init_got_it(void);
+extern void DrawText(s32 x, s32 y, s32 flags, s32 color, ...);
+
+void fn_80054E78(void)
+{
+    u8* state = (u8*)lbl_802575C0;
+    s32 active;
+    s32 i;
+    s32 off;
+
+    if (lbl_803447B8 != 0) {
+        active = 0;
+    } else {
+        active = 1;
+    }
+
+    if ((gControllerButtons & 0x10) == 0) {
+        if (active != 0 && (*(u32*)gCurLevel & 4) && *(void**)(state + 124) != 0) {
+            mbBlitInit3414(*(void**)(state + 124), 0);
+        }
+        if (lbl_80344818 > lbl_80346AF0 + (f32)*(s16*)(gCurLevel + 12)) {
+            lbl_80344814 = lbl_80346B08;
+            lbl_80344818 = lbl_80346B08;
+        }
+    }
+
+    if ((*(u32*)gCurLevel & 4) && (gGameBusy | gGameplayPauseTimer) == 0 &&
+        (gControllerButtons & 4) == 0 && active != 0) {
+        f32 t;
+        f32 nt;
+        s32 oldi;
+
+        t = lbl_80344818;
+        oldi = (s32)t;
+        lbl_80344818 = t - gClockFrameStep;
+        nt = lbl_80344818;
+        if (nt <= lbl_80346B10) {
+            for (i = 0, off = 0; i < 4; i++, off += 4) {
+                u8* q = state + off;
+                u32 v = *(u32*)(q += 112);
+                if (v != 0) {
+                    MBRemoveBlit(v);
+                    *(u32*)q = 0;
+                }
+            }
+            lbl_80344818 = lbl_80346AFC;
+            active = 0;
+            if ((gControllerButtons & 0x10) != 0 &&
+                (gGameOptions[9] >> 8) == 12) {
+                u8* p;
+                lbl_8034481C = 2;
+                {
+                    u8* b0 = gPlayers;
+                    p = b0;
+                }
+                for (off = 0; off < 48;
+                     off += 12, p += 13148) {
+                    if (*(s32*)(p + 232) != 0) {
+                        u8* row = state + off;
+                        *(f32*)(row + 144) = *(f32*)(p + 68);
+                        *(f32*)(row + 148) = *(f32*)(p + 72);
+                        *(f32*)(row + 152) = *(f32*)(p + 76);
+                    }
+                }
+            } else {
+                lbl_8034481C = 13;
+            }
+            init_got_it();
+        } else if (lbl_80344810 == 0) {
+            s32 n = (s32)nt;
+            if (oldi != (s32)nt) {
+                AudioFootstep(n);
+                if (n == 8) {
+                    fn_8009FA84();
+                } else if (n <= 5 && lbl_8034481C == 0) {
+                    DoAudioTallySFX(n);
+                }
+            }
+        }
+
+        if (active != 0) {
+            f64 k = lbl_80346B18;
+            f32 total = (f32)(k * lbl_80344814);
+            f32 curv = (f32)(k * lbl_80344818);
+            f32 frac = (total - curv) / total;
+            void** b;
+            f64 v1;
+            f64 v2;
+
+            b = (void**)(state + 116);
+            mbBlitSetupVerts(*b, lbl_80346B20, lbl_80346B20,
+                             (f32)((lbl_80346B30 * frac + lbl_80346B28) *
+                                   lbl_80346B38),
+                             lbl_80346B20);
+            v1 = lbl_80346B40 * frac;
+            mbBlitProject(*b, 0, 41 - Round((f32)v1));
+            mbBlitCalcY(*b, Round((f32)v1) + 24);
+
+            b = (void**)(state + 120);
+            v2 = lbl_80346B50 * frac;
+            mbBlitSetupVerts(*b, lbl_80346B20, lbl_80346B20,
+                             (f32)((lbl_80346B48 - v2) * lbl_80346B38),
+                             lbl_80346B20);
+            mbBlitProject(*b, 0, Round((f32)v2) + 23);
+            mbBlitCalcY(*b, 106 - Round((f32)v2));
+
+            if ((gControllerButtons & 0x10) != 0) {
+                DrawText(-256, 8, 6, 0xFFFFFF, lbl_80346B58,
+                         lbl_80344814 - lbl_80344818);
+            } else if ((gControllerButtons & 0x10) != 0) {
+                DrawText(-256, 8, 6, 0xFFFFFF, lbl_80346B58, lbl_80344818);
             }
         }
     }
