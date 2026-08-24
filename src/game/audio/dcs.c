@@ -286,13 +286,13 @@ s32 dcsChannelSetVolPan2(s32 channels, s32 volume) {
     s32 delta;
     u8 unused[8];
 
-    infos = ch_info;
+    mask = channels & 0xFFF;
     voices = sVoice;
+    infos = ch_info;
     channel = 0;
     voiceOffset = 0;
     infoOffset = 0;
     desired = volume - lbl_8034520C;
-    mask = channels & 0xFFF;
     while (mask != 0) {
         info = (DcsChannelInfo*)((u8*)infos + infoOffset);
         delta = desired - info->volume;
