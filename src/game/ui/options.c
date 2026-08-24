@@ -382,7 +382,7 @@ extern s32 OPTCTL_DY;              /* 0x80343D64 = 2 */
 
 extern s32 options_state;          /* 0x80344A98 current menu state (0=closed,
                                       1=finishing, else cur menu->state) */
-extern s32 options_lockout;        /* 0x80344A9C blocks auto-open */
+extern s32 good_wiz_enabled;       /* 0x80344A9C blocks auto-open */
 extern s32 optmenu_nochoice;       /* 0x80344AA0 input blocked latch */
 extern s32 vb_elapsed_menu;        /* 0x80344AA4 */
 extern s32 screen_dx;              /* 0x80344AA8 live screen offset */
@@ -586,7 +586,7 @@ int DoOptions(void)
     skipBackSound = 0;
 
     /* menu clock: full speed, or (paused w/ button held) 2, else 0 */
-    if ((sFlags & 8) == 0) {
+    if ((gControllerButtons & 8) == 0) {
         vb_elapsed_menu = gClockStepTicks;
     } else if ((lbl_80240FB0[0] & 0x2000000) == 0 && (lbl_80240FC0[0] & 0x1000000) == 0) {
         vb_elapsed_menu = 0;
@@ -597,7 +597,7 @@ int DoOptions(void)
     saver = ServeFireScroll();
 
     /* auto-open: any active player pressing START */
-    if (options_state == 0 && options_lockout == 0 && opt_force_player < 0 &&
+    if (options_state == 0 && good_wiz_enabled == 0 && opt_force_player < 0 &&
         (gGameMode != 0x4010 || lbl_803447B8 == 0)) {
         for (i = 0; i < 4; i++) {
             if (PREC(i, 0xE8, s32) == 1 && (lbl_80240E38[i * 0xF] & 0x40000) != 0 &&
@@ -659,58 +659,89 @@ int DoOptions(void)
 
     switch (options_state) {
     case 2: /* title menu */
-        if ((sFlags & 4) != 0) {
+        if ((gControllerButtons & 4) != 0) {
             choice = 0xB;
         }
         if (choice == 1) {
             title_choice = 1;
         } else if (choice < 1) {
             if (choice < 0 && choice > -3) {
-                start_optmenu(NULL, player);
-                controls_remove_active_player(player);
-                return 1;
+                goto close_title_options;
             }
         } else if (choice == 0xC) {
-            AudioCursorSelect();
-            start_optmenu(&optmenu_game, player);
+            goto open_game_options;
         } else if (choice < 0xC && choice > 0xA) {
-            optmenu_abortall = 1;
-            end_optmenu(-1, 0);
+            goto abort_title_options;
         }
         break;
 
+    open_game_options:
+        AudioCursorSelect();
+        start_optmenu(&optmenu_game, player);
+        break;
+
+    abort_title_options:
+        optmenu_abortall = 1;
+        end_optmenu(-1, 0);
+        break;
+
+    close_title_options:
+        start_optmenu(NULL, player);
+        controls_remove_active_player(player);
+        return 1;
+
     case 3: /* in-game top menu */
         if (choice == 0xF) {
-            AudioCursorSelect();
-            while (options_level >= 0) {
-                end_optmenu(-1, 1);
-            }
-            init_shop(2);
+            goto open_shop_mode2;
         } else if (choice < 0xF) {
             if (choice == 0xD) {
-                while (options_level >= 0) {
-                    end_optmenu(-1, 1);
-                }
-                init_player_select(1);
-                if (player >= 0) {
-                    PREC(player, 0xE8, s32) = 2;
-                    PREC(player, 0x3338, s32) = 1;
-                }
+                goto open_player_select;
             } else if (choice < 0xD) {
                 if (choice > 0xB) {
-                    start_optmenu(&optmenu_yesno, player);
+                    goto open_quit_confirm;
                 }
             } else {
-                while (options_level >= 0) {
-                    end_optmenu(-1, 1);
-                }
-                AudioCursorSelect();
-                init_shop(1);
+                goto open_shop_mode1;
             }
         } else if (choice == 0x25) {
-            start_optmenu(&optmenu_yesno3, player);
-            optmenu_yesno3.sel = 0;
+            goto open_yesno3;
         }
+        break;
+
+    open_quit_confirm:
+        start_optmenu(&optmenu_yesno, player);
+        break;
+
+    open_player_select:
+        while (options_level >= 0) {
+            end_optmenu(-1, 1);
+        }
+        init_player_select(1);
+        if (player >= 0) {
+            PREC(player, 0xE8, s32) = 2;
+            PREC(player, 0x3338, s32) = 1;
+        }
+        break;
+
+    open_shop_mode1:
+        while (options_level >= 0) {
+            end_optmenu(-1, 1);
+        }
+        AudioCursorSelect();
+        init_shop(1);
+        break;
+
+    open_shop_mode2:
+        AudioCursorSelect();
+        while (options_level >= 0) {
+            end_optmenu(-1, 1);
+        }
+        init_shop(2);
+        break;
+
+    open_yesno3:
+        start_optmenu(&optmenu_yesno3, player);
+        optmenu_yesno3.sel = 0;
         break;
 
     case 4: /* quit-confirm */
@@ -744,18 +775,36 @@ int DoOptions(void)
         }
         break;
 
+    case 9: /* more prefs */
+        if (choice == 0x13) {
+            start_optmenu(&optmenu_pref_c, player);
+            optmenu_pref_c.sel = optglobals.subtitles;
+        } else if (choice < 0x13 && choice > 0x11) {
+            start_optmenu(&optmenu_pref_b, player);
+            optmenu_pref_b.sel = optglobals.style;
+        }
+        break;
+
+    case 0x13:
+        if (choice == 0x25) {
+            opt_quit_request = 1;
+            end_optmenu(-1, -1);
+        }
+        break;
+
+    case 0x14:
+        if (choice == 0x26) {
+            opt_restart_request = 1;
+            end_optmenu(-1, -1);
+        }
+        break;
+
     case 8: { /* audio sliders */
         s32 step = 0;
         AudioClampMusicVol(0.0f, 1.0f);
         do_audiomenu(m);
 
         switch (choice) {
-        default:
-            if (item->code == 0x18 && sfx_sound_count > 0x3C) {
-                fn_8009EE2C(0);
-                sfx_sound_count = 0;
-            }
-            break;
         case 3:
         case 5:
             step = -2;
@@ -769,14 +818,14 @@ int DoOptions(void)
                 } else if (optglobals.sfx.val > 0xFF) {
                     optglobals.sfx.val = 0xFF;
                 }
-                if (optglobals.sfx_vol == optglobals.sfx.val) {
+                if (optglobals.sfx_vol != optglobals.sfx.val) {
+                    AudioSetVolSfx(optglobals.sfx.val);
+                    optglobals.sfx_vol = optglobals.sfx.val;
+                } else {
                     if (sfx_sound_count > 0xF) {
                         fn_8009EE2C(1);
                         sfx_sound_count = 0;
                     }
-                } else {
-                    AudioSetVolSfx(optglobals.sfx.val);
-                    optglobals.sfx_vol = optglobals.sfx.val;
                 }
             } else if (item->code < 0x18) {
                 if (item->code > 0x16) {
@@ -817,23 +866,23 @@ int DoOptions(void)
             fn_8009D350();
             skipBackSound = 1;
             break;
+        default:
+            if (item->code == 0x18 && sfx_sound_count > 0x3C) {
+                fn_8009EE2C(0);
+                sfx_sound_count = 0;
+            }
+            break;
         }
         break;
     }
 
-    case 9: /* more prefs */
-        if (choice == 0x13) {
-            start_optmenu(&optmenu_pref_c, player);
-            optmenu_pref_c.sel = optglobals.subtitles;
-        } else if (choice < 0x13 && choice > 0x11) {
-            start_optmenu(&optmenu_pref_b, player);
-            optmenu_pref_b.sel = optglobals.style;
-        }
-        break;
-
     case 10: /* radio menu on optglobals.style */
         for (i = 0; i < m->num_items; i++) {
-            m->items[i].on = (i == optglobals.style) ? 1 : 0;
+            if (i == optglobals.style) {
+                m->items[i].on = 1;
+            } else {
+                m->items[i].on = 0;
+            }
         }
         if (choice > 0x1B && choice < 0x1F) {
             optglobals.style = m->sel;
@@ -843,7 +892,11 @@ int DoOptions(void)
 
     case 0xB: /* radio menu on optglobals.subtitles */
         for (i = 0; i < m->num_items; i++) {
-            m->items[i].on = (i == optglobals.subtitles) ? 1 : 0;
+            if (i == optglobals.subtitles) {
+                m->items[i].on = 1;
+            } else {
+                m->items[i].on = 0;
+            }
         }
         if (choice > 0x1B && choice < 0x1F) {
             optglobals.subtitles = m->sel;
@@ -853,7 +906,11 @@ int DoOptions(void)
 
     case 0xC: /* vibration on/off */
         for (i = 0; i < m->num_items; i++) {
-            m->items[i].on = (i == optglobals.vibration) ? 1 : 0;
+            if (i == optglobals.vibration) {
+                m->items[i].on = 1;
+            } else {
+                m->items[i].on = 0;
+            }
         }
         if (choice == 0x1F) {
             optglobals.vibration = 1;
@@ -863,6 +920,51 @@ int DoOptions(void)
             fn_8009D350();
         }
         break;
+
+    case 0x12: { /* screen position */
+        s32 step2 = 0;
+        do_screenmenu();
+        switch (choice) {
+        case 2:
+            screen_dx = 0;
+            screen_dy = 0;
+            fn_800C25F0(0, 0);
+            break;
+        case 3:
+        case 5:
+            step2 = -2;
+            /* fallthrough */
+        case 4:
+        case 6:
+            screen_dx += (step2 + 1) * 4;
+            if (screen_dx < -0x80) {
+                screen_dx = -0x80;
+            } else if (screen_dx > 0x80) {
+                screen_dx = 0x80;
+            }
+            fn_800C25F0(screen_dx, screen_dy);
+            break;
+        case 7:
+        case 9:
+            step2 = -2;
+            /* fallthrough */
+        case 8:
+        case 10:
+            screen_dy += step2 + 1;
+            if (screen_dy < -0x28) {
+                screen_dy = -0x28;
+            } else if (screen_dy > 0x28) {
+                screen_dy = 0x28;
+            }
+            fn_800C25F0(screen_dx, screen_dy);
+            break;
+        case -2:
+        case -1:
+            fn_800C25F0(optglobals.screen_dx, optglobals.screen_dy);
+            break;
+        }
+        break;
+    }
 
     case 0xD: /* controls hub */
         if (choice == 0x22) {
@@ -977,94 +1079,55 @@ int DoOptions(void)
         }
         break;
 
-    case 0x12: { /* screen position */
-        s32 step2 = 0;
-        do_screenmenu();
-        switch (choice) {
-        case 2:
-            screen_dx = 0;
-            screen_dy = 0;
-            fn_800C25F0(0, 0);
-            break;
-        case 3:
-        case 5:
-            step2 = -2;
-            /* fallthrough */
-        case 4:
-        case 6:
-            screen_dx += (step2 + 1) * 4;
-            if (screen_dx < -0x80) {
-                screen_dx = -0x80;
-            } else if (screen_dx > 0x80) {
-                screen_dx = 0x80;
-            }
-            fn_800C25F0(screen_dx, screen_dy);
-            break;
-        case 7:
-        case 9:
-            step2 = -2;
-            /* fallthrough */
-        case 8:
-        case 10:
-            screen_dy += step2 + 1;
-            if (screen_dy < -0x28) {
-                screen_dy = -0x28;
-            } else if (screen_dy > 0x28) {
-                screen_dy = 0x28;
-            }
-            fn_800C25F0(screen_dx, screen_dy);
-            break;
-        case -2:
-        case -1:
-            fn_800C25F0(optglobals.screen_dx, optglobals.screen_dy);
-            break;
-        }
-        break;
-    }
-
-    case 0x13:
-        if (choice == 0x25) {
-            opt_quit_request = 1;
-            end_optmenu(-1, -1);
-        }
-        break;
-
-    case 0x14:
-        if (choice == 0x26) {
-            opt_restart_request = 1;
-            end_optmenu(-1, -1);
-        }
-        break;
-
     case 0x16: /* hint category select */
         hint_submenu = choice;
         if (choice == 0x28) {
-            next_boss_hint(1);
-            hintmenu_display.title = GetScrollText(1, 0xC, boss_hint_index, NULL);
-            ScrollTextListNum(1, 0);
-            start_optmenu(&hintmenu_display, player);
+            goto open_boss_hint;
         } else if (choice < 0x28) {
             if (choice < 0) {
                 if (choice > -3) {
-                    SumnerHintsActivate();
+                    goto activate_sumner_hints;
                 }
             } else if (choice > 0x26) {
-                next_general_hint(1);
-                hintmenu_display.title = "A Hint for You";
-                ScrollTextListNum(1, 3);
-                start_optmenu(&hintmenu_display, player);
+                goto open_general_hint;
             }
         } else if (choice == 0x2A) {
-            next_rune_hint(1);
-            hintmenu_display.title = GetScrollText(1, 0x1B, rune_idx_table[rune_hint_index] - 1, NULL);
-            ScrollTextListNum(1, 1);
-            start_optmenu(&hintmenu_display, player);
+            goto open_rune_hint;
         } else if (choice < 0x2A) {
-            next_legend_hint(1);
-            hintmenu_display.title = GetScrollText(1, 0x28, legend_hint_index, NULL);
-            ScrollTextListNum(1, 2);
-            start_optmenu(&hintmenu_display, player);
+            goto open_legend_hint;
         }
+        break;
+
+    open_general_hint:
+        next_general_hint(1);
+        hintmenu_display.title = "A Hint for You";
+        ScrollTextListNum(1, 3);
+        start_optmenu(&hintmenu_display, player);
+        break;
+
+    open_boss_hint:
+        next_boss_hint(1);
+        hintmenu_display.title = GetScrollText(1, 0xC, boss_hint_index, NULL);
+        ScrollTextListNum(1, 0);
+        start_optmenu(&hintmenu_display, player);
+        break;
+
+    open_legend_hint:
+        next_legend_hint(1);
+        hintmenu_display.title = GetScrollText(1, 0x28, legend_hint_index, NULL);
+        ScrollTextListNum(1, 2);
+        start_optmenu(&hintmenu_display, player);
+        break;
+
+    open_rune_hint:
+        next_rune_hint(1);
+        hintmenu_display.title = GetScrollText(1, 0x1B, rune_idx_table[rune_hint_index] - 1, NULL);
+        ScrollTextListNum(1, 1);
+        start_optmenu(&hintmenu_display, player);
+        break;
+
+    activate_sumner_hints:
+        SumnerHintsActivate();
         break;
 
     case 0x17: { /* hint display */
