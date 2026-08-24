@@ -103,7 +103,7 @@ extern void CopyMat3(f32* src, f32* dst);
 extern f32 fqdist(f32 x, f32 y);
 extern f32 smallsqrt(f32 v);
 extern void fn_8009C850(void* p);
-extern void damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir);
+extern s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir);
 extern f64 fn_8005C1DC(void* target, s32 arg, s32 pidx, f64 range); /* hit test -> priority */
 extern void PlayerDamagedItem(Player* p, void* target, s32 exact); /* apply melee hit */
 extern f32 lbl_80347B30; /* 0.0f */

@@ -215,7 +215,7 @@ s32 start_magic();
 /* Low-level combat services recovered in other game TUs.  K&R declarations
  * retain the original vararg/floating-register call contracts. */
 extern void damage_enemy();
-extern void damage_player();
+extern s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir);
 extern void AddItem();
 extern s32 StartFXTree();
 extern void SfxSetDamage();

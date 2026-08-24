@@ -173,7 +173,7 @@ extern s32   LineCylinderCollide(f32 *p1, f32 a, f32 b, f32 *p2, f32 *dest,
 extern void  damage_enemy(void *enemy, s32 a, s32 b, f32 radius, void *p1,
                           void *p2, s32 c);
 extern s32   lbl_803447DC;
-extern void  damage_player(s32 player, f32 damage, s32 mode, u32 flags,
+extern s32   damage_player(s32 player, f32 damage, s32 mode, u32 flags,
                            f32 *direction);
 extern f32   NormalVector(f32 *vector);
 extern f32   NormalVector2D(f32 *vector);

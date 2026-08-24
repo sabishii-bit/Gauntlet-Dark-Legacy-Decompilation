@@ -3228,8 +3228,8 @@ extern void fn_8009D078(f32* position);
 extern void fn_8009D0A8(f32* position, s32 subtype);
 extern void fn_8009D8CC(f32* position);
 extern void fn_8009F06C(f32* position, s32 subtype);
-extern void damage_player(s32 player, f32 damage, s32 type, s32 flags,
-                          f32* direction);
+extern s32 damage_player(s32 player, f32 damage, s32 type, u32 flags,
+                         f32* direction);
 extern s32 SumnerAnimate(s32 player);
 extern s32 lbl_8034476C;
 extern f64 lbl_80346FD0;
@@ -3552,7 +3552,8 @@ extern void fn_8009CDF8(s32 player);
 extern void fn_8009F748(s32 player, s32 sourcePlayer);
 extern void fn_8009D038(s32 player);
 extern s32  heal_player(Player* p, f32 amount);
-extern void damage_player(s32 i, f32 dmg, s32 a, s32 b, f32* direction);
+extern s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags,
+                         f32* direction);
 extern void AudioPlayerSeverePain(s32 player);
 extern void AudioPlayerEatFood(s32 player, s32 kind);
 extern void PlayerAddPowerup(f32 duration, f32 strength, void* p, s32 type,
