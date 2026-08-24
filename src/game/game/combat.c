@@ -109,8 +109,8 @@ extern char DmgTypeDesc[5][8];
 void CopyMat4(f32* src, f32* dst);
 extern f64 __frsqrte(f64 x);
 extern f32 atan2(f32 y, f32 x);
-extern f64 sin(f64 angle);
-extern f64 cos(f64 angle);
+extern f32 sin(f32 angle);
+extern f32 cos(f32 angle);
 f32 FixAngle(f32 angle);
 f32 fqdist(f32 x, f32 y);
 f32 smallsqrt(f32 value);
@@ -1667,9 +1667,9 @@ void StandardCamera_8002B828(s32 camIdx)
         } else {
             yaw = (f32)((f64)yaw - lbl_80345F60);
         }
-        offX = (f32)((f64)sin((f64)yaw) * (f64)a + (f64)offX);
+        offX = (f32)((f64)sin(yaw) * (f64)a + (f64)offX);
         lbl_803444DC = 1;
-        offZ = (f32)((f64)cos((f64)yaw) * (f64)a + (f64)offZ);
+        offZ = (f32)((f64)cos(yaw) * (f64)a + (f64)offZ);
     }
     if (lbl_80345F78 != (f64)lbl_803444D4) {
         f32 a = lbl_803444D4 < 0.0f ? -lbl_803444D4 : lbl_803444D4;
@@ -1681,9 +1681,9 @@ void StandardCamera_8002B828(s32 camIdx)
             y = y - lbl_80345F60;
         }
         yaw = (f32)y;
-        offX = (f32)((f64)sin((f64)yaw) * (f64)a + (f64)offX);
+        offX = (f32)((f64)sin(yaw) * (f64)a + (f64)offX);
         lbl_803444DC = 1;
-        offZ = (f32)((f64)cos((f64)yaw) * (f64)a + (f64)offZ);
+        offZ = (f32)((f64)cos(yaw) * (f64)a + (f64)offZ);
     }
 
     if (lbl_80345F78 == (f64)lbl_803444D8 && lbl_80345F78 == (f64)lbl_803444D4) {
@@ -1926,8 +1926,6 @@ extern f32 lbl_8023F8C4[], lbl_8023F8B8[];
 extern s32 gGameMode, lbl_80344824, lbl_80344414;
 extern u8 sItems[];
 extern f64 lbl_803461F0;
-extern f64 cos(f64);
-extern f64 sin(f64);
 
 void get_attn_pos_8002C9A8(s32 camIdx, f32* out)
 {
@@ -2030,18 +2028,18 @@ void get_attn_pos_8002C9A8(s32 camIdx, f32* out)
             cam->attn_dest_no_offset[2] = out[2];
             if (*(s32*)((u8*)cam + 0xEC) == 3) {
                 if (gNumTransmitters == 0) {
-                    f64 cp = cos((f64)cam->pyr[0]);
+                    f64 cp = cos(cam->pyr[0]);
                     out[2] = (f32)(lbl_80345F18 * lbl_80345F18 *
                         (f64)(maxZ - minZ) * cp + (f64)out[2]);
                 } else {
-                    f64 sy = sin((f64)cam->pyr[1]);
-                    f64 cp = cos((f64)cam->pyr[0]);
+                    f64 sy = sin(cam->pyr[1]);
+                    f64 cp = cos(cam->pyr[0]);
                     f64 cy;
                     f64 cp2;
                     out[0] = (f32)((f32)((f32)(lbl_803461F0 * lbl_80345F18 *
                         (f64)(maxX - minX)) * cp) * sy + (f64)out[0]);
-                    cy = cos((f64)cam->pyr[1]);
-                    cp2 = cos((f64)cam->pyr[0]);
+                    cy = cos(cam->pyr[1]);
+                    cp2 = cos(cam->pyr[0]);
                     out[2] = (f32)((f32)((f32)(lbl_803461F0 * lbl_80345F18 *
                         (f64)(maxZ - minZ)) * cp2) * cy + (f64)out[2]);
                 }
@@ -2151,15 +2149,17 @@ extern s32 lbl_80344550, shake_type, shaking, shake_count, shake_delay;
 extern s32 shake_priority, lbl_803447B4, lbl_803444BC, gCameraWindowLeftLimit;
 extern s32 gCameraWindowRightLimit, gCameraWindowTopLimit, gCameraWindowBottomLimit, lbl_80344514, lbl_80344518;
 extern s32 lbl_80344520, gNumEnemies, lbl_803447F8, lbl_80344524;
-extern s32 lbl_80344288, lbl_8034441C, sSpecialTransmitter, lbl_80344420, lbl_80344A28;
+extern s32 lbl_80344288, lbl_8034441C, lbl_80344420, lbl_80344A28;
+extern u8* sSpecialTransmitter;
 extern f32 lbl_80344460, lbl_80344464, shake_rad, lbl_803461F8, lbl_803461FC;
 extern f32 gCameraWindowScaleX, gCameraWindowScaleY, lbl_80345F80;
 extern f32 lbl_80344428, lbl_80344424, lbl_80344438, lbl_80344434;
 extern f32 lbl_8034443C, lbl_80344440, lbl_80344444, lbl_80344448;
 extern f32 lbl_8034442C, lbl_80344430;
-extern f64 lbl_80346200, lbl_80345F48, lbl_803460B0, lbl_803460B8, lbl_803460C0;
+extern f32 lbl_80346200, lbl_80345F48, lbl_80346080, lbl_8034601C, lbl_80346260;
+extern f64 lbl_803460B0, lbl_803460B8, lbl_803460C0;
 extern f64 lbl_803460C8, lbl_80345EF0, lbl_80346238, lbl_80346240, lbl_80346078;
-extern f64 lbl_80346080, lbl_80346250, lbl_8034601C;
+extern f64 lbl_80346250;
 extern f32 lbl_80346208, lbl_80346148, lbl_80346158, lbl_8034620C, lbl_80346210;
 extern f32 lbl_80346214, lbl_80346218, lbl_8034621C, lbl_80346220, lbl_80346224;
 extern f32 lbl_80346228, lbl_8034622C, lbl_80346230, lbl_80346204, lbl_80346248;
@@ -2168,307 +2168,493 @@ extern f32 lbl_8023F824, lbl_8023F828, lbl_8023F82C, lbl_8023F830, lbl_8023F834;
 extern f32 lbl_8023F838, lbl_802757D8, lbl_8028CAC8, lbl_8028CAD0, lbl_8028CAB4;
 extern f32 lbl_8028CAA8, lbl_8028CACC;
 extern f32 gDefaultPlayerPosition[], lbl_8023F8D4[], lbl_80258E08[];
-extern u8 lbl_80344EE8[], gIdentityMatrix[];
+extern u8* lbl_80344EE8;
+extern u8 gIdentityMatrix[];
 extern u8 sMilestones[];
+extern char lbl_80111B3C[];
 void ChangeWindow(void);
-s32 FloorPos(f32 a, f32* pos, s32 c);
+f32 FloorPos(f32 fallback, f32 radius, f32* pos, s32 mode);
 s32 fn_80051480(f32* pos);
-void dbgTextPrintfCol();
+f32 SlowNormalVector(f32* v);
+
+#define CAM_SET_CMODE(camp, m)                                                \
+    if (*(s32*)(cs + 436) != (m)) {                                           \
+        (camp)->pc_mode = (camp)->c_mode;                                     \
+        (camp)->c_mode = (m);                                                 \
+    }
+#define CAM_SET_AMODE(camp, m)                                                \
+    if ((camp)->a_mode != (m)) {                                              \
+        (camp)->pa_mode = (camp)->a_mode;                                     \
+        (camp)->a_mode = (m);                                                 \
+    }
 
 void InitCamera(s32 resetAll)
 {
-    Camera* c0 = (Camera*)(gCameraState + 0xC8);
+    u8* cs = (u8*)gCameraState;
     s32 scrH = MBScreenHeight();
     s32 scrW = MBScreenWidth();
-    s32 uiFov = 0x40;
+    s32 uiFov = 0;
     s32 i;
-    f32 mat[18];
+    Camera* cam;
+    Camera* c0 = (Camera*)(cs + 200);
+    f32 mat[16];
     f32 in[3];
     f32 out[3];
 
-    lbl_80344498 = 0;
-    lbl_803444DC = 0;
-    lbl_803444D0 = 0;
-    lbl_803444D4 = lbl_80345EC8;
-    lbl_803444D8 = lbl_80345EC8;
-    lbl_80344960 = -1;
-    lbl_803444F0 = -1;
-    lbl_8034453C = 0;
-    lbl_803444E0 = 0;
-    lbl_80344500 = 0;
-    lbl_803444F8 = 0;
-    lbl_803444F4 = 1;
-    lbl_803444E4 = 0;
-    lbl_80344470 = 0;
-    lbl_80344474 = 0;
-    gCameraTargetPositionCount = 0;
-    gCameraTargetMode = 0;
-    lbl_80344508 = -1;
-    lbl_8034446C = -1;
-    lbl_80344494 = 0;
-    lbl_80344460 = lbl_80345EC8;
-    lbl_80344464 = lbl_80345EC8;
-    lbl_803443F0 = 0;
-    lbl_803443F8 = 600;
-    lbl_80344538 = 0;
-    lbl_80344400 = 1;
-    gScriptedCameraState = 0;
-    lbl_8034452C = lbl_803461F8;
-    lbl_80344528 = lbl_803461FC;
-    lbl_80344408 = lbl_8034616C;
-    lbl_80344530 = lbl_8034616C;
-    lbl_80344404 = 1;
-    lbl_803447B4 = 0;
-    lbl_803447B8 = 0;
-    lbl_80344550 = 0;
-    shake_type = 0;
-    shaking = 0;
-    shake_count = 0;
-    shake_delay = 0;
-    shake_rad = lbl_80345EC8;
-    shake_priority = 0;
-
     {
-    u32* c = (u32*)&gCameras[0];
-    f32 zero = lbl_80345EC8;
-    f32 radius = (f32)lbl_80346200;
-    for (i = 0; i < 6; i++) {
-        f32* cf = (f32*)c;
-        c[0] = 0;
-        CopyMat4((f32*)gIdentityMatrix, cf + 1);
-        cf[0x11] = zero; cf[0x12] = zero; cf[0x13] = zero;
-        cf[0x15] = zero; cf[0x16] = zero; cf[0x17] = zero;
-        cf[0x19] = zero; cf[0x1a] = zero; cf[0x1b] = zero;
-        cf[0x1d] = zero; cf[0x1e] = zero; cf[0x1f] = zero;
-        cf[0x21] = zero; cf[0x22] = zero; cf[0x23] = zero;
-        cf[0x25] = zero; cf[0x26] = zero; cf[0x27] = zero;
-        cf[0x29] = zero; cf[0x2a] = zero; cf[0x2b] = zero;
-        cf[0x2d] = zero; cf[0x2e] = zero; cf[0x2f] = zero;
-        cf[0x47] = zero; cf[0x48] = zero; cf[0x49] = zero;
-        cf[0x4b] = zero; cf[0x4c] = zero; cf[0x4d] = zero;
-        cf[0x4f] = zero; cf[0x50] = zero; cf[0x51] = zero;
-        cf[0x53] = zero; cf[0x54] = zero; cf[0x55] = zero;
-        cf[0x57] = zero; cf[0x58] = zero; cf[0x59] = zero;
-        cf[0x5b] = zero; cf[0x5c] = zero; cf[0x5d] = zero;
-        cf[0x5f] = zero; cf[0x60] = zero; cf[0x61] = zero;
-        c[0x36] = 0;
-        cf[0x31] = radius;
-        c[0x32] = (u32)-1;
-        c[0x35] = 0;
-        c[0x34] = 0;
-        c[0x33] = 0;
-        cf[0x3a] = zero;
-        cf[0x39] = zero;
-        cf[0x38] = zero;
-        cf[0x37] = zero;
-        c[0x3c] = (u32)-1;
-        c[0x3b] = (u32)-1;
-        c[0x3d] = 0;
-        c[0x3f] = (u32)-1;
-        c[0x3e] = (u32)-1;
-        c[0x46] = 0;
-        c[0x45] = 0;
-        c[0x44] = 0;
-        c[0x43] = 0;
-        c[0x42] = 0;
-        c[0x41] = 0;
-        c[0x40] = 0;
-        c += 99;
-    }
+        f32 zero = lbl_80345EC8;
+        f32 initrad = lbl_80346200;
+        f32* idmat = (f32*)gIdentityMatrix;
+
+        lbl_80344498 = 0;
+        lbl_803444DC = 0;
+        lbl_803444D0 = 0;
+        lbl_803444D4 = zero;
+        lbl_803444D8 = zero;
+        lbl_80344960 = -1;
+        lbl_803444F0 = -1;
+        lbl_8034453C = 0;
+        lbl_803444E0 = 0;
+        lbl_80344500 = 0;
+        lbl_803444F8 = 0;
+        lbl_803444F4 = 1;
+        lbl_803444E4 = 0;
+        lbl_80344470 = 0;
+        lbl_80344474 = 0;
+        gCameraTargetPositionCount = 0;
+        gCameraTargetMode = 0;
+        lbl_80344508 = -1;
+        lbl_8034446C = -1;
+        lbl_80344494 = 0;
+        lbl_80344460 = zero;
+        lbl_80344464 = zero;
+        lbl_803443F0 = 0;
+        lbl_803443F8 = 600;
+        lbl_80344538 = 0;
+        lbl_80344400 = 1;
+        gScriptedCameraState = 0;
+        lbl_8034452C = lbl_803461F8;
+        lbl_80344528 = lbl_803461FC;
+        lbl_80344408 = lbl_8034616C;
+        lbl_80344530 = lbl_8034616C;
+        lbl_80344404 = 1;
+        lbl_803447B4 = 0;
+        lbl_803447B8 = 0;
+        lbl_80344550 = 0;
+        shake_type = 0;
+        shaking = 0;
+        shake_count = 0;
+        shake_delay = 0;
+        shake_rad = zero;
+        shake_priority = 0;
+
+        cam = (Camera*)(cs + 200);
+        for (i = 0; i < 6; i++, cam++) {
+            cam->state = 0;
+            CopyMat4(idmat, &cam->mat[0][0]);
+            cam->limit_pos[0] = zero;
+            cam->limit_pos[1] = zero;
+            cam->limit_pos[2] = zero;
+            cam->limit_vel[0] = zero;
+            cam->limit_vel[1] = zero;
+            cam->limit_vel[2] = zero;
+            cam->wpos[0] = zero;
+            cam->wpos[1] = zero;
+            cam->wpos[2] = zero;
+            cam->old_wpos[0] = zero;
+            cam->old_wpos[1] = zero;
+            cam->old_wpos[2] = zero;
+            cam->vel[0] = zero;
+            cam->vel[1] = zero;
+            cam->vel[2] = zero;
+            cam->avel[0] = zero;
+            cam->avel[1] = zero;
+            cam->avel[2] = zero;
+            cam->pyr[0] = zero;
+            cam->pyr[1] = zero;
+            cam->pyr[2] = zero;
+            cam->pyr_delta[0] = zero;
+            cam->pyr_delta[1] = zero;
+            cam->pyr_delta[2] = zero;
+            cam->offset[0] = zero;
+            cam->offset[1] = zero;
+            cam->offset[2] = zero;
+            cam->attn[0] = zero;
+            cam->attn[1] = zero;
+            cam->attn[2] = zero;
+            cam->old_attn[0] = zero;
+            cam->old_attn[1] = zero;
+            cam->old_attn[2] = zero;
+            cam->delta[0] = zero;
+            cam->delta[1] = zero;
+            cam->delta[2] = zero;
+            cam->attn_dest[0] = zero;
+            cam->attn_dest[1] = zero;
+            cam->attn_dest[2] = zero;
+            cam->attn_dest_no_offset[0] = zero;
+            cam->attn_dest_no_offset[1] = zero;
+            cam->attn_dest_no_offset[2] = zero;
+            cam->cam_dest[0] = zero;
+            cam->cam_dest[1] = zero;
+            cam->cam_dest[2] = zero;
+            cam->unvib = 0;
+            cam->radius = initrad;
+            cam->trans_mode = -1;
+            cam->flags = 0;
+            cam->mode = 0;
+            cam->timer = 0;
+            cam->num3 = zero;
+            cam->num2 = zero;
+            cam->num1 = zero;
+            cam->value = zero;
+            cam->pc_mode = (CAM_MODE)-1;
+            cam->c_mode = (CAM_MODE)-1;
+            cam->camobj = 0;
+            cam->pa_mode = (ATN_MODE)-1;
+            cam->a_mode = (ATN_MODE)-1;
+            cam->attnobj = 0;
+            cam->cn = 0;
+            cam->ln = 0;
+            cam->mn = 0;
+            cam->gn = 0;
+            cam->en = 0;
+            cam->pn = 0;
+        }
     }
 
-    if (resetAll == 0) {
-        if (gGameMode == 0x400B) {
-            if (*(s32*)((u8*)c0 + 0xEC) != 2) {
-                *(s32*)((u8*)c0 + 0xF0) = *(s32*)((u8*)c0 + 0xEC);
-                *(s32*)((u8*)c0 + 0xEC) = 2;
-            }
-            if (*(s32*)((u8*)c0 + 0xF8) != 1) {
-                *(s32*)((u8*)c0 + 0xFC) = *(s32*)((u8*)c0 + 0xF8);
-                *(s32*)((u8*)c0 + 0xF8) = 1;
-            }
-            c0->wpos[0] = lbl_80345EC8;
+    if (resetAll != 0) {
+        f32 z;
+        CAM_SET_CMODE(c0, 2);
+        CAM_SET_AMODE(c0, 1);
+        z = lbl_80345EC8;
+        c0->wpos[0] = z;
+        c0->wpos[1] = z;
+        c0->wpos[2] = z;
+        c0->attn[0] = z;
+        c0->attn[1] = z;
+        c0->attn[2] = lbl_80346204;
+        c0->state = 1;
+    } else {
+        s32 mode = gGameMode;
+        if (mode == 0x400B) {
+            f32 z;
+            CAM_SET_CMODE(c0, 2);
+            CAM_SET_AMODE(c0, 1);
+            z = lbl_80345EC8;
+            c0->wpos[0] = z;
             c0->wpos[1] = lbl_80346208;
             c0->wpos[2] = lbl_80346148;
-            *(f32*)((u8*)c0 + 0x12C) = lbl_80345EC8;
-            *(f32*)((u8*)c0 + 0x130) = lbl_80346158;
-            *(f32*)((u8*)c0 + 0x134) = lbl_80345EC8;
+            c0->attn[0] = z;
+            c0->attn[1] = lbl_80346158;
+            c0->attn[2] = z;
             c0->state = 1;
-        } else if (gGameMode == 0x400D || gGameMode == 0x4013 ||
-                   gGameMode == 0x4017) {
-            f64 s, cc;
-            f32 dx, dz, dy;
-            f64 len2;
-            f64 g;
-            if (*(s32*)((u8*)c0 + 0xEC) != 2) {
-                *(s32*)((u8*)c0 + 0xF0) = *(s32*)((u8*)c0 + 0xEC);
-                *(s32*)((u8*)c0 + 0xEC) = 2;
+        } else if (mode == 0x400D || mode == 0x4013 || mode == 0x4017) {
+            f32 ang;
+            f32 s;
+            f32 c;
+            f32 dy, dx, dz, len;
+            f32* py1;
+            f32* pz1;
+            f32* py2;
+            f32* pz2;
+            Camera* k;
+            CAM_SET_CMODE((Camera*)(cs + 200), 2);
+            CAM_SET_AMODE((Camera*)(cs + 200), 1);
+            py1 = (f32*)(cs + 32);
+            pz1 = (f32*)(cs + 36);
+            py2 = (f32*)(cs + 44);
+            pz2 = (f32*)(cs + 48);
+            k = (Camera*)((void*)(cs + 200));
+            c0->num1 = lbl_80345F48;
+            c0->pyr[1] = c0->num1;
+            c0->num2 = lbl_80345EC8;
+            *(f32*)(cs + 28) = lbl_8034620C;
+            *(f32*)(cs + 32) = lbl_80346210;
+            *(f32*)(cs + 36) = lbl_8034620C;
+            *(f32*)(cs + 40) = lbl_80346214;
+            *(f32*)(cs + 44) = lbl_80346218;
+            *(f32*)(cs + 48) = lbl_80346214;
+            ang = *(f32*)(cs + 368);
+            s = sin(ang);
+            c = cos(ang);
+            *(f32*)(cs + 300) = s * *(f32*)(cs + 28);
+            *(f32*)(cs + 304) = *py1;
+            *(f32*)(cs + 308) = c * *pz1;
+            *(f32*)(cs + 500) = s * *(f32*)(cs + 40);
+            *(f32*)(cs + 504) = *py2;
+            *(f32*)(cs + 508) = c * *pz2;
+            dy = *(f32*)(cs + 304) - *(f32*)(cs + 504);
+            dx = *(f32*)(cs + 300) - *(f32*)(cs + 500);
+            dz = *(f32*)(cs + 308) - *(f32*)(cs + 508);
+            len = dz * dz + (dx * dx + dy * dy);
+            if (len > lbl_80345EC8) {
+                f64 g = __frsqrte((f64)len);
+                g = lbl_80345F18 * g * -((f64)len * g * g - lbl_80345F20);
+                g = lbl_80345F18 * g * -((f64)len * g * g - lbl_80345F20);
+                g = lbl_80345F18 * g * -((f64)len * g * g - lbl_80345F20);
+                len = (f32)((f64)len * (lbl_80345F18 * g *
+                            -((f64)len * g * g - lbl_80345F20)));
             }
-            if (*(s32*)((u8*)c0 + 0xF8) != 1) {
-                *(s32*)((u8*)c0 + 0xFC) = *(s32*)((u8*)c0 + 0xF8);
-                *(s32*)((u8*)c0 + 0xF8) = 1;
+            k->radius = len;
+            {
+                f32 ox = s * k->num2;
+                f32 oz = c * k->num2;
+                f32 z = lbl_80345EC8;
+                k->wpos[0] = k->wpos[0] + ox;
+                k->wpos[1] = k->wpos[1] + z;
+                k->wpos[2] = k->wpos[2] + oz;
+                k->attn[0] = k->attn[0] + ox;
+                k->attn[1] = k->attn[1] + z;
+                k->attn[2] = k->attn[2] + oz;
             }
-            *(f32*)((u8*)c0 + 0xE0) = lbl_80345F48;
-            *(f32*)((u8*)c0 + 0xA8) = lbl_80345F48;
-            *(f32*)((u8*)c0 + 0xE4) = lbl_80345EC8;
-            lbl_8023F824 = lbl_8034620C;
-            lbl_8023F828 = lbl_80346210;
-            lbl_8023F82C = lbl_8034620C;
-            lbl_8023F830 = lbl_80346214;
-            lbl_8023F834 = lbl_80346218;
-            lbl_8023F838 = lbl_80346214;
-            s = sin(lbl_80345F48);
-            cc = cos(lbl_80345F48);
-            dz = (f32)((f64)lbl_8023F828 - (f64)lbl_8023F834);
-            dx = (f32)(s * (f64)lbl_8023F824) - (f32)(s * (f64)lbl_8023F830);
-            dy = (f32)((f32)(cc * (f64)lbl_8023F82C) -
-                       (f32)(cc * (f64)lbl_8023F838));
-            len2 = dy * dy + dx * dx + dz * dz;
-            if ((f64)lbl_80345EC8 < len2) {
-                g = __frsqrte(len2);
-                g = lbl_80345F18 * g * -(len2 * g * g - lbl_80345F20);
-                g = lbl_80345F18 * g * -(len2 * g * g - lbl_80345F20);
-                g = lbl_80345F18 * g * -(len2 * g * g - lbl_80345F20);
-                len2 = (f32)(len2 * lbl_80345F18 * g * -(len2 * g * g - lbl_80345F20));
-            }
-            c0->radius = (f32)len2;
-            c0->wpos[0] = (f32)(s * (f64)lbl_8023F824) +
-                          (f32)(s * (f64)*(f32*)((u8*)c0 + 0xE4));
-            c0->wpos[1] = lbl_8023F828 + lbl_80345EC8;
-            c0->wpos[2] = (f32)(cc * (f64)lbl_8023F82C) +
-                          (f32)(cc * (f64)*(f32*)((u8*)c0 + 0xE4));
-            *(f32*)((u8*)c0 + 0x12C) = (f32)(s * (f64)lbl_8023F830) +
-                          (f32)(s * (f64)*(f32*)((u8*)c0 + 0xE4));
-            *(f32*)((u8*)c0 + 0x130) = lbl_8023F834 + lbl_80345EC8;
-            *(f32*)((u8*)c0 + 0x134) = (f32)(cc * (f64)lbl_8023F838) +
-                          (f32)(cc * (f64)*(f32*)((u8*)c0 + 0xE4));
-            *(s32*)((u8*)c0 + 0xD0) = 0;
-            *(s32*)((u8*)c0 + 0xCC) = 0;
+            c0->mode = 0;
+            c0->timer = 0;
             c0->state = 1;
-        } else if (gGameMode == 0x8007) {
-            if (*(s32*)((u8*)c0 + 0xEC) != 2) {
-                *(s32*)((u8*)c0 + 0xF0) = *(s32*)((u8*)c0 + 0xEC);
-                *(s32*)((u8*)c0 + 0xEC) = 2;
-            }
-            if (*(s32*)((u8*)c0 + 0xF8) != 1) {
-                *(s32*)((u8*)c0 + 0xFC) = *(s32*)((u8*)c0 + 0xF8);
-                *(s32*)((u8*)c0 + 0xF8) = 1;
-            }
+        } else if ((u32)mode == 0x8007) {
+            CAM_SET_CMODE(c0, 2);
+            CAM_SET_AMODE(c0, 1);
             c0->wpos[0] = lbl_8034621C;
             c0->wpos[1] = lbl_80346220;
             c0->wpos[2] = lbl_80346224;
-            *(f32*)((u8*)c0 + 0x12C) = lbl_80346228;
-            *(f32*)((u8*)c0 + 0x130) = lbl_8034622C;
-            *(f32*)((u8*)c0 + 0x134) = lbl_80346230;
+            c0->attn[0] = lbl_80346228;
+            c0->attn[1] = lbl_8034622C;
+            c0->attn[2] = lbl_80346230;
             c0->state = 1;
-        } else if (gGameMode == 0x8008) {
-            if (lbl_80344288 == 0) {
-                u8* hdr = *(u8**)((u8*)gCurLevel + 0x60);
-                gNumEnemies = *(s16*)(hdr + 0x34);
-                lbl_8034441C = *(s16*)(hdr + 0x26);
+        } else if ((u32)mode == 0x8008) {
+            if (lbl_80344288 != 0) {
+                f32 d[3];
+                f32 saveA[3];
+                f32 saveW[3];
+                f32 look[3];
+                f32* dpp;
+                f32 yaw;
+                f32 r;
+                Camera* k;
+                CAM_SET_CMODE(c0, 2);
+                CAM_SET_AMODE(c0, 0);
+                dpp = gDefaultPlayerPosition;
+                c0->wpos[0] = dpp[0];
+                c0->wpos[1] = dpp[1];
+                c0->wpos[2] = dpp[2];
+                c0->wpos[1] = (f32)(lbl_80346078 +
+                    FloorPos(lbl_80344880, lbl_80346080, c0->wpos, 0));
+                c0->mode = fn_80051480(c0->wpos);
+                c0->pyr[0] = lbl_80345EC8;
+                yaw = get_yaw((f32*)(sMilestones + c0->mode * 104 + 48),
+                              c0->wpos);
+                c0->num1 = yaw;
+                c0->pyr[1] = yaw;
+                c0->pyr[2] = lbl_80345EC8;
+                c0->radius = lbl_80345F14;
+                CreateYPRMatrix(mat, c0->pyr);
+                in[0] = lbl_80345EC8;
+                in[1] = lbl_80345EC8;
+                in[2] = c0->radius;
+                WorldVector(in, out, mat);
+                c0->attn[0] = c0->wpos[0] + out[0];
+                c0->attn[1] = c0->wpos[1] + out[1];
+                c0->attn[2] = c0->wpos[2] + out[2];
+                r = c0->radius;
+                d[0] = c0->attn[0] - c0->wpos[0];
+                d[1] = c0->attn[1] - c0->wpos[1];
+                d[2] = c0->attn[2] - c0->wpos[2];
+                SlowNormalVector(d);
+                k = (Camera*)((void*)(cs + 200));
+                c0->attn[0] = d[0] * r + c0->wpos[0];
+                c0->attn[1] = d[1] * r + c0->wpos[1];
+                c0->attn[2] = d[2] * r + c0->wpos[2];
+                saveW[0] = *(f32*)(cs + 300);
+                saveW[1] = *(f32*)(cs + 304);
+                saveW[2] = *(f32*)(cs + 308);
+                saveA[0] = c0->attn[0];
+                saveA[1] = c0->attn[1];
+                saveA[2] = c0->attn[2];
+                StandardCamera_8002B828(0);
+                DoShake(saveW, saveA);
+                look[0] = saveA[0] - saveW[0];
+                look[1] = saveA[1] - saveW[1];
+                look[2] = saveA[2] - saveW[2];
+                LookInDirection(look, &k->mat[0][0]);
+                c0->trans_mode = -1;
+                c0->state = 1;
+            } else {
+                s16* hdr = *(s16**)((u8*)gCurLevel + 96);
+                gNumEnemies = hdr[26];
+                lbl_8034441C = hdr[19];
                 if (lbl_8034441C < 0 && sSpecialTransmitter == 0) {
                     lbl_8034441C = 0;
-                    *(s16*)(hdr + 0x26) = 0;
+                    hdr[19] = 0;
                 }
-                if (lbl_8034441C == 0) {
-                    f64 g;
-                    f32 v[3];
-                    if (*(s32*)((u8*)c0 + 0xEC) != 5) {
-                        *(s32*)((u8*)c0 + 0xF0) = *(s32*)((u8*)c0 + 0xEC);
-                        *(s32*)((u8*)c0 + 0xEC) = 5;
+                switch (lbl_8034441C) {
+                case 0: {
+                    f32 d[3];
+                    WorldInfo* wi;
+                    f32* pa0;
+                    f32* pa1;
+                    f32* pa2;
+                    f32* wcy;
+                    f32* prad;
+                    f32* pw0;
+                    f32* pw1;
+                    f32* pw2;
+                    f32 g;
+                    f32 r;
+                    CAM_SET_CMODE((Camera*)(cs + 200), 5);
+                    CAM_SET_AMODE((Camera*)(cs + 200), 1);
+                    wi = &gWorldInfo;
+                    pa0 = (f32*)(cs + 500);
+                    pa1 = (f32*)(cs + 504);
+                    pa2 = (f32*)(cs + 508);
+                    wcy = &gWorldInfo.worldcenter[1];
+                    *(f32*)(cs + 500) = wi->worldcenter[0];
+                    *(f32*)(cs + 504) = wi->worldcenter[1];
+                    *(f32*)(cs + 508) = wi->worldcenter[2];
+                    *(f32*)(cs + 504) = wi->worldmax[1];
+                    {
+                        f64 step = lbl_80345EF0;
+                        do {
+                            g = FloorPos(lbl_80344880, lbl_80346080, pa0, 0);
+                            if (g != lbl_80344880) {
+                                break;
+                            }
+                            if (g <= wi->worldmin[1]) {
+                                break;
+                            }
+                            *pa1 = (f32)(*pa1 - step);
+                        } while (1);
                     }
-                    if (*(s32*)((u8*)c0 + 0xF8) != 1) {
-                        *(s32*)((u8*)c0 + 0xFC) = *(s32*)((u8*)c0 + 0xF8);
-                        *(s32*)((u8*)c0 + 0xF8) = 1;
-                    }
-                    *(f32*)((u8*)c0 + 0x12C) = lbl_8028CAC8;
-                    *(f32*)((u8*)c0 + 0x134) = lbl_8028CAD0;
-                    *(f32*)((u8*)c0 + 0x130) = lbl_8028CAB4;
-                    do {
-                        g = FloorPos(lbl_80344880, (f32*)((u8*)c0 + 0x12C), 0);
-                        if (g != (f64)lbl_80344880 || g <= (f64)lbl_8028CAA8) {
-                            break;
-                        }
-                        *(f32*)((u8*)c0 + 0x130) =
-                            (f32)((f64)*(f32*)((u8*)c0 + 0x130) - lbl_80345EF0);
-                    } while (1);
-                    if (g == (f64)lbl_80344880) {
-                        *(f32*)((u8*)c0 + 0x130) = lbl_8028CACC;
+                    if (g != lbl_80344880) {
+                        *pa1 = (f32)(lbl_80346238 + g);
                     } else {
-                        *(f32*)((u8*)c0 + 0x130) = (f32)(lbl_80346238 + g);
+                        *pa1 = *wcy;
                     }
-                    if (*(f32*)((u8*)c0 + 0x130) < lbl_802757D8) {
-                        *(f32*)((u8*)c0 + 0x130) = lbl_802757D8;
+                    if (*pa1 < gDefaultPlayerPosition[1]) {
+                        *pa1 = gDefaultPlayerPosition[1];
                     }
-                    c0->radius = *(f32*)(hdr + 0x28);
-                    *(f32*)((u8*)c0 + 0xE0) =
-                        (f32)(lbl_80346240 * (f64)c0->radius);
-                    *(f32*)((u8*)c0 + 0xE4) = (f32)(lbl_80345EF0 + (f64)lbl_8028CACC);
-                    *(f32*)((u8*)c0 + 0xE8) =
-                        (f32)(lbl_80345FE0 + (f64)*(f32*)((u8*)c0 + 0xE4));
-                    *(f32*)((u8*)c0 + 0xA4) = lbl_80346248;
-                    *(f32*)((u8*)c0 + 0xA8) = lbl_80345EC8;
-                    *(f32*)((u8*)c0 + 0xAC) = lbl_80345EC8;
-                    CreateYPRMatrix(mat, (f32*)((u8*)c0 + 0xA4));
+                    *(f32*)(cs + 396) = *(f32*)((u8*)hdr + 40);
+                    prad = (f32*)(cs + 396);
+                    *(f32*)(cs + 424) = (f32)(lbl_80346240 * *(f32*)(cs + 396));
+                    *(f32*)(cs + 428) = (f32)(lbl_80345EF0 + *wcy);
+                    *(f32*)(cs + 432) = (f32)(lbl_80345FE0 + *(f32*)(cs + 428));
+                    *(f32*)(cs + 364) = lbl_80346248;
+                    *(f32*)(cs + 368) = lbl_80345EC8;
+                    *(f32*)(cs + 372) = lbl_80345EC8;
+                    CreateYPRMatrix(mat, (f32*)(cs + 364));
                     in[0] = lbl_80345EC8;
                     in[1] = lbl_80345EC8;
-                    in[2] = c0->radius;
+                    in[2] = *prad;
                     WorldVector(in, out, mat);
-                    c0->wpos[0] = *(f32*)((u8*)c0 + 0x12C) + out[0];
-                    c0->wpos[1] = *(f32*)((u8*)c0 + 0x130) + out[1];
-                    c0->wpos[2] = *(f32*)((u8*)c0 + 0x134) + out[2];
-                    v[0] = c0->wpos[0] - *(f32*)((u8*)c0 + 0x12C);
-                    v[1] = c0->wpos[1] - *(f32*)((u8*)c0 + 0x130);
-                    v[2] = c0->wpos[2] - *(f32*)((u8*)c0 + 0x134);
-                    NormalVector(v);
-                    c0->wpos[0] =
-                        (f32)((f64)v[0] * (f64)c0->radius + (f64)*(f32*)((u8*)c0 + 0x12C));
-                    c0->wpos[1] =
-                        (f32)((f64)v[1] * (f64)c0->radius + (f64)*(f32*)((u8*)c0 + 0x130));
-                    c0->wpos[2] =
-                        (f32)((f64)v[2] * (f64)c0->radius + (f64)*(f32*)((u8*)c0 + 0x134));
-                    c0->state = 1;
-                    lbl_80344420 = 0x708;
-                } else if (lbl_8034441C < 0 || lbl_8034441C > 1) {
+                    pw0 = (f32*)(cs + 300);
+                    pw1 = (f32*)(cs + 304);
+                    pw2 = (f32*)(cs + 308);
+                    *(f32*)(cs + 300) = *pa0 + out[0];
+                    *(f32*)(cs + 304) = *pa1 + out[1];
+                    *(f32*)(cs + 308) = *pa2 + out[2];
+                    r = *prad;
+                    d[0] = *(f32*)(cs + 300) - *pa0;
+                    d[1] = *(f32*)(cs + 304) - *pa1;
+                    d[2] = *(f32*)(cs + 308) - *pa2;
+                    SlowNormalVector(d);
+                    *pw0 = d[0] * r + *pa0;
+                    *pw1 = d[1] * r + *pa1;
+                    *pw2 = d[2] * r + *pa2;
+                    *(s32*)(cs + 200) = 1;
+                    lbl_80344420 = 1800;
+                    break;
+                }
+                case 1: {
+                    f32 d[3];
+                    WorldInfo* wi;
+                    f32* dpp;
+                    f32* p0;
+                    f32* p1;
+                    f32* p2;
+                    f32* prad;
+                    f32* pa0;
+                    f32* pa1;
+                    f32* pa2;
+                    f32 r;
+                    CAM_SET_CMODE((Camera*)(cs + 200), 2);
+                    CAM_SET_AMODE((Camera*)(cs + 200), 1);
+                    wi = &gWorldInfo;
+                    dpp = gDefaultPlayerPosition;
+                    p0 = (f32*)(cs + 300);
+                    p1 = (f32*)(cs + 304);
+                    p2 = (f32*)(cs + 308);
+                    prad = (f32*)(cs + 396);
+                    *(f32*)(cs + 300) = wi->worldcenter[0];
+                    *(f32*)(cs + 304) = wi->worldcenter[1];
+                    *(f32*)(cs + 308) = wi->worldcenter[2];
+                    *(f32*)(cs + 304) = (f32)(lbl_80346250 + dpp[1]);
+                    *(f32*)(cs + 396) = lbl_80346258;
+                    *(f32*)(cs + 364) = *(f32*)((u8*)hdr + 40);
+                    *(f32*)(cs + 368) = lbl_80345EC8;
+                    *(f32*)(cs + 372) = lbl_80345EC8;
+                    CreateYPRMatrix(mat, (f32*)(cs + 364));
+                    in[0] = lbl_80345EC8;
+                    in[1] = lbl_80345EC8;
+                    in[2] = *prad;
+                    WorldVector(in, out, mat);
+                    pa0 = (f32*)(cs + 500);
+                    pa1 = (f32*)(cs + 504);
+                    pa2 = (f32*)(cs + 508);
+                    *(f32*)(cs + 500) = *p0 + out[0];
+                    *(f32*)(cs + 504) = *p1 + out[1];
+                    *(f32*)(cs + 508) = *p2 + out[2];
+                    r = *prad;
+                    d[0] = *(f32*)(cs + 500) - *p0;
+                    d[1] = *(f32*)(cs + 504) - *p1;
+                    d[2] = *(f32*)(cs + 508) - *p2;
+                    SlowNormalVector(d);
+                    *pa0 = d[0] * r + *p0;
+                    *pa1 = d[1] * r + *p1;
+                    *pa2 = d[2] * r + *p2;
+                    *(s32*)(cs + 200) = 1;
+                    lbl_80344420 = 1500;
+                    break;
+                }
+                default: {
+                    void dbgTextPrintfCol(s32 x, s32 line, char* fmt, ...);
+                    f32 m2[16];
                     f32 saveW[3];
                     f32 saveA[3];
-                    f32 d[3];
-                    c0->wpos[0] = *(f32*)(sSpecialTransmitter + 4);
-                    c0->wpos[1] = *(f32*)(sSpecialTransmitter + 8);
-                    c0->wpos[2] = *(f32*)(sSpecialTransmitter + 0xC);
-                    *(f32*)((u8*)c0 + 0xA4) = *(f32*)(sSpecialTransmitter + 0x14);
-                    *(f32*)((u8*)c0 + 0xA8) = *(f32*)(sSpecialTransmitter + 0x18);
-                    *(f32*)((u8*)c0 + 0xAC) = *(f32*)(sSpecialTransmitter + 0x1C);
-                    CreateYPRMatrix(mat, (f32*)((u8*)c0 + 0xA4));
-                    c0->radius = lbl_80346148;
+                    f32 d2[3];
+                    u8* st = sSpecialTransmitter;
+                    f32* p0 = (f32*)(cs + 300);
+                    f32* p1 = (f32*)(cs + 304);
+                    f32* p2 = (f32*)(cs + 308);
+                    Camera* k;
+                    *(f32*)(cs + 300) = *(f32*)(st + 4);
+                    *(f32*)(cs + 304) = *(f32*)(st + 8);
+                    *(f32*)(cs + 308) = *(f32*)(st + 12);
+                    *(f32*)(cs + 364) = *(f32*)(st + 20);
+                    *(f32*)(cs + 368) = *(f32*)(st + 24);
+                    *(f32*)(cs + 372) = *(f32*)(st + 28);
+                    CreateYPRMatrix(m2, c0->pyr);
+                    *(f32*)(cs + 396) = lbl_80346148;
                     in[0] = lbl_80345EC8;
                     in[1] = lbl_80345EC8;
-                    in[2] = lbl_80346148;
-                    WorldVector(in, out, mat);
-                    *(f32*)((u8*)c0 + 0x12C) = c0->wpos[0] + out[0];
-                    *(f32*)((u8*)c0 + 0x130) = c0->wpos[1] + out[1];
-                    *(f32*)((u8*)c0 + 0x134) = c0->wpos[2] + out[2];
-                    if (*(s32*)((u8*)c0 + 0xEC) != 2) {
-                        *(s32*)((u8*)c0 + 0xF0) = *(s32*)((u8*)c0 + 0xEC);
-                        *(s32*)((u8*)c0 + 0xEC) = 2;
-                    }
-                    if (*(s32*)((u8*)c0 + 0xF8) != 1) {
-                        *(s32*)((u8*)c0 + 0xFC) = *(s32*)((u8*)c0 + 0xF8);
-                        *(s32*)((u8*)c0 + 0xF8) = 1;
-                    }
-                    *(s32*)((u8*)c0 + 0xC8) = 0;
-                    saveW[0] = c0->wpos[0];
-                    saveW[1] = c0->wpos[1];
-                    saveW[2] = c0->wpos[2];
-                    saveA[0] = *(f32*)((u8*)c0 + 0x12C);
-                    saveA[1] = *(f32*)((u8*)c0 + 0x130);
-                    saveA[2] = *(f32*)((u8*)c0 + 0x134);
+                    in[2] = *(f32*)(cs + 396);
+                    WorldVector(in, out, m2);
+                    *(f32*)(cs + 500) = *p0 + out[0];
+                    *(f32*)(cs + 504) = *p1 + out[1];
+                    *(f32*)(cs + 508) = *p2 + out[2];
+                    CAM_SET_CMODE(c0, 2);
+                    CAM_SET_AMODE(c0, 1);
+                    c0->trans_mode = 0;
+                    k = (Camera*)((void*)(cs + 200));
+                    saveW[0] = *(f32*)(cs + 300);
+                    saveW[1] = *(f32*)(cs + 304);
+                    saveW[2] = *(f32*)(cs + 308);
+                    saveA[0] = c0->attn[0];
+                    saveA[1] = c0->attn[1];
+                    saveA[2] = c0->attn[2];
                     StandardCamera_8002B828(0);
                     DoShake(saveW, saveA);
-                    d[0] = saveA[0] - saveW[0];
-                    d[1] = saveA[1] - saveW[1];
-                    d[2] = saveA[2] - saveW[2];
-                    LookInDirection(d, lbl_8023F8D4);
+                    d2[0] = saveA[0] - saveW[0];
+                    d2[1] = saveA[1] - saveW[1];
+                    d2[2] = saveA[2] - saveW[2];
+                    LookInDirection(d2, &k->mat[0][0]);
                     c0->state = 1;
                     lbl_80344428 = lbl_80345EC8;
                     lbl_80344424 = lbl_80345EC8;
@@ -2480,196 +2666,121 @@ void InitCamera(s32 resetAll)
                     lbl_80344450 = lbl_80345EC8;
                     CameraSupervisor(0);
                     if (lbl_80344510 != lbl_8034450C) {
-                        f64 dv;
-                        f32 fa;
-                        lbl_80344444 = get_pitch(c0->wpos,
-                            &lbl_80258E08[lbl_8034450C * 10]);
-                        lbl_80344448 = get_yaw(c0->wpos,
-                            &lbl_80258E08[lbl_8034450C * 10]);
-                        fa = FixAngle((f32)(lbl_80345F60 - (f64)lbl_80344448));
-                        dv = (f64)(f32)(lbl_803460B0 * lbl_803460B8 * (f64)fa);
-                        if (dv < (f64)lbl_80345EC8) {
-                            dv = (f64)(f32)(dv + lbl_803460C0);
+                        u8* tc = sTriggerCameras;
+                        f64 v;
+                        lbl_80344444 = get_pitch(k->wpos,
+                            (f32*)(tc + lbl_8034450C * 40 + 4));
+                        lbl_80344448 = get_yaw(k->wpos,
+                            (f32*)(tc + lbl_8034450C * 40 + 4));
+                        v = (f64)(f32)(lbl_803460B0 * (lbl_803460B8 *
+                            (f64)FixAngle((f32)(lbl_80345F60 -
+                                                (f64)lbl_80344448))));
+                        if (v < (f64)lbl_80345EC8) {
+                            v = (f64)(f32)(v + lbl_803460C0);
                         }
-                        if (lbl_803460C8 < dv) {
-                            dv = (f64)lbl_80345EC8;
+                        if (v > lbl_803460C8) {
+                            v = lbl_80345EC8;
                         }
                         if (lbl_80344A28 == 0) {
-                            s32 py = (s32)(lbl_803460B0 * lbl_803460B8 *
-                                           (f64)lbl_80344444);
-                            dbgTextPrintfCol(dv, lbl_803460B8, lbl_803460B0, 2, 3,
-                                "DEST P=%d Y=%4.1f", py);
+                            dbgTextPrintfCol(2, 3, lbl_80111B3C,
+                                (s32)(lbl_803460B0 * (lbl_803460B8 *
+                                                     (f64)lbl_80344444)),
+                                v);
                         }
                     }
                     lbl_8034442C = lbl_80344444;
                     lbl_80344430 = lbl_80344448;
-                    lbl_80344530 = *(f32*)((u8*)c0 + 0xA4);
-                    lbl_8034443C = *(f32*)((u8*)c0 + 0xA4);
-                    lbl_80344440 = *(f32*)((u8*)c0 + 0xA8);
-                    lbl_80344408 = *(f32*)((u8*)c0 + 0xA4);
-                } else {
-                    f32 d[3];
-                    if (*(s32*)((u8*)c0 + 0xEC) != 2) {
-                        *(s32*)((u8*)c0 + 0xF0) = *(s32*)((u8*)c0 + 0xEC);
-                        *(s32*)((u8*)c0 + 0xEC) = 2;
+                    {
+                        f32 p = c0->pyr[0];
+                        lbl_80344530 = p;
+                        lbl_8034443C = p;
                     }
-                    if (*(s32*)((u8*)c0 + 0xF8) != 1) {
-                        *(s32*)((u8*)c0 + 0xFC) = *(s32*)((u8*)c0 + 0xF8);
-                        *(s32*)((u8*)c0 + 0xF8) = 1;
+                    {
+                        f32 q = lbl_80344530;
+                        f32 y = c0->pyr[1];
+                        lbl_80344534 = y;
+                        lbl_80344440 = y;
+                        lbl_80344408 = q;
                     }
-                    c0->wpos[0] = lbl_8028CAC8;
-                    c0->wpos[2] = lbl_8028CAD0;
-                    c0->wpos[1] = (f32)(lbl_80346250 + (f64)lbl_802757D8);
-                    c0->radius = lbl_80346258;
-                    *(f32*)((u8*)c0 + 0xA4) = *(f32*)(hdr + 0x28);
-                    *(f32*)((u8*)c0 + 0xA8) = lbl_80345EC8;
-                    *(f32*)((u8*)c0 + 0xAC) = lbl_80345EC8;
-                    CreateYPRMatrix(mat, (f32*)((u8*)c0 + 0xA4));
-                    in[0] = lbl_80345EC8;
-                    in[1] = lbl_80345EC8;
-                    in[2] = c0->radius;
-                    WorldVector(in, out, mat);
-                    *(f32*)((u8*)c0 + 0x12C) = c0->wpos[0] + out[0];
-                    *(f32*)((u8*)c0 + 0x130) = c0->wpos[1] + out[1];
-                    *(f32*)((u8*)c0 + 0x134) = c0->wpos[2] + out[2];
-                    d[0] = *(f32*)((u8*)c0 + 0x12C) - c0->wpos[0];
-                    d[1] = *(f32*)((u8*)c0 + 0x130) - c0->wpos[1];
-                    d[2] = *(f32*)((u8*)c0 + 0x134) - c0->wpos[2];
-                    NormalVector(d);
-                    *(f32*)((u8*)c0 + 0x12C) =
-                        (f32)((f64)d[0] * (f64)c0->radius + (f64)c0->wpos[0]);
-                    *(f32*)((u8*)c0 + 0x130) =
-                        (f32)((f64)d[1] * (f64)c0->radius + (f64)c0->wpos[1]);
-                    *(f32*)((u8*)c0 + 0x134) =
-                        (f32)((f64)d[2] * (f64)c0->radius + (f64)c0->wpos[2]);
-                    c0->state = 1;
-                    lbl_80344420 = 0x5DC;
+                    break;
                 }
-            } else {
-                if (*(s32*)((u8*)c0 + 0xEC) != 2) {
-                    *(s32*)((u8*)c0 + 0xF0) = *(s32*)((u8*)c0 + 0xEC);
-                    *(s32*)((u8*)c0 + 0xEC) = 2;
                 }
-                if (*(s32*)((u8*)c0 + 0xF8) != 0) {
-                    *(s32*)((u8*)c0 + 0xFC) = *(s32*)((u8*)c0 + 0xF8);
-                    *(s32*)((u8*)c0 + 0xF8) = 0;
-                }
-                c0->wpos[0] = gDefaultPlayerPosition[0];
-                c0->wpos[1] = *(f32*)(gDefaultPlayerPosition + 1);
-                c0->wpos[2] = *(f32*)(gDefaultPlayerPosition + 2);
-                c0->wpos[1] = (f32)(lbl_80346078 +
-                    (f64)FloorPos(lbl_80344880, c0->wpos, 0));
-                *(s32*)((u8*)c0 + 0xD0) = fn_80051480(c0->wpos);
-                *(f32*)((u8*)c0 + 0xA4) = lbl_80345EC8;
-                *(f32*)((u8*)c0 + 0xA8) = get_yaw(
-                    (f32*)(sMilestones + *(s32*)((u8*)c0 + 0xD0) * 0x68 + 0x30),
-                    c0->wpos);
-                *(f32*)((u8*)c0 + 0xE0) = *(f32*)((u8*)c0 + 0xA8);
-                *(f32*)((u8*)c0 + 0xAC) = lbl_80345EC8;
-                c0->radius = lbl_80345F14;
-                c0->state = 1;
             }
         } else if (gCurLevel != 0) {
-            s16* hdr = *(s16**)((u8*)gCurLevel + 0x60);
-            if (*(s32*)((u8*)c0 + 0xEC) != 1) {
-                *(s32*)((u8*)c0 + 0xF0) = *(s32*)((u8*)c0 + 0xEC);
-                *(s32*)((u8*)c0 + 0xEC) = 1;
+            s16* hdr = *(s16**)((u8*)gCurLevel + 96);
+            CAM_SET_CMODE(c0, 1);
+            CAM_SET_AMODE(c0, 0);
+            *(f32*)(cs + 500) = lbl_80345EC8;
+            *(f32*)(cs + 504) = lbl_80345EC8;
+            *(f32*)(cs + 508) = lbl_80345EC8;
+            *(f32*)(cs + 396) = lbl_8034625C;
+            *(f32*)(cs + 300) = lbl_80345EC8;
+            *(f32*)(cs + 304) = lbl_80345EC8;
+            *(f32*)(cs + 308) = lbl_80345EC8;
+            lbl_80344538 = hdr[0];
+            {
+                f32 t = *(f32*)((u8*)hdr + 4);
+                lbl_80344408 = t;
+                lbl_80344530 = t;
             }
-            if (*(s32*)((u8*)c0 + 0xF8) != 0) {
-                *(s32*)((u8*)c0 + 0xFC) = *(s32*)((u8*)c0 + 0xF8);
-                *(s32*)((u8*)c0 + 0xF8) = 0;
-            }
-            *(f32*)((u8*)c0 + 0x12C) = lbl_80345EC8;
-            *(f32*)((u8*)c0 + 0x130) = lbl_80345EC8;
-            *(f32*)((u8*)c0 + 0x134) = lbl_80345EC8;
-            c0->radius = lbl_8034625C;
-            c0->wpos[0] = lbl_80345EC8;
-            c0->wpos[1] = lbl_80345EC8;
-            c0->wpos[2] = lbl_80345EC8;
-            lbl_80344538 = *hdr;
-            lbl_80344408 = *(f32*)(hdr + 2);
             lbl_80344404 = hdr[1];
-            lbl_80344524 = *(s32*)(hdr + 4);
-            lbl_8034452C = *(f32*)(hdr + 0x16);
-            lbl_80344528 = *(f32*)(hdr + 0x18);
+            lbl_80344524 = *(f32*)((u8*)hdr + 8);
+            lbl_8034452C = *(f32*)((u8*)hdr + 44);
+            lbl_80344528 = *(f32*)((u8*)hdr + 48);
             lbl_803447F8 = 18000;
-            gNumEnemies = hdr[0x1a];
-            uiFov = scrH == 0x100 ? 0x2a : 0x40;
-            c0->state = 1;
-            lbl_80344530 = lbl_80344408;
+            gNumEnemies = hdr[26];
+            uiFov = scrH == 256 ? 42 : 64;
+            *(s32*)(cs + 200) = 1;
         }
-    } else {
-        if (*(s32*)((u8*)c0 + 0xEC) != 2) {
-            *(s32*)((u8*)c0 + 0xF0) = *(s32*)((u8*)c0 + 0xEC);
-            *(s32*)((u8*)c0 + 0xEC) = 2;
-        }
-        if (*(s32*)((u8*)c0 + 0xF8) != 1) {
-            *(s32*)((u8*)c0 + 0xFC) = *(s32*)((u8*)c0 + 0xF8);
-            *(s32*)((u8*)c0 + 0xF8) = 1;
-        }
-        c0->wpos[0] = lbl_80345EC8;
-        c0->wpos[1] = lbl_80345EC8;
-        c0->wpos[2] = lbl_80345EC8;
-        *(f32*)((u8*)c0 + 0x12C) = lbl_80345EC8;
-        *(f32*)((u8*)c0 + 0x130) = lbl_80345EC8;
-        *(f32*)((u8*)c0 + 0x134) = lbl_80346204;
-        c0->state = 1;
     }
 
     lbl_80344534 = lbl_80118B60[lbl_80344538];
-    {
-        u8* mat3 = (u8*)&gCameras[0] + 0x34;
-        u8* src = (u8*)&gCameras[0] + 0x64;
-        for (i = 0; i < 6; i++) {
-            *(u32*)(mat3 + 0) = *(u32*)(src + 0);
-            *(u32*)(mat3 + 4) = *(u32*)(src + 4);
-            *(u32*)(mat3 + 8) = *(u32*)(src + 8);
-            mat3 += 0x18C;
-            src += 0x18C;
-        }
+    for (i = 0; i < 6; i++) {
+        u8* row = cs + i * 396;
+        *(f32*)(row + 252) = *(f32*)(row + 300);
+        *(f32*)(row + 256) = *(f32*)(row + 304);
+        *(f32*)(row + 260) = *(f32*)(row + 308);
     }
-    lbl_8023F818 = lbl_80345EC8;
-    lbl_8023F81C = lbl_80345EC8;
-    lbl_8023F820 = lbl_80345EC8;
-    gCameraWindowLeftLimit = 0;
-    gCameraWindowScaleX = lbl_80345F80;
-    gCameraWindowScaleY = lbl_80345F80;
-    lbl_803444BC = 0;
-    gCameraWindowRightLimit = scrW;
-    gCameraWindowTopLimit = scrH;
-    gCameraWindowBottomLimit = uiFov;
-    ChangeWindow();
-    MBWindowZoom(lbl_80345F80);
-    lbl_80344520 = (s32)-(f32)((f64)*(f32*)(lbl_80344EE8 + 0x14) * lbl_8034601C -
-                              (f64)*(f32*)(lbl_80344EE8 + 8));
-    lbl_8034451C = (s32)((f64)*(f32*)(lbl_80344EE8 + 0x14) * lbl_8034601C +
-                         (f64)*(f32*)(lbl_80344EE8 + 8));
-    lbl_80344518 = (s32)((f64)*(f32*)(lbl_80344EE8 + 0x18) * lbl_8034601C +
-                         (f64)*(f32*)(lbl_80344EE8 + 0xC));
-    lbl_80344514 = (s32)-(f32)((f64)*(f32*)(lbl_80344EE8 + 0x18) * lbl_8034601C -
-                              (f64)*(f32*)(lbl_80344EE8 + 0xC));
-    for (i = 0; i < 15; i++) {
-        CameraTarget* t = &gCameraTargets[i];
-        t->active = 0;
-        t->object = 0;
-        t->x = lbl_80345EC8;
-        t->y = lbl_80345EC8;
-        t->z = lbl_80345EC8;
+    for (i = 0; i < 3; i++) {
+        *(f32*)(cs + 16 + i * 4) = lbl_80345EC8;
+    }
+    {
+        s32 zi = 0;
+        u8* q;
+        CameraTarget* t;
+        gCameraWindowLeftLimit = zi;
+        gCameraWindowRightLimit = scrW;
+        gCameraWindowTopLimit = scrH;
+        gCameraWindowBottomLimit = uiFov;
+        gCameraWindowScaleX = lbl_80345F80;
+        gCameraWindowScaleY = lbl_80345F80;
+        lbl_803444BC = zi;
+        ChangeWindow();
+        MBWindowZoom(lbl_80346260);
+        q = lbl_80344EE8;
+        lbl_80344520 = (s32)(*(f32*)(q + 8) - *(f32*)(q + 20) * lbl_8034601C);
+        lbl_8034451C = (s32)(*(f32*)(q + 20) * lbl_8034601C + *(f32*)(q + 8));
+        lbl_80344518 = (s32)(*(f32*)(q + 24) * lbl_8034601C + *(f32*)(q + 12));
+        lbl_80344514 = (s32)(*(f32*)(q + 12) - *(f32*)(q + 24) * lbl_8034601C);
+        t = (CameraTarget*)(cs + 2576);
+        for (i = 0; i < 15; i++, t++) {
+            t->active = zi;
+            t->object = zi;
+            t->x = lbl_80345EC8;
+            t->y = lbl_80345EC8;
+            t->z = lbl_80345EC8;
+        }
     }
     gCameraTargetCount = 0;
     ProcCamera_8002E548(0, 0);
-    {
-        f32* cf = (f32*)&gCameras[0];
-        f32 zero = lbl_80345EC8;
-        for (i = 0; i < 6; i++) {
-            cf[0x11] = cf[0xd];
-            cf[0x12] = cf[0xe];
-            cf[0x13] = cf[0xf];
-            cf[0x15] = zero;
-            cf[0x16] = zero;
-            cf[0x17] = zero;
-            cf += 99;
-        }
+    cam = (Camera*)(cs + 200);
+    for (i = 0; i < 6; i++, cam++) {
+        cam->limit_pos[0] = cam->mat[3][0];
+        cam->limit_pos[1] = cam->mat[3][1];
+        cam->limit_pos[2] = cam->mat[3][2];
+        cam->limit_vel[0] = lbl_80345EC8;
+        cam->limit_vel[1] = lbl_80345EC8;
+        cam->limit_vel[2] = lbl_80345EC8;
     }
 }
 
