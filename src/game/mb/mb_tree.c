@@ -707,12 +707,12 @@ MBTreeNode* MBRemoveNode(MBTreeNode* node, s32 remove_children)
 
         parent = node->parent;
         if (parent == 0 || parent != psys_root) {
-            if (parent == 0 || parent->child != node) {
+            if (parent != 0 && parent->child == node) {
+                parent->child = node->next;
+            } else {
                 previous = MBNodePrevNode(node);
                 if (previous != 0)
                     previous->next = node->next;
-            } else {
-                parent->child = node->next;
             }
             node->next = 0;
             MBNodeInsert(node, psys_root);
@@ -805,12 +805,12 @@ void MBRemoveNodeChild(MBTreeNode* node)
             MBTreeNode* old_parent = current->parent;
 
             if (old_parent == 0 || old_parent != psys_root) {
-                if (old_parent == 0 || old_parent->child != current) {
+                if (old_parent != 0 && old_parent->child == current) {
+                    old_parent->child = current->next;
+                } else {
                     MBTreeNode* previous = MBNodePrevNode(current);
                     if (previous != 0)
                         previous->next = current->next;
-                } else {
-                    old_parent->child = current->next;
                 }
                 current->next = 0;
                 MBNodeInsert(current, psys_root);
