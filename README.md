@@ -151,7 +151,7 @@ used to hide opcode, branch, immediate, relocation-payload, ABI, semantic, or
 data differences. Scheduler permutations additionally require a recorded
 dependency audit, no control instructions, and an exact relocation-preserving
 bijection; they are not a general target-byte-copy mechanism. See
-[`research/gc_125e_frank.md`](research/gc_125e_frank.md) for
+[`gc_125e_frank.md`](.claude/memory/gc_125e_frank.md) for
 the compiler history, audit results, and verification policy.
 
 A `NonMatching` object may be promoted to `Matching` only when its complete
