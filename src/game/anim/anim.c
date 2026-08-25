@@ -364,14 +364,16 @@ u32 DoAnimation(int* node, animinfo* info, f32* outmtx, s32* outrot,
 {
     u16* key;
     void* data;
-    u16 raw;
     u32 flags;
     u32 next;
+    s32 pose[12];
     union {
         u32 w;
         u8 b[4];
-    } so, sd;
-    s32 pose[12];
+    } sd, so;
+    u16 flagRaw;
+    u16 nextRaw;
+    u8* bytes;
 
     if (*(u32*)node == 0) {
         return 0;
@@ -383,43 +385,46 @@ u32 DoAnimation(int* node, animinfo* info, f32* outmtx, s32* outrot,
     sd.b[2] = so.b[1];
     sd.b[3] = so.b[0];
     data = (void*)(((s32*)info->animheader)[3] + sd.w);
-    raw = *key;
-    flags = (u16)(((raw & 0xFF) << 8) | (raw >> 8));
-    next = (u16)(((key[1] & 0xFF) << 8) | (key[1] >> 8));
+    flagRaw = key[0];
+    bytes = (u8*)&flagRaw;
+    flags = (u16)((bytes[1] << 8) | bytes[0]);
+    nextRaw = key[1];
+    bytes = (u8*)&nextRaw;
+    next = (u16)((bytes[1] << 8) | bytes[0]);
     if (info->setpanim != 0) {
         *(u16*)((u8*)node + 8) = 0xFFFF;
         *(u16*)((u8*)node + 10) = 0;
         info->setpanim = 2;
     }
-    if ((raw & 0xF) == 0 && (raw >> 8) == 0) {
+    if ((flags & 0xFFF) == 0) {
         if (outmtx != NULL) {
             CopyMat3(gIdentityMatrix, outmtx);
-            if (posoff == NULL) {
-                outmtx[0xC] = lbl_803457B4;
-                outmtx[0xD] = lbl_803457B4;
-                outmtx[0xE] = lbl_803457B4;
-            } else {
+            if (posoff != NULL) {
                 outmtx[0xC] = posoff[0];
                 outmtx[0xD] = posoff[1];
                 outmtx[0xE] = posoff[2];
+            } else {
+                outmtx[0xC] = lbl_803457B4;
+                outmtx[0xD] = lbl_803457B4;
+                outmtx[0xE] = lbl_803457B4;
             }
         }
         ZeroAnimData(node);
     } else if (CalcAnimation(node, pose, data, info, flags, next) != 0) {
         if (outmtx != NULL) {
-            if ((raw & 0x80) == 0) {
-                CreateRYPMatrix(outmtx, pose, data, info, flags, next);
-            } else {
+            if ((flags & 0x8000) != 0) {
                 CreatePYRMatrix(outmtx, pose, data, info, flags, next);
-            }
-            if (posoff == NULL) {
-                outmtx[0xC] = *(f32*)&pose[4];
-                outmtx[0xD] = *(f32*)&pose[5];
-                outmtx[0xE] = *(f32*)&pose[6];
             } else {
+                CreateRYPMatrix(outmtx, pose, data, info, flags, next);
+            }
+            if (posoff != NULL) {
                 outmtx[0xC] = *(f32*)&pose[4] + posoff[0];
                 outmtx[0xD] = *(f32*)&pose[5] + posoff[1];
                 outmtx[0xE] = *(f32*)&pose[6] + posoff[2];
+            } else {
+                outmtx[0xC] = *(f32*)&pose[4];
+                outmtx[0xD] = *(f32*)&pose[5];
+                outmtx[0xE] = *(f32*)&pose[6];
             }
             if (outrot != NULL) {
                 *(f32*)&outrot[0] = *(f32*)&pose[8];
