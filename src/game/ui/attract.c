@@ -1013,19 +1013,19 @@ int init_attract_mode(int screen) {
         cur = lbl_80344294;
         lbl_80344290 = *(s32*)(tbl + cur * 8 + 16);
         lbl_80344294 = cur + 1;
-        switch ((u32)lbl_80344290) {
-        case 0x8000:
+        switch ((u32)(lbl_80344290 - 0x8000)) {
+        case 0:
             if (screen < 0 && (lbl_803441F4 & 0xF) != 15) {
                 skip = 1;
             }
             break;
-        case 0x8009:
+        case 9:
             if (lbl_803441F4 > 0) {
                 skip = 1;
             }
             break;
-        case 0x8001:
-        case 0x8002:
+        case 1:
+        case 2:
             if (a4 != 0) {
                 skip = 1;
             }
@@ -1033,17 +1033,17 @@ int init_attract_mode(int screen) {
                 skip = 1;
             }
             break;
-        case 0x8004:
+        case 4:
             lbl_80345030 = 0;
             if (*(s32*)(tbl + cur * 8 + 20) == 0 && fcv != 0) {
                 skip = 1;
             }
             break;
-        case 0x8003:
-        case 0x8005:
-        case 0x8006:
-        case 0x8007:
-        case 0x8008:
+        case 3:
+        case 5:
+        case 6:
+        case 7:
+        case 8:
             break;
         }
         if (*(s32*)(tbl + lbl_80344294 * 8 + 16) < 0) {
