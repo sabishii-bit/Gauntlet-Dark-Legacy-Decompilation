@@ -181,13 +181,13 @@ f32 PointViewDist(f32* point, f32 dist);
 s32 TriggerCamUpdate(void)
 {
     void* blit;
-    u8* cameraBuffer;
     f32* position;
     f32 x;
     f32 y;
     f32 z;
     s32 i;
     s32 offset;
+    u8* cameraBuffer;
 
     cameraBuffer = lbl_8023E880;
     if (gTriggerCameraState == 0) {
