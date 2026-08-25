@@ -522,10 +522,10 @@ s32 dcsBankLoad(void* bank, s32 mode) {
     DcsBankData* table = data->banks;
     s32 bankNumber = 0;
     s32 error = 0;
-    s32 oldCallCount = lbl_80345200;
-    u32 header[6];
+    u32 header[5];
     void* file;
 
+    mode = lbl_80345200;
     file = FileBufStart(bank);
     if (file != NULL) {
         if (FileBufReopen(file) != 0) {
@@ -554,12 +554,12 @@ s32 dcsBankLoad(void* bank, s32 mode) {
                     lbl_803451F8 = slot + 1;
                 }
                 entry = &table[slot];
-                entry->size = lbl_80345200 - oldCallCount;
+                entry->size = lbl_80345200 - mode;
                 if (entry->size == 0) {
                     error = 1;
                 } else {
-                    entry->handle = oldCallCount;
-                    lbl_80345224 = data->callStart[oldCallCount];
+                    entry->handle = mode;
+                    lbl_80345224 = data->callStart[mode];
                     bankNumber = (s32)(entry - table) + 1;
                     error = dcsReadVags(file, header);
                     if (error != 0) {
