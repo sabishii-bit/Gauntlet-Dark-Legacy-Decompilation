@@ -959,8 +959,8 @@ void pbDiagDrawMenuA(DiagList* list) {
 
 void pbDiagDrawMenuB(DiagMenu* menu) {
     int line;
-    int i;
     int off;
+    int i;
     int end;
     u8 _spare[8];
     int count = menu->count;
@@ -987,9 +987,8 @@ void pbDiagDrawMenuB(DiagMenu* menu) {
         if (menu->strs == 0) {
             return;
         }
-        i = start;
+        off = (i = start) * 36;
     }
-    off = i * 36;
     while (i < end) {
         if (i == gDiagMenuList[gDiagMenuIdx]) {
             fn_800C008C(0x00FFFF00, 1, line, menu->strs + off);
