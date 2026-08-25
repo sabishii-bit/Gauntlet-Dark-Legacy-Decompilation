@@ -17,12 +17,9 @@
  * only two functions in this TU that save LR, confirming exceptions-on.
  *
  * Status: 3 of 4 functions byte-exact (MBEndFrame, MBInit, mbInvSqrtLookup).
- * The 1/sqrt table builder (mbInitInvSqrtTable) is parked NonMatching: the
- * target inlines the software square root (per-entry frsqrte + a 4-5 step
- * Newton-Raphson refinement, plus NaN/Inf domain guards and the int->double
- * magic-constant conversion), whereas this source emits a library sqrt() call.
- * Matching it byte-for-byte would require reproducing MWCC's inline-sqrt
- * intrinsic expansion (a numeric giant) and is left for a later pass.
+ * mbInitInvSqrtTable has the target's four inline software-square-root loops,
+ * including their distinct negative-domain comparison. Its remaining mismatch
+ * is the second-loop stack/FPR allocation cascade, so the TU stays NonMatching.
  */
 
 /* ---- MB_MAIN globals (resolved via symbols.txt / auto data objects) ---- */
@@ -93,9 +90,9 @@ typedef union MBFloatBits {
 extern u8 __float_nan[];
 extern u8 __float_huge[];
 
-static inline int mbNonzero(f64 x)
+static inline int mbNonzero(f64 x, f64 zero)
 {
-    return x != 0.0;
+    return x != zero;
 }
 
 static inline f64 mbSqrt(f64 x)
@@ -113,7 +110,7 @@ static inline f64 mbSqrt(f64 x)
     if (x == 0.0) {
         return 0.0;
     }
-    if (mbNonzero(x)) {
+    if (mbNonzero(x, 0.0)) {
         return *(f32*)__float_nan;
     }
     return *(f32*)__float_huge;
@@ -133,7 +130,7 @@ static inline f64 mbSqrt(f64 x)
         } else if (x == 0.0) {                                                  \
             (result) = 0.0;                                                      \
         } else {                                                                 \
-            if (x != 0.0) {                                                      \
+            if (mbNonzero(x, 0.0)) {                                             \
                 (result) = *(f32*)__float_nan;                                   \
             } else {                                                             \
                 (result) = *(f32*)__float_huge;                                  \
