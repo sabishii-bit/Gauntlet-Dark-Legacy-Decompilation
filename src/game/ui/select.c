@@ -288,8 +288,8 @@ typedef struct SaveSnap {
  * Returns 1 once every pad has sat idle long enough to leave the screen. */
 s32 do_player_select(void)
 {
-    char* pool = lbl_801143F8;
     u8* blitbase = lbl_80284878;
+    char* pool = lbl_801143F8;
     u8* page = lbl_80121688;
     s32 allIdle = 1;
     s32 anySelecting = 0;
@@ -302,6 +302,7 @@ s32 do_player_select(void)
     s32 boff;
     s32 moff;
     s32 choice;
+    u8 unused[24];
 
     if (lbl_80344BB0 > 0) {
         lbl_80344BB0--;
