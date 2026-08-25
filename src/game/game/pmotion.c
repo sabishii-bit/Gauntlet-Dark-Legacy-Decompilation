@@ -3453,8 +3453,7 @@ f32 PlayerGetTarget(Player* p, f32* pos, f32* dir, f32* out, s32* outId,
     best = limit = lbl_80347C88;
 
     if (gBossObj != NULL) {
-        limit = lbl_80347D58;
-        best = limit;
+        best = limit = lbl_80347D58;
     }
 
     if (id >= 0x10000) {
@@ -3475,8 +3474,8 @@ f32 PlayerGetTarget(Player* p, f32* pos, f32* dir, f32* out, s32* outId,
             out[1] = ty - pos[1];
             out[2] = tz - pos[2];
             d = NormalVector(out);
-            best = d - PF(enemy, 0x238, f32);
-            if (best > lbl_80347B30 || *(s32*)enemy == 30) {
+            if ((best = d - PF(enemy, 0x238, f32)) > lbl_80347B30 ||
+                *(s32*)enemy == 30) {
                 dot = out[0] * dir[0] + out[1] * dir[1] + out[2] * dir[2];
                 if (dot < lbl_80347B10) {
                     best = limit;
@@ -3588,8 +3587,7 @@ f32 PlayerGetTarget(Player* p, f32* pos, f32* dir, f32* out, s32* outId,
     }
 
     if (id >= 0) {
-        u8* ci = (u8*)p->collision_item;
-        if (ci != NULL && **(s32**)ci == 7) {
+        if (p->collision_item != NULL && **(s32**)p->collision_item == 7) {
             vec[0] = tx - pos[0];
             vec[1] = ty - pos[1];
             vec[2] = tz - pos[2];
@@ -3597,8 +3595,8 @@ f32 PlayerGetTarget(Player* p, f32* pos, f32* dir, f32* out, s32* outId,
             vec[0] = vec[0] * (lbl_80347C28 * PF(p, 0x850, f32)) + pos[0];
             vec[1] = vec[1] * (lbl_80347C28 * PF(p, 0x850, f32)) + pos[1];
             vec[2] = vec[2] * (lbl_80347C28 * PF(p, 0x850, f32)) + pos[2];
-            dist = fn_8005F0F4(ci, (s32)pos, vec, 0, PF(p, 0x850, f32),
-                               PF(p, 0x854, f32));
+            dist = fn_8005F0F4((u8*)p->collision_item, (s32)pos, vec, 0,
+                               PF(p, 0x850, f32), PF(p, 0x854, f32));
             if (dist >= lbl_80347B08) {
                 id = -1;
                 best = limit;
