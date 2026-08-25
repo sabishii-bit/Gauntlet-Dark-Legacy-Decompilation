@@ -288,7 +288,7 @@ extern char lbl_80348EF4[];     /* mode-5 row fmt (sdata2 string)         */
  * the original).  Returns the advanced line cursor. */
 void fn_800C03E0(s32 mode)
 {
-    u8 unused[96];
+    u8 unused[88];
     u32* tblA = lbl_802C45CC;
     char* fmts = lbl_80116450;
     DbgRow* tblB = lbl_80127DE8;
