@@ -179,18 +179,21 @@ u32 fn_80010904(u32* bits, s32 start, s32 total);
 /* Byte-swap a float through memory (anim data is little-endian). */
 static inline f32 SwapFloat(f32 v)
 {
-    union {
-        u32 w;
-        u8 b[4];
-    } s, d;
     u32 w;
 
-    s.w = *(u32*)&v;
-    *(volatile u8*)&d.b[0] = *(volatile u8*)&s.b[3];
-    *(volatile u8*)&d.b[1] = *(volatile u8*)&s.b[2];
-    *(volatile u8*)&d.b[2] = *(volatile u8*)&s.b[1];
-    *(volatile u8*)&d.b[3] = *(volatile u8*)&s.b[0];
-    w = d.w;
+    {
+        union {
+            u32 w;
+            u8 b[4];
+        } s, d;
+
+        s.w = *(u32*)&v;
+        *(volatile u8*)&d.b[0] = *(volatile u8*)&s.b[3];
+        *(volatile u8*)&d.b[1] = *(volatile u8*)&s.b[2];
+        *(volatile u8*)&d.b[2] = *(volatile u8*)&s.b[1];
+        *(volatile u8*)&d.b[3] = *(volatile u8*)&s.b[0];
+        w = d.w;
+    }
     return *(f32*)&w;
 }
 
