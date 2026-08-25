@@ -534,12 +534,15 @@ u32 WorldCollide(f32 radius, void* fromv, void* tov, f32* result,
     res->bestAlt = lbl_80345760;
 
     if (offGrid == 0) {
+        f64 earlyZero;
+
         gx = (s32)(gWorldInfo.invCell * (lbl_80344168 - lbl_80344178));
         gz = (s32)(gWorldInfo.invCell * (lbl_8034416C - lbl_8034417C));
         gx = gx < 0 ? 0 :
              (gx > gWorldInfo.gridW - 1 ? gWorldInfo.gridW - 1 : gx);
         gz = gz < 0 ? 0 :
              (gz > gWorldInfo.gridD - 1 ? gWorldInfo.gridD - 1 : gz);
+        earlyZero = lbl_80345730;
         do {
             WorldGridCol* col = &gWorldInfo.cols[gz];
             if (gx >= col->min && gx <= col->max) {
@@ -563,7 +566,7 @@ u32 WorldCollide(f32 radius, void* fromv, void* tov, f32* result,
                                             (s16*)(entry + 4), 0);
                         }
                         if ((lbl_80344188 & 0x20) != 0 &&
-                            lbl_80345730 == (f64)lbl_80344164) {
+                            earlyZero == (f64)lbl_80344164) {
                             break;
                         }
                         off = (tcount - 1) * 2 + off + 6;
@@ -571,7 +574,7 @@ u32 WorldCollide(f32 radius, void* fromv, void* tov, f32* result,
                 }
             }
             if ((lbl_80344188 & 0x20) != 0 &&
-                lbl_80345730 == (f64)lbl_80344164) {
+                earlyZero == (f64)lbl_80344164) {
                 break;
             }
         } while (NextGrid(dx, dz, slope, radius, &gx, &gz) != 0);
