@@ -65,6 +65,11 @@ typedef struct PolyContext {
     PolyHeader* header;        /* +0x70 default header */
 } PolyContext;
 
+typedef union PolyContextSlot {
+    PolyContext* value;
+    u64 storage;
+} PolyContextSlot;
+
 typedef struct PolyWinGlobals {
     u8 _00[0x10];
     u8* screen;                 /* +0x10, depth scale at +0x34 */
@@ -112,7 +117,7 @@ static s32          gPolyState;       /* 0x80345300 high-water instance count */
 static s32          gPolyHeaderCount; /* 0x80345304 */
 static s16          gPolyTexOfs;      /* 0x80345308 running tex offset */
 static s32          gPolyVertOffset;  /* 0x8034530C arena allocation cursor */
-PolyContext*        gPolyCtx;         /* 0x80345310 default context; shared with MBTreeInit */
+PolyContextSlot     gPolyCtx;         /* 0x80345310 default context storage */
 
 /* --- forward decls (DOL order) --- */
 PolyHeader* MBCreatePolyHeader(s32 capacity);
@@ -140,10 +145,10 @@ void MBInitPolys(BOOL useHash) {
             ctx->header = h;
             ctx->node = NULL;
         }
-        gPolyCtx = ctx;
+        gPolyCtx.value = ctx;
         ctx->flags |= 4;
     } else {
-        gPolyCtx = NULL;
+        gPolyCtx.value = NULL;
     }
 }
 
@@ -178,7 +183,7 @@ PolyInstance* MBNewPoly(PolyContext* ctx, s32 type, s32 tex, f32* verts) {
         return NULL;
     }
     if (ctx == NULL) {
-        ctx = gPolyCtx;
+        ctx = gPolyCtx.value;
     }
     header = ctx->header;
 
