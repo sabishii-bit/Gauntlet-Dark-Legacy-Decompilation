@@ -297,7 +297,8 @@ extern void* DrawTextKeepScale(f32 scale, s32 x, s32 y, s32 font, u32 rgb, char*
 extern s32 DrawNormalText(f32 scale, char* text, s32 font);
 extern void SetDrawStringScale(f32 scale);
 extern void RestoreDrawStringScale(void);
-extern void DrawStringText(s32 x, s32 y, s32 font, u32 rgb, s32 msg, s32 line);
+extern s32 DrawStringText(s32 x, s32 y, u32 flags, u32 color, s32 msg,
+                          s32 idx, ...);
 extern void DrawScrollListText(s32 a, u32 always, s32 x, s32 y, s32 font, u32 rgb, s32 sub, s32 msg, s32 line);
 extern char* GetScrollText(s32 a, s32 list, s32 msg, void* d);
 extern s32 GetStringListMsg(s32 list, s32 msg);
@@ -1343,17 +1344,17 @@ static void do_controlsmenu(OPTMENU* m, s32 player)
     s32 w;
     s32 h;
     s32 x;
+    u32 rgb;
 
     if (player >= 0) {
         style = control_style;
         for (i = 0, off = 0; i < 3; i++, off += 24) {
-            mbBlitCalcWidth(*(void**)(base + off + 7660),
-                            *(s32*)(base + off + 7644),
-                            *(s32*)(base + off + 7648), -1.0f);
-            {
-                CTLBLIT* b = (CTLBLIT*)(base + off + 7640);
-                mbBlitProject(b->blit, b->w, b->h);
-            }
+            u8* p = base + off;
+            CTLBLIT* b = (CTLBLIT*)(p + 7640);
+
+            mbBlitCalcWidth(*(void**)(p + 7660), *(s32*)(p + 7644),
+                            *(s32*)(p + 7648), -1.0f);
+            mbBlitProject(b->blit, b->w, b->h);
         }
         SetDrawStringScale(OPTCTL_SCALE);
         gLineSpacing = OPTCTL_DY;
@@ -1362,19 +1363,18 @@ static void do_controlsmenu(OPTMENU* m, s32 player)
             w = StringTextWidth(OPTCTL_SCALE, msg, i);
             h = StringTextHeight(OPTCTL_SCALE, msg, i, -1);
             {
-            s32* L = (s32*)((u8*)(base + off) + 7448);
-            if (L[0] == 1) {
+            s32* L = (s32*)(base + off);
+            if (*(L += 1862) == 1) {
                 x = -(L[1] + 0x100);
             } else if (L[0] == 2) {
                 x = -((L[1] + 0x100) - w / 2);
             } else {
                 x = -(L[1] + w / 2 + 0x100);
             }
-            DrawStringText(x, L[2] - h / 2, OPTCTL_FONT,
-                           (*(s32*)(base + 236) & 0xFF) |
-                           ((*(s32*)(base + 228) & 0xFF) << 16) |
-                           ((*(s32*)(base + 232) & 0xFF) << 8),
-                           msg, i);
+            rgb = (*(s32*)(base + 236) & 0xFF) |
+                  ((*(s32*)(base + 228) & 0xFF) << 16) |
+                  ((*(s32*)(base + 232) & 0xFF) << 8);
+            DrawStringText(x, L[2] - h / 2, OPTCTL_FONT, rgb, msg, i);
             }
         }
         RestoreDrawStringScale();
