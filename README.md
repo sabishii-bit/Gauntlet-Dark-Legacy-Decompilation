@@ -128,6 +128,30 @@ To print decompilation progress:
 python configure.py progress
 ```
 
+### Frank and guarded register-web postprocessing
+
+The build harness supports two narrowly scoped CodeWarrior postprocessors for
+historical compiler walls:
+
+- `tools/gdl/frank.py` implements Melee's two-object GC/1.2.5e profile merge.
+  It is intended for evidence-backed epilogue scheduling probes, not as a
+  project-wide compiler replacement.
+- `tools/gdl/webfrank.py` can correct an individually audited
+  `REGISTER_ONLY` function after proving that every non-register instruction
+  bit already matches. Rules carry exact input, target, and output hashes and
+  fail the build closed on source/compiler drift.
+
+The repository-wide Frank sweep found no improvements, so Frank is opt-in per
+object. WebFrank is likewise restricted to reviewed rules in
+[`config/GUNE5D/webfrank.json`](config/GUNE5D/webfrank.json); it must not be
+used to hide opcode, branch, immediate, relocation, ABI, semantic, or data
+differences. See [`research/gc_125e_frank.md`](research/gc_125e_frank.md) for
+the compiler history, audit results, and verification policy.
+
+A `NonMatching` object may be promoted to `Matching` only when its complete
+postprocessed object is exact, including code, relocations, data/BSS and
+exception metadata, and a fresh full build reproduces the configured DOL hash.
+
 Xbox debug symbols
 ==================
 
