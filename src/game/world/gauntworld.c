@@ -241,6 +241,8 @@ void ResolveWorldData(int worldlevel)
     int count;
     u8* p;
     u8* q;
+    u8* q2;
+    u8* q3;
 
     wt = (u8*)sWorldLevelTable;
     strs = lbl_80112788;
@@ -253,8 +255,7 @@ void ResolveWorldData(int worldlevel)
         off = 0;
         for (i = 0; i < 14; i++, off += 44) {
             rec = wt + off;
-            rec += 232;
-            if (realm != *(s32*)rec) {
+            if (realm != *(s32*)(rec += 232)) {
                 continue;
             }
             if (*(s32*)(rec + 16) != 0) {
@@ -346,7 +347,9 @@ void ResolveWorldData(int worldlevel)
                             *(f32*)q = WorldSwapF(*(f32*)q);
                         }
                         for (j = 0; j < 6; j++) {
-                            WSWAP16(p, 76 + j * 2);
+                            q = p + j * 2;
+                            q2 = q + 76;
+                            WSWAP16(q2, 0);
                         }
                         WSWAPF(p, 116);
                         WSWAPF(p, 120);
@@ -408,8 +411,10 @@ void ResolveWorldData(int worldlevel)
                         WSWAPF(p, 104);
                         for (j = 0; j < 3; j++) {
                             q = p + j * 4;
-                            WSWAPF(q, 12);
-                            WSWAPF(q, 24);
+                            q2 = q + 12;
+                            q3 = q + 24;
+                            WSWAPF(q2, 0);
+                            WSWAPF(q3, 0);
                         }
                         n++;
                         off += 108;
@@ -426,7 +431,9 @@ void ResolveWorldData(int worldlevel)
                         WSWAP16(p, 40);
                         WSWAP16(p, 42);
                         for (j = 0; j < 8; j++) {
-                            WSWAP16(p, 44 + j * 2);
+                            q = p + j * 2;
+                            q2 = q + 44;
+                            WSWAP16(q2, 0);
                         }
                         n++;
                         off += 60;
@@ -441,8 +448,9 @@ void ResolveWorldData(int worldlevel)
                             WSWAPF(p, j * 4);
                         }
                         for (k = 0; k < 8; k++) {
+                            q = p + k * 8;
                             for (j = 0; j < 2; j++) {
-                                WSWAPF(p, 8 + k * 8 + j * 4);
+                                WSWAPF(q, 8 + j * 4);
                             }
                         }
                         n++;
@@ -476,8 +484,7 @@ void ResolveWorldData(int worldlevel)
                     }
                 }
                 p = wt + off;
-                p += 252;
-                if (*(s32*)p < 0) {
+                if (*(s32*)(p += 252) < 0) {
                     *(s32*)p = gWorldData->numLevels;
                 }
                 ResolveWorldDataPointers();
@@ -504,10 +511,16 @@ void ResolveWorldData(int worldlevel)
 
     /* first level (from the current one) that owns cameras */
     count = gWorldData->numLevels;
-    for (level = level + 1; level < count; level++) {
-        if (gWorldData->levels[level].flags2 & 1) {
-            break;
-        }
+    level++;
+    n = level * 268;
+    goto camera_check;
+camera_next:
+    level++;
+    n += 268;
+camera_check:
+    if (level < count &&
+        !(*(s16*)((u8*)gWorldData->levels + n + 4) & 1)) {
+        goto camera_next;
     }
     if (level < count) {
         lbl_80344840 = &gWorldData->levels[level];
