@@ -941,7 +941,7 @@ s32 AdsPutBuffer(ADSTREAM* s, u8* src, s32 len) {
     }
     saved = s->sampleBits;
     s->sampleBits = 16;
-    hres = AdsParseHeader(s, (u32*)((u8*)s + 0x54), (u32*)((u8*)s + 0x74));
+    hres = AdsParseHeader(s, (u32*)(&s->status + 1), (u32*)((u8*)s + 0x74));
     s->sampleBits = saved;
     if (hres < 0) {
         len = hres;
