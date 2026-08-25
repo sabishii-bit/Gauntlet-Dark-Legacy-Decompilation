@@ -607,37 +607,45 @@ int FileExists(char* wad, char* name)
 
 void* AllocFile(char* wad, char* name)
 {
-    void* dest;
+    u8 unused[8];
     int avail;
     int read;
+    void* dest;
     int used0;
 
     if (mlmMemReserved != 0) {
         gErrorCode = 0xe0e000;
-        bulletproof_printf("GetMemBase() called while mem reserved\n");
+        FatalErrorf("GetMemBase() called while mem reserved");
     }
-    dest = mlmMemBase + (mlmMemUsed >> 2) * 4;
+    dest = mlmMemBase + (mlmMemUsed / 4) * 4;
     avail = mlmMemLimit - mlmMemUsed;
-    used0 = mlmMemUsed;
     read = xReadFileSection(wad, name, avail, dest);
-    if (avail > 0 && avail < read) {
+    if (avail > 0 && read > avail) {
         gErrorCode = 0x80;
-        bulletproof_printf("File read overflowed %s size %d\n", name, read);
+        FatalErrorf("File read overflowed: %s size:%d max:%d",
+                    temp_finfo.name, read, avail);
     }
     if (read < 0) {
         gErrorCode = 0xff;
-        bulletproof_printf("AllocFile: Read failed\n");
+        FatalErrorf("AllocFile: Read failed.");
+    }
+    avail = read;
+    used0 = mlmMemUsed;
+    if (mlmMemReserved != 0) {
+        gErrorCode = 0xa0a000;
+        FatalErrorf("AllocMem() called while mem reserved");
     }
     if (read & 0xf) {
-        read += 0x10 - (read & 0xf);
+        avail += 0x10 - (read & 0xf);
     }
-    mlmMemUsed += read;
-    if (mlmMemLimit < mlmMemUsed) {
+    mlmMemUsed += avail;
+    if (mlmMemUsed > mlmMemLimit) {
         gErrorCode = 0xc0c000;
-        bulletproof_printf("AllocMem failed %d bytes (exceeds by %d)\n",
-                           read, mlmMemUsed - mlmMemLimit);
+        FatalErrorf("AllocMem failed: %d bytes, exceeds free by %d bytes",
+                    avail, mlmMemUsed - mlmMemLimit);
     }
-    bulletproof_printf("-----ALLOC FILE %s %s MEM %06dk\n", wad, name, used0 >> 10);
+    bulletproof_printf("==== ALLOC FILE=%s/%s, MEM:%06dk -> %06dk [%dk]\n",
+                       wad, name, used0 >> 10, mlmMemUsed >> 10, read >> 10);
     mlmLastFileSize = read;
     return dest;
 }
