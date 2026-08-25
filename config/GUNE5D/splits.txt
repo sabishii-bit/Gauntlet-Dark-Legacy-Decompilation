@@ -385,6 +385,7 @@ game/ps2/ml_fmath.c:
 	extab       start:0x80007A30 end:0x80007AF0
 	extabindex  start:0x8000BF98 end:0x8000C0B8
 	.text       start:0x800BCAAC end:0x800BE964
+	.sdata2     start:0x80348E70 end:0x80348E78
 
 game/sys/ml_mem.c:
 	extab       start:0x80007AF0 end:0x80007B70
