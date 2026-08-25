@@ -62,7 +62,7 @@ double modf(double x, double* iptr);
 #define FP_NORMAL 4
 #define FP_SUBNORMAL 5
 
-static int fpclassify(double d)
+static inline int fpclassify(double d)
 {
     union {
         double d;
@@ -613,6 +613,7 @@ int vsprintf(char* str, const char* fmt, va_list ap)
             _ulong = UARG();
             base = 1;
             goto nosign;
+        case 'B':
         case 'b':
             _ulong = UARG();
             base = 3;
