@@ -76,14 +76,32 @@ FUNCTIONS = [
     (0x004C4430, "MWCC_COptimizer_Optimize", "inferred optimization-level dispatcher"),
     (0x004C4530, "MWCC_COptimizer_Level4", "confirmed pass order and entry"),
     (0x004C4910, "MWCC_COptimizer_Level3", "confirmed pass order and entry"),
-    (0x004CCAE0, "MWCC_Scheduler_Schedule", "inferred exact scheduler role"),
+    (0x004CCA50, "MWCC_Scheduler_DependenceTestStub", "confirmed dead scheduler-model predicate; every path returns zero"),
+    (0x004CCAE0, "MWCC_Scheduler_Schedule", "confirmed scheduler driver and machine-model selector"),
+    (0x004CCBF0, "MWCC_Scheduler_ScheduleBlock", "confirmed cycle-driven per-block list scheduler"),
+    (0x004CCDC0, "MWCC_Scheduler_PickInstruction", "confirmed urgency/release-count/height/descriptor/text-order selector"),
+    (0x004CCF10, "MWCC_Scheduler_BuildDependencies", "confirmed backward dependency-graph construction"),
+    (0x004CD2F0, "MWCC_Scheduler_AddWildcardMemoryDeps", "confirmed conservative object-less memory dependency pass"),
+    (0x004CD4A0, "MWCC_Scheduler_AddObjectMemoryDeps", "confirmed object-keyed load/store dependency pass"),
+    (0x004CD650, "MWCC_Scheduler_AddVolatileMemoryDeps", "inferred exact volatile-memory dependency role"),
+    (0x004CD7C0, "MWCC_Scheduler_AddRegisterDeps", "confirmed per-register RAW/WAR/WAW dependency pass"),
+    (0x004CD910, "MWCC_Scheduler_AddEdge", "confirmed edge insertion and critical-path height propagation"),
+    (0x004CD9D0, "MWCC_Scheduler_ResetBlockState", "confirmed per-block dependency-table reset"),
     (0x004CDEF0, "MWCC_Coloring_AllocateRegisters", "inferred exact coloring coordinator"),
+    (0x0052DBC0, "MWCC_SchedulerModelDefault_Serializes", "confirmed default-model barrier predicate"),
+    (0x0052DBE0, "MWCC_SchedulerModelDefault_Advance", "confirmed default-model pipeline and retirement advance"),
+    (0x0052DF20, "MWCC_SchedulerModelDefault_OnIssue", "confirmed default-model instruction issue hook"),
+    (0x0052DFA0, "MWCC_SchedulerModelDefault_CanIssue", "confirmed default-model structural-hazard predicate"),
+    (0x0052E000, "MWCC_SchedulerModelDefault_Reset", "confirmed default-model per-block reset"),
+    (0x0052E0B0, "MWCC_SchedulerModelDefault_Latency", "confirmed default-model latency calculation"),
 ]
 
 
 GLOBALS = [
     (0x00560CB4, "MWCC_gNodeNames", None, "75-entry AST node-name table"),
     (0x005654B0, "MWCC_gPCodeOpcodeDescriptors", None, "468 descriptors, 0x10 bytes each"),
+    (0x00574D70, "MWCC_gSchedulerModelDefault", "scheduler_model", "default issue-width-two scheduler machine model selected by -proc gekko"),
+    (0x00574D90, "MWCC_gSchedulerTimingDefault", "scheduler_opcode_table", "468 six-byte default-model opcode timing records"),
     (0x0057F6C0, "MWCC_gTemporaryObjects", "pointer", "debugger-validated temporary-object list"),
     (0x0058712C, "MWCC_gFrameCallArgsSize", "u32", "secondary/outgoing-call frame cursor"),
     (0x00587130, "MWCC_gCurrentCodeGenItem", "pointer", "current lowering item/statement"),
@@ -93,8 +111,14 @@ GLOBALS = [
     (0x0058806C, "MWCC_gPostInitialObjectList", "pointer", "post-initial register-object list"),
     (0x005880C4, "MWCC_gCurrentPCodeBlock", "pointer", "live-observed current physical block"),
     (0x005880CC, "MWCC_gFrameBaseSize", "u32", "linkage/base frame size"),
+    (0x00581B7C, "MWCC_gSchedulerTerminatorNode", "pointer", "current scheduling graph terminator node"),
+    (0x00581B80, "MWCC_gSchedulerModel", "pointer", "selected SchedulerMachineModel pointer"),
+    (0x00581B84, "MWCC_gSchedulerMaxHeight", "u16", "running maximum critical-path height; not reset between blocks"),
     (0x0058846C, "MWCC_gUsedVirtualRegistersFPR", "u16", "FPR virtual-register counter"),
     (0x0058846E, "MWCC_gUsedVirtualRegistersGPR", "u16", "GPR virtual-register counter"),
+    (0x00584224, "MWCC_gProcessorModel", "u8", "processor model byte; -proc gekko stores 8"),
+    (0x00584230, "MWCC_gSchedulerModelOverride", "u8", "nonzero forces the CPU-7 scheduler model path"),
+    (0x00587648, "MWCC_gVirtualRegistersActive", "u32", "nonzero enables virtual-register-sized scheduler tables and descriptor tie-break"),
 ]
 
 
@@ -207,6 +231,36 @@ SPECIAL_SITES = [
         0x004CE3F4,
         "MWCC_RegallocCaptureBoundary",
         "Exact live debugger boundary for register-allocation capture.",
+    ),
+    (
+        0x004CCCCC,
+        "MWCC_Scheduler_GraphReadyBoundary",
+        "Per-block dependency nodes, heights, deadlines, and predecessor counts are complete; cycle-driven issue begins next.",
+    ),
+    (
+        0x004CCE3F,
+        "MWCC_Scheduler_UrgencyTieBreak",
+        "Start of the confirmed strict-win urgency comparison in Scheduler_PickInstruction.",
+    ),
+    (
+        0x004CCE61,
+        "MWCC_Scheduler_ReleaseCountTieBreak",
+        "Confirmed comparison of successors whose predecessor count is one; strictly more releases wins.",
+    ),
+    (
+        0x004CCEA9,
+        "MWCC_Scheduler_HeightTieBreak",
+        "Confirmed critical-path-height comparison; strictly larger height wins.",
+    ),
+    (
+        0x004CCEBB,
+        "MWCC_Scheduler_DescriptorTieBreak",
+        "Confirmed opcode-descriptor byte-9 comparison; strictly smaller value wins while virtual registers are active.",
+    ),
+    (
+        0x004CCEF2,
+        "MWCC_Scheduler_TextOrderTieBreak",
+        "Final exact tie keeps the earlier-textual candidate. AllocFile reaches this tier; sysPollResetButton is decided earlier by release count.",
     ),
 ]
 
@@ -360,10 +414,62 @@ def make_structures():
     label.replaceAtOffset(0x00, dword, 4, "internal_00", None)
     label.replaceAtOffset(0x04, pointer, 4, "block", "PCodeBlock*")
 
-    for data_type in (link, operand, insn, block, label):
+    scheduler_edge = StructureDataType(category, "SchedulerEdge", 0x0C, dtm)
+    scheduler_edge.replaceAtOffset(0x00, pointer, 4, "next", "SchedulerEdge*")
+    scheduler_edge.replaceAtOffset(0x04, pointer, 4, "target", "SchedulerNode*")
+    scheduler_edge.replaceAtOffset(0x08, word, 2, "latency", "dependency latency in cycles")
+    scheduler_edge.replaceAtOffset(0x0A, word, 2, "reserved_0a", None)
+
+    scheduler_node = StructureDataType(category, "SchedulerNode", 0x1A, dtm)
+    scheduler_node.replaceAtOffset(0x00, pointer, 4, "next_textual", "SchedulerNode*")
+    scheduler_node.replaceAtOffset(0x04, pointer, 4, "previous_textual", "SchedulerNode*")
+    scheduler_node.replaceAtOffset(0x08, pointer, 4, "successors", "SchedulerEdge*")
+    scheduler_node.replaceAtOffset(0x0C, pointer, 4, "instruction", "PCodeInstruction*")
+    scheduler_node.replaceAtOffset(0x10, word, 2, "latency", "instruction latency")
+    scheduler_node.replaceAtOffset(0x12, word, 2, "ready_cycle", "earliest issue cycle from issued predecessors")
+    scheduler_node.replaceAtOffset(0x14, word, 2, "deadline", "global maximum height minus this node's height")
+    scheduler_node.replaceAtOffset(0x16, word, 2, "height", "critical-path height to block end")
+    scheduler_node.replaceAtOffset(0x18, word, 2, "predecessor_count", "unissued predecessors")
+
+    scheduler_model = StructureDataType(category, "SchedulerMachineModel", 0x20, dtm)
+    scheduler_model.replaceAtOffset(0x00, dword, 4, "issue_width", "maximum instructions selected per cycle")
+    scheduler_model.replaceAtOffset(0x04, dword, 4, "zero_war_waw_latency", "nonzero gives GPR/FPR/VR WAR and WAW edges latency zero")
+    scheduler_model.replaceAtOffset(0x08, pointer, 4, "latency", "latency(PCodeInstruction*)")
+    scheduler_model.replaceAtOffset(0x0C, pointer, 4, "reset", "reset model state for one block")
+    scheduler_model.replaceAtOffset(0x10, pointer, 4, "can_issue", "structural-hazard predicate")
+    scheduler_model.replaceAtOffset(0x14, pointer, 4, "on_issue", "occupy unit and completion slot")
+    scheduler_model.replaceAtOffset(0x18, pointer, 4, "advance", "advance one cycle")
+    scheduler_model.replaceAtOffset(0x1C, pointer, 4, "serializes", "barrier predicate")
+
+    scheduler_timing = StructureDataType(category, "SchedulerOpcodeTiming", 0x06, dtm)
+    scheduler_timing.replaceAtOffset(0x00, byte, 1, "unit", "functional-unit class")
+    scheduler_timing.replaceAtOffset(0x01, byte, 1, "latency", "base result latency")
+    scheduler_timing.replaceAtOffset(0x02, byte, 1, "occupancy", "initial unit occupancy")
+    scheduler_timing.replaceAtOffset(0x03, byte, 1, "stage2_countdown", "second pipeline-stage countdown")
+    scheduler_timing.replaceAtOffset(0x04, byte, 1, "stage3_countdown", "third pipeline-stage countdown")
+    scheduler_timing.replaceAtOffset(0x05, byte, 1, "serialize", "nonzero makes the opcode a scheduling barrier")
+
+    for data_type in (
+        link,
+        operand,
+        insn,
+        block,
+        label,
+        scheduler_edge,
+        scheduler_node,
+        scheduler_model,
+        scheduler_timing,
+    ):
         dtm.addDataType(data_type, DataTypeConflictHandler.REPLACE_HANDLER)
 
-    return {"pointer": pointer, "u16": word, "u32": dword}
+    return {
+        "pointer": pointer,
+        "u8": byte,
+        "u16": word,
+        "u32": dword,
+        "scheduler_model": scheduler_model,
+        "scheduler_opcode_table": ArrayDataType(scheduler_timing, 468, 0x06),
+    }
 
 
 def annotate_global(value, name, type_name, text, data_types):
@@ -405,7 +511,7 @@ def main():
         )
 
     for value, name, text in SPECIAL_SITES:
-        annotate_site(value, name, text, "MWCC P6/1.2.5n research")
+        annotate_site(value, name, text, "MWCC compiler research")
 
     if profile["ninji"]:
         annotate_function(
@@ -417,7 +523,7 @@ def main():
             0x0050653D,
             "MWCC_125n_EpiloguePatchCaveEnd",
             "End of the 46-byte GC/1.2.5n cave span.",
-            "MWCC P6/1.2.5n research",
+            "MWCC compiler research",
         )
 
     println(

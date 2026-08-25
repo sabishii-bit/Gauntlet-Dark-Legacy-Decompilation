@@ -96,10 +96,18 @@ including any compiler bytes. It accepts only these original executable hashes:
 
 The import adds recovered function/global names, AST and PCode capture
 bookmarks, the P6 pre-predecessor hook boundary, the 1.2.5n epilogue-patch
-sites, and packed `PCodeBlock`, `PCodeInstruction`, `PCodeOperand`,
-`PCodeLink`, and `PCodeLabel` data types. Names described as inferred in their
-plate comments are semantic working names, not claimed original Metrowerks
-identifiers.
+sites, and the recovered stage-2 scheduler. Scheduler annotations include its
+driver, dependency builders, four-level picker, default machine-model hooks,
+model/timing globals, graph-ready boundary, and each tie-break boundary. Packed
+types cover `PCodeBlock`, `PCodeInstruction`, `PCodeOperand`, `PCodeLink`,
+`PCodeLabel`, `SchedulerNode`, `SchedulerEdge`, `SchedulerMachineModel`, and
+`SchedulerOpcodeTiming`. Names described as inferred in their plate comments
+are semantic working names, not claimed original Metrowerks identifiers.
+
+The scheduler comments also preserve the important distinction established by
+live GC/1.2.5 traces: `AllocFile` reaches the final earlier-textual tie, while
+`sysPollResetButton` is decided at the preceding release-count tier. They are
+therefore not evidence for one simple reversed-text-order rule.
 
 In the Ghidra GUI, import a user-owned `mwcceppc.exe` as PE/i386, run normal
 analysis, add this directory to Script Manager's script paths, and run
