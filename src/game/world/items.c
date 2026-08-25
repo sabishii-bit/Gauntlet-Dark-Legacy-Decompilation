@@ -2479,8 +2479,8 @@ void update_player_milestone(struct Player* player_ptr)
     for (i = 0, offset = 0; i < sNumMilestones; i++, offset += 0x68) {
         u8* milestone = runtime + offset;
         f32 dy = locals.position[1] - *(f32*)(milestone + 0x3E48);
-        f32 dx = locals.position[0] - *(f32*)(milestone + 0x3E44);
         f32 dz = locals.position[2] - *(f32*)(milestone + 0x3E4C);
+        f32 dx = locals.position[0] - *(f32*)(milestone + 0x3E44);
 
         locals.absolute_y.value = dy;
         locals.absolute_y.bits &= 0x7FFFFFFF;
