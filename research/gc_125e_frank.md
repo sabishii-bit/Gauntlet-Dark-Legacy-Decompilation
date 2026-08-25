@@ -187,6 +187,25 @@ moved progress from 56.25% matched / 23.43% linked to 56.52% matched / 24.48%
 linked. This demonstrates why old PARKED entries now describe source-codegen
 caps rather than permanent binary or TU-linkability verdicts.
 
+The campaign also established several reusable source/object laws:
+
+- assignment-in-condition can remove a head-load carrier and turn a structural
+  residual into a strictly guardable register-only one (`mempool`);
+- a two-parameter inline floating comparison can preserve target operand order
+  where a direct comparison canonicalizes or reuses CR state (`mb_main`);
+- suppressing already-inlined BASE_ONLY helpers and restoring physical function
+  definition order can close raw text and exception-table gaps without changing
+  any target function bytes (`g3dpad`, `pb_window`, `mb_font`, `world`); and
+- swapping labels on byte-identical switch cases can correct jump-table
+  relocation order without changing executable code (`world`).
+
+Negative results are equally important. Known-value literals assigned to
+long-lived locals, including internal-linkage `static const` objects, can be
+propagated into new stack homes even when the desired private pool becomes
+exact. Judge the function and pool together. Likewise, a missing retail branch
+is still structural: neither register WebFrank nor the atom-permutation path may
+manufacture a control instruction that the compiler did not emit.
+
 Do not switch whole libraries to 1.2.5e. Probe a specific function and retain
 the hybrid only when its function and sibling scores improve. `webfrank` is a
 different mechanism and must not be described as Frank, a recovered compiler,
