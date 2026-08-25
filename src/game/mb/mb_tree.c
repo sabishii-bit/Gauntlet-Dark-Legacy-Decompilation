@@ -679,6 +679,7 @@ void MBNodeSetParent(MBTreeNode* node, MBTreeNode* new_parent)
 /* 0x800BAEAC - MBRemoveNode */
 MBTreeNode* MBRemoveNode(MBTreeNode* node, s32 remove_children)
 {
+    u8 unused[8];
     MBTreeNode* parent;
     MBTreeNode* previous;
     MBTreeNode* child;
@@ -702,8 +703,10 @@ MBTreeNode* MBRemoveNode(MBTreeNode* node, s32 remove_children)
     }
 
     if (node->type == 14 && node->special != 0) {
+        MBTreeNode* psys_root = lbl_80344EDC;
+
         parent = node->parent;
-        if (parent == 0 || parent != lbl_80344EDC) {
+        if (parent == 0 || parent != psys_root) {
             if (parent == 0 || parent->child != node) {
                 previous = MBNodePrevNode(node);
                 if (previous != 0)
@@ -712,66 +715,65 @@ MBTreeNode* MBRemoveNode(MBTreeNode* node, s32 remove_children)
                 parent->child = node->next;
             }
             node->next = 0;
-            MBNodeInsert(node, lbl_80344EDC);
+            MBNodeInsert(node, psys_root);
         }
         MBRemovePsys(node);
         return 0;
     }
 
-    if (parent == 0 || parent->child != node) {
-        if (node == lbl_80344ECC) {
-            lbl_80344ECC = node->child;
-            if (lbl_80344ECC == 0) {
-                lbl_80344ECC = node->next;
-            } else {
-                child = node->child;
-                while (child->next != 0) {
-                    child->parent = 0;
-                    child = child->next;
-                }
-                child->parent = 0;
-                child->next = node->next;
-            }
+    if (parent != 0 && parent->child == node) {
+        if (node->child == 0) {
+            parent->child = node->next;
         } else {
-            child = lbl_80344ECC;
-            if (node->parent != 0)
-                child = node->parent->child;
-
-            if (child == 0 || child == node) {
-                previous = 0;
-            } else {
-                previous = child;
-                while (previous != 0 && previous->next != node)
-                    previous = previous->next;
+            parent->child = node->child;
+            child = node->child;
+            while (child->next != 0) {
+                child->parent = parent;
+                child = child->next;
             }
-
-            if (previous != 0) {
-                if (node->child == 0) {
-                    previous->next = node->next;
-                } else {
-                    previous->next = node->child;
-                    parent = previous->parent;
-                    tail = node->child;
-                    while (tail->next != 0) {
-                        tail->parent = parent;
-                        tail = tail->next;
-                    }
-                    tail->parent = parent;
-                    tail->next = node->next;
-                }
-            }
-        }
-    } else if (node->child == 0) {
-        parent->child = node->next;
-    } else {
-        parent->child = node->child;
-        child = node->child;
-        while (child->next != 0) {
             child->parent = parent;
-            child = child->next;
+            child->next = node->next;
         }
-        child->parent = parent;
-        child->next = node->next;
+    } else if (node == lbl_80344ECC) {
+        lbl_80344ECC = node->child;
+        if (lbl_80344ECC == 0) {
+            lbl_80344ECC = node->next;
+        } else {
+            child = node->child;
+            while (child->next != 0) {
+                child->parent = 0;
+                child = child->next;
+            }
+            child->parent = 0;
+            child->next = node->next;
+        }
+    } else {
+        previous = lbl_80344ECC;
+        if (node->parent != 0)
+            previous = node->parent->child;
+
+        if (previous == 0 || previous == node) {
+            previous = 0;
+        } else {
+            while (previous != 0 && previous->next != node)
+                previous = previous->next;
+        }
+
+        if (previous != 0) {
+            if (node->child == 0) {
+                previous->next = node->next;
+            } else {
+                previous->next = node->child;
+                parent = previous->parent;
+                tail = node->child;
+                while (tail->next != 0) {
+                    tail->parent = parent;
+                    tail = tail->next;
+                }
+                tail->parent = parent;
+                tail->next = node->next;
+            }
+        }
     }
 
     node->type = 0;
@@ -785,40 +787,42 @@ MBTreeNode* MBRemoveNode(MBTreeNode* node, s32 remove_children)
 /* 0x800BB164 */
 void MBRemoveNodeChild(MBTreeNode* node)
 {
-    MBTreeNode* next;
-    MBTreeNode* parent;
+    MBUVScaleAdd* entries = (MBUVScaleAdd*)lbl_802C2A28;
+    f32 default_scale = lbl_80348CA0;
 
     while (node != 0) {
-        if (node->child != 0)
-            MBRemoveNodeChild(node->child);
-        if (node->flags & 0x10000000) {
-            *(f32*)(lbl_802C2A28 + (u32)node->uvScaleAddIndex * 16) = lbl_80348CA0;
-            MBTreeClearUVScaleAdd(node, -1, 1);
+        MBTreeNode* current = node;
+
+        if (current->child != 0)
+            MBRemoveNodeChild(current->child);
+        if (current->flags & 0x10000000) {
+            entries[current->uvScaleAddIndex].uScale = default_scale;
+            MBTreeClearUVScaleAdd(current, -1, 1);
         }
-        parent = lbl_80344EDC;
-        next = node->next;
-        if (node->type == 14 && node->special != 0) {
-            MBTreeNode* old_parent = node->parent;
-            if (old_parent == 0 || old_parent != lbl_80344EDC) {
-                if (old_parent == 0 || old_parent->child != node) {
-                    MBTreeNode* previous = MBNodePrevNode(node);
+        node = current->next;
+        if (current->type == 14 && current->special != 0) {
+            MBTreeNode* psys_root = lbl_80344EDC;
+            MBTreeNode* old_parent = current->parent;
+
+            if (old_parent == 0 || old_parent != psys_root) {
+                if (old_parent == 0 || old_parent->child != current) {
+                    MBTreeNode* previous = MBNodePrevNode(current);
                     if (previous != 0)
-                        previous->next = node->next;
+                        previous->next = current->next;
                 } else {
-                    old_parent->child = node->next;
+                    old_parent->child = current->next;
                 }
-                node->next = 0;
-                MBNodeInsert(node, parent);
+                current->next = 0;
+                MBNodeInsert(current, psys_root);
             }
-            MBRemovePsys(node);
+            MBRemovePsys(current);
         } else {
-            node->type = 0;
-            node->child = 0;
-            node->parent = 0;
-            node->next = lbl_80344EE0;
-            lbl_80344EE0 = node;
+            current->type = 0;
+            current->child = 0;
+            current->parent = 0;
+            current->next = lbl_80344EE0;
+            lbl_80344EE0 = current;
         }
-        node = next;
     }
 }
 
@@ -975,4 +979,3 @@ MBTreeNode* MBNodePrevNode(MBTreeNode* node)
     }
     return current;
 }
-
