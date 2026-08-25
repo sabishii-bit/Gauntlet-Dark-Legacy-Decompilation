@@ -107,7 +107,7 @@ extern s32  lbl_803449A8;        /* 0x803449A8: extra suspend companion flag */
 extern const char lbl_803459B0; /* "ALL" (default startup mode) */
 extern const char lbl_803459A0[8]; /* "streams" (stream file group) */
 extern const char lbl_80345990; /* "audio" (bank file group) */
-extern const char lbl_80345998[]; /* "%s.vbk" (bank filename format) */
+extern const char lbl_80345998[7]; /* "%s.vbk" (bank filename format) */
 extern const u8 lbl_80111348[];   /* 0xB4-byte AllocFile load descriptor */
 
 /* sdata2 constants */
@@ -887,6 +887,8 @@ s32 AudioLoadPart(s32 bankIdx, s32 partIdx, s32 waitLevel, s32 flag)
     s32 expected;
     s32 retry;
     s32 resp;
+    const char* messages = sAudioTimeoutMsg;
+    u8* state = sAudioState;
     u8* bankEntry;
     u8* romBank;
     u8* queueSlot;
@@ -900,7 +902,7 @@ s32 AudioLoadPart(s32 bankIdx, s32 partIdx, s32 waitLevel, s32 flag)
     }
     slot = 0;
     for (off = 0; off < 4 * 36; off += 36, slot++) {
-        if (*(s32*)(sAudioState + off + 1176) < 0) {
+        if (*(s32*)(state + off + 1176) < 0) {
             break;
         }
     }
@@ -930,9 +932,9 @@ s32 AudioLoadPart(s32 bankIdx, s32 partIdx, s32 waitLevel, s32 flag)
     sAudioQueBusy = 1;
     sprintf(name, lbl_80345998, (char*)romBank);   /* "%s.vbk" */
     if (FileMap((char*)&lbl_80345990, name, &mapPtr, 256, &mapSz1, &mapSz2) == 0) {
-        ErrorPrintf("Audio Bank bad file: %s", name);
+        ErrorPrintf(messages + 144, name);
     } else {
-        queueSlot = sAudioState + slot * 36;
+        queueSlot = state + slot * 36;
         *(s32*)(queueSlot + 1176) = bankIdx;
         *(s32*)(queueSlot + 1180) = partIdx;
         *(s32*)(queueSlot + 1184) = flag;
@@ -946,10 +948,10 @@ s32 AudioLoadPart(s32 bankIdx, s32 partIdx, s32 waitLevel, s32 flag)
             if (resp >= 0) {
                 break;
             }
-            ErrorPrintf("aud_load_bank failed: %d", resp);
+            ErrorPrintf(messages + 168, resp);
             retry++;
             if (retry > 10000) {
-                FatalError("aud_load_bank failed", 0x8000);
+                FatalError(messages + 196, 0x8000);
             }
         }
         if (waitLevel < 2) {
