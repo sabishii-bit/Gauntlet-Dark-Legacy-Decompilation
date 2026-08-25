@@ -696,8 +696,8 @@ void cam_orient_to_80029E8C(s32 camIdx)
 s32 MoveCam_walk_8002A024(s32 camIdx)
 {
     s32 oldMode;
-    s32 done;
     Camera* cam = &gCameras[camIdx];
+    s32 done;
 
     switch (lbl_803444F0) {
     case 1: {
