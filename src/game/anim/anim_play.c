@@ -223,8 +223,8 @@ static inline s32 GetPYRComp(f32* dst, u8* src, s32 flags, s32 n, u32* mask)
     for (i = 0; i < 3; i++) {
         if ((s16)flags & mask[i]) {
             dst[i] += SwapFloat(lbl_803441B8[*src]);
-            src++;
             n++;
+            src++;
         }
     }
     return n;
@@ -253,8 +253,8 @@ static inline s32 GetXYZComp(f32* dst, u8* src, s32 flags, s32 n, u32* mask)
     for (i = 0; i < 3; i++) {
         if ((s16)flags & mask[i + 3]) {
             dst[i] += SwapFloat(lbl_803441B4[*src]);
-            src++;
             n++;
+            src++;
         }
     }
     return n;
@@ -328,8 +328,8 @@ static inline s32 GetScaleComp(f32* dst, u8* src, s32 flags, s32 n, u32* mask)
     for (i = 0; i < 3; i++) {
         if ((s16)flags & mask[i + 6]) {
             dst[i] += SwapFloat(lbl_803441B0[*src]);
-            src++;
             n++;
+            src++;
         }
     }
     return n;
