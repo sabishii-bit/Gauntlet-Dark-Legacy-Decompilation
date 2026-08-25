@@ -935,7 +935,7 @@ void TowerNeedCrystalsMsg(int who, int slot) {
 
 /* Summon the good wizard's WIZARD atree + node once (shared helper, inlined
  * at every call site in the original TU). */
-static void towerSummonWizard(TowerMsgState* state) {
+static inline void towerSummonWizard(TowerMsgState* state) {
     if ((u32)lbl_80344C64 == 0) {
         void* atree = (void*)AtreeMatch(sGoodWizObj, (char*)&lbl_803485A4, 0);
 
