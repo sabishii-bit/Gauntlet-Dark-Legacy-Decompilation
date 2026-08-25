@@ -232,8 +232,8 @@ static void debugScissor(u32* p)
 
 #pragma dont_inline off
 /* debug zoom: shrinks the port rect / clip size (inlined into pbProjCalc) */
-static void debugZoomAdjust(volatile f32* l, volatile f32* r, volatile f32* t,
-                            volatile f32* b, volatile f32* w, volatile f32* h)
+static inline void debugZoomAdjust(volatile f32* l, volatile f32* r, volatile f32* t,
+                                   volatile f32* b, volatile f32* w, volatile f32* h)
 {
     PBWINGLOBALS* g = gWinGlobals;
     PBWINDEBUG* d = gWinDebug;
@@ -256,7 +256,7 @@ static void debugZoomAdjust(volatile f32* l, volatile f32* r, volatile f32* t,
 }
 
 /* camera matrices for the current window */
-static void calcMatrices(PBWINSTATIC* ws)
+static inline void calcMatrices(PBWINSTATIC* ws)
 {
     PBWINGLOBALS* g = gWinGlobals;
 
@@ -725,6 +725,38 @@ void pbWinSetup(void)
 }
 #pragma dont_inline on
 
+/* 0x800C92B8 */
+static void setupMatrices(MTXPACKET2* p0, MTXPACKET* p1, MTXPACKET* p2)
+{
+    PBWINGLOBALS* g = gWinGlobals;
+    PBWINDOW* w;
+
+    w = g->current;
+    mat44Mult(w->world_npc, w->projection, w->camera);
+    w = g->current;
+    mat44Mult(w->world_screen, w->viewport, w->world_npc);
+    w = g->current;
+    mat44Mult(w->world_clip, w->clipport, w->world_npc);
+    __as__4vec4FRC4vec4(p0->clip2npc, g->current->clip2npc);
+    __as__4vec4FRC4vec4(p1->clip2npc, g->current->clip2npc);
+    __as__4vec4FRC4vec4(p2->clip2npc, gClip2NpcDefault);
+    __as__4vec4FRC4vec4(p0->npc2screen[0], g->current->npc2screen[0]);
+    __as__4vec4FRC4vec4(p1->npc2screen[0], g->current->npc2screen[0]);
+    __as__4vec4FRC4vec4(p2->npc2screen[0], g->current->npc2screen[0]);
+    __as__4vec4FRC4vec4(p0->npc2screen[1], g->current->npc2screen[1]);
+    __as__4vec4FRC4vec4(p1->npc2screen[1], g->current->npc2screen[1]);
+    __as__4vec4FRC4vec4(p2->npc2screen[1], g->current->npc2screen[1]);
+    __as__4vec4FRC4vec4(p0->clip2screen[0], g->current->clip2screen[0]);
+    __as__4vec4FRC4vec4(p1->clip2screen[0], g->current->clip2screen[0]);
+    __as__4vec4FRC4vec4(p2->clip2screen[0], g->current->npc2screen[0]);
+    __as__4vec4FRC4vec4(p0->clip2screen[1], g->current->clip2screen[1]);
+    __as__4vec4FRC4vec4(p1->clip2screen[1], g->current->clip2screen[1]);
+    __as__4vec4FRC4vec4(p2->clip2screen[1], g->current->npc2screen[1]);
+    __as__5mat44FRC5mat44(p0->mtx, g->current->world_clip);
+    __as__5mat44FRC5mat44(p1->mtx, g->current->world_clip);
+    __as__5mat44FRC5mat44(p2->mtx, g->current->world_npc);
+}
+
 
 /* 0x800C9448: positional light packets + camera pitch/yaw */
 #pragma dont_inline off
@@ -790,7 +822,7 @@ void pbCameraUpdate()
         lbl_8034515C = lbl_8034515C + 1;
         if (lbl_8034515C > 0x14) {
             lbl_8034515C = 0;
-            bulletproof_printf("___ cam pitch yaw ___ %4.2Lf  %4.2Lf\n",
+            bulletproof_printf("=== cam_pitch/yaw = %4.2Lf  %4.2Lf\n",
                                (double) g->current->cam_pitch,
                                (double) g->current->cam_yaw);
         }
@@ -888,7 +920,7 @@ void MBSetCurrentWindow(void)
     g->list->unkC = 0;
     g = gWinGlobals;
     if (g->list->count <= 0) {
-        ErrorPrintf("MBSetCurrentWindow: Bad window index %d\n");
+        ErrorPrintf("MBSetCurrentWindow: Bad window id.\n");
     } else {
         g->current = g->list->windows;
         *gCurWindowMirror = g->list->windows;
@@ -938,7 +970,7 @@ void pbInitWindow(void)
     g->list->unkC = 0;
     g = gWinGlobals;
     if (g->list->count <= 0) {
-        ErrorPrintf("MBSetCurrentWindow: Bad window index %d\n");
+        ErrorPrintf("MBSetCurrentWindow: Bad window id.\n");
     } else {
         g->current = g->list->windows;
         *gCurWindowMirror = g->list->windows;
@@ -974,36 +1006,4 @@ void pbInitWindow(void)
     g->current->cam_up[1] = 1.0f;
     g->current->cam_up[2] = 0.0f;
     g->current->cam_up[3] = 1.0f;
-}
-
-/* 0x800C92B8 */
-static void setupMatrices(MTXPACKET2* p0, MTXPACKET* p1, MTXPACKET* p2)
-{
-    PBWINGLOBALS* g = gWinGlobals;
-    PBWINDOW* w;
-
-    w = g->current;
-    mat44Mult(w->world_npc, w->projection, w->camera);
-    w = g->current;
-    mat44Mult(w->world_screen, w->viewport, w->world_npc);
-    w = g->current;
-    mat44Mult(w->world_clip, w->clipport, w->world_npc);
-    __as__4vec4FRC4vec4(p0->clip2npc, g->current->clip2npc);
-    __as__4vec4FRC4vec4(p1->clip2npc, g->current->clip2npc);
-    __as__4vec4FRC4vec4(p2->clip2npc, gClip2NpcDefault);
-    __as__4vec4FRC4vec4(p0->npc2screen[0], g->current->npc2screen[0]);
-    __as__4vec4FRC4vec4(p1->npc2screen[0], g->current->npc2screen[0]);
-    __as__4vec4FRC4vec4(p2->npc2screen[0], g->current->npc2screen[0]);
-    __as__4vec4FRC4vec4(p0->npc2screen[1], g->current->npc2screen[1]);
-    __as__4vec4FRC4vec4(p1->npc2screen[1], g->current->npc2screen[1]);
-    __as__4vec4FRC4vec4(p2->npc2screen[1], g->current->npc2screen[1]);
-    __as__4vec4FRC4vec4(p0->clip2screen[0], g->current->clip2screen[0]);
-    __as__4vec4FRC4vec4(p1->clip2screen[0], g->current->clip2screen[0]);
-    __as__4vec4FRC4vec4(p2->clip2screen[0], g->current->npc2screen[0]);
-    __as__4vec4FRC4vec4(p0->clip2screen[1], g->current->clip2screen[1]);
-    __as__4vec4FRC4vec4(p1->clip2screen[1], g->current->clip2screen[1]);
-    __as__4vec4FRC4vec4(p2->clip2screen[1], g->current->npc2screen[1]);
-    __as__5mat44FRC5mat44(p0->mtx, g->current->world_clip);
-    __as__5mat44FRC5mat44(p1->mtx, g->current->world_clip);
-    __as__5mat44FRC5mat44(p2->mtx, g->current->world_npc);
 }
