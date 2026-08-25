@@ -176,18 +176,16 @@ void dcsMain(void)
     }
 }
 
-/* 0x800D4BF4  dispatch a numeric request (id,in,out) */
-void dcsHandleRequest(u32 request, s32* input, s32* output)
+static inline void dcsHandleRequestImpl(u32 request, s32* input, s32* output)
 {
-    DcsDriverState* state;
     s32 resultOffset;
     u32 index;
     s32 i;
-    s32 bankSize;
     s32 value;
     s32 result;
     s32 opcode;
     u32 mode;
+    DcsDriverState* state;
 
     state = DCS_DRIVER_STATE;
     memset(output, 0, 32);
@@ -229,11 +227,8 @@ void dcsHandleRequest(u32 request, s32* input, s32* output)
         break;
 
     case 4:
-        bankSize = input[1];
-        if (bankSize >= 240) {
-            bankSize = 240;
-        }
-        memcpy(state->streamName, (void*)input[0], bankSize);
+        memcpy(state->streamName, (void*)input[0],
+               input[1] < 240 ? input[1] : 240);
         strcpy(state->streamPath, lbl_80117294);
         strcat(state->streamPath, state->streamName);
         state->streamFile = state->streamPath;
@@ -433,4 +428,10 @@ void dcsHandleRequest(u32 request, s32* input, s32* output)
         AdsSetVolume(lbl_80345240, value | (value << 16));
         break;
     }
+}
+
+/* 0x800D4BF4  dispatch a numeric request (id,in,out) */
+void dcsHandleRequest(u32 request, s32* input, s32* output)
+{
+    dcsHandleRequestImpl(request, input, output);
 }
