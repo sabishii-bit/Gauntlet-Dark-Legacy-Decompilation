@@ -2411,8 +2411,8 @@ static s32 gNodeStackDirty;        /* 0x80345190 */
 
 #pragma opt_propagation off
 s32 MBPsysSetDebugNode(u32 node, s32 remove) {
-    s32 v;
     NodeStackOverlay* dst;
+    s32 v;
 
     if (gNodeStackInit == 0) {
         gNodeStackTop = 0;
