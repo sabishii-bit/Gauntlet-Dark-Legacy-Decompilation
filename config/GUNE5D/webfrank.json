@@ -381,6 +381,25 @@
           "instructions": 56
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "AllocFile",
+        "before_sha256": "4fbff4fa44643caad00eb9822916e263ec2681e3903d0f55b1ffe7a2c837bcb3",
+        "after_sha256": "5c1a0f65c1e9962e6687290dfdfb5d0c50dc8b7df4a9fe0aa7b813b663f88937",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 98,
+          "permuted_instructions": 2
+        },
+        "instruction_permutation": {
+          "start": "0x6c",
+          "end": "0x74",
+          "order": [1, 0],
+          "before_sha256": "361ed205054ade2daf67145a8ba8e1aeb4eba9debb92b97fb2afaaeb2ae066d4",
+          "after_sha256": "2df117cba52fc1196d887fbbf2a0c294e27a9de0e31566a81fb23c241b4052ce",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
       }
     ],
     "game/pb/dbgtext": [

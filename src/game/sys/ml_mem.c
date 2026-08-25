@@ -102,7 +102,7 @@ extern const char mlmPathFmt[3];    /* "%s"    */
 extern const char mlmExtDefault[5]; /* ".ps2"  */
 extern const char mlmPathSeparator[2];
 extern const char mlmGameSubdirectory[]; /* "/gauntlet/" */
-extern char lbl_801161B0[];
+extern const char lbl_801161B0[];
 extern void ErrorPrintf(const char* fmt, ...);
 
 /* forward decls (address order kept) */
@@ -230,6 +230,13 @@ int MBSetupWad(int* wad, int base)
 }
 
 /* open a file into the async handle slot */
+const char lbl_801161B0[] =
+    "Temporary high memory in use by somebody else when StartFileRead called.  Check if another file is being read!\0\0"
+    "Too many open files: %d";
+const char mlmGameSubdirectory[] =
+    "/gauntlet/\0\0"
+    "Can't open: %s.\n";
+
 MLFILE* StartFileRead(char* wad, char* name, int mode, int sizeHint,
                       char* dest, void* callback)
 {
@@ -242,7 +249,7 @@ MLFILE* StartFileRead(char* wad, char* name, int mode, int sizeHint,
 
     if (alloctot != 0) {
         gErrorCode = 0xff;
-        FatalErrorf("Temporary high memory in use by somebody else when StartFileRead called.  Check if another file is being read!");
+        FatalErrorf(lbl_801161B0);
     }
     for (slot = 0; slot < 1; slot++) {
         f = &finfo_list[slot];
@@ -252,7 +259,7 @@ MLFILE* StartFileRead(char* wad, char* name, int mode, int sizeHint,
     }
     if (slot == 1) {
         gErrorCode = 0xff;
-        FatalErrorf("Too many open files: %d", slot);
+        FatalErrorf(lbl_801161B0 + 0x70, slot);
         return NULL;
     }
     f = &finfo_list[slot];
@@ -267,13 +274,13 @@ MLFILE* StartFileRead(char* wad, char* name, int mode, int sizeHint,
     }
     strcpy(full, mlmRootPath);
     if (path[0] != '/') {
-        strcat(full, "/gauntlet/");
+        strcat(full, mlmGameSubdirectory);
     }
     strcat(full, path);
     fd = sceOpen(full, 1);
     if (fd < 0) {
         gErrorCode = 0xff;
-        FatalErrorf("Can't open: %s.\n", full);
+        FatalErrorf(mlmGameSubdirectory + 0xc, full);
         return NULL;
     }
     size = sceLseek(fd, 0, 2);
@@ -292,7 +299,7 @@ MLFILE* StartFileRead(char* wad, char* name, int mode, int sizeHint,
     fd = sceOpen(full, 0x8001);
     if (fd < 0) {
         gErrorCode = 0xff;
-        FatalErrorf("Can't open: %s.\n", full);
+        FatalErrorf(mlmGameSubdirectory + 0xc, full);
         return NULL;
     }
     f->fd = fd;
