@@ -1116,14 +1116,14 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
                 *(f32*)(p + 0x30) = sSwapF32(*(f32*)(p + 0x30));
                 *(u32*)(p + 0x34) = sSwapU32(*(u32*)(p + 0x34));
                 break;
-            case 6:
+            case 10:
                 *(u16*)(p + 0x30) = sSwapU16(*(u16*)(p + 0x30));
                 *(u16*)(p + 0x32) = sSwapU16(*(u16*)(p + 0x32));
                 break;
             case 1:
                 *(u16*)(p + 0x30) = sSwapU16(*(u16*)(p + 0x30));
                 break;
-            case 10:
+            case 6:
                 *(u16*)(p + 0x30) = sSwapU16(*(u16*)(p + 0x30));
                 *(u16*)(p + 0x32) = sSwapU16(*(u16*)(p + 0x32));
                 break;
