@@ -436,8 +436,8 @@ u32 WorldCollide(f32 radius, void* fromv, void* tov, f32* result,
     s32 gz;
     WObj* obj;
     u32 oflags;
-    f32 mtxBuf[16];
     f32 vecBuf[3];
+    f32 mtxBuf[16];
 
     res->qpos[0] = from[0];
     res->qpos[1] = from[1];
