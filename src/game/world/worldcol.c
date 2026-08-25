@@ -536,16 +536,10 @@ u32 WorldCollide(f32 radius, void* fromv, void* tov, f32* result,
     if (offGrid == 0) {
         gx = (s32)(gWorldInfo.invCell * (lbl_80344168 - lbl_80344178));
         gz = (s32)(gWorldInfo.invCell * (lbl_8034416C - lbl_8034417C));
-        if (gx < 0) {
-            gx = 0;
-        } else if (gx > gWorldInfo.gridW - 1) {
-            gx = gWorldInfo.gridW - 1;
-        }
-        if (gz < 0) {
-            gz = 0;
-        } else if (gz > gWorldInfo.gridD - 1) {
-            gz = gWorldInfo.gridD - 1;
-        }
+        gx = gx < 0 ? 0 :
+             (gx > gWorldInfo.gridW - 1 ? gWorldInfo.gridW - 1 : gx);
+        gz = gz < 0 ? 0 :
+             (gz > gWorldInfo.gridD - 1 ? gWorldInfo.gridD - 1 : gz);
         do {
             WorldGridCol* col = &gWorldInfo.cols[gz];
             if (gx >= col->min && gx <= col->max) {
