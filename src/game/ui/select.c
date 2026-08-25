@@ -2583,6 +2583,7 @@ void init_player_select(s32 mode)
     s32 i2;
     s32* xp;
     u8* blits;
+    u8* pl;
     u8 _spare[32];
 
     AudioStopSelect();
@@ -2601,8 +2602,8 @@ void init_player_select(s32 mode)
         PlayersRestoreHealth();
     }
     {
-        u8* pl = gPlayers;
         s32 i1;
+        pl = gPlayers;
         for (i1 = 0; i1 < 4; i1++, pl += 13148) {
             if (!(lbl_80344824 & (1 << i1))) {
                 abort_player(i1);
@@ -2638,7 +2639,6 @@ void init_player_select(s32 mode)
     i2 = 0;
     new_menu_accept(-1, 1);
     {
-        u8* pl;
         for (pl = gPlayers; i2 < 4; i2++, pl += 13148) {
             if (*(s32*)(pl + 232) == 0 && (lbl_80344824 & (1 << i2))) {
                 new_player(i2);
@@ -2647,7 +2647,6 @@ void init_player_select(s32 mode)
     }
     {
         s32 i3 = 0;
-        u8* pl;
         s32 j;
         s32 o132 = 0;
         s32 o4 = 0;
