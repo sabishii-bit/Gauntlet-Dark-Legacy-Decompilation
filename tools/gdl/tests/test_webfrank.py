@@ -4,9 +4,13 @@ from tools.gdl.webfrank import (
     _parse_int,
     _relocation_sha256,
     _sha256,
+    check_permutation_dependences,
     copy_register_fields,
+    instruction_operands,
     permute_instruction_atoms,
     recolor_instruction,
+    register_slot_mask,
+    verify_consistent_recolor,
 )
 
 
@@ -125,6 +129,114 @@ class InstructionPermutationTests(unittest.TestCase):
     def test_relocation_preservation_hash_fails_closed(self):
         with self.assertRaisesRegex(ValueError, "relocation output hash changed"):
             self.permute(after_relocations_sha256="0" * 64)
+
+
+class FormAwareMaskTests(unittest.TestCase):
+    def test_d_form_displacement_bits_are_not_register_fields(self):
+        # lwz r3, 0x40(r4) vs lwz r3, 0x80(r4): the difference sits in bits
+        # the old blanket mask treated as a register slot.
+        with self.assertRaisesRegex(ValueError, "non-register instruction bits"):
+            copy_register_fields(
+                bytes.fromhex("80640040"), bytes.fromhex("80640080")
+            )
+
+    def test_rlwinm_mask_bounds_are_not_register_fields(self):
+        # rlwinm r0,r3,0,24,31 vs rlwinm r0,r3,0,16,31 (andi 0xFF vs 0xFFFF).
+        with self.assertRaisesRegex(ValueError, "non-register instruction bits"):
+            copy_register_fields(
+                bytes.fromhex("5460063e"), bytes.fromhex("5460043e")
+            )
+
+    def test_cmpwi_cr_field_is_not_a_register_field(self):
+        # cmpwi cr0,r3,4 vs cmpwi cr1,r3,4.
+        with self.assertRaisesRegex(ValueError, "non-register instruction bits"):
+            copy_register_fields(
+                bytes.fromhex("2c030004"), bytes.fromhex("2c830004")
+            )
+
+    def test_xo_bits_are_not_register_fields(self):
+        # subf r3,r4,r0 vs neg r3,r4 differ only at an XO bit inside the old
+        # blanket mask.
+        with self.assertRaisesRegex(ValueError, "non-register instruction bits"):
+            copy_register_fields(
+                bytes.fromhex("7c640050"), bytes.fromhex("7c6400d0")
+            )
+
+    def test_unmodelled_form_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, "unsupported instruction"):
+            register_slot_mask(0x44000002)  # sc
+
+    def test_operand_model_matches_known_forms(self):
+        # lwz: RT define, RA base use; fmuls: FRT define, FRA/FRC uses.
+        self.assertEqual(
+            instruction_operands(0x80640040),
+            (("g", 21, "d", False), ("g", 16, "u", True)),
+        )
+        self.assertEqual(
+            instruction_operands(0xEC0100B2),
+            (("f", 21, "d", False), ("f", 16, "u", False), ("f", 6, "u", False)),
+        )
+
+
+class ConsistentRecolorTests(unittest.TestCase):
+    def test_pure_recolor_passes(self):
+        # addi r4,r3,1; add r5,r4,r3; mr r3,r5; blr  vs the same body with
+        # the scratch web homed in r0.
+        current = bytes.fromhex("38830001 7ca41a14 7ca32b78 4e800020")
+        target = bytes.fromhex("38030001 7ca01a14 7ca32b78 4e800020")
+        verify_consistent_recolor(current, target)
+
+    def test_swapped_independent_loads_fail(self):
+        # The PointLineDist2D shape: two loads from fixed ABI bases exchange
+        # positions; every differing bit is a register field, yet it is not a
+        # recolor.
+        current = bytes.fromhex("80a30000 80c40000 7ce53214 4e800020")
+        target = bytes.fromhex("80a40000 80c30000 7ce62a14 4e800020")
+        with self.assertRaisesRegex(ValueError, "does not correspond"):
+            verify_consistent_recolor(current, target)
+
+    def test_commuted_multiply_operands_pass(self):
+        # fmuls f0,f1,f2 vs fmuls f0,f2,f1; blr.
+        current = bytes.fromhex("ec0100b2 4e800020")
+        target = bytes.fromhex("ec020072 4e800020")
+        verify_consistent_recolor(current, target)
+
+    def test_recolor_across_conditional_branch_passes(self):
+        # cmpwi r3,0; beq +8; addi r4,r3,1; blr  with r4 recolored to r0.
+        current = bytes.fromhex("2c030000 41820008 38830001 4e800020")
+        target = bytes.fromhex("2c030000 41820008 38030001 4e800020")
+        verify_consistent_recolor(current, target)
+
+
+class PermutationDependenceTests(unittest.TestCase):
+    def test_read_after_write_pair_fails(self):
+        # li r3,1; mr r4,r3 cannot swap.
+        region = bytes.fromhex("38600001 7c641b78")
+        with self.assertRaisesRegex(ValueError, "def-use chains"):
+            check_permutation_dependences(region, [1, 0])
+
+    def test_store_load_reorder_fails(self):
+        # stw r3,0(r4); lwz r5,0(r6) may alias.
+        region = bytes.fromhex("90640000 80a60000")
+        with self.assertRaisesRegex(ValueError, "def-use chains"):
+            check_permutation_dependences(region, [1, 0])
+
+    def test_load_load_reorder_passes(self):
+        region = bytes.fromhex("80650000 80860000")
+        check_permutation_dependences(region, [1, 0])
+
+    def test_disjoint_stack_stores_reorder_passes(self):
+        # stw r3,8(r1); stw r4,0xC(r1): distinct r1 slots are distinct
+        # locations.
+        region = bytes.fromhex("90610008 9081000c")
+        check_permutation_dependences(region, [1, 0])
+
+    def test_moved_final_write_needs_exit_liveness_proof(self):
+        # li r0,1; li r0,2: swapping changes which write survives the region.
+        region = bytes.fromhex("38000001 38000002")
+        with self.assertRaisesRegex(ValueError, "final write"):
+            check_permutation_dependences(region, [1, 0])
+        check_permutation_dependences(region, [1, 0], lambda resource: True)
 
 
 if __name__ == "__main__":

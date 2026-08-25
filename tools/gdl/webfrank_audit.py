@@ -24,13 +24,21 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from fndiff import classify_function, instruction_lines, parse  # noqa: E402
-from webfrank import Section, Symbol, _sections, _symbols  # noqa: E402
+from webfrank import (  # noqa: E402
+    Section,
+    Symbol,
+    _function_text_relocations,
+    _jumptable_targets,
+    _sections,
+    _symbols,
+    register_slot_mask,
+    verify_consistent_recolor,
+)
 
 
 REPO = Path(__file__).resolve().parents[2]
 VERSION = "GUNE5D"
 REGISTER_SHIFTS = (6, 11, 16, 21)
-REGISTER_MASK = sum(0x1F << shift for shift in REGISTER_SHIFTS)
 
 
 def _sha256(data: bytes | bytearray) -> str:
@@ -69,7 +77,8 @@ def _field_edits(base: bytes, target: bytes) -> list[dict]:
         difference = current ^ wanted
         if not difference:
             continue
-        if difference & ~REGISTER_MASK:
+        allowed = register_slot_mask(current)
+        if difference & ~allowed:
             raise ValueError(
                 f"non-register bits differ at +0x{offset:x}: 0x{difference:08x}"
             )
@@ -119,6 +128,11 @@ def main() -> int:
             continue
         target_path = REPO / "build" / VERSION / "obj" / relative.with_suffix(".o")
         base_path = Path(command["output"])
+        # For units that already have a postprocessor, command output is the
+        # rewritten object; audit the raw compiler output instead.
+        raw_body = base_path.parent / ".postprocess" / "body" / base_path.name
+        if raw_body.is_file():
+            base_path = raw_body
         if not target_path.is_file() or not base_path.is_file():
             continue
         target_functions = parse(target_path)
@@ -139,6 +153,30 @@ def main() -> int:
                 )
                 _, target_bytes = _function_bytes(target_path, function, target=True)
                 edits = _field_edits(base_bytes, target_bytes)
+                # A byte-confined register diff is not yet proof of a recolor:
+                # demand the position-consistent renaming bisimulation, so a
+                # reorder or crossed value web is surfaced instead of emitted.
+                base_data = base_path.read_bytes()
+                base_sections = _sections(base_data)
+                fn_start = base_symbol.value
+                fn_end = fn_start + base_symbol.size
+                text_relocations = _function_text_relocations(
+                    base_data, base_sections, base_symbol.section_index,
+                    fn_start, fn_end,
+                )
+                verify_consistent_recolor(
+                    base_bytes, target_bytes,
+                    jumptable_targets=_jumptable_targets(
+                        base_data, base_sections, base_symbol.section_index,
+                        fn_start, fn_end,
+                    ),
+                    relocated_offsets=set(text_relocations),
+                    call_targets={
+                        offset: name
+                        for offset, (rtype, name) in text_relocations.items()
+                        if rtype == 10
+                    },
+                )
                 patch = {
                     "function": base_symbol.name,
                     "before_sha256": _sha256(base_bytes),
