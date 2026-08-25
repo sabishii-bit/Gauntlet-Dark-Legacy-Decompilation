@@ -253,13 +253,11 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
     u32 mask;
     f32 sf;
     f32 ef;
-    f32 acc;
     f32 frac;
     f32 rate;
     f32 scale;
     f32 k;
     s32 i;
-    s32 o;
 
     if (idx < 0) {
         return;
@@ -267,7 +265,7 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
     row = *(u8**)(lbl_80282930[*(s32*)p] + 8) + idx * 88;
     sf = (f32)*(s16*)(row + 80);
     ef = (f32)*(s16*)(row + 82);
-    if (!(t1 >= sf)) {
+    if (t1 >= sf) {
         if (ef < lbl_80347DA0 || t0 < ef) {
             fl = *(s16*)(row + 2);
             if (fl & 0x2000) {
@@ -308,7 +306,7 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
     {
         f32 one = lbl_80347DB8;
         if (t0 < one && t1 >= one && *(s16*)(row + 84) >= 0) {
-            msgPost(*(s16*)(row + 84), *(s32*)p, row + 84);
+            msgPost(*(s16*)(row + 84), *(s32*)p, p + 84);
         }
     }
     if (*(s16*)(row + 2) & 0x400) {
@@ -353,6 +351,7 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
                 } else {
                     f64 kx;
                     f64 ky;
+                    f32 acc;
                     f64 kone;
                     acc = lbl_80347DA0;
                     kx = lbl_80347DD0;
@@ -374,7 +373,7 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
                 if ((f64)rate > lbl_80347DC0) {
                     frac = t1 - sf;
                     if (!(__fabs(rate) > __fabs(frac))) {
-                        frac = frac - rate * (f32)(u64)(frac / rate);
+                        frac = frac - rate * (f32)(s64)(u64)(frac / rate);
                     }
                     if ((s32)frac != 0) {
                         break;
@@ -400,21 +399,24 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
                 buf[2] = buf[2] * *(f32*)(row + 52);
                 n = PlayerStartMissile(p, buf, mask, 0, lbl_80347DC8,
                                        lbl_80347DAC);
-                for (i = 0, o = 0; i < n; i++, o += 4) {
-                    s32 ei = *(s32*)((u8*)pmissile_sfxidx + o);
-                    u8* fx;
-                    if (ei < 0) {
-                        continue;
-                    }
-                    fx = (u8*)Effects + ei * 240;
-                    if (*(f32*)(row + 68) > lbl_80347DA0) {
-                        *(f32*)(fx + 160) =
-                            *(f32*)(fx + 160) * *(f32*)(row + 68);
-                    }
-                    if (*(s16*)(row + 2) & 0x1000) {
-                        if (*(void**)(fx + 212) != NULL) {
-                            MBRemovePolyInst(*(void**)(fx + 212));
-                            *(s32*)(fx + 212) = 0;
+                {
+                    f32 zero = lbl_80347DA0;
+                    for (i = 0; i < n; i++) {
+                        s32 ei = pmissile_sfxidx[i];
+                        u8* fx;
+                        if (ei < 0) {
+                            continue;
+                        }
+                        fx = (u8*)Effects + ei * 240;
+                        if (*(f32*)(row + 68) > zero) {
+                            *(f32*)(fx + 160) =
+                                *(f32*)(fx + 160) * *(f32*)(row + 68);
+                        }
+                        if (*(s16*)(row + 2) & 0x1000) {
+                            if (*(void**)(fx + 212) != NULL) {
+                                MBRemovePolyInst(*(void**)(fx + 212));
+                                *(s32*)(fx + 212) = 0;
+                            }
                         }
                     }
                 }
