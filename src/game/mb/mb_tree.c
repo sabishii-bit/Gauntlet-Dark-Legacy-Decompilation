@@ -735,11 +735,11 @@ MBTreeNode* MBRemoveNode(MBTreeNode* node, s32 remove_children)
             child->next = node->next;
         }
     } else if (node == lbl_80344ECC) {
-        lbl_80344ECC = node->child;
-        if (lbl_80344ECC == 0) {
+        child = node->child;
+        if (child == 0) {
             lbl_80344ECC = node->next;
         } else {
-            child = node->child;
+            lbl_80344ECC = child;
             while (child->next != 0) {
                 child->parent = 0;
                 child = child->next;
@@ -749,8 +749,8 @@ MBTreeNode* MBRemoveNode(MBTreeNode* node, s32 remove_children)
         }
     } else {
         previous = lbl_80344ECC;
-        if (node->parent != 0)
-            previous = node->parent->child;
+        if (parent != 0)
+            previous = parent->child;
 
         if (previous == 0 || previous == node) {
             previous = 0;
