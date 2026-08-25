@@ -86,17 +86,35 @@ two-line mismatch.
   The stacked Frank+`webfrank` path was build-tested on `sndvoice`; its checked
   configuration omits Frank because that stage is byte-identical to direct
   1.2.5n there and only `webfrank` contributes to the match.
+- `tools/gdl/frank_sweep.py` repeats that comparison for every configured
+  1.2.5/1.2.5n TU using its exact Ninja flags. The 2026-08-24 audit covered
+  236 TUs and 2,895 functions: configured Frank and official Frank produced
+  zero improvements and zero newly exact functions. Configured Frank regressed
+  371 functions across 86 changed TUs. This rules out a broad Frank switch.
+- `tools/gdl/webfrank_audit.py` conservatively inventories residuals whose
+  instruction and relocation order and all non-register operands already
+  match. It found 40 `REGISTER_ONLY` functions (18,232 code bytes) across 25
+  nonmatching TUs. None would make a TU linkable; `g3dpad` would have exact
+  text but still has mismatched data.
 - `tools/gdl/webfrank.py` is a separate, hash-guarded register-web
   postprocessor for the allocator-only class that Frank cannot affect. It
-  decodes a deliberately small set of PowerPC integer forms and recolors only
-  whitelisted GPR operands inside function-relative ranges. Complete before
-  and after function hashes make source/compiler drift a hard build failure.
+  supports explicit audited GPR recolors and target-backed register-field
+  correction after proving all non-register instruction bits already agree.
+  Complete before/after hashes make source/compiler drift a hard failure.
 
 The current `sndVoiceUpdateAll` rule uses `webfrank` to correct the two known
 temporary-register webs. The resulting function bytes match the target
 exactly, while the object remains classified NonMatching so its unrelated
 data is not linked into the DOL. This raises overall matched progress without
 changing the already-matching final executable.
+
+A first reviewed nine-function register-only pilot adds 2,800 matched code
+bytes without changing linked code. Every rule carries full before/after
+function hashes. Target-backed rules additionally prove that differences are
+confined to PowerPC's four five-bit register slots before copying those fields;
+opcode, immediate, branch, layout, or compiler drift aborts the build. The
+remaining 31 mechanically eligible functions retain explicit PARKED/terminal
+history and are not enabled automatically.
 
 Do not switch whole libraries to 1.2.5e. Probe a specific function and retain
 the hybrid only when its function and sibling scores improve. `webfrank` is a

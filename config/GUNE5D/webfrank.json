@@ -24,6 +24,114 @@
           }
         ]
       }
+    ],
+    "game/world/btricol": [
+      {
+        "function": "PointLineDist2D",
+        "before_sha256": "ada2054b1089e66b4d31bc40b351c083abdeb0843e4325c550cb10c7939f5fe9",
+        "after_sha256": "f38c09da2494f12a11e3e843b85536210700b0d35efa23db4bb4cf5cea11902f",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 107
+        },
+        "copy_register_fields": true
+      }
+    ],
+    "game/enemy/critter": [
+      {
+        "function": "CritterResolveMultipleTargets",
+        "before_sha256": "aa900ce7a9017394126cce19298bc130850f5356d20f7ac4f45f71c138a108cb",
+        "after_sha256": "c9a716df57842e310244967d3b3469842a990436e65d0210a35ff9d5fff11458",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 111
+        },
+        "copy_register_fields": true
+      }
+    ],
+    "game/enemy/enemy": [
+      {
+        "function": "closest_enemy",
+        "before_sha256": "df7ab68342e6b9d8443c3879d0b0edb444da2893851345d958ba3383bb2ec114",
+        "after_sha256": "9bfc8703f759703d8a454ad7dcaf6dd9a2c08aeab5c512d675d68f05c90b62fb",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 105
+        },
+        "copy_register_fields": true
+      }
+    ],
+    "game/sys/memcard": [
+      {
+        "function": "add_vmu_file",
+        "before_sha256": "d3a7501b45b55aa62be754e14d99dfd6db5f96781f982b04f7e78c1b693d0fb5",
+        "after_sha256": "140c6fcbd54dcd1ee9cd882791107d86b87827362d3e8f16428518a21567dac9",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 79
+        },
+        "copy_register_fields": true
+      }
+    ],
+    "game/sfx/psfx": [
+      {
+        "function": "DoPlyrSfxSub",
+        "before_sha256": "71879a9b6202238ef5127c2375e9b5ed8b7cdb78054e206a2833fa8f287a6dda",
+        "after_sha256": "47046f8204caff46f5d275a1cbdee930ca9781f6e49cb9bce3c43326313743e8",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 143
+        },
+        "copy_register_fields": true
+      }
+    ],
+    "game/mb/mb_tree": [
+      {
+        "function": "MBNewNode",
+        "before_sha256": "fb96fddac0d070aed42425a5e460612b751b5a0209b3552443f13aae61647650",
+        "after_sha256": "22903d61bf261b771473e8a89aa084cab33a34322e9520a34b2874613240ab97",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 68
+        },
+        "copy_register_fields": true
+      }
+    ],
+    "game/sys/ml_mem": [
+      {
+        "function": "AllocMem32",
+        "before_sha256": "94bae096bc36a1a32180066009683e866649b4d9f34a92c0d22e5e687358045e",
+        "after_sha256": "7896e680e1bc3c132c45bc318eaf3fda9a49fc3b7cfb7ccf9288a06808246f44",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 56
+        },
+        "copy_register_fields": true
+      }
+    ],
+    "game/mb/mb_particle": [
+      {
+        "function": "getSinCos",
+        "before_sha256": "2c0e88faa957dcb31830454bf06d86473da223179decf72bc28cf32197f85dcc",
+        "after_sha256": "413c3aafe990c19fbd1827a2d99a57e70a52ec86619a46b4348a4c94c9c2e7cd",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 27
+        },
+        "copy_register_fields": true
+      }
+    ],
+    "game/sys/sysservice": [
+      {
+        "function": "sysClearFlags",
+        "before_sha256": "fdc7bc6a4409fb72b3c4b6348bd19b28692487b649636b01dff951cd2236aca8",
+        "after_sha256": "f673e38f200307a2cfd4f45ba04183d9203e0b5f0a413ede9edbe460509a8140",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 4
+        },
+        "copy_register_fields": true
+      }
     ]
   }
 }

@@ -17,6 +17,7 @@ object so that its symbols, relocations, and data sections remain authoritative.
 from __future__ import annotations
 
 import argparse
+import struct
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -58,10 +59,58 @@ def _find_aligned(data: bytes | bytearray, sequence: bytes, start: int) -> int:
         start = found + 1
 
 
-def _code_size(obj: bytes) -> int:
+def _legacy_text_layout(obj: bytes) -> tuple[int, int]:
     magic = obj.index(CODESIZE_MAGIC)
     start = magic + len(CODESIZE_MAGIC)
-    return int.from_bytes(obj[start:start + 4], "big")
+    return TEXT_OFFSET, int.from_bytes(obj[start:start + 4], "big")
+
+
+def _text_layout(obj: bytes) -> tuple[int, int] | None:
+    """Return the unique executable ELF section's file layout.
+
+    Real MWCC objects are ELF32 big-endian. The old Frank magic scan is kept
+    only for synthetic/non-ELF fixtures; scanning an ELF payload can mistake
+    ordinary constants for a section header (as AX.OBJ demonstrates).
+    """
+    if obj[:4] != b"\x7fELF":
+        return _legacy_text_layout(obj)
+    if len(obj) < 0x34 or obj[4:6] != b"\x01\x02":
+        raise ValueError("Frank requires an ELF32 big-endian object")
+    section_offset = struct.unpack_from(">I", obj, 0x20)[0]
+    entry_size = struct.unpack_from(">H", obj, 0x2E)[0]
+    section_count = struct.unpack_from(">H", obj, 0x30)[0]
+    names_index = struct.unpack_from(">H", obj, 0x32)[0]
+    if (entry_size < 40 or names_index >= section_count
+            or section_offset + entry_size * section_count > len(obj)):
+        raise ValueError("Frank found an invalid ELF section table")
+
+    headers = []
+    for index in range(section_count):
+        at = section_offset + index * entry_size
+        headers.append(struct.unpack_from(">10I", obj, at))
+    names = headers[names_index]
+    names_offset, names_size = names[4], names[5]
+    if names_offset + names_size > len(obj):
+        raise ValueError("Frank found an invalid ELF section-name table")
+
+    executable = []
+    for header in headers:
+        name_at, section_type, flags, _, offset, size, *_ = header
+        if section_type != 1 or flags & 0x6 != 0x6:
+            continue
+        if name_at >= names_size or offset % 4 or size % 4 or offset + size > len(obj):
+            raise ValueError("Frank found an invalid executable section")
+        name_start = names_offset + name_at
+        name_end = obj.find(b"\0", name_start, names_offset + names_size)
+        if name_end == -1:
+            raise ValueError("Frank found an unterminated ELF section name")
+        executable.append((obj[name_start:name_end].decode("ascii"), offset, size))
+    if not executable:
+        return None
+    if len(executable) != 1:
+        raise ValueError(f"Frank requires one executable section, found {executable}")
+    _, offset, size = executable[0]
+    return offset, size
 
 
 def merge_objects(vanilla_obj: bytes, profile_obj: bytes) -> tuple[bytes, MergeStats]:
@@ -73,15 +122,23 @@ def merge_objects(vanilla_obj: bytes, profile_obj: bytes) -> tuple[bytes, MergeS
     together with the 1.2.5e profile scheduler.
     """
     try:
-        vanilla_size = _code_size(vanilla_obj)
+        vanilla_layout = _text_layout(vanilla_obj)
     except ValueError:
+        if vanilla_obj[:4] == b"\x7fELF":
+            raise
+        return vanilla_obj, MergeStats(0, 0, False)
+    if vanilla_layout is None:
         return vanilla_obj, MergeStats(0, 0, False)
 
-    profile_size = _code_size(profile_obj)
-    header = vanilla_obj[:TEXT_OFFSET]
-    footer = vanilla_obj[TEXT_OFFSET + vanilla_size:]
-    vanilla = bytearray(vanilla_obj[TEXT_OFFSET:TEXT_OFFSET + vanilla_size])
-    profile = bytearray(profile_obj[TEXT_OFFSET:TEXT_OFFSET + profile_size])
+    profile_layout = _text_layout(profile_obj)
+    if profile_layout is None:
+        raise ValueError("Frank profile object has no executable section")
+    vanilla_offset, vanilla_size = vanilla_layout
+    profile_offset, profile_size = profile_layout
+    header = vanilla_obj[:vanilla_offset]
+    footer = vanilla_obj[vanilla_offset + vanilla_size:]
+    vanilla = bytearray(vanilla_obj[vanilla_offset:vanilla_offset + vanilla_size])
+    profile = bytearray(profile_obj[profile_offset:profile_offset + profile_size])
 
     epilogues: list[int] = []
     marker_pos = 0

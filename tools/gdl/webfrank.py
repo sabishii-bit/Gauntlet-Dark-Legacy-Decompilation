@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Apply hash-guarded PowerPC register-web recolors to an MWCC ELF object.
+"""Apply hash-guarded PowerPC register-web corrections to an MWCC ELF object.
 
 Frank changes scheduling by compiling with a synthetic profile side effect and
 then removing the instrumentation.  ``webfrank`` is the deliberately narrower
-allocator analogue: it changes only decoded GPR operand fields in explicitly
-listed function-relative ranges.  It does not copy target code, alter opcodes,
-move instructions, or touch relocations/data.
+allocator analogue: it changes only PowerPC register fields in audited
+functions. Rules may name explicit GPR recolors or copy the four five-bit
+register slots from the extracted target after proving every other instruction
+bit already agrees. It never copies opcodes, immediates, branch encodings,
+relocations, or data, and it never moves instructions.
 
 Every patch is guarded by complete before/after function SHA-256 hashes.  A
 source, compiler, or layout change therefore fails the build instead of
@@ -23,6 +25,8 @@ from pathlib import Path
 
 
 SHT_SYMTAB = 2
+REGISTER_FIELD_SHIFTS = (6, 11, 16, 21)
+REGISTER_FIELD_MASK = sum(0x1F << shift for shift in REGISTER_FIELD_SHIFTS)
 
 
 @dataclass(frozen=True)
@@ -75,7 +79,8 @@ def _sections(data: bytes | bytearray) -> list[Section]:
     return result
 
 
-def _find_symbol(data: bytes | bytearray, sections: list[Section], name: str) -> Symbol:
+def _symbols(data: bytes | bytearray, sections: list[Section]) -> list[Symbol]:
+    result = []
     for table in sections:
         if table.section_type != SHT_SYMTAB:
             continue
@@ -85,8 +90,15 @@ def _find_symbol(data: bytes | bytearray, sections: list[Section], name: str) ->
             name_at, value, size = struct.unpack_from(">III", data, offset)
             section_index = _u16(data, offset + 14)
             symbol_name = _cstring(data, strings.offset + name_at) if name_at else ""
-            if symbol_name == name:
-                return Symbol(symbol_name, value, size, section_index)
+            if symbol_name:
+                result.append(Symbol(symbol_name, value, size, section_index))
+    return result
+
+
+def _find_symbol(data: bytes | bytearray, sections: list[Section], name: str) -> Symbol:
+    for symbol in _symbols(data, sections):
+        if symbol.name == name:
+            return symbol
     raise KeyError(f"symbol {name!r} not found")
 
 
@@ -133,7 +145,38 @@ def _sha256(data: bytes | bytearray) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def apply_patch(data: bytearray, patch: dict) -> tuple[str, str, int]:
+def copy_register_fields(current: bytes, target: bytes) -> tuple[bytes, int]:
+    """Copy only PPC's four five-bit register slots from *target*.
+
+    All other instruction bits must already agree. Complete function hashes in
+    the caller make this a fail-closed allocator correction, not a fuzzy patch.
+    """
+    if len(current) != len(target) or len(current) % 4:
+        raise ValueError("register-field functions must have equal aligned sizes")
+    output = bytearray(current)
+    changed = 0
+    for offset in range(0, len(current), 4):
+        word = _u32(current, offset)
+        wanted = _u32(target, offset)
+        difference = word ^ wanted
+        if not difference:
+            continue
+        if difference & ~REGISTER_FIELD_MASK:
+            raise ValueError(
+                f"non-register instruction bits differ at +0x{offset:x}: "
+                f"0x{difference:08x}"
+            )
+        recolored = (word & ~REGISTER_FIELD_MASK) | (wanted & REGISTER_FIELD_MASK)
+        struct.pack_into(">I", output, offset, recolored)
+        changed += 1
+    if output != target:
+        raise ValueError("register-field copy did not reproduce target bytes")
+    return bytes(output), changed
+
+
+def apply_patch(
+    data: bytearray, patch: dict, target_data: bytes | None = None
+) -> tuple[str, str, int]:
     sections = _sections(data)
     symbol = _find_symbol(data, sections, patch["function"])
     text = sections[symbol.section_index]
@@ -146,7 +189,24 @@ def apply_patch(data: bytearray, patch: dict) -> tuple[str, str, int]:
         )
 
     changed = 0
-    for region in patch["recolors"]:
+    if patch.get("copy_register_fields"):
+        if target_data is None:
+            raise ValueError(f"{symbol.name}: target object is required")
+        target_sections = _sections(target_data)
+        target_symbol = _find_symbol(target_data, target_sections, symbol.name)
+        target_text = target_sections[target_symbol.section_index]
+        target_start = target_text.offset + target_symbol.value
+        target_end = target_start + target_symbol.size
+        target_function = target_data[target_start:target_end]
+        if _sha256(target_function) != patch["after_sha256"]:
+            raise ValueError(f"{symbol.name}: target function hash changed")
+        recolored, field_changes = copy_register_fields(
+            bytes(data[start:end]), target_function
+        )
+        data[start:end] = recolored
+        changed += field_changes
+
+    for region in patch.get("recolors", []):
         relative_start = _parse_int(region["start"])
         relative_end = _parse_int(region["end"])
         if relative_start % 4 or relative_end % 4 or not (0 <= relative_start <= relative_end <= symbol.size):
@@ -165,6 +225,27 @@ def apply_patch(data: bytearray, patch: dict) -> tuple[str, str, int]:
                 struct.pack_into(">I", data, offset, recolored)
                 changed += 1
 
+    seen_edits = set()
+    for edit in patch.get("register_fields", []):
+        relative = _parse_int(edit["at"])
+        if relative % 4 or not 0 <= relative <= symbol.size - 4:
+            raise ValueError(f"{symbol.name}: invalid register-field offset {edit}")
+        if relative in seen_edits:
+            raise ValueError(f"{symbol.name}: duplicate register-field edit {edit}")
+        seen_edits.add(relative)
+        offset = start + relative
+        word = _u32(data, offset)
+        recolored = word
+        for raw_shift, raw_value in edit["set"].items():
+            shift = int(raw_shift)
+            value = _parse_int(raw_value)
+            if shift not in {6, 11, 16, 21} or not 0 <= value < 32:
+                raise ValueError(f"{symbol.name}: invalid register field {edit}")
+            recolored = (recolored & ~(0x1F << shift)) | (value << shift)
+        if recolored != word:
+            struct.pack_into(">I", data, offset, recolored)
+            changed += 1
+
     after = _sha256(data[start:end])
     if after != patch["after_sha256"]:
         raise ValueError(
@@ -179,6 +260,8 @@ def main() -> int:
     parser.add_argument("output", type=Path)
     parser.add_argument("config", type=Path)
     parser.add_argument("unit", help="unit key in the config, e.g. game/g3d/sndvoice")
+    parser.add_argument("--target", type=Path,
+                        help="extracted target object for register-field rules")
     args = parser.parse_args()
 
     config = json.loads(args.config.read_text(encoding="utf-8"))
@@ -187,9 +270,10 @@ def main() -> int:
         raise KeyError(f"no webfrank configuration for {args.unit!r}")
 
     data = bytearray(args.input.read_bytes())
+    target_data = args.target.read_bytes() if args.target else None
     total = 0
     for patch in patches:
-        _, _, changed = apply_patch(data, patch)
+        _, _, changed = apply_patch(data, patch, target_data)
         total += changed
         print(f"WEBFRANK {patch['function']}: recolored {changed} instructions")
     args.output.parent.mkdir(parents=True, exist_ok=True)

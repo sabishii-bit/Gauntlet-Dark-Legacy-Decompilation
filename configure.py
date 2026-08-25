@@ -13,6 +13,7 @@
 ###
 
 import argparse
+import json
 import sys
 from pathlib import Path
 from typing import Any, Dict, List
@@ -405,22 +406,7 @@ config.libs = [
             Object(Matching, "game/ps2/ml_error.c", cflags=cflags_demo),
             Object(Matching, "game/ps2/ml_ffsincos.c", cflags=cflags_demo),
             Object(NonMatching, "game/ps2/ml_fmath.c", cflags=cflags_demo),
-            Object(
-                NonMatching,
-                "game/g3d/sndvoice.c",
-                mw_version="GC/1.2.5n",
-                postprocess={
-                    "rule": "webfrank",
-                    "implicit": [
-                        "tools/gdl/webfrank.py",
-                        "config/GUNE5D/webfrank.json",
-                    ],
-                    "variables": {
-                        "webfrank_config": "config/GUNE5D/webfrank.json",
-                        "webfrank_unit": "game/g3d/sndvoice",
-                    },
-                },
-            ),
+            Object(NonMatching, "game/g3d/sndvoice.c", mw_version="GC/1.2.5n"),
             Object(Matching, "game/g3d/gpads.c", mw_version="GC/1.2.5n"),
             Object(NonMatching, "game/sys/registry.c", mw_version="GC/1.2.5n"),
             Object(Matching, "game/sys/gutil.c", mw_version="GC/1.2.5n"),
@@ -805,7 +791,7 @@ config.custom_build_rules = [
     },
     {
         "name": "webfrank",
-        "command": "$python tools/gdl/webfrank.py $in $out $webfrank_config $webfrank_unit",
+        "command": "$python tools/gdl/webfrank.py $in $out $webfrank_config $webfrank_unit --target $webfrank_target",
         "description": "WEBFRANK $out",
     },
     {
@@ -814,6 +800,24 @@ config.custom_build_rules = [
         "description": "FIXUP $out",
     },
 ]
+webfrank_config = Path(f"config/{config.version}/webfrank.json")
+webfrank_units = json.loads(webfrank_config.read_text(encoding="utf-8"))["units"]
+config.object_postprocesses = {
+    unit: {
+        "rule": "webfrank",
+        "implicit": [
+            "tools/gdl/webfrank.py",
+            str(webfrank_config),
+            f"build/{config.version}/obj/{unit}.o",
+        ],
+        "variables": {
+            "webfrank_config": str(webfrank_config),
+            "webfrank_unit": unit,
+            "webfrank_target": f"build/{config.version}/obj/{unit}.o",
+        },
+    }
+    for unit in webfrank_units
+}
 config.custom_build_steps = {
     "post-compile": [
         {

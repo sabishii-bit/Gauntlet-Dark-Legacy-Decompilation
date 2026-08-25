@@ -192,6 +192,7 @@ class ProjectConfig:
         self.custom_build_steps: Optional[Dict[str, List[Dict[str, Any]]]] = (
             None  # Custom build steps, types are ["pre-compile", "post-compile", "post-link", "post-build"]
         )
+        self.object_postprocesses: Dict[str, Dict[str, Any]] = {}
         self.generate_compile_commands: bool = (
             True  # Generate compile_commands.json for clangd
         )
@@ -1030,6 +1031,9 @@ def generate_build_ninja(
             lib_name = obj.options["lib"]
             frank_profile_mw_version = obj.options["frank_profile_mw_version"]
             postprocess = obj.options["postprocess"]
+            if postprocess is None:
+                unit_key = str(Path(obj.name).with_suffix("")).replace("\\", "/")
+                postprocess = config.object_postprocesses.get(unit_key)
             compile_output = obj.src_obj_path
             if frank_profile_mw_version is not None or postprocess is not None:
                 compile_output = (
