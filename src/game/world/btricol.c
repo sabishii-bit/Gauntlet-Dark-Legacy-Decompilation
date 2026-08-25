@@ -246,12 +246,15 @@ static f32 PointLineDist2D(Vec* p0, Vec* p1, Vec* dir, Vec* out) {
 #pragma dont_inline on
 static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
                         Vec* pointA, Vec* dirA, f32 lenB, f32 lenA) {
-    Vec cpB;
-    Vec cpP;
-    Vec dstTmp;
-    Vec cpA;
-    Vec tmpA;
+    u8 highPad[40];
     Vec tmpB;
+    u8 endpointPad[4];
+    Vec tmpA;
+    u8 unused[48];
+    Vec cpA[3];
+    Vec dstTmp[3];
+    Vec cpP[3];
+    Vec cpB[3];
     Vec* endB;
     Vec* endA;
     Vec* dst;
@@ -331,7 +334,7 @@ static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
             goto interior;
         }
         if (endB != NULL) {
-            Vec* cp = &cpA;
+            Vec* cp = &cpA[0];
 
             t = (endB->y - pointA->y) * dirA->y;
             t = (endB->x - pointA->x) * dirA->x + t;
@@ -359,7 +362,7 @@ static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
         if (endA != NULL) {
             dst = out;
             if (out == NULL) {
-                dst = &dstTmp;
+                dst = &dstTmp[0];
             }
             t = (endA->y - pointB->y) * dirB->y;
             t = (endA->x - pointB->x) * dirB->x + t;
@@ -412,7 +415,7 @@ static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
             u = (pointB->x - pointA->x) * dirA->x + u;
             u = (pointB->z - pointA->z) * dirA->z + u;
             {
-            Vec* cp = &cpP;
+            Vec* cp = &cpP[0];
 
             if (u < lbl_80345D50) {
                 cp->x = pointA->x;
@@ -443,7 +446,7 @@ static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
             t = (out->x - pointA->x) * dirA->x + t;
             t = (out->z - pointA->z) * dirA->z + t;
             {
-            Vec* cp = &cpB;
+            Vec* cp = &cpB[0];
 
             if (t < lbl_80345D50) {
                 cp->x = pointA->x;
