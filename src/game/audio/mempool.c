@@ -147,16 +147,15 @@ u32 pool_new(MemList* list) {
 s32 pool_garbage_collect(MemPoolLists* pool,
                          s32 (*gapCallback)(MemListNode*, u32)) {
     MemListNode* node;
-    MemListNode** entries = lbl_8031EB00;
-    s32 count;
-    u32 currentEnd;
-    s32 i;
     s32 result;
+    s32 count;
+    s32 i;
+    u32 currentEnd;
+    MemListNode** entries = lbl_8031EB00;
 
     result = 1;
     count = 0;
-    node = pool->secondary.head;
-    if (node != NULL) {
+    if ((node = pool->secondary.head) != NULL) {
         do {
             entries[count++] = node;
             node = node->next;

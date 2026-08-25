@@ -463,6 +463,18 @@
         "copy_register_fields": true
       }
     ],
+    "game/audio/mempool": [
+      {
+        "function": "pool_garbage_collect",
+        "before_sha256": "e06cbf11a96286e486f49089eb26185dc7ec54e44e7007879805c6e88f1aa9ec",
+        "after_sha256": "2f247a943b613bb08538ab9fffa587f51333130e38d584632bf9ee17397c638c",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 69
+        },
+        "copy_register_fields": true
+      }
+    ],
     "game/sys/sysservice": [
       {
         "function": "sysClearFlags",
