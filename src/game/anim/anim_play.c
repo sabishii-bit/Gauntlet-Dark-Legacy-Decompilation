@@ -176,24 +176,27 @@ extern f32 lbl_8023CBA0[256];
 int fn_80010850(u32* bits, s32 n, s32* out);
 u32 fn_80010904(u32* bits, s32 start, s32 total);
 
-/* Byte-swap a float through memory (anim data is little-endian). */
+/* Byte-swap a word through memory (anim data is little-endian). */
+static inline u32 SwapWord(const u32* input)
+{
+    union {
+        u32 w;
+        u8 b[4];
+    } s, d;
+
+    s.w = *input;
+    *(volatile u8*)&d.b[0] = *(volatile u8*)&s.b[3];
+    *(volatile u8*)&d.b[1] = *(volatile u8*)&s.b[2];
+    *(volatile u8*)&d.b[2] = *(volatile u8*)&s.b[1];
+    *(volatile u8*)&d.b[3] = *(volatile u8*)&s.b[0];
+    return d.w;
+}
+
 static inline f32 SwapFloat(f32 v)
 {
     u32 w;
 
-    {
-        union {
-            u32 w;
-            u8 b[4];
-        } s, d;
-
-        s.w = *(u32*)&v;
-        *(volatile u8*)&d.b[0] = *(volatile u8*)&s.b[3];
-        *(volatile u8*)&d.b[1] = *(volatile u8*)&s.b[2];
-        *(volatile u8*)&d.b[2] = *(volatile u8*)&s.b[1];
-        *(volatile u8*)&d.b[3] = *(volatile u8*)&s.b[0];
-        w = d.w;
-    }
+    w = SwapWord((u32*)&v);
     return *(f32*)&w;
 }
 
@@ -355,7 +358,7 @@ s32 GetAnimAngXYZVal(f32 frame, AnimData* data, f32* pose, u32* keydata, s32 fla
     s32 diff;
     s32 i;
     f32 t;
-    u8 unused[184];
+    u8 unused[16];
 
     if (flags & 0x4000) {
         n = GetPYR(pose, (f32*)keydata, flags, 0, mask);
