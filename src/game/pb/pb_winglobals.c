@@ -343,40 +343,42 @@ void fn_800C0FE8(void)
  * out of every loaded bank's slot stamps (u64 per slot). */
 void fn_800C1004(void)
 {
-    u64 mask;
     PbWGGlobals* g = gWinGlobals;
-    s32 stamp = lbl_80343F78;
+    s32 t;
     s32 i;
-    u32 bit;
-    u32 m;
-    u32* mw;
 
-    lbl_80343F7C = stamp;
-    stamp = stamp + 1;
-    lbl_80343F78 = stamp;
-    if (stamp >= 2) {
+    t = lbl_80343F78 + 1;
+    lbl_80343F7C = lbl_80343F78;
+    lbl_80343F78 = t;
+    if (t >= 2) {
         lbl_80343F78 = 0;
     }
-    stamp = lbl_80343F78;
-    if (stamp >= 0) {
-        bit = 1 << stamp;
-        m = ~(((bit << 24) & 0xFF000000) | ((bit << 16) & 0xFF0000) |
-              ((bit << 8) & 0xFF00) | (bit & 0xFF));
-        mw = (u32*)&mask;
-        mw[0] = m;
-        mw[1] = mw[0];
-        for (i = 0; i < g->banks->m0; i++) {
-            s32* rp = (s32*)&g->banks[i];
-            PbWGBank** bpp = (PbWGBank**)(rp + 1);
-            if (rp[4] == 0) {
-                PbWGBank* bank = *bpp;
-                u32 n = bank->nslots;
-                if (n != 0) {
-                    u64* stamps = (u64*)bank->stamps;
-                    u32 q = (n + 7) >> 3;
+    if (lbl_80343F78 >= 0) {
+        u32 b = 1 << lbl_80343F78;
+        u32 m;
+        u32 mm[2];
+        u64 mk;
+        s32 off;
+
+        m = ~(((b & 0xFF) << 24) | ((b & 0xFF) << 16) |
+              ((b & 0xFF) << 8) | (b & 0xFF));
+        mm[0] = m;
+        mm[1] = mm[0];
+        mk = *(u64*)mm;
+        for (i = 0, off = 0; i < g->banks[0].m0; i++, off += 0x10) {
+            s32* p = (s32*)((u8*)g->banks + off);
+            s32 busy = p[4];
+            s32* q = p + 1;
+            if (busy == 0) {
+                PbWGBank* bank = *(PbWGBank**)q;
+                u32 nslots = bank->nslots;
+                if (nslots != 0) {
+                    u8* stamps = bank->stamps;
+                    s32 so = 0;
                     s32 k;
-                    for (k = 0; k < (s32)q; k++) {
-                        stamps[k] &= mask;
+                    for (k = (nslots + 7) >> 3; k > 0; k--) {
+                        *(u64*)(stamps + so) &= mk;
+                        so += 8;
                     }
                 }
             }

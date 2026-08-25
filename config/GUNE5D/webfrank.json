@@ -475,6 +475,18 @@
         "copy_register_fields": true
       }
     ],
+    "game/pb/pb_winglobals": [
+      {
+        "function": "fn_800C1004",
+        "before_sha256": "115fdc55e1dc9673317fac80383b85afdbb91c86fe43d6b80697e2b55e4034d9",
+        "after_sha256": "756fcae012f71c2b06b5d9f17cc3f460e7666a776338dbbf6c5c648c5443b782",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 71
+        },
+        "copy_register_fields": true
+      }
+    ],
     "game/sys/sysservice": [
       {
         "function": "sysClearFlags",
