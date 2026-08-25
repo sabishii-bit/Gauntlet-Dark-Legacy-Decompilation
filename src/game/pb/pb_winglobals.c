@@ -360,7 +360,7 @@ void fn_800C1004(void)
     stamp = lbl_80343F78;
     if (stamp >= 0) {
         bit = 1 << stamp;
-        m = ~(((bit << 16) & 0xFF0000) | ((bit << 24) & 0xFF000000) |
+        m = ~(((bit << 24) & 0xFF000000) | ((bit << 16) & 0xFF0000) |
               ((bit << 8) & 0xFF00) | (bit & 0xFF));
         mw = (u32*)&mask;
         mw[0] = m;
