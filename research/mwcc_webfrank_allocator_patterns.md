@@ -119,6 +119,64 @@ Target-informed ready-node orders can reproduce 22/22 target colors, which is
 useful only as a graph-validity proof. They are deliberately not patch
 candidates because they consult the desired coloring.
 
+### Completed `AllocMem32` saved-GPR experiment
+
+The SHA-pinned compiler reached `AllocMem32` as CodeGen ordinal 15 in
+`ml_mem.c` through both the repaired x32dbg MCP path and retrowin32/GDB. Its
+GPR coalescing window is `35..60`. The only unions are `r48 -> fixed r3` and
+`r59 -> fixed r3`; the three saved-register roots remain independent:
+
+| Web | Role | Initial degree | Stock simplify/removal | Stock selection/color |
+| --- | --- | ---: | --- | --- |
+| `r38` | alignment/padding chain | 34 | pass 2, effective degree 13 | first saved choice, `r31` |
+| `r32` | total-size chain | 34 | pass 2, effective degree 14 | second saved choice, `r30` |
+| `r33` | result chain | 19 | first node removed in pass 1 | last saved choice, `r29` |
+
+The simplify stack is therefore `r38`, `r32`, the volatile webs, then `r33`.
+At `0x004CE381`, ordinary webs select the lowest set bit of their volatile
+available mask. These three webs instead reach `0x004CE3BF` with no volatile
+color available. `MWCC_Coloring_ClaimHighestSavedGPR` (`0x004C1A50`) scans
+physical colors from `r31` down through `r14`, reserves the first free color,
+and returns it. The target needs the legal order `r38`, `r33`, `r32`, producing
+`r31`, `r30`, `r29`; the physical-color fallback itself is not wrong.
+
+Two raw-exact same-TU controls constrain any change. `AllocMem` has one
+high-degree root (`r32`, degree 30) and one medium root (`r33`, degree 18).
+Stock removes `r33` first and `r32` last, then assigns `r32 -> r31` and
+`r33 -> r30`; that is target-exact. `AllocHiMem` has one saved root (`r32`,
+degree 33), which stock assigns `r31`; it is also target-exact. This rules out
+a general saved-color reversal or generic low-before-high reordering.
+
+A graph replay found one useful mechanistic oracle. Reducing the GPR simplify
+threshold from its real value 29 to any value in `16..19` changes only the two
+wrong `AllocMem32` assignments and reproduces its complete target function.
+The exact `AllocMem` control regresses at `16..18` but remains unchanged at
+19. A live in-memory whole-`ml_mem.c` compile therefore tested `K=19` on the
+unmodified, SHA-pinned scratch compiler. It made `AllocMem32` byte-exact, but
+it was not safe:
+
+| Function | Baseline target-different bytes | `K=19` target-different bytes |
+| --- | ---: | ---: |
+| `serve_io` | 0 | 5 |
+| `do_threaded_io` | 0 | 29 |
+| `StartFileRead` | 0 | 43 |
+| `AllocMem32` | 8 | 0 |
+| `get_path` | 0 | 10 |
+| `AllocFile` | 2 | 37 |
+| `xReadFileSection` | 0 | 6 |
+| `MLMReadFile` | 0 | 9 |
+
+The baseline object SHA-256 is
+`731d4046f7d75c1c4619c7e954e68afa3597935fecc805871556a04e833483b1`;
+the in-memory `K=19` object is
+`a084974d7e41d51ef854efb39a3bc32b33a86d6edda0d809440583ec5a2269e0`.
+Both `.text` and `extab` changed. Gating `K=19` on the exact observed
+`34/34/19` graph signature would merely encode this target shape: no recovered
+compiler semantic explains 19, and no shape-matched exact negative corpus
+justifies it. The saved-GPR threshold class is therefore capped for a
+production `1.2.5s` extension. The `K=19` result remains a compact oracle for
+future reconstruction of the original priority or liveness difference.
+
 ### x32dbg MCP path
 
 The live x32dbg effort also isolated a debugger-bridge defect unrelated to
@@ -146,6 +204,9 @@ prototype.
 * Reversing the vreg scan globally is also contradicted by the exact control,
   and the positive cases require selective pressure-dependent reorderings
   rather than one reversal.
+* Reducing the GPR simplify threshold to 19 is now directly disproven as a
+  global policy. It fixes `AllocMem32` exactly but regresses six raw-exact
+  functions in the same TU and worsens `AllocFile`.
 * Disabling or changing copy coalescing cannot explain
   `CritterResolveMultipleTargets`: all of its observed parents are identity.
   It would also remove valid fixed-`r3` coalesces from the exact control.
@@ -186,6 +247,18 @@ it cannot by itself justify deprecating the whole mechanism.
   `99515BC3496EFAB569AAAE874D5E750F2F41231EB921E2082FB7F0D9C88785E9`
 * `<local-scratch>\gdl-x64dbg-critter\trace-getSinCos-deep.gdb`, SHA-256
   `7B69E6C14A4D1F6D5803BBC6FE25BE34212FB5DA524B50589E1F39CA147BB190`
+* `<local-scratch>\gdl-x64dbg-critter\trace-AllocMem32-deep.txt`, SHA-256
+  `6FE1F57B91C192FFFCECC9EB0FDFBB3AF8257D06209B0C58F848F78DA9B412A1`
+* `<local-scratch>\gdl-x64dbg-critter\trace-AllocMem-control-graph.txt`, SHA-256
+  `C1C62AEEDB638767977FC8ED2FC451C6DF2AA72D3A6381B22B074463937FEDB3`
+* `<local-scratch>\gdl-x64dbg-critter\trace-AllocHiMem-control.txt`, SHA-256
+  `E2ACA5DF3091815151AD1A1B6429C9D26704631C5DF3828F2DED3FCEB30513F6`
+* `<local-scratch>\gdl-x64dbg-critter\replay-AllocMem32-k.py`, SHA-256
+  `CA5159648CF95A9CB99C1775B1695E4A74E0B01144123045DCDE3CC6B60FA85B`
+* `<local-scratch>\gdl-x64dbg-critter\compare-k19-target.py`, SHA-256
+  `968703C355B2F89CE01F9A1B7701662125E61237A3B6DDBCE4EC7BD77767D95C`
+* `<local-scratch>\gdl-x64dbg-critter\trace-ml_mem-k19.txt`, SHA-256
+  `D322A2750528E5BB3B9FE6CB4997844CC41F6DA0002CF7857BD97044C362A0BA`
 * `<local-scratch>\gdl-x64dbg-critter\x32-live-resolve-evidence.md`
 * `<local-scratch>\gdl-webfrank-patterns\capture-getSinCos`
 * `<local-scratch>\gdl-webfrank-patterns\capture-AllocMem32`

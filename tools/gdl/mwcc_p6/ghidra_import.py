@@ -78,6 +78,9 @@ FUNCTIONS = [
     (0x004C1850, "MWCC_Registers_UpdateCoalesceWindow", "confirmed class coalescing-window update helper"),
     (0x004C1900, "MWCC_Registers_CheckpointCoalesceWindow", "confirmed class coalescing-window checkpoint helper"),
     (0x004C1980, "MWCC_Registers_BeginCoalesceWindow", "confirmed class coalescing-window begin helper"),
+    (0x004C19F0, "MWCC_Coloring_ClaimHighestSavedVR", "confirmed class-2 saved-color allocator; scans physical colors 31 down through 20 and reserves the first free color"),
+    (0x004C1A20, "MWCC_Coloring_ClaimHighestSavedFPR", "confirmed class-1 saved-color allocator; scans physical colors 31 down through 14 and reserves the first free color"),
+    (0x004C1A50, "MWCC_Coloring_ClaimHighestSavedGPR", "confirmed class-0 saved-color allocator; scans physical colors 31 down through 14 and reserves the first free color"),
     (0x004C2560, "MWCC_CMangler_GetLinkName", "live-validated cached link-name resolver"),
     (0x004C4430, "MWCC_COptimizer_Optimize", "inferred optimization-level dispatcher"),
     (0x004C4530, "MWCC_COptimizer_Level4", "confirmed pass order and entry"),
@@ -276,6 +279,14 @@ SPECIAL_SITES = [
         "observed mask 0x1ff0 and stock r4 here while retail needs r6; the "
         "raw-exact CritterGetTarget control follows this same policy. This "
         "localizes that residual upstream to graph/simplify state.",
+    ),
+    (
+        0x004CE3BF,
+        "MWCC_Coloring_SavedColorChoice",
+        "Saved-color assignment after the volatile available mask reaches zero. "
+        "EAX is the class-specific highest free saved physical color and EBX is "
+        "the current InterferenceNode. AllocMem32 observed r38->r31, r32->r30, "
+        "and r33->r29 here; raw-exact AllocMem observed r32->r31 and r33->r30.",
     ),
     (
         0x004CE44C,
