@@ -206,6 +206,24 @@ exact. Judge the function and pool together. Likewise, a missing retail branch
 is still structural: neither register WebFrank nor the atom-permutation path may
 manufacture a control instruction that the compiler did not emit.
 
+### Hard closure for one-blocker objects
+
+A near-complete object needs a different stopping rule from ordinary fuzzy
+polish. If a TU is above 99% and has one remaining function or metadata seam,
+the normal three-attempt cap closes only the attempted source shapes. It does
+not make the object permanently parked. A dedicated closure pass should derive
+the residual symbolically and automate genuinely distinct portable mechanisms:
+algebraic and bitfield identities, signed/unsigned widths, helper/inlining
+boundaries, alias and volatile forms, scoped optimizer flags, and relevant
+compiler/profile variants. Equivalent spellings should still be deduplicated.
+
+This escalation never relaxes correctness: missing branches/opcodes remain
+ineligible for register WebFrank; scheduler permutations still require an
+independent straight-line atom/relocation proof; every sibling and object
+section must remain exact; and `Matching` still requires a fresh DOL checksum.
+The purpose is to avoid mistaking a few failed local probes for an exhaustive
+TU-closure audit.
+
 Do not switch whole libraries to 1.2.5e. Probe a specific function and retain
 the hybrid only when its function and sibling scores improve. `webfrank` is a
 different mechanism and must not be described as Frank, a recovered compiler,
