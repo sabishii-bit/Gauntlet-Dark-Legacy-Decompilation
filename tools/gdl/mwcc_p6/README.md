@@ -101,8 +101,12 @@ driver, dependency builders, four-level picker, default machine-model hooks,
 model/timing globals, graph-ready boundary, and each tie-break boundary. Packed
 types cover `PCodeBlock`, `PCodeInstruction`, `PCodeOperand`, `PCodeLink`,
 `PCodeLabel`, `SchedulerNode`, `SchedulerEdge`, `SchedulerMachineModel`, and
-`SchedulerOpcodeTiming`. Names described as inferred in their plate comments
-are semantic working names, not claimed original Metrowerks identifiers.
+`SchedulerOpcodeTiming`. The allocator frontier additionally names the
+simplify/select/commit pipeline, interference/coalescing and liveness passes,
+class counters/windows, and packed `PCodeBlockLiveness` and
+`InterferenceNode` layouts. Names described as inferred in their plate
+comments are semantic working names, not claimed original Metrowerks
+identifiers.
 
 The scheduler comments also preserve the important distinction established by
 live GC/1.2.5 traces: `AllocFile` reaches the final earlier-textual tie, while

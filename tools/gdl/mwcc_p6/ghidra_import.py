@@ -48,6 +48,7 @@ FUNCTIONS = [
     (0x0042CD10, "MWCC_IRO_Optimizer", "confirmed frontend optimizer dispatcher"),
     (0x0042C9D0, "MWCC_IRO_ExpressionPropagation", "confirmed IRO pass"),
     (0x004351C0, "MWCC_CodeGen_Generator", "confirmed backend coordinator"),
+    (0x00437230, "MWCC_CodeGen_PreallocateObjectRegisters", "confirmed object-register preallocation and coalescing-window setup pass"),
     (0x00449E30, "MWCC_IRO_BuildflowGraph", "confirmed IRO pass"),
     (0x0044AB00, "MWCC_IRO_ScalarizeClassDataMembers", "confirmed IRO pass"),
     (0x0044ADE0, "MWCC_RewriteBitFieldTemps", "confirmed IRO pass"),
@@ -72,6 +73,11 @@ FUNCTIONS = [
     (0x004A25D0, "MWCC_PCodeUtilities_EmitInstruction", "inferred variadic PCode emitter"),
     (0x004ABA30, "MWCC_StackFrameEABI_MergePrologueEpilogue", "inferred exact merge role"),
     (0x004ABE90, "MWCC_StackFrameEABI_GeneratePrologueEpilogue", "inferred exact generation role"),
+    (0x004C1720, "MWCC_Registers_GetInfo", "confirmed object-to-register-info lookup and allocation helper"),
+    (0x004C17C0, "MWCC_Registers_CloseCoalesceWindow", "confirmed class coalescing-window close helper"),
+    (0x004C1850, "MWCC_Registers_UpdateCoalesceWindow", "confirmed class coalescing-window update helper"),
+    (0x004C1900, "MWCC_Registers_CheckpointCoalesceWindow", "confirmed class coalescing-window checkpoint helper"),
+    (0x004C1980, "MWCC_Registers_BeginCoalesceWindow", "confirmed class coalescing-window begin helper"),
     (0x004C2560, "MWCC_CMangler_GetLinkName", "live-validated cached link-name resolver"),
     (0x004C4430, "MWCC_COptimizer_Optimize", "inferred optimization-level dispatcher"),
     (0x004C4530, "MWCC_COptimizer_Level4", "confirmed pass order and entry"),
@@ -88,12 +94,28 @@ FUNCTIONS = [
     (0x004CD910, "MWCC_Scheduler_AddEdge", "confirmed edge insertion and critical-path height propagation"),
     (0x004CD9D0, "MWCC_Scheduler_ResetBlockState", "confirmed per-block dependency-table reset"),
     (0x004CDEF0, "MWCC_Coloring_AllocateRegisters", "inferred exact coloring coordinator"),
+    (0x004CE1A0, "MWCC_Coloring_CommitAssignments", "confirmed PCode operand rewrite and object-color commit pass"),
+    (0x004CE2D0, "MWCC_Coloring_SelectColors", "confirmed simplify-stack pop and lowest-free-color selection pass"),
+    (0x004CE400, "MWCC_Coloring_SimplifyGraph", "confirmed low-degree simplification and spill-candidate ranking pass"),
+    (0x004CE5F0, "MWCC_Coloring_SetupVRs", "confirmed vector-register interference-node setup"),
+    (0x004CE710, "MWCC_Coloring_SetupFPRs", "confirmed floating-point interference-node setup"),
+    (0x004CE850, "MWCC_Coloring_SetupGPRs", "confirmed general-purpose interference-node setup"),
     (0x0052DBC0, "MWCC_SchedulerModelDefault_Serializes", "confirmed default-model barrier predicate"),
     (0x0052DBE0, "MWCC_SchedulerModelDefault_Advance", "confirmed default-model pipeline and retirement advance"),
     (0x0052DF20, "MWCC_SchedulerModelDefault_OnIssue", "confirmed default-model instruction issue hook"),
     (0x0052DFA0, "MWCC_SchedulerModelDefault_CanIssue", "confirmed default-model structural-hazard predicate"),
     (0x0052E000, "MWCC_SchedulerModelDefault_Reset", "confirmed default-model per-block reset"),
     (0x0052E0B0, "MWCC_SchedulerModelDefault_Latency", "confirmed default-model latency calculation"),
+    (0x00530050, "MWCC_SpillCode_IsDeadInstruction", "confirmed class-sensitive dead-definition predicate"),
+    (0x005301B0, "MWCC_SpillCode_InitializeLiveness", "confirmed liveness allocation, local-set, return-seed, and solve driver"),
+    (0x00530410, "MWCC_SpillCode_SolveLiveness", "confirmed backward fixed-point live-in/live-out solver"),
+    (0x00530530, "MWCC_SpillCode_BuildLocalLiveness", "confirmed upward-exposed use and local definition builder"),
+    (0x00530A00, "MWCC_SpillCode_BuildInterference", "confirmed six-stage interference/coalescing pipeline driver"),
+    (0x00530A80, "MWCC_SpillCode_MarkLastUses", "confirmed backward last-use marker pass"),
+    (0x00530C00, "MWCC_SpillCode_MaterializeGraph", "confirmed triangular-matrix to interference-node conversion"),
+    (0x00530E00, "MWCC_SpillCode_CoalesceCopies", "confirmed class-copy coalescing and canonical-root operand rewrite"),
+    (0x00531290, "MWCC_SpillCode_ConstructInterference", "confirmed live-set interference-matrix construction"),
+    (0x00532790, "MWCC_SpillCode_ComputeSpillCosts", "confirmed weighted use/definition spill-cost accumulation"),
 ]
 
 
@@ -107,6 +129,8 @@ GLOBALS = [
     (0x00587130, "MWCC_gCurrentCodeGenItem", "pointer", "current lowering item/statement"),
     (0x00587C74, "MWCC_gPCodeBlocks", "pointer", "head of physical PCode basic-block list"),
     (0x00587E3C, "MWCC_gInterferenceGraph", "pointer", "interference graph root"),
+    (0x005876A0, "MWCC_gTrailingObjectList", "pointer", "register-object list processed after local objects"),
+    (0x005882AC, "MWCC_gInitialObjectList", "pointer", "initial register-object list"),
     (0x00587FB8, "MWCC_gLocalObjectList", "pointer", "local register-object list"),
     (0x0058806C, "MWCC_gPostInitialObjectList", "pointer", "post-initial register-object list"),
     (0x005880C4, "MWCC_gCurrentPCodeBlock", "pointer", "live-observed current physical block"),
@@ -116,6 +140,17 @@ GLOBALS = [
     (0x00581B84, "MWCC_gSchedulerMaxHeight", "u16", "running maximum critical-path height; not reset between blocks"),
     (0x0058846C, "MWCC_gUsedVirtualRegistersFPR", "u16", "FPR virtual-register counter"),
     (0x0058846E, "MWCC_gUsedVirtualRegistersGPR", "u16", "GPR virtual-register counter"),
+    (0x0058308C, "MWCC_gCoalescedRegisters", "pointer", "class-local 16-bit coalescing-parent map"),
+    (0x005882DA, "MWCC_gGPRCoalesceFirst", "u16", "inclusive GPR coalescing-window start"),
+    (0x005882E2, "MWCC_gGPRCoalesceLast", "u16", "GPR coalescing-window end snapshot; effective monotonic range is half-open"),
+    (0x005882DC, "MWCC_gFPRCoalesceFirst", "u16", "inclusive FPR coalescing-window start"),
+    (0x005882E0, "MWCC_gFPRCoalesceLast", "u16", "FPR coalescing-window end snapshot; effective monotonic range is half-open"),
+    (0x00588464, "MWCC_gVRCoalesceFirst", "u16", "inclusive vector coalescing-window start"),
+    (0x0058846A, "MWCC_gVRCoalesceLast", "u16", "vector coalescing-window end snapshot; effective monotonic range is half-open"),
+    (0x0058842C, "MWCC_gInitialObjectVRLast", "u16", "initial-object vector-register end snapshot"),
+    (0x0058845A, "MWCC_gInitialObjectGPRLast", "u16", "initial-object GPR end snapshot"),
+    (0x0058845C, "MWCC_gInitialObjectFPRLast", "u16", "initial-object FPR end snapshot"),
+    (0x0058849A, "MWCC_gUsedVirtualRegistersVR", "u16", "vector virtual-register counter"),
     (0x00584224, "MWCC_gProcessorModel", "u8", "processor model byte; -proc gekko stores 8"),
     (0x00584230, "MWCC_gSchedulerModelOverride", "u8", "nonzero forces the CPU-7 scheduler model path"),
     (0x00587648, "MWCC_gVirtualRegistersActive", "u32", "nonzero enables virtual-register-sized scheduler tables and descriptor tie-break"),
@@ -449,6 +484,22 @@ def make_structures():
     scheduler_timing.replaceAtOffset(0x04, byte, 1, "stage3_countdown", "third pipeline-stage countdown")
     scheduler_timing.replaceAtOffset(0x05, byte, 1, "serialize", "nonzero makes the opcode a scheduling barrier")
 
+    pcode_liveness = StructureDataType(category, "PCodeBlockLiveness", 0x10, dtm)
+    pcode_liveness.replaceAtOffset(0x00, pointer, 4, "use", "upward-exposed-use bitset")
+    pcode_liveness.replaceAtOffset(0x04, pointer, 4, "definition", "local-definition bitset")
+    pcode_liveness.replaceAtOffset(0x08, pointer, 4, "live_in", "fixed-point block live-in bitset")
+    pcode_liveness.replaceAtOffset(0x0C, pointer, 4, "live_out", "fixed-point block live-out bitset")
+
+    interference_node = StructureDataType(category, "InterferenceNode", 0x16, dtm)
+    interference_node.replaceAtOffset(0x00, pointer, 4, "next", "temporary simplify/select stack link")
+    interference_node.replaceAtOffset(0x04, pointer, 4, "object", "associated CompilerObject* when present")
+    interference_node.replaceAtOffset(0x08, dword, 4, "spill_cost", "weighted spill-cost numerator")
+    interference_node.replaceAtOffset(0x0C, word, 2, "virtual_register", "class-local virtual-register number")
+    interference_node.replaceAtOffset(0x0E, word, 2, "degree", "current interference degree")
+    interference_node.replaceAtOffset(0x10, word, 2, "physical_register", "selected color or coalesced-root index")
+    interference_node.replaceAtOffset(0x12, word, 2, "flags", "allocator/coalescing flags")
+    interference_node.replaceAtOffset(0x14, word, 2, "neighbor_count", "u16 neighbor indices follow at +0x16")
+
     for data_type in (
         link,
         operand,
@@ -459,6 +510,8 @@ def make_structures():
         scheduler_node,
         scheduler_model,
         scheduler_timing,
+        pcode_liveness,
+        interference_node,
     ):
         dtm.addDataType(data_type, DataTypeConflictHandler.REPLACE_HANDLER)
 
