@@ -6635,7 +6635,7 @@ s32 CritterLoadStartNext(void)
     u8 *entry;
     u8 *sub;
     u8 *desc;
-    s32 k;
+    s32 offset;
 
     fmtbase = (u8 *)lbl_801120E0;
     tableBase = (u8 *)lbl_80241070;
@@ -6661,8 +6661,9 @@ s32 CritterLoadStartNext(void)
                             (u8 *)gWorldData + 4);
                     break;
                 case 7:
-                    for (k = 0; k < 8; k++) {
-                        s32 *e2 = lbl_8025776C[k];
+                    for (offset = 0; offset < 32; offset += 4) {
+                        s32 *e2 =
+                            *(s32 **)((u8 *)lbl_8025776C + offset);
                         if (*e2 == 32) {
                             sprintf(buf, (char *)&fmtbase[432], desc,
                                     (u8 *)e2 + 16);
