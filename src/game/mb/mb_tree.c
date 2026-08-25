@@ -790,6 +790,7 @@ void MBRemoveNodeChild(MBTreeNode* node)
     u8 unused[8];
     MBTreeNode* current = node;
     u8* entries = lbl_802C2A28;
+    u8* entry;
     f32 default_scale = lbl_80348CA0;
 
     while (current != 0) {
@@ -799,7 +800,7 @@ void MBRemoveNodeChild(MBTreeNode* node)
             MBRemoveNodeChild(node->child);
         if (node->flags & 0x10000000) {
             if (node->flags & 0x10000000) {
-                *(f32*)(entries + (u32)node->uvScaleAddIndex * 16) = default_scale;
+                *(f32*)(entry = entries + (u32)node->uvScaleAddIndex * 16) = default_scale;
                 MBTreeClearUVScaleAdd(node, -1, 1);
             }
         }
