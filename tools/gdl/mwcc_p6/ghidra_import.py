@@ -48,7 +48,7 @@ FUNCTIONS = [
     (0x0042CD10, "MWCC_IRO_Optimizer", "confirmed frontend optimizer dispatcher"),
     (0x0042C9D0, "MWCC_IRO_ExpressionPropagation", "confirmed IRO pass"),
     (0x004351C0, "MWCC_CodeGen_Generator", "confirmed backend coordinator"),
-    (0x00437230, "MWCC_CodeGen_PreallocateObjectRegisters", "confirmed object-register preallocation and coalescing-window setup pass"),
+    (0x00437230, "MWCC_CodeGen_PreallocateObjectRegisters", "confirmed object-register preallocation and half-open class coalescing-window setup pass"),
     (0x00449E30, "MWCC_IRO_BuildflowGraph", "confirmed IRO pass"),
     (0x0044AB00, "MWCC_IRO_ScalarizeClassDataMembers", "confirmed IRO pass"),
     (0x0044ADE0, "MWCC_RewriteBitFieldTemps", "confirmed IRO pass"),
@@ -95,8 +95,8 @@ FUNCTIONS = [
     (0x004CD9D0, "MWCC_Scheduler_ResetBlockState", "confirmed per-block dependency-table reset"),
     (0x004CDEF0, "MWCC_Coloring_AllocateRegisters", "inferred exact coloring coordinator"),
     (0x004CE1A0, "MWCC_Coloring_CommitAssignments", "confirmed PCode operand rewrite and object-color commit pass"),
-    (0x004CE2D0, "MWCC_Coloring_SelectColors", "confirmed simplify-stack pop and lowest-free-color selection pass"),
-    (0x004CE400, "MWCC_Coloring_SimplifyGraph", "confirmed low-degree simplification and spill-candidate ranking pass"),
+    (0x004CE2D0, "MWCC_Coloring_SelectColors", "confirmed simplify-stack pop and lowest-set-bit free-color selection pass; corpus vetoes a global preference reversal"),
+    (0x004CE400, "MWCC_Coloring_SimplifyGraph", "confirmed ascending-vreg low-degree scan, LIFO simplify stack, and spill-candidate ranking pass"),
     (0x004CE5F0, "MWCC_Coloring_SetupVRs", "confirmed vector-register interference-node setup"),
     (0x004CE710, "MWCC_Coloring_SetupFPRs", "confirmed floating-point interference-node setup"),
     (0x004CE850, "MWCC_Coloring_SetupGPRs", "confirmed general-purpose interference-node setup"),
@@ -113,7 +113,7 @@ FUNCTIONS = [
     (0x00530A00, "MWCC_SpillCode_BuildInterference", "confirmed six-stage interference/coalescing pipeline driver"),
     (0x00530A80, "MWCC_SpillCode_MarkLastUses", "confirmed backward last-use marker pass"),
     (0x00530C00, "MWCC_SpillCode_MaterializeGraph", "confirmed triangular-matrix to interference-node conversion"),
-    (0x00530E00, "MWCC_SpillCode_CoalesceCopies", "confirmed class-copy coalescing and canonical-root operand rewrite"),
+    (0x00530E00, "MWCC_SpillCode_CoalesceCopies", "confirmed class-copy coalescing, lower-vreg canonical roots, half-open window checks, and root operand rewrite"),
     (0x00531290, "MWCC_SpillCode_ConstructInterference", "confirmed live-set interference-matrix construction"),
     (0x00532790, "MWCC_SpillCode_ComputeSpillCosts", "confirmed weighted use/definition spill-cost accumulation"),
 ]
@@ -266,6 +266,16 @@ SPECIAL_SITES = [
         0x004CE3F4,
         "MWCC_RegallocCaptureBoundary",
         "Exact live debugger boundary for register-allocation capture.",
+    ),
+    (
+        0x004CE381,
+        "MWCC_Coloring_LowestFreeChoice",
+        "Exact color-choice instruction. EAX is the available-color mask, "
+        "EBX is the current InterferenceNode, and ECX is the lowest set-bit "
+        "index selected as the physical color. CritterResolveMultipleTargets "
+        "observed mask 0x1ff0 and stock r4 here while retail needs r6; the "
+        "raw-exact CritterGetTarget control follows this same policy. This "
+        "localizes that residual upstream to graph/simplify state.",
     ),
     (
         0x004CCCCC,
