@@ -16,6 +16,7 @@ game/world/worldcol.c:
 	extab       start:0x800054E0 end:0x80005548
 	extabindex  start:0x800087A0 end:0x8000883C
 	.text       start:0x8000CF40 end:0x8000E8E8
+	.sdata2     start:0x80345768 end:0x80345770
 
 game/anim/anim.c:
 	extab       start:0x80005548 end:0x80005580
