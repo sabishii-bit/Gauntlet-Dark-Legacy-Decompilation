@@ -1585,6 +1585,13 @@ int sumnerSpeechActive(void) {
     return 0;
 }
 
+static inline s32 sumnerLevelUpAt(TowerMsgState* state, s32 playerIndex) {
+    TowerMsgState* indexedState =
+        (TowerMsgState*)((u8*)state + playerIndex * 4);
+
+    return indexedState->levelUpLevel[0];
+}
+
 /* Run the Sumner speech: fetch scroll/string/list text, show captions,
  * play the speech audio, and advance the wizard animation. */
 #pragma opt_propagation off
@@ -1682,8 +1689,7 @@ void SumnerDoSpeech(void) {
             char* levelText;
             s32 level;
 
-            if (((TowerMsgState*)((u8*)state + playerIndex * 4))
-                    ->levelUpLevel[0] > 0) {
+            if (sumnerLevelUpAt(state, playerIndex) > 0) {
                 player = &players[lbl_80343E4C];
                 scroll = GetScrollText(-1, 0x18, 0, scrollArgs);
                 classText = GetStringText(0x16, player->class_id, 0);
