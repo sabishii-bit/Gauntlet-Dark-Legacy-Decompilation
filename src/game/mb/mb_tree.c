@@ -787,17 +787,21 @@ MBTreeNode* MBRemoveNode(MBTreeNode* node, s32 remove_children)
 /* 0x800BB164 */
 void MBRemoveNodeChild(MBTreeNode* node)
 {
-    MBUVScaleAdd* entries = (MBUVScaleAdd*)lbl_802C2A28;
+    u8 unused[8];
+    MBTreeNode* current = node;
+    u8* entries = lbl_802C2A28;
     f32 default_scale = lbl_80348CA0;
 
     while (node != 0) {
-        MBTreeNode* current = node;
+        current = node;
 
         if (current->child != 0)
             MBRemoveNodeChild(current->child);
         if (current->flags & 0x10000000) {
-            entries[current->uvScaleAddIndex].uScale = default_scale;
-            MBTreeClearUVScaleAdd(current, -1, 1);
+            if (current->flags & 0x10000000) {
+                *(f32*)(entries + (u32)current->uvScaleAddIndex * 16) = default_scale;
+                MBTreeClearUVScaleAdd(current, -1, 1);
+            }
         }
         node = current->next;
         if (current->type == 14 && current->special != 0) {
