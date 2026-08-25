@@ -1,0 +1,436 @@
+# Ghidra script: import recovered MWCC GC/1.2.5 annotations.
+#@category GDL.MWCC
+#@menupath Tools.GDL.Import MWCC GC 1.2.5 annotations
+
+"""Apply SHA-locked GC/1.2.5 annotations without distributing compiler bytes.
+
+The addresses come from live mwcc-debugger captures and static analysis of the
+exact retail GC/1.2.5 executable.  GC/1.2.5n has the same image layout, so one
+annotation profile covers both explicitly allowed hashes.
+
+This file is deliberately compatible with Ghidra's Jython runtime as well as
+Python 3 syntax checking.  It must be run inside Ghidra.
+"""
+
+import hashlib
+import os
+import re
+
+from ghidra.program.model.data import ArrayDataType
+from ghidra.program.model.data import ByteDataType
+from ghidra.program.model.data import CategoryPath
+from ghidra.program.model.data import DataTypeConflictHandler
+from ghidra.program.model.data import DWordDataType
+from ghidra.program.model.data import PointerDataType
+from ghidra.program.model.data import StructureDataType
+from ghidra.program.model.data import WordDataType
+from ghidra.program.model.data import VoidDataType
+from ghidra.program.model.listing import CodeUnit
+from ghidra.program.model.symbol import SourceType
+
+
+PROFILES = {
+    "0443b5c02b1aa7b575b61e0e24c4d5ad6bed8fd54cc42de5a2204a5216001914": {
+        "name": "GC/1.2.5 retail build 179",
+        "ninji": False,
+    },
+    "ccf4b465cec73b5aae9c5c5543dcf8cda8a62aba246f89e2e0b200d742f2e55c": {
+        "name": "GC/1.2.5n (Ninji epilogue patch)",
+        "ninji": True,
+    },
+}
+
+
+# Confirmed names are tied to in-binary trace strings or independently observed
+# control flow.  Inferred names state the exact observed role but are not claimed
+# as recovered Metrowerks source identifiers.
+FUNCTIONS = [
+    (0x0042CD10, "MWCC_IRO_Optimizer", "confirmed frontend optimizer dispatcher"),
+    (0x0042C9D0, "MWCC_IRO_ExpressionPropagation", "confirmed IRO pass"),
+    (0x004351C0, "MWCC_CodeGen_Generator", "confirmed backend coordinator"),
+    (0x00449E30, "MWCC_IRO_BuildflowGraph", "confirmed IRO pass"),
+    (0x0044AB00, "MWCC_IRO_ScalarizeClassDataMembers", "confirmed IRO pass"),
+    (0x0044ADE0, "MWCC_RewriteBitFieldTemps", "confirmed IRO pass"),
+    (0x0044DF00, "MWCC_IRO_CommonSubs", "confirmed IRO pass"),
+    (0x00455930, "MWCC_IRO_EvaluateConditionals", "confirmed IRO pass"),
+    (0x00455A70, "MWCC_IRO_ConstantFolding", "confirmed IRO pass"),
+    (0x00456620, "MWCC_IRO_RemoveLabels", "confirmed IRO pass"),
+    (0x00456670, "MWCC_IRO_RemoveRedundantJumps", "confirmed IRO pass"),
+    (0x00456860, "MWCC_IRO_RemoveUnreachable", "confirmed IRO pass"),
+    (0x00456A60, "MWCC_IRO_DoJumpChaining", "confirmed IRO pass"),
+    (0x00456BA0, "MWCC_IRO_RangePropagateInFNode", "confirmed IRO pass"),
+    (0x00458970, "MWCC_IRO_CopyAndConstantPropagation", "confirmed IRO pass"),
+    (0x00459B30, "MWCC_IRO_UseDef", "confirmed IRO pass"),
+    (0x0045FA80, "MWCC_IRO_LoopUnroller", "confirmed IRO pass wrapper"),
+    (0x00461040, "MWCC_IRO_FindLoops", "confirmed by self-naming trace"),
+    (0x0049CF70, "MWCC_Operands_PropagateFlags", "inferred exact flag-propagation helper"),
+    (0x0049D0B0, "MWCC_PCode_RemoveUnreachable", "inferred initial PCode cleanup"),
+    (0x0049D0F0, "MWCC_PCode_BuildPredecessors", "inferred predecessor construction"),
+    (0x0049D1B0, "MWCC_PCode_NewBasicBlock", "live-observed basic-block constructor"),
+    (0x0049D240, "MWCC_PCode_NewLabel", "live-observed label constructor"),
+    (0x0049D270, "MWCC_PCode_CloneInstruction", "live-observed PCode clone path"),
+    (0x004A25D0, "MWCC_PCodeUtilities_EmitInstruction", "inferred variadic PCode emitter"),
+    (0x004ABA30, "MWCC_StackFrameEABI_MergePrologueEpilogue", "inferred exact merge role"),
+    (0x004ABE90, "MWCC_StackFrameEABI_GeneratePrologueEpilogue", "inferred exact generation role"),
+    (0x004C2560, "MWCC_CMangler_GetLinkName", "live-validated cached link-name resolver"),
+    (0x004C4430, "MWCC_COptimizer_Optimize", "inferred optimization-level dispatcher"),
+    (0x004C4530, "MWCC_COptimizer_Level4", "confirmed pass order and entry"),
+    (0x004C4910, "MWCC_COptimizer_Level3", "confirmed pass order and entry"),
+    (0x004CCAE0, "MWCC_Scheduler_Schedule", "inferred exact scheduler role"),
+    (0x004CDEF0, "MWCC_Coloring_AllocateRegisters", "inferred exact coloring coordinator"),
+]
+
+
+GLOBALS = [
+    (0x00560CB4, "MWCC_gNodeNames", None, "75-entry AST node-name table"),
+    (0x005654B0, "MWCC_gPCodeOpcodeDescriptors", None, "468 descriptors, 0x10 bytes each"),
+    (0x0057F6C0, "MWCC_gTemporaryObjects", "pointer", "debugger-validated temporary-object list"),
+    (0x0058712C, "MWCC_gFrameCallArgsSize", "u32", "secondary/outgoing-call frame cursor"),
+    (0x00587130, "MWCC_gCurrentCodeGenItem", "pointer", "current lowering item/statement"),
+    (0x00587C74, "MWCC_gPCodeBlocks", "pointer", "head of physical PCode basic-block list"),
+    (0x00587E3C, "MWCC_gInterferenceGraph", "pointer", "interference graph root"),
+    (0x00587FB8, "MWCC_gLocalObjectList", "pointer", "local register-object list"),
+    (0x0058806C, "MWCC_gPostInitialObjectList", "pointer", "post-initial register-object list"),
+    (0x005880C4, "MWCC_gCurrentPCodeBlock", "pointer", "live-observed current physical block"),
+    (0x005880CC, "MWCC_gFrameBaseSize", "u32", "linkage/base frame size"),
+    (0x0058846C, "MWCC_gUsedVirtualRegistersFPR", "u16", "FPR virtual-register counter"),
+    (0x0058846E, "MWCC_gUsedVirtualRegistersGPR", "u16", "GPR virtual-register counter"),
+]
+
+
+AST_CAPTURE_POINTS = [
+    (0x0043539D, "initial_code"),
+    (0x004353C4, "after_optimizations"),
+    (0x004353C9, "final_code"),
+]
+
+
+PCODE_CAPTURE_POINTS = [
+    (0x00435AFF, "initial_code"),
+    # -O2 optimizer
+    (0x004C4486, "O2_after_common_subexpression_elimination"),
+    (0x004C44B9, "O2_after_copy_propagation"),
+    (0x004C44E9, "O2_after_add_propagation"),
+    # -O3 optimizer
+    (0x004C4926, "O3_after_common_subexpression_elimination"),
+    (0x004C4959, "O3_after_copy_propagation_1"),
+    (0x004C4993, "O3_after_add_propagation_1"),
+    (0x004C49F6, "O3_after_loop_code_motion"),
+    (0x004C4A26, "O3_after_loop_strength_reduction"),
+    (0x004C4A2D, "O3_after_copy_propagation_2"),
+    (0x004C4A5E, "O3_after_loop_transforms"),
+    (0x004C4A65, "O3_after_copy_propagation_3"),
+    (0x004C4A6B, "O3_after_add_propagation_2"),
+    (0x004C4AA7, "O3_after_copy_propagation_4"),
+    (0x004C4ADB, "O3_after_constant_propagation"),
+    (0x004C4B0B, "O3_after_load_deletion"),
+    (0x004C4B3B, "O3_after_add_propagation_3"),
+    (0x004C4B6E, "O3_after_common_subexpression_elimination_2"),
+    (0x004C4B75, "O3_after_copy_propagation_5"),
+    # -O4 optimizer
+    (0x004C4546, "O4_after_common_subexpression_elimination_1"),
+    (0x004C4579, "O4_after_copy_propagation_1"),
+    (0x004C45B3, "O4_after_add_propagation_1"),
+    (0x004C4616, "O4_after_loop_code_motion"),
+    (0x004C4646, "O4_after_loop_strength_reduction"),
+    (0x004C464D, "O4_after_copy_propagation_2"),
+    (0x004C467E, "O4_after_loop_transforms"),
+    (0x004C4685, "O4_after_copy_propagation_3"),
+    (0x004C468B, "O4_after_add_propagation_2"),
+    (0x004C46C7, "O4_after_copy_propagation_4"),
+    (0x004C46FB, "O4_after_constant_propagation_1"),
+    (0x004C472B, "O4_after_load_deletion"),
+    (0x004C475D, "O4_after_copy_propagation_5"),
+    (0x004C476C, "O4_after_add_propagation_3"),
+    (0x004C47A5, "O4_after_array_register_transforms"),
+    (0x004C47D5, "O4_after_constant_propagation_2"),
+    (0x004C47DC, "O4_after_copy_propagation_6"),
+    (0x004C480D, "O4_after_common_subexpression_elimination_2"),
+    (0x004C4817, "O4_after_copy_propagation_7"),
+    (0x004C48AB, "O4_after_code_motion_2"),
+    (0x004C48DE, "O4_after_common_subexpression_elimination_3"),
+    (0x004C48E5, "O4_after_copy_propagation_8"),
+    # Shared CodeGen_Generator tail
+    (0x00435B7E, "shared_after_scheduling_1"),
+    (0x00435BDA, "shared_after_peephole_forward"),
+    (0x00435BFE, "shared_before_regalloc"),
+    (0x00435C03, "shared_after_regalloc"),
+    (0x00435CB8, "shared_after_prologue_epilogue_generation"),
+    (0x00435D20, "shared_after_peephole"),
+    (0x00435D75, "shared_after_scheduling_2"),
+]
+
+
+SPECIAL_SITES = [
+    (
+        0x00435AFA,
+        "MWCC_P6_PredecessorHookBoundary",
+        "P6 carrier intervention boundary: immediately before predecessor "
+        "construction. gPCodeBlocks is complete; predecessor lists are not.",
+    ),
+    (
+        0x00435AFF,
+        "MWCC_P6_InitialPCodeBoundary",
+        "Return from predecessor construction and exact initial-PCode capture point.",
+    ),
+    (
+        0x00456670,
+        "MWCC_RRJ_FunctionEntry",
+        "IRO_RemoveRedundantJumps; the branch-around-goto subcase is inside this function.",
+    ),
+    (
+        0x00456706,
+        "MWCC_RRJ_BranchAroundGotoBegin",
+        "Start of the branch-around-goto subcase observed through 0x00456789.",
+    ),
+    (
+        0x0045671E,
+        "MWCC_RRJ_BranchAroundGotoDecision",
+        "Conditional gate for the branch-around-goto subcase; disabling it did not change regFind PCode layout.",
+    ),
+    (
+        0x004ABD9A,
+        "MWCC_125n_EpilogueHookSite",
+        "GC/1.2.5n redirects here to its cave; stock continues the EABI merge path.",
+    ),
+    (
+        0x004ABDB3,
+        "MWCC_125n_EpilogueReturnSite",
+        "Second small GC/1.2.5n edit in the EABI merge path.",
+    ),
+    (
+        0x0049CF70,
+        "MWCC_125n_FlagHelper",
+        "Existing helper called by 1.2.5n with 0x400 (PCodeInstruction_CoalesceDisabled).",
+    ),
+    (
+        0x004CE3F4,
+        "MWCC_RegallocCaptureBoundary",
+        "Exact live debugger boundary for register-allocation capture.",
+    ),
+]
+
+
+def sha256_file(path):
+    digest = hashlib.sha256()
+    stream = open(path, "rb")
+    try:
+        while True:
+            chunk = stream.read(1024 * 1024)
+            if not chunk:
+                break
+            digest.update(chunk)
+    finally:
+        stream.close()
+    return digest.hexdigest().lower()
+
+
+def identify_profile():
+    """Fail closed unless the imported executable is one of the two profiles."""
+    digest = None
+    try:
+        digest = currentProgram.getExecutableSHA256()
+    except Exception:
+        digest = None
+    if digest:
+        digest = str(digest).lower()
+
+    args = list(getScriptArgs())
+    supplied = args[0] if args else None
+    if supplied:
+        supplied = os.path.abspath(supplied)
+        if not os.path.isfile(supplied):
+            raise RuntimeError("compiler path does not exist: " + supplied)
+        file_digest = sha256_file(supplied)
+        if digest and file_digest != digest:
+            raise RuntimeError(
+                "supplied compiler hash does not match Ghidra program hash: "
+                + file_digest
+                + " != "
+                + digest
+            )
+        digest = file_digest
+
+    if not digest:
+        executable_path = str(currentProgram.getExecutablePath() or "")
+        if executable_path and os.path.isfile(executable_path):
+            digest = sha256_file(executable_path)
+
+    if digest not in PROFILES:
+        raise RuntimeError(
+            "unsupported or unavailable executable SHA-256: "
+            + str(digest)
+            + "; pass the original compiler path as the first script argument"
+        )
+
+    if currentProgram.getDefaultPointerSize() != 4:
+        raise RuntimeError("expected a 32-bit i386 PE program")
+    return digest, PROFILES[digest]
+
+
+def checked_address(value):
+    address = toAddr(value)
+    if not currentProgram.getMemory().contains(address):
+        raise RuntimeError("profile address is not mapped: 0x{0:08x}".format(value))
+    return address
+
+
+def set_comment(address, text):
+    currentProgram.getListing().setComment(address, CodeUnit.PLATE_COMMENT, text)
+
+
+def create_or_update_label(address, name, primary):
+    symbols = currentProgram.getSymbolTable().getSymbols(address)
+    while symbols.hasNext():
+        symbol = symbols.next()
+        if symbol.getName() == name:
+            if primary:
+                symbol.setPrimary()
+            return symbol
+    return createLabel(address, name, primary)
+
+
+def annotate_function(value, name, evidence):
+    address = checked_address(value)
+    function = currentProgram.getFunctionManager().getFunctionAt(address)
+    if function is None:
+        disassemble(address)
+        function = createFunction(address, name)
+    if function is not None:
+        function.setName(name, SourceType.USER_DEFINED)
+    else:
+        create_or_update_label(address, name, True)
+    set_comment(address, "MWCC GC/1.2.5: " + evidence + ".")
+
+
+def annotate_site(value, name, text, category):
+    address = checked_address(value)
+    create_or_update_label(address, name, False)
+    set_comment(address, text)
+    currentProgram.getBookmarkManager().setBookmark(
+        address, "Analysis", category, text
+    )
+
+
+def make_structures():
+    """Install packed, address-backed runtime PCode structure layouts."""
+    dtm = currentProgram.getDataTypeManager()
+    category = CategoryPath("/MWCC/GC_1_2_5")
+    pointer = PointerDataType(VoidDataType.dataType, 4, dtm)
+    byte = ByteDataType.dataType
+    word = WordDataType.dataType
+    dword = DWordDataType.dataType
+
+    link = StructureDataType(category, "PCodeLink", 0x08, dtm)
+    link.replaceAtOffset(0x00, pointer, 4, "next", "PCodeLink*")
+    link.replaceAtOffset(0x04, pointer, 4, "block", "PCodeBlock*")
+
+    operand = StructureDataType(category, "PCodeOperand", 0x0C, dtm)
+    operand.replaceAtOffset(0x00, byte, 1, "kind", "0=GPR, 1=FPR, 2=SPR, 3=CR, 4=immediate, 5=memory, 6=label")
+    operand.replaceAtOffset(0x01, byte, 1, "access", "operand access/flags byte")
+    operand.replaceAtOffset(0x02, dword, 4, "value", "register, immediate, or label pointer depending on kind")
+    operand.replaceAtOffset(0x06, pointer, 4, "object", "compiler object for immediate/memory forms")
+    operand.replaceAtOffset(0x0A, word, 2, "reserved_0a", None)
+
+    insn = StructureDataType(category, "PCodeInstruction", 0x1C, dtm)
+    insn.replaceAtOffset(0x00, pointer, 4, "next", "PCodeInstruction*")
+    insn.replaceAtOffset(0x04, pointer, 4, "previous", "PCodeInstruction*")
+    insn.replaceAtOffset(0x08, pointer, 4, "block", "PCodeBlock*")
+    insn.replaceAtOffset(0x0C, ArrayDataType(byte, 8, 1), 8, "internal_0c", "includes reaching-definition state")
+    insn.replaceAtOffset(0x14, word, 2, "opcode", "PCode opcode index")
+    insn.replaceAtOffset(0x16, dword, 4, "flags", "includes PCodeInstruction_CoalesceDisabled=0x400")
+    insn.replaceAtOffset(0x1A, word, 2, "operand_count", "operands follow at +0x1c, stride 0x0c")
+
+    block = StructureDataType(category, "PCodeBlock", 0x30, dtm)
+    block.replaceAtOffset(0x00, pointer, 4, "next", "physical-order next")
+    block.replaceAtOffset(0x04, pointer, 4, "previous", "physical-order previous")
+    block.replaceAtOffset(0x08, pointer, 4, "label", "label +4 points back to this block")
+    block.replaceAtOffset(0x0C, pointer, 4, "predecessors", "PCodeLink*")
+    block.replaceAtOffset(0x10, pointer, 4, "successors", "PCodeLink*")
+    block.replaceAtOffset(0x14, pointer, 4, "instructions", "first PCodeInstruction*")
+    block.replaceAtOffset(0x18, pointer, 4, "last", "last PCodeInstruction*")
+    block.replaceAtOffset(0x1C, dword, 4, "index", "physical block index")
+    block.replaceAtOffset(0x20, dword, 4, "line", "source line")
+    block.replaceAtOffset(0x24, dword, 4, "internal_24", None)
+    block.replaceAtOffset(0x28, dword, 4, "loop_weight", "loop nesting/weight")
+    block.replaceAtOffset(0x2C, word, 2, "instruction_count", None)
+    block.replaceAtOffset(0x2E, word, 2, "flags", None)
+
+    label = StructureDataType(category, "PCodeLabel", 0x08, dtm)
+    label.replaceAtOffset(0x00, dword, 4, "internal_00", None)
+    label.replaceAtOffset(0x04, pointer, 4, "block", "PCodeBlock*")
+
+    for data_type in (link, operand, insn, block, label):
+        dtm.addDataType(data_type, DataTypeConflictHandler.REPLACE_HANDLER)
+
+    return {"pointer": pointer, "u16": word, "u32": dword}
+
+
+def annotate_global(value, name, type_name, text, data_types):
+    address = checked_address(value)
+    create_or_update_label(address, name, True)
+    if type_name and currentProgram.getListing().getDefinedDataAt(address) is None:
+        createData(address, data_types[type_name])
+    set_comment(address, "MWCC GC/1.2.5 global: " + text + ".")
+
+
+def sanitize(text):
+    return re.sub(r"[^A-Za-z0-9_]", "_", text)
+
+
+def main():
+    digest, profile = identify_profile()
+    data_types = make_structures()
+
+    for value, name, evidence in FUNCTIONS:
+        annotate_function(value, name, evidence)
+
+    for value, name, type_name, text in GLOBALS:
+        annotate_global(value, name, type_name, text, data_types)
+
+    for value, stage in AST_CAPTURE_POINTS:
+        annotate_site(
+            value,
+            "MWCC_AST_Capture_" + sanitize(stage),
+            "Exact mwcc-debugger AST capture boundary: " + stage.replace("_", " ") + ".",
+            "MWCC AST capture",
+        )
+
+    for value, stage in PCODE_CAPTURE_POINTS:
+        annotate_site(
+            value,
+            "MWCC_PCode_Capture_" + sanitize(stage) + "_{0:08X}".format(value),
+            "Exact mwcc-debugger PCode capture boundary: " + stage.replace("_", " ") + ".",
+            "MWCC PCode capture",
+        )
+
+    for value, name, text in SPECIAL_SITES:
+        annotate_site(value, name, text, "MWCC P6/1.2.5n research")
+
+    if profile["ninji"]:
+        annotate_function(
+            0x00506510,
+            "MWCC_125n_EpiloguePatchCave",
+            "GC/1.2.5n cave that applies CoalesceDisabled to stack teardown PCode",
+        )
+        annotate_site(
+            0x0050653D,
+            "MWCC_125n_EpiloguePatchCaveEnd",
+            "End of the 46-byte GC/1.2.5n cave span.",
+            "MWCC P6/1.2.5n research",
+        )
+
+    println(
+        "Imported MWCC annotations for {0} ({1}); {2} functions, {3} globals, "
+        "{4} AST and {5} PCode capture points.".format(
+            profile["name"],
+            digest,
+            len(FUNCTIONS) + (1 if profile["ninji"] else 0),
+            len(GLOBALS),
+            len(AST_CAPTURE_POINTS),
+            len(PCODE_CAPTURE_POINTS),
+        )
+    )
+
+
+main()

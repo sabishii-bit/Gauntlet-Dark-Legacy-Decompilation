@@ -85,3 +85,45 @@ This remains an experimental compiler profile selected only for `registry.c`.
 Keep independent exact-object/DOL gates and keep mod builds free of all
 target-dependent object postprocessors. A derived compiler match must be
 reported distinctly from raw stock-compiler and postprocessed matches.
+
+## Import the recovered Ghidra annotations
+
+`ghidra_import.py` preserves the address work behind this experiment without
+including any compiler bytes. It accepts only these original executable hashes:
+
+- GC/1.2.5: `0443b5c02b1aa7b575b61e0e24c4d5ad6bed8fd54cc42de5a2204a5216001914`
+- GC/1.2.5n: `ccf4b465cec73b5aae9c5c5543dcf8cda8a62aba246f89e2e0b200d742f2e55c`
+
+The import adds recovered function/global names, AST and PCode capture
+bookmarks, the P6 pre-predecessor hook boundary, the 1.2.5n epilogue-patch
+sites, and packed `PCodeBlock`, `PCodeInstruction`, `PCodeOperand`,
+`PCodeLink`, and `PCodeLabel` data types. Names described as inferred in their
+plate comments are semantic working names, not claimed original Metrowerks
+identifiers.
+
+In the Ghidra GUI, import a user-owned `mwcceppc.exe` as PE/i386, run normal
+analysis, add this directory to Script Manager's script paths, and run
+`ghidra_import.py` from `GDL.MWCC`. The script checks Ghidra's recorded
+executable SHA-256 before changing the program. If an older Ghidra import lacks
+that property, pass the original executable path as the script's first
+argument.
+
+For a fresh headless project:
+
+```powershell
+analyzeHeadless.exe C:\ghidra-projects mwcc125 -import C:\owned\mwcceppc.exe `
+  -scriptPath tools\gdl\mwcc_p6 -postScript ghidra_import.py
+```
+
+For an existing program whose executable hash property is unavailable:
+
+```powershell
+analyzeHeadless.exe C:\ghidra-projects mwcc125 -process mwcceppc.exe `
+  -scriptPath tools\gdl\mwcc_p6 `
+  -postScript ghidra_import.py C:\owned\mwcceppc.exe
+```
+
+An unsupported hash, a mismatched supplied file, a non-32-bit program, or an
+unmapped profile address aborts the import. Derived `1.2.5s` executables are
+intentionally rejected: annotate the exact stock or 1.2.5n input first so the
+research database retains unambiguous provenance.
