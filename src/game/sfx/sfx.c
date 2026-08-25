@@ -3412,18 +3412,18 @@ void InitEffects(void)
     s32 v36;
     s32* q32;
     s32* q36;
-    u32* p960;
-    u32* p972;
-    u32* p984;
-    u32* p996;
     u32* p1008;
     u32* p1020;
     u32* p1032;
     u32* p1044;
     u32* p1056;
-    u32* p1068;
+    u32* p960;
     u32* p1140;
     u32* p1152;
+    u32* p972;
+    u32* p1068;
+    u32* p984;
+    u32* p996;
     u8 unused[352];
 
     for (i = 0; i < 64; i++) {
@@ -3438,34 +3438,35 @@ void InitEffects(void)
     MBTreeSetFlags(lbl_80344BD4, 4, 0);
     MBNodeOrder(lbl_80344EB0, lbl_80344BD4);
     tbl = lbl_80122118;
-    for (i = 0, o12 = 0, o40 = 0; i < 80; i++, o12 += 12, o40 += 40) {
+    for (i = 0, o40 = 0; (u32)i < 80; i++, o40 += 40) {
         row = tbl + o40;
         v36 = *(s32*)(row + 36);
         q36 = (s32*)(row + 36);
         v32 = *(s32*)(row + 32);
         q32 = (s32*)(row + 32);
         if (sWeaponsBuf == NULL || row == NULL || *(s8*)row == 0) {
-            *(u32*)(ei + o12) = 0;
+            ((EffectHeader*)ei)[i].atree = NULL;
         } else {
-            *(u32*)(ei + o12) = (u32)AtreeMatch(sWeaponsBuf, (char*)row, 0);
+            ((EffectHeader*)ei)[i].atree =
+                AtreeMatch(sWeaponsBuf, (char*)row, 0);
         }
-        *(s32*)(ei + o12 + 4) = v32;
-        *(s32*)(ei + o12 + 8) = v36;
-        got = (*(u32*)(ei + o12) != 0) ? 1 : 0;
+        ((EffectHeader*)ei)[i].zmod = v32;
+        ((EffectHeader*)ei)[i].alpha = v36;
+        got = (((EffectHeader*)ei)[i].atree != NULL) ? 1 : 0;
         if (got == 0) {
             v36 = *q36;
             v32 = *q32;
             if (sPowerupsBuf == NULL || row == NULL || *(s8*)row == 0) {
-                *(u32*)(ei + o12) = 0;
+                ((EffectHeader*)ei)[i].atree = NULL;
             } else {
-                *(u32*)(ei + o12) =
-                    (u32)AtreeMatch(sPowerupsBuf, (char*)row, 0);
-                if (*(u32*)(ei + o12) == 0) {
+                ((EffectHeader*)ei)[i].atree =
+                    AtreeMatch(sPowerupsBuf, (char*)row, 0);
+                if (((EffectHeader*)ei)[i].atree == NULL) {
                     ErrorPrintf(strs + 48, row);
                 }
             }
-            *(s32*)(ei + o12 + 4) = v32;
-            *(s32*)(ei + o12 + 8) = v36;
+            ((EffectHeader*)ei)[i].zmod = v32;
+            ((EffectHeader*)ei)[i].alpha = v36;
         }
     }
     for (; i < 218; i++) {
@@ -3475,18 +3476,18 @@ void InitEffects(void)
         *(s32*)(ei + off + 4) = 0;
         *(s32*)(ei + off + 8) = 0;
     }
-    p960 = (u32*)(ei + 960);
-    p972 = (u32*)(ei + 972);
-    p984 = (u32*)(ei + 984);
-    p996 = (u32*)(ei + 996);
-    p1008 = (u32*)(ei + 1008);
-    p1020 = (u32*)(ei + 1020);
+    p1140 = (u32*)(ei + 1140);
+    p1152 = (u32*)(ei + 1152);
     p1032 = (u32*)(ei + 1032);
     p1044 = (u32*)(ei + 1044);
     p1056 = (u32*)(ei + 1056);
     p1068 = (u32*)(ei + 1068);
-    p1140 = (u32*)(ei + 1140);
-    p1152 = (u32*)(ei + 1152);
+    p1008 = (u32*)(ei + 1008);
+    p1020 = (u32*)(ei + 1020);
+    p960 = (u32*)(ei + 960);
+    p972 = (u32*)(ei + 972);
+    p984 = (u32*)(ei + 984);
+    p996 = (u32*)(ei + 996);
     for (i = 0, o12 = 0; i < 45; i++, o12 += 4) {
         *(s32*)((u8*)lbl_80251148 + o12) = 0;
         hp = (u8**)((u8*)gWadAtreeHeaders + o12);
@@ -3673,7 +3674,7 @@ void InitEffects(void)
             *(s32*)(ei + 360) = 0;
         } else {
             *(s32*)(ei + 360) = (s32)AtreeMatch(sItemFile1Buf, strs + 176, 0);
-            if (*(s32*)(ei + 360) == 0) {
+            if (*(u32*)(ei + 360) == 0) {
                 ErrorPrintf(strs + 48, strs + 176);
             }
         }
