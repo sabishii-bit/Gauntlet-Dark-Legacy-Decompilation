@@ -140,16 +140,16 @@ static inline f64 mbSqrt(f64 x)
 
 static inline f32 mbSqrtFAccurate(f32 x)
 {
-    f64 g0, g1, g2, g3, g4;
+    register f64 guess;
     volatile f32 y;
 
     if (x > 0.0f) {
-        g0 = __frsqrte((f64)x);
-        g1 = 0.5 * g0 * (3.0 - g0 * g0 * x);
-        g2 = 0.5 * g1 * (3.0 - g1 * g1 * x);
-        g3 = 0.5 * g2 * (3.0 - g2 * g2 * x);
-        g4 = 0.5 * g3 * (3.0 - g3 * g3 * x);
-        y = (f32)(x * g4);
+        guess = __frsqrte((f64)x);
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        y = (f32)(x * guess);
         return y;
     }
     return x;
