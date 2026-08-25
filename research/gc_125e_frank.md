@@ -94,8 +94,9 @@ two-line mismatch.
 - `tools/gdl/webfrank_audit.py` conservatively inventories residuals whose
   instruction and relocation order and all non-register operands already
   match. It found 40 `REGISTER_ONLY` functions (18,232 code bytes) across 25
-  nonmatching TUs. None would make a TU linkable; `g3dpad` would have exact
-  text but still has mismatched data.
+  nonmatching TUs. None made a TU linkable at the time of that audit;
+  `g3dpad` gained exact text but still had mismatched data. This was a snapshot
+  of the remaining whole-object gaps, not a permanent veto on later TU closure.
 - `tools/gdl/webfrank.py` is a separate, hash-guarded register-web
   postprocessor for the allocator-only class that Frank cannot affect. It
   supports explicit audited GPR recolors and target-backed register-field
@@ -122,6 +123,27 @@ prove differences are confined to PowerPC's four five-bit register slots
 before copying those fields; opcode, immediate, branch, relocation layout, or
 compiler drift aborts the build. No object is promoted to Matching merely
 because selected functions now match.
+
+## Whole-TU closure workflow
+
+Frank and WebFrank operate on executable code only. A function becoming exact
+does not prove that its translation unit can link. For near-complete objects,
+audit in this order:
+
+1. finish semantic, structural, scheduling, and relocation work in portable
+   C/C++;
+2. apply only already-audited Frank/WebFrank transforms and revalidate their
+   hashes against the newly compiled object;
+3. compare every executable section and function, including relocation
+   metadata rather than only normalized instruction text;
+4. compare rodata/data/sdata/sdata2, BSS/common sizes and linkage, and
+   extab/extabindex where present;
+5. only after the complete postprocessed object is exact, change the object to
+   `Matching` and require a fresh full DOL checksum.
+
+This distinction matters for progress reporting: WebFrank can raise matched
+code while linked code remains unchanged. Closing the remaining data or
+metadata gap is what turns that exact code into a linked-object gain.
 
 Do not switch whole libraries to 1.2.5e. Probe a specific function and retain
 the hybrid only when its function and sibling scores improve. `webfrank` is a
