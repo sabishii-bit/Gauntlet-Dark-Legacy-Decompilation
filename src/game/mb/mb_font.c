@@ -110,67 +110,6 @@ extern s32   mbBlitCalcX();
 /* forward decls for internal helpers */
 int MBFontStringWidth(const char* s);
 
-/* ==== current-font attribute setters ==== */
-
-/* 0x800B6358 - MBSetFont : select current font, return previous index */
-int MBSetFont(int idx)
-{
-    int old = lbl_80344E14;
-    lbl_80344E14 = idx;
-    return old;
-}
-
-/* 0x800B63A0 - MBSetFontZ : set text depth, return previous */
-f32 MBSetFontZ(f32 z)
-{
-    f32 old = lbl_80344E4C;
-    lbl_80344E4C = z;
-    return old;
-}
-
-/* 0x800B63B0 - MBSetFontFlags : set draw flags, return previous */
-int MBSetFontFlags(int flags)
-{
-    int old = lbl_80344E50;
-    lbl_80344E50 = flags;
-    return old;
-}
-
-/* 0x800B6368 - MBSetFontColor : set RGB (MB half-range c/2+1 per component),
- *              keep current alpha, return previous RGB */
-u32 MBSetFontColor(u32 rgb)
-{
-    u32 old = lbl_80344E54;
-    lbl_80344E54 = old & 0xFF000000;
-    lbl_80344E54 = lbl_80344E54 | (((rgb >> 1) & 0x007F7F7F) + 0x00010101);
-    return old & 0x00FFFFFF;
-}
-
-/* 0x800B63C0 - MBSetFontAlpha : set alpha (MB 128-a/2 encoding), return prev */
-int MBSetFontAlpha(u32 alpha)
-{
-    u32 old = lbl_80344E54;
-    alpha >>= 1;
-    lbl_80344E54 = old & 0x00FFFFFF;
-    old = 128 - (old >> 24);
-    lbl_80344E54 = lbl_80344E54 | ((128 - alpha) << 24);
-    return old << 1;
-}
-
-/* 0x800B63F4 - MBSetFontScale : set glyph x/y scale (positive only) */
-void MBSetFontScale(f32 sx, f32 sy)
-{
-    if (sx > 0.0f) lbl_80344E5C = sx;
-    if (sy > 0.0f) lbl_80344E58 = sy;
-}
-
-/* 0x800B6418 - MBSetFontScaleSpace : set inter-glyph spacing + glyph scale */
-void MBSetFontScaleSpace(f32 sx, f32 sy)
-{
-    if (sx > 0.0f) { lbl_80344E64 = sx; lbl_80344E5C = sx; }
-    if (sy > 0.0f) { lbl_80344E60 = sy; lbl_80344E58 = sy; }
-}
-
 /* 0x800B5AA8 - MBFontMsgSetAlpha : set a queued message's alpha, return prev */
 int MBFontMsgSetAlpha(MBTextMsg* m, u32 alpha)
 {
@@ -180,38 +119,6 @@ int MBFontMsgSetAlpha(MBTextMsg* m, u32 alpha)
     old = (old >> 23) & 0x1FE;
     m->color = m->color | (alpha << 24);
     return old;
-}
-
-/* ==== message lock / save-restore stack ==== */
-
-/* 0x800B5D20 - MBLockMessages : push current drawtext counts at a lock level */
-void MBLockMessages(int level)
-{
-    if (level >= 8) {
-        FatalError("MBLockMessages > max", 0x00800000);
-    }
-    lbl_8029F474[level] = lbl_80344E18;
-    lbl_802A4A84[level] = lbl_80344E20;
-    lbl_80343EB0 = level;
-}
-
-/* 0x800B5CCC - MBUnlockMessages : pop back to a lock level (or clear if empty) */
-void MBUnlockMessages(int level)
-{
-    lbl_80343EB0 = level - 1;
-    if (lbl_80343EB0 < 0) {
-        lbl_80344E20 = 0;
-        lbl_80344E18 = 0;
-    } else {
-        lbl_80344E18 = lbl_8029F474[lbl_80343EB0];
-        lbl_80344E20 = lbl_802A4A84[lbl_80343EB0];
-    }
-}
-
-/* 0x800B6C04 - MBLockFonts : save current font_count at a font-lock level */
-void MBLockFonts(int level)
-{
-    lbl_8029E454[level] = lbl_80344E10;
 }
 
 /* ==== internal helpers ==== */
@@ -285,92 +192,47 @@ int MBFontStringWidth(const char* s)
     return width;
 }
 
-/* ==== drawtext queue ==== */
+/* ==== message lock / save-restore stack ==== */
 
-/* 0x800B6444 - MBDrawSysText : queue a string in the system font (font 0,
- * unit scale), silently dropping it when out of bounds or buffer-full. */
-MBTextMsg* MBDrawSysText(int x, int y, const char* s)
+/* 0x800B5CCC - MBUnlockMessages : pop back to a lock level (or clear if empty) */
+void MBUnlockMessages(int level)
 {
-    int len;
-    int total;
-    MBTextMsg* m;
-
-    if (lbl_80344E20 >= 499) {
-        return 0;
+    lbl_80343EB0 = level - 1;
+    if (lbl_80343EB0 < 0) {
+        lbl_80344E20 = 0;
+        lbl_80344E18 = 0;
+    } else {
+        lbl_80344E18 = lbl_8029F474[lbl_80343EB0];
+        lbl_80344E20 = lbl_802A4A84[lbl_80343EB0];
     }
-    len = strlen(s) + 1;
-    total = lbl_80344E18 + len;
-    if (total >= 4095) {
-        return 0;
-    }
-    if (x < 0) {
-        x = -x - (MBFontStringWidth(s) >> 1);
-    }
-    if (y < 0 || y >= 384) {
-        return 0;
-    }
-    if (x < 0 || x >= 512) {
-        return 0;
-    }
-    m = &lbl_8029F494[lbl_80344E20++];
-    m->x = x;
-    m->y = y;
-    m->z = lbl_80344E4C;
-    m->font = 0;
-    m->yspace = 1.0f;
-    m->xspace = 1.0f;
-    m->yscale = 1.0f;
-    m->xscale = 1.0f;
-    m->text = lbl_8029E474 + lbl_80344E18;
-    m->color = lbl_80344E54;
-    m->flags = lbl_80344E50;
-    m->seq = -1;
-    strcpy(m->text, s);
-    lbl_80344E18 += len;
-    return m;
 }
 
-/* 0x800B6588 - MBDrawText : queue a string at (x, y).  Negative x centres
- * the string (half its pixel width left of -x).  Bounds-check the message
- * and character buffers, then fill the next message record from the
- * current-font state and copy the text into the character buffer. */
-MBTextMsg* MBDrawText(int x, int y, const char* s)
+/* 0x800B5D20 - MBLockMessages : push current drawtext counts at a lock level */
+void MBLockMessages(int level)
 {
-    int len;
-    MBTextMsg* m;
+    if (level >= 8) {
+        FatalError("MBLockMessages > max", 0x00800000);
+    }
+    lbl_8029F474[level] = lbl_80344E18;
+    lbl_802A4A84[level] = lbl_80344E20;
+    lbl_80343EB0 = level;
+}
 
-    if (lbl_80344E20 >= 499) {
-        ErrorPrintf("TOO MANY DRAWTEXT MESSAGES: %d", lbl_80344E20);
-        return 0;
+/* 0x800B5D90 - stash the live message/textbuf counts, then restore the
+ * lock-level snapshot (or clear when unlocked). */
+void fn_800B5D90(void)
+{
+    int lock = lbl_80343EB0;
+
+    lbl_80344E1C = lbl_80344E18;
+    lbl_80344E24 = lbl_80344E20;
+    if (lock < 0) {
+        lbl_80344E20 = 0;
+        lbl_80344E18 = 0;
+        return;
     }
-    len = strlen(s) + 1;
-    if (lbl_80344E18 + len >= 4095) {
-        ErrorPrintf("TOO MANY DRAWTEXT CHARACTERS: %d",
-                    lbl_80344E18 + len);
-        return 0;
-    }
-    if (x < 0) {
-        x = -x - (MBFontStringWidth(s) >> 1);
-    }
-    if (y < 0 || y >= 384) {
-        return 0;
-    }
-    m = &lbl_8029F494[lbl_80344E20++];
-    m->x = x;
-    m->y = y;
-    m->z = lbl_80344E4C;
-    m->font = lbl_80344E14;
-    m->xspace = lbl_80344E64;
-    m->yspace = lbl_80344E60;
-    m->xscale = lbl_80344E5C;
-    m->yscale = lbl_80344E58;
-    m->text = lbl_8029E474 + lbl_80344E18;
-    m->color = lbl_80344E54;
-    m->flags = lbl_80344E50;
-    m->seq = -1;
-    strcpy(m->text, s);
-    lbl_80344E18 += len;
-    return m;
+    lbl_80344E18 = lbl_8029F474[lock];
+    lbl_80344E20 = lbl_802A4A84[lock];
 }
 
 /* ==== rasteriser ==== */
@@ -613,6 +475,155 @@ void MBRenderText(void)
     mbBlitSetPage();
 }
 
+/* ==== current-font attribute setters ==== */
+
+/* 0x800B6358 - MBSetFont : select current font, return previous index */
+int MBSetFont(int idx)
+{
+    int old = lbl_80344E14;
+    lbl_80344E14 = idx;
+    return old;
+}
+
+/* 0x800B6368 - MBSetFontColor : set RGB (MB half-range c/2+1 per component),
+ *              keep current alpha, return previous RGB */
+u32 MBSetFontColor(u32 rgb)
+{
+    u32 old = lbl_80344E54;
+    lbl_80344E54 = old & 0xFF000000;
+    lbl_80344E54 = lbl_80344E54 | (((rgb >> 1) & 0x007F7F7F) + 0x00010101);
+    return old & 0x00FFFFFF;
+}
+
+/* 0x800B63A0 - MBSetFontZ : set text depth, return previous */
+f32 MBSetFontZ(f32 z)
+{
+    f32 old = lbl_80344E4C;
+    lbl_80344E4C = z;
+    return old;
+}
+
+/* 0x800B63B0 - MBSetFontFlags : set draw flags, return previous */
+int MBSetFontFlags(int flags)
+{
+    int old = lbl_80344E50;
+    lbl_80344E50 = flags;
+    return old;
+}
+
+/* 0x800B63C0 - MBSetFontAlpha : set alpha (MB 128-a/2 encoding), return prev */
+int MBSetFontAlpha(u32 alpha)
+{
+    u32 old = lbl_80344E54;
+    alpha >>= 1;
+    lbl_80344E54 = old & 0x00FFFFFF;
+    old = 128 - (old >> 24);
+    lbl_80344E54 = lbl_80344E54 | ((128 - alpha) << 24);
+    return old << 1;
+}
+
+/* 0x800B63F4 - MBSetFontScale : set glyph x/y scale (positive only) */
+void MBSetFontScale(f32 sx, f32 sy)
+{
+    if (sx > 0.0f) lbl_80344E5C = sx;
+    if (sy > 0.0f) lbl_80344E58 = sy;
+}
+
+/* 0x800B6418 - MBSetFontScaleSpace : set inter-glyph spacing + glyph scale */
+void MBSetFontScaleSpace(f32 sx, f32 sy)
+{
+    if (sx > 0.0f) { lbl_80344E64 = sx; lbl_80344E5C = sx; }
+    if (sy > 0.0f) { lbl_80344E60 = sy; lbl_80344E58 = sy; }
+}
+
+/* ==== drawtext queue ==== */
+
+/* 0x800B6444 - MBDrawSysText : queue a string in the system font (font 0,
+ * unit scale), silently dropping it when out of bounds or buffer-full. */
+MBTextMsg* MBDrawSysText(int x, int y, const char* s)
+{
+    int len;
+    int total;
+    MBTextMsg* m;
+
+    if (lbl_80344E20 >= 499) {
+        return 0;
+    }
+    len = strlen(s) + 1;
+    total = lbl_80344E18 + len;
+    if (total >= 4095) {
+        return 0;
+    }
+    if (x < 0) {
+        x = -x - (MBFontStringWidth(s) >> 1);
+    }
+    if (y < 0 || y >= 384) {
+        return 0;
+    }
+    if (x < 0 || x >= 512) {
+        return 0;
+    }
+    m = &lbl_8029F494[lbl_80344E20++];
+    m->x = x;
+    m->y = y;
+    m->z = lbl_80344E4C;
+    m->font = 0;
+    m->yspace = 1.0f;
+    m->xspace = 1.0f;
+    m->yscale = 1.0f;
+    m->xscale = 1.0f;
+    m->text = lbl_8029E474 + lbl_80344E18;
+    m->color = lbl_80344E54;
+    m->flags = lbl_80344E50;
+    m->seq = -1;
+    strcpy(m->text, s);
+    lbl_80344E18 += len;
+    return m;
+}
+
+/* 0x800B6588 - MBDrawText : queue a string at (x, y).  Negative x centres
+ * the string (half its pixel width left of -x).  Bounds-check the message
+ * and character buffers, then fill the next message record from the
+ * current-font state and copy the text into the character buffer. */
+MBTextMsg* MBDrawText(int x, int y, const char* s)
+{
+    int len;
+    MBTextMsg* m;
+
+    if (lbl_80344E20 >= 499) {
+        ErrorPrintf("TOO MANY DRAWTEXT MESSAGES: %d", lbl_80344E20);
+        return 0;
+    }
+    len = strlen(s) + 1;
+    if (lbl_80344E18 + len >= 4095) {
+        ErrorPrintf("TOO MANY DRAWTEXT CHARACTERS: %d",
+                    lbl_80344E18 + len);
+        return 0;
+    }
+    if (x < 0) {
+        x = -x - (MBFontStringWidth(s) >> 1);
+    }
+    if (y < 0 || y >= 384) {
+        return 0;
+    }
+    m = &lbl_8029F494[lbl_80344E20++];
+    m->x = x;
+    m->y = y;
+    m->z = lbl_80344E4C;
+    m->font = lbl_80344E14;
+    m->xspace = lbl_80344E64;
+    m->yspace = lbl_80344E60;
+    m->xscale = lbl_80344E5C;
+    m->yscale = lbl_80344E58;
+    m->text = lbl_8029E474 + lbl_80344E18;
+    m->color = lbl_80344E54;
+    m->flags = lbl_80344E50;
+    m->seq = -1;
+    strcpy(m->text, s);
+    lbl_80344E18 += len;
+    return m;
+}
+
 /* ==== font registration ==== */
 
 /* 0x800B66E8 - MBNewFont : register a font (MBCreateBlit); "Too many fonts" /
@@ -724,23 +735,6 @@ static inline void MBResetFontAttrs(void)
     lbl_80344E54 = 0x80808080;
 }
 
-/* 0x800B5D90 - stash the live message/textbuf counts, then restore the
- * lock-level snapshot (or clear when unlocked). */
-void fn_800B5D90(void)
-{
-    int lock = lbl_80343EB0;
-
-    lbl_80344E1C = lbl_80344E18;
-    lbl_80344E24 = lbl_80344E20;
-    if (lock < 0) {
-        lbl_80344E20 = 0;
-        lbl_80344E18 = 0;
-        return;
-    }
-    lbl_80344E18 = lbl_8029F474[lock];
-    lbl_80344E20 = lbl_802A4A84[lock];
-}
-
 /* 0x800B69DC - rescale every live glyph cell after a render-window change
  * (Xbox: MBFontUpdateWindow). */
 void MBFontUpdateWindow(f32 scaleX, f32 scaleY)
@@ -797,6 +791,12 @@ void MBHideMarkedMessages(void)
 void MBResetFonts(void)
 {
     MBResetFontAttrs();
+}
+
+/* 0x800B6C04 - MBLockFonts : save current font_count at a font-lock level */
+void MBLockFonts(int level)
+{
+    lbl_8029E454[level] = lbl_80344E10;
 }
 
 /* 0x800B6C20 - unlock fonts to `level`: restore the saved font count (mark
