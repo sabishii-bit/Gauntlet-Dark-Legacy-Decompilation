@@ -224,6 +224,16 @@ section must remain exact; and `Matching` still requires a fresh DOL checksum.
 The purpose is to avoid mistaking a few failed local probes for an exhaustive
 TU-closure audit.
 
+`pb_winglobals` exposed a chronology failure that this protocol must catch. A
+historical commit contained a portable 71-instruction body whose only residual
+was register allocation, but a later removal of prohibited assembly replaced it
+with a structurally worse mask expression. The stale PARK note still described
+the old result. Recovering that legal body from Git, then applying a 26-atom
+hash-guarded register correction, made the complete object exact and linkable.
+Therefore every hard-closure audit must inspect the actual source around exact,
+asm-introduction, asm-removal, and demotion commits before concluding that the
+current source represents the best known portable state.
+
 Do not switch whole libraries to 1.2.5e. Probe a specific function and retain
 the hybrid only when its function and sibling scores improve. `webfrank` is a
 different mechanism and must not be described as Frank, a recovered compiler,
