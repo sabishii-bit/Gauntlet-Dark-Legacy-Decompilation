@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
-"""Apply hash-guarded PowerPC register-web corrections to an MWCC ELF object.
+"""Apply hash-guarded, individually audited MWCC corrections to an ELF object.
 
 Frank changes scheduling by compiling with a synthetic profile side effect and
 then removing the instrumentation.  ``webfrank`` is the deliberately narrower
-allocator analogue: it changes only PowerPC register fields in audited
-functions. Rules may name explicit GPR recolors or copy the four five-bit
-register slots from the extracted target after proving every other instruction
-bit already agrees. It never copies opcodes, immediates, branch encodings,
-relocations, or data, and it never moves instructions.
+allocator analogue. Its ordinary rules change only PowerPC register fields in
+audited functions. A rule may name explicit GPR recolors or copy the four
+five-bit register slots from the extracted target after proving every other
+instruction bit already agrees.
+
+The narrower scheduler extension may explicitly permute a proved-independent,
+straight-line list of existing instruction atoms. It rejects control
+instructions, requires a complete bijection and dependency audit, moves each
+relocation with its instruction atom, and verifies region, relocation, and full
+function hashes before and after. It never copies opcodes, immediates, branch
+encodings, relocation payloads, or data from the target.
 
 Every patch is guarded by complete before/after function SHA-256 hashes.  A
 source, compiler, or layout change therefore fails the build instead of

@@ -103,6 +103,25 @@ two-line mismatch.
   correction after proving all non-register instruction bits already agree.
   Complete before/after hashes make source/compiler drift a hard failure.
 
+`vsprintf` established one deliberately narrower scheduler extension. Its
+remaining prologue mismatch was a permutation of 18 existing straight-line
+instruction atoms before the first branch. A recorded dependency audit proved
+that the atoms were independent subject to load-before-store and address-before-
+use constraints; the relocation multiset was already identical. The rule:
+
+1. requires an explicit bijection and exact input/output region hashes;
+2. rejects branches, calls, and other control instructions in the region;
+3. moves every relocation with its source instruction while preserving the
+   relocation symbol, addend, and within-word byte offset;
+4. verifies relocation hashes before and after; and
+5. only then applies the ordinary non-register-bit/register-field proof.
+
+This is not general instruction scheduling and does not copy target opcodes or
+operands. It is admissible only when the current instruction atoms and
+relocation payloads already exist, their dependency-safe target order is fully
+audited, and the complete object plus linked DOL pass afterward. Branch, call,
+immediate, opcode, ABI, semantic, or data gaps remain ineligible.
+
 The current `sndVoiceUpdateAll` rule uses `webfrank` to correct the two known
 temporary-register webs. The resulting function bytes match the target
 exactly, while the object remains classified NonMatching so its unrelated
@@ -133,7 +152,8 @@ audit in this order:
 1. finish semantic, structural, scheduling, and relocation work in portable
    C/C++;
 2. apply only already-audited Frank/WebFrank transforms and revalidate their
-   hashes against the newly compiled object;
+   hashes against the newly compiled object; for a scheduler permutation,
+   retain the atom-dependency and relocation-motion proof with the rule;
 3. compare every executable section and function, including relocation
    metadata rather than only normalized instruction text;
 4. compare rodata/data/sdata/sdata2, BSS/common sizes and linkage, and
