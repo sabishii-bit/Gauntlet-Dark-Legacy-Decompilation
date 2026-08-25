@@ -157,6 +157,9 @@ the compiler history, audit results, and verification policy.
 A `NonMatching` object may be promoted to `Matching` only when its complete
 postprocessed object is exact, including code, relocations, data/BSS and
 exception metadata, and a fresh full build reproduces the configured DOL hash.
+The first audited closure pass used this process to link `g3dpad`, `vsprintf`,
+and `mempool`; their former PARKED notes remain useful source-codegen diagnoses,
+not permanent binary-matching vetoes.
 
 Xbox debug symbols
 ==================

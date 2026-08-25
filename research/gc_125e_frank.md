@@ -165,6 +165,28 @@ This distinction matters for progress reporting: WebFrank can raise matched
 code while linked code remains unchanged. Closing the remaining data or
 metadata gap is what turns that exact code into a linked-object gain.
 
+## Whole-TU closure results (2026-08-24)
+
+The first closure campaign converted three formerly NonMatching objects into
+verified linked objects:
+
+- `g3dpad`: removed five obsolete BASE_ONLY pool-seeding helpers, retained the
+  reviewed `G3DUpdatePadStatus` register rule, and blocked one proven false
+  relocation inside compressed data;
+- `vsprintf`: removed a BASE_ONLY `fpclassify`, corrected the `%B` jump-table
+  relocation, and used the audited 18-atom scheduler permutation described
+  above; and
+- `mempool`: an assignment-in-condition removed the final structural `addi`,
+  exposing a 22-instruction REGISTER_ONLY residual that passed the ordinary
+  WebFrank proof.
+
+Each object passed raw executable-section, relocation, data/small-data,
+exception metadata, sibling-function, and full-DOL checks before its
+`configure.py` entry changed to `Matching`. On current `main`, the campaign
+moved progress from 56.25% matched / 23.43% linked to 56.52% matched / 24.48%
+linked. This demonstrates why old PARKED entries now describe source-codegen
+caps rather than permanent binary or TU-linkability verdicts.
+
 Do not switch whole libraries to 1.2.5e. Probe a specific function and retain
 the hybrid only when its function and sibling scores improve. `webfrank` is a
 different mechanism and must not be described as Frank, a recovered compiler,
