@@ -908,34 +908,30 @@ int AtreeModel(void* bank)
 void* fn_80011BBC(atreeheader* hdr, char* name, void* state, char* scrollName,
                   u32 flags)
 {
-    s32 scrollOffset = 0;
-    s32 bankOffset = 0;
     s32 i = 0;
     u8 unused[8];
 
-    for (; i < natreelists; i++, scrollOffset += 16, bankOffset += 4) {
-        if (*(void**)((u8*)whichatree + bankOffset) == hdr) {
-            strncpy((char*)atree_scroll + scrollOffset, scrollName, 16);
+    for (; i < natreelists; i++) {
+        if (whichatree[i] == hdr) {
+            strncpy((char*)atree_scroll[i], scrollName, 16);
         }
     }
 
     if (name != NULL) {
-        s32 matchOffset;
-        void* node;
+        s32 matchIndex;
         atreematch* list;
+        void* node;
 
         if (hdr == NULL) {
             FatalError("AtreeMatch with NULL atree", 0x804060);
         }
         list = hdr->list;
-        matchOffset = 0;
-        for (i = 0; i < hdr->num; i++) {
-            if (strcmp(name, (char*)((u32)list + matchOffset)) == 0) {
-                atreematch* match = (atreematch*)((u8*)list + matchOffset);
-                node = (u8*)hdr + match->offset;
+        matchIndex = 0;
+        for (; matchIndex < hdr->num; matchIndex++) {
+            if (strcmp(name, list[matchIndex].name) == 0) {
+                node = (u8*)hdr + list[matchIndex].offset;
                 goto found;
             }
-            matchOffset += sizeof(atreematch);
         }
         ErrorPrintf("No AtreeMatch: %s", name);
         node = NULL;
