@@ -3234,27 +3234,32 @@ void camera_mode_dest(s32 camIdx)
         f32* triggerX = (f32*)(sTriggerCameras + 4);
         f32* triggerY = (f32*)(sTriggerCameras + 8);
         f32* triggerZ = (f32*)(sTriggerCameras + 0xC);
-        f32 weight;
         transformed[0] =
             triggerX[lbl_80344510 * 10] - cam->wpos[0];
         transformed[1] =
             triggerY[lbl_80344510 * 10] - cam->wpos[1];
         transformed[2] =
             triggerZ[lbl_80344510 * 10] - cam->wpos[2];
-        weight = lbl_8034445C;
-        *(volatile f32*)&transformed[0] = transformed[0] * weight;
-        *(volatile f32*)&transformed[1] = transformed[1] * weight;
-        *(volatile f32*)&transformed[2] = transformed[2] * weight;
+        *(volatile f32*)&transformed[0] =
+            transformed[0] * lbl_8034445C;
+        *(volatile f32*)&transformed[1] =
+            transformed[1] * lbl_8034445C;
+        *(volatile f32*)&transformed[2] =
+            transformed[2] * lbl_8034445C;
         offset[0] =
             triggerX[lbl_8034450C * 10] - cam->wpos[0];
         offset[1] =
             triggerY[lbl_8034450C * 10] - cam->wpos[1];
         offset[2] =
             triggerZ[lbl_8034450C * 10] - cam->wpos[2];
-        offset[0] = (f32)((f64)offset[0] * (lbl_80345FE0 - (f64)weight));
-        offset[1] = (f32)((f64)offset[1] * (lbl_80345FE0 - (f64)weight));
-        offset[2] = (f32)((f64)offset[2] * (lbl_80345FE0 - (f64)weight));
-        transformed[0] += offset[0];
+        offset[0] = (f32)((f64)offset[0] *
+            (lbl_80345FE0 - (f64)lbl_8034445C));
+        offset[1] = (f32)((f64)offset[1] *
+            (lbl_80345FE0 - (f64)lbl_8034445C));
+        offset[2] = (f32)((f64)offset[2] *
+            (lbl_80345FE0 - (f64)lbl_8034445C));
+        scale = *(volatile f32*)&transformed[0];
+        transformed[0] = scale + offset[0];
         transformed[1] += offset[1];
         transformed[2] += offset[2];
     } else {
@@ -3285,22 +3290,23 @@ void camera_mode_dest(s32 camIdx)
 
     if ((f64)distance >= lbl_803460D0 ||
         lbl_80344510 != lbl_8034450C) {
-        if (lbl_8034442C < lbl_80344444) {
+        targetPitch = lbl_80344444;
+        if (lbl_8034442C < targetPitch) {
             if ((f64)lbl_80344424 < lbl_80345F70) {
                 lbl_80344424 =
                     (f32)((f64)lbl_80344424 + lbl_803460D8);
             }
             lbl_8034442C += lbl_80344424 * (f32)(u32)gFrameTicks;
-            if (lbl_8034442C >= lbl_80344444) {
+            if (lbl_8034442C >= targetPitch) {
                 pitchReached = 1;
             }
-        } else if (lbl_8034442C > lbl_80344444) {
+        } else if (lbl_8034442C > targetPitch) {
             if ((f64)lbl_80344424 > lbl_803460E0) {
                 lbl_80344424 =
                     (f32)((f64)lbl_80344424 - lbl_803460D8);
             }
             lbl_8034442C += lbl_80344424 * (f32)(u32)gFrameTicks;
-            if (lbl_8034442C <= lbl_80344444) {
+            if (lbl_8034442C <= targetPitch) {
                 pitchReached = 1;
             }
         } else {
