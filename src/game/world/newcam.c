@@ -1609,15 +1609,15 @@ s32 fn_8006DF34(NcCamera* cam) {
  * [caller: UpdateCam]
  */
 void fn_8006E654(void) {
-    u8 unused[16];
     NcCamera tmp;
-    NcCamera* cam;
+    u8 unused[16];
     f64 d;
     f32 pitch;
-    s32 iter;
     s32 ok;
+    s32 iter;
     s32 result;
     s32 i;
+    NcCamera* cam;
     u32 controller;
     u32 zero;
     u32 one;
@@ -1628,7 +1628,7 @@ void fn_8006E654(void) {
         fn_8006F418(&tmp, CurTransmitter);
 
         iter = 0;
-        ok = 0;
+        ok = iter;
         while (ok < lbl_80343CD0 && iter < 100) {
             result = fn_8006DF34(&tmp);
             pbUpdateMatricies();
@@ -1640,8 +1640,7 @@ void fn_8006E654(void) {
             iter++;
         }
 
-        d = tmp.yaw - lbl_80344A6C->yaw;
-        if (d > 3.141592654) {
+        if ((d = tmp.yaw - lbl_80344A6C->yaw) > 3.141592654) {
             d -= 6.283185308;
         } else if (d <= -3.141592654) {
             d = 6.283185308 + d;
