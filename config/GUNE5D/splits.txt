@@ -22,6 +22,7 @@ game/anim/anim.c:
 	extab       start:0x80005548 end:0x80005580
 	extabindex  start:0x8000883C end:0x80008890
 	.text       start:0x8000E8E8 end:0x8000F628
+	.sdata2     start:0x803457C8 end:0x803457D0
 
 game/anim/anim_play.c:
 	extab       start:0x80005580 end:0x80005590

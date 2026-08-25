@@ -367,10 +367,12 @@ u32 DoAnimation(int* node, animinfo* info, f32* outmtx, s32* outrot,
     u32 flags;
     u32 next;
     s32 pose[12];
-    union {
+    union WordBytes {
         u32 w;
         u8 b[4];
-    } sd, so;
+    };
+    volatile union WordBytes sd;
+    volatile union WordBytes so;
     u16 flagRaw;
     u16 nextRaw;
     u8* bytes;
@@ -393,7 +395,7 @@ u32 DoAnimation(int* node, animinfo* info, f32* outmtx, s32* outrot,
     bytes = (u8*)&nextRaw;
     next = (u16)((bytes[1] << 8) | bytes[0]);
     if (info->setpanim != 0) {
-        *(u16*)((u8*)node + 8) = 0xFFFF;
+        *(s16*)((u8*)node + 8) = -1;
         *(u16*)((u8*)node + 10) = 0;
         info->setpanim = 2;
     }
