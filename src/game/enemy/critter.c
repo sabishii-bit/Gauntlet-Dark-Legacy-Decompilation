@@ -2466,6 +2466,7 @@ void fn_80037ED0(f32 add, Critter *c, s32 id)
 Critter *CritterLineCollide(f32 dotThresh, f32 limit, f32 *origin,
                             f32 *forward, f32 *out, f32 *score)
 {
+    u8 unused[8];
     f32 contact[3];
     Critter *pool;
     Critter *cur;
@@ -2477,7 +2478,7 @@ Critter *CritterLineCollide(f32 dotThresh, f32 limit, f32 *origin,
     f32 cz;
     f32 best;
     f32 d;
-    u8 pad24[24];
+    u8 pad24[20];
 
     best = lbl_80346508;
     pool = gCritterPool;
