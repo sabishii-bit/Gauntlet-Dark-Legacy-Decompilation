@@ -466,9 +466,10 @@ void DoObjAnimation(OANIM* nodes, int ctx, int idx, int frame)
 
 void InitOAnimList(OANIMHDR* hdr, int arg)
 {
-    u16 h;
-    u32 v;
     u8 r[4];
+    u32 v;
+    u16 h1;
+    u16 h2;
     u8 unused[16];
     u8* s;
     int i;
@@ -488,11 +489,11 @@ void InitOAnimList(OANIMHDR* hdr, int arg)
         r[2] = s[1];
         r[3] = s[0];
         *(u32*)(p + off + 0x20) = *(u32*)r;
-        h = *(u16*)(p + off + 0x24);
-        s = (u8*)&h;
+        h1 = *(u16*)(p + off + 0x24);
+        s = (u8*)&h1;
         *(u16*)(p + off + 0x24) = (s[1] << 8) | s[0];
-        h = *(u16*)(p + off + 0x26);
-        s = (u8*)&h;
+        h2 = *(u16*)(p + off + 0x26);
+        s = (u8*)&h2;
         *(u16*)(p + off + 0x26) = (s[1] << 8) | s[0];
         off += 0x28;
     }
