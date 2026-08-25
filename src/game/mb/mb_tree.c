@@ -715,8 +715,10 @@ MBTreeNode* MBRemoveNode(MBTreeNode* node, s32 remove_children)
         return 0;
 
     if (node->flags & 0x10000000) {
-        *(f32*)(lbl_802C2A28 + (u32)node->uvScaleAddIndex * 16) = lbl_80348CA0;
-        MBTreeClearUVScaleAdd(node, -1, 0);
+        if (node->flags & 0x10000000) {
+            *(f32*)(lbl_802C2A28 + (u32)node->uvScaleAddIndex * 16) = lbl_80348CA0;
+            MBTreeClearUVScaleAdd(node, -1, 0);
+        }
     }
 
     parent = node->parent;
@@ -764,6 +766,7 @@ MBTreeNode* MBRemoveNode(MBTreeNode* node, s32 remove_children)
             lbl_80344ECC = node->next;
         } else {
             lbl_80344ECC = child;
+            child = node->child;
             while (child->next != 0) {
                 child->parent = 0;
                 child = child->next;
