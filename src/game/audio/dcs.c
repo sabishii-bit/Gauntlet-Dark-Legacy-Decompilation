@@ -1383,9 +1383,8 @@ s32 VagParseHeader(void* file, u32* header, DcsSampleData* sample) {
         sample->predScale = zero;
 
         if (strncmp(signature, "pGAV", 4) == 0) {
-            u32* swappedLength = &sample->swappedLength;
-            sample->length = (u32)swappedLength;
-            *swappedLength = DCS_SWAP32(header[3]);
+            *(u32*)(sample->length = (u32)&sample->swappedLength) =
+                DCS_SWAP32(header[3]);
             sample->sampleRate = (DCS_SWAP32(header[4]) << 12) / 48000;
             header[1] = DCS_SWAP32(header[1]);
         } else if (strncmp(signature, "VAGp", 4) == 0) {
