@@ -722,9 +722,7 @@ void AdsSetVolume(ADSTREAM* s, s32 vol) {
 #pragma dont_inline on
 void adsInitFromHeader(ADSTREAM* stream) {
     f64 kscale;
-    f64 kmag2;
     f32 kdiv;
-    f64 kmagU;
     u32 k48;
     u32 aram;
     s32 vnum;
@@ -736,8 +734,6 @@ void adsInitFromHeader(ADSTREAM* stream) {
     u32 end;
     s32 j;
     u8* ch;
-    u32 cvr[2];
-    u32 cvs[2];
     u16 addr[8];
     u16 srcb[8];
     u16 adp[20];
