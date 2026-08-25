@@ -467,6 +467,7 @@ extern f32 lbl_80347E20;
  * DoPlyrSfxSub, then seed flags, lifetime, hit/morph links and velocity. */
 s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
 {
+    u8 highPad[8];
     f32 pos[3];
     f32 vel[3];
     f32 rnd[3];
@@ -476,8 +477,8 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
     u8* sub;
     u32* flp;
     u32 fl;
-    s32 fx;
     f32 health;
+    u8 unused[20];
 
     pidx = *(s32*)p;
     if (mode != 0) {
@@ -502,9 +503,8 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
     }
     mode = DoPlyrSfxSub(p, *(s16*)(row + 72), pos, mode, -1);
     if (mode < 0) {
-        return mode;
+        goto done;
     }
-    fx = mode;
     hdrp = &lbl_80282930[pidx];
     seq = *(u8**)(*hdrp + 4) + *(s16*)(row + 72) * 80;
     fl = 0;
@@ -536,57 +536,54 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
     if (*(u32*)(row + 4) & 0x00020000) {
         fl |= 0x20000;
     }
-    flp = (u32*)&Effects[fx].flags;
+    flp = (u32*)&Effects[mode].flags;
     *flp |= fl;
     if ((*(u32*)seq & 0x10) && *(s16*)(row + 74) < 0) {
-        PlaceEffectOnFloor(fx, Effects[fx].node);
+        PlaceEffectOnFloor(mode, Effects[mode].node);
     }
-    if (lbl_80347DA0 != *(f32*)(row + 32)) {
-        YawMat3(Effects[fx].node, *(f32*)(row + 32));
+    if (0.0f != *(f32*)(row + 32)) {
+        YawMat3(Effects[mode].node, *(f32*)(row + 32));
     }
-    if (lbl_80347DA0 != *(f32*)(row + 40)) {
-        PitchMat3(Effects[fx].node, *(f32*)(row + 40));
+    if (0.0f != *(f32*)(row + 40)) {
+        PitchMat3(Effects[mode].node, *(f32*)(row + 40));
     }
     health = *(f32*)(row + 56);
-    if (health < lbl_80347DA0) {
+    if (health < 0.0f) {
         health = *(f32*)(p + 260) * -health;
     }
-    if (health > lbl_80347DA0) {
-        u8* fx2 = (u8*)&Effects[fx];
-        *(f32*)(fx2 + 172) = health;
-        *(f32*)(fx2 + 156) = *(f32*)(row + 36);
-        *(f32*)(fx2 + 184) = *(f32*)(row + 12);
-        *(u32*)(fx2 + 180) = *(u32*)(row + 4);
-        *(f32*)(fx2 + 124) = *(f32*)(row + 20);
+    if (health > 0.0f) {
+        Effects[mode].damage = health;
+        Effects[mode].mindp = *(f32*)(row + 36);
+        Effects[mode].damageradius = *(f32*)(row + 12);
+        Effects[mode].damagetype = *(u32*)(row + 4);
+        Effects[mode].damagedelay = *(f32*)(row + 20);
         if (*(f32*)(row + 24) > lbl_80347DC0) {
-            *(f32*)(fx2 + 112) = gClockTime + *(f32*)(row + 24);
+            Effects[mode].minendtime = gClockTime + *(f32*)(row + 24);
         }
-        Effects[fx].owner = pidx + 1;
+        Effects[mode].owner = pidx + 1;
         if (*(s16*)(row + 74) >= 0) {
             sub = *(u8**)(*hdrp + 4) + *(s16*)(row + 74) * 80;
-            SfxSetHit(fx, *(u32*)(sub + 8), *(u32*)(sub + 12),
+            SfxSetHit(mode, *(u32*)(sub + 8), *(u32*)(sub + 12),
                       *(u32*)(sub + 12));
             if (*(u32*)sub & 0x10) {
                 *flp |= 0x200000;
             }
         }
         if (*(s16*)(row + 76) >= 0) {
-            SfxSetMorph(fx,
-                        *(u32*)(*(u8**)(*hdrp + 4) + *(s16*)(row + 76) * 80 +
-                                8),
-                        0, *(f32*)(row + 28));
+            sub = *(u8**)(*hdrp + 4) + *(s16*)(row + 76) * 80;
+            SfxSetMorph(mode, *(u32*)(sub + 8), 0, *(f32*)(row + 28));
             if (*(s16*)(row + 2) & 0x800) {
                 *flp |= 0x8000;
             }
         }
-        if (*(f32*)(row + 12) != lbl_80347DA0) {
-            SfxSetLight(fx, lbl_80120DA0 + *(s32*)(p + 8) * 12,
+        if (*(f32*)(row + 12) != 0.0f) {
+            SfxSetLight(mode, lbl_80120DA0 + *(s32*)(p + 8) * 12,
                         (f32)(lbl_80347DF8 * *(f32*)(row + 12)));
-        } else if (*(f32*)(row + 8) != lbl_80347DA0) {
-            SfxSetLight(fx, lbl_80120DA0 + *(s32*)(p + 8) * 12,
+        } else if (*(f32*)(row + 8) != 0.0f) {
+            SfxSetLight(mode, lbl_80120DA0 + *(s32*)(p + 8) * 12,
                         (f32)(lbl_80347DF8 * *(f32*)(row + 8)));
         }
-        if (*(f32*)(row + 60) > lbl_80347DA0) {
+        if (*(f32*)(row + 60) > 0.0f) {
             f32 spd = lbl_80347E00 * (*(f32*)(row + 64) - *(f32*)(row + 60)) +
                       *(f32*)(row + 60);
             if (*(s16*)(row + 2) & 4) {
@@ -599,7 +596,7 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
                     if (vy > lbl_80347E08) {
                         vy = lbl_80347E10;
                     }
-                    if (vy > lbl_80347DA0 && vy < lbl_80347E18) {
+                    if (vy > 0.0f && vy < lbl_80347E18) {
                         vy = lbl_80347E00;
                     }
                 }
@@ -608,38 +605,39 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
                 vel[2] = *(f32*)(p + 60) * spd;
             }
             if (*(s16*)row == 2) {
-                if (lbl_80347DA0 != *(f32*)(row + 32)) {
+                if (0.0f != *(f32*)(row + 32)) {
                     YawVec3(vel, vel, *(f32*)(row + 32));
                 }
                 if ((*(s16*)(row + 2) & 8) &&
-                    lbl_80347DA0 != *(f32*)(row + 40)) {
+                    0.0f != *(f32*)(row + 40)) {
                     PitchVec3(vel, vel, *(f32*)(row + 40));
                 }
             }
             if (*(u32*)seq & 8) {
                 rnd[0] = Random(lbl_80347E20);
-                rnd[1] = lbl_80347DA0;
+                rnd[1] = 0.0f;
                 rnd[2] = Random(lbl_80347E20);
-                fn_80093E50(fx, vel, rnd, *(f32*)(row + 68),
+                fn_80093E50(mode, vel, rnd, *(f32*)(row + 68),
                             *(f32*)(row + 8));
             } else {
-                fn_80093E50(fx, vel, 0, *(f32*)(row + 68), *(f32*)(row + 8));
+                fn_80093E50(mode, vel, 0, *(f32*)(row + 68), *(f32*)(row + 8));
             }
         } else {
-            fn_80093E50(fx, 0, 0, *(f32*)(row + 68), *(f32*)(row + 8));
+            fn_80093E50(mode, 0, 0, *(f32*)(row + 68), *(f32*)(row + 8));
         }
         if ((*(u64*)&gControllerButtons & 16) != 0 &&
             (*(u64*)&gControllerButtons & 1) != 0) {
-            DmgFxAdd(fx);
+            DmgFxAdd(mode);
         }
     } else {
         if (*(s16*)(row + 74) >= 0) {
             sub = *(u8**)(*hdrp + 4) + *(s16*)(row + 74) * 80;
-            SfxSetHit(fx, *(u32*)(sub + 8), *(u32*)(sub + 12),
+            SfxSetHit(mode, *(u32*)(sub + 8), *(u32*)(sub + 12),
                       *(u32*)(sub + 12));
         }
     }
-    return fx;
+done:
+    return mode;
 }
 
 typedef struct PlayerSfxRecord {
