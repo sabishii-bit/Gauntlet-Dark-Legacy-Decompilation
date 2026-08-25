@@ -3866,6 +3866,7 @@ extern void fn_80054E78(void);
 void game_main(void)
 {
     u8 unused[8];
+    u8 unused2[8];
     s32 i;
     s32 reset_player;
     s32 cond;
