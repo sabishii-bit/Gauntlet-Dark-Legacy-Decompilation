@@ -126,6 +126,7 @@ extern s32 gGameOptions[];   /* 0x80257590 (lbl_80257598 = [2]) */
 
 /* branchless-abs idiom (srawi/xor/subf at -O4) */
 #define ABS(x) (((x) ^ ((x) >> 31)) - ((x) >> 31))
+#define ABS_REVERSED(x) ((((x) >> 31) ^ (x)) - ((x) >> 31))
 
 /* --- same-TU statics not yet reconstructed (extern until written) --- */
 extern void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm);
@@ -829,21 +830,34 @@ extern void RequestEnemyAction(Enemy* enemy, s32 action);
 s32 do_enemy_collide(s32 index, f32 retryThreshold)
 {
     u8* pool = (u8*)lbl_80250E00;
-    u8* e = (u8*)&gEnemies[index];
-    f32* tr = (f32*)(e + 0x210);
-    f32 dt = (f32)(lbl_80346860 * gClockFrameStep);
-    s32 behavior = *(s16*)(e + 0x310);
-    s32 result = 0;
+    u8* e0;
+    u8* e;
+    Enemy* enemy;
+    s32 type;
+    f32* tr;
     f32 rad;
+    f32 dt;
+    s32 behavior;
+    s32 result = 0;
     f32 slideRad;
     void* hit = NULL;
+    u8 framePad[4];
     f32 oldpos[3];
     f32 dh;
-    u8 unused[16];
+    u8 unused[4];
 
+    (void)framePad;
     (void)unused;
 
-    if (*(s32*)e == 0x1F || *(s32*)(e + 0x358) <= 0) {
+    e0 = pool + index * 916;
+    type = *(s32*)(e0 += 3608);
+    e = e0;
+    enemy = (Enemy*)e0;
+    tr = enemy->trans;
+    dt = (f32)(lbl_80346860 * gClockFrameStep);
+    behavior = enemy->algorithm;
+
+    if (type == 0x1F || *(s32*)(e + 0x358) <= 0) {
         *(s16*)(e + 0x1FE) = 0;
     }
     if (*(s16*)(e + 0x280) == 0) {
@@ -862,16 +876,19 @@ s32 do_enemy_collide(s32 index, f32 retryThreshold)
     if (*(s16*)(e + 0x280) != 0) {
         if (*(s32*)e == 0x1D) {
             f32 np[3];
+            u8 npPad[4];
             s32 wallResult;
+
+            (void)npPad;
             slideRad = (f32)(lbl_80346830 * rad);
-            slideRad = (f32)(slideRad * lbl_80346838);
+            slideRad *= lbl_80346838;
             np[0] = oldpos[0] + tr[0];
             np[1] = oldpos[1] + tr[1];
             np[2] = oldpos[2] + tr[2];
             lbl_80344730 = EnemyWallCollide(slideRad, oldpos, np,
                                                  (f32*)(pool + 0x2F4));
             if (lbl_80344730 != 0) {
-                EnemyWorldDamage((Enemy*)e, lbl_80344730, oldpos,
+                EnemyWorldDamage(enemy, lbl_80344730, oldpos,
                                  (f32*)(pool + 0x2F4));
                 if (*(u32*)((u8*)lbl_80344730 + 0x10) & 0x38) {
                     wallResult = 0;
@@ -893,7 +910,10 @@ s32 do_enemy_collide(s32 index, f32 retryThreshold)
             result = wallResult;
         } else {
             f32 np[3];
+            u8 npPad[4];
             s32 wallResult;
+
+            (void)npPad;
             slideRad = (f32)(rad * lbl_80346838);
             np[0] = oldpos[0] + tr[0];
             np[1] = oldpos[1] + tr[1];
@@ -901,7 +921,7 @@ s32 do_enemy_collide(s32 index, f32 retryThreshold)
             lbl_80344730 = EnemyWallCollide(slideRad, oldpos, np,
                                                  (f32*)(pool + 0x2F4));
             if (lbl_80344730 != 0) {
-                EnemyWorldDamage((Enemy*)e, lbl_80344730, oldpos,
+                EnemyWorldDamage(enemy, lbl_80344730, oldpos,
                                  (f32*)(pool + 0x2F4));
                 if (*(u32*)((u8*)lbl_80344730 + 0x10) & 0x38) {
                     wallResult = 0;
@@ -924,7 +944,7 @@ s32 do_enemy_collide(s32 index, f32 retryThreshold)
         }
     }
 
-    hit = fn_80045C30((Enemy*)e, rad, retryThreshold, oldpos, tr, result);
+    hit = fn_80045C30(enemy, rad, retryThreshold, oldpos, tr, result);
     if (hit != NULL) {
         *(void**)(e + 0x298) = hit;
         if ((f64)*(f32*)(e + 0x23C) <= lbl_80346868) {
@@ -969,7 +989,7 @@ reparent:
     }
 
     if (behavior == 0) {
-        if (ABS(*(s32*)(e + 0x354)) <= 2) {
+        if (ABS_REVERSED(*(s32*)(e + 0x354)) <= 2) {
             (*(s16*)(e + 0x364))++;
             fn_8004D030(index, 5);
         } else {
@@ -979,13 +999,13 @@ reparent:
         if (*(s16*)(e + 0x364) >= 9) {
             *(s32*)(e + 0x354) = -*(s32*)(e + 0x354) * 2;
             *(s16*)(e + 0x364) = 0;
-            if (ABS(*(s32*)(e + 0x354)) > 2) {
+            if (ABS_REVERSED(*(s32*)(e + 0x354)) > 2) {
                 *(f32*)(e + 0x24C) = lbl_80344720;
                 *(f32*)(e + 0x244) = lbl_80344720;
             }
         }
     } else if (behavior == 7) {
-        if (ABS(*(s32*)(e + 0x354)) <= 2) {
+        if (ABS_REVERSED(*(s32*)(e + 0x354)) <= 2) {
             (*(s16*)(e + 0x364))++;
             fn_8004D030(index, 0xA);
         } else {
@@ -1000,7 +1020,7 @@ reparent:
             *(s16*)(e + 0x364) = 0;
         }
     } else if (behavior == 8) {
-        if (ABS(*(s32*)(e + 0x354)) <= 2) {
+        if (ABS_REVERSED(*(s32*)(e + 0x354)) <= 2) {
             (*(s16*)(e + 0x364))++;
             fn_8004D030(index, 5);
         } else {
@@ -1015,7 +1035,7 @@ reparent:
             *(s16*)(e + 0x364) = 0;
         }
     } else if (behavior == 0xA) {
-        if (ABS(*(s32*)(e + 0x354)) <= 2) {
+        if (ABS_REVERSED(*(s32*)(e + 0x354)) <= 2) {
             (*(s16*)(e + 0x364))++;
             fn_8004D030(index, 0xA);
         } else {
@@ -1030,24 +1050,26 @@ reparent:
             *(s16*)(e + 0x364) = 0;
         }
     } else if (behavior == 0x14) {
-        if (ABS(*(s32*)(e + 0x354)) <= 2) {
+        if (ABS_REVERSED(*(s32*)(e + 0x354)) <= 2) {
             (*(s16*)(e + 0x364))++;
             fn_8004D030(index, 3);
         } else {
-            f64 a;
             f64 high;
 
             fn_8004D030(index, 0x1E);
             high = lbl_80346840;
             *(f32*)(e + 0x24C) = (f32)(high + lbl_80344720);
-            a = *(f32*)(e + 0x24C);
-            if (a > high) {
-                a -= lbl_80346848;
-            } else if (a <= lbl_80346850) {
-                a += lbl_80346848;
+            {
+                f64 a;
+
+                if ((a = *(f32*)(e + 0x24C)) > high) {
+                    a -= lbl_80346848;
+                } else if (a <= lbl_80346850) {
+                    a = lbl_80346848 + a;
+                }
+                *(f32*)(e + 0x24C) = (f32)a;
+                *(f32*)(e + 0x244) = (f32)a;
             }
-            *(f32*)(e + 0x24C) = (f32)a;
-            *(f32*)(e + 0x244) = (f32)a;
             *(s16*)(e + 0x364) = 0;
             *(s32*)(e + 0x354) = 0;
         }
@@ -1065,7 +1087,7 @@ reparent:
 gravity:
     dh = *(f32*)(e + 0x294) - *(f32*)(e + 0x38);
     if ((f64)dh < lbl_80346880) {
-        damage_enemy((Enemy*)e, lbl_80346888, -1, 0, 0, 0, 0);
+        damage_enemy(enemy, lbl_80346888, -1, 0, 0, 0, 0);
     }
     if (dh < dt) {
         dh = dt;
