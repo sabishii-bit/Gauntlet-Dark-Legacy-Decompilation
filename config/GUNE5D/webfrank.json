@@ -474,6 +474,29 @@
         },
         "copy_register_fields": true
       }
+    ],
+    "game/crt/vsprintf": [
+      {
+        "function": "vsprintf",
+        "before_sha256": "078d9aa441476b7e80cee5c0983c5c9664f34176abf7a9878cda7d9141b7945b",
+        "after_sha256": "68ca006330bb48265c63c0cc350efa492146ea9374748ddecf82a1a160282331",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 665,
+          "permuted_instructions": 18,
+          "register_field_instructions": 12
+        },
+        "instruction_permutation": {
+          "start": "0x28",
+          "end": "0x70",
+          "order": [10, 13, 14, 1, 17, 2, 0, 3, 4, 5, 6, 7, 8, 9, 11, 12, 15, 16],
+          "before_sha256": "526ec89477e2ae0caffa832150f5bfc8f4bad4e258e3a7651479c227ac0ad33e",
+          "after_sha256": "2831f0966a36779b82a76707253f51467b50df9287dbda1b6bf2611a926acf2c",
+          "before_relocations_sha256": "4f6a494bd924e656a070fd608202df5f87daecc9e587058fb8eaf7d81e5bcea1",
+          "after_relocations_sha256": "49e8fc8fc45be47eca5ae21be40e92d6841679b8d5c7a71650187a6f878df0dc"
+        },
+        "copy_register_fields": true
+      }
     ]
   }
 }
