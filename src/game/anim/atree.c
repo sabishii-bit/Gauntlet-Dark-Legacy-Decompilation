@@ -355,28 +355,6 @@ s32 AtreeFindSeq(atree* tree, char* name)
     return -1;
 }
 
-/* ---------------- match table ---------------- */
-
-void* AtreeMatch(atreeheader* hdr, char* name, s32 report)
-{
-    int i;
-    atreematch* list;
-
-    if (hdr == NULL) {
-        FatalError("AtreeMatch with NULL atree", 0x804060);
-    }
-    list = hdr->list;
-    for (i = 0; i < hdr->num; i++) {
-        if (strcmp(name, list[i].name) == 0) {
-            return (char*)hdr + list[i].offset;
-        }
-    }
-    if (report != 0) {
-        ErrorPrintf("No AtreeMatch: %s", name);
-    }
-    return NULL;
-}
-
 /* ---------------- node/animdata pools ---------------- */
 
 void AtreeSetEmpty(void)
@@ -976,6 +954,28 @@ found:
         scrollName, flags, 1);
 }
 #pragma opt_propagation reset
+
+/* ---------------- match table ---------------- */
+
+void* AtreeMatch(atreeheader* hdr, char* name, s32 report)
+{
+    int i;
+    atreematch* list;
+
+    if (hdr == NULL) {
+        FatalError("AtreeMatch with NULL atree", 0x804060);
+    }
+    list = hdr->list;
+    for (i = 0; i < hdr->num; i++) {
+        if (strcmp(name, list[i].name) == 0) {
+            return (char*)hdr + list[i].offset;
+        }
+    }
+    if (report != 0) {
+        ErrorPrintf("No AtreeMatch: %s", name);
+    }
+    return NULL;
+}
 
 /* byte-order fixup helpers: the atree resource is little-endian on disk. */
 #define SWAP32(x)                                                             \
