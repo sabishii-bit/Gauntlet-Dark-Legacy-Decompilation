@@ -435,6 +435,7 @@ u32 WorldCollide(f32 radius, void* fromv, void* tov, f32* result,
     f32 clipT;
     f32 originX;
     f32 originZ;
+    f32 noHit;
     s32 gx;
     s32 gz;
     WObj* obj;
@@ -532,9 +533,10 @@ u32 WorldCollide(f32 radius, void* fromv, void* tov, f32* result,
     }
     lbl_8034418C = (char)gWorldInfo.stamp;
     lbl_80344160 = 0;
-    lbl_80344164 = lbl_80345760;
+    noHit = lbl_80345760;
+    lbl_80344164 = noHit;
     res->objAlt = 0;
-    res->bestAlt = lbl_80345760;
+    res->bestAlt = noHit;
 
     if (offGrid == 0) {
         f64 earlyZero;
