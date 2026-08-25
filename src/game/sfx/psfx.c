@@ -146,8 +146,7 @@ ticks_active:
                 offset = 0;
                 while (index <= lastIndex) {
                     slot = (void**)((u8*)player + offset + 0x808);
-                    node = *slot;
-                    if (node != NULL) {
+                    if ((node = *slot) != NULL) {
                         if ((*(u32*)((u8*)node + 0x60) & 0x200) != 0) {
                             alpha = 255 - *(u8*)((u8*)node + 0x53);
                         } else {
