@@ -352,6 +352,7 @@ s32 GetAnimAngXYZVal(f32 frame, AnimData* data, f32* pose, u32* keydata, s32 fla
     s32 diff;
     s32 i;
     f32 t;
+    u8 unused[184];
 
     if (flags & 0x4000) {
         n = GetPYR(pose, (f32*)keydata, flags, 0, mask);
