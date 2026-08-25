@@ -2764,8 +2764,7 @@ level_player_found:
         cam3->pa_mode = cam3->a_mode;
         cam3->a_mode = ATN_TARGET;
     }
-    cameraIndex = 0;
-    cam3->trans_mode = cameraIndex;
+    cam3->trans_mode = (cameraIndex = 0);
     {
     f32 cam3Zero = lbl_80345EC8;
     cam3->vel[0] = cam3Zero;
