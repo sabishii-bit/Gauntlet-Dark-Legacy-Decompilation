@@ -792,40 +792,40 @@ void MBRemoveNodeChild(MBTreeNode* node)
     u8* entries = lbl_802C2A28;
     f32 default_scale = lbl_80348CA0;
 
-    while (node != 0) {
-        current = node;
+    while (current != 0) {
+        node = current;
 
-        if (current->child != 0)
-            MBRemoveNodeChild(current->child);
-        if (current->flags & 0x10000000) {
-            if (current->flags & 0x10000000) {
-                *(f32*)(entries + (u32)current->uvScaleAddIndex * 16) = default_scale;
-                MBTreeClearUVScaleAdd(current, -1, 1);
+        if (node->child != 0)
+            MBRemoveNodeChild(node->child);
+        if (node->flags & 0x10000000) {
+            if (node->flags & 0x10000000) {
+                *(f32*)(entries + (u32)node->uvScaleAddIndex * 16) = default_scale;
+                MBTreeClearUVScaleAdd(node, -1, 1);
             }
         }
-        node = current->next;
-        if (current->type == 14 && current->special != 0) {
+        current = node->next;
+        if (node->type == 14 && node->special != 0) {
             MBTreeNode* psys_root = lbl_80344EDC;
-            MBTreeNode* old_parent = current->parent;
+            MBTreeNode* old_parent = node->parent;
 
             if (old_parent == 0 || old_parent != psys_root) {
-                if (old_parent != 0 && old_parent->child == current) {
-                    old_parent->child = current->next;
+                if (old_parent != 0 && old_parent->child == node) {
+                    old_parent->child = node->next;
                 } else {
-                    MBTreeNode* previous = MBNodePrevNode(current);
+                    MBTreeNode* previous = MBNodePrevNode(node);
                     if (previous != 0)
-                        previous->next = current->next;
+                        previous->next = node->next;
                 }
-                current->next = 0;
-                MBNodeInsert(current, psys_root);
+                node->next = 0;
+                MBNodeInsert(node, psys_root);
             }
-            MBRemovePsys(current);
+            MBRemovePsys(node);
         } else {
-            current->type = 0;
-            current->child = 0;
-            current->parent = 0;
-            current->next = lbl_80344EE0;
-            lbl_80344EE0 = current;
+            node->type = 0;
+            node->child = 0;
+            node->parent = 0;
+            node->next = lbl_80344EE0;
+            lbl_80344EE0 = node;
         }
     }
 }
