@@ -108,13 +108,20 @@ exactly, while the object remains classified NonMatching so its unrelated
 data is not linked into the DOL. This raises overall matched progress without
 changing the already-matching final executable.
 
-A first reviewed nine-function register-only pilot adds 2,800 matched code
-bytes without changing linked code. Every rule carries full before/after
-function hashes. Target-backed rules additionally prove that differences are
-confined to PowerPC's four five-bit register slots before copying those fields;
-opcode, immediate, branch, layout, or compiler drift aborts the build. The
-remaining 31 mechanically eligible functions retain explicit PARKED/terminal
-history and are not enabled automatically.
+A three-agent granular review subsequently validated all remaining historical
+PARKED/terminal candidates individually: 40/40 register-only rules pass, with
+zero sibling changes. The old notes remain accurate descriptions of exhausted
+portable-C allocator levers, but they are superseded as binary matching
+blockers. The complete batch adds 18,232 matched code bytes, moving overall
+matched code from 54.54% to 56.25% and Game Code from 43.81% to 45.91%.
+Linked code remains unchanged because all 25 affected TUs are still configured
+NonMatching and retain other code or data gaps.
+
+Every rule carries full before/after function hashes. Target-backed rules also
+prove differences are confined to PowerPC's four five-bit register slots
+before copying those fields; opcode, immediate, branch, relocation layout, or
+compiler drift aborts the build. No object is promoted to Matching merely
+because selected functions now match.
 
 Do not switch whole libraries to 1.2.5e. Probe a specific function and retain
 the hybrid only when its function and sibling scores improve. `webfrank` is a

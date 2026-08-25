@@ -25,6 +25,30 @@
         ]
       }
     ],
+    "game/anim/anim": [
+      {
+        "function": "InitAnim",
+        "before_sha256": "29624e6030b9cf74e3e0239e27ba36a91734a943e272fe537ca7283092bdf97a",
+        "after_sha256": "fab18e65e83096ed98f7a85bd0d505100bf3114e4d1d78ea614345531a210105",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 106
+        },
+        "copy_register_fields": true
+      }
+    ],
+    "game/anim/atree": [
+      {
+        "function": "AtreeInitSub",
+        "before_sha256": "8bb19f832ddc59d7f757caf5aea2b4e0ab38af7630fcc055a7bbbb31abeb2f23",
+        "after_sha256": "f113c1841d8fe12a7c2161026f2fbab71ffad2bb9f6a73db715ff567ac33e777",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 180
+        },
+        "copy_register_fields": true
+      }
+    ],
     "game/world/btricol": [
       {
         "function": "PointLineDist2D",
@@ -33,6 +57,28 @@
         "audit": {
           "classification": "REGISTER_ONLY",
           "instructions": 107
+        },
+        "copy_register_fields": true
+      }
+    ],
+    "game/game/combat": [
+      {
+        "function": "adjust_radius_8002B2D4",
+        "before_sha256": "af757cae485dfd40fa3896c505c939e2e8e5d0ef34f6a31bbaf5245082cb927f",
+        "after_sha256": "1e98d18756a50c1e2d2a2e6eb5d3576395002ef677edb1b4aef8eddc1d96bae6",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 95
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "MissileCollideEnemy",
+        "before_sha256": "0c724c8d5a6238861922b3fc005eb21176b9cc9fff4a5a7332753f33aa47480f",
+        "after_sha256": "22483617cfedc178cd33f90c6093902d8ddb001536250f3ecb178b48ea70d7ef",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 86
         },
         "copy_register_fields": true
       }
@@ -47,6 +93,26 @@
           "instructions": 111
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "CritterLineNodeColSub",
+        "before_sha256": "4fe4f25441134b3e375edd97faf35482a77056679ed21c467533a3aeadb2ec06",
+        "after_sha256": "ae004f3fff367edaf58b7940265e3c1bec60874b89e1d62aba91cdd4429bcf3d",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 75
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "CritterLookForCriticalMove",
+        "before_sha256": "271b765584a18816b8b21b4267b1076a612af19d19358fe0af1f915e135a738d",
+        "after_sha256": "3f03e5abb59b4f7e260ef22275564b5b93c3200b55e46ff717f9b521c18437d6",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 75
+        },
+        "copy_register_fields": true
       }
     ],
     "game/enemy/enemy": [
@@ -57,6 +123,100 @@
         "audit": {
           "classification": "REGISTER_ONLY",
           "instructions": 105
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "move_logic00",
+        "before_sha256": "db7842f97a97bc4a3b34f81848187b13ad3341faa6ddb32d5b75dc553490999b",
+        "after_sha256": "5e3b5746aa9c1741eb15e3fdd5882093e0dcae66e1cad6517619e95f28a75ca0",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 244
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "move_logic02",
+        "before_sha256": "c9d1c4aad8932187f4406292f3c568e0678922b0dd6880b4bab1679f492a9cd4",
+        "after_sha256": "66d09afa92eab01ef93873d8d08efd318267948f95f28ef8fe2b869987614eca",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 145
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "move_logic04",
+        "before_sha256": "6ea65fde84ce8757b99b8a2d629ae2ed06a1487709580fc48ffe1a11598e6c82",
+        "after_sha256": "c7244d1c1ef0d6f5f01a7d648c64787d8f29fb8200d12f4d7dfcbe95355f364a",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 146
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "move_logic14",
+        "before_sha256": "a377695de4e3321489f8aa2f9629b2e1c0ef06a37516320b8c158d37c69d0ad1",
+        "after_sha256": "eaa1024858bde63d9e2a4a1a89336fa835919a65c3b445d0233f23a103c43b34",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 279
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "move_logic30",
+        "before_sha256": "dd449aa44d677ae80fb7f590fcab1ef087e67d4be1ba9531c2364c0308e5a2f5",
+        "after_sha256": "5786da53eda534630dd5eb87a7f311b00c59c51af8b4c9779b8f64f35aae930a",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 155
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "gendir_8004FBC8",
+        "before_sha256": "362dd4251c9447a204bc7a46fee39c0da8f6639a62417dcc4096691555bbc850",
+        "after_sha256": "c35e13c4378a766a27d9f8896cf0a40ea0d756a58ee110c6475ddb39d506a6f4",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 78
+        },
+        "copy_register_fields": true
+      }
+    ],
+    "game/game/gamemain": [
+      {
+        "function": "DoWorldAnimation",
+        "before_sha256": "eb1d3bbe9f55641bca737789c158eb2cd9f7fc334da026e592a232daea6d5a3e",
+        "after_sha256": "7a07a28661203a8548af9187abac6702c59a21a1cecba8c10d28761ccc78018e",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 63
+        },
+        "copy_register_fields": true
+      }
+    ],
+    "game/world/items": [
+      {
+        "function": "DistanceToClosestPlayer",
+        "before_sha256": "f1dfc5f5e549bc13e608ce46bc7e6de148e77b9c08feeeac7547e4986928a1d4",
+        "after_sha256": "64b7273b09876eb698ec795f3b2b9c7679110b1a539d22ac7c84dc9cac18f6dc",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 122
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "InitLighting",
+        "before_sha256": "d0dd6ba801560e9fb01c5228d620663e5c4698d655e9a469ec8480880b5fbe0a",
+        "after_sha256": "1d201560763d69d43df89cd3c5f6c9704686b73c9600b4147c42a2f4c854a008",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 38
         },
         "copy_register_fields": true
       }
@@ -73,6 +233,18 @@
         "copy_register_fields": true
       }
     ],
+    "game/world/newcam": [
+      {
+        "function": "CalcFrustrumNormals",
+        "before_sha256": "b34989509724156a1c09b98b279d46b23c5ad5fc3232aeeda1cc6fe7093987e0",
+        "after_sha256": "1be628a8dcabe2421e96e9407fc8e353576c4b192a6c4d383ed315b3ea42d470",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 117
+        },
+        "copy_register_fields": true
+      }
+    ],
     "game/sfx/psfx": [
       {
         "function": "DoPlyrSfxSub",
@@ -81,6 +253,108 @@
         "audit": {
           "classification": "REGISTER_ONLY",
           "instructions": 143
+        },
+        "copy_register_fields": true
+      }
+    ],
+    "game/sfx/sfx": [
+      {
+        "function": "DmgFxAdd",
+        "before_sha256": "221a19f9d2b632b0c6fb0d0ffa5dc39559713fe6eda4dc4edd07fde76bdc6a4e",
+        "after_sha256": "e389693f37830be0874255dc4a94b1dcf0f90932b3abcbf10b8536d0697793bf",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 107
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "StartComboFX",
+        "before_sha256": "3b6bf9718600bd02208ec7d0861a6d04ccd4e38e78d991b107286946e515c868",
+        "after_sha256": "58762f77f0210b1f67a949ad78ad7d181477548ca9d716c523c455c175e8c741",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 150
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "SuicideExplosion",
+        "before_sha256": "278787b6fedcc414759308eecb75ce419a554a718440975f200f83ab13af4680",
+        "after_sha256": "1bc0accfb36d87bd7959c7f2f7a8de40b66b8d416b50d23f7ac43fa8f09ed5bf",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 255
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "fn_80094164",
+        "before_sha256": "30d3210848d214c06911b6b843c8b3abbf98ba4de390d93f594527e0cfaf88b4",
+        "after_sha256": "389d79f39894c21247d110df94d2c2337ee9024af6e1aef8b0f7d03655705733",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 183
+        },
+        "copy_register_fields": true
+      }
+    ],
+    "game/sound/sounds_evt": [
+      {
+        "function": "AudioPlayerEatSFX",
+        "before_sha256": "44433b8842e39abaefd63a622684fcbaee4fca98ddcbed7abf8bdf5c22cabfdc",
+        "after_sha256": "697fe56971b4f12588eab1398eeb785b92d717d827f2416e966cef4c0aba126f",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 68
+        },
+        "copy_register_fields": true
+      }
+    ],
+    "game/sound/sounds": [
+      {
+        "function": "AudioAmbientUpdate",
+        "before_sha256": "50806cfc3fdb79d81ec766d246ed8ee94d59d66aa7fbf57d965696b5315d213b",
+        "after_sha256": "77c93f7b7723876ac313fd68f98ebc735fa3015593ecea0028a4ab6b47f3c2fe",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 121
+        },
+        "copy_register_fields": true
+      }
+    ],
+    "game/ps2/fakelib": [
+      {
+        "function": "sceRead",
+        "before_sha256": "9353cba5c0431258cb246b75fd4c37024d394b5afb14e319c284dc5da2a0fa86",
+        "after_sha256": "9b1a33745a5e5986a20bfb8227837ca77638e51c91f8ee76852db29fda2ee4bf",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 152
+        },
+        "copy_register_fields": true
+      }
+    ],
+    "game/mb/mb_blit": [
+      {
+        "function": "fn_800B27C4",
+        "before_sha256": "217821e316f7fe59907db871a5de16b964ad9b153b0b9128825c12cf97eff122",
+        "after_sha256": "8830b26769c173748bdd95df8294b0af01e0e1eeae77a77d616be972d33f3590",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 74
+        },
+        "copy_register_fields": true
+      }
+    ],
+    "game/mb/mb_font": [
+      {
+        "function": "MBNewFont",
+        "before_sha256": "d046e7ffadc58d66f5a9d3118347a494da75e0a6f45bc9536805643e5c3b2517",
+        "after_sha256": "dba297f3162b257382fcb72bae07aa66c1e75dadeb0b2e8ded9cb02c5f979cb6",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 189
         },
         "copy_register_fields": true
       }
@@ -109,6 +383,40 @@
         "copy_register_fields": true
       }
     ],
+    "game/pb/dbgtext": [
+      {
+        "function": "dbgTextInit",
+        "before_sha256": "760a9e15208f50ac3a18a94b9afc594fa1679160e76ed2b5251bbcacc9f73b2f",
+        "after_sha256": "d7d7d382e9bfc6df788d00701e64c498556a0b8601517609e51449c0e32b3baf",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 6
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "fn_800C031C",
+        "before_sha256": "2eb2e52208b5318c1bcb6a9f7c1a41e9f0af13f95ab7bc0a078bf3318ae1ebc8",
+        "after_sha256": "49acb8aedf760f89d469c98ca6d73b410092c654952bf733046077be3e095083",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 30
+        },
+        "copy_register_fields": true
+      }
+    ],
+    "game/pb/pb_texture": [
+      {
+        "function": "fn_800C72DC",
+        "before_sha256": "3d06a9b3e531df4c687d5f90c5410a38844f5e4db2b31e60c5de817b7281ae83",
+        "after_sha256": "a34e228c3eb6798dfe379acf0b2184927936bf8a7c551f50cd3a4cf377d3da44",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 65
+        },
+        "copy_register_fields": true
+      }
+    ],
     "game/mb/mb_particle": [
       {
         "function": "getSinCos",
@@ -117,6 +425,40 @@
         "audit": {
           "classification": "REGISTER_ONLY",
           "instructions": 27
+        },
+        "copy_register_fields": true
+      }
+    ],
+    "game/g3d/g3dpad": [
+      {
+        "function": "G3DUpdatePadStatus",
+        "before_sha256": "4c6ead517154ac5888e2cb3c265c2a643a56f5b680fe8ca078f4374eb80b8a70",
+        "after_sha256": "ee315bc5bb0787d5eabe917ce59bfc97f0f5169d426b3511f20a3a84e6b27bda",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 282
+        },
+        "copy_register_fields": true
+      }
+    ],
+    "game/movie/movieplayer": [
+      {
+        "function": "fn_800D967C",
+        "before_sha256": "fe36fa51cabfcdc667baa8377232c60aa38736fedbed7d1f04a239244779317b",
+        "after_sha256": "3d9ea44e2169f95f896de1e67fa45cd2b82015985bfb6a9ef4b55782a4a15794",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 13
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "fn_800DA6A4",
+        "before_sha256": "5812e694c3b3db80505e858b0010cab5ee2a17093ae54c00c1acde222e40bcf7",
+        "after_sha256": "f89a94366721ba937708a6ff1a5f93728309b9d2a140ab45d6fe8215c4d63797",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 159
         },
         "copy_register_fields": true
       }
