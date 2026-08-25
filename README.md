@@ -122,13 +122,17 @@ python configure.py --non-matching
 ninja
 ```
 
+This mode links raw compiler output. It deliberately bypasses Frank, WebFrank,
+P6Frank, and every other retail-target/hash-dependent object rewrite so edited
+source remains usable as a normal mod build.
+
 To print decompilation progress:
 
 ```sh
 python configure.py progress
 ```
 
-### Frank and guarded register-web postprocessing
+### Compiler variants and guarded postprocessing
 
 The build harness supports two narrowly scoped CodeWarrior postprocessors for
 historical compiler walls:
@@ -153,6 +157,14 @@ dependency audit, no control instructions, and an exact relocation-preserving
 bijection; they are not a general target-byte-copy mechanism. See
 [`gc_125e_frank.md`](.claude/memory/gc_125e_frank.md) for
 the compiler history, audit results, and verification policy.
+
+An experimental `GC/1.2.5s` open patch recipe for the recovered `regFind`
+PCode-layout carrier is documented in
+[`tools/gdl/mwcc_p6/`](tools/gdl/mwcc_p6/). It derives a separately named
+compiler from a user-supplied, SHA-pinned GC/1.2.5 or 1.2.5n executable and
+contains no proprietary compiler bytes. It is not selected by the normal build
+yet. Compiler-derived, raw-compiler, and postprocessed matches must remain
+distinguishable in reporting.
 
 A `NonMatching` object may be promoted to `Matching` only when its complete
 postprocessed object is exact, including code, relocations, data/BSS and

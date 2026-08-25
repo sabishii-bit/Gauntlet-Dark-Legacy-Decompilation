@@ -1677,6 +1677,10 @@ def generate_objdiff_config(
         "GC/1.2.5": "mwcc_233_163",
         "GC/1.2.5e": "mwcc_233_163e",
         "GC/1.2.5n": "mwcc_233_163n",
+        # The local 1.2.5s derivative is not hosted by decomp.me.  Use its
+        # exact upstream base for scratch experiments; local builds remain
+        # SHA-pinned to the derived executable by configure.py.
+        "GC/1.2.5s": "mwcc_233_163n",
         "GC/1.3": "mwcc_242_53",
         "GC/1.3.2": "mwcc_242_81",
         "GC/1.3.2r": "mwcc_242_81r",

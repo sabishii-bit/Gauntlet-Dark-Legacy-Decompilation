@@ -13,6 +13,7 @@
 ###
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -121,6 +122,11 @@ parser.add_argument(
     help="builds non-matching or modded objects",
 )
 parser.add_argument(
+    "--experimental-p6-compiler",
+    action="store_true",
+    help="use the reviewed GC/1.2.5s compiler for registry.c",
+)
+parser.add_argument(
     "--warn",
     dest="warn",
     type=str,
@@ -155,6 +161,26 @@ if not is_windows():
 # Don't build asm unless we're --non-matching
 if not config.non_matching:
     config.asm_dir = None
+
+p6_compiler_version = "GC/1.2.5n"
+if args.experimental_p6_compiler:
+    compiler_root = args.compilers or args.build_dir / "compilers"
+    p6_compiler = compiler_root / "GC" / "1.2.5s" / "mwcceppc.exe"
+    expected_p6_sha256 = (
+        "5a4d1e1715954ddefc87a5a0dfbe38b6c3916e22214957b21af3bd147a760667"
+    )
+    if not p6_compiler.is_file():
+        sys.exit(
+            f"Experimental compiler not found: {p6_compiler}\n"
+            "See tools/gdl/mwcc_p6/README.md to derive it from GC/1.2.5n."
+        )
+    actual_p6_sha256 = hashlib.sha256(p6_compiler.read_bytes()).hexdigest()
+    if actual_p6_sha256 != expected_p6_sha256:
+        sys.exit(
+            f"Experimental compiler hash mismatch: {actual_p6_sha256}\n"
+            f"Expected: {expected_p6_sha256}"
+        )
+    p6_compiler_version = "GC/1.2.5s"
 
 # Tool versions
 config.binutils_tag = "2.42-2"
@@ -408,7 +434,7 @@ config.libs = [
             Object(NonMatching, "game/ps2/ml_fmath.c", cflags=cflags_demo),
             Object(NonMatching, "game/g3d/sndvoice.c", mw_version="GC/1.2.5n"),
             Object(Matching, "game/g3d/gpads.c", mw_version="GC/1.2.5n"),
-            Object(Matching, "game/sys/registry.c", mw_version="GC/1.2.5n"),
+            Object(Matching, "game/sys/registry.c", mw_version=p6_compiler_version),
             Object(Matching, "game/sys/gutil.c", mw_version="GC/1.2.5n"),
             Object(Matching, "game/sys/texPalette.c", mw_version="GC/1.2.5n"),
             Object(NonMatching, "game/g3d/gcontrolpads.c", cflags=cflags_demo, mw_version="GC/1.2.5n"),
@@ -807,40 +833,49 @@ config.custom_build_rules = [
 ]
 webfrank_config = Path(f"config/{config.version}/webfrank.json")
 webfrank_units = json.loads(webfrank_config.read_text(encoding="utf-8"))["units"]
-config.object_postprocesses = {
-    unit: {
-        "rule": "webfrank",
-        "implicit": [
-            "tools/gdl/webfrank.py",
-            str(webfrank_config),
-            f"build/{config.version}/obj/{unit}.o",
-        ],
-        "variables": {
-            "webfrank_config": str(webfrank_config),
-            "webfrank_unit": unit,
-            "webfrank_target": f"build/{config.version}/obj/{unit}.o",
-        },
+config.object_postprocesses = {}
+
+# Exact-match postprocessors intentionally depend on extracted retail objects
+# and fixed input/postimage hashes.  A modded/non-matching build must always
+# compile and link the editable source without those target-dependent rewrites.
+if not config.non_matching:
+    config.object_postprocesses = {
+        unit: {
+            "rule": "webfrank",
+            "implicit": [
+                "tools/gdl/webfrank.py",
+                str(webfrank_config),
+                f"build/{config.version}/obj/{unit}.o",
+            ],
+            "variables": {
+                "webfrank_config": str(webfrank_config),
+                "webfrank_unit": unit,
+                "webfrank_target": f"build/{config.version}/obj/{unit}.o",
+            },
+        }
+        for unit in webfrank_units
     }
-    for unit in webfrank_units
-}
 p6frank_config = Path(f"config/{config.version}/p6frank.json")
 p6frank_units = json.loads(p6frank_config.read_text(encoding="utf-8"))["units"]
-for unit in p6frank_units:
-    if unit in config.object_postprocesses:
-        raise ValueError(f"multiple object postprocessors configured for {unit}")
-    config.object_postprocesses[unit] = {
-        "rule": "p6frank",
-        "implicit": [
-            "tools/gdl/p6frank.py",
-            str(p6frank_config),
-            f"build/{config.version}/obj/{unit}.o",
-        ],
-        "variables": {
-            "p6frank_config": str(p6frank_config),
-            "p6frank_unit": unit,
-            "p6frank_target": f"build/{config.version}/obj/{unit}.o",
-        },
-    }
+if not config.non_matching:
+    for unit in p6frank_units:
+        if args.experimental_p6_compiler and unit == "game/sys/registry":
+            continue
+        if unit in config.object_postprocesses:
+            raise ValueError(f"multiple object postprocessors configured for {unit}")
+        config.object_postprocesses[unit] = {
+            "rule": "p6frank",
+            "implicit": [
+                "tools/gdl/p6frank.py",
+                str(p6frank_config),
+                f"build/{config.version}/obj/{unit}.o",
+            ],
+            "variables": {
+                "p6frank_config": str(p6frank_config),
+                "p6frank_unit": unit,
+                "p6frank_target": f"build/{config.version}/obj/{unit}.o",
+            },
+        }
 config.custom_build_steps = {
     "post-compile": [
         {
