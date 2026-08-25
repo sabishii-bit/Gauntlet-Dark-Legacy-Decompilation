@@ -394,6 +394,7 @@ game/sys/ml_mem.c:
 	extab       start:0x80007AF0 end:0x80007B70
 	extabindex  start:0x8000C0B8 end:0x8000C178
 	.text       start:0x800BE964 end:0x800BFC80
+	.rodata     start:0x801161B0 end:0x80116258
 
 game/pb/dbgtext.c:
 	extab       start:0x80007B70 end:0x80007BA8
