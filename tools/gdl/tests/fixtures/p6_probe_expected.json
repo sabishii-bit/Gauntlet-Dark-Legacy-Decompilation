@@ -1,0 +1,75 @@
+{
+  "artifacts": {
+    "configured": {
+      "functions": {
+        "p6_regfind": {"fold_offset": 56, "fold_word": "41820018", "has_expected_fold": true, "instruction_count": 34, "section_offset": 0, "sha256": "88b8eabf6af78bb2604ea39f103e601b874e0d8eaecddecd0aab3493ff7b77ce", "size": 136},
+        "p6_shared_tail": {"fold_offset": 24, "fold_word": "40800008", "has_expected_fold": true, "instruction_count": 14, "section_offset": 184, "sha256": "e5d0dd1ca24b4b4379a6f53492fcb011483f886a0495c52d3cc12db57a83e98b", "size": 56},
+        "p6_tally": {"fold_offset": 24, "fold_word": "41810008", "has_expected_fold": true, "instruction_count": 12, "section_offset": 136, "sha256": "b87bebde839d4fdabe493e68bda0238cafd6b503caf9c28690140edc491e96c7", "size": 48}
+      },
+      "object_sha256": "daa9e24634651b98281aa494539d230f40ca330fe1594158b5868e8cf9ab57cb",
+      "size": 1000
+    },
+    "historical_frank": {
+      "functions": {
+        "p6_regfind": {"fold_offset": 56, "fold_word": "41820018", "has_expected_fold": true, "instruction_count": 34, "section_offset": 0, "sha256": "88b8eabf6af78bb2604ea39f103e601b874e0d8eaecddecd0aab3493ff7b77ce", "size": 136},
+        "p6_shared_tail": {"fold_offset": 24, "fold_word": "40800008", "has_expected_fold": true, "instruction_count": 14, "section_offset": 184, "sha256": "e5d0dd1ca24b4b4379a6f53492fcb011483f886a0495c52d3cc12db57a83e98b", "size": 56},
+        "p6_tally": {"fold_offset": 24, "fold_word": "41810008", "has_expected_fold": true, "instruction_count": 12, "section_offset": 136, "sha256": "b87bebde839d4fdabe493e68bda0238cafd6b503caf9c28690140edc491e96c7", "size": 48}
+      },
+      "object_sha256": "daa9e24634651b98281aa494539d230f40ca330fe1594158b5868e8cf9ab57cb",
+      "size": 1000
+    },
+    "local_configured_frank": {
+      "functions": {
+        "p6_regfind": {"fold_offset": 56, "fold_word": "41820018", "has_expected_fold": true, "instruction_count": 34, "section_offset": 0, "sha256": "88b8eabf6af78bb2604ea39f103e601b874e0d8eaecddecd0aab3493ff7b77ce", "size": 136},
+        "p6_shared_tail": {"fold_offset": 24, "fold_word": "40800008", "has_expected_fold": true, "instruction_count": 14, "section_offset": 184, "sha256": "e5d0dd1ca24b4b4379a6f53492fcb011483f886a0495c52d3cc12db57a83e98b", "size": 56},
+        "p6_tally": {"fold_offset": 24, "fold_word": "41810008", "has_expected_fold": true, "instruction_count": 12, "section_offset": 136, "sha256": "b87bebde839d4fdabe493e68bda0238cafd6b503caf9c28690140edc491e96c7", "size": 48}
+      },
+      "object_sha256": "daa9e24634651b98281aa494539d230f40ca330fe1594158b5868e8cf9ab57cb",
+      "size": 1000
+    },
+    "local_vanilla_frank": {
+      "functions": {
+        "p6_regfind": {"fold_offset": 56, "fold_word": "41820018", "has_expected_fold": true, "instruction_count": 34, "section_offset": 0, "sha256": "88b8eabf6af78bb2604ea39f103e601b874e0d8eaecddecd0aab3493ff7b77ce", "size": 136},
+        "p6_shared_tail": {"fold_offset": 24, "fold_word": "40800008", "has_expected_fold": true, "instruction_count": 14, "section_offset": 184, "sha256": "e5d0dd1ca24b4b4379a6f53492fcb011483f886a0495c52d3cc12db57a83e98b", "size": 56},
+        "p6_tally": {"fold_offset": 24, "fold_word": "41810008", "has_expected_fold": true, "instruction_count": 12, "section_offset": 136, "sha256": "b87bebde839d4fdabe493e68bda0238cafd6b503caf9c28690140edc491e96c7", "size": 48}
+      },
+      "object_sha256": "daa9e24634651b98281aa494539d230f40ca330fe1594158b5868e8cf9ab57cb",
+      "size": 1000
+    },
+    "profile": {
+      "functions": {
+        "p6_regfind": {"fold_offset": 56, "fold_word": "41820018", "has_expected_fold": true, "instruction_count": 36, "section_offset": 0, "sha256": "7dc6a69805e8ccb9d30f816afd088ca4804d7c54f4a47c88d97623dda5422ae9", "size": 144},
+        "p6_shared_tail": {"fold_offset": 24, "fold_word": "40800008", "has_expected_fold": true, "instruction_count": 16, "section_offset": 200, "sha256": "3aad287b5183356fa38938fc425d6b8286e985680eb2d682123fb7504b48d8ad", "size": 64},
+        "p6_tally": {"fold_offset": 24, "fold_word": "41810008", "has_expected_fold": true, "instruction_count": 14, "section_offset": 144, "sha256": "5e84ff5ba42bf8190bbb56bb6dc8ad735287a09995c299622c342d1aed522f03", "size": 56}
+      },
+      "object_sha256": "55a3a6b9e9cac956509b9b412fa963615bae33cb9c83db161e549e0c2e4c7f06",
+      "size": 1104
+    },
+    "vanilla": {
+      "functions": {
+        "p6_regfind": {"fold_offset": 56, "fold_word": "41820018", "has_expected_fold": true, "instruction_count": 34, "section_offset": 0, "sha256": "923e49f749b9aab0f92c9b6d624f414a74b2dee31789500378f9c849e28d22c1", "size": 136},
+        "p6_shared_tail": {"fold_offset": 24, "fold_word": "40800008", "has_expected_fold": true, "instruction_count": 14, "section_offset": 184, "sha256": "e5d0dd1ca24b4b4379a6f53492fcb011483f886a0495c52d3cc12db57a83e98b", "size": 56},
+        "p6_tally": {"fold_offset": 24, "fold_word": "41810008", "has_expected_fold": true, "instruction_count": 12, "section_offset": 136, "sha256": "b87bebde839d4fdabe493e68bda0238cafd6b503caf9c28690140edc491e96c7", "size": 48}
+      },
+      "object_sha256": "8a148f28cf5c0c48015ffc909fc69880ec8ac7111d8ce96480b6a9592b3cd290",
+      "size": 1000
+    }
+  },
+  "compiler_sha256": {
+    "configured": "ccf4b465cec73b5aae9c5c5543dcf8cda8a62aba246f89e2e0b200d742f2e55c",
+    "profile": "d6dda8eafb77c57d11287441c05df1ecf1ef6996242bfdff09e88b1673e137fb",
+    "vanilla": "0443b5c02b1aa7b575b61e0e24c4d5ad6bed8fd54cc42de5a2204a5216001914"
+  },
+  "compilers": {"configured": "1.2.5n", "profile": "1.2.5e", "vanilla": "1.2.5"},
+  "fixture_sha256": "de29f476557538428629a1f3f9d787f6633109861da7665d8a31166dcc7c7f1b",
+  "merge": {
+    "historical_local_byte_equal": true,
+    "local_configured": {"profile_markers": 3, "text_bytes_changed": 0, "used_vanilla_fallback": false},
+    "local_vanilla": {"profile_markers": 3, "text_bytes_changed": 8, "used_vanilla_fallback": false}
+  },
+  "profile_markers": [
+    {"owners": [{"function": "p6_regfind", "relative_offset": 112}], "profile_offset": 112, "stripped_offset": 112},
+    {"owners": [{"function": "p6_tally", "relative_offset": 32}], "profile_offset": 176, "stripped_offset": 168},
+    {"owners": [{"function": "p6_shared_tail", "relative_offset": 40}], "profile_offset": 240, "stripped_offset": 224}
+  ]
+}
