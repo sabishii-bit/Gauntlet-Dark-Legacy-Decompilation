@@ -1262,6 +1262,7 @@ void camera_mode_follow(s32 camIdx)
     f32 targetExtent;
     f32 screenX;
     f32 screenY;
+    f64 speedStep;
     f64 root;
     s32 scriptedPlayer;
     s32 resetPlayer;
@@ -1572,7 +1573,8 @@ void camera_mode_follow(s32 camIdx)
 
     targetExtent = lbl_803444E8;
     lbl_80344460 = lbl_80344464;
-    if ((f64)targetExtent < lbl_80345F90) {
+    speedStep = lbl_80345F90;
+    if ((f64)targetExtent < speedStep) {
         lbl_80344464 = (f32)(lbl_80345F98 * (f64)(u32)gFrameTicks);
         lbl_80344468 = lbl_80345FA0;
     } else if ((f64)targetExtent >= lbl_80345FA8) {
@@ -1592,11 +1594,11 @@ void camera_mode_follow(s32 camIdx)
         previousSpeed = lbl_80344460;
         desiredSpeed = lbl_80344464;
         if (previousSpeed < desiredSpeed) {
-            if ((f64)(desiredSpeed - previousSpeed) > lbl_80345F90) {
-                lbl_80344464 = (f32)(lbl_80345F90 + (f64)previousSpeed);
+            if ((f64)(desiredSpeed - previousSpeed) > speedStep) {
+                lbl_80344464 = (f32)(speedStep + (f64)previousSpeed);
             }
-        } else if ((f64)(previousSpeed - desiredSpeed) > lbl_80345F90) {
-            lbl_80344464 = (f32)((f64)previousSpeed - lbl_80345F90);
+        } else if ((f64)(previousSpeed - desiredSpeed) > speedStep) {
+            lbl_80344464 = (f32)((f64)previousSpeed - speedStep);
         }
     }
 
