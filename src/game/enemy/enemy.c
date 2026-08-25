@@ -2807,9 +2807,9 @@ void move_logic10(s32 index)
     u8* t;
     u8* other;
 
-    type = *(s32*)(e0 += 3608);
-    e0 = (u8*)(Enemy*)e0;
-    e = (Enemy*)(u8*)e0;
+    type = *(s32*)(e0 + 3608);
+    e = (Enemy*)(e0 + 3608);
+    e0 += 3608;
     t = base;
     t += type * 4;
     speed = *(f32*)(t + 64);
