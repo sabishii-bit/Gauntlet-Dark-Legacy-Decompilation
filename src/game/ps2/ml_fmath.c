@@ -62,9 +62,15 @@ extern const f64 lbl_80348E48;
 extern const f64 lbl_80348E50;
 extern const f64 lbl_80348E58;
 extern const f64 lbl_80348E60;
+extern const f64 lbl_80348E68;
+extern const f64 lbl_80348E78;
+extern const f32 lbl_80348E90;
 extern volatile const f64 lbl_80348E98;
 extern const f64 lbl_80348EA0;
 extern const f64 lbl_80348EA8;
+extern const f64 lbl_80348EB8;
+extern const f64 lbl_80348EC0;
+extern const f64 lbl_80348EC8;
 extern const f64 lbl_80348ED0;
 
 /* 0x800BCAAC - piecewise square-root approximation */
@@ -133,7 +139,7 @@ u32 RandInt(u32 n) {
 /* 0x800BCCE8 */
 f32 Random(f32 scale) {
     lbl_80344F08 = pbRand();
-    return (lbl_80344F08 & 0x7FFF) * scale / 32767.0;
+    return (lbl_80344F08 & 0x7FFF) * scale / lbl_80348E68;
 }
 
 /* 0x800BCD48 */
@@ -295,7 +301,7 @@ void CreateYPRMatrix(f32* matrix, const f32* angles)
     matrix[3] = gMlFmathZero;
     matrix[7] = gMlFmathZero;
     matrix[11] = gMlFmathZero;
-    matrix[15] = 1.0f;
+    matrix[15] = lbl_80348E90;
 }
 
 /* 0x800BD154 */
@@ -324,7 +330,7 @@ void CreateRYPMatrix(f32* matrix, const f32* angles)
     matrix[3] = gMlFmathZero;
     matrix[7] = gMlFmathZero;
     matrix[11] = gMlFmathZero;
-    matrix[15] = 1.0f;
+    matrix[15] = lbl_80348E90;
 }
 
 /* 0x800BD254 */
@@ -355,7 +361,7 @@ void CreatePYRMatrix(f32* matrix, const f32* angles)
     matrix[3] = gMlFmathZero;
     matrix[7] = gMlFmathZero;
     matrix[11] = gMlFmathZero;
-    matrix[15] = 1.0f;
+    matrix[15] = lbl_80348E90;
 }
 
 /* 0x800BD360 */
@@ -499,7 +505,7 @@ void CreateDirMatrix(f32* matrix, f32* direction, f32* up)
 /* 0x800BD7C4 */
 void ReflectVector2D(const f32* vector, const f32* normal, f32* out)
 {
-    f32 scale = (f32)(2.0 * -(vector[0] * normal[0] +
+    f32 scale = (f32)(lbl_80348EC0 * -(vector[0] * normal[0] +
                               vector[2] * normal[2]));
     out[0] = vector[0] + normal[0] * scale;
     out[2] = vector[2] + normal[2] * scale;
@@ -509,7 +515,7 @@ void ReflectVector2D(const f32* vector, const f32* normal, f32* out)
 void ReflectVector(const f32* vector, const f32* normal, f32* out)
 {
     f32 scale =
-        (f32)(2.0 * -(vector[0] * normal[0] + vector[1] * normal[1] +
+        (f32)(lbl_80348EC0 * -(vector[0] * normal[0] + vector[1] * normal[1] +
                       vector[2] * normal[2]));
     out[0] = vector[0] + normal[0] * scale;
     out[1] = vector[1] + normal[1] * scale;
@@ -528,19 +534,19 @@ f64 SlowNormalVector2D(f32* vector)
 
     if (magnitude > gMlFmathZero) {
         f64 guess = __frsqrte(original);
-        guess = 0.5 * guess * (3.0 - original * (guess * guess));
-        guess = 0.5 * guess * (3.0 - original * (guess * guess));
-        guess = 0.5 * guess * (3.0 - original * (guess * guess));
+        guess = lbl_80348DB0 * guess * (lbl_80348EB8 - original * (guess * guess));
+        guess = lbl_80348DB0 * guess * (lbl_80348EB8 - original * (guess * guess));
+        guess = lbl_80348DB0 * guess * (lbl_80348EB8 - original * (guess * guess));
         root = (f32)(original *
-                     (0.5 * guess * (3.0 - original * (guess * guess))));
+                     (lbl_80348DB0 * guess * (lbl_80348EB8 - original * (guess * guess))));
         length = root;
     } else {
         length = original;
     }
-    if (length <= 0.0)
-        scale = 1.0f;
+    if (length <= lbl_80348E00)
+        scale = lbl_80348E90;
     else
-        scale = (f32)(1.0 / length);
+        scale = (f32)(lbl_80348E78 / length);
     vector[0] *= scale;
     vector[1] = gMlFmathZero;
     vector[2] *= scale;
@@ -551,12 +557,12 @@ f64 SlowNormalVector2D(f32* vector)
 f32 NormalVector2D(f32* vector)
 {
     f32 length = fqdist(vector[0], vector[2]);
-    f32 scale = 1.0f;
+    f32 scale = lbl_80348E90;
 
-    if ((f64)length <= 0.0)
-        scale = 1.0f;
+    if ((f64)length <= lbl_80348E00)
+        scale = lbl_80348E90;
     else
-        scale = (f32)(1.0 / length);
+        scale = (f32)(lbl_80348E78 / length);
     vector[0] *= scale;
     vector[1] = gMlFmathZero;
     vector[2] *= scale;
@@ -576,19 +582,19 @@ f64 SlowNormalVector(f32* vector)
 
     if (magnitude > gMlFmathZero) {
         f64 guess = __frsqrte(original);
-        guess = 0.5 * guess * (3.0 - original * (guess * guess));
-        guess = 0.5 * guess * (3.0 - original * (guess * guess));
-        guess = 0.5 * guess * (3.0 - original * (guess * guess));
+        guess = lbl_80348DB0 * guess * (lbl_80348EB8 - original * (guess * guess));
+        guess = lbl_80348DB0 * guess * (lbl_80348EB8 - original * (guess * guess));
+        guess = lbl_80348DB0 * guess * (lbl_80348EB8 - original * (guess * guess));
         root = (f32)(original *
-                     (0.5 * guess * (3.0 - original * (guess * guess))));
+                     (lbl_80348DB0 * guess * (lbl_80348EB8 - original * (guess * guess))));
         length = root;
     } else {
         length = original;
     }
-    if (length <= 0.0)
-        scale = 1.0f;
+    if (length <= lbl_80348E00)
+        scale = lbl_80348E90;
     else
-        scale = (f32)(1.0 / length);
+        scale = (f32)(lbl_80348E78 / length);
     vector[0] *= scale;
     vector[1] *= scale;
     vector[2] *= scale;
@@ -599,12 +605,12 @@ f64 SlowNormalVector(f32* vector)
 f32 NormalVector(f32* vector)
 {
     f32 length = fqdist(fqdist(vector[0], vector[2]), vector[1]);
-    f32 scale = 1.0f;
+    f32 scale = lbl_80348E90;
 
-    if ((f64)length <= 0.0)
-        scale = 1.0f;
+    if ((f64)length <= lbl_80348E00)
+        scale = lbl_80348E90;
     else
-        scale = (f32)(1.0 / length);
+        scale = (f32)(lbl_80348E78 / length);
     vector[0] *= scale;
     vector[1] *= scale;
     vector[2] *= scale;
@@ -733,7 +739,7 @@ void MulMat3(f32* lhs, f32* rhs, f32* out)
     f32 a0, a2, c0, c2, d0, d2;
     f32 a1;
 
-    lhs[15] = rhs[15] = 0.0f;
+    lhs[15] = rhs[15] = lbl_80348E90;
     b4 = rhs[4];
     a1 = lhs[1];
     b5 = rhs[5];
@@ -834,9 +840,9 @@ void MulMat4Scale(f32* lhs, f32* rhs, f32* out, f32* scale)
     f32 b2;
     f32 s;
 
-    lhs[15] = 0.0f;
-    rhs[15] = 0.0f;
-    scale[3] = 0.0f;
+    lhs[15] = lbl_80348E90;
+    rhs[15] = lbl_80348E90;
+    scale[3] = lbl_80348E90;
 
     s = scale[0];
     b1 = rhs[0] * s;
@@ -882,8 +888,8 @@ void MulMat4Scale(f32* lhs, f32* rhs, f32* out, f32* scale)
 /* 0x800BE360 */
 void MulMat4(f32* lhs, f32* rhs, f32* out)
 {
-    lhs[15] = 0.0f;
-    rhs[15] = 0.0f;
+    lhs[15] = lbl_80348E90;
+    rhs[15] = lbl_80348E90;
     mat44Mult__FR5mat44R5mat44R5mat44(out, lhs, rhs);
 }
 
@@ -897,7 +903,7 @@ void RollMat3(f32* matrix, f32 angle)
     s32 i;
 
     *(u32*)&magnitude &= 0x7FFFFFFF;
-    if ((f64)magnitude < 0.0001)
+    if ((f64)magnitude < lbl_80348DA0)
         return;
     {
         f32 s = sin(angle);
@@ -926,7 +932,7 @@ void PitchMat3(f32* matrix, f32 angle)
     s32 i;
 
     *(u32*)&magnitude &= 0x7FFFFFFF;
-    if ((f64)magnitude < 0.0001)
+    if ((f64)magnitude < lbl_80348DA0)
         return;
     {
         f32 s = sin(angle);
@@ -955,7 +961,7 @@ void YawMat3(f32* matrix, f32 angle)
     s32 i;
 
     *(u32*)&magnitude &= 0x7FFFFFFF;
-    if ((f64)magnitude < 0.0001)
+    if ((f64)magnitude < lbl_80348DA0)
         return;
     sYawSin = sin(angle);
     sYawCos = cos(angle);
@@ -992,7 +998,7 @@ void WRollMat3(f32* matrix, f32 angle)
 
     magnitude = angle;
     *(u32*)&magnitude &= 0x7FFFFFFF;
-    if ((f64)magnitude < 0.0001)
+    if ((f64)magnitude < lbl_80348DA0)
         return;
     {
         f32 s = sin(angle);
@@ -1022,7 +1028,7 @@ void WPitchMat3(register f32* matrix, f32 angle)
     s32 row;
 
     *(u32*)&magnitude &= 0x7FFFFFFF;
-    if ((f64)magnitude < 0.0001)
+    if ((f64)magnitude < lbl_80348DA0)
         return;
     {
         f32 s = sin(angle);
@@ -1056,7 +1062,7 @@ void WYawMat3(f32* matrix, f32 angle)
     s32 row;
 
     *(u32*)&magnitude &= 0x7FFFFFFF;
-    if ((f64)magnitude < 0.0001)
+    if ((f64)magnitude < lbl_80348DA0)
         return;
     {
         f32 s = sin(angle);
@@ -1101,14 +1107,14 @@ void InvertMat4(const f32* matrix, f32* out)
     out[11] = gMlFmathZero;
     dot = matrix[12] * matrix[0] + matrix[13] * matrix[1] +
           matrix[14] * matrix[2];
-    out[12] = (f32)(-1.0 * dot);
+    out[12] = (f32)(lbl_80348EC8 * dot);
     dot = matrix[12] * matrix[4] + matrix[13] * matrix[5] +
           matrix[14] * matrix[6];
-    out[13] = (f32)(-1.0 * dot);
+    out[13] = (f32)(lbl_80348EC8 * dot);
     dot = matrix[12] * matrix[8] + matrix[13] * matrix[9] +
           matrix[14] * matrix[10];
-    out[14] = (f32)(-1.0 * dot);
-    out[15] = 0.0f;
+    out[14] = (f32)(lbl_80348EC8 * dot);
+    out[15] = lbl_80348E90;
 }
 
 /* 0x800BE8C8 */
