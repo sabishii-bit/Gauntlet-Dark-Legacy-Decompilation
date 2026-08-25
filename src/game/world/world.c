@@ -214,12 +214,12 @@ extern f64 __frsqrte(f64 x);
 /* byte-swap helpers: written through memory so each takes its value's
  * address (matches the original's stack-slot swap sequences).  Defined
  * before DoWorldAnimSub so they inline into its stream-header fixup. */
-static u16 sSwapU16(u16 v) {
+static inline u16 sSwapU16(u16 v) {
     u8* b = (u8*)&v;
     return (u16)(b[0] | (b[1] << 8));
 }
 
-static u32 sSwapU32(u32 v) {
+static inline u32 sSwapU32(u32 v) {
     u32 r;
     u8* s = (u8*)&v;
     u8* d = (u8*)&r;
@@ -230,13 +230,13 @@ static u32 sSwapU32(u32 v) {
     return r;
 }
 
-static f32 sSwapF32(f32 v) {
+static inline f32 sSwapF32(f32 v) {
     f32 r;
     *(u32*)&r = sSwapU32(*(u32*)&v);
     return r;
 }
 
-static int sWorldFloatEqual(f32 a, f32 b) {
+static inline int sWorldFloatEqual(f32 a, f32 b) {
     return a == b;
 }
 
@@ -853,7 +853,7 @@ s32 WorldPsysDeActivate(WorldObj* o) {
  * and spawn the particle system for this object (with GetWorldPsysIdx inlined
  * as the id search). */
 /* GetWorldPsysIdx (Xbox local fn, inlined here): find template by id char. */
-static s32 GetWorldPsysIdx(s8 id, char* base, u8* tbl) {
+static inline s32 GetWorldPsysIdx(s8 id, char* base, u8* tbl) {
     s32 i;
 
     i = 0;
