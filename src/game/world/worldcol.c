@@ -433,6 +433,8 @@ u32 WorldCollide(f32 radius, void* fromv, void* tov, f32* result,
     f32 slope;
     f32 t;
     f32 clipT;
+    f32 originX;
+    f32 originZ;
     s32 gx;
     s32 gz;
     WObj* obj;
@@ -488,38 +490,40 @@ u32 WorldCollide(f32 radius, void* fromv, void* tov, f32* result,
 
     lbl_80344178 = gWorldInfo.originX;
     lbl_8034417C = gWorldInfo.originZ;
-    if (lbl_80344170 < lbl_80344178) {
+    originX = lbl_80344178;
+    if (lbl_80344170 < originX) {
         offGrid = 1;
     }
-    if (lbl_80344168 < lbl_80344178) {
+    if (lbl_80344168 < originX) {
         if (lbl_8034572C != dx) {
-            clipT = (lbl_80344178 - lbl_80344168) / dx;
+            clipT = (originX - lbl_80344168) / dx;
             t = (f64)clipT < lbl_80345730 ? -clipT : clipT;
             lbl_8034416C = dz * t + lbl_8034416C;
         }
-        lbl_80344168 = lbl_80344178;
+        lbl_80344168 = originX;
     }
-    if (lbl_80344174 < lbl_8034417C) {
+    originZ = lbl_8034417C;
+    if (lbl_80344174 < originZ) {
         if (lbl_8034572C == dz) {
             offGrid = 1;
         } else {
-            t = (lbl_8034417C - lbl_80344174) / dz;
+            t = (originZ - lbl_80344174) / dz;
             if ((f64)t < lbl_80345730) {
                 t = -t;
             }
             lbl_80344170 = -(dx * t - lbl_80344170);
-            lbl_80344174 = (f32)(lbl_80345758 + lbl_8034417C);
+            lbl_80344174 = (f32)(lbl_80345758 + originZ);
         }
     }
-    if (lbl_8034416C < lbl_8034417C) {
+    if (lbl_8034416C < originZ) {
         if (lbl_8034572C != dz) {
-            t = (lbl_8034417C - lbl_8034416C) / dz;
+            t = (originZ - lbl_8034416C) / dz;
             if ((f64)t < lbl_80345730) {
                 t = -t;
             }
             lbl_80344168 = dx * t + lbl_80344168;
         }
-        lbl_8034416C = lbl_8034417C;
+        lbl_8034416C = originZ;
     }
 
     gWorldInfo.stamp = gWorldInfo.stamp + 1;
@@ -535,8 +539,8 @@ u32 WorldCollide(f32 radius, void* fromv, void* tov, f32* result,
     if (offGrid == 0) {
         f64 earlyZero;
 
-        gx = (s32)(gWorldInfo.invCell * (lbl_80344168 - lbl_80344178));
-        gz = (s32)(gWorldInfo.invCell * (lbl_8034416C - lbl_8034417C));
+        gx = (s32)(gWorldInfo.invCell * (lbl_80344168 - originX));
+        gz = (s32)(gWorldInfo.invCell * (lbl_8034416C - originZ));
         gx = gx < 0 ? 0 :
              (gx > gWorldInfo.gridW - 1 ? gWorldInfo.gridW - 1 : gx);
         gz = gz < 0 ? 0 :
