@@ -875,7 +875,8 @@ s32 AudioBankQueueName(char* bankName, char* partName, s32 arg)
  * finishes.  Returns 1 (or 2 already-loaded), 0 on failure. */
 s32 AudioLoadPart(s32 bankIdx, s32 partIdx, s32 waitLevel, s32 flag)
 {
-    char name[256];
+    char name[64];
+    volatile u8 unused[256];
     s32 mapPtr;
     s32 mapSz1;
     s32 mapSz2;
