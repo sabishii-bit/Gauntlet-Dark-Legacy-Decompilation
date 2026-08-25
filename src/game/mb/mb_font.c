@@ -710,7 +710,7 @@ int MBNewFont(MBFontDef* def, int space, int nglyphs, int perRow)
 
 /* Shared current-font attribute reset (static, auto-inlined into the four
  * resetters below; the standalone copy is deadstripped by mwld). */
-static void MBResetFontAttrs(void)
+static inline void MBResetFontAttrs(void)
 {
     lbl_80344E20 = 0;
     lbl_80344E18 = 0;
