@@ -432,6 +432,7 @@ u32 WorldCollide(f32 radius, void* fromv, void* tov, f32* result,
     f32 dz;
     f32 slope;
     f32 t;
+    f32 clipT;
     s32 gx;
     s32 gz;
     WObj* obj;
@@ -492,10 +493,8 @@ u32 WorldCollide(f32 radius, void* fromv, void* tov, f32* result,
     }
     if (lbl_80344168 < lbl_80344178) {
         if (lbl_8034572C != dx) {
-            t = (lbl_80344178 - lbl_80344168) / dx;
-            if ((f64)t < lbl_80345730) {
-                t = -t;
-            }
+            clipT = (lbl_80344178 - lbl_80344168) / dx;
+            t = (f64)clipT < lbl_80345730 ? -clipT : clipT;
             lbl_8034416C = dz * t + lbl_8034416C;
         }
         lbl_80344168 = lbl_80344178;
