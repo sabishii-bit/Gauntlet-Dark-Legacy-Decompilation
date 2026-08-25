@@ -79,7 +79,7 @@ typedef struct atreeseq {
 /* SetupAnimHeader @0x8000E994 -- byte-swap the animheader's first 7 words
  * (loaded little-endian), then relocate its 5 section pointers to absolute
  * addresses in `dst` (in place when dst is NULL). */
-static u32 swapw(u32 w)
+static inline u32 swapw(u32 w)
 {
     u32 out;
     u8* s = (u8*)&w;
