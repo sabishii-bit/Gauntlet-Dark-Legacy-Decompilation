@@ -1060,7 +1060,7 @@ void pbDiagDrawTexLabel();
  * per-bank texture cursor, tile refresh + highlight toggling */
 s32 pbDiagDrawTexture(void)
 {
-    char buf[68];
+    char buf[60];
     register s32* gdi = (s32*)gDiagData;
     u32* b = buttons;
     register BtnView* bv = (BtnView*)buttons;
@@ -1077,7 +1077,7 @@ s32 pbDiagDrawTexture(void)
     register void* tex;
     register u32* bp;
     register u32 w;
-    u8 _spare[48];
+    u8 _spare[52];
     s32 rectX;
     s32 rectY;
     u8 _spare2[8];
@@ -1172,7 +1172,8 @@ s32 pbDiagDrawTexture(void)
     if (*(s8*)tb->name != 0) {
         fn_800C008C(0x00FFFF00, 61 - strlen(tb->name), 3, tb->name);
     }
-    if ((&((s32*)wg->f30)[gDiag_F4 * 4])[4] == 0) {
+    cp = (u32*)((u8*)wg->f30 + 16);
+    if (((TexBankEnt*)cp)[gDiag_F4].a == 0) {
         pbDiagDrawTexLabel(tb);
         saved = fn_800C02F4(0x00FFFFFF);
         if (tb->nslots != 0) {
