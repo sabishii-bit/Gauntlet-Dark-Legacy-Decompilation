@@ -1479,6 +1479,8 @@ static void setupParms(Psys* p) {
  * animation flags, then carves the per-psys buffers out of the block pool (or
  * the world arena). Giant (NonMatching); documented flow. */
 static void setupNewPMode_800CDCE4(Psys* p) {
+    u8 unused[88];
+    f32 c0;
     f32 d0;
     f32 a0;
     f32 b0;
@@ -1491,14 +1493,14 @@ static void setupNewPMode_800CDCE4(Psys* p) {
     s32*  pi = (s32*)psysInfo;
     u16 fl = p->flags;
     s32 n;
+    s32 posUse, hasDir, dirUse;
     s32 nPos, nDir;
-    s32 hasDir, dirUse, posUse;
     s32 ringHalf, total;
     u8* buf;
-    void* posFn;
-    void* dirFn;
-    s32 posMode, dirMode;
     s32 posCap, dirCap;
+    void* dirFn;
+    void* posFn;
+    s32 posMode, dirMode;
     s32 mode0, flag40, r8;
     s32 vf, va;
     s32 bits;
@@ -1514,7 +1516,6 @@ static void setupNewPMode_800CDCE4(Psys* p) {
             n = (s32)(30.0 * p->e_rate.o.life_start);
         }
     } else {
-        f32 c0;
         f32 part1;
         s32 n32;
         s32 limE;
@@ -1733,6 +1734,8 @@ static void setupNewPMode_800CDCE4(Psys* p) {
         posFn = (void*)getNewPosRectUnique;
         posUse = 1;
         break;
+    case 3:
+    case 5:
     default:
         p->flags |= 4;
         posFn = (void*)getNewPosRectShare;
@@ -1799,6 +1802,7 @@ static void setupNewPMode_800CDCE4(Psys* p) {
         dirFn = (void*)getNewDirConeUnique;
         dirUse = 1;
         break;
+    case 5:
     default:
         p->flags |= 8;
         dirFn = (void*)getNewDirConeShare;
@@ -1869,7 +1873,11 @@ static void setupNewPMode_800CDCE4(Psys* p) {
     if (dirUse != 0) {
         dirUse = nDir;
     }
-    total = ringHalf * 2 + hasDir * 12 + nPos * 12 + dirUse + posUse;
+    total = ringHalf * 2;
+    total += hasDir * 12;
+    total += nPos * 12;
+    total += dirUse;
+    total += posUse;
     if (p->worldname != NULL) {
         buf = AllocMem(total);
         pi[25] += total;
