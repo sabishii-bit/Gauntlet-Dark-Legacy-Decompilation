@@ -776,6 +776,7 @@ s32 MBDrawBlits(MBNODE* node) {
     MBBLIT* b;
     MBWindow* window = gWinGlobals;
     f32 load;
+    s32 i;
 
     if (node->blits == 0 && node != gDiag_DE8) {
         return 0;
@@ -801,24 +802,18 @@ s32 MBDrawBlits(MBNODE* node) {
     }
 
     if (node == gDiag_DE8) {
-        s32 offset = 0;
-        s32 i = 0;
-        u8* base = tempQuadPool;
+        u8 (*base)[0x24] = (u8 (*)[0x24])tempQuadPool;
 
         for (i = 0; i < tempQuadCount; i++) {
-            DrawBlitFlatQuad((MBBLIT*)(base + offset));
-            offset += 0x24;
+            DrawBlitFlatQuad((MBBLIT*)base[i]);
         }
         lbl_80344E00 = 1;
     }
     if (node == gDiag_DE8) {
-        s32 offset = 0;
-        s32 i = 0;
-        u8* base = tempBlitPool;
+        MBBLIT* base = (MBBLIT*)tempBlitPool;
 
         for (i = 0; i < tempBlitCount; i++) {
-            DrawBlit((MBBLIT*)(base + offset));
-            offset += 0x38;
+            DrawBlit(&base[i]);
         }
         lbl_80344DF8 = 1;
     }
