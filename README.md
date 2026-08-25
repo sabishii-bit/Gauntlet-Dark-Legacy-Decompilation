@@ -166,6 +166,25 @@ contains no proprietary compiler bytes. It is not selected by the normal build
 yet. Compiler-derived, raw-compiler, and postprocessed matches must remain
 distinguishable in reporting.
 
+Current workflow status:
+
+- Traditional Melee-style Frank has no configured build consumers. Its script
+  and tests are retained only for compiler research and historical regression
+  coverage.
+- P6Frank is the default exact-build fallback for `game/sys/registry`. Selecting
+  `--experimental-p6-compiler` compiles that unit with `GC/1.2.5s` instead and
+  bypasses P6Frank; both paths produce the same exact object and DOL.
+- WebFrank remains a separate, explicitly postprocessed exact-build mechanism.
+  `GC/1.2.5s` currently addresses only the proven PCode carrier and does not
+  replace WebFrank's guarded register-web or instruction-order rules.
+- `--non-matching` uses none of these postprocessors. It links editable source
+  compiled normally for equivalent/mod builds.
+
+P6Frank can be removed from the default build once the open `GC/1.2.5s` payload
+can be reproduced in supported setup/CI environments without adding proprietary
+files or a fragile host-tool dependency. Until then it remains a disclosed,
+fail-closed exact-build fallback rather than part of the mod workflow.
+
 A `NonMatching` object may be promoted to `Matching` only when its complete
 postprocessed object is exact, including code, relocations, data/BSS and
 exception metadata, and a fresh full build reproduces the configured DOL hash.
