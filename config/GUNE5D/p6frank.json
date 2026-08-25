@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "units": {
+    "game/sys/registry": {
+      "function": "regFind",
+      "function_size": "0x84",
+      "before_sha256": "b8d2e6e375a71acb84b2bd8f27b288a010d5692cd8c1f35042351a6cd210732a",
+      "after_sha256": "7a7fc8b39c5abca885e67be0e2b17b90ca4b59fce30648dc6e944bf1f7a6fae5",
+      "after_text_sha256": "2f2dcd2604b870539ff1145144a4d83e788bcbb74a1da5df848b19e6d586bfe7",
+      "move": {
+        "from": "0x44",
+        "to": "0x38",
+        "crosses": ["0x40"]
+      },
+      "changed_offsets": ["0x20", "0x34", "0x38", "0x44"],
+      "reencode": [
+        {"at": "0x20", "kind": "b", "destination": "0x40"},
+        {"at": "0x34", "kind": "bne", "destination": "0x3c"},
+        {"at": "0x38", "kind": "b", "destination": "0x4c"},
+        {"at": "0x44", "kind": "bne", "destination": "0x24"}
+      ],
+      "before_edges": [
+        {"at": "0x1c", "kind": "beq", "destination": "0x48"},
+        {"at": "0x20", "kind": "b", "destination": "0x3c"},
+        {"at": "0x34", "kind": "beq", "destination": "0x4c"},
+        {"at": "0x40", "kind": "bne", "destination": "0x24"},
+        {"at": "0x44", "kind": "b", "destination": "0x4c"},
+        {"at": "0x50", "kind": "beq", "destination": "0x68"},
+        {"at": "0x64", "kind": "b", "destination": "0x6c"}
+      ],
+      "after_edges": [
+        {"at": "0x1c", "kind": "beq", "destination": "0x48"},
+        {"at": "0x20", "kind": "b", "destination": "0x40"},
+        {"at": "0x34", "kind": "bne", "destination": "0x3c"},
+        {"at": "0x38", "kind": "b", "destination": "0x4c"},
+        {"at": "0x44", "kind": "bne", "destination": "0x24"},
+        {"at": "0x50", "kind": "beq", "destination": "0x68"},
+        {"at": "0x64", "kind": "b", "destination": "0x6c"}
+      ],
+      "function_relocations": [
+        {"at": "0x2c", "type": 10, "symbol": "gstrcmp", "addend": 0}
+      ],
+      "siblings": {
+        "regAdd": "9d3900ea650d6a26edfafad66d23e8b1eb4405add34607a7056dab5c2c675bf0",
+        "regAllocNode": "805c297f705926662502777bbf9d33c41fe4d7d052f1963dab3196017583d590",
+        "regFreeNode": "f76cd79a59cb7e0dd24df53401fa606dcb422d7ade3269e695ec9bcd84a291a0"
+      },
+      "forbid_sections": [
+        ".data", ".rodata", ".sdata", ".sdata2", ".bss", ".sbss",
+        ".extab", ".extabindex"
+      ]
+    }
+  }
+}

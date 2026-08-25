@@ -408,7 +408,7 @@ config.libs = [
             Object(NonMatching, "game/ps2/ml_fmath.c", cflags=cflags_demo),
             Object(NonMatching, "game/g3d/sndvoice.c", mw_version="GC/1.2.5n"),
             Object(Matching, "game/g3d/gpads.c", mw_version="GC/1.2.5n"),
-            Object(NonMatching, "game/sys/registry.c", mw_version="GC/1.2.5n"),
+            Object(Matching, "game/sys/registry.c", mw_version="GC/1.2.5n"),
             Object(Matching, "game/sys/gutil.c", mw_version="GC/1.2.5n"),
             Object(Matching, "game/sys/texPalette.c", mw_version="GC/1.2.5n"),
             Object(NonMatching, "game/g3d/gcontrolpads.c", cflags=cflags_demo, mw_version="GC/1.2.5n"),
@@ -795,6 +795,11 @@ config.custom_build_rules = [
         "description": "WEBFRANK $out",
     },
     {
+        "name": "p6frank",
+        "command": "$python tools/gdl/p6frank.py $in $out $p6frank_config $p6frank_unit --target $p6frank_target",
+        "description": "P6FRANK $out",
+    },
+    {
         "name": "fix_exception_objects",
         "command": f"$python tools/fix_exception_objects.py {exc_nmw_obj} {exc_ppc_obj} $out",
         "description": "FIXUP $out",
@@ -818,6 +823,24 @@ config.object_postprocesses = {
     }
     for unit in webfrank_units
 }
+p6frank_config = Path(f"config/{config.version}/p6frank.json")
+p6frank_units = json.loads(p6frank_config.read_text(encoding="utf-8"))["units"]
+for unit in p6frank_units:
+    if unit in config.object_postprocesses:
+        raise ValueError(f"multiple object postprocessors configured for {unit}")
+    config.object_postprocesses[unit] = {
+        "rule": "p6frank",
+        "implicit": [
+            "tools/gdl/p6frank.py",
+            str(p6frank_config),
+            f"build/{config.version}/obj/{unit}.o",
+        ],
+        "variables": {
+            "p6frank_config": str(p6frank_config),
+            "p6frank_unit": unit,
+            "p6frank_target": f"build/{config.version}/obj/{unit}.o",
+        },
+    }
 config.custom_build_steps = {
     "post-compile": [
         {

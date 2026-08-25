@@ -74,16 +74,14 @@ u32 regFind(REGLIST* list, char* name)
     node = list->head;
     if (name != NULL) {
         while (node != NULL) {
-            if (gstrcmp(name, node->name) != 0) {
-                goto next;
+            if (gstrcmp(name, node->name) == 0) {
+                break;
             }
-            goto found;
-next:
             node = node->next;
         }
+    } else {
+        node = NULL;
     }
-    node = NULL;
-found:
     if (node != NULL) {
         node->refCount++;
         return node->value;
