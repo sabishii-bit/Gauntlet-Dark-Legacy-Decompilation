@@ -35,8 +35,8 @@ extern char lbl_80110730[];
 s32 CalcAnimInfo(animinfo* info);
 void CopyMat3(void* src, void* dst);   /* 0x800BE8C8 */
 void ZeroAnimData(int* node);          /* 0x8000F628 */
-void CreateRYPMatrix();                /* 0x800BD154 */
-void CreatePYRMatrix();                /* 0x800BD254 */
+void CreateRYPMatrix(f32* matrix, const f32* angles); /* 0x800BD154 */
+void CreatePYRMatrix(f32* matrix, const f32* angles); /* 0x800BD254 */
 s32 CalcAnimation();                   /* 0x8000F534 */
 extern u8 gIdentityMatrix[];
 
@@ -413,9 +413,9 @@ u32 DoAnimation(int* node, animinfo* info, f32* outmtx, s32* outrot,
     } else if (CalcAnimation(node, pose, data, info, flags, next) != 0) {
         if (outmtx != NULL) {
             if ((flags & 0x8000) != 0) {
-                CreatePYRMatrix(outmtx, pose, data, info, flags, next);
+                CreatePYRMatrix(outmtx, (f32*)pose);
             } else {
-                CreateRYPMatrix(outmtx, pose, data, info, flags, next);
+                CreateRYPMatrix(outmtx, (f32*)pose);
             }
             if (posoff != NULL) {
                 outmtx[0xC] = *(f32*)&pose[4] + posoff[0];
