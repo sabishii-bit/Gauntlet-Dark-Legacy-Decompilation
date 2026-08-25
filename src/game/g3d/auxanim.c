@@ -322,7 +322,7 @@ void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
         f32 fr = (f32)tm->frames;
         f32 d2 = (f32)(frame - tm->unk4e);
         if (d1 <= lbl_803459B8 || fr <= lbl_803459D0) {
-            k = lbl_803459B8;
+            k = *(volatile f32*)&lbl_803459B8;
         } else if (d2 >= fr) {
             k = lbl_803459BC;
         } else {
@@ -337,7 +337,7 @@ void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
         f32 fr = (f32)tm->frames;
         f32 d2 = (f32)(frame - tm->unk4e);
         if (d1 <= lbl_803459B8 || fr <= lbl_803459D0) {
-            k = lbl_803459B8;
+            k = *(volatile f32*)&lbl_803459B8;
         } else if (d2 >= fr) {
             k = lbl_803459BC;
         } else {
