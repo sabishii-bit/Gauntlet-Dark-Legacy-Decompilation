@@ -64,14 +64,19 @@ extern const f64 lbl_80348E58;
 extern const f64 lbl_80348E60;
 extern const f64 lbl_80348E68;
 extern const f64 lbl_80348E78;
+extern const f64 lbl_80348E80;
+extern const f64 lbl_80348E88;
 extern const f32 lbl_80348E90;
 extern volatile const f64 lbl_80348E98;
 extern const f64 lbl_80348EA0;
 extern const f64 lbl_80348EA8;
+extern const f64 lbl_80348EB0;
 extern const f64 lbl_80348EB8;
 extern const f64 lbl_80348EC0;
 extern const f64 lbl_80348EC8;
 extern const f64 lbl_80348ED0;
+
+#define ML_ZERO_D (*(const f64*)&lbl_80348E00)
 
 /* 0x800BCAAC - piecewise square-root approximation */
 f32 smallsqrt(f32 value)
@@ -161,21 +166,21 @@ void ExtractYPR(const f32* matrix, f32* angles)
     f32 x;
 
     *(u32*)&absValue &= 0x7FFFFFFF;
-    if (__fabs(1.0 - absValue) < 0.0001) {
+    if (__fabs(lbl_80348E78 - absValue) < lbl_80348DA0) {
         f64 lockedAngle;
         angle1 = atan2(-matrix[2], matrix[0]);
         if (matrix[9] > gMlFmathZero) {
-            lockedAngle = 1.570796327;
+            lockedAngle = lbl_80348E80;
         } else {
-            lockedAngle = -1.570796327;
+            lockedAngle = lbl_80348E88;
         }
         angle0 = lockedAngle;
         angle2 = *(volatile f32*)&gMlFmathZero;
     } else {
         angle2 = atan2(-matrix[1], matrix[5]);
         magnitude = cos(angle2);
-        if (magnitude == 0.0) {
-            if (angle2 > 0.0) {
+        if (ML_ZERO_D == magnitude) {
+            if (angle2 > ML_ZERO_D) {
                 f32 a = -matrix[1];
                 r = atan2(matrix[9], a);
                 x = -matrix[4];
@@ -226,22 +231,22 @@ void ExtractPYR(const f32* matrix, f32* angles)
     f32 r;
 
     *(u32*)&absValue &= 0x7FFFFFFF;
-    if (__fabs(1.0 - absValue) < 0.0001) {
+    if (__fabs(lbl_80348E78 - absValue) < lbl_80348DA0) {
         f64 lockedAngle;
         f32 s = matrix[5];
         angle0 = atan2(matrix[9], s);
         if (matrix[2] > gMlFmathZero) {
-            lockedAngle = -1.570796327;
+            lockedAngle = lbl_80348E88;
         } else {
-            lockedAngle = 1.570796327;
+            lockedAngle = lbl_80348E80;
         }
         angle1 = lockedAngle;
         angle2 = *(volatile f32*)&gMlFmathZero;
     } else {
         angle0 = atan2(-matrix[6], matrix[10]);
         magnitude = cos(angle0);
-        if (magnitude == 0.0) {
-            if (angle0 > 0.0) {
+        if (ML_ZERO_D == magnitude) {
+            if (angle0 > ML_ZERO_D) {
                 f32 a = -matrix[6];
                 angle1 = atan2(-matrix[2], a);
                 y = matrix[8];
@@ -434,18 +439,20 @@ static inline void createDirNormalize(f32* vector, volatile f32* root)
     f32 scale;
 
     if (length > gMlFmathZero) {
+        f64 half = lbl_80348DB0;
+        f64 three = lbl_80348EB8;
         f64 guess = __frsqrte(length);
-        guess = 0.5 * guess * (3.0 - guess * guess * length);
-        guess = 0.5 * guess * (3.0 - guess * guess * length);
-        guess = 0.5 * guess * (3.0 - guess * guess * length);
+        guess = half * guess * (three - guess * guess * length);
+        guess = half * guess * (three - guess * guess * length);
+        guess = half * guess * (three - guess * guess * length);
         *root = (f32)(length *
-                      (0.5 * guess * (3.0 - guess * guess * length)));
+                      (half * guess * (three - guess * guess * length)));
         length = *root;
     }
-    if ((f64)length <= 0.0) {
-        scale = 1.0f;
+    if ((f64)length <= ML_ZERO_D) {
+        scale = lbl_80348E90;
     } else {
-        scale = (f32)(1.0 / length);
+        scale = (f32)(lbl_80348E78 / length);
     }
     vector[0] *= scale;
     vector[1] *= scale;
@@ -467,14 +474,14 @@ void CreateDirMatrix(f32* matrix, f32* direction, f32* up)
     length2 = direction[0] * direction[0] +
               direction[1] * direction[1] +
               direction[2] * direction[2];
-    if ((f64)length2 < 0.001) {
+    if ((f64)length2 < lbl_80348EB0) {
         sceSamp0CopyMatrix34(matrix, (f32*)gIdentityMatrix);
-        matrix[15] = 1.0f;
+        matrix[15] = lbl_80348E90;
         return;
     }
     if (up == 0) {
         distance = fqdist(direction[0], direction[2]);
-        angles[0] = (f32)(0.5 * atan2(direction[1], distance));
+        angles[0] = (f32)(lbl_80348DB0 * atan2(direction[1], distance));
         distance = direction[2];
         angles[1] = atan2(direction[0], distance);
         angles[2] = gMlFmathZero;
@@ -498,7 +505,7 @@ void CreateDirMatrix(f32* matrix, f32* direction, f32* up)
     matrix[3] = gMlFmathZero;
     matrix[7] = gMlFmathZero;
     matrix[11] = gMlFmathZero;
-    matrix[15] = 1.0f;
+    matrix[15] = lbl_80348E90;
 }
 #pragma opt_propagation reset
 
@@ -801,11 +808,13 @@ static inline f32 mlSqrtAccurate(f32 value)
     volatile f32 result;
 
     if (value > gMlFmathZero) {
+        f64 half = lbl_80348DB0;
+        f64 three = lbl_80348EB8;
         f64 guess = __frsqrte((f64)value);
-        guess = 0.5 * guess * (3.0 - guess * guess * value);
-        guess = 0.5 * guess * (3.0 - guess * guess * value);
-        guess = 0.5 * guess * (3.0 - guess * guess * value);
-        guess = 0.5 * guess * (3.0 - guess * guess * value);
+        guess = half * guess * (three - guess * guess * value);
+        guess = half * guess * (three - guess * guess * value);
+        guess = half * guess * (three - guess * guess * value);
+        guess = half * guess * (three - guess * guess * value);
         result = (f32)(value * guess);
         return result;
     }
