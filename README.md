@@ -142,11 +142,21 @@ historical compiler walls:
   project-wide compiler replacement.
 - `tools/gdl/webfrank.py` can correct an individually audited
   `REGISTER_ONLY` function after proving that every non-register instruction
-  bit already matches. It also supports an exceptional scheduler rule that
-  permutes an explicit bijection of independent straight-line instruction
-  atoms, moving relocations with their atoms, before applying the same register
-  proof. Rules carry exact input, target, relocation, and output hashes and fail
-  the build closed on source/compiler drift.
+  bit already matches. The register proof is form-aware: each differing word is
+  decoded so immediates, rotate counts, XO bits, and CR selectors can never
+  pass as register fields. Every register-field rule must additionally pass a
+  position-consistent renaming bisimulation (with commutative-operand and
+  callee-save-millicode awareness) proving the change is a genuine allocator
+  recolor; the eight rules whose residual is a deeper allocator artifact
+  (copy propagation, coalescing/duplicated value homes, operand-order
+  exchange) carry an explicit per-rule `unproven_recolor_audit` note and print
+  a warning in every build. It also supports an exceptional scheduler rule
+  that permutes an explicit bijection of straight-line instruction atoms,
+  moving relocations with their atoms; the tool verifies the permutation
+  preserves every def-use chain (loads/stores modelled with per-slot r1 stack
+  disjointness) and that any moved final write is dead at region exit. Rules
+  carry exact input, target, relocation, and output hashes and fail the build
+  closed on source/compiler drift.
 
 The repository-wide Frank sweep found no improvements, so Frank is opt-in per
 object. WebFrank is likewise restricted to reviewed rules in
