@@ -4262,8 +4262,8 @@ void fn_80054E78(void)
 {
     u8* state = (u8*)lbl_802575C0;
     s32 active;
-    s32 i;
     s32 off;
+    s32 i;
 
     if (lbl_803447B8 != 0) {
         active = 0;
