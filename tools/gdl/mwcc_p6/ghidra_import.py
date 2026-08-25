@@ -278,6 +278,21 @@ SPECIAL_SITES = [
         "localizes that residual upstream to graph/simplify state.",
     ),
     (
+        0x004CE44C,
+        "MWCC_Coloring_LowDegreeRemovalPath",
+        "First low-degree simplify-removal path. EAX is the interference "
+        "node and EDX is its effective degree before neighbor decrements. "
+        "The getSinCos trace observed every noncoalesced FPR f33..f54 here "
+        "in ascending order during scan pass one.",
+    ),
+    (
+        0x005310D9,
+        "MWCC_Coalescing_UnionCommit",
+        "Coalescing parent-map commit. ESI is the higher child root, CX is "
+        "the lower canonical parent, and EAX is the u16 parent map. "
+        "getSinCos observed its only FPR union here as f32 -> fixed f1.",
+    ),
+    (
         0x004CCCCC,
         "MWCC_Scheduler_GraphReadyBoundary",
         "Per-block dependency nodes, heights, deadlines, and predecessor counts are complete; cycle-driven issue begins next.",

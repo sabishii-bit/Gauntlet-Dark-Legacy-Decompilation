@@ -54,6 +54,87 @@ with saved `r29/r28`, cursor `r23/r24`, and several volatile GPR role changes.
 It has no WebFrank rule yet. It should join a later replay corpus, but no claim
 in this audit depends on it.
 
+`atree.c::fn_80011BBC` is a simpler prospective saved-GPR positive: a portable
+source improvement reduced its 88/88 opcode-identical residual from real 30 to
+real 6, leaving only one loop-counter web in stock `r22` where the target uses
+`r24` across `li/addi/cmp`. It has not been dynamically captured and is not a
+negative control, but it is a useful future replay sample for any recovered
+saved-register ordering predicate.
+
+## Deep dynamic closure
+
+### `CritterResolveMultipleTargets` and exact control
+
+The Resolve capture was repeated through the x32dbg MCP at the live allocator
+entry, independently of retrowin32/GDB. At `0x004CE400`, the arguments were
+class `0`, 29 colors, and 74 virtual registers. The parent map at
+`0x00BB62F8` was the identity sequence through `r73`; the graph pointer was
+`0x00BB6390`. Node `r72` had degree and neighbor count 21, with neighbors
+`1,3,36,39,40,41,43,44,46,53,58,59,60,61,62,63,64,65,68,69,73`.
+At `0x004CE381`, the same node had available mask `0x1ff0`; stock selected
+`r4`, while the target mapping requires `r6`.
+
+The deep same-TU control `CritterGetTarget` retained its fixed-`r3` coalesces
+and selected exact target colors with the same ascending simplify scan,
+descending pop order, and lowest-free selector. This is the negative evidence
+that rules out replacing Resolve's WebFrank rule with a global selector or
+scan reversal.
+
+### Completed `getSinCos` experiment
+
+`getSinCos` is CodeGen ordinal 13 in `mb_particle.c`. Its deep FPR trace found
+exactly one copy-coalescing candidate: virtual `f32` and fixed `f1`. They did
+not interfere, so the coalescer committed parent `32 -> 1`. Every virtual root
+from `f33` through `f54` remained identity. All 22 of those nodes were below
+the 32-color threshold and were removed, in ascending virtual-register order,
+during the first simplify scan. Selection therefore visited them in descending
+order.
+
+The earliest decisive target-mapped choice is `f49`. At selection it has
+available mask `0x3ffc`; only neighbors `f1/f32 -> f1` and `f50 -> f0` have
+colors, so stock correctly chooses `f2`. The target requires `f8`, even though
+`f2..f7` are free in the observed state. `f46` likewise sees `0x3ffc` and
+chooses `f2` where the target needs `f3`. When `f38` is reached, its earlier
+neighbors occupy `f0/f1/f2`, so it sees `0x3ff8` and chooses `f3`; the target
+needs `f2`.
+
+The target coloring is legal on the current interference graph. In particular,
+`f49` has target-colored neighbors spanning every lower color: `f50 -> f0`,
+`f1/f32 -> f1`, `f38 -> f2`, `f37 -> f3`, `f36 -> f4`, `f35 -> f5`,
+`f34 -> f6`, and `f33 -> f7`. Coloring those neighbors first makes target
+`f8` the lowest free choice. This proves that a different order can produce the
+target without changing the selector, but it does not reveal a safe ordering
+predicate.
+
+A scratch replay over all 22 noncoalesced FPR nodes gave:
+
+| Selection policy | Current colors | Target colors |
+| --- | ---: | ---: |
+| Stock descending virtual-register order | 22/22 | 14/22 |
+| Ascending virtual-register order | 9/22 | 10/22 |
+| Static low-degree first | 9/22 | 9/22 |
+| Static high-degree first | 4/22 | 5/22 |
+
+Target-informed ready-node orders can reproduce 22/22 target colors, which is
+useful only as a graph-validity proof. They are deliberately not patch
+candidates because they consult the desired coloring.
+
+### x32dbg MCP path
+
+The live x32dbg effort also isolated a debugger-bridge defect unrelated to
+MWCC. The bridge constructed `InitDebug "exe" args`; x64dbg requires the target
+command line as comma-delimited quoted argument 2, `InitDebug "exe","args"`.
+The source fix and offline regression test are preserved in external checkout
+`<local-x64dbg>\mcp`, branch `codex/initdebug-argfix`, commit `76a0b47a`.
+The source and deployed x32 plugin have SHA-256
+`2e8eb4442c03ba355f79e78a5b5e9ccc0d27f72723a87cc79171f93cdf44ace6`;
+the pre-fix installed file is backed up under `<local-scratch>\gdl-x64dbg-critter`
+with SHA-256
+`c205dcc9ec8fa1eb199ac7732c668f6e794879eb1673d5f84eb9fcaca12a3817`.
+The repaired path loaded the SHA-pinned compiler, loaded the scratch
+`LMGR326B.dll`, reached the named Resolve CodeGen invocation, and hit the live
+allocator and color-choice breakpoints. No compiler bytes were changed.
+
 ## Policy assessment
 
 No compiler-side rule is yet justified for production or for a scratch binary
@@ -81,21 +162,15 @@ change remains plausible, but the present captures do not identify a safe
 predicate. It must not be patched until it predicts target order on positives
 and preserves raw-exact controls.
 
-## Smallest next experiment
+## Bounded next step
 
-Capture `getSinCos` deeply because it is the smallest high-information positive:
-
-1. At entry/exit of `MWCC_SpillCode_CoalesceCopies` (`0x00530E00`), record each
-   copy pair, both roots, window membership, interference result, and resulting
-   parent.
-2. During `MWCC_Coloring_SimplifyGraph` (`0x004CE400`), record every actual
-   removal with effective degree and scan pass, not just the final stack.
-3. At `0x004CE381`, retain the node, neighbor colors, available mask, and chosen
-   color for `f49`, `f46`, and `f38`.
-4. Replay candidate orderings without patching the executable. A candidate may
-   advance only if it produces the desired colors on `getSinCos`,
-   `AllocMem32`, `closest_enemy`, and `CritterResolveMultipleTargets` while
-   preserving `CritterGetTarget` and a wider raw-exact corpus.
+The smallest positive experiment above is complete. A future compiler lane
+should recover the original name-independent reason for the different
+simplify order, likely in web construction, liveness, or a pressure-dependent
+tie-break. A candidate may advance only if it predicts the desired order on
+`getSinCos`, `AllocMem32`, `closest_enemy`, and
+`CritterResolveMultipleTargets` while preserving `CritterGetTarget` and a wider
+raw-exact corpus. Do not create a target-informed ordering patch.
 
 Treat `PointLineDist2D` separately with scheduler/operand-order capture. A
 successful allocator experiment may retire an allocator subset of WebFrank;
@@ -107,6 +182,11 @@ it cannot by itself justify deprecating the whole mechanism.
   `19B1FA51E054BDA81641D995741634222AF0085275D59C9C9860EC93F1D4D6B0`
 * `<local-scratch>\gdl-x64dbg-critter\trace-critter-gettarget.txt`, SHA-256
   `53E37A9CB728623F3E4C3495A8C248C24F2D9FA3440886D9012A256DAEDE95FB`
+* `<local-scratch>\gdl-x64dbg-critter\trace-getSinCos-deep.txt`, SHA-256
+  `99515BC3496EFAB569AAAE874D5E750F2F41231EB921E2082FB7F0D9C88785E9`
+* `<local-scratch>\gdl-x64dbg-critter\trace-getSinCos-deep.gdb`, SHA-256
+  `7B69E6C14A4D1F6D5803BBC6FE25BE34212FB5DA524B50589E1F39CA147BB190`
+* `<local-scratch>\gdl-x64dbg-critter\x32-live-resolve-evidence.md`
 * `<local-scratch>\gdl-webfrank-patterns\capture-getSinCos`
 * `<local-scratch>\gdl-webfrank-patterns\capture-AllocMem32`
 * `<local-scratch>\gdl-webfrank-patterns\capture-closest_enemy`
