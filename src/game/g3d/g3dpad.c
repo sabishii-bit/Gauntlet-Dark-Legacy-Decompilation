@@ -20,9 +20,9 @@
  * +0x000/+0x204/+0x408), built once by G3DInitStickCurve, guarded by
  * lbl_803452A4.
  *
- * NonMatching: all four functions are translated. The response-curve math and
- * status pump retain compiler-layout differences, so extracted bytes still
- * link from the DOL for the whole TU.
+ * All four functions are translated. G3DUpdatePadStatus's final allocator-only
+ * residual is handled by the audited, hash-guarded WebFrank rule; the source
+ * must still emit the target function layout and literal pool exactly.
  */
 #include "types.h"
 #include "dolphin/pad.h"
@@ -155,16 +155,6 @@ void G3DAnalogToStickXY(f32* outX, f32* outY, int rawX, int rawY) {
         *outY = -*outY;
     }
 }
-
-/*
- * Seed MWCC's private literal pool in the order used by the retail object.
- * These helpers are unreferenced and therefore dead-stripped from the DOL.
- */
-static f32 g3dCurveInitialMagnitude(void) { return 72.0f; }
-static f32 g3dCurveInitialAxis(void) { return 1.0f; }
-static f32 g3dCurveHalf(void) { return 0.5f; }
-static f32 g3dCurveScale(void) { return 90.0f; }
-static f32 g3dCurveBias(void) { return 1.25f; }
 
 /*
  * 0x800D7F44  G3DInitStickCurve(void)
