@@ -434,7 +434,7 @@ void ResetTexmods(void)
     MBClearTexscroll();
 }
 
-static u32 ObjAnimDefaultTex(OANIM* node, int start, int end)
+static inline u32 ObjAnimDefaultTex(OANIM* node, int start, int end)
 {
     if (start == end) {
         return node->tex;
