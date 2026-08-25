@@ -518,6 +518,25 @@
     ],
     "game/sys/sysservice": [
       {
+        "function": "sysPollResetButton",
+        "before_sha256": "cc51990afa26ceba7f2cd4e0bfcc5b8c7d76190363d2bf719f81e046071acc8e",
+        "after_sha256": "22601a40aaafa72cadd7fb43c2b3ab1c0ab1aba2044c5f37db42d75a6d36e4fe",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 60,
+          "permuted_instructions": 2
+        },
+        "instruction_permutation": {
+          "start": "0x88",
+          "end": "0x90",
+          "order": [1, 0],
+          "before_sha256": "decb90402973a79a24378eaba97967a34562786645a9ca1d12a717e8cc276c91",
+          "after_sha256": "9c86562d75c12cda2e5bad4e2aed2736865af0f90fbee9c32fe53488eb91c1eb",
+          "before_relocations_sha256": "2e21aae9674bb604465ccb6aa9cf5dc4f01440cc95d55d2cfedb404b137cd7bb",
+          "after_relocations_sha256": "10770ef4cb73323d9cf4241ec9be63fe726a97a19dc146863c22e61307d5911f"
+        }
+      },
+      {
         "function": "sysClearFlags",
         "before_sha256": "fdc7bc6a4409fb72b3c4b6348bd19b28692487b649636b01dff951cd2236aca8",
         "after_sha256": "f673e38f200307a2cfd4f45ba04183d9203e0b5f0a413ede9edbe460509a8140",

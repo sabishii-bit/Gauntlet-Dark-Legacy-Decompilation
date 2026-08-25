@@ -72,6 +72,27 @@ class InstructionPermutationTests(unittest.TestCase):
         self.assertEqual(relocations, self.expected_relocations)
         self.assertEqual(moved, 3)
 
+    def test_sys_poll_reset_button_moves_lis_relocation_with_atom(self):
+        # sysPollResetButton +0x88: lis r3,@ha; mtctr r0 -> mtctr r0; lis r3,@ha.
+        # The two atoms are independent and the lis relocation stays at byte +2
+        # within its atom as that atom moves from region slot 0 to slot 1.
+        current = bytes.fromhex("3c600000 7c0903a6")
+        expected = bytes.fromhex("7c0903a6 3c600000")
+        relocations = [(2, 0x1406, 0)]
+        expected_relocations = [(6, 0x1406, 0)]
+        output, moved_relocations, moved = permute_instruction_atoms(
+            current,
+            [1, 0],
+            relocations,
+            before_sha256="decb90402973a79a24378eaba97967a34562786645a9ca1d12a717e8cc276c91",
+            after_sha256="9c86562d75c12cda2e5bad4e2aed2736865af0f90fbee9c32fe53488eb91c1eb",
+            before_relocations_sha256="2e21aae9674bb604465ccb6aa9cf5dc4f01440cc95d55d2cfedb404b137cd7bb",
+            after_relocations_sha256="10770ef4cb73323d9cf4241ec9be63fe726a97a19dc146863c22e61307d5911f",
+        )
+        self.assertEqual(output, expected)
+        self.assertEqual(moved_relocations, expected_relocations)
+        self.assertEqual(moved, 2)
+
     def test_stale_input_hash_fails_closed(self):
         with self.assertRaisesRegex(ValueError, "input hash changed"):
             self.permute(before_sha256="0" * 64)
