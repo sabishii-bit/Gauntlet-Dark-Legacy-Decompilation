@@ -16,10 +16,9 @@
  * dtk attributes two extabindex entries here (MBEndFrame + MBInit), the
  * only two functions in this TU that save LR, confirming exceptions-on.
  *
- * Status: 3 of 4 functions byte-exact (MBEndFrame, MBInit, mbInvSqrtLookup).
- * mbInitInvSqrtTable has the target's four inline software-square-root loops,
- * including their distinct negative-domain comparison. Its remaining mismatch
- * is the second-loop stack/FPR allocation cascade, so the TU stays NonMatching.
+ * Status: all four target functions are byte-exact after pool-symbol
+ * normalization. The TU remains NonMatching because mbPoolOrder is a 12-byte
+ * synthetic function needed to reproduce the original .sdata2 literal order.
  */
 
 /* ---- MB_MAIN globals (resolved via symbols.txt / auto data objects) ---- */
@@ -298,8 +297,7 @@ f32 mbInvSqrtLookup(f64 x) {
 
 /* mbInitInvSqrtTable @0x800B729C : precompute lbl_802A4D48 as 1/sqrt over
  * five decades of scale (block k = 0.05, 1, 20, 500, 10000), each 200
- * entries, plus a clamp value at index 1000.  NonMatching: relies on the
- * compiler's inline sqrt/divide sequence. */
+ * entries, plus a clamp value at index 1000. */
 void mbInitInvSqrtTable(void) {
     f32* p = lbl_802A4D48;
     int i;
