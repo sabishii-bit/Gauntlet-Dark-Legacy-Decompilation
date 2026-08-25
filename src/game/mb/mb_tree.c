@@ -676,6 +676,30 @@ void MBNodeSetParent(MBTreeNode* node, MBTreeNode* new_parent)
     }
 }
 
+static inline MBTreeNode* MBNodePrevNodeInline(MBTreeNode* node)
+{
+    MBTreeNode* current;
+
+    if (node->parent == 0) {
+        current = lbl_80344ECC;
+    } else {
+        current = node->parent->child;
+    }
+    if (current == 0) {
+        return 0;
+    }
+    if (current == node) {
+        return 0;
+    }
+    while (current != 0 && current->next != node) {
+        current = current->next;
+    }
+    if (current == 0) {
+        return 0;
+    }
+    return current;
+}
+
 /* 0x800BAEAC - MBRemoveNode */
 MBTreeNode* MBRemoveNode(MBTreeNode* node, s32 remove_children)
 {
@@ -748,17 +772,7 @@ MBTreeNode* MBRemoveNode(MBTreeNode* node, s32 remove_children)
             child->next = node->next;
         }
     } else {
-        previous = lbl_80344ECC;
-        if (parent != 0)
-            previous = parent->child;
-
-        if (previous == 0 || previous == node) {
-            previous = 0;
-        } else {
-            while (previous != 0 && previous->next != node)
-                previous = previous->next;
-        }
-
+        previous = MBNodePrevNodeInline(node);
         if (previous != 0) {
             if (node->child == 0) {
                 previous->next = node->next;
