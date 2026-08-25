@@ -149,7 +149,7 @@ s32 adsMoveFileToRaw(ADSTREAM* stream);
 s32 AdsParseHeader(ADSTREAM* stream, u32* header, u32* body);
 
 /* Mark a stream's volume dirty (inlined helper). */
-static void adsMarkVol(ADSTREAM* s, s32 vol) {
+static inline void adsMarkVol(ADSTREAM* s, s32 vol) {
     if (s != NULL) {
         s->volDirty = 1;
         s->vol = vol;
