@@ -1408,8 +1408,12 @@ f32 CalcDist(Vec3* look, Vec3* point, NcPlane* planes, f32 fov, f32 current)
  * layer and gCameras[0].  Returns 1 while anything is still moving.
  * [callers: UpdateCam, fn_8006F16C, fn_8006E654]
  */
+#pragma opt_propagation off
 s32 fn_8006DF34(NcCamera* cam) {
+    u8 unused0[8];
     Vec3 avg;
+    u8 unused1[16];
+    u8 unused2[40];
     NcMarker* marker;
     NcCameraBounds* bounds;
     f32 yawT;
@@ -1424,16 +1428,20 @@ s32 fn_8006DF34(NcCamera* cam) {
     f32 dy;
     f32 dz;
     f32 sd;
-    f32 dd;
     f32 mn;
     f32 mx;
     s32 interp;
     s32 moved;
+    s32 move2d;
     s32 distMoved;
-    s32 count;
     s32 end;
-    s32 idx;
+    s32 count;
     s8 i;
+    s32 idx;
+    s8 i2;
+    s32 end2;
+    s32 idx2;
+    s32 count2;
     u32 controller;
     u32 zero;
     u32 one;
@@ -1509,7 +1517,11 @@ s32 fn_8006DF34(NcCamera* cam) {
     cam->attention.x += dx;
     cam->attention.y += dy;
     cam->attention.z += dz;
-    if (dx == 0.0 && dy == 0.0 && dz == 0.0) {
+    move2d = moved;
+    if (dx == 0.0 && dy == 0.0) {
+        move2d = 0;
+    }
+    if (move2d == 0 && dz == 0.0) {
         moved = 0;
     }
 
@@ -1530,18 +1542,18 @@ s32 fn_8006DF34(NcCamera* cam) {
         CalcDist(&cam->direction, &cam->ring_pos[cam->field_1A4], cam->planes,
                  cam->yaw, cam->dist_current);
 
-    count = lbl_80343CD0;
+    count2 = lbl_80343CD0;
     sd = 0.0f;
-    i = cam->field_1A4;
-    end = cam->field_1A4 + count;
-    for (; i < end; i++) {
-        idx = i % count;
-        sd += cam->ring_dist[idx] - cam->distance;
+    i2 = cam->field_1A4;
+    end2 = cam->field_1A4 + count2;
+    for (; i2 < end2; i2++) {
+        idx2 = i2 % count2;
+        sd += cam->ring_dist[idx2] - cam->distance;
     }
-    inv = 1.0 / count;
-    dd = sd * inv;
-    cam->distance += dd;
-    distMoved = dd != 0.0;
+    inv = 1.0 / count2;
+    sd *= inv;
+    cam->distance += sd;
+    distMoved = sd != 0.0;
 
     pitch = cam->pitch;
     YawVec3(lbl_80127D40, &cam->direction, -cam->yaw);
@@ -1582,14 +1594,9 @@ s32 fn_8006DF34(NcCamera* cam) {
             cam->attention.x, cam->attention.y, cam->attention.z);
     }
 
-    if (distMoved != 0 || interp != 0) {
-        return 1;
-    }
-    if (moved != 0) {
-        return 1;
-    }
-    return 0;
+    return (distMoved != 0 || interp != 0) || moved != 0;
 }
+#pragma opt_propagation reset
 
 /*
  * fn_8006E654 -- scripted-camera-path update (UpdateCam's gGameMode 0x4010
