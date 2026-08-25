@@ -299,6 +299,7 @@ void MBRenderText(void)
     s32 hb;
     MBFont* font;
     s32 glyph;
+    s32 glyphValue;
     MBTextMsg* msg;
 
     if (lbl_80344E28) {
@@ -351,7 +352,7 @@ void MBRenderText(void)
                 }
                 doClip = u ? 1 : 0;
             }
-            spaceW = (s32)(msg->xscale * (f32)mbfont_space.space[t]);
+            spaceW = (s32)(msg->xscale * (f32)((s32*)st)[t]);
             text = msg->text;
             while ((c = *(u8*)text) != 0) {
                 y = baseY;
@@ -415,8 +416,9 @@ void MBRenderText(void)
                         if (c >= font->count) {
                             goto next_char;
                         }
-                        glyph = *(u16*)(font->cells + c * 0x24 + 0x20);
-                        if (glyph == 0) {
+                        glyphValue = *(u16*)(font->cells + c * 0x24 + 0x20);
+                        glyph = glyphValue;
+                        if (glyphValue == 0) {
                             if (c == 0x20) {
                                 x += spaceW;
                             }
@@ -435,8 +437,8 @@ void MBRenderText(void)
                     y -= 2;
                     mbInitBlitEntry(ent, hb, 0);
                     mbBlitProject(ent, glyph, glyph);
-                    mbBlitSetupVerts(ent, lbl_80348B68, zsp, lbl_80348B68,
-                                     zsp);
+                    mbBlitSetupVerts(ent, lbl_80348B68, lbl_80348B58,
+                                     lbl_80348B68, lbl_80348B58);
                     ent->color = white;
                     glyph -= 2;
                 } else {
