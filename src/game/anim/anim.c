@@ -374,6 +374,7 @@ u32 DoAnimation(int* node, animinfo* info, f32* outmtx, s32* outrot,
     u16 flagRaw;
     u16 nextRaw;
     u8* bytes;
+    u8 unused[16];
 
     if (*(u32*)node == 0) {
         return 0;
