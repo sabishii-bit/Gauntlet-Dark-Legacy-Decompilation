@@ -2684,13 +2684,13 @@ MBObject* MBNewPsysDescrip(s32 a, s32 b, s32 c, void* cfg) {
     if (wp->fields_used & 0x20000) {
         u32 tex = wp->p_texidx;
         u8* g = (u8*)gWinGlobals;
-        q = (Psys*)node->data.psys;
-        q->p_texidx = tex;
+        Psys* texPsys = (Psys*)node->data.psys;
+        texPsys->p_texidx = tex;
         {
             u8* t1 = *(u8**)(g + 48);
             t1 += (tex >> 16) << 4;
-            q->p_tex = (struct ROMTEX*)(*(s32*)(*(u8**)(t1 + 4) + 88) +
-                                        ((tex & 0xFFFF) << 4));
+            texPsys->p_tex = (struct ROMTEX*)(*(s32*)(*(u8**)(t1 + 4) + 88) +
+                                              ((tex & 0xFFFF) << 4));
         }
     }
     if (wp->fields_used & 0x40000) {
