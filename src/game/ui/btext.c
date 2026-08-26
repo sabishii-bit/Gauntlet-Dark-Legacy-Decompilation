@@ -557,7 +557,7 @@ s32 DrawStringTextMLines(s32 x, s32 y, s32 spacing, s32 font, u32 color, s32 msg
     va_start(ap, msg);
     vsprintf((char*)info->workBuf, (char*)info->workBuf + 0x400, ap);
     FixMLineText((s32*)info->workBuf, (s32*)info->formatBuf, (s32*)lines);
-    line = 0;
+    line = (msgLine = 0);
     while (line < lineCount) {
         DrawTextSub(scale, shScale, x, y, font, color, (u8*)lines[line]);
         y += spacing;
