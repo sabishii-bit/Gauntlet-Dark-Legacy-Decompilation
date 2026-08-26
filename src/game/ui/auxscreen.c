@@ -816,14 +816,17 @@ done:
 /* CaptionTextSub (0x2C4) -- draw one measured caption line.          */
 /* Structural best-effort; NonMatching.                               */
 /* ================================================================== */
+#pragma opt_common_subs off
 s32 CaptionTextSub(char* text, f32 scale, s32 font, s32 rows, s32 y)
 {
     u8* base = lbl_8023DFD0;
     char* source;
     char* line;
+    f32 line_height = 32.0f;
     f32 remaining = (f32)(rows - caption_page);
     f32 glyph_width = 1.75f;
-    f32 line_height = 32.0f * scale;
+    s32 draw_font;
+    s32 color_base;
     s32 output_len = 0;
     s32 done = 0;
 
@@ -836,12 +839,15 @@ s32 CaptionTextSub(char* text, f32 scale, s32 font, s32 rows, s32 y)
     if (gLanguageId == 1) {
         glyph_width = 5.5f;
     }
+    line_height *= scale;
 
     base[1152] = 0;
     strcpy((char*)(base + 128), text);
     source = (char*)(base + 128);
     line = source;
     FontSetShadowColor(0);
+    draw_font = font | 0x100;
+    color_base = 0x1000000;
 
     while (gGameMode != 0x8002 && remaining > 0.0) {
         s8 ch = *source++;
@@ -850,24 +856,27 @@ s32 CaptionTextSub(char* text, f32 scale, s32 font, s32 rows, s32 y)
         case '\r':
             base[1152 + output_len] = 0;
             remaining = (f32)((f64)remaining - 30.0);
-            if (remaining >= 0.0f) {
-                base[1152] = 0;
-                output_len = 0;
-                line = source;
-                if (*source == '\n') {
-                    source++;
-                    line = source;
-                }
+            if (remaining < 0.0f) {
+                break;
             }
+            base[1152] = 0;
+            output_len = 0;
+            if (*source == '\n') {
+                source++;
+            }
+            line = source;
             break;
 
         case '\0':
         case '\n':
             base[1152 + output_len] = 0;
             if (output_len > 0) {
-                s32 width = DrawNormalText(scale, (char*)(base + 1152), font);
-                DrawTextKeepScale(scale, 256 - (width >> 1), y, font | 0x100,
-                                  0xffffff, (char*)(base + 1152));
+                s32 width;
+                s32 x;
+                width = DrawNormalText(scale, (char*)(base + 1152), font);
+                x = 256 - (width >> 1);
+                DrawTextKeepScale(scale, x, y, draw_font,
+                                  color_base - 1, (char*)(base + 1152));
             }
             line = source;
             output_len = 0;
@@ -885,7 +894,8 @@ s32 CaptionTextSub(char* text, f32 scale, s32 font, s32 rows, s32 y)
             /* fall through */
         default:
             remaining -= glyph_width;
-            base[1152 + output_len++] = ch;
+            base[1152 + output_len] = ch;
+            output_len++;
             break;
         }
 
@@ -899,16 +909,19 @@ s32 CaptionTextSub(char* text, f32 scale, s32 font, s32 rows, s32 y)
     if (output_len > 0) {
         char* newline = strchr(line, '\n');
         s32 width;
+        s32 x;
 
         if (newline != 0) {
             *newline = 0;
         }
         width = DrawNormalText(scale, line, font);
-        DrawTextKeepScale(scale, 256 - (width >> 1), y, font | 0x100,
+        x = 256 - (width >> 1);
+        DrawTextKeepScale(scale, x, y, draw_font,
                           0xffffff, (char*)(base + 1152));
     }
     return done;
 }
+#pragma opt_common_subs reset
 
 /* ================================================================== */
 /* do_mapscreen (0x410) -- per-frame map / level-load state machine.  */
