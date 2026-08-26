@@ -3642,17 +3642,25 @@ void PlayerSaveState(s32 player, s32 full) {
 /* Unpack the per-character slots into the live fields.  type < 0      */
 /* re-reads the character stamped in the image.  The active hidden     */
 /* character instead gets the fixed lv99 loadout.                      */
+#pragma dont_inline on
 void player_get_from_save(void* vp, s32 type) {
-    Player* p = vp;
-    s32* st;
-    u8* it;
+    s32 player;
+    Player* p;
+    s32 character;
+    s32 offset;
+    s32 exp;
     f32 cap;
     s32 t;
     s32 lv;
+    u8 unused[16];
+
+    p = vp;
+    player = p->index;
 
     if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
         /* hidden character: fixed loadout */
-        memcpy((u8*)p + 0xA80, (u8*)p + 0x1ECC, 0x1434);
+        *(PlayerSaveImage*)((u8*)p + 0x1ECC) =
+            *(PlayerSaveImage*)((u8*)p + 0xA80);
         p->class_id = 0;
         ATT_FIGHT(p) = 0.9f;
         ATT_ARMOR(p) = 0.9f;
@@ -3679,50 +3687,54 @@ void player_get_from_save(void* vp, s32 type) {
         return;
     }
 
-    t = type;
-    if (t < 0) {
-        t = PF(p, 0xA88, s16);
+    if (type < 0) {
+        type = PF(p, 0xA88, s16);
     }
-    p->character = t;
+    p->character = type;
     p->class_id = PF(p, 0xA8A, s8);
-    st = CHAR_STATS(p, p->character);
+    character = p->character;
     PlayerUpdateAtts(p);
-    p->exp = st[0];
-    for (lv = 99; lv > 0; lv--) {
-        if (LevelToExp(lv) <= p->exp) {
+    offset = character * 0x18;
+    p->exp = PF(p, offset + 0xA90, s32);
+    exp = p->exp;
+    lv = 99;
+    for (;;) {
+        if (exp >= LevelToExp(lv)) {
+            break;
+        }
+        if (--lv <= 0) {
+            lv = 1;
             break;
         }
     }
-    if (lv < 1) {
-        lv = 1;
-    }
     p->level = lv;
-    p->health = *(f32*)&st[1];
-    it = CHAR_ITEMS(p, t);
-    p->gold = *(s32*)(it + 0x30);
-    PF(p, 0x1EBC, s32) = *(s16*)(it + 0x2);
-    PF(p, 0x1EB8, s32) = *(s16*)(it + 0x0);
-    PF(p, 0x1EC8, u16) = *(u16*)(it + 0x4);
-    PF(p, 0x1ECA, u16) = *(u16*)(it + 0x6);
-    if (*(f32*)&st[1] == 0.0f) {
+    p->health = PF(p, offset + 0xA94, f32);
+    offset = type * 0xF0;
+    p->gold = PF(p, offset + 0xE00, s32);
+    PF(p, 0x1EBC, s32) = PF(p, offset + 0xDD0, s16);
+    PF(p, 0x1EB8, s32) = PF(p, offset + 0xDD2, s16);
+    PF(p, 0x1EC8, u16) = PF(p, offset + 0xDD4, u16);
+    PF(p, 0x1ECA, u16) = PF(p, offset + 0xDD6, u16);
+    if (*(f32*)&CHAR_STATS(p, type)[1] == 0.0f) {
         clear_player(p->index, 0);
     }
-    p->character = t;
-    p->char_type = t;
-    if (p->char_type > 7) {
+    p->character = type;
+    p->char_type = type;
+    if (p->char_type >= 8) {
         p->char_type -= 8;
     }
-    check_player_atts(p, t, NULL);
-    memcpy((u8*)p + 0x130, it + 0x34, 0xB0);
-    PF(p, 0x1EC, s32) = *(s16*)(it + 0xA);
+    check_player_atts(p, type, NULL);
+    memcpy((u8*)p + 0x130, (u8*)p + offset + 0xE04, 0xB0);
+    PF(p, 0x1EC, s32) = PF(p, offset + 0xDDA, s16);
     PF(p, 0x11C, s32) = 0;
     PF(p, 0x120, u32) = 0;
     PF(p, 0x124, u32) = 0;
-    lbl_80240E5C[p->index * 0xF] = PF(p, 0x1DB0, u8);
-    lbl_80240E60[p->index * 0xF] = PF(p, 0x1DB1, u8);
-    lbl_80240E68[p->index * 0xF] = PF(p, 0x1DB2, u8);
-    lbl_80240E64[p->index * 0xF] = PF(p, 0x1DB3, u8);
+    lbl_80240E30[player].scheme = PF(p, 0x1DB0, u8);
+    lbl_80240E30[player].hasActuator = PF(p, 0x1DB1, u8);
+    lbl_80240E30[player].unk38 = PF(p, 0x1DB2, u8);
+    lbl_80240E30[player].unk34 = PF(p, 0x1DB3, u8);
 }
+#pragma dont_inline off
 
 /* Pack the live fields into the per-character slots + image header.   */
 #pragma opt_common_subs off
