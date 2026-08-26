@@ -4583,19 +4583,19 @@ void world_update(void)
         }
     }
     {
-        f64 k1 = lbl_80346C58;
         f64 k2 = lbl_80346C60;
+        f64 k1 = lbl_80346C58;
 
         for (i = 0, off = 0; i < lbl_8034484C; i++, off += 4) {
             u8* row = tbl + off;
-            u32 wo = *(u32*)(row + 0x4c);
-            u32 node;
+            u8* wo = *(u8**)(row + 0x4c);
+            u8* node;
             f32* timer;
 
             if (wo == 0) {
                 continue;
             }
-            node = *(u32*)(wo + 0x28);
+            node = *(u8**)(wo + 0x28);
             if (node == 0) {
                 continue;
             }
@@ -4603,13 +4603,13 @@ void world_update(void)
                 timer = (f32*)(row + 0x5c);
                 if (sMusicFadeBase >= *timer) {
                     fn_80067AE0(lbl_80346C4C, lbl_80346C50);
-                    MBTreeClearFlags((void*)*(s32*)(wo + 0x28), 2, 0);
+                    MBTreeClearFlags(*(void**)(wo + 0x28), 2, 0);
                     *timer = (f32)(k1 + sMusicFadeBase);
                 }
             } else {
                 timer = (f32*)(row + 0x5c);
                 if (sMusicFadeBase >= *timer) {
-                    MBTreeSetFlags((void*)node, 2, 0);
+                    MBTreeSetFlags(node, 2, 0);
                     *timer = (f32)(k2 + sMusicFadeBase +
                                    Random(lbl_80346C68));
                 }
