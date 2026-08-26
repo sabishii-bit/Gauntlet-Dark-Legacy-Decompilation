@@ -476,7 +476,7 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
     u8** hdrp;
     u8* seq;
     u8* sub;
-    u32* flp;
+    u8* flp;
     u32 fl;
     f32 health;
     u8 unused[20];
@@ -537,8 +537,8 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
     if (*(u32*)(row + 4) & 0x00020000) {
         fl |= 0x20000;
     }
-    flp = (u32*)&Effects[mode].flags;
-    *flp |= fl;
+    flp = (u8*)&Effects[mode];
+    *(u32*)(flp += 100) |= fl;
     if ((*(u32*)seq & 0x10) && *(s16*)(row + 74) < 0) {
         PlaceEffectOnFloor(mode, Effects[mode].node);
     }
@@ -567,14 +567,14 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
             SfxSetHit(mode, *(u32*)(sub + 8), *(u32*)(sub + 12),
                       *(u32*)(sub + 12));
             if (*(u32*)sub & 0x10) {
-                *flp |= 0x200000;
+                *(u32*)flp |= 0x200000;
             }
         }
         if (*(s16*)(row + 76) >= 0) {
             sub = *(u8**)(*hdrp + 4) + *(s16*)(row + 76) * 80;
             SfxSetMorph(mode, *(u32*)(sub + 8), 0, *(f32*)(row + 28));
             if (*(s16*)(row + 2) & 0x800) {
-                *flp |= 0x8000;
+                *(u32*)flp |= 0x8000;
             }
         }
         if (*(f32*)(row + 12) != 0.0f) {
@@ -585,6 +585,7 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
                         (f32)(lbl_80347DF8 * *(f32*)(row + 8)));
         }
         if (*(f32*)(row + 60) > 0.0f) {
+            f32 vy;
             f32 spd = lbl_80347E00 * (*(f32*)(row + 64) - *(f32*)(row + 60)) +
                       *(f32*)(row + 60);
             if (*(s16*)(row + 2) & 4) {
@@ -592,7 +593,7 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
                 vel[1] = *(f32*)(p + 56);
                 vel[2] = *(f32*)(p + 60);
             } else {
-                f32 vy = *(f32*)(p + 2236);
+                vy = *(f32*)(p + 2236);
                 if (*(u32*)(p + 2240) & 8) {
                     if (vy > lbl_80347E08) {
                         vy = lbl_80347E10;
