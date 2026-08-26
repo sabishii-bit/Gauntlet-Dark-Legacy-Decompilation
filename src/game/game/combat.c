@@ -746,11 +746,10 @@ s32 MoveCam_walk_8002A024(s32 camIdx)
 }
 
 /* Initialize or advance the game camera's scripted transition. */
-extern u8 lbl_80240E38[];
+extern u8 lbl_80240E30[];
 extern f32 lbl_80346138, lbl_80346148;
 extern f64 lbl_80345FE0, lbl_80346140;
-extern s32 lbl_8023FCD4, lbl_8023FCD8, sFlags, lbl_8023FBE8;
-extern s32 lbl_8023FCE0, lbl_8023FCE4;
+extern s32 sFlags;
 extern s32 gScriptedCameraState;
 extern u32 gFrameTicks;
 void write_stage_info(s32 mode);
@@ -763,18 +762,25 @@ void write_stage_info(s32 mode);
  */
 s32 init_game_cam(s32 camIdx)
 {
-    Camera* cam = (Camera*)((u8*)gCameraState + camIdx * 396 + 0xC8);
-    s32 prevTimer = gScriptedCameraState;
-    s32 reached = 2;
+    Camera* cameras = gCameras;
+    Camera* cam = &cameras[camIdx];
+    s32 prevTimer;
     u8* level = *(u8**)((u8*)gCurLevel + 0x60);
+    s32 reached = 2;
     f32 dx, dy, dz;
     f32 len;
+    f32 posDistance;
+    u8 tail[20];
+    volatile f32 posRoot;
+    volatile f32 attnRoot;
+    u8 unused[12];
     f64 g;
     s32 i;
 
     if (camIdx != 2) {
         return -1;
     }
+    prevTimer = gScriptedCameraState;
 
     if (gScriptedCameraState > 2) {
         gScriptedCameraState = gScriptedCameraState - gFrameTicks;
@@ -785,7 +791,7 @@ s32 init_game_cam(s32 camIdx)
             for (i = 0; i < 4; i++) {
                 u8* player = (u8*)gPlayers + i * PLAYER_STRIDE;
                 if (PF(player, 0xE8, s32) == 1 &&
-                    (*(u32*)(lbl_80240E38 + i * 0x3C) & 0x20000FF) != 0) {
+                    (*(u32*)(lbl_80240E30 + i * 0x3C + 8) & 0x20000FF) != 0) {
                     gScriptedCameraState = 2;
                 }
             }
@@ -804,51 +810,56 @@ s32 init_game_cam(s32 camIdx)
     }
 
     if (gScriptedCameraState == 1) {
-        dx = gCameras[0].wpos[0] - cam[0].wpos[0];
-        dy = gCameras[0].wpos[1] - cam[0].wpos[1];
-        dz = gCameras[0].wpos[2] - cam[0].wpos[2];
-        len = (f32)(dz * dz + (f32)(dx * dx + (f32)(dy * dy)));
+        dy = cameras[0].wpos[1] - cam[0].wpos[1];
+        dx = cameras[0].wpos[0] - cam[0].wpos[0];
+        dz = cameras[0].wpos[2] - cam[0].wpos[2];
+        len = dy * dy;
+        len = dx * dx + len;
+        len = dz * dz + len;
         if (len > lbl_80345EC8) {
             g = __frsqrte((f64)len);
-            g = lbl_80345F18 * g * -((f64)len * g * g - lbl_80345F20);
-            g = lbl_80345F18 * g * -((f64)len * g * g - lbl_80345F20);
-            g = lbl_80345F18 * g * -((f64)len * g * g - lbl_80345F20);
-            len = (f32)((f64)len * lbl_80345F18 * g *
-                        -((f64)len * g * g - lbl_80345F20));
+            g = lbl_80345F18 * g * (lbl_80345F20 - (f64)len * (g * g));
+            g = lbl_80345F18 * g * (lbl_80345F20 - (f64)len * (g * g));
+            g = lbl_80345F18 * g * (lbl_80345F20 - (f64)len * (g * g));
+            posRoot = (f32)((f64)len * (lbl_80345F18 * g *
+                            (lbl_80345F20 - (f64)len * (g * g))));
+            len = posRoot;
         }
-        if (len < lbl_80345F28) {
-            reached = 1;
-        } else {
-            if (len > lbl_80346138) {
-                len = lbl_80346138;
+        posDistance = len;
+        if ((f64)len >= lbl_80345F28) {
+            if (posDistance > lbl_80346138) {
+                posDistance = lbl_80346138;
             }
-            len = (f32)((f64)gFrameTicks / len);
+            len = (f32)((f64)gFrameTicks / posDistance);
             if (len > lbl_80345FE0) {
                 len = lbl_80345F80;
             }
             dx = dx * len;
             dy = dy * len;
             dz = dz * len;
+        } else {
+            reached = 1;
         }
         cam[0].wpos[0] = cam[0].wpos[0] + dx;
         cam[0].wpos[1] = cam[0].wpos[1] + dy;
         cam[0].wpos[2] = cam[0].wpos[2] + dz;
 
-        dx = gCameras[0].attn[0] - cam[0].attn[0];
-        dy = gCameras[0].attn[1] - cam[0].attn[1];
-        dz = gCameras[0].attn[2] - cam[0].attn[2];
-        len = (f32)(dz * dz + (f32)(dx * dx + (f32)(dy * dy)));
+        dy = cameras[0].attn[1] - cam[0].attn[1];
+        dx = cameras[0].attn[0] - cam[0].attn[0];
+        dz = cameras[0].attn[2] - cam[0].attn[2];
+        len = dy * dy;
+        len = dx * dx + len;
+        len = dz * dz + len;
         if (len > lbl_80345EC8) {
             g = __frsqrte((f64)len);
-            g = lbl_80345F18 * g * -((f64)len * g * g - lbl_80345F20);
-            g = lbl_80345F18 * g * -((f64)len * g * g - lbl_80345F20);
-            g = lbl_80345F18 * g * -((f64)len * g * g - lbl_80345F20);
-            len = (f32)((f64)len * lbl_80345F18 * g *
-                        -((f64)len * g * g - lbl_80345F20));
+            g = lbl_80345F18 * g * (lbl_80345F20 - (f64)len * (g * g));
+            g = lbl_80345F18 * g * (lbl_80345F20 - (f64)len * (g * g));
+            g = lbl_80345F18 * g * (lbl_80345F20 - (f64)len * (g * g));
+            attnRoot = (f32)((f64)len * (lbl_80345F18 * g *
+                             (lbl_80345F20 - (f64)len * (g * g))));
+            len = attnRoot;
         }
-        if (len < lbl_80345F28) {
-            reached = reached - 1;
-        } else {
+        if ((f64)len >= lbl_80345F28) {
             if (len > lbl_80346140) {
                 len = lbl_80346148;
             }
@@ -859,42 +870,52 @@ s32 init_game_cam(s32 camIdx)
             dx = dx * len;
             dy = dy * len;
             dz = dz * len;
+        } else {
+            reached = reached - 1;
         }
         cam[0].attn[0] = cam[0].attn[0] + dx;
         cam[0].attn[1] = cam[0].attn[1] + dy;
         cam[0].attn[2] = cam[0].attn[2] + dz;
 
-        if (reached < 1) {
+        if (reached <= 0) {
             if (lbl_8034440C != 0) {
                 MBRemoveBlit((s32)lbl_8034440C);
                 lbl_8034440C = 0;
             }
             lbl_803444F0 = *(s8*)(level + 0x25);
-            if (lbl_803444F0 < 0) {
-                if (lbl_8023FCD4 != 0) {
-                    lbl_8023FCD8 = lbl_8023FCD4;
-                    lbl_8023FCD4 = 0;
+            if (lbl_803444F0 >= 0) {
+                lbl_803444EC = 0;
+                lbl_803447B8 = 2;
+                if (cam->c_mode != CAM_LOCK) {
+                    cam->pc_mode = cam->c_mode;
+                    cam->c_mode = CAM_LOCK;
                 }
+                if (cam->a_mode != ATN_TARGET) {
+                    cam->pa_mode = cam->a_mode;
+                    cam->a_mode = ATN_TARGET;
+                }
+                lbl_8034453C = 0;
+            } else {
+                s32 oldMode;
+
+                lbl_803447B8 = 0;
+                gScriptedCameraState = 0;
+                lbl_8034453C = 0;
+                oldMode = cam->a_mode;
+                if (cam->c_mode != CAM_OFF) {
+                    cam->pc_mode = cam->c_mode;
+                    cam->c_mode = CAM_OFF;
+                }
+                if (oldMode != cam->a_mode) {
+                    cam->pa_mode = cam->a_mode;
+                    cam->a_mode = oldMode;
+                }
+                cam->state = 0;
                 if ((sFlags & 4) != 0) {
                     lbl_803445D4 = lbl_803445D4 | 4;
                 }
-                lbl_8034453C = 0;
-                lbl_803447B8 = 0;
-                gScriptedCameraState = 0;
-                lbl_8023FBE8 = 0;
                 return 0;
             }
-            lbl_803444EC = 0;
-            lbl_803447B8 = 2;
-            if (lbl_8023FCD4 != 2) {
-                lbl_8023FCD8 = lbl_8023FCD4;
-                lbl_8023FCD4 = 2;
-            }
-            if (lbl_8023FCE0 != 2) {
-                lbl_8023FCE4 = lbl_8023FCE0;
-                lbl_8023FCE0 = 2;
-            }
-            lbl_8034453C = 0;
         }
     }
     return -1;
