@@ -38,6 +38,11 @@ typedef struct ScreenListEntry {
     /* 0x04 */ int flags;
 } ScreenListEntry; /* 0x08 */
 
+typedef struct AttractTableView {
+    /* 0x00 */ u8 _pad[0x10];
+    /* 0x10 */ ScreenListEntry entries[13];
+} AttractTableView;
+
 /* ------------------------------------------------------------------ */
 /* Called functions (project-internal; kept as raw addresses / names). */
 /* ------------------------------------------------------------------ */
@@ -803,11 +808,14 @@ void do_flyby(void) {
         lbl_80344778 += gFrameTicks;
     }
     if (lbl_80344298 != 0) {
-        lbl_80344280 += OSGetTime() - lbl_80344278;
+        s64 elapsed;
+
+        elapsed = OSGetTime() - lbl_80344278;
+        lbl_80344280 += elapsed;
         seconds = (f32)(lbl_80344280 / (s64)(*(u32*)0x800000F8 >> 2));
         lbl_80344278 = 0;
-        lbl_80344220 = (f32)sMainTimerTicks / seconds;
         lbl_803441F0 = 0;
+        lbl_80344220 = (f32)sMainTimerTicks / seconds;
         AudioSelectReset();
         init_targets();
         if (lbl_80344208 != 0) {
@@ -964,10 +972,10 @@ extern unsigned char lbl_8034421C;
 extern int lbl_80344288;
 extern char lbl_803458F0[4];
 extern int lbl_803445D4;
-extern int sPreviousFlags;
+extern volatile int sPreviousFlags;
 
 int init_attract_mode(int screen) {
-    u8* tbl = (u8*)lbl_80118188;
+    AttractTableView* tbl = (AttractTableView*)lbl_80118188;
     int ret = 0;
     int skip;
     int i;
@@ -977,6 +985,7 @@ int init_attract_mode(int screen) {
     int f8v;
     int fcv;
     int id;
+    ScreenListEntry* entry;
 
     if (lbl_80344298 == 2) {
         return 0;
@@ -992,10 +1001,11 @@ int init_attract_mode(int screen) {
     }
     if (screen >= 0) {
         for (i = 0, off = 0; i < 13; i++, off += 8) {
-            id = *(s32*)(tbl + off + 16);
+            entry = &tbl->entries[i];
+            id = entry->id;
             if (screen == id) {
                 if ((u32)screen != 0x8002 || lbl_803441F8 == 0 ||
-                    *(s32*)(tbl + off + 20) == 4) {
+                    entry->flags == 4) {
                     lbl_80344294 = i;
                     break;
                 }
@@ -1011,7 +1021,7 @@ int init_attract_mode(int screen) {
     do {
         skip = 0;
         cur = lbl_80344294;
-        lbl_80344290 = *(s32*)(tbl + cur * 8 + 16);
+        lbl_80344290 = tbl->entries[cur].id;
         lbl_80344294 = cur + 1;
         switch ((u32)(lbl_80344290 - 0x8000)) {
         case 0:
@@ -1029,13 +1039,13 @@ int init_attract_mode(int screen) {
             if (a4 != 0) {
                 skip = 1;
             }
-            if (*(s32*)(tbl + cur * 8 + 20) == 4 && f8v == 0) {
+            if (tbl->entries[cur].flags == 4 && f8v == 0) {
                 skip = 1;
             }
             break;
         case 4:
             lbl_80345030 = 0;
-            if (*(s32*)(tbl + cur * 8 + 20) == 0 && fcv != 0) {
+            if (tbl->entries[cur].flags == 0 && fcv != 0) {
                 skip = 1;
             }
             break;
@@ -1046,7 +1056,7 @@ int init_attract_mode(int screen) {
         case 8:
             break;
         }
-        if (*(s32*)(tbl + lbl_80344294 * 8 + 16) < 0) {
+        if (tbl->entries[lbl_80344294].id < 0) {
             s32 wrap = lbl_80343B14 + 1;
             lbl_80344294 = 0;
             lbl_803441F4 = lbl_803441F4 + 1;
@@ -1060,7 +1070,7 @@ int init_attract_mode(int screen) {
         }
     } while (skip != 0);
     if (lbl_80344294 >= 0) {
-        switch (*(s32*)(tbl + lbl_80344294 * 8 + 16)) {
+        switch (tbl->entries[lbl_80344294].id) {
         case 0x8006:
         case 0x8003:
         case 0x8008:
@@ -1084,7 +1094,7 @@ int init_attract_mode(int screen) {
         init_credits();
         break;
     case 0x8004: {
-        s32 sty = *(s32*)(tbl + cur * 8 + 20);
+        s32 sty = tbl->entries[cur].flags;
         if (sty == 0) {
             lbl_80343B0C = -1;
         } else {
@@ -1095,7 +1105,7 @@ int init_attract_mode(int screen) {
     }
     case 0x8001:
     case 0x8002:
-        ret = init_movie(-1, *(s32*)(tbl + cur * 8 + 20));
+        ret = init_movie(-1, tbl->entries[cur].flags);
         break;
     case 0x8003:
     case 0x8006:
@@ -1104,8 +1114,8 @@ int init_attract_mode(int screen) {
             lbl_80343B10 = -1;
         }
         if (lbl_8034421C == 0) {
-            lbl_80344280 = 0;
             lbl_8034421C = 1;
+            lbl_80344280 = 0;
         }
         lbl_80344288 = 0;
         sndFxInit(0x8008);
