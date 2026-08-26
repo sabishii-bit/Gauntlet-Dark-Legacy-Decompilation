@@ -173,6 +173,7 @@ extern void* memmove(void* dst, const void* src, u32 length);
 s32 VagParseHeader(void* file, u32* header, DcsSampleData* sample);
 extern void listVerifyHook(void);
 extern char lbl_80116F58[];   /* "DCSERROR: " + trailing dcs string pool */
+extern char lbl_80116F64[];   /* "Duck nonzero (%d) -- resetting\n" */
 extern s32 lbl_80345218;      /* free-sample-slot scan cursor */
 extern s32 lbl_803451FC;      /* high-water sample index */
 
@@ -489,89 +490,102 @@ void dcsQuePoll(void) {
 
 /* 0x800D258C  unload a bank: free its samples, compact the call tables */
 s32 AudioQueUpdate(s32 bank) {
-    DcsData* d = &dcsBankData;
     s32 result = 0;
-    s32 idx;
+    DcsData* d = &dcsBankData;
+    s32* sizePtr;
+    DcsBankData* entry;
+    s32 bankIndex;
     s32 size;
     s32 handle;
     s32 endCall;
     s32 firstInstr;
     s32 endInstr;
+    s32 removedInstr;
     s32 i;
     s32 c;
     s32 n;
-    u32 smpIdx;
-    DcsSampleData* smp;
+    s32 sampleIndex;
+    DcsSampleData* sample;
+    u16* instruction;
 
     update_chinfo(0xFFF);
     if (lbl_8034520C != 0) {
         printf(lbl_80116F58);
-        printf(lbl_80116F58 + 12, lbl_8034520C);
+        printf(lbl_80116F64, lbl_8034520C);
         lbl_8034520C = 0;
     }
-    idx = bank - 1;
-    if (idx < 0 || idx > 15) {
-        result = -1;
-    } else {
-        size = d->banks[idx].size;
-        if (size != 0) {
-            handle = d->banks[idx].handle;
-            endCall = handle + size;
-            firstInstr = d->callStart[handle];
-            endInstr = lbl_80345204;
-            if (endCall < lbl_80345200) {
-                endInstr = d->callStart[endCall];
-            }
-            for (i = firstInstr; i < endInstr; i++) {
-                smpIdx = d->callInstr[i] & 0xFFF;
-                if (smpIdx < 0x800) {
-                    smp = &d->samples[smpIdx];
-                    if (smp->sampleRate != 0) {
-                        if (smp->aramAddress != 0) {
-                            pool_alloc((u8*)d + 0x2C080, smp);
-                        }
-                        smp->sampleRate = 0;
-                        smp->predScale = 0;
-                    }
-                    if ((s32)smpIdx < lbl_80345218) {
-                        lbl_80345218 = smpIdx;
-                    }
-                }
-                if ((d->callInstr[i] & 0x8000) != 0) {
-                    i = i + 3;
-                }
-            }
-            while (lbl_803451FC > 0 &&
-                   d->samples[lbl_803451FC - 1].sampleRate == 0) {
-                lbl_803451FC = lbl_803451FC - 1;
-            }
-            if (endInstr < lbl_80345204) {
-                memmove(&d->callInstr[firstInstr], &d->callInstr[endInstr],
-                        (lbl_80345204 - endInstr) * 2);
-            }
-            lbl_80345204 = lbl_80345204 - (endInstr - firstInstr);
-            n = lbl_80345200 - endCall;
-            if (endCall < lbl_80345200) {
-                for (c = endCall; n != 0; c++, n--) {
-                    d->callStart[c - size] =
-                        d->callStart[c] - (endInstr - firstInstr);
-                }
-            }
-            lbl_80345200 = lbl_80345200 - size;
-            d->banks[idx].handle = 0;
-            d->banks[idx].size = 0;
-            for (c = 0, n = lbl_803451F8; n > 0; c++, n--) {
-                if (d->banks[c].handle > handle) {
-                    d->banks[c].handle = d->banks[c].handle - size;
-                }
-            }
-            while (lbl_803451F8 > 0 && d->banks[lbl_803451F8 - 1].size == 0) {
-                lbl_803451F8 = lbl_803451F8 - 1;
-            }
-            result = 1;
-        }
-        pool_garbage_collect((u8*)d + 0x2C080, dcsSampleStream);
+    if (bank - 1 < 0 || bank - 1 >= 16) {
+        return -1;
     }
+
+    bankIndex = bank - 1;
+    sizePtr = (s32*)&d->banks[bankIndex];
+    size = *++sizePtr;
+    if (size != 0) {
+        entry = &d->banks[bankIndex];
+        handle = entry->handle;
+        endCall = handle + size;
+        firstInstr = d->callStart[handle];
+        if (endCall < lbl_80345200) {
+            endInstr = d->callStart[endCall];
+        } else {
+            endInstr = lbl_80345204;
+        }
+        removedInstr = endInstr - firstInstr;
+        for (i = firstInstr; i < endInstr; i++) {
+            instruction = &d->callInstr[i];
+            sampleIndex = *instruction & 0xFFF;
+            if (sampleIndex >= 0 && sampleIndex < 0x800) {
+                if (d->samples[sampleIndex].sampleRate != 0) {
+                    sample = &d->samples[sampleIndex];
+                    if (sample->aramAddress != 0) {
+                        pool_alloc((u8*)d + 0x2C080, sample);
+                    }
+                    sample->sampleRate = 0;
+                    sample->predScale = 0;
+                }
+                if (lbl_80345218 > sampleIndex) {
+                    lbl_80345218 = sampleIndex;
+                }
+            }
+            if ((*instruction & 0x8000) != 0) {
+                i += 3;
+            }
+        }
+
+        while ((i = lbl_803451FC) > 0) {
+            if (d->samples[i - 1].sampleRate != 0) {
+                break;
+            }
+            lbl_803451FC--;
+        }
+        if (endInstr < lbl_80345204) {
+            memmove(&d->callInstr[firstInstr], &d->callInstr[endInstr],
+                    (lbl_80345204 - endInstr) * sizeof(u16));
+        }
+        lbl_80345204 -= removedInstr;
+        for (c = endCall; c < lbl_80345200; c++) {
+            d->callStart[c - size] = d->callStart[c] - removedInstr;
+        }
+        lbl_80345200 -= size;
+        entry->handle = 0;
+        *sizePtr = 0;
+
+        for (c = 0, n = lbl_803451F8; n > 0; c++, n--) {
+            if (d->banks[c].handle > handle) {
+                d->banks[c].handle -= size;
+            }
+        }
+        while ((i = lbl_803451F8) > 0) {
+            if (d->banks[i - 1].size != 0) {
+                break;
+            }
+            lbl_803451F8--;
+        }
+        result = 1;
+    }
+
+    pool_garbage_collect((u8*)d + 0x2C080, dcsSampleStream);
     return result;
 }
 
