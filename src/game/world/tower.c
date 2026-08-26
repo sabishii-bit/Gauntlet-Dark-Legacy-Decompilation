@@ -1207,17 +1207,17 @@ void TowerCheckMessages(s32 mode) {
         if (sMusicFadeBase - lbl_80344C48 >= 3.0) {
             for (j = 0; j < 3; j++) {
                 s32* best = &levels[j];
-                u32 curWorld = lbl_80343D6C;
+                u32 curWorld;
 
                 *best = 0;
+                curWorld = lbl_80343D6C;
                 for (i = 0; i < 4; i++) {
                     Player* p = &gPlayers[i];
 
                     if (p->state != 0 &&
                         *(u32*)((u8*)p + 0xF0) != curWorld) {
-                        u8* levelRecord = (u8*)(j * 2);
-                        s32 val = *(s16*)(levelRecord + (s32)p +
-                                          p->character * 240 + 3560);
+                        s32 val = *(s16*)((u8*)p + p->character * 240 +
+                                          3560 + j * 2);
 
                         if (*best >= 0 && (val < 0 || val > *best)) {
                             *best = val;
@@ -1245,17 +1245,17 @@ void TowerCheckMessages(s32 mode) {
             for (j = 0; j < 8; j++) {
                 if (lbl_80124C70[j] != 0) {
                     s32* best = &bosses[j];
-                    u32 curWorld = lbl_80343D6C;
+                    u32 curWorld;
 
                     *best = 0;
+                    curWorld = lbl_80343D6C;
                     for (i = 0; i < 4; i++) {
                         Player* p = &gPlayers[i];
 
                         if (p->state != 0 &&
                             *(u32*)((u8*)p + 0xF0) != curWorld) {
-                            u8* levelRecord = (u8*)(j * 2);
-                            s32 val = *(s16*)(levelRecord + (s32)p +
-                                              p->character * 240 + 3566);
+                            s32 val = *(s16*)((u8*)p + p->character * 240 +
+                                              3566 + j * 2);
 
                             if (*best >= 0 && (val < 0 || val > *best)) {
                                 *best = val;
