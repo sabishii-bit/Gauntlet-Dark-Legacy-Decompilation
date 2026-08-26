@@ -151,6 +151,18 @@ struct fxanimdef {
     /* 0x22 */ s16 rate;
 };
 
+/* The first sequence in an effect definition supplies the expansion time for
+ * ordinary hit effects.  This is the Xbox/retail atree-header prefix; the
+ * complete resource owns more fields after the sequence pointer. */
+struct fxatreeseq {
+    /* 0x00 */ char name[32];
+    /* 0x20 */ s16 numframes;
+    /* 0x22 */ s16 framerate;
+};
+struct fxatreeheader {
+    /* 0x00 */ struct fxatreeseq* seq;
+};
+
 /* animinfo view of Effect.atree+4 (StartFXTree play-state fields) */
 struct fxanim {
     /* 0x00 */ struct fxanimdef* def; /* = Effect+0x1C */
@@ -2436,7 +2448,7 @@ extern struct item* PlaceItem(s32 type, s32 subtype, char* name, f32* matrix);
 extern void AddItemSub(struct item* item);
 extern void fn_8009D5E0(f32* pos);
 extern void fn_8009EF7C();
-extern void fn_800C0ADC(f32 radius, f32 intensity);
+extern s32 fn_800C0ADC(f32* pos, f32* color, f32 radius, f32 intensity);
 extern f32 fn_8005F0F4();
 extern void fn_8005BA1C();
 extern f32 fn_8005C1DC();
@@ -2455,6 +2467,21 @@ extern s32 lbl_8034466C;
 extern f32 sMusicFadeBase;
 extern f32 lbl_80348100;
 extern f32 lbl_80348250;
+extern f32 lbl_80343DF4;
+extern f32 lbl_80343DF8;
+extern f64 lbl_80348098;
+extern f64 lbl_803480A8;
+extern f64 lbl_803480B0;
+extern f64 lbl_80348110;
+extern f64 lbl_80348120;
+extern f32 lbl_8034813C;
+extern f64 lbl_80348150;
+extern f64 lbl_80348160;
+extern f64 lbl_803481C0;
+extern f32 lbl_803481C8;
+extern f64 lbl_803481D0;
+extern f64 lbl_803481D8;
+extern f32 lbl_803481E0;
 extern u8 lbl_8023CA98[];
 extern u8 lbl_8023CB28[];
 
@@ -2580,7 +2607,7 @@ static s32 SfxSkipItem_80096FF4(struct fxitem* item, u32 a, u32 b);
 void ProcessEffects(void)
 {
     s32 i;
-    u8 framePad[88];
+    u8 framePad[80];
     f32 mat[16];
     f32 targetmat[16];
     f32 oldpos[3];
@@ -2681,43 +2708,116 @@ void ProcessEffects(void)
         }
 
         remaining = e->endtime - gClockTime;
-        if (flags & 0x20) {
-            mode = (flags & 0x10) ? 2 : 1;
-            radius = remaining;
-            if (radius > 1.0f) {
-                radius = 1.0f;
-            }
-        } else if (e->morphtime > 0.0f) {
-            mode = 4;
-            radius = 0.0f;
-        } else {
-            mode = 0;
-            radius = e->colrad;
-        }
+        {
+            f32 ageRadius;
+            f32 damageScale;
+            f32 lightScale;
 
-        if (flags & 0x800000) {
-            fade = 0.0f;
-        } else if (flags & 0x100000) {
-            fade = 3.0f + radius;
-        } else if (radius < 0.2f) {
-            fade = 0.2f;
-        } else {
-            fade = radius;
-        }
-        collisionDamage = e->damage * fade;
-        if (e->lightrad > 0.0f) {
-            f32 lightpos[3];
-            f32 intensity;
-            lightpos[0] = pos[0];
-            lightpos[1] = pos[1] + 1.0f;
-            lightpos[2] = pos[2];
-            intensity = fade * e->lightrad;
-            fn_800C0ADC(intensity, e->lightcolor[0]);
+            if (flags & 0x20) {
+                if (flags & 0x10) {
+                    mode = 2;
+                    ageRadius = remaining;
+                    if (ageRadius > 1.0f) {
+                        ageRadius = 1.0f;
+                    }
+                } else {
+                    mode = 1;
+                    ageRadius = (f32)(remaining + lbl_803481C0);
+                }
+            } else if (e->webtime > 0.0) {
+                mode = 4;
+                ageRadius = 0.0f;
+            } else {
+                mode = 0;
+                ageRadius = lbl_803481C8;
+            }
+
+            if (e->fxhit > 0 && EffectInfo[e->fxhit].atree != NULL &&
+                !(flags & 0x20) && !(e->damagetype & DMG_SUPER)) {
+                struct fxatreeheader* hdr =
+                    (struct fxatreeheader*)EffectInfo[e->fxhit].atree;
+                if ((f32)hdr->seq->numframes > 0.0f) {
+                    ageRadius = (f32)(lbl_803481D0 *
+                                      (f32)hdr->seq->numframes);
+                }
+            }
+
+            if (flags & 0x800000) {
+                fade = 0.0f;
+            } else if (e->damagetype & DMG_SUPER) {
+                fade = (f32)(lbl_80348160 + ageRadius);
+            } else if ((flags & 0x20) && ageRadius < 1.0f) {
+                fade = 1.0f;
+            } else if (ageRadius < lbl_803481D8) {
+                fade = lbl_803481E0;
+            } else {
+                fade = ageRadius;
+            }
+
+            if (mode == 2 || mode == 4) {
+                lightScale = 1.0f;
+                radius = e->damageradius;
+                damageScale = 1.0f;
+            } else if (mode == 0) {
+                lightScale = 1.0f;
+                radius = e->colrad;
+                damageScale = 1.0f;
+            } else {
+                f32 damageTime = e->maxtime - e->damagedelay;
+                f32 phase;
+
+                if (remaining > damageTime) {
+                    phase = 0.0f;
+                } else if (damageTime <= lbl_803481D0) {
+                    phase = 1.0f;
+                } else {
+                    phase = remaining / damageTime;
+                }
+                if (phase > 0.33) {
+                    damageScale =
+                        (f32)(lbl_80348120 * (phase - 0.33));
+                    radius =
+                        (f32)(e->damageradius *
+                              (0.33 + (1.0 - phase)));
+                } else {
+                    radius = 0.0f;
+                    damageScale = 0.0f;
+                }
+
+                if (damageTime <= lbl_803481D0) {
+                    lightScale = 1.0f;
+                } else if (remaining < damageTime) {
+                    f32 phaseIn = (f32)(1.0 - remaining / damageTime);
+                    if (phaseIn < lbl_803480B0) {
+                        lightScale = lbl_8034813C * phaseIn;
+                    } else {
+                        lightScale =
+                            (f32)(lbl_80348150 * (1.0 - phaseIn));
+                    }
+                } else {
+                    lightScale = 0.0f;
+                }
+            }
+            collisionDamage = e->damage * damageScale;
+
+            if (e->lightrad > 0.0f) {
+                f32 lightpos[3];
+                lightpos[0] = pos[0];
+                lightpos[1] = pos[1];
+                lightpos[2] = pos[2];
+                lightpos[1] += 1.0f;
+                fn_800C0ADC(lightpos, e->lightcolor,
+                            lightScale * (e->lightrad * lbl_80343DF4),
+                            lbl_80343DF8);
+            }
         }
         if (e->dmgdebug != NULL && (flags & 0x20)) {
-            f32 scale = 0.01f * radius;
+            f32 scale = (f32)(lbl_80348098 * radius);
             e->dmgdebug->scale[0] = scale;
-            e->dmgdebug->scale[1] = e->mindp < -1.0f ? scale * 0.5f : scale;
+            e->dmgdebug->scale[1] =
+                e->mindp <= lbl_803480A8
+                    ? scale
+                    : (f32)(lbl_803480B0 * scale);
             e->dmgdebug->scale[2] = scale;
         }
         if (e->morphtime > 0.0f && e->fxmorph <= 0 && remaining < e->morphtime) {
