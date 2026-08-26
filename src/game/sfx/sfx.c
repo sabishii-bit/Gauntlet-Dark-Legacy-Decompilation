@@ -2419,7 +2419,8 @@ extern s32 NextGridItem(void);
 extern void CritterCollideStart(f32 radius, f32* pos, s32 unused);
 extern void* CritterExpCollide();
 extern void* CritterMoveNodeCol();
-extern void* MissileCollidePlayer(f32* oldpos, f32* newpos, f32* hitpos);
+extern void* MissileCollidePlayer(f32 radius, f32* oldpos, f32* newpos,
+                                  f32* hitpos);
 extern s32 MissileCollideEnemy();
 extern s32 fn_8005FB48(f32 radius, f32* from, f32* to,
                        f32* limitPosition, s32 stopAtFirst);
@@ -2491,7 +2492,9 @@ struct fxplayer {
     /* 0x064 */ f32 effectpos[3];
     /* 0x070 */ u8 _070[0x78];
     /* 0x0E8 */ s32 state;
-    /* 0x0EC */ u8 _0ec[0x764];
+    /* 0x0EC */ u8 _0ec[0x34];
+    /* 0x120 */ u32 shield_flags;
+    /* 0x124 */ u8 _124[0x72c];
     /* 0x850 */ f32 radius;
     /* 0x854 */ f32 halfheight;
     /* 0x858 */ u8 _858[0x90];
@@ -2809,34 +2812,80 @@ void ProcessEffects(void)
                     }
                 }
             } else {
-                u8* player = (u8*)MissileCollidePlayer(oldpos, pos, hitpos);
-                if (player != NULL && *(s32*)player != e->owner - 1) {
-                    if ((e->flags & 0x200000) == 0) {
-                        dir[0] = e->vel[0];
-                        dir[1] = e->vel[1];
-                        dir[2] = e->vel[2];
-                        NormalVector(dir);
-                        hit = damage_player(*(s32*)player, collisionDamage, 1,
-                                            e->damagetype, dir);
-                        if (hit == 0) {
-                            hit = 2;
+                struct fxplayer* player =
+                    (struct fxplayer*)MissileCollidePlayer(
+                        (flags & 0x200) ? 0.5f : radius, oldpos, pos, hitpos);
+                if (player != NULL && player->index != e->owner - 1) {
+                    if ((e->flags & 0x200) == 0) {
+                        if (player->shield_flags & 0x01020000) {
+                            fn_8009EF7C(0, hitpos);
+                            e->flags |= 8;
+                            e->flags &= ~0xc00;
+                            e->vel[0] *= -1.0f;
+                            e->vel[1] *= -1.0f;
+                            e->vel[2] *= -1.0f;
+                            pos[0] += e->vel[0] * gClockFrameStep;
+                            pos[1] += e->vel[1] * gClockFrameStep;
+                            pos[2] += e->vel[2] * gClockFrameStep;
+                            if (e->flags & 0x20000) {
+                                CreateDirMatrix(mat, e->vel, NULL);
+                            }
+                            moved = 1;
+                            if (e->endtime > gClockTime + 1.0f) {
+                                e->endtime = gClockTime + 1.0f;
+                            } else {
+                                e->endtime -= 1.0f;
+                            }
+                            if (e->damage > 0.1f) {
+                                e->damage = 0.1f;
+                            }
                         } else {
-                            hit = 3;
+                            s32 playerHit;
+
+                            dir[0] = e->vel[0];
+                            dir[1] = e->vel[1];
+                            dir[2] = e->vel[2];
+                            NormalVector(dir);
+                            if (sMusicFadeBase >= player->fxhittime) {
+                                if (e->flags & 0x2000) {
+                                    playerHit = damage_player(
+                                        player->index, 0.0f, 0,
+                                        e->damagetype | DMG_STUN, dir);
+                                } else {
+                                    playerHit = damage_player(
+                                        player->index, collisionDamage, 1,
+                                        e->damagetype, dir);
+                                }
+                                if (e->owner >= 4096) {
+                                    CritterSetFxHitTime(
+                                        collisionDamage, player->index,
+                                        e->owner & 0xfff);
+                                }
+                                if (collisionDamage > 0.0f) {
+                                    if (e->owner > 0 &&
+                                        (e->flags & 0x00100000) &&
+                                        fade < 1.0f) {
+                                        fade = 1.0f;
+                                    }
+                                    player->fxhittime =
+                                        sMusicFadeBase + fade;
+                                }
+                            } else {
+                                playerHit = 0;
+                            }
+                            if ((e->flags & 0x00100000) == 0) {
+                                pos[0] = hitpos[0];
+                                pos[1] = hitpos[1];
+                                pos[2] = hitpos[2];
+                                moved = 1;
+                            }
+                            hit = playerHit == 0 ? 2 : 3;
                         }
-                    } else {
-                        fn_8009EF7C(0, hitpos);
-                        e->flags |= 8;
-                        e->flags &= ~0xc00;
-                        e->vel[0] *= -1.0f;
-                        e->vel[1] *= -1.0f;
-                        e->vel[2] *= -1.0f;
-                        pos[0] += e->vel[0] * gClockFrameStep;
-                        pos[1] += e->vel[1] * gClockFrameStep;
-                        pos[2] += e->vel[2] * gClockFrameStep;
-                        if (e->flags & 0x20000) {
-                            CreateDirMatrix(mat, e->vel, NULL);
-                        }
-                        moved = 1;
+                    } else if (e->maxtime - remaining > 0.1f) {
+                        hit = -1;
+                    }
+                    if (e->flags & 0x00100000) {
+                        hit = 0;
                     }
                 }
             }
