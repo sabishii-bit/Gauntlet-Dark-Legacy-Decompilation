@@ -1125,22 +1125,35 @@ s32 joyGetStatus(s32 pad, u8* buf)
 }
 #pragma dont_inline off
 
-#define SET_CLAMPED_BUTTON(idx, mode, expr)         \
-    {                                               \
-        s32 t = (expr);                             \
-        buf[idx] = (mode);                          \
-        buf[(idx) + 1] =                            \
-            (t > 0) ? ((t < 0xFF) ? t : 0xFF) : 0; \
+#define SET_CLAMPED_BUTTON(idx, mode, expr) \
+    {                                       \
+        s32 t = (expr);                     \
+        s32 value;                          \
+        buf[idx] = (mode);                  \
+        if (t <= 0) {                       \
+            value = 0;                      \
+        } else if (t >= 0xFF) {             \
+            value = 0xFF;                   \
+        } else {                            \
+            value = (u8)t;                  \
+        }                                   \
+        buf[(idx) + 1] = value;             \
     }
 
 #define SET_PBTN(idx, value) SET_CLAMPED_BUTTON(idx, 3, (value))
 #define SET_ABTN(idx, value) SET_CLAMPED_BUTTON(idx, 3, (value))
-#define SET_DBTN(idx, byt, bit)              \
-    buf[idx] = 1;                            \
-    if (((byt) & (bit)) != 0) {              \
-        buf[(idx) + 1] = 0;                  \
-    } else {                                 \
-        buf[(idx) + 1] = 0xFF;               \
+#define SET_DBTN(idx, byt, bit)                          \
+    {                                                   \
+        s32 down = ((byt) & (bit));                     \
+        s32 value;                                      \
+        down = !down;                                   \
+        buf[idx] = 1;                                   \
+        if (down) {                                     \
+            value = 0xFF;                               \
+        } else {                                        \
+            value = 0;                                  \
+        }                                               \
+        buf[(idx) + 1] = value;                         \
     }
 
 /* 0x80031E74  read one pad via scePadRead and translate the PS2-format
@@ -1149,7 +1162,7 @@ s32 joyGetStatus(s32 pad, u8* buf)
 #pragma dont_inline on
 s32 joyReadPad(s32 pad, u8* buf)
 {
-    s32 slot = pad & 3;
+    u32 slot = pad & 3;
     s32 port = pad / 4;
     u8 rdata[32];
 
@@ -1169,11 +1182,13 @@ s32 joyReadPad(s32 pad, u8* buf)
         return 0;
     }
     /* terminal id must stay stable frame to frame */
-    if (lbl_80240AD8[pad] == 0) {
+    if (lbl_80240AD8[pad] != 0) {
+        if (rdata[1] != lbl_80240AD8[pad]) {
+            lbl_80240AD8[pad] = 0;
+            return -1;
+        }
+    } else {
         lbl_80240AD8[pad] = rdata[1];
-    } else if ((u32)rdata[1] != (u32)lbl_80240AD8[pad]) {
-        lbl_80240AD8[pad] = 0;
-        return -1;
     }
     if (buf == NULL) {
         return 1;
