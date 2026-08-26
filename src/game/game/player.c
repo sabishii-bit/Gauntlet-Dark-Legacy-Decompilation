@@ -4385,9 +4385,10 @@ void DoPlayerTexMods(s32 i) {
 
 /* One-time init: per-player HUD blits, got-it table, icon textures.   */
 void init_players(void) {
-    s32 i;
-    u32 tex;
     GotIt* g;
+    s32 i;
+    s32 j;
+    u32 tex;
 
     lbl_80344B24 = -1;
     it_blit = NULL;
@@ -4415,9 +4416,9 @@ void init_players(void) {
     welcome_timer = 0;
     alpha = 0;
     key_blit_idx = (s32)MBOX_FindTexture("KEY_ICON", NULL);
-    for (i = 0; i < 5; i++) {
-        tex = (u32)MBOX_FindTexture(lbl_8011FCD4[i], NULL);
-        potionicon_tab[i] = (void*)tex;
+    for (j = 0; j < 5; j++) {
+        tex = (u32)MBOX_FindTexture(lbl_8011FCD4[j], NULL);
+        potionicon_tab[j] = (void*)tex;
     }
 }
 
