@@ -3939,10 +3939,17 @@ typedef struct MissileSpread {
 extern MissileSpread lbl_80111DE0, lbl_80111DF4;
 extern void* EffectInfo[];
 extern void *BossAcidTree, *BossElecTree, *BallistaTree;
+typedef struct PlayerMissileAnode {
+    s32 node;
+} PlayerMissileAnode;
+typedef struct PlayerMissileAtree {
+    PlayerMissileAnode* root;
+    u8 _pad04[0x44];
+} PlayerMissileAtree;
 typedef struct PlayerMissileEffect {
     u8 _pad00[0x14];
     void* node;
-    u8 atree[0x48];
+    PlayerMissileAtree atree;
     u8 _pad60[8];
     f32 endtime;
     u8 _pad6C[0x7C];
@@ -4157,16 +4164,17 @@ s32 PlayerStartMissile(s32* player, f32* direction, u32 damageType, s32 mode,
                         if (sub == fx) {
                             DeleteEffect(sub, 1);
                             fx = -1;
-                        } else if (c340 < (f64)Effects[fx].endtime) {
-                            if (sub >= 0) {
-                                Effects[fx].childfx = (s16)sub;
-                                MBNodeSetParent(*(s32*)Effects[sub].atree,
-                                                *(s32*)Effects[fx].atree);
-                            }
                         } else {
-                            DeleteEffect(fx, 1);
-                            DeleteEffect(sub, 1);
-                            fx = -1;
+                            PlayerMissileEffect* effect = &Effects[fx];
+                            if ((f64)effect->endtime <= c340) {
+                                DeleteEffect(fx, 1);
+                                DeleteEffect(sub, 1);
+                                fx = -1;
+                            } else if (sub >= 0) {
+                                effect->childfx = (s16)sub;
+                                MBNodeSetParent(Effects[sub].atree.root->node,
+                                                effect->atree.root->node);
+                            }
                         }
                     }
                 }
