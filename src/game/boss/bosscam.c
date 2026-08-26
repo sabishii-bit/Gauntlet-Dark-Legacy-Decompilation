@@ -1465,19 +1465,11 @@ static void GetBossAvgPos(f32* out, f32 t, f32* p4, f32* p5, s32 mode) {
             f32* hp = &hi[i];
             f32* lp;
             h = *hp;
-            if (h < b) {
-                goto keep_h;
-            }
-            h = b;
-        keep_h:
+            h = h < b ? h : b;
             *hp = h;
             lp = &lo[i];
             l = *lp;
-            if (l > b) {
-                goto keep_l;
-            }
-            l = b;
-        keep_l:
+            l = l > b ? l : b;
             *lp = l;
             out[i] = lbl_80345BA8 * (*hp + *lp);
         }
