@@ -1475,7 +1475,6 @@ int ControllerMessageBox(s32 mask, s32 msg, s32 count, s32 sound)
     s32 end;
     s32 ticks;
     s32 i;
-    s32 pos;
     s32 quiet;
     s32 w;
     s32 h;
@@ -1493,13 +1492,12 @@ int ControllerMessageBox(s32 mask, s32 msg, s32 count, s32 sound)
 
     maskSave = mask;
     busySave = gGameBusy;
-    pos = count;
-    if (pos < 0) {
+    if (count < 0) {
         ticks = 0;
         end = ScrollTextNum(0, msg) - 1;
     } else {
-        ticks = pos;
-        end = pos;
+        ticks = count;
+        end = count;
     }
     EnablePlayerControls();
     for (i = 0; i < 4; i++) {
@@ -1515,9 +1513,9 @@ int ControllerMessageBox(s32 mask, s32 msg, s32 count, s32 sound)
     blit = MBNewBlit(lbl_80343C88, 0, 0);
     bbl = MBCreateBlit(0, lbl_80344E44, 190, 8, 20, 20);
     e30 = lbl_80240E30;
-    for (pos = ticks; pos <= end; pos++) {
-        w = ScrollTextWidth(0, msg, pos, lbl_80347378) + 96;
-        h = ScrollTextHeight(0, msg, pos, 4, lbl_80347378) + 96;
+    for (count = ticks; count <= end; count++) {
+        w = ScrollTextWidth(0, msg, count, lbl_80347378) + 96;
+        h = ScrollTextHeight(0, msg, count, 4, lbl_80347378) + 96;
         if (w < minw) {
             boxw = minw;
         } else if (w > 512) {
@@ -1530,7 +1528,8 @@ int ControllerMessageBox(s32 mask, s32 msg, s32 count, s32 sound)
         yy = y + 32;
         flags = 0x160C03;
         ticks = 15;
-        mbBlitProject(blit, boxw, h);
+        w = boxw;
+        mbBlitProject(blit, w, h);
         mbBlitCalcWidth(blit, x, y, lbl_803473C8);
     frame_top:
             serve_busy(-5);
@@ -1547,7 +1546,7 @@ int ControllerMessageBox(s32 mask, s32 msg, s32 count, s32 sound)
             }
             ScreenSaver();
             AudioMusicVolUpdate();
-            DrawScrollText(0, -256, yy, 4, -1, flags, msg, pos);
+            DrawScrollText(0, -256, yy, 4, -1, flags, msg, count);
             ty = gDrawTextY;
             mbBlitInit3414(bbl, 0);
             mbBlitCalcWidth(bbl, 190, ty + 8, lbl_803473C8);
@@ -1598,7 +1597,7 @@ int ControllerMessageBox(s32 mask, s32 msg, s32 count, s32 sound)
         serve_busy(-1);
         ClockOncePerFrame();
         sndFxQueUpdate();
-        DrawScrollText(0, -256, yy, 4, -1, flags, msg, pos - 1);
+        DrawScrollText(0, -256, yy, 4, -1, flags, msg, count - 1);
         if (ServeFireScroll() == 0) {
             break;
         }
@@ -1607,11 +1606,11 @@ int ControllerMessageBox(s32 mask, s32 msg, s32 count, s32 sound)
     MBRemoveBlit(blit);
     MBUnlockMessages(gModalRenderDepth - 1);
     gModalRenderDepth--;
+    lbl_80344E04 = 0;
+    gGameBusy = busySave;
     for (i = 0; i < 4; i++) {
         *(s16*)(gPlayers + i * 13148 + 2406) = 0;
     }
-    lbl_80344E04 = 0;
-    gGameBusy = busySave;
     ClearAllPlayerControls(4);
     LoadVU1GameLogic();
     return 0;
