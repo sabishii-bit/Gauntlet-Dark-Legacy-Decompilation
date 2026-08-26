@@ -684,33 +684,34 @@ s32 TriLineCol(WorldTri* tri, Vec* out) {
 /* on the LineLineDist3D2D edge tests and the frame transforms.        */
 /* ------------------------------------------------------------------ */
 f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
-    Vec tmp2;
-    u8 padA[8];
-    Vec tmp1;
-    u8 padB[4];
-    Vec ex1;
-    u8 padC[4];
-    Vec ex0;
-    u8 padD[4];
-    Vec zero2;
-    u8 padE[8];
-    Vec o2;
-    u8 padF[4];
-    Vec v1;
-    u8 padG[4];
-    Vec tpA;
-    u8 padH[4];
-    Vec tpB;
-    u8 padI[4];
+    u8 highFrame[24];
     Vec norm;
-    f32 zero;
-    f32 px;
-    f32 pz;
-    f32 dist;
+    u8 padI[4];
+    Vec tpB;
+    u8 padH[4];
+    Vec tpA;
+    u8 padG[4];
+    Vec v1;
+    u8 padF[4];
+    Vec o2;
+    u8 padE[8];
+    Vec zero2;
+    u8 padD[4];
+    Vec ex0;
+    u8 padC[4];
+    Vec ex1;
+    u8 padB[4];
+    Vec tmp1;
+    u8 padA[8];
+    Vec tmp2;
     f32 r2;
+    f32 dist;
     f32 cx;
     f32 cy;
     f32 cz;
+    f32 px;
+    f32 pz;
+    f32 zero;
     f32 dx;
     f32 dz;
     f32 num;
@@ -772,9 +773,9 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
             pz = tpB.z;
         }
     }
-    zero2.x = zero;
-    zero2.y = zero;
-    zero2.z = zero;
+    zero2.x = lbl_80345D50;
+    zero2.y = lbl_80345D50;
+    zero2.z = lbl_80345D50;
     ex0.x = (f32)((f64)tri->x0 * 0.015625);
     ex0.z = (f32)((f64)tri->z0 * 0.015625);
     ex1.x = (f32)((f64)tri->x1 * 0.015625);
@@ -814,7 +815,7 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
             }
         } else {
             o2.x = px;
-            o2.y = zero;
+            o2.y = lbl_80345D50;
             o2.z = pz;
         }
     } else {
@@ -873,12 +874,12 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
             o2.x = tpB.x;
             o2.y = tpB.y;
             o2.z = tpB.z;
-            o2.y = zero;
+            o2.y = lbl_80345D50;
         } else if (okA && (side & 2)) {
             o2.x = tpA.x;
             o2.y = tpA.y;
             o2.z = tpA.z;
-            o2.y = zero;
+            o2.y = lbl_80345D50;
         } else {
             dist = LineLineDist3D2D(&tpB, &tpA, &o2, &zero2, &ex0, 0);
             d = LineLineDist3D2D(&tpB, &tpA, &tmp2, &ex0, &ex1, 0);
