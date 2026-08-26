@@ -2488,7 +2488,7 @@ s32 fn_80051480(f32* pos)
     u8* node = sMilestones;
     s32 i;
 
-    for (i = 0; i < sNumMilestones; i++) {
+    for (i = 0; i < sNumMilestones; i++, node += 104) {
         f32 d;
         f32 dx;
         f32 dy;
@@ -2513,7 +2513,6 @@ s32 fn_80051480(f32* pos)
             best_idx = i;
             best_dist = d;
         }
-        node += 104;
     }
     return best_idx;
 }
