@@ -3359,8 +3359,10 @@ s32 CritterGolemAI(Critter *c)
         c->curmove = 0;
     }
     anim32 = (s32)*(f32 *)((u8 *)c + 0x90);
-    move = &(*(CritterMove **)((u8 *)c->hdr + 0x124))[c->curmove];
-    if (move->type == 0x11) {
+    move = *(CritterMove **)((u8 *)c->hdr + 0x124);
+    move += c->curmove;
+    switch (move->type) {
+    case 0x11:
         if (AnimDone(c->sound)) {
             CritterDropItem(c);
             CritterDelInst(c);
@@ -3376,6 +3378,7 @@ s32 CritterGolemAI(Critter *c)
                 }
             }
         }
+        break;
     }
 
     if (move->type == 0x11 || lbl_803447DC == 0) {
