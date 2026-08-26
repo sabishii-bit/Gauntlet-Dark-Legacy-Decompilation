@@ -1974,12 +1974,23 @@ void CritterInsertTarget(CritterTargetState *state, CritterTargetRecord *target)
         state->records[insert] = *target;
     }
 }
-#pragma dont_inline on
+
+static inline f32 CritterCalcTargetScore(f32 distance, f32 dot, f32 *absolute)
+{
+    if (dot > lbl_803464F8) {
+        *absolute = dot;
+        *(u32 *)absolute &= 0x7FFFFFFF;
+        return distance / *absolute;
+    }
+    return lbl_8034654C * distance;
+}
+
 /* 0x800372A0 -- calculate range, facing and score for a world-space target. */
 f32 CritterCalcTarget(Critter *c, f32 *moveTarget, f32 *target,
                       CritterTargetRecord *record)
 {
     f32 forward[3];
+    u8 vectorGap[4];
     f32 delta[3];
     f32 distance;
     f32 vertical;
@@ -1987,6 +1998,7 @@ f32 CritterCalcTarget(Critter *c, f32 *moveTarget, f32 *target,
     f32 score;
     f32 absdot;
     f32 absdot2;
+    u8 unused[16];
 
     if (moveTarget != NULL) {
         if (*(f32 *)((u8 *)c + 0x110) < moveTarget[4]) {
@@ -2015,7 +2027,8 @@ f32 CritterCalcTarget(Critter *c, f32 *moveTarget, f32 *target,
         if (vertical < lbl_80346470) {
             vertical = -vertical;
         }
-        if (moveTarget[7] > lbl_80346488 && vertical > moveTarget[7]) {
+        if (moveTarget[7] > *(volatile f64 *)&lbl_80346488 &&
+            vertical > moveTarget[7]) {
             return lbl_80346548;
         }
         YawVec3((f32 *)((u8 *)c + 0x2C), forward, -moveTarget[2]);
@@ -2025,26 +2038,14 @@ f32 CritterCalcTarget(Critter *c, f32 *moveTarget, f32 *target,
         if (dot < moveTarget[3]) {
             return lbl_80346524;
         }
-        if (dot > lbl_803464F8) {
-            absdot = dot;
-            *(u32 *)&absdot &= 0x7FFFFFFF;
-            score = distance / absdot;
-        } else {
-            score = lbl_8034654C * distance;
-        }
+        score = CritterCalcTargetScore(distance, dot, &absdot);
     } else {
         forward[0] = c->mtx[2][0];
         forward[1] = lbl_80346470;
         forward[2] = c->mtx[2][2];
         SlowNormalVector(forward);
         dot = delta[0] * forward[0] + delta[2] * forward[2];
-        if (dot > lbl_803464F8) {
-            absdot2 = dot;
-            *(u32 *)&absdot2 &= 0x7FFFFFFF;
-            score = distance / absdot2;
-        } else {
-            score = lbl_8034654C * distance;
-        }
+        score = CritterCalcTargetScore(distance, dot, &absdot2);
     }
     if (record != NULL) {
         f32 *out = (f32 *)record;
@@ -2057,8 +2058,6 @@ f32 CritterCalcTarget(Critter *c, f32 *moveTarget, f32 *target,
     }
     return score;
 }
-#pragma dont_inline off
-
 static inline s32 CritterMoveNoHit(Critter *c, s32 id)
 {
     Critter *relative;
