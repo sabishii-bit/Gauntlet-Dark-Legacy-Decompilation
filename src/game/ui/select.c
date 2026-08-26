@@ -2030,34 +2030,45 @@ int verify_vmu_file_ok(u8* pl, s32 v)
     return 1;
 }
 
+typedef struct VmuMenuEntry {
+    char* text;
+    s32 id;
+    s32 type;
+    u8 _pad0C[20];
+    s32 state;
+} VmuMenuEntry;
+
 void setup_vmu_entries(void)
 {
+    char* slotFormat = lbl_80114718;
     u8* base = lbl_80284878;
+    s32 idx = 0;
+    s32 n = 0;
     char* buf = (char*)(base + 0x744);
-    int idx = 0;
-    int n = 0;
-
+    VmuMenuEntry* entry;
+    s32* cardPresent = &lbl_80344A14;
     if (lbl_80344A18 == 3) {
         if (lbl_80344610 == 2) {
-            sprintf(buf, lbl_80114718, 1, (s8)lbl_80343DEC);
+            sprintf(buf, slotFormat, n + 1, (s8)lbl_80343DEC);
         } else {
             if (n > 0) {
                 goto end;
             }
-            sprintf(buf, lbl_80114724, 1, 0);
+            sprintf(buf, lbl_80114724, n + 1, idx);
         }
-        *(u32*)(base + 0x720) = (u32)buf;
-        *(s32*)(base + 0x724) = 1000;
-        if (lbl_80344A14 == 1) {
-            *(s32*)(base + 0x740) = 0;
+        entry = (VmuMenuEntry*)(base + 0x720);
+        entry->text = buf;
+        entry->id = 1000;
+        if (*cardPresent == 1) {
+            entry->state = 0;
         } else {
-            *(s32*)(base + 0x740) = -1;
+            entry->state = -1;
         }
-        *(s32*)(base + 0x728) = 4;
+        entry->type = 4;
         idx = 1;
     }
 end:
-    *(s32*)(base + idx * 36 + 0x720) = 0;
+    ((VmuMenuEntry*)(base + 0x720))[idx].text = 0;
 }
 
 static s32 sel_set_choice(s32 player, s32 mode);
