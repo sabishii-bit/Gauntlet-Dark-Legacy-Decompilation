@@ -1585,7 +1585,7 @@ s32 pbDiagDrawMenu(void)
         ret = pbDiagCtrlInt(0, 0, old, 1, 0, 5);
         gDiag_DC = ret;
         if (ret != old) {
-            row = (char*)gd + gDiag_DC * 12;
+            row = (char*)gd + *(volatile s32*)&gDiag_DC * 12;
             printf(strs + 764, row + 156);
         }
         x = 0;
@@ -1614,8 +1614,7 @@ s32 pbDiagDrawMenu(void)
         }
         gDiag_E4 = gDiag_E0;
         if (b[4] & 0x00100000) {
-            gDiag_D8 = gDiag_D8 + 1;
-            if ((u32)gDiag_D8 >= 9) {
+            if ((u32)(gDiag_D8 = gDiag_D8 + 1) >= 9) {
                 gDiag_D8 = 0;
             }
         }
