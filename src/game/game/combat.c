@@ -3546,12 +3546,6 @@ s32 DamageColor(s32 type)
     }
 }
 
-static inline f32 LineCylinderAbs(f32 value)
-{
-    *(u32*)&value &= 0x7FFFFFFF;
-    return value;
-}
-
 s32 LineCylinderCollide(f32* center, f32 radius, f32 halfHeight,
                         f32* from, f32* to, f32* hit, s32 directional)
 {
@@ -3561,8 +3555,9 @@ s32 LineCylinderCollide(f32* center, f32 radius, f32 halfHeight,
     union {
         f32 value;
         u32 bits;
-    } absDeltaY;
+    } absDeltaY[4];
     f32 distance;
+    f32 absoluteY;
 
     distance = PointLineColl(center, from, to, closest);
     if (distance > radius + halfHeight) {
@@ -3572,8 +3567,10 @@ s32 LineCylinderCollide(f32* center, f32 radius, f32 halfHeight,
     delta[1] = closest[1] - center[1];
     delta[2] = closest[2] - center[2];
     distance = fqdist(delta[0], delta[2]);
-    absDeltaY.value = LineCylinderAbs(delta[1]);
-    if (distance > radius || absDeltaY.value > halfHeight) {
+    absDeltaY[1].value = delta[1];
+    absDeltaY[1].bits &= 0x7FFFFFFF;
+    absoluteY = absDeltaY[1].value;
+    if (distance > radius || absoluteY > halfHeight) {
         return 0;
     }
 
