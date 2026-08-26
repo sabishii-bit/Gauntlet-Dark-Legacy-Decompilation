@@ -4451,9 +4451,10 @@ void move_logic22(s32 index)
     Enemy* e;
     s32 it = lbl_80344748;
     s32 flee;
+    u8 _pad22_hi[52];
     f32 buf1[3];
     f32 buf2[3];
-    u8 _pad22[64];
+    u8 _pad22_lo[12];
 
     e0 = row22 + 3608;
     e = (Enemy*)(u8*)e0;
