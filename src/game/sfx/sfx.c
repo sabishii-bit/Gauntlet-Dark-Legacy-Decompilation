@@ -2419,9 +2419,10 @@ extern void CritterCollideStart(f32 radius, f32* pos, s32 unused);
 extern void* CritterExpCollide();
 extern void* MissileCollidePlayer(f32* oldpos, f32* newpos, f32* hitpos);
 extern s32 MissileCollideEnemy();
-extern s32 WeaponWallCollide(f32* oldpos, f32* newpos, f32* hitpos);
+extern void* WeaponWallCollide(f32 radius, f32* oldpos, f32* newpos,
+                               f32* hitpos);
 extern u32 WorldObjGetAllFlags(void* object);
-extern void WorldObjectExplode(void* object);
+extern void WorldObjectExplode(void* object, f32* hitpos);
 extern f32 FloorPos(f32 fallback, f32 radius, f32* position, s32 mode);
 extern void ReflectVector(f32* vector, f32* normal, f32* out);
 extern void BossGenerateEnemy(f32* matrix);
@@ -2441,10 +2442,51 @@ extern void MBPsysFirework();
 extern void DmgFxAdd(s32 idx);
 extern u8 gEnemies[];
 extern s32 lbl_8034466C;
+extern f32 sMusicFadeBase;
+extern u8 lbl_8023CA98[];
+extern u8 lbl_8023CB28[];
+
+struct fxworldobj {
+    /* 0x00 */ u8 _00[0x10];
+    /* 0x10 */ u32 flags;
+};
+
+/* The item pool is a fixed array of 0xF0-byte records.  Keep this local view
+ * complete enough for ProcessEffects' direct item-grid collision pass and the
+ * following SfxSkipItem policy helper. */
+struct fxitemdef {
+    /* 0x00 */ s32 type;
+    /* 0x04 */ s32 subtype;
+    /* 0x08 */ s16 coltype;
+    /* 0x0A */ s16 colflags;
+    /* 0x0C */ f32 radius;
+    /* 0x10 */ u8 _10[0x40];
+};
+struct fxworldinfo {
+    /* 0x00 */ u8 _00[0x68];
+    /* 0x68 */ struct fxitemdef* itemdefs;
+    /* 0x6C */ u8 _6c[0x38];
+};
+struct fxitem {
+    /* 0x00 */ struct fxitemdef* def;
+    /* 0x04 */ u8 _04[0x50];
+    /* 0x54 */ f32 pos[3];
+    /* 0x60 */ u8 _60[0x64];
+    /* 0xC4 */ s16 active;
+    /* 0xC6 */ u8 _c6[9];
+    /* 0xCF */ s8 armor;
+    /* 0xD0 */ s16 health;
+    /* 0xD2 */ s16 gridnext;
+    /* 0xD4 */ f32 visrad;
+    /* 0xD8 */ f32 fxhittime;
+    /* 0xDC */ s16 data_type;
+    /* 0xDE */ u8 data[0x12];
+};
+extern struct fxworldinfo gWorldInfo;
+extern struct fxitem* sItems;
 
 void ChangeEffect(s32 idx, s32 type, u32 newflags);
 static void UpdateFXStreak(Effect* e, f32* pos);
-struct fxitem;
 static s32 SfxSkipItem_80096FF4(struct fxitem* item, u32 a, u32 b);
 
 /* Advance every live effect.  The Xbox names for the principal locals are
@@ -2453,7 +2495,7 @@ static s32 SfxSkipItem_80096FF4(struct fxitem* item, u32 a, u32 b);
 void ProcessEffects(void)
 {
     s32 i;
-    u8 framePad[304];
+    u8 framePad[184];
     f32 mat[16];
     f32 targetmat[16];
     f32 oldpos[3];
@@ -2465,6 +2507,7 @@ void ProcessEffects(void)
     f32 radius;
     f32 remaining;
     f32 fade;
+    f32 collisionDamage;
 
     (void)framePad;
     if (gGameBusy != 0 || gGameplayPauseTimer != 0) {
@@ -2478,6 +2521,8 @@ void ProcessEffects(void)
         s32 hit;
         s32 mode;
         s32 j;
+        s32 collision;
+        s32 oldDebugCount;
 
         if (e->endtime <= 0.0f || e->node == NULL) {
             continue;
@@ -2486,6 +2531,7 @@ void ProcessEffects(void)
         moved = 0;
         hit = 0;
         mode = 0;
+        collision = 0;
         GetWorldMat(e->node, mat, NULL);
         oldpos[0] = mat[12];
         oldpos[1] = mat[13];
@@ -2573,6 +2619,7 @@ void ProcessEffects(void)
         } else {
             fade = radius;
         }
+        collisionDamage = e->damage * fade;
         if (e->lightrad > 0.0f) {
             f32 lightpos[3];
             f32 intensity;
@@ -2633,6 +2680,7 @@ void ProcessEffects(void)
         dir[1] = pos[1] - oldpos[1];
         dir[2] = pos[2] - oldpos[2];
         travel = NormalVector(dir);
+        oldDebugCount = e->debugcount;
 
         /* Direct player hits.  The target scans the four fixed player
          * records before using its swept-missile helper. */
@@ -2650,10 +2698,10 @@ void ProcessEffects(void)
                     delta[0] = dir[0] * 0.25f;
                     delta[1] = 0.0f;
                     delta[2] = dir[2] * 0.25f;
-                    hit = damage_player(*(s32*)player, e->damage, 1,
+                    hit = damage_player(*(s32*)player, collisionDamage, 1,
                                         e->damagetype, delta);
                     if (e->owner >= 4096) {
-                        CritterSetFxHitTime(e->damage, *(s32*)player,
+                        CritterSetFxHitTime(collisionDamage, *(s32*)player,
                                            e->owner & 0xfff);
                     }
                     if (hit != 0) {
@@ -2670,7 +2718,7 @@ void ProcessEffects(void)
                         dir[1] = e->vel[1];
                         dir[2] = e->vel[2];
                         NormalVector(dir);
-                        hit = damage_player(*(s32*)player, e->damage, 1,
+                        hit = damage_player(*(s32*)player, collisionDamage, 1,
                                             e->damagetype, dir);
                         if (hit == 0) {
                             hit = 2;
@@ -2712,7 +2760,7 @@ void ProcessEffects(void)
                 }
                 e->debugcount++;
                 hit = damage_enemy(enemy, e->owner - 1, e->damagetype, 0,
-                                   enemyDelta, e->damage, 2);
+                                   enemyDelta, collisionDamage, 2);
                 if (hit >= 0) {
                     if (e->owner > 0) {
                         PlayerDamagedEnemy(gPlayers + (e->owner - 1) * 13148,
@@ -2734,7 +2782,7 @@ void ProcessEffects(void)
                     NormalVector(dir);
                     e->debugcount++;
                     hit = damage_enemy(enemy, e->owner - 1, e->damagetype,
-                                       0, dir, e->damage, 2);
+                                       0, dir, collisionDamage, 2);
                     if (hit >= 0) {
                         if (e->owner > 0) {
                             PlayerDamagedEnemy(gPlayers + (e->owner - 1) * 13148,
@@ -2767,61 +2815,184 @@ void ProcessEffects(void)
                 dir[2] = e->vel[2];
                 NormalVector(dir);
                 hit = CritterDamage(critter, e->owner - 1, e->damagetype,
-                                    0, dir, e->damage, 2);
+                                    0, dir, collisionDamage, 2);
                 hit = hit < 0 ? 2 : (hit == 0 ? 2 : 3);
             }
         }
 
         if ((flags & 2) && hit == 0 && radius > 0.0f) {
             struct fxitem* item;
-            item = (struct fxitem*)fn_8005ED44(radius, oldpos, pos, hitpos,
-                                               1, e->owner - 1);
-            if (item != NULL) {
-                s32 skip = SfxSkipItem_80096FF4(item, e->flags,
-                                                (u32)e->damagetype);
-                if (skip != 1) {
-                    f32 itemHit = fn_8005C1DC(e->damage, item,
+            if (mode != 0) {
+                f32 itemRadius = radius;
+                s32 itemIndex;
+
+                if (e->damagetype & DMG_EXPLODE) {
+                    itemRadius -= 5.0;
+                    if (itemRadius < 0.0f) {
+                        itemRadius = 0.0f;
+                    }
+                }
+                if (itemRadius > 0.0f) {
+                    StartEnemyGrid(pos, itemRadius);
+                    while ((itemIndex = NextGridEnemy()) >= 0) {
+                        f32 itemDist;
+                        f32 itemHit;
+                        f32 itemMindp;
+                        s32 skip;
+
+                        item = &sItems[itemIndex];
+                        if (item->def->type == 2 && item->data_type >= 0 &&
+                            gWorldInfo.itemdefs[item->data_type].type == 4) {
+                            skip = 0;
+                        } else {
+                            skip = SfxSkipItem_80096FF4(
+                                item, e->flags, (u32)e->damagetype);
+                        }
+                        if (skip == 1) {
+                            continue;
+                        }
+                        if (!(e->flags & DMG_NOHITFX) &&
+                            sMusicFadeBase < item->fxhittime) {
+                            continue;
+                        }
+
+                        normal[0] = item->pos[0] - pos[0];
+                        normal[1] = item->pos[1] - pos[1];
+                        normal[2] = item->pos[2] - pos[2];
+                        itemDist = NormalVector2D(normal);
+                        if (itemDist > itemRadius + item->def->radius) {
+                            continue;
+                        }
+                        if (e->mindp > -1.0f) {
+                            itemMindp = e->mindp;
+                            if (itemDist <
+                                0.2f * (itemRadius + item->def->radius)) {
+                                itemMindp *= 0.5f;
+                            }
+                            if (normal[0] * dir[0] +
+                                    normal[2] * dir[2] <
+                                itemMindp) {
+                                continue;
+                            }
+                        }
+                        if (fn_8005F0F4(item, oldpos, pos, hitpos,
+                                       itemRadius, itemRadius) < 0.0f) {
+                            continue;
+                        }
+                        if ((e->damagetype & DMG_HEAL) && e->owner > 0) {
+                            fn_8005BA1C(item,
+                                       gPlayers + (e->owner - 1) * 13148,
+                                       fade);
+                        }
+                        if (skip != 0) {
+                            continue;
+                        }
+                        e->debugcount++;
+                        itemHit = fn_8005C1DC(item, collisionDamage,
                                              (u32)e->damagetype,
-                                             e->owner - 1, hitpos);
-                    e->debugcount++;
-                    if (itemHit >= 0.0f && e->owner > 0) {
-                        PlayerDamagedItem(gPlayers + (e->owner - 1) * 13148,
-                                          item, itemHit == 0.0f);
+                                             e->owner - 1);
+                        if (itemHit >= 0.0f && e->owner > 0) {
+                            PlayerDamagedItem(
+                                gPlayers + (e->owner - 1) * 13148, item,
+                                itemHit == 0.0f);
+                        }
+                        if (collisionDamage > 0.0f &&
+                            !(e->damagetype & DMG_HEAL)) {
+                            item->fxhittime =
+                                sMusicFadeBase + e->damagedelay;
+                        }
                     }
-                    if (itemHit < -1.0f) {
-                        hit = -1;
-                    } else if (itemHit < 0.0f) {
-                        hit = 1;
+                }
+            } else {
+                item = (struct fxitem*)fn_8005ED44(
+                    radius, oldpos, pos, hitpos, 1, e->owner - 1);
+                if (item != NULL) {
+                    s32 skip = SfxSkipItem_80096FF4(
+                        item, e->flags, (u32)e->damagetype);
+                    if (e->damagetype & DMG_POISONGAS) {
+                        skip = 1;
+                    }
+                    if (skip == 0) {
+                        f32 itemHit;
+                        if (mode == 0) {
+                            pos[0] = hitpos[0];
+                            pos[1] = hitpos[1];
+                            pos[2] = hitpos[2];
+                            moved = 1;
+                        }
+                        e->debugcount++;
+                        itemHit = fn_8005C1DC(item, collisionDamage,
+                                             (u32)e->damagetype,
+                                             e->owner - 1);
+                        if (itemHit >= 0.0f && e->owner > 0) {
+                            PlayerDamagedItem(
+                                gPlayers + (e->owner - 1) * 13148, item,
+                                itemHit == 0.0f);
+                        }
+                        if (collisionDamage > 0.0f &&
+                            !(e->damagetype & DMG_HEAL)) {
+                            item->fxhittime =
+                                sMusicFadeBase + e->damagedelay;
+                        }
+                        if (itemHit < -1.0f) {
+                            hit = -1;
+                        } else if (itemHit < 0.0f) {
+                            hit = 1;
+                        } else {
+                            hit = itemHit == 0.0f ? 3 : 2;
+                        }
                     } else {
-                        hit = itemHit == 0.0f ? 3 : 2;
+                        hit = 1;
                     }
-                    if (mode == 0) {
-                        pos[0] = hitpos[0];
-                        pos[1] = hitpos[1];
-                        pos[2] = hitpos[2];
-                        moved = 1;
+                    if (mode != 0 && item->def->type == 10 &&
+                        item->def->subtype == 41 && item->health > 0) {
+                        e->fxmorph = -1;
+                    } else if (mode != 0) {
+                        hit = 0;
                     }
                 }
             }
         }
 
         if ((flags & 4) && hit == 0) {
-            s32 wall = WeaponWallCollide(oldpos, pos, hitpos);
-            if (wall != 0) {
+            void* wall = WeaponWallCollide(0.5f * radius, oldpos, pos,
+                                           hitpos);
+            if (wall != NULL) {
+                u32 wallFlags = WorldObjGetAllFlags(wall);
+
+                if (*(s32*)(lbl_8023CB28 + 68) != 0) {
+                    collision = 1;
+                }
                 pos[0] = hitpos[0];
                 pos[1] = hitpos[1];
                 pos[2] = hitpos[2];
                 moved = 1;
-                if (!(e->flags & 0x200000)) {
-                    hit = 1;
-                } else {
-                    ReflectVector(e->vel, normal, e->vel);
+                if (((struct fxworldobj*)wall)->flags & 4) {
+                    pos[1] += 2.0;
+                }
+                if ((wallFlags & 0xF0000) == 0x40000 ||
+                    (wallFlags & 0xF0000) == 0x50000) {
+                    WorldObjectExplode(wall, hitpos);
+                }
+                if (e->damagetype & DMG_EXPLODE) {
+                    if (e->wall_sound != 0 && e->owner > 0) {
+                        fn_8009EF7C(0, hitpos);
+                    }
+                    ReflectVector(e->vel, (f32*)(lbl_8023CA98 + 16),
+                                  e->vel);
                     if (e->vel[1] > 0.0f) {
                         e->vel[1] *= 0.4f;
                     }
                     if (e->flags & 0x20000) {
                         CreateDirMatrix(mat, e->vel, NULL);
                     }
+                    if (e->endtime > gClockTime + 10.0) {
+                        e->endtime = gClockTime + 10.0;
+                    } else {
+                        e->endtime -= 1.0;
+                    }
+                } else {
+                    hit = 1;
                 }
             }
         }
@@ -2854,6 +3025,16 @@ void ProcessEffects(void)
                 hit = 1;
             }
         }
+        if (mode != 0 && (e->damagetype & DMG_TURBO) &&
+            e->debugcount > oldDebugCount) {
+            e->damage *= 0.5f;
+            if (e->damage < 1.0f) {
+                e->damagetype &= ~DMG_TURBO;
+            }
+        }
+        if (hit == -1 && e->fxhit > 0 && e->damageradius > 0.0f) {
+            hit = 1;
+        }
         if (e->minendtime > 0.0f && gClockTime < e->minendtime) {
             hit = 0;
         }
@@ -2862,14 +3043,17 @@ void ProcessEffects(void)
             e->endtime = gClockTime;
             e->hitcount = 0;
         } else if (hit != 0) {
-            s32 morph = e->fxmorph;
+            s32 morph = e->fxhit;
+            if (collision != 0) {
+                fn_8009D5E0(hitpos);
+            }
             if (hit == 1 && e->wall_sound != 0) {
                 fn_8009DB24(e->wall_sound, hitpos);
             } else if (hit != 1 && e->hit_audio != 0) {
                 fn_8009DB24(e->hit_audio, hitpos);
             }
             if (morph > 0 && morph < MAXEFFECTTYPES) {
-                u32 newflags = e->morphtime > 0.0f ? 0x880 : 0;
+                u32 newflags = e->damageradius > 0.0f ? 0x880 : 0;
                 ChangeEffect(i, morph, newflags);
                 ZeroEffect(i);
                 GetWorldMat(e->node, mat, NULL);
@@ -2930,11 +3114,23 @@ void ProcessEffects(void)
 
         if (gClockTime >= e->endtime - 0.03332f &&
             !(e->flags & 0x80000)) {
-            if ((e->flags & 0x4000) && e->fxmorph2 > 0 &&
-                e->fxmorph2 < MAXEFFECTTYPES) {
-                ChangeEffect(i, e->fxmorph2, 0);
-                e->endtime = gClockTime + e->maxtime;
+            if ((e->flags & 0x4000) && e->fxmorph > 0 &&
+                e->fxmorph < MAXEFFECTTYPES) {
+                ChangeEffect(i, e->fxmorph, 0);
+                if (e->morphtime > 0.0f) {
+                    e->endtime = gClockTime + e->morphtime;
+                } else {
+                    e->endtime = gClockTime + e->maxtime;
+                }
                 e->maxtime = e->endtime - gClockTime;
+                if (e->fxmorph2 > 0) {
+                    e->fxmorph = e->fxmorph2;
+                    e->fxmorph2 = 0;
+                    e->morphtime = 0.0f;
+                } else {
+                    e->flags &= ~0x4000;
+                    e->damageradius = 0.0f;
+                }
                 e->hitcount = 1;
             } else {
                 if (e->flags & 0x02000000) {
@@ -2968,20 +3164,6 @@ void ProcessEffects(void)
         }
     }
 }
-
-/* Minimal item view for SfxSkipItem (full layout: include/game/item.h).
- * def->type drives the skip policy; armor/active gate pickups. */
-struct fxitemdef {
-    /* 0x00 */ s32 type;
-    /* 0x04 */ s32 subtype;
-};
-struct fxitem {
-    /* 0x00 */ struct fxitemdef* def;
-    /* 0x04 */ u8 _04[0xC0];
-    /* 0xC4 */ s16 active;
-    /* 0xC6 */ u8 _c6[9];
-    /* 0xCF */ s8 armor;
-};
 
 static s32 SfxSkipItem_80096FF4(struct fxitem* item, u32 a, u32 b)
 {
