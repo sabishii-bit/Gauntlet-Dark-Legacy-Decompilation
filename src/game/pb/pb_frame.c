@@ -213,17 +213,17 @@ void pbFrameMode(s32 mode, s32 flag)
     WinGlobals* g;
     s32 sync0;
     MBScreen* scr;
-    u8 dispenv[96];                       /* 88..183: two 40B + slack */
-    u8 tplA2[88];                         /* 184..271 */
-    u8 tplB1[88];                         /* 272..359 */
-    u8 tplC1[80];                         /* 360..439 */
-    u8 tplA1[88];                         /* 440..527 */
-    u8 tplB2[88];                         /* 528..615 */
     u8 tplC2[64];                         /* 616..679 */
+    u8 tplB2[88];                         /* 528..615 */
+    u8 tplA1[88];                         /* 440..527 */
+    u8 tplC1[80];                         /* 360..439 */
+    u8 tplB1[88];                         /* 272..359 */
+    u8 tplA2[88];                         /* 184..271 */
+    u8 dispenv[96];                       /* 88..183: two 40B + slack */
     u32 gifTag2;                          /* 684 */
     u32 colorMask;                        /* 688 */
     u32 kTest1;                           /* 692.. spare consts */
-    u8 _spare[24];
+    u8 _spare[16];
     u32 kAlpha1;                          /* 736 */
     u32 kBig;                             /* 740 */
     u32 kTexFlush;                        /* 744 */
@@ -251,6 +251,8 @@ void pbFrameMode(s32 mode, s32 flag)
     u8* tA;
     u8* tB;
     u8* tC;
+    s32 convW;
+    s32 convH;
     s32 smode;
     s32 aR;
     s32 aG;
@@ -264,18 +266,18 @@ void pbFrameMode(s32 mode, s32 flag)
     sync0 = lbl_80343F00;
     while (lbl_80344F98 != 0) {
     }
-    if ((u32)mode > 6) {
-        return;
-    }
     switch (mode) {
     case 3:
-        g->screen->width = (s32)(f32)lbl_80343F04;
-        g->screen->height = (s32)(f32)(lbl_80343F0C / 2);
+        convW = (s32)(f32)lbl_80343F04;
+        convH = (s32)(f32)(lbl_80343F0C / 2);
+        g->screen->width = convW;
+        g->screen->height = convH;
         *(s32*)((u8*)g->screen + 48) = 1;
         *(s32*)((u8*)g->screen + 52) = 0x1000000 - 1;
         if (g->screen->m28 == 0 || g->screen->m2c == 0) {
-            gWinGlobals->screen->m28 = 512;
-            gWinGlobals->screen->m2c = 384;
+            WinGlobals* defaults = gWinGlobals;
+            defaults->screen->m28 = 512;
+            defaults->screen->m2c = 384;
         }
         fn_800C2F88();
         loopW = lbl_80343F04;
@@ -287,13 +289,16 @@ void pbFrameMode(s32 mode, s32 flag)
         fieldB = 1;
         break;
     case 4:
-        g->screen->width = (s32)(f32)lbl_80343F04;
-        g->screen->height = (s32)(f32)lbl_80343F0C;
+        convW = (s32)(f32)lbl_80343F04;
+        convH = (s32)(f32)lbl_80343F0C;
+        g->screen->width = convW;
+        g->screen->height = convH;
         *(s32*)((u8*)g->screen + 48) = 1;
         *(s32*)((u8*)g->screen + 52) = 0x1000000 - 1;
         if (g->screen->m28 == 0 || g->screen->m2c == 0) {
-            gWinGlobals->screen->m28 = 512;
-            gWinGlobals->screen->m2c = 384;
+            WinGlobals* defaults = gWinGlobals;
+            defaults->screen->m28 = 512;
+            defaults->screen->m2c = 384;
         }
         fn_800C2F88();
         loopW = lbl_80343F04;
@@ -305,13 +310,16 @@ void pbFrameMode(s32 mode, s32 flag)
         fieldB = 0;
         break;
     case 5:
-        g->screen->width = (s32)(f32)lbl_80343F04;
-        g->screen->height = (s32)(f32)(lbl_80343F0C / 2);
+        convW = (s32)(f32)lbl_80343F04;
+        convH = (s32)(f32)(lbl_80343F0C / 2);
+        g->screen->width = convW;
+        g->screen->height = convH;
         *(s32*)((u8*)g->screen + 48) = 1;
         *(s32*)((u8*)g->screen + 52) = 0x10000 - 1;
         if (g->screen->m28 == 0 || g->screen->m2c == 0) {
-            gWinGlobals->screen->m28 = 512;
-            gWinGlobals->screen->m2c = 384;
+            WinGlobals* defaults = gWinGlobals;
+            defaults->screen->m28 = 512;
+            defaults->screen->m2c = 384;
         }
         fn_800C2F88();
         loopW = lbl_80343F04;
@@ -323,13 +331,16 @@ void pbFrameMode(s32 mode, s32 flag)
         fieldB = 1;
         break;
     case 6:
-        g->screen->width = (s32)(f32)lbl_80343F04;
-        g->screen->height = (s32)(f32)lbl_80343F0C;
+        convW = (s32)(f32)lbl_80343F04;
+        convH = (s32)(f32)lbl_80343F0C;
+        g->screen->width = convW;
+        g->screen->height = convH;
         *(s32*)((u8*)g->screen + 48) = 1;
         *(s32*)((u8*)g->screen + 52) = 0x10000 - 1;
         if (g->screen->m28 == 0 || g->screen->m2c == 0) {
-            gWinGlobals->screen->m28 = 512;
-            gWinGlobals->screen->m2c = 384;
+            WinGlobals* defaults = gWinGlobals;
+            defaults->screen->m28 = 512;
+            defaults->screen->m2c = 384;
         }
         fn_800C2F88();
         loopW = lbl_80343F04;
@@ -346,6 +357,7 @@ void pbFrameMode(s32 mode, s32 flag)
         return;
     case 0:
     case 2:
+    default:
         return;
     }
 
@@ -525,7 +537,7 @@ void pbFrameMode(s32 mode, s32 flag)
         *(P8*)(buf + 416) = *(P8*)(tB + 76);
         *(P8*)(buf + 192) = *(P8*)(tA + 48);
         *(P8*)(buf + 208) = *(P8*)(tA + 56);
-        lbl_80344FB4 = (*(u64*)(buf + 208) & 1) == 0;
+        lbl_80344FB4 = (*(u64*)(buf + 208) & 1) != 0;
         *(P8*)(buf + 224) = *(P8*)(tA + 68);
         *(u32*)(buf + 100) = 0;
         *(u32*)(buf + 96) = 0;
