@@ -839,8 +839,7 @@ static void DrawPsysSub(f32* pos, u32 color, s32 c, s32 sx, s32 sy, f32 size) {
  * Documented flow: run the emitter phase machine (psys->e_phase: 0 delay .. 8
  * dead), emit new particles via pos_func/dir_func, age the ring through
  * ppos_func and draw each live particle with DrawPsysSub. Giant (NonMatching). */
-s32 MBDrawPsys(f64 f1, f64 f2, f64 f3, f64 f4, f64 f5, f64 f6, f64 f7,
-               MBObject* node, void* arg) {
+s32 MBDrawPsys(MBObject* node, void* arg) {
     typedef struct PSlot {
         f32 cur;
         f32 start;
@@ -1072,7 +1071,7 @@ phaseD:
         p->p_newest_age = p->p_newest_age + dt;
     } else {
         f32 startBudget = budget;
-        f64 one = 1.0;
+        u8 unused[8];
         f32 zero = lbl_80349154;
         while (budget > zero) {
             s32 posIdx;
@@ -1087,7 +1086,7 @@ phaseD:
                 }
                 break;
             }
-            budget = (f32)(budget - one);
+            budget = (f32)(budget - 1.0);
             *cursor = (posIdx << shiftDA) | (dirIdx << age_bits);
             cursor += 1;
             if (cursor == stop) {
