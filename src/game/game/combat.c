@@ -4305,25 +4305,36 @@ void InitEnemyMissiles(s32 enemyType)
     }
 }
 
-extern void *lbl_802753FC[], *lbl_802753E4[];
 extern void *BallistaTree, *BossElecTree, *BossAcidTree, *lbl_803445B0;
 extern void *WingsTree, *PojoTree, *BreatheFireTree, *BreatheElecTree;
 extern void *BreatheAcidTree, *FireShieldTree, *PhoenixTree;
 extern void *sWeaponsBuf, *sPowerupsBuf;
-extern char lbl_803463EC[];
 void* MBOX_FindTexture(char* name, void* arg);
 s32 InitCustomEffect(void* tree, char* name, s32 zmod, s32 alpha);
+
+typedef struct CombatPlayerModelSlot {
+    u8 _pad00[0x30];
+    void* powerupWad;
+    u8 _pad34[0x14];
+    void* weaponWad;
+} CombatPlayerModelSlot;
+
+extern CombatPlayerModelSlot player_multiple_models[4];
 
 void InitPlayerMissiles(void* player)
 {
     s32 idx = PF(player, 0x00, s32);
     s32 charType = PF(player, 0x0C, s32);
-    char* charName = PlayerMissileDesc[charType].throwDescription;
-    u8 throwByte = *(u8*)(charName + PF(player, 0x3324, s32) / 10 + 4);
-    void* weaponWad = lbl_802753FC[idx * 0x13];
-    void* powerupWad = lbl_802753E4[idx * 0x13];
+    MissileDescription* desc = &PlayerMissileDesc[charType];
+    s32 throwLevel = PF(player, 0x3324, s32) / 10;
+    char* charName = desc->throwDescription;
+    s32 throwByte = (u8)desc->throwLevel[throwLevel];
+    void* weaponWad = player_multiple_models[idx].weaponWad;
+    void* powerupWad = player_multiple_models[idx].powerupWad;
+    void** holdFx = WeapHoldFxTree[idx];
+    s32* throwFx = WeapThrowFx[idx];
     char buf[24];
-    s32 missing;
+    s32 missing = 0;
     s32 i;
 
     if (throwByte == 0x30) {
@@ -4336,43 +4347,45 @@ void InitPlayerMissiles(void* player)
     if (PlayerMissileTreeInfo[idx].throwHeader == 0) {
         sprintf(buf, "%s_THROW1", charName);
         PlayerMissileTreeInfo[idx].throwHeader = AtreeMatch(powerupWad, buf, 0);
+        if (PlayerMissileTreeInfo[idx].throwHeader == 0) {
+            ErrorPrintf("Player Missile not found: %s", buf);
+            missing = 1;
+        }
     }
-    missing = PlayerMissileTreeInfo[idx].throwHeader == 0;
-    if (missing) {
-        ErrorPrintf("Player Missile not found: %s", buf);
-    }
-    PlayerMissileTreeInfo[idx].throwFlags = PlayerMissileDesc[charType].flags;
+    PlayerMissileTreeInfo[idx].throwFlags = desc->flags;
 
     for (i = 0; i < 5; i++) {
         char* name = DmgTypeDesc[i];
-        if (name[0] == '\0') {
-            WeapHoldFxTree[idx][i] = 0;
-            WeapThrowFx[idx][i] = -1;
-        } else {
+        if (name[0] != '\0') {
             sprintf(buf, "WEAP_HOLD_%s", name);
-            WeapHoldFxTree[idx][i] = AtreeMatch(weaponWad, buf, 1);
+            buf[15] = '\0';
+            holdFx[i] = AtreeMatch(weaponWad, buf, 1);
             sprintf(buf, "WEAP_TW_%c", name[0]);
-            WeapThrowFx[idx][i] = InitCustomEffect(weaponWad, buf, 0, 0);
+            buf[15] = '\0';
+            throwFx[i] = InitCustomEffect(weaponWad, buf, 0, 0);
+        } else {
+            holdFx[i] = 0;
+            throwFx[i] = -1;
         }
     }
     WeaponStreakTex = (s32)MBOX_FindTexture("WEP_STREAK", 0);
     BallistaTree = AtreeMatch(sWeaponsBuf, "SUPERARROW", 1);
     BossElecTree = AtreeMatch(sWeaponsBuf, "BOSSG_ELEC", 1);
     BossAcidTree = AtreeMatch(sWeaponsBuf, "BOSSG_ACID", 1);
-    if (sPowerupsBuf == 0) {
+    if (sPowerupsBuf != 0) {
+        lbl_803445B0 = AtreeMatch(sPowerupsBuf, "PHOENIX", 1);
+        WingsTree = AtreeMatch(sPowerupsBuf, "WINGS", 1);
+        PojoTree = AtreeMatch(sPowerupsBuf, "POJO", 1);
+        BreatheFireTree = AtreeMatch(sPowerupsBuf, "HEAD_BREATHEF", 1);
+        BreatheElecTree = AtreeMatch(sPowerupsBuf, "HEAD_BREATHEE", 1);
+        BreatheAcidTree = AtreeMatch(sPowerupsBuf, "HEAD_BREATHEA", 1);
+    } else {
         lbl_803445B0 = 0;
         WingsTree = 0;
         PojoTree = 0;
         BreatheFireTree = 0;
         BreatheElecTree = 0;
         BreatheAcidTree = 0;
-    } else {
-        lbl_803445B0 = AtreeMatch(sPowerupsBuf, "PHOENIX", 1);
-        WingsTree = AtreeMatch(sPowerupsBuf, "WINGS", 1);
-        PojoTree = AtreeMatch(sPowerupsBuf, lbl_803463EC, 1);
-        BreatheFireTree = AtreeMatch(sPowerupsBuf, "HEAD_BREATHEF", 1);
-        BreatheElecTree = AtreeMatch(sPowerupsBuf, "HEAD_BREATHEE", 1);
-        BreatheAcidTree = AtreeMatch(sPowerupsBuf, "HEAD_BREATHEA", 1);
     }
     FireShieldTree = AtreeMatch(sWeaponsBuf, "FW_SHLD_ACTIVE", 1);
     FamiliarTree[idx][0] = AtreeMatch(weaponWad, "FAMILIAR1", 1);
