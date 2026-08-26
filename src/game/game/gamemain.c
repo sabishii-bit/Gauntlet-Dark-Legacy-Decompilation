@@ -5276,8 +5276,9 @@ s32 do_stats_display(void)
             STAT_ROW(col3, msgs + 24, 16);
             TIME_ROW(colT);
             sp = state + off;
-            *(s32*)(sp + 80) = *(s32*)(sp + 80) - gFrameTicks;
-            if (*(s32*)(sp + 80) <= 0) {
+            st = *(s32*)(sp + 80) - gFrameTicks;
+            *(s32*)(sp + 80) = st;
+            if (st <= 0) {
                 (*(s32*)(p + 2660))++;
             }
             break;
