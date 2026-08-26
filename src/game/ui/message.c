@@ -16,6 +16,13 @@ typedef struct MsgDesc {
     /* 0x18 */ int flags;
 } MsgDesc;
 
+typedef struct MsgData {
+    int levels[6];
+    char* fonts[5];
+    u32 cfg[5];
+    MsgDesc desc[256];
+} MsgData;
+
 typedef struct World {
     /* 0x0000 */ char _pad0[4];
     /* 0x0004 */ int class_id;
@@ -59,7 +66,7 @@ extern int gMessageActive;
 extern int gMsgDescCount;
 extern int gMessageTimer;
 extern int lbl_80344298;
-extern int gControllerButtons;
+extern u64 gControllerButtons;
 extern int sFlags;
 
 /* --- text library --- */
@@ -436,7 +443,7 @@ void msgUpdate(void)
 int msgPost(int idx, int param, char* position)
 {
     MsgDesc* desc;
-    u8* msgData;
+    MsgData* msgData;
     void** boxes;
     int fontIndex;
     int lineCount;
@@ -454,9 +461,10 @@ int msgPost(int idx, int param, char* position)
     int count;
     int i;
     int playerOffset;
+    u8 unused[12];
 
-    msgData = (u8*)gMsgLevels;
-    desc = (MsgDesc*)(msgData + idx * sizeof(MsgDesc) + 64);
+    msgData = (MsgData*)gMsgLevels;
+    desc = &msgData->desc[idx];
     boxes = gMsgBoxes;
 
     if (idx < 0 || idx >= gMsgDescCount) {
@@ -496,22 +504,29 @@ int msgPost(int idx, int param, char* position)
     }
 
     if (gMessageActive != 0 &&
-        desc->priority <= gMsgDescTable[gCurrentMessage].priority) {
+        msgData->desc[idx].priority <=
+            msgData->desc[gCurrentMessage].priority) {
         return 0;
     }
-    if ((idx < 0x1D || (idx > 0x2B && idx < 0x2E) ||
+    if ((idx <= 0x1C || (idx >= 0x2C && idx <= 0x2D) ||
          idx == 0x37 || idx == 0x50) &&
         gGameMode != 0x8006 && gGameMode != 0x8003 && gMessageDelay > 0) {
         return 0;
     }
 
-    fontIndex = param;
+    if (param < 0) {
+        fontIndex = 4;
+    } else {
+        fontIndex = param;
+    }
     if (param < 0) {
         param = 0;
-        fontIndex = 4;
     }
     gMsgIndex = 0;
-    if (position == 0) {
+    if (position != 0) {
+        get_screen_pos(0, &centerX, &centerY, position);
+        centerY -= 0x3E;
+    } else {
         if (param < 0) {
             centerX = 0x100;
             centerY = 0xC0;
@@ -519,9 +534,6 @@ int msgPost(int idx, int param, char* position)
             centerX = (u16)gJumpTab120240[param];
             centerY = 0xFA;
         }
-    } else {
-        get_screen_pos(0, &centerX, &centerY, position);
-        centerY -= 0x3E;
     }
 
     if (desc->param < 0) {
@@ -530,7 +542,7 @@ int msgPost(int idx, int param, char* position)
         duration = 1;
     }
     height = StringTextHeight(1.0f, desc->type, desc->param, lineCount) + 0x10;
-    top = centerY - height / 2;
+    top = centerY - (height >> 1);
     if (top < 2) {
         centerY += 2 - top;
         top = 2;
@@ -541,7 +553,7 @@ int msgPost(int idx, int param, char* position)
     gMessageCenterY = centerY;
 
     width = msgWidth(param, idx) + 0x40;
-    left = centerX - width / 2;
+    left = centerX - (width >> 1);
     if (left < 0) {
         centerX -= left;
         left = 0;
@@ -555,22 +567,28 @@ int msgPost(int idx, int param, char* position)
         MBRemoveBlit(boxes[gMsgIndex]);
         boxes[gMsgIndex] = 0;
     }
-    boxes[gMsgIndex] = MBNewBlit(*(char**)(msgData + 24 + fontIndex * 4), left, top);
-    mbBlitProject(boxes[gMsgIndex], width, height);
+    {
+        void* newBox = MBNewBlit(msgData->fonts[fontIndex], left, top);
+        void** boxSlot = &boxes[gMsgIndex];
+
+        *boxSlot = newBox;
+        mbBlitProject(*boxSlot, width, height);
+    }
     MBBlitSetAlpha(boxes[gMsgIndex], 0x40);
     mbBlitInit3414(boxes[gMsgIndex], 0);
 
     gMessageTextArg = 1;
-    gMessageFontFlags = *(u32*)(msgData + 44 + fontIndex * 4);
-    gMessageValue = *(int*)((u8*)&gPlayers[param] + 0x3324);
-    gMessageActive = 1;
+    gMessageFontFlags = msgData->cfg[fontIndex];
     gCurWorld = param;
     gCurrentMessage = idx;
+    gMessageValue = *(int*)((u8*)&gPlayers[param] + 0x3324);
+    gMessageActive = 1;
     msgDraw();
     gMessageTimer = duration * 0x3C + 0x1E;
 
     category = desc->category;
-    if (category == 2) {
+    switch (category) {
+    case 2:
         if (param < 0) {
             first = 0;
             last = 3;
@@ -578,15 +596,15 @@ int msgPost(int idx, int param, char* position)
             first = param;
             last = param;
         }
-        count = (last + 1) - first;
         playerOffset = first * 0x335C;
-        for (i = 0; i < count; i++, playerOffset += 0x335C) {
+        for (i = first; i <= last; i++, playerOffset += 0x335C) {
             World* world = (World*)((u8*)gPlayers + playerOffset);
             if (world->state != 0) {
                 world->items[idx] |= 0x11;
             }
         }
-    } else if (category != 0) {
+        break;
+    default:
         playerOffset = 0;
         for (i = 0; i < 4; i++, playerOffset += 0x335C) {
             World* world = (World*)((u8*)gPlayers + playerOffset);
@@ -594,6 +612,9 @@ int msgPost(int idx, int param, char* position)
                 world->items[idx] |= 0x11;
             }
         }
+        break;
+    case 0:
+        break;
     }
 
     if (gGameMode == 0x8003 || gMessageState != 0) {
@@ -602,34 +623,34 @@ int msgPost(int idx, int param, char* position)
         category = desc->f4;
     }
     switch (category) {
-    case -1:
-        gGameplayPauseTimer = 0x3C;
+    default:
+        gGameplayPauseTimer = 0;
         break;
     case 1:
         gGameplayPauseTimer = 0x1E;
         break;
-    default:
-        gGameplayPauseTimer = 0;
+    case -1:
+        gGameplayPauseTimer = 0x3C;
         break;
     }
 
     if (desc->flags != 0) {
-        if (idx == 0x65 && gMessageValue > 9) {
-            if (gMessageValue < 99) {
-                fn_8009CD80(param, gPlayers[param].character, gMessageValue);
-            } else {
+        if (idx == 0x65 && gMessageValue >= 10) {
+            if (gMessageValue >= 99) {
                 fn_8009CD80(param, 0, 99);
+            } else {
+                fn_8009CD80(param, gPlayers[param].character, gMessageValue);
             }
         } else {
             fn_8009CB44(param, desc->flags, -1);
         }
-        if ((sFlags & 0x10) == 0) {
+        if ((gControllerButtons & 0x10) == 0) {
             if (gGameMode == 0x8003 || gGameMode == 0x8006) {
                 gMessageDelay = 0x3C;
             } else {
                 int delayIndex = gMessageDelayIndex++;
-                gMessageDelay = ((int*)msgData)[delayIndex];
-                if (((int*)msgData)[gMessageDelayIndex] < 0) {
+                gMessageDelay = msgData->levels[delayIndex];
+                if (msgData->levels[gMessageDelayIndex] < 0) {
                     gMessageDelayIndex--;
                 }
             }
