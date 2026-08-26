@@ -705,26 +705,31 @@ void LoadWorldData(void)
     u32 i;
     int size;
     s32* ids;
-    char* path = lbl_80257680;
+    u8* table;
+    char* path;
+
+    table = (u8*)sWorldLevelTable;
+    path = lbl_80257680;
 
     for (i = 0; i < 14; i++) {
-        entry = (u8*)sWorldLevelTable + i * 44;
-        sprintf(path, "%s.wad", entry + 236);
-        ids = (s32*)(entry + 232);
+        entry = table + i * 44;
+        ids = (s32*)(entry += 232);
+        sprintf(path, "%s.wad", (u8*)ids + 4);
         if (FileExists("wdata", path)) {
             size = FileSize("wdata", path);
             ids[4] = 1;
             if (sFirstWorldId < 0) {
                 sFirstWorldId = ids[0] << 8;
             }
-            entry = (u8*)sWorldLevelTable + i * 4;
+            entry = table + i * 4;
             if (*(void**)(entry += 848) == 0) {
                 *(void**)entry = AllocMem(size);
             }
             MLMReadFile("wdata", path, size, *(void**)entry);
         } else {
             ErrorPrintf(lbl_80112A9C, path);
-            *(void**)((u8*)sWorldLevelTable + i * 4 + 848) = 0;
+            entry = table + i * 4;
+            *(void**)(entry += 848) = 0;
         }
     }
 
@@ -735,8 +740,8 @@ void LoadWorldData(void)
     sCurLevelHasCameras = -1;
     gWorldData = 0;
     gCurLevel  = 0;
-    *(s32*)(gGameOptions + 36) =
-        fn_80057F44(*(s32*)(gGameOptions + 36), 1);
+    ids = (s32*)(gGameOptions + 36);
+    *ids = fn_80057F44(*ids, 1);
     sWorldDataConst = 0xD00;
 }
 
