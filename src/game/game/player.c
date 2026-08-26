@@ -878,32 +878,36 @@ void ShowRuneStones(void) {
 /* Name/level/health/keys/potions writer for one player's HUD row. */
 static void write_health_and_items(s32 i) {
     Player* p = P(i);
+    u16* left = lbl_80120238;
+    u16* right = lbl_80120240;
+    u32* colors = lbl_801201C8;
     s32 hidden;
     s32 show_gold;
+    s32 j;
     u32 rgb;
     f32 oldz;
-    s32 mode;
-    char buf[16];
     char buf2[44];
+    char buf[16];
+    u8 unused[32];
     void* blit;
 
     hidden = 0;
     show_gold = 1;
-    rgb = lbl_801201C8[p->class_id];
+    rgb = colors[p->class_id];
     mini_inventory_update(i);
     oldz = MBSetFontZ(63990.0f);
-    if (lbl_80344A28 != 0 || lbl_802575B0 != 0) {
+    if (lbl_80344A28 != 0 || gGameOptions[8] != 0) {
         hidden = 1;
     }
     if (gGameMode == 0x4010 && lbl_80344760 > 0 && p->state == 0xB &&
         p->motion_state == 1) {
-        u32 x = lbl_80120238[i];
+        u32 x = left[i] + 6;
 
         hidden = 1;
-        MBNewTempBlit((void*)lbl_80344E48, x + 6, 0x14C, 0xE, 0xE);
-        MBNewTempBlit((void*)lbl_80344E44, x + 6, 0x160, 0xE, 0xE);
-        DrawTextKeepScale(1.2f, x + 0x14, 0x150, 1, 0xFFFFFF, "Wait In Tower");
-        DrawTextKeepScale(1.2f, x + 0x14, 0x164, 1, 0xFFFFFF, "Quit Game");
+        MBNewTempBlit((void*)lbl_80344E48, x, 0x14C, 0xE, 0xE);
+        MBNewTempBlit((void*)lbl_80344E44, x, 0x160, 0xE, 0xE);
+        DrawTextKeepScale(1.2f, x + 0xE, 0x150, 1, 0xFFFFFF, "Wait In Tower");
+        DrawTextKeepScale(1.2f, x + 0xE, 0x164, 1, 0xFFFFFF, "Quit Game");
         show_gold = 0;
     }
     if ((p->state == 5 || p->state == 0xB) && gGameMode != 0x400D &&
@@ -911,7 +915,7 @@ static void write_health_and_items(s32 i) {
         hidden = 1;
         setup_player_display(i);
         if (p->state == 0xB) {
-            DrawTextKeepScale(1.2f, -lbl_80120240[i], 0x154, 1, rgb, "IN TOWER");
+            DrawTextKeepScale(1.2f, -right[i], 0x154, 1, rgb, "IN TOWER");
         } else {
             hidden = 0;
         }
@@ -926,8 +930,7 @@ static void write_health_and_items(s32 i) {
             }
             sprintf(buf, "%d", (s32)p->health);
             w = DrawNormalText(1.0f, buf, 4);
-            DrawText((lbl_80120238[i] + 0x74) - w, 0x167, 4,
-                     lbl_801201C8[p->class_id], buf);
+            DrawText((left[i] + 0x74) - w, 0x167, 4, colors[p->class_id], buf);
             mbBlitInit3414(frame_blit[i][5], 0);
         }
     } else {
@@ -939,71 +942,68 @@ static void write_health_and_items(s32 i) {
             mbBlitInit3414(frame_blit[i][5], 1);
         }
     }
-    mode = p->display_mode;
-    if (mode == 6) {
+    switch (p->display_mode) {
+    case 6:
         if (!hidden) {
-            DrawTextKeepScale(0.667f, -lbl_80120240[i], 0x153, 7, rgb, p->name);
+            DrawTextKeepScale(0.667f, -right[i], 0x153, 7, rgb, p->name);
         }
-    } else if (mode < 6) {
-        if (mode < 3) {
-            if (mode < 1) {
-                goto tail;
+        break;
+    case 1:
+    case 2:
+        if (gGameOptions[8] != 0 && p->state == 1) {
+            hidden = 1;
+            if (gGameOptions[8] == 1) {
+                debug_player_pos(i);
+            } else {
+                DrawText(left[i] + 8, 0x154, 1, 0xFFFFFF, "XP: %d",
+                         p->exp);
             }
-            if (lbl_802575B0 != 0 && p->state == 1) {
-                hidden = 1;
-                if (lbl_802575B0 == 1) {
-                    debug_player_pos(i);
-                } else {
-                    DrawText(lbl_80120238[i] + 8, 0x154, 1, 0xFFFFFF, "XP: %d",
-                             p->exp);
-                }
-            }
-        } else if (mode < 5) {
-            goto tail;
         }
+        /* fall through */
+    case 5:
         if (!hidden) {
-            DrawTextKeepScale(0.667f, -lbl_80120240[i], 0x153, 7, rgb, p->name);
+            DrawTextKeepScale(0.667f, -right[i], 0x153, 7, rgb, p->name);
         }
         if (lbl_80344A28 != 0 || !hidden) {
             sprintf(buf2, "LV %d", p->level);
-            DrawText(-lbl_80120240[i], 0x146, 1, 0xFFFFFF, buf2);
+            DrawText(-right[i], 0x146, 1, 0xFFFFFF, buf2);
         }
+        break;
+    case 10:
+        break;
     }
-tail:
     if (p->state != 2 && p->display_mode != 0 && alpha == 0) {
         if (p->item_body_lo > 0) {
-            blit = MBNewTempBlit((void*)key_blit_idx, lbl_80120238[i] + 8, 0x143, -1, -1);
+            blit = MBNewTempBlit((void*)key_blit_idx, left[i] + 8, 0x143, -1, -1);
             mbBlitCvtCoord(blit, 64000.0f);
             sprintf(buf2, "%d", p->item_body_lo);
-            DrawTextKeepScale(0.8f, lbl_80120238[i] + 0x1A, 0x147, 4, rgb, buf2);
+            DrawTextKeepScale(0.8f, left[i] + 0x1A, 0x147, 4, rgb, buf2);
         }
         if (p->item_body_hi > 0) {
             blit = MBNewTempBlit(potionicon_tab[PF(p, 0x32FC + p->item_body_hi * 4, s32)],
-                                 lbl_80120238[i] + 0x66, 0x143, -1, -1);
+                                 left[i] + 0x66, 0x143, -1, -1);
             mbBlitCvtCoord(blit, 64000.0f);
             sprintf(buf2, "%d", p->item_body_hi);
-            DrawTextKeepScale(0.8f, lbl_80120238[i] + 0x5C, 0x147, 4, rgb, buf2);
+            DrawTextKeepScale(0.8f, left[i] + 0x5C, 0x147, 4, rgb, buf2);
         }
     }
-    if (p->health <= 0.0f || lbl_80344A44 != 0) {
-        s32 j;
-
-        for (j = 0; j < 7; j++) {
-            mbBlitInit3414(pm_blit[i][j], 1);
-        }
-    } else {
+    if (p->health > 0.0f && lbl_80344A44 == 0) {
         if (gGameMode == 0x4010 && p->quest_state != 0 && sMusicTrackHi != 0xD) {
             mbBlitInit3414(quest_blit[i], 0);
         } else {
             mbBlitInit3414(quest_blit[i], 1);
         }
-        if ((u32)(gGameMode - 0x400F) < 2 && (p->shards & 0x1000)) {
+        if ((u32)(gGameMode - 0x400F) <= 1 && (p->shards & 0x1000)) {
             mbBlitInit3414(hod_blit[i], 0);
         } else {
             mbBlitInit3414(hod_blit[i], 1);
         }
         if (gGameMode == 0x4010) {
             draw_power_meter(i);
+        }
+    } else {
+        for (j = 0; j < 7; j++) {
+            mbBlitInit3414(pm_blit[i][j], 1);
         }
     }
     MBSetFontZ(oldz);
