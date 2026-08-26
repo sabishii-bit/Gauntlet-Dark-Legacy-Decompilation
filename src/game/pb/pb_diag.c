@@ -136,6 +136,11 @@ typedef struct DiagObjView {
     char* rows;             /* 0x5C: 24-byte rows */
 } DiagObjView;
 
+typedef struct DiagObjRow {
+    u8 _pad00[22];
+    s16 limit;
+} DiagObjRow;
+
 
 extern u32 gDiag_FC;
 extern s32 gDiag_D0C;            /* gDiag_FC */
@@ -1018,6 +1023,11 @@ typedef struct ObjEnt {
     s32 d;
 } ObjEnt;
 
+typedef struct DiagObjGlobals {
+    u8 _pad0[0x30];
+    ObjEnt* entries;
+} DiagObjGlobals;
+
 /* wg->f30 texture-bank entry: 16-byte stride, bank ptr at +4, lock flag read at +16 */
 typedef struct TexBankEnt {
     s32 a;                  /* 0x0 */
@@ -1300,13 +1310,13 @@ s32 pbDiagDrawObject(void)
     s32* gdi = (s32*)gDiagData;
     s32* b = (s32*)buttons;
     char* strs = lbl_80114E90;
-    WinGlobals* wg;
+    DiagObjGlobals* wg;
     DiagObjView* obj;
     int x;
     int i;
     s32 old;
     s32 ret;
-    u8* row;
+    DiagObjRow* rows;
     u32 saved;
     f32* px;
     f32* py;
@@ -1317,10 +1327,11 @@ s32 pbDiagDrawObject(void)
     void* tex;
 
     x = 0;
-    wg = gWinGlobals;
+    wg = (DiagObjGlobals*)gWinGlobals;
     if (gDiag_FC == 0) {
         f32 z;
-        MBSetAmbient(0, lbl_803486B0);
+        z = lbl_803486B0;
+        MBSetAmbient(0, z);
         MBAddLight(0, 0, lbl_803486B4);
         z = lbl_80348670;
         MBWindowViewport(z, z, z, z);
@@ -1339,7 +1350,7 @@ s32 pbDiagDrawObject(void)
     old = gDiag_F0;
     v = pbDiagCtrlInt(0, 0, gDiag_F4, 1, 0, old);
     gDiag_F4 = v;
-    obj = ((ObjEnt*)wg->f30)[v].obj;
+    obj = wg->entries[v].obj;
     old = (&b[v])[12];
     ret = pbDiagCtrlInt(1, 0, (&b[gDiag_F4])[12], 1, 0, obj->count);
     v = gDiag_F4;
@@ -1368,8 +1379,8 @@ s32 pbDiagDrawObject(void)
     if (b[8] & 0x01000000) {
         v = gDiag_D0C + 1;
         gDiag_D0C = v;
-        row = (u8*)obj->rows + (&b[gDiag_F4])[12] * 24;
-        if (v > *(s16*)(row + 22)) {
+        rows = (DiagObjRow*)obj->rows;
+        if (v > rows[(&b[gDiag_F4])[12]].limit) {
             gDiag_D0C = 0;
         }
     }
