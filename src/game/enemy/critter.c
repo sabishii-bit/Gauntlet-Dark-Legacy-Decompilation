@@ -32,7 +32,7 @@ typedef struct CritterBigState {
 
 typedef struct CritterHitNode {
     void *descriptor;
-    void *active;
+    void *volatile active;
     u8 _pad08[4];
     f32 matrix[12];
     f32 position[3];
@@ -2993,9 +2993,9 @@ s32 ProcessCritter(Critter *c)
     c->movevec[1] = c->vel[1] + *(f32 *)((u8 *)c->hdr + 0xB4);
     c->movevec[2] = c->vel[2];
     MulVec4Mat3((f32 *)((u8 *)c->hdr + 0xC0), c->pos, &c->mtx[0][0]);
-    c->pos[0] += c->vel[0];
-    c->pos[1] += c->vel[1];
-    c->pos[2] += c->vel[2];
+    c->pos[0] = c->vel[0] + c->pos[0];
+    c->pos[1] = c->vel[1] + c->pos[1];
+    c->pos[2] = c->vel[2] + c->pos[2];
 
     for (i = 0; i < *(s16 *)((u8 *)c->hdr + 0x118); i++) {
         node = &((CritterHitNode *)c->hitnodes)[i];
@@ -3088,63 +3088,84 @@ s32 ProcessCritter(Critter *c)
                 -1, (f32)(lbl_80346580 *
                           (f64)*(f32 *)((u8 *)c->hdr + 0xE8)));
             if (c->parent == NULL) {
-                for (child = c->next; child != NULL; child = child->next) {
-                    child->health = lbl_803464A8;
+                child = c->next;
+                scale = lbl_803464A8;
+                while (child != NULL) {
+                    child->health = scale;
+                    child = child->next;
                 }
             }
             type = *(s16 *)(*(u8 **)((u8 *)c->hdr + 0x120) + 0x20);
-            if (type == 4 && c->parent == NULL) {
-                BossDying();
+            switch (type) {
+            case 4:
+                if (c->parent == NULL) {
+                    BossDying();
+                }
+                break;
             }
         }
     }
 
     type = *(s16 *)(*(u8 **)((u8 *)c->hdr + 0x120) + 0x20);
     switch (type) {
-    case 4:
-        if (!CritterBossAI(c)) {
-            return 0;
-        }
-        break;
     case 3:
-        if (!CritterGolemAI(c)) {
-            return 0;
-        }
-        break;
-    case 7:
     case 8:
-        if (!CritterGolemAI(c)) {
-            return 0;
-        }
-        break;
+        goto golem_ai_3_8;
+    case 4:
+        goto boss_ai;
+    case 7:
+        goto golem_ai_7;
     case 0:
     case 1:
     case 2:
     case 5:
     case 6:
-        CritterAnimate(c);
-        if (FloorCollide(c->vel, 0, 0, 2, lbl_803464B8,
-                         lbl_80346588, lbl_8034658C) != NULL) {
-            collided = 1;
-        } else {
-            collided = 0;
-        }
-        if (collided) {
-            c->vel[1] =
-                *(f32 *)(gFloorCollisionResult + 0x34) +
-                *(f32 *)((u8 *)c->hdr + 0xB0);
-            if (c->shadow != NULL) {
-                CopyMat3((f32 *)gFloorCollisionResult, (f32 *)c->shadow);
-                *(f32 *)((u8 *)c->shadow + 0x30) = c->vel[0];
-                *(f32 *)((u8 *)c->shadow + 0x34) = c->vel[1];
-                *(f32 *)((u8 *)c->shadow + 0x38) = c->vel[2];
-                *(f32 *)((u8 *)c->shadow + 0x34) =
-                    (f32)(lbl_803464B0 +
-                          (f64)*(f32 *)(gFloorCollisionResult + 0x34));
-            }
-        }
-        break;
+        goto animate_ai;
     }
+    goto ai_done;
+
+golem_ai_3_8:
+    if (!CritterGolemAI(c)) {
+        return 0;
+    }
+    goto ai_done;
+
+golem_ai_7:
+    if (!CritterGolemAI(c)) {
+        return 0;
+    }
+    goto ai_done;
+
+boss_ai:
+    if (!CritterBossAI(c)) {
+        return 0;
+    }
+    goto ai_done;
+
+animate_ai:
+    CritterAnimate(c);
+    if (FloorCollide(c->vel, 0, 0, 2, lbl_803464B8,
+                     lbl_80346588, lbl_8034658C) != NULL) {
+        collided = 1;
+    } else {
+        collided = 0;
+    }
+    if (collided) {
+        c->vel[1] =
+            *(f32 *)(gFloorCollisionResult + 0x34) +
+            *(f32 *)((u8 *)c->hdr + 0xB0);
+        if (c->shadow != NULL) {
+            CopyMat3((f32 *)gFloorCollisionResult, (f32 *)c->shadow);
+            *(f32 *)((u8 *)c->shadow + 0x30) = c->vel[0];
+            *(f32 *)((u8 *)c->shadow + 0x34) = c->vel[1];
+            *(f32 *)((u8 *)c->shadow + 0x38) = c->vel[2];
+            *(f32 *)((u8 *)c->shadow + 0x34) =
+                (f32)(lbl_803464B0 +
+                      (f64)*(f32 *)(gFloorCollisionResult + 0x34));
+        }
+    }
+
+ai_done:
 
     move = *(CritterMove **)((u8 *)c->hdr + 0x124);
     move += c->curmove;
@@ -3175,9 +3196,9 @@ s32 ProcessCritter(Critter *c)
     c->movevec[2] = c->vel[2];
     MulVec4Mat3((f32 *)((u8 *)c->hdr + 0xC0), c->pos,
                 &c->mtx[0][0]);
-    c->pos[0] += c->vel[0];
-    c->pos[1] += c->vel[1];
-    c->pos[2] += c->vel[2];
+    c->pos[0] = c->vel[0] + c->pos[0];
+    c->pos[1] = c->vel[1] + c->pos[1];
+    c->pos[2] = c->vel[2] + c->pos[2];
     return 1;
 }
 #pragma dont_inline off
