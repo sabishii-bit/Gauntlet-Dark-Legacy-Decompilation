@@ -1000,51 +1000,86 @@ void GetPlayerAvgPos(f32* avg, f32* outMin, f32* outMax, s32 mode) {
  * [callers: the mode-updaters, gamemain, boss]
  */
 s32 CamGetPlayerAvgPos(Vec3* out, s32 flags) {
-    Vec3 vmax, vmin, tmp;
-    s32 i, k, count;
+    typedef struct NcVecSlot {
+        Vec3 v;
+        f32 unused;
+    } NcVecSlot;
+    Vec3 average;
+    NcVecSlot vmin, vmax, worldPoint, followPoint;
+    NcPlayer* pl;
+    s32 i, k, count, valid;
 
-    vmin.x = vmin.y = vmin.z = 1.0e18f;
-    vmax.x = vmax.y = vmax.z = -1.0e18f;
+    vmax.v.x = -1.0e20f;
+    vmin.v.x = 1.0e20f;
+    vmax.v.y = -1.0e20f;
+    vmin.v.y = 1.0e20f;
+    vmax.v.z = -1.0e20f;
+    vmin.v.z = 1.0e20f;
     count = 0;
 
     for (i = 0; i < 4; i++) {
-        NcPlayer* pl = &gPlayers[i];
-        if ((pl->ncflags & 0x20) || !(pl->state == 1 || pl->state == 4)) {
-            continue;
-        }
-        count++;
-        if (flags & 0x2) {                 /* include world position (0x44) */
-            if (flags & 0x1) MBWorldToScreen(&tmp, (Vec3*)pl->pos);
-            else { tmp.x = pl->pos[0]; tmp.y = pl->pos[1]; tmp.z = pl->pos[2]; }
-            { f32* mx = &vmax.x; f32* mn = &vmin.x; f32* t = &tmp.x;
-              for (k = 0; k < 3; k++) { if (mx[k] < t[k]) mx[k] = t[k]; if (mn[k] > t[k]) mn[k] = t[k]; } }
-        }
-        if (flags & 0x4) {                 /* include follow position (0x54) */
-            if (flags & 0x1) MBWorldToScreen(&tmp, (Vec3*)pl->campos);
-            else { tmp.x = pl->campos[0]; tmp.y = pl->campos[1]; tmp.z = pl->campos[2]; }
-            { f32* mx = &vmax.x; f32* mn = &vmin.x; f32* t = &tmp.x;
-              for (k = 0; k < 3; k++) { if (mx[k] < t[k]) mx[k] = t[k]; if (mn[k] > t[k]) mn[k] = t[k]; } }
+        pl = &gPlayers[i];
+        valid = ((pl->ncflags & 0x20) == 0 &&
+                 (pl->state == 1 || pl->state == 4));
+        if (valid != 0) {
+            count++;
+            if (flags & 0x2) {             /* include world position (0x44) */
+                if (flags & 0x1) {
+                    MBWorldToScreen(&worldPoint.v, (Vec3*)pl->pos);
+                } else {
+                    worldPoint.v.x = pl->pos[0];
+                    worldPoint.v.y = pl->pos[1];
+                    worldPoint.v.z = pl->pos[2];
+                }
+                for (k = 0; k < 3; k++) {
+                    (&vmin.v.x)[k] = ((&vmin.v.x)[k] < (&worldPoint.v.x)[k]) ?
+                        (&vmin.v.x)[k] : (&worldPoint.v.x)[k];
+                    (&vmax.v.x)[k] = ((&vmax.v.x)[k] > (&worldPoint.v.x)[k]) ?
+                        (&vmax.v.x)[k] : (&worldPoint.v.x)[k];
+                }
+            }
+            if (flags & 0x4) {             /* include follow position (0x54) */
+                if (flags & 0x1) {
+                    MBWorldToScreen(&followPoint.v, (Vec3*)pl->campos);
+                } else {
+                    followPoint.v.x = pl->campos[0];
+                    followPoint.v.y = pl->campos[1];
+                    followPoint.v.z = pl->campos[2];
+                }
+                for (k = 0; k < 3; k++) {
+                    (&vmin.v.x)[k] = ((&vmin.v.x)[k] < (&followPoint.v.x)[k]) ?
+                        (&vmin.v.x)[k] : (&followPoint.v.x)[k];
+                    (&vmax.v.x)[k] = ((&vmax.v.x)[k] > (&followPoint.v.x)[k]) ?
+                        (&vmax.v.x)[k] : (&followPoint.v.x)[k];
+                }
+            }
         }
     }
 
     /* midpoint of the box */
-    tmp.x = (vmax.x + vmin.x) * 0.5f;
-    tmp.y = (vmax.y + vmin.y) * 0.5f;
-    tmp.z = (vmax.z + vmin.z) * 0.5f;
+    for (k = 0; k < 3; k++) {
+        (&average.x)[k] = 0.5 * ((&vmin.v.x)[k] + (&vmax.v.x)[k]);
+    }
 
-    if (flags & 0x1) MBWorldToScreen3D(out, &tmp);
-    else { out->x = tmp.x; out->y = tmp.y; out->z = tmp.z; }
+    if (flags & 0x1) {
+        MBWorldToScreen3D(out, &average);
+    } else {
+        out->x = average.x;
+        out->y = average.y;
+        out->z = average.z;
+    }
 
-    if (gCurLevel != 0) {                  /* clamp to level camera bounds */
-        f32* bounds = *(f32**)((u8*)gCurLevel + 0x60);
-        f32* a = &out->x;
+    {                                      /* clamp to level camera bounds */
+        f32* bounds;
         for (k = 0; k < 3; k++) {
-            if (a[k] < bounds[3 + k]) a[k] = bounds[3 + k];
-            if (a[k] > bounds[6 + k]) a[k] = bounds[6 + k];
+            bounds = *(f32**)((u8*)gCurLevel + 0x60);
+            (&out->x)[k] = ((&out->x)[k] < bounds[3 + k]) ? bounds[3 + k] :
+                           ((&out->x)[k] > bounds[6 + k]) ? bounds[6 + k] :
+                           (&out->x)[k];
         }
     }
 
-    return count != 0;
+    return count > 0;
 }
 
 /* Initialise and converge the standard camera.  A non-zero argument performs
