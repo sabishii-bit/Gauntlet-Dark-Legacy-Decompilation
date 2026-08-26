@@ -5303,6 +5303,7 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
  * descriptor at either a supplied world position or the critter node. */
 s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
 {
+    u8 unused[8];
     f32 world[3];
     u8 worldPad[4];
     f32 velocity[3];
@@ -5317,6 +5318,7 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
     u32 flags;
     s32 result;
     s32 morph;
+    s32 morphTarget;
     f32 scale;
     f32 radius;
     f32 damage;
@@ -5345,15 +5347,15 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
         world[2] = offset[2];
         if (position != NULL) {
             MulBodyVecMat4(position, position, &c->mtx[0][0]);
-            world[0] += position[0];
-            world[1] += position[1];
-            world[2] += position[2];
+            world[0] = position[0] + world[0];
+            world[1] = position[1] + world[1];
+            world[2] = position[2] + world[2];
         }
     } else if (position != NULL) {
         MulVecMat3(offset, world, &c->mtx[0][0]);
-        world[0] += position[0];
-        world[1] += position[1];
-        world[2] += position[2];
+        world[0] = position[0] + world[0];
+        world[1] = position[1] + world[1];
+        world[2] = position[2] + world[2];
     } else {
         MulVecMat4(offset, world, &c->mtx[0][0]);
     }
@@ -5414,10 +5416,10 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
         PlaceEffectOnFloor(result, (f32 *)Effects[result].node);
     }
     if (*(s16 *)desc != 1) {
-        if (*(f32 *)(desc + 0x14) != lbl_80346470) {
+        if (lbl_80346470 != *(f32 *)(desc + 0x14)) {
             YawMat3(*(f32 *)(desc + 0x14), (f32 *)Effects[result].node);
         }
-        if (*(f32 *)(desc + 0x1C) != lbl_80346470) {
+        if (lbl_80346470 != *(f32 *)(desc + 0x1C)) {
             WPitchMat3((f32 *)Effects[result].node, *(f32 *)(desc + 0x1C));
         }
     }
@@ -5442,18 +5444,19 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
         }
 
         if (*(s16 *)(desc + 0x44) >= 0) {
-            morphDesc = *(u8 **)(container + 0x4C) +
-                        *(s16 *)(desc + 0x44) * 0x50;
+            morphDesc = *(u8 **)(container + 0x4C) + 8;
+            morphTarget = *(s32 *)(morphDesc +
+                                    *(s16 *)(desc + 0x44) * 0x50);
             morph = 0;
             if (*(s16 *)(desc + 0x46) >= 0) {
-                morph = *(s32 *)(*(u8 **)(container + 0x4C) +
-                                  *(s16 *)(desc + 0x46) * 0x50 + 8);
+                morph = *(s32 *)(morphDesc +
+                                  *(s16 *)(desc + 0x46) * 0x50);
             }
             speed = *(f32 *)(desc + 0x3C);
-            if (speed <= lbl_80346470) {
+            if ((f64)speed <= lbl_80346488) {
                 speed = lbl_803464BC;
             }
-            SfxSetMorph(speed, result, *(s32 *)(morphDesc + 8), morph);
+            SfxSetMorph(speed, result, morphTarget, morph);
             if ((*(s16 *)(desc + 2) & 0x800) != 0) {
                 Effects[result].flags |= 0x8000;
             }
@@ -5464,14 +5467,14 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
         }
 
         if (*(f32 *)(desc + 0x30) > lbl_80346470) {
-            speed = c->rateScale;
-            if ((f64)speed < lbl_803464F8) {
-                speed = (f32)lbl_803464F8;
-            } else if ((f64)speed > lbl_80346620) {
-                speed = (f32)lbl_80346620;
-            }
+            speed = (f32)(((f64)c->rateScale < lbl_803464F8)
+                              ? lbl_803464F8
+                              : ((f64)c->rateScale > lbl_80346620)
+                                    ? lbl_80346620
+                                    : (f64)c->rateScale);
             speed = (f32)(lbl_80346530 *
-                          ((f64)speed - lbl_803464F8)) *
+                          ((f64)speed -
+                           *(volatile f64 *)&lbl_803464F8)) *
                         (*(f32 *)(desc + 0x34) - *(f32 *)(desc + 0x30)) +
                     *(f32 *)(desc + 0x30);
 
@@ -5501,10 +5504,11 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
             }
 
             if (*(s16 *)desc == 1) {
-                if (*(f32 *)(desc + 0x14) != lbl_80346470 ||
-                    *(f32 *)(desc + 0x48) != lbl_80346470) {
+                if (lbl_80346470 != *(f32 *)(desc + 0x14) ||
+                    lbl_80346470 != *(f32 *)(desc + 0x48)) {
                     yaw = *(f32 *)(desc + 0x14);
-                    if (*(f32 *)(desc + 0x48) > lbl_80346470) {
+                    if (*(f32 *)(desc + 0x48) >
+                        *(volatile f32 *)&lbl_80346470) {
                         yaw = (f32)((f64)yaw +
                                     lbl_803464F8 *
                                         -(f64)*(f32 *)(desc + 0x48) +
@@ -5513,7 +5517,7 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
                     YawVec3(velocity, velocity, yaw);
                 }
                 if ((*(s16 *)(desc + 2) & 8) != 0 &&
-                    *(f32 *)(desc + 0x1C) != lbl_80346470) {
+                    lbl_80346470 != *(f32 *)(desc + 0x1C)) {
                     PitchVec3(velocity, velocity, *(f32 *)(desc + 0x1C));
                 }
             }
