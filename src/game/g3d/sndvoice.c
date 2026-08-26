@@ -137,13 +137,16 @@ static u8 sndStreamVolTable[50] = {
     0x5A, 0x65, 0x71, 0x7F, 0x8F, 0xA0, 0xB4, 0xCA, 0xE3, 0xFF,
 };
 
-static SndVoice sndVoice[64];
+SndVoice sndVoice[64];
 
 static s32 sndStreamVolCur;
 static s32 sndStreamVolTarget;
-static u32 sndMixEnabled;
+static struct {
+    u32 value;
+    u32 pad;
+} sndMixEnabled;
 
-static u16 sndDbToMix(s32 db)
+static inline u16 sndDbToMix(s32 db)
 {
     if (db <= -0x388) {
         return 0;
@@ -192,7 +195,7 @@ void sndVoiceInit(void)
     }
     sndStreamVolCur = 0;
     sndStreamVolTarget = 0;
-    sndMixEnabled = 1;
+    sndMixEnabled.value = 1;
 }
 
 void sndVoiceSetParams(AXVPB* p, u32 flags, s32 vol, s32 auxA, s32 auxB,
@@ -222,7 +225,7 @@ void sndVoiceSetParams(AXVPB* p, u32 flags, s32 vol, s32 auxA, s32 auxB,
         v->mix[0] = sndDbToMix(vol);
     }
 
-    if (sndMixEnabled == 1) {
+    if (sndMixEnabled.value == 1) {
         v->mix[2] = sndDbToMix(v->master + v->volL + v->panL);
         v->mix[4] = sndDbToMix(v->master + v->volR + v->panL);
         v->mix[6] = sndDbToMix(v->master + v->panR);
@@ -411,7 +414,7 @@ void sndVoiceUpdateAll(void)
                 v->flags &= ~0x80000000;
             }
             if (v->flags & 0x40000000) {
-                if (sndMixEnabled == 1) {
+                if (sndMixEnabled.value == 1) {
                     v->mix[3] = sndDbToMix(v->master + v->volL + v->panL);
                     v->mix[5] = sndDbToMix(v->master + v->volR + v->panL);
                     v->mix[7] = sndDbToMix(v->master + v->panR - 0x3C);

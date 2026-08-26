@@ -1051,6 +1051,8 @@ dolphin/gx/GXPerf.c:
 game/g3d/sndvoice.c:
 	.text       start:0x80102198 end:0x80103BE4
 	.data       start:0x8023AF70 end:0x8023BB2E
+	.bss        start:0x80341730 end:0x80342D30
+	.sbss       start:0x803455C0 end:0x803455D0
 
 dolphin/mtx/mtx.c:
 	.text       start:0x80103BE4 end:0x80103D60
