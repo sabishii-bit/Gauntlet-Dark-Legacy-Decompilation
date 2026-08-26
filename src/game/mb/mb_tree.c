@@ -527,10 +527,12 @@ static inline void MBTreeMoveAfter(MBTreeNode* node, MBTreeNode* after)
 /* 0x800BA820 */
 void MBTreeInit(void)
 {
+    u8 unused[16];
     const f32* matrix;
     MBTreeNode* node1;
     MBTreeNode* node2;
     MBTreeNode* node3;
+    f32 default_scale;
     s32 i;
 
     lbl_80344EC8 = 0;
@@ -582,8 +584,9 @@ void MBTreeInit(void)
     MBTreeMoveAfter(gDiag_DE8, lbl_80344ED4);
     MBTreeMoveAfter(lbl_80344EA8, gDiag_DE8);
 
+    default_scale = lbl_80348CA0;
     for (i = 0; i < 64; i++)
-        ((MBUVScaleAdd*)lbl_802C2A28)[i].uScale = lbl_80348CA0;
+        ((MBUVScaleAdd*)lbl_802C2A28)[i].uScale = default_scale;
 
     fn_800C0AA4(3);
 }
