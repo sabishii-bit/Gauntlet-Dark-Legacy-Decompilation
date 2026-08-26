@@ -718,10 +718,10 @@ void LinkItemTriggers(void)
                         *(s8*)&ot1->data[6] = 0;
                         dup1++;
                     }
-                    if (*(s8*)&ot1->data[7] != *(s8*)&it1->data[6]) {
-                        goto link_cont_j;
+                    if (*(volatile s8*)&ot1->data[7] !=
+                        *(volatile s8*)&it1->data[6]) {
+                        continue;
                     }
-link_cont_j:;
                 }
             }
             if (dup1 > 0) {
