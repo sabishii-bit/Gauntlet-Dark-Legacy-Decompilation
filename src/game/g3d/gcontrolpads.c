@@ -190,36 +190,47 @@ int G3DControlPadButtonPressed(int pad, int button)
  * records disconnected channels and the other every usable channel. Midway
  * removed the later PADReset/PADRecalibrate calls, leaving both masks dead.
  */
+#pragma opt_propagation off
 void G3DReadControlPadStates(void)
 {
-    PADStatus* status;
-    u32 disconnected;
-    u32 usable;
+    u32 maskB;
+    u32 maskA;
     int i;
+    s8 err;
+    u32 bit;
+    u8 unused[8];
 
-    disconnected = 0;
-    usable = disconnected;
-    gPadManager.count = 0;
-    status = G3DGetPadStatusBuffer();
-    gPadManager.status = status;
+    maskA = 0;
+    maskB = maskA;
+    gPadManager.count = maskA;
+    gPadManager.status = G3DGetPadStatusBuffer();
     for (i = 0; i < 4; i++) {
-        u32 bit = 0x80000000 >> i;
-        s32 err = status[i].err;
+        bit = PAD_CHAN0_BIT >> i;
+        err = gPadManager.status[i].err;
 
-        if (err == -1) {
-            disconnected |= bit;
-        } else if (err >= 0) {
-            if (err >= 1) {
-                continue;
+        if (err == PAD_ERR_NO_CONTROLLER) {
+            goto add_maskA;
+        } else if (err < PAD_ERR_NO_CONTROLLER) {
+            if (err >= PAD_ERR_TRANSFER) {
+                goto add;
             }
-        } else if (err < -3) {
-            continue;
+            goto skip;
+        } else {
+            if (err >= 1) {
+                goto skip;
+            }
+            goto add;
         }
-        usable |= bit;
+    add_maskA:
+        maskA |= bit;
+    add:
+        maskB |= bit;
         gPadManager.map[gPadManager.count] = i;
         gPadManager.count++;
+    skip:;
     }
 }
+#pragma opt_propagation reset
 
 int G3DGetActivePadCount(void)
 {
