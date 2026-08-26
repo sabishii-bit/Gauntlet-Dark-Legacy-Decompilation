@@ -2607,7 +2607,7 @@ static s32 SfxSkipItem_80096FF4(struct fxitem* item, u32 a, u32 b);
 void ProcessEffects(void)
 {
     s32 i;
-    u8 framePad[80];
+    u8 framePad[88];
     f32 mat[16];
     f32 targetmat[16];
     f32 oldpos[3];
@@ -2615,7 +2615,6 @@ void ProcessEffects(void)
     f32 dir[3];
     f32 hitpos[3];
     f32 normal[3];
-    f32 travel;
     f32 radius;
     f32 remaining;
     f32 fade;
@@ -2820,38 +2819,35 @@ void ProcessEffects(void)
                     : (f32)(lbl_803480B0 * scale);
             e->dmgdebug->scale[2] = scale;
         }
-        if (e->morphtime > 0.0f && e->fxmorph <= 0 && remaining < e->morphtime) {
-            s32 alpha = (s32)(255.0f * (remaining / e->morphtime));
-            if (alpha < 0) {
-                alpha = 0;
-            } else if (alpha > 255) {
-                alpha = 255;
-            }
-            MBTreeSetAlpha(e->node, alpha, 1);
-        }
-        if (e->fxfade != 0.0f && e->fxmorph <= 0 && remaining < e->fxfade) {
-            MBTreeSetAlpha(e->node, (s32)(255.0f * (remaining / e->fxfade)), 1);
+        if (e->fxfade > 0.0f && e->fxhit <= 0 && remaining < e->fxfade) {
+            MBTreeSetAlpha(
+                e->node,
+                (s32)(255.0f * (1.0f - remaining / e->fxfade)), 1);
         }
         if (flags & 0x08410000) {
             MBTreeClearFlags(e->node, 8, 0);
         }
-        if ((flags & 0x10000) && e->maxtime - remaining < 0.1f) {
-            f32 scale = 5.0f * (e->maxtime - remaining) + 0.5f;
-            MBTreeSetFlags(e->node, 8, 0);
-            e->node->scale[0] = scale;
-            e->node->scale[1] = scale;
-            e->node->scale[2] = scale;
+        if (flags & 0x08000000) {
+            f32 elapsed = e->maxtime - remaining;
+            if (elapsed < 1.0f / e->maxtime) {
+                f32 scale = 0.99f * elapsed * e->maxtime + 0.01f;
+                MBTreeSetFlags(e->node, 8, 0);
+                e->node->scale[0] = scale;
+                e->node->scale[1] = scale;
+                e->node->scale[2] = scale;
+            }
+        } else if (flags & 0x10000) {
+            f32 elapsed = e->maxtime - remaining;
+            if (elapsed < 0.1f) {
+                f32 scale = 5.0f * elapsed + 0.5f;
+                MBTreeSetFlags(e->node, 8, 0);
+                e->node->scale[0] = scale;
+                e->node->scale[1] = scale;
+                e->node->scale[2] = scale;
+            }
         }
-        if ((flags & 0x400000) && e->fxmorph == 0 && remaining < 0.2f) {
+        if ((flags & 0x400000) && e->fxhit == 0 && remaining < 0.2f) {
             f32 scale = 5.0f * remaining + 0.001f;
-            MBTreeSetFlags(e->node, 8, 0);
-            e->node->scale[0] = scale;
-            e->node->scale[1] = scale;
-            e->node->scale[2] = scale;
-        }
-        if ((flags & 0x08000000) && e->maxtime > 0.0f &&
-            e->maxtime - remaining < 1.0f / e->maxtime) {
-            f32 scale = 0.99f * (e->maxtime - remaining) * e->maxtime + 0.01f;
             MBTreeSetFlags(e->node, 8, 0);
             e->node->scale[0] = scale;
             e->node->scale[1] = scale;
@@ -2861,10 +2857,10 @@ void ProcessEffects(void)
             UpdateFXStreak(e, pos);
         }
 
-        dir[0] = pos[0] - oldpos[0];
-        dir[1] = pos[1] - oldpos[1];
-        dir[2] = pos[2] - oldpos[2];
-        travel = NormalVector(dir);
+        dir[0] = mat[8];
+        dir[1] = mat[9];
+        dir[2] = mat[10];
+        NormalVector2D(dir);
         oldDebugCount = e->debugcount;
 
         /* Direct player hits.  Expanding effects scan every active player;
