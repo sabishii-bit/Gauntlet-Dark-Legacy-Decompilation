@@ -1074,24 +1074,30 @@ void fn_80011DCC(u32* p)
     for (i = 0; i < 2; i++) {
         field = b + i * 4;
         NODE_SWAPF32(field, 0x20);
-        NODE_SWAPF32(field, 0x28);
+        field += 0x28;
+        NODE_SWAPF32(field, 0);
     }
     for (i = 0; i < 3; i++) {
         field = b + i * 4;
         NODE_SWAPF32(field, 0x60);
-        NODE_SWAPF32(field, 0x6C);
+        field += 0x6C;
+        NODE_SWAPF32(field, 0);
     }
     for (i = 0; i < 4; i++) {
+        u8* updateField;
+
         field = b + i * 4;
+        updateField = field + 0xE8;
         NODE_SWAPF32(field, 0xA8);
         NODE_SWAP32(field, 0x98);
         NODE_SWAPF32(field, 0x78);
         NODE_SWAPF32(field, 0xC8);
         NODE_SWAPF32(field, 0xD8);
-        NODE_SWAPF32(field, 0xE8);
+        NODE_SWAPF32(updateField, 0);
         NODE_SWAPF32(field, 0xF8);
         NODE_SWAPF32(field, 0x108);
-        NODE_SWAPF32(field, 0x118);
+        field += 0x118;
+        NODE_SWAPF32(field, 0);
     }
 }
 
