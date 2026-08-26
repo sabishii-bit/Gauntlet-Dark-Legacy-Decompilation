@@ -6576,8 +6576,8 @@ s32 CritterLoadDone(s32 maxBytes)
                 sprintf(buf, &fmtbase[416], desc, (u8 *)gWorldData + 4);
                 break;
             case 7:
-                for (i = 0; i < 8; i++) {
-                    s32 *entry = lbl_8025776C[i];
+                for (i = 0; i < 32; i += 4) {
+                    s32 *entry = *(s32 **)((u8 *)lbl_8025776C + i);
                     if (*entry == 32) {
                         sprintf(buf, &fmtbase[432], desc, (u8 *)entry + 16);
                         break;
