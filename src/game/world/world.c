@@ -473,9 +473,10 @@ void NewWorld(void* parent) {
 void WorldSaveInitState(void) {
     s32 i;
     s32 memBase;
-    char* base = gWorldName;
+    char* base;
 
     WorldDisplay = 0;
+    base = gWorldName;
     if (lbl_80344DA4 != 0) {
         u8** wobjsp;
         world_objects = InitWorldInfo((WorldInfo*)(base + 228), lbl_80344DA4);
