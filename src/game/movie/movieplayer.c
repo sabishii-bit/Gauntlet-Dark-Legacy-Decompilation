@@ -139,7 +139,7 @@ u32 fn_800D8F28(int* p1, int p3, char* p4, int p5, u32 p6);
 u32 fn_800D91B4(u32* p1, int p3, char* p4, int p5, u32 p6);
 u32 fn_800D9A14(u32* p1, u8* p2, int p3, u8 p4);
 void fn_800DBE98(u32 param_1, u8* param_2);
-int fn_800DB2F4(int param_1, u8* param_2, u32 param_3, u32 param_4);
+int fn_800DB2F4(u8* param_1, u8* param_2, u32 param_3, u32 param_4);
 void fn_800DB3D4(u32* stream, s32 fd, u32 length);
 void fn_800DB29C(int stream);
 u32* fn_800DB36C(int stream);
@@ -1022,7 +1022,7 @@ u32 fn_800D9B48(u32* param_1, u8* param_2, int param_3) {
 }
 
 #pragma dont_inline on
-int fn_800D9C34(int p) {
+int fn_800D9C34(u8* p) {
     int hi = *(int*)(p + 8);
     int lo = *(int*)(p + 0xc);
     if (hi >= lo) {
@@ -1188,7 +1188,7 @@ void fn_800D9F20(int param_1) {
             requestSize = *(u32*)(param_1 + 0x10);
             requestOffset = *(u32*)(param_1 + 0xc);
             requestData = *(u8**)(param_1 + 4);
-            if ((u8)fn_800DB2F4((int)(gMovieStreamState + 0x20), requestData,
+            if ((u8)fn_800DB2F4(gMovieStreamState + 0x20, requestData,
                                 requestOffset, requestSize)) {
                 *(u32*)(param_1 + 8) = *(u32*)(param_1 + 0x10);
                 *(int*)(param_1 + 0xc) = *(int*)(param_1 + 0xc) + *(int*)(param_1 + 0x10);
@@ -1201,9 +1201,9 @@ void fn_800D9F20(int param_1) {
 typedef struct MovieAudioState {
     s32 command;
     u8* buffer;
-    s32 remaining;
-    s32 offset;
-    s32 requestSize;
+    u32 remaining;
+    u32 offset;
+    u32 requestSize;
     u8 active;
     u8 _pad[3];
 } MovieAudioState;
@@ -1223,7 +1223,7 @@ typedef struct MovieAudioState {
         SetVertexFormat(2);                                                  \
         fn_800C6AB4(1);                                                      \
         GXInvalidateTexAll();                                                \
-        GXLoadTexObj(&lbl_80321308, MOVIE_GX_TEXMAP0);                       \
+        GXLoadTexObj(textureObject, MOVIE_GX_TEXMAP0);                       \
         GXSetChanMatColor(MOVIE_GX_COLOR0A0, color);                         \
         GXSetZMode(MOVIE_GX_TRUE, MOVIE_GX_GEQUAL, MOVIE_GX_TRUE);           \
     }
@@ -1231,9 +1231,10 @@ typedef struct MovieAudioState {
 void PlayVQMovie(const char* name)
 {
     typedef s32 (*MovieOpenMethod)(u8*, const char*);
-    typedef u32 (*MovieUpdateMethod)(u8*, u32, f32);
+    typedef u8 (*MovieUpdateMethod)(u8*, u8*, f32);
     typedef void (*MovieCloseMethod)(u8*);
     u8* movie;
+    MovieGXTexObj* textureObject = &lbl_80321308;
     u8* texture;
     s32* dimensions;
     s32 height;
@@ -1242,25 +1243,25 @@ void PlayVQMovie(const char* name)
     s32 oneBits;
     s32 shifts;
     s32 textureBytes;
-    s32 stopCount;
+    s32 stopCount = 0;
     s32 lastTime;
     s32 now;
     s32 i;
     f32 texV;
     f32 elapsed;
     PADStatus* pads;
-    u8 unused[40];
+    u8 unused[48];
     PADStatus previousPads[4];
 
     movie = AllocHiMem(472, (u32)gMovieAllocCount++);
     movie = __construct_new_array(movie, (void*)fn_800DB0F8,
                                   (void*)fn_800DB008, 464, 1);
     gMovieStreamState = movie;
-    ((MovieOpenMethod)(*(u32**)movie)[3])(movie, name);
+    ((MovieOpenMethod)(*(u32**)gMovieStreamState)[3])(gMovieStreamState, name);
 
-    dimensions = (s32*)(movie + 408);
+    dimensions = (s32*)(gMovieStreamState + 408);
     if (dimensions[0] != 512) {
-        ((MovieCloseMethod)(*(u32**)movie)[5])(movie);
+        ((MovieCloseMethod)(*(u32**)gMovieStreamState)[5])(gMovieStreamState);
         __destroy_new_array(gMovieStreamState, (void*)fn_800DB008);
         ResetAllocTot();
         return;
@@ -1286,23 +1287,22 @@ void PlayVQMovie(const char* name)
     textureBytes = dimensions[0] * paddedHeight * 2;
     texture = AllocHiMem((u32)textureBytes, (u32)gMovieAllocCount++);
     memset(texture, 0, (u32)textureBytes);
-    GXInitTexObj(&lbl_80321308, texture, (u16)dimensions[0],
+    GXInitTexObj(textureObject, texture,
+                 (u16)*(s32*)(gMovieStreamState + 408),
                  (u16)paddedHeight, MOVIE_GX_TF_RGB565, MOVIE_GX_CLAMP,
                  MOVIE_GX_CLAMP, 0);
     MOVIE_SETUP_DRAW_STATE();
 
     pads = G3DGetPadStatusBuffer();
     for (i = 0; i < 4; i++) {
-        previousPads[i] = pads[i];
+        memcpy(&previousPads[i], &pads[i], sizeof(PADStatus));
     }
     pbPulseTime();
     lastTime = sSeconds;
     elapsed = lbl_80349390;
-    stopCount = 0;
-
     while (stopCount < 3 &&
-           ((MovieUpdateMethod)(*(u32**)movie)[4])(
-               movie, (u32)texture, elapsed) != 0) {
+           ((MovieUpdateMethod)(*(u32**)gMovieStreamState)[4])(
+               gMovieStreamState, texture, elapsed) != 0) {
         if (stopCount != 0) {
             stopCount++;
         }
@@ -1341,7 +1341,8 @@ void PlayVQMovie(const char* name)
         GXSetZMode(MOVIE_GX_TRUE, MOVIE_GX_GEQUAL, MOVIE_GX_TRUE);
 
         {
-            MovieAudioState* audio = *(MovieAudioState**)(movie + 400);
+            MovieAudioState* audio =
+                *(MovieAudioState**)(gMovieStreamState + 400);
 
             if (audio->active != 0) {
                 adsPoll();
@@ -1352,13 +1353,15 @@ void PlayVQMovie(const char* name)
                         audio->remaining);
                 }
                 if (audio->remaining == 0) {
-                    s32 request = *(s32*)(movie + 264) - audio->offset;
+                    u32 request =
+                        *(u32*)(gMovieStreamState + 264) - audio->offset;
 
                     if (request > 0xc000) {
                         request = 0xc000;
                     }
                     audio->requestSize = request;
-                    if ((u8)fn_800DB2F4((s32)(movie + 32), audio->buffer,
+                    if ((u8)fn_800DB2F4(gMovieStreamState + 32,
+                                        audio->buffer,
                                         audio->offset,
                                         audio->requestSize) != 0) {
                         audio->remaining = audio->requestSize;
@@ -1374,7 +1377,7 @@ void PlayVQMovie(const char* name)
         lastTime = now;
     }
 
-    ((MovieCloseMethod)(*(u32**)movie)[5])(movie);
+    ((MovieCloseMethod)(*(u32**)gMovieStreamState)[5])(gMovieStreamState);
     if (texture != NULL) {
         gMovieAllocCount--;
         if (gMovieAllocCount == 0) {
@@ -1460,7 +1463,7 @@ u32 fn_800DA6A4(register u8* movie, register u32 decodeFrame, f32 elapsed)
             }
             *(MovieAudioState**)(movie + 0x190) = audio;
             audio = *(MovieAudioState**)(movie + 0x190);
-            audio->active = (u8)fn_800DB2F4((s32)(gMovieStreamState + 0x20), audio->buffer, 0, 0xC000);
+            audio->active = (u8)fn_800DB2F4(gMovieStreamState + 0x20, audio->buffer, 0, 0xC000);
             if (audio->active != 0) {
                 audio->offset = 0xC000;
                 audio->remaining = 0xC000;
@@ -1838,7 +1841,7 @@ void fn_800DB29C(int stream) {
 #pragma scheduling on
 #endif
 
-int fn_800DB2F4(int param_1, u8* param_2, u32 param_3, u32 param_4) {
+int fn_800DB2F4(u8* param_1, u8* param_2, u32 param_3, u32 param_4) {
     int iVar1;
     int ret;
     u8 unused[8];
