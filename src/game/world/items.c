@@ -1708,20 +1708,20 @@ keyring_found:
             trigger_flags |= *(s16*)&params[2] & ~0xFF;
             DATA_S16(4) = (s16)trigger_flags;
             if (params[4] == 0xFF) {
-                DATA_F32(8) = 0.01f;
+                DATA_F32(12) = 0.01f;
             } else {
-                DATA_F32(8) = (f32)(0.5 * (f64)params[4]);
+                DATA_F32(12) = (f32)(0.5 * (f64)params[4]);
             }
             DATA_U8(6) = params[6];
             DATA_U8(7) = params[7];
         } else {
             DATA_S32(0) = 0;
             DATA_U16(4) = 0;
-            DATA_F32(8) = 0.0f;
+            DATA_F32(12) = 0.0f;
             DATA_U8(6) = 0;
             DATA_U8(7) = 0;
         }
-        DATA_S32(12) = 0;
+        DATA_S32(8) = 0;
         DATA_S16(16) = 0;
         DATA_S16(18) = -1;
 
