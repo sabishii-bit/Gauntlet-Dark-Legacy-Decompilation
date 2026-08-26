@@ -16,6 +16,7 @@ Usage (from repo root):
 import argparse
 import difflib
 import json
+import re
 import subprocess
 import sys
 
@@ -68,6 +69,7 @@ def main():
 
     parked = load_parked()
     rows = []
+    unscored = []
     for unit_info in json.loads(REPORT.read_text()).get("units", []):
         unit = unit_info.get("name", "").removeprefix("main/")
         if args.grep and args.grep not in unit:
@@ -85,16 +87,16 @@ def main():
 
         for function in unit_info.get("functions", []):
             name = function.get("name", "?")
-            raw_pct = function.get("fuzzy_match_percent")
-            if raw_pct is None:
-                if args.include_unscored:
-                    print(f"UNSCORED  {int(function.get('size', 0) or 0):5d}B  "
-                          f"{name:<40} {unit}")
-                continue
-            pct = float(raw_pct)
             size = int(function.get("size", 0) or 0)
             if name == "?" or size < args.min_size:
                 continue
+            raw_pct = function.get("fuzzy_match_percent")
+            if raw_pct is None:
+                if args.include_unscored and not (
+                        name in parked and args.parked == "skip"):
+                    unscored.append((size, name, unit))
+                continue
+            pct = float(raw_pct)
             if not (args.min <= pct <= args.max) or pct >= 100.0:
                 continue
             if name in parked and args.parked == "skip":
@@ -102,8 +104,11 @@ def main():
 
             real = category = None
             if target_fns is not None:
-                target = target_fns.get(name)
-                base = base_fns.get(name)
+                aliases = (name, re.sub(r"_[0-9A-Fa-f]{8}$", "", name))
+                target = next((target_fns.get(alias) for alias in aliases
+                               if target_fns.get(alias) is not None), None)
+                base = next((base_fns.get(alias) for alias in aliases
+                             if base_fns.get(alias) is not None), None)
                 if target is not None and base is not None:
                     diff = difflib.unified_diff(
                         normalized_reloc_lines(target),
@@ -133,6 +138,14 @@ def main():
                         else "  d=????")
         print(f"{pct:6.2f}%  {size:5d}B  gap~{gap:6.0f}B{residual}  "
               f"{name:<40} {unit}{parked_tag}")
+
+    if unscored:
+        print("--- unscored/unpaired (diagnostic; not treated as 0%) ---")
+        unscored.sort(key=lambda row: (-row[0], row[2], row[1]))
+        shown_unscored = unscored[:args.limit] if args.limit else unscored
+        for size, name, unit in shown_unscored:
+            parked_tag = "  [PARKED]" if name in parked else ""
+            print(f"UNSCORED  {size:5d}B  {name:<40} {unit}{parked_tag}")
 
     gap_total = sum(row[2] for row in rows)
     print(f"--- {len(rows)} low-match fns ({args.min:g}%..{args.max:g}%, "
