@@ -37,7 +37,7 @@ s32 mbBlitCalcWidth(void*, s32 x, s32 y, f32 depth); /* mb_blit.c */
 void mbBlitProject(void*, s32 a, s32 c);             /* mb_blit.c */
 void MBBlitSetColor(void*, u32 bright);              /* mb_blit.c */
 void dbgTextPrintfPx(s32 color, s32 x, s32 line, char* fmt, ...);
-void fn_800C03E0(s32 mode);
+s32 fn_800C03E0(s32 mode);
 
 extern u32 lbl_802C45CC[];   /* debug-cell array base (.data) */
 extern u32 lbl_802C45C0[];   /* debug-graph state block (.data) */
@@ -281,14 +281,14 @@ extern s32 lbl_8034475C;        /* debug page/mode selector               */
 extern char lbl_80116450[];     /* rodata: 8 colors + scale/fmt strings   */
 extern DbgRow lbl_80127DE8[];   /* 24-entry debug row table (.data)       */
 extern f32  lbl_80348EF0;       /* quad depth constant                    */
-extern char lbl_80348EF4[];     /* mode-5 row fmt (sdata2 string)         */
+extern char lbl_80348EF4;       /* mode-5 row fmt (sdata2 string)         */
 
 /* Large debug-quad / graph renderer: per-mode text rows + bar quads.
  * Dispatch is on the global lbl_8034475C (the mode parameter is unused in
  * the original).  Returns the advanced line cursor. */
-void fn_800C03E0(s32 mode)
+s32 fn_800C03E0(s32 mode)
 {
-    u8 unused[88];
+    u8 unused[96];
     u32* tblA = lbl_802C45CC;
     char* fmts = lbl_80116450;
     DbgRow* tblB = lbl_80127DE8;
@@ -318,34 +318,46 @@ void fn_800C03E0(s32 mode)
             u32 dv;
             u32 pct;
             u32 w;
+            u32 color;
+            u32 scale;
+            s32 textX;
             if (id < 0) {
                 goto next3;
             }
+            scale = 4882;
             dv = ((u32*)lbl_80344F7C)[i * 4 + 3];
             pct = dv >> 10;
             if (dv != 0 && pct == 0) {
                 pct = 1;
             }
-            dbgTextPrintfPx(DBGROW3->color, 0, line, fmts + 64,
+            textX = 0;
+            dbgTextPrintfPx(DBGROW3->color, textX * 8, line, fmts + 64,
                             pct * 100 / div, pct);
             dbgTextPrintfPx(DBGROW3->color, (id + 11) * 8, line,
                             DBGROW3->name);
             w = pct * 96;
-            if ((s32)(w / 4882) > 0) {
+            j = (s32)(w / scale);
+            if (j > 0) {
+                s32 x;
                 quad = MBNewTempQuad();
-                mbBlitCalcWidth(quad, 241, qline + 1, lbl_80348EF0);
-                mbBlitProject(quad, w / 4882, 4);
+                x = 30;
+                mbBlitCalcWidth(quad, x * 8 + 1, qline + 1, lbl_80348EF0);
+                mbBlitProject(quad, w / scale, 4);
                 MBBlitSetColor(quad, 0x10101);
             }
-            if ((s32)DBGROW3->color > 0) {
+            color = DBGROW3->color;
+            if (j > 0) {
+                s32 x;
                 quad = MBNewTempQuad();
-                mbBlitCalcWidth(quad, 241, qline + 2, lbl_80348EF0);
-                mbBlitProject(quad, w / 4882, 4);
-                MBBlitSetColor(quad, DBGROW3->color);
+                x = 30;
+                mbBlitCalcWidth(quad, x * 8, qline + 2, lbl_80348EF0);
+                mbBlitProject(quad, w / scale, 4);
+                MBBlitSetColor(quad, color);
             }
-        next3:
             line += 8;
             qline += 8;
+        next3:
+            ;
         }
 #undef DBGROW3
         j = qline - 20;
@@ -361,36 +373,47 @@ void fn_800C03E0(s32 mode)
         dbgTextPrintfPx(0xFFFFFF, 240, line - 8, fmts + 76);
         for (i = 0; i < 24; i++) {
             DbgRow* row = &tblB[i];
+            u32* colorp;
             s32 id = row->id;
             u32 dv;
             u32 pct;
             u32 w;
+            u32 scale;
+            s32 textX;
             if (id < 0) {
                 goto next2;
             }
             dv = tblA[i * 4 + 3];
+            colorp = &row->color;
             pct = dv >> 10;
-            dbgTextPrintfPx(row->color, 0, line, fmts + 64,
+            textX = 0;
+            scale = 4882;
+            dbgTextPrintfPx(*colorp, textX * 8, line, fmts + 64,
                             pct * 100 / div, pct);
-            dbgTextPrintfPx(*(u32*)&row->color, (id + 11) * 8, line,
+            dbgTextPrintfPx(*colorp, (id + 11) * 8, line,
                             row->name);
             w = pct * 48;
-            j = (s32)(w / 4882);
+            j = (s32)(w / scale);
             if (j > 0) {
+                s32 x;
                 quad = MBNewTempQuad();
-                mbBlitCalcWidth(quad, 241, qline + 1, lbl_80348EF0);
-                mbBlitProject(quad, w / 4882, 4);
+                x = 30;
+                mbBlitCalcWidth(quad, x * 8 + 1, qline + 1, lbl_80348EF0);
+                mbBlitProject(quad, w / scale, 4);
                 MBBlitSetColor(quad, 0x10101);
             }
             if (j > 0) {
+                s32 x;
                 quad = MBNewTempQuad();
-                mbBlitCalcWidth(quad, 241, qline + 2, lbl_80348EF0);
-                mbBlitProject(quad, w / 4882, 4);
-                MBBlitSetColor(quad, *(u32*)&row->color);
+                x = 30;
+                mbBlitCalcWidth(quad, x * 8, qline + 2, lbl_80348EF0);
+                mbBlitProject(quad, w / scale, 4);
+                MBBlitSetColor(quad, *colorp);
             }
-        next2:
             line += 8;
             qline += 8;
+        next2:
+            ;
         }
         j = qline - 20;
         for (k = 0, i = 0; k < 6; k++, i += 6) {
@@ -405,7 +428,7 @@ void fn_800C03E0(s32 mode)
         for (i = 0; i < 24; i++) {
             DbgRow* row = &tblB[i];
             u32 dv = tblA[i * 4 + 3];
-            dbgTextPrintfPx(row->color, 0, line, lbl_80348EF4,
+            dbgTextPrintfPx(row->color, 0, line, &lbl_80348EF4,
                             dv >> shift);
             line += 8;
             qline += 8;
@@ -459,17 +482,21 @@ void fn_800C03E0(s32 mode)
             u32 dv = tblA[i * 4 + 3];
             u32 pct = dv >> 10;
             u32 w = pct * 48;
+            u32 color;
+            s32 x = 30;
             if ((s32)(w / 4882) > 0) {
                 quad = MBNewTempQuad();
-                mbBlitCalcWidth(quad, 241, qline + 1, lbl_80348EF0);
+                mbBlitCalcWidth(quad, x * 8 + 1, qline + 1, lbl_80348EF0);
                 mbBlitProject(quad, w / 4882, 4);
                 MBBlitSetColor(quad, 0x10101);
             }
-            if ((s32)(w / 4882) > 0) {
+            pct = pct * 48;
+            color = row->color;
+            if ((s32)(pct / 4882) > 0) {
                 quad = MBNewTempQuad();
-                mbBlitCalcWidth(quad, 241, qline + 2, lbl_80348EF0);
-                mbBlitProject(quad, w / 4882, 4);
-                MBBlitSetColor(quad, row->color);
+                mbBlitCalcWidth(quad, x * 8, qline + 2, lbl_80348EF0);
+                mbBlitProject(quad, pct / 4882, 4);
+                MBBlitSetColor(quad, color);
             }
             line += 8;
             qline += 8;
@@ -486,7 +513,7 @@ void fn_800C03E0(s32 mode)
     for (i = 74; i > 0; i--) {
     }
     dbgTextFlagA = 0;
-    return;
+    return line;
 }
 
 /* Latch a graph slot: move its accumulator to the display field. */
