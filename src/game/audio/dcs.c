@@ -458,15 +458,15 @@ s32 dcsVoiceStart(u32 sample, s32 volumePan, s32 priority) {
         channel = dcsVoicePlay(priority);
         if (channel >= 0) {
             DcsChannelInfo* infos = data->channels;
-            DcsChannelInfo* info = &infos[channel];
-            u16* duck = &info->duck;
+            u16* duck = &infos[channel].duck;
+            s32* sampleSlot = &infos[channel].sample;
 
-            info->volume =
+            infos[channel].volume =
                 ((volumePan >> 16) * params[0]) / 0x7F - lbl_8034520C;
-            info->pan = volumePan;
+            infos[channel].pan = (u16)volumePan;
             *duck = 0;
-            info->priority = ((u32)priority << 16) | params[2];
-            info->sample = -1;
+            infos[channel].priority = ((u32)priority << 16) | params[2];
+            infos[channel].sample = -1;
             if (params[1] != 0) {
                 adjustment = params[1] * lbl_80343FF8;
                 adjustment >>= 8;
@@ -479,7 +479,7 @@ s32 dcsVoiceStart(u32 sample, s32 volumePan, s32 priority) {
                 }
             }
             *duck = params[1];
-            info->sample = *(u16*)callStart;
+            *sampleSlot = *(u16*)callStart;
             dcsVoiceSetupAdpcm(channel);
         }
     }
