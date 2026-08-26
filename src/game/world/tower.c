@@ -1292,8 +1292,11 @@ void TowerCheckMessages(s32 mode) {
 void EnterTower(void) {
     char* strings = lbl_80114D50;
     TowerMsgState* state = &lbl_8028C288;
-    f32 world[12];
-    s32 effectState[6];
+    /* GetWorldMat writes a full 4x4 matrix; keep its stack home 8-byte aligned. */
+    union {
+        f32 matrix[16];
+        f64 alignment;
+    } world;
     s32 i;
     s32 j;
     s32 k;
@@ -1332,69 +1335,33 @@ void EnterTower(void) {
         state->cooldown[i] = lbl_80348588;
     }
     for (i = 0; i < 3; i++) {
-        ((f32*)((u8*)state + i * 4))[8] = lbl_80348588;
+        state->gargCooldown[i] = lbl_80348588;
     }
-    for (j = 0; j < 3; j++) {
-        req = lbl_80124D94[j];
-        count = 0;
-        for (i = 0; i < 4; i++) {
-            Player* p;
+    /* The requirement tables and per-character records have different strides. */
+    {
+        s32 reqOffset;
+        s32 recordOffset;
 
-            if (gDemoMode != 0) {
-                break;
-            }
-            p = &gPlayers[i];
-            if (p->state == 0) {
-                st = 0;
-            } else if (*(u32*)((u8*)p + 0xF0) == (u32)lbl_80343D6C) {
-                st = 2;
-            } else {
-                u8* levelRecord = (u8*)(j * 2);
-                s32 val = *(s16*)(levelRecord + (s32)p + p->character * 240 +
-                                  3560);
-
-                if (val < 0) {
-                    st = 2;
-                } else if (val == req) {
-                    st = 1;
-                } else {
-                    st = 0;
-                }
-            }
-            if (st == 2) {
-                break;
-            }
-            count++;
-        }
-        if (count < 4) {
-            ActivateSpecialTrigger(j + 101, 1);
-            if (j == 2) {
-                ActivateSpecialTrigger(104, 1);
-                ActivateSpecialTrigger(199, 1);
-            }
-        }
-    }
-    for (j = 0; j < 8; j++) {
-        req = lbl_80124C70[j];
-        worldId = crystal_order[j];
-        if (req != 0) {
+        for (j = 0, reqOffset = 0, recordOffset = 0; j < 3;
+             j++, reqOffset += 4, recordOffset += 2) {
+            req = *(s32*)((u8*)lbl_80124D94 + reqOffset);
             count = 0;
             for (i = 0; i < 4; i++) {
                 Player* p;
 
-                if (gDemoMode != 0 &&
-                    (worldId == 7 || (u32)(worldId - 10) <= 1)) {
+                if (gDemoMode != 0) {
                     break;
                 }
                 p = &gPlayers[i];
                 if (p->state == 0) {
                     st = 0;
-                } else if (*(u32*)((u8*)p + 0xF0) == (u32)lbl_80343D6C) {
+                } else if (*(u32*)((u8*)p + 0xF0) ==
+                           (u32)lbl_80343D6C) {
                     st = 2;
                 } else {
-                    u8* levelRecord = (u8*)(j * 2);
-                    s32 val = *(s16*)(levelRecord + (s32)p + p->character * 240 +
-                                      3566);
+                    s32 val =
+                        *(s16*)((u8*)p + p->character * 240 + 3560 +
+                                recordOffset);
 
                     if (val < 0) {
                         st = 2;
@@ -1410,7 +1377,58 @@ void EnterTower(void) {
                 count++;
             }
             if (count < 4) {
-                ActivateSpecialTrigger(j, 1);
+                ActivateSpecialTrigger(j + 101, 1);
+                if (j == 2) {
+                    ActivateSpecialTrigger(104, 1);
+                    ActivateSpecialTrigger(199, 1);
+                }
+            }
+        }
+    }
+    {
+        s32 recordOffset;
+        s32 reqOffset;
+
+        for (j = 0, recordOffset = 0, reqOffset = 0; j < 8;
+             j++, recordOffset += 2, reqOffset += 4) {
+            req = *(s32*)((u8*)lbl_80124C70 + reqOffset);
+            worldId = *(s32*)((u8*)crystal_order + reqOffset);
+            if (req != 0) {
+                count = 0;
+                for (i = 0; i < 4; i++) {
+                    Player* p;
+
+                    if (gDemoMode != 0 &&
+                        (worldId == 7 || (u32)(worldId - 10) <= 1)) {
+                        break;
+                    }
+                    p = &gPlayers[i];
+                    if (p->state == 0) {
+                        st = 0;
+                    } else if (*(u32*)((u8*)p + 0xF0) ==
+                               (u32)lbl_80343D6C) {
+                        st = 2;
+                    } else {
+                        s32 val =
+                            *(s16*)((u8*)p + p->character * 240 + 3566 +
+                                    recordOffset);
+
+                        if (val < 0) {
+                            st = 2;
+                        } else if (val == req) {
+                            st = 1;
+                        } else {
+                            st = 0;
+                        }
+                    }
+                    if (st == 2) {
+                        break;
+                    }
+                    count++;
+                }
+                if (count < 4) {
+                    ActivateSpecialTrigger(j, 1);
+                }
             }
         }
     }
@@ -1430,7 +1448,7 @@ void EnterTower(void) {
     if (runeMask != 0) {
         object = (u8*)FindWORLDOBJ(strings + 88);
         if (object != 0) {
-            GetWorldMat(*(f32**)(object + 40), world, 0);
+            GetWorldMat(*(f32**)(object + 40), world.matrix, 0);
             {
             f64 scale = lbl_803485C8;
             for (j = 1; j < 9; j++) {
@@ -1441,7 +1459,7 @@ void EnterTower(void) {
                         u8* e;
                         u8* ai;
 
-                        fx = StartFXSub(lbl_80348588, effect, world + 12,
+                        fx = StartFXSub(lbl_80348588, effect, world.matrix + 12,
                                         0x80000, 0x800);
                         SfxSetParent(fx, gSceneRoot);
                         e = (u8*)Effects + fx * 240;
@@ -1481,7 +1499,7 @@ void EnterTower(void) {
         }
         object = (u8*)FindWORLDOBJ(strings + 128);
         if (object != 0) {
-            GetWorldMat(*(f32**)(object + 40), world, 0);
+            GetWorldMat(*(f32**)(object + 40), world.matrix, 0);
             {
             f64 scale = lbl_803485C8;
             for (j = 0; j < 12; j++) {
@@ -1492,7 +1510,7 @@ void EnterTower(void) {
                         u8* e;
                         u8* ai;
 
-                        fx = StartFXSub(lbl_80348588, effect, world + 12,
+                        fx = StartFXSub(lbl_80348588, effect, world.matrix + 12,
                                         0x80000, 0x800);
                         SfxSetParent(fx, gSceneRoot);
                         e = (u8*)Effects + fx * 240;
@@ -1514,11 +1532,11 @@ void EnterTower(void) {
                 u8* ai;
                 f64 scale = lbl_803485C8;
 
-                GetWorldMat(*(f32**)(object + 40), world, 0);
+                GetWorldMat(*(f32**)(object + 40), world.matrix, 0);
                 effect = InitCustomEffect(0, &lbl_803485D8, 0, 0);
                 if (object != 0 && effect >= 0) {
-                    fx = StartFXSub(lbl_80348588, effect, world + 12, 0x80000,
-                                    0x800);
+                    fx = StartFXSub(lbl_80348588, effect, world.matrix + 12,
+                                    0x80000, 0x800);
                     SfxSetParent(fx, gSceneRoot);
                     e = (u8*)Effects + fx * 240;
                     ai = e + 28;
