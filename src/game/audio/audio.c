@@ -484,8 +484,8 @@ s32 AudioAng(f32* pos)
     f32 rel[3];
     f32 dist;
     f32 dot;
-    f64 scale;
     s32 pan;
+    s32 result;
 
     if (sAudioInitFlag != 0 || pos == 0) {
         return 127;
@@ -496,17 +496,18 @@ s32 AudioAng(f32* pos)
     rel[1] = lbl_80345930;                    /* 0.0f: flatten to ground plane */
     dist = NormalVector(rel) / lbl_80345960;  /* normalise by 20.0f */
     dot = rel[0] * gCameras[1] + rel[1] * gCameras[2] + rel[2] * gCameras[3];
-    scale = (1.0 >= dist) ? (f64)dist : 1.0;  /* clamp normalised distance */
-    pan = (s32)(127.5 * dot * scale + 127.5);
+    pan = (s32)(127.5 * dot * ((1.0 < dist) ? 1.0 : (f64)dist) + 127.5);
     if (gCameras[3] * rel[0] > gCameras[1] * rel[2]) {
         pan = -pan;
     }
     if (pan < -256) {
-        pan = -256;
+        result = -256;
     } else if (pan > 255) {
-        pan = 255;
+        result = 255;
+    } else {
+        result = pan;
     }
-    return pan;
+    return result;
 }
 
 /* ---------------------------------------------------------------- */
