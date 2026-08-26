@@ -27,7 +27,7 @@ typedef struct CameraTarget {
 } CameraTarget;
 
 extern CameraTarget gCameraTargets[15];
-extern u8 gCameraState[0x34];
+extern u8 gCameraState[];
 extern f32 gCameraTargetPositions[27];
 extern f32 gRecorderCameraPosition[3];
 
@@ -1514,63 +1514,96 @@ s32 MBScreenWidth(void);
  */
 f32 someone_will_be_off_screen(s32 camIdx, f32* pos)
 {
-    Camera* cam = &gCameras[camIdx];
-    f32* eye = (f32*)((u8*)cam + 0x34);
-    f32 savedX = eye[0];
-    f32 savedY = eye[1];
-    f32 savedZ = eye[2];
+    typedef union FloatBits {
+        f32 value;
+        u32 bits;
+    } FloatBits;
+    u8 stackLayout[56];
+    u8* cameraState = gCameraState;
+    Camera* cam;
+    f32* eyeX;
+    f32* eyeY;
+    f32* eyeZ;
+    f32 savedX;
+    f32 savedY;
+    f32 savedZ;
     f32 minX = lbl_803461D4, maxX = lbl_803461D8;
-    f32 minY = lbl_803461D4, maxY = lbl_803461D8;
+    f32 maxY = maxX, minY = minX;
+    CameraTarget* target = (CameraTarget*)(cameraState + 0xA10);
+    s32 i;
+    s32 halfW, halfH;
+    f32 cx, cy, horizontal, vertical, rx, ry;
+    FloatBits extent0, extent1;
     s32 scrH = MBScreenHeight();
     s32 scrW = MBScreenWidth();
-    s32 i;
-    f32 cx, cy, hd, vd, hd2, vd2, rx, ry;
+    cam = (Camera*)(cameraState + camIdx * sizeof(Camera) + 0xC8);
+    eyeX = (f32*)((u8*)cam + 0x34);
+    eyeY = eyeX + 1;
+    eyeZ = eyeX + 2;
+    savedX = *eyeX;
+    savedY = *eyeY;
+    savedZ = *eyeZ;
 
-    eye[0] = pos[0];
-    eye[1] = pos[1];
-    eye[2] = pos[2];
-    for (i = 0; i < 15; i++) {
-        CameraTarget* t = &gCameraTargets[i];
-        if (t->active != 0) {
+    *eyeX = pos[0];
+    *eyeY = pos[1];
+    *eyeZ = pos[2];
+    for (i = 0; i < 15; i++, target++) {
+        if (target->active != 0) {
             s16 sp[2];
             f32 sx, sy;
-            MBWindowProject((f32*)(t->object + 0x40),
-                            (f32*)((u8*)cam + 4), 0, sp);
+            MBWindowProject((f32*)(target->object + 0x40), cam->mat[0], 0, sp);
             sx = (f32)sp[0];
             sy = (f32)sp[1];
             if (sx < minX) minX = sx;
-            if (maxX < sx) maxX = sx;
+            if (sx > maxX) maxX = sx;
             if (sy < minY) minY = sy;
-            if (maxY < sy) maxY = sy;
-            MBWindowProject((f32*)(t->object + 0x30),
-                            (f32*)((u8*)cam + 4), 0, sp);
+            if (sy > maxY) maxY = sy;
+            MBWindowProject((f32*)(target->object + 0x30), cam->mat[0], 0, sp);
             sx = (f32)sp[0];
             sy = (f32)sp[1];
             if (sx < minX) minX = sx;
-            if (maxX < sx) maxX = sx;
+            if (sx > maxX) maxX = sx;
             if (sy < minY) minY = sy;
-            if (maxY < sy) maxY = sy;
+            if (sy > maxY) maxY = sy;
         }
     }
-    eye[0] = savedX;
-    eye[1] = savedY;
-    eye[2] = savedZ;
 
-    cx = (f32)(scrW / 2);
-    cy = (f32)(scrH - (scrH - 0x40) / 2);
-    hd = minX - cx;
-    if (hd < 0.0f) hd = -hd;
-    hd2 = maxX - cx;
-    if (hd2 < 0.0f) hd2 = -hd2;
-    if (hd2 < hd) hd2 = hd;
-    rx = hd2 / (f32)(scrW / 2);
-    vd = minY - cy;
-    if (vd < 0.0f) vd = -vd;
-    vd2 = maxY - cy;
-    if (vd2 < 0.0f) vd2 = -vd2;
-    if (vd2 < vd) vd2 = vd;
-    ry = vd2 / (f32)((scrH - 0x40) / 2);
-    return rx < ry ? ry : rx;
+    halfW = scrW / 2;
+    halfH = (scrH - 0x40) / 2;
+    cx = (f32)halfW;
+    cy = (f32)(scrH - halfH);
+
+    extent0.value = minX - cx;
+    extent1.value = maxX - cx;
+    extent0.bits &= 0x7FFFFFFF;
+    extent1.bits &= 0x7FFFFFFF;
+    horizontal = extent0.value;
+    if (extent0.value < extent1.value) {
+        extent1.value = maxX - cx;
+        extent1.bits &= 0x7FFFFFFF;
+        horizontal = extent1.value;
+    }
+    rx = horizontal / (f32)halfW;
+
+    extent0.value = minY - cy;
+    extent1.value = maxY - cy;
+    extent0.bits &= 0x7FFFFFFF;
+    extent1.bits &= 0x7FFFFFFF;
+    vertical = extent0.value;
+    if (extent0.value < extent1.value) {
+        extent1.value = maxY - cy;
+        extent1.bits &= 0x7FFFFFFF;
+        vertical = extent1.value;
+    }
+    ry = vertical / (f32)halfH;
+    if (rx < ry) {
+        rx = ry;
+    }
+
+    *eyeX = savedX;
+    *eyeY = savedY;
+    *eyeZ = savedZ;
+    return rx;
 }
 
 /*
