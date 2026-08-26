@@ -2289,6 +2289,7 @@ u32* fn_800DBE04(u32* p) {
 
 /* DText glyph blit (uses gDTextBuf + movie sdata2 pool) */
 void fn_800DBE98(void* param_1, u8* param_2) {
+    u8 unused[24];
     f32 fVar1;
     f32 fVar2;
     f32 fVar3;
@@ -2296,10 +2297,10 @@ void fn_800DBE98(void* param_1, u8* param_2) {
 
     fVar4 = lbl_803493DC;
     fVar1 = (f32)(u32)param_2[0];
-    fVar2 = (f32)(u32)param_2[2] - lbl_803493D8;
     fVar3 = (f32)(u32)param_2[1] - lbl_803493D8;
+    fVar2 = (f32)(u32)param_2[2] - lbl_803493D8;
     param_2[2] = gDTextBuf[(int)(lbl_803493DC + lbl_803493E0 * fVar2 + fVar1)];
-    param_2[1] = gDTextBuf[(int)(fVar4 + -(lbl_803493E8 * fVar2 - -(lbl_803493E4 * fVar3 - fVar1)))];
+    param_2[1] = gDTextBuf[(int)(fVar4 + (fVar1 - lbl_803493E4 * fVar3 - lbl_803493E8 * fVar2))];
     param_2[0] = gDTextBuf[(int)(fVar4 + lbl_803493EC * fVar3 + fVar1)];
 }
 
