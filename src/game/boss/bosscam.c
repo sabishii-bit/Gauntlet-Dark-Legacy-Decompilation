@@ -1490,33 +1490,45 @@ extern char lbl_801117B8[];           /* string pool base (fmts at +0xCC/+0xF0) 
 
 static f32 GetActualAvgVec(f32* out, f32* pos, s32 useBoss) {
     f32 v[3];
+    u8 unused[44];
     f32 v1x, v1y, v1z;
     f32 v2x, v2y, v2z;
     f32 w;
     f64 best;
     f64 second;
     f64 dzero;
+    f64 step;
     f64 len;
     f32 yaw1;
     f32 yaw2;
     f32 avg;
-    f32 d;
+    f64 wrapped;
     char* fmts;
     u8* p;
     s32 count;
     s32 i;
     s32 off;
+    s32 zero;
 
     w = lbl_80345BA0;
     fmts = lbl_801117B8;
     dzero = lbl_80345B98;
+    step = lbl_80345BE0;
     best = w;
     second = w;
+    zero = 0;
     count = 0;
     i = -1;
     off = -0x335C;
     do {
-        if (i >= 0) {
+        if (i < 0) {
+            if (useBoss != 0) {
+                v[0] = pos[0] - *(f32*)(gBossObj + 0x4C);
+                v[1] = pos[1] - *(f32*)(gBossObj + 0x50);
+                v[2] = pos[2] - *(f32*)(gBossObj + 0x54);
+                goto measure;
+            }
+        } else {
             p = gPlayers + off;
             if (*(s32*)(p + 0xE8) == 1) {
                 if ((*(s16*)(p + 0x964) & 0x20) != 0) {
@@ -1530,14 +1542,12 @@ static f32 GetActualAvgVec(f32* out, f32* pos, s32 useBoss) {
                 }
                 goto measure;
             }
-        } else if (useBoss != 0) {
-            v[0] = pos[0] - *(f32*)(gBossObj + 0x4C);
-            v[1] = pos[1] - *(f32*)(gBossObj + 0x50);
-            v[2] = pos[2] - *(f32*)(gBossObj + 0x54);
+        }
+        goto next;
         measure:
             len = NormalVector2D(v);
-            if (!(len <= best)) {
-                if (!(best <= dzero)) {
+            if (len > best) {
+                if (best > dzero) {
                     v2x = v1x;
                     v2y = v1y;
                     v2z = v1z;
@@ -1548,15 +1558,15 @@ static f32 GetActualAvgVec(f32* out, f32* pos, s32 useBoss) {
                 v1y = v[1];
                 count++;
                 v1z = v[2];
-            } else if (!(len <= second)) {
+            } else if (len > second) {
                 second = len;
                 v2x = v[0];
                 v2y = v[1];
                 count++;
                 v2z = v[2];
             }
-            w = (f32)(w + lbl_80345BE0);
-        }
+            w = (f32)(w + step);
+        next:
         i++;
         off += 0x335C;
     } while (i < 4);
@@ -1567,7 +1577,8 @@ static f32 GetActualAvgVec(f32* out, f32* pos, s32 useBoss) {
     }
     if (count == 1) {
         avg = atan2(v1x, v1z);
-        if ((gControllerButtons & 1) != 0) {
+        if ((((s64)(sFlags & 1) ^ zero) |
+             (((s64)sFlags & zero) ^ zero)) != 0) {
             dbgTextPrintfCell(0xFFFF00, 1, 0x22, fmts + 0xCC,
                               lbl_80345BC8 * (lbl_80345BD0 * avg), v1x, v1y,
                               v1z);
@@ -1577,47 +1588,53 @@ static f32 GetActualAvgVec(f32* out, f32* pos, s32 useBoss) {
         yaw2 = atan2(v2x, v2z);
         avg = (f32)(lbl_80345BA8 * (yaw1 + yaw2));
         if (avg > lbl_80345B88) {
-            avg = (f32)(avg - lbl_80345BB8);
+            wrapped = avg - lbl_80345BB8;
         } else if (avg <= lbl_80345BC0) {
-            avg = (f32)(lbl_80345BB8 + avg);
+            wrapped = lbl_80345BB8 + avg;
+        } else {
+            wrapped = avg;
         }
-        d = avg - yaw1;
-        if (d > lbl_80345B88) {
-            d = (f32)(d - lbl_80345BB8);
-        } else if (d <= lbl_80345BC0) {
-            d = (f32)(lbl_80345BB8 + d);
+        avg = (f32)wrapped;
+        wrapped = avg - yaw1;
+        if (wrapped > lbl_80345B88) {
+            wrapped = wrapped - lbl_80345BB8;
+        } else if (wrapped <= lbl_80345BC0) {
+            wrapped = lbl_80345BB8 + wrapped;
         }
-        if (ABS(d) > lbl_80345C60) {
-            avg = (f32)(lbl_80345B88 + avg);
-            if (avg > lbl_80345B88) {
-                avg = (f32)(avg - lbl_80345BB8);
-            } else if (avg <= lbl_80345BC0) {
-                avg = (f32)(lbl_80345BB8 + avg);
+        if (ABS(wrapped) > lbl_80345C60) {
+            wrapped = lbl_80345B88 + avg;
+            if (wrapped > lbl_80345B88) {
+                wrapped = wrapped - lbl_80345BB8;
+            } else if (wrapped <= lbl_80345BC0) {
+                wrapped = lbl_80345BB8 + wrapped;
             }
+            avg = (f32)wrapped;
         }
-        d = yaw1 - yaw2;
-        if (d > lbl_80345B88) {
-            d = (f32)(d - lbl_80345BB8);
-        } else if (d <= lbl_80345BC0) {
-            d = (f32)(lbl_80345BB8 + d);
+        wrapped = yaw1 - yaw2;
+        if (wrapped > lbl_80345B88) {
+            wrapped = wrapped - lbl_80345BB8;
+        } else if (wrapped <= lbl_80345BC0) {
+            wrapped = lbl_80345BB8 + wrapped;
         }
-        if (ABS(d) > lbl_80345C68 * lbl_80345B88 * lbl_80343B80) {
-            d = *(f32*)((u8*)gGameCamera + 236) - avg;
-            if (d > lbl_80345B88) {
-                d = (f32)(d - lbl_80345BB8);
-            } else if (d <= lbl_80345BC0) {
-                d = (f32)(lbl_80345BB8 + d);
+        if (ABS(wrapped) > lbl_80345C68 * lbl_80345B88 * lbl_80343B80) {
+            wrapped = *(f32*)((u8*)gGameCamera + 236) - avg;
+            if (wrapped > lbl_80345B88) {
+                wrapped = wrapped - lbl_80345BB8;
+            } else if (wrapped <= lbl_80345BC0) {
+                wrapped = lbl_80345BB8 + wrapped;
             }
-            if (ABS(d) > lbl_80345C60) {
-                avg = (f32)(lbl_80345B88 + avg);
-                if (avg > lbl_80345B88) {
-                    avg = (f32)(avg - lbl_80345BB8);
-                } else if (avg <= lbl_80345BC0) {
-                    avg = (f32)(lbl_80345BB8 + avg);
+            if (ABS(wrapped) > lbl_80345C60) {
+                wrapped = lbl_80345B88 + avg;
+                if (wrapped > lbl_80345B88) {
+                    wrapped = wrapped - lbl_80345BB8;
+                } else if (wrapped <= lbl_80345BC0) {
+                    wrapped = lbl_80345BB8 + wrapped;
                 }
+                avg = (f32)wrapped;
             }
         }
-        if ((gControllerButtons & 1) != 0) {
+        if ((((s64)(sFlags & 1) ^ zero) |
+             (((s64)sFlags & zero) ^ zero)) != 0) {
             dbgTextPrintfCell(0xFFFF00, 1, 0x22, fmts + 0xCC,
                               lbl_80345BC8 * (lbl_80345BD0 * yaw1), v1x, v1y,
                               v1z);
