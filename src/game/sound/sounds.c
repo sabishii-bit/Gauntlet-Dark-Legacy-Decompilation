@@ -721,58 +721,60 @@ extern char lbl_80348514[8];    /* fmt B (sdata2) */
 extern char lbl_80114C54[];     /* fmt C (.rodata) */
 extern char lbl_80114C60[];     /* fmt D (.rodata) */
 
+typedef struct SpeechNameTables {
+    char scratch[112];
+    s32 missingA[4];
+    s32 missingB[4];
+    s32 tableA[4][16];
+    s32 tableB[4][16];
+    s32 missingC[4];
+    s32 missingD[4];
+    s32 tableC[4][16];
+    s32 tableD[4][16];
+} SpeechNameTables;
+
 void InitNameAudio(void)
 {
-    u8* buf = sSpeechNameBuf;
-    char (*suf)[4] = lbl_801200B0;
-    char** names = lbl_80120104;
-    s32 cls;
-    s32 i;
-    s32 boff;
-    s32 coff;
-    s32 ioff;
-    u8* tabA;
-    u8* tabB;
+    SpeechNameTables* tables = (SpeechNameTables*)sSpeechNameBuf;
 
-    cls = 0;
-    boff = 0;
-    coff = 0;
-    for (; cls < 4; cls++, boff += 64, coff += 4) {
-        tabA = buf + boff;
-        tabB = buf + boff;
-        tabA = tabA + 144;
-        tabB = tabB + 400;
-        i = 0;
-        ioff = 0;
-        for (; i < 16; i++, ioff += 4) {
-            char* sf = (char*)suf + ioff;
-            sprintf((char*)buf, lbl_8034850C, *(char**)((u8*)names + coff), sf);
-            *(s32*)(tabA + ioff) = AudioFindSound((char*)buf, -1, 1);
-            sprintf((char*)buf, lbl_80348514, *(char**)((u8*)names + coff), sf);
-            *(s32*)(tabB + ioff) = AudioFindSound((char*)buf, -1, 1);
+    {
+        char (*suf)[4] = lbl_801200B0;
+        char** names = lbl_80120104;
+        s32 cls;
+        s32 i;
+
+        for (cls = 0; cls < 4; cls++) {
+            s32* tableA = tables->tableA[cls];
+            s32* tableB = tables->tableB[cls];
+            for (i = 0; i < 16; i++) {
+                sprintf(tables->scratch, lbl_8034850C, names[cls], suf[i]);
+                tableA[i] = AudioFindSound(tables->scratch, -1, 1);
+                sprintf(tables->scratch, lbl_80348514, names[cls], suf[i]);
+                tableB[i] = AudioFindSound(tables->scratch, -1, 1);
+            }
+            tables->missingA[cls] = -1;
+            tables->missingB[cls] = -1;
         }
-        *(s32*)(buf + coff + 112) = -1;
-        *(s32*)(buf + coff + 128) = -1;
     }
-    cls = 0;
-    boff = 0;
-    coff = 0;
-    for (; cls < 4; cls++, boff += 64, coff += 4) {
-        tabA = buf + boff;
-        tabB = buf + boff;
-        tabA = tabA + 688;
-        tabB = tabB + 944;
-        i = 0;
-        ioff = 0;
-        for (; i < 16; i++, ioff += 4) {
-            char* sf = (char*)suf + ioff;
-            sprintf((char*)buf, lbl_80114C54, *(char**)((u8*)names + coff), sf);
-            *(s32*)(tabA + ioff) = AudioFindSound((char*)buf, -1, 1);
-            sprintf((char*)buf, lbl_80114C60, *(char**)((u8*)names + coff), sf);
-            *(s32*)(tabB + ioff) = AudioFindSound((char*)buf, -1, 1);
+
+    {
+        char (*suf)[4] = lbl_801200B0;
+        char** names = lbl_80120104;
+        s32 cls;
+        s32 i;
+
+        for (cls = 0; cls < 4; cls++) {
+            s32* tableC = tables->tableC[cls];
+            s32* tableD = tables->tableD[cls];
+            for (i = 0; i < 16; i++) {
+                sprintf(tables->scratch, lbl_80114C54, names[cls], suf[i]);
+                tableC[i] = AudioFindSound(tables->scratch, -1, 1);
+                sprintf(tables->scratch, lbl_80114C60, names[cls], suf[i]);
+                tableD[i] = AudioFindSound(tables->scratch, -1, 1);
+            }
+            tables->missingC[cls] = -1;
+            tables->missingD[cls] = -1;
         }
-        *(s32*)(buf + coff + 656) = -1;
-        *(s32*)(buf + coff + 672) = -1;
     }
 }
 
