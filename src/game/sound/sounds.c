@@ -616,19 +616,19 @@ typedef struct MusicCuePair {
     s32 stop;
 } MusicCuePair;
 
+#pragma opt_propagation off
 void AudioBuildMusicName(void)
 {
-    char* buf;
-    char* strings;
+    char* strings = lbl_80114A48;
+    char* buf = (char*)sSpeechNameBuf;
     char* material;
     MusicCuePair best = { -1, -1 };
     u32 i;
     int off;
 
-    buf = (char*)sSpeechNameBuf;
-    strings = lbl_80114A48;
     for (i = 0, off = 0; i < 6; i++, off += 8) {
         s32* cue;
+        s32 found;
 
         material = (char*)lbl_801232DC + off;
         if (material[0] == '*') {
@@ -638,8 +638,9 @@ void AudioBuildMusicName(void)
         } else {
             sprintf(buf, strings + 716, material, (s8)LevelLetter(0));
         }
+        found = AudioFindSound(buf, -1, 0);
         cue = (s32*)(buf + off);
-        cue[16] = AudioFindSound(buf, -1, 0);
+        cue[16] = found;
         if (*(cue += 16) < 0) {
             continue;
         }
@@ -651,9 +652,9 @@ void AudioBuildMusicName(void)
         } else {
             sprintf(buf, strings + 756, material, (s8)LevelLetter(0));
         }
-        cue[1] = AudioFindSound(buf, -1, 0);
         {
-            s32* stop = &cue[1];
+            s32* stop;
+            *(stop = &cue[1]) = AudioFindSound(buf, -1, 0);
             if (best.rotate < 0) {
                 s32 rotate = cue[0];
                 if (rotate >= 0) {
@@ -667,6 +668,7 @@ void AudioBuildMusicName(void)
         }
     }
 }
+#pragma opt_propagation reset
 
 void AudioSelectReset(void)
 {
