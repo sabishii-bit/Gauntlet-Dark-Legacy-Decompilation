@@ -241,7 +241,14 @@ s32 lbl_802511FC[45];          /* 0x802511FC per-type min-level class */
 s32 lbl_80251148[45];          /* 0x80251148 per-type generator-fx enable */
 u32 lbl_80251100[0x48 / 4];    /* 0x80251100 */
 f32 lbl_802510F4[3];           /* 0x802510F4 world-probe hit normal */
-u32 lbl_80250E40[0x2B4 / 4];   /* 0x80250E40 */
+typedef union EnemyRuntimePool {
+    u32 words[0x2B4 / 4];
+    struct {
+        u32 prefix[0xB4 / 4];
+        s32 milestoneIds[(0x2B4 - 0xB4) / 4];
+    } view;
+} EnemyRuntimePool;
+EnemyRuntimePool lbl_80250E40;  /* 0x80250E40 */
 s32 lbl_80250E00[0x40 / 4];    /* 0x80250E00 enemy-type pool anchor */
 
 /* .bss first-use-order referencer.  MWCC allocates referenced bss symbols in
@@ -253,7 +260,7 @@ s32 lbl_80250E00[0x40 / 4];    /* 0x80250E00 enemy-type pool anchor */
 static void enemy_bss_order(void)
 {
     lbl_80250E00[0] = 0;
-    lbl_80250E40[0] = 0;
+    lbl_80250E40.words[0] = 0;
     lbl_802510F4[0] = 0.0f;
     lbl_80251100[0] = 0;
     lbl_80251148[0] = 0;
@@ -4249,7 +4256,7 @@ void move_logic20(s32 index)
     Enemy* e = &gEnemies[index];
     s32 found = 0;
     u8* tbl = (u8*)lbl_8011AF48;
-    f32 speed = ((f32*)lbl_80250E40)[e->type];
+    f32 speed = ((f32*)lbl_80250E40.words)[e->type];
     f32 cand;
     f32* q;
     f32 probe[3];
@@ -4948,7 +4955,7 @@ static void update_vel(Enemy* e, f32 k)
         e->zspd = cos(ang);
         e->prev_dir = ang;
     }
-    spd = ((f32*)lbl_80250E40)[e->type];
+    spd = ((f32*)lbl_80250E40.words)[e->type];
     vx = k * (e->xspd * spd);
     vz = k * (e->zspd * spd);
     e->trans[0] += vx;
@@ -5423,14 +5430,16 @@ extern s32 lbl_80344724;   /* 0x80344724 active milestone count */
  * preferring whichever candidate sits closer to the world origin. */
 s32 find_neighbor_milestone(s32 ms, s32 nth)
 {
+    EnemyRuntimePool* milestonePool = &lbl_80250E40;
     s32 count = lbl_80344724;
     s32 idx = 0;
     s32 lo;
     s32 hi;
     s32 i;
+    u8 unused[24];
 
     for (i = 0; i < count; i++) {
-        if (*(s32*)((u8*)lbl_80250E00 + i * 4 + 0xF4) == ms) {
+        if (ms == milestonePool->view.milestoneIds[i]) {
             break;
         }
         idx++;
@@ -5439,22 +5448,39 @@ s32 find_neighbor_milestone(s32 ms, s32 nth)
         return -1;
     }
     lo = idx - nth;
-    hi = idx + nth;
     if (lo < 0) {
-        return *(s32*)((u8*)lbl_80250E00 + hi * 4 + 0xF4);
+        return milestonePool->view.milestoneIds[idx + nth];
     }
+    hi = idx + nth;
     if (hi > count - 1) {
-        return *(s32*)((u8*)lbl_80250E00 + lo * 4 + 0xF4);
+        return milestonePool->view.milestoneIds[lo];
     }
     {
-        s32 m_lo = *(s32*)((u8*)lbl_80250E00 + lo * 4 + 0xF4);
-        s32 m_hi = *(s32*)((u8*)lbl_80250E00 + hi * 4 + 0xF4);
-        u8* pl = sMilestones + m_lo * 0x68;
-        u8* ph = sMilestones + m_hi * 0x68;
-        f32 dlo = *(f32*)(pl + 0x34) * *(f32*)(pl + 0x34) +
-                  *(f32*)(pl + 0x30) * *(f32*)(pl + 0x30) +
-                  *(f32*)(pl + 0x38) * *(f32*)(pl + 0x38);
+        u8* milestoneBase;
+        u8* milestoneY;
+        u8* milestoneX;
+        u8* milestoneZ;
+        s32 milestoneOffset;
+        s32 m_lo;
+        s32 m_hi;
+        f32 x;
+        f32 y;
+        f32 z;
+        f32 dlo;
         f32 dhi;
+
+        m_lo = milestonePool->view.milestoneIds[lo];
+        milestoneBase = sMilestones;
+        milestoneOffset = m_lo * 0x68;
+        milestoneY = milestoneBase + 0x34;
+        milestoneX = milestoneBase + 0x30;
+        milestoneZ = milestoneBase + 0x38;
+        y = *(f32*)(milestoneY + milestoneOffset);
+        x = *(f32*)(milestoneX + milestoneOffset);
+        z = *(f32*)(milestoneZ + milestoneOffset);
+        dlo = y * y;
+        dlo = x * x + dlo;
+        dlo = z * z + dlo;
 
         if (dlo > 0.0f) {
             volatile f32 tmp;
@@ -5465,9 +5491,14 @@ s32 find_neighbor_milestone(s32 ms, s32 nth)
             tmp = (f32)(dlo * (0.5 * y * (3.0 - y * y * dlo)));
             dlo = tmp;
         }
-        dhi = *(f32*)(ph + 0x34) * *(f32*)(ph + 0x34) +
-              *(f32*)(ph + 0x30) * *(f32*)(ph + 0x30) +
-              *(f32*)(ph + 0x38) * *(f32*)(ph + 0x38);
+        m_hi = milestonePool->view.milestoneIds[hi];
+        milestoneOffset = m_hi * 0x68;
+        y = *(f32*)(milestoneY + milestoneOffset);
+        x = *(f32*)(milestoneX + milestoneOffset);
+        z = *(f32*)(milestoneZ + milestoneOffset);
+        dhi = y * y;
+        dhi = x * x + dhi;
+        dhi = z * z + dhi;
         if (dhi > 0.0f) {
             volatile f32 tmp;
             f64 y = __frsqrte(dhi);
@@ -5591,7 +5622,7 @@ void set_enemy_trans(Enemy* enemy, f32 speed, f32 angle)
                 enemy->zspd = cos(angle);
                 enemy->prev_dir = angle;
             }
-            typeSpeed = ((f32*)lbl_80250E40)[enemy->type];
+            typeSpeed = ((f32*)lbl_80250E40.words)[enemy->type];
             dx = speed * (enemy->xspd * typeSpeed);
             dz = speed * (enemy->zspd * typeSpeed);
             enemy->trans[0] += dx;
