@@ -538,6 +538,7 @@ void DoPlayerAction(void* player)
     s32 act;
     s32 seq;
     s32 combo;
+    s32 flags;
     void* mbobj;
     s32 adv;
     f32 ang;
@@ -645,15 +646,9 @@ void DoPlayerAction(void* player)
             act = 0x79;
         }
         break;
-    case 8:
-        didt = 1;
-        if (next > 0x1F) {
-            mode = 2;
-        }
-        break;
     case 9:
     case 0xB:
-        if (next > 0x1F || atkNext != 0) {
+        if (next >= 0x20 || atkNext != 0) {
             mode = 2;
         }
         if (next == 9) {
@@ -665,7 +660,7 @@ void DoPlayerAction(void* player)
         break;
     case 10:
     case 0xC:
-        if (next > 0x1F || atkNext != 0) {
+        if (next >= 0x20 || atkNext != 0) {
             mode = 2;
         }
         if (next == 9) {
@@ -677,7 +672,7 @@ void DoPlayerAction(void* player)
         break;
     case 0xD:
     case 0xF:
-        if (next > 0x1F || atkNext != 0) {
+        if (next >= 0x20 || atkNext != 0) {
             mode = 2;
         }
         if (next == 0xD) {
@@ -689,7 +684,7 @@ void DoPlayerAction(void* player)
         break;
     case 0xE:
     case 0x10:
-        if (next > 0x1F || atkNext != 0) {
+        if (next >= 0x20 || atkNext != 0) {
             mode = 2;
         }
         if (next == 0xD) {
@@ -699,8 +694,80 @@ void DoPlayerAction(void* player)
             act = 0xF;
         }
         break;
+    case 0x47:
+    case 0x49:
+        if (next == 0x47) {
+            act = 0x48;
+        }
+        if (next == 0x49) {
+            act = 0x4A;
+        }
+        mbobj = (void*)p[0x1B8];
+        if (mbobj != 0 && (p[2] & 3) != 2 && p[2] != 3) {
+            if (atree[6] < 2.0f) {
+                MBTreeSetFlags(mbobj, 2, 0);
+            } else {
+                MBTreeClearFlags(mbobj, 2, 0);
+            }
+        }
+        break;
+    case 0x48:
+    case 0x4A:
+        if (next == 0x47) {
+            act = 0x47;
+        }
+        if (next == 0x49) {
+            act = 0x49;
+        }
+        mbobj = (void*)p[0x1B8];
+        if (mbobj != 0 && (p[2] & 3) != 2 && p[2] != 3) {
+            if (atree[6] < 2.0f) {
+                MBTreeSetFlags(mbobj, 2, 0);
+            } else {
+                MBTreeClearFlags(mbobj, 2, 0);
+            }
+        }
+        break;
+    case 0x4B:
+    case 0x4D:
+        if (next == 0x4B) {
+            act = 0x4C;
+        }
+        if (next == 0x4D) {
+            act = 0x4E;
+        }
+        mbobj = (void*)p[0x1B8];
+        if (mbobj != 0 && (p[2] & 3) != 2 && p[2] != 3) {
+            if (atree[6] < 2.0f) {
+                MBTreeSetFlags(mbobj, 2, 0);
+            } else {
+                MBTreeClearFlags(mbobj, 2, 0);
+            }
+        }
+        break;
+    case 0x4C:
+    case 0x4E:
+        if (next == 0x4B) {
+            act = 0x4B;
+        }
+        if (next == 0x4D) {
+            act = 0x4D;
+        }
+        mbobj = (void*)p[0x1B8];
+        if (mbobj != 0 && (p[2] & 3) != 2 && p[2] != 3) {
+            if (atree[6] < 2.0f) {
+                MBTreeSetFlags(mbobj, 2, 0);
+            } else {
+                MBTreeClearFlags(mbobj, 2, 0);
+            }
+        }
+        break;
+    case 0x17:
+    case 0x18:
+        mode = 2;
+        break;
     case 0x11:
-        if (next > 0x1A || atkNext != 0) {
+        if (next >= 0x1B || atkNext != 0) {
             mode = 2;
         }
         if (next == 0x11) {
@@ -708,7 +775,7 @@ void DoPlayerAction(void* player)
         }
         break;
     case 0x12:
-        if (next > 0x1A || atkNext != 0) {
+        if (next >= 0x1B || atkNext != 0) {
             mode = 2;
         }
         if (next == 0x11) {
@@ -716,7 +783,7 @@ void DoPlayerAction(void* player)
         }
         break;
     case 0x13:
-        if (next > 0x1A || atkNext != 0) {
+        if (next >= 0x1B || atkNext != 0) {
             mode = 2;
         }
         if (next == 0x13) {
@@ -732,51 +799,22 @@ void DoPlayerAction(void* player)
         }
         break;
     case 0x16:
-        if (next > 0x1F || atkNext != 0) {
+        if (next >= 0x20 || atkNext != 0) {
             mode = 2;
         }
         break;
-    case 0x17:
-    case 0x18:
-        mode = 2;
-        break;
-    case 0x19:
-    case 0x1A:
-        if (next != 0) {
+    case 8:
+        didt = 1;
+        if (next >= 0x20) {
             mode = 2;
-            didt = 1;
-        }
-        break;
-    case 0x1B:
-        if (next < 0x82) {
-            mode = 2;
-        } else {
-            mode = 3;
-        }
-        if (next == 0 || next == 0x11 || next == 0x13) {
-            mode = 0;
-        }
-        break;
-    case 0x1C:
-        if (next == cur) {
-            act = 0;
-        }
-        break;
-    case 0x1D:
-    case 0x1E:
-        if (next == 0x1D) {
-            didt = 1;
-            act = 0x1E;
-        } else {
-            act = 0x1F;
         }
         break;
     case 0x20:
-        if (atkNext < 0xB && (u32)(atkNext - 9) > 1) {
-            act = 0x21;
-        } else {
+        if (atkNext >= 0xB || (u32)(atkNext - 9) <= 1) {
             mode = 2;
             frame = (s32)(0.5 + atree[6]);
+        } else {
+            act = 0x21;
         }
         break;
     case 0x21:
@@ -788,80 +826,120 @@ void DoPlayerAction(void* player)
             mode = 2;
         }
         break;
-    case 0x23:
-        if (rpt < 2) {
-            mode = 0;
-        }
-        act = 0x24;
-        break;
-    case 0x24:
-    case 0x26:
-    case 0x55:
-    case 0x64:
-        if (rpt == 0) {
-            mode = 0;
-        }
-        break;
-    case 0x25:
-        p[0x201] = 1;
-        if (rpt < 2) {
-            mode = 0;
-        }
-        act = 0x26;
-        break;
     case 0x27:
     case 0x28:
     case 0x29:
-        if ((p[0x23E] & 0x400U) == 0 || (combo = p[0x242], combo == 0)) {
-            if (p[0x23E] == 0 && p[0x23D] == 0) {
-                if (cur == 0x28) {
-                    act = 0x2A;
-                } else {
-                    act = 0x2B;
-                }
-            } else if ((p[0x243] & 8U) == 0) {
-                if ((p[0x243] & 4U) == 0) {
-                    if (cur == 0x28) {
-                        act = 0x29;
-                    } else {
-                        act = 0x28;
-                    }
-                } else if (cur == 0x28) {
-                    act = 0x40;
-                } else {
-                    act = 0x3F;
-                }
-            } else if (cur == 0x28) {
+        flags = p[0x23E];
+        if ((flags & 0x400U) != 0 && (combo = p[0x242]) != 0) {
+            if (combo == 1) {
+                act = 0x23;
+            } else if (combo == 2) {
+                act = 0x25;
+            } else {
+                act = 0x3C;
+            }
+        } else if (flags == 0 && p[0x23D] == 0) {
+            if (cur == 0x28) {
                 act = 0x2A;
             } else {
                 act = 0x2B;
             }
-        } else if (combo == 1) {
-            act = 0x23;
-        } else if (combo == 2) {
-            act = 0x25;
+        } else if ((p[0x243] & 8U) != 0) {
+            if (cur == 0x28) {
+                act = 0x2A;
+            } else {
+                act = 0x2B;
+            }
+        } else if ((p[0x243] & 4U) != 0) {
+            if (cur == 0x28) {
+                act = 0x40;
+            } else {
+                act = 0x3F;
+            }
+        } else if (cur == 0x28) {
+            act = 0x29;
         } else {
-            act = 0x3C;
+            act = 0x28;
         }
         break;
     case 0x2A:
     case 0x2B:
-        if ((p[0x23E] & 0x400U) == 0 || (combo = p[0x242], combo == 0)) {
-            if (p[0x23E] != 0 && atree[6] <= 2.0 && (p[0x243] & 1U) != 0) {
-                if (cur == 0x2A) {
-                    act = 0x29;
-                } else {
-                    act = 0x28;
-                }
-                mode = 2;
+        flags = p[0x23E];
+        if ((flags & 0x400U) != 0 && (combo = p[0x242]) != 0) {
+            if (combo == 1) {
+                act = 0x23;
+            } else if (combo == 2) {
+                act = 0x25;
+            } else {
+                act = 0x3C;
             }
-        } else if (combo == 1) {
-            act = 0x23;
-        } else if (combo == 2) {
-            act = 0x25;
-        } else {
-            act = 0x3C;
+        } else if (flags != 0 && atree[6] <= 2.0 &&
+                   (p[0x243] & 1U) != 0) {
+            if (cur == 0x2A) {
+                act = 0x29;
+            } else {
+                act = 0x28;
+            }
+            mode = 2;
         }
+        if (atkNext == 1) {
+            mode = 2;
+        }
+        break;
+    case 0x3E:
+    case 0x3F:
+    case 0x40:
+        flags = p[0x23E];
+        if ((flags & 0x400U) != 0 && (combo = p[0x242]) != 0) {
+            if (combo == 1) {
+                act = 0x23;
+            } else if (combo == 2) {
+                act = 0x25;
+            } else {
+                act = 0x3C;
+            }
+        } else if (flags == 0 && p[0x23D] == 0) {
+            if (cur == 0x3F) {
+                act = 0x41;
+            } else {
+                act = 0x42;
+            }
+        } else if ((p[0x243] & 8U) != 0) {
+            if (cur == 0x3F) {
+                act = 0x41;
+            } else {
+                act = 0x42;
+            }
+        } else if ((p[0x243] & 4U) != 0) {
+            if (cur == 0x3F) {
+                act = 0x40;
+            } else {
+                act = 0x3F;
+            }
+        } else if (cur == 0x3F) {
+            act = 0x29;
+        } else {
+            act = 0x28;
+        }
+        break;
+    case 0x41:
+    case 0x42:
+        if ((p[0x23E] & 0x400U) != 0 && (combo = p[0x242]) != 0) {
+            if (combo == 1) {
+                act = 0x23;
+            } else if (combo == 2) {
+                act = 0x25;
+            } else {
+                act = 0x3C;
+            }
+        } else if (atkNext == 1) {
+            mode = 2;
+        }
+        break;
+    case 0x43:
+    case 0x44:
+    case 0x45:
+    case 0x46:
         if (atkNext == 1) {
             mode = 2;
         }
@@ -871,18 +949,6 @@ void DoPlayerAction(void* player)
         break;
     case 0x2D:
         act = 0x2F;
-        break;
-    case 0x2E:
-    case 0x2F:
-    case 0x32:
-    case 0x33:
-    case 0x36:
-    case 0x37:
-    case 0x3A:
-    case 0x3B:
-        if (atkNext == 1) {
-            mode = 2;
-        }
         break;
     case 0x30:
         act = 0x32;
@@ -902,6 +968,18 @@ void DoPlayerAction(void* player)
     case 0x39:
         act = 0x3B;
         break;
+    case 0x2E:
+    case 0x2F:
+    case 0x32:
+    case 0x33:
+    case 0x36:
+    case 0x37:
+    case 0x3A:
+    case 0x3B:
+        if (atkNext == 1) {
+            mode = 2;
+        }
+        break;
     case 0x3C:
         p[0x201] = 1;
         if ((p[0x23E] & 0x400U) == 0 || p[0x242] == 0) {
@@ -915,129 +993,85 @@ void DoPlayerAction(void* player)
             mode = 2;
         }
         break;
-    case 0x3E:
-    case 0x3F:
-    case 0x40:
-        if ((p[0x23E] & 0x400U) == 0 || (combo = p[0x242], combo == 0)) {
-            if (p[0x23E] == 0 && p[0x23D] == 0) {
-                if (cur == 0x3F) {
-                    act = 0x41;
-                } else {
-                    act = 0x42;
-                }
-            } else if ((p[0x243] & 8U) == 0) {
-                if ((p[0x243] & 4U) == 0) {
-                    if (cur == 0x3F) {
-                        act = 0x29;
-                    } else {
-                        act = 0x28;
-                    }
-                } else if (cur == 0x3F) {
-                    act = 0x40;
-                } else {
-                    act = 0x3F;
-                }
-            } else if (cur == 0x3F) {
-                act = 0x41;
-            } else {
-                act = 0x42;
-            }
-        } else if (combo == 1) {
-            act = 0x23;
-        } else if (combo == 2) {
-            act = 0x25;
-        } else {
-            act = 0x3C;
+    case 0x54:
+        if (rpt < 2) {
+            mode = 0;
+        }
+        act = 0x55;
+        break;
+    case 0x23:
+        if (rpt < 2) {
+            mode = 0;
+        }
+        act = 0x24;
+        break;
+    case 0x25:
+        p[0x201] = 1;
+        if (rpt < 2) {
+            mode = 0;
+        }
+        act = 0x26;
+        break;
+    case 0x63:
+        if (rpt < 2) {
+            mode = 0;
+        }
+        act = 0x64;
+        break;
+    case 0x56:
+        if (rpt < 2) {
+            mode = 0;
         }
         break;
-    case 0x41:
-    case 0x42:
-        if ((p[0x23E] & 0x400U) == 0 || (combo = p[0x242], combo == 0)) {
-            if (atkNext == 1) {
-                mode = 2;
-            }
-        } else if (combo == 1) {
-            act = 0x23;
-        } else if (combo == 2) {
-            act = 0x25;
-        } else {
-            act = 0x3C;
+    case 0x57:
+        if (rpt < 2) {
+            mode = 0;
         }
         break;
-    case 0x43:
-    case 0x44:
-    case 0x45:
-    case 0x46:
-        if (atkNext == 1) {
+    case 0x58:
+        mode = 1;
+        if (p[0x136] >= 0) {
+            act = 0x59;
+        } else if (p[0x138] >= 0) {
+            act = 0x5A;
+        } else if (rpt < 2) {
+            mode = 0;
+        }
+        break;
+    case 0x5A:
+    case 0x88:
+    case 0x8A:
+    case 0x8B:
+    case 0x8C:
+    case 0x8D:
+    case 0x8E:
+    case 0x90:
+    case 0x91:
+    case 0x92:
+    case 0x93:
+        if (rpt < 2) {
+            mode = 0;
+        }
+        break;
+    case 0x59:
+    case 0x89:
+    case 0x8F:
+        didt = 1;
+        if (next == d) {
+            mode = 0;
+        } else {
+            if (p[d * 2 + 0x86] >= 0) {
+                act = d + 1;
+            }
             mode = 2;
         }
         break;
-    case 0x47:
-    case 0x49:
-        if (next == 0x47) {
-            act = 0x48;
-        }
-        if (next == 0x49) {
-            act = 0x4A;
-        }
-        mbobj = (void*)p[0x1B8];
-        if (mbobj != 0 && (p[2] & 3U) != 2 && p[2] != 3) {
-            if (atree[6] < 2.0f) {
-                MBTreeSetFlags(mbobj, 2, 0);
-            } else {
-                MBTreeClearFlags(mbobj, 2, 0);
-            }
-        }
-        break;
-    case 0x48:
-    case 0x4A:
-        if (next == 0x47) {
-            act = 0x47;
-        }
-        if (next == 0x49) {
-            act = 0x49;
-        }
-        mbobj = (void*)p[0x1B8];
-        if (mbobj != 0 && (p[2] & 3U) != 2 && p[2] != 3) {
-            if (atree[6] < 2.0f) {
-                MBTreeSetFlags(mbobj, 2, 0);
-            } else {
-                MBTreeClearFlags(mbobj, 2, 0);
-            }
-        }
-        break;
-    case 0x4B:
-    case 0x4D:
-        if (next == 0x4B) {
-            act = 0x4C;
-        }
-        if (next == 0x4D) {
-            act = 0x4E;
-        }
-        mbobj = (void*)p[0x1B8];
-        if (mbobj != 0 && (p[2] & 3U) != 2 && p[2] != 3) {
-            if (atree[6] < 2.0f) {
-                MBTreeSetFlags(mbobj, 2, 0);
-            } else {
-                MBTreeClearFlags(mbobj, 2, 0);
-            }
-        }
-        break;
-    case 0x4C:
-    case 0x4E:
-        if (next == 0x4B) {
-            act = 0x4B;
-        }
-        if (next == 0x4D) {
-            act = 0x4D;
-        }
-        mbobj = (void*)p[0x1B8];
-        if (mbobj != 0 && (p[2] & 3U) != 2 && p[2] != 3) {
-            if (atree[6] < 2.0f) {
-                MBTreeSetFlags(mbobj, 2, 0);
-            } else {
-                MBTreeClearFlags(mbobj, 2, 0);
-            }
+    case 0x24:
+    case 0x26:
+    case 0x55:
+    case 0x64:
+        if (rpt == 0) {
+            mode = 0;
         }
         break;
     case 0x4F:
@@ -1082,92 +1116,32 @@ void DoPlayerAction(void* player)
             act = 0x54;
         }
         break;
-    case 0x54:
-        if (rpt < 2) {
-            mode = 0;
-        }
-        act = 0x55;
-        break;
-    case 0x56:
-        if (rpt < 2) {
-            mode = 0;
-        }
-        break;
-    case 0x57:
-        if (rpt < 2) {
-            mode = 0;
-        }
-        break;
-    case 0x58:
-        mode = 1;
-        if (p[0x136] >= 0) {
-            act = 0x59;
-        } else if (p[0x138] >= 0) {
-            act = 0x5A;
-        } else if (rpt < 2) {
-            mode = 0;
-        }
-        break;
-    case 0x59:
-    case 0x89:
-    case 0x8F:
-        didt = 1;
-        if (next == d) {
-            mode = 0;
-        } else {
-            if (p[d * 2 + 0x86] >= 0) {
-                act = d + 1;
-            }
-            mode = 2;
-        }
-        break;
-    case 0x5A:
-    case 0x88:
-    case 0x8A:
-    case 0x8B:
-    case 0x8C:
-    case 0x8D:
-    case 0x8E:
-    case 0x90:
-    case 0x91:
-    case 0x92:
-    case 0x93:
-        if (rpt < 2) {
-            mode = 0;
-        }
-        break;
     case 0x5D:
     case 0x5E:
         dance = 1;
         /* fallthrough */
     case 0x5B:
     case 0x5C:
-        if (atkNext < 2 || atkNext == 9 || atkNext == 10) {
-            if (atkNext == 7) {
-                mode = 2;
-                frame = (s32)(0.5 + atree[6]);
-            } else if (next == 0x73 || next == 0x75) {
-                mode = 2;
-            } else if (next == 0x65) {
-                mode = 2;
-                frame = (s32)(0.5 + atree[6]);
-            } else if (next == 0x5B || atree[6] < 2.0f) {
-                if (dance) {
-                    act = 0x60;
-                } else {
-                    act = 0x5F;
-                }
-            } else {
-                mode = 2;
-                if (dance) {
-                    act = 0x60;
-                } else {
-                    act = 0x5F;
-                }
-            }
-        } else {
+        if (atkNext > 1 && atkNext != 9 && atkNext != 10) {
             mode = 2;
             frame = (s32)(0.5 + atree[6]);
+        } else if (atkNext == 7) {
+            mode = 2;
+            frame = (s32)(0.5 + atree[6]);
+        } else if (cur == 0x73 || cur == 0x75) {
+            mode = 2;
+        } else if (cur == 0x65) {
+            mode = 2;
+            frame = (s32)(0.5 + atree[6]);
+        } else {
+            if (cur != 0x5B && atree[6] >= 2.0f) {
+                mode = 2;
+            }
+            if (dance) {
+                act = 0x60;
+            } else {
+                act = 0x5F;
+            }
         }
         break;
     case 0x5F:
@@ -1184,43 +1158,23 @@ void DoPlayerAction(void* player)
             mode = 2;
         }
         break;
-    case 0x63:
-        if (rpt < 2) {
-            mode = 0;
-        }
-        act = 0x64;
-        break;
     case 0x65:
     case 0x66:
-        if (atkNext < 2 || atkNext == 9 || atkNext == 10) {
-            if (atkNext == 7) {
-                mode = 2;
-                frame = (s32)(0.5 + atree[6]);
-            } else if (next == 0x73 || next == 0x75) {
-                mode = 2;
-            } else if (next == 0x65) {
-                if (cur == 0x65) {
-                    act = 0x66;
-                } else {
-                    act = 0x65;
-                }
-            }
-        } else {
+        if (atkNext > 1 && atkNext != 9 && atkNext != 10) {
             mode = 2;
             frame = (s32)(0.5 + atree[6]);
+        } else if (atkNext == 7) {
+            mode = 2;
+            frame = (s32)(0.5 + atree[6]);
+        } else if (cur == 0x73 || cur == 0x75) {
+            mode = 2;
+        } else if (cur == 0x65) {
+            if (next == 0x65) {
+                act = 0x66;
+            } else {
+                act = 0x65;
+            }
         }
-        break;
-    case 0x67:
-        if (rpt == 0) {
-            mode = 0;
-        }
-        act = 0x69;
-        break;
-    case 0x68:
-        if (rpt == 0) {
-            mode = 0;
-        }
-        act = 0x6A;
         break;
     case 0x6B:
     case 0x6C:
@@ -1245,6 +1199,18 @@ void DoPlayerAction(void* player)
         }
         act = 0x71;
         break;
+    case 0x67:
+        if (rpt == 0) {
+            mode = 0;
+        }
+        act = 0x69;
+        break;
+    case 0x68:
+        if (rpt == 0) {
+            mode = 0;
+        }
+        act = 0x6A;
+        break;
     case 0x73:
         if (next == 0x75) {
             mode = 2;
@@ -1261,8 +1227,8 @@ void DoPlayerAction(void* player)
         break;
     case 0x7A:
         didt = 1;
-        if (next == 0 ||
-            (atree[6] < 10.0f && *(s16*)((u8*)atree + 0x36) == 0)) {
+        if (cur == 0 ||
+            (atree[6] < 10.0f && *(u16*)((u8*)atree + 0x36) == 0)) {
             mode = 0;
         } else {
             mode = 2;
@@ -1273,6 +1239,13 @@ void DoPlayerAction(void* player)
             mode = 0;
         }
         didt = 1;
+        break;
+    case 0x19:
+    case 0x1A:
+        if (next != 0) {
+            mode = 2;
+            didt = 1;
+        }
         break;
     case 0x7C:
         mode = 0;
@@ -1285,6 +1258,36 @@ void DoPlayerAction(void* player)
             act = 0;
         }
         break;
+    case 0x1C:
+        if (next == cur) {
+            act = 0;
+        }
+        break;
+    case 0x1D:
+    case 0x1E:
+        if (next == 0x1D) {
+            didt = 1;
+            act = 0x1E;
+        } else {
+            act = 0x1F;
+        }
+        break;
+    case 0x1B:
+        if (act < 0x82) {
+            mode = 2;
+        } else {
+            mode = 3;
+        }
+        if (cur == 0 || cur == 0x11 || cur == 0x13) {
+            mode = 0;
+        }
+        break;
+    case 0x80:
+        didt = 1;
+        if (next != 0) {
+            mode = 2;
+        }
+        break;
     case 0x7F:
     case 0x81:
     case 0x82:
@@ -1294,12 +1297,6 @@ void DoPlayerAction(void* player)
         }
         if (next == cur) {
             act = 0;
-        }
-        break;
-    case 0x80:
-        didt = 1;
-        if (next != 0) {
-            mode = 2;
         }
         break;
     case 0x83:
@@ -1332,7 +1329,30 @@ void DoPlayerAction(void* player)
     }
 
     /* direction / follow-up refinement of the chosen action */
-    if (act == 0x29 || act == 0x27) {
+    switch (act) {
+    case 0:
+        if ((p[0x48] & 0x620000U) != 0) {
+            act = 0x15;
+        }
+        if (cur != 0 && (cur < 0x56 || cur > 0x93) && cur != 0x1B &&
+            (u32)(cur - 0x81) > 1 && (p[2] != 3 || cur != 0x2A)) {
+            speed = 0.0666667f;
+        }
+        break;
+    case 0x11:
+    case 0x12:
+    case 0x13:
+    case 0x14:
+        if ((p[0x48] & 0x620000U) != 0) {
+            act = 0x16;
+            if (cur == 0x16) {
+                mode = 0;
+            }
+            didt = 1;
+        }
+        break;
+    case 0x27:
+    case 0x29:
         ang = pf[0x241];
         if (ang > 2.3561944905) {
             act = 0x34;
@@ -1343,75 +1363,8 @@ void DoPlayerAction(void* player)
         } else if (ang < -1.0471975513333334) {
             act = 0x30;
         }
-    } else if (act > 0x28) {
-        if (act == 0x5B) {
-            if (cur == 0x11 || cur == 0x13) {
-                act = 0x5D;
-            }
-        } else if (act < 0x5B) {
-            if (act == 0x3F) {
-                ang = pf[0x241];
-                if (ang > 2.3561944905) {
-                    act = 0x35;
-                } else if (ang < -2.3561944905) {
-                    act = 0x39;
-                } else if (ang > 1.0471975513333334) {
-                    act = 0x2D;
-                } else if (ang < -1.0471975513333334) {
-                    act = 0x31;
-                }
-            } else if ((act >= 0x3E && act <= 0x40) || act == 0x3E) {
-                if (act == 0x3E) {
-                    if (cur == 0x12 || cur == 0x14) {
-                        act = 0x45;
-                    } else if (cur == 0x27 || cur == 0x29) {
-                        act = 0x43;
-                    }
-                }
-                if (act == 0x3E || act == 0x40) {
-                    ang = pf[0x241];
-                    if (ang > 2.3561944905) {
-                        act = 0x34;
-                    } else if (ang < -2.3561944905) {
-                        act = 0x38;
-                    } else if (ang > 1.0471975513333334) {
-                        act = 0x2C;
-                    } else if (ang < -1.0471975513333334) {
-                        act = 0x30;
-                    }
-                }
-            }
-        } else if (act == 0x65) {
-            if (cur == 0x11 || cur == 0x13) {
-                act = 0x66;
-            }
-        } else if (act < 0x65 && act < 0x5D && (cur == 0x11 || cur == 0x13)) {
-            act = 0x5E;
-        }
-    } else if (act == 0x23) {
-        if ((p[0x243] & 2U) != 0) {
-            act = 0x54;
-        }
-    } else if (act < 0x23) {
-        if (act < 0x11) {
-            if (act == 0) {
-                if ((p[0x48] & 0x620000U) != 0) {
-                    act = 0x15;
-                }
-                if (cur != 0 && (cur < 0x56 || cur > 0x93) && cur != 0x1B &&
-                    (u32)(cur - 0x81) > 1 && (p[2] != 3 || cur != 0x2A)) {
-                    speed = 0.0666667f;
-                }
-            }
-        } else if (act < 0x15 && (p[0x48] & 0x620000U) != 0) {
-            act = 0x16;
-            if (cur == 0x16) {
-                mode = 0;
-            }
-            didt = 1;
-        }
-    } else if (act > 0x26) {
-        /* act == 0x28 */
+        break;
+    case 0x28:
         ang = pf[0x241];
         if (ang > 2.3561944905) {
             act = 0x35;
@@ -1422,16 +1375,70 @@ void DoPlayerAction(void* player)
         } else if (ang < -1.0471975513333334) {
             act = 0x31;
         }
+        break;
+    case 0x5B:
+        if (cur == 0x11 || cur == 0x13) {
+            act = 0x5D;
+        }
+        break;
+    case 0x5C:
+        if (cur == 0x11 || cur == 0x13) {
+            act = 0x5E;
+        }
+        break;
+    case 0x65:
+        if (cur == 0x11 || cur == 0x13) {
+            act = 0x66;
+        }
+        break;
+    case 0x3E:
+        if (cur == 0x12 || cur == 0x14) {
+            act = 0x45;
+        } else if (cur == 0x27 || cur == 0x29) {
+            act = 0x43;
+        }
+        /* fallthrough */
+    case 0x40:
+        ang = pf[0x241];
+        if (ang > 2.3561944905) {
+            act = 0x34;
+        } else if (ang < -2.3561944905) {
+            act = 0x38;
+        } else if (ang > 1.0471975513333334) {
+            act = 0x2C;
+        } else if (ang < -1.0471975513333334) {
+            act = 0x30;
+        }
+        break;
+    case 0x3F:
+        ang = pf[0x241];
+        if (ang > 2.3561944905) {
+            act = 0x35;
+        } else if (ang < -2.3561944905) {
+            act = 0x39;
+        } else if (ang > 1.0471975513333334) {
+            act = 0x2D;
+        } else if (ang < -1.0471975513333334) {
+            act = 0x31;
+        }
+        break;
+    case 0x23:
+        if ((p[0x243] & 2U) != 0) {
+            act = 0x54;
+        }
+        break;
     }
 
     /* resolve the sequence, falling back on 0x23/0x24 for missing dances */
     d = act;
-    if (act == 0x55) {
-        if (defs[0x55].seq < 0) {
+    if (act < 0x55) {
+        if (act >= 0x54 && defs[act].seq < 0) {
+            d = 0x23;
+        }
+    } else if (act == 0x55) {
+        if (defs[act].seq < 0) {
             d = 0x24;
         }
-    } else if (act < 0x55 && act > 0x53 && defs[act].seq < 0) {
-        d = 0x23;
     }
     *(s16*)((u8*)atree + 0x34) = (s16)didt;
     seq = defs[d].seq;
@@ -1440,31 +1447,24 @@ void DoPlayerAction(void* player)
     }
 
     /* per-action animation speed */
-    if ((*(s16*)((u8*)p + 0x964) & 0xD0) == 0 && atkNext < 0xB &&
-        atkNext != 1) {
-        if ((act < 0x58 || act > 0x5A) && (act < 0x88 || act > 0x93)) {
-            if ((p[0x235] & 0x8000U) == 0 || act < 0x82) {
-                if ((p[0x47] & 0x20000000U) == 0 ||
-                    (u32)(atkNext - 9) > 1) {
-                    if (act == 0x78) {
-                        atree[10] = (f32)(0.2 * pf[0x42]);
-                        if (atree[10] < 0.25) {
-                            atree[10] = 0.25f;
-                        }
-                    } else if ((p[0x49] & 0x10000U) == 0) {
-                        atree[10] = 1.0f;
-                    } else {
-                        atree[10] = 0.75f;
-                    }
-                } else {
-                    atree[10] = 0.75f;
-                }
-            } else {
-                atree[10] = 2.0f;
-            }
-        } else {
-            atree[10] = 1.0f;
+    if ((*(s16*)((u8*)p + 0x964) & 0xD0) != 0 || atkNext >= 0xB ||
+        atkNext == 1) {
+        atree[10] = 1.0f;
+    } else if ((act >= 0x58 && act <= 0x5A) ||
+               (act >= 0x88 && act <= 0x93)) {
+        atree[10] = 1.0f;
+    } else if ((p[0x235] & 0x8000U) != 0 && act >= 0x82) {
+        atree[10] = 2.0f;
+    } else if ((p[0x47] & 0x20000000U) != 0 &&
+               (u32)(atkNext - 9) <= 1) {
+        atree[10] = 0.75f;
+    } else if (act == 0x78) {
+        atree[10] = (f32)(0.2 * pf[0x42]);
+        if (atree[10] < 0.25) {
+            atree[10] = 0.25f;
         }
+    } else if ((p[0x49] & 0x10000U) != 0) {
+        atree[10] = 0.75f;
     } else {
         atree[10] = 1.0f;
     }
@@ -1547,7 +1547,7 @@ void DoPlayerAction(void* player)
         case 0x61:
         case 0x62:
         case 0x64:
-            if (p[0x1B8] != 0 && (p[2] & 3U) != 2 && p[2] != 3) {
+            if (p[0x1B8] != 0 && (p[2] & 3) != 2 && p[2] != 3) {
                 MBTreeClearFlags((void*)p[0x1B8], 2, 0);
             }
             break;
@@ -1622,7 +1622,7 @@ void DoPlayerAction(void* player)
             break;
         case 0x61:
         case 0x62:
-            if (p[0x1B8] != 0 && (p[2] & 3U) != 2 && p[2] != 3) {
+            if (p[0x1B8] != 0 && (p[2] & 3) != 2 && p[2] != 3) {
                 MBTreeSetFlags((void*)p[0x1B8], 2, 0);
             }
             break;
@@ -1632,7 +1632,7 @@ void DoPlayerAction(void* player)
             p[0x23E] = 0;
             break;
         case 0x64:
-            if (p[0x1B8] != 0 && (p[2] & 3U) != 2 && p[2] != 3) {
+            if (p[0x1B8] != 0 && (p[2] & 3) != 2 && p[2] != 3) {
                 MBTreeSetFlags((void*)p[0x1B8], 2, 0);
             }
             break;
