@@ -3933,16 +3933,27 @@ s32 EnemyStartMissile(void* enemy, f32* launchPos, f32* target, s32 slot)
 }
 
 extern u8 lbl_8011A1A8[];
-extern f32 lbl_80111DE0[], lbl_80111DF4[];
+typedef struct MissileSpread {
+    f32 value[5];
+} MissileSpread;
+extern MissileSpread lbl_80111DE0, lbl_80111DF4;
 extern void* EffectInfo[];
 extern void *BossAcidTree, *BossElecTree, *BallistaTree;
-extern f32 lbl_80285C20[];
-extern s16 lbl_80285CA0[];
-extern s32* lbl_80285BD0[];
-extern s32* lbl_80285BCC[];
-extern f32 lbl_803463A0, lbl_803463B0, lbl_803463A8, lbl_803463B8;
+typedef struct PlayerMissileEffect {
+    u8 _pad00[0x14];
+    void* node;
+    u8 atree[0x48];
+    u8 _pad60[8];
+    f32 endtime;
+    u8 _pad6C[0x7C];
+    s16 childfx;
+    u8 _padEA[6];
+} PlayerMissileEffect;
+extern PlayerMissileEffect Effects[64];
+extern f32 lbl_803463B0;
+extern f64 lbl_803463A0, lbl_803463A8, lbl_803463B8;
 void MulVecMat3(f32* in, f32* out, f32* mat);
-s32 fn_80094080();
+s32 fn_80094080(f32* position, u32 damageType);
 f64 fn_8005C1DC();
 s32 fn_80094440();
 s32 StartFXSub();
@@ -3954,14 +3965,16 @@ void MBTreeSetFlags(s32 node, s32 mask, s32 value);
  * PlayerStartMissile -- launch a player weapon.  Derives the aim direction
  * from the player's facing (or weapon object), applies wall/target aim-assist,
  * then spawns up to five missiles in the weapon's spread pattern, linking and
- * lighting each spawned effect.  Returns the primary effect handle.
+ * lighting each spawned effect.  Returns the number of launch slots processed.
  */
-void PlayerStartMissile(s32* player, f32* direction, u32 damageType, s32 mode,
-                        f32 scaleArg)
+s32 PlayerStartMissile(s32* player, f32* direction, u32 damageType, s32 mode,
+                       f32 speedArg, f32 scaleArg)
 {
     s32 idx = player[0];
+    s32* missileFx = pmissile_sfxidx;
+    MissileTreeInfo* treeInfo = &PlayerMissileTreeInfo[idx];
     u32 pflags = (u32)player[0x49];
-    u32 trailFx = PlayerMissileTreeInfo[idx].throwFlags;
+    u32 trailFx = treeInfo->throwFlags;
     u32 special = pflags & 0x8000;
     u32 dmgLow = damageType & 0xF;
     u32 extraFlags = 0;
@@ -3971,36 +3984,33 @@ void PlayerStartMissile(s32* player, f32* direction, u32 damageType, s32 mode,
     f32 pt0[3];
     f32 pt1[3];
     f32 wallHit[3];
-    f32 spreadA[5];
-    f32 spreadB[5];
+    u8 unused[24];
+    MissileSpread spreadA;
+    MissileSpread spreadB;
     f32 launchDir[3];
     f32 scale;
-    f32 scale2;
     f32 invSpeed;
     void* tree;
-    s32 j;
     s32 i;
 
-    if (special == 0) {
-        if ((pflags & 0x4000) == 0) {
-            if ((damageType & 0x100000) == 0 || (damageType & 0x2000000) != 0) {
-                desc = &PlayerMissileInfo[player[2]];
-            } else {
-                desc = &BallistaMissileInfo;
-                useSpecial = 1;
-            }
-        } else {
-            desc = &BossAcidMissileInfo;
-            useSpecial = 1;
-        }
-    } else {
+    if (special != 0) {
         desc = &BossElecMissileInfo;
         useSpecial = 1;
+    } else if ((pflags & 0x4000) != 0) {
+        desc = &BossAcidMissileInfo;
+        useSpecial = 1;
+    } else if ((damageType & 0x100000) != 0 &&
+               (damageType & 0x2000000) == 0) {
+        desc = &BallistaMissileInfo;
+        useSpecial = 1;
+    } else {
+        desc = &PlayerMissileInfo[player[2]];
     }
     scale = *(f32*)((u8*)player + 0x114) * scaleArg;
-    scale2 = scale;
 
-    if ((pflags & 0x400) == 0) {
+    if ((pflags & 0x400) != 0) {
+        MulVecMat3((f32*)lbl_8011A1A8, aim, (f32*)(player + 5));
+    } else {
         if (mode == 1) {
             MulVecMat3((f32*)((u8*)lbl_80282930[idx] + 0x5C), aim,
                        (f32*)(player + 5));
@@ -4012,8 +4022,6 @@ void PlayerStartMissile(s32* player, f32* direction, u32 damageType, s32 mode,
             aim[1] = lbl_80346328;
             aim[2] = lbl_80346328;
         }
-    } else {
-        MulVecMat3((f32*)lbl_8011A1A8, aim, (f32*)(player + 5));
     }
     aim[0] = *(f32*)((u8*)player + 0x64) + aim[0];
     aim[1] = *(f32*)((u8*)player + 0x68) + aim[1];
@@ -4026,14 +4034,15 @@ void PlayerStartMissile(s32* player, f32* direction, u32 damageType, s32 mode,
     pt1[2] = (f32)(lbl_80346388 * (f64)direction[2] + (f64)aim[2]);
 
     if ((damageType & 0x100000) == 0) {
-        if (WeaponWallCollide(pt0, pt1, wallHit) != 0) {
-            if ((damageType & 0x200000) == 0) {
-                fn_80094080(wallHit, damageType, wallHit, mode, special);
-                return;
+        if ((u32)WeaponWallCollide(pt0, pt1, wallHit) != 0) {
+            if ((damageType & 0x200000) != 0) {
+                pt1[0] = pt0[0];
+                pt1[1] = pt0[1];
+                pt1[2] = pt0[2];
+            } else {
+                fn_80094080(wallHit, damageType);
+                return -1;
             }
-            pt1[0] = pt0[0];
-            pt1[1] = pt0[1];
-            pt1[2] = pt0[2];
         }
     }
     {
@@ -4041,42 +4050,46 @@ void PlayerStartMissile(s32* player, f32* direction, u32 damageType, s32 mode,
                                      0, player[0]);
         if (hit != 0) {
             f64 dmg = fn_8005C1DC(scale, hit, damageType, player[0]);
-            if (dmg < lbl_80346340) {
-                fn_80094080(wallHit, damageType, player[0], 0);
-            } else {
-                u32 killed = lbl_80346340 == dmg;
+            if (dmg >= lbl_80346340) {
+                u32 killed;
+                if (lbl_80346340 == dmg) {
+                    killed = 1;
+                } else {
+                    killed = 0;
+                }
                 PlayerDamagedItem(player, hit, killed);
                 fn_80094440(wallHit, damageType, killed);
+            } else {
+                fn_80094080(wallHit, damageType);
             }
             if ((damageType & 0x100000) == 0) {
-                return;
+                return -1;
             }
         }
     }
 
     {
         f32 aimSpeed = *(f32*)((u8*)player + 0x118);
-        f32 clamped = (f32)lbl_80346318;
-        if ((f64)lbl_80346318 <= (f64)aimSpeed) {
+        f32 clamped;
+        if ((f64)aimSpeed < lbl_80346318) {
+            clamped = (f32)lbl_80346318;
+        } else if ((f64)aimSpeed > lbl_803463A8) {
+            clamped = (f32)lbl_803463A8;
+        } else {
             clamped = aimSpeed;
-            if (lbl_803463A8 < (f64)aimSpeed) {
-                clamped = (f32)lbl_803463A8;
-            }
         }
         invSpeed = (f32)(lbl_80346318 / (f64)clamped);
-        if ((damageType & 0x100000) == 0 && lbl_80346340 < (f64)scale2) {
+        if ((damageType & 0x100000) == 0 && lbl_80346340 < (f64)speedArg) {
             f32 horiz;
             f32 hn;
-            direction[0] = (f32)((f64)direction[0] * (f64)scale2);
-            direction[1] = (f32)((f64)direction[1] * (f64)scale2);
-            direction[2] = (f32)((f64)direction[2] * (f64)scale2);
+            direction[0] *= speedArg;
+            direction[1] *= speedArg;
+            direction[2] *= speedArg;
             horiz = (f32)fqdist(direction[0], direction[2]);
-            hn = (f32)lbl_80346318;
-            if (lbl_80346348 < (f64)horiz) {
-                hn = (f32)(lbl_80346318 / (f64)horiz);
-            }
-            direction[0] = (f32)((f64)direction[0] * (f64)hn);
-            direction[2] = (f32)((f64)direction[2] * (f64)hn);
+            hn = (f32)(horiz > lbl_80346348 ?
+                       lbl_80346318 / (f64)horiz : lbl_80346318);
+            direction[0] = direction[0] * hn;
+            direction[2] = direction[2] * hn;
             direction[1] = (f32)((f64)invSpeed *
                 (lbl_80346370 * (f64)desc->weight *
                     (f64)(f32)((f64)horiz * (f64)invSpeed) +
@@ -4086,26 +4099,20 @@ void PlayerStartMissile(s32* player, f32* direction, u32 damageType, s32 mode,
 
         {
             u32 f = (u32)player[0x49];
-            if ((f & 0x8000) == 0) {
-                if ((f & 0x4000) == 0) {
-                    if ((f & 0x400) == 0) {
-                        if ((damageType & 0x100000) == 0 ||
-                            (damageType & 0x2000000) != 0) {
-                            tree = PlayerMissileTreeInfo[idx].throwHeader;
-                        } else {
-                            tree = BallistaTree;
-                        }
-                    } else {
-                        extraFlags = 0x10000;
-                        tree = PhoenixTree;
-                    }
-                } else {
-                    extraFlags = 0x10000;
-                    tree = BossAcidTree;
-                }
-            } else {
+            if ((f & 0x8000) != 0) {
                 extraFlags = 0x10000;
                 tree = BossElecTree;
+            } else if ((f & 0x4000) != 0) {
+                extraFlags = 0x10000;
+                tree = BossAcidTree;
+            } else if ((f & 0x400) != 0) {
+                extraFlags = 0x10000;
+                tree = PhoenixTree;
+            } else if ((damageType & 0x100000) != 0 &&
+                       (damageType & 0x2000000) == 0) {
+                tree = BallistaTree;
+            } else {
+                tree = treeInfo->throwHeader;
             }
         }
 
@@ -4115,21 +4122,17 @@ void PlayerStartMissile(s32* player, f32* direction, u32 damageType, s32 mode,
         f64 c3B8 = lbl_803463B8;
         for (i = 0; i < 5; i++) {
             s32 fx;
-            for (j = 0; j < 5; j++) {
-                spreadB[j] = lbl_80111DE0[j];
-            }
-            for (j = 0; j < 5; j++) {
-                spreadA[j] = lbl_80111DF4[j];
-            }
+            spreadB = lbl_80111DE0;
+            spreadA = lbl_80111DF4;
             if ((i > 0 && (damageType & 0x480000) == 0) ||
                 (i > 2 && (damageType & 0x400000) == 0)) {
                 break;
             }
             launchDir[1] = direction[1];
-            launchDir[0] = direction[0] * spreadB[i] +
-                           (f32)((f64)direction[2] * (f64)spreadA[i]);
-            launchDir[2] = (f32)(-(f64)direction[0] * (f64)spreadA[i] +
-                                 (f64)(direction[2] * spreadB[i]));
+            launchDir[0] = direction[0] * spreadB.value[i] +
+                           direction[2] * spreadA.value[i];
+            launchDir[2] = -direction[0] * spreadA.value[i] +
+                           direction[2] * spreadB.value[i];
             if ((player[2] == 2 || player[2] == 6) &&
                 WeapThrowFx[player[0]][dmgLow] >= 0 &&
                 !useSpecial) {
@@ -4154,11 +4157,11 @@ void PlayerStartMissile(s32* player, f32* direction, u32 damageType, s32 mode,
                         if (sub == fx) {
                             DeleteEffect(sub, 1);
                             fx = -1;
-                        } else if (c340 < (f64)lbl_80285C20[fx * 0x3C]) {
+                        } else if (c340 < (f64)Effects[fx].endtime) {
                             if (sub >= 0) {
-                                lbl_80285CA0[fx * 0x78] = (s16)sub;
-                                MBNodeSetParent(*lbl_80285BD0[sub * 0x3C],
-                                                *lbl_80285BD0[fx * 0x3C]);
+                                Effects[fx].childfx = (s16)sub;
+                                MBNodeSetParent(*(s32*)Effects[sub].atree,
+                                                *(s32*)Effects[fx].atree);
                             }
                         } else {
                             DeleteEffect(fx, 1);
@@ -4170,24 +4173,25 @@ void PlayerStartMissile(s32* player, f32* direction, u32 damageType, s32 mode,
                 if (fx >= 0) {
                     f32 scaleFx = lbl_80346384;
                     if (trailFx != 0) {
-                        MBTreeSetFlags(*(s32*)((u8*)lbl_80285BCC[fx * 0x3C] +
-                                       0x78), trailFx, 2);
+                        MBTreeSetFlags(*(s32*)((u8*)Effects[fx].node + 0x78),
+                                       trailFx, 2);
                     }
                     if (c318 < (f64)scaleArg) {
                         scaleFx = (f32)((f64)scaleFx * (f64)scaleArg);
                     }
-                    if (0x62 < player[0xCC9]) {
+                    if (player[0xCC9] >= 99) {
                         scaleFx = (f32)((f64)scaleFx * c3B8);
                     }
                     if (c318 != (f64)scaleFx) {
-                        ScaleFX(scaleFx, scaleFx, scaleFx);
+                        ScaleFX(fx, scaleFx, scaleFx, scaleFx);
                     }
                 }
             }
-            pmissile_sfxidx[i] = fx;
+            missileFx[i] = fx;
         }
         }
     }
+    return i;
 }
 
 void InitEnemyMissiles(s32 enemyType)
