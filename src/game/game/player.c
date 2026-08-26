@@ -2233,7 +2233,7 @@ extern char* lbl_80120144[];  /* per-class L_WRIST node names */
 extern s32 lbl_80120598[];    /* per-class weapon-variant flag */
 extern u8 lbl_80113AE0[];     /* .rodata fmt block base (fmts at +1464..+1520) */
 extern char lbl_80114098[];   /* "players\%s\sfx%s" */
-extern char lbl_80347A38[];   /* "rb" (sdata2) */
+extern char lbl_80347A38[3];  /* "rb" (sdata2) */
 extern char* lbl_80347734;
 extern char* lbl_80347738;
 extern char* lbl_80347740;
@@ -4253,6 +4253,11 @@ s32 set_hidden_player(void* vp) {
 s32 load_player_model(s32 i, void* vp, s32 alt, char* name) {
     Player* p = vp;
     u8* pot = (u8*) potionicon_tab;
+    Player* record;
+    s32* sfx_arena;
+    char** sfx_buf;
+    s32* sfx_remap;
+    u32* arena;
     s32 prod;
     u8* q;
     s32 cls;
@@ -4261,8 +4266,8 @@ s32 load_player_model(s32 i, void* vp, s32 alt, char* name) {
     s32 raw;
 
     prod = i * 76;
-    q = pot + i * 13148;
-    cls = *(s32*) (q + 3140);
+    record = PT(i);
+    cls = record->class_id;
     ret = load_player_model_sub(i, vp, cls, name, pot + prod + 1300);
     raw = *(s32*) ((u8*) p + 12);
     t = raw;
@@ -4275,16 +4280,18 @@ s32 load_player_model(s32 i, void* vp, s32 alt, char* name) {
     sprintf((char*) pot + 1268, lbl_80114098,
             (char*) lbl_8012006C + t * 4, lbl_801200F4[cls]);
     q = pot + prod;
+    sfx_arena = (s32*) (q + 1352);
     cls = MBOX_LoadModelFixed((char*) pot + 1268, *(u32*) (q + 1360), 0, NULL,
-                              *(u32*) (q + 1352));
-    *(s32*) (q + 1352) = cls;
-    MLMReadFile((char*) pot + 1268, lbl_80347A38, *(u32*) (q + 1364),
-                *(char**) (q + 1372));
-    *(s32*) (q + 1356) =
-        fn_8001267C(*(u16**) (q + 1372), cls, *(s32*) (q + 1356));
-    InitTexMods(*(void**) (q + 1336), *(u32*) (q + 1316));
-    InitTexMods(*(void**) (q + 1348), *(u32*) (q + 1316));
-    InitTexMods(*(void**) (q + 1372), *(u32*) (q + 1352));
+                              *sfx_arena);
+    *sfx_arena = cls;
+    sfx_buf = (char**) (q + 1372);
+    MLMReadFile((char*) pot + 1268, lbl_80347A38, *(u32*) (q + 1364), *sfx_buf);
+    sfx_remap = (s32*) (q + 1356);
+    *sfx_remap = fn_8001267C((u16*) *sfx_buf, cls, *sfx_remap);
+    arena = (u32*) (q + 1316);
+    InitTexMods(*(void**) (q + 1336), *arena);
+    InitTexMods(*(void**) (q + 1348), *arena);
+    InitTexMods(*sfx_buf, *sfx_arena);
     return ret;
 }
 
