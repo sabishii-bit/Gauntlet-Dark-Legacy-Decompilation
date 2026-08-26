@@ -188,11 +188,10 @@ extern const f64 lbl_80345A28;
 extern const f64 lbl_80345A48;
 extern const f32 lbl_80345A30;
 
+#pragma opt_lifetimes off
 void DoGoodWizard(void)
 {
     u8* base = lbl_8023DFD0;
-    s32 i;
-    s32 off;
     s32 acc3542 = 0;
     s32 acc3540 = 0;
     s32 quality;
@@ -201,17 +200,22 @@ void DoGoodWizard(void)
     s32 c;
     s32 frame2;
     f32 pos[3];
+    u8 unused[8];
     void* node;
-    void** pp;
 
-    for (i = 0, off = 0; i < 4; i++, off += 0x335C) {
-        u8* p = gPlayers + off;
+    {
+        s32 i;
+        s32 off;
 
-        if (*(s32*)(p + 232) == 1) {
-            u8* slot = p + *(s32*)(p + 12) * 240;
+        for (i = 0, off = 0; i < 4; i++, off += 0x335C) {
+            u8* p = gPlayers + off;
 
-            acc3542 |= *(u16*)(slot + 3542);
-            acc3540 |= *(u16*)(slot + 3540);
+            if (*(s32*)(p + 232) == 1) {
+                u8* slot = p + *(s32*)(p + 12) * 240;
+
+                acc3542 |= *(u16*)(slot + 3542);
+                acc3540 |= *(u16*)(slot + 3540);
+            }
         }
     }
     quality = GetBossBeatFlag(sMusicTrackHi);
@@ -240,13 +244,16 @@ void DoGoodWizard(void)
             good_wiz_state++;
         }
         break;
-    case 3:
+    case 3: {
+        void** pp;
+
         *(void**)(base + 0x5f0) =
             AtreeInit(AtreeMatch(sItemFile1Buf, lbl_80345A00, 1),
                       base + 0x5f0, 0, 0x881880);
         *(u16*)(base + 0x628) = 1;
+        node = MBNewNode(lbl_80344BD4, gIdentityMatrix, 1);
         pp = (void**)(base + 0x5e8);
-        *pp = MBNewNode(lbl_80344BD4, gIdentityMatrix, 1);
+        *pp = node;
         MBNodeSetParent(**(void***)(base + 0x5f0), *pp);
         *(s32*)(base + 0x5ec) = 0;
         if ((u32)(gBossType - 0x2a) <= 1) {
@@ -287,7 +294,7 @@ void DoGoodWizard(void)
         }
         good_wiz_alpha = 255;
         good_wiz_state++;
-        break;
+    }
     case 4:
         if (good_wiz_alpha > 0) {
             good_wiz_alpha -= 4;
@@ -311,8 +318,9 @@ void DoGoodWizard(void)
             fn_8009C710(gBossType, 0);
         }
     case 5:
+        c = good_wiz_speech_idx;
         good_wiz_speech_frame += gFrameTicks;
-        if (good_wiz_speech_idx >= 0) {
+        if (c >= 0) {
             frame2 = good_wiz_speech_frame >> 1;
             switch (gBossType) {
             case 0x23:
@@ -353,8 +361,8 @@ void DoGoodWizard(void)
                 break;
             }
             if (cap >= 0) {
-                c = CaptionText(-1, cap, good_wiz_speech_idx, frame2, 0x10);
-                if (c > 0) {
+                frame2 = CaptionText(-1, cap, c, frame2, 0x10);
+                if (frame2 > 0) {
                     if (good_wiz_speech_pause < 60) {
                         good_wiz_speech_pause += gFrameTicks;
                     } else {
@@ -363,7 +371,7 @@ void DoGoodWizard(void)
                         good_wiz_speech_frame = 0;
                         calc_good_wiz_attn(0, 1);
                     }
-                } else if (c < 0) {
+                } else if (frame2 < 0) {
                     good_wiz_speech_idx = -1;
                     good_wiz_timer = (f32)(lbl_80345A20 + sMusicFadeBase);
                 }
@@ -384,18 +392,19 @@ void DoGoodWizard(void)
         calc_good_wiz_attn(0, 0);
         break;
     case 6:
+        c = good_wiz_speech_idx;
         good_wiz_speech_frame += gFrameTicks;
-        if (good_wiz_speech_idx >= 0) {
+        if (c >= 0) {
             frame2 = good_wiz_speech_frame >> 1;
-            if (gBossType == 0x2a) {
-                if (all_rune_stones) {
-                    cap = 0xa0;
-                } else {
-                    cap = 0xa1;
-                }
-            } else if (gBossType > 0x2a) {
-                cap = -1;
-            } else if (gBossType >= 0x22) {
+            switch (gBossType) {
+            case 0x22:
+            case 0x23:
+            case 0x24:
+            case 0x25:
+            case 0x26:
+            case 0x27:
+            case 0x28:
+            case 0x29:
                 if (quality == 0) {
                     cap = 0x9b;
                 } else if (quality == 1) {
@@ -405,12 +414,21 @@ void DoGoodWizard(void)
                 } else {
                     cap = 0x9e;
                 }
-            } else {
+                break;
+            case 0x2a:
+                if (all_rune_stones) {
+                    cap = 0xa0;
+                } else {
+                    cap = 0xa1;
+                }
+                break;
+            default:
                 cap = -1;
+                break;
             }
             if (cap >= 0) {
-                c = CaptionText(-1, cap, good_wiz_speech_idx, frame2, 0x10);
-                if (c > 0) {
+                frame2 = CaptionText(-1, cap, c, frame2, 0x10);
+                if (frame2 > 0) {
                     if (good_wiz_speech_pause < 60) {
                         good_wiz_speech_pause += gFrameTicks;
                     } else {
@@ -419,7 +437,7 @@ void DoGoodWizard(void)
                         good_wiz_speech_frame = 0;
                         calc_good_wiz_attn(0, 1);
                     }
-                } else if (c < 0) {
+                } else if (frame2 < 0) {
                     good_wiz_speech_idx = -1;
                     good_wiz_timer = (f32)(lbl_80345A28 + sMusicFadeBase);
                 }
@@ -432,7 +450,8 @@ void DoGoodWizard(void)
             good_wiz_state++;
             good_wiz_speech_frame = 0;
             good_wiz_speech_pause = 0;
-            if (gBossType < 0x2a) {
+            c = gBossType;
+            if (c < 0x2a) {
                 s32 sel = 5;
 
                 if ((acc3540 & 0x3FE) == 0x3FE && acc3542 == 0xFFF) {
@@ -440,7 +459,7 @@ void DoGoodWizard(void)
                 } else if ((acc3540 & 0x1FE) == 0x1FE) {
                     sel = 6;
                 }
-                fn_8009C710(gBossType, sel);
+                fn_8009C710(c, sel);
             }
         }
         AnimateATree(base + 0x5f0, 0, 0);
@@ -478,6 +497,9 @@ void DoGoodWizard(void)
         AnimateATree(base + 0x5f0, 0, 0);
         calc_good_wiz_attn(0, 0);
         if (good_wiz_exit_timer <= wiz_exit_min) {
+            s32 i;
+            s32 off;
+
             for (i = 0, off = 0; i < 4; i++, off += 0x335C) {
                 u8* p = gPlayers + off;
 
@@ -503,7 +525,7 @@ void DoGoodWizard(void)
                                   : good_wiz_exit_timer;
     }
 }
-
+#pragma opt_lifetimes reset
 /* ================================================================== */
 void StartGoodWizard(void)
 {
