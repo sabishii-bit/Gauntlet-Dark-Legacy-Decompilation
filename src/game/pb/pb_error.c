@@ -61,16 +61,13 @@ typedef struct PBErrorBlock {
 /* Big error reporter: rasterizes the message through a 256-wide 1-bit glyph
  * atlas into an 8 KiB stack bitmap, one 21-character line at a time. Each
  * glyph is 5 bytes wide x 7 rows in the atlas (35 bytes); every set cell
- * plots a two-word white pixel pair. The dummy high-word parameter
- * reproduces the original r4 materialization of the scratch-block base. */
+ * plots a two-word white pixel pair. The second parameter is retained for the
+ * original ABI; the scratch block itself is addressed through its symbol. */
 void fn_800C1174(register s8* text, register u32 errorHigh)
 {
     u8 image[80];
-    u8 unused[4];
-    struct {
-        u32 _head;
-        u32 data[2048];
-    } pixels;
+    u8 unused[8];
+    u32 pixels[2048];
     PBErrorBlock* blk;
     u8* cursor;
     s8* glyph;
@@ -85,8 +82,7 @@ void fn_800C1174(register s8* text, register u32 errorHigh)
     u8 c;
     s32 plot;
 
-    errorHigh = 0x802C0000;
-    blk = (PBErrorBlock*)(errorHigh + 0x4DB8); /* lbl_802C4DB8 scratch block */
+    blk = (PBErrorBlock*)lbl_802C4DB8;
     cursor = (u8*)text;
     sceGsResetPath();
     sceGsResetGraph(0, 0, 2, 1);
@@ -107,7 +103,7 @@ void fn_800C1174(register s8* text, register u32 errorHigh)
     y = 50;
     while ((s8)*cursor != 0) {
         for (clr = 0; clr < 2048; clr++) {
-            pixels.data[clr] = 0;
+            pixels[clr] = 0;
         }
         idx = 0;
         x = 0;
@@ -134,9 +130,9 @@ void fn_800C1174(register s8* text, register u32 errorHigh)
                     for (col = 0; col < 5; col++) {
                         if (*glyph != 0) {
                             plot = x + col * 2 + row * 256;
-                            pixels.data[plot] = 0x00FFFFFF;
+                            pixels[plot] = 0x00FFFFFF;
                             plot++;
-                            pixels.data[plot] = 0x00FFFFFF;
+                            pixels[plot] = 0x00FFFFFF;
                         }
                         glyph++;
                     }
@@ -148,7 +144,7 @@ void fn_800C1174(register s8* text, register u32 errorHigh)
         }
         sceGsSetDefLoadImage(image, 0, 10, 0, 50, (s16)y, 256, 8);
         FlushCache(0);
-        sceGsExecLoadImage(image, pixels.data);
+        sceGsExecLoadImage(image, pixels);
         fn_800C1148(0, 0, lbl_801164C0);
         y += 12;
     }
