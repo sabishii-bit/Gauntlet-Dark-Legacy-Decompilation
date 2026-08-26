@@ -1,4 +1,5 @@
 #include "types.h"
+#include "game/player.h"
 
 /* Slice of the SOUNDS audio module (Xbox SOUNDS.OBJ) covering the
  * name/speech and music/stream helper functions in 0x800A00A0-0x800A18E8.
@@ -114,6 +115,11 @@ void AudioRegisterNameBanks(char* name, int flag);
 void AudioSetupLevelStreams(void);
 void AudioBuildMusicName(void);
 
+static inline int AudioFloatNotZero(f32 value)
+{
+    return value != lbl_803484B0;
+}
+
 void AudioWelcome(int pidx, int flag)
 {
     int extra = lbl_801232C8[pidx];
@@ -138,7 +144,7 @@ void AudioWelcomeBack(int pidx, int flag)
 
 void AudioWithName(int id, int pidx, f32 vol, int s4, int s5)
 {
-    u8* player = &gPlayers[pidx * 0x335C];
+    Player* player = &((Player*)gPlayers)[pidx];
     s32* T = (s32*)sSpeechNameBuf;
     s32 (*T16)[16] = (s32(*)[16])sSpeechNameBuf;
     int track;
@@ -148,9 +154,9 @@ void AudioWithName(int id, int pidx, f32 vol, int s4, int s5)
     int a;
     int b;
 
-    flag = *(s32*)(player + 292) & 0x400;
-    f12 = *(s32*)(player + 12);
-    cls = *(s32*)(player + 4);
+    flag = player->flags & 0x400;
+    f12 = player->character;
+    cls = player->class_id;
     track = lbl_801232C8[pidx];
     if (flag) {
         a = -1;
@@ -164,32 +170,32 @@ void AudioWithName(int id, int pidx, f32 vol, int s4, int s5)
     }
 
     if (id >= 0) {
-        if (((good_wiz_state > 2) ? 0.0f
-                                : sndFxQueAddEx(1, id, -1.0f, vol, 224, track, 2)) != 0.0f) {
+        if (AudioFloatNotZero((good_wiz_state > 2) ? 0.0f
+                                : sndFxQueAddEx(1, id, -1.0f, vol, 224, track, 2))) {
             vol = -1.0f;
         } else {
             return;
         }
     }
     if (a >= 0) {
-        if (((good_wiz_state > 2) ? 0.0f
-                                : sndFxQueAddEx(1, a, -1.0f, vol, 224, track, 2)) != 0.0f) {
+        if (AudioFloatNotZero((good_wiz_state > 2) ? 0.0f
+                                : sndFxQueAddEx(1, a, -1.0f, vol, 224, track, 2))) {
             vol = -1.0f;
         } else {
             return;
         }
     }
     if (b >= 0) {
-        if (((good_wiz_state > 2) ? 0.0f
-                                : sndFxQueAddEx(1, b, -1.0f, vol, 224, track, 2)) != 0.0f) {
+        if (AudioFloatNotZero((good_wiz_state > 2) ? 0.0f
+                                : sndFxQueAddEx(1, b, -1.0f, vol, 224, track, 2))) {
             vol = -1.0f;
         } else {
             return;
         }
     }
     if (s4 >= 0) {
-        if (((good_wiz_state > 2) ? 0.0f
-                                : sndFxQueAddEx(1, s4, -1.0f, vol, 224, track, 2)) != 0.0f) {
+        if (AudioFloatNotZero((good_wiz_state > 2) ? 0.0f
+                                : sndFxQueAddEx(1, s4, -1.0f, vol, 224, track, 2))) {
             vol = -1.0f;
         } else {
             return;
