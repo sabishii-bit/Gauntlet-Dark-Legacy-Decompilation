@@ -46,7 +46,7 @@ extern void GXSetChanMatColor(s32 chan, void* color);
 
 /* One 2D blit. Size 0x38. */
 typedef struct MBBLIT {
-    /* 0x00 */ s32 flags;      /* bit1 (0x2) live/removed marker, bit6 (0x40) */
+    /* 0x00 */ s32 flags;      /* bit1 (0x2) free/removed marker, bit6 (0x40) */
     /* 0x04 */ s32 tex;        /* texture handle, init -1 */
     /* 0x08 */ s16 x;          /* screen x (12.4 or pixel) */
     /* 0x0A */ s16 y;          /* screen y */
@@ -485,34 +485,40 @@ u32 mbBlitUpdateEntry(MBBLIT* b, u32 keepMask, u32 setBits) {
 MBBLIT* MBCreateBlit(MBNODE* node, int tex, int x, int y, int w, int h) {
     MBBLIT* b;
     MBBLIT* p;
+    MBWindow* window;
+    s32 value;
     int i;
     int slot;
+    u8 unused[8];
 
     if (node == 0) {
         node = defaultBlitList;
     }
 
-    /* find first slot at or below the high-water mark that is free */
-    slot = 0;
-    for (i = 0; i < blitCount; i++) {
-        if ((blitPool[i].flags & 0x2) == 0) {
+    i = slot = 0;
+    for (; i < blitCount; i++) {
+        if ((blitPool[i].flags & 0x2) != 0) {
             break;
         }
         slot++;
     }
     if (slot >= MB_BLIT_POOL_MAX - 1) {
         FatalError(str_TooManyBlits, 0x800000);
-        return 0;
+        b = 0;
+    } else {
+        if (slot >= blitCount) {
+            blitCount++;
+        }
+        b = &blitPool[slot];
+        b->flags = 0;
+        b->prev = 0;
+        b->next = 0;
+        b->tex = -1;
+        b->color0 = 0x80808080;
+        b->color1 = 0x80808080;
+        b->color2 = 0x80808080;
+        b->color3 = 0x80808080;
     }
-    if (slot >= blitCount) {
-        blitCount = slot + 1;
-    }
-    b = &blitPool[slot];
-    b->flags = 0;
-    b->tex = -1;
-    b->color0 = b->color1 = b->color2 = b->color3 = 0x80808080;
-    b->prev = 0;
-    b->next = 0;
 
     if (b == 0) {
         return 0;
@@ -533,14 +539,22 @@ MBBLIT* MBCreateBlit(MBNODE* node, int tex, int x, int y, int w, int h) {
     b->node = node;
 
     mbInitBlitEntry(b, tex, 0);
-    if ((b->flags & 0x40) == 0) {
-        b->x = (s16)(x * gWinGlobals->scale->x);
-        b->y = (s16)(y * gWinGlobals->scale->y);
+    window = gWinGlobals;
+    if ((b->flags & 0x40) != 0) {
+        value = x << 4;
     } else {
-        b->x = x << 4;
-        b->y = y << 4;
+        value = x * window->scale->x;
     }
-    b->depth = __cvt_fp2unsigned(32.0f);
+    b->x = (s16)value;
+    if ((b->flags & 0x40) != 0) {
+        value = y << 4;
+    } else {
+        value = y * window->scale->y;
+    }
+    b->y = (s16)value;
+    if (lbl_80348AD4 >= 0.0) {
+        b->depth = (u32)(f32)(s32)(32.0 * (f64)lbl_80348AD4);
+    }
     mbBlitProject(b, w, h);
     mbBlitSetupVerts(b, 0.0f, 1.0f, 0.0f, 1.0f);
     return b;
