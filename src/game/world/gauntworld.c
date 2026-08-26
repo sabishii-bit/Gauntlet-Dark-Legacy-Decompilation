@@ -2311,6 +2311,9 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
     f32 hitpt[3];
     f32 norm[3];
     f32 f1, f2, f3, f4;
+    f32 unused[10];
+
+    (void)unused;
 
     if (item->active == -1) {
         return sNoDistance;
@@ -2583,7 +2586,23 @@ los_done:
                 out[1] = from[1];
                 out[2] = from[2];
             }
-        } else if (coltype < 3 || coltype > 4) {
+        } else if (coltype < 3) {
+            goto tangent_output;
+        } else if (coltype < 5) {
+            /* push the target out along the tri-list hit normal */
+            nv[0] = hitpt[0] - pos[0];
+            nv[1] = hitpt[1] - pos[1];
+            nv[2] = hitpt[2] - pos[2];
+            out[0] = pos[0];
+            out[1] = pos[1];
+            f1 = (f32)((nv[0] * norm[0] + nv[2] * norm[2]) + a);
+            out[2] = pos[2];
+            if (sItemZero < f1) {
+                out[0] = norm[0] * f1 + out[0];
+                out[2] = norm[2] * f1 + out[2];
+            }
+        } else {
+tangent_output:
             if (keep == 0) {
                 nv[0] = pos[0] - from[0];
                 nv[1] = sItemZero;
@@ -2606,19 +2625,6 @@ los_done:
             out[0] = mv[0] * f1 + from[0];
             out[1] = mv[1] * f1 + from[1];
             out[2] = mv[2] * f1 + from[2];
-        } else {
-            /* push the target out along the tri-list hit normal */
-            nv[0] = hitpt[0] - pos[0];
-            nv[1] = hitpt[1] - pos[1];
-            nv[2] = hitpt[2] - pos[2];
-            out[0] = pos[0];
-            out[1] = pos[1];
-            f1 = (f32)((nv[0] * norm[0] + nv[2] * norm[2]) + a);
-            out[2] = pos[2];
-            if (sItemZero < f1) {
-                out[0] = norm[0] * f1 + out[0];
-                out[2] = norm[2] * f1 + out[2];
-            }
         }
     }
     return dist;
