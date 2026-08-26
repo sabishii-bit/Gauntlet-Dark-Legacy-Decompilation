@@ -4296,12 +4296,14 @@ s32 load_player_model(s32 i, void* vp, s32 alt, char* name) {
 }
 
 /* Load one class model + anim set into a model slot.                  */
+#pragma opt_common_subs off
 s32 load_player_model_sub(s32 i, void* vp, s32 cls_in, char* name, void* vslot) {
-    PlayerModelSlot* slot = vslot;
-    u8* pot = (u8*) potionicon_tab;
-    u8* tab = (u8*) lbl_8011FC48;
     u8* fmt = (u8*) lbl_80113AE0;
+    u8* tab = (u8*) lbl_8011FC48;
+    u8* pot = (u8*) potionicon_tab;
+    PlayerModelSlot* slot = vslot;
     u8* q;
+    u8* class_entry;
     s32 tier;
     s32 ct;
     s32 ct8;
@@ -4318,38 +4320,46 @@ s32 load_player_model_sub(s32 i, void* vp, s32 cls_in, char* name, void* vslot) 
         ct8 -= 8;
     }
     if (name != NULL) {
-        sprintf((char*) pot + 1268, (char*) fmt + 1484, tab + ct * 4 + 1060, name);
-    } else if (*(s32*) (tab + ct * 4 + 2384) != 0) {
-        sprintf((char*) pot + 1268, (char*) fmt + 1500, tab + ct * 4 + 1060,
-                *(char**) (tab + cls * 4 + 1196), tier);
+        q = tab + ct * 4;
+        sprintf((char*) pot + 1268, (char*) fmt + 1484, q + 1060, name);
     } else {
-        sprintf((char*) pot + 1268, (char*) fmt + 1484, tab + ct * 4 + 1060,
-                *(char**) (tab + cls * 4 + 1196));
+        q = tab + ct * 4;
+        if (*(s32*) (q + 2384) != 0) {
+            class_entry = tab + cls * 4;
+            sprintf((char*) pot + 1268, (char*) fmt + 1500, q + 1060,
+                    *(char**) (class_entry + 1196), tier);
+        } else {
+            class_entry = tab + cls * 4;
+            sprintf((char*) pot + 1268, (char*) fmt + 1484, q + 1060,
+                    *(char**) (class_entry + 1196));
+        }
     }
     arena = MBOX_LoadModelFixed((char*) pot + 1268, slot->model_max, 0, NULL,
                                 (u32) slot->arena);
     if ((s32) slot->anim_max > 0) {
-        MLMReadFile((char*) pot + 1268, lbl_80347A38, slot->anim_max, slot->model_buf);
+        MLMReadFile((char*) pot + 1268, lbl_80347A38, slot->anim_max, slot->anim_buf);
     } else {
-        slot->model_buf = AllocFile((char*) pot + 1268, lbl_80347A38, slot->anim_max);
+        slot->anim_buf = AllocFile((char*) pot + 1268, lbl_80347A38, slot->anim_max);
     }
-    slot->anim_remap2 = fn_8001267C((u16*) slot->model_buf, arena, slot->anim_remap2);
+    slot->anim_remap2 = fn_8001267C((u16*) slot->anim_buf, arena, slot->anim_remap2);
     slot->arena = (void*) arena;
     slot->cur_class = ct;
     slot->cur_pad = cls;
     slot->cur_tier = tier;
     slot->cur_override = (s32) name;
-    sprintf((char*) pot + 1268, (char*) fmt + 1520, tab + ct8 * 4 + 1060);
+    q = tab + ct8 * 4;
+    sprintf((char*) pot + 1268, (char*) fmt + 1520, q + 1060);
     if ((s32) slot->model_buf_max > 0) {
         MLMReadFile((char*) pot + 1268, lbl_80347A38, slot->model_buf_max,
-                    slot->anim_buf);
+                    slot->model_buf);
     } else {
-        slot->anim_buf = AllocFile((char*) pot + 1268, lbl_80347A38,
-                                   slot->model_buf_max);
+        slot->model_buf = AllocFile((char*) pot + 1268, lbl_80347A38,
+                                    slot->model_buf_max);
     }
-    slot->anim_remap = fn_8001267C((u16*) slot->anim_buf, arena, slot->anim_remap);
+    slot->anim_remap = fn_8001267C((u16*) slot->model_buf, arena, slot->anim_remap);
     return arena;
 }
+#pragma opt_common_subs reset
 
 /* Re-register the model texmods after a video mode change.            */
 void SetupPlayerTexMods(s32 i) {
