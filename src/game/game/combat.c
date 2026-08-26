@@ -418,14 +418,14 @@ void CameraSupervisor(s32 camIdx)
                 if ((f64)distance > (f64)lbl_80345EC8) {
                     root = __frsqrte(distance);
                     root = lbl_80345F18 * root *
-                           -(distance * root * root - lbl_80345F20);
+                           -(root * root * distance - lbl_80345F20);
                     root = lbl_80345F18 * root *
-                           -(distance * root * root - lbl_80345F20);
+                           -(root * root * distance - lbl_80345F20);
                     root = lbl_80345F18 * root *
-                           -(distance * root * root - lbl_80345F20);
+                           -(root * root * distance - lbl_80345F20);
                     scratch.candidateRoot =
-                        (f32)(distance * lbl_80345F18 * root *
-                        -(distance * root * root - lbl_80345F20));
+                        (f32)(distance * (lbl_80345F18 * root *
+                        -(root * root * distance - lbl_80345F20)));
                     distance = scratch.candidateRoot;
                 }
 
@@ -488,14 +488,14 @@ void CameraSupervisor(s32 camIdx)
         if ((f64)segmentLength > (f64)lbl_80345EC8) {
             root = __frsqrte(segmentLength);
             root = lbl_80345F18 * root *
-                   -(segmentLength * root * root - lbl_80345F20);
+                   -(root * root * segmentLength - lbl_80345F20);
             root = lbl_80345F18 * root *
-                   -(segmentLength * root * root - lbl_80345F20);
+                   -(root * root * segmentLength - lbl_80345F20);
             root = lbl_80345F18 * root *
-                   -(segmentLength * root * root - lbl_80345F20);
+                   -(root * root * segmentLength - lbl_80345F20);
             scratch.segmentRoot =
-                (f32)(segmentLength * lbl_80345F18 * root *
-                -(segmentLength * root * root - lbl_80345F20));
+                (f32)(segmentLength * (lbl_80345F18 * root *
+                -(root * root * segmentLength - lbl_80345F20)));
             segmentLength = scratch.segmentRoot;
         }
 
@@ -508,14 +508,14 @@ void CameraSupervisor(s32 camIdx)
         if ((f64)projectedDistance > (f64)lbl_80345EC8) {
             root = __frsqrte(projectedDistance);
             root = lbl_80345F18 * root *
-                   -(projectedDistance * root * root - lbl_80345F20);
+                   -(root * root * projectedDistance - lbl_80345F20);
             root = lbl_80345F18 * root *
-                   -(projectedDistance * root * root - lbl_80345F20);
+                   -(root * root * projectedDistance - lbl_80345F20);
             root = lbl_80345F18 * root *
-                   -(projectedDistance * root * root - lbl_80345F20);
+                   -(root * root * projectedDistance - lbl_80345F20);
             scratch.projectedRoot =
-                (f32)(projectedDistance * lbl_80345F18 * root *
-                -(projectedDistance * root * root - lbl_80345F20));
+                (f32)(projectedDistance * (lbl_80345F18 * root *
+                -(root * root * projectedDistance - lbl_80345F20)));
             projectedDistance = scratch.projectedRoot;
         }
 
@@ -533,12 +533,20 @@ void CameraSupervisor(s32 camIdx)
             lbl_80344534 = nearestYaw;
             lbl_80344530 = nearestPitch;
             lbl_80344508 = lbl_80344510;
-            lbl_80344404 = nearestPitch <= lbl_80344408 ? -1 : 1;
+            if (nearestPitch > lbl_80344408) {
+                lbl_80344404 = 1;
+            } else {
+                lbl_80344404 = -1;
+            }
         } else {
             lbl_80344534 = secondYaw;
             lbl_80344530 = secondPitch;
             lbl_80344508 = lbl_8034450C;
-            lbl_80344404 = secondPitch <= lbl_80344408 ? -1 : 1;
+            if (secondPitch > lbl_80344408) {
+                lbl_80344404 = 1;
+            } else {
+                lbl_80344404 = -1;
+            }
         }
 
         distance = lbl_80344534 - cam->pyr[1];
@@ -563,14 +571,14 @@ void CameraSupervisor(s32 camIdx)
             if ((f64)selectedDistance > (f64)lbl_80345EC8) {
                 root = __frsqrte(selectedDistance);
                 root = lbl_80345F18 * root *
-                       -(selectedDistance * root * root - lbl_80345F20);
+                       -(root * root * selectedDistance - lbl_80345F20);
                 root = lbl_80345F18 * root *
-                       -(selectedDistance * root * root - lbl_80345F20);
+                       -(root * root * selectedDistance - lbl_80345F20);
                 root = lbl_80345F18 * root *
-                       -(selectedDistance * root * root - lbl_80345F20);
+                       -(root * root * selectedDistance - lbl_80345F20);
                 scratch.selectedRoot =
-                    (f32)(selectedDistance * lbl_80345F18 * root *
-                    -(selectedDistance * root * root - lbl_80345F20));
+                    (f32)(selectedDistance * (lbl_80345F18 * root *
+                    -(root * root * selectedDistance - lbl_80345F20)));
                 selectedDistance = scratch.selectedRoot;
             }
 
