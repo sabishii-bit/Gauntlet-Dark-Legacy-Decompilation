@@ -4263,7 +4263,9 @@ void fn_80054E78(void)
     u8* state = (u8*)lbl_802575C0;
     s32 active;
     s32 off;
+    u8* q;
     s32 i;
+    void** b;
 
     if (lbl_803447B8 != 0) {
         active = 0;
@@ -4293,8 +4295,10 @@ void fn_80054E78(void)
         nt = lbl_80344818;
         if (nt <= lbl_80346B10) {
             for (i = 0, off = 0; i < 4; i++, off += 4) {
-                u8* q = state + off;
-                u32 v = *(u32*)(q += 112);
+                u32 v;
+
+                q = state + off;
+                v = *(u32*)(q += 112);
                 if (v != 0) {
                     MBRemoveBlit(v);
                     *(u32*)q = 0;
@@ -4305,6 +4309,7 @@ void fn_80054E78(void)
             if ((gControllerButtons & 0x10) != 0 &&
                 (gGameOptions[9] >> 8) == 12) {
                 s32 player_off;
+                u8* row;
                 u8* p;
 
                 lbl_8034481C = 2;
@@ -4312,7 +4317,7 @@ void fn_80054E78(void)
                 for (player_off = 0; player_off < 48;
                      player_off += 12, p += 13148) {
                     if (*(s32*)(p + 232) != 0) {
-                        u8* row = state + player_off;
+                        row = state + player_off;
                         *(f32*)(row + 144) = *(f32*)(p + 68);
                         *(f32*)(row + 148) = *(f32*)(p + 72);
                         *(f32*)(row + 152) = *(f32*)(p + 76);
@@ -4335,11 +4340,9 @@ void fn_80054E78(void)
         }
 
         if (active != 0) {
-            f64 k = lbl_80346B18;
-            f32 total = (f32)(k * lbl_80344814);
-            f32 curv = (f32)(k * lbl_80344818);
+            f32 total = (f32)(lbl_80346B18 * lbl_80344814);
+            f32 curv = (f32)(lbl_80346B18 * lbl_80344818);
             f32 frac = (total - curv) / total;
-            void** b;
             f64 v1;
             f64 v2;
 
