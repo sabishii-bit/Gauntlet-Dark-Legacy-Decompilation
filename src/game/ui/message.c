@@ -447,6 +447,8 @@ int msgPost(int idx, int param, char* position)
     void** boxes;
     int fontIndex;
     int lineCount;
+    int textType;
+    int textParam;
     int width;
     int height;
     int left;
@@ -486,7 +488,10 @@ int msgPost(int idx, int param, char* position)
         lineCount = 14;
     }
 
-    switch (desc->category) {
+    category = desc->category;
+    switch (category) {
+    case 0:
+        break;
     case 1:
         if ((msgWorldFlags(idx, -1) & 0xF) != 0) {
             return 0;
@@ -497,18 +502,17 @@ int msgPost(int idx, int param, char* position)
             return 0;
         }
         break;
+    case 3:
     default:
         if ((msgWorldFlags(idx, -1) & 0x100) != 0) {
             return 0;
         }
         break;
-    case 0:
-        break;
     }
 
     if (gMessageActive != 0 &&
-        msgData->desc[idx].priority <=
-            msgData->desc[gCurrentMessage].priority) {
+        msgData->desc[gCurrentMessage].priority >=
+            msgData->desc[idx].priority) {
         return 0;
     }
     if ((idx <= 0x1C || (idx >= 0x2C && idx <= 0x2D) ||
@@ -544,7 +548,9 @@ int msgPost(int idx, int param, char* position)
     } else {
         duration = StringTextNum(desc->type);
     }
-    height = StringTextHeight(1.0f, desc->type, desc->param, lineCount) + 0x10;
+    textType = desc->type;
+    textParam = desc->param;
+    height = StringTextHeight(1.0f, textType, textParam, lineCount) + 0x10;
     top = centerY - (height >> 1);
     if (top < 2) {
         centerY += 2 - top;
@@ -591,6 +597,8 @@ int msgPost(int idx, int param, char* position)
 
     category = desc->category;
     switch (category) {
+    case 0:
+        break;
     case 2:
         if (param < 0) {
             first = 0;
@@ -607,6 +615,8 @@ int msgPost(int idx, int param, char* position)
             }
         }
         break;
+    case 1:
+    case 3:
     default:
         playerOffset = 0;
         for (i = 0; i < 4; i++, playerOffset += 0x335C) {
@@ -616,14 +626,11 @@ int msgPost(int idx, int param, char* position)
             }
         }
         break;
-    case 0:
-        break;
     }
 
+    category = desc->f4;
     if (gGameMode == 0x8003 || gMessageState != 0) {
         category = -1;
-    } else {
-        category = desc->f4;
     }
     switch (category) {
     default:
