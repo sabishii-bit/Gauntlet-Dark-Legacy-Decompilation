@@ -1321,14 +1321,15 @@ f32 get_cam_dist(s32 camIdx)
 {
     Camera* cam = &gCameras[camIdx];
     f64 base;
-    f64 minDist;
+    f32 minDist;
     f64 farBase;
-    f64 farDist;
-    f64 result;
+    f32 farDist;
+    f32 result;
 
-    base = lbl_80345F78;
     if (gBossType >= 0) {
         base = lbl_80345F28;
+    } else {
+        base = lbl_80345F78;
     }
     base = (f32)base;
     minDist = (f32)(lbl_80346190 + base);
@@ -1348,19 +1349,23 @@ f32 get_cam_dist(s32 camIdx)
         result = lbl_8034452C;
     } else {
         s32 i;
-        f32 min24 = lbl_8034619C, max24 = lbl_803461A0;
-        f32 min36 = lbl_8034619C, max28 = lbl_803461A0;
+        CameraTarget* t;
+        f32 min24, max24, min36, max28;
         f32 ratio, xr, yr, nearScale, farScale;
-        f64 radius = (f32)cam->radius;
+        f32 radius = cam->radius;
 
-        for (i = 0; i < 15; i++) {
-            CameraTarget* t = &gCameraTargets[i];
+        min24 = min36 = lbl_8034619C;
+        max24 = max28 = lbl_803461A0;
+        t = gCameraTargets;
+        for (i = 15; i != 0; i--, t++) {
             if (t->active > 0) {
                 f32 v24 = *(f32*)((u8*)t + 24);
+                f32 v28 = *(f32*)((u8*)t + 28);
+                f32 v36 = *(f32*)((u8*)t + 36);
                 if (v24 < min24) min24 = v24;
-                if (max24 < v24) max24 = v24;
-                if (*(f32*)((u8*)t + 36) < min36) min36 = *(f32*)((u8*)t + 36);
-                if (max28 < *(f32*)((u8*)t + 28)) max28 = *(f32*)((u8*)t + 28);
+                if (v24 > max24) max24 = v24;
+                if (v36 < min36) min36 = v36;
+                if (v28 > max28) max28 = v28;
             }
         }
         xr = (max24 - min24) /
@@ -1368,75 +1373,84 @@ f32 get_cam_dist(s32 camIdx)
         yr = (max28 - min36) /
              (f32)((lbl_80344518 - 20) - (lbl_80344514 + 40));
         ratio = xr;
-        if (xr < yr) ratio = yr;
+        if (yr > xr) ratio = yr;
 
-        nearScale = lbl_803461B0;
-        if (lbl_803461A8 <= ratio) {
+        if (ratio < lbl_803461A8) {
+            nearScale = lbl_803461B0;
+        } else if (ratio >= lbl_80345F18 + base) {
             nearScale = lbl_803461B4;
-            if (ratio < lbl_80345F18 + base) {
-                nearScale = (f32)(lbl_803461B8 +
-                    ((lbl_80345F18 + base) - ratio) / lbl_803460F0);
-            }
-        }
-        if (ratio <= lbl_803461C0) {
-            farScale = lbl_803461D0;
-            if (farBase < ratio) {
-                farScale = (f32)(lbl_803461C8 -
-                    (ratio - farBase) / lbl_80346018);
-            }
         } else {
-            f64 t2 = lbl_803461C8;
+            nearScale = (f32)(lbl_803461B8 +
+                ((lbl_80345F18 + base) - ratio) / lbl_803460F0);
+        }
+
+        if (ratio > lbl_803461C0) {
+            f64 t2;
             if (lbl_803444E4 != 0) {
                 t2 = lbl_80345F20;
+            } else {
+                t2 = lbl_803461C8;
             }
             farScale = (f32)t2;
+        } else if (ratio <= farBase) {
+            farScale = lbl_803461D0;
+        } else {
+            farScale = (f32)(lbl_803461C8 -
+                (ratio - farBase) / lbl_80346018);
         }
         lbl_803444E8 = ratio;
 
         if (lbl_803444E4 != 0 && lbl_803443FC >= 0) {
             lbl_80344418 = 0;
         }
-        if (lbl_80344418 == 0 || lbl_803443FC >= 0) {
-            if (lbl_803443FC == 0) {
-                if (ratio < lbl_80345F18 + base && lbl_80344418 == 0) {
-                    lbl_803443FC = -1;
-                    radius = cam->radius * nearScale;
-                }
-                if (farDist < ratio ||
-                    (lbl_803444F4 == 0 &&
-                     ((lbl_80344960 < 0 && cam->radius < lbl_80344528) ||
-                      (lbl_80344960 >= 0 &&
-                       (f64)cam->radius < lbl_80345FF0)))) {
-                    lbl_803443FC = 1;
-                    radius = cam->radius * farScale;
-                }
-            } else if ((lbl_803443FC < 0 &&
-                        lbl_80346190 + base <= ratio) ||
-                       (lbl_803443FC > 0 && ratio <= minDist)) {
+        if (lbl_80344418 != 0 && lbl_803443FC < 0) {
+            lbl_803443FC = 0;
+        } else if (lbl_803443FC != 0) {
+            if ((lbl_803443FC < 0 &&
+                 ratio >= base + *(volatile f64*)&lbl_80346190) ||
+                (lbl_803443FC > 0 && ratio <= minDist)) {
                 lbl_803443FC = 0;
-            } else if (lbl_803443FC < 1) {
-                radius = cam->radius * nearScale;
-            } else {
+            } else if (lbl_803443FC > 0) {
                 radius = cam->radius * farScale;
+            } else {
+                radius = cam->radius * nearScale;
             }
         } else {
-            lbl_803443FC = 0;
+            if (ratio < lbl_80345F18 + base && lbl_80344418 == 0) {
+                lbl_803443FC = -1;
+                radius = cam->radius * nearScale;
+            }
+            if (ratio > farDist ||
+                (lbl_803444F4 == 0 &&
+                 ((lbl_80344960 < 0 && cam->radius < lbl_80344528) ||
+                  (lbl_80344960 >= 0 &&
+                   (f64)cam->radius < lbl_80345FF0)))) {
+                lbl_803443FC = 1;
+                radius = cam->radius * farScale;
+            }
         }
 
         result = lbl_8034452C;
-        if (result <= radius) {
-            result = radius;
-            if (lbl_80344960 < 0) {
-                if (lbl_80344528 < radius && lbl_803444E4 == 0) {
-                    result = (f32)(radius -
-                        lbl_80345F88 * (f32)(radius - lbl_80344528));
-                }
-            } else if (lbl_80345FF0 < radius) {
+        if (radius < result) {
+            goto done;
+        }
+        if (lbl_80344960 < 0) {
+            if (radius > lbl_80344528 && lbl_803444E4 == 0) {
+                result = (f32)(radius -
+                    lbl_80345F88 * (f32)(radius - lbl_80344528));
+            } else {
+                result = radius;
+            }
+        } else {
+            if (radius > lbl_80345FF0) {
                 result = (f32)(lbl_80345FF8 *
                     (lbl_80345FF0 - (f32)cam->radius) + (f32)cam->radius);
+            } else {
+                result = radius;
             }
         }
     }
+done:
     return (f32)result;
 }
 
