@@ -703,8 +703,7 @@ void pbWinSetup(void)
 
     pbProjCalc();
 
-    g = gWinGlobals;
-    lb = (PBLIGHTBLOCK*) g->lights;
+    lb = (PBLIGHTBLOCK*) (g = gWinGlobals)->lights;
     i = 0;
     n = lb->dirCount;
     for (; i < n; i++) {
