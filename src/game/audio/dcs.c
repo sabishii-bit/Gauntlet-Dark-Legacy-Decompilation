@@ -108,7 +108,8 @@ typedef struct DcsData {
     DcsSampleData samples[2048];  /* 0x00080, stride 0x4C */
     u16 callStart[2048];          /* 0x26080 first-instr index per call */
     u16 callInstr[10240];         /* 0x27080 call instruction stream */
-    /* 0x2C080: staging pool node area (lbl_802F5F60) */
+    u8 stagingPool[12];           /* 0x2C080 (lbl_802F5F60) */
+    DcsChannelInfo channels[12];  /* 0x2C08C (ch_info) */
 } DcsData;
 extern DcsData dcsBankData;
 extern DcsChannelInfo ch_info[12];
@@ -428,45 +429,57 @@ s32 dcsBankQuery(s32 bank, s32* handle, s32* size) {
 /* 0x800D23A0  start playback on a channel */
 s32 dcsVoiceStart(u32 sample, s32 volumePan, s32 priority) {
     s32 channel = -1;
+    DcsData* data = &dcsBankData;
     s32 bank = (s32)sample >> 12;
-    u8 unused[16];
     s32 callIndex =
-        (sample & 0xFFF) + lbl_802C9ED8[bank * 2];
+        (sample & 0xFFF) + data->banks[bank - 1].handle;
+    s32 i;
+    s32 adjustment;
+    u16* params;
 
     if (callIndex > 0 && callIndex <= lbl_80345200) {
-        u16 sequence = lbl_802EFF5E[callIndex];
-        u16* call = &lbl_802F0F60[sequence];
-        u16* end = (u16*)lbl_802F5F60;
-        s32 adjustment;
-        s32 i;
+        /* These tables are contiguous within the DCS backing store. */
+        u8* tableBase = (u8*)data + 0x20000;
+        u8* endBase = tableBase + 0x5000;
+        u8* callStart = tableBase + callIndex * 2;
+        u16 sequence;
+        u16* call;
+        u16* end;
+        sequence = *(u16*)(callStart += 0x607E);
+        call = (u16*)(tableBase + 0x7080) + sequence;
+        end = (u16*)(endBase + 0x7080);
 
-        while (call < end && (*call & 0x8000) == 0) {
-            call++;
+        for (; call < end; call++) {
+            if ((*call & 0x8000) != 0) {
+                break;
+            }
         }
+        params = call + 1;
         channel = dcsVoicePlay(priority);
         if (channel >= 0) {
-            DcsChannelInfo* info = &ch_info[channel];
+            DcsChannelInfo* infos = data->channels;
+            DcsChannelInfo* info = &infos[channel];
+            u16* duck = &info->duck;
 
             info->volume =
-                (s16)(((volumePan >> 16) * (u32)call[1]) / 0x7F) -
-                (s16)lbl_8034520C;
-            info->pan = (s16)volumePan;
-            info->duck = 0;
-            info->priority = ((u32)priority << 16) | call[3];
+                ((volumePan >> 16) * params[0]) / 0x7F - lbl_8034520C;
+            info->pan = volumePan;
+            *duck = 0;
+            info->priority = ((u32)priority << 16) | params[2];
             info->sample = -1;
-            if (call[2] != 0) {
-                adjustment = (u32)call[2] * lbl_80343FF8;
+            if (params[1] != 0) {
+                adjustment = params[1] * lbl_80343FF8;
                 adjustment >>= 8;
                 lbl_8034520C += adjustment;
                 for (i = 0; i < 12; i++) {
                     if (dcsVoiceInUse(i)) {
-                        ch_info[i].volume -= adjustment;
+                        infos[i].volume -= adjustment;
                         dcsVoiceUpdate(i);
                     }
                 }
             }
-            info->duck = call[2];
-            info->sample = sequence;
+            *duck = params[1];
+            info->sample = *(u16*)callStart;
             dcsVoiceSetupAdpcm(channel);
         }
     }
