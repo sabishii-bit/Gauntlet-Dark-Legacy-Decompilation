@@ -370,6 +370,7 @@ s32 dcsBankQuery(s32 bank, s32* handle, s32* size) {
 s32 dcsVoiceStart(u32 sample, s32 volumePan, s32 priority) {
     s32 channel = -1;
     s32 bank = (s32)sample >> 12;
+    u8 unused[16];
     s32 callIndex =
         (sample & 0xFFF) + lbl_802C9ED8[bank * 2];
 
