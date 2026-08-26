@@ -37,7 +37,7 @@ extern void qsort(void* base, u32 num, u32 size,
 extern void mbBlitGetPage(void);
 extern void mbBlitSetPage(void);
 extern void pbSendObjTextures(MBObject* obj);          /* 0x800C3AFC */
-extern void MBDrawPsys(void* obj, MBObjEntry* e);     /* GX special dispatch */
+extern s32 MBDrawPsys(MBObject* obj, void* e);        /* GX special dispatch */
 extern void fn_800C38C0(MBObjEntry* e, MBObject* obj, int f); /* GX draw object */
 extern void fn_800C1148(int a, int b, void* c);        /* debug bbox draw */
 extern f32 NormalVector(f32* vec);
