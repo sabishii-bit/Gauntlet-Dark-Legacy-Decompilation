@@ -464,15 +464,16 @@ static s32 cardDoWrite(s32 chan, CARDStat* stat, void* data) {
             int count = iconCount - 2;
             int dstOff = i * 4;
             int shift = count * 2;
-            int srcOff = count * 4;
+            int srcIndex = count;
 
             for (k = 0; k < count; k++) {
                 s32 sp = (stat->iconSpeed >> shift) & 3;
                 *(u32*)(e + 0x5ab4 + dstOff) = *(u32*)(e + 0x5ab0);
-                *(u32*)(e + 0x5aec + dstOff) = *(u32*)(e + (srcOff + 0x5aec));
+                *(u32*)(e + 0x5aec + dstOff) =
+                    ((u32*)e)[srcIndex + (0x5aec / sizeof(u32))];
                 *(u32*)(e + 0x5ab0) += sp << 2;
                 shift -= 2;
-                srcOff -= 4;
+                srcIndex--;
                 dstOff += 4;
             }
         }
