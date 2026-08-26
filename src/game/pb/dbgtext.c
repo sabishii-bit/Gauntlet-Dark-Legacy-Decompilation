@@ -378,6 +378,7 @@ s32 fn_800C03E0(s32 mode)
             u32 dv;
             u32 pct;
             u32 w;
+            u32 color;
             u32 scale;
             s32 textX;
             if (id < 0) {
@@ -402,13 +403,14 @@ s32 fn_800C03E0(s32 mode)
                 mbBlitProject(quad, w / scale, 4);
                 MBBlitSetColor(quad, 0x10101);
             }
+            color = *colorp;
             if (j > 0) {
                 s32 x;
                 quad = MBNewTempQuad();
                 x = 30;
                 mbBlitCalcWidth(quad, x * 8, qline + 2, lbl_80348EF0);
                 mbBlitProject(quad, w / scale, 4);
-                MBBlitSetColor(quad, *colorp);
+                MBBlitSetColor(quad, color);
             }
             line += 8;
             qline += 8;
