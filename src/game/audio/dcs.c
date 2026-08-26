@@ -234,12 +234,32 @@ s32 update_chinfo(u32 channels) {
 
 /* 0x800D1FFC  push volume/pan to a channel voice */
 s32 dcsChannelSetVolPan(u32 channels, s16 pan) {
-    s32 channel = 0;
+    AXVPB** voices;
+    DcsChannelInfo* infos;
+    u16 master;
+    s32 desired;
+    DcsChannelInfo* info;
+    s32 channel;
+    s32 mask;
+    s32 voiceOffset;
+    s32 infoOffset;
+    u8 unused[8];
 
-    channels &= 0xFFF;
-    while (channels != 0) {
-        if ((channels & 1) != 0) {
-            s16 delta = pan - ch_info[channel].pan;
+    mask = channels & 0xFFF;
+    desired = pan;
+    infos = ch_info;
+    voices = sVoice;
+    channel = 0;
+    voiceOffset = 0;
+    infoOffset = 0;
+    while (mask != 0) {
+        if ((mask & 1) != 0) {
+            s16* currentPan;
+            s16 delta;
+
+            info = (DcsChannelInfo*)((u8*)infos + infoOffset);
+            currentPan = &info->pan;
+            delta = desired - *currentPan;
 
             if (delta != 0) {
                 if (delta > 0x100) {
@@ -255,19 +275,57 @@ s32 dcsChannelSetVolPan(u32 channels, s16 pan) {
                     if (delta > 8) {
                         delta = 8;
                     }
-                    ch_info[channel].pan += delta;
-                    if (ch_info[channel].pan > 0x1FF) {
-                        ch_info[channel].pan -= 0x400;
+                    *currentPan += delta;
+                    if (*currentPan > 0x1FF) {
+                        *currentPan -= 0x400;
                     }
-                    if (ch_info[channel].pan < -0x200) {
-                        ch_info[channel].pan += 0x400;
+                    if (*currentPan < -0x200) {
+                        *currentPan += 0x400;
                     }
-                    dcsVoiceUpdate(channel);
+
+                    {
+                        s32 currentVolume;
+                        s32 scaled;
+                        s32 excess;
+                        s32 curvePan;
+                        s32 sign;
+
+                        currentVolume = info->volume;
+                        if (currentVolume < 0) {
+                            currentVolume = 0;
+                        }
+                        scaled = currentVolume * 0x3FFF / 0xFF;
+                        excess = (u16)scaled;
+                        master = excess;
+                        if ((u16)scaled > 0x3FFF) {
+                            excess -= 0x3FFF - master;
+                            master = 0x3FFF;
+                        }
+                        if ((u16)excess > 0x3FFF) {
+                            master -= 0x3FFF - excess;
+                        }
+
+                        curvePan = 0x100 - ((info->pan + 0x100) & 0x1FF);
+                        sign = curvePan >> 31;
+                        curvePan = (sign ^ curvePan) - sign;
+                        sndVoiceSetVolume(
+                            *(AXVPB**)((u8*)voices + voiceOffset),
+                            curvePan >> 1);
+                        curvePan = 0x100 - ((info->pan + 0x180) & 0x1FF);
+                        sign = curvePan >> 31;
+                        curvePan = (sign ^ curvePan) - sign;
+                        sndVoiceSetPan(
+                            *(AXVPB**)((u8*)voices + voiceOffset),
+                            curvePan >> 1);
+                        dcsVoiceSetMaster(channel, master, master);
+                    }
                 }
             }
         }
-        channels >>= 1;
+        mask >>= 1;
         channel++;
+        voiceOffset += 4;
+        infoOffset += sizeof(DcsChannelInfo);
     }
     return 0;
 }
