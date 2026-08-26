@@ -263,72 +263,71 @@ void DiffRate_8002951C(s32 camIdx)
 {
     f32* camState = (f32*)gCameraState;
     Camera* cam = (Camera*)((u8*)gCameraState + camIdx * 396 + 0xC8);
-    f64 prevYaw = (f32)cam->pyr[1];
+    register f32* state5 = camState + 5;
+    f32 prevYaw = cam->pyr[1];
     f32 rate;
+    f32 curYaw;
     f64 y;
+    u8 unused[16];
 
     camState[6] = camState[5];
     camState[5] = camState[4];
-    camState[4] = cam->pyr[1];
+    camState[4] = prevYaw;
     CameraSupervisor(camIdx);
-    rate = lbl_8034444C * (f32)(f64)(u32)gFrameTicks;
+    rate = lbl_8034444C * (f32)(u32)gFrameTicks;
 
-    if (lbl_80344400 < 1 || cam->pyr[1] == lbl_80344534) {
-        if (lbl_80344400 < 0 && cam->pyr[1] != lbl_80344534) {
-            cam->pyr[1] = cam->pyr[1] - rate;
-            y = (f32)cam->pyr[1];
-            if (y <= lbl_80345F58) {
-                if (y <= lbl_80345F68) {
-                    y = lbl_80345F60 + y;
-                }
-            } else {
-                y = y - lbl_80345F60;
-            }
-            cam->pyr[1] = (f32)y;
-            y = (f32)cam->pyr[1];
-            if (y <= prevYaw) {
-                if ((f32)((f64)lbl_80344534 - y) < lbl_80345F58 &&
-                    y <= (f64)lbl_80344534) {
-                    cam->pyr[1] = lbl_80344534;
-                    lbl_80344400 = 0;
-                }
-            } else if ((f64)lbl_80344534 < prevYaw ||
-                       y <= (f64)lbl_80344534) {
+    if (lbl_80344400 > 0 && cam->pyr[1] != lbl_80344534) {
+        cam->pyr[1] = cam->pyr[1] + rate;
+        y = (f32)cam->pyr[1];
+        if (y > lbl_80345F58) {
+            y = y - lbl_80345F60;
+        } else if (y <= lbl_80345F68) {
+            y = lbl_80345F60 + y;
+        }
+        cam->pyr[1] = (f32)y;
+        curYaw = cam->pyr[1];
+        if (prevYaw > curYaw) {
+            if (lbl_80344534 > prevYaw ||
+                lbl_80344534 <= curYaw) {
                 cam->pyr[1] = lbl_80344534;
                 lbl_80344400 = 0;
             }
-        } else {
+        } else if (curYaw - lbl_80344534 < lbl_80345F58 &&
+                   curYaw >= lbl_80344534) {
             cam->pyr[1] = lbl_80344534;
             lbl_80344400 = 0;
         }
     } else {
-        cam->pyr[1] = cam->pyr[1] + rate;
-        y = (f32)cam->pyr[1];
-        if (y <= lbl_80345F58) {
-            if (y <= lbl_80345F68) {
+        if (lbl_80344400 < 0 && cam->pyr[1] != lbl_80344534) {
+            cam->pyr[1] = cam->pyr[1] - rate;
+            y = (f32)cam->pyr[1];
+            if (y > lbl_80345F58) {
+                y = y - lbl_80345F60;
+            } else if (y <= lbl_80345F68) {
                 y = lbl_80345F60 + y;
             }
-        } else {
-            y = y - lbl_80345F60;
-        }
-        cam->pyr[1] = (f32)y;
-        y = (f32)cam->pyr[1];
-        if (prevYaw <= y) {
-            if ((f32)(y - (f64)lbl_80344534) < lbl_80345F58 &&
-                (f64)lbl_80344534 <= y) {
+            cam->pyr[1] = (f32)y;
+            curYaw = cam->pyr[1];
+            if (prevYaw < curYaw) {
+                if (lbl_80344534 < prevYaw ||
+                    lbl_80344534 >= curYaw) {
+                    cam->pyr[1] = lbl_80344534;
+                    lbl_80344400 = 0;
+                }
+            } else if (lbl_80344534 - curYaw < lbl_80345F58 &&
+                       curYaw <= lbl_80344534) {
                 cam->pyr[1] = lbl_80344534;
                 lbl_80344400 = 0;
             }
-        } else if (prevYaw < (f64)lbl_80344534 ||
-                   (f64)lbl_80344534 <= y) {
+        } else {
             cam->pyr[1] = lbl_80344534;
             lbl_80344400 = 0;
         }
     }
-    if ((lbl_80345EC8 < cam->pyr[1] && lbl_80345EC8 < camState[5] &&
+    if ((cam->pyr[1] > lbl_80345EC8 && *state5 > lbl_80345EC8 &&
          camState[4] < lbl_80345EC8) ||
-        (cam->pyr[1] < lbl_80345EC8 && camState[5] < lbl_80345EC8 &&
-         lbl_80345EC8 < camState[4])) {
+        (cam->pyr[1] < lbl_80345EC8 && *state5 < lbl_80345EC8 &&
+         camState[4] > lbl_80345EC8)) {
         cam->pyr[1] = lbl_80344534;
         lbl_80344400 = 0;
     }
