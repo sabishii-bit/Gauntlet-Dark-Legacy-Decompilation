@@ -2418,6 +2418,7 @@ extern void StartItemGrid(f32 radius, f32* pos);
 extern s32 NextGridItem(void);
 extern void CritterCollideStart(f32 radius, f32* pos, s32 unused);
 extern void* CritterExpCollide();
+extern void* CritterMoveNodeCol();
 extern void* MissileCollidePlayer(f32* oldpos, f32* newpos, f32* hitpos);
 extern s32 MissileCollideEnemy();
 extern void* WeaponWallCollide(f32 radius, f32* oldpos, f32* newpos,
@@ -2450,6 +2451,36 @@ extern u8 lbl_8023CB28[];
 struct fxworldobj {
     /* 0x00 */ u8 _00[0x10];
     /* 0x10 */ u32 flags;
+};
+
+struct fxcritterdesc {
+    /* 0x00 */ u8 _00[0x20];
+    /* 0x20 */ s16 type;
+};
+struct fxcritterheader {
+    /* 0x000 */ u8 _000[0x120];
+    /* 0x120 */ struct fxcritterdesc* desc;
+};
+struct fxcritter {
+    /* 0x00 */ u8 _00[4];
+    /* 0x04 */ struct fxcritterheader* header;
+    /* 0x08 */ u8 _08[0x44];
+    /* 0x4C */ f32 effectpos[3];
+};
+
+struct fxenemy {
+    /* 0x000 */ u8 _000[0x44];
+    /* 0x044 */ f32 effectpos[4];
+    /* 0x054 */ f32 pos[3];
+    /* 0x060 */ u8 _060[0x54];
+    /* 0x0B4 */ s32 state;
+    /* 0x0B8 */ u8 _0b8[0x148];
+    /* 0x200 */ f32 health;
+    /* 0x204 */ u8 _204[0x34];
+    /* 0x238 */ f32 radius;
+    /* 0x23C */ u8 _23c[0x78];
+    /* 0x2B4 */ f32 fxhittime[5];
+    /* 0x2C8 */ s32 fxhitidx;
 };
 
 /* The item pool is a fixed array of 0xF0-byte records.  Keep this local view
@@ -2762,50 +2793,113 @@ void ProcessEffects(void)
 
         if ((flags & 8) && hit == 0 && radius > 0.0f) {
             s32 enemyIndex;
-            StartEnemyGrid(pos, radius);
-            while ((enemyIndex = NextGridEnemy()) >= 0) {
-                void* enemy = gEnemies + enemyIndex * 916;
-                f32 enemyDelta[3];
-                f32 enemyDist;
-                enemyDelta[0] = *(f32*)((u8*)enemy + 84) - pos[0];
-                enemyDelta[1] = *(f32*)((u8*)enemy + 88) - pos[1];
-                enemyDelta[2] = *(f32*)((u8*)enemy + 92) - pos[2];
-                enemyDist = NormalVector2D(enemyDelta);
-                if (enemyDist > radius + *(f32*)((u8*)enemy + 568)) {
-                    continue;
-                }
-                e->debugcount++;
-                hit = damage_enemy(enemy, e->owner - 1, e->damagetype, 0,
-                                   enemyDelta, collisionDamage, 2);
-                if (hit >= 0) {
-                    if (e->owner > 0) {
-                        PlayerDamagedEnemy(gPlayers + (e->owner - 1) * 13148,
-                                           enemy, 0, hit, 0);
-                    }
-                    hit = hit == 0 ? 2 : 3;
-                    break;
-                }
-            }
+            if (mode != 0 && !(flags & 0x400)) {
+                StartItemGrid(radius, pos);
+                while ((enemyIndex = NextGridItem()) >= 0) {
+                    struct fxenemy* enemy =
+                        (struct fxenemy*)(gEnemies + enemyIndex * 916);
+                    f32 enemyDelta[3];
+                    f32 enemyDist;
+                    f32 enemyMindp;
+                    s32 enemyState;
+                    s32 damage;
 
-            if (hit == 0 && mode != 0) {
-                s32 enemyIndex = MissileCollideEnemy(oldpos, pos, hitpos, 0,
-                                                     e->owner - 1, 0);
-                if (enemyIndex >= 0) {
-                    void* enemy = gEnemies + enemyIndex * 916;
+                    if (enemy->state != 1 && enemy->state != 6) {
+                        continue;
+                    }
+                    if (enemy->state == 6 && (flags & 0x100)) {
+                        continue;
+                    }
+                    if (!(flags & 0x01000000) &&
+                        sMusicFadeBase < enemy->fxhittime[e->owner]) {
+                        continue;
+                    }
+                    enemyDelta[0] = enemy->pos[0] - pos[0];
+                    enemyDelta[1] = enemy->pos[1] - pos[1];
+                    enemyDelta[2] = enemy->pos[2] - pos[2];
+                    enemyDist = NormalVector2D(enemyDelta);
+                    if (enemyDist > radius + enemy->radius) {
+                        continue;
+                    }
+                    if (e->mindp > -1.0f) {
+                        enemyMindp = e->mindp;
+                        if (enemyDist < 0.2f * (radius + enemy->radius)) {
+                            enemyMindp *= 0.5f;
+                        }
+                        if (enemyDelta[0] * dir[0] +
+                                enemyDelta[2] * dir[2] <
+                            enemyMindp) {
+                            continue;
+                        }
+                    }
+                    e->debugcount++;
+                    enemyState = enemy->health <= 0.0f ? 0 : enemy->state;
+                    damage = damage_enemy(
+                        enemy, e->owner - 1, e->damagetype, 0, enemyDelta,
+                        collisionDamage, 2);
+                    if (damage >= 0) {
+                        if (collisionDamage > 0.0f &&
+                            !(flags & 0x00800000)) {
+                            enemy->fxhittime[e->owner] =
+                                sMusicFadeBase + fade;
+                        }
+                        enemy->fxhitidx = i;
+                        if (e->owner > 0) {
+                            PlayerDamagedEnemy(
+                                gPlayers + (e->owner - 1) * 13148, enemy,
+                                enemyState, damage, 0);
+                        }
+                        if (e->fxhit >= 0) {
+                            StartFXSub(e->fxhit, enemy->effectpos, 0, 0x880,
+                                       0.0f);
+                        }
+                    }
+                }
+            } else if (mode == 0) {
+                s32 passThrough = e->damagetype & DMG_SUPER;
+                s32 start = 0;
+                do {
+                    s32 damage;
+                    s32 enemyState;
+                    struct fxenemy* enemy;
+
+                    enemyIndex = MissileCollideEnemy(
+                        radius, oldpos, pos, hitpos, e->owner, passThrough,
+                        start);
+                    if (enemyIndex < 0) {
+                        break;
+                    }
+                    enemy = (struct fxenemy*)(gEnemies + enemyIndex * 916);
+                    if (flags & 0x400) {
+                        if (e->maxtime - remaining > 0.0667) {
+                            hit = -1;
+                        }
+                        start = enemyIndex + 1;
+                        continue;
+                    }
                     dir[0] = e->vel[0];
                     dir[1] = e->vel[1];
                     dir[2] = e->vel[2];
-                    NormalVector(dir);
                     e->debugcount++;
-                    hit = damage_enemy(enemy, e->owner - 1, e->damagetype,
-                                       0, dir, collisionDamage, 2);
-                    if (hit >= 0) {
-                        if (e->owner > 0) {
-                            PlayerDamagedEnemy(gPlayers + (e->owner - 1) * 13148,
-                                               enemy, 0, hit, 0);
+                    NormalVector(dir);
+                    enemyState = enemy->health <= 0.0f ? 0 : enemy->state;
+                    damage = damage_enemy(
+                        enemy, e->owner - 1, e->damagetype, hitpos, dir,
+                        collisionDamage, 2);
+                    if (damage >= 0) {
+                        if (collisionDamage > 0.0f &&
+                            !(flags & 0x00800000)) {
+                            enemy->fxhittime[e->owner] =
+                                sMusicFadeBase + fade;
+                            e->flags &= ~0x01000000;
                         }
-                        hit = hit == 0 ? 2 : 3;
-                        if (mode == 0) {
+                        if (e->owner > 0) {
+                            PlayerDamagedEnemy(
+                                gPlayers + (e->owner - 1) * 13148, enemy,
+                                enemyState, damage, 0);
+                        }
+                        hit = damage == 0 ? 2 : 3;
+                        if (passThrough == 0) {
                             pos[0] = hitpos[0];
                             pos[1] = hitpos[1];
                             pos[2] = hitpos[2];
@@ -2814,25 +2908,69 @@ void ProcessEffects(void)
                     } else {
                         hit = 2;
                     }
+                    start = enemyIndex + 1;
+                } while (passThrough != 0);
+                if (passThrough != 0) {
+                    hit = 0;
                 }
             }
         }
 
-        if ((flags & 8) && hit == 0 && lbl_8034466C != 0 && radius > 0.0f) {
-            void* critter;
-            CritterCollideStart(radius, pos, 0);
-            critter = CritterExpCollide(pos, normal, dir, radius,
-                                        e->mindp, e->id);
-            if (critter != NULL) {
-                fn_80037ED0(critter, e->id);
-                e->debugcount++;
-                dir[0] = e->vel[0];
-                dir[1] = e->vel[1];
-                dir[2] = e->vel[2];
-                NormalVector(dir);
-                hit = CritterDamage(critter, e->owner - 1, e->damagetype,
-                                    0, dir, collisionDamage, 2);
-                hit = hit < 0 ? 2 : (hit == 0 ? 2 : 3);
+        if ((flags & 8) && hit == 0 && lbl_8034466C != 0) {
+            struct fxcritter* critter;
+            if (mode != 0 && radius > 0.0f && !(flags & 0x400)) {
+                CritterCollideStart(radius, pos, 0);
+                while ((critter = CritterExpCollide(
+                            pos, normal, dir, radius, e->mindp, fade,
+                            e->id)) != NULL) {
+                    s32 damage;
+                    fn_80037ED0(critter, e->id, fade);
+                    if (critter->header->desc->type == 4 &&
+                        (e->flags & 0x800)) {
+                        continue;
+                    }
+                    e->debugcount++;
+                    damage = CritterDamage(
+                        critter, e->owner - 1, e->damagetype, 0, dir,
+                        collisionDamage, 2);
+                    if (damage >= 0 && e->fxhit >= 0) {
+                        StartFXSub(e->fxhit, critter->effectpos, 0, 0x880,
+                                   0.0f);
+                    }
+                }
+            } else if (mode == 0) {
+                s32 passThrough = e->damagetype & DMG_SUPER;
+                CritterCollideStart(radius, pos, 0);
+                critter = CritterMoveNodeCol(radius, fade, oldpos, pos,
+                                             hitpos, e->id, 0);
+                if (critter != NULL) {
+                    fn_80037ED0(critter, e->id, fade);
+                    if (critter->header->desc->type == 4) {
+                        passThrough = 0;
+                    }
+                    if (!(e->flags & 0x400) &&
+                        !(critter->header->desc->type == 4 &&
+                          (e->flags & 0x800))) {
+                        dir[0] = e->vel[0];
+                        dir[1] = e->vel[1];
+                        dir[2] = e->vel[2];
+                        e->debugcount++;
+                        NormalVector(dir);
+                        hit = CritterDamage(
+                            critter, e->owner - 1, e->damagetype, hitpos,
+                            dir, collisionDamage, 2);
+                        hit = hit < 0 ? 2 : (hit == 0 ? 2 : 3);
+                        if (passThrough == 0) {
+                            pos[0] = hitpos[0];
+                            pos[1] = hitpos[1];
+                            pos[2] = hitpos[2];
+                            moved = 1;
+                        }
+                    }
+                    if (passThrough != 0) {
+                        hit = 0;
+                    }
+                }
             }
         }
 
