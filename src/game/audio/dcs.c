@@ -1212,7 +1212,7 @@ void dcsVoiceUpdate(s32 channel) {
     DcsChannelInfo* info = &ch_info[channel];
     s32 volume = info->volume;
     u16 master;
-    u16 excess;
+    s32 excess;
     s32 scaled;
     s32 pan;
     s32 sign;
@@ -1228,14 +1228,13 @@ void dcsVoiceUpdate(s32 channel) {
         excess -= 0x3FFF - master;
         master = 0x3FFF;
     }
-    if (excess > 0x3FFF) {
+    if ((u16)excess > 0x3FFF) {
         master -= 0x3FFF - excess;
     }
 
     pan = 0x100 - ((info->pan + 0x100) & 0x1FF);
     sign = pan >> 31;
-    pan = (sign ^ pan) - sign;
-    sndVoiceSetVolume(sVoice[channel], pan >> 1);
+    sndVoiceSetVolume(sVoice[channel], ((sign ^ pan) - sign) >> 1);
     pan = 0x100 - ((info->pan + 0x180) & 0x1FF);
     sign = pan >> 31;
     pan = (sign ^ pan) - sign;
