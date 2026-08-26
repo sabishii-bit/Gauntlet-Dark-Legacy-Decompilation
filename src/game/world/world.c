@@ -150,7 +150,6 @@ extern char   lbl_80115244[];   /* printf fmt "---- ALLOC World Data [%dK]\n"  *
 extern char   lbl_80115264[];   /* "World psys: bad name: %s"                  */
 extern char   lbl_80115280[];   /* "Unable to find world psys '%c'"           */
 extern char   lbl_801152A0[];   /* "World obj with dynamic parent"            */
-extern char   lbl_803487B0[5]; /* "PSYS"                                      */
 
 /* --- external API --- */
 extern void  MBTreeSetFlags();          /* set node display flag / show           */
@@ -201,13 +200,10 @@ void  CreateWorldNode(WorldObj* base, WorldObj* obj, void* parent);
 void  ToggleWorldDisplay(void);
 WorldObj* FindWorldObject(WorldObj* node, char* name);
 
-static const char lbl_80348798[] = "anim";
-static const char lbl_803487A0[] = "worlds";
 static const float lbl_80348778 = 0.0f;
 static const double lbl_80348768 = 0.0;  /* invgridsize fallback   */
 static const double lbl_80348788 = 0.5;  /* Newton half / center weight */
 static const double lbl_80348790 = 3.0;  /* Newton three            */
-static const double lbl_803487B8 = -1.0; /* psys spawn-pos negation */
 static const double lbl_803487A8 = 1.0;  /* invgridsize numerator  */
 extern f64 __frsqrte(f64 x);
 
@@ -581,8 +577,8 @@ s32 FinishLoadWorldAnim(void) {
 /* StartLoadWorldAnim: begin reading the "anim" file into the atree buffer. */
 s32 StartLoadWorldAnim(void* dir) {
     if (gWorldInfo.atreelist != 0) {
-        s32 size = FileSize(dir, lbl_80348798);
-        atree_finfo = StartFileRead(dir, lbl_80348798, 0, size,
+        s32 size = FileSize(dir, "anim");
+        atree_finfo = StartFileRead(dir, "anim", 0, size,
                                     gWorldInfo.atreelist, BGLoadWorldFile);
         return 1;
     }
@@ -609,8 +605,8 @@ s32 StartWorldLoad(s32 arg) {
     switch (world_load_state) {
     case 0:
         if (lbl_80344DA4 != 0) {
-            s32 size = FileSize(name, lbl_803487A0);
-            lbl_80344D7C = StartFileRead(name, lbl_803487A0, 0, size,
+            s32 size = FileSize(name, "worlds");
+            lbl_80344D7C = StartFileRead(name, "worlds", 0, size,
                                          lbl_80344DA4, BGLoadWorldFile);
             world_load_state = 1;
         } else {
@@ -679,13 +675,13 @@ s32 LoadWorldDone(char* name) {
     lbl_80344D88 = 0;
     lbl_80344D84 = 0;
     lbl_80344D80 = 0;
-    if (name != 0 && FileExists(name, lbl_803487A0) != 0) {
+    if (name != 0 && FileExists(name, "worlds") != 0) {
         freeBefore = BytesFree();
         *(modelp = (s32*)(base + 360)) = MBOX_AllocModel(name);
         lbl_80344D80 += freeBefore - BytesFree();
         memBase = mlmMemUsed;
         bulletproof_printf(lbl_80115214, name, memBase);
-        size = FileSize(name, lbl_803487A0);
+        size = FileSize(name, "worlds");
         lbl_80344DA4 = AllocMem(size);
         world_load_state = 0;
         lbl_80344D88 += size;
@@ -696,8 +692,8 @@ s32 LoadWorldDone(char* name) {
     *(s32*)(base + 364) = 0;
     lbl_80344DA0 = 0;
     strcpy(base, name);
-    if (FileExists(name, lbl_80348798) != 0) {
-        size = FileSize(name, lbl_80348798);
+    if (FileExists(name, "anim") != 0) {
+        size = FileSize(name, "anim");
         *(s32*)(base + 356) = (s32)AllocMem(size);
         lbl_80344D84 += size;
     } else {
@@ -797,161 +793,6 @@ WorldObj* FindWorldObject(WorldObj* node, char* name) {
         }
     }
     return 0;
-}
-
-/* WorldObjGetAllFlags: OR the +0x10 flag word across the +0x18 parent list. */
-u32 WorldObjGetAllFlags(WorldObj* o) {
-    u32 acc = 0;
-    while (o != 0) {
-        acc |= o->flags;
-        o = o->parent;
-    }
-    return acc;
-}
-
-/* CreateWorldNode: recursively build g3d display nodes for the object tree. */
-void CreateWorldNode(WorldObj* base, WorldObj* obj, void* parent) {
-    while (1) {
-        if (obj->flags & 0x800) {
-            obj->nodeptr = NewWorldObject(obj, parent);
-            if (!(obj->flags & 0x10000000)) {
-                WorldPsysActivate(obj);
-            }
-        } else if (obj->nodeptr == (struct mbnode*)1 ||
-                   (obj->flags & 0x80000000)) {
-            obj->nodeptr = NewWorldObject(obj, parent);
-            MBOX_SetObject(obj->nodeptr, obj);
-            obj->flags |= 0x80000000;
-        } else {
-            obj->nodeptr = NewWorldObject(obj, parent);
-        }
-        if (obj->flags & 0x100) {
-            obj->flags &= -59;
-        }
-        if (obj->childidx >= 0) {
-            CreateWorldNode(base, &base[obj->childidx], obj);
-        }
-        if (obj->nextidx < 0) {
-            return;
-        }
-        obj = &base[obj->nextidx];
-    }
-}
-
-/* WorldPsysDeActivate: if the object's psys-active bit (0x00800000) is set,
- * free the particle system, clear that bit and set the "was-active" bit
- * (0x00400000). */
-s32 WorldPsysDeActivate(WorldObj* o) {
-    if (o->flags & 0x00800000) {
-        MBRemovePsys(o->nodeptr);
-        o->flags &= ~0x00800000;
-        o->flags |= 0x00400000;
-    }
-    return 1;
-}
-
-/* WorldPsysActivate: look up the "PSYS<id>" template in gWorldInfo.worldpsys
- * and spawn the particle system for this object (with GetWorldPsysIdx inlined
- * as the id search). */
-/* GetWorldPsysIdx (Xbox local fn, inlined here): find template by id char. */
-static inline s32 GetWorldPsysIdx(s8 id, char* base, u8* tbl) {
-    s32 i;
-
-    i = 0;
-
-    for (; i < *(s32*)(base + 388); i++) {
-        if ((s8)tbl[i * 312 + 6] == id) {
-            return i;
-        }
-    }
-    ErrorPrintf(lbl_80115280, id);
-    return -1;
-}
-
-s32 WorldPsysActivate(WorldObj* obj) {
-    char* base = gWorldName;
-    char* tag;
-    s32 i;
-    f32 pos[3];
-    f32* posp;
-    u8** wpsp;
-
-    if (obj->flags & 0x00800000) {
-        goto done;
-    }
-
-    tag = strstr((char*)obj, lbl_803487B0);
-    if (tag == NULL) {
-        ErrorPrintf(lbl_80115264, obj);
-        return 0;
-    }
-
-    i = GetWorldPsysIdx((s8)tag[4], base,
-                        *(wpsp = (u8**)(base + 384)));
-    if (i < 0) {
-        goto done;
-    }
-
-    posp = NULL;
-    if (*(s16*)((u8*)obj + 54) > 0) {
-        u8* ct = *(u8**)(base + 236) + *(s32*)((u8*)obj + 56) * 40 + 8;
-        pos[0] = (f32)(lbl_803487B8 * *(f32*)ct);
-        pos[1] = (f32)(lbl_803487B8 * *(f32*)(ct + 4));
-        pos[2] = (f32)(lbl_803487B8 * *(f32*)(ct + 8));
-        posp = pos;
-    }
-    MBNewWorldPsys(0, *(void**)((u8*)obj + 40),
-                   *wpsp + i * 312,
-                   obj->flags & 0x1000, obj, posp);
-    obj->flags &= ~0x00400000;
-    obj->flags |= 0x00800000;
-
-done:
-    *(s32*)(*(u8**)((u8*)obj + 40) + 96) &= ~2;
-    return 1;
-}
-
-/* NewWorldObject: create one object's g3d display node. */
-void* NewWorldObject(WorldObj* obj, WorldObj* parent) {
-    G3DNode* node;
-    void* p;
-    struct WorldObj* tmp;
-    if (parent == 0)
-        p = lbl_80344D8C;
-    else
-        p = parent->nodeptr;
-    node = MBNewNode(p, 0, 1);
-    node->x = obj->pos[0];
-    node->y = obj->pos[1];
-    node->z = obj->pos[2];
-    if (parent != 0) {
-        if (!(obj->flags & 0x01001000)) {
-            if (parent->flags & 0x01001000) {
-                ErrorPrintf(lbl_801152A0);
-            }
-            obj->pos[0] = parent->pos[0] + obj->pos[0];
-            obj->pos[1] = parent->pos[1] + obj->pos[1];
-            obj->pos[2] = parent->pos[2] + obj->pos[2];
-        }
-    }
-    tmp = obj->parent;
-    obj->parent = parent;
-    MBTreeSetFlags(node, tmp, 0);
-    if (parent != 0) {
-        if (parent->flags & 0x02000000) {
-            obj->flags |= 0x02000000;
-        }
-    }
-    if ((obj->flags & 1) && !(obj->flags & 0x1000)) {
-        MBTreeSetFlags(node, 4, 0);
-    }
-    if (obj->flags & 0x8000) {
-        MBTreeSetFlags(node, 1, 0);
-    }
-    if (obj->flags & 0x400) {
-        MBTreeSetZsortAdd(node, -2, 1);
-    }
-    return node;
 }
 
 /* ---- InitWorldInfo (0x800A9E1C) ------------------------------------------
@@ -1269,4 +1110,159 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
     wi->inited = 1;
     bulletproof_printf(lbl_80115244, (mlmMemUsed - memBase) >> 10);
     return (WorldObj*)wi->wobjs;
+}
+
+/* WorldObjGetAllFlags: OR the +0x10 flag word across the +0x18 parent list. */
+u32 WorldObjGetAllFlags(WorldObj* o) {
+    u32 acc = 0;
+    while (o != 0) {
+        acc |= o->flags;
+        o = o->parent;
+    }
+    return acc;
+}
+
+/* CreateWorldNode: recursively build g3d display nodes for the object tree. */
+void CreateWorldNode(WorldObj* base, WorldObj* obj, void* parent) {
+    while (1) {
+        if (obj->flags & 0x800) {
+            obj->nodeptr = NewWorldObject(obj, parent);
+            if (!(obj->flags & 0x10000000)) {
+                WorldPsysActivate(obj);
+            }
+        } else if (obj->nodeptr == (struct mbnode*)1 ||
+                   (obj->flags & 0x80000000)) {
+            obj->nodeptr = NewWorldObject(obj, parent);
+            MBOX_SetObject(obj->nodeptr, obj);
+            obj->flags |= 0x80000000;
+        } else {
+            obj->nodeptr = NewWorldObject(obj, parent);
+        }
+        if (obj->flags & 0x100) {
+            obj->flags &= -59;
+        }
+        if (obj->childidx >= 0) {
+            CreateWorldNode(base, &base[obj->childidx], obj);
+        }
+        if (obj->nextidx < 0) {
+            return;
+        }
+        obj = &base[obj->nextidx];
+    }
+}
+
+/* WorldPsysDeActivate: if the object's psys-active bit (0x00800000) is set,
+ * free the particle system, clear that bit and set the "was-active" bit
+ * (0x00400000). */
+s32 WorldPsysDeActivate(WorldObj* o) {
+    if (o->flags & 0x00800000) {
+        MBRemovePsys(o->nodeptr);
+        o->flags &= ~0x00800000;
+        o->flags |= 0x00400000;
+    }
+    return 1;
+}
+
+/* WorldPsysActivate: look up the "PSYS<id>" template in gWorldInfo.worldpsys
+ * and spawn the particle system for this object (with GetWorldPsysIdx inlined
+ * as the id search). */
+/* GetWorldPsysIdx (Xbox local fn, inlined here): find template by id char. */
+static inline s32 GetWorldPsysIdx(s8 id, char* base, u8* tbl) {
+    s32 i;
+
+    i = 0;
+
+    for (; i < *(s32*)(base + 388); i++) {
+        if ((s8)tbl[i * 312 + 6] == id) {
+            return i;
+        }
+    }
+    ErrorPrintf(lbl_80115280, id);
+    return -1;
+}
+
+s32 WorldPsysActivate(WorldObj* obj) {
+    char* base = gWorldName;
+    char* tag;
+    s32 i;
+    f32 pos[3];
+    f32* posp;
+    u8** wpsp;
+
+    if (obj->flags & 0x00800000) {
+        goto done;
+    }
+
+    tag = strstr((char*)obj, "PSYS");
+    if (tag == NULL) {
+        ErrorPrintf(lbl_80115264, obj);
+        return 0;
+    }
+
+    i = GetWorldPsysIdx((s8)tag[4], base,
+                        *(wpsp = (u8**)(base + 384)));
+    if (i < 0) {
+        goto done;
+    }
+
+    posp = NULL;
+    if (*(s16*)((u8*)obj + 54) > 0) {
+        u8* ct = *(u8**)(base + 236) + *(s32*)((u8*)obj + 56) * 40 + 8;
+        pos[0] = (f32)(-1.0 * *(f32*)ct);
+        pos[1] = (f32)(-1.0 * *(f32*)(ct + 4));
+        pos[2] = (f32)(-1.0 * *(f32*)(ct + 8));
+        posp = pos;
+    }
+    MBNewWorldPsys(0, *(void**)((u8*)obj + 40),
+                   *wpsp + i * 312,
+                   obj->flags & 0x1000, obj, posp);
+    obj->flags &= ~0x00400000;
+    obj->flags |= 0x00800000;
+
+done:
+    *(s32*)(*(u8**)((u8*)obj + 40) + 96) &= ~2;
+    return 1;
+}
+
+/* NewWorldObject: create one object's g3d display node. */
+void* NewWorldObject(WorldObj* obj, WorldObj* parent) {
+    G3DNode* node;
+    void* p;
+    struct WorldObj* tmp;
+    if (parent == 0)
+        p = lbl_80344D8C;
+    else
+        p = parent->nodeptr;
+    node = MBNewNode(p, 0, 1);
+    node->x = obj->pos[0];
+    node->y = obj->pos[1];
+    node->z = obj->pos[2];
+    if (parent != 0) {
+        if (!(obj->flags & 0x01001000)) {
+            if (parent->flags & 0x01001000) {
+                ErrorPrintf(lbl_801152A0);
+            }
+            obj->pos[0] = parent->pos[0] + obj->pos[0];
+            obj->pos[1] = parent->pos[1] + obj->pos[1];
+            obj->pos[2] = parent->pos[2] + obj->pos[2];
+        }
+    }
+    tmp = obj->parent;
+    obj->parent = parent;
+    MBTreeSetFlags(node, tmp, 0);
+    if (parent != 0) {
+        if (parent->flags & 0x02000000) {
+            obj->flags |= 0x02000000;
+        }
+    }
+    if ((obj->flags & 1) && !(obj->flags & 0x1000)) {
+        MBTreeSetFlags(node, 4, 0);
+    }
+    if (obj->flags & 0x8000) {
+        MBTreeSetFlags(node, 1, 0);
+    }
+    if (obj->flags & 0x400) {
+        MBTreeSetZsortAdd(node, -2, 1);
+    }
+    return node;
 }
