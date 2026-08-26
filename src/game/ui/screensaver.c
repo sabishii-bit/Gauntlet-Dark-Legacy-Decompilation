@@ -710,6 +710,7 @@ void animate_panel_piece(f32 progress, s32* piece, void* blit, s32 xOffset,
                          s32 phase);
 extern u8 gPlayers[];
 
+#pragma opt_lifetimes off
 int draw_inventory_panel(int player)
 {
     u8* base;
@@ -835,17 +836,20 @@ int draw_inventory_panel(int player)
         }
     }
     for (i = 0, boff = 0, off = 0; i < 12; i++, boff += 4, off += 36) {
-        animate_panel_piece(prog, (s32*)(cfg + off + 528),
+        row = cfg + off;
+        animate_panel_piece(prog, (s32*)(row + 528),
                             ((void**)blits1)[i], xoff, mode);
     }
     blits2 = (void**)(base + poff48 + 736);
     for (j = 0, boff = 0, off = 0; j < 12; j++, boff += 4, off += 36) {
-        animate_panel_piece(prog, (s32*)(cfg + off + 1428),
+        row = cfg + off;
+        animate_panel_piece(prog, (s32*)(row + 1428),
                             ((void**)blits2)[j], xoff, mode);
     }
     blits3 = (void**)(base + player * 36 + 592);
     for (j = 0, boff = 0, off = 0; j < 9; j++, boff += 4, off += 36) {
-        animate_panel_piece(prog, (s32*)(cfg + off + 960),
+        row = cfg + off;
+        animate_panel_piece(prog, (s32*)(row + 960),
                             ((void**)blits3)[j], xoff, mode);
     }
     switch (mode) {
@@ -859,12 +863,12 @@ int draw_inventory_panel(int player)
         yshift = (s32)(lbl_803473F4 * prog);
         break;
     }
-    print_n_of_m(1, *(s16*)(pl + *(s32*)(pl + 12) * 240 + 3560), 12, xoff,
-                 yshift);
-    print_n_of_m(2, *(s16*)(pl + *(s32*)(pl + 12) * 240 + 3562), 20, xoff,
-                 yshift);
-    print_n_of_m(3, *(s16*)(pl + *(s32*)(pl + 12) * 240 + 3564), 28, xoff,
-                 yshift);
+    row = pl + *(s32*)(pl + 12) * 240;
+    print_n_of_m(1, *(s16*)(row + 3560), 12, xoff, yshift);
+    row = pl + *(s32*)(pl + 12) * 240;
+    print_n_of_m(2, *(s16*)(row + 3562), 20, xoff, yshift);
+    row = pl + *(s32*)(pl + 12) * 240;
+    print_n_of_m(3, *(s16*)(row + 3564), 28, xoff, yshift);
     for (i = 0, boff = 0, off = 0; i < 8; i++, boff += 4, off += 2) {
         print_n_of_m(i + 4,
                      *(s16*)(pl + *(s32*)(pl + 12) * 240 + off + 3568),
@@ -893,6 +897,7 @@ int draw_inventory_panel(int player)
     DrawTextKeepScale(lbl_803473F8, -(xoff + 64), 8, 6, 0, lbl_803473FC);
     return result;
 }
+#pragma opt_lifetimes reset
 
 #pragma opt_propagation off
 #pragma opt_lifetimes off
