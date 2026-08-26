@@ -246,9 +246,10 @@ static inline void debugZoomAdjust(volatile f32* l, volatile f32* r, volatile f3
             *b = (f32) ((PBSCREEN*) g->screen)->h * (1.0f - sc);
         }
         {
-            f32* pz = &d->clipzoom;
-            if (0.0 != (double) *pz) {
-                *w = (f32) ((PBSCREEN*) g->screen)->w * *pz;
+            f32* pz;
+            f32 clipzoom;
+            if (0.0 != (double) (clipzoom = *(pz = &d->clipzoom))) {
+                *w = (f32) ((PBSCREEN*) g->screen)->w * clipzoom;
                 *h = (f32) ((PBSCREEN*) g->screen)->h * *pz;
             }
         }
