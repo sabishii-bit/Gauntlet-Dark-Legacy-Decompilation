@@ -258,6 +258,7 @@ extern f32 gClockTime;      /* current game time (min-endtime gate)    */
 extern s32 lbl_80343DF0;    /* running effect-id counter               */
 extern s32 lbl_80344890;    /* tracked live-fx slot A (cleared on del) */
 extern s32 lbl_80344894;    /* tracked live-fx slot B (cleared on del) */
+extern s32 sItemFile1Handle;
 
 /* forward decls (GC address order puts users first) */
 void DoProcessSkinFX(SkinFx* fx, struct mbnode* node, struct mbnode* geo);
@@ -2445,9 +2446,15 @@ extern void fn_80037ED0();
 extern s32 RandInt(s32 limit);
 extern void MBPsysFirework();
 extern void DmgFxAdd(s32 idx);
+extern s32 MBOX_FindTexture_Sub(char* name, s32 a, s32 b, s32 c, s32 flag);
+extern void* MBOX_FindObject(char* name);
+extern void MBSetObject(struct mbnode* node, void* object);
+extern void fn_8009C9DC(s32 mode, f32* position);
 extern u8 gEnemies[];
 extern s32 lbl_8034466C;
 extern f32 sMusicFadeBase;
+extern f32 lbl_80348100;
+extern f32 lbl_80348250;
 extern u8 lbl_8023CA98[];
 extern u8 lbl_8023CB28[];
 
@@ -2469,6 +2476,19 @@ struct fxcritter {
     /* 0x04 */ struct fxcritterheader* header;
     /* 0x08 */ u8 _08[0x44];
     /* 0x4C */ f32 effectpos[3];
+    /* 0x58 */ u8 _58[0x68];
+    /* 0xC0 */ struct mbnode* node;
+    /* 0xC4 */ u8 _c4[8];
+    /* 0xCC */ struct fxcritterobject* object;
+    /* 0xD0 */ u8 _d0[0x9F0];
+    /* 0xAC0 */ s32 boss_texture;
+    /* 0xAC4 */ s16 boss_timer_a;
+    /* 0xAC6 */ s16 boss_timer_b;
+};
+
+struct fxcritterobject {
+    /* 0x00 */ u8 _00[0x78];
+    /* 0x78 */ struct mbnode* node;
 };
 
 struct fxenemy {
@@ -2560,7 +2580,7 @@ static s32 SfxSkipItem_80096FF4(struct fxitem* item, u32 a, u32 b);
 void ProcessEffects(void)
 {
     s32 i;
-    u8 framePad[184];
+    u8 framePad[88];
     f32 mat[16];
     f32 targetmat[16];
     f32 oldpos[3];
@@ -3066,6 +3086,69 @@ void ProcessEffects(void)
                             pos[2] = hitpos[2];
                             moved = 1;
                         }
+
+                        if ((u32)(lbl_8034489C - 2) <= 1) {
+                            switch (gBossType) {
+                            case 34:
+                                critter->boss_texture = MBOX_FindTexture_Sub(
+                                    lbl_80114790 + 20, 0, sItemFile1Handle,
+                                    sItemFile1Handle, 1);
+                                critter->boss_timer_a = 1200;
+                                lbl_8034489C = 4;
+                                break;
+                            case 36:
+                            {
+                                EffectHeader* h = &EffectInfo[FX_LEGEND1];
+                                f32 bosspos[3];
+                                s32 effect = -1;
+
+                                critter->boss_timer_b = 1800;
+                                bosspos[0] = 0.0f;
+                                bosspos[1] = lbl_80348144;
+                                bosspos[2] = 0.0f;
+                                if (h->atree != NULL) {
+                                    effect = StartFXTree(h->atree, bosspos, 0,
+                                                         0x880,
+                                                         lbl_80348250);
+                                    if (effect >= 0) {
+                                        Effect* spawned =
+                                            EFFECTS_POOL_AT(effect);
+                                        MBTreeSetZsortAdd(spawned->node,
+                                                          h->zmod, 1);
+                                        MBTreeSetAlpha(spawned->node,
+                                                       h->alpha, 1);
+                                        spawned->type = FX_LEGEND1;
+                                    }
+                                }
+                                if (effect >= 0) {
+                                    Effect* spawned = EFFECTS_POOL_AT(effect);
+                                    MBNodeSetParent(spawned->node,
+                                                    critter->node);
+                                    if (ATREE_ROOT(spawned) != NULL) {
+                                        MBTreeSetFlags(
+                                            ATREE_ROOT(spawned)->node, 0x10,
+                                            0);
+                                    }
+                                }
+                                lbl_80344890 = effect;
+                                lbl_8034489C = 4;
+                                break;
+                            }
+                            case 38:
+                                MBSetObject(
+                                    critter->object->node,
+                                    MBOX_FindObject(lbl_80114790 + 32));
+                                critter->boss_timer_b = 18000;
+                                break;
+                            }
+                            fn_8009C9DC(3, pos);
+                            if (hit < 2) {
+                                hit = 2;
+                            }
+                        }
+                        if (lbl_8034489C == 5 && gBossType == 35) {
+                            lbl_8034489C = 6;
+                        }
                     }
                     if (passThrough != 0) {
                         hit = 0;
@@ -3322,27 +3405,40 @@ void ProcessEffects(void)
                     e->node->scale[1] = e->hitscale;
                     e->node->scale[2] = e->hitscale;
                 }
-                if ((e->flags & 0x04000000) && e->webtime == 0.0f) {
-                    e->webtime = 2.0;
+                if ((e->damagetype & DMG_STICKY) && e->webtime == 0.0f) {
+                    e->webtime = lbl_80348100;
                 }
                 if (e->webtime > 0.0f) {
                     e->endtime = gClockTime + e->webtime;
-                    e->maxtime = e->webtime;
+                    e->maxtime = e->endtime - gClockTime;
                     ((struct fxanim*)&e->atree[4])->oneshot = 0;
-                    e->flags &= 0xf67cfbfb;
-                    if (!(e->damagetype & 0x200)) {
-                        e->flags &= ~2;
-                    }
-                    e->flags |= 0x28;
-                    if (e->owner != 0) {
-                        e->flags |= 1;
-                    }
-                    if (e->dmgdebug != NULL) {
-                        MBRemoveNode(e->dmgdebug, 1);
-                        DmgFxAdd(i);
-                    }
+                    e->flags &= 0xfe7dfbf9;
+                    e->flags |= 0x00100000;
                 } else {
-                    e->flags &= ~0xf;
+                    struct fxanim* ai = (struct fxanim*)&e->atree[4];
+
+                    e->endtime =
+                        0.00111111 *
+                            ((f32)ai->def->nframes * (f32)ai->def->rate) +
+                        gClockTime;
+                    e->maxtime = e->endtime - gClockTime;
+                    ai->oneshot = 0;
+                    if (e->damageradius > 0.0f) {
+                        e->flags &= 0xf67cfbfb;
+                        if (!(e->damagetype & DMG_MAGIC)) {
+                            e->flags &= ~2;
+                        }
+                        e->flags |= 0x28;
+                        if (e->owner != 0) {
+                            e->flags |= 1;
+                        }
+                        if (e->dmgdebug != NULL) {
+                            MBRemoveNode(e->dmgdebug, 1);
+                            DmgFxAdd(i);
+                        }
+                    } else {
+                        e->flags &= ~0xf;
+                    }
                 }
             } else {
                 e->endtime = gClockTime;
