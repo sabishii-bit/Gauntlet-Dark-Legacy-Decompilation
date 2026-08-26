@@ -1864,7 +1864,10 @@ void CritterResolveMultipleTargets(Critter *c)
 void CritterGetTargetPlayers(Critter *c)
 {
     f32 targetpos[3];
-    CritterTargetRecord record;
+    union {
+        CritterTargetRecord record;
+        f64 align;
+    } target;
     Player *player;
     s32 i;
     f32 score;
@@ -1873,7 +1876,6 @@ void CritterGetTargetPlayers(Critter *c)
     f32 ratio;
     f32 thr;
     f32 result;
-    f64 clamped;
     f64 pt01;
     f64 one;
     f64 huge;
@@ -1903,7 +1905,7 @@ void CritterGetTargetPlayers(Critter *c)
         targetpos[1] = *(f32 *)((u8 *)player + 0x68);
         targetpos[2] = *(f32 *)((u8 *)player + 0x6C);
         score = CritterCalcTarget(c, (f32 *)((u8 *)c->hdr + 0x80), targetpos,
-                                  &record);
+                                  &target.record);
         if (c->particle != NULL) {
             thr = c->unkAD0;
             if (thr > zero && score > thr) {
@@ -1911,10 +1913,10 @@ void CritterGetTargetPlayers(Critter *c)
             }
         }
         if (sMusicFadeBase < player->fxhittime) {
-            record.distance = record.distance * thousand;
+            target.record.distance = target.record.distance * thousand;
         }
         if (score < huge) {
-            record.words00[0] = i;
+            target.record.words00[0] = i;
             damage = c->unk1BC[i][2];
             base = c->unk1BC[i][0];
             if (damage < one) {
@@ -1922,18 +1924,17 @@ void CritterGetTargetPlayers(Critter *c)
             } else {
                 ratio = base / damage;
                 if (ratio < pt01) {
-                    clamped = pt01;
+                    result = pt01;
+                } else if (ratio > lbl_80343BEC) {
+                    result = lbl_80343BEC;
                 } else {
-                    clamped = lbl_80343BEC;
-                    if (ratio <= lbl_80343BEC) {
-                        clamped = ratio;
-                    }
+                    result = ratio;
                 }
-                result = clamped;
             }
-            *(f32 *)&record.words10[0] = result;
-            record.distance = record.distance * *(f32 *)&record.words10[0];
-            CritterInsertTarget((CritterTargetState *)c, &record);
+            *(f32 *)&target.record.words10[0] = result;
+            target.record.distance = target.record.distance *
+                                     *(f32 *)&target.record.words10[0];
+            CritterInsertTarget((CritterTargetState *)c, &target.record);
         }
     }
     for (i = 0; i < c->targetCount; i++) {
