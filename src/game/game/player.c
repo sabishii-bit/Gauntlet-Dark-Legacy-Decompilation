@@ -3725,62 +3725,61 @@ void player_get_from_save(void* vp, s32 type) {
 }
 
 /* Pack the live fields into the per-character slots + image header.   */
+#pragma opt_common_subs off
 void player_store_in_save(void* vp) {
-    Player* p = vp;
-    s32* st;
-    u8* it;
+    s32 chartype;
     s32 total;
-    s32 exp;
-    s32 lv;
+    s32 player;
+    Player* p;
+    s32* st;
     s32 j;
 
-    if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
+    p = vp;
+    total = 0;
+    chartype = p->character;
+    player = p->index;
+
+    if (chartype == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
         /* hidden char: park it, restore the base character, re-flag */
-        memcpy((u8*)p + 0xA80, (u8*)p + 0x1ECC, 0x1434);
+        *(PlayerSaveImage*)((u8*)p + 0xA80) =
+            *(PlayerSaveImage*)((u8*)p + 0x1ECC);
         HIDDEN_CODE(p) = NULL;
         player_get_from_save(p, -1);
         HIDDEN_CODE(p) = lbl_80343D6C;
     }
-    st = CHAR_STATS(p, p->character);
-    it = CHAR_ITEMS(p, p->character);
-    st[0] = p->exp;
-    *(f32*)&st[1] = p->health;
-    *(s32*)(it + 0x30) = p->gold;
-    *(s16*)(it + 0x0) = (s16)PF(p, 0x1EB8, s32);
-    *(s16*)(it + 0x2) = (s16)PF(p, 0x1EBC, s32);
-    *(u16*)(it + 0x4) |= PF(p, 0x1EC8, u16);
-    *(u16*)(it + 0x6) |= PF(p, 0x1ECA, u16);
+    chartype *= 0xF0;
+    st = (s32*)((u8*)p + p->character * 0x18);
+    st[0xA90 / 4] = p->exp;
+    *(f32*)&st[0xA94 / 4] = p->health;
+    {
+        u8* item = (u8*)p + chartype;
+        *(s32*)(item + 0xE00) = p->gold;
+        *(s16*)(item + 0xDD0) = (s16)PF(p, 0x1EBC, s32);
+        *(s16*)(item + 0xDD2) = (s16)PF(p, 0x1EB8, s32);
+        *(u16*)(item + 0xDD4) |= PF(p, 0x1EC8, u16);
+        *(u16*)(item + 0xDD6) |= PF(p, 0x1ECA, u16);
+    }
     PF(p, 0xA88, s16) = (s16)p->character;
     PF(p, 0xA8A, s8) = (s8)p->class_id;
     /* total-level checksum across all 16 characters */
-    total = 0;
     for (j = 0; j < 16; j++) {
-        exp = CHAR_STATS(p, j)[0];
-        for (lv = 99; lv > 0; lv--) {
-            if (lv < 0x3D) {
-                if ((lv - 1) * (lv * 0x1E + 1000) <= exp) {
-                    break;
-                }
-            } else if ((lv - 0x3C) * 0x11F8 + 0x28550 <= exp) {
-                break;
-            }
-        }
-        if (lv < 1) {
-            lv = 1;
-        }
-        total += lv;
+        total += ExpToLevel(CHAR_STATS(p, j)[0]);
     }
-    PF(p, 0xA8E, s16) = (s16)total;
-    memcpy(it + 0x34, (u8*)p + 0x130, 0xB0);
-    *(s16*)(it + 0xA) = (s16)PF(p, 0x1EC, s32);
-    PF(p, 0x1DB0, u8) = (u8)lbl_80240E5C[p->index * 0xF];
-    PF(p, 0x1DB1, u8) = (u8)lbl_80240E60[p->index * 0xF];
-    PF(p, 0x1DB2, u8) = (u8)lbl_80240E68[p->index * 0xF];
-    PF(p, 0x1DB3, u8) = (u8)lbl_80240E64[p->index * 0xF];
+    PF(p, 0xA8E, u16) = total;
+    memcpy((u8*)p + chartype + 0xE04, (u8*)p + 0x130, 0xB0);
+    {
+        u8* item = (u8*)p + chartype;
+        *(s16*)(item + 0xDDA) = (s16)PF(p, 0x1EC, s32);
+    }
+    PF(p, 0x1DB0, u8) = (u8)lbl_80240E30[player].scheme;
+    PF(p, 0x1DB1, u8) = (u8)lbl_80240E30[player].hasActuator;
+    PF(p, 0x1DB2, u8) = (u8)lbl_80240E30[player].unk38;
+    PF(p, 0x1DB3, u8) = (u8)lbl_80240E30[player].unk34;
     if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
         player_get_from_save(p, -1);
     }
 }
+#pragma opt_common_subs reset
 
 /* Copy the live pad config into both control-save byte sets.          */
 void player_save_controls(s32 i) {
