@@ -3124,12 +3124,12 @@ void dbgTextPrintfCol(s32 column, s32 row, char* format, ...);
 extern s32 EnemyDescType(char* desc);
 extern char* lbl_8011B578[];
 
-#define DEBUG_TYPE_NAME(type) \
-    (*(char**)((u8*)lbl_80118B60 + 0x10 + (type) * 4))
-#define DEBUG_SUBTYPE_NAME(subtype) \
-    (*(char**)((u8*)lbl_80118B60 + 0x48 + (subtype) * 4))
-#define DEBUG_ACTION_NAME(action) \
-    (*(char**)((u8*)lbl_80118B60 + 0x134 + (action) * 4))
+typedef struct DebugNameTables {
+    u8 pad00[0x10];
+    char* type[14];
+    char* subtype[59];
+    char* action[17];
+} DebugNameTables;
 
 /*
  * screen_limitation -- debug overlay printing camera camIdx's world position,
@@ -3138,46 +3138,45 @@ extern char* lbl_8011B578[];
  */
 void screen_limitation(s32 camIdx)
 {
-    s32 c = lbl_8034453C;
-    Camera* cam = &gCameras[c];
-    f32* wpos = (f32*)((u8*)cam + 0x64);
-    f32* attn = (f32*)((u8*)cam + 0x12C);
-    s32 aMode = *(s32*)((u8*)cam + 0xF8);
-    s32 cMode = *(s32*)((u8*)cam + 0xEC);
+    Camera* cam;
+    DebugNameTables* debugNames = (DebugNameTables*)lbl_80118B60;
+    register volatile s32 buttons = gControllerButtons;
     s32 row;
     f32 yaw;
-    f64 yawDeg;
-    s32 pitch;
+    f32 yawDeg;
 
-    if ((sFlags & 1) == 0) {
+    if (((buttons & 0) | (sFlags & 1)) == 0) {
         return;
     }
-    row = MBScreenHeight() / 8;
+    cam = &gCameras[lbl_8034453C];
+    row = MBScreenHeight();
     MBScreenWidth();
+    row /= 8;
     if (row != 0x20) {
         row -= 2;
     }
     yaw = FixAngle((f32)(lbl_80345F60 - (f64)*(f32*)((u8*)cam + 0xA8)));
-    yawDeg = (f64)(f32)(lbl_803460B0 * lbl_803460B8 * (f64)yaw);
-    if (yawDeg < (f64)lbl_80345EC8) {
-        yawDeg = (f64)(f32)(yawDeg + lbl_803460C0);
+    yawDeg = (f32)(lbl_803460B0 * (lbl_803460B8 * (f64)yaw));
+    if (yawDeg < lbl_80345EC8) {
+        yawDeg = (f32)(yawDeg + lbl_803460C0);
     }
-    if (lbl_803460C8 < yawDeg) {
-        yawDeg = (f64)lbl_80345EC8;
+    if (yawDeg > lbl_803460C8) {
+        yawDeg = *(volatile f32*)&lbl_80345EC8;
     }
-    pitch = (s32)(lbl_803460B0 * lbl_803460B8 * (f64)*(f32*)((u8*)cam + 0xA4));
     fn_800C02F4(0xFF00);
     dbgTextPrintfCol(1, row - 0xC, "CAM: %.2f %.2f %.2f    ",
-                     wpos[0], wpos[1], wpos[2]);
+                     cam->wpos[0], cam->wpos[1], cam->wpos[2]);
     dbgTextPrintfCol(1, row - 0xB, "ATN: %.2f %.2f %.2f    ",
-                     attn[0], attn[1], attn[2]);
+                     cam->attn[0], cam->attn[1], cam->attn[2]);
     dbgTextPrintfCol(1, row - 0xA, "YAW=%.1f(%.2f)    ",
-                     yawDeg, *(f32*)((u8*)cam + 0xA8));
-    dbgTextPrintfCol(1, row - 9, "PITCH=%d    ", pitch);
+                     yawDeg, cam->pyr[1]);
+    dbgTextPrintfCol(1, row - 9, "PITCH=%d    ",
+                     (s32)(lbl_803460B0 *
+                           (lbl_803460B8 * (f64)cam->pyr[0])));
     dbgTextPrintfCol(1, row - 8, "DISTANCE:  %.2f    ",
-                     *(f32*)((u8*)cam + 0xC4));
+                     cam->radius);
     dbgTextPrintfCol(1, row - 7, "CAM=");
-    switch (cMode) {
+    switch (cam->c_mode) {
     case 0:  dbgTextPrintfCol(5, row - 7, "OFF   "); break;
     case 1:  dbgTextPrintfCol(5, row - 7, "FREE   "); break;
     case 2:  dbgTextPrintfCol(5, row - 7, "LOCK   "); break;
@@ -3195,7 +3194,7 @@ void screen_limitation(s32 camIdx)
     }
 
     dbgTextPrintfCol(0xE, row - 7, "ATN=");
-    switch (aMode) {
+    switch (cam->a_mode) {
     case 0:
         dbgTextPrintfCol(0x12, row - 7, "FREE        ");
         dbgTextPrintfCol(0xE, row - 6, "                               ");
@@ -3248,16 +3247,16 @@ void screen_limitation(s32 camIdx)
     case 7: {
         s32 index = *(s32*)((u8*)cam + 0x108);
         u8* item = (u8*)&sItems[index];
-        u8* info = *(u8**)item;
-        s32 type = *(s32*)info;
-        char* typeName;
+        u8* info;
+        s32 type;
 
+        dbgTextPrintfCol(0x12, row - 7, "ITEM %02X (%dP)", index,
+                         (s8)item[0xCC]);
+        info = *(u8**)item;
+        type = *(s32*)info;
         if (type < 0) {
             type = 0;
         }
-        typeName = DEBUG_TYPE_NAME(type);
-        dbgTextPrintfCol(0x12, row - 7, "ITEM %02X (%dP)", index,
-                         (s8)item[0xCC]);
         switch (*(s32*)info) {
         case 2: {
             u8* record = (u8*)gWorldInfo.iteminfo + *(s16*)(item + 0xDC) * 0x50;
@@ -3266,56 +3265,73 @@ void screen_limitation(s32 camIdx)
             if (recordType < 0) {
                 recordType = 0;
             }
-            if (recordType == 4) {
+            switch (recordType) {
+            case 4:
                 dbgTextPrintfCol(0xE, row - 6, "%s (%s)                        ",
-                                 typeName,
+                                 debugNames->type[type],
                                  lbl_8011B578[EnemyDescType((char*)record + 0x28)]);
-            } else if (recordType == 1) {
+                break;
+            case 1:
                 dbgTextPrintfCol(0xE, row - 6, "%s (%s)                        ",
-                                 typeName, DEBUG_SUBTYPE_NAME(*(s32*)(record + 4)));
-            } else if (*(s32*)(info + 4) == 0x30) {
-                dbgTextPrintfCol(0xE, row - 6, "%s (%s)                        ",
-                                 typeName, DEBUG_TYPE_NAME(recordType));
-            } else {
-                record = (u8*)gWorldInfo.iteminfo + *(s16*)(record + 8) * 0x50;
-                dbgTextPrintfCol(0xE, row - 6, "%s (%s)                        ",
-                                 typeName, DEBUG_SUBTYPE_NAME(*(s32*)(record + 4)));
+                                 debugNames->type[type],
+                                 debugNames->subtype[*(s32*)(record + 4)]);
+                break;
+            default:
+                if (*(s32*)(info + 4) == 0x30) {
+                    dbgTextPrintfCol(0xE, row - 6, "%s (%s)                        ",
+                                     debugNames->type[type],
+                                     debugNames->type[recordType]);
+                } else {
+                    record = (u8*)gWorldInfo.iteminfo + *(s16*)(record + 8) * 0x50;
+                    dbgTextPrintfCol(0xE, row - 6, "%s (%s)                        ",
+                                     debugNames->type[type],
+                                     debugNames->subtype[*(s32*)(record + 4)]);
+                }
+                break;
             }
             break;
         }
         case 3:
             dbgTextPrintfCol(0xE, row - 6, "%s (%s-%d) Lv%d Max=%d   ",
-                             typeName, lbl_8011B578[*(s16*)(item + 0xDC)],
+                             debugNames->type[type],
+                             lbl_8011B578[*(s16*)(item + 0xDC)],
                              (s8)item[0xE3], (s8)item[0xE2], (s8)item[0xDF]);
             break;
         case 7:
             dbgTextPrintfCol(0xE, row - 6, "%s (%s)                      ",
-                             typeName, DEBUG_ACTION_NAME((s8)item[0xC8]));
+                             debugNames->type[type],
+                             debugNames->action[(s8)item[0xC8]]);
             break;
         case 11:
             dbgTextPrintfCol(0xE, row - 6, "%s (%d)                      ",
-                             typeName, *(s32*)(item + 0xDC));
+                             debugNames->type[type],
+                             *(s32*)(item + 0xDC));
             break;
         case 8:
         case 9:
-            dbgTextPrintfCol(0xE, row - 6, "%s                          ", typeName);
+            dbgTextPrintfCol(0xE, row - 6, "%s                          ",
+                             debugNames->type[type]);
             break;
         case 10:
             if ((s8)item[0xCF] >= 0) {
                 dbgTextPrintfCol(0xE, row - 6, "%s (HP=%d)                    ",
-                                 typeName, *(s16*)(item + 0xD0));
+                                 debugNames->type[type],
+                                 *(s16*)(item + 0xD0));
             } else {
                 dbgTextPrintfCol(0xE, row - 6, "%s (%s)            ",
-                                 typeName, (char*)info + 0x28);
+                                 debugNames->type[type],
+                                 (char*)info + 0x28);
             }
             break;
         case 12:
             dbgTextPrintfCol(0xE, row - 6, "%s (GRP=%d)                  ",
-                             typeName, *(s32*)(info + 4));
+                             debugNames->type[type],
+                             *(s32*)(info + 4));
             break;
         case 13:
             dbgTextPrintfCol(0xE, row - 6, "%s (%s: RAD=%d)             ",
-                             typeName, (char*)info + 0x28,
+                             debugNames->type[type],
+                             (char*)info + 0x28,
                              (s32)*(f32*)(item + 0xDC));
             break;
         case -1: {
@@ -3324,7 +3340,7 @@ void screen_limitation(s32 camIdx)
                 subtype = 0;
             }
             dbgTextPrintfCol(0xE, row - 6, "%s (%s)                      ",
-                             typeName, DEBUG_SUBTYPE_NAME(subtype));
+                             debugNames->type[type], debugNames->subtype[subtype]);
             break;
         }
         default: {
@@ -3333,7 +3349,7 @@ void screen_limitation(s32 camIdx)
                 subtype = 0;
             }
             dbgTextPrintfCol(0xE, row - 6, "%s (%s)                      ",
-                             typeName, DEBUG_SUBTYPE_NAME(subtype));
+                             debugNames->type[type], debugNames->subtype[subtype]);
             break;
         }
         }
