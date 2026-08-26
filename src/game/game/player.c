@@ -2333,7 +2333,7 @@ extern void strcpy(char* dst, char* src);
 extern s32 toupper(s32 c);
 extern void strncpy(char* dst, char* src, s32 n);
 extern void* MBNewNode(void* parent, f32* mat, s32 a);
-extern s32 fn_80011BBC(void* modelbuf, char* name, void* atree_out, char* tmp, s32 size);
+extern void* fn_80011BBC(void* modelbuf, char* name, void* atree_out, char* tmp, s32 size);
 extern void InitActions(void* atree, void* animctx, s32 bank);
 extern s32 MBOX_ReallyFindObject(char* name, s32 a, s32 b, s32 dir);
 extern s32* AtreeFindMbidxNode(void* atree, s32 idx);
@@ -3846,9 +3846,8 @@ void set_player_default_atts(void* p) {
  */
 void load_player_geo(s32 i, void* vp) {
     Player* p = vp;
-    u8* strings = lbl_80113AE0;
-    u8* data = (u8*)lbl_8011FC48;
     char name[20];
+    u8 unused[8];
     char* c;
     s32* nd;
     s32 pad;
@@ -3857,15 +3856,14 @@ void load_player_geo(s32 i, void* vp) {
     s32 n;
 
     if (p->node != NULL) {
-        FatalError((char*)strings + 1236, 0x800000);
+        FatalError("PLAYER OBJ NODE EXISTS BEFORE LOAD_PLAYER", 0x800000);
     }
     if (lbl_80344828 > 0) {
         set_hidden_player(p);
     }
     {
-        char* hidden = p->hidden_code;
-        if (hidden != NULL) {
-            PF(p, 0x7F4, u32) = load_player_model(i, p, i, hidden);
+        if (p->hidden_code != NULL) {
+            PF(p, 0x7F4, u32) = load_player_model(i, p, i, p->hidden_code);
             goto model_ready;
         }
         if (p->character == player_multiple_models[i].cur_class &&
@@ -3893,51 +3891,50 @@ model_ready:
             *c = (char)toupper(*c);
         }
     } else {
-        strcpy(name, *(char**)(data + 1212 + pad * 4));
+        strcpy(name, lbl_80120104[pad]);
     }
-    sprintf(tbuf, "%s%s%s", data + 1128 + cls * 4, name, "");
-    strncpy((char*)p + 0x6C0, tbuf, 8);
+    sprintf(tbuf, "%s%s%s", &lbl_801200B0[cls * 4], name, "");
+    strncpy((char*)&p->pad_0210[0x4B0], tbuf, 8);
     p->node = MBNewNode(lbl_80344B2C, gIdentityMatrix, 1);
     PF(p, 0x78, s32) = 0;
-    n = fn_80011BBC(player_multiple_models[i].model_buf,
-                    (char*)(data + 1128 + p->char_type * 4),
-                    (u8*)p + 0x7C, tbuf, 0x800);
-    PF(p, 0x7C, s32) = n;
-    if (PF(p, 0x7C, void*) == NULL) {
-        FatalErrorf((char*)strings + 1280, data + 1128 + p->char_type * 4);
+    p->platform = fn_80011BBC(player_multiple_models[i].model_buf,
+                             &lbl_801200B0[p->char_type * 4],
+                             &p->platform, tbuf, 0x800);
+    if (p->platform == NULL) {
+        FatalErrorf("Player Atree %s not found", &lbl_801200B0[p->char_type * 4]);
     }
-    MBNodeSetParent(*(void**)PF(p, 0x7C, s32*), p->node);
-    InitActions((u8*)p + 0x7C, (u8*)p + 0x210, 0x80126C68);
+    MBNodeSetParent(*p->platform, p->node);
+    InitActions(&p->platform, (u8*)p + 0x210, 0x80126C68);
     if (gGameMode != 0x4012 && gGameMode != 0x400D &&
         gGameMode != 0x400F && gGameMode != 0x4016) {
         LoadPlyrData(i, p->character, (void*)1);
     }
     PF(p, 0x744, s32) = 0;
     /* attachment nodes */
-    sprintf(tbuf, "%s%s", (char*)p + 0x6C0,
-            *(char**)(data + 1340 + cls * 4));
+    sprintf(tbuf, "%s%s", (char*)&p->pad_0210[0x4B0],
+            lbl_80120184[cls]);
     n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
-    nd = AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
+    nd = AtreeFindMbidxNode(p->platform, n);
     if (nd != NULL) {
         PF(p, 0x6D0, s32) = *nd;
     } else {
         PF(p, 0x6D0, s32) = 0;
     }
-    sprintf(tbuf, "%s%s", (char*)p + 0x6C0,
-            *(char**)(data + 1276 + cls * 4));
+    sprintf(tbuf, "%s%s", (char*)&p->pad_0210[0x4B0],
+            lbl_80120144[cls]);
     n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
-    nd = AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
+    nd = AtreeFindMbidxNode(p->platform, n);
     if (nd != NULL) {
         PF(p, 0x6CC, s32) = *nd;
     } else {
         PF(p, 0x6CC, s32) = 0;
     }
-    sprintf(tbuf, (char*)strings + 1308, (char*)p + 0x6C0);
+    sprintf(tbuf, "%sCFGLOW", (char*)&p->pad_0210[0x4B0]);
     n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), -1);
     if (n < 0) {
         nd = NULL;
     } else {
-        nd = AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
+        nd = AtreeFindMbidxNode(p->platform, n);
     }
     if (nd != NULL) {
         PF(p, 0x6D8, s32) = *nd;
@@ -3945,17 +3942,17 @@ model_ready:
     } else {
         PF(p, 0x6D8, s32) = 0;
     }
-    sprintf(tbuf, "%sHEAD", (char*)p + 0x6C0);
+    sprintf(tbuf, "%sHEAD", (char*)&p->pad_0210[0x4B0]);
     n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
-    nd = AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
+    nd = AtreeFindMbidxNode(p->platform, n);
     if (nd != NULL) {
         PF(p, 0x6D4, s32) = *nd;
     } else {
         PF(p, 0x6D4, s32) = 0;
     }
-    sprintf(tbuf, "%sTORSO", (char*)p + 0x6C0);
+    sprintf(tbuf, "%sTORSO", (char*)&p->pad_0210[0x4B0]);
     n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
-    nd = AtreeFindMbidxNode((void*)PF(p, 0x7C, s32), n);
+    nd = AtreeFindMbidxNode(p->platform, n);
     if (nd != NULL) {
         PF(p, 0x6DC, s32) = *nd;
     } else {
@@ -3964,12 +3961,11 @@ model_ready:
     /* weapon */
     if (sWeaponsBuf != 0) {
         tier = (p->level >= 0x32) ? 2 : (p->level >= 10) ? 1 : 0;
-        if (*(s32*)(data + 2384 + p->character * 4) == 0 &&
-            p->character < 8 && p->hidden_code == NULL) {
-            sprintf(tbuf, (char*)strings + 1332,
-                    *(char**)(data + 1212 + pad * 4), tier + 1);
+        if (lbl_80120598[p->character] != 0 ||
+            p->character >= 8 || p->hidden_code != NULL) {
+            sprintf(tbuf, "WEAP_HOLD");
         } else {
-            sprintf(tbuf, (char*)strings + 1320);
+            sprintf(tbuf, "WEAP_%s_HD%d", lbl_80120104[pad], tier + 1);
         }
         n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
         PF(p, 0x6E0, void*) = MBNewObject(n, NULL, (void*)PF(p, 0x6D0, s32), 0x810);
@@ -3998,7 +3994,7 @@ model_ready:
     PF(p, 0x96C, s32) = 0;
     PF(p, 0xA14, s32) = 0;
     /* shadow */
-    n = MBOX_ReallyFindObject((char*)strings + 1348, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
+    n = MBOX_ReallyFindObject("SHADOWL1", PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
     PF(p, 0x6C8, void*) = MBNewObject(n, gIdentityMatrix, NULL, 0x880);
     *(s16*)(PF(p, 0x6C8, u8*) + 0x68) = -0x24;
     PF(p, 0x7FC, f32) = 0.0f;
