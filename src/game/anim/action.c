@@ -541,7 +541,8 @@ void DoPlayerAction(void* player)
     void* mbobj;
     s32 adv;
     f32 ang;
-    s32 dance = 0;
+    s32 dance;
+    u8 unused[8];
 
     next = p[0x83];
     cur = p[0x82];
@@ -565,7 +566,7 @@ void DoPlayerAction(void* player)
         }
     }
     atkD = PlayerAttackType(d);
-    if (atkD != 0 && atkD < 0xB && atkNext > 10) {
+    if (atkD != 0 && atkD < 0xB && atkNext >= 11) {
         d = 0;
         mode = 2;
     }
@@ -574,6 +575,7 @@ void DoPlayerAction(void* player)
     }
     p[0x201] = 0;
     act = next;
+    dance = 0;
     switch (d) {
     case 0x7D:
         mode = 2;
@@ -583,15 +585,15 @@ void DoPlayerAction(void* player)
         mode = 2;
         if (next == 0 && p[0x20D] == 0) {
             s32 hi, lo;
-            if ((gControllerButtons & 0x10) == 0) {
-                hi = 0x708;
-            } else {
+            if ((gControllerButtons & 0x10) != 0) {
                 hi = 0xB4;
-            }
-            if (gControllerButtons == 0) {
-                lo = 600;
             } else {
+                hi = 0x708;
+            }
+            if (gControllerButtons != 0) {
                 lo = 0x3C;
+            } else {
+                lo = 600;
             }
             if (*(s16*)((u8*)p + 0x200) > hi) {
                 mode = 1;
@@ -1734,11 +1736,98 @@ void DoPlayerAction(void* player)
     /* per-action move / turn scales */
     pf[0x295] = 1.0f;
     pf[0x294] = 1.0f;
-    if (cur < 0x20 || cur > 0x71) {
+    if (cur >= 0x20 && cur < 0x72) {
+        if (cur >= 0x6B) {
+            pf[0x292] = 0.0f;
+            pf[0x293] = 0.5f;
+            pf[0x295] = 0.0f;
+        } else if (cur >= 0x67) {
+            pf[0x292] = 0.25f;
+            pf[0x293] = 1.0f;
+        } else if (cur >= 0x65) {
+            pf[0x292] = 1.0f;
+            pf[0x293] = 1.0f;
+        } else if (cur >= 0x63) {
+            pf[0x292] = 0.25f;
+            pf[0x293] = 1.0f;
+        } else if (cur >= 0x5B) {
+            pf[0x292] = 0.0f;
+            pf[0x293] = 0.5f;
+        } else if (cur >= 0x58) {
+            pf[0x292] = 0.0f;
+            pf[0x293] = 0.0f;
+            pf[0x295] = 0.0f;
+        } else if (cur >= 0x57) {
+            if (p[2] == 6 && atree[6] > 11.0f) {
+                pf[0x293] = 0.0f;
+                pf[0x292] = 0.0f;
+            } else {
+                pf[0x293] = 0.25f;
+                pf[0x292] = 0.0f;
+            }
+            pf[0x295] = 0.0f;
+        } else if (cur >= 0x56) {
+            pf[0x292] = 0.0f;
+            pf[0x293] = 1.0f;
+            pf[0x295] = 0.0f;
+        } else if (cur >= 0x54) {
+            pf[0x293] = 1.0f;
+            pf[0x292] = 0.25f;
+            pf[0x295] = 0.0f;
+        } else if (cur >= 0x4F) {
+            pf[0x292] = 1.0f;
+            pf[0x293] = 1.0f;
+        } else if (cur >= 0x47) {
+            pf[0x292] = 0.667f;
+            pf[0x293] = 1.0f;
+        } else if (cur >= 0x3E) {
+            pf[0x292] = 1.0f;
+            pf[0x293] = 0.25f;
+        } else if (cur >= 0x3C) {
+            pf[0x292] = 0.5f;
+            pf[0x293] = 1.0f;
+        } else if (cur >= 0x34) {
+            pf[0x292] = 1.0f;
+            pf[0x293] = 1.0f;
+        } else if (cur >= 0x2C) {
+            pf[0x292] = 1.0f;
+            pf[0x293] = 1.0f;
+        } else if (cur >= 0x27) {
+            pf[0x292] = 0.25f;
+            pf[0x293] = 0.0f;
+        } else if (cur == 0x25) {
+            if (p[2] == 7 || p[2] == 6) {
+                pf[0x292] = 0.0f;
+                pf[0x293] = 0.0f;
+            } else if ((u32)(p[2] - 2) <= 1) {
+                pf[0x292] = 0.25f;
+                pf[0x293] = 1.0f;
+            } else {
+                pf[0x292] = 0.5f;
+                pf[0x293] = 1.0f;
+            }
+            pf[0x295] = 0.0f;
+        } else if (cur >= 0x23) {
+            if (p[2] == 5 || p[2] == 6) {
+                pf[0x292] = 0.0f;
+                pf[0x293] = 0.0f;
+            } else if (p[2] == 2) {
+                pf[0x292] = 0.25f;
+                pf[0x293] = 1.0f;
+            } else {
+                pf[0x292] = 0.5f;
+                pf[0x293] = 1.0f;
+            }
+            pf[0x295] = 0.0f;
+        } else {
+            pf[0x292] = 0.0f;
+            pf[0x293] = 1.0f;
+        }
+    } else {
         if (cur == 0x80) {
             pf[0x292] = 0.4f;
             pf[0x293] = 0.5f;
-        } else if ((u32)(cur - 0x13) < 2 || cur == 0x16) {
+        } else if ((u32)(cur - 0x13) <= 1 || cur == 0x16) {
             pf[0x292] = 1.3f;
             pf[0x293] = 1.0f;
         } else if (cur == 0x8F) {
@@ -1756,7 +1845,7 @@ void DoPlayerAction(void* player)
         } else if (cur == 0x7B) {
             pf[0x292] = 1.0f;
             pf[0x293] = 1.0f;
-        } else if (cur < 0x73) {
+        } else if (cur <= 0x72) {
             pf[0x292] = 1.0f;
             pf[0x293] = 1.0f;
         } else {
@@ -1764,126 +1853,10 @@ void DoPlayerAction(void* player)
             pf[0x292] = 1.0f;
             pf[0x293] = 1.0f;
         }
-    } else if (cur < 0x6B) {
-        if (cur < 0x67) {
-            if (cur < 0x65) {
-                if (cur < 0x63) {
-                    if (cur < 0x5B) {
-                        if (cur < 0x58) {
-                            if (cur < 0x57) {
-                                if (cur < 0x56) {
-                                    if (cur < 0x54) {
-                                        if (cur < 0x4F) {
-                                            if (cur < 0x47) {
-                                                if (cur < 0x3E) {
-                                                    if (cur < 0x3C) {
-                                                        if (cur < 0x34) {
-                                                            if (cur < 0x2C) {
-                                                                if (cur < 0x27) {
-                                                                    if (cur == 0x25) {
-                                                                        if (p[2] == 7 || p[2] == 6) {
-                                                                            pf[0x292] = 0.0f;
-                                                                            pf[0x293] = 0.0f;
-                                                                        } else if ((u32)(p[2] - 2) < 2) {
-                                                                            pf[0x292] = 0.25f;
-                                                                            pf[0x293] = 1.0f;
-                                                                        } else {
-                                                                            pf[0x292] = 0.5f;
-                                                                            pf[0x293] = 1.0f;
-                                                                        }
-                                                                        pf[0x295] = 0.0f;
-                                                                    } else if (cur < 0x23) {
-                                                                        pf[0x292] = 0.0f;
-                                                                        pf[0x293] = 1.0f;
-                                                                    } else {
-                                                                        if (p[2] == 5 || p[2] == 6) {
-                                                                            pf[0x292] = 0.0f;
-                                                                            pf[0x293] = 0.0f;
-                                                                        } else if (p[2] == 2) {
-                                                                            pf[0x292] = 0.25f;
-                                                                            pf[0x293] = 1.0f;
-                                                                        } else {
-                                                                            pf[0x292] = 0.5f;
-                                                                            pf[0x293] = 1.0f;
-                                                                        }
-                                                                        pf[0x295] = 0.0f;
-                                                                    }
-                                                                } else {
-                                                                    pf[0x292] = 0.25f;
-                                                                    pf[0x293] = 0.0f;
-                                                                }
-                                                            } else {
-                                                                pf[0x292] = 1.0f;
-                                                                pf[0x293] = 1.0f;
-                                                            }
-                                                        } else {
-                                                            pf[0x292] = 1.0f;
-                                                            pf[0x293] = 1.0f;
-                                                        }
-                                                    } else {
-                                                        pf[0x292] = 0.5f;
-                                                        pf[0x293] = 1.0f;
-                                                    }
-                                                } else {
-                                                    pf[0x292] = 1.0f;
-                                                    pf[0x293] = 0.25f;
-                                                }
-                                            } else {
-                                                pf[0x292] = 0.667f;
-                                                pf[0x293] = 1.0f;
-                                            }
-                                        } else {
-                                            pf[0x292] = 1.0f;
-                                            pf[0x293] = 1.0f;
-                                        }
-                                    } else {
-                                        pf[0x293] = 1.0f;
-                                        pf[0x292] = 0.25f;
-                                        pf[0x295] = 0.0f;
-                                    }
-                                } else {
-                                    pf[0x292] = 0.0f;
-                                    pf[0x293] = 1.0f;
-                                    pf[0x295] = 0.0f;
-                                }
-                            } else {
-                                if (p[2] != 6 || atree[6] <= 11.0f) {
-                                    pf[0x293] = 0.25f;
-                                    pf[0x292] = 0.0f;
-                                } else {
-                                    pf[0x293] = 0.0f;
-                                    pf[0x292] = 0.0f;
-                                }
-                                pf[0x295] = 0.0f;
-                            }
-                        } else {
-                            pf[0x292] = 0.0f;
-                            pf[0x293] = 0.0f;
-                            pf[0x295] = 0.0f;
-                        }
-                    } else {
-                        pf[0x292] = 0.0f;
-                        pf[0x293] = 0.5f;
-                    }
-                } else {
-                    pf[0x292] = 0.25f;
-                    pf[0x293] = 1.0f;
-                }
-            } else {
-                pf[0x292] = 1.0f;
-                pf[0x293] = 1.0f;
-            }
-        } else {
-            pf[0x292] = 0.25f;
-            pf[0x293] = 1.0f;
-        }
-    } else {
-        pf[0x292] = 0.0f;
-        pf[0x293] = 0.5f;
-        pf[0x295] = 0.0f;
     }
 
-    if ((sFlags & 1) != 0 && (sFlags & 8) != 0 && p[0] == 0) {
+    if ((gControllerButtons & 1) != 0 &&
+        (gControllerButtons & 8) != 0 && p[0] == 0) {
         dbgTextPrintfCol(1, 0x1C,
                          "ACTION:%s NEXT:%s D:%s INT:%d RPT:%d DIDT:%d",
                          action_names[cur], action_names[act],
