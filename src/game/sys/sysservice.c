@@ -84,7 +84,7 @@ int  sprintf();
 /* --- forward declarations (DOL call order) --- */
 BOOL       sysPollResetButton(void);
 void       sysFadeToBlack(void);
-BOOL       sysResetReady(void);
+u8         sysResetReady(void);
 u8         padUpdate(void);
 void       sysClearFlags(u32 mask);
 void       sysSetFlags(u32 mask);
@@ -119,8 +119,10 @@ static PADStatus* gPadPrev = gPadStatusBuf[1]; /* 0x8034403C */
 
 /* 0x800DD180 - per-frame reset/eject state machine + pad pump */
 void sysResetService(void) {
+    const char* line;
     u8 unused[32];
     s32 i;
+    u32* timer;
 
     if (gMsgCallback) {
         gMsgCallback(NULL);
@@ -147,11 +149,13 @@ void sysResetService(void) {
                 gSysFlags &= ~SF_RESET_TRIGGER;
             }
             if (SYS_FLAG(SF_ASSERT)) {
+                line = gMsgLines[0];
                 if (gMsgCallback) {
-                    gMsgCallback(gMsgLines[0]);
+                    gMsgCallback(line);
                 }
+                line = gMsgLines[1];
                 if (gMsgCallback) {
-                    gMsgCallback(gMsgLines[1]);
+                    gMsgCallback(line);
                 }
             }
         }
@@ -162,10 +166,10 @@ void sysResetService(void) {
                     gMsgCallback("RESET INVOKED..");
                 }
                 sysFadeToBlack();
-                if (DVDCheckDisk() == 0) {
-                    OSResetSystem(1, 0x80000000, FALSE);
-                } else {
+                if (DVDCheckDisk() != 0) {
                     OSResetSystem(0, 0x80000000, FALSE);
+                } else {
+                    OSResetSystem(1, 0x80000000, FALSE);
                 }
             }
         }
@@ -190,11 +194,13 @@ void sysResetService(void) {
                 gSysFlags &= ~SF_RESET_TRIGGER;
             }
             if (SYS_FLAG(SF_ASSERT)) {
+                line = gMsgLines[0];
                 if (gMsgCallback) {
-                    gMsgCallback(gMsgLines[0]);
+                    gMsgCallback(line);
                 }
+                line = gMsgLines[1];
                 if (gMsgCallback) {
-                    gMsgCallback(gMsgLines[1]);
+                    gMsgCallback(line);
                 }
             }
         }
@@ -205,10 +211,10 @@ void sysResetService(void) {
                     gMsgCallback("RESET INVOKED..");
                 }
                 sysFadeToBlack();
-                if (DVDCheckDisk() == 0) {
-                    OSResetSystem(1, 0x80000000, FALSE);
-                } else {
+                if (DVDCheckDisk() != 0) {
                     OSResetSystem(0, 0x80000000, FALSE);
+                } else {
+                    OSResetSystem(1, 0x80000000, FALSE);
                 }
             }
         }
@@ -220,15 +226,15 @@ void sysResetService(void) {
                 gSysFlags &= ~SF_RESET_REQ;
             }
         }
-        if (SYS_FLAG(SF_RESET_REQ)) {
+        if (!SYS_FLAG(SF_RESET_REQ)) {
+            gResetState = 1;
+        } else {
             gSysFlags &= ~SF_RECALIB;
             for (i = 0; i < 4; i++) {
-                if (gPadCur[0].err == PAD_ERR_NONE && gPadStartHoldTimer[i] > 3000) {
+                if (gPadCur[0].err == PAD_ERR_NONE && *(timer = &gPadStartHoldTimer[i]) > 3000) {
                     gSysFlags |= SF_RECALIB;
                 }
             }
-        } else {
-            gResetState = 1;
         }
         break;
 
@@ -343,7 +349,7 @@ BOOL sysPollResetButton(void) {
 #endif
 
 /* 0x800DD908 - hook for subsystems to veto a reset (always ready here) */
-BOOL sysResetReady(void) {
+u8 sysResetReady(void) {
     return TRUE;
 }
 
