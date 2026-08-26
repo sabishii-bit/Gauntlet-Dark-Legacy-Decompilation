@@ -3478,7 +3478,9 @@ void ProcessEffects(void)
                 s32 c1 = RandInt(6);
                 s32 count = e->debugcount - (e->debugcount >> 2) +
                             RandInt(e->debugcount >> 1);
-                struct mbnode* fireNode = MBNewNode(lbl_80344BD4, mat, 1);
+                struct mbnode* fireNode;
+                (void)Random(lbl_80348134);
+                fireNode = MBNewNode(lbl_80344BD4, mat, 1);
                 MBPsysFirework(0, fireNode, count, lbl_80122088[c0],
                                lbl_80122088[c1], e->damageradius, 0.0f,
                                0.01f, 0.2f, 0.1f, 0xff000000);
