@@ -246,10 +246,11 @@ void CreateDynobjGrid(void)
     s32 i;
     s32 cx, cz;
     s32 xlo, xhi, zlo, zhi;
+    s32 xloRaw;
     WorldObj* o;
     DynObj* d;
     f32* p;
-    u8 unused[24];
+    u8 unused[16];
 
     memset(dyngrid_list, 0, (dyngrid_index + 1) * 4);
     memset(dyngrid, 0, dyngridsize * 2);
@@ -268,19 +269,21 @@ void CreateDynobjGrid(void)
         else
             p = o->bbox;
         xlo = (s32)((p[0] - o->radius - gWorldInfo.min_x) * dyngrid_invwidth);
+        xloRaw = (s32)((p[0] - o->radius - gWorldInfo.min_x) * dyngrid_invwidth);
         xhi = (s32)((p[0] + o->radius - gWorldInfo.min_x) * dyngrid_invwidth);
         zlo = (s32)((p[2] - o->radius - gWorldInfo.min_z) * dyngrid_invwidth);
         zhi = (s32)((p[2] + o->radius - gWorldInfo.min_z) * dyngrid_invwidth);
-        xlo = (xlo < 0) ? 0 : (xlo > num_dyngridx - 1 ? num_dyngridx - 1 : xlo);
+        xlo = (xlo < 0) ? 0 : (xloRaw > num_dyngridx - 1 ? num_dyngridx - 1 : xloRaw);
         xhi = (xhi < 0) ? 0 : (xhi > num_dyngridx - 1 ? num_dyngridx - 1 : xhi);
         zlo = (zlo < 0) ? 0 : (zlo > num_dyngridz - 1 ? num_dyngridz - 1 : zlo);
         zhi = (zhi < 0) ? 0 : (zhi > num_dyngridz - 1 ? num_dyngridz - 1 : zhi);
         for (cz = zlo; cz <= zhi; cz++) {
             for (cx = xlo; cx <= xhi; cx++) {
+                u16* cell = &dyngrid[cz * num_dyngridx + cx];
                 dyngrid_index++;
                 dyngrid_list[dyngrid_index * 2] = (s16)i;
-                dyngrid_list[dyngrid_index * 2 + 1] = dyngrid[cz * num_dyngridx + cx];
-                dyngrid[cz * num_dyngridx + cx] = dyngrid_index;
+                ((u16*)dyngrid_list)[dyngrid_index * 2 + 1] = *cell;
+                *cell = dyngrid_index;
             }
         }
     }
