@@ -2135,6 +2135,7 @@ extern f32 lbl_80347A50;
 extern f32 lbl_80347A54;
 extern f64 lbl_80347A58;
 extern f64 lbl_80347A60;
+extern f32 lbl_80347A88;
 extern f32 lbl_803478E4;
 extern f32 lbl_80347778;
 extern f32 lbl_80347770;
@@ -2259,10 +2260,10 @@ DECL_SECT(".sdata2") extern char lbl_80347A18[];
 DECL_SECT(".sdata2") extern char lbl_80347A20[];
 DECL_SECT(".sdata2") extern char lbl_80347A28[];
 DECL_SECT(".sdata2") extern char lbl_80347A30[];
-extern char lbl_80347A68[];
-extern char lbl_80347A70[];
-extern char lbl_80347A78[];
-extern char lbl_80347A80[];
+extern char lbl_80347A68;
+extern char lbl_80347A70;
+extern char lbl_80347A78;
+extern char lbl_80347A80;
 extern char lbl_801205D8[][4];  /* rune world tags (4) */
 extern char lbl_801205F8[][4];  /* crystal color tags (8) */
 extern char* lbl_8011FCD4[];  /* POTION_ICON_* names (5) */
@@ -4760,6 +4761,7 @@ void PlayerProcessPowerups(void* vp) {
     f32 familiar_time = lbl_80347920;
     f32 alpha_time = 0.0f;
     s32 i;
+    const char* name_base = (const char*)lbl_80113AE0;
 
     p->stat_damage = player_scale_att(&p->att_fight, lbl_80343D7C);
     p->stat_armor = player_scale_att(&p->att_armor, lbl_80343D84);
@@ -4791,7 +4793,8 @@ void PlayerProcessPowerups(void* vp) {
             if (gBossType < 0) {
                 timeleft -= gClockFrameStep;
             } else if (gBossActive != 0 && gBossDead == 0) {
-                timeleft -= (f32)(lbl_80347A40 * gClockFrameStep);
+                timeleft = (f32)((f64)timeleft -
+                    lbl_80347A40 * (f64)gClockFrameStep);
             }
             if (timeleft < 0.0f) {
                 timeleft = lbl_803477AC;
@@ -4892,12 +4895,12 @@ void PlayerProcessPowerups(void* vp) {
             lbl_8025EC88[player] = NULL;
         }
 
-        if (p->action == 0x92) {
+        if (PF(p, 0x208, s32) == 0x92) {
             MBTreeSetAlpha(p->node, (s32)lbl_80347A54, 1);
         } else if (PF(p, 0x124, u32) & 4) {
             s32 player_alpha;
-            if (alpha_time < 0.0f || alpha_time > (f32)lbl_80347A40 ||
-                (((s32)(alpha_time * (f32)lbl_80347A58) & 1) != 0)) {
+            if (alpha_time < 0.0f || alpha_time > lbl_80347A40 ||
+                (((s32)(alpha_time * lbl_80347A58) & 1) != 0)) {
                 player_alpha = 160 +
                     (s32)(lbl_80347A60 * __sin(alpha_time * lbl_80347930));
             } else {
@@ -4909,15 +4912,15 @@ void PlayerProcessPowerups(void* vp) {
         }
 
         if (PF(p, 0x120, u32) & 0x100000) {
-            if (weapon_time < 0.0f || weapon_time > (f32)lbl_80347A40 ||
-                (((s32)(weapon_time * (f32)lbl_80347A58) & 1) != 0)) {
+            if (weapon_time < 0.0f || weapon_time > lbl_80347A40 ||
+                (((s32)(weapon_time * lbl_80347A58) & 1) != 0)) {
                 SetSkinFX(lbl_80347790, (f32*)((u8*)p + 0x7DC),
                           lbl_80344BF0, 1, 1);
             }
         }
         if (PF(p, 0x120, u32) & 0x10000) {
-            if (weapon_time < 0.0f || weapon_time > (f32)lbl_80347A40 ||
-                (((s32)(weapon_time * (f32)lbl_80347A58) & 1) != 0)) {
+            if (weapon_time < 0.0f || weapon_time > lbl_80347A40 ||
+                (((s32)(weapon_time * lbl_80347A58) & 1) != 0)) {
                 SetSkinFX(lbl_80347790, (f32*)((u8*)p + 0x7DC),
                           lbl_80344BF4, 1, 1);
             }
@@ -4925,66 +4928,70 @@ void PlayerProcessPowerups(void* vp) {
     }
 
     {
-        void* parent = PF(p, 0x6CC, void*);
-        void** object = (void**)((u8*)p + 0x72C);
-        s32 had_object = *object != NULL;
+        s32 had_object = PF(p, 0x72C, void*) != NULL;
 
         if (PF(p, 0x124, u32) & 0x8000) {
-            const char* name = (const char*)lbl_80113AE0 + 1628;
+            const char* name = name_base + 1628;
             s32 model = MBOX_FindObject(name);
-            if (*object == NULL) {
-                *object = MBNewObject(model, NULL, parent, 0x9010);
+            if (PF(p, 0x72C, void*) == NULL) {
+                PF(p, 0x72C, void*) =
+                    MBNewObject(model, NULL, PF(p, 0x6CC, void*), 0x9010);
             } else {
-                MBSetObject(*object, model);
+                MBSetObject(PF(p, 0x72C, void*), model);
             }
         } else if (PF(p, 0x120, u32) & 0x20000) {
-            s32 model = MBOX_FindObject(lbl_80347A68);
-            if (*object == NULL) {
-                *object = MBNewObject(model, NULL, parent, 0x810);
+            s32 model = MBOX_FindObject(&lbl_80347A68);
+            if (PF(p, 0x72C, void*) == NULL) {
+                PF(p, 0x72C, void*) =
+                    MBNewObject(model, NULL, PF(p, 0x6CC, void*), 0x810);
             } else {
-                MBSetObject(*object, model);
+                MBSetObject(PF(p, 0x72C, void*), model);
             }
         } else if (PF(p, 0x120, u32) & 0x200000) {
-            s32 model = MBOX_FindObject(lbl_80347A70);
-            if (*object == NULL) {
-                *object = MBNewObject(model, NULL, parent, 0x810);
+            s32 model = MBOX_FindObject(&lbl_80347A70);
+            if (PF(p, 0x72C, void*) == NULL) {
+                PF(p, 0x72C, void*) =
+                    MBNewObject(model, NULL, PF(p, 0x6CC, void*), 0x810);
             } else {
-                MBSetObject(*object, model);
+                MBSetObject(PF(p, 0x72C, void*), model);
             }
         } else if (PF(p, 0x120, u32) & 0x400000) {
-            s32 model = MBOX_FindObject(lbl_80347A78);
-            if (*object == NULL) {
-                *object = MBNewObject(model, NULL, parent, 0x810);
+            s32 model = MBOX_FindObject(&lbl_80347A78);
+            if (PF(p, 0x72C, void*) == NULL) {
+                PF(p, 0x72C, void*) =
+                    MBNewObject(model, NULL, PF(p, 0x6CC, void*), 0x810);
             } else {
-                MBSetObject(*object, model);
+                MBSetObject(PF(p, 0x72C, void*), model);
             }
-        } else if (*object != NULL) {
-            MBRemoveNode(*object, 0);
-            *object = NULL;
+        } else if (PF(p, 0x72C, void*) != NULL) {
+            MBRemoveNode(PF(p, 0x72C, void*), 0);
+            PF(p, 0x72C, void*) = NULL;
         }
-        if (*object != NULL && !had_object) {
+        if (PF(p, 0x72C, void*) != NULL && !had_object) {
             if (p->state == 1 || p->state == 5) {
-                void* node = *(void**)((u8*)parent + 0x74);
+                void* node = *(void**)((u8*)PF(p, 0x6CC, void*) + 0x74);
                 PF(node, 0x60, u32) |= 1;
             } else if (p->state == 7) {
-                PF(parent, 0x60, u32) |= 1;
+                PF(PF(p, 0x6CC, void*), 0x60, u32) |= 1;
             }
-        } else if (*object == NULL && had_object) {
+        } else if (PF(p, 0x72C, void*) == NULL && had_object) {
             if (p->state == 1 || p->state == 5) {
-                void* node = *(void**)((u8*)parent + 0x74);
+                void* node = *(void**)((u8*)PF(p, 0x6CC, void*) + 0x74);
                 PF(node, 0x60, u32) &= ~1;
             } else if (p->state == 7) {
-                PF(parent, 0x60, u32) &= ~1;
+                PF(PF(p, 0x6CC, void*), 0x60, u32) &= ~1;
             }
         }
     }
 
-    PF(p, 0xA1C, s16) = (PF(p, 0x120, u32) & 0x100000) != 0;
+    if ((PF(p, 0x120, u32) & 0x100000) && PF(p, 0xA1C, s16) == 0) {
+        PF(p, 0xA1C, s16) = 1;
+    }
     {
         void** object = (void**)((u8*)p + 0x968);
         if (PF(p, 0x124, u32) & 0x200000) {
             if (PF(p, 0xA1E, s16) == 0) {
-                const char* name = (const char*)lbl_80113AE0 + 1640;
+                const char* name = name_base + 1640;
                 s32 model = MBOX_FindObject(name);
                 if (*object == NULL) {
                     *object = MBNewObject(model, NULL, p->node, 0x10);
@@ -4996,7 +5003,7 @@ void PlayerProcessPowerups(void* vp) {
             }
         } else if (PF(p, 0x124, u32) & 0x400000) {
             if (PF(p, 0xA20, s16) == 0) {
-                const char* name = (const char*)lbl_80113AE0 + 1660;
+                const char* name = name_base + 1660;
                 s32 model = MBOX_FindObject(name);
                 if (*object == NULL) {
                     *object = MBNewObject(model, NULL, p->node, 0x10);
@@ -5020,7 +5027,7 @@ void PlayerProcessPowerups(void* vp) {
         void** object = (void**)((u8*)p + 0x734);
         void* parent = PF(p, 0x6D4, void*);
         if (PF(p, 0x124, u32) & 0x1000) {
-            const char* name = (const char*)lbl_80113AE0 + 1676;
+            const char* name = name_base + 1676;
             s32 model = MBOX_FindObject(name);
             if (*object == NULL) {
                 *object = MBNewObject(model, NULL, parent, 0x9010);
@@ -5028,7 +5035,7 @@ void PlayerProcessPowerups(void* vp) {
                 MBSetObject(*object, model);
             }
         } else if (PF(p, 0x124, u32) & 0x2000) {
-            const char* name = (const char*)lbl_80113AE0 + 1688;
+            const char* name = name_base + 1688;
             s32 model = MBOX_FindObject(name);
             if (*object == NULL) {
                 *object = MBNewObject(model, NULL, parent, 0x9010);
@@ -5036,7 +5043,7 @@ void PlayerProcessPowerups(void* vp) {
                 MBSetObject(*object, model);
             }
         } else if (PF(p, 0x120, u32) & 0x80000) {
-            const char* name = (const char*)lbl_80113AE0 + 1700;
+            const char* name = name_base + 1700;
             s32 model = MBOX_FindObject(name);
             if (*object == NULL) {
                 *object = MBNewObject(model, NULL, parent, 0x810);
@@ -5044,7 +5051,7 @@ void PlayerProcessPowerups(void* vp) {
                 MBSetObject(*object, model);
             }
         } else if (PF(p, 0x120, u32) & 0x2000) {
-            const char* name = (const char*)lbl_80113AE0 + 1712;
+            const char* name = name_base + 1712;
             s32 model = MBOX_FindObject(name);
             if (*object == NULL) {
                 *object = MBNewObject(model, NULL, parent, 0x810);
@@ -5052,7 +5059,7 @@ void PlayerProcessPowerups(void* vp) {
                 MBSetObject(*object, model);
             }
         } else if (PF(p, 0x124, u32) & 2) {
-            const char* name = (const char*)lbl_80113AE0 + 1724;
+            const char* name = name_base + 1724;
             s32 model = MBOX_FindObject(name);
             if (*object == NULL) {
                 *object = MBNewObject(model, NULL, parent, 0x810);
@@ -5069,7 +5076,7 @@ void PlayerProcessPowerups(void* vp) {
         void** object = (void**)((u8*)p + 0x730);
         void* parent = PF(p, 0x6D0, void*);
         if (PF(p, 0x124, u32) & 0x4000) {
-            const char* name = (const char*)lbl_80113AE0 + 1736;
+            const char* name = name_base + 1736;
             s32 model = MBOX_FindObject(name);
             if (*object == NULL) {
                 *object = MBNewObject(model, NULL, parent, 0x9010);
@@ -5077,7 +5084,7 @@ void PlayerProcessPowerups(void* vp) {
                 MBSetObject(*object, model);
             }
         } else if (PF(p, 0x11C, u32) & 0x100000) {
-            const char* name = (const char*)lbl_80113AE0 + 1748;
+            const char* name = name_base + 1748;
             s32 model = MBOX_FindObject(name);
             if (*object == NULL) {
                 *object = MBNewObject(model, NULL, parent, 0x810);
@@ -5085,7 +5092,7 @@ void PlayerProcessPowerups(void* vp) {
                 MBSetObject(*object, model);
             }
         } else if (PF(p, 0x11C, u32) & 0x10000000) {
-            const char* name = (const char*)lbl_80113AE0 + 1760;
+            const char* name = name_base + 1760;
             s32 model = MBOX_FindObject(name);
             if (*object == NULL) {
                 *object = MBNewObject(model, NULL, parent, 0x10);
@@ -5099,10 +5106,10 @@ void PlayerProcessPowerups(void* vp) {
     }
 
     if (PF(p, 0x730, void*) != NULL) {
-        MBTreeSetFlags(PF(p, 0x6E0, void*), 2, 0);
-        if (PF(p, 0x6E4, void*) != NULL) {
-            AtreeDelete((void**)((u8*)p + 0x6E4));
+        if (PF(p, 0x6E0, void*) != NULL) {
+            MBTreeSetFlags(PF(p, 0x6E0, void*), 2, 0);
         }
+        AtreeDelete((void**)((u8*)p + 0x6E4));
     } else {
         u32 kind = PF(p, 0x11C, u32) & 0xF;
         void* source = NULL;
@@ -5127,7 +5134,7 @@ void PlayerProcessPowerups(void* vp) {
             *(f32*)((u8*)*(void**)*handle + 0x30) = *(f32*)(color + 0x68);
             *(f32*)((u8*)*(void**)*handle + 0x34) = *(f32*)(color + 0x6C);
             *(f32*)((u8*)*(void**)*handle + 0x38) = *(f32*)(color + 0x70);
-            if (*(f32*)(color + 0xE0) != 1.0f) {
+            if (*(f32*)(color + 0xE0) != 0.0f) {
                 MBTreeSetFlags(*(void**)*handle, 8, 0);
                 *(f32*)((u8*)*(void**)*handle + 0x40) = *(f32*)(color + 0xE0);
                 *(f32*)((u8*)*(void**)*handle + 0x44) = *(f32*)(color + 0xE4);
@@ -5145,7 +5152,8 @@ void PlayerProcessPowerups(void* vp) {
 
         if (PF(p, 0x124, u32) & 0x400) {
             PLAYER_SET_FAMILIAR(PojoTree, p->node);
-        } else if ((PF(p, 0x120, u32) & 0x200000) && p->action == 22) {
+        } else if ((PF(p, 0x120, u32) & 0x200000) &&
+                   PF(p, 0x208, s32) == 22) {
             PLAYER_SET_FAMILIAR(FireShieldTree, p->node);
         } else if (PF(p, 0x124, u32) & 0x80) {
             PLAYER_SET_FAMILIAR(lbl_803445B0, p->node);
@@ -5163,16 +5171,15 @@ void PlayerProcessPowerups(void* vp) {
         }
         if (*handle != NULL) {
             if (PF(p, 0x124, u32) & 0x400) {
-                switch (p->action) {
+                switch (PF(p, 0x208, s32)) {
                 case 8:
                 case 17:
                 case 18:
                 case 19:
                 case 20:
                 case 22:
-                case 23:
-                case 24:
                 case 25:
+                case 26:
                     anim = 1;
                     break;
                 case 110:
@@ -5190,6 +5197,7 @@ void PlayerProcessPowerups(void* vp) {
                 case 130:
                 case 131:
                 case 133:
+                case 135:
                 case 148:
                     anim = 4;
                     transition = 2;
@@ -5209,7 +5217,7 @@ void PlayerProcessPowerups(void* vp) {
                 transition = 2;
             }
             AnimateATree(handle, anim, transition);
-            if (familiar_time >= 0.0f && familiar_time < (f32)lbl_80347838) {
+            if (familiar_time >= 0.0f && familiar_time < lbl_80347838) {
                 s32 familiar_alpha =
                     (s32)(lbl_803478F8 * (lbl_80347838 - familiar_time));
                 MBTreeSetAlpha(*(void**)*handle, familiar_alpha, 1);
@@ -5235,7 +5243,7 @@ void PlayerProcessPowerups(void* vp) {
 
     if (PF(p, 0x954, u16) != 0 && (PF(p, 0x964, s16) & 2) == 0) {
         if (PF(p, 0x740, void*) == NULL) {
-            PF(p, 0x740, void*) = MBOX_NewObject(lbl_80347A80, NULL, p->node, 0x10);
+            PF(p, 0x740, void*) = MBOX_NewObject(&lbl_80347A80, NULL, p->node, 0x10);
         }
     } else if (PF(p, 0x740, void*) != NULL) {
         MBRemoveNode(PF(p, 0x740, void*), 0);
@@ -5254,7 +5262,7 @@ void PlayerProcessPowerups(void* vp) {
     if (p->character == 12) {
         MBTreeSetScale(lbl_803478E4, lbl_803478E4, lbl_803478E4, p->node);
     } else if (PF(p, 0x124, u32) & 0x100) {
-        MBTreeSetScale(lbl_80347A50, lbl_80347A50, lbl_80347A50, p->node);
+        MBTreeSetScale(lbl_80347A88, lbl_80347A88, lbl_80347A88, p->node);
     } else if (p->level >= 99) {
         MBTreeSetScale(lbl_80347778, lbl_80347778, lbl_80347778, p->node);
     } else {
@@ -5282,20 +5290,24 @@ void PlayerProcessPowerups(void* vp) {
     if ((PF(p, 0x120, u32) & 0x80000) == 0) {
         PF(p, 0x95E, s16) = 0;
     }
-    PF(p, 0x960, s16) = (PF(p, 0x124, u32) & 8) != 0;
+    if (PF(p, 0x124, u32) & 8) {
+        PF(p, 0x960, s16) = 1;
+    } else {
+        PF(p, 0x960, s16) = 0;
+    }
 
-    if (p->stat_damage < lbl_80343D7C[0]) p->stat_damage = lbl_80343D7C[0];
-    if (p->stat_damage > lbl_80343D7C[1]) p->stat_damage = lbl_80343D7C[1];
-    if (p->stat_armor < lbl_80343D84[0]) p->stat_armor = lbl_80343D84[0];
-    if (p->stat_armor > lbl_80343D84[1]) p->stat_armor = lbl_80343D84[1];
-    if (p->magic_power < lbl_80343D8C[0]) p->magic_power = lbl_80343D8C[0];
-    if (p->magic_power > lbl_80343D8C[1]) p->magic_power = lbl_80343D8C[1];
-    if (p->light_range < lbl_80343D94[0]) p->light_range = lbl_80343D94[0];
-    if (p->light_range > lbl_80343D94[1]) p->light_range = lbl_80343D94[1];
-    if (p->stat_missile_dmg < lbl_80343D9C[0]) p->stat_missile_dmg = lbl_80343D9C[0];
-    if (p->stat_missile_dmg > lbl_80343D9C[1]) p->stat_missile_dmg = lbl_80343D9C[1];
-    if (p->stat_missile_spd < lbl_80343DA4[0]) p->stat_missile_spd = lbl_80343DA4[0];
-    if (p->stat_missile_spd > lbl_80343DA4[1]) p->stat_missile_spd = lbl_80343DA4[1];
+    p->stat_damage = p->stat_damage < lbl_80343D7C[0] ? lbl_80343D7C[0] :
+        (p->stat_damage > lbl_80343D7C[1] ? lbl_80343D7C[1] : p->stat_damage);
+    p->stat_armor = p->stat_armor < lbl_80343D84[0] ? lbl_80343D84[0] :
+        (p->stat_armor > lbl_80343D84[1] ? lbl_80343D84[1] : p->stat_armor);
+    p->magic_power = p->magic_power < lbl_80343D8C[0] ? lbl_80343D8C[0] :
+        (p->magic_power > lbl_80343D8C[1] ? lbl_80343D8C[1] : p->magic_power);
+    p->light_range = p->light_range < lbl_80343D94[0] ? lbl_80343D94[0] :
+        (p->light_range > lbl_80343D94[1] ? lbl_80343D94[1] : p->light_range);
+    p->stat_missile_dmg = p->stat_missile_dmg < lbl_80343D9C[0] ? lbl_80343D9C[0] :
+        (p->stat_missile_dmg > lbl_80343D9C[1] ? lbl_80343D9C[1] : p->stat_missile_dmg);
+    p->stat_missile_spd = p->stat_missile_spd < lbl_80343DA4[0] ? lbl_80343DA4[0] :
+        (p->stat_missile_spd > lbl_80343DA4[1] ? lbl_80343DA4[1] : p->stat_missile_spd);
 
     (void)shield_time;
 }
