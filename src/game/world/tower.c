@@ -323,9 +323,9 @@ void towerRuneNearAudio(void) {
  * level records against the world's requirement table.  Heavily called (UI). */
 int WorldOpen(int world) {
     s32 result = 0;
-    s32 requirement;
-    s32 best;
     s32 player;
+    s32 best;
+    s32 requirement;
     s32 met;
 
     switch (world) {
