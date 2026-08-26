@@ -274,10 +274,10 @@ s32 dcsChannelSetVolPan(u32 channels, s16 pan) {
 
 /* 0x800D21B4  volume/pan variant */
 s32 dcsChannelSetVolPan2(s32 channels, s32 volume) {
-    DcsChannelInfo* infos;
     AXVPB** voices;
-    DcsChannelInfo* info;
+    DcsChannelInfo* infos;
     u16 master;
+    DcsChannelInfo* info;
     s32 channel;
     s32 desired;
     s32 mask;
@@ -287,8 +287,8 @@ s32 dcsChannelSetVolPan2(s32 channels, s32 volume) {
     u8 unused[8];
 
     mask = channels & 0xFFF;
-    voices = sVoice;
     infos = ch_info;
+    voices = sVoice;
     channel = 0;
     voiceOffset = 0;
     infoOffset = 0;
@@ -300,7 +300,7 @@ s32 dcsChannelSetVolPan2(s32 channels, s32 volume) {
         if ((mask & 1) != 0 && delta != 0) {
             s32 currentVolume;
             s32 scaled;
-            u16 excess;
+            s32 excess;
             s32 pan;
             s32 sign;
 
@@ -323,7 +323,7 @@ s32 dcsChannelSetVolPan2(s32 channels, s32 volume) {
                 excess -= 0x3FFF - master;
                 master = 0x3FFF;
             }
-            if (excess > 0x3FFF) {
+            if ((u16)excess > 0x3FFF) {
                 master -= 0x3FFF - excess;
             }
 
