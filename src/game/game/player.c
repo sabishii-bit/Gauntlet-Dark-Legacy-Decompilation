@@ -6202,19 +6202,34 @@ void UpdatePlayerWorldMat(void* vp, s32 anchor) {
 
 /* Pad-driven mini-inventory: cycle selection, use, open/close.        */
 void mini_inventory_update(s32 i) {
-    Player* p = P(i);
-    TbInfo* tb = &tb_info[i];
-    u32 held;
-    s32 moved = 0;
+    s32* label_table;
+    u8* base = (u8*)potionicon_tab;
+    Player* p = (Player*)(base + i * PREC_STRIDE + 0xC40);
+    s32 tb_offset;
+    TbInfo* tb;
+    u32* held;
+    u8 moved;
+    u8* selected_pup;
+    u8* entry;
     s32 sel;
     s32 j;
+    s32 count;
+    s32 offset;
+    s32 state;
+    u8 unused[32];
 
+    label_table = lbl_8011FC48;
     if (gGameMode != 0x4010 || gGameBusy != 0) {
         return;
     }
-    if (tb->state == 1) {
+    tb_offset = i * sizeof(TbInfo);
+    tb = (TbInfo*)(base + tb_offset);
+    state = *(s32*)((u8*)tb + 0x944);
+    moved = 0;
+    tb = (TbInfo*)((u8*)tb + 0x940);
+    if (state == 1) {
         if (PUP_TIMELEFT(p, tb->sel) == 0.0 ||
-            (lbl_80240E38[i * 0xF] & 0x10000000)) {
+            (lbl_80240E30[i].edges & 0x10000000)) {
             AudioCursorH();
             moved = 1;
             sel = mini_inventory_find_previous_selectable_item(i);
@@ -6225,8 +6240,8 @@ void mini_inventory_update(s32 i) {
                 tb->sel = sel;
             }
         }
-        held = lbl_80240E38[i * 0xF];
-        if (held & 0x20000000) {
+        held = &lbl_80240E30[i].ctl;
+        if (*(held += 2) & 0x20000000) {
             AudioCursorH();
             moved = 1;
             sel = mini_inventory_find_next_selectable_item(i);
@@ -6238,35 +6253,43 @@ void mini_inventory_update(s32 i) {
                 tb->sel = sel;
             }
         }
-        if (held & 0x40000000) {
+        if (*held & 0x40000000) {
             AudioCursorSelect();
-            if (PUP_DIRTY(p, tb->sel) == 2) {
-                PUP_DIRTY(p, tb->sel) = 3;
-            } else {
+            if (PUP_DIRTY(p, tb->sel) != 2) {
                 PUP_DIRTY(p, tb->sel) = 2;
+            } else {
+                PUP_DIRTY(p, tb->sel) = 3;
             }
         }
-        if ((held & 0x80000000) && tb->state == 1) {
+        if ((*held & 0x80000000) && tb->state == 1) {
             AudioCursorV();
             tb->state = 3;
             moved = 1;
             tb->slide = 0;
         }
-    } else if ((lbl_80240E38[i * 0xF] & 0x40000000) != 0) {
+    } else if ((lbl_80240E30[i].edges & 0x40000000) != 0) {
         AudioCursorV();
         if (tb->state == 0) {
             if (tb->sel == -1 && (sel = mini_inventory_find_previous_selectable_item(i)) >= 0) {
                 tb->sel = sel;
-                for (j = 0; j < lbl_80343D68; j++) {
-                    tb->label = (char*)lbl_8011FCE8[j * 3 + 2];
-                    if (lbl_8011FCE8[j * 3 + 1] ==
-                            (lbl_8011FCE8[j * 3 + 1] & (s32)PUP_SPECIALFLAGS(p, tb->sel)) &&
-                        PUP_TYPE(p, tb->sel) == lbl_8011FCE8[j * 3]) {
+                j = 0;
+                offset = j;
+                count = lbl_80343D68;
+                selected_pup = (u8*)p + tb->sel * 0x10;
+                for (; j < count; j++, offset += 12) {
+                    entry = (u8*)label_table + offset;
+                    tb->label = *(char**)(entry + 168);
+                    entry += 160;
+                    if (*(s32*)(entry + 4) ==
+                            (*(s32*)(entry + 4) &
+                             *(s32*)(selected_pup + 0x13C)) &&
+                        *(s32*)(selected_pup + 0x134) == *(s32*)entry) {
                         break;
                     }
                 }
                 if (j >= lbl_80343D68) {
-                    tb->label = (char*)lbl_8011FCE8[(lbl_80343D68 - 1) * 3 + 2];
+                    *(char**)(base + tb_offset + 0x964) =
+                        (char*)label_table[40 + (lbl_80343D68 - 1) * 3 + 2];
                 }
             }
             if (tb->sel >= 0) {
@@ -6276,7 +6299,10 @@ void mini_inventory_update(s32 i) {
             }
         }
     }
-    if (tb->state == 2) {
+    switch (tb->state) {
+    case 0:
+        break;
+    case 2:
         if (tb->slide < 0x80) {
             tb->slide += gFrameTicks * 4;
             if (tb->slide > 0x80) {
@@ -6285,22 +6311,32 @@ void mini_inventory_update(s32 i) {
         } else {
             tb->state = 1;
         }
-    } else if (tb->state == 1) {
+        break;
+    case 1:
         mini_inventory_draw_label(i);
         if (moved) {
-            for (j = 0; j < lbl_80343D68; j++) {
-                tb->label = (char*)lbl_8011FCE8[j * 3 + 2];
-                if (lbl_8011FCE8[j * 3 + 1] ==
-                        (lbl_8011FCE8[j * 3 + 1] & (s32)PUP_SPECIALFLAGS(p, tb->sel)) &&
-                    PUP_TYPE(p, tb->sel) == lbl_8011FCE8[j * 3]) {
+            j = 0;
+            offset = j;
+            count = lbl_80343D68;
+            selected_pup = (u8*)p + tb->sel * 0x10;
+            for (; j < count; j++, offset += 12) {
+                entry = (u8*)label_table + offset;
+                tb->label = *(char**)(entry + 168);
+                entry += 160;
+                if (*(s32*)(entry + 4) ==
+                        (*(s32*)(entry + 4) &
+                         *(s32*)(selected_pup + 0x13C)) &&
+                    *(s32*)(selected_pup + 0x134) == *(s32*)entry) {
                     break;
                 }
             }
             if (j >= lbl_80343D68) {
-                tb->label = (char*)lbl_8011FCE8[(lbl_80343D68 - 1) * 3 + 2];
+                *(char**)(base + tb_offset + 0x964) =
+                    (char*)label_table[40 + (lbl_80343D68 - 1) * 3 + 2];
             }
         }
-    } else if (tb->state == 3) {
+        break;
+    case 3:
         if (tb->slide < 0x80) {
             tb->slide += gFrameTicks * 4;
             if (tb->slide > 0x80) {
@@ -6309,6 +6345,7 @@ void mini_inventory_update(s32 i) {
         } else {
             tb->state = 0;
         }
+        break;
     }
 }
 
