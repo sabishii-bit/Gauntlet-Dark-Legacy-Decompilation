@@ -138,7 +138,7 @@ u32 fn_800D8BCC(u32* p1, int p3, char* p4, int mode, int p5, u32 p6);
 u32 fn_800D8F28(int* p1, int p3, char* p4, int p5, u32 p6);
 u32 fn_800D91B4(u32* p1, int p3, char* p4, int p5, u32 p6);
 u32 fn_800D9A14(u32* p1, u8* p2, int p3, u8 p4);
-void fn_800DBE98(u32 param_1, u8* param_2);
+void fn_800DBE98(void* param_1, u8* param_2);
 int fn_800DB2F4(u8* param_1, u8* param_2, u32 param_3, u32 param_4);
 void fn_800DB3D4(u32* stream, s32 fd, u32 length);
 void fn_800DB29C(int stream);
@@ -273,7 +273,7 @@ static inline void MovieDecodePalette(u32* state, u8* pal, int count)
     i = 0;
     p = pal;
     for (; i < n; i++) {
-        fn_800DBE98((u32)state, p);
+        fn_800DBE98(state, p);
         ((u16*)pal)[i] = (((p[0] >> sh0) << *((u8*)state + 0x36))
                         | ((p[1] >> sh1) << *((u8*)state + 0x35)))
                         | ((p[2] >> sh2) << *((u8*)state + 0x34));
@@ -459,7 +459,7 @@ u32 fn_800D8BCC(u32* param_1, int param_2, char* param_3, int param_4, int param
         i = 0;
         p = pal;
         for (; i < n; i++) {
-            fn_800DBE98((u32)param_1, p);
+            fn_800DBE98(param_1, p);
             ((u16*)pal)[i] = (((p[0] >> sh0) << *((u8*)param_1 + 0x36))
                             | ((p[1] >> sh1) << *((u8*)param_1 + 0x35)))
                             | ((p[2] >> sh2) << *((u8*)param_1 + 0x34));
@@ -602,10 +602,10 @@ u32 fn_800D8F28(int* param_1, int param_2, char* param_3, int param_4, u32 param
     iVar6 = 0;
     for (iVar5 = 0; iVar5 < (int)uVar2; iVar5 = iVar5 + 1) {
         pbVar10 = (u8*)(iVar11 + iVar6);
-        fn_800DBE98((u32)param_1, pbVar10);
-        fn_800DBE98((u32)param_1, pbVar10 + 3);
-        fn_800DBE98((u32)param_1, pbVar10 + 6);
-        fn_800DBE98((u32)param_1, pbVar10 + 9);
+        fn_800DBE98(param_1, pbVar10);
+        fn_800DBE98(param_1, pbVar10 + 3);
+        fn_800DBE98(param_1, pbVar10 + 6);
+        fn_800DBE98(param_1, pbVar10 + 9);
         iVar6 = iVar6 + 0xc;
     }
     if (*(int*)(param_4 + 8) < 0) {
@@ -681,10 +681,10 @@ u32 fn_800D91B4(u32* param_1, int param_2, char* param_3, int param_4, u32 param
     iVar3 = 0;
     for (iVar5 = 0; iVar5 < (int)uVar1; iVar5 = iVar5 + 1) {
         pbVar9 = (u8*)(iVar10 + iVar3);
-        fn_800DBE98((u32)param_1, pbVar9);
-        fn_800DBE98((u32)param_1, pbVar9 + 3);
-        fn_800DBE98((u32)param_1, pbVar9 + 6);
-        fn_800DBE98((u32)param_1, pbVar9 + 9);
+        fn_800DBE98(param_1, pbVar9);
+        fn_800DBE98(param_1, pbVar9 + 3);
+        fn_800DBE98(param_1, pbVar9 + 6);
+        fn_800DBE98(param_1, pbVar9 + 9);
         iVar3 = iVar3 + 0xc;
     }
     if (*(int*)(param_4 + 8) < 0) {
@@ -2288,7 +2288,7 @@ u32* fn_800DBE04(u32* p) {
 #endif
 
 /* DText glyph blit (uses gDTextBuf + movie sdata2 pool) */
-void fn_800DBE98(u32 param_1, u8* param_2) {
+void fn_800DBE98(void* param_1, u8* param_2) {
     f32 fVar1;
     f32 fVar2;
     f32 fVar3;
