@@ -29,14 +29,18 @@ from fndiff import classify_function, normalized_reloc_lines, parse
 VERSION = "GUNE5D"
 REPO = Path(__file__).resolve().parent.parent.parent
 REPORT = REPO / "build" / VERSION / "report.json"
-PARKED = REPO / "research" / "PARKED.txt"
+PARKED_CANDIDATES = (
+    REPO / ".claude" / "memory" / "PARKED.txt",
+    REPO / "research" / "PARKED.txt",  # legacy fallback
+)
 
 
 def load_parked():
-    if not PARKED.exists():
+    parked_path = next((path for path in PARKED_CANDIDATES if path.exists()), None)
+    if parked_path is None:
         return set()
     names = set()
-    for line in PARKED.read_text().splitlines():
+    for line in parked_path.read_text().splitlines():
         line = line.split("#", 1)[0].strip()
         if line:
             names.add(line.split()[0])

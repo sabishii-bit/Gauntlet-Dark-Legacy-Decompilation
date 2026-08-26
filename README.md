@@ -132,6 +132,23 @@ To print decompilation progress:
 python configure.py progress
 ```
 
+### Matching work queues
+
+Use the low-match queue for semantic and structural reconstruction work:
+
+```sh
+python tools/gdl/lowmatch.py --refresh
+python tools/gdl/lowmatch.py --sort impact --min-size 200 --parked skip
+```
+
+It excludes already linked translation units and, by default, lists functions
+at or below 50% fuzzy match. `--sort lowest` emphasizes the least reconstructed
+functions; `--sort impact` emphasizes their estimated remaining byte gap. Use
+`tools/gdl/nearmiss.py` separately when deliberately closing already high-match
+functions. Both queues read the authoritative cap list from
+`.claude/memory/PARKED.txt` (with the historical `research/PARKED.txt` accepted
+only as a fallback).
+
 ### Compiler variants and guarded postprocessing
 
 The build harness supports two narrowly scoped CodeWarrior postprocessors for
