@@ -358,6 +358,7 @@ u8 padUpdate(void) {
     u32 resetMask = 0;
     s32 i;
 
+    gPadErrMask = 0;
     if (gPadCur == gPadStatusBuf[1]) {
         gPadPrev = gPadStatusBuf[1];
         gPadCur = gPadStatusBuf[0];
@@ -365,16 +366,13 @@ u8 padUpdate(void) {
         gPadCur = gPadStatusBuf[1];
         gPadPrev = gPadStatusBuf[0];
     }
-    gPadErrMask = 0;
-
     PADRead(gPadCur);
     PADClamp(gPadCur);
     G3DReadControlPadStates();
 
     for (i = 0; i < 4; i++) {
         u32 bit = 0x80000000u >> i;
-        s8 err = gPadCur[i].err;
-        switch (err) {
+        switch (gPadCur[i].err) {
         case PAD_ERR_NO_CONTROLLER:
             resetMask |= bit;
             break;
@@ -402,7 +400,10 @@ u8 padUpdate(void) {
     } else if (resetMask != 0) {
         PADReset(resetMask);
     }
-    return gPadErrMask != 0;
+    if (gPadErrMask != 0) {
+        return TRUE;
+    }
+    return FALSE;
 }
 
 /* 0x800DDABC - edge-detected menu stick: -1 up, +1 down, 0 none */
