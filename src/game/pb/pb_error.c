@@ -132,11 +132,13 @@ void fn_800C1174(register s8* text, register u32 errorHigh)
                 glyph = (s8*)lbl_80120E98 + (c8 - 33) * 35;
                 for (row = 0; row < 7; row++) {
                     for (col = 0; col < 5; col++) {
-                        if (*glyph++ != 0) {
+                        if (*glyph != 0) {
                             plot = x + col * 2 + row * 256;
                             pixels.data[plot] = 0x00FFFFFF;
-                            pixels.data[plot + 1] = 0x00FFFFFF;
+                            plot++;
+                            pixels.data[plot] = 0x00FFFFFF;
                         }
+                        glyph++;
                     }
                 }
             }
