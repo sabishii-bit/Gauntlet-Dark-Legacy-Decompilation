@@ -117,16 +117,16 @@ void PlayerDoWeapTrail(PlayerTrailState* player)
 {
     f32 matrix[16];
     u8 unused[12];
-    s32 maximumAlpha = 0;
     s32 maximumIndex = 0;
-    s32 minimumAlpha = 255;
     s32 minimumIndex = 0;
+    s32 minimumAlpha = 255;
+    s32 maximumAlpha = 0;
     s32 lastIndex = player->lastTrail;
-    s32 index;
+    void** slot;
     s32 offset;
+    s32 index;
     s32 alpha;
     s32 chosenIndex;
-    void** slot;
     void* node;
     s32 object;
     f32 dx;
