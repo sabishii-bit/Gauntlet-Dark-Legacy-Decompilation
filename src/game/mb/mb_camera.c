@@ -175,14 +175,19 @@ void MBWorldToScreen(f32* dst, f32* world)
 void MBWorldToScreen3D(f32* dst, f32* world)
 {
     u8* globals = gWinGlobals;
-    u8* camera;
     u8* viewport;
+    u8* camera;
+    f32 xScale;
+    f32 yScale;
+    f32 xNumerator;
+    f32 yNumerator;
+    f32 yDenomB;
+    f32 yDenomA;
+    f32 yDepthScale;
+    f64 centeredX;
+    f64 centeredY;
+    u8 unused[24];
     f32 projected[3];
-    f32 z;
-    f32 width;
-    f32 height;
-    f32 outputWidth;
-    f32 outputHeight;
 
     if ((*(u8**)(globals + 4))[3] != 0 ||
         *(s32*)(*(u8**)(globals + 0x10) + 0x40) != 0) {
@@ -192,30 +197,36 @@ void MBWorldToScreen3D(f32* dst, f32* world)
         pbCameraCalc();
     }
 
-    camera = *(u8**)(globals + 4);
+    projected[2] = world[2];
     viewport = *(u8**)(globals + 0x10);
-    z = world[2];
-    width = (f32)*(s32*)(viewport + 0x20);
-    height = (f32)*(s32*)(viewport + 0x24);
-    outputWidth = (f32)*(s32*)(viewport + 0x28);
-    outputHeight = (f32)*(s32*)(viewport + 0x2C);
-
-    projected[0] =
-        -(z * *(f32*)(camera + 0xF0) -
-          (*(f32*)(viewport + 0x38) -
-           (lbl_80348B28 * width - world[0] * (width / outputWidth))) *
-              z) /
+    camera = *(u8**)(globals + 4);
+    xScale = (f32)*(s32*)(viewport + 0x20) /
+             (f32)*(s32*)(viewport + 0x28);
+    yScale = (f32)*(s32*)(viewport + 0x24) /
+             (f32)*(s32*)(viewport + 0x2C);
+    centeredX =
+        (f64)(world[0] * xScale) -
+        lbl_80348B28 * (f64)*(s32*)(viewport + 0x20);
+    centeredY =
+        (f64)(world[1] * yScale) -
+        lbl_80348B28 * (f64)*(s32*)(viewport + 0x24);
+    yDenomB = *(f32*)(camera + 0xD4);
+    yDenomA = *(f32*)(camera + 0x94);
+    yDepthScale = *(f32*)(camera + 0xF4);
+    xNumerator =
+        (f32)((f64)*(f32*)(viewport + 0x38) + centeredX);
+    xNumerator *= projected[2];
+    xNumerator -= projected[2] * *(f32*)(camera + 0xF0);
+    projected[0] = xNumerator /
         (*(f32*)(camera + 0x80) * *(f32*)(camera + 0xC0));
-    projected[1] =
-        -(z * *(f32*)(camera + 0xF4) -
-          (*(f32*)(viewport + 0x3C) -
-           (lbl_80348B28 * height - world[1] * (height / outputHeight))) *
-              z) /
-        (*(f32*)(camera + 0x94) * *(f32*)(camera + 0xD4));
-    projected[2] = z;
+    yNumerator =
+        (f32)((f64)*(f32*)(viewport + 0x3C) + centeredY);
+    yNumerator *= projected[2];
+    yNumerator -= projected[2] * yDepthScale;
+    projected[1] = yNumerator / (yDenomA * yDenomB);
 
     vec4ApplyTrans__FR4vec4R4vec4R5mat44(
-        dst, projected, (f32*)(camera + 0x240));
+        dst, projected, (f32*)(*(u8**)(globals + 4) + 0x240));
 }
 
 /* 0x800B5738 - MBWorldSphereClip : transform a sphere centre and test it
