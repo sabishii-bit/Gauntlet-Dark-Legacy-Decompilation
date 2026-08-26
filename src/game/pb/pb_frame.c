@@ -423,11 +423,12 @@ void pbFrameMode(s32 mode, s32 flag)
             ((GsFldH4*)(buf + 490))->b = *(u16*)(env + 26);
             ((GsFldB2*)(buf + 491))->b = *(u8*)(env + 27);
             ((GsFldH12*)(buf + 488))->hi =
-                ((u32)*(u16*)(env + 24) >> 4) + (lbl_80344FA4 + lbl_80344FAC);
+                ((u32)*(u16*)(env + 24) >> 4 & 0xFFF) +
+                (lbl_80344FA4 + lbl_80344FAC);
             ((GsFldW11b*)(buf + 488))->b =
                 (*(u32*)(env + 24) >> 9 & 0x7FF) + (lbl_80344FA8 + xoff);
             ((GsFldH12*)(buf + 492))->hi =
-                ((u32)*(u16*)(env + 28) >> 4) - 4 - lbl_80344FA4 * 2;
+                ((u32)*(u16*)(env + 28) >> 4 & 0xFFF) - 4 - lbl_80344FA4 * 2;
             ((GsFldW11b*)(buf + 492))->b =
                 (*(u32*)(env + 28) >> 9 & 0x7FF) - lbl_80344FA8 * 2;
             ((GsFldH11*)(buf + 500))->hi = one;
@@ -435,12 +436,13 @@ void pbFrameMode(s32 mode, s32 flag)
             ((GsFldH4*)(buf + 506))->b = *(u16*)(env + 26);
             ((GsFldB2*)(buf + 507))->b = *(u8*)(env + 27);
             ((GsFldH12*)(buf + 504))->hi =
-                ((u32)*(u16*)(env + 24) >> 4) + ((u32)*(u16*)(env + 26) >> 5 & 0xF) +
+                ((u32)*(u16*)(env + 24) >> 4 & 0xFFF) +
+                ((u32)*(u16*)(env + 26) >> 5 & 0xF) +
                 lbl_80344FA4 + lbl_80344FAC + 1;
             ((GsFldW11b*)(buf + 504))->b =
                 (*(u32*)(env + 24) >> 9 & 0x7FF) + (lbl_80344FA8 + xoff);
             ((GsFldH12*)(buf + 508))->hi =
-                ((u32)*(u16*)(env + 28) >> 4) - 4 - lbl_80344FA4 * 2;
+                ((u32)*(u16*)(env + 28) >> 4 & 0xFFF) - 4 - lbl_80344FA4 * 2;
             ((GsFldW11b*)(buf + 508))->b =
                 (*(u32*)(env + 28) >> 9 & 0x7FF) - 1 - lbl_80344FA8 * 2;
         } else {
@@ -502,24 +504,26 @@ void pbFrameMode(s32 mode, s32 flag)
             ((GsFldH4*)(buf + 490))->b = *(u16*)(env + 26);
             ((GsFldB2*)(buf + 491))->b = *(u8*)(env + 27);
             ((GsFldH12*)(buf + 488))->hi =
-                ((u32)*(u16*)(env + 24) >> 4) +
+                ((u32)*(u16*)(env + 24) >> 4 & 0xFFF) +
                 noBlend * (((u32)*(u16*)(env + 26) >> 5 & 0xF) + 1);
             ((GsFldW11b*)(buf + 488))->b =
                 (*(u32*)(env + 24) >> 9 & 0x7FF) +
                 selB * (((u32)*(u8*)(env + 27) >> 3 & 3) + 1);
-            ((GsFldH12*)(buf + 492))->hi = (u32)*(u16*)(env + 28) >> 4;
+            ((GsFldH12*)(buf + 492))->hi =
+                (u32)*(u16*)(env + 28) >> 4 & 0xFFF;
             ((GsFldW11b*)(buf + 492))->b = *(u32*)(env + 28) >> 9 & 0x7FF;
             ((GsFldH11*)(buf + 500))->hi = 0;
             ((GsFldW11a*)(buf + 500))->b = one;
             ((GsFldH4*)(buf + 506))->b = *(u16*)(env + 26);
             ((GsFldB2*)(buf + 507))->b = *(u8*)(env + 27);
             ((GsFldH12*)(buf + 504))->hi =
-                ((u32)*(u16*)(env + 24) >> 4) +
+                ((u32)*(u16*)(env + 24) >> 4 & 0xFFF) +
                 selA * (((u32)*(u16*)(env + 26) >> 5 & 0xF) + 1);
             ((GsFldW11b*)(buf + 504))->b =
                 (*(u32*)(env + 24) >> 9 & 0x7FF) +
                 selC * (((u32)*(u8*)(env + 27) >> 3 & 3) + 1);
-            ((GsFldH12*)(buf + 508))->hi = (u32)*(u16*)(env + 28) >> 4;
+            ((GsFldH12*)(buf + 508))->hi =
+                (u32)*(u16*)(env + 28) >> 4 & 0xFFF;
             ((GsFldW11b*)(buf + 508))->b =
                 (*(u32*)(env + 28) >> 9 & 0x7FF) - 1;
             }
