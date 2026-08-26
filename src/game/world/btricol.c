@@ -831,21 +831,21 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
             side = 2;
         }
         num = ex0.x * tpB.z - ex0.z * tpB.x;
-        if ((f64)num > lbl_80345D40) {
+        if ((f64)num > *(volatile const f64*)&lbl_80345D40) {
             okB = 0;
             if (!(side & 2)) {
                 goto classified;
             }
         }
         num = ex0.x * tpA.z - ex0.z * tpA.x;
-        if ((f64)num > lbl_80345D40) {
+        if ((f64)num > *(volatile const f64*)&lbl_80345D40) {
             okA = 0;
             if (!(side & 1)) {
                 goto classified;
             }
         }
         num = (ex1.x - ex0.x) * (tpB.z - ex0.z) - (ex1.z - ex0.z) * (tpB.x - ex0.x);
-        if ((f64)num > lbl_80345D40) {
+        if ((f64)num > *(volatile const f64*)&lbl_80345D40) {
             okB = 0;
             if (!(side & 2)) {
                 goto classified;
