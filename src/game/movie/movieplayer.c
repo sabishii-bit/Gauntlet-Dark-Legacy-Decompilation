@@ -257,6 +257,30 @@ s32 fn_800D8784(u32* state) {
     return 0;
 }
 
+static inline void MovieDecodePalette(u32* state, u8* pal, int count)
+{
+    int i;
+    u8* p;
+    u8 sh1;
+    u8 sh0;
+    u8 sh2;
+    int n;
+
+    sh1 = 8 - *((u8*)state + 0x39);
+    sh0 = 8 - *((u8*)state + 0x38);
+    sh2 = 8 - *((u8*)state + 0x37);
+    n = count * 4;
+    i = 0;
+    p = pal;
+    for (; i < n; i++) {
+        fn_800DBE98((u32)state, p);
+        ((u16*)pal)[i] = (((p[0] >> sh0) << *((u8*)state + 0x36))
+                        | ((p[1] >> sh1) << *((u8*)state + 0x35)))
+                        | ((p[2] >> sh2) << *((u8*)state + 0x34));
+        p += 3;
+    }
+}
+
 /* VQ texture/tile decode into a GX tex obj (ReadU16LE/ReadF32LE, DCFlush/Invalidate, GXInvalidateTexAll) */
 u32 fn_800D87FC(u32* param_1, int param_2, char* param_3, int param_4, int param_5, u32 param_6) {
     int count;
@@ -278,31 +302,9 @@ u32 fn_800D87FC(u32* param_1, int param_2, char* param_3, int param_4, int param
     case 1:
         fn_800D860C((u32)param_1, pal, count);
         break;
-    case 2: {
-        int i;
-        int o;
-        u8* p;
-        u8 sh1;
-        u8 sh0;
-        u8 sh2;
-        int n;
-        sh1 = 8 - *((u8*)param_1 + 0x39);
-        sh0 = 8 - *((u8*)param_1 + 0x38);
-        sh2 = 8 - *((u8*)param_1 + 0x37);
-        n = count * 4;
-        i = 0;
-        p = pal;
-        o = i;
-        for (; i < n; i++) {
-            fn_800DBE98((u32)param_1, p);
-            *(u16*)(pal + o) = (((p[0] >> sh0) << *((u8*)param_1 + 0x36))
-                              | ((p[1] >> sh1) << *((u8*)param_1 + 0x35)))
-                              | ((p[2] >> sh2) << *((u8*)param_1 + 0x34));
-            p += 3;
-            o += 2;
-        }
+    case 2:
+        MovieDecodePalette(param_1, pal, count);
         break;
-    }
     default:
         return -1;
     }
@@ -326,8 +328,8 @@ u32 fn_800D87FC(u32* param_1, int param_2, char* param_3, int param_4, int param
             int d2;
             int y;
 
-            param_1[0] <<= 1;
             bits = *ip;
+            param_1[0] <<= 1;
             bp = ip + 1;
             ip += (nbits + 7) / 8;
             d8 = dir * 8;
