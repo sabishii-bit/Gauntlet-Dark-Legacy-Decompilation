@@ -2263,8 +2263,8 @@ extern char lbl_80347A68[];
 extern char lbl_80347A70[];
 extern char lbl_80347A78[];
 extern char lbl_80347A80[];
-extern char* lbl_801205D8[];  /* rune world tags (4) */
-extern char* lbl_801205F8[];  /* crystal color tags (8) */
+extern char lbl_801205D8[][4];  /* rune world tags (4) */
+extern char lbl_801205F8[][4];  /* crystal color tags (8) */
 extern char* lbl_8011FCD4[];  /* POTION_ICON_* names (5) */
 
 /* extern functions (back slice) */
@@ -4534,18 +4534,18 @@ void init_players(void) {
 /* Create every per-player HUD blit set (portrait frames, runes,       */
 /* crystals, keys, power meter, rune13, HOD, quest, tb_info).          */
 static void create_player_blits(s32 i) {
-    u16 lx = lbl_80120238[i];
-    u16 rx;
+    Player* player;
+    u16* lx = &lbl_80120238[i];
+    u16* rx;
     u32 tex;
-    void* b;
     s32 j;
 
-    frame_blit[i][0] = MBCreateBlit(0, 0, lx, 0x130, 0x80, -1);
-    frame_blit[i][1] = MBCreateBlit(0, 0, lx, 0x140, 0x80, -1);
-    frame_blit[i][2] = MBCreateBlit(0, 0, lx, 0x140, 0x80, -1);
-    frame_blit[i][3] = MBCreateBlit(0, 0, lx, 0x158, 0x94, -1);
-    frame_blit[i][4] = MBCreateBlit(0, 0, lx + 8, 0x148, 0x14, 0x14);
-    frame_blit[i][5] = MBCreateBlit(0, 0, lx, 0x148, 0x14, 0x14);
+    frame_blit[i][0] = MBCreateBlit(0, 0, *lx, 0x130, 0x80, -1);
+    frame_blit[i][1] = MBCreateBlit(0, 0, *lx, 0x140, 0x80, -1);
+    frame_blit[i][2] = MBCreateBlit(0, 0, *lx, 0x140, 0x80, -1);
+    frame_blit[i][3] = MBCreateBlit(0, 0, *lx, 0x158, 0x94, -1);
+    frame_blit[i][4] = MBCreateBlit(0, 0, *lx + 8, 0x148, 0x14, 0x14);
+    frame_blit[i][5] = MBCreateBlit(0, 0, *lx, 0x148, 0x14, 0x14);
     for (j = 0; j < 6; j++) {
         mbBlitInit3414(frame_blit[i][j], 1);
         mbBlitCvtCoord(frame_blit[i][j], 0.1f);
@@ -4553,43 +4553,45 @@ static void create_player_blits(s32 i) {
     for (j = 0; j < 12; j++) {
         sprintf(tbuf, "SM_RUNE_%s_%02d", lbl_801205D8[j / 3], j % 3 + 1);
         tex = (u32)MBOX_FindTexture_Err(tbuf, NULL, 1);
-        rune_blit[i][j] = MBCreateBlit(0, tex, lx + j * 8 + j / 3 + 0xF, 0x132, -1, -1);
+        rune_blit[i][j] = MBCreateBlit(0, tex, *lx + j * 8 + j / 3 + 0xF, 0x132, -1, -1);
         mbBlitInit3414(rune_blit[i][j], 1);
         mbBlitCvtCoord(rune_blit[i][j], 0.1f);
     }
     for (j = 0; j < 8; j++) {
         sprintf(tbuf, "SM_KEY_%s", lbl_801205F8[j]);
         tex = (u32)MBOX_FindTexture_Err(tbuf, NULL, 1);
-        crystal_blit[i][j] = MBCreateBlit(0, tex, lx + j * 12 + 0xC, 300, -1, -1);
+        crystal_blit[i][j] = MBCreateBlit(0, tex, *lx + j * 12 + 0xC, 300, -1, -1);
         mbBlitInit3414(crystal_blit[i][j], 1);
         mbBlitCvtCoord(crystal_blit[i][j], 0.1f);
     }
     for (j = 0; j < 4; j++) {
-        key_blit[i][j] = MBCreateBlit(0, 0, lx + 0x1A, j * 3 + 0x142, -1, -1);
+        key_blit[i][j] = MBCreateBlit(0, 0, *lx + 0x1A, j * 3 + 0x142, -1, -1);
         mbBlitInit3414(key_blit[i][j], 1);
         mbBlitCvtCoord(key_blit[i][j], 0.1f);
     }
     for (j = 0; j < 7; j++) {
-        b = MBNewBlit((char*)lbl_8011FC48[j * 5 + 1], i * 0x80 + lbl_8011FC48[j * 5 + 2],
-                      (u32)lbl_8011FC48[j * 5 + 3]);
-        pm_blit[i][j] = b;
-        lbl_8011FC48[j * 5] = MBBlitGetTex(b);
-        mbBlitInit3414(b, 1);
-        mbBlitCvtCoord(b, (f32)-lbl_8011FC48[j * 5 + 4]);
+        pm_blit[i][j] = MBNewBlit((char*)lbl_8011FC48[j * 5 + 1],
+                                  i * 0x80 + lbl_8011FC48[j * 5 + 2],
+                                  (u32)lbl_8011FC48[j * 5 + 3]);
+        lbl_8011FC48[j * 5] = MBBlitGetTex(pm_blit[i][j]);
+        mbBlitInit3414(pm_blit[i][j], 1);
+        mbBlitCvtCoord(pm_blit[i][j],
+                       (f32)-lbl_8011FC48[j * 5 + 4]);
     }
-    PF(P(i), 0x3340, s32) = 0;
-    rx = lbl_80120240[i];
+    player = P(i);
+    PF(player, 0x3340, s32) = 0;
+    rx = &lbl_80120240[i];
     tb_info[i].sel = -1;
-    tb_info[i].y_top = -1;
+    tb_info[i].slide = -1;
     tb_info[i].state = 0;
-    tb_info[i].x_right = rx - 0x34;
+    tb_info[i].x_right = *rx - 0x34;
     tb_info[i].y_top = 0x14F;
-    tb_info[i].x_left = rx - 0x40;
+    tb_info[i].x_left = *rx - 0x40;
     tb_info[i].y_box = 0x143;
     tb_info[i].tex1 = 0xF9F1;
     tb_info[i].tex2 = 0xF9F2;
     tb_info[i].label = NULL;
-    rune13_blit[i] = MBCreateBlit(0, 0, rx - 0xE, -0x143, -1, -1);
+    rune13_blit[i] = MBCreateBlit(0, 0, *rx - 0xE, -0x143, -1, -1);
     tex = (u32)MBOX_FindTexture_Err("BTMBK_LEVL", NULL, 1);
     mbInitBlitEntry(rune13_blit[i], tex, 0);
     mbBlitInit3414(rune13_blit[i], 1);
@@ -4597,17 +4599,17 @@ static void create_player_blits(s32 i) {
     if (lbl_803447C0 != 0) {
         mbBlitUpdateEntry(rune13_blit[i], -1, 0x100);
     }
-    PF(P(i), 0x954, s16) = 0;
-    hod_blit[i] = MBCreateBlit(0, 0, lx + 8, 0x154, 0x10, 0x10);
+    PF(player, 0x954, s16) = 0;
+    hod_blit[i] = MBCreateBlit(0, 0, *lx + 8, 0x154, 0x10, 0x10);
     tex = (u32)MBOX_FindTexture_Err("HODICON", NULL, 1);
     mbInitBlitEntry(hod_blit[i], tex, 0);
     mbBlitInit3414(hod_blit[i], 1);
     mbBlitCvtCoord(hod_blit[i], 0.1f);
-    quest_blit[i] = MBCreateBlit(0, 0, lx + 0x68, 0x152, 0x10, 0x10);
+    quest_blit[i] = MBCreateBlit(0, 0, *lx + 0x68, 0x152, 0x10, 0x10);
     mbBlitInit3414(quest_blit[i], 1);
     mbBlitCvtCoord(quest_blit[i], 0.1f);
-    P(i)->node = NULL;
-    P(i)->index = i;
+    player->node = NULL;
+    player->index = i;
 }
 
 /* Wipe all four records (keeps index + controller binding).           */
