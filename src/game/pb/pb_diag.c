@@ -38,6 +38,11 @@ typedef struct DiagMenu {
     /* 0x04 */ char* strs;      /* base of 36-byte string rows */
 } DiagMenu;
 
+typedef struct DiagMenuRow {
+    u8 _pad00[32];
+    s32 offset;
+} DiagMenuRow;
+
 /* pad / control state block (PB_DIAG `buttons`, 0x8028C388) */
 extern u32 buttons[];
 
@@ -775,8 +780,8 @@ s32 pbDiagDrawInfo(void)
         entry = 0;
     } else {
         if (menu->strs != 0) {
-            entry = (DiagList*)((u8*)menu +
-                *(s32*)(menu->strs + (&b[gDiagMenuIdx])[44] * 36 + 32));
+            DiagMenuRow* menuRow = &((DiagMenuRow*)menu->strs)[(&b[gDiagMenuIdx])[44]];
+            entry = (DiagList*)((u8*)menu + menuRow->offset);
             gDiagListSel = pbDiagCtrlInt(1, 0, gDiagListSel, 1, 0, entry->count);
         } else {
             gDiagListSel = 0;
@@ -792,24 +797,24 @@ s32 pbDiagDrawInfo(void)
         stepped = 0;
         w = b[8];
         if (w & 0x01000000) {
-            v = (&b[gDiagMenuIdx])[44] + 1;
-            (&b[gDiagMenuIdx])[44] = v;
+            s32* menuState = (s32*)&b[gDiagMenuIdx];
+            v = ++menuState[44];
             if (v >= menu->count) {
-                (&b[gDiagMenuIdx])[44] = 0;
+                menuState[44] = 0;
             }
             stepped = 1;
         }
         if (w & 0x04000000) {
-            v = (&b[gDiagMenuIdx])[44] - 1;
-            (&b[gDiagMenuIdx])[44] = v;
+            s32* menuState = (s32*)&b[gDiagMenuIdx];
+            v = --menuState[44];
             if (v < 0) {
-                (&b[gDiagMenuIdx])[44] = menu->count - 1;
+                menuState[44] = menu->count - 1;
             }
             stepped = 1;
         }
         if (stepped != 0) {
-            entry = (DiagList*)((u8*)menu +
-                *(s32*)(menu->strs + (&b[gDiagMenuIdx])[44] * 36 + 32));
+            DiagMenuRow* menuRow = &((DiagMenuRow*)menu->strs)[(&b[gDiagMenuIdx])[44]];
+            entry = (DiagList*)((u8*)menu + menuRow->offset);
             if (gDiagListSel >= entry->count) {
                 gDiagListSel = 0;
                 (&b[gDiagMenuIdx])[68] = 0;
@@ -819,15 +824,15 @@ s32 pbDiagDrawInfo(void)
     }
     if (!(b[114] != 0 && (void*)entry == gDiag_D1C)) {
         if (b[114] != 0) {
-            AtreeDelete((u8*)((u32)b + 456));
+            AtreeDelete((u8*)b + 456);
         }
         if (entry != 0) {
             s32 kept = gDiag_F00;
             if (gControllerButtons & 1) {
-                b[114] = AtreeInit(entry, (u8*)((u32)b + 456), 0, 0);
+                b[114] = AtreeInit(entry, (u8*)b + 456, 0, 0);
             } else {
                 b[114] =
-                    AtreeInit(entry, (u8*)((u32)b + 456), lbl_8023D000 + gDiagMenuIdx * 16, 0);
+                    AtreeInit(entry, (u8*)b + 456, lbl_8023D000 + gDiagMenuIdx * 16, 0);
             }
             if (gDiag_F00 != 0) {
                 gDiag_F00 = kept;
@@ -857,7 +862,7 @@ s32 pbDiagDrawInfo(void)
             gDiag_D24 = lbl_80348670;
         }
         if (gDiag_D24 >= lbl_80348678) {
-            DoAnimateTreeFrame((u8*)((u32)b + 456), gDiagListSel, (s32)gDiag_D24, 2);
+            DoAnimateTreeFrame((u8*)b + 456, gDiagListSel, (s32)gDiag_D24, 2);
         }
         MBTreeSetAmbientAdd(*(u32*)b[114],
                             (s32)(lbl_803486C8 * gDiag_D20), 1);
