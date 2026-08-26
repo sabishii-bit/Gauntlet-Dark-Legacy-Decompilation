@@ -470,14 +470,17 @@ int msgPost(int idx, int param, char* position)
     if (idx < 0 || idx >= gMsgDescCount) {
         return 0;
     }
-    if (desc->type < 0 || gTriggerCameraState != 0) {
+    if (desc->type < 0) {
+        return 0;
+    }
+    if (gTriggerCameraState != 0) {
         return 0;
     }
 
-    if (g7C0 == 0) {
-        lineCount = 8;
-    } else {
+    if (g7C0 != 0) {
         lineCount = 12;
+    } else {
+        lineCount = 8;
     }
     if (gLanguageId == 1) {
         lineCount = 14;
@@ -514,10 +517,10 @@ int msgPost(int idx, int param, char* position)
         return 0;
     }
 
-    if (param < 0) {
-        fontIndex = 4;
-    } else {
+    if (param >= 0) {
         fontIndex = param;
+    } else {
+        fontIndex = 4;
     }
     if (param < 0) {
         param = 0;
@@ -527,19 +530,19 @@ int msgPost(int idx, int param, char* position)
         get_screen_pos(0, &centerX, &centerY, position);
         centerY -= 0x3E;
     } else {
-        if (param < 0) {
-            centerX = 0x100;
-            centerY = 0xC0;
-        } else {
+        if (param >= 0) {
             centerX = (u16)gJumpTab120240[param];
             centerY = 0xFA;
+        } else {
+            centerX = 0x100;
+            centerY = 0xC0;
         }
     }
 
-    if (desc->param < 0) {
-        duration = StringTextNum(desc->type);
-    } else {
+    if (desc->param >= 0) {
         duration = 1;
+    } else {
+        duration = StringTextNum(desc->type);
     }
     height = StringTextHeight(1.0f, desc->type, desc->param, lineCount) + 0x10;
     top = centerY - (height >> 1);
