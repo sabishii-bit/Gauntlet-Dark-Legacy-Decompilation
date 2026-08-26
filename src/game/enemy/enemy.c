@@ -7034,15 +7034,20 @@ extern f64 lbl_80346868;
 s32 fn_8004646C(f32 rad, f32 hht, s32 index, f32* oldc, f32* newc, f32* newc2,
                 s32* hitWorld)
 {
-    u8* pool = (u8*)lbl_80250E00;
-    s32 startNode = *(s32*)(pool + index * 0x394 + 0x10A0);
+    s32 startNode = gEnemies[index].coll_enenum;
+    f64 minimum_hht;
+    f32 dist;
     f32 best = lbl_803468B0;
     s32 result = -1;
     s32 hint = -1;
     void* nodeCol;
     s32 node;
+    Enemy* self;
+    u8 stack_top[16];
+    f32 scratch[3];
+    u8 stack_gap[12];
     f32 delta[3];
-    u8 scratch[36];
+    u8 stack_bottom[28];
 
     if (hitWorld == NULL && startNode < 0x10000) {
         hint = startNode;
@@ -7053,66 +7058,70 @@ s32 fn_8004646C(f32 rad, f32 hht, s32 index, f32* oldc, f32* newc, f32* newc2,
         return *(s16*)nodeCol | 0x10000;
     }
     StartItemGrid(rad, newc);
+    self = &gEnemies[index];
+    minimum_hht = lbl_80346868;
     for (;;) {
         Enemy* other;
         s32 st;
         s32 linked;
 
-        if (hint >= 0) {
+        if (hint < 0) {
+            node = NextGridItem();
+        } else {
             node = hint;
             hint = -1;
-        } else {
-            node = NextGridItem();
         }
         if (node < 0) {
             break;
         }
+        other = &gEnemies[node];
         if (node == index) {
             continue;
         }
-        other = &gEnemies[node];
-        st = *(s32*)((u8*)other + 0xB4);
+        st = other->state;
         if (st == 0 || st == 8) {
             continue;
         }
         {
-            Enemy* c = &gEnemies[index];
-            s32 v;
+            Enemy* c = self;
 
-            linked = 0;
-            for (;;) {
-                v = *(s32*)((u8*)c + 0x338);
-                if (v < 0) {
-                    break;
-                }
-                if (v == node) {
-                    linked = -1;
-                    break;
-                }
-                c = &gEnemies[v];
+            goto load_linked_enemy;
+check_linked_enemy:
+            if (linked == node) {
+                linked = -1;
+                goto linked_enemy_done;
             }
+            c = &gEnemies[linked];
+load_linked_enemy:
+            linked = c->next_enemy;
+            if (linked >= 0) {
+                goto check_linked_enemy;
+            }
+            linked = 0;
+linked_enemy_done:
+            ;
         }
         if (linked != 0) {
             continue;
         }
-        if ((f64)*(f32*)((u8*)other + 0x23C) <= lbl_80346868) {
-            if (*(s32*)other == 0x1D) {
+        if ((f64)other->hht <= minimum_hht) {
+            if (other->type == E_GOLEM) {
                 continue;
             }
         }
-        delta[0] = *(f32*)((u8*)other + 0x54) - newc[0];
-        delta[1] = *(f32*)((u8*)other + 0x58) - newc[1];
-        delta[2] = *(f32*)((u8*)other + 0x5C) - newc[2];
+        delta[0] = other->objgrp.coll_pos[0] - newc[0];
+        delta[1] = other->objgrp.coll_pos[1] - newc[1];
+        delta[2] = other->objgrp.coll_pos[2] - newc[2];
         {
-            f32 dist = NormalVector2D(delta);
+            dist = NormalVector2D(delta);
 
             if (dist >= best) {
                 continue;
             }
-            if (LineCylinderCollide((f32*)((u8*)other + 0x54),
-                                    rad + *(f32*)((u8*)other + 0x238),
-                                    hht + *(f32*)((u8*)other + 0x23C), oldc,
-                                    newc, (f32*)scratch, 1) == 0) {
+            if (LineCylinderCollide(&other->objgrp.coll_pos[0],
+                                    rad + other->rad,
+                                    hht + other->hht, oldc,
+                                    newc, scratch, 1) == 0) {
                 continue;
             }
             best = dist;
