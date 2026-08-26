@@ -547,7 +547,7 @@ void pbDiagDrawSoundRow(void)
     char* strs = lbl_80114E90;
     u8* bank;
     u8* snd;
-    u8* snd2;
+    SndSlots* snd2;
     u8* sub2;
     u8* voice;
     u32 col1;
@@ -568,7 +568,6 @@ void pbDiagDrawSoundRow(void)
     int flag;
     int id;
     u8* sub;
-    s32* q32;
     u32 val;
     char buf[128];
 
@@ -640,9 +639,10 @@ void pbDiagDrawSoundRow(void)
         fn_800C008C(0x00FFFFFF, 10, row + 5, strs + 180);
         row++;
     }
-    snd2 = sAudioBankTable->banks + (gDiag_D28 * 9364 + gDiag_D2C * 292 + 20);
-    q32 = (s32*)(snd2 + gDiag_D34 * 4);
-    id = q32[7];
+    off = gDiag_D28 * 9364;
+    soff = gDiag_D2C * 292;
+    snd2 = (SndSlots*)(sAudioBankTable->banks + off + soff + 20);
+    id = snd2->slots[gDiag_D34];
     sub2 = sAudioBankTable->subs + id * 44;
     voice = sAudioBankTable->voices + *(s16*)(sub2 + 38) * 28;
     if (gDiag_D38 == 2) {
@@ -651,10 +651,7 @@ void pbDiagDrawSoundRow(void)
         col3 = 0x0000FF00;
     }
     top = gDiag_D30 - 15;
-    if (top > 0) {
-    } else {
-        top = 0;
-    }
+    top = top > 0 ? top : 0;
     bot = top + 29;
     if (bot >= *(s16*)(sub2 + 36)) {
         bot = *(s16*)(sub2 + 36) - 1;
@@ -666,7 +663,7 @@ void pbDiagDrawSoundRow(void)
     while (i < *(s16*)(sub2 + 36)) {
         if (row >= top && row <= bot) {
             u8* e = voice + soff;
-            val = ((*(s32*)(snd2 + gDiag_D34 * 4 + 28) & 0x7FFF) << 16) | i;
+            val = ((snd2->slots[gDiag_D34] & 0x7FFF) << 16) | i;
             sprintf(buf, strs + 204, *(f32*)(e + 20), val);
             fn_800C008C((i == gDiag_D30) ? col3 : 0x00FFFFFF, 25, row + 5 - top, buf);
         }
