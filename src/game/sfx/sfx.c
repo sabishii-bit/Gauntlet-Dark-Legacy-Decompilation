@@ -2421,6 +2421,8 @@ extern void* CritterExpCollide();
 extern void* CritterMoveNodeCol();
 extern void* MissileCollidePlayer(f32* oldpos, f32* newpos, f32* hitpos);
 extern s32 MissileCollideEnemy();
+extern s32 fn_8005FB48(f32 radius, f32* from, f32* to,
+                       f32* limitPosition, s32 stopAtFirst);
 extern void* WeaponWallCollide(f32 radius, f32* oldpos, f32* newpos,
                                f32* hitpos);
 extern u32 WorldObjGetAllFlags(void* object);
@@ -2481,6 +2483,19 @@ struct fxenemy {
     /* 0x23C */ u8 _23c[0x78];
     /* 0x2B4 */ f32 fxhittime[5];
     /* 0x2C8 */ s32 fxhitidx;
+};
+
+struct fxplayer {
+    /* 0x000 */ s32 index;
+    /* 0x004 */ u8 _004[0x60];
+    /* 0x064 */ f32 effectpos[3];
+    /* 0x070 */ u8 _070[0x78];
+    /* 0x0E8 */ s32 state;
+    /* 0x0EC */ u8 _0ec[0x764];
+    /* 0x850 */ f32 radius;
+    /* 0x854 */ f32 halfheight;
+    /* 0x858 */ u8 _858[0x90];
+    /* 0x8E8 */ f32 fxhittime;
 };
 
 /* The item pool is a fixed array of 0xF0-byte records.  Keep this local view
@@ -2729,35 +2744,71 @@ void ProcessEffects(void)
         travel = NormalVector(dir);
         oldDebugCount = e->debugcount;
 
-        /* Direct player hits.  The target scans the four fixed player
-         * records before using its swept-missile helper. */
+        /* Direct player hits.  Expanding effects scan every active player;
+         * point effects use the separate swept-missile state machine. */
         if ((flags & 1) && hit == 0) {
-            for (j = 0; j < 4; j++) {
-                u8* player = gPlayers + j * 13148;
-                f32* playerpos = (f32*)(player + 84);
-                f32 delta[3];
-                f32 dist;
-                delta[0] = playerpos[0] - pos[0];
-                delta[1] = playerpos[1] - pos[1];
-                delta[2] = playerpos[2] - pos[2];
-                dist = NormalVector2D(delta);
-                if (dist <= radius + *(f32*)(player + 2128)) {
-                    delta[0] = dir[0] * 0.25f;
-                    delta[1] = 0.0f;
-                    delta[2] = dir[2] * 0.25f;
-                    hit = damage_player(*(s32*)player, collisionDamage, 1,
-                                        e->damagetype, delta);
-                    if (e->owner >= 4096) {
-                        CritterSetFxHitTime(collisionDamage, *(s32*)player,
-                                           e->owner & 0xfff);
-                    }
-                    if (hit != 0) {
-                        break;
+            if (mode != 0) {
+                if (radius > 0.0f && !(flags & 0x200)) {
+                    for (j = 0; j < 4; j++) {
+                        struct fxplayer* player =
+                            (struct fxplayer*)(gPlayers + j * 13148);
+                        union {
+                            f32 value;
+                            u32 bits;
+                        } absdy;
+                        f32 delta[3];
+                        f32 dist;
+                        f32 mindp;
+
+                        if (player->state != 1 ||
+                            sMusicFadeBase < player->fxhittime ||
+                            player->index == e->owner - 1) {
+                            continue;
+                        }
+                        delta[0] = player->effectpos[0] - pos[0];
+                        delta[1] = player->effectpos[1] - pos[1];
+                        delta[2] = player->effectpos[2] - pos[2];
+                        absdy.value = delta[1];
+                        absdy.bits &= 0x7fffffff;
+                        if (absdy.value > player->halfheight + radius) {
+                            continue;
+                        }
+                        dist = NormalVector2D(delta);
+                        if (dist > player->radius + radius) {
+                            continue;
+                        }
+                        if (dist > 2.0f &&
+                            fn_8005FB48(15.0f, pos, player->effectpos,
+                                       player->effectpos, 1) >= 0) {
+                            continue;
+                        }
+                        if (e->mindp > -1.0f) {
+                            mindp = e->mindp;
+                            if (dist < 0.2f * (player->radius + radius)) {
+                                mindp *= 0.5f;
+                            }
+                            if (delta[0] * dir[0] + delta[2] * dir[2] <
+                                mindp) {
+                                continue;
+                            }
+                        }
+                        delta[0] *= 0.25f;
+                        delta[1] = 0.0f;
+                        delta[2] *= 0.25f;
+                        damage_player(player->index, collisionDamage, 1,
+                                      e->damagetype, delta);
+                        if (e->owner >= 4096) {
+                            CritterSetFxHitTime(collisionDamage, player->index,
+                                               e->owner & 0xfff);
+                        }
+                        if (e->damagetype & 0x800) {
+                            player->fxhittime = sMusicFadeBase + 1.0f;
+                        } else if (collisionDamage > 0.0f) {
+                            player->fxhittime = sMusicFadeBase + fade;
+                        }
                     }
                 }
-            }
-
-            if (hit == 0 && mode != 0) {
+            } else {
                 u8* player = (u8*)MissileCollidePlayer(oldpos, pos, hitpos);
                 if (player != NULL && *(s32*)player != e->owner - 1) {
                     if ((e->flags & 0x200000) == 0) {
