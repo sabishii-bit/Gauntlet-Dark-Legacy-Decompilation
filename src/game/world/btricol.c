@@ -819,9 +819,9 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
             o2.z = pz;
         }
     } else {
+        s32 side;
         s32 okB = 1;
         s32 okA = 1;
-        s32 side;
 
         if (btri_fabsf(tpB.y) < btri_fabsf(tpA.y)) {
             side = 1;
