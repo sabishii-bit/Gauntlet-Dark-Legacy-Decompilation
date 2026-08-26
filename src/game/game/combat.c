@@ -236,7 +236,7 @@ s32 StartMissile(s32 owner, f32* position, f32* velocity, u32 damageType,
                  u32 extraFlags, f32 scale, f32 damageMag);
 /* StartMissile FX/vibration constants */
 extern f32 lbl_803463C0, lbl_8034633C, lbl_80346328, lbl_803463D0;
-extern f64 lbl_80346348, lbl_80346340, lbl_803463C8;
+extern f64 lbl_80346348, lbl_80346350, lbl_80346340, lbl_803463C8;
 extern char lbl_80111E28[];
 extern s32 optionsAudioAndPrefs30[8];
 extern s32 WeaponStreakTex;
@@ -3546,13 +3546,22 @@ s32 DamageColor(s32 type)
     }
 }
 
+static inline f32 LineCylinderAbs(f32 value)
+{
+    *(u32*)&value &= 0x7FFFFFFF;
+    return value;
+}
+
 s32 LineCylinderCollide(f32* center, f32 radius, f32 halfHeight,
                         f32* from, f32* to, f32* hit, s32 directional)
 {
     f32 closest[3];
-    volatile f32 delta[3];
-    f32 fromDir[3];
+    f32 delta[3];
     f32 centerDir[3];
+    union {
+        f32 value;
+        u32 bits;
+    } absDeltaY;
     f32 distance;
 
     distance = PointLineColl(center, from, to, closest);
@@ -3562,24 +3571,25 @@ s32 LineCylinderCollide(f32* center, f32 radius, f32 halfHeight,
     delta[0] = closest[0] - center[0];
     delta[1] = closest[1] - center[1];
     delta[2] = closest[2] - center[2];
-    if (fqdist(delta[0], delta[2]) > radius ||
-        (delta[1] < 0.0f ? -delta[1] : delta[1]) > halfHeight) {
+    distance = fqdist(delta[0], delta[2]);
+    absDeltaY.value = LineCylinderAbs(delta[1]);
+    if (distance > radius || absDeltaY.value > halfHeight) {
         return 0;
     }
 
     if (directional != 0) {
-        fromDir[0] = center[0] - from[0];
-        fromDir[1] = 0.0f;
-        fromDir[2] = center[2] - from[2];
-        distance = NormalVector2D(fromDir);
+        delta[0] = center[0] - from[0];
+        delta[1] = 0.0f;
+        delta[2] = center[2] - from[2];
+        distance = NormalVector2D(delta);
         if (distance <= radius) {
             centerDir[0] = to[0] - from[0];
             centerDir[1] = 0.0f;
             centerDir[2] = to[2] - from[2];
             {
                 f32 lineLength = NormalVector2D(centerDir);
-                if (distance < 0.001f) {
-                    if (lineLength < 0.001f) {
+                if (distance < lbl_80346348) {
+                    if (lineLength < lbl_80346348) {
                         if (hit != 0) {
                             hit[0] = closest[0];
                             hit[1] = closest[1];
@@ -3589,8 +3599,8 @@ s32 LineCylinderCollide(f32* center, f32 radius, f32 halfHeight,
                     }
                     return 0;
                 }
-                if (centerDir[0] * fromDir[0] +
-                    centerDir[2] * fromDir[2] < -0.01f) {
+                if (centerDir[0] * delta[0] +
+                    centerDir[2] * delta[2] < lbl_80346350) {
                     return 0;
                 }
             }
