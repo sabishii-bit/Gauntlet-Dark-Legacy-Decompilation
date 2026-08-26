@@ -155,7 +155,7 @@ u32 fn_800D93D4(u32* p1, u32 p2, int p3, char* p4, int p5, u8* p6);
 u32 fn_800D87FC(u32* p1, int p3, char* p4, int mode, int p5, u8* p6);
 u32 fn_800D8BCC(u32* p1, int p3, char* p4, int mode, int p5, u8* p6);
 u32 fn_800D8F28(MovieDecodeState* p1, int p3, char* p4, int p5, u8* p6);
-u32 fn_800D91B4(u32* p1, int p3, char* p4, int p5, u8* p6);
+u32 fn_800D91B4(MovieDecodeState* p1, int p3, char* p4, int p5, u8* p6);
 u32 fn_800D9A14(u32* p1, u8* p2, int p3, u8 p4);
 void fn_800DBE98(void* param_1, u8* param_2);
 int fn_800DB2F4(u8* param_1, u8* param_2, u32 param_3, u32 param_4);
@@ -692,74 +692,82 @@ u32 fn_800D8F28(MovieDecodeState* state, int unused1, char* unused2,
 }
 
 /* VQ chunk -> buffer copy (ReadU16LE, memcpy) */
-u32 fn_800D91B4(u32* param_1, int param_2, char* param_3, int param_4, u8* param_5) {
-    u16 uVar2;
-    u32 uVar1;
-    int iVar3;
-    int iVar4;
-    int iVar5;
-    u32 uVar6;
-    u32 uVar7;
-    u8* pbVar8;
-    u8* pbVar9;
-    int iVar10;
+u32 fn_800D91B4(MovieDecodeState* state, int unused1, char* unused2,
+                 int bitmap, u8* dst) {
+    int count;
+    u8* palette;
+    int rowStride;
+    u8* indices;
+    int i;
+    int offset;
 
-    uVar2 = ReadU16LE((u8*)param_1[6]);
-    uVar1 = uVar2;
-    iVar10 = param_1[6] + 4;
-    pbVar8 = (u8*)(iVar10 + uVar1 * 0xc);
-    iVar3 = 0;
-    for (iVar5 = 0; iVar5 < (int)uVar1; iVar5 = iVar5 + 1) {
-        pbVar9 = (u8*)(iVar10 + iVar3);
-        fn_800DBE98(param_1, pbVar9);
-        fn_800DBE98(param_1, pbVar9 + 3);
-        fn_800DBE98(param_1, pbVar9 + 6);
-        fn_800DBE98(param_1, pbVar9 + 9);
-        iVar3 = iVar3 + 0xc;
+    count = ReadU16LE(state->chunk);
+    palette = state->chunk + 4;
+    indices = palette + count * 12;
+    i = 0;
+    offset = 0;
+    for (; i < count; i++, offset += 12) {
+        u8* entry = palette + offset;
+        fn_800DBE98(state, entry);
+        fn_800DBE98(state, entry + 3);
+        fn_800DBE98(state, entry + 6);
+        fn_800DBE98(state, entry + 9);
     }
-    if (*(int*)(param_4 + 8) < 0) {
-        iVar3 = *param_1 * -3;
-        param_5 = param_5 + *param_1 * (param_1[1] - 1) * 3;
+
+    if (*(int*)(bitmap + 8) < 0) {
+        dst += state->width * (state->height - 1) * 3;
+        rowStride = -state->width * 3;
     } else {
-        iVar3 = *param_1 * 3;
+        rowStride = state->width * 3;
     }
-    if (uVar1 < 0x101) {
-        for (iVar5 = 0; iVar5 < (int)param_1[1]; iVar5 = iVar5 + 2) {
-            for (iVar4 = 0; iVar4 < (int)*param_1; iVar4 = iVar4 + 2) {
-                uVar1 = iVar10 + (u32)*pbVar8 * 0xc;
-                pbVar8 = pbVar8 + 1;
-                memcpy((void*)param_5, (void*)uVar1, 6);
-                memcpy((void*)(param_5 + iVar3), (void*)(uVar1 + 6), 6);
-                param_5 = param_5 + 6;
-            }
-            param_5 = param_5 + iVar3;
-        }
-    } else {
-        uVar1 = *param_1;
-        uVar6 = *pbVar8;
-        uVar7 = 0;
-        uVar1 = ((int)uVar1 >> 1) * param_1[1];
-        uVar1 = (int)uVar1 >> 1;
-        pbVar9 = pbVar8 + ((int)uVar1 >> 3);
-        pbVar8 = pbVar8 + 1;
-        for (iVar5 = 0; iVar5 < (int)param_1[1]; iVar5 = iVar5 + 2) {
-            for (iVar4 = 0; iVar4 < (int)*param_1; iVar4 = iVar4 + 2) {
-                uVar1 = iVar10 + (((int)uVar6 >> (uVar7 & 0x3f) & 1U) << 8 | (u32)*pbVar9) * 0xc;
-                pbVar9 = pbVar9 + 1;
-                memcpy((void*)param_5, (void*)uVar1, 6);
-                memcpy((void*)(param_5 + iVar3), (void*)(uVar1 + 6), 6);
-                uVar7 = uVar7 + 1;
-                if ((uVar7 & 0xff) == 8) {
-                    uVar6 = *pbVar8;
-                    uVar7 = 0;
-                    pbVar8 = pbVar8 + 1;
+
+    if (count > 256) {
+        s32 bits;
+        u8* bitBytes;
+        u8 bitCount;
+        int y;
+
+        bits = *indices;
+        bitBytes = indices;
+        indices += (state->width / 2 * state->height / 2) / 8;
+        bitCount = 0;
+        y = 0;
+        bitBytes++;
+        for (; y < state->height; y += 2) {
+            int x = 0;
+            for (; x < state->width; x += 2) {
+                u8* entry;
+
+                entry = palette +
+                        ((((bits >> bitCount) & 1U) << 8) | *indices) * 12;
+                indices++;
+                memcpy(dst, entry, 6);
+                memcpy(dst + rowStride, entry + 6, 6);
+                bitCount++;
+                if (bitCount == 8) {
+                    bits = *bitBytes;
+                    bitCount = 0;
+                    bitBytes++;
                 }
-                param_5 = param_5 + 6;
+                dst += 6;
             }
-            param_5 = param_5 + iVar3;
+            dst += rowStride;
+        }
+    } else {
+        int y = 0;
+        for (; y < state->height; y += 2) {
+            int x = 0;
+            for (; x < state->width; x += 2) {
+                u8* entry = palette + *indices * 12;
+                indices++;
+                memcpy(dst, entry, 6);
+                memcpy(dst + rowStride, entry + 6, 6);
+                dst += 6;
+            }
+            dst += rowStride;
         }
     }
-    param_1[7] = param_1[7] + 1;
+    state->frame++;
     return 0;
 }
 
@@ -801,7 +809,8 @@ u32 fn_800D93D4(u32* param_1, u32 param_2, int param_3, char* param_4, int param
         case 0:
         case 3:
             if (*(u16*)(param_5 + 0xe) == 0x18) {
-                return fn_800D91B4(param_1, param_3, param_4, param_5, param_6);
+                return fn_800D91B4((MovieDecodeState*)param_1, param_3,
+                                    param_4, param_5, param_6);
             }
             if (*(u16*)(param_5 + 0xe) == 0x10) {
                 return fn_800D8BCC(param_1, param_3, param_4, 2, param_5, param_6);
