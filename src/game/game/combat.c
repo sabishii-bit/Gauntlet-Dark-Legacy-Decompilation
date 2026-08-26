@@ -1662,10 +1662,6 @@ void StandardCamera_8002B828(s32 camIdx)
 {
     u8* cameraState = gCameraState;
     Camera* cam = (Camera*)(cameraState + camIdx * sizeof(Camera) + 0xC8);
-    f32* wpos = cam->wpos;
-    f32* attn = cam->attn;
-    f32* recorder = (f32*)(cameraState + 0x34);
-    CameraTarget* targets = (CameraTarget*)(cameraState + 0xA10);
     s32 wasPanning = lbl_803444DC;
     s32 scrH = MBScreenHeight();
     s32 scrW = MBScreenWidth();
@@ -1676,32 +1672,52 @@ void StandardCamera_8002B828(s32 camIdx)
     f32 offX = lbl_80345EC8;
     f32 offZ = lbl_80345EC8;
     f32 yaw;
+    f32 panXStart;
+    u8* levelData;
     s32 i;
 
-    if (gCurLevel == 0 || camIdx != 0 || lbl_8034453C != 0 ||
-        cam->c_mode != 3 || gBossType >= 0 || gBossType == 0x22) {
+    if (gCurLevel == 0) {
+        return;
+    }
+    levelData = *(u8**)((u8*)gCurLevel + 0x60);
+    if (camIdx != 0) {
+        return;
+    }
+    if (lbl_8034453C != 0) {
+        return;
+    }
+    if (cam->c_mode != 3) {
+        return;
+    }
+    if (gBossType < 0) {
+        goto valid_boss_type;
+    }
+    return;
+valid_boss_type:
+    if (gBossType == 0x22) {
         return;
     }
 
-    if (lbl_80345F78 == (f64)lbl_803444D8 && lbl_80345F78 == (f64)lbl_803444D4) {
-        lbl_803444DC = 0;
-        lbl_803444D0 = 0;
-        lbl_80344528 = *(f32*)(*(s32*)((u8*)gCurLevel + 0x60) + 0x30);
-    } else {
+    panXStart = lbl_803444D8;
+    if (lbl_80345F78 != (f64)lbl_803444D8 || lbl_80345F78 != (f64)lbl_803444D4) {
         lbl_803444DC = 1;
         lbl_803444D0 = lbl_803444D0 + gFrameTicks;
+    } else {
+        lbl_803444DC = 0;
+        lbl_803444D0 = 0;
+        lbl_80344528 = *(f32*)(levelData + 0x30);
     }
     if (gCameraTargetCount > 0) {
-        for (i = 0; i < 15; i++) {
-            CameraTarget* t = &targets[i];
+        CameraTarget* t = (CameraTarget*)(cameraState + 0xA10);
+        for (i = 0; i < 15; i++, t++) {
             if (t->active != 0) {
                 f32 tx = *(f32*)((u8*)t + 0x28);
-                if (tx < minX) minX = tx;
+                if (minX > tx) minX = tx;
                 if (maxX < tx) maxX = tx;
                 if (maxY < *(f32*)((u8*)t + 0x2C)) {
                     maxY = *(f32*)((u8*)t + 0x2C);
                 }
-                if (*(f32*)((u8*)t + 0x34) < minY) {
+                if (minY > *(f32*)((u8*)t + 0x34)) {
                     minY = *(f32*)((u8*)t + 0x34);
                 }
             }
@@ -1713,22 +1729,20 @@ void StandardCamera_8002B828(s32 camIdx)
     }
 
     if (gCameraTargetCount < 1 ||
-        cam->radius <= *(f32*)(*(s32*)((u8*)gCurLevel + 0x60) + 0x30) ||
+        cam->radius <= *(f32*)(levelData + 0x30) ||
         (lbl_80344500 == 0 && lbl_803444F4 != 0 && lbl_803444DC == 0) ||
         (f64)lbl_803444E8 < lbl_80345F90) {
-        if (lbl_803461E0 <= (f64)errX) {
+        if ((f64)errX >= lbl_803461E0) {
             f32 absPanX;
 
-            if ((f64)lbl_803444D8 <= lbl_80345F78) {
-                if ((f64)lbl_803444D8 < lbl_80345F78) {
-                    lbl_803444D8 = lbl_803444D8 + lbl_80346188;
-                    if (lbl_80345F78 <= (f64)lbl_803444D8) {
-                        lbl_803444D8 = lbl_80345EC8;
-                    }
-                }
-            } else {
+            if ((f64)panXStart > lbl_80345F78) {
                 lbl_803444D8 = lbl_803444D8 - lbl_80346188;
                 if ((f64)lbl_803444D8 <= lbl_80345F78) {
+                    lbl_803444D8 = lbl_80345EC8;
+                }
+            } else if ((f64)panXStart < lbl_80345F78) {
+                lbl_803444D8 = lbl_803444D8 + lbl_80346188;
+                if (lbl_80345F78 <= (f64)lbl_803444D8) {
                     lbl_803444D8 = lbl_80345EC8;
                 }
             }
@@ -1738,19 +1752,18 @@ void StandardCamera_8002B828(s32 camIdx)
                 lbl_803444D8 = lbl_80345EC8;
             }
         }
-        if (lbl_803461E0 <= (f64)errY) {
+        if ((f64)errY >= lbl_803461E0) {
             f32 absPanY;
+            f32 panYStart = lbl_803444D4;
 
-            if ((f64)lbl_803444D4 <= lbl_80345F78) {
-                if ((f64)lbl_803444D4 < lbl_80345F78) {
-                    lbl_803444D4 = (f32)((f64)lbl_803444D4 + lbl_80346188);
-                    if (lbl_80345F78 <= (f64)lbl_803444D4) {
-                        lbl_803444D4 = lbl_80345EC8;
-                    }
-                }
-            } else {
-                lbl_803444D4 = (f32)((f64)lbl_803444D4 - lbl_80346188);
+            if ((f64)panYStart > lbl_80345F78) {
+                lbl_803444D4 = panYStart - lbl_80346188;
                 if ((f64)lbl_803444D4 <= lbl_80345F78) {
+                    lbl_803444D4 = lbl_80345EC8;
+                }
+            } else if ((f64)panYStart < lbl_80345F78) {
+                lbl_803444D4 = panYStart + lbl_80346188;
+                if (lbl_80345F78 <= (f64)lbl_803444D4) {
                     lbl_803444D4 = lbl_80345EC8;
                 }
             }
@@ -1769,78 +1782,68 @@ void StandardCamera_8002B828(s32 camIdx)
         f32 absErrYMoving;
         f32 absErrYEase;
         f32 absPanY;
+        u8 unused[160];
 
         *(u32*)&absErrXStart &= 0x7FFFFFFF;
-        if (lbl_80346160 <= (f64)absErrXStart &&
-            lbl_80345F78 == (f64)lbl_803444D8) {
-            goto adjust_pan_x;
-        }
         absErrXMoving = errX;
         *(u32*)&absErrXMoving &= 0x7FFFFFFF;
-        if (lbl_803461E0 <= (f64)absErrXMoving &&
-            lbl_80345F78 != (f64)lbl_803444D8) {
-adjust_pan_x:
-            if ((f64)errX < lbl_80345F78) {
-                lbl_803444D8 = (f32)((f64)lbl_803444D8 - lbl_80346070);
-            } else {
+        if ((lbl_80346160 <= (f64)absErrXStart &&
+             lbl_80345F78 == (f64)lbl_803444D8) ||
+            (lbl_803461E0 <= (f64)absErrXMoving &&
+             lbl_80345F78 != (f64)lbl_803444D8)) {
+            if ((f64)errX >= lbl_80345F78) {
                 lbl_803444D8 = (f32)((f64)lbl_803444D8 + lbl_80346070);
+            } else {
+                lbl_803444D8 = (f32)((f64)lbl_803444D8 - lbl_80346070);
             }
-            goto pan_x_done;
-        }
-        absErrXEase = errX;
-        *(u32*)&absErrXEase &= 0x7FFFFFFF;
-        if ((f64)absErrXEase < lbl_803460D0) {
-            if ((f64)lbl_803444D8 <= lbl_80345F78) {
-                if ((f64)lbl_803444D8 < lbl_80345F78) {
+        } else {
+            absErrXEase = errX;
+            *(u32*)&absErrXEase &= 0x7FFFFFFF;
+            if ((f64)absErrXEase < lbl_803460D0) {
+                if ((f64)lbl_803444D8 > lbl_80345F78) {
+                    lbl_803444D8 = (f32)((f64)lbl_803444D8 - lbl_803461E8);
+                    if ((f64)lbl_803444D8 <= lbl_80345F78) {
+                        lbl_803444D8 = lbl_80345EC8;
+                    }
+                } else if ((f64)lbl_803444D8 < lbl_80345F78) {
                     lbl_803444D8 = (f32)((f64)lbl_803444D8 + lbl_803461E8);
                     if (lbl_80345F78 <= (f64)lbl_803444D8) {
                         lbl_803444D8 = lbl_80345EC8;
                     }
                 }
-            } else {
-                lbl_803444D8 = (f32)((f64)lbl_803444D8 - lbl_803461E8);
-                if ((f64)lbl_803444D8 <= lbl_80345F78) {
+                absPanX = lbl_803444D8;
+                *(u32*)&absPanX &= 0x7FFFFFFF;
+                if (absPanX < lbl_803461E8) {
                     lbl_803444D8 = lbl_80345EC8;
                 }
             }
-            absPanX = lbl_803444D8;
-            *(u32*)&absPanX &= 0x7FFFFFFF;
-            if (absPanX < lbl_803461E8) {
-                lbl_803444D8 = lbl_80345EC8;
-            }
         }
-pan_x_done:
+
         absErrYStart = errY;
         *(u32*)&absErrYStart &= 0x7FFFFFFF;
-        if (lbl_80346160 <= (f64)absErrYStart &&
-            lbl_80345F78 == (f64)lbl_803444D4) {
-            goto adjust_pan_y;
-        }
         absErrYMoving = errY;
         *(u32*)&absErrYMoving &= 0x7FFFFFFF;
-        if (lbl_803461E0 <= (f64)absErrYMoving &&
-            lbl_80345F78 != (f64)lbl_803444D4) {
-adjust_pan_y:
-                if ((f64)errY < lbl_80345F78) {
-                    lbl_803444D4 = (f32)((f64)lbl_803444D4 + lbl_80346070);
-                } else {
-                    lbl_803444D4 = (f32)((f64)lbl_803444D4 - lbl_80346070);
-                }
-                goto pan_y_done;
-        }
-        absErrYEase = errY;
-        *(u32*)&absErrYEase &= 0x7FFFFFFF;
-        if ((f64)absErrYEase < lbl_803460D0) {
-                if ((f64)lbl_803444D4 <= lbl_80345F78) {
-                    if ((f64)lbl_803444D4 < lbl_80345F78) {
-                        lbl_803444D4 = (f32)((f64)lbl_803444D4 + lbl_803461E8);
-                        if (lbl_80345F78 <= (f64)lbl_803444D4) {
-                            lbl_803444D4 = lbl_80345EC8;
-                        }
-                    }
-                } else {
+        if ((lbl_80346160 <= (f64)absErrYStart &&
+             lbl_80345F78 == (f64)lbl_803444D4) ||
+            (lbl_803461E0 <= (f64)absErrYMoving &&
+             lbl_80345F78 != (f64)lbl_803444D4)) {
+            if ((f64)errY >= lbl_80345F78) {
+                lbl_803444D4 = (f32)((f64)lbl_803444D4 - lbl_80346070);
+            } else {
+                lbl_803444D4 = (f32)((f64)lbl_803444D4 + lbl_80346070);
+            }
+        } else {
+            absErrYEase = errY;
+            *(u32*)&absErrYEase &= 0x7FFFFFFF;
+            if ((f64)absErrYEase < lbl_803460D0) {
+                if ((f64)lbl_803444D4 > lbl_80345F78) {
                     lbl_803444D4 = (f32)((f64)lbl_803444D4 - lbl_803461E8);
                     if ((f64)lbl_803444D4 <= lbl_80345F78) {
+                        lbl_803444D4 = lbl_80345EC8;
+                    }
+                } else if ((f64)lbl_803444D4 < lbl_80345F78) {
+                    lbl_803444D4 = (f32)((f64)lbl_803444D4 + lbl_803461E8);
+                    if (lbl_80345F78 <= (f64)lbl_803444D4) {
                         lbl_803444D4 = lbl_80345EC8;
                     }
                 }
@@ -1849,50 +1852,61 @@ adjust_pan_y:
                 if (absPanY < lbl_803461E8) {
                     lbl_803444D4 = lbl_80345EC8;
                 }
+            }
         }
-pan_y_done:;
     }
 
     if (lbl_80345F78 != (f64)lbl_803444D8) {
         f32 sinScale;
         f32 cosScale;
+        f32 sinValue;
+        f32 cosValue;
 
-        if ((f64)lbl_803444D8 <= lbl_80345F78) {
-            yaw = (f32)((f64)cam->pyr[1] + lbl_80346180);
-        } else {
+        if ((f64)lbl_803444D8 > lbl_80345F78) {
             yaw = (f32)((f64)cam->pyr[1] - lbl_80346180);
-        }
-        if ((f64)yaw <= lbl_80345F58) {
-            if ((f64)yaw <= lbl_80345F68) yaw = (f32)(lbl_80345F60 + (f64)yaw);
         } else {
-            yaw = (f32)((f64)yaw - lbl_80345F60);
+            yaw = (f32)((f64)cam->pyr[1] + lbl_80346180);
         }
+        if ((f64)yaw > lbl_80345F58) {
+            yaw = (f32)((f64)yaw - lbl_80345F60);
+        } else if ((f64)yaw <= lbl_80345F68) {
+            yaw = (f32)(lbl_80345F60 + (f64)yaw);
+        }
+        sinValue = sin(yaw);
         sinScale = lbl_803444D8;
         *(u32*)&sinScale &= 0x7FFFFFFF;
-        offX = sin(yaw) * sinScale + offX;
-        lbl_803444DC = 1;
+        offX = sinValue * sinScale + offX;
+        cosValue = cos(yaw);
         cosScale = lbl_803444D8;
         *(u32*)&cosScale &= 0x7FFFFFFF;
-        offZ = cos(yaw) * cosScale + offZ;
+        lbl_803444DC = 1;
+        offZ = cosValue * cosScale + offZ;
     }
     if (lbl_80345F78 != (f64)lbl_803444D4) {
         f32 sinScale;
         f32 cosScale;
+        f32 sinValue;
+        f32 cosValue;
         f64 y = (f64)cam->pyr[1];
-        if ((f64)lbl_803444D4 <= lbl_80345F78) y = (f32)(y + lbl_80345F58);
-        if (y <= lbl_80345F58) {
-            if (y <= lbl_80345F68) y = lbl_80345F60 + y;
+        if ((f64)lbl_803444D4 > lbl_80345F78) {
         } else {
+            y = (f32)(y + lbl_80345F58);
+        }
+        if (y > lbl_80345F58) {
             y = y - lbl_80345F60;
+        } else if (y <= lbl_80345F68) {
+            y = lbl_80345F60 + y;
         }
         yaw = (f32)y;
+        sinValue = sin(yaw);
         sinScale = lbl_803444D4;
         *(u32*)&sinScale &= 0x7FFFFFFF;
-        offX = sin(yaw) * sinScale + offX;
-        lbl_803444DC = 1;
+        offX = sinValue * sinScale + offX;
+        cosValue = cos(yaw);
         cosScale = lbl_803444D4;
         *(u32*)&cosScale &= 0x7FFFFFFF;
-        offZ = cos(yaw) * cosScale + offZ;
+        lbl_803444DC = 1;
+        offZ = cosValue * cosScale + offZ;
     }
 
     if (lbl_80345F78 == (f64)lbl_803444D8 && lbl_80345F78 == (f64)lbl_803444D4) {
@@ -1902,49 +1916,49 @@ pan_y_done:;
         f32 mn = lbl_8034619C, mx = lbl_803461A0;
         f32 cand[3];
         f32 dir[3];
-        for (i = 0; i < 15; i++) {
-            CameraTarget* t = &targets[i];
+        CameraTarget* t = (CameraTarget*)(cameraState + 0xA10);
+        for (i = 0; i < 15; i++, t++) {
             if (t->active > 0) {
                 f32 ty = *(f32*)(t->object + 0x44);
                 if (ty < mn) mn = ty;
-                if (mx < ty) mx = ty;
+                if (ty > mx) mx = ty;
             }
         }
-        recorder[0] = offX + wpos[0];
-        recorder[1] = lbl_80345EC8 + wpos[1];
-        recorder[2] = offZ + wpos[2];
-        cand[0] = offX + attn[0];
-        cand[2] = offZ + attn[2];
-        attn[1] = (f32)(lbl_80345F18 * (f64)(mx + mn));
-        cand[1] = attn[1];
-        cam->attn_dest[1] = attn[1];
-        dir[0] = recorder[0] - cand[0];
-        dir[1] = recorder[1] - cand[1];
-        dir[2] = recorder[2] - cand[2];
+        ((f32*)(cameraState + 0x34))[0] = offX + cam->wpos[0];
+        ((f32*)(cameraState + 0x34))[1] = lbl_80345EC8 + cam->wpos[1];
+        ((f32*)(cameraState + 0x34))[2] = offZ + cam->wpos[2];
+        cand[0] = offX + cam->attn[0];
+        cand[2] = offZ + cam->attn[2];
+        cam->attn[1] = (f32)(lbl_80345F18 * (f64)(mx + mn));
+        cand[1] = cam->attn[1];
+        cam->attn_dest[1] = cam->attn[1];
+        dir[0] = ((f32*)(cameraState + 0x34))[0] - cand[0];
+        dir[1] = ((f32*)(cameraState + 0x34))[1] - cand[1];
+        dir[2] = ((f32*)(cameraState + 0x34))[2] - cand[2];
         SlowNormalVector(dir);
-        recorder[0] = dir[0] * cam->radius + cand[0];
-        recorder[1] = dir[1] * cam->radius + cand[1];
-        recorder[2] = dir[2] * cam->radius + cand[2];
+        ((f32*)(cameraState + 0x34))[0] = dir[0] * cam->radius + cand[0];
+        ((f32*)(cameraState + 0x34))[1] = dir[1] * cam->radius + cand[1];
+        ((f32*)(cameraState + 0x34))[2] = dir[2] * cam->radius + cand[2];
     }
 
     if (lbl_803444DC != 0) {
-        f32 rNew = someone_will_be_off_screen(camIdx, recorder);
-        f32 rOld = someone_will_be_off_screen(camIdx, wpos);
-        if (rOld <= rNew) {
-            wpos[0] = recorder[0];
-            wpos[1] = recorder[1];
-            wpos[2] = recorder[2];
-            attn[0] += offX;
-            attn[1] += lbl_80345EC8;
-            attn[2] += offZ;
-        } else {
+        f32 rOld = someone_will_be_off_screen(camIdx, cam->wpos);
+        f32 rNew = someone_will_be_off_screen(camIdx, (f32*)(cameraState + 0x34));
+        if (rOld < rNew) {
             lbl_803444DC = 0;
             lbl_803444D0 = 0;
             lbl_803444D8 = lbl_80345EC8;
             lbl_803444D4 = lbl_80345EC8;
-            recorder[0] = wpos[0];
-            recorder[1] = wpos[1];
-            recorder[2] = wpos[2];
+            ((f32*)(cameraState + 0x34))[0] = cam->wpos[0];
+            ((f32*)(cameraState + 0x34))[1] = cam->wpos[1];
+            ((f32*)(cameraState + 0x34))[2] = cam->wpos[2];
+        } else {
+            cam->wpos[0] = ((f32*)(cameraState + 0x34))[0];
+            cam->wpos[1] = ((f32*)(cameraState + 0x34))[1];
+            cam->wpos[2] = ((f32*)(cameraState + 0x34))[2];
+            cam->attn[0] += offX;
+            cam->attn[1] += lbl_80345EC8;
+            cam->attn[2] += offZ;
         }
     }
     if (wasPanning == 0 && lbl_803444DC == 1) {
