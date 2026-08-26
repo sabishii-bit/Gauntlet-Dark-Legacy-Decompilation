@@ -192,16 +192,16 @@ extern char gTextFormatBuf[];
 void ScrollMessageBox(char* msg)
 {
     char* lines[17];
-    u8 pad44[44];
+    u8 pad44[48];
     u8* g;
     s32 busy;
-    s32 e04;
     void* blit;
     u8* hdr;
     void* quad;
     s32 nlines;
-    s32 wmax;
     s32 i;
+    s32 wmax;
+    s32 e04;
     s32 boxw;
     s32 boxh;
     s32 x;
@@ -275,8 +275,8 @@ void ScrollMessageBox(char* msg)
         mbBlitCalcWidth(quad, x, y, sA);
         MBBlitSetColor(quad, -1);
     }
-    strcpy(gTextFormatBuf, msg);
     y += 32;
+    strcpy(gTextFormatBuf, msg);
     for (i = 0; i < nlines; i++) {
         s32 font = lbl_80344A4C;
 
