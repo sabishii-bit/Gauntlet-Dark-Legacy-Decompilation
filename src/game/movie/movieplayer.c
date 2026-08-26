@@ -217,26 +217,29 @@ u32 ReadF32LE(u8* p) {
 
 #pragma dont_inline on
 void fn_800D860C(u32 param_1, u8* param_2, int param_3) {
-    u8* p;
+    u8* out;
     int i;
     int cnt;
     cnt = param_3 << 1;
-    i = 0;
-    p = param_2;
-    if (cnt <= 0) {
-        return;
+    out = param_2;
+    for (i = 0; i < cnt; i++) {
+        int c1 = (int)((u32)param_2[1] * 224) / 512;
+        int c4 = (int)((u32)param_2[4] * 224) / 512;
+        int c2 = (int)((u32)param_2[2] * 224) / 512;
+        int c5 = (int)((u32)param_2[5] * 224) / 512;
+        int c0 = (int)((u32)param_2[0] * 224) / 256;
+        int c3 = (int)((u32)param_2[3] * 224) / 256;
+        u32 value;
+
+        value = c1 + 8;
+        value += c4 + 8;
+        *(u32*)(out + i * 4) =
+            (u32)(c2 + c5 + 16) << 24
+          | value << 8
+          | (u32)(c3 + 16) << 16
+          | (u32)(c0 + 16);
+        param_2 += 6;
     }
-    do {
-        /* structural: YUV->RGBA pack; +8+8 term-A reassociation is compiler-internal */
-        *(u32*)(param_2 + i) =
-            ((int)((u32)p[1] * 224) / 512 + (int)((u32)p[4] * 224) / 512 + 16) * 0x100
-          | ((int)((u32)p[5] * 224) / 512 + (int)((u32)p[2] * 224) / 512 + 16) * 0x1000000
-          | (u32)((int)((u32)p[0] * 224) / 256 + 16)
-          | ((int)((u32)p[3] * 224) / 256 + 16) * 0x10000;
-        p += 6;
-        i += 4;
-        cnt--;
-    } while (cnt != 0);
 }
 
 void fn_800D86C8(u32 param_1, u8* param_2, int param_3) {
