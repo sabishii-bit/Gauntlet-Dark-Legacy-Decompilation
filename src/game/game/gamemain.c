@@ -2924,6 +2924,10 @@ s32 fn_800511D0(s32 arg0, f32 arg1)
 {
     u8 unusedHi[12];
     f32 pos[3];
+    f32 ad;
+    volatile f32 tmp;
+    f32 t1;
+    f32 t2;
     f32 bestDist;
     f32 secondDist;
     f32 bestDy;
@@ -2988,7 +2992,6 @@ s32 fn_800511D0(s32 arg0, f32 arg1)
     for (i = 0; i < sNumMilestones; i++, m += 104) {
         f32 d;
         f64 nd;
-        f32 ad;
         f32 dx;
         f32 dy;
         f32 dz;
@@ -3014,7 +3017,6 @@ s32 fn_800511D0(s32 arg0, f32 arg1)
             dist = dx * dx + dy * dy;
             dist = dz * dz + dist;
             if (dist > kZero) {
-                volatile f32 tmp;
                 f64 y = __frsqrte(dist);
                 y = kHalf * y * (kThree - y * y * dist);
                 y = kHalf * y * (kThree - y * y * dist);
@@ -3023,7 +3025,7 @@ s32 fn_800511D0(s32 arg0, f32 arg1)
                 dist = tmp;
             }
             if (dist < bestDist) {
-                f32 t1 = dy;
+                t1 = dy;
                 secondDist = bestDist;
                 second = best;
                 secondDy = bestDy;
@@ -3032,7 +3034,7 @@ s32 fn_800511D0(s32 arg0, f32 arg1)
                 best = i;
                 bestDy = t1;
             } else if (dist < secondDist) {
-                f32 t2 = dy;
+                t2 = dy;
                 secondDist = dist;
                 second = i;
                 *(u32*)&t2 &= 0x7FFFFFFF;
