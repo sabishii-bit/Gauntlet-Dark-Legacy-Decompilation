@@ -1394,6 +1394,11 @@ void fn_800DBA80(u8* dec, s32 fd);
 void __dl__FPv(void* p);
 void __dla__FPv(void* p);
 
+typedef struct MovieCloseVTable {
+    u8 pad[28];
+    void (*close)(u8*);
+} MovieCloseVTable;
+
 #pragma dont_inline on
 void fn_800DA60C(register u8* m)
 {
@@ -1411,13 +1416,7 @@ void fn_800DA60C(register u8* m)
         }
         *(u32*)(self + 400) = 0;
     }
-    {
-        register u8* object = self + 336;
-        register void (*dispatch)(u8*);
-
-        dispatch = *(void (**)(u8*))(*(u32*)(self + 368) + 28);
-        dispatch(object);
-    }
+    (*(MovieCloseVTable**)(self + 368))->close(self + 336);
     fn_800DBA80(self + 32, *(s32*)(self + 28));
     if (*(s32*)(self + 28) != 0) {
         sceClose(*(s32*)(self + 28));
