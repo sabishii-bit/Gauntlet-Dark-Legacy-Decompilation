@@ -25,7 +25,6 @@ typedef struct PsfxPdataBuf {
     s32   cur[4];      /* 0x20 : per-player currently-loaded class */
     void* bufs[4];     /* 0x30 : per-player load buffers */
     s32   sizes[16];   /* 0x40 : per-class pdata file sizes */
-    s32   flags[4];    /* 0x80 */
 } PsfxPdataBuf;
 extern PsfxPdataBuf lbl_802828B0;
 extern u8 lbl_8012006C[];
@@ -1287,56 +1286,49 @@ void LoadPlyrData(s32 plr, s32 cls, s32 resolve)
  * their largest size, then allocate four reusable player load buffers. */
 void LoadPdataFile(void)
 {
-    u8 unused[8];
     u8* temp = (u8*)&lbl_802828B0;
-    u8* sizePtr;
     s32 maxSize;
-    s32 offset;
     s32 index;
-    s32 zero2;
+    u8* zero2;
+    u8* record;
+    u8** headers;
 
     maxSize = 0;
     index = 0;
-    offset = 0;
     do {
-        void** slot = (void**)((u8*)lbl_80120E00 + offset);
-        void* zed = NULL;
-        *slot = zed;
-        sprintf(temp, lbl_80347E44, lbl_8012006C + offset);
+        void** slot = &lbl_80120E00[index];
+        u32 zero = 0;
+        *slot = NULL;
+        sprintf(temp, lbl_80347E44, lbl_8012006C + index * 4);
         if (FileExists(lbl_80347E4C, temp)) {
             if (*slot == NULL) {
                 *slot = AllocFile(lbl_80347E4C, temp);
-                sizePtr = temp + offset;
-                *(u32*)(sizePtr + 0x40) = mlmLastFileSize;
+                lbl_802828B0.sizes[index] = mlmLastFileSize;
             } else if (!MLMReadFile(lbl_80347E4C, temp,
-                                    *(u32*)((sizePtr = temp + offset) + 0x40),
+                                    lbl_802828B0.sizes[index],
                                     *slot)) {
                 FatalErrorf(lbl_801142A0, temp);
             }
         } else {
             ErrorPrintf(lbl_801142D4, temp);
-            *slot = zed;
-            sizePtr = temp + offset;
-            *(u32*)(sizePtr + 0x40) = (u32)zed;
+            *slot = NULL;
+            lbl_802828B0.sizes[index] = zero;
         }
-        sizePtr = temp + offset;
-        if (*(s32*)(sizePtr + 0x40) > maxSize) {
-            maxSize = *(s32*)(sizePtr + 0x40);
+        if (lbl_802828B0.sizes[index] > maxSize) {
+            maxSize = lbl_802828B0.sizes[index];
         }
         index++;
-        offset += 4;
     } while (index < 16);
 
     index = 0;
-    zero2 = index;
-    offset = 0;
+    zero2 = NULL;
+    headers = lbl_80282930;
     do {
-        sizePtr = temp + offset;
-        *(s32*)(sizePtr + 0x20) = -1;
-        *(void**)(sizePtr + 0x30) = AllocMem(maxSize);
-        *(s32*)(sizePtr + 0x80) = zero2;
+        record = temp + index * 4;
+        *(s32*)(record + 0x20) = -1;
+        *(void**)(record + 0x30) = AllocMem(maxSize);
+        headers[index] = zero2;
         index++;
-        offset += 4;
     } while (index < 4);
 }
 
