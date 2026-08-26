@@ -2245,20 +2245,20 @@ extern char lbl_80347A38[3];  /* "rb" (sdata2) */
 extern char* lbl_80347734;
 extern char* lbl_80347738;
 extern char* lbl_80347740;
-extern char lbl_803479C8[];
-extern char lbl_803479D0[];
-extern char lbl_803479D8[];
-extern char lbl_803479E0[];
-extern char lbl_803479E8[];
-extern char lbl_803479F0[];
-extern char lbl_803479F8[];
-extern char lbl_80347A00[];
-extern char lbl_80347A08[];
-extern char lbl_80347A10[];
-extern char lbl_80347A18[];
-extern char lbl_80347A20[];
-extern char lbl_80347A28[];
-extern char lbl_80347A30[];
+DECL_SECT(".sdata2") extern char lbl_803479C8[];
+DECL_SECT(".sdata2") extern char lbl_803479D0[];
+DECL_SECT(".sdata2") extern char lbl_803479D8[];
+DECL_SECT(".sdata2") extern char lbl_803479E0[];
+DECL_SECT(".sdata2") extern char lbl_803479E8[];
+DECL_SECT(".sdata2") extern char lbl_803479F0[];
+DECL_SECT(".sdata2") extern char lbl_803479F8[];
+DECL_SECT(".sdata2") extern char lbl_80347A00[];
+DECL_SECT(".sdata2") extern char lbl_80347A08[];
+DECL_SECT(".sdata2") extern char lbl_80347A10[];
+DECL_SECT(".sdata2") extern char lbl_80347A18[];
+DECL_SECT(".sdata2") extern char lbl_80347A20[];
+DECL_SECT(".sdata2") extern char lbl_80347A28[];
+DECL_SECT(".sdata2") extern char lbl_80347A30[];
 extern char lbl_80347A68[];
 extern char lbl_80347A70[];
 extern char lbl_80347A78[];
@@ -4054,7 +4054,8 @@ s32 set_hidden_player(void* vp) {
     Player* p = vp;
     u8* rodata = lbl_80113AE0;
     u8* data = (u8*)lbl_8011FC48;
-    char* access_options[3];
+    char* access_options[2];
+    char* access_one[1];
     char* fly_options[2];
     char* unlimited_options[2];
     char* nodamage_options[2];
@@ -4072,69 +4073,115 @@ s32 set_hidden_player(void* vp) {
     s32 pick = -1;
     u32 pups = 0;
     s32 match = 0;
+    s32 prompt_ok;
     s32 j;
+    s32 k;
 
-    if (strncmp((char*)p + 0xA80, lbl_803479E0, 6) == 0) {
+    if (strncmp(p->name, lbl_803479E0, 6) == 0) {
         pick = 0x10;
         match = 1;
     }
     /* the interactive cheat menu (start+trigger names) */
-    if ((strncmp((char*)p + 0xA80, lbl_803479C8, 6) == 0 ||
-         strncmp((char*)p + 0xA80, lbl_803479D0, 6) == 0 ||
-         strncmp((char*)p + 0xA80, lbl_803479D8, 6) == 0) &&
+    if ((strncmp(p->name, lbl_803479C8, 6) == 0 ||
+         strncmp(p->name, lbl_803479D0, 6) == 0 ||
+         strncmp(p->name, lbl_803479D8, 6) == 0) &&
         any_level(0x100000) != 0 && any_level(0x400000) != 0) {
         access_options[0] = lbl_80347734;
+        access_one[0] = lbl_80347740;
         access_options[1] = lbl_80347738;
-        access_options[2] = lbl_80347740;
-        match = saveMenuPrompt(lbl_803479E8, access_options, 2) == 0;
+        if (saveMenuPrompt(lbl_803479E8, access_options, 2) == 0) {
+            prompt_ok = 1;
+        } else {
+            prompt_ok = 0;
+        }
+        if (prompt_ok != 0) {
+            match = 1;
+        } else {
+            match = 0;
+        }
         if (match != 0) {
             fly_options[0] = lbl_80347734;
             fly_options[1] = lbl_80347738;
             if (saveMenuPrompt(lbl_803479F0, fly_options, 2) == 0) {
+                prompt_ok = 1;
+            } else {
+                prompt_ok = 0;
+            }
+            if (prompt_ok != 0) {
                 gGameOptions[6] = 1;
             }
             unlimited_options[0] = lbl_80347734;
             unlimited_options[1] = lbl_80347738;
             if (saveMenuPrompt((char*)rodata + 1360,
                                unlimited_options, 2) == 0) {
+                prompt_ok = 1;
+            } else {
+                prompt_ok = 0;
+            }
+            if (prompt_ok != 0) {
                 gGameOptions[1] = 3;
             }
             nodamage_options[0] = lbl_80347734;
             nodamage_options[1] = lbl_80347738;
             if (saveMenuPrompt((char*)rodata + 1372,
                                nodamage_options, 2) == 0) {
+                prompt_ok = 1;
+            } else {
+                prompt_ok = 0;
+            }
+            if (prompt_ok != 0) {
                 gGameOptions[0] = 1;
             }
             shards_options[0] = lbl_80347734;
             shards_options[1] = lbl_80347738;
             if (saveMenuPrompt(lbl_803479F8, shards_options, 2) == 0) {
+                prompt_ok = 1;
+            } else {
+                prompt_ok = 0;
+            }
+            if (prompt_ok != 0) {
                 PF(p, 0x1EC8, u16) = 0xFFFF;
             }
             runes_options[0] = lbl_80347734;
             runes_options[1] = lbl_80347738;
             if (saveMenuPrompt(lbl_80347A00, runes_options, 2) == 0) {
+                prompt_ok = 1;
+            } else {
+                prompt_ok = 0;
+            }
+            if (prompt_ok != 0) {
                 PF(p, 0x1ECA, u16) = 0xFFFF;
             }
             cheats_options[0] = lbl_80347734;
             cheats_options[1] = lbl_80347738;
             if (saveMenuPrompt(lbl_80347A08, cheats_options, 2) == 0) {
+                prompt_ok = 1;
+            } else {
+                prompt_ok = 0;
+            }
+            if (prompt_ok != 0) {
                 pups = 0xFFFFFFFF;
             }
             select_options[0] = lbl_80347734;
             select_options[1] = lbl_80347738;
             if (saveMenuPrompt((char*)rodata + 1384,
                                select_options, 2) == 0) {
+                prompt_ok = 1;
+            } else {
+                prompt_ok = 0;
+            }
+            if (prompt_ok != 0) {
                 while (any(0x80000000) == 0) {
                     if (any(0x40000000) != 0) {
                         pick++;
-                        if ((u32)pick < 27) {
+                        if (pick >= 0 && (u32)pick < 27) {
                             saveMenuPrompt(((HiddenChar*)(data + 2512))[pick].name,
-                                           &access_options[2], 1);
+                                           access_one, 1);
                         }
                         if ((u32)pick >= 27) {
-                            pick = (u8)rand() % 27;
+                            pick = (u8)rand() % 27U;
                             saveMenuPrompt(lbl_80347A10,
-                                           &access_options[2], 1);
+                                           access_one, 1);
                             break;
                         }
                     }
@@ -4146,126 +4193,169 @@ s32 set_hidden_player(void* vp) {
             worlds_options[1] = lbl_80347738;
             if (saveMenuPrompt((char*)rodata + 1408,
                                worlds_options, 2) == 0) {
+                prompt_ok = 1;
+            } else {
+                prompt_ok = 0;
+            }
+            if (prompt_ok != 0) {
                 for (j = 0; j < 16; j++) {
-                    memset((u8*)p + 0x1CD0 + p->character * 0xE, 0xFF, 0xE);
-                    memset(CHAR_ITEMS(p, j) + 0x1E, 0xFF, 0x20);
-                    *(u16*)(CHAR_ITEMS(p, p->character) + 0) = 0xFFFF;
-                    *(s16*)(CHAR_ITEMS(p, p->character) + 0x10) = -1;
-                    *(s16*)(CHAR_ITEMS(p, p->character) + 0x12) = -1;
-                    *(s16*)(CHAR_ITEMS(p, p->character) + 0x14) = -1;
+                    for (k = 0; k < 14; k++) {
+                        *((u8*)p + 0x1CD0 + p->character * 14 + k) = 0xFF;
+                    }
+                    for (k = 0; k < 16; k++) {
+                        *(s16*)((u8*)p + j * 240 + 3566 + k * 2) = -1;
+                    }
+                    *(u16*)((u8*)p + p->character * 240 + 3544) = 0xFFFF;
+                    for (k = 0; k < 3; k++) {
+                        *(s16*)((u8*)p + p->character * 240 + 3560 + k * 2) = -1;
+                    }
                 }
             }
             saveMenuPrompt((char*)rodata + 1420,
-                           &access_options[2], 1);
+                           access_one, 1);
         }
     }
     /* one-shot cheat names */
     if (any_level(0x100000) != 0 && any_level(0x400000) != 0) {
-        if (strncmp((char*)p + 0xA80, lbl_80347A18, 6) == 0) {
+        if (strncmp(p->name, lbl_80347A18, 6) == 0) {
             match = 1;
-            pick = (rand() & 0xFF) % 27;
+            pick = (rand() & 0xFF) % 27U;
             pups = rand();
         }
-        if (strncmp((char*)p + 0xA80, lbl_80347A20, 6) == 0) {
+        if (strncmp(p->name, lbl_80347A20, 6) == 0) {
             match = 1;
             pick = 5;
             pups = rand();
         }
-        if (strncmp((char*)p + 0xA80, lbl_80347A28, 6) == 0) {
+        if (strncmp(p->name, lbl_80347A28, 6) == 0) {
             match = 1;
             pick = 1;
             pups = rand();
             all_fly_options[0] = lbl_80347734;
             all_fly_options[1] = lbl_80347738;
             if (saveMenuPrompt(lbl_803479F0, all_fly_options, 2) == 0) {
+                prompt_ok = 1;
+            } else {
+                prompt_ok = 0;
+            }
+            if (prompt_ok != 0) {
                 gGameOptions[6] = 1;
             }
             all_unlimited_options[0] = lbl_80347734;
             all_unlimited_options[1] = lbl_80347738;
             if (saveMenuPrompt((char*)rodata + 1360,
                                all_unlimited_options, 2) == 0) {
+                prompt_ok = 1;
+            } else {
+                prompt_ok = 0;
+            }
+            if (prompt_ok != 0) {
                 gGameOptions[1] = 3;
             }
             all_nodamage_options[0] = lbl_80347734;
             all_nodamage_options[1] = lbl_80347738;
             if (saveMenuPrompt((char*)rodata + 1372,
                                all_nodamage_options, 2) == 0) {
+                prompt_ok = 1;
+            } else {
+                prompt_ok = 0;
+            }
+            if (prompt_ok != 0) {
                 gGameOptions[0] = 1;
             }
             all_shards_options[0] = lbl_80347734;
             all_shards_options[1] = lbl_80347738;
             if (saveMenuPrompt(lbl_803479F8, all_shards_options, 2) == 0) {
+                prompt_ok = 1;
+            } else {
+                prompt_ok = 0;
+            }
+            if (prompt_ok != 0) {
                 PF(p, 0x1EC8, u16) = 0xFFFF;
             }
             all_runes_options[0] = lbl_80347734;
             all_runes_options[1] = lbl_80347738;
             if (saveMenuPrompt(lbl_80347A00, all_runes_options, 2) == 0) {
+                prompt_ok = 1;
+            } else {
+                prompt_ok = 0;
+            }
+            if (prompt_ok != 0) {
                 PF(p, 0x1ECA, u16) = 0xFFFF;
             }
             all_cheats_options[0] = lbl_80347734;
             all_cheats_options[1] = lbl_80347738;
             if (saveMenuPrompt(lbl_80347A08, all_cheats_options, 2) == 0) {
+                prompt_ok = 1;
+            } else {
+                prompt_ok = 0;
+            }
+            if (prompt_ok != 0) {
                 pups = 0xFFFFFFFF;
             }
             for (j = 0; j < 16; j++) {
-                memset((u8*)p + 0x1CD0 + p->character * 0xE, 0xFF, 0xE);
-                memset(CHAR_ITEMS(p, j) + 0x1E, 0xFF, 0x20);
-                *(s16*)(CHAR_ITEMS(p, p->character) + 0x10) = -1;
-                *(s16*)(CHAR_ITEMS(p, p->character) + 0x12) = -1;
-                *(s16*)(CHAR_ITEMS(p, p->character) + 0x14) = -1;
-                *(u16*)(CHAR_ITEMS(p, p->character) + 0) = 0xFFFF;
+                for (k = 0; k < 14; k++) {
+                    *((u8*)p + 0x1CD0 + p->character * 14 + k) = 0xFF;
+                }
+                for (k = 0; k < 16; k++) {
+                    *(s16*)((u8*)p + j * 240 + 3566 + k * 2) = -1;
+                }
+                for (k = 0; k < 3; k++) {
+                    *(s16*)((u8*)p + p->character * 240 + 3560 + k * 2) = -1;
+                }
+                *(u16*)((u8*)p + p->character * 240 + 3544) = 0xFFFF;
             }
         }
-        if (strncmp((char*)p + 0xA80, lbl_80347A30, 6) == 0) {
+        if (strncmp(p->name, lbl_80347A30, 6) == 0) {
             match = 1;
             pick = 0x17;
             pups = rand();
         }
     }
-    if (HIDDEN_CODE(p) == NULL) {
-        for (j = 0; j < 27; j++) {
-            HiddenChar* hidden = (HiddenChar*)(data + 2512) + j;
-            if ((strncmp((char*)p + 0xA80, hidden->name, 6) == 0 &&
-                 (hidden->unlocked == 0 || lbl_80344828 > 1)) ||
-                (match && pick == j)) {
-                p->class_id = hidden->class_id;
-                p->character = hidden->char_type;
-                HIDDEN_CODE(p) = hidden->code;
-                return 1;
-            }
+    if (p->hidden_code != NULL) {
+        if (p->hidden_code == lbl_80343D6C) {
+            p->char_type = 2;
+            p->character = 2;
+            return 0;
         }
-        for (j = 0; j < 27; j++) {
-            PupCheat* cheat = (PupCheat*)(data + 3484) + j;
-            if (strncmp((char*)p + 0xA80, cheat->name, 6) == 0 ||
-                (pups & (1 << j))) {
-                switch (cheat->type) {
-                case 1:
-                    p->gold = (s32)cheat->value;
-                    break;
-                case 2:
-                    PF(p, 0x1EB8, s32) = (s32)cheat->value;
-                    break;
-                case 4:
-                    PF(p, 0x1EBC, s32) = (s32)cheat->value;
-                    break;
-                default:
-                    PlayerAddPowerup(cheat->value, 1.0f, p,
-                                     cheat->type, cheat->mask);
-                    if (cheat->type == 9) {
-                        PF(p, 0x124, u32) |= cheat->mask;
-                    }
-                    break;
+        return 1;
+    }
+    for (j = 0; (u32)j < 27; j++) {
+        HiddenChar* hidden = (HiddenChar*)(data + 2512) + j;
+        if ((strncmp(p->name, hidden->name, 6) == 0 &&
+             (hidden->unlocked == 0 || lbl_80344828 > 1)) ||
+            (match && pick == j)) {
+            p->class_id = hidden->class_id;
+            p->character = hidden->char_type;
+            p->hidden_code = hidden->code;
+            return 1;
+        }
+    }
+    for (j = 0; (u32)j < 27; j++) {
+        PupCheat* cheat = (PupCheat*)(data + 3484) + j;
+        if (strncmp(p->name, cheat->name, 6) == 0 ||
+            (pups & (1 << j))) {
+            switch (cheat->type) {
+            case 1:
+                p->gold = (s32)cheat->value;
+                break;
+            case 2:
+                PF(p, 0x1EB8, s32) = (s32)cheat->value;
+                break;
+            case 4:
+                PF(p, 0x1EBC, s32) = (s32)cheat->value;
+                break;
+            default:
+                PlayerAddPowerup(cheat->value, 1.0f, p,
+                                 cheat->type, cheat->mask);
+                if (cheat->type == 9) {
+                    PF(p, 0x124, u32) |= cheat->mask;
                 }
+                break;
             }
         }
-        return 0;
     }
-    if (HIDDEN_CODE(p) == lbl_80343D6C) {
-        p->char_type = 2;
-        p->character = 2;
-        return 0;
-    }
-    return 1;
+    return 0;
 }
 
 /* Load the class model + sfx model set into player slot i.            */
