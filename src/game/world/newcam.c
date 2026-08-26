@@ -723,12 +723,23 @@ s32 fn_8006DC2C(NcPlayer* player, f32* pt, s32 mode) {
  * use the dedicated collision origin at 0x64.
  */
 s32 fn_8006DC64(NcCamera* cam, NcPlayer* player, Vec3* pt, s32 mode) {
+    u8 unused[40];
     Vec3 destination;
     Vec3 collisionNormal;
     Vec3 horizontal;
-    u8 unused[32];
-    Vec3 cameraPos;
-    Vec3 delta;
+    Vec3* clipPos;
+    f32* planeZ;
+    f32* planeY;
+    f32* planeX;
+    f32 cameraX;
+    f32 cameraY;
+    f32 cameraZ;
+    f32 positionDeltaX;
+    f32 positionDeltaY;
+    f32 positionDeltaZ;
+    f32 deltaX;
+    f32 deltaY;
+    f32 deltaZ;
     f32 outputY;
     f32 planeDot;
     f32 moveDot;
@@ -738,88 +749,85 @@ s32 fn_8006DC64(NcCamera* cam, NcPlayer* player, Vec3* pt, s32 mode) {
     s32 result;
     s32 i;
 
-    cameraPos.x = cam->direction.x * -cam->dist_current + cam->attention.x;
-    cameraPos.y = cam->direction.y * -cam->dist_current + cam->attention.y;
-    cameraPos.z = cam->direction.z * -cam->dist_current + cam->attention.z;
+    cameraX = cam->direction.x * -cam->dist_current + cam->attention.x;
+    cameraY = cam->direction.y * -cam->dist_current + cam->attention.y;
+    cameraZ = cam->direction.z * -cam->dist_current + cam->attention.z;
 
-    delta.x = player->clip_pos.x + pt->x - cameraPos.x;
-    delta.y = player->clip_pos.y + pt->y - cameraPos.y;
-    delta.z = player->clip_pos.z + pt->z - cameraPos.z;
+    positionDeltaX = player->pos[0] + pt->x - cameraX;
+    positionDeltaY = player->pos[1] + pt->y - cameraY;
+    positionDeltaZ = player->pos[2] + pt->z - cameraZ;
+    deltaX = player->clip_pos.x + pt->x - cameraX;
+    deltaY = player->clip_pos.y + pt->y - cameraY;
+    deltaZ = player->clip_pos.z + pt->z - cameraZ;
     outputY = pt->y;
+    clipPos = &player->clip_pos;
     result = 1;
 
     for (i = 0; i < 4; i++) {
-        NcPlane* plane = &cam->planes[i];
-
         if (i == 3) {
-            delta.x = player->pos[0] + pt->x - cameraPos.x;
-            delta.y = player->pos[1] + pt->y - cameraPos.y;
-            delta.z = player->pos[2] + pt->z - cameraPos.z;
+            deltaX = positionDeltaX;
+            deltaY = positionDeltaY;
+            deltaZ = positionDeltaZ;
         }
 
-        planeDot = delta.x * plane->normal.x +
-                   delta.y * plane->normal.y +
-                   delta.z * plane->normal.z;
-        if ((f64)planeDot <= 0.0) {
-            continue;
-        }
+        planeY = &cam->planes[i].normal.y;
+        planeX = &cam->planes[i].normal.x;
+        planeZ = &cam->planes[i].normal.z;
+        planeDot = deltaX * *planeX + deltaY * *planeY + deltaZ * *planeZ;
+        if ((f64)planeDot > 0.0) {
+            result = 5;
+            horizontal.x = *planeX;
+            horizontal.y = 0.0f;
+            horizontal.z = *planeZ;
+            NormalVector((f32*)&horizontal);
 
-        result = 5;
-        horizontal.x = plane->normal.x;
-        horizontal.y = 0.0f;
-        horizontal.z = plane->normal.z;
-        NormalVector((f32*)&horizontal);
+            moveDot = pt->x * *planeX + pt->y * *planeY + pt->z * *planeZ;
+            if ((f64)moveDot > 0.0) {
+                outputY = 0.0f;
+                if (mode == 0) {
+                    pt->x = 0.0f;
+                    pt->y = 0.0f;
+                    pt->z = 0.0f;
+                } else {
+                    correction = -(pt->x * horizontal.x +
+                                   pt->y * horizontal.y +
+                                   pt->z * horizontal.z);
+                    pt->x += horizontal.x * correction;
+                    pt->y += horizontal.y * correction;
+                    pt->z += horizontal.z * correction;
 
-        moveDot = pt->x * plane->normal.x +
-                  pt->y * plane->normal.y +
-                  pt->z * plane->normal.z;
-        if ((f64)moveDot <= 0.0) {
-            continue;
-        }
+                    destination.x = clipPos->x + pt->x;
+                    destination.y = clipPos->y + pt->y;
+                    destination.z = clipPos->z + pt->z;
+                    if (PlayerWallCollide(player->collision_radius, clipPos,
+                                          &destination,
+                                          (f32*)&collisionNormal) != NULL ||
+                        PlayerCollideFloor(player, clipPos, pt, 1,
+                                           player->collision_radius,
+                                           player->collision_height) <= 0) {
+                        pt->x = 0.0f;
+                        pt->y = 0.0f;
+                        pt->z = 0.0f;
+                    }
 
-        outputY = 0.0f;
-        if (mode == 0) {
-            pt->x = 0.0f;
-            pt->y = 0.0f;
-            pt->z = 0.0f;
-            continue;
-        }
+                    moveDot = pt->x * *planeX +
+                              pt->y * *planeY +
+                              pt->z * *planeZ;
+                    limitSq = lbl_80343CF0 * lbl_80343CF0;
+                    lengthSq = pt->x * pt->x + pt->y * pt->y + pt->z * pt->z;
+                    if (moveDot * moveDot > limitSq * lengthSq) {
+                        pt->x = 0.0f;
+                        pt->y = 0.0f;
+                        pt->z = 0.0f;
+                    }
 
-        correction = -(pt->x * horizontal.x +
-                       pt->y * horizontal.y +
-                       pt->z * horizontal.z);
-        pt->x += horizontal.x * correction;
-        pt->y += horizontal.y * correction;
-        pt->z += horizontal.z * correction;
-
-        destination.x = player->clip_pos.x + pt->x;
-        destination.y = player->clip_pos.y + pt->y;
-        destination.z = player->clip_pos.z + pt->z;
-        if (PlayerWallCollide(player->collision_radius, &player->clip_pos,
-                              &destination, (f32*)&collisionNormal) != NULL ||
-            PlayerCollideFloor(player, &player->clip_pos, pt, 1,
-                               player->collision_radius,
-                               player->collision_height) <= 0) {
-            pt->x = 0.0f;
-            pt->y = 0.0f;
-            pt->z = 0.0f;
-        }
-
-        moveDot = pt->x * plane->normal.x +
-                  pt->y * plane->normal.y +
-                  pt->z * plane->normal.z;
-        lengthSq = pt->x * pt->x + pt->y * pt->y + pt->z * pt->z;
-        limitSq = lbl_80343CF0 * lbl_80343CF0 * lengthSq;
-        if (moveDot * moveDot > limitSq) {
-            pt->x = 0.0f;
-            pt->y = 0.0f;
-            pt->z = 0.0f;
-        }
-
-        if (lbl_80344B38 != NULL) {
-            player->camera_floor_y = lbl_80344B34;
-        } else {
-            player->camera_floor_y = player->floor_y;
+                    if (lbl_80344B38 != NULL) {
+                        player->camera_floor_y = lbl_80344B34;
+                    } else {
+                        player->camera_floor_y = player->floor_y;
+                    }
+                }
+            }
         }
     }
 
