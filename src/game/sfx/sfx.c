@@ -2482,6 +2482,7 @@ extern f32 lbl_803481C8;
 extern f64 lbl_803481D0;
 extern f64 lbl_803481D8;
 extern f32 lbl_803481E0;
+extern f32 lbl_80348244;
 extern u8 lbl_8023CA98[];
 extern u8 lbl_8023CB28[];
 
@@ -2607,7 +2608,7 @@ static s32 SfxSkipItem_80096FF4(struct fxitem* item, u32 a, u32 b);
 void ProcessEffects(void)
 {
     s32 i;
-    u8 framePad[88];
+    u8 framePad[80];
     f32 mat[16];
     f32 targetmat[16];
     f32 oldpos[3];
@@ -2634,6 +2635,7 @@ void ProcessEffects(void)
         s32 j;
         s32 collision;
         s32 oldDebugCount;
+        s32 passThrough;
 
         if (e->endtime <= 0.0f || e->node == NULL) {
             continue;
@@ -2690,7 +2692,7 @@ void ProcessEffects(void)
 
         if (!(flags & 0x20000)) {
             if (e->pyrvel[0] != 0.0f) {
-                PitchMat3(mat, e->pyrvel[0] * gClockFrameStep);
+                PitchMat3(mat, -e->pyrvel[0] * gClockFrameStep);
                 moved = 1;
             }
             if (e->pyrvel[1] != 0.0f) {
@@ -2731,8 +2733,9 @@ void ProcessEffects(void)
                 ageRadius = lbl_803481C8;
             }
 
+            passThrough = e->damagetype & DMG_SUPER;
             if (e->fxhit > 0 && EffectInfo[e->fxhit].atree != NULL &&
-                !(flags & 0x20) && !(e->damagetype & DMG_SUPER)) {
+                !(flags & 0x20) && !passThrough) {
                 struct fxatreeheader* hdr =
                     (struct fxatreeheader*)EffectInfo[e->fxhit].atree;
                 if ((f32)hdr->seq->numframes > 0.0f) {
@@ -2743,7 +2746,7 @@ void ProcessEffects(void)
 
             if (flags & 0x800000) {
                 fade = 0.0f;
-            } else if (e->damagetype & DMG_SUPER) {
+            } else if (passThrough) {
                 fade = (f32)(lbl_80348160 + ageRadius);
             } else if ((flags & 0x20) && ageRadius < 1.0f) {
                 fade = 1.0f;
@@ -2989,7 +2992,35 @@ void ProcessEffects(void)
                             } else {
                                 playerHit = 0;
                             }
-                            if ((e->flags & 0x00100000) == 0) {
+                            if (passThrough != 0) {
+                                if (e->flags & 0x00200000) {
+                                    s32 impact = StartFXSubGuts(
+                                        e->fxhit, player->effectpos, 0,
+                                        0x880, 0.0f);
+
+                                    if (impact >= 0 &&
+                                        (e->flags & 0x00300000)) {
+                                        Effect* impactEffect =
+                                            &Effects[impact];
+                                        f32* impactMat =
+                                            (f32*)impactEffect->node;
+
+                                        if (FloorCollide(
+                                                impactEffect->colrad + 1.0f,
+                                                impactEffect->colrad + 5.0f,
+                                                lbl_80348244, impactMat + 12,
+                                                NULL, 1, 0)) {
+                                            CopyMat4(gFloorCollisionResult,
+                                                     impactMat);
+                                            impactMat[13] += 0.1f;
+                                        } else {
+                                            CopyMat3(gIdentityMatrix,
+                                                     impactMat);
+                                        }
+                                    }
+                                    e->damagetype &= ~DMG_SUPER;
+                                }
+                            } else {
                                 pos[0] = hitpos[0];
                                 pos[1] = hitpos[1];
                                 pos[2] = hitpos[2];
@@ -3000,7 +3031,7 @@ void ProcessEffects(void)
                     } else if (e->maxtime - remaining > 0.1f) {
                         hit = -1;
                     }
-                    if (e->flags & 0x00100000) {
+                    if (passThrough != 0) {
                         hit = 0;
                     }
                 }
@@ -3072,7 +3103,6 @@ void ProcessEffects(void)
                     }
                 }
             } else if (mode == 0) {
-                s32 passThrough = e->damagetype & DMG_SUPER;
                 s32 start = 0;
                 do {
                     s32 damage;
@@ -3155,7 +3185,6 @@ void ProcessEffects(void)
                     }
                 }
             } else if (mode == 0) {
-                s32 passThrough = e->damagetype & DMG_SUPER;
                 CritterCollideStart(radius, pos, 0);
                 critter = CritterMoveNodeCol(radius, fade, oldpos, pos,
                                              hitpos, e->id, 0);
