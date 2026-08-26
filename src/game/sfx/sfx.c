@@ -937,7 +937,8 @@ typedef struct MagicView {
     s32 colorpick[1];   /* +108 per-player-class color idx */
     u8 _p2[12];
     s32 coloridx[1];    /* +124 per-magic-type color idx   */
-    u8 _p3a[3236];
+    u8 _p3a[3216];
+    s32 hitmorph[5];    /* +3344 default hit fx by damage type */
     s32 kindidA[1];     /* +3364 base fx id per element    */
     u8 _q0[16];
     s32 kindidB[1];     /* +3384 alt fx id per element     */
@@ -2469,18 +2470,33 @@ struct fxworldinfo {
 };
 struct fxitem {
     /* 0x00 */ struct fxitemdef* def;
-    /* 0x04 */ u8 _04[0x50];
-    /* 0x54 */ f32 pos[3];
-    /* 0x60 */ u8 _60[0x64];
+    /* 0x04 */ f32 worldmat[16];
+    /* 0x44 */ f32 attn_pos[4];
+    /* 0x54 */ f32 pos[4];
+    /* 0x64 */ struct mbnode* node;
+    /* 0x68 */ u32 objflags;
+    /* 0x6C */ u8 atree[0x48];
+    /* 0xB4 */ f32 coll_offset[3];
+    /* 0xC0 */ s16 ctriidx;
+    /* 0xC2 */ s16 nctris;
     /* 0xC4 */ s16 active;
-    /* 0xC6 */ u8 _c6[9];
+    /* 0xC6 */ s16 activetime;
+    /* 0xC8 */ s8 action;
+    /* 0xC9 */ s8 paction;
+    /* 0xCA */ s8 daction;
+    /* 0xCB */ s8 opener;
+    /* 0xCC */ s8 minplayers;
+    /* 0xCD */ s8 minoff;
+    /* 0xCE */ u8 playermask;
     /* 0xCF */ s8 armor;
     /* 0xD0 */ s16 health;
     /* 0xD2 */ s16 gridnext;
     /* 0xD4 */ f32 visrad;
     /* 0xD8 */ f32 fxhittime;
     /* 0xDC */ s16 data_type;
-    /* 0xDE */ u8 data[0x12];
+    /* 0xDE */ u8 data_mid[0xE];
+    /* 0xEC */ s16 data_value;
+    /* 0xEE */ u8 data_tail[2];
 };
 extern struct fxworldinfo gWorldInfo;
 extern struct fxitem* sItems;
@@ -3041,8 +3057,9 @@ void ProcessEffects(void)
 
         if (hit < 0) {
             e->endtime = gClockTime;
-            e->hitcount = 0;
+            ((struct fxanim*)&e->atree[4])->oneshot = 0;
         } else if (hit != 0) {
+            MagicView* magic = (MagicView*)lbl_80122088;
             s32 morph = e->fxhit;
             if (collision != 0) {
                 fn_8009D5E0(hitpos);
@@ -3051,6 +3068,10 @@ void ProcessEffects(void)
                 fn_8009DB24(e->wall_sound, hitpos);
             } else if (hit != 1 && e->hit_audio != 0) {
                 fn_8009DB24(e->hit_audio, hitpos);
+            }
+            if (morph <= 0 && hit == 1) {
+                morph = magic->hitmorph[e->damagetype & 0xf];
+                e->flags &= ~0xf;
             }
             if (morph > 0 && morph < MAXEFFECTTYPES) {
                 u32 newflags = e->damageradius > 0.0f ? 0x880 : 0;
@@ -3063,10 +3084,13 @@ void ProcessEffects(void)
                     e->node->scale[1] = e->hitscale;
                     e->node->scale[2] = e->hitscale;
                 }
+                if ((e->flags & 0x04000000) && e->webtime == 0.0f) {
+                    e->webtime = 2.0;
+                }
                 if (e->webtime > 0.0f) {
                     e->endtime = gClockTime + e->webtime;
                     e->maxtime = e->webtime;
-                    e->hitcount = 0;
+                    ((struct fxanim*)&e->atree[4])->oneshot = 0;
                     e->flags &= 0xf67cfbfb;
                     if (!(e->damagetype & 0x200)) {
                         e->flags &= ~2;
@@ -3077,16 +3101,14 @@ void ProcessEffects(void)
                     }
                     if (e->dmgdebug != NULL) {
                         MBRemoveNode(e->dmgdebug, 1);
-                        e->dmgdebug = NULL;
                         DmgFxAdd(i);
                     }
                 } else {
-                    e->flags &= 0xfe7dfbf9;
-                    e->flags |= 0x100000;
+                    e->flags &= ~0xf;
                 }
             } else {
                 e->endtime = gClockTime;
-                e->hitcount = 0;
+                ((struct fxanim*)&e->atree[4])->oneshot = 0;
             }
         }
 
@@ -3120,7 +3142,11 @@ void ProcessEffects(void)
                 if (e->morphtime > 0.0f) {
                     e->endtime = gClockTime + e->morphtime;
                 } else {
-                    e->endtime = gClockTime + e->maxtime;
+                    struct fxanim* ai = (struct fxanim*)&e->atree[4];
+                    e->endtime =
+                        0.00111111 *
+                            ((f32)ai->def->nframes * (f32)ai->def->rate) +
+                        gClockTime;
                 }
                 e->maxtime = e->endtime - gClockTime;
                 if (e->fxmorph2 > 0) {
@@ -3131,7 +3157,7 @@ void ProcessEffects(void)
                     e->flags &= ~0x4000;
                     e->damageradius = 0.0f;
                 }
-                e->hitcount = 1;
+                ((struct fxanim*)&e->atree[4])->oneshot = 1;
             } else {
                 if (e->flags & 0x02000000) {
                     PlaceItem(3, 0, "BOSSGEN", mat);
@@ -3140,12 +3166,18 @@ void ProcessEffects(void)
                     BossGenerateEnemy(mat);
                 }
                 if (e->additem != NULL) {
-                    u8* item = (u8*)e->additem;
-                    item[0xcd] = 0;
-                    *(f32*)(item + 0x34) = mat[12];
-                    *(f32*)(item + 0x38) = mat[13];
-                    *(f32*)(item + 0x3c) = mat[14];
-                    AddItemSub(e->additem);
+                    struct fxitem* item = (struct fxitem*)e->additem;
+                    struct fxitem* spawned;
+                    item->minoff = 0;
+                    spawned = item;
+                    MBTreeClearFlags(item->node, 2, 0);
+                    if (item->def->type == 1) {
+                        item->data_value = 10;
+                    }
+                    item->worldmat[12] = mat[12];
+                    item->worldmat[13] = mat[13];
+                    item->worldmat[14] = mat[14];
+                    AddItemSub((struct item*)spawned);
                 }
                 DeleteEffect(i, 1);
                 continue;
