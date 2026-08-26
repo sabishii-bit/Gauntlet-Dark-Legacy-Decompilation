@@ -2860,8 +2860,8 @@ void fn_80051C78(void)
         u8* m = sMilestones;
 
         for (i = 0; i < sNumMilestones; i++, m += 0x68) {
-            f32 dy = gDefaultPlayerPosition[1] - *(f32*)(m + 0x34);
             f32 dx = gDefaultPlayerPosition[0] - *(f32*)(m + 0x30);
+            f32 dy = gDefaultPlayerPosition[1] - *(f32*)(m + 0x34);
             f32 dz = gDefaultPlayerPosition[2] - *(f32*)(m + 0x38);
             f32 d2 = dx * dx + dy * dy;
 
