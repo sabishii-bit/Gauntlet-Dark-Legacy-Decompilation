@@ -3360,7 +3360,7 @@ void ProcessEffects(void)
                                 itemHit == 0.0f);
                         }
                         if (collisionDamage > 0.0f &&
-                            !(e->damagetype & DMG_HEAL)) {
+                            !(e->flags & 0x00800000)) {
                             item->fxhittime =
                                 sMusicFadeBase + e->damagedelay;
                         }
@@ -3393,7 +3393,7 @@ void ProcessEffects(void)
                                 itemHit == 0.0f);
                         }
                         if (collisionDamage > 0.0f &&
-                            !(e->damagetype & DMG_HEAL)) {
+                            !(e->flags & 0x00800000)) {
                             item->fxhittime =
                                 sMusicFadeBase + e->damagedelay;
                         }
@@ -3408,7 +3408,7 @@ void ProcessEffects(void)
                         hit = 1;
                     }
                     if (mode != 0 && item->def->type == 10 &&
-                        item->def->subtype == 41 && item->health > 0) {
+                        item->data_type == 41 && item->health > 0) {
                         e->fxhit = -1;
                     } else if (mode != 0) {
                         hit = 0;
@@ -3437,7 +3437,7 @@ void ProcessEffects(void)
                     (wallFlags & 0xF0000) == 0x50000) {
                     WorldObjectExplode(wall, hitpos);
                 }
-                if (e->damagetype & DMG_EXPLODE) {
+                if (e->damagetype & DMG_REFLECT) {
                     if (e->wall_sound != 0 && e->owner > 0) {
                         fn_8009EF7C(0, hitpos);
                     }
@@ -3509,21 +3509,26 @@ void ProcessEffects(void)
             ((struct fxanim*)&e->atree[4])->oneshot = 0;
         } else if (hit != 0) {
             MagicView* magic = (MagicView*)lbl_80122088;
-            s32 morph = e->fxhit;
+            s32 morph;
             if (collision != 0) {
                 fn_8009D5E0(hitpos);
-            }
-            if (hit == 1 && e->wall_sound != 0) {
-                fn_8009DB24(e->wall_sound, hitpos);
-            } else if (hit != 1 && e->hit_audio != 0) {
+            } else if (hit == 1) {
+                if (e->wall_sound != 0) {
+                    fn_8009DB24(e->wall_sound, hitpos);
+                }
+            } else if (e->hit_audio != 0) {
                 fn_8009DB24(e->hit_audio, hitpos);
             }
+            morph = e->fxhit;
             if (morph <= 0 && hit == 1) {
                 morph = magic->hitmorph[e->damagetype & 0xf];
                 e->flags &= ~0xf;
             }
             if (morph > 0 && morph < MAXEFFECTTYPES) {
-                u32 newflags = e->damageradius > 0.0f ? 0x880 : 0;
+                u32 newflags = 0;
+                if (e->damageradius > 0.0f) {
+                    newflags |= 0x880;
+                }
                 ChangeEffect(i, morph, newflags);
                 ZeroEffect(i);
                 GetWorldMat(e->node, mat, NULL);
@@ -3568,32 +3573,33 @@ void ProcessEffects(void)
                         e->flags &= ~0xf;
                     }
                 }
+
+                if ((e->flags & 0x300000) != 0) {
+                    targetmat[12] = pos[0];
+                    targetmat[13] = pos[1];
+                    targetmat[14] = pos[2];
+                    if (FloorCollide(e->colrad + 1.0f,
+                                     e->colrad + 5.0f, -10.0f,
+                                     targetmat + 12, NULL, 1, 0)) {
+                        CopyMat4(gFloorCollisionResult, targetmat);
+                        targetmat[13] += 0.1f;
+                    } else {
+                        CopyMat3(gIdentityMatrix, targetmat);
+                    }
+                    pos[0] = targetmat[12];
+                    pos[1] = targetmat[13];
+                    pos[2] = targetmat[14];
+                    moved = 1;
+                }
+                if (e->flags & 0x04000000) {
+                    BossGenerateEnemy(mat);
+                    e->flags &= ~0x04000000;
+                    e->flags |= 0x400;
+                }
             } else {
                 e->endtime = gClockTime;
                 ((struct fxanim*)&e->atree[4])->oneshot = 0;
             }
-        }
-
-        if ((e->flags & 0x300000) != 0) {
-            targetmat[12] = pos[0];
-            targetmat[13] = pos[1];
-            targetmat[14] = pos[2];
-            if (FloorCollide(e->colrad + 1.0f, e->colrad + 5.0f, -10.0f,
-                             targetmat + 12, NULL, 1, 0)) {
-                CopyMat4(gFloorCollisionResult, targetmat);
-                targetmat[13] += 0.1f;
-            } else {
-                CopyMat3(gIdentityMatrix, targetmat);
-            }
-            pos[0] = targetmat[12];
-            pos[1] = targetmat[13];
-            pos[2] = targetmat[14];
-            moved = 1;
-        }
-        if (e->flags & 0x04000000) {
-            BossGenerateEnemy(mat);
-            e->flags &= ~0x04000000;
-            e->flags |= 0x400;
         }
 
         if (gClockTime >= e->endtime - 0.03332f &&
