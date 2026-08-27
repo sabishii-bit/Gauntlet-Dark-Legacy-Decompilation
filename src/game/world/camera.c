@@ -2687,7 +2687,7 @@ level_player_found:
         dy = cam2->wpos[1] - gDefaultPlayerPosition[1];
         dx = cam2->wpos[0] - gDefaultPlayerPosition[0];
         dz = cam2->wpos[2] - gDefaultPlayerPosition[2];
-        distance = dy * dy + dx * dx + dz * dz;
+        distance = dx * dx + dy * dy + dz * dz;
         if (distance > lbl_80345EC8) {
             root = __frsqrte(distance);
             root = lbl_80345F18 * root *
