@@ -1038,8 +1038,11 @@ s32 dcsVoiceSetupAdpcm(s32 channel) {
     } else {
         u16 call = lbl_802F0F60[sample];
         DcsSampleData* data = &lbl_802C9F60[call & 0xFFF];
-        AXPBADPCM adpcm;
+        volatile u8 highPad[8];
         AXPBADDR addr;
+        volatile u8 middlePad[12];
+        AXPBADPCM adpcm;
+        volatile u8 lowPad[4];
         u32 start;
         u32 end;
 
