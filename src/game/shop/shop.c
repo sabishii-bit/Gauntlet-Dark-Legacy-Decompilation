@@ -1829,9 +1829,9 @@ extern s32 lbl_80343E00;    /* menu fade band height */
 extern s32 lbl_80343E04;    /* menu top y            */
 extern s32 lbl_80343E08;    /* menu bottom y         */
 extern f64 lbl_80348428;    /* mlines scale factor   */
-extern char lbl_80348414[]; /* "%d" price fmt        */
-extern char lbl_8034841C[]; /* "%d" sell fmt         */
-extern char lbl_80348430[]; /* up-arrow texture name */
+extern char lbl_80348414[5]; /* "%d" price fmt        */
+extern char lbl_8034841C[5]; /* "%d" sell fmt         */
+extern char lbl_80348430[8]; /* up-arrow texture name */
 extern char lbl_80114A30[]; /* down-arrow texture    */
 extern s32 lbl_80122F50[];  /* per-player price x column */
 extern void mbBlitCalcRect(void* blit, s32 a, s32* rect, s32 b);
@@ -1866,12 +1866,13 @@ static s32 write_shop_menu(s32 player, s32 scroll)
     u8* timers;
     u8* avail;
     u8* flags;
-    s32 y;
-    char buf[20];
     s32 tex;
     s32* fli;
     f64 kGold;
-    u8 _spare[16];
+    u8 _spare[12];
+    char buf[20];
+    s32 y;
+    u8 _ypad[8];
 
     if (mv > 0 && mv < 2) {
         mv = 2;
@@ -2003,7 +2004,7 @@ static s32 write_shop_menu(s32 player, s32 scroll)
         if (price > 0) {
             s32 x;
             s32 ytxt;
-            s32 msg;
+            u32 msg;
             fli = (s32*)(flags + joff);
             x = *colp - 64;
             if (*fli & 8) {
