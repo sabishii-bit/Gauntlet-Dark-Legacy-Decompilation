@@ -4387,7 +4387,7 @@ void fn_800606FC(void)
         if (a & 4) {
             s8 c8 = it->action;
             if (!((s8)c8 != 0 && (a & 2))) {
-                s8 na;
+                s32 na;
                 s32 t;
                 if ((s8)c8 == 0) {
                     na = 1;
@@ -4537,11 +4537,12 @@ void fn_800606FC(void)
                 }
                 {
                     u8* e = gEnemies + slot * 0x394;
+                    s16 wob;
                     f32 fa = sItemFloorRadius + *(f32*)&it->data[0xC];
                     f32 rate = sItemFloorRadius /
                                (f32)(sCameraVisibilityRadius * (f32)max);
-                    *(s16*)&it->data[8] =
-                        (s16)((f32)(lbl_80347050 * (f32)(u8)gen[0xB]) * fa);
+                    wob = (s16)((f32)(lbl_80347050 * (f32)(u8)gen[0xB]) * fa);
+                    *(s16*)&it->data[8] = wob;
                     *(f32*)&it->data[0xC] =
                         *(f32*)&it->data[0xC] + rate;
                     if (*(f32*)&it->data[0xC] > sItemFloorRadius) {
@@ -4642,9 +4643,7 @@ void fn_800606FC(void)
                 wob[2] = sItemZero;
                 t = *(s16*)&it->data[2] - gFrameTicks;
                 *(s16*)&it->data[2] = t;
-                if (t < 1) {
-                    *(s16*)&it->data[2] = 0;
-                } else {
+                if (t > 0) {
                     f64 step;
                     if ((*(s16*)&it->data[2] + 4) & 8) {
                         step = lbl_80347068;
@@ -4660,6 +4659,8 @@ void fn_800606FC(void)
                     }
                     wob[1] = (f32)(wob[1] + step);
                     WRAP_ANGLE(wob[1]);
+                } else {
+                    *(s16*)&it->data[2] = 0;
                 }
                 CreateYPRMatrix(it->objgrp.worldmat[0], wob);
                 UpdateObjWorldMat(&it->objgrp);
@@ -4707,11 +4708,12 @@ void fn_800606FC(void)
                 }
                 {
                     s32 n;
-                    u8* e = gEnemies;
-                    for (n = 0; n < 25; n++, e += 0x394) {
-                        if (*(s32*)(e + 0x340) == n) {
+                    for (n = 0; n < 25; n++) {
+                        u8* e = gEnemies + n * 0x394;
+                        s32* genid = (s32*)(e + 0x340);
+                        if (n == *genid) {
                             *(s32*)(e + 0x33C) = 0;
-                            *(s32*)(e + 0x340) = -1;
+                            *genid = -1;
                             *(f32*)(e + 0x344) = lbl_80347000;
                         }
                     }
@@ -4802,7 +4804,7 @@ void fn_800606FC(void)
                         }
                         it->daction = 2;
                     } else {
-                        s8 d;
+                        s32 d;
                         if (tgt[0x16] & 0x20) {
                             d = 0;
                         } else {
@@ -4818,7 +4820,7 @@ void fn_800606FC(void)
                         }
                         it->daction = 2;
                     } else {
-                        s8 d;
+                        s32 d;
                         if (tgt[0x16] & 0x20) {
                             d = 2;
                         } else {
@@ -4865,7 +4867,7 @@ void fn_800606FC(void)
                         tgt[0x16] |= 0x20;
                         it->daction = 2;
                     } else {
-                        s8 d;
+                        s32 d;
                         if (tgt[0x16] & 0x20) {
                             d = 2;
                         } else {
@@ -4876,7 +4878,7 @@ void fn_800606FC(void)
                 }
             } else {
                 if (flags & 4) {
-                    s8 d;
+                    s32 d;
                     if (mask != 0) {
                         d = 2;
                     } else {
@@ -4910,7 +4912,7 @@ void fn_800606FC(void)
                 !(*(s16*)&it->data[4] & 0xC0)) {
                 u8 pm = it->playermask;
                 if (pm & 0xF) {
-                    it->playermask = pm & 0xF0;
+                    it->playermask = pm & ~0xF;
                 } else {
                     it->playermask = 0;
                 }
