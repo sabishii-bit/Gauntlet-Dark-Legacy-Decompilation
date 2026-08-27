@@ -3119,7 +3119,6 @@ void camera_mode_dest(s32 camIdx)
     f32 yawStep;
     f32 zero;
     f32 targetPitch;
-    f32 currentPitch;
     f64 root;
     f64 angle;
     f64 rawAngle;
@@ -3129,10 +3128,12 @@ void camera_mode_dest(s32 camIdx)
     f32 offset[3];
     f32 transformed[3];
     /* Retail leaves four words between its angle and transform vectors. */
-    f32 angles[7];
+    struct {
+        f32 values[6];
+        f32 reserved[2];
+    } angles;
     f32 orbitNormalize[3];
     volatile f32 directionRoot;
-    f32 finalNormalize[3];
 
     if (camIdx != 0) {
         return;
@@ -3376,16 +3377,16 @@ void camera_mode_dest(s32 camIdx)
         }
         lbl_80344430 = (f32)angle;
 
-        angles[0] = lbl_8034442C;
+        angles.values[0] = lbl_8034442C;
         angle = CAM_PI + (f64)lbl_80344430;
         if (angle > CAM_PI) {
             angle -= CAM_2PI;
         } else if (angle <= -CAM_PI) {
             angle = CAM_2PI + angle;
         }
-        angles[1] = (f32)angle;
-        angles[2] = lbl_80345EC8;
-        CreateYPRMatrix(matrix, angles);
+        angles.values[1] = (f32)angle;
+        angles.values[2] = lbl_80345EC8;
+        CreateYPRMatrix(matrix, angles.values);
         offset[0] = lbl_80345EC8;
         offset[1] = lbl_80345EC8;
         offset[2] = step;
@@ -3399,18 +3400,16 @@ void camera_mode_dest(s32 camIdx)
     cam->pyr_delta[0] = zero;
     cam->pyr_delta[1] = zero;
     cam->pyr_delta[2] = zero;
-    targetPitch = lbl_80344530;
-    currentPitch = lbl_80344408;
     scale = lbl_80344450 * (f32)(u32)gFrameTicks;
-    if (targetPitch - currentPitch > zero) {
-        lbl_80344408 = currentPitch + scale;
-        if (lbl_80344408 >= targetPitch) {
-            lbl_80344408 = targetPitch;
+    if (lbl_80344530 - lbl_80344408 > zero) {
+        lbl_80344408 += scale;
+        if (lbl_80344408 >= lbl_80344530) {
+            lbl_80344408 = lbl_80344530;
         }
     } else {
-        lbl_80344408 = currentPitch - scale;
-        if (lbl_80344408 <= targetPitch) {
-            lbl_80344408 = targetPitch;
+        lbl_80344408 -= scale;
+        if (lbl_80344408 <= lbl_80344530) {
+            lbl_80344408 = lbl_80344530;
         }
     }
     cam->pyr[0] = lbl_80344408;
@@ -3423,13 +3422,16 @@ void camera_mode_dest(s32 camIdx)
     cam->attn[1] = cam->wpos[1] + transformed[1];
     cam->attn[2] = cam->wpos[2] + transformed[2];
     distance = cam->radius;
-    finalNormalize[0] = cam->attn[0] - cam->wpos[0];
-    finalNormalize[1] = cam->attn[1] - cam->wpos[1];
-    finalNormalize[2] = cam->attn[2] - cam->wpos[2];
-    SlowNormalVector(finalNormalize);
-    cam->attn[0] = cam->wpos[0] + finalNormalize[0] * distance;
-    cam->attn[1] = cam->wpos[1] + finalNormalize[1] * distance;
-    cam->attn[2] = cam->wpos[2] + finalNormalize[2] * distance;
+    {
+        f32 finalNormalize[3];
+        finalNormalize[0] = cam->attn[0] - cam->wpos[0];
+        finalNormalize[1] = cam->attn[1] - cam->wpos[1];
+        finalNormalize[2] = cam->attn[2] - cam->wpos[2];
+        SlowNormalVector(finalNormalize);
+        cam->attn[0] = cam->wpos[0] + finalNormalize[0] * distance;
+        cam->attn[1] = cam->wpos[1] + finalNormalize[1] * distance;
+        cam->attn[2] = cam->wpos[2] + finalNormalize[2] * distance;
+    }
 }
 #pragma opt_common_subs on
 
