@@ -231,13 +231,14 @@ void fn_800D860C(u32 param_1, u8* param_2, int param_3) {
         int c3 = (int)((u32)param_2[3] * 224) / 256;
         u32 value;
 
+        c4 += 8;
         value = c1 + 8;
-        value += c4 + 8;
+        value += c4;
+        c2 += c5;
+        c2 += 16;
         *(u32*)(out + i * 4) =
-            (u32)(c2 + c5 + 16) << 24
-          | value << 8
-          | (u32)(c3 + 16) << 16
-          | (u32)(c0 + 16);
+            (value << 8 | (u32)c2 << 24)
+          | ((u32)(c0 + 16) | (u32)(c3 + 16) << 16);
         param_2 += 6;
     }
 }
