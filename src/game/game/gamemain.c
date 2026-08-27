@@ -5098,14 +5098,14 @@ extern s32  strcmp(const char* a, const char* b);
         char buf_[12];                                                      \
         c_ = *(s32*)p;                                                      \
         t_ = *(s32*)(state + c_ * 4 + 64) / 60;                             \
-        row_ = (u8*)layout + c_ * 4;                                        \
-        DrawTextKeepScale(lbl_80346AD4, *(s32*)(row_ + 32) + 7,             \
-                          *(colp) + *(s32*)(row_ + 80), 7, 0xFFFFFF,        \
-                          msgs + 36);                                       \
         sec_ = t_ % 60;                                                     \
         t_ /= 60;                                                           \
         min_ = t_ % 60;                                                     \
         t_ /= 60;                                                           \
+        row_ = (u8*)layout + c_ * 4;                                        \
+        DrawTextKeepScale(lbl_80346AD4, *(s32*)(row_ + 32) + 7,             \
+                          *(colp) + *(s32*)(row_ + 80), 7, 0xFFFFFF,        \
+                          msgs + 36);                                       \
         sprintf(buf_, msgs + 48, t_, min_, sec_);                           \
         w_ = DrawNormalText(lbl_80346AD4, buf_, 7);                         \
         c_ = *(s32*)p;                                                      \
@@ -5245,7 +5245,8 @@ s32 do_stats_display(void)
             STAT_ROW(col3, msgs + 24, 16);
             {
                 s32 c = *(s32*)p;
-                s32 amt = *(s32*)(state + c * 4 + 96);
+                u8* b = state + c * 4;
+                s32 amt = *(s32*)(b + 96);
                 s32 ok;
                 if (gGameBusy != 0) {
                     ok = 0;
@@ -5255,7 +5256,7 @@ s32 do_stats_display(void)
                     if (*(s32*)(lbl_80240E30 + c * 60 + 4) & 0x0F000000) {
                         amt *= 6;
                     }
-                    *(s32*)(state + c * 4 + 64) += amt;
+                    *(s32*)(b + 64) += amt;
                     a = state + *(s32*)p * 4;
                     tgt = *(f32*)((u8*)p + *(s32*)(p + 12) * 28 + 3112);
                     if ((f32)*(s32*)(a += 64) < tgt) {
