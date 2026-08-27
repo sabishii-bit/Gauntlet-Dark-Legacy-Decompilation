@@ -1066,10 +1066,10 @@ static void shop_setup(void)
         for (i = 0; i < 4; i++, boff += 20, toff += 4, poff += 13148) {
             u8* pl = gPlayers + poff;
             s32 cls = *(s32*)(pl + 4);
-            s32* texp = (s32*)(tbl + toff + 96);
-            void** b = (void**)(page + boff + 7600);
+            s32* texp = (s32*)(tbl + toff);
+            void** b = (void**)(page + boff);
             sprintf(buf, fmts + 232, i + 1);
-            b[0] = mbNewBlitSized(buf, *texp, 0, 128, -1);
+            *(b += 1900) = mbNewBlitSized(buf, *(texp += 24), 0, 128, -1);
             sprintf(buf, fmts + 244, i + 1);
             b[1] = mbNewBlitSized(buf, *texp, 256, 128, -1);
             sprintf(buf, fmts + 256);
