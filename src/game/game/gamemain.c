@@ -2611,15 +2611,17 @@ s32 NextAttractWave(s32 worldLevel)
     s32 startIndex;
     s32 tableOffset;
     s32 level;
+    s32 worldId;
     s32 worldBits;
-    u8* worldTable = sWorldLevelTable;
+    WorldLevelTableNav* worldTable = (WorldLevelTableNav*)sWorldLevelTable;
+    WorldTypeNav* world;
 
     for (worldIndex = 0; worldIndex < 14; worldIndex++) {
-        if (worldType == *(s32*)(worldTable + worldIndex * 44 + 232)) {
+        if (worldType == worldTable->worlds[worldIndex].worldId) {
             break;
         }
     }
-    if (worldIndex == 14) {
+    if ((u32)worldIndex == 14) {
         worldIndex = 0;
     }
     startIndex = worldIndex;
@@ -2631,20 +2633,20 @@ s32 NextAttractWave(s32 worldLevel)
                 worldIndex = 0;
             }
             tableOffset = worldIndex * 44;
-        } while (*(s32*)(worldTable + tableOffset + 248) == 0 &&
-                 worldIndex != startIndex);
+            world = (WorldTypeNav*)((u8*)worldTable + tableOffset + 232);
+        } while (world->loaded == 0 && worldIndex != startIndex);
 
-        level = *(s32*)(worldTable + tableOffset + 272);
-        if (level >= *(s32*)(worldTable + tableOffset + 252)) {
+        level = world->nextLevel;
+        worldId = world->worldId;
+        if (level >= world->numLevels) {
             level = 0;
         }
-        worldBits = *(s32*)(worldTable + tableOffset + 232) << 8;
-        ResolveWorldData((level & 0xFF) |
-                         (*(s32*)(worldTable + tableOffset + 232) << 8));
+        worldBits = worldId << 8;
+        ResolveWorldData((level & 0xFF) | worldBits);
 
         if ((gControllerButtons & 0x10) == 0) {
             s32 originalLevel = level;
-            s32 numLevels = *(s32*)(worldTable + tableOffset + 252);
+            s32 numLevels = *(s32*)((u8*)worldTable + tableOffset + 252);
             WorldLevelNav* levels = ((WorldDataNav*)gWorldData)->levels;
 
             while ((levels[level].flags2 & 2) == 0) {
@@ -2660,13 +2662,13 @@ s32 NextAttractWave(s32 worldLevel)
                 continue;
             }
         }
-        worldIndex = worldBits | (level & 0xFF);
+        worldIndex = (level & 0xFF) | worldBits;
         ResolveWorldData(worldIndex);
         level++;
-        if (level >= *(s32*)(worldTable + tableOffset + 252)) {
+        if (level >= *(s32*)((u8*)worldTable + tableOffset + 252)) {
             level = 0;
         }
-        *(s32*)(worldTable + tableOffset + 272) = level;
+        *(s32*)((u8*)worldTable + tableOffset + 272) = level;
         return worldIndex;
     } while (1);
 }
