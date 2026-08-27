@@ -810,6 +810,7 @@ s32 LoadModel(const char* name, void** outData, s32 initTexMods, s32 model)
 void fn_8005A588(OBJGRP* group, f32* offset);
 void fn_8005A65C(OBJGRP* group, f32* offset);
 
+#pragma dont_inline on
 void fn_8005A338(OBJGRP* group, f32* collOffset, f32* attnOffset)
 {
     if (group != 0 && group->node != 0) {
@@ -820,6 +821,7 @@ void fn_8005A338(OBJGRP* group, f32* collOffset, f32* attnOffset)
         CopyMat4(gIdentityMatrix, &group->worldmat[0][0]);
     }
 }
+#pragma dont_inline off
 
 #pragma dont_inline on
 void UpdateObjWorldMat(OBJGRP* group)
@@ -4100,6 +4102,63 @@ extern f32   lbl_80127D00[4];
 extern f32   lbl_8011C904[8];
 extern char  sMissingLookoutParamFmt[];
 
+/* typed view over gGameOptions so the option words load as base+displacement
+ * (the retail world_update keeps the base in a register; flat byte-offset
+ * casts get re-associated into derived pointers) */
+typedef struct GameOptionsView {
+    s32 unk0;     /* 0x00 */
+    s32 unk4;     /* 0x04 */
+    s32 unk8;     /* 0x08 */
+    s32 unkC;     /* 0x0C */
+    s32 unk10;    /* 0x10 */
+} GameOptionsView;
+#define GAMEOPTS ((GameOptionsView*)gGameOptions)
+
+/* world_update's original source wrote these as raw literal constants, not
+ * named globals: MWCC pooled them in .sdata2 and cached them in callee-saved
+ * FPRs across the two item loops (target world_update saves f14-f31), which
+ * extern references can never reproduce because calls may clobber globals.
+ * Shadow the names with their exact pool values for this function only. */
+#define sArrowFloorYOffset      0.5
+#define sNewtonThree            3.0
+#define sZeroDouble             0.0
+#define sPi                     3.141592654
+#define sTwoPi                  6.283185308
+#define sNegativePi             -3.141592654
+#define lbl_80346EE8            1.0
+#define lbl_80346EF0            2.0
+#define lbl_80346F88            30.0
+#define lbl_80346F98            10.0
+#define lbl_80346FB8            1.5
+#define lbl_80347018            50.0
+#define lbl_80347040            1.75
+#define lbl_80347048            15.0
+#define lbl_80347058            0.7853981635
+#define lbl_80347060            40.0
+#define lbl_80347068            -0.05235987756666667
+#define lbl_80347070            0.05235987756666667
+#define lbl_80347078            0.06981317008888889
+#define lbl_80347080            -0.06981317008888889
+#define lbl_80347088            0.2
+#define lbl_80347090            0.8
+#define lbl_803470A0            2.83
+#define lbl_803470A8            9.0
+#define lbl_803470B0            20.0
+#define lbl_803470C0            0.17453292522222225
+#define lbl_803470C8            0.017453292522222223
+#define lbl_803470D0            0.3490658504444445
+#define lbl_803470D8            200.0
+#define sItemZero               0.0f
+#define sItemFloorRadius        1.0f
+#define sItemSearchDistance     10.0f
+#define sCameraVisibilityRadius 2.0f
+#define sArrowFloorRadius       0.2f
+#define lbl_80347000            100000.0f
+#define lbl_80347050            6.0f
+#define lbl_80347098            0.1f
+#define lbl_803470B8            15.0f
+#define lbl_803470BC            100.0f
+
 /* delete a live item and recycle its pool slot */
 #define KILL_ITEM(itm)                                                       \
     do {                                                                     \
@@ -4180,7 +4239,7 @@ void fn_800606FC(void)
                 vis = 0;
             }
         }
-        if (paused == 0 || type == 10) {
+        if (paused == 0 || it->info->type == 10) {
             if (vis != 0) {
                 it->active |= 0x4000;
             } else {
@@ -4275,8 +4334,7 @@ void fn_800606FC(void)
             s32 res;
             if (it->activetime <= 0) {
                 if (a & 4) {
-                    it->daction++;
-                    if ((s8)it->daction >= *(s16*)(anim + 0xC)) {
+                    if ((s8)(it->daction += 1) >= *(s16*)(anim + 0xC)) {
                         if (it->active & 2) {
                             it->daction--;
                         } else {
@@ -4395,13 +4453,12 @@ void fn_800606FC(void)
                     if (lbl_80344C5C > sZeroDouble) {
                         LookoutParam* lp = (LookoutParam*)(sItemRuntime + 0xCB8);
                         s32 n = sNumLookoutParams;
-                        if (n > 0) {
-                            do {
-                                if (lp->id == 0) {
-                                    goto lookout_found;
-                                }
-                                lp++;
-                            } while (--n != 0);
+                        s32 i;
+                        for (i = 0; i < n; i++) {
+                            if (lp->id == 0) {
+                                goto lookout_found;
+                            }
+                            lp++;
                         }
                         ErrorPrintf(sMissingLookoutParamFmt, 0);
                         lp = NULL;
@@ -5269,6 +5326,46 @@ void fn_800606FC(void)
     fn_80062A00();
     sPreviousSafeRockCount = sSafeRockCount;
 }
+
+#undef sArrowFloorYOffset
+#undef sNewtonThree
+#undef sZeroDouble
+#undef sPi
+#undef sTwoPi
+#undef sNegativePi
+#undef lbl_80346EE8
+#undef lbl_80346EF0
+#undef lbl_80346F88
+#undef lbl_80346F98
+#undef lbl_80346FB8
+#undef lbl_80347018
+#undef lbl_80347040
+#undef lbl_80347048
+#undef lbl_80347058
+#undef lbl_80347060
+#undef lbl_80347068
+#undef lbl_80347070
+#undef lbl_80347078
+#undef lbl_80347080
+#undef lbl_80347088
+#undef lbl_80347090
+#undef lbl_803470A0
+#undef lbl_803470A8
+#undef lbl_803470B0
+#undef lbl_803470C0
+#undef lbl_803470C8
+#undef lbl_803470D0
+#undef lbl_803470D8
+#undef sItemZero
+#undef sItemFloorRadius
+#undef sItemSearchDistance
+#undef sCameraVisibilityRadius
+#undef sArrowFloorRadius
+#undef lbl_80347000
+#undef lbl_80347050
+#undef lbl_80347098
+#undef lbl_803470B8
+#undef lbl_803470BC
 
 /* ==========================================================================
  * FUNCTION INVENTORY  (all 45 functions in 0x80058078-0x800631AC)
