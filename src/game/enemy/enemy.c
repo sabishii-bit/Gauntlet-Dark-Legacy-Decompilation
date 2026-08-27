@@ -6638,9 +6638,13 @@ void do_enemies(void)
     (void)unused;
 
     ProcessCritterList();
+#pragma opt_propagation off
     if (gBoss398 >= 0) {
-        gEnemies[gBoss398].state = 1;
+        u8* boss = pool + gBoss398 * 0x394;
+
+        *(s32*)(boss + 0xECC) = 1;
     }
+#pragma reset
     if ((gGameBusy | gGameplayPauseTimer) != 0) {
         return;
     }
@@ -6692,7 +6696,9 @@ void do_enemies(void)
 
         lbl_80344718 = 0;
         for (i = 0; i < 45; i++) {
-            *(f32*)(pool + i * 4 + 0x40) = rate * lbl_8011B878[i];
+            u8* dst = pool + i * 4;
+
+            *(f32*)(dst + 0x40) = rate * lbl_8011B878[i];
         }
     }
 
@@ -6725,7 +6731,7 @@ void do_enemies(void)
             r = visibilityScale * *(f32*)(e + 0x238);
             *(s16*)(e + 0x2DA) =
                 (s16)MBWorldSphereVisible3((f32*)(e + 0x44), r);
-            r = r + visibilityAdd;
+            r += visibilityAdd;
             *(s16*)(e + 0x2DC) =
                 (s16)MBWorldSphereVisible3((f32*)(e + 0x44), r);
             if (*(s16*)(e + 0x2DA) != 0) {
@@ -6761,6 +6767,7 @@ void do_enemies(void)
             state = *(s32*)(e + 0xB4);
             switch (state) {
             case 1:
+            case 7:
                 shown++;
                 if (*(s32*)e == gBossType) {
                     goto tail;
@@ -6886,6 +6893,7 @@ void do_enemies(void)
                     *(f32*)(*(u8**)(e + 0x1DC) + 0x38) = *(f32*)(e + 0x3C);
                 }
                 break;
+            case 0:
             default:
                 break;
             }
