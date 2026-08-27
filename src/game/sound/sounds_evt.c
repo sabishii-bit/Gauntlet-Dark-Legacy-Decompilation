@@ -500,8 +500,9 @@ void fn_8009D34C(void)
 {
 }
 
-void fn_8009D350(void)
+void fn_8009D350(s32 player)
 {
+    (void)player;
     sndFxPlayHandle(12, 224, 4);
 }
 

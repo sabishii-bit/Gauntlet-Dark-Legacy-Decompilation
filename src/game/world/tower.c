@@ -2011,7 +2011,8 @@ int sumnerCheckLevelUp(void) {
 #pragma opt_common_subs reset
 
 /* Activate Sumner hint mode. */
-void SumnerHintsActivate(void) {
+void SumnerHintsActivate(s32 player) {
+    (void)player;
     lbl_80344C90 = 4;
     lbl_80344C54 = 1;
 }

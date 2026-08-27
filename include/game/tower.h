@@ -33,7 +33,7 @@ void EnterTower(void);
 
 int GetWorldOrder(int world);
 int sumnerSpeechActive(void);
-void SumnerHintsActivate(void);
+void SumnerHintsActivate(s32 player);
 void SumnerEnd(void);
 void SumnerInit(void);
 
