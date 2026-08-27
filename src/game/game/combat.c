@@ -1469,21 +1469,22 @@ f32 get_cam_dist(s32 camIdx)
 
         result = lbl_8034452C;
         if (radius < result) {
-            goto done;
-        }
-        if (lbl_80344960 < 0) {
-            if (radius > lbl_80344528 && lbl_803444E4 == 0) {
-                result = (f32)(radius -
-                    lbl_80345F88 * (f32)(radius - lbl_80344528));
-            } else {
-                result = radius;
-            }
+            result = result;
         } else {
-            if (radius > lbl_80345FF0) {
-                result = (f32)(lbl_80345FF8 *
-                    (lbl_80345FF0 - (f32)cam->radius) + (f32)cam->radius);
+            if (lbl_80344960 < 0) {
+                if (radius > lbl_80344528 && lbl_803444E4 == 0) {
+                    result = (f32)(radius -
+                        lbl_80345F88 * (f32)(radius - lbl_80344528));
+                } else {
+                    result = radius;
+                }
             } else {
-                result = radius;
+                if (radius > lbl_80345FF0) {
+                    result = (f32)(lbl_80345FF8 *
+                        (lbl_80345FF0 - (f32)cam->radius) + (f32)cam->radius);
+                } else {
+                    result = radius;
+                }
             }
         }
     }
