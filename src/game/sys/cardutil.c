@@ -186,42 +186,52 @@ void cardExit(void) {
 
 /* 0x800DC2C0 - the "Cardutilmainloop" worker thread */
 static void* cardThreadMain(void* arg) {
+    CardMgrBuf* card = (CardMgrBuf*)gCardBuf;
+    OSMutex* mutex2 = &card->mgr.mutex2;
+    s32* command = &card->mgr.command;
     BOOL quit = FALSE;
-    s32 res = 0;
-    s32 chan, cmdType, fileNo;
+    s32* freeFiles = &card->mgr.freeFiles;
+    OSCond* cond = &card->mgr.cond;
+    s32* freeBytes = &card->mgr.freeBytes;
     void* data;
+    s32 chan;
+    s32 res;
+    s32 cmdType, fileNo;
     (void)arg;
 
     while (!quit) {
-        OSLockMutex(&M.mutex);
-        while (M.command == -1) {
-            OSWaitCond(&M.cond, &M.mutex);
+        OSLockMutex(&card->mgr.mutex);
+        while (*command == -1) {
+            OSWaitCond(cond, &card->mgr.mutex);
         }
-        chan = M.command;
-        cmdType = M.cmdType;
-        fileNo = M.param1;
-        data = M.param2;
-        OSUnlockMutex(&M.mutex);
+        chan = *command;
+        cmdType = card->mgr.cmdType;
+        fileNo = card->mgr.param1;
+        data = card->mgr.param2;
+        OSUnlockMutex(&card->mgr.mutex);
 
         switch (cmdType) {
         case CARDCMD_MOUNT:
             res = cardDoMount(chan, data);
             break;
         case CARDCMD_UNMOUNT:
-            OSLockMutex(&M.mutex2);
-            M.dirCount = 0;
-            OSUnlockMutex(&M.mutex2);
+            OSLockMutex(mutex2);
+            card->mgr.dirCount = 0;
+            OSUnlockMutex(mutex2);
             res = CARDUnmount(chan);
             break;
-        case CARDCMD_FORMAT:
-            OSLockMutex(&M.mutex2);
-            M.dirCount = 0;
-            OSUnlockMutex(&M.mutex2);
-            M.totalXfer = 0xA000;
-            res = CARDFormat(chan);
-            if (res == 0)
-                res = CARDFreeBlocks(chan, &M.freeBytes, &M.freeFiles);
+        case CARDCMD_FORMAT: {
+            s32 status;
+            OSLockMutex(mutex2);
+            card->mgr.dirCount = 0;
+            OSUnlockMutex(mutex2);
+            card->mgr.totalXfer = 0xA000;
+            status = CARDFormat(chan);
+            if (status == 0)
+                status = CARDFreeBlocks(chan, freeBytes, freeFiles);
+            res = status;
             break;
+        }
         case CARDCMD_LOAD:
             res = cardDoLoad(chan, data);
             break;
@@ -231,15 +241,18 @@ static void* cardThreadMain(void* arg) {
         case CARDCMD_READ: {
             CARDFileInfo info;
             CARDStat stat;
-            res = CARDGetStatus(chan, fileNo, &stat);
-            if (res >= 0) {
+            u8 unused[8];
+            do {
+                res = CARDGetStatus(chan, fileNo, &stat);
+                if (res < 0)
+                    break;
                 res = CARDFastOpen(chan, fileNo, &info);
-                if (res >= 0) {
-                    M.totalXfer = stat.length;
-                    res = CARDRead(&info, data, M.totalXfer, 0);
-                    CARDClose(&info);
-                }
-            }
+                if (res < 0)
+                    break;
+                card->mgr.totalXfer = stat.length;
+                res = CARDRead(&info, data, card->mgr.totalXfer, 0);
+                CARDClose(&info);
+            } while (0);
             break;
         }
         case CARDCMD_WRITE:
@@ -254,11 +267,11 @@ static void* cardThreadMain(void* arg) {
             break;
         }
 
-        OSLockMutex(&M.mutex);
-        M.result = res;
-        M.command = -1;
+        OSLockMutex(&card->mgr.mutex);
+        card->mgr.result = res;
+        *command = -1;
         printf("Cardutilmainloop....");
-        OSUnlockMutex(&M.mutex);
+        OSUnlockMutex(&card->mgr.mutex);
     }
     return NULL;
 }
