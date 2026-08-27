@@ -1313,6 +1313,7 @@ void dcsVoiceUpdate(s32 channel) {
     s32 scaled;
     s32 pan;
     s32 sign;
+    AXVPB **voiceSlot;
     volatile u8 unused[8];
 
     if (volume < 0) {
@@ -1329,13 +1330,14 @@ void dcsVoiceUpdate(s32 channel) {
         master -= 0x3FFF - excess;
     }
 
+    voiceSlot = &sVoice[channel];
     pan = 0x100 - ((info->pan + 0x100) & 0x1FF);
     sign = pan >> 31;
-    sndVoiceSetVolume(sVoice[channel], ((sign ^ pan) - sign) >> 1);
+    sndVoiceSetVolume(*voiceSlot, ((sign ^ pan) - sign) >> 1);
     pan = 0x100 - ((info->pan + 0x180) & 0x1FF);
     sign = pan >> 31;
     pan = (sign ^ pan) - sign;
-    sndVoiceSetPan(sVoice[channel], pan >> 1);
+    sndVoiceSetPan(*voiceSlot, pan >> 1);
     dcsVoiceSetMaster(channel, master, master);
 }
 
