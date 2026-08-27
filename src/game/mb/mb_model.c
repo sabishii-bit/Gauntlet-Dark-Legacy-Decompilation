@@ -35,7 +35,9 @@
  */
 
 /* ---- externs: sibling-TU functions (resolved via symbols.txt) ---- */
-extern int   StartFileRead(const char* name, void* buf, int a, int b, int c, int d);
+extern void* StartFileRead(const char* dir, const char* name, int flags,
+                           int size, void* destination,
+                           void (*callback)(void*));
 extern int   FileSize(const char* dir, const char* name);
 extern int   MLMReadFile(const char* dir, const char* name, void* buf, int size);
 extern void* AllocMem(int size);
@@ -76,9 +78,13 @@ extern s32  lbl_80344E8C;        /* current model/object-def count */
 extern s32  gClockFrameNumber;   /* bulletproof_printf channel arg */
 extern s32  mlmMemUsed;          /* 0x80344F44 : MLM bytes used by models */
 
-extern u8   lbl_802A5CF0[];      /* background-load context block */
-extern s32  lbl_802A5D0C[4];     /* per-slot model-count lock points */
-extern u8   lbl_802A5D1C[0x49C]; /* MBOX_LoadModelFixed scratch/header buf */
+/*
+ * The background loader addresses this as one 0x4C4-byte object.  The two
+ * following symbols are interior linker labels at +0x1C and +0x2C.
+ */
+extern u8   lbl_802A5CF0[0x4C4];
+extern s32  lbl_802A5D0C[4];
+extern u8   lbl_802A5D1C[0x49C];
 
 extern const char lbl_80115DA8[]; /* "objects.ngc" */
 extern const char lbl_80115DB4[]; /* "textures.ngc" (+ pooled MBOX-loading log strings) */
@@ -99,87 +105,123 @@ static int   texidxcmp(const void* a, const void* b);
 int          MBOX_ReallyFindObject(const char* name, int a, int b, int create);
 static int   objcmp(const void* a, const void* b);
 
+typedef struct MboxModelLoadSlot {
+    u8* model;
+    s32 objectSize;
+    s32 textureSize;
+    s32 state;
+} MboxModelLoadSlot;
+
+typedef struct MboxBackgroundLoad {
+    u8* objectRead;
+    u8* textureRead;
+    s32 unused;
+    s32 state;
+    s32 done;
+    u32 time;
+} MboxBackgroundLoad;
+
+typedef struct MboxBackgroundState {
+    u8 unknown[28];
+    s32 modelCount[4];
+    char names[21][32];
+    MboxBackgroundLoad loads[21];
+} MboxBackgroundState;
+
 /* ---- 0x800B7758 : finish a pending background model load ---- */
 int MBOX_BGLoadModelDone(void) {
-    char* strs;
-    u8* tbl;
+    char* strs = (char*)lbl_80115DA8;
+    MboxBackgroundState* background;
+    s32 index;
+    u8* models;
+    u8* indexed;
+    MboxBackgroundLoad* load;
+    MboxModelLoadSlot* model;
     s32 slot;
-    u8* g;
-    u8* ent;
-    u8* row;
-    u8* nm;
     u8* h;
-    s32 state;
-    s32 zero;
 
-    strs = (char*)lbl_80115DA8;
-    tbl = lbl_802A5CF0;
-    slot = lbl_80344E88;
-    g = gWinGlobals;
-    if (slot < 0) {
+    background = (MboxBackgroundState*)lbl_802A5CF0;
+    index = lbl_80344E88;
+    models = gWinGlobals;
+    if (index < 0) {
         return 1;
     }
-    ent = tbl + slot * 24;
-    state = *(s32*)(ent + 728);
-    row = *(u8**)(g + 48) + (slot << 4) + 4;
-    ent += 716;
-    switch (state) {
-    case 0:
-        nm = tbl + (slot << 5) + 44;
-        *(s32*)(row + 12) = 2;
-        *(s32*)(ent + 0) = StartFileRead((const char*)nm, strs, 0,
-                                         *(s32*)(row + 4), *(s32*)row,
-                                         (int)BGLoadObjects);
-        *(s32*)(ent + 12) = 1;
-        bulletproof_printf(strs + 28, slot, nm, gClockFrameNumber);
+    indexed = (u8*)background + index * sizeof(MboxBackgroundLoad);
+    models = *(u8**)(models + 48);
+    load = (MboxBackgroundLoad*)(indexed + 716);
+    model = (MboxModelLoadSlot*)(models + (index << 4) + 4);
+    slot = index;
+    switch (((MboxBackgroundLoad*)(indexed + 716))->state) {
+    case 0: {
+        char* objectName;
+
+        objectName = background->names[slot];
+        model->state = 2;
+        load->objectRead = StartFileRead(objectName, strs, 0, model->objectSize,
+                                         model->model, BGLoadObjects);
+        load->state = 1;
+        bulletproof_printf(strs + 28, slot, objectName, gClockFrameNumber);
         break;
-    case 1:
-        h = *(u8**)(ent + 0);
-        if (*(s32*)(h + 16) == 0) {
-            break;
-        }
-        *(s32*)(h + 16) = -1;
-        SetupModel(slot, tbl + (slot << 5) + 44);
-        *(s32*)(ent + 0) = 0;
-        *(s32*)(ent + 12) = 2;
-        *(s32*)(ent + 20) = pbGetCPUTime();
-        if (*(s32*)(row + 12) >= 9) {
-            return 1;
-        }
-        *(s32*)(row + 12) = 4;
-        break;
-    case 2:
-        nm = tbl + (slot << 5) + 44;
-        *(s32*)(row + 12) = 3;
-        *(s32*)(ent + 4) = StartFileRead((const char*)nm, strs + 12, 0,
-                                         *(s32*)(row + 8),
-                                         *(s32*)row + *(s32*)(row + 4),
-                                         (int)BGLoadTextures);
-        *(s32*)(ent + 12) = 3;
-        bulletproof_printf(strs + 72, slot, nm, gClockFrameNumber);
-        break;
-    case 3:
-        h = *(u8**)(ent + 4) + 16;
+    }
+    case 1: {
+        char* setupName;
+
+        h = load->objectRead + 16;
         if (*(s32*)h == 0) {
             break;
         }
         *(s32*)h = -1;
-        zero = 0;
-        *(s32*)(ent + 4) = zero;
-        *(s32*)(ent + 12) = 4;
-        *(s32*)(ent + 20) = pbGetCPUTime();
-        fn_800C7214(slot);
-        if (*(s32*)(row + 12) >= 9) {
+        setupName = (char*)background + (slot << 5);
+        setupName += 44;
+        SetupModel(slot, setupName);
+        load->objectRead = 0;
+        load->state = 2;
+        load->time = pbGetCPUTime();
+        if (model->state >= 9) {
             return 1;
         }
-        *(s32*)(row + 12) = zero;
+        model->state = 4;
         break;
-    case 4:
-        bulletproof_printf(strs + 120, slot, tbl + (slot << 5) + 44,
+    }
+    case 2: {
+        char* textureName;
+
+        textureName = (char*)background + (slot << 5);
+        textureName += 44;
+        model->state = 3;
+        load->textureRead = StartFileRead(
+            textureName, strs + 12, 0, model->textureSize,
+            model->model + model->objectSize, BGLoadTextures);
+        load->state = 3;
+        bulletproof_printf(strs + 72, slot, textureName, gClockFrameNumber);
+        break;
+    }
+    case 3:
+        h = load->textureRead + 16;
+        if (*(s32*)h == 0) {
+            break;
+        }
+        *(s32*)h = -1;
+        load->textureRead = 0;
+        load->state = 4;
+        load->time = pbGetCPUTime();
+        fn_800C7214(slot);
+        if (model->state >= 9) {
+            return 1;
+        }
+        model->state = 0;
+        break;
+    case 4: {
+        char* doneName;
+
+        doneName = (char*)background + (slot << 5);
+        doneName += 44;
+        bulletproof_printf(strs + 120, slot, doneName,
                            gClockFrameNumber);
         lbl_80344E88 = -1;
-        *(s32*)(ent + 16) = 1;
+        load->done = 1;
         return 1;
+    }
     }
     return 0;
 }
