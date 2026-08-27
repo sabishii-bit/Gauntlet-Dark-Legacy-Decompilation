@@ -38,6 +38,9 @@ game/ui/attract.c:
 	extab       start:0x80005678 end:0x800056E8
 	extabindex  start:0x80008A04 end:0x80008AAC
 	.text       start:0x800137BC end:0x800150CC
+	.data       start:0x80118904 end:0x80118954
+	.sdata      start:0x80343B04 end:0x80343B18
+	.sdata2     start:0x803458E8 end:0x803458F0
 
 game/audio/sndfx.c:
 	extab       start:0x800056E8 end:0x80005748

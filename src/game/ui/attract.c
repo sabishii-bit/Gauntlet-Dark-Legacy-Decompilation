@@ -123,19 +123,8 @@ const char* attract_screen_name_80014F34(int kind);
 #define ATTRACT_FLAGS64 (*(u64*)&gControllerButtons)
 
 /* ------------------------------------------------------------------ */
-/* Module state (real globals live in .sdata/.sbss; kept file-local    */
-/* here because this NonMatching TU is compiled but not linked).        */
+/* Module state.                                                      */
 /* ------------------------------------------------------------------ */
-static int  attract_state;          /* per-screen run state            */
-static int  titlescreen_timeout;    /* title fade / dwell countdown    */
-static int  did_titlesound;         /* one-shot title jingle latch     */
-static int  cur_screen_id;          /* active screen-list id           */
-static int  cur_screen_kind;        /* active screen kind              */
-static int  cur_screen_idx;         /* index into screen list          */
-static int  screen2d_timer;
-static int  screen2d_slot;
-static int  start_pressed;
-static int  attract_music;
 extern int  sFlags;
 extern int  lbl_803445DC;
 extern int  lbl_80344620;
@@ -179,57 +168,57 @@ int lbl_80343B08 = -1;
 int lbl_80343B0C = -1;
 int lbl_80343B10 = -1;
 int lbl_80343B14 = -1;
-int lbl_80343B38;
-float lbl_80343B3C;
-int lbl_803448A8;
-int lbl_803448AC;
-int lbl_803448C4;
-int lbl_803448C8;
-int lbl_80344260;
-int lbl_80344264;
-int lbl_80344268;
-int lbl_8034426C;
-int lbl_80344270;
-int lbl_80344274;
+extern int lbl_80343B38;
+extern float lbl_80343B3C;
+extern int lbl_803448A8;
+extern int lbl_803448AC;
+extern int lbl_803448C4;
+extern int lbl_803448C8;
+extern int lbl_80344260;
+extern int lbl_80344264;
+extern int lbl_80344268;
+extern int lbl_8034426C;
+extern int lbl_80344270;
+extern int lbl_80344274;
 extern s32 opt_force_player;
-int lbl_80344C4C;
-int lbl_803441F4;
-int lbl_803441F8;
-int lbl_803441FC;
-int lbl_80344210;
-int lbl_80344214;
-int lbl_80344224;
-int lbl_80344238;
-int lbl_80344240;
-int lbl_8034424C;
-int lbl_80344228;
-int lbl_8034422C;
-int lbl_80344230;
-int lbl_80344234;
-int lbl_8034423C;
-int lbl_80344254;
-int lbl_80344258;
-int credits_scroll;
-int lbl_80344244;
-int lbl_80344248;
-int lbl_80344250;
-unsigned int lbl_8034428C;
-int lbl_80344290;
-int lbl_80344294;
-int lbl_80344298;
-int lbl_80344204;
-unsigned int lbl_80344208;
-int lbl_80344218;
-unsigned int gFrameTicks;
-int gGameBusy;
-int gClockStepTicks;
+extern int lbl_80344C4C;
+extern int lbl_803441F4;
+extern int lbl_803441F8;
+extern int lbl_803441FC;
+extern int lbl_80344210;
+extern int lbl_80344214;
+extern int lbl_80344224;
+extern int lbl_80344238;
+extern int lbl_80344240;
+extern int lbl_8034424C;
+extern int lbl_80344228;
+extern int lbl_8034422C;
+extern int lbl_80344230;
+extern int lbl_80344234;
+extern int lbl_8034423C;
+extern int lbl_80344254;
+extern int lbl_80344258;
+extern int credits_scroll;
+extern int lbl_80344244;
+extern int lbl_80344248;
+extern int lbl_80344250;
+extern unsigned int lbl_8034428C;
+extern int lbl_80344290;
+extern int lbl_80344294;
+extern int lbl_80344298;
+extern int lbl_80344204;
+extern unsigned int lbl_80344208;
+extern int lbl_80344218;
+extern unsigned int gFrameTicks;
+extern int gGameBusy;
+extern int gClockStepTicks;
 extern s32 gControllerButtons;
-int lbl_80344778;
-int lbl_80344794;
-int lbl_803447C0;
-int lbl_803449A4;
-unsigned char lbl_803441F0;
-int sAudioOverride;
+extern int lbl_80344778;
+extern int lbl_80344794;
+extern int lbl_803447C0;
+extern int lbl_803449A4;
+extern unsigned char lbl_803441F0;
+extern int sAudioOverride;
 
 extern ScreenListEntry screen_list[16];
 extern char* credit_text[];
