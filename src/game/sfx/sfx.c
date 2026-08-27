@@ -808,11 +808,13 @@ s32 fn_800920E0(f32* pos, struct item* item, f32 scale)
     if (ret >= 0) {
         Effect* e;
         f32 yaw;
+        f32 vz;
         u8* p = (u8*)page;
 
         p += ret * 240;
         e = (Effect*)(p + 2976);
-        yaw = atan2(v[0], v[2]);
+        vz = v[2];
+        yaw = atan2(v[0], vz);
         e->vel[0] = v[0];
         e->vel[1] = v[1];
         e->vel[2] = v[2];
