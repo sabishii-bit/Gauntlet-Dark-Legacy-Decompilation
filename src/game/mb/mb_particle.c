@@ -3658,22 +3658,21 @@ static void* allocPsysMem(s32 size, s32 tag) {
  * Documented reconstruction (NonMatching). */
 #pragma opt_lifetimes off
 static void freePsysMem(void* mem) {
-    PsysMemBlock* block;
-    s32 nextBytes;
-    s32 prevBytes;
-    PsysMemBlock* next;
     PsysMemPool* pool;
-    s32 bytes;
+    PsysMemBlock* next;
     PsysMemBlock* prev;
-    PsysMemBlock* mergeNext;
     s32 error;
+    PsysMemBlock* mergeNext;
+    s32 nextBytes;
+    s32 bytes;
+    PsysMemBlock* block;
+    s32 prevBytes;
 
     block = (PsysMemBlock*)mem - 1;
     nextBytes = 0;
     prevBytes = 0;
     next = block->next;
-    mem = (u8*)&lbl_80128710;
-    pool = (PsysMemPool*)((u8*)mem + 0x24);
+    pool = (PsysMemPool*)((u8*)&lbl_80128710 + 0x24);
     bytes = -block->bytes;
     prev = block->prev;
     mergeNext = next;
@@ -3688,6 +3687,8 @@ static void freePsysMem(void* mem) {
             goto bad_block;
         }
     } else {
+        s32 nextValue;
+
         if (next->prev != block) {
             error = 2;
             goto bad_block;
@@ -3696,9 +3697,10 @@ static void freePsysMem(void* mem) {
             error = 3;
             goto bad_block;
         }
-        nextBytes = next->bytes;
-        if (nextBytes <= 0) {
-            if (nextBytes == 0) {
+        nextValue = next->bytes;
+        nextBytes = nextValue;
+        if (nextValue <= 0) {
+            if (nextValue == 0) {
                 error = 10;
                 goto bad_block;
             }
@@ -3711,7 +3713,6 @@ static void freePsysMem(void* mem) {
             error = 4;
             goto bad_block;
         }
-        prevBytes = 0;
     } else {
         if (prev->next != block) {
             error = 5;
