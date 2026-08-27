@@ -1908,7 +1908,7 @@ static s32 btn_val(u8* rec)
 void ReadControls(void)
 {
     int pad;
-    u8 rec[0x2C];
+    u8 rec[0x30];
 
     if (ctrls_initialized == 0 || lbl_803445F4 != 0 || lbl_803445E0 != 0) {
         return;
@@ -2022,10 +2022,22 @@ void ReadControls(void)
                 d3 = 0;
             }
             lbl_80240F70[pad] |=
-                s8 | sA << 2 | sC << 4 | sE << 6 | bStart << 0x12 | bSel << 0x13 |
-                bL1 << 0x14 | bL2 << 0x15 | bR1 << 0x16 | bR2 << 0x17 | bCir << 0x18 |
-                bX << 0x19 | bSq << 0x1A | bTri << 0x1B | d0 << 0x1C |
-                d1 << 0x1D | d2 << 0x1E | d3 << 0x1F;
+                (d2 << 0x1E) |
+                ((d3 << 0x1F) |
+                 ((d0 << 0x1C) |
+                  ((d1 << 0x1D) |
+                   ((bSq << 0x1A) |
+                    ((bX << 0x19) |
+                     ((bCir << 0x18) |
+                      ((bTri << 0x1B) |
+                       ((bR1 << 0x16) |
+                        ((bR2 << 0x17) |
+                         ((bL1 << 0x14) |
+                          ((bL2 << 0x15) |
+                           ((bSel << 0x13) |
+                            ((bStart << 0x12) |
+                             ((sC << 4) |
+                              ((sE << 6) | ((sA << 2) | s8))))))))))))))));
             if (analog != 0) {
                 s32 a, b, c, d;
                 f32 fh, fv, m2, mag;
