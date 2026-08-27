@@ -3323,14 +3323,13 @@ void new_player(s32 i) {
 void clear_player(s32 i, s32 full) {
     Player* p = P(i);
     s32 player_index;
-    s32 character;
     s32 cls;
     s32 j;
     u8 unused[8];
 
     PF(p, 0x1EBC, s32) = 0;
     for (j = 0; j < 9; j++) {
-        PF(p, 0x3300 + j * 4, s32) = j & 3;
+        ((s32*)p)[0xCC0 + j] = j & 3;
     }
     cls = j;
     if (gDemoMode != 0) {
@@ -3353,38 +3352,21 @@ void clear_player(s32 i, s32 full) {
     PF(p, 0x124, u32) = 0;
     p->level = 1;
     p->exp = 0;
-    if (cls == 2) {
-        goto class_4;
+    switch (cls) {
+    case 0:
+    default:
+        cls = 6;
+        break;
+    case 1:
+        cls = 5;
+        break;
+    case 2:
+        cls = 4;
+        break;
+    case 3:
+        cls = 7;
+        break;
     }
-    if (cls >= 2) {
-        goto class_at_least_2;
-    }
-    if (cls == 0) {
-        goto class_6;
-    }
-    if (cls >= 0) {
-        goto class_5;
-    }
-    goto class_6;
-
-class_at_least_2:
-    if (cls >= 4) {
-        goto class_6;
-    }
-    goto class_7;
-
-class_6:
-    cls = 6;
-    goto class_ready;
-class_5:
-    cls = 5;
-    goto class_ready;
-class_4:
-    cls = 4;
-    goto class_ready;
-class_7:
-    cls = 7;
-class_ready:
     p->char_type = cls;
     p->character = p->char_type;
     PF(p, 0x1EB8, s32) = 0;
@@ -3400,19 +3382,22 @@ class_ready:
         PF(p, 0x333C, s32) = 0;
     }
     player_index = p->index;
-    character = p->character;
-    cls = 0;
-    full = 0;
-    do {
-        LoadPlyrData(player_index, cls, NULL);
-        PF(p, 0xA98 + full, f32) = 0.0f;
-        PF(p, 0xA9C + full, f32) = 0.0f;
-        PF(p, 0xAA0 + full, f32) = 0.0f;
-        PF(p, 0xAA4 + full, f32) = 0.0f;
-        cls++;
-        full += 0x18;
-    } while (cls < 16);
-    check_player_atts(p, character, NULL);
+    {
+        s32 load_class = 0;
+        s32 character = p->character;
+        s32 stat_offset = 0;
+
+        do {
+            LoadPlyrData(player_index, load_class, NULL);
+            PF(p, 0xA98 + stat_offset, f32) = 0.0f;
+            PF(p, 0xA9C + stat_offset, f32) = 0.0f;
+            PF(p, 0xAA0 + stat_offset, f32) = 0.0f;
+            PF(p, 0xAA4 + stat_offset, f32) = 0.0f;
+            load_class++;
+            stat_offset += 0x18;
+        } while (load_class < 16);
+        check_player_atts(p, character, NULL);
+    }
 }
 
 /* Take player i live into the world (post-select).                    */
