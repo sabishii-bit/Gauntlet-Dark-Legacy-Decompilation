@@ -238,8 +238,8 @@ s32 update_chinfo(u32 channels) {
 s32 dcsChannelSetVolPan(u32 channels, s16 pan) {
     AXVPB** voices;
     DcsChannelInfo* infos;
-    u16 master;
     s32 desired;
+    u16 master;
     DcsChannelInfo* info;
     s32 channel;
     s32 mask;
