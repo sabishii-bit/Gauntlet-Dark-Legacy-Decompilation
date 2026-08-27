@@ -326,9 +326,9 @@ extern s32   gGameOptions[];
 extern f64   lbl_803465C8;
 extern f64   lbl_803465D0;
 extern f64   lbl_803465D8;
-extern const char lbl_803465E0[];
-extern const char lbl_803465E4[];
-extern const char lbl_803465E8[];
+DECL_SECT(".sdata2") extern const char lbl_803465E0[];
+DECL_SECT(".sdata2") extern const char lbl_803465E4[];
+DECL_SECT(".sdata2") extern const char lbl_803465E8[];
 extern char  lbl_80112104[];
 extern char  lbl_8011213C[];
 extern char *strcpy(char *dst, const char *src);
@@ -3450,7 +3450,8 @@ s32 CritterGolemAI(Critter *c)
  * coordinated root/child animation pass. */
 s32 CritterBossAI(Critter *c)
 {
-    char moveName[32];
+    char moveName[12];
+    u8 unused[40];
     Critter *child;
     CritterMove *move;
     CritterMove *childMove;
@@ -3458,12 +3459,21 @@ s32 CritterBossAI(Critter *c)
     u8 *surface;
     f32 best;
     f32 speed;
+    f32 speedBase;
+    f32 speedScale;
     f32 ratio;
     f32 duration;
     f32 angle;
     f32 distance;
     f32 dot;
-    f32 clamped;
+    f32 displayScale;
+    f64 angleLimit;
+    f64 dotMinimum;
+    f64 angleScale;
+    f64 radianScale;
+    f64 half;
+    f64 frameHalf;
+    f64 rateThreshold;
     s32 frame;
     s32 childFrame;
     s32 moveIndex;
@@ -3471,17 +3481,21 @@ s32 CritterBossAI(Critter *c)
     s32 selected;
     s32 linkedChildren;
     s32 done;
+    s32 floorHit;
     s32 i;
+    s32 y;
     f64 one;
 
     CritterGetTargetPlayers(c);
     header = (u8 *)c->hdr;
     one = lbl_80346490;
+    speedBase = lbl_803464E8;
+    speedScale = lbl_803464EC;
     ratio = c->health /
             (one + *(f32 *)(header + 0xE4) *
                        *(f32 *)((u8 *)gCurLevel + 0xAC));
     speed = one - ratio;
-    speed = lbl_803464E8 + speed * lbl_803464EC;
+    speed = speedBase + speed * speedScale;
     c->invRateScale = one / speed;
     c->rateScale = speed;
 
@@ -3492,21 +3506,21 @@ s32 CritterBossAI(Critter *c)
                 (one + *(f32 *)(header + 0xE4) *
                            *(f32 *)((u8 *)gCurLevel + 0xAC));
         speed = one - ratio;
-        speed = lbl_803464E8 + speed * lbl_803464EC;
+        speed = speedBase + speed * speedScale;
         child->invRateScale = one / speed;
         child->rateScale = speed;
     }
 
-    header = (u8 *)c->hdr;
     CritterResolveMultipleTargets(c);
     CritterProcessSafeRocks();
 
     if (c->state == 0) {
         if ((f64)lbl_8034464C == lbl_80346488) {
-            if ((*(u32 *)(header + 0x5C) & 0x80) == 0) {
+            if ((*(u32 *)((u8 *)c->hdr + 0x5C) & 0x80) == 0) {
                 lbl_8034464C = (f32)(lbl_80346478 + (f64)sMusicFadeBase);
             }
         } else if ((f64)sMusicFadeBase >= (f64)lbl_8034464C) {
+            distance = *(f32 *)((u8 *)c->hdr + 0xEC);
             best = lbl_80346470;
             for (i = 0; i < c->targetCount; i++) {
                 f32 candidate = *(f32 *)((u8 *)c + 0x134 + i * 0x24);
@@ -3517,13 +3531,12 @@ s32 CritterBossAI(Critter *c)
             if ((f64)best <= lbl_80346488) {
                 best = lbl_803464C0;
             }
-            distance = *(f32 *)(header + 0xEC);
             if ((f64)distance <= lbl_80346488 || best < distance) {
                 c->state = 3;
                 for (child = c->next; child != NULL; child = child->next) {
                     child->state = 3;
                 }
-                if (*(s16 *)(*(u8 **)(header + 0x120) + 0x20) == 4) {
+                if (*(s16 *)(*(u8 **)((u8 *)c->hdr + 0x120) + 0x20) == 4) {
                     BossActivate(c, 1);
                 }
             }
@@ -3534,14 +3547,11 @@ s32 CritterBossAI(Critter *c)
         camera_request_change(30, 2);
     }
 
-    moveIndex = c->curmove;
-    if (moveIndex < 0) {
-        moveIndex = 0;
-    }
+    moveIndex = c->curmove >= 0 ? c->curmove : 0;
     header = (u8 *)c->hdr;
     move = (CritterMove *)(*(u8 **)(header + 0x124) + moveIndex * 0x90);
 
-    if ((sFlags & 0x80) != 0) {
+    if ((gControllerButtons & 0x80) != 0) {
         CritterGetNextMove(c);
     } else {
         c->nextmove = -1;
@@ -3553,48 +3563,53 @@ s32 CritterBossAI(Critter *c)
         }
         if (c->nextmove < 0) {
             CritterChildCriticalMove(c);
-            linkedChildren = 0;
-            for (child = c->next; child != NULL; child = child->next) {
-                child->nextmove = -1;
-                child->unk11E = -1;
-                child->unk126 = -1;
-                if (c->unk11C >= 0) {
-                    if (c->unk11C < *(s16 *)((u8 *)child->hdr + 0x114)) {
-                        child->unk11C = c->unk11C;
-                        child->unk120 = c->unk120;
-                        child->nextmove = *(s16 *)(
-                            *(u8 **)((u8 *)child->hdr + 0x128) +
-                            child->unk11C * 0x50 + child->unk120 * 2 + 0x20);
-                    }
-                } else if (c->nextmove < 0) {
-                    CritterChildGetPattern(child);
-                    if (child->nextmove < 0) {
-                        CritterChildCriticalMove(child);
-                    }
-                    selected = child->nextmove;
-                    if (selected < 0) {
-                        selected = -1;
-                        if ((f64)child->rateScale < lbl_803465C0) {
-                            selected = CritterFindMoveType(child, 0x21, 0);
+            child = c->next;
+            if (child != NULL) {
+                rateThreshold = lbl_803465C0;
+                linkedChildren = 0;
+                for (; child != NULL; child = child->next) {
+                    child->nextmove = -1;
+                    child->unk11E = -1;
+                    child->unk126 = -1;
+                    if (c->unk11C >= 0) {
+                        if (c->unk11C < *(s16 *)((u8 *)child->hdr + 0x114)) {
+                            child->unk11C = c->unk11C;
+                            child->unk120 = c->unk120;
+                            child->nextmove = *(s16 *)(
+                                *(u8 **)((u8 *)child->hdr + 0x128) +
+                                child->unk11C * 0x50 + child->unk120 * 2 +
+                                0x20);
                         }
-                        if (selected < 0) {
-                            selected = CritterFindMoveType(child, 0x20, 1);
+                    } else if (c->nextmove < 0) {
+                        CritterChildGetPattern(child);
+                        if (child->nextmove < 0) {
+                            CritterChildCriticalMove(child);
                         }
-                        child->nextmove = (s16)selected;
-                    } else if (child->unk11C >= 0) {
-                        linkedChildren++;
-                    } else {
-                        childMove = (CritterMove *)(
-                            *(u8 **)((u8 *)child->hdr + 0x124) +
-                            selected * 0x90);
-                        if (childMove->type >= 0x7F) {
+                        selected = child->nextmove;
+                        if ((s16)selected < 0) {
+                            selected = -1;
+                            if ((f64)child->rateScale < rateThreshold) {
+                                selected = CritterFindMoveType(child, 0x21, 0);
+                            }
+                            if (selected < 0) {
+                                selected = CritterFindMoveType(child, 0x20, 1);
+                            }
+                            child->nextmove = (s16)selected;
+                        } else if (child->unk11C >= 0) {
                             linkedChildren++;
+                        } else {
+                            childMove = (CritterMove *)(
+                                *(u8 **)((u8 *)child->hdr + 0x124) +
+                                selected * 0x90);
+                            if (childMove->type >= 0x7F) {
+                                linkedChildren++;
+                            }
                         }
                     }
                 }
-            }
-            if (linkedChildren != 0) {
-                c->nextmove = (s16)CritterFindMoveType(c, 1, 1);
+                if (linkedChildren != 0) {
+                    c->nextmove = (s16)CritterFindMoveType(c, 1, 1);
+                }
             }
         }
         if (c->nextmove < 0 && move->type < 0x7F) {
@@ -3618,8 +3633,7 @@ s32 CritterBossAI(Critter *c)
     }
     move = (CritterMove *)(*(u8 **)((u8 *)c->hdr + 0x124) +
                            c->curmove * 0x90);
-    frame = (s32)*(f32 *)((u8 *)c + 0x90);
-
+    frameHalf = lbl_803464F8;
     for (child = c->next; child != NULL; child = child->next) {
         if (child->state == 1) {
             child->nextmove = (s16)CritterFindMoveType(child, 0x11, 1);
@@ -3629,8 +3643,11 @@ s32 CritterBossAI(Critter *c)
                    (child->curmove >= 0 || child->nextmove >= 0)) {
             CritterAnimate(child);
         } else {
-            DoAnimateTreeFrame((u8 *)child + 0x74, *(s16 *)((u8 *)c + 0x86),
-                               frame, 1);
+            DoAnimateTreeFrame(
+                (u8 *)child + 0x74, *(s16 *)&c->sound[0x0E],
+                (s32)(frameHalf +
+                      (f64)*(f32 *)&c->sound[0x18]),
+                1);
             child->movedone = c->movedone;
             child->curmove = -1;
             child->unk11C = -1;
@@ -3641,17 +3658,19 @@ s32 CritterBossAI(Critter *c)
         }
     }
 
+    frame = (s32)*(f32 *)&c->sound[0x18];
     duration = *(f32 *)((u8 *)move + 0x8C);
     done = AnimDone(c->sound);
     if ((f64)duration > lbl_80346488) {
-        if (move->type == 0x11) {
+        switch (move->type) {
+        case 0x11:
             if (done == 0) {
                 c->rate = sMusicFadeBase + duration;
             } else if ((f64)sMusicFadeBase >= (f64)c->rate &&
-                       (sFlags & 0x80) == 0) {
+                       (gControllerButtons & 0x80) == 0) {
                 CritterDelInst(c);
                 return 0;
-            } else if ((sFlags & 0x80) == 0) {
+            } else if ((gControllerButtons & 0x80) == 0) {
                 f32 remaining = c->rate - sMusicFadeBase;
                 gBossDead = 1;
                 if ((f64)remaining < lbl_803464F8) {
@@ -3660,25 +3679,34 @@ s32 CritterBossAI(Critter *c)
                     MBTreeSetAlpha(c->anim, fade, 1);
                 }
             }
-        } else if (done == 0 || (f64)c->rate == lbl_80346488) {
-            c->rate = sMusicFadeBase + duration;
+            break;
+        default:
+            if (done == 0 || (f64)c->rate == lbl_80346488) {
+                c->rate = sMusicFadeBase + duration;
+            }
+            break;
         }
     } else {
         c->rate = lbl_80346470;
     }
 
     moveType = move->type;
-    if (moveType == 0x10) {
+    switch (moveType) {
+    case 0x10:
         if (move->link < 0 && done != 0 && lbl_8034489C == 1) {
             lbl_8034489C = 2;
         }
-    } else if (moveType == 0x22) {
+        break;
+    case 0x22:
         if (done != 0 && lbl_8034489C == 3) {
             lbl_8034489C = 4;
         }
+        break;
     }
-    if (lbl_8034489C >= 2 && lbl_8034489C < 4) {
-        c->unkABE = 0xFF;
+    if (lbl_8034489C < 4) {
+        if (lbl_8034489C >= 2) {
+            c->unkABE = 0xFF;
+        }
     }
 
     CritterMoveSetup(c, move);
@@ -3701,8 +3729,11 @@ s32 CritterBossAI(Critter *c)
         CritterLookAtPlayer(child, childMove);
     }
 
-    if (FloorCollide(c->vel, 0, 0, 2, lbl_803464B8,
-                     lbl_80346588, lbl_8034658C) != NULL) {
+    floorHit = FloorCollide(c->vel, 0, 0, 2, lbl_803464B8,
+                            lbl_80346588, lbl_8034658C) != NULL
+                   ? 1
+                   : 0;
+    if (floorHit != 0) {
         c->vel[1] = *(f32 *)(gFloorCollisionResult + 0x34) +
                     *(f32 *)((u8 *)c->hdr + 0xB0);
         if (c->state == 0 && (f64)lbl_8034464C == lbl_80346488 &&
@@ -3731,7 +3762,7 @@ s32 CritterBossAI(Critter *c)
         }
     }
 
-    if ((sFlags & 0x10) != 0 && gGameOptions[8] != 0) {
+    if ((gControllerButtons & 0x10) != 0 && gGameOptions[8] != 0) {
         distance = lbl_80346480;
         angle = distance;
         if (c->targetCount > 0) {
@@ -3740,15 +3771,14 @@ s32 CritterBossAI(Critter *c)
                 angle = distance;
             }
             dot = *(f32 *)((u8 *)c + 0x130);
-            if ((f64)dot < lbl_80346550) {
-                clamped = (f32)lbl_80346550;
-            } else if ((f64)dot > lbl_80346490) {
-                clamped = (f32)lbl_80346490;
-            } else {
-                clamped = dot;
-            }
             distance = (f32)(lbl_803465D0 *
-                             (lbl_803465D8 * (f64)acosf(clamped)));
+                             (lbl_803465D8 *
+                              (f64)acosf((f32)(
+                                  (f64)dot < lbl_80346550
+                                      ? lbl_80346550
+                                      : ((f64)dot > lbl_80346490
+                                             ? lbl_80346490
+                                             : (f64)dot)))));
         }
         if (c->unk11C >= 0) {
             sprintf(moveName, lbl_803465E0, c->unk11C);
@@ -3758,49 +3788,57 @@ s32 CritterBossAI(Critter *c)
         DrawText(8, 214, 0, 0xFFFFFF, lbl_80112104, moveName,
                  (u8 *)move + 0x10, (s32)c->health,
                  (s32)(lbl_80346594 * c->rateScale),
-                 (s32)(lbl_803464F8 + *(f32 *)((u8 *)c + 0x90)),
+                 (s32)(lbl_803464F8 + *(f32 *)&c->sound[0x18]),
                  c->unk124, (s32)(lbl_803464F8 + angle),
                  (s32)(lbl_803464F8 + distance));
 
+        c = c->next;
+        one = lbl_80346490;
+        angleLimit = lbl_80346510;
+        dotMinimum = lbl_80346550;
+        angleScale = lbl_803465D0;
+        radianScale = lbl_803465D8;
+        displayScale = lbl_80346594;
+        half = lbl_803464F8;
         i = 0;
-        for (child = c->next; child != NULL; child = child->next, i++) {
+        y = 224;
+        for (; c != NULL; c = c->next, y += 10, i++) {
             distance = lbl_80346480;
             angle = distance;
-            if (child->targetCount > 0) {
-                angle = *(f32 *)((u8 *)child + 0x134);
-                if ((f64)angle >= lbl_80346510) {
+            if (c->targetCount > 0) {
+                angle = *(f32 *)((u8 *)c + 0x134);
+                if ((f64)angle >= angleLimit) {
                     angle = distance;
                 }
-                dot = *(f32 *)((u8 *)child + 0x130);
-                if ((f64)dot < lbl_80346550) {
-                    dot = (f32)lbl_80346550;
-                } else if ((f64)dot > lbl_80346490) {
-                    dot = (f32)lbl_80346490;
-                }
-                distance = (f32)(lbl_803465D0 *
-                                 (lbl_803465D8 * (f64)acosf(dot)));
+                dot = *(f32 *)((u8 *)c + 0x130);
+                distance = (f32)(angleScale *
+                                 (radianScale *
+                                  (f64)acosf((f32)(
+                                      (f64)dot < dotMinimum
+                                          ? dotMinimum
+                                          : ((f64)dot > one
+                                                 ? one
+                                                 : (f64)dot)))));
             }
-            if (child->unk11C >= 0) {
-                sprintf(moveName, lbl_803465E0, child->unk11C);
+            if (c->unk11C >= 0) {
+                sprintf(moveName, lbl_803465E0, c->unk11C);
             } else {
                 strcpy(moveName, lbl_803465E4);
             }
-            childMove = NULL;
             childFrame = -1;
-            if (child->curmove >= 0) {
-                childMove = (CritterMove *)(
-                    *(u8 **)((u8 *)child->hdr + 0x124) +
-                    child->curmove * 0x90);
-                childFrame = (s32)*(f32 *)((u8 *)child + 0x90);
+            if (c->curmove >= 0) {
+                childFrame = (s32)*(f32 *)&c->sound[0x18];
             }
-            DrawText(8, 224 + i * 10, 0, 0xFFFFFF, lbl_8011213C, i,
+            DrawText(8, y, 0, 0xFFFFFF, lbl_8011213C, i,
                      moveName,
-                     childMove != NULL ? (char *)childMove + 0x10
-                                       : (char *)lbl_803465E8,
-                     (s32)child->health,
-                     (s32)(lbl_80346594 * child->rateScale), childFrame,
-                     child->unk124, (s32)(lbl_803464F8 + angle),
-                     (s32)(lbl_803464F8 + distance));
+                     c->curmove >= 0
+                         ? (char *)(*(u8 **)((u8 *)c->hdr + 0x124) +
+                                    c->curmove * 0x90 + 0x10)
+                         : (char *)lbl_803465E8,
+                     (s32)c->health,
+                     (s32)(displayScale * c->rateScale), childFrame,
+                     c->unk124, (s32)(half + angle),
+                     (s32)(half + distance));
         }
     }
     return 1;
