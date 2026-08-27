@@ -1670,12 +1670,12 @@ void StandardCamera_8002B828(s32 camIdx)
     u8* cameraState = gCameraState;
     Camera* cam = (Camera*)(cameraState + camIdx * sizeof(Camera) + 0xC8);
     s32 wasPanning = lbl_803444DC;
-    s32 scrH = MBScreenHeight();
-    s32 scrW = MBScreenWidth();
     f32 minX = lbl_803461D4, maxX = lbl_803461D8;
     f32 maxY = lbl_803461D8, minY = lbl_803461D4;
     f32 errX = lbl_80345EC8;
     f32 errY = lbl_80345EC8;
+    s32 scrH = MBScreenHeight();
+    s32 scrW = MBScreenWidth();
     f32 offX = lbl_80345EC8;
     f32 offZ = lbl_80345EC8;
     f32 yaw;
@@ -1741,15 +1741,18 @@ valid_boss_type:
         (f64)lbl_803444E8 < lbl_80345F90) {
         if ((f64)errX >= lbl_803461E0) {
             f32 absPanX;
+            f32 newPanX;
 
             if ((f64)panXStart > lbl_80345F78) {
-                lbl_803444D8 = lbl_803444D8 - lbl_80346188;
-                if ((f64)lbl_803444D8 <= lbl_80345F78) {
+                newPanX = lbl_803444D8 - lbl_80346188;
+                lbl_803444D8 = newPanX;
+                if ((f64)newPanX <= lbl_80345F78) {
                     lbl_803444D8 = lbl_80345EC8;
                 }
             } else if ((f64)panXStart < lbl_80345F78) {
-                lbl_803444D8 = lbl_803444D8 + lbl_80346188;
-                if (lbl_80345F78 <= (f64)lbl_803444D8) {
+                newPanX = lbl_803444D8 + lbl_80346188;
+                lbl_803444D8 = newPanX;
+                if (lbl_80345F78 <= (f64)newPanX) {
                     lbl_803444D8 = lbl_80345EC8;
                 }
             }
@@ -1761,16 +1764,19 @@ valid_boss_type:
         }
         if ((f64)errY >= lbl_803461E0) {
             f32 absPanY;
+            f32 newPanY;
             f32 panYStart = lbl_803444D4;
 
             if ((f64)panYStart > lbl_80345F78) {
-                lbl_803444D4 = panYStart - lbl_80346188;
-                if ((f64)lbl_803444D4 <= lbl_80345F78) {
+                newPanY = panYStart - lbl_80346188;
+                lbl_803444D4 = newPanY;
+                if ((f64)newPanY <= lbl_80345F78) {
                     lbl_803444D4 = lbl_80345EC8;
                 }
             } else if ((f64)panYStart < lbl_80345F78) {
-                lbl_803444D4 = panYStart + lbl_80346188;
-                if (lbl_80345F78 <= (f64)lbl_803444D4) {
+                newPanY = panYStart + lbl_80346188;
+                lbl_803444D4 = newPanY;
+                if (lbl_80345F78 <= (f64)newPanY) {
                     lbl_803444D4 = lbl_80345EC8;
                 }
             }
@@ -1807,14 +1813,17 @@ valid_boss_type:
             absErrXEase = errX;
             *(u32*)&absErrXEase &= 0x7FFFFFFF;
             if ((f64)absErrXEase < lbl_803460D0) {
+                f32 easeX;
                 if ((f64)lbl_803444D8 > lbl_80345F78) {
-                    lbl_803444D8 = (f32)((f64)lbl_803444D8 - lbl_803461E8);
-                    if ((f64)lbl_803444D8 <= lbl_80345F78) {
+                    easeX = lbl_803444D8 - lbl_803461E8;
+                    lbl_803444D8 = easeX;
+                    if ((f64)easeX <= lbl_80345F78) {
                         lbl_803444D8 = lbl_80345EC8;
                     }
                 } else if ((f64)lbl_803444D8 < lbl_80345F78) {
-                    lbl_803444D8 = (f32)((f64)lbl_803444D8 + lbl_803461E8);
-                    if (lbl_80345F78 <= (f64)lbl_803444D8) {
+                    easeX = lbl_803444D8 + lbl_803461E8;
+                    lbl_803444D8 = easeX;
+                    if (lbl_80345F78 <= (f64)easeX) {
                         lbl_803444D8 = lbl_80345EC8;
                     }
                 }
@@ -1843,14 +1852,17 @@ valid_boss_type:
             absErrYEase = errY;
             *(u32*)&absErrYEase &= 0x7FFFFFFF;
             if ((f64)absErrYEase < lbl_803460D0) {
+                f32 easeY;
                 if ((f64)lbl_803444D4 > lbl_80345F78) {
-                    lbl_803444D4 = (f32)((f64)lbl_803444D4 - lbl_803461E8);
-                    if ((f64)lbl_803444D4 <= lbl_80345F78) {
+                    easeY = lbl_803444D4 - lbl_803461E8;
+                    lbl_803444D4 = easeY;
+                    if ((f64)easeY <= lbl_80345F78) {
                         lbl_803444D4 = lbl_80345EC8;
                     }
                 } else if ((f64)lbl_803444D4 < lbl_80345F78) {
-                    lbl_803444D4 = (f32)((f64)lbl_803444D4 + lbl_803461E8);
-                    if (lbl_80345F78 <= (f64)lbl_803444D4) {
+                    easeY = lbl_803444D4 + lbl_803461E8;
+                    lbl_803444D4 = easeY;
+                    if (lbl_80345F78 <= (f64)easeY) {
                         lbl_803444D4 = lbl_80345EC8;
                     }
                 }
