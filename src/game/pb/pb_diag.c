@@ -288,8 +288,9 @@ s32 pbDiagDrawAudio(void)
             if (gDiag_D34 < *(s32*)(snd + 24) - 1) {
                 gDiag_D34 = gDiag_D34 + 1;
             } else {
+                v = (gDiag_D2C + 1) % *(s32*)(bank + 16);
                 gDiag_D34 = 0;
-                gDiag_D2C = (gDiag_D2C + 1) % *(s32*)(bank + 16);
+                gDiag_D2C = v;
             }
             snd = bank + gDiag_D2C * 292 + 20;
             q = bank + gDiag_D2C * 292;
