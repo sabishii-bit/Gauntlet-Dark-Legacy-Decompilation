@@ -2149,7 +2149,12 @@ extern s32 lbl_802575A8;      /* Access? cheat (levels open) */
 extern s32 lbl_80257630[4];   /* per-player targeting state cleared at init */
 extern s32 good_wiz_state;      /* cutscene/no-damage global */
 extern s32 gBoss398;      /* boss floor index */
-extern u8 gEnemies[];         /* Enemy[25], stride 0x394 */
+typedef struct PlayerEnemyView {
+    u8 pad0[0x32C];
+    s32 skip_itemcol;
+    u8 pad330[0x64];
+} PlayerEnemyView;
+extern PlayerEnemyView gEnemies[25]; /* Enemy[25], stride 0x394 */
 extern s32 gNumEnemies;      /* enemy count */
 extern s32 lbl_80251F44[];    /* enemy records target field, stride 0xE5 words */
 typedef struct BigapePowerupInfo {
@@ -2817,7 +2822,7 @@ s32 damage_player(s32 i, f32 dmg_in, s32 mode, u32 flags, f32* dir) {
             return 0;
         }
         if (gBossType >= 0 && gBoss398 >= 0 &&
-            *(s32*)(gEnemies + gBoss398 * 0x394 + 0xB4) != 1) {
+            *(s32*)((u8*)gEnemies + gBoss398 * 0x394 + 0xB4) != 1) {
             return 0;
         }
         if (dmg > 1.0) {
@@ -3350,38 +3355,44 @@ void clear_player(s32 i, s32 full) {
 
 /* Take player i live into the world (post-select).                    */
 s32 activate_player(s32 i) {
-    Player* p = P(i);
+    Player* players = gPlayerRecords;
+    Player* p;
     s32 j;
 
-    p->state = 1;
+    players[i].state = 1;
+    p = &players[i];
     PF(p, 0x830, s32) = other_players_next_level(i);
     del_player_blits(i);
     LoadPlyrData(i, p->character, (void*)1);
-    if (gGameMode == 0x4010) {
-        load_player(i);
-        if (lbl_803447B8 == 0) {
-            PlayerAddPowerup(0.0f, 5.0f, p, 9, 4);
-        }
-        for (j = 0; j < gNumEnemies; j++) {
-            lbl_80251F44[j * 0xE5] = 0;
-        }
-        if (lbl_803447B4 != 0 || lbl_803447D0 > 9 || gGameMode == 0x4016) {
-            for (j = 0; j < 4; j++) {
-                if (lbl_803447B4 != 0 || P(j)->state == 5) {
-                    if (P(j)->state - 4U < 2) {
-                        PF(p, 0x830, s32) = PF(P(j), 0x830, s32);
-                    }
-                    p->state = 5;
+    if (gGameMode != 0x4010) {
+        return 1;
+    }
+    load_player(i);
+    if (lbl_803447B8 == 0) {
+        PlayerAddPowerup(0.0f, 5.0f, p, 9, 4);
+    }
+    for (j = 0; j < gNumEnemies; j++) {
+        gEnemies[j].skip_itemcol = 0;
+    }
+    if (lbl_803447B4 != 0 || lbl_803447D0 >= 10 || gGameMode == 0x4016) {
+        for (j = 0; j < 4; j++) {
+            Player* other = &players[j];
+            s32 state = other->state;
+
+            if (lbl_803447B4 != 0 || state == 5) {
+                if (state - 4U <= 1) {
+                    PF(p, 0x830, s32) = PF(other, 0x830, s32);
                 }
+                p->state = 5;
             }
         }
-        if (lbl_803447D0 < 10 && gGameMode != 0x400B && gGameMode != 0x400D) {
-            add_target(p->mat);
-        } else {
-            MBTreeSetFlags(p->node, 2, 0);
-        }
-        lbl_80240E38[i * 0xF] &= ~0x40000;
     }
+    if (lbl_803447D0 < 10 && gGameMode != 0x400B && gGameMode != 0x400D) {
+        add_target(p->mat);
+    } else {
+        MBTreeSetFlags(p->node, 2, 0);
+    }
+    lbl_80240E30[i].edges &= ~0x40000;
     return 1;
 }
 
