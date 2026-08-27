@@ -257,8 +257,7 @@ void ScrollMessageBox(char* msg)
             wmax = w;
         }
     }
-    boxw = wmax + 96;
-    wmax = FontHeight(lbl_80344A50, lbl_80344A4C);
+    wmax = FontHeight((boxw = wmax + 96, lbl_80344A50), lbl_80344A4C);
     boxh = (wmax + 4) * TextMLines(msg) + 60;
     if (boxw < 256) {
         boxw = 256;
@@ -284,10 +283,13 @@ void ScrollMessageBox(char* msg)
                     lines[i]);
         y += wmax;
     }
-    quad = MBNewTempBlit(lbl_80344BF8, 0, 0, 640, 480);
-    mbBlitProject(quad, 640, 480);
-    mbBlitCalcWidth(quad, 0, 0, sB);
-    MBBlitSetColor(quad, 0xFF000000);
+    {
+        void* fade = MBNewTempBlit(lbl_80344BF8, 0, 0, 640, 480);
+
+        mbBlitProject(fade, 640, 480);
+        mbBlitCalcWidth(fade, 0, 0, sB);
+        MBBlitSetColor(fade, 0xFF000000);
+    }
     MBEndFrame();
     if (blit != 0) {
         MBRemoveBlit(blit);
