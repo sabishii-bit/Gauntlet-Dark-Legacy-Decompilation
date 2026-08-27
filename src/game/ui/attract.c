@@ -993,7 +993,7 @@ int init_attract_mode(int screen) {
             entry = &tbl->entries[i];
             id = entry->id;
             if (screen == id) {
-                if ((u32)screen != 0x8002 || lbl_803441F8 == 0 ||
+                if (screen != 0x8002 || lbl_803441F8 == 0 ||
                     entry->flags == 4) {
                     lbl_80344294 = i;
                     break;
