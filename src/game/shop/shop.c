@@ -1345,7 +1345,7 @@ static s32 do_shopping_8009AA48(s32 player)
     s32 sell;
     s32 buy;
     s32 j;
-    u8 _spare[80];
+    u8 _spare[72];
 
     if (*scrollp != 0) {
         speed = *scrollp;
@@ -1478,9 +1478,9 @@ static s32 do_shopping_8009AA48(s32 player)
                     r = -1;
                 }
                 *(f32*)(pl + r * 16 + 304) = lbl_8034832C;
-                *(s32*)(pl + r * 16 + 308) = 0;
-                *(s32*)(pl + r * 16 + 316) = 0;
-                *(f32*)(pl + r * 16 + 312) = (f32)0;
+                *(f32*)(pl + r * 16 + 312) =
+                    *(s32*)(pl + r * 16 + 316) =
+                        *(s32*)(pl + r * 16 + 308) = 0;
                 bought = 1;
             }
             break;
@@ -1820,7 +1820,7 @@ notavail:
     }
     *scrollp = write_shop_menu(player, speed);
     DrawTextKeepScale(lbl_80348364,
-                      -*(s32*)((u8*)lbl_80122F40 + (player << 2)), 8, 6, 0,
+                      -*(s32*)(tbl + (player << 2) + 112), 8, 6, 0,
                       lbl_8034840C);
     return exit;
 }
