@@ -1275,11 +1275,17 @@ typedef struct MovieAudioState {
         GXSetZMode(MOVIE_GX_TRUE, MOVIE_GX_GEQUAL, MOVIE_GX_TRUE);           \
     }
 
-void PlayVQMovie(const char* name)
+#pragma cplusplus on
+class MovieStreamInterface {
+public:
+    virtual void method0();
+    virtual s32 open(const char* name);
+    virtual u8 update(u8* texture, f32 elapsed);
+    virtual void close();
+};
+
+extern "C" void PlayVQMovie(const char* name) throw()
 {
-    typedef s32 (*MovieOpenMethod)(u8*, const char*);
-    typedef u8 (*MovieUpdateMethod)(u8*, u8*, f32);
-    typedef void (*MovieCloseMethod)(u8*);
     u8* movie;
     MovieGXTexObj* textureObject = &lbl_80321308;
     u8* texture;
@@ -1291,24 +1297,24 @@ void PlayVQMovie(const char* name)
     s32 shifts;
     s32 textureBytes;
     s32 stopCount = 0;
-    s32 lastTime;
-    s32 now;
+    u32 lastTime;
+    u32 now;
     s32 i;
     f32 texV;
     f32 elapsed;
     PADStatus* pads;
-    u8 unused[48];
+    u8 unusedHigh[40];
     PADStatus previousPads[4];
+    u8 unusedLow[16];
 
-    movie = AllocHiMem(472, (u32)gMovieAllocCount++);
-    movie = __construct_new_array(movie, (void*)fn_800DB0F8,
-                                  (void*)fn_800DB008, 464, 1);
-    gMovieStreamState = movie;
-    ((MovieOpenMethod)(*(u32**)gMovieStreamState)[3])(gMovieStreamState, name);
+    movie = (u8*)AllocHiMem(472, (u32)gMovieAllocCount++);
+    gMovieStreamState = movie = (u8*)__construct_new_array(
+        movie, (void*)fn_800DB0F8, (void*)fn_800DB008, 464, 1);
+    ((MovieStreamInterface*)gMovieStreamState)->open(name);
 
     dimensions = (s32*)(gMovieStreamState + 408);
     if (dimensions[0] != 512) {
-        ((MovieCloseMethod)(*(u32**)gMovieStreamState)[5])(gMovieStreamState);
+        ((MovieStreamInterface*)gMovieStreamState)->close();
         __destroy_new_array(gMovieStreamState, (void*)fn_800DB008);
         ResetAllocTot();
         return;
@@ -1319,10 +1325,10 @@ void PlayVQMovie(const char* name)
     shifts = 0;
     scan = height;
     while (scan != 0) {
+        shifts++;
         if ((scan & 1) != 0) {
             oneBits++;
         }
-        shifts++;
         scan >>= 1;
     }
     paddedHeight = height;
@@ -1330,9 +1336,10 @@ void PlayVQMovie(const char* name)
         paddedHeight = 1 << shifts;
     }
 
+    textureBytes = dimensions[0] * paddedHeight;
     texV = (f32)height / (f32)paddedHeight;
-    textureBytes = dimensions[0] * paddedHeight * 2;
-    texture = AllocHiMem((u32)textureBytes, (u32)gMovieAllocCount++);
+    textureBytes *= 2;
+    texture = (u8*)AllocHiMem((u32)textureBytes, (u32)gMovieAllocCount++);
     memset(texture, 0, (u32)textureBytes);
     GXInitTexObj(textureObject, texture,
                  (u16)*(s32*)(gMovieStreamState + 408),
@@ -1348,8 +1355,8 @@ void PlayVQMovie(const char* name)
     lastTime = sSeconds;
     elapsed = lbl_80349390;
     while (stopCount < 3 &&
-           ((MovieUpdateMethod)(*(u32**)gMovieStreamState)[4])(
-               gMovieStreamState, texture, elapsed) != 0) {
+           ((MovieStreamInterface*)gMovieStreamState)->update(texture,
+                                                              elapsed) != 0) {
         if (stopCount != 0) {
             stopCount++;
         }
@@ -1363,8 +1370,8 @@ void PlayVQMovie(const char* name)
         for (i = 0; i < 4; i++) {
             if (pads[i].err == 0 && previousPads[i].err == 0 &&
                 pads[i].button != 0 && previousPads[i].button == 0) {
-                MOVIE_SETUP_DRAW_STATE();
                 stopCount++;
+                MOVIE_SETUP_DRAW_STATE();
             }
             previousPads[i] = pads[i];
         }
@@ -1402,15 +1409,21 @@ void PlayVQMovie(const char* name)
                 if (audio->remaining == 0) {
                     u32 request =
                         *(u32*)(gMovieStreamState + 264) - audio->offset;
+                    u8* requestData;
+                    u32 requestOffset;
+                    u32 requestSize;
 
                     if (request > 0xc000) {
                         request = 0xc000;
                     }
                     audio->requestSize = request;
+                    requestSize = audio->requestSize;
+                    requestOffset = audio->offset;
+                    requestData = audio->buffer;
                     if ((u8)fn_800DB2F4(gMovieStreamState + 32,
-                                        audio->buffer,
-                                        audio->offset,
-                                        audio->requestSize) != 0) {
+                                        requestData,
+                                        requestOffset,
+                                        requestSize) != 0) {
                         audio->remaining = audio->requestSize;
                         audio->offset += audio->requestSize;
                     }
@@ -1424,7 +1437,7 @@ void PlayVQMovie(const char* name)
         lastTime = now;
     }
 
-    ((MovieCloseMethod)(*(u32**)gMovieStreamState)[5])(gMovieStreamState);
+    ((MovieStreamInterface*)gMovieStreamState)->close();
     if (texture != NULL) {
         gMovieAllocCount--;
         if (gMovieAllocCount == 0) {
@@ -1434,6 +1447,7 @@ void PlayVQMovie(const char* name)
     __destroy_new_array(gMovieStreamState, (void*)fn_800DB008);
     ResetAllocTot();
 }
+#pragma cplusplus off
 
 #undef MOVIE_SETUP_DRAW_STATE
 
