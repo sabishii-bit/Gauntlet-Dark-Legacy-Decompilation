@@ -2608,7 +2608,7 @@ static s32 SfxSkipItem_80096FF4(struct fxitem* item, u32 a, u32 b);
 void ProcessEffects(void)
 {
     s32 i;
-    u8 framePad[80];
+    u8 framePad[64];
     f32 mat[16];
     f32 targetmat[16];
     f32 oldpos[3];
@@ -2634,7 +2634,7 @@ void ProcessEffects(void)
         s32 mode;
         s32 j;
         s32 collision;
-        s32 oldDebugCount;
+        s32 oldHitCount;
         s32 passThrough;
 
         if (e->endtime <= 0.0f || e->node == NULL) {
@@ -2684,7 +2684,7 @@ void ProcessEffects(void)
             e->vel[2] -= e->dragz * gClockFrameStep;
         }
 
-        if (moved && pos[1] + e->colrad * 2.0f < lbl_80344880 - 25.0f) {
+        if (moved && pos[1] + e->colrad * 2.0 < lbl_80344880 - 25.0) {
             e->node = NULL;
             DeleteEffect(i, 1);
             continue;
@@ -2704,7 +2704,7 @@ void ProcessEffects(void)
                 moved = 1;
             }
         } else {
-            CreateDirMatrix(mat, e->vel, NULL);
+            CreateDirMatrix(mat, e->vel, gCameras[0].mat[2]);
             moved = 1;
         }
 
@@ -2864,7 +2864,7 @@ void ProcessEffects(void)
         dir[1] = mat[9];
         dir[2] = mat[10];
         NormalVector2D(dir);
-        oldDebugCount = e->debugcount;
+        oldHitCount = e->hitcount;
 
         /* Direct player hits.  Expanding effects scan every active player;
          * point effects use the separate swept-missile state machine. */
@@ -2947,7 +2947,8 @@ void ProcessEffects(void)
                             pos[1] += e->vel[1] * gClockFrameStep;
                             pos[2] += e->vel[2] * gClockFrameStep;
                             if (e->flags & 0x20000) {
-                                CreateDirMatrix(mat, e->vel, NULL);
+                                CreateDirMatrix(mat, e->vel,
+                                                gCameras[0].mat[2]);
                             }
                             moved = 1;
                             if (e->endtime > gClockTime + 1.0f) {
@@ -3079,7 +3080,7 @@ void ProcessEffects(void)
                             continue;
                         }
                     }
-                    e->debugcount++;
+                    e->hitcount++;
                     enemyState = enemy->health <= 0.0f ? 0 : enemy->state;
                     damage = damage_enemy(
                         enemy, e->owner - 1, e->damagetype, 0, enemyDelta,
@@ -3126,7 +3127,7 @@ void ProcessEffects(void)
                     dir[0] = e->vel[0];
                     dir[1] = e->vel[1];
                     dir[2] = e->vel[2];
-                    e->debugcount++;
+                    e->hitcount++;
                     NormalVector(dir);
                     enemyState = enemy->health <= 0.0f ? 0 : enemy->state;
                     damage = damage_enemy(
@@ -3175,7 +3176,7 @@ void ProcessEffects(void)
                         (e->flags & 0x800)) {
                         continue;
                     }
-                    e->debugcount++;
+                    e->hitcount++;
                     damage = CritterDamage(
                         critter, e->owner - 1, e->damagetype, 0, dir,
                         collisionDamage, 2);
@@ -3199,7 +3200,7 @@ void ProcessEffects(void)
                         dir[0] = e->vel[0];
                         dir[1] = e->vel[1];
                         dir[2] = e->vel[2];
-                        e->debugcount++;
+                        e->hitcount++;
                         NormalVector(dir);
                         hit = CritterDamage(
                             critter, e->owner - 1, e->damagetype, hitpos,
@@ -3349,7 +3350,7 @@ void ProcessEffects(void)
                         if (skip != 0) {
                             continue;
                         }
-                        e->debugcount++;
+                        e->hitcount++;
                         itemHit = fn_8005C1DC(item, collisionDamage,
                                              (u32)e->damagetype,
                                              e->owner - 1);
@@ -3382,7 +3383,7 @@ void ProcessEffects(void)
                             pos[2] = hitpos[2];
                             moved = 1;
                         }
-                        e->debugcount++;
+                        e->hitcount++;
                         itemHit = fn_8005C1DC(item, collisionDamage,
                                              (u32)e->damagetype,
                                              e->owner - 1);
@@ -3408,7 +3409,7 @@ void ProcessEffects(void)
                     }
                     if (mode != 0 && item->def->type == 10 &&
                         item->def->subtype == 41 && item->health > 0) {
-                        e->fxmorph = -1;
+                        e->fxhit = -1;
                     } else if (mode != 0) {
                         hit = 0;
                     }
@@ -3417,7 +3418,7 @@ void ProcessEffects(void)
         }
 
         if ((flags & 4) && hit == 0) {
-            void* wall = WeaponWallCollide(0.5f * radius, oldpos, pos,
+            void* wall = WeaponWallCollide(0.5 * radius, oldpos, pos,
                                            hitpos);
             if (wall != NULL) {
                 u32 wallFlags = WorldObjGetAllFlags(wall);
@@ -3443,10 +3444,10 @@ void ProcessEffects(void)
                     ReflectVector(e->vel, (f32*)(lbl_8023CA98 + 16),
                                   e->vel);
                     if (e->vel[1] > 0.0f) {
-                        e->vel[1] *= 0.4f;
+                        e->vel[1] *= 0.4;
                     }
                     if (e->flags & 0x20000) {
-                        CreateDirMatrix(mat, e->vel, NULL);
+                        CreateDirMatrix(mat, e->vel, gCameras[0].mat[2]);
                     }
                     if (e->endtime > gClockTime + 10.0) {
                         e->endtime = gClockTime + 10.0;
@@ -3476,8 +3477,8 @@ void ProcessEffects(void)
             if (e->flags & 0x10000000) {
                 s32 c0 = RandInt(6);
                 s32 c1 = RandInt(6);
-                s32 count = e->debugcount - (e->debugcount >> 2) +
-                            RandInt(e->debugcount >> 1);
+                s32 count = e->hitcount - (e->hitcount >> 2) +
+                            RandInt(e->hitcount >> 1);
                 struct mbnode* fireNode;
                 (void)Random(lbl_80348134);
                 fireNode = MBNewNode(lbl_80344BD4, mat, 1);
@@ -3490,7 +3491,7 @@ void ProcessEffects(void)
             }
         }
         if (mode != 0 && (e->damagetype & DMG_TURBO) &&
-            e->debugcount > oldDebugCount) {
+            e->hitcount > oldHitCount) {
             e->damage *= 0.5f;
             if (e->damage < 1.0f) {
                 e->damagetype &= ~DMG_TURBO;
