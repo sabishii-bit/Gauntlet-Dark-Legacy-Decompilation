@@ -968,8 +968,7 @@ void TowerCheckMessages(s32 mode) {
             if (sSumnerObj != 0) {
                 if (AnimateATree(&state->gwizAtree, lbl_80344C90,
                                  lbl_80344C54 != 0 ? 2 : 0) != 0) {
-                    lbl_80344C90++;
-                    if (lbl_80344C90 > 2) {
+                    if ((lbl_80344C90 += 1) > 2) {
                         lbl_80344C90 = 0;
                     }
                     lbl_80344C54 = 0;
@@ -982,10 +981,14 @@ void TowerCheckMessages(s32 mode) {
         if (gScriptedCameraState != 0) {
             return;
         }
-        if (lbl_803447B8 != 0) {
+        switch (lbl_803447B8) {
+        case 0:
+            break;
+        default:
             return;
         }
-        switch (lbl_80344C7C) {
+        msg = lbl_80344C7C;
+        switch (msg) {
         case 0:
             break;
         case 10:
@@ -1065,7 +1068,7 @@ void TowerCheckMessages(s32 mode) {
             if (lbl_803443BC <= 4 && lbl_803443C0 <= 4) {
                 lbl_80344C70 = 0;
                 lbl_80344C68 = lbl_803485A0;
-                lbl_80344C6C = lbl_80344C7C + 100;
+                lbl_80344C6C = msg + 100;
                 lbl_80344C7C = 0;
                 CaptionTextReset();
             }
@@ -1082,7 +1085,7 @@ void TowerCheckMessages(s32 mode) {
             }
             break;
         default:
-            if (lbl_80344C7C < 0) {
+            if (msg < 0) {
                 lbl_80344C7C = 0;
             } else {
                 s32 alpha;
@@ -1106,7 +1109,10 @@ void TowerCheckMessages(s32 mode) {
         if (gGameBusy != 0) {
             return;
         }
-        if (lbl_80344A28 != 0) {
+        switch (lbl_80344A28) {
+        case 0:
+            break;
+        default:
             return;
         }
         sumnerCheckLevelUp();
@@ -1128,8 +1134,8 @@ void TowerCheckMessages(s32 mode) {
                     u8* rec = (u8*)p + p->character * 240;
 
                     runeGot |= p->runes;
-                    *(u16*)(rec + 3540) |= p->runes;
                     runeBanked |= *(u16*)(rec + 8736);
+                    *(u16*)(rec + 3540) |= p->runes;
                     *(u16*)((u8*)p + p->character * 240 + 8736) |= p->runes;
                 }
             }
@@ -1154,8 +1160,8 @@ void TowerCheckMessages(s32 mode) {
                     u8* rec = (u8*)p + p->character * 240;
 
                     shardGot |= p->shards;
-                    *(u16*)(rec + 3542) |= p->shards;
                     shardBanked |= *(u16*)(rec + 8738);
+                    *(u16*)(rec + 3542) |= p->shards;
                     *(u16*)((u8*)p + p->character * 240 + 8738) |= p->shards;
                 }
             }
@@ -1204,7 +1210,10 @@ void TowerCheckMessages(s32 mode) {
                 }
             }
         }
-        if (sMusicFadeBase - lbl_80344C48 >= 3.0) {
+        if (sMusicFadeBase - lbl_80344C48 < 3.0) {
+            return;
+        }
+        {
             for (j = 0; j < 3; j++) {
                 s32* best = &levels[j];
                 u32 curWorld;
