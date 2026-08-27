@@ -5020,7 +5020,7 @@ static s32 init_next_level(s32 arg0)
             CritterLoadFile(lbl_80346C04, fmt + 184);
             break;
         case 32: {
-            char buf[24];
+            char buf[16];
             sprintf(buf, fmt + 196, *(char**)(tbl + off + 236) + 16);
             CritterLoadFile(lbl_80346C04, buf);
             break;
