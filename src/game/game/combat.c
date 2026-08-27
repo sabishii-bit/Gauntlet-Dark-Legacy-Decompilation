@@ -356,7 +356,8 @@ void DiffRate_8002951C(s32 camIdx)
  * limits; those limits are represented by the per-axis limit vectors.
  */
 extern u8 sTriggerCameras[];
-extern f64 lbl_80346030, lbl_803460E8, lbl_803460F8, lbl_803460D8;
+extern f32 lbl_80346030;
+extern f64 lbl_803460E8, lbl_803460F8, lbl_803460D8;
 extern f64 lbl_80346108, lbl_80346118;
 extern f32 lbl_8034445C, lbl_80344454, lbl_80344450, lbl_80344458;
 extern f32 lbl_80346100, lbl_80346110, lbl_80344530, lbl_80344408;
@@ -391,8 +392,8 @@ typedef struct CombatCameraSupervisorScratch {
 void CameraSupervisor(s32 camIdx)
 {
     Camera* cam = &gCameras[camIdx];
-    s32 oldNearest = lbl_80344510;
     s32 oldSelected = lbl_80344508;
+    s32 oldNearest = lbl_80344510;
     s32 count = 0;
     s32 index = 0;
     s32 offset = 0;
@@ -417,10 +418,9 @@ void CameraSupervisor(s32 camIdx)
     CombatCameraSupervisorScratch scratch;
     f64 root;
 
-    if (remaining > 0) {
-        for (; index < remaining; index++, offset += 0x28) {
-            if (sTriggerCameras[offset] == 1 &&
-                *(s16*)(sTriggerCameras + offset + 2) != 0) {
+    for (; index < remaining; index++, offset += 0x28) {
+        if (sTriggerCameras[offset] == 1 &&
+            *(s16*)(sTriggerCameras + offset + 2) != 0) {
                 f32 dy = cam->wpos[1] -
                     *(f32*)(sTriggerCameras + offset + 8);
                 f32 dx = cam->wpos[0] -
@@ -464,7 +464,6 @@ void CameraSupervisor(s32 camIdx)
                 }
             }
         }
-    }
 
     if (count == 1) {
         lbl_8034450C = lbl_80344510;
@@ -537,6 +536,7 @@ void CameraSupervisor(s32 camIdx)
 
         lbl_8034445C = nearestDistance / combinedDistance;
         distance = lbl_8034445C;
+        projectedRatio = projectedDistance / segmentLength;
         if ((f64)distance >= lbl_80345F28) {
             lbl_8034445C = lbl_80345F80;
         } else if ((f64)distance >= lbl_80346098) {
@@ -544,7 +544,6 @@ void CameraSupervisor(s32 camIdx)
                 (distance - lbl_80345F28) - lbl_80345FE0);
         }
 
-        projectedRatio = projectedDistance / segmentLength;
         if ((f64)projectedRatio <= lbl_80345F18) {
             lbl_80344534 = nearestYaw;
             lbl_80344530 = nearestPitch;
@@ -554,7 +553,7 @@ void CameraSupervisor(s32 camIdx)
             } else {
                 lbl_80344404 = -1;
             }
-        } else {
+        } else if ((f64)projectedRatio > lbl_80345F18) {
             lbl_80344534 = secondYaw;
             lbl_80344530 = secondPitch;
             lbl_80344508 = lbl_8034450C;
@@ -599,12 +598,7 @@ void CameraSupervisor(s32 camIdx)
             }
 
             selectedDistance *= lbl_803460F0;
-            if ((f64)selectedDistance == lbl_80345F78) {
-                lbl_8034444C = lbl_80345EC8;
-                lbl_80344454 = lbl_80345EC8;
-                lbl_80344450 = lbl_80345EC8;
-                lbl_80344458 = lbl_80345EC8;
-            } else {
+            if ((f64)selectedDistance != lbl_80345F78) {
                 if ((f64)selectedDistance < lbl_80345FE0) {
                     selectedDistance = lbl_80345F80;
                 }
@@ -616,7 +610,7 @@ void CameraSupervisor(s32 camIdx)
                 scratch.yawRate = distance / selectedDistance;
                 *(u32*)&scratch.yawRate &= 0x7FFFFFFF;
                 lbl_8034444C = scratch.yawRate;
-                if ((f64)lbl_8034444C >= lbl_803460F8) {
+                if ((f64)scratch.yawRate >= lbl_803460F8) {
                     lbl_8034444C = lbl_80346100;
                 }
 
@@ -635,7 +629,7 @@ void CameraSupervisor(s32 camIdx)
                     (lbl_80344530 - lbl_80344408) / selectedDistance;
                 *(u32*)&scratch.pitchRate &= 0x7FFFFFFF;
                 lbl_80344450 = scratch.pitchRate;
-                if ((f64)lbl_80344450 >= lbl_80346108) {
+                if ((f64)scratch.pitchRate >= lbl_80346108) {
                     lbl_80344450 = lbl_80346110;
                 }
 
@@ -652,6 +646,11 @@ void CameraSupervisor(s32 camIdx)
 
                 lbl_80344454 = lbl_8034444C;
                 lbl_80344458 = lbl_80344450;
+            } else {
+                lbl_8034444C = lbl_80345EC8;
+                lbl_80344454 = lbl_80345EC8;
+                lbl_80344450 = lbl_80345EC8;
+                lbl_80344458 = lbl_80345EC8;
             }
         }
     }
