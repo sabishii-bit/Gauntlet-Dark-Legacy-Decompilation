@@ -157,8 +157,8 @@ typedef struct CardMgrBuf {
     CardMgr mgr;
 } CardMgrBuf;
 
-u8 gCardBuf[0x310] = { 0 }; /* @0x80321760 CARD work/scratch area */
-CardMgr gCardMgr = { 0 };   /* @0x80321A70 */
+static u8 gCardBuf[0x310]; /* @0x80321760 CARD work/scratch area */
+static CardMgr gCardMgr;   /* @0x80321A70 */
 
 /* control block addressed off gCardBuf (keeps gCardBuf as the base register) */
 #define M (((CardMgrBuf*)gCardBuf)->mgr)
@@ -270,7 +270,7 @@ static void* cardThreadMain(void* arg) {
         OSLockMutex(&card->mgr.mutex);
         card->mgr.result = res;
         *command = -1;
-        printf("Cardutilmainloop....");
+        printf("Cardutilmainloop....\n");
         OSUnlockMutex(&card->mgr.mutex);
     }
     return NULL;
