@@ -467,8 +467,8 @@ int scroll_credits(void) {
     text = credit_text;
     result = 0;
     alive = 1;
-    idx = 0;
     offBottom = 0;
+    idx = 0;
     offset = 0;
     y = credits_scroll;
 
@@ -504,8 +504,8 @@ int scroll_credits(void) {
         result = 1;
     }
 
-    idx = 0;
     offset = 0;
+    idx = 0;
     do {
         if (y < 0) {
             break;
@@ -531,8 +531,8 @@ int scroll_credits(void) {
         offset += 4;
     } while (idx < 40);
 
-    idx = 0;
     offset = 0;
+    idx = 0;
     do {
         if (y < 0) {
             break;
