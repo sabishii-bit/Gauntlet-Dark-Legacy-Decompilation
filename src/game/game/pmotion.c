@@ -3409,6 +3409,8 @@ s32 PlayerMotion_DamageTarget(Player* p, s32 targetId, s32 a3, s32 a4, s32 a5,
  * If nothing survived, fall back to the lunge-direction vector.  Returns the
  * winning distance (limit when no target).  The `flag` local is 0 on every
  * retail path; the boss-id block under it is dead but shipped. */
+#pragma opt_lifetimes off
+#pragma opt_common_subs off
 f32 PlayerGetTarget(Player* p, f32* pos, f32* dir, f32* out, s32* outId,
                     u8** outObj) {
     f32 dist;
@@ -3425,6 +3427,8 @@ f32 PlayerGetTarget(Player* p, f32* pos, f32* dir, f32* out, s32* outId,
     f32 limit;
     f32 dotThresh;
     f32 d;
+    u8* enemy;
+    Player* op;
     s32 i;
 
     best = limit = lbl_80347C88;
@@ -3441,7 +3445,7 @@ f32 PlayerGetTarget(Player* p, f32* pos, f32* dir, f32* out, s32* outId,
         best = CritterLineRootColSub(lbl_80347D08, lbl_80347B30, critter,
                                      pos, dir, out);
     } else if (id >= 0) {
-        u8* enemy = &gEnemies[id * 916];
+        enemy = &gEnemies[id * 916];
         if (*(s32*)enemy != 31) {
             f32 dot;
             tx = PF(enemy, 0x54, f32);
@@ -3515,9 +3519,10 @@ f32 PlayerGetTarget(Player* p, f32* pos, f32* dir, f32* out, s32* outId,
 
     if (optionsAudioAndPrefs30[7] == 2 && best >= limit) {
         dotThresh = lbl_80347D08;
+        enemy = (u8*)gPlayers;
         for (i = 0; i < 4; i++) {
-            Player* op = &gPlayers[i];
             f32 dot;
+            op = (Player*)(enemy + i * sizeof(Player));
             if (op == p) {
                 continue;
             }
@@ -3589,6 +3594,8 @@ f32 PlayerGetTarget(Player* p, f32* pos, f32* dir, f32* out, s32* outId,
     }
     return best;
 }
+#pragma opt_common_subs reset
+#pragma opt_lifetimes reset
 /* NOTE: correct body; not yet byte-exact (far-field PF address-CSE parks an
  * extra nonvolatile -- needs a 0x93C..0x94C struct overlay; light-touch cap). */
 typedef struct {
