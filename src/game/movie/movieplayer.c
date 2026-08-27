@@ -1341,7 +1341,7 @@ void PlayVQMovie(const char* name)
 
     pads = G3DGetPadStatusBuffer();
     for (i = 0; i < 4; i++) {
-        memcpy(&previousPads[i], &pads[i], sizeof(PADStatus));
+        previousPads[i] = pads[i];
     }
     pbPulseTime();
     lastTime = sSeconds;
