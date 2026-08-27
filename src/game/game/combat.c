@@ -1185,83 +1185,72 @@ s32 CameraCollide(f32* pos, f32* obj);
 
 /* Place the camera radially behind its attention point, rotating yaw to a
  * clear angle and lifting pitch until no tracked target blocks the view. */
-static void place_cam(Camera* cam, f32* wpos, f32* attn, f32* pyr, f32* mat,
-                      f32 zero, f32* in, f32* out)
+static void place_cam(Camera* cam, f32* mat, f32* in, f32* out)
 {
-    CreateYPRMatrix(mat, pyr);
-    in[0] = zero;
-    in[1] = zero;
+    CreateYPRMatrix(mat, cam->pyr);
+    in[0] = lbl_80345EC8;
+    in[1] = lbl_80345EC8;
     in[2] = cam->radius;
-    WorldVector(in, out, mat);
-    wpos[0] = attn[0] + out[0];
-    wpos[1] = attn[1] + out[1];
-    wpos[2] = attn[2] + out[2];
+    WorldVector(in, &out[6], mat);
+    cam->wpos[0] = cam->attn[0] + out[6];
+    cam->wpos[1] = cam->attn[1] + out[7];
+    cam->wpos[2] = cam->attn[2] + out[8];
 }
 
-static s32 cam_blocked(f32* wpos)
+static s32 cam_blocked(Camera* cam)
 {
+    s32 blocked = 0;
     s32 j;
     CameraTarget* t = gCameraTargets;
     for (j = 0; j < 15; j++, t++) {
-        if (t->active > 0 && CameraCollide(wpos, (f32*)(t->object + 0x40))) {
-            return 1;
+        if (t->active > 0 && CameraCollide(cam->wpos, (f32*)(t->object + 0x40))) {
+            blocked = 1;
+            break;
         }
     }
-    return 0;
+    return blocked;
 }
 
 void get_cam_wpos_8002ABE0(s32 camIdx)
 {
     s32* camState = (s32*)gCameraState;
-    Camera* cam = (Camera*)((u8*)gCameraState + camIdx * 396);
-    f32* wpos;
-    f32* attn;
-    f32* pyr;
-    f32* pyrDelta;
-    s32* timer;
+    Camera* cam = &gCameras[camIdx];
     f32 mat[18];
     f32 in[3];
-    f32 out[3];
-    u8 unused[8];
+    f32 out[9];
     s32 i;
 
-    *(f32*)((u8*)cam + 0x13C) = *(f32*)((u8*)cam + 0x12C);
-    *(f32*)((u8*)cam + 0x140) = *(f32*)((u8*)cam + 0x130);
-    *(f32*)((u8*)cam + 0x144) = *(f32*)((u8*)cam + 0x134);
-    cam = (Camera*)((u8*)cam + 0xC8);
-    wpos = (f32*)((u8*)cam + 0x64);
-    attn = (f32*)((u8*)cam + 0x12C);
-    pyr = (f32*)((u8*)cam + 0xA4);
-    pyrDelta = (f32*)((u8*)cam + 0xB4);
-    timer = (s32*)((u8*)cam + 0xCC);
+    cam->old_wpos[0] = cam->wpos[0];
+    cam->old_wpos[1] = cam->wpos[1];
+    cam->old_wpos[2] = cam->wpos[2];
 
     if (gNumTransmitters == 0 && lbl_803443F8 <= 0) {
         s32 mode = lbl_80344538;
         f64 yawMin = lbl_80345F68;
         f64 yawRange = lbl_80345F60;
-        f32 zero = lbl_80345EC8;
         f64 yawStep = lbl_80346180;
         f64 yawMax = lbl_80345F58;
         for (i = 0; i < 4; i++) {
             camState[i] = 0;
         }
         for (i = 0; i < 4; i++) {
-            f32 y;
-            place_cam(cam, wpos, attn, pyr, mat, zero, in, out);
-            camState[mode] = cam_blocked(wpos);
-            y = (f32)((f64)pyr[1] + yawStep);
-            if ((f64)y > yawMax) {
-                y = (f32)((f64)y - yawRange);
-            } else if ((f64)y <= yawMin) {
-                y = (f32)(yawRange + (f64)y);
+            f64 y;
+            place_cam(cam, mat, in, out);
+            camState[mode] = cam_blocked(cam);
+            cam->pyr[1] = (f32)((f64)cam->pyr[1] + yawStep);
+            y = cam->pyr[1];
+            if (y > yawMax) {
+                y -= yawRange;
+            } else if (y <= yawMin) {
+                y = yawRange + y;
             }
             mode = mode & 3;
-            pyr[1] = y;
+            cam->pyr[1] = (f32)y;
         }
         if (camState[lbl_80344538] != 0) {
             s32 adj = (lbl_80344538 - 1) & 3;
             s32 found = 0;
-            for (i = 4; i != 0; i--) {
+            for (i = 4; i != 0; i--, adj &= 3) {
                 if (adj != lbl_80344538 && camState[adj] == 0) {
                     found = 1;
                     break;
@@ -1276,7 +1265,8 @@ void get_cam_wpos_8002ABE0(s32 camIdx)
                     lbl_80344400 = -1;
                 }
                 lbl_80344534 = lbl_80118B60[lbl_80344538];
-                lbl_80344538 = (lbl_80344538 + lbl_80344400) & 3;
+                lbl_80344538 += lbl_80344400;
+                lbl_80344538 &= 3;
                 if (delta == 2 || delta == -2) {
                     lbl_803443F8 = 0;
                 } else {
@@ -1286,68 +1276,68 @@ void get_cam_wpos_8002ABE0(s32 camIdx)
         }
     }
 
-    place_cam(cam, wpos, attn, pyr, mat, lbl_80345EC8, in, out);
+    place_cam(cam, mat, in, out);
 
     if (gNumTransmitters == 0) {
-        f32 savedW0 = wpos[0], savedW1 = wpos[1], savedW2 = wpos[2];
-        f32 savedD = *pyrDelta;
-        if (!cam_blocked(wpos)) {
-            if (*timer >= 0) {
-                *timer = *timer - gFrameTicks;
+        f32 savedW0 = cam->wpos[0], savedW1 = cam->wpos[1], savedW2 = cam->wpos[2];
+        f32 savedD = cam->pyr_delta[0];
+        if (!cam_blocked(cam)) {
+            if (cam->timer >= 0) {
+                cam->timer = cam->timer - gFrameTicks;
             }
-            if (*timer < 0) {
+            if (cam->timer < 0) {
                 if (lbl_80344404 > 0) {
-                    if ((f64)*pyrDelta > lbl_80345F78) {
-                        *pyrDelta = *pyrDelta - lbl_80346188;
-                        if ((f64)*pyrDelta < lbl_80345F78) {
-                            *pyrDelta = lbl_80345EC8;
+                    if ((f64)cam->pyr_delta[0] > lbl_80345F78) {
+                        cam->pyr_delta[0] = cam->pyr_delta[0] - lbl_80346188;
+                        if ((f64)cam->pyr_delta[0] < lbl_80345F78) {
+                            cam->pyr_delta[0] = lbl_80345EC8;
                         }
-                        pyr[0] = pyr[0] - lbl_80346188;
-                        place_cam(cam, wpos, attn, pyr, mat, lbl_80345EC8, in, out);
-                        if (cam_blocked(wpos)) {
-                            *pyrDelta = savedD;
-                            wpos[0] = savedW0;
-                            wpos[1] = savedW1;
-                            wpos[2] = savedW2;
+                        cam->pyr[0] = cam->pyr[0] - lbl_80346188;
+                        place_cam(cam, mat, in, out);
+                        if (cam_blocked(cam)) {
+                            cam->pyr_delta[0] = savedD;
+                            cam->wpos[0] = savedW0;
+                            cam->wpos[1] = savedW1;
+                            cam->wpos[2] = savedW2;
                         }
                     } else {
-                        *pyrDelta = lbl_80345EC8;
+                        cam->pyr_delta[0] = lbl_80345EC8;
                     }
                 } else {
-                    if ((f64)*pyrDelta < lbl_80345F78) {
-                        *pyrDelta = *pyrDelta + lbl_80346188;
-                        if ((f64)*pyrDelta > lbl_80345F78) {
-                            *pyrDelta = lbl_80345EC8;
+                    if ((f64)cam->pyr_delta[0] < lbl_80345F78) {
+                        cam->pyr_delta[0] = cam->pyr_delta[0] + lbl_80346188;
+                        if ((f64)cam->pyr_delta[0] > lbl_80345F78) {
+                            cam->pyr_delta[0] = lbl_80345EC8;
                         }
-                        pyr[0] = pyr[0] + lbl_80346188;
-                        place_cam(cam, wpos, attn, pyr, mat, lbl_80345EC8, in, out);
-                        if (cam_blocked(wpos)) {
-                            *pyrDelta = savedD;
-                            wpos[0] = savedW0;
-                            wpos[1] = savedW1;
-                            wpos[2] = savedW2;
+                        cam->pyr[0] = cam->pyr[0] + lbl_80346188;
+                        place_cam(cam, mat, in, out);
+                        if (cam_blocked(cam)) {
+                            cam->pyr_delta[0] = savedD;
+                            cam->wpos[0] = savedW0;
+                            cam->wpos[1] = savedW1;
+                            cam->wpos[2] = savedW2;
                         }
                     } else {
-                        *pyrDelta = lbl_80345EC8;
+                        cam->pyr_delta[0] = lbl_80345EC8;
                     }
                 }
             }
         } else {
-            *timer = *timer + gFrameTicks;
-            if (*timer > 0xB4) {
-                *timer = 0xB4;
+            cam->timer = cam->timer + gFrameTicks;
+            if (cam->timer > 0xB4) {
+                cam->timer = 0xB4;
             }
             if (lbl_80344404 > 0) {
-                if ((f64)pyr[0] <= lbl_80346178 - lbl_80346188) {
-                    *pyrDelta = *pyrDelta + lbl_80346188;
-                    pyr[0] = pyr[0] + lbl_80346188;
-                    place_cam(cam, wpos, attn, pyr, mat, lbl_80345EC8, in, out);
+                if ((f64)cam->pyr[0] <= lbl_80346178 - lbl_80346188) {
+                    cam->pyr_delta[0] = cam->pyr_delta[0] + lbl_80346188;
+                    cam->pyr[0] = cam->pyr[0] + lbl_80346188;
+                    place_cam(cam, mat, in, out);
                 }
             } else {
-                if (pyr[0] >= lbl_80346188) {
-                    *pyrDelta = *pyrDelta - lbl_80346188;
-                    pyr[0] = pyr[0] - lbl_80346188;
-                    place_cam(cam, wpos, attn, pyr, mat, lbl_80345EC8, in, out);
+                if (cam->pyr[0] >= lbl_80346188) {
+                    cam->pyr_delta[0] = cam->pyr_delta[0] - lbl_80346188;
+                    cam->pyr[0] = cam->pyr[0] - lbl_80346188;
+                    place_cam(cam, mat, in, out);
                 }
             }
         }
