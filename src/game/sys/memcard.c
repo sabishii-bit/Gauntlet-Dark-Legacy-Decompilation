@@ -1369,6 +1369,7 @@ int writeGauntletSave(void)
     char* dpool = lbl_8011CDE0;
     char* rpool = lbl_801131C0;
     u32 serial[2];
+    u8 pad[8]; /* dead stack below serial, matches original frame */
     u8* img;
     u8* p;
     u8* q;
@@ -1439,15 +1440,14 @@ mount_cont:
     img = buildSaveImage(dpool + 1904, (void*) lbl_803449EC,
                          (int) lbl_803449E4, (int) lbl_803449E8, 2, 0,
                          (const char*) (rpool + 716));
-    *(u32*) (lbl_80343C74 + 4) = okay;                 /* "OKAY" */
+    count = big - 23992;
     sum = 0;
+    *(u32*) (lbl_80343C74 + 4) = okay;                 /* "OKAY" */
     *(u32*) lbl_80343C74 = sum;
     p = lbl_80343C74;
     q = p;
-    if ((count = big - 23992) != 0) {
-        for (; count != 0; count--) {
-            sum += *q++;
-        }
+    for (; count != 0; count--) {
+        sum += *q++;
     }
     *(u32*) p = sum;
     *(SaveBlob*) img = *(SaveBlob*) lbl_80343C74;
