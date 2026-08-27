@@ -1303,6 +1303,7 @@ int bank;
 
 
 /* object-browser screen: spawn/manage the preview object, columns, HSV */
+#pragma opt_lifetimes off
 s32 pbDiagDrawObject(void)
 {
     char buf[68];
@@ -1420,6 +1421,7 @@ s32 pbDiagDrawObject(void)
     }
     return 0;
 }
+#pragma opt_lifetimes reset
 
 
 /* buttons block view: color-bar HSV/RGB state at +368 */
