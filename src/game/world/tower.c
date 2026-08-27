@@ -1396,12 +1396,11 @@ void EnterTower(void) {
     }
     {
         s32 recordOffset;
-        s32 reqOffset;
 
-        for (j = 0, recordOffset = 0, reqOffset = 0; j < 8;
-             j++, recordOffset += 2, reqOffset += 4) {
-            req = *(s32*)((u8*)lbl_80124C70 + reqOffset);
-            worldId = *(s32*)((u8*)crystal_order + reqOffset);
+        for (j = 0, recordOffset = 0; j < 8;
+             j++, recordOffset += 2) {
+            req = lbl_80124C70[j];
+            worldId = crystal_order[j];
             if (req != 0) {
                 count = 0;
                 for (i = 0; i < 4; i++) {
@@ -1539,7 +1538,6 @@ void EnterTower(void) {
             if (have13 != 0) {
                 u8* e;
                 u8* ai;
-                f64 scale = lbl_803485C8;
 
                 GetWorldMat(*(f32**)(object + 40), world.matrix, 0);
                 effect = InitCustomEffect(0, &lbl_803485D8, 0, 0);
@@ -1550,7 +1548,8 @@ void EnterTower(void) {
                     e = (u8*)Effects + fx * 240;
                     ai = e + 28;
                     *(f32*)(ai + 32) =
-                        (f32)(gClockTime - scale * *(s16*)(e + 44));
+                        (f32)(gClockTime -
+                              lbl_803485C8 * *(s16*)(e + 44));
                     *(f32*)(ai + 24) = *(s16*)(ai + 16);
                 }
             }
