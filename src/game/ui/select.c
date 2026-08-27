@@ -85,7 +85,7 @@ extern char* lbl_80120104[]; /* per-class texture-name pointer table  */
 extern char lbl_80347F44[8];  /* "?" texture name (sdata)              */
 extern char lbl_80347F4C[12];  /* unarmed spec label fmt (sdata)        */
 extern char lbl_80347F58[8];  /* "%s NAME" fmt (sdata)                 */
-extern void* pbLoad;
+extern volatile u32 pbLoad;
 void PlayerModel(s32 player);
 void setup_player_display(s32 player);
 void hide_select_blits(s32 arg0, s32 flag);
@@ -2448,6 +2448,7 @@ void update_class_attr(s32 player)
     }
 }
 
+#pragma opt_propagation off
 void update_class_spec(s32 player)
 {
     char* pool = lbl_801143F8;
@@ -2455,44 +2456,53 @@ void update_class_spec(s32 player)
     u8* pl = gPlayers + player * 0x335C;
     s32 boff;
     u8* eWeap;
-    u8* eA;
     u8* eB;
     u8* eC;
     u8* eD;
+    u8* eA;
     s32 state;
     s32 cls;
     s32 spec;
     s32 known;
-    char* texName;
-    char* extra;
     char* qfmt;
-    u8 unused[48];
+    char* extra;
+    char* texName;
+    u8 unused[40];
     StrBlock4 tmp;
+    u8 pad[8];
 
     PlayerModel(player);
     setup_player_display(player);
     setup_tex(player, 2, 0, 0, pool + 168,
               lbl_801200B0[*(s32*)(pl + 12) & 7]);
     boff = player * 132;
-    eWeap = blitBase + boff;
+    eWeap = blitBase;
+    eWeap += boff;
     mbBlitProject(*(void**)(eWeap += 24), -1, 320);
-    eA = blitBase + boff;
+    eA = blitBase;
+    eA += boff;
     mbBlitInit3414(*(void**)(eA += 84), 1);
-    eB = blitBase + boff;
+    eB = blitBase;
+    eB += boff;
     mbBlitInit3414(*(void**)(eB += 72), 1);
-    eC = blitBase + boff;
+    eC = blitBase;
+    eC += boff;
     mbBlitInit3414(*(void**)(eC += 60), 1);
-    eD = blitBase + boff;
+    eD = blitBase;
+    eD += boff;
     mbBlitInit3414(*(void**)(eD += 96), 1);
 
     if (gGameMode == 0x400B) {
         state = *(s32*)(pl + 232);
-        if (state != 3) {
-            if (state == 2) {
+        if (state == 3) {
+            return;
+        }
+        if (state < 3) {
+            if (state >= 2) {
                 goto substate;
             }
-            hide_select_blits(player, 0);
         }
+        hide_select_blits(player, 0);
     }
     return;
 
@@ -2519,10 +2529,11 @@ substate:
         spec = *(s32*)(pl + 16);
         if (spec < 8) {
             known = 1;
-        } else if ((*(u16*)(pl + 2700) & (1 << (spec - 8))) != 0) {
-            known = 1;
         } else {
-            known = 0;
+            known = 1;
+            if ((*(u16*)(pl + 2700) & (known << (spec - 8))) == 0) {
+                known = 0;
+            }
         }
         if (known != 0) {
             texName = tmp.s[0];
@@ -2537,7 +2548,7 @@ substate:
             setup_tex(player, 3, 0, 0, lbl_80347F4C);
         } else {
             setup_tex(player, 3, 0, 0, pool + 156,
-                      lbl_801200B0[spec]);
+                      lbl_801200B0[spec], extra);
         }
         if (texName != 0) {
             (void)pbLoad;
@@ -2559,6 +2570,7 @@ substate:
         break;
     }
 }
+#pragma opt_propagation reset
 
 /* Enter / initialise the select screen. */
 extern void abort_player(s32 i);
