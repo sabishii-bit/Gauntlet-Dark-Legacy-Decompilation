@@ -2640,9 +2640,15 @@ f32 CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward, f32 *out,
 s32 CritterDamage(f32 damage, Critter *c, s32 player, u32 flags,
                   f32 *hitPosition, f32 *direction, s32 source)
 {
+    typedef struct CritterDamageMove {
+        s32 type;
+        u8 unused04[0x54];
+        s16 sfx;
+        s16 sfxFrame;
+    } CritterDamageMove;
     u8 *descriptor;
     u8 *hitNode;
-    CritterMove *move;
+    CritterDamageMove *move;
     Critter *child;
     Critter *parent;
     Player *playerData;
@@ -2663,15 +2669,16 @@ s32 CritterDamage(f32 damage, Critter *c, s32 player, u32 flags,
         return -1;
     }
 
-    move = &(*(CritterMove **)((u8 *)c->hdr + 0x124))[c->curmove];
+    move = (CritterDamageMove *)&
+        (*(CritterMove **)((u8 *)c->hdr + 0x124))[c->curmove];
     if (move->type == 35) {
         damage = (f32)((f64)damage * lbl_80346500);
         flags &= ~0x130;
-        if (*(s16 *)((u8 *)move + 0x5A) >= 1000 &&
+        if (move->sfxFrame >= 1000 &&
             (c->moveSfxFlags & 1) == 0 &&
-            *(s16 *)((u8 *)move + 0x58) >= 0) {
+            move->sfx >= 0) {
             c->moveSfxFlags |= 1;
-            CritterDoSfx(c, *(s16 *)((u8 *)move + 0x58), NULL, 1, -1);
+            CritterDoSfx(c, move->sfx, NULL, 1, -1);
         }
     }
 
@@ -2861,9 +2868,12 @@ credited_damage_done:
                 deathChild->health = lbl_803464A8;                             \
             }                                                                  \
         }                                                                      \
-        if (*(s16 *)(*(u8 **)((u8 *)(victim)->hdr + 0x120) + 0x20) == 4 &&    \
-            (victim)->parent == NULL) {                                        \
-            BossDying();                                                       \
+        switch (*(s16 *)(*(u8 **)((u8 *)(victim)->hdr + 0x120) + 0x20)) {     \
+        case 4:                                                                \
+            if ((victim)->parent == NULL) {                                    \
+                BossDying();                                                   \
+            }                                                                  \
+            break;                                                             \
         }                                                                      \
     } while (0)
 
@@ -2873,8 +2883,9 @@ credited_damage_done:
         }
         if (player >= 0) {
             playerData = &gPlayers[player];
-            (*(s32 *)((u8 *)playerData + 0xC10 +
-                      playerData->character * 0x1C))++;
+            playerData = (Player *)((u8 *)playerData +
+                                    playerData->character * 0x1C);
+            (*(s32 *)((u8 *)playerData + 0xC10))++;
         }
         return 1;
     }
@@ -2924,10 +2935,13 @@ credited_damage_done:
                                 deathChild->health = childOne;
                             }
                         }
-                        if (*(s16 *)(*(u8 **)((u8 *)child->hdr + 0x120) +
-                                      0x20) == 4 &&
-                            child->parent == NULL) {
-                            BossDying();
+                        switch (*(s16 *)(*(u8 **)((u8 *)child->hdr + 0x120) +
+                                        0x20)) {
+                        case 4:
+                            if (child->parent == NULL) {
+                                BossDying();
+                            }
+                            break;
                         }
                     }
                 }
