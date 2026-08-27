@@ -702,7 +702,7 @@ void DoPlayerAction(void* player)
         if (next == 0x49) {
             act = 0x4A;
         }
-        mbobj = (void*)p[0x1B8];
+        mbobj = *(void**)((u8*)p + 0x6E0);
         if (mbobj != 0 && (p[2] & 3) != 2 && p[2] != 3) {
             if (atree[6] < 2.0f) {
                 MBTreeSetFlags(mbobj, 2, 0);
@@ -719,7 +719,7 @@ void DoPlayerAction(void* player)
         if (next == 0x49) {
             act = 0x49;
         }
-        mbobj = (void*)p[0x1B8];
+        mbobj = *(void**)((u8*)p + 0x6E0);
         if (mbobj != 0 && (p[2] & 3) != 2 && p[2] != 3) {
             if (atree[6] < 2.0f) {
                 MBTreeSetFlags(mbobj, 2, 0);
@@ -736,7 +736,7 @@ void DoPlayerAction(void* player)
         if (next == 0x4D) {
             act = 0x4E;
         }
-        mbobj = (void*)p[0x1B8];
+        mbobj = *(void**)((u8*)p + 0x6E0);
         if (mbobj != 0 && (p[2] & 3) != 2 && p[2] != 3) {
             if (atree[6] < 2.0f) {
                 MBTreeSetFlags(mbobj, 2, 0);
@@ -753,7 +753,7 @@ void DoPlayerAction(void* player)
         if (next == 0x4D) {
             act = 0x4D;
         }
-        mbobj = (void*)p[0x1B8];
+        mbobj = *(void**)((u8*)p + 0x6E0);
         if (mbobj != 0 && (p[2] & 3) != 2 && p[2] != 3) {
             if (atree[6] < 2.0f) {
                 MBTreeSetFlags(mbobj, 2, 0);
@@ -1547,13 +1547,14 @@ void DoPlayerAction(void* player)
         case 0x61:
         case 0x62:
         case 0x64:
-            if (p[0x1B8] != 0 && (p[2] & 3) != 2 && p[2] != 3) {
-                MBTreeClearFlags((void*)p[0x1B8], 2, 0);
+            if (*(void**)((u8*)p + 0x6E0) != 0 &&
+                (p[2] & 3) != 2 && p[2] != 3) {
+                MBTreeClearFlags(*(void**)((u8*)p + 0x6E0), 2, 0);
             }
             break;
         case 0x6B:
         case 0x6C:
-            if ((u32)(act - 0x6C) < 2) {
+            if ((u32)(act - 0x6C) <= 1) {
                 p[0x240] |= 0x800;
             }
             break;
@@ -1579,7 +1580,7 @@ void DoPlayerAction(void* player)
             break;
         }
 
-        *(s16*)((u8*)p + 0x964) &= 0x38FD;
+        *(s16*)((u8*)p + 0x964) &= ~0xC702;
         switch (act) {
         case 0x20:
         case 0x21:
@@ -1622,8 +1623,9 @@ void DoPlayerAction(void* player)
             break;
         case 0x61:
         case 0x62:
-            if (p[0x1B8] != 0 && (p[2] & 3) != 2 && p[2] != 3) {
-                MBTreeSetFlags((void*)p[0x1B8], 2, 0);
+            if (*(void**)((u8*)p + 0x6E0) != 0 &&
+                (p[2] & 3) != 2 && p[2] != 3) {
+                MBTreeSetFlags(*(void**)((u8*)p + 0x6E0), 2, 0);
             }
             break;
         case 0x6B:
@@ -1632,8 +1634,9 @@ void DoPlayerAction(void* player)
             p[0x23E] = 0;
             break;
         case 0x64:
-            if (p[0x1B8] != 0 && (p[2] & 3) != 2 && p[2] != 3) {
-                MBTreeSetFlags((void*)p[0x1B8], 2, 0);
+            if (*(void**)((u8*)p + 0x6E0) != 0 &&
+                (p[2] & 3) != 2 && p[2] != 3) {
+                MBTreeSetFlags(*(void**)((u8*)p + 0x6E0), 2, 0);
             }
             break;
         case 0x73:
