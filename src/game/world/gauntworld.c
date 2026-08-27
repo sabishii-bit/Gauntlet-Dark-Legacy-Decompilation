@@ -2770,7 +2770,7 @@ extern void  StartFXMat(s32 fx, OBJGRP* grp);
 extern s32   StartExplosion(OBJGRP* grp, s32 kind, f32 radius);
 extern s32   MBOX_ReallyFindObject(char* name, s32 a, s32 b, s32 c);
 extern void  MBTreeSetZsortAdd(void* node, s32 value, s32 mode);
-extern u8    EnemyDescType(char* desc);
+extern s32   EnemyDescType(char* desc);
 extern char* EnemyTypePrefix(s32 type);
 extern void  AudioPlayEvt101(f32* pos);
 extern void  AudioExplodeWall(f32* pos, s32 health);
@@ -2797,17 +2797,17 @@ extern f64   sItemFloorYOffset;
 extern f32   sItemZero;
 extern f32   sItemFloorRadius;
 extern f32   lbl_80346F54;
-extern char  lbl_80346F58[];     /* "BADMEAT" */
-extern char  lbl_80346F60[];     /* "GAPPLE"  */
+extern const char lbl_80346F58[8]; /* "BADMEAT" */
+extern const char lbl_80346F60[7]; /* "GAPPLE"  */
 extern f32   lbl_80346F68;
 extern f32   lbl_80346F6C;
-extern char  lbl_80346F70[];     /* "BOSSGEN" */
-extern char  sLevelOneSuffix[];  /* "L1"      */
-extern char  sRootSuffix[];      /* "ROOT"    */
+extern const char lbl_80346F70[8];    /* "BOSSGEN" */
+extern const char sLevelOneSuffix[3]; /* "L1"      */
+extern const char sRootSuffix[5];     /* "ROOT"    */
 extern f64   lbl_80346F88;
-extern char  lbl_80346F90[];     /* "BARPOI0" */
+extern const char lbl_80346F90[8]; /* "BARPOI0" */
 extern f64   lbl_80346F98;
-extern char  lbl_80346FA0[];     /* "BAREXP0" */
+extern const char lbl_80346FA0[8]; /* "BAREXP0" */
 extern f32   lbl_80346FA8;
 
 f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
@@ -2817,10 +2817,12 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
     s32 ret;                                  /* remaining health / code  */
     iteminfo* info = item->info;
     s32* sub = (s32*)((u8*)info + 4);
-    f32 v[3];
-    char buf[0x38];
+    char* objects = sObjectsFile;
+    char buf[0x24];
+    f32 v[4];
     void* hdr;
     u8* rec;
+    s16* generator;
     s32 k;
     s32 thr;
     s8 state;
@@ -2832,12 +2834,10 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
         f32 ramp = *(f32*)((u8*)gCurLevel + 0x9C);
         f32 gold = (f32)*(s32*)((u8*)gPlayers + owner * 0x335C + 0x3324);
 
-        if (ramp <= gold) {
-            if (ramp < gold) {
-                mult = (f32)(sItemFloorYOffset * (gold - ramp) + lbl_80346EE8);
-            }
-        } else {
-            mult = -(f32)(lbl_80346F40 * (ramp - gold) - lbl_80346EE8);
+        if (gold < ramp) {
+            mult = (f32)(lbl_80346EE8 - lbl_80346F40 * (ramp - gold));
+        } else if (gold > ramp) {
+            mult = (f32)(sItemFloorYOffset * (gold - ramp) + lbl_80346EE8);
         }
         power = power * mult;
         if (power < (f32)lbl_80346EE8) {
@@ -2863,24 +2863,30 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
             if (item->health < 0) {
                 item->health = 0;
             }
-            destroyed = (item->health == 0);
+            if (item->health == 0) {
+                destroyed = 1;
+            } else {
+                destroyed = 0;
+            }
         }
-        if ((u8)item->armor == 0xFF) {
+        if ((s8)item->armor == -1) {
             ret = -1;
             alive = 0;
         } else {
             alive = 1;
-            ret = item->health;
+            ret = (s32)(f32)item->health;
         }
     }
 
-    v[0] = item->objgrp.coll_pos[0];
-    v[1] = (f32)(item->objgrp.coll_pos[1] + lbl_80346EF0);
-    v[2] = item->objgrp.coll_pos[2];
+    v[1] = item->objgrp.coll_pos[0];
+    v[2] = item->objgrp.coll_pos[1];
+    v[3] = item->objgrp.coll_pos[2];
+    v[2] = (f32)(v[2] + lbl_80346EF0);
 
     switch (info->type) {
     case 1:
-        if (*sub == 4) {
+        switch (*sub) {
+        case 4:
             if (ret == 0) {
                 start_magic(-1, item->objgrp.attn_pos,
                             *(s32*)((u8*)info + 0x3C), 0, lbl_80346F54);
@@ -2905,16 +2911,19 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
                 }
             }
             break;
-        }
-        if (*sub < 4) {
-            if (*sub == 2) {
-                break;
-            }
-            if (*sub < 2) {
-                if (*sub > 0) {
-                    goto food_transform;
-                }
-            } else if (ret == -2) {
+
+        case 2:
+        case 10:
+        case 11:
+        case 12:
+        case 13:
+        case 14:
+        case 15:
+        case 16:
+            break;
+
+        case 3:
+            if (ret == -2) {
                 /* good food goes bad on a heavy hit */
                 if (item->health == 2) {
                     hdr = AtreeMatch(sPowerupsBuf, lbl_80346F58, 1);
@@ -2940,15 +2949,15 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
                 destroyed = 1;
                 msgPost(0x88, -1, 0);
             }
-        } else if (*sub < 0x11 && *sub > 9) {
-            break;
-        }
+            /* fall through */
+
+        default:
         /* generic destroy */
         if ((flags & 0x400) != 0 && power >= lbl_80346F68) {
             StartFXMat(0x20, &item->objgrp);
             StartFXMat(0x21, &item->objgrp);
-            MBOX_NewObject(&sObjectsFile[0x14C], item->objgrp.node,
-                           *(f32*)((u8*)item->objgrp.node + 0x74), 0x80800);
+            MBOX_NewObject(&objects[0x14C], item->objgrp.node,
+                           *(s32*)((u8*)item->objgrp.node + 0x74), 0x80800);
             if (item->info->type == 1 && *(Item**)&item->data[0xC] != 0) {
                 DeleteItem(*(Item**)&item->data[0xC], 0);
             }
@@ -2970,14 +2979,14 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
             }
             msgPost(0x87, -1, 0);
         }
-        goto type1_done;
+            break;
 
-food_transform:
+        case 1:
         /* food -> junk treasure */
         if ((flags & 0x400) != 0 && power >= lbl_80346F68) {
             StartFXMat(0x20, &item->objgrp);
             StartFXMat(0x21, &item->objgrp);
-            hdr = AtreeMatch(sPowerupsBuf, &sObjectsFile[0x158], 1);
+            hdr = AtreeMatch(sPowerupsBuf, &objects[0x158], 1);
             if (*(u32*)&item->atree[0] != 0) {
                 AtreeDelete(item->atree);
             }
@@ -2985,7 +2994,8 @@ food_transform:
             MBNodeSetParent(**(void***)&item->atree[0], item->objgrp.node);
             *(s32*)&item->data[4] = 10;
         }
-type1_done:
+            break;
+        }
         break;
 
     case 2:
@@ -3008,7 +3018,7 @@ type1_done:
             k = -1;
 found_gen:
             *(s16*)&item->data[0] = (s16)k;
-            AudioPlayEvt101(v);
+            AudioPlayEvt101(&v[1]);
             alive = 1;
             *(s16*)&item->data[2] = (s16)(lbl_80346F6C * power);
         } else if (destroyed != 0 && (item->active & 0x200) != 0) {
@@ -3016,8 +3026,8 @@ found_gen:
                 item->active |= 1;
                 fn_8005E90C(item, 0);
                 if (*sub == 0x2B) {
-                    fn_8009DA78(v);
-                    msgPost(0x1B, -1, (char*)v);
+                    fn_8009DA78(&v[1]);
+                    msgPost(0x1B, -1, (char*)&v[1]);
                 }
             }
         } else if ((flags & 0x400) != 0 && power >= lbl_80346F68) {
@@ -3033,12 +3043,12 @@ found_gen:
                 StartFXMat(0x1F, &item->objgrp);
                 StartFXMat(0x21, &item->objgrp);
                 if (*sub == 0x30) {
-                    MBOX_NewObject(&sObjectsFile[0x164], item->objgrp.node,
-                                   *(f32*)((u8*)item->objgrp.node + 0x74),
+                    MBOX_NewObject(&objects[0x164], item->objgrp.node,
+                                   *(s32*)((u8*)item->objgrp.node + 0x74),
                                    0x80800);
                 } else {
-                    MBOX_NewObject(&sObjectsFile[0x170], item->objgrp.node,
-                                   *(f32*)((u8*)item->objgrp.node + 0x74),
+                    MBOX_NewObject(&objects[0x170], item->objgrp.node,
+                                   *(s32*)((u8*)item->objgrp.node + 0x74),
                                    0x80800);
                 }
                 if (item->info->type == 1 && *(Item**)&item->data[0xC] != 0) {
@@ -3066,23 +3076,20 @@ found_gen:
 
     case 3:
         /* enemy generator damage-state machine */
+        generator = (s16*)&item->data[0];
         thr = (s32)((f32)*(s16*)((u8*)info + 0x44) *
                     *(f32*)((u8*)gCurLevel + 0xCC));
         if (ret < 0) {
             break;
         }
-        if (destroyed == 0) {
-            if (item->health > thr) {
-                if (item->health > thr * 2) {
-                    state = 3;
-                } else {
-                    state = 2;
-                }
-            } else {
-                state = 1;
-            }
-        } else {
+        if (destroyed != 0) {
             state = 0;
+        } else if (item->health <= thr) {
+            state = 1;
+        } else if (item->health <= thr * 2) {
+            state = 2;
+        } else {
+            state = 3;
         }
         if (state != (s8)item->data[6]) {
             item->data[6] = state;
@@ -3098,11 +3105,11 @@ found_gen:
                 item->data[7] = 0;
             }
             if (stricmp(buf, lbl_80346F70) != 0) {
-                if (*(s16*)&item->data[0] < -1) {
-                    sprintf(buf, &sObjectsFile[0x17C], (s8)item->data[6]);
+                if (*generator < -1) {
+                    sprintf(buf, &objects[0x17C], (s8)item->data[6]);
                 } else {
-                    sprintf(buf, &sObjectsFile[0x18C],
-                            EnemyTypePrefix(*(s16*)&item->data[0]),
+                    sprintf(buf, &objects[0x18C],
+                            EnemyTypePrefix(*generator),
                             (s8)item->data[6]);
                 }
             }
@@ -3144,20 +3151,20 @@ found_gen:
             if (state == 0) {
                 item->active &= ~1;
                 item->armor = -1;
-                fn_80091AC0(&item->objgrp, *(s16*)&item->data[0], 1);
+                fn_80091AC0(&item->objgrp, *generator, 1);
             } else {
-                fn_80091AC0(&item->objgrp, *(s16*)&item->data[0], 0);
+                fn_80091AC0(&item->objgrp, *generator, 0);
             }
         }
         if (state == 0) {
-            fn_8009C7D8(v, *(s16*)&item->data[0]);
+            fn_8009C7D8(&v[1], *generator);
             for (k = 0; k < gNumEnemies; k++) {
                 if (*(Item**)(gEnemies + k * 0x394 + 0x290) == item) {
                     *(Item**)(gEnemies + k * 0x394 + 0x290) = 0;
                 }
             }
         } else {
-            fn_8009C774(v, *(s16*)&item->data[0]);
+            fn_8009C774(&v[1], *generator);
         }
         break;
 
@@ -3172,24 +3179,24 @@ found_gen:
         default:
             /* 0x2B, walls, everything else: shake / rumble */
             if (destroyed == 0) {
-                fn_8009EF4C(v);
+                fn_8009EF4C(&v[1]);
             } else {
                 item->active |= 1;
-                fn_8009DA78(v);
+                fn_8009DA78(&v[1]);
                 destroyed = 0;
             }
             break;
         case 0x2C:
             if (destroyed == 0) {
-                fn_8009EF4C(v);
+                fn_8009EF4C(&v[1]);
             } else {
                 item->active |= 1;
                 StartExplosion(&item->objgrp, 0x18,
                                (f32)(lbl_80346F88 *
                                      *(f32*)((u8*)gCurLevel + 0xDC)));
-                fn_8009D9D8(v);
+                fn_8009D9D8(&v[1]);
                 MBOX_NewObject(lbl_80346F90, item->objgrp.node,
-                               *(f32*)((u8*)item->objgrp.node + 0x74),
+                               *(s32*)((u8*)item->objgrp.node + 0x74),
                                0x80800);
                 alive = 0;
                 ret = -2;
@@ -3198,15 +3205,15 @@ found_gen:
             break;
         case 0x2D:
             if (destroyed == 0) {
-                fn_8009EF4C(v);
+                fn_8009EF4C(&v[1]);
             } else {
                 item->active |= 1;
                 StartExplosion(&item->objgrp, 0x19,
                                (f32)(lbl_80346F98 *
                                      *(f32*)((u8*)gCurLevel + 0xDC)));
-                fn_8009DA28(v);
+                fn_8009DA28(&v[1]);
                 MBOX_NewObject(lbl_80346FA0, item->objgrp.node,
-                               *(f32*)((u8*)item->objgrp.node + 0x74),
+                               *(s32*)((u8*)item->objgrp.node + 0x74),
                                0x80800);
                 alive = 0;
                 ret = -2;
@@ -3214,7 +3221,7 @@ found_gen:
             }
             break;
         case 0x2A:
-            AudioExplodeWall(v, item->health);
+            AudioExplodeWall(&v[1], item->health);
             break;
         case 0x29:
             if (*(s16*)&item->data[2] >= 0) {
@@ -3256,7 +3263,7 @@ found_gen:
     }
 
     if (alive != 0) {
-        k = fn_80094440(v, flags, destroyed);
+        k = fn_80094440(&v[1], flags, destroyed);
         if (k >= 0) {
             MBTreeSetZsortAdd(*(void**)(Effects + k * 0xF0 + 0x14),
                               (s32)(lbl_80346FA8 * info->item.radius), 1);
