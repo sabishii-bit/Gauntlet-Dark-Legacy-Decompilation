@@ -290,15 +290,20 @@ void cardStart(s32 chan, s32 fileNo, void* data) {
     } while (M.result == -1);
 }
 
+static inline BOOL cardResultPending(s32 value, s32* result) {
+    *result = value;
+    return value == -1;
+}
+
 /* 0x800DC280 - block until the worker has a result */
 s32 cardWaitResult(void) {
-    u8 unused[8];
     register CardMgr* m = &gCardMgr;
-    register s32 r;
+    s32 r;
+    s32 value;
     do {
         VIWaitForRetrace();
-        r = m->result;
-    } while (r == -1);
+        value = m->result;
+    } while (cardResultPending(value, &r));
     return r;
 }
 
