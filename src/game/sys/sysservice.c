@@ -143,7 +143,12 @@ static char lbl_80321BE4[0x4C];            /* 0x80321BE4 */
 static char* gMsgLines[2] = { lbl_80321BE4, lbl_80321B9C }; /* 0x80344030 */
 static s32 gMsgMaxLen = 70;                                  /* 0x80344038 */
 static PADStatus* gPadPrev = lbl_80321B6C;                   /* 0x8034403C */
-static PADStatus* gPadCur = lbl_80321B3C;                    /* 0x80344040 */
+typedef struct PaddedPadStatusPointer {
+    PADStatus* value;
+    u32 padding;
+} PaddedPadStatusPointer;
+static PaddedPadStatusPointer gPadCur = { lbl_80321B3C, 0 }; /* 0x80344040 */
+#define gPadCur (gPadCur.value)
 
 /* 0x800DD180 - per-frame reset/eject state machine + pad pump */
 void sysResetService(void) {
