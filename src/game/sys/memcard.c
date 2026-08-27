@@ -229,6 +229,11 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
  * below - this one only touches the directory + full commit.)
  * PARKED 79/79 real 10: base-accumulator r0 web + slwi r5 in-place rotation.
  */
+typedef struct TexAnimHdr {
+    u32 type;      /* +0 */
+    u32 numFrames; /* +4 */
+} TexAnimHdr;
+
 #pragma opt_propagation off
 int add_vmu_file(int a, int b, int c, const char* name, u32 v0, u32 v1)
 {
@@ -1655,14 +1660,15 @@ u8* buildSaveImage(const char* name, void* hdr, int bannerTex, int iconTex,
 
     /* icon animation frames */
     if ((u32) iconTex != 0) {
-        u16* fmtW = (u16*) (pool + 0x10000 - 19336);
-        u16* animW = (u16*) (pool + 0x10000 - 19334);
+        u16* fmtW = (u16*) (hi - 19336);
+        u16* animW = (u16*) (hi - 19334);
         s32 lastFrame;
         s32 j;
         u8* hi2;
 
         for (i = 0, bit = 0;
-             (u32) i < *(u32*) ((u8*) iconTex + 4) && i < 8; i++, bit += 2) {
+             (u32) i < ((TexAnimHdr*) iconTex)->numFrames && i < 8;
+             i++, bit += 2) {
             void** tex = (void**) TEXGet(iconTex, i);
 
             switch (*(s32*) ((u8*) tex[0] + 4)) {
@@ -1679,14 +1685,15 @@ u8* buildSaveImage(const char* name, void* hdr, int bannerTex, int iconTex,
         }
 
         for (bit = i << 1; i < 8; i++, bit += 2) {
-            *(u16*) (pool + 0x10000 - 19334) &= ~(3 << bit);
+            *animW &= (u16) ~(3 << bit);
         }
 
         hi2 = pool + 0x10000;
         *(u8*) (hi2 - 19342) |= fmtB;
         lastFrame = -1;
         for (j = 0, bit = 0;
-             (u32) j < *(u32*) ((u8*) iconTex + 4) && j < 8; j++, bit += 2) {
+             (u32) j < ((TexAnimHdr*) iconTex)->numFrames && j < 8;
+             j++, bit += 2) {
             void** tex = (void**) TEXGet(iconTex, j);
 
             switch ((*(u16*) (hi2 - 19336) >> bit) & 3) {
