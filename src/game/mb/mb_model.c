@@ -154,11 +154,15 @@ int MBOX_BGLoadModelDone(void) {
     switch (((MboxBackgroundLoad*)(indexed + 716))->state) {
     case 0: {
         char* objectName;
+        s32 objectSize;
+        u8* objectBuffer;
 
+        objectBuffer = model->model;
+        objectSize = model->objectSize;
         objectName = background->names[slot];
         model->state = 2;
-        load->objectRead = StartFileRead(objectName, strs, 0, model->objectSize,
-                                         model->model, BGLoadObjects);
+        load->objectRead = StartFileRead(objectName, strs, 0, objectSize,
+                                         objectBuffer, BGLoadObjects);
         load->state = 1;
         bulletproof_printf(strs + 28, slot, objectName, gClockFrameNumber);
         break;
@@ -185,13 +189,19 @@ int MBOX_BGLoadModelDone(void) {
     }
     case 2: {
         char* textureName;
+        s32 textureSize;
+        s32 objectSize;
+        u8* objectBuffer;
 
+        textureSize = model->textureSize;
+        objectBuffer = model->model;
+        objectSize = model->objectSize;
         textureName = (char*)background + (slot << 5);
         textureName += 44;
         model->state = 3;
         load->textureRead = StartFileRead(
-            textureName, strs + 12, 0, model->textureSize,
-            model->model + model->objectSize, BGLoadTextures);
+            textureName, strs + 12, 0, textureSize,
+            objectBuffer + objectSize, BGLoadTextures);
         load->state = 3;
         bulletproof_printf(strs + 72, slot, textureName, gClockFrameNumber);
         break;
