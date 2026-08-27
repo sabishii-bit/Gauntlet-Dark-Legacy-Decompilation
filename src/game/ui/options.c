@@ -318,7 +318,7 @@ extern void AudioSelectReset(void);
 extern void OSSetSoundMode(s32 stereo);
 
 /* menu sounds (sounds_evt) */
-extern void fn_8009D350(void);
+extern void fn_8009D350(s32 player);
 extern void AudioMenuExit(void);
 extern void AudioCursorSelect(void);
 extern void AudioCursorH(void);
@@ -345,7 +345,7 @@ extern s32 towerAllPlayersMetLevelReq(s32 lvl);
 extern s32 towerGetRuneNearStat(s32 player, s32 world);
 extern s32 PlayerHasRune(s32 player, s32 rune);
 extern s32 PlayerHasShard(s32 player, s32 shard);
-extern void SumnerHintsActivate(void);
+extern void SumnerHintsActivate(s32 player);
 
 /* ------------------------------------------------------------------ */
 /* this TU's .sdata (values from DOL 0x80343D00; unclaimed until flip)  */
@@ -576,6 +576,13 @@ s32 OptionsDone(void)
 
 int DoOptions(void)
 {
+    typedef struct OPTION_PAD {
+        u8 unused[0x2C];
+        s32 style;
+        s32 setting;
+        s32 boolean0;
+        s32 boolean1;
+    } OPTION_PAD;
     u8 unused[32];
     OPTMENU* m;
     OPTITEM* item;
@@ -868,7 +875,7 @@ int DoOptions(void)
             optglobals.sfx.ml = MBRemoveBlit(optglobals.sfx.ml);
             optglobals.sfx.mr = MBRemoveBlit(optglobals.sfx.mr);
             optglobals.sfx.slid = MBRemoveBlit(optglobals.sfx.slid);
-            fn_8009D350();
+            fn_8009D350(player);
             skipBackSound = 1;
             break;
         default:
@@ -891,7 +898,7 @@ int DoOptions(void)
         }
         if (choice >= 0x1C && choice < 0x1F) {
             optglobals.style = m->sel;
-            fn_8009D350();
+            fn_8009D350(player);
         }
         break;
 
@@ -905,7 +912,7 @@ int DoOptions(void)
         }
         if (choice >= 0x1C && choice < 0x1F) {
             optglobals.subtitles = m->sel;
-            fn_8009D350();
+            fn_8009D350(player);
         }
         break;
 
@@ -919,10 +926,10 @@ int DoOptions(void)
         }
         if (choice == 0x1F) {
             optglobals.vibration = 1;
-            fn_8009D350();
+            fn_8009D350(player);
         } else if (choice > 0x1E && choice < 0x21) {
             optglobals.vibration = 0;
-            fn_8009D350();
+            fn_8009D350(player);
         }
         break;
 
@@ -978,13 +985,13 @@ int DoOptions(void)
             if (choice == -1) {
                 player_save_controls(player);
             } else if (choice > -2 && choice > 0x20) {
-                control_style = lbl_80240E5C[player * 0xF];
+                control_style = ((OPTION_PAD*)(lbl_80240E30 + player * 60))->style;
                 start_optmenu(&optmenu_controls, player);
                 for (i = 0; i < 3; i++) {
                     ctl_blits[i].blit = MBNewBlit(ctl_blits[i].name, ctl_blits[i].x, ctl_blits[i].y);
                     mbBlitProject(ctl_blits[i].blit, ctl_blits[i].w, ctl_blits[i].h);
                 }
-                fn_8009D350();
+                fn_8009D350(player);
             }
         } else if (choice == 0x24) {
             start_optmenu(&optmenu_sub3, player);
@@ -1028,20 +1035,20 @@ int DoOptions(void)
             break;
         }
     style_accept:
-        lbl_80240E5C[player * 0xF] = control_style;
+        ((OPTION_PAD*)(lbl_80240E30 + player * 60))->style = control_style;
         for (i = 0; i < 3; i++) {
             if (ctl_blits[i].blit != NULL) {
                 ctl_blits[i].blit = MBRemoveBlit(ctl_blits[i].blit);
             }
         }
-        fn_8009D350();
+        fn_8009D350(player);
         start_optmenu(NULL, player);
         break;
     }
 
     case 0xF: /* per-pad setting radio (pad + 0x2C) */
         for (i = 0; i < m->num_items; i++) {
-            m->items[i].on = (i == lbl_80240E60[player * 0xF]) ? 1 : 0;
+            m->items[i].on = (i == ((OPTION_PAD*)(lbl_80240E30 + player * 60))->setting) ? 1 : 0;
         }
         if (choice != 0x1B) {
             if (choice < 0x1B) {
@@ -1051,36 +1058,36 @@ int DoOptions(void)
             } else if (choice >= 0x1F) {
                 break;
             }
-            lbl_80240E60[player * 0xF] = m->sel;
-            fn_8009D350();
+            ((OPTION_PAD*)(lbl_80240E30 + player * 60))->setting = m->sel;
+            fn_8009D350(player);
         }
         break;
 
     case 0x10: /* per-pad boolean radio (pad + 0x30; 0 = first item) */
         for (i = 0; i < m->num_items; i++) {
-            if (i == (lbl_80240E64[player * 0xF] == 0)) {
+            if (i == (((OPTION_PAD*)(lbl_80240E30 + player * 60))->boolean0 == 0)) {
                 m->items[i].on = 1;
             } else {
                 m->items[i].on = 0;
             }
         }
         if (choice < 0x1C && choice >= 0x1A) {
-            lbl_80240E64[player * 0xF] = (m->sel == 0);
-            fn_8009D350();
+            ((OPTION_PAD*)(lbl_80240E30 + player * 60))->boolean0 = (m->sel == 0);
+            fn_8009D350(player);
         }
         break;
 
     case 0x11: /* per-pad boolean radio (pad + 0x34) */
         for (i = 0; i < m->num_items; i++) {
-            if (i == (lbl_80240E68[player * 0xF] == 0)) {
+            if (i == (((OPTION_PAD*)(lbl_80240E30 + player * 60))->boolean1 == 0)) {
                 m->items[i].on = 1;
             } else {
                 m->items[i].on = 0;
             }
         }
         if (choice < 0x1C && choice >= 0x1A) {
-            lbl_80240E68[player * 0xF] = (m->sel == 0);
-            fn_8009D350();
+            ((OPTION_PAD*)(lbl_80240E30 + player * 60))->boolean1 = (m->sel == 0);
+            fn_8009D350(player);
         }
         break;
 
@@ -1132,11 +1139,11 @@ int DoOptions(void)
         break;
 
     activate_sumner_hints:
-        SumnerHintsActivate();
+        SumnerHintsActivate(player);
         break;
 
     case 0x17: { /* hint display */
-        u32 rgb = ((m->rgb_off[1] & 0xFF) << 8) | ((m->rgb_off[0] & 0xFF) << 16) | (m->rgb_off[2] & 0xFF);
+        u32 rgb = ((m->rgb_off[0] & 0xFF) << 16) | ((m->rgb_off[1] & 0xFF) << 8) | (m->rgb_off[2] & 0xFF);
         s32 y;
         SetDrawStringScale(m->scale);
         if (hint_submenu == 0x29) {
