@@ -2080,16 +2080,21 @@ void setup_sel_menu(s32 player, s32 mode)
     u8* bss = lbl_80284878;
     u8* data = lbl_80121688;
     u8* menu;
+    u8* field;
     s32 playerOffset;
     s32 baseChoice;
 
     ClearPlayerControl(player, 2);
     playerOffset = player * 232;
-    menu = data + playerOffset + 712;
+    menu = data;
+    menu += playerOffset;
+    menu += 712;
     memcpy(menu, data + 1640, 232);
 
+    field = data;
+    field += playerOffset;
     baseChoice = ((s32*)data)[player];
-    *(s32*)(data + playerOffset + 724) -= baseChoice;
+    *(s32*)(field += 724) -= baseChoice;
     *(s32*)menu = mode;
 
     switch (mode) {
@@ -2116,14 +2121,15 @@ void setup_sel_menu(s32 player, s32 mode)
         s32* selected;
 
         *(void**)(data + playerOffset + 740) = entries;
-        *(s32*)(data + playerOffset + 724) = baseChoice + 4;
+        sum = player * 0x335C;
+        *(s32*)field = baseChoice + 4;
         *(s32*)(data + playerOffset + 728) = 70;
         selected = (s32*)(data + playerOffset + 828);
         *(f32*)(data + playerOffset + 764) = lbl_80348020;
         off = 0;
         *selected = off;
-        sum = *(s32*)(gPlayers + player * 0x335C + 0x334C) +
-              *(s32*)(gPlayers + player * 0x335C + 0x3350);
+        sum = *(s32*)(gPlayers + sum + 0x334C) +
+              *(s32*)(gPlayers + sum + 0x3350);
         sum += 1000;
         i = 0;
         for (;; i++, off += 36) {
@@ -2140,7 +2146,8 @@ void setup_sel_menu(s32 player, s32 mode)
     }
     case 8:
     case 13:
-        *(void**)(data + playerOffset + 740) = bss + player * 324 + 528;
+        *(void**)(data + playerOffset + 740) =
+            (field = bss + player * 324) + 528;
         *(s32*)(data + playerOffset + 724) = baseChoice + 8;
         *(s32*)(data + playerOffset + 728) = 70;
         *(f32*)(data + playerOffset + 764) = lbl_80348020;
