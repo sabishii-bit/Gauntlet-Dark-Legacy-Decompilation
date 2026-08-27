@@ -518,16 +518,16 @@ static s32 cardDoLoad(s32 chan, void* dirBuf) {
     int i;
 
     diskID = DVDGetCurrentDiskID();
+    res = 0;
     OSLockMutex(&M.mutex2);
     M.dir = dirBuf;
-    M.dirCount = 0;
+    M.dirCount = res;
     OSUnlockMutex(&M.mutex2);
     if (dirBuf == NULL) {
         return 0;
     }
     memset(dirBuf, 0, 0x2d44c0);
 
-    res = 0;
     for (fileNo = 0; fileNo < 0x7f; fileNo++) {
         e = (u8*)M.dir + M.dirCount * 0x5b40;
         st = (CARDStat*)(e + 0x5a44);
@@ -626,12 +626,20 @@ static s32 cardDoLoad(s32 chan, void* dirBuf) {
             }
             if ((st->bannerFormat & 4) == 4 && iconCount > 2) {
                 int k;
-                for (k = 0; k < iconCount - 2; k++) {
-                    s32 sp = (st->iconSpeed >> ((iconCount - 2 - k) * 2)) & 3;
-                    *(u32*)(e + 0x5ab4 + (iconCount + k) * 4) = *(u32*)(e + 0x5ab0);
-                    *(u32*)(e + 0x5aec + (iconCount + k) * 4) =
-                        *(u32*)(e + 0x5aec + (iconCount - 2 - k) * 4);
+                int count = iconCount - 2;
+                int dstOff = i * 4;
+                int shift = count * 2;
+                int srcIndex = count;
+
+                for (k = 0; k < count; k++) {
+                    s32 sp = (st->iconSpeed >> shift) & 3;
+                    *(u32*)(e + 0x5ab4 + dstOff) = *(u32*)(e + 0x5ab0);
+                    *(u32*)(e + 0x5aec + dstOff) =
+                        ((u32*)e)[srcIndex + (0x5aec / sizeof(u32))];
                     *(u32*)(e + 0x5ab0) += sp << 2;
+                    shift -= 2;
+                    srcIndex--;
+                    dstOff += 4;
                 }
             }
         }
