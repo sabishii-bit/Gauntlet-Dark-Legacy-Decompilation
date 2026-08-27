@@ -1983,7 +1983,7 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
     char* strs = (char*)lbl_80116D70;
     f32* pif = (f32*)psysInfo;
     f32 t0, t1, t2, t3;
-    f64 v, mn, mx, sc;
+    f64 v;
     u32 used;
     u32 mask;
     u16 fl;
