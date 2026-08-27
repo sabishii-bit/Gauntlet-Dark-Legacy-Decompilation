@@ -2790,14 +2790,19 @@ s32 serve_blits(s32 player)
     f64 kb = lbl_80348040;
     f64 ka = lbl_80348048;
     f32 kf = lbl_80348050;
-    s32 count = 0;
+    s32* sp;
+    s32* tp2;
+    s32* tp4;
     s32 j;
+    s32 count = 0;
+    u8* h;
+    u8* e;
     s32 off;
 
     for (j = 0, off = 0; j < 11; j++, off += 12) {
-        u8* e = blits + off;
-        s32* sp = (s32*)(e + 4);
-        u8* h = *(u8**)e;
+        e = blits + off;
+        sp = (s32*)(e + 4);
+        h = *(u8**)e;
 
         switch (*(u32*)(e + 4)) {
         case 0:
@@ -2838,8 +2843,9 @@ s32 serve_blits(s32 player)
         case 2: { /* fly out right while fading */
             s32 t;
             s32 u;
-            *(s32*)(e + 8) += gFrameTicks;
-            t = *(s32*)(e + 8);
+            tp2 = (s32*)(e + 8);
+            *tp2 += gFrameTicks;
+            t = *tp2;
             u = t * t;
             {
                 u8* pe = page + off;
@@ -2850,7 +2856,7 @@ s32 serve_blits(s32 player)
             mbBlitProject(h, 0x80, 0x100 - u);
             if (u >= 0x100) {
                 *sp = 0;
-                *(s32*)(e + 8) = 0;
+                *tp2 = 0;
                 mbBlitInit3414(h, 1);
             } else {
                 mbBlitInit3414(h, 0);
@@ -2885,7 +2891,6 @@ s32 serve_blits(s32 player)
         }
 
         case 4: { /* zoom in from center */
-            s32* tp = (s32*)(e + 8);
             u8* tex;
             s32 w;
             s32 ht;
@@ -2894,6 +2899,7 @@ s32 serve_blits(s32 player)
             f32 f;
             s32 du;
             s32 dv;
+            tp4 = (s32*)(e + 8);
             *(s32*)(e + 8) += gFrameTicks;
             half = *(s32*)(e + 8) >> 1;
             tex = MBRomTexPtr(*(u32*)(h + 4));
@@ -2912,7 +2918,7 @@ s32 serve_blits(s32 player)
             mbBlitProject(h, du, dv);
             if (a >= 0x100) {
                 *sp = 0;
-                *tp = 0;
+                *tp4 = 0;
                 mbBlitInit3414(h, 1);
             }
             count++;
