@@ -282,28 +282,34 @@ int add_vmu_file(int a, int b, int c, const char* name, u32 v0, u32 v1)
 /* saveExists - does the numbered/dir save exist on the mounted card? */
 int saveExists(void)
 {
-    s32 result = 0;
-    s32 x = 0;
+    char* saveName;
+    s32 x;
+    s32 result;
     s32* pPresent = &lbl_80344A14;
     char name[64];
     s32 fileNo;
     u8 r;
-    char* saveName = lbl_8011D550;
+
+    saveName = lbl_8011D550;
+    result = 0;
+    x = 0;
 
     if (lbl_80344A18 == 3 && *pPresent == 1) {
+        u8 ok;
+
         fileNo = -1;
         if (saveMount(0, 0, 0) <= 0) {
             r = 0;
-        } else {
-            u8 ok = (0 <= x && x <= 1);
-
-            if (!ok) {
-                r = 0;
-            } else {
-                getSaveFileName(name, fileNo);
-                r = vmu_exists(0, saveName, &fileNo);
-            }
+            goto check;
         }
+        ok = (x < 0) ? 0 : ((x <= 1) ? 1 : 0);
+        if (!ok) {
+            r = 0;
+            goto check;
+        }
+        getSaveFileName(name, fileNo);
+        r = vmu_exists(0, saveName, &fileNo);
+    check:
         if (r != 0) {
             result = 1;
         }
