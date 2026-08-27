@@ -1194,7 +1194,10 @@ retry:
     }
 
     cardLoadFile(0, lbl_80344A04);
-    if (cardWaitResult() != 0) {
+    switch (cardWaitResult()) {
+    case 0:
+        break;
+    default:
         goto scan_done;
     }
     {
