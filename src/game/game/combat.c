@@ -4314,7 +4314,8 @@ s32 PlayerStartMissile(s32* player, f32* direction, s32 damageType, s32 mode,
                         if (dmgLow == 1) {
                             fxFlags |= 0x800000;
                         }
-                        if ((player[2] == 2 || player[2] == 6) && dmgLow == 0) {
+                        if ((player[2] == 2 || player[2] == 6) &&
+                            !useSpecial && dmgLow == 0) {
                             fxFlags |= 0x3000000;
                         }
                         sub = StartFXSub(tw, 0, 0, fxFlags, lbl_80346328);
