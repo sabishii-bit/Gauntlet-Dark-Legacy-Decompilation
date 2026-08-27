@@ -966,13 +966,13 @@ extern volatile int sPreviousFlags;
 int init_attract_mode(int screen) {
     AttractTableView* tbl = (AttractTableView*)lbl_80118188;
     int ret = 0;
-    int skip;
     int i;
     int off;
     int cur;
     int a4;
     int f8v;
     int fcv;
+    int skip;
     int id;
     ScreenListEntry* entry;
 
