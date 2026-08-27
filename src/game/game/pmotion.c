@@ -952,7 +952,7 @@ void PlayerMotion(Player* p) {
         }
     }
 
-    if (PF(p, 0x8F0, s32) >= 11 &&
+    if (p->action >= 11 &&
         (PF(p, 0x8D8, u32) & 0x8000) == 0) {
         dpos[0] = 0.0f;
         dpos[1] = 0.0f;
@@ -1068,7 +1068,7 @@ void PlayerMotion(Player* p) {
     if (firstEnemyHits != 0) {
         u8* object = (u8*)target;
         if ((s8)object[0xCF] >= 0 && *(s16*)(object + 0xD0) > 0 &&
-            (directionKind != 0 || PF(p, 0x8F0, s32) != 0)) {
+            (directionKind != 0 || p->action != 0)) {
             dpos[0] = 0.0f;
             dpos[2] = 0.0f;
         } else {
@@ -1220,7 +1220,7 @@ void PlayerMotion(Player* p) {
             }
         }
         if (collision != 0) {
-            if (directionKind == 0 && PF(p, 0x8F0, s32) == 0 &&
+            if (directionKind == 0 && p->action == 0 &&
                 PF(p, 0xA5C, s32) == 0) {
                 PlayerCollideWalls(p, (s32)oldpos, dpos, to, hit);
             } else {
@@ -1521,7 +1521,7 @@ collision_done:
             PF(p, 0x90C, u32) |= 2;
         }
 
-        if ((PF(p, 0x120, u32) & 0x80000) != 0 && enemy != NULL &&
+        if ((p->shield_flags & 0x80000) != 0 && enemy != NULL &&
             PF(enemy, 0, s32) == 30 &&
             fabsf_(PF(p, 0x904, f32)) < (f32)lbl_80347C38) {
             heading = targetAngle;
@@ -1542,7 +1542,7 @@ collision_done:
         }
 
         if (targetDistance < (f32)(lbl_80347BD0 + radius)) {
-            if ((PF(p, 0x120, u32) & 0x200000) != 0 && item >= 0) {
+            if ((p->shield_flags & 0x200000) != 0 && item >= 0) {
                 if (motionState == 1) {
                     motionState = 8;
                 }
@@ -1554,7 +1554,7 @@ collision_done:
                 }
             }
 
-            if ((PF(p, 0x120, u32) & 0x400000) != 0 && item >= 0) {
+            if ((p->shield_flags & 0x400000) != 0 && item >= 0) {
                 s32 damaged = PlayerMotion_DamageTarget(
                     p, item, 34, (s32)to, 0, lbl_80347C40,
                     lbl_80347B40);
@@ -1638,7 +1638,7 @@ state_selected:
             }
         }
 
-        if (PF(p, 0x8F0, s32) < 11) {
+        if (p->action < 11) {
             if (anim == 8) {
                 PF(p, 0x828, f32) =
                     (f32)(PF(p, 0x828, f32) -
@@ -1690,7 +1690,7 @@ state_selected:
 store_motion_state:
         PF(p, 0x204, s32) = motionState;
 
-        if (PF(p, 0x834, s32) >= 2) {
+        if (p->quest_state >= 2) {
             motionState = 1;
         }
         if (motionState == 21) {
@@ -1718,16 +1718,16 @@ store_motion_state:
             s32 forcedAnim = 0;
             s32 closeTarget = (PF(p, 0x90C, u32) & 2) != 0;
             if (forceState == 0 &&
-                (PF(p, 0x124, u32) & 0x1000) != 0) {
+                (p->flags & 0x1000) != 0) {
                 forcedAnim = 110;
             } else if (forceState == 0 &&
-                       (PF(p, 0x124, u32) & 0x2000) != 0) {
+                       (p->flags & 0x2000) != 0) {
                 forcedAnim = 110;
             } else if (forceState == 0 &&
-                       (PF(p, 0x124, u32) & 0x8000) != 0) {
+                       (p->flags & 0x8000) != 0) {
                 forcedAnim = 103;
             } else if (forceState == 0 &&
-                       (PF(p, 0x124, u32) & 0x4000) != 0) {
+                       (p->flags & 0x4000) != 0) {
                 forcedAnim = 104;
             } else if (forceState == 0 &&
                        (PF(p, 0x11C, u32) & 0x100000) != 0) {
@@ -1736,7 +1736,7 @@ store_motion_state:
                        (PF(p, 0x11C, u32) & 0x10000000) != 0) {
                 forcedAnim = 112;
             } else if (forceState == 0 &&
-                       (PF(p, 0x124, u32) & 0x70) != 0) {
+                       (p->flags & 0x70) != 0) {
                 forcedAnim = 110;
             }
 
@@ -1838,7 +1838,7 @@ store_motion_state:
                 PF(p, 0x20C, s32) = 89;
                 break;
             case 21:
-                if ((PF(p, 0x124, u32) & 0x400) != 0 &&
+                if ((p->flags & 0x400) != 0 &&
                     (f64)PF(p, 0x828, f32) >= lbl_80347B90) {
                     PF(p, 0x910, f32) = lbl_80347C58;
                     PF(p, 0x20C, s32) = 110;
@@ -1960,8 +1960,8 @@ store_motion_state:
             }
         }
         /* Target +0x2624: boss intro state and the action update. */
-        if (PF(p, 0x834, s32) != 0 && gBossType >= 0) {
-            if (lbl_80344894 < 0 && PF(p, 0x834, s32) < 4) {
+        if (p->quest_state != 0 && gBossType >= 0) {
+            if (lbl_80344894 < 0 && p->quest_state < 4) {
                 if (gBossType >= 34 && gBossType < 40) {
                     lbl_80344894 = StartFXSub(92, NULL, 0, 0x800,
                                               lbl_80347C10);
@@ -1990,22 +1990,22 @@ store_motion_state:
                 }
             }
 
-            if (PF(p, 0x834, s32) == 2) {
+            if (p->quest_state == 2) {
                 s32 combo = StartComboFX((f32*)((u8*)p + 0x54),
                                          PF(p, 4, s32), PF(p, 4, s32));
                 if (combo >= 0) {
                     PF(Effects + combo * 240, 0x44, f32) =
                         lbl_80347C60;
                 }
-                PF(p, 0x834, s32) = 3;
+                p->quest_state = 3;
                 PF(p, 0x1FA, s16) = 60;
                 fn_8009C9DC(0, (f32*)((u8*)p + 0x54));
             }
-            if (PF(p, 0x834, s32) == 3 && PF(p, 0x1FA, s16) <= 0) {
-                PF(p, 0x834, s32) = 4;
+            if (p->quest_state == 3 && PF(p, 0x1FA, s16) <= 0) {
+                p->quest_state = 4;
                 fn_8009C9DC(1, (f32*)((u8*)p + 0x54));
             }
-            if (PF(p, 0x834, s32) >= 4 &&
+            if (p->quest_state >= 4 &&
                 (PF(p, 0x900, u32) & ~1U) == 0) {
                 if (gBossType >= 36 && gBossType < 38) {
                     if (PF(p, 0x208, s32) != 107) {
@@ -2029,7 +2029,7 @@ store_motion_state:
         DoPlayerAction(p);
 
         /* Target +0x2870: completed-boss effects and damage table. */
-        if (PF(p, 0x834, s32) >= 4) {
+        if (p->quest_state >= 4) {
             if (PF(p, 0x8CC, f32) > PF(p, 0x8B4, f32)) {
                 PF(PF(p, 0x6C8, void*), 0x30, f32) = PF(p, 0x44, f32);
                 PF(PF(p, 0x6C8, void*), 0x34, f32) = PF(p, 0x48, f32);
@@ -2070,7 +2070,7 @@ store_motion_state:
                     lbl_80344894 = DeleteEffect(lbl_80344894, 1);
                     PF(p, 0x730, s32) = 0;
                 }
-                PF(p, 0x834, s32) = 0;
+                p->quest_state = 0;
                 PF(p, 0x900, u32) = 0;
                 fn_8009C9DC(2, (f32*)((u8*)p + 0x54));
 
@@ -2321,8 +2321,8 @@ store_motion_state:
             goto player_motion_phase_exit;
         }
 
-        if (PF(p, 0x8F0, s32) > 0 && PF(p, 0x8F0, s32) < 11 &&
-            PF(p, 0x8F0, s32) != 7 &&
+        if (p->action > 0 && p->action < 11 &&
+            p->action != 7 &&
             (ctl->pad.levels & 0x5000) == 0 && ctl->pad.unk34 != 0 &&
             speedScale == 0.0f && ctl->values[10] == 0.0f) {
             heading = atan2(attackDir[0], attackDir[2]);
@@ -2345,7 +2345,7 @@ store_motion_state:
 
         if ((PF(p, 0x900, u32) & 0x01000000) != 0) {
             s32 effect = -1;
-            u32 playerFlags = PF(p, 0x124, u32);
+            u32 playerFlags = p->flags;
             if ((playerFlags & 0x3000) != 0) {
                 effect = StartFXSub(56, NULL, 42, 0x800, 0.0f);
                 SfxSetDamage(lbl_80347C54, lbl_80347C40, 0.0f,
@@ -2402,7 +2402,7 @@ store_motion_state:
 
         /* Target +0x3600: weapon-node vector and one-shot projectile. */
         if ((PF(p, 0x900, u32) & 0x10000000) != 0) {
-            if ((PF(p, 0x124, u32) & 0x80) != 0 ||
+            if ((p->flags & 0x80) != 0 ||
                 PF(p, 0x748, void*) != NULL) {
                 f32 localVector[3];
                 f32 missileVelocity[3];
@@ -2448,7 +2448,7 @@ store_motion_state:
                                   lbl_80347CC4);
                 }
 
-                if ((PF(p, 0x124, u32) & 0x80) != 0) {
+                if ((p->flags & 0x80) != 0) {
                     fn_80093918(4, p->index, hit, missileVelocity,
                                 lbl_80347CB0, lbl_80347C8C,
                                 projectileHeight);
@@ -2559,7 +2559,7 @@ store_motion_state:
 
             if ((PF(p, 0x900, u32) & 1) != 0) {
                 PF(p, 0x8FC, f32) = sMusicFadeBase;
-                if ((PF(p, 0x124, u32) & 0x400) != 0) {
+                if ((p->flags & 0x400) != 0) {
                     PF(p, 0x900, u32) |= 0x20000000;
                 }
             }
@@ -2614,9 +2614,9 @@ store_motion_state:
                 PlayerStartMissile((u8*)p, attackDir, missileFlags,
                                    missileMode, adjusted, missileScale);
             }
-            if ((PF(p, 0x124, u32) & 0x8000) != 0) {
+            if ((p->flags & 0x8000) != 0) {
                 fn_8009F410(p->index);
-            } else if ((PF(p, 0x124, u32) & 0x4000) != 0) {
+            } else if ((p->flags & 0x4000) != 0) {
                 fn_8009F3D0(p->index);
             } else {
                 AudioPlayerEatSFX(p->index);
@@ -2640,7 +2640,7 @@ store_motion_state:
         }
 
         if ((PF(p, 0x900, u32) & 0x60000) != 0) {
-            if (PF(p, 0x834, s32) == 0 &&
+            if (p->quest_state == 0 &&
                 (lbl_8034489C <= 0 || lbl_8034489C >= 5)) {
                 s32 magicMode;
                 if ((PF(p, 0x900, u32) & 0x40000) != 0) {
@@ -2755,7 +2755,7 @@ player_motion_phase_exit:
                 u8* data = PF(root, 0x1C, u8*);
                 PF(node, 0x34, f32) =
                     (f32)(PF(data, 0x64, f32) +
-                          (((PF(p, 0x124, u32) & 1) != 0)
+                          (((p->flags & 1) != 0)
                                ? lbl_80347B88
                                : 0.0));
             }
@@ -2765,21 +2765,21 @@ player_motion_phase_exit:
                 s32 variant = (PF(p, 0x962, u16) & 2) != 0;
                 if (PF(p, 0x8CC, f32) > PF(p, 0x8B4, f32)) {
                     kind = 4;
-                } else if ((PF(p, 0x120, u32) & 0x10000) != 0) {
+                } else if ((p->shield_flags & 0x10000) != 0) {
                     kind = 3;
                 } else if ((PF(p, 0x8C0, u32) & 8) != 0) {
                     kind = 2;
                 } else {
                     kind = 0;
                 }
-                if ((PF(p, 0x124, u32) & 1) == 0) {
+                if ((p->flags & 1) == 0) {
                     fn_8009EFCC(p->index, variant, kind);
                 }
                 PF(p, 0x962, u16) &= ~3;
             }
 
             grabbed = PF(p, 0x6B8, Player*);
-            grabKind = ((PF(p, 0x124, u32) & 0x400) != 0 &&
+            grabKind = ((p->flags & 0x400) != 0 &&
                         grabbed == NULL)
                            ? -1
                            : p->char_type;
@@ -2929,7 +2929,7 @@ player_motion_phase_exit:
             }
 
 player_motion_grab_done:
-            if (PF(p, 0x834, s32) < 2) {
+            if (p->quest_state < 2) {
                 s32 sfx1 = -1;
                 s32 sfx2 = -1;
                 s32 comboMode = 0;
