@@ -1649,7 +1649,7 @@ void show_optmenu(OPTMENU* m)
     u32 fade;
     s32 x;
     s32 y;
-    s32 lh;
+    volatile s32 lh;
     s32 savedFlags;
     s32 sel;
     OPTITEM* it;
@@ -1787,15 +1787,18 @@ void show_optmenu(OPTMENU* m)
             } else {
                 s32 k;
                 for (k = 0; k < 3; k++) {
+                    s32 v;
                     delta[k] = m->rgb_hi[k] - m->rgb_on[k];
                     rgb[k] = m->rgb_on[k] +
                              (OPTMENU_FADE + (s32)ph * delta[k] - 1) /
                                  OPTMENU_FADE;
-                    if (rgb[k] < 0) {
-                        rgb[k] = 0;
-                    } else if (rgb[k] > 0xFF) {
-                        rgb[k] = 0xFF;
+                    v = rgb[k];
+                    if (v < 0) {
+                        v = 0;
+                    } else if (v > 0xFF) {
+                        v = 0xFF;
                     }
+                    rgb[k] = v;
                 }
                 scale = (f32)(scale * m->scale *
                               (1.0 + (f32)(lbl_80343BC8 * ((f32)(s32)ph / (f32)OPTMENU_FADE))));
@@ -1811,10 +1814,10 @@ void show_optmenu(OPTMENU* m)
         } else {
             s32 k;
             for (k = 0; k < 3; k++) {
-                if (font2 == 0 || hifont != 0) {
-                    rgb[k] = m->rgb_off[k];
-                } else {
+                if (font2 != 0 && hifont == 0) {
                     rgb[k] = 0xFF;
+                } else {
+                    rgb[k] = m->rgb_off[k];
                 }
             }
         }
