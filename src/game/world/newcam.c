@@ -1460,6 +1460,7 @@ s32 fn_8006DF34(NcCamera* cam) {
     NcMarker* marker;
     NcCameraBounds* bounds;
     f32 yawT;
+    f32 yaw;
     f32 pitchT;
     f32 pitch;
     f64 d;
@@ -1598,8 +1599,9 @@ s32 fn_8006DF34(NcCamera* cam) {
     cam->distance += sd;
     distMoved = sd != 0.0;
 
+    yaw = cam->yaw;
     pitch = cam->pitch;
-    YawVec3(lbl_80127D40, &cam->direction, -cam->yaw);
+    YawVec3(lbl_80127D40, &cam->direction, -yaw);
     PitchVec3((f32*)&cam->direction, (f32*)&cam->direction, -pitch);
     DoShake(&cam->position, &cam->attention);
 
