@@ -415,6 +415,14 @@ static f32 fabsf_param(f32 x) {
     return x;
 }
 
+static inline f32 PlayerKnockbackFabs(f32 x) {
+    f32 slots[4];
+
+    slots[3] = x;
+    *(u32*)&slots[3] &= 0x7FFFFFFF;
+    return slots[3];
+}
+
 /* ================================================================== */
 
 #define STUB(address, name) void name(void) {}
@@ -3151,9 +3159,12 @@ void PlayerMotion_FloorFX(Player* p, WorldObj* obj, f32* v1, f32* v2) {
  * flag bits to a reaction code + velocity impulse, retarget the facing angle
  * for the strong reactions, spawn the skin FX, then clear the queue.  Returns
  * the reaction code the motion driver acts on. */
+#pragma opt_propagation off
+#pragma opt_common_subs off
 u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
-    u32 result = 0;
+    s32 result = 0;
     u32 prevFlags;
+    u32 initialFlags;
     u32 flags;
 
     if (PF(p, 0x8E0, f32) > lbl_80347B08) {
@@ -3161,14 +3172,14 @@ u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
     }
     prevFlags = PF(p, 0x8D8, u32);
     PF(p, 0x8D8, u32) = PF(p, 0x8D4, u32);
-    flags = PF(p, 0x8D4, u32);
+    initialFlags = PF(p, 0x8D4, u32);
 
-    if ((flags & 0x4000) != 0) {
-        PF(p, 0x8D4, u32) = flags & 0x4000;
+    if ((initialFlags & 0x4000) != 0) {
+        PF(p, 0x8D4, u32) = initialFlags & 0x4000;
         return 300;
     }
-    if ((flags & 0x8000) != 0) {
-        PF(p, 0x8D4, u32) = flags & 0x8000;
+    if ((initialFlags & 0x8000) != 0) {
+        PF(p, 0x8D4, u32) = initialFlags & 0x8000;
         if ((prevFlags & 0x8000) == 0) {
             PF(p, 0x870, f32) = PF(p, 0x8DC, f32);
             PF(p, 0x874, f32) = PF(p, 0x8E0, f32);
@@ -3186,6 +3197,7 @@ u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
         return 0;
     }
 
+    flags = PF(p, 0x8D4, u32);
     if ((flags & 0x4000000) != 0) {
         result = 200;
     }
@@ -3194,24 +3206,37 @@ u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
         PF(p, 0x870, f32) = PF(p, 0x8DC, f32) * (sc) + PF(p, 0x870, f32); \
         PF(p, 0x874, f32) = PF(p, 0x8E0, f32) * (sc) + PF(p, 0x874, f32); \
         PF(p, 0x878, f32) = PF(p, 0x8E4, f32) * (sc) + PF(p, 0x878, f32)
-
+#define KNOCK_IMPULSE_X(sc, x)                                        \
+        PF(p, 0x870, f32) = (x) * (sc) + PF(p, 0x870, f32);            \
+        PF(p, 0x874, f32) = PF(p, 0x8E0, f32) * (sc) + PF(p, 0x874, f32); \
+        PF(p, 0x878, f32) = PF(p, 0x8E4, f32) * (sc) + PF(p, 0x878, f32)
         if ((flags & 0x10000) != 0) {
-            f32 sc = lbl_80347C50;
+            f32 forceX;
+            f32 sc;
+            forceX = PF(p, 0x8DC, f32);
             result = 30;
-            KNOCK_IMPULSE(sc);
+            sc = lbl_80347C50;
+            KNOCK_IMPULSE_X(sc, forceX);
         } else if ((flags & 0x40) != 0) {
-            f32 sc = lbl_80347C50;
+            f32 forceX;
+            f32 sc;
+            forceX = PF(p, 0x8DC, f32);
             result = 20;
-            KNOCK_IMPULSE(sc);
+            sc = lbl_80347C50;
+            KNOCK_IMPULSE_X(sc, forceX);
         } else if ((flags & 0x120) != 0) {
-            f32 sc = (f32)((PF(p, 0x124, u32) & 0x400) != 0 ? lbl_80347D38
-                                                            : lbl_80347D40);
+            f32 sc;
             result = 20;
+            sc = (f32)((PF(p, 0x124, u32) & 0x400) != 0 ? lbl_80347D38
+                                                       : lbl_80347D40);
             KNOCK_IMPULSE(sc);
         } else if ((flags & 0x10) != 0) {
-            f32 sc = lbl_80347D48;
+            f32 forceX;
+            f32 sc;
+            forceX = PF(p, 0x8DC, f32);
             result = 10;
-            KNOCK_IMPULSE(sc);
+            sc = lbl_80347D48;
+            KNOCK_IMPULSE_X(sc, forceX);
         } else if ((flags & 0x2000) != 0) {
             result = 3;
         } else if ((flags & 0x80) != 0) {
@@ -3220,42 +3245,58 @@ u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
             result = 1;
         }
 #undef KNOCK_IMPULSE
+#undef KNOCK_IMPULSE_X
         if (result >= 10) {
             {
-                f32 a = atan2(PF(p, 0x8DC, f32), PF(p, 0x8E4, f32));
-                f32 d = a - angle;
+                f32 atanX;
+                f32 atanZ;
+                f32 a;
+                f64 d;
+                f64 wrappedDelta;
+                atanZ = PF(p, 0x8E4, f32);
+                atanX = PF(p, 0x8DC, f32);
+                a = atan2(atanX, atanZ);
+                d = a - angle;
                 if (d > lbl_80347B50) {
-                    d = (f32)(d - lbl_80347B60);
+                    wrappedDelta = d - lbl_80347B60;
                 } else if (d <= lbl_80347B68) {
-                    d = (f32)(lbl_80347B60 + d);
+                    wrappedDelta = lbl_80347B60 + d;
+                } else {
+                    wrappedDelta = d;
                 }
-                if (fabsf_(d) > lbl_80347C38) {
+                if (PlayerKnockbackFabs((f32)wrappedDelta) > lbl_80347C38) {
                     result++;
                     a = (f32)(a + lbl_80347B50);
                 }
-                if (a > lbl_80347B50) {
-                    a = (f32)(a - lbl_80347B60);
-                } else if (a <= lbl_80347B68) {
-                    a = (f32)(lbl_80347B60 + a);
+                d = a;
+                if (d > lbl_80347B50) {
+                    d -= lbl_80347B60;
+                } else if (d <= lbl_80347B68) {
+                    d = lbl_80347B60 + d;
                 }
-                *out = a;
+                *out = (f32)d;
             }
         }
-        if ((flags & 0x1000000) == 0) {
-            fn_80094164((u8*)p + 0x54, flags, 0);
+        if ((PF(p, 0x8D4, u32) & 0x1000000) == 0) {
+            fn_80094164((u8*)p + 0x54, PF(p, 0x8D4, u32), 0);
         }
         SetSkinFX((u8*)p + 0x7DC, lbl_80344BF8, 1, 1, lbl_80347B40);
     } else if ((flags & 0x80) != 0) {
         result = 2;
     }
 
-    PF(p, 0x8DC, f32) = lbl_80347B30;
-    PF(p, 0x8E0, f32) = lbl_80347B30;
-    PF(p, 0x8E4, f32) = lbl_80347B30;
-    PF(p, 0x8D0, f32) = lbl_80347B30;
+    {
+        f32 zero = lbl_80347B30;
+        PF(p, 0x8DC, f32) = zero;
+        PF(p, 0x8E0, f32) = zero;
+        PF(p, 0x8E4, f32) = zero;
+        PF(p, 0x8D0, f32) = zero;
+    }
     PF(p, 0x8D4, u32) = 0;
     return result;
 }
+#pragma opt_common_subs reset
+#pragma opt_propagation reset
 void PlayerMotion_FindClosestPlayer(Player* p, f32* dir, u32 flags, f32 dmg) {
     u8 unused[8];
     f32 dvec[3];
