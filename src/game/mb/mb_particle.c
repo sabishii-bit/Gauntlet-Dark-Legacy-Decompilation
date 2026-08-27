@@ -967,8 +967,7 @@ s32 MBDrawPsys(MBObject* node, void* arg) {
         }
         p->e_phase = 6;
     case 6:
-        rate = lbl_80349154;
-        p->p_save_cnt = lbl_80349154;
+        p->p_save_cnt = rate = lbl_80349154;
         if (p->p_oldest_ptr == NULL) {
     case 7:
         {
@@ -1111,14 +1110,15 @@ phaseD:
             u16* limit;
             s32 filled = 0;
             f32 acc;
-            u32 am16 = agemask & 0xFFFF;
+            u32 am16;
             if (oldest == NULL) {
                 oldest = emitStart;
             }
             p->p_newest_ptr = (cursor == ringbase) ? ringend - 1 : cursor - 1;
-            limit = (emitStart < cursor) ? emitStart : ringbase - 1;
             acc = rate;
             scan = cursor;
+            limit = (emitStart < cursor) ? emitStart : ringbase - 1;
+            am16 = agemask & 0xFFFF;
             while (1) {
                 scan -= 1;
                 acc = acc - lbl_8034915C;
@@ -1133,15 +1133,12 @@ phaseD:
                     }
                 }
                 if (acc <= lbl_80349154) {
-                    u32 n = 0;
+                    s32 n = 0;
                     do {
                         acc = acc + rate;
                         n += 1;
                         filled += 1;
-                        if (acc > lbl_80349154) {
-                            break;
-                        }
-                    } while (n != am16);
+                    } while (acc <= lbl_80349154 && n != (s32)am16);
                     *scan = *scan | n;
                 }
             }
@@ -1150,18 +1147,20 @@ phaseD:
                 p->p_newest_age = 0;
             } else {
                 s32 carry;
-                u16 e;
-                u32 ev;
+                u32 e;
                 u16* lim2;
                 carry = p->p_newest_age;
                 p->p_newest_age = 0;
                 carry = (carry + dt) - filled;
                 e = *scan;
-                ev = e;
-                lim2 = (scan >= cursor) ? ringend : cursor;
+                if (cursor <= scan) {
+                    lim2 = ringend;
+                } else {
+                    lim2 = cursor;
+                }
                 if (carry > (s32)am16) {
                     do {
-                        *scan = (u16)ev | (u16)agemask;
+                        *scan = e | am16;
                         scan += 1;
                         if (scan == lim2) {
                             if (scan == cursor) {
@@ -1174,10 +1173,9 @@ phaseD:
                             scan = ringbase;
                         }
                         e = *scan;
-                        ev = e;
-                        carry = carry + ((am16 & ev) - am16);
+                        carry = carry + ((am16 & e) - am16);
                     } while (carry > (s32)am16);
-                    e = e & ~(u16)agemask;
+                    e = e & ~am16;
                 }
                 *scan = e | (u16)carry;
             }
@@ -1194,7 +1192,11 @@ phaseD:
         cmask = 0;
         page = (f32)(u32)p->p_newest_age;
         cursor = p->p_newest_ptr;
-        wrapStop = (oldest > cursor) ? ringbase - 1 : prevOld;
+        if (oldest > cursor) {
+            wrapStop = ringbase - 1;
+        } else {
+            wrapStop = prevOld;
+        }
         e8 = *cursor;
         if (page < plf) {
             PSlot* sl = &slots[4];
