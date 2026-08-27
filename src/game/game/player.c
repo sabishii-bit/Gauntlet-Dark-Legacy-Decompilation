@@ -483,7 +483,7 @@ extern void SfxSetParent(s32 fx, void* node);
 /* this TU, back slice (0x80077BF0..0x8008091C), forward decls */
 void PlayerProcessScale(void* p);
 static void do_exit(void* p, s32 dest);
-static s32 do_weakening(void* p, s32 active);
+static s32 do_weakening(Player* p, s32 active);
 static s32 all_players_go_to_same_level(void);
 void inactivate_player(s32 player);
 void abort_player(s32 player);
@@ -2563,15 +2563,16 @@ static void do_exit(void* vp, s32 dest) {
 }
 
 /* Health-drain warning beeps; returns -1 once health is gone.         */
-static s32 do_weakening(void* vp, s32 active) {
-    Player* p = vp;
+static s32 do_weakening(Player* p, s32 active) {
+    s32 player = p->index;
     s16 t;
 
-    if (PF(p, 0xA30, s32) != 0) {
-        if (p->state == 1 && (sFlags & 4) == 0 && sMusicTrackHi != 0xC) {
-            PF(p, 0xA2C, s32) += gFrameTicks;
-            if (PF(p, 0xA2C, s32) >= PF(p, 0xA30, s32)) {
-                PF(p, 0xA2C, s32) -= PF(p, 0xA30, s32);
+    if (p->weakening_period != 0) {
+        if (p->state == 1 && (gControllerButtons & 4) == 0 && sMusicTrackHi != 0xC) {
+            s32 elapsed = p->weakening_elapsed + gFrameTicks;
+            p->weakening_elapsed = elapsed;
+            if (elapsed >= p->weakening_period) {
+                p->weakening_elapsed -= p->weakening_period;
             }
         }
     }
@@ -2579,18 +2580,18 @@ static s32 do_weakening(void* vp, s32 active) {
         return -1;
     }
     if (active != 0 && p->health <= 150.0f) {
-        t = PF(p, 0x1F6, s16) - gFrameTicks;
-        PF(p, 0x1F6, s16) = t;
+        t = p->heartbeat_timer - gFrameTicks;
+        p->heartbeat_timer = t;
         if (t <= 0) {
-            if (sMusicTrackHi != 0xD && (PF(p, 0x120, u32) & 0x110000) == 0) {
-                AudioHeartBeat(p->index);
+            if (sMusicTrackHi != 0xD && (p->shield_flags & 0x110000) == 0) {
+                AudioHeartBeat(player);
             }
             if (p->health >= 100.0f) {
-                PF(p, 0x1F6, s16) = 0x78;
+                p->heartbeat_timer = 0x78;
             } else if (p->health >= 50.0f) {
-                PF(p, 0x1F6, s16) = 0x3C;
+                p->heartbeat_timer = 0x3C;
             } else {
-                PF(p, 0x1F6, s16) = 0x1E;
+                p->heartbeat_timer = 0x1E;
             }
         }
     }

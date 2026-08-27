@@ -150,7 +150,7 @@ typedef struct Player {
     /* 0x01F0 */ s16 timer_1F0;      /* generic countdowns, dec by frame delta [player.c] */
     /* 0x01F2 */ u8  pad_01F2[2];
     /* 0x01F4 */ s16 respawn_timer;  /* state-0 display rebuild delay [player.c] */
-    /* 0x01F6 */ u8  pad_01F6[2];
+    /* 0x01F6 */ s16 heartbeat_timer; /* low-health heartbeat countdown [player.c] */
     /* 0x01F8 */ s16 name_timer;     /* overhead-name show timer [player.c] */
     /* 0x01FA */ s16 timer_1FA;
     /* 0x01FC */ s16 timer_1FC;
@@ -205,7 +205,9 @@ typedef struct Player {
     /* 0x095A */ u8  pad_095A[0xA];
     /* 0x0964 */ s16 hud_flags;      /* 0x20 = attached (lha in target) [player.c] */
     /* 0x0966 */ s16 hud_flags2;     /* 1 = info written, 2 = runes written [player.c] */
-    /* 0x0968 */ u8  pad_0968[0xCC];
+    /* 0x0968 */ u8  pad_0968[0xC4];
+    /* 0x0A2C */ s32 weakening_elapsed; /* elapsed ticks in weakening cycle [player.c] */
+    /* 0x0A30 */ s32 weakening_period; /* weakening cycle duration [player.c] */
     /* 0x0A34 */ s32 milestone[5];   /* recently visited milestone nodes [items.c] */
     /* 0x0A48 */ u8  pad_0A48[0x18];
     /* 0x0A60 */ s32 display_mode;   /* HUD display mode (get_display_mode) [player.c] */
