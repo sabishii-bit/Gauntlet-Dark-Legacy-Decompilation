@@ -911,7 +911,7 @@ s32 MBDrawPsys(MBObject* node, void* arg) {
         p->p_save_cnt = lbl_80349154;
         p->nearest_z = lbl_80349158;
         if (p->p_lst == NULL) {
-            s32* h = listFindHandle((s32)p, (s32)blk);
+            s32* h = listFindHandle((s32)p, (s32)(pi + 64));
             *(s32*)(pi + 64) = *(s32*)(pi + 64) - 1;
             *h = (s32)p->next;
             p->next = NULL;
@@ -971,7 +971,7 @@ s32 MBDrawPsys(MBObject* node, void* arg) {
         if (p->p_oldest_ptr == NULL) {
     case 7:
         {
-            s32* h = listFindHandle((s32)p, (s32)blk);
+            s32* h = listFindHandle((s32)p, (s32)(pi + 64));
             *(s32*)(pi + 64) = *(s32*)(pi + 64) - 1;
             *h = (s32)p->next;
             p->next = NULL;
