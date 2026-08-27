@@ -2266,18 +2266,18 @@ void get_attn_pos_8002C9A8(s32 camIdx, f32* out)
             f32 sv0, sv1, sv2;
             f64 half = lbl_80345F18;
             for (i = 0; i < 15; i++) {
-                CameraTarget* target = &gCameraTargets[i];
+                CameraTarget* target = gCameraTargets + i;
                 if (target->active > 0) {
                     f32* p = (f32*)(target->object + 0x40);
                     f32 x = p[0];
                     f32 y = p[1];
                     f32 z = p[2];
                     if (x < minX) minX = x;
-                    if (maxX < x) maxX = x;
+                    if (x > maxX) maxX = x;
                     if (y < minY) minY = y;
-                    if (maxY < y) maxY = y;
+                    if (y > maxY) maxY = y;
                     if (z < minZ) minZ = z;
-                    if (maxZ < z) maxZ = z;
+                    if (z > maxZ) maxZ = z;
                 }
             }
             out[0] = (f32)(half * (f64)(minX + maxX));
