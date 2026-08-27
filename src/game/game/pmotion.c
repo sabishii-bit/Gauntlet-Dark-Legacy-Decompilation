@@ -4277,55 +4277,64 @@ int PlayerCheckMovingFloor_80088688(Player* p) {
  * Returns 0 (no wall), 1 (slid / exit wall on the right anim), or 2. */
 s32 fn_80088714(f32 range, Player* p, f32* pos, f32* dpos) {
     f32 to[3];
-    s32 result = 0;
+    u8 unused[16];
     WorldObj* wall;
     u8* ctx = lbl_80282850;
-    f32* wn = (f32*)&lbl_8023CA98[0x10];
+    f32* wn;
+    f32* ctxY;
+    f32* ctxZ;
+    f32* wnY;
+    f32* wnX;
+    f32* wnZ;
+    s32 result = 0;
 
     to[0] = pos[0] + dpos[0];
     to[1] = pos[1] + dpos[1];
     to[2] = pos[2] + dpos[2];
     lbl_80344B30 = PlayerWallCollide(pos, to, ctx, range);
     wall = (WorldObj*)lbl_80344B30;
-    if (wall == NULL) {
-        return result;
-    }
+    if (wall != NULL) {
+        wn = (f32*)&lbl_8023CA98[0x10];
+        wnX = &wn[0];
+        wnY = &wn[1];
+        wnZ = &wn[2];
+        ctxY = (f32*)(ctx + 16);
+        ctxZ = (f32*)(ctx + 20);
+        *(f32*)(ctx + 12) = *wnX;
+        result = 1;
+        *ctxY = *wnY;
+        *ctxZ = *wnZ;
 
-    *(f32*)(ctx + 12) = wn[0];
-    result = 1;
-    *(f32*)(ctx + 16) = wn[1];
-    *(f32*)(ctx + 20) = wn[2];
+        if ((wall->flags & 0x38) != 0) {
+            return p->anim_208 == 0x8F ? 1 : 2;
+        } else {
+            if ((wall->flags & 0x1000) != 0) {
+                f32 d = -(dpos[1] * *ctxY +
+                          dpos[0] * *(f32*)(ctx + 12) +
+                          dpos[2] * *ctxZ);
+                dpos[0] = *(f32*)(ctx + 12) * d + dpos[0];
+                dpos[1] = *ctxY * d + dpos[1];
+                dpos[2] = *ctxZ * d + dpos[2];
+            } else {
+                SlideAlongWall(pos, dpos, ctx, (f32*)(ctx + 12), range);
+            }
 
-    if ((wall->flags & 0x38) != 0) {
-        return p->anim_208 == 0x8F ? 1 : 2;
-    }
-
-    if ((wall->flags & 0x1000) != 0) {
-        f32 nx = *(f32*)(ctx + 12);
-        f32 ny = *(f32*)(ctx + 16);
-        f32 nz = *(f32*)(ctx + 20);
-        f32 d = -(dpos[2] * nz + dpos[0] * nx + dpos[1] * ny);
-        dpos[0] = nx * d + dpos[0];
-        dpos[1] = ny * d + dpos[1];
-        dpos[2] = nz * d + dpos[2];
-    } else {
-        SlideAlongWall(pos, dpos, ctx, (f32*)(ctx + 12), range);
-    }
-
-    to[0] = pos[0] + dpos[0];
-    to[1] = pos[1] + dpos[1];
-    to[2] = pos[2] + dpos[2];
-    (*(u8**)&gWorldInfo[0x5C])[lbl_80344180]++;
-    wall = (WorldObj*)PlayerWallCollide(pos, to, ctx, (f32)(lbl_80347D78 * range));
-    if (wall == NULL) {
-        return result;
-    }
-    lbl_80344B30 = wall;
-    if (wn[1] * *(f32*)(ctx + 16) + wn[0] * *(f32*)(ctx + 12) +
-            wn[2] * *(f32*)(ctx + 20) < lbl_80347B00) {
-        dpos[0] = 0.0f;
-        dpos[1] = 0.0f;
-        dpos[2] = 0.0f;
+            to[0] = pos[0] + dpos[0];
+            to[1] = pos[1] + dpos[1];
+            to[2] = pos[2] + dpos[2];
+            (*(u8**)&gWorldInfo[0x5C])[lbl_80344180]++;
+            wall = (WorldObj*)PlayerWallCollide(
+                pos, to, ctx, (f32)(lbl_80347D78 * range));
+            if (wall != NULL) {
+                lbl_80344B30 = wall;
+                if (*wnY * *ctxY + *wnX * *(f32*)(ctx + 12) +
+                        *wnZ * *ctxZ < lbl_80347B00) {
+                    dpos[0] = 0.0f;
+                    dpos[1] = 0.0f;
+                    dpos[2] = 0.0f;
+                }
+            }
+        }
     }
     return result;
 }
