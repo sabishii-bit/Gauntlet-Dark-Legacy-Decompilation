@@ -211,13 +211,14 @@ extern u8 gPlayers[];            /* gPlayerRecords[4], stride 0x335C */
 /* pad state (controls TU) */
 extern u32 lbl_80240E34[];  /* per-player, stride 0xF words */
 extern u32 lbl_80240E38[];
-extern u8 lbl_80240E30[];
+extern u8 lbl_80240E30[4 * 60];
 extern s32 lbl_80240E5C[];  /* per-player control style */
 extern s32 lbl_80240E60[];  /* per-pad setting (radio menu 0xF) */
 extern u32 lbl_80240E64[];  /* per-pad boolean (radio menu 0x10) */
 extern u32 lbl_80240E68[];  /* per-pad boolean (radio menu 0x11) */
 extern u32 lbl_80240FB0[4];    /* global buttons held */
 extern u32 lbl_80240FC0[4];    /* global buttons pressed */
+#define PADREC(i, off, T) (*(T*)(lbl_80240E30 + (i) * 60 + (off)))
 extern u32 lbl_8034461C;    /* any-pad pressed mask */
 extern u32 lbl_80344620;    /* any-pad held mask */
 
@@ -575,6 +576,7 @@ s32 OptionsDone(void)
 
 int DoOptions(void)
 {
+    u8 unused[32];
     OPTMENU* m;
     OPTITEM* item;
     s32 choice;
@@ -587,12 +589,14 @@ int DoOptions(void)
     skipBackSound = 0;
 
     /* menu clock: full speed, or (paused w/ button held) 2, else 0 */
-    if ((gControllerButtons & 8) == 0) {
-        vb_elapsed_menu = gClockStepTicks;
-    } else if ((lbl_80240FB0[0] & 0x2000000) == 0 && (lbl_80240FC0[0] & 0x1000000) == 0) {
-        vb_elapsed_menu = 0;
+    if ((gControllerButtons & 8) != 0) {
+        if ((lbl_80240FB0[0] & 0x2000000) != 0 || (lbl_80240FC0[0] & 0x1000000) != 0) {
+            vb_elapsed_menu = 2;
+        } else {
+            vb_elapsed_menu = 0;
+        }
     } else {
-        vb_elapsed_menu = 2;
+        vb_elapsed_menu = gClockStepTicks;
     }
 
     saver = ServeFireScroll();
@@ -601,7 +605,7 @@ int DoOptions(void)
     if (options_state == 0 && good_wiz_enabled == 0 && opt_force_player < 0 &&
         (gGameMode != 0x4010 || lbl_803447B8 == 0)) {
         for (i = 0; i < 4; i++) {
-            if (PREC(i, 0xE8, s32) == 1 && (lbl_80240E38[i * 0xF] & 0x40000) != 0 &&
+            if (PREC(i, 0xE8, s32) == 1 && (PADREC(i, 8, u32) & 0x40000) != 0 &&
                 OptionsStart(i, 0) != 0) {
                 break;
             }
@@ -644,7 +648,7 @@ int DoOptions(void)
         if (m->title_blit != NULL) {
             mbBlitInit3414(m->title_blit, 1);
         }
-        if ((u32)(choice + 2) < 2 || choice == 0xF) {
+        if ((u32)(choice + 2) <= 1 || choice == 0xF) {
             draw_fullscreen_inventory();
         }
         return 1;
@@ -666,7 +670,7 @@ int DoOptions(void)
         if (choice == 1) {
             title_choice = 1;
         } else if (choice < 1) {
-            if (choice < 0 && choice > -3) {
+            if (choice < 0 && choice >= -2) {
                 goto close_title_options;
             }
         } else if (choice == 0xC) {
@@ -698,7 +702,7 @@ int DoOptions(void)
             if (choice == 0xD) {
                 goto open_player_select;
             } else if (choice < 0xD) {
-                if (choice > 0xB) {
+                if (choice >= 0xC) {
                     goto open_quit_confirm;
                 }
             } else {
@@ -768,7 +772,7 @@ int DoOptions(void)
                 start_audioslider(&optglobals.music);
                 start_audioslider(&optglobals.sfx);
                 sfx_sound_count = 0;
-            } else if (choice < 0x11 && choice > 0xF) {
+            } else if (choice < 0x11 && choice >= 0x10) {
                 start_optmenu(&optmenu_audio_mode, player);
             }
         } else if (choice < 0x16) {
@@ -780,7 +784,7 @@ int DoOptions(void)
         if (choice == 0x13) {
             start_optmenu(&optmenu_pref_c, player);
             optmenu_pref_c.sel = optglobals.subtitles;
-        } else if (choice < 0x13 && choice > 0x11) {
+        } else if (choice < 0x13 && choice >= 0x12) {
             start_optmenu(&optmenu_pref_b, player);
             optmenu_pref_b.sel = optglobals.style;
         }
@@ -840,7 +844,7 @@ int DoOptions(void)
                     AudioSetEvt1(0x80);
                     optglobals.music_vol = optglobals.music.val;
                 }
-            } else if (item->code < 0x1A && (u32)(choice - 3) < 2) {
+            } else if (item->code < 0x1A && (u32)(choice - 3) <= 1) {
                 AudioCursorH();
                 item->value ^= 1;
                 optglobals.sound_mode = item->value;
@@ -854,9 +858,9 @@ int DoOptions(void)
             break;
         case -2:
         case -1:
-            optglobals.music.ml = MBRemoveBlit(optglobals.music.ml);
-            optglobals.music.pink = MBRemoveBlit(optglobals.music.pink);
             optglobals.music.empty = MBRemoveBlit(optglobals.music.empty);
+            optglobals.music.pink = MBRemoveBlit(optglobals.music.pink);
+            optglobals.music.ml = MBRemoveBlit(optglobals.music.ml);
             optglobals.music.mr = MBRemoveBlit(optglobals.music.mr);
             optglobals.music.slid = MBRemoveBlit(optglobals.music.slid);
             optglobals.sfx.empty = MBRemoveBlit(optglobals.sfx.empty);
@@ -885,7 +889,7 @@ int DoOptions(void)
                 m->items[i].on = 0;
             }
         }
-        if (choice > 0x1B && choice < 0x1F) {
+        if (choice >= 0x1C && choice < 0x1F) {
             optglobals.style = m->sel;
             fn_8009D350();
         }
@@ -899,7 +903,7 @@ int DoOptions(void)
                 m->items[i].on = 0;
             }
         }
-        if (choice > 0x1B && choice < 0x1F) {
+        if (choice >= 0x1C && choice < 0x1F) {
             optglobals.subtitles = m->sel;
             fn_8009D350();
         }
@@ -929,7 +933,7 @@ int DoOptions(void)
         case 2:
             screen_dx = 0;
             screen_dy = 0;
-            fn_800C25F0(0, 0);
+            fn_800C25F0(screen_dx, screen_dy);
             break;
         case 3:
         case 5:
@@ -1044,7 +1048,7 @@ int DoOptions(void)
                 if (choice < 0x1A) {
                     break;
                 }
-            } else if (choice > 0x1E) {
+            } else if (choice >= 0x1F) {
                 break;
             }
             lbl_80240E60[player * 0xF] = m->sel;
@@ -1060,7 +1064,7 @@ int DoOptions(void)
                 m->items[i].on = 0;
             }
         }
-        if (choice < 0x1C && choice > 0x19) {
+        if (choice < 0x1C && choice >= 0x1A) {
             lbl_80240E64[player * 0xF] = (m->sel == 0);
             fn_8009D350();
         }
@@ -1074,7 +1078,7 @@ int DoOptions(void)
                 m->items[i].on = 0;
             }
         }
-        if (choice < 0x1C && choice > 0x19) {
+        if (choice < 0x1C && choice >= 0x1A) {
             lbl_80240E68[player * 0xF] = (m->sel == 0);
             fn_8009D350();
         }
@@ -1086,7 +1090,7 @@ int DoOptions(void)
             goto open_boss_hint;
         } else if (choice < 0x28) {
             if (choice < 0) {
-                if (choice > -3) {
+                if (choice >= -2) {
                     goto activate_sumner_hints;
                 }
             } else if (choice > 0x26) {
@@ -1132,14 +1136,14 @@ int DoOptions(void)
         break;
 
     case 0x17: { /* hint display */
-        u32 rgb = (m->rgb_off[2] & 0xFF) | ((m->rgb_off[0] & 0xFF) << 16) | ((m->rgb_off[1] & 0xFF) << 8);
+        u32 rgb = ((m->rgb_off[1] & 0xFF) << 8) | ((m->rgb_off[0] & 0xFF) << 16) | (m->rgb_off[2] & 0xFF);
         s32 y;
         SetDrawStringScale(m->scale);
         if (hint_submenu == 0x29) {
             y = 0x70;
             for (i = 0; i < legend_hint_pass; i++) {
                 DrawScrollListText(1, 0xFFFFFF00, y, 0, 6, rgb, 2, legend_hint_index, i);
-                y = gDrawTextY + 4;
+                y = gDrawTextY + 16;
             }
         } else if (hint_submenu < 0x29) {
             if (hint_submenu == 0x27) {
@@ -1149,7 +1153,7 @@ int DoOptions(void)
                 y = 0x70;
                 for (i = 0; i < boss_hint_pass; i++) {
                     DrawScrollListText(1, 0xFFFFFF00, y, 0, 6, rgb, 0, boss_hint_index, i);
-                    y = gDrawTextY + 4;
+                    y = gDrawTextY + 16;
                 }
             }
         } else if (hint_submenu < 0x2B) {
@@ -1166,7 +1170,7 @@ int DoOptions(void)
     }
 
     /* back out */
-    if ((u32)(choice + 2) < 2) {
+    if ((u32)(choice + 2) <= 1) {
         start_optmenu(NULL, player);
         if (skipBackSound == 0) {
             AudioMenuExit();
