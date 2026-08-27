@@ -3060,20 +3060,20 @@ static inline void player_dies(s32 i) {
             }
         }
     }
-    if (PF(p, 0x1EB8, s32) > 0 && sMusicTrackHi != 0xD) {
+    if (p->item_body_lo > 0 && sMusicTrackHi != 0xD) {
         CopyMat4(gIdentityMatrix, m);
         m[12] = death_pos[0];
         m[13] = death_pos[1];
         m[14] = death_pos[2];
         CopyMat4(p->mat, m);
         if (gBossType < 0) {
-            chest = PlaceItem(1, 2, (PF(p, 0x1EB8, s32) == 1) ? "KEY" : "KEYRING", m);
+            chest = PlaceItem(1, 2, (p->item_body_lo == 1) ? "KEY" : "KEYRING", m);
             if (chest != NULL) {
-                chest[0x38] = PF(p, 0x1EB8, s32);
+                chest[0x38] = p->item_body_lo;
             }
         }
     }
-    PF(p, 0x1EB8, s32) = 0;
+    p->item_body_lo = 0;
     remove_player_geo(i);
     AudioPlayEvt102();
     for (j = 0; j < 11; j++) {
@@ -3099,14 +3099,35 @@ void kill_player(s32 i) {
     }
 }
 
+static inline void restore_inactive_player(s32 i) {
+    typedef struct InactiveSaveImage {
+        u8 bytes[0x1434];
+    } InactiveSaveImage;
+    Player* p = PT(i);
+    f32 cap;
+
+    if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
+        cap = 0.5 * (p->level - 1) + 30.0;
+        if (cap > 9999.0f) {
+            cap = 9999.0f;
+        }
+        p->health = cap;
+    } else {
+        *(InactiveSaveImage*)((u8*)p + 0xA80) =
+            *(InactiveSaveImage*)((u8*)p + 0x1ECC);
+        player_get_from_save(p, -1);
+    }
+}
+
 /* Park player i (level change / joined-late slot). In the tower the   */
 /* slot just goes back to selecting with saved-health restore.         */
 void inactivate_player(s32 i) {
     Player* p = PT(i);
+    u8 unused[8];
 
     if (sMusicTrackHi == 0xD) {
         p->state = 1;
-        PlayerRestoreState(i);
+        restore_inactive_player(i);
         return;
     }
     playerGiveGargItem(i, sMusicTrackHi, sMusicTrackLo);
