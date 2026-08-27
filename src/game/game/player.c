@@ -2470,16 +2470,22 @@ s32 PlayerSelecting(s32 i) {
     return 0;
 }
 
+typedef struct PlayerExitTimerView {
+    u8 _pad000[0x1F2];
+    s16 exit_timer;
+} PlayerExitTimerView;
+
 /* Sink-and-spin exit sequence; dest chooses the next level.           */
 static void do_exit(void* vp, s32 dest) {
     Player* p = vp;
+    PlayerExitTimerView* exitPlayer = vp;
     s16 t;
 
     if (FireScrollActive() != 0) {
         return;
     }
-    if (PF(p, 0x1F2, s16) == 0 && dest != 0) {
-        PF(p, 0x1F2, s16) = (lbl_8034481C == 0) ? 0x32 : 0;
+    if (exitPlayer->exit_timer == 0 && dest != 0) {
+        exitPlayer->exit_timer = (lbl_8034481C != 0) ? 0 : 0x32;
         if (lbl_803447B4 == 0) {
             fn_8009D258(p->pos);
             towerRuneNearAudio();
@@ -2490,35 +2496,59 @@ static void do_exit(void* vp, s32 dest) {
             PF(p, 0x830, s32) = lbl_8034481C - 0x10000;
         } else if (lbl_8034481C >= 0xD) {
             PF(p, 0x830, s32) = lbl_80344B84;
-        } else if (lbl_8034481C == 0xC) {
+        } else if (lbl_8034481C >= 0xC) {
             PF(p, 0x830, s32) = sWorldDataConst;
         } else if (lbl_8034481C >= 3) {
             PF(p, 0x830, s32) = ((lbl_8034481C - 3) & 0xFF) | 0xC00;
         } else if (lbl_8034481C == 2) {
-            PF(p, 0x830, s32) = (dest < 0) ? sLastWorldLevel : dest;
+            if (dest < 0) {
+                PF(p, 0x830, s32) = sLastWorldLevel;
+            } else {
+                PF(p, 0x830, s32) = dest;
+            }
         } else if (lbl_8034481C == 1) {
-            PF(p, 0x830, s32) = (dest < 0) ? (s32)NextWorldLevel(1) : dest;
+            if (dest < 0) {
+                PF(p, 0x830, s32) = (s32)NextWorldLevel(1);
+            } else {
+                PF(p, 0x830, s32) = dest;
+            }
         } else if (lbl_8034481C == -1) {
-            PF(p, 0x830, s32) = (dest < 0) ? (s32)PrevWorldLevel(1) : dest;
+            if (dest < 0) {
+                PF(p, 0x830, s32) = (s32)PrevWorldLevel(1);
+            } else {
+                PF(p, 0x830, s32) = dest;
+            }
         } else {
             PF(p, 0x830, s32) = dest;
         }
-        SetSkinFX(1.5f, (f32*)((u8*)p + 0x7DC), lbl_80344BEC, 10, 1);
+        {
+            s32 skin = lbl_80344BEC;
+            f32* fx = (f32*)((u8*)p + 0x7DC);
+            SetSkinFX(1.5f, fx, skin, 10, 1);
+        }
     }
-    t = PF(p, 0x1F2, s16) - gFrameTicks;
-    PF(p, 0x1F2, s16) = t;
-    if (t < 1) {
-        PF(p, 0x1F2, s16) = 0;
+    t = exitPlayer->exit_timer - gFrameTicks;
+    exitPlayer->exit_timer = t;
+    if (t <= 0) {
+        exitPlayer->exit_timer = 0;
         if (p->state != 5) {
             p->state = 5;
             del_target(p->mat);
         }
-    } else if (PF(p, 0x8B8, f32) < 1.0 + 0.5 * PF(p, 0x854, f32) + p->pos[1]) {
+    } else if ((2.0 * PF(p, 0x854, f32) + p->pos[1]) + 1.0 > PF(p, 0x8B8, f32)) {
         /* still above the hole floor: sink and spin */
-        p->pos[0] += 0.0f * (f32)gFrameTicks;
-        p->pos[1] += -0.06f * (f32)gFrameTicks;
-        p->pos[2] += 0.0f * (f32)gFrameTicks;
-        YawMat3(p->mat, (f32)(0.5 * gClockFrameStep));
+        f32 move_x = 0.0f;
+        f32 move_y = -0.12f;
+        f32 move_z = 0.0f;
+        u32 ticks = gFrameTicks;
+        u8 unused[8];
+        move_x *= (f32)ticks;
+        p->pos[0] += move_x;
+        move_y *= (f32)ticks;
+        p->pos[1] += move_y;
+        move_z *= (f32)ticks;
+        p->pos[2] += move_z;
+        YawMat3(p->mat, (f32)(9.424777962 * gClockFrameStep));
         p->hud_flags |= 1;
     }
 }
