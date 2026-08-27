@@ -4081,7 +4081,6 @@ void InitEffects(void)
     u8* row;
     u8** hp;
     s32 i;
-    s32 o12;
     s32 o40;
     s32 got;
     s32 v32;
@@ -4100,6 +4099,9 @@ void InitEffects(void)
     u32* p1068;
     u32* p984;
     u32* p996;
+    s32* p1128;
+    s32* p1136;
+    s32* p1132;
     u8 unused[352];
 
     for (i = 0; i < 64; i++) {
@@ -4164,11 +4166,11 @@ void InitEffects(void)
     p972 = (u32*)(ei + 972);
     p984 = (u32*)(ei + 984);
     p996 = (u32*)(ei + 996);
-    for (i = 0, o12 = 0; i < 45; i++, o12 += 4) {
-        *(s32*)((u8*)lbl_80251148 + o12) = 0;
-        hp = (u8**)((u8*)gWadAtreeHeaders + o12);
+    for (i = 0; i < 45; i++) {
+        *(s32*)((u8*)lbl_80251148 + i * 4) = 0;
+        hp = (u8**)((u8*)gWadAtreeHeaders + i * 4);
         if (*hp != NULL) {
-        if (*(s32*)((u8*)lbl_802511FC + o12) != 4 && *p960 == 0) {
+        if (*(s32*)((u8*)lbl_802511FC + i * 4) != 4 && *p960 == 0) {
             if (*hp == NULL || *(s8*)(strs + 68) == 0) {
                 *p960 = 0;
             } else {
@@ -4185,7 +4187,7 @@ void InitEffects(void)
             }
             *(s32*)(ei + 976) = -512;
             *(s32*)(ei + 980) = 0;
-            *(s32*)((u8*)lbl_80251148 + o12) = 1;
+            *(s32*)((u8*)lbl_80251148 + i * 4) = 1;
         }
         if (*p984 == 0) {
             if (*hp == NULL || lbl_80348298 == 0) {
@@ -4195,7 +4197,7 @@ void InitEffects(void)
             }
             *(s32*)(ei + 988) = -512;
             *(s32*)(ei + 992) = 0;
-            *(s32*)((u8*)lbl_80251148 + o12) = 1;
+            *(s32*)((u8*)lbl_80251148 + i * 4) = 1;
         }
         if (*p996 == 0) {
             if (*hp == NULL || lbl_803482A0 == 0) {
@@ -4205,7 +4207,7 @@ void InitEffects(void)
             }
             *(s32*)(ei + 1000) = -512;
             *(s32*)(ei + 1004) = 0;
-            *(s32*)((u8*)lbl_80251148 + o12) = 1;
+            *(s32*)((u8*)lbl_80251148 + i * 4) = 1;
         }
         if (i == 11 || i == 21) {
             if (*hp == NULL || lbl_803482A8 == 0) {
@@ -4293,13 +4295,13 @@ void InitEffects(void)
             *(s32*)(ei + 1156) = -512;
             *(s32*)(ei + 1160) = 0;
         }
-        *(s32*)(ei + o12 + 2796) =
+        *(s32*)(ei + i * 4 + 2796) =
             InitCustomEffectSub(*hp, (char*)&lbl_803482C8, 0, 0, 0);
-        *(s32*)(ei + o12 + 2616) =
+        *(s32*)(ei + i * 4 + 2616) =
             InitCustomEffectSub(*hp, (char*)&lbl_803482D0, 0, 0, 0);
         } else {
-            *(s32*)(ei + o12 + 2796) = -1;
-            *(s32*)(ei + o12 + 2616) = -1;
+            *(s32*)(ei + i * 4 + 2796) = -1;
+            *(s32*)(ei + i * 4 + 2616) = -1;
         }
     }
     if ((u32)(sMusicTrackHi - 5) <= 1) {
@@ -4362,17 +4364,18 @@ void InitEffects(void)
     } else {
         *(s32*)(ei + 1128) = (s32)AtreeMatch(sGoodWizObj, strs + 188, 0);
     }
-    *(s32*)(ei + 1132) = -512;
-    *(s32*)(ei + 1136) = 0;
-    got = (*(u32*)(ei + 1128) != 0) ? 1 : 0;
+    *(p1132 = (s32*)(ei + 1132)) = -512;
+    *(p1136 = (s32*)(ei + 1136)) = 0;
+    p1128 = (s32*)(ei + 1128);
+    got = (*(u32*)p1128 != 0) ? 1 : 0;
     if (got == 0) {
         if (sItemFile1Buf == NULL || *(s8*)(strs + 188) == 0) {
-            *(s32*)(ei + 1128) = 0;
+            *p1128 = 0;
         } else {
-            *(s32*)(ei + 1128) = (s32)AtreeMatch(sItemFile1Buf, strs + 188, 0);
+            *p1128 = (s32)AtreeMatch(sItemFile1Buf, strs + 188, 0);
         }
-        *(s32*)(ei + 1132) = -512;
-        *(s32*)(ei + 1136) = 0;
+        *p1132 = -512;
+        *p1136 = 0;
     }
     lbl_80344BF8 = MBOX_FindTexture_Sub(strs + 200, 0, (s32)sPowerupsHandle,
                                         (s32)sPowerupsHandle, 1);
