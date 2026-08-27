@@ -413,7 +413,7 @@ extern void mbBlitInit3414(void* blit, s32 hide);
 extern void mbInitBlitEntry(void* blit, u32 frames, s32 frame);
 extern void MBBlitSetColor(void* blit, u32 rgb);
 extern void MBBlitSetAlpha(void* blit, s32 alpha);
-extern void mbBlitCalcWidth(void* blit, s32 x, s32 y, f64 z);
+extern void mbBlitCalcWidth(void* blit, s32 x, s32 y, f32 z);
 extern void mbBlitProject(void* blit, s32 w, s32 h);
 extern void mbBlitCvtCoord(void* blit, f32 z);
 extern void mbBlitUpdateEntry(void* blit, u32 mask, u32 set);
@@ -1236,25 +1236,28 @@ static void draw_power_meter(s32 i) {
 
 /* Rebuild the 6 portrait-frame blits for a player's display mode. */
 void setup_player_display(s32 i) {
+    Player* players = gPlayerRecords;
+    Player* p = &players[i];
     u16 x = lbl_80120238[i];
     s32 mode;
     s32 cls;
     s32 chr;
     u32 frames;
     char buf[40];
+    u8 unused[8];
 
     mode = get_display_mode(i);
-    cls = P(i)->class_id;
+    cls = p->class_id;
     del_player_blits(i);
-    chr = P(i)->character;
-    P(i)->display_mode = mode;
+    chr = p->character;
+    p->display_mode = mode;
     frames = (u32)MBOX_FindTexture_Err("S3", NULL, 1);
     mbInitBlitEntry(frame_blit[i][0], frames, 0);
     mbBlitInit3414(frame_blit[i][0], 0);
     frames = (u32)MBOX_FindTexture_Err("S4", NULL, 1);
     mbInitBlitEntry(frame_blit[i][1], frames, 0);
     mbBlitInit3414(frame_blit[i][1], 0);
-    if (P(i)->state == 0) {
+    if (p->state == 0) {
         MBBlitSetColor(frame_blit[i][1], lbl_801201E8[cls]);
     } else {
         MBBlitSetColor(frame_blit[i][1], lbl_801201D8[cls]);
@@ -1270,27 +1273,18 @@ void setup_player_display(s32 i) {
     mbInitBlitEntry(frame_blit[i][5], frames, 0);
     mbBlitInit3414(frame_blit[i][5], 0);
     mbBlitCalcWidth(frame_blit[i][5], x + 0x3D, 0x165, 63990.0f);
-    if (mode == 4) {
-        goto done;
-    }
-    if (mode < 4) {
-        if (mode != 0) {
-            if (mode < 0) {
-                goto done;
-            }
-            if (mode < 3) {
-                goto active;
-            }
-        }
+    switch (mode) {
+    case 0:
+    case 3:
         mbBlitInit3414(frame_blit[i][4], 1);
         mbBlitInit3414(frame_blit[i][5], 1);
-    } else {
-        if (mode == 6) {
-            chr = P(i)->respawn_char;
-        } else if (mode > 5) {
-            goto done;
-        }
-    active:
+        goto done;
+    case 6:
+        chr = p->respawn_char;
+        /* fallthrough */
+    case 1:
+    case 2:
+    case 5:
         mbBlitInit3414(frame_blit[i][4], 0);
         mbBlitInit3414(frame_blit[i][5], 0);
         sprintf(buf, "BK_RUNE_STONE_02");
@@ -1303,8 +1297,14 @@ void setup_player_display(s32 i) {
             s32 j;
 
             for (j = 0; j < 12; j++) {
-                mbBlitInit3414(rune_blit[i][j],
-                               (P(i)->shards & (1 << j)) == 0);
+                s32 hide;
+
+                if (p->shards & (1 << j)) {
+                    hide = 0;
+                } else {
+                    hide = 1;
+                }
+                mbBlitInit3414(rune_blit[i][j], hide);
             }
         }
         if (lbl_80344824 & (1 << i)) {
@@ -1312,6 +1312,10 @@ void setup_player_display(s32 i) {
         }
         frames = (u32)MBOX_FindTexture_Err("QUEST_ICON", NULL, 0);
         mbInitBlitEntry(quest_blit[i], frames, 0);
+        break;
+    case 4:
+    default:
+        goto done;
     }
 done:
     if (gGameMode == 0x400B || gGameMode == 0x4012) {
