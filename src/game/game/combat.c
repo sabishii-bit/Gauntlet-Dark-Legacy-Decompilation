@@ -2434,7 +2434,7 @@ void InitCamera(s32 resetAll)
     s32 uiFov = 0;
     s32 i;
     Camera* cam;
-    Camera* c0 = (Camera*)(cs + 200);
+    Camera* c0;
     f32 mat[16];
     f32 in[3];
     f32 out[3];
@@ -2560,6 +2560,7 @@ void InitCamera(s32 resetAll)
         }
     }
 
+    c0 = (Camera*)(cs + 200);
     if (resetAll != 0) {
         f32 z;
         CAM_SET_CMODE(c0, 2);
