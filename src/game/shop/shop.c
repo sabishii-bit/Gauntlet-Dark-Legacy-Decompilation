@@ -1052,8 +1052,8 @@ static void shop_setup(void)
     u8* page = lbl_802897D0;
     s32 i;
     s32 j;
-    char buf[20];
-    u8 _spare[24];
+    char buf[16];
+    u8 _spare[28];
 
     LoadTowerAndSelect();
     if (lbl_80344C18 != 0) {
@@ -1102,6 +1102,10 @@ static void shop_setup(void)
         s32 o768 = 0;
         for (i = 0; i < 4;
              i++, o768 += 768, o4 += 4, o256 += 256, o24 += 24, pl += 13148) {
+            s32* clearBlits = (s32*)(page + o24 + 7504);
+            s32* itemBlits = (s32*)(page + o256 + 6480);
+            s32* available = (s32*)(page + o256 + 4432);
+            s32* playerMap = (s32*)(page + o256 + 5456);
             *(s32*)(pl + 2664) = 0;
             *(s32*)(pl + 2660) = 0;
             *(s32*)(pl + 2668) = 0;
@@ -1109,48 +1113,52 @@ static void shop_setup(void)
             if (lbl_80344C18 != 0) {
                 continue;
             }
-            for (j = 0; j < 6; j++) {
-                *(s32*)(page + o24 + 7504 + j * 4) = 0;
+            {
+                for (j = 0; j < 6; j++) {
+                    clearBlits[j] = 0;
+                }
             }
             {
                 s32 n = lbl_80344C10;
                 for (j = 0; j < n; j++) {
-                    *(s32*)(page + o256 + 6480 + j * 4) = 0;
-                    *(s32*)(page + o256 + 4432 + j * 4) = 0;
-                    *(s32*)(page + o256 + 5456 + j * 4) = 0;
+                    itemBlits[j] = 0;
+                    available[j] = 0;
+                    playerMap[j] = 0;
                 }
             }
             if (*(s32*)(pl + 232) == 1 || *(s32*)(pl + 232) == 5) {
-                s32* texp = (s32*)(tbl + o4 + 96);
-                s32 name20 = *texp + 20;
+                s32* texp = (s32*)(tbl + o4);
+                s32 name20 = *(texp += 24) + 20;
                 u8* e = tbl;
                 for (j = 0; j < 6; j++, e += 16) {
                     void* blit = mbNewBlitSized(*(char**)e, *texp,
                                                 *(s32*)(e + 8), -1, -1);
-                    *(void**)(page + o24 + 7504 + j * 4) = blit;
+                    ((void**)clearBlits)[j] = blit;
                     mbBlitCalcWidth(blit, *(s32*)(e + 4) + *texp,
                                     *(s32*)(e + 8),
                                     (f32)(*(s32*)(e + 12) + 64000));
                     mbBlitInit3414(blit, 1);
                 }
-                *(s32*)(page + o4 + 64) = 0;
                 {
-                    u8* item = lbl_80344C14;
-                    for (j = 0; j < lbl_80344C10; j++, item += 80) {
-                        if (*(s32*)(pl + 7876) >= *(s32*)(item + 72)) {
-                            *(s32*)(page + o4 + 64) += 1;
+                    s32* count = (s32*)(page + o4);
+                    *(count += 16) = 0;
+                    {
+                        u8* item = lbl_80344C14;
+                        for (j = 0; j < lbl_80344C10; j++, item += 80) {
+                            if (*(s32*)(pl + 7876) >= *(s32*)(item + 72)) {
+                                *count += 1;
+                            }
+                            ((void**)itemBlits)[j] = MBNewBlit(item, name20, 0);
+                            mbBlitInit3414(((void**)itemBlits)[j], 1);
                         }
-                        *(void**)(page + o256 + 6480 + j * 4) =
-                            MBNewBlit(item, name20, 0);
-                        mbBlitInit3414(
-                            *(void**)(page + o256 + 6480 + j * 4), 1);
                     }
                 }
                 *(s32*)(page + o256 + 3408) = -1;
                 {
                     u8* item = lbl_80344C14 + 80;
+                    s32* flags = (s32*)(page + o768 + 336);
                     for (j = 1; j < lbl_80344C10; j++, item += 80) {
-                        s32* fli = (s32*)(page + o768 + 336 + j * 4);
+                        s32* fli = &flags[j];
                         s32 r;
                         s32 t;
                         *fli = 0;
@@ -1209,11 +1217,11 @@ static void shop_setup(void)
                             if (t != 0) {
                                 goto notavail;
                             }
-                            *(s32*)(page + o256 + 4432 + j * 4) = 1;
+                            available[j] = 1;
                             continue;
                         }
 notavail:
-                        *(s32*)(page + o256 + 4432 + j * 4) = 0;
+                        available[j] = 0;
                     }
                 }
             }
