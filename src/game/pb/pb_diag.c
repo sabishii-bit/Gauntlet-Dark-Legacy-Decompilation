@@ -723,8 +723,8 @@ s32 pbDiagDrawInfo(void)
     f32* px;
     f32* py;
     DiagObjView* obj;
-    char buf16[84];
     char buf[68];
+    char buf16[84];
 
     x = 0;
     if (gDiag_FC == 0) {
@@ -755,7 +755,7 @@ s32 pbDiagDrawInfo(void)
         mbBlitCvtCoord(gDiag_D00, lbl_803486B8);
     }
     if (gDiag_D00 != 0) {
-        MBBlitSetColor(gDiag_D00, (&((s32*)gDiagData)[gDiag_D8])[27]);
+        MBBlitSetColor(gDiag_D00, (&((s32*)gd)[gDiag_D8])[27]);
     }
     MBSetBGColor(*(s32*)((u32)gd + gDiag_D8 * 12), *(s32*)((u8*)gd + gDiag_D8 * 12 + 4),
                  *(s32*)((u8*)gd + gDiag_D8 * 12 + 8));
@@ -795,17 +795,19 @@ s32 pbDiagDrawInfo(void)
         w = b[8];
         if (w & 0x01000000) {
             s32* menuState = (s32*)&b[gDiagMenuIdx];
-            v = ++menuState[44];
+            v = menuState[44] + 1;
+            *(menuState += 44) = v;
             if (v >= menu->count) {
-                menuState[44] = 0;
+                *menuState = 0;
             }
             stepped = 1;
         }
         if (w & 0x04000000) {
             s32* menuState = (s32*)&b[gDiagMenuIdx];
-            v = --menuState[44];
+            v = menuState[44] - 1;
+            *(menuState += 44) = v;
             if (v < 0) {
-                menuState[44] = menu->count - 1;
+                *menuState = menu->count - 1;
             }
             stepped = 1;
         }
@@ -815,7 +817,7 @@ s32 pbDiagDrawInfo(void)
             if (gDiagListSel >= entry->count) {
                 gDiagListSel = 0;
                 (&b[gDiagMenuIdx])[68] = 0;
-                gDiag_D24 = (f32)(s32)(&b[gDiagListSel])[132];
+                gDiag_D24 = (f32)(s32)b[132];
             }
         }
     }
@@ -834,7 +836,7 @@ s32 pbDiagDrawInfo(void)
             if (gDiag_F00 != 0) {
                 gDiag_F00 = kept;
             }
-            MBNodeSetParent(b[114], gDiag_FC);
+            MBNodeSetParent(*(u32*)b[114], gDiag_FC);
         } else {
             b[114] = 0;
         }
