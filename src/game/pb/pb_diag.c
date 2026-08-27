@@ -17,7 +17,7 @@
  *                     sdata2 pool ordering differ; parked (regalloc/pool).
  *   pbDiagDrawMenuA - equivalent, insn-count exact; saved-reg numbering
  *                     (line/off/colorbase permute) differs; parked.
- *   pbDiagDrawMenuB - equivalent, insn-count exact; same regalloc residual.
+ *   pbDiagDrawMenuB - MATCHING (byte-exact).
  * The 9 larger draw functions (audio/soundrow/info/texture/texlabel/object/
  * colorbars/strrow/menu) are not yet reconstructed. */
 
@@ -964,7 +964,6 @@ void pbDiagDrawMenuA(DiagList* list) {
 
 void pbDiagDrawMenuB(DiagMenu* menu) {
     int line;
-    int off;
     int i;
     int end;
     u8 _spare[8];
@@ -992,18 +991,17 @@ void pbDiagDrawMenuB(DiagMenu* menu) {
         if (menu->strs == 0) {
             return;
         }
-        off = (i = start) * 36;
+        i = start;
     }
     while (i < end) {
         if (i == gDiagMenuList[gDiagMenuIdx]) {
-            fn_800C008C(0x00FFFF00, 1, line, menu->strs + off);
-            strlen(menu->strs + off);
+            fn_800C008C(0x00FFFF00, 1, line, menu->strs + i * 36);
+            strlen(menu->strs + i * 36);
         } else {
-            fn_800C008C(0x00FFFFFF, 1, line, menu->strs + off);
+            fn_800C008C(0x00FFFFFF, 1, line, menu->strs + i * 36);
         }
         line++;
         i++;
-        off += 36;
     }
 }
 
