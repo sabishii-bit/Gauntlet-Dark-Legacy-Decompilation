@@ -106,7 +106,7 @@ int FontHeight(int color, f32 scale);
 int TextMLines(const char* text);
 void mbBlitProject(void* blit, int w);
 void mbBlitCalcWidth(void* blit, int x, int y, f32 z);
-void DrawTextSub(int a, const char* text, int color, f32 s1, int f, f32 s2, int g);
+void DrawTextSub(int x, int y, int color, f32 s1, int style, f32 s2, const char* text);
 void vibrators_off(void);
 void MBHideMarkedMessages(void);
 void MBLockMessages(int a);
@@ -1864,8 +1864,9 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
     void* savedBusy;
     void* extra = 0;
     void* blit = 0;
-    void* quad = 0;
+    void* quad;
     char lines[64];
+    u8 pad[48]; /* dead stack below lines, matches original frame */
     int nLines;
     int i;
     int widest;
@@ -1875,10 +1876,10 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
     int x;
     int y;
 
-    gDiskErrorShown = 1;
-    lbl_80344A5D = 1;
     win = gWinGlobals;
+    gDiskErrorShown = 1;
     savedBusy = (void*) gGameBusy;
+    lbl_80344A5D = 1;
     sysResetService();
     vibrators_off();
     gGameBusy = 1;
@@ -1897,7 +1898,7 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
         quad = MBNewTempQuad();
     }
 
-    if (*(s32*) ((u8*) lbl_802A4AA4 + 24) != 0) {
+    if (*(u32*) ((u8*) lbl_802A4AA4 + 24) != 0) {
         lbl_80344A54 = 6;
         lbl_80344A58 = lbl_80347370;
     } else {
@@ -1915,7 +1916,7 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
         }
     }
     lineH = FontHeight(lbl_80344A54, lbl_80344A58) + 3;
-    boxH = (lineH + 6) * (TextMLines(msg) + count1) + 60;
+    boxH = (lineH + 6) * (count1 + TextMLines(msg)) + 60;
     boxW = widest + 96;
     if (boxW < 256) {
         boxW = 256;
@@ -1937,16 +1938,19 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
     strcpy((char*) gTextFormatBuf, msg);
     y += 32;
     for (i = 0; i < nLines; i++) {
-        DrawTextSub(-256, ((char**) lines)[i], lbl_80344A54, lbl_80344A58,
-                    0x16003 /* style */, lbl_80347378, 0);
+        DrawTextSub(-256, y, lbl_80344A54, lbl_80344A58, 0x160C03,
+                    lbl_80347378, ((char**) lines)[i]);
         y += lineH;
     }
     y += 3;
     for (i = 0; i < count1; i++) {
-        int color = (i == count2) ? 0xFF : 0x16003;
-
-        DrawTextSub(-256, options[i], lbl_80344A54, lbl_80344A58, color,
-                    lbl_80347378, 0);
+        if (i == count2) {
+            DrawTextSub(-256, y, lbl_80344A54, lbl_80344A58, 0xFFFFFF,
+                        lbl_80347378, options[i]);
+        } else {
+            DrawTextSub(-256, y, lbl_80344A54, lbl_80344A58, 0x160C03,
+                        lbl_80347378, options[i]);
+        }
         y += lineH;
     }
 
