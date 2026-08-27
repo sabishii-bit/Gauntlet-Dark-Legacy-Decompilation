@@ -3302,7 +3302,7 @@ s32 fn_8005D730(Player* player, Item* item)
     iteminfodata* data;
     f32 playerPos[3];
     f32 itemPos[3];
-    u8 unused[48];
+    u8 unused[28];
 
     result = 0;
     info = item->info;
@@ -3325,9 +3325,10 @@ s32 fn_8005D730(Player* player, Item* item)
             if (info->item.subtype == 47) {
                 s32 amount;
 
-                if ((amount = *(s32*)&item->data[4]) >= 25) {
+                if (*(s32*)&item->data[4] >= 25) {
                     msgPost(17, player->index, (char*)player->col_pos);
                 }
+                amount = *(s32*)&item->data[4];
                 PlayerGiveGold(player->index, amount);
                 fn_8009D038(player->index);
                 add_got_it(player->index, 1, amount);
@@ -3380,6 +3381,7 @@ s32 fn_8005D730(Player* player, Item* item)
     case 3:
         {
             s32 inverted;
+            s32 selected;
 
             if (*(s8*)&item->data[6] != 0) {
                 inverted = 0;
@@ -3387,10 +3389,11 @@ s32 fn_8005D730(Player* player, Item* item)
                 inverted = 1;
             }
             if (inverted != 0) {
-                result = 0;
+                selected = 0;
             } else {
-                result = 1;
+                selected = 1;
             }
+            result = selected;
         }
         break;
 
@@ -3445,16 +3448,18 @@ s32 fn_8005D730(Player* player, Item* item)
     case 8:
         if ((player->flags & 1) == 0 &&
             sMusicFadeBase >= player->fxhittime) {
-            s32 subtype = data->subtype;
+            s32 rawSubtype = data->subtype;
+            s32 subtype = rawSubtype;
             s32 damageType = 2;
             s32 flags = info->item.properties | 0x80;
             f32 damage = *(f32*)&item->data[0];
 
-            if (subtype == 0 || (u32)(subtype - 3) <= 1) {
+            if (rawSubtype == 0 || (u32)(subtype - 3) <= 1) {
                 damageType = 3;
             }
             if ((flags & 0x30) != 0) {
                 f32 direction[3];
+                u8 directionPad[24];
 
                 direction[0] =
                     (f32)(lbl_80346FD0 * item->objgrp.worldmat[2][0]);
