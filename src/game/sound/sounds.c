@@ -735,7 +735,8 @@ typedef struct SpeechNameTables {
 
 void InitNameAudio(void)
 {
-    SpeechNameTables* tables = (SpeechNameTables*)sSpeechNameBuf;
+    u8* buf = sSpeechNameBuf;
+    SpeechNameTables* tables = (SpeechNameTables*)buf;
 
     {
         char (*suf)[4] = lbl_801200B0;
@@ -745,12 +746,12 @@ void InitNameAudio(void)
 
         for (cls = 0; cls < 4; cls++) {
             s32* tableA = tables->tableA[cls];
-            s32* tableB = tables->tableB[cls];
+            s32* tableB = (s32*)tables->tableB + cls * 16;
             for (i = 0; i < 16; i++) {
-                sprintf(tables->scratch, lbl_8034850C, names[cls], suf[i]);
-                tableA[i] = AudioFindSound(tables->scratch, -1, 1);
-                sprintf(tables->scratch, lbl_80348514, names[cls], suf[i]);
-                tableB[i] = AudioFindSound(tables->scratch, -1, 1);
+                sprintf((char*)buf, lbl_8034850C, names[cls], suf[i]);
+                tableA[i] = AudioFindSound((char*)buf, -1, 1);
+                sprintf((char*)buf, lbl_80348514, names[cls], suf[i]);
+                tableB[i] = AudioFindSound((char*)buf, -1, 1);
             }
             tables->missingA[cls] = -1;
             tables->missingB[cls] = -1;
@@ -765,12 +766,12 @@ void InitNameAudio(void)
 
         for (cls = 0; cls < 4; cls++) {
             s32* tableC = tables->tableC[cls];
-            s32* tableD = tables->tableD[cls];
+            s32* tableD = (s32*)tables->tableD + cls * 16;
             for (i = 0; i < 16; i++) {
-                sprintf(tables->scratch, lbl_80114C54, names[cls], suf[i]);
-                tableC[i] = AudioFindSound(tables->scratch, -1, 1);
-                sprintf(tables->scratch, lbl_80114C60, names[cls], suf[i]);
-                tableD[i] = AudioFindSound(tables->scratch, -1, 1);
+                sprintf((char*)buf, lbl_80114C54, names[cls], suf[i]);
+                tableC[i] = AudioFindSound((char*)buf, -1, 1);
+                sprintf((char*)buf, lbl_80114C60, names[cls], suf[i]);
+                tableD[i] = AudioFindSound((char*)buf, -1, 1);
             }
             tables->missingC[cls] = -1;
             tables->missingD[cls] = -1;
