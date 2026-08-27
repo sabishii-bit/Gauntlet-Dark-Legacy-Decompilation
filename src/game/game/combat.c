@@ -3452,7 +3452,7 @@ void ClockOncePerFrame(void)
                 *(volatile f32*)&sMusicFadeBase - 18000.0f;
         }
         gClockFrameNumber =
-            (s32)(1000.0f * sMusicFadeBase + 0.5f);
+            (s32)(1000.0f * *(volatile f32 *)&sMusicFadeBase + 0.5f);
         gClockTime = *(volatile f32*)&sMusicFadeBase;
         InfFrame++;
     }
