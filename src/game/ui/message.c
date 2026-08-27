@@ -446,27 +446,30 @@ int msgPost(int idx, int param, char* position)
     MsgData* msgData;
     void** boxes;
     int fontIndex;
+    int initialLineCount;
     int lineCount;
     int textType;
     int textParam;
-    int width;
-    int height;
     int left;
     int top;
+    int width;
+    int height;
+    u8 framePad[8];
     int centerX;
     int centerY;
     int worldFlags;
-    int duration;
     int category;
-    int first;
     int last;
+    int first;
     int count;
     int i;
+    int descOffset;
     int playerOffset;
-    u8 unused[12];
+    u8 unused[4];
 
     msgData = (MsgData*)gMsgLevels;
-    desc = &msgData->desc[idx];
+    descOffset = idx * sizeof(MsgDesc);
+    desc = (MsgDesc*)((u8*)&msgData->desc[0] + descOffset);
     boxes = gMsgBoxes;
 
     if (idx < 0 || idx >= gMsgDescCount) {
@@ -480,10 +483,11 @@ int msgPost(int idx, int param, char* position)
     }
 
     if (g7C0 != 0) {
-        lineCount = 12;
+        initialLineCount = 12;
     } else {
-        lineCount = 8;
+        initialLineCount = 8;
     }
+    lineCount = initialLineCount;
     if (gLanguageId == 1) {
         lineCount = 14;
     }
@@ -510,10 +514,13 @@ int msgPost(int idx, int param, char* position)
         break;
     }
 
-    if (gMessageActive != 0 &&
-        msgData->desc[gCurrentMessage].priority >=
-            msgData->desc[idx].priority) {
-        return 0;
+    if (gMessageActive != 0) {
+        u8* priorityBase = (u8*)&msgData->desc[0].priority;
+
+        if (*(int*)(priorityBase + gCurrentMessage * sizeof(MsgDesc)) >=
+            *(int*)(priorityBase + descOffset)) {
+            return 0;
+        }
     }
     if ((idx <= 0x1C || (idx >= 0x2C && idx <= 0x2D) ||
          idx == 0x37 || idx == 0x50) &&
@@ -544,9 +551,9 @@ int msgPost(int idx, int param, char* position)
     }
 
     if (desc->param >= 0) {
-        duration = 1;
+        descOffset = 1;
     } else {
-        duration = StringTextNum(desc->type);
+        descOffset = StringTextNum(desc->type);
     }
     textType = desc->type;
     textParam = desc->param;
@@ -593,7 +600,7 @@ int msgPost(int idx, int param, char* position)
     gMessageValue = *(int*)((u8*)&gPlayers[param] + 0x3324);
     gMessageActive = 1;
     msgDraw();
-    gMessageTimer = duration * 0x3C + 0x1E;
+    gMessageTimer = descOffset * 0x3C + 0x1E;
 
     category = desc->category;
     switch (category) {
