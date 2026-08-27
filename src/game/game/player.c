@@ -1628,19 +1628,37 @@ s32 do_players(void) {
     f32 best;
     Player* p;
     s32 loaded;
+    s32 exit_level;
     s32 state;
 
-    loaded = lbl_80344824 != 0;
+    exit_level = 0;
+    if ((u32)lbl_80344824 != 0) {
+        loaded = 1;
+    } else {
+        loaded = 0;
+    }
     it = -1;
     best = 9999.0f;
     if (gControllerButtons & 0x10) {
         opt_force_player = 0xFFFFFFFF;
     }
     if (gGameMode == 0x4010 && (s32)opt_force_player >= 0) {
-        if (gScriptedCameraState == 0 && lbl_803447B8 == 0) {
+        if (gScriptedCameraState != 0 || lbl_803447B8 != 0) {
+            lbl_80344B10 = 0;
+        } else {
             lbl_80344B10 += gFrameTicks;
             if (lbl_80344B10 >= 1) {
-                if (gDemoMode == 0) {
+                if (gDemoMode != 0) {
+                    if (sMusicTrackHi == 0xD) {
+                        if (lbl_80344C4C == 1 && !(opt_force_player & 1)) {
+                            ControllerMessageBox(-1, FindStringMessageListSub(0, "DemoWelcome"), 0, -1);
+                            opt_force_player |= 1;
+                        }
+                    } else if (sMusicTrackHi != 0xC && (opt_force_player & 2)) {
+                        ControllerMessageBox(-1, FindStringMessageListSub(0, "DemoLevel"), 0, -1);
+                        opt_force_player &= ~2;
+                    }
+                } else {
                     if (sMusicTrackHi == 0xD) {
                         if (gSumnerReady != 0) {
                             ControllerMessageBox(-1, FindStringMessageListSub(0, "WelcomeMessage"), -1, -1);
@@ -1654,26 +1672,22 @@ s32 do_players(void) {
                         }
                     }
                     opt_force_player = 0xFFFFFFFF;
-                } else if (sMusicTrackHi == 0xD) {
-                    if (lbl_80344C4C == 1 && !(opt_force_player & 1)) {
-                        ControllerMessageBox(-1, FindStringMessageListSub(0, "DemoWelcome"), 0, -1);
-                        opt_force_player |= 1;
-                    }
-                } else if (sMusicTrackHi != 0xC && (opt_force_player & 2)) {
-                    ControllerMessageBox(-1, FindStringMessageListSub(0, "DemoLevel"), 0, -1);
-                    opt_force_player &= ~2;
                 }
             }
-        } else {
-            lbl_80344B10 = 0;
         }
     }
     if (gGameMode != 0x4012 && gGameMode != 0x400D && gGameMode != 0x400F &&
         gGameMode != 0x4016) {
         msgUpdate();
-        for (i = 0, p = P(0); i < 4; i++, p++) {
+        for (i = 0, p = PT(0); i < 4; i++, p++) {
             if (p->state != 0) {
-                s32 sel = (p->state == 2 || p->state == 3);
+                s32 sel;
+
+                if (p->state == 2 || p->state == 3) {
+                    sel = 1;
+                } else {
+                    sel = 0;
+                }
 
                 if (!sel) {
                     fn_8005A338(p->mat, p->anchor_fwd, p->anchor_pos);
@@ -1694,7 +1708,7 @@ s32 do_players(void) {
         }
         if (gTriggerCameraState == 1) {
             WritePlayerInfo(-1);
-            for (i = 0, p = P(0); i < 4; i++, p++) {
+            for (i = 0, p = PT(0); i < 4; i++, p++) {
                 p->select_timer = p->select_timer + gClockFrameStep;
             }
             return 0;
@@ -1704,7 +1718,7 @@ s32 do_players(void) {
         }
         if (gScriptedCameraState != 0) {
             if (lbl_803447B8 != 0) {
-                for (i = 0, p = P(0); i < 4; i++, p++) {
+                for (i = 0, p = PT(0); i < 4; i++, p++) {
                     if (p->count_91C != 0) {
                         p->count_91C = p->count_91C - 1;
                     }
@@ -1727,7 +1741,7 @@ s32 do_players(void) {
         }
         if (lbl_803447B8 == 0 || lbl_8034481C != 0 || opt_restart_request != 0) {
             lbl_80344804 = 0;
-            for (i = 0, p = P(0); i < 4; i++, p++) {
+            for (i = 0, p = PT(0); i < 4; i++, p++) {
                 f32 mag;
                 f32 len;
 
@@ -1746,11 +1760,11 @@ s32 do_players(void) {
                 p->light_vel[0] = p->light_vel[0] * len;
                 p->light_vel[1] = p->light_vel[1] * len;
                 p->light_vel[2] = p->light_vel[2] * len;
-                if (!(p->hud_flags & 4)) {
-                    p->hud_flags &= ~8;
-                } else {
+                if (p->hud_flags & 4) {
                     p->hud_flags |= 8;
                     p->hud_flags &= ~4;
+                } else {
+                    p->hud_flags &= ~8;
                 }
                 if (p->state == 1 && p->health < best) {
                     it = i;
@@ -1764,14 +1778,14 @@ s32 do_players(void) {
             lbl_803444FC = 0;
             lbl_803444F4 = 1;
             lbl_803444E4 = 0;
-            loaded = all_players_go_to_same_level();
+            exit_level = all_players_go_to_same_level();
             if (!(gControllerButtons & 4)) {
                 dbgTextPrintfCol(2, 2, "TRANSMITTER: CT=%02X, C1=%02X, C2=%02X, RATIO=%4.2f",
                                  lbl_80344508, lbl_80344510, lbl_8034450C, lbl_80344504);
             }
         }
     }
-    for (i = 0, p = P(0); i < 4; i++, p++) {
+    for (i = 0, p = PT(0); i < 4; i++, p++) {
         get_actual_screen_pos(0, &p->floor_hi, &p->floor_lo, p->col_pos);
         if (p->floor_hi < -2000.0) {
             p->floor_hi = -2000.0f;
@@ -1784,12 +1798,19 @@ s32 do_players(void) {
             p->floor_lo = 2000.0f;
         }
     }
-    for (i = 0, p = P(0); i < 4; i++, p++) {
+    for (i = 0, p = PT(0); i < 4; i++, p++) {
+        s32 selected;
+
         if (gGameMode == 0x400B || gGameMode == 0x400F) {
             continue;
         }
         state = p->state;
-        if (state != 2 && state != 3) {
+        if (state == 2 || state == 3) {
+            selected = 1;
+        } else {
+            selected = 0;
+        }
+        if (selected == 0) {
             if (gGameMode == 0x4012 || gGameMode == 0x400D || gGameMode == 0x400F ||
                 gGameMode == 0x4016) {
                 continue;
@@ -1838,13 +1859,18 @@ s32 do_players(void) {
             state = p->state;
             switch (state) {
             case 0:
-                if (p->respawn_timer > 0) {
-                    p->respawn_timer = p->respawn_timer - gFrameTicks;
-                    if (p->respawn_timer <= 0) {
+            {
+                s32 timer = p->respawn_timer;
+
+                if (timer > 0) {
+                    timer -= gFrameTicks;
+                    p->respawn_timer = timer;
+                    if ((s16)timer <= 0) {
                         setup_player_display(i);
                     }
                 }
                 break;
+            }
             case 0xB:
                 if (gGameMode == 0x4010 && p->motion_state == 1) {
                     if (lbl_80240E38[i * 0xF] & 0x8000000) {
@@ -1865,12 +1891,12 @@ s32 do_players(void) {
                         MBTreeSetFlags(PF(p, 0x6C8, void*), 2, 0);
                     }
                 }
-                if (loaded != 0 || lbl_803447B4 != 0) {
+                if (exit_level != 0 || lbl_803447B4 != 0) {
                     s32 any = 0;
 
                     if (lbl_803447B4 == 0) {
                         for (j = 0; j < 4; j++) {
-                            s32 st = P(j)->state;
+                            s32 st = PT(j)->state;
 
                             if (st == 1 || st == 8) {
                                 any = 1;
@@ -1881,7 +1907,7 @@ s32 do_players(void) {
                     if (!any) {
                         PlayerProcessScale(p);
                         PlayerDoWeapTrail(p);
-                        do_exit(p, loaded);
+                        do_exit(p, exit_level);
                         break;
                     }
                 }
@@ -1907,36 +1933,43 @@ s32 do_players(void) {
                     }
                 }
                 if ((u32)(lbl_8034489C - 2) <= 1) {
-                    if (p->quest_state == 0) {
-                        p->pulse_7FC = 0.8f;
-                    } else {
+                    if (p->quest_state != 0) {
                         if (p->quest_state == 1) {
                             p->quest_state = 2;
                             towerClearRuneNear(i, sMusicTrackHi);
                         }
                         p->pulse_7FC = 2.0f;
+                    } else {
+                        p->pulse_7FC = 0.8f;
                     }
                 }
                 add_target(p->mat);
-                if ((sMusicTrackHi != 0xD || sumnerSpeechActive() == 0) && gTriggerCameraState == 0 &&
-                    gModalRenderDepth == 0 && gMessageActive == 0 && p->name_timer > 0 &&
-                    gGameBusy == 0 && gGameplayPauseTimer == 0) {
-                    char name[8];
-                    f32 spos[2];
+                {
+                    s32 name_timer = p->name_timer;
 
-                    p->name_timer = p->name_timer - gFrameTicks;
-                    if (p->name_timer <= 0) {
-                        p->name_timer = 0;
-                    }
-                    for (j = 0; j < 8; j++) {
-                        name[j] = p->name[j];
-                        if (name[j] == '_') {
-                            name[j] = ' ';
+                    if ((sMusicTrackHi != 0xD || sumnerSpeechActive() == 0) &&
+                        gTriggerCameraState == 0 && gModalRenderDepth == 0 &&
+                        gMessageActive == 0 && name_timer > 0 &&
+                        !(gGameBusy | gGameplayPauseTimer)) {
+                        char name[88];
+                        f32 spos[2];
+
+                        name_timer -= gFrameTicks;
+                        p->name_timer = name_timer;
+                        if ((s16)name_timer <= 0) {
+                            p->name_timer = 0;
                         }
+                        for (j = 0; j < 8; j++) {
+                            name[j] = p->name[j];
+                            if (name[j] == '_') {
+                                name[j] = ' ';
+                            }
+                        }
+                        name[6] = 0;
+                        MBWorldToScreen(spos, p->col_pos);
+                        DrawTextKeepScale(0.5f, -(s32)spos[0], (s32)spos[1], 7,
+                                          0xFFFFFF, name);
                     }
-                    name[6] = 0;
-                    MBWorldToScreen(spos, p->col_pos);
-                    DrawTextKeepScale(0.5f, -(s32)spos[0], (s32)spos[1], 7, 0xFFFFFF, name);
                 }
                 if (p->prev_state != 1) {
                     MBTreeClearFlags(p->node, 2, 0);
@@ -1982,23 +2015,24 @@ s32 do_players(void) {
                         PlayerProcessSkinFX(p);
                         if (p->character == 0xC) {
                             MBTreeSetScale(1.6f, 1.6f, 1.6f, p->node);
-                        } else if (p->level < 99) {
+                        } else if (p->level >= 99) {
+                            MBTreeSetScale(1.2f, 1.2f, 1.2f, p->node);
+                        } else {
                             MBTreeClearFlags(p->node, 8, 0);
                             *(f32*)(p->node + 0x40) = 1.0f;
                             *(f32*)(p->node + 0x44) = 1.0f;
                             *(f32*)(p->node + 0x48) = 1.0f;
-                        } else {
-                            MBTreeSetScale(1.2f, 1.2f, 1.2f, p->node);
                         }
                     }
                     loaded = 0;
-                } else if (p->node != NULL) {
-                    MBTreeSetFlags(p->node, 2, 0);
-                }
-                if (gGameMode != 0x4013 && gGameMode != 0x4017 &&
-                    lbl_803447B4 < 2 && lbl_8034481C == 0 &&
-                    opt_restart_request == 0) {
-                    loaded = 0;
+                } else {
+                    if (p->node != NULL) {
+                        MBTreeSetFlags(p->node, 2, 0);
+                    }
+                    if (lbl_803447B4 < 2 && lbl_8034481C == 0 &&
+                        opt_restart_request == 0) {
+                        loaded = 0;
+                    }
                 }
                 break;
             case 8:
@@ -2011,7 +2045,7 @@ s32 do_players(void) {
                     }
                 }
                 DoPlayerAction(p);
-                if (p->count_920 < 1 && p->anim_208 == 0x7E) {
+                if (p->count_920 <= 0 && p->anim_208 == 0x7E) {
                     p->anim_20C = 0;
                 }
                 PF(PF(p, 0x6C8, u8*), 0x30, f32) = p->beacon_pos[0];
@@ -2020,25 +2054,37 @@ s32 do_players(void) {
                 PF(PF(p, 0x6C8, u8*), 0x34, f32) = p->pos[1];
                 PlayerProcessScale(p);
                 PlayerDoWeapTrail(p);
-                if (p->count_920 < 1 && p->anim_208 != 0x7E) {
+                if (p->count_920 <= 0 && p->anim_208 != 0x7E) {
                     inactivate_player(i);
                 }
                 loaded = 0;
                 break;
             case 2:
+            {
+                s32 peer_found;
+
                 PlayerCheckMovingFloor_80088688(p);
                 for (j = 0; j < 4; j++) {
                     s32 st;
 
-                    if (j != i && (st = P(j)->state) != 0 && st != 2 && st != 3) {
+                    if (j != i && (st = PT(j)->state) != 0 && st != 2 && st != 3) {
                         break;
                     }
                 }
-                if (j == 4) {
+                if (j >= 4) {
+                    peer_found = 0;
+                } else {
+                    peer_found = -1;
+                }
+                if (peer_found == 0) {
                     loaded = 0;
                 }
                 break;
+            }
             case 3:
+            {
+                s32 peer_found;
+
                 PlayerCheckMovingFloor_80088688(p);
                 if (MBBackgroundLoading() == 0 && gGameMode != 0x4013 &&
                     gGameMode != 0x4017) {
@@ -2052,20 +2098,26 @@ s32 do_players(void) {
                 for (j = 0; j < 4; j++) {
                     s32 st;
 
-                    if (j != i && (st = P(j)->state) != 0 && st != 2 && st != 3) {
+                    if (j != i && (st = PT(j)->state) != 0 && st != 2 && st != 3) {
                         break;
                     }
                 }
-                if (j == 4) {
+                if (j >= 4) {
+                    peer_found = 0;
+                } else {
+                    peer_found = -1;
+                }
+                if (peer_found == 0) {
                     loaded = 0;
                 }
                 break;
+            }
             }
             p->prev_state = state;
     }
     if (gGameMode != 0x400B && gGameMode != 0x400D && gGameMode != 0x4012 &&
         gGameMode != 0x400F && gGameMode != 0x4016) {
-        for (i = 0, p = P(0); i < 4; i++, p++) {
+        for (i = 0, p = PT(0); i < 4; i++, p++) {
             if (p->state != 0 && (p->hud_flags & 1) &&
                 !(p->hud_flags & 0x20)) {
                 UpdateObjWorldMat(p->mat);
@@ -2076,33 +2128,33 @@ s32 do_players(void) {
     firstgetidx++;
     for (i = 0; i < 4; i++) {
         s32 k = (j + i) % 4;
+        Player* speaker = PT(k);
 
-        if (P(k)->speech_req != NULL) {
-            if (P(k)->state == 1 && gGameMode == 0x4010) {
-                fn_8005DE50(P(k), P(k)->speech_req);
+        if (speaker->speech_req != NULL) {
+            if (speaker->state == 1 && gGameMode == 0x4010) {
+                fn_8005DE50(speaker, speaker->speech_req);
                 for (j = 0; j < 4; j++) {
-                    if (j != k && P(j)->speech_req == P(k)->speech_req) {
-                        P(j)->speech_req = NULL;
+                    if (j != k && PT(j)->speech_req == speaker->speech_req) {
+                        PT(j)->speech_req = NULL;
                     }
                 }
             }
-            P(k)->speech_req = NULL;
+            speaker->speech_req = NULL;
         }
     }
-    for (i = 0; i < 4; i++) {
-        if ((P(i)->state == 1 || P(i)->state == 4) &&
-            P(i)->idle_timer != 0) {
+    for (i = 0, p = PT(0); i < 4; i++, p++) {
+        if ((p->state == 1 || p->state == 4) && p->idle_timer != 0) {
             break;
         }
     }
     if (i < 4 && gGameMode != 0x4012) {
-        fn_8009D610(0, P(i)->col_pos);
+        fn_8009D610(0, PT(i)->col_pos);
     } else {
         fn_8009D610(2, NULL);
     }
     if (gGameMode != 0x400D && gGameMode != 0x4012 && gGameMode != 0x4016 &&
         lbl_803447B8 == 0) {
-        if (lbl_803444FC == 0 && lbl_803444F8 < 1) {
+        if (lbl_803444FC == 0 && lbl_803444F8 <= 0) {
             lbl_80344500 = 0;
         }
         WritePlayerInfo(-1);
