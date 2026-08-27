@@ -5380,6 +5380,7 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
 
 /* 0x8003D0A4 -- execute the visual/sound payload attached to an action
  * descriptor at either a supplied world position or the critter node. */
+#pragma opt_lifetimes off
 s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
 {
     u8 unused[8];
@@ -5391,11 +5392,11 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
     f32 angularVelocity[3];
     u8 *container;
     u8 *desc;
+    s32 result;
+    u32 flags;
     u8 *sfxDesc;
     u8 *hitDesc;
     u8 *morphDesc;
-    u32 flags;
-    s32 result;
     s32 morph;
     s32 morphTarget;
     f32 scale;
@@ -5504,8 +5505,8 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
     }
 
     if (radius >= lbl_80346470) {
-        damage = radius * *(f32 *)((u8 *)gCurLevel + 0xBC);
         damageRadius = *(f32 *)(desc + 0x0C) * scale;
+        damage = radius * *(f32 *)((u8 *)gCurLevel + 0xBC);
         radius = *(f32 *)(desc + 8) * scale;
         Effects[result].damage = damage;
         Effects[result].mindp = *(f32 *)(desc + 0x18);
@@ -5588,10 +5589,9 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
                     yaw = *(f32 *)(desc + 0x14);
                     if (*(f32 *)(desc + 0x48) >
                         *(volatile f32 *)&lbl_80346470) {
-                        yaw = (f32)((f64)yaw +
-                                    lbl_803464F8 *
-                                        -(f64)*(f32 *)(desc + 0x48) +
-                                    (f64)Random(*(f32 *)(desc + 0x48)));
+                        yaw += lbl_803464F8 *
+                                   -(f64)*(f32 *)(desc + 0x48) +
+                               (f64)Random(*(f32 *)(desc + 0x48));
                     }
                     YawVec3(velocity, velocity, yaw);
                 }
@@ -5625,6 +5625,7 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
 done:
     return result;
 }
+#pragma opt_lifetimes reset
 /* 0x8003D7E0 */
 s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
 {
