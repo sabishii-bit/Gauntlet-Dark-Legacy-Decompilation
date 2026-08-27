@@ -93,7 +93,7 @@ void hide_select_blits(s32 arg0, s32 flag);
 typedef struct StrBlock4 {
     char* s[4];
 } StrBlock4;
-extern s32 lbl_80344610;   /* memcard slot sub-state */
+extern s32 lbl_80344610[2]; /* mtap port status */
 extern u8  lbl_80343DEC;   /* current card port/slot byte */
 extern char lbl_80114718[];/* save-slot format string A */
 extern char lbl_80114724[];/* save-slot format string B */
@@ -2042,19 +2042,20 @@ void setup_vmu_entries(void)
 {
     char* slotFormat = lbl_80114718;
     u8* base = lbl_80284878;
-    s32 idx = 0;
     s32 n = 0;
+    s32 idx = 0;
     char* buf = (char*)(base + 0x744);
     VmuMenuEntry* entry;
     s32* cardPresent = &lbl_80344A14;
     if (lbl_80344A18 == 3) {
-        if (lbl_80344610 == 2) {
+        if (lbl_80344610[0] == 2) {
             sprintf(buf, slotFormat, n + 1, (s8)lbl_80343DEC);
         } else {
+            slotFormat = lbl_80114724;
             if (n > 0) {
                 goto end;
             }
-            sprintf(buf, lbl_80114724, n + 1, idx);
+            sprintf(buf, slotFormat, n + 1, idx);
         }
         entry = (VmuMenuEntry*)(base + 0x720);
         entry->text = buf;
