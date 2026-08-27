@@ -2109,20 +2109,29 @@ void setup_sel_menu(s32 player, s32 mode)
     case 5:
     case 10: {
         u8* entries = bss + 1824;
+        VmuMenuEntry* entry;
         s32 sum;
         s32 off;
         s32 i;
-        s32* selected = (s32*)(data + playerOffset + 828);
+        s32* selected;
 
         *(void**)(data + playerOffset + 740) = entries;
         *(s32*)(data + playerOffset + 724) = baseChoice + 4;
         *(s32*)(data + playerOffset + 728) = 70;
+        selected = (s32*)(data + playerOffset + 828);
         *(f32*)(data + playerOffset + 764) = lbl_80348020;
-        *selected = 0;
+        off = 0;
+        *selected = off;
         sum = *(s32*)(gPlayers + player * 0x335C + 0x334C) +
-              *(s32*)(gPlayers + player * 0x335C + 0x3350) + 1000;
-        for (i = 0, off = 0; *(s32*)(entries + off) != 0; i++, off += 36) {
-            if (sum == *(s32*)(entries + off + 4)) {
+              *(s32*)(gPlayers + player * 0x335C + 0x3350);
+        sum += 1000;
+        i = 0;
+        for (;; i++, off += 36) {
+            entry = (VmuMenuEntry*)(entries + off);
+            if (entry->text == NULL) {
+                break;
+            }
+            if (sum == entry->id) {
                 *selected = i;
                 break;
             }
