@@ -82,16 +82,16 @@ class InstructionPermutationTests(unittest.TestCase):
         # within its atom as that atom moves from region slot 0 to slot 1.
         current = bytes.fromhex("3c600000 7c0903a6")
         expected = bytes.fromhex("7c0903a6 3c600000")
-        relocations = [(2, 0x1406, 0)]
-        expected_relocations = [(6, 0x1406, 0)]
+        relocations = [(2, 0x1806, 0)]
+        expected_relocations = [(6, 0x1806, 0)]
         output, moved_relocations, moved = permute_instruction_atoms(
             current,
             [1, 0],
             relocations,
             before_sha256="decb90402973a79a24378eaba97967a34562786645a9ca1d12a717e8cc276c91",
             after_sha256="9c86562d75c12cda2e5bad4e2aed2736865af0f90fbee9c32fe53488eb91c1eb",
-            before_relocations_sha256="2e21aae9674bb604465ccb6aa9cf5dc4f01440cc95d55d2cfedb404b137cd7bb",
-            after_relocations_sha256="10770ef4cb73323d9cf4241ec9be63fe726a97a19dc146863c22e61307d5911f",
+            before_relocations_sha256="ba25df53f1ea2f7a904fada0025dcaffbfc0ebc725843925b1723c355bbd92e8",
+            after_relocations_sha256="9f7d58b16bc53a6fb78303b594bea2e12a1a54d7458b83e9668c2e97482f8be0",
         )
         self.assertEqual(output, expected)
         self.assertEqual(moved_relocations, expected_relocations)

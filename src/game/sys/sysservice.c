@@ -81,6 +81,32 @@ int  sprintf();
  * compares. Reproduced here as the byte-cast ternary the inliner emitted. */
 #define SYS_FLAG(f) ((u8)((gSysFlags & (f)) ? TRUE : FALSE))
 
+typedef struct SysServiceStringPool {
+    char cardCorruptPrompt[0x20];
+    char cardCorruptUnusable[0x24];
+    char resetReleased[0x14];
+    char resetInvoked[0x10];
+    char pressReset[0x1C];
+    char assertFailedPress[0x3C];
+    char assertFile[0x20];
+    char assertMessage[0x28];
+} SysServiceStringPool;
+
+static const SysServiceStringPool lbl_801176B0 = {
+    "Card is corrupted, format it?",
+    "The card is corrupted and unusable.",
+    "RESET RELEASED..",
+    "RESET INVOKED..",
+    "%s Press RESET to continue.",
+    "Assert Failed. File:%s Line:%d Press RESET to continue...",
+    "Assert Failed: File:%s Line:%d",
+    "Message: %s Press RESET to continue."
+};
+
+extern const char lbl_80117708[];
+extern const char lbl_80117770[];
+extern const char lbl_80117790[];
+
 /* --- forward declarations (DOL call order) --- */
 BOOL       sysPollResetButton(void);
 void       sysFadeToBlack(void);
@@ -91,31 +117,33 @@ void       sysSetFlags(u32 mask);
 BOOL       sysTestFlags(u32 mask);
 
 /* --- state (real addresses in .sdata/.sbss/.bss) --- */
-static u32   gSysFlags;             /* 0x803452E0 */
-static s32   gResetState;           /* 0x803452DC */
-static s32   gLastResetBtnState;    /* 0x803452D4 */
-static u32   gPadErrMask;           /* 0x803452D0 mask of active pads */
-static u32   gLastFrameTicks;       /* 0x803452E4 */
-static u32   gFrameDeltaTicks;      /* 0x803452D8 */
+static void (*gSysResetCallback)(void);   /* 0x803452C8 */
+static void (*gMsgCallback)(const char*); /* 0x803452CC */
+static u32 gPadErrMask;                   /* 0x803452D0 */
+static s32 gLastResetBtnState;            /* 0x803452D4 */
+static u32 gFrameDeltaTicks;              /* 0x803452D8 */
+static s32 gResetState;                   /* 0x803452DC */
+static u32 gSysFlags;                     /* 0x803452E0 */
+static u32 gLastFrameTicks;               /* 0x803452E4 */
+static s32 gPadTimerA[2];                 /* 0x803452E8 */
+static s32 gPadTimerB[2];                 /* 0x803452F0 */
+static u8 gPadFlagsB[8];                  /* 0x803452F8 */
 extern long  sSeconds;              /* 0x80345150 monotonically-updated seconds (owned by pb/pbutils.c) */
 
-static void (*gMsgCallback)(const char*);  /* 0x803452CC on-screen message sink */
-static void (*gSysResetCallback)(void);    /* reset notification hook */
+extern s32 lbl_80344800;             /* frames spent in assert pump */
 
-static char* gMsgLines[2];          /* 0x80344030 two on-screen line buffers */
-static s32   gMsgMaxLen;            /* 0x80344038 max chars per line */
-static s32   lbl_80344800;          /* frames spent in assert pump */
+static u8 gPadMgr[0x44];                    /* 0x80321AD8 */
+static u32 gPadResetHoldTimer[4];           /* 0x80321B1C */
+static u32 gPadStartHoldTimer[4];           /* 0x80321B2C */
+static PADStatus lbl_80321B3C[4];          /* 0x80321B3C */
+static PADStatus lbl_80321B6C[4];          /* 0x80321B6C */
+static char lbl_80321B9C[0x48];            /* 0x80321B9C */
+static char lbl_80321BE4[0x4C];            /* 0x80321BE4 */
 
-/* pad-manager block @0x80321AD8 (fields kept separate for readability) */
-static u32       gPadResetHoldTimer[4]; /* 0x80321B1C */
-static u32       gPadStartHoldTimer[4]; /* 0x80321B2C */
-static PADStatus gPadStatusBuf[2][4];   /* double-buffered PADStatus arrays */
-static s32       gPadTimerA[2];         /* 0x803452E8 */
-static s32       gPadTimerB[2];         /* 0x803452F0 */
-static u8        gPadFlagsB[8];         /* 0x803452F8 */
-
-static PADStatus* gPadCur  = gPadStatusBuf[0]; /* 0x80344040 */
-static PADStatus* gPadPrev = gPadStatusBuf[1]; /* 0x8034403C */
+static char* gMsgLines[2] = { lbl_80321BE4, lbl_80321B9C }; /* 0x80344030 */
+static s32 gMsgMaxLen = 70;                                  /* 0x80344038 */
+static PADStatus* gPadPrev = lbl_80321B6C;                   /* 0x8034403C */
+static PADStatus* gPadCur = lbl_80321B3C;                    /* 0x80344040 */
 
 /* 0x800DD180 - per-frame reset/eject state machine + pad pump */
 void sysResetService(void) {
@@ -143,7 +171,7 @@ void sysResetService(void) {
         if (SYS_FLAG(SF_ASSERT)) {
             if (SYS_FLAG(SF_RESET_TRIGGER)) {
                 if (gMsgCallback) {
-                    gMsgCallback("RESET RELEASED..");
+                    gMsgCallback(lbl_801176B0.resetReleased);
                 }
                 gSysFlags &= ~SF_ASSERT;
                 gSysFlags &= ~SF_RESET_TRIGGER;
@@ -163,7 +191,7 @@ void sysResetService(void) {
             sysPollResetButton();
             if (SYS_FLAG(SF_RESET_TRIGGER) || SYS_FLAG(SF_RESET_HELD)) {
                 if (gMsgCallback) {
-                    gMsgCallback("RESET INVOKED..");
+                    gMsgCallback(lbl_801176B0.resetInvoked);
                 }
                 sysFadeToBlack();
                 if (DVDCheckDisk() != 0) {
@@ -188,7 +216,7 @@ void sysResetService(void) {
         if (SYS_FLAG(SF_ASSERT)) {
             if (SYS_FLAG(SF_RESET_TRIGGER)) {
                 if (gMsgCallback) {
-                    gMsgCallback("RESET RELEASED..");
+                    gMsgCallback(lbl_801176B0.resetReleased);
                 }
                 gSysFlags &= ~SF_ASSERT;
                 gSysFlags &= ~SF_RESET_TRIGGER;
@@ -208,7 +236,7 @@ void sysResetService(void) {
             sysPollResetButton();
             if (SYS_FLAG(SF_RESET_TRIGGER) || SYS_FLAG(SF_RESET_HELD)) {
                 if (gMsgCallback) {
-                    gMsgCallback("RESET INVOKED..");
+                    gMsgCallback(lbl_801176B0.resetInvoked);
                 }
                 sysFadeToBlack();
                 if (DVDCheckDisk() != 0) {
@@ -254,7 +282,7 @@ void sysHandleReset(void) {
     sysPollResetButton();
     if (SYS_FLAG(SF_RESET_TRIGGER) || SYS_FLAG(SF_RESET_HELD)) {
         if (gMsgCallback) {
-            gMsgCallback("RESET INVOKED..");
+            gMsgCallback(lbl_80117708);
         }
         sndTestStopAll();
         vibrators_off();
@@ -359,12 +387,12 @@ u8 padUpdate(void) {
     s32 i;
 
     gPadErrMask = 0;
-    if (gPadCur == gPadStatusBuf[1]) {
-        gPadPrev = gPadStatusBuf[1];
-        gPadCur = gPadStatusBuf[0];
+    if (gPadCur == lbl_80321B6C) {
+        gPadPrev = lbl_80321B6C;
+        gPadCur = lbl_80321B3C;
     } else {
-        gPadCur = gPadStatusBuf[1];
-        gPadPrev = gPadStatusBuf[0];
+        gPadCur = lbl_80321B6C;
+        gPadPrev = lbl_80321B3C;
     }
     PADRead(gPadCur);
     PADClamp(gPadCur);
@@ -488,7 +516,7 @@ void sysAssertFailed(const char* msg, const char* file, int line) {
         return;
     }
 
-    sprintf(buf, "Assert Failed: File:%s Line:%d", file, line);
+    sprintf(buf, lbl_80117770, file, line);
     dst = gMsgLines[0];
     for (i = 0; i < gMsgMaxLen - 1; i++) {
         dst[i] = buf[i];
@@ -498,7 +526,7 @@ void sysAssertFailed(const char* msg, const char* file, int line) {
     }
     dst[i] = 0;
 
-    sprintf(buf, "Message: %s Press RESET to continue.", msg);
+    sprintf(buf, lbl_80117790, msg);
     dst = gMsgLines[1];
     for (i = 0; i < gMsgMaxLen - 1; i++) {
         dst[i] = buf[i];

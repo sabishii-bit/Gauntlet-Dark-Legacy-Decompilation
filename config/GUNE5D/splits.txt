@@ -554,6 +554,10 @@ game/sys/sysservice.c:
 	extab       start:0x800085F0 end:0x80008628
 	extabindex  start:0x8000CD90 end:0x8000CDE4
 	.text       start:0x800DD180 end:0x800DDE34
+	.rodata     start:0x801176B0 end:0x801177B8
+	.bss        start:0x80321AD8 end:0x80321C30
+	.sdata      start:0x80344030 end:0x80344048
+	.sbss       start:0x803452C8 end:0x80345300
 
 game/mb/mb_poly.c:
 	extab       start:0x80008628 end:0x80008668
