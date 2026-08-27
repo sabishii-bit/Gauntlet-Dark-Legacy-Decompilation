@@ -25,7 +25,12 @@ typedef struct PsfxPdataBuf {
     s32   cur[4];      /* 0x20 : per-player currently-loaded class */
     void* bufs[4];     /* 0x30 : per-player load buffers */
     s32   sizes[16];   /* 0x40 : per-class pdata file sizes */
+    u8*   headers[4];  /* 0x80 : parsed per-player headers */
 } PsfxPdataBuf;
+typedef struct PsfxFileTable {
+    u8    pad[0x60];
+    void* files[16];
+} PsfxFileTable;
 extern PsfxPdataBuf lbl_802828B0;
 extern u8 lbl_8012006C[];
 extern void* lbl_80120E00[16];
@@ -1087,13 +1092,14 @@ extern void PlayerSfxInitData(s32* player, u32* records, s32 count, void* param4
  * three chunks out of the wad, byte-swap every record when the archive is
  * foreign-endian, then resolve the effect/sound handles. */
 #pragma dont_inline on
-void LoadPlyrData(s32 plr, s32 cls, s32 resolve)
-{
+void LoadPlyrData(s32 plr, s32 cls, s32 resolve) {
+    char* errorStrings = lbl_80114288;
+    PsfxPdataBuf* pdata = &lbl_802828B0;
+    PsfxFileTable* pdataFiles = (PsfxFileTable*)lbl_80120DA0;
     s32 wad[4];
     s32 n1;
     s32 n2;
     s32 n3;
-    volatile u8 unused[600];
     PsfxHeader* hdr;
     u8* p;
     s32 mode = 0;
@@ -1109,176 +1115,161 @@ void LoadPlyrData(s32 plr, s32 cls, s32 resolve)
     if (cls < 0) {
         return;
     }
-
-    if (cls != *(s32*)((u8*)&lbl_802828B0 + 0x20 + plr * 4) ||
-        (*(s32*)(gPlayers + plr * 0x335C + 0xE8) != 0 && resolve != 0)) {
-        if ((*(u64*)&gControllerButtons & 0x10) == 0 ||
-            fn_80055F68(0, -1) == 0) {
-            mode = 1;
-        } else {
+    if (cls != pdata->cur[plr] || (*(s32*)(gPlayers + plr * 0x335C + 0xE8) != 0 && resolve != 0)) {
+        if ((*(u64*)&gControllerButtons & 0x10) != 0 && fn_80055F68(0, -1) != 0) {
             mode = 2;
+        } else {
+            mode = 1;
         }
     }
 
-    if (mode == 0) {
-        /* already loaded: only (re)resolve the handles */
-        if (resolve != 0) {
-            hdr = (PsfxHeader*)lbl_80282930[plr];
-            if (hdr->resolved == 0) {
-                PlayerSfxInitData((s32*)(gPlayers + plr * 0x335C),
-                                  (u32*)hdr->records, hdr->count,
-                                  ((void**)player_multiple_models)[plr * 0x13 + 18]);
-                hdr->resolved = 1;
+    if (mode != 0) {
+        if (mode == 2) {
+            /* forced re-read of the class file from disk */
+            sprintf(pdata->name, lbl_80347E44, (char*)lbl_8012006C + cls * 4);
+            if (FileExists(lbl_80347E4C, pdata->name)) {
+                if (pdataFiles->files[cls] == 0) {
+                    pdataFiles->files[cls] = AllocFile(lbl_80347E4C, pdata->name);
+                    pdata->sizes[cls] = mlmLastFileSize;
+                } else if (!MLMReadFile(lbl_80347E4C, pdata->name, pdata->sizes[cls], pdataFiles->files[cls])) {
+                    FatalErrorf(errorStrings + 24, pdata->name);
+                }
+            } else {
+                ErrorPrintf(errorStrings + 76, pdata->name);
+                pdataFiles->files[cls] = 0;
+                pdata->sizes[cls] = 0;
             }
         }
-        return;
-    }
 
-    if (mode == 2) {
-        /* forced re-read of the class file from disk */
-        sprintf((char*)&lbl_802828B0, "%s.wad", (char*)lbl_8012006C + cls * 4);
-        if (FileExists("pdata", (char*)&lbl_802828B0)) {
-            if (lbl_80120E00[cls] == 0) {
-                lbl_80120E00[cls] = AllocFile("pdata", (char*)&lbl_802828B0);
-                *(s32*)((u8*)&lbl_802828B0 + 0x40 + cls * 4) = mlmLastFileSize;
-            } else if (!MLMReadFile("pdata", (char*)&lbl_802828B0,
-                                    *(s32*)((u8*)&lbl_802828B0 + 0x40 + cls * 4),
-                                    lbl_80120E00[cls])) {
-                FatalErrorf("pdata file %s: file on disk go too large for buffer",
-                            (char*)&lbl_802828B0);
+        if (pdataFiles->files[cls] != 0) {
+            memcpy(pdata->bufs[plr], pdataFiles->files[cls], pdata->sizes[cls]);
+            swapped = MBSetupWad(wad, pdata->bufs[plr]);
+
+            pdata->headers[plr] = MBGetFromWad(wad, WADTAG(lbl_80347E54), &n1);
+            ((PsfxHeader*)pdata->headers[plr])->records = MBGetFromWad(wad, WADTAG(lbl_80347E5C), &n2);
+            ((PsfxHeader*)pdata->headers[plr])->moves = MBGetFromWad(wad, WADTAG(lbl_80347E64), &n3);
+            ((PsfxHeader*)pdata->headers[plr])->resolved = 0;
+            pdata->cur[plr] = cls;
+
+            if (swapped) {
+                /* header rows: 0x180 bytes each */
+                i = 0;
+                off = 0;
+                for (; i < n1; i++, off += 0x180) {
+                    p = (u8*)pdata->headers[plr] + off;
+                    SWAP16(*(u16*)(p + 0x00));
+                    SWAP16(*(u16*)(p + 0x02));
+                    SWAP16(*(u16*)(p + 0x0C));
+                    SWAP16(*(u16*)(p + 0x0E));
+                    SWAP16(*(u16*)(p + 0x10));
+                    SWAP16(*(u16*)(p + 0x12));
+                    SWAP16(*(u16*)(p + 0x14));
+                    SWAP16(*(u16*)(p + 0x16));
+                    SWAP16(*(u16*)(p + 0x18));
+                    SWAP16(*(u16*)(p + 0x1A));
+                    SWAP16(*(u16*)(p + 0x1C));
+                    SWAP16(*(u16*)(p + 0x1E));
+                    SWAP16(*(u16*)(p + 0x20));
+                    SWAP16(*(u16*)(p + 0x22));
+                    SWAP32(*(u32*)(p + 0x24));
+                    SWAPF(*(f32*)(p + 0x28));
+                    SWAPF(*(f32*)(p + 0x2C));
+                    SWAPF(*(f32*)(p + 0x30));
+                    SWAPF(*(f32*)(p + 0x34));
+                    SWAPF(*(f32*)(p + 0x38));
+                    SWAPF(*(f32*)(p + 0x3C));
+                    SWAPF(*(f32*)(p + 0x40));
+                    SWAPF(*(f32*)(p + 0x44));
+                    SWAPF(*(f32*)(p + 0x48));
+                    k = 0;
+                    SWAPF(*(f32*)(p + 0x4C));
+                    SWAPF(*(f32*)(p + 0x50));
+                    SWAPF(*(f32*)(p + 0x54));
+                    SWAPF(*(f32*)(p + 0x58));
+                    SWAPF(*(f32*)(p + 0x17C));
+                    for (; k < 3; k++) {
+                        SWAPF(*(f32*)(p + 0x5C + k * 4));
+                        SWAPF(*(f32*)(p + 0x158 + k * 4));
+                        SWAPF(*(f32*)(p + 0x164 + k * 4));
+                        SWAPF(*(f32*)(p + 0x170 + k * 4));
+                    }
+                    for (j = 0; j < 10; j++) {
+                        for (k = 0; k < 3; k++) {
+                            SWAPF(*(f32*)(p + 0x68 + j * 0xC + k * 4));
+                            SWAPF(*(f32*)(p + 0xE0 + j * 0xC + k * 4));
+                        }
+                    }
+                }
+
+                /* sfx records: 0x50 bytes each */
+                off = 0;
+                for (i = 0; i < n2; i++, off += 0x50) {
+                    p = ((PsfxHeader*)pdata->headers[plr])->records + off;
+                    SWAP16(*(u16*)(p + 0x30));
+                    SWAP16(*(u16*)(p + 0x32));
+                    SWAP32(*(u32*)(p + 0x00));
+                    SWAP32(*(u32*)(p + 0x04));
+                    SWAP32(*(u32*)(p + 0x08));
+                    SWAP32(*(u32*)(p + 0x0C));
+                    SWAPF(*(f32*)(p + 0x40));
+                    SWAPF(*(f32*)(p + 0x44));
+                    SWAPF(*(f32*)(p + 0x48));
+                    SWAP32(*(u32*)(p + 0x4C));
+                    for (k = 0; k < 3; k++) {
+                        SWAPF(*(f32*)(p + 0x34 + k * 4));
+                    }
+                }
+
+                /* move rows: 0x58 bytes each */
+                off = 0;
+                for (i = 0; i < n3; i++, off += 0x58) {
+                    p = ((PsfxHeader*)pdata->headers[plr])->moves + off;
+                    SWAP16(*(u16*)(p + 0x00));
+                    SWAP16(*(u16*)(p + 0x02));
+                    SWAP16(*(u16*)(p + 0x48));
+                    SWAP16(*(u16*)(p + 0x4A));
+                    SWAP16(*(u16*)(p + 0x4C));
+                    SWAP16(*(u16*)(p + 0x4E));
+                    SWAP16(*(u16*)(p + 0x50));
+                    SWAP16(*(u16*)(p + 0x52));
+                    SWAP16(*(u16*)(p + 0x54));
+                    SWAPF(*(f32*)(p + 0x08));
+                    SWAPF(*(f32*)(p + 0x0C));
+                    SWAPF(*(f32*)(p + 0x10));
+                    SWAPF(*(f32*)(p + 0x14));
+                    SWAPF(*(f32*)(p + 0x18));
+                    SWAPF(*(f32*)(p + 0x1C));
+                    SWAPF(*(f32*)(p + 0x20));
+                    SWAPF(*(f32*)(p + 0x24));
+                    SWAPF(*(f32*)(p + 0x28));
+                    SWAPF(*(f32*)(p + 0x38));
+                    SWAPF(*(f32*)(p + 0x3C));
+                    SWAPF(*(f32*)(p + 0x40));
+                    SWAPF(*(f32*)(p + 0x44));
+                    SWAP32(*(u32*)(p + 0x04));
+                    for (k = 0; k < 3; k++) {
+                        SWAPF(*(f32*)(p + 0x2C + k * 4));
+                    }
+                }
+                { volatile u8 unused[600]; }
+            }
+
+            if (resolve != 0) {
+                hdr = (PsfxHeader*)pdata->headers[plr];
+                PlayerSfxInitData((s32*)(gPlayers + plr * 0x335C), (u32*)hdr->records, hdr->count,
+                                  ((void**)player_multiple_models)[plr * 0x13 + 18]);
+                ((PsfxHeader*)pdata->headers[plr])->resolved = 1;
             }
         } else {
-            ErrorPrintf("No player data file: %s", (char*)&lbl_802828B0);
-            lbl_80120E00[cls] = 0;
-            *(s32*)((u8*)&lbl_802828B0 + 0x40 + cls * 4) = 0;
+            FatalErrorf(errorStrings + 76, pdata->name);
         }
-    }
-
-    if (lbl_80120E00[cls] == 0) {
-        FatalErrorf("No player data file: %s", (char*)&lbl_802828B0);
-        return;
-    }
-
-    memcpy(*(void**)((u8*)&lbl_802828B0 + 0x30 + plr * 4), lbl_80120E00[cls],
-           *(s32*)((u8*)&lbl_802828B0 + 0x40 + cls * 4));
-    swapped = MBSetupWad(wad, *(void**)((u8*)&lbl_802828B0 + 0x30 + plr * 4));
-
-    hdr = (PsfxHeader*)MBGetFromWad(wad, WADTAG(lbl_80347E54), &n1);
-    lbl_80282930[plr] = (u8*)hdr;
-    hdr = (PsfxHeader*)lbl_80282930[plr];
-    hdr->records = MBGetFromWad(wad, WADTAG(lbl_80347E5C), &n2);
-    hdr = (PsfxHeader*)lbl_80282930[plr];
-    hdr->moves = MBGetFromWad(wad, WADTAG(lbl_80347E64), &n3);
-    hdr = (PsfxHeader*)lbl_80282930[plr];
-    hdr->resolved = 0;
-    *(s32*)((u8*)&lbl_802828B0 + 0x20 + plr * 4) = cls;
-
-    if (swapped) {
-        /* header rows: 0x180 bytes each */
-        off = 0;
-        for (i = 0; i < n1; i++, off += 0x180) {
-            p = (u8*)lbl_80282930[plr] + off;
-            SWAP16(*(u16*)(p + 0x00));
-            SWAP16(*(u16*)(p + 0x02));
-            SWAP16(*(u16*)(p + 0x0C));
-            SWAP16(*(u16*)(p + 0x0E));
-            SWAP16(*(u16*)(p + 0x10));
-            SWAP16(*(u16*)(p + 0x12));
-            SWAP16(*(u16*)(p + 0x14));
-            SWAP16(*(u16*)(p + 0x16));
-            SWAP16(*(u16*)(p + 0x18));
-            SWAP16(*(u16*)(p + 0x1A));
-            SWAP16(*(u16*)(p + 0x1C));
-            SWAP16(*(u16*)(p + 0x1E));
-            SWAP16(*(u16*)(p + 0x20));
-            SWAP16(*(u16*)(p + 0x22));
-            SWAP32(*(u32*)(p + 0x24));
-            SWAPF(*(f32*)(p + 0x28));
-            SWAPF(*(f32*)(p + 0x2C));
-            SWAPF(*(f32*)(p + 0x30));
-            SWAPF(*(f32*)(p + 0x34));
-            SWAPF(*(f32*)(p + 0x38));
-            SWAPF(*(f32*)(p + 0x3C));
-            SWAPF(*(f32*)(p + 0x40));
-            SWAPF(*(f32*)(p + 0x44));
-            SWAPF(*(f32*)(p + 0x48));
-            SWAPF(*(f32*)(p + 0x4C));
-            SWAPF(*(f32*)(p + 0x50));
-            SWAPF(*(f32*)(p + 0x54));
-            SWAPF(*(f32*)(p + 0x58));
-            SWAPF(*(f32*)(p + 0x17C));
-            for (k = 0; k < 3; k++) {
-                SWAPF(*(f32*)(p + 0x5C + k * 4));
-                SWAPF(*(f32*)(p + 0x158 + k * 4));
-                SWAPF(*(f32*)(p + 0x164 + k * 4));
-                SWAPF(*(f32*)(p + 0x170 + k * 4));
-            }
-            for (j = 0; j < 10; j++) {
-                for (k = 0; k < 3; k++) {
-                    SWAPF(*(f32*)(p + 0x68 + j * 0xC + k * 4));
-                    SWAPF(*(f32*)(p + 0xE0 + j * 0xC + k * 4));
-                }
-            }
+    } else if (resolve != 0) {
+        hdr = (PsfxHeader*)pdata->headers[plr];
+        if (hdr->resolved == 0) {
+            PlayerSfxInitData((s32*)(gPlayers + plr * 0x335C), (u32*)hdr->records, hdr->count,
+                              ((void**)player_multiple_models)[plr * 0x13 + 18]);
+            ((PsfxHeader*)pdata->headers[plr])->resolved = 1;
         }
-
-        /* sfx records: 0x50 bytes each */
-        off = 0;
-        for (i = 0; i < n2; i++, off += 0x50) {
-            p = ((PsfxHeader*)lbl_80282930[plr])->records + off;
-            SWAP16(*(u16*)(p + 0x30));
-            SWAP16(*(u16*)(p + 0x32));
-            SWAP32(*(u32*)(p + 0x00));
-            SWAP32(*(u32*)(p + 0x04));
-            SWAP32(*(u32*)(p + 0x08));
-            SWAP32(*(u32*)(p + 0x0C));
-            SWAPF(*(f32*)(p + 0x40));
-            SWAPF(*(f32*)(p + 0x44));
-            SWAPF(*(f32*)(p + 0x48));
-            SWAP32(*(u32*)(p + 0x4C));
-            for (k = 0; k < 3; k++) {
-                SWAPF(*(f32*)(p + 0x34 + k * 4));
-            }
-        }
-
-        /* move rows: 0x58 bytes each */
-        off = 0;
-        for (i = 0; i < n3; i++, off += 0x58) {
-            p = ((PsfxHeader*)lbl_80282930[plr])->moves + off;
-            SWAP16(*(u16*)(p + 0x00));
-            SWAP16(*(u16*)(p + 0x02));
-            SWAP16(*(u16*)(p + 0x48));
-            SWAP16(*(u16*)(p + 0x4A));
-            SWAP16(*(u16*)(p + 0x4C));
-            SWAP16(*(u16*)(p + 0x4E));
-            SWAP16(*(u16*)(p + 0x50));
-            SWAP16(*(u16*)(p + 0x52));
-            SWAP16(*(u16*)(p + 0x54));
-            SWAPF(*(f32*)(p + 0x08));
-            SWAPF(*(f32*)(p + 0x0C));
-            SWAPF(*(f32*)(p + 0x10));
-            SWAPF(*(f32*)(p + 0x14));
-            SWAPF(*(f32*)(p + 0x18));
-            SWAPF(*(f32*)(p + 0x1C));
-            SWAPF(*(f32*)(p + 0x20));
-            SWAPF(*(f32*)(p + 0x24));
-            SWAPF(*(f32*)(p + 0x28));
-            SWAPF(*(f32*)(p + 0x38));
-            SWAPF(*(f32*)(p + 0x3C));
-            SWAPF(*(f32*)(p + 0x40));
-            SWAPF(*(f32*)(p + 0x44));
-            SWAP32(*(u32*)(p + 0x04));
-            for (k = 0; k < 3; k++) {
-                SWAPF(*(f32*)(p + 0x2C + k * 4));
-            }
-        }
-    }
-
-    if (resolve != 0) {
-        hdr = (PsfxHeader*)lbl_80282930[plr];
-        PlayerSfxInitData((s32*)(gPlayers + plr * 0x335C), (u32*)hdr->records,
-                          hdr->count,
-                          ((void**)player_multiple_models)[plr * 0x13 + 18]);
-        hdr->resolved = 1;
     }
 }
 #pragma dont_inline off
