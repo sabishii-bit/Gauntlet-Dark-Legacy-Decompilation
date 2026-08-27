@@ -186,7 +186,7 @@ void MBWorldToScreen3D(f32* dst, f32* world)
     f32 yDepthScale;
     f64 centeredX;
     f64 centeredY;
-    u8 unused[24];
+    u8 unused[16];
     f32 projected[3];
 
     if ((*(u8**)(globals + 4))[3] != 0 ||
