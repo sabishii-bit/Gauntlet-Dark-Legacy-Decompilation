@@ -1081,8 +1081,9 @@ s32 CamGetPlayerAvgPos(Vec3* out, s32 flags) {
         f32* bounds;
         for (k = 0; k < 3; k++) {
             bounds = *(f32**)((u8*)gCurLevel + 0x60);
-            (&out->x)[k] = ((&out->x)[k] < bounds[3 + k]) ? bounds[3 + k] :
-                           ((&out->x)[k] > bounds[6 + k]) ? bounds[6 + k] :
+            bounds += k;
+            (&out->x)[k] = ((&out->x)[k] < bounds[3]) ? bounds[3] :
+                           ((&out->x)[k] > bounds[6]) ? bounds[6] :
                            (&out->x)[k];
         }
     }
