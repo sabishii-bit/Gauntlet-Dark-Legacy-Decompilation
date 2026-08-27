@@ -4433,7 +4433,7 @@ void fn_800606FC(void)
         if ((s8)it->minoff != 0) {
             continue;
         }
-        if (!((type == 3 && it->data[7] == 0xF) ||
+        if (!((type == 3 && (s8)it->data[7] == 0xF) ||
               (type == 0xC && it->info->item.subtype == 2) ||
               (it->active & 0x40) || (it->active & 0x4000))) {
             continue;
@@ -4504,7 +4504,7 @@ void fn_800606FC(void)
             }
             visflag = it->active & 0x4000;
             max = (s8)gen[3];
-            if (gen[7] == 0xF) {
+            if ((s8)gen[7] == 0xF) {
                 generate_single_80063444(it, 0xF, 0);
                 break;
             }
@@ -4606,9 +4606,9 @@ void fn_800606FC(void)
                 it->activetime = 0x1E;
             } else if ((s8)it->paction == 0 && (s8)it->action == 1 &&
                        it->info->item.subtype == 4) {
-                f32 dy = *(f32*)(gCameras + 0x130) - it->objgrp.worldmat[3][1];
-                f32 dx = *(f32*)(gCameras + 0x12C) - it->objgrp.worldmat[3][0];
-                f32 dz = *(f32*)(gCameras + 0x134) - it->objgrp.worldmat[3][2];
+                f32 dy = ((f32*)gCameras)[76] - it->objgrp.worldmat[3][1];
+                f32 dx = ((f32*)gCameras)[75] - it->objgrp.worldmat[3][0];
+                f32 dz = ((f32*)gCameras)[77] - it->objgrp.worldmat[3][2];
                 f32 d2 = dy * dy;
                 f32 root;
                 d2 = dx * dx + d2;
@@ -4689,7 +4689,7 @@ void fn_800606FC(void)
                     MBTreeClearFlags(node2, 8, 0);
                 }
             }
-            if ((u8)it->action == 2) {
+            if ((s8)it->action == 2) {
                 s32 sub2 = it->info->item.subtype;
                 if (sub2 == 0x2C) {
                     gpos[0] = it->objgrp.coll_pos[0];
@@ -5026,7 +5026,7 @@ void fn_800606FC(void)
                     if ((s8)it->action < 4) {
                         *(s32*)&it->data[4] = 0;
                     }
-                    if ((u8)it->action == 4 && it->activetime <= 0) {
+                    if ((s8)it->action == 4 && it->activetime <= 0) {
                         s32 n4 = 0;
                         for (b = 0; b < 4; b++) {
                             if (gPlayers[b].state == 4) {
@@ -5075,8 +5075,8 @@ void fn_800606FC(void)
                     }
                     it->paction = 0;
                 }
-                if ((u8)it->action == 3) {
-                    if ((u8)it->paction == 2) {
+                if ((s8)it->action == 3) {
+                    if ((s8)it->paction == 2) {
                         it->activetime = 0x2D;
                     }
                     it->active |= 0x400;
@@ -5150,7 +5150,7 @@ void fn_800606FC(void)
             if (c > 1) {
                 if (*(s16*)&it->data[6] < 0x1E) {
                     MBTreeSetAltTex(it->objgrp.node, -2,
-                                    *(s32*)(gWorldInfo + 0x88), 0);
+                                    ((s32*)gWorldInfo)[34], 0);
                     MBTreeSetFlags(it->objgrp.node, 0x4000, 1);
                 } else {
                     MBTreeSetAltTex(it->objgrp.node, -1, 0, 0);
@@ -5166,7 +5166,7 @@ void fn_800606FC(void)
                 }
             } else if (c == 1) {
                 MBTreeSetAltTex(it->objgrp.node, -2,
-                                *(s32*)(gWorldInfo + 0x88), 0);
+                                ((s32*)gWorldInfo)[34], 0);
                 MBTreeSetFlags(it->objgrp.node, 0x4000, 1);
                 *(s16*)&it->data[4] = 0;
                 *(s16*)&it->data[6] = 0;
@@ -5249,11 +5249,11 @@ void fn_800606FC(void)
                     case 3: {
                         f32 dir[3];
                         dir[0] = it->objgrp.worldmat[3][0] -
-                                 *(f32*)(sItemRuntime + 0x75E8);
+                                 ((f32*)sItemRuntime)[7546];
                         dir[1] = it->objgrp.worldmat[3][1] -
-                                 *(f32*)(sItemRuntime + 0x75EC);
+                                 ((f32*)sItemRuntime)[7547];
                         dir[2] = it->objgrp.worldmat[3][2] -
-                                 *(f32*)(sItemRuntime + 0x75F0);
+                                 ((f32*)sItemRuntime)[7548];
                         NormalVector2D(dir);
                         *(f32*)&it->data[8] = (f32)(lbl_80346F98 * dir[0]);
                         *(f32*)&it->data[0xC] = (f32)(lbl_80346F98 * dir[1]);
