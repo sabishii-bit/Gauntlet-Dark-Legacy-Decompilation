@@ -193,8 +193,8 @@ void DoGoodWizard(void)
 {
     u8* base = lbl_8023DFD0;
     s32 acc3542 = 0;
-    s32 acc3540 = 0;
     s32 quality;
+    s32 acc3540 = 0;
     s32 want;
     s32 cap;
     s32 c;
@@ -446,12 +446,14 @@ void DoGoodWizard(void)
                 good_wiz_timer = sMusicFadeBase;
             }
         } else if (sMusicFadeBase >= good_wiz_timer) {
+            s32 boss;
+
             good_wiz_speech_idx = 0;
             good_wiz_state++;
             good_wiz_speech_frame = 0;
             good_wiz_speech_pause = 0;
-            c = gBossType;
-            if (c < 0x2a) {
+            boss = gBossType;
+            if (boss < 0x2a) {
                 s32 sel = 5;
 
                 if ((acc3540 & 0x3FE) == 0x3FE && acc3542 == 0xFFF) {
@@ -459,7 +461,7 @@ void DoGoodWizard(void)
                 } else if ((acc3540 & 0x1FE) == 0x1FE) {
                     sel = 6;
                 }
-                fn_8009C710(c, sel);
+                fn_8009C710(boss, sel);
             }
         }
         AnimateATree(base + 0x5f0, 0, 0);
@@ -497,8 +499,8 @@ void DoGoodWizard(void)
         AnimateATree(base + 0x5f0, 0, 0);
         calc_good_wiz_attn(0, 0);
         if (good_wiz_exit_timer <= wiz_exit_min) {
-            s32 i;
             s32 off;
+            s32 i;
 
             for (i = 0, off = 0; i < 4; i++, off += 0x335C) {
                 u8* p = gPlayers + off;
