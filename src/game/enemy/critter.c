@@ -5581,11 +5581,11 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
         }
 
         if (*(f32 *)(desc + 0x30) > lbl_80346470) {
-            speed = (f32)(((f64)c->rateScale < lbl_803464F8)
+            speed = (f32)(((f64)(damage = c->rateScale) < lbl_803464F8)
                               ? lbl_803464F8
-                              : ((f64)c->rateScale > lbl_80346620)
+                              : ((f64)damage > lbl_80346620)
                                     ? lbl_80346620
-                                    : (f64)c->rateScale);
+                                    : (f64)damage);
             speed = (f32)(lbl_80346530 *
                           ((f64)speed -
                            *(volatile f64 *)&lbl_803464F8)) *
