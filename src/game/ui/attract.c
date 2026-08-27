@@ -813,9 +813,9 @@ void do_flyby(void) {
         elapsed = OSGetTime() - lbl_80344278;
         lbl_80344280 += elapsed;
         seconds = (f32)(lbl_80344280 / (s64)(*(u32*)0x800000F8 >> 2));
-        lbl_80344278 = 0;
         lbl_803441F0 = 0;
         lbl_80344220 = (f32)sMainTimerTicks / seconds;
+        lbl_80344278 = 0;
         AudioSelectReset();
         init_targets();
         if (lbl_80344208 != 0) {
