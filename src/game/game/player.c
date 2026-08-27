@@ -6040,56 +6040,64 @@ static void do_got_it_8007FC80(void) {
     char buf[36];
     GotIt* g;
     s32 y[3];
-    u32 x;
     s32 i;
+    u32 x;
+    s32 offset;
+    s32 player;
+    void** blit;
 
-    for (i = 0, g = got_it; i < 24; i++, g++) {
+    for (i = 0, offset = 0; i < 24; i++, offset += sizeof(GotIt)) {
+        g = (GotIt*)((u8*)got_it + offset);
+        player = g->player;
         switch (g->state) {
-        case 2:
-            /* sliding up into place */
+        case -1:
+            g->state = 0;
+            blit = &g->blit1;
             if (g->blit1 != NULL) {
-                mbBlitCalcRect(g->blit1, NULL, &y[0], NULL);
-                y[0] -= gFrameTicks;
-                if (y[0] < 0x131) {
-                    y[0] = 0x130;
-                    g->state++;
-                    g->timer = 0x5A;
-                }
-                mbBlitCalcY(g->blit1, y[0]);
-                mbBlitCalcY(g->blit2, y[0] + 0x10);
+                MBRemoveBlit(g->blit1);
+                *blit = NULL;
+                blit = &g->blit2;
+                MBRemoveBlit(g->blit2);
+                *blit = NULL;
             }
             break;
         case 4:
             /* sliding down out */
+            blit = &g->blit1;
             if (g->blit1 != NULL) {
                 mbBlitCalcRect(g->blit1, NULL, &y[0], NULL);
                 y[0] += gFrameTicks;
-                if (y[0] > 399) {
+                if (y[0] >= 400) {
                     g->state = -1;
                 }
-                mbBlitCalcY(g->blit1, y[0]);
+                mbBlitCalcY(*blit, y[0]);
                 mbBlitCalcY(g->blit2, y[0] + 0x10);
             }
             break;
         case 3:
             /* holding */
-            g->timer -= gFrameTicks;
-            if (g->timer < 1) {
+            if ((g->timer -= gFrameTicks) <= 0) {
                 g->state++;
             }
             break;
-        case -1:
-            g->state = 0;
+        case 2:
+            /* sliding up into place */
+            blit = &g->blit1;
             if (g->blit1 != NULL) {
-                MBRemoveBlit(g->blit1);
-                g->blit1 = NULL;
-                MBRemoveBlit(g->blit2);
-                g->blit2 = NULL;
+                mbBlitCalcRect(g->blit1, NULL, &y[0], NULL);
+                y[0] -= gFrameTicks;
+                if (y[0] <= 0x130) {
+                    y[0] = 0x130;
+                    g->state++;
+                    g->timer = 0x5A;
+                }
+                mbBlitCalcY(*blit, y[0]);
+                mbBlitCalcY(g->blit2, y[0] + 0x10);
             }
             break;
         case 1:
             /* create the pair */
-            x = lbl_80120238[g->player];
+            x = lbl_80120238[player];
             sprintf(buf, "%d", g->count);
             switch (g->type) {
             case 2:
@@ -6154,13 +6162,15 @@ static void do_got_it_8007FC80(void) {
                 g->state = 0;
                 return;
             }
+            blit = &g->blit1;
             if (g->blit1 != NULL) {
                 mbBlitProject(g->blit1, 0x80, 0);
-                mbBlitCalcWidth(g->blit1, x, 0x180, 0.15f);
+                mbBlitCalcWidth(*blit, x, 0x180, 0.15f);
             }
+            blit = &g->blit2;
             if (g->blit2 != NULL) {
                 mbBlitProject(g->blit2, 0x80, 0);
-                mbBlitCalcWidth(g->blit2, x, 400, 0.16f);
+                mbBlitCalcWidth(*blit, x, 400, 0.16f);
             }
             g->state++;
             break;
