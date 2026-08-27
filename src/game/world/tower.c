@@ -1610,6 +1610,20 @@ static inline s32 sumnerLevelUpAt(TowerMsgState* state, s32 playerIndex) {
     return indexedState->levelUpLevel[0];
 }
 
+static inline s32 sumnerAdvanceLevelUpPlayer(void) {
+    s32 playerIndex = lbl_80343E4C;
+    s32 resetDelay = 120;
+    s32 none = -1;
+
+    lbl_80343E50 = none;
+    playerIndex++;
+    lbl_80343E4C = playerIndex;
+    lbl_80344C70 = resetDelay;
+    lbl_80343E54 = none;
+    lbl_80343E58 = none;
+    return 0;
+}
+
 /* Run the Sumner speech: fetch scroll/string/list text, show captions,
  * play the speech audio, and advance the wizard animation. */
 #pragma opt_propagation off
@@ -1745,14 +1759,7 @@ void SumnerDoSpeech(void) {
                 }
 
                 CaptionTextReset();
-                playerIndex = lbl_80343E4C;
-                lbl_80343E50 = -1;
-                playerIndex++;
-                lbl_80343E4C = playerIndex;
-                elapsed = 0;
-                lbl_80344C70 = 120;
-                lbl_80343E54 = -1;
-                lbl_80343E58 = -1;
+                elapsed = sumnerAdvanceLevelUpPlayer();
             } else {
                 lbl_80343E4C++;
             }
