@@ -50,16 +50,29 @@ extern u32 gClockCurrentTime;
 extern s32 gClockStepTicks;
 extern u32 gFrameTicks;
 
-extern s32 pbLoad;
+extern u32 pbLoad;
 extern s32 gGameBusy;
+extern s32 options_state;
 extern s32 gGameplayPauseTimer;
 extern s32 gModalRenderDepth;
 extern s32 gGameMode;
 extern s32 gNumEnemies;
 extern s32 gBossType;
+
+typedef struct ClockInputWords {
+    s32 buttons;
+    s32 flags;
+} ClockInputWords;
+
+typedef union ClockInputPair {
+    u64 both;
+    ClockInputWords word;
+} ClockInputPair;
+
+extern ClockInputPair gControllerButtons;
+extern ClockInputPair sPreviousFlags;
 extern s32 sFlags;
-extern s32 gControllerButtons;
-extern s32 sPreviousFlags;
+extern s32 lbl_803445D4;
 extern u8 gPlayers[];
 extern u8 gEnemies[];
 
@@ -172,7 +185,11 @@ extern s32 lbl_803444F0;
 extern s32 lbl_803444EC;
 extern s32 lbl_803447B8;
 extern s32 lbl_8034453C;
-extern s32 lbl_803445D4;
+extern const f32 lbl_803462E8;
+extern const f32 lbl_803462EC;
+extern const f32 lbl_803462F0;
+extern const f32 lbl_803462F4;
+extern const f32 lbl_803462F8;
 extern s32 gScriptedCameraState;
 extern s32 lbl_803447B4;
 extern s32 gNumTransmitters;
@@ -738,8 +755,8 @@ s32 MoveCam_walk_8002A024(s32 camIdx)
             cam->a_mode = oldMode;
         }
         cam->state = 0;
-        if ((*(u64*)&gControllerButtons & 4) != 0) {
-            *(u64*)&sPreviousFlags |= 4;
+        if ((gControllerButtons.both & 4) != 0) {
+            sPreviousFlags.both |= 4;
         }
     }
     return done == 0;
@@ -749,7 +766,6 @@ s32 MoveCam_walk_8002A024(s32 camIdx)
 extern u8 lbl_80240E30[];
 extern f32 lbl_80346138, lbl_80346148;
 extern f64 lbl_80345FE0, lbl_80346140;
-extern s32 sFlags;
 extern s32 gScriptedCameraState;
 extern u32 gFrameTicks;
 void write_stage_info(s32 mode);
@@ -3117,7 +3133,6 @@ void ProcCamera_8002E548(s32 camIdx, s32 useRecorderPosition)
  * limits.  The debug build also printed selectable object information here;
  * clamping is the runtime-relevant part of the routine.
  */
-extern s32 sFlags;
 extern f64 lbl_803460C0, lbl_803460C8;
 void fn_800C02F4(s32 color);
 void dbgTextPrintfCol(s32 column, s32 row, char* format, ...);
@@ -3140,7 +3155,7 @@ void screen_limitation(s32 camIdx)
 {
     Camera* cam;
     DebugNameTables* debugNames = (DebugNameTables*)lbl_80118B60;
-    register volatile s32 buttons = gControllerButtons;
+    register volatile s32 buttons = gControllerButtons.word.buttons;
     s32 row;
     f32 yaw;
     f32 yawDeg;
@@ -3393,59 +3408,62 @@ void ClockOncePerFrame(void)
     s32 freeze = 0;
     s32 resumed = 0;
 
-    if ((sFlags & 8) != 0) {
+    if ((gControllerButtons.both & 8) != 0) {
         freeze = 1;
-        if ((sPreviousFlags & 8) != 0) {
+        if ((sPreviousFlags.both & ((u64)8 << 32)) != 0) {
             sClockAccumulator = 0;
             freeze = 0;
             resumed = 1;
-        } else if ((gControllerButtons & 8) != 0) {
-            if (sClockAccumulator < 60) {
-                sClockAccumulator += gClockStepTicks;
-            } else {
+        } else if ((gControllerButtons.both & ((u64)8 << 32)) != 0) {
+            if (sClockAccumulator >= 60) {
                 sClockAccumulator -= 4;
                 freeze = 0;
+            } else {
+                sClockAccumulator += gClockStepTicks;
             }
         }
     }
-    if ((sFlags & 4) != 0 && gGameMode == 0x4010) {
+    if ((gControllerButtons.both & 4) != 0 &&
+        gGameMode == 0x4010) {
         freeze = 1;
     }
 
-    gClockStepTicks = pbLoad - sLastTimerCount;
-    sLastTimerCount = pbLoad;
-    gFrameTicks = gClockStepTicks;
+    gFrameTicks = pbLoad - sLastTimerCount;
+    sLastTimerCount = *(volatile u32*)&pbLoad;
+    gClockStepTicks = gFrameTicks;
     gClockCurrentTime = pbGetTime();
     gClockElapsedTime = gClockCurrentTime - sLastFrameTime;
     sLastFrameTime = gClockCurrentTime;
 
-    if (gGameBusy != 0 || gModalRenderDepth != 0 || (freeze && !resumed)) {
+    if (options_state != 0 || gModalRenderDepth != 0 || (freeze && !resumed)) {
         gFrameTicks = 0;
-        if (gGameBusy != 100) {
+        if (options_state != 100) {
             gClockElapsedTime = 0;
         }
-        gClockFrameStep = 0.0f;
-        gClockFrameReciprocal = 1.0f;
+        gClockFrameStep = lbl_803462E8;
+        gClockFrameReciprocal = lbl_803462EC;
     } else if (resumed || gFrameTicks > 60 || gFrameTicks == 0) {
         gFrameTicks = 2;
         gClockElapsedTime = 10000000;
-        gClockFrameStep = 2.0f;
-        gClockFrameReciprocal = 0.5f;
+        gClockFrameStep = lbl_803462F0;
+        gClockFrameReciprocal = lbl_803462EC;
     } else {
-        gClockFrameStep = (f32)gFrameTicks / 2.0f;
-        gClockFrameReciprocal = 1.0f / gClockFrameStep;
+        gClockFrameStep = (f32)gFrameTicks / lbl_803462F4;
+        gClockFrameReciprocal = lbl_803462F8 / gClockFrameStep;
     }
     if (gClockElapsedTime > 300000000) {
         gClockElapsedTime = 10000000;
     }
-    if (!freeze && gGameBusy == 0) {
+    if (!freeze && options_state == 0) {
         sMusicFadeBase += gClockFrameStep;
-        if (sMusicFadeBase > 65536.0f) {
-            sMusicFadeBase -= 65536.0f;
+        if (sMusicFadeBase > 18000.0f) {
+            sMusicFadeBase =
+                *(volatile f32*)&sMusicFadeBase - 18000.0f;
         }
+        gClockFrameNumber =
+            (s32)(1000.0f * sMusicFadeBase + 0.5f);
+        gClockTime = *(volatile f32*)&sMusicFadeBase;
         InfFrame++;
-        gClockTime = sMusicFadeBase;
-        gClockFrameNumber = (s32)(60.0f * sMusicFadeBase + 0.5f);
     }
     gClockPreviousTime = sMusicFadeBase;
 }
