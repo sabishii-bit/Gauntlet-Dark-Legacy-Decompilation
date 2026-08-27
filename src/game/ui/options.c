@@ -1979,7 +1979,8 @@ void show_optmenu(OPTMENU* m)
             }
         }
         px = 0x200 / (n + 1);
-        sx = sy = (s32)(32.0f * msg_scale);
+        sx = (s32)(32.0f * msg_scale);
+        sy = (s32)(32.0f * msg_scale);
         py = m->prompt_y;
         rgbp = ((*(s32*)(data + 220) & 0xFF) << 8) |
                ((*(s32*)(data + 216) & 0xFF) << 16) |
