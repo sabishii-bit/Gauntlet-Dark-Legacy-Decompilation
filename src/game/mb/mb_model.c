@@ -410,12 +410,14 @@ const char* name;
     u8* record;
     u8* packed;
     u8* elements;
+    u8* objectRecord;
     u32 version;
     u8 swapData;
     u32 i;
     s32 j;
     s32 trimIndex;
     s32 offset;
+    s32 objectOffset;
     s32 packedOffset;
     s32 elementOffset;
     s32 count;
@@ -473,23 +475,23 @@ const char* name;
 
     records = (u8*)MODEL_U32(model, 88);
     if (swapData) {
-        offset = 0;
-        for (i = 0; i < MODEL_U32(model, 68); i++, offset += 64) {
-            record = (u8*)MODEL_U32(model, 84) + offset;
-            MODEL_F32(record, 0) = ModelSwapF32(MODEL_F32(record, 0));
-            MODEL_F32(record, 4) = ModelSwapF32(MODEL_F32(record, 4));
-            MODEL_U32(record, 8) = ModelSwap32(MODEL_U32(record, 8));
-            MODEL_U32(record, 12) = ModelSwap32(MODEL_U32(record, 12));
-            MODEL_U16(record, 16) = ModelSwap16(MODEL_U16(record, 16));
-            MODEL_U16(record, 18) = ModelSwap16(MODEL_U16(record, 18));
-            MODEL_U16(record, 20) = ModelSwap16(MODEL_U16(record, 20));
-            MODEL_U16(record, 22) = ModelSwap16(MODEL_U16(record, 22));
-            MODEL_U32(record, 24) = ModelSwap32(MODEL_U32(record, 24));
-            MODEL_U32(record, 28) = ModelSwap32(MODEL_U32(record, 28));
-            MODEL_U32(record, 32) = ModelSwap32(MODEL_U32(record, 32));
-            MODEL_U32(record, 36) = ModelSwap32(MODEL_U32(record, 36));
-            MODEL_U32(record, 40) = ModelSwap32(MODEL_U32(record, 40));
-            MODEL_U32(record, 44) = ModelSwap32(MODEL_U32(record, 44));
+        objectOffset = 0;
+        for (i = 0; i < MODEL_U32(model, 68); i++, objectOffset += 64) {
+            objectRecord = (u8*)MODEL_U32(model, 84) + objectOffset;
+            MODEL_F32(objectRecord, 0) = ModelSwapF32(MODEL_F32(objectRecord, 0));
+            MODEL_F32(objectRecord, 4) = ModelSwapF32(MODEL_F32(objectRecord, 4));
+            MODEL_U32(objectRecord, 8) = ModelSwap32(MODEL_U32(objectRecord, 8));
+            MODEL_U32(objectRecord, 12) = ModelSwap32(MODEL_U32(objectRecord, 12));
+            MODEL_U16(objectRecord, 16) = ModelSwap16(MODEL_U16(objectRecord, 16));
+            MODEL_U16(objectRecord, 18) = ModelSwap16(MODEL_U16(objectRecord, 18));
+            MODEL_U16(objectRecord, 20) = ModelSwap16(MODEL_U16(objectRecord, 20));
+            MODEL_U16(objectRecord, 22) = ModelSwap16(MODEL_U16(objectRecord, 22));
+            MODEL_U32(objectRecord, 24) = ModelSwap32(MODEL_U32(objectRecord, 24));
+            MODEL_U32(objectRecord, 28) = ModelSwap32(MODEL_U32(objectRecord, 28));
+            MODEL_U32(objectRecord, 32) = ModelSwap32(MODEL_U32(objectRecord, 32));
+            MODEL_U32(objectRecord, 36) = ModelSwap32(MODEL_U32(objectRecord, 36));
+            MODEL_U32(objectRecord, 40) = ModelSwap32(MODEL_U32(objectRecord, 40));
+            MODEL_U32(objectRecord, 44) = ModelSwap32(MODEL_U32(objectRecord, 44));
         }
 
         offset = 0;
@@ -557,7 +559,7 @@ const char* name;
         MODEL_U32(record, 28) = (u32)model + MODEL_U32(record, 28);
         if (swapData) {
             elementOffset = 0;
-            for (j = 0; j < count - 1; j++, elementOffset += 8) {
+            for (j = 0; j < MODEL_S32(record, 12) - 1; j++, elementOffset += 8) {
                 elements = (u8*)MODEL_U32(record, 24) + elementOffset;
                 MODEL_U16(elements, 0) = ModelSwap16(MODEL_U16(elements, 0));
                 MODEL_U16(elements, 2) = ModelSwap16(MODEL_U16(elements, 2));
