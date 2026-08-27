@@ -69,7 +69,6 @@ void fn_800C1174(register s8* text, register u32 errorHigh)
     u8 unused[8];
     u32 pixels[2048];
     PBErrorBlock* blk;
-    u8* cursor;
     s8* glyph;
     u32 ec;
     s32 y;
@@ -83,7 +82,6 @@ void fn_800C1174(register s8* text, register u32 errorHigh)
     s32 plot;
 
     blk = (PBErrorBlock*)lbl_802C4DB8;
-    cursor = (u8*)text;
     sceGsResetPath();
     sceGsResetGraph(0, 0, 2, 1);
     fn_800C13CC();
@@ -93,21 +91,20 @@ void fn_800C1174(register s8* text, register u32 errorHigh)
     blk->red = (ec >> 17) & 0x7F;
     blk->green = (ec >> 9) & 0x7F;
     blk->blue = (ec >> 1) & 0x7F;
-    blk->high = 0;
-    FlushCache(0, 0);
+    FlushCache(0, (blk->high = 0));
     sceGsSwapDBuff(blk);
     sceGsResetPath();
     sceGsSwapDBuff(blk);
     fn_800C13CC();
 
     y = 50;
-    while ((s8)*cursor != 0) {
+    while (*text != 0) {
+        idx = 0;
+        x = 0;
         for (clr = 0; clr < 2048; clr++) {
             pixels[clr] = 0;
         }
-        idx = 0;
-        x = 0;
-        while ((s8)(c = *cursor) != 0 && idx < 21) {
+        while ((s8)(c = *text) != 0 && idx < 21) {
             if ((s8)c >= 97 && (s8)c <= 122) {
                 c -= 32;
             }
@@ -140,7 +137,7 @@ void fn_800C1174(register s8* text, register u32 errorHigh)
             }
             idx++;
             x += 12;
-            cursor++;
+            text++;
         }
         sceGsSetDefLoadImage(image, 0, 10, 0, 50, (s16)y, 256, 8);
         FlushCache(0);
