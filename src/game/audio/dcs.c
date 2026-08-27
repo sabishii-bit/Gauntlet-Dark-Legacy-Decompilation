@@ -577,8 +577,16 @@ s32 AudioQueUpdate(s32 bank) {
                     (lbl_80345204 - endInstr) * sizeof(u16));
         }
         lbl_80345204 -= removedInstr;
-        for (c = endCall; c < lbl_80345200; c++) {
-            d->callStart[c - size] = d->callStart[c] - removedInstr;
+        {
+            u8* callBase = (u8*)d + 0x20000;
+            s32 sourceOffset = endCall * sizeof(u16);
+            for (c = endCall; c < lbl_80345200;
+                 c++, sourceOffset += sizeof(u16)) {
+                u8* destinationBase =
+                    callBase + (c - size) * sizeof(u16);
+                *(u16*)(destinationBase + 0x6080) =
+                    *(u16*)(callBase + sourceOffset + 0x6080) - removedInstr;
+            }
         }
         lbl_80345200 -= size;
         entry->handle = 0;
