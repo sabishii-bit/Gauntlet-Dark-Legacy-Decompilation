@@ -2215,7 +2215,7 @@ extern s32 sLastWorldLevel;      /* secret-exit destination */
 extern s32 sWorldDataConst;      /* town level id */
 extern s32 lbl_80344B84;      /* battle-tower level id */
 extern s32 gClockFrameNumber; /* frame parity counter */
-extern s32 lbl_80344DA4;      /* world loaded */
+extern u32 lbl_80344DA4;      /* world loaded */
 extern s32 lbl_803447D0;      /* level-clear/exit progress state */
 extern s32 lbl_803447A8[];   /* cleared at init_players (2 elems; unsized = absolute addr) */
 extern f32 lbl_80344B20;      /* x-ray range (mask & 8 powerup strength) */
@@ -2385,8 +2385,8 @@ extern s32 fn_8001267C(u16* anim, u32 arena, s32 old);
 extern void fn_8005A404(f32* mat, f32* fwd, f32* pos);
 extern void ShopLoadData(s32 file);
 extern void AudioPlayerXray(s32 player);
-extern void get_player_pos(void);
-extern void CreateYPRMatrix(f32* out, f32* rec, u8* c);
+extern void get_player_pos(s32 player, s32 mode);
+extern void CreateYPRMatrix(f32* out, const f32* angles);
 extern s32 InLevel(s32* entry);
 extern u32 MBOX_FindTexture2(char* name, s32* out); /* MBOX_FindTexture */
 extern void DelSpecialTexmod(s32 sfx);
@@ -2775,7 +2775,7 @@ can_damage:
 /* damage / death / lifecycle                                          */
 /* ------------------------------------------------------------------ */
 
-extern u8 lbl_801201C4;       /* weakening default period */
+extern u8 lbl_801201C4[];     /* weakening default period */
 
 /*
  * Apply damage to player i.  flags carry the damage-kind mask (0x600 =
@@ -3429,10 +3429,15 @@ s32 activate_player(s32 i) {
  */
 void load_player(s32 i) {
     Player* p = P(i);
-    u8* cls;
     s32 lvl;
+    s32 exp;
+    s32 product;
     s32 j;
-    f32 m[16];
+    s32 zero;
+    struct {
+        f32 pad[2];
+        f32 matrix[16];
+    } scratch;
 
     if (gDemoMode != 0 && sMusicTrackHi != 0xD) {
         /* cheat build: force the level stamped on the current level */
@@ -3440,35 +3445,40 @@ void load_player(s32 i) {
             opt_force_player |= 2;
         }
         lvl = (s32)PF(gCurLevel, 0x9C, f32);
-        p->exp = (lvl < 0x3D) ? (lvl - 1) * (lvl * 0x1E + 1000)
-                              : (lvl - 0x3C) * 0x11F8 + 0x28550;
+        if ((s32)PF(gCurLevel, 0x9C, f32) <= 60) {
+            exp = (lvl - 1) * (lvl * 30 + 1000);
+        } else {
+            product = (lvl - 60) * 4600;
+            exp = 0x28550;
+            exp += product;
+        }
+        p->exp = exp;
         p->level = lvl;
         set_player_default_atts(p);
         check_player_atts(p, p->character, NULL);
-        p->health = 0.5f * (lvl - 1) + 30.0f;
+        p->health = 0.5 * (lvl - 1) + 30.0;
     }
+    zero = 0;
     p->node = NULL;
-    PF(p, 0x78, s32) = 0;
+    PF(p, 0x78, s32) = zero;
     load_player_geo(i, p);
-    /* live-gameplay block reset (transcription abridged where the      */
-    /* target just zeroes fields; see Ghidra 0x80079F44 for the map)    */
+    /* Reset the live-gameplay block in the target's store order. */
     PF(p, 0x800, s32) = 0;
     PF(p, 0x804, s32) = 0;
     for (j = 0; j < 8; j++) {
-        PF(p, 0x808 + j * 4, s32) = 0;
+        ((s32*)((u8*)p + 0x808))[j] = zero;
     }
     PF(p, 0x208, s32) = 0;
     PF(p, 0x20C, s32) = 0;
     PF(p, 0x204, s32) = 0;
-    cls = lbl_80282930[i];
     PF(p, 0x910, f32) = 0.0f;
     PF(p, 0x6B8, s32) = 0;
     PF(p, 0x6BC, s32) = 0;
     PF(p, 0x838, f32) = 0.0f;
-    PF(p, 0x83C, f32) = PF(cls, 0x50, f32);
+    PF(p, 0x83C, f32) = PF(lbl_80282930[i], 0x50, f32);
     PF(p, 0x840, f32) = 0.0f;
     PF(p, 0x844, f32) = 0.0f;
-    PF(p, 0x848, f32) = PF(cls, 0x54, f32);
+    PF(p, 0x848, f32) = PF(lbl_80282930[i], 0x54, f32);
     PF(p, 0x84C, f32) = 0.0f;
     PF(p, 0x858, f32) = 0.0f;
     PF(p, 0x85C, f32) = 0.0f;
@@ -3493,9 +3503,12 @@ void load_player(s32 i) {
     PF(p, 0x8A4, f32) = 0.36f;
     PF(p, 0x7DC, f32) = 0.0f;
     PF(p, 0x95A, s16) = 0;
+    PF(p, 0x850, f32) = PF(lbl_80282930[i], 0x4C, f32);
+    PF(p, 0x854, f32) = PF(lbl_80282930[i], 0x48, f32) * 0.01;
     PF(p, 0x1F0, s16) = 0;
-    PF(p, 0x1F2, s16) = 0;
-    PF(p, 0x1F6, s16) = 0;
+    PF(p, 0x1FA, s16) = 0;
+    PF(p, 0x1FC, s16) = 0;
+    PF(p, 0x1FE, s16) = 0;
     PF(p, 0x1F8, s16) = 0xF0;
     PF(p, 0x200, s16) = 0;
     PF(p, 0x202, s16) = 0;
@@ -3518,7 +3531,7 @@ void load_player(s32 i) {
     PF(p, 0x95C, s16) = 0;
     PF(p, 0x950, s16) = 0;
     PF(p, 0xA2C, s32) = 0;
-    PF(p, 0xA30, u32) = lbl_801201C4;
+    PF(p, 0xA30, u32) = lbl_801201C4[0];
     PF(p, 0x952, s16) = 0;
     PF(p, 0x91C, s32) = PF(p, 0x920, s32);
     PF(p, 0x8A8, s32) = 0;
@@ -3541,7 +3554,7 @@ void load_player(s32 i) {
     PF(p, 0x92C, f32) = 0.75f;
     PF(p, 0x930, s32) = 0;
     for (j = 0; j < 5; j++) {
-        PF(p, 0xA34 + j * 4, s32) = -1;
+        ((s32*)((u8*)p + 0xA34))[j] = -1;
     }
     PF(p, 0x11C, s32) = 0;
     PF(p, 0x120, u32) = 0;
@@ -3554,13 +3567,13 @@ void load_player(s32 i) {
         }
     }
     PF(p, 0x8C4, s32) = 0;
-    if ((lbl_802575BC & 1) == 0 || gGameMode != 0x400B) {
+    if ((gGameOptions[11] & 1) == 0 || gGameMode != 0x400B) {
         setup_player_display(i);
     }
     if (lbl_80344DA4 != 0) {
-        get_player_pos();
-        CreateYPRMatrix(m, (f32*)((u8*)p + 0xC4), NULL);
-        CopyMat3(m, p->mat);
+        get_player_pos(i, 1);
+        CreateYPRMatrix(scratch.matrix, (f32*)((u8*)p + 0xC4));
+        CopyMat3((f32*)((u8*)&scratch + sizeof(scratch.pad)), p->mat);
         PF(p, 0x894, f32) = PF(p, 0xC8, f32);
         PF(p, 0x8B4, f32) = p->pos[1];
         PF(p, 0x87C, f32) = p->pos[0];
