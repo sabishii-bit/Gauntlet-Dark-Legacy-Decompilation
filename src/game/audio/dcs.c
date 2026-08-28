@@ -1020,29 +1020,35 @@ s32 dcsVoicePlay(s32 priority) {
 
 /* 0x800D33B8  configure AX ADPCM voice for a sample */
 s32 dcsVoiceSetupAdpcm(s32 channel) {
-    DcsChannelInfo* info = &ch_info[channel];
-    s32 sample = info->sample;
+    DcsData* d = &dcsBankData;
+    s32 channel_offset = channel * sizeof(DcsChannelInfo);
+    s32* sample_slot = (s32*)((u8*)d + channel_offset + 0x2C098);
+    s32 sample = *sample_slot;
     s32 adjustment;
     s32 i;
 
-    info->sample = -1;
+    *sample_slot = -1;
     if (sample < 0) {
-        if (info->duck != 0) {
-            adjustment = -(s32)info->duck * lbl_80343FF8;
+        u16* duck_slot =
+            &((DcsChannelInfo*)((u8*)d->channels + channel_offset))->duck;
+
+        if (*duck_slot != 0) {
+            adjustment = -(s32)*duck_slot * lbl_80343FF8;
             adjustment >>= 8;
             lbl_8034520C += adjustment;
             for (i = 0; i < 12; i++) {
                 if (dcsVoiceInUse(i)) {
-                    ch_info[i].volume -= adjustment;
+                    DcsChannelInfo* active_info = &d->channels[i];
+
+                    active_info->volume -= adjustment;
                     dcsVoiceUpdate(i);
                 }
             }
         }
-        info->duck = 0;
+        *duck_slot = 0;
     } else {
-        u16 call = lbl_802F0F60[sample];
-        DcsSampleData* data = &lbl_802C9F60[call & 0xFFF];
-        volatile u8 highPad[8];
+        u16 call = d->callInstr[sample];
+        DcsSampleData* data = &d->samples[call & 0xFFF];
         AXPBADDR addr;
         volatile u8 middlePad[12];
         AXPBADPCM adpcm;
@@ -1050,15 +1056,15 @@ s32 dcsVoiceSetupAdpcm(s32 channel) {
         u32 start;
         u32 end;
 
-        info->sampleData = data;
+        *(DcsSampleData**)((u8*)d + channel_offset + 0x2C09C) = data;
         for (i = 0; i < 8; i++) {
             adpcm.a[i][0] = data->coefficients[i * 2];
             adpcm.a[i][1] = data->coefficients[i * 2 + 1];
         }
         adpcm.gain = 0;
-        adpcm.pred_scale = data->predScale;
         adpcm.yn1 = 0;
         adpcm.yn2 = 0;
+        adpcm.pred_scale = data->predScale;
         AXSetVoiceAdpcm(sVoice[channel], &adpcm);
 
         start = data->aramAddress * 2 + 2;
@@ -1075,18 +1081,23 @@ s32 dcsVoiceSetupAdpcm(s32 channel) {
         AXSetVoiceSrcType(sVoice[channel], AX_SRC_TYPE_LINEAR);
 
         if (dcsVoiceStartAx(channel) != 0) {
-            pool_free(lbl_802F5F60, data);
+            pool_free(d->stagingPool, data);
             if ((call & 0x2000) != 0) {
-                while ((lbl_802F0F60[sample] & 0x4000) == 0) {
+                s32 call_offset = sample * sizeof(u16);
+
+                while ((*(u16*)((u8*)d->callInstr + call_offset) & 0x4000) ==
+                       0) {
                     sample--;
+                    call_offset -= sizeof(u16);
                 }
             } else if ((call & 0x8000) != 0) {
                 sample = -1;
             } else {
                 sample++;
             }
-            info->sample = sample;
-            if (sample >= 0 || info->duck != 0) {
+            *sample_slot = sample;
+            if (sample >= 0 ||
+                *(u16*)((u8*)d + channel_offset + 0x2C090) != 0) {
                 lbl_80345234 |= 1 << channel;
             }
         }
