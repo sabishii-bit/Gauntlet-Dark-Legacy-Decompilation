@@ -446,7 +446,7 @@ extern void  MBWindowTo3D(f32 depth, s16* screen, f32* camera, f32* out);
 void game_main(void);
 s32  do_stats_display(void);
 void LoadTowerAndSelect(void);
-static s32 init_next_level(s32 arg0);
+static s32 init_next_level_8005638C(s32 arg0);
 s32  fn_80054070(s32 arg0, s32 arg1, s32 arg2);
 void init_thermometer(void);
 void GetEnemyTypes(void);
@@ -1704,7 +1704,7 @@ void LoadTowerAndSelect(void)
         FontInitSpecial(lbl_80112600, 8);
         ShopLoadData();
         LoadItems();
-        lbl_80343C10 = init_next_level(sWorldDataConst);
+        lbl_80343C10 = init_next_level_8005638C(sWorldDataConst);
         if (gDemoMode == 0) {
             opt_force_player = 0;
         }
@@ -2431,7 +2431,7 @@ s32 fn_80056698(s32 arg0, s32 arg1)
 
     ResolveWorldData(arg0);
     if (arg1 < 0) {
-        init_next_level(arg0);
+        init_next_level_8005638C(arg0);
         while (fn_80055F68(0, 0) == 0) {
             serve_busy(-1);
         }
@@ -4929,7 +4929,7 @@ extern void CritterLoadFile(const char* wad, const char* name);
 extern void CritterLoadAllTypes(s32 arg0);
 
 #pragma opt_common_subs off
-static s32 init_next_level(s32 arg0)
+static s32 init_next_level_8005638C(s32 arg0)
 {
     char* fmt = lbl_80112788;
     u8* tbl = (u8*)lbl_80257680;

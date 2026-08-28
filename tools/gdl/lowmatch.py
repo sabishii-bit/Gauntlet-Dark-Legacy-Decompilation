@@ -14,14 +14,45 @@ Usage (from repo root):
 """
 
 import argparse
+from collections import Counter
 import difflib
 import json
 import re
 import subprocess
 import sys
 
-from fndiff import classify_function, normalized_reloc_lines, parse
+from fndiff import OBJDUMP, classify_function, normalized_reloc_lines, parse
 from nearmiss import REPORT, REPO, VERSION, load_parked
+
+
+def object_function_name_counts(objfile):
+    """Return exact function-symbol name counts for an object.
+
+    objdiff omits zero-valued ``fuzzy_match_percent`` fields from report.json,
+    so a missing field is ambiguous: it can mean either an exact-name pair at
+    0% or a genuinely unpaired target symbol.  The compiled object's unmodified
+    symbol table resolves that ambiguity without address-suffix heuristics.
+    """
+    try:
+        result = subprocess.run(
+            [str(OBJDUMP), "-t", str(objfile)], capture_output=True, text=True)
+    except OSError:
+        return Counter()
+    if result.returncode:
+        return Counter()
+
+    names = Counter()
+    for line in result.stdout.splitlines():
+        fields = line.split()
+        if (len(fields) >= 6 and "F" in fields[1:-3]
+                and fields[-3].startswith(".")):
+            names[fields[-1]] += 1
+    return names
+
+
+def missing_fuzzy_is_exact_zero(name, base_name_counts):
+    """True when objdiff's omitted fuzzy value is an exact-name 0% pair."""
+    return base_name_counts[name] == 1
 
 
 def main():
@@ -78,6 +109,7 @@ def main():
             continue
 
         target_fns = base_fns = None
+        base_name_counts = None
         if args.residuals:
             target_obj = REPO / "build" / VERSION / "obj" / f"{unit}.o"
             base_obj = REPO / "build" / VERSION / "src" / f"{unit}.o"
@@ -92,10 +124,18 @@ def main():
                 continue
             raw_pct = function.get("fuzzy_match_percent")
             if raw_pct is None:
-                if args.include_unscored and not (
-                        name in parked and args.parked == "skip"):
-                    unscored.append((size, name, unit))
-                continue
+                if base_name_counts is None:
+                    base_obj = (REPO / "build" / VERSION / "src"
+                                / f"{unit}.o")
+                    base_name_counts = object_function_name_counts(base_obj)
+                if missing_fuzzy_is_exact_zero(name, base_name_counts):
+                    # objdiff's JSON serializer omits an exact 0.0 value.
+                    raw_pct = 0.0
+                else:
+                    if args.include_unscored and not (
+                            name in parked and args.parked == "skip"):
+                        unscored.append((size, name, unit))
+                    continue
             pct = float(raw_pct)
             if not (args.min <= pct <= args.max) or pct >= 100.0:
                 continue
