@@ -2119,11 +2119,10 @@ store_motion_state:
                         MBOX_FindTexture(lbl_80114220 + 72, NULL);
                     break;
                 case 36:
-                    hit[0] = PF(boss, 0x4C, f32);
-                    hit[1] = PF(boss, 0x50, f32);
-                    hit[2] = PF(boss, 0x54, f32);
                     weight = lbl_80347C6C;
+                    hit[0] = PF(boss, 0x4C, f32);
                     effectRadius = weight;
+                    hit[1] = PF(boss, 0x50, f32);
                     bossDamage = lbl_80347C40;
                     damageScale =
                         (f32)(lbl_80347BE0 * PF(boss, 0x4B0, f32));
@@ -2763,9 +2762,9 @@ player_motion_phase_exit:
                                : 0.0));
             }
 
-            if ((PF(p, 0x962, u16) & 3) != 0) {
+            if ((PF(p, 0x962, s16) & 3) != 0) {
                 s32 kind;
-                s32 variant = (PF(p, 0x962, u16) & 2) != 0;
+                s32 variant = (PF(p, 0x962, s16) & 2) != 0;
                 if (PF(p, 0x8CC, f32) > PF(p, 0x8B4, f32)) {
                     kind = 4;
                 } else if ((p->shield_flags & 0x10000) != 0) {
@@ -2778,7 +2777,7 @@ player_motion_phase_exit:
                 if ((p->flags & 1) == 0) {
                     fn_8009EFCC(p->index, variant, kind);
                 }
-                PF(p, 0x962, u16) &= ~3;
+                PF(p, 0x962, s16) &= ~3;
             }
 
             grabbed = PF(p, 0x6B8, Player*);
