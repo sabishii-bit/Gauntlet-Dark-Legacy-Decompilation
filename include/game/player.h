@@ -117,7 +117,9 @@ typedef struct Player {
     /* 0x0044 */ f32 pos[3];         /* world position x,y,z (VERIFIED lfs @68/72/76) */
     /* 0x0050 */ u8  pad_0050[4];
     /* 0x0054 */ f32 col_pos[3];     /* collision/screen query position [player.c] */
-    /* 0x0060 */ u8  pad_0060[0x14];
+    /* 0x0060 */ u8  pad_0060[4];
+    /* 0x0064 */ f32 effectpos[3];     /* effect/attach position [sfx.c grid pass] */
+    /* 0x0070 */ u8  pad_0070[4];
     /* 0x0074 */ u8* node;           /* scene node (parent/grab reparent target) [player.c] */
     /* 0x0078 */ u8  pad_0078[4];
     /* 0x007C */ s32** platform;     /* moving-platform record [player.c do_players] */

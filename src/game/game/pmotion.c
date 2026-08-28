@@ -3842,10 +3842,13 @@ s32 PlayerCollideEnemies(Player* p, s32 a2, f32* pos, f32* out, s32 a5,
  * push `out` back out of it.  Returns the collided player index or -1. */
 s32 PlayerCollidePlayers(Player* p, f32 range, f32 p3, f32* from, f32* to,
                          f32* out, s32 stopFirst) {
+    u8 unusedA[12];
     f32 hit[3];
+    u8 unusedB[52];
+    s32 i;
     s32 closest = -1;
     f32 best = lbl_80347B30;
-    s32 i;
+    f32 dotFloor = lbl_80347B30;
 
     for (i = 0; i < 4; i++) {
         Player* op = &gPlayerRecords[i];
@@ -3861,12 +3864,12 @@ s32 PlayerCollidePlayers(Player* p, f32 range, f32 p3, f32* from, f32* to,
         if ((PF(op, 0x964, s16) & 0x20) != 0) {
             continue;
         }
-        dot = (PF(op, 0x64, f32) - from[0]) * (to[0] - from[0]) +
-              (PF(op, 0x6C, f32) - from[2]) * (to[2] - from[2]);
-        if (dot < lbl_80347B30) {
+        dot = (op->effectpos[0] - from[0]) * (to[0] - from[0]) +
+              (op->effectpos[2] - from[2]) * (to[2] - from[2]);
+        if (dot < dotFloor) {
             continue;
         }
-        if (LineCylinderCollide((f32*)((u8*)op + 0x64),
+        if (LineCylinderCollide(op->effectpos,
                                 range + PF(op, 0x850, f32), p3,
                                 from, to, hit, 1) == 0) {
             continue;
@@ -3883,8 +3886,8 @@ s32 PlayerCollidePlayers(Player* p, f32 range, f32 p3, f32* from, f32* to,
 
     if (closest >= 0) {
         Player* cp = &gPlayerRecords[closest];
-        f32 ex = to[0] - PF(cp, 0x64, f32);
-        f32 ez = to[2] - PF(cp, 0x6C, f32);
+        f32 ex = to[0] - cp->effectpos[0];
+        f32 ez = to[2] - cp->effectpos[2];
         f32 dist = fqdist(ex, ez);
 
         if (dist > lbl_80347D68) {
