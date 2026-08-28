@@ -828,9 +828,10 @@ s32 CaptionTextSub(char* text, f32 scale, s32 font, s32 rows, s32 y)
     f32 remaining = (f32)(rows - caption_page);
     f32 glyph_width = 1.75f;
     s32 draw_font;
-    s32 color_base;
     s32 output_len = 0;
     s32 done = 0;
+    s8 ch;
+    s32 color_base;
 
     if (text == 0) {
         return -1;
@@ -851,60 +852,62 @@ s32 CaptionTextSub(char* text, f32 scale, s32 font, s32 rows, s32 y)
     draw_font = font | 0x100;
     color_base = 0x1000000;
 
-    while (gGameMode != 0x8002 && remaining > 0.0) {
-        s8 ch = *source++;
+    if (gGameMode != 0x8002 && remaining > 0.0) {
+        do {
+            ch = *source++;
 
-        switch (ch) {
-        case '\r':
-            base[1152 + output_len] = 0;
-            remaining = (f32)((f64)remaining - 30.0);
-            if (remaining < 0.0f) {
+            switch (ch) {
+            case '\r':
+                base[1152 + output_len] = 0;
+                remaining = (f32)((f64)remaining - 30.0);
+                if (remaining < 0.0f) {
+                    break;
+                }
+                base[1152] = 0;
+                output_len = 0;
+                if (*source == '\n') {
+                    source++;
+                }
+                line = source;
+                break;
+
+            case '\0':
+            case '\n':
+                base[1152 + output_len] = 0;
+                if (output_len > 0) {
+                    s32 width;
+                    s32 x;
+                    width = DrawNormalText(scale, (char*)(base + 1152), font);
+                    x = 256 - (width >> 1);
+                    DrawTextKeepScale(scale, x, y, draw_font,
+                                      color_base - 1, (char*)(base + 1152));
+                }
+                line = source;
+                output_len = 0;
+                base[1152] = 0;
+                y = (s32)((f32)y + line_height);
+                break;
+
+            case '\t':
+                remaining = (f32)((f64)remaining - 5.0);
+                break;
+
+            case ',':
+            case '.':
+                remaining -= 2.0f;
+                /* fall through */
+            default:
+                remaining -= glyph_width;
+                base[1152 + output_len] = ch;
+                output_len++;
                 break;
             }
-            base[1152] = 0;
-            output_len = 0;
-            if (*source == '\n') {
-                source++;
+
+            if (ch == 0) {
+                done = 1;
+                break;
             }
-            line = source;
-            break;
-
-        case '\0':
-        case '\n':
-            base[1152 + output_len] = 0;
-            if (output_len > 0) {
-                s32 width;
-                s32 x;
-                width = DrawNormalText(scale, (char*)(base + 1152), font);
-                x = 256 - (width >> 1);
-                DrawTextKeepScale(scale, x, y, draw_font,
-                                  color_base - 1, (char*)(base + 1152));
-            }
-            line = source;
-            output_len = 0;
-            base[1152] = 0;
-            y = (s32)((f32)y + line_height);
-            break;
-
-        case '\t':
-            remaining = (f32)((f64)remaining - 5.0);
-            break;
-
-        case ',':
-        case '.':
-            remaining -= 2.0f;
-            /* fall through */
-        default:
-            remaining -= glyph_width;
-            base[1152 + output_len] = ch;
-            output_len++;
-            break;
-        }
-
-        if (ch == 0) {
-            done = 1;
-            break;
-        }
+        } while (gGameMode != 0x8002 && remaining > 0.0);
     }
 
     base[1152 + output_len] = 0;
