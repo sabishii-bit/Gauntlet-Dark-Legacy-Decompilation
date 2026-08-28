@@ -570,9 +570,12 @@ f32 *delta;
  * the item grid. */
 s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
 {
+    u8 unusedHigh[12];
     f32 center[3];
     f32 out[3];
-    u8 *item;
+    u8 unusedLow[4];
+    s32 hit;
+    s32 j;
     u8 *node;
     u8 *desc;
     f64 dzero;
@@ -582,9 +585,8 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
     f32 zerof;
     f32 damage;
     s32 index;
+    u8 *item;
     s32 type;
-    s32 hit;
-    s32 j;
     f32 *cpos;
 
     cpos = c->pos;
