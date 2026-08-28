@@ -1202,53 +1202,59 @@ void LoadPlyrData(s32 plr, s32 cls, s32 resolve) {
                 }
 
                 /* sfx records: 0x50 bytes each */
-                off = 0;
-                for (i = 0; i < n2; i++, off += 0x50) {
-                    p = ((PsfxHeader*)pdata->headers[plr])->records + off;
-                    SWAP16(*(u16*)(p + 0x30));
-                    SWAP16(*(u16*)(p + 0x32));
-                    SWAP32(*(u32*)(p + 0x00));
-                    SWAP32(*(u32*)(p + 0x04));
-                    SWAP32(*(u32*)(p + 0x08));
-                    SWAP32(*(u32*)(p + 0x0C));
-                    SWAPF(*(f32*)(p + 0x40));
-                    SWAPF(*(f32*)(p + 0x44));
-                    SWAPF(*(f32*)(p + 0x48));
-                    SWAP32(*(u32*)(p + 0x4C));
-                    for (k = 0; k < 3; k++) {
-                        SWAPF(*(f32*)(p + 0x34 + k * 4));
+                {
+                    s32 recordIndex = 0;
+                    s32 recordOffset = 0;
+                    for (; recordIndex < n2; recordIndex++, recordOffset += 0x50) {
+                        p = ((PsfxHeader*)pdata->headers[plr])->records + recordOffset;
+                        SWAP16(*(u16*)(p + 0x30));
+                        SWAP16(*(u16*)(p + 0x32));
+                        SWAP32(*(u32*)(p + 0x00));
+                        SWAP32(*(u32*)(p + 0x04));
+                        SWAP32(*(u32*)(p + 0x08));
+                        SWAP32(*(u32*)(p + 0x0C));
+                        SWAPF(*(f32*)(p + 0x40));
+                        SWAPF(*(f32*)(p + 0x44));
+                        SWAPF(*(f32*)(p + 0x48));
+                        SWAP32(*(u32*)(p + 0x4C));
+                        for (k = 0; k < 3; k++) {
+                            SWAPF(*(f32*)(p + 0x34 + k * 4));
+                        }
                     }
                 }
 
                 /* move rows: 0x58 bytes each */
-                off = 0;
-                for (i = 0; i < n3; i++, off += 0x58) {
-                    p = ((PsfxHeader*)pdata->headers[plr])->moves + off;
-                    SWAP16(*(u16*)(p + 0x00));
-                    SWAP16(*(u16*)(p + 0x02));
-                    SWAP16(*(u16*)(p + 0x48));
-                    SWAP16(*(u16*)(p + 0x4A));
-                    SWAP16(*(u16*)(p + 0x4C));
-                    SWAP16(*(u16*)(p + 0x4E));
-                    SWAP16(*(u16*)(p + 0x50));
-                    SWAP16(*(u16*)(p + 0x52));
-                    SWAP16(*(u16*)(p + 0x54));
-                    SWAPF(*(f32*)(p + 0x08));
-                    SWAPF(*(f32*)(p + 0x0C));
-                    SWAPF(*(f32*)(p + 0x10));
-                    SWAPF(*(f32*)(p + 0x14));
-                    SWAPF(*(f32*)(p + 0x18));
-                    SWAPF(*(f32*)(p + 0x1C));
-                    SWAPF(*(f32*)(p + 0x20));
-                    SWAPF(*(f32*)(p + 0x24));
-                    SWAPF(*(f32*)(p + 0x28));
-                    SWAPF(*(f32*)(p + 0x38));
-                    SWAPF(*(f32*)(p + 0x3C));
-                    SWAPF(*(f32*)(p + 0x40));
-                    SWAPF(*(f32*)(p + 0x44));
-                    SWAP32(*(u32*)(p + 0x04));
-                    for (k = 0; k < 3; k++) {
-                        SWAPF(*(f32*)(p + 0x2C + k * 4));
+                {
+                    s32 moveIndex = 0;
+                    s32 moveOffset = 0;
+                    for (; moveIndex < n3; moveIndex++, moveOffset += 0x58) {
+                        p = ((PsfxHeader*)pdata->headers[plr])->moves + moveOffset;
+                        SWAP16(*(u16*)(p + 0x00));
+                        SWAP16(*(u16*)(p + 0x02));
+                        SWAP16(*(u16*)(p + 0x48));
+                        SWAP16(*(u16*)(p + 0x4A));
+                        SWAP16(*(u16*)(p + 0x4C));
+                        SWAP16(*(u16*)(p + 0x4E));
+                        SWAP16(*(u16*)(p + 0x50));
+                        SWAP16(*(u16*)(p + 0x52));
+                        SWAP16(*(u16*)(p + 0x54));
+                        SWAPF(*(f32*)(p + 0x08));
+                        SWAPF(*(f32*)(p + 0x0C));
+                        SWAPF(*(f32*)(p + 0x10));
+                        SWAPF(*(f32*)(p + 0x14));
+                        SWAPF(*(f32*)(p + 0x18));
+                        SWAPF(*(f32*)(p + 0x1C));
+                        SWAPF(*(f32*)(p + 0x20));
+                        SWAPF(*(f32*)(p + 0x24));
+                        SWAPF(*(f32*)(p + 0x28));
+                        SWAPF(*(f32*)(p + 0x38));
+                        SWAPF(*(f32*)(p + 0x3C));
+                        SWAPF(*(f32*)(p + 0x40));
+                        SWAPF(*(f32*)(p + 0x44));
+                        SWAP32(*(u32*)(p + 0x04));
+                        for (k = 0; k < 3; k++) {
+                            SWAPF(*(f32*)(p + 0x2C + k * 4));
+                        }
                     }
                 }
                 { volatile u8 unused[600]; }
