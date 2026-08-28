@@ -195,6 +195,11 @@ extern const f32 lbl_80346A60;
 extern const f32 lbl_80346A64;
 extern const f32 lbl_80346A68;
 extern const f32 lbl_80346A6C;
+typedef struct EnemyPlayerCharacterStats {
+    s32 kills;
+    u8 _004[0x01C - 0x004];
+} EnemyPlayerCharacterStats;
+
 typedef struct EnemyPlayerView {
     s32 index;
     u8 _004[0x00C - 0x004];
@@ -212,7 +217,9 @@ typedef struct EnemyPlayerView {
     u8 _956[0xA1E - 0x956];
     s16 attack_reflect;
     s16 attack_heal;
-    u8 _A22[0x1EB4 - 0xA22];
+    u8 _A22[0xC10 - 0xA22];
+    EnemyPlayerCharacterStats character_stats[16];
+    u8 _DD0[0x1EB4 - 0xDD0];
     f32 health;
     u8 _1EB8[0x3324 - 0x1EB8];
     s32 level;
@@ -5092,8 +5099,10 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
     f32* effect_position = (f32*)effect_position_arg;
     f32* hit_direction = (f32*)hit_direction_arg;
     f32 old_health = e->health;
-    f32 saved_matrix[16];
+    u8 unused0[4];
     f32 effect_pos[3];
+    u8 unused1[4];
+    f32 saved_matrix[16];
     f32 fight;
     s32 enemy_index;
 
@@ -5117,9 +5126,8 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
     if (e->type == E_DEATH) {
         if ((damage_type & 0x200) != 0) {
             if (player != NULL && player->level > 75) {
-                f32 level = (f32)(player->level - 75);
-                f32 heal_scale =
-                    (f32)(lbl_80346A10 * level + lbl_80346A08);
+                f32 heal_scale = (f32)(lbl_80346A10 *
+                    (f64)(player->level - 75) + lbl_80346A08);
                 heal_player(player, e->health * heal_scale);
             }
             e->health = lbl_80346820;
@@ -5128,22 +5136,21 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
                 fn_8009DE5C(e->type, &e->objgrp.worldmat[3][0]);
             }
             {
-                s32 endurance = e->endurance - 1;
+                s16 endurance = e->endurance - 1;
                 e->endurance = endurance;
-                if ((s16)endurance > 0) {
-                    return 0;
+                if (endurance <= 0) {
+                    e->state = ACTIVE;
+                    if (play_effects != 0) {
+                        AudioPlayEvt103(&e->objgrp.worldmat[3][0]);
+                    }
+                    CopyMat4(&e->objgrp.worldmat[0][0], saved_matrix);
+                    SetEnemyObj((u8*)e, e->type, 1);
+                    CopyMat4(saved_matrix, &e->objgrp.worldmat[0][0]);
+                    UpdateObjWorldMat(&e->objgrp.worldmat[0][0]);
+                    fn_8005A404(&e->objgrp.worldmat[0][0], e->coll_offset,
+                                 e->attn_offset);
+                    MBTreeClearFlags(e->objgrp.node, 2, 0);
                 }
-                e->state = ACTIVE;
-                if (play_effects != 0) {
-                    AudioPlayEvt103(&e->objgrp.worldmat[3][0]);
-                }
-                CopyMat4(&e->objgrp.worldmat[0][0], saved_matrix);
-                SetEnemyObj((u8*)e, e->type, 1);
-                CopyMat4(saved_matrix, &e->objgrp.worldmat[0][0]);
-                UpdateObjWorldMat(&e->objgrp.worldmat[0][0]);
-                fn_8005A404(&e->objgrp.worldmat[0][0], e->coll_offset,
-                             e->attn_offset);
-                MBTreeClearFlags(e->objgrp.node, 2, 0);
             }
             return 0;
         } else if (player != NULL && (player->flags & 0x80000) != 0) {
@@ -5175,9 +5182,7 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
             }
             uncouple_enemy(enemy_index);
             if (player != NULL) {
-                u8* character = (u8*)player + player->character * 28;
-                s32* kills = (s32*)(character + 0xC10);
-                (*kills)++;
+                player->character_stats[player->character].kills++;
             }
             return 1;
         }
@@ -5208,8 +5213,10 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
         amount *= scale;
     }
 
-    ModifyDamage(e->atts.armor, &amount, (u32*)&damage_type,
-                 e->atts.armortype);
+    {
+        u32 shield = e->atts.armortype;
+        ModifyDamage(e->atts.armor, &amount, (u32*)&damage_type, shield);
+    }
     if ((f64)lbl_803447D8 < lbl_80346810) {
         amount = (f32)(amount * lbl_80346868);
     }
@@ -5287,9 +5294,7 @@ store_fight:
     if ((f64)e->health <= lbl_80346898) {
         if (e->type == gBossType) {
             if ((f64)old_health > lbl_80346898 && player != NULL) {
-                u8* character = (u8*)player + player->character * 28;
-                s32* kills = (s32*)(character + 0xC10);
-                (*kills)++;
+                player->character_stats[player->character].kills++;
             }
             return 1;
         }
@@ -5311,9 +5316,7 @@ store_fight:
         }
         uncouple_enemy(enemy_index);
         if (player != NULL) {
-            u8* character = (u8*)player + player->character * 28;
-            s32* kills = (s32*)(character + 0xC10);
-            (*kills)++;
+            player->character_stats[player->character].kills++;
         }
 
         if (player_index >= -1) {
