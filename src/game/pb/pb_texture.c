@@ -584,10 +584,10 @@ int fn_800C7558(s32 key) {
     if ((format & 8) == 0 && format <= 0) {
         return 1;
     }
-    model = rom->model;
-    texnum = rom->index;
-    modelDesc = *(u8**)((u8*)globals->tbl + model * 0x10 + 4);
-    texture = (PbTextureObject*)(*(u8**)(modelDesc + 0x80) + texnum * 0x30);
+    modelDesc =
+        *(u8**)((u8*)globals->tbl + (model = rom->model) * 0x10 + 4);
+    texture = (PbTextureObject*)(*(u8**)(modelDesc + 0x80) +
+                                 (texnum = rom->index) * 0x30);
     if ((format & 8) != 0) {
         u8* specialBase;
 
