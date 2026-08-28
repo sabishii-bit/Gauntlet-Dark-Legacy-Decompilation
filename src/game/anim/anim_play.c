@@ -542,7 +542,7 @@ s32 GetAnimAngXYZVal(f32 frame, AnimData* data, f32* pose, u32* keydata, s32 fla
         if (v > upper) {
             v -= cycle;
         } else if (v <= lower) {
-            v += cycle;
+            v = cycle + v;
         }
         pose[i] = v;
         }
