@@ -6183,9 +6183,10 @@ void SetPlayerWindows(s32 on) {
 
 /* Per-frame got-it slide/hold/fade state machine + blit creation.     */
 static void do_got_it_8007FC80(void) {
+    s32 y;
     char buf[36];
+    u8 unused[4];
     GotIt* g;
-    s32 y[3];
     s32 i;
     u32 x;
     s32 offset;
@@ -6203,21 +6204,26 @@ static void do_got_it_8007FC80(void) {
                 MBRemoveBlit(g->blit1);
                 *blit = NULL;
                 blit = &g->blit2;
-                MBRemoveBlit(g->blit2);
+                MBRemoveBlit(*blit);
                 *blit = NULL;
             }
             break;
         case 4:
             /* sliding down out */
-            blit = &g->blit1;
-            if (g->blit1 != NULL) {
-                mbBlitCalcRect(g->blit1, NULL, &y[0], NULL);
-                y[0] += gFrameTicks;
-                if (y[0] >= 400) {
-                    g->state = -1;
+            {
+                s32 currentY;
+
+                blit = &g->blit1;
+                if (g->blit1 != NULL) {
+                    mbBlitCalcRect(g->blit1, NULL, &y, NULL);
+                    y += gFrameTicks;
+                    currentY = y;
+                    if (currentY >= 400) {
+                        g->state = -1;
+                    }
+                    mbBlitCalcY(*blit, currentY);
+                    mbBlitCalcY(g->blit2, y + 0x10);
                 }
-                mbBlitCalcY(*blit, y[0]);
-                mbBlitCalcY(g->blit2, y[0] + 0x10);
             }
             break;
         case 3:
@@ -6230,21 +6236,21 @@ static void do_got_it_8007FC80(void) {
             /* sliding up into place */
             blit = &g->blit1;
             if (g->blit1 != NULL) {
-                mbBlitCalcRect(g->blit1, NULL, &y[0], NULL);
-                y[0] -= gFrameTicks;
-                if (y[0] <= 0x130) {
-                    y[0] = 0x130;
+                mbBlitCalcRect(g->blit1, NULL, &y, NULL);
+                y -= gFrameTicks;
+                if (y <= 0x130) {
+                    y = 0x130;
                     g->state++;
                     g->timer = 0x5A;
                 }
-                mbBlitCalcY(*blit, y[0]);
-                mbBlitCalcY(g->blit2, y[0] + 0x10);
+                mbBlitCalcY(*blit, y);
+                mbBlitCalcY(g->blit2, y + 0x10);
             }
             break;
         case 1:
             /* create the pair */
             x = lbl_80120238[player];
-            sprintf(buf, "%d", g->count);
+            sprintf(buf, "S3");
             switch (g->type) {
             case 2:
                 g->blit1 = MBNewBlit(buf, x, 0);
@@ -6260,10 +6266,10 @@ static void do_got_it_8007FC80(void) {
                     g->blit2 = MBNewBlit("MEAT", x, 0);
                 } else if (g->count <= -100) {
                     g->blit2 = MBNewBlit("BADMEAT", x, 0);
-                } else if (g->count < 0) {
-                    g->blit2 = MBNewBlit("BADFRUIT", x, 0);
-                } else {
+                } else if (g->count >= 0) {
                     g->blit2 = MBNewBlit("FRUIT", x, 0);
+                } else {
+                    g->blit2 = MBNewBlit("BADFRUIT", x, 0);
                 }
                 break;
             case 4:
