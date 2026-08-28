@@ -2458,7 +2458,9 @@ extern void* fn_8005ED44();
 extern void PlayerDamagedItem();
 extern void fn_80037ED0();
 extern s32 RandInt(s32 limit);
-extern void MBPsysFirework();
+extern void* MBPsysFirework(s32 a, struct mbnode* node, s32 count, s32 m0,
+                            s32 m1, s32 m2, f32 rate, f32 power, f32 sc0,
+                            f32 sc1, f32 sc2);
 extern void DmgFxAdd(s32 idx);
 extern s32 MBOX_FindTexture_Sub(char* name, s32 a, s32 b, s32 c, s32 flag);
 extern void* MBOX_FindObject(char* name);
@@ -3535,8 +3537,8 @@ void ProcessEffects(void)
                 (void)Random(lbl_80348134);
                 fireNode = MBNewNode(lbl_80344BD4, mat, 1);
                 MBPsysFirework(0, fireNode, count, lbl_80122088[c0],
-                               lbl_80122088[c1], e->damageradius, 0.0f,
-                               0.01f, 0.2f, 0.1f, 0xff000000);
+                               lbl_80122088[c1], 0xff000000, e->damageradius,
+                               0.0f, 0.01f, 0.2f, 0.1f);
                 hit = -2;
             } else {
                 hit = 1;
