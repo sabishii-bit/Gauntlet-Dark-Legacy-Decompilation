@@ -2613,6 +2613,7 @@ static s32 SfxSkipItem_80096FF4(struct fxitem* item, u32 a, u32 b);
  * `collision`.  The GC target keeps those same values in a 0x2f0-byte frame. */
 void ProcessEffects(void)
 {
+    EffectPage* page = (EffectPage*)EffectInfo;
     s32 i;
     u8 framePad[48];
     f32 mat[16];
@@ -2633,7 +2634,7 @@ void ProcessEffects(void)
     }
 
     for (i = 0; i < NumEffects; i++) {
-        Effect* e = &Effects[i];
+        Effect* e = &page->fx[i];
         u32 flags;
         s32 moved;
         s32 hit;
@@ -3025,7 +3026,7 @@ void ProcessEffects(void)
 
                                     if (e->flags & 0x00300000) {
                                         Effect* impactEffect =
-                                            &Effects[impact];
+                                            &page->fx[impact];
                                         f32* impactMat =
                                             (f32*)impactEffect->node;
 
