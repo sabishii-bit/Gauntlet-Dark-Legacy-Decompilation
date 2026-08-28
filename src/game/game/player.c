@@ -4719,13 +4719,20 @@ static void create_player_blits(s32 i) {
         mbBlitInit3414(frame_blit[i][j], 1);
         mbBlitCvtCoord(frame_blit[i][j], 0.1f);
     }
-    for (j = 0; j < 12; j++) {
-        sprintf(tbuf, "SM_RUNE_%s_%02d", tab + 2448 + (j / 3) * 4,
-                j % 3 + 1);
-        tex = (u32)MBOX_FindTexture_Err(tbuf, NULL, 1);
-        rune_blit[i][j] = MBCreateBlit(0, tex, *lx + j * 8 + j / 3 + 0xF, 0x132, -1, -1);
-        mbBlitInit3414(rune_blit[i][j], 1);
-        mbBlitCvtCoord(rune_blit[i][j], 0.1f);
+    {
+        s32 rune;
+
+        for (rune = 0; rune < 12; rune++) {
+            sprintf(tbuf, "SM_RUNE_%s_%02d",
+                    tab + 2448 + (rune / 3) * 4, rune % 3 + 1);
+            tex = (u32)MBOX_FindTexture_Err(tbuf, NULL, 1);
+            rune_blit[i][rune] =
+                MBCreateBlit(0, tex,
+                             *lx + rune * 8 + rune / 3 + 0xF, 0x132, -1,
+                             -1);
+            mbBlitInit3414(rune_blit[i][rune], 1);
+            mbBlitCvtCoord(rune_blit[i][rune], 0.1f);
+        }
     }
     for (j = 0; j < 8; j++) {
         sprintf(tbuf, "SM_KEY_%s", tab + 2480 + j * 4);
