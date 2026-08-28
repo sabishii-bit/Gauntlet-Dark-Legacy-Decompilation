@@ -164,34 +164,39 @@ int sceWrite(int fd, const void* buf, int len)
     return 0;
 }
 
+typedef struct SDvdMessageCarrier {
+    char* message;
+} SDvdMessageCarrier;
+
 /* 0x800AEBF4: synchronous DVD read with disc-error UI (0x15C) */
 int sDvdReadSync(void* fileInfo, void* buf, int len, int offset)
 {
-    char* msg = 0;
+    SDvdMessageCarrier carrier;
     char* base = (char*) DiskErrorStr;
     int status;
 
-    gDiskErrorShown = 0;
-    sDvdBusy = 0;
+    carrier.message = 0;
+    gDiskErrorShown = (u32)carrier.message;
+    sDvdBusy = (u32)carrier.message;
     if (DVDReadAsyncPrio(fileInfo, buf, len, offset, 0, 2) == 0) {
         sDvdBusy = 1;
         switch (DVDGetCommandBlockStatus(fileInfo)) {
         case -1:
-            msg = base + 176;
+            carrier.message = base + 176;
             break;
         case 5:
-            msg = base + 304;
+            carrier.message = base + 304;
             break;
         case 4:
         case 6:
-            msg = base + 336;
+            carrier.message = base + 336;
             break;
         case 11:
-            msg = base + 388;
+            carrier.message = base + 388;
             break;
         }
-        if (msg != 0) {
-            ScrollMessageBox(msg);
+        if (carrier.message != 0) {
+            ScrollMessageBox(carrier.message);
         }
     }
     do {
