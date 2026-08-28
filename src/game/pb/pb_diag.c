@@ -1556,6 +1556,7 @@ typedef struct DiagDataView {
 
 /* top-level diag menu: latch pads, draw/step the 5 entries, dispatch the
  * active entry's handler */
+#pragma opt_lifetimes off
 s32 pbDiagDrawMenu(void)
 {
     f32* gd = gDiagData;
@@ -1624,6 +1625,7 @@ s32 pbDiagDrawMenu(void)
     }
     return 0;
 }
+#pragma opt_lifetimes reset
 
 #pragma opt_propagation off
 void pbInitDiag(int mode) {
