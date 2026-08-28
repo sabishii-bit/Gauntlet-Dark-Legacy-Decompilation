@@ -858,9 +858,9 @@ static s32 PlayerMotion_SfxIndex(Player* p) {
 void PlayerMotion(Player* p) {
     ControlState* ctl = &lbl_80240E30[p->index];
     u8* motion = (u8*)p + 0x14;
-    u8 unused[80];
-    f32 dpos[3];
+    u8 unused[72];
     f32 oldpos[3];
+    f32 dpos[3];
     f32 to[3];
     f32 hit[3];
     f32 reflection[3];
