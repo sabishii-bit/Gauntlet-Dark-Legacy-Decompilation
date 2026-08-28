@@ -318,6 +318,9 @@ int MBOX_LoadModelFixed(const char* dir, void* buf, int a, int b, int slot) {
     s32 objSize;
     s32 off;
     s32 got;
+    u8* nameBase;
+    s32 nameOff;
+    u8 unused[8];
 
     strs = (char*)lbl_80115DA8;
     g = gWinGlobals;
@@ -329,8 +332,10 @@ int MBOX_LoadModelFixed(const char* dir, void* buf, int a, int b, int slot) {
     row = *(u8**)(g + 48) + off + 4;
     base = *(u8**)row;
     *(s32*)(row + 12) = 2;
-    strncpy((char*)(lbl_802A5D1C + (slot << 5)), dir, 32);
-    *(u8*)(lbl_802A5D1C + (slot << 5) + 31) = 0;
+    nameBase = lbl_802A5D1C;
+    nameOff = slot << 5;
+    strncpy((char*)(nameBase + nameOff), dir, 32);
+    *(u8*)(nameBase + nameOff + 31) = 0;
     if (strcmp(dir, lbl_80348C28) != 0) {
         got = MLMReadFile(dir, strs, buf, (int)base);
         bulletproof_printf(strs + 244, slot, dir, *(s32*)(row + 4));
