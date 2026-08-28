@@ -1324,7 +1324,7 @@ extern "C" void PlayVQMovie(const char* name) throw()
         return;
     }
 
-    height = dimensions[1];
+    height = *(s32*)(gMovieStreamState + 412);
     oneBits = 0;
     shifts = 0;
     scan = height;
