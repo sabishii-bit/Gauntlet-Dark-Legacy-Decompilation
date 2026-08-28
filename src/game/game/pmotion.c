@@ -861,7 +861,7 @@ void PlayerMotion(Player* p) {
     s32 index = p->index;
     ControlState* ctl = &lbl_80240E30[p->index];
     u8* motion = (u8*)p + 0x14;
-    u8 unused[72];
+    u8 unused[64];
     f32 oldpos[3];
     f32 dpos[3];
     f32 to[3];
