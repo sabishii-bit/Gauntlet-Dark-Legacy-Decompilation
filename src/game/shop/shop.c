@@ -292,9 +292,10 @@ s32 do_shop(void)
                     if (lbl_80344C0C == 2) {
                         {
                             u32 k;
-                            for (k = 0; k < 6; k++) {
-                                void** q =
-                                    (void**)(page + o24 + 7504 + k * 4);
+                            s32 off = 0;
+                            u8* blitBase = page + o24 + 7504;
+                            for (k = 0; k < 6; k++, off += 4) {
+                                void** q = (void**)(blitBase + off);
                                 if (*q != 0) {
                                     MBRemoveBlit(*q);
                                     *q = 0;
@@ -321,11 +322,13 @@ s32 do_shop(void)
                         }
                         mbBlitInit3414(
                             *(void**)(page + *(s32*)pl * 24 + 7520), 0);
-                        for (j = 0; j < lbl_80344C10; j++) {
-                            void* b = *(void**)(page + (*(s32*)pl << 8) +
-                                                6480 + j * 4);
-                            if (b != 0) {
-                                mbBlitInit3414(b, 1);
+                        {
+                            void* b;
+                            for (j = 0; j < lbl_80344C10; j++) {
+                                if ((b = *(void**)(page + (*(s32*)pl << 8) +
+                                                   6480 + j * 4)) != 0) {
+                                    mbBlitInit3414(b, 1);
+                                }
                             }
                         }
                     }
