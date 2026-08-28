@@ -1744,8 +1744,8 @@ void show_optmenu(OPTMENU* m)
     s32 savedFlags;
     s32 sel;
     OPTITEM* it;
-    s32 delta[3];
     s32 rgb[3];
+    s32 delta[3];
     u32 color;
     s32 hifont;
     s32 hi;
@@ -1790,17 +1790,20 @@ void show_optmenu(OPTMENU* m)
     }
 
     /* garamond font intro frames */
-    if (m->font != 0) {
-        s32 fr;
-        if (m->finish_timer != 0) {
-            fr = 6 - (m->finish_timer * 6) / OPTMENU_FINISH_FRAMES;
-        } else {
-            fr = (m->time - 10) / 2;
-        }
-        if (fr < 0) {
-            hifont = m->font;
-        } else if (fr < 6) {
-            hifont = m->font + fr;
+    {
+        s32 font = m->font;
+        if (font != 0) {
+            s32 fr;
+            if (m->finish_timer != 0) {
+                fr = 6 - (m->finish_timer * 6) / OPTMENU_FINISH_FRAMES;
+            } else {
+                fr = (m->time - 10) / 2;
+            }
+            if (fr < 0) {
+                hifont = font;
+            } else if (fr < 6) {
+                hifont = font + fr;
+            }
         }
     }
 
