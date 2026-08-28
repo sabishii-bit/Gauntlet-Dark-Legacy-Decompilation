@@ -244,6 +244,7 @@ static f32 PointLineDist2D(Vec* p0, Vec* p1, Vec* dir, Vec* out) {
 /* returned in *outA / *outB.                                          */
 /* ------------------------------------------------------------------ */
 #pragma dont_inline on
+#pragma opt_propagation off
 static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
                         Vec* pointA, Vec* dirA, f32 lenB, f32 lenA) {
     u8 highPad[40];
@@ -322,7 +323,7 @@ static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
             num = num - b3;
             tA = inv * num;
         }
-        if (tA <= lbl_80345D50) {
+        if (tA <= *(volatile const f32*)&lbl_80345D50) {
             endA = pointA;
         } else if (tA >= lenA) {
             tmpA.x = pointA->x + dirA->x * lenA;
@@ -336,10 +337,10 @@ static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
         if (endB != NULL) {
             Vec* cp = &cpA[0];
 
-            t = (endB->y - pointA->y) * dirA->y;
-            t = (endB->x - pointA->x) * dirA->x + t;
-            t = (endB->z - pointA->z) * dirA->z + t;
-            if (t < lbl_80345D50) {
+            t = (endB->z - pointA->z) * dirA->z +
+                ((endB->x - pointA->x) * dirA->x +
+                 (endB->y - pointA->y) * dirA->y);
+            if (t < *(volatile const f32*)&lbl_80345D50) {
                 cp->x = pointA->x;
                 cp->y = pointA->y;
                 cp->z = pointA->z;
@@ -364,9 +365,9 @@ static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
             if (out == NULL) {
                 dst = &dstTmp[0];
             }
-            t = (endA->y - pointB->y) * dirB->y;
-            t = (endA->x - pointB->x) * dirB->x + t;
-            t = (endA->z - pointB->z) * dirB->z + t;
+            t = (endA->z - pointB->z) * dirB->z +
+                ((endA->x - pointB->x) * dirB->x +
+                 (endA->y - pointB->y) * dirB->y);
             if (t < lbl_80345D50) {
                 dst->x = pointB->x;
                 dst->y = pointB->y;
@@ -391,9 +392,10 @@ static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
             out->x = endB->x;
             out->y = endB->y;
             out->z = endB->z;
-            return dB2;
+        } else {
+            dB2 = dA2;
         }
-        return dA2;
+        goto done;
     interior:
         out->x = pointB->x + dirB->x * tB;
         out->y = pointB->y + dirB->y * tB;
@@ -404,7 +406,8 @@ static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
         dy = tmpA.y - out->y;
         dx = tmpA.x - out->x;
         dz = tmpA.z - out->z;
-        return dz * dz + (dx * dx + (dy * dy));
+        dB2 = dz * dz + (dx * dx + (dy * dy));
+        goto done;
     } else {
         t = dy * dirB->y;
         t = dx * dirB->x + t;
@@ -432,19 +435,20 @@ static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
             }
             dy = cp->y - pointB->y;
             dx = cp->x - pointB->x;
-            out->x = pointB->x;
             dz = cp->z - pointB->z;
+            out->x = pointB->x;
             out->y = pointB->y;
             out->z = pointB->z;
             }
-            return dz * dz + (dx * dx + (dy * dy));
+            dB2 = dz * dz + (dx * dx + (dy * dy));
+            goto done;
         } else if (t >= lenB) {
             out->x = pointB->x + dirB->x * lenB;
             out->y = pointB->y + dirB->y * lenB;
             out->z = pointB->z + dirB->z * lenB;
-            t = (out->y - pointA->y) * dirA->y;
-            t = (out->x - pointA->x) * dirA->x + t;
-            t = (out->z - pointA->z) * dirA->z + t;
+            t = (out->z - pointA->z) * dirA->z +
+                ((out->x - pointA->x) * dirA->x +
+                 (out->y - pointA->y) * dirA->y);
             {
             Vec* cp = &cpB[0];
 
@@ -465,7 +469,8 @@ static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
             dx = cp->x - out->x;
             dz = cp->z - out->z;
             }
-            return dz * dz + (dx * dx + (dy * dy));
+            dB2 = dz * dz + (dx * dx + (dy * dy));
+            goto done;
         } else {
             out->x = pointB->x + dirB->x * t;
             out->y = pointB->y + dirB->y * t;
@@ -473,10 +478,14 @@ static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
             dy = out->y - pointA->y;
             dx = out->x - pointA->x;
             dz = out->z - pointA->z;
-            return dz * dz + (dx * dx + (dy * dy));
+            dB2 = dz * dz + (dx * dx + (dy * dy));
+            goto done;
         }
     }
+done:
+    return dB2;
 }
+#pragma opt_propagation reset
 #pragma dont_inline off
 
 /* ------------------------------------------------------------------ */
