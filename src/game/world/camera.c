@@ -3650,6 +3650,7 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
     f32* cameraPositionZ;
     CameraTarget* target;
     CameraSupervisorScratch scratch;
+    u8 unused[16];
     f32 oldX;
     f32 oldY;
     f32 currentX;
@@ -3672,6 +3673,7 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
     f32 cameraDz;
     f32 movedCameraDx;
     f32 movedCameraDz;
+    f32 latchValue;
     f32 zeroValue;
     f64 root;
     s32 screenHeight;
@@ -3744,10 +3746,11 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
                oldX < (f32)(lbl_8034451C - 30) &&
                currentX > (f32)(lbl_80344520 + 30) &&
                currentX < (f32)(lbl_8034451C - 30) &&
-               CAMERA_SUPERVISOR_ABS(return2OldY,
-                   oldY - *(f32*)(lbl_80344EE8 + 0xC)) >
-                   CAMERA_SUPERVISOR_ABS(return2CurrentY,
-                       currentY - *(f32*)(lbl_80344EE8 + 0xC))) {
+               (CAMERA_SUPERVISOR_ABS(return2CurrentY,
+                    currentY - *(f32*)(lbl_80344EE8 + 0xC)),
+                currentAbsX = scratch.return2CurrentY,
+                CAMERA_SUPERVISOR_ABS(return2OldY,
+                    oldY - *(f32*)(lbl_80344EE8 + 0xC)) > currentAbsX)) {
         if (gCameraTargetCount > 1 &&
             (oldY <= (f32)(lbl_80344514 + 40) ||
              oldY >= (f32)(lbl_80344518 - 20)) &&
@@ -3761,10 +3764,11 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
                oldY < (f32)(lbl_80344518 - 20) &&
                currentY > (f32)(lbl_80344514 + 40) &&
                currentY < (f32)(lbl_80344518 - 20) &&
-               CAMERA_SUPERVISOR_ABS(return3OldX,
-                   oldX - *(f32*)(lbl_80344EE8 + 8)) >
-                   CAMERA_SUPERVISOR_ABS(return3CurrentX,
-                       currentX - *(f32*)(lbl_80344EE8 + 8))) {
+               (CAMERA_SUPERVISOR_ABS(return3CurrentX,
+                    currentX - *(f32*)(lbl_80344EE8 + 8)),
+                currentAbsX = scratch.return3CurrentX,
+                CAMERA_SUPERVISOR_ABS(return3OldX,
+                    oldX - *(f32*)(lbl_80344EE8 + 8)) > currentAbsX)) {
         if (gCameraTargetCount > 1 &&
             (oldX <= (f32)(lbl_80344520 + 30) ||
              oldX >= (f32)(lbl_8034451C - 30)) &&
@@ -3774,14 +3778,16 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
             CAMERA_LATCH_CHANGE();
         }
         return 3;
-    } else if (CAMERA_SUPERVISOR_ABS(return4OldY,
-                   oldY - *(f32*)(lbl_80344EE8 + 0xC)) >
-                   CAMERA_SUPERVISOR_ABS(return4CurrentY,
-                       currentY - *(f32*)(lbl_80344EE8 + 0xC)) &&
-               CAMERA_SUPERVISOR_ABS(return4OldX,
-                   oldX - *(f32*)(lbl_80344EE8 + 8)) >
-                   CAMERA_SUPERVISOR_ABS(return4CurrentX,
-                       currentX - *(f32*)(lbl_80344EE8 + 8))) {
+    } else if ((CAMERA_SUPERVISOR_ABS(return4CurrentY,
+                    currentY - *(f32*)(lbl_80344EE8 + 0xC)),
+                currentAbsY = scratch.return4CurrentY,
+                CAMERA_SUPERVISOR_ABS(return4OldY,
+                    oldY - *(f32*)(lbl_80344EE8 + 0xC)) > currentAbsY) &&
+               (CAMERA_SUPERVISOR_ABS(return4CurrentX,
+                    currentX - *(f32*)(lbl_80344EE8 + 8)),
+                currentAbsX = scratch.return4CurrentX,
+                CAMERA_SUPERVISOR_ABS(return4OldX,
+                    oldX - *(f32*)(lbl_80344EE8 + 8)) > currentAbsX)) {
         if (gCameraTargetCount > 1 &&
             (oldX <= (f32)(lbl_80344520 + 30) ||
              oldX >= (f32)(lbl_8034451C - 30) ||
@@ -3799,27 +3805,27 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
         currentX >= (f32)(lbl_8034451C - 30) ||
         currentY <= (f32)(lbl_80344514 + 40) ||
         currentY >= (f32)(lbl_80344518 - 20)) {
+        s32 bottomEdge;
+        s32 halfWidth;
         dy = (*(f32*)(playerData + 0x48) +
               *(f32*)(playerData + 0x83C)) - *(f32*)(state + 0x1F8);
+        bottomEdge = screenHeight - 64;
         dx = (*(f32*)(playerData + 0x44) +
               *(f32*)(playerData + 0x838)) - *(f32*)(state + 0x1F4);
+        halfWidth = screenWidth / 2;
         dz = (*(f32*)(playerData + 0x4C) +
               *(f32*)(playerData + 0x840)) - *(f32*)(state + 0x1FC);
-        currentDistance = dz * dz + dx * dx + dy * dy;
+        currentDistance = dy * dy + dx * dx + dz * dz;
         movedX = dx + movementDelta[0];
         movedY = dy + movementDelta[1];
         movedZ = dz + movementDelta[2];
         cameraPositionX = (f32*)(state + 0x1F4);
         cameraPositionZ = (f32*)(state + 0x1FC);
 
-        {
-            s32 bottomEdge = screenHeight - 64;
-            s32 halfWidth = screenWidth / 2;
-            currentAbsY = oldY - (f32)bottomEdge;
-            currentAbsX = oldX - (f32)halfWidth;
-            oldAbsY = currentY - (f32)bottomEdge;
-            oldAbsX = currentX - (f32)halfWidth;
-        }
+        currentAbsY = oldY - (f32)bottomEdge;
+        currentAbsX = oldX - (f32)halfWidth;
+        oldAbsY = currentY - (f32)bottomEdge;
+        oldAbsX = currentX - (f32)halfWidth;
         currentScreenDistance =
             currentAbsY * currentAbsY + currentAbsX * currentAbsX;
         movedScreenDistance = oldAbsY * oldAbsY + oldAbsX * oldAbsX;
@@ -3837,7 +3843,7 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
                  -(root * root * currentDistance - lbl_80345F20)));
             currentDistance = scratch.currentRoot;
         }
-        movedDistance = movedZ * movedZ + movedX * movedX + movedY * movedY;
+        movedDistance = movedY * movedY + movedX * movedX + movedZ * movedZ;
         if (movedDistance > lbl_80345EC8) {
             root = __frsqrte(movedDistance);
             root = lbl_80345F18 * root *
@@ -3898,25 +3904,43 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
             debug_camera_pos(playerIndex);
         }
 
-        if (((lbl_80344960 < 0 &&
-              *(f32*)(state + 0x18C) >= lbl_80344528) ||
-             (lbl_80344960 >= 0 &&
-              (f64)*(f32*)(state + 0x18C) >= lbl_80345FF0)) &&
-            (f64)lbl_803444E8 >= lbl_80346008) {
-            if (gBossType >= 0) {
-                if (gCameraTargetCount > 1) {
-                    if (lbl_803444E4 == 0) {
-                        if (lbl_80343BD8 != 0) {
-                            CAMERA_LATCH_CHANGE();
+        {
+            s32 cameraTarget = lbl_80344960;
+
+            if (((cameraTarget < 0 &&
+                  *(f32*)(state + 0x18C) >= lbl_80344528) ||
+                 (cameraTarget >= 0 &&
+                  (f64)*(f32*)(state + 0x18C) >= lbl_80345FF0)) &&
+                (f64)(latchValue = lbl_803444E8) >= lbl_80346008) {
+                if (gBossType >= 0) {
+                    if (gCameraTargetCount > 1) {
+                        if (lbl_803444E4 == 0) {
+                            if (lbl_80343BD8 != 0) {
+                                lbl_80344500 = 1;
+                                lbl_803444FC = 1;
+                                if (lbl_803444F8 < 60) {
+                                    lbl_803444F8 = 60;
+                                }
+                                if ((f64)latchValue < lbl_80345FA8) {
+                                    lbl_803444F8 = 0;
+                                }
+                            }
+                        } else {
+                            lbl_80344500 = 0;
+                            lbl_803444FC = 0;
+                            lbl_803444F8 = 0;
                         }
-                    } else {
-                        lbl_80344500 = 0;
-                        lbl_803444FC = 0;
+                    }
+                } else if (gCameraTargetCount > 1 && lbl_80343BD8 != 0) {
+                    lbl_80344500 = 1;
+                    lbl_803444FC = 1;
+                    if (lbl_803444F8 < 60) {
+                        lbl_803444F8 = 60;
+                    }
+                    if ((f64)latchValue < lbl_80345FA8) {
                         lbl_803444F8 = 0;
                     }
                 }
-            } else if (gCameraTargetCount > 1 && lbl_80343BD8 != 0) {
-                CAMERA_LATCH_CHANGE();
             }
         }
         return 5;
