@@ -1656,9 +1656,10 @@ s32 fn_8006DF34(NcCamera* cam) {
  * re-converges (9 ticks), clears the scripted state, and stops the path.
  * [caller: UpdateCam]
  */
+#pragma opt_propagation off
 void fn_8006E654(void) {
     NcCamera tmp;
-    u8 unused[16];
+    u8 unused[36];
     f64 d;
     f32 pitch;
     s32 ok;
@@ -1778,12 +1779,7 @@ void fn_8006E654(void) {
             1.0 / cam->aspect);
     }
 
-    controller = gControllerButtons;
-    zero = 0;
-    one = 1;
-    flags = sFlags;
-    if ((NcMaskMismatch(NcApplyMask(flags, one), zero) |
-         NcMaskMismatch(controller & zero, zero)) != 0) {
+    if ((*(u64*)&gControllerButtons & 1) != 0) {
         dbgTextPrintfCell(
             0xFFFF00, 1, 0x20, lbl_801137D0,
             0.31830988614222805 * (180.0 * cam->yaw),
@@ -1803,6 +1799,7 @@ void fn_8006E654(void) {
     }
     lbl_80344A70--;
 }
+#pragma opt_propagation reset
 
 /*
  * DebugCamControlInputs -- per-button-bit debug camera driver.  Clamps the
