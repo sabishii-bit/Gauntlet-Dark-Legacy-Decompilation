@@ -1031,6 +1031,7 @@ void end_inventory_panel(int player)
  */
 void* disp_piece(u32* piece, s32 xoff, u32 mode);
 #pragma dont_inline on
+#pragma opt_lifetimes off
 void draw_panels(void)
 {
     char label[8];
@@ -1045,7 +1046,7 @@ void draw_panels(void)
     register s32 handleoff;
     register s32 pieceoff;
     register u8* pieces;
-    register s32 playerChar;
+    register char playerChar;
     register s32 zero;
     register s32 slot;
 
@@ -1102,6 +1103,7 @@ void draw_panels(void)
     } while (slot < 4);
     lbl_80344A44 = 1;
 }
+#pragma opt_lifetimes reset
 #pragma dont_inline reset
 
 /* Position and fade one inventory-panel piece during its enter/leave phase. */
