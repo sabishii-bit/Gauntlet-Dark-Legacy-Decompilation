@@ -471,23 +471,27 @@ u32 fn_800D8BCC(u32* param_1, int param_2, char* param_3, int param_4, int param
         break;
     case 2: {
         int i;
+        int off;
         u8* p;
         u8 sh1;
         u8 sh0;
         u8 sh2;
         int n;
         sh1 = 8 - *((u8*)param_1 + 0x39);
-        sh0 = 8 - *((u8*)param_1 + 0x38);
-        sh2 = 8 - *((u8*)param_1 + 0x37);
-        n = count * 4;
         i = 0;
+        sh0 = 8 - *((u8*)param_1 + 0x38);
         p = pal;
+        sh2 = 8 - *((u8*)param_1 + 0x37);
+        off = i;
+        n = count * 4;
         for (; i < n; i++) {
             fn_800DBE98(param_1, p);
-            ((u16*)pal)[i] = (((p[0] >> sh0) << *((u8*)param_1 + 0x36))
-                            | ((p[1] >> sh1) << *((u8*)param_1 + 0x35)))
-                            | ((p[2] >> sh2) << *((u8*)param_1 + 0x34));
+            *(u16*)(pal + off) =
+                (((p[0] >> sh0) << *((u8*)param_1 + 0x36))
+                 | ((p[1] >> sh1) << *((u8*)param_1 + 0x35)))
+                | ((p[2] >> sh2) << *((u8*)param_1 + 0x34));
             p += 3;
+            off += 2;
         }
         break;
     }
@@ -533,14 +537,14 @@ u32 fn_800D8BCC(u32* param_1, int param_2, char* param_3, int param_4, int param
                 dst2 = dst + d8;
                 x = 0;
                 do {
-                    u32 idx;
+                    u8 idx;
                     u32 val;
                     u8* entry;
                     int adv;
 
                     idx = *ip;
                     val = idx;
-                    val |= ((bits >> nb) & 1) << 8;
+                    val = (val & 0xFF) | (((bits >> nb) & 1) << 8);
                     entry = pal + val * 8;
                     *(u32*)dst = *(u32*)entry;
                     nb++;
