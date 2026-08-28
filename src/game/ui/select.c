@@ -2330,7 +2330,9 @@ void update_class_attr(s32 player)
     u8* pl = gPlayers + player * 13148;
     char* pool = lbl_801143F8;
     s32 stats[4];
+    u8 statsPad[4];
     char buf[40];
+    u8 bufPad[4];
     u8* expslot;
     s32 lvl;
     s32 best;
@@ -2340,7 +2342,10 @@ void update_class_attr(s32 player)
     if (*(s32*)(pl + 13092) <= 0) {
         *(s32*)(pl + 13092) = 1;
     }
-    if (*(s32*)(pl + 232) != 2) {
+    switch (*(s32*)(pl + 232)) {
+    case 2:
+        break;
+    default:
         return;
     }
     switch (*(s32*)(pl + 13112)) {
@@ -2417,10 +2422,11 @@ void update_class_attr(s32 player)
             char* name = GetStringText(167, row, 0);
             s32 w = DrawNormalText(kScale, name, 6);
             s32 vx;
+            s32 textX = tx - w;
             if (best == row) {
-                DrawGlowText(kScale, tx - w, y - 2, name);
+                DrawGlowText(kScale, textX, y - 2, name);
             } else {
-                DrawTextKeepScale(kScale, tx - w, y - 2, 6, 0xFFFFFF,
+                DrawTextKeepScale(kScale, textX, y - 2, 6, 0xFFFFFF,
                                   name);
             }
             vx = lbl_80343DB8 + *xp;
