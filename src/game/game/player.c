@@ -4689,12 +4689,13 @@ void init_players(void) {
 /* crystals, keys, power meter, rune13, HOD, quest, tb_info).          */
 static void create_player_blits(s32 i) {
     Player* player;
-    u16* lx = &lbl_80120238[i];
+    u8* tab = (u8*)lbl_8011FC48;
+    u16* lx = (u16*)(tab + i * 2);
     u16* rx;
     u32 tex;
     s32 j;
 
-    frame_blit[i][0] = MBCreateBlit(0, 0, *lx, 0x130, 0x80, -1);
+    frame_blit[i][0] = MBCreateBlit(0, 0, *(lx += 760), 0x130, 0x80, -1);
     frame_blit[i][1] = MBCreateBlit(0, 0, *lx, 0x140, 0x80, -1);
     frame_blit[i][2] = MBCreateBlit(0, 0, *lx, 0x140, 0x80, -1);
     frame_blit[i][3] = MBCreateBlit(0, 0, *lx, 0x158, 0x94, -1);
@@ -4705,14 +4706,15 @@ static void create_player_blits(s32 i) {
         mbBlitCvtCoord(frame_blit[i][j], 0.1f);
     }
     for (j = 0; j < 12; j++) {
-        sprintf(tbuf, "SM_RUNE_%s_%02d", lbl_801205D8[j / 3], j % 3 + 1);
+        sprintf(tbuf, "SM_RUNE_%s_%02d", tab + 2448 + (j / 3) * 4,
+                j % 3 + 1);
         tex = (u32)MBOX_FindTexture_Err(tbuf, NULL, 1);
         rune_blit[i][j] = MBCreateBlit(0, tex, *lx + j * 8 + j / 3 + 0xF, 0x132, -1, -1);
         mbBlitInit3414(rune_blit[i][j], 1);
         mbBlitCvtCoord(rune_blit[i][j], 0.1f);
     }
     for (j = 0; j < 8; j++) {
-        sprintf(tbuf, "SM_KEY_%s", lbl_801205F8[j]);
+        sprintf(tbuf, "SM_KEY_%s", tab + 2480 + j * 4);
         tex = (u32)MBOX_FindTexture_Err(tbuf, NULL, 1);
         crystal_blit[i][j] = MBCreateBlit(0, tex, *lx + j * 12 + 0xC, 300, -1, -1);
         mbBlitInit3414(crystal_blit[i][j], 1);
@@ -4724,15 +4726,15 @@ static void create_player_blits(s32 i) {
         mbBlitCvtCoord(key_blit[i][j], 0.1f);
     }
     for (j = 0; j < 7; j++) {
-        pm_blit[i][j] = MBNewBlit((char*)lbl_8011FC48[j * 5 + 1],
-                                  i * 0x80 + lbl_8011FC48[j * 5 + 2],
-                                  (u32)lbl_8011FC48[j * 5 + 3]);
-        lbl_8011FC48[j * 5] = MBBlitGetTex(pm_blit[i][j]);
+        pm_blit[i][j] = MBNewBlit(*(char**)(tab + j * 20 + 4),
+                                  i * 0x80 + *(s32*)(tab + j * 20 + 8),
+                                  *(u32*)(tab + j * 20 + 12));
+        *(u32*)(tab + j * 20) = MBBlitGetTex(pm_blit[i][j]);
         mbBlitInit3414(pm_blit[i][j], 1);
         mbBlitCvtCoord(pm_blit[i][j],
-                       (f32)-lbl_8011FC48[j * 5 + 4]);
+                       (f32)*(s32*)(tab + j * 20 + 16));
     }
-    player = P(i);
+    player = PT(i);
     PF(player, 0x3340, s32) = 0;
     rx = &lbl_80120240[i];
     tb_info[i].sel = -1;
