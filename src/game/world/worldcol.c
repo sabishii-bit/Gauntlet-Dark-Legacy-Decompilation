@@ -888,7 +888,6 @@ static f32 CTriListCollide(f32 radius, s32 base, s32 count, WorldTri** outTri,
     f64 k798;
     f64 k790;
     f32 zf;
-    f32* org;
     s32 i;
     s32 ti;
     WorldTri* tri;
@@ -900,9 +899,9 @@ static f32 CTriListCollide(f32 radius, s32 base, s32 count, WorldTri** outTri,
     f32 dx;
     f32 dz;
     f32 hit[9];
+    f64 triResult;
 
     rad = radius;
-    org = lbl_8023F7F8;
     result = lbl_80345778;
     best = lbl_80345760;
     k788 = lbl_80345788;
@@ -938,10 +937,11 @@ static f32 CTriListCollide(f32 radius, s32 base, s32 count, WorldTri** outTri,
         }
         if ((lbl_80344188 & 0x20) != 0) {
             if (TriLineCol(tri, hit) != 0) {
-                d = lbl_80345730;
+                triResult = lbl_80345730;
             } else {
-                d = lbl_80345780;
+                triResult = lbl_80345780;
             }
+            d = (f32)triResult;
         } else {
             d = BTriLineCol(rad, tri, hit);
         }
@@ -960,20 +960,20 @@ static f32 CTriListCollide(f32 radius, s32 base, s32 count, WorldTri** outTri,
             }
             if ((lbl_80344188 & 0x10) != 0) {
                 if (zd == d) {
-                    dy = hit[1] - org[1];
-                    dx = hit[0] - org[0];
-                    dz = hit[2] - org[2];
+                    dy = hit[1] - lbl_8023F7F8[1];
+                    dx = hit[0] - lbl_8023F7F8[0];
+                    dz = hit[2] - lbl_8023F7F8[2];
                     dd = (dy * dy + dx * dx) + dz * dz;
                 } else {
                     dd = k788 * d;
                 }
             } else {
-                dy = hit[1] - org[1];
-                dx = hit[0] - org[0];
-                dz = hit[2] - org[2];
+                dy = hit[1] - lbl_8023F7F8[1];
+                dx = hit[0] - lbl_8023F7F8[0];
+                dz = hit[2] - lbl_8023F7F8[2];
                 dd = (dy * dy + dx * dx) + dz * dz;
             }
-            dot = res->qnorm[1] * tri->ny + res->qnorm[0] * tri->nx +
+            dot = res->qnorm[0] * tri->nx + res->qnorm[1] * tri->ny +
                   res->qnorm[2] * tri->nz;
             if (dot < zf) {
                 dot = -dot;
