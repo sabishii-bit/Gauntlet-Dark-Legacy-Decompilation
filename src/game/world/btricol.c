@@ -252,10 +252,17 @@ static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
     u8 endpointPad[4];
     Vec tmpA;
     u8 unused[48];
-    Vec cpA[3];
+    struct {
+        Vec value;
+        u8 unused[44];
+    } cpA[1];
     Vec dstTmp[3];
     Vec cpP[3];
-    Vec cpB[3];
+    struct {
+        u8 unused0[28];
+        Vec value;
+        u8 unused1[24];
+    } cpB[1];
     Vec* endB;
     Vec* endA;
     Vec* dst;
@@ -335,7 +342,7 @@ static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
             goto interior;
         }
         if (endB != NULL) {
-            Vec* cp = &cpA[0];
+            Vec* cp = &cpA[0].value;
 
             t = (endB->z - pointA->z) * dirA->z +
                 ((endB->x - pointA->x) * dirA->x +
@@ -450,7 +457,7 @@ static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
                 ((out->x - pointA->x) * dirA->x +
                  (out->y - pointA->y) * dirA->y);
             {
-            Vec* cp = &cpB[0];
+            Vec* cp = &cpB[0].value;
 
             if (t < lbl_80345D50) {
                 cp->x = pointA->x;
