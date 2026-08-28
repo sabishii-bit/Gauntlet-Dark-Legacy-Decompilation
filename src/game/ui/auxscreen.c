@@ -39,8 +39,8 @@ extern f32 lbl_80345A9C;      /* bg blit depth */
 extern f32 lbl_80345AA0;      /* fg blit depth */
 extern f32 lbl_80345AB4;      /* route blit depth (init) */
 /* .sdata strings passed by address (sda21). */
-extern char lbl_80345AA4[];   /* "%s..." route-model format */
-extern char lbl_80345AAC[];   /* route-model suffix appended by strcat */
+extern char lbl_80345AA4[7];  /* "%s..." route-model format */
+extern char lbl_80345AAC[5];  /* route-model suffix appended by strcat */
 extern s32 gGameBusy;
 /* Per-frame time deltas (engine globals in the .sbss window). */
 extern s32 gFrameTicks;  /* integer frame delta */
@@ -1062,6 +1062,16 @@ s32 do_mapscreen(s32 skip)
 /* init_mapscreen (0x2E4) -- build all blits for the map screen.      */
 /* Structural best-effort; NonMatching.                               */
 /* ================================================================== */
+#pragma opt_common_subs off
+static inline void setupMapForeground(void** slot, void* blit)
+{
+    slot[20] = blit;
+    mbBlitCvtCoord(*(slot += 20), lbl_80345AA0);
+    MBBlitSetAlpha(*slot, 255);
+}
+
+#pragma opt_common_subs reset
+
 s32 init_mapscreen(s32 timer, s32 movie)
 {
     u8* base = lbl_8023DFD0;
@@ -1089,16 +1099,17 @@ s32 init_mapscreen(s32 timer, s32 movie)
         sprintf((char*)base, fmt + 24, (char*)gCurLevel + 8);
         map_bg_blit = LoadModel((char*)base, 0, 0, -1);
         for (i = 0; i < 4; i++) {
-            ent = (s32*)(lbl_80118250 + i * 8);
+            s32* entY;
+
             sprintf((char*)base, fmt + 40, (char*)gCurLevel + 8, i);
-            blit = MBNewBlit(base, ent[0], ent[1]);
+            ent = (s32*)(lbl_80118250 + i * 8);
+            entY = ent + 1;
+            blit = MBNewBlit(base, ent[0], *entY);
             *(void**)(base + i * 4 + 64) = blit;
             mbBlitCvtCoord(*(void**)(base + i * 4 + 64), lbl_80345A9C);
             sprintf((char*)base, fmt + 52, (char*)gCurLevel + 8, i);
-            blit = MBNewBlit(base, ent[0], ent[1]);
-            *(void**)(base + i * 4 + 80) = blit;
-            mbBlitCvtCoord(*(void**)(base + i * 4 + 80), lbl_80345AA0);
-            MBBlitSetAlpha(*(void**)(base + i * 4 + 80), 255);
+            blit = MBNewBlit(base, ent[0], *entY);
+            setupMapForeground((void**)(base + i * 4), blit);
         }
     } else {
         void* blit = MBCreateBlit(0, (s32)MBOX_FindTexture(fmt + 68, 0),
@@ -1123,7 +1134,11 @@ s32 init_mapscreen(s32 timer, s32 movie)
     map_fade_alpha = 0;
 
     route = *(void**)((u8*)gCurLevel + 104);
-    route = route ? route : (void*)0;
+    if (route != 0) {
+        route = route;
+    } else {
+        route = 0;
+    }
     if (movie == 0 && route != 0 && *(f32*)route >= lbl_80345A08) {
         sprintf((char*)base, lbl_80345AA4, (char*)gCurLevel + 8);
         strcat((char*)base, lbl_80345AAC);
