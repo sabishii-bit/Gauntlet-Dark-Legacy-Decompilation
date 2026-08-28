@@ -149,8 +149,7 @@ void pbInitTlutRegions(void) {
     }
     GXSetTlutRegionCallback(sTlutRegionCallback);
     for (i = 0; i < 0x2f; i++) {
-        slot = mgr + i * 4;
-        *(s32*)(slot + 0x320) = -1;
+        *(s32*)((slot = mgr + i * 4) + 0x320) = -1;
     }
 }
 
