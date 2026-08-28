@@ -1075,6 +1075,7 @@ static inline void setupMapForeground(void** slot, void* blit)
 
 #pragma opt_common_subs reset
 
+#pragma opt_propagation off
 s32 init_mapscreen(s32 timer, s32 movie)
 {
     u8* base = lbl_8023DFD0;
@@ -1158,3 +1159,4 @@ s32 init_mapscreen(s32 timer, s32 movie)
     (void)movie;
     return rv;
 }
+#pragma opt_propagation reset
