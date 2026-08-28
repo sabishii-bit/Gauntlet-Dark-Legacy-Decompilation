@@ -2613,6 +2613,8 @@ static s32 SfxSkipItem_80096FF4(struct fxitem* item, u32 a, u32 b);
 /* Advance every live effect.  The Xbox names for the principal locals are
  * `mat`, `omat`, `pos`, `opos`, `dir`, `hitpos`, `hit`, `moved`, and
  * `collision`.  The GC target keeps those same values in a 0x2f0-byte frame. */
+static int fne(f32 a, f32 b) { return a != b; }
+
 void ProcessEffects(void)
 {
     EffectPage* page = (EffectPage*)EffectInfo;
@@ -2682,7 +2684,7 @@ void ProcessEffects(void)
             pos[1] = oldpos[1];
             pos[2] = oldpos[2];
         } else {
-            if (e->vel[0] != 0.0f || e->vel[1] != 0.0f || e->vel[2] != 0.0f) {
+            if (fne(e->vel[0], 0.0f) || fne(e->vel[1], 0.0f) || fne(e->vel[2], 0.0f)) {
                 pos[0] = oldpos[0] + e->vel[0] * gClockFrameStep;
                 pos[1] = oldpos[1] + e->vel[1] * gClockFrameStep;
                 pos[2] = oldpos[2] + e->vel[2] * gClockFrameStep;
@@ -2707,15 +2709,15 @@ void ProcessEffects(void)
             CreateDirMatrix(mat, e->vel, gCameras[0].mat[2]);
             moved = 1;
         } else {
-            if (e->pyrvel[0] != 0.0f) {
+            if (fne(e->pyrvel[0], 0.0f)) {
                 PitchMat3(mat, -e->pyrvel[0] * gClockFrameStep);
                 moved = 1;
             }
-            if (e->pyrvel[1] != 0.0f) {
+            if (fne(e->pyrvel[1], 0.0f)) {
                 YawMat3((struct mbnode*)mat, e->pyrvel[1] * gClockFrameStep);
                 moved = 1;
             }
-            if (e->pyrvel[2] != 0.0f) {
+            if (fne(e->pyrvel[2], 0.0f)) {
                 RollMat3(mat, e->pyrvel[2] * gClockFrameStep);
                 moved = 1;
             }
