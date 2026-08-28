@@ -362,10 +362,15 @@ void DoPolyInst(PolyInstance* inst, s32 mode, s32 phase) {
     if (inst->_02 != 0) {
         return;
     }
-    if (inst->type >= 3) {
+    switch (inst->type) {
+    case 3:
         goto draw;
+    default:
+        if (inst->type > 3) {
+            goto draw;
+        }
+        goto done;
     }
-    goto done;
 draw:
     if (phase != 0) {
         if (mode == 11) {
