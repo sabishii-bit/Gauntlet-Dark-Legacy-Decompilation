@@ -2165,18 +2165,18 @@ store_motion_state:
                                   damageScale);
                     PF(gBossObj, 0xAC8, f32) = lbl_80347B10;
                     hit[0] = PF(gBossObj, 0x418, f32);
-                    hit[1] = (f32)(PF(gBossObj, 0x41C, f32) +
-                                   lbl_80347BC0);
+                    hit[1] = PF(gBossObj, 0x41C, f32);
                     hit[2] = PF(gBossObj, 0x420, f32);
+                    hit[1] = (f32)(hit[1] + lbl_80347BC0);
                     bossDamage = lbl_80347C40;
                     weight = lbl_80347C8C;
                     break;
                 case 40:
                     hit[0] = PF(gBossObj, 0x418, f32);
-                    hit[1] = PF(gBossObj, 0x41C, f32) -
-                             (f32)lbl_80347C78;
-                    hit[2] = (f32)(PF(gBossObj, 0x420, f32) +
-                                   lbl_80347BC0);
+                    hit[1] = PF(gBossObj, 0x41C, f32);
+                    hit[2] = PF(gBossObj, 0x420, f32);
+                    hit[2] = (f32)(hit[2] + lbl_80347BC0);
+                    hit[1] = (f32)(hit[1] + lbl_80347C78);
                     effect = StartFXSub(93, hit, 0, 0x880,
                                         lbl_80347C6C);
                     if (effect >= 0) {
@@ -2191,10 +2191,10 @@ store_motion_state:
                     break;
                 case 42:
                     hit[0] = PF(gBossObj, 0x418, f32);
-                    hit[1] = (f32)(PF(gBossObj, 0x41C, f32) +
-                                   lbl_80347C98);
-                    hit[2] = (f32)(PF(gBossObj, 0x420, f32) +
-                                   lbl_80347B28);
+                    hit[1] = PF(gBossObj, 0x41C, f32);
+                    hit[2] = PF(gBossObj, 0x420, f32);
+                    hit[2] = (f32)(hit[2] + lbl_80347B28);
+                    hit[1] = (f32)(hit[1] + lbl_80347C98);
                     effect = StartFXSub(93, hit, 0, 0x880,
                                         lbl_80347C6C);
                     if (effect >= 0) {
