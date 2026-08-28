@@ -6110,6 +6110,7 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     void *n;
     s32 idx;
     f32 *gid;
+    u8 unused[8];
 
     gid = gIdentityMatrix;
     header = (u8 *)c->hdr;
@@ -6150,7 +6151,10 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
         node = NULL;
     } else {
         n = *(void **)((u8 *)c->anodes + idx * 0x28);
-        node = n ? n : NULL;
+        node = n;
+        if (node == NULL) {
+            node = NULL;
+        }
     }
     c->hitnode0 = node;
     if ((*(u32 *)(header + 0x5C) & 0x10) != 0 && c->hitnode0 != NULL &&
@@ -6162,7 +6166,10 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
         node = NULL;
     } else {
         n = *(void **)((u8 *)c->anodes + idx * 0x28);
-        node = n ? n : NULL;
+        node = n;
+        if (node == NULL) {
+            node = NULL;
+        }
     }
     c->hitnode1 = node;
     idx = *(s16 *)(header + 0x5A);
@@ -6170,7 +6177,10 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
         node = NULL;
     } else {
         n = *(void **)((u8 *)c->anodes + idx * 0x28);
-        node = n ? n : NULL;
+        node = n;
+        if (node == NULL) {
+            node = NULL;
+        }
     }
     c->hitnode2 = node;
 
