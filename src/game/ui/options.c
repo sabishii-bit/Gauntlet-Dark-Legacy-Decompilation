@@ -1755,7 +1755,7 @@ void show_optmenu(OPTMENU* m)
     f32 fx;
     f32 fy;
     f32 fz;
-    u8 unused_outer[12];
+    u8 unused_outer[4];
 
     idx = 0;
     itofs = 0;
@@ -1835,6 +1835,7 @@ void show_optmenu(OPTMENU* m)
         f32 scale;
         u32 alpha;
         s32 hi2;
+        s32 itemfont;
 
         it = (OPTITEM*)((u8*)m->items + itofs);
         if (it->text == NULL) {
@@ -1848,6 +1849,7 @@ void show_optmenu(OPTMENU* m)
         }
         MBSetFontFlags(0);
         hi2 = hifont;
+        itemfont = font2;
 
         if (idx == sel && it->value >= 0) {
             /* selected item: pulse or flat highlight */
@@ -1894,14 +1896,14 @@ void show_optmenu(OPTMENU* m)
                 scale = (f32)(scale * m->scale *
                               (1.0 + (f32)(lbl_80343BC8 * ((f32)(s32)ph / (f32)OPTMENU_FADE))));
             }
-            ph = 0;
-            font2 = 0;
+            itemfont = 0;
+            flags &= ~0x200;
         } else if (-1 - idx == sel && part == it->value) {
             s32 k;
             for (k = 0; k < 3; k++) {
                 rgb[k] = m->rgb_hi[k];
             }
-            font2 = 0;
+            itemfont = 0;
         } else {
             s32 k;
             for (k = 0; k < 3; k++) {
@@ -1913,7 +1915,7 @@ void show_optmenu(OPTMENU* m)
             }
         }
 
-        if ((font2 == 0 || hi2 != 0) && (flags & 0x200) != 0) {
+        if ((itemfont == 0 || hi2 != 0) && (flags & 0x200) != 0) {
             color = it->rgb;
         } else {
             color = (rgb[2] & 0xFF) | ((rgb[0] & 0xFF) << 16) | ((rgb[1] & 0xFF) << 8);
@@ -1934,8 +1936,8 @@ void show_optmenu(OPTMENU* m)
         }
         txt = MBDrawText(x, y, text);
         if (hi2 == 0) {
-            if (font2 != 0) {
-                *(s16*)((u8*)txt + 0x26) = font2;
+            if (itemfont != 0) {
+                *(s16*)((u8*)txt + 0x26) = itemfont;
             }
         } else {
             *(s16*)((u8*)txt + 0x26) = hi2;
@@ -1948,8 +1950,8 @@ void show_optmenu(OPTMENU* m)
             w = DrawNormalText(m->scale, " ~", OPTMENU_FONT);
             x = x + w;
             if (hi2 == 0) {
-                if (font2 != 0) {
-                    *(s16*)((u8*)txt + 0x26) = font2;
+                if (itemfont != 0) {
+                    *(s16*)((u8*)txt + 0x26) = itemfont;
                 }
             } else {
                 *(s16*)((u8*)txt + 0x26) = hi2;
