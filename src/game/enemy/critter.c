@@ -775,7 +775,7 @@ f32 *delta;
     f32 *from;
     f32 wallRadius;
     f32 radius;
-    f32 bottom;
+    f64 bottom;
     f32 baseY;
     f32 floorY;
     f32 minRise;
@@ -843,17 +843,17 @@ f32 *delta;
     direction[2] = delta[2];
     length = NormalVector(direction);
     reach = wallRadius + length;
-    reachLimit = (f32)(lbl_80346478 * (f64)reach);
     probe[0] = c->pos[0] + direction[0] * reach;
     probe[1] = c->pos[1] + direction[1] * reach;
     probe[2] = c->pos[2] + direction[2] * reach;
-    bottom = (f32)(-radius - lbl_80346498);
+    reachLimit = (f32)(lbl_80346478 * (f64)reach);
+    bottom = -(f64)radius - lbl_80346498;
     grounded = 0;
     if ((surface = FloorCollide(probe, (s32)floorResult, 0, 2,
                                 lbl_803464A8, radius, bottom)) != NULL) {
         CritterWorldDamage(c, surface, c->pos, floorResult + 12);
         grounded = 1;
-        baseY = c->pos[1] - ((CritterWorldHeader *)c->hdr)->floorOffset;
+        baseY = c->vel[1] - ((CritterWorldHeader *)c->hdr)->floorOffset;
         *(f32 *)((u8 *)c + 0x438) = floorResult[12];
         *(f32 *)((u8 *)c + 0x43C) = floorResult[13];
         *(f32 *)((u8 *)c + 0x440) = floorResult[14];
@@ -865,7 +865,7 @@ f32 *delta;
         if (difference > reachLimit) {
             grounded = 0;
         } else if ((f64)length > lbl_80346488 &&
-                   difference > (f32)(lbl_803464B0 * (f64)length)) {
+                   (f64)difference > lbl_803464B0 * (f64)length) {
             probe[0] = c->pos[0] + delta[0];
             probe[1] = c->pos[1] + delta[1];
             probe[2] = c->pos[2] + delta[2];
@@ -912,9 +912,9 @@ f32 *delta;
         }
         if (c->shadow != NULL) {
             CopyMat3(floorResult, (f32 *)c->shadow);
-            *(f32 *)((u8 *)c->shadow + 0x30) = c->pos[0];
-            *(f32 *)((u8 *)c->shadow + 0x34) = c->pos[1];
-            *(f32 *)((u8 *)c->shadow + 0x38) = c->pos[2];
+            *(f32 *)((u8 *)c->shadow + 0x30) = c->vel[0];
+            *(f32 *)((u8 *)c->shadow + 0x34) = c->vel[1];
+            *(f32 *)((u8 *)c->shadow + 0x38) = c->vel[2];
             *(f32 *)((u8 *)c->shadow + 0x34) =
                 (f32)(lbl_803464B0 + (f64)floorResult[13]);
         }
