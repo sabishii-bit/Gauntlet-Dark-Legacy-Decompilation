@@ -2014,16 +2014,16 @@ store_motion_state:
             }
             if (p->quest_state >= 4 &&
                 (PF(p, 0x900, u32) & ~1U) == 0) {
-                if (gBossType >= 38 && gBossType < 40) {
+                if (gBossType >= 36 && gBossType < 38) {
+                    if (PF(p, 0x208, s32) != 107) {
+                        PF(p, 0x208, s32) = 0;
+                        PF(p, 0x20C, s32) = 107;
+                    }
+                } else if ((gBossType >= 34 && gBossType < 40)) {
                     if (PF(p, 0x208, s32) != 99 &&
                         PF(p, 0x208, s32) != 100) {
                         PF(p, 0x208, s32) = 0;
                         PF(p, 0x20C, s32) = 99;
-                    }
-                } else if (gBossType >= 36 && gBossType < 38) {
-                    if (PF(p, 0x208, s32) != 107) {
-                        PF(p, 0x208, s32) = 0;
-                        PF(p, 0x20C, s32) = 107;
                     }
                 } else if (PF(p, 0x208, s32) != 115 &&
                            PF(p, 0x208, s32) != 116) {
