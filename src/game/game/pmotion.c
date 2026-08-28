@@ -856,6 +856,9 @@ static s32 PlayerMotion_SfxIndex(Player* p) {
 }
 
 void PlayerMotion(Player* p) {
+    char* strings = lbl_80114220;
+    u8* ctxbase = lbl_80282850;
+    s32 index = p->index;
     ControlState* ctl = &lbl_80240E30[p->index];
     u8* motion = (u8*)p + 0x14;
     u8 unused[72];
@@ -893,8 +896,8 @@ void PlayerMotion(Player* p) {
     f32 moveAmount;
 
     if (fn_8005A730((f32*)motion) == 0) {
-        FatalError(lbl_80114220 + 36, 0x800000);
-        get_player_pos(p->index, 0);
+        FatalError(strings + 36, 0x800000);
+        get_player_pos(index, 0);
     }
 
     PF(p, 0x964, s16) &= ~1;
@@ -1039,11 +1042,11 @@ void PlayerMotion(Player* p) {
     }
 
     if (*(f32*)(motion + 0x34) <= lbl_80344880) {
-        get_player_pos(p->index, 0);
+        get_player_pos(index, 0);
     }
     if (PlayerMotion_FpClassify(*(f32*)(motion + 0x24)) == 1) {
-        FatalError(lbl_80114220 + 36, 0x800000);
-        get_player_pos(p->index, 0);
+        FatalError(strings + 36, 0x800000);
+        get_player_pos(index, 0);
     }
 
     PF(p, 0x888, f32) = dpos[0];
@@ -1144,12 +1147,12 @@ void PlayerMotion(Player* p) {
     if (wallResult != 0) {
         PF(p, 0x8C8, WorldObj*) = (WorldObj*)lbl_80344B30;
         PlayerMotion_FloorFX(p, (WorldObj*)lbl_80344B30, oldpos,
-                             (f32*)lbl_80282850);
+                             (f32*)ctxbase);
         if (anim == 137) {
             hitKind = 2;
-            reflection[0] = *(f32*)(lbl_80282850 + 12);
+            reflection[0] = *(f32*)(ctxbase + 12);
             reflection[1] = 0.0f;
-            reflection[2] = *(f32*)(lbl_80282850 + 20);
+            reflection[2] = *(f32*)(ctxbase + 20);
         }
     } else {
         PF(p, 0x8C8, WorldObj*) = NULL;
@@ -1169,7 +1172,7 @@ void PlayerMotion(Player* p) {
     }
     if (PF(p, 0x8C4, WorldObj*) != NULL) {
         PlayerMotion_FloorFX(p, PF(p, 0x8C4, WorldObj*), oldpos,
-                             (f32*)(lbl_80282850 + 72));
+                             (f32*)(ctxbase + 72));
     }
     if ((floorResult >= 1) ||
         (floorResult >= 0 && PF(p, 0x8C4, WorldObj*) != NULL &&
@@ -1189,7 +1192,7 @@ void PlayerMotion(Player* p) {
 
     if ((PF(p, 0x8D8, u32) & 0x8000) == 0) {
         s32 cameraArg = wallResult != 0 ? 0 : 1;
-        s32 cameraResult = CameraLimitPlayerDpos(p->index, dpos, cameraArg);
+        s32 cameraResult = CameraLimitPlayerDpos(index, dpos, cameraArg);
         PF(p, 0xA5C, s32) = wallResult != 0 ? -cameraResult : cameraResult;
         if (cameraResult == 5 && anim == 137) {
             hitKind = 1;
@@ -1207,7 +1210,7 @@ void PlayerMotion(Player* p) {
         }
     }
     if (floorResult > 0) {
-        floorBlocked = PlayerNewFloor((PMotionCtx*)(lbl_80282850 + 24),
+        floorBlocked = PlayerNewFloor((PMotionCtx*)(ctxbase + 24),
                                       p, dpos);
     }
 
@@ -1532,10 +1535,10 @@ collision_done:
             fabsf_(PF(p, 0x904, f32)) < (f32)lbl_80347C38) {
             heading = targetAngle;
             motionState = 1;
-            damage_enemy(enemy, p->index, 0, 0, NULL, 1,
+            damage_enemy(enemy, index, 0, 0, NULL, 1,
                          lbl_80347B40);
             if (PF(p, 0x95E, s16) == 0) {
-                fn_8009F158(p->index);
+                fn_8009F158(index);
                 PF(p, 0x95E, s16) = 1;
             }
             AudioPlayEvt101IfIdle((s32)(enemy + 0x54));
@@ -1667,12 +1670,12 @@ state_selected:
                 }
                 if ((f64)PF(p, 0x828, f32) >= lbl_80347C48) {
                     if (lbl_80344740 >= 15) {
-                        msgPost(110, p->index, (u32)&p->col_pos);
+                        msgPost(110, index, (u32)&p->col_pos);
                     }
                     PF(p, 0x828, f32) = lbl_80347C50;
                 } else if ((f64)PF(p, 0x828, f32) >= lbl_80347B90 &&
                            lbl_8034476C > 1 && lbl_80344740 >= 15) {
-                    msgPost(111, p->index, (u32)&p->col_pos);
+                    msgPost(111, index, (u32)&p->col_pos);
                 }
             }
         }
@@ -1911,7 +1914,7 @@ store_motion_state:
                     }
                     break;
                 }
-                msgPost(6, p->index, (u32)&p->col_pos);
+                msgPost(6, index, (u32)&p->col_pos);
             case 1:
             case 8:
             case 13:
@@ -2097,7 +2100,7 @@ store_motion_state:
                     damageScale =
                         (f32)(lbl_80347B88 * PF(chain2, 0x4B0, f32));
                     particleTexture =
-                        MBOX_FindTexture(lbl_80114220 + 56, NULL);
+                        MBOX_FindTexture(strings + 56, NULL);
                     break;
                 }
                 case 38:
@@ -2107,7 +2110,7 @@ store_motion_state:
                     damageScale =
                         (f32)(lbl_80347BE0 * PF(gBossObj, 0x4B0, f32));
                     particleTexture =
-                        MBOX_FindTexture(lbl_80114220 + 72, NULL);
+                        MBOX_FindTexture(strings + 72, NULL);
                     break;
                 case 34:
                     hitNode = PF(gBossObj, 0xC0, void*);
@@ -2118,7 +2121,7 @@ store_motion_state:
                     damageScale =
                         (f32)(lbl_80347BE0 * PF(gBossObj, 0x4B0, f32));
                     particleTexture =
-                        MBOX_FindTexture(lbl_80114220 + 72, NULL);
+                        MBOX_FindTexture(strings + 72, NULL);
                     break;
                 case 36:
                     weight = lbl_80347C6C;
@@ -2140,7 +2143,7 @@ store_motion_state:
                     }
                     damageScale =
                         (f32)(lbl_80347B58 * PF(gBossObj, 0x4B0, f32));
-                    CritterDamage(gBossObj, p->index, 0, 0, NULL, 0,
+                    CritterDamage(gBossObj, index, 0, 0, NULL, 0,
                                   damageScale);
                     break;
                 case 39:
@@ -2161,7 +2164,7 @@ store_motion_state:
                     }
                     damageScale =
                         (f32)(lbl_80347BE0 * PF(gBossObj, 0x4B0, f32));
-                    CritterDamage(gBossObj, p->index, 0, 0, NULL, 0,
+                    CritterDamage(gBossObj, index, 0, 0, NULL, 0,
                                   damageScale);
                     PF(gBossObj, 0xAC8, f32) = lbl_80347B10;
                     hit[0] = PF(gBossObj, 0x418, f32);
@@ -2185,7 +2188,7 @@ store_motion_state:
                     }
                     damageScale =
                         (f32)(lbl_80347BE0 * PF(gBossObj, 0x4B0, f32));
-                    CritterDamage(gBossObj, p->index, 0, 0, NULL, 0,
+                    CritterDamage(gBossObj, index, 0, 0, NULL, 0,
                                   lbl_80347C90);
                     PF(gBossObj, 0xAC8, f32) = lbl_80347C94;
                     break;
@@ -2203,7 +2206,7 @@ store_motion_state:
                     }
                     damageScale =
                         (f32)(lbl_80347BE0 * PF(gBossObj, 0x4B0, f32));
-                    CritterDamage(gBossObj, p->index, 0, 0, NULL, 0,
+                    CritterDamage(gBossObj, index, 0, 0, NULL, 0,
                                   damageScale);
                     PF(gBossObj, 0xAC8, f32) = lbl_80347CA0;
                     break;
@@ -2227,7 +2230,7 @@ store_motion_state:
                         lbl_80347CA4;
                     damageScale =
                         (f32)(lbl_80347BE0 * PF(gBossObj, 0x4B0, f32));
-                    CritterDamage(gBossObj, p->index, 0, 0, NULL, 0,
+                    CritterDamage(gBossObj, index, 0, 0, NULL, 0,
                                   damageScale);
                     PF(gBossObj, 0xAC8, f32) = lbl_80347B10;
                     break;
@@ -2262,7 +2265,7 @@ store_motion_state:
                         SfxSetHitTarget(bossDamage, effect, hitNode);
                     }
                     SfxSetDamage(damageScale, 0.0f, 0.0f, effect, 0,
-                                 p->index);
+                                 index);
                 }
 
                 if (effect >= 0) {
@@ -2340,11 +2343,11 @@ store_motion_state:
             s32 effect = StartFXSub(28, NULL, 42, 0x880, 0.0f);
             SfxSetParent(effect, PF(p, 0x74, void*));
             SfxSetDamage(lbl_80347C50, lbl_80347CB0,
-                         lbl_80347CA0, effect, 32, p->index + 1);
+                         lbl_80347CA0, effect, 32, index + 1);
             PF(p, 0x900, u32) &= ~0x02000000;
             player_get_powerup_state(1.0f, p, 5, 0x10000000);
             ShakeCamera(0, 0, 30, lbl_80347CB4, 200);
-            fn_8009D4B0(p->index);
+            fn_8009D4B0(index);
         }
 
         if ((PF(p, 0x900, u32) & 0x01000000) != 0) {
@@ -2353,34 +2356,34 @@ store_motion_state:
             if ((playerFlags & 0x3000) != 0) {
                 effect = StartFXSub(56, NULL, 42, 0x800, 0.0f);
                 SfxSetDamage(lbl_80347C54, lbl_80347C40, 0.0f,
-                             effect, 33, p->index + 1);
+                             effect, 33, index + 1);
                 if ((playerFlags & 0x1000) != 0) {
-                    fn_8009F490(p->index);
+                    fn_8009F490(index);
                 } else {
-                    fn_8009F450(p->index);
+                    fn_8009F450(index);
                 }
             } else if ((playerFlags & 0x410) != 0) {
                 effect = StartFXSub(52, NULL, 42, 0x800, 0.0f);
                 SfxSetDamage(lbl_80347C58, lbl_80347C40, 0.0f,
-                             effect, 33, p->index + 1);
-                AudioTurboDefense(p->index);
+                             effect, 33, index + 1);
+                AudioTurboDefense(index);
             } else if ((playerFlags & 0x20) != 0) {
                 effect = StartFXSub(53, NULL, 42, 0x800, 0.0f);
                 SfxSetDamage(lbl_80347C58, lbl_80347C40, 0.0f,
-                             effect, 36, p->index + 1);
-                AudioTurboDefense(p->index);
+                             effect, 36, index + 1);
+                AudioTurboDefense(index);
             } else if ((playerFlags & 0x40) != 0) {
                 effect = StartFXSub(54, NULL, 42, 0x800, 0.0f);
                 SfxSetDamage(lbl_80347C58, lbl_80347C40, 0.0f,
-                             effect, 34, p->index + 1);
-                AudioTurboDefense(p->index);
+                             effect, 34, index + 1);
+                AudioTurboDefense(index);
             }
 
             if (effect >= 0) {
                 if ((playerFlags & 0x400) != 0 &&
                     PF(p, 0x790, void*) != NULL) {
                     s32 object = MBOX_ReallyFindObject(
-                        lbl_80114220 + 84, sPowerupsHandle,
+                        strings + 84, sPowerupsHandle,
                         sPowerupsHandle, 1);
                     s32* found = AtreeFindMbidxNode(PF(p, 0x790, void*),
                                                     object);
@@ -2389,7 +2392,7 @@ store_motion_state:
                     }
                     PF(p, 0x828, f32) -= PF(p, 0x910, f32);
                     PF(p, 0x910, f32) = 0.0f;
-                    AudioPlayerTurbo(p->index);
+                    AudioPlayerTurbo(index);
                 } else {
                     SfxSetParent(effect, PF(p, 0x6D4, void*));
                 }
@@ -2411,11 +2414,11 @@ store_motion_state:
                 f32 projectileHeight;
                 f32 adjusted;
                 localVector[0] = PF(PF(p, 0x74, u8*), 0x40, f32) *
-                                 PF(lbl_80282930[p->index], 0x170, f32);
+                                 PF(lbl_80282930[index], 0x170, f32);
                 localVector[1] = PF(PF(p, 0x74, u8*), 0x44, f32) *
-                                 PF(lbl_80282930[p->index], 0x174, f32);
+                                 PF(lbl_80282930[index], 0x174, f32);
                 localVector[2] = PF(PF(p, 0x74, u8*), 0x48, f32) *
-                                 PF(lbl_80282930[p->index], 0x178, f32);
+                                 PF(lbl_80282930[index], 0x178, f32);
                 MulVecMat4(localVector, hit, (f32*)motion);
                 localVector[0] = attackDir[0];
                 localVector[1] = attackDir[1];
@@ -2448,7 +2451,7 @@ store_motion_state:
                 }
 
                 if ((p->flags & 0x80) != 0) {
-                    fn_80093918(4, p->index, hit, missileVelocity,
+                    fn_80093918(4, index, hit, missileVelocity,
                                 lbl_80347CB0, lbl_80347C8C,
                                 projectileHeight);
                 } else {
@@ -2456,7 +2459,7 @@ store_motion_state:
                         (f32)(lbl_80347BE0 *
                               (f32)(PF(p, 0x3324, s32) - 25) +
                               lbl_80347CC8);
-                    fn_80093918(p->index, p->index, hit,
+                    fn_80093918(index, index, hit,
                                 missileVelocity, lbl_80347CB0,
                                 shotSpeed, projectileHeight);
                 }
@@ -2614,11 +2617,11 @@ store_motion_state:
                                    missileMode, adjusted, missileScale);
             }
             if ((p->flags & 0x8000) != 0) {
-                fn_8009F410(p->index);
+                fn_8009F410(index);
             } else if ((p->flags & 0x4000) != 0) {
-                fn_8009F3D0(p->index);
+                fn_8009F3D0(index);
             } else {
-                AudioPlayerEatSFX(p->index);
+                AudioPlayerEatSFX(index);
             }
             PF(p, 0x900, u32) &= ~0xFF00U;
             PF(p, 0x900, u32) |= 0x10000000;
@@ -2646,19 +2649,19 @@ store_motion_state:
                     magicMode = (ctl->pad.levels & 0x10000) != 0 ? 3 : 2;
                 } else if ((PF(p, 0x956, s16) & 2) != 0) {
                     magicMode = 1;
-                    fn_8009F390(p->index);
+                    fn_8009F390(index);
                 } else {
                     magicMode = 0;
                 }
 
                 if (PF(p, 0x1EBC, s32) > 0) {
                     PF(p, 0x1EBC, s32)--;
-                    start_magic(p->index, (f32*)((u8*)p + 0x44),
+                    start_magic(index, (f32*)((u8*)p + 0x44),
                                 PF(p, 0x3300 +
                                       PF(p, 0x1EBC, s32) * 4, u32),
                                 magicMode, 1.0f);
                 } else {
-                    start_magic(p->index, (f32*)((u8*)p + 0x44),
+                    start_magic(index, (f32*)((u8*)p + 0x44),
                                 0, magicMode, 1.0f);
                 }
                 PF(p, 0x956, s16) = 128;
@@ -2770,7 +2773,7 @@ player_motion_phase_exit:
                     kind = 0;
                 }
                 if ((p->flags & 1) == 0) {
-                    fn_8009EFCC(p->index, variant, kind);
+                    fn_8009EFCC(index, variant, kind);
                 }
                 PF(p, 0x962, s16) &= ~3;
             }
@@ -2933,36 +2936,36 @@ player_motion_grab_done:
 
                 switch (anim) {
                 case 60:
-                    sfx1 = *(s16*)(lbl_80282930[p->index] + 18);
+                    sfx1 = *(s16*)(lbl_80282930[index] + 18);
                     break;
                 case 35:
-                    sfx1 = *(s16*)(lbl_80282930[p->index] + 12);
+                    sfx1 = *(s16*)(lbl_80282930[index] + 12);
                     break;
                 case 37:
-                    sfx1 = *(s16*)(lbl_80282930[p->index] + 16);
+                    sfx1 = *(s16*)(lbl_80282930[index] + 16);
                     break;
                 case 99:
-                    sfx1 = *(s16*)(lbl_80282930[p->index] + 20);
+                    sfx1 = *(s16*)(lbl_80282930[index] + 20);
                     break;
                 case 84:
-                    sfx1 = *(s16*)(lbl_80282930[p->index] + 14);
+                    sfx1 = *(s16*)(lbl_80282930[index] + 14);
                     break;
                 case 86:
-                    sfx1 = *(s16*)(lbl_80282930[p->index] + 22);
+                    sfx1 = *(s16*)(lbl_80282930[index] + 22);
                     break;
                 case 87:
-                    sfx1 = *(s16*)(lbl_80282930[p->index] + 24);
-                    sfx2 = *(s16*)(lbl_80282930[p->index] + 26);
+                    sfx1 = *(s16*)(lbl_80282930[index] + 24);
+                    sfx2 = *(s16*)(lbl_80282930[index] + 26);
                     break;
                 case 88:
-                    sfx1 = *(s16*)(lbl_80282930[p->index] + 28);
+                    sfx1 = *(s16*)(lbl_80282930[index] + 28);
                     comboMode = 1;
                     break;
                 case 90:
-                    sfx1 = *(s16*)(lbl_80282930[p->index] + 30);
+                    sfx1 = *(s16*)(lbl_80282930[index] + 30);
                     break;
                 case 123:
-                    sfx1 = *(s16*)(lbl_80282930[p->index] + 34);
+                    sfx1 = *(s16*)(lbl_80282930[index] + 34);
                     break;
                 }
 
@@ -2988,7 +2991,7 @@ player_motion_grab_done:
                     PF(Effects + effect * 240, 0x64, u32) = 552;
                     SfxSetDamage(PF(p, 0x104, f32) * scale,
                                  (f32)(lbl_80347C28 * scale), 0.0f,
-                                 effect, 32, p->index + 1);
+                                 effect, 32, index + 1);
                 }
 
                 if (sfx1 >= 0) {
