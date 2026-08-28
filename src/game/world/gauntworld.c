@@ -4521,7 +4521,7 @@ void fn_800606FC(void)
                 gypr[0] = it->objgrp.worldmat[2][0];
                 gypr[1] = it->objgrp.worldmat[2][1];
                 gypr[2] = it->objgrp.worldmat[2][2];
-                if (gen[7] == 0xC && (s8)gen[4] >= 3) {
+                if ((s8)gen[7] == 0xC && (s8)gen[4] >= 3) {
                     gen[4] -= 3;
                     gen[0xA] = 0;
                 }
@@ -4643,7 +4643,9 @@ void fn_800606FC(void)
                 wob[2] = sItemZero;
                 t = *(s16*)&it->data[2] - gFrameTicks;
                 *(s16*)&it->data[2] = t;
-                if (t > 0) {
+                if (t <= 0) {
+                    *(s16*)&it->data[2] = 0;
+                } else {
                     f64 step;
                     if ((*(s16*)&it->data[2] + 4) & 8) {
                         step = lbl_80347068;
@@ -4659,8 +4661,6 @@ void fn_800606FC(void)
                     }
                     wob[1] = (f32)(wob[1] + step);
                     WRAP_ANGLE(wob[1]);
-                } else {
-                    *(s16*)&it->data[2] = 0;
                 }
                 CreateYPRMatrix(it->objgrp.worldmat[0], wob);
                 UpdateObjWorldMat(&it->objgrp);
@@ -4966,7 +4966,7 @@ void fn_800606FC(void)
                     }
                 }
             } else if (sub == 1 && tgt != NULL) {
-                if (lbl_80344768 < 2 || did_generate(tgt, 0) == 0) {
+                if (lbl_80344768 <= 1 || did_generate(tgt, 0) == 0) {
                     del_target(&it->objgrp);
                 } else {
                     add_target(&it->objgrp);
@@ -5124,7 +5124,7 @@ void fn_800606FC(void)
                 if (vol > sItemZero || *(s16*)&it->data[0xE] < 0) {
                     s32 vmask = 0;
                     s32 vinst = 0;
-                    s16 sw = *(s16*)&it->data[0xE];
+                    s32 sw = *(s16*)&it->data[0xE];
                     if (sw < 0) {
                         vinst = -sw;
                     } else if (sw != 0) {
@@ -5136,7 +5136,7 @@ void fn_800606FC(void)
                     if (vmask != 0) {
                         *(s16*)&it->data[0xE] = vmask;
                     } else if (vinst != 0) {
-                        *(s16*)&it->data[0xE] = -(s16)vinst;
+                        *(s16*)&it->data[0xE] = (s16)-vinst;
                     } else {
                         *(s16*)&it->data[0xE] = 0;
                     }
@@ -5192,9 +5192,9 @@ void fn_800606FC(void)
                     }
                 } else if ((s8)it->action == 2) {
                     f32 best = lbl_80347000;
+                    Player* p = gPlayers;
                     s32 b;
-                    for (b = 0; b < 4; b++) {
-                        Player* p = &gPlayers[b];
+                    for (b = 0; b < 4; b++, p++) {
                         if (p->state == 1) {
                             f32 dy = it->objgrp.coll_pos[1] - p->pos[1];
                             f32 dx = it->objgrp.coll_pos[0] - p->pos[0];
