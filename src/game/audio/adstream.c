@@ -721,17 +721,16 @@ void AdsSetVolume(ADSTREAM* s, s32 vol) {
  * AXSetVoiceAddr/SrcType/Type.  Xbox: adsInitFromHeader. */
 #pragma dont_inline on
 void adsInitFromHeader(ADSTREAM* stream) {
-    f64 kscale;
     f32 kdiv;
+    f64 kscale;
     u32 k48;
-    u32 aram;
-    s32 vnum;
-    u32 i;
-    u32 t;
-    u32 bits;
-    f32 ratio;
     u32 cur;
     u32 end;
+    s32 vnum;
+    u32 aram;
+    u32 i;
+    u32 bits;
+    f32 ratio;
     s32 j;
     u8* ch;
     u16 addr[8];
@@ -746,11 +745,9 @@ void adsInitFromHeader(ADSTREAM* stream) {
     for (i = 0; i < stream->blocks; i++) {
         bits = stream->sampleBits;
         if (bits >= 32) {
-            t = ((stream->sampleRate << 12) / k48) * k48;
-            ratio = (f32)(t >> 12);
+            ratio = (f32)((((stream->sampleRate << 12) / k48) * k48) >> 12);
         } else {
-            t = ((stream->sampleRate << 12) / k48) * 12000;
-            ratio = (f32)(t >> 12);
+            ratio = (f32)((((stream->sampleRate << 12) / k48) * 12000) >> 12);
         }
         if (bits == 32) {
             ch = (u8*)stream + i * 96;
@@ -763,22 +760,20 @@ void adsInitFromHeader(ADSTREAM* stream) {
             adp[18] = *(u16*)(ch + 188);
             adp[19] = *(u16*)(ch + 190);
             AXSetVoiceAdpcm(sVoice[vnum], (AXPBADPCM*)adp);
+            end = (aram + sizeVoiceLoop) * 2 - 1;
             addr[0] = 1;
             addr[1] = 0;
-            end = (aram + sizeVoiceLoop) * 2 - 1;
             cur = aram * 2 + 2;
         } else {
+            end = (aram + sShortenedSizeVoiceLoop) >> 1;
             addr[0] = 1;
             addr[1] = 10;
-            end = (aram + sShortenedSizeVoiceLoop) >> 1;
             cur = aram >> 1;
         }
         ratio = ratio / kdiv;
         srcb[0] = (u16)(s32)ratio;
-        {
-            f32 whole = (f32)(s32)ratio;
-            srcb[1] = (u16)(s32)(kscale * (ratio - whole));
-        }
+        ratio -= (f32)(s32)ratio;
+        srcb[1] = (u16)(s32)(kscale * ratio);
         srcb[2] = 0;
         srcb[3] = 0;
         srcb[4] = 0;
