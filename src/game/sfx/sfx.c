@@ -2614,7 +2614,7 @@ static s32 SfxSkipItem_80096FF4(struct fxitem* item, u32 a, u32 b);
 void ProcessEffects(void)
 {
     s32 i;
-    u8 framePad[64];
+    u8 framePad[48];
     f32 mat[16];
     f32 targetmat[16];
     f32 oldpos[3];
@@ -2700,7 +2700,10 @@ void ProcessEffects(void)
             continue;
         }
 
-        if (!(flags & 0x20000)) {
+        if (flags & 0x20000) {
+            CreateDirMatrix(mat, e->vel, gCameras[0].mat[2]);
+            moved = 1;
+        } else {
             if (e->pyrvel[0] != 0.0f) {
                 PitchMat3(mat, -e->pyrvel[0] * gClockFrameStep);
                 moved = 1;
@@ -2713,9 +2716,6 @@ void ProcessEffects(void)
                 RollMat3(mat, e->pyrvel[2] * gClockFrameStep);
                 moved = 1;
             }
-        } else {
-            CreateDirMatrix(mat, e->vel, gCameras[0].mat[2]);
-            moved = 1;
         }
 
         remaining = e->endtime - gClockTime;
@@ -2962,9 +2962,9 @@ void ProcessEffects(void)
                             e->flags |= 8;
                             moved = 1;
                             e->flags &= ~0xc00;
-                            e->vel[0] *= -1.0;
-                            e->vel[1] *= -1.0;
-                            e->vel[2] *= -1.0;
+                            e->vel[0] = -1.0 * e->vel[0];
+                            e->vel[1] = -1.0 * e->vel[1];
+                            e->vel[2] = -1.0 * e->vel[2];
                             pos[0] += e->vel[0] * gClockFrameStep;
                             pos[1] += e->vel[1] * gClockFrameStep;
                             pos[2] += e->vel[2] * gClockFrameStep;
@@ -2978,8 +2978,8 @@ void ProcessEffects(void)
                             } else {
                                 e->endtime -= 1.0;
                             }
-                            if (e->damage > lbl_80348240) {
-                                e->damage = lbl_80348240;
+                            if (e->damage > (f64)lbl_80348240) {
+                                e->damage = (f32)(f64)lbl_80348240;
                             }
                         } else {
                             s32 playerHit;
