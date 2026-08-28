@@ -197,7 +197,6 @@ void ScrollMessageBox(char* msg)
     s32 busy;
     void* blit;
     u8* hdr;
-    void* quad;
     s32 nlines;
     s32 i;
     s32 wmax;
@@ -233,46 +232,50 @@ void ScrollMessageBox(char* msg)
             hdr = *(u8**)(g + 48) + 4;
         }
     }
-    if (hdr != 0 && *(s32*)(hdr + 12) == 0 &&
-        strcmp(lbl_802A5D1C, lbl_80347368) == 0) {
-        blit = MBNewBlit(lbl_80343CC8, 0, 0);
-    } else {
-        quad = MBNewTempQuad();
-    }
-    if (*(u32*)(lbl_802A4AA4 + 24) != 0) {
-        lbl_80344A4C = 6;
-        lbl_80344A50 = lbl_80347370;
-    } else {
-        lbl_80344A4C = 0;
-        lbl_80344A50 = lbl_80347374;
-    }
-    nlines = FixMLineText(msg, gTextWorkBuf, lines);
-    wmax = 0;
-    for (i = 0; i < nlines; i++) {
-        char* line = lines[i];
-        s32 font = lbl_80344A4C;
+    {
+        void* quad;
 
-        w = DrawNormalText(lbl_80344A50, line, font);
-        if (w > wmax) {
-            wmax = w;
+        if (hdr != 0 && *(s32*)(hdr + 12) == 0 &&
+            strcmp(lbl_802A5D1C, lbl_80347368) == 0) {
+            blit = MBNewBlit(lbl_80343CC8, 0, 0);
+        } else {
+            quad = MBNewTempQuad();
         }
-    }
-    wmax = FontHeight((boxw = wmax + 96, lbl_80344A50), lbl_80344A4C);
-    boxh = (wmax + 4) * TextMLines(msg) + 60;
-    if (boxw < 256) {
-        boxw = 256;
-    } else if (boxw > 512) {
-        boxw = 512;
-    }
-    x = 256 - boxw / 2;
-    y = 160 - boxh / 2;
-    if (blit != 0) {
-        mbBlitProject(blit, boxw, boxh);
-        mbBlitCalcWidth(blit, x, y, sA);
-    } else {
-        mbBlitProject(quad, boxw, boxh);
-        mbBlitCalcWidth(quad, x, y, sA);
-        MBBlitSetColor(quad, -1);
+        if (*(u32*)(lbl_802A4AA4 + 24) != 0) {
+            lbl_80344A4C = 6;
+            lbl_80344A50 = lbl_80347370;
+        } else {
+            lbl_80344A4C = 0;
+            lbl_80344A50 = lbl_80347374;
+        }
+        nlines = FixMLineText(msg, gTextWorkBuf, lines);
+        wmax = 0;
+        for (i = 0; i < nlines; i++) {
+            char* line = lines[i];
+            s32 font = lbl_80344A4C;
+
+            w = DrawNormalText(lbl_80344A50, line, font);
+            if (w > wmax) {
+                wmax = w;
+            }
+        }
+        wmax = FontHeight((boxw = wmax + 96, lbl_80344A50), lbl_80344A4C);
+        boxh = (wmax + 4) * TextMLines(msg) + 60;
+        if (boxw < 256) {
+            boxw = 256;
+        } else if (boxw > 512) {
+            boxw = 512;
+        }
+        x = 256 - boxw / 2;
+        y = 160 - boxh / 2;
+        if (blit != 0) {
+            mbBlitProject(blit, boxw, boxh);
+            mbBlitCalcWidth(blit, x, y, sA);
+        } else {
+            mbBlitProject(quad, boxw, boxh);
+            mbBlitCalcWidth(quad, x, y, sA);
+            MBBlitSetColor(quad, -1);
+        }
     }
     y += 32;
     strcpy(gTextFormatBuf, msg);
