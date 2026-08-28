@@ -4124,6 +4124,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
                        f32 height)
 {
     f32 end[3];
+    u8 padend[28];
     f32 nrm[3];
     f32 ts;
     f32 ts2;
