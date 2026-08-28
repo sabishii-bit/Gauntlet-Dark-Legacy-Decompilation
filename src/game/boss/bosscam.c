@@ -1697,7 +1697,7 @@ static f32 LimitCamVal2(f32 value, f32 target, f32 minVelocity,
 
     absDelta = delta;
     target = stopScale * maxVelocity;
-    step = gClockFrameStep;
+    step = *(volatile f32*)&gClockFrameStep;
     *(u32*)&absDelta &= 0x7FFFFFFF;
     oldVelocity = *velocity;
     ad = absDelta;
@@ -1712,35 +1712,37 @@ static f32 LimitCamVal2(f32 value, f32 target, f32 minVelocity,
         minVelocity = delta * gClockFrameReciprocal;
     } else {
         if (av / acceleration >= ad / av) {
-            if ((f64)oldVelocity > lbl_80345B98) {
+            f64 zero = *(volatile const f64*)&lbl_80345B98;
+
+            if ((f64)oldVelocity > zero) {
                 target = oldVelocity - accelerationStep;
-                if ((f64)target < lbl_80345B98) {
+                if ((f64)target < zero) {
                     target = lbl_80345BA0;
                 }
             } else {
                 target = oldVelocity + accelerationStep;
-                if ((f64)target > lbl_80345B98) {
+                if ((f64)target > zero) {
                     target = lbl_80345BA0;
                 }
             }
-        } else if ((f64)delta > lbl_80345B98) {
-            target = oldVelocity + accelerationStep;
         } else {
-            target = oldVelocity - accelerationStep;
+            f64 zero = *(volatile const f64*)&lbl_80345B98;
+
+            if ((f64)delta > zero) {
+                target = oldVelocity + accelerationStep;
+            } else {
+                target = oldVelocity - accelerationStep;
+            }
         }
 
-        if (target < minVelocity) {
-            goto store_out;
+        if (!(target < minVelocity)) {
+            if (!(target > maxVelocity)) {
+                maxVelocity = target;
+            }
+            minVelocity = maxVelocity;
         }
-        if (target > maxVelocity) {
-            goto set_min;
-        }
-        maxVelocity = target;
-    set_min:
-        minVelocity = maxVelocity;
     }
 
-store_out:
     *velocity = minVelocity;
     return minVelocity * gClockFrameStep + value;
 }
