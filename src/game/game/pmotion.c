@@ -863,7 +863,12 @@ void PlayerMotion(Player* p) {
     f32 dpos[3];
     f32 to[3];
     f32 hit[3];
+    f32 targetDir[3];
+    f32 attackDir[3];
+    f32 effectMatrix[16];
     f32 reflection[3];
+    f32 effectVelocity[3];
+    f32 bossColor[3];
     f32 localVector[3];
     f32 missileVelocity[3];
     u8* target = NULL;
@@ -1365,9 +1370,6 @@ collision_done:
     PF(p, 0x90C, s32) = 0;
 
     {
-        f32 attackDir[3];
-        f32 targetDir[3];
-        f32 effectMatrix[16];
         f32 savedHeading;
         f32 targetAngle = heading;
         f32 targetDistance = lbl_80347C20;
@@ -2057,8 +2059,6 @@ store_motion_state:
 
             if ((PF(p, 0x900, u32) & ~1U) != 0) {
                 u8* boss = gBossObj;
-                f32 bossColor[3];
-                f32 effectVelocity[3];
                 f32 bossDamage = 0.0f;
                 f32 damageScale = 0.0f;
                 f32 weight = 0.0f;
