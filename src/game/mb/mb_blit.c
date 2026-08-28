@@ -842,14 +842,16 @@ s32 MBDrawBlits(MBNODE* node) {
 
 void DrawBlit(MBBLIT* b) {
     MBWindow* window;
-    u8 unused[144];
-    f32 matrix[3][4];
+    u8 unused[84];
     s32 textureWidth;
     s32 textureHeight;
+    f32 matrix[3][4];
     s32 x0i;
     s32 y0i;
+    s32 flags;
     s32 x1i;
     s32 y1i;
+    s32 lightX;
     s32 lightY;
     s32 light;
     s32 color;
@@ -857,34 +859,35 @@ void DrawBlit(MBBLIT* b) {
     s32 green;
     s32 blue;
     s32 alpha;
-    f32 u0;
-    f32 u1;
-    f32 v0;
-    f32 v1;
     f32 x0;
     f32 x1;
-    f32 y0;
+    f32 v0;
+    f32 v1;
+    f32 u0;
+    f32 u1;
     f32 y1;
     f32 z;
+    f32 y0;
     GXColor channelColor;
     GXColor materialColor;
+    u8 unused2[60];
     u8* modelTable;
     u8* modelRecord;
     s32 modelIndex;
-    u32 flags;
+    s32 texture;
     s32 drawMode;
 
     window = gWinGlobals;
-    modelIndex = b->tex >> 16;
+    texture = b->tex;
+    modelIndex = texture >> 16;
     modelTable = *(u8**)((u8*)window + 48);
-    modelRecord = modelTable + modelIndex * 16;
-    if (*(s32*)(modelRecord + 16) != 0) {
+    if (*(s32*)((modelRecord = modelTable + modelIndex * 16) + 16) != 0) {
         return;
     }
 
     flags = b->flags;
     drawMode = *(s32*)(*(u8**)((u8*)window + 64) + 692);
-    pbBlitSetTexture(b->tex);
+    pbBlitSetTexture(texture);
     pbBlitSetDrawRegs(flags, 0, drawMode);
 
     x0i = b->x + window->scale->originX;
@@ -922,9 +925,10 @@ void DrawBlit(MBBLIT* b) {
 
         flags &= 0x4000;
         if (flags != 0) {
-            lightY = window->scale->viewport1 -
-                     (y0i - window->scale->originY);
-            light = mbBlitCalcLight(x0i - window->scale->originX, lightY);
+            light = mbBlitCalcLight(
+                lightX = x0i - window->scale->originX,
+                lightY = window->scale->viewport1 -
+                         (y0i - window->scale->originY));
         }
         color = b->color0;
         alpha = (color >> 23) & 0x1FE;
@@ -966,9 +970,10 @@ void DrawBlit(MBBLIT* b) {
         GXWGFifo.f32 = v0;
 
         if (flags != 0) {
-            lightY = window->scale->viewport1 -
-                     (y1i - window->scale->originY);
-            light = mbBlitCalcLight(x0i - window->scale->originX, lightY);
+            light = mbBlitCalcLight(
+                lightX = x0i - window->scale->originX,
+                lightY = window->scale->viewport1 -
+                         (y1i - window->scale->originY));
         }
         color = b->color2;
         alpha = (color >> 23) & 0x1FE;
@@ -1012,12 +1017,15 @@ void DrawBlit(MBBLIT* b) {
         SetVertexFormat(2);
         color = b->color0;
         alpha = (color >> 23) & 0x1FE;
+        red = (color >> 16) & 0xFF;
+        green = (color >> 8) & 0xFF;
+        blue = color & 0xFF;
         if (alpha == 256) {
             alpha--;
         }
-        channelColor.r = (color >> 16) & 0xFF;
-        channelColor.g = (color >> 8) & 0xFF;
-        channelColor.b = color & 0xFF;
+        channelColor.r = red;
+        channelColor.g = green;
+        channelColor.b = blue;
         channelColor.a = alpha;
         materialColor = channelColor;
         GXSetChanMatColor(GX_COLOR0A0, &materialColor);
