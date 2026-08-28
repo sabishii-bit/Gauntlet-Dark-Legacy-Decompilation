@@ -3191,10 +3191,15 @@ void ProcessEffects(void)
             struct fxcritter* critter;
             if (mode != 0 && radius > 0.0 && !(flags & 0x400)) {
                 CritterCollideStart(radius, pos, 0);
-                while ((critter = CritterExpCollide(
-                            pos, normal, dir, radius, e->mindp, fade,
-                            e->id)) != NULL) {
+                for (;;) {
                     s32 damage;
+
+                    critter = CritterExpCollide(
+                        pos, normal, dir, radius, e->mindp, fade,
+                        e->id);
+                    if (critter == NULL) {
+                        break;
+                    }
                     fn_80037ED0(critter, e->id, fade);
                     if (critter->header->desc->type == 4 &&
                         (e->flags & 0x800)) {
