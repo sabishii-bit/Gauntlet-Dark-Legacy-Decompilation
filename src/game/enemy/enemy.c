@@ -248,6 +248,13 @@ typedef union EnemyRuntimePool {
         s32 milestoneIds[(0x2B4 - 0xB4) / 4];
     } view;
 } EnemyRuntimePool;
+typedef union EnemyRuntimeOwner {
+    u32 words[(0x40 + 0x2B4) / 4];
+    struct {
+        u32 prefix[0x40 / 4];
+        EnemyRuntimePool pool;
+    } view;
+} EnemyRuntimeOwner;
 EnemyRuntimePool lbl_80250E40;  /* 0x80250E40 */
 s32 lbl_80250E00[0x40 / 4];    /* 0x80250E00 enemy-type pool anchor */
 
@@ -5430,7 +5437,8 @@ extern s32 lbl_80344724;   /* 0x80344724 active milestone count */
  * preferring whichever candidate sits closer to the world origin. */
 s32 find_neighbor_milestone(s32 ms, s32 nth)
 {
-    EnemyRuntimePool* milestonePool = &lbl_80250E40;
+    u32* scanWord;
+    EnemyRuntimeOwner* milestoneOwner = (EnemyRuntimeOwner*)lbl_80250E00;
     s32 count = lbl_80344724;
     s32 idx = 0;
     s32 lo;
@@ -5439,7 +5447,7 @@ s32 find_neighbor_milestone(s32 ms, s32 nth)
     u8 unused[24];
 
     for (i = 0; i < count; i++) {
-        if (ms == milestonePool->view.milestoneIds[i]) {
+        if (ms == *(s32*)((u8*)(scanWord = &milestoneOwner->words[i]) + 0xF4)) {
             break;
         }
         idx++;
@@ -5449,11 +5457,11 @@ s32 find_neighbor_milestone(s32 ms, s32 nth)
     }
     lo = idx - nth;
     if (lo < 0) {
-        return milestonePool->view.milestoneIds[idx + nth];
+        return milestoneOwner->view.pool.view.milestoneIds[idx + nth];
     }
     hi = idx + nth;
     if (hi > count - 1) {
-        return milestonePool->view.milestoneIds[lo];
+        return milestoneOwner->view.pool.view.milestoneIds[lo];
     }
     {
         u8* milestoneBase;
@@ -5469,7 +5477,7 @@ s32 find_neighbor_milestone(s32 ms, s32 nth)
         f32 dlo;
         f32 dhi;
 
-        m_lo = milestonePool->view.milestoneIds[lo];
+        m_lo = milestoneOwner->view.pool.view.milestoneIds[lo];
         milestoneBase = sMilestones;
         milestoneOffset = m_lo * 0x68;
         milestoneY = milestoneBase + 0x34;
@@ -5491,7 +5499,7 @@ s32 find_neighbor_milestone(s32 ms, s32 nth)
             tmp = (f32)(dlo * (0.5 * y * (3.0 - y * y * dlo)));
             dlo = tmp;
         }
-        m_hi = milestonePool->view.milestoneIds[hi];
+        m_hi = milestoneOwner->view.pool.view.milestoneIds[hi];
         milestoneOffset = m_hi * 0x68;
         y = *(f32*)(milestoneY + milestoneOffset);
         x = *(f32*)(milestoneX + milestoneOffset);
