@@ -2143,12 +2143,12 @@ store_motion_state:
                                   damageScale);
                     break;
                 case 39:
-                    hit[0] = PF(boss, 0x418, f32) -
-                             (f32)lbl_80347C80;
-                    hit[1] = PF(boss, 0x41C, f32) -
-                             (f32)lbl_80347C78;
-                    hit[2] = PF(boss, 0x420, f32) +
-                             (f32)lbl_80347C70;
+                    hit[0] = PF(boss, 0x418, f32);
+                    hit[1] = PF(boss, 0x41C, f32);
+                    hit[2] = PF(boss, 0x420, f32);
+                    hit[2] = (f32)(hit[2] + lbl_80347C70);
+                    hit[1] = (f32)(hit[1] - lbl_80347C78);
+                    hit[0] = (f32)(hit[0] - lbl_80347C80);
                     effect = StartFXSub(90, hit, 0, 0x80000,
                                         lbl_80347C6C);
                     if (effect >= 0) {
