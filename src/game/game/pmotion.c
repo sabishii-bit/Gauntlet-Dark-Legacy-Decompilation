@@ -2717,9 +2717,7 @@ player_motion_phase_exit:
             }
 
             deltaYaw = PF(p, 0xC8, f32) - newYaw;
-            if (deltaYaw < 0.0f) {
-                deltaYaw = -deltaYaw;
-            }
+            deltaYaw = fabsf_param(deltaYaw);
             if ((f64)deltaYaw > lbl_80347CE0) {
                 p->hud_flags |= 1;
             }
