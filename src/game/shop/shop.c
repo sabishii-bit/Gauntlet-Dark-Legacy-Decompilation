@@ -206,11 +206,11 @@ s32 do_shop(void)
                     *(f32*)(pl + 2680) = kHalf;
                     *(f32*)(pl + 2684) = kHalf;
                     if (lbl_80344C0C != 0) {
-                        void** q = (void**)(page + o24 + 7504);
+                        void** q = (void**)(page + o24);
                         s32 cnt;
                         s32 koff;
                         u8* slot;
-                        if (q[0] != 0) {
+                        if (*(q += 1876) != 0) {
                             mbBlitInit3414(q[0], 1);
                         }
                         if (q[1] != 0) {
@@ -245,8 +245,8 @@ s32 do_shop(void)
                             0x2000000) {
                             void** q;
                             AudioCursorSelect();
-                            q = (void**)(page + o24 + 7504);
-                            if (q[0] != 0) {
+                            q = (void**)(page + o24);
+                            if (*(q += 1876) != 0) {
                                 mbBlitInit3414(q[0], 1);
                             }
                             if (q[1] != 0) {
@@ -313,8 +313,12 @@ s32 do_shop(void)
                         break;
                     }
                     if (*(s32*)(pl + 232) == 1 || *(s32*)(pl + 232) == 5) {
-                        mbBlitInit3414(
-                            *(void**)(page + *(s32*)pl * 24 + 7516), 0);
+                        {
+                            u8* playerBlits =
+                                page + *(s32*)pl * 24;
+                            mbBlitInit3414(
+                                *(void**)(playerBlits + 7516), 0);
+                        }
                         mbBlitInit3414(
                             *(void**)(page + *(s32*)pl * 24 + 7520), 0);
                         for (j = 0; j < lbl_80344C10; j++) {
@@ -368,10 +372,13 @@ s32 do_shop(void)
                     break;
                 case 10:
                     draw_inventory_panel(i);
-                    if (*(u32*)(pads + o60 + 8) & 0x2000000) {
-                        AudioCursorSelect();
-                        init_inventory_panel(i);
-                        *(s32*)(pl + 2660) += 1;
+                    {
+                        u8* playerPad = pads + o60;
+                        if (*(u32*)(playerPad + 8) & 0x2000000) {
+                            AudioCursorSelect();
+                            init_inventory_panel(i);
+                            *(s32*)(pl + 2660) += 1;
+                        }
                     }
                     break;
                 case 11:
