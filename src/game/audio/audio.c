@@ -1185,18 +1185,19 @@ void AudioClearTracks(void)
 void AudioUnloadPart(char* bankName)
 {
     s32 i;
-    s32 j;
+    s32 scanOffset;
+    s32 bankOffset;
     s32 partId;
     s32 romBankId;
-    u8* bankEntry;
-    u8* romBank;
-    u16 handle;
 
     if (sAudioSuspend != 0) {
         return;
     }
-    for (i = 0; i < gAudioBankTbl[4]; i++) {
-        if (strncmp((char*)((u8*)gAudioBankTbl + i * 292 + 20), bankName, 16) == 0) {
+    i = 0;
+    scanOffset = i;
+    for (; i < gAudioBankTbl[4]; i++, scanOffset += 292) {
+        char* scanName = (char*)((u8*)gAudioBankTbl + scanOffset + 20);
+        if (strncmp(scanName, bankName, 16) == 0) {
             break;
         }
     }
@@ -1204,33 +1205,43 @@ void AudioUnloadPart(char* bankName)
         sAudioSuspend = 1;
         i = -1;
     }
-    bankEntry = (u8*)gAudioBankTbl + i * 292 + 20;
-    partId = *(s32*)(bankEntry + 284);
-    if (partId < 0) {
-        return;
+    bankOffset = i * 292;
+    {
+        u8* bankEntry = (u8*)gAudioBankTbl + bankOffset + 20;
+        partId = *(s32*)(bankEntry + 284);
+        if (partId < 0) {
+            return;
+        }
+        bankEntry += partId * 4;
+        romBankId = *(s32*)(bankEntry + 28);
     }
-    romBankId = *(s32*)(bankEntry + partId * 4 + 28);
-    romBank = *(u8**)(sAudioBankTable + 16) + romBankId * 44;
-    handle = *(u16*)(romBank + 42);
-    if (handle != 0 && handle != 0xFFFF) {
-        for (j = gAudioBankTbl[4] - 1; j >= 0; j--) {
-            if (j != i) {
-                u8* other = (u8*)gAudioBankTbl + j * 292 + 20;
-                if (romBankId == *(s32*)(other + *(s32*)(other + 284) * 4 + 28)) {
-                    bulletproof_printf(lbl_8011145C);
-                    break;
+    {
+        u8* romBank = *(u8**)(sAudioBankTable + 16) + romBankId * 44;
+        u16 handle = *(u16*)(romBank + 42);
+        if (handle != 0 && handle != 0xFFFF) {
+            s32 j;
+            for (j = gAudioBankTbl[4] - 1; j >= 0; j--) {
+                if (j != i) {
+                    u8* other = (u8*)gAudioBankTbl + j * 292 + 20;
+                    if (romBankId == *(s32*)(other + *(s32*)(other + 284) * 4 + 28)) {
+                        bulletproof_printf(lbl_8011145C);
+                        break;
+                    }
                 }
             }
-        }
-        if (j < 0) {
-            AudioKillByBank(romBankId);
-            sndCmd18(*(s16*)(romBank + 40));
-            *(s16*)(romBank + 40) = 0;
-            *(s16*)(romBank + 42) = 0;
+            if (j < 0) {
+                AudioKillByBank(romBankId);
+                sndCmd18(*(s16*)(romBank + 40));
+                *(s16*)(romBank + 40) = 0;
+                *(s16*)(romBank + 42) = 0;
+            }
         }
     }
-    *(s32*)(bankEntry + 284) = -1;
-    *(s32*)(bankEntry + 288) = -1;
+    {
+        u8* bankEntry = (u8*)gAudioBankTbl + bankOffset + 20;
+        *(s32*)(bankEntry + 284) = -1;
+        *(s32*)(bankEntry + 288) = -1;
+    }
 }
 
 /* ---------------------------------------------------------------- */
