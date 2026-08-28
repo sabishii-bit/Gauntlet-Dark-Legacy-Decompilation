@@ -1482,18 +1482,16 @@ int ControllerMessageBox(s32 mask, s32 msg, s32 count, s32 sound)
     s32 i;
     s32 quiet;
     s32 w;
+    s32 y;
     s32 h;
     s32 boxw;
     s32 x;
-    s32 y;
     s32 yy;
     u32 flags;
     s32 minw;
     void* blit;
     void* bbl;
     s32 ty;
-    s32 nbut;
-    u32 buttons;
 
     maskSave = mask;
     busySave = gGameBusy;
@@ -1514,7 +1512,12 @@ int ControllerMessageBox(s32 mask, s32 msg, s32 count, s32 sound)
     MBHideMarkedMessages();
     MBLockMessages(gModalRenderDepth - 1);
     lbl_80344E04 = 1;
-    minw = DrawNormalText(lbl_80343C80, lbl_80343C84, 6) + 32;
+    {
+        void* normalText;
+
+        minw = DrawNormalText((normalText = lbl_80343C84, lbl_80343C80),
+                              normalText, 6) + 32;
+    }
     blit = MBNewBlit(lbl_80343C88, 0, 0);
     bbl = MBCreateBlit(0, lbl_80344E44, 190, 8, 20, 20);
     players = gPlayers;
@@ -1555,10 +1558,18 @@ int ControllerMessageBox(s32 mask, s32 msg, s32 count, s32 sound)
             ty = gDrawTextY;
             mbBlitInit3414(bbl, 0);
             mbBlitCalcWidth(bbl, 190, ty + 8, lbl_803473C8);
-            DrawGlowText(-256, ty + 8, lbl_80343C84, lbl_80343C80);
+            {
+                f32 glowScale = lbl_80343C80;
+                s32 glowY = ty + 8;
+
+                DrawGlowText(-256, glowY, lbl_80343C84, glowScale);
+            }
             MBEndFrame();
             if (ticks <= 0) {
-                for (i = 0, buttons = 0, nbut = 0; i < 4; i++) {
+                s32 nbut = 0;
+                u32 buttons = 0;
+
+                for (i = 0; i < 4; i++) {
                     if ((maskSave & (1 << i)) != 0) {
                         u8* pp = players + i * 13148;
                         if (*(s32*)(pp + 232) != 0) {
