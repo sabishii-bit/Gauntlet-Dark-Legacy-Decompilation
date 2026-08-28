@@ -2851,17 +2851,16 @@ extern u8 lbl_801201C4[];     /* weakening default period */
  * through the sfx TU, and the death path posts msg 0xD, drops the meter
  * and got-it entries, and parks state 8 (dying).
  */
-s32 damage_player(s32 i, f32 dmg_in, s32 mode, u32 flags, f32* dir) {
-    f32 dmg = dmg_in;
-    f32 reduced_dmg;
-    u32 fl = flags;
+s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
+    u8 unused[8];
     Player* p = P(i);
     s32 result = 0;
     s32 invuln;
+    s32 option;
     s32 hp_old;
     s32 hp_new;
     f32 hp;
-    f32 red;
+    f64 red;
     s16 hf;
 
     if (p->state != 1) {
@@ -2870,23 +2869,25 @@ s32 damage_player(s32 i, f32 dmg_in, s32 mode, u32 flags, f32* dir) {
     if (gTriggerCameraState != 0) {
         return 0;
     }
-    if ((fl & 0x200) != 0) {
+    if ((flags & 0x200) != 0) {
         return 0;
     }
     if (player_can_be_damaged(p) == 0) {
         return 0;
     }
 
-    invuln = gGameOptions[0];
-    if (invuln < 2) {
-        if (invuln >= 1 && dmg != 999999.0f) {
+    option = gGameOptions[0];
+    if (option >= 2) {
+        invuln = option;
+    } else {
+        if (option >= 1 && dmg != 999999.0f) {
             invuln = 1;
         } else {
             invuln = 0;
         }
     }
-    if ((fl & 0x8000) == 0) {
-        if (invuln > 2 || p->state == 4) {
+    if ((flags & 0x8000) == 0) {
+        if (invuln > 2 || P(i)->state == 4) {
             return 0;
         }
         if (good_wiz_state != 0) {
@@ -2900,29 +2901,32 @@ s32 damage_player(s32 i, f32 dmg_in, s32 mode, u32 flags, f32* dir) {
             dmg = dmg * PF(gCurLevel, 0xA4, f32);
         }
     }
-    ModifyDamage(STAT_ARMOR(p), &dmg, &fl, PF(p, 0x120, u32));
-    if ((fl & 0x40000000) && (PF(p, 0x124, u32) & 1)) {
+    ModifyDamage(STAT_ARMOR(p), &dmg, &flags, PF(p, 0x120, u32));
+    if ((flags & 0x40000000) && (PF(p, 0x124, u32) & 1)) {
         dmg = 0.0f;
     }
     if (dmg > 0.05f) {
         hf = p->hud_flags;
         if ((hf & 0x600) != 0) {
+            f32 reduced_dmg;
+
             /* shielded/back arc */
             if (hf & 0x200) {
-                if (dir == NULL) {
-                    reduced_dmg = 0.0f;
-                } else {
+                if (dir != NULL) {
                     red = atan2(dir[0], dir[2]) - PF(p, 0x894, f32);
                     if (red > 3.141592653589793) {
                         red = red - 6.283185307179586;
                     } else if (red <= -3.141592653589793) {
                         red = red + 6.283185307179586;
                     }
-                    if (red > -1.5707963267948966 && red < 1.5707963267948966) {
+                    if ((f32)red > -1.5707963267948966 &&
+                        (f32)red < 1.5707963267948966) {
                         reduced_dmg = 0.0f;
                     } else {
                         reduced_dmg = dmg * 0.25;
                     }
+                } else {
+                    reduced_dmg = 0.0f;
                 }
             } else {
                 reduced_dmg = dmg * 0.25;
@@ -2938,15 +2942,16 @@ s32 damage_player(s32 i, f32 dmg_in, s32 mode, u32 flags, f32* dir) {
                 p->timer_1FE = (s16)(s32)(5.0 * clank);
                 p->hud_flags |= 0x2000;
             }
-            if (fl & 0x10160) {
-                fl = (fl & 0xFFFEFE9F) | 0x10;
+            if (flags & 0x10160) {
+                flags &= 0xFFFEFE9F;
+                flags |= 0x10;
             } else {
-                fl &= ~0x10;
+                flags &= ~0x10;
             }
             dmg = reduced_dmg;
         } else {
             /* front hit: "ouch" speech occasionally */
-            if (dmg > 40.0f && (fl & 0x10160) && (hf & 0x2000) == 0 &&
+            if (dmg > 40.0f && (flags & 0x10160) && (hf & 0x2000) == 0 &&
                 sMusicFadeBase > 5.0) {
                 msgPost(0x7D, p->index, (u32)p->col_pos);
             }
@@ -2957,47 +2962,47 @@ s32 damage_player(s32 i, f32 dmg_in, s32 mode, u32 flags, f32* dir) {
     if (dmg < 0.0) {
         /* negative damage heals */
         p->health = hp - dmg;
-        if (fl & 0x8000) {
-            if (fl & 0xF) {
+        if (flags & 0x8000) {
+            if (flags & 0xF) {
                 PF(p, 0x8D4, u32) &= ~0xF;
             }
-            PF(p, 0x8D4, u32) |= fl;
+            PF(p, 0x8D4, u32) |= flags;
             if (dir != NULL) {
-                PF(p, 0x8DC, f32) += dir[0];
-                PF(p, 0x8E0, f32) += dir[1];
-                PF(p, 0x8E4, f32) += dir[2];
+                PF(p, 0x8DC, f32) = dir[0] + PF(p, 0x8DC, f32);
+                PF(p, 0x8E0, f32) = dir[1] + PF(p, 0x8E0, f32);
+                PF(p, 0x8E4, f32) = dir[2] + PF(p, 0x8E4, f32);
             }
         }
     } else {
-        if (invuln == 0 && (fl & 0x8000) == 0) {
+        if (invuln == 0 && (flags & 0x8000) == 0) {
             p->health = hp - dmg;
         }
         PF(p, 0x8D0, f32) += dmg;
         if (invuln < 2) {
-            if (fl & 0xF) {
+            if (flags & 0xF) {
                 PF(p, 0x8D4, u32) &= ~0xF;
             }
             if (dmg <= 0.5f) {
-                fl &= 0xFFFEFE8F;
+                flags &= 0xFFFEFE8F;
             }
-            PF(p, 0x8D4, u32) |= fl;
+            PF(p, 0x8D4, u32) |= flags;
             if (dir != NULL) {
-                PF(p, 0x8DC, f32) += dir[0];  /* hit push vec */
-                PF(p, 0x8E0, f32) += dir[1];
-                PF(p, 0x8E4, f32) += dir[2];
+                PF(p, 0x8DC, f32) = dir[0] + PF(p, 0x8DC, f32);  /* hit push vec */
+                PF(p, 0x8E0, f32) = dir[1] + PF(p, 0x8E0, f32);
+                PF(p, 0x8E4, f32) = dir[2] + PF(p, 0x8E4, f32);
             }
             if (dmg > 0.0f) {
-                if (fl & 0x800) {
+                if (flags & 0x800) {
                     PF(p, 0x898, f32) = 1.0 + sMusicFadeBase;
                 }
-                if (fl & 0x1000) {
+                if (flags & 0x1000) {
                     PF(p, 0x898, f32) = 4.0 + sMusicFadeBase;
                 }
-                if (fl & 0x10040) {
+                if (flags & 0x10040) {
                     do_vibe(i, 3, 0x1E);
-                } else if (fl & 0x120) {
+                } else if (flags & 0x120) {
                     do_vibe(i, 2, 0x14);
-                } else if (fl & 0x90) {
+                } else if (flags & 0x90) {
                     do_vibe(i, 1, 0xF);
                 } else {
                     do_vibe(i, 0, 10);
@@ -3056,7 +3061,7 @@ s32 damage_player(s32 i, f32 dmg_in, s32 mode, u32 flags, f32* dir) {
                     PF(p, 0x924, f32) = 0.0f;
                     mode = 0;
                 } else if (PF(p, 0x924, f32) >= 45.0) {
-                    PF(p, 0x924, f32) -= 45.0;
+                    PF(p, 0x924, f32) = PF(p, 0x924, f32) - 45.0;
                     if (dmg > 0.0f) {
                         AudioPlayerPain(i);
                     }
@@ -3065,15 +3070,15 @@ s32 damage_player(s32 i, f32 dmg_in, s32 mode, u32 flags, f32* dir) {
             }
         }
         if (mode == 1) {
-            if (fl & 0x800) {
+            if (flags & 0x800) {
                 if (dmg > 0.0f) {
                     AudioPlayerSeverePain(i);
                 }
             } else if (p->timer_1F0 <= 0) {
                 s32 kind2 = 0;
-                if (fl & 0x20000) {
+                if (flags & 0x20000) {
                     kind2 = 1;
-                } else if (fl & 0x40000) {
+                } else if (flags & 0x40000) {
                     kind2 = 2;
                 }
                 if (dmg > 0.0f) {
