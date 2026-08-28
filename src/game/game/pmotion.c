@@ -822,13 +822,14 @@ void PlayerMotion_SetAnimState(Player* p) {
  * handles idle SFX.  Jump/switch tables live in this TU .data section.
  */
 static f32 PlayerMotion_WrapAngle(f32 angle) {
-    if ((f64)angle > lbl_80347B50) {
-        return (f32)((f64)angle - lbl_80347B60);
+    f64 a = (f64)angle;
+    if (a > lbl_80347B50) {
+        a -= lbl_80347B60;
     }
-    if ((f64)angle <= lbl_80347B68) {
-        return (f32)(lbl_80347B60 + (f64)angle);
+    if (a <= lbl_80347B68) {
+        a = lbl_80347B60 + a;
     }
-    return angle;
+    return (f32)a;
 }
 
 static s32 PlayerMotion_FpClassify(f32 value) {
