@@ -4452,18 +4452,19 @@ void move_logic21(s32 index)
  * ending (mode1 -1) when the path loops back on itself. */
 void move_logic22(s32 index)
 {
-    u8* row22 = (u8*)lbl_80250E00 + index * 916;
+    u8* row22;
     u8* base = (u8*)lbl_80250E00;
     u8* e0;
     Enemy* e;
     s32 it = lbl_80344748;
     s32 flee;
-    u8 _pad22_hi[52];
+    u8 _pad22_hi[60];
     f32 buf1[3];
     f32 buf2[3];
+    volatile f32 tmp;
     u8 _pad22_lo[12];
 
-    e0 = row22 + 3608;
+    e0 = (row22 = base + index * 916) + 3608;
     e = (Enemy*)(u8*)e0;
     if (it < 0) {
         flee = 0;
@@ -4502,18 +4503,18 @@ void move_logic22(s32 index)
     }
     switch (e->mode1) {
     case 0: {
-        u8* node = sMilestones;
+        s32 i;
+        u8* node;
         s32 best_idx = -1;
         f32 best_dist = lbl_803468B0;
-        s32 i;
 
-        for (i = 0; i < sNumMilestones; i++) {
+        for (node = sMilestones, i = 0; i < sNumMilestones;
+             i++, node += 104) {
             f32 dx = e->objgrp.worldmat[3][0] - *(f32*)(node + 48);
             f32 dy = e->objgrp.worldmat[3][1] - *(f32*)(node + 52);
             f32 dz = e->objgrp.worldmat[3][2] - *(f32*)(node + 56);
             f32 d;
             if ((d = dx * dx + dy * dy + dz * dz) > lbl_80346820) {
-                volatile f32 tmp;
                 f64 y = __frsqrte(d);
                 y = lbl_80346830 * y * (lbl_803468B8 - y * y * d);
                 y = lbl_80346830 * y * (lbl_803468B8 - y * y * d);
@@ -4525,7 +4526,6 @@ void move_logic22(s32 index)
                 best_idx = i;
                 best_dist = d;
             }
-            node += 104;
         }
         e->flag1 = best_idx;
         GetMilestonePos(e->flag1, buf1);
