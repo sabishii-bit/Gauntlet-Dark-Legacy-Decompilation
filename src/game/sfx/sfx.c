@@ -2631,7 +2631,7 @@ void ProcessEffects(void)
     f32 collisionDamage;
 
     (void)framePad;
-    if (gGameBusy != 0 || gGameplayPauseTimer != 0) {
+    if ((gGameBusy | gGameplayPauseTimer) != 0) {
         return;
     }
 
