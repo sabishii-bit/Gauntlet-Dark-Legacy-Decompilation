@@ -591,6 +591,7 @@ int DoOptions(void)
     s32 i;
     s32 saver;
     s32 skipBackSound;
+    u8* data = lbl_8011DD20;
 
     choice = 0;
     skipBackSound = 0;
@@ -674,22 +675,25 @@ int DoOptions(void)
         if ((gControllerButtons & 4) != 0) {
             choice = 0xB;
         }
-        if (choice == 1) {
+        switch (choice) {
+        case 1:
             title_choice = 1;
-        } else if (choice < 1) {
-            if (choice < 0 && choice >= -2) {
-                goto close_title_options;
-            }
-        } else if (choice == 0xC) {
+            break;
+        case -2:
+        case -1:
+            goto close_title_options;
+        case 0xC:
             goto open_game_options;
-        } else if (choice < 0xC && choice > 0xA) {
+        case 0xB:
             goto abort_title_options;
+        default:
+            break;
         }
         break;
 
     open_game_options:
         AudioCursorSelect();
-        start_optmenu(&optmenu_game, player);
+        start_optmenu((OPTMENU*)(data + 824), player);
         break;
 
     abort_title_options:
@@ -703,25 +707,24 @@ int DoOptions(void)
         return 1;
 
     case 3: /* in-game top menu */
-        if (choice == 0xF) {
+        switch (choice) {
+        case 0xF:
             goto open_shop_mode2;
-        } else if (choice < 0xF) {
-            if (choice == 0xD) {
-                goto open_player_select;
-            } else if (choice < 0xD) {
-                if (choice >= 0xC) {
-                    goto open_quit_confirm;
-                }
-            } else {
-                goto open_shop_mode1;
-            }
-        } else if (choice == 0x25) {
+        case 0xD:
+            goto open_player_select;
+        case 0xC:
+            goto open_quit_confirm;
+        case 0xE:
+            goto open_shop_mode1;
+        case 0x25:
             goto open_yesno3;
+        default:
+            break;
         }
         break;
 
     open_quit_confirm:
-        start_optmenu(&optmenu_yesno, player);
+        start_optmenu((OPTMENU*)(data + 1648), player);
         break;
 
     open_player_select:
@@ -752,16 +755,21 @@ int DoOptions(void)
         break;
 
     open_yesno3:
-        start_optmenu(&optmenu_yesno3, player);
-        optmenu_yesno3.sel = 0;
+        start_optmenu((OPTMENU*)(data + 3580), player);
+        ((OPTMENU*)(data + 3580))->sel = 0;
         break;
 
     case 4: /* quit-confirm */
-        if (choice == 0x26) {
-            start_optmenu(&optmenu_yesno2, player);
-            optmenu_yesno2.sel = 0;
-        } else if (choice < 0x26 && choice == 0xC) {
-            start_optmenu(&optmenu_options, player);
+        switch (choice) {
+        case 0x26:
+            start_optmenu((OPTMENU*)(data + 3008), player);
+            ((OPTMENU*)(data + 3008))->sel = 0;
+            break;
+        case 0xC:
+            start_optmenu((OPTMENU*)(data + 2328), player);
+            break;
+        default:
+            break;
         }
         break;
 
@@ -769,31 +777,36 @@ int DoOptions(void)
     case 6:
     case 7: /* options submenu */
         if (choice == 0x14) {
-            start_optmenu(&optmenu_vibration, player);
-            optmenu_vibration.sel = optglobals.vibration;
+            start_optmenu((OPTMENU*)(data + 4672), player);
+            ((OPTMENU*)(data + 4672))->sel = optglobals.vibration;
         } else if (choice < 0x14) {
             if (choice == 0x11) {
-                start_optmenu(&optmenu_audio, player);
+                start_optmenu((OPTMENU*)(data + 3240), player);
                 optglobals.music.val = optglobals.music_vol;
                 optglobals.sfx.val = optglobals.sfx_vol;
                 start_audioslider(&optglobals.music);
                 start_audioslider(&optglobals.sfx);
                 sfx_sound_count = 0;
             } else if (choice < 0x11 && choice >= 0x10) {
-                start_optmenu(&optmenu_audio_mode, player);
+                start_optmenu((OPTMENU*)(data + 2668), player);
             }
         } else if (choice < 0x16) {
-            start_optmenu(&optmenu_screen_sub, player);
+            start_optmenu((OPTMENU*)(data + 5148), player);
         }
         break;
 
     case 9: /* more prefs */
-        if (choice == 0x13) {
-            start_optmenu(&optmenu_pref_c, player);
-            optmenu_pref_c.sel = optglobals.subtitles;
-        } else if (choice < 0x13 && choice >= 0x12) {
-            start_optmenu(&optmenu_pref_b, player);
-            optmenu_pref_b.sel = optglobals.style;
+        switch (choice) {
+        case 0x13:
+            start_optmenu((OPTMENU*)(data + 4332), player);
+            ((OPTMENU*)(data + 4332))->sel = optglobals.subtitles;
+            break;
+        case 0x12:
+            start_optmenu((OPTMENU*)(data + 3956), player);
+            ((OPTMENU*)(data + 3956))->sel = optglobals.style;
+            break;
+        default:
+            break;
         }
         break;
 
@@ -823,13 +836,11 @@ int DoOptions(void)
             /* fallthrough */
         case 4:
         case 6:
-            if (item->code == 0x18) {
+            switch (item->code) {
+            case 0x18:
                 optglobals.sfx.val += (step + 1) * vb_elapsed_menu;
-                if (optglobals.sfx.val < 0) {
-                    optglobals.sfx.val = 0;
-                } else if (optglobals.sfx.val > 0xFF) {
-                    optglobals.sfx.val = 0xFF;
-                }
+                optglobals.sfx.val = optglobals.sfx.val < 0 ? 0 :
+                                     optglobals.sfx.val > 0xFF ? 0xFF : optglobals.sfx.val;
                 if (optglobals.sfx_vol != optglobals.sfx.val) {
                     AudioSetVolSfx(optglobals.sfx.val);
                     optglobals.sfx_vol = optglobals.sfx.val;
@@ -839,24 +850,34 @@ int DoOptions(void)
                         sfx_sound_count = 0;
                     }
                 }
-            } else if (item->code < 0x18) {
-                if (item->code > 0x16) {
-                    optglobals.music.val += (step + 1) * vb_elapsed_menu;
-                    if (optglobals.music.val < 0) {
-                        optglobals.music.val = 0;
-                    } else if (optglobals.music.val > 0xFF) {
-                        optglobals.music.val = 0xFF;
+                break;
+            case 0x17:
+                optglobals.music.val += (step + 1) * vb_elapsed_menu;
+                optglobals.music.val = optglobals.music.val < 0 ? 0 :
+                                       optglobals.music.val > 0xFF ? 0xFF : optglobals.music.val;
+                AudioSetVolMusic(optglobals.music.val);
+                AudioSetEvt1(0x80);
+                optglobals.music_vol = optglobals.music.val;
+                break;
+            case 0x19:
+                if ((u32)(choice - 3) <= 1) {
+                    s32 mode;
+
+                    AudioCursorH();
+                    item->value ^= 1;
+                    optglobals.sound_mode = item->value;
+                    if (optglobals.sound_mode == 1) {
+                        mode = 1;
+                    } else {
+                        mode = 0;
                     }
-                    AudioSetVolMusic(optglobals.music.val);
-                    AudioSetEvt1(0x80);
-                    optglobals.music_vol = optglobals.music.val;
+                    OSSetSoundMode(mode);
+                    mode = optglobals.sound_mode;
+                    AudioSetEnabled(mode);
                 }
-            } else if (item->code < 0x1A && (u32)(choice - 3) <= 1) {
-                AudioCursorH();
-                item->value ^= 1;
-                optglobals.sound_mode = item->value;
-                OSSetSoundMode(optglobals.sound_mode == 1);
-                AudioSetEnabled(optglobals.sound_mode);
+                break;
+            default:
+                break;
             }
             break;
         case 0x17:
@@ -896,9 +917,16 @@ int DoOptions(void)
                 m->items[i].on = 0;
             }
         }
-        if (choice >= 0x1C && choice < 0x1F) {
+        switch (choice) {
+        case 0x1C:
+        case 0x1D:
+        case 0x1E:
             optglobals.style = m->sel;
             fn_8009D350(player);
+            break;
+        case 1:
+        default:
+            break;
         }
         break;
 
@@ -910,9 +938,16 @@ int DoOptions(void)
                 m->items[i].on = 0;
             }
         }
-        if (choice >= 0x1C && choice < 0x1F) {
+        switch (choice) {
+        case 0x1C:
+        case 0x1D:
+        case 0x1E:
             optglobals.subtitles = m->sel;
             fn_8009D350(player);
+            break;
+        case 1:
+        default:
+            break;
         }
         break;
 
@@ -924,12 +959,18 @@ int DoOptions(void)
                 m->items[i].on = 0;
             }
         }
-        if (choice == 0x1F) {
+        switch (choice) {
+        case 0x1F:
             optglobals.vibration = 1;
             fn_8009D350(player);
-        } else if (choice > 0x1E && choice < 0x21) {
+            break;
+        case 0x20:
             optglobals.vibration = 0;
             fn_8009D350(player);
+            break;
+        case 1:
+        default:
+            break;
         }
         break;
 
@@ -947,29 +988,39 @@ int DoOptions(void)
             step2 = -2;
             /* fallthrough */
         case 4:
-        case 6:
+        case 6: {
+            s32 value;
+
             screen_dx += (step2 + 1) * 4;
-            if (screen_dx < -0x80) {
-                screen_dx = -0x80;
-            } else if (screen_dx > 0x80) {
-                screen_dx = 0x80;
+            value = screen_dx;
+            if (value < -0x80) {
+                value = -0x80;
+            } else if (value > 0x80) {
+                value = 0x80;
             }
+            screen_dx = value;
             fn_800C25F0(screen_dx, screen_dy);
             break;
+        }
         case 7:
         case 9:
             step2 = -2;
             /* fallthrough */
         case 8:
-        case 10:
+        case 10: {
+            s32 value;
+
             screen_dy += step2 + 1;
-            if (screen_dy < -0x28) {
-                screen_dy = -0x28;
-            } else if (screen_dy > 0x28) {
-                screen_dy = 0x28;
+            value = screen_dy;
+            if (value < -0x28) {
+                value = -0x28;
+            } else if (value > 0x28) {
+                value = 0x28;
             }
+            screen_dy = value;
             fn_800C25F0(screen_dx, screen_dy);
             break;
+        }
         case -2:
         case -1:
             fn_800C25F0(optglobals.screen_dx, optglobals.screen_dy);
@@ -979,66 +1030,77 @@ int DoOptions(void)
     }
 
     case 0xD: /* controls hub */
-        if (choice == 0x22) {
-            start_optmenu(&optmenu_screen, player);
-        } else if (choice < 0x22) {
-            if (choice == -1) {
-                player_save_controls(player);
-            } else if (choice > -2 && choice > 0x20) {
-                control_style = ((OPTION_PAD*)(lbl_80240E30 + player * 60))->style;
-                start_optmenu(&optmenu_controls, player);
-                for (i = 0; i < 3; i++) {
-                    ctl_blits[i].blit = MBNewBlit(ctl_blits[i].name, ctl_blits[i].x, ctl_blits[i].y);
-                    mbBlitProject(ctl_blits[i].blit, ctl_blits[i].w, ctl_blits[i].h);
-                }
-                fn_8009D350(player);
+        switch (choice) {
+        case 0x22:
+            start_optmenu((OPTMENU*)(data + 5792), player);
+            break;
+        case -1:
+            player_save_controls(player);
+            break;
+        case 0x21:
+            control_style = ((OPTION_PAD*)(lbl_80240E30 + player * 60))->style;
+            start_optmenu((OPTMENU*)(data + 5452), player);
+            for (i = 0; i < 3; i++) {
+                CTLBLIT* blit = &((CTLBLIT*)(data + 7640))[i];
+
+                blit->blit = MBNewBlit(blit->name, blit->x, blit->y);
+                mbBlitProject(blit->blit, blit->w, blit->h);
             }
-        } else if (choice == 0x24) {
-            start_optmenu(&optmenu_sub3, player);
-        } else if (choice < 0x24) {
-            start_optmenu(&optmenu_sub2, player);
+            fn_8009D350(player);
+            break;
+        case 0x24:
+            start_optmenu((OPTMENU*)(data + 6472), player);
+            break;
+        case 0x23:
+            start_optmenu((OPTMENU*)(data + 6132), player);
+            break;
+        default:
+            break;
         }
         break;
 
     case 0xE: { /* controller diagram / style picker */
         s32 add = 0;
         if (player >= 0) {
-            m->items[0].text = opt_style_names[control_style];
+            m->items[0].text = (char*)(data + 4904 + control_style * 16);
             do_controlsmenu(m, player);
         }
-        if (choice == 3) {
+        switch (choice) {
+        case 3:
             add = -2;
             goto style_step;
-        } else if (choice < 3) {
-            if (choice == -1) {
-                choice = 0;
-                break;
-            }
-            if (choice != -2) {
-                break;
-            }
+        case 4:
+            goto style_step;
+        case -1:
+            choice = 0;
+            break;
+        case -2:
+        case 0x21:
             goto style_accept;
-        } else if (choice != 0x21) {
-            if (choice > 0x20 || choice > 4) {
-                break;
-            }
-        style_step:
-            if (item->code == 0x21 && player >= 0) {
-                add += control_style;
-                control_style = add + 1;
-                if (control_style < 0) {
-                    control_style = add + 4;
-                }
-                control_style = control_style % 3;
-                AudioCursorH();
-            }
+        default:
             break;
         }
+        break;
+
+        style_step:
+        if (item->code == 0x21 && player >= 0) {
+            add += control_style;
+            control_style = add + 1;
+            if (control_style < 0) {
+                control_style = add + 4;
+            }
+            control_style = control_style % 3;
+            AudioCursorH();
+        }
+        break;
+
     style_accept:
         ((OPTION_PAD*)(lbl_80240E30 + player * 60))->style = control_style;
         for (i = 0; i < 3; i++) {
-            if (ctl_blits[i].blit != NULL) {
-                ctl_blits[i].blit = MBRemoveBlit(ctl_blits[i].blit);
+            CTLBLIT* blit = &((CTLBLIT*)(data + 7640))[i];
+
+            if (blit->blit != NULL) {
+                blit->blit = MBRemoveBlit(blit->blit);
             }
         }
         fn_8009D350(player);
@@ -1048,18 +1110,23 @@ int DoOptions(void)
 
     case 0xF: /* per-pad setting radio (pad + 0x2C) */
         for (i = 0; i < m->num_items; i++) {
-            m->items[i].on = (i == ((OPTION_PAD*)(lbl_80240E30 + player * 60))->setting) ? 1 : 0;
-        }
-        if (choice != 0x1B) {
-            if (choice < 0x1B) {
-                if (choice < 0x1A) {
-                    break;
-                }
-            } else if (choice >= 0x1F) {
-                break;
+            if (i == ((OPTION_PAD*)(lbl_80240E30 + player * 60))->setting) {
+                m->items[i].on = 1;
+            } else {
+                m->items[i].on = 0;
             }
+        }
+        switch (choice) {
+        case 0x1A:
+        case 0x1C:
+        case 0x1D:
+        case 0x1E:
             ((OPTION_PAD*)(lbl_80240E30 + player * 60))->setting = m->sel;
             fn_8009D350(player);
+            break;
+        case 0x1B:
+        default:
+            break;
         }
         break;
 
@@ -1071,9 +1138,14 @@ int DoOptions(void)
                 m->items[i].on = 0;
             }
         }
-        if (choice < 0x1C && choice >= 0x1A) {
+        switch (choice) {
+        case 0x1A:
+        case 0x1B:
             ((OPTION_PAD*)(lbl_80240E30 + player * 60))->boolean0 = (m->sel == 0);
             fn_8009D350(player);
+            break;
+        default:
+            break;
         }
         break;
 
@@ -1085,57 +1157,63 @@ int DoOptions(void)
                 m->items[i].on = 0;
             }
         }
-        if (choice < 0x1C && choice >= 0x1A) {
+        switch (choice) {
+        case 0x1A:
+        case 0x1B:
             ((OPTION_PAD*)(lbl_80240E30 + player * 60))->boolean1 = (m->sel == 0);
             fn_8009D350(player);
+            break;
+        default:
+            break;
         }
         break;
 
     case 0x16: /* hint category select */
         hint_submenu = choice;
-        if (choice == 0x28) {
+        switch (choice) {
+        case 0x28:
             goto open_boss_hint;
-        } else if (choice < 0x28) {
-            if (choice < 0) {
-                if (choice >= -2) {
-                    goto activate_sumner_hints;
-                }
-            } else if (choice > 0x26) {
-                goto open_general_hint;
-            }
-        } else if (choice == 0x2A) {
-            goto open_rune_hint;
-        } else if (choice < 0x2A) {
+        case 0x27:
+            goto open_general_hint;
+        case 0x29:
             goto open_legend_hint;
+        case 0x2A:
+            goto open_rune_hint;
+        case -2:
+        case -1:
+            goto activate_sumner_hints;
+        default:
+            break;
         }
         break;
 
     open_general_hint:
         next_general_hint(1);
-        hintmenu_display.title = "A Hint for You";
+        ((OPTMENU*)(data + 7152))->title = "A Hint for You";
         ScrollTextListNum(1, 3);
-        start_optmenu(&hintmenu_display, player);
+        start_optmenu((OPTMENU*)(data + 7152), player);
         break;
 
     open_boss_hint:
         next_boss_hint(1);
-        hintmenu_display.title = GetScrollText(1, 0xC, boss_hint_index, NULL);
+        ((OPTMENU*)(data + 7152))->title = GetScrollText(1, 0xC, boss_hint_index, NULL);
         ScrollTextListNum(1, 0);
-        start_optmenu(&hintmenu_display, player);
+        start_optmenu((OPTMENU*)(data + 7152), player);
         break;
 
     open_legend_hint:
         next_legend_hint(1);
-        hintmenu_display.title = GetScrollText(1, 0x28, legend_hint_index, NULL);
+        ((OPTMENU*)(data + 7152))->title = GetScrollText(1, 0x28, legend_hint_index, NULL);
         ScrollTextListNum(1, 2);
-        start_optmenu(&hintmenu_display, player);
+        start_optmenu((OPTMENU*)(data + 7152), player);
         break;
 
     open_rune_hint:
         next_rune_hint(1);
-        hintmenu_display.title = GetScrollText(1, 0x1B, rune_idx_table[rune_hint_index] - 1, NULL);
+        ((OPTMENU*)(data + 7152))->title =
+            GetScrollText(1, 0x1B, ((s32*)(data + 7384))[rune_hint_index] - 1, NULL);
         ScrollTextListNum(1, 1);
-        start_optmenu(&hintmenu_display, player);
+        start_optmenu((OPTMENU*)(data + 7152), player);
         break;
 
     activate_sumner_hints:
@@ -1146,30 +1224,36 @@ int DoOptions(void)
         u32 rgb = ((m->rgb_off[0] & 0xFF) << 16) | ((m->rgb_off[1] & 0xFF) << 8) | (m->rgb_off[2] & 0xFF);
         s32 y;
         SetDrawStringScale(m->scale);
-        if (hint_submenu == 0x29) {
+        switch (hint_submenu) {
+        case 0x27:
+            DrawScrollListText(1, 0xFFFFFF00, -((OPTMENU*)(data + 7152))->y, 0, 6, rgb, 3,
+                               general_hint_index, general_hint_num);
+            break;
+        case 0x28:
+            y = 0x70;
+            for (i = 0; i < boss_hint_pass; i++) {
+                DrawScrollListText(1, 0xFFFFFF00, y, 0, 6, rgb, 0, boss_hint_index, i);
+                y = gDrawTextY + 16;
+            }
+            break;
+        case 0x29:
             y = 0x70;
             for (i = 0; i < legend_hint_pass; i++) {
                 DrawScrollListText(1, 0xFFFFFF00, y, 0, 6, rgb, 2, legend_hint_index, i);
                 y = gDrawTextY + 16;
             }
-        } else if (hint_submenu < 0x29) {
-            if (hint_submenu == 0x27) {
-                DrawScrollListText(1, 0xFFFFFF00, -hintmenu_display.y, 0, 6, rgb, 3,
-                                   general_hint_index, general_hint_num);
-            } else if (hint_submenu > 0x26) {
-                y = 0x70;
-                for (i = 0; i < boss_hint_pass; i++) {
-                    DrawScrollListText(1, 0xFFFFFF00, y, 0, 6, rgb, 0, boss_hint_index, i);
-                    y = gDrawTextY + 16;
-                }
-            }
-        } else if (hint_submenu < 0x2B) {
-            s32 rune = rune_idx_table[rune_hint_index];
+            break;
+        case 0x2A: {
+            s32 rune = ((s32*)(data + 7384))[rune_hint_index];
             y = 0x70;
             for (i = 0; i < rune_hint_pass; i++) {
                 DrawScrollListText(1, 0xFFFFFF00, y, 0, 6, rgb, 1, rune - 1, i);
                 y = gDrawTextY;
             }
+            break;
+        }
+        default:
+            break;
         }
         RestoreDrawStringScale();
         break;
