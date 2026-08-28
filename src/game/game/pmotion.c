@@ -2785,7 +2785,7 @@ player_motion_phase_exit:
                            : p->char_type;
             comboTime = PF(p, 0x98, f32);
 
-            if (anim == 88 || anim == 89) {
+            if (anim >= 88 && anim < 90) {
                 Player* pending = PF(p, 0x6BC, Player*);
                 if (pending != NULL) {
                     PF(p, 0x6B8, Player*) = pending;
@@ -2807,7 +2807,7 @@ player_motion_phase_exit:
             case 5:
             case 6:
             case 7:
-                if ((anim == 88 || anim == 89) && grabbed != NULL) {
+                if ((anim >= 88 && anim < 90) && grabbed != NULL) {
                     if ((PF(grabbed, 0x964, s16) & 0x20) == 0) {
                         PlayerSetGrabbed(grabbed, PF(p, 0x6DC, void*), NULL);
                         goto player_motion_grab_done;
@@ -2829,7 +2829,7 @@ player_motion_phase_exit:
 
             case 1:
             case 3:
-                if ((anim == 88 || anim == 89) && grabbed != NULL &&
+                if ((anim >= 88 && anim < 90) && grabbed != NULL &&
                     (PF(p, 0x964, s16) & 0x20) == 0) {
                     f32 grabDir[3];
                     f32 partnerYaw;
