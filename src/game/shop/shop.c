@@ -1062,7 +1062,7 @@ static void shop_setup(void)
     s32 i;
     s32 j;
     char buf[16];
-    u8 _spare[28];
+    u8 _spare[20];
 
     LoadTowerAndSelect();
     if (lbl_80344C18 != 0) {
@@ -1077,29 +1077,35 @@ static void shop_setup(void)
             s32 cls = *(s32*)(pl + 4);
             s32* texp = (s32*)(tbl + toff);
             void** b = (void**)(page + boff);
+            void** b1;
+            void** b2;
+            void** b3;
+            void** b4;
+            u8* clsBase;
             sprintf(buf, fmts + 232, i + 1);
             *(b += 1900) = mbNewBlitSized(buf, *(texp += 24), 0, 128, -1);
             sprintf(buf, fmts + 244, i + 1);
-            b[1] = mbNewBlitSized(buf, *texp, 256, 128, -1);
+            *(b1 = b + 1) = mbNewBlitSized(buf, *texp, 256, 128, -1);
             sprintf(buf, fmts + 256);
-            b[2] = mbNewBlitSized(buf, *texp, 0, 128, -1);
+            *(b2 = b + 2) = mbNewBlitSized(buf, *texp, 0, 128, -1);
             sprintf(buf, fmts + 56);
-            b[3] = mbNewBlitSized(buf, *texp, 256, 128, -1);
-            sprintf(buf, fmts + 268, *(char**)(tbl + cls * 4 + 144));
-            b[4] = MBNewBlit(buf, *texp + 32, 0);
+            *(b3 = b + 3) = mbNewBlitSized(buf, *texp, 256, 128, -1);
+            clsBase = tbl + cls * 4;
+            sprintf(buf, fmts + 268, *(char**)(clsBase + 144));
+            *(b4 = b + 4) = MBNewBlit(buf, *texp + 32, 0);
             if (*(s32*)(pl + 232) == 0) {
-                mbBlitInit3414(b[4], 1);
+                mbBlitInit3414(*b4, 1);
             }
-            mbBlitCvtCoord(b[0], lbl_803483C0);
-            mbBlitCvtCoord(b[1], lbl_803483C0);
-            mbBlitCvtCoord(b[2], lbl_803483C4);
-            mbBlitCvtCoord(b[3], lbl_803483C4);
-            mbBlitCvtCoord(b[4], lbl_803483C8);
-            mbBlitUpdateEntry(b[2], -1, 0x4000);
-            MBBlitSetColor4(b[2], 0x80808080, 0x80808080, 0x80808080,
+            mbBlitCvtCoord(*b, lbl_803483C0);
+            mbBlitCvtCoord(*b1, lbl_803483C0);
+            mbBlitCvtCoord(*b2, lbl_803483C4);
+            mbBlitCvtCoord(*b3, lbl_803483C4);
+            mbBlitCvtCoord(*b4, lbl_803483C8);
+            mbBlitUpdateEntry(*b2, -1, 0x4000);
+            MBBlitSetColor4(*b2, 0x80808080, 0x80808080, 0x80808080,
                             0x80808080);
-            mbBlitUpdateEntry(b[3], -1, 0x4000);
-            MBBlitSetColor4(b[3], 0x80808080, 0x80808080, 0x80808080,
+            mbBlitUpdateEntry(*b3, -1, 0x4000);
+            MBBlitSetColor4(*b3, 0x80808080, 0x80808080, 0x80808080,
                             0x80808080);
         }
     }
