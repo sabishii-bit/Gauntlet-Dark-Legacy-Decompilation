@@ -211,8 +211,8 @@ void sysResetService(void) {
         } else {
             gSysFlags &= ~SF_RESET_RDY;
             if (sysResetReady()) {
-                gResetState = 2;
                 gSysFlags |= SF_RESET_REQ;
+                gResetState = 2;
             }
         }
         break;
