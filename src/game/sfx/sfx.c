@@ -2617,7 +2617,7 @@ void ProcessEffects(void)
 {
     EffectPage* page = (EffectPage*)EffectInfo;
     s32 i;
-    u8 framePad[48];
+    u8 framePad[56];
     f32 mat[16];
     f32 targetmat[16];
     f32 oldpos[3];
