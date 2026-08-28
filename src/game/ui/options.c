@@ -440,7 +440,7 @@ extern OPTMENU* optionsStack[4]; /* 0x80274E40, optglobals.stack alias */
 /* forward decls (source order = GC emission order)                    */
 /* ------------------------------------------------------------------ */
 
-s32 OptionsStart(s32 player, s32 b);
+s32 OptionsStart(s32 player);
 static void do_screenmenu(void);
 static void do_controlsmenu(OPTMENU* m, s32 player);
 static void do_audiomenu(OPTMENU* m);
@@ -614,7 +614,7 @@ int DoOptions(void)
         (gGameMode != 0x4010 || lbl_803447B8 == 0)) {
         for (i = 0; i < 4; i++) {
             if (PREC(i, 0xE8, s32) == 1 && (PADREC(i, 8, u32) & 0x40000) != 0 &&
-                OptionsStart(i, 0) != 0) {
+                OptionsStart(i) != 0) {
                 break;
             }
         }
@@ -761,12 +761,12 @@ int DoOptions(void)
 
     case 4: /* quit-confirm */
         switch (choice) {
+        case 0xC:
+            start_optmenu((OPTMENU*)(data + 2328), player);
+            break;
         case 0x26:
             start_optmenu((OPTMENU*)(data + 3008), player);
             ((OPTMENU*)(data + 3008))->sel = 0;
-            break;
-        case 0xC:
-            start_optmenu((OPTMENU*)(data + 2328), player);
             break;
         default:
             break;
@@ -776,34 +776,39 @@ int DoOptions(void)
     case 5:
     case 6:
     case 7: /* options submenu */
-        if (choice == 0x14) {
+        switch (choice) {
+        case 0x11:
+            start_optmenu((OPTMENU*)(data + 3240), player);
+            optglobals.music.val = optglobals.music_vol;
+            optglobals.sfx.val = optglobals.sfx_vol;
+            start_audioslider(&optglobals.music);
+            start_audioslider(&optglobals.sfx);
+            sfx_sound_count = 0;
+            break;
+        case 0x10:
+            start_optmenu((OPTMENU*)(data + 2668), player);
+            break;
+        case 0x14:
             start_optmenu((OPTMENU*)(data + 4672), player);
             ((OPTMENU*)(data + 4672))->sel = optglobals.vibration;
-        } else if (choice < 0x14) {
-            if (choice == 0x11) {
-                start_optmenu((OPTMENU*)(data + 3240), player);
-                optglobals.music.val = optglobals.music_vol;
-                optglobals.sfx.val = optglobals.sfx_vol;
-                start_audioslider(&optglobals.music);
-                start_audioslider(&optglobals.sfx);
-                sfx_sound_count = 0;
-            } else if (choice < 0x11 && choice >= 0x10) {
-                start_optmenu((OPTMENU*)(data + 2668), player);
-            }
-        } else if (choice < 0x16) {
+            break;
+        case 0x15:
             start_optmenu((OPTMENU*)(data + 5148), player);
+            break;
+        default:
+            break;
         }
         break;
 
     case 9: /* more prefs */
         switch (choice) {
-        case 0x13:
-            start_optmenu((OPTMENU*)(data + 4332), player);
-            ((OPTMENU*)(data + 4332))->sel = optglobals.subtitles;
-            break;
         case 0x12:
             start_optmenu((OPTMENU*)(data + 3956), player);
             ((OPTMENU*)(data + 3956))->sel = optglobals.style;
+            break;
+        case 0x13:
+            start_optmenu((OPTMENU*)(data + 4332), player);
+            ((OPTMENU*)(data + 4332))->sel = optglobals.subtitles;
             break;
         default:
             break;
@@ -811,16 +816,24 @@ int DoOptions(void)
         break;
 
     case 0x13:
-        if (choice == 0x25) {
+        switch (choice) {
+        case 0x25:
             opt_quit_request = 1;
             end_optmenu(-1, -1);
+            break;
+        default:
+            break;
         }
         break;
 
     case 0x14:
-        if (choice == 0x26) {
+        switch (choice) {
+        case 0x26:
             opt_restart_request = 1;
             end_optmenu(-1, -1);
+            break;
+        default:
+            break;
         }
         break;
 
@@ -1274,7 +1287,7 @@ int DoOptions(void)
 /* 0x80071E1C OptionsStart                                             */
 /* ================================================================== */
 
-s32 OptionsStart(s32 player, s32 b)
+s32 OptionsStart(s32 player)
 {
     s32 i;
     OPTITEM* it;
