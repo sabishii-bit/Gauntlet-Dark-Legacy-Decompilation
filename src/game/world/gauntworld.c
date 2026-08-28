@@ -4674,13 +4674,13 @@ void fn_800606FC(void)
                     f32 al;
                     if ((s8)it->action == 0) {
                         al = sArrowFloorRadius;
-                    } else if (*(s16*)(anim + 0x10) <= 1) {
-                        al = sItemFloorRadius;
-                    } else {
+                    } else if (*(s16*)(anim + 0x10) > 1) {
                         al = (f32)(lbl_80347090 *
                                        ((lbl_80346EE8 + *(f32*)(anim + 0x18)) /
                                         (f64)*(s16*)(anim + 0x10)) +
                                    lbl_80347088);
+                    } else {
+                        al = sItemFloorRadius;
                     }
                     MBTreeSetFlags(node2, 8, 0);
                     *(f32*)((u8*)node2 + 0x40) = al;
@@ -4784,15 +4784,15 @@ void fn_800606FC(void)
             }
             flags = *(s16*)&it->data[4];
             if (flags & 0x400) {
-                if (mask == lbl_803447E0) {
-                    if (tgt != NULL) {
-                        *(u32*)(tgt + 0x10) |= 0x4000000;
-                    }
-                } else {
+                if (mask != lbl_803447E0) {
                     it->playermask = 0;
                     mask = 0;
                     if (tgt != NULL) {
                         *(u32*)(tgt + 0x10) &= ~0x4000000;
+                    }
+                } else {
+                    if (tgt != NULL) {
+                        *(u32*)(tgt + 0x10) |= 0x4000000;
                     }
                 }
             }
@@ -4966,11 +4966,11 @@ void fn_800606FC(void)
                     }
                 }
             } else if (sub == 1 && tgt != NULL) {
-                if (lbl_80344768 <= 1 || did_generate(tgt, 0) == 0) {
-                    del_target(&it->objgrp);
-                } else {
+                if (lbl_80344768 > 1 && did_generate(tgt, 0) != 0) {
                     add_target(&it->objgrp);
                     lbl_80344960 = i;
+                } else {
+                    del_target(&it->objgrp);
                 }
             }
             break;
