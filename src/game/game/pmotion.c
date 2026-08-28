@@ -871,8 +871,8 @@ void PlayerMotion(Player* p) {
     f32 bossColor[3];
     f32 localVector[3];
     f32 missileVelocity[3];
-    u8* target = NULL;
     s32 item = -1;
+    u8* target = NULL;
     s32 anim = PF(p, 0x208, s32);
     s32 motionType;
     s32 directionKind;
@@ -909,7 +909,7 @@ void PlayerMotion(Player* p) {
         directionKind = 0;
     }
 
-    controlYaw = atan2(PF(p, 0x34, f32), PF(p, 0x3C, f32));
+    controlYaw = atan2(*(f32*)(motion + 0x20), *(f32*)(motion + 0x28));
     if (anim == 143 && PF(p, 0x6B8, Player*) != NULL &&
         lbl_80240E30[PF(p, 0x6B8, Player*)->index].values[8] > 0.0f) {
         ControlState* otherCtl =
@@ -934,9 +934,9 @@ void PlayerMotion(Player* p) {
     speedScale = movement * PF(p, 0xA50, f32);
 
     if (lbl_8034489C == 2) {
-        dpos[0] = *(f32*)(gBossObj + 0x3C) - PF(p, 0x44, f32);
-        dpos[1] = *(f32*)(gBossObj + 0x40) - PF(p, 0x48, f32);
-        dpos[2] = *(f32*)(gBossObj + 0x44) - PF(p, 0x4C, f32);
+        dpos[0] = *(f32*)(gBossObj + 0x3C) - *(f32*)(motion + 0x30);
+        dpos[1] = *(f32*)(gBossObj + 0x40) - *(f32*)(motion + 0x34);
+        dpos[2] = *(f32*)(gBossObj + 0x44) - *(f32*)(motion + 0x38);
         heading = atan2(dpos[0], dpos[2]);
         speedScale = 0.0f;
         facing = heading;
@@ -1038,10 +1038,10 @@ void PlayerMotion(Player* p) {
         }
     }
 
-    if (PF(p, 0x48, f32) <= lbl_80344880) {
+    if (*(f32*)(motion + 0x34) <= lbl_80344880) {
         get_player_pos(p->index, 0);
     }
-    if (PlayerMotion_FpClassify(PF(p, 0x38, f32)) == 1) {
+    if (PlayerMotion_FpClassify(*(f32*)(motion + 0x24)) == 1) {
         FatalError(lbl_80114220 + 36, 0x800000);
         get_player_pos(p->index, 0);
     }
@@ -1176,7 +1176,7 @@ void PlayerMotion(Player* p) {
          (PF(p, 0x8C4, WorldObj*)->flags & 0x1000) != 0) ||
         (floorResult == -2 && PF(p, 0x8C4, WorldObj*) != NULL &&
          (PF(p, 0x8D4, u32) & 0x8000) == 0)) {
-        f32 rise = PF(p, 0x8B4, f32) - PF(p, 0x48, f32);
+        f32 rise = PF(p, 0x8B4, f32) - *(f32*)(motion + 0x34);
         f32 minimumRise = (f32)(lbl_80347BD8 * gClockFrameStep);
         if (rise < minimumRise) {
             rise = minimumRise;
@@ -1572,22 +1572,22 @@ collision_done:
                         u8* critter =
                             gCritterPool + critterIndex * 2784;
                         hit[0] = PF(critter, 0x3C, f32) -
-                                 PF(p, 0x44, f32);
+                                 *(f32*)(motion + 0x30);
                         hit[1] = PF(critter, 0x40, f32) -
-                                 PF(p, 0x48, f32);
+                                 *(f32*)(motion + 0x34);
                         hit[2] = PF(critter, 0x44, f32) -
-                                 PF(p, 0x4C, f32);
+                                 *(f32*)(motion + 0x38);
                     } else if (enemy != NULL) {
                         hit[0] = PF(enemy, 0x34, f32) -
-                                 PF(p, 0x44, f32);
+                                 *(f32*)(motion + 0x30);
                         hit[1] = PF(enemy, 0x38, f32) -
-                                 PF(p, 0x48, f32);
+                                 *(f32*)(motion + 0x34);
                         hit[2] = PF(enemy, 0x3C, f32) -
-                                 PF(p, 0x4C, f32);
+                                 *(f32*)(motion + 0x38);
                     } else {
-                        hit[0] = to[0] - PF(p, 0x44, f32);
-                        hit[1] = to[1] - PF(p, 0x48, f32);
-                        hit[2] = to[2] - PF(p, 0x4C, f32);
+                        hit[0] = to[0] - *(f32*)(motion + 0x30);
+                        hit[1] = to[1] - *(f32*)(motion + 0x34);
+                        hit[2] = to[2] - *(f32*)(motion + 0x38);
                     }
                     effectRecord = Effects + effect * 240;
                     effectNode = *(void**)(effectRecord + 0x14);
@@ -2039,18 +2039,18 @@ store_motion_state:
         /* Target +0x2870: completed-boss effects and damage table. */
         if (p->quest_state >= 4) {
             if (PF(p, 0x8CC, f32) > PF(p, 0x8B4, f32)) {
-                PF(PF(p, 0x6C8, void*), 0x30, f32) = PF(p, 0x44, f32);
-                PF(PF(p, 0x6C8, void*), 0x34, f32) = PF(p, 0x48, f32);
-                PF(PF(p, 0x6C8, void*), 0x38, f32) = PF(p, 0x4C, f32);
+                PF(PF(p, 0x6C8, void*), 0x30, f32) = *(f32*)(motion + 0x30);
+                PF(PF(p, 0x6C8, void*), 0x34, f32) = *(f32*)(motion + 0x34);
+                PF(PF(p, 0x6C8, void*), 0x38, f32) = *(f32*)(motion + 0x38);
                 PF(PF(p, 0x6C8, void*), 0x34, f32) =
                     (f32)(lbl_80347BE0 + PF(p, 0x8CC, f32));
                 MBTreeSetAltTex(PF(p, 0x6C8, void*), -2,
                                 lbl_80344BE8, 1);
                 MBTreeClearFlags(PF(p, 0x6C8, void*), 2, 0);
             } else {
-                PF(PF(p, 0x6C8, void*), 0x30, f32) = PF(p, 0x44, f32);
-                PF(PF(p, 0x6C8, void*), 0x34, f32) = PF(p, 0x48, f32);
-                PF(PF(p, 0x6C8, void*), 0x38, f32) = PF(p, 0x4C, f32);
+                PF(PF(p, 0x6C8, void*), 0x30, f32) = *(f32*)(motion + 0x30);
+                PF(PF(p, 0x6C8, void*), 0x34, f32) = *(f32*)(motion + 0x34);
+                PF(PF(p, 0x6C8, void*), 0x38, f32) = *(f32*)(motion + 0x38);
                 PF(PF(p, 0x6C8, void*), 0x34, f32) =
                     (f32)(lbl_80347BE0 + PF(p, 0x8B4, f32));
                 MBTreeSetAltTex(PF(p, 0x6C8, void*), -1, 0, 1);
@@ -2251,10 +2251,10 @@ store_motion_state:
                         fn_80093E50(effect, effectVelocity, bossColor,
                                     weight, effectRadius);
                     } else {
-                        hit[0] = PF(p, 0x54, f32) + PF(p, 0x34, f32);
+                        hit[0] = PF(p, 0x54, f32) + *(f32*)(motion + 0x20);
                         hit[1] = (f32)(PF(p, 0x58, f32) +
-                                      PF(p, 0x38, f32) + lbl_80347C28);
-                        hit[2] = PF(p, 0x5C, f32) + PF(p, 0x3C, f32);
+                                      *(f32*)(motion + 0x24) + lbl_80347C28);
+                        hit[2] = PF(p, 0x5C, f32) + *(f32*)(motion + 0x28);
                         effect = StartFXSub(93, hit, effectFlags | 8, 0,
                                             lbl_80347CA8);
                         fn_80093E50(effect, NULL, bossColor, 0.0f,
@@ -2305,18 +2305,18 @@ store_motion_state:
         /* Target +0x31D4: normal floor marker and powerup phases. */
         if ((PF(p, 0x964, s16) & 0x20) != 0) {
             if (PF(p, 0x8CC, f32) > PF(p, 0x8B4, f32)) {
-                PF(PF(p, 0x6C8, void*), 0x30, f32) = PF(p, 0x44, f32);
-                PF(PF(p, 0x6C8, void*), 0x34, f32) = PF(p, 0x48, f32);
-                PF(PF(p, 0x6C8, void*), 0x38, f32) = PF(p, 0x4C, f32);
+                PF(PF(p, 0x6C8, void*), 0x30, f32) = *(f32*)(motion + 0x30);
+                PF(PF(p, 0x6C8, void*), 0x34, f32) = *(f32*)(motion + 0x34);
+                PF(PF(p, 0x6C8, void*), 0x38, f32) = *(f32*)(motion + 0x38);
                 PF(PF(p, 0x6C8, void*), 0x34, f32) =
                     (f32)(lbl_80347BE0 + PF(p, 0x8CC, f32));
                 MBTreeSetAltTex(PF(p, 0x6C8, void*), -2,
                                 lbl_80344BE8, 1);
                 MBTreeClearFlags(PF(p, 0x6C8, void*), 2, 0);
             } else {
-                PF(PF(p, 0x6C8, void*), 0x30, f32) = PF(p, 0x44, f32);
-                PF(PF(p, 0x6C8, void*), 0x34, f32) = PF(p, 0x48, f32);
-                PF(PF(p, 0x6C8, void*), 0x38, f32) = PF(p, 0x4C, f32);
+                PF(PF(p, 0x6C8, void*), 0x30, f32) = *(f32*)(motion + 0x30);
+                PF(PF(p, 0x6C8, void*), 0x34, f32) = *(f32*)(motion + 0x34);
+                PF(PF(p, 0x6C8, void*), 0x38, f32) = *(f32*)(motion + 0x38);
                 PF(PF(p, 0x6C8, void*), 0x34, f32) =
                     (f32)(lbl_80347BE0 + PF(p, 0x8B4, f32));
                 MBTreeSetAltTex(PF(p, 0x6C8, void*), -1, 0, 1);
@@ -2675,12 +2675,12 @@ player_motion_phase_exit:
             f32 comboTime;
             s32 grabKind;
 
-            PF(p, 0x87C, f32) = PF(p, 0x44, f32);
-            PF(p, 0x880, f32) = PF(p, 0x48, f32);
-            PF(p, 0x884, f32) = PF(p, 0x4C, f32);
-            PF(p, 0x44, f32) += dpos[0];
-            PF(p, 0x48, f32) += dpos[1];
-            PF(p, 0x4C, f32) += dpos[2];
+            PF(p, 0x87C, f32) = *(f32*)(motion + 0x30);
+            PF(p, 0x880, f32) = *(f32*)(motion + 0x34);
+            PF(p, 0x884, f32) = *(f32*)(motion + 0x38);
+            *(f32*)(motion + 0x30) += dpos[0];
+            *(f32*)(motion + 0x34) += dpos[1];
+            *(f32*)(motion + 0x38) += dpos[2];
 
             if ((f64)(dpos[0] * dpos[0] + dpos[1] * dpos[1] +
                       dpos[2] * dpos[2]) > lbl_80347CE0) {
@@ -2727,18 +2727,18 @@ player_motion_phase_exit:
 
             {
                 if (PF(p, 0x8CC, f32) > PF(p, 0x8B4, f32)) {
-                    PF(PF(p, 0x6C8, void*), 0x30, f32) = PF(p, 0x44, f32);
-                    PF(PF(p, 0x6C8, void*), 0x34, f32) = PF(p, 0x48, f32);
-                    PF(PF(p, 0x6C8, void*), 0x38, f32) = PF(p, 0x4C, f32);
+                    PF(PF(p, 0x6C8, void*), 0x30, f32) = *(f32*)(motion + 0x30);
+                    PF(PF(p, 0x6C8, void*), 0x34, f32) = *(f32*)(motion + 0x34);
+                    PF(PF(p, 0x6C8, void*), 0x38, f32) = *(f32*)(motion + 0x38);
                     PF(PF(p, 0x6C8, void*), 0x34, f32) =
                         (f32)(lbl_80347BE0 + PF(p, 0x8CC, f32));
                     MBTreeSetAltTex(PF(p, 0x6C8, void*), -2,
                                     lbl_80344BE8, 1);
                     MBTreeClearFlags(PF(p, 0x6C8, void*), 2, 0);
                 } else {
-                    PF(PF(p, 0x6C8, void*), 0x30, f32) = PF(p, 0x44, f32);
-                    PF(PF(p, 0x6C8, void*), 0x34, f32) = PF(p, 0x48, f32);
-                    PF(PF(p, 0x6C8, void*), 0x38, f32) = PF(p, 0x4C, f32);
+                    PF(PF(p, 0x6C8, void*), 0x30, f32) = *(f32*)(motion + 0x30);
+                    PF(PF(p, 0x6C8, void*), 0x34, f32) = *(f32*)(motion + 0x34);
+                    PF(PF(p, 0x6C8, void*), 0x38, f32) = *(f32*)(motion + 0x38);
                     PF(PF(p, 0x6C8, void*), 0x34, f32) =
                         (f32)(lbl_80347BE0 + PF(p, 0x8B4, f32));
                     MBTreeSetAltTex(PF(p, 0x6C8, void*), -1, 0, 1);
@@ -2831,9 +2831,9 @@ player_motion_phase_exit:
                     f32 grabDir[3];
                     f32 partnerYaw;
                     f32 partnerFacing;
-                    grabDir[0] = PF(p, 0x44, f32) - PF(grabbed, 0x44, f32);
-                    grabDir[1] = PF(p, 0x48, f32) - PF(grabbed, 0x48, f32);
-                    grabDir[2] = PF(p, 0x4C, f32) - PF(grabbed, 0x4C, f32);
+                    grabDir[0] = *(f32*)(motion + 0x30) - PF(grabbed, 0x44, f32);
+                    grabDir[1] = *(f32*)(motion + 0x34) - PF(grabbed, 0x48, f32);
+                    grabDir[2] = *(f32*)(motion + 0x38) - PF(grabbed, 0x4C, f32);
                     SlowNormalVector(grabDir);
                     partnerYaw = PlayerMotion_WrapAngle(
                         atan2(grabDir[0], grabDir[2]) + lbl_80347CF8);
@@ -2887,9 +2887,9 @@ player_motion_phase_exit:
                     f32 grabDir[3];
                     f32 partnerYaw;
                     f32 partnerFacing;
-                    grabDir[0] = PF(p, 0x44, f32) - PF(grabbed, 0x44, f32);
-                    grabDir[1] = PF(p, 0x48, f32) - PF(grabbed, 0x48, f32);
-                    grabDir[2] = PF(p, 0x4C, f32) - PF(grabbed, 0x4C, f32);
+                    grabDir[0] = *(f32*)(motion + 0x30) - PF(grabbed, 0x44, f32);
+                    grabDir[1] = *(f32*)(motion + 0x34) - PF(grabbed, 0x48, f32);
+                    grabDir[2] = *(f32*)(motion + 0x38) - PF(grabbed, 0x4C, f32);
                     SlowNormalVector(grabDir);
                     partnerYaw = PlayerMotion_WrapAngle(
                         atan2(grabDir[0], grabDir[2]) + lbl_80347CF8);
