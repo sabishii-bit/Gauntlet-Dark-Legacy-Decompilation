@@ -2711,7 +2711,6 @@ player_motion_phase_exit:
                 if (motionType == 34 || motionType == 35) {
                     newYaw = heading;
                 }
-                newYaw = PlayerMotion_WrapAngle(newYaw);
                 PF(p, 0x894, f32) = newYaw;
             }
 
