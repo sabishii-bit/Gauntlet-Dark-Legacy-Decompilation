@@ -873,12 +873,12 @@ s32 pbDiagDrawInfo(void)
     v = gDiagListSel;
     (&b[v])[132] = (s32)gDiag_D24;
     pbDiagDrawColorBars();
-    CreatePYRMatrix(gDiag_FC, (u8*)b + 368);
-    px = (f32*)((u8*)b + 384);
-    py = (f32*)((u8*)b + 388);
-    *(f32*)((u8*)gDiag_FC + 48) = *(f32*)((u8*)b + 380);
-    *(f32*)((u8*)gDiag_FC + 52) = *(f32*)((u8*)b + 384);
-    *(f32*)((u8*)gDiag_FC + 56) = *(f32*)((u8*)b + 388);
+    CreatePYRMatrix(gDiag_FC, b + 92);
+    px = (f32*)&b[96];
+    py = (f32*)&b[97];
+    *(f32*)((u8*)gDiag_FC + 48) = ((f32*)b)[95];
+    *(f32*)((u8*)gDiag_FC + 52) = ((f32*)b)[96];
+    *(f32*)((u8*)gDiag_FC + 56) = ((f32*)b)[97];
     w2 = b[8];
     if (w2 & 0x00400000) {
         gDiag_D20 = (f32)(gDiag_D20 + lbl_803486D0);
@@ -909,8 +909,8 @@ s32 pbDiagDrawInfo(void)
             *(s16*)((u8*)b + 476) - 1,
             (entry != 0) ? *(s16*)(*(u8**)entry + gDiagListSel * 48 + 34) : 0);
     fn_800C01C0(2, 43, buf16);
-    sprintf(buf16, strs + 344, *(f32*)((u8*)b + 380), *px, *py,
-            *(f32*)((u8*)b + 368), *(f32*)((u8*)b + 372), *(f32*)((u8*)b + 376));
+    sprintf(buf16, strs + 344, *(volatile f32*)&b[95], *px, *py,
+            ((f32*)b)[92], ((f32*)b)[93], ((f32*)b)[94]);
     fn_800C01C0(2, 44, buf16);
     fn_800C02F4(saved);
     if (menu != 0) {
