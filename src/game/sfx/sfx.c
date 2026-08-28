@@ -2728,10 +2728,7 @@ void ProcessEffects(void)
             if (flags & 0x20) {
                 if (flags & 0x10) {
                     mode = 2;
-                    ageRadius = remaining;
-                    if (ageRadius > 1.0) {
-                        ageRadius = 1.0;
-                    }
+                    ageRadius = (f32)(remaining > 1.0 ? 1.0 : (f64)remaining);
                 } else {
                     mode = 1;
                     ageRadius = (f32)(remaining + lbl_803481C0);
