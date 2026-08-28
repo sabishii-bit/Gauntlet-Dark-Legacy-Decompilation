@@ -1014,6 +1014,7 @@ s32 CamGetPlayerAvgPos(Vec3* out, s32 flags) {
     } NcVecSlot;
     Vec3 average;
     NcVecSlot vmin, vmax, worldPoint, followPoint;
+    s32 playerOffset;
     NcPlayer* pl;
     s32 i, k, count, valid;
 
@@ -1024,9 +1025,10 @@ s32 CamGetPlayerAvgPos(Vec3* out, s32 flags) {
     vmax.v.z = -1.0e20f;
     vmin.v.z = 1.0e20f;
     count = 0;
+    playerOffset = 0;
 
     for (i = 0; i < 4; i++) {
-        pl = &gPlayers[i];
+        pl = (NcPlayer*)((u8*)gPlayers + playerOffset);
         valid = ((pl->ncflags & 0x20) == 0 &&
                  (pl->state == 1 || pl->state == 4));
         if (valid != 0) {
@@ -1062,6 +1064,7 @@ s32 CamGetPlayerAvgPos(Vec3* out, s32 flags) {
                 }
             }
         }
+        playerOffset += sizeof(NcPlayer);
     }
 
     /* midpoint of the box */
@@ -1080,8 +1083,7 @@ s32 CamGetPlayerAvgPos(Vec3* out, s32 flags) {
     {                                      /* clamp to level camera bounds */
         f32* bounds;
         for (k = 0; k < 3; k++) {
-            bounds = *(f32**)((u8*)gCurLevel + 0x60);
-            bounds += k;
+            bounds = *(f32**)((u8*)gCurLevel + 0x60) + k;
             (&out->x)[k] = ((&out->x)[k] < bounds[3]) ? bounds[3] :
                            ((&out->x)[k] > bounds[6]) ? bounds[6] :
                            (&out->x)[k];
