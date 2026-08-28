@@ -395,12 +395,15 @@ void pbResetTextures(void) {
 void fn_800C70C4(void) {}
 
 /* Free the TLUT regions held by model `id` and clear the residency masks. */
+#pragma opt_propagation off
 void fn_800C70C8(s32 id) {
+    u8* mgr = (u8*)&lbl_802C7438;
     u8* e4 = (u8*)gWinGlobals->tbl + id * 0x10 + 0x4;
     u8* desc;
     u8* tex;
     s32 region;
     s32 i;
+    s32 zero;
 
     if (*(s32*)(e4 + 0xc) != 0)
         return;
@@ -410,21 +413,31 @@ void fn_800C70C8(s32 id) {
         return;
 
     for (i = 0; i < *(u32*)(desc + 0x48); i++) {
-        if ((region = (s8)tex[i * 0x30 + 0x2d]) != -1) {
+        s32 loadedRegion = (s8)tex[i * 0x30 + 0x2d];
+        region = loadedRegion;
+        if (loadedRegion != -1) {
+            u8* handle;
             u64 bit = __shl2i(0, 1, region);
             lbl_803450D8 &= ~bit;
             lbl_803450E0 &= ~bit;
-            lbl_802C7438.handles[region] = -1;
+            handle = mgr + region * 4;
+            *(s32*)(handle + 0x320) = -1;
         }
     }
-    for (i = 0; i < 0x15; i++) {
-        if (lbl_802C7438.owners[i] >= (u32)tex &&
-            lbl_802C7438.owners[i] <= (u32)(tex + (*(s32*)(desc + 0x48) - 1) * 0x30)) {
-            lbl_802C7438.owners[i] = 0;
-            lbl_802C7438.keys[i] = 0xFFFF;
+    for (i = 0, zero = 0; i < 0x15; i++) {
+        u32 ownerValue;
+        u8* owner = mgr + i * 4;
+        u8* key;
+        ownerValue = *(u32*)(owner + 0x52c);
+        owner += 0x52c;
+        if (ownerValue >= (u32)tex &&
+            ownerValue <= (u32)(tex + (*(s32*)(desc + 0x48) - 1) * 0x30)) {
+            *(s32*)owner = zero;
+            *(u16*)((key = mgr + i * 2) + 0x580) = 0xFFFF;
         }
     }
 }
+#pragma opt_propagation reset
 
 /* Initialise the texture entries for model `id`, then set them up. */
 void fn_800C7214(s32 id) {
