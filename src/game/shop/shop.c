@@ -949,14 +949,14 @@ void fn_8009A0AC(s32 col)
     ResolveWorldData((lbl_803448C8 << 8) | (u8)lbl_803448C4);
     cls = *(s32*)(pl + 12);
     lvl = gCurLevel;
-    b240 = pl + cls * 240;
-    goldRaw = *(s32*)(pl + 7876) - *(s32*)(b240 + 8780);
+    goldRaw = *(s32*)(pl + 7876) -
+              *(s32*)((b240 = pl + cls * 240) + 8780);
     t = goldRaw * range / (*(s32*)(lvl + 224) + 1);
     b28 = pl + cls * 28;
-    b24 = pl + cls * 24;
     raw2 = (*(s32*)(b28 + 3088) + *(s32*)(b28 + 3104)) -
            (*(s32*)(b28 + 8284) + *(s32*)(b28 + 8300));
-    raw3 = *(s32*)(pl + 7872) - *(s32*)(b24 + 7900);
+    raw3 = *(s32*)(pl + 7872) -
+           *(s32*)((b24 = pl + cls * 24) + 7900);
     if (t < 64) {
         statG = 64;
     } else if (t > range) {
@@ -1012,9 +1012,8 @@ void fn_8009A0AC(s32 col)
     }
 
     off = col * 12;
-    i = 0;
     p = tbl + off + 224;
-    *(s32*)(p + ra * 4) = i;
+    *(s32*)(p + ra * 4) = (i = 0);
     *(s32*)(p + rb * 4) = 2;
     *(s32*)(p + rc * 4) = 1;
     p = tbl + off;
