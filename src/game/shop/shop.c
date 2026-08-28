@@ -585,6 +585,7 @@ extern void AudioCursorSelect(void);
 /* Staged end-of-game Final Stats screen: reveals one glowing line per
  * 60-tick window, then the playtime breakdown and the Continue prompt.
  * Returns 1 once the player confirms with Start. */
+#pragma opt_lifetimes off
 static s32 shop_show_final_stats(u8* pl)
 {
     s32 y2;
@@ -685,6 +686,7 @@ static s32 shop_show_final_stats(u8* pl)
     DrawTextKeepScale(lbl_80348364, nx, 8, 6, 0, lbl_80348368);
     return 0;
 }
+#pragma opt_lifetimes reset
 
 extern s32 lbl_803448C4;    /* current world number  */
 extern s32 lbl_803448C8;    /* current level number  */
