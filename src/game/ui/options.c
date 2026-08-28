@@ -913,9 +913,15 @@ int DoOptions(void)
             skipBackSound = 1;
             break;
         default:
-            if (item->code == 0x18 && sfx_sound_count > 0x3C) {
-                fn_8009EE2C(0);
-                sfx_sound_count = 0;
+            switch (item->code) {
+            case 0x18:
+                if (sfx_sound_count > 0x3C) {
+                    fn_8009EE2C(0);
+                    sfx_sound_count = 0;
+                }
+                break;
+            default:
+                break;
             }
             break;
         }
@@ -1044,12 +1050,6 @@ int DoOptions(void)
 
     case 0xD: /* controls hub */
         switch (choice) {
-        case 0x22:
-            start_optmenu((OPTMENU*)(data + 5792), player);
-            break;
-        case -1:
-            player_save_controls(player);
-            break;
         case 0x21:
             control_style = ((OPTION_PAD*)(lbl_80240E30 + player * 60))->style;
             start_optmenu((OPTMENU*)(data + 5452), player);
@@ -1061,11 +1061,17 @@ int DoOptions(void)
             }
             fn_8009D350(player);
             break;
-        case 0x24:
-            start_optmenu((OPTMENU*)(data + 6472), player);
+        case 0x22:
+            start_optmenu((OPTMENU*)(data + 5792), player);
             break;
         case 0x23:
             start_optmenu((OPTMENU*)(data + 6132), player);
+            break;
+        case 0x24:
+            start_optmenu((OPTMENU*)(data + 6472), player);
+            break;
+        case -1:
+            player_save_controls(player);
             break;
         default:
             break;
@@ -1081,43 +1087,43 @@ int DoOptions(void)
         switch (choice) {
         case 3:
             add = -2;
-            goto style_step;
+            /* fallthrough */
         case 4:
-            goto style_step;
+            switch (item->code) {
+            case 0x21:
+                if (player >= 0) {
+                    add += control_style;
+                    control_style = add + 1;
+                    if (control_style < 0) {
+                        control_style = add + 4;
+                    }
+                    control_style = control_style % 3;
+                    AudioCursorH();
+                }
+                break;
+            default:
+                break;
+            }
+            break;
         case -1:
             choice = 0;
             break;
         case -2:
         case 0x21:
-            goto style_accept;
+            ((OPTION_PAD*)(lbl_80240E30 + player * 60))->style = control_style;
+            for (i = 0; i < 3; i++) {
+                CTLBLIT* blit = &((CTLBLIT*)(data + 7640))[i];
+
+                if (blit->blit != NULL) {
+                    blit->blit = MBRemoveBlit(blit->blit);
+                }
+            }
+            fn_8009D350(player);
+            start_optmenu(NULL, player);
+            break;
         default:
             break;
         }
-        break;
-
-        style_step:
-        if (item->code == 0x21 && player >= 0) {
-            add += control_style;
-            control_style = add + 1;
-            if (control_style < 0) {
-                control_style = add + 4;
-            }
-            control_style = control_style % 3;
-            AudioCursorH();
-        }
-        break;
-
-    style_accept:
-        ((OPTION_PAD*)(lbl_80240E30 + player * 60))->style = control_style;
-        for (i = 0; i < 3; i++) {
-            CTLBLIT* blit = &((CTLBLIT*)(data + 7640))[i];
-
-            if (blit->blit != NULL) {
-                blit->blit = MBRemoveBlit(blit->blit);
-            }
-        }
-        fn_8009D350(player);
-        start_optmenu(NULL, player);
         break;
     }
 
@@ -1145,7 +1151,7 @@ int DoOptions(void)
 
     case 0x10: /* per-pad boolean radio (pad + 0x30; 0 = first item) */
         for (i = 0; i < m->num_items; i++) {
-            if (i == (((OPTION_PAD*)(lbl_80240E30 + player * 60))->boolean0 == 0)) {
+            if (i == !((OPTION_PAD*)(lbl_80240E30 + player * 60))->boolean0) {
                 m->items[i].on = 1;
             } else {
                 m->items[i].on = 0;
@@ -1154,7 +1160,7 @@ int DoOptions(void)
         switch (choice) {
         case 0x1A:
         case 0x1B:
-            ((OPTION_PAD*)(lbl_80240E30 + player * 60))->boolean0 = (m->sel == 0);
+            ((OPTION_PAD*)(lbl_80240E30 + player * 60))->boolean0 = !m->sel;
             fn_8009D350(player);
             break;
         default:
@@ -1164,7 +1170,7 @@ int DoOptions(void)
 
     case 0x11: /* per-pad boolean radio (pad + 0x34) */
         for (i = 0; i < m->num_items; i++) {
-            if (i == (((OPTION_PAD*)(lbl_80240E30 + player * 60))->boolean1 == 0)) {
+            if (i == !((OPTION_PAD*)(lbl_80240E30 + player * 60))->boolean1) {
                 m->items[i].on = 1;
             } else {
                 m->items[i].on = 0;
@@ -1173,7 +1179,7 @@ int DoOptions(void)
         switch (choice) {
         case 0x1A:
         case 0x1B:
-            ((OPTION_PAD*)(lbl_80240E30 + player * 60))->boolean1 = (m->sel == 0);
+            ((OPTION_PAD*)(lbl_80240E30 + player * 60))->boolean1 = !m->sel;
             fn_8009D350(player);
             break;
         default:
@@ -1257,10 +1263,10 @@ int DoOptions(void)
             }
             break;
         case 0x2A: {
-            s32 rune = ((s32*)(data + 7384))[rune_hint_index];
+            s32 rune = ((s32*)(data + 7384))[rune_hint_index] - 1;
             y = 0x70;
             for (i = 0; i < rune_hint_pass; i++) {
-                DrawScrollListText(1, 0xFFFFFF00, y, 0, 6, rgb, 1, rune - 1, i);
+                DrawScrollListText(1, 0xFFFFFF00, y, 0, 6, rgb, 1, rune, i);
                 y = gDrawTextY;
             }
             break;
