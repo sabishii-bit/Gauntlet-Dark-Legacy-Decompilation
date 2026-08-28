@@ -1576,7 +1576,9 @@ done:
 }
 
 /* movie open: sceOpen/sceRead the Gauntlet VQMovies .avi file, asserts on failure (MoviePlayer.cpp) */
-s32 fn_800DA920(u8* movie, const char* name)
+#pragma cplusplus on
+#pragma dont_inline on
+extern "C" s32 fn_800DA920(u8* movie, const char* name)
 {
     u8 headerStorage[4128];
     u8* header;
@@ -1694,8 +1696,17 @@ s32 fn_800DA920(u8* movie, const char* name)
         return 0;
     }
     {
-        typedef void (*MovieConfigureFn)(u8*, u8*, s32);
-        (*(MovieConfigureFn**)(movie + 368))[4](movie + 336, movie + 284, 0);
+        class MovieConfigureBase {
+        private:
+            u8 pad[32];
+        };
+        class MovieConfigureObject : public MovieConfigureBase {
+        public:
+            virtual void method0();
+            virtual void method1();
+            virtual void configure(u8*, s32);
+        };
+        ((MovieConfigureObject*)(movie + 336))->configure(movie + 284, 0);
     }
     MovieDecoderInitBuffers((u32*)(movie + 32), 0x80000, movie[24]);
     fn_800DB82C((u32*)(movie + 32), *(s32*)(movie + 28),
@@ -1706,6 +1717,8 @@ s32 fn_800DA920(u8* movie, const char* name)
     gMovieFrameTimeReset = 0;
     return 1;
 }
+#pragma dont_inline off
+#pragma cplusplus off
 
 /* VQ .avi header parser (ReadF32LE/ReadU16LE/ReadU32LE) */
 u32 fn_800DACD8(int param_1, u8* param_2) {
