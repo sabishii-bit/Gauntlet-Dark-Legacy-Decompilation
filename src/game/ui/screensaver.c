@@ -1473,7 +1473,7 @@ int ControllerMessageBox(s32 mask, s32 msg, s32 count, s32 sound)
 {
     s32 busySave;
     s32 maskSave;
-    u8* e30;
+    u8* players;
     s32 end;
     s32 ticks;
     s32 i;
@@ -1514,7 +1514,7 @@ int ControllerMessageBox(s32 mask, s32 msg, s32 count, s32 sound)
     minw = DrawNormalText(lbl_80343C80, lbl_80343C84, 6) + 32;
     blit = MBNewBlit(lbl_80343C88, 0, 0);
     bbl = MBCreateBlit(0, lbl_80344E44, 190, 8, 20, 20);
-    e30 = lbl_80240E30;
+    players = gPlayers;
     for (count = ticks; count <= end; count++) {
         w = ScrollTextWidth(0, msg, count, lbl_80347378) + 96;
         h = ScrollTextHeight(0, msg, count, 4, lbl_80347378) + 96;
@@ -1555,17 +1555,11 @@ int ControllerMessageBox(s32 mask, s32 msg, s32 count, s32 sound)
             DrawGlowText(-256, ty + 8, lbl_80343C84, lbl_80343C80);
             MBEndFrame();
             if (ticks <= 0) {
-                s32 off4;
-                s32 off5;
-                nbut = 0;
-                buttons = 0;
-                off4 = 0;
-                off5 = 0;
-                for (i = 0; i < 4; i++, off4 += 60, off5 += 13148) {
+                for (i = 0, buttons = 0, nbut = 0; i < 4; i++) {
                     if ((maskSave & (1 << i)) != 0) {
-                        u8* pp = gPlayers + off5;
+                        u8* pp = players + i * 13148;
                         if (*(s32*)(pp + 232) != 0) {
-                            u8* pb = e30 + off4;
+                            u8* pb = lbl_80240E30 + i * 60;
                             nbut++;
                             buttons |= *(u32*)(pb + 8);
                         }
