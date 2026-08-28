@@ -1264,16 +1264,19 @@ void dcsSampleCallback(u32 request) {
 /* 0x800D3A88  start an AX voice (src/state/vol/pan) */
 s32 dcsVoiceStartAx(s32 channel) {
     DcsChannelInfo* info = &ch_info[channel];
+    s32 scaled;
+    u16 master;
+    s32 excess;
+    AXVPB** voiceSlot;
     DcsSampleData* data = info->sampleData;
     s32 volume = info->volume;
-    u16 master;
-    u16 excess;
-    s32 scaled;
     s32 pan;
     s32 sign;
     f32 ratio;
-    s32 whole;
-    AXPBSRC src;
+    union {
+        u64 align;
+        u16 values[8];
+    } src;
 
     if (volume < 0) {
         volume = 0;
@@ -1285,32 +1288,32 @@ s32 dcsVoiceStartAx(s32 channel) {
         excess -= 0x3FFF - master;
         master = 0x3FFF;
     }
-    if (excess > 0x3FFF) {
+    if ((u16)excess > 0x3FFF) {
         master -= 0x3FFF - excess;
     }
 
+    voiceSlot = &sVoice[channel];
     pan = 0x100 - ((info->pan + 0x100) & 0x1FF);
     sign = pan >> 31;
-    pan = (sign ^ pan) - sign;
-    sndVoiceSetVolume(sVoice[channel], pan >> 1);
+    sndVoiceSetVolume(*voiceSlot, ((sign ^ pan) - sign) >> 1);
     pan = 0x100 - ((info->pan + 0x180) & 0x1FF);
     sign = pan >> 31;
     pan = (sign ^ pan) - sign;
-    sndVoiceSetPan(sVoice[channel], pan >> 1);
+    sndVoiceSetPan(*voiceSlot, pan >> 1);
     dcsVoiceSetMaster(channel, master, master);
 
     ratio = (f32)(((data->sampleRate << lbl_80345214) * 48000) >> 12) /
             32000.0f;
-    whole = (s32)ratio;
-    src.ratioHi = whole;
-    src.ratioLo = (u16)(65536.0 * (ratio - (f32)whole));
-    src.currentAddressFrac = 0;
-    src.last_samples[0] = 0;
-    src.last_samples[1] = 0;
-    src.last_samples[2] = 0;
-    src.last_samples[3] = 0;
-    AXSetVoiceSrc(sVoice[channel], &src);
-    AXSetVoiceState(sVoice[channel], 1);
+    src.values[0] = (u16)(s32)ratio;
+    ratio -= (f32)(s32)ratio;
+    src.values[1] = (u16)(s32)(65536.0 * ratio);
+    src.values[2] = 0;
+    src.values[3] = 0;
+    src.values[4] = 0;
+    src.values[5] = 0;
+    src.values[6] = 0;
+    AXSetVoiceSrc(*voiceSlot, (AXPBSRC*)src.values);
+    AXSetVoiceState(*voiceSlot, 1);
     return 1;
 }
 
