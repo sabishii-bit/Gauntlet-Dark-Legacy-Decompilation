@@ -556,7 +556,7 @@ int fn_800C7558(s32 key) {
     s32 texnum;
     s32 format;
     u8 which;
-    s32 newLoad;
+    u8 newLoad;
     s32 region;
     s32 i;
     u8 pathPad[8];
@@ -589,29 +589,30 @@ int fn_800C7558(s32 key) {
     modelDesc = *(u8**)((u8*)globals->tbl + model * 0x10 + 4);
     texture = (PbTextureObject*)(*(u8**)(modelDesc + 0x80) + texnum * 0x30);
     if ((format & 8) != 0) {
+        u8* specialBase;
+
         newLoad = 1;
         region = 1;
         if (format != 8) {
             region = 0;
             which = 0;
         }
-        special = manager + region * 0x10 + 0x5AC;
-        if (*(s32*)(special + 0x0C) == -1) {
+        specialBase = manager + region * 0x10;
+        special = specialBase + 0x5AC;
+        if (*(s32*)(specialBase + 0x5B8) == -1) {
             if (which == 0) {
                 lbl_80345108++;
             } else {
                 lbl_8034510C++;
             }
-            region = fn_800C6BB4(which,
-                                  0xFFFF0000 | (u16)which);
-            *(s32*)(special + 0x0C) = region;
-            GXLoadTlut(special, region);
+            *(s32*)(special + 0x0C) =
+                fn_800C6BB4(which, 0xFFFF0000 | (u16)region);
+            GXLoadTlut(special, *(s32*)(special + 0x0C));
             newLoad = 0;
         }
-        region = *(s32*)(special + 0x0C);
-        if (texture->region != region) {
-            GXInitTexObjTlut(texture, region);
-            texture->region = (s8)region;
+        if (texture->region != *(s32*)(special + 0x0C)) {
+            GXInitTexObjTlut(texture, *(s32*)(special + 0x0C));
+            texture->region = (s8)*(s32*)(special + 0x0C);
         }
     } else {
         newLoad = 1;
@@ -625,7 +626,7 @@ int fn_800C7558(s32 key) {
                 lbl_8034510C++;
             }
             region = fn_800C6BB4(which,
-                                  (model << 16) | (u16)texnum);
+                                  (u16)texnum | (model << 16));
             texture->region = (s8)region;
             texture->paletteRegion = (s8)region;
             GXLoadTlut(texture->tlutObject, texture->paletteRegion);
