@@ -1517,6 +1517,7 @@ collision_done:
         }
 
         /* The target literally ANDs gControllerButtons with zero here. */
+        (void)*(volatile s32*)&gControllerButtons;
         if ((sFlags & 0x80) != 0) {
             PF(p, 0x90C, u32) |= 2;
         }
@@ -1648,6 +1649,7 @@ state_selected:
                 }
             } else {
                 if ((f64)PF(p, 0x828, f32) < lbl_80347C48) {
+                    (void)*(volatile s32*)&gControllerButtons;
                     if ((sFlags & 0x10) != 0) {
                         PF(p, 0x828, f32) =
                             (f32)(PF(p, 0x828, f32) +
@@ -1696,6 +1698,7 @@ store_motion_state:
         if (motionState == 21) {
             movingBias = 0.0f;
         }
+        (void)*(volatile s32*)&gControllerButtons;
         if ((sFlags & 0x40) != 0) {
             if (movement != 0.0f) {
                 targetDistance =
