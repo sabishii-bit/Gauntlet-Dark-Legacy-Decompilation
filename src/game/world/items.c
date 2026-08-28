@@ -455,10 +455,9 @@ void InitItemInfoData(void)
             overlay_runtime += overlay_offset;
             *(s32*)(player_runtime + 0x74A8) = 0;
             *(s32*)(overlay_runtime + 0x74C8) = 0;
-            *(s32*)(player_runtime + 0x7478) =
+            *(node_slot = (s32*)(player_runtime + 0x7478)) =
                 MBOX_NewObject(sSeeThroughObjectName, 0, (s32)sItemsRootNode,
                                0x04200000);
-            node_slot = (s32*)(player_runtime + 0x7478);
             MBTreeSetFlags((void*)*node_slot, 1, 0);
             *(s16*)(*node_slot + 0x68) = -800;
             i++;
