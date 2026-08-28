@@ -221,7 +221,6 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
     cy = tri->center.y;
     cz = tri->center.z;
     px = zero;
-    dist = zero;
     pz = zero;
     norm.x = tri->norm.x;
     norm.y = tri->norm.y;
@@ -242,7 +241,8 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
     }
     r2 = radius * radius;
     if ((tpB.y > lbl_80345D40 && tpA.y > lbl_80345D40) ||
-        (tpB.y < lbl_80345D40 && tpA.y < lbl_80345D40)) {
+        (tpB.y < *(volatile const f64*)&lbl_80345D40 &&
+         tpA.y < lbl_80345D40)) {
         if ((tpB.y > radius && tpA.y > radius) ||
             (tpB.y < -radius && tpA.y < -radius)) {
             return lbl_80345D70;
@@ -320,6 +320,10 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
         s32 side;
         s32 okB = 1;
         s32 okA = 1;
+        f32 bx;
+        f32 bz;
+        f32 ax;
+        f32 az;
 
         if (btri_fabsf(tpB.y) < btri_fabsf(tpA.y)) {
             side = 1;
@@ -328,55 +332,59 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
         } else {
             side = 2;
         }
-        num = ex0.x * tpB.z - ex0.z * tpB.x;
+        bx = tpB.x;
+        bz = tpB.z;
+        ax = tpA.x;
+        az = tpA.z;
+        num = ex0.x * bz - ex0.z * bx;
         if ((f64)num > *(volatile const f64*)&lbl_80345D40) {
             okB = 0;
             if (!(side & 2)) {
                 goto classified;
             }
         }
-        num = ex0.x * tpA.z - ex0.z * tpA.x;
+        num = ex0.x * az - ex0.z * ax;
         if ((f64)num > *(volatile const f64*)&lbl_80345D40) {
             okA = 0;
             if (!(side & 1)) {
                 goto classified;
             }
         }
-        num = (ex1.x - ex0.x) * (tpB.z - ex0.z) - (ex1.z - ex0.z) * (tpB.x - ex0.x);
+        num = (ex1.x - ex0.x) * (bz - ex0.z) - (ex1.z - ex0.z) * (bx - ex0.x);
         if ((f64)num > *(volatile const f64*)&lbl_80345D40) {
             okB = 0;
             if (!(side & 2)) {
                 goto classified;
             }
         }
-        num = (ex1.x - ex0.x) * (tpA.z - ex0.z) - (ex1.z - ex0.z) * (tpA.x - ex0.x);
-        if ((f64)num > lbl_80345D40) {
+        num = (ex1.x - ex0.x) * (az - ex0.z) - (ex1.z - ex0.z) * (ax - ex0.x);
+        if ((f64)num > *(volatile const f64*)&lbl_80345D40) {
             okA = 0;
             if (!(side & 1)) {
                 goto classified;
             }
         }
-        num = -ex1.z * (tpB.x - ex1.x) - (-ex1.x * (tpB.z - ex1.z));
-        if ((f64)num > lbl_80345D40) {
+        num = -ex1.z * (bx - ex1.x) - (-ex1.x * (bz - ex1.z));
+        if ((f64)num > *(volatile const f64*)&lbl_80345D40) {
             okB = 0;
             if (!(side & 2)) {
                 goto classified;
             }
         }
-        num = -ex1.z * (tpA.x - ex1.x) - (-ex1.x * (tpA.z - ex1.z));
+        num = -ex1.z * (ax - ex1.x) - (-ex1.x * (az - ex1.z));
         if ((f64)num > lbl_80345D40) {
             okA = 0;
         }
     classified:
         if (okB && (side & 1)) {
-            o2.x = tpB.x;
+            o2.x = bx;
             o2.y = tpB.y;
-            o2.z = tpB.z;
+            o2.z = bz;
             o2.y = lbl_80345D50;
         } else if (okA && (side & 2)) {
-            o2.x = tpA.x;
+            o2.x = ax;
             o2.y = tpA.y;
-            o2.z = tpA.z;
+            o2.z = az;
             o2.y = lbl_80345D50;
         } else {
             dist = LineLineDist3D2D(&tpB, &tpA, &o2, &zero2, &ex0, 0);
