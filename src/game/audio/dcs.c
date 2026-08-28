@@ -798,10 +798,13 @@ s32 dcsReadVags(void* file, u32* header) {
     return error;
 }
 
+static inline DcsData* dcsCallData(void) {
+    return &dcsBankData;
+}
+
 /* 0x800D2CEC  read the bank call list (readCalls) */
 s32 dcsReadCalls(void* file, u32* header) {
     char* strs = lbl_80116F58;
-    DcsData* d = &dcsBankData;
     s32 result = 1;
     s32 swap;
     s32 fmt;
@@ -814,7 +817,7 @@ s32 dcsReadCalls(void* file, u32* header) {
 
     if (BankParseHeader(header, &swap, (u32*)&fmt) >= 0) {
         result = 0;
-        dst = &d->callInstr[lbl_80345204];
+        dst = &dcsCallData()->callInstr[lbl_80345204];
         count = header[3];
         switch (fmt) {
         case 256:
@@ -823,20 +826,21 @@ s32 dcsReadCalls(void* file, u32* header) {
             } else {
                 src = (u32*)dst;
             }
-            if (header[1] != FileBufGet(file, src, header[1])) {
+            if ((s32)header[1] != (s32)FileBufGet(file, src, header[1])) {
                 printf(strs);
                 printf(strs + 124);
                 result = 1;
                 goto done;
             }
-            end = &d->callInstr[lbl_80345204 + (s32)header[1] / 4];
+            end = &dcsCallData()->callInstr[lbl_80345204 +
+                                             (s32)header[1] / 4];
             for (; count != 0; count--) {
                 if (lbl_80345200 >= 2048) {
                     printf(strs);
                     printf(strs + 156);
                     goto done;
                 }
-                d->callStart[lbl_80345200] = lbl_80345204;
+                dcsCallData()->callStart[lbl_80345200] = lbl_80345204;
                 if (lbl_80345204 + 4 > 10240) {
                     printf(strs);
                     printf(strs + 188);
@@ -853,28 +857,28 @@ s32 dcsReadCalls(void* file, u32* header) {
                     src[2] = DCS_SWAP32(src[2]);
                     src[3] = DCS_SWAP32(src[3]);
                 }
-                dst[0] = src[0] | 0x8000;
-                dst[1] = src[1];
-                dst[2] = src[3];
-                dst[3] = (src[2] != 0 ? 0x8000 : 0) | 0x7F;
-                dst += 4;
+                *dst++ = (u16)src[0] | 0x8000;
+                *dst++ = (u16)src[1];
+                *dst++ = (u16)src[3];
+                *dst++ = ((s32)src[2] != 0 ? 0x8000 : 0) | 0x7F;
                 src += 4;
                 lbl_80345204 = lbl_80345204 + 4;
                 lbl_80345200 = lbl_80345200 + 1;
             }
             break;
         default:
-            if (header[1] != FileBufGet(file, dst, header[1])) {
+            if ((s32)header[1] != (s32)FileBufGet(file, dst, header[1])) {
                 printf(strs);
                 printf(strs + 124);
                 result = 1;
                 goto done;
             }
             half = (s32)header[1] / 2;
-            end = &d->callInstr[lbl_80345204 + half];
+            end = &dcsCallData()->callInstr[lbl_80345204 + half];
             if (swap != 0) {
                 for (i = half - 1; i >= 0; i--) {
-                    dst[i] = (u16)((dst[i] >> 8) | (dst[i] << 8));
+                    dst[i] = (u16)((((u16)dst[i] & 0xFF) << 8) |
+                                   (((u16)dst[i] >> 8) & 0xFF));
                 }
             }
             for (; count != 0; count--) {
@@ -883,7 +887,7 @@ s32 dcsReadCalls(void* file, u32* header) {
                     printf(strs + 156);
                     goto done;
                 }
-                d->callStart[lbl_80345200] = lbl_80345204;
+                dcsCallData()->callStart[lbl_80345200] = lbl_80345204;
                 for (;;) {
                     if (lbl_80345204 + 3 >= 10240) {
                         printf(strs);
