@@ -69,533 +69,15 @@ static f32  LineLineDist3D2D(Vec* a0, Vec* a1, Vec* out,
 static f32  LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
                          Vec* pointA, Vec* dirA, f32 lenB, f32 lenA);
 static f32  PointLineDist2D(Vec* p0, Vec* p1, Vec* dir, Vec* out);
-static f32  btri_fabsf(f32 x);
-
-/* ------------------------------------------------------------------ */
-/* Rotate a body-space vector into world space using a packed cos/sin  */
-/* surface frame.  Degenerate frames (|sin| ~ 1) collapse to identity  */
-/* or a 180-degree flip.                                               */
-/* ------------------------------------------------------------------ */
-static void BodyVectorNorm(Vec* in, Vec* out, ColFrame* f, f32 c) {
-    f32 s = f->s;
-    if ((f64)s > lbl_80345D80) {
-        out->x = in->x;
-        out->y = in->y;
-        out->z = in->z;
-        return;
-    }
-    if ((f64)s < lbl_80345D88) {
-        out->x = in->x;
-        out->y = -in->y;
-        out->z = -in->z;
-        return;
-    }
-    {
-        f32 cs;
-        f32 neg_ix;
-        f32 cs_scaled;
-        f32 t;
-        f32 t_scaled;
-        f32 iy;
-        f32 ix;
-        f32 iz;
-        f32 iy_s;
-        f32 mid_y;
-        f32 iz_cs_scaled;
-        f32 result_y;
-        f32 neg_iz;
-        f32 result_x;
-        f32 negix_cs_scaled;
-        f32 negiz_s;
-
-        cs = f->c;
-        iy = in->y;
-        cs_scaled = cs * c;
-        iz = in->z;
-        ix = in->x;
-        iy_s = iy * s;
-        t = f->t;
-        neg_ix = -ix;
-        mid_y = ix * cs + iy_s;
-        t_scaled = t * c;
-        iz_cs_scaled = iz * cs_scaled;
-        result_y = iz * t + mid_y;
-        neg_iz = -iz;
-        result_x = neg_ix * t_scaled + iz_cs_scaled;
-        negix_cs_scaled = neg_ix * cs_scaled;
-        negiz_s = neg_iz * s;
-        out->x = result_x;
-        out->y = result_y;
-        out->z = t_scaled * negiz_s +
-                 (s * negix_cs_scaled +
-                  c * (iy * (lbl_80345D90 - s * s)));
-    }
+static inline f32 btri_fabsf(f32 x) {
+    *(u32*)&x &= 0x7fffffff;
+    return x;
 }
-
-/* ------------------------------------------------------------------ */
-/* Inverse of BodyVectorNorm: fold a world-space vector back into the  */
-/* surface body frame.                                                 */
-/* ------------------------------------------------------------------ */
-static void WorldVectorNorm(Vec* out, f32 x, f32 y, f32 z, f32 c,
-                            ColFrame* f) {
-    f32 s = f->s;
-    if ((f64)s > lbl_80345D80) {
-        out->x = x;
-        out->y = y;
-        out->z = z;
-        return;
-    }
-    if ((f64)s < lbl_80345D88) {
-        out->x = x;
-        out->y = -y;
-        out->z = -z;
-        return;
-    }
-    {
-        f32 cs;
-        f32 cs_scaled;
-        f32 t;
-        f32 t_scaled;
-
-        cs = f->c;
-        t = f->t;
-        cs_scaled = cs * c;
-        t_scaled = t * c;
-
-        out->x = s * (-z * cs_scaled) + (-x * t_scaled + y * cs);
-        out->y = y * s + c * (z * (lbl_80345D90 - s * s));
-        out->z = t_scaled * (-z * s) + (x * cs_scaled + y * t);
-    }
-}
-
-/* ------------------------------------------------------------------ */
-/* 2D (xz-plane) distance from the segment [p0,p1] to a point, writing */
-/* the closest point to *out.  Uses the PPC frsqrte + Newton-Raphson   */
-/* reciprocal-square-root idiom for the segment length.                */
-/* ------------------------------------------------------------------ */
-#pragma opt_propagation off
-static f32 PointLineDist2D(Vec* p0, Vec* p1, Vec* dir, Vec* out) {
-    u8 unused[40];
-    struct {
-        f32 pad;
-        volatile f32 result;
-    } sqrtLocal;
-    register f32 length;
-    f64 guess;
-    f32 inverse;
-    f32 nx;
-    f32 ny;
-    f32 nz;
-    f32 distance;
-
-    length = dir->x * dir->x + dir->z * dir->z;
-    if (length > 0.0f) {
-        guess = __frsqrte((f64)length);
-
-        guess = lbl_80345D98 * guess *
-                (lbl_80345DA0 - length * guess * guess);
-        guess = lbl_80345D98 * guess *
-                (lbl_80345DA0 - length * guess * guess);
-        guess = lbl_80345D98 * guess *
-                (lbl_80345DA0 - length * guess * guess);
-        sqrtLocal.result = (f32)(length *
-                                 (lbl_80345D98 * guess *
-                                  (lbl_80345DA0 - length * guess * guess)));
-        length = sqrtLocal.result;
-    }
-    if ((f64)length == lbl_80345D40) {
-        f32 dx = p1->x - p0->x;
-        f32 dz = p1->z - p0->z;
-        out->x = p1->x;
-        out->y = p1->y;
-        out->z = p1->z;
-        return dx * dx + dz * dz;
-    }
-
-    inverse = (f32)(lbl_80345DA8 / (f64)length);
-    nx = dir->x * inverse;
-    ny = dir->y * inverse;
-    nz = dir->z * inverse;
-    distance = (p0->x - p1->x) * nx + (p0->z - p1->z) * nz;
-    if (distance < 0.0f) {
-        out->x = p1->x;
-        out->y = p1->y;
-        out->z = p1->z;
-    } else if (distance >= length) {
-        out->x = p1->x + dir->x;
-        out->y = p1->y + dir->y;
-        out->z = p1->z + dir->z;
-    } else {
-        out->x = nx * distance + p1->x;
-        out->y = ny * distance + p1->y;
-        out->z = nz * distance + p1->z;
-    }
-
-    {
-        f32 dx = p0->x - out->x;
-        f32 dz = p0->z - out->z;
-        return dx * dx + dz * dz;
-    }
-}
-#pragma opt_propagation reset
-
-/* ------------------------------------------------------------------ */
-/* Shortest distance between two 3D line segments; closest points are  */
-/* returned in *outA / *outB.                                          */
-/* ------------------------------------------------------------------ */
-#pragma dont_inline on
-#pragma opt_propagation off
-static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
-                        Vec* pointA, Vec* dirA, f32 lenB, f32 lenA) {
-    u8 highPad[40];
-    Vec tmpB;
-    u8 endpointPad[4];
-    Vec tmpA;
-    u8 unused[48];
-    struct {
-        Vec value;
-        u8 unused[44];
-    } cpA[1];
-    Vec dstTmp[3];
-    Vec cpP[3];
-    struct {
-        u8 unused0[28];
-        Vec value;
-        u8 unused1[24];
-    } cpB[1];
-    Vec* endB;
-    Vec* endA;
-    Vec* dst;
-    f32 cx;
-    f32 cy;
-    f32 cz;
-    f32 denom;
-    f32 dx;
-    f32 dy;
-    f32 dz;
-    f32 tB;
-    f32 tA;
-    f32 t;
-    f32 inv;
-    f32 dA2;
-    f32 dB2;
-
-    cy = dirB->z * dirA->x - dirB->x * dirA->z;
-    cx = dirB->y * dirA->z - dirB->z * dirA->y;
-    cz = dirB->x * dirA->y - dirB->y * dirA->x;
-    denom = cx * cx + cy * cy;
-    denom = cz * cz + denom;
-    dx = pointA->x - pointB->x;
-    dy = pointA->y - pointB->y;
-    dz = pointA->z - pointB->z;
-    if (denom != lbl_80345D50) {
-        endB = NULL;
-        endA = NULL;
-        inv = (f32)(lbl_80345DA8 / denom);
-        {
-            f32 a1 = cz * (dx * dirA->y);
-            f32 a2 = cx * (dy * dirA->z);
-            f32 a3 = cy * (dz * dirA->x);
-            f32 b1 = dz * (cx * dirA->y);
-            f32 b2 = dx * (cy * dirA->z);
-            f32 b3 = dy * (cz * dirA->x);
-            f32 num = a1 + a2;
-
-            num = a3 + num;
-            num = num - b1;
-            num = num - b2;
-            num = num - b3;
-            tB = inv * num;
-        }
-        if (tB <= lbl_80345D50) {
-            endB = pointB;
-        } else if (tB >= lenB) {
-            tmpB.x = pointB->x + dirB->x * lenB;
-            tmpB.y = pointB->y + dirB->y * lenB;
-            tmpB.z = pointB->z + dirB->z * lenB;
-            endB = &tmpB;
-        }
-        {
-            f32 a1 = cz * (dx * dirB->y);
-            f32 a2 = cx * (dy * dirB->z);
-            f32 a3 = cy * (dz * dirB->x);
-            f32 b1 = dz * (cx * dirB->y);
-            f32 b2 = dx * (cy * dirB->z);
-            f32 b3 = dy * (cz * dirB->x);
-            f32 num = a1 + a2;
-
-            num = a3 + num;
-            num = num - b1;
-            num = num - b2;
-            num = num - b3;
-            tA = inv * num;
-        }
-        if (tA <= *(volatile const f32*)&lbl_80345D50) {
-            endA = pointA;
-        } else if (tA >= lenA) {
-            tmpA.x = pointA->x + dirA->x * lenA;
-            tmpA.y = pointA->y + dirA->y * lenA;
-            tmpA.z = pointA->z + dirA->z * lenA;
-            endA = &tmpA;
-        }
-        if (endB == NULL && endA == NULL) {
-            goto interior;
-        }
-        if (endB != NULL) {
-            Vec* cp = &cpA[0].value;
-
-            t = (endB->z - pointA->z) * dirA->z +
-                ((endB->x - pointA->x) * dirA->x +
-                 (endB->y - pointA->y) * dirA->y);
-            if (t < *(volatile const f32*)&lbl_80345D50) {
-                cp->x = pointA->x;
-                cp->y = pointA->y;
-                cp->z = pointA->z;
-            } else if (t >= lenA) {
-                cp->x = pointA->x + dirA->x * lenA;
-                cp->y = pointA->y + dirA->y * lenA;
-                cp->z = pointA->z + dirA->z * lenA;
-            } else {
-                cp->x = pointA->x + dirA->x * t;
-                cp->y = pointA->y + dirA->y * t;
-                cp->z = pointA->z + dirA->z * t;
-            }
-            dy = cp->y - endB->y;
-            dx = cp->x - endB->x;
-            dz = cp->z - endB->z;
-            dB2 = dz * dz + (dx * dx + (dy * dy));
-        } else {
-            dB2 = lbl_80345DB0;
-        }
-        if (endA != NULL) {
-            dst = out;
-            if (out == NULL) {
-                dst = &dstTmp[0];
-            }
-            t = (endA->z - pointB->z) * dirB->z +
-                ((endA->x - pointB->x) * dirB->x +
-                 (endA->y - pointB->y) * dirB->y);
-            if (t < lbl_80345D50) {
-                dst->x = pointB->x;
-                dst->y = pointB->y;
-                dst->z = pointB->z;
-            } else if (t >= lenB) {
-                dst->x = pointB->x + dirB->x * lenB;
-                dst->y = pointB->y + dirB->y * lenB;
-                dst->z = pointB->z + dirB->z * lenB;
-            } else {
-                dst->x = pointB->x + dirB->x * t;
-                dst->y = pointB->y + dirB->y * t;
-                dst->z = pointB->z + dirB->z * t;
-            }
-            dy = dst->y - endA->y;
-            dx = dst->x - endA->x;
-            dz = dst->z - endA->z;
-            dA2 = dz * dz + (dx * dx + (dy * dy));
-        } else {
-            dA2 = lbl_80345DB0;
-        }
-        if (dB2 < dA2) {
-            out->x = endB->x;
-            out->y = endB->y;
-            out->z = endB->z;
-        } else {
-            dB2 = dA2;
-        }
-        goto done;
-    interior:
-        out->x = pointB->x + dirB->x * tB;
-        out->y = pointB->y + dirB->y * tB;
-        out->z = pointB->z + dirB->z * tB;
-        tmpA.x = pointA->x + dirA->x * tA;
-        tmpA.y = pointA->y + dirA->y * tA;
-        tmpA.z = pointA->z + dirA->z * tA;
-        dy = tmpA.y - out->y;
-        dx = tmpA.x - out->x;
-        dz = tmpA.z - out->z;
-        dB2 = dz * dz + (dx * dx + (dy * dy));
-        goto done;
-    } else {
-        t = dy * dirB->y;
-        t = dx * dirB->x + t;
-        t = dz * dirB->z + t;
-        if (t < lbl_80345D50) {
-            f32 u = (pointB->y - pointA->y) * dirA->y;
-
-            u = (pointB->x - pointA->x) * dirA->x + u;
-            u = (pointB->z - pointA->z) * dirA->z + u;
-            {
-            Vec* cp = &cpP[0];
-
-            if (u < lbl_80345D50) {
-                cp->x = pointA->x;
-                cp->y = pointA->y;
-                cp->z = pointA->z;
-            } else if (u >= lenA) {
-                cp->x = pointA->x + dirA->x * lenA;
-                cp->y = pointA->y + dirA->y * lenA;
-                cp->z = pointA->z + dirA->z * lenA;
-            } else {
-                cp->x = pointA->x + dirA->x * u;
-                cp->y = pointA->y + dirA->y * u;
-                cp->z = pointA->z + dirA->z * u;
-            }
-            dy = cp->y - pointB->y;
-            dx = cp->x - pointB->x;
-            dz = cp->z - pointB->z;
-            out->x = pointB->x;
-            out->y = pointB->y;
-            out->z = pointB->z;
-            }
-            dB2 = dz * dz + (dx * dx + (dy * dy));
-            goto done;
-        } else if (t >= lenB) {
-            out->x = pointB->x + dirB->x * lenB;
-            out->y = pointB->y + dirB->y * lenB;
-            out->z = pointB->z + dirB->z * lenB;
-            t = (out->z - pointA->z) * dirA->z +
-                ((out->x - pointA->x) * dirA->x +
-                 (out->y - pointA->y) * dirA->y);
-            {
-            Vec* cp = &cpB[0].value;
-
-            if (t < lbl_80345D50) {
-                cp->x = pointA->x;
-                cp->y = pointA->y;
-                cp->z = pointA->z;
-            } else if (t >= lenA) {
-                cp->x = pointA->x + dirA->x * lenA;
-                cp->y = pointA->y + dirA->y * lenA;
-                cp->z = pointA->z + dirA->z * lenA;
-            } else {
-                cp->x = pointA->x + dirA->x * t;
-                cp->y = pointA->y + dirA->y * t;
-                cp->z = pointA->z + dirA->z * t;
-            }
-            dy = cp->y - out->y;
-            dx = cp->x - out->x;
-            dz = cp->z - out->z;
-            }
-            dB2 = dz * dz + (dx * dx + (dy * dy));
-            goto done;
-        } else {
-            out->x = pointB->x + dirB->x * t;
-            out->y = pointB->y + dirB->y * t;
-            out->z = pointB->z + dirB->z * t;
-            dy = out->y - pointA->y;
-            dx = out->x - pointA->x;
-            dz = out->z - pointA->z;
-            dB2 = dz * dz + (dx * dx + (dy * dy));
-            goto done;
-        }
-    }
-done:
-    return dB2;
-}
-#pragma opt_propagation reset
-#pragma dont_inline off
-
-/* ------------------------------------------------------------------ */
-/* Combined 3D/2D line-line distance test used by the triangle-edge    */
-/* passes: computes both the full 3D distance (LineLineDist) and the   */
-/* projected 2D distance (PointLineDist2D) and returns the smaller.    */
-/* ------------------------------------------------------------------ */
-#pragma opt_propagation off
-static f32 LineLineDist3D2D(Vec* a0, Vec* a1, Vec* out,
-                            Vec* b0, Vec* b1, s32 flattenY) {
-    volatile f64 highPad;
-    Vec da;
-    volatile f32 daPad;
-    Vec db;
-    volatile f32 middle0;
-    volatile f32 middle1;
-    u8 unused[8];
-    Vec point;
-    struct {
-        f32 pad[3];
-        volatile f32 result;
-    } sqrtLocal;
-    register f32 length;
-
-    da.x = a1->x - a0->x;
-    da.y = a1->y - a0->y;
-    da.z = a1->z - a0->z;
-    db.x = b1->x - b0->x;
-    db.y = b1->y - b0->y;
-    db.z = b1->z - b0->z;
-
-    length = da.x * da.x + da.z * da.z;
-    if (length > lbl_80345D50) {
-        f64 guess;
-        guess = __frsqrte((f64)length);
-        guess = lbl_80345D98 * guess *
-                (lbl_80345DA0 - length * (guess * guess));
-        guess = lbl_80345D98 * guess *
-                (lbl_80345DA0 - length * (guess * guess));
-        guess = lbl_80345D98 * guess *
-                (lbl_80345DA0 - length * (guess * guess));
-        sqrtLocal.result =
-            (f32)(length *
-                  (lbl_80345D98 * guess *
-                   (lbl_80345DA0 - length * (guess * guess))));
-        length = sqrtLocal.result;
-    }
-
-    if ((f64)length < lbl_80345D78) {
-        f32 y;
-        register f32 absA1;
-        register f32 absA0;
-        volatile f64 absPad;
-        f32 distance = PointLineDist2D(a0, b0, &db, out);
-
-        if (flattenY != 0) {
-            y = lbl_80345D50;
-        } else {
-            sqrtLocal.pad[1] = a1->y;
-            *(u32*)&sqrtLocal.pad[1] &= 0x7fffffff;
-            absA0 = a0->y;
-            absA1 = sqrtLocal.pad[1];
-            sqrtLocal.pad[2] = absA0;
-            *(u32*)&sqrtLocal.pad[2] &= 0x7fffffff;
-            if (sqrtLocal.pad[2] <= absA1) {
-                y = a0->y;
-            } else {
-                y = a1->y;
-            }
-        }
-        out->y = lbl_80345D50;
-        return y * y + distance;
-    }
-
-    {
-        register f32 zero;
-        register f32 z;
-        f32 lenB;
-        f32 lenA;
-
-        point.x = b0->x;
-        point.y = b0->y;
-        z = b0->z;
-        zero = lbl_80345D50;
-        point.z = z;
-        point.y = zero;
-        db.y = zero;
-        lenB = SlowNormalVector(&db);
-        lenA = SlowNormalVector(&da);
-        return LineLineDist(&point, &db, out, a0, &da, lenB, lenA);
-    }
-}
-#pragma opt_propagation reset
 
 /* ------------------------------------------------------------------ */
 /* TriLineCol -- collide the query line (gColQueryLine) against a       */
 /* single triangle, returning the hit fraction (-1 when no hit).       */
 /* ------------------------------------------------------------------ */
-static f32 btri_fabsf(f32 x) {
-    *(u32*)&x &= 0x7fffffff;
-    return x;
-}
-
 s32 TriLineCol(WorldTri* tri, Vec* out) {
     u8 padHigh[20];
     Vec norm;
@@ -925,3 +407,518 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
     }
     return dist;
 }
+/* ------------------------------------------------------------------ */
+/* Rotate a body-space vector into world space using a packed cos/sin  */
+/* surface frame.  Degenerate frames (|sin| ~ 1) collapse to identity  */
+/* or a 180-degree flip.                                               */
+/* ------------------------------------------------------------------ */
+static void BodyVectorNorm(Vec* in, Vec* out, ColFrame* f, f32 c) {
+    f32 s = f->s;
+    if ((f64)s > lbl_80345D80) {
+        out->x = in->x;
+        out->y = in->y;
+        out->z = in->z;
+        return;
+    }
+    if ((f64)s < lbl_80345D88) {
+        out->x = in->x;
+        out->y = -in->y;
+        out->z = -in->z;
+        return;
+    }
+    {
+        f32 cs;
+        f32 neg_ix;
+        f32 cs_scaled;
+        f32 t;
+        f32 t_scaled;
+        f32 iy;
+        f32 ix;
+        f32 iz;
+        f32 iy_s;
+        f32 mid_y;
+        f32 iz_cs_scaled;
+        f32 result_y;
+        f32 neg_iz;
+        f32 result_x;
+        f32 negix_cs_scaled;
+        f32 negiz_s;
+
+        cs = f->c;
+        iy = in->y;
+        cs_scaled = cs * c;
+        iz = in->z;
+        ix = in->x;
+        iy_s = iy * s;
+        t = f->t;
+        neg_ix = -ix;
+        mid_y = ix * cs + iy_s;
+        t_scaled = t * c;
+        iz_cs_scaled = iz * cs_scaled;
+        result_y = iz * t + mid_y;
+        neg_iz = -iz;
+        result_x = neg_ix * t_scaled + iz_cs_scaled;
+        negix_cs_scaled = neg_ix * cs_scaled;
+        negiz_s = neg_iz * s;
+        out->x = result_x;
+        out->y = result_y;
+        out->z = t_scaled * negiz_s +
+                 (s * negix_cs_scaled +
+                  c * (iy * (lbl_80345D90 - s * s)));
+    }
+}
+
+/* ------------------------------------------------------------------ */
+/* Inverse of BodyVectorNorm: fold a world-space vector back into the  */
+/* surface body frame.                                                 */
+/* ------------------------------------------------------------------ */
+static void WorldVectorNorm(Vec* out, f32 x, f32 y, f32 z, f32 c,
+                            ColFrame* f) {
+    f32 s = f->s;
+    if ((f64)s > lbl_80345D80) {
+        out->x = x;
+        out->y = y;
+        out->z = z;
+        return;
+    }
+    if ((f64)s < lbl_80345D88) {
+        out->x = x;
+        out->y = -y;
+        out->z = -z;
+        return;
+    }
+    {
+        f32 cs;
+        f32 cs_scaled;
+        f32 t;
+        f32 t_scaled;
+
+        cs = f->c;
+        t = f->t;
+        cs_scaled = cs * c;
+        t_scaled = t * c;
+
+        out->x = s * (-z * cs_scaled) + (-x * t_scaled + y * cs);
+        out->y = y * s + c * (z * (lbl_80345D90 - s * s));
+        out->z = t_scaled * (-z * s) + (x * cs_scaled + y * t);
+    }
+}
+
+/* ------------------------------------------------------------------ */
+/* Combined 3D/2D line-line distance test used by the triangle-edge    */
+/* passes: computes both the full 3D distance (LineLineDist) and the   */
+/* projected 2D distance (PointLineDist2D) and returns the smaller.    */
+/* ------------------------------------------------------------------ */
+#pragma opt_propagation off
+static f32 LineLineDist3D2D(Vec* a0, Vec* a1, Vec* out,
+                            Vec* b0, Vec* b1, s32 flattenY) {
+    volatile f64 highPad;
+    Vec da;
+    volatile f32 daPad;
+    Vec db;
+    volatile f32 middle0;
+    volatile f32 middle1;
+    u8 unused[8];
+    Vec point;
+    struct {
+        f32 pad[3];
+        volatile f32 result;
+    } sqrtLocal;
+    register f32 length;
+
+    da.x = a1->x - a0->x;
+    da.y = a1->y - a0->y;
+    da.z = a1->z - a0->z;
+    db.x = b1->x - b0->x;
+    db.y = b1->y - b0->y;
+    db.z = b1->z - b0->z;
+
+    length = da.x * da.x + da.z * da.z;
+    if (length > lbl_80345D50) {
+        f64 guess;
+        guess = __frsqrte((f64)length);
+        guess = lbl_80345D98 * guess *
+                (lbl_80345DA0 - length * (guess * guess));
+        guess = lbl_80345D98 * guess *
+                (lbl_80345DA0 - length * (guess * guess));
+        guess = lbl_80345D98 * guess *
+                (lbl_80345DA0 - length * (guess * guess));
+        sqrtLocal.result =
+            (f32)(length *
+                  (lbl_80345D98 * guess *
+                   (lbl_80345DA0 - length * (guess * guess))));
+        length = sqrtLocal.result;
+    }
+
+    if ((f64)length < lbl_80345D78) {
+        f32 y;
+        register f32 absA1;
+        register f32 absA0;
+        volatile f64 absPad;
+        f32 distance = PointLineDist2D(a0, b0, &db, out);
+
+        if (flattenY != 0) {
+            y = lbl_80345D50;
+        } else {
+            sqrtLocal.pad[1] = a1->y;
+            *(u32*)&sqrtLocal.pad[1] &= 0x7fffffff;
+            absA0 = a0->y;
+            absA1 = sqrtLocal.pad[1];
+            sqrtLocal.pad[2] = absA0;
+            *(u32*)&sqrtLocal.pad[2] &= 0x7fffffff;
+            if (sqrtLocal.pad[2] <= absA1) {
+                y = a0->y;
+            } else {
+                y = a1->y;
+            }
+        }
+        out->y = lbl_80345D50;
+        return y * y + distance;
+    }
+
+    {
+        register f32 zero;
+        register f32 z;
+        f32 lenB;
+        f32 lenA;
+
+        point.x = b0->x;
+        point.y = b0->y;
+        z = b0->z;
+        zero = lbl_80345D50;
+        point.z = z;
+        point.y = zero;
+        db.y = zero;
+        lenB = SlowNormalVector(&db);
+        lenA = SlowNormalVector(&da);
+        return LineLineDist(&point, &db, out, a0, &da, lenB, lenA);
+    }
+}
+#pragma opt_propagation reset
+
+/* ------------------------------------------------------------------ */
+/* Shortest distance between two 3D line segments; closest points are  */
+/* returned in *outA / *outB.                                          */
+/* ------------------------------------------------------------------ */
+#pragma dont_inline on
+#pragma opt_propagation off
+static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
+                        Vec* pointA, Vec* dirA, f32 lenB, f32 lenA) {
+    u8 highPad[40];
+    Vec tmpB;
+    u8 endpointPad[4];
+    Vec tmpA;
+    u8 unused[48];
+    struct {
+        Vec value;
+        u8 unused[44];
+    } cpA[1];
+    Vec dstTmp[3];
+    Vec cpP[3];
+    struct {
+        u8 unused0[28];
+        Vec value;
+        u8 unused1[24];
+    } cpB[1];
+    Vec* endB;
+    Vec* endA;
+    Vec* dst;
+    f32 cx;
+    f32 cy;
+    f32 cz;
+    f32 denom;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 tB;
+    f32 tA;
+    f32 t;
+    f32 inv;
+    f32 dA2;
+    f32 dB2;
+
+    cy = dirB->z * dirA->x - dirB->x * dirA->z;
+    cx = dirB->y * dirA->z - dirB->z * dirA->y;
+    cz = dirB->x * dirA->y - dirB->y * dirA->x;
+    denom = cx * cx + cy * cy;
+    denom = cz * cz + denom;
+    dx = pointA->x - pointB->x;
+    dy = pointA->y - pointB->y;
+    dz = pointA->z - pointB->z;
+    if (denom != lbl_80345D50) {
+        endB = NULL;
+        endA = NULL;
+        inv = (f32)(lbl_80345DA8 / denom);
+        {
+            f32 a1 = cz * (dx * dirA->y);
+            f32 a2 = cx * (dy * dirA->z);
+            f32 a3 = cy * (dz * dirA->x);
+            f32 b1 = dz * (cx * dirA->y);
+            f32 b2 = dx * (cy * dirA->z);
+            f32 b3 = dy * (cz * dirA->x);
+            f32 num = a1 + a2;
+
+            num = a3 + num;
+            num = num - b1;
+            num = num - b2;
+            num = num - b3;
+            tB = inv * num;
+        }
+        if (tB <= lbl_80345D50) {
+            endB = pointB;
+        } else if (tB >= lenB) {
+            tmpB.x = pointB->x + dirB->x * lenB;
+            tmpB.y = pointB->y + dirB->y * lenB;
+            tmpB.z = pointB->z + dirB->z * lenB;
+            endB = &tmpB;
+        }
+        {
+            f32 a1 = cz * (dx * dirB->y);
+            f32 a2 = cx * (dy * dirB->z);
+            f32 a3 = cy * (dz * dirB->x);
+            f32 b1 = dz * (cx * dirB->y);
+            f32 b2 = dx * (cy * dirB->z);
+            f32 b3 = dy * (cz * dirB->x);
+            f32 num = a1 + a2;
+
+            num = a3 + num;
+            num = num - b1;
+            num = num - b2;
+            num = num - b3;
+            tA = inv * num;
+        }
+        if (tA <= *(volatile const f32*)&lbl_80345D50) {
+            endA = pointA;
+        } else if (tA >= lenA) {
+            tmpA.x = pointA->x + dirA->x * lenA;
+            tmpA.y = pointA->y + dirA->y * lenA;
+            tmpA.z = pointA->z + dirA->z * lenA;
+            endA = &tmpA;
+        }
+        if (endB == NULL && endA == NULL) {
+            goto interior;
+        }
+        if (endB != NULL) {
+            Vec* cp = &cpA[0].value;
+
+            t = (endB->z - pointA->z) * dirA->z +
+                ((endB->x - pointA->x) * dirA->x +
+                 (endB->y - pointA->y) * dirA->y);
+            if (t < *(volatile const f32*)&lbl_80345D50) {
+                cp->x = pointA->x;
+                cp->y = pointA->y;
+                cp->z = pointA->z;
+            } else if (t >= lenA) {
+                cp->x = pointA->x + dirA->x * lenA;
+                cp->y = pointA->y + dirA->y * lenA;
+                cp->z = pointA->z + dirA->z * lenA;
+            } else {
+                cp->x = pointA->x + dirA->x * t;
+                cp->y = pointA->y + dirA->y * t;
+                cp->z = pointA->z + dirA->z * t;
+            }
+            dy = cp->y - endB->y;
+            dx = cp->x - endB->x;
+            dz = cp->z - endB->z;
+            dB2 = dz * dz + (dx * dx + (dy * dy));
+        } else {
+            dB2 = lbl_80345DB0;
+        }
+        if (endA != NULL) {
+            dst = out;
+            if (out == NULL) {
+                dst = &dstTmp[0];
+            }
+            t = (endA->z - pointB->z) * dirB->z +
+                ((endA->x - pointB->x) * dirB->x +
+                 (endA->y - pointB->y) * dirB->y);
+            if (t < lbl_80345D50) {
+                dst->x = pointB->x;
+                dst->y = pointB->y;
+                dst->z = pointB->z;
+            } else if (t >= lenB) {
+                dst->x = pointB->x + dirB->x * lenB;
+                dst->y = pointB->y + dirB->y * lenB;
+                dst->z = pointB->z + dirB->z * lenB;
+            } else {
+                dst->x = pointB->x + dirB->x * t;
+                dst->y = pointB->y + dirB->y * t;
+                dst->z = pointB->z + dirB->z * t;
+            }
+            dy = dst->y - endA->y;
+            dx = dst->x - endA->x;
+            dz = dst->z - endA->z;
+            dA2 = dz * dz + (dx * dx + (dy * dy));
+        } else {
+            dA2 = lbl_80345DB0;
+        }
+        if (dB2 < dA2) {
+            out->x = endB->x;
+            out->y = endB->y;
+            out->z = endB->z;
+        } else {
+            dB2 = dA2;
+        }
+        goto done;
+    interior:
+        out->x = pointB->x + dirB->x * tB;
+        out->y = pointB->y + dirB->y * tB;
+        out->z = pointB->z + dirB->z * tB;
+        tmpA.x = pointA->x + dirA->x * tA;
+        tmpA.y = pointA->y + dirA->y * tA;
+        tmpA.z = pointA->z + dirA->z * tA;
+        dy = tmpA.y - out->y;
+        dx = tmpA.x - out->x;
+        dz = tmpA.z - out->z;
+        dB2 = dz * dz + (dx * dx + (dy * dy));
+        goto done;
+    } else {
+        t = dy * dirB->y;
+        t = dx * dirB->x + t;
+        t = dz * dirB->z + t;
+        if (t < lbl_80345D50) {
+            f32 u = (pointB->y - pointA->y) * dirA->y;
+
+            u = (pointB->x - pointA->x) * dirA->x + u;
+            u = (pointB->z - pointA->z) * dirA->z + u;
+            {
+            Vec* cp = &cpP[0];
+
+            if (u < lbl_80345D50) {
+                cp->x = pointA->x;
+                cp->y = pointA->y;
+                cp->z = pointA->z;
+            } else if (u >= lenA) {
+                cp->x = pointA->x + dirA->x * lenA;
+                cp->y = pointA->y + dirA->y * lenA;
+                cp->z = pointA->z + dirA->z * lenA;
+            } else {
+                cp->x = pointA->x + dirA->x * u;
+                cp->y = pointA->y + dirA->y * u;
+                cp->z = pointA->z + dirA->z * u;
+            }
+            dy = cp->y - pointB->y;
+            dx = cp->x - pointB->x;
+            dz = cp->z - pointB->z;
+            out->x = pointB->x;
+            out->y = pointB->y;
+            out->z = pointB->z;
+            }
+            dB2 = dz * dz + (dx * dx + (dy * dy));
+            goto done;
+        } else if (t >= lenB) {
+            out->x = pointB->x + dirB->x * lenB;
+            out->y = pointB->y + dirB->y * lenB;
+            out->z = pointB->z + dirB->z * lenB;
+            t = (out->z - pointA->z) * dirA->z +
+                ((out->x - pointA->x) * dirA->x +
+                 (out->y - pointA->y) * dirA->y);
+            {
+            Vec* cp = &cpB[0].value;
+
+            if (t < lbl_80345D50) {
+                cp->x = pointA->x;
+                cp->y = pointA->y;
+                cp->z = pointA->z;
+            } else if (t >= lenA) {
+                cp->x = pointA->x + dirA->x * lenA;
+                cp->y = pointA->y + dirA->y * lenA;
+                cp->z = pointA->z + dirA->z * lenA;
+            } else {
+                cp->x = pointA->x + dirA->x * t;
+                cp->y = pointA->y + dirA->y * t;
+                cp->z = pointA->z + dirA->z * t;
+            }
+            dy = cp->y - out->y;
+            dx = cp->x - out->x;
+            dz = cp->z - out->z;
+            }
+            dB2 = dz * dz + (dx * dx + (dy * dy));
+            goto done;
+        } else {
+            out->x = pointB->x + dirB->x * t;
+            out->y = pointB->y + dirB->y * t;
+            out->z = pointB->z + dirB->z * t;
+            dy = out->y - pointA->y;
+            dx = out->x - pointA->x;
+            dz = out->z - pointA->z;
+            dB2 = dz * dz + (dx * dx + (dy * dy));
+            goto done;
+        }
+    }
+done:
+    return dB2;
+}
+#pragma opt_propagation reset
+#pragma dont_inline off
+
+/* ------------------------------------------------------------------ */
+/* 2D (xz-plane) distance from the segment [p0,p1] to a point, writing */
+/* the closest point to *out.  Uses the PPC frsqrte + Newton-Raphson   */
+/* reciprocal-square-root idiom for the segment length.                */
+/* ------------------------------------------------------------------ */
+#pragma opt_propagation off
+static f32 PointLineDist2D(Vec* p0, Vec* p1, Vec* dir, Vec* out) {
+    u8 unused[40];
+    struct {
+        f32 pad;
+        volatile f32 result;
+    } sqrtLocal;
+    register f32 length;
+    f64 guess;
+    f32 inverse;
+    f32 nx;
+    f32 ny;
+    f32 nz;
+    f32 distance;
+
+    length = dir->x * dir->x + dir->z * dir->z;
+    if (length > 0.0f) {
+        guess = __frsqrte((f64)length);
+
+        guess = lbl_80345D98 * guess *
+                (lbl_80345DA0 - length * guess * guess);
+        guess = lbl_80345D98 * guess *
+                (lbl_80345DA0 - length * guess * guess);
+        guess = lbl_80345D98 * guess *
+                (lbl_80345DA0 - length * guess * guess);
+        sqrtLocal.result = (f32)(length *
+                                 (lbl_80345D98 * guess *
+                                  (lbl_80345DA0 - length * guess * guess)));
+        length = sqrtLocal.result;
+    }
+    if ((f64)length == lbl_80345D40) {
+        f32 dx = p1->x - p0->x;
+        f32 dz = p1->z - p0->z;
+        out->x = p1->x;
+        out->y = p1->y;
+        out->z = p1->z;
+        return dx * dx + dz * dz;
+    }
+
+    inverse = (f32)(lbl_80345DA8 / (f64)length);
+    nx = dir->x * inverse;
+    ny = dir->y * inverse;
+    nz = dir->z * inverse;
+    distance = (p0->x - p1->x) * nx + (p0->z - p1->z) * nz;
+    if (distance < 0.0f) {
+        out->x = p1->x;
+        out->y = p1->y;
+        out->z = p1->z;
+    } else if (distance >= length) {
+        out->x = p1->x + dir->x;
+        out->y = p1->y + dir->y;
+        out->z = p1->z + dir->z;
+    } else {
+        out->x = nx * distance + p1->x;
+        out->y = ny * distance + p1->y;
+        out->z = nz * distance + p1->z;
+    }
+
+    {
+        f32 dx = p0->x - out->x;
+        f32 dz = p0->z - out->z;
+        return dx * dx + dz * dz;
+    }
+}
+#pragma opt_propagation reset
