@@ -2723,30 +2723,30 @@ s32 OtherPlayerOnOtherMovingObject(s32 i, u8* obj) {
 void do_heal_players(void* vp, f32* mat, f32 amount) {
     Player* p = vp;
     Player* q;
-    f32 cap;
     f32 give;
+    f32 cap;
     f32 giveq;
     f32 d;
-    s32 lvl;
     s32 i;
     s32 typ;
+    u8 unused[16];
 
     typ = -1;
-    lvl = p->level;
-    if (lvl >= 75) {
+    if (p->level >= 75) {
         /* heal caster (heal_player inlined, return discarded) */
-        cap = 100.0 * (lvl - 1) + 500.0;
-        give = amount * (f32)(0.016 * (lvl - 75) + 0.1);
+        give = (f32)(0.016 * (p->level - 75) + 0.1);
+        cap = 100.0 * (p->level - 1) + 500.0;
         if (cap > 9999.0f) {
             cap = 9999.0f;
         }
-        if (!(give > 0.0f && p->health >= cap)) {
-            p->health += give;
+        amount *= give;
+        if (!(amount > 0.0f && p->health >= cap)) {
+            p->health += amount;
             if (p->health > cap) {
                 p->health = cap;
             }
         }
-        giveq = 0.5 * give;
+        giveq = 0.5 * amount;
         typ = 50;
         for (i = 0; i < 4; i++) {
             if (i == p->index) {
