@@ -1099,16 +1099,13 @@ s32 init_mapscreen(s32 timer, s32 movie)
         sprintf((char*)base, fmt + 24, (char*)gCurLevel + 8);
         map_bg_blit = LoadModel((char*)base, 0, 0, -1);
         for (i = 0; i < 4; i++) {
-            s32* entY;
-
             sprintf((char*)base, fmt + 40, (char*)gCurLevel + 8, i);
             ent = (s32*)(lbl_80118250 + i * 8);
-            entY = ent + 1;
-            blit = MBNewBlit(base, ent[0], *entY);
+            blit = MBNewBlit(base, ent[0], ent[1]);
             *(void**)(base + i * 4 + 64) = blit;
             mbBlitCvtCoord(*(void**)(base + i * 4 + 64), lbl_80345A9C);
             sprintf((char*)base, fmt + 52, (char*)gCurLevel + 8, i);
-            blit = MBNewBlit(base, ent[0], *entY);
+            blit = MBNewBlit(base, ent[0], ent[1]);
             setupMapForeground((void**)(base + i * 4), blit);
         }
     } else {
