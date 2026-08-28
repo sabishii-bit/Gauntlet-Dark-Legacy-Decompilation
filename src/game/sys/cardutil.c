@@ -506,6 +506,7 @@ static s32 cardDoWrite(s32 chan, CARDStat* stat, void* data) {
 /* 0x800DCAC0 - (re)build the in-RAM directory: scan every CARD file, keep the
  * ones belonging to the current disc, salvage/purge orphaned "~name" temps,
  * and cache each save's icon/banner block into its directory entry. */
+#pragma opt_propagation off
 static s32 cardDoLoad(s32 chan, void* dirBuf) {
     CARDFileInfo info;
     char tmpName[0x24];
@@ -514,13 +515,14 @@ static s32 cardDoLoad(s32 chan, void* dirBuf) {
     CARDStat* st;
     s32 res;
     s32 fileNo;
+    u8* dir;
     u8* e;
     int i;
 
     diskID = DVDGetCurrentDiskID();
     res = 0;
     OSLockMutex(&M.mutex2);
-    M.dir = dirBuf;
+    M.dir = dir = (u8*)dirBuf;
     M.dirCount = res;
     OSUnlockMutex(&M.mutex2);
     if (dirBuf == NULL) {
@@ -529,7 +531,7 @@ static s32 cardDoLoad(s32 chan, void* dirBuf) {
     memset(dirBuf, 0, 0x2d44c0);
 
     for (fileNo = 0; fileNo < 0x7f; fileNo++) {
-        e = (u8*)M.dir + M.dirCount * 0x5b40;
+        e = dir + M.dirCount * 0x5b40;
         st = (CARDStat*)(e + 0x5a44);
         if (CARDGetStatus(chan, fileNo, st) < 0) {
             continue;
@@ -651,6 +653,7 @@ static s32 cardDoLoad(s32 chan, void* dirBuf) {
     }
     return res;
 }
+#pragma opt_propagation reset
 
 /* 0x800DCEC4 - delete a save file, compact its slot out of the in-RAM
  * directory cache, and refresh free space. */
