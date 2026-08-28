@@ -1065,7 +1065,7 @@ static void shop_setup(void)
     s32 i;
     s32 j;
     char buf[16];
-    u8 _spare[20];
+    u8 _spare[28];
 
     LoadTowerAndSelect();
     if (lbl_80344C18 != 0) {
@@ -1120,10 +1120,10 @@ static void shop_setup(void)
         s32 o768 = 0;
         for (i = 0; i < 4;
              i++, o768 += 768, o4 += 4, o256 += 256, o24 += 24, pl += 13148) {
-            s32* clearBlits = (s32*)(page + o24 + 7504);
-            s32* itemBlits = (s32*)(page + o256 + 6480);
-            s32* available = (s32*)(page + o256 + 4432);
-            s32* playerMap = (s32*)(page + o256 + 5456);
+            s32* clearBlits;
+            s32* itemBlits;
+            s32* available;
+            s32* playerMap;
             *(s32*)(pl + 2664) = 0;
             *(s32*)(pl + 2660) = 0;
             *(s32*)(pl + 2668) = 0;
@@ -1131,6 +1131,7 @@ static void shop_setup(void)
             if (lbl_80344C18 != 0) {
                 continue;
             }
+            clearBlits = (s32*)(page + o24 + 7504);
             {
                 for (j = 0; j < 6; j++) {
                     clearBlits[j] = 0;
@@ -1138,6 +1139,9 @@ static void shop_setup(void)
             }
             {
                 s32 n = lbl_80344C10;
+                itemBlits = (s32*)(page + o256 + 6480);
+                available = (s32*)(page + o256 + 4432);
+                playerMap = (s32*)(page + o256 + 5456);
                 for (j = 0; j < n; j++) {
                     itemBlits[j] = 0;
                     available[j] = 0;
