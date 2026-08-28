@@ -1402,7 +1402,9 @@ static s32 do_shopping_8009AA48(s32 player)
                 *cntp = 0;
                 item = lbl_80344C14;
                 for (j = 0; j < lbl_80344C10; j++, item += 80) {
-                    if (*(s32*)(pl + 7876) < *(s32*)(item + 72)) {
+                    if (*(s32*)(pl + 7876) >= *(s32*)(item + 72)) {
+                        goto set_back_count;
+                    } else {
                         s32 r;
                         s32 t;
                         if (ItemDefValid(item) != 0) {
@@ -1422,12 +1424,14 @@ static s32 do_shopping_8009AA48(s32 player)
                         } else {
                             t = 0;
                         }
-                        if (t != 0) {
-                            *cntp = j;
+                        if (t == 0) {
+                            goto next_back_item;
                         }
-                    } else {
-                        *cntp = j;
                     }
+set_back_count:
+                    *cntp = j;
+next_back_item:
+                    ;
                 }
                 *cntp += 1;
                 *(s32*)(pl + 2664) = *cntp - 1;
@@ -1750,14 +1754,15 @@ static s32 do_shopping_8009AA48(s32 player)
                     } else {
                         t = 0;
                     }
-                    if (t != 0) {
-                        goto notavail;
+                    if (t == 0) {
+                        goto available;
                     }
-                    *(s32*)(avail + joff) = 1;
-                    continue;
                 }
 notavail:
                 *(s32*)(avail + joff) = 0;
+                continue;
+available:
+                *(s32*)(avail + joff) = 1;
             }
         }
         {
@@ -1775,7 +1780,9 @@ notavail:
             *cntp = 0;
             item = lbl_80344C14;
             for (j = 0; j < lbl_80344C10; j++, item += 80) {
-                if (*(s32*)(pl + 7876) < *(s32*)(item + 72)) {
+                if (*(s32*)(pl + 7876) >= *(s32*)(item + 72)) {
+                    goto set_forward_count;
+                } else {
                     s32 r;
                     s32 t;
                     if (ItemDefValid(item) != 0) {
@@ -1793,12 +1800,14 @@ notavail:
                     } else {
                         t = 0;
                     }
-                    if (t != 0) {
-                        *cntp = j;
+                    if (t == 0) {
+                        goto next_forward_item;
                     }
-                } else {
-                    *cntp = j;
                 }
+set_forward_count:
+                *cntp = j;
+next_forward_item:
+                ;
             }
             *cntp += 1;
             moved = 1;
@@ -1806,7 +1815,7 @@ notavail:
         {
             s32 n = lbl_80344C10;
             for (j = *(s32*)(pl + 2664) + 1; j < n; j++) {
-                if (*(s32*)(page + (player << 8) + 6480 + j * 4) == 0) {
+                if (*(u32*)(page + (player << 8) + 6480 + j * 4) == 0) {
                     break;
                 }
             }
