@@ -101,14 +101,14 @@ typedef struct MissileDescription {
     u32 flags;
 } MissileDescription;
 
-extern s32 pmissile_sfxidx[5];
-extern s32 WeapThrowFx[4][5];
-extern void* WeapHoldFxTree[4][5];
-extern void* FamiliarSpit[4];
-extern void* PhoenixTree;
-extern void* FamiliarTree[4][2];
-extern void* EnemyMissileTree[28][3];
-extern MissileTreeInfo PlayerMissileTreeInfo[4];
+s32 pmissile_sfxidx[5];
+s32 WeapThrowFx[4][5];
+void* WeapHoldFxTree[4][5];
+void* FamiliarSpit[4];
+void* PhoenixTree;
+void* FamiliarTree[4][2];
+void* EnemyMissileTree[28][3];
+MissileTreeInfo PlayerMissileTreeInfo[4];
 extern MissileInfo PlayerMissileInfo[8];
 extern MissileInfo EnemyMissileInfo[28][3];
 extern MissileInfo BallistaMissileInfo;
@@ -4401,10 +4401,9 @@ void InitPlayerMissiles(void* player)
 {
     s32 idx = PF(player, 0x00, s32);
     s32 charType = PF(player, 0x0C, s32);
-    MissileDescription* desc = &PlayerMissileDesc[charType];
     s32 throwLevel = PF(player, 0x3324, s32) / 10;
-    char* charName = desc->throwDescription;
-    s32 throwByte = (u8)desc->throwLevel[throwLevel];
+    char* charName = PlayerMissileDesc[charType].throwDescription;
+    s32 throwByte = (u8)PlayerMissileDesc[charType].throwLevel[throwLevel];
     void* weaponWad = player_multiple_models[idx].weaponWad;
     void* powerupWad = player_multiple_models[idx].powerupWad;
     void** holdFx = WeapHoldFxTree[idx];
@@ -4428,7 +4427,7 @@ void InitPlayerMissiles(void* player)
             missing = 1;
         }
     }
-    PlayerMissileTreeInfo[idx].throwFlags = desc->flags;
+    PlayerMissileTreeInfo[idx].throwFlags = PlayerMissileDesc[charType].flags;
 
     for (i = 0; i < 5; i++) {
         char* name = DmgTypeDesc[i];
