@@ -6179,7 +6179,7 @@ void fn_80062A00(void)
         dcur = *(f32*)(row + 2400);
         kind = *(s16*)(w + 20) & 0xFF;
         flags8 = (*(s16*)(w + 20) >> 8) & 0xFF;
-        if (!(dcur >= zero) && lbl_80344A28 == 0 && lbl_803447B8 == 0) {
+        if (dcur >= zero && lbl_80344A28 == 0 && lbl_803447B8 == 0) {
             if (kind == 20 || kind == 22) {
                 if ((st ^ prev) & 0x20) {
                     if (st & 0x20) {
@@ -6265,9 +6265,11 @@ void fn_80062A00(void)
                 } else {
                     a = a - (gFrameTicks << 3);
                 }
-                act = 1;
                 if (a < 0) {
                     a = 0;
+                    act = 1;
+                } else {
+                    act = 1;
                 }
                 MBTreeSetAlpha(*(void**)(w + 40), a, 1);
             }
@@ -6296,13 +6298,8 @@ void fn_80062A00(void)
                     *(u32*)(w + 16) &= ~0x00200000;
                 }
                 fl = *(u32*)(w + 16);
-                if (fl & 0x00100000) {
-                    if (fl & 0x00400000) {
-                        act = 0;
-                    } else if ((fl & 0x00200000) && (fl & 0x00800000)) {
-                        act = 0;
-                    }
-                } else if ((fl & 0x00200000) && (fl & 0x00800000)) {
+                if (((fl & 0x00100000) && (fl & 0x00400000)) ||
+                    ((fl & 0x00200000) && (fl & 0x00800000))) {
                     act = 0;
                 }
             }
