@@ -862,14 +862,20 @@ static void BossCamBossCalc(void)
             } else {
                 yaw += *(f32*)(cfg + 4);
             }
+            yaw = (f32)(yaw + lbl_80345B88);
+            if ((f64)yaw > lbl_80345B88) {
+                yaw = (f32)(yaw - lbl_80345BB8);
+            } else if ((f64)yaw <= lbl_80345BC0) {
+                yaw = (f32)(lbl_80345BB8 + yaw);
+            }
         } else {
             yaw = atan2(bossmat[2], bossmat[0]);
-        }
-        yaw = (f32)(yaw + lbl_80345B88);
-        if ((f64)yaw > lbl_80345B88) {
-            yaw = (f32)(yaw - lbl_80345BB8);
-        } else if ((f64)yaw <= lbl_80345BC0) {
-            yaw = (f32)(lbl_80345BB8 + yaw);
+            yaw = (f32)(yaw + lbl_80345B88);
+            if ((f64)yaw > lbl_80345B88) {
+                yaw = (f32)(yaw - lbl_80345BB8);
+            } else if ((f64)yaw <= lbl_80345BC0) {
+                yaw = (f32)(lbl_80345BB8 + yaw);
+            }
         }
     }
 
