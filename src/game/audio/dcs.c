@@ -725,7 +725,7 @@ s32 dcsReadVags(void* file, u32* header) {
             slot = -1;
         } else {
             while (dcsBankData.samples[slot = lbl_80345218].sampleRate != 0) {
-                if ((lbl_80345218 = lbl_80345218 + 1) >= 2048) {
+                if ((lbl_80345218 = *(volatile s32*)&lbl_80345218 + 1) >= 2048) {
                     slot = -1;
                     break;
                 }
