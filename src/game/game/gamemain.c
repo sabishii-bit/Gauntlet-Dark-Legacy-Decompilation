@@ -2608,7 +2608,6 @@ s32 NextAttractWave(s32 worldLevel)
 {
     s32 worldType = worldLevel >> 8;
     s32 worldIndex;
-    s32 startIndex;
     s32 tableOffset;
     s32 level;
     s32 worldId;
@@ -2624,34 +2623,36 @@ s32 NextAttractWave(s32 worldLevel)
     if ((u32)worldIndex == 14) {
         worldIndex = 0;
     }
-    startIndex = worldIndex;
-
     do {
+        s32 startIndex = worldIndex;
+
         do {
             worldIndex++;
             if ((u32)worldIndex >= 14) {
                 worldIndex = 0;
             }
             tableOffset = worldIndex * 44;
-            world = (WorldTypeNav*)((u8*)worldTable + tableOffset + 232);
-        } while (world->loaded == 0 && worldIndex != startIndex);
+            world = (WorldTypeNav*)((u8*)worldTable + tableOffset);
+        } while (*(s32*)((u8*)world + 248) == 0 &&
+                 worldIndex != startIndex);
 
+        world = (WorldTypeNav*)((u8*)world + 232);
         level = world->nextLevel;
         worldId = world->worldId;
         if (level >= world->numLevels) {
             level = 0;
         }
         worldBits = worldId << 8;
+        world = (WorldTypeNav*)&world->numLevels;
         ResolveWorldData((level & 0xFF) | worldBits);
 
         if ((gControllerButtons & 0x10) == 0) {
             s32 originalLevel = level;
-            s32 numLevels = *(s32*)((u8*)worldTable + tableOffset + 252);
             WorldLevelNav* levels = ((WorldDataNav*)gWorldData)->levels;
 
             while ((levels[level].flags2 & 2) == 0) {
                 level++;
-                if (level >= numLevels) {
+                if (level >= *(s32*)world) {
                     level = 0;
                 }
                 if (level == originalLevel) {
@@ -2665,7 +2666,7 @@ s32 NextAttractWave(s32 worldLevel)
         worldIndex = (level & 0xFF) | worldBits;
         ResolveWorldData(worldIndex);
         level++;
-        if (level >= *(s32*)((u8*)worldTable + tableOffset + 252)) {
+        if (level >= *(s32*)world) {
             level = 0;
         }
         *(s32*)((u8*)worldTable + tableOffset + 272) = level;
