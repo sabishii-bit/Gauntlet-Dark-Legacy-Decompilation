@@ -524,11 +524,22 @@ static inline void MBTreeMoveAfter(MBTreeNode* node, MBTreeNode* after)
     }
 }
 
+static inline MBTreeNode* MBTreeCreateInitializedNode(s32 type)
+{
+    const f32* matrix = gIdentityMatrix;
+    MBTreeNode* node = MBCreateNode();
+
+    if (node != 0) {
+        MBNodeInit(node, type);
+        CopyMat4(matrix, (f32*)node);
+        MBNodeInsert(node, 0);
+    }
+    return node;
+}
+
 /* 0x800BA820 */
 void MBTreeInit(void)
 {
-    u8 unused[16];
-    const f32* matrix;
     MBTreeNode* node1;
     MBTreeNode* node2;
     MBTreeNode* node3;
@@ -542,33 +553,15 @@ void MBTreeInit(void)
     MBInitBlits(1);
     MBInitPolys(1);
 
-    matrix = gIdentityMatrix;
-    node1 = MBCreateNode();
-    if (node1 != 0) {
-        MBNodeInit(node1, 9);
-        CopyMat4(matrix, (f32*)node1);
-        MBNodeInsert(node1, 0);
-    }
+    node1 = MBTreeCreateInitializedNode(9);
     lbl_80344ED8 = node1;
     node1->flags |= 4;
 
-    matrix = gIdentityMatrix;
-    node2 = MBCreateNode();
-    if (node2 != 0) {
-        MBNodeInit(node2, 15);
-        CopyMat4(matrix, (f32*)node2);
-        MBNodeInsert(node2, 0);
-    }
+    node2 = MBTreeCreateInitializedNode(15);
     lbl_80344ED4 = node2;
     node2->flags |= 4;
 
-    matrix = gIdentityMatrix;
-    node3 = MBCreateNode();
-    if (node3 != 0) {
-        MBNodeInit(node3, 1);
-        CopyMat4(matrix, (f32*)node3);
-        MBNodeInsert(node3, 0);
-    }
+    node3 = MBTreeCreateInitializedNode(1);
     lbl_80344EDC = node3;
 
     MBTreeMoveAfter(gDiag_DEC, lbl_80344EBC);
