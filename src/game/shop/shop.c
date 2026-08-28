@@ -1874,7 +1874,7 @@ static s32 write_shop_menu(s32 player, s32 scroll)
     s32 ybase;
     s32 j;
     s32 joff;
-    s32 itemoff;
+    volatile s32 itemoff;
     s32* colp;
     s32* xcol;
     u8* blits;
@@ -1897,8 +1897,8 @@ static s32 write_shop_menu(s32 player, s32 scroll)
         mv = -1;
     }
     calc_shop_ypos(player);
-    scrollflag = (s32*)(page + (player << 2) + 48);
-    *scrollflag = 0;
+    scrollflag = (s32*)(page + (player << 2));
+    *(scrollflag += 12) = 0;
     {
         s32 top = lbl_80343E04;
         s32 bot = lbl_80343E08;
@@ -2015,37 +2015,40 @@ static s32 write_shop_menu(s32 player, s32 scroll)
             mbBlitInit3414(blit, 0);
             MBBlitSetAlpha(blit, a);
         }
-        price = *(s32*)(item + 72);
-        if (price > 0) {
-            s32 x;
-            s32 ytxt;
-            u32 msg;
-            fli = (s32*)(flags + joff);
-            x = *colp - 64;
-            if (*fli & 8) {
-                ytxt = y - 6;
-            } else {
-                ytxt = y + 12;
-            }
-            sprintf(buf, lbl_80348414, price);
-            if (sel != 0) {
-                DrawGlowText(lbl_80348360, x, ytxt, buf);
-            } else {
-                msg = DrawTextKeepScale(lbl_80348360, x, ytxt, 6, hl, buf);
-                if (msg != 0) {
-                    MBFontMsgSetAlpha(msg, a);
+        {
+            s32 rawPrice = *(s32*)(item + 72);
+            if (rawPrice > 0) {
+                s32 x;
+                s32 ytxt;
+                u32 msg;
+                price = rawPrice;
+                fli = (s32*)(flags + joff);
+                x = *colp - 64;
+                if (*fli & 8) {
+                    ytxt = y - 6;
+                } else {
+                    ytxt = y + 12;
                 }
-            }
-            if (*fli & 8) {
-                ytxt = y + 12;
-                sprintf(buf, lbl_8034841C, price * 3 / 4);
+                sprintf(buf, lbl_80348414, price);
                 if (sel != 0) {
                     DrawGlowText(lbl_80348360, x, ytxt, buf);
                 } else {
-                    msg = DrawTextKeepScale(lbl_80348360, x, ytxt, 6, hl,
-                                            buf);
+                    msg = DrawTextKeepScale(lbl_80348360, x, ytxt, 6, hl, buf);
                     if (msg != 0) {
                         MBFontMsgSetAlpha(msg, a);
+                    }
+                }
+                if (*fli & 8) {
+                    ytxt = y + 12;
+                    sprintf(buf, lbl_8034841C, price * 3 / 4);
+                    if (sel != 0) {
+                        DrawGlowText(lbl_80348360, x, ytxt, buf);
+                    } else {
+                        msg = DrawTextKeepScale(lbl_80348360, x, ytxt, 6, hl,
+                                                buf);
+                        if (msg != 0) {
+                            MBFontMsgSetAlpha(msg, a);
+                        }
                     }
                 }
             }
