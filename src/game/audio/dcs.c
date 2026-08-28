@@ -148,7 +148,7 @@ extern u32 BytesFree(void);
 extern void* AllocHiMem(); /* K&R: dcsReadVags passes 1 arg, others 2 */
 extern s32 lbl_80345208;
 extern void dcsMemLockTag(s32 slot, u32 tag);
-extern s32 dcsMemLock(void);
+extern s32 dcsMemLock(); /* K&R: update_chinfo retains its tag in r3 */
 extern s32 dcsMemUnlock(s32 channel);
 extern void ResetAllocTot(void);
 extern void DCFlushRange(void* address, u32 length);
@@ -202,23 +202,28 @@ void dcsChannelPlay(s32 value) {
 
 /* 0x800D1ED0  recompute per-channel voice state each tick */
 s32 update_chinfo(u32 channels) {
+    u8 unused[8];
     s32 channel = 0;
-    s32 adjustment;
+    s32 channelMask;
+    s32 infoOffset;
     s32 i;
+    s32 adjustment;
 
-    channels &= 0xFFF;
-    dcsMemLockTag(0, channels);
-    dcsMemLock();
-    while (channels != 0) {
-        if ((channels & 1) != 0) {
+    channelMask = channels & 0xFFF;
+    dcsMemLockTag(0, channelMask);
+    dcsMemLock(channelMask);
+    while (channelMask != 0) {
+        if ((channelMask & 1) != 0) {
             if (ch_info[channel].duck != 0) {
                 adjustment =
                     -(s32)ch_info[channel].duck * lbl_80343FF8;
                 adjustment >>= 8;
                 lbl_8034520C += adjustment;
-                for (i = 0; i < 12; i++) {
+                for (i = 0, infoOffset = i; i < 12;
+                     i++, infoOffset += sizeof(DcsChannelInfo)) {
                     if (dcsVoiceInUse(i)) {
-                        ch_info[i].volume -= adjustment;
+                        ((DcsChannelInfo*)((u8*)ch_info + infoOffset))->volume -=
+                            adjustment;
                         dcsVoiceUpdate(i);
                     }
                 }
@@ -229,7 +234,10 @@ s32 update_chinfo(u32 channels) {
             AXSetVoiceState(sVoice[channel], 0);
         }
         channel++;
-        channels >>= 1;
+        if (channel >= 12) {
+            break;
+        }
+        channelMask >>= 1;
     }
     return 0;
 }
