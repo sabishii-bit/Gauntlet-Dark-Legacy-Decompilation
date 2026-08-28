@@ -595,6 +595,7 @@ void pbProjCalc(void)
 void pbWinSetup(void)
 {
     PBWINGLOBALS* g = gWinGlobals;
+    volatile PBSCREEN* screen;
     PBWINSTATIC* ws = (PBWINSTATIC*) gWindows;
     u32* p;
     void* fb = g->framebuf;
@@ -662,8 +663,9 @@ void pbWinSetup(void)
     p[0x77] = 0x41;
     p[0x76] = 0;
 
-    h = ((PBSCREEN*) g->screen)->h;
-    w = ((PBSCREEN*) g->screen)->w;
+    screen = (volatile PBSCREEN*) g->screen;
+    w = screen->w;
+    h = screen->h;
     x0 = (s32) g->current->left;
     x1 = (s32) ((f32) w - g->current->right);
     y0 = (s32) g->current->top;
