@@ -698,18 +698,23 @@ s32 dcsBankUnload(void* bank) {
 
 /* 0x800D2A68  read VAG sample table, upload to ARAM (readVags) */
 s32 dcsReadVags(void* file, u32* header) {
+    DcsData* data = &dcsBankData;
     char* strs = lbl_80116F58;
-    s32 error = 0;
-    s32 prevEnd = 0;
-    s32 remaining = header[4];
     s32 slot;
     DcsSampleData* smp;
-    s32 length;
-    u32 aligned;
-    u32 room;
+    s32 error;
+    s32 remaining;
+    s32 prevEnd;
     u32* node;
+    u32 aligned;
+    s32 length;
+    u32 room;
     u32 buf[12];
     u8 unused[4];
+
+    error = 0;
+    prevEnd = 0;
+    remaining = header[4];
 
     while (remaining-- != 0) {
         if (FileBufGet(file, buf, 48) != 48) {
@@ -739,40 +744,45 @@ s32 dcsReadVags(void* file, u32* header) {
         }
 
         if (VagParseHeader(file, buf, smp) < 0) {
-            error = 1;
-        } else {
-            length = smp->length;
-            room = BytesFree();
-            aligned = (length + 63) & ~63;
-            if ((s32)room < (s32)aligned) {
-                error = 1;
-            } else {
-                smp->buffer = (u32)AllocHiMem(aligned);
-                node = &smp->buffer;
-                smp->bufferSize = aligned;
-                smp->bufPrev = node;
-                smp->bufNext = node;
-                memset((void*)smp->buffer, 0, aligned);
-                if (length == (s32)FileBufGet(file, (void*)smp->buffer,
-                                              length)) {
-                    dcsSampleUpload(node, 0);
-                    smp->buffer = 0;
-                    smp->bufferSize = 0;
-                    if (lbl_803451FC <= slot) {
-                        lbl_803451FC = slot + 1;
-                    }
-                } else {
-                    error = 1;
-                }
-                ResetAllocTot();
-            }
+            goto parse_error;
         }
+        length = smp->length;
+        room = BytesFree();
+        aligned = length + 63;
+        aligned &= ~63;
+        if ((s32)room < (s32)aligned) {
+            goto room_error;
+        }
+        smp->buffer = (u32)AllocHiMem(aligned);
+        node = &smp->buffer;
+        smp->bufferSize = aligned;
+        smp->bufPrev = node;
+        smp->bufNext = node;
+        memset((void*)smp->buffer, 0, aligned);
+        if (length == (s32)FileBufGet(file, (void*)smp->buffer, length)) {
+            dcsSampleUpload(node, 0);
+            smp->buffer = 0;
+            smp->bufferSize = 0;
+            if (lbl_803451FC <= slot) {
+                lbl_803451FC = slot + 1;
+            }
+        } else {
+            error = 1;
+        }
+        ResetAllocTot();
+        goto read_done;
+room_error:
+        error = 1;
+        goto read_done;
+parse_error:
+        error = 1;
+read_done:
 
         if (error != 0 || dcsResetPending != 0) {
             if (slot >= 0 && slot < 2048) {
                 if (smp->sampleRate != 0) {
                     if (smp->aramAddress != 0) {
-                        pool_alloc((u8*)&dcsBankData + 0x2C080, smp);
+                        pool_alloc(data->stagingPool, smp);
                     }
                     smp->sampleRate = 0;
                     smp->predScale = 0;
