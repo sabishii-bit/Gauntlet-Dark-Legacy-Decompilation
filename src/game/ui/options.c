@@ -1754,6 +1754,7 @@ void show_optmenu(OPTMENU* m)
     u8* data = lbl_8011DD20;
     s32 idx;
     s32 itofs;
+    s32 hifont;
     s32 font2;
     s32 part;
     u32 fade;
@@ -1763,25 +1764,23 @@ void show_optmenu(OPTMENU* m)
     s32 savedFlags;
     s32 sel;
     OPTITEM* it;
+    volatile s32 hi;
     s32 rgb[3];
     s32 delta[3];
     u32 color;
-    s32 hifont;
-    s32 hi;
     void* txt;
     char* text;
     s32 w;
     f32 fx;
     f32 fy;
     f32 fz;
-    u8 unused_outer[4];
 
     idx = 0;
     itofs = 0;
+    hifont = 0;
     font2 = 0;
     part = 0;
     fade = 0;
-    hifont = 0;
 
     if (m->icon_node != NULL) {
         MBTreeClearFlags(m->icon_node, 2, 0);
@@ -1915,8 +1914,10 @@ void show_optmenu(OPTMENU* m)
                     }
                     rgb[k] = v;
                 }
-                scale = (f32)(scale * m->scale *
-                              (1.0 + (f32)(lbl_80343BC8 * ((f32)(s32)ph / (f32)OPTMENU_FADE))));
+                scale = (f32)(scale *
+                              (m->scale *
+                               (1.0 + (f32)(lbl_80343BC8 * ((f32)(s32)ph /
+                                                            (f32)OPTMENU_FADE)))));
             }
             itemfont = 0;
             flags &= ~0x200;
@@ -1947,14 +1948,14 @@ void show_optmenu(OPTMENU* m)
         MBSetFontScaleSpace(scale, scale);
         MBSetFontScale(m->scale, m->scale);
 
-        if (part == 0 && (hi == 0 || it->value < 1)) {
-            x = m->x;
-            text = it->text;
-        } else {
+        if (part != 0 || (hi != 0 && it->value > 0)) {
             s32 w1 = DrawNormalText(m->scale, it->text, OPTMENU_FONT);
             s32 w2 = DrawNormalText(m->scale, " ~ ", OPTMENU_FONT);
             text = it->text2;
             x = m->x + w1 + w2;
+        } else {
+            x = m->x;
+            text = it->text;
         }
         txt = MBDrawText(x, y, text);
         if (hi2 == 0) {
@@ -1985,15 +1986,15 @@ void show_optmenu(OPTMENU* m)
 
         if (idx == sel && optmenu_choice_twice != 0) {
             sel = -1 - sel;
-        } else if (it->text2 == NULL || part != 0) {
+        } else if (it->text2 != NULL && part == 0) {
+            part = 1;
+        } else {
             if (txt != NULL) {
                 y = y + lh + it->dy;
             }
             part = 0;
             idx++;
             itofs += 0x24;
-        } else {
-            part = 1;
         }
     }
 
