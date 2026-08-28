@@ -2410,15 +2410,12 @@ store_motion_state:
                 PF(p, 0x748, void*) != NULL) {
                 f32 projectileHeight;
                 f32 adjusted;
-                u8* playerInfo = lbl_80282930[p->index];
-                void* weaponNode = PF(p, 0x74, void*);
-
-                localVector[0] = PF(weaponNode, 0x40, f32) *
-                                 PF(playerInfo, 0x170, f32);
-                localVector[1] = PF(weaponNode, 0x44, f32) *
-                                 PF(playerInfo, 0x174, f32);
-                localVector[2] = PF(weaponNode, 0x48, f32) *
-                                 PF(playerInfo, 0x178, f32);
+                localVector[0] = PF(PF(p, 0x74, u8*), 0x40, f32) *
+                                 PF(lbl_80282930[p->index], 0x170, f32);
+                localVector[1] = PF(PF(p, 0x74, u8*), 0x44, f32) *
+                                 PF(lbl_80282930[p->index], 0x174, f32);
+                localVector[2] = PF(PF(p, 0x74, u8*), 0x48, f32) *
+                                 PF(lbl_80282930[p->index], 0x178, f32);
                 MulVecMat4(localVector, hit, (f32*)motion);
                 localVector[0] = attackDir[0];
                 localVector[1] = attackDir[1];
