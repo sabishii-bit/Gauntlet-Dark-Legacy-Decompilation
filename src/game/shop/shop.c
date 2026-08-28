@@ -438,19 +438,19 @@ s32 show_piles(s32 col)
 {
     u8* tbl = lbl_802897D0;
     u8* counts = tbl + col * 12 + 224;
-    s32 result = 1;
+    u8* blit;
     u8* pl = gPlayers + col * 13148;
     s32 adj = gFrameTicks + (gFrameTicks >> 1);
+    s32 result = 1;
     s32 range = lbl_80343E10 - lbl_80343E0C - lbl_80343E14;
     s32 n = 3;
     s32 count = 0;
     s32 off = 0;
-    u8* blit;
     u8* slot;
     s32 gold;
+    u8* curp;
     s32 cur;
     s32 tgt;
-    u8* curp;
     f32 height;
 
     for (; n != 0; n--) {
@@ -465,7 +465,8 @@ s32 show_piles(s32 col)
         return 1;
     }
     gold = *(s32*)(pl + 7876);
-    slot = tbl + col * 12 + count * 4;
+    slot = tbl + col * 12;
+    slot += count * 4;
     curp = slot + 128;
     cur = *(s32*)(slot + 128);
     tgt = lbl_80343E14 + gold * range / (*(s32*)(slot + 80) + 1);
