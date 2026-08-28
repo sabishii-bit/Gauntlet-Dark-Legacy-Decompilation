@@ -839,27 +839,13 @@ void DoPlayerAction(void* player)
                 act = 0x3C;
             }
         } else if (flags == 0 && p[0x23D] == 0) {
-            if (cur == 0x28) {
-                act = 0x2A;
-            } else {
-                act = 0x2B;
-            }
+            act = cur == 0x28 ? 0x2A : 0x2B;
         } else if ((p[0x243] & 8U) != 0) {
-            if (cur == 0x28) {
-                act = 0x2A;
-            } else {
-                act = 0x2B;
-            }
+            act = cur == 0x28 ? 0x2A : 0x2B;
         } else if ((p[0x243] & 4U) != 0) {
-            if (cur == 0x28) {
-                act = 0x40;
-            } else {
-                act = 0x3F;
-            }
-        } else if (cur == 0x28) {
-            act = 0x29;
+            act = cur == 0x28 ? 0x40 : 0x3F;
         } else {
-            act = 0x28;
+            act = cur == 0x28 ? 0x29 : 0x28;
         }
         break;
     case 0x2A:
@@ -899,11 +885,14 @@ void DoPlayerAction(void* player)
                 act = 0x3C;
             }
         } else if (flags == 0 && p[0x23D] == 0) {
+            s32 paired_action;
+
             if (cur == 0x3F) {
-                act = 0x41;
+                paired_action = 0x41;
             } else {
-                act = 0x42;
+                paired_action = 0x42;
             }
+            act = paired_action;
         } else if ((p[0x243] & 8U) != 0) {
             if (cur == 0x3F) {
                 act = 0x41;
