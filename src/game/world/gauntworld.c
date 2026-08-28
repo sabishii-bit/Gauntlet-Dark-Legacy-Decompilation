@@ -2344,7 +2344,7 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
     keep = 1;
     switch (info->type) {
     case 7:
-        if (item->action > 1 ||
+        if (item->action >= 2 ||
             (item->action == 1 && item->activetime > 0x1E)) {
             keep = 0;
         }
@@ -2355,8 +2355,12 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
         }
         break;
     case 2:
-        if (*sub == 0x2B && item->action == 2) {
-            keep = 0;
+        switch (*sub) {
+        case 0x2B:
+            if (item->action == 2) {
+                keep = 0;
+            }
+            break;
         }
         break;
     case 3:
@@ -2365,16 +2369,23 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
         }
         break;
     case 4:
-        if (*(f32*)&item->data[0xC] < sZeroDouble) {
-            R = lbl_80346F6C;
-        } else {
+        if (*(f32*)&item->data[0xC] >= sZeroDouble) {
             R = *(f32*)&item->data[0xC];
+            coltype = 1;
+        } else {
+            R = lbl_80346F6C;
+            coltype = 1;
         }
-        coltype = 1;
         break;
     case 10:
-        if (*sub < 0x2E && *sub > 0x2A && item->action > 0) {
-            keep = 0;
+        switch (*sub) {
+        case 0x2B:
+        case 0x2C:
+        case 0x2D:
+            if (item->action > 0) {
+                keep = 0;
+            }
+            break;
         }
         break;
     case 13:
@@ -2392,9 +2403,9 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
             coltype = 1;
             R = (f32)(R * lbl_80346EF0);
         }
-        if ((*(u16*)&item->data[4] & 0x200) != 0) {
+        if ((*(s16*)&item->data[4] & 0x200) != 0) {
             keep = 0;
-        } else if ((*(u16*)&item->data[4] & 0x40) != 0 &&
+        } else if ((*(s16*)&item->data[4] & 0x40) != 0 &&
                    (s8)item->data[6] < 100 &&
                    towerAllPlayersMetBossReq((s8)item->data[6]) != 0) {
             R = (f32)(R * lbl_80346EF0);
@@ -2427,37 +2438,35 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
         return sNoDistance;
     }
 
-    if (coltype == 3) {
+    switch (coltype) {
+    case 1:
+        break;
+    case 2:
+        if (fqdist(dist, nv[1]) > R) {
+            keep = 0;
+        }
+        break;
+    case 3:
         /* oriented box footprint */
         if (wfabsf_(nv[0] * item->objgrp.worldmat[0][0] +
-                    nv[2] * item->objgrp.worldmat[0][2]) <=
+                    nv[2] * item->objgrp.worldmat[0][2]) >
             (f32)(data->xdim + a)) {
-            if (wfabsf_(nv[0] * item->objgrp.worldmat[2][0] +
-                        nv[2] * item->objgrp.worldmat[2][2]) >
-                (f32)(data->zdim + a)) {
-                keep = 0;
-            }
-        } else {
+            keep = 0;
+        } else if (wfabsf_(nv[0] * item->objgrp.worldmat[2][0] +
+                           nv[2] * item->objgrp.worldmat[2][2]) >
+                   (f32)(data->zdim + a)) {
             keep = 0;
         }
-    } else if (coltype < 3) {
-        if (coltype != 1) {
-            if (coltype < 1) {
-                keep = 0;
-            } else {
-                dist = fqdist(dist, nv[1]);
-                if (dist > R) {
-                    keep = 0;
-                }
-            }
-        }
-    } else if (coltype < 5) {
+        break;
+    case 4:
         /* tri-list collision sweep */
-        if (fn_8005FDA8((u8*)item, from, pos, hitpt, norm, b) < sZeroDouble) {
+        if (fn_8005FDA8((u8*)item, from, pos, hitpt, norm, a) < sZeroDouble) {
             keep = 0;
         }
-    } else {
+        break;
+    default:
         keep = 0;
+        break;
     }
     if (keep == 0) {
         return sNoDistance;
@@ -2472,7 +2481,13 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
     type = item->info->type;
     if (type != 10) {
         if (type < 10) {
-            if (type == 5 || (type > 4 && type > 7)) {
+            if (type == 5) {
+                goto accept_at_pos;
+            }
+            if (type < 5) {
+                goto los_check;
+            }
+            if (type >= 8) {
                 goto accept_at_pos;
             }
         } else if (type < 0xC) {
@@ -2486,12 +2501,14 @@ accept_at_pos:
         }
     }
 
+los_check:
     /* line-of-sight check from the probe origin */
     keep = 0;
     nv[0] = (f32)(from[0] - cx);
     nv[1] = sItemZero;
     nv[2] = (f32)(from[2] - cz);
-    if (coltype == 3) {
+    switch (coltype) {
+    case 3:
         f1 = nv[0] * item->objgrp.worldmat[0][0] +
              nv[2] * item->objgrp.worldmat[0][2];
         if (wfabsf_(f1) > (f32)(data->xdim + a)) {
@@ -2503,6 +2520,7 @@ accept_at_pos:
             goto los_done;
         }
         nv[0] = (f32)(pos[0] - cx);
+        nv[1] = sItemZero;
         nv[2] = (f32)(pos[2] - cz);
         f3 = nv[0] * item->objgrp.worldmat[0][0] +
              nv[2] * item->objgrp.worldmat[0][2];
@@ -2523,10 +2541,18 @@ accept_at_pos:
             goto los_done;
         }
         keep = 1;
-    } else if (coltype == 1) {
+        break;
+    case 1:
         keep = 1;
-    } else if (coltype != 4 && fqdist(nv[0], nv[2]) <= R) {
+        break;
+    case 4:
+        break;
+    default:
+        if (fqdist(nv[0], nv[2]) > R) {
+            break;
+        }
         keep = 1;
+        break;
     }
 
 los_done:
@@ -2545,7 +2571,8 @@ los_done:
     }
 
     if (out != 0) {
-        if (coltype == 3) {
+        switch (coltype) {
+        case 3: {
             nv[0] = (f32)(pos[0] - cx);
             nv[1] = sItemZero;
             nv[2] = (f32)(pos[2] - cz);
@@ -2588,9 +2615,9 @@ los_done:
                 out[1] = from[1];
                 out[2] = from[2];
             }
-        } else if (coltype < 3) {
-            goto tangent_output;
-        } else if (coltype < 5) {
+            break;
+        }
+        case 4: {
             /* push the target out along the tri-list hit normal */
             nv[0] = hitpt[0] - pos[0];
             nv[1] = hitpt[1] - pos[1];
@@ -2599,12 +2626,15 @@ los_done:
             out[1] = pos[1];
             f1 = (f32)((nv[0] * norm[0] + nv[2] * norm[2]) + a);
             out[2] = pos[2];
-            if (sItemZero < f1) {
+            if (f1 > sItemZero) {
                 out[0] = norm[0] * f1 + out[0];
                 out[2] = norm[2] * f1 + out[2];
             }
-        } else {
-tangent_output:
+            break;
+        }
+        case 1:
+        default: {
+        tangent_output:
             if (keep == 0) {
                 nv[0] = pos[0] - from[0];
                 nv[1] = sItemZero;
@@ -2613,20 +2643,22 @@ tangent_output:
                 mv[1] = sItemZero;
                 mv[2] = (f32)(cz - from[2]);
             }
-            if (nv[2] * mv[0] - nv[0] * mv[2] <= sItemZero) {
-                f1 = -mv[0];
-                mv[0] = mv[2];
-                mv[2] = f1;
-            } else {
+            if (nv[2] * mv[0] - nv[0] * mv[2] > sItemZero) {
                 f1 = -mv[2];
                 mv[2] = mv[0];
                 mv[0] = f1;
+            } else {
+                f1 = -mv[0];
+                mv[0] = mv[2];
+                mv[2] = f1;
             }
             NormalVector2D(mv);
             f1 = nv[0] * mv[0] + nv[2] * mv[2];
             out[0] = mv[0] * f1 + from[0];
             out[1] = mv[1] * f1 + from[1];
             out[2] = mv[2] * f1 + from[2];
+            break;
+        }
         }
     }
     return dist;
