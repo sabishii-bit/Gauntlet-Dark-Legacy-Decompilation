@@ -1735,8 +1735,8 @@ keyring_found:
             case 199:
                 for (player = 0; player < 4; player++) {
                     u8* q = gPlayers + player * 13148;
-                    u8* p = q;
                     if (*(s32*)(q + 0xE8) != 0) {
+                        u8* p = q;
                         s32 player_index;
                         flags |= towerGetLevelFlag(p, 8);
                         player_index = *(s32*)(p + 0x0C);
@@ -1937,9 +1937,7 @@ count_index_done:
         DATA_S16(12) = (s16)PARAM_S32(4, 0);
         if (instance != NULL && DATA_S16(12) == 0) {
             for (i = 0; i < strlen(instance->desc); i++) {
-                s32 off = i + 8;
-                char* c = (char*)instance + off;
-                *c = (char)toupper(*c);
+                instance->desc[i] = (char)toupper(instance->desc[i]);
             }
             DATA_S32(4) =
                 AudioFindSound(instance->desc,
@@ -1962,24 +1960,15 @@ count_index_done:
         if (DATA_S16(0) <= 0) {
             DATA_S16(0) = (s16)item->info->item.subtype;
         }
-        if (DATA_S16(0) == 49) {
-            goto set_type10_active;
+        switch (DATA_S16(0)) {
+        case 40:
+        case 49:
+        case 51:
+        case 52:
+        case 53:
+            item->active |= 0x40;
+            break;
         }
-        if (DATA_S16(0) < 49) {
-            if (DATA_S16(0) == 40) {
-                goto set_type10_active;
-            }
-            goto after_type10_active;
-        }
-        if (DATA_S16(0) >= 54) {
-            goto after_type10_active;
-        }
-        if (DATA_S16(0) < 51) {
-            goto after_type10_active;
-        }
-set_type10_active:
-        item->active |= 0x40;
-after_type10_active:
         if (DATA_S16(0) == 41) {
             item->health *= DATA_S16(2);
             sprintf(name, sItemHealthTextureFmt,
