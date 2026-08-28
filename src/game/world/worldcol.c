@@ -1034,38 +1034,35 @@ void CreateMat3Norm(f32 scale, f32* mtx, f32* normal)
 }
 /* PointLineColl @0x8000E73C -- project `point` onto segment [start,end], clamp
  * to the endpoints, store the closest point in `out`, and score the distance. */
-void PointLineColl(f32* point, f32* start, f32* end, f32* out)
+f32 PointLineColl(f32* point, f32* start, f32* end, f32* out)
 {
     f32 seg[3];
     f32 scratch[6];
     f32 len;
     f32 t;
-    f32 dz;
     f32 dx;
     f32 dy;
+    f32 dz;
 
     seg[0] = end[0] - start[0];
     seg[1] = end[1] - start[1];
     seg[2] = end[2] - start[2];
     len = NormalVector(seg);
     dx = point[0] - start[0];
-    dy = point[1] - start[1];
-    dz = point[2] - start[2];
-    t = dx * seg[0] + dy * seg[1] + dz * seg[2];
+    t = dx * seg[0] + (dy = point[1] - start[1]) * seg[1] +
+        (dz = point[2] - start[2]) * seg[2];
     if (t <= lbl_8034572C) {
         len = fqdist(dx, dz);
-        fqdist(len, dy);
+        len = fqdist(len, dy);
         if (out != 0) {
             out[0] = start[0];
             out[1] = start[1];
             out[2] = start[2];
         }
     } else if (t >= len) {
-        dx = point[0] - end[0];
-        dz = point[2] - end[2];
         dy = point[1] - end[1];
-        len = fqdist(dx, dz);
-        fqdist(len, dy);
+        len = fqdist(point[0] - end[0], point[2] - end[2]);
+        len = fqdist(len, dy);
         if (out != 0) {
             out[0] = end[0];
             out[1] = end[1];
@@ -1082,8 +1079,9 @@ void PointLineColl(f32* point, f32* start, f32* end, f32* out)
         dz = point[2] - out[2];
         dy = point[1] - out[1];
         len = fqdist(dx, dz);
-        fqdist(len, dy);
+        len = fqdist(len, dy);
     }
+    return len;
 }
 
 #undef STUB
