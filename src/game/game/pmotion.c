@@ -858,12 +858,14 @@ static s32 PlayerMotion_SfxIndex(Player* p) {
 void PlayerMotion(Player* p) {
     ControlState* ctl = &lbl_80240E30[p->index];
     u8* motion = (u8*)p + 0x14;
-    u8 unused[104];
+    u8 unused[80];
     f32 dpos[3];
     f32 oldpos[3];
     f32 to[3];
     f32 hit[3];
     f32 reflection[3];
+    f32 localVector[3];
+    f32 missileVelocity[3];
     u8* target = NULL;
     s32 item = -1;
     s32 anim = PF(p, 0x208, s32);
@@ -2407,8 +2409,6 @@ store_motion_state:
         if ((PF(p, 0x900, u32) & 0x10000000) != 0) {
             if ((p->flags & 0x80) != 0 ||
                 PF(p, 0x748, void*) != NULL) {
-                f32 localVector[3];
-                f32 missileVelocity[3];
                 f32 projectileHeight;
                 f32 adjusted;
                 u8* playerInfo = lbl_80282930[p->index];
