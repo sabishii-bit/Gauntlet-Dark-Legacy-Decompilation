@@ -5269,6 +5269,7 @@ void PlayerProcessPowerups(void* vp) {
         u32 kind = PF(p, 0x11C, u32) & 0xF;
         void* source = NULL;
         void** handle = (void**)((u8*)p + 0x6E4);
+        s32 fresh = 0;
 
         if (kind != 0) {
             source = WeapHoldFxTree[p->index][kind - 1];
@@ -5278,23 +5279,31 @@ void PlayerProcessPowerups(void* vp) {
             AtreeDelete(handle);
         }
         if (*handle == NULL && source != NULL) {
-            u8* color = lbl_80282930[p->index] + (p->level / 10) * 12;
             *handle = (void*)AtreeInit(source, handle, 0, 0x81880);
             MBTreeSetFlags(*(void**)*handle, 0x10, 0);
             MBNodeSetParent(*(void**)*handle, PF(p, 0x6D0, void*));
             MBTreeSetAlpha(*(void**)*handle, 0, 1);
-            *(f32*)((u8*)*handle + 0x10) = *(f32*)(color + 0x68);
-            *(f32*)((u8*)*handle + 0x14) = *(f32*)(color + 0x6C);
-            *(f32*)((u8*)*handle + 0x18) = *(f32*)(color + 0x70);
-            *(f32*)((u8*)*(void**)*handle + 0x30) = *(f32*)(color + 0x68);
-            *(f32*)((u8*)*(void**)*handle + 0x34) = *(f32*)(color + 0x6C);
-            *(f32*)((u8*)*(void**)*handle + 0x38) = *(f32*)(color + 0x70);
-            if (*(f32*)(color + 0xE0) != 0.0f) {
-                MBTreeSetFlags(*(void**)*handle, 8, 0);
-                *(f32*)((u8*)*(void**)*handle + 0x40) = *(f32*)(color + 0xE0);
-                *(f32*)((u8*)*(void**)*handle + 0x44) = *(f32*)(color + 0xE4);
-                *(f32*)((u8*)*(void**)*handle + 0x48) = *(f32*)(color + 0xE8);
+            fresh = 1;
+        }
+        if (fresh != 0 && *handle != NULL) {
+            s32 color_offset = (p->level / 10) * 12;
+            *(f32*)((u8*)*(void**)*handle + 0x30) =
+                ((f32*)(lbl_80282930[p->index] + color_offset))[0x1A];
+            *(f32*)((u8*)*(void**)*handle + 0x34) =
+                ((f32*)(lbl_80282930[p->index] + color_offset))[0x1B];
+            *(f32*)((u8*)*(void**)*handle + 0x38) =
+                ((f32*)(lbl_80282930[p->index] + color_offset))[0x1C];
+            if (((f32*)(lbl_80282930[p->index] + color_offset))[0x38] != 0.0f) {
+                PF(*(void**)*handle, 0x60, u32) |= 8;
+                *(f32*)((u8*)*(void**)*handle + 0x40) =
+                    ((f32*)(lbl_80282930[p->index] + color_offset))[0x38];
+                *(f32*)((u8*)*(void**)*handle + 0x44) =
+                    ((f32*)(lbl_80282930[p->index] + color_offset))[0x39];
+                *(f32*)((u8*)*(void**)*handle + 0x48) =
+                    ((f32*)(lbl_80282930[p->index] + color_offset))[0x3A];
             }
+        }
+        if (*handle != NULL) {
             AnimateATree(handle, 0, 0);
         }
         MBTreeClearFlags(PF(p, 0x6E0, void*), 2, 0);
@@ -5361,8 +5370,8 @@ void PlayerProcessPowerups(void* vp) {
                 if (PF(p, 0x900, u32) & 0x20000000) {
                     anim = 2;
                     transition = 2;
-                    PF(p, 0x900, u32) &= ~0x20000000;
                 }
+                PF(p, 0x900, u32) &= ~0x20000000;
             } else if ((PF(p, 0x900, u32) & 0x10000000) &&
                        PF(p, 0x7A0, s16) > 1) {
                 anim = 1;
