@@ -510,6 +510,7 @@ s32 show_gold(s32 col)
     u8* dpage = lbl_80122ED0;
     u8* tbl = lbl_802897D0;
     s32 adj = gFrameTicks + (gFrameTicks >> 1);
+    f64 heightScale = lbl_803483B0;
     u8* blits = tbl + col * 24 + 7504;
     u8* counts = tbl + col * 12 + 224;
     u8* shownT = tbl + col * 12 + 128;
@@ -548,7 +549,7 @@ s32 show_gold(s32 col)
             } else {
                 shown = tgt;
             }
-            height = (f32)((f32)shown * lbl_803483B0);
+            height = (f32)((f32)shown * heightScale);
             mbBlitCalcY(blit, lbl_80343E10 - shown);
             mbBlitProject(blit, 0, shown);
             mbBlitSetupVerts(blit, lbl_8034832C, lbl_80348328, lbl_8034832C,
