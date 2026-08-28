@@ -397,6 +397,7 @@ static s32 sNumTevStages;
 void pbDrawVerts(s32 count, u8* verts)
 {
     s32 o1;
+    s32 o2;
     PbVtx* v;
 
     if (count >= 3) {
@@ -407,6 +408,7 @@ void pbDrawVerts(s32 count, u8* verts)
         }
         GXBegin(0x98, 0, (u16)count);
         o1 = 0;
+        o2 = 0;
         for (; count > 0; count--) {
             v = (PbVtx*)(verts + o1);
             GXPosition3f32(v->x, v->y, v->z);
@@ -414,8 +416,11 @@ void pbDrawVerts(s32 count, u8* verts)
             GXTexCoord2f32(v->uv[0], v->uv[1]);
             if (sVtxFormat == 1) {
                 GXTexCoord2f32(v->uv[2], v->uv[3]);
+                o2 += 0x24;
+                o1 = o2;
+            } else {
+                o1 += 0x24;
             }
-            o1 += 0x24;
         }
     }
 }
@@ -660,24 +665,25 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
     u8* st = (u8*)&lbl_802C5430;
     u8* tbl = lbl_80128290;
     f32 inv[16];        /* inverse object matrix */
+    f32 lit[4];         /* lit colour */
     PbGfxEnv envSave;   /* saved env block st+0x128 */
     PbGfxEnv texSave;   /* saved tex block st+0x168 */
     f32 amb[4];         /* ambient accumulator */
-    f32 tc[4];          /* decoded texcoords */
-    f32 nrm[4];         /* decoded packed normal */
-    f32 uv2[3];         /* decoded second uv set */
-    f32 pos[4];         /* decoded position */
     f32 xf[4];          /* transformed position */
-    f32 lit[4];         /* lit colour */
+    f32 tc[4];          /* decoded texcoords */
+    f32 uv2[3];         /* decoded second uv set */
+    f32 nrm[4];         /* decoded packed normal */
+    s32 iout[4];
     f32 ta[4];
     f32 tb[4];
+    f32 pos[4];         /* decoded position */
     f32 diff[4];
     f32 sc[4];
-    s32 iout[4];
     f32* litbase;
     u32 hdr;
     u32 end;
     u32 idx;
+    u32 next;
     s32 pkt;
     u8 clipFlag;
     u8 pktClip;
@@ -739,12 +745,13 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
         lbl_80345078 = *(f64*)(s + 0x8);
         *(PbGfxEnv*)(st + 0x168) = *(PbGfxEnv*)(st + 0x188);
     }
+    litbase = (f32*)(st + 0x1F78);
     if (mtx != 0) {
         sceSamp0InversMatrix(inv, mtx);
         sceSamp0MulMatrix((f32*)(st + 0x1F88), gCameraMtx, inv);
         sceSamp0MulMatrix((f32*)(st + 0x1FC8), lbl_802C9B38, inv);
         __as__4vec4FRC4vec4((f32*)(st + 0x1F48), lbl_802C9AF8);
-        __as__4vec4FRC4vec4((f32*)(st + 0x1F78), (f32*)(st + 0x118));
+        __as__4vec4FRC4vec4(litbase, (f32*)(st + 0x118));
         lbl_80345044 = *(u32*)(s + 0x74);
         lbl_80345048 = *(s32*)(s + 0x70);
         lbl_8034506C = lbl_80345068;
@@ -752,27 +759,23 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
         lbl_80345050 = *(u32*)(s + 0x78);
         __as__4vec4FRC4vec4(amb, lbl_802C9AF8 + 12);
         vec4Mul__FR4vec4R4vec4R4vec4((f32*)(st + 0x1F48), (f32*)(st + 0x1F48),
-                                     (f32*)(st + 0x1F78));
+                                     litbase);
         lbl_80345040 = (*(u32*)(s + 0x78) & 2) != 0;
         if (lbl_80345040 == 0) {
             for (i = 0; i < 3; i++) {
                 amb[i] += lbl_8034504C;
             }
             if (!(*(u32*)(s + 0x78) & 1)) {
-                vec3Mul__FR4vec3R4vec3R4vec3((f32*)(st + 0x1F78),
-                                             (f32*)(st + 0x1F78), amb);
+                vec3Mul__FR4vec3R4vec3R4vec3(litbase, litbase, amb);
             } else {
-                vec3Scale__FR4vec3R4vec3f((f32*)(st + 0x1F78),
-                                          (f32*)(st + 0x1F78), lbl_8034504C);
+                vec3Scale__FR4vec3R4vec3f(litbase, litbase, lbl_8034504C);
                 vec4Sub__FR4vec4R4vec4R4vec4((f32*)(st + 0x1F48),
                                              (f32*)(st + 0x1F48),
                                              (f32*)(st + 0x1F48));
             }
         } else {
-            vec3Scale__FR4vec3R4vec3f((f32*)(st + 0x1F78), (f32*)(st + 0x1F78),
-                                      lbl_8034504C);
-            vec3Div__FR4vec3R4vec3f((f32*)(st + 0x1F78), (f32*)(st + 0x1F78),
-                                    lbl_80348F54);
+            vec3Scale__FR4vec3R4vec3f(litbase, litbase, lbl_8034504C);
+            vec3Div__FR4vec3R4vec3f(litbase, litbase, lbl_80348F54);
         }
     }
     lbl_80345094 = lbl_80345090;
@@ -797,15 +800,14 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
     }
     sSetGFXEnv((PbGfxEnv*)(st + 0x128));
 
-    hdr = pbSwap32(data[0]);
+    idx = 2;
+    pkt = 0;
     clipFlag = 0;
+    hdr = pbSwap32(data[0]);
     if (lbl_803450A2 >= lbl_80343F64 && lbl_803450A2 < lbl_80343F66) {
         clipFlag = 1;
     }
-    litbase = (f32*)(st + 0x1F78);
     end = ((hdr & 0xFFFF) + 1) * 4;
-    idx = 2;
-    pkt = 0;
     zero = lbl_80348F60;
     one = lbl_80348F50;
     normalDiv = lbl_80348F5C;
@@ -846,30 +848,30 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
         tmp = pbSwap32(data[idx]);
         step = (((cnt << 4) + 0x1F) >> 5) + 1;
         nrmPtr = (u8*)(data + idx + 1);
-        idx += step;
-        tmp = pbSwap32(data[idx]);
+        next = idx + step;
+        tmp = pbSwap32(data[next]);
         uv2Ptr = 0;
         if ((tmp & 0xFFF) == 3) {
-            uv2Ptr = (u8*)(data + idx + 1);
-            idx += step;
+            uv2Ptr = (u8*)(data + next + 1);
+            next += step;
         }
-        tmp = pbSwap32(data[idx]);
-        colPtr = (u8*)(data + idx + 1);
+        tmp = pbSwap32(data[next]);
+        colPtr = (u8*)(data + next + 1);
         cfmt = tmp >> 24;
         if (cfmt == 0x6D) {
             colStride = 8;
-            idx += cnt * 2 + 1;
+            next += cnt * 2 + 1;
         } else if (cfmt == 0x66) {
             colStride = 2;
-            idx += step;
+            next += step;
         } else {
             colStride = 4;
-            idx += cnt + 1;
+            next += cnt + 1;
         }
-        tmp = pbSwap32(data[idx]);
+        tmp = pbSwap32(data[next]);
         outOff = 0;
         v = 0;
-        idx += 1;
+        idx = next + 1;
         pkt += 1;
         for (; v < cnt; v++) {
             vClip = pktClip;
