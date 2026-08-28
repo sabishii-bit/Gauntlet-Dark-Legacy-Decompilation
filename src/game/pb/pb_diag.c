@@ -546,31 +546,31 @@ s32 pbDiagDrawAudio(void)
 void pbDiagDrawSoundRow(void)
 {
     char* strs = lbl_80114E90;
-    u8* bank;
+    int off;
+    u32 col1;
+    int i;
+    int bot;
     u8* snd;
+    int k;
+    int row;
+    u32 col2;
+    int s;
+    u8* bank;
     SndSlots* snd2;
     u8* sub2;
     u8* voice;
-    u32 col1;
-    u32 col2;
     u32 col3;
-    int i;
-    int off;
-    int s;
     int soff;
-    int k;
     int koff;
-    int row;
     int sel;
     int flat;
     int t;
     int top;
-    int bot;
     int flag;
     int id;
     u8* sub;
     u32 val;
-    char buf[128];
+    char buf[120];
 
     col1 = (gDiag_D38 == 0) ? 0x00FFFF00 : 0x0000FF00;
     i = 0;
@@ -665,7 +665,7 @@ void pbDiagDrawSoundRow(void)
         if (row >= top && row <= bot) {
             u8* e = voice + soff;
             val = ((snd2->slots[gDiag_D34] & 0x7FFF) << 16) | i;
-            sprintf(buf, strs + 204, *(f32*)(e + 20), val);
+            sprintf(buf, strs + 204, e, *(f32*)(e + 20), val);
             fn_800C008C((i == gDiag_D30) ? col3 : 0x00FFFFFF, 25, row + 5 - top, buf);
         }
         row++;
