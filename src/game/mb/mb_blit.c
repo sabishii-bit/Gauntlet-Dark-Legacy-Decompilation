@@ -480,6 +480,21 @@ u32 mbBlitUpdateEntry(MBBLIT* b, u32 keepMask, u32 setBits) {
  * Blit creation / pool management
  * ===================================================================== */
 
+static inline int mbFindFreeBlitSlot(int count, int slot) {
+    int offset;
+    MBBLIT* entry;
+
+    offset = slot;
+    for (; count > 0; count--) {
+        if (((entry = (MBBLIT*)(offset + (u8*)blitPool))->flags & 0x2) != 0) {
+            break;
+        }
+        slot++;
+        offset += sizeof(MBBLIT);
+    }
+    return slot;
+}
+
 /* Core allocator: find a free slot in blitPool, initialise it, link it into
  * node's list and place it at (x,y). Called by MBNewBlit / mbNewBlitSized. */
 MBBLIT* MBCreateBlit(MBNODE* node, int tex, int x, int y, int w, int h) {
@@ -487,21 +502,12 @@ MBBLIT* MBCreateBlit(MBNODE* node, int tex, int x, int y, int w, int h) {
     MBBLIT* p;
     MBWindow* window;
     s32 value;
-    int i;
     int slot;
-    u8 unused[8];
-
     if (node == 0) {
         node = defaultBlitList;
     }
 
-    i = slot = 0;
-    for (; i < blitCount; i++) {
-        if ((blitPool[i].flags & 0x2) != 0) {
-            break;
-        }
-        slot++;
-    }
+    slot = mbFindFreeBlitSlot(blitCount, 0);
     if (slot >= MB_BLIT_POOL_MAX - 1) {
         FatalError(str_TooManyBlits, 0x800000);
         b = 0;
