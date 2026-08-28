@@ -2758,7 +2758,7 @@ player_motion_phase_exit:
 
             if ((PF(p, 0x962, s16) & 3) != 0) {
                 s32 kind;
-                s32 variant = (PF(p, 0x962, s16) & 2) != 0;
+                s32 variant = (u8)((PF(p, 0x962, s16) & 2) ? 1 : 0);
                 if (PF(p, 0x8CC, f32) > PF(p, 0x8B4, f32)) {
                     kind = 4;
                 } else if ((p->shield_flags & 0x10000) != 0) {
