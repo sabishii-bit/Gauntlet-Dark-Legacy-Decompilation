@@ -2777,9 +2777,10 @@ void do_heal_players(void* vp, f32* mat, f32 amount) {
                     cap = 9999.0f;
                 }
                 if (!(giveq > 0.0f && q->health >= cap)) {
-                    q->health += giveq;
-                    if (q->health > cap) {
-                        q->health = cap;
+                    f32* qh = &q->health;
+                    *qh += giveq;
+                    if (*qh > cap) {
+                        *qh = cap;
                     }
                 }
             }
