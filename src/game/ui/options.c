@@ -1895,13 +1895,14 @@ void show_optmenu(OPTMENU* m)
     /* "Player N" tag */
     if ((m->flags & 0x10) != 0 && m->player >= 0) {
         s32 p = m->player;
+        s32 player_x = p * 100 + 0x6A;
         y = m->by + OPTMENU_MARGIN_PLAYER;
         sprintf(optglobals.tbuf, "Player %d", p + 1);
-        txt = DrawTextKeepScale(optplyr_scale, -(p * 100 + 0x6A), y,
-                                OPTMENU_FONT,
-                                ((*(s32*)(data + 220) & 0xFF) << 8) |
-                                ((*(s32*)(data + 216) & 0xFF) << 16) |
-                                (*(s32*)(data + 224) & 0xFF), optglobals.tbuf);
+        color = ((*(s32*)(data + 220) & 0xFF) << 8) |
+                ((*(s32*)(data + 216) & 0xFF) << 16) |
+                (*(s32*)(data + 224) & 0xFF);
+        txt = DrawTextKeepScale(optplyr_scale, -player_x, y,
+                                OPTMENU_FONT, color, optglobals.tbuf);
         if (font2 != 0) {
             *(s16*)((u8*)txt + 0x26) = (s16)font2;
         }
@@ -1949,9 +1950,12 @@ void show_optmenu(OPTMENU* m)
             v[2] = optmenu_icon_z;
             MBWorldToScreen3D((f32*)((u8*)m->icon_node + 0x30), v);
         }
-        *(f32*)((u8*)m->icon_node + 0x40) = m->icon_scale;
-        *(f32*)((u8*)m->icon_node + 0x44) = m->icon_scale;
-        *(f32*)((u8*)m->icon_node + 0x48) = m->icon_scale;
+        {
+            f32 icon_scale = m->icon_scale;
+            *(f32*)((u8*)m->icon_node + 0x40) = icon_scale;
+            *(f32*)((u8*)m->icon_node + 0x44) = icon_scale;
+            *(f32*)((u8*)m->icon_node + 0x48) = icon_scale;
+        }
         CopyMat3((f32*)(*((u8**)winset + 1) + 0x240), (f32*)m->icon_node);
         PitchMat3((f32*)m->icon_node, angle);
         AnimateATree(m->msg, 0, 0);
@@ -1978,13 +1982,13 @@ void show_optmenu(OPTMENU* m)
                 n++;
             }
         }
+        rgbp = ((*(s32*)(data + 220) & 0xFF) << 8) |
+               ((*(s32*)(data + 216) & 0xFF) << 16) |
+               (*(s32*)(data + 224) & 0xFF);
         px = 0x200 / (n + 1);
         sx = (s32)(32.0f * msg_scale);
         sy = (s32)(32.0f * msg_scale);
         py = m->prompt_y;
-        rgbp = ((*(s32*)(data + 220) & 0xFF) << 8) |
-               ((*(s32*)(data + 216) & 0xFF) << 16) |
-               (*(s32*)(data + 224) & 0xFF);
         idx = 0;
         if ((m->flags & 1) != 0) {
             if (OPTMSG_SHADOW != 0) {
