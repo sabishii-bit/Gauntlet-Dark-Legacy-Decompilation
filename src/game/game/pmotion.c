@@ -2875,22 +2875,24 @@ player_motion_phase_exit:
             case 5:
             case 6:
             case 7:
-                if ((p->anim_208 < 90 && !(p->anim_208 < 88)) && grabbed != NULL) {
-                    if ((PF(grabbed, 0x964, s16) & 0x20) == 0) {
-                        PlayerSetGrabbed(grabbed, PF(p, 0x6DC, void*), NULL);
+                if ((p->anim_208 < 90 && !(p->anim_208 < 88)) &&
+                    PF(p, 0x6B8, Player*) != NULL) {
+                    if ((PF(PF(p, 0x6B8, Player*), 0x964, s16) & 0x20) == 0) {
+                        PlayerSetGrabbed(PF(p, 0x6B8, Player*),
+                                         PF(p, 0x6DC, void*), NULL);
                         goto player_motion_grab_done;
                     }
                     if (grabKind != 7) {
                         goto player_motion_grab_done;
                     }
                 }
-                if (grabbed != NULL &&
-                    (PF(grabbed, 0x964, s16) & 0x10) != 0) {
-                    if ((PF(grabbed, 0x964, s16) & 0x20) != 0) {
-                        PlayerUnsetGrabbed(grabbed, 1);
+                if (PF(p, 0x6B8, Player*) != NULL &&
+                    (PF(PF(p, 0x6B8, Player*), 0x964, s16) & 0x10) != 0) {
+                    if ((PF(PF(p, 0x6B8, Player*), 0x964, s16) & 0x20) != 0) {
+                        PlayerUnsetGrabbed(PF(p, 0x6B8, Player*), 1);
                     }
-                    PF(grabbed, 0x964, s16) &= ~0x10;
-                    PF(grabbed, 0x6B8, Player*) = NULL;
+                    PF(PF(p, 0x6B8, Player*), 0x964, s16) &= ~0x10;
+                    PF(PF(p, 0x6B8, Player*), 0x6B8, Player*) = NULL;
                     PF(p, 0x6B8, Player*) = NULL;
                 }
                 break;
