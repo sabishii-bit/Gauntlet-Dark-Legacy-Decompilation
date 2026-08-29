@@ -1210,12 +1210,14 @@ void PlayerMotion(Player* p) {
 
     if ((p->act_flags & 0x8000) == 0) {
         s32 cameraArg = wallResult != 0 ? 0 : 1;
+        s32 camLimit;
         PF(p, 0xA5C, s32) = CameraLimitPlayerDpos(index, dpos, cameraArg);
-        if (PF(p, 0xA5C, s32) == 5 && anim == 137) {
+        camLimit = PF(p, 0xA5C, s32);
+        if (!(camLimit < 5 || camLimit > 5) && anim == 137) {
             hitKind = 1;
         }
         if (wallResult != 0) {
-            p->camera_limit = -PF(p, 0xA5C, s32);
+            p->camera_limit = -camLimit;
         }
     } else {
         PF(p, 0xA5C, s32) = 0;
@@ -1887,12 +1889,12 @@ store_motion_state:
             case 39:
                 if (PF(p, 0x6B8, Player*) == NULL) {
                     p->anim_20C = 0;
-                } else if (PF(p, 0x6B8, Player*)->char_type == 0) {
-                    p->anim_20C = 137;
-                } else if (PF(p, 0x6B8, Player*)->char_type == 4) {
-                    p->anim_20C = 143;
                 } else {
-                    p->anim_20C = 0;
+                    switch (PF(p, 0x6B8, Player*)->char_type) {
+                    case 0: p->anim_20C = 137; break;
+                    case 4: p->anim_20C = 143; break;
+                    default: p->anim_20C = 0; break;
+                    }
                 }
                 break;
             case 22:
