@@ -2826,7 +2826,7 @@ player_motion_phase_exit:
                            : p->char_type;
             comboTime = PF(p, 0x98, f32);
 
-            if (p->anim_208 >= 88 && p->anim_208 < 90) {
+            if (p->anim_208 < 90 && p->anim_208 >= 88) {
                 Player* pending = PF(p, 0x6BC, Player*);
                 if (pending != NULL) {
                     PF(p, 0x6B8, Player*) = pending;
@@ -2848,7 +2848,7 @@ player_motion_phase_exit:
             case 5:
             case 6:
             case 7:
-                if ((p->anim_208 >= 88 && p->anim_208 < 90) && grabbed != NULL) {
+                if ((p->anim_208 < 90 && p->anim_208 >= 88) && grabbed != NULL) {
                     if ((PF(grabbed, 0x964, s16) & 0x20) == 0) {
                         PlayerSetGrabbed(grabbed, PF(p, 0x6DC, void*), NULL);
                         goto player_motion_grab_done;
@@ -2870,7 +2870,7 @@ player_motion_phase_exit:
 
             case 1:
             case 3:
-                if ((p->anim_208 >= 88 && p->anim_208 < 90) && grabbed != NULL &&
+                if ((p->anim_208 < 90 && p->anim_208 >= 88) && grabbed != NULL &&
                     (p->hud_flags & 0x20) == 0) {
                     f32 grabDir[3];
                     f32 partnerYaw;
@@ -2901,7 +2901,8 @@ player_motion_phase_exit:
                 break;
 
             case 0:
-                if (p->anim_208 == 88 && (f64)comboTime < lbl_80347C88 &&
+                if (p->anim_208 < 89 && p->anim_208 >= 88 &&
+                    (f64)comboTime < lbl_80347C88 &&
                     grabbed != NULL &&
                     (PF(grabbed, 0x964, s16) & 0x20) == 0) {
                     PlayerSetGrabbed(grabbed, PF(p, 0x6DC, void*), NULL);
@@ -2926,8 +2927,10 @@ player_motion_phase_exit:
                 break;
 
             case 4:
-                if (p->anim_208 == 88 && grabbed != NULL &&
-                    (p->hud_flags & 0x20) == 0) {
+                switch (p->anim_208) {
+                case 88:
+                    if (grabbed != NULL &&
+                        (p->hud_flags & 0x20) == 0) {
                     f32 grabDir[3];
                     f32 partnerYaw;
                     f32 partnerFacing;
@@ -2948,20 +2951,25 @@ player_motion_phase_exit:
                     p->hud_flags |= 0x80;
                     PF(grabbed, 0x8FC, f32) = sMusicFadeBase;
                     PF(p, 0x1FA, s16) = 240;
-                } else if (grabbed != NULL) {
-                    if ((PF(grabbed, 0x964, s16) & 0x10) != 0) {
-                        PF(grabbed, 0x964, s16) &= ~0x10;
-                        PF(grabbed, 0x964, s16) |= 0x40;
-                    } else if ((PF(grabbed, 0x964, s16) & 0x40) != 0 &&
-                               PF(p, 0x1FA, s16) <= 0) {
-                        if ((p->hud_flags & 0x20) != 0) {
-                            PlayerUnsetGrabbed(p, 0);
-                        }
-                        PF(grabbed, 0x964, s16) &= ~0x40;
-                        p->hud_flags &= ~0x80;
-                        PF(grabbed, 0x6B8, Player*) = NULL;
-                        PF(p, 0x6B8, Player*) = NULL;
                     }
+                    break;
+                default:
+                    if (grabbed != NULL) {
+                        if ((PF(grabbed, 0x964, s16) & 0x10) != 0) {
+                            PF(grabbed, 0x964, s16) &= ~0x10;
+                            PF(grabbed, 0x964, s16) |= 0x40;
+                        } else if ((PF(grabbed, 0x964, s16) & 0x40) != 0 &&
+                                   PF(p, 0x1FA, s16) <= 0) {
+                            if ((p->hud_flags & 0x20) != 0) {
+                                PlayerUnsetGrabbed(p, 0);
+                            }
+                            PF(grabbed, 0x964, s16) &= ~0x40;
+                            p->hud_flags &= ~0x80;
+                            PF(grabbed, 0x6B8, Player*) = NULL;
+                            PF(p, 0x6B8, Player*) = NULL;
+                        }
+                    }
+                    break;
                 }
                 break;
 
