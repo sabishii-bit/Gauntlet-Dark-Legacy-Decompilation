@@ -15,6 +15,7 @@ from mcp.server import MCPServer  # noqa: E402
 
 from memory_graph.core import (  # noqa: E402
     REPO_ROOT,
+    attempt_staleness,
     ensure_database,
     memory_audit,
     memory_stats,
@@ -24,6 +25,7 @@ from memory_graph.core import (  # noqa: E402
     search_memory,
     symbol_context,
     tool_context,
+    validate_records,
     xbox_symbol_context,
 )
 
@@ -92,6 +94,18 @@ def memory_pending_proposals(kind: str | None = None, limit: int = 100) -> list[
     return migration_proposals(
         root=ROOT, kind=kind, limit=max(1, min(limit, 500))
     )
+
+
+@server.tool()
+def memory_stale() -> dict[str, Any]:
+    """Compare parked/capped attempts against the current objdiff report."""
+    return attempt_staleness(ROOT)
+
+
+@server.tool()
+def memory_validate() -> dict[str, Any]:
+    """Validate durable and inbox JSON records, including reference resolution."""
+    return validate_records(ROOT)
 
 
 @server.tool()

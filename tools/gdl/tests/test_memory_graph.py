@@ -217,6 +217,44 @@ class MemoryGraphTests(unittest.TestCase):
                 root=self.root,
             )
 
+    def test_cli_and_mcp_surfaces_stay_in_step(self):
+        """Every core capability the CLI exposes must exist in the MCP adapter.
+
+        Lifecycle plumbing (build/ensure/paths/errors) is CLI-only by design;
+        everything else added to gdlmem.py must be mirrored in mcp/server.py.
+        """
+        import ast
+
+        base = Path(__file__).resolve().parents[2] / "memory_graph"
+
+        def core_imports(path):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            names = set()
+            for node in ast.walk(tree):
+                if (
+                    isinstance(node, ast.ImportFrom)
+                    and node.module == "memory_graph.core"
+                ):
+                    names.update(alias.name for alias in node.names)
+            return names
+
+        cli = core_imports(base / "gdlmem.py")
+        mcp = core_imports(base / "mcp" / "server.py")
+        lifecycle_cli_only = {
+            "MemoryGraphError",
+            "REPO_ROOT",
+            "build_database",
+            "default_database_path",
+            "ensure_database",
+            "memory_stats",
+            "open_database",
+        }
+        missing = (cli - lifecycle_cli_only) - mcp
+        self.assertFalse(
+            missing,
+            f"mcp/server.py lags gdlmem.py; expose or allowlist: {sorted(missing)}",
+        )
+
     def test_audit_reports_duplicates_without_modifying_documents(self):
         build_database(self.root, self.db)
         before = (self.root / "memory_graph/legacy/PARKED.txt").read_bytes()
