@@ -867,8 +867,8 @@ s32 MBDrawPsys(MBObject* node, void* arg) {
     u32 color;
     u32 cmask;
     PSlot* list;
-    PSlot slots[5];
     f32 pos[4];
+    PSlot slots[5];
     f32 budget;
     s32 texw, texh;
     PsysPPosFunc ppfn;
@@ -1216,8 +1216,7 @@ phaseD:
                     }
                 }
                 src -= 4;
-                sl -= 1;
-            } while (sl != &slots[0] - 1);
+            } while (sl-- != &slots[0]);
             color = ((s32)(p->p_parms[1].k.life_value) << 8) |
                     (s32)(p->p_parms[0].k.life_value) |
                     ((s32)(p->p_parms[2].k.life_value) << 16) |
@@ -1272,8 +1271,7 @@ phaseD:
                             }
                         }
                         src -= 4;
-                        sl -= 1;
-                    } while (sl != &slots[0] - 1);
+                    } while (sl-- != &slots[0]);
                     color = ((s32)(p->p_parms[1].k.fade_value) << 8) |
                             (s32)(p->p_parms[0].k.fade_value) |
                             ((s32)(p->p_parms[2].k.fade_value) << 16) |
