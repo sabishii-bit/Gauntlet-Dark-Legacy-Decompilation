@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "id": "entity.tu.game-game-pmotion.20260829.v1",
+  "kind": "entity",
+  "entity_type": "translation_unit",
+  "key": "tu:game/game/pmotion",
+  "name": "game/game/pmotion",
+  "state": "active",
+  "attributes": {
+    "source_path": "src/game/game/pmotion.c",
+    "classification": "NonMatching",
+    "config": "configure.py Object entry for game/game/pmotion.c"
+  },
+  "valid_from": "2026-08-29"
+}

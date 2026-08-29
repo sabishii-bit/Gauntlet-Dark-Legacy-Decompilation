@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "edge.playermotion-part-of-pmotion.20260829.v1",
+  "kind": "edge",
+  "source": "function:PlayerMotion",
+  "relation": "part_of",
+  "target": "tu:game/game/pmotion",
+  "attributes": {
+    "note": "PlayerMotion is the dominant function of the TU (0x4A9C of its .text)."
+  },
+  "valid_from": "2026-08-29"
+}

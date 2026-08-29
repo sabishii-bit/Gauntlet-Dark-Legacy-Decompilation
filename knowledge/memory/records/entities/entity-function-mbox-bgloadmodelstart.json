@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "id": "entity.function.mbox-bgloadmodelstart.20260829.v1",
+  "kind": "entity",
+  "entity_type": "function",
+  "key": "function:MBOX_BGLoadModelStart",
+  "name": "MBOX_BGLoadModelStart",
+  "state": "active",
+  "attributes": {
+    "gamecube_address": "0x800B79AC",
+    "size_bytes": "0x11C",
+    "translation_unit": "src/game/mb/mb_model.c"
+  },
+  "valid_from": "2026-08-29"
+}
