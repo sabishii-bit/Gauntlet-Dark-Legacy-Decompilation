@@ -1035,7 +1035,7 @@ void* disp_piece(u32* piece, s32 xoff, u32 mode);
 void draw_panels(void)
 {
     char label[8];
-    u8 unused[4];
+    u8 unused[8];
     register u8* base = (u8*)lbl_80274600;
     register u8* group4Base;
     register s32 player;
@@ -1070,7 +1070,7 @@ void draw_panels(void)
             group4Base = base + group4off;
             *(s32*)(group4Base + 928) = zero;
             *(s32*)(base + group12off + 992) = zero;
-            if (*(s32*)(group4Base += 928) == 0) {
+            if (*(u32*)(group4Base += 928) == 0) {
                 slot = zero;
                 pieceoff = zero;
                 playerChar = player + '1';
