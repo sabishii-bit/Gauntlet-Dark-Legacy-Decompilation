@@ -528,6 +528,7 @@ s32 AudioQueUpdate(s32 bank) {
     s32 sampleIndex;
     DcsSampleData* sample;
     u16* instruction;
+    u8* instructionHigh;
 
     update_chinfo(0xFFF);
     if (lbl_8034520C != 0) {
@@ -553,14 +554,17 @@ s32 AudioQueUpdate(s32 bank) {
             endInstr = lbl_80345204;
         }
         removedInstr = endInstr - firstInstr;
+        instructionHigh = (u8*)d->callStart - 0x6080;
         for (i = firstInstr; i < endInstr; i++) {
-            instruction = &d->callInstr[i];
-            sampleIndex = *instruction & 0xFFF;
+            u8* instructionOffset =
+                instructionHigh + i * sizeof(u16);
+            sampleIndex = *(u16*)(instructionOffset + 0x7080) & 0xFFF;
+            instruction = (u16*)(instructionOffset + 0x7080);
             if (sampleIndex >= 0 && sampleIndex < 0x800) {
                 if (d->samples[sampleIndex].sampleRate != 0) {
                     sample = &d->samples[sampleIndex];
                     if (sample->aramAddress != 0) {
-                        pool_alloc((u8*)d + 0x2C080, sample);
+                        pool_alloc((u8*)&d->callInstr[10240], sample);
                     }
                     sample->sampleRate = 0;
                     sample->predScale = 0;
