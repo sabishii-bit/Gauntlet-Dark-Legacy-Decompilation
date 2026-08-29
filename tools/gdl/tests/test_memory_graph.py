@@ -1,4 +1,5 @@
 import json
+import sqlite3
 import sys
 import tempfile
 import unittest
@@ -7,6 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from memory_graph.core import (  # noqa: E402
+    MemoryGraphError,
     build_database,
     ensure_database,
     memory_audit,
@@ -117,6 +119,63 @@ class MemoryGraphTests(unittest.TestCase):
         tool = tool_context("Example", root=self.root, db_path=self.db)
         self.assertEqual(tool["tools"][0]["source_kind"], "reviewed_record")
         self.assertEqual(tool["tools"][0]["constraints"], ["Test only."])
+
+    def test_function_and_tu_references_autoresolve_from_symbol_import(self):
+        (self.root / "knowledge/memory/records/attempt.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "id": "attempt.foo.v1",
+                    "kind": "attempt",
+                    "function": "function:foo",
+                    "attempted_axis": "test axis",
+                    "outcome": "negative",
+                }
+            ),
+            encoding="utf-8",
+        )
+        (self.root / "knowledge/memory/records/edge.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "id": "edge.foo.v1",
+                    "kind": "edge",
+                    "source": "function:foo",
+                    "relation": "part_of",
+                    "target": "tu:game/example",
+                }
+            ),
+            encoding="utf-8",
+        )
+        build_database(self.root, self.db)
+        connection = sqlite3.connect(self.db)
+        try:
+            rows = dict(
+                connection.execute(
+                    "SELECT entity_key, attributes_json FROM entity"
+                    " WHERE entity_key IN ('function:foo', 'tu:game/example')"
+                ).fetchall()
+            )
+        finally:
+            connection.close()
+        self.assertIn("function:foo", rows)
+        self.assertIn("auto_resolved_from", rows["function:foo"])
+        self.assertIn("tu:game/example", rows)
+        (self.root / "knowledge/memory/records/bad.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "id": "attempt.missing.v1",
+                    "kind": "attempt",
+                    "function": "function:does_not_exist",
+                    "attempted_axis": "test axis",
+                    "outcome": "negative",
+                }
+            ),
+            encoding="utf-8",
+        )
+        with self.assertRaises(MemoryGraphError):
+            build_database(self.root, self.db)
 
     def test_audit_reports_duplicates_without_modifying_documents(self):
         build_database(self.root, self.db)

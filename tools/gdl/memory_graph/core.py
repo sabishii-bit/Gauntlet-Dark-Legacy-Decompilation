@@ -683,9 +683,80 @@ def _validate_record(record: dict[str, Any], source: Path) -> None:
 
 def _entity_id(connection: sqlite3.Connection, key: str) -> int:
     row = connection.execute("SELECT id FROM entity WHERE entity_key=?", (key,)).fetchone()
-    if row is None:
-        raise MemoryGraphError(f"record references unknown entity {key!r}")
-    return int(row["id"])
+    if row is not None:
+        return int(row["id"])
+    resolved = _autoresolve_entity(connection, key)
+    if resolved is not None:
+        return resolved
+    raise MemoryGraphError(f"record references unknown entity {key!r}")
+
+
+def _autoresolve_entity(connection: sqlite3.Connection, key: str) -> int | None:
+    """Materialize a minimal entity from the deterministic symbol/module import.
+
+    `function:<raw_name>` resolves against the imported GameCube symbol table
+    and `tu:<module>` against the imported module table (with or without the
+    source extension), so records never have to duplicate symbol facts just to
+    satisfy referential checks. Explicit entity records remain the way to add
+    curated attributes, and ambiguous names still require one.
+    """
+    if key.startswith("function:"):
+        name = key.split(":", 1)[1]
+        rows = connection.execute(
+            "SELECT raw_name, address, size FROM binary_symbol"
+            " WHERE platform='gamecube' AND raw_name=? AND symbol_kind='function'",
+            (name,),
+        ).fetchall()
+        if len(rows) > 1:
+            raise MemoryGraphError(
+                f"{key!r} matches {len(rows)} GameCube symbols; add an explicit"
+                " entity record to disambiguate"
+            )
+        if len(rows) == 1:
+            attributes = {
+                "auto_resolved_from": "gamecube_symbol_import",
+                "gamecube_address": hex(rows[0]["address"]) if rows[0]["address"] else None,
+                "size_bytes": hex(rows[0]["size"]) if rows[0]["size"] else None,
+            }
+            return _insert_auto_entity(connection, key, "function", name, attributes)
+        return None
+    if key.startswith("tu:"):
+        name = key.split(":", 1)[1]
+        rows = connection.execute(
+            "SELECT object_name FROM binary_module"
+            " WHERE platform='gamecube' AND (object_name=? OR object_name=? OR object_name=?)",
+            (name, name + ".c", name + ".cpp"),
+        ).fetchall()
+        if rows:
+            attributes = {
+                "auto_resolved_from": "gamecube_module_import",
+                "object_name": rows[0]["object_name"],
+            }
+            return _insert_auto_entity(connection, key, "translation_unit", name, attributes)
+        return None
+    return None
+
+
+def _insert_auto_entity(
+    connection: sqlite3.Connection,
+    key: str,
+    entity_type: str,
+    name: str,
+    attributes: dict[str, Any],
+) -> int:
+    cursor = connection.execute(
+        """
+        INSERT INTO entity(entity_key, entity_type, name, state, attributes_json)
+        VALUES (?, ?, ?, 'active', ?)
+        """,
+        (key, entity_type, name, json.dumps(attributes, sort_keys=True)),
+    )
+    entity_id = int(cursor.lastrowid)
+    connection.execute(
+        "INSERT INTO entity_fts VALUES (?, ?, ?, ?, ?)",
+        (entity_id, key, entity_type, name, ""),
+    )
+    return entity_id
 
 
 def _import_records(connection: sqlite3.Connection, root: Path) -> int:
@@ -1088,10 +1159,12 @@ def build_database(
                 "INSERT INTO meta(key, value) VALUES ('source_fingerprint', ?)",
                 (source_fingerprint(root),),
             )
+            # Symbols import first so record references can resolve against
+            # the deterministic GameCube symbol/module tables.
+            gcn_count = _import_gcn_symbols(connection, root)
             record_count = _import_records(connection, root)
             discovered_tool_count = _import_discovered_tools(connection, root)
             document_ids = _import_legacy_documents(connection, root) if include_legacy else {}
-            gcn_count = _import_gcn_symbols(connection, root)
             xbox_count = _import_xbox_symbols(connection, root)
             type_count, field_count = _import_pdb_types(connection, root)
             candidate_count = _import_exact_name_candidates(connection)

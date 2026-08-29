@@ -57,6 +57,12 @@ staged through the same review boundary:
 python tools/gdl/gdlmem.py propose-record path/to/record.json
 ```
 
+Records that reference `function:<symbol>` or `tu:<module>` resolve
+automatically against the deterministic GameCube symbol/module import — an
+explicit entity record is only needed to attach curated attributes or to
+disambiguate a duplicated symbol name. Unknown names still fail the build,
+so typos cannot slip through.
+
 Accepted records must not depend on Markdown for current truth. Anchor them to
 source/config/test paths, target addresses and hashes, build commands and
 outputs, or immutable commits. Legacy Markdown paths may appear in search
