@@ -992,21 +992,24 @@ void init_panel_blits(int idx)
 }
 
 /* Free (MBRemoveBlit) and null every blit handle in one player's panel. */
+#pragma opt_common_subs off
 void end_inventory_panel(int player)
 {
     u8* base = (u8*)lbl_80274600;
     void** p;
     int i;
+    int off48;
 
     p = (void**)(base + player * 16);
     p = (void**)((u8*)p + 928);
     for (i = 0; i < 4; i++) { if (*p) { MBRemoveBlit(*p); } *p = 0; p++; }
 
-    p = (void**)(base + player * 48);
+    off48 = player * 48;
+    p = (void**)(base + off48);
     p = (void**)((u8*)p + 992);
     for (i = 0; i < 12; i++) { if (*p) { MBRemoveBlit(*p); } *p = 0; p++; }
 
-    p = (void**)(base + player * 48);
+    p = (void**)(base + off48);
     p = (void**)((u8*)p + 736);
     for (i = 0; i < 12; i++) { if (*p) { MBRemoveBlit(*p); } *p = 0; p++; }
 
@@ -1014,6 +1017,7 @@ void end_inventory_panel(int player)
     p = (void**)((u8*)p + 592);
     for (i = 0; i < 9; i++) { if (*p) { MBRemoveBlit(*p); } *p = 0; p++; }
 }
+#pragma opt_common_subs reset
 
 /*
  * ============================================================
