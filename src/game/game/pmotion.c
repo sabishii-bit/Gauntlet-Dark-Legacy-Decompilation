@@ -977,8 +977,8 @@ void PlayerMotion(Player* p) {
         dpos[0] = PF(p, 0x870, f32) * gClockFrameStep;
         dpos[1] = PF(p, 0x874, f32) * gClockFrameStep;
         dpos[2] = PF(p, 0x878, f32) * gClockFrameStep;
-        if (dpos[0] * dpos[0] + dpos[1] * dpos[1] +
-                dpos[2] * dpos[2] < lbl_80347B70) {
+        if (!(dpos[0] * dpos[0] + dpos[1] * dpos[1] +
+                  dpos[2] * dpos[2] >= lbl_80347B70)) {
             angle = PlayerMotion_WrapAngle(atan2(dpos[0], dpos[2]) - facing);
             if ((f64)angle < lbl_80347B78 ||
                 (f64)angle > lbl_80347B80) {
@@ -1003,8 +1003,8 @@ void PlayerMotion(Player* p) {
         dpos[2] = 0.0f;
     }
 
-    moveLimit = (f32)(lbl_80347B88 * PF(p, 0x110, f32) *
-                      gClockFrameStep);
+    moveLimit = (f32)(lbl_80347B88 *
+                      (PF(p, 0x110, f32) * gClockFrameStep));
     if ((p->act_flags & 0x18160) != 0) {
         moveLimit = (f32)(lbl_80347B90 * gClockFrameStep);
     }
@@ -1012,25 +1012,26 @@ void PlayerMotion(Player* p) {
         gBossActive != 0) {
         moveLimit = lbl_80347B98 * gClockFrameStep;
     }
-    if (dpos[1] >= 0.0f && dpos[1] > moveLimit) {
-        dpos[1] = moveLimit;
-    }
+    dpos[1] = dpos[1] >= 0.0f
+                  ? (dpos[1] > moveLimit ? moveLimit : dpos[1])
+                  : 0.0f;
 
     if (anim == 137) {
         moveAmount = (f32)(lbl_80347BA0 * gClockFrameStep);
         dpos[0] = moveAmount * sin(facing);
         dpos[2] = moveAmount * cos(facing);
     } else if (motionType == 29) {
-        moveAmount = (f32)(lbl_80347BA8 * PF(p, 0x110, f32) * speedScale *
-                           gClockFrameStep);
+        moveAmount = (f32)(lbl_80347BA8 *
+                           (gClockFrameStep *
+                            (PF(p, 0x110, f32) * speedScale)));
         dpos[0] = moveAmount * sin(facing);
         dpos[1] = speedScale != 0.0f
                       ? (f32)lbl_80347B08
                       : (f32)(lbl_80347BB0 * gClockFrameStep);
         dpos[2] = moveAmount * cos(facing);
     } else {
-        moveAmount = PF(p, 0xA48, f32) * PF(p, 0x110, f32) * speedScale *
-                     gClockFrameStep;
+        moveAmount = PF(p, 0xA48, f32) *
+                     (gClockFrameStep * (PF(p, 0x110, f32) * speedScale));
         dpos[0] += moveAmount * sin(facing);
         dpos[2] += moveAmount * cos(facing);
         if (dpos[0] < -moveLimit) {
@@ -1038,11 +1039,9 @@ void PlayerMotion(Player* p) {
         } else if (dpos[0] > moveLimit) {
             dpos[0] = moveLimit;
         }
-        if (dpos[2] < -moveLimit) {
-            dpos[2] = -moveLimit;
-        } else if (dpos[2] > moveLimit) {
-            dpos[2] = moveLimit;
-        }
+        dpos[2] = dpos[2] < -moveLimit
+                      ? -moveLimit
+                      : (dpos[2] > moveLimit ? moveLimit : dpos[2]);
     }
 
     if (*(f32*)(motion + 0x34) <= lbl_80344880) {
