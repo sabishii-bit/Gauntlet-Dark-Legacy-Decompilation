@@ -467,8 +467,7 @@ s32 show_piles(s32 col)
     gold = *(s32*)(pl + 7876);
     slot = tbl + col * 12;
     slot += count * 4;
-    curp = slot + 128;
-    cur = *(s32*)(slot + 128);
+    cur = *(s32*)(curp = slot + 128);
     tgt = lbl_80343E14 + gold * range / (*(s32*)(slot + 80) + 1);
     if (gold == 0) {
         mbBlitInit3414(blit, 1);
