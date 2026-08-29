@@ -2040,7 +2040,7 @@ static s32 write_shop_menu(s32 player, s32 scroll)
             a = 160;
         }
         tex = MBBlitGetTex(blit);
-        if (tex == 0) {
+        if (*(volatile s32*)&tex == 0) {
             mbBlitInit3414(blit, 1);
         } else {
             mbBlitInit3414(blit, 0);
@@ -2055,7 +2055,7 @@ static s32 write_shop_menu(s32 player, s32 scroll)
                 price = rawPrice;
                 fli = (s32*)(flags + joff);
                 x = *colp - 64;
-                if (*fli & 8) {
+                if (*fli & 4) {
                     ytxt = y - 6;
                 } else {
                     ytxt = y + 12;
@@ -2069,7 +2069,7 @@ static s32 write_shop_menu(s32 player, s32 scroll)
                         MBFontMsgSetAlpha(msg, a);
                     }
                 }
-                if (*fli & 8) {
+                if (*fli & 4) {
                     ytxt = y + 12;
                     sprintf(buf, lbl_8034841C, price * 3 / 4);
                     if (sel != 0) {
@@ -2084,20 +2084,22 @@ static s32 write_shop_menu(s32 player, s32 scroll)
                 }
             }
         }
-        if (tex > 0) {
+        if (*(volatile s32*)&tex > 0) {
             y = y + 32;
         } else {
             y = y + 12;
         }
         if (*(s8*)(item + 32) != 0) {
-            s32 x2 = -*xcol;
+            s32 x2;
+            s32 y0 = y;
             s32 h;
+            x2 = -*xcol;
             if (sel != 0) {
                 h = DrawGlowTextMLines((f32)(kGold * *(f32*)(item + 64)),
-                                       x2, y, (char*)(item + 32));
+                                       x2, y0, (char*)(item + 32));
             } else {
                 s32 old = MBSetFontAlpha(a);
-                h = DrawTextMLines((f32)(kGold * *(f32*)(item + 64)), x2, y,
+                h = DrawTextMLines((f32)(kGold * *(f32*)(item + 64)), x2, y0,
                                    6, hl, (char*)(item + 32));
                 MBSetFontAlpha(old);
             }
