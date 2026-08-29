@@ -633,8 +633,10 @@ def _validate_record(record: dict[str, Any], source: Path) -> None:
     if missing:
         raise MemoryGraphError(f"{source}: missing record fields: {', '.join(missing)}")
     if record["schema_version"] != SCHEMA_VERSION:
+        version = record["schema_version"]
         raise MemoryGraphError(
-            f"{source}: schema_version {record['schema_version']} is not {SCHEMA_VERSION}"
+            f"{source}: schema_version must be the JSON number {SCHEMA_VERSION},"
+            f" got {type(version).__name__} {version!r}"
         )
     if not isinstance(record["id"], str) or not record["id"]:
         raise MemoryGraphError(f"{source}: record id must be a non-empty string")
@@ -766,12 +768,28 @@ def _import_records(connection: sqlite3.Connection, root: Path) -> int:
         if directory.exists():
             paths.extend(directory.rglob("*.json"))
     loaded: list[tuple[Path, dict[str, Any], str]] = []
+    rejected: list[dict[str, str]] = []
     for path in sorted(paths):
-        record = json.loads(path.read_text(encoding="utf-8"))
-        if not isinstance(record, dict):
-            raise MemoryGraphError(f"{path}: top-level JSON value must be an object")
-        _validate_record(record, path)
-        state = "proposed" if "inbox" in path.parts else record.get("record_state", "accepted")
+        is_inbox = "inbox" in path.parts
+        try:
+            record = json.loads(path.read_text(encoding="utf-8-sig"))
+            if not isinstance(record, dict):
+                raise MemoryGraphError(f"{path}: top-level JSON value must be an object")
+            _validate_record(record, path)
+        except (MemoryGraphError, json.JSONDecodeError) as error:
+            # A malformed inbox proposal must never take down the whole graph:
+            # reject it, keep building, and surface it in the build stats.
+            if not is_inbox:
+                raise
+            rejected.append(
+                {
+                    "path": _repo_relative(root, path),
+                    "record_id": "",
+                    "error": str(error),
+                }
+            )
+            continue
+        state = "proposed" if is_inbox else record.get("record_state", "accepted")
         connection.execute(
             """
             INSERT INTO record_ingest(record_id, record_kind, record_state, source_path, raw_json)
@@ -788,215 +806,275 @@ def _import_records(connection: sqlite3.Connection, root: Path) -> int:
         loaded.append((path, record, state))
 
     # Entities must exist before relationship-bearing records are inserted.
-    for _, record, state in loaded:
+    for path, record, state in loaded:
         if record["kind"] != "entity":
             continue
-        cursor = connection.execute(
-            """
-            INSERT INTO entity(entity_key, entity_type, name, state, attributes_json)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (
-                record["key"],
-                record["entity_type"],
-                record["name"],
-                record.get("state", state),
-                json.dumps(record.get("attributes", {}), sort_keys=True),
-            ),
-        )
-        entity_id = int(cursor.lastrowid)
-        aliases = record.get("aliases", [])
-        for alias in aliases:
-            connection.execute(
-                "INSERT INTO entity_alias(entity_id, alias) VALUES (?, ?)",
-                (entity_id, alias),
+        connection.execute("SAVEPOINT record_insert")
+        try:
+            cursor = connection.execute(
+                """
+                INSERT INTO entity(entity_key, entity_type, name, state, attributes_json)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    record["key"],
+                    record["entity_type"],
+                    record["name"],
+                    record.get("state", state),
+                    json.dumps(record.get("attributes", {}), sort_keys=True),
+                ),
             )
-        connection.execute(
-            "INSERT INTO entity_fts VALUES (?, ?, ?, ?, ?)",
-            (
-                entity_id,
-                record["key"],
-                record["entity_type"],
-                record["name"],
-                " ".join(aliases),
-            ),
-        )
+            entity_id = int(cursor.lastrowid)
+            aliases = record.get("aliases", [])
+            for alias in aliases:
+                connection.execute(
+                    "INSERT INTO entity_alias(entity_id, alias) VALUES (?, ?)",
+                    (entity_id, alias),
+                )
+            connection.execute(
+                "INSERT INTO entity_fts VALUES (?, ?, ?, ?, ?)",
+                (
+                    entity_id,
+                    record["key"],
+                    record["entity_type"],
+                    record["name"],
+                    " ".join(aliases),
+                ),
+            )
+        except (MemoryGraphError, sqlite3.Error) as error:
+            connection.execute("ROLLBACK TO record_insert")
+            connection.execute("RELEASE record_insert")
+            if "inbox" not in path.parts:
+                raise
+            connection.execute(
+                "DELETE FROM record_ingest WHERE record_id=?", (record["id"],)
+            )
+            rejected.append(
+                {
+                    "path": _repo_relative(root, path),
+                    "record_id": record["id"],
+                    "error": str(error),
+                }
+            )
+            continue
+        connection.execute("RELEASE record_insert")
 
     # Relationship-bearing records come next. Evidence is deliberately deferred
     # to a final pass because JSON filename order must not determine whether its
     # referenced claim or edge already exists.
-    for _, record, record_state in loaded:
+    for path, record, record_state in loaded:
         kind = record["kind"]
         if kind in {"entity", "evidence"}:
             continue
-        if kind == "edge":
-            connection.execute(
-                """
-                INSERT INTO edge(
-                    record_id, source_entity_id, relation, target_entity_id,
-                    state, note, valid_from, valid_to, superseded_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    record["id"],
-                    _entity_id(connection, record["source"]),
-                    record["relation"],
-                    _entity_id(connection, record["target"]),
-                    record.get("state", "active"),
-                    record.get("note"),
-                    record.get("valid_from"),
-                    record.get("valid_to"),
-                    record.get("superseded_by"),
-                ),
-            )
-        elif kind == "claim":
-            object_id = _entity_id(connection, record["object"]) if record.get("object") else None
-            value_json = json.dumps(record["value"], sort_keys=True) if "value" in record else None
-            connection.execute(
-                """
-                INSERT INTO claim(
-                    record_id, subject_entity_id, predicate, object_entity_id,
-                    value_json, epistemic_state, note, valid_from, valid_to,
-                    superseded_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    record["id"],
-                    _entity_id(connection, record["subject"]),
-                    record["predicate"],
-                    object_id,
-                    value_json,
-                    record["epistemic_state"],
-                    record.get("note"),
-                    record.get("valid_from"),
-                    record.get("valid_to"),
-                    record.get("superseded_by"),
-                ),
-            )
-        elif kind == "attempt":
-            connection.execute(
-                """
-                INSERT INTO attempt(
-                    record_id, function_entity_id, tu_entity_id,
-                    compiler_entity_id, source_revision, attempted_axis,
-                    outcome, residual_class, semantic_note, commit_hash,
-                    started_at, finished_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    record["id"],
-                    _entity_id(connection, record["function"]),
-                    _entity_id(connection, record["tu"]) if record.get("tu") else None,
-                    _entity_id(connection, record["compiler"]) if record.get("compiler") else None,
-                    record.get("source_revision"),
-                    record["attempted_axis"],
-                    record["outcome"],
-                    record.get("residual_class"),
-                    record.get("semantic_note"),
-                    record.get("commit_hash"),
-                    record.get("started_at"),
-                    record.get("finished_at"),
-                ),
-            )
-            for phase in ("before", "after"):
-                measurement = record.get(phase)
-                if not measurement:
-                    continue
+        connection.execute("SAVEPOINT record_insert")
+        try:
+            if kind == "edge":
                 connection.execute(
                     """
-                    INSERT INTO measurement(
-                        attempt_record_id, phase, target_instructions,
-                        current_instructions, fuzzy_percent, real_diffs,
-                        frame_size, project_fuzzy_percent, project_matched_percent
+                    INSERT INTO edge(
+                        record_id, source_entity_id, relation, target_entity_id,
+                        state, note, valid_from, valid_to, superseded_by
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
-                        record["id"], phase,
-                        measurement.get("target_instructions"),
-                        measurement.get("current_instructions"),
-                        measurement.get("fuzzy_percent"),
-                        measurement.get("real_diffs"),
-                        measurement.get("frame_size"),
-                        measurement.get("project_fuzzy_percent"),
-                        measurement.get("project_matched_percent"),
+                        record["id"],
+                        _entity_id(connection, record["source"]),
+                        record["relation"],
+                        _entity_id(connection, record["target"]),
+                        record.get("state", "active"),
+                        record.get("note"),
+                        record.get("valid_from"),
+                        record.get("valid_to"),
+                        record.get("superseded_by"),
                     ),
                 )
-        elif kind == "work_claim":
+            elif kind == "claim":
+                object_id = _entity_id(connection, record["object"]) if record.get("object") else None
+                value_json = json.dumps(record["value"], sort_keys=True) if "value" in record else None
+                connection.execute(
+                    """
+                    INSERT INTO claim(
+                        record_id, subject_entity_id, predicate, object_entity_id,
+                        value_json, epistemic_state, note, valid_from, valid_to,
+                        superseded_by
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        record["id"],
+                        _entity_id(connection, record["subject"]),
+                        record["predicate"],
+                        object_id,
+                        value_json,
+                        record["epistemic_state"],
+                        record.get("note"),
+                        record.get("valid_from"),
+                        record.get("valid_to"),
+                        record.get("superseded_by"),
+                    ),
+                )
+            elif kind == "attempt":
+                connection.execute(
+                    """
+                    INSERT INTO attempt(
+                        record_id, function_entity_id, tu_entity_id,
+                        compiler_entity_id, source_revision, attempted_axis,
+                        outcome, residual_class, semantic_note, commit_hash,
+                        started_at, finished_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        record["id"],
+                        _entity_id(connection, record["function"]),
+                        _entity_id(connection, record["tu"]) if record.get("tu") else None,
+                        _entity_id(connection, record["compiler"]) if record.get("compiler") else None,
+                        record.get("source_revision"),
+                        record["attempted_axis"],
+                        record["outcome"],
+                        record.get("residual_class"),
+                        record.get("semantic_note"),
+                        record.get("commit_hash"),
+                        record.get("started_at"),
+                        record.get("finished_at"),
+                    ),
+                )
+                for phase in ("before", "after"):
+                    measurement = record.get(phase)
+                    if not measurement:
+                        continue
+                    connection.execute(
+                        """
+                        INSERT INTO measurement(
+                            attempt_record_id, phase, target_instructions,
+                            current_instructions, fuzzy_percent, real_diffs,
+                            frame_size, project_fuzzy_percent, project_matched_percent
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            record["id"], phase,
+                            measurement.get("target_instructions"),
+                            measurement.get("current_instructions"),
+                            measurement.get("fuzzy_percent"),
+                            measurement.get("real_diffs"),
+                            measurement.get("frame_size"),
+                            measurement.get("project_fuzzy_percent"),
+                            measurement.get("project_matched_percent"),
+                        ),
+                    )
+            elif kind == "work_claim":
+                connection.execute(
+                    """
+                    INSERT INTO work_claim(
+                        record_id, function_entity_id, owner, branch, worktree,
+                        state, claimed_at, released_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        record["id"],
+                        _entity_id(connection, record["function"]),
+                        record["owner"],
+                        record.get("branch"),
+                        record.get("worktree"),
+                        record["state"],
+                        record["claimed_at"],
+                        record.get("released_at"),
+                    ),
+                )
+            elif kind == "tool":
+                usage = record.get("usage", [])
+                constraints = record.get("constraints", [])
+                source_kind = (
+                    "reviewed_record" if record_state == "accepted" else "proposal"
+                )
+                cursor = connection.execute(
+                    """
+                    INSERT INTO tool_catalog(
+                        record_id, tool_key, name, tool_kind, source_path,
+                        entrypoint, status, purpose, usage_json, constraints_json,
+                        attributes_json, source_kind, supersedes, valid_from, valid_to
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        record["id"], record["tool_key"], record["name"],
+                        record["tool_kind"], record.get("source_path"),
+                        record.get("entrypoint"), record["status"], record["purpose"],
+                        json.dumps(usage, sort_keys=True),
+                        json.dumps(constraints, sort_keys=True),
+                        json.dumps(record.get("attributes", {}), sort_keys=True),
+                        source_kind,
+                        record.get("supersedes"), record.get("valid_from"),
+                        record.get("valid_to"),
+                    ),
+                )
+                connection.execute(
+                    "INSERT INTO tool_catalog_fts VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        int(cursor.lastrowid), record["tool_key"], record["name"],
+                        record.get("source_path"), record["purpose"],
+                        " ".join(str(item) for item in usage),
+                        " ".join(str(item) for item in constraints),
+                    ),
+                )
+        except (MemoryGraphError, sqlite3.Error) as error:
+            connection.execute("ROLLBACK TO record_insert")
+            connection.execute("RELEASE record_insert")
+            if "inbox" not in path.parts:
+                raise
+            connection.execute(
+                "DELETE FROM record_ingest WHERE record_id=?", (record["id"],)
+            )
+            rejected.append(
+                {
+                    "path": _repo_relative(root, path),
+                    "record_id": record["id"],
+                    "error": str(error),
+                }
+            )
+            continue
+        connection.execute("RELEASE record_insert")
+
+    for path, record, _ in loaded:
+        if record["kind"] != "evidence":
+            continue
+        connection.execute("SAVEPOINT record_insert")
+        try:
             connection.execute(
                 """
-                INSERT INTO work_claim(
-                    record_id, function_entity_id, owner, branch, worktree,
-                    state, claimed_at, released_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO evidence(
+                    record_id, claim_record_id, edge_record_id, evidence_kind,
+                    locator, detail, content_sha256
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     record["id"],
-                    _entity_id(connection, record["function"]),
-                    record["owner"],
-                    record.get("branch"),
-                    record.get("worktree"),
-                    record["state"],
-                    record["claimed_at"],
-                    record.get("released_at"),
+                    record.get("claim"),
+                    record.get("edge"),
+                    record["evidence_kind"],
+                    record["locator"],
+                    record["detail"],
+                    record.get("content_sha256"),
                 ),
             )
-        elif kind == "tool":
-            usage = record.get("usage", [])
-            constraints = record.get("constraints", [])
-            source_kind = (
-                "reviewed_record" if record_state == "accepted" else "proposal"
-            )
-            cursor = connection.execute(
-                """
-                INSERT INTO tool_catalog(
-                    record_id, tool_key, name, tool_kind, source_path,
-                    entrypoint, status, purpose, usage_json, constraints_json,
-                    attributes_json, source_kind, supersedes, valid_from, valid_to
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    record["id"], record["tool_key"], record["name"],
-                    record["tool_kind"], record.get("source_path"),
-                    record.get("entrypoint"), record["status"], record["purpose"],
-                    json.dumps(usage, sort_keys=True),
-                    json.dumps(constraints, sort_keys=True),
-                    json.dumps(record.get("attributes", {}), sort_keys=True),
-                    source_kind,
-                    record.get("supersedes"), record.get("valid_from"),
-                    record.get("valid_to"),
-                ),
-            )
+        except (MemoryGraphError, sqlite3.Error) as error:
+            connection.execute("ROLLBACK TO record_insert")
+            connection.execute("RELEASE record_insert")
+            if "inbox" not in path.parts:
+                raise
             connection.execute(
-                "INSERT INTO tool_catalog_fts VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (
-                    int(cursor.lastrowid), record["tool_key"], record["name"],
-                    record.get("source_path"), record["purpose"],
-                    " ".join(str(item) for item in usage),
-                    " ".join(str(item) for item in constraints),
-                ),
+                "DELETE FROM record_ingest WHERE record_id=?", (record["id"],)
             )
-
-    for _, record, _ in loaded:
-        if record["kind"] != "evidence":
+            rejected.append(
+                {
+                    "path": _repo_relative(root, path),
+                    "record_id": record["id"],
+                    "error": str(error),
+                }
+            )
             continue
-        connection.execute(
-            """
-            INSERT INTO evidence(
-                record_id, claim_record_id, edge_record_id, evidence_kind,
-                locator, detail, content_sha256
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                record["id"],
-                record.get("claim"),
-                record.get("edge"),
-                record["evidence_kind"],
-                record["locator"],
-                record["detail"],
-                record.get("content_sha256"),
-            ),
-        )
-    return len(loaded)
+        connection.execute("RELEASE record_insert")
+    remaining = connection.execute(
+        "SELECT COUNT(*) FROM record_ingest"
+    ).fetchone()[0]
+    return int(remaining), rejected
 
 
 def _python_description(path: Path) -> str:
@@ -1162,7 +1240,11 @@ def build_database(
             # Symbols import first so record references can resolve against
             # the deterministic GameCube symbol/module tables.
             gcn_count = _import_gcn_symbols(connection, root)
-            record_count = _import_records(connection, root)
+            record_count, inbox_rejected = _import_records(connection, root)
+            connection.execute(
+                "INSERT INTO meta(key, value) VALUES ('inbox_rejected', ?)",
+                (json.dumps(inbox_rejected, sort_keys=True),),
+            )
             discovered_tool_count = _import_discovered_tools(connection, root)
             document_ids = _import_legacy_documents(connection, root) if include_legacy else {}
             xbox_count = _import_xbox_symbols(connection, root)
@@ -1190,6 +1272,7 @@ def build_database(
     stats.update(
         {
             "records_imported": record_count,
+            "inbox_rejected": inbox_rejected,
             "discovered_tools_imported": discovered_tool_count,
             "gcn_symbols_imported": gcn_count,
             "xbox_symbols_imported": xbox_count,
@@ -1397,6 +1480,7 @@ def symbol_context(
             )
         ]
         claims: list[dict[str, Any]] = []
+        attempts: list[dict[str, Any]] = []
         entity = connection.execute(
             "SELECT id FROM entity WHERE lower(entity_key)=lower(?)",
             (f"function:{symbol_name}",),
@@ -1415,6 +1499,23 @@ def symbol_context(
                     (entity["id"],),
                 )
             ]
+            for row in connection.execute(
+                """
+                SELECT a.record_id, r.record_state, a.attempted_axis, a.outcome,
+                       a.residual_class, a.semantic_note, a.commit_hash,
+                       a.started_at, a.finished_at, r.raw_json
+                FROM attempt a JOIN record_ingest r ON r.record_id=a.record_id
+                WHERE a.function_entity_id=?
+                ORDER BY r.record_state='accepted' DESC, a.id DESC
+                """,
+                (entity["id"],),
+            ):
+                attempt = dict(row)
+                raw = json.loads(attempt.pop("raw_json") or "{}")
+                attributes = raw.get("attributes")
+                if attributes:
+                    attempt["attributes"] = attributes
+                attempts.append(attempt)
     try:
         documents = search_memory(
             symbol_name, root=root, db_path=db_path, limit=document_limit
@@ -1427,6 +1528,7 @@ def symbol_context(
         "xbox_links": links,
         "xbox_neighbors": xbox_neighbors,
         "claims": claims,
+        "attempts": attempts,
         "migration_proposals": proposals,
         "legacy_provenance": documents,
         "authority_note": (
@@ -1676,6 +1778,76 @@ def memory_audit(
     }
 
 
+def _reference_resolvable(connection: sqlite3.Connection, key: str) -> bool:
+    row = connection.execute(
+        "SELECT id FROM entity WHERE entity_key=?", (key,)
+    ).fetchone()
+    if row is not None:
+        return True
+    if key.startswith("function:"):
+        name = key.split(":", 1)[1]
+        count = connection.execute(
+            "SELECT COUNT(*) FROM binary_symbol"
+            " WHERE platform='gamecube' AND raw_name=? AND symbol_kind='function'",
+            (name,),
+        ).fetchone()[0]
+        return int(count) == 1
+    if key.startswith("tu:"):
+        name = key.split(":", 1)[1]
+        count = connection.execute(
+            "SELECT COUNT(*) FROM binary_module"
+            " WHERE platform='gamecube' AND (object_name=? OR object_name=? OR object_name=?)",
+            (name, name + ".c", name + ".cpp"),
+        ).fetchone()[0]
+        return int(count) >= 1
+    return False
+
+
+def _probe_record_references(
+    record: dict[str, Any], root: Path, db_path: Path | None = None
+) -> None:
+    """Run the same reference resolution the build applies, before staging.
+
+    A proposal that the build would reject must never reach the inbox: the
+    build is fail-soft about inbox errors, but the proposer should learn about
+    a bad reference immediately, with the build's own error text.
+    """
+    kind = record.get("kind")
+    entity_refs: list[str] = []
+    if kind == "edge":
+        entity_refs = [record["source"], record["target"]]
+    elif kind == "claim":
+        entity_refs = [record["subject"]]
+        if record.get("object"):
+            entity_refs.append(record["object"])
+    elif kind in {"attempt", "work_claim"}:
+        entity_refs = [record["function"]]
+        for optional in ("tu", "compiler"):
+            if record.get(optional):
+                entity_refs.append(record[optional])
+    elif kind != "evidence":
+        return
+    ensure_database(root, db_path)
+    with closing(open_database(root, db_path)) as connection:
+        for key in entity_refs:
+            if not _reference_resolvable(connection, key):
+                raise MemoryGraphError(
+                    f"proposal references unknown entity {key!r}; use an existing"
+                    " entity key, or a `function:<symbol>`/`tu:<module>` name that"
+                    " resolves against the GameCube symbol import"
+                )
+        if kind == "evidence":
+            table = "claim" if record.get("claim") else "edge"
+            target = record.get("claim") or record.get("edge")
+            row = connection.execute(
+                f"SELECT 1 FROM {table} WHERE record_id=?", (target,)
+            ).fetchone()
+            if row is None:
+                raise MemoryGraphError(
+                    f"proposal references unknown {table} record {target!r}"
+                )
+
+
 def stage_record_proposal(
     record: dict[str, Any],
     *,
@@ -1685,6 +1857,7 @@ def stage_record_proposal(
     if not isinstance(record, dict):
         raise MemoryGraphError("proposed record must be a JSON object")
     _validate_record(record, Path("<proposal>"))
+    _probe_record_references(record, root)
     record_id = record["id"]
     for relative in (Path("memory_graph/records"), Path("memory_graph/inbox")):
         directory = root / relative
@@ -1692,7 +1865,7 @@ def stage_record_proposal(
             continue
         for path in directory.rglob("*.json"):
             try:
-                existing = json.loads(path.read_text(encoding="utf-8"))
+                existing = json.loads(path.read_text(encoding="utf-8-sig"))
             except (OSError, json.JSONDecodeError):
                 continue
             if isinstance(existing, dict) and existing.get("id") == record_id:
@@ -1761,12 +1934,42 @@ def validate_records(root: Path = REPO_ROOT) -> dict[str, Any]:
         if directory.exists():
             paths.extend(directory.rglob("*.json"))
     ids: set[str] = set()
+    records: list[tuple[Path, dict[str, Any]]] = []
     for path in sorted(paths):
-        record = json.loads(path.read_text(encoding="utf-8"))
+        record = json.loads(path.read_text(encoding="utf-8-sig"))
         if not isinstance(record, dict):
             raise MemoryGraphError(f"{path}: top-level JSON value must be an object")
         _validate_record(record, path)
         if record["id"] in ids:
             raise MemoryGraphError(f"duplicate record id {record['id']!r} at {path}")
         ids.add(record["id"])
-    return {"valid": True, "record_count": len(paths), "schema_version": SCHEMA_VERSION}
+        records.append((path, record))
+    # Mirror the build's reference resolution so `validate` never blesses a
+    # record the build would reject. Uses the existing database when present;
+    # skipped (reported) when no graph has been built yet.
+    reference_errors: list[dict[str, str]] = []
+    references_checked = False
+    database = default_database_path(root)
+    if database.exists():
+        references_checked = True
+        for path, record in records:
+            try:
+                _probe_record_references(record, root, database)
+            except MemoryGraphError as error:
+                reference_errors.append(
+                    {"path": _repo_relative(root, path), "error": str(error)}
+                )
+    if reference_errors:
+        return {
+            "valid": False,
+            "record_count": len(paths),
+            "schema_version": SCHEMA_VERSION,
+            "references_checked": references_checked,
+            "reference_errors": reference_errors,
+        }
+    return {
+        "valid": True,
+        "record_count": len(paths),
+        "schema_version": SCHEMA_VERSION,
+        "references_checked": references_checked,
+    }

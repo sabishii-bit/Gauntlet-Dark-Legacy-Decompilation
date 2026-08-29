@@ -145,9 +145,7 @@ It excludes already linked translation units and, by default, lists functions
 at or below 50% fuzzy match. `--sort lowest` emphasizes the least reconstructed
 functions; `--sort impact` emphasizes their estimated remaining byte gap. Use
 `tools/gdl/nearmiss.py` separately when deliberately closing already high-match
-functions. Both queues read the authoritative cap list from
-`.claude/memory/PARKED.txt` (with the historical `research/PARKED.txt` accepted
-only as a fallback).
+functions. Both queues honor the project's maintained parked-function cap list.
 
 ### Compiler variants and guarded postprocessing
 
@@ -181,9 +179,7 @@ object. WebFrank is likewise restricted to reviewed rules in
 used to hide opcode, branch, immediate, relocation-payload, ABI, semantic, or
 data differences. Scheduler permutations additionally require a recorded
 dependency audit, no control instructions, and an exact relocation-preserving
-bijection; they are not a general target-byte-copy mechanism. See
-[`gc_125e_frank.md`](.claude/memory/gc_125e_frank.md) for
-the compiler history, audit results, and verification policy.
+bijection; they are not a general target-byte-copy mechanism.
 
 An experimental `GC/1.2.5s` open patch recipe for the recovered `regFind`
 PCode-layout carrier is documented in
@@ -222,12 +218,11 @@ not permanent binary-matching vetoes.
 Project memory graph
 ====================
 
-Project knowledge is being migrated into a local, deterministic SQLite graph.
+Project knowledge is migrated into a local, deterministic SQLite graph.
 The reviewed source records live under [`memory_graph/`](memory_graph/);
 the generated database lives in Git's common directory at
 `.git/gdl-memory/memory.sqlite`, so it is shared by worktrees and never
-committed. Existing `.claude/memory/` notes are preserved and indexed as legacy
-evidence—none are silently promoted to verified facts or deleted as duplicates.
+committed.
 
 The CLI uses only Python's standard library:
 
@@ -240,28 +235,12 @@ python memory_graph/gdlmem.py audit
 ```
 
 It indexes GameCube symbols and TU ownership, Xbox PDB symbol/module order and
-type fields, reviewed laws/claims/attempts/tools, and granular legacy-document
-chunks. Automatic exact-name Xbox/GameCube links are candidates only; target
-assembly and accepted evidence remain authoritative.
-
-An optional local MCP adapter is locked with `uv` under
-[`memory_graph/mcp/`](memory_graph/mcp/). MCP host configuration stays
-machine-local. New or revised tool guidance can be staged without editing the
-database directly:
-
-```sh
-python memory_graph/gdlmem.py register-tool <name> --purpose <purpose> --kind <kind>
-```
-
-The resulting JSON remains pending in `memory_graph/inbox/` until an
-integrator reviews and accepts it. See the
-[`migration audit`](memory_graph/migration-audit.md) for current coverage,
-duplicate families, and the non-destructive migration order.
-
-Reviewed graph records are anchored to source, configuration, tests, target
-hashes/addresses, reproducible commands, or immutable commits—not to Markdown
-as their source of truth. Markdown remains searchable only as migration
-provenance until its useful contents have reviewed structured equivalents.
+type fields, reviewed claims/attempts/tools, and granular document chunks.
+Automatic exact-name Xbox/GameCube links are candidates only; target assembly
+and accepted evidence remain authoritative. An optional local MCP adapter is
+locked with `uv` under [`memory_graph/mcp/`](memory_graph/mcp/); MCP host
+configuration stays machine-local. Record-authoring and review conventions are
+documented in [`memory_graph/README.md`](memory_graph/README.md).
 
 Xbox debug symbols
 ==================

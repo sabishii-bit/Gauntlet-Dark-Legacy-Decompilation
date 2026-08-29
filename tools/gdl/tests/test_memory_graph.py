@@ -177,6 +177,46 @@ class MemoryGraphTests(unittest.TestCase):
         with self.assertRaises(MemoryGraphError):
             build_database(self.root, self.db)
 
+    def test_bad_inbox_proposal_is_rejected_without_breaking_the_build(self):
+        (self.root / "memory_graph/inbox/poison.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "id": "attempt.poison.v1",
+                    "kind": "attempt",
+                    "function": "unprefixed-name",
+                    "attempted_axis": "axis",
+                    "outcome": "negative",
+                }
+            ),
+            encoding="utf-8",
+        )
+        stats = build_database(self.root, self.db)
+        self.assertEqual(len(stats["inbox_rejected"]), 1)
+        self.assertIn("unknown entity", stats["inbox_rejected"][0]["error"])
+        connection = sqlite3.connect(self.db)
+        try:
+            remaining = connection.execute(
+                "SELECT COUNT(*) FROM record_ingest WHERE record_id='attempt.poison.v1'"
+            ).fetchone()[0]
+        finally:
+            connection.close()
+        self.assertEqual(remaining, 0)
+        context = symbol_context("foo", root=self.root, db_path=self.db)
+        self.assertIsNotNone(context["gamecube_symbol"])
+        with self.assertRaises(MemoryGraphError):
+            stage_record_proposal(
+                {
+                    "schema_version": 1,
+                    "id": "attempt.poison2.v1",
+                    "kind": "attempt",
+                    "function": "function:not_a_symbol",
+                    "attempted_axis": "axis",
+                    "outcome": "negative",
+                },
+                root=self.root,
+            )
+
     def test_audit_reports_duplicates_without_modifying_documents(self):
         build_database(self.root, self.db)
         before = (self.root / ".claude/memory/PARKED.txt").read_bytes()
