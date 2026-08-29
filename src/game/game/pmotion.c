@@ -2746,7 +2746,6 @@ store_motion_state:
 
 player_motion_phase_exit:
         {
-            Player* grabbed;
             f32 newYaw;
             f32 deltaYaw;
             f32 turnStep;
@@ -2853,7 +2852,6 @@ player_motion_phase_exit:
                 p->grab_flags &= ~3;
             }
 
-            grabbed = PF(p, 0x6B8, Player*);
             grabKind = ((p->flags & 0x400) != 0 &&
                         PF(p, 0x6B8, Player*) == NULL)
                            ? -1
@@ -2868,9 +2866,6 @@ player_motion_phase_exit:
                     p->grab_pending = NULL;
                     p->power_target -= p->coll_score;
                     p->coll_score = 0.0f;
-                    grabbed = p->grab_partner;
-                } else {
-                    p->grab_pending = NULL;
                 }
             } else {
                 p->grab_pending = NULL;
@@ -2881,9 +2876,9 @@ player_motion_phase_exit:
             case 5:
             case 6:
             case 7:
-                if ((p->anim_208 < 90 && !(p->anim_208 < 88)) &&
-                    p->grab_partner != NULL) {
-                    if ((PF(p->grab_partner, 0x964, s16) & 0x20) == 0) {
+                if (p->anim_208 < 90 && !(p->anim_208 < 88)) {
+                    if (p->grab_partner != NULL &&
+                        (PF(p->grab_partner, 0x964, s16) & 0x20) == 0) {
                         PlayerSetGrabbed(p->grab_partner,
                                          PF(p, 0x6DC, void*), NULL);
                         goto player_motion_grab_done;
@@ -2905,26 +2900,28 @@ player_motion_phase_exit:
 
             case 1:
             case 3:
-                if ((p->anim_208 < 90 && !(p->anim_208 < 88)) && p->grab_partner != NULL &&
-                    (p->hud_flags & 0x20) == 0) {
+                if (p->anim_208 < 90 && !(p->anim_208 < 88)) {
                     Player* partner = p->grab_partner;
-                    f32 grabDir[3];
-                    f32 partnerYaw;
-                    f32 partnerFacing;
-                    grabDir[0] = PF(p, 0x44, f32) - PF(partner, 0x44, f32);
-                    grabDir[1] = PF(p, 0x48, f32) - PF(partner, 0x48, f32);
-                    grabDir[2] = PF(p, 0x4C, f32) - PF(partner, 0x4C, f32);
-                    SlowNormalVector(grabDir);
-                    partnerYaw = PlayerMotion_WrapAngle(
-                        atan2(grabDir[0], grabDir[2]) + lbl_80347CF8);
-                    partnerFacing =
-                        atan2(PF(partner, 0x34, f32),
-                              PF(partner, 0x3C, f32));
-                    YawMat3((f32*)((u8*)partner + 0x14),
-                            PlayerMotion_WrapAngle(partnerYaw -
-                                                   partnerFacing));
-                    PF(partner, 0x894, f32) = partnerYaw;
-                    PlayerSetGrabbed(p, PF(partner, 0x6DC, void*), NULL);
+                    if (partner != NULL && (p->hud_flags & 0x20) == 0) {
+                        f32 grabDir[3];
+                        f32 partnerYaw;
+                        f32 partnerFacing;
+                        grabDir[0] = PF(p, 0x44, f32) - PF(partner, 0x44, f32);
+                        grabDir[1] = PF(p, 0x48, f32) - PF(partner, 0x48, f32);
+                        grabDir[2] = PF(p, 0x4C, f32) - PF(partner, 0x4C, f32);
+                        SlowNormalVector(grabDir);
+                        partnerYaw = PlayerMotion_WrapAngle(
+                            atan2(grabDir[0], grabDir[2]) + lbl_80347CF8);
+                        partnerFacing =
+                            atan2(PF(partner, 0x34, f32),
+                                  PF(partner, 0x3C, f32));
+                        YawMat3((f32*)((u8*)partner + 0x14),
+                                PlayerMotion_WrapAngle(partnerYaw -
+                                                       partnerFacing));
+                        PF(partner, 0x894, f32) = partnerYaw;
+                        PlayerSetGrabbed(p, PF(p->grab_partner, 0x6DC, void*),
+                                         NULL);
+                    }
                 } else if (p->grab_partner != NULL &&
                            (PF(p->grab_partner, 0x964, s16) & 0x10) != 0) {
                     if ((p->hud_flags & 0x20) != 0) {
@@ -2937,12 +2934,14 @@ player_motion_phase_exit:
                 break;
 
             case 0:
-                if (p->anim_208 < 89 && !(p->anim_208 < 88) &&
-                    (f64)comboTime < lbl_80347C88 &&
-                    p->grab_partner != NULL &&
-                    (PF(p->grab_partner, 0x964, s16) & 0x20) == 0) {
-                    PlayerSetGrabbed(p->grab_partner, PF(p, 0x6DC, void*), NULL);
-                    PF(p->grab_partner, 0x8FC, f32) = sMusicFadeBase;
+                if (p->anim_208 != 89 && p->anim_208 < 89 &&
+                    !(p->anim_208 < 88) && comboTime < lbl_80347C88) {
+                    if (p->grab_partner != NULL &&
+                        (PF(p->grab_partner, 0x964, s16) & 0x20) == 0) {
+                        PlayerSetGrabbed(p->grab_partner, PF(p, 0x6DC, void*),
+                                         NULL);
+                        PF(p->grab_partner, 0x8FC, f32) = sMusicFadeBase;
+                    }
                 } else if (p->grab_partner != NULL) {
                     if ((PF(p->grab_partner, 0x964, s16) & 0x10) != 0) {
                         if ((PF(p->grab_partner, 0x964, s16) & 0x20) != 0) {
@@ -2964,10 +2963,9 @@ player_motion_phase_exit:
 
             case 4:
                 switch (p->anim_208) {
-                case 88:
-                    if (p->grab_partner != NULL &&
-                        (p->hud_flags & 0x20) == 0) {
-                        Player* partner = p->grab_partner;
+                case 88: {
+                    Player* partner = p->grab_partner;
+                    if (partner != NULL && (p->hud_flags & 0x20) == 0) {
                         f32 grabDir[3];
                         f32 partnerYaw;
                         f32 partnerFacing;
@@ -2984,12 +2982,14 @@ player_motion_phase_exit:
                                 PlayerMotion_WrapAngle(partnerYaw -
                                                        partnerFacing));
                         PF(partner, 0x894, f32) = partnerYaw;
-                        PlayerSetGrabbed(p, PF(partner, 0x6DC, void*), NULL);
+                        PlayerSetGrabbed(p, PF(p->grab_partner, 0x6DC, void*),
+                                         NULL);
                         p->hud_flags |= 0x80;
-                        PF(partner, 0x8FC, f32) = sMusicFadeBase;
-                        PF(p, 0x1FA, s16) = 240;
+                        PF(p->grab_partner, 0x8FC, f32) = sMusicFadeBase;
                     }
+                    PF(p, 0x1FA, s16) = 240;
                     break;
+                }
                 default:
                     if (p->grab_partner != NULL) {
                         if ((PF(p->grab_partner, 0x964, s16) & 0x10) != 0) {
