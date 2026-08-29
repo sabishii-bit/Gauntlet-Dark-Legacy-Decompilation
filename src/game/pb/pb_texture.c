@@ -573,14 +573,14 @@ int fn_800C7558(s32 key) {
     s32 i;
     u8 pathPad[8];
 
-    model = (u32)key >> 16;
-    texnum = (u16)key;
     manager = (u8*)&lbl_802C7438;
     which = 1;
     globals = gWinGlobals;
-    modelDesc = *(u8**)((u8*)globals->tbl + model * 0x10 + 4);
-    rom = (PbRomTexture*)(*(u8**)(modelDesc + 0x58) + texnum * 0x10);
-    if (*(s32*)((u8*)globals->tbl + model * 0x10 + 0x10) != 0 ||
+    modelDesc = *(u8**)((u8*)globals->tbl + ((u32)key >> 16) * 0x10 + 4);
+    rom = (PbRomTexture*)(*(u8**)(modelDesc + 0x58) + (u16)key * 0x10);
+    model = (u32)key >> 16;
+    texnum = (u16)key;
+    if (*(s32*)((u8*)globals->tbl + ((u32)key >> 16) * 0x10 + 0x10) != 0 ||
         (rom->flags & 0x100) != 0) {
         model = 0;
         texnum = 0;
