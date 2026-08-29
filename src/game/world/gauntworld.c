@@ -1571,27 +1571,29 @@ extern void fn_8009DAF8(void);
  * spawn the linked pickup/chest contents, seed timers and child algorithm. */
 void fn_8005E90C(Item* item, s32* inst)
 {
-    u8* it = (u8*)item;
-    u8** tblp;
-    u8* row;
-    u8* def;
-    u8* ni;
+    iteminfo** tblp;
+    iteminfo* info;
+    iteminfo* row;
+    Item* child;
+    Item* result;
     s32 idx;
     s32 delta;
     s32 i;
     u32 fl;
     s32 t;
+    u8 unused[16];
 
-    idx = *(s16*)(it + 220);
-    def = *(u8**)it;
-    if (idx < 0) {
+    idx = *(s16*)&item->data[0];
+    info = item->info;
+    if ((s16)idx >= 0) {
+        tblp = (iteminfo**)(gWorldInfo + 104);
+        row = *tblp + idx;
+    } else {
         return;
     }
-    tblp = (u8**)(gWorldInfo + 104);
-    row = *tblp + idx * 80;
-    delta = (s32)(it - (u8*)sItems);
-    while (*(s32*)row == -1) {
-        s32 n = *(s32*)(row + 4);
+    delta = (s32)((u8*)item - (u8*)sItems);
+    while (row->type == -1) {
+        s32 n = row->item.subtype;
         s32 r;
         t = delta / 240;
         if (n != 0) {
@@ -1600,102 +1602,120 @@ void fn_8005E90C(Item* item, s32* inst)
             r = 0;
         }
         sItemRandSeed = sItemRandSeed + 439;
-        *(s16*)(it + 220) = *(s16*)(row + r * 2 + 8);
-        row = *tblp + *(s16*)(it + 220) * 80;
+        *(s16*)&item->data[0] = *(s16*)((u8*)row + r * 2 + 8);
+        row = *tblp + *(s16*)&item->data[0];
     }
-    if (*(s32*)(def + 4) == 48 && *(s32*)row == 1 && *(s32*)(row + 4) == 1) {
+    if (info->item.subtype == 48 && row->type == 1 && row->item.subtype == 1) {
         fl = 0;
         if (sChestAtree != NULL) {
-            if (*(u32*)(it + 108) != 0) {
-                AtreeDelete(it + 108);
+            if (*(u32*)&item->atree[0] != 0) {
+                AtreeDelete(item->atree);
             }
             fl |= 0x800;
-            fl |= *(u32*)(def + 56);
-            *(void**)(it + 108) = AtreeInit(sChestAtree, it + 108, 0, fl);
-            MBNodeSetParent(*(void**)*(u8**)(it + 108), *(void**)(it + 100));
+            fl |= info->item.mbflags;
+            *(void**)&item->atree[0] = AtreeInit(sChestAtree, item->atree, 0, fl);
+            MBNodeSetParent(*(void**)*(void**)&item->atree[0], item->objgrp.node);
         }
-        *(s32*)it = sDeathItemInfo;
-        *(s32*)(it + 224) = *(s16*)(row + 64);
+        item->info = (iteminfo*)sDeathItemInfo;
+        *(s32*)&item->data[4] = row->item.value;
         return;
     }
-    if (*(s32*)(def + 4) == 47) {
-        *(s32*)(it + 224) = *(s16*)(row + 64);
+    if (info->item.subtype == 47) {
+        *(s32*)&item->data[4] = row->item.value;
         return;
     }
-    if (*(s32*)(def + 4) == 44) {
-        *(s16*)(it + 196) |= 64;
+    if (info->item.subtype == 44) {
+        item->active |= 64;
         fn_8009DAF8();
         return;
     }
-    if (*(s32*)row == 1 && *(s32*)(row + 4) == 2 && *(s16*)(it + 236) > 1) {
-        u8* q = *tblp;
-        for (i = 0; i < *(s32*)(gWorldInfo + 116); i++, q += 80) {
-            if (strcmp(sKeyringName, (char*)(q + 4 + 36)) == 0 &&
-                *(s32*)q == 1 && *(s32*)(q + 4) == 2) {
-                break;
+    if (row->type == 1) {
+        switch (row->item.subtype) {
+        case 2:
+            if (*(s16*)&item->data[16] > 1) {
+                iteminfo* q = *tblp;
+                u8* world = gWorldInfo;
+                for (i = 0; i < *(s32*)(world + 116); i++, q++) {
+                    iteminfodata* qdata = &q->item;
+                    if (strcmp(sKeyringName, qdata->desc) != 0) {
+                        continue;
+                    }
+                    if (q->type != 1) {
+                        continue;
+                    }
+                    if (qdata->subtype != 2) {
+                        continue;
+                    }
+                    goto keyring_found;
+                }
+                i = -1;
+keyring_found:
+                row = *tblp + i;
             }
+            break;
         }
-        if (i >= *(s32*)(gWorldInfo + 116)) {
-            i = -1;
-        }
-        row = *tblp + i * 80;
     }
-    if (*(s32*)row == 1 && *(u32*)(it + 228) != 0) {
-        ni = (u8*)NewItemPtr_800642C8();
-        SetItem((Item*)ni, NULL, (void*)row, gIdentityMatrix);
-        def = ni;
-        MBNodeSetParent(*(void**)(ni + 100), *(void**)(it + 228));
-        *(u8**)(it + 232) = ni;
-        *(u8**)(ni + 232) = it;
-        *(s8*)(ni + 203) = (s8)(inst != NULL ? *inst : -1);
-        MBTreeSetFlags(*(void**)(def + 100), 8, 0);
-        *(f32*)(*(u8**)(ni + 100) + 64) = sArrowFloorRadius;
-        *(f32*)(*(u8**)(ni + 100) + 68) = sArrowFloorRadius;
-        *(f32*)(*(u8**)(ni + 100) + 72) = sArrowFloorRadius;
+    if (row->type == 1 && *(u32*)&item->data[8] != 0) {
+        f32 radius;
+
+        child = NewItemPtr_800642C8();
+        SetItem(child, NULL, row, gIdentityMatrix);
+        result = child;
+        MBNodeSetParent(child->objgrp.node, *(void**)&item->data[8]);
+        *(Item**)&item->data[12] = child;
+        *(Item**)&child->data[12] = item;
+        child->opener = (s8)(inst != NULL ? *inst : -1);
+        MBTreeSetFlags(result->objgrp.node, 8, 0);
+        radius = sArrowFloorRadius;
+        *(f32*)((u8*)child->objgrp.node + 64) = radius;
+        *(f32*)((u8*)child->objgrp.node + 68) = radius;
+        *(f32*)((u8*)child->objgrp.node + 72) = radius;
     } else {
-        ni = (u8*)NewItemPtr_800642C8();
-        if (it + 4 != NULL) {
-            SetItem((Item*)ni, NULL, (void*)row, (f32*)(it + 4));
-            AddItemSub((Item*)ni);
+        s32 subtype;
+
+        child = NewItemPtr_800642C8();
+        if (&item->objgrp != NULL) {
+            SetItem(child, NULL, row, &item->objgrp.worldmat[0][0]);
+            AddItemSub(child);
         } else {
-            SetItem((Item*)ni, NULL, (void*)row, gIdentityMatrix);
+            SetItem(child, NULL, row, gIdentityMatrix);
         }
-        if (*(s32*)(def + 4) == 43) {
-            def = ni;
-            *(s8*)(ni + 203) = (s8)(inst != NULL ? *inst : -2);
+        subtype = info->item.subtype;
+        result = child;
+        if (subtype == 43) {
+            child->opener = (s8)(inst != NULL ? *inst : -2);
         } else {
-            def = ni;
-            if (*(s32*)row == 1) {
-                *(u8**)(ni + 232) = it;
+            if (row->type == 1) {
+                *(Item**)&child->data[12] = item;
             }
-            *(s8*)(ni + 203) = (s8)(inst != NULL ? *inst : -1);
+            child->opener = (s8)(inst != NULL ? *inst : -1);
         }
     }
-    switch (*(s32*)row) {
+    switch (row->type) {
     case 1:
-        switch (*(s32*)(row + 4)) {
+        switch (row->item.subtype) {
         case 14:
-            *(s32*)(def + 224) = *(s16*)(it + 236);
+            *(s32*)&result->data[4] = *(s16*)&item->data[16];
             break;
         case 2:
-            *(s32*)(def + 224) = *(s16*)(it + 236);
-            if (*(s32*)(def + 224) < 1) {
-                *(s32*)(def + 224) = 1;
+            *(s32*)&result->data[4] = *(s16*)&item->data[16];
+            if (*(s32*)&result->data[4] < 1) {
+                *(s32*)&result->data[4] = 1;
             }
             break;
         }
-        *(s16*)(def + 236) = 30;
+        *(s16*)&result->data[16] = 30;
         break;
     case 4:
-        *(u32*)(def + 228) |= 1;
-        if (*(s16*)(def + 220) == 30 && *(u32*)(gWadAtreeHeaders + 120) != 0) {
-            MBTreeSetFlags(*(void**)*(u8**)(def + 108), 2, 0);
-            if (*(s16*)(it + 236) != 0) {
-                *(u8*)(def + 222) = 2;
-                *(s8*)(def + 223) = (s8)*(s32*)(sEnemyDefaultAlgorithm + 120);
+        *(u32*)&result->data[8] |= 1;
+        if (*(s16*)&result->data[0] == 30 && *(u32*)(gWadAtreeHeaders + 120) != 0) {
+            MBTreeSetFlags(*(void**)*(void**)&result->atree[0], 2, 0);
+            if (*(s16*)&item->data[16] != 0) {
+                result->data[2] = 2;
+                *(s8*)&result->data[3] = (s8)*(s32*)(sEnemyDefaultAlgorithm + 120);
             }
         }
-        *(s16*)(def + 238) = -1;
+        *(s16*)&result->data[18] = -1;
         break;
     }
 }
