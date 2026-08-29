@@ -2060,14 +2060,14 @@ store_motion_state:
                                               lbl_80347C10);
                     if (!(lbl_80344894 < 0)) {
                         MBTreeSetAmbientAdd(
-                            *(void**)((Effects + 0x14) +
-                                      *(volatile s32*)&lbl_80344894 * 240),
+                            *((void**)(Effects + 0x14) +
+                              *(volatile s32*)&lbl_80344894 * 60),
                             0x1FF, 1);
                         SfxSetParent(lbl_80344894,
                                      PF(p, 0x6D0, void*));
                         PF(p, 0x730, void*) =
-                            *(void**)((Effects + 0x14) +
-                                      *(volatile s32*)&lbl_80344894 * 240);
+                            *((void**)(Effects + 0x14) +
+                              *(volatile s32*)&lbl_80344894 * 60);
                     }
                     break;
                 default: {
