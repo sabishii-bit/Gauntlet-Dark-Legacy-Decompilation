@@ -8,7 +8,7 @@
   "attributes": {
     "measurements": "fuzzy 85.37 -> 95.37; exact instruction count 372/372 recovered along with frame 0xB0 and the target save set r29-r31/f27-f31",
     "law": "recover shared aggregate ownership (one base for related tables) before tuning row loops; separate extern symbols create redundant HA/LO materializations and unrelated saved webs",
-    "landed_commit": "git:9f61dfad",
+    "landed_commit": "git:78191470",
     "provenance": ".claude/memory/session-ledger.md row (gcontrolpads_writer worker)"
   },
   "valid_from": "2026-08-29"

@@ -7,7 +7,7 @@
       "tools/gdl/mwcc_p6/",
       "tools/gdl/tests/test_p6frank.py",
       "tools/gdl/tests/test_p6_probe.py",
-      "git:b40184de1c4c942fc9a8a68af71e8d47691a3e54"
+      "git:2d42394e420b833ccc0d1af94d112d503c4ac0ef"
     ],
     "matching_build_only": true
   },

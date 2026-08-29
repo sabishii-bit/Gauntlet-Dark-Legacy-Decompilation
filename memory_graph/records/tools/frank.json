@@ -5,7 +5,7 @@
       "tools/gdl/frank_probe.py",
       "tools/gdl/frank_sweep.py",
       "tools/gdl/tests/test_frank.py",
-      "git:7014a81e6efe606f8c54c1ef5ae1c6f8a4af2d34"
+      "git:74fe4f5bc389600bd40607a73087e7319bb37a66"
     ],
     "matching_build_only": true
   },
