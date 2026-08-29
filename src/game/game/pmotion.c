@@ -1014,9 +1014,9 @@ void PlayerMotion(Player* p) {
         gBossActive != 0) {
         moveLimit = lbl_80347B98 * gClockFrameStep;
     }
-    dpos[1] = dpos[1] >= 0.0f
-                  ? (dpos[1] > moveLimit ? moveLimit : dpos[1])
-                  : 0.0f;
+    dpos[1] = dpos[1] < 0.0f
+                  ? 0.0f
+                  : (dpos[1] > moveLimit ? moveLimit : dpos[1]);
 
     if (anim == 137) {
         moveAmount = (f32)(lbl_80347BA0 * gClockFrameStep);
@@ -1025,7 +1025,7 @@ void PlayerMotion(Player* p) {
     } else if (motionType == 29) {
         moveAmount = (f32)(lbl_80347BA8 *
                            (gClockFrameStep *
-                            (PF(p, 0x110, f32) * speedScale)));
+                            (p->light_range * speedScale)));
         dpos[0] = moveAmount * sin(facing);
         dpos[1] = speedScale != 0.0f
                       ? (f32)lbl_80347B08
@@ -1033,7 +1033,7 @@ void PlayerMotion(Player* p) {
         dpos[2] = moveAmount * cos(facing);
     } else {
         moveAmount = PF(p, 0xA48, f32) *
-                     (gClockFrameStep * (PF(p, 0x110, f32) * speedScale));
+                     (gClockFrameStep * (p->light_range * speedScale));
         dpos[0] += moveAmount * sin(facing);
         dpos[2] += moveAmount * cos(facing);
         if (dpos[0] < -moveLimit) {
@@ -1094,7 +1094,7 @@ void PlayerMotion(Player* p) {
         if (anim == 137 || anim == 143) {
             s32 sfx;
             PlayerMotion_HitTarget(p, target, 32,
-                anim == 137 ? (f32)lbl_80347BB8 : (f32)lbl_80347BC0);
+                (f32)(anim == 137 ? lbl_80347BB8 : lbl_80347BC0));
             sfx = PlayerMotion_SfxIndex(p);
             if (sfx >= 0) {
                 fn_80089350((u8*)PF(p, 0x6B8, Player*), sfx, (u8*)p,
@@ -1250,7 +1250,7 @@ void PlayerMotion(Player* p) {
             if (anim == 137 || anim == 143) {
                 s32 sfx;
                 PlayerMotion_HitTarget(p, target, 32,
-                    anim == 137 ? (f32)lbl_80347BB8 : (f32)lbl_80347BC0);
+                    (f32)(anim == 137 ? lbl_80347BB8 : lbl_80347BC0));
                 sfx = PlayerMotion_SfxIndex(p);
                 if (sfx >= 0) {
                     fn_80089350((u8*)PF(p, 0x6B8, Player*), sfx, (u8*)p,
@@ -1334,8 +1334,8 @@ void PlayerMotion(Player* p) {
                 s32 sfx;
                 s32 damaged = PlayerMotion_DamageTarget(
                     p, item, 32, (s32)hit, 0,
-                    anim == 137 ? (f32)lbl_80347BB8
-                                : (f32)lbl_80347C08,
+                    (f32)(anim == 137 ? lbl_80347BB8
+                                  : lbl_80347C08),
                     lbl_80347B40);
                 if (damaged >= 0) {
                     sfx = PlayerMotion_SfxIndex(p);
@@ -1524,16 +1524,15 @@ collision_done:
             }
         } else if (enemy != NULL) {
             p->coll_flags |= 0x10;
-            if ((PF(enemy, 0x23C, f32) <= (f32)lbl_80347C28 ||
-                 lbl_803447D8 < (f32)lbl_80347BD0) &&
-                targetDistance < (f32)(lbl_80347C28 + radius)) {
+            if (((f64)PF(enemy, 0x23C, f32) <= lbl_80347C28 ||
+                 (f64)lbl_803447D8 < lbl_80347BD0) &&
+                (f64)targetDistance < lbl_80347C28 + radius) {
                 p->coll_flags |= 2;
             }
         } else if (target != NULL) {
             p->coll_flags |= 0x20;
-            if (*(f32*)(*(u8**)target + 0x10) <=
-                    (f32)lbl_80347C30 &&
-                targetDistance < (f32)(lbl_80347C28 + radius)) {
+            if ((f64)*(f32*)(*(u8**)target + 0x10) <= lbl_80347C30 &&
+                (f64)targetDistance < lbl_80347C28 + radius) {
                 p->coll_flags |= 2;
             }
         }
