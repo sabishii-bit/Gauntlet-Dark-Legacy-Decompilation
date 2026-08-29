@@ -2174,14 +2174,16 @@ extern f64 lbl_803461F0;
 
 void get_attn_pos_8002C9A8(s32 camIdx, f32* out)
 {
-    u8 unused[96];
-    Camera* cam = &gCameras[camIdx];
-    s32 aMode = cam->a_mode;
+    u8 unused[44];
+    u8* cameraState = gCameraState;
+    Camera* cam = &((Camera*)(cameraState + 0xC8))[camIdx];
+    s32 aMode;
     s32 i;
 
     cam->old_attn[0] = cam->attn[0];
     cam->old_attn[1] = cam->attn[1];
     cam->old_attn[2] = cam->attn[2];
+    aMode = cam->a_mode;
 
     if (sMusicTrackHi < 0) {
         if (aMode != 1) {
@@ -2200,7 +2202,7 @@ void get_attn_pos_8002C9A8(s32 camIdx, f32* out)
         cam->attn_dest_no_offset[1] = out[1];
         cam->attn_dest_no_offset[2] = out[2];
     } else if (aMode == 1 ||
-               ((gGameMode & 0x4000) != 0 && lbl_80344824 == 0)) {
+               ((gGameMode & 0x4000) != 0 && (u32)lbl_80344824 == 0)) {
         out[0] = cam->attn[0];
         out[1] = cam->attn[1];
         out[2] = cam->attn[2];
@@ -2247,11 +2249,15 @@ void get_attn_pos_8002C9A8(s32 camIdx, f32* out)
             cam->unvib = 0;
         }
         if (cam->unvib >= 0xB4 && lbl_80344960 >= 0) {
-            out[0] = *(f32*)(*(u8**)(*(u8**)sItems[lbl_80344960].data +
+            CombatItem* item;
+            out[0] = *(f32*)(*(u8**)(*(u8**)((item =
+                sItems + lbl_80344960)->data) +
                 0x28) + 0x30);
-            out[1] = *(f32*)(*(u8**)(*(u8**)sItems[lbl_80344960].data +
+            out[1] = *(f32*)(*(u8**)(*(u8**)((item =
+                sItems + lbl_80344960)->data) +
                 0x28) + 0x34);
-            out[2] = *(f32*)(*(u8**)(*(u8**)sItems[lbl_80344960].data +
+            out[2] = *(f32*)(*(u8**)(*(u8**)((item =
+                sItems + lbl_80344960)->data) +
                 0x28) + 0x38);
             cam->attn_dest[0] = out[0];
             cam->attn_dest[1] = out[1];
@@ -2264,9 +2270,8 @@ void get_attn_pos_8002C9A8(s32 camIdx, f32* out)
             f32 minY = lbl_8034619C, maxY = lbl_803461A0;
             f32 minZ = lbl_8034619C, maxZ = lbl_803461A0;
             f32 sv0, sv1, sv2;
-            f64 half = lbl_80345F18;
-            for (i = 0; i < 15; i++) {
-                CameraTarget* target = gCameraTargets + i;
+            CameraTarget* target = (CameraTarget*)(cameraState + 2576);
+            for (i = 0; i < 15; i++, target++) {
                 if (target->active > 0) {
                     f32* p = (f32*)(target->object + 0x40);
                     f32 x = p[0];
@@ -2280,30 +2285,43 @@ void get_attn_pos_8002C9A8(s32 camIdx, f32* out)
                     if (z > maxZ) maxZ = z;
                 }
             }
-            out[0] = (f32)(half * (f64)(minX + maxX));
-            out[1] = (f32)(half * (f64)(minY + maxY));
-            out[2] = (f32)(half * (f64)(minZ + maxZ));
+            {
+                register f64 half = lbl_80345F18;
+                out[0] = (f32)(half * (f64)(minX + maxX));
+                out[1] = (f32)(half * (f64)(minY + maxY));
+                out[2] = (f32)(half * (f64)(minZ + maxZ));
+            }
             cam->attn_dest_no_offset[0] = out[0];
             cam->attn_dest_no_offset[1] = out[1];
             cam->attn_dest_no_offset[2] = out[2];
             if (*(s32*)((u8*)cam + 0xEC) == 3) {
                 if (gNumTransmitters == 0) {
                     f32 cp = cos(cam->pyr[0]);
+                    register f64 half = lbl_80345F18;
                     out[2] = (f32)(half *
                         (half * (f64)(maxZ - minZ) * (f64)cp) +
                         (f64)out[2]);
                 } else {
                     f32 sy = sin(cam->pyr[1]);
                     f32 cp = cos(cam->pyr[0]);
-                    f32 scale = (f32)(lbl_803461F0 * half *
-                        (f64)(maxX - minX));
+                    f32 scale;
                     f32 cy;
                     f32 cp2;
+                    {
+                        register f64 half = lbl_80345F18;
+                        register f64 spread = lbl_803461F0;
+                        scale = (f32)(spread * half *
+                            (f64)(maxX - minX));
+                    }
                     out[0] = scale * cp * sy + out[0];
                     cy = cos(cam->pyr[1]);
                     cp2 = cos(cam->pyr[0]);
-                    scale = (f32)(lbl_803461F0 * half *
-                        (f64)(maxZ - minZ));
+                    {
+                        register f64 half = lbl_80345F18;
+                        register f64 spread = lbl_803461F0;
+                        scale = (f32)(spread * half *
+                            (f64)(maxZ - minZ));
+                    }
                     out[2] = scale * cp2 * cy + out[2];
                 }
             }
@@ -2316,19 +2334,21 @@ void get_attn_pos_8002C9A8(s32 camIdx, f32* out)
             lbl_80344418 = 0;
             if (lbl_803447B8 == 0 && lbl_80344414 < 2) {
                 for (i = 0; i < 3; i++) {
-                    if (out[i] < lbl_8023F8C4[i]) {
-                        out[i] = lbl_8023F8C4[i];
+                    if (out[i] < *(f32*)(cameraState + i * 4 + 188)) {
+                        out[i] = *(f32*)(cameraState + i * 4 + 188);
                         lbl_80344418 = 1;
-                    } else if (out[i] > lbl_8023F8B8[i]) {
-                        out[i] = lbl_8023F8B8[i];
+                    } else if (out[i] > *(f32*)(cameraState + i * 4 + 176)) {
+                        out[i] = *(f32*)(cameraState + i * 4 + 176);
                         lbl_80344418 = 1;
                     }
                 }
             }
             if (lbl_80344414 != 0) {
-                if (sv0 - out[0] == lbl_80345EC8 &&
-                    sv1 - out[1] == lbl_80345EC8 &&
-                    sv2 - out[2] == lbl_80345EC8) {
+                f32 d0 = sv0 - out[0];
+                f32 d1 = sv1 - out[1];
+                f32 d2 = sv2 - out[2];
+                if (d0 == lbl_80345EC8 && d1 == lbl_80345EC8 &&
+                    d2 == lbl_80345EC8) {
                     lbl_80344414 = 0;
                 } else {
                     out[0] = sv0;
