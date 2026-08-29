@@ -1411,13 +1411,6 @@ collision_done:
         }
         targetAngle = heading;
         targetDistance = lbl_80347C20;
-        contactRadius = radius;
-        forceState = 0;
-        if (directionKind != 0) {
-            movingBias = 1.0f;
-        } else {
-            movingBias = 0.0f;
-        }
 
         savedHeading = heading;
         PF(p, 0x870, f32) = (f32)(lbl_80347C18 * PF(p, 0x870, f32));
@@ -1442,6 +1435,13 @@ collision_done:
             }
         }
 
+        contactRadius = radius;
+        if (directionKind != 0) {
+            movingBias = 1.0f;
+        } else {
+            movingBias = 0.0f;
+        }
+        forceState = 0;
         to[0] = oldpos[0] + dpos[0];
         to[1] = oldpos[1] + dpos[1];
         to[2] = oldpos[2] + dpos[2];
@@ -2843,7 +2843,7 @@ player_motion_phase_exit:
                            : p->char_type;
             comboTime = PF(p, 0x98, f32);
 
-            if (p->anim_208 < 90 && p->anim_208 >= 88) {
+            if (p->anim_208 < 90 && !(p->anim_208 < 88)) {
                 Player* pending = PF(p, 0x6BC, Player*);
                 if (pending != NULL) {
                     PF(p, 0x6B8, Player*) = pending;
@@ -2865,7 +2865,7 @@ player_motion_phase_exit:
             case 5:
             case 6:
             case 7:
-                if ((p->anim_208 < 90 && p->anim_208 >= 88) && grabbed != NULL) {
+                if ((p->anim_208 < 90 && !(p->anim_208 < 88)) && grabbed != NULL) {
                     if ((PF(grabbed, 0x964, s16) & 0x20) == 0) {
                         PlayerSetGrabbed(grabbed, PF(p, 0x6DC, void*), NULL);
                         goto player_motion_grab_done;
@@ -2887,7 +2887,7 @@ player_motion_phase_exit:
 
             case 1:
             case 3:
-                if ((p->anim_208 < 90 && p->anim_208 >= 88) && grabbed != NULL &&
+                if ((p->anim_208 < 90 && !(p->anim_208 < 88)) && grabbed != NULL &&
                     (p->hud_flags & 0x20) == 0) {
                     f32 grabDir[3];
                     f32 partnerYaw;
