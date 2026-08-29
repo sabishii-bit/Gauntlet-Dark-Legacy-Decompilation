@@ -868,8 +868,8 @@ void PlayerMotion(Player* p) {
     f32 oldpos[3];
     f32 dpos[3];
     u8 padgap[12];
-    f32 to[3];
     f32 hit[3];
+    f32 to[3];
     f32 targetDir[3];
     f32 attackDir[3];
     f32 effectMatrix[16];
@@ -1665,7 +1665,7 @@ state_selected:
                 if ((f64)p->power_target < lbl_80347B08) {
                     p->power_target = 0.0f;
                 }
-            } else {
+            } else if (anim < 120 || anim >= 8) {
                 if ((f64)p->power_target < lbl_80347C48) {
                     if ((gControllerButtons & 0x10) != 0) {
                         p->power_target =
@@ -1806,20 +1806,32 @@ store_motion_state:
                 p->anim_20C = 15;
                 break;
             case 17:
-                p->anim_20C =
-                    forcedAnim != 0 ? forcedAnim : 71;
+                if (forcedAnim != 0) {
+                    p->anim_20C = forcedAnim;
+                } else {
+                    p->anim_20C = 71;
+                }
                 break;
             case 18:
-                p->anim_20C =
-                    forcedAnim != 0 ? forcedAnim : 73;
+                if (forcedAnim != 0) {
+                    p->anim_20C = forcedAnim;
+                } else {
+                    p->anim_20C = 73;
+                }
                 break;
             case 19:
-                p->anim_20C =
-                    forcedAnim != 0 ? forcedAnim : 75;
+                if (forcedAnim != 0) {
+                    p->anim_20C = forcedAnim;
+                } else {
+                    p->anim_20C = 75;
+                }
                 break;
             case 20:
-                p->anim_20C =
-                    forcedAnim != 0 ? forcedAnim : 77;
+                if (forcedAnim != 0) {
+                    p->anim_20C = forcedAnim;
+                } else {
+                    p->anim_20C = 77;
+                }
                 break;
             case 38:
                 if (PF(p, 0x6B8, Player*) == NULL) {
@@ -2264,10 +2276,10 @@ store_motion_state:
                         fn_80093E50(effect, effectVelocity, bossColor,
                                     weight, effectRadius);
                     } else {
-                        hit[0] = PF(p, 0x54, f32) + *(f32*)(motion + 0x20);
-                        hit[1] = (f32)(PF(p, 0x58, f32) +
-                                      *(f32*)(motion + 0x24) + lbl_80347C28);
-                        hit[2] = PF(p, 0x5C, f32) + *(f32*)(motion + 0x28);
+                        hit[0] = (f32)(PF(p, 0x34, f32) + (f64)PF(p, 0x54, f32));
+                        hit[1] = (f32)(PF(p, 0x38, f32) + (f64)PF(p, 0x58, f32));
+                        hit[2] = (f32)(PF(p, 0x3C, f32) + (f64)PF(p, 0x5C, f32));
+                        hit[1] = (f32)(hit[1] + lbl_80347C28);
                         effect = StartFXSub(93, hit, effectFlags | 8, 0,
                                             lbl_80347CA8);
                         fn_80093E50(effect, NULL, bossColor, 0.0f,
