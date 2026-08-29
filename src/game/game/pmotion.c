@@ -1178,7 +1178,7 @@ void PlayerMotion(Player* p) {
         (floorResult >= 0 && PF(p, 0x8C4, WorldObj*) != NULL &&
          (PF(p, 0x8C4, WorldObj*)->flags & 0x1000) != 0) ||
         (floorResult == -2 && PF(p, 0x8C4, WorldObj*) != NULL &&
-         (PF(p, 0x8D4, u32) & 0x8000) == 0)) {
+         (p->obj_flags & 0x8000) == 0)) {
         f32 rise = PF(p, 0x8B4, f32) - *(f32*)(motion + 0x34);
         f32 minimumRise = (f32)(lbl_80347BD8 * gClockFrameStep);
         if (rise < minimumRise) {
@@ -1215,7 +1215,7 @@ void PlayerMotion(Player* p) {
     }
 
     if (floorBlocked == 0) {
-        s32 savedFloor = PF(p, 0x8B0, s32);
+        s32* savedFloor = p->speech_req;
         s32 collision;
         to[0] = oldpos[0] + dpos[0];
         to[1] = oldpos[1] + dpos[1];
@@ -1251,7 +1251,7 @@ void PlayerMotion(Player* p) {
             }
         }
         if (firstEnemyHits != 0) {
-            PF(p, 0x8B0, s32) = savedFloor;
+            p->speech_req = savedFloor;
         }
     }
 
@@ -1391,7 +1391,7 @@ collision_done:
             movingBias = 0.0f;
         }
         if ((p->hud_flags & 0x20) != 0 &&
-            (PF(p, 0x8D4, u32) & 0x4000) == 0) {
+            (p->obj_flags & 0x4000) == 0) {
             motionState = 0;
             goto store_motion_state;
         }
@@ -1423,9 +1423,9 @@ collision_done:
         to[1] = oldpos[1] + dpos[1];
         to[2] = oldpos[2] + dpos[2];
         if (reaction >= 2) {
-            attackDir[0] = PF(p, 0x20, f32);
-            attackDir[1] = PF(p, 0x24, f32);
-            attackDir[2] = PF(p, 0x28, f32);
+            attackDir[0] = *(f32*)(motion + 0x20);
+            attackDir[1] = *(f32*)(motion + 0x24);
+            attackDir[2] = *(f32*)(motion + 0x28);
         }
 
         if (reaction == 300) {
@@ -1652,30 +1652,30 @@ state_selected:
 
         if (p->action < 11) {
             if (anim == 8) {
-                PF(p, 0x828, f32) =
-                    (f32)(PF(p, 0x828, f32) -
+                p->power_target =
+                    (f32)(p->power_target -
                           lbl_80347C08 * gClockFrameStep);
-                if ((f64)PF(p, 0x828, f32) < lbl_80347B08) {
-                    PF(p, 0x828, f32) = 0.0f;
+                if ((f64)p->power_target < lbl_80347B08) {
+                    p->power_target = 0.0f;
                 }
             } else {
-                if ((f64)PF(p, 0x828, f32) < lbl_80347C48) {
+                if ((f64)p->power_target < lbl_80347C48) {
                     if ((gControllerButtons & 0x10) != 0) {
-                        PF(p, 0x828, f32) =
-                            (f32)(PF(p, 0x828, f32) +
+                        p->power_target =
+                            (f32)(p->power_target +
                                   lbl_80347BB0 * gClockFrameStep);
                     } else {
-                        PF(p, 0x828, f32) =
-                            (f32)(PF(p, 0x828, f32) +
+                        p->power_target =
+                            (f32)(p->power_target +
                                   lbl_80347C28 * gClockFrameStep);
                     }
                 }
-                if ((f64)PF(p, 0x828, f32) >= lbl_80347C48) {
+                if ((f64)p->power_target >= lbl_80347C48) {
                     if (lbl_80344740 >= 15) {
                         msgPost(110, index, (u32)&p->col_pos);
                     }
-                    PF(p, 0x828, f32) = lbl_80347C50;
-                } else if ((f64)PF(p, 0x828, f32) >= lbl_80347B90 &&
+                    p->power_target = lbl_80347C50;
+                } else if ((f64)p->power_target >= lbl_80347B90 &&
                            lbl_8034476C > 1 && lbl_80344740 >= 15) {
                     msgPost(111, index, (u32)&p->col_pos);
                 }
@@ -1851,13 +1851,13 @@ store_motion_state:
                 break;
             case 21:
                 if ((p->flags & 0x400) != 0 &&
-                    (f64)PF(p, 0x828, f32) >= lbl_80347B90) {
+                    (f64)p->power_target >= lbl_80347B90) {
                     PF(p, 0x910, f32) = lbl_80347C58;
                     p->anim_20C = 110;
-                } else if ((f64)PF(p, 0x828, f32) >= lbl_80347C48) {
+                } else if ((f64)p->power_target >= lbl_80347C48) {
                     p->anim_20C = 87;
                     PF(p, 0x910, f32) = lbl_80347C50;
-                } else if ((f64)PF(p, 0x828, f32) >= lbl_80347B90) {
+                } else if ((f64)p->power_target >= lbl_80347B90) {
                     p->anim_20C = 86;
                     PF(p, 0x910, f32) = lbl_80347C58;
                 }
@@ -2393,7 +2393,7 @@ store_motion_state:
                     if (found != NULL) {
                         SfxSetParent(effect, (void*)*found);
                     }
-                    PF(p, 0x828, f32) -= PF(p, 0x910, f32);
+                    p->power_target -= PF(p, 0x910, f32);
                     PF(p, 0x910, f32) = 0.0f;
                     AudioPlayerTurbo(index);
                 } else {
@@ -2499,7 +2499,7 @@ store_motion_state:
                 }
 
                 if ((PF(p, 0x900, u32) & 0xF0) != 0) {
-                    PF(p, 0x828, f32) -= PF(p, 0x910, f32);
+                    p->power_target -= PF(p, 0x910, f32);
                     PF(p, 0x910, f32) = 0.0f;
                     damageFlags |= 0x20;
                     damage = (f32)(damage * lbl_80347B28);
@@ -2795,7 +2795,7 @@ player_motion_phase_exit:
                     PF(p, 0x6BC, Player*) = NULL;
                     PF(pending, 0x964, s16) |= 0x10;
                     PF(pending, 0x6B8, Player*) = p;
-                    PF(p, 0x828, f32) -= PF(p, 0x910, f32);
+                    p->power_target -= PF(p, 0x910, f32);
                     PF(p, 0x910, f32) = 0.0f;
                     grabbed = pending;
                 } else {
