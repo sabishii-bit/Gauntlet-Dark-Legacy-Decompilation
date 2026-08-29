@@ -2320,12 +2320,12 @@ store_motion_state:
                 }
 
                 if (effect >= 0) {
-                    void* effectNode =
-                        *(void**)(Effects + effect * 240 + 0x14);
-                    MBTreeSetAmbientAdd(effectNode, 0x1FF, 1);
+                    MBTreeSetAmbientAdd(
+                        *(void**)(Effects + effect * 240 + 0x14), 0x1FF, 1);
                     if (particleTexture >= 0) {
                         void* psys = MBNewPsysDefault(
-                            (f32*)gIdentityMatrix, effectNode, 0, 1);
+                            (f32*)gIdentityMatrix,
+                            *(void**)(Effects + effect * 240 + 0x14), 0, 1);
                         if (psys != NULL) {
                             MBTreeSetFlags(psys, 0x880, 1);
                             MBPsysSetEVolume(1.0f, 1.0f, psys);
@@ -2684,14 +2684,15 @@ store_motion_state:
 
         /* Target +0x3CE4: magic-player and potion magic triggers. */
         if ((PF(p, 0x900, u32) & 0x10000) != 0) {
-            s32 effect = StartMagicPlayerFX(lbl_80127D00);
-            if (effect >= 0) {
-                void* effectNode =
-                    *(void**)(Effects + effect * 240 + 0x14);
+            s32 effect;
+            if ((effect = StartMagicPlayerFX(lbl_80127D00)) >= 0) {
                 if (PF(p, 0x6CC, void*) != NULL) {
-                    MBNodeSetParent(effectNode, PF(p, 0x6CC, void*));
+                    MBNodeSetParent(
+                        *(void**)(Effects + effect * 240 + 0x14),
+                        PF(p, 0x6CC, void*));
                 }
-                MBTreeSetFlags(effectNode, 0x04000000, 0);
+                MBTreeSetFlags(*(void**)(Effects + effect * 240 + 0x14),
+                               0x04000000, 0);
             }
             PF(p, 0x900, u32) &= ~0x10000U;
         }
