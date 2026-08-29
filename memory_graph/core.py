@@ -1927,6 +1927,80 @@ def register_tool_proposal(
     return stage_record_proposal(record, root=root)
 
 
+def attempt_staleness(
+    root: Path = REPO_ROOT, db_path: Path | None = None
+) -> dict[str, Any]:
+    """Compare parked/capped attempts against the current objdiff report.
+
+    A park is moot when its function measures fully matched WITHOUT a guarded
+    postprocessor rule; such records should be removed or superseded. A park
+    on a function far below the opcode-complete profile is suspect and should
+    be re-triaged rather than trusted.
+    """
+    report_path = root / "build" / "GUNE5D" / "report.json"
+    if not report_path.exists():
+        raise MemoryGraphError(
+            "build/GUNE5D/report.json not found; run"
+            " `ninja build/GUNE5D/report.json` first"
+        )
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    scores: dict[str, float] = {}
+    for unit in report.get("units", []):
+        for function in unit.get("functions", []):
+            scores[function["name"]] = float(
+                function.get("fuzzy_match_percent", 0.0)
+            )
+    covered: set[str] = {"regFind"}  # P6Frank carrier
+    webfrank = root / "config" / "GUNE5D" / "webfrank.json"
+    if webfrank.exists():
+        covered.update(
+            re.findall(
+                r'"function"\s*:\s*"([^"]+)"',
+                webfrank.read_text(encoding="utf-8"),
+            )
+        )
+    ensure_database(root, db_path)
+    with closing(open_database(root, db_path)) as connection:
+        rows = connection.execute(
+            "SELECT a.record_id, e.name FROM attempt a"
+            " JOIN entity e ON e.id = a.function_entity_id"
+            " WHERE a.outcome IN ('parked', 'capped')"
+        ).fetchall()
+    stale: list[dict[str, Any]] = []
+    walls: list[dict[str, Any]] = []
+    suspect: list[dict[str, Any]] = []
+    missing: list[dict[str, Any]] = []
+    valid = 0
+    for row in rows:
+        name = row["name"]
+        if name not in scores:
+            missing.append({"function": name, "record": row["record_id"]})
+            continue
+        score = scores[name]
+        if score >= 100.0:
+            entry = {"function": name, "record": row["record_id"], "fuzzy": score}
+            (walls if name in covered else stale).append(entry)
+        elif score < 70.0:
+            suspect.append(
+                {"function": name, "record": row["record_id"], "fuzzy": score}
+            )
+        else:
+            valid += 1
+    return {
+        "stale_solved": stale,
+        "postprocessor_walls": walls,
+        "suspect_low_fuzzy": suspect,
+        "missing_from_report": missing,
+        "valid_count": valid,
+        "note": (
+            "stale_solved parks are moot (function fully matched without a"
+            " postprocessor rule): remove or supersede them."
+            " postprocessor_walls are valid source-level walls."
+            " suspect_low_fuzzy and missing_from_report need re-triage."
+        ),
+    }
+
+
 def validate_records(root: Path = REPO_ROOT) -> dict[str, Any]:
     paths: list[Path] = []
     for relative in (Path("memory_graph/records"), Path("memory_graph/inbox")):

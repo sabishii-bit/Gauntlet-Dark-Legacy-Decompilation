@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from memory_graph.core import (
     MemoryGraphError,
     REPO_ROOT,
+    attempt_staleness,
     build_database,
     default_database_path,
     ensure_database,
@@ -55,6 +56,10 @@ def main(argv: list[str] | None = None) -> int:
     subparsers.add_parser("stats", help="show graph counts and metadata")
     subparsers.add_parser("validate", help="validate durable and inbox JSON records")
     subparsers.add_parser("audit", help="report duplicates and migration coverage without deleting anything")
+    subparsers.add_parser(
+        "stale",
+        help="compare parked/capped attempts against the current objdiff report",
+    )
 
     search = subparsers.add_parser("search", help="search documents, symbols, and entities")
     search.add_argument("query")
@@ -113,6 +118,8 @@ def main(argv: list[str] | None = None) -> int:
             result = validate_records(root)
         elif args.command == "audit":
             result = memory_audit(root=root, db_path=database)
+        elif args.command == "stale":
+            result = attempt_staleness(root, database)
         elif args.command == "search":
             result = search_memory(args.query, root=root, db_path=database, limit=args.limit)
         elif args.command == "context":

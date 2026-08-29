@@ -2,6 +2,7 @@
   "attempted_axis": "bounded source-shape matrix to the project cap; residual survived the recorded flag/pragma/compiler sweeps",
   "attributes": {
     "parked_note": "isel+renum, 71/71; byte-splat (x&FF)|x<<8|x<<16|x<<24 rlwimi-chain order +",
+    "postprocessor_covered": "function reaches 100% only via the guarded postprocessor rule; the source-level allocator wall this park describes still exists",
     "provenance": "terminal import of the legacy parked cap list, 2026-08-29",
     "unpark_condition": "a genuinely new source-level axis, allocator lever, or compiler evidence; two identical A/B results re-park it"
   },

@@ -169,6 +169,34 @@ rebuilds from the same checkout converge on identical bytes and last-writer-
 wins is harmless. The database is never committed and never transported by
 `git clone` — a fresh clone materializes its own view on first query.
 
+## Data lifecycle and staleness
+
+Records are cheap to add, so the graph needs deliberate hygiene to stay
+trustworthy and bounded:
+
+- **Parks expire against ground truth.** A `parked`/`capped` attempt is only
+  valid while its function is not fully matched. Run
+  `python memory_graph/gdlmem.py stale` to compare every park against the
+  current `build/GUNE5D/report.json`; it buckets records as `stale_solved`
+  (moot — remove them), `postprocessor_walls` (function reaches 100% only via
+  a guarded WebFrank/P6Frank rule, so the source-level wall is still real and
+  the record stays, annotated), `suspect_low_fuzzy` (a park claiming an
+  allocator residual on a function under 70% is dubious — re-triage), and
+  `missing_from_report` (symbol/report drift — re-triage). Run it as part of
+  integration waves; do not let solved functions sit hidden behind stale caps.
+- **Bulk imports may be pruned; earned records are superseded.** Records from
+  a mechanical import (like the 2026-08-29 parked-list conversion) carry no
+  unique evidence, so a moot one is simply deleted. A hand-authored attempt
+  with measurements and conclusions is history: when it becomes obsolete,
+  supersede it rather than deleting it.
+- **One live attempt per function/axis.** A revisit of a recorded axis
+  produces a new record that `supersedes` the old one; do not accumulate
+  parallel attempts describing the same probe. `context` ranks accepted and
+  newest first, and superseded records remain queryable lineage.
+- **Growth check.** `stats` row counts are the early-warning signal; if
+  `attempt` growth outpaces actual matching work, the inbox review boundary
+  is being skipped or axes are being re-recorded instead of superseded.
+
 ## Authority and confidence
 
 GameCube target bytes outrank everything. Accepted, evidence-backed records
