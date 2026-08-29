@@ -272,7 +272,7 @@ extern f32 lbl_80347C40;
 extern f64 lbl_80347C48;
 extern f32 lbl_80347C54;
 extern f32 lbl_80347C58;
-extern s32 lbl_80344B38;
+extern u32 lbl_80344B38; /* last floor WorldObj hit (address word) */
 extern f32 lbl_80344B34;
 
 extern s32 fn_8005A730(f32* mat);
@@ -432,7 +432,9 @@ static inline f32 PlayerKnockbackFabs(f32 x) {
 typedef struct PSpawnView {
     u8  _000[0xC4];
     f32 rot[3];          /* 0xC4 euler rotation */
-    u8  _0D0[0x7F0];
+    u8  _0D0[0x7E4];
+    f32 floor_y;         /* 0x8B4 last floor height */
+    u8  _8B8[8];
     u32 floor_flags;     /* 0x8C0 */
     u32 floor_obj;       /* 0x8C4 */
 } PSpawnView;
@@ -1201,10 +1203,12 @@ void PlayerMotion(Player* p) {
 
     if ((p->act_flags & 0x8000) == 0) {
         s32 cameraArg = wallResult != 0 ? 0 : 1;
-        s32 cameraResult = CameraLimitPlayerDpos(index, dpos, cameraArg);
-        PF(p, 0xA5C, s32) = wallResult != 0 ? -cameraResult : cameraResult;
-        if (cameraResult == 5 && anim == 137) {
+        PF(p, 0xA5C, s32) = CameraLimitPlayerDpos(index, dpos, cameraArg);
+        if (PF(p, 0xA5C, s32) == 5 && anim == 137) {
             hitKind = 1;
+        }
+        if (wallResult != 0) {
+            PF(p, 0xA5C, s32) = -PF(p, 0xA5C, s32);
         }
     } else {
         PF(p, 0xA5C, s32) = 0;
@@ -1366,7 +1370,7 @@ void PlayerMotion(Player* p) {
         if (lbl_80344B38 != 0) {
             PF(p, 0x8CC, f32) = lbl_80344B34;
         } else {
-            PF(p, 0x8CC, f32) = PF(p, 0x8B4, f32);
+            PF(p, 0x8CC, f32) = SV(p)->floor_y;
         }
     }
     goto collision_done;
@@ -2040,21 +2044,31 @@ store_motion_state:
             if (p->quest_state >= 4 &&
                 (PF(p, 0x900, u32) & ~1U) == 0) {
 #pragma opt_common_subs off
-                if (gBossType >= 36 && gBossType < 38) {
+                switch (gBossType) {
+                case 36:
+                case 37:
                     if (p->anim_208 != 107) {
                         p->anim_208 = 0;
                         p->anim_20C = 107;
                     }
-                } else if ((gBossType >= 34 && gBossType < 40)) {
+                    break;
+                case 34:
+                case 35:
+                case 38:
+                case 39:
                     if (p->anim_208 != 99 &&
                         p->anim_208 != 100) {
                         p->anim_208 = 0;
                         p->anim_20C = 99;
                     }
-                } else if (p->anim_208 != 115 &&
-                           p->anim_208 != 116) {
-                    p->anim_208 = 0;
-                    p->anim_20C = 115;
+                    break;
+                default:
+                    if (p->anim_208 != 115 &&
+                        p->anim_208 != 116) {
+                        p->anim_208 = 0;
+                        p->anim_20C = 115;
+                    }
+                    break;
                 }
             }
         }
@@ -2499,11 +2513,15 @@ store_motion_state:
 
                 target = PF(p, 0x8A8, u8*);
                 if (target == NULL && ctl->values[8] == 0.0f) {
-                    f32 pointRange =
-                        (f32)(lbl_80347C28 * radius);
-                    hit[0] = oldpos[0] + targetDir[0] * pointRange;
-                    hit[1] = oldpos[1] + targetDir[1] * pointRange;
-                    hit[2] = oldpos[2] + targetDir[2] * pointRange;
+                    hit[0] = (f32)(targetDir[0] *
+                                   (lbl_80347C28 * PF(p, 0x850, f32)) +
+                                   oldpos[0]);
+                    hit[1] = (f32)(targetDir[1] *
+                                   (lbl_80347C28 * PF(p, 0x850, f32)) +
+                                   oldpos[1]);
+                    hit[2] = (f32)(targetDir[2] *
+                                   (lbl_80347C28 * PF(p, 0x850, f32)) +
+                                   oldpos[2]);
                     PlayerCollideEnemies(p, (s32)oldpos, hit, NULL, 0,
                                          NULL, radius, height);
                 }
@@ -4134,7 +4152,7 @@ extern f32 lbl_80347BF8;
 extern f64 lbl_80347BD0;
 extern f64 lbl_80347D70;
 extern f64 lbl_80347BA8;
-extern s32 lbl_80344B38;
+extern u32 lbl_80344B38; /* last floor WorldObj hit (address word) */
 extern f32 lbl_80344B34;
 extern u8  lbl_8023CB28[];
 
