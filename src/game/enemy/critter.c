@@ -6106,15 +6106,22 @@ Critter *CritterEmptyInst(void)
  * scene nodes and world-space transforms used by movement and collision. */
 void CritterInitGeo(Critter *c, void *object, s32 subtype)
 {
+    typedef struct CritterInitGeoView {
+        u8 unused000[0xFC];
+        f32 yaw;
+        u8 unused100[0x318];
+        f32 cachedVelocity[3];
+    } CritterInitGeoView;
     u8 *header;
+    f32 *gid = gIdentityMatrix;
     s32 atreeFlags;
     void *node;
     void *n;
     s32 idx;
-    f32 *gid;
+    s32 floorHit;
     u8 unused[8];
 
-    gid = gIdentityMatrix;
+    atreeFlags = 0;
     header = (u8 *)c->hdr;
     c->mbnode = MBNewNode(lbl_8034473C, gid, 1);
     *(f32 *)((u8 *)c + 0xF8) =
@@ -6124,9 +6131,8 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     c->vel[0] = *(f32 *)((u8 *)object + 0x30);
     c->vel[1] = *(f32 *)((u8 *)object + 0x34);
     c->vel[2] = *(f32 *)((u8 *)object + 0x38);
-    YawMat3(*(f32 *)((u8 *)c + 0xFC), &c->mtx[0][0]);
+    YawMat3(((CritterInitGeoView *)c)->yaw, &c->mtx[0][0]);
 
-    atreeFlags = 0;
     if ((*(u32 *)(header + 0x5C) & 0x1000) == 0) {
         atreeFlags |= 0x800;
     }
@@ -6186,8 +6192,11 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     }
     c->hitnode2 = node;
 
-    if (FloorCollide(c->vel, 0, 0, 2, lbl_803464B8, lbl_80346588,
-                     lbl_8034658C) != 0) {
+    floorHit = FloorCollide(c->vel, 0, 0, 2, lbl_803464B8,
+                            lbl_80346588, lbl_8034658C) != NULL
+                   ? 1
+                   : 0;
+    if (floorHit != 0) {
         c->vel[1] = *(f32 *)(gFloorCollisionResult + 0x34) +
                     *(f32 *)(header + 0xB0);
         if (c->shadow != NULL) {
@@ -6205,9 +6214,9 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     CopyMat4(&c->mtx[0][0], c->mbnode);
     UnparentMatrix(c->mbnode, *(f32 **)((u8 *)c->mbnode + 0x74));
     CopyMat3(&c->mtx[0][0], (f32 *)((u8 *)c + 0x3D8));
-    *(f32 *)((u8 *)c + 0x418) = c->vel[0];
-    *(f32 *)((u8 *)c + 0x41C) = c->vel[1];
-    *(f32 *)((u8 *)c + 0x420) = c->vel[2];
+    ((CritterInitGeoView *)c)->cachedVelocity[0] = c->vel[0];
+    ((CritterInitGeoView *)c)->cachedVelocity[1] = c->vel[1];
+    ((CritterInitGeoView *)c)->cachedVelocity[2] = c->vel[2];
     MulVec4Mat3((f32 *)(header + 0xC0), c->pos, &c->mtx[0][0]);
     c->pos[0] = c->vel[0] + c->pos[0];
     c->pos[1] = c->vel[1] + c->pos[1];
