@@ -1662,8 +1662,9 @@ collision_done:
             if ((motionState == 8 || motionState == 13) &&
                 PF(p, 0x8F8, s32) == 0 &&
                 (anim < 39 || anim > 114) && ctl->control.flag != 0) {
-                if (specialCritter == 0 || gBossType == 37 ||
-                    gBossType == 41 ||
+                if ((item >= 0 &&
+                     (specialCritter == 0 || gBossType == 37 ||
+                      gBossType == 41)) ||
                     (target != NULL && **(s32**)target == 3 &&
                      PF(target, 0xCF, s8) >= 0)) {
                     contactRadius = 0.0f;
@@ -2026,13 +2027,14 @@ store_motion_state:
                 if (gBossType < 40 && gBossType >= 34) {
                     lbl_80344894 = StartFXSub(92, NULL, 0, 0x800,
                                               lbl_80347C10);
-                    if (lbl_80344894 >= 0) {
-                        void* node =
-                            *(void**)(Effects + lbl_80344894 * 240 + 0x14);
-                        MBTreeSetAmbientAdd(node, 0x1FF, 1);
+                    if (!(lbl_80344894 < 0)) {
+                        MBTreeSetAmbientAdd(
+                            *(void**)(Effects + lbl_80344894 * 240 + 0x14),
+                            0x1FF, 1);
                         SfxSetParent(lbl_80344894,
                                      PF(p, 0x6D0, void*));
-                        PF(p, 0x730, void*) = node;
+                        PF(p, 0x730, void*) =
+                            *(void**)(Effects + lbl_80344894 * 240 + 0x14);
                     }
                 } else {
                     f32 bossFxPos[3];
@@ -2041,10 +2043,10 @@ store_motion_state:
                     bossFxPos[2] = 0.0f;
                     lbl_80344894 = StartFXSub(92, bossFxPos, 0, 0x880,
                                               lbl_80347C10);
-                    if (lbl_80344894 >= 0) {
-                        void* node =
-                            *(void**)(Effects + lbl_80344894 * 240 + 0x14);
-                        MBTreeSetAmbientAdd(node, 0x1FF, 1);
+                    if (!(lbl_80344894 < 0)) {
+                        MBTreeSetAmbientAdd(
+                            *(void**)(Effects + lbl_80344894 * 240 + 0x14),
+                            0x1FF, 1);
                         SfxSetParent(lbl_80344894,
                                      PF(p, 0x74, void*));
                     }
