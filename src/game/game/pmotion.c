@@ -1101,10 +1101,13 @@ void PlayerMotion(Player* p) {
             s32 sfx;
             PlayerMotion_HitTarget(p, target, 32,
                 (f32)(anim == 137 ? lbl_80347BB8 : lbl_80347BC0));
-            sfx = PlayerMotion_SfxIndex(p);
-            if (sfx >= 0) {
-                fn_80089350((u8*)PF(p, 0x6B8, Player*), sfx, (u8*)p,
-                            (u8*)to, lbl_80347B30, lbl_80347B40);
+            {
+                s32 sfxProbe = PlayerMotion_SfxIndex(p);
+                sfx = sfxProbe;
+                if (sfxProbe >= 0) {
+                    fn_80089350((u8*)PF(p, 0x6B8, Player*), sfx, (u8*)p,
+                                (u8*)to, lbl_80347B30, lbl_80347B40);
+                }
             }
             hitKind = 1;
         }
@@ -1258,10 +1261,13 @@ void PlayerMotion(Player* p) {
                 s32 sfx;
                 PlayerMotion_HitTarget(p, target, 32,
                     (f32)(anim == 137 ? lbl_80347BB8 : lbl_80347BC0));
-                sfx = PlayerMotion_SfxIndex(p);
-                if (sfx >= 0) {
-                    fn_80089350((u8*)PF(p, 0x6B8, Player*), sfx, (u8*)p,
-                                (u8*)hit, lbl_80347B30, lbl_80347B40);
+                {
+                    s32 sfxProbe = PlayerMotion_SfxIndex(p);
+                    sfx = sfxProbe;
+                    if (sfxProbe >= 0) {
+                        fn_80089350((u8*)PF(p, 0x6B8, Player*), sfx, (u8*)p,
+                                    (u8*)hit, lbl_80347B30, lbl_80347B40);
+                    }
                 }
                 hitKind = 1;
             }
@@ -1345,11 +1351,14 @@ void PlayerMotion(Player* p) {
                                   : lbl_80347C08),
                     lbl_80347B40);
                 if (damaged >= 0) {
-                    sfx = PlayerMotion_SfxIndex(p);
-                    if (sfx >= 0) {
-                        fn_80089350((u8*)PF(p, 0x6B8, Player*), sfx,
-                                    (u8*)p, (u8*)to,
-                                    lbl_80347B30, lbl_80347B40);
+                    {
+                        s32 sfxProbe = PlayerMotion_SfxIndex(p);
+                        sfx = sfxProbe;
+                        if (sfxProbe >= 0) {
+                            fn_80089350((u8*)PF(p, 0x6B8, Player*), sfx,
+                                        (u8*)p, (u8*)to,
+                                        lbl_80347B30, lbl_80347B40);
+                        }
                     }
                 }
                 if (specialCritter != 0 || critterIndex >= 0) {
