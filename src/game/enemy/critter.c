@@ -5085,21 +5085,22 @@ requested_move:
  * just completed its blend. */
 void CritterMoveDone(Critter *c, s32 moveIndex)
 {
-    u8* m;
+    u8 unused[1];
+    CritterMove* move;
     Critter* child;
-    s32 n;
-    s32 fx;
-    f32* cf = (f32*)c;
+    s32 nextPatternMove;
+    s32 currentMove;
 
-    fx = *(s16*)((u8*)c + 280);
-    m = 0;
-    if (fx >= 0) {
-        m = *(u8**)(*(u8**)((u8*)c + 4) + 292) + fx * 144;
+    nextPatternMove = -1;
+    move = NULL;
+    currentMove = c->curmove;
+    if (currentMove >= 0) {
+        move = &(*(CritterMove **)((u8 *)c->hdr + 0x124))[currentMove];
     }
-    if (m != 0) {
-        switch (*(s32*)m) {
+    if (move != NULL) {
+        switch (move->type) {
         case 16:
-            if (*(s16*)(m + 84) < 0) {
+            if (move->link < 0) {
                 if (lbl_8034489C == 1) {
                     lbl_8034489C = 2;
                 }
@@ -5112,45 +5113,42 @@ void CritterMoveDone(Critter *c, s32 moveIndex)
             break;
         }
     }
-    if (*(s16*)((u8*)c + 284) >= 0) {
-        child = *(Critter**)((u8*)c + 2780);
-        if (child != 0 && *(s16*)((u8*)child + 284) >= 0) {
-        } else {
-            *(s16*)((u8*)c + 288) = *(s16*)((u8*)c + 288) + 1;
-            n = *(s16*)((u8*)c + 284);
-            fx = *(s16*)((u8*)c + 288);
-            if (fx < 8 &&
-                (&((s16*)(*(u8**)(*(u8**)((u8*)c + 4) + 296) +
-                          n * 80))[fx])[16] >= 0) {
-            } else {
-                *(s16*)((u8*)c + 284) = -1;
-                *(s16*)((u8*)c + 288) = -1;
-                child = *(Critter**)((u8*)c + 2776);
-                while (child != 0) {
-                    *(s16*)((u8*)child + 284) = -1;
-                    *(s16*)((u8*)child + 288) = -1;
-                    child = *(Critter**)((u8*)child + 2776);
+
+    if (c->unk11C >= 0) {
+        if (c->parent == NULL || c->parent->unk11C < 0) {
+            c->unk120++;
+            if (c->unk120 < 8) {
+                CritterPattern* patterns =
+                    *(CritterPattern **)((u8 *)c->hdr + 0x128);
+                nextPatternMove =
+                    (&patterns[c->unk11C].move)[c->unk120];
+            }
+            if (nextPatternMove < 0) {
+                c->unk11C = -1;
+                c->unk120 = -1;
+                for (child = c->next; child != NULL; child = child->next) {
+                    child->unk11C = -1;
+                    child->unk120 = -1;
                 }
             }
         }
     } else {
-        n = *(s16*)((u8*)c + 286);
-        if (n >= 0) {
-            (&cf[n])[198] = sMusicFadeBase;
-            *(s16*)((u8*)c + 284) = *(s16*)((u8*)c + 286);
-            *(s16*)((u8*)c + 288) = 0;
+        if (c->unk11E >= 0) {
+            c->patternTimes[c->unk11E] = sMusicFadeBase;
+            c->unk11C = c->unk11E;
+            c->unk120 = 0;
         } else {
-            (&cf[moveIndex])[134] =
-                (f32)(lbl_80346608 * (f32)(*(s16*)((u8*)c + 136) - 2) +
+            c->moveTimes[moveIndex] =
+                (f32)(lbl_80346608 * (f32)(*(s16 *)((u8 *)c + 0x88) - 2) +
                       sMusicFadeBase);
         }
     }
-    fx = *(s16*)((u8*)c + 2746);
-    if (fx >= 0) {
-        *(s16*)((u8*)c + 2746) = DeleteEffect(fx, 1);
+
+    if (c->unkABA >= 0) {
+        c->unkABA = DeleteEffect(c->unkABA, 1);
     }
-    *(s16*)((u8*)c + 280) = moveIndex;
-    *(f32*)((u8*)c + 532) = lbl_80346470;
+    c->curmove = (s16)moveIndex;
+    c->rate = lbl_80346470;
 }
 
 /* 0x8003C8D4 -- classify two critters' facing/positions into a 0/1/2 code by
