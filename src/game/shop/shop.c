@@ -937,6 +937,7 @@ void fn_8009A0AC(s32 col)
     s32 stat2;
     s32 stat3;
     s32 t;
+    s32 clampG;
     s32 t2;
     s32 t3;
     s32 ra;
@@ -947,7 +948,6 @@ void fn_8009A0AC(s32 col)
     u8* b240;
     u8* b24;
     u8* b28;
-    u8* p;
 
     ResolveWorldData((lbl_803448C8 << 8) | (u8)lbl_803448C4);
     cls = *(s32*)(pl + 12);
@@ -960,12 +960,15 @@ void fn_8009A0AC(s32 col)
            (*(s32*)(b28 + 8284) + *(s32*)(b28 + 8300));
     raw3 = *(s32*)(pl + 7872) -
            *(s32*)((b24 = pl + cls * 24) + 7900);
-    if (t < 64) {
-        statG = 64;
-    } else if (t > range) {
-        statG = range;
-    } else {
-        statG = t;
+    {
+        clampG = t;
+        if (clampG < 64) {
+            statG = 64;
+        } else if (clampG > range) {
+            statG = range;
+        } else {
+            statG = clampG;
+        }
     }
     t2 = raw2 * range / (*(s32*)(lvl + 228) + 1);
     if (t2 < 64) {
@@ -1015,23 +1018,35 @@ void fn_8009A0AC(s32 col)
     }
 
     off = col * 12;
-    p = tbl + off + 224;
-    *(s32*)(p + ra * 4) = (i = 0);
-    *(s32*)(p + rb * 4) = 2;
-    *(s32*)(p + rc * 4) = 1;
-    p = tbl + off;
-    for (t = 3; t != 0; t--) {
-        *(s32*)(p + 128 + i) = lbl_80343E14;
-        i += 4;
+    {
+        u8* ranks = tbl + off + 224;
+
+        *(s32*)(ranks + ra * 4) = (i = 0);
+        *(s32*)(ranks + rb * 4) = 2;
+        *(s32*)(ranks + rc * 4) = 1;
     }
-    p = tbl + off + 80;
-    *(s32*)(p + ra * 4) = statG;
-    *(s32*)(p + rb * 4) = stat3;
-    *(s32*)(p + rc * 4) = stat2;
-    p = tbl + off + 176;
-    *(s32*)(p + ra * 4) = goldRaw;
-    *(s32*)(p + rb * 4) = raw3;
-    *(s32*)(p + rc * 4) = raw2;
+    {
+        s32* seeds = (s32*)(tbl + off + 128);
+
+        for (t = 3; t != 0; t--) {
+            seeds[i >> 2] = lbl_80343E14;
+            i += 4;
+        }
+    }
+    {
+        u8* stats = tbl + off + 80;
+
+        *(s32*)(stats + ra * 4) = statG;
+        *(s32*)(stats + rb * 4) = stat3;
+        *(s32*)(stats + rc * 4) = stat2;
+    }
+    {
+        u8* raw = tbl + off + 176;
+
+        *(s32*)(raw + ra * 4) = goldRaw;
+        *(s32*)(raw + rb * 4) = raw3;
+        *(s32*)(raw + rc * 4) = raw2;
+    }
     ResolveWorldData(sWorldDataConst);
 }
 
