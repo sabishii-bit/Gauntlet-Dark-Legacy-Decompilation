@@ -1750,7 +1750,6 @@ extern f64 lbl_803475C8;
 
 void show_optmenu(OPTMENU* m)
 {
-    void* winset = gWinGlobals;
     u8* data = lbl_8011DD20;
     s32 idx;
     s32 itofs;
@@ -1760,8 +1759,9 @@ void show_optmenu(OPTMENU* m)
     u32 fade;
     s32 x;
     s32 y;
-    volatile s32 lh;
     s32 savedFlags;
+    volatile s32 lh;
+    void* winset;
     s32 sel;
     OPTITEM* it;
     volatile s32 hi;
@@ -1775,6 +1775,7 @@ void show_optmenu(OPTMENU* m)
     f32 fy;
     f32 fz;
 
+    winset = gWinGlobals;
     idx = 0;
     itofs = 0;
     hifont = 0;
@@ -1834,8 +1835,8 @@ void show_optmenu(OPTMENU* m)
                               y + OPTMENU_SHADOW, OPTMENU_FONT, 0, m->title);
         }
         txt = DrawTextKeepScale(m->title_scale, x, y, OPTMENU_FONT,
-                                ((*(s32*)(data + 220) & 0xFF) << 8) |
                                 ((*(s32*)(data + 216) & 0xFF) << 16) |
+                                ((*(s32*)(data + 220) & 0xFF) << 8) |
                                 (*(s32*)(data + 224) & 0xFF), m->title);
         if (font2 != 0) {
             *(s16*)((u8*)txt + 0x26) = font2;
@@ -1853,8 +1854,9 @@ void show_optmenu(OPTMENU* m)
 
     for (;;) {
         u32 flags = m->flags;
+        u32 alpha = fade;
         f32 scale;
-        u32 alpha;
+        s32 value;
         s32 hi2;
         s32 itemfont;
 
@@ -1862,15 +1864,15 @@ void show_optmenu(OPTMENU* m)
         if (it->text == NULL) {
             break;
         }
+        value = it->value;
+        hi2 = hifont;
         scale = m->scale;
+        itemfont = font2;
         hi = 0;
-        alpha = fade;
-        if (it->value < 0 && (s32)fade < 0x80) {
+        if (value < 0 && (s32)fade < 0x80) {
             alpha = 0x80;
         }
         MBSetFontFlags(0);
-        hi2 = hifont;
-        itemfont = font2;
 
         if (idx == sel && it->value >= 0) {
             /* selected item: pulse or flat highlight */
@@ -1941,7 +1943,7 @@ void show_optmenu(OPTMENU* m)
         if ((itemfont == 0 || hi2 != 0) && (flags & 0x200) != 0) {
             color = it->rgb;
         } else {
-            color = (rgb[2] & 0xFF) | ((rgb[0] & 0xFF) << 16) | ((rgb[1] & 0xFF) << 8);
+            color = ((rgb[0] & 0xFF) << 16) | ((rgb[1] & 0xFF) << 8) | (rgb[2] & 0xFF);
         }
         MBSetFontAlpha(alpha);
         MBSetFontColor(color);
@@ -1958,12 +1960,10 @@ void show_optmenu(OPTMENU* m)
             text = it->text;
         }
         txt = MBDrawText(x, y, text);
-        if (hi2 == 0) {
-            if (itemfont != 0) {
-                *(s16*)((u8*)txt + 0x26) = itemfont;
-            }
-        } else {
+        if (hi2 != 0) {
             *(s16*)((u8*)txt + 0x26) = hi2;
+        } else if (itemfont != 0) {
+            *(s16*)((u8*)txt + 0x26) = itemfont;
         }
         w = DrawNormalText(m->scale, text, OPTMENU_FONT);
         x = x + w;
@@ -1972,12 +1972,10 @@ void show_optmenu(OPTMENU* m)
             txt = MBDrawText(x, y, " ~");
             w = DrawNormalText(m->scale, " ~", OPTMENU_FONT);
             x = x + w;
-            if (hi2 == 0) {
-                if (itemfont != 0) {
-                    *(s16*)((u8*)txt + 0x26) = itemfont;
-                }
-            } else {
+            if (hi2 != 0) {
                 *(s16*)((u8*)txt + 0x26) = hi2;
+            } else if (itemfont != 0) {
+                *(s16*)((u8*)txt + 0x26) = itemfont;
             }
         }
         it->draw_y = y;
@@ -1990,7 +1988,8 @@ void show_optmenu(OPTMENU* m)
             part = 1;
         } else {
             if (txt != NULL) {
-                y = y + lh + it->dy;
+                y += it->dy;
+                y += lh;
             }
             part = 0;
             idx++;
@@ -2007,8 +2006,8 @@ void show_optmenu(OPTMENU* m)
         s32 player_x = p * 100 + 0x6A;
         y = m->by + OPTMENU_MARGIN_PLAYER;
         sprintf(optglobals.tbuf, "Player %d", p + 1);
-        color = ((*(s32*)(data + 220) & 0xFF) << 8) |
-                ((*(s32*)(data + 216) & 0xFF) << 16) |
+        color = ((*(s32*)(data + 216) & 0xFF) << 16) |
+                ((*(s32*)(data + 220) & 0xFF) << 8) |
                 (*(s32*)(data + 224) & 0xFF);
         txt = DrawTextKeepScale(optplyr_scale, -player_x, y,
                                 OPTMENU_FONT, color, optglobals.tbuf);
@@ -2021,7 +2020,7 @@ void show_optmenu(OPTMENU* m)
     if (m->icon_node != NULL) {
         f64 dangle;
         f32 angle;
-        s32 tx = m->x;
+        s32 tx;
         s32 t;
         s32 ty;
 
@@ -2030,6 +2029,7 @@ void show_optmenu(OPTMENU* m)
         } else {
             dangle = lbl_803475C8;
         }
+        tx = m->x;
         angle = (f32)dangle;
         if (tx < 0) {
             tx = -(tx + m->w / 2);
@@ -2091,8 +2091,8 @@ void show_optmenu(OPTMENU* m)
                 n++;
             }
         }
-        rgbp = ((*(s32*)(data + 220) & 0xFF) << 8) |
-               ((*(s32*)(data + 216) & 0xFF) << 16) |
+        rgbp = ((*(s32*)(data + 216) & 0xFF) << 16) |
+               ((*(s32*)(data + 220) & 0xFF) << 8) |
                (*(s32*)(data + 224) & 0xFF);
         px = 0x200 / (n + 1);
         sx = (s32)(32.0f * msg_scale);
