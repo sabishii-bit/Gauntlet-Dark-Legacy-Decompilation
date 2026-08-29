@@ -2110,7 +2110,8 @@ void show_optmenu(OPTMENU* m)
                 *(s16*)((u8*)txt + 0x26) = (s16)font2;
             }
             pw = DrawNormalText(msg_scale, "Back", OPTMENU_FONT);
-            MBNewTempBlit(lbl_80344E44, ((px - pw / 2) - sx) - 4, py, sx, sy);
+            pw /= 2;
+            MBNewTempBlit(lbl_80344E44, ((px - pw) - sx) - 4, py, sx, sy);
             idx = px;
         }
         if ((m->flags & 4) != 0) {
@@ -2130,11 +2131,7 @@ void show_optmenu(OPTMENU* m)
             MBNewTempBlit(lbl_80344E34, px, py, sx, sy);
         }
         if ((m->flags & 2) != 0) {
-            if ((m->flags & 0x102) == 0x102) {
-                pc = "Accept";
-            } else {
-                pc = "Select";
-            }
+            pc = (m->flags & 0x102) == 0x102 ? "Accept" : "Select";
             idx = idx + px;
             if (OPTMSG_SHADOW != 0) {
                 DrawTextKeepScale(msg_scale, -(idx + OPTMSG_SHADOW),
