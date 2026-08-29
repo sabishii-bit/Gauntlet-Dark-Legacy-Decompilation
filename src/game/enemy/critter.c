@@ -5267,13 +5267,15 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
 {
     CritterBigState *big = &gBig;
     u8 *desc;
+    Player *pp;
     s16 type;
     s32 i;
     s32 node;
-    Player *pp;
+    u8 unused0[4];
     f32 v[3];
+    u8 unused1[8];
     f32 dir[3];
-    u8 unused[16];
+    u8 unused2[4];
 
     desc = *(u8 **)(*(u8 **)((u8 *)c->hdr + 0x130) + 0x44) + action * 0x50;
     type = *(s16 *)desc;
@@ -5304,7 +5306,7 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
                                 (void *)big->safeRockIndices[lbl_80344654]));
                         frames = -1;
                         if (node >= 0) {
-                            frames = *(s16 *)(Effects + node * 240 + 0x2C);
+                            frames = *(s16 *)&Effects[node].atree[0x14];
                         }
                         frames = frames - 1;
                         big->safeRockTimers[lbl_80344654] =
