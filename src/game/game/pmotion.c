@@ -2092,7 +2092,7 @@ store_motion_state:
             }
 
             if (p->quest_state == 2) {
-                s32 combo = StartComboFX((f32*)((u8*)p + 0x54),
+                s32 combo = StartComboFX(p->col_pos,
                                          PF(p, 4, s32), PF(p, 4, s32));
                 if (combo >= 0) {
                     PF(Effects + combo * 240, 0x44, f32) =
@@ -2100,11 +2100,11 @@ store_motion_state:
                 }
                 p->quest_state = 3;
                 PF(p, 0x1FA, s16) = 60;
-                fn_8009C9DC(0, (f32*)((u8*)p + 0x54));
+                fn_8009C9DC(0, p->col_pos);
             }
             if (p->quest_state == 3 && PF(p, 0x1FA, s16) <= 0) {
                 p->quest_state = 4;
-                fn_8009C9DC(1, (f32*)((u8*)p + 0x54));
+                fn_8009C9DC(1, p->col_pos);
             }
             if (p->quest_state >= 4 &&
                 (PF(p, 0x900, u32) & ~1U) == 0) {
@@ -2190,7 +2190,7 @@ store_motion_state:
                 }
                 p->quest_state = 0;
                 PF(p, 0x900, u32) = 0;
-                fn_8009C9DC(2, (f32*)((u8*)p + 0x54));
+                fn_8009C9DC(2, p->col_pos);
 
                 bossColor[0] = 0.0f;
                 bossColor[1] = 0.0f;
@@ -2807,7 +2807,7 @@ player_motion_phase_exit:
                 p->hud_flags |= 1;
             }
 
-            if (hitKind != 0 && PF(p, 0x1FC, s16) <= 0) {
+            if (hitKind != 0 && p->timer_1FC <= 0) {
                 if (hitKind == 2) {
                     NormalVector2D(reflection);
                     ReflectVector2D((f32*)((u8*)p + 0x34), reflection, hit);
@@ -2817,7 +2817,7 @@ player_motion_phase_exit:
                 }
                 newYaw = PlayerMotion_WrapAngle(newYaw);
                 PF(p, 0x894, f32) = newYaw;
-                PF(p, 0x1FC, s16) = 10;
+                p->timer_1FC = 10;
             } else {
                 turnStep = (f32)(lbl_80347CF0 * gClockFrameStep *
                                  PF(p, 0xA4C, f32));
@@ -3137,14 +3137,14 @@ player_motion_grab_done:
                         StartComboFX(comboPos, PF(p, 4, s32),
                                      PF(PF(p, 0x6B8, Player*), 4, s32));
                     } else {
-                        StartComboFX((f32*)((u8*)p + 0x54), PF(p, 4, s32),
+                        StartComboFX(p->col_pos, PF(p, 4, s32),
                                      PF(PF(p, 0x6B8, Player*), 4, s32));
                     }
                 } else if (comboMode >= 2 && comboTime >= 0.0f &&
                            PF(p, 0xA58, f32) < 0.0f) {
                     f32 scale =
                         (f32)(lbl_80347BD0 + (f32)(comboMode - 2));
-                    s32 effect = StartComboFX((f32*)((u8*)p + 0x54), -1,
+                    s32 effect = StartComboFX(p->col_pos, -1,
                                               PF(p, 4, s32));
                     PF(Effects + effect * 240, 0x64, u32) = 552;
                     SfxSetDamage(PF(p, 0x104, f32) * scale,
