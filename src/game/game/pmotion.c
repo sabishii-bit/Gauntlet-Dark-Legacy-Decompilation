@@ -2436,9 +2436,9 @@ store_motion_state:
                     s32 object = MBOX_ReallyFindObject(
                         strings + 84, sPowerupsHandle,
                         sPowerupsHandle, 1);
-                    s32* found = AtreeFindMbidxNode(PF(p, 0x790, void*),
-                                                    object);
-                    if (found != NULL) {
+                    s32* found;
+                    if ((found = AtreeFindMbidxNode(PF(p, 0x790, void*),
+                                                    object)) != NULL) {
                         SfxSetParent(effect, (void*)*found);
                     }
                     p->power_target -= p->coll_score;
@@ -2525,8 +2525,7 @@ store_motion_state:
                 u32 damageFlags = PF(p, 0x11C, u32);
                 f32 hitRange;
 
-                target = PF(p, 0x8A8, u8*);
-                if (target == NULL && ctl->values[8] == 0.0f) {
+                if (PF(p, 0x8A8, u8*) == NULL && ctl->values[8] == 0.0f) {
                     hit[0] = (f32)(targetDir[0] *
                                    (lbl_80347C28 * PF(p, 0x850, f32)) +
                                    oldpos[0]);
@@ -2540,6 +2539,7 @@ store_motion_state:
                                          NULL, radius, height);
                 }
 
+                target = PF(p, 0x8A8, u8*);
                 targetDistance = PlayerGetTarget(
                     p, to, targetDir, attackDir, &item, &target);
                 critterIndex = -1;
@@ -2767,10 +2767,11 @@ player_motion_phase_exit:
                 } else {
                     newYaw = heading;
                 }
-                if (motionType == 34 || motionType == 35) {
-                    newYaw = heading;
+                if ((u32)(motionState - 34) <= 1) {
+                    PF(p, 0x894, f32) = heading;
+                } else {
+                    PF(p, 0x894, f32) = newYaw;
                 }
-                PF(p, 0x894, f32) = newYaw;
             }
 
             deltaYaw = PF(p, 0xC8, f32) - newYaw;
