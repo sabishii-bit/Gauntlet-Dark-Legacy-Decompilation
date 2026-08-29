@@ -2930,7 +2930,7 @@ player_motion_phase_exit:
                 break;
 
             case 0:
-                if (p->anim_208 < 89 && p->anim_208 >= 88 &&
+                if (p->anim_208 < 89 && !(p->anim_208 < 88) &&
                     (f64)comboTime < lbl_80347C88 &&
                     PF(p, 0x6B8, Player*) != NULL &&
                     (PF(PF(p, 0x6B8, Player*), 0x964, s16) & 0x20) == 0) {
