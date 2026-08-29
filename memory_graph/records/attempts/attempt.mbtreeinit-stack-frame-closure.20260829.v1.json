@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "STACK_LAYOUT exact closure of the sole 8-byte excess frame: explicit register storage on inline locals; caller-variable elimination; macro and direct-body expansion; two-inline/one-direct hybrids; matrix-as-formal and node-as-formal helper signatures; nested one-local/zero-local helpers; compiler-supported inline_depth 2 and 3",
+  "attributes": {
+    "anchors": "src/game/mb/mb_tree.c at git:7a4d0b785815323170095899f5f56f4fa781fdfe; target 0x800BA820 size 0x4D8; reproduce with ninja build/GUNE5D/src/game/mb/mb_tree.o and python tools/gdl/fndiff.py game/mb/mb_tree MBTreeInit --count/--ops/--clean",
+    "baseline_and_best": "target/current 310/310 instructions, fuzzy 99.98387%, real 10, target/current frame 40/48 bytes; opcode streams, relocations, calls, branches, and r29-r31 save set otherwise identical",
+    "conclusion": "Do not retry these source-shape axes without a genuinely new way to preserve all three inline register-interference graphs while coalescing one 8-byte nominal inline-local allocation.",
+    "negative_forms": "register qualifiers and removal of the one-use node3 variable were identical to baseline; macro form was 313 instructions; direct three-block form was 311 instructions/frame 24; hybrid forms were 311 instructions with 283-293 real lines; parameter forms were 307 instructions with 517 real lines; nested helper form was 283 instructions with 521 real lines",
+    "observations": "Each MBTreeCreateInitializedNode inline expansion with matrix and node locals contributes 8 bytes of nominal frame. Replacing exactly one of three expansions with a direct block reaches the target 40-byte frame, but adds one mr and triggers a register-color cascade. Formal-parameter forms also reach 40 bytes but sink the identity-matrix address load and compile to 307 instructions. Nested helpers remain out of line even with inline_depth 2 or 3.",
+    "residual": "five paired frame operands only: stwu -40/-48, stmw r29 at 28/36, lmw r29 at 28/36, LR restore at 44/52, and frame teardown 40/48",
+    "verification": "restored source diff empty; owning object builds; all 24 siblings and all 432 data bytes remain 100%; full ninja links and reports build/GUNE5D/main.dol OK"
+  },
+  "function": "function:MBTreeInit",
+  "id": "attempt.mbtreeinit-stack-frame-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "STACK_LAYOUT",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
