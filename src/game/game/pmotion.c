@@ -827,13 +827,12 @@ void PlayerMotion_SetAnimState(Player* p) {
  */
 static f32 PlayerMotion_WrapAngle(f32 angle) {
     f64 a = (f64)angle;
-    f64 wrapped = a;
     if (a > lbl_80347B50) {
-        wrapped = a - lbl_80347B60;
+        a = a - lbl_80347B60;
     } else if (a <= lbl_80347B68) {
-        wrapped = lbl_80347B60 + a;
+        a = lbl_80347B60 + a;
     }
-    return (f32)wrapped;
+    return (f32)a;
 }
 
 static s32 PlayerMotion_FpClassify(f32 value) {
@@ -2019,7 +2018,11 @@ store_motion_state:
                 }
                 break;
             case 31:
-                p->anim_20C = reaction == 3 ? 129 : 127;
+                if (reaction == 3) {
+                    p->anim_20C = 129;
+                } else {
+                    p->anim_20C = 127;
+                }
                 break;
             case 32:
                 p->anim_20C = 122;
@@ -2060,13 +2063,13 @@ store_motion_state:
                     if (!(lbl_80344894 < 0)) {
                         MBTreeSetAmbientAdd(
                             *((void**)(Effects + 0x14) +
-                              *(volatile s32*)&lbl_80344894 * 60),
+                              lbl_80344894 * 60),
                             0x1FF, 1);
                         SfxSetParent(lbl_80344894,
                                      PF(p, 0x6D0, void*));
                         PF(p, 0x730, void*) =
                             *((void**)(Effects + 0x14) +
-                              *(volatile s32*)&lbl_80344894 * 60);
+                              lbl_80344894 * 60);
                     }
                     break;
                 default: {
