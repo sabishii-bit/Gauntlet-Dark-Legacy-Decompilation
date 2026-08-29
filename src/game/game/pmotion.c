@@ -1040,11 +1040,9 @@ void PlayerMotion(Player* p) {
                      (gClockFrameStep * (p->light_range * speedScale));
         dpos[0] += moveAmount * sin(facing);
         dpos[2] += moveAmount * cos(facing);
-        if (dpos[0] < -moveLimit) {
-            dpos[0] = -moveLimit;
-        } else if (dpos[0] > moveLimit) {
-            dpos[0] = moveLimit;
-        }
+        dpos[0] = dpos[0] < -moveLimit
+                      ? -moveLimit
+                      : (dpos[0] > moveLimit ? moveLimit : dpos[0]);
         dpos[2] = dpos[2] < -moveLimit
                       ? -moveLimit
                       : (dpos[2] > moveLimit ? moveLimit : dpos[2]);
@@ -1177,8 +1175,9 @@ void PlayerMotion(Player* p) {
                                      radius, height);
     if (lbl_80344B38 != 0) {
         hit[0] = oldpos[0];
-        hit[1] = SV(p)->floor_y;
+        hit[1] = oldpos[1];
         hit[2] = oldpos[2];
+        hit[1] = PF(p, 0x8B4, f32);
         PlayerMotion_FloorFX(p, (WorldObj*)lbl_80344B38, oldpos, hit);
         PF(p, 0x8CC, f32) = lbl_80344B34;
     } else {
