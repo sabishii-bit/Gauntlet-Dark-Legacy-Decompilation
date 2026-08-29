@@ -223,7 +223,8 @@ typedef struct Player {
     /* 0x0A2C */ s32 weakening_elapsed; /* elapsed ticks in weakening cycle [player.c] */
     /* 0x0A30 */ s32 weakening_period; /* weakening cycle duration [player.c] */
     /* 0x0A34 */ s32 milestone[5];   /* recently visited milestone nodes [items.c] */
-    /* 0x0A48 */ u8  pad_0A48[0x18];
+    /* 0x0A48 */ u8  pad_0A48[0x14];
+    /* 0x0A5C */ s32 camera_limit;   /* camera dpos-limit result [pmotion.c] */
     /* 0x0A60 */ s32 display_mode;   /* HUD display mode (get_display_mode) [player.c] */
     /* 0x0A64 */ u8  pad_0A64[0x1C];
     /* 0x0A80 */ char name[8];       /* player name, underscore shown as space [player.c] */

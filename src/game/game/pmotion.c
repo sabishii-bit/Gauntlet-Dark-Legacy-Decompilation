@@ -1215,7 +1215,7 @@ void PlayerMotion(Player* p) {
             hitKind = 1;
         }
         if (wallResult != 0) {
-            PF(p, 0xA5C, s32) = -PF(p, 0xA5C, s32);
+            p->camera_limit = -PF(p, 0xA5C, s32);
         }
     } else {
         PF(p, 0xA5C, s32) = 0;
