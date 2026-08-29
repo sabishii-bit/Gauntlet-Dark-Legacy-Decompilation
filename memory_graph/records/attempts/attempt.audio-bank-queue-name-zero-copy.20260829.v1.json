@@ -1,0 +1,17 @@
+{
+  "attempted_axis": "exact-closure of the entry zero-copy residual via combined for initialization, chained zero assignment, partArg expression-web staging, initialization across the suspend guard, explicit register storage, and fallthrough nested-scope declaration initialization",
+  "attributes": {
+    "anchors": "src/game/audio/audio.c::AudioBankQueueName; python tools/gdl/fnasm.py game/audio/audio AudioBankQueueName; python tools/gdl/fndiff.py game/audio/audio AudioBankQueueName --clean",
+    "final_state": "target/current 75/75 instructions, fuzzy 99.20%, real 2, 0x30-byte frame, saves r26-r31; target 0x800170FC residual is addi r29,r28,0 while MWCC emits li r29,0",
+    "measurements": "combined for init, partArg staging, and register-storage shapes were identical at real 2; chained assignment remained real 2 with reversed literal ordering; moving index initialization before the suspend guard worsened to real 6; nested-scope declaration initialization worsened to 74 instructions and real 33; all probes reverted",
+    "policy": "capped under the register/schedule iteration limit; do not retry these zero-initializer, staging-local, storage-hint, guard-motion, or nested-scope axes without a genuinely new source-level idea",
+    "semantic_audit": "semantics, ABI, two lookup loops, two strncmp calls, and AudioLoadPart tail call already align; only the one opcode differs"
+  },
+  "function": "function:AudioBankQueueName",
+  "id": "attempt.audio-bank-queue-name-zero-copy.20260829.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
