@@ -2848,12 +2848,12 @@ player_motion_phase_exit:
                             (f32*)((u8*)p + 0xC4));
 
             {
-                if (PF(p, 0x8CC, f32) > PF(p, 0x8B4, f32)) {
+                if (p->floor_cur > p->floor_base) {
                     PF(p->mbnode, 0x30, f32) = *(f32*)(motion + 0x30);
                     PF(p->mbnode, 0x34, f32) = *(f32*)(motion + 0x34);
                     PF(p->mbnode, 0x38, f32) = *(f32*)(motion + 0x38);
                     PF(p->mbnode, 0x34, f32) =
-                        (f32)(lbl_80347BE0 + PF(p, 0x8CC, f32));
+                        (f32)(lbl_80347BE0 + p->floor_cur);
                     MBTreeSetAltTex(p->mbnode, -2,
                                     lbl_80344BE8, 1);
                     MBTreeClearFlags(p->mbnode, 2, 0);
@@ -2862,7 +2862,7 @@ player_motion_phase_exit:
                     PF(p->mbnode, 0x34, f32) = *(f32*)(motion + 0x34);
                     PF(p->mbnode, 0x38, f32) = *(f32*)(motion + 0x38);
                     PF(p->mbnode, 0x34, f32) =
-                        (f32)(lbl_80347BE0 + PF(p, 0x8B4, f32));
+                        (f32)(lbl_80347BE0 + p->floor_base);
                     MBTreeSetAltTex(p->mbnode, -1, 0, 1);
                     MBTreeClearFlags(p->mbnode, 2, 0);
                 }
@@ -2881,7 +2881,7 @@ player_motion_phase_exit:
             if ((p->grab_flags & 3) != 0) {
                 s32 kind;
                 s32 variant;
-                if (PF(p, 0x8CC, f32) > PF(p, 0x8B4, f32)) {
+                if (p->floor_cur > p->floor_base) {
                     kind = 4;
                 } else if ((p->shield_flags & 0x10000) != 0) {
                     kind = 3;
