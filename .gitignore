@@ -1,4 +1,4 @@
-# IDE folders
+﻿# IDE folders
 .idea/
 .vs/
 
@@ -34,7 +34,6 @@ compile_commands.json
 
 # Miscellaneous
 /*.txt
-/AGENTS.md
 /CLAUDE.md
 /.worktreeinclude
 .claude
@@ -42,3 +41,4 @@ decomp-toolkit
 tools/mwcc_compiler
 gdl-build
 misc/
+
