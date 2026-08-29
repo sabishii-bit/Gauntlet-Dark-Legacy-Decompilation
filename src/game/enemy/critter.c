@@ -36,7 +36,8 @@ typedef struct CritterHitNode {
     u8 _pad08[4];
     f32 matrix[12];
     f32 position[3];
-    u8 _pad48[0x0C];
+    u8 _pad48[8];
+    s32 state;
     f32 activeUntil;
     f32 activeFrom;
 } CritterHitNode;
@@ -2973,8 +2974,7 @@ credited_damage_done:
         if (flags & 0x00100320) {
             c->unkABC = 2;
         } else if (c->unkAB8 >= 0) {
-            hitNode = (u8 *)c + 0x4F8 + c->unkAB8 * 0x5C;
-            *(s32 *)(hitNode + 0x50) = 2;
+            ((CritterHitNode *)c->hitnodes)[c->unkAB8].state = 2;
         }
     }
     if (c->particle != NULL) {
