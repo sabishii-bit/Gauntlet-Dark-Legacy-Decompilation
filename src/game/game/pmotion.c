@@ -1172,15 +1172,15 @@ void PlayerMotion(Player* p) {
     } else {
         PF(p, 0x8CC, f32) = PF(p, 0x8B4, f32);
     }
-    if (PF(p, 0x8C4, WorldObj*) != NULL) {
-        PlayerMotion_FloorFX(p, PF(p, 0x8C4, WorldObj*), oldpos,
+    if (SV(p)->floor_obj != 0) {
+        PlayerMotion_FloorFX(p, (WorldObj*)SV(p)->floor_obj, oldpos,
                              (f32*)(ctxbase + 72));
     }
     if ((floorResult >= 1) ||
-        (floorResult >= 0 && PF(p, 0x8C4, WorldObj*) != NULL &&
-         (PF(p, 0x8C4, WorldObj*)->flags & 0x1000) != 0) ||
-        (floorResult == -2 && PF(p, 0x8C4, WorldObj*) != NULL &&
-         (p->obj_flags & 0x8000) == 0)) {
+        (floorResult >= 0 && (PF(p, 0x8C4, WorldObj*) == NULL ||
+         (PF(p, 0x8C4, WorldObj*)->flags & 0x1000) == 0)) ||
+        (floorResult == -2 && (PF(p, 0x8C4, u32) == 0 ||
+         (p->obj_flags & 0x8000) != 0))) {
         f32 rise = PF(p, 0x8B4, f32) - *(f32*)(motion + 0x34);
         f32 minimumRise = (f32)(lbl_80347BD8 * gClockFrameStep);
         if (rise < minimumRise) {
