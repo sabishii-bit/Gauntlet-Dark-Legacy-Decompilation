@@ -933,15 +933,24 @@ void DebugCamInit(void) {
  * default position (gDefaultPlayerPosition) is used.  bmax/bmin, when non-NULL, receive
  * the bounding box (meaningful only for mode>0).  [callers: bosscam, tower]
  */
+#pragma opt_propagation off
 void GetPlayerAvgPos(f32* avg, f32* outMin, f32* outMax, s32 mode) {
-    f32 box[6];        /* box[0..2] = running max, box[3..5] = running min */
+    s32 i;
     f32 count;
-    s32 i, k;
+    s32 k;
+    f32 boxMin[3];
+    f32 boxMax[3];
 
-    avg[0] = 0.0f; avg[1] = 0.0f; avg[2] = 0.0f;
     count = 0.0f;
-    box[0] = -1e20f; box[1] = -1e20f; box[2] = -1e20f;  /* lbl_803474B0 max */
-    box[3] =  1e20f; box[4] =  1e20f; box[5] =  1e20f;  /* lbl_803474B4 min */
+    avg[0] = count;
+    avg[1] = count;
+    avg[2] = count;
+    boxMax[0] = -1e20f;
+    boxMax[1] = -1e20f;
+    boxMax[2] = -1e20f;
+    boxMin[0] = 1e20f;
+    boxMin[1] = 1e20f;
+    boxMin[2] = 1e20f;
 
     for (i = 0; i < 4; i++) {
         NcPlayer* pl = &gPlayers[i];
@@ -954,48 +963,58 @@ void GetPlayerAvgPos(f32* avg, f32* outMin, f32* outMax, s32 mode) {
             } else {
                 for (k = 0; k < 3; k++) {
                     f32 v = src[k];
-                    box[3 + k] = (box[3 + k] < v) ? box[3 + k] : v;  /* min */
-                    box[k]     = (box[k] > v)     ? box[k]     : v;  /* max */
+                    boxMin[k] = (boxMin[k] < v) ? boxMin[k] : v;
+                    boxMax[k] = (boxMax[k] > v) ? boxMax[k] : v;
                 }
             }
-            count += 1.0;      /* double literal: count promoted, frsp back */
+            count += 1.0;
         }
     }
 
-    if (count == 0.0) {        /* no valid players: use the default position */
+    if (count == 0.0) {
         avg[0] = gDefaultPlayerPosition[0];
         avg[1] = gDefaultPlayerPosition[1];
         avg[2] = gDefaultPlayerPosition[2];
     } else {
-        f32 s = 1.0 / count;   /* double reciprocal */
+        f32 scale = 1.0 / count;
         if (mode == 0) {
-            avg[0] = avg[0] * s;
-            avg[1] = avg[1] * s;
-            avg[2] = avg[2] * s;
+            avg[0] *= scale;
+            avg[1] *= scale;
+            avg[2] *= scale;
         } else {
             for (k = 0; k < 3; k++) {
-                avg[k] = 0.5 * (box[3 + k] + box[k]);   /* double 0.5 midpoint */
+                avg[k] = 0.5 * (boxMin[k] + boxMax[k]);
             }
         }
     }
 
     if (outMin != 0) {
-        outMin[0] = box[3]; outMin[1] = box[4]; outMin[2] = box[5];
+        outMin[0] = boxMin[0];
+        outMin[1] = boxMin[1];
+        outMin[2] = boxMin[2];
     }
     if (outMax != 0) {
-        outMax[0] = box[0]; outMax[1] = box[1]; outMax[2] = box[2];
+        outMax[0] = boxMax[0];
+        outMax[1] = boxMax[1];
+        outMax[2] = boxMax[2];
     }
 
     if (mode == 2 && gCurLevel != 0 && *(void**)((u8*)gCurLevel + 0x60) != 0) {
         for (k = 0; k < 3; k++) {
-            f32* cam = *(f32**)((u8*)gCurLevel + 0x60);   /* level->camera */
-            f32 v = avg[k];
-            if (v < cam[3 + k]) v = cam[3 + k];           /* +0x0C low */
-            else if (v > cam[6 + k]) v = cam[6 + k];      /* +0x18 high */
+            f32* camera;
+            f32* axis;
+            f32 v;
+
+            camera = *(f32**)((u8*)gCurLevel + 0x60);
+            axis = camera + k;
+            v = avg[k];
+            v = (v < axis[3]) ? axis[3] :
+                ((v > axis[6]) ? axis[6] : v);
             avg[k] = v;
         }
     }
 }
+#pragma opt_propagation reset
 
 /*
  * CamGetPlayerAvgPos -- camera-space player-center used as the camera look-at
