@@ -1928,13 +1928,22 @@ store_motion_state:
                     p->anim_20C = 32;
                 } else if ((p->coll_flags & 4) != 0 &&
                            !closeTarget && movement != 0.0f) {
+                    PF(p, 0x904, f32) = heading - controlYaw;
                     PF(p, 0x904, f32) =
-                        PlayerMotion_WrapAngle(heading - controlYaw);
+                        PlayerMotion_WrapAngle(PF(p, 0x904, f32));
                     p->anim_20C = 62;
                 } else if ((p->coll_flags & 1) != 0) {
-                    p->anim_20C = closeTarget ? 79 : 32;
+                    if (closeTarget) {
+                        p->anim_20C = 79;
+                    } else {
+                        p->anim_20C = 32;
+                    }
                 } else if (forceState != 0) {
-                    p->anim_20C = closeTarget ? 79 : 32;
+                    if (closeTarget) {
+                        p->anim_20C = 79;
+                    } else {
+                        p->anim_20C = 32;
+                    }
                 } else {
                     p->anim_20C = 99;
                 }
@@ -1944,13 +1953,22 @@ store_motion_state:
                     p->anim_20C = forcedAnim;
                 } else if ((p->coll_flags & 4) != 0 &&
                            !closeTarget && movement != 0.0f) {
+                    PF(p, 0x904, f32) = heading - controlYaw;
                     PF(p, 0x904, f32) =
-                        PlayerMotion_WrapAngle(heading - controlYaw);
+                        PlayerMotion_WrapAngle(PF(p, 0x904, f32));
                     p->anim_20C = 62;
                 } else if ((p->coll_flags & 1) != 0) {
-                    p->anim_20C = closeTarget ? 82 : 39;
+                    if (closeTarget) {
+                        p->anim_20C = 82;
+                    } else {
+                        p->anim_20C = 39;
+                    }
                 } else if (forceState != 0) {
-                    p->anim_20C = closeTarget ? 82 : 39;
+                    if (closeTarget) {
+                        p->anim_20C = 82;
+                    } else {
+                        p->anim_20C = 39;
+                    }
                 } else {
                     p->anim_20C = 92;
                 }
