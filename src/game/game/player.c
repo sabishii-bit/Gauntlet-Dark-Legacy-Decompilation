@@ -5110,7 +5110,13 @@ void PlayerProcessPowerups(void* vp) {
     }
 
     {
-        s32 had_object = PF(p, 0x72C, void*) != NULL;
+        s32 had_object;
+
+        if (PF(p, 0x72C, void*) != NULL) {
+            had_object = 1;
+        } else {
+            had_object = 0;
+        }
 
         if (p->flags & 0x8000) {
             const char* name = name_base + 1628;
@@ -5458,10 +5464,12 @@ void PlayerProcessPowerups(void* vp) {
     } else if (p->level >= 99) {
         MBTreeSetScale(lbl_80347778, lbl_80347778, lbl_80347778, p->node);
     } else {
+        f32 scale;
         MBTreeClearFlags(p->node, 8, 0);
-        *(f32*)((u8*)p->node + 0x40) = lbl_80347790;
-        *(f32*)((u8*)p->node + 0x44) = lbl_80347790;
-        *(f32*)((u8*)p->node + 0x48) = lbl_80347790;
+        scale = lbl_80347790;
+        *(f32*)((u8*)p->node + 0x40) = scale;
+        *(f32*)((u8*)p->node + 0x44) = scale;
+        *(f32*)((u8*)p->node + 0x48) = scale;
         if (old_flags & 0x100) {
             fn_8009D560(p->index);
         }
@@ -5470,11 +5478,12 @@ void PlayerProcessPowerups(void* vp) {
         fn_8009D4F0(p->index);
     }
     if (p->level >= 99) {
-        void* weapon = PF(p, 0x6D4, void*);
-        MBTreeSetFlags(weapon, 8, 0);
-        *(f32*)((u8*)weapon + 0x40) = lbl_80347770;
-        *(f32*)((u8*)weapon + 0x44) = lbl_80347770;
-        *(f32*)((u8*)weapon + 0x48) = lbl_80347770;
+        f32 scale;
+        MBTreeSetFlags(PF(p, 0x6D4, void*), 8, 0);
+        scale = lbl_80347770;
+        *(f32*)((u8*)PF(p, 0x6D4, void*) + 0x40) = scale;
+        *(f32*)((u8*)PF(p, 0x6D4, void*) + 0x44) = scale;
+        *(f32*)((u8*)PF(p, 0x6D4, void*) + 0x48) = scale;
     }
 
     p->field_12C = p->field_128;
@@ -5482,10 +5491,10 @@ void PlayerProcessPowerups(void* vp) {
     if ((p->shield_flags & 0x80000) == 0) {
         PF(p, 0x95E, s16) = 0;
     }
-    if (p->flags & 8) {
-        PF(p, 0x960, s16) = 1;
-    } else {
+    if ((p->flags & 8) == 0) {
         PF(p, 0x960, s16) = 0;
+    } else {
+        PF(p, 0x960, s16) = 1;
     }
 
     p->stat_damage = p->stat_damage < lbl_80343D7C[0] ? lbl_80343D7C[0] :
