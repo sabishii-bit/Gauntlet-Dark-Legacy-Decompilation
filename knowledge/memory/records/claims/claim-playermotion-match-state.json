@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "id": "claim.playermotion-match-state.20260829.v1",
+  "kind": "claim",
+  "subject": "function:PlayerMotion",
+  "predicate": "fuzzy_match_percent",
+  "value": "97.13",
+  "epistemic_state": "observed",
+  "attributes": {
+    "instructions": "4776 ours / 4775 target (count was exactly 4775/4775 at git:67da3ca0)",
+    "measured_at_commit": "git:4bc7b3c9",
+    "measurement_source": "objdiff fuzzy_match_percent from build/GUNE5D/report.json",
+    "residual_classes": [
+      "one extra saved GPR (stmw r16 vs r17; frame 648 vs 632; birth region unlocated)",
+      "wrap-band else-fmr family (caller-liveness driven, 3 sites)",
+      "lfs/lwz argument-load scheduler order swaps (~6 pairs)",
+      "head-block init interleave (decl-reorder axis tested negative twice; closed)"
+    ]
+  },
+  "valid_from": "2026-08-29"
+}

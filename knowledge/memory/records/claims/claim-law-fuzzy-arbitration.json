@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "id": "claim.law.fuzzy-metric-arbitration.20260829.v1",
+  "kind": "claim",
+  "subject": "project:gdl",
+  "predicate": "workflow_law",
+  "value": "On functions larger than roughly 4000 instructions, arbitrate every ambiguous matching probe with the objdiff fuzzy_match_percent from build/GUNE5D/report.json, never with fndiff real-line counts. Register-color and label cascades move the real count by hundreds of lines in either direction while fuzzy moves the opposite way; multiple PlayerMotion gains (86.19% to 97.13% cumulative) were built on probes whose real count went up. Probe signs are also alignment-sensitive: a parked probe measured fuzzy-negative can turn positive after surrounding regions improve, so re-A/B parked probes after nearby fixes.",
+  "epistemic_state": "verified",
+  "attributes": {
+    "scope": "large-function matching workflow",
+    "provenance_sessions": "2026-08-28 and 2026-08-29 PlayerMotion drives",
+    "examples": "0x904 two-phase store-reload split: fuzzy-negative at 92%, fuzzy-positive at 94.8% with identical code"
+  },
+  "valid_from": "2026-08-29"
+}

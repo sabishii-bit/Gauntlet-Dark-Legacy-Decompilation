@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "id": "claim.law.member-form-kills-addr-pre.20260829.v1",
+  "kind": "claim",
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "predicate": "codegen_law",
+  "value": "Under -O4 with peephole off, three or more same-spelled `*(T*)((u8*)p + OFF)` accesses whose span crosses calls make MWCC materialize the address `p + OFF` into a saved GPR (address-PRE web). Respelling the accesses as a named struct member (`p->field`) lowers them to plain base+displacement loads/stores and removes the web. Applied at scale (~17 named Player fields) this removed every `addi rS,r31,disp` saved-register web in PlayerMotion and drove fuzzy 95.08% to 97.13% while shrinking stmw r15 to r16 and the frame 656 to 648.",
+  "epistemic_state": "verified",
+  "attributes": {
+    "scope": "cflags_demo -O4 no-peephole game code; measured on src/game/game/pmotion.c",
+    "commit_range": "git:b9ce5dd4..git:4bc7b3c9",
+    "caveat": "Where the target reloads a value per use across a call, member spelling can over-CSE to one load (atree 0x790 case); check the target's reload count per site."
+  },
+  "valid_from": "2026-08-29"
+}

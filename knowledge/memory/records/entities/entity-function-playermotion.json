@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "id": "entity.function.playermotion.20260829.v1",
+  "kind": "entity",
+  "entity_type": "function",
+  "key": "function:PlayerMotion",
+  "name": "PlayerMotion",
+  "state": "active",
+  "attributes": {
+    "gamecube_address": "0x80081504",
+    "size_bytes": "0x4A9C",
+    "translation_unit": "src/game/game/pmotion.c",
+    "unit_classification": "NonMatching",
+    "role": "per-frame player movement/collision/grab/effects driver"
+  },
+  "valid_from": "2026-08-29"
+}

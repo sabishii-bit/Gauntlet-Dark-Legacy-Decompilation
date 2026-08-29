@@ -22,7 +22,9 @@ deletes a duplicate.
 
 ```sh
 python tools/gdl/gdlmem.py build
+python tools/gdl/gdlmem.py ensure
 python tools/gdl/gdlmem.py stats
+python tools/gdl/gdlmem.py validate
 python tools/gdl/gdlmem.py audit
 python tools/gdl/gdlmem.py search "register web topology"
 python tools/gdl/gdlmem.py context PlayerMotion
