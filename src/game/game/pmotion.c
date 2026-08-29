@@ -2861,19 +2861,19 @@ player_motion_phase_exit:
             comboTime = PF(p, 0x98, f32);
 
             if (p->anim_208 < 90 && !(p->anim_208 < 88)) {
-                if (PF(p, 0x6BC, Player*) != NULL) {
-                    PF(p, 0x6B8, Player*) = PF(p, 0x6BC, Player*);
-                    PF(PF(p, 0x6B8, Player*), 0x964, s16) |= 0x10;
-                    PF(PF(p, 0x6B8, Player*), 0x6B8, Player*) = p;
-                    PF(p, 0x6BC, Player*) = NULL;
+                if (p->grab_pending != NULL) {
+                    p->grab_partner = p->grab_pending;
+                    PF(p->grab_partner, 0x964, s16) |= 0x10;
+                    p->grab_partner->grab_partner = p;
+                    p->grab_pending = NULL;
                     p->power_target -= p->coll_score;
                     p->coll_score = 0.0f;
-                    grabbed = PF(p, 0x6B8, Player*);
+                    grabbed = p->grab_partner;
                 } else {
-                    PF(p, 0x6BC, Player*) = NULL;
+                    p->grab_pending = NULL;
                 }
             } else {
-                PF(p, 0x6BC, Player*) = NULL;
+                p->grab_pending = NULL;
             }
 
             switch (grabKind) {
