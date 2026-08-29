@@ -1798,8 +1798,9 @@ available:
             }
         }
         {
-            ((DSTim4*)(page + (player << 8) + *(s32*)(pl + 2664) * 4))->v =
-                30;
+            DSTim4* timerSlot =
+                (DSTim4*)(page + (player << 8) + *(s32*)(pl + 2664) * 4);
+            timerSlot->v = 30;
         }
         while (*(s32*)(pl + 7876) <
                    *(s32*)(lbl_80344C14 + *(s32*)(pl + 2664) * 80 + 72) ||
@@ -1866,7 +1867,7 @@ next_forward_item:
                 if (v0 >= 3 && (*cntp - 1) - (top + 6) > 0) {
                     *topp = top + 1;
                 }
-            } else if (d < v0 && v0 <= 3 && top > 0) {
+            } else if (v0 > d && v0 <= 3 && top > 0) {
                 *topp = top - 1;
             }
         }
@@ -1875,9 +1876,11 @@ next_forward_item:
         speed = -1;
     }
     *scrollp = write_shop_menu(player, speed);
-    DrawTextKeepScale(lbl_80348364,
-                      -*(s32*)(tbl + (player << 2) + 112), 8, 6, 0,
-                      lbl_8034840C);
+    {
+        s32* drawTextBase = (s32*)(tbl + (player << 2));
+        DrawTextKeepScale(lbl_80348364, -drawTextBase[28], 8, 6, 0,
+                          lbl_8034840C);
+    }
     return exit;
 }
 
