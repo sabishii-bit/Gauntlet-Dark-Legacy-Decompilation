@@ -3061,7 +3061,6 @@ player_motion_phase_exit:
                     p->timer_1FA = 240;
                     break;
                 }
-                case 89:
                 default:
                     if (p->grab_partner != NULL) {
                         if ((PF(p->grab_partner, 0x964, s16) & 0x10) != 0) {
