@@ -1081,15 +1081,19 @@ extern f32 lbl_80343B94;
 extern f32 lbl_80345C2C;
 extern char lbl_80111838[];
 
+#pragma opt_propagation off
 static void BossCamPlayerCalc(void)
 {
     f32 avg[3];
+    u8 unusedFrameHigh[16];
     f32 tpos[3];
-    f32 d[3];
-    f32 rootslot;
     f32 absd;
+    f32 d[3];
+    volatile f32 rootslot;
+    u8 unusedFrameLow[40];
     f32 range;
     f32 tyaw;
+    f32 rangeDelta;
     f32 tpitch;
     f32 minview;
     f32 pdist;
@@ -1103,10 +1107,9 @@ static void BossCamPlayerCalc(void)
 
     lbl_803444E0 = 0;
     range = (f32)(lbl_80345B90 * *(f32*)((u8*)lbl_803443D0 + 24));
-    *(f32*)((u8*)gGameCamera + 220) = range;
+    ((BossGameCameraView*)gGameCamera)->view_scale = range;
     if (lbl_80343C5C != 0) {
-        *(f32*)((u8*)gGameCamera + 220) =
-            *(f32*)((u8*)gGameCamera + 220) * lbl_80343B84;
+        ((BossGameCameraView*)gGameCamera)->view_scale *= lbl_80343B84;
     }
     GetPlayerAvgPos(avg, 0, 0, 2);
     if (lbl_803447B8 != 0) {
@@ -1117,12 +1120,13 @@ static void BossCamPlayerCalc(void)
     if (tr != NULL) {
         f32 y = (f32)(*(f32*)(tr + 24) - lbl_80345B88);
         if (y > lbl_80345B88) {
-            tyaw = (f32)(y - lbl_80345BB8);
+            t = y - lbl_80345BB8;
         } else if (y <= lbl_80345BC0) {
-            tyaw = (f32)(lbl_80345BB8 + y);
+            t = lbl_80345BB8 + y;
         } else {
-            tyaw = y;
+            t = y;
         }
+        tyaw = (f32)t;
     } else {
         tyaw = lbl_80345BA0;
     }
@@ -1132,6 +1136,7 @@ static void BossCamPlayerCalc(void)
         tpitch = lbl_80345BA0;
     }
     fl = *(u32*)lbl_803443D0 & ~0x300;
+    cam = gGameCamera;
     minview = lbl_80345BA4;
     for (i = 0, off = 0; i < 4; i++, off += 13148) {
         p = gPlayers + off;
@@ -1142,7 +1147,7 @@ static void BossCamPlayerCalc(void)
         tpos[1] = *(f32*)(p + 88) + *(f32*)(p + 2188);
         tpos[2] = *(f32*)(p + 92) + *(f32*)(p + 2192);
         pdist = *(f32*)(p + 2132);
-        MulBodyVecMat4(tpos, lbl_8023E8C0, gGameCamera);
+        MulBodyVecMat4(tpos, lbl_8023E8C0, cam);
         pdist = PointViewDist(lbl_8023E8C0, pdist);
         if (pdist < minview) {
             minview = pdist;
@@ -1161,13 +1166,17 @@ static void BossCamPlayerCalc(void)
         } else if (vd < lbl_80345C10 && r3v < range &&
                    (*(u32*)lbl_803443D0 & 0x200)) {
             fl |= 512;
-            r3v = (f32)(lbl_80345BF8 * (lbl_80345C08 - vd) + r3v);
+            r3v = (f32)(*(volatile const f64*)&lbl_80345BF8 *
+                         (lbl_80345C08 - vd) + r3v);
         } else if (vd > lbl_80345C08) {
             fl |= 256;
-            r3v = (f32)(r3v - lbl_80345BF8 * (vd - lbl_80345C08));
-        } else if (vd > lbl_80345C10 && (*(u32*)lbl_803443D0 & 0x100)) {
+            r3v = (f32)(r3v - *(volatile const f64*)&lbl_80345BF8 *
+                                    (vd - lbl_80345C08));
+        } else if (vd > *(volatile const f64*)&lbl_80345C10 &&
+                   (*(u32*)lbl_803443D0 & 0x100)) {
             fl |= 256;
-            r3v = (f32)(r3v - lbl_80345BF8 * (vd - lbl_80345C10));
+            r3v = (f32)(r3v - *(volatile const f64*)&lbl_80345BF8 *
+                                    (vd - lbl_80345C10));
         }
         *(u32*)lbl_803443D0 = fl;
         if (r3v < *(f32*)((u8*)lbl_803443D0 + 16)) {
@@ -1179,8 +1188,9 @@ static void BossCamPlayerCalc(void)
         }
         range = (f32)t;
     }
+    rangeDelta = range - *(f32*)((u8*)gGameCamera + 244);
     if (lbl_803447B8 != 0) {
-        absd = range - *(f32*)((u8*)gGameCamera + 244);
+        absd = rangeDelta;
         *(u32*)&absd &= 0x7FFFFFFF;
         if ((f64)absd < lbl_80345C38) {
             lbl_803447B8 = 0;
@@ -1197,9 +1207,7 @@ static void BossCamPlayerCalc(void)
         d[0] = *(f32*)((u8*)gGameCamera + 164) - *(f32*)((u8*)lbl_80344EE8 + 148);
         d[1] = *(f32*)((u8*)gGameCamera + 168) - *(f32*)((u8*)lbl_80344EE8 + 152);
         d[2] = *(f32*)((u8*)gGameCamera + 172) - *(f32*)((u8*)lbl_80344EE8 + 156);
-        d2 = d[0] * d[0];
-        d2 = d[1] * d[1] + d2;
-        d2 = d[2] * d[2] + d2;
+        d2 = d[2] * d[2] + (d2 = d[0] * d[0] + d[1] * d[1]);
         if (d2 > lbl_80345BA0) {
             f64 estimate = __frsqrte(d2);
             estimate = lbl_80345BA8 * estimate *
@@ -1237,12 +1245,13 @@ static void BossCamPlayerCalc(void)
             (f32*)((u8*)gGameCamera + 264), 1);
         if ((gControllerButtons & 1) != 0 && (gControllerButtons & 16) != 0) {
             dbgTextPrintfCell(0x00FFFF00, 1, 33, lbl_80111838,
-                              (f32)(lbl_80345BC8 * (lbl_80345BD0 * tyaw)),
+                              lbl_80345BC8 * (lbl_80345BD0 * tyaw),
                               range,
-                              (f32)(lbl_80345BC8 * (lbl_80345BD0 * tpitch)));
+                              lbl_80345BC8 * (lbl_80345BD0 * tpitch));
         }
     }
 }
+#pragma opt_propagation reset
 
 /* Clamp the camera attention/look target + distance via LimitCamVal2 (0x3C4).
  * target points at the desired attention (look-at) position.  If the desired
