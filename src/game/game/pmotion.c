@@ -703,7 +703,7 @@ s32 PlayerCollideItems(Player* p, f32 range, f32 height, f32* from, f32* to,
 s32 try_location(u8* motion, Player* p, f32* position, f32* resultPosition,
                  s32* resultItem, s32 findFloor) {
     f32 screen[2];
-    u8 unused[8];
+    u8 unused[72];
     f32 collidePosition[3];
     f32 hitPosition[3];
     f32 delta;
@@ -861,21 +861,23 @@ void PlayerMotion(Player* p) {
     s32 index = p->index;
     ControlState* ctl = &lbl_80240E30[p->index];
     u8* motion = (u8*)p + 0x14;
-    u8 unused[64];
+    u8 unused[8];
     f32 oldpos[3];
     f32 dpos[3];
+    u8 padgap[12];
     f32 to[3];
     f32 hit[3];
     f32 targetDir[3];
     f32 attackDir[3];
     f32 effectMatrix[16];
+    s32 item = -1;
+    u8* target = NULL;
     f32 reflection[3];
     f32 effectVelocity[3];
     f32 bossColor[3];
     f32 localVector[3];
     f32 missileVelocity[3];
-    s32 item = -1;
-    u8* target = NULL;
+    u8 unused2[68];
     s32 anim = p->anim_208;
     s32 motionType;
     s32 directionKind;
@@ -3301,7 +3303,7 @@ u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
 #pragma opt_common_subs reset
 #pragma opt_propagation reset
 void PlayerMotion_FindClosestPlayer(Player* p, f32* dir, u32 flags, f32 dmg) {
-    u8 unused[8];
+    u8 unused[72];
     f32 dvec[3];
     f32 best = 2.0 + (f64)PF(p, 0x850, f32);
     s32 i;
@@ -3383,7 +3385,7 @@ typedef struct EnemyDamageView {
  * hit result code, or -1. */
 s32 PlayerMotion_DamageTarget(Player* p, s32 targetId, s32 a3, s32 a4, s32 a5,
                               f32 dmg, f32 priority) {
-    u8 unused[8];
+    u8 unused[72];
     f32 dir[3];
     u8* critter;
     EnemyDamageView* enemy;
