@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "terminal consolidation of the legacy matching playbook, 2026-08-29; each law was verified in committed matching work",
+    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py"
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.reload-vs-cache-liveness.20260829.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-29",
+  "value": "Retail reloads member pointers per use across calls at most late sites (fresh `p->field` spellings each time); block-local pointer caches are correct only where the target holds the value in a saved register through the block. Record-array access goes through a pointer local (`u8* rec = Base + idx * stride;`) so +disp folds into lwzu/lwzx forms. Element addresses of a small vector read twice across a call will address-PRE into saved registers unless spelled as named members."
+}

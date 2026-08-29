@@ -8,7 +8,7 @@
   "attributes": {
     "final_state": "71/71 insns, fuzzy 87.89, real 46, frame 0x30, saves r26-r31; residual is an invariant compiler owner/schedule wall",
     "policy": "hard-capped under the iteration-limits policy; do not reopen without a genuinely new semantic identity spanning the target register-reuse boundary",
-    "provenance": ".claude/memory/session-ledger.md row (mbpsys_debugnode worker), pre-rewrite hash 899c67bb"
+    "provenance": "terminal legacy-ledger import, 2026-08-29 (mbpsys_debugnode worker row)"
   },
   "valid_from": "2026-08-29"
 }

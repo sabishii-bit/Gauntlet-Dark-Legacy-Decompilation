@@ -1,0 +1,15 @@
+{
+  "attempted_axis": "bounded source-shape matrix to the project cap; residual survived the recorded flag/pragma/compiler sweeps",
+  "attributes": {
+    "parked_note": "55/55 fuzzy92.00 real18 leaf. Named FP load, status initialization and",
+    "provenance": "terminal import of the legacy parked cap list, 2026-08-29",
+    "unpark_condition": "a genuinely new source-level axis, allocator lever, or compiler evidence; two identical A/B results re-park it"
+  },
+  "function": "function:calc_wizard_pos",
+  "id": "attempt.parked.calc_wizard_pos.20260829.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "residual_class": "REGISTER_ONLY/SCHEDULE (allocator or scheduler residual)",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}

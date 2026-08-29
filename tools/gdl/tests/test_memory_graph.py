@@ -26,7 +26,7 @@ class MemoryGraphTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
         (self.root / "config/GUNE5D").mkdir(parents=True)
-        (self.root / ".claude/memory/xbox_symbols").mkdir(parents=True)
+        (self.root / "memory_graph/legacy").mkdir(parents=True)
         (self.root / "research/xbox_symbols").mkdir(parents=True)
         (self.root / "memory_graph/records").mkdir(parents=True)
         (self.root / "memory_graph/inbox").mkdir(parents=True)
@@ -41,7 +41,7 @@ class MemoryGraphTests(unittest.TestCase):
             "game/example.c:\n\t.text start:0x80001000 end:0x80001030\n",
             encoding="utf-8",
         )
-        (self.root / ".claude/memory/xbox_symbols/functions_by_module.txt").write_text(
+        (self.root / "research/xbox_symbols/functions_by_module.txt").write_text(
             "== .\\Release\\EXAMPLE.OBJ (.\\Release\\EXAMPLE.OBJ)\n"
             "[0001:00000010] 20 G foo\n"
             "[0001:00000030] 10 L helper\n",
@@ -53,10 +53,10 @@ class MemoryGraphTests(unittest.TestCase):
             encoding="utf-8",
         )
         parked = "# legacy list\nfoo # allocator residual\n"
-        (self.root / ".claude/memory/PARKED.txt").write_text(parked, encoding="utf-8")
-        (self.root / ".claude/memory/duplicate.md").write_text(parked, encoding="utf-8")
-        (self.root / ".claude/memory/duplicate2.md").write_text(parked, encoding="utf-8")
-        (self.root / ".claude/memory/matching-playbook.md").write_text(
+        (self.root / "memory_graph/legacy/PARKED.txt").write_text(parked, encoding="utf-8")
+        (self.root / "memory_graph/legacy/duplicate.md").write_text(parked, encoding="utf-8")
+        (self.root / "memory_graph/legacy/duplicate2.md").write_text(parked, encoding="utf-8")
+        (self.root / "memory_graph/legacy/matching-playbook.md").write_text(
             "# Playbook\n\n## Example compiler law\n\nA verified-looking legacy paragraph.\n",
             encoding="utf-8",
         )
@@ -219,13 +219,13 @@ class MemoryGraphTests(unittest.TestCase):
 
     def test_audit_reports_duplicates_without_modifying_documents(self):
         build_database(self.root, self.db)
-        before = (self.root / ".claude/memory/PARKED.txt").read_bytes()
+        before = (self.root / "memory_graph/legacy/PARKED.txt").read_bytes()
         audit = memory_audit(root=self.root, db_path=self.db)
         self.assertEqual(len(audit["duplicate_documents"]), 1)
         self.assertTrue(audit["duplicate_chunks"])
         self.assertEqual(audit["documents_by_class"]["operational_ledger"], 1)
-        self.assertEqual(audit["document_lifecycle"], {"legacy_unreviewed": 5})
-        self.assertEqual(before, (self.root / ".claude/memory/PARKED.txt").read_bytes())
+        self.assertEqual(audit["document_lifecycle"], {"legacy_unreviewed": 4})
+        self.assertEqual(before, (self.root / "memory_graph/legacy/PARKED.txt").read_bytes())
 
     def test_evidence_import_does_not_depend_on_filename_order(self):
         evidence = {

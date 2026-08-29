@@ -74,7 +74,7 @@ def main():
     ap.add_argument("--grep", metavar="STR",
                     help="only TUs whose name contains STR")
     ap.add_argument("--parked", choices=["mark", "skip"], default="mark",
-                    help="PARKED.txt handling (default: mark)")
+                    help="parked-cap handling (default: mark)")
     ap.add_argument("--residuals", action="store_true",
                     help="measure normalized real diff lines (slower)")
     ap.add_argument("--include-unscored", action="store_true",

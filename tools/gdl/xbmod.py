@@ -21,7 +21,7 @@ from pathlib import Path
 # fallback so the helper works across both layouts.
 ROOT = Path(__file__).resolve().parent.parent.parent
 TXT_CANDIDATES = (
-    ROOT / ".claude" / "memory" / "xbox_symbols" / "functions_by_module.txt",
+    ROOT / "research" / "xbox_symbols" / "functions_by_module.txt",
     ROOT / "research" / "xbox_symbols" / "functions_by_module.txt",
 )
 TXT = next((path for path in TXT_CANDIDATES if path.exists()), TXT_CANDIDATES[0])

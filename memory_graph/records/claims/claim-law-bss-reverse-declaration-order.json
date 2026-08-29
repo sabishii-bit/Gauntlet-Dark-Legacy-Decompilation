@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "terminal consolidation of the legacy matching playbook, 2026-08-29; each law was verified in committed matching work",
+    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py"
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.bss-reverse-declaration-order.20260829.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-29",
+  "value": "Uninitialized globals link in REVERSE declaration order under -common. objdiff hides the difference; doldiff catches it. Order BSS declarations backward from the target address order."
+}

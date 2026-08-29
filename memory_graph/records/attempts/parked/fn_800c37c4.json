@@ -1,0 +1,15 @@
+{
+  "attempted_axis": "bounded source-shape matrix to the project cap; residual survived the recorded flag/pragma/compiler sweeps",
+  "attributes": {
+    "parked_note": "remat+sched, off-IV init li r3,0 vs addi r3,r6,0 copy-of-live-zero + buf r5<->r6;",
+    "provenance": "terminal import of the legacy parked cap list, 2026-08-29",
+    "unpark_condition": "a genuinely new source-level axis, allocator lever, or compiler evidence; two identical A/B results re-park it"
+  },
+  "function": "function:fn_800C37C4",
+  "id": "attempt.parked.fn_800c37c4.20260829.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "residual_class": "REGISTER_ONLY/SCHEDULE (allocator or scheduler residual)",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}

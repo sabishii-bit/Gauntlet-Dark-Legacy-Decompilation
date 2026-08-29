@@ -10,11 +10,12 @@ Usage (from repo root):
   python tools/gdl/nearmiss.py --min 95       # tighter queue
   python tools/gdl/nearmiss.py --refresh      # regenerate report.json first
   python tools/gdl/nearmiss.py --grep sfx     # one TU family
-  python tools/gdl/nearmiss.py --parked skip  # hide fns listed in PARKED.txt
+  python tools/gdl/nearmiss.py --parked skip  # hide graph-parked functions
 
-.claude/memory/PARKED.txt (optional): one function name per line (comments with
-'#'), the residuals already diagnosed as allocator-quirk walls. Default is to
-mark them [PARKED] rather than hide, so the queue stays honest.
+Parked caps come from the project memory graph: attempt records whose outcome
+is 'parked' or 'capped' (residuals already diagnosed as allocator-quirk
+walls). Default is to mark them [PARKED] rather than hide, so the queue stays
+honest.
 """
 
 import argparse
@@ -29,22 +30,27 @@ from fndiff import classify_function, normalized_reloc_lines, parse
 VERSION = "GUNE5D"
 REPO = Path(__file__).resolve().parent.parent.parent
 REPORT = REPO / "build" / VERSION / "report.json"
-PARKED_CANDIDATES = (
-    REPO / ".claude" / "memory" / "PARKED.txt",
-    REPO / "research" / "PARKED.txt",  # legacy fallback
-)
-
-
 def load_parked():
-    parked_path = next((path for path in PARKED_CANDIDATES if path.exists()), None)
-    if parked_path is None:
+    """Names of functions with a parked/capped attempt in the memory graph."""
+    sys.path.insert(0, str(REPO))
+    try:
+        from memory_graph.core import ensure_database, open_database
+
+        ensure_database(REPO)
+        connection = open_database(REPO)
+    except Exception as error:  # graph unavailable: honest empty cap set
+        print(f"nearmiss: memory graph unavailable ({error}); no parked caps",
+              file=sys.stderr)
         return set()
-    names = set()
-    for line in parked_path.read_text().splitlines():
-        line = line.split("#", 1)[0].strip()
-        if line:
-            names.add(line.split()[0])
-    return names
+    try:
+        rows = connection.execute(
+            "SELECT e.name FROM attempt a"
+            " JOIN entity e ON e.id = a.function_entity_id"
+            " WHERE a.outcome IN ('parked', 'capped')"
+        ).fetchall()
+        return {row[0] for row in rows}
+    finally:
+        connection.close()
 
 
 def main():
@@ -56,7 +62,7 @@ def main():
                     help="regenerate report.json (ninja) before reading")
     ap.add_argument("--grep", metavar="STR", help="only TUs whose name contains STR")
     ap.add_argument("--parked", choices=["mark", "skip"], default="mark",
-                    help="PARKED.txt handling (default: mark)")
+                    help="parked-cap handling (default: mark)")
     ap.add_argument("--residuals", action="store_true",
                     help="measure real object-diff lines and sort cheapest first")
     args = ap.parse_args()

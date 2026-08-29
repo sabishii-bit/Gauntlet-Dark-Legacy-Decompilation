@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "terminal consolidation of the legacy matching playbook, 2026-08-29; each law was verified in committed matching work",
+    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py"
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.compare-form-dictionary.20260829.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-29",
+  "value": "Range trees compare the HIGH bound first (`x < HI && x >= LO`). `!(x < K)` as a final && operand always folds to blt (depth-2 negation included). A one-case switch emits the beq/blt/b triple. `(u32)(x - LO) <= N` is the interval-subtract form. On doubles, `a >= K` guards emit fcmpo + cror(gt,eq) + bne-skip, plain `a < K` is bge, and FP equality uses fcmpu. f64-const equality pairs CSE one lfd across both compares with the constant spelled on the left."
+}

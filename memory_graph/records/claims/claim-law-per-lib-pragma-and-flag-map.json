@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "terminal consolidation of the legacy matching playbook, 2026-08-29; each law was verified in committed matching work",
+    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py"
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.per-lib-pragma-and-flag-map.20260829.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-29",
+  "value": "Game code and the demo family build -O4 with peephole off. OS.c, __ppc_eabi_init, and the gx library additionally need `#pragma peephole off`; MetroTRK needs `-pool off`; si/exi need `-inline auto,level=1`. Peephole-ON tells: mr-vs-addi moves, missing branch-to-next stubs, lwzu/rlwimi fusion, stw pairs where the target has stmw. Never leave an unscoped `#pragma peephole off` mid-TU: it poisons every later function."
+}

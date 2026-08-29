@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "terminal consolidation of the legacy matching playbook, 2026-08-29; each law was verified in committed matching work",
+    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py"
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.mwcc-codegen-tells.20260829.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-29",
+  "value": "li+and pairs mean a 64-bit AND. Globals reloaded inside an inlined body mean the callee reads globals, not parameters. `andi.` needs a positive literal mask. u8 pad arrays reproduce stack gaps. A `bl` with a macro-name relocation means a lost #define: check that FIRST before any register-allocation theory. Ghidra decompile showing `q >> 32` garbage is the uninitialized-return tell."
+}

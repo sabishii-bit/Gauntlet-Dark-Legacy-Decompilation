@@ -1,0 +1,15 @@
+{
+  "attempted_axis": "bounded source-shape matrix to the project cap; residual survived the recorded flag/pragma/compiler sweeps",
+  "attributes": {
+    "parked_note": "P9/P4 hard-closure cap: 314/314 fuzzy98.84714 direct real14/clean16 frame0x50 saves r22-r31; residual is two adjacent addi/lfs schedule swaps plus one r29/r25 allocator web. Ordinary y+=20/named type-scale staging, assignment-in-argument, inline add20/height helpers, scoped lifetimes and scoped common-subexpression control all tie or regress count/frame/score.",
+    "provenance": "terminal import of the legacy parked cap list, 2026-08-29",
+    "unpark_condition": "a genuinely new source-level axis, allocator lever, or compiler evidence; two identical A/B results re-park it"
+  },
+  "function": "function:msgDraw",
+  "id": "attempt.parked.msgdraw.20260829.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "residual_class": "REGISTER_ONLY/SCHEDULE (allocator or scheduler residual)",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}

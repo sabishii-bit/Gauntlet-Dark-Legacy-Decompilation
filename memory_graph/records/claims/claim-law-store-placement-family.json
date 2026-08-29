@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "terminal consolidation of the legacy matching playbook, 2026-08-29; each law was verified in committed matching work",
+    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py"
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.store-placement-family.20260829.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-29",
+  "value": "Retail duplicates stores per branch arm where a ternary would emit one join store (anim-select family), but clamps are nested ternaries with a single join store; check the target join before picking a form. f64-constant selects put the (f32) cast OUTSIDE the ternary for a single frsp. Two-phase idiom: `PF = expr; PF = f(PF);` stores then reloads. Dead stores to address-taken arrays survive (write the dead store when the target shows it). Zero-init position = statement position, not declaration position; a selector local initialized in the final else keeps per-arm li duplication that a decl initializer would merge."
+}

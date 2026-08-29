@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "terminal consolidation of the legacy matching playbook, 2026-08-29; each law was verified in committed matching work",
+    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py"
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.cross-tu-symbol-rename.20260829.v1",
+  "kind": "claim",
+  "predicate": "workflow_law",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-29",
+  "value": "Renaming a symbol referenced by a NonMatching TU disassembly requires greping build/**/*.s, setting scope:global, deleting the stale .s/.o, and reconfiguring; a green doldiff after a failed ninja is meaningless."
+}

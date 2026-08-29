@@ -1,0 +1,267 @@
+{
+  "epistemic_state": "observed",
+  "id": "claim.parked-unresolved.20260829.v1",
+  "kind": "claim",
+  "note": "Legacy parked entries whose names did not uniquely resolve against the GameCube symbol table at terminal import; re-triage before working any of them.",
+  "predicate": "parked_functions_unresolved",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-29",
+  "value": [
+    {
+      "name": "regFind [CLOSED/MATCHING]",
+      "note": "P6 structural: target `extsb.; bne advance; b found`,",
+      "symbol_matches": 0
+    },
+    {
+      "name": "fn_800C68F4",
+      "note": "sched, pack-rlwimi vs state-base addi slot (pb_objregs lmap packet)",
+      "symbol_matches": 0
+    },
+    {
+      "name": "player_bss_pool_family",
+      "note": "bss-pool displacement class, NOT per-fn: GetPlayerPos/GetPlayerColPos/PlayerSelecting/new_player/change_player/player_can_be_damaged/all_players_go_to_same_level + every gPlayerRecords toucher; target pools off potionicon_tab (-0xC40); opcode-identical; blocked on flip-time .bss claim (gPlayerRecords pinned extern by Matching shopquery)",
+      "symbol_matches": 0
+    },
+    {
+      "name": "fn_8006C60C",
+      "note": "bss-pool/CSE: all 4 stores pool off lbl_80274600 base; target keeps store1",
+      "symbol_matches": 0
+    },
+    {
+      "name": "fn_8006C4D0",
+      "note": "renum + base-const assoc: 4 handle-free loops off lbl_80274600 (+928/992/736/592).",
+      "symbol_matches": 0
+    },
+    {
+      "name": "fn_8006D458",
+      "note": "addressing: adjacent SDA transition handles lbl_80343C8C/90 + C94/98 emit",
+      "symbol_matches": 0
+    },
+    {
+      "name": "fn_8008FE70",
+      "note": "renum (select.c), 18 lines: player-state scan getter, 25/25 insns opcode-exact",
+      "symbol_matches": 0
+    },
+    {
+      "name": "fn_8008FED4",
+      "note": "renum (select.c), 12 lines: new_player-spawn loop, 33/33 opcode-exact",
+      "symbol_matches": 0
+    },
+    {
+      "name": "fn_80090B6C",
+      "note": "copy+renum (select.c), ops 50->51: page/entry blit-init nested loop, body",
+      "symbol_matches": 0
+    },
+    {
+      "name": "fn_8008E3BC",
+      "note": "renum+remat (select.c), ops 76/78: welcome-back setup (inline player-scan +",
+      "symbol_matches": 0
+    },
+    {
+      "name": "FindStringMessageListSub",
+      "note": "REGISTER_ONLY, 32 lines: 38/38 exact; list*68/base/i/off web",
+      "symbol_matches": 0
+    },
+    {
+      "name": "DrawGlowText/MLines",
+      "note": "register/sched, streams match (86/87, 59/57): glow-config full body,",
+      "symbol_matches": 0
+    },
+    {
+      "name": "fn_80065D98",
+      "note": "gate=return-via-r0-mr + minp two-reg split (volatile alloc, source-unreachable)",
+      "symbol_matches": 0
+    },
+    {
+      "name": "fn_80063F10",
+      "note": "gate=count/it/off 3-way web rotation (structure byte-exact, decl-order/break tried)",
+      "symbol_matches": 0
+    },
+    {
+      "name": "fn_80067904",
+      "note": "gate=tail f0/f1 swap on 188/184 sdata2 consts (FP renum, head exact)",
+      "symbol_matches": 0
+    },
+    {
+      "name": "fn_8006799C",
+      "note": "sched, lit-clamp arm2 pair-vs-fold + t staging (items; body real, 14 ln)",
+      "symbol_matches": 0
+    },
+    {
+      "name": "fn_80057B30",
+      "note": "isel: 5 lines, target retains lbz+extsb before u8",
+      "symbol_matches": 0
+    },
+    {
+      "name": "fn_8002A890",
+      "note": "renum, i/count/temp r8<->r10 rotation (combat vec-avg; structure byte-identical, 18 ln)",
+      "symbol_matches": 0
+    },
+    {
+      "name": "fn_8002C8A8",
+      "note": "sched+frame, dz/dx load order + sqrt-reload f4<->f5 + 24B frame (combat pitch-angle; __frsqrte+atan2 idiom landed, 71 ln)",
+      "symbol_matches": 0
+    },
+    {
+      "name": "fn_8003B1CC",
+      "note": "gate, 77/76 best; outer node-selection if collapses target bge+b into one blt",
+      "symbol_matches": 0
+    },
+    {
+      "name": "mbPoolOrder / mb_main",
+      "note": "OBJECT/LINKER METADATA CAP (2026-08-24): all four target functions are exact;",
+      "symbol_matches": 0
+    },
+    {
+      "name": "AudioBankLoadName / AudioBankQueueName",
+      "note": "copy-of-live-zero addi init source-unreachable: separate,",
+      "symbol_matches": 0
+    },
+    {
+      "name": "AdsPutBuffer / adstream",
+      "note": "RETAINED CSE BREAK (2026-08-24): exact-sibling `&s->status + 1` argument spelling",
+      "symbol_matches": 0
+    },
+    {
+      "name": "adsInitFromHeader/adstream",
+      "note": "RETAINED STACK CLEANUP (2026-08-24): removed four dead manual-conversion remnants",
+      "symbol_matches": 0
+    },
+    {
+      "name": "_AdsThread / adstream",
+      "note": "HARD CAP for this pass (2026-08-25): 189/190 fuzzy92.74074 raw real93 frame32,",
+      "symbol_matches": 0
+    },
+    {
+      "name": "adstream whole TU",
+      "note": "HARD CAP for this pass (2026-08-25): 22/26 exact/report-exact, TU fuzzy98.31039;",
+      "symbol_matches": 0
+    },
+    {
+      "name": "AudioLoadPart / audio",
+      "note": "ACTIVE HARD CLOSURE after retained `5d25f465` + `d091d612`: target-backed",
+      "symbol_matches": 0
+    },
+    {
+      "name": "DoTexModSeqSub / auxanim",
+      "note": "HARD CAP after retained 201/201 fuzzy95.95025 real124 frame64.",
+      "symbol_matches": 0
+    },
+    {
+      "name": "InitOAnimList / auxanim",
+      "note": "HARD CAP after retained 81/81 fuzzy95.50617 real58 frame72.",
+      "symbol_matches": 0
+    },
+    {
+      "name": "auxanim constant pool",
+      "note": "Named 255.0 definitions always precede compiler-private 0.0/1.0 pools,",
+      "symbol_matches": 0
+    },
+    {
+      "name": "sysPollResetButton / sysservice",
+      "note": "EXACT 60/60 via audited two-atom scheduler permutation:",
+      "symbol_matches": 0
+    },
+    {
+      "name": "DoAnimation / anim.c",
+      "note": "CLOSED/Matching whole TU: corrected two-argument matrix constructor ABI,",
+      "symbol_matches": 0
+    },
+    {
+      "name": "ml_mem / AllocFile",
+      "note": "CLOSED/Matching whole TU: 26/26 bodies exact. Private always-inline get_path",
+      "symbol_matches": 0
+    },
+    {
+      "name": "fn_80046680 / enemy.c",
+      "note": "Portable-source cap (2026-08-26): 117/118 fuzzy97.36752 real35 frame0x98. Direct/enclosing gPlayers base, register/typed induction, balanced stack layout, scoped lifetimes and grouped loop-init forms were byte-invariant. Residual is stock LO->r0 plus mr r26 versus target direct LO->r26, coupled to lis/fmr scheduling; no postprocessor rule added.",
+      "symbol_matches": 0
+    },
+    {
+      "name": "DoAnimateTreeFrame / atree.c",
+      "note": "Portable-source cap (2026-08-26): 58/58 fuzzy93.706894 real38 frame64. Explicit zero-derived offset chronology and scoped propagation-off regressed; residual is target li+addi zero copy versus two li plus coupled address/saved-web schedule.",
+      "symbol_matches": 0
+    },
+    {
+      "name": "fn_80051E1C / gamemain.c",
+      "note": "Portable-source cap (2026-08-26): 82/82 fuzzy87.68293 real42 frame0x28. Target-style n normalization before/after buffer assignment lost one instruction; register buffer invariant; propagation-off worse. Residual is prologue/address web and folded range tests.",
+      "symbol_matches": 0
+    },
+    {
+      "name": "fn_8005351C / gamemain.c",
+      "note": "Portable-source cap (2026-08-26): 317/317 fuzzy baseline retained, raw real124. Bounded portable declaration, lifetime, expression-association, and control-shape axes did not improve the best verified result; reopen only with a concrete new source-level lever.",
+      "symbol_matches": 0
+    },
+    {
+      "name": "AudioSetupLevelStreams / sounds.c",
+      "note": "Portable-source cap (2026-08-26): 195/195 fuzzy95.32821 real56 frame0x38. Scoped/inline typed s16 row bases and an explicit raw-index copy all regressed. Residual combines prologue address chronology, folded ble+b, a missing index mr, add/lha association, and late-zero scheduling; reopen only with a new target-backed carrier.",
+      "symbol_matches": 0
+    },
+    {
+      "name": "CritterTranslate / critter.c",
+      "note": "Portable-source cap (2026-08-26): 354/354 fuzzy97.62712 real160 frame0xA0. Assignment-expression return accumulation, declaration orders, register hints, and zero-carrier storage were byte-invariant. Residual is one addi schedule move plus coupled GPR/FPR coloring.",
+      "symbol_matches": 0
+    },
+    {
+      "name": "LinkItemTriggers / items.c",
+      "note": "Portable-source cap (2026-08-26): 161/158 fuzzy96.73913 real137 frame0x20. Explicit-increment goto, do/continue, and while/break source islands were byte-identical. Missing dead extsb/extsb/cmpw and dependent coloring remain; historical exact form used prohibited asm.",
+      "symbol_matches": 0
+    },
+    {
+      "name": "RegisterItemWobj / items.c",
+      "note": "Portable-source cap (2026-08-26): 139/139 fuzzy79.273384 direct real94/clean96 frame0x58. Count/CFG/calls/saves align; residual is a five-GPR saved-web cycle, one promoted-width clrrwi/rlwinm seam, and tail parallel-array store scheduling. Offset declaration/init chronology, delayed target lifetime, delayed node load, promoted s32 flags, and explicit promoted RHS were invariant or worse and restored.",
+      "symbol_matches": 0
+    },
+    {
+      "name": "mini_inventory_draw_label / player.c",
+      "note": "Portable-source cap (2026-08-26): 45/44 fuzzy91.888885 real37. Typed TbInfo/CSE controls can restore duplicate address formation or exact count only by regressing later load association and TU fuzzy.",
+      "symbol_matches": 0
+    },
+    {
+      "name": "print_n_of_m / screensaver.c",
+      "note": "Portable-source cap (2026-08-26): 68/68 fuzzy95.73529 real32 frame0x88. Global-base initializer and declaration/lifetime forms could not move the LO materialization across the prologue; direct config initialization regressed.",
+      "symbol_matches": 0
+    },
+    {
+      "name": "dcsChannelSetVolPan2 / dcs.c",
+      "note": "Portable-source cap (2026-08-26): 88/88 fuzzy95.90909 real32 frame0x40. Chained/excess/assignment-in-condition forms worsened diff or frame; unsigned carrier was invariant. Residual is copy/compare, HA/LO schedule, and saved-web rotation.",
+      "symbol_matches": 0
+    },
+    {
+      "name": "fn_8006F16C / newcam.c",
+      "note": "Recovered terminal cap (2026-08-26): 171/170 fuzzy about96.84 clean real37. Branch polarity, tail global/counter carrier, and loop li/mr role probes were invariant or worse; record was previously chat-only.",
+      "symbol_matches": 0
+    },
+    {
+      "name": "fn_800C03E0 / dbgtext",
+      "note": "RETAINED FRAME CORRECTION (2026-08-25): reconstruction-only unused pad [96]->[88]",
+      "symbol_matches": 0
+    },
+    {
+      "name": "MBRemoveNode ordinary call",
+      "note": "SUPERSEDED AXIS/CAPPED FORM: replacing the general predecessor-search body with",
+      "symbol_matches": 0
+    },
+    {
+      "name": "MBRemoveNode final atoms",
+      "note": "CLOSED/EXACT in 996a009a: duplicated UV flag guard recovered the missing `beq`;",
+      "symbol_matches": 0
+    },
+    {
+      "name": "fn_800C1174 / pb_error",
+      "note": "150/152 fuzzy96.12666 direct real74/clean80 frame0x2080",
+      "symbol_matches": 0
+    },
+    {
+      "name": "fn_800C13CC / pb_error",
+      "note": "51/52 fuzzy93.78432 direct real13/clean15 frame0x10C0.",
+      "symbol_matches": 0
+    },
+    {
+      "name": "init_next_level / gamemain",
+      "note": "Report target name `init_next_level_8005638C` is a local-name",
+      "symbol_matches": 0
+    }
+  ]
+}

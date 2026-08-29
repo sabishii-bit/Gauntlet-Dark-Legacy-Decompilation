@@ -9,7 +9,7 @@ behave differently from decomp.me's official vanilla-1.2.5 pairing?
 Example:
   python tools/gdl/frank_probe.py game/g3d/sndvoice sndVoiceUpdateAll
   python tools/gdl/frank_probe.py game/g3d/sndvoice sndVoiceUpdateAll \
-      --body 1.2.5n --vanilla 1.2.5 --keep .claude/frank-sndvoice
+      --body 1.2.5n --vanilla 1.2.5 --keep <scratch-dir>
 """
 
 from __future__ import annotations

@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "terminal consolidation of the legacy matching playbook, 2026-08-29; each law was verified in committed matching work",
+    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py"
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.switch-run-collapse-and-arm-layout.20260829.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-29",
+  "value": "Consecutive case runs collapse to a range test with an exclusive high bound (`cmpwi HI; bge` then `cmpwi LO; bge/b`), which is the only surviving source of bge-enter/b-skip pairs. A redundant beq before bge on one cmpwi means that value is a real case label whose arm coincides with default. Arms are emitted in source order: write `default:` first when the target places the default body first, and express a mid-case condition that lands in the next arm as `if (...) { ...; break; } /* fall through */`."
+}

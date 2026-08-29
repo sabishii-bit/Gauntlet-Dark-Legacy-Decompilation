@@ -104,7 +104,7 @@ def _iter_input_paths(root: Path) -> Iterator[Path]:
         adjusted = root / base.relative_to(REPO_ROOT)
         if adjusted.exists():
             yield from sorted(adjusted.rglob("*.json"))
-    legacy = root / ".claude" / "memory"
+    legacy = root / "memory_graph" / "legacy"
     if legacy.exists():
         for suffix in ("*.md", "*.txt"):
             yield from sorted(legacy.rglob(suffix))
@@ -116,7 +116,7 @@ def _iter_input_paths(root: Path) -> Iterator[Path]:
     ):
         if path.exists():
             yield path
-    pdb_index = root / ".claude" / "memory" / "xbox_symbols" / "functions_by_module.txt"
+    pdb_index = root / "research" / "xbox_symbols" / "functions_by_module.txt"
     if pdb_index.exists():
         yield pdb_index
     for path in (
@@ -309,7 +309,7 @@ def _normalized_chunk_hash(content: str) -> str:
 
 
 def _import_legacy_documents(connection: sqlite3.Connection, root: Path) -> dict[str, int]:
-    legacy = root / ".claude" / "memory"
+    legacy = root / "memory_graph" / "legacy"
     document_ids: dict[str, int] = {}
     if not legacy.exists():
         return document_ids
@@ -470,7 +470,7 @@ def _import_gcn_symbols(connection: sqlite3.Connection, root: Path) -> int:
 
 
 def _import_xbox_symbols(connection: sqlite3.Connection, root: Path) -> int:
-    index_path = root / ".claude" / "memory" / "xbox_symbols" / "functions_by_module.txt"
+    index_path = root / "research" / "xbox_symbols" / "functions_by_module.txt"
     pdb_path = root / "research" / "xbox_symbols" / "shell3D.pdb"
     if not index_path.exists():
         return 0
@@ -677,7 +677,7 @@ def _validate_record(record: dict[str, Any], source: Path) -> None:
         anchors.append(record["locator"])
     for anchor in anchors:
         normalized = anchor.replace("\\", "/").lower()
-        if ".claude/memory/" in normalized or re.search(r"\.md(?::\d+)?$", normalized):
+        if ".claude/memory/" in normalized or "memory_graph/legacy/" in normalized or re.search(r"\.md(?::\d+)?$", normalized):
             raise MemoryGraphError(
                 f"{source}: structured knowledge cannot use Markdown as a truth anchor: {anchor}"
             )
@@ -1134,7 +1134,7 @@ def _import_migration_proposals(
     document_ids: dict[str, int],
 ) -> int:
     count = 0
-    parked_path = root / ".claude" / "memory" / "PARKED.txt"
+    parked_path = root / "memory_graph" / "legacy" / "PARKED.txt"
     parked_relative = _repo_relative(root, parked_path)
     parked_document = document_ids.get(parked_relative)
     if parked_path.exists() and parked_document:
@@ -1172,7 +1172,7 @@ def _import_migration_proposals(
             )
             count += 1
 
-    playbook_path = root / ".claude" / "memory" / "matching-playbook.md"
+    playbook_path = root / "memory_graph" / "legacy" / "matching-playbook.md"
     playbook_relative = _repo_relative(root, playbook_path)
     playbook_document = document_ids.get(playbook_relative)
     if playbook_path.exists() and playbook_document:

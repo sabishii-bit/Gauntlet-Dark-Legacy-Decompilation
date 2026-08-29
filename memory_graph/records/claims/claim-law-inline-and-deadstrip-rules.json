@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "terminal consolidation of the legacy matching playbook, 2026-08-29; each law was verified in committed matching work",
+    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py"
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.inline-and-deadstrip-rules.20260829.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-29",
+  "value": "MWCC inlines only functions DEFINED before the call site; force calls with `#pragma dont_inline on/off`. mwld strips unreferenced local functions, but stripped functions still order the sdata2 constant pool (literals first, then const objects). Literal-address forms inside Matching TUs are correct as spelled; never symbolify them."
+}

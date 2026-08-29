@@ -1,0 +1,15 @@
+{
+  "attempted_axis": "bounded source-shape matrix to the project cap; residual survived the recorded flag/pragma/compiler sweeps",
+  "attributes": {
+    "parked_note": "Existing 99/99 real40 source relies on prohibited Player*->s32 truncation. Valid object-rooted byte/typed/helper/volatile forms, six declaration orders, loop/CFG/clamp/assignment/propagation matrices all regress; best portable 99/99 real42, so no delta retained (2026-08-25)",
+    "provenance": "terminal import of the legacy parked cap list, 2026-08-29",
+    "unpark_condition": "a genuinely new source-level axis, allocator lever, or compiler evidence; two identical A/B results re-park it"
+  },
+  "function": "function:WorldOpen",
+  "id": "attempt.parked.worldopen.20260829.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "residual_class": "REGISTER_ONLY/SCHEDULE (allocator or scheduler residual)",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}

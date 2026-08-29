@@ -8,7 +8,7 @@
  * Sits between game/boss/boss.c (ends 0x8001BC88) and game/ui/btext.c
  * (starts 0x8001EAE0).  Names are the REAL Midway symbols recovered from the
  * Xbox shell3D PDB module ".\Release\BOSSCAM.OBJ"
- * (.claude/memory/xbox_symbols/functions_by_module.txt).
+ * (research/xbox_symbols/functions_by_module.txt).
  *
  * The GameCube build emits 17 of the 25 PDB functions; the eight small/debug
  * helpers below were inlined or dead-stripped on GCN and have no out-of-line
