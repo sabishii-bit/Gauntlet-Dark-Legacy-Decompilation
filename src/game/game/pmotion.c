@@ -2840,7 +2840,7 @@ player_motion_phase_exit:
                 } else {
                     kind = 0;
                 }
-                variant = (u8)((p->grab_flags & 2) ? 1 : 0);
+                variant = (p->grab_flags & 2) ? 1 : 0;
                 if ((p->flags & 1) == 0) {
                     fn_8009EFCC(index, variant, kind);
                 }
@@ -2849,21 +2849,20 @@ player_motion_phase_exit:
 
             grabbed = PF(p, 0x6B8, Player*);
             grabKind = ((p->flags & 0x400) != 0 &&
-                        grabbed == NULL)
+                        PF(p, 0x6B8, Player*) == NULL)
                            ? -1
                            : p->char_type;
             comboTime = PF(p, 0x98, f32);
 
             if (p->anim_208 < 90 && !(p->anim_208 < 88)) {
-                Player* pending = PF(p, 0x6BC, Player*);
-                if (pending != NULL) {
-                    PF(p, 0x6B8, Player*) = pending;
+                if (PF(p, 0x6BC, Player*) != NULL) {
+                    PF(p, 0x6B8, Player*) = PF(p, 0x6BC, Player*);
+                    PF(PF(p, 0x6B8, Player*), 0x964, s16) |= 0x10;
+                    PF(PF(p, 0x6B8, Player*), 0x6B8, Player*) = p;
                     PF(p, 0x6BC, Player*) = NULL;
-                    PF(pending, 0x964, s16) |= 0x10;
-                    PF(pending, 0x6B8, Player*) = p;
                     p->power_target -= p->coll_score;
                     p->coll_score = 0.0f;
-                    grabbed = pending;
+                    grabbed = PF(p, 0x6B8, Player*);
                 } else {
                     PF(p, 0x6BC, Player*) = NULL;
                 }
