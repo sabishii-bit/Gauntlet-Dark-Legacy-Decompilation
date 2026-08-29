@@ -2441,7 +2441,8 @@ store_motion_state:
         if (p->action > 0 && p->action < 11 &&
             p->action != 7 &&
             (ctl->pad.levels & 0x5000) == 0 && ctl->pad.unk34 != 0 &&
-            speedScale == 0.0f && ctl->values[10] == 0.0f) {
+            lbl_80347B08 == speedScale &&
+            lbl_80347B08 == ctl->values[10]) {
             heading = atan2(attackDir[0], attackDir[2]);
         }
 
@@ -2462,27 +2463,26 @@ store_motion_state:
 
         if ((PF(p, 0x900, u32) & 0x01000000) != 0) {
             s32 effect = -1;
-            u32 playerFlags = p->flags;
-            if ((playerFlags & 0x3000) != 0) {
+            if ((p->flags & 0x3000) != 0) {
                 effect = StartFXSub(56, NULL, 42, 0x800, 0.0f);
                 SfxSetDamage(lbl_80347C54, lbl_80347C40, 0.0f,
                              effect, 33, index + 1);
-                if ((playerFlags & 0x1000) != 0) {
+                if ((p->flags & 0x1000) != 0) {
                     fn_8009F490(index);
                 } else {
                     fn_8009F450(index);
                 }
-            } else if ((playerFlags & 0x410) != 0) {
+            } else if ((p->flags & 0x410) != 0) {
                 effect = StartFXSub(52, NULL, 42, 0x800, 0.0f);
                 SfxSetDamage(lbl_80347C58, lbl_80347C40, 0.0f,
                              effect, 33, index + 1);
                 AudioTurboDefense(index);
-            } else if ((playerFlags & 0x20) != 0) {
+            } else if ((p->flags & 0x20) != 0) {
                 effect = StartFXSub(53, NULL, 42, 0x800, 0.0f);
                 SfxSetDamage(lbl_80347C58, lbl_80347C40, 0.0f,
                              effect, 36, index + 1);
                 AudioTurboDefense(index);
-            } else if ((playerFlags & 0x40) != 0) {
+            } else if ((p->flags & 0x40) != 0) {
                 effect = StartFXSub(54, NULL, 42, 0x800, 0.0f);
                 SfxSetDamage(lbl_80347C58, lbl_80347C40, 0.0f,
                              effect, 34, index + 1);
@@ -2490,7 +2490,7 @@ store_motion_state:
             }
 
             if (effect >= 0) {
-                if ((playerFlags & 0x400) != 0 &&
+                if ((p->flags & 0x400) != 0 &&
                     PF(p, 0x790, void*) != NULL) {
                     s32 object = MBOX_ReallyFindObject(
                         strings + 84, sPowerupsHandle,
