@@ -2029,7 +2029,13 @@ store_motion_state:
         /* Target +0x2624: boss intro state and the action update. */
         if (p->quest_state != 0 && gBossType >= 0) {
             if (lbl_80344894 < 0 && p->quest_state < 4) {
-                if (gBossType < 40 && gBossType >= 34) {
+                switch (gBossType) {
+                case 34:
+                case 35:
+                case 36:
+                case 37:
+                case 38:
+                case 39:
                     lbl_80344894 = StartFXSub(92, NULL, 0, 0x800,
                                               lbl_80347C10);
                     if (!(lbl_80344894 < 0)) {
@@ -2045,7 +2051,8 @@ store_motion_state:
                                       *(volatile s32*)&lbl_80344894 * 240 +
                                       0x14);
                     }
-                } else {
+                    break;
+                default: {
                     f32 bossFxPos[3];
                     bossFxPos[0] = 0.0f;
                     bossFxPos[1] = lbl_80347C5C;
@@ -2059,6 +2066,8 @@ store_motion_state:
                         SfxSetParent(lbl_80344894,
                                      PF(p, 0x74, void*));
                     }
+                    break;
+                }
                 }
             }
 
@@ -2146,10 +2155,21 @@ store_motion_state:
                 bossColor[0] = 0.0f;
                 bossColor[1] = 0.0f;
                 bossColor[2] = 0.0f;
-                if (gBossType < 40 && gBossType >= 34 &&
-                    lbl_80344894 >= 0) {
-                    lbl_80344894 = DeleteEffect(lbl_80344894, 1);
-                    PF(p, 0x730, s32) = 0;
+                switch (gBossType) {
+                case 34:
+                case 35:
+                case 36:
+                case 37:
+                case 38:
+                case 39:
+                case 41:
+                    if (lbl_80344894 >= 0) {
+                        lbl_80344894 = DeleteEffect(lbl_80344894, 1);
+                        PF(p, 0x730, s32) = 0;
+                    }
+                    break;
+                default:
+                    break;
                 }
                 p->quest_state = 0;
                 PF(p, 0x900, u32) = 0;
