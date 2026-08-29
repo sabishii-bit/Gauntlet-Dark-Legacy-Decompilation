@@ -171,7 +171,8 @@ typedef struct Player {
     /* 0x0834 */ s32 quest_state;    /* quest icon: 0 off, 1 pending, 2 on [player.c] */
     /* 0x0838 */ f32 anchor_pos[3];  /* attach anchor (SetParent offset base) [player.c] */
     /* 0x0844 */ f32 anchor_fwd[3];  /* attach forward vector [player.c] */
-    /* 0x0850 */ u8  pad_0850[8];
+    /* 0x0850 */ f32 col_radius;     /* collision radius (FloorCollide rad) [pmotion.c] */
+    /* 0x0854 */ f32 col_height;     /* collision height (FloorCollide height) [pmotion.c] */
     /* 0x0858 */ f32 light_vec[3];   /* beacon light vector (decayed) [player.c] */
     /* 0x0864 */ f32 light_vel[3];   /* beacon light velocity [player.c] */
     /* 0x0870 */ u8  pad_0870[0x30];

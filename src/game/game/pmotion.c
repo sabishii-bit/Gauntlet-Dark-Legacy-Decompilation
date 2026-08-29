@@ -708,8 +708,8 @@ s32 try_location(u8* motion, Player* p, f32* position, f32* resultPosition,
     f32 hitPosition[3];
     f32 delta;
     u8 unusedTail[4];
-    f32 radius = PF(p, 0x850, f32);
-    f32 height = PF(p, 0x854, f32);
+    f32 radius = p->col_radius;
+    f32 height = p->col_height;
     s32 floorFlags = (*(u32*)(motion + 0x8C0)) & 0x38;
 
     collidePosition[0] = *(f32*)(motion + 0x64);
@@ -876,7 +876,7 @@ void PlayerMotion(Player* p) {
     f32 missileVelocity[3];
     s32 item = -1;
     u8* target = NULL;
-    s32 anim = PF(p, 0x208, s32);
+    s32 anim = p->anim_208;
     s32 motionType;
     s32 directionKind;
     s32 firstEnemyHits;
@@ -900,7 +900,7 @@ void PlayerMotion(Player* p) {
         get_player_pos(index, 0);
     }
 
-    PF(p, 0x964, s16) &= ~1;
+    p->hud_flags &= ~1;
     facing = (f32)(atan2(*(f32*)(lbl_80344EE8 + 0x84),
                          *(f32*)(lbl_80344EE8 + 0x8C)) + lbl_80347B50);
     motionType = fn_80088938(p, facing);
@@ -1052,11 +1052,11 @@ void PlayerMotion(Player* p) {
     PF(p, 0x888, f32) = dpos[0];
     PF(p, 0x88C, f32) = dpos[1];
     PF(p, 0x890, f32) = dpos[2];
-    oldpos[0] = PF(p, 0x64, f32);
-    oldpos[1] = PF(p, 0x68, f32);
-    oldpos[2] = PF(p, 0x6C, f32);
+    oldpos[0] = p->effectpos[0];
+    oldpos[1] = p->effectpos[1];
+    oldpos[2] = p->effectpos[2];
 
-    if ((PF(p, 0x964, s16) & 0x20) != 0) {
+    if ((p->hud_flags & 0x20) != 0) {
         fn_8005A338(p->mat, (f32*)((u8*)p + 0x844),
                     (f32*)((u8*)p + 0x838));
         if (lbl_8034481C != 0 &&
@@ -1260,9 +1260,9 @@ void PlayerMotion(Player* p) {
     if (floorBlocked == 0 && transporter != 1) {
         s32 otherIndex;
         if (transporter != 0) {
-            oldpos[0] = PF(p, 0x64, f32) + dpos[0];
-            oldpos[1] = PF(p, 0x68, f32) + dpos[1];
-            oldpos[2] = PF(p, 0x6C, f32) + dpos[2];
+            oldpos[0] = p->effectpos[0] + dpos[0];
+            oldpos[1] = p->effectpos[1] + dpos[1];
+            oldpos[2] = p->effectpos[2] + dpos[2];
             to[0] = oldpos[0];
             to[1] = oldpos[1];
             to[2] = oldpos[2];
@@ -1365,7 +1365,7 @@ void PlayerMotion(Player* p) {
 detach_floor:
     PF(p, 0x8C4, WorldObj*) = NULL;
     MBNodeSetParent(p->node, lbl_80344B2C);
-    PF(p, 0x964, s16) |= 1;
+    p->hud_flags |= 1;
     PF(p, 0x8B4, f32) = lbl_80344880;
     PF(p, 0x8CC, f32) = lbl_80344880;
 
@@ -1390,7 +1390,7 @@ collision_done:
         } else {
             movingBias = 0.0f;
         }
-        if ((PF(p, 0x964, s16) & 0x20) != 0 &&
+        if ((p->hud_flags & 0x20) != 0 &&
             (PF(p, 0x8D4, u32) & 0x4000) == 0) {
             motionState = 0;
             goto store_motion_state;
@@ -1495,7 +1495,7 @@ collision_done:
             enemy = gEnemies + item * 916;
         }
 
-        if ((PF(p, 0x964, s16) & 0xC000) != 0 ||
+        if ((p->hud_flags & 0xC000) != 0 ||
             (ctl->pad.levels & 0x5000) != 0 ||
             (ctl->pad.unk34 != 0 &&
              (f64)ctl->values[10] > lbl_80347B08)) {
@@ -1695,7 +1695,7 @@ state_selected:
         }
 
         if (gBossType >= 0 && gBoss398 >= 0 && good_wiz_state <= 1 &&
-            gBossDead != 0 && (PF(p, 0x964, s16) & 0x800) == 0) {
+            gBossDead != 0 && (p->hud_flags & 0x800) == 0) {
             motionState = 28;
         }
 
@@ -1754,150 +1754,150 @@ store_motion_state:
 
             switch (motionState) {
             case 28:
-                PF(p, 0x20C, s32) = 123;
+                p->anim_20C = 123;
                 break;
             case 41:
-                PF(p, 0x20C, s32) = 148;
+                p->anim_20C = 148;
                 break;
             case 33:
-                PF(p, 0x20C, s32) = 128;
+                p->anim_20C = 128;
                 break;
             case 14:
-                PF(p, 0x20C, s32) = 28;
+                p->anim_20C = 28;
                 break;
             case 27:
-                PF(p, 0x20C, s32) = 29;
+                p->anim_20C = 29;
                 break;
             case 7:
-                PF(p, 0x20C, s32) = 8;
+                p->anim_20C = 8;
                 break;
             case 2:
-                PF(p, 0x20C, s32) = 119;
+                p->anim_20C = 119;
                 break;
             case 3:
-                PF(p, 0x20C, s32) = 4;
+                p->anim_20C = 4;
                 break;
             case 4:
-                PF(p, 0x20C, s32) = 5;
+                p->anim_20C = 5;
                 break;
             case 5:
-                PF(p, 0x20C, s32) = 6;
+                p->anim_20C = 6;
                 break;
             case 6:
-                PF(p, 0x20C, s32) = 7;
+                p->anim_20C = 7;
                 break;
             case 9:
-                PF(p, 0x20C, s32) = 9;
+                p->anim_20C = 9;
                 break;
             case 10:
-                PF(p, 0x20C, s32) = 11;
+                p->anim_20C = 11;
                 break;
             case 11:
-                PF(p, 0x20C, s32) = 13;
+                p->anim_20C = 13;
                 break;
             case 12:
-                PF(p, 0x20C, s32) = 15;
+                p->anim_20C = 15;
                 break;
             case 17:
-                PF(p, 0x20C, s32) =
+                p->anim_20C =
                     forcedAnim != 0 ? forcedAnim : 71;
                 break;
             case 18:
-                PF(p, 0x20C, s32) =
+                p->anim_20C =
                     forcedAnim != 0 ? forcedAnim : 73;
                 break;
             case 19:
-                PF(p, 0x20C, s32) =
+                p->anim_20C =
                     forcedAnim != 0 ? forcedAnim : 75;
                 break;
             case 20:
-                PF(p, 0x20C, s32) =
+                p->anim_20C =
                     forcedAnim != 0 ? forcedAnim : 77;
                 break;
             case 38:
                 if (PF(p, 0x6B8, Player*) == NULL) {
-                    PF(p, 0x20C, s32) = 0;
+                    p->anim_20C = 0;
                 } else {
                     switch (PF(p, 0x6B8, Player*)->char_type) {
-                    case 0: PF(p, 0x20C, s32) = 136; break;
-                    case 1: PF(p, 0x20C, s32) = 139; break;
-                    case 2: PF(p, 0x20C, s32) = 140; break;
-                    case 3: PF(p, 0x20C, s32) = 141; break;
-                    case 4: PF(p, 0x20C, s32) = 142; break;
-                    case 5: PF(p, 0x20C, s32) = 145; break;
-                    case 6: PF(p, 0x20C, s32) = 146; break;
-                    case 7: PF(p, 0x20C, s32) = 147; break;
-                    default: PF(p, 0x20C, s32) = 0; break;
+                    case 0: p->anim_20C = 136; break;
+                    case 1: p->anim_20C = 139; break;
+                    case 2: p->anim_20C = 140; break;
+                    case 3: p->anim_20C = 141; break;
+                    case 4: p->anim_20C = 142; break;
+                    case 5: p->anim_20C = 145; break;
+                    case 6: p->anim_20C = 146; break;
+                    case 7: p->anim_20C = 147; break;
+                    default: p->anim_20C = 0; break;
                     }
                 }
                 break;
             case 39:
                 if (PF(p, 0x6B8, Player*) == NULL) {
-                    PF(p, 0x20C, s32) = 0;
+                    p->anim_20C = 0;
                 } else if (PF(p, 0x6B8, Player*)->char_type == 0) {
-                    PF(p, 0x20C, s32) = 137;
+                    p->anim_20C = 137;
                 } else if (PF(p, 0x6B8, Player*)->char_type == 4) {
-                    PF(p, 0x20C, s32) = 143;
+                    p->anim_20C = 143;
                 } else {
-                    PF(p, 0x20C, s32) = 0;
+                    p->anim_20C = 0;
                 }
                 break;
             case 22:
-                PF(p, 0x20C, s32) = 88;
+                p->anim_20C = 88;
                 PF(p, 0x910, f32) = lbl_80347C54;
                 break;
             case 23:
-                PF(p, 0x20C, s32) = 89;
+                p->anim_20C = 89;
                 break;
             case 21:
                 if ((p->flags & 0x400) != 0 &&
                     (f64)PF(p, 0x828, f32) >= lbl_80347B90) {
                     PF(p, 0x910, f32) = lbl_80347C58;
-                    PF(p, 0x20C, s32) = 110;
+                    p->anim_20C = 110;
                 } else if ((f64)PF(p, 0x828, f32) >= lbl_80347C48) {
-                    PF(p, 0x20C, s32) = 87;
+                    p->anim_20C = 87;
                     PF(p, 0x910, f32) = lbl_80347C50;
                 } else if ((f64)PF(p, 0x828, f32) >= lbl_80347B90) {
-                    PF(p, 0x20C, s32) = 86;
+                    p->anim_20C = 86;
                     PF(p, 0x910, f32) = lbl_80347C58;
                 }
                 break;
             case 16:
                 if (forcedAnim != 0) {
-                    PF(p, 0x20C, s32) = forcedAnim;
+                    p->anim_20C = forcedAnim;
                 } else if (forceState == 0 &&
                            (PF(p, 0x11C, u32) & 0x480000) != 0) {
-                    PF(p, 0x20C, s32) = 92;
+                    p->anim_20C = 92;
                 } else if (PF(p, 0x908, s32) != 0 && movement != 0.0f &&
                            (PF(p, 0x90C, u32) & 5) != 0) {
-                    PF(p, 0x20C, s32) = 32;
+                    p->anim_20C = 32;
                 } else if ((PF(p, 0x90C, u32) & 4) != 0 &&
                            !closeTarget && movement != 0.0f) {
                     PF(p, 0x904, f32) =
                         PlayerMotion_WrapAngle(heading - controlYaw);
-                    PF(p, 0x20C, s32) = 62;
+                    p->anim_20C = 62;
                 } else if ((PF(p, 0x90C, u32) & 1) != 0) {
-                    PF(p, 0x20C, s32) = closeTarget ? 79 : 32;
+                    p->anim_20C = closeTarget ? 79 : 32;
                 } else if (forceState != 0) {
-                    PF(p, 0x20C, s32) = closeTarget ? 79 : 32;
+                    p->anim_20C = closeTarget ? 79 : 32;
                 } else {
-                    PF(p, 0x20C, s32) = 99;
+                    p->anim_20C = 99;
                 }
                 break;
             case 15:
                 if (forcedAnim != 0) {
-                    PF(p, 0x20C, s32) = forcedAnim;
+                    p->anim_20C = forcedAnim;
                 } else if ((PF(p, 0x90C, u32) & 4) != 0 &&
                            !closeTarget && movement != 0.0f) {
                     PF(p, 0x904, f32) =
                         PlayerMotion_WrapAngle(heading - controlYaw);
-                    PF(p, 0x20C, s32) = 62;
+                    p->anim_20C = 62;
                 } else if ((PF(p, 0x90C, u32) & 1) != 0) {
-                    PF(p, 0x20C, s32) = closeTarget ? 82 : 39;
+                    p->anim_20C = closeTarget ? 82 : 39;
                 } else if (forceState != 0) {
-                    PF(p, 0x20C, s32) = closeTarget ? 82 : 39;
+                    p->anim_20C = closeTarget ? 82 : 39;
                 } else {
-                    PF(p, 0x20C, s32) = 92;
+                    p->anim_20C = 92;
                 }
                 break;
             case 24:
@@ -1906,12 +1906,12 @@ store_motion_state:
                 if (PF(p, 0x1EBC, s32) != 0 ||
                     (gGameOptions[1] & 2) != 0) {
                     if (motionState == 25) {
-                        PF(p, 0x20C, s32) = 117;
+                        p->anim_20C = 117;
                     } else if (motionState == 26) {
-                        PF(p, 0x20C, s32) = 115;
+                        p->anim_20C = 115;
                         PF(p, 0x956, s16) |= 2;
                     } else {
-                        PF(p, 0x20C, s32) = 115;
+                        p->anim_20C = 115;
                     }
                     break;
                 }
@@ -1927,47 +1927,47 @@ store_motion_state:
                     motionState = 1;
                 }
                 if ((f64)fqdist(dpos[0], dpos[2]) > lbl_80347BE8 &&
-                    (PF(p, 0x964, s16) & 8) != 0) {
-                    PF(p, 0x20C, s32) = 26;
+                    (p->hud_flags & 8) != 0) {
+                    p->anim_20C = 26;
                     heading = atan2(dpos[0], dpos[2]);
                 } else if (reaction == 3) {
-                    PF(p, 0x20C, s32) = 129;
+                    p->anim_20C = 129;
                     heading = savedHeading;
                 } else if (reaction != 0) {
-                    PF(p, 0x20C, s32) = 27;
+                    p->anim_20C = 27;
                     heading = savedHeading;
                 } else if (motionState == 13) {
-                    PF(p, 0x20C, s32) = 19;
+                    p->anim_20C = 19;
                 } else if (motionState == 8) {
-                    PF(p, 0x20C, s32) = 17;
+                    p->anim_20C = 17;
                 } else {
-                    PF(p, 0x20C, s32) = 0;
+                    p->anim_20C = 0;
                 }
                 break;
             case 31:
-                PF(p, 0x20C, s32) = reaction == 3 ? 129 : 127;
+                p->anim_20C = reaction == 3 ? 129 : 127;
                 break;
             case 32:
-                PF(p, 0x20C, s32) = 122;
+                p->anim_20C = 122;
                 break;
             case 34:
-                PF(p, 0x20C, s32) = 130;
+                p->anim_20C = 130;
                 heading = savedHeading;
                 break;
             case 35:
-                PF(p, 0x20C, s32) = 131;
+                p->anim_20C = 131;
                 heading = savedHeading;
                 break;
             case 36:
-                PF(p, 0x20C, s32) = 133;
+                p->anim_20C = 133;
                 heading = savedHeading;
                 break;
             case 37:
-                PF(p, 0x20C, s32) = 135;
+                p->anim_20C = 135;
                 heading = savedHeading;
                 break;
             default:
-                PF(p, 0x20C, s32) = 0;
+                p->anim_20C = 0;
                 break;
             }
         }
@@ -2019,24 +2019,26 @@ store_motion_state:
             }
             if (p->quest_state >= 4 &&
                 (PF(p, 0x900, u32) & ~1U) == 0) {
+#pragma opt_common_subs off
                 if (gBossType >= 36 && gBossType < 38) {
-                    if (PF(p, 0x208, s32) != 107) {
-                        PF(p, 0x208, s32) = 0;
-                        PF(p, 0x20C, s32) = 107;
+                    if (p->anim_208 != 107) {
+                        p->anim_208 = 0;
+                        p->anim_20C = 107;
                     }
                 } else if ((gBossType >= 34 && gBossType < 40)) {
-                    if (PF(p, 0x208, s32) != 99 &&
-                        PF(p, 0x208, s32) != 100) {
-                        PF(p, 0x208, s32) = 0;
-                        PF(p, 0x20C, s32) = 99;
+                    if (p->anim_208 != 99 &&
+                        p->anim_208 != 100) {
+                        p->anim_208 = 0;
+                        p->anim_20C = 99;
                     }
-                } else if (PF(p, 0x208, s32) != 115 &&
-                           PF(p, 0x208, s32) != 116) {
-                    PF(p, 0x208, s32) = 0;
-                    PF(p, 0x20C, s32) = 115;
+                } else if (p->anim_208 != 115 &&
+                           p->anim_208 != 116) {
+                    p->anim_208 = 0;
+                    p->anim_20C = 115;
                 }
             }
         }
+#pragma opt_common_subs reset
 
         DoPlayerAction(p);
 
@@ -2302,12 +2304,12 @@ store_motion_state:
             PF(p, 0xC8, f32) = heading;
             CreateYPRMatrix((f32*)((u8*)p + 0x14),
                             (f32*)((u8*)p + 0xC4));
-            PF(p, 0x964, s16) |= 1;
+            p->hud_flags |= 1;
             goto player_motion_phase_exit;
         }
 
         /* Target +0x31D4: normal floor marker and powerup phases. */
-        if ((PF(p, 0x964, s16) & 0x20) != 0) {
+        if ((p->hud_flags & 0x20) != 0) {
             if (PF(p, 0x8CC, f32) > PF(p, 0x8B4, f32)) {
                 PF(PF(p, 0x6C8, void*), 0x30, f32) = *(f32*)(motion + 0x30);
                 PF(PF(p, 0x6C8, void*), 0x34, f32) = *(f32*)(motion + 0x34);
@@ -2688,7 +2690,7 @@ player_motion_phase_exit:
 
             if ((f64)(dpos[0] * dpos[0] + dpos[1] * dpos[1] +
                       dpos[2] * dpos[2]) > lbl_80347CE0) {
-                PF(p, 0x964, s16) |= 1;
+                p->hud_flags |= 1;
             }
 
             if (hitKind != 0 && PF(p, 0x1FC, s16) <= 0) {
@@ -2831,7 +2833,7 @@ player_motion_phase_exit:
             case 1:
             case 3:
                 if ((anim >= 88 && anim < 90) && grabbed != NULL &&
-                    (PF(p, 0x964, s16) & 0x20) == 0) {
+                    (p->hud_flags & 0x20) == 0) {
                     f32 grabDir[3];
                     f32 partnerYaw;
                     f32 partnerFacing;
@@ -2851,7 +2853,7 @@ player_motion_phase_exit:
                     PlayerSetGrabbed(p, PF(grabbed, 0x6DC, void*), NULL);
                 } else if (grabbed != NULL &&
                            (PF(grabbed, 0x964, s16) & 0x10) != 0) {
-                    if ((PF(p, 0x964, s16) & 0x20) != 0) {
+                    if ((p->hud_flags & 0x20) != 0) {
                         PlayerUnsetGrabbed(p, 1);
                     }
                     PF(grabbed, 0x964, s16) &= ~0x10;
@@ -2880,14 +2882,14 @@ player_motion_phase_exit:
                         PF(grabbed, 0x964, s16) &= ~0x40;
                         PF(grabbed, 0x6B8, Player*) = NULL;
                         PF(p, 0x6B8, Player*) = NULL;
-                        PF(p, 0x964, s16) &= ~0x80;
+                        p->hud_flags &= ~0x80;
                     }
                 }
                 break;
 
             case 4:
                 if (anim == 88 && grabbed != NULL &&
-                    (PF(p, 0x964, s16) & 0x20) == 0) {
+                    (p->hud_flags & 0x20) == 0) {
                     f32 grabDir[3];
                     f32 partnerYaw;
                     f32 partnerFacing;
@@ -2905,7 +2907,7 @@ player_motion_phase_exit:
                                                    partnerFacing));
                     PF(grabbed, 0x894, f32) = partnerYaw;
                     PlayerSetGrabbed(p, PF(grabbed, 0x6DC, void*), NULL);
-                    PF(p, 0x964, s16) |= 0x80;
+                    p->hud_flags |= 0x80;
                     PF(grabbed, 0x8FC, f32) = sMusicFadeBase;
                     PF(p, 0x1FA, s16) = 240;
                 } else if (grabbed != NULL) {
@@ -2914,11 +2916,11 @@ player_motion_phase_exit:
                         PF(grabbed, 0x964, s16) |= 0x40;
                     } else if ((PF(grabbed, 0x964, s16) & 0x40) != 0 &&
                                PF(p, 0x1FA, s16) <= 0) {
-                        if ((PF(p, 0x964, s16) & 0x20) != 0) {
+                        if ((p->hud_flags & 0x20) != 0) {
                             PlayerUnsetGrabbed(p, 0);
                         }
                         PF(grabbed, 0x964, s16) &= ~0x40;
-                        PF(p, 0x964, s16) &= ~0x80;
+                        p->hud_flags &= ~0x80;
                         PF(grabbed, 0x6B8, Player*) = NULL;
                         PF(p, 0x6B8, Player*) = NULL;
                     }
