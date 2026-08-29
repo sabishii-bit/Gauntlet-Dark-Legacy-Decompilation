@@ -5098,7 +5098,8 @@ extern s32  strcmp(const char* a, const char* b);
         s32 w_;                                                             \
         char buf_[12];                                                      \
         c_ = *(s32*)p;                                                      \
-        t_ = *(s32*)(state + c_ * 4 + 64) / 60;                             \
+        row_ = state + c_ * 4;                                              \
+        t_ = *(s32*)(row_ + 64) / 60;                                       \
         sec_ = t_ % 60;                                                     \
         t_ /= 60;                                                           \
         min_ = t_ % 60;                                                     \
@@ -5115,7 +5116,7 @@ extern s32  strcmp(const char* a, const char* b);
                           *(colp) + *(s32*)(row_ + 80), 7, 0xFFFFFF, buf_); \
     }
 
-#define STAT_TALLY(accOff, tgtOff, ok)                                          {                                                                               s32 c_ = *(s32*)p;                                                          u8* b_ = state + c_ * 4;                                                    s32 amt_ = *(s32*)(b_ + 96);                                                if (gGameBusy != 0) {                                                           ok = 0;                                                                 } else {                                                                        u8* a_;                                                                     if (*(s32*)(lbl_80240E30 + c_ * 60 + 4) & 0x0F000000) {                         amt_ *= 6;                                                              }                                                                           b_ = state + c_ * 4;                                                        *(s32*)(b_ + (accOff)) = *(s32*)(b_ + (accOff)) + amt_;                     a_ = state + *(s32*)p * 4;                                                  if (*(s32*)(a_ += (accOff)) <                                                   *(s32*)((u8*)p + *(s32*)(p + 12) * 28 + (tgtOff))) {                        ok = 0;                                                                 } else {                                                                        *(s32*)a_ =                                                                     *(s32*)((u8*)p + *(s32*)(p + 12) * 28 + (tgtOff));                      ok = 1;                                                                 }                                                                       }                                                                       }
+#define STAT_TALLY(accOff, tgtOff, ok)                                          {                                                                               s32 c_ = *(s32*)p;                                                          u8* b_ = state + c_ * 4;                                                    s32 amt_ = *(s32*)(b_ + 96);                                                if (gGameBusy != 0) {                                                           ok = 0;                                                                 } else {                                                                        u8* a_;                                                                     if (*(s32*)(lbl_80240E30 + c_ * 60 + 4) & 0x0F000000) {                         amt_ *= 6;                                                              }                                                                           *(s32*)(b_ + (accOff)) = *(s32*)(b_ + (accOff)) + amt_;                     a_ = state + *(s32*)p * 4;                                                  if (*(s32*)(a_ += (accOff)) <                                                   *(s32*)((u8*)p + *(s32*)(p + 12) * 28 + (tgtOff))) {                        ok = 0;                                                                 } else {                                                                        *(s32*)a_ =                                                                     *(s32*)((u8*)p + *(s32*)(p + 12) * 28 + (tgtOff));                      ok = 1;                                                                 }                                                                       }                                                                       }
 
 s32 do_stats_display(void)
 {
@@ -5156,7 +5157,7 @@ s32 do_stats_display(void)
             s32 c = *(s32*)p;
             u8* row = (u8*)layout + c * 4;
             DrawTextKeepScale(lbl_80346AD0, -*(s32*)(row + 48),
-                              *(s32*)((u8*)layout + 96) + *(s32*)(row + 80),
+                              layout[24] + *(s32*)(row + 80),
                               7, 0xFFFFFF, nbuf);
         }
 
@@ -5304,9 +5305,8 @@ s32 do_stats_display(void)
     fn_8009FCA8(stalled);
     if (done != 0) {
         s32 j;
-        s32 o;
-        for (j = 0, o = 0; j < 4; j++, o += 4) {
-            MBRemoveBlit(*(s32*)(state + o));
+        for (j = 0; j < 4; j++) {
+            MBRemoveBlit(*(s32*)(state + j * 4));
         }
         AudioStopMusicA();
     }
