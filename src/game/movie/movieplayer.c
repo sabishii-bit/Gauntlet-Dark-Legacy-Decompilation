@@ -261,7 +261,7 @@ void fn_800D86C8(u32 param_1, u8* param_2, int param_3) {
         value = c1 + 8;
         value += c4 + 8;
         value |= (u32)(c2 + c5 + 16) << 16
-               | ((u32)(c0 + 16) << 8 | (u32)(c3 + 16) << 24);
+               | ((u32)(c3 + 16) << 24 | (u32)(c0 + 16) << 8);
         *(u32*)(out + i * 4) = value;
         param_2 += 6;
     }
