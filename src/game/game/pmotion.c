@@ -703,7 +703,7 @@ s32 PlayerCollideItems(Player* p, f32 range, f32 height, f32* from, f32* to,
 s32 try_location(u8* motion, Player* p, f32* position, f32* resultPosition,
                  s32* resultItem, s32 findFloor) {
     f32 screen[2];
-    u8 unused[16];
+    u8 unused[8];
     f32 collidePosition[3];
     f32 hitPosition[3];
     f32 delta;
@@ -3303,7 +3303,7 @@ u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
 #pragma opt_common_subs reset
 #pragma opt_propagation reset
 void PlayerMotion_FindClosestPlayer(Player* p, f32* dir, u32 flags, f32 dmg) {
-    u8 unused[16];
+    u8 unused[8];
     f32 dvec[3];
     f32 best = 2.0 + (f64)PF(p, 0x850, f32);
     s32 i;
@@ -3385,7 +3385,7 @@ typedef struct EnemyDamageView {
  * hit result code, or -1. */
 s32 PlayerMotion_DamageTarget(Player* p, s32 targetId, s32 a3, s32 a4, s32 a5,
                               f32 dmg, f32 priority) {
-    u8 unused[16];
+    u8 unused[8];
     f32 dir[3];
     u8* critter;
     EnemyDamageView* enemy;
