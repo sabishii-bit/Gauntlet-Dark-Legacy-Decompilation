@@ -1093,38 +1093,45 @@ static void shop_setup(void)
         for (i = 0; i < 4; i++, boff += 20, toff += 4, poff += 13148) {
             u8* pl = gPlayers + poff;
             s32 cls = *(s32*)(pl + 4);
-            s32* texp = (s32*)(tbl + toff);
-            void** b = (void**)(page + boff);
-            void** b1;
-            void** b2;
-            void** b3;
-            void** b4;
-            u8* clsBase;
             sprintf(buf, fmts + 232, i + 1);
-            *(b += 1900) = mbNewBlitSized(buf, *(texp += 24), 0, 128, -1);
-            sprintf(buf, fmts + 244, i + 1);
-            *(b1 = b + 1) = mbNewBlitSized(buf, *texp, 256, 128, -1);
-            sprintf(buf, fmts + 256);
-            *(b2 = b + 2) = mbNewBlitSized(buf, *texp, 0, 128, -1);
-            sprintf(buf, fmts + 56);
-            *(b3 = b + 3) = mbNewBlitSized(buf, *texp, 256, 128, -1);
-            clsBase = tbl + cls * 4;
-            sprintf(buf, fmts + 268, *(char**)(clsBase + 144));
-            *(b4 = b + 4) = MBNewBlit(buf, *texp + 32, 0);
-            if (*(s32*)(pl + 232) == 0) {
-                mbBlitInit3414(*b4, 1);
+            {
+                s32* texp = (s32*)(tbl + toff);
+                void** b;
+                void** b1;
+                void** b2;
+                void** b3;
+                void** b4;
+                u8* clsBase;
+                {
+                    void* first =
+                        mbNewBlitSized(buf, *(texp += 24), 0, 128, -1);
+                    b = (void**)(page + boff);
+                    *(b += 1900) = first;
+                }
+                sprintf(buf, fmts + 244, i + 1);
+                *(b1 = b + 1) = mbNewBlitSized(buf, *texp, 256, 128, -1);
+                sprintf(buf, fmts + 256);
+                *(b2 = b + 2) = mbNewBlitSized(buf, *texp, 0, 128, -1);
+                sprintf(buf, fmts + 56);
+                *(b3 = b + 3) = mbNewBlitSized(buf, *texp, 256, 128, -1);
+                clsBase = tbl + cls * 4;
+                sprintf(buf, fmts + 268, *(char**)(clsBase + 144));
+                *(b4 = b + 4) = MBNewBlit(buf, *texp + 32, 0);
+                if (*(s32*)(pl + 232) == 0) {
+                    mbBlitInit3414(*b4, 1);
+                }
+                mbBlitCvtCoord(*b, lbl_803483C0);
+                mbBlitCvtCoord(*b1, lbl_803483C0);
+                mbBlitCvtCoord(*b2, lbl_803483C4);
+                mbBlitCvtCoord(*b3, lbl_803483C4);
+                mbBlitCvtCoord(*b4, lbl_803483C8);
+                mbBlitUpdateEntry(*b2, -1, 0x4000);
+                MBBlitSetColor4(*b2, 0x80808080, 0x80808080, 0x80808080,
+                                0x80808080);
+                mbBlitUpdateEntry(*b3, -1, 0x4000);
+                MBBlitSetColor4(*b3, 0x80808080, 0x80808080, 0x80808080,
+                                0x80808080);
             }
-            mbBlitCvtCoord(*b, lbl_803483C0);
-            mbBlitCvtCoord(*b1, lbl_803483C0);
-            mbBlitCvtCoord(*b2, lbl_803483C4);
-            mbBlitCvtCoord(*b3, lbl_803483C4);
-            mbBlitCvtCoord(*b4, lbl_803483C8);
-            mbBlitUpdateEntry(*b2, -1, 0x4000);
-            MBBlitSetColor4(*b2, 0x80808080, 0x80808080, 0x80808080,
-                            0x80808080);
-            mbBlitUpdateEntry(*b3, -1, 0x4000);
-            MBBlitSetColor4(*b3, 0x80808080, 0x80808080, 0x80808080,
-                            0x80808080);
         }
     }
     {
@@ -1167,14 +1174,16 @@ static void shop_setup(void)
                 s32* texp = (s32*)(tbl + o4);
                 s32 name20 = *(texp += 24) + 20;
                 u8* e = tbl;
-                for (j = 0; j < 6; j++, e += 16) {
-                    void* blit = mbNewBlitSized(*(char**)e, *texp,
-                                                *(s32*)(e + 8), -1, -1);
-                    ((void**)clearBlits)[j] = blit;
-                    mbBlitCalcWidth(blit, *(s32*)(e + 4) + *texp,
+                u32 nameIndex;
+                for (nameIndex = 0; nameIndex < 6; nameIndex++, e += 16) {
+                    ((void**)clearBlits)[nameIndex] =
+                        mbNewBlitSized(*(char**)e, *texp, *(s32*)(e + 8), -1,
+                                       -1);
+                    mbBlitCalcWidth(((void**)clearBlits)[nameIndex],
+                                    *(s32*)(e + 4) + *texp,
                                     *(s32*)(e + 8),
                                     (f32)(*(s32*)(e + 12) + 64000));
-                    mbBlitInit3414(blit, 1);
+                    mbBlitInit3414(((void**)clearBlits)[nameIndex], 1);
                 }
                 {
                     s32* count = (s32*)(page + o4);
@@ -1251,14 +1260,15 @@ static void shop_setup(void)
                             } else {
                                 t = 0;
                             }
-                            if (t != 0) {
-                                goto notavail;
+                            if (t == 0) {
+                                goto isavailable;
                             }
-                            available[j] = 1;
-                            continue;
                         }
 notavail:
                         available[j] = 0;
+                        continue;
+isavailable:
+                        available[j] = 1;
                     }
                 }
             }
