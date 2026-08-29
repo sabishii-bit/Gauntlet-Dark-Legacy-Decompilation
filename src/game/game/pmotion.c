@@ -2818,16 +2818,14 @@ player_motion_phase_exit:
                 }
             }
 
-            {
+            if ((p->flags & 1) != 0) {
                 u8* root = PF(p, 0x7C, u8*);
-                void* node = PF(root, 0, void*);
-                u8* data = PF(root, 0x1C, u8*);
-                if ((p->flags & 1) != 0) {
-                    PF(node, 0x34, f32) =
-                        (f32)(PF(data, 0x64, f32) + lbl_80347B88);
-                } else {
-                    PF(node, 0x34, f32) = PF(data, 0x64, f32);
-                }
+                PF(PF(root, 0, void*), 0x34, f32) =
+                    (f32)(lbl_80347B88 + PF(PF(root, 0x1C, u8*), 0x64, f32));
+            } else {
+                u8* root = PF(p, 0x7C, u8*);
+                PF(PF(root, 0, void*), 0x34, f32) =
+                    PF(PF(root, 0x1C, u8*), 0x64, f32);
             }
 
             if ((p->grab_flags & 3) != 0) {
