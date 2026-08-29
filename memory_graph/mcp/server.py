@@ -8,8 +8,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-GDL_TOOLS = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(GDL_TOOLS))
+GDL_REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(GDL_REPO_ROOT))
 
 from mcp.server import MCPServer  # noqa: E402
 

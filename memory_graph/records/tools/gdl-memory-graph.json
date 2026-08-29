@@ -2,10 +2,10 @@
   "attributes": {
     "database_location": ".git/gdl-memory/memory.sqlite",
     "implementation_anchors": [
-      "tools/gdl/gdlmem.py",
-      "tools/gdl/memory_graph/schema.sql",
+      "memory_graph/gdlmem.py",
+      "memory_graph/schema.sql",
       "tools/gdl/tests/test_memory_graph.py",
-      "knowledge/memory/schema/record.schema.json"
+      "memory_graph/schema/record.schema.json"
     ]
   },
   "constraints": [
@@ -14,13 +14,13 @@
     "Xbox exact-name links remain candidates until target-backed evidence verifies them.",
     "Agent-created durable information enters the inbox for review."
   ],
-  "entrypoint": "python tools/gdl/gdlmem.py",
+  "entrypoint": "python memory_graph/gdlmem.py",
   "id": "tool.gdl-memory-graph.20260829.v1",
   "kind": "tool",
   "name": "GDL Memory Graph",
   "purpose": "Provide deterministic cross-session retrieval over project facts, tools, attempts, legacy memories, and Xbox/GameCube symbol evidence.",
   "schema_version": 1,
-  "source_path": "tools/gdl/gdlmem.py",
+  "source_path": "memory_graph/gdlmem.py",
   "status": "active_migration",
   "tool_key": "tool:gdl-memory-graph",
   "tool_kind": "knowledge_service",

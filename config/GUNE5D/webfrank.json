@@ -64,7 +64,7 @@
         "function": "PointLineDist2D",
         "before_sha256": "ada2054b1089e66b4d31bc40b351c083abdeb0843e4325c550cb10c7939f5fe9",
         "after_sha256": "f38c09da2494f12a11e3e843b85536210700b0d35efa23db4bb4cf5cea11902f",
-        "unproven_recolor_audit": "Fixed-ABI operand/load-order exchange, not virtual-register coloring (research/mwcc_webfrank_allocator_patterns.md); dataflow-equivalent per the 2026-08-25 capture analysis; not expressible as renaming+permutation.",
+        "unproven_recolor_audit": "Fixed-ABI operand/load-order exchange, not virtual-register coloring (local research note mwcc_webfrank_allocator_patterns.md); dataflow-equivalent per the 2026-08-25 capture analysis; not expressible as renaming+permutation.",
         "audit": {
           "classification": "REGISTER_ONLY",
           "instructions": 107

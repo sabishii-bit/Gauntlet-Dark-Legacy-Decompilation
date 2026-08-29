@@ -4,7 +4,7 @@ The MCP adapter is isolated from the build dependencies. Run it from the
 repository root with its locked `uv` environment:
 
 ```sh
-uv run --project tools/gdl/memory_mcp python tools/gdl/memory_mcp/server.py
+uv run --project memory_graph/mcp python memory_graph/mcp/server.py
 ```
 
 Set `GDL_MEMORY_ROOT` when the host starts the server outside this checkout.
@@ -21,9 +21,9 @@ Example stdio MCP configuration:
       "args": [
         "run",
         "--project",
-        "<repo-root>/tools/gdl/memory_mcp",
+        "<repo-root>/memory_graph/mcp",
         "python",
-        "<repo-root>/tools/gdl/memory_mcp/server.py"
+        "<repo-root>/memory_graph/mcp/server.py"
       ],
       "env": {
         "GDL_MEMORY_ROOT": "<repo-root>"
@@ -39,5 +39,5 @@ The CLI remains available when an MCP host is not configured.
 The adapter exposes search/context, Xbox symbol/type lookup, tool policy,
 migration audit/proposal queries, and two review-gated writes:
 `memory_register_tool` and `memory_propose_record`. Writes create JSON only in
-`knowledge/memory/inbox/`; they never mutate the generated SQLite database or
+`memory_graph/inbox/`; they never mutate the generated SQLite database or
 accept their own proposal.

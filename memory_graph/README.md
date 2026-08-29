@@ -25,22 +25,22 @@ immutable commits as anchors.
 ## Commands
 
 ```sh
-python tools/gdl/gdlmem.py build
-python tools/gdl/gdlmem.py ensure
-python tools/gdl/gdlmem.py stats
-python tools/gdl/gdlmem.py validate
-python tools/gdl/gdlmem.py audit
-python tools/gdl/gdlmem.py search "register web topology"
-python tools/gdl/gdlmem.py context PlayerMotion
-python tools/gdl/gdlmem.py xbox pool_garbage_collect
-python tools/gdl/gdlmem.py tool Frank
-python tools/gdl/gdlmem.py proposals --kind parking_legacy
+python memory_graph/gdlmem.py build
+python memory_graph/gdlmem.py ensure
+python memory_graph/gdlmem.py stats
+python memory_graph/gdlmem.py validate
+python memory_graph/gdlmem.py audit
+python memory_graph/gdlmem.py search "register web topology"
+python memory_graph/gdlmem.py context PlayerMotion
+python memory_graph/gdlmem.py xbox pool_garbage_collect
+python memory_graph/gdlmem.py tool Frank
+python memory_graph/gdlmem.py proposals --kind parking_legacy
 ```
 
 Register a new tool as a review-required proposal:
 
 ```sh
-python tools/gdl/gdlmem.py register-tool Ghidra \
+python memory_graph/gdlmem.py register-tool Ghidra \
   --kind external \
   --purpose "Inspect target control flow and data types" \
   --constraint "GameCube target bytes remain authoritative"
@@ -54,7 +54,7 @@ Other entity, edge, claim, evidence, attempt, and work-claim records can be
 staged through the same review boundary:
 
 ```sh
-python tools/gdl/gdlmem.py propose-record path/to/record.json
+python memory_graph/gdlmem.py propose-record path/to/record.json
 ```
 
 Records that reference `function:<symbol>` or `tu:<module>` resolve

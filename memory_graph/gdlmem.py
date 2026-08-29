@@ -2,11 +2,11 @@
 """Build and query the GDL project-memory graph.
 
 Examples:
-  python tools/gdl/gdlmem.py build
-  python tools/gdl/gdlmem.py context PlayerMotion
-  python tools/gdl/gdlmem.py xbox pool_garbage_collect
-  python tools/gdl/gdlmem.py search "register web topology"
-  python tools/gdl/gdlmem.py proposals --kind parking_legacy
+  python memory_graph/gdlmem.py build
+  python memory_graph/gdlmem.py context PlayerMotion
+  python memory_graph/gdlmem.py xbox pool_garbage_collect
+  python memory_graph/gdlmem.py search "register web topology"
+  python memory_graph/gdlmem.py proposals --kind parking_legacy
 """
 
 from __future__ import annotations
@@ -15,6 +15,8 @@ import argparse
 import json
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from memory_graph.core import (
     MemoryGraphError,
@@ -72,7 +74,7 @@ def main(argv: list[str] | None = None) -> int:
     tool.add_argument("--limit", type=int, default=20)
 
     register_tool = subparsers.add_parser(
-        "register-tool", help="write a review-required tool record to knowledge/memory/inbox"
+        "register-tool", help="write a review-required tool record to memory_graph/inbox"
     )
     register_tool.add_argument("name")
     register_tool.add_argument("--purpose", required=True)
@@ -135,7 +137,7 @@ def main(argv: list[str] | None = None) -> int:
             result = {
                 "proposal": str(path),
                 "review_state": "pending",
-                "next": "review the JSON, then move it from knowledge/memory/inbox to records",
+                "next": "review the JSON, then move it from memory_graph/inbox to records",
             }
         elif args.command == "propose-record":
             record = json.loads(args.json_file.read_text(encoding="utf-8"))
@@ -143,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
             result = {
                 "proposal": str(path),
                 "review_state": "pending",
-                "next": "review the JSON, then move it from knowledge/memory/inbox to records",
+                "next": "review the JSON, then move it from memory_graph/inbox to records",
             }
         elif args.command == "proposals":
             result = migration_proposals(

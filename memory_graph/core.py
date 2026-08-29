@@ -1,7 +1,7 @@
 """Build and query the GDL project-memory graph.
 
 The SQLite file is a disposable materialized view. Durable reviewed facts live
-as JSON records under knowledge/memory/records; legacy notes are preserved and
+as JSON records under memory_graph/records; legacy notes are preserved and
 indexed with provenance but never promoted to verified facts automatically.
 """
 
@@ -25,10 +25,10 @@ from typing import Any, Iterable, Iterator
 
 SCHEMA_VERSION = 1
 PACKAGE_DIR = Path(__file__).resolve().parent
-REPO_ROOT = PACKAGE_DIR.parent.parent.parent
+REPO_ROOT = PACKAGE_DIR.parent
 SCHEMA_PATH = PACKAGE_DIR / "schema.sql"
-RECORDS_DIR = REPO_ROOT / "knowledge" / "memory" / "records"
-INBOX_DIR = REPO_ROOT / "knowledge" / "memory" / "inbox"
+RECORDS_DIR = REPO_ROOT / "memory_graph" / "records"
+INBOX_DIR = REPO_ROOT / "memory_graph" / "inbox"
 
 PDB_MODULE_RE = re.compile(r"^==\s+\.\\Release\\(.+?)\s+\((.*?)\)\s*$", re.I)
 PDB_SYMBOL_RE = re.compile(
@@ -121,7 +121,7 @@ def _iter_input_paths(root: Path) -> Iterator[Path]:
         yield pdb_index
     for path in (
         root / "tools" / "gdl" / "memory_graph" / "schema.sql",
-        root / "knowledge" / "memory" / "schema" / "record.schema.json",
+        root / "memory_graph" / "schema" / "record.schema.json",
     ):
         if path.exists():
             yield path
@@ -761,7 +761,7 @@ def _insert_auto_entity(
 
 def _import_records(connection: sqlite3.Connection, root: Path) -> int:
     paths: list[Path] = []
-    for relative in (Path("knowledge/memory/records"), Path("knowledge/memory/inbox")):
+    for relative in (Path("memory_graph/records"), Path("memory_graph/inbox")):
         directory = root / relative
         if directory.exists():
             paths.extend(directory.rglob("*.json"))
@@ -1686,7 +1686,7 @@ def stage_record_proposal(
         raise MemoryGraphError("proposed record must be a JSON object")
     _validate_record(record, Path("<proposal>"))
     record_id = record["id"]
-    for relative in (Path("knowledge/memory/records"), Path("knowledge/memory/inbox")):
+    for relative in (Path("memory_graph/records"), Path("memory_graph/inbox")):
         directory = root / relative
         if not directory.exists():
             continue
@@ -1698,7 +1698,7 @@ def stage_record_proposal(
             if isinstance(existing, dict) and existing.get("id") == record_id:
                 raise MemoryGraphError(f"record id {record_id!r} already exists at {path}")
     slug = re.sub(r"[^a-zA-Z0-9._-]+", "-", record_id).strip(".-") or "record"
-    destination_dir = root / "knowledge" / "memory" / "inbox"
+    destination_dir = root / "memory_graph" / "inbox"
     destination_dir.mkdir(parents=True, exist_ok=True)
     destination = destination_dir / f"{slug}.json"
     if destination.exists():
@@ -1756,7 +1756,7 @@ def register_tool_proposal(
 
 def validate_records(root: Path = REPO_ROOT) -> dict[str, Any]:
     paths: list[Path] = []
-    for relative in (Path("knowledge/memory/records"), Path("knowledge/memory/inbox")):
+    for relative in (Path("memory_graph/records"), Path("memory_graph/inbox")):
         directory = root / relative
         if directory.exists():
             paths.extend(directory.rglob("*.json"))

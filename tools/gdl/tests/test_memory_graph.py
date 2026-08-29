@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from memory_graph.core import (  # noqa: E402
     MemoryGraphError,
@@ -28,8 +28,8 @@ class MemoryGraphTests(unittest.TestCase):
         (self.root / "config/GUNE5D").mkdir(parents=True)
         (self.root / ".claude/memory/xbox_symbols").mkdir(parents=True)
         (self.root / "research/xbox_symbols").mkdir(parents=True)
-        (self.root / "knowledge/memory/records").mkdir(parents=True)
-        (self.root / "knowledge/memory/inbox").mkdir(parents=True)
+        (self.root / "memory_graph/records").mkdir(parents=True)
+        (self.root / "memory_graph/inbox").mkdir(parents=True)
         (self.root / "tools/gdl").mkdir(parents=True)
 
         (self.root / "config/GUNE5D/symbols.txt").write_text(
@@ -63,7 +63,7 @@ class MemoryGraphTests(unittest.TestCase):
         (self.root / "tools/gdl/example.py").write_text(
             '\"\"\"Example discovered tool.\"\"\"\n', encoding="utf-8"
         )
-        (self.root / "knowledge/memory/records/project.json").write_text(
+        (self.root / "memory_graph/records/project.json").write_text(
             json.dumps(
                 {
                     "schema_version": 1,
@@ -76,7 +76,7 @@ class MemoryGraphTests(unittest.TestCase):
             ),
             encoding="utf-8",
         )
-        (self.root / "knowledge/memory/records/tool.json").write_text(
+        (self.root / "memory_graph/records/tool.json").write_text(
             json.dumps(
                 {
                     "schema_version": 1,
@@ -121,7 +121,7 @@ class MemoryGraphTests(unittest.TestCase):
         self.assertEqual(tool["tools"][0]["constraints"], ["Test only."])
 
     def test_function_and_tu_references_autoresolve_from_symbol_import(self):
-        (self.root / "knowledge/memory/records/attempt.json").write_text(
+        (self.root / "memory_graph/records/attempt.json").write_text(
             json.dumps(
                 {
                     "schema_version": 1,
@@ -134,7 +134,7 @@ class MemoryGraphTests(unittest.TestCase):
             ),
             encoding="utf-8",
         )
-        (self.root / "knowledge/memory/records/edge.json").write_text(
+        (self.root / "memory_graph/records/edge.json").write_text(
             json.dumps(
                 {
                     "schema_version": 1,
@@ -161,7 +161,7 @@ class MemoryGraphTests(unittest.TestCase):
         self.assertIn("function:foo", rows)
         self.assertIn("auto_resolved_from", rows["function:foo"])
         self.assertIn("tu:game/example", rows)
-        (self.root / "knowledge/memory/records/bad.json").write_text(
+        (self.root / "memory_graph/records/bad.json").write_text(
             json.dumps(
                 {
                     "schema_version": 1,
@@ -206,7 +206,7 @@ class MemoryGraphTests(unittest.TestCase):
             "value": True,
             "epistemic_state": "verified",
         }
-        records = self.root / "knowledge/memory/records"
+        records = self.root / "memory_graph/records"
         (records / "00-evidence.json").write_text(json.dumps(evidence), encoding="utf-8")
         (records / "99-claim.json").write_text(json.dumps(claim), encoding="utf-8")
         stats = build_database(self.root, self.db)

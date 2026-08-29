@@ -223,7 +223,7 @@ Project memory graph
 ====================
 
 Project knowledge is being migrated into a local, deterministic SQLite graph.
-The reviewed source records live under [`knowledge/memory/`](knowledge/memory/);
+The reviewed source records live under [`memory_graph/`](memory_graph/);
 the generated database lives in Git's common directory at
 `.git/gdl-memory/memory.sqlite`, so it is shared by worktrees and never
 committed. Existing `.claude/memory/` notes are preserved and indexed as legacy
@@ -232,11 +232,11 @@ evidence—none are silently promoted to verified facts or deleted as duplicates
 The CLI uses only Python's standard library:
 
 ```sh
-python tools/gdl/gdlmem.py build
-python tools/gdl/gdlmem.py context PlayerMotion
-python tools/gdl/gdlmem.py xbox pool_garbage_collect
-python tools/gdl/gdlmem.py tool Frank
-python tools/gdl/gdlmem.py audit
+python memory_graph/gdlmem.py build
+python memory_graph/gdlmem.py context PlayerMotion
+python memory_graph/gdlmem.py xbox pool_garbage_collect
+python memory_graph/gdlmem.py tool Frank
+python memory_graph/gdlmem.py audit
 ```
 
 It indexes GameCube symbols and TU ownership, Xbox PDB symbol/module order and
@@ -245,17 +245,17 @@ chunks. Automatic exact-name Xbox/GameCube links are candidates only; target
 assembly and accepted evidence remain authoritative.
 
 An optional local MCP adapter is locked with `uv` under
-[`tools/gdl/memory_mcp/`](tools/gdl/memory_mcp/). MCP host configuration stays
+[`memory_graph/mcp/`](memory_graph/mcp/). MCP host configuration stays
 machine-local. New or revised tool guidance can be staged without editing the
 database directly:
 
 ```sh
-python tools/gdl/gdlmem.py register-tool <name> --purpose <purpose> --kind <kind>
+python memory_graph/gdlmem.py register-tool <name> --purpose <purpose> --kind <kind>
 ```
 
-The resulting JSON remains pending in `knowledge/memory/inbox/` until an
+The resulting JSON remains pending in `memory_graph/inbox/` until an
 integrator reviews and accepts it. See the
-[`migration audit`](knowledge/memory/migration-audit.md) for current coverage,
+[`migration audit`](memory_graph/migration-audit.md) for current coverage,
 duplicate families, and the non-destructive migration order.
 
 Reviewed graph records are anchored to source, configuration, tests, target
