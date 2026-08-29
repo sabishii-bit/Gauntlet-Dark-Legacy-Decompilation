@@ -1658,18 +1658,10 @@ collision_done:
             if ((motionState == 8 || motionState == 13) &&
                 PF(p, 0x8F8, s32) == 0 &&
                 (anim < 39 || anim > 114) && ctl->control.flag != 0) {
-                s32 canForce = 0;
-                if (item >= 0) {
-                    if (specialCritter == 0 || gBossType == 37 ||
-                        gBossType == 41) {
-                        canForce = 1;
-                    }
-                }
-                if (!canForce && target != NULL &&
-                    **(s32**)target == 3 && PF(target, 0xCF, s8) >= 0) {
-                    canForce = 1;
-                }
-                if (canForce) {
+                if (specialCritter == 0 || gBossType == 37 ||
+                    gBossType == 41 ||
+                    (target != NULL && **(s32**)target == 3 &&
+                     PF(target, 0xCF, s8) >= 0)) {
                     contactRadius = 0.0f;
                     movingBias = 0.0f;
                     motionState = 15;
