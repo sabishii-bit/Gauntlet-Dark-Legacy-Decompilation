@@ -827,13 +827,11 @@ void PlayerMotion_SetAnimState(Player* p) {
  */
 static f32 PlayerMotion_WrapAngle(f32 angle) {
     f64 a = (f64)angle;
-    f64 wrapped;
+    f64 wrapped = a;
     if (a > lbl_80347B50) {
         wrapped = a - lbl_80347B60;
     } else if (a <= lbl_80347B68) {
         wrapped = lbl_80347B60 + a;
-    } else {
-        wrapped = a;
     }
     return (f32)wrapped;
 }
@@ -1643,15 +1641,16 @@ collision_done:
                         hit[1] = to[1] - *(f32*)(motion + 0x34);
                         hit[2] = to[2] - *(f32*)(motion + 0x38);
                     }
+                    effectRecord = Effects + effect * 240;
                     CreateDirMatrix(
-                        (f32*)*(void**)(Effects + effect * 240 + 0x14),
+                        (f32*)*(void**)(effectRecord + 0x14),
                         hit, NULL);
                     GetWorldMat(PF(p, 0x6CC, void*), effectMatrix, NULL);
-                    PF(*(void**)(Effects + effect * 240 + 0x14), 0x30, f32) =
+                    PF(*(void**)(effectRecord + 0x14), 0x30, f32) =
                         effectMatrix[12];
-                    PF(*(void**)(Effects + effect * 240 + 0x14), 0x34, f32) =
+                    PF(*(void**)(effectRecord + 0x14), 0x34, f32) =
                         effectMatrix[13];
-                    PF(*(void**)(Effects + effect * 240 + 0x14), 0x38, f32) =
+                    PF(*(void**)(effectRecord + 0x14), 0x38, f32) =
                         effectMatrix[14];
                     goto state_selected;
                 }
@@ -2377,12 +2376,13 @@ store_motion_state:
                 }
 
                 if (effect >= 0) {
+                    u8* fxRecord = Effects + effect * 240;
                     MBTreeSetAmbientAdd(
-                        *(void**)(Effects + effect * 240 + 0x14), 0x1FF, 1);
+                        *(void**)(fxRecord + 0x14), 0x1FF, 1);
                     if (particleTexture >= 0) {
                         void* psys = MBNewPsysDefault(
                             (f32*)gIdentityMatrix,
-                            *(void**)(Effects + effect * 240 + 0x14), 0, 1);
+                            *(void**)(fxRecord + 0x14), 0, 1);
                         if (psys != NULL) {
                             MBTreeSetFlags(psys, 0x880, 1);
                             MBPsysSetEVolume(1.0f, 1.0f, psys);
