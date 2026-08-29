@@ -1195,9 +1195,8 @@ void PlayerMotion(Player* p) {
         (floorResult == -2 && (PF(p, 0x8C4, u32) == 0 ||
          (p->obj_flags & 0x8000) != 0))) {
         f32 rise = PF(p, 0x8B4, f32) - *(f32*)(motion + 0x34);
-        f32 minimumRise = (f32)(lbl_80347BD8 * gClockFrameStep);
-        if (rise < minimumRise) {
-            rise = minimumRise;
+        if ((f64)rise < lbl_80347BD8 * gClockFrameStep) {
+            rise = (f32)(lbl_80347BD8 * gClockFrameStep);
         }
         dpos[1] += rise;
     }
