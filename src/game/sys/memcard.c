@@ -1615,11 +1615,13 @@ u8* buildSaveImage(const char* name, void* hdr, int bannerTex, int iconTex,
 {
     u8* pool = lbl_8025EE80;
     char* rpool = lbl_801131C0;
-    u8* out;
-    u8* hi;
     s32 blockSize;
+    u8* hi;
     s32 total;
     s32* sizePtr;
+    u8* sizeHi;
+    u8* out;
+    s32 bytes;
     int i;
     int bit;
 
@@ -1630,8 +1632,10 @@ u8* buildSaveImage(const char* name, void* hdr, int bannerTex, int iconTex,
     total = lbl_803449F0;
     blockSize = cardGetTotalBytes();
     total = (total + cardGetTotalBytes() - 1) / blockSize;
-    sizePtr = (s32*) (pool + 0x10000 - 19356);
-    *sizePtr = total * cardGetTotalBytes();
+    bytes = total * cardGetTotalBytes();
+    sizeHi = pool + 0x10000;
+    sizePtr = (s32*) (sizeHi - 19356);
+    *(s32*) (sizeHi - 19356) = bytes;
 
     if (lbl_803449F8 == 0) {
         lbl_803449F8 = (u32) OSAllocFromHeap(__OSCurrHeap, *(u32*) sizePtr);
@@ -1678,6 +1682,7 @@ u8* buildSaveImage(const char* name, void* hdr, int bannerTex, int iconTex,
     if ((u32) iconTex != 0) {
         u16* fmtW = (u16*) (hi - 19336);
         u16* animW = (u16*) (hi - 19334);
+        u16* clearAnimW;
         s32 lastFrame;
         s32 j;
         u8* hi2;
@@ -1688,20 +1693,39 @@ u8* buildSaveImage(const char* name, void* hdr, int bannerTex, int iconTex,
             void** tex = (void**) TEXGet(iconTex, i);
 
             switch (*(s32*) ((u8*) tex[0] + 4)) {
-            case 5:
-                *fmtW = (u16) ((*fmtW & ~(3 << bit)) | (2 << bit));
+            case 5: {
+                u32 mask = 3;
+                u32 oldFmt = *fmtW;
+                u32 code;
+
+                mask <<= bit;
+                code = 2;
+                oldFmt &= ~mask;
+                code <<= bit;
+                *fmtW = (u16) (oldFmt | code);
                 break;
-            case 9:
-                *fmtW = (u16) ((*fmtW & ~(3 << bit)) | (1 << bit));
+            }
+            case 9: {
+                u32 mask = 3;
+                u32 oldFmt = *fmtW;
+                u32 code;
+
+                mask <<= bit;
+                code = 1;
+                oldFmt &= ~mask;
+                code <<= bit;
+                *fmtW = (u16) (oldFmt | code);
                 break;
+            }
             default:
                 OSPanic(rpool + 608, 901, rpool + 956);
             }
             *animW = (u16) ((*animW & ~(3 << bit)) | (fmtA << bit));
         }
 
+        clearAnimW = (u16*) (pool + 0x10000 - 19334);
         for (bit = i << 1; i < 8; i++, bit += 2) {
-            *animW &= (u16) ~(3 << bit);
+            *clearAnimW &= ~(3 << bit);
         }
 
         hi2 = pool + 0x10000;
