@@ -94,7 +94,7 @@ typedef struct PlayerCharSave {
 /* Field names are Midway's own (Xbox shell3D.pdb struct P_POWERUP).  Note the
  * two f32s are overloaded by powerup class: for timed buffs `timeleft` is the
  * real-time countdown (drained by gClockFrameStep) and `attributeadd` is 0; for
- * charge items `attributeadd` is the use/charge count (−1.0 per use) and
+ * charge items `attributeadd` is the use/charge count (?1.0 per use) and
  * `timeleft` is pinned < 0 as a permanent/occupied flag. */
 typedef struct PlayerPowerup {
     /* 0x00 */ f32 timeleft;         /* time remaining; 0 = free slot, < 0 = permanent */
@@ -162,7 +162,10 @@ typedef struct Player {
     /* 0x0204 */ s32 vibe_on;
     /* 0x0208 */ s32 anim_208;       /* 0x7E handshake with action anim [player.c] */
     /* 0x020C */ s32 anim_20C;
-    /* 0x0210 */ u8  pad_0210[0x5EC];
+    /* 0x0210 */ u8  pad_0210[0x4A8];
+    /* 0x06B8 */ struct Player* grab_partner; /* grabbed/carried partner [pmotion.c] */
+    /* 0x06BC */ struct Player* grab_pending; /* pending grab request [pmotion.c] */
+    /* 0x06C0 */ u8  pad_06C0[0x13C];
     /* 0x07FC */ f32 pulse_7FC;      /* rune-near display pulse [player.c] */
     /* 0x0800 */ u8  pad_0800[0x28];
     /* 0x0828 */ f32 power_target;   /* power-meter target [player.c] */
