@@ -1407,7 +1407,7 @@ collision_done:
         PF(p, 0x870, f32) = (f32)(lbl_80347C18 * PF(p, 0x870, f32));
         PF(p, 0x874, f32) = (f32)(lbl_80347C18 * PF(p, 0x874, f32));
         PF(p, 0x878, f32) = (f32)(lbl_80347C18 * PF(p, 0x878, f32));
-        reaction = PlayerKnockback(controlYaw, p, &heading);
+        reaction = PlayerKnockback(controlYaw, p, &savedHeading);
 
         if (reaction < 300) {
             if (anim == 131) {
@@ -1471,20 +1471,20 @@ collision_done:
             motionState = 36;
             goto state_selected;
         }
-        if (reaction == 10 || reaction == 11) {
+        if ((u32)(reaction - 10) <= 1) {
             heading = savedHeading;
             motionState = 34;
             goto state_selected;
         }
-        if (reaction == 2 || reaction == 3) {
+        if ((u32)(reaction - 2) <= 1) {
             dpos[0] = 0.0f;
             dpos[1] = 0.0f;
             dpos[2] = 0.0f;
-            if (anim == 127 || anim == 129) {
+            if (anim != 127 && anim != 129) {
+                motionState = 31;
+            } else {
                 motionState = 1;
                 reaction = 0;
-            } else {
-                motionState = 31;
             }
             goto state_selected;
         }
