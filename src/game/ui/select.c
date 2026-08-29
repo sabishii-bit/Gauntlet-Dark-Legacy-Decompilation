@@ -2356,7 +2356,6 @@ void update_class_attr(s32 player)
         s32 tx;
         s32 y;
         s32 row;
-        s32 soff;
         f32 kScale;
         if (sel < 8) {
             avail = 1;
@@ -2417,8 +2416,7 @@ void update_class_attr(s32 player)
         kScale = lbl_80343DC4;
         tx = *xp + 81;
         y = *((s32*)&lbl_80343DB8 + 1);
-        soff = 0;
-        for (row = 0; row < 4; row++, y += lbl_80343DC8, soff += 4) {
+        for (row = 0; row < 4; row++, y += lbl_80343DC8) {
             char* name = GetStringText(167, row, 0);
             s32 w = DrawNormalText(kScale, name, 6);
             s32 vx;
@@ -2430,7 +2428,7 @@ void update_class_attr(s32 player)
                                   name);
             }
             vx = lbl_80343DB8 + *xp;
-            sprintf(buf, lbl_8034802C, *(s32*)((u8*)stats + soff));
+            sprintf(buf, lbl_8034802C, stats[row]);
             if (best == row) {
                 MBNewTempBlit(MBOX_FindTexture(pool + 824, 0), vx - 6,
                               y - 6, 68, -1);
