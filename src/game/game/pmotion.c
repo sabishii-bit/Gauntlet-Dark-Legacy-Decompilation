@@ -2029,13 +2029,16 @@ store_motion_state:
                                               lbl_80347C10);
                     if (!(lbl_80344894 < 0)) {
                         MBTreeSetAmbientAdd(
-                            *(void**)(Effects + lbl_80344894 * 240 + 0x14),
+                            *(void**)(Effects +
+                                      *(volatile s32*)&lbl_80344894 * 240 +
+                                      0x14),
                             0x1FF, 1);
                         SfxSetParent(lbl_80344894,
                                      PF(p, 0x6D0, void*));
                         PF(p, 0x730, void*) =
-                            *(void**)((u8*)Effects +
-                                      (lbl_80344894 * 240 + 0x14));
+                            *(void**)(Effects +
+                                      *(volatile s32*)&lbl_80344894 * 240 +
+                                      0x14);
                     }
                 } else {
                     f32 bossFxPos[3];
