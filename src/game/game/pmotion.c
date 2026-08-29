@@ -2150,9 +2150,6 @@ store_motion_state:
                 PF(p, 0x900, u32) = 0;
                 fn_8009C9DC(2, (f32*)((u8*)p + 0x54));
 
-                hit[0] = 0.0f;
-                hit[1] = 0.0f;
-                hit[2] = 0.0f;
                 switch (gBossType) {
                 case 35: {
                     u8* chain1 = PF(gBossObj, 0xAD8, u8*);
