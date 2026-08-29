@@ -2774,12 +2774,12 @@ store_motion_state:
 
                 if (PF(p, 0x1EBC, s32) > 0) {
                     PF(p, 0x1EBC, s32)--;
-                    start_magic(index, (f32*)((u8*)p + 0x44),
+                    start_magic(index, (f32*)(motion + 0x30),
                                 PF(p, 0x3300 +
                                       PF(p, 0x1EBC, s32) * 4, u32),
                                 magicMode, 1.0f);
                 } else {
-                    start_magic(index, (f32*)((u8*)p + 0x44),
+                    start_magic(index, (f32*)(motion + 0x30),
                                 0, magicMode, 1.0f);
                 }
                 PF(p, 0x956, s16) = 128;
