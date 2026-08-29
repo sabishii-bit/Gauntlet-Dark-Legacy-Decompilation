@@ -896,6 +896,7 @@ void PlayerMotion(Player* p) {
     s32 transporter;
     s32 wallResult;
     s32 hitKind = 0;
+    s32 specialCritter;
     f32 facing;
     f32 controlYaw;
     f32 heading;
@@ -1081,6 +1082,7 @@ void PlayerMotion(Player* p) {
     to[1] = oldpos[1] + dpos[1];
     to[2] = oldpos[2] + dpos[2];
     PF(p, 0x8AC, s32) = 0;
+    specialCritter = 0;
     firstEnemyHits = PlayerCollideEnemies(
         p, (s32)oldpos, to, to, 0, (s32*)&target, radius, height);
     if (firstEnemyHits != 0) {
@@ -1387,26 +1389,34 @@ collision_done:
 
     {
         f32 savedHeading;
-        f32 targetAngle = heading;
-        f32 targetDistance = lbl_80347C20;
-        f32 contactRadius = radius;
+        f32 targetAngle;
+        f32 targetDistance;
+        f32 contactRadius;
         f32 movingBias;
         s32 reaction;
         s32 motionState = motionType;
-        s32 critterIndex = -1;
-        s32 specialCritter = 0;
-        s32 forceState = 0;
-        u8* enemy = NULL;
+        s32 critterIndex;
+        s32 forceState;
+        u8* enemy;
 
+        if ((p->hud_flags & 0x20) != 0 &&
+            (p->obj_flags & 0x4000) == 0) {
+            targetDistance = 0.0f;
+            movingBias = 0.0f;
+            reaction = 0;
+            contactRadius = lbl_80347C10;
+            forceState = 0;
+            motionState = 0;
+            goto store_motion_state;
+        }
+        targetAngle = heading;
+        targetDistance = lbl_80347C20;
+        contactRadius = radius;
+        forceState = 0;
         if (directionKind != 0) {
             movingBias = 1.0f;
         } else {
             movingBias = 0.0f;
-        }
-        if ((p->hud_flags & 0x20) != 0 &&
-            (p->obj_flags & 0x4000) == 0) {
-            motionState = 0;
-            goto store_motion_state;
         }
 
         savedHeading = heading;
@@ -1506,6 +1516,10 @@ collision_done:
             enemy = NULL;
         } else if (item >= 0) {
             enemy = gEnemies + item * 916;
+            critterIndex = -1;
+        } else {
+            critterIndex = -1;
+            enemy = NULL;
         }
 
         if ((p->hud_flags & 0xC000) != 0 ||
