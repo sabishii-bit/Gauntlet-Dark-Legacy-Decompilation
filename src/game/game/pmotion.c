@@ -2852,13 +2852,17 @@ player_motion_phase_exit:
                 p->grab_flags &= ~3;
             }
 
-            grabKind = ((p->flags & 0x400) != 0 &&
-                        PF(p, 0x6B8, Player*) == NULL)
-                           ? -1
-                           : p->char_type;
+            if ((p->flags & 0x400) != 0 &&
+                PF(p, 0x6B8, Player*) == NULL) {
+                grabKind = -1;
+            } else {
+                grabKind = p->char_type;
+            }
             comboTime = PF(p, 0x98, f32);
 
-            if (p->anim_208 < 90 && !(p->anim_208 < 88)) {
+            switch (p->anim_208) {
+            case 88:
+            case 89:
                 if (p->grab_pending != NULL) {
                     p->grab_partner = p->grab_pending;
                     PF(p->grab_partner, 0x964, s16) |= 0x10;
@@ -2867,8 +2871,10 @@ player_motion_phase_exit:
                     p->power_target -= p->coll_score;
                     p->coll_score = 0.0f;
                 }
-            } else {
+                break;
+            default:
                 p->grab_pending = NULL;
+                break;
             }
 
             switch (grabKind) {
@@ -2876,7 +2882,9 @@ player_motion_phase_exit:
             case 5:
             case 6:
             case 7:
-                if (p->anim_208 < 90 && !(p->anim_208 < 88)) {
+                switch (p->anim_208) {
+                case 88:
+                case 89:
                     if (p->grab_partner != NULL &&
                         (PF(p->grab_partner, 0x964, s16) & 0x20) == 0) {
                         PlayerSetGrabbed(p->grab_partner,
@@ -2886,6 +2894,9 @@ player_motion_phase_exit:
                     if (grabKind != 7) {
                         goto player_motion_grab_done;
                     }
+                    break;
+                default:
+                    break;
                 }
                 if (p->grab_partner != NULL &&
                     (PF(p->grab_partner, 0x964, s16) & 0x10) != 0) {
@@ -2900,7 +2911,9 @@ player_motion_phase_exit:
 
             case 1:
             case 3:
-                if (p->anim_208 < 90 && !(p->anim_208 < 88)) {
+                switch (p->anim_208) {
+                case 88:
+                case 89: {
                     Player* partner = p->grab_partner;
                     if (partner != NULL && (p->hud_flags & 0x20) == 0) {
                         f32 grabDir[3];
@@ -2922,42 +2935,55 @@ player_motion_phase_exit:
                         PlayerSetGrabbed(p, PF(p->grab_partner, 0x6DC, void*),
                                          NULL);
                     }
-                } else if (p->grab_partner != NULL &&
-                           (PF(p->grab_partner, 0x964, s16) & 0x10) != 0) {
-                    if ((p->hud_flags & 0x20) != 0) {
-                        PlayerUnsetGrabbed(p, 1);
+                    break;
+                }
+                default:
+                    if (p->grab_partner != NULL &&
+                        (PF(p->grab_partner, 0x964, s16) & 0x10) != 0) {
+                        if ((p->hud_flags & 0x20) != 0) {
+                            PlayerUnsetGrabbed(p, 1);
+                        }
+                        PF(p->grab_partner, 0x964, s16) &= ~0x10;
+                        PF(p->grab_partner, 0x6B8, Player*) = NULL;
+                        p->grab_partner = NULL;
                     }
-                    PF(p->grab_partner, 0x964, s16) &= ~0x10;
-                    PF(p->grab_partner, 0x6B8, Player*) = NULL;
-                    p->grab_partner = NULL;
+                    break;
                 }
                 break;
 
             case 0:
-                if (p->anim_208 != 89 && p->anim_208 < 89 &&
-                    !(p->anim_208 < 88) && comboTime < lbl_80347C88) {
-                    if (p->grab_partner != NULL &&
-                        (PF(p->grab_partner, 0x964, s16) & 0x20) == 0) {
-                        PlayerSetGrabbed(p->grab_partner, PF(p, 0x6DC, void*),
-                                         NULL);
-                        PF(p->grab_partner, 0x8FC, f32) = sMusicFadeBase;
-                    }
-                } else if (p->grab_partner != NULL) {
-                    if ((PF(p->grab_partner, 0x964, s16) & 0x10) != 0) {
-                        if ((PF(p->grab_partner, 0x964, s16) & 0x20) != 0) {
-                            PlayerUnsetGrabbed(p->grab_partner, 0);
+                switch (p->anim_208) {
+                case 88:
+                    if (comboTime < lbl_80347C88) {
+                        if (p->grab_partner != NULL &&
+                            (PF(p->grab_partner, 0x964, s16) & 0x20) == 0) {
+                            PlayerSetGrabbed(p->grab_partner,
+                                             PF(p, 0x6DC, void*), NULL);
+                            PF(p->grab_partner, 0x8FC, f32) = sMusicFadeBase;
                         }
-                        PF(p->grab_partner, 0x964, s16) &= ~0x10;
-                        PF(p->grab_partner, 0x964, s16) |= 0x40;
-                        PF(p, 0x1FA, s16) = 240;
+                        break;
                     }
-                    if ((PF(p->grab_partner, 0x964, s16) & 0x40) != 0 &&
-                        PF(p, 0x1FA, s16) <= 0) {
-                        PF(p->grab_partner, 0x964, s16) &= ~0x40;
-                        PF(p->grab_partner, 0x6B8, Player*) = NULL;
-                        p->grab_partner = NULL;
-                        p->hud_flags &= ~0x80;
+                    /* fall through */
+                case 89:
+                default:
+                    if (p->grab_partner != NULL) {
+                        if ((PF(p->grab_partner, 0x964, s16) & 0x10) != 0) {
+                            if ((PF(p->grab_partner, 0x964, s16) & 0x20) != 0) {
+                                PlayerUnsetGrabbed(p->grab_partner, 0);
+                            }
+                            PF(p->grab_partner, 0x964, s16) &= ~0x10;
+                            PF(p->grab_partner, 0x964, s16) |= 0x40;
+                            PF(p, 0x1FA, s16) = 240;
+                        }
+                        if ((PF(p->grab_partner, 0x964, s16) & 0x40) != 0 &&
+                            PF(p, 0x1FA, s16) <= 0) {
+                            PF(p->grab_partner, 0x964, s16) &= ~0x40;
+                            PF(p->grab_partner, 0x6B8, Player*) = NULL;
+                            p->grab_partner = NULL;
+                            p->hud_flags &= ~0x80;
+                        }
                     }
+                    break;
                 }
                 break;
 
