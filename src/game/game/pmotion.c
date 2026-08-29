@@ -2216,7 +2216,7 @@ store_motion_state:
                     hit[1] = PF(gBossObj, 0x41C, f32);
                     hit[2] = PF(gBossObj, 0x420, f32);
                     hit[2] = (f32)(hit[2] + lbl_80347BC0);
-                    hit[1] = (f32)(hit[1] + lbl_80347C78);
+                    hit[1] = (f32)(hit[1] - lbl_80347C78);
                     effect = StartFXSub(93, hit, 0, 0x880,
                                         lbl_80347C6C);
                     if (effect >= 0) {
@@ -2281,8 +2281,8 @@ store_motion_state:
                         NormalVector(effectVelocity);
                         hit[0] = (f32)((f64)effectVelocity[0] + PF(p, 0x54, f32));
                         hit[1] = (f32)((f64)effectVelocity[1] + PF(p, 0x58, f32));
-                        hit[1] = (f32)(hit[1] + lbl_80347C28);
                         hit[2] = (f32)((f64)effectVelocity[2] + PF(p, 0x5C, f32));
+                        hit[1] = (f32)(hit[1] + lbl_80347C28);
                         effect = StartFXSub(93, hit, effectFlags | 8, 0,
                                             lbl_80347CA8);
                         effectVelocity[0] *= bossDamage;
