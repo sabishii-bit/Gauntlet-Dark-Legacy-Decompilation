@@ -186,11 +186,14 @@ typedef struct Player {
     /* 0x08C8 */ char* floor_name;   /* current floor name [player.c debug] */
     /* 0x08CC */ u8  pad_08CC[8];
     /* 0x08D4 */ u32 obj_flags;      /* world-obj flags; 0x4000 = parented [player.c] */
-    /* 0x08D8 */ u8  pad_08D8[0x10];
+    /* 0x08D8 */ u32 act_flags;      /* action state flags [pmotion.c/player.c] */
+    /* 0x08DC */ u8  pad_08DC[0x0C];
     /* 0x08E8 */ f32 fxhittime;      /* last critter-effect hit time [critter.c] */
     /* 0x08EC */ f32 floor_fx_time; /* floor hazard damage cooldown [pmotion.c] */
     /* 0x08F0 */ s32 action;         /* current action id (PlayerAttacking) [player.c] */
-    /* 0x08F4 */ u8  pad_08F4[0x20];
+    /* 0x08F4 */ u8  pad_08F4[0x18];
+    /* 0x090C */ u32 coll_flags;     /* collision state bits [pmotion.c] */
+    /* 0x0910 */ f32 coll_score;     /* collision score/severity [pmotion.c] */
     /* 0x0914 */ f32 bossdamage;     /* accumulated boss damage [critter.c] */
     /* 0x0918 */ u8  pad_0918[4];
     /* 0x091C */ s32 count_91C;      /* per-frame countdown [player.c do_players] */
@@ -203,9 +206,14 @@ typedef struct Player {
     /* 0x0938 */ f32 fall_time;      /* fall start timestamp [player.c do_players] */
     /* 0x093C */ u8  pad_093C[0x14];
     /* 0x0950 */ s16 idle_timer;     /* idle speech timer [player.c do_players] */
-    /* 0x0952 */ u8  pad_0952[6];
+    /* 0x0952 */ u8  pad_0952[2];
+    /* 0x0954 */ s16 speak_timer;    /* idle speech timer [player.c/pmotion.c] */
+    /* 0x0956 */ u8  pad_0956[2];
     /* 0x0958 */ s16 throw_str;      /* potion-throw strength [player.c start_magic] */
-    /* 0x095A */ u8  pad_095A[0xA];
+    /* 0x095A */ u8  pad_095A[4];
+    /* 0x095E */ s16 speak_done;     /* speech-already-played guard [pmotion.c/player.c] */
+    /* 0x0960 */ u8  pad_0960[2];
+    /* 0x0962 */ s16 grab_flags;     /* grab variant flags [pmotion.c/player.c] */
     /* 0x0964 */ s16 hud_flags;      /* 0x20 = attached (lha in target) [player.c] */
     /* 0x0966 */ s16 hud_flags2;     /* 1 = info written, 2 = runes written [player.c] */
     /* 0x0968 */ u8  pad_0968[0xC4];

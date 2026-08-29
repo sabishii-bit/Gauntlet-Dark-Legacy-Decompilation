@@ -703,7 +703,7 @@ s32 PlayerCollideItems(Player* p, f32 range, f32 height, f32* from, f32* to,
 s32 try_location(u8* motion, Player* p, f32* position, f32* resultPosition,
                  s32* resultItem, s32 findFloor) {
     f32 screen[2];
-    u8 unused[72];
+    u8 unused[8];
     f32 collidePosition[3];
     f32 hitPosition[3];
     f32 delta;
@@ -966,7 +966,7 @@ void PlayerMotion(Player* p) {
     }
 
     if (p->action >= 11 &&
-        (PF(p, 0x8D8, u32) & 0x8000) == 0) {
+        (p->act_flags & 0x8000) == 0) {
         dpos[0] = 0.0f;
         dpos[1] = 0.0f;
         dpos[2] = 0.0f;
@@ -1003,7 +1003,7 @@ void PlayerMotion(Player* p) {
 
     moveLimit = (f32)(lbl_80347B88 * PF(p, 0x110, f32) *
                       gClockFrameStep);
-    if ((PF(p, 0x8D8, u32) & 0x18160) != 0) {
+    if ((p->act_flags & 0x18160) != 0) {
         moveLimit = (f32)(lbl_80347B90 * gClockFrameStep);
     }
     if (lbl_8034489C >= 1 && lbl_8034489C <= 4 && gBossType == 35 &&
@@ -1131,17 +1131,17 @@ void PlayerMotion(Player* p) {
             if (anim == 137) {
                 hitKind = 1;
             }
-            if (PF(p, 0x954, u16) > 60) {
+            if (p->speak_timer > 60) {
                 lbl_80344B24 = otherIndex;
                 PF(other, 0x954, u16) = 1;
-                PF(p, 0x954, u16) = 0;
+                p->speak_timer = 0;
                 msgPost(50, other->index, (u32)&other->col_pos);
                 fn_8009DCB4((s32)&other->col_pos);
             }
         }
     }
-    if (PF(p, 0x954, u16) != 0) {
-        PF(p, 0x954, u16) += gFrameTicks;
+    if (p->speak_timer != 0) {
+        p->speak_timer += gFrameTicks;
     }
 
     oldpos[1] = (f32)((f64)oldpos[1] + lbl_80347BD0);
@@ -1192,7 +1192,7 @@ void PlayerMotion(Player* p) {
         wallResult = 1;
     }
 
-    if ((PF(p, 0x8D8, u32) & 0x8000) == 0) {
+    if ((p->act_flags & 0x8000) == 0) {
         s32 cameraArg = wallResult != 0 ? 0 : 1;
         s32 cameraResult = CameraLimitPlayerDpos(index, dpos, cameraArg);
         PF(p, 0xA5C, s32) = wallResult != 0 ? -cameraResult : cameraResult;
@@ -1372,7 +1372,7 @@ detach_floor:
     PF(p, 0x8CC, f32) = lbl_80344880;
 
 collision_done:
-    PF(p, 0x90C, s32) = 0;
+    *(s32*)&p->coll_flags = 0;
 
     {
         f32 savedHeading;
@@ -1510,29 +1510,29 @@ collision_done:
 
         if (critterIndex >= 0) {
             u8* critter = gCritterPool + critterIndex * 2784;
-            PF(p, 0x90C, u32) |= 0x10;
+            p->coll_flags |= 0x10;
             if (*(s16*)(*(u8**)(*(u8**)(critter + 4) + 0x120) + 0x20) ==
                 4) {
                 specialCritter = 1;
             }
         } else if (enemy != NULL) {
-            PF(p, 0x90C, u32) |= 0x10;
+            p->coll_flags |= 0x10;
             if ((PF(enemy, 0x23C, f32) <= (f32)lbl_80347C28 ||
                  lbl_803447D8 < (f32)lbl_80347BD0) &&
                 targetDistance < (f32)(lbl_80347C28 + radius)) {
-                PF(p, 0x90C, u32) |= 2;
+                p->coll_flags |= 2;
             }
         } else if (target != NULL) {
-            PF(p, 0x90C, u32) |= 0x20;
+            p->coll_flags |= 0x20;
             if (*(f32*)(*(u8**)target + 0x10) <=
                     (f32)lbl_80347C30 &&
                 targetDistance < (f32)(lbl_80347C28 + radius)) {
-                PF(p, 0x90C, u32) |= 2;
+                p->coll_flags |= 2;
             }
         }
 
         if ((gControllerButtons & 0x80) != 0) {
-            PF(p, 0x90C, u32) |= 2;
+            p->coll_flags |= 2;
         }
 
         if ((p->shield_flags & 0x80000) != 0 && enemy != NULL &&
@@ -1542,9 +1542,9 @@ collision_done:
             motionState = 1;
             damage_enemy(enemy, index, 0, 0, NULL, 1,
                          lbl_80347B40);
-            if (PF(p, 0x95E, s16) == 0) {
+            if (p->speak_done == 0) {
                 fn_8009F158(index);
-                PF(p, 0x95E, s16) = 1;
+                p->speak_done = 1;
             }
             AudioPlayEvt101IfIdle((s32)(enemy + 0x54));
             PF(p, 0x128, u32) |= 1;
@@ -1720,17 +1720,17 @@ store_motion_state:
         }
         if (targetDistance <
             (f32)(lbl_80347BD0 + contactRadius + movingBias)) {
-            PF(p, 0x90C, u32) |= 1;
+            p->coll_flags |= 1;
         } else if (targetDistance <
                    (f32)(lbl_80347C28 + contactRadius + movingBias)) {
-            PF(p, 0x90C, u32) |= 4;
+            p->coll_flags |= 4;
         } else {
-            PF(p, 0x90C, u32) |= 8;
+            p->coll_flags |= 8;
         }
 
         {
             s32 forcedAnim = 0;
-            s32 closeTarget = PF(p, 0x90C, u32) & 2;
+            s32 closeTarget = p->coll_flags & 2;
             if (forceState == 0 &&
                 (p->flags & 0x1000) != 0) {
                 forcedAnim = 110;
@@ -1846,7 +1846,7 @@ store_motion_state:
                 break;
             case 22:
                 p->anim_20C = 88;
-                PF(p, 0x910, f32) = lbl_80347C54;
+                p->coll_score = lbl_80347C54;
                 break;
             case 23:
                 p->anim_20C = 89;
@@ -1854,14 +1854,14 @@ store_motion_state:
             case 21:
                 if ((p->flags & 0x400) != 0 &&
                     (f64)p->power_target >= lbl_80347B90) {
-                    PF(p, 0x910, f32) = lbl_80347C58;
+                    p->coll_score = lbl_80347C58;
                     p->anim_20C = 110;
                 } else if ((f64)p->power_target >= lbl_80347C48) {
                     p->anim_20C = 87;
-                    PF(p, 0x910, f32) = lbl_80347C50;
+                    p->coll_score = lbl_80347C50;
                 } else if ((f64)p->power_target >= lbl_80347B90) {
                     p->anim_20C = 86;
-                    PF(p, 0x910, f32) = lbl_80347C58;
+                    p->coll_score = lbl_80347C58;
                 }
                 break;
             case 16:
@@ -1871,14 +1871,14 @@ store_motion_state:
                            (PF(p, 0x11C, u32) & 0x480000) != 0) {
                     p->anim_20C = 92;
                 } else if (PF(p, 0x908, s32) != 0 && movement != 0.0f &&
-                           (PF(p, 0x90C, u32) & 5) != 0) {
+                           (p->coll_flags & 5) != 0) {
                     p->anim_20C = 32;
-                } else if ((PF(p, 0x90C, u32) & 4) != 0 &&
+                } else if ((p->coll_flags & 4) != 0 &&
                            !closeTarget && movement != 0.0f) {
                     PF(p, 0x904, f32) =
                         PlayerMotion_WrapAngle(heading - controlYaw);
                     p->anim_20C = 62;
-                } else if ((PF(p, 0x90C, u32) & 1) != 0) {
+                } else if ((p->coll_flags & 1) != 0) {
                     p->anim_20C = closeTarget ? 79 : 32;
                 } else if (forceState != 0) {
                     p->anim_20C = closeTarget ? 79 : 32;
@@ -1889,12 +1889,12 @@ store_motion_state:
             case 15:
                 if (forcedAnim != 0) {
                     p->anim_20C = forcedAnim;
-                } else if ((PF(p, 0x90C, u32) & 4) != 0 &&
+                } else if ((p->coll_flags & 4) != 0 &&
                            !closeTarget && movement != 0.0f) {
                     PF(p, 0x904, f32) =
                         PlayerMotion_WrapAngle(heading - controlYaw);
                     p->anim_20C = 62;
-                } else if ((PF(p, 0x90C, u32) & 1) != 0) {
+                } else if ((p->coll_flags & 1) != 0) {
                     p->anim_20C = closeTarget ? 82 : 39;
                 } else if (forceState != 0) {
                     p->anim_20C = closeTarget ? 82 : 39;
@@ -2395,8 +2395,8 @@ store_motion_state:
                     if (found != NULL) {
                         SfxSetParent(effect, (void*)*found);
                     }
-                    p->power_target -= PF(p, 0x910, f32);
-                    PF(p, 0x910, f32) = 0.0f;
+                    p->power_target -= p->coll_score;
+                    p->coll_score = 0.0f;
                     AudioPlayerTurbo(index);
                 } else {
                     SfxSetParent(effect, PF(p, 0x6D4, void*));
@@ -2501,8 +2501,8 @@ store_motion_state:
                 }
 
                 if ((PF(p, 0x900, u32) & 0xF0) != 0) {
-                    p->power_target -= PF(p, 0x910, f32);
-                    PF(p, 0x910, f32) = 0.0f;
+                    p->power_target -= p->coll_score;
+                    p->coll_score = 0.0f;
                     damageFlags |= 0x20;
                     damage = (f32)(damage * lbl_80347B28);
                 } else if ((PF(p, 0x900, u32) & 4) != 0) {
@@ -2765,9 +2765,9 @@ player_motion_phase_exit:
                 }
             }
 
-            if ((PF(p, 0x962, s16) & 3) != 0) {
+            if ((p->grab_flags & 3) != 0) {
                 s32 kind;
-                s32 variant = (u8)((PF(p, 0x962, s16) & 2) ? 1 : 0);
+                s32 variant = (u8)((p->grab_flags & 2) ? 1 : 0);
                 if (PF(p, 0x8CC, f32) > PF(p, 0x8B4, f32)) {
                     kind = 4;
                 } else if ((p->shield_flags & 0x10000) != 0) {
@@ -2780,7 +2780,7 @@ player_motion_phase_exit:
                 if ((p->flags & 1) == 0) {
                     fn_8009EFCC(index, variant, kind);
                 }
-                PF(p, 0x962, s16) &= ~3;
+                p->grab_flags &= ~3;
             }
 
             grabbed = PF(p, 0x6B8, Player*);
@@ -2797,8 +2797,8 @@ player_motion_phase_exit:
                     PF(p, 0x6BC, Player*) = NULL;
                     PF(pending, 0x964, s16) |= 0x10;
                     PF(pending, 0x6B8, Player*) = p;
-                    p->power_target -= PF(p, 0x910, f32);
-                    PF(p, 0x910, f32) = 0.0f;
+                    p->power_target -= p->coll_score;
+                    p->coll_score = 0.0f;
                     grabbed = pending;
                 } else {
                     PF(p, 0x6BC, Player*) = NULL;
@@ -3303,7 +3303,7 @@ u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
 #pragma opt_common_subs reset
 #pragma opt_propagation reset
 void PlayerMotion_FindClosestPlayer(Player* p, f32* dir, u32 flags, f32 dmg) {
-    u8 unused[72];
+    u8 unused[8];
     f32 dvec[3];
     f32 best = 2.0 + (f64)PF(p, 0x850, f32);
     s32 i;
@@ -3385,7 +3385,7 @@ typedef struct EnemyDamageView {
  * hit result code, or -1. */
 s32 PlayerMotion_DamageTarget(Player* p, s32 targetId, s32 a3, s32 a4, s32 a5,
                               f32 dmg, f32 priority) {
-    u8 unused[72];
+    u8 unused[8];
     f32 dir[3];
     u8* critter;
     EnemyDamageView* enemy;
