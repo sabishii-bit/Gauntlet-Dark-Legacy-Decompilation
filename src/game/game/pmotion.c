@@ -1998,7 +1998,7 @@ store_motion_state:
         /* Target +0x2624: boss intro state and the action update. */
         if (p->quest_state != 0 && gBossType >= 0) {
             if (lbl_80344894 < 0 && p->quest_state < 4) {
-                if (gBossType >= 34 && gBossType < 40) {
+                if (gBossType < 40 && gBossType >= 34) {
                     lbl_80344894 = StartFXSub(92, NULL, 0, 0x800,
                                               lbl_80347C10);
                     if (lbl_80344894 >= 0) {
@@ -2110,7 +2110,7 @@ store_motion_state:
                 bossColor[0] = 0.0f;
                 bossColor[1] = 0.0f;
                 bossColor[2] = 0.0f;
-                if (gBossType >= 34 && gBossType < 40 &&
+                if (gBossType < 40 && gBossType >= 34 &&
                     lbl_80344894 >= 0) {
                     lbl_80344894 = DeleteEffect(lbl_80344894, 1);
                     PF(p, 0x730, s32) = 0;
@@ -2803,7 +2803,7 @@ player_motion_phase_exit:
 
             if ((p->grab_flags & 3) != 0) {
                 s32 kind;
-                s32 variant = (u8)((p->grab_flags & 2) ? 1 : 0);
+                s32 variant;
                 if (PF(p, 0x8CC, f32) > PF(p, 0x8B4, f32)) {
                     kind = 4;
                 } else if ((p->shield_flags & 0x10000) != 0) {
@@ -2813,6 +2813,7 @@ player_motion_phase_exit:
                 } else {
                     kind = 0;
                 }
+                variant = (u8)((p->grab_flags & 2) ? 1 : 0);
                 if ((p->flags & 1) == 0) {
                     fn_8009EFCC(index, variant, kind);
                 }
