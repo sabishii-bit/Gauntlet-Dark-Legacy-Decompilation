@@ -220,7 +220,8 @@ typedef struct Player {
     /* 0x0954 */ s16 speak_timer;    /* idle speech timer [player.c/pmotion.c] */
     /* 0x0956 */ u8  pad_0956[2];
     /* 0x0958 */ s16 throw_str;      /* potion-throw strength [player.c start_magic] */
-    /* 0x095A */ u8  pad_095A[4];
+    /* 0x095A */ u8  pad_095A[2];
+    /* 0x095C */ s16 speak_kind;     /* queued speech category [pmotion.c] */
     /* 0x095E */ s16 speak_done;     /* speech-already-played guard [pmotion.c/player.c] */
     /* 0x0960 */ u8  pad_0960[2];
     /* 0x0962 */ s16 grab_flags;     /* grab variant flags [pmotion.c/player.c] */

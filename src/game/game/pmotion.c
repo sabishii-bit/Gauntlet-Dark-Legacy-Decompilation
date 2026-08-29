@@ -1594,7 +1594,7 @@ collision_done:
             if (PF(enemy, 0x206, s16) == 2) {
                 PF(p, 0x128, u32) |= 2;
             }
-            PF(p, 0x95C, s16) = 2;
+            p->speak_kind = 2;
             goto state_selected;
         }
 
@@ -1680,14 +1680,14 @@ collision_done:
 
 state_selected:
         if (motionState < 31) {
-            if (PF(p, 0x95C, s16) == 2) {
-                PF(p, 0x95C, s16) = 0;
+            if (p->speak_kind == 2) {
+                p->speak_kind = 0;
                 motionState = 27;
-            } else if (PF(p, 0x95C, s16) == 3) {
-                PF(p, 0x95C, s16) = 0;
+            } else if (p->speak_kind == 3) {
+                p->speak_kind = 0;
                 motionState = 32;
-            } else if (PF(p, 0x95C, s16) == 1 && lbl_803448B8 == 0) {
-                PF(p, 0x95C, s16) = 0;
+            } else if (p->speak_kind == 1 && lbl_803448B8 == 0) {
+                p->speak_kind = 0;
                 motionState = 14;
             }
         }
