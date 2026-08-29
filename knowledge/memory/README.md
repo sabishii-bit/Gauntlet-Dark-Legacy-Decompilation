@@ -15,8 +15,12 @@ deletes a duplicate.
 - `records/`: accepted structured records. One JSON object per file.
 - `inbox/`: agent- or tool-proposed records awaiting integrator review.
 - `schema/record.schema.json`: the portable record contract.
-- `migration-audit.md`: generated/maintained audit notes about coverage and
-  duplication; this is not a replacement for the database.
+
+Migration bookkeeping (coverage/duplication audit notes) lives outside the
+tracked tree in the private local memory area, alongside the legacy notes it
+audits. Tracked records must never contain machine-local paths or other
+environment details; use repo-relative paths, target addresses, hashes, and
+immutable commits as anchors.
 
 ## Commands
 

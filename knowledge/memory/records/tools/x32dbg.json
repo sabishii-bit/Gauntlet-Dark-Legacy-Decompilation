@@ -1,6 +1,6 @@
 {
   "attributes": {
-    "installation": "<local-x64dbg>"
+    "installation": "machine-local; not recorded in the tracked graph"
   },
   "constraints": [
     "Compiler reverse-engineering is paused and must not displace matching or custodial priorities without a new user directive.",
