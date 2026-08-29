@@ -1181,7 +1181,7 @@ void PlayerMotion(Player* p) {
                                      radius, height);
     if (lbl_80344B38 != 0) {
         hit[0] = oldpos[0];
-        hit[1] = PF(p, 0x8B4, f32);
+        hit[1] = SV(p)->floor_y;
         hit[2] = oldpos[2];
         PlayerMotion_FloorFX(p, (WorldObj*)lbl_80344B38, oldpos, hit);
         PF(p, 0x8CC, f32) = lbl_80344B34;
@@ -1315,8 +1315,8 @@ void PlayerMotion(Player* p) {
 
     if (floorBlocked == 0 && transporter != 1) {
         f32 itemRadius = radius;
-        s32 critterIndex = -1;
-        s32 specialCritter = 0;
+        s32 critterIndex;
+        s32 specialCritter;
         if (anim == 137) {
             itemRadius = lbl_80347B14;
         } else if (anim == 143) {
@@ -1327,6 +1327,7 @@ void PlayerMotion(Player* p) {
         to[2] = oldpos[2] + dpos[2];
         item = PlayerCollideItems(p, itemRadius, height, oldpos, to, hit);
         if (item >= 0) {
+            specialCritter = 0;
             if (item >= 0x10000) {
                 u8* critter;
                 critterIndex = item & 0xFFFF;
@@ -1335,6 +1336,8 @@ void PlayerMotion(Player* p) {
                             0x20) == 4) {
                     specialCritter = 1;
                 }
+            } else {
+                critterIndex = -1;
             }
             if (transporter != 0) {
                 PlayerMotion_DamageTarget(p, item, 0, 0, 0,
@@ -1540,8 +1543,9 @@ collision_done:
             attackDir[2] = targetDir[2];
         }
         targetAngle = atan2(attackDir[0], attackDir[2]);
+        PF(p, 0x904, f32) = targetAngle - controlYaw;
         PF(p, 0x904, f32) =
-            PlayerMotion_WrapAngle(targetAngle - controlYaw);
+            PlayerMotion_WrapAngle(PF(p, 0x904, f32));
 
         if (critterIndex >= 0) {
             u8* critter = gCritterPool + critterIndex * 2784;
