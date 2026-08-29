@@ -663,6 +663,7 @@ static void BossCamBossCalc(void)
     f32 pavg[3];
     f32 bossmat[3];
     f32 newattn[3];
+    f32 range;
     f32 dist;
     f32 bossrad;
     f32 yaw;
@@ -685,32 +686,33 @@ static void BossCamBossCalc(void)
     f32 weight;
     f32* focus;
     f32* source;
-    f32* cam;
-    u8* cfg;
-    u8* boss;
+    u8* bossdir;
     u8* effect;
     u32 flags;
     s32 selectMode;
     s32 transition;
     s32 i;
-    u8 unusedFrame[80];
+    u8 unusedFrame[88];
 
     lbl_803447B8 = 0;
-    boss = gBossObj;
-    cfg = lbl_803443D0;
-    cam = (f32*)gGameCamera;
     transition = 0;
-    *(f32*)((u8*)cam + 220) = *(f32*)(cfg + 20);
+    bossdir = gBossObj + 984;
+    ((BossGameCameraView*)gGameCamera)->view_scale =
+        *(f32*)(lbl_803443D0 + 20);
     if (lbl_80343C5C != 0) {
-        *(f32*)((u8*)cam + 220) =
-            *(f32*)((u8*)cam + 220) * lbl_80343B84;
+        ((BossGameCameraView*)gGameCamera)->view_scale *= lbl_80343B84;
     }
 
-    for (i = 0; i < 3; i++) {
-        pavg[i] = *(f32*)((u8*)cam + 252) *
-                      (*(f32*)(cfg + 48 + i * 4) -
-                       *(f32*)(cfg + 36 + i * 4)) +
-                  *(f32*)(cfg + 36 + i * 4);
+    {
+        u8* loopcfg = lbl_803443D0;
+        u8* loopcam = gGameCamera;
+
+        for (i = 0; i < 3; i++) {
+            pavg[i] = *(f32*)(loopcam + 252) *
+                          (*(f32*)(loopcfg + 48 + i * 4) -
+                           *(f32*)(loopcfg + 36 + i * 4)) +
+                      *(f32*)(loopcfg + 36 + i * 4);
+        }
     }
 
     if (lbl_803443A8 != 0) {
@@ -719,50 +721,50 @@ static void BossCamBossCalc(void)
             focus = (f32*)(lbl_8023E558 + 64);
             selectMode = 2;
             bossrad = lbl_80345BD8;
-            newattn[0] = focus[0] + *(f32*)(cfg + 72);
-            newattn[1] = focus[1] + *(f32*)(cfg + 76);
-            newattn[2] = focus[2] + *(f32*)(cfg + 80);
+            newattn[0] = focus[0] + *(f32*)(lbl_803443D0 + 72);
+            newattn[1] = focus[1] + *(f32*)(lbl_803443D0 + 76);
+            newattn[2] = focus[2] + *(f32*)(lbl_803443D0 + 80);
         } else if (gBossKeyBlit >= 0 &&
                    *(void**)(Effects + gBossKeyBlit * 240 + 20) != NULL) {
             effect = *(u8**)(Effects + gBossKeyBlit * 240 + 20);
             focus = (f32*)(effect + 48);
             selectMode = 2;
             bossrad = lbl_80345BDC;
-            newattn[0] = focus[0] + *(f32*)(cfg + 60);
-            newattn[1] = focus[1] + *(f32*)(cfg + 64);
-            newattn[2] = focus[2] + *(f32*)(cfg + 68);
+            newattn[0] = focus[0] + *(f32*)(lbl_803443D0 + 60);
+            newattn[1] = focus[1] + *(f32*)(lbl_803443D0 + 64);
+            newattn[2] = focus[2] + *(f32*)(lbl_803443D0 + 68);
         } else if (good_wiz_state != 0 || gBossDying != 0) {
             focus = newattn;
             bossrad = lbl_80345BDC;
-            newattn[0] = *(f32*)((u8*)cam + 164);
-            newattn[1] = *(f32*)((u8*)cam + 168);
-            newattn[2] = *(f32*)((u8*)cam + 172);
-        } else if (boss != NULL && *(void**)(boss + 4) != NULL) {
-            if ((*(u32*)cfg & 0x10) != 0) {
+            newattn[0] = *(f32*)((u8*)gGameCamera + 164);
+            newattn[1] = *(f32*)((u8*)gGameCamera + 168);
+            newattn[2] = *(f32*)((u8*)gGameCamera + 172);
+        } else if (gBossObj != NULL && *(void**)(gBossObj + 4) != NULL) {
+            if ((*(u32*)lbl_803443D0 & 0x10) != 0) {
                 weight = GetPlayerAvgPos(attn, tmax, tmin, 1);
                 GetBossAvgPos(attn, weight, tmax, tmin, 1);
                 source = attn;
-            } else if ((*(u32*)cfg & 1) != 0) {
-                source = (f32*)(boss + 76);
+            } else if ((*(u32*)lbl_803443D0 & 1) != 0) {
+                source = (f32*)(gBossObj + 76);
             } else {
-                source = (f32*)(boss + 1048);
+                source = (f32*)(gBossObj + 1048);
             }
             newattn[0] = source[0] + pavg[0];
             newattn[1] = source[1] + pavg[1];
             newattn[2] = source[2] + pavg[2];
-            focus = (f32*)(boss + 76);
-            bossrad = *(f32*)(*(u8**)(boss + 4) + 120);
+            focus = (f32*)(gBossObj + 76);
+            bossrad = *(f32*)(*(u8**)(gBossObj + 4) + 120);
         } else {
             focus = newattn;
             bossrad = lbl_80345BDC;
-            newattn[0] = *(f32*)(boss + 1048) + pavg[0];
-            newattn[1] = *(f32*)(boss + 1052) + pavg[1];
-            newattn[2] = *(f32*)(boss + 1056) + pavg[2];
+            newattn[0] = *(f32*)(gBossObj + 1048) + pavg[0];
+            newattn[1] = *(f32*)(gBossObj + 1052) + pavg[1];
+            newattn[2] = *(f32*)(gBossObj + 1056) + pavg[2];
         }
 
-        dvec[0] = *(f32*)((u8*)cam + 164) - newattn[0];
-        dvec[1] = *(f32*)((u8*)cam + 168) - newattn[1];
-        dvec[2] = *(f32*)((u8*)cam + 172) - newattn[2];
+        dvec[0] = *(f32*)((u8*)gGameCamera + 164) - newattn[0];
+        dvec[1] = *(f32*)((u8*)gGameCamera + 168) - newattn[1];
+        dvec[2] = *(f32*)((u8*)gGameCamera + 172) - newattn[2];
         length = dvec[0] * dvec[0];
         length = dvec[1] * dvec[1] + length;
         length = dvec[2] * dvec[2] + length;
@@ -784,59 +786,60 @@ static void BossCamBossCalc(void)
             transition = selectMode;
         }
     } else {
-        focus = (f32*)(boss + 76);
-        newattn[0] = *(f32*)(boss + 1048) + pavg[0];
-        newattn[1] = *(f32*)(boss + 1052) + pavg[1];
-        newattn[2] = *(f32*)(boss + 1056) + pavg[2];
-        bossrad = *(f32*)(*(u8**)(boss + 4) + 120);
+        focus = newattn;
+        newattn[0] = *(f32*)(gBossObj + 1048) + pavg[0];
+        newattn[1] = *(f32*)(gBossObj + 1052) + pavg[1];
+        newattn[2] = *(f32*)(gBossObj + 1056) + pavg[2];
+        bossrad = *(f32*)(*(u8**)(gBossObj + 4) + 120);
     }
 
-    flags = *(u32*)cfg;
-    if ((flags & 0x20) != 0) {
+    if ((*(u32*)lbl_803443D0 & 0x20) != 0) {
         weight = GetPlayerAvgPos(bossmat, tmax2, tmin2, 1);
-        if ((flags & 8) != 0) {
+        if ((*(u32*)lbl_803443D0 & 8) != 0) {
             GetBossAvgPos(bossmat, weight, tmax2, tmin2, 1);
         }
-        bossmat[0] = *(f32*)((u8*)cam + 164) - bossmat[0];
-        bossmat[1] = *(f32*)((u8*)cam + 168) - bossmat[1];
-        bossmat[2] = *(f32*)((u8*)cam + 172) - bossmat[2];
+        bossmat[0] = *(f32*)((u8*)gGameCamera + 164) - bossmat[0];
+        bossmat[1] = *(f32*)((u8*)gGameCamera + 168) - bossmat[1];
+        bossmat[2] = *(f32*)((u8*)gGameCamera + 172) - bossmat[2];
         if (NormalVector2D(bossmat) < lbl_80345BE0) {
             weight = lbl_80345BA0;
         }
     } else {
-        weight = GetActualAvgVec(bossmat, (f32*)((u8*)cam + 164),
-                                 flags & 8);
+        weight = GetActualAvgVec(bossmat, (f32*)((u8*)gGameCamera + 164),
+                                 *(u32*)lbl_803443D0 & 8);
     }
 
     if ((f64)weight == lbl_80345B98) {
-        yaw = *(f32*)((u8*)cam + 236);
+        yaw = *(f32*)((u8*)gGameCamera + 236);
     } else {
         if (lbl_803443A8 != 0) {
-            dvec[0] = *(f32*)((u8*)cam + 48) -
-                      *(f32*)((u8*)cam + 164);
+            u32 yawFlags;
+
+            dvec[0] = *(f32*)((u8*)gGameCamera + 48) -
+                      *(f32*)((u8*)gGameCamera + 164);
             dvec[1] = lbl_80345BA0;
-            dvec[2] = *(f32*)((u8*)cam + 56) -
-                      *(f32*)((u8*)cam + 172);
+            dvec[2] = *(f32*)((u8*)gGameCamera + 56) -
+                      *(f32*)((u8*)gGameCamera + 172);
             SlowNormalVector2D(dvec);
-            if ((flags & 4) == 0) {
-                dot = bossmat[2] * *(f32*)(boss + 1024) +
-                      bossmat[0] * *(f32*)(boss + 1016);
-                if (dot >= *(f32*)(cfg + 8)) {
+            yawFlags = *(u32*)lbl_803443D0;
+            if ((yawFlags & 4) == 0) {
+                dot = bossmat[2] * *(f32*)(bossdir + 40) +
+                      bossmat[0] * *(f32*)(bossdir + 32);
+                if (dot >= *(f32*)(lbl_803443D0 + 8)) {
                     side = dvec[2] * bossmat[2] + dvec[0] * bossmat[0];
                 } else {
                     side = lbl_80345BE8;
                 }
             } else {
-                dot = lbl_80345BE8;
-                side = dot;
+                side = (dot = lbl_80345BE8);
             }
-            if ((flags & 2) == 0) {
+            if ((yawFlags & 2) == 0) {
                 npavg[0] = (f32)(lbl_80345BF0 * bossmat[0]);
                 npavg[1] = (f32)(lbl_80345BF0 * bossmat[1]);
                 npavg[2] = (f32)(lbl_80345BF0 * bossmat[2]);
-                candidate = npavg[2] * *(f32*)(boss + 1024) +
-                            npavg[0] * *(f32*)(boss + 1016);
-                if (candidate >= *(f32*)(cfg + 8)) {
+                candidate = npavg[2] * *(f32*)(bossdir + 40) +
+                            npavg[0] * *(f32*)(bossdir + 32);
+                if (candidate >= *(f32*)(lbl_803443D0 + 8)) {
                     length = dvec[2] * npavg[2] + dvec[0] * npavg[0];
                 } else {
                     length = lbl_80345BE8;
@@ -849,40 +852,56 @@ static void BossCamBossCalc(void)
                 }
             }
         } else {
-            dot = bossmat[2] * *(f32*)(boss + 1024) +
-                  bossmat[0] * *(f32*)(boss + 1016);
+            dot = bossmat[2] * *(f32*)(bossdir + 40) +
+                  bossmat[0] * *(f32*)(bossdir + 32);
         }
 
-        if (dot < *(f32*)(cfg + 8)) {
-            yaw = atan2(*(f32*)(boss + 1024), *(f32*)(boss + 1016));
-            side = bossmat[0] * *(f32*)(boss + 1024) -
-                   bossmat[2] * *(f32*)(boss + 1016);
+        if (dot < *(f32*)(lbl_803443D0 + 8)) {
+            f32 baseYaw;
+
+            baseYaw = atan2(*(f32*)(bossdir + 40),
+                            *(f32*)(bossdir + 32));
+            side = bossmat[0] * *(f32*)(bossdir + 40) -
+                   bossmat[2] * *(f32*)(bossdir + 32);
             if ((f64)side >= lbl_80345B98) {
-                yaw -= *(f32*)(cfg + 4);
+                yaw = baseYaw - *(f32*)(lbl_803443D0 + 4);
             } else {
-                yaw += *(f32*)(cfg + 4);
+                yaw = baseYaw + *(f32*)(lbl_803443D0 + 4);
             }
             yaw = (f32)(yaw + lbl_80345B88);
-            if ((f64)yaw > lbl_80345B88) {
-                yaw = (f32)(yaw - lbl_80345BB8);
-            } else if ((f64)yaw <= lbl_80345BC0) {
-                yaw = (f32)(lbl_80345BB8 + yaw);
+            {
+                f64 normalizedYaw = yaw;
+
+                if (normalizedYaw > lbl_80345B88) {
+                    normalizedYaw -= lbl_80345BB8;
+                } else if (normalizedYaw <= lbl_80345BC0) {
+                    normalizedYaw = lbl_80345BB8 + normalizedYaw;
+                }
+                yaw = (f32)normalizedYaw;
             }
         } else {
             yaw = atan2(bossmat[2], bossmat[0]);
             yaw = (f32)(yaw + lbl_80345B88);
-            if ((f64)yaw > lbl_80345B88) {
-                yaw = (f32)(yaw - lbl_80345BB8);
-            } else if ((f64)yaw <= lbl_80345BC0) {
-                yaw = (f32)(lbl_80345BB8 + yaw);
+            {
+                f64 normalizedYaw = yaw;
+
+                if (normalizedYaw > lbl_80345B88) {
+                    normalizedYaw -= lbl_80345BB8;
+                } else if (normalizedYaw <= lbl_80345BC0) {
+                    normalizedYaw = lbl_80345BB8 + normalizedYaw;
+                }
+                yaw = (f32)normalizedYaw;
             }
         }
     }
 
     if (lbl_803443A8 == 0) {
-        dvec[0] = newattn[0] - *(f32*)((u8*)lbl_80344EE8 + 148);
-        dvec[1] = newattn[1] - *(f32*)((u8*)lbl_80344EE8 + 152);
-        dvec[2] = newattn[2] - *(f32*)((u8*)lbl_80344EE8 + 156);
+        dvec[0] = *(f32*)((u8*)gGameCamera + 164) -
+                  *(f32*)((u8*)lbl_80344EE8 + 148);
+        dvec[1] = *(f32*)((u8*)gGameCamera + 168) -
+                  *(f32*)((u8*)lbl_80344EE8 + 152);
+        dvec[2] = *(f32*)((u8*)gGameCamera + 172) -
+                  *(f32*)((u8*)lbl_80344EE8 + 156);
         bossrad = dvec[0] * dvec[0];
         bossrad = dvec[1] * dvec[1] + bossrad;
         bossrad = dvec[2] * dvec[2] + bossrad;
@@ -899,21 +918,26 @@ static void BossCamBossCalc(void)
                               (lbl_80345BB0 - estimate * estimate * bossrad)));
             bossrad = rootslot;
         }
-        *(f32*)((u8*)cam + 256) = lbl_80345BA0;
+        *(f32*)((u8*)gGameCamera + 256) = lbl_80345BA0;
     } else {
+        f64 selectedRadius;
+        u8* viewcam;
+
+        flags = *(u32*)lbl_803443D0;
         flags &= ~0x300;
-        maxdist = *(f32*)(cfg + 20);
-        viewdist = GetPlayerViewDist(cam);
-        MulBodyVecMat4(focus, lbl_8023E8C0, cam);
+        maxdist = *(f32*)(lbl_803443D0 + 20);
+        viewcam = gGameCamera;
+        viewdist = GetPlayerViewDist(viewcam);
+        MulBodyVecMat4(focus, lbl_8023E8C0, viewcam);
         candidate = PointViewDist(lbl_8023E8C0, bossrad);
         if (candidate < viewdist) {
             viewdist = candidate;
         }
-        *(f32*)((u8*)cam + 256) = viewdist;
+        *(f32*)((u8*)gGameCamera + 256) = viewdist;
         if (good_wiz_state != 0) {
             maxdist = (f32)(maxdist * lbl_80345BF8);
         }
-        candidate = *(f32*)((u8*)cam + 244);
+        candidate = *(f32*)((u8*)gGameCamera + 244);
         if (viewdist < lbl_80345BA0) {
             flags |= 0x200;
             candidate = (f32)(candidate + lbl_80345C00);
@@ -922,7 +946,7 @@ static void BossCamBossCalc(void)
             candidate = (f32)(lbl_80345BF8 *
                               (lbl_80345C08 - viewdist) + candidate);
         } else if ((f64)viewdist < lbl_80345C10 && candidate < maxdist &&
-                   (*(u32*)cfg & 0x200) != 0) {
+                   (*(u32*)lbl_803443D0 & 0x200) != 0) {
             flags |= 0x200;
             candidate = (f32)(lbl_80345BF8 *
                               (lbl_80345C08 - viewdist) + candidate);
@@ -930,41 +954,46 @@ static void BossCamBossCalc(void)
             flags |= 0x100;
             candidate = (f32)(candidate - (viewdist - lbl_80345C08));
         } else if ((f64)viewdist > lbl_80345C08 &&
-                   (*(u32*)cfg & 0x100) != 0) {
+                   (*(u32*)lbl_803443D0 & 0x100) != 0) {
             flags |= 0x100;
             candidate = (f32)(candidate - (viewdist - lbl_80345C08));
         }
-        *(u32*)cfg = flags;
-        if (candidate < *(f32*)(cfg + 12)) {
-            bossrad = *(f32*)(cfg + 12);
+        *(u32*)lbl_803443D0 = flags;
+        if (candidate < *(f32*)(lbl_803443D0 + 12)) {
+            selectedRadius = *(f32*)(lbl_803443D0 + 12);
         } else if (candidate > lbl_80345BF8 * maxdist) {
-            bossrad = (f32)(lbl_80345BF8 * maxdist);
+            selectedRadius = lbl_80345BF8 * maxdist;
         } else {
-            bossrad = candidate;
+            selectedRadius = candidate;
         }
+        bossrad = (f32)selectedRadius;
     }
 
-    dist = *(f32*)(cfg + 20) - *(f32*)(cfg + 12);
-    candidate = *(f32*)((u8*)cam + 244) - bossrad;
-    if ((f64)dist > lbl_80345C20) {
-        *(f32*)((u8*)cam + 252) =
-            (*(f32*)((u8*)cam + 244) - *(f32*)(cfg + 12)) / dist;
+    range = *(f32*)(lbl_803443D0 + 20) -
+            *(f32*)(lbl_803443D0 + 12);
+    candidate = *(f32*)((u8*)gGameCamera + 244) - bossrad;
+    if ((f64)range > lbl_80345C20) {
+        *(f32*)((u8*)gGameCamera + 252) =
+            (*(f32*)((u8*)gGameCamera + 244) -
+             *(f32*)(lbl_803443D0 + 12)) / range;
     } else {
-        *(f32*)((u8*)cam + 252) = lbl_80345C28;
+        *(f32*)((u8*)gGameCamera + 252) = lbl_80345C28;
     }
-    if ((f64)*(f32*)((u8*)cam + 252) < lbl_80345B98) {
-        *(f32*)((u8*)cam + 252) = lbl_80345BA0;
-    } else if ((f64)*(f32*)((u8*)cam + 252) > lbl_80345BE0) {
-        *(f32*)((u8*)cam + 252) = (f32)lbl_80345BE0;
+    if ((f64)*(f32*)((u8*)gGameCamera + 252) < lbl_80345B98) {
+        *(f32*)((u8*)gGameCamera + 252) = lbl_80345BA0;
+    } else if ((f64)*(f32*)((u8*)gGameCamera + 252) > lbl_80345BE0) {
+        *(f32*)((u8*)gGameCamera + 252) = (f32)lbl_80345BE0;
     }
     dist = candidate;
     *(u32*)&dist &= 0x7FFFFFFF;
     if ((f64)dist < lbl_80345C00) {
-        pitch = -(*(f32*)((u8*)cam + 252) *
-                      (*(f32*)(cfg + 32) - *(f32*)(cfg + 28)) +
-                  *(f32*)(cfg + 28));
+        pitch = *(f32*)((u8*)gGameCamera + 252) *
+                    (*(f32*)(lbl_803443D0 + 32) -
+                     *(f32*)(lbl_803443D0 + 28)) +
+                *(f32*)(lbl_803443D0 + 28);
+        pitch = -pitch;
     } else {
-        pitch = *(f32*)((u8*)cam + 260);
+        pitch = *(f32*)((u8*)gGameCamera + 260);
     }
 
     if (lbl_803443A8 == 0) {
