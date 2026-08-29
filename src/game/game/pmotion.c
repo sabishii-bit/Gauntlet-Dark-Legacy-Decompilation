@@ -1127,7 +1127,8 @@ void PlayerMotion(Player* p) {
                     dpos[1] + PF(&gPlayers[otherIndex], 0x868, f32);
                 PF(&gPlayers[otherIndex], 0x86C, f32) =
                     dpos[2] + PF(&gPlayers[otherIndex], 0x86C, f32);
-                PF(&gPlayers[otherIndex], 0x964, s16) |= 4;
+                gPlayers[otherIndex].hud_flags =
+                    (s16)(gPlayers[otherIndex].hud_flags | 4);
             }
             dpos[0] = to[0] - oldpos[0];
             dpos[2] = to[2] - oldpos[2];
@@ -1136,8 +1137,8 @@ void PlayerMotion(Player* p) {
             }
             if (PF(p, 0x954, u16) > 60) {
                 lbl_80344B24 = otherIndex;
-                PF(&gPlayers[otherIndex], 0x954, u16) = 1;
-                PF(p, 0x954, u16) = 0;
+                gPlayers[otherIndex].speak_timer = 1;
+                p->speak_timer = 0;
                 msgPost(50, gPlayers[lbl_80344B24].index,
                         (u32)&gPlayers[lbl_80344B24].col_pos);
                 fn_8009DCB4((s32)&gPlayers[lbl_80344B24].col_pos);
@@ -2164,7 +2165,7 @@ store_motion_state:
                     }
                     damageScale =
                         (f32)(lbl_80347B58 * PF(gBossObj, 0x4B0, f32));
-                    CritterDamage(gBossObj, index, 0, 0, NULL, 0,
+                    CritterDamage(gBossObj, p->index, 0, 0, NULL, 0,
                                   damageScale);
                     break;
                 case 39:
@@ -2185,7 +2186,7 @@ store_motion_state:
                     }
                     damageScale =
                         (f32)(lbl_80347BE0 * PF(gBossObj, 0x4B0, f32));
-                    CritterDamage(gBossObj, index, 0, 0, NULL, 0,
+                    CritterDamage(gBossObj, p->index, 0, 0, NULL, 0,
                                   damageScale);
                     PF(gBossObj, 0xAC8, f32) = lbl_80347B10;
                     hit[0] = PF(gBossObj, 0x418, f32);
@@ -2209,7 +2210,7 @@ store_motion_state:
                     }
                     damageScale =
                         (f32)(lbl_80347BE0 * PF(gBossObj, 0x4B0, f32));
-                    CritterDamage(gBossObj, index, 0, 0, NULL, 0,
+                    CritterDamage(gBossObj, p->index, 0, 0, NULL, 0,
                                   lbl_80347C90);
                     PF(gBossObj, 0xAC8, f32) = lbl_80347C94;
                     break;
@@ -2227,7 +2228,7 @@ store_motion_state:
                     }
                     damageScale =
                         (f32)(lbl_80347BE0 * PF(gBossObj, 0x4B0, f32));
-                    CritterDamage(gBossObj, index, 0, 0, NULL, 0,
+                    CritterDamage(gBossObj, p->index, 0, 0, NULL, 0,
                                   damageScale);
                     PF(gBossObj, 0xAC8, f32) = lbl_80347CA0;
                     break;
@@ -2251,7 +2252,7 @@ store_motion_state:
                         lbl_80347CA4;
                     damageScale =
                         (f32)(lbl_80347BE0 * PF(gBossObj, 0x4B0, f32));
-                    CritterDamage(gBossObj, index, 0, 0, NULL, 0,
+                    CritterDamage(gBossObj, p->index, 0, 0, NULL, 0,
                                   damageScale);
                     PF(gBossObj, 0xAC8, f32) = lbl_80347B10;
                     break;
@@ -2286,7 +2287,7 @@ store_motion_state:
                         SfxSetHitTarget(bossDamage, effect, hitNode);
                     }
                     SfxSetDamage(damageScale, 0.0f, 0.0f, effect, 0,
-                                 index);
+                                 p->index);
                 }
 
                 if (effect >= 0) {
@@ -2368,7 +2369,7 @@ store_motion_state:
             PF(p, 0x900, u32) &= ~0x02000000;
             player_get_powerup_state(1.0f, p, 5, 0x10000000);
             ShakeCamera(0, 0, 30, lbl_80347CB4, 200);
-            fn_8009D4B0(index);
+            fn_8009D4B0(p->index);
         }
 
         if ((PF(p, 0x900, u32) & 0x01000000) != 0) {
@@ -2413,7 +2414,7 @@ store_motion_state:
                     }
                     p->power_target -= p->coll_score;
                     p->coll_score = 0.0f;
-                    AudioPlayerTurbo(index);
+                    AudioPlayerTurbo(p->index);
                 } else {
                     SfxSetParent(effect, PF(p, 0x6D4, void*));
                 }
@@ -2670,7 +2671,7 @@ store_motion_state:
                     magicMode = (ctl->pad.levels & 0x10000) != 0 ? 3 : 2;
                 } else if ((PF(p, 0x956, s16) & 2) != 0) {
                     magicMode = 1;
-                    fn_8009F390(index);
+                    fn_8009F390(p->index);
                 } else {
                     magicMode = 0;
                 }
@@ -3012,7 +3013,7 @@ player_motion_grab_done:
                     PF(Effects + effect * 240, 0x64, u32) = 552;
                     SfxSetDamage(PF(p, 0x104, f32) * scale,
                                  (f32)(lbl_80347C28 * scale), 0.0f,
-                                 effect, 32, index + 1);
+                                 effect, 32, p->index + 1);
                 }
 
                 if (sfx1 >= 0) {
