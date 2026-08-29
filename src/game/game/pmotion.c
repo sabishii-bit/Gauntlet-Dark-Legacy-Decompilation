@@ -1596,7 +1596,7 @@ collision_done:
             goto state_selected;
         }
 
-        if (targetDistance < (f32)(lbl_80347BD0 + radius)) {
+        if ((f64)targetDistance < lbl_80347BD0 + radius) {
             if ((p->shield_flags & 0x200000) != 0 && item >= 0) {
                 if (motionState == 1) {
                     motionState = 8;
