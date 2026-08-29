@@ -2034,7 +2034,8 @@ store_motion_state:
                         SfxSetParent(lbl_80344894,
                                      PF(p, 0x6D0, void*));
                         PF(p, 0x730, void*) =
-                            *(void**)(Effects + lbl_80344894 * 240 + 0x14);
+                            *(void**)((u8*)Effects +
+                                      (lbl_80344894 * 240 + 0x14));
                     }
                 } else {
                     f32 bossFxPos[3];
