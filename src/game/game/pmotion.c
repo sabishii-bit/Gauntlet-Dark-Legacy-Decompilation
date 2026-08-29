@@ -1125,20 +1125,17 @@ void PlayerMotion(Player* p) {
             otherIndex = -1;
         }
         if (otherIndex >= 0) {
-            if (PF(&gPlayers[otherIndex], 0x950, s16) == 0) {
-                if ((PF(&gPlayers[otherIndex], 0x964, s16) & 4) == 0) {
-                    PF(&gPlayers[otherIndex], 0x864, f32) = 0.0f;
-                    PF(&gPlayers[otherIndex], 0x868, f32) = 0.0f;
-                    PF(&gPlayers[otherIndex], 0x86C, f32) = 0.0f;
+            Player* op = &gPlayers[otherIndex];
+            if (PF(op, 0x950, s16) == 0) {
+                if ((PF(op, 0x964, s16) & 4) == 0) {
+                    PF(op, 0x864, f32) = 0.0f;
+                    PF(op, 0x868, f32) = 0.0f;
+                    PF(op, 0x86C, f32) = 0.0f;
                 }
-                PF(&gPlayers[otherIndex], 0x864, f32) =
-                    dpos[0] + PF(&gPlayers[otherIndex], 0x864, f32);
-                PF(&gPlayers[otherIndex], 0x868, f32) =
-                    dpos[1] + PF(&gPlayers[otherIndex], 0x868, f32);
-                PF(&gPlayers[otherIndex], 0x86C, f32) =
-                    dpos[2] + PF(&gPlayers[otherIndex], 0x86C, f32);
-                gPlayers[otherIndex].hud_flags =
-                    (s16)(gPlayers[otherIndex].hud_flags | 4);
+                PF(op, 0x864, f32) = dpos[0] + PF(op, 0x864, f32);
+                PF(op, 0x868, f32) = dpos[1] + PF(op, 0x868, f32);
+                PF(op, 0x86C, f32) = dpos[2] + PF(op, 0x86C, f32);
+                op->hud_flags = (s16)(op->hud_flags | 4);
             }
             dpos[0] = to[0] - oldpos[0];
             dpos[2] = to[2] - oldpos[2];
