@@ -1563,7 +1563,7 @@ collision_done:
 
         if ((p->shield_flags & 0x80000) != 0 && enemy != NULL &&
             PF(enemy, 0, s32) == 30 &&
-            fabsf_(PF(p, 0x904, f32)) < (f32)lbl_80347C38) {
+            (f64)fabsf_(PF(p, 0x904, f32)) < lbl_80347C38) {
             heading = targetAngle;
             motionState = 1;
             damage_enemy(enemy, index, 0, 0, NULL, 1,
@@ -2562,8 +2562,7 @@ store_motion_state:
                     damage = (f32)(damage * lbl_80347C28);
                 } else if ((PF(p, 0x900, u32) & 8) != 0 &&
                            enemy != NULL &&
-                           PF(enemy, 0x23C, f32) <=
-                               (f32)lbl_80347C28) {
+                           (f64)PF(enemy, 0x23C, f32) <= lbl_80347C28) {
                     damageFlags |= 0x20;
                 }
 
