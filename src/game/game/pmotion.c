@@ -868,8 +868,8 @@ void PlayerMotion(Player* p) {
     f32 oldpos[3];
     f32 dpos[3];
     u8 padgap[12];
-    f32 hit[3];
     f32 to[3];
+    f32 hit[3];
     f32 targetDir[3];
     f32 attackDir[3];
     f32 effectMatrix[16];
@@ -1145,7 +1145,7 @@ void PlayerMotion(Player* p) {
         }
     }
     if (PF(p, 0x954, u16) != 0) {
-        PF(p, 0x954, u16) = (u16)(PF(p, 0x954, u16) + gFrameTicks);
+        p->speak_timer = (u16)(PF(p, 0x954, u16) + gFrameTicks);
     }
 
     oldpos[1] = (f32)((f64)oldpos[1] + lbl_80347BD0);
@@ -1338,7 +1338,7 @@ void PlayerMotion(Player* p) {
                     sfx = PlayerMotion_SfxIndex(p);
                     if (sfx >= 0) {
                         fn_80089350((u8*)PF(p, 0x6B8, Player*), sfx,
-                                    (u8*)p, (u8*)hit,
+                                    (u8*)p, (u8*)to,
                                     lbl_80347B30, lbl_80347B40);
                     }
                 }
@@ -2435,11 +2435,11 @@ store_motion_state:
                 f32 projectileHeight;
                 f32 adjusted;
                 localVector[0] = PF(PF(p, 0x74, u8*), 0x40, f32) *
-                                 PF(lbl_80282930[index], 0x170, f32);
+                                 PF(lbl_80282930[p->index], 0x170, f32);
                 localVector[1] = PF(PF(p, 0x74, u8*), 0x44, f32) *
-                                 PF(lbl_80282930[index], 0x174, f32);
+                                 PF(lbl_80282930[p->index], 0x174, f32);
                 localVector[2] = PF(PF(p, 0x74, u8*), 0x48, f32) *
-                                 PF(lbl_80282930[index], 0x178, f32);
+                                 PF(lbl_80282930[p->index], 0x178, f32);
                 MulVecMat4(localVector, hit, (f32*)motion);
                 localVector[0] = attackDir[0];
                 localVector[1] = attackDir[1];
