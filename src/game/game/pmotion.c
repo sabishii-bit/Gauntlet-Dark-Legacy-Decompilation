@@ -1428,9 +1428,12 @@ collision_done:
         targetDistance = lbl_80347C20;
 
         savedHeading = heading;
-        PF(p, 0x870, f32) = (f32)(lbl_80347C18 * PF(p, 0x870, f32));
-        PF(p, 0x874, f32) = (f32)(lbl_80347C18 * PF(p, 0x874, f32));
-        PF(p, 0x878, f32) = (f32)(lbl_80347C18 * PF(p, 0x878, f32));
+        {
+            f64 decay = lbl_80347C18;
+            PF(p, 0x870, f32) = (f32)(decay * PF(p, 0x870, f32));
+            PF(p, 0x874, f32) = (f32)(decay * PF(p, 0x874, f32));
+            PF(p, 0x878, f32) = (f32)(decay * PF(p, 0x878, f32));
+        }
         reaction = PlayerKnockback(controlYaw, p, &savedHeading);
 
         if (reaction < 300) {
