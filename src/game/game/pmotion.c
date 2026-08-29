@@ -2473,7 +2473,7 @@ store_motion_state:
                 target = PF(p, 0x8A8, u8*);
                 if (target == NULL && ctl->values[8] == 0.0f) {
                     f32 pointRange =
-                        (f32)(lbl_80347C28 * PF(p, 0x850, f32));
+                        (f32)(lbl_80347C28 * radius);
                     hit[0] = oldpos[0] + targetDir[0] * pointRange;
                     hit[1] = oldpos[1] + targetDir[1] * pointRange;
                     hit[2] = oldpos[2] + targetDir[2] * pointRange;
