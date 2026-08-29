@@ -1406,6 +1406,7 @@ collision_done:
         f32 targetDistance;
         f32 contactRadius;
         f32 movingBias;
+        s32 closeTarget;
         s32 reaction;
         s32 motionState = motionType;
         s32 critterIndex;
@@ -1573,6 +1574,7 @@ collision_done:
             p->coll_flags |= 2;
         }
 
+        closeTarget = p->coll_flags & 2;
         if ((p->shield_flags & 0x80000) != 0 && enemy != NULL &&
             PF(enemy, 0, s32) == 30 &&
             (f64)fabsf_(PF(p, 0x904, f32)) < lbl_80347C38) {
@@ -1768,7 +1770,6 @@ store_motion_state:
 
         {
             s32 forcedAnim = 0;
-            s32 closeTarget = p->coll_flags & 2;
             if (forceState == 0 &&
                 (p->flags & 0x1000) != 0) {
                 forcedAnim = 110;
