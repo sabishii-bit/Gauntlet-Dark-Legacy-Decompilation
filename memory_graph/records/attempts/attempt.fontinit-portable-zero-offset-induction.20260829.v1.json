@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "portable-C exact closure of the scroll-mode zero-offset induction setup: byte-offset and integer-address forms, explicit/local/volatile mode-table bases, shifted and one-byte array views, independent-zero and split-zero initialization, signed/narrow index types, for-initializer grouping, pointer-difference seeding, plus the registered compiler flag/version battery",
+  "attributes": {
+    "anchors": "src/game/ui/btext.c::FontInit; GameCube target 0x80020DA8 size 0xB4; reproduce with ninja build/GUNE5D/src/game/ui/btext.o and python tools/gdl/fndiff.py game/ui/btext FontInit --count/--ops/--clean",
+    "baseline_and_best": "target/current 45/45 instructions, fuzzy 98.44%, real 2, frame 0x20, saves r27-r31; portable baseline restored unchanged",
+    "compiler_matrix": "python tools/gdl/flagsweep.py src/game/ui/btext.c build/GUNE5D/obj/game/ui/btext.o FontInit: no tested flag or available compiler closed the control residual, including nostrength, noschedule, nopeephole, noprop, nolifetimes, nocse, processor models, inline levels, and archived versions",
+    "date": "2026-08-29",
+    "history_screen": "mainline commit 7e82a09d0f4aa663db25f667554650b3be11b164 matched FontInit only with prohibited function-level assembly; mainline later removed it in portable-C conversion 0b44f3e473558394034c0c7b71748bea15b273e7. Same-subject parallel commit IDs b1604f1d and ccc42b23 are superseded non-mainline duplicates.",
+    "negative_measurements": "explicit byte-offset, integer-address, local-base, byte-view, and volatile forms fused the mode base into a pointer (44 instructions, 33 real); shifted/narrow forms produced 46 instructions and 25 real; independent zero produced 45/45 and 4 real; split zero-plus-add and pointer-difference forms produced 9 real; signed/index grouping were identical to the 2-real baseline",
+    "policy": "Hard-capped under the iteration-limits policy. Do not retry these source-shape or compiler-flag axes unless a genuinely new portable source-level identity can retain separate gScrollModes base and byte offset without pointer induction fusion.",
+    "residual": "STRUCTURAL single-opcode setup wall: target addi r30,r27,0 before gScrollMsgList LO materialization; MWCC emits slwi r30,r27,2 after it. The remaining instructions and relocations match."
+  },
+  "function": "function:FontInit",
+  "id": "attempt.fontinit-portable-zero-offset-induction.20260829.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
