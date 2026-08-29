@@ -437,6 +437,8 @@ typedef struct PSpawnView {
     u8  _8B8[8];
     u32 floor_flags;     /* 0x8C0 */
     u32 floor_obj;       /* 0x8C4 */
+    u8  _8C8[0x38];
+    u32 act_bits;        /* 0x900 melee/effect pending bits */
 } PSpawnView;
 #define SV(p) ((PSpawnView*)(p))
 
@@ -2395,7 +2397,7 @@ store_motion_state:
             SfxSetParent(effect, PF(p, 0x74, void*));
             SfxSetDamage(lbl_80347C50, lbl_80347CB0,
                          lbl_80347CA0, effect, 32, index + 1);
-            PF(p, 0x900, u32) &= ~0x02000000;
+            SV(p)->act_bits = PF(p, 0x900, u32) & ~0x02000000;
             player_get_powerup_state(1.0f, p, 5, 0x10000000);
             ShakeCamera(0, 0, 30, lbl_80347CB4, 200);
             fn_8009D4B0(p->index);
@@ -2451,7 +2453,7 @@ store_motion_state:
                     lbl_80347CB8;
                 player_get_powerup_state(1.0f, p, 9, 0x70);
             }
-            PF(p, 0x900, u32) &= ~0x01000000;
+            SV(p)->act_bits = PF(p, 0x900, u32) & ~0x01000000;
         }
 
         targetDir[0] = sin(controlYaw);
@@ -2515,7 +2517,7 @@ store_motion_state:
                                 shotSpeed, projectileHeight);
                 }
             }
-            PF(p, 0x900, u32) &= ~0x10000000;
+            SV(p)->act_bits = PF(p, 0x900, u32) & ~0x10000000;
         }
 
         /* Target +0x3824: low-byte melee/target resolution. */
@@ -2617,10 +2619,10 @@ store_motion_state:
             if ((PF(p, 0x900, u32) & 1) != 0) {
                 PF(p, 0x8FC, f32) = sMusicFadeBase;
                 if ((p->flags & 0x400) != 0) {
-                    PF(p, 0x900, u32) |= 0x20000000;
+                    SV(p)->act_bits = PF(p, 0x900, u32) | 0x20000000;
                 }
             }
-            PF(p, 0x900, u32) &= ~0xFFU;
+            SV(p)->act_bits = PF(p, 0x900, u32) & ~0xFFU;
         }
 
         /* Target +0x3B80: missile powerup byte. */
@@ -2678,8 +2680,8 @@ store_motion_state:
             } else {
                 AudioPlayerEatSFX(index);
             }
-            PF(p, 0x900, u32) &= ~0xFF00U;
-            PF(p, 0x900, u32) |= 0x10000000;
+            SV(p)->act_bits = PF(p, 0x900, u32) & ~0xFF00U;
+            SV(p)->act_bits = PF(p, 0x900, u32) | 0x10000000;
         }
 
         /* Target +0x3CE4: magic-player and potion magic triggers. */
@@ -2694,7 +2696,7 @@ store_motion_state:
                 MBTreeSetFlags(*(void**)(Effects + effect * 240 + 0x14),
                                0x04000000, 0);
             }
-            PF(p, 0x900, u32) &= ~0x10000U;
+            SV(p)->act_bits = PF(p, 0x900, u32) & ~0x10000U;
         }
 
         if ((PF(p, 0x900, u32) & 0x60000) != 0) {
@@ -2722,7 +2724,7 @@ store_motion_state:
                 }
                 PF(p, 0x956, s16) = 128;
             }
-            PF(p, 0x900, u32) &= ~0x60000U;
+            SV(p)->act_bits = PF(p, 0x900, u32) & ~0x60000U;
         }
 
 player_motion_phase_exit:
