@@ -2612,8 +2612,8 @@ store_motion_state:
                                 p, item, damageFlags, (s32)to, 1,
                                 damage, 0.0f);
                             if (enemy == NULL ||
-                                PF(enemy, 0x23C, f32) >
-                                    (f32)lbl_80347C28) {
+                                (f64)PF(enemy, 0x23C, f32) >
+                                    lbl_80347C28) {
                                 PF(p, 0x934, s32) +=
                                     damaged != 0 ? 3 : 1;
                                 PF(p, 0x938, f32) = sMusicFadeBase;
@@ -3067,7 +3067,8 @@ player_motion_grab_done:
                     }
                 } else if (comboMode >= 2 && comboTime >= 0.0f &&
                            PF(p, 0xA58, f32) < 0.0f) {
-                    f32 scale = (f32)(lbl_80347BD0 + (comboMode - 2));
+                    f32 scale =
+                        (f32)(lbl_80347BD0 + (f32)(comboMode - 2));
                     s32 effect = StartComboFX((f32*)((u8*)p + 0x54), -1,
                                               p->char_type);
                     PF(Effects + effect * 240, 0x64, u32) = 552;
