@@ -2185,6 +2185,7 @@ s32 camera_collide_step(s32 camIdx, f32 blendThreshold)
     s32 remaining;
     s32 loopSelection;
     f32 bestPitch = *(volatile f32*)&lbl_80345EC8;
+    f32 nearestDistance = *(volatile f32*)&lbl_80346030;
     f32 distanceFloor;
     f32 secondYaw = bestPitch;
     f32 nearestYaw = bestPitch;
@@ -2192,13 +2193,13 @@ s32 camera_collide_step(s32 camIdx, f32 blendThreshold)
     f64 effectiveThreshold = blendThreshold;
     /* blendThreshold is dead once captured above; retail reuses it (still in
      * the incoming f1) as the second-best trigger distance. */
-    f32 nearestDistance = *(volatile f32*)&lbl_80346030;
     f32 swapAngle;
     f32 swapDistance;
     f64 root;
     f32 distance;
     f32 segmentLength;
     f32 blendRatio;
+    f64 finalAngleLimit;
     CameraCollideScratch scratch;
     s32 selected;
     s32 best;
@@ -2444,8 +2445,9 @@ s32 camera_collide_step(s32 camIdx, f32 blendThreshold)
     }
 
     scratch.finalAngle = FixAngle(lbl_80344530 - lbl_80344408);
+    finalAngleLimit = lbl_80345F58;
     *(u32*)&scratch.finalAngle &= 0x7FFFFFFF;
-    distance = (f32)__fabs(lbl_80345F58 - (f64)scratch.finalAngle);
+    distance = (f32)__fabs(finalAngleLimit - (f64)scratch.finalAngle);
     if (rememberSelection != 0) {
         lbl_803444CC = lbl_80344510;
         lbl_803444C8 = lbl_8034450C;
