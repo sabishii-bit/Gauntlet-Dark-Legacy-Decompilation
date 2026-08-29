@@ -4,7 +4,7 @@
   "kind": "evidence",
   "claim": "claim.playermotion-match-state.20260829.v1",
   "evidence_kind": "reproducible_measurement",
-  "locator": "git:4bc7b3c9 src/game/game/pmotion.c include/game/player.h",
-  "detail": "At commit 4bc7b3c9: `ninja build/GUNE5D/report.json` then read units[game/game/pmotion].functions[PlayerMotion].fuzzy_match_percent (= 97.13089); `python tools/gdl/fndiff.py game/game/pmotion PlayerMotion --count` reports insns 4775/4776. Full `ninja` passes the DOL sha1 gate (build/GUNE5D/ok).",
+  "locator": "git:5b4b1cb4 src/game/game/pmotion.c include/game/player.h",
+  "detail": "At commit 5b4b1cb4: `ninja build/GUNE5D/report.json` then read units[game/game/pmotion].functions[PlayerMotion].fuzzy_match_percent (= 97.13089); `python tools/gdl/fndiff.py game/game/pmotion PlayerMotion --count` reports insns 4775/4776. Full `ninja` passes the DOL sha1 gate (build/GUNE5D/ok).",
   "valid_from": "2026-08-29"
 }

@@ -8,7 +8,7 @@
   "epistemic_state": "verified",
   "attributes": {
     "scope": "cflags_demo -O4 no-peephole game code; measured on src/game/game/pmotion.c",
-    "commit_range": "git:b9ce5dd4..git:4bc7b3c9",
+    "commit_range": "git:1f00ae17..git:5b4b1cb4",
     "caveat": "Where the target reloads a value per use across a call, member spelling can over-CSE to one load (atree 0x790 case); check the target's reload count per site."
   },
   "valid_from": "2026-08-29"

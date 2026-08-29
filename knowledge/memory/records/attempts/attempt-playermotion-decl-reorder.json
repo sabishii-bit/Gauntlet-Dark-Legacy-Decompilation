@@ -7,7 +7,7 @@
   "outcome": "negative",
   "attributes": {
     "measurements": "97.131 baseline -> 97.120 with pad (+8 frame bytes to 656) and 97.120 without pad (+2 insns), both worse; reverted",
-    "baseline_commit": "git:4bc7b3c9",
+    "baseline_commit": "git:5b4b1cb4",
     "conclusion": "Axis closed under the iteration-limits policy (two negative A/Bs). Do not retry a whole-head decl reorder; the remaining head diff should be attacked via the peak-register-pressure region census instead.",
     "also_negative_same_session": "ctl-vs-index spelling split to force the target's double p->index load (both directions -0.02)"
   },
