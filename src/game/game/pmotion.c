@@ -1771,7 +1771,7 @@ store_motion_state:
         }
 
         {
-            s32 forcedAnim = 0;
+            s32 forcedAnim;
             if (forceState == 0 &&
                 (p->flags & 0x1000) != 0) {
                 forcedAnim = 110;
@@ -1793,6 +1793,8 @@ store_motion_state:
             } else if (forceState == 0 &&
                        (p->flags & 0x70) != 0) {
                 forcedAnim = 110;
+            } else {
+                forcedAnim = 0;
             }
 
             switch (motionState) {
@@ -2058,16 +2060,14 @@ store_motion_state:
                                               lbl_80347C10);
                     if (!(lbl_80344894 < 0)) {
                         MBTreeSetAmbientAdd(
-                            *(void**)(Effects +
-                                      *(volatile s32*)&lbl_80344894 * 240 +
-                                      0x14),
+                            *(void**)((Effects + 0x14) +
+                                      *(volatile s32*)&lbl_80344894 * 240),
                             0x1FF, 1);
                         SfxSetParent(lbl_80344894,
                                      PF(p, 0x6D0, void*));
                         PF(p, 0x730, void*) =
-                            *(void**)(Effects +
-                                      *(volatile s32*)&lbl_80344894 * 240 +
-                                      0x14);
+                            *(void**)((Effects + 0x14) +
+                                      *(volatile s32*)&lbl_80344894 * 240);
                     }
                     break;
                 default: {
