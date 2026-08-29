@@ -2893,9 +2893,9 @@ player_motion_phase_exit:
                     f32 grabDir[3];
                     f32 partnerYaw;
                     f32 partnerFacing;
-                    grabDir[0] = *(f32*)(motion + 0x30) - PF(grabbed, 0x44, f32);
-                    grabDir[1] = *(f32*)(motion + 0x34) - PF(grabbed, 0x48, f32);
-                    grabDir[2] = *(f32*)(motion + 0x38) - PF(grabbed, 0x4C, f32);
+                    grabDir[0] = PF(p, 0x44, f32) - PF(grabbed, 0x44, f32);
+                    grabDir[1] = PF(p, 0x48, f32) - PF(grabbed, 0x48, f32);
+                    grabDir[2] = PF(p, 0x4C, f32) - PF(grabbed, 0x4C, f32);
                     SlowNormalVector(grabDir);
                     partnerYaw = PlayerMotion_WrapAngle(
                         atan2(grabDir[0], grabDir[2]) + lbl_80347CF8);
@@ -2952,9 +2952,9 @@ player_motion_phase_exit:
                     f32 grabDir[3];
                     f32 partnerYaw;
                     f32 partnerFacing;
-                    grabDir[0] = *(f32*)(motion + 0x30) - PF(grabbed, 0x44, f32);
-                    grabDir[1] = *(f32*)(motion + 0x34) - PF(grabbed, 0x48, f32);
-                    grabDir[2] = *(f32*)(motion + 0x38) - PF(grabbed, 0x4C, f32);
+                    grabDir[0] = PF(p, 0x44, f32) - PF(grabbed, 0x44, f32);
+                    grabDir[1] = PF(p, 0x48, f32) - PF(grabbed, 0x48, f32);
+                    grabDir[2] = PF(p, 0x4C, f32) - PF(grabbed, 0x4C, f32);
                     SlowNormalVector(grabDir);
                     partnerYaw = PlayerMotion_WrapAngle(
                         atan2(grabDir[0], grabDir[2]) + lbl_80347CF8);
