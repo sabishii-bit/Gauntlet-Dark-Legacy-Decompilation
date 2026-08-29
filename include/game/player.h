@@ -199,7 +199,8 @@ typedef struct Player {
     /* 0x08E8 */ f32 fxhittime;      /* last critter-effect hit time [critter.c] */
     /* 0x08EC */ f32 floor_fx_time; /* floor hazard damage cooldown [pmotion.c] */
     /* 0x08F0 */ s32 action;         /* current action id (PlayerAttacking) [player.c] */
-    /* 0x08F4 */ u8  pad_08F4[0x10];
+    /* 0x08F4 */ u8  pad_08F4[0x0C];
+    /* 0x0900 */ u32 act_bits;       /* action request bits (SV view writes) [pmotion.c] */
     /* 0x0904 */ f32 melee_yaw;      /* melee target yaw offset [pmotion.c] */
     /* 0x0908 */ u8  pad_0908[4];
     /* 0x090C */ u32 coll_flags;     /* collision state bits [pmotion.c] */

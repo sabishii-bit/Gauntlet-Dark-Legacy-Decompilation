@@ -2107,7 +2107,7 @@ store_motion_state:
                 fn_8009C9DC(1, p->col_pos);
             }
             if (p->quest_state >= 4 &&
-                (PF(p, 0x900, u32) & ~1U) == 0) {
+                (p->act_bits & ~1U) == 0) {
 #pragma opt_common_subs off
                 switch (gBossType) {
                 case 36:
@@ -2162,7 +2162,7 @@ store_motion_state:
                 MBTreeClearFlags(p->mbnode, 2, 0);
             }
 
-            if ((PF(p, 0x900, u32) & ~1U) != 0) {
+            if ((p->act_bits & ~1U) != 0) {
                 f32 bossDamage = 0.0f;
                 f32 damageScale = 0.0f;
                 f32 weight = 0.0f;
@@ -2189,7 +2189,7 @@ store_motion_state:
                     break;
                 }
                 p->quest_state = 0;
-                PF(p, 0x900, u32) = 0;
+                p->act_bits = 0;
                 fn_8009C9DC(2, p->col_pos);
 
                 bossColor[0] = 0.0f;
@@ -2452,18 +2452,18 @@ store_motion_state:
         to[1] = oldpos[1] + dpos[1];
         to[2] = oldpos[2] + dpos[2];
 
-        if ((PF(p, 0x900, u32) & 0x02000000) != 0) {
+        if ((p->act_bits & 0x02000000) != 0) {
             s32 effect = StartFXSub(28, NULL, 42, 0x880, 0.0f);
             SfxSetParent(effect, PF(p, 0x74, void*));
             SfxSetDamage(lbl_80347C50, lbl_80347CB0,
                          lbl_80347CA0, effect, 32, index + 1);
-            SV(p)->act_bits = PF(p, 0x900, u32) & ~0x02000000;
+            SV(p)->act_bits = p->act_bits & ~0x02000000;
             player_get_powerup_state(1.0f, p, 5, 0x10000000);
             ShakeCamera(0, 0, 30, lbl_80347CB4, 200);
             fn_8009D4B0(p->index);
         }
 
-        if ((PF(p, 0x900, u32) & 0x01000000) != 0) {
+        if ((p->act_bits & 0x01000000) != 0) {
             s32 effect = -1;
             if ((p->flags & 0x3000) != 0) {
                 effect = StartFXSub(56, NULL, 42, 0x800, 0.0f);
@@ -2512,7 +2512,7 @@ store_motion_state:
                     lbl_80347CB8;
                 player_get_powerup_state(1.0f, p, 9, 0x70);
             }
-            SV(p)->act_bits = PF(p, 0x900, u32) & ~0x01000000;
+            SV(p)->act_bits = p->act_bits & ~0x01000000;
         }
 
         targetDir[0] = sin(controlYaw);
@@ -2520,7 +2520,7 @@ store_motion_state:
         targetDir[2] = cos(controlYaw);
 
         /* Target +0x3600: weapon-node vector and one-shot projectile. */
-        if ((PF(p, 0x900, u32) & 0x10000000) != 0) {
+        if ((p->act_bits & 0x10000000) != 0) {
             if ((p->flags & 0x80) != 0 ||
                 PF(p, 0x748, void*) != NULL) {
                 f32 projectileHeight;
@@ -2576,12 +2576,12 @@ store_motion_state:
                                 shotSpeed, projectileHeight);
                 }
             }
-            SV(p)->act_bits = PF(p, 0x900, u32) & ~0x10000000;
+            SV(p)->act_bits = p->act_bits & ~0x10000000;
         }
 
         /* Target +0x3824: low-byte melee/target resolution. */
-        if ((PF(p, 0x900, u32) & 0xFF) != 0) {
-            if ((PF(p, 0x900, u32) & 0xFE) != 0) {
+        if ((p->act_bits & 0xFF) != 0) {
+            if ((p->act_bits & 0xFE) != 0) {
                 f32 damage = PF(p, 0x104, f32);
                 u32 damageFlags = PF(p, 0x11C, u32);
                 f32 hitRange;
@@ -2613,21 +2613,21 @@ store_motion_state:
                     enemy = NULL;
                 }
 
-                if ((PF(p, 0x900, u32) & 0xF0) != 0) {
+                if ((p->act_bits & 0xF0) != 0) {
                     p->power_target -= p->coll_score;
                     p->coll_score = 0.0f;
                     damageFlags |= 0x20;
                     damage = (f32)(damage * lbl_80347B28);
-                } else if ((PF(p, 0x900, u32) & 4) != 0) {
+                } else if ((p->act_bits & 4) != 0) {
                     damageFlags |= 0x10;
                     damage = (f32)(damage * lbl_80347C28);
-                } else if ((PF(p, 0x900, u32) & 8) != 0 &&
+                } else if ((p->act_bits & 8) != 0 &&
                            enemy != NULL &&
                            (f64)PF(enemy, 0x23C, f32) <= lbl_80347C28) {
                     damageFlags |= 0x20;
                 }
 
-                if ((PF(p, 0x900, u32) & 2) != 0) {
+                if ((p->act_bits & 2) != 0) {
                     hitRange = (f32)(lbl_80347BD0 +
                                      lbl_80347BD0 + radius);
                 } else {
@@ -2676,32 +2676,32 @@ store_motion_state:
                 }
             }
 
-            if ((PF(p, 0x900, u32) & 1) != 0) {
+            if ((p->act_bits & 1) != 0) {
                 PF(p, 0x8FC, f32) = sMusicFadeBase;
                 if ((p->flags & 0x400) != 0) {
-                    SV(p)->act_bits = PF(p, 0x900, u32) | 0x20000000;
+                    SV(p)->act_bits = p->act_bits | 0x20000000;
                 }
             }
-            SV(p)->act_bits = PF(p, 0x900, u32) & ~0xFFU;
+            SV(p)->act_bits = p->act_bits & ~0xFFU;
         }
 
         /* Target +0x3B80: missile powerup byte. */
-        if ((PF(p, 0x900, u32) & 0xFF00) != 0) {
+        if ((p->act_bits & 0xFF00) != 0) {
             u32 missileFlags = PF(p, 0x11C, u32);
             s32 missileMode = 1;
             f32 missileDamage;
             f32 missileScale;
 
-            if ((PF(p, 0x900, u32) & 0x6000) != 0) {
+            if ((p->act_bits & 0x6000) != 0) {
                 missileDamage = lbl_80347CD0;
                 missileMode = 0;
                 missileScale = 1.0f;
-            } else if ((PF(p, 0x900, u32) & 0x1000) != 0) {
+            } else if ((p->act_bits & 0x1000) != 0) {
                 missileFlags |= 0x02000010;
                 missileDamage = lbl_80347CD0;
                 missileScale = lbl_80347B98;
                 missileMode = 2;
-            } else if ((PF(p, 0x900, u32) & 0x800) != 0) {
+            } else if ((p->act_bits & 0x800) != 0) {
                 missileDamage = 0.0f;
                 if (player_get_powerup_state(1.0f, p, 5,
                                              0x00100000) != 0) {
@@ -2740,12 +2740,12 @@ store_motion_state:
             } else {
                 AudioPlayerEatSFX(index);
             }
-            SV(p)->act_bits = PF(p, 0x900, u32) & ~0xFF00U;
-            SV(p)->act_bits = PF(p, 0x900, u32) | 0x10000000;
+            SV(p)->act_bits = p->act_bits & ~0xFF00U;
+            SV(p)->act_bits = p->act_bits | 0x10000000;
         }
 
         /* Target +0x3CE4: magic-player and potion magic triggers. */
-        if ((PF(p, 0x900, u32) & 0x10000) != 0) {
+        if ((p->act_bits & 0x10000) != 0) {
             s32 effect;
             if ((effect = StartMagicPlayerFX(lbl_80127D00)) >= 0) {
                 if (PF(p, 0x6CC, void*) != NULL) {
@@ -2756,14 +2756,14 @@ store_motion_state:
                 MBTreeSetFlags(*(void**)(Effects + effect * 240 + 0x14),
                                0x04000000, 0);
             }
-            SV(p)->act_bits = PF(p, 0x900, u32) & ~0x10000U;
+            SV(p)->act_bits = p->act_bits & ~0x10000U;
         }
 
-        if ((PF(p, 0x900, u32) & 0x60000) != 0) {
+        if ((p->act_bits & 0x60000) != 0) {
             if (p->quest_state == 0 &&
                 (lbl_8034489C <= 0 || lbl_8034489C >= 5)) {
                 s32 magicMode;
-                if ((PF(p, 0x900, u32) & 0x40000) != 0) {
+                if ((p->act_bits & 0x40000) != 0) {
                     magicMode = (ctl->pad.levels & 0x10000) != 0 ? 3 : 2;
                 } else if ((PF(p, 0x956, s16) & 2) != 0) {
                     magicMode = 1;
@@ -2784,7 +2784,7 @@ store_motion_state:
                 }
                 PF(p, 0x956, s16) = 128;
             }
-            SV(p)->act_bits = PF(p, 0x900, u32) & ~0x60000U;
+            SV(p)->act_bits = p->act_bits & ~0x60000U;
         }
 
 player_motion_phase_exit:
