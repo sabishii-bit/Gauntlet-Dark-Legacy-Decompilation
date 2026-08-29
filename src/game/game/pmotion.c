@@ -2959,6 +2959,7 @@ player_motion_phase_exit:
             case 4:
                 switch (p->anim_208) {
                 case 88:
+                    grabbed = PF(p, 0x6B8, Player*);
                     if (grabbed != NULL &&
                         (p->hud_flags & 0x20) == 0) {
                     f32 grabDir[3];
