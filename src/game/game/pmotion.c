@@ -1893,9 +1893,9 @@ store_motion_state:
                     p->anim_20C = 0;
                 } else {
                     switch (PF(p, 0x6B8, Player*)->char_type) {
+                    default: p->anim_20C = 0; break;
                     case 0: p->anim_20C = 137; break;
                     case 4: p->anim_20C = 143; break;
-                    default: p->anim_20C = 0; break;
                     }
                 }
                 break;
