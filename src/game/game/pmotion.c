@@ -338,7 +338,7 @@ extern void fn_8009D4B0(s32 player);
 extern void fn_8009F490(s32 player);
 extern void fn_8009F450(s32 player);
 extern void AudioTurboDefense(s32 player);
-extern void AudioPlayerTurbo(s32 player);
+extern void AudioPlayerTurbo(s32 player, s32 a2, s32 a3);
 extern s32 MBOX_ReallyFindObject(const char* name, s32 first, s32 last,
                                  s32 exact);
 extern s32* AtreeFindMbidxNode(void* tree, s32 mbidx);
@@ -2493,7 +2493,7 @@ store_motion_state:
 
             if (effect >= 0) {
                 if ((p->flags & 0x400) != 0 &&
-                    PF(p, 0x790, void*) != NULL) {
+                    p->atree != NULL) {
                     s32 object = MBOX_ReallyFindObject(
                         strings + 84, sPowerupsHandle,
                         sPowerupsHandle, 1);
@@ -2504,7 +2504,7 @@ store_motion_state:
                     }
                     p->power_target -= p->coll_score;
                     p->coll_score = 0.0f;
-                    AudioPlayerTurbo(p->index);
+                    AudioPlayerTurbo(p->index, 0, 0);
                 } else {
                     SfxSetParent(effect, PF(p, 0x6D4, void*));
                 }

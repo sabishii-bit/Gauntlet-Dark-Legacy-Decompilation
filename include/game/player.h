@@ -168,7 +168,9 @@ typedef struct Player {
     /* 0x06C0 */ u8  pad_06C0[8];
     /* 0x06C8 */ void* mbnode;       /* secondary MBTree node (weapon/shadow) [pmotion.c] */
     /* 0x06CC */ void* mbnode2;      /* effect anchor node [pmotion.c] */
-    /* 0x06D0 */ u8  pad_06D0[0x12C];
+    /* 0x06D0 */ u8  pad_06D0[0xC0];
+    /* 0x0790 */ void* atree;        /* anim tree handle [pmotion.c] */
+    /* 0x0794 */ u8  pad_0794[0x68];
     /* 0x07FC */ f32 pulse_7FC;      /* rune-near display pulse [player.c] */
     /* 0x0800 */ u8  pad_0800[0x28];
     /* 0x0828 */ f32 power_target;   /* power-meter target [player.c] */
