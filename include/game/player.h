@@ -187,10 +187,12 @@ typedef struct Player {
     /* 0x08A8 */ void* collision_item; /* nearest item hit by the motion sweep */
     /* 0x08AC */ void* special_collision_item; /* nearest special pickup */
     /* 0x08B0 */ s32* speech_req;    /* queued speech request [player.c do_players] */
-    /* 0x08B4 */ u8  pad_08B4[0x10];
+    /* 0x08B4 */ f32 floor_base;     /* terrain floor height under player [pmotion.c] */
+    /* 0x08B8 */ u8  pad_08B8[0x0C];
     /* 0x08C4 */ char* floor_name2;  /* fallback floor name [player.c debug] */
     /* 0x08C8 */ char* floor_name;   /* current floor name [player.c debug] */
-    /* 0x08CC */ u8  pad_08CC[8];
+    /* 0x08CC */ f32 floor_cur;      /* active floor-fx height [pmotion.c] */
+    /* 0x08D0 */ u8  pad_08D0[4];
     /* 0x08D4 */ u32 obj_flags;      /* world-obj flags; 0x4000 = parented [player.c] */
     /* 0x08D8 */ u32 act_flags;      /* action state flags [pmotion.c/player.c] */
     /* 0x08DC */ u8  pad_08DC[0x0C];

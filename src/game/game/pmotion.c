@@ -1176,11 +1176,11 @@ void PlayerMotion(Player* p) {
         hit[0] = oldpos[0];
         hit[1] = oldpos[1];
         hit[2] = oldpos[2];
-        hit[1] = PF(p, 0x8B4, f32);
+        hit[1] = p->floor_base;
         PlayerMotion_FloorFX(p, (WorldObj*)lbl_80344B38, oldpos, hit);
-        PF(p, 0x8CC, f32) = lbl_80344B34;
+        p->floor_cur = lbl_80344B34;
     } else {
-        PF(p, 0x8CC, f32) = PF(p, 0x8B4, f32);
+        p->floor_cur = p->floor_base;
     }
     if (SV(p)->floor_obj != 0) {
         PlayerMotion_FloorFX(p, (WorldObj*)SV(p)->floor_obj, oldpos,
@@ -1191,7 +1191,7 @@ void PlayerMotion(Player* p) {
          (PF(p, 0x8C4, WorldObj*)->flags & 0x1000) == 0)) ||
         (floorResult == -2 && (PF(p, 0x8C4, u32) == 0 ||
          (p->obj_flags & 0x8000) != 0))) {
-        f32 rise = PF(p, 0x8B4, f32) - *(f32*)(motion + 0x34);
+        f32 rise = p->floor_base - *(f32*)(motion + 0x34);
         if ((f64)rise < lbl_80347BD8 * gClockFrameStep) {
             rise = (f32)(lbl_80347BD8 * gClockFrameStep);
         }
@@ -1381,11 +1381,11 @@ void PlayerMotion(Player* p) {
     }
 
     if (transporter == 2) {
-        PF(p, 0x8B4, f32) = gFloorCollisionResult[13];
+        p->floor_base = gFloorCollisionResult[13];
         if (lbl_80344B38 != 0) {
-            PF(p, 0x8CC, f32) = lbl_80344B34;
+            p->floor_cur = lbl_80344B34;
         } else {
-            PF(p, 0x8CC, f32) = SV(p)->floor_y;
+            p->floor_cur = SV(p)->floor_y;
         }
     }
     goto collision_done;
@@ -1394,8 +1394,8 @@ detach_floor:
     PF(p, 0x8C4, WorldObj*) = NULL;
     MBNodeSetParent(p->node, lbl_80344B2C);
     p->hud_flags |= 1;
-    PF(p, 0x8B4, f32) = lbl_80344880;
-    PF(p, 0x8CC, f32) = lbl_80344880;
+    p->floor_base = lbl_80344880;
+    p->floor_cur = lbl_80344880;
 
 collision_done:
     *(s32*)&p->coll_flags = 0;
@@ -2143,12 +2143,12 @@ store_motion_state:
 
         /* Target +0x2870: completed-boss effects and damage table. */
         if (p->quest_state >= 4) {
-            if (PF(p, 0x8CC, f32) > PF(p, 0x8B4, f32)) {
+            if (p->floor_cur > p->floor_base) {
                 PF(p->mbnode, 0x30, f32) = *(f32*)(motion + 0x30);
                 PF(p->mbnode, 0x34, f32) = *(f32*)(motion + 0x34);
                 PF(p->mbnode, 0x38, f32) = *(f32*)(motion + 0x38);
                 PF(p->mbnode, 0x34, f32) =
-                    (f32)(lbl_80347BE0 + PF(p, 0x8CC, f32));
+                    (f32)(lbl_80347BE0 + p->floor_cur);
                 MBTreeSetAltTex(p->mbnode, -2,
                                 lbl_80344BE8, 1);
                 MBTreeClearFlags(p->mbnode, 2, 0);
@@ -2157,7 +2157,7 @@ store_motion_state:
                 PF(p->mbnode, 0x34, f32) = *(f32*)(motion + 0x34);
                 PF(p->mbnode, 0x38, f32) = *(f32*)(motion + 0x38);
                 PF(p->mbnode, 0x34, f32) =
-                    (f32)(lbl_80347BE0 + PF(p, 0x8B4, f32));
+                    (f32)(lbl_80347BE0 + p->floor_base);
                 MBTreeSetAltTex(p->mbnode, -1, 0, 1);
                 MBTreeClearFlags(p->mbnode, 2, 0);
             }
@@ -2419,12 +2419,12 @@ store_motion_state:
 
         /* Target +0x31D4: normal floor marker and powerup phases. */
         if ((p->hud_flags & 0x20) != 0) {
-            if (PF(p, 0x8CC, f32) > PF(p, 0x8B4, f32)) {
+            if (p->floor_cur > p->floor_base) {
                 PF(p->mbnode, 0x30, f32) = *(f32*)(motion + 0x30);
                 PF(p->mbnode, 0x34, f32) = *(f32*)(motion + 0x34);
                 PF(p->mbnode, 0x38, f32) = *(f32*)(motion + 0x38);
                 PF(p->mbnode, 0x34, f32) =
-                    (f32)(lbl_80347BE0 + PF(p, 0x8CC, f32));
+                    (f32)(lbl_80347BE0 + p->floor_cur);
                 MBTreeSetAltTex(p->mbnode, -2,
                                 lbl_80344BE8, 1);
                 MBTreeClearFlags(p->mbnode, 2, 0);
@@ -2433,7 +2433,7 @@ store_motion_state:
                 PF(p->mbnode, 0x34, f32) = *(f32*)(motion + 0x34);
                 PF(p->mbnode, 0x38, f32) = *(f32*)(motion + 0x38);
                 PF(p->mbnode, 0x34, f32) =
-                    (f32)(lbl_80347BE0 + PF(p, 0x8B4, f32));
+                    (f32)(lbl_80347BE0 + p->floor_base);
                 MBTreeSetAltTex(p->mbnode, -1, 0, 1);
                 MBTreeClearFlags(p->mbnode, 2, 0);
             }
