@@ -870,8 +870,8 @@ void PlayerMotion(Player* p) {
     ControlState* ctl = &lbl_80240E30[p->index];
     s32 index = p->index;
     u8* motion = (u8*)p + 0x14;
-    f32 radius = PF(p, 0x850, f32);
-    f32 height = PF(p, 0x854, f32);
+    f32 radius = p->col_radius;
+    f32 height = p->col_height;
     u8 unused[16];
     f32 oldpos[3];
     f32 dpos[3];
@@ -2142,22 +2142,22 @@ store_motion_state:
         /* Target +0x2870: completed-boss effects and damage table. */
         if (p->quest_state >= 4) {
             if (PF(p, 0x8CC, f32) > PF(p, 0x8B4, f32)) {
-                PF(PF(p, 0x6C8, void*), 0x30, f32) = *(f32*)(motion + 0x30);
-                PF(PF(p, 0x6C8, void*), 0x34, f32) = *(f32*)(motion + 0x34);
-                PF(PF(p, 0x6C8, void*), 0x38, f32) = *(f32*)(motion + 0x38);
-                PF(PF(p, 0x6C8, void*), 0x34, f32) =
+                PF(p->mbnode, 0x30, f32) = *(f32*)(motion + 0x30);
+                PF(p->mbnode, 0x34, f32) = *(f32*)(motion + 0x34);
+                PF(p->mbnode, 0x38, f32) = *(f32*)(motion + 0x38);
+                PF(p->mbnode, 0x34, f32) =
                     (f32)(lbl_80347BE0 + PF(p, 0x8CC, f32));
-                MBTreeSetAltTex(PF(p, 0x6C8, void*), -2,
+                MBTreeSetAltTex(p->mbnode, -2,
                                 lbl_80344BE8, 1);
-                MBTreeClearFlags(PF(p, 0x6C8, void*), 2, 0);
+                MBTreeClearFlags(p->mbnode, 2, 0);
             } else {
-                PF(PF(p, 0x6C8, void*), 0x30, f32) = *(f32*)(motion + 0x30);
-                PF(PF(p, 0x6C8, void*), 0x34, f32) = *(f32*)(motion + 0x34);
-                PF(PF(p, 0x6C8, void*), 0x38, f32) = *(f32*)(motion + 0x38);
-                PF(PF(p, 0x6C8, void*), 0x34, f32) =
+                PF(p->mbnode, 0x30, f32) = *(f32*)(motion + 0x30);
+                PF(p->mbnode, 0x34, f32) = *(f32*)(motion + 0x34);
+                PF(p->mbnode, 0x38, f32) = *(f32*)(motion + 0x38);
+                PF(p->mbnode, 0x34, f32) =
                     (f32)(lbl_80347BE0 + PF(p, 0x8B4, f32));
-                MBTreeSetAltTex(PF(p, 0x6C8, void*), -1, 0, 1);
-                MBTreeClearFlags(PF(p, 0x6C8, void*), 2, 0);
+                MBTreeSetAltTex(p->mbnode, -1, 0, 1);
+                MBTreeClearFlags(p->mbnode, 2, 0);
             }
 
             if ((PF(p, 0x900, u32) & ~1U) != 0) {
@@ -2416,22 +2416,22 @@ store_motion_state:
         /* Target +0x31D4: normal floor marker and powerup phases. */
         if ((p->hud_flags & 0x20) != 0) {
             if (PF(p, 0x8CC, f32) > PF(p, 0x8B4, f32)) {
-                PF(PF(p, 0x6C8, void*), 0x30, f32) = *(f32*)(motion + 0x30);
-                PF(PF(p, 0x6C8, void*), 0x34, f32) = *(f32*)(motion + 0x34);
-                PF(PF(p, 0x6C8, void*), 0x38, f32) = *(f32*)(motion + 0x38);
-                PF(PF(p, 0x6C8, void*), 0x34, f32) =
+                PF(p->mbnode, 0x30, f32) = *(f32*)(motion + 0x30);
+                PF(p->mbnode, 0x34, f32) = *(f32*)(motion + 0x34);
+                PF(p->mbnode, 0x38, f32) = *(f32*)(motion + 0x38);
+                PF(p->mbnode, 0x34, f32) =
                     (f32)(lbl_80347BE0 + PF(p, 0x8CC, f32));
-                MBTreeSetAltTex(PF(p, 0x6C8, void*), -2,
+                MBTreeSetAltTex(p->mbnode, -2,
                                 lbl_80344BE8, 1);
-                MBTreeClearFlags(PF(p, 0x6C8, void*), 2, 0);
+                MBTreeClearFlags(p->mbnode, 2, 0);
             } else {
-                PF(PF(p, 0x6C8, void*), 0x30, f32) = *(f32*)(motion + 0x30);
-                PF(PF(p, 0x6C8, void*), 0x34, f32) = *(f32*)(motion + 0x34);
-                PF(PF(p, 0x6C8, void*), 0x38, f32) = *(f32*)(motion + 0x38);
-                PF(PF(p, 0x6C8, void*), 0x34, f32) =
+                PF(p->mbnode, 0x30, f32) = *(f32*)(motion + 0x30);
+                PF(p->mbnode, 0x34, f32) = *(f32*)(motion + 0x34);
+                PF(p->mbnode, 0x38, f32) = *(f32*)(motion + 0x38);
+                PF(p->mbnode, 0x34, f32) =
                     (f32)(lbl_80347BE0 + PF(p, 0x8B4, f32));
-                MBTreeSetAltTex(PF(p, 0x6C8, void*), -1, 0, 1);
-                MBTreeClearFlags(PF(p, 0x6C8, void*), 2, 0);
+                MBTreeSetAltTex(p->mbnode, -1, 0, 1);
+                MBTreeClearFlags(p->mbnode, 2, 0);
             }
             goto player_motion_phase_exit;
         }
@@ -2844,22 +2844,22 @@ player_motion_phase_exit:
 
             {
                 if (PF(p, 0x8CC, f32) > PF(p, 0x8B4, f32)) {
-                    PF(PF(p, 0x6C8, void*), 0x30, f32) = *(f32*)(motion + 0x30);
-                    PF(PF(p, 0x6C8, void*), 0x34, f32) = *(f32*)(motion + 0x34);
-                    PF(PF(p, 0x6C8, void*), 0x38, f32) = *(f32*)(motion + 0x38);
-                    PF(PF(p, 0x6C8, void*), 0x34, f32) =
+                    PF(p->mbnode, 0x30, f32) = *(f32*)(motion + 0x30);
+                    PF(p->mbnode, 0x34, f32) = *(f32*)(motion + 0x34);
+                    PF(p->mbnode, 0x38, f32) = *(f32*)(motion + 0x38);
+                    PF(p->mbnode, 0x34, f32) =
                         (f32)(lbl_80347BE0 + PF(p, 0x8CC, f32));
-                    MBTreeSetAltTex(PF(p, 0x6C8, void*), -2,
+                    MBTreeSetAltTex(p->mbnode, -2,
                                     lbl_80344BE8, 1);
-                    MBTreeClearFlags(PF(p, 0x6C8, void*), 2, 0);
+                    MBTreeClearFlags(p->mbnode, 2, 0);
                 } else {
-                    PF(PF(p, 0x6C8, void*), 0x30, f32) = *(f32*)(motion + 0x30);
-                    PF(PF(p, 0x6C8, void*), 0x34, f32) = *(f32*)(motion + 0x34);
-                    PF(PF(p, 0x6C8, void*), 0x38, f32) = *(f32*)(motion + 0x38);
-                    PF(PF(p, 0x6C8, void*), 0x34, f32) =
+                    PF(p->mbnode, 0x30, f32) = *(f32*)(motion + 0x30);
+                    PF(p->mbnode, 0x34, f32) = *(f32*)(motion + 0x34);
+                    PF(p->mbnode, 0x38, f32) = *(f32*)(motion + 0x38);
+                    PF(p->mbnode, 0x34, f32) =
                         (f32)(lbl_80347BE0 + PF(p, 0x8B4, f32));
-                    MBTreeSetAltTex(PF(p, 0x6C8, void*), -1, 0, 1);
-                    MBTreeClearFlags(PF(p, 0x6C8, void*), 2, 0);
+                    MBTreeSetAltTex(p->mbnode, -1, 0, 1);
+                    MBTreeClearFlags(p->mbnode, 2, 0);
                 }
             }
 

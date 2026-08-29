@@ -165,7 +165,9 @@ typedef struct Player {
     /* 0x0210 */ u8  pad_0210[0x4A8];
     /* 0x06B8 */ struct Player* grab_partner; /* grabbed/carried partner [pmotion.c] */
     /* 0x06BC */ struct Player* grab_pending; /* pending grab request [pmotion.c] */
-    /* 0x06C0 */ u8  pad_06C0[0x13C];
+    /* 0x06C0 */ u8  pad_06C0[8];
+    /* 0x06C8 */ void* mbnode;       /* secondary MBTree node (weapon/shadow) [pmotion.c] */
+    /* 0x06CC */ u8  pad_06CC[0x130];
     /* 0x07FC */ f32 pulse_7FC;      /* rune-near display pulse [player.c] */
     /* 0x0800 */ u8  pad_0800[0x28];
     /* 0x0828 */ f32 power_target;   /* power-meter target [player.c] */
