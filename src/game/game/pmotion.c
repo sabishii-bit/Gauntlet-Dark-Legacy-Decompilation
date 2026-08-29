@@ -1219,7 +1219,7 @@ void PlayerMotion(Player* p) {
     }
 
     if ((f64)dpos[1] > lbl_80347BE0 * moveAmount) {
-        f32 horizontal = fqdist(dpos[0], dpos[2]);
+        f32 horizontal = fqdist(moveAmount, dpos[1]);
         if ((f64)horizontal > lbl_80347BE8) {
             f32 scale = moveAmount / horizontal;
             dpos[0] *= scale;
@@ -1240,11 +1240,15 @@ void PlayerMotion(Player* p) {
         collision = PlayerCollideEnemies(
             p, (s32)oldpos, to, hit, 1, (s32*)&firstEnemy,
             (f32)(lbl_80347BF0 * radius), height);
-        if (collision != 0 && **(s32**)firstEnemy != 7) {
-            f32 dot = (PF(firstEnemy, 0x54, f32) - oldpos[0]) * dpos[0] +
-                      (PF(firstEnemy, 0x5C, f32) - oldpos[2]) * dpos[2];
-            if (dot < 0.0f) {
-                collision = 0;
+        if (collision != 0) {
+            collision = 1;
+            if (**(s32**)firstEnemy != 7) {
+                f32 dot =
+                    (PF(firstEnemy, 0x5C, f32) - oldpos[2]) * dpos[2] +
+                    (PF(firstEnemy, 0x54, f32) - oldpos[0]) * dpos[0];
+                if (dot < 0.0f) {
+                    collision = 0;
+                }
             }
         }
         if (collision != 0) {
