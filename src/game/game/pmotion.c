@@ -1638,13 +1638,16 @@ collision_done:
                         hit[1] = to[1] - *(f32*)(motion + 0x34);
                         hit[2] = to[2] - *(f32*)(motion + 0x38);
                     }
-                    effectRecord = Effects + effect * 240;
-                    effectNode = *(void**)(effectRecord + 0x14);
-                    CreateDirMatrix((f32*)effectNode, hit, NULL);
+                    CreateDirMatrix(
+                        (f32*)*(void**)(Effects + effect * 240 + 0x14),
+                        hit, NULL);
                     GetWorldMat(PF(p, 0x6CC, void*), effectMatrix, NULL);
-                    PF(effectNode, 0x30, f32) = effectMatrix[12];
-                    PF(effectNode, 0x34, f32) = effectMatrix[13];
-                    PF(effectNode, 0x38, f32) = effectMatrix[14];
+                    PF(*(void**)(Effects + effect * 240 + 0x14), 0x30, f32) =
+                        effectMatrix[12];
+                    PF(*(void**)(Effects + effect * 240 + 0x14), 0x34, f32) =
+                        effectMatrix[13];
+                    PF(*(void**)(Effects + effect * 240 + 0x14), 0x38, f32) =
+                        effectMatrix[14];
                     goto state_selected;
                 }
             }
