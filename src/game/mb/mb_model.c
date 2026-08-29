@@ -600,22 +600,20 @@ typedef struct ModelRec {
 } ModelRec;
 
 int MBOX_AllocModelMem(int objSize, int texSize, const char* dir) {
-    char* strs;
+    char* strs = (char*)lbl_80115DA8;
     u8* g;
+    s32 off;
+    s32 memUsed;
+    s32 slot;
+    s32 texAlloc;
     s32* counter;
     u8* row;
     u8* aligned;
-    s32 slot;
-    s32 off;
-    s32 objAlloc;
-    s32 texAlloc;
     s32 want;
-    s32 memUsed;
     s32 pad;
 
-    objAlloc = (objSize + 255) & ~255;
+    objSize = (objSize + 255) & ~255;
     texAlloc = (texSize + 15) & ~15;
-    strs = (char*)lbl_80115DA8;
     g = gWinGlobals;
     counter = *(s32**)(g + 48);
     slot = (*counter)++;
@@ -634,7 +632,7 @@ int MBOX_AllocModelMem(int objSize, int texSize, const char* dir) {
     row += off;
     *(s32*)(row + 12) = 0;
     if (strcmp(dir, lbl_80348C28) != 0) {
-        want = objAlloc + texAlloc;
+        want = objSize + texAlloc;
         texAlloc = BytesFree();
         memUsed = mlmMemUsed;
         if (slot >= 21) {
@@ -648,7 +646,7 @@ int MBOX_AllocModelMem(int objSize, int texSize, const char* dir) {
         want += pad;
         aligned += pad;
         AllocMem(want);
-        texAlloc = texAlloc - BytesFree() - objAlloc;
+        texAlloc = texAlloc - BytesFree() - objSize;
         row = *(u8**)(g + 48);
         row += off;
         *(u8**)(row + 4) = aligned;
@@ -659,13 +657,14 @@ int MBOX_AllocModelMem(int objSize, int texSize, const char* dir) {
     }
     row = *(u8**)(g + 48);
     row += off;
-    *(s32*)(row + 8) = objAlloc;
+    *(s32*)(row + 8) = objSize;
     row = *(u8**)(g + 48);
     row += off;
     *(s32*)(row + 12) = texAlloc;
-    bulletproof_printf(strs + 508, slot, (dir != NULL) ? dir : strs + 496,
+    bulletproof_printf(strs + 508, slot,
+                       (dir != NULL) ? dir : strs + 496,
                        memUsed >> 10);
-    bulletproof_printf(strs + 552, mlmMemUsed >> 10, objAlloc >> 10,
+    bulletproof_printf(strs + 552, mlmMemUsed >> 10, objSize >> 10,
                        texAlloc >> 10);
     return slot;
 }
