@@ -873,11 +873,11 @@ void PlayerMotion(Player* p) {
     s32 item = -1;
     u8* target = NULL;
     f32 reflection[3];
+    f32 padvec[17];
     f32 effectVelocity[3];
     f32 bossColor[3];
     f32 localVector[3];
     f32 missileVelocity[3];
-    u8 unused2[68];
     s32 anim = p->anim_208;
     s32 motionType;
     s32 directionKind;
