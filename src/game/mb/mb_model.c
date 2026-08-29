@@ -312,14 +312,15 @@ int MBOX_LoadModel(const char* dir) {
 /* ---- 0x800B7B54 : load a single model file into a fixed slot ---- */
 int MBOX_LoadModelFixed(const char* dir, void* buf, int a, int b, int slot) {
     char* strs;
-    u8* g;
-    u8* row;
-    u8* base;
-    s32 objSize;
     s32 off;
-    s32 got;
+    u8* row;
+    s32 objSize;
     u8* nameBase;
+    u8* row2;
+    u8* g;
     s32 nameOff;
+    s32 got;
+    u8* base;
     u8 unused[8];
 
     strs = (char*)lbl_80115DA8;
@@ -331,9 +332,9 @@ int MBOX_LoadModelFixed(const char* dir, void* buf, int a, int b, int slot) {
     off = slot << 4;
     row = *(u8**)(g + 48) + off + 4;
     base = *(u8**)row;
-    *(s32*)(row + 12) = 2;
     nameBase = lbl_802A5D1C;
     nameOff = slot << 5;
+    *(s32*)(row + 12) = 2;
     strncpy((char*)(nameBase + nameOff), dir, 32);
     *(u8*)(nameBase + nameOff + 31) = 0;
     if (strcmp(dir, lbl_80348C28) != 0) {
@@ -353,7 +354,7 @@ int MBOX_LoadModelFixed(const char* dir, void* buf, int a, int b, int slot) {
     if (strcmp(dir, lbl_80348C28) == 0) {
         fn_800C7214(slot);
     } else {
-        u8* row2 = *(u8**)(gWinGlobals + 48) + off + 4;
+        row2 = *(u8**)(gWinGlobals + 48) + off + 4;
         got = MLMReadFile(dir, strs + 12, (void*)*(s32*)(row2 + 8),
                           *(s32*)(*(u8**)row2 + 112));
         if ((u32)((got + 15) & ~15) > (u32)*(s32*)(row2 + 8)) {
