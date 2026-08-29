@@ -2349,13 +2349,13 @@ store_motion_state:
 
                 if ((f64)bossDamage > lbl_80347B08) {
                     if (hitNode == NULL) {
-                        effectVelocity[0] = hit[0] - PF(p, 0x54, f32);
-                        effectVelocity[1] = hit[1] - PF(p, 0x58, f32);
-                        effectVelocity[2] = hit[2] - PF(p, 0x5C, f32);
+                        effectVelocity[0] = hit[0] - p->col_pos[0];
+                        effectVelocity[1] = hit[1] - p->col_pos[1];
+                        effectVelocity[2] = hit[2] - p->col_pos[2];
                         NormalVector(effectVelocity);
-                        hit[0] = (f32)((f64)effectVelocity[0] + PF(p, 0x54, f32));
-                        hit[1] = (f32)((f64)effectVelocity[1] + PF(p, 0x58, f32));
-                        hit[2] = (f32)((f64)effectVelocity[2] + PF(p, 0x5C, f32));
+                        hit[0] = (f32)((f64)effectVelocity[0] + p->col_pos[0]);
+                        hit[1] = (f32)((f64)effectVelocity[1] + p->col_pos[1]);
+                        hit[2] = (f32)((f64)effectVelocity[2] + p->col_pos[2]);
                         hit[1] = (f32)(hit[1] + lbl_80347C28);
                         effect = StartFXSub(93, hit, effectFlags | 8, 0,
                                             lbl_80347CA8);
@@ -2365,9 +2365,9 @@ store_motion_state:
                         fn_80093E50(effect, effectVelocity, bossColor,
                                     weight, effectRadius);
                     } else {
-                        hit[0] = (f32)(PF(p, 0x34, f32) + (f64)PF(p, 0x54, f32));
-                        hit[1] = (f32)(PF(p, 0x38, f32) + (f64)PF(p, 0x58, f32));
-                        hit[2] = (f32)(PF(p, 0x3C, f32) + (f64)PF(p, 0x5C, f32));
+                        hit[0] = (f32)(PF(p, 0x34, f32) + (f64)p->col_pos[0]);
+                        hit[1] = (f32)(PF(p, 0x38, f32) + (f64)p->col_pos[1]);
+                        hit[2] = (f32)(PF(p, 0x3C, f32) + (f64)p->col_pos[2]);
                         hit[1] = (f32)(hit[1] + lbl_80347C28);
                         effect = StartFXSub(93, hit, effectFlags | 8, 0,
                                             lbl_80347CA8);
