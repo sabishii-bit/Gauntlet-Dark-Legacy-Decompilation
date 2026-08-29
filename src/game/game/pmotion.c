@@ -883,6 +883,7 @@ void PlayerMotion(Player* p) {
     f32 effectMatrix[16];
     s32 item = -1;
     u8* target = NULL;
+    u8* firstEnemy;
     f32 reflection[3];
     f32 padvec[17];
     f32 effectVelocity[3];
@@ -1086,9 +1087,9 @@ void PlayerMotion(Player* p) {
     PF(p, 0x8AC, s32) = 0;
     specialCritter = 0;
     firstEnemyHits = PlayerCollideEnemies(
-        p, (s32)oldpos, to, to, 0, (s32*)&target, radius, height);
+        p, (s32)oldpos, to, to, 0, (s32*)&firstEnemy, radius, height);
     if (firstEnemyHits != 0) {
-        u8* object = (u8*)target;
+        u8* object = (u8*)firstEnemy;
         if ((s8)object[0xCF] >= 0 && *(s16*)(object + 0xD0) > 0 &&
             (directionKind != 0 || p->action != 0)) {
             dpos[0] = 0.0f;
@@ -1099,7 +1100,7 @@ void PlayerMotion(Player* p) {
         }
         if (anim == 137 || anim == 143) {
             s32 sfx;
-            PlayerMotion_HitTarget(p, target, 32,
+            PlayerMotion_HitTarget(p, firstEnemy, 32,
                 (f32)(anim == 137 ? lbl_80347BB8 : lbl_80347BC0));
             {
                 s32 sfxProbe = PlayerMotion_SfxIndex(p);
@@ -1240,11 +1241,11 @@ void PlayerMotion(Player* p) {
         to[1] = oldpos[1] + dpos[1];
         to[2] = oldpos[2] + dpos[2];
         collision = PlayerCollideEnemies(
-            p, (s32)oldpos, to, hit, 1, (s32*)&target,
+            p, (s32)oldpos, to, hit, 1, (s32*)&firstEnemy,
             (f32)(lbl_80347BF0 * radius), height);
-        if (collision != 0 && **(s32**)target != 7) {
-            f32 dot = (PF(target, 0x54, f32) - oldpos[0]) * dpos[0] +
-                      (PF(target, 0x5C, f32) - oldpos[2]) * dpos[2];
+        if (collision != 0 && **(s32**)firstEnemy != 7) {
+            f32 dot = (PF(firstEnemy, 0x54, f32) - oldpos[0]) * dpos[0] +
+                      (PF(firstEnemy, 0x5C, f32) - oldpos[2]) * dpos[2];
             if (dot < 0.0f) {
                 collision = 0;
             }
@@ -1259,7 +1260,7 @@ void PlayerMotion(Player* p) {
             }
             if (anim == 137 || anim == 143) {
                 s32 sfx;
-                PlayerMotion_HitTarget(p, target, 32,
+                PlayerMotion_HitTarget(p, firstEnemy, 32,
                     (f32)(anim == 137 ? lbl_80347BB8 : lbl_80347BC0));
                 {
                     s32 sfxProbe = PlayerMotion_SfxIndex(p);
