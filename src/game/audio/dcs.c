@@ -561,8 +561,8 @@ s32 AudioQueUpdate(s32 bank) {
             sampleIndex = *(u16*)(instructionOffset + 0x7080) & 0xFFF;
             instruction = (u16*)(instructionOffset + 0x7080);
             if (sampleIndex >= 0 && sampleIndex < 0x800) {
-                if (d->samples[sampleIndex].sampleRate != 0) {
-                    sample = &d->samples[sampleIndex];
+                sample = &d->samples[sampleIndex];
+                if (sample->sampleRate != 0) {
                     if (sample->aramAddress != 0) {
                         pool_alloc((u8*)&d->callInstr[10240], sample);
                     }
@@ -592,15 +592,20 @@ s32 AudioQueUpdate(s32 bank) {
         {
             u8* callBase = (u8*)d + 0x20000;
             s32 sourceOffset = endCall * sizeof(u16);
+            u8* sourceBase;
+            u8* destinationBase;
+
             for (c = endCall; c < lbl_80345200;
                  c++, sourceOffset += sizeof(u16)) {
-                u8* destinationBase =
-                    callBase + (c - size) * sizeof(u16);
+                sourceBase = callBase;
+                sourceBase += sourceOffset;
+                destinationBase = callBase;
+                destinationBase += (c - size) * sizeof(u16);
                 *(u16*)(destinationBase + 0x6080) =
-                    *(u16*)(callBase + sourceOffset + 0x6080) - removedInstr;
+                    *(u16*)(sourceBase + 0x6080) - removedInstr;
             }
         }
-        lbl_80345200 -= size;
+        *(volatile s32*)&lbl_80345200 -= size;
         entry->handle = 0;
         *sizePtr = 0;
 
