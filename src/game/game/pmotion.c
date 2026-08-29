@@ -861,9 +861,11 @@ static s32 PlayerMotion_SfxIndex(Player* p) {
 void PlayerMotion(Player* p) {
     char* strings = lbl_80114220;
     u8* ctxbase = lbl_80282850;
-    s32 index = p->index;
     ControlState* ctl = &lbl_80240E30[p->index];
+    s32 index = p->index;
     u8* motion = (u8*)p + 0x14;
+    f32 radius = PF(p, 0x850, f32);
+    f32 height = PF(p, 0x854, f32);
     u8 unused[16];
     f32 oldpos[3];
     f32 dpos[3];
@@ -890,8 +892,6 @@ void PlayerMotion(Player* p) {
     s32 transporter;
     s32 wallResult;
     s32 hitKind = 0;
-    f32 radius = PF(p, 0x850, f32);
-    f32 height = PF(p, 0x854, f32);
     f32 facing;
     f32 controlYaw;
     f32 heading;
