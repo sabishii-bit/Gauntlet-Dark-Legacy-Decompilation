@@ -3123,24 +3123,23 @@ player_motion_grab_done:
 
                 if (comboMode == 1 && comboTime >= 0.0f &&
                     PF(p, 0xA58, f32) < 0.0f) {
-                    Player* partner = PF(p, 0x6B8, Player*);
                     if (p->char_type == 4 || p->char_type == 7) {
                         f32 comboPos[3];
                         comboPos[0] = PF(p, 0xD0, f32) + PF(p, 0x838, f32);
                         comboPos[1] = PF(p, 0xD4, f32) + PF(p, 0x83C, f32);
                         comboPos[2] = PF(p, 0xD8, f32) + PF(p, 0x840, f32);
-                        StartComboFX(comboPos, p->char_type,
-                                     partner->char_type);
+                        StartComboFX(comboPos, PF(p, 4, s32),
+                                     PF(PF(p, 0x6B8, Player*), 4, s32));
                     } else {
-                        StartComboFX((f32*)((u8*)p + 0x54), p->char_type,
-                                     partner->char_type);
+                        StartComboFX((f32*)((u8*)p + 0x54), PF(p, 4, s32),
+                                     PF(PF(p, 0x6B8, Player*), 4, s32));
                     }
                 } else if (comboMode >= 2 && comboTime >= 0.0f &&
                            PF(p, 0xA58, f32) < 0.0f) {
                     f32 scale =
                         (f32)(lbl_80347BD0 + (f32)(comboMode - 2));
                     s32 effect = StartComboFX((f32*)((u8*)p + 0x54), -1,
-                                              p->char_type);
+                                              PF(p, 4, s32));
                     PF(Effects + effect * 240, 0x64, u32) = 552;
                     SfxSetDamage(PF(p, 0x104, f32) * scale,
                                  (f32)(lbl_80347C28 * scale), 0.0f,
