@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gdl-decomp.invalid/schemas/memory-record-v1.json",
+  "title": "GDL memory record",
+  "type": "object",
+  "required": ["schema_version", "id", "kind"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "id": {"type": "string", "minLength": 1},
+    "kind": {
+      "enum": ["entity", "edge", "claim", "evidence", "attempt", "work_claim", "tool"]
+    },
+    "record_state": {"enum": ["accepted", "proposed", "superseded"]},
+    "valid_from": {"type": "string"},
+    "valid_to": {"type": ["string", "null"]},
+    "supersedes": {"type": "string"},
+    "attributes": {"type": "object"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"kind": {"const": "entity"}}},
+      "then": {"required": ["entity_type", "key", "name"]}
+    },
+    {
+      "if": {"properties": {"kind": {"const": "edge"}}},
+      "then": {"required": ["source", "relation", "target"]}
+    },
+    {
+      "if": {"properties": {"kind": {"const": "claim"}}},
+      "then": {
+        "required": ["subject", "predicate", "epistemic_state"],
+        "anyOf": [{"required": ["object"]}, {"required": ["value"]}]
+      }
+    },
+    {
+      "if": {"properties": {"kind": {"const": "evidence"}}},
+      "then": {
+        "required": ["evidence_kind", "locator", "detail"],
+        "anyOf": [{"required": ["claim"]}, {"required": ["edge"]}]
+      }
+    },
+    {
+      "if": {"properties": {"kind": {"const": "attempt"}}},
+      "then": {"required": ["function", "attempted_axis", "outcome"]}
+    },
+    {
+      "if": {"properties": {"kind": {"const": "work_claim"}}},
+      "then": {"required": ["function", "owner", "state", "claimed_at"]}
+    },
+    {
+      "if": {"properties": {"kind": {"const": "tool"}}},
+      "then": {"required": ["tool_key", "name", "tool_kind", "status", "purpose"]}
+    }
+  ],
+  "additionalProperties": true
+}

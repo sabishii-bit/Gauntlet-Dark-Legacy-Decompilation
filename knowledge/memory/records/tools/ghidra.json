@@ -1,0 +1,28 @@
+{
+  "attributes": {
+    "reference_anchors": [
+      "config/GUNE5D/symbols.txt",
+      "config/GUNE5D/splits.txt",
+      "research/xbox_symbols/xbox_structs.tsv"
+    ],
+    "preserve_analysis": true
+  },
+  "constraints": [
+    "Use Ghidra for semantics and broad control flow, not exact statement grouping, storage classes, evaluation order, or final bytes.",
+    "Retype Xbox-derived structs only as hypotheses until GameCube offsets are verified.",
+    "Preserve useful function names, labels, types, and comments in the project when performing reverse-engineering research."
+  ],
+  "id": "tool.ghidra.20260829.v1",
+  "kind": "tool",
+  "name": "Ghidra",
+  "purpose": "Inspect GameCube target semantics, control flow, data references, and recovered types, and preserve durable reverse-engineering annotations.",
+  "schema_version": 1,
+  "status": "active_reference",
+  "tool_key": "tool:ghidra",
+  "tool_kind": "external_reverse_engineering",
+  "usage": [
+    "Use target disassembly and call/data xrefs to reconstruct semantics before source-shape matching.",
+    "Import verified Xbox PDB type names and then validate accessed offsets against the GameCube binary."
+  ],
+  "valid_from": "2026-08-29"
+}

@@ -1,0 +1,214 @@
+import json
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from memory_graph.core import (  # noqa: E402
+    build_database,
+    ensure_database,
+    memory_audit,
+    register_tool_proposal,
+    stage_record_proposal,
+    symbol_context,
+    tool_context,
+    validate_records,
+    xbox_symbol_context,
+)
+
+
+class MemoryGraphTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp.name)
+        (self.root / "config/GUNE5D").mkdir(parents=True)
+        (self.root / ".claude/memory/xbox_symbols").mkdir(parents=True)
+        (self.root / "research/xbox_symbols").mkdir(parents=True)
+        (self.root / "knowledge/memory/records").mkdir(parents=True)
+        (self.root / "knowledge/memory/inbox").mkdir(parents=True)
+        (self.root / "tools/gdl").mkdir(parents=True)
+
+        (self.root / "config/GUNE5D/symbols.txt").write_text(
+            "foo = .text:0x80001000; // type:function size:0x20 scope:global\n"
+            "bar = .text:0x80001020; // type:function size:0x10 scope:global\n",
+            encoding="utf-8",
+        )
+        (self.root / "config/GUNE5D/splits.txt").write_text(
+            "game/example.c:\n\t.text start:0x80001000 end:0x80001030\n",
+            encoding="utf-8",
+        )
+        (self.root / ".claude/memory/xbox_symbols/functions_by_module.txt").write_text(
+            "== .\\Release\\EXAMPLE.OBJ (.\\Release\\EXAMPLE.OBJ)\n"
+            "[0001:00000010] 20 G foo\n"
+            "[0001:00000030] 10 L helper\n",
+            encoding="utf-8",
+        )
+        (self.root / "research/xbox_symbols/shell3D.pdb").write_bytes(b"test-pdb")
+        (self.root / "research/xbox_symbols/xbox_structs.tsv").write_text(
+            "S\tExample\t8\tgame\nF\t0\t4\tfirst\nF\t4\t4\tsecond\n",
+            encoding="utf-8",
+        )
+        parked = "# legacy list\nfoo # allocator residual\n"
+        (self.root / ".claude/memory/PARKED.txt").write_text(parked, encoding="utf-8")
+        (self.root / ".claude/memory/duplicate.md").write_text(parked, encoding="utf-8")
+        (self.root / ".claude/memory/duplicate2.md").write_text(parked, encoding="utf-8")
+        (self.root / ".claude/memory/matching-playbook.md").write_text(
+            "# Playbook\n\n## Example compiler law\n\nA verified-looking legacy paragraph.\n",
+            encoding="utf-8",
+        )
+        (self.root / "tools/gdl/example.py").write_text(
+            '\"\"\"Example discovered tool.\"\"\"\n', encoding="utf-8"
+        )
+        (self.root / "knowledge/memory/records/project.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "id": "entity.project.test",
+                    "kind": "entity",
+                    "entity_type": "project",
+                    "key": "project:test",
+                    "name": "Test project",
+                }
+            ),
+            encoding="utf-8",
+        )
+        (self.root / "knowledge/memory/records/tool.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "id": "tool.example.v1",
+                    "kind": "tool",
+                    "tool_key": "tool:example",
+                    "name": "Example",
+                    "tool_kind": "test",
+                    "status": "active",
+                    "purpose": "Exercise the tool registry.",
+                    "usage": ["Run it."],
+                    "constraints": ["Test only."],
+                }
+            ),
+            encoding="utf-8",
+        )
+        self.db = self.root / "memory.sqlite"
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def test_build_indexes_gcn_xbox_types_tools_and_legacy_proposals(self):
+        stats = build_database(self.root, self.db)
+        self.assertEqual(stats["gcn_symbols_imported"], 2)
+        self.assertEqual(stats["xbox_symbols_imported"], 2)
+        self.assertEqual(stats["pdb_types_imported"], 1)
+        self.assertEqual(stats["pdb_fields_imported"], 2)
+        self.assertEqual(stats["exact_name_candidates"], 1)
+        self.assertEqual(stats["migration_proposals_imported"], 2)
+
+        context = symbol_context("foo", root=self.root, db_path=self.db)
+        self.assertEqual(context["gamecube_symbol"]["module"], "game/example.c")
+        self.assertEqual(context["xbox_links"][0]["xbox_module"], "EXAMPLE.OBJ")
+        self.assertEqual(context["migration_proposals"][0]["proposal_kind"], "parking_legacy")
+
+        xbox = xbox_symbol_context("foo", root=self.root, db_path=self.db)
+        self.assertEqual(xbox["matches"][0]["raw_name"], "foo")
+        self.assertEqual(xbox["types"], [])
+
+        tool = tool_context("Example", root=self.root, db_path=self.db)
+        self.assertEqual(tool["tools"][0]["source_kind"], "reviewed_record")
+        self.assertEqual(tool["tools"][0]["constraints"], ["Test only."])
+
+    def test_audit_reports_duplicates_without_modifying_documents(self):
+        build_database(self.root, self.db)
+        before = (self.root / ".claude/memory/PARKED.txt").read_bytes()
+        audit = memory_audit(root=self.root, db_path=self.db)
+        self.assertEqual(len(audit["duplicate_documents"]), 1)
+        self.assertTrue(audit["duplicate_chunks"])
+        self.assertEqual(audit["documents_by_class"]["operational_ledger"], 1)
+        self.assertEqual(audit["document_lifecycle"], {"legacy_unreviewed": 5})
+        self.assertEqual(before, (self.root / ".claude/memory/PARKED.txt").read_bytes())
+
+    def test_evidence_import_does_not_depend_on_filename_order(self):
+        evidence = {
+            "schema_version": 1,
+            "id": "evidence.project.test",
+            "kind": "evidence",
+            "claim": "claim.project.test",
+            "evidence_kind": "test",
+            "locator": "unit-test",
+            "detail": "The claim is intentionally sorted after this record.",
+        }
+        claim = {
+            "schema_version": 1,
+            "id": "claim.project.test",
+            "kind": "claim",
+            "subject": "project:test",
+            "predicate": "has_test_evidence",
+            "value": True,
+            "epistemic_state": "verified",
+        }
+        records = self.root / "knowledge/memory/records"
+        (records / "00-evidence.json").write_text(json.dumps(evidence), encoding="utf-8")
+        (records / "99-claim.json").write_text(json.dumps(claim), encoding="utf-8")
+        stats = build_database(self.root, self.db)
+        self.assertEqual(stats["counts"]["claim"], 1)
+
+    def test_ensure_refreshes_after_discovered_tool_changes(self):
+        tool_path = self.root / "tools/gdl/fresh.py"
+        tool_path.write_text('"""Initial discovered tool."""\n', encoding="utf-8")
+        build_database(self.root, self.db)
+        tool_path.write_text('"""Updated discovered tool."""\n# changed\n', encoding="utf-8")
+        ensure_database(self.root, self.db)
+        tool = tool_context("Fresh", root=self.root, db_path=self.db)
+        discovered = [item for item in tool["tools"] if item["source_kind"] == "source_scan"]
+        self.assertEqual(discovered[0]["purpose"], "Updated discovered tool.")
+
+    def test_register_tool_writes_review_required_valid_record(self):
+        path = register_tool_proposal(
+            name="Debugger",
+            purpose="Inspect runtime state.",
+            tool_kind="external",
+            constraints=["Read-only by default."],
+            root=self.root,
+        )
+        self.assertEqual(path.parent.name, "inbox")
+        self.assertEqual(json.loads(path.read_text())["kind"], "tool")
+        result = validate_records(self.root)
+        self.assertEqual(result["record_count"], 3)
+        build_database(self.root, self.db)
+        tool = tool_context("Debugger", root=self.root, db_path=self.db)
+        self.assertEqual(tool["tools"][0]["source_kind"], "proposal")
+
+    def test_generic_record_proposal_is_validated_and_duplicate_safe(self):
+        record = {
+            "schema_version": 1,
+            "id": "entity.block.test",
+            "kind": "entity",
+            "entity_type": "block",
+            "key": "block:test",
+            "name": "Test blocker",
+        }
+        path = stage_record_proposal(record, root=self.root)
+        self.assertEqual(path.parent.name, "inbox")
+        with self.assertRaisesRegex(Exception, "already exists"):
+            stage_record_proposal(record, root=self.root)
+        self.assertEqual(validate_records(self.root)["record_count"], 3)
+
+    def test_markdown_cannot_anchor_a_structured_truth_record(self):
+        record = {
+            "schema_version": 1,
+            "id": "tool.bad-markdown.v1",
+            "kind": "tool",
+            "tool_key": "tool:bad-markdown",
+            "name": "Bad Markdown dependency",
+            "tool_kind": "test",
+            "status": "active",
+            "purpose": "Exercise the truth-source boundary.",
+            "attributes": {"evidence": ["README.md:10"]},
+        }
+        with self.assertRaisesRegex(Exception, "cannot use Markdown"):
+            stage_record_proposal(record, root=self.root)
+
+
+if __name__ == "__main__":
+    unittest.main()

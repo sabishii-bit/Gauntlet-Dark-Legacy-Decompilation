@@ -1,0 +1,42 @@
+{
+  "attributes": {
+    "implementation_anchors": [
+      "configure.py",
+      "tools/gdl/fnasm.py",
+      "tools/gdl/fndiff.py",
+      "tools/gdl/matchtool.py",
+      "tools/gdl/lowmatch.py",
+      "tools/gdl/datadiff.py",
+      "tools/gdl/doldiff.py"
+    ]
+  },
+  "constraints": [
+    "Read complete target assembly before rewriting functions larger than roughly 50 instructions.",
+    "A green linked DOL is not semantic evidence for a NonMatching source object.",
+    "Use fndiff classifications conservatively: SCHEDULE_CANDIDATE is a review queue, not equivalence proof.",
+    "Whole-TU promotion requires text, relocations, data/BSS, exception metadata, claims, and a fresh DOL checksum gate."
+  ],
+  "id": "tool.matching-analysis-toolchain.20260829.v1",
+  "kind": "tool",
+  "name": "GDL matching analysis toolchain",
+  "purpose": "Provide the standard target-assembly, diffing, candidate, data, ownership, and final-link workflow for matching work.",
+  "schema_version": 1,
+  "status": "active",
+  "tool_key": "tool:gdl-matching-analysis",
+  "tool_kind": "workflow",
+  "usage": [
+    "configure.py: generate build files, select exact/non-matching/compiler modes, and report project progress.",
+    "ninja: build owning objects and run the current full-link/hash gate.",
+    "objdiff and the generated objdiff.json: interactively inspect object code, relocations, and data while iterating.",
+    "fnasm.py: read target instructions, branches, relocations, frame shape, and function boundaries.",
+    "fndiff.py --ops: separate structural opcode gaps from operand/register differences.",
+    "fndiff.py --clean and --count: measure current function residuals without pool-name noise.",
+    "matchtool.py probe/sweep: test bounded compiler presets or portable source variants in parallel.",
+    "lowmatch.py: select semantic/structural reconstruction candidates; nearmiss.py is a separate exact-closure queue.",
+    "claimcheck.py: detect emitted sections missing from splits claims.",
+    "datadiff.py: verify data-class bytes, pool order, and relocation placement before linking.",
+    "doldiff.py: map final DOL differences to sections, symbols, and owning units.",
+    "xbmod.py: inspect Xbox PDB module order and names; verify every conclusion against the GameCube target."
+  ],
+  "valid_from": "2026-08-29"
+}

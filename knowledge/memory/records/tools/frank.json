@@ -1,0 +1,33 @@
+{
+  "attributes": {
+    "implementation_anchors": [
+      "tools/gdl/frank.py",
+      "tools/gdl/frank_probe.py",
+      "tools/gdl/frank_sweep.py",
+      "tools/gdl/tests/test_frank.py",
+      "git:2b9eda2b5d4ee2697933946142be5548af4fe800"
+    ],
+    "matching_build_only": true
+  },
+  "constraints": [
+    "Use only after an A/B test proves that the vanilla/profile merge improves the named object.",
+    "Do not use as a broad scheduler or to hide structural, operand, relocation, ABI, semantic, or data differences.",
+    "Traditional Frank currently has no configured build consumers.",
+    "The non-matching/mod build bypasses Frank completely."
+  ],
+  "entrypoint": "python tools/gdl/frank.py",
+  "id": "tool.frank.20260829.v1",
+  "kind": "tool",
+  "name": "Frank",
+  "purpose": "Research and regression implementation of Melee-style profile-scheduled epilogue merging for MWCC 1.2.5-era objects.",
+  "schema_version": 1,
+  "source_path": "tools/gdl/frank.py",
+  "status": "inactive_research",
+  "tool_key": "tool:frank",
+  "tool_kind": "postprocessor",
+  "usage": [
+    "Use tools/gdl/frank_probe.py for a single evidence-backed probe.",
+    "Use tools/gdl/frank_sweep.py only for a bounded repository audit."
+  ],
+  "valid_from": "2026-08-29"
+}

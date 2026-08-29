@@ -1,0 +1,35 @@
+{
+  "attributes": {
+    "implementation_anchors": [
+      "tools/gdl/webfrank.py",
+      "tools/gdl/webfrank_audit.py",
+      "config/GUNE5D/webfrank.json",
+      "tools/gdl/tests/test_webfrank.py",
+      "git:8c46c26f7b161f833b95922c8f0cac2db944bce4",
+      "git:81dec72673be3be8552d227a11c5235bff727ffa"
+    ],
+    "matching_build_only": true
+  },
+  "constraints": [
+    "Every rule must be individually audited and fail closed on source, compiler, relocation, or hash drift.",
+    "REGISTER_ONLY rules require form-aware differing-word validation and consistent-renaming proof; explicitly unproven deep-allocator rules must retain their warning and audit note.",
+    "Instruction permutations require dependency-audited independent straight-line atoms, relocation-preserving bijection, and dead-final-write proof.",
+    "Never broaden a rule or use WebFrank for structural, immediate, branch, ABI, semantic, relocation-payload, or data differences.",
+    "The non-matching/mod build bypasses WebFrank completely."
+  ],
+  "entrypoint": "python tools/gdl/webfrank.py",
+  "id": "tool.webfrank.20260829.v1",
+  "kind": "tool",
+  "name": "WebFrank",
+  "purpose": "Fail-closed matching-build correction for individually proven register-allocation residuals and exceptional audited instruction permutations.",
+  "schema_version": 1,
+  "source_path": "tools/gdl/webfrank.py",
+  "status": "active_guarded",
+  "tool_key": "tool:webfrank",
+  "tool_kind": "postprocessor",
+  "usage": [
+    "Run tools/gdl/webfrank_audit.py against raw postprocess bodies before proposing a rule.",
+    "Treat a passing build rule as matching evidence only after the full object and linked DOL gates pass."
+  ],
+  "valid_from": "2026-08-29"
+}

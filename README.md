@@ -219,6 +219,50 @@ The first audited closure pass used this process to link `g3dpad`, `vsprintf`,
 and `mempool`; their former PARKED notes remain useful source-codegen diagnoses,
 not permanent binary-matching vetoes.
 
+Project memory graph
+====================
+
+Project knowledge is being migrated into a local, deterministic SQLite graph.
+The reviewed source records live under [`knowledge/memory/`](knowledge/memory/);
+the generated database lives in Git's common directory at
+`.git/gdl-memory/memory.sqlite`, so it is shared by worktrees and never
+committed. Existing `.claude/memory/` notes are preserved and indexed as legacy
+evidence—none are silently promoted to verified facts or deleted as duplicates.
+
+The CLI uses only Python's standard library:
+
+```sh
+python tools/gdl/gdlmem.py build
+python tools/gdl/gdlmem.py context PlayerMotion
+python tools/gdl/gdlmem.py xbox pool_garbage_collect
+python tools/gdl/gdlmem.py tool Frank
+python tools/gdl/gdlmem.py audit
+```
+
+It indexes GameCube symbols and TU ownership, Xbox PDB symbol/module order and
+type fields, reviewed laws/claims/attempts/tools, and granular legacy-document
+chunks. Automatic exact-name Xbox/GameCube links are candidates only; target
+assembly and accepted evidence remain authoritative.
+
+An optional local MCP adapter is locked with `uv` under
+[`tools/gdl/memory_mcp/`](tools/gdl/memory_mcp/). MCP host configuration stays
+machine-local. New or revised tool guidance can be staged without editing the
+database directly:
+
+```sh
+python tools/gdl/gdlmem.py register-tool <name> --purpose <purpose> --kind <kind>
+```
+
+The resulting JSON remains pending in `knowledge/memory/inbox/` until an
+integrator reviews and accepts it. See the
+[`migration audit`](knowledge/memory/migration-audit.md) for current coverage,
+duplicate families, and the non-destructive migration order.
+
+Reviewed graph records are anchored to source, configuration, tests, target
+hashes/addresses, reproducible commands, or immutable commits—not to Markdown
+as their source of truth. Markdown remains searchable only as migration
+provenance until its useful contents have reviewed structured equivalents.
+
 Xbox debug symbols
 ==================
 

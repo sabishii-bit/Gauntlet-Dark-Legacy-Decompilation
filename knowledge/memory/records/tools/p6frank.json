@@ -1,0 +1,35 @@
+{
+  "attributes": {
+    "configured_unit": "game/sys/registry",
+    "implementation_anchors": [
+      "configure.py",
+      "tools/gdl/p6frank.py",
+      "tools/gdl/mwcc_p6/",
+      "tools/gdl/tests/test_p6frank.py",
+      "tools/gdl/tests/test_p6_probe.py",
+      "git:dd6a6d65796cf0f1fb040a6ff4861e69b8bda7b1"
+    ],
+    "matching_build_only": true
+  },
+  "constraints": [
+    "Apply only to the exact SHA-pinned regFind P6 carrier and verified complete object.",
+    "Do not generalize this fixed-size branch-carrier transform to unrelated control-flow differences.",
+    "The non-matching/mod build bypasses P6Frank completely.",
+    "Prefer the experimental reproducible 1.2.5s compiler path only when its supported setup and CI prerequisites are satisfied."
+  ],
+  "entrypoint": "python tools/gdl/p6frank.py",
+  "id": "tool.p6frank.20260829.v1",
+  "kind": "tool",
+  "name": "P6Frank",
+  "purpose": "Fail-closed exact-build fallback for the proven regFind P6 branch-fold carrier in game/sys/registry.",
+  "schema_version": 1,
+  "source_path": "tools/gdl/p6frank.py",
+  "status": "active_single_unit_fallback",
+  "tool_key": "tool:p6frank",
+  "tool_kind": "postprocessor",
+  "usage": [
+    "The default exact build uses this only for game/sys/registry.",
+    "Use --experimental-p6-compiler to compare the 1.2.5s compiler route that bypasses P6Frank."
+  ],
+  "valid_from": "2026-08-29"
+}

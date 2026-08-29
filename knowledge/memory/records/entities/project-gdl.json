@@ -1,0 +1,13 @@
+{
+  "attributes": {
+    "game_id": "GUNE5D",
+    "platform": "Nintendo GameCube"
+  },
+  "entity_type": "project",
+  "id": "entity.project.gdl",
+  "kind": "entity",
+  "key": "project:gdl",
+  "name": "Gauntlet Dark Legacy Decompilation",
+  "schema_version": 1,
+  "state": "active"
+}

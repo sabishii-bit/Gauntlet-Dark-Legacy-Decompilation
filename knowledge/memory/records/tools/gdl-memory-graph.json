@@ -1,0 +1,33 @@
+{
+  "attributes": {
+    "database_location": ".git/gdl-memory/memory.sqlite",
+    "implementation_anchors": [
+      "tools/gdl/gdlmem.py",
+      "tools/gdl/memory_graph/schema.sql",
+      "tools/gdl/tests/test_memory_graph.py",
+      "knowledge/memory/schema/record.schema.json"
+    ]
+  },
+  "constraints": [
+    "The SQLite database is generated and must not be committed.",
+    "Legacy documents are indexed with provenance but are not automatically verified.",
+    "Xbox exact-name links remain candidates until target-backed evidence verifies them.",
+    "Agent-created durable information enters the inbox for review."
+  ],
+  "entrypoint": "python tools/gdl/gdlmem.py",
+  "id": "tool.gdl-memory-graph.20260829.v1",
+  "kind": "tool",
+  "name": "GDL Memory Graph",
+  "purpose": "Provide deterministic cross-session retrieval over project facts, tools, attempts, legacy memories, and Xbox/GameCube symbol evidence.",
+  "schema_version": 1,
+  "source_path": "tools/gdl/gdlmem.py",
+  "status": "active_migration",
+  "tool_key": "tool:gdl-memory-graph",
+  "tool_kind": "knowledge_service",
+  "usage": [
+    "Run build after changing records or legacy memory sources.",
+    "Run context before beginning work on a function or translation unit.",
+    "Run audit to review duplication and migration coverage without deleting source notes."
+  ],
+  "valid_from": "2026-08-29"
+}
