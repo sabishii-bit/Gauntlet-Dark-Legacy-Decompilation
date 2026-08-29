@@ -1723,7 +1723,7 @@ store_motion_state:
 
         {
             s32 forcedAnim = 0;
-            s32 closeTarget = (PF(p, 0x90C, u32) & 2) != 0;
+            s32 closeTarget = PF(p, 0x90C, u32) & 2;
             if (forceState == 0 &&
                 (p->flags & 0x1000) != 0) {
                 forcedAnim = 110;
