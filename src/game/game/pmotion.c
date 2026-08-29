@@ -2814,7 +2814,7 @@ player_motion_phase_exit:
                     ReflectVector2D((f32*)((u8*)p + 0x34), reflection, hit);
                     newYaw = atan2(hit[0], hit[2]);
                 } else {
-                    newYaw = (f32)(PF(p, 0x894, f32) + lbl_80347CE8);
+                    newYaw = (f32)(lbl_80347CE8 + PF(p, 0x894, f32));
                 }
                 newYaw = PlayerMotion_WrapAngle(newYaw);
                 PF(p, 0x894, f32) = newYaw;
@@ -2837,10 +2837,12 @@ player_motion_phase_exit:
                 }
             }
 
-            deltaYaw = PF(p, 0xC8, f32) - newYaw;
-            deltaYaw = fabsf_param(deltaYaw);
-            if ((f64)deltaYaw > lbl_80347CE0) {
-                p->hud_flags |= 1;
+            {
+                f32 yawDiff = PF(p, 0xC8, f32) - newYaw;
+                yawDiff = fabsf_param(yawDiff);
+                if ((f64)yawDiff > lbl_80347CE0) {
+                    p->hud_flags |= 1;
+                }
             }
             PF(p, 0xC8, f32) = newYaw;
             CreateYPRMatrix((f32*)((u8*)p + 0x14),
