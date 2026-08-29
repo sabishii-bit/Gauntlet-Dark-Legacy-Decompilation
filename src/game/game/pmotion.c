@@ -2600,7 +2600,6 @@ store_motion_state:
                                          NULL, radius, height);
                 }
 
-                target = PF(p, 0x8A8, u8*);
                 targetDistance = PlayerGetTarget(
                     p, to, targetDir, attackDir, &item, &target);
                 if (item >= 0x10000) {
