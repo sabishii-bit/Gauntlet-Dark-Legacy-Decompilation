@@ -2170,9 +2170,6 @@ store_motion_state:
                 u32 effectFlags = 0;
                 void* hitNode = NULL;
 
-                bossColor[0] = 0.0f;
-                bossColor[1] = 0.0f;
-                bossColor[2] = 0.0f;
                 switch (gBossType) {
                 case 34:
                 case 35:
@@ -2192,6 +2189,10 @@ store_motion_state:
                 p->quest_state = 0;
                 PF(p, 0x900, u32) = 0;
                 fn_8009C9DC(2, (f32*)((u8*)p + 0x54));
+
+                bossColor[0] = 0.0f;
+                bossColor[1] = 0.0f;
+                bossColor[2] = 0.0f;
 
                 switch (gBossType) {
                 case 35: {
