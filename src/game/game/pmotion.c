@@ -1547,9 +1547,9 @@ collision_done:
             attackDir[2] = targetDir[2];
         }
         targetAngle = atan2(attackDir[0], attackDir[2]);
-        PF(p, 0x904, f32) = targetAngle - controlYaw;
-        PF(p, 0x904, f32) =
-            PlayerMotion_WrapAngle(PF(p, 0x904, f32));
+        p->melee_yaw = targetAngle - controlYaw;
+        p->melee_yaw =
+            PlayerMotion_WrapAngle(p->melee_yaw);
 
         if (critterIndex >= 0) {
             u8* critter = gCritterPool + critterIndex * 2784;
@@ -1580,7 +1580,7 @@ collision_done:
         closeTarget = p->coll_flags & 2;
         if ((p->shield_flags & 0x80000) != 0 && enemy != NULL &&
             PF(enemy, 0, s32) == 30 &&
-            (f64)fabsf_(PF(p, 0x904, f32)) < lbl_80347C38) {
+            (f64)fabsf_(p->melee_yaw) < lbl_80347C38) {
             heading = targetAngle;
             motionState = 1;
             damage_enemy(enemy, index, 0, 0, NULL, 1,
@@ -1928,9 +1928,9 @@ store_motion_state:
                     p->anim_20C = 32;
                 } else if ((p->coll_flags & 4) != 0 &&
                            !closeTarget && movement != 0.0f) {
-                    PF(p, 0x904, f32) = heading - controlYaw;
-                    PF(p, 0x904, f32) =
-                        PlayerMotion_WrapAngle(PF(p, 0x904, f32));
+                    p->melee_yaw = heading - controlYaw;
+                    p->melee_yaw =
+                        PlayerMotion_WrapAngle(p->melee_yaw);
                     p->anim_20C = 62;
                 } else if ((p->coll_flags & 1) != 0) {
                     if (closeTarget) {
@@ -1953,9 +1953,9 @@ store_motion_state:
                     p->anim_20C = forcedAnim;
                 } else if ((p->coll_flags & 4) != 0 &&
                            !closeTarget && movement != 0.0f) {
-                    PF(p, 0x904, f32) = heading - controlYaw;
-                    PF(p, 0x904, f32) =
-                        PlayerMotion_WrapAngle(PF(p, 0x904, f32));
+                    p->melee_yaw = heading - controlYaw;
+                    p->melee_yaw =
+                        PlayerMotion_WrapAngle(p->melee_yaw);
                     p->anim_20C = 62;
                 } else if ((p->coll_flags & 1) != 0) {
                     if (closeTarget) {
