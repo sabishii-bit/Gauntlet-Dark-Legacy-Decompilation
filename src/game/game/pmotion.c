@@ -2556,12 +2556,15 @@ store_motion_state:
                 target = PF(p, 0x8A8, u8*);
                 targetDistance = PlayerGetTarget(
                     p, to, targetDir, attackDir, &item, &target);
-                critterIndex = -1;
-                enemy = NULL;
                 if (item >= 0x10000) {
                     critterIndex = item & 0xFFFF;
+                    enemy = NULL;
                 } else if (item >= 0) {
                     enemy = gEnemies + item * 916;
+                    critterIndex = -1;
+                } else {
+                    critterIndex = -1;
+                    enemy = NULL;
                 }
 
                 if ((PF(p, 0x900, u32) & 0xF0) != 0) {
