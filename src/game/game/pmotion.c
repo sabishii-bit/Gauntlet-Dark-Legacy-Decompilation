@@ -931,7 +931,7 @@ void PlayerMotion(Player* p) {
         controlYaw = otherCtl->values[7];
     } else if (anim == 8) {
         if ((f64)ctl->values[8] < lbl_80347B58) {
-            controlYaw = PF(p, 0x894, f32) - facing;
+            controlYaw = p->move_yaw - facing;
         } else {
             controlYaw = ctl->values[7];
         }
@@ -939,7 +939,7 @@ void PlayerMotion(Player* p) {
     } else if (ctl->values[8] == 0.0f && p->char_type == 0 &&
                (anim == 35 || anim == 37)) {
         movement = lbl_80347B10;
-        controlYaw = PF(p, 0x894, f32) - facing;
+        controlYaw = p->move_yaw - facing;
     } else {
         movement = ctl->values[8];
         controlYaw = ctl->values[7];
@@ -960,12 +960,12 @@ void PlayerMotion(Player* p) {
                (motionType >= 9 && motionType <= 12) ||
                (motionType >= 17 && motionType <= 20)) {
         facing = PlayerMotion_WrapAngle(controlYaw + facing);
-        heading = PF(p, 0x894, f32);
+        heading = p->move_yaw;
     } else if ((f64)speedScale > lbl_80347B08) {
         heading = PlayerMotion_WrapAngle(controlYaw + facing);
         facing = heading;
     } else {
-        heading = PF(p, 0x894, f32);
+        heading = p->move_yaw;
         facing = heading;
         if (anim >= 62 && anim < 79) {
             speedScale = lbl_80347B10;
@@ -1118,7 +1118,7 @@ void PlayerMotion(Player* p) {
         if (otherIndex >= 0 && anim == 137 &&
             PF(p, 0x6B8, Player*) == &gPlayers[otherIndex] &&
             (f64)sMusicFadeBase <
-                lbl_80347B88 + PF(p, 0x8FC, f32)) {
+                lbl_80347B88 + p->combo_fade) {
             otherIndex = -1;
         }
         if (otherIndex >= 0) {
@@ -1302,7 +1302,7 @@ void PlayerMotion(Player* p) {
                 dpos[2] = 0.0f;
             } else if (anim == 137) {
                 if (sMusicFadeBase >
-                    (f32)(lbl_80347B88 + PF(p, 0x8FC, f32))) {
+                    (f32)(lbl_80347B88 + p->combo_fade)) {
                     hitKind = 1;
                     PlayerCollideWalls(p, (s32)oldpos, dpos, to, hit);
                 }
@@ -1644,7 +1644,7 @@ collision_done:
                     CreateDirMatrix(
                         (f32*)*(void**)(effectRecord + 0x14),
                         hit, NULL);
-                    GetWorldMat(PF(p, 0x6CC, void*), effectMatrix, NULL);
+                    GetWorldMat(p->mbnode2, effectMatrix, NULL);
                     PF(*(void**)(effectRecord + 0x14), 0x30, f32) =
                         effectMatrix[12];
                     PF(*(void**)(effectRecord + 0x14), 0x34, f32) =
@@ -1783,10 +1783,10 @@ store_motion_state:
                        (p->flags & 0x4000) != 0) {
                 forcedAnim = 104;
             } else if (forceState == 0 &&
-                       (PF(p, 0x11C, u32) & 0x100000) != 0) {
+                       (p->field_11C & 0x100000) != 0) {
                 forcedAnim = 107;
             } else if (forceState == 0 &&
-                       (PF(p, 0x11C, u32) & 0x10000000) != 0) {
+                       (p->field_11C & 0x10000000) != 0) {
                 forcedAnim = 112;
             } else if (forceState == 0 &&
                        (p->flags & 0x70) != 0) {
@@ -1921,7 +1921,7 @@ store_motion_state:
                 if (forcedAnim != 0) {
                     p->anim_20C = forcedAnim;
                 } else if (forceState == 0 &&
-                           (PF(p, 0x11C, u32) & 0x480000) != 0) {
+                           (p->field_11C & 0x480000) != 0) {
                     p->anim_20C = 92;
                 } else if (PF(p, 0x908, s32) != 0 && movement != 0.0f &&
                            (p->coll_flags & 5) != 0) {
@@ -2084,7 +2084,7 @@ store_motion_state:
                             *(void**)(Effects + lbl_80344894 * 240 + 0x14),
                             0x1FF, 1);
                         SfxSetParent(lbl_80344894,
-                                     PF(p, 0x74, void*));
+                                     p->node);
                     }
                     break;
                 }
@@ -2099,10 +2099,10 @@ store_motion_state:
                         lbl_80347C60;
                 }
                 p->quest_state = 3;
-                PF(p, 0x1FA, s16) = 60;
+                p->timer_1FA = 60;
                 fn_8009C9DC(0, p->col_pos);
             }
-            if (p->quest_state == 3 && PF(p, 0x1FA, s16) <= 0) {
+            if (p->quest_state == 3 && p->timer_1FA <= 0) {
                 p->quest_state = 4;
                 fn_8009C9DC(1, p->col_pos);
             }
@@ -2328,7 +2328,7 @@ store_motion_state:
                     effect = StartFXSub(93, hit, 0, 0x8000880,
                                         lbl_80347C6C);
                     if (effect >= 0) {
-                        SfxSetParent(effect, PF(p, 0x74, void*));
+                        SfxSetParent(effect, p->node);
                         SfxSetMorph(lbl_80347BF8, effect, 90, 0);
                     }
                     MBTreeSetColor(PF(gBossObj, 0x6C, void*), 0xFF40FF40, 1);
@@ -2409,7 +2409,7 @@ store_motion_state:
                 }
             }
 
-            PF(p, 0x894, f32) = heading;
+            p->move_yaw = heading;
             PF(p, 0xC8, f32) = heading;
             CreateYPRMatrix((f32*)((u8*)p + 0x14),
                             (f32*)((u8*)p + 0xC4));
@@ -2454,7 +2454,7 @@ store_motion_state:
 
         if ((p->act_bits & 0x02000000) != 0) {
             s32 effect = StartFXSub(28, NULL, 42, 0x880, 0.0f);
-            SfxSetParent(effect, PF(p, 0x74, void*));
+            SfxSetParent(effect, p->node);
             SfxSetDamage(lbl_80347C50, lbl_80347CB0,
                          lbl_80347CA0, effect, 32, index + 1);
             SV(p)->act_bits = p->act_bits & ~0x02000000;
@@ -2538,7 +2538,7 @@ store_motion_state:
 
                 if (gBossType >= 0) {
                     adjusted = ModifyPlayerDpos(
-                        p, targetDir, localVector, PF(p, 0x11C, u32),
+                        p, targetDir, localVector, p->field_11C,
                         item, (u32)target, targetDistance,
                         lbl_80347CBC);
                     projectileHeight = 0.0f;
@@ -2550,7 +2550,7 @@ store_motion_state:
                                   projectileHeight);
                 } else {
                     adjusted = ModifyPlayerDpos(
-                        p, targetDir, localVector, PF(p, 0x11C, u32),
+                        p, targetDir, localVector, p->field_11C,
                         item, (u32)target, targetDistance,
                         lbl_80347CBC);
                     projectileHeight = lbl_80347C8C;
@@ -2583,7 +2583,7 @@ store_motion_state:
         if ((p->act_bits & 0xFF) != 0) {
             if ((p->act_bits & 0xFE) != 0) {
                 f32 damage = PF(p, 0x104, f32);
-                u32 damageFlags = PF(p, 0x11C, u32);
+                u32 damageFlags = p->field_11C;
                 f32 hitRange;
 
                 if (PF(p, 0x8A8, u8*) == NULL && ctl->values[8] == 0.0f) {
@@ -2677,7 +2677,7 @@ store_motion_state:
             }
 
             if ((p->act_bits & 1) != 0) {
-                PF(p, 0x8FC, f32) = sMusicFadeBase;
+                p->combo_fade = sMusicFadeBase;
                 if ((p->flags & 0x400) != 0) {
                     SV(p)->act_bits = p->act_bits | 0x20000000;
                 }
@@ -2687,7 +2687,7 @@ store_motion_state:
 
         /* Target +0x3B80: missile powerup byte. */
         if ((p->act_bits & 0xFF00) != 0) {
-            u32 missileFlags = PF(p, 0x11C, u32);
+            u32 missileFlags = p->field_11C;
             s32 missileMode = 1;
             f32 missileDamage;
             f32 missileScale;
@@ -2715,7 +2715,7 @@ store_motion_state:
                 missileMode = 0;
             } else {
                 missileDamage =
-                    (f32)((f64)(sMusicFadeBase - PF(p, 0x8FC, f32)) -
+                    (f32)((f64)(sMusicFadeBase - p->combo_fade) -
                           lbl_80347CD8);
                 if ((f64)missileDamage < lbl_80347B08) {
                     missileDamage = 0.0f;
@@ -2748,10 +2748,10 @@ store_motion_state:
         if ((p->act_bits & 0x10000) != 0) {
             s32 effect;
             if ((effect = StartMagicPlayerFX(lbl_80127D00)) >= 0) {
-                if (PF(p, 0x6CC, void*) != NULL) {
+                if (p->mbnode2 != NULL) {
                     MBNodeSetParent(
                         *(void**)(Effects + effect * 240 + 0x14),
-                        PF(p, 0x6CC, void*));
+                        p->mbnode2);
                 }
                 MBTreeSetFlags(*(void**)(Effects + effect * 240 + 0x14),
                                0x04000000, 0);
@@ -2813,10 +2813,10 @@ player_motion_phase_exit:
                     ReflectVector2D((f32*)((u8*)p + 0x34), reflection, hit);
                     newYaw = atan2(hit[0], hit[2]);
                 } else {
-                    newYaw = (f32)(lbl_80347CE8 + PF(p, 0x894, f32));
+                    newYaw = (f32)(lbl_80347CE8 + p->move_yaw);
                 }
                 newYaw = PlayerMotion_WrapAngle(newYaw);
-                PF(p, 0x894, f32) = newYaw;
+                p->move_yaw = newYaw;
                 p->timer_1FC = 10;
             } else {
                 turnStep = (f32)(lbl_80347CF0 * gClockFrameStep *
@@ -2830,9 +2830,9 @@ player_motion_phase_exit:
                     newYaw = heading;
                 }
                 if ((u32)(motionState - 34) <= 1) {
-                    PF(p, 0x894, f32) = heading;
+                    p->move_yaw = heading;
                 } else {
-                    PF(p, 0x894, f32) = newYaw;
+                    p->move_yaw = newYaw;
                 }
             }
 
@@ -3018,10 +3018,10 @@ player_motion_phase_exit:
                             }
                             PF(p->grab_partner, 0x964, s16) &= ~0x10;
                             PF(p->grab_partner, 0x964, s16) |= 0x40;
-                            PF(p, 0x1FA, s16) = 240;
+                            p->timer_1FA = 240;
                         }
                         if ((PF(p->grab_partner, 0x964, s16) & 0x40) != 0 &&
-                            PF(p, 0x1FA, s16) <= 0) {
+                            p->timer_1FA <= 0) {
                             PF(p->grab_partner, 0x964, s16) &= ~0x40;
                             PF(p->grab_partner, 0x6B8, Player*) = NULL;
                             p->grab_partner = NULL;
@@ -3058,7 +3058,7 @@ player_motion_phase_exit:
                         p->hud_flags |= 0x80;
                         PF(p->grab_partner, 0x8FC, f32) = sMusicFadeBase;
                     }
-                    PF(p, 0x1FA, s16) = 240;
+                    p->timer_1FA = 240;
                     break;
                 }
                 case 89:
@@ -3068,7 +3068,7 @@ player_motion_phase_exit:
                             PF(p->grab_partner, 0x964, s16) &= ~0x10;
                             PF(p->grab_partner, 0x964, s16) |= 0x40;
                         } else if ((PF(p->grab_partner, 0x964, s16) & 0x40) != 0 &&
-                                   PF(p, 0x1FA, s16) <= 0) {
+                                   p->timer_1FA <= 0) {
                             if ((p->hud_flags & 0x20) != 0) {
                                 PlayerUnsetGrabbed(p, 0);
                             }
@@ -3128,7 +3128,7 @@ player_motion_grab_done:
                 }
 
                 if (comboMode == 1 && comboTime >= 0.0f &&
-                    PF(p, 0xA58, f32) < 0.0f) {
+                    p->combo_cd < 0.0f) {
                     if (p->char_type == 4 || p->char_type == 7) {
                         f32 comboPos[3];
                         comboPos[0] = PF(p, 0xD0, f32) + PF(p, 0x838, f32);
@@ -3141,7 +3141,7 @@ player_motion_grab_done:
                                      PF(PF(p, 0x6B8, Player*), 4, s32));
                     }
                 } else if (comboMode >= 2 && comboTime >= 0.0f &&
-                           PF(p, 0xA58, f32) < 0.0f) {
+                           p->combo_cd < 0.0f) {
                     f32 scale =
                         (f32)(lbl_80347BD0 + (f32)(comboMode - 2));
                     s32 effect = StartComboFX(p->col_pos, -1,
@@ -3155,15 +3155,15 @@ player_motion_grab_done:
                 if (sfx1 >= 0) {
                     fn_80089350((u8*)p, sfx1,
                                  (u8*)PF(p, 0x6B8, Player*), NULL,
-                                 PF(p, 0xA58, f32), comboTime);
+                                 p->combo_cd, comboTime);
                 }
                 if (sfx2 >= 0) {
                     fn_80089350((u8*)p, sfx2,
                                  (u8*)PF(p, 0x6B8, Player*), NULL,
-                                 PF(p, 0xA58, f32), comboTime);
+                                 p->combo_cd, comboTime);
                 }
             }
-            PF(p, 0xA58, f32) = comboTime;
+            p->combo_cd = comboTime;
         }
         (void)hitKind;
     }

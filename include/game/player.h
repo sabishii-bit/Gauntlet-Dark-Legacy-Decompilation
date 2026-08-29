@@ -167,7 +167,8 @@ typedef struct Player {
     /* 0x06BC */ struct Player* grab_pending; /* pending grab request [pmotion.c] */
     /* 0x06C0 */ u8  pad_06C0[8];
     /* 0x06C8 */ void* mbnode;       /* secondary MBTree node (weapon/shadow) [pmotion.c] */
-    /* 0x06CC */ u8  pad_06CC[0x130];
+    /* 0x06CC */ void* mbnode2;      /* effect anchor node [pmotion.c] */
+    /* 0x06D0 */ u8  pad_06D0[0x12C];
     /* 0x07FC */ f32 pulse_7FC;      /* rune-near display pulse [player.c] */
     /* 0x0800 */ u8  pad_0800[0x28];
     /* 0x0828 */ f32 power_target;   /* power-meter target [player.c] */
@@ -180,7 +181,9 @@ typedef struct Player {
     /* 0x0854 */ f32 col_height;     /* collision height (FloorCollide height) [pmotion.c] */
     /* 0x0858 */ f32 light_vec[3];   /* beacon light vector (decayed) [player.c] */
     /* 0x0864 */ f32 light_vel[3];   /* beacon light velocity [player.c] */
-    /* 0x0870 */ u8  pad_0870[0x2C];
+    /* 0x0870 */ u8  pad_0870[0x24];
+    /* 0x0894 */ f32 move_yaw;       /* commanded movement yaw [pmotion.c] */
+    /* 0x0898 */ u8  pad_0898[4];
     /* 0x089C */ f32 timer_89C;      /* motion-state elapsed time accumulator [pmotion.c] */
     /* 0x08A0 */ f32 floor_hi;       /* clamped floor probe results [player.c] */
     /* 0x08A4 */ f32 floor_lo;
@@ -199,7 +202,8 @@ typedef struct Player {
     /* 0x08E8 */ f32 fxhittime;      /* last critter-effect hit time [critter.c] */
     /* 0x08EC */ f32 floor_fx_time; /* floor hazard damage cooldown [pmotion.c] */
     /* 0x08F0 */ s32 action;         /* current action id (PlayerAttacking) [player.c] */
-    /* 0x08F4 */ u8  pad_08F4[0x0C];
+    /* 0x08F4 */ u8  pad_08F4[8];
+    /* 0x08FC */ f32 combo_fade;     /* combo fade timestamp [pmotion.c] */
     /* 0x0900 */ u32 act_bits;       /* action request bits (SV view writes) [pmotion.c] */
     /* 0x0904 */ f32 melee_yaw;      /* melee target yaw offset [pmotion.c] */
     /* 0x0908 */ u8  pad_0908[4];
@@ -232,7 +236,8 @@ typedef struct Player {
     /* 0x0A2C */ s32 weakening_elapsed; /* elapsed ticks in weakening cycle [player.c] */
     /* 0x0A30 */ s32 weakening_period; /* weakening cycle duration [player.c] */
     /* 0x0A34 */ s32 milestone[5];   /* recently visited milestone nodes [items.c] */
-    /* 0x0A48 */ u8  pad_0A48[0x14];
+    /* 0x0A48 */ u8  pad_0A48[0x10];
+    /* 0x0A58 */ f32 combo_cd;       /* combo effect cooldown timestamp [pmotion.c] */
     /* 0x0A5C */ s32 camera_limit;   /* camera dpos-limit result [pmotion.c] */
     /* 0x0A60 */ s32 display_mode;   /* HUD display mode (get_display_mode) [player.c] */
     /* 0x0A64 */ u8  pad_0A64[0x1C];
