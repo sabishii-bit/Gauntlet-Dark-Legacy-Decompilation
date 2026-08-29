@@ -2879,7 +2879,7 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
     s16* generator;
     s32 k;
     s32 thr;
-    s8 state;
+    s32 state;
 
     /* scale generator hits by how far the player's gold exceeds the ramp */
     if (info->type == 3 && owner >= 0 &&
@@ -2900,10 +2900,10 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
     }
 
     if ((flags & 0x800) != 0) {
-        if (power > sCameraVisibilityRadius) {
-            ret = -2;
-        } else {
+        if (power <= sCameraVisibilityRadius) {
             ret = -1;
+        } else {
+            ret = -2;
         }
         power = sItemZero;
         alive = 0;
@@ -3063,8 +3063,10 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
             *sub = 1;
             rec = *(u8**)(gWorldInfo + 0x68);
             for (k = 0; k < *(s32*)(gWorldInfo + 0x74); k++) {
-                if (strcmp(lbl_80346F18, (char*)(rec + 0x28)) == 0 &&
-                    *(s32*)rec == 1 && *(s32*)(rec + 4) == 3) {
+                s32* rec_sub = (s32*)(rec + 4);
+
+                if (strcmp(lbl_80346F18, (char*)(rec_sub + 9)) == 0 &&
+                    *(s32*)rec == 1 && *rec_sub == 3) {
                     goto found_gen;
                 }
                 rec += 0x50;
@@ -3127,7 +3129,6 @@ found_gen:
             }
         }
         break;
-
     case 3:
         /* enemy generator damage-state machine */
         generator = (s16*)&item->data[0];
@@ -3205,14 +3206,19 @@ found_gen:
             if (state == 0) {
                 item->active &= ~1;
                 item->armor = -1;
+            }
+            if (state == 0) {
                 fn_80091AC0(&item->objgrp, *generator, 1);
             } else {
                 fn_80091AC0(&item->objgrp, *generator, 0);
             }
         }
         if (state == 0) {
+            s32 enemy_count;
+
             fn_8009C7D8(&v[1], *generator);
-            for (k = 0; k < gNumEnemies; k++) {
+            enemy_count = gNumEnemies;
+            for (k = 0; k < enemy_count; k++) {
                 if (*(Item**)(gEnemies + k * 0x394 + 0x290) == item) {
                     *(Item**)(gEnemies + k * 0x394 + 0x290) = 0;
                 }
@@ -3232,18 +3238,16 @@ found_gen:
         switch (*(s32*)((u8*)item->info + 4)) {
         default:
             /* 0x2B, walls, everything else: shake / rumble */
-            if (destroyed == 0) {
-                fn_8009EF4C(&v[1]);
-            } else {
+            if (destroyed != 0) {
                 item->active |= 1;
                 fn_8009DA78(&v[1]);
                 destroyed = 0;
+            } else {
+                fn_8009EF4C(&v[1]);
             }
             break;
         case 0x2C:
-            if (destroyed == 0) {
-                fn_8009EF4C(&v[1]);
-            } else {
+            if (destroyed != 0) {
                 item->active |= 1;
                 StartExplosion(&item->objgrp, 0x18,
                                (f32)(lbl_80346F88 *
@@ -3255,12 +3259,12 @@ found_gen:
                 alive = 0;
                 ret = -2;
                 destroyed = 0;
+            } else {
+                fn_8009EF4C(&v[1]);
             }
             break;
         case 0x2D:
-            if (destroyed == 0) {
-                fn_8009EF4C(&v[1]);
-            } else {
+            if (destroyed != 0) {
                 item->active |= 1;
                 StartExplosion(&item->objgrp, 0x19,
                                (f32)(lbl_80346F98 *
@@ -3272,6 +3276,8 @@ found_gen:
                 alive = 0;
                 ret = -2;
                 destroyed = 0;
+            } else {
+                fn_8009EF4C(&v[1]);
             }
             break;
         case 0x2A:
