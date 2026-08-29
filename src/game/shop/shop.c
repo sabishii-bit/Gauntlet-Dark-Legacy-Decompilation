@@ -521,8 +521,8 @@ s32 show_gold(s32 col)
     u8* valT = tbl + col * 12 + 176;
     s32 ypos = *(s32*)(dpage + col * 4 + 112);
     s32 xbase = *(s32*)(dpage + col * 4 + 96);
-    s32 done = 0;
     s32 k = 0;
+    s32 done = 0;
     s32 fontY;
     u8* blit;
     s32 tgt;
