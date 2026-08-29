@@ -1401,10 +1401,10 @@ collision_done:
 
         if ((p->hud_flags & 0x20) != 0 &&
             (p->obj_flags & 0x4000) == 0) {
-            targetDistance = 0.0f;
+            contactRadius = 0.0f;
             movingBias = 0.0f;
             reaction = 0;
-            contactRadius = lbl_80347C10;
+            targetDistance = lbl_80347C20;
             forceState = 0;
             motionState = 0;
             goto store_motion_state;
@@ -1742,11 +1742,11 @@ store_motion_state:
                 targetDistance = 0.0f;
             }
         }
-        if (targetDistance <
-            (f32)(lbl_80347BD0 + contactRadius + movingBias)) {
+        if ((f64)targetDistance <
+            lbl_80347BD0 + contactRadius + movingBias) {
             p->coll_flags |= 1;
-        } else if (targetDistance <
-                   (f32)(lbl_80347C28 + contactRadius + movingBias)) {
+        } else if ((f64)targetDistance <
+                   lbl_80347C28 + contactRadius + movingBias) {
             p->coll_flags |= 4;
         } else {
             p->coll_flags |= 8;
