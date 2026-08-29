@@ -1377,7 +1377,7 @@ collision_done:
         f32 targetAngle = heading;
         f32 targetDistance = lbl_80347C20;
         f32 contactRadius = radius;
-        f32 movingBias = directionKind != 0 ? 1.0f : 0.0f;
+        f32 movingBias;
         s32 reaction;
         s32 motionState = motionType;
         s32 critterIndex = -1;
@@ -1385,6 +1385,11 @@ collision_done:
         s32 forceState = 0;
         u8* enemy = NULL;
 
+        if (directionKind != 0) {
+            movingBias = 1.0f;
+        } else {
+            movingBias = 0.0f;
+        }
         if ((PF(p, 0x964, s16) & 0x20) != 0 &&
             (PF(p, 0x8D4, u32) & 0x4000) == 0) {
             motionState = 0;
