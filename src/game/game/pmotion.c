@@ -985,8 +985,8 @@ void PlayerMotion(Player* p) {
         dpos[0] = PF(p, 0x870, f32) * gClockFrameStep;
         dpos[1] = PF(p, 0x874, f32) * gClockFrameStep;
         dpos[2] = PF(p, 0x878, f32) * gClockFrameStep;
-        if (!(dpos[0] * dpos[0] + dpos[1] * dpos[1] +
-                  dpos[2] * dpos[2] >= lbl_80347B70)) {
+        if (dpos[0] * dpos[0] + dpos[1] * dpos[1] +
+                dpos[2] * dpos[2] >= lbl_80347B70) {
             angle = PlayerMotion_WrapAngle(atan2(dpos[0], dpos[2]) - facing);
             if ((f64)angle < lbl_80347B78 ||
                 (f64)angle > lbl_80347B80) {
