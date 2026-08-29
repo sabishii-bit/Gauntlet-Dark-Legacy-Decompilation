@@ -180,7 +180,8 @@ typedef struct Player {
     /* 0x0854 */ f32 col_height;     /* collision height (FloorCollide height) [pmotion.c] */
     /* 0x0858 */ f32 light_vec[3];   /* beacon light vector (decayed) [player.c] */
     /* 0x0864 */ f32 light_vel[3];   /* beacon light velocity [player.c] */
-    /* 0x0870 */ u8  pad_0870[0x30];
+    /* 0x0870 */ u8  pad_0870[0x2C];
+    /* 0x089C */ f32 timer_89C;      /* motion-state elapsed time accumulator [pmotion.c] */
     /* 0x08A0 */ f32 floor_hi;       /* clamped floor probe results [player.c] */
     /* 0x08A4 */ f32 floor_lo;
     /* 0x08A8 */ void* collision_item; /* nearest item hit by the motion sweep */

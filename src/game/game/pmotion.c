@@ -1725,15 +1725,15 @@ state_selected:
         }
 
         if (motionState == 8) {
-            PF(p, 0x89C, f32) += gClockFrameStep;
+            p->timer_89C += gClockFrameStep;
         } else if (motionState == 13) {
-            if ((f64)PF(p, 0x89C, f32) < lbl_80347BE0 &&
+            if ((f64)p->timer_89C < lbl_80347BE0 &&
                 gBossType < 0) {
                 motionState = 8;
             }
-            PF(p, 0x89C, f32) += gClockFrameStep;
+            p->timer_89C += gClockFrameStep;
         } else {
-            PF(p, 0x89C, f32) = 0.0f;
+            p->timer_89C = 0.0f;
         }
 
         if (gBossType >= 0 && gBoss398 >= 0 && good_wiz_state <= 1 &&
