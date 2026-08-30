@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "src/game/ui/select.c (worktree GDL-Claude-SelectDefake2, work_claim.select-defake2.20260830.v1); attempt.select-defake-tu.20260830.v2. Technique: select.c calls show_optmenu()/do_optmenu()/remove_optmenu()/start_optmenu_nostack() on its opaque 'menu' pointer with no local type; grepping the codebase for those same callee names found src/game/ui/options.c defines and calls them with a real OPTMENU* parameter (0xE8-byte struct, fully field-documented). Cross-checked every offset select.c dereferences against OPTMENU's field list and OPTITEM's field list; all matched exactly, including semantic confirmation (do_optmenu()'s return codes 1000-1005 match select.c's dynamically-built list's 'code' field values; OPTITEM.value's documented '<0 = disabled' meaning matches select.c's '>= 0' enable checks).",
+    "scope": "GC GUNE5D select.c<->options.c cross-TU typing; reusable technique for any opaque void*/u8* pointer passed to functions implemented in an already-typed sibling TU"
+  },
+  "epistemic_state": "verified",
+  "id": "claim.optmenu-is-select-struct.20260830.v1",
+  "kind": "claim",
+  "predicate": "type_identification",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "select.c's per-player option-menu pointer ('menu' in do_player_select/setup_sel_menu, 'menu'/'field' aliases derived as data+playerOffset[+712]) is OPTMENU (game/ui/options.c, 0xE8 bytes): offset 0=state, 0xC=x, 0x10=y, 0x1C=items(OPTITEM*), 0x34=scale, 0x6C=active, 0x74=sel, 0x84=num_items all matched select.c's raw-offset usage exactly. The dynamically-built 36-byte list entries menu->items points at (built by setup_vmu_entries/setup_file_entries, walked by sel_set_choice/do_player_select) are OPTITEM (options.c, 0x24 bytes): text@0, code@4 (== select.c's former 'id'), dy@8 (== former 'type'), value@0x20 (== former 'state', <0 = disabled). select.c's file-local VmuMenuEntry mirror was renamed to use these verified field names instead of the earlier invented id/state/type. select.c never includes options.h and does not gain access to the real OPTMENU/OPTITEM types (they are file-local to options.c) - select.c's OptMenuLayout/VmuMenuEntry remain file-local partial mirror structs (offsetof-only, never cast to a live pointer, per claim.law.multifield-alias-defeats-indexed-addressing), documented as verified against options.c's real definitions rather than invented. Consequence: any other TU with an opaque menu/blit/list pointer whose only uses are passing it to a named library function is a candidate for this same cross-TU signature check before falling back to 'no struct authority'."
+}
