@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "src/game/world/world.c::FindWorldAnimNode (worktree GDL-Claude-WorldDefake, work_claim.world-defake.20260830.v1); attempt.world-c-defakematch-tupass.20260830.v1",
+    "scope": "MWCC GC 1.2.5 family; applies whenever a TU has TWO OR MORE named globals that overlap/adjoin the same underlying memory block (e.g. a combined struct-blob split into separate documented sub-objects) and a raw-offset access could be rewritten against EITHER symbol at an identical final address."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.walked-base-symbol-identity.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "When a byte offset is reachable through two different verified global symbols (a combined blob's base, and a named sub-object placed at a fixed offset inside it - e.g. gWorldName+372 and gWorldInfo+144 in world.c, both 0x8028C9F4), the CORRECT symbol to reference is NOT determined by which one is more semantically specific or better-named - it is a per-function fact about what the target's OWN machine code actually relocates against, and it can differ function-by-function within the SAME TU even for the same logical field. In world.c, WorldLoadModelDone and FinishLoadWorldAnim relocate their gWorldInfo.model/atreelist accesses against symbol `gWorldInfo` directly, while FindWorldAnimNode's target relocates the identical byte offset against `lbl_8028C9A8` (the combined blob's un-split base) instead - rewriting FindWorldAnimNode to use `gWorldInfo.nworldanims` etc. compiled to a DIFFERENT R_PPC_ADDR16_HA/LO relocation target than the target object's, regressing real 0 to OPERAND_DIFF/10 real diff lines even though the resolved address was byte-identical. Fix/verification procedure: before choosing which symbol a raw-offset conversion should reference, run `tools/gdl/fnasm.py <unit> <fn>` on the TARGET and read the actual relocation name next to the `lis`/`addi` pair covering that address; if it names the combined-blob symbol, keep the conversion as `(u8*)blob_symbol + KNOWN_SUBOBJECT_OFFSET + offsetof(SubObjectType, field)` (see claim.law.offsetof-fused-immediate-counter) rather than switching to the sub-object's own extern name, even when a header declares that sub-object as a first-class global."
+}
