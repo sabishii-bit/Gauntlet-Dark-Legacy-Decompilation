@@ -105,6 +105,17 @@ typedef struct MovieBitmapHeader {
     /* 0x30 */ u32 blueMask;
 } MovieBitmapHeader;
 
+/* File-local circular byte-ring: fn_800D9C5C allocates buffer/size and zeros
+ * writePos/readPos, fn_800D9A14 consumes from readPos, fn_800D9B48 produces
+ * at writePos, fn_800D9DA4/fn_800D9CF4 release it. Not a GC-verified name -
+ * offsets verified purely from this TU's own usage. */
+typedef struct MovieRingBuffer {
+    u8* buffer;
+    u32 size;
+    u32 writePos;
+    u32 readPos;
+} MovieRingBuffer;
+
 extern void GXInitTexObj(MovieGXTexObj* obj, void* data, u16 width, u16 height,
                          u32 format, u32 wrapS, u32 wrapT, u8 mipmap);
 extern void GXLoadTexObj(MovieGXTexObj* obj, u8 map);
@@ -200,7 +211,7 @@ u32 fn_800D87FC(MovieDecodeState* p1, int p3, char* p4, int mode, int p5, u8* p6
 u32 fn_800D8BCC(MovieDecodeState* p1, int p3, char* p4, int mode, int p5, u8* p6);
 u32 fn_800D8F28(MovieDecodeState* p1, int p3, char* p4, int p5, u8* p6);
 u32 fn_800D91B4(MovieDecodeState* p1, int p3, char* p4, int p5, u8* p6);
-u32 fn_800D9A14(u32* p1, u8* p2, int p3, u8 p4);
+u32 fn_800D9A14(MovieRingBuffer* p1, u8* p2, int p3, u8 p4);
 void fn_800DBE98(void* param_1, u8* param_2);
 int fn_800DB2F4(u8* param_1, u8* param_2, u32 param_3, u32 param_4);
 void fn_800DB3D4(u32* stream, s32 fd, u32 length);
@@ -1041,83 +1052,83 @@ u32 fn_800D99AC(u32 a, int* src, u8* dst) {
 }
 #pragma opt_propagation reset
 
-u32 fn_800D9A14(u32* param_1, u8* param_2, int param_3, u8 param_4) {
+u32 fn_800D9A14(MovieRingBuffer* param_1, u8* param_2, int param_3, u8 param_4) {
     u32 writeOffset;
     int used;
     u32 readOffset;
     int chunk;
 
-    writeOffset = param_1[2];
-    readOffset = param_1[3];
+    writeOffset = param_1->writePos;
+    readOffset = param_1->readPos;
     if ((int)writeOffset >= (int)readOffset) {
         used = writeOffset - readOffset;
     } else {
-        used = param_1[1] + (writeOffset - readOffset);
+        used = param_1->size + (writeOffset - readOffset);
     }
     if (param_3 > used) {
         return 0;
     }
     if (param_4 != 0) {
-        chunk = param_1[1] - readOffset;
+        chunk = param_1->size - readOffset;
         if (chunk > param_3) {
             chunk = param_3;
         }
-        memcpy(param_2, (u8*)(*param_1 + readOffset), chunk);
+        memcpy(param_2, param_1->buffer + readOffset, chunk);
         param_2 += chunk;
         param_3 -= chunk;
-        param_1[3] += chunk;
-        if ((int)param_1[3] == (int)param_1[1]) {
-            param_1[3] = 0;
+        param_1->readPos += chunk;
+        if ((int)param_1->readPos == (int)param_1->size) {
+            param_1->readPos = 0;
         }
         if (param_3 != 0) {
-            memcpy(param_2, (u8*)*param_1, param_3);
-            param_1[3] += param_3;
+            memcpy(param_2, param_1->buffer, param_3);
+            param_1->readPos += param_3;
         }
     } else {
-        chunk = param_1[1] - readOffset;
+        chunk = param_1->size - readOffset;
         if (chunk > param_3) {
             chunk = param_3;
         }
-        memcpy(param_2, (u8*)(*param_1 + readOffset), chunk);
+        memcpy(param_2, param_1->buffer + readOffset, chunk);
         param_3 -= chunk;
         param_2 += chunk;
         if (param_3 != 0) {
-            memcpy(param_2, (u8*)*param_1, param_3);
+            memcpy(param_2, param_1->buffer, param_3);
         }
     }
     return 1;
 }
 
-u32 fn_800D9B48(u32* param_1, u8* param_2, int param_3) {
+u32 fn_800D9B48(MovieRingBuffer* param_1, u8* param_2, int param_3) {
     u32 readOffset;
     int used;
     u32 writeOffset;
     int chunk;
 
-    writeOffset = param_1[2];
-    readOffset = param_1[3];
+    writeOffset = param_1->writePos;
+    readOffset = param_1->readPos;
     if ((int)writeOffset >= (int)readOffset) {
         used = writeOffset - readOffset;
     } else {
-        used = param_1[1] + (writeOffset - readOffset);
+        used = param_1->size + (writeOffset - readOffset);
     }
-    if (param_3 > (int)((param_1[1] - used) - 1)) {
+    if (param_3 > (int)((param_1->size - used) - 1)) {
         return 0;
     }
-    chunk = param_1[1] - writeOffset;
+    chunk = param_1->size - writeOffset;
     if (chunk > param_3) {
         chunk = param_3;
     }
-    memcpy((u8*)(*param_1 + writeOffset), param_2, chunk);
+    memcpy(param_1->buffer + writeOffset, param_2, chunk);
     param_2 += chunk;
     param_3 -= chunk;
-    param_1[2] += chunk;
-    if ((int)param_1[2] == (int)param_1[1]) {
-        param_1[2] = 0;
+    param_1->writePos += chunk;
+    if ((int)param_1->writePos == (int)param_1->size) {
+        param_1->writePos = 0;
     }
     if (param_3 != 0) {
-        memcpy((u8*)*param_1, param_2, param_3);
-        param_1[2] += param_3;
+        memcpy(param_1->buffer, param_2, param_3);
+        param_1->writePos += param_3;
     }
     return 1;
 }
@@ -1134,18 +1145,18 @@ int fn_800D9C34(u8* p) {
 #pragma dont_inline off
 
 #pragma dont_inline on
-void fn_800D9C5C(int* p, int n) {
-    if (*(u32*)p != 0) {
+void fn_800D9C5C(MovieRingBuffer* p, int n) {
+    if (p->buffer != 0) {
         gMovieAllocCount--;
         if (gMovieAllocCount == 0) {
             ResetAllocTot();
         }
     }
-    p[0] = 0;
-    p[1] = n;
-    p[0] = (int)AllocHiMem(p[1], (u32)gMovieAllocCount++);
-    p[3] = 0;
-    p[2] = 0;
+    p->buffer = 0;
+    p->size = n;
+    p->buffer = (u8*)AllocHiMem(p->size, (u32)gMovieAllocCount++);
+    p->readPos = 0;
+    p->writePos = 0;
 }
 #pragma dont_inline off
 
@@ -1174,11 +1185,11 @@ int* fn_800D9CF4(int* p, s16 releaseAgain) {
 #endif
 
 #pragma dont_inline on
-void fn_800D9DA4(u32* p) {
-    p[1] = 0;
-    p[0] = 0;
-    p[3] = 0;
-    p[2] = 0;
+void fn_800D9DA4(MovieRingBuffer* p) {
+    p->size = 0;
+    p->buffer = 0;
+    p->readPos = 0;
+    p->writePos = 0;
 }
 #pragma dont_inline off
 
@@ -1981,7 +1992,7 @@ int fn_800DB2F4(u8* param_1, u8* param_2, u32 param_3, u32 param_4) {
         ret = 0;
     } else {
         *(u8*)(param_1 + 0x4c) = 1;
-        fn_800D9A14((u32*)(param_1 + 0x3c), param_2, param_4, *(char*)(param_1 + 0x4c));
+        fn_800D9A14((MovieRingBuffer*)(param_1 + 0x3c), param_2, param_4, *(char*)(param_1 + 0x4c));
         ret = 1;
     }
     return ret;
@@ -2103,7 +2114,7 @@ void fn_800DB3D4(u32* stream, s32 fd, volatile u32 length) {
                     node[5] = chunkSize;
                     node[7] = stream[14];
                     stream[14] += chunkSize;
-                    fn_800D9B48(stream + 15, chunk + 8, chunkSize);
+                    fn_800D9B48((MovieRingBuffer*)(stream + 15), chunk + 8, chunkSize);
                     break;
                 case 0x4b4e554a:
                     node[6] = chunkSize;
@@ -2238,7 +2249,7 @@ u8 MovieDecoderInitBuffers(u32* param_1, u32 param_2, u32 param_3) {
     param_1[0x14] = 0;
     param_1[0x15] = 0;
     if ((param_3 & 0xff) != 0) {
-        fn_800D9C5C((int*)(param_1 + 0xf), 0x40000);
+        fn_800D9C5C((MovieRingBuffer*)(param_1 + 0xf), 0x40000);
     }
     param_1[6] = param_2 & 0xfffff800;
     iVar3 = param_1[6];
@@ -2334,7 +2345,7 @@ u32* dtor_800DBB94(u32* self, s16 deleting) {
 u32* fn_800DBC64(register u32* p) {
     register u32* self = p;
 
-    fn_800D9DA4(self + 0xf);
+    fn_800D9DA4((MovieRingBuffer*)(self + 0xf));
     self[3] = 0;
     self[2] = 0;
     self[1] = 0;
