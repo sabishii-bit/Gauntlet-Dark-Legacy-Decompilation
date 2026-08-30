@@ -313,11 +313,16 @@ TUs link in REVERSE source order) and reports three things:
 `proposals` (exact-gap candidates — one-to-one positional evidence),
 `spelling_mismatches` (a GC invented name sitting where the PDB has a
 different real name, e.g. UpdateCam vs CamUpdate), and `no_candidate`
-(the revisit set). Adopting a candidate is a RENAME: verify the
-candidate against the function's own behavior/asm first (position is
-evidence, not proof), then follow the recorded cross-TU rename
-procedure (grep build/**/*.s, scope:global, regenerate stale objects)
-and gate every affected TU. Per-TU revisit records use claim predicate
+(the revisit set). A `NAME-TAKEN` confidence means a live GC symbol
+already uses the candidate name — adopting it links multiply-defined;
+resolve the existing holder first. Adopting a candidate is a RENAME:
+verify it against the function's own behavior AND its CALLERS' context
+(position is evidence, not proof — the first adoption pass rejected 8
+of 38 this way, including two confirmed positional swaps), then execute
+with `gdlmem.py rename-symbol <old> <new> --apply`, which holds all
+five invariants at once (collision check, symbols.txt+src+include
+rename, graph-record anchor patch, stale .s/.o cleanup) and prints the
+gate steps; hand-rolling those steps is how one gets missed. Per-TU revisit records use claim predicate
 `symbol_naming` (subject `tu:<module>`, value = the no-candidate list +
 ambiguous spans + naming notes) so future sessions can ponder names
 without re-deriving the audit; update them by superseding when symbols
