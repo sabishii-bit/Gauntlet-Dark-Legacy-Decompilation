@@ -3603,23 +3603,23 @@ s32 PlayerMotion_DamageTarget(Player* p, s32 targetId, s32 a3, s32 a4, s32 a5,
     }
 
     if (lbl_80347B30 == dmg) {
-        dmg = PF(p, 0x104, f32);
+        dmg = p->stat_damage;
     }
     if ((p->flags & 0x100) != 0) {
         dmg = (f32)(dmg * lbl_80347C28);
     }
-    dir[0] = PF(p, 0x34, f32);
-    dir[1] = PF(p, 0x38, f32);
-    dir[2] = PF(p, 0x3C, f32);
+    dir[0] = p->mat[8];
+    dir[1] = p->mat[9];
+    dir[2] = p->mat[10];
     dir[1] = (f32)(lbl_80347D50 * dmg);
     if (dir[1] > lbl_80347C28) {
         dir[1] = lbl_80347B98;
     }
 
     if (enemy != NULL) {
-        s32 estateRaw = PF(enemy, 0xB4, s32);
+        s32 estateRaw = PF(enemy, offsetof(PCollideEnemyLayout, state), s32);
         s32 estate = estateRaw;
-        if (PF(enemy, 0x200, f32) > lbl_80347B08 &&
+        if (PF(enemy, offsetof(PCollideEnemyLayout, health), f32) > lbl_80347B08 &&
             (estateRaw == 1 || estateRaw == 6)) {
             result = damage_enemy(enemy, p->index, a3, a4, dir, 1, dmg);
         }
