@@ -767,7 +767,7 @@ s32 DoPlyrSfxSub(u8* player, s32 recordIndex, f32* offset,
         return -1;
     }
 
-    record = (PlayerSfxRecord*)(*(u8**)(lbl_80282930[playerIndex] + 4) +
+    record = (PlayerSfxRecord*)(((PsfxHeader*)lbl_80282930[playerIndex])->records +
                                       recordIndex * sizeof(PlayerSfxRecord));
     flags = record->flags;
 
