@@ -4917,20 +4917,28 @@ void* PlayerModel(s32 i) {
  * + DropMikey + player_find_powerup_from_typemask (all inlined here).
  * Real body next session -- transcribe from Ghidra 0x8007CC48.
  */
+/* Per-tier (level/10) color entry in the class record: tint table at +0x68,
+ * glow table at +0xE0, 12-byte stride.  Array-of-struct indexing keeps the
+ * table base constant in the load displacement instead of feeding an
+ * indexed-address web (lfsx).                                               */
+typedef struct TierColor {
+    f32 rgb[3];
+} TierColor;
+
 #define PLAYER_SET_FAMILIAR(source_, parent_)                                  \
     do {                                                                       \
-        void* familiar_source = (source_);                                     \
         void* familiar_parent = (parent_);                                     \
-        if (*handle != NULL &&                                                 \
+        void* familiar_source = (source_);                                     \
+        if (p->atree != NULL &&                                                \
             (familiar_source == NULL ||                                        \
-             PF(p, 0x798, u32) != ((u32*)familiar_source)[1])) {               \
-            AtreeDelete(handle);                                               \
+             p->atree_src_id != ((u32*)familiar_source)[1])) {                 \
+            AtreeDelete(&p->atree);                                            \
         }                                                                      \
-        if (*handle == NULL && familiar_source != NULL) {                      \
-            *handle = (void*)AtreeInit(familiar_source, handle, 0, 0x800);     \
-            MBTreeSetFlags(*(void**)*handle, 0x10, 0);                         \
-            MBNodeSetParent(*(void**)*handle, familiar_parent);                \
-            MBTreeSetAlpha(*(void**)*handle, 0, 1);                            \
+        if (p->atree == NULL && familiar_source != NULL) {                     \
+            p->atree = (void*)AtreeInit(familiar_source, &p->atree, 0, 0x800); \
+            MBTreeSetFlags(*(void**)p->atree, 0x10, 0);                        \
+            MBNodeSetParent(*(void**)p->atree, familiar_parent);               \
+            MBTreeSetAlpha(*(void**)p->atree, 0, 1);                           \
         }                                                                      \
     } while (0)
 
@@ -4938,12 +4946,16 @@ void PlayerProcessPowerups(void* vp) {
     Player* p = vp;
     u8 unused[64];
     u32 old_flags;
-    f32 weapon_time = 0.0f;
-    f32 shield_time = lbl_80347920;
-    f32 familiar_time = lbl_80347920;
-    f32 alpha_time = 0.0f;
+    s32 index = p->index;
+    f32 alpha_time;
+    f32 shield_time;
+    f32 weapon_time;
+    f32 familiar_time;
     s32 i;
     const char* name_base = (const char*)lbl_80113AE0;
+
+    weapon_time = alpha_time = 0.0f;
+    familiar_time = shield_time = lbl_80347920;
 
     p->stat_damage = player_scale_att(&p->att_fight, lbl_80343D7C);
     p->stat_armor = player_scale_att(&p->att_armor, lbl_80343D84);
@@ -4957,31 +4969,36 @@ void PlayerProcessPowerups(void* vp) {
         p->stat_missile_spd = player_scale_att(&p->att_fight, lbl_80343DA4);
     }
 
-    old_flags = p->flags;
     p->field_11C = 0;
     p->shield_flags = 0;
+    old_flags = p->flags;
     p->flags = 0;
+
+    {
+    f64 charge_step = lbl_803477D0;
+    f32 charge_cap = lbl_803477D8;
+    f64 boss_step = lbl_80347A40;
 
     for (i = 0; i < 11; i++) {
         f32 timeleft = p->powerup[i].timeleft;
         s32 type;
         u32 flags;
 
-        if (timeleft == 0.0f || p->powerup_state[i] != 2) {
+        if (timeleft == 0.0 || p->powerup_state[i] != 2) {
             continue;
         }
         if (sMusicTrackHi != 0xD && gTriggerCameraState == 0 &&
-            gGameplayPauseTimer == 0 && timeleft > 0.0f) {
+            gGameplayPauseTimer == 0 && timeleft > 0.0) {
             if (gBossType >= 0) {
                 if (gBossActive != 0 && gBossDead == 0) {
                     p->powerup[i].timeleft = (f32)((f64)timeleft -
-                        lbl_80347A40 * (f64)gClockFrameStep);
+                        boss_step * (f64)gClockFrameStep);
                 }
             } else {
                 p->powerup[i].timeleft = timeleft - gClockFrameStep;
             }
-            if (p->powerup[i].timeleft < 0.0f) {
-                p->powerup[i].timeleft = lbl_803477AC;
+            if (p->powerup[i].timeleft < 0.0) {
+                p->powerup[i].timeleft = 0.0f;
             }
         }
         timeleft = p->powerup[i].timeleft;
@@ -4995,19 +5012,18 @@ void PlayerProcessPowerups(void* vp) {
                     (timeleft > 0.0f && timeleft > shield_time)) {
                     shield_time = timeleft;
                     p->field_11C &= ~0xF;
-                    p->field_11C |= flags;
+                    p->field_11C |= p->powerup[i].specialflags;
                 }
-                p->field_11C |= flags & ~0xF;
+                p->field_11C |= p->powerup[i].specialflags & ~0xF;
             } else {
                 p->field_11C |= flags;
             }
             break;
         case 6:
+            p->shield_flags |= p->powerup[i].specialflags;
             flags = p->powerup[i].specialflags;
-            p->shield_flags |= flags;
             if (flags & 0x10000) {
-                if (timeleft < 0.0f ||
-                    (timeleft > 0.0f && timeleft > weapon_time)) {
+                if (timeleft < 0.0f || timeleft > weapon_time) {
                     weapon_time = timeleft;
                 }
             }
@@ -5015,34 +5031,33 @@ void PlayerProcessPowerups(void* vp) {
                 familiar_time = timeleft;
             }
             break;
+        case 8:
+            p->magic_power += p->powerup[i].attributeadd;
+            break;
         case 7:
             p->light_range += p->powerup[i].attributeadd;
             p->flags |= 0x10000;
             break;
-        case 8:
-            p->magic_power += p->powerup[i].attributeadd;
-            break;
         case 9:
-            flags = p->powerup[i].specialflags;
-            p->flags |= flags;
-            if (flags & 0x80000) {
-                PF(p, 0x828, f32) =
-                    (f32)((f64)PF(p, 0x828, f32) + lbl_803477D0);
-                if ((f64)PF(p, 0x828, f32) > lbl_803477D0) {
-                    PF(p, 0x828, f32) = lbl_803477D8;
+            p->flags |= p->powerup[i].specialflags;
+            if (p->powerup[i].specialflags & 0x80000) {
+                p->power_target =
+                    (f32)((f64)p->power_target + charge_step);
+                if ((f64)p->power_target > charge_step) {
+                    p->power_target = charge_cap;
                 }
-                if (timeleft < 0.0f) {
-                    PF(p, 0x828, f32) = 0.0f;
+                if (p->powerup[i].timeleft >= 0.0) {
+                    p->powerup[i].timeleft = 0.0f;
                 }
             }
+            flags = p->powerup[i].specialflags;
             if (flags & 4) {
-                if (timeleft < 0.0f ||
-                    (timeleft > 0.0f && timeleft > alpha_time)) {
+                if (timeleft < 0.0f || timeleft > alpha_time) {
                     alpha_time = timeleft;
                 }
             }
             if (flags & 0x7004F1) {
-                if (timeleft < 0.0f) {
+                if (timeleft < 0.0) {
                     familiar_time = lbl_80347A50;
                 } else if (timeleft > familiar_time) {
                     familiar_time = timeleft;
@@ -5050,376 +5065,393 @@ void PlayerProcessPowerups(void* vp) {
             }
             break;
         }
-        if (p->powerup[i].timeleft == 0.0f) {
+        if (p->powerup[i].timeleft == 0.0) {
             p->powerup_state[i] = 3;
         }
+    }
     }
 
     if (p->node != NULL) {
         if (p->flags & 2) {
             do_see_thru(p);
         } else if (old_flags & 2) {
-            s32 player = p->index;
-            if (lbl_8025ECB8[player][0] != NULL) {
-                AtreeDelete(&lbl_8025ECB8[player][0]);
+            if (lbl_8025ECB8[index][0] != NULL) {
+                AtreeDelete(&lbl_8025ECB8[index][0]);
             }
-            MBTreeSetFlags((void*)lbl_8025EC68[player], 1, 0);
-            if (lbl_8025EC88[player] != NULL &&
-                *(void**)(lbl_8025EC88[player] + 100) != NULL) {
-                void* chest_node = *(void**)(lbl_8025EC88[player] + 100);
-                MBNodeSetParent(chest_node, (void*)lbl_8025EC98[player]);
-                MBTreeSetAlpha(chest_node, 0, 1);
-                CopyMat3((f32*)lbl_8025ECA8[player], (f32*)chest_node);
-                *(f32*)((u8*)chest_node + 0x30) = *(f32*)(lbl_8025ECA8[player] + 0x30);
-                *(f32*)((u8*)chest_node + 0x34) = *(f32*)(lbl_8025ECA8[player] + 0x34);
-                *(f32*)((u8*)chest_node + 0x38) = *(f32*)(lbl_8025ECA8[player] + 0x38);
+            MBTreeSetFlags((void*)lbl_8025EC68[index], 1, 0);
+            if (lbl_8025EC88[index] != NULL &&
+                *(void**)(lbl_8025EC88[index] + 100) != NULL) {
+                MBNodeSetParent(*(void**)(lbl_8025EC88[index] + 100),
+                                (void*)lbl_8025EC98[index]);
+                MBTreeSetAlpha(*(void**)(lbl_8025EC88[index] + 100), 0, 1);
+                CopyMat3((f32*)lbl_8025ECA8[index],
+                         *(f32**)(lbl_8025EC88[index] + 100));
+                *(f32*)(*(u8**)(lbl_8025EC88[index] + 100) + 0x30) =
+                    *(f32*)(lbl_8025ECA8[index] + 0x30);
+                *(f32*)(*(u8**)(lbl_8025EC88[index] + 100) + 0x34) =
+                    *(f32*)(lbl_8025ECA8[index] + 0x34);
+                *(f32*)(*(u8**)(lbl_8025EC88[index] + 100) + 0x38) =
+                    *(f32*)(lbl_8025ECA8[index] + 0x38);
             }
-            lbl_8025EC88[player] = NULL;
+            lbl_8025EC88[index] = NULL;
         }
 
-        if (PF(p, 0x208, s32) == 0x92) {
+        if (p->anim_208 == 0x92) {
             MBTreeSetAlpha(p->node, (s32)lbl_80347A54, 1);
         } else if (p->flags & 4) {
-            f64 player_alpha;
+            f32 player_alpha;
             if (alpha_time < 0.0f || alpha_time > lbl_80347A40 ||
-                (((s32)(alpha_time * lbl_80347A58) & 1) != 0)) {
+                (((s32)(lbl_80347A58 * alpha_time) & 1) != 0)) {
                 player_alpha = 160 +
-                    (s32)(lbl_80347A60 * __sin(alpha_time * lbl_80347930));
+                    (s32)(lbl_80347A60 * __sin(lbl_80347930 * alpha_time));
             } else {
-                player_alpha = 0;
+                player_alpha = 0.0f;
             }
             MBTreeSetAlpha(p->node, (s32)player_alpha, 1);
         } else {
-            MBTreeSetAlpha(p->node, 0, 1);
+            void* pnode;
+            if ((pnode = p->node) != NULL) {
+                MBTreeSetAlpha(pnode, 0, 1);
+            }
         }
 
         if (p->shield_flags & 0x100000) {
             if (weapon_time < 0.0f || weapon_time > lbl_80347A40 ||
-                (((s32)(weapon_time * lbl_80347A58) & 1) != 0)) {
-                SetSkinFX(lbl_80347790, (f32*)((u8*)p + 0x7DC),
+                (((s32)(lbl_80347A58 * weapon_time) & 1) != 0)) {
+                SetSkinFX(1.0f, (f32*)((u8*)p + 0x7DC),
                           lbl_80344BF0, 1, 1);
             }
-        }
-        if (p->shield_flags & 0x10000) {
+        } else if (p->shield_flags & 0x10000) {
             if (weapon_time < 0.0f || weapon_time > lbl_80347A40 ||
-                (((s32)(weapon_time * lbl_80347A58) & 1) != 0)) {
-                SetSkinFX(lbl_80347790, (f32*)((u8*)p + 0x7DC),
+                (((s32)(lbl_80347A58 * weapon_time) & 1) != 0)) {
+                SetSkinFX(1.0f, (f32*)((u8*)p + 0x7DC),
                           lbl_80344BF4, 1, 1);
             }
         }
-    }
 
     {
         s32 had_object;
+        void* obj;
 
-        if (PF(p, 0x72C, void*) != NULL) {
+        if ((obj = p->pup_object) != NULL) {
             had_object = 1;
         } else {
             had_object = 0;
         }
 
         if (p->flags & 0x8000) {
-            const char* name = name_base + 1628;
-            s32 model = MBOX_FindObject(name);
-            if (PF(p, 0x72C, void*) == NULL) {
-                PF(p, 0x72C, void*) =
-                    MBNewObject(model, NULL, PF(p, 0x6CC, void*), 0x9010);
+            s32 model = MBOX_FindObject(name_base + 1628);
+            void* held;
+            if ((held = p->pup_object) == NULL) {
+                p->pup_object = MBNewObject(model, NULL, p->mbnode2, 0x9010);
             } else {
-                MBSetObject(PF(p, 0x72C, void*), model);
+                MBSetObject(held, model);
             }
         } else if (p->shield_flags & 0x20000) {
             s32 model = MBOX_FindObject(&lbl_80347A68);
-            if (PF(p, 0x72C, void*) == NULL) {
-                PF(p, 0x72C, void*) =
-                    MBNewObject(model, NULL, PF(p, 0x6CC, void*), 0x810);
+            void* held;
+            if ((held = p->pup_object) == NULL) {
+                p->pup_object = MBNewObject(model, NULL, p->mbnode2, 0x810);
             } else {
-                MBSetObject(PF(p, 0x72C, void*), model);
+                MBSetObject(held, model);
             }
         } else if (p->shield_flags & 0x200000) {
             s32 model = MBOX_FindObject(&lbl_80347A70);
-            if (PF(p, 0x72C, void*) == NULL) {
-                PF(p, 0x72C, void*) =
-                    MBNewObject(model, NULL, PF(p, 0x6CC, void*), 0x810);
+            void* held;
+            if ((held = p->pup_object) == NULL) {
+                p->pup_object = MBNewObject(model, NULL, p->mbnode2, 0x810);
             } else {
-                MBSetObject(PF(p, 0x72C, void*), model);
+                MBSetObject(held, model);
             }
         } else if (p->shield_flags & 0x400000) {
             s32 model = MBOX_FindObject(&lbl_80347A78);
-            if (PF(p, 0x72C, void*) == NULL) {
-                PF(p, 0x72C, void*) =
-                    MBNewObject(model, NULL, PF(p, 0x6CC, void*), 0x810);
+            void* held;
+            if ((held = p->pup_object) == NULL) {
+                p->pup_object = MBNewObject(model, NULL, p->mbnode2, 0x810);
             } else {
-                MBSetObject(PF(p, 0x72C, void*), model);
-            }
-        } else if (PF(p, 0x72C, void*) != NULL) {
-            MBRemoveNode(PF(p, 0x72C, void*), 0);
-            PF(p, 0x72C, void*) = NULL;
-        }
-        if (PF(p, 0x72C, void*) != NULL && !had_object) {
-            if (p->state == 1 || p->state == 5) {
-                void* node = *(void**)((u8*)PF(p, 0x6CC, void*) + 0x74);
-                PF(node, 0x60, u32) |= 1;
-            } else if (p->state == 7) {
-                PF(PF(p, 0x6CC, void*), 0x60, u32) |= 1;
-            }
-        } else if (PF(p, 0x72C, void*) == NULL && had_object) {
-            if (p->state == 1 || p->state == 5) {
-                void* node = *(void**)((u8*)PF(p, 0x6CC, void*) + 0x74);
-                PF(node, 0x60, u32) &= ~1;
-            } else if (p->state == 7) {
-                PF(PF(p, 0x6CC, void*), 0x60, u32) &= ~1;
-            }
-        }
-    }
-
-    if ((p->shield_flags & 0x100000) && PF(p, 0xA1C, s16) == 0) {
-        PF(p, 0xA1C, s16) = 1;
-    }
-    {
-        void** object = (void**)((u8*)p + 0x968);
-        if (p->flags & 0x200000) {
-            if (PF(p, 0xA1E, s16) == 0) {
-                const char* name = name_base + 1640;
-                s32 model = MBOX_FindObject(name);
-                if (*object == NULL) {
-                    *object = MBNewObject(model, NULL, p->node, 0x10);
-                } else {
-                    MBSetObject(*object, model);
-                }
-                PF(p, 0xA1E, s16) = 1;
-                StartGemFX((f32*)((u8*)p + 0x64), 1);
-            }
-        } else if (p->flags & 0x400000) {
-            if (PF(p, 0xA20, s16) == 0) {
-                const char* name = name_base + 1660;
-                s32 model = MBOX_FindObject(name);
-                if (*object == NULL) {
-                    *object = MBNewObject(model, NULL, p->node, 0x10);
-                } else {
-                    MBSetObject(*object, model);
-                }
-                PF(p, 0xA20, s16) = 1;
-                StartGemFX((f32*)((u8*)p + 0x64), 1);
+                MBSetObject(held, model);
             }
         } else {
-            if (*object != NULL) {
-                MBRemoveNode(*object, 0);
+            if (obj != NULL) {
+                MBRemoveNode(obj, 0);
             }
-            PF(p, 0xA20, s16) = 0;
-            PF(p, 0xA1E, s16) = 0;
-            *object = NULL;
+            p->pup_object = NULL;
+        }
+        if (p->pup_object != NULL && !had_object) {
+            if (p->char_type == 1 || p->char_type == 5) {
+                void* node = *(void**)((u8*)p->mbnode2 + 0x74);
+                PF(node, 0x60, u32) |= 1;
+            } else if (p->char_type == 7) {
+                PF(p->mbnode2, 0x60, u32) |= 1;
+            }
+        } else if (p->pup_object == NULL && had_object) {
+            if (p->char_type == 1 || p->char_type == 5) {
+                void* node = *(void**)((u8*)p->mbnode2 + 0x74);
+                PF(node, 0x60, u32) &= ~1;
+            } else if (p->char_type == 7) {
+                PF(p->mbnode2, 0x60, u32) &= ~1;
+            }
         }
     }
 
-    {
-        void** object = (void**)((u8*)p + 0x734);
-        void* parent = PF(p, 0x6D4, void*);
-        if (p->flags & 0x1000) {
-            const char* name = name_base + 1676;
-            s32 model = MBOX_FindObject(name);
-            if (*object == NULL) {
-                *object = MBNewObject(model, NULL, parent, 0x9010);
+    if ((p->flags & 0x100000) && p->field_A1C == 0) {
+        p->field_A1C = 1;
+    }
+    if (p->flags & 0x200000) {
+        if (p->field_A1E == 0) {
+            s32 model = MBOX_FindObject(name_base + 1640);
+            void* held;
+            if ((held = p->gem_object) == NULL) {
+                p->gem_object = MBNewObject(model, NULL, p->weapon_node, 0x810);
             } else {
-                MBSetObject(*object, model);
+                MBSetObject(held, model);
             }
-        } else if (p->flags & 0x2000) {
-            const char* name = name_base + 1688;
-            s32 model = MBOX_FindObject(name);
-            if (*object == NULL) {
-                *object = MBNewObject(model, NULL, parent, 0x9010);
-            } else {
-                MBSetObject(*object, model);
-            }
-        } else if (p->shield_flags & 0x80000) {
-            const char* name = name_base + 1700;
-            s32 model = MBOX_FindObject(name);
-            if (*object == NULL) {
-                *object = MBNewObject(model, NULL, parent, 0x810);
-            } else {
-                MBSetObject(*object, model);
-            }
-        } else if (p->shield_flags & 0x2000) {
-            const char* name = name_base + 1712;
-            s32 model = MBOX_FindObject(name);
-            if (*object == NULL) {
-                *object = MBNewObject(model, NULL, parent, 0x810);
-            } else {
-                MBSetObject(*object, model);
-            }
-        } else if (p->flags & 2) {
-            const char* name = name_base + 1724;
-            s32 model = MBOX_FindObject(name);
-            if (*object == NULL) {
-                *object = MBNewObject(model, NULL, parent, 0x810);
-            } else {
-                MBSetObject(*object, model);
-            }
-        } else if (*object != NULL) {
-            MBRemoveNode(*object, 0);
-            *object = NULL;
+            p->field_A1E = 1;
+            StartGemFX(p->effectpos, 1);
         }
+    } else if (p->flags & 0x400000) {
+        if (p->field_A20 == 0) {
+            s32 model = MBOX_FindObject(name_base + 1660);
+            void* held;
+            if ((held = p->gem_object) == NULL) {
+                p->gem_object = MBNewObject(model, NULL, p->weapon_node, 0x810);
+            } else {
+                MBSetObject(held, model);
+            }
+            p->field_A20 = 1;
+            StartGemFX(p->effectpos, 1);
+        }
+    } else {
+        void* obj;
+        if ((obj = p->gem_object) != NULL) {
+            MBRemoveNode(obj, 0);
+        }
+        p->field_A20 = 0;
+        p->field_A1E = 0;
+        p->gem_object = NULL;
     }
 
-    if (lbl_8034489C == 0 || PF(p, 0x834, s32) == 0) {
-        void** object = (void**)((u8*)p + 0x730);
-        void* parent = PF(p, 0x6D0, void*);
+    if (p->flags & 0x1000) {
+        s32 model = MBOX_FindObject(name_base + 1676);
+        void* held;
+        if ((held = p->wand_object) == NULL) {
+            p->wand_object = MBNewObject(model, NULL, p->weapon_node, 0x9010);
+        } else {
+            MBSetObject(held, model);
+        }
+    } else if (p->flags & 0x2000) {
+        s32 model = MBOX_FindObject(name_base + 1688);
+        void* held;
+        if ((held = p->wand_object) == NULL) {
+            p->wand_object = MBNewObject(model, NULL, p->weapon_node, 0x9010);
+        } else {
+            MBSetObject(held, model);
+        }
+    } else if (p->shield_flags & 0x80000) {
+        s32 model = MBOX_FindObject(name_base + 1700);
+        void* held;
+        if ((held = p->wand_object) == NULL) {
+            p->wand_object = MBNewObject(model, NULL, p->weapon_node, 0x810);
+        } else {
+            MBSetObject(held, model);
+        }
+    } else if (p->shield_flags & 0x2000) {
+        s32 model = MBOX_FindObject(name_base + 1712);
+        void* held;
+        if ((held = p->wand_object) == NULL) {
+            p->wand_object = MBNewObject(model, NULL, p->weapon_node, 0x810);
+        } else {
+            MBSetObject(held, model);
+        }
+    } else if (p->flags & 2) {
+        s32 model = MBOX_FindObject(name_base + 1724);
+        void* held;
+        if ((held = p->wand_object) == NULL) {
+            p->wand_object = MBNewObject(model, NULL, p->weapon_node, 0x810);
+        } else {
+            MBSetObject(held, model);
+        }
+    } else {
+        void* obj;
+        if ((obj = p->wand_object) != NULL) {
+            MBRemoveNode(obj, 0);
+        }
+        p->wand_object = NULL;
+    }
+
+    if (lbl_8034489C == 0 || p->quest_state == 0) {
         if (p->flags & 0x4000) {
-            const char* name = name_base + 1736;
-            s32 model = MBOX_FindObject(name);
-            if (*object == NULL) {
-                *object = MBNewObject(model, NULL, parent, 0x9010);
+            s32 model = MBOX_FindObject(name_base + 1736);
+            void* held;
+            if ((held = p->shield_object) == NULL) {
+                p->shield_object =
+                    MBNewObject(model, NULL, p->hand_node, 0x9010);
             } else {
-                MBSetObject(*object, model);
+                MBSetObject(held, model);
             }
         } else if (p->field_11C & 0x100000) {
-            const char* name = name_base + 1748;
-            s32 model = MBOX_FindObject(name);
-            if (*object == NULL) {
-                *object = MBNewObject(model, NULL, parent, 0x810);
+            s32 model = MBOX_FindObject(name_base + 1748);
+            void* held;
+            if ((held = p->shield_object) == NULL) {
+                p->shield_object =
+                    MBNewObject(model, NULL, p->hand_node, 0x810);
             } else {
-                MBSetObject(*object, model);
+                MBSetObject(held, model);
             }
         } else if (p->field_11C & 0x10000000) {
-            const char* name = name_base + 1760;
-            s32 model = MBOX_FindObject(name);
-            if (*object == NULL) {
-                *object = MBNewObject(model, NULL, parent, 0x10);
+            s32 model = MBOX_FindObject(name_base + 1760);
+            void* held;
+            if ((held = p->shield_object) == NULL) {
+                p->shield_object =
+                    MBNewObject(model, NULL, p->hand_node, 0x10);
             } else {
-                MBSetObject(*object, model);
+                MBSetObject(held, model);
             }
-        } else if (*object != NULL) {
-            MBRemoveNode(*object, 0);
-            *object = NULL;
+        } else {
+            void* obj;
+            if ((obj = p->shield_object) != NULL) {
+                MBRemoveNode(obj, 0);
+            }
+            p->shield_object = NULL;
         }
     }
 
-    if (PF(p, 0x730, void*) != NULL) {
-        if (PF(p, 0x6E0, void*) != NULL) {
-            MBTreeSetFlags(PF(p, 0x6E0, void*), 2, 0);
+    if (p->shield_object != NULL) {
+        void* wnode;
+        if ((wnode = p->weaphold_node) != NULL) {
+            MBTreeSetFlags(wnode, 2, 0);
         }
-        AtreeDelete((void**)((u8*)p + 0x6E4));
+        AtreeDelete(&p->weaphold_atree);
     } else {
         u32 kind = p->field_11C & 0xF;
-        void* source = NULL;
-        void** handle = (void**)((u8*)p + 0x6E4);
-        s32 fresh = 0;
+        s32 fresh;
+        void* wnode;
 
         if (kind != 0) {
-            source = WeapHoldFxTree[p->index][kind - 1];
-        }
-        if (*handle != NULL &&
-            (source == NULL || PF(p, 0x6EC, u32) != ((u32*)source)[1])) {
-            AtreeDelete(handle);
-        }
-        if (*handle == NULL && source != NULL) {
-            *handle = (void*)AtreeInit(source, handle, 0, 0x81880);
-            MBTreeSetFlags(*(void**)*handle, 0x10, 0);
-            MBNodeSetParent(*(void**)*handle, PF(p, 0x6D0, void*));
-            MBTreeSetAlpha(*(void**)*handle, 0, 1);
-            fresh = 1;
-        }
-        if (fresh != 0 && *handle != NULL) {
-            s32 color_offset = (p->level / 10) * 12;
-            *(f32*)((u8*)*(void**)*handle + 0x30) =
-                ((f32*)(lbl_80282930[p->index] + color_offset))[0x1A];
-            *(f32*)((u8*)*(void**)*handle + 0x34) =
-                ((f32*)(lbl_80282930[p->index] + color_offset))[0x1B];
-            *(f32*)((u8*)*(void**)*handle + 0x38) =
-                ((f32*)(lbl_80282930[p->index] + color_offset))[0x1C];
-            if (((f32*)(lbl_80282930[p->index] + color_offset))[0x38] != 0.0f) {
-                PF(*(void**)*handle, 0x60, u32) |= 8;
-                *(f32*)((u8*)*(void**)*handle + 0x40) =
-                    ((f32*)(lbl_80282930[p->index] + color_offset))[0x38];
-                *(f32*)((u8*)*(void**)*handle + 0x44) =
-                    ((f32*)(lbl_80282930[p->index] + color_offset))[0x39];
-                *(f32*)((u8*)*(void**)*handle + 0x48) =
-                    ((f32*)(lbl_80282930[p->index] + color_offset))[0x3A];
+            void* source = WeapHoldFxTree[index][kind];
+            void* parent = p->hand_node;
+            s32 tree_flags = 0x81880;
+
+            if (p->weaphold_atree != NULL &&
+                (source == NULL ||
+                 p->weaphold_src_id != ((u32*)source)[1])) {
+                AtreeDelete(&p->weaphold_atree);
+            }
+            if (p->weaphold_atree == NULL && source != NULL) {
+                p->weaphold_atree = (void*)AtreeInit(source,
+                                                     &p->weaphold_atree, 0,
+                                                     tree_flags);
+                MBTreeSetFlags(*(void**)p->weaphold_atree, 0x10, 0);
+                MBNodeSetParent(*(void**)p->weaphold_atree, parent);
+                MBTreeSetAlpha(*(void**)p->weaphold_atree, 0, 1);
+                fresh = 1;
+            } else {
+                fresh = 0;
+            }
+            if (fresh != 0 && p->weaphold_atree != NULL) {
+                s32 tier = p->level / 10;
+                *(f32*)((u8*)*(void**)p->weaphold_atree + 0x30) =
+                    ((TierColor*)(lbl_80282930[p->index] + 0x68))[tier].rgb[0];
+                *(f32*)((u8*)*(void**)p->weaphold_atree + 0x34) =
+                    ((TierColor*)(lbl_80282930[p->index] + 0x68))[tier].rgb[1];
+                *(f32*)((u8*)*(void**)p->weaphold_atree + 0x38) =
+                    ((TierColor*)(lbl_80282930[p->index] + 0x68))[tier].rgb[2];
+                if (((TierColor*)(lbl_80282930[p->index] + 0xE0))[tier].rgb[0] !=
+                    0.0f) {
+                    PF(*(void**)p->weaphold_atree, 0x60, u32) |= 8;
+                    *(f32*)((u8*)*(void**)p->weaphold_atree + 0x40) =
+                        ((TierColor*)(lbl_80282930[p->index] + 0xE0))[tier].rgb[0];
+                    *(f32*)((u8*)*(void**)p->weaphold_atree + 0x44) =
+                        ((TierColor*)(lbl_80282930[p->index] + 0xE0))[tier].rgb[1];
+                    *(f32*)((u8*)*(void**)p->weaphold_atree + 0x48) =
+                        ((TierColor*)(lbl_80282930[p->index] + 0xE0))[tier].rgb[2];
+                }
+            }
+        } else {
+            if (p->weaphold_atree != NULL) {
+                AtreeDelete(&p->weaphold_atree);
             }
         }
-        if (*handle != NULL) {
-            AnimateATree(handle, 0, 0);
+        if (p->weaphold_atree != NULL) {
+            AnimateATree(&p->weaphold_atree, 0, 0);
         }
-        MBTreeClearFlags(PF(p, 0x6E0, void*), 2, 0);
+        if ((wnode = p->weaphold_node) != NULL) {
+            MBTreeClearFlags(wnode, 2, 0);
+        }
     }
 
-    {
-        void** handle = (void**)((u8*)p + 0x790);
+    if (p->flags & 0x400) {
+        PLAYER_SET_FAMILIAR(PojoTree, p->node);
+    } else if ((p->shield_flags & 0x200000) && p->anim_208 == 22) {
+        PLAYER_SET_FAMILIAR(FireShieldTree, p->node);
+    } else if (p->flags & 0x80) {
+        PLAYER_SET_FAMILIAR(lbl_803445B0, p->node);
+    } else if (p->flags & 0x10) {
+        PLAYER_SET_FAMILIAR(BreatheFireTree, p->weapon_node);
+    } else if (p->flags & 0x20) {
+        PLAYER_SET_FAMILIAR(BreatheAcidTree, p->weapon_node);
+    } else if (p->flags & 0x40) {
+        PLAYER_SET_FAMILIAR(BreatheElecTree, p->weapon_node);
+    } else if (p->flags & 1) {
+        void* parent = *(void**)((u8*)*(void**)((u8*)p->node + 0x78) + 0x78);
+        PLAYER_SET_FAMILIAR(WingsTree, parent);
+    } else if (p->atree != NULL) {
+        AtreeDelete(&p->atree);
+    }
+    if (p->atree != NULL) {
+        s32 anim = 0;
+        s32 transition = 0;
 
         if (p->flags & 0x400) {
-            PLAYER_SET_FAMILIAR(PojoTree, p->node);
-        } else if ((p->shield_flags & 0x200000) &&
-                   PF(p, 0x208, s32) == 22) {
-            PLAYER_SET_FAMILIAR(FireShieldTree, p->node);
-        } else if (p->flags & 0x80) {
-            PLAYER_SET_FAMILIAR(lbl_803445B0, p->node);
-        } else if (p->flags & 0x10) {
-            PLAYER_SET_FAMILIAR(BreatheFireTree, PF(p, 0x6D4, void*));
-        } else if (p->flags & 0x20) {
-            PLAYER_SET_FAMILIAR(BreatheAcidTree, PF(p, 0x6D4, void*));
-        } else if (p->flags & 0x40) {
-            PLAYER_SET_FAMILIAR(BreatheElecTree, PF(p, 0x6D4, void*));
-        } else if (p->flags & 1) {
-            void* parent = *(void**)((u8*)*(void**)((u8*)p->node + 0x78) + 0x78);
-            PLAYER_SET_FAMILIAR(WingsTree, parent);
-        } else if (*handle != NULL) {
-            AtreeDelete(handle);
-        }
-        if (*handle != NULL) {
-            s32 anim = 0;
-            s32 transition = 0;
-
-            if (p->flags & 0x400) {
-                switch (PF(p, 0x208, s32)) {
-                case 8:
-                case 17:
-                case 18:
-                case 19:
-                case 20:
-                case 22:
-                case 25:
-                case 26:
-                    anim = 1;
-                    break;
-                case 110:
-                    anim = 3;
-                    transition = 2;
-                    break;
-                case 126:
-                    anim = 5;
-                    transition = 2;
-                    break;
-                case 27:
-                case 127:
-                case 128:
-                case 129:
-                case 130:
-                case 131:
-                case 133:
-                case 135:
-                case 148:
-                    anim = 4;
-                    transition = 2;
-                    break;
-                }
-                if (PF(p, 0x900, u32) & 0x20000000) {
-                    anim = 2;
-                    transition = 2;
-                }
-                PF(p, 0x900, u32) &= ~0x20000000;
-            } else if ((PF(p, 0x900, u32) & 0x10000000) &&
-                       PF(p, 0x7A0, s16) > 1) {
+            switch (p->anim_208) {
+            case 8:
+            case 17:
+            case 18:
+            case 19:
+            case 20:
+            case 22:
+            case 25:
+            case 26:
                 anim = 1;
+                break;
+            case 110:
+                anim = 3;
+                transition = 2;
+                break;
+            case 27:
+            case 127:
+            case 128:
+            case 129:
+            case 130:
+            case 131:
+            case 133:
+            case 135:
+            case 148:
+                anim = 4;
+                transition = 2;
+                break;
+            case 126:
+                anim = 5;
+                transition = 2;
+                break;
+            }
+            if (p->act_bits & 0x20000000) {
+                anim = 2;
                 transition = 2;
             }
-            if (PF(p, 0x7A2, s16) == 0) {
-                transition = 2;
-            }
-            AnimateATree(handle, anim, transition);
-            if (familiar_time >= 0.0f && familiar_time < lbl_80347838) {
-                s32 familiar_alpha =
-                    (s32)(lbl_803478F8 * (lbl_80347838 - familiar_time));
-                MBTreeSetAlpha(*(void**)*handle, familiar_alpha, 1);
-            }
+            p->act_bits &= ~0x20000000;
+        } else if ((p->act_bits & 0x10000000) && p->field_7A0 > 1) {
+            anim = 1;
+            transition = 2;
+        }
+        if (p->field_7A2 == 0) {
+            transition = 2;
+        }
+        AnimateATree(&p->atree, anim, transition);
+        if (familiar_time >= 0.0 && familiar_time < lbl_80347838) {
+            s32 familiar_alpha =
+                (s32)(lbl_803478F8 * (lbl_80347838 - familiar_time));
+            MBTreeSetAlpha(*(void**)p->atree, familiar_alpha, 1);
         }
     }
 
@@ -5428,24 +5460,30 @@ void PlayerProcessPowerups(void* vp) {
 
     if (p->field_128 & 1) {
         s32 kind = (p->field_128 & 2) ? 2 : 1;
-        if (PF(p, 0x738, s32) < 0) {
-            PF(p, 0x738, s32) = StartDeathFX(p->node, kind, 0x10);
+        if (p->death_effect < 0) {
+            p->death_effect = StartDeathFX(p->node, kind, 0x10);
         }
-        AudioPlayEvt102Follow((f32*)((u8*)p + 0x44), p->index);
-    } else if (PF(p, 0x738, s32) >= 0) {
-        PF(p, 0x738, s32) = DeleteEffect(PF(p, 0x738, s32), 0);
+        AudioPlayEvt102Follow(p->pos, index);
+    } else {
+        s32 fx;
+        if ((fx = p->death_effect) >= 0) {
+            p->death_effect = DeleteEffect(fx, 0);
+        }
         if (p->field_12C & 1) {
             AudioPlayEvt102();
         }
     }
 
     if (PF(p, 0x954, u16) != 0 && (PF(p, 0x964, s16) & 2) == 0) {
-        if (PF(p, 0x740, void*) == NULL) {
-            PF(p, 0x740, void*) = MBOX_NewObject(&lbl_80347A80, NULL, p->node, 0x10);
+        if (p->marker_object == NULL) {
+            p->marker_object = MBOX_NewObject(&lbl_80347A80, NULL, p->node, 0x10);
         }
-    } else if (PF(p, 0x740, void*) != NULL) {
-        MBRemoveNode(PF(p, 0x740, void*), 0);
-        PF(p, 0x740, void*) = NULL;
+    } else {
+        void* obj;
+        if ((obj = p->marker_object) != NULL) {
+            MBRemoveNode(obj, 0);
+        }
+        p->marker_object = NULL;
     }
 
     if (p->flags & 0x400) {
@@ -5453,7 +5491,7 @@ void PlayerProcessPowerups(void* vp) {
     } else {
         MBTreeClearFlags(*(void**)PF(p, 0x7C, void*), 2, 0);
         if (old_flags & 0x400) {
-            fn_8009D5A0(p->index);
+            fn_8009D5A0(index);
         }
     }
 
@@ -5475,15 +5513,16 @@ void PlayerProcessPowerups(void* vp) {
         }
     }
     if ((p->flags & 1) == 0 && (old_flags & 1)) {
-        fn_8009D4F0(p->index);
+        fn_8009D4F0(index);
     }
     if (p->level >= 99) {
         f32 scale;
-        MBTreeSetFlags(PF(p, 0x6D4, void*), 8, 0);
+        MBTreeSetFlags(p->weapon_node, 8, 0);
         scale = lbl_80347770;
-        *(f32*)((u8*)PF(p, 0x6D4, void*) + 0x40) = scale;
-        *(f32*)((u8*)PF(p, 0x6D4, void*) + 0x44) = scale;
-        *(f32*)((u8*)PF(p, 0x6D4, void*) + 0x48) = scale;
+        *(f32*)((u8*)p->weapon_node + 0x40) = scale;
+        *(f32*)((u8*)p->weapon_node + 0x44) = scale;
+        *(f32*)((u8*)p->weapon_node + 0x48) = scale;
+    }
     }
 
     p->field_12C = p->field_128;

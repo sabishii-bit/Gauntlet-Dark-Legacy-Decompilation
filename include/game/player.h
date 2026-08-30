@@ -168,9 +168,28 @@ typedef struct Player {
     /* 0x06C0 */ u8  pad_06C0[8];
     /* 0x06C8 */ void* mbnode;       /* secondary MBTree node (weapon/shadow) [pmotion.c] */
     /* 0x06CC */ void* mbnode2;      /* effect anchor node [pmotion.c] */
-    /* 0x06D0 */ u8  pad_06D0[0xC0];
-    /* 0x0790 */ void* atree;        /* anim tree handle [pmotion.c] */
-    /* 0x0794 */ u8  pad_0794[0x68];
+    /* 0x06D0 */ void* hand_node;    /* off-hand FX parent: shield objects, weapon-hold tree [player.c] */
+    /* 0x06D4 */ void* weapon_node;  /* weapon FX parent: wand/gem objects, breath familiars [player.c] */
+    /* 0x06D8 */ u8  pad_06D8[8];
+    /* 0x06E0 */ void* weaphold_node;   /* node hidden/shown with the weapon-hold FX tree [player.c] */
+    /* 0x06E4 */ void* weaphold_atree;  /* weapon-hold FX atree handle [player.c] */
+    /* 0x06E8 */ u8  pad_06E8[4];
+    /* 0x06EC */ u32 weaphold_src_id;   /* weapon-hold source id, stale-tree check [player.c] */
+    /* 0x06F0 */ u8  pad_06F0[0x3C];
+    /* 0x072C */ void* pup_object;      /* held powerup weapon model [player.c] */
+    /* 0x0730 */ void* shield_object;   /* reflect/x-ray shield model (parent hand_node) [player.c] */
+    /* 0x0734 */ void* wand_object;     /* levitate/anti-death wand model (parent weapon_node) [player.c] */
+    /* 0x0738 */ s32 death_effect;      /* StartDeathFX effect id, < 0 when off [player.c] */
+    /* 0x073C */ u8  pad_073C[4];
+    /* 0x0740 */ void* marker_object;   /* overhead marker model [player.c] */
+    /* 0x0744 */ u8  pad_0744[0x4C];
+    /* 0x0790 */ void* atree;        /* familiar/overlay atree handle [pmotion.c/player.c] */
+    /* 0x0794 */ u8  pad_0794[4];
+    /* 0x0798 */ u32 atree_src_id;   /* familiar source id, stale-tree check [player.c] */
+    /* 0x079C */ u8  pad_079C[4];
+    /* 0x07A0 */ s16 field_7A0;      /* familiar anim gate counter [player.c] */
+    /* 0x07A2 */ s16 field_7A2;      /* familiar transition lock [player.c] */
+    /* 0x07A4 */ u8  pad_07A4[0x58];
     /* 0x07FC */ f32 pulse_7FC;      /* rune-near display pulse [player.c] */
     /* 0x0800 */ u8  pad_0800[0x28];
     /* 0x0828 */ f32 power_target;   /* power-meter target [player.c] */
@@ -234,7 +253,12 @@ typedef struct Player {
     /* 0x0962 */ s16 grab_flags;     /* grab variant flags [pmotion.c/player.c] */
     /* 0x0964 */ s16 hud_flags;      /* 0x20 = attached (lha in target) [player.c] */
     /* 0x0966 */ s16 hud_flags2;     /* 1 = info written, 2 = runes written [player.c] */
-    /* 0x0968 */ u8  pad_0968[0xC4];
+    /* 0x0968 */ void* gem_object;   /* thunder/lightning gem model [player.c] */
+    /* 0x096C */ u8  pad_096C[0xB0];
+    /* 0x0A1C */ s16 field_A1C;      /* weapon-flash one-shot latch [player.c] */
+    /* 0x0A1E */ s16 field_A1E;      /* gem-object latch, flags 0x200000 [player.c] */
+    /* 0x0A20 */ s16 field_A20;      /* gem-object latch, flags 0x400000 [player.c] */
+    /* 0x0A22 */ u8  pad_0A22[0x0A];
     /* 0x0A2C */ s32 weakening_elapsed; /* elapsed ticks in weakening cycle [player.c] */
     /* 0x0A30 */ s32 weakening_period; /* weakening cycle duration [player.c] */
     /* 0x0A34 */ s32 milestone[5];   /* recently visited milestone nodes [items.c] */
