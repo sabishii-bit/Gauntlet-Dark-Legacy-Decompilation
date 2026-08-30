@@ -1,0 +1,13 @@
+{
+  "attributes": {
+    "scope": "src/game/anim/atree.c (entire translation unit)"
+  },
+  "branch": "codex/atree-11dcc-20260829",
+  "claimed_at": "2026-08-29T20:15:00-07:00",
+  "function": "function:fn_80011DCC",
+  "id": "work-claim.codex.atree-11dcc.20260829.v1",
+  "kind": "work_claim",
+  "owner": "Codex /root campaign",
+  "schema_version": 1,
+  "state": "active"
+}
