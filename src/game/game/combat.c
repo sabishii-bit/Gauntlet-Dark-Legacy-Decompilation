@@ -785,8 +785,8 @@ void write_stage_info(s32 mode);
  */
 s32 init_game_cam(s32 camIdx)
 {
-    Camera* cameras = gCameras;
-    Camera* cam = &cameras[camIdx];
+    u8* gcs = (u8*)gCameraState;
+    Camera* cam = (Camera*)(gcs + camIdx * 396 + 0xC8);
     s32 prevTimer;
     u8* level = *(u8**)((u8*)gCurLevel + 0x60);
     s32 reached = 2;
@@ -833,9 +833,9 @@ s32 init_game_cam(s32 camIdx)
     }
 
     if (gScriptedCameraState == 1) {
-        dy = cameras[0].wpos[1] - cam[0].wpos[1];
-        dx = cameras[0].wpos[0] - cam[0].wpos[0];
-        dz = cameras[0].wpos[2] - cam[0].wpos[2];
+        dy = *(f32*)(gcs + 0x130) - cam[0].wpos[1];
+        dx = *(f32*)(gcs + 0x12C) - cam[0].wpos[0];
+        dz = *(f32*)(gcs + 0x134) - cam[0].wpos[2];
         len = dy * dy;
         len = dx * dx + len;
         len = dz * dz + len;
@@ -867,9 +867,9 @@ s32 init_game_cam(s32 camIdx)
         cam[0].wpos[1] = cam[0].wpos[1] + dy;
         cam[0].wpos[2] = cam[0].wpos[2] + dz;
 
-        dy = cameras[0].attn[1] - cam[0].attn[1];
-        dx = cameras[0].attn[0] - cam[0].attn[0];
-        dz = cameras[0].attn[2] - cam[0].attn[2];
+        dy = *(f32*)(gcs + 0x1F8) - cam[0].attn[1];
+        dx = *(f32*)(gcs + 0x1F4) - cam[0].attn[0];
+        dz = *(f32*)(gcs + 0x1FC) - cam[0].attn[2];
         len = dy * dy;
         len = dx * dx + len;
         len = dz * dz + len;
@@ -934,8 +934,9 @@ s32 init_game_cam(s32 camIdx)
                     cam->a_mode = oldMode;
                 }
                 cam->state = 0;
-                if ((sFlags & 4) != 0) {
+                if ((gControllerButtons.both & 4) != 0) {
                     lbl_803445D4 = lbl_803445D4 | 4;
+                    *(volatile s32*)&sPreviousFlags.word.buttons = sPreviousFlags.word.buttons;
                 }
                 return 0;
             }
