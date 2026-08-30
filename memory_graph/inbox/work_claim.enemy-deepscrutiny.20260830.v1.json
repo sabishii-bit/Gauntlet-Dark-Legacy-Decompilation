@@ -1,0 +1,13 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "whole TU src/game/enemy/enemy.c exclusively; USER-DIRECTED deep-scrutiny pass on the move-function family: target-CFG decode of every sub-100% fn (init_enemy, move_logic15, do_enemies, fn_8004646C, fn_80046680, generate_enemy, fn_8004DB3C, move_logic22, find_neighbor_milestone, move_logic10, do_enemy_move, damage_enemy) hunting semantic divergences, plus full de-fakematch of the ~489 raw-cast sites concentrated in move_logic05/06/do_enemy_collide/init_enemy; supersedes-extends the two prior enemy.c passes; parallel CodeX/Kimi fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-30",
+  "function": "function:move_logic10",
+  "id": "work_claim.enemy-deepscrutiny.20260830.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-AD",
+  "schema_version": 1,
+  "state": "active"
+}
