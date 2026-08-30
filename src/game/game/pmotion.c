@@ -715,25 +715,26 @@ s32 try_location(u8* motion, Player* p, f32* position, f32* resultPosition,
     f32 hitPosition[3];
     f32 delta;
     u8 unusedTail[4];
+    Player* pm = (Player*)motion;
     f32 radius = p->col_radius;
     f32 height = p->col_height;
-    s32 floorFlags = (*(u32*)(motion + 0x8C0)) & 0x38;
+    s32 floorFlags = SV(motion)->floor_flags & 0x38;
 
-    collidePosition[0] = *(f32*)(motion + 0x64);
-    collidePosition[1] = *(f32*)(motion + 0x68);
-    collidePosition[2] = *(f32*)(motion + 0x6C);
+    collidePosition[0] = pm->effectpos[0];
+    collidePosition[1] = pm->effectpos[1];
+    collidePosition[2] = pm->effectpos[2];
 
     if (findFloor != 0) {
         screen[0] = FloorPos(lbl_80344880, (f32)(lbl_80347B00 * radius), position, 1);
         if (*(void**)((u8*)gFloorCollisionResult + 0x44) == NULL) {
             return 0;
         }
-        if (*(void**)(motion + 0x8C4) != NULL &&
-            ((*(u32*)(*(u8**)(motion + 0x8C4) + 0x10) & 0x1000) != 0) &&
-            *(void**)(motion + 0x8C4) != *(void**)((u8*)gFloorCollisionResult + 0x44)) {
+        if ((WorldObj*)SV(motion)->floor_obj != NULL &&
+            ((((WorldObj*)SV(motion)->floor_obj)->flags & 0x1000) != 0) &&
+            (WorldObj*)SV(motion)->floor_obj != *(void**)((u8*)gFloorCollisionResult + 0x44)) {
             return 0;
         }
-        delta = screen[0] - *(f32*)(motion + 0x8B4);
+        delta = screen[0] - SV(motion)->floor_y;
         *(u32*)&delta &= 0x7FFFFFFF;
         if (delta > lbl_80347B38 ||
             (delta > lbl_80347B28 && floorFlags == 0)) {
@@ -741,13 +742,13 @@ s32 try_location(u8* motion, Player* p, f32* position, f32* resultPosition,
         }
         position[1] = screen[0];
     } else {
-        position[1] = *(f32*)(motion + 0x8B4);
+        position[1] = SV(motion)->floor_y;
     }
 
     p->pos[0] = position[0];
     p->pos[1] = position[1];
     p->pos[2] = position[2];
-    fn_8005A404(&p->mat[0], (f32*)((u8*)p + 0x844), (f32*)((u8*)p + 0x838));
+    fn_8005A404(&p->mat[0], p->anchor_fwd, p->anchor_pos);
 
     if (gGameMode != 0x400C && lbl_80344500 == 0 && lbl_803443A8 == 0) {
         get_actual_screen_pos(0, (f32*)&screen[1], (f32*)&screen[0], p->col_pos);
@@ -759,7 +760,7 @@ s32 try_location(u8* motion, Player* p, f32* position, f32* resultPosition,
         }
     }
 
-    position[1] += PF(p, 0x848, f32);
+    position[1] += p->anchor_fwd[1];
     if (PlayerWallCollide(collidePosition, position, NULL, lbl_80347B40) != NULL) {
         return 0;
     }
