@@ -2281,9 +2281,9 @@ void move_logic05(s32 index)
         u8* other = (u8*)page + it * 916;
         if (*(s32*)(other + 3788) != 1) {
             flee = 0;
-        } else if (*(f32*)(other + 4244) > *(f32*)(e0 + 768)) {
+        } else if (*(f32*)(other + 4244) > e->sight) {
             flee = 0;
-        } else if (index == it || *(s16*)(e0 + 728) != 0 || *(s32*)(e0 + 856) > 0) {
+        } else if (index == it || e->birth_style != 0 || e->dead_end > 0) {
             goto flee_zero05;
         } else {
             f32 dx = *(f32*)(other + 3660) - *(f32*)(e0 + 52);
@@ -2298,78 +2298,78 @@ void move_logic05(s32 index)
         }
     }
     if (flee != 0) {
-        *(s16*)(e0 + 784) = 24;
+        e->algorithm = 24;
         do_ai(index);
         return;
     }
-    if (*(s16*)(e0 + 784) != *(s16*)(e0 + 788)) {
+    if (e->algorithm != e->prev_ai) {
         format_brain(index);
     }
-    if (*(s32*)(e0 + 856) > 0) {
-        if ((*(s32*)(e0 + 856) -= gFrameTicks) <= 0) {
-            *(f32*)(e0 + 588) = *(f32*)(e0 + 588) - lbl_80346918;
+    if (e->dead_end > 0) {
+        if ((e->dead_end -= gFrameTicks) <= 0) {
+            e->ang = e->ang - lbl_80346918;
             {
-                f64 a = *(f32*)(e0 + 588);
+                f64 a = e->ang;
                 if (a > lbl_80346840) {
                     a -= lbl_80346848;
                 } else if (a <= lbl_80346850) {
                     a = lbl_80346848 + a;
                 }
-                *(f32*)(e0 + 588) = a;
+                e->ang = a;
             }
-            if (++*(s32*)(e0 + 860) >= 4) {
-                *(s32*)(e0 + 860) = 0;
+            if (++e->count >= 4) {
+                e->count = 0;
             }
         }
     }
     probe[0] = *(f32*)(e0 + 52);
     probe[1] = *(f32*)(e0 + 56);
     probe[2] = *(f32*)(e0 + 60);
-    probe[1] += lbl_80346858 + *(f32*)(e0 + 568);
+    probe[1] += lbl_80346858 + e->rad;
     probeEnd[0] = probe[0];
     probeEnd[1] = probe[1];
     probeEnd[2] = probe[2];
     dist += lbl_80346830;
-    probeEnd[0] += dist * sin(*(f32*)(e0 + 588));
-    probeEnd[2] += dist * cos(*(f32*)(e0 + 588));
+    probeEnd[0] += dist * sin(e->ang);
+    probeEnd[2] += dist * cos(e->ang);
     if (FastWallCollide(probe, probeEnd, 0, 2) != 0) {
-        *(f32*)(e0 + 588) = *(f32*)(e0 + 588) - lbl_80346918;
+        e->ang = e->ang - lbl_80346918;
         {
-            f64 a = *(f32*)(e0 + 588);
+            f64 a = e->ang;
             if (a > lbl_80346840) {
                 a -= lbl_80346848;
             } else if (a <= lbl_80346850) {
                 a = lbl_80346848 + a;
             }
-            *(f32*)(e0 + 588) = a;
+            e->ang = a;
         }
-        if (*(s32*)(e0 + 856) <= 0) {
-            *(s32*)(e0 + 856) = 20;
+        if (e->dead_end <= 0) {
+            e->dead_end = 20;
         }
     } else {
         probe2[0] = probe[0];
         probe2[1] = probe[1];
         probe2[2] = probe[2];
-        probe2[0] += speed * sin(*(f32*)(e0 + 588));
-        probe2[2] += speed * cos(*(f32*)(e0 + 588));
+        probe2[0] += speed * sin(e->ang);
+        probe2[2] += speed * cos(e->ang);
         if (fn_8004C8CC(probe2, index) == 0) {
-            *(f32*)(e0 + 588) = *(f32*)(e0 + 588) - lbl_80346918;
+            e->ang = e->ang - lbl_80346918;
             {
-                f64 a = *(f32*)(e0 + 588);
+                f64 a = e->ang;
                 if (a > lbl_80346840) {
                     a -= lbl_80346848;
                 } else if (a <= lbl_80346850) {
                     a = lbl_80346848 + a;
                 }
-                *(f32*)(e0 + 588) = a;
+                e->ang = a;
             }
-            if (*(s32*)(e0 + 856) <= 0) {
-                *(s32*)(e0 + 856) = 20;
+            if (e->dead_end <= 0) {
+                e->dead_end = 20;
             }
         }
     }
-    set_enemy_trans(e, lbl_803468F0, *(f32*)(e0 + 588));
-    *(f32*)(e0 + 580) = turn_enemy_ang(e, *(f32*)(e0 + 588));
+    set_enemy_trans(e, lbl_803468F0, e->ang);
+    e->pyr[1] = turn_enemy_ang(e, e->ang);
     do_enemy_move(index);
 }
 #pragma opt_propagation reset
@@ -2404,9 +2404,9 @@ void move_logic06(s32 index)
         u8* other = (u8*)page + it * 916;
         if (*(s32*)(other + 3788) != 1) {
             flee = 0;
-        } else if (*(f32*)(other + 4244) > *(f32*)(e0 + 768)) {
+        } else if (*(f32*)(other + 4244) > e->sight) {
             flee = 0;
-        } else if (index == it || *(s16*)(e0 + 728) != 0 || *(s32*)(e0 + 856) > 0) {
+        } else if (index == it || e->birth_style != 0 || e->dead_end > 0) {
             goto flee_zero06;
         } else {
             f32 dx = *(f32*)(other + 3660) - *(f32*)(e0 + 52);
@@ -2421,78 +2421,78 @@ void move_logic06(s32 index)
         }
     }
     if (flee != 0) {
-        *(s16*)(e0 + 784) = 24;
+        e->algorithm = 24;
         do_ai(index);
         return;
     }
-    if (*(s16*)(e0 + 784) != *(s16*)(e0 + 788)) {
+    if (e->algorithm != e->prev_ai) {
         format_brain(index);
     }
-    if (*(s32*)(e0 + 856) > 0) {
-        if ((*(s32*)(e0 + 856) -= gFrameTicks) <= 0) {
-            *(f32*)(e0 + 588) = *(f32*)(e0 + 588) + lbl_80346918;
+    if (e->dead_end > 0) {
+        if ((e->dead_end -= gFrameTicks) <= 0) {
+            e->ang = e->ang + lbl_80346918;
             {
-                f64 a = *(f32*)(e0 + 588);
+                f64 a = e->ang;
                 if (a > lbl_80346840) {
                     a -= lbl_80346848;
                 } else if (a <= lbl_80346850) {
                     a = lbl_80346848 + a;
                 }
-                *(f32*)(e0 + 588) = a;
+                e->ang = a;
             }
-            if (++*(s32*)(e0 + 860) >= 4) {
-                *(s32*)(e0 + 860) = 0;
+            if (++e->count >= 4) {
+                e->count = 0;
             }
         }
     }
     probe[0] = *(f32*)(e0 + 52);
     probe[1] = *(f32*)(e0 + 56);
     probe[2] = *(f32*)(e0 + 60);
-    probe[1] += lbl_80346858 + *(f32*)(e0 + 568);
+    probe[1] += lbl_80346858 + e->rad;
     probeEnd[0] = probe[0];
     probeEnd[1] = probe[1];
     probeEnd[2] = probe[2];
     dist += lbl_80346830;
-    probeEnd[0] += dist * sin(*(f32*)(e0 + 588));
-    probeEnd[2] += dist * cos(*(f32*)(e0 + 588));
+    probeEnd[0] += dist * sin(e->ang);
+    probeEnd[2] += dist * cos(e->ang);
     if (FastWallCollide(probe, probeEnd, 0, 2) != 0) {
-        *(f32*)(e0 + 588) = *(f32*)(e0 + 588) + lbl_80346918;
+        e->ang = e->ang + lbl_80346918;
         {
-            f64 a = *(f32*)(e0 + 588);
+            f64 a = e->ang;
             if (a > lbl_80346840) {
                 a -= lbl_80346848;
             } else if (a <= lbl_80346850) {
                 a = lbl_80346848 + a;
             }
-            *(f32*)(e0 + 588) = a;
+            e->ang = a;
         }
-        if (*(s32*)(e0 + 856) <= 0) {
-            *(s32*)(e0 + 856) = 20;
+        if (e->dead_end <= 0) {
+            e->dead_end = 20;
         }
     } else {
         probe2[0] = probe[0];
         probe2[1] = probe[1];
         probe2[2] = probe[2];
-        probe2[0] += speed * sin(*(f32*)(e0 + 588));
-        probe2[2] += speed * cos(*(f32*)(e0 + 588));
+        probe2[0] += speed * sin(e->ang);
+        probe2[2] += speed * cos(e->ang);
         if (fn_8004C8CC(probe2, index) == 0) {
-            *(f32*)(e0 + 588) = *(f32*)(e0 + 588) + lbl_80346918;
+            e->ang = e->ang + lbl_80346918;
             {
-                f64 a = *(f32*)(e0 + 588);
+                f64 a = e->ang;
                 if (a > lbl_80346840) {
                     a -= lbl_80346848;
                 } else if (a <= lbl_80346850) {
                     a = lbl_80346848 + a;
                 }
-                *(f32*)(e0 + 588) = a;
+                e->ang = a;
             }
-            if (*(s32*)(e0 + 856) <= 0) {
-                *(s32*)(e0 + 856) = 20;
+            if (e->dead_end <= 0) {
+                e->dead_end = 20;
             }
         }
     }
-    set_enemy_trans(e, lbl_803468F0, *(f32*)(e0 + 588));
-    *(f32*)(e0 + 580) = turn_enemy_ang(e, *(f32*)(e0 + 588));
+    set_enemy_trans(e, lbl_803468F0, e->ang);
+    e->pyr[1] = turn_enemy_ang(e, e->ang);
     do_enemy_move(index);
 }
 #pragma opt_propagation reset
