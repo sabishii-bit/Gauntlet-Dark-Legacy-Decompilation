@@ -1,0 +1,17 @@
+{
+  "attempted_axis": "portable-C exact closure of the crossed half-heal/zero saved-FPR webs via scaled-amount reuse, named-zero identity, explicit f64 intermediate, prior-give reuse, statement ordering, direct heal_player calls, register storage class, declaration ordering, and explicit cast-tree shaping",
+  "attributes": {
+    "anchors": "src/game/game/player.c::do_heal_players; target 0x800782D8 size 0x208; python tools/gdl/fnasm.py game/game/player do_heal_players; python tools/gdl/fndiff.py game/game/player do_heal_players --count|--ops|--clean; build/GUNE5D/report.json",
+    "final_state": "target/current 130/130 instructions, objdiff fuzzy 99.73%, real 10, 0x88-byte frame, saves r24-r31 and f26-f31; opcode streams and relocations align; residual is target giveq f30/zero f31 with f0-to-f30 conversion versus current giveq f31/zero f30 with self-coalesced f31 conversion",
+    "measurements": "scaled-amount reuse worsened real 10->16; named-zero identity was identical at 10; explicit f64 intermediate enlarged the frame to 0x90 and worsened to real 42; reusing the earlier give local worsened to real 24; typ/giveq statement order, register storage, declaration order, and explicit cast-tree probes were each identical at real 10; direct heal_player calls were not auto-inlined and became 75 instructions/real 163; every probe was reverted",
+    "policy": "capped under the register-only iteration limit; do not retry these lifetime, zero-local, f64-temp, prior-local reuse, statement/declaration order, register-storage, explicit-cast, or helper-call axes without a genuinely new source-level idea",
+    "semantic_audit": "ABI, 0x4B level gate, caster and recipient max-health caps, scaled self-heal, four-player exclusion/state/range loop, fqdist/msgPost/effect calls, field offsets, branches, stack frame, save sets, opcode stream, and relocations align with the GameCube target"
+  },
+  "function": "function:do_heal_players",
+  "id": "attempt.do-heal-players-portable-fpr-web-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
