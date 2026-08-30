@@ -1,0 +1,15 @@
+{
+  "attempted_axis": "function-scope declaration and lifetime reordering intended to reproduce the target saved-register reuse chain infos-to-i, j-to-node_slot, info-to-player_runtime, and info_count-to-zero",
+  "attributes": {
+    "baseline_commit": "git:54ed0a283938432086c6589653090a0cf6fdb954",
+    "conclusion": "Do not retry this whole-function declaration/lifetime hoist unchanged. It changes established first-loop homes adversely without assigning sItemRuntime to target r31; any revisit needs a narrower source-shape mechanism.",
+    "measurements": "baseline 106/106 instructions, fuzzy 98.54, real 50, REGISTER_ONLY, frame 0x28; probe remained 106/106 but regressed to real 58 and OPERAND_DIFF; source restored",
+    "reproduction": "ninja build/GUNE5D/src/game/world/items.o && python tools/gdl/fndiff.py game/world/items.c InitItemInfoData --count && python tools/gdl/fndiff.py game/world/items.c InitItemInfoData --clean"
+  },
+  "function": "function:InitItemInfoData",
+  "id": "attempt.init-item-info-data-declaration-lifetime-layout.20260829.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
