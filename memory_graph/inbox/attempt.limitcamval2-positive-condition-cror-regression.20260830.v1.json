@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "close a 2-insn structural short-fall (86 vs target 88) in the target>=minVelocity/target<=maxVelocity clamp by rewriting the double-negated source conditions to direct positive form",
+  "attributes": {
+    "anchors": "src/game/boss/bosscam.c::LimitCamVal2 (body near line 1778, 4th of 4 textual decls -- the real definition is the last one); fndiff.py game/boss/bosscam.c LimitCamVal2 --count|--ops|--clean",
+    "axis_log": "AX1(FAILED) rewrote `if(!(target<minVelocity))`/`if(!(target>maxVelocity))` to direct positive `if(target>=minVelocity)`/`if(target<=maxVelocity)`: insns became EXACT 88/88 (real fndiff dropped 58->56), but objdiff fuzzy_match_percent REGRESSED 91.19->88.81% -- the compiler emitted a DIFFERENT 2-insn idiom (`cror eq,gt,eq; bne`, an IEEE-safe combined-flag test) instead of target's plain `bge;b`, so the insn-count match is a false positive: fuzzy (the project's authoritative metric per AGENTS.md) says this is objectively worse. AX2(FAILED, same result) flipped operand order (`minVelocity<=target`/`maxVelocity>=target`): byte-identical output to AX1, same cror/bne pattern, same fuzzy regression. Both reverted; kept the original `!(a<b)` double-negated form (single blt/bgt branch, 86 insns) as the verified-best state.",
+    "baseline": "insns 88/86 (2 short), real 58, fuzzy 91.19% (report.json); --ops shows target uses a 2-insn `bge X; b Y` / `ble X; b Y` explicit-both-branch pattern for `if(!(target<minVelocity)){if(!(target>maxVelocity)){...}...}` where ours collapses each to a single inverted branch (blt/bgt, 86 insns)",
+    "final_state": "reverted to baseline unchanged: insns 88/86, real 58, fuzzy 91.19%; the true target form (`bge;b` without cror, single-flag branch) was not reproduced by either positive-form rewrite -- something other than the comparison's positive/negative phrasing or operand order drives target's non-cror 2-branch codegen; root cause unidentified",
+    "law_candidate": "MWCC's float-compare codegen picks between a cheap single-bit branch (bge/ble directly testing the NOT-LT/NOT-GT bit fcmpo already sets, IEEE-unordered-inclusive) and an IEEE-strict `cror eq,gt(or lt),eq; bne/beq` combined-flag form depending on how the comparison is spelled: `!(a<b)` in source compiles to the CHEAP single-branch form (matches this project's UNIMPROVED baseline exactly, 86 insns) while the direct `a>=b` form compiles to the cror form (verified negative here) -- i.e. this project's own C source apparently already uses the cheap form correctly for THIS function's semantics, and target's extra `bge;b` pair is NOT from a >=-vs-!(<) phrasing choice; likely a different source-shape (e.g. an explicit goto/label structure, or the nested-if's OUTER block genuinely written without an early-out) is needed. Do not retry either of AX1/AX2's forms.",
+    "verification": "ninja build/GUNE5D/src/game/boss/bosscam.o green each iteration; report.json fuzzy checked after each probe; reverted to pre-probe git state, no commit (net no-op)"
+  },
+  "function": "function:LimitCamVal2",
+  "id": "attempt.limitcamval2-positive-condition-cror-regression.20260830.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "record_state": "proposed",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}
