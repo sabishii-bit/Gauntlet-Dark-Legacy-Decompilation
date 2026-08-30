@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "portable-C exact closure of the post-NormalVector floating-point web through reordered explicit delta evaluation, dot-product term and operand association, local declaration order, endpoint named-delta lifetime recombination, comma-sequenced endpoint dependencies, and register storage classes",
+  "attributes": {
+    "anchors": "src/game/world/worldcol.c::PointLineColl; GameCube target 0x8000E73C size 0x1AC; ninja build/GUNE5D/src/game/world/worldcol.o; python tools/gdl/fnasm.py game/world/worldcol PointLineColl; python tools/gdl/fndiff.py game/world/worldcol PointLineColl --count/--ops/--clean; python tools/gdl/lowmatch.py --refresh --min 99 --max 100 --grep worldcol --residuals",
+    "baseline_and_best": "target/current 107/107 instructions, fuzzy 99.08%, real 24, 0x58-byte frame, saves r28-r31 and f31; opcode streams, calls, CFG, relocations, and semantics align; no source change retained",
+    "identical_axes": "swapping dx/dy local declaration order, reversing the written operands of the dy*segY and dz*segZ products, and register-qualifying dx/dy/dz reproduced the real-24 baseline",
+    "negative_axes": "explicit dy-before-dx evaluation with dy*segY + dx*segX + dz*segZ and named endpoint deltas produced 109 instructions and real 58; recombining current dot-product grouping with named endpoint deltas kept 107 instructions/real 24 but reduced fuzzy to 97.42991%; comma-sequenced x-z-y endpoint dependencies produced 117 instructions and real 100; all probes reverted",
+    "policy": "Capped under the register/schedule iteration limit. Do not retry these declaration-order, commutative-operand, explicit-delta, comma-sequencing, or register-storage axes without a genuinely new portable source-level dependency; re-A/B if surrounding PointLineColl structure later changes.",
+    "residual": "Target and current have identical 107-opcode streams. The remaining operand web cyclically routes the live point-coordinate values across f6/f7/f8, reverses commutative fmuls/fmadds operands, and changes the endpoint y-load/subtract placement; no semantic, branch, call, frame, relocation, or instruction-count difference remains."
+  },
+  "function": "function:PointLineColl",
+  "id": "attempt.pointlinecoll-fp-web-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
