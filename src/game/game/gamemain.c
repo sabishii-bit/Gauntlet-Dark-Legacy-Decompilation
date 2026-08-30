@@ -4144,7 +4144,7 @@ void game_main(void)
         do_enemies();
         fn_8004E67C();
         if (do_players() && !sndFxUpdate(1)) {
-            lvl = (lbl_803448CC & 0xFF) | (lbl_803448D0 << 8);
+            lvl = (lbl_803448D0 << 8) | (lbl_803448CC & 0xFF);
             if (!lbl_80344824) {
                 i = 0;
                 gGameMode = 0x4014;
