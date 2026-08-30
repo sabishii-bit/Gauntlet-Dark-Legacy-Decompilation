@@ -138,6 +138,23 @@ functions; `--sort impact` emphasizes their estimated remaining byte gap. Use
 `tools/gdl/nearmiss.py` separately when deliberately closing already high-match
 functions. Both queues honor the project's maintained parked-function cap list.
 
+Memory graph MCP server
+=======================
+
+[memory_graph/](memory_graph/) is the project's structured knowledge base — verified
+compiler behaviors, per-function attempt history, and reviewed tool policies. It ships
+with an optional MCP server that exposes its query surface as tools for AI-assisted
+workflows. Register it with Claude Code from the repository root:
+
+```sh
+claude mcp add gdl-memory -- uv run --project memory_graph/mcp python memory_graph/mcp/server.py
+```
+
+It requires [`uv`](https://docs.astral.sh/uv/) and runs no daemon — the host launches
+it per session. The same queries are available without an MCP host via
+`python memory_graph/gdlmem.py`. See [memory_graph/README.md](memory_graph/README.md)
+for the architecture and full usage.
+
 Xbox debug symbols
 ==================
 
