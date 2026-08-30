@@ -34,6 +34,10 @@
 #include "dolphin/pad.h"
 #include "dolphin/gx/GXVert.h"
 
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
+
 typedef struct MovieGXColor {
     u8 r, g, b, a;
 } MovieGXColor;
@@ -73,6 +77,33 @@ typedef struct MovieDecodeCall {
     /* 0x0C */ s32 bitmap;
     /* 0x10 */ u8* destination;
 } MovieDecodeCall;
+
+/* Standard Windows BITMAPINFOHEADER (public AVI/BMP format, not a GDL/Xbox
+ * name) - the .avi container's per-stream video format record. MovieDecodeCall
+ * .context/.bitmap both point at one of these (target/source format);
+ * verified by offset against fn_800D93D4, fn_800D96B0, fn_800D87FC,
+ * fn_800D8BCC and MovieValidateFrameFormat, which all read the identical
+ * width/height/bitCount/compression displacements. When compression==3
+ * (BI_BITFIELDS) and size==40, three DWORD channel masks follow the header
+ * at 0x28/0x2C/0x30 (a common practical extension, not part of the official
+ * 40-byte struct) - used by fn_800D96B0 to derive the palette shift/bit
+ * fields. */
+typedef struct MovieBitmapHeader {
+    /* 0x00 */ u32 size;
+    /* 0x04 */ s32 width;
+    /* 0x08 */ s32 height;
+    /* 0x0C */ u16 planes;
+    /* 0x0E */ u16 bitCount;
+    /* 0x10 */ s32 compression;
+    /* 0x14 */ u32 sizeImage;
+    /* 0x18 */ u32 xPelsPerMeter;
+    /* 0x1C */ u32 yPelsPerMeter;
+    /* 0x20 */ u32 clrUsed;
+    /* 0x24 */ u32 clrImportant;
+    /* 0x28 */ u32 redMask;
+    /* 0x2C */ u32 greenMask;
+    /* 0x30 */ u32 blueMask;
+} MovieBitmapHeader;
 
 extern void GXInitTexObj(MovieGXTexObj* obj, void* data, u16 width, u16 height,
                          u32 format, u32 wrapS, u32 wrapT, u8 mipmap);
@@ -938,39 +969,41 @@ s32 MovieValidateFrameFormat(u32 param_1, int param_2, s32 unused) {
     int inputWidth;
     int inputHeight;
 
-    iVar3 = *(int*)(param_2 + 4);
-    iVar2 = *(u32*)(param_2 + 0xc);
-    uVar1 = *(int*)(iVar3 + 4);
-    uVar4 = *(int*)(iVar3 + 8);
+    iVar3 = *(int*)(param_2 + offsetof(MovieDecodeCall, context));
+    iVar2 = *(u32*)(param_2 + offsetof(MovieDecodeCall, bitmap));
+    uVar1 = *(s32*)(iVar3 + offsetof(MovieBitmapHeader, width));
+    uVar4 = *(s32*)(iVar3 + offsetof(MovieBitmapHeader, height));
     if (uVar1 % 4 != 0 || uVar4 % 4 != 0) {
         return 0xfffffffe;
     }
-    if (*(int*)(iVar3 + 0x10) != 0x5644564d || *(u16*)(iVar3 + 0xe) != 0x18) {
+    if (*(s32*)(iVar3 + offsetof(MovieBitmapHeader, compression)) != 0x5644564d ||
+        *(u16*)(iVar3 + offsetof(MovieBitmapHeader, bitCount)) != 0x18) {
         return 0xfffffffe;
     }
     if (iVar2 == 0) {
         return 0;
     }
-    inputWidth = *(int*)(iVar2 + 4);
-    inputHeight = *(int*)(iVar2 + 8);
+    inputWidth = *(s32*)(iVar2 + offsetof(MovieBitmapHeader, width));
+    inputHeight = *(s32*)(iVar2 + offsetof(MovieBitmapHeader, height));
     if (inputWidth != uVar1 ||
         (inputHeight != uVar4 && inputHeight != -uVar4)) {
         return 0xfffffffe;
     }
-    switch (*(int*)(iVar2 + 0x10)) {
+    switch (*(s32*)(iVar2 + offsetof(MovieBitmapHeader, compression))) {
     case 0:
-        if (*(u16*)(iVar2 + 0xe) != 0x18 && *(u16*)(iVar2 + 0xe) != 0x10) {
+        if (*(u16*)(iVar2 + offsetof(MovieBitmapHeader, bitCount)) != 0x18 &&
+            *(u16*)(iVar2 + offsetof(MovieBitmapHeader, bitCount)) != 0x10) {
             return 0xfffffffe;
         }
         break;
     case 3:
-        if (*(u16*)(iVar2 + 0xe) != 0x10) {
+        if (*(u16*)(iVar2 + offsetof(MovieBitmapHeader, bitCount)) != 0x10) {
             return 0xfffffffe;
         }
         break;
     case 0x32595559:
     case 0x59565955:
-        if (*(u16*)(iVar2 + 0xe) != 0x10) {
+        if (*(u16*)(iVar2 + offsetof(MovieBitmapHeader, bitCount)) != 0x10) {
             return 0xfffffffe;
         }
         break;
