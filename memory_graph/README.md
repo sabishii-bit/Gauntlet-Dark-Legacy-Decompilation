@@ -163,6 +163,44 @@ surfaces by construction. Other consumers: `tools/gdl/nearmiss.py` and
 `lowmatch.py` read parked caps from attempt records; the MCP adapter is
 stateless and optional — nothing depends on it.
 
+## MCP server
+
+The MCP adapter exposes the same query surface as host tools for agents that
+prefer tool calls over shelling out. It is **optional** — the CLI is fully
+self-sufficient — and there is **no daemon to manage**: it speaks stdio, so
+the MCP host launches it as a subprocess per session and the database
+materializes itself on the first query.
+
+Requirements: [`uv`](https://docs.astral.sh/uv/) on `PATH`. The server's only
+dependency (`mcp`) lives in a locked project under `mcp/`, resolved
+automatically on first launch — nothing is installed into the build's Python.
+
+Register it with Claude Code from the repository root:
+
+```sh
+claude mcp add gdl-memory -- uv run --project memory_graph/mcp python memory_graph/mcp/server.py
+```
+
+then restart the session so the tools load. For other hosts (or JSON-file
+configuration), see [`mcp/README.md`](mcp/README.md) for the stdio config
+block; set `GDL_MEMORY_ROOT` to the checkout root if the host launches the
+server from elsewhere. Host configuration is machine-local — never commit
+absolute paths.
+
+Once connected, the read tools mirror the CLI one-to-one (generated from the
+same registry): `memory_context`, `memory_search`, `memory_record`,
+`memory_graph_stats`, `xbox_context`, `memory_tool_context`, `memory_stale`,
+`memory_validate`, `memory_pending_proposals`, `memory_migration_audit`. The
+only write tools are `memory_propose_record` and `memory_register_tool`, and
+they write **only** to `inbox/` — the review boundary applies to MCP clients
+exactly as it does to the CLI.
+
+To verify the environment end-to-end without an MCP host:
+
+```sh
+uv run --project memory_graph/mcp python memory_graph/mcp/test_server.py
+```
+
 ## Concurrency and disposability
 
 Connections are opened per command and closed immediately; builds go to a
