@@ -52,6 +52,8 @@ def scan(src_root, include_root="include"):
         for pattern in ("*.c", "*.cpp", "*.h"):
             paths.extend(Path(root).rglob(pattern))
     for path in sorted(paths):
+        if not path.is_file():  # src/Runtime.PPCEABI.H is a DIRECTORY
+            continue
         text = COMMENT_RE.sub(
             lambda match: re.sub(r"[^\n]", " ", match.group(0)),
             path.read_text(encoding="utf-8", errors="replace"))
