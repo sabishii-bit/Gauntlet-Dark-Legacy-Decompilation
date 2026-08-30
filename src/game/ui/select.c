@@ -46,6 +46,7 @@
 
 #include "types.h"
 #include "__va_arg.h"
+#include "game/player.h"
 
 /* ---- boss-requirement table (this TU, .data 0x80121DD8, 12 x 0x24) ---- */
 typedef struct SelOptsView { u8 _pad[44]; u32 flags44; } SelOptsView;
@@ -1922,20 +1923,20 @@ void init_player_change(s32 idx, s32 arg1)
 
     p = gPlayers;
     pl = p + idx * 0x335C;
-    *(s32*)(pl + 0xE8) = 3;
+    ((Player*)pl)->state = 3;
 
     for (i = 0; i < 4; i++, p += 0x335C) {
         if (i != idx) {
-            s32 st = *(s32*)(p + 0xE8);
+            s32 st = ((Player*)p)->state;
             if (st == 1 || (u32)(st - 4) <= 1) {
-                v = *(s32*)(p + 0x830);
+                v = ((Player*)p)->exit_dest;
                 goto gotv;
             }
         }
     }
     v = *(s32*)((u32)gPlayers + (u32)(idx * 0x335C) + 0x830);
 gotv:
-    *(s32*)(pl + 0x830) = v;
+    ((Player*)pl)->exit_dest = v;
 
     saved = *(s32*)(pl + 0xF0);
     change_player(idx, arg1);
@@ -1946,7 +1947,7 @@ gotv:
     mbBlitProject(*(void**)((u8*)lbl_80284878 + idx * 132 + 24), -1, 320);
 
     wflag = *(u32*)(pl + 0xF0) ? 0 : 1;
-    if (*(s32*)(pl + 0x1EC0) == 0) {
+    if (((Player*)pl)->exp == 0) {
         AudioWelcomeBack(idx, wflag);
     } else {
         AudioWelcome(idx, wflag);
@@ -2021,7 +2022,7 @@ int verify_vmu_file_ok(u8* pl, s32 v)
     s32 b = *(s32*)(pl + 0x3350);
     for (i = 0; i < 4; i++) {
         u8* p = gPlayers + i * 0x335C;
-        if (p != pl && *(s32*)(p + 0xE8) != 0 &&
+        if (p != pl && ((Player*)p)->state != 0 &&
             *(s32*)(p + 0x334C) == a && *(s32*)(p + 0x3350) == b &&
             *(s32*)(p + 0x3358) == v) {
             return 0;
@@ -2249,15 +2250,15 @@ s32 other_players_next_level(s32 idx)
     p = gPlayers;
     for (i = 0; i < 4; i++, p += 0x335C) {
         if (i != idx) {
-            st = *(s32*)(p + 0xE8);
+            st = ((Player*)p)->state;
             if (st == 1 || (u32)(st - 4) <= 1) {
-                return *(s32*)(p + 0x830);
+                return ((Player*)p)->exit_dest;
             }
         }
     }
     p = gPlayers;
     p += idx * 0x335C;
-    return *(s32*)(p + 0x830);
+    return ((Player*)p)->exit_dest;
 }
 
 int check_active_players(void)
@@ -2268,7 +2269,7 @@ int check_active_players(void)
     new_menu_accept(-1, 1);
     p = gPlayers;
     for (i = 0; i < 4; i++, p += 0x335C) {
-        if (*(s32*)(p + 0xE8) == 0 && (lbl_80344824 & (1 << i))) {
+        if (((Player*)p)->state == 0 && (lbl_80344824 & (1 << i))) {
             new_player(i);
             count++;
         }
