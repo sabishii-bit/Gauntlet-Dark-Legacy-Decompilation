@@ -4249,6 +4249,8 @@ void fn_800606FC(void)
     s32 musicIdx;
     f32 gpos[3];
     f32 gypr[3];
+    u8* rt = sItemRuntime;
+    u8 unused[120];
 
     if (gGameMode == 0x8008) {
         paused = 0;
@@ -4313,10 +4315,10 @@ void fn_800606FC(void)
             s8 mo = it->minoff;
             if (mo == 1 ||
                 (mo == 2 &&
-                 (isopen || *(s32*)(gGameOptions + 0x10) != 0 ||
-                  *(s32*)(gGameOptions + 0xC) != 0))) {
-                if (vis == 0 || isopen || *(s32*)(gGameOptions + 0x10) != 0 ||
-                    *(s32*)(gGameOptions + 0xC) != 0) {
+                 (isopen || GAMEOPTS->unk10 != 0 ||
+                  GAMEOPTS->unkC != 0))) {
+                if (vis == 0 || isopen || GAMEOPTS->unk10 != 0 ||
+                    GAMEOPTS->unkC != 0) {
                     if (ItemVisible(it) == 0) {
                         continue;
                     }
@@ -4334,8 +4336,8 @@ void fn_800606FC(void)
                     continue;
                 }
                 if (ItemVisible(it) == 0) {
-                    if (vis == 0 || *(s32*)(gGameOptions + 0x10) != 0 ||
-                        *(s32*)(gGameOptions + 0xC) != 0) {
+                    if (vis == 0 || GAMEOPTS->unk10 != 0 ||
+                        GAMEOPTS->unkC != 0) {
                         it->minoff = 1;
                         MBTreeSetFlags(it->objgrp.node, 2, 0);
                         continue;
@@ -4509,7 +4511,7 @@ void fn_800606FC(void)
                         break;
                     }
                     if (lbl_80344C5C > sZeroDouble) {
-                        LookoutParam* lp = (LookoutParam*)(sItemRuntime + 0xCB8);
+                        LookoutParam* lp = (LookoutParam*)(rt + 0xCB8);
                         s32 n = sNumLookoutParams;
                         s32 i;
                         for (i = 0; i < n; i++) {
@@ -4960,7 +4962,7 @@ void fn_800606FC(void)
                     }
                 }
                 if (*(s16*)&it->data[0x12] >= 0 && mask != 0) {
-                    u8* cam = sItemRuntime + *(s16*)&it->data[0x12] * 0x28;
+                    u8* cam = rt + *(s16*)&it->data[0x12] * 0x28;
                     TriggerCameraActivate((s32)tgt, cam + 0x1618, cam + 0x1628,
                                           cam[0x1615], 0x1E, 0);
                 }
@@ -5309,11 +5311,11 @@ void fn_800606FC(void)
                     case 3: {
                         f32 dir[3];
                         dir[0] = it->objgrp.worldmat[3][0] -
-                                 ((f32*)sItemRuntime)[7546];
+                                 ((f32*)rt)[7546];
                         dir[1] = it->objgrp.worldmat[3][1] -
-                                 ((f32*)sItemRuntime)[7547];
+                                 ((f32*)rt)[7547];
                         dir[2] = it->objgrp.worldmat[3][2] -
-                                 ((f32*)sItemRuntime)[7548];
+                                 ((f32*)rt)[7548];
                         NormalVector2D(dir);
                         *(f32*)&it->data[8] = (f32)(lbl_80346F98 * dir[0]);
                         *(f32*)&it->data[0xC] = (f32)(lbl_80346F98 * dir[1]);
