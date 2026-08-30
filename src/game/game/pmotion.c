@@ -26,6 +26,9 @@ extern Player gPlayers[]; /* gPlayerRecords[4], stride 0x335C */
 #define gPlayerRecords gPlayers
 #define PREC_STRIDE 0x335C
 #define PF(p, off, T) (*(T*)((u8*)(p) + (off)))
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
 typedef struct PMotionCtx PMotionCtx;
 
 /* ------------------------------------------------------------------ */
@@ -4057,6 +4060,26 @@ s32 PlayerCollidePlayers(Player* p, f32 range, f32 p3, f32* from, f32* to,
     }
     return closest;
 }
+/* Offset-only layout of the fields PlayerCollideItems' index-computed enemy
+ * scan reads (verified against include/game/enemy.h's Enemy struct: type@0,
+ * objgrp.coll_pos@0x54, state@0xB4, rad@0x238, hht@0x23C).  Never cast a live
+ * pointer to this type -- it exists only to feed offsetof() so the raw walked
+ * `item` pointer keeps its fused-immediate-displacement addressing (see
+ * claim.law.multifield-alias-defeats-indexed-addressing / offsetof-fused-
+ * immediate-counter): 3+ nearby fields are read off one index-computed base
+ * in this loop, and a typed alias measured worse in the sibling TUs that hit
+ * this exact pattern. */
+typedef struct PCollideEnemyLayout {
+    s32 type;                /* 0x000 */
+    u8  _004[0x50];
+    f32 coll_pos[3];         /* 0x054 objgrp.coll_pos */
+    u8  _060[0x54];
+    s32 state;                /* 0x0B4 */
+    u8  _0B8[0x180];
+    f32 rad;                  /* 0x238 */
+    f32 hht;                  /* 0x23C */
+} PCollideEnemyLayout;
+
 s32 PlayerCollideItems(Player* p, f32 range, f32 height, f32* from, f32* to,
                        f32* hit) {
     f32 localHit[12];
@@ -4083,23 +4106,23 @@ item_body:
         f32 distance;
 
         item = object + index * 0x394;
-        state = *(s32*)(item + 0xB4);
+        state = *(s32*)(item + offsetof(PCollideEnemyLayout, state));
         if (state != 1 && state != 6 &&
             (state != 8 || lbl_803447DC == 0)) {
             goto item_test;
         }
-        if (*(s32*)item == 0x1F) {
+        if (*(s32*)(item + offsetof(PCollideEnemyLayout, type)) == 0x1F) {
             goto item_test;
         }
 
-        collisionRange = range + *(f32*)(item + 0x238);
-        collisionHeight = height + *(f32*)(item + 0x23C);
-        dx = *(f32*)(item + 0x54) - to[0];
-        dy = *(f32*)(item + 0x58) - to[1];
-        dz = *(f32*)(item + 0x5C) - to[2];
+        collisionRange = range + *(f32*)(item + offsetof(PCollideEnemyLayout, rad));
+        collisionHeight = height + *(f32*)(item + offsetof(PCollideEnemyLayout, hht));
+        dx = *(f32*)(item + offsetof(PCollideEnemyLayout, coll_pos[0])) - to[0];
+        dy = *(f32*)(item + offsetof(PCollideEnemyLayout, coll_pos[1])) - to[1];
+        dz = *(f32*)(item + offsetof(PCollideEnemyLayout, coll_pos[2])) - to[2];
         if (dx * dx + dz * dz < collisionRange * collisionRange &&
-            fabsf_(dy) < *(f32*)(item + 0x23C) &&
-            LineCylinderCollide((f32*)(item + 0x54), collisionRange,
+            fabsf_(dy) < *(f32*)(item + offsetof(PCollideEnemyLayout, hht)) &&
+            LineCylinderCollide((f32*)(item + offsetof(PCollideEnemyLayout, coll_pos)), collisionRange,
                                 collisionHeight, from, to,
                                 localHit, 1) != 0) {
                 distance = fqdist(localHit[0] - to[0], localHit[2] - to[2]);
