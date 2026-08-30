@@ -1,0 +1,13 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "scope": "whole TU src/game/game/gamemain.c exclusively; sustained de-fakematch campaign pass (380 raw-offset sites); parallel fleets please pick another TU"
+  },
+  "claimed_at": "2026-08-30",
+  "function": "function:fn_80055F68",
+  "id": "work_claim.gamemain-defake.codex.20260830.v1",
+  "kind": "work_claim",
+  "owner": "codex-gamemain-defake",
+  "schema_version": 1,
+  "state": "active"
+}

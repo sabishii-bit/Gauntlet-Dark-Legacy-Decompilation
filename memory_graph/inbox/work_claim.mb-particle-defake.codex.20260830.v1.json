@@ -1,0 +1,13 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "scope": "whole TU src/game/mb/mb_particle.c exclusively; sustained de-fakematch campaign pass (177 raw-offset sites); parallel fleets please pick another TU"
+  },
+  "claimed_at": "2026-08-30",
+  "function": "function:setupParms",
+  "id": "work_claim.mb-particle-defake.codex.20260830.v1",
+  "kind": "work_claim",
+  "owner": "codex-mb-particle-defake",
+  "schema_version": 1,
+  "state": "active"
+}
