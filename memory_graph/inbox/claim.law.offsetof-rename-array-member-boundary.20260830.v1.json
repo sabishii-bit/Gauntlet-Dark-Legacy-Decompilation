@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "src/game/mb/mb_font.c::MBRenderText (worktree GDL-Claude-MbFontDefake, work_claim.mbfont-defake.20260830.v1); attempt.mb-font-c-defakematch-tupass.20260830.v1",
+    "scope": "MWCC GC 1.2.5 family; boundary refinement of claim.law.offsetof-rename-preserves-protected-web -- narrows which raw-pointer expressions the offsetof()-renaming counter-form is neutral on.",
+    "tags": [
+      "core-screen",
+      "offsetof-form",
+      "defake"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.offsetof-rename-array-member-boundary.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-30T20:18:45Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "claim.law.offsetof-rename-preserves-protected-web verified that replacing a bare hex/decimal displacement with offsetof(Type,field) is 'near-guaranteed neutral' as long as the sum stays one additive expression on the ORIGINAL raw pointer -- every prior verified instance (enemy.c's `e + offsetof(...)`, `other + (POOL_OFF + offsetof(...))`, and this same session's mb_font.c MBFontStringWidth `specialFont + offsetof(MBFontState, fonts)`) applied offsetof to a simple POINTER-typed local/parameter VARIABLE. This does NOT extend to a raw pointer obtained from an ARRAY-TYPED struct MEMBER accessed through `->` (array-to-pointer decay): in the same mb_font.c session, MBRenderText's `ent->rec` (MBBlitEnt.rec, declared `u8 rec[0x18]`, ent a plain MBBlitEnt* local) regressed under every bisected offsetof-rename form tried, down to the law's easiest case -- a SINGLE occurrence of ONE field (`*(s32*)(ent->rec + 8)` -> `*(s32*)(ent->rec + offsetof(MBBlitRec, depth))`, nothing else changed) moved real 74->76; the full 7-site field set moved real 74->96, identical to converting `rec` to a genuinely typed `MBBlitRec rec;` member (also 74->96), even though the offsetof form kept `rec` a raw array and every access a single additive expression on it -- the exact syntactic shape the parent law's evidence says should fold identically. Root cause unconfirmed (working hypothesis: MWCC's front end may treat `&((T*)0)->field` differently as an addend when the other operand is itself a field-access-plus-array-decay expression rather than a bare pointer variable, changing an address-materialization or scheduling choice even though both forms constant-fold to the same byte value) -- this is an empirical boundary, not a mechanistic proof. Consequence: before applying offsetof-rename to a raw displacement on an array-typed struct MEMBER (`obj->arrayfield + N`), A/B it explicitly against the unconverted bare-hex form; do not assume the parent law's neutrality transfers from pointer-variable bases to array-member bases, and do not assume bisecting to a single occurrence will rescue a regressing site -- it did not here (74->76 for one site was still a regression, not a fluke of batching)."
+}

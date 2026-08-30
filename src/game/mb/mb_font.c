@@ -26,6 +26,10 @@
  */
 #include "types.h"
 
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
+
 /* --- MB_FONT current-font + message state (0x80344E10.. sdata block).
  *     Referenced by lbl_ address to stay byte-identical against the DOL. --- */
 extern s32 lbl_80344E10;      /* font_count */
@@ -157,7 +161,8 @@ int MBFontStringWidth(const char* s)
 
                 str++;
                 specialFont = (MBFont*)((u8*)state + lbl_80344E14 * 4);
-                specialFont = *(MBFont**)((u8*)specialFont + 0x66dc);
+                specialFont = *(MBFont**)((u8*)specialFont +
+                                           offsetof(MBFontState, fonts));
                 x = (s32)(lbl_80344E5C * (f32)specialFont->height);
             }
             goto add_width;
@@ -254,13 +259,35 @@ extern f64 lbl_80348B60;
 extern f32 lbl_80348B68;
 extern f64 lbl_80348B70;
 
+/* Documentation-only: glyph record sub-layout of MBBlitEnt.rec (offsets
+ * relative to rec, i.e. ent+4) -- projected screen position/depth and
+ * blit-source uv; trailing bytes (rec+0xc..0x18) are still unresolved.
+ * NOT used by MBRenderText's code below: both a typed `MBBlitRec rec;`
+ * member (real 74->96) and an offsetof()-renamed raw form (single-field
+ * depth alone: 74->76; full field set: 74->96) regressed the function,
+ * even though offsetof-renaming a bare-hex displacement is neutral
+ * elsewhere in this file and TU (see claim.law.offsetof-rename-preserves-
+ * protected-web) -- re-verify before reusing this struct in an expression;
+ * `rec` stays a raw byte array with bare-hex displacements. */
+typedef struct MBBlitRec {
+    s16 px;         /* 0x00 */
+    s16 py;         /* 0x02 */
+    s32 depth;      /* 0x04 */
+    u16 u;          /* 0x08 */
+    u16 v;          /* 0x0A */
+} MBBlitRec;
+
 /* local blit-entry scratch handed to the mbBlit pipeline */
 typedef struct MBBlitEnt {
     u32 flags;     /* 0x00 copied from msg->flags */
-    u8  rec[0x18]; /* 0x04 glyph record; +4 s16 px, +6 s16 py, +8 s32 depth,
-                    *      +0xc u16 u, +0xe u16 v */
+    u8  rec[0x18]; /* 0x04 glyph record; see MBBlitRec for the sub-layout */
     u32 color;     /* 0x1C */
 } MBBlitEnt;
+
+/* stored glyph cell (font->cells[cc], 36B each; built by MBNewFont, rescaled
+ * by MBFontUpdateWindow): a projected MBBlitEnt-shaped template (_p) plus
+ * the glyph's own on-screen size (w/h) used by MBRenderText's width lookup. */
+typedef struct MBBlitCell { u8 _p[32]; u16 w; u16 h; } MBBlitCell;
 
 /* 0x800B5DEC - MBRenderText : rasterise queued messages through the pb blit
  * pipeline in two layer passes (flag-8 messages render on the second). */
@@ -352,14 +379,14 @@ void MBRenderText(void)
                 }
                 doClip = u ? 1 : 0;
             }
-            spaceW = (s32)(msg->xscale * (f32)((s32*)st)[t]);
+            spaceW = (s32)(msg->xscale * (f32)st->space[t]);
             text = msg->text;
             while ((c = *(u8*)text) != 0) {
                 y = baseY;
                 hb = -1;
                 extra = 0;
                 if (c == 0x2a) {
-                    switch (*(u8*)(text + 1)) {
+                    switch ((u8)text[1]) {
                     case 'X':
                         hb = lbl_80344E48;
                         break;
@@ -386,7 +413,7 @@ void MBRenderText(void)
                         break;
                     default:
                         if (c < font->count) {
-                            glyph = *(u16*)(font->cells + c * 0x24 + 0x20);
+                            glyph = ((MBBlitCell*)font->cells)[c].w;
                         } else {
                             glyph = 0;
                         }
@@ -408,7 +435,7 @@ void MBRenderText(void)
                         } else {
                             goto next_char;
                         }
-                        glyph = *(u16*)(font->cells + c * 0x24 + 0x20);
+                        glyph = ((MBBlitCell*)font->cells)[c].w;
                     } else {
                         if (c == 0) {
                             goto next_char;
@@ -416,7 +443,7 @@ void MBRenderText(void)
                         if (c >= font->count) {
                             goto next_char;
                         }
-                        glyphValue = *(u16*)(font->cells + c * 0x24 + 0x20);
+                        glyphValue = ((MBBlitCell*)font->cells)[c].w;
                         glyph = glyphValue;
                         if (glyphValue == 0) {
                             if (c == 0x20) {
@@ -644,7 +671,6 @@ typedef struct MBFontDef {    /* MBNewFont input descriptor */
 } MBFontDef;
 
 typedef struct MBTexHdr { u8 _p[32]; u16 w; u16 h; } MBTexHdr;
-typedef struct MBBlitCell { u8 _p[32]; u16 w; u16 h; } MBBlitCell;
 
 extern MBTexHdr* MBOX_FindTexture_Err(char* name, MBTexHdr** out, s32 err);
 
