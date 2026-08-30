@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/gamemain.c::fn_80052134 (worktree GDL-Claude-GamemainDefake, work_claim.gamemain-defake.20260830.v1); attempt.gamemain-defakematch-tupass.20260830.v2",
+    "scope": "MWCC GC 1.2.5 family; applies to a small-data (.sdata/.sbss, SDA21-relative) global pointer with few (2-3) field-access sites in one function, distinct from claim.law.declared-alias-vs-repeated-cast's register-pressure/indexed-addressing framing."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.sda-global-alias-forces-persistent-register.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "For a raw-offset global pointer reachable via one SDA21-relative load (lwz r,0(r13/r2) R_PPC_EMB_SDA21), declaring ONE typed local alias (MBObject* marker = (MBObject*)lbl_X;) and using it at just 2 field-access sites can regress an EXACT function: MWCC allocates a persistent callee-saved register for the alias and adds a save/restore pair to the prologue/epilogue (frame +8), where the target instead reloads the global fresh via SDA21 at each use site and never materializes a persistent copy (verified in fn_80052134: typed-alias form regressed real 0->42 with frame delta -8; the SAME 2 field accesses written as repeated inline casts ((MBObject*)lbl_X)->field at each use site restored EXACT). This is the reverse of the general declared-alias-vs-repeated-cast guidance (which favors ONE declared alias over repeated casts for a LOCAL/stack-obtained pointer) precisely because an SDA21 global reload is near-free (one instruction, no register pressure) while a declared alias must occupy a register across the whole scope. Consequence: when the raw pointer being de-fakematched is itself a small-data GLOBAL (not a local/stack pointer or a loop-walked/indexed base), A/B repeated-inline-cast-at-each-site FIRST, before declaring a persistent typed alias, especially when there are only 2-3 uses."
+}

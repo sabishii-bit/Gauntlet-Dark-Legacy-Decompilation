@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/gamemain.c::AllocEnemy, LoadEnemy (worktree GDL-Claude-GamemainDefake, work_claim.gamemain-defake.20260830.v1); attempt.gamemain-defakematch-tupass.20260830.v2",
+    "scope": "MWCC GC 1.2.5 family; applies to a flat (non-struct) array accessed via byte-pointer arithmetic at two or more sibling offsets from ONE pre-scaled index value computed once and reused, distinct from the walked-pointer-vs-recomputed-index laws (this array has no covering struct at all, named or otherwise)."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.shared-prescaled-index-defeats-array-form.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "When source pre-scales an index ONCE (id <<= 2; or offset = id << 2;) and reuses that single scaled value as a byte-pointer displacement at two or more sibling array regions of the SAME flat array (*(s32*)((u8*)&pool[300] + id) and *(s32*)((u8*)&pool[255] + id)), MWCC keeps the scaled value alive in ONE register and reuses it (slwi once, add twice). Rewriting this to plain per-site array indexing (pool[300 + id], pool[255 + id]) makes MWCC recompute the scale SEPARATELY at each site (addi id,345; slwi; add / slwi id,2; add) because the two expressions no longer share a common subexpression textually, costing 2 extra instructions and regressing an EXACT function to STRUCTURAL (verified in both AllocEnemy and LoadEnemy: real 0->9 each, insns +1 each). This differs from claim.law.pointer-walk-array-index-regression and claim.law.recomputed-index-array-form-safe, which concern a struct-typed walked/indexed base; here the array (lbl_80250E00) has no covering struct at all -- the byte-pointer-arithmetic form IS the correct reconstruction, not a fakematch artifact, because it is the only C shape that reproduces the target's shared-register reuse. Consequence: before converting any shared-pre-scaled-index array access to per-site indexing, check whether the SAME scaled value feeds 2+ sibling accesses; if so, leave the shared local (id<<=2 or an `offset` variable) and the byte-pointer form in place, and do not expect a named-field rewrite to apply when no struct exists for the array at all."
+}

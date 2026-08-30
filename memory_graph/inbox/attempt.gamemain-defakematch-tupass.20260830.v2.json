@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "Wave-4 de-fakematch pass (work_claim.gamemain-defake.20260830.v1): resolve remaining raw-offset sites in gamemain.c's already-matched/near-matched functions to GC-verified Player/Enemy/Item/level_data/WorldInfo/MBObject/WorldDataNav fields.",
+  "attributes": {
+    "anchors": "src/game/game/gamemain.c; game_main 0x80054230; fndiff --count/--ops/--clean; include/game/{player,enemy,item,leveldata,mbobject,worldinfo}.h",
+    "axis_log": "fn_80051568 (Enemy* computed once, 6-field touch): typed-alias regressed (frame -8, real0->14, per multifield-alias-defeats-indexed-addressing); raw+offsetof(Enemy,field) + restored `u8 unused[8]` pad -> EXACT. Item side used full &sItems[i]->field typed form safely (loop-recomputed index, recomputed-index-array-form-safe). AllocEnemy/LoadEnemy pool[]-index conversion regressed both EXACT->STRUCTURAL (+9 real each, target reuses one pre-scaled register across 2 writes) -- reverted, no struct authority exists for the flat pool. fn_80052134: declared MBObject* alias regressed (forces persistent r31 save, real0->42); repeated inline casts at the 2 use sites -> EXACT.",
+    "sites_converted": "Strict raw-offset census 233->208 (25 sites); broader cast-deref census 299->280 (19 more via offsetof/struct forms). ~13 fns touched: fn_80051568 (Enemy+Item), SetEnemyObj (shadow->MBObject), next_world (Player.state/exit_dest, level_data.enabled), fn_80057F44 (WorldDataNav.numLevels, level_data.enabled), fn_80052134 (MBObject.mat[3]/scale[]), fn_800553B4 (level_data.flags/wavetime x2), init_thermometer (Item.info->item.value via retyped sSpecialItem10, Player.character, gWorldInfo.worldsize), FindWobjWanim+DoWorldAnimation (gWorldInfo retyped flat s32[]->real WorldInfo struct), GetEnemyTypes (5 more EnemyTypeRow offsetof sites), game_main (gPlayers+i*13148+0xe8->Player.state, neutral vs prior exact-closure baseline), fn_80057024+world_update (gWorldInfo fields, incidental from retype; world_update insn parity improved 565/566->566/566 real unchanged 190; LoadPowerups(s32) prototype conflict from item.h fixed with (char*) cast, neutral).",
+    "sites_left_raw": "AllocEnemy/LoadEnemy pool[] (4, reverted, no struct authority). init_enemy_vars/fn_800516F8 (still-fuzzy reconstruction targets, out of scope this wave). GetEnemyTypes ent+0x4/etab and gWorldData+0/+0x20 (no covering struct; WorldDataNav view ends at 0x20). fn_800553B4's gControllerButtons/sFlags mismatch is the pre-existing documented gcb-sflags-relocation-alias false lead (real 0, untouched, confirmed pre-existing via git diff scope).",
+    "verification": "Every touched fn re-gated via fndiff after each change; matched fns held real0 or were reverted. Full-unit `fndiff game/game/gamemain --count` (no name filter) shows the same 21 non-exact fns as the pre-session fuzzy set plus 3 expected ONLY-IN-BASE statics -- no new regression anywhere. DoWorldAnimation moved bad(real~26)->EXACT. world_update insn parity improved, real unchanged. game_main held its prior session's exact-closure baseline exactly (real 325/361, matching attempt.game-main-state-web-and-byte-pack.20260829.v1), zero closure axes retried. Full `ninja -j2`: main.dol OK; project 97.82% fuzzy/58.15% matched/26.09% linked unchanged (NonMatching TU). git diff --check clean. Portable C only."
+  },
+  "function": "function:game_main",
+  "id": "attempt.gamemain-defakematch-tupass.20260830.v2",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.gamemain-defakematch-tupass.20260830.v1",
+  "valid_from": "2026-08-30"
+}
