@@ -303,6 +303,7 @@ class GraphSurfaceTests(unittest.TestCase):
             "  *(u8*)(r+1) = 3;\n"
             "  *(s16*)(p + offsetof(Player, gold)) = 6;  /* converted */\n"
             "  *(s32*)(p + IOFF(bar)) = 7;  /* macro-named, not bare */\n"
+            "  bar(*(s32*)(p + 24), *(s32*)(p + offsetof(Player, exp)));\n"
             "  /* commented out: *(s32*)(p + 12) = 9; */\n"
             "  PF(p, 0x10, s32) = 4;\n"
             "  PF(x,1,u8) = 5;\n"
@@ -372,19 +373,22 @@ class GraphSurfaceTests(unittest.TestCase):
         self.assertEqual(result["tu_count"], 1)
         row = result["tus"][0]
         self.assertEqual(row["tu"], "src/game/test/foo.c")
-        # 4 bare + 2 named (explicit offsetof AND the IOFF macro whose
-        # #define body contains offsetof); commented-out cast not counted
-        self.assertEqual(row["bare_sites"], 4)
-        self.assertEqual(row["named_sites"], 2)
-        self.assertEqual(row["cast_sites"], 6)
+        # 5 bare + 3 named: explicit offsetof, the IOFF macro (object- or
+        # function-like #define whose body contains offsetof), and the
+        # SECOND cast of the multi-cast call — while its bare sibling in
+        # the SAME statement stays bare (the pb_diag same-statement
+        # false-positive). Commented-out cast not counted.
+        self.assertEqual(row["bare_sites"], 5)
+        self.assertEqual(row["named_sites"], 3)
+        self.assertEqual(row["cast_sites"], 8)
         self.assertEqual(row["pf_sites"], 2)
-        self.assertEqual(result["bare_total"], 4)
+        self.assertEqual(result["bare_total"], 5)
         self.assertEqual(fakematch_debt("nomatch", root=self.root)["tu_count"], 0)
         lined = fakematch_debt("game/test/foo", root=self.root, show_lines=1)
-        self.assertEqual(len(lined["bare_site_lines"]), 4)
+        self.assertEqual(len(lined["bare_site_lines"]), 5)
         owners = [entry.rsplit("(", 1)[1].rstrip(")")
                   for entry in lined["bare_site_lines"]]
-        self.assertEqual(owners, ["f", "f", "f", "g"])
+        self.assertEqual(owners, ["f", "f", "f", "f", "g"])
 
     def test_struct_local_header_authority(self):
         from memory_graph.core import xbox_struct_layout
@@ -526,8 +530,8 @@ class GraphSurfaceTests(unittest.TestCase):
             [row["id"] for row in brief["core_screen_laws"]],
             ["claim.law.test-law.v2"],
         )
-        self.assertEqual(brief["raw_offset_debt"][0]["total"], 8)
-        self.assertEqual(brief["raw_offset_debt"][0]["bare_sites"], 4)
+        self.assertEqual(brief["raw_offset_debt"][0]["total"], 10)
+        self.assertEqual(brief["raw_offset_debt"][0]["bare_sites"], 5)
         with self.assertRaisesRegex(MemoryGraphError, "no GameCube module"):
             tu_briefing("does/not/exist", root=self.root)
 

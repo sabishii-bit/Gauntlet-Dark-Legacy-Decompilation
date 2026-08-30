@@ -2902,13 +2902,31 @@ _FN_START_RE = re.compile(
 
 def _cast_site_is_named(text: str, start: int,
                         named_macros: frozenset[str] = frozenset()) -> bool:
-    """True when the cast's displacement is already offsetof/sizeof-named,
-    including via a file-local macro whose #define body contains offsetof
-    (world.c's IOFF() pattern once inflated the bare count by ~25)."""
+    """True when THIS cast's displacement is offsetof/sizeof-named, including
+    via a file-local macro whose #define body contains offsetof (world.c's
+    IOFF() pattern once inflated the bare count by ~25).
+
+    The window ends at this cast's own expression boundary — a top-level
+    comma or any semicolon — not the whole statement: scanning to the
+    semicolon once credited three bare casts because a LATER cast in the
+    same multi-cast statement used offsetof (pb_diag finding). offsetof's
+    own internal comma sits inside parens, so depth tracking keeps it.
+    """
     window = text[start:start + 240]
-    stop = window.find(";")
-    if stop != -1:
-        window = window[:stop]
+    depth = 0
+    end = len(window)
+    for index, char in enumerate(window):
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth < 0:
+                end = index
+                break
+        elif char == ";" or (char == "," and depth <= 0):
+            end = index
+            break
+    window = window[:end]
     if "offsetof" in window or "sizeof" in window:
         return True
     return any(macro + "(" in window for macro in named_macros)
