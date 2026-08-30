@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "explicit else-branch reload for the mult=sItemFloorRadius fallthrough case; 2 reverted probes on the widespread &v[1]-address-caching (addi->mr, ~10 call sites) and a missing-extsh-on-s16-cast-store residual",
+  "attributes": {
+    "anchors": "src/game/world/gauntworld.c::fn_8005C1DC; target .text 0x8005C1DC size 3696B; python tools/gdl/fndiff.py game/world/gauntworld.c fn_8005C1DC --count/--ops/--clean",
+    "axis_log": "1) `f32 mult = sItemFloorRadius;` pre-init before an if/else-if chain compiled as a cached fmr-copy at the post-chain merge; target instead reloads sItemFloorRadius fresh there. Rewrote as uninitialized `f32 mult;` + explicit `else { mult = sItemFloorRadius; }` on the if/else-if -- matches target's fresh-reload codegen exactly, real 432->428, insns unchanged 924/924, ops cluster T[24:27] resolved. KEPT despite fuzzy dipping 95.295%->95.198% (small function, well under the ~4000-insn fuzzy-arbitration threshold, so real/ops is primary per AGENTS.md; diff inspected directly, genuine structural cluster closed). 2) Widespread `addi rX,r1,32` (target, recompute &v[1] per call site) vs `mr rX,r30` / `addi rX,r30,0` (ours, r30 caches &v[1] whole-function) across ~10 call sites (AudioPlayEvt101/fn_8009DA78/msgPost/fn_8009C7D8/etc) -- source already writes bare `&v[1]` at each site (no named cache variable), so MWCC's own rematerialization-vs-cache heuristic differs from target purely on register-pressure grounds; no source lever found, NOT source-fixable this session -- left as residual, do not re-attempt without a new theory. 3) `*(s16*)&item->data[2] = (s16)(lbl_80346F6C * power);` missing target's `extsh r0,r0` before the `sth` (same signature as fn_800606FC's wob residual) -- wrapped in `{ s16 t = (s16)(...); *(s16*)&item->data[2] = t; }` to force a typed intermediate; real WORSENED 428->514 (register cascade), reverted immediately. Root cause of the extsh still unknown.",
+    "baseline_and_best": "baseline: insns 924/924, real 432, fuzzy 95.295456%. best: insns 924/924, real 428, fuzzy 95.19805%",
+    "measurements": "full ninja green, main.dol sha1 OK, no sibling regression (project 97.74% fuzzy / 57.91% matched unchanged after this fn)",
+    "policy": "metric conflict: real improved (432->428) while fuzzy dipped ~0.1%; kept per real-primary-for-small-fn guidance after direct diff inspection confirmed a genuine structural cluster closure, not noise-chasing",
+    "residual": "STRUCTURAL, ~428 real diff lines. Dominant remaining pattern: the &v[1] address-cache-vs-rematerialize split (~10 sites, likely REGISTER_ONLY/regalloc-pressure, capped this session -- do not retry without new source-level theory). Secondary: missing extsh before 2-3 s16-cast stores (line ~3081 and similar; intermediate-variable probe made it WORSE, root cause unresolved -- next theory should look at whether the cast operand type (f32*f32 product) vs a plain int source changes MWCC's extsh emission, not just variable-vs-inline). Minor scattered replace/insert clusters (extsb missing ~line 577, cmpwi/cmplwi form swap, slwi/rlwinm form swap) not yet investigated."
+  },
+  "function": "function:fn_8005C1DC",
+  "id": "attempt.fn-8005c1dc.20260829.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}

@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "close the fndiff-reported +8-byte frame delta by widening the existing `f32 unused[N]` padding local; 1 reverted probe on a pervasive whole-function +1 register-numbering cascade",
+  "attributes": {
+    "anchors": "src/game/world/gauntworld.c::fn_8005F0F4; target .text 0x8005F0F4 size 2644B; python tools/gdl/fndiff.py game/world/gauntworld.c fn_8005F0F4 --count/--ops/--clean; a prior worker had already left `f32 unused[10]; (void)unused;` as a frame-padding lever in this fn",
+    "axis_log": "1) fndiff HINT reported frame delta +8; widened the pre-existing `unused[10]` to `unused[12]` (2 more f32 = 8 bytes) -- HINT cleared, real 597->593, insns unchanged 661/658, fuzzy flat 94.73979% (register-noise cleanup only, no structural cluster closed). 2) Investigated the dominant remaining residual: from insn ~36 onward almost every diff line shows a consistent +1 register shift (target f26/f27/r29/r30 vs ours f27/f28/r30/... one slot lower), traced to a single root: target computes `coltype` (data->coltype, s16 @ data+8) into r0 via lha then `mr r29,r0` into its long-term home register, where ours loads directly into the long-term register (r30) skipping the redundant copy -- ours is objectively fewer instructions but the register-color choice ripples differently through the rest of the ~600-line function. Tried reordering source: moved `coltype = data->coltype;` to AFTER the `if (coltype==0) return sNoDistance;` early-out (checking `data->coltype` inline for the guard, caching to the `coltype` local only past the return) to try to force a reload matching target's copy pattern. Real WORSENED 593->786 (insns 658->659) -- reverted immediately, single A/B, axis killed.",
+    "baseline_and_best": "baseline: insns 661/658, real 597, fuzzy 94.73979%. best: insns 661/658, real 593, fuzzy 94.73979% (unchanged)",
+    "measurements": "full ninja green, main.dol sha1 OK, no sibling regression (project 97.74% fuzzy / 57.91% matched unchanged)",
+    "policy": "frame-padding fix is a clean, verified win (real strictly improved, fuzzy flat, no semantic change -- padding array is dead storage). Coltype-reorder probe was strictly worse on all axes and reverted per monotonic-best-result policy.",
+    "residual": "STRUCTURAL/REGISTER_ONLY mix, 593 real diff lines. Root cause of the pervasive +1 register-numbering cascade (affecting the majority of the function from insn ~36 to ~588) is the single `mr r29,r0` redundant copy target has for caching `coltype` into its long-term register right after the `data->coltype==0` early-return check; ours produces the copy-free (more efficient) form instead, and that single register-color choice ripples through nearly every subsequent live range in the function. 1 reorder probe tried and killed (see axis_log). Two other clusters seen but not yet probed: T[368:384] (the type>=/type<10/type<0xC accept_at_pos goto-chain near line 2500-2522, comparison/branch restructuring) and the los_check f1..f4 comparison chain (~line 2530-2576, multiple fcmpo/bge/blt reordering) -- both plausible next targets for a future session, likely downstream of the same register cascade rather than independent bugs, so best re-examined only after the root cascade is understood."
+  },
+  "function": "function:fn_8005F0F4",
+  "id": "attempt.fn-8005f0f4.20260829.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}

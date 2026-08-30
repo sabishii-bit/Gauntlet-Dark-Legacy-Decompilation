@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "close the fndiff-reported +32-byte frame delta with a new `u8 unused[32]` padding local; 1 reverted probe rewriting an early-return guard as a positive if-wrap, targeting a repeated bne-vs-beq+b branch-form cluster",
+  "attributes": {
+    "anchors": "src/game/world/gauntworld.c::fn_8005BA1C; target .text 0x8005BA1C size 1984B; python tools/gdl/fndiff.py game/world/gauntworld.c fn_8005BA1C --count/--ops/--clean",
+    "axis_log": "1) fndiff HINT reported frame delta +32; added `u8 unused[32]; (void)unused;` alongside the existing locals (no such padding existed in this fn yet) -- HINT cleared, real 539->529, insns unchanged 496/487, fuzzy improved 93.495964%->93.50605% (both metrics agree, clean win). 2) ops-diff showed a `replace T[x:x+2]=['beq','b'] O[x:x+1]=['bne']` cluster repeated 5x (insn ranges ~168-170, 202-204, 232-234, 297-299, 358-360), each a 2-vs-1 instruction gap (target: test+beq-near+b-far; ours: test+bne-far), worth ~5 of the 9 total insn-count gap. Traced the FIRST occurrence to case 2's `if (*(s32*)rec != 1) { break; } switch(*(s32*)(rec+4)) {...}` (src ~line 2106-2109) and rewrote as `if (*(s32*)rec == 1) { switch(...) {...} }` (positive wrap, guard inverted) hypothesizing target's real source used the positive form. Rebuilt: BYTE-IDENTICAL object code, zero effect on insns/real/ops -- MWCC normalizes this exact transform identically either way. Reverted (kept source in the more idiomatic early-break form). Root site of the 5x pattern is therefore NOT this guard -- likely one of the sibling case blocks (case 3/4/5/10/8 all have similar rec/mode/rank guard chains) or a genuinely different source-level difference at those sites; not reidentified this session.",
+    "baseline_and_best": "baseline: insns 496/487, real 539, fuzzy 93.495964%. best: insns 496/487, real 529, fuzzy 93.50605%",
+    "measurements": "full ninja green, main.dol sha1 OK, no sibling regression (project 97.74% fuzzy / 57.91% matched unchanged)",
+    "policy": "frame-padding fix: clean win, both real and fuzzy improved, semantics unchanged (dead padding storage). Guard-polarity probe: neutral zero-effect (not a regression, but no value) -- reverted for source cleanliness; does not count as a negative sign against the axis, just proves that specific site is not the divergence.",
+    "residual": "STRUCTURAL, 529 real diff lines. Dominant unresolved pattern: 5x repeated 2-vs-1 instruction branch-form cluster (target does test+beq+b, ours does test+bne) scattered through the case-2..case-10 guard chains; the case-2 rec[0]!=1 guard was ruled OUT as the site (zero-effect probe). Next session should check the case-3 (`item->action>0`/`mode!=2` guards, ~line 2113-2118), case-1/mode-guard (~line 2156-2160), and case-10/case-8 blocks (~line 2228+) for the SAME shape before assuming it's regalloc noise -- given the pattern is identical 5x it is very likely one recurring source-level idiom used consistently by the original author, not independent bugs. Also present: pervasive r31->r30 (item pointer) off-by-one register shift similar to fn_8005F0F4's cascade, likely downstream of whichever structural fix is still missing rather than independently fixable."
+  },
+  "function": "function:fn_8005BA1C",
+  "id": "attempt.fn-8005ba1c.20260829.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}

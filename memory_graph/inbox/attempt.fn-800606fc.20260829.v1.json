@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "cached-pointer hoist for sItemRuntime (rt) reused at 4 sites, struct-typed GAMEOPTS field access to kill re-associated gGameOptions+0x10/+0xC derived pointers, and a 120-byte stack-frame padding local to close the frame-size gap",
+  "attributes": {
+    "anchors": "src/game/world/gauntworld.c::fn_800606FC; target .text 0x800606FC size 8884B; python tools/gdl/fndiff.py game/world/gauntworld.c fn_800606FC --count/--ops/--clean",
+    "axis_log": "1) `u8* rt = sItemRuntime;` as first local replacing 3 recomputed address sites (0xCB8, idx*0x28, [7546..7548] f32 array) -- target keeps this in one callee-saved GPR (r23) whole-function, confirmed via 4 immediate-displacement uses off a single lis+addi at target+0x1c; 2) reused pre-existing-but-unused GAMEOPTS typed view for 6x gGameOptions+0x10/+0xC in the minoff gate -- raw pointer casts were re-associated into 2 derived-pointer GPRs where target keeps ONE base GPR w/ per-load displacement; 3) fndiff hint reported frame delta +120 (608 vs 488) -- added `u8 unused[120];` per the tool's own suggested probe, closed the frame gap, hint disappeared, and every generate_enemy-block stack offset (previously off by a constant -120) realigned. 2 further probes on residual T[682:717] reverted as no-ops: (a) `u8* dat = it->data;` mirroring target's r31+220 base -- real 1384->1385, reverted; (b) `s32 nt=-t` temp for `RandInt(-t)+((-t)>>1)` x2 sites hypothesizing target's cross-call r27 caching -- produced byte-IDENTICAL object code, reverted inert.",
+    "baseline_and_best": "baseline: insns 2221/2219, real 1468, fuzzy 95.75642%, frame 488 vs target 608 (+120). best: insns 2221/2215, real 1384, fuzzy 96.76947%, frame hint cleared",
+    "measurements": "ops-cluster count ~60->46; full ninja green, main.dol sha1 OK, no sibling regression (project 97.73->97.74% fuzzy, 57.91% matched unchanged)",
+    "policy": "metric-conflict per AGENTS.md: after fix(1)+(2) alone real rose 1468->1532 (cascade) while fuzzy rose to 96.74% -- kept as forward step on target-byte verification (r23 displacements literally match sItemRuntime+3256/idx*40/30184/8/92); fix(3) then brought real to 1384, net better on both metrics",
+    "residual": "STRUCTURAL, 1438 real diff lines. Remaining small clusters (1-8 insn each): T[357:365] neg/RandInt scheduling (unidentified 2nd RandInt site, not the 2 reverted-probe sites), T[383:384] branch polarity, T[443:479] lis/addi/lfd/stfd reorder, T[505:577] misc, T[617:633] lwz/lha/rlwinm reorder, T[682:717] generate_enemy int->float magic-const trick (stack offsets now match, ordering/regs differ, extsh-for-wob missing -- most promising unresolved lead), T[884:1029] fmul/lfs/stfs reorder (lookout-fade calc), T[1121:1974] scattered extsb/cror/branch-form diffs. Likely REGISTER_ONLY/SCHEDULE residue from live-range pressure in this 2221-insn dispatcher, plus 1-2 more undiscovered STRUCTURAL gaps for a future session."
+  },
+  "function": "function:fn_800606FC",
+  "id": "attempt.fn-800606fc.20260829.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
