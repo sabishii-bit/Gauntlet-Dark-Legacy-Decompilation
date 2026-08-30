@@ -605,18 +605,18 @@ s32 do_player_select(void)
                         u8* b;
                         init_player_change(pi, *(s32*)(pl + offsetof(Player, character)));
                         b = blitbase + pi * 132;
-                        *(s32*)(b + 0x1C) = 5;
-                        *(s32*)(b + 0x20) = 0;
+                        *(s32*)(b + 2 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 5;
+                        *(s32*)(b + 2 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
                         mbBlitInit3414(*(void**)(blitbase + (pi * 132 + 24)),
                                        0);
                         MBBlitSetAlpha(*(void**)(blitbase + (pi * 132 + 24)),
                                        0xFF);
-                        *(s32*)(b + 0x28) = 7;
-                        *(s32*)(b + 0x2C) = 0;
-                        *(s32*)(b + 0x4C) = 1;
-                        *(s32*)(b + 0x50) = 0;
-                        *(s32*)(b + 0x40) = 1;
-                        *(s32*)(b + 0x44) = 0;
+                        *(s32*)(b + 3 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 7;
+                        *(s32*)(b + 3 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
+                        *(s32*)(b + 6 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 1;
+                        *(s32*)(b + 6 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
+                        *(s32*)(b + 5 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 1;
+                        *(s32*)(b + 5 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
                     } else {
                         *(s32*)(pl + offsetof(Player, respawn_char)) =
                             LimitSeltype(pl, *(s32*)(pl + offsetof(Player, character)), 0);
@@ -820,18 +820,18 @@ s32 do_player_select(void)
                             u8* b;
                             init_player_change(pi, *(s32*)(pl + offsetof(Player, character)));
                             b = blitbase + pi * 132;
-                            *(s32*)(b + 0x1C) = 5;
-                            *(s32*)(b + 0x20) = 0;
+                            *(s32*)(b + 2 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 5;
+                            *(s32*)(b + 2 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
                             mbBlitInit3414(
                                 *(void**)(blitbase + (pi * 132 + 24)), 0);
                             MBBlitSetAlpha(
                                 *(void**)(blitbase + (pi * 132 + 24)), 0xFF);
-                            *(s32*)(b + 0x28) = 7;
-                            *(s32*)(b + 0x2C) = 0;
-                            *(s32*)(b + 0x4C) = 1;
-                            *(s32*)(b + 0x50) = 0;
-                            *(s32*)(b + 0x40) = 1;
-                            *(s32*)(b + 0x44) = 0;
+                            *(s32*)(b + 3 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 7;
+                            *(s32*)(b + 3 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
+                            *(s32*)(b + 6 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 1;
+                            *(s32*)(b + 6 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
+                            *(s32*)(b + 5 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 1;
+                            *(s32*)(b + 5 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
                         } else {
                             *(s32*)(pl + offsetof(Player, respawn_char)) =
                                 LimitSeltype(pl, *(s32*)(pl + offsetof(Player, character)), 0);
@@ -1201,18 +1201,18 @@ s32 do_player_select(void)
                         u8* b;
                         init_player_change(pi, *(s32*)(pl + offsetof(Player, character)));
                         b = blitbase + pi * 132;
-                        *(s32*)(b + 0x1C) = 5;
-                        *(s32*)(b + 0x20) = 0;
+                        *(s32*)(b + 2 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 5;
+                        *(s32*)(b + 2 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
                         mbBlitInit3414(*(void**)(blitbase + (pi * 132 + 24)),
                                        0);
                         MBBlitSetAlpha(*(void**)(blitbase + (pi * 132 + 24)),
                                        0xFF);
-                        *(s32*)(b + 0x28) = 7;
-                        *(s32*)(b + 0x2C) = 0;
-                        *(s32*)(b + 0x4C) = 1;
-                        *(s32*)(b + 0x50) = 0;
-                        *(s32*)(b + 0x40) = 1;
-                        *(s32*)(b + 0x44) = 0;
+                        *(s32*)(b + 3 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 7;
+                        *(s32*)(b + 3 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
+                        *(s32*)(b + 6 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 1;
+                        *(s32*)(b + 6 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
+                        *(s32*)(b + 5 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 1;
+                        *(s32*)(b + 5 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
                     } else {
                         *(s32*)(pl + offsetof(Player, respawn_char)) =
                             LimitSeltype(pl, *(s32*)(pl + offsetof(Player, character)), 0);
@@ -1266,7 +1266,7 @@ s32 do_player_select(void)
                     if (*(s32*)(pl + offsetof(Player, motion_state)) == 0) {
                         new_player(i);
                     }
-                    mbBlitInit3414(*(void**)((blitbase + boff) + 0x24), 1);
+                    mbBlitInit3414(*(void**)((blitbase + boff) + 3 * sizeof(BlitEntry) + offsetof(BlitEntry, handle)), 1);
                     break;
                 }
                 sel += step;
@@ -1299,8 +1299,8 @@ s32 do_player_select(void)
                                       lbl_801200B0[*(s32*)(pl + offsetof(Player, respawn_char))],
                                       texname);
                         }
-                        *(s32*)((blitbase + boff) + 0x34) = 2;
-                        *(s32*)((blitbase + boff) + 0x38) = 0;
+                        *(s32*)((blitbase + boff) + 4 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 2;
+                        *(s32*)((blitbase + boff) + 4 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
                         if (serve_blits(i) != 0) {
                             servedMask |= 1 << i;
                         }
@@ -1350,7 +1350,7 @@ s32 do_player_select(void)
                             }
                             setup_tex(i, 2, 0, 0, pool + 168,
                                       lbl_801200B0[*(s32*)(pl + offsetof(Player, respawn_char)) & 7]);
-                            mbBlitProject(*(void**)((blitbase + boff) + 0x18), -1, 320);
+                            mbBlitProject(*(void**)((blitbase + boff) + 2 * sizeof(BlitEntry) + offsetof(BlitEntry, handle)), -1, 320);
                             if (*(s32*)(pl + offsetof(Player, respawn_char)) == 16 ||
                                 *(u32*)(pl + offsetof(Player, hidden_code)) != 0) {
                                 wflag = 0;
@@ -1372,7 +1372,7 @@ s32 do_player_select(void)
                             *(s32*)(p2 + offsetof(Player, hidden_code)) = saved;
                             setup_tex(i, 2, 0, 0, pool + 168,
                                       lbl_801200B0[picked & 7]);
-                            mbBlitProject(*(void**)((blitbase + boff) + 0x18),
+                            mbBlitProject(*(void**)((blitbase + boff) + 2 * sizeof(BlitEntry) + offsetof(BlitEntry, handle)),
                                           -1, 320);
                             if (*(u32*)(p2 + offsetof(Player, hidden_code)) != 0) {
                                 wflag = 0;
@@ -1385,16 +1385,16 @@ s32 do_player_select(void)
                                 AudioWelcome(i, wflag);
                             }
                         }
-                        *(s32*)((blitbase + boff) + 0x1C) = 5;
-                        *(s32*)((blitbase + boff) + 0x20) = 0;
-                        mbBlitInit3414(*(void**)((blitbase + boff) + 0x18), 0);
-                        MBBlitSetAlpha(*(void**)((blitbase + boff) + 0x18), 0xFF);
-                        *(s32*)((blitbase + boff) + 0x28) = 7;
-                        *(s32*)((blitbase + boff) + 0x2C) = 0;
-                        *(s32*)((blitbase + boff) + 0x4C) = 1;
-                        *(s32*)((blitbase + boff) + 0x50) = 0;
-                        *(s32*)((blitbase + boff) + 0x40) = 1;
-                        *(s32*)((blitbase + boff) + 0x44) = 0;
+                        *(s32*)((blitbase + boff) + 2 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 5;
+                        *(s32*)((blitbase + boff) + 2 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
+                        mbBlitInit3414(*(void**)((blitbase + boff) + 2 * sizeof(BlitEntry) + offsetof(BlitEntry, handle)), 0);
+                        MBBlitSetAlpha(*(void**)((blitbase + boff) + 2 * sizeof(BlitEntry) + offsetof(BlitEntry, handle)), 0xFF);
+                        *(s32*)((blitbase + boff) + 3 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 7;
+                        *(s32*)((blitbase + boff) + 3 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
+                        *(s32*)((blitbase + boff) + 6 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 1;
+                        *(s32*)((blitbase + boff) + 6 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
+                        *(s32*)((blitbase + boff) + 5 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 1;
+                        *(s32*)((blitbase + boff) + 5 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
                     } else {
                         AudioBuzzer();
                     }
@@ -1437,8 +1437,8 @@ s32 do_player_select(void)
         case 1:
             break;
         default:
-            *(s32*)((blitbase + boff) + 0x1C) = 1;
-            *(s32*)((blitbase + boff) + 0x20) = 0;
+            *(s32*)((blitbase + boff) + 2 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 1;
+            *(s32*)((blitbase + boff) + 2 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
             break;
         }
     }
