@@ -1677,7 +1677,7 @@ s32 fn_8006DF34(NcCamera* cam) {
 #pragma opt_propagation off
 void fn_8006E654(void) {
     NcCamera tmp;
-    u8 unused[36];
+    u8 unused[52];
     f64 d;
     f32 pitch;
     s32 ok;
@@ -1756,9 +1756,12 @@ void fn_8006E654(void) {
     lbl_80344A6C->pitch = d;
 
     lbl_80344A6C->distance += lbl_80344A6C->dist_rate;
-    lbl_80344A6C->attention.x += lbl_80344A6C->velocity.x;
-    lbl_80344A6C->attention.y += lbl_80344A6C->velocity.y;
-    lbl_80344A6C->attention.z += lbl_80344A6C->velocity.z;
+    lbl_80344A6C->attention.x =
+        lbl_80344A6C->attention.x + lbl_80344A6C->velocity.x;
+    lbl_80344A6C->attention.y =
+        lbl_80344A6C->attention.y + lbl_80344A6C->velocity.y;
+    lbl_80344A6C->attention.z =
+        lbl_80344A6C->attention.z + lbl_80344A6C->velocity.z;
 
     lbl_80344A6C->field_1A4 =
         (lbl_80344A6C->field_1A4 + 1) % lbl_80343CD0;
@@ -1797,7 +1800,12 @@ void fn_8006E654(void) {
             1.0 / cam->aspect);
     }
 
-    if ((*(u64*)&gControllerButtons & 1) != 0) {
+    controller = gControllerButtons;
+    zero = 0;
+    one = 1;
+    flags = sFlags;
+    if ((NcMaskMismatch(NcApplyMask(flags, one), zero) |
+         NcMaskMismatch(controller & zero, zero)) != 0) {
         dbgTextPrintfCell(
             0xFFFF00, 1, 0x20, lbl_801137D0,
             0.31830988614222805 * (180.0 * cam->yaw),
@@ -1811,8 +1819,10 @@ void fn_8006E654(void) {
             fn_8006DF34(lbl_80344A6C);
             pbUpdateMatricies();
         }
+        result = lbl_80344A70;
         lbl_803447B8 = 0;
-        lbl_80344A70--;
+        result--;
+        lbl_80344A70 = result;
         gScriptedCameraState = 0;
     }
     lbl_80344A70--;
