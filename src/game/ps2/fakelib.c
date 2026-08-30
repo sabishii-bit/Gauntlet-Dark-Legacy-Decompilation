@@ -50,8 +50,12 @@ typedef struct SCEFILE {
     s32 pos;        /* 0x18 */
     u8 fileInfo[0x34]; /* 0x1C DVDFileInfo head */
     u32 size;       /* 0x50 (DVDFileInfo.length) */
-    u8 rest[0x8];
+    u8 rest[0x4];
 } SCEFILE;
+
+typedef struct SCEBUFFER_SLOT {
+    u8 data[16416];
+} SCEBUFFER_SLOT;
 
 void* memcpy(void* dst, const void* src, u32 n);
 
@@ -372,11 +376,11 @@ int sceOpen(const char* path, int flags, ...)
     if (i == 1) {
         return -1;
     }
-    f = (SCEFILE*) (base + 1440 + i * 88);
+    f = &((SCEFILE*) (base + 1440))[i];
     if (*(u32*) &f & 1) {
         return -1;
     }
-    f->buf = base + 1528 + i * 16416;
+    f->buf = ((SCEBUFFER_SLOT*) (base + 1528))[i].data;
 
     fi = f->fileInfo;
     do {

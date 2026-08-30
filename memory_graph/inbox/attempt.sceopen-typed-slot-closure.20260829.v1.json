@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "portable-C exact closure of sceOpen slot-table address formation, prologue address scheduling, and pointer/register roles",
+  "attributes": {
+    "anchors": "src/game/ps2/fakelib.c::sceOpen; target .text 0x800AF02C size 0x18C; python tools/gdl/fnasm.py game/ps2/fakelib.c sceOpen; python tools/gdl/fndiff.py game/ps2/fakelib.c sceOpen --count/--ops/--clean; build/GUNE5D/report.json",
+    "axis_log": "WIN: corrected SCEFILE to the target's 88-byte slot stride and used typed 88-byte file-slot plus 16416-byte buffer-slot indexing, reproducing both target mulli-add-addi address trees (real 28->24, fuzzy 93.181816->97.42104). NO-OP: pointer-vs-u32 base, register hint, declaration/init order, and left-associated raw arithmetic. WORSE/RESTORED: moving base init after flag gate real30; direct global accesses 101 insns/real40; hoisted aligned-buffer offset real32; direct f->fileInfo 98 insns/0xC8 frame/real47.",
+    "baseline": "target/current 99/99 instructions, fuzzy 93.181816%, count-real 28, 0xD0 frame, saves r27-r31; SCHEDULE_CANDIDATE",
+    "final_state": "target/current 99/99 instructions, fuzzy 97.42104%, count-real 24, 0xD0 frame and saves unchanged; retained typed slot views and corrected sizeof(SCEFILE)==88",
+    "remaining_residual": "SCHEDULE_CANDIDATE: one prologue order move (target resolves sFileSlots ADDR16_LO into r4 before saving vararg r5; current saves r5 then resolves into r5), followed by consistent base/f pointer and fileInfo/aligned-offset register-pair swaps. Do not retry recorded pointer/integer, register-hint, declaration/initializer-order, direct-global, raw-expression association, offset-hoist, or direct-member axes without a genuinely new target-backed lever.",
+    "semantic_audit": "flags must include read bit; the sole 88-byte file slot is rejected when occupied; file record address and 16416-byte buffer address use index 0 under the one-slot guard; odd handle pointers fail; DVDOpen retries through the existing disc-error read path; open flags, aligned cache offset, chunk 16384, positions, and pointer>>1 handle encoding agree with target fields and CFG. Xbox fakelib.obj exact-name symbol was used only as cross-platform semantic evidence; GameCube target remained authoritative.",
+    "verification": "owning object rebuilt; target asm and count/ops/clean inspected; matchtool sceOpen real24 with exact siblings unchanged; root-baseline/current report comparison shows only sceOpen changed (396B, fuzzy 93.181816->97.42104) and only TU .text changed (same 2848B size, fuzzy 99.044945->99.634834); .data/.sdata2/extab/extabindex unchanged; git diff --check passed; no assembly modified; fresh full ninja linked main.dol and checksum reported OK; project progress 97.78174% fuzzy, 58.121483% matched"
+  },
+  "function": "function:sceOpen",
+  "id": "attempt.sceopen-typed-slot-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
