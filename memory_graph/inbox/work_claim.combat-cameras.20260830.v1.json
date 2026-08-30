@@ -1,0 +1,13 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "whole TU src/game/game/combat.c exclusively: InitCamera, StandardCamera_8002B828, CameraSupervisor, get_cam_wpos_8002ABE0, PlayerStartMissile, screen_limitation, InitPlayerMissiles; parallel CodeX/Kimi fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-30",
+  "function": "function:InitCamera",
+  "id": "work_claim.combat-cameras.20260830.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-D",
+  "schema_version": 1,
+  "state": "active"
+}
