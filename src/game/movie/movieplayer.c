@@ -255,7 +255,7 @@ extern const f32 lbl_803493E8;
 extern const f32 lbl_803493EC;
 
 /* --- forward decls for intra-TU calls --- */
-u32* fn_800DBC64(u32* p);
+MovieChunkStream* fn_800DBC64(MovieChunkStream* p);
 u32* fn_800DBE04(u32* p);
 u32* DTextInitColorRamp(u32* p);
 void fn_800D9DF0(char* src, int len, u8* dst, int* outlen);
@@ -1917,7 +1917,7 @@ u32 fn_800DACD8(int param_1, u8* param_2) {
 }
 
 /* MoviePlayer teardown (AudioStreamStop, operator delete, dtor_800DBB94) */
-u32* dtor_800DBB94(u32* self, s16 deleting);
+MovieChunkStream* dtor_800DBB94(MovieChunkStream* self, s16 deleting);
 u32* fn_800DBD30(u32* self, s16 deleting);
 
 u32* fn_800DB008(u32* self, s16 deleting) {
@@ -1939,7 +1939,7 @@ u32* fn_800DB008(u32* self, s16 deleting) {
             }
         }
         fn_800DBD30(self + 0x54, -1);
-        dtor_800DBB94(self + 8, -1);
+        dtor_800DBB94((MovieChunkStream*)(self + 8), -1);
         if (self != NULL) {
             self[0] = (u32)lbl_801296A4;
         }
@@ -1958,7 +1958,7 @@ u32* fn_800DB0F8(u32* volatile p) {
 
     self[0] = (u32)lbl_801296A4;
     self[0] = (u32)lbl_8012968C;
-    fn_800DBC64(self + 8);
+    fn_800DBC64((MovieChunkStream*)(self + 8));
     fn_800DBE04(self + 0x54);
     self[7] = 0;
     self[100] = 0;
@@ -2362,26 +2362,26 @@ void fn_800DBA80(u8* dec, s32 fd) {
 #pragma scheduling on
 #endif
 
-u32* dtor_800DBB94(u32* self, s16 deleting) {
+MovieChunkStream* dtor_800DBB94(MovieChunkStream* self, s16 deleting) {
     u8 unused[32];
 
     if (self != NULL) {
-        __dla__FPv((void*)self[1]);
-        self[1] = 0;
-        self[0] = 0;
-        __dla__FPv((void*)self[3]);
-        self[3] = 0;
-        self[2] = 0;
-        __dla__FPv((void*)self[0x15]);
-        self[6] = 0;
-        self[5] = 0;
-        self[4] = 0;
-        self[8] = 0;
-        self[9] = 0;
-        self[0x16] = 0;
-        self[0x14] = 0;
-        self[0x15] = 0;
-        fn_800D9CF4((int*)(self + 0xf), -1);
+        __dla__FPv(self->rawBuffer);
+        self->rawBuffer = 0;
+        self->buffer = 0;
+        __dla__FPv(self->rawStaging);
+        self->rawStaging = 0;
+        self->stagingBuffer = 0;
+        __dla__FPv(self->nodePoolRaw);
+        self->bufferSize = 0;
+        self->highWater = 0;
+        self->writePos = 0;
+        self->_20 = 0;
+        self->_24 = 0;
+        self->freeListHead = 0;
+        self->activeNode = 0;
+        self->nodePoolRaw = 0;
+        fn_800D9CF4((int*)&self->audio, -1);
         if (deleting > 0 && self != NULL) {
             gMovieAllocCount--;
             if (gMovieAllocCount == 0) {
@@ -2392,22 +2392,22 @@ u32* dtor_800DBB94(u32* self, s16 deleting) {
     return self;
 }
 
-u32* fn_800DBC64(register u32* p) {
-    register u32* self = p;
+MovieChunkStream* fn_800DBC64(register MovieChunkStream* p) {
+    register MovieChunkStream* self = p;
 
-    fn_800D9DA4((MovieRingBuffer*)(self + 0xf));
-    self[3] = 0;
-    self[2] = 0;
-    self[1] = 0;
-    self[0] = 0;
-    self[6] = 0;
-    self[5] = 0;
-    self[4] = 0;
-    self[8] = 0;
-    self[9] = 0;
-    self[0x16] = 0;
-    self[0x15] = 0;
-    self[0x14] = 0;
+    fn_800D9DA4(&self->audio);
+    self->rawStaging = 0;
+    self->stagingBuffer = 0;
+    self->rawBuffer = 0;
+    self->buffer = 0;
+    self->bufferSize = 0;
+    self->highWater = 0;
+    self->writePos = 0;
+    self->_20 = 0;
+    self->_24 = 0;
+    self->freeListHead = 0;
+    self->nodePoolRaw = 0;
+    self->activeNode = 0;
     return self;
 }
 
