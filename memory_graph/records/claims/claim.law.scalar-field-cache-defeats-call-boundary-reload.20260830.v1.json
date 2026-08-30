@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/sfx/sfx.c::ProcessEffects (worktree GDL-Claude-SfxMatch, work_claim.sfx-processeffects-match.20260830.v1); attempt.processeffects-frame-pad-fix.20260829.v2",
+    "scope": "MWCC GC 1.2.5 family; applies whenever a struct/array-element pointer whose address is passed BY VALUE (as `ptr` or `&ptr->x`) into one or more other function calls within the same enclosing scope, and a scalar field of that struct is read more than once across such a call boundary.",
+    "tags": [
+      "alias-form",
+      "register-web",
+      "cse",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.scalar-field-cache-defeats-call-boundary-reload.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-30T21:03:40Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "Once a struct pointer `p` has its address passed into ANY function call reachable in the same scope (e.g. `p` itself passed as an argument, so the callee could in principle write through it), MWCC's alias analysis must treat `p->field` as potentially clobbered by every subsequent call and reload it fresh from memory (lwz) at every later read -- even for a field the actual callees never touch. Snapshotting that field into a plain local scalar (`u32 flags = p->field;`, then reading `flags` everywhere afterward) defeats this: a plain local is provably never aliased, so MWCC keeps ONE value live in a register (or, under register pressure, a single stack slot written once and reread) for the whole scope, including reusing it unchanged across calls and even hoisting a derived bitmask test (`flags & MASK`) out of an enclosing loop that target's fresh-reread form could never hoist across the loop's own calls. The tell: target's disassembly repeats `lwz rX,OFF(rBASE)` immediately before every use of the field, including duplicate reloads separated only by calls with no other intervening use, and inside a loop containing calls, target recomputes a bitmask test freshly each iteration (`lwz + rlwinm.`) where a cached-local build instead computes it once before the loop and reuses a stored 0/1 result (`rlwinm` + `stw` before the loop, `lwz` + `cmplwi` inside it). Verified on ProcessEffects: `e = &page->fx[i]` escapes to ~15 calls per outer-loop iteration (GetWorldMat, CreateDirMatrix, Pitch/Yaw/RollMat3, MBTreeSetAlpha/SetFlags, damage_enemy, PlayerDamagedEnemy, StartFXSub, ...); removing a `u32 flags = e->flags;` local cache and reading `e->flags` fresh at all 27 sites resolved every `rlwinm.`-vs-`cmplwi/cmpwi` op-mismatch tied to that field (3 of them inside one inner while-loop alone), dropped --ops structural clusters 188->174, and raised fuzzy 85.22%->86.13% with zero real-count regression once corroborated against the op-cluster count. A same-function sibling loop already read `e->flags` directly at every site (never through a cached local) -- that pre-existing asymmetry within one file is a strong tell to look for elsewhere. This is the boundary/companion law to claim.law.whole-fn-address-cache (which covers the opposite case: target DOES want an ADDRESS cached once, because nothing ever writes through that address) and to claim.law.sda-global-alias-forces-persistent-register (small-data-global case): the discriminator here is whether a MUTABLE field read (not the base address, and not an SDA21 global) is being cached across a call boundary that could invalidate it. Practical rule: when de-fakematching or reconstructing a loop body whose element pointer escapes to calls, prefer `ptr->field` at every read site over introducing a scalar-cache local, UNLESS the field is read only once, or the snapshot is semantically required (e.g. comparing an OLD value against a field the function itself later mutates, as with a hit-count-before/after pattern) -- in that case the cache is correct and should stay."
+}
