@@ -1,13 +1,13 @@
 {
-  "attempted_axis": "TU-scoped de-fakematch pass converting GC-verified raw Enemy, Player, Critter, and CritterSubnode offsets to named members under per-function byte-identity gates",
+  "attempted_axis": "TU-scoped de-fakematch pass converting GC-verified raw Enemy, Player, Critter, and CritterSubnode offsets to named members, including correction of the emitter-present flag to u32, under per-function byte-identity gates",
   "attributes": {
-    "anchors": "git:0c6035807b7fbbb8d00ef675f50167684e121515; src/game/enemy/critter.c::{CritterCollideEnemies,CritterNodeEnemyCollide,SafeRockNearestTarget,CritterLookAtPlayer,CritterFindMoveType,CritterDelInst}; python tools/gdl/fndiff.py game/enemy/critter <fn> --clean",
-    "axis_log": "The first combined CritterDelInst spelling (`c->emitterset != 0`, `node->next`) regressed to 79 instructions/55 real through signed cmp and removed reload/register-web rotation. Isolating the sites as `(u32)c->emitterset` and `((CritterSubnode*)c->subnodes)->next` restored 80/80, --ops OK, real 0 and was retained.",
+    "anchors": "git:0c6035807b7fbbb8d00ef675f50167684e121515 and git:8372425e8a91e397dc5ca40fb28a60bbd3357081; src/game/enemy/critter.c::{CritterCollideEnemies,CritterNodeEnemyCollide,SafeRockNearestTarget,CritterLookAtPlayer,CritterFindMoveType,CritterDelInst}; python tools/gdl/fndiff.py game/enemy/critter <fn> --clean",
+    "axis_log": "The first combined CritterDelInst spelling (`c->emitterset != 0`, `node->next`) regressed to 79 instructions/55 real through signed cmp and removed reload/register-web rotation. Isolating the reload as `((CritterSubnode*)c->subnodes)->next` restored exactness; an interim `(u32)c->emitterset` also restored cmplwi. The approved `u32 emitterset` header correction then made direct `c->emitterset != 0` exact without a use-site cast.",
     "baseline_and_best": "CritterCollideEnemies 153/153 frame 0x80; CritterNodeEnemyCollide 118/118 frame 0xA0; SafeRockNearestTarget 80/80 frame 0xA8; CritterLookAtPlayer 80/80 frame 0x30; CritterFindMoveType 68/68 frame 0x20; CritterDelInst 80/80 frame 0x20. Every function stayed fuzzy 100.0%, --ops OK, --clean EXACT real 0.",
-    "converted": "Enemy state/type/rad/hht/objgrp.coll_pos/fxhittime[0]; Player pos/col_pos; Critter moveTimes/emitterset; CritterSubnode next",
+    "converted": "Enemy state/type/rad/hht/objgrp.coll_pos/fxhittime[0]; Player pos/col_pos; Critter moveTimes/emitterset; CritterSubnode next. Critter.emitterset was corrected from s32 to u32 so its direct nonzero test naturally emits the target cmplwi.",
     "remaining": "Untested raw offsets remain elsewhere in the TU, chiefly incomplete CritterHeader and other unpublished record layouts; this pass did not name or convert them.",
-    "scope": "src/game/enemy/critter.c only; 28 raw-offset accesses converted across six exact functions; no shared headers or postprocessor rules changed",
-    "verification": "Owning object rebuilt after every region; matchtool TU summary unchanged at OK 56, OK~ 2, bad 26, ties 1; git diff --check passed; full ninja passed with build/GUNE5D/main.dol checksum OK; project progress remained 97.80% fuzzy / 58.15% matched."
+    "scope": "src/game/enemy/critter.c plus approved include/game/critter.h emitterset type correction; 28 raw-offset accesses converted across six exact functions; no postprocessor rules changed",
+    "verification": "Owning object rebuilt after every region; matchtool TU summary unchanged at OK 56, OK~ 2, bad 26, ties 1; git diff --check passed; full ninja passed after the shared-header correction with build/GUNE5D/main.dol checksum OK; project progress remained 97.80% fuzzy / 58.15% matched."
   },
   "function": "function:CritterCollideEnemies",
   "id": "attempt.critter-defakematch-tu-pass.20260830.v1",
