@@ -884,21 +884,32 @@ void DoPlayerAction(void* player)
             }
         } else if (flags != 0 || p[0x23D] != 0) {
             if ((p[0x243] & 8U) != 0) {
+                s32 gapAct;
+
                 if (cur == 0x3F) {
-                    act = 0x41;
+                    gapAct = 0x41;
                 } else {
-                    act = 0x42;
+                    gapAct = 0x42;
                 }
+                act = gapAct;
             } else if ((p[0x243] & 4U) != 0) {
+                s32 gapAct;
+
                 if (cur == 0x3F) {
-                    act = 0x40;
+                    gapAct = 0x40;
                 } else {
-                    act = 0x3F;
+                    gapAct = 0x3F;
                 }
-            } else if (cur == 0x3F) {
-                act = 0x29;
+                act = gapAct;
             } else {
-                act = 0x28;
+                s32 gapAct;
+
+                if (cur == 0x3F) {
+                    gapAct = 0x29;
+                } else {
+                    gapAct = 0x28;
+                }
+                act = gapAct;
             }
         } else {
             s32 paired_action;
