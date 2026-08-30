@@ -895,8 +895,8 @@ static f32 CTriListCollide(f32 radius, s32 base, s32 count, WorldTri** outTri,
     f32 d;
     f32 dd;
     f32 dot;
-    f32 dy;
     f32 dx;
+    f32 dy;
     f32 dz;
     f32 hit[9];
     f64 triResult;
@@ -960,18 +960,18 @@ static f32 CTriListCollide(f32 radius, s32 base, s32 count, WorldTri** outTri,
             }
             if ((lbl_80344188 & 0x10) != 0) {
                 if (zd == d) {
-                    dy = hit[1] - lbl_8023F7F8[1];
                     dx = hit[0] - lbl_8023F7F8[0];
+                    dy = hit[1] - lbl_8023F7F8[1];
                     dz = hit[2] - lbl_8023F7F8[2];
-                    dd = (dy * dy + dx * dx) + dz * dz;
+                    dd = (dx * dx + dy * dy) + dz * dz;
                 } else {
                     dd = k788 * d;
                 }
             } else {
-                dy = hit[1] - lbl_8023F7F8[1];
                 dx = hit[0] - lbl_8023F7F8[0];
+                dy = hit[1] - lbl_8023F7F8[1];
                 dz = hit[2] - lbl_8023F7F8[2];
-                dd = (dy * dy + dx * dx) + dz * dz;
+                dd = (dx * dx + dy * dy) + dz * dz;
             }
             dot = res->qnorm[0] * tri->nx + res->qnorm[1] * tri->ny +
                   res->qnorm[2] * tri->nz;
