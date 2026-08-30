@@ -109,6 +109,16 @@ def main():
     state_file.write_text(json.dumps(state), encoding="utf-8")
     print(verdict)
 
+    # A failed probe almost always needs the ops view next — print it
+    # unasked on regression so the diagnosis is zero extra calls.
+    if verdict.startswith("REGRESSED") and "--ops" not in sys.argv:
+        ops = subprocess.run(
+            [sys.executable, str(TOOLS / "fndiff.py"), unit, fn,
+             "--ops", "--no-build"],
+            capture_output=True, text=True,
+        ).stdout
+        print("\n".join(ops.strip().splitlines()[:16]))
+
     if "--ops" in sys.argv:
         ops = subprocess.run(
             [sys.executable, str(TOOLS / "fndiff.py"), unit, fn,
