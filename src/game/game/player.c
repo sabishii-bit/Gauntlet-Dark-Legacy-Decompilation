@@ -1782,8 +1782,8 @@ s32 do_players(void) {
                     it = i;
                     best = p->health;
                 }
-                if ((p->state == 4 && !(lbl_80240E34[i * 0xF] & 0xFF)) ||
-                    lbl_8034481C > 2) {
+                if ((p->state == 4 && !(lbl_80240E30[i].levels & 0xFF)) ||
+                    lbl_8034481C >= 3) {
                     lbl_80344804 = 1;
                 }
             }
@@ -1846,23 +1846,36 @@ s32 do_players(void) {
             if (p->count_91C != 0) {
                 p->count_91C = p->count_91C - 1;
             }
-            if (p->timer_1F0 > 0) {
-                p->timer_1F0 = p->timer_1F0 - gFrameTicks;
+            {
+                s32 t = p->timer_1F0;
+                if (t > 0) {
+                    p->timer_1F0 = t - gFrameTicks;
+                }
             }
-            if (p->timer_1FA > 0) {
-                p->timer_1FA = p->timer_1FA - gFrameTicks;
+            {
+                s32 t = p->timer_1FA;
+                if (t > 0) {
+                    p->timer_1FA = t - gFrameTicks;
+                }
             }
-            if (p->timer_1FC > 0) {
-                p->timer_1FC = p->timer_1FC - gFrameTicks;
+            {
+                s32 t = p->timer_1FC;
+                if (t > 0) {
+                    p->timer_1FC = t - gFrameTicks;
+                }
             }
-            if (p->timer_1FE > 0) {
-                p->timer_1FE = p->timer_1FE - gFrameTicks;
+            {
+                s32 t = p->timer_1FE;
+                if (t > 0) {
+                    p->timer_1FE = t - gFrameTicks;
+                }
             }
             if (p->vibe_on == 1) {
-                if (p->vibe_timer2 == 0) {
+                s32 t2 = p->vibe_timer2;
+                if (t2 == 0) {
                     p->vibe_timer = p->vibe_timer + gFrameTicks;
                 } else {
-                    p->vibe_timer2 = p->vibe_timer2 + gFrameTicks;
+                    p->vibe_timer2 = t2 + gFrameTicks;
                 }
             } else {
                 p->vibe_timer = 0;
@@ -1872,12 +1885,12 @@ s32 do_players(void) {
             switch (state) {
             case 0:
             {
-                s32 timer = p->respawn_timer;
+                s16 timer = p->respawn_timer;
 
                 if (timer > 0) {
                     timer -= gFrameTicks;
                     p->respawn_timer = timer;
-                    if ((s16)timer <= 0) {
+                    if (timer <= 0) {
                         setup_player_display(i);
                     }
                 }
@@ -1934,7 +1947,7 @@ s32 do_players(void) {
 
                     p->intower = 1;
                     PF(p, 0xC28 + p->character * 0x1C, f32) =
-                        PF(p, 0xC28 + p->character * 0x1C, f32) + (f32)gFrameTicks;
+                        PF(p, 0xC28 + p->character * 0x1C, f32) + (f32)(u32)gFrameTicks;
                     if (PF(gCurLevel, 0, u32) & 8) {
                         light_pos[0] = p->col_pos[0];
                         light_pos[1] = p->col_pos[1];
@@ -1957,18 +1970,18 @@ s32 do_players(void) {
                 }
                 add_target(p->mat);
                 {
-                    s32 name_timer = p->name_timer;
+                    s16 name_timer;
 
                     if ((sMusicTrackHi != 0xD || sumnerSpeechActive() == 0) &&
                         gTriggerCameraState == 0 && gModalRenderDepth == 0 &&
-                        gMessageActive == 0 && name_timer > 0 &&
+                        gMessageActive == 0 && (name_timer = p->name_timer) > 0 &&
                         !(gGameBusy | gGameplayPauseTimer)) {
                         char name[88];
                         f32 spos[2];
 
                         name_timer -= gFrameTicks;
                         p->name_timer = name_timer;
-                        if ((s16)name_timer <= 0) {
+                        if (name_timer <= 0) {
                             p->name_timer = 0;
                         }
                         for (j = 0; j < 8; j++) {
@@ -2000,7 +2013,7 @@ s32 do_players(void) {
                     fn_8005ACE0(p->pos);
                 }
                 PlayerMotion(p);
-                if (p->fall_time > 0.0 && p->fall_time + 2.0 < sMusicFadeBase) {
+                if (p->fall_time > 0.0 && sMusicFadeBase > p->fall_time + 2.0) {
                     if (p->fall_frames >= 0x2D) {
                         fn_8009FEFC(i);
                     } else if (p->fall_frames >= 0x1E) {

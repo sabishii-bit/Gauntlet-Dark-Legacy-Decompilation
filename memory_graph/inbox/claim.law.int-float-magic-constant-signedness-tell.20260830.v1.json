@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "provenance": "do_players 0xC28+character*0x1C float accumulator, src/game/game/player.c; see attempt.doplayers-sel-idiom.20260830.v2",
+    "scope": "MWCC GC 1.2.5 family; applies to any int-to-double/float conversion of a value whose C-declared type is signed but whose target-compiled conversion sequence lacks the sign-flip xoris, at one specific call site.",
+    "tags": [
+      "matching",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.int-float-magic-constant-signedness-tell.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-30T22:17:20Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "MWCC's int-to-double 'magic constant' conversion (materialize a double from {hi=0x43300000, lo=raw_int_bits} via two stw + one lfd, then fsub a bias double, avoiding a branch) has two variants distinguished by a single tell instruction: the SIGNED variant XORs the sign bit into the low word first (`xoris rX,rX,0x8000` immediately before the stw of the low word) and subtracts a bias double compensating for the flip (2^52+2^31); the UNSIGNED variant omits the xoris entirely and subtracts a plain 2^52 bias. A target disassembly showing the lwz+stw+stw+lfd+fsub sequence with NO xoris, aligned against an ours-side compile of the textually-identical `(f32)value` cast that DOES emit an xoris, is therefore a signedness-mismatch tell exactly analogous to claim.law.cross-tu-extern-type-mismatch-fctiwz-tell's fctiwz/stfd cluster (a target-side single-instruction-class vs an ours-side extra-instruction-class at the same semantic position means a type mismatch, not a register/schedule residual) but for the OPPOSITE conversion direction (int-to-float rather than float-to-int) and for a per-call-site cast choice on a project-wide signed global rather than a whole-symbol extern type conflict. Verified in do_players: `extern s32 gFrameTicks;` cast via plain `(f32)gFrameTicks` at one accumulator site (`PF(p,0xC28+p->character*0x1C,f32) += (f32)gFrameTicks`) compiled to the SIGNED variant (xoris present), but target's disassembly at the identical semantic position has no xoris; rewriting the cast as `(f32)(u32)gFrameTicks` reproduced target's unsigned-variant sequence exactly (real -11 on a 1174-insn function, and cleared the sole 'xoris'/matching 'add' entries from the ours-only opcode-multiset diff). Consequence: when a target's int-to-double/float conversion lacks the xoris sign-flip but the source value's declared type is signed, try an explicit `(u32)`/`(unsigned)` intermediate cast at that ONE call site (plausible when the value is a monotonic counter/delta that is never negative in practice, e.g. a frame-tick delta) before pursuing any register or scheduling theory. This is a per-call-site source fact, not a whole-symbol type error: other uses of the same global elsewhere in the same or other TUs may correctly need the signed variant and should be re-verified independently against their own target bytes."
+}
