@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "history-backed portable-C recovery and exact closure of the strcmp conditional/unconditional branch pair using structured control flow, one-case switch carriers, and an inner-loop carrier",
+  "attributes": {
+    "anchors": "src/game/world/world.c::FindWORLDOBJ; GUNE5D .text 0x800A9C50 size 0xAC; python tools/gdl/fnasm.py game/world/world FindWORLDOBJ; python tools/gdl/fndiff.py game/world/world FindWORLDOBJ --count/--ops/--clean; immutable commits f1852a9ae0f96207aff79db29616f67a74023a40, fa1c5ee4c27a63b4a981e912b786262124774cc4, d0b45a4629f349362dbd0a664f934cfcfd9de23e, and d9d21373a8f16fcbaf388a7408c2b9500d11624f",
+    "axis_log": "historical structured if/else from the parent of the three Match commits now regresses to 41 instructions/real 18; direct one-case switch and break-carried switch both compile identically to baseline; an inner while(strcmp==0) carrier also compiles identically to baseline",
+    "baseline": "target/current 43/42 instructions, fuzzy 97.441864%, count-real 17, 0x18-byte frame, saves r30-r31; STRUCTURAL residual",
+    "final_state": "best source restored unchanged at target/current 43/42 instructions, fuzzy 97.441864%, count-real 17, 0x18-byte frame, saves r30-r31; only opcode difference is target bne search_children plus b done after strcmp versus portable MWCC's inverse beq done",
+    "policy": "Capped under portable-C-only policy. Do not retry the recorded structured if/else, direct or break-carried one-case switch, inner-loop carrier, or equivalent explicit goto pair without genuinely new compiler evidence. The three historical Match commits are duplicate source changes whose exactness depended on prohibited inline asm; d9d21373a removed the branch device and exposed the P6 goto-pair wall.",
+    "semantic_audit": "The target and retained source both scan the world_objects root/sibling chain by name, recursively search childidx subtrees through FindWorldObject, use the verified 0x3C WorldObj stride and childidx@0x2E/nextidx@0x2C fields, and return either the found node or null. Xbox WORLD.OBJ exact-name evidence is candidate-only and agrees with the by-name subtree-search role.",
+    "verification": "Owning object rebuilt; complete target assembly reviewed; fndiff count/ops/clean inspected; matchtool preserves 19 exact siblings and reports FindWORLDOBJ L-1/D17; datadiff reports only pre-existing unclaimed .data 0x38 and .sdata2 0x58; git diff --check clean; fresh full ninja linked main.dol with checksum OK; progress 97.78% fuzzy and 58.12% matched; no source, assembly, postprocessor, or data changes retained."
+  },
+  "function": "function:FindWORLDOBJ",
+  "id": "attempt.findworldobj-portable-branch-pair-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
