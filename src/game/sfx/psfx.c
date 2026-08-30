@@ -490,25 +490,25 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
     f32 health;
     u8 unused[20];
 
-    pidx = *(s32*)p;
+    pidx = ((Player*)p)->index;
     if (mode != 0) {
         pos[0] = *(f32*)(row + 44);
         pos[1] = *(f32*)(row + 48);
         pos[2] = *(f32*)(row + 52);
         if (other != NULL) {
-            MulBodyVecMat4((f32*)other, (f32*)other, p + 20);
+            MulBodyVecMat4((f32*)other, (f32*)other, ((Player*)p)->mat);
             pos[0] = *(f32*)other + pos[0];
             pos[1] = *(f32*)(other + 4) + pos[1];
             pos[2] = *(f32*)(other + 8) + pos[2];
         }
     } else {
         if (other != NULL) {
-            MulVecMat3((f32*)(row + 44), pos, (f32*)(p + 20));
+            MulVecMat3((f32*)(row + 44), pos, ((Player*)p)->mat);
             pos[0] = *(f32*)other + pos[0];
             pos[1] = *(f32*)(other + 4) + pos[1];
             pos[2] = *(f32*)(other + 8) + pos[2];
         } else {
-            MulVecMat4((f32*)(row + 44), pos, (f32*)(p + 20));
+            MulVecMat4((f32*)(row + 44), pos, ((Player*)p)->mat);
         }
     }
     mode = DoPlyrSfxSub(p, *(s16*)(row + 72), pos, mode, -1);
@@ -559,7 +559,7 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
     }
     health = *(f32*)(row + 56);
     if (health < 0.0f) {
-        health = *(f32*)(p + 260) * -health;
+        health = ((Player*)p)->stat_damage * -health;
     }
     if (health > 0.0f) {
         Effects[mode].damage = health;
@@ -587,10 +587,10 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
             }
         }
         if (*(f32*)(row + 12) != 0.0f) {
-            SfxSetLight(mode, lbl_80120DA0 + *(s32*)(p + 8) * 12,
+            SfxSetLight(mode, lbl_80120DA0 + ((Player*)p)->char_type * 12,
                         (f32)(lbl_80347DF8 * *(f32*)(row + 12)));
         } else if (*(f32*)(row + 8) != 0.0f) {
-            SfxSetLight(mode, lbl_80120DA0 + *(s32*)(p + 8) * 12,
+            SfxSetLight(mode, lbl_80120DA0 + ((Player*)p)->char_type * 12,
                         (f32)(lbl_80347DF8 * *(f32*)(row + 8)));
         }
         if (*(f32*)(row + 60) > 0.0f) {
@@ -598,9 +598,9 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
             f32 spd = lbl_80347E00 * (*(f32*)(row + 64) - *(f32*)(row + 60)) +
                       *(f32*)(row + 60);
             if (*(s16*)(row + 2) & 4) {
-                vel[0] = *(f32*)(p + 52);
-                vel[1] = *(f32*)(p + 56);
-                vel[2] = *(f32*)(p + 60);
+                vel[0] = ((Player*)p)->mat[8];
+                vel[1] = ((Player*)p)->mat[9];
+                vel[2] = ((Player*)p)->mat[10];
             } else {
                 vy = *(f32*)(p + 2236);
                 if (*(u32*)(p + 2240) & 8) {
@@ -611,9 +611,9 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
                         vy = lbl_80347E00;
                     }
                 }
-                vel[0] = *(f32*)(p + 52) * spd;
+                vel[0] = ((Player*)p)->mat[8] * spd;
                 vel[1] = vy * spd;
-                vel[2] = *(f32*)(p + 60) * spd;
+                vel[2] = ((Player*)p)->mat[10] * spd;
             }
             if (*(s16*)row == 2) {
                 if (0.0f != *(f32*)(row + 32)) {
