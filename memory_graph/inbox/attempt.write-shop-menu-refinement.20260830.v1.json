@@ -1,0 +1,17 @@
+{
+  "attempted_axis": "volatile-qualification probe on the loop-spanning scalar flags (didScroll/needUp/needDn) to force target's apparent stack-resident strategy for the same class of variable that itemoff already uses volatile for successfully in this file: (1) all three volatile; (2) needUp+needDn only (didScroll left plain).",
+  "attributes": {
+    "anchors": "src/game/shop/shop.c::write_shop_menu (GameCube 0x8009B7E0, size 1604); reproduce with ninja build/GUNE5D/src/game/shop/shop.o and python tools/gdl/fndiff.py game/shop/shop.c write_shop_menu --count/--ops; baseline commit 561994d6 (worktree GDL-Claude-Shop, branch claude/shop-midband-20260830)",
+    "baseline_and_best": "baseline and best-retained: 90.29676% fuzzy, insns 401/393, real 372, frame 176/176 (both match target's stwu -176 exactly). Neither axis beat baseline; both reverted, working tree clean.",
+    "measurements": "axis1 (all 3 flags volatile): real 372->416, lines 380->424 -- regression. axis2 (needUp+needDn volatile only, didScroll left alone): real 372->427, lines 380->443 -- larger regression. Both reverted.",
+    "policy": "Axis killed after 2 negative A/Bs per iteration-limits policy. Do not retry volatile-qualifying didScroll/needUp/needDn on this function. Root-caused first: confirmed via direct objdump of build/GUNE5D/src/game/shop/shop.o vs the dtk target object that BOTH builds already spill `pl` and the flag locals to stack slots near the top of a matching 176-byte frame (target: pl at 72(r1), flags at 60/64/68(r1), computed/stored once right after the parameter guard, pl reloaded once at the single j==*(pl+2664) use site inside the loop; ours: pl at 88(r1), flags at 80/84(r1) then the slots get reused later for blits/timers/flags-table addresses) -- this is a STACK-SLOT-ASSIGNMENT/scheduling difference within an already-correct spill strategy, not a residency-class (register-vs-memory) difference, so volatile (which only controls residency) was the wrong lever and made things worse by forcing extra unneeded memory traffic on the loop-internal reads/writes.",
+    "residual": "STRUCTURAL/STACK_LAYOUT mix, ~12 small clusters: repeated deleted stw/mr/lwz singles (target's stack-slot writes/reads land at different program points than ours, same 176-byte frame, different slot offsets and store/reload scheduling for pl and the 3 flag locals); one lwzu-vs-addi+lwz fold at the cursor-pointer prologue read (page+(player<<8)+3408, same family as the recurring add+lwz/addi+lwzx associativity residual seen in do_shopping_8009AA48 and do_shop); a handful of 1-2 insn scheduling swaps around the kGold f64 load and colp/xcol pointer setup. No opcode-count-changing semantic or control-flow gaps found; loop bounds, switch/if shape, and call sequence already match target exactly."
+  },
+  "function": "function:write_shop_menu",
+  "id": "attempt.write-shop-menu-refinement.20260830.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "STACK_LAYOUT",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}
