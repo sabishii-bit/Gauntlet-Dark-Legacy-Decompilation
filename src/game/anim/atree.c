@@ -18,6 +18,11 @@
  */
 
 #include "types.h"
+#include "game/mbobject.h"
+
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
 
 /* -- TEXMOD: special texture-mod record (see g3d/auxanim.c) -- */
 typedef struct TEXMOD {
@@ -46,11 +51,21 @@ typedef struct anodeinfo {
     /* 0x00 */ char name[0x3C];
 } anodeinfo; /* 0x3C */
 
-/* -- animdata: playback record in the AnimData pool (stride 0xA0) -- */
+/* -- animdata: playback record in the AnimData pool (stride 0xA0).
+ * Xbox PDB (graphics.h) names the record's other fields seq/used/pidx/nidx/
+ * keycount/ppyr/npyr/xpyr/ppos/npos/xpos/pscale/nscale/xscale; only ppos and
+ * xpos (previous/transitional position, GC-verified against AnimFixPos's
+ * root-motion X/Z zeroing at +0x40/+0x48/+0x60/+0x68) are named here, and the
+ * pre-existing `inuse` name (offset 0x04, PDB "used") is kept as-is rather
+ * than renamed to match the PDB spelling. -- */
 typedef struct animdata {
     /* 0x00 */ u8 _pad0[4];
     /* 0x04 */ s32 inuse;
-    /* 0x08 */ u8 _pad8[0x98];
+    /* 0x08 */ u8 _pad8[0x38];
+    /* 0x40 */ f32 ppos[4];
+    /* 0x50 */ u8 _pad50[0x10];
+    /* 0x60 */ f32 xpos[4];
+    /* 0x70 */ u8 _pad70[0x30];
 } animdata; /* 0xA0 */
 
 /* -- anode: one animation-tree node -- */
@@ -442,13 +457,13 @@ static inline void AnimFixPos(anode* root, animinfo* info)
         ((f32*)root->obj)[13] = component + translation[1];
         component = ((f32*)root->obj)[14];
         ((f32*)root->obj)[14] = component + translation[2];
-        *(f32*)((u8*)child->obj + 0x30) = sAtreeZero;
-        *(f32*)((u8*)child->obj + 0x38) = sAtreeZero;
+        ((MBObject*)child->obj)->mat[3][0] = sAtreeZero;
+        ((MBObject*)child->obj)->mat[3][2] = sAtreeZero;
         if (child->type == 1) {
-            *(f32*)((u8*)child->anim + 0x40) = sAtreeZero;
-            *(f32*)((u8*)child->anim + 0x48) = sAtreeZero;
-            *(f32*)((u8*)child->anim + 0x60) = sAtreeZero;
-            *(f32*)((u8*)child->anim + 0x68) = sAtreeZero;
+            ((animdata*)child->anim)->ppos[0] = sAtreeZero;
+            ((animdata*)child->anim)->ppos[2] = sAtreeZero;
+            ((animdata*)child->anim)->xpos[0] = sAtreeZero;
+            ((animdata*)child->anim)->xpos[2] = sAtreeZero;
         }
     }
     info->setpanim = 1;
@@ -566,8 +581,10 @@ void AnimateNode(anode* node, animinfo* info, s32 recurse)
 {
     s32 frame;
     u32 flags;
+    animseqdesc* seq;
 
-    if ((*(s16*)((u8*)info->seqheader + info->animseq * 0x30 + 0x2A) & 1) != 0) {
+    seq = (animseqdesc*)((u8*)info->seqheader + info->animseq * 0x30);
+    if ((seq->flags & 1) != 0) {
         frame = info->numframes - (s32)(sAtreeFrameRoundBias + info->frame) - 1;
     } else {
         frame = (s32)(sAtreeFrameRoundBias + info->frame);
@@ -625,7 +642,7 @@ static inline anode* AtreeFindMbidxNodeChild(anode* node, int mbidx)
         return NULL;
     }
     while (node != NULL) {
-        if (node->obj != NULL && *(u32*)((char*)node->obj + 0x6C) == (u32)mbidx) {
+        if (node->obj != NULL && ((MBObject*)node->obj)->index == (u32)mbidx) {
             return node;
         }
         if (node->child != NULL) {
@@ -648,7 +665,7 @@ anode* AtreeFindMbidxNode(anode* node, int mbidx)
         return NULL;
     }
     while (node != NULL) {
-        if (node->obj != NULL && *(u32*)((char*)node->obj + 0x6C) == (u32)mbidx) {
+        if (node->obj != NULL && ((MBObject*)node->obj)->index == (u32)mbidx) {
             return node;
         }
         if (node->child != NULL) {
@@ -876,12 +893,14 @@ void AtreeRemoveNodeSub(anode* node)
             }
             break;
         case 4:
-            if (node->anim != NULL &&
-                *(void**)((char*)node->anim + 0x74) == node->obj &&
-                *(char*)((char*)node->anim + 0x52) == 14) {
+        {
+            MBObject* animObj = (MBObject*)node->anim;
+            if (node->anim != NULL && animObj->parent == node->obj &&
+                animObj->type == MB_PSYS_NODE) {
                 MBRemoveNode(node->anim, 0);
             }
             break;
+        }
         }
         MBRemoveNode(node->obj, 0);
         node->obj = NULL;
@@ -1161,35 +1180,32 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
             *(s32*)(hdr + 2) += (s32)base;
             off = 0;
             for (i = 0; i < (s16)hdr[0]; i++) {
-                SWAP32(*(u32*)(*(s32*)(hdr + 2) + off + 0x20));
-                off += 0x24;
+                SWAP32(
+                    *(u32*)(*(s32*)(hdr + 2) + off + offsetof(atreematch, offset)));
+                off += sizeof(atreematch);
             }
         }
         /* texmod table, stride 0x58 */
         if (*(s32*)(hdr + 6) != 0) {
             *(s32*)(hdr + 6) += (s32)base;
-            off = 0;
             for (i = 0; i < *(s32*)(hdr + 4); i++) {
-                u16* tm = (u16*)(*(s32*)(hdr + 6) + off);
-                off += 0x58;
+                u16* tm = (u16*)(*(s32*)(hdr + 6) + i * sizeof(TEXMOD));
                 SWAP16(tm[0]);
                 SWAP16(tm[1]);
-                SWAP32(*(u32*)(tm + 0x22));
-                SWAP32(*(u32*)(tm + 0x24));
-                SWAP16(tm[0x26]);
-                SWAP16(tm[0x27]);
-                SWAP32(*(u32*)(tm + 0x28));
-                SWAP32(*(u32*)(tm + 0x2A));
+                SWAP32(*(u32*)(tm + offsetof(TEXMOD, tex) / sizeof(u16)));
+                SWAP32(*(u32*)(tm + offsetof(TEXMOD, src) / sizeof(u16)));
+                SWAP16(tm[offsetof(TEXMOD, frames) / sizeof(u16)]);
+                SWAP16(tm[offsetof(TEXMOD, unk4e) / sizeof(u16)]);
+                SWAP32(*(u32*)(tm + offsetof(TEXMOD, rate) / sizeof(u16)));
+                SWAP32(*(u32*)(tm + offsetof(TEXMOD, counter) / sizeof(u16)));
             }
         }
         /* node-definition records, stride 0x138 (v8+ headers only) */
         if ((s16)hdr[1] > 7 && *(s32*)(hdr + 10) != 0) {
             *(s32*)(hdr + 10) += (s32)base;
-            off = 0;
             for (i = 0; i < *(s32*)(hdr + 8); i++) {
-                fn_80011DCC(
-                    (AtreeWorldPsys*)(*(s32*)(hdr + 10) + off));
-                off += 0x138;
+                fn_80011DCC((AtreeWorldPsys*)(*(s32*)(hdr + 10) +
+                                              i * sizeof(AtreeWorldPsys)));
             }
         }
 
@@ -1197,48 +1213,50 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
         off = 0;
         for (i = 0; i < (s16)hdr[0]; i++) {
             s32* blob =
-                (s32*)(base + *(s32*)(*(s32*)(hdr + 2) + off + 0x20));
+                (s32*)(base + *(s32*)(*(s32*)(hdr + 2) + off +
+                                       offsetof(atreematch, offset)));
             s32 seqoff;
             s32 texbase;
             s32 nseqs;
 
-            SWAP32(*(u32*)&blob[0]);
-            SWAP32(*(u32*)&blob[1]);
-            SWAP32(*(u32*)&blob[2]);
-            SWAP32(*(u32*)&blob[3]);
-            SWAP32(*(u32*)&blob[4]);
-            SWAP32(*(u32*)&blob[5]);
-            SWAP16(*(u16*)((u8*)blob + 0x36));
+            SWAP32(blob[0]);
+            SWAP32(blob[1]);
+            SWAP32(blob[2]);
+            SWAP32(blob[3]);
+            SWAP32(blob[4]);
+            SWAP32(blob[5]);
+            SWAP16(*(u16*)((u8*)blob + offsetof(AtreeDefinition, objectIndex)));
             blob[0] += (s32)blob;
             blob[3] += (s32)blob;
 
-            /* sequence table, stride 0x30 */
-            seqoff = 0;
+            /* sequence table, stride sizeof(animseqdesc). +0x20/+0x22/+0x26
+             * are real fields absorbed into animseqdesc's _pad00/_pad26 -
+             * left as bare offsets, no GC-verified name for them yet. */
             for (j = 0; j < blob[5]; j++) {
-                u8* seq = (u8*)(blob[0] + seqoff);
-                seqoff += 0x30;
+                u8* seq = (u8*)(blob[0] + j * sizeof(animseqdesc));
                 SWAP16(*(u16*)(seq + 0x20));
                 SWAP16(*(u16*)(seq + 0x22));
-                SWAP16(*(u16*)(seq + 0x24));
+                SWAP16(*(u16*)(seq + offsetof(animseqdesc, wraps)));
                 SWAP16(*(u16*)(seq + 0x26));
-                SWAP16(*(u16*)(seq + 0x28));
-                SWAP16(*(u16*)(seq + 0x2A));
-                SWAP32(*(u32*)(seq + 0x2C));
+                SWAP16(*(u16*)(seq + offsetof(animseqdesc, ntexmods)));
+                SWAP16(*(u16*)(seq + offsetof(animseqdesc, flags)));
+                SWAP32(*(u32*)(seq + offsetof(animseqdesc, texmods)));
             }
 
-            /* node-info table, stride 0x3C */
-            seqoff = 0;
+            /* node-info table, stride sizeof(AtreeNodeDef) */
             for (j = 0; j < blob[4]; j++) {
-                u8* ni = (u8*)(blob[3] + seqoff);
-                seqoff += 0x3C;
-                SWAP32(*(u32*)(ni + 0x20));
-                SWAP32(*(u32*)(ni + 0x24));
-                SWAP32(*(u32*)(ni + 0x28));
-                SWAP16(*(u16*)(ni + 0x2C));
-                SWAP16(*(u16*)(ni + 0x2E));
-                SWAP32(*(u32*)(ni + 0x30));
-                SWAP32(*(u32*)(ni + 0x34));
-                SWAP32(*(u32*)(ni + 0x38));
+                u8* ni = (u8*)(blob[3] + j * sizeof(AtreeNodeDef));
+                SWAP32(*(u32*)(ni + offsetof(AtreeNodeDef, position) +
+                                0 * sizeof(f32)));
+                SWAP32(*(u32*)(ni + offsetof(AtreeNodeDef, position) +
+                                1 * sizeof(f32)));
+                SWAP32(*(u32*)(ni + offsetof(AtreeNodeDef, position) +
+                                2 * sizeof(f32)));
+                SWAP16(*(u16*)(ni + offsetof(AtreeNodeDef, type)));
+                SWAP16(*(u16*)(ni + offsetof(AtreeNodeDef, flags)));
+                SWAP32(*(u32*)(ni + offsetof(AtreeNodeDef, treeFlags)));
+                SWAP32(*(u32*)(ni + offsetof(AtreeNodeDef, dataOffset)));
+                SWAP32(*(u32*)(ni + offsetof(AtreeNodeDef, parent)));
             }
 
             if (blob[1] != 0) {
@@ -1259,14 +1277,15 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
             if (nseqs > 0) {
                 s32 sbase = blob[0];
                 do {
-                    s32* ptexmods = (s32*)(sbase + seqoff + 0x2C);
-                    seqoff += 0x30;
-                    *ptexmods = texbase + *ptexmods * 0x58;
+                    s32* ptexmods =
+                        (s32*)(sbase + seqoff + offsetof(animseqdesc, texmods));
+                    seqoff += sizeof(animseqdesc);
+                    *ptexmods = texbase + *ptexmods * sizeof(TEXMOD);
                     nseqs--;
                 } while (nseqs != 0);
             }
-            *(s16*)((u8*)blob + 0x36) = (s16)model;
-            off += 0x24;
+            *(s16*)((u8*)blob + offsetof(AtreeDefinition, objectIndex)) = (s16)model;
+            off += sizeof(atreematch);
         }
 
         if ((s32)slot < 0) {
@@ -1615,10 +1634,9 @@ null_definition:
     node->z = sAtreeZero;
 
 definition_ready:
-
-    *(f32*)((u8*)node->obj + 0x30) = node->x;
-    *(f32*)((u8*)node->obj + 0x34) = node->y;
-    *(f32*)((u8*)node->obj + 0x38) = node->z;
+    ((MBObject*)node->obj)->mat[3][0] = node->x;
+    ((MBObject*)node->obj)->mat[3][1] = node->y;
+    ((MBObject*)node->obj)->mat[3][2] = node->z;
     node->parent = parent;
     node->child = NULL;
     node->next = NULL;
