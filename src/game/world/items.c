@@ -5,6 +5,7 @@
 #include "game/worldobj.h"
 #include "game/player.h"
 #include "game/camera.h"
+#include "game/leveldata.h"
 
 #ifndef offsetof
 #define offsetof(type, memb) ((u32) & ((type*)0)->memb)
@@ -1705,7 +1706,7 @@ keyring_found:
             DATA_S32(0) = (s32)wobj;
             if (wobj != NULL) {
                 if (((WorldObj*)wobj)->flags & 0x800) {
-                    *(u32*)(wobj + 0x10) |= 0x10000000;
+                    *(u32*)(wobj + offsetof(WorldObj, flags)) |= 0x10000000;
                 }
                 RegisterItemWobj(
                     wobj, (s16)subtype,
@@ -1867,11 +1868,11 @@ count_index_done:
             DATA_U8(11) = (u8)defaults[15];
         }
         DATA_S8(3) = (s8)(DATA_S8(3) *
-                           *(f32*)(gCurLevel + 0xD4));
+                           *(f32*)(gCurLevel + offsetof(level_data, gen_max)));
         DATA_U8(11) = (u8)(DATA_U8(11) *
-                            *(f32*)(gCurLevel + 0xD0));
+                            *(f32*)(gCurLevel + offsetof(level_data, gen_rate)));
         item->health = (s16)(item->health *
-                              *(f32*)(gCurLevel + 0xCC));
+                              *(f32*)(gCurLevel + offsetof(level_data, gen_health)));
         if (sMusicTrackHi == 5) {
             strcpy(item->info->item.desc, "CAT");
             DATA_S16(0) = -2;
@@ -1909,9 +1910,9 @@ count_index_done:
             scaled = -scaled;
             item->info->item.activeoff = (s16)(scaled * 3);
         }
-        DATA_F32(0) *= *(f32*)(gCurLevel + 0xDC);
+        DATA_F32(0) *= *(f32*)(gCurLevel + offsetof(level_data, trap_damage));
         item->health = (s16)(item->health *
-                              *(f32*)(gCurLevel + 0xCC));
+                              *(f32*)(gCurLevel + offsetof(level_data, gen_health)));
         scaled = info->item.activeoff * 2;
         if (scaled == 0) {
             scaled = 0;
@@ -1920,7 +1921,7 @@ count_index_done:
             scaled = (scaled >> 1) + (s32)RandInt((u32)scaled);
         }
         item->activetime =
-            (s16)(scaled * *(f32*)(gCurLevel + 0xD8));
+            (s16)(scaled * *(f32*)(gCurLevel + offsetof(level_data, trap_rate)));
         break;
     }
 
