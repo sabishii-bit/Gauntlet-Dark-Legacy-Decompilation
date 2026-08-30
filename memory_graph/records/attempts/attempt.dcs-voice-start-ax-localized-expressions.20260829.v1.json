@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "exact closure of the unsigned volume staging and first-pan voice-slot register clusters via portable local types, assignment association and ordering, expression spelling, declaration placement, pointer arithmetic, and the complete MWCC flag matrix",
+  "attributes": {
+    "anchors": "src/game/audio/dcs.c::dcsVoiceStartAx; target .text 0x800D3A88 size 0x1B8; baseline git:b2d9071ad; ninja build/GUNE5D/src/game/audio/dcs.o; python tools/gdl/fnasm.py game/audio/dcs dcsVoiceStartAx; python tools/gdl/fndiff.py game/audio/dcs dcsVoiceStartAx --count|--ops|--clean; python tools/gdl/matchtool.py probe game/audio/dcs --fn dcsVoiceStartAx --matrix --brief",
+    "baseline_and_final": "target/current 110/110 instructions, fuzzy 97.318184%, real 14, 0x60-byte frame, saves r27-r31; calls and CFG aligned; no source change retained",
+    "identical_axes": "explicit first-pan absolute-value assignment; u32 excess or scaled; register-qualified excess; excess/master declaration swap; sVoice+channel, reversed-index, byte-pointer, reused-scaled, explicit scaled truncation, and comma-sequenced assignment spellings; full compiler/flag matrix found 24 ties at real 14",
+    "negative_axes": "moving voiceSlot after the pan calculation worsened to real 24; u16 excess produced 109 instructions and real 19; nested or master=excess chained assignment forms reached real 16; reversed master/excess initialization and the opposite chain produced 109 instructions and real 23; split voiceSlot base/add reached real 18 by count; bitmask excess produced 111 instructions and real 23; an explicit check temporary enlarged the frame to 0x68 and reached real 46; all probes reverted",
+    "policy": "Park these localized assignment/type/pointer-spelling and flag axes under the iteration limit. Revisit only with a genuinely new source-level dependency or target-backed semantic insight; re-A/B if surrounding dcsVoiceStartAx structure later changes.",
+    "residual": "target volume staging at +0x44..+0x50 emits clrlwi r3,r0,16; addi r30,r3,0; clrlwi r0,r0,16; cmplwi r0,16383, while MWCC delays the excess/master copies until after the compare; target first-pan staging at +0x8c..+0x9c keeps the absolute-value input/result in r0 and the sVoice base in r3, while current code swaps those temporaries"
+  },
+  "function": "function:dcsVoiceStartAx",
+  "id": "attempt.dcs-voice-start-ax-localized-expressions.20260829.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
