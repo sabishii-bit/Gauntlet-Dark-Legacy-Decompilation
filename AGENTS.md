@@ -221,8 +221,12 @@ as matching work:
    through it), the cast-transit no-CSE family, and the addr-CSE laws.
    `context <function>` also surfaces per-function constraints (e.g. the
    do_enemy_collide behavior chains are recorded off-limits).
-4. **Convert in small regions, rebuild the object, re-gate**; two failed
-   forms for the same region means leave that region raw and note it.
+4. **Convert in small regions, rebuild the object, re-gate.** After a
+   failed form, read the failure diff and name the cause before choosing
+   the next form; if the cause is nameable (web split, pressure cascade,
+   lost fusion) one further form targeting it is warranted. Two failed
+   forms *with an understood, recorded cause* means leave that region raw
+   and note it.
 5. **Record one compact attempt record per TU pass** (sites converted,
    sites left raw and why, any score changes) — not one per function —
    plus a law record only for a newly verified constraint. Commit style:
@@ -253,6 +257,18 @@ pass; two identical A/B results kill an axis. Re-read the target disassembly
 before exotic theories. Parked probes are alignment-sensitive — a probe that
 measured negative may turn positive after surrounding regions improve, so
 re-A/B recorded probes after nearby fixes rather than trusting the old sign.
+
+Do not give up early. The 3-axis cap applies ONLY to residuals already
+reduced to pure register/schedule noise — a structural gap, a score-visible
+delta, or a near-matching opcode stream is NOT subject to it and deserves
+sustained iteration. A failed probe is data, not a stop signal: before
+parking any axis, read the failing `--clean` diff and state WHY it
+regressed; the explanation usually names the next form to try (a
+register-pressure cascade, a split web, a killed fusion each have known
+counter-forms in the law corpus — search them). Capping without a stated
+root cause is premature and will be sent back by the integrator. Most
+"impossible" residuals in this project's history fell to a later form after
+the first two failed.
 
 ## Verification gates
 
