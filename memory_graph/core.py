@@ -2223,6 +2223,34 @@ def attempt_staleness(
         {"function": row["name"], "records": row["ids"].split(",")}
         for row in multi_rows
     ]
+    with closing(open_database(root, db_path)) as connection:
+        claim_rows = connection.execute(
+            "SELECT w.record_id, w.owner, w.state, w.claimed_at, e.name"
+            " FROM work_claim w JOIN entity e ON e.id = w.function_entity_id"
+            " WHERE w.released_at IS NULL AND w.state NOT IN"
+            " ('released', 'done')"
+            " ORDER BY w.claimed_at, w.owner"
+        ).fetchall()
+    today = datetime.now(timezone.utc).date()
+    claims: list[dict[str, Any]] = []
+    for row in claim_rows:
+        age_days: int | None = None
+        try:
+            age_days = (today - datetime.strptime(
+                row["claimed_at"][:10], "%Y-%m-%d").date()).days
+        except (ValueError, TypeError):
+            pass
+        claims.append(
+            {
+                "function": row["name"],
+                "record": row["record_id"],
+                "owner": row["owner"],
+                "state": row["state"],
+                "claimed_at": row["claimed_at"],
+                "age_days": age_days,
+                "presumed_abandoned": age_days is not None and age_days > 1,
+            }
+        )
     stale: list[dict[str, Any]] = []
     walls: list[dict[str, Any]] = []
     suspect: list[dict[str, Any]] = []
@@ -2253,6 +2281,7 @@ def attempt_staleness(
         "suspect_low_fuzzy": suspect,
         "missing_from_report": missing,
         "multi_record_functions": multi,
+        "active_work_claims": claims,
         "valid_count": valid,
         "note": (
             "stale_solved parks are moot (function fully matched without a"
@@ -2261,6 +2290,10 @@ def attempt_staleness(
             " suspect_low_fuzzy and missing_from_report need re-triage."
             " multi_record_functions should be consolidated into one live"
             " attempt record per function (fold prior axes into axis_log)."
+            " active_work_claims presumed_abandoned entries are older than"
+            " one day: verify via git log against the claimed scope, then"
+            " remove the claim in a standalone cleanup commit (AGENTS.md"
+            " cross-fleet concurrency)."
         ),
     }
 
