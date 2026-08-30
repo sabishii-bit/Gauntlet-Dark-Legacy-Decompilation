@@ -1130,10 +1130,10 @@ static void BossCamPlayerCalc(void)
     f32 pdist;
     u8* tr;
     u8* cam;
-    u8* p;
-    u32 fl;
     s32 i;
     s32 off;
+    u8* p;
+    u32 fl;
     f64 t;
 
     lbl_803444E0 = 0;
