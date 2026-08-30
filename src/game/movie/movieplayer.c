@@ -1134,13 +1134,13 @@ u32 fn_800D9B48(MovieRingBuffer* param_1, u8* param_2, int param_3) {
 }
 
 #pragma dont_inline on
-int fn_800D9C34(u8* p) {
-    int hi = *(int*)(p + 8);
-    int lo = *(int*)(p + 0xc);
+int fn_800D9C34(MovieRingBuffer* p) {
+    int hi = p->writePos;
+    int lo = p->readPos;
     if (hi >= lo) {
         return hi - lo;
     }
-    return *(int*)(p + 4) + (hi - lo);
+    return (int)p->size + (hi - lo);
 }
 #pragma dont_inline off
 
@@ -1986,7 +1986,7 @@ int fn_800DB2F4(u8* param_1, u8* param_2, u32 param_3, u32 param_4) {
     int iVar1;
     int ret;
     u8 unused[8];
-    iVar1 = fn_800D9C34(param_1 + 0x3c);
+    iVar1 = fn_800D9C34((MovieRingBuffer*)(param_1 + 0x3c));
     if (iVar1 < (int)param_4) {
         memset(param_2, 0, param_4);
         ret = 0;
