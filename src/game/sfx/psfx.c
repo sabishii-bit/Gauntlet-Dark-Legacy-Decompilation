@@ -1019,7 +1019,7 @@ void ClearAllPlyrData(void)
     for (i = 0; i < 4; i++) {
         u8* hdr = lbl_80282930[i];
         if (hdr != 0) {
-            PlayerSfxClearData(*(u32**)(hdr + 4), *(s16*)hdr);
+            PlayerSfxClearData((u32*)((PsfxHeader*)hdr)->records, ((PsfxHeader*)hdr)->count);
             ((PsfxHeader*)lbl_80282930[i])->resolved = 0;
         }
     }
@@ -1042,7 +1042,7 @@ void ClearPlyrData(s32 player)
 {
     u8* hdr = lbl_80282930[player];
 
-    ClearPlyrRecords(*(u32**)(hdr + 4), *(s16*)hdr);
+    ClearPlyrRecords((u32*)((PsfxHeader*)hdr)->records, ((PsfxHeader*)hdr)->count);
     ((PsfxHeader*)lbl_80282930[player])->resolved = 0;
 }
 
