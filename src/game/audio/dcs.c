@@ -825,26 +825,24 @@ read_done:
     return error;
 }
 
-static inline DcsData* dcsCallData(void) {
-    return &dcsBankData;
-}
-
 /* 0x800D2CEC  read the bank call list (readCalls) */
 s32 dcsReadCalls(void* file, u32* header) {
     char* strs = lbl_80116F58;
+    s32 count;
+    u8* data = (u8*)&dcsBankData;
     s32 result = 1;
     s32 swap;
     s32 fmt;
     u16* dst;
     u16* end;
     u32* src;
-    s32 count;
     s32 half;
     s32 i;
+    s32 instruction;
 
     if (BankParseHeader(header, &swap, (u32*)&fmt) >= 0) {
         result = 0;
-        dst = &dcsCallData()->callInstr[lbl_80345204];
+        dst = (u16*)(data + 0x27080) + lbl_80345204;
         count = header[3];
         switch (fmt) {
         case 256:
@@ -859,16 +857,17 @@ s32 dcsReadCalls(void* file, u32* header) {
                 result = 1;
                 goto done;
             }
-            end = &dcsCallData()->callInstr[lbl_80345204 +
-                                             (s32)header[1] / 4];
+            end = &((u16*)(data + 0x27080))[lbl_80345204 +
+                                                   (s32)header[1] / 4];
             for (; count != 0; count--) {
                 if (lbl_80345200 >= 2048) {
                     printf(strs);
                     printf(strs + 156);
                     goto done;
                 }
-                dcsCallData()->callStart[lbl_80345200] = lbl_80345204;
-                if (lbl_80345204 + 4 > 10240) {
+                instruction = lbl_80345204;
+                ((u16*)(data + 0x26080))[lbl_80345200] = instruction;
+                if (instruction + 4 > 10240) {
                     printf(strs);
                     printf(strs + 188);
                     goto done;
@@ -901,7 +900,7 @@ s32 dcsReadCalls(void* file, u32* header) {
                 goto done;
             }
             half = (s32)header[1] / 2;
-            end = &dcsCallData()->callInstr[lbl_80345204 + half];
+            end = &((u16*)(data + 0x27080))[lbl_80345204 + half];
             if (swap != 0) {
                 for (i = half - 1; i >= 0; i--) {
                     dst[i] = (u16)((((u16)dst[i] & 0xFF) << 8) |
@@ -914,7 +913,7 @@ s32 dcsReadCalls(void* file, u32* header) {
                     printf(strs + 156);
                     goto done;
                 }
-                dcsCallData()->callStart[lbl_80345200] = lbl_80345204;
+                ((u16*)(data + 0x26080))[lbl_80345200] = lbl_80345204;
                 for (;;) {
                     if (lbl_80345204 + 3 >= 10240) {
                         printf(strs);

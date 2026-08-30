@@ -1,0 +1,24 @@
+{
+  "attempted_axis": "target-backed portable-C structural reconstruction of bank call-list table ownership, end-pointer expression grouping, instruction-counter reuse, and final prologue/register allocation closure",
+  "attributes": {
+    "anchors": "src/game/audio/dcs.c::dcsReadCalls; GameCube target 0x800D2CEC size 0x3C8; python tools/gdl/fnasm.py game/audio/dcs dcsReadCalls; python tools/gdl/fndiff.py game/audio/dcs dcsReadCalls --count/--ops/--clean; build/GUNE5D/report.json",
+    "axis_log": [
+      "retained: one raw u8 dcsBankData base plus explicit +0x26080/+0x27080 table views reduced 249->246 instructions, real 167->152, fuzzy 91.15%->92.89256%",
+      "retained: group global index and signed header-length quotient inside one end-pointer subscript in both formats, and reuse the loaded instruction counter for the format-0x100 callStart/bounds pair; reached 243 instructions, real 125, fuzzy 98.65703%",
+      "invariant: count declaration order/register hint, string/data declarator-versus-assignment initialization, and register string hint remained 243 instructions/real 125",
+      "negative: raw repeated string expressions 258/real310; no data-base local 245/real233; DcsData pointer with byte casts 241/real237 and 0x40 frame; unsigned count added two cmplwi mismatches; all reverted"
+    ],
+    "baseline": "target/current 242/249 instructions, objdiff fuzzy 91.15%, matched 0%, fndiff real 167, 0x38 frame; target saves r24-r31 while baseline saved r25-r31; STRUCTURAL",
+    "final_state": "target/current 242/243 instructions, objdiff fuzzy 98.65703%, matched 0%, fndiff real 125, 0x38 frame, saves r24-r31; all opcodes after the prologue align and exact TU siblings remain exact",
+    "remaining_residual": "STRUCTURAL/REGISTER_ONLY seam: current materializes lbl_80116F58 low into r0 before the frame then copies it to r31, while target materializes directly into r31 after the dcsBankData high half; the extra addi shifts branches and accompanies a closed r26/r27/r28 cycle among call count, dcsBankData base, and +0x20000 derived base. Do not retry the recorded string spelling/init, declaration/register-hint, unsigned-count, no-base-local, or typed-pointer axes without a genuinely new target-backed dependency.",
+    "semantic_audit": "Both target format branches were audited end-to-end: format 0x100 reads aligned 16-byte records, optionally swaps four words, and emits four u16 call instructions; the default format reads/swaps u16 words backward and scans each variable call through its marker plus three trailing words. Call/instruction capacity checks, EOF checks, callStart values, counters, error/result paths, diagnostics, and final size check agree with the complete target CFG.",
+    "verification": "owning object rebuilt; full target assembly and fndiff count/ops/clean inspected; matchtool preserved OK:22 exact siblings; datadiff reports only the TU's existing unclaimed .rodata 0x27F and .sdata2 0x45; git diff --check passed; no assembly modified; fresh full ninja linked main.dol and build/GUNE5D/main.dol checksum was OK; project progress 97.79% fuzzy and 58.12% matched"
+  },
+  "function": "function:dcsReadCalls",
+  "id": "attempt.dcs-read-calls-structural-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
