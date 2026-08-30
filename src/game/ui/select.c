@@ -2354,19 +2354,19 @@ void update_class_attr(s32 player)
     s32 best;
     s32 j;
 
-    LoadPlyrData(player, *(s32*)(pl + 12), 0);
-    if (*(s32*)(pl + 13092) <= 0) {
-        *(s32*)(pl + 13092) = 1;
+    LoadPlyrData(player, *(s32*)(pl + offsetof(Player, character)), 0);
+    if (*(s32*)(pl + offsetof(Player, level)) <= 0) {
+        *(s32*)(pl + offsetof(Player, level)) = 1;
     }
-    switch (*(s32*)(pl + 232)) {
+    switch (*(s32*)(pl + offsetof(Player, state))) {
     case 2:
         break;
     default:
         return;
     }
-    switch (*(s32*)(pl + 13112)) {
+    switch (*(s32*)(pl + offsetof(Player, motion_state))) {
     case 4: {
-        s32 sel = *(s32*)(pl + 16);
+        s32 sel = *(s32*)(pl + offsetof(Player, respawn_char));
         s32 avail;
         s32* xp;
         s32 tx;
@@ -2393,7 +2393,7 @@ void update_class_attr(s32 player)
         } else {
             expslot = pl + sel * 24 + 2704;
             lvl = ExpToLevel(*(s32*)expslot);
-            LoadPlyrData(player, *(s32*)(pl + 16), 0);
+            LoadPlyrData(player, *(s32*)(pl + offsetof(Player, respawn_char)), 0);
             {
                 u8* cls = lbl_80282930[player];
                 stats[0] = (s32)(*(f32*)(expslot + 8) +
@@ -2467,7 +2467,7 @@ void update_class_attr(s32 player)
     case 1: {
         s32 y2 = lbl_80343DCC;
         s32 x2 = -(*(s32*)(lbl_80121688 + (player << 2)) + 64);
-        sprintf(buf, pool + 836, ExpToLevel(*(s32*)(pl + 7872)));
+        sprintf(buf, pool + 836, ExpToLevel(*(s32*)(pl + offsetof(Player, exp))));
         DrawTextKeepScale(lbl_80343DD0, x2, y2, lbl_80344BBC, 0xFFFFFF,
                           buf);
         break;
