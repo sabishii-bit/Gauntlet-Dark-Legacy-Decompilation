@@ -17,6 +17,7 @@
 #include "types.h"
 #include "game/effect.h"
 #include "game/player.h"
+#include "game/mbobject.h"
 
 extern u8* lbl_80282930[4];
 extern void ClearCustomEffect(s32 index);
@@ -698,7 +699,7 @@ void PsfxDoParticle(u8* player, PlayerSfxRecord* record, s32 effectIndex)
     if ((flags & 0x40000) != 0 && effectIndex >= 0) {
         parent = Effects[effectIndex].node;
     } else if ((flags & 0x2000) != 0 && lbl_80344B40 != NULL) {
-        parent = *(void**)(lbl_80344B40 + 0x74);
+        parent = ((MBObject*)lbl_80344B40)->parent;
     } else if (parentHandle == -1) {
         parent = ((Player*)player)->node;
     } else {
@@ -733,9 +734,9 @@ void PsfxDoParticle(u8* player, PlayerSfxRecord* record, s32 effectIndex)
     if (psys == NULL) {
         ErrorPrintf(lbl_80114288);
     } else {
-        *(f32*)((u8*)psys + 0x30) = record->position[0];
-        *(f32*)((u8*)psys + 0x34) = record->position[1];
-        *(f32*)((u8*)psys + 0x38) = record->position[2];
+        ((MBObject*)psys)->mat[3][0] = record->position[0];
+        ((MBObject*)psys)->mat[3][1] = record->position[1];
+        ((MBObject*)psys)->mat[3][2] = record->position[2];
         MBPsysSetPSpeed(speed, psys);
         MBPsysSetPTex(psys, texture);
     }
@@ -862,7 +863,7 @@ s32 DoPlyrSfx(u8* player, PlayerSfxRecord* record, f32* position,
 
     if ((flags & 0x80) != 0) {
         SfxSetMat(effect, ((Player*)player)->mat,
-                  (f32*)((u8*)((Player*)player)->node + 0x30));
+                  ((MBObject*)((Player*)player)->node)->mat[3]);
     } else if ((flags & 0x40) != 0) {
         if ((flags & 0x2000) != 0 && lbl_80344B40 != NULL) {
             player = lbl_80344B40;
@@ -878,11 +879,11 @@ s32 DoPlyrSfx(u8* player, PlayerSfxRecord* record, f32* position,
         if ((flags & 0x40000) != 0 && effectIndex >= 0) {
             parent = Effects[effectIndex].node;
         } else if ((flags & 0x800) != 0) {
-            parent = *(void**)((u8*)((Player*)player)->node + 0x74);
+            parent = ((MBObject*)((Player*)player)->node)->parent;
         } else if ((flags & 1) != 0) {
             parent = ((Player*)player)->node;
         } else {
-            parent = *(void**)((u8*)((Player*)player)->node + 0x78);
+            parent = ((MBObject*)((Player*)player)->node)->child;
         }
         SfxSetParent(effect, parent);
     } else if ((flags & 0x40000) != 0 && effectIndex >= 0) {
