@@ -1086,13 +1086,20 @@ void DrawBlitFlatQuad(MBBLIT* b) {
     gg = (b->color0 >> 8) & 0xFF;
     bb = b->color0 & 0xFF;
 
-    x0 = (f32)(b->x * 2) / (f32)g->scale->viewport0 - lbl_80348AD4;
-    x1 = (f32)((b->x + (u16)b->width) * 2) / (f32)g->scale->viewport0 -
-         lbl_80348AD4;
-    y0 = lbl_80348AD4 - (f32)(b->y * 2) / (f32)g->scale->viewport1;
-    y1 = lbl_80348AD4 -
-         (f32)((b->y + (u16)b->height) * 2) / (f32)g->scale->viewport1;
-    z = (f32)(b->depth * 2) / (f32)*(s32*)((u8*)g->obj10 + 52) - lbl_80348AD4;
+    {
+        f32 ratio;
+
+        ratio = (f32)(b->x * 2) / (f32)g->scale->viewport0;
+        x0 = ratio - lbl_80348AD4;
+        ratio = (f32)((b->x + (u16)b->width) * 2) / (f32)g->scale->viewport0;
+        x1 = ratio - lbl_80348AD4;
+        ratio = (f32)(b->y * 2) / (f32)g->scale->viewport1;
+        y0 = lbl_80348AD4 - ratio;
+        ratio = (f32)((b->y + (u16)b->height) * 2) / (f32)g->scale->viewport1;
+        y1 = lbl_80348AD4 - ratio;
+        ratio = (f32)(b->depth * 2) / (f32)*(s32*)((u8*)g->obj10 + 52);
+        z = ratio - lbl_80348AD4;
+    }
 
     if (a2 == 256) {
         a2--;
