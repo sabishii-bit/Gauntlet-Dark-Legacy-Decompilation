@@ -1,0 +1,13 @@
+{
+  "attributes": {
+    "scope": "src/game/anim/anim_play.c (entire translation unit)"
+  },
+  "branch": "codex/anim-play-getang-20260829",
+  "claimed_at": "2026-08-29T22:05:00-07:00",
+  "function": "function:GetAnimAngXYZVal",
+  "id": "work-claim.codex.anim-play-getang.20260829.v1",
+  "kind": "work_claim",
+  "owner": "Codex /root campaign",
+  "schema_version": 1,
+  "state": "active"
+}
