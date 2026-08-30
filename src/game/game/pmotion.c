@@ -897,7 +897,7 @@ static s32 PlayerMotion_FpClassify(f32 value) {
 }
 
 static s32 PlayerMotion_SfxIndex(Player* p) {
-    Player* other = PF(p, 0x6B8, Player*);
+    Player* other = p->grab_partner;
     s32 sfx;
 
     if (other != NULL) {
@@ -970,10 +970,10 @@ void PlayerMotion(Player* p) {
     }
 
     controlYaw = atan2(*(f32*)(motion + 0x20), *(f32*)(motion + 0x28));
-    if (p->anim_208 == 143 && PF(p, 0x6B8, Player*) != NULL &&
-        lbl_80240E30[PF(p, 0x6B8, Player*)->index].values[8] > 0.0f) {
+    if (p->anim_208 == 143 && p->grab_partner != NULL &&
+        lbl_80240E30[p->grab_partner->index].values[8] > 0.0f) {
         ControlState* otherCtl =
-            &lbl_80240E30[PF(p, 0x6B8, Player*)->index];
+            &lbl_80240E30[p->grab_partner->index];
         movement = otherCtl->values[8];
         controlYaw = otherCtl->values[7];
     } else if (anim == 8) {
@@ -1148,7 +1148,7 @@ void PlayerMotion(Player* p) {
                 s32 sfxProbe = PlayerMotion_SfxIndex(p);
                 sfx = sfxProbe;
                 if (sfxProbe >= 0) {
-                    fn_80089350((u8*)PF(p, 0x6B8, Player*), sfx, (u8*)p,
+                    fn_80089350((u8*)p->grab_partner, sfx, (u8*)p,
                                 (u8*)to, lbl_80347B30, lbl_80347B40);
                 }
             }
@@ -1163,7 +1163,7 @@ void PlayerMotion(Player* p) {
         s32 otherIndex =
             PlayerCollidePlayers(p, radius, height, oldpos, to, to, 0);
         if (otherIndex >= 0 && anim == 137 &&
-            PF(p, 0x6B8, Player*) == &gPlayers[otherIndex] &&
+            p->grab_partner == &gPlayers[otherIndex] &&
             (f64)sMusicFadeBase <
                 lbl_80347B88 + p->combo_fade) {
             otherIndex = -1;
@@ -1251,8 +1251,8 @@ void PlayerMotion(Player* p) {
     if ((p->act_flags & 0x8000) == 0) {
         s32 cameraArg = wallResult != 0 ? 0 : 1;
         s32 camLimit;
-        PF(p, 0xA5C, s32) = CameraLimitPlayerDpos(index, dpos, cameraArg);
-        camLimit = PF(p, 0xA5C, s32);
+        p->camera_limit = CameraLimitPlayerDpos(index, dpos, cameraArg);
+        camLimit = p->camera_limit;
         if (!(camLimit < 5 || camLimit > 5) && anim == 137) {
             hitKind = 1;
         }
@@ -1260,7 +1260,7 @@ void PlayerMotion(Player* p) {
             p->camera_limit = -camLimit;
         }
     } else {
-        PF(p, 0xA5C, s32) = 0;
+        p->camera_limit = 0;
     }
 
     if ((f64)dpos[1] > lbl_80347BE0 * moveAmount) {
@@ -1298,7 +1298,7 @@ void PlayerMotion(Player* p) {
         }
         if (collision != 0) {
             if (directionKind == 0 && p->action == 0 &&
-                PF(p, 0xA5C, s32) == 0) {
+                p->camera_limit == 0) {
                 PlayerCollideWalls(p, (s32)oldpos, dpos, to, hit);
             } else {
                 dpos[0] = 0.0f;
@@ -1312,7 +1312,7 @@ void PlayerMotion(Player* p) {
                     s32 sfxProbe = PlayerMotion_SfxIndex(p);
                     sfx = sfxProbe;
                     if (sfxProbe >= 0) {
-                        fn_80089350((u8*)PF(p, 0x6B8, Player*), sfx, (u8*)p,
+                        fn_80089350((u8*)p->grab_partner, sfx, (u8*)p,
                                     (u8*)hit, lbl_80347B30, lbl_80347B40);
                     }
                 }
@@ -1405,7 +1405,7 @@ void PlayerMotion(Player* p) {
                         s32 sfxProbe = PlayerMotion_SfxIndex(p);
                         sfx = sfxProbe;
                         if (sfxProbe >= 0) {
-                            fn_80089350((u8*)PF(p, 0x6B8, Player*), sfx,
+                            fn_80089350((u8*)p->grab_partner, sfx,
                                         (u8*)p, (u8*)to,
                                         lbl_80347B30, lbl_80347B40);
                         }
@@ -1917,10 +1917,10 @@ store_motion_state:
                 }
                 break;
             case 38:
-                if (PF(p, 0x6B8, Player*) == NULL) {
+                if (p->grab_partner == NULL) {
                     p->anim_20C = 0;
                 } else {
-                    switch (PF(p, 0x6B8, Player*)->char_type) {
+                    switch (p->grab_partner->char_type) {
                     case 0: p->anim_20C = 136; break;
                     case 1: p->anim_20C = 139; break;
                     case 2: p->anim_20C = 140; break;
@@ -1934,10 +1934,10 @@ store_motion_state:
                 }
                 break;
             case 39:
-                if (PF(p, 0x6B8, Player*) == NULL) {
+                if (p->grab_partner == NULL) {
                     p->anim_20C = 0;
                 } else {
-                    switch (PF(p, 0x6B8, Player*)->char_type) {
+                    switch (p->grab_partner->char_type) {
                     default: p->anim_20C = 0; break;
                     case 0: p->anim_20C = 137; break;
                     case 4: p->anim_20C = 143; break;
@@ -2023,7 +2023,7 @@ store_motion_state:
             case 24:
             case 25:
             case 26:
-                if (PF(p, 0x1EBC, s32) != 0 ||
+                if (p->item_body_hi != 0 ||
                     (gGameOptions[1] & 2) != 0) {
                     if (motionState == 25) {
                         p->anim_20C = 117;
@@ -2572,11 +2572,11 @@ store_motion_state:
                 PF(p, 0x748, void*) != NULL) {
                 f32 projectileHeight;
                 f32 adjusted;
-                localVector[0] = PF(PF(p, 0x74, u8*), 0x40, f32) *
+                localVector[0] = PF(p->node, 0x40, f32) *
                                  PF(lbl_80282930[p->index], 0x170, f32);
-                localVector[1] = PF(PF(p, 0x74, u8*), 0x44, f32) *
+                localVector[1] = PF(p->node, 0x44, f32) *
                                  PF(lbl_80282930[p->index], 0x174, f32);
-                localVector[2] = PF(PF(p, 0x74, u8*), 0x48, f32) *
+                localVector[2] = PF(p->node, 0x48, f32) *
                                  PF(lbl_80282930[p->index], 0x178, f32);
                 MulVecMat4(localVector, hit, (f32*)motion);
                 localVector[0] = attackDir[0];
@@ -2819,11 +2819,11 @@ store_motion_state:
                     magicMode = 0;
                 }
 
-                if (PF(p, 0x1EBC, s32) > 0) {
-                    PF(p, 0x1EBC, s32)--;
+                if (p->item_body_hi > 0) {
+                    p->item_body_hi--;
                     start_magic(index, (f32*)(motion + 0x30),
                                 PF(p, 0x3300 +
-                                      PF(p, 0x1EBC, s32) * 4, u32),
+                                      p->item_body_hi * 4, u32),
                                 magicMode, 1.0f);
                 } else {
                     start_magic(index, (f32*)(motion + 0x30),
@@ -2945,7 +2945,7 @@ player_motion_phase_exit:
             }
 
             if ((p->flags & 0x400) != 0 &&
-                PF(p, 0x6B8, Player*) == NULL) {
+                p->grab_partner == NULL) {
                 grabKind = -1;
             } else {
                 grabKind = p->char_type;
@@ -3181,10 +3181,10 @@ player_motion_grab_done:
                         comboPos[1] = PF(p, 0xD4, f32) + PF(p, 0x83C, f32);
                         comboPos[2] = PF(p, 0xD8, f32) + PF(p, 0x840, f32);
                         StartComboFX(comboPos, PF(p, 4, s32),
-                                     PF(PF(p, 0x6B8, Player*), 4, s32));
+                                     PF(p->grab_partner, 4, s32));
                     } else {
                         StartComboFX(p->col_pos, PF(p, 4, s32),
-                                     PF(PF(p, 0x6B8, Player*), 4, s32));
+                                     PF(p->grab_partner, 4, s32));
                     }
                 } else if (comboMode >= 2 && comboTime >= 0.0f &&
                            p->combo_cd < 0.0f) {
@@ -3200,12 +3200,12 @@ player_motion_grab_done:
 
                 if (sfx1 >= 0) {
                     fn_80089350((u8*)p, sfx1,
-                                 (u8*)PF(p, 0x6B8, Player*), NULL,
+                                 (u8*)p->grab_partner, NULL,
                                  p->combo_cd, comboTime);
                 }
                 if (sfx2 >= 0) {
                     fn_80089350((u8*)p, sfx2,
-                                 (u8*)PF(p, 0x6B8, Player*), NULL,
+                                 (u8*)p->grab_partner, NULL,
                                  p->combo_cd, comboTime);
                 }
             }
