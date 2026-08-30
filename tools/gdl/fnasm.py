@@ -6,7 +6,12 @@ Usage:
   python tools/gdl/fnasm.py game/pb_window pbProjCalc 40:120   # insn index slice
   python tools/gdl/fnasm.py game/pb_window pbProjCalc 0x68:0xa0  # offset slice
   python tools/gdl/fnasm.py game/pb_window pbProjCalc --ours   # OUR built object
+  python tools/gdl/fnasm.py game/pb_window pbProjCalc --diff   # target|ours aligned
   python tools/gdl/fnasm.py game/pb_window                     # list functions
+
+--diff prints target and ours side-by-side, sequence-aligned on the opcode
+stream (the same correspondence fndiff --ops uses) — immune to the
+upstream-drift trap of comparing both dumps at the same absolute offset.
 
 Output is one line per instruction: function-relative hex offset, mnemonic,
 operands, with any relocation folded onto the same line ("@sym"). Branch
@@ -54,9 +59,35 @@ def main():
             else (lambda s, d: int(s) if s else d)
         lo, hi = conv(a, 0), conv(b, 1 << 30)
 
+    diff = "--diff" in sys.argv
+    rows, names, err = parse_fn(unit, fn, ours=ours and not diff)
+    if err:
+        print(err)
+        return 1
+    if fn is None:
+        print("\n".join(names))
+        return 0
+    if not rows:
+        print(f"function {fn} not found; has: {', '.join(names)}")
+        return 1
+    if diff:
+        our_rows, _, our_err = parse_fn(unit, fn, ours=True)
+        if our_err:
+            print(our_err)
+            return 1
+        return diff_view(rows, our_rows, lo, hi, by_offset)
+    for i, (off, ins) in enumerate(rows):
+        key = off if by_offset else i
+        if lo <= key < hi:
+            print(f"{off:4x}: {ins}")
+    print(f"[{len(rows)} insns{' (ours)' if ours else ''}]")
+    return 0
+
+
+def parse_fn(unit, fn, *, ours):
     kind = "src" if ours else "obj"
     obj = Path(f"build/{VERSION}/{kind}/{unit}.o")
-    if not obj.exists():
+    if not obj.exists() and not ours:
         # dtk merges runs of tiny fns into auto_03_* objects and names auto
         # units after their first fn; try the common variants before giving up
         for cand in (f"auto_03_{unit}_text", f"auto_{unit}_text",
@@ -68,11 +99,9 @@ def main():
     if not obj.exists():
         hint = (f"run ninja build/{VERSION}/src/{unit}.o first" if ours
                 else "run ninja once so dtk extracts it")
-        print(f"missing {obj} ({hint})")
-        return 1
+        return [], [], f"missing {obj} ({hint})"
     out = subprocess.run([str(OBJDUMP), "-dr", str(obj)],
                          capture_output=True, text=True).stdout
-
     cur = None
     base = 0
     rows = []      # (offset, text) for the selected function
@@ -100,18 +129,52 @@ def main():
         elif "R_PPC" in line and rows:
             parts = line.strip().split()
             rows[-1][1] += f"  @{parts[-1]}({parts[-2].replace('R_PPC_', '')})"
+    return rows, names, None
 
-    if fn is None:
-        print("\n".join(names))
-        return 0
-    if not rows:
-        print(f"function {fn} not found; has: {', '.join(names)}")
-        return 1
-    for i, (off, ins) in enumerate(rows):
-        key = off if by_offset else i
-        if lo <= key < hi:
-            print(f"{off:4x}: {ins}")
-    print(f"[{len(rows)} insns{' (ours)' if ours else ''}]")
+
+def diff_view(target_rows, our_rows, lo, hi, by_offset):
+    """Aligned side-by-side target/ours view.
+
+    Alignment uses opcode-stream sequence matching (the same correspondence
+    fndiff --ops reports), so upstream instruction-count drift cannot point
+    the reader at the wrong window — the trap of comparing both streams at
+    the same absolute offset by hand. `=` rows agree on the full instruction
+    text, `~` rows agree on opcode only (register/operand/reloc delta), and
+    `<`/`>` rows exist on one side only.
+    """
+    import difflib
+    t_ops = [row[1].split()[0] for row in target_rows]
+    o_ops = [row[1].split()[0] for row in our_rows]
+    sm = difflib.SequenceMatcher(None, t_ops, o_ops, autojunk=False)
+    width = max((len(row[1]) for row in target_rows), default=20)
+    width = min(width, 52)
+    shown = 0
+    for tag, i1, i2, j1, j2 in sm.get_opcodes():
+        span = max(i2 - i1, j2 - j1)
+        for k in range(span):
+            ti = i1 + k if i1 + k < i2 else None
+            oi = j1 + k if j1 + k < j2 else None
+            key = (target_rows[ti][0] if ti is not None
+                   else our_rows[oi][0]) if by_offset else (ti if ti is not None else i2)
+            if not (lo <= key < hi):
+                continue
+            left = (f"{target_rows[ti][0]:4x}: {target_rows[ti][1]}"
+                    if ti is not None else "")
+            right = (f"{our_rows[oi][0]:4x}: {our_rows[oi][1]}"
+                     if oi is not None else "")
+            if ti is None:
+                mark = ">"
+            elif oi is None:
+                mark = "<"
+            elif tag == "equal":
+                mark = "=" if target_rows[ti][1] == our_rows[oi][1] else "~"
+            else:
+                mark = "|"
+            print(f"{left:<{width + 6}} {mark} {right}")
+            shown += 1
+    print(f"[target {len(target_rows)} insns / ours {len(our_rows)};"
+          f" {shown} rows shown; = same  ~ opcode-only match"
+          "  | replaced  </> one side only]")
     return 0
 
 
