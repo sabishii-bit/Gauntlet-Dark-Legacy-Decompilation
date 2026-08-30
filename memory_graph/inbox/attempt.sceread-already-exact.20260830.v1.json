@@ -1,0 +1,16 @@
+{
+  "attempted_axis": "verification only, no edit: confirming current match status before starting body-fill work on this TU's remaining large functions",
+  "attributes": {
+    "anchors": "src/game/ps2/fakelib.c::sceRead; target 0x800AED50 size 0x260; python tools/gdl/fndiff.py game/ps2/fakelib.c sceRead --count/--clean",
+    "law_screen": "none applicable: verification-only record, no source edit made",
+    "tooling_note": "IMPORTANT for future sessions on this TU: python tools/gdl/matchtool.py probe game/ps2/fakelib.c --brief reports 'sceRead=24' (i.e. non-matching, real diff 24), which is STALE/WRONG for this TU's actual configured cflags (matchtool presets have diverged from per-TU cflags, exactly the divergence AGENTS.md warns about in the de-fakematch section). The authoritative tools/gdl/fndiff.py game/ps2/fakelib.c sceRead --clean reports 'EXACT, 0 real diff lines' against the real ninja-built object, and --count agrees ('OK sceRead'). Trust fndiff over matchtool's --brief summary for this TU; do not re-probe sceRead as a body-fill target without first re-confirming via fndiff, not matchtool.",
+    "verification": "python tools/gdl/fndiff.py game/ps2/fakelib.c sceRead --clean -> '== sceRead: EXACT, 0 real diff lines'; --count -> 'OK sceRead'; full ninja green, build/GUNE5D/main.dol: OK"
+  },
+  "function": "function:sceRead",
+  "id": "attempt.sceread-already-exact.20260830.v1",
+  "kind": "attempt",
+  "outcome": "exact",
+  "recorded_at": "2026-08-30T23:28:06Z",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}
