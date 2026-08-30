@@ -65,6 +65,23 @@ typedef struct CritterItemView {
     u8 _padCE[0x22];
 } CritterItemView;             /* size 0xF0 */
 
+/* -- CritterDamageDef: partial layout of the opaque `struct CritterDamageDef`
+ *    (forward-declared, no body elsewhere) covering only the fields the
+ *    fire/melee-collide family reads.  Verified against
+ *    CritterFirePlayerCollide's radius/maxDistance/minDistance/yaw/pitch/
+ *    offset-vector reads. -- */
+typedef struct CritterDamageDefView {
+    u8 _pad00[8];
+    f32 radius;             /* 0x08 hit cylinder radius */
+    f32 maxDistance;         /* 0x0C max fire distance   */
+    f32 minDistance;          /* 0x10 min fire distance   */
+    f32 yaw;                    /* 0x14 fire direction yaw offset */
+    u8 _pad18[4];
+    f32 pitch;                    /* 0x1C fire direction pitch offset */
+    f32 offset[3];                  /* 0x20 muzzle offset (MulVecMat3 input) */
+    f32 damageRadius;                 /* 0x2C node-collide radius (x gCurLevel scale) */
+} CritterDamageDefView;                  /* size >= 0x30 */
+
 /* -- CritterColDescriptor (0x50): the type-table record CritterHitNode's
  *    descriptor points at once resolved by CritterInitColnodes.  Verified
  *    against CritterInitColnodes, CritterCollideWorld and CritterCollideItems
@@ -1492,20 +1509,20 @@ void CritterFirePlayerCollide(Critter *c, struct CritterDamageDef *damage)
     f64 damageGate;
     s32 i;
 
-    maxDistance = *(f32 *)(dmg + 0x0C);
-    radius = *(f32 *)(dmg + 0x08);
-    minDistance = *(f32 *)(dmg + 0x10);
-    delta[0] = *(f32 *)((u8 *)c + 0x3B8);
-    delta[1] = *(f32 *)((u8 *)c + 0x3BC);
-    delta[2] = *(f32 *)((u8 *)c + 0x3C0);
+    maxDistance = *(f32 *)(dmg + offsetof(CritterDamageDefView, maxDistance));
+    radius = *(f32 *)(dmg + offsetof(CritterDamageDefView, radius));
+    minDistance = *(f32 *)(dmg + offsetof(CritterDamageDefView, minDistance));
+    delta[0] = c->worldMoveMatrix[8];
+    delta[1] = c->worldMoveMatrix[9];
+    delta[2] = c->worldMoveMatrix[10];
     NormalVector(delta);
-    YawVec3(delta, delta, *(f32 *)(dmg + 0x14));
-    PitchVec3(delta, delta, *(f32 *)(dmg + 0x1C));
-    MulVecMat3((f32 *)(dmg + 0x20), transformed,
-               (f32 *)((u8 *)c + 0x398));
-    start[0] = *(f32 *)((u8 *)c + 0x3C8) + transformed[0];
-    start[1] = *(f32 *)((u8 *)c + 0x3CC) + transformed[1];
-    start[2] = *(f32 *)((u8 *)c + 0x3D0) + transformed[2];
+    YawVec3(delta, delta, *(f32 *)(dmg + offsetof(CritterDamageDefView, yaw)));
+    PitchVec3(delta, delta, *(f32 *)(dmg + offsetof(CritterDamageDefView, pitch)));
+    MulVecMat3((f32 *)(dmg + offsetof(CritterDamageDefView, offset)), transformed,
+               c->worldMoveMatrix);
+    start[0] = c->moveOrigin[0] + transformed[0];
+    start[1] = c->moveOrigin[1] + transformed[1];
+    start[2] = c->moveOrigin[2] + transformed[2];
     end[0] = delta[0] * maxDistance + start[0];
     end[1] = delta[1] * maxDistance + start[1];
     end[2] = delta[2] * maxDistance + start[2];
@@ -1520,9 +1537,9 @@ void CritterFirePlayerCollide(Critter *c, struct CritterDamageDef *damage)
         if (player->state != 1 || sMusicFadeBase < player->fxhittime) {
             continue;
         }
-        playerPos[0] = *(f32 *)((u8 *)player + 0x64);
-        playerPos[1] = *(f32 *)((u8 *)player + 0x68);
-        playerPos[2] = *(f32 *)((u8 *)player + 0x6C);
+        playerPos[0] = *(f32 *)((u8 *)player + offsetof(Player, effectpos));
+        playerPos[1] = *(f32 *)((u8 *)player + offsetof(Player, effectpos) + 4);
+        playerPos[2] = *(f32 *)((u8 *)player + offsetof(Player, effectpos) + 8);
         delta[0] = playerPos[0] - start[0];
         delta[1] = playerPos[1] - start[1];
         delta[2] = playerPos[2] - start[2];
@@ -1531,8 +1548,10 @@ void CritterFirePlayerCollide(Critter *c, struct CritterDamageDef *damage)
             continue;
         }
         if (!LineCylinderCollide(playerPos,
-                                 *(f32 *)((u8 *)player + 0x850) + radius,
-                                 *(f32 *)((u8 *)player + 0x854) + radius,
+                                 *(f32 *)((u8 *)player + offsetof(Player,
+                                          col_radius)) + radius,
+                                 *(f32 *)((u8 *)player + offsetof(Player,
+                                          col_height)) + radius,
                                  start, end, transformed, 0)) {
             continue;
         }
@@ -1584,20 +1603,21 @@ s32 CritterNodePlayerCollide(Critter *c, struct CritterDamageDef *damage,
     s32 bestPlayer;
 
     radius = (f32)(enabled != 0
-                       ? (f64)(*(f32 *)(dmg + 0x2C) *
+                       ? (f64)(*(f32 *)(dmg + offsetof(CritterDamageDefView,
+                                         damageRadius)) *
                                *(f32 *)((u8 *)gCurLevel + 0xBC))
                        : lbl_80346488);
-    expansion = *(f32 *)(dmg + 0x0C);
+    expansion = *(f32 *)(dmg + offsetof(CritterDamageDefView, maxDistance));
     bestDistance = lbl_80346508;
     bestPlayer = -1;
-    MulVecMat3((f32 *)(dmg + 0x20), transformed,
-               (f32 *)((u8 *)c + 0x398));
-    nodeX = *(f32 *)((u8 *)c + 0x428) + transformed[0];
-    nodeY = *(f32 *)((u8 *)c + 0x42C) + transformed[1];
-    nodeZ = *(f32 *)((u8 *)c + 0x430) + transformed[2];
-    start[0] = *(f32 *)((u8 *)c + 0x3C8) + transformed[0];
-    start[1] = *(f32 *)((u8 *)c + 0x3CC) + transformed[1];
-    start[2] = *(f32 *)((u8 *)c + 0x3D0) + transformed[2];
+    MulVecMat3((f32 *)(dmg + offsetof(CritterDamageDefView, offset)), transformed,
+               c->worldMoveMatrix);
+    nodeX = c->moveMatrix[0] + transformed[0];
+    nodeY = c->moveMatrix[1] + transformed[1];
+    nodeZ = c->moveMatrix[2] + transformed[2];
+    start[0] = c->moveOrigin[0] + transformed[0];
+    start[1] = c->moveOrigin[1] + transformed[1];
+    start[2] = c->moveOrigin[2] + transformed[2];
     half = *(volatile f64 *)&lbl_80346478;
     damageGate = *(volatile f64 *)&lbl_80346490;
     damageScale = *(volatile f64 *)&lbl_803464F8;
@@ -1614,12 +1634,14 @@ s32 CritterNodePlayerCollide(Critter *c, struct CritterDamageDef *damage,
         if (radius > zeroRadius && sMusicFadeBase < player->fxhittime) {
             continue;
         }
-        playerPos[0] = *(f32 *)((u8 *)player + 0x64);
-        playerPos[1] = *(f32 *)((u8 *)player + 0x68);
-        playerPos[2] = *(f32 *)((u8 *)player + 0x6C);
+        playerPos[0] = *(f32 *)((u8 *)player + offsetof(Player, effectpos));
+        playerPos[1] = *(f32 *)((u8 *)player + offsetof(Player, effectpos) + 4);
+        playerPos[2] = *(f32 *)((u8 *)player + offsetof(Player, effectpos) + 8);
         if (!LineCylinderCollide(playerPos,
-                                 *(f32 *)((u8 *)player + 0x850) + expansion,
-                                 *(f32 *)((u8 *)player + 0x854) + expansion,
+                                 *(f32 *)((u8 *)player + offsetof(Player,
+                                          col_radius)) + expansion,
+                                 *(f32 *)((u8 *)player + offsetof(Player,
+                                          col_height)) + expansion,
                                  start, start, transformed, 0)) {
             continue;
         }
