@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "Sustained TU-scoped de-fakematch pass over game/world/gauntworld.c: replace raw offsets with GC-verified Item/Player/MBObject members and target-verified WorldData/WorldLevel/record views without changing matching scores.",
+  "attributes": {
+    "anchors": "src/game/world/gauntworld.c; GUNE5D ResolveWorldDataPointers 0x80059CB4 size 0x3E4; fndiff --count/--ops/--clean per affected function; include/game/item.h, player.h, mbobject.h",
+    "axis_log": "fn_8005FDA8 full typed Item ctriidx/nctris form rejected: 110->111, real16->89, frame0x78->0x80; --clean showed member spelling cached e+0xC0 in a new saved GPR (address PRE/CSE) and cascaded allocation. After claim.law.member-form-kills-addr-pre review, counter-form kept the repeated collision-index web raw while retaining independent typed node/checknum fields; restored baseline score exactly.",
+    "measurements": "ResolveWorldDataPointers 249/249 fuzzy 100 real0 frame0x40; UpdateObjWorldMat 19/19 real0 frame0x18; fn_8005ACE0 174/174 clean real0 frame0x40; fn_8005AF98 128/128 real0 frame0x98; fn_8005B274 185/185 real0 frame0xC8; fn_8005B5B8 190/190 real0 frame0xC0; fn_8005B8B0 and fn_8005B8FC exact; fn_8005FDA8 unchanged 110/110 fuzzy87 real16 frame0x78. TU fuzzy unchanged 97.24169; matchtool remains OK29/OK~4/bad12.",
+    "sites_converted": "Raw-cast census 369->312 (57 removed). ResolveWorldDataPointers: WorldData header, WorldLevel indices/pointers/flags/name/resolved, typed 0x3C audio and 0x18 sound views. Exact helpers: MBObject.parent, Item/iteminfo search web, Item data/worldmat, WorldRecordView, Player.special_collision_item. fn_8005FDA8 retained typed Item.node plus target-verified world checknum view.",
+    "sites_left_raw": "312 regex-census sites remain: unnamed ResolveWorldDataPointers float block, opaque large runtime/enemy/world-object records, and known address-web-sensitive ctri accesses in fn_8005FDA8. ResolveWorldData matching/register-schedule parked axes were not touched.",
+    "verification": "Object rebuilt after every region; exact regions clean real0 and fuzzy function equal baseline; datadiff reported only pre-existing unclaimed rodata/data/sdata2 emissions; full ninja succeeded with main.dol OK; project 97.80% fuzzy/58.15% matched/26.09% linked; git diff --check clean; portable C only."
+  },
+  "function": "function:ResolveWorldDataPointers",
+  "id": "attempt.gauntworld-defakematch-tupass.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}

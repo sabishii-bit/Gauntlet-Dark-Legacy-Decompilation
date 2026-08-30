@@ -1,6 +1,7 @@
 #include "types.h"
 #include "game/dyngrid.h"
 #include "game/item.h"
+#include "game/mbobject.h"
 #include "game/player.h"
 #include "game/worldobj.h"
 
@@ -75,11 +76,14 @@ struct WorldLevel {
     /* 0x58 */ s16   cameraIdx;  /* -> cameraPtr (WorldData.cameras[idx])    */
     /* 0x5A */ s16   audioIdx;   /* -> audioPtr  (WorldData.audio[idx])      */
     /* 0x5C */ s16   sec30Idx;   /* -> sec30Ptr  (WorldData.section30[idx])  */
-    /* 0x5E */ u8    _pad5E[0x2E];
+    /* 0x5E */ u8    _pad5E[2];
+    /* 0x60 */ u8*   cameraPtr;
+    /* 0x64 */ u8*   audioPtr;
+    /* 0x68 */ u8*   sec30Ptr;
+    /* 0x6C */ u8*   sec34Ptr;
+    /* 0x70 */ u8    _pad70[0x1C];
     /* 0x8C */ s16   sec34Idx;   /* -> sec34Ptr  (WorldData.section34[idx])  */
     /* 0x8E */ u8    _pad8E[0x7E];
-    /* pointer fix-ups written by ResolveWorldDataPointers: */
-    /* 0x60 */ /* u8* cameraPtr; (overlaps _pad; see field access below)     */
     /* audio volume / range floats live at 0xA8..0xDC and are normalised     */
 };
 
@@ -540,6 +544,16 @@ typedef struct OptsView {
     u8  _pad[20];
     s32 vol; /* +20: volume option index */
 } OptsView;
+typedef struct WorldAudioView {
+    u8 _pad00[20];
+    s32 soundHandle;
+    u8 _pad18[36];
+} WorldAudioView;
+typedef struct WorldSoundView {
+    char name[16];
+    s32 soundHandle;
+    u8 _pad14[4];
+} WorldSoundView;
 extern f32  lbl_8011C748[3];           /* volume gain table                 */
 extern f64  lbl_80346C70;              /* -1.0 sentinel                     */
 extern f32  lbl_80346BE0;              /* 1.0                                */
@@ -549,6 +563,7 @@ static void ResolveWorldDataPointers(void)
 {
     char* strs = lbl_80112788;
     u8* lvl;
+    WorldLevel* level;
     s32 i;
     f32 one;
     f64 sent;
@@ -557,63 +572,63 @@ static void ResolveWorldDataPointers(void)
     f32 gain;
     char nameBuf[12];
 
-    if (*(u8**)((u8*)gWorldData + 36) == 0) {
+    if (gWorldData->cameras == 0) {
         FatalErrorf(strs + 716, nameBuf);
     }
-    if (*(u8**)((u8*)gWorldData + 40) == 0) {
+    if (gWorldData->audio == 0) {
         FatalErrorf(strs + 748, nameBuf);
     }
     sCurLevelHasCameras = -1;
     sent = lbl_80346C70;
     one = lbl_80346BE0;
 
-    for (i = 0; i < *(s16*)((u8*)gWorldData + 24); i++) {
-        lvl = *(u8**)((u8*)gWorldData + 28) + i * 268;
+    for (i = 0; i < gWorldData->numLevels; i++) {
+        lvl = (u8*)&gWorldData->levels[i];
+        level = (WorldLevel*)lvl;
 
-        if (*(s16*)(lvl + 88) < 0) {
-            *(s16*)(lvl + 88) = 0;
+        if (level->cameraIdx < 0) {
+            level->cameraIdx = 0;
         }
-        *(u8**)(lvl + 96) =
-            *(u8**)((u8*)gWorldData + 36) + *(s16*)(lvl + 88) * 108;
+        level->cameraPtr = gWorldData->cameras + level->cameraIdx * 108;
         {
-            s16 v34 = *(s16*)(lvl + 140);
+            s16 v34 = level->sec34Idx;
             if (v34 < 0) {
-                *(u8**)(lvl + 108) = 0;
+                level->sec34Ptr = 0;
             } else {
-                *(u8**)(lvl + 108) = *(u8**)((u8*)gWorldData + 52) + v34 * 84;
+                level->sec34Ptr = gWorldData->section34 + v34 * 84;
             }
         }
-        if (*(s16*)(lvl + 90) < 0) {
-            *(s16*)(lvl + 90) = 0;
+        if (level->audioIdx < 0) {
+            level->audioIdx = 0;
         }
-        *(u8**)(lvl + 100) =
-            *(u8**)((u8*)gWorldData + 40) + *(s16*)(lvl + 90) * 60;
+        level->audioPtr = gWorldData->audio + level->audioIdx * 60;
         {
-            s16 v30 = *(s16*)(lvl + 92);
+            s16 v30 = level->sec30Idx;
             if (v30 < 0) {
-                *(u8**)(lvl + 104) = 0;
+                level->sec30Ptr = 0;
             } else {
-                *(u8**)(lvl + 104) = *(u8**)((u8*)gWorldData + 48) + v30 * 72;
+                level->sec30Ptr = gWorldData->section30 + v30 * 72;
             }
         }
 
-        if (*(s16*)(lvl + 4) != 0 && sCurLevelHasCameras < 0) {
+        if (level->flags2 != 0 && sCurLevelHasCameras < 0) {
             sCurLevelHasCameras = i;
         }
 
-        if (*(s16*)(lvl + 4) != 0 && sMusicTrackHi != 12) {
-            sprintf(nameBuf, strs + 776, lvl + 8);
-            *(s32*)(*(u8**)(lvl + 100) + 20) = AudioFindSound(nameBuf, 0, 1);
+        if (level->flags2 != 0 && sMusicTrackHi != 12) {
+            sprintf(nameBuf, strs + 776, level->name);
+            ((WorldAudioView*)level->audioPtr)->soundHandle =
+                AudioFindSound(nameBuf, 0, 1);
         } else {
-            *(s32*)(*(u8**)(lvl + 100) + 20) = -1;
+            ((WorldAudioView*)level->audioPtr)->soundHandle = -1;
         }
 
-        *(u32*)lvl &= ~1u;
+        level->flags &= ~1u;
 
-        if (*(s16*)(lvl + 6) != 0) {
+        if (level->resolved != 0) {
             continue;
         }
-        *(s16*)(lvl + 6) = 1;
+        level->resolved = 1;
         {
             if (sent == *(f32*)(lvl + 168)) {
                 *(f32*)(lvl + 168) = one;
@@ -680,9 +695,9 @@ static void ResolveWorldDataPointers(void)
         }
     }
 
-    for (i = 0; i < *(s16*)((u8*)gWorldData + 26); i++) {
-        u8* snd = *(u8**)((u8*)gWorldData + 44) + i * 24;
-        *(s32*)(snd + 16) = AudioFindSound((const char*)snd, 0, 1);
+    for (i = 0; i < gWorldData->numSounds; i++) {
+        WorldSoundView* snd = &((WorldSoundView*)gWorldData->sounds)[i];
+        snd->soundHandle = AudioFindSound(snd->name, 0, 1);
     }
 }
 
@@ -829,7 +844,7 @@ void UpdateObjWorldMat(OBJGRP* group)
     if (group != 0 && group->node != 0) {
         CopyMat4(&group->worldmat[0][0], (f32*)group->node);
         UnparentMatrix((f32*)group->node,
-                       *(void**)((u8*)group->node + 0x74));
+                       ((MBObject*)group->node)->parent);
     }
 }
 #pragma dont_inline off
@@ -980,11 +995,11 @@ void fn_8005ACE0(f32* position)
     }
 
     fn_8005AF98((u8*)item->info, &type, &value, &field, &state, &name);
-    get_screen_pos(0, &x, &y, (u8*)item + 52);
+    get_screen_pos(0, &x, &y, &item->objgrp.worldmat[3][0]);
 
-    if (type == 2 && *(s16*)((u8*)item + 220) >= 0) {
+    if (type == 2 && *(s16*)&item->data[0] >= 0) {
         fn_8005AF98(*(u8**)(gWorldInfo + 104) +
-                        *(s16*)((u8*)item + 220) * 80,
+                        *(s16*)&item->data[0] * 80,
                     &type, &value, &field, &state, &name);
     }
 
@@ -1007,7 +1022,7 @@ void fn_8005ACE0(f32* position)
 
     case 5:
     case 12:
-        if (*(u32*)((u8*)item + 220) == 0) {
+        if (*(u32*)&item->data[0] == 0) {
             return;
         }
         if (displayType == 12) {
@@ -1025,7 +1040,7 @@ void fn_8005ACE0(f32* position)
         }
         DrawText(-x, y, 0, 0xFFFFFF, "%s:%s(%d)",
                  runtime + 3000,
-                 *(char**)((u8*)item + 220), item->minplayers);
+                 *(char**)&item->data[0], item->minplayers);
         break;
 
     default:
@@ -1038,6 +1053,15 @@ void fn_8005ACE0(f32* position)
 void fn_8005AF98(u8* record, s32* typeOut, s32* valueOut, s32* fieldOut,
                  s32* stateOut, char** nameOut)
 {
+    typedef struct WorldRecordView {
+        s32 type;
+        s32 valueOrCount;
+        s16 links[16];
+        char name[20];
+        s32 state;
+        s16 field;
+    } WorldRecordView;
+    WorldRecordView* view = (WorldRecordView*)record;
     u8 unusedHigh[8];
     s32 type;
     s32 value;
@@ -1054,14 +1078,14 @@ void fn_8005AF98(u8* record, s32* typeOut, s32* valueOut, s32* fieldOut,
     s32 i;
     u8 unusedLow[8];
 
-    if (*(s32*)record == -1) {
+    if (view->type == -1) {
         worldRecords = (u8**)(gWorldInfo + 104);
-        count = *(s32*)(record + 4);
-        fn_8005AF98(world_record_at(worldRecords, *(s16*)(record + 8)),
+        count = view->valueOrCount;
+        fn_8005AF98(world_record_at(worldRecords, view->links[0]),
                     &type, &value, &field, &state, &name);
         for (i = 1; i < count; i++) {
             fn_8005AF98(*worldRecords +
-                            *(s16*)(record + i * 2 + 8) * 80,
+                            view->links[i] * 80,
                         &nextType, &nextValue, &nextField, &nextState,
                         &nextName);
             if (nextType != type) {
@@ -1091,14 +1115,14 @@ void fn_8005AF98(u8* record, s32* typeOut, s32* valueOut, s32* fieldOut,
         *stateOut = state;
         *nameOut = name;
     } else {
-        *typeOut = *(s32*)record;
-        *valueOut = *(s32*)(record + 4);
-        *fieldOut = *(s16*)(record + 64);
-        if (*(s32*)record != 1 || *(s32*)(record + 4) != 3) {
+        *typeOut = view->type;
+        *valueOut = view->valueOrCount;
+        *fieldOut = view->field;
+        if (view->type != 1 || view->valueOrCount != 3) {
             *fieldOut = (s32)__fabs((f64)*fieldOut);
         }
-        *stateOut = *(s32*)(record + 60);
-        *nameOut = (char*)(record + 40);
+        *stateOut = view->state;
+        *nameOut = view->name;
     }
 }
 
@@ -1158,13 +1182,13 @@ f32 fn_8005B274(f32* position, f32 bias, f32 radius, f32* direction,
     f32 distance;
     f32 best;
     f32 scale;
-    s32* sub;
+    iteminfodata* sub;
     s32 index;
     s32 bestIndex;
     s32 type;
     s16 active;
-    u8* item;
-    u8* info;
+    Item* item;
+    iteminfo* info;
 
     scale = (f32)((lbl_80346EE8 - bias) / radius);
     best = radius;
@@ -1176,41 +1200,42 @@ f32 fn_8005B274(f32* position, f32 bias, f32 radius, f32* direction,
     heightScale = lbl_80346EF0;
 
     while ((index = NextGridEnemy()) >= 0) {
-        item = (u8*)&sItems[index];
-        active = *(s16*)(item + 196);
+        item = &sItems[index];
+        active = item->active;
         if (active == -1 || (active & 0x8100) != 0 ||
-            *(s8*)(item + 207) == -1) {
+            item->armor == -1) {
             continue;
         }
-        info = *(u8**)item;
-        type = *(s32*)info;
+        info = item->info;
+        type = info->type;
         if (type == -1) {
             continue;
         }
-        if (*(s8*)(item + 205) != 0) {
+        if (item->minoff != 0) {
             continue;
         }
-        sub = (s32*)(info + 4);
+        sub = &info->item;
         if ((active & 0x4000) == 0) {
             continue;
         }
         switch (type) {
         case 2:
         case 10:
-            if (type == 2 && *sub != 43 && *sub != 44 && *sub != 45) {
+            if (type == 2 && sub->subtype != 43 && sub->subtype != 44 &&
+                sub->subtype != 45) {
                 continue;
             }
-            if (type == 10 && *sub == 41) {
+            if (type == 10 && sub->subtype == 41) {
                 continue;
             }
-            if ((*sub == 43 || *sub == 44 || *sub == 45) &&
-                *(s8*)(item + 200) > 0) {
+            if ((sub->subtype == 43 || sub->subtype == 44 ||
+                 sub->subtype == 45) && item->action > 0) {
                 continue;
             }
             goto check_type5;
         case 5:
 check_type5:
-            if (type == 5 && *sub != 31) {
+            if (type == 5 && sub->subtype != 31) {
                 continue;
             }
             break;
@@ -1220,27 +1245,26 @@ check_type5:
             continue;
         }
 
-        delta[0] = *(f32*)(item + 84) - position[0];
-        delta[1] = *(f32*)(item + 88) - position[1];
-        delta[2] = *(f32*)(item + 92) - position[2];
+        delta[0] = item->objgrp.coll_pos[0] - position[0];
+        delta[1] = item->objgrp.coll_pos[1] - position[1];
+        delta[2] = item->objgrp.coll_pos[2] - position[2];
         absY = delta[1];
         *(u32*)&absY &= 0x7FFFFFFF;
-        if (absY > heightScale * *(f32*)((u8*)sub + 12)) {
+        if (absY > heightScale * sub->height) {
             continue;
         }
         distance = NormalVector(delta);
-        if (*(s32*)*(u8**)item != 3) {
-            if (*sub == 44) {
+        if (item->info->type != 3) {
+            if (sub->subtype == 44) {
                 distance *= subtypeScale;
-            } else if (*sub == 45) {
+            } else if (sub->subtype == 45) {
                 distance *= subtypeScale;
             } else {
                 distance *= normalScale;
             }
         }
         distance -=
-            (((f64)*(f32*)((u8*)sub + 8) < maxInset)
-                ? (f64)*(f32*)((u8*)sub + 8) : maxInset);
+            (((f64)sub->radius < maxInset) ? (f64)sub->radius : maxInset);
         if (distance > radius) {
             continue;
         }
@@ -1384,7 +1408,7 @@ void fn_8005B5B8(void)
 
             if (enable != 0) {
                 WorldObj* world_object;
-                s32 parent = *(s32*)((u8*)item->objgrp.node + 0x74);
+                s32 parent = (s32)((MBObject*)item->objgrp.node)->parent;
 
                 CopyMat4((f32*)item->objgrp.node, matrix);
                 if (*(void**)&item->atree[0] != 0) {
@@ -1412,7 +1436,7 @@ void fn_8005B5B8(void)
 
 s32 fn_8005B8B0(void* owner)
 {
-    Item* item = *(Item**)((u8*)owner + 0x8AC);
+    Item* item = (Item*)((Player*)owner)->special_collision_item;
     s32 result = 0;
 
     if (item != 0 && item->info->type == 0xB) {
@@ -1436,7 +1460,7 @@ s32 fn_8005B8FC(void* owner)
         result = -1;
     }
 
-    item = *(Item**)((u8*)owner + 0x8AC);
+    item = (Item*)((Player*)owner)->special_collision_item;
     if (item != 0 && item->info->type == 9 &&
         item->info->item.subtype != 0x32) {
         result = *(s16*)&item->data[0];
@@ -5976,6 +6000,10 @@ extern f32 lbl_80344190;
 extern f32 lbl_80344194;
 extern f64 lbl_80347008;
 extern f32 lbl_80347010;
+typedef struct GauntWorldInfoView {
+    u8 _pad00[0x58];
+    s32 checknum;
+} GauntWorldInfoView;
 void FatalError(const char* msg, int code);
 f32 CTriListCollide(f32 radius, s32 base, s32 count, u8** outTri,
                     s16* idxList, f32* outPt, s32 layerLo, s32 layerHi,
@@ -5986,7 +6014,7 @@ void MulVecMat4(const f32* vector, f32* out, const f32* matrix);
 /* 0x8005FDA8 - sweep an item's collision tri list along segment a->b */
 f32 fn_8005FDA8(u8* e, f32* a, f32* b, f32* outPos, f32* outNorm, f32 margin)
 {
-    f32* m = *(f32**)(e + 100);
+    f32* m = (f32*)((Item*)e)->objgrp.node;
     f32 pt[5];
     u8* triOut;
     f32 lo;
@@ -6007,11 +6035,12 @@ f32 fn_8005FDA8(u8* e, f32* a, f32* b, f32* outPos, f32* outNorm, f32 margin)
         lo = b[1] - margin;
         hi = a[1] + margin;
     }
-    *(s32*)(gWorldInfo + 88) = *(s32*)(gWorldInfo + 88) + 1;
-    if (*(s32*)(gWorldInfo + 88) > 255) {
-        *(s32*)(gWorldInfo + 88) = 1;
+    ((GauntWorldInfoView*)gWorldInfo)->checknum =
+        ((GauntWorldInfoView*)gWorldInfo)->checknum + 1;
+    if (((GauntWorldInfoView*)gWorldInfo)->checknum > 255) {
+        ((GauntWorldInfoView*)gWorldInfo)->checknum = 1;
     }
-    v = (char)*(s32*)(gWorldInfo + 88);
+    v = (char)((GauntWorldInfoView*)gWorldInfo)->checknum;
     lbl_80344188 = 0;
     lbl_8034418C = v;
     MulBodyVecMat4(a, lbl_8023F7F8, m);
