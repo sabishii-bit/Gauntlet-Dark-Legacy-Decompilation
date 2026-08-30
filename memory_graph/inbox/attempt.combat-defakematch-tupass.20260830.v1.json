@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "Whole-TU combat.c de-fakematch pass: replace raw Player/Enemy/Camera/CombatItem displacement accesses with GC-verified named members, preserving exact functions byte-for-byte and fuzzy functions equal-or-better.",
+  "attributes": {
+    "anchors": "src/game/game/combat.c; include/game/camera.h; include/game/player.h; include/game/enemy.h; target fnasm for CopyCam/StartMissile/PlayerDamagedItem; fndiff --count/--ops/--clean; matchtool probe; full ninja",
+    "baseline": "Measured raw-offset regex census 185 (published work claim 186); TU 94.841450% fuzzy, 30/44 exact; StartMissile 172/172, 100%, real0, frame112; PlayerStartMissile 470/475 real451; InitPlayerMissiles matchtool L+6/D247; EnemyStartMissile matchtool L-1/D151.",
+    "raw_census": "Explicit raw-offset regex census 185 -> 174 (-11); this syntax census does not expand CopyCam's former CF/CI macros, whose 61 target-verified member copies were also converted.",
+    "rejected_axes": "MissileCollideEnemy: array-indexed Enemy*, preserved raw stride + named alias, and repeated-cast forms scored raw diffs 14/14/22 versus accepted 8; direct member forms changed the address web and failed the existing WebFrank input hash, so original raw byte-stride form restored. InitPlayerMissiles: named alias, inline cast, and typed-parameter forms all changed 236-insn/D247 baseline to 231 insns but real289 (lwzu/lbzu/address-fusion and allocation regression), restored. EnemyStartMissile: named alias, repeated cast, split type-only, split orientation/flags, explicit enum cast, and level_data member forms all produced fndiff real153 versus matchtool baseline D151, restored.",
+    "retained": "CopyCam: 61 raw macro-expanded Camera copies converted to named GC-verified members, byte-identical. MissileCollidePlayer: state/effectpos/col_radius/col_height typed, exact. PlayerDamagedEnemy: Enemy type/birth_style and Player index/col_pos typed, exact. PlayerDamagedItem: Player character/index/col_pos plus target-verified CombatItem.activetime typed, exact. PlayerStartMissile: stat_missile_dmg/effectpos/stat_missile_spd typed, unchanged 470/475 real451. StartMissile remained exact.",
+    "verification": "Owning object and full ninja -j2 passed; main.dol SHA-1 gate OK; matchtool TU signature unchanged (OK26/OK~2/bad16/ties1); report remains 94.841450% fuzzy and 30/44 exact; exact sentinels CopyCam, StartMissile, PlayerDamagedEnemy, PlayerDamagedItem, MissileCollidePlayer all fndiff --clean real0; no shared headers/postprocessor/assembly/orig changes."
+  },
+  "function": "function:StartMissile",
+  "id": "attempt.combat-defakematch-tupass.20260830.v1",
+  "kind": "attempt",
+  "outcome": "exact",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}

@@ -15,6 +15,8 @@
 
 #include "types.h"
 #include "game/camera.h"
+#include "game/enemy.h"
+#include "game/player.h"
 #include "game/worldinfo.h"
 
 typedef struct CameraTarget {
@@ -74,7 +76,6 @@ extern ClockInputPair sPreviousFlags;
 extern s32 sFlags;
 extern s32 lbl_803445D4;
 extern u8 gPlayers[];
-extern u8 gEnemies[];
 
 typedef struct MissileInfo {
     u32 damageType;
@@ -2175,7 +2176,12 @@ f32 get_pitch(f32* a, f32* b)
 extern f32 lbl_8023F8C4[], lbl_8023F8B8[];
 extern s32 gGameMode, lbl_80344824, lbl_80344414;
 typedef struct CombatItem {
-    u8 pad[0xDC];
+    void* info;
+    u8 pad04[0x40];
+    f32 attn_pos[3];
+    u8 pad50[0x76];
+    s16 activetime;
+    u8 padC8[0x14];
     u8 data[0x14];
 } CombatItem;
 extern CombatItem* sItems;
@@ -3108,20 +3114,31 @@ void ChangeWindow(void)
 
 void CopyCam(u8* src, u8* dst)
 {
-    CopyMat4((f32*)(src + 4), (f32*)(dst + 4));
-#define CF(o) *(f32*)(dst + (o)) = *(f32*)(src + (o))
-#define CI(o) *(u32*)(dst + (o)) = *(u32*)(src + (o))
-    CF(0x64); CF(0x68); CF(0x6C); CF(0x74); CF(0x78); CF(0x7C);
-    CF(0x84); CF(0x88); CF(0x8C); CF(0x94); CF(0x98); CF(0x9C);
-    CF(0xA4); CF(0xA8); CF(0xAC); CF(0xB4); CF(0xB8); CF(0xBC);
-    CI(0xD8); CF(0xC4); CI(0xC8); CI(0xCC); CI(0xD0); CI(0xD4);
-    CF(0xDC); CF(0xE0); CF(0xE4); CF(0xE8);
-    CI(0xEC); CI(0xF0); CI(0xF4); CI(0xF8); CI(0xFC); CI(0x100);
-    CI(0x104); CI(0x108); CI(0x10C); CI(0x110); CI(0x114); CI(0x118);
-    CF(0x11C); CF(0x120); CF(0x124); CF(0x12C); CF(0x130); CF(0x134);
-    CF(0x13C); CF(0x140); CF(0x144); CF(0x14C); CF(0x150); CF(0x154);
-    CF(0x15C); CF(0x160); CF(0x164); CF(0x16C); CF(0x170); CF(0x174);
-    CF(0x17C); CF(0x180); CF(0x184);
+    Camera* srcCam = (Camera*)src;
+    Camera* dstCam = (Camera*)dst;
+
+    CopyMat4(&srcCam->mat[0][0], &dstCam->mat[0][0]);
+#define CF(field) dstCam->field = srcCam->field
+#define CI(field) dstCam->field = srcCam->field
+    CF(wpos[0]); CF(wpos[1]); CF(wpos[2]);
+    CF(old_wpos[0]); CF(old_wpos[1]); CF(old_wpos[2]);
+    CF(vel[0]); CF(vel[1]); CF(vel[2]);
+    CF(avel[0]); CF(avel[1]); CF(avel[2]);
+    CF(pyr[0]); CF(pyr[1]); CF(pyr[2]);
+    CF(pyr_delta[0]); CF(pyr_delta[1]); CF(pyr_delta[2]);
+    CI(unvib); CF(radius); CI(trans_mode); CI(timer); CI(mode); CI(flags);
+    CF(value); CF(num1); CF(num2); CF(num3);
+    CI(c_mode); CI(pc_mode); CI(camobj); CI(a_mode); CI(pa_mode); CI(pn);
+    CI(en); CI(gn); CI(mn); CI(ln); CI(cn); CI(attnobj);
+    CF(offset[0]); CF(offset[1]); CF(offset[2]);
+    CF(attn[0]); CF(attn[1]); CF(attn[2]);
+    CF(old_attn[0]); CF(old_attn[1]); CF(old_attn[2]);
+    CF(delta[0]); CF(delta[1]); CF(delta[2]);
+    CF(attn_dest[0]); CF(attn_dest[1]); CF(attn_dest[2]);
+    CF(attn_dest_no_offset[0]);
+    CF(attn_dest_no_offset[1]);
+    CF(attn_dest_no_offset[2]);
+    CF(cam_dest[0]); CF(cam_dest[1]); CF(cam_dest[2]);
 #undef CF
 #undef CI
 }
@@ -3273,7 +3290,7 @@ void screen_limitation(s32 camIdx)
         break;
     case 6: {
         s32 enemy = *(s32*)((u8*)cam + 0x104);
-        u8* e = gEnemies + enemy * ENEMY_STRIDE;
+        u8* e = (u8*)gEnemies + enemy * ENEMY_STRIDE;
 
         dbgTextPrintfCol(0x12, row - 7, "ENEMY %02X    ", enemy);
         dbgTextPrintfCol(0xE, row - 6, "%s (AI=%d)                     ",
@@ -3509,21 +3526,22 @@ void PlayerDamagedEnemy(void* player, void* enemy, s32 state, s32 damage,
 {
     s32 t;
 
-    if (*(s32*)enemy == gBossType && gBossActive == 0) {
+    if (((Enemy*)enemy)->type == gBossType && gBossActive == 0) {
         return;
     }
     if (state != 1 && state != 6) {
         return;
     }
-    if (damage > 0 && *(s16*)((u8*)enemy + 728) == 0) {
+    if (damage > 0 && ((Enemy*)enemy)->birth_style == 0) {
         s32 c = *(s32*)((u8*)player + 2328) + 1;
         *(s32*)((u8*)player + 2328) = c;
         if (c >= 10 && gBossType < 0) {
-            msgPost(22, *(s32*)player, (u32)((u8*)player + 84));
+            msgPost(22, ((Player*)player)->index,
+                    (u32)((Player*)player)->col_pos);
         }
     }
 
-    t = *(s32*)enemy;
+    t = ((Enemy*)enemy)->type;
     if (t == -2) {
         t = 1;
     } else if (t == -3) {
@@ -3534,14 +3552,14 @@ void PlayerDamagedEnemy(void* player, void* enemy, s32 state, s32 damage,
 
     if (flag != 0) {
         if (damage != 0) {
-            AddExp(*(s32*)player, lbl_8011BCB8[t], 1);
+            AddExp(((Player*)player)->index, lbl_8011BCB8[t], 1);
         } else {
-            AddExp(*(s32*)player, lbl_8011BC30[t], 1);
+            AddExp(((Player*)player)->index, lbl_8011BC30[t], 1);
         }
     } else if (damage != 0) {
-        AddExp(*(s32*)player, lbl_8011BBA8[t], 0);
+        AddExp(((Player*)player)->index, lbl_8011BBA8[t], 0);
     } else {
-        AddExp(*(s32*)player, lbl_8011BB20[t], 0);
+        AddExp(((Player*)player)->index, lbl_8011BB20[t], 0);
     }
 }
 
@@ -3570,7 +3588,7 @@ big:
     }
     if (flag != 0) {
         s32* count = (s32*)((u8*)player +
-                           PF(player, 0x0C, s32) * 0x1C);
+                           ((Player*)player)->character * 0x1C);
         count[0xC20 / sizeof(s32)] = count[0xC20 / sizeof(s32)] + 1;
     }
     t = PF(item, 0xDC, s16);
@@ -3582,13 +3600,13 @@ big:
         t = 0;
     }
     if (flag != 0) {
-        AddExp(PF(player, 0, s32), lbl_8011BBA8[t] * 5, 0);
+        AddExp(((Player*)player)->index, lbl_8011BBA8[t] * 5, 0);
     } else {
-        AddExp(PF(player, 0, s32), lbl_8011BB20[t] * 5, 0);
+        AddExp(((Player*)player)->index, lbl_8011BB20[t] * 5, 0);
     }
     goto out;
 small:
-    if (PF(item, 0xC6, s16) > 0) {
+    if (((CombatItem*)item)->activetime > 0) {
         goto out;
     }
     switch (info[1]) {
@@ -3600,12 +3618,12 @@ small:
         pos[0] = *(f32*)((u8*)item + 0x44);
         pos[1] = *(f32*)((u8*)item + 0x48);
         pos[2] = *(f32*)((u8*)item + 0x4C);
-        vec[0] = *(f32*)((u8*)player + 0x54);
-        vec[1] = *(f32*)((u8*)player + 0x58);
-        vec[2] = *(f32*)((u8*)player + 0x5C);
-        start_magic(PF(player, 0, s32), (s32*)pos, magic, 0,
+        vec[0] = ((Player*)player)->col_pos[0];
+        vec[1] = ((Player*)player)->col_pos[1];
+        vec[2] = ((Player*)player)->col_pos[2];
+        start_magic(((Player*)player)->index, (s32*)pos, magic, 0,
                     lbl_80346310);
-        msgPost(0xE, PF(player, 0, s32), (u32)vec);
+        msgPost(0xE, ((Player*)player)->index, (u32)vec);
         DeleteItem(item, 1);
         break;
     }
@@ -3812,7 +3830,7 @@ s32 MissileCollideEnemy(f32 radius, f32* from, f32* to, f32* hit,
     s32 i;
 
     for (i = firstEnemy; i < 25; i++) {
-        u8* enemy = gEnemies + i * ENEMY_STRIDE;
+        u8* enemy = (u8*)gEnemies + i * ENEMY_STRIDE;
         s32 state = PF(enemy, 0xB4, s32);
         f32* cool;
         if ((state == 1 || state == 6) &&
@@ -3845,11 +3863,11 @@ void* MissileCollidePlayer(f32 radius, f32* from, f32* to, f32* hit)
     s32 i;
 
     for (i = 0; i < 4; i++) {
-        u8* player = gPlayers + i * PLAYER_STRIDE;
-        if (PF(player, 0xE8, s32) == 1) {
-            f32 halfHeight = radius + PF(player, 0x854, f32);
-            f32 cylinderRadius = radius + PF(player, 0x850, f32);
-            if (LineCylinderCollide((f32*)(player + 0x64),
+        Player* player = (Player*)(gPlayers + i * PLAYER_STRIDE);
+        if (player->state == 1) {
+            f32 halfHeight = radius + player->col_height;
+            f32 cylinderRadius = radius + player->col_radius;
+            if (LineCylinderCollide(player->effectpos,
                                     cylinderRadius, halfHeight,
                                     from, to, hit, 0)) {
                 return player;
@@ -4164,6 +4182,7 @@ void MBTreeSetFlags(s32 node, s32 mask, s32 value);
 s32 PlayerStartMissile(s32* player, f32* direction, s32 damageType, s32 mode,
                        f32 speedArg, f32 scaleArg)
 {
+    Player* playerView = (Player*)player;
     s32 idx = player[0];
     s32* missileFx = pmissile_sfxidx;
     MissileTreeInfo* treeInfo = &PlayerMissileTreeInfo[idx];
@@ -4200,7 +4219,7 @@ s32 PlayerStartMissile(s32* player, f32* direction, s32 damageType, s32 mode,
     } else {
         desc = &PlayerMissileInfo[player[2]];
     }
-    scale = *(f32*)((u8*)player + 0x114) * scaleArg;
+    scale = playerView->stat_missile_dmg * scaleArg;
 
     if ((pflags & 0x400) != 0) {
         MulVecMat3((f32*)lbl_8011A1A8, aim, (f32*)(player + 5));
@@ -4217,9 +4236,9 @@ s32 PlayerStartMissile(s32* player, f32* direction, s32 damageType, s32 mode,
             aim[2] = lbl_80346328;
         }
     }
-    aim[0] = *(f32*)((u8*)player + 0x64) + aim[0];
-    aim[1] = *(f32*)((u8*)player + 0x68) + aim[1];
-    aim[2] = *(f32*)((u8*)player + 0x6C) + aim[2];
+    aim[0] = playerView->effectpos[0] + aim[0];
+    aim[1] = playerView->effectpos[1] + aim[1];
+    aim[2] = playerView->effectpos[2] + aim[2];
     pt0[0] = (f32)(lbl_803463A0 * (f64)direction[0] + (f64)aim[0]);
     pt0[1] = (f32)(lbl_803463A0 * (f64)direction[1] + (f64)aim[1]);
     pt0[2] = (f32)(lbl_803463A0 * (f64)direction[2] + (f64)aim[2]);
@@ -4266,12 +4285,12 @@ s32 PlayerStartMissile(s32* player, f32* direction, s32 damageType, s32 mode,
     {
         f64 clampedValue;
         f32 clamped;
-        if ((f64)*(f32*)((u8*)player + 0x118) < lbl_80346318) {
+        if ((f64)playerView->stat_missile_spd < lbl_80346318) {
             clampedValue = lbl_80346318;
-        } else if ((f64)*(f32*)((u8*)player + 0x118) > lbl_803463A8) {
+        } else if ((f64)playerView->stat_missile_spd > lbl_803463A8) {
             clampedValue = lbl_803463A8;
         } else {
-            clampedValue = (f64)*(f32*)((u8*)player + 0x118);
+            clampedValue = (f64)playerView->stat_missile_spd;
         }
         clamped = (f32)clampedValue;
         invSpeed = (f32)(lbl_80346318 / (f64)clamped);
