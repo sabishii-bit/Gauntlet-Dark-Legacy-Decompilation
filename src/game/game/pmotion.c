@@ -4295,6 +4295,8 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
     s32 fA;
     s32 fB;
     f32 zv;
+    Player* pd = (Player*)p;
+    PSpawnView* sv = SV(p);  /* floor_obj cache @0x8C4, same slot get_player_pos clears */
 
     ctx = lbl_80282850;
     end[0] = pos[0] + dpos[0];
@@ -4306,11 +4308,11 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
     lbl_80344B34 = *(f32*)(lbl_8023CB28 + 52);
     dq = fqdist(dpos[0], dpos[2]);
     {
-        u32 fl = WorldObjGetAllFlags(*(WorldObj**)(p + 2244));
+        u32 fl = WorldObjGetAllFlags((WorldObj*)sv->floor_obj);
         fA = fl & 0x0C000000;
         fB = fl & 0x20000000;
     }
-    if (fA != 0 && fB != 0 && *(u32*)(p + 2244) != hit) {
+    if (fA != 0 && fB != 0 && sv->floor_obj != hit) {
         zv = lbl_80347B30;
         dpos[0] = zv;
         dpos[1] = zv;
@@ -4322,30 +4324,30 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
     }
     if (hit == 0) {
         if ((f64)dq < lbl_80347D68) {
-            *(s32*)(p + 2244) = 0;
+            sv->floor_obj = 0;
         }
-        if (!(*(u32*)(p + 2260) & 0x8000)) {
+        if (!(pd->obj_flags & 0x8000)) {
             zv = lbl_80347B30;
             dpos[0] = zv;
             dpos[2] = zv;
         }
-        *(f32*)(p + 2228) = lbl_80344880;
+        pd->floor_base = lbl_80344880;
         return -2;
     }
     fhp = ctx + 76;
     fh = *(f32*)(ctx + 76);
-    ts = fh - *(f32*)(p + 2228);
+    ts = fh - pd->floor_base;
     *(u32*)&ts &= 0x7FFFFFFF;
-    if (*(u32*)(p + 2260) & 0x8000) {
-        if ((f64)(*(f32*)(p + 72) - fh) < lbl_80347D10) {
-            *(u32*)(p + 2260) &= ~0x8000;
+    if (pd->obj_flags & 0x8000) {
+        if ((f64)(pd->pos[1] - fh) < lbl_80347D10) {
+            pd->obj_flags &= ~0x8000;
         } else {
             return 0;
         }
     }
-    if ((f64)dq < lbl_80347D68 && *(s32*)(p + 236) == 1) {
+    if ((f64)dq < lbl_80347D68 && pd->prev_state == 1) {
         if ((f64)ts > lbl_80347B28 || (*(u32*)(hit + 16) & 0x1000)) {
-            *(f32*)(p + 2228) = fh;
+            pd->floor_base = fh;
         }
         if ((f64)ts > lbl_80347D68) {
             return 1;
@@ -4353,11 +4355,11 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
         return 0;
     }
     lim = lbl_80347BF8;
-    if (*(u32*)(ctx + 92) == *(u32*)(p + 2244)) {
+    if (*(u32*)(ctx + 92) == sv->floor_obj) {
         lim = (f32)(lim + lbl_80347BD0);
     }
     if (ts > lim) {
-        *(f32*)(p + 2228) = *(f32*)(p + 72);
+        pd->floor_base = pd->pos[1];
         zv = lbl_80347B30;
         dpos[0] = zv;
         dpos[2] = zv;
@@ -4370,7 +4372,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
         end[2] = pos[2] + dpos[2];
         hit = FloorCollide(rad, lbl_80347B30, zoff, end, (f32*)(ctx + 24), 0,
                            1);
-        if (fA != 0 && fB != 0 && *(u32*)(p + 2244) != hit) {
+        if (fA != 0 && fB != 0 && sv->floor_obj != hit) {
             zv = lbl_80347B30;
             dpos[0] = zv;
             dpos[1] = zv;
@@ -4378,7 +4380,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
             return -1;
         }
         if (hit != 0) {
-            *(f32*)(p + 2228) = *(f32*)fhp;
+            pd->floor_base = *(f32*)fhp;
             return 2;
         }
         zv = lbl_80347B30;
@@ -4402,7 +4404,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
         end[1] = end[1] + nrm[1];
         end[2] = end[2] + nrm[2];
         hit = FloorCollide(rad, lbl_80347B30, zoff, end, 0, 1, 1);
-        if (fA != 0 && fB != 0 && *(u32*)(p + 2244) != hit) {
+        if (fA != 0 && fB != 0 && sv->floor_obj != hit) {
             zv = lbl_80347B30;
             dpos[0] = zv;
             dpos[1] = zv;
@@ -4410,7 +4412,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
             return -1;
         }
         if (hit != 0) {
-            ts2 = *(f32*)((u8*)gFloorCollisionResult + 52) - fh;
+            ts2 = gFloorCollisionResult[13] - fh;
             *(u32*)&ts2 &= 0x7FFFFFFF;
             if ((*(u32*)(*(u32*)((u8*)gFloorCollisionResult + 68) + 16) & 8)
                 && (f64)ts2 < lbl_80347BA8) {
@@ -4419,7 +4421,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
                 dx = end[0] - *(f32*)((u8*)gFloorCollisionResult + 48);
                 dz = end[2] - *(f32*)((u8*)gFloorCollisionResult + 56);
                 dq = dpos[1] *
-                         (end[1] - *(f32*)((u8*)gFloorCollisionResult + 52)) +
+                         (end[1] - gFloorCollisionResult[13]) +
                      dpos[0] * dx + dpos[2] * dz;
                 d = fqdist(dx, dz);
             }
@@ -4431,7 +4433,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
         }
     }
     if ((f64)d < lbl_80347D68 || dq < lbl_80347B30) {
-        *(f32*)(p + 2228) = fh;
+        pd->floor_base = fh;
         if ((f64)d < lbl_80347D68 || (f64)dq < lbl_80347D70) {
             return 1;
         }
@@ -4443,7 +4445,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
     end[1] = pos[1] + dpos[1];
     end[2] = pos[2] + dpos[2];
     hit = FloorCollide(rad, lbl_80347B30, zoff, end, (f32*)(ctx + 24), 0, 1);
-    if (fA != 0 && fB != 0 && *(u32*)(p + 2244) != hit) {
+    if (fA != 0 && fB != 0 && sv->floor_obj != hit) {
         zv = lbl_80347B30;
         dpos[0] = zv;
         dpos[1] = zv;
@@ -4451,7 +4453,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
         return -1;
     }
     if (hit != 0) {
-        *(f32*)(p + 2228) = *(f32*)fhp;
+        pd->floor_base = *(f32*)fhp;
         return 2;
     }
     zv = lbl_80347B30;
