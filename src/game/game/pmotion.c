@@ -2412,9 +2412,9 @@ store_motion_state:
                         fn_80093E50(effect, effectVelocity, bossColor,
                                     weight, effectRadius);
                     } else {
-                        hit[0] = (f32)(PF(p, 0x34, f32) + (f64)p->col_pos[0]);
-                        hit[1] = (f32)(PF(p, 0x38, f32) + (f64)p->col_pos[1]);
-                        hit[2] = (f32)(PF(p, 0x3C, f32) + (f64)p->col_pos[2]);
+                        hit[0] = (f32)(p->mat[8] + (f64)p->col_pos[0]);
+                        hit[1] = (f32)(p->mat[9] + (f64)p->col_pos[1]);
+                        hit[2] = (f32)(p->mat[10] + (f64)p->col_pos[2]);
                         hit[1] = (f32)(hit[1] + lbl_80347C28);
                         effect = StartFXSub(93, hit, effectFlags | 8, 0,
                                             lbl_80347CA8);
@@ -3011,9 +3011,9 @@ player_motion_phase_exit:
                         f32 grabDir[3];
                         f32 partnerYaw;
                         f32 partnerFacing;
-                        grabDir[0] = PF(p, 0x44, f32) - PF(partner, 0x44, f32);
-                        grabDir[1] = PF(p, 0x48, f32) - PF(partner, 0x48, f32);
-                        grabDir[2] = PF(p, 0x4C, f32) - PF(partner, 0x4C, f32);
+                        grabDir[0] = p->pos[0] - PF(partner, 0x44, f32);
+                        grabDir[1] = p->pos[1] - PF(partner, 0x48, f32);
+                        grabDir[2] = p->pos[2] - PF(partner, 0x4C, f32);
                         SlowNormalVector(grabDir);
                         partnerYaw = PlayerMotion_WrapAngle(
                             atan2(grabDir[0], grabDir[2]) + lbl_80347CF8);
@@ -3087,9 +3087,9 @@ player_motion_phase_exit:
                         f32 grabDir[3];
                         f32 partnerYaw;
                         f32 partnerFacing;
-                        grabDir[0] = PF(p, 0x44, f32) - PF(partner, 0x44, f32);
-                        grabDir[1] = PF(p, 0x48, f32) - PF(partner, 0x48, f32);
-                        grabDir[2] = PF(p, 0x4C, f32) - PF(partner, 0x4C, f32);
+                        grabDir[0] = p->pos[0] - PF(partner, 0x44, f32);
+                        grabDir[1] = p->pos[1] - PF(partner, 0x48, f32);
+                        grabDir[2] = p->pos[2] - PF(partner, 0x4C, f32);
                         SlowNormalVector(grabDir);
                         partnerYaw = PlayerMotion_WrapAngle(
                             atan2(grabDir[0], grabDir[2]) + lbl_80347CF8);
