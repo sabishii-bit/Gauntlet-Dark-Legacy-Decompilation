@@ -396,7 +396,11 @@ Worktrees: writing workers use separate worktrees/branches; the shared
 checkout is read-only to them. Reuse existing clean campaign worktrees before
 creating new ones; never create ad-hoc repository clones when a worktree
 suffices; never delete or copy over the shared `build/` or `orig/`
-directories. At session end classify every worktree/branch: `READY`,
+directories. Never junction or symlink a worker's ignored `orig/` or `build/`
+path to the shared checkout: `git worktree remove` can follow the reparse point
+and delete shared inputs. Provision only the exact required ignored files, and
+reject/remove any reparse point before removing the worktree. At session end
+classify every worktree/branch: `READY`,
 `DIRTY/STRANDED` (with exact paths and next safe action), `MERGED`, or
 `CLEAN`, and record `git rev-list --left-right --count main...<branch>` for
 unmerged branches. Cleanup after integration requires proof: clean status, no
