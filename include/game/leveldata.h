@@ -1,0 +1,86 @@
+#ifndef GAME_LEVELDATA_H
+#define GAME_LEVELDATA_H
+
+#include "types.h"
+
+/* level_data - the active level descriptor (gCurLevel @ 0x8034483C points
+ * at one of these).
+ *
+ * Authoritative field names + offsets: Xbox shell3D.pdb dump,
+ *   research/xbox_symbols/misc.h -> "struct level_data // Size=0x10c (Id=3267)".
+ *
+ * GC offset verification (2026-08-30), three independent anchors:
+ *   +0x60 camera     matches newcam.c's documented "+0x60 = active CAMERA*"
+ *   +0x9C plevel     matches fn_8005C1DC's gold-ramp f32 read (matched region)
+ *   +0xCC..0xDC gen_health..trap_damage
+ *                    match items.c's generator/trap tuning reads
+ * Remaining fields carry the Xbox names unverified; verify a field's
+ * displacement against GC target asm before relying on it in matching work.
+ */
+
+struct camera_data;   /* Xbox camera_data 0x6C (misc.h Id=3269) */
+struct audio_data;
+struct map_data;
+struct bosscam_data;
+
+typedef struct level_data {
+    s32   flags;              /* 0x00 */
+    s16   enabled;            /* 0x04 */
+    s16   setup;              /* 0x06 */
+    char  name[4];            /* 0x08 */
+    s16   wavetime;           /* 0x0C */
+    s16   dummy;              /* 0x0E */
+    char  prep[4];            /* 0x10 */
+    char  title[16];          /* 0x14 */
+    char  audbank[16];        /* 0x24 */
+    char  movie[16];          /* 0x34 */
+    s32   bosstype;           /* 0x44 */
+    s32   earlyenemies;       /* 0x48 */
+    s16   enemytype[6];       /* 0x4C */
+    s16   camidx;             /* 0x58 */
+    s16   audidx;             /* 0x5A */
+    s16   mapidx;             /* 0x5C */
+    u8    align0[2];          /* 0x5E */
+    struct camera_data*  camera;   /* 0x60 GC-VERIFIED (newcam bounds) */
+    struct audio_data*   audio;    /* 0x64 */
+    struct map_data*     mapdata;  /* 0x68 */
+    struct bosscam_data* bosscam;  /* 0x6C */
+    u8    fog[0x1C];          /* 0x70 fog_data (misc.h Id near 3267) */
+    s16   bosscamidx;         /* 0x8C */
+    s16   maxenemies;         /* 0x8E */
+    s16   rune;               /* 0x90 */
+    s16   legend;             /* 0x92 */
+    f32   musicvol;           /* 0x94 */
+    f32   soundvol;           /* 0x98 */
+    f32   plevel;             /* 0x9C GC-VERIFIED (fn_8005C1DC gold ramp) */
+    f32   xpmul;              /* 0xA0 */
+    f32   damagemul;          /* 0xA4 */
+    f32   difficulty;         /* 0xA8 */
+    f32   ene_health;         /* 0xAC */
+    f32   ene_speed;          /* 0xB0 */
+    f32   ene_visrad;         /* 0xB4 */
+    f32   ene_attack;         /* 0xB8 */
+    f32   ene_damage;         /* 0xBC */
+    f32   ene_mrate;          /* 0xC0 */
+    f32   ene_mspeed;         /* 0xC4 */
+    f32   ene_macc;           /* 0xC8 */
+    f32   gen_health;         /* 0xCC GC-VERIFIED (items generator tuning) */
+    f32   gen_rate;           /* 0xD0 */
+    f32   gen_max;            /* 0xD4 */
+    f32   trap_rate;          /* 0xD8 */
+    f32   trap_damage;        /* 0xDC */
+    s32   shop_maxgold;       /* 0xE0 */
+    s32   shop_maxkills;      /* 0xE4 */
+    s32   shop_maxexp;        /* 0xE8 */
+    f32   ambient;            /* 0xEC */
+    f32   lightdir[3];        /* 0xF0 */
+    f32   lightcolor_fp[3];   /* 0xFC */
+    f32   lightinten;         /* 0x108 */
+} level_data;                 /* size 0x10C */
+
+#ifdef __MWERKS__
+/* offset-exact size guard */
+typedef char _level_data_size_check[sizeof(level_data) == 0x10C ? 1 : -1];
+#endif
+
+#endif /* GAME_LEVELDATA_H */

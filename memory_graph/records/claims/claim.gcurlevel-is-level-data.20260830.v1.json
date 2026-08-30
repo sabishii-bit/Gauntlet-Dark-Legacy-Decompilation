@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "research/xbox_symbols/misc.h:28120; anchors: src/game/world/newcam.c:204 comment, src/game/world/gauntworld.c fn_8005C1DC (95.2% matched region), attempt.items-c-defakematch-tupass.20260830.v1 leave-raw note. NOTE: pdb_type/pdb_field graph tables lack level_data - xbox_structs.tsv is a partial extract; regenerating it from misc.h/game.h would let gdlmem struct resolve these directly.",
+    "scope": "GC GUNE5D global typing; cross-platform layout adoption per the project authority rule"
+  },
+  "epistemic_state": "verified",
+  "id": "claim.gcurlevel-is-level-data.20260830.v1",
+  "kind": "claim",
+  "predicate": "type_identification",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "gCurLevel (0x8034483C) points at struct level_data (Xbox shell3D.pdb misc.h Id=3267, size 0x10C), now adopted as include/game/leveldata.h. Three independent GC anchors verify the layout carries over: +0x60 camera_data* (newcam.c's documented active-CAMERA bounds pointer), +0x9C plevel f32 (fn_8005C1DC's gold-ramp read in a matched region), +0xCC..0xDC gen_health/gen_rate/gen_max/trap_rate/trap_damage (items.c generator/trap tuning). This closes the 'gCurLevel has no struct anywhere' name-resolution gap recorded by the enemy.c and items.c de-fakematch passes and unblocks raw-offset cleanup of gCurLevel accesses in enemy.c, items.c, critter.c, action.c, bosscam.c, combat.c, camera.c, tower.c, gamemain.c. Unlisted fields keep Xbox names unverified - check target displacements before matching against them."
+}
