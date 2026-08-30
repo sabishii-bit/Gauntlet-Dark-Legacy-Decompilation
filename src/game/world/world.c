@@ -1,11 +1,6 @@
 #include "types.h"
 #include "game/worldinfo.h"
 #include "game/worldobj.h"
-#include "game/item.h" /* iteminfo/iteminst/locator full definitions */
-
-#ifndef offsetof
-#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
-#endif
 
 /* Gauntlet world-object/scene module (Xbox WORLD.OBJ), region
  * 0x800A87C8 - 0x800AB8E0.  Wired NonMatching: the DOL bytes are substituted
@@ -398,27 +393,24 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim, u8* animBase) {
  * distance via frsqrte+Newton; the squared-distance comparison used here
  * selects the identical object.) */
 struct mbnode* FindWorldAnimNode(f32* point, f32 maxdist) {
-    u8* base = (u8*)gWorldName;
+    char* base = gWorldName;
     WorldObj* obj;
     WorldObj* best = NULL;
     f32 bestd = maxdist;
     s32 i;
 
-    /* base+228 is gWorldInfo; nworldanims/worldanims/wobjs are re-read from
-     * memory every iteration below, matching target - do not hoist them. */
-    for (i = 0; i < *(s32*)(base + 228 + offsetof(WorldInfo, nworldanims)); i++) {
-        struct worldanim* wa =
-            *(struct worldanim**)(base + 228 + offsetof(WorldInfo, worldanims)) + i;
+    for (i = 0; i < *(s32*)(base + 372); i++) {
+        u8* wa = *(u8**)(base + 368) + i * 16;
         f32 m[16]; /* node world-state; translation at +0x30 (index 12..14) */
         u8 _pad[16];
         f32 dx, dy, dz;
         volatile f32 tmp;
         f32 d2;
 
-        if (wa->data == 0) {
+        if (*(u32*)(wa + 12) == 0) {
             continue;
         }
-        obj = *(WorldObj**)(base + 228 + offsetof(WorldInfo, wobjs)) + wa->objidx;
+        obj = (WorldObj*)(*(u8**)(base + 232) + *(s16*)wa * 60);
         GetWorldMat(obj->nodeptr, m, 0);
         dy = m[12] - point[0];
         dx = m[13] - point[1];
@@ -455,10 +447,10 @@ void ResetWorlds(void) {
     world_root1 = (void*)zero;
     lbl_80344DA4 = (void*)zero;
     lbl_80344DA0 = (void*)zero;
-    world_blob[(228 + (s32)offsetof(WorldInfo, model)) / 4] = -1;    /* gWorldInfo.model   */
-    world_blob[(64 + (s32)offsetof(WorldInfo, model)) / 4] = -1;     /* gWorldInfo2.model  */
-    world_blob[(228 + (s32)offsetof(WorldInfo, inited)) / 4] = zero; /* gWorldInfo.inited  */
-    world_blob[(64 + (s32)offsetof(WorldInfo, inited)) / 4] = zero;  /* gWorldInfo2.inited */
+    world_blob[0x168 / 4] = -1;
+    world_blob[0xC4 / 4] = -1;
+    world_blob[0xE4 / 4] = zero;
+    world_blob[0x40 / 4] = zero;
     lbl_80344D74 = (s32*)zero;
     lbl_80344D78 = (float*)zero;
 }
@@ -487,13 +479,8 @@ void WorldSaveInitState(void) {
         memBase = mlmMemUsed;
         lbl_80344D74 = AllocMem(*(s32*)lbl_80344DA4 * 4);
         lbl_80344D78 = AllocMem(*(s32*)lbl_80344DA4 * 12);
-        /* WorldObj array base (gWorldInfo.wobjs); strength-reduced i*60
-         * indexed addressing below is load-bearing for target's lwzx/lfsx
-         * shape - a materialized WorldObj* alias regressed real 64->68
-         * (verified), so the field offsets stay raw here (WorldObj.parent
-         * @0x18, .pos @0x1C). */
-        wobjsp = (u8**)(base + 228 + offsetof(WorldInfo, wobjs));
-        for (i = 0; i < *(s32*)(base + 228 + offsetof(WorldInfo, nwobjs)); i++) {
+        wobjsp = (u8**)(base + 232);
+        for (i = 0; i < *(s32*)(base + 324); i++) {
             ((s32*)lbl_80344D74)[i] = *(s32*)(*wobjsp + i * 60 + 24);
             lbl_80344D78[i * 3] = *(f32*)(*wobjsp + i * 60 + 28);
             lbl_80344D78[i * 3 + 1] = *(f32*)(*wobjsp + i * 60 + 32);
@@ -512,8 +499,7 @@ void WorldSaveInitState(void) {
         lbl_80344D98 = InitWorldInfo((WorldInfo*)(base + 64), lbl_80344DA0);
         lbl_80344D8C = world_root1;
         CreateWorldNode(lbl_80344D98, lbl_80344D98, 0);
-        MBTreeSetAltTex(world_root1, -2,
-                        *(s32*)(base + 228 + offsetof(WorldInfo, whitetex)), 1);
+        MBTreeSetAltTex(world_root1, -2, *(s32*)(base + 364), 1);
         WorldDisplay = 2;
     } else {
         lbl_80344D98 = 0;
@@ -532,24 +518,18 @@ void WorldRestoreInitState(void) {
         return;
     }
     {
-        /* WorldObj array base (gWorldInfo.wobjs); strength-reduced i*60
-         * indexed addressing is load-bearing for target's lwzx/lfsx shape
-         * (see WorldSaveInitState) - field offsets stay raw (WorldObj
-         * .flags@0x10, .parent@0x18, .pos@0x1C). */
-        u8** wobjsp = (u8**)(base + 228 + offsetof(WorldInfo, wobjs));
+        u8** wobjsp = (u8**)(base + 232);
         s32 i;
-        for (i = 0; i < *(s32*)(base + 228 + offsetof(WorldInfo, nwobjs)); i++) {
+        for (i = 0; i < *(s32*)(base + 324); i++) {
             *(u32*)(*wobjsp + i * 60 + 16) &= 0xC31FFFFF;
             *(u32*)(*wobjsp + i * 60 + 24) = ((u32*)lbl_80344D74)[i];
             *(f32*)(*wobjsp + i * 60 + 28) = lbl_80344D78[i * 3];
             *(f32*)(*wobjsp + i * 60 + 32) = lbl_80344D78[i * 3 + 1];
             *(f32*)(*wobjsp + i * 60 + 36) = lbl_80344D78[i * 3 + 2];
         }
-        for (i = 0; i < *(s32*)(base + 228 + offsetof(WorldInfo, nworldanims)); i++) {
-            if (*(u32*)(*(u8**)(base + 228 + offsetof(WorldInfo, animdata)) +
-                         i * 160) != 0) {
-                *(f32*)(*(u8**)(base + 228 + offsetof(WorldInfo, worldanims)) +
-                        i * 16 + 8) = lbl_80348778;
+        for (i = 0; i < *(s32*)(base + 372); i++) {
+            if (*(u32*)(*(u8**)(base + 380) + i * 160) != 0) {
+                *(f32*)(*(u8**)(base + 368) + i * 16 + 8) = lbl_80348778;
             }
         }
     }
@@ -660,9 +640,9 @@ s32 StartWorldLoad(s32 arg) {
         }
         break;
     case 4: {
-        s32 model = *(s32*)(name + 228 + offsetof(WorldInfo, model)); /* gWorldInfo.model */
+        s32 model = *(s32*)(name + 360);
 
-        *(s32*)(name + 228 + offsetof(WorldInfo, whitetex)) = /* gWorldInfo.whitetex */
+        *(s32*)(name + 364) =
             (s32)MBOX_FindTexture_Sub(&buf[48], 0, model, model, 1);
         world_load_state = 5;
     }
@@ -697,8 +677,7 @@ s32 LoadWorldDone(char* name) {
     lbl_80344D80 = 0;
     if (name != 0 && FileExists(name, "worlds") != 0) {
         freeBefore = BytesFree();
-        *(modelp = (s32*)(base + 228 + offsetof(WorldInfo, model))) = /* gWorldInfo.model */
-            MBOX_AllocModel(name);
+        *(modelp = (s32*)(base + 360)) = MBOX_AllocModel(name);
         lbl_80344D80 += freeBefore - BytesFree();
         memBase = mlmMemUsed;
         bulletproof_printf(lbl_80115214, name, memBase);
@@ -710,16 +689,15 @@ s32 LoadWorldDone(char* name) {
         world_load_state = -1;
         return -1;
     }
-    *(s32*)(base + 228 + offsetof(WorldInfo, whitetex)) = 0; /* gWorldInfo.whitetex */
+    *(s32*)(base + 364) = 0;
     lbl_80344DA0 = 0;
     strcpy(base, name);
     if (FileExists(name, "anim") != 0) {
         size = FileSize(name, "anim");
-        *(s32*)(base + 228 + offsetof(WorldInfo, atreelist)) = /* gWorldInfo.atreelist */
-            (s32)AllocMem(size);
+        *(s32*)(base + 356) = (s32)AllocMem(size);
         lbl_80344D84 += size;
     } else {
-        *(s32*)(base + 228 + offsetof(WorldInfo, atreelist)) = 0; /* gWorldInfo.atreelist */
+        *(s32*)(base + 356) = 0;
     }
     bulletproof_printf(lbl_80115230, mlmMemUsed,
                        (mlmMemUsed - memBase) >> 10);
@@ -849,39 +827,24 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
     wi->iteminst = (struct iteminst*)(base + blob[0x15]);
     wi->locators = (struct locator*)(base + blob[0x17]);
 
-    if (*(s32*)(wg + 228 + offsetof(WorldInfo, inited)) == 0) {
-        /* world objects (stride 0x3C); field offsets are WorldObj's (raw
-         * walked pointer kept - a typed WorldObj* alias regressed the
-         * analogous coltri/wobjsp loops elsewhere in this TU, verified). */
+    if (*(s32*)(wg + 228) == 0) {
+        /* world objects (stride 0x3C) */
         for (i = 0; i < blob[0]; i++) {
             p = (u8*)wi->wobjs + i * 0x3C;
-            *(u16*)(p + offsetof(WorldObj, triggertype)) =
-                sSwapU16(*(u16*)(p + offsetof(WorldObj, triggertype)));
-            *(u16*)(p + offsetof(WorldObj, nextidx)) =
-                sSwapU16(*(u16*)(p + offsetof(WorldObj, nextidx)));
-            *(u16*)(p + offsetof(WorldObj, childidx)) =
-                sSwapU16(*(u16*)(p + offsetof(WorldObj, childidx)));
-            *(u16*)(p + offsetof(WorldObj, nctris)) =
-                sSwapU16(*(u16*)(p + offsetof(WorldObj, nctris)));
-            *(u32*)(p + offsetof(WorldObj, flags)) =
-                sSwapU32(*(u32*)(p + offsetof(WorldObj, flags)));
-            *(f32*)(p + offsetof(WorldObj, rad)) =
-                sSwapF32(*(f32*)(p + offsetof(WorldObj, rad)));
-            *(u32*)(p + offsetof(WorldObj, ctriidx)) =
-                sSwapU32(*(u32*)(p + offsetof(WorldObj, ctriidx)));
-            *(u32*)(p + offsetof(WorldObj, parent)) =
-                sSwapU32(*(u32*)(p + offsetof(WorldObj, parent)));
-            *(u32*)(p + offsetof(WorldObj, nodeptr)) =
-                sSwapU32(*(u32*)(p + offsetof(WorldObj, nodeptr)));
+            *(u16*)(p + 0x14) = sSwapU16(*(u16*)(p + 0x14));
+            *(u16*)(p + 0x2C) = sSwapU16(*(u16*)(p + 0x2C));
+            *(u16*)(p + 0x2E) = sSwapU16(*(u16*)(p + 0x2E));
+            *(u16*)(p + 0x36) = sSwapU16(*(u16*)(p + 0x36));
+            *(u32*)(p + 0x10) = sSwapU32(*(u32*)(p + 0x10));
+            *(f32*)(p + 0x30) = sSwapF32(*(f32*)(p + 0x30));
+            *(u32*)(p + 0x38) = sSwapU32(*(u32*)(p + 0x38));
+            *(u32*)(p + 0x18) = sSwapU32(*(u32*)(p + 0x18));
+            *(u32*)(p + 0x28) = sSwapU32(*(u32*)(p + 0x28));
             for (k = 0; k < 3; k++) {
-                *(f32*)(p + offsetof(WorldObj, pos) + k * 4) =
-                    sSwapF32(*(f32*)(p + offsetof(WorldObj, pos) + k * 4));
+                *(f32*)(p + 0x1C + k * 4) = sSwapF32(*(f32*)(p + 0x1C + k * 4));
             }
         }
-        /* collision triangles (stride 0x28); only coltri.pos (+0x08, this
-         * TU's own local struct) is a named field - the rest (+0x00/+0x02
-         * header, +0x04 unknown f32, +0x14 second vec3, +0x20.. tail) have
-         * no GC-verified names, left raw. */
+        /* collision triangles (stride 0x28) */
         for (i = 0; i < blob[2]; i++) {
             p = (u8*)wi->ctris + i * 0x28;
             *(u16*)(p + 0x00) = sSwapU16(*(u16*)(p + 0x00));
@@ -892,8 +855,7 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
             *(u16*)(p + 0x26) = sSwapU16(*(u16*)(p + 0x26));
             *(f32*)(p + 0x04) = sSwapF32(*(f32*)(p + 0x04));
             for (k = 0; k < 3; k++) {
-                *(f32*)(p + offsetof(struct coltri, pos) + k * 4) =
-                    sSwapF32(*(f32*)(p + offsetof(struct coltri, pos) + k * 4));
+                *(f32*)(p + 0x08 + k * 4) = sSwapF32(*(f32*)(p + 0x08 + k * 4));
                 *(f32*)(p + 0x14 + k * 4) = sSwapF32(*(f32*)(p + 0x14 + k * 4));
             }
         }
@@ -916,59 +878,46 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
             u32* wp = (u32*)wi->grid + i;
             *wp = sSwapU32(*wp);
         }
-        /* item infos (stride 0x50); fields are iteminfo/iteminfodata
-         * (game/item.h) - IOFF resolves an iteminfodata field's absolute
-         * offset off the walked p (raw pointer kept, per the offsetof-
-         * fused-immediate counter-form; see wobjs loop note above). */
-#define IOFF(f) (offsetof(iteminfo, item) + offsetof(iteminfodata, f))
+        /* item infos (stride 0x50) */
         for (i = 0; i < blob[0x12]; i++) {
             p = (u8*)wi->iteminfo + i * 0x50;
-            *(u32*)(p + offsetof(iteminfo, type)) =
-                sSwapU32(*(u32*)(p + offsetof(iteminfo, type)));
-            if (*(s32*)(p + offsetof(iteminfo, type)) != -1) {
-                *(u16*)(p + IOFF(coltype)) = sSwapU16(*(u16*)(p + IOFF(coltype)));
-                *(u16*)(p + IOFF(colflags)) = sSwapU16(*(u16*)(p + IOFF(colflags)));
-                *(u16*)(p + IOFF(value)) = sSwapU16(*(u16*)(p + IOFF(value)));
-                *(u16*)(p + IOFF(armor)) = sSwapU16(*(u16*)(p + IOFF(armor)));
-                *(u16*)(p + IOFF(hitpoints)) = sSwapU16(*(u16*)(p + IOFF(hitpoints)));
-                *(u16*)(p + IOFF(activetype)) = sSwapU16(*(u16*)(p + IOFF(activetype)));
-                *(u16*)(p + IOFF(activeoff)) = sSwapU16(*(u16*)(p + IOFF(activeoff)));
-                *(u16*)(p + IOFF(activeon)) = sSwapU16(*(u16*)(p + IOFF(activeon)));
-                *(f32*)(p + IOFF(radius)) = sSwapF32(*(f32*)(p + IOFF(radius)));
-                *(f32*)(p + IOFF(height)) = sSwapF32(*(f32*)(p + IOFF(height)));
-                *(f32*)(p + IOFF(xdim)) = sSwapF32(*(f32*)(p + IOFF(xdim)));
-                *(f32*)(p + IOFF(zdim)) = sSwapF32(*(f32*)(p + IOFF(zdim)));
-                *(u32*)(p + IOFF(mbflags)) = sSwapU32(*(u32*)(p + IOFF(mbflags)));
-                *(u32*)(p + IOFF(properties)) = sSwapU32(*(u32*)(p + IOFF(properties)));
-                *(u32*)(p + IOFF(subtype)) = sSwapU32(*(u32*)(p + IOFF(subtype)));
-                *(u32*)(p + IOFF(atreeheader)) = sSwapU32(*(u32*)(p + IOFF(atreeheader)));
+            *(u32*)p = sSwapU32(*(u32*)p);
+            if (*(s32*)p != -1) {
+                *(u16*)(p + 0x08) = sSwapU16(*(u16*)(p + 0x08));
+                *(u16*)(p + 0x0A) = sSwapU16(*(u16*)(p + 0x0A));
+                *(u16*)(p + 0x40) = sSwapU16(*(u16*)(p + 0x40));
+                *(u16*)(p + 0x42) = sSwapU16(*(u16*)(p + 0x42));
+                *(u16*)(p + 0x44) = sSwapU16(*(u16*)(p + 0x44));
+                *(u16*)(p + 0x46) = sSwapU16(*(u16*)(p + 0x46));
+                *(u16*)(p + 0x48) = sSwapU16(*(u16*)(p + 0x48));
+                *(u16*)(p + 0x4A) = sSwapU16(*(u16*)(p + 0x4A));
+                *(f32*)(p + 0x0C) = sSwapF32(*(f32*)(p + 0x0C));
+                *(f32*)(p + 0x10) = sSwapF32(*(f32*)(p + 0x10));
+                *(f32*)(p + 0x14) = sSwapF32(*(f32*)(p + 0x14));
+                *(f32*)(p + 0x18) = sSwapF32(*(f32*)(p + 0x18));
+                *(u32*)(p + 0x38) = sSwapU32(*(u32*)(p + 0x38));
+                *(u32*)(p + 0x3C) = sSwapU32(*(u32*)(p + 0x3C));
+                *(u32*)(p + 0x04) = sSwapU32(*(u32*)(p + 0x04));
+                *(u32*)(p + 0x4C) = sSwapU32(*(u32*)(p + 0x4C));
                 for (k = 0; k < 3; k++) {
-                    *(f32*)(p + IOFF(coloffset) + k * 4) =
-                        sSwapF32(*(f32*)(p + IOFF(coloffset) + k * 4));
+                    *(f32*)(p + 0x1C + k * 4) =
+                        sSwapF32(*(f32*)(p + 0x1C + k * 4));
                 }
             } else {
-                *(u32*)(p + IOFF(subtype)) = sSwapU32(*(u32*)(p + IOFF(subtype)));
+                *(u32*)(p + 0x04) = sSwapU32(*(u32*)(p + 0x04));
                 for (k = 0; k < 16; k++) {
-                    *(u16*)(p + IOFF(coltype) + k * 2) =
-                        sSwapU16(*(u16*)(p + IOFF(coltype) + k * 2));
+                    *(u16*)(p + 0x08 + k * 2) =
+                        sSwapU16(*(u16*)(p + 0x08 + k * 2));
                 }
             }
         }
-#undef IOFF
-        /* item instances (stride 0x3C); fields are iteminst (game/item.h).
-         * The 0x30..0x3C switch-case payload is iteminst.params, an opaque
-         * u8[12] union whose per-type breakdown has no header names - left
-         * raw. */
+        /* item instances (stride 0x3C); payload layout depends on info type */
         for (i = 0; i < blob[0x14]; i++) {
             p = (u8*)wi->iteminst + i * 0x3C;
-            *(u16*)(p + offsetof(iteminst, index)) =
-                sSwapU16(*(u16*)(p + offsetof(iteminst, index)));
-            *(u16*)(p + offsetof(iteminst, ctriidx)) =
-                sSwapU16(*(u16*)(p + offsetof(iteminst, ctriidx)));
-            *(u16*)(p + offsetof(iteminst, nctris)) =
-                sSwapU16(*(u16*)(p + offsetof(iteminst, nctris)));
-            switch (*(s32*)((u8*)wi->iteminfo +
-                             *(s16*)(p + offsetof(iteminst, index)) * 0x50)) {
+            *(u16*)(p + 0x00) = sSwapU16(*(u16*)(p + 0x00));
+            *(u16*)(p + 0x04) = sSwapU16(*(u16*)(p + 0x04));
+            *(u16*)(p + 0x06) = sSwapU16(*(u16*)(p + 0x06));
+            switch (*(s32*)((u8*)wi->iteminfo + *(s16*)p * 0x50)) {
             case 2:
                 *(u16*)(p + 0x34) = sSwapU16(*(u16*)(p + 0x34));
                 *(u32*)(p + 0x30) = sSwapU32(*(u32*)(p + 0x30));
@@ -1022,22 +971,17 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
                 break;
             }
             for (k = 0; k < 3; k++) {
-                *(f32*)(p + offsetof(iteminst, pos) + k * 4) =
-                    sSwapF32(*(f32*)(p + offsetof(iteminst, pos) + k * 4));
-                *(f32*)(p + offsetof(iteminst, pyr) + k * 4) =
-                    sSwapF32(*(f32*)(p + offsetof(iteminst, pyr) + k * 4));
+                *(f32*)(p + 0x18 + k * 4) = sSwapF32(*(f32*)(p + 0x18 + k * 4));
+                *(f32*)(p + 0x24 + k * 4) = sSwapF32(*(f32*)(p + 0x24 + k * 4));
             }
         }
-        /* locators (stride 0x1C); fields are locator (game/item.h) */
+        /* locators (stride 0x1C) */
         for (i = 0; i < blob[0x16]; i++) {
             p = (u8*)wi->locators + i * 0x1C;
-            *(u16*)(p + offsetof(locator, index)) =
-                sSwapU16(*(u16*)(p + offsetof(locator, index)));
+            *(u16*)(p + 0x02) = sSwapU16(*(u16*)(p + 0x02));
             for (k = 0; k < 3; k++) {
-                *(f32*)(p + offsetof(locator, pos) + k * 4) =
-                    sSwapF32(*(f32*)(p + offsetof(locator, pos) + k * 4));
-                *(f32*)(p + offsetof(locator, pyr) + k * 4) =
-                    sSwapF32(*(f32*)(p + offsetof(locator, pyr) + k * 4));
+                *(f32*)(p + 0x04 + k * 4) = sSwapF32(*(f32*)(p + 0x04 + k * 4));
+                *(f32*)(p + 0x10 + k * 4) = sSwapF32(*(f32*)(p + 0x10 + k * 4));
             }
         }
     }
@@ -1085,32 +1029,24 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
     }
 
     if (version >= 1 && blob[0x19] != 0) {
-        if (*(s32*)(wg + 228 + offsetof(WorldInfo, inited)) == 0) {
+        if (*(s32*)(wg + 228) == 0) {
             wi->animheader = SetupAnimHeader(base + blob[0x19], 0);
         }
         wi->worldanims = (struct worldanim*)(base + blob[0x1B]);
-        if (*(s32*)(wg + 228 + offsetof(WorldInfo, inited)) == 0) {
+        if (*(s32*)(wg + 228) == 0) {
             for (i = 0; i < blob[0x1A]; i++) {
-                /* fields are struct worldanim (this TU's own local struct,
-                 * also used by DoWorldAnimSub) */
                 p = (u8*)wi->worldanims + i * 0x10;
-                *(u16*)(p + offsetof(struct worldanim, objidx)) =
-                    sSwapU16(*(u16*)(p + offsetof(struct worldanim, objidx)));
-                *(u16*)(p + offsetof(struct worldanim, nframes)) =
-                    sSwapU16(*(u16*)(p + offsetof(struct worldanim, nframes)));
-                *(u16*)(p + offsetof(struct worldanim, fixed)) =
-                    sSwapU16(*(u16*)(p + offsetof(struct worldanim, fixed)));
-                *(u16*)(p + offsetof(struct worldanim, state)) =
-                    sSwapU16(*(u16*)(p + offsetof(struct worldanim, state)));
-                *(f32*)(p + offsetof(struct worldanim, curframe)) =
-                    sSwapF32(*(f32*)(p + offsetof(struct worldanim, curframe)));
-                *(u32*)(p + offsetof(struct worldanim, data)) =
-                    sSwapU32(*(u32*)(p + offsetof(struct worldanim, data)));
+                *(u16*)(p + 0x00) = sSwapU16(*(u16*)(p + 0x00));
+                *(u16*)(p + 0x02) = sSwapU16(*(u16*)(p + 0x02));
+                *(u16*)(p + 0x04) = sSwapU16(*(u16*)(p + 0x04));
+                *(u16*)(p + 0x06) = sSwapU16(*(u16*)(p + 0x06));
+                *(f32*)(p + 0x08) = sSwapF32(*(f32*)(p + 0x08));
+                *(u32*)(p + 0x0C) = sSwapU32(*(u32*)(p + 0x0C));
             }
         }
         wi->nworldanims = blob[0x1A];
         wi->animdata = AllocMem(blob[0x1A] * 0xA0);
-        if (*(s32*)(wg + 228 + offsetof(WorldInfo, inited)) == 0) {
+        if (*(s32*)(wg + 228) == 0) {
             for (i = 0; i < blob[0x1A]; i++) {
                 p = (u8*)wi->animdata + i * 0xA0;
                 *(u16*)(p + 0x08) = sSwapU16(*(u16*)(p + 0x08));
@@ -1161,7 +1097,7 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
     if (version >= 2 && blob[0x1D] != 0) {
         wi->worldpsys = (struct WORLDPSYS*)(base + blob[0x1D]);
         wi->nworldpsys = blob[0x1C];
-        if (*(s32*)(wg + 228 + offsetof(WorldInfo, inited)) == 0) {
+        if (*(s32*)(wg + 228) == 0) {
             for (i = 0; i < blob[0x1C]; i++) {
                 fn_80011DCC((u8*)wi->worldpsys + i * 0x138);
             }
@@ -1236,8 +1172,8 @@ static inline s32 GetWorldPsysIdx(s8 id, char* base, u8* tbl) {
 
     i = 0;
 
-    for (; i < *(s32*)(base + 228 + offsetof(WorldInfo, nworldpsys)); i++) {
-        if ((s8)tbl[i * 312 + offsetof(struct WORLDPSYS, id)] == id) {
+    for (; i < *(s32*)(base + 388); i++) {
+        if ((s8)tbl[i * 312 + 6] == id) {
             return i;
         }
     }
@@ -1264,32 +1200,27 @@ s32 WorldPsysActivate(WorldObj* obj) {
     }
 
     i = GetWorldPsysIdx((s8)tag[4], base,
-                        *(wpsp = (u8**)(base + 228 + offsetof(WorldInfo, worldpsys))));
+                        *(wpsp = (u8**)(base + 384)));
     if (i < 0) {
         goto done;
     }
 
     posp = NULL;
-    if (obj->nctris > 0) {
-        /* &coltri[ctriidx].pos[0] (coltri.pos @0x08); pre-folding the +8
-         * into ct itself (instead of a typed coltri* with ->pos[k]) is
-         * load-bearing for target's lfs 0/4/8(r3) shape - a typed alias
-         * regressed real 0->21 (verified). */
-        u8* ct = *(u8**)(base + 228 + offsetof(WorldInfo, ctris)) +
-                 obj->ctriidx * 40 + offsetof(struct coltri, pos);
+    if (*(s16*)((u8*)obj + 54) > 0) {
+        u8* ct = *(u8**)(base + 236) + *(s32*)((u8*)obj + 56) * 40 + 8;
         pos[0] = (f32)(-1.0 * *(f32*)ct);
         pos[1] = (f32)(-1.0 * *(f32*)(ct + 4));
         pos[2] = (f32)(-1.0 * *(f32*)(ct + 8));
         posp = pos;
     }
-    MBNewWorldPsys(0, obj->nodeptr,
+    MBNewWorldPsys(0, *(void**)((u8*)obj + 40),
                    *wpsp + i * 312,
                    obj->flags & 0x1000, obj, posp);
     obj->flags &= ~0x00400000;
     obj->flags |= 0x00800000;
 
 done:
-    ((G3DNode*)obj->nodeptr)->dflags &= ~2;
+    *(s32*)(*(u8**)((u8*)obj + 40) + 96) &= ~2;
     return 1;
 }
 
