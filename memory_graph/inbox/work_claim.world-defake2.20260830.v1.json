@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "whole TU src/game/world/world.c exclusively; SECOND de-fakematch pass, 160 bare sites remaining after wave-2 (offsetof-rename law postdates that pass - re-test its left-raw regions); parallel CodeX/Kimi fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-30",
+  "function": "function:InitWorldInfo",
+  "id": "work_claim.world-defake2.20260830.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-DF4",
+  "recorded_at": "2026-08-30T21:34:35Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-30"
+}

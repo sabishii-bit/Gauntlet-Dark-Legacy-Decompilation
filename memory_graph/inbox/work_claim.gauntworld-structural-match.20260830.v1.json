@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "whole TU src/game/world/gauntworld.c exclusively; matching pass on the STRUCTURAL residuals: fn_800606FC (96.77%, 2221 insns, real ~1384) primary, fn_8005C1DC (95.20%, 924 insns) secondary; two same-day improved passes exist - their records are the map, the residual class is STRUCTURAL not schedule, so real levers may remain; parallel CodeX/Kimi fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-30",
+  "function": "function:fn_800606FC",
+  "id": "work_claim.gauntworld-structural-match.20260830.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-MX3",
+  "recorded_at": "2026-08-30T21:34:48Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-30"
+}

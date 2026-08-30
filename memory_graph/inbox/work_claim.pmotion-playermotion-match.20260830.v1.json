@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "whole TU src/game/game/pmotion.c exclusively; matching pass on PlayerMotion (97.18% fuzzy, 4775 insns EXACT count, real ~3782; long-dormant giant) - the entry-schedule/decl-order law family postdates every prior drive on it; parallel CodeX/Kimi fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-30",
+  "function": "function:PlayerMotion",
+  "id": "work_claim.pmotion-playermotion-match.20260830.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-MX1",
+  "recorded_at": "2026-08-30T21:34:41Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-30"
+}
