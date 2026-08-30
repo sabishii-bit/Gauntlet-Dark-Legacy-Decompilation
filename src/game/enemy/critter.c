@@ -3014,15 +3014,18 @@ s32 ProcessCritterList(void)
  * transforms, hit nodes, AI, animation, skin effects and render matrices. */
 s32 ProcessCritter(Critter *c)
 {
+    s32 alive;
+    s32 i;
+    Critter *skinChild;
     Critter *child;
     CritterHitNode *node;
+    u8 *nodeBase;
     CritterMove *move;
-    s32 i;
     s32 type;
-    s32 alive;
     s32 allDead;
     s32 collided;
     f32 scale;
+    f32 childHealth;
     f64 zero;
     u8 unused[8];
 
@@ -3047,8 +3050,9 @@ s32 ProcessCritter(Critter *c)
     c->pos[2] = c->vel[2] + c->pos[2];
 
     for (i = 0; i < *(s16 *)((u8 *)c->hdr + 0x118); i++) {
-        node = &((CritterHitNode *)c->hitnodes)[i];
-        if (node->active != NULL) {
+        nodeBase = (u8 *)c + i * 0x5C;
+        node = (CritterHitNode *)(nodeBase + 0x4F8);
+        if (*(void *volatile *)(nodeBase + 0x4FC) != NULL) {
             GetWorldMat(node->active, node->matrix,
                         (f32 *)((u8 *)node->descriptor + 0x20));
         } else {
@@ -3073,56 +3077,60 @@ s32 ProcessCritter(Critter *c)
         }
     }
 
-    child = c->next;
-    zero = lbl_80346488;
-    while (child != NULL) {
-        CopyMat4(&c->mtx[0][0], &child->mtx[0][0]);
-        child->movevec[0] = c->movevec[0];
-        child->movevec[1] = c->movevec[1];
-        child->movevec[2] = c->movevec[2];
-        child->pos[0] = c->pos[0];
-        child->pos[1] = c->pos[1];
-        child->pos[2] = c->pos[2];
-        if (child->obj_d0 != NULL) {
-            GetWorldMat(child->obj_d0, child->worldMoveMatrix, NULL);
-            child->vel[0] = child->moveOrigin[0];
-            child->vel[1] = child->moveOrigin[1];
-            child->vel[2] = child->moveOrigin[2];
-        } else {
-            CopyMat4(&c->mtx[0][0], child->worldMoveMatrix);
-        }
-        for (i = 0; i < *(s16 *)((u8 *)child->hdr + 0x118); i++) {
-            node = &((CritterHitNode *)child->hitnodes)[i];
-            if (node->active != NULL) {
-                GetWorldMat(node->active, node->matrix,
-                            (f32 *)((u8 *)node->descriptor + 0x20));
+    {
+        Critter *current = c->next;
+        zero = lbl_80346488;
+        while (current != NULL) {
+            CopyMat4(&c->mtx[0][0], &current->mtx[0][0]);
+            current->movevec[0] = c->movevec[0];
+            current->movevec[1] = c->movevec[1];
+            current->movevec[2] = c->movevec[2];
+            current->pos[0] = c->pos[0];
+            current->pos[1] = c->pos[1];
+            current->pos[2] = c->pos[2];
+            if (current->obj_d0 != NULL) {
+                GetWorldMat(current->obj_d0, current->worldMoveMatrix, NULL);
+                current->vel[0] = current->moveOrigin[0];
+                current->vel[1] = current->moveOrigin[1];
+                current->vel[2] = current->moveOrigin[2];
             } else {
-                CopyMat4(&child->mtx[0][0], node->matrix);
+                CopyMat4(&c->mtx[0][0], current->worldMoveMatrix);
             }
-        }
-        CritterUpdateCounters(child);
-        if (child->healthmtr >= 0) {
-            HealthMeterUpdate(child->health, child->healthmtr);
-        }
-        if (child->damageflash != NULL) {
-            scale = child->health /
-                    (*(f32 *)((u8 *)child->hdr + 0xE4) *
-                     *(f32 *)((u8 *)gCurLevel + 0xAC));
-            if ((f64)child->health <= zero) {
-                AtreeDelete(&child->healthbar[0]);
-                child->damageflash = NULL;
-            } else {
-                MBTreeSetScale(scale, lbl_803464A8, lbl_803464A8,
-                               child->damageflash);
+            for (i = 0; i < *(s16 *)((u8 *)current->hdr + 0x118); i++) {
+                nodeBase = (u8 *)current + i * 0x5C;
+                node = (CritterHitNode *)(nodeBase + 0x4F8);
+                if (*(void *volatile *)(nodeBase + 0x4FC) != NULL) {
+                    GetWorldMat(node->active, node->matrix,
+                                (f32 *)((u8 *)node->descriptor + 0x20));
+                } else {
+                    CopyMat4(&current->mtx[0][0], node->matrix);
+                }
             }
+            CritterUpdateCounters(current);
+            if (current->healthmtr >= 0) {
+                HealthMeterUpdate(current->health, current->healthmtr);
+            }
+            if (current->damageflash != NULL) {
+                scale = current->health /
+                        (*(f32 *)((u8 *)current->hdr + 0xE4) *
+                         *(f32 *)((u8 *)gCurLevel + 0xAC));
+                if ((f64)current->health <= zero) {
+                    AtreeDelete(&current->healthbar[0]);
+                    current->damageflash = NULL;
+                } else {
+                    MBTreeSetScale(scale, lbl_803464A8, lbl_803464A8,
+                                   current->damageflash);
+                }
+            }
+            current = current->next;
         }
-        child = child->next;
     }
 
     if (c->state == 3) {
         allDead = 1;
         for (child = c->next; child != NULL; child = child->next) {
-            if (allDead > 0 && child->health <= lbl_80346470) {
+            if (allDead > 0 &&
+                (childHealth = child->health) <= lbl_80346470) {
                 allDead++;
             } else {
                 allDead = 0;
@@ -3226,8 +3234,10 @@ ai_done:
         MBTreeClearFlags(c->anim, 0x40, 1);
     }
     CritterUpdateSkinfx(c);
-    for (child = c->next; child != NULL; child = child->next) {
-        CritterUpdateSkinfx(child);
+    skinChild = c->next;
+    while (skinChild != NULL) {
+        CritterUpdateSkinfx(skinChild);
+        skinChild = skinChild->next;
     }
     if (*(s16 *)(*(u8 **)((u8 *)c->hdr + 0x120) + 0x26) !=
         lbl_80344664) {
