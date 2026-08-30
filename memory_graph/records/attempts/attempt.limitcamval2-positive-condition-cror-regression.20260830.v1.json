@@ -12,7 +12,6 @@
   "id": "attempt.limitcamval2-positive-condition-cror-regression.20260830.v1",
   "kind": "attempt",
   "outcome": "negative",
-  "record_state": "proposed",
   "recorded_at": "2026-08-30T10:43:18Z",
   "residual_class": "STRUCTURAL",
   "schema_version": 1,

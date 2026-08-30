@@ -13,7 +13,6 @@
   "id": "attempt.screen-limitation-debug-mask-fold.20260830.v1",
   "kind": "attempt",
   "outcome": "capped",
-  "record_state": "proposed",
   "recorded_at": "2026-08-30T05:22:35Z",
   "residual_class": "STRUCTURAL (algebraic constant-fold, no known lever)",
   "schema_version": 1,

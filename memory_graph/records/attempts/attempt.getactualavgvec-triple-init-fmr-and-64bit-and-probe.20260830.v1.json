@@ -12,7 +12,6 @@
   "id": "attempt.getactualavgvec-triple-init-fmr-and-64bit-and-probe.20260830.v1",
   "kind": "attempt",
   "outcome": "improved",
-  "record_state": "proposed",
   "recorded_at": "2026-08-30T10:56:46Z",
   "residual_class": "STRUCTURAL/REGISTER_ONLY",
   "schema_version": 1,
