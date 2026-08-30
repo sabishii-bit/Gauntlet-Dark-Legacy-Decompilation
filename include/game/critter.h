@@ -120,7 +120,7 @@ typedef struct Critter {
     void *emitter;            /* 0x0D4 particle/emitter handle (MBRemoveNode)   */
     u32  emitterset;          /* 0x0D8 emitter-present flag                    */
     void *hitnode2;           /* 0x0DC hit/attach node (hdr->0x5A index)       */
-    u8  _blk0E0[0x30];        /* 0x0E0 .. 0x110                              */
+    f32 skinMatrix[12];       /* 0x0E0 ProcessSkinFX per-node transform (3x4) */
     f32 rateScale;            /* 0x110 move-rate scale (health-derived)       */
     f32 invRateScale;         /* 0x114 1.0 / rateScale                        */
     s16 curmove;              /* 0x118 current move index                     */
@@ -133,7 +133,8 @@ typedef struct Critter {
     s16 unk126;               /* 0x126 (init -1)                              */
     s16 unk128;               /* 0x128 (init -1)                              */
     s16 targetCount;          /* 0x12A active target count                     */
-    u8  _blk12C[0x90];        /* 0x12C .. 0x1BC                              */
+    s32 targetPlayer;         /* 0x12C player index for the single-target case */
+    u8  _blk130[0x8C];        /* 0x130 .. 0x1BC                              */
     f32 unk1BC[4][4];         /* 0x1BC 4x4 floats (init 0; per-limb scratch)   */
     f32 targetPos[3];         /* 0x1FC resolved target position                */
     u8  _blk208[4];           /* 0x208 .. 0x20C                              */

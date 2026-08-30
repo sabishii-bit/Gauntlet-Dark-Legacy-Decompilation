@@ -1775,15 +1775,15 @@ s32 CritterGetTarget(Critter *c, f32 *out)
     f64 minimum_distance;
     s32 result;
 
-    if (*(s16 *)((u8 *)c + 0x12A) <= 0) {
+    if (*(s16 *)((u8 *)c + offsetof(Critter, targetCount)) <= 0) {
         goto init_waypoint_search;
     } else {
-        s32 player = *(s32 *)((u8 *)c + 0x12C);
+        s32 player = *(s32 *)((u8 *)c + offsetof(Critter, targetPlayer));
         u8 *record = (u8 *)&gPlayers[player];
 
-        out[0] = *(f32 *)(record + 0x64);
-        out[1] = *(f32 *)(record + 0x68);
-        out[2] = *(f32 *)(record + 0x6C);
+        out[0] = *(f32 *)(record + offsetof(Player, effectpos));
+        out[1] = *(f32 *)(record + offsetof(Player, effectpos) + 4);
+        out[2] = *(f32 *)(record + offsetof(Player, effectpos) + 8);
         result = 1;
         goto done;
     }
@@ -6584,27 +6584,33 @@ void CritterUpdateSkinfx(Critter *c)
     u32 savedFlags;
 
     savedFlags = 0;
-    ProcessSkinFX((f32 *)((u8 *)c + 0xE0), c->anim, c->hitnode2);
+    ProcessSkinFX((f32 *)((u8 *)c + offsetof(Critter, skinMatrix)), c->anim,
+                  c->hitnode2);
     if (c->hitnode2 != NULL) {
         u32 *flags = (u32 *)c->hitnode2;
         savedFlags = *(flags += 0x18);
         *flags = savedFlags | 0x10;
     }
 
-    for (i = 0, offset = 0; i < *(s16 *)((u8 *)c->hdr + 0x118);
-        i++, offset += 0x5C) {
+    for (i = 0, offset = 0;
+         i < *(s16 *)((u8 *)c->hdr + offsetof(CritterPackedType, colCount));
+        i++, offset += sizeof(CritterHitNode)) {
         u8 *base = (u8 *)c + offset;
-        s32 counter = *(s32 *)(base + 0x548);
-        node = base + 0x4F8;
+        s32 counter = *(s32 *)(base + offsetof(Critter, hitnodes) +
+                                offsetof(CritterHitNode, state));
+        node = base + offsetof(Critter, hitnodes);
         if (counter > 0) {
-            MBTreeSetAltTex(*(void **)(node + 8), 0xFFFFFFFC,
-                            lbl_80344BF8, 1);
-            MBTreeSetAmbientAdd(*(void **)(node + 8), 0xFF, 1);
-            (*(s32 *)(node + 0x50))--;
-        } else if (*(s32 *)(node + 0x50) == 0) {
-            MBTreeSetAltTex(*(void **)(node + 8), 0xFFFFFFFF, 0, 1);
-            MBTreeSetAmbientAdd(*(void **)(node + 8), 0, 1);
-            *(s32 *)(node + 0x50) = -1;
+            MBTreeSetAltTex(*(void **)(node + offsetof(CritterHitNode,
+                             boundNode)), 0xFFFFFFFC, lbl_80344BF8, 1);
+            MBTreeSetAmbientAdd(*(void **)(node + offsetof(CritterHitNode,
+                                boundNode)), 0xFF, 1);
+            (*(s32 *)(node + offsetof(CritterHitNode, state)))--;
+        } else if (*(s32 *)(node + offsetof(CritterHitNode, state)) == 0) {
+            MBTreeSetAltTex(*(void **)(node + offsetof(CritterHitNode,
+                             boundNode)), 0xFFFFFFFF, 0, 1);
+            MBTreeSetAmbientAdd(*(void **)(node + offsetof(CritterHitNode,
+                                boundNode)), 0, 1);
+            *(s32 *)(node + offsetof(CritterHitNode, state)) = -1;
         }
     }
 
