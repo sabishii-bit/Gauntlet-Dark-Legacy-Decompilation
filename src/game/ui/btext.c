@@ -1,6 +1,10 @@
 #include "types.h"
 #include "__va_arg.h"
 
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
+
 /* BTEXT.OBJ - bitmap/box text + SCROLLS message system (GameCube port).
  *
  * Text drawing on top of the G3D box-text primitives (MBFontHeight,
@@ -60,6 +64,23 @@ typedef struct StrList {  /* 0x44 - a loaded SCROLLS resource */
     /* 0x3C */ s32 nName;
     /* 0x40 */ s32 nLdef;
 } StrList;
+
+/* Local view of game/mb/mb_font.c's MBTextMsg (per-drawtext message record,
+ * MB_FONT.OBJ); only the leading fields up to the one this TU writes are
+ * modelled. Verified against mb_font.c: seq is a s16 at offset 0x26. */
+typedef struct MBTextMsgView {
+    u8 _pad[0x26];
+    s16 seq; /* 0x26 */
+} MBTextMsgView;
+
+/* Local view of game/mb/mb_font.c's MBFontDef (MBNewFont input descriptor,
+ * MB_FONT.OBJ); the loaded font-file blob is laid out to match it directly
+ * (texname@0x0, flags@0x4, glyphs@0x8). */
+typedef struct MBFontDefView {
+    char* texname; /* 0x0 */
+    u32 flags;     /* 0x4 */
+    void* glyphs;  /* 0x8 */
+} MBFontDefView;
 
 /* Address view used where the original source addressed the whole TU pool
  * through its font_info anchor. */
@@ -309,7 +330,7 @@ void DrawGlowText(f32 scale, s32 x, s32 y, u8* str)
     a = (glow_radius + phase * 0xFF - 1) / glow_radius;
     MBSetFontAlpha(0x7F - (s32)a / 2);
     q = MBDrawText(x, y, text);
-    *(s16*)((s32)q + 0x26) = (s16)glow_text_extra;
+    *(s16*)((u8*)q + offsetof(MBTextMsgView, seq)) = (s16)glow_text_extra;
     MBSetFontFlags(prevFlags);
     MBSetFontColor(0xFFFFFF);
     MBSetFontAlpha(0);
@@ -460,7 +481,7 @@ s32 StringTextWidthSub(f32 scale, StrList* p, s32 msg, s32 idx)
                                   (s32*)gTextWorkBuf, (s32*)buf1);
             off = 0;
             for (j = 0; j < nlines; j++) {
-                ls = *(u8**)((s32)buf1 + off);
+                ls = *(u8**)((u8*)buf1 + off);
                 prev = MBSetFont(color);
                 MBSetFontScaleSpace(lh, 0.0f);
                 w = MBFontStringWidth(ls);
@@ -483,7 +504,7 @@ s32 StringTextWidthSub(f32 scale, StrList* p, s32 msg, s32 idx)
         color &= 0xff;
         off = 0;
         for (j = 0; j < nlines; j++) {
-            ls = *(u8**)((s32)buf2 + off);
+            ls = *(u8**)((u8*)buf2 + off);
             prev = MBSetFont(color);
             MBSetFontScaleSpace(lh, 0.0f);
             w = MBFontStringWidth(ls);
@@ -782,9 +803,9 @@ s32 DrawStringTextSub(StrList* p, s32 msg, s32 x, s32 y, s32 spacing, u32 font, 
     if (spacing < 0) {
         spacing = gLineSpacing;
     }
-    e = (u8*)p->msgs + msg * 20;
-    sx = DrawStringScale * *(f32*)(e + 12);
-    sh = *(f32*)(e + 16);
+    e = (u8*)p->msgs + msg * sizeof(MsgEnt);
+    sx = DrawStringScale * *(f32*)(e + offsetof(MsgEnt, scale));
+    sh = *(f32*)(e + offsetof(MsgEnt, shScale));
     height = (f32)MBFontHeight(font);
     spacing += (s32)(height * sx);
     n = FixMLineText((s32*)gTextFormatBuf, (s32*)gTextWorkBuf, (s32*)lines);
@@ -830,11 +851,10 @@ void SetScrollLevelMsgList(s32 level, const char* suffix)
 s32 FindStringMessageListSub_8001FC4C(s32 list, const u8* name)
 {
     s32 i;
-    s32 off;
 
-    for (i = 0, off = 0; i < gScrollMsgList[list].nName; i++, off += 4) {
+    for (i = 0; i < gScrollMsgList[list].nName; i++) {
         if (stricmp(gScrollMsgList[list].nameData +
-                    *(s32*)((u8*)gScrollMsgList[list].nameOff + off), name) == 0) {
+                    gScrollMsgList[list].nameOff[i], name) == 0) {
             break;
         }
     }
@@ -847,12 +867,11 @@ s32 FindStringMessageListSub_8001FC4C(s32 list, const u8* name)
 /* ==== 0x8001FCE4 FindStringMessageSub ==== */
 s32 FindStringMessageSub(StrList* p, const u8* name)
 {
-    s32 off;
     s32 i;
     s32 nameOffset;
 
-    for (i = 0, off = 0; i < p->nName; i++, off += 4) {
-        nameOffset = *(s32*)((u8*)p->nameOff + off);
+    for (i = 0; i < p->nName; i++) {
+        nameOffset = p->nameOff[i];
         if (stricmp(p->nameData + nameOffset, name) == 0) {
             break;
         }
@@ -870,7 +889,7 @@ f32 GetScrollScale(s32 list, s32 msg)
     if (list >= 0) {
         p = &gScrollMsgList[list];
     }
-    return ((f32*)p->msgs)[msg * 5 + 3];
+    return *(f32*)((u8*)p->msgs + msg * sizeof(MsgEnt) + offsetof(MsgEnt, scale));
 }
 
 /* ==== 0x8001FD9C GetStringListText ==== */
@@ -1347,7 +1366,7 @@ void LoadFonts(s32 mode, char* suffix, s32 space)
         loaded = (s32)AllocFile(sFontDirectory, name);
     }
     font = (u8*)loaded;
-    offset = loaded + 12;
+    offset = loaded + sizeof(MBFontDefView);
 
 #define SWAP_FONT_WORD(value)                                                \
     do {                                                                     \
@@ -1360,10 +1379,10 @@ void LoadFonts(s32 mode, char* suffix, s32 space)
         (value) = *(u32*)(_swap + 4);                                        \
     } while (0)
 
-    SWAP_FONT_WORD(*(u32*)(font + 4));
-    SWAP_FONT_WORD(*(u32*)(font + 8));
-    *(char**)font = suffix;
-    *(s32*)(font + 8) = offset;
+    SWAP_FONT_WORD(*(u32*)(font + offsetof(MBFontDefView, flags)));
+    SWAP_FONT_WORD(*(u32*)(font + offsetof(MBFontDefView, glyphs)));
+    *(char**)(font + offsetof(MBFontDefView, texname)) = suffix;
+    *(s32*)(font + offsetof(MBFontDefView, glyphs)) = offset;
 
     if (mode >= 10 && mode <= 11) {
         glyphCount = 256;
@@ -1378,7 +1397,7 @@ void LoadFonts(s32 mode, char* suffix, s32 space)
 
     offset = 0;
     for (i = 0; i < glyphCount; i++) {
-        s32* glyph = (s32*)(*(u8**)(font + 8) + offset);
+        s32* glyph = (s32*)(*(u8**)(font + offsetof(MBFontDefView, glyphs)) + offset);
 
         if (glyph[0] == 0) {
             break;
