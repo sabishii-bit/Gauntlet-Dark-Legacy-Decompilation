@@ -294,11 +294,13 @@ def main():
     classify_only = "--classify" in sys.argv
     no_build = "--no-build" in sys.argv
     clean = "--clean" in sys.argv
-    if not args:
+    if not args or args[0] in ("--help", "-h", "help"):
         print(__doc__)
         return 1
 
-    unit = args[0].replace("\\", "/")
+    unit = args[0].replace("\\", "/").strip("/")
+    if unit.startswith("src/"):
+        unit = unit[len("src/"):]
     unit = re.sub(r"\.(c|cpp)$", "", unit)
     target_o = Path(f"build/{VERSION}/obj/{unit}.o")
     base_o = Path(f"build/{VERSION}/src/{unit}.o")

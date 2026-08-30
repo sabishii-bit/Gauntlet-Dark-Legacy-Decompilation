@@ -131,6 +131,14 @@ def gate_path(unit):
     return Path(f"build/{VERSION}/gate/{slug}.json")
 
 
+def normalize_unit(unit):
+    """Accept src/-prefixed, backslashed, or extensioned unit spellings."""
+    unit = unit.replace("\\", "/").strip("/")
+    if unit.startswith("src/"):
+        unit = unit[len("src/"):]
+    return unit
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     update_improved = "--update-improved" in sys.argv
@@ -138,7 +146,7 @@ def main():
         print(__doc__)
         return 2
     mode, unit = args
-    unit = unit.replace("\\", "/")
+    unit = normalize_unit(unit)
     snap = snapshot(run_fndiff(unit, "--classify"), run_fndiff(unit, "--count"))
     path = gate_path(unit)
     if mode == "baseline":

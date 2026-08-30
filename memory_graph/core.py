@@ -1711,11 +1711,20 @@ def xbox_symbol_context(
                 (pattern, limit),
             )
         ]
+    result_hint = None
+    if not matches and not type_rows:
+        result_hint = (
+            "no PDB symbol/type matched this name — the struct authority may"
+            " be project-local: try `search \"<name>\"` (headers, prior"
+            " attempt records, and sibling-TU conversions are indexed there)"
+            " before concluding nothing exists or inventing a name"
+        )
     return {
         "query": query,
         "matches": matches,
         "neighborhoods": neighborhoods,
         "types": type_rows,
+        "hint": result_hint,
         "authority_note": "Candidate evidence only until verified against the GameCube target.",
     }
 
@@ -1839,6 +1848,13 @@ def xbox_struct_layout(
         "query": query,
         "offset": hex(off_val) if off_val is not None else None,
         "types": types,
+        "hint": None if types else (
+            "no PDB struct matched this name — PDB lookup needs the Xbox"
+            " type name, which often differs from the GC symbol; try"
+            " `search \"<global-or-base-name>\"` for project-local authority"
+            " (headers, sibling-TU attempt records) before leaving sites raw"
+            " or inventing a name"
+        ),
         "authority_note": (
             "Xbox PDB layouts are cross-platform reference evidence; the GC"
             " record may be more compact. Verify offsets against GameCube"
@@ -2113,8 +2129,15 @@ def stage_record_proposal(
     record: dict[str, Any],
     *,
     root: Path = REPO_ROOT,
+    in_place: Path | None = None,
 ) -> Path:
-    """Atomically stage one validated record in the review-required inbox."""
+    """Atomically stage one validated record in the review-required inbox.
+
+    ``in_place`` supports re-proposing a file that already sits in the inbox
+    (a natural authoring flow): the record is validated, stamped, and
+    rewritten at its existing path instead of being rejected as a duplicate
+    of itself.
+    """
     if not isinstance(record, dict):
         raise MemoryGraphError("proposed record must be a JSON object")
     now = datetime.now(timezone.utc)
@@ -2152,23 +2175,29 @@ def stage_record_proposal(
     _validate_record(record, Path("<proposal>"))
     _probe_record_references(record, root)
     record_id = record["id"]
+    in_place_resolved = in_place.resolve() if in_place is not None else None
     for relative in (Path("memory_graph/records"), Path("memory_graph/inbox")):
         directory = root / relative
         if not directory.exists():
             continue
         for path in directory.rglob("*.json"):
+            if in_place_resolved is not None and path.resolve() == in_place_resolved:
+                continue  # re-proposing the same inbox file is not a duplicate
             try:
                 existing = json.loads(path.read_text(encoding="utf-8-sig"))
             except (OSError, json.JSONDecodeError):
                 continue
             if isinstance(existing, dict) and existing.get("id") == record_id:
                 raise MemoryGraphError(f"record id {record_id!r} already exists at {path}")
-    slug = re.sub(r"[^a-zA-Z0-9._-]+", "-", record_id).strip(".-") or "record"
-    destination_dir = root / "memory_graph" / "inbox"
-    destination_dir.mkdir(parents=True, exist_ok=True)
-    destination = destination_dir / f"{slug}.json"
-    if destination.exists():
-        raise MemoryGraphError(f"proposal destination already exists: {destination}")
+    if in_place_resolved is not None:
+        destination = in_place_resolved
+    else:
+        slug = re.sub(r"[^a-zA-Z0-9._-]+", "-", record_id).strip(".-") or "record"
+        destination_dir = root / "memory_graph" / "inbox"
+        destination_dir.mkdir(parents=True, exist_ok=True)
+        destination = destination_dir / f"{slug}.json"
+        if destination.exists():
+            raise MemoryGraphError(f"proposal destination already exists: {destination}")
     temp = destination.with_suffix(f".{uuid.uuid4().hex}.tmp")
     try:
         temp.write_text(
@@ -2855,6 +2884,9 @@ def tu_briefing(
     law list plus laws that mention this TU, and the raw-offset debt count.
     Heads only — fetch forensics per record id.
     """
+    tu = tu.replace("\\", "/").strip("/")
+    if tu.startswith("src/"):
+        tu = tu[len("src/"):]
     ensure_database(root, db_path)
     with closing(open_database(root, db_path)) as connection:
         modules = connection.execute(

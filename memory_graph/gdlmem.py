@@ -140,7 +140,10 @@ def main(argv: list[str] | None = None) -> int:
             }
         elif args.command == "propose-record":
             record = json.loads(args.json_file.read_text(encoding="utf-8-sig"))
-            path = stage_record_proposal(record, root=root)
+            source = args.json_file.resolve()
+            inbox_dir = (root / "memory_graph" / "inbox").resolve()
+            in_place = source if source.parent == inbox_dir else None
+            path = stage_record_proposal(record, root=root, in_place=in_place)
             result = {
                 "proposal": str(path),
                 "review_state": "pending",

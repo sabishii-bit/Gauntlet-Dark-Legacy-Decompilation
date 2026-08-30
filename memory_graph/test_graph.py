@@ -172,6 +172,26 @@ class FreshnessTests(unittest.TestCase):
                           attributes={"law_screen": "none applicable: test"})
             staged_path = stage_record_proposal(dict(ok), root=root)
             self.assertTrue(staged_path.exists())
+
+            # re-proposing the file already sitting in the inbox is not a
+            # duplicate (the field-test friction): validates in place
+            staged = json.loads(staged_path.read_text(encoding="utf-8"))
+            again = stage_record_proposal(staged, root=root,
+                                          in_place=staged_path)
+            self.assertEqual(again, staged_path.resolve())
+            # but a DIFFERENT source with the same id still fails closed
+            with self.assertRaisesRegex(MemoryGraphError, "already exists"):
+                stage_record_proposal(dict(ok), root=root)
+
+            # unknown law tags fail closed with the vocabulary in the error
+            tagged = {
+                "schema_version": 1, "id": "claim.badtag.v1", "kind": "claim",
+                "subject": "compiler:test", "predicate": "codegen_law",
+                "epistemic_state": "hypothesis", "value": "x",
+                "attributes": {"tags": ["not-a-real-tag"]},
+            }
+            with self.assertRaisesRegex(MemoryGraphError, "unknown tag"):
+                stage_record_proposal(tagged, root=root)
         finally:
             core._probe_record_references = original
             shutil.rmtree(root, ignore_errors=True)
@@ -395,6 +415,12 @@ class GraphSurfaceTests(unittest.TestCase):
         with self.assertRaisesRegex(MemoryGraphError, "no GameCube module"):
             tu_briefing("does/not/exist", root=self.root)
 
+    def test_tu_briefing_accepts_src_prefixed_paths(self):
+        # the src/-prefix trap from the field test: both spellings work
+        for spelling in ("src/game/test/foo", "src\\game\\test\\foo.c"):
+            brief = tu_briefing(spelling, root=self.root)
+            self.assertEqual(brief["tu"], ["game/test/foo.c"])
+
 
 class AcceptRecordsTests(unittest.TestCase):
     def setUp(self):
@@ -496,6 +522,14 @@ class DefakeGateTests(unittest.TestCase):
         verdicts = {name: verdict for name, verdict, _ in
                     self.gate.compare(baseline, current)}
         self.assertEqual(verdicts["fn_b"], "REGRESSION")
+
+    def test_normalize_unit_strips_src_prefix(self):
+        self.assertEqual(self.gate.normalize_unit("src/game/mb/mb_font.c"),
+                         "game/mb/mb_font.c")
+        self.assertEqual(self.gate.normalize_unit("src\\game\\mb\\mb_font.c"),
+                         "game/mb/mb_font.c")
+        self.assertEqual(self.gate.normalize_unit("game/mb/mb_font.c"),
+                         "game/mb/mb_font.c")
 
 
 if __name__ == "__main__":

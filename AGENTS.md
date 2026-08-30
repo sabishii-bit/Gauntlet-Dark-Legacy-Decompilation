@@ -304,10 +304,21 @@ python configure.py
 ninja build/GUNE5D/<object-path>.o
 python tools/gdl/fnasm.py <unit> <function>
 python tools/gdl/fndiff.py <unit> <function> --count | --ops | --clean
+python tools/gdl/defake_gate.py baseline|check <unit>
 python tools/gdl/matchtool.py probe <unit> --brief
 python tools/gdl/lowmatch.py --max 50 --min-size 200 --sort impact
 python configure.py progress
 ```
+
+First-build note (fresh worktree): `configure.py` alone emits a BOOTSTRAP
+build.ninja (tool download + DOL split only, no object graph) — that is
+not breakage. Run `ninja -j2` and let it bootstrap: it downloads tools,
+splits the DOL, re-invokes `configure.py` itself, and only then builds
+objects. Judge the setup by whether `ninja` finishes green, never by the
+size of the first build.ninja. Unit paths for every tool above are
+`game/.../file.c` forms — no `src/` prefix (the tools now strip a stray
+`src/` themselves, but errors from older invocations show the bare
+`missing: build/...` form).
 
 Do not invent ad-hoc diff pipelines when a project tool already provides the
 measurement. After each meaningful change: rebuild the owning object, re-score,
@@ -478,6 +489,11 @@ Cross-fleet concurrency (multiple independent agent fleets sharing `main`):
   every registered worktree (plumbing files only — it never touches
   tracked content, so it is safe to run while other fleets work). Create
   new worktrees with forward-slash paths to avoid seeding the problem.
+  Additionally: a POSIX-shell (Bash-tool) git cannot resolve these
+  worktrees' `.git` link files at all even when the plumbing is healthy
+  (the gitdir round-trips through a `W:/` path the `/w/` mount can't
+  follow) — run ALL git commands in a worktree through PowerShell;
+  non-git tools (python, ninja) work fine from either shell.
 
 Worktrees: writing workers use separate worktrees/branches; the shared
 checkout is read-only to them. Reuse existing clean campaign worktrees before
