@@ -1539,9 +1539,9 @@ static f32 GetActualAvgVec(f32* out, f32* pos, s32 useBoss) {
     u8 unused[44];
     f32 v1x, v1y, v1z;
     f32 v2x, v2y, v2z;
-    f32 w;
     f64 best;
     f64 second;
+    f32 w;
     f64 dzero;
     f64 step;
     f64 len;
