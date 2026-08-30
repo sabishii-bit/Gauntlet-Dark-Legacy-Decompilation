@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "whole TU src/game/sfx/sfx.c exclusively; matching pass on ProcessEffects (85.22% fuzzy, 9236B, project's largest sub-100 fn); TU siblings in scope; parallel CodeX/Kimi fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-30",
+  "function": "function:ProcessEffects",
+  "id": "work_claim.sfx-processeffects-match.20260830.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-MA",
+  "recorded_at": "2026-08-30T20:32:34Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-30"
+}

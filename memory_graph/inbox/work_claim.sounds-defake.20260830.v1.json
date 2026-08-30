@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "whole TU src/game/sound/sounds.c exclusively; de-fakematch pass, ~31 raw-cast sites; parallel CodeX/Kimi fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-30",
+  "function": "function:AudioSetupBossStreams",
+  "id": "work_claim.sounds-defake.20260830.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-DC",
+  "recorded_at": "2026-08-30T20:32:24Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-30"
+}
