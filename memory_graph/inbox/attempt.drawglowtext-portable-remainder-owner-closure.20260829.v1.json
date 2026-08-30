@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "portable-C closure of the modulo expansion and transient remainder-owner topology through compound assignment, signedness, declaration timing, explicit divisor ownership, radius caching, and register-lifetime variants",
+  "attributes": {
+    "anchors": "src/game/ui/btext.c::DrawGlowText; GameCube target 0x8001EBCC size 0x158; python tools/gdl/fnasm.py game/ui/btext DrawGlowText; python tools/gdl/fndiff.py game/ui/btext DrawGlowText --count/--ops/--clean; immutable source commit 80fd1e9feabf021f9a88f022b233e7388df6ac89",
+    "axis_log": "improved: load=pbLoad; divisor=glow_period+span; phase=load; phase-=(load/divisor)*divisor removes the extra mr and writes the remainder directly to r29. neutral/worse: split direct assignment stayed real23; u32 phase changed downstream signed divw to divwu and worsened; phase%= alone reached real20; direct remainder expression restored the mr; divisor inlining, declaration/initialization timing, radius naming, and register hint were neutral or rotated the same residual; signed load either enlarged the frame by 8 bytes or produced a different real16 rotation.",
+    "baseline": "target/current 86/87 instructions, fuzzy 98.14%, clean real 23 (41 total), 0x50 frame, saves r27-r31 and f31; STRUCTURAL residual was one extra mr r29,r0 after unsigned modulo expansion",
+    "best": "target/current 86/86 instructions, fuzzy 99.42%, clean real 16 (34 total), 0x50 frame, saves r27-r31 and f31; opcode streams identical and project matched percentage unchanged",
+    "remaining": "pre-call transient GPR topology only: retail holds glow_radius/span/pbLoad/divisor in r8/r7/r6/r3; 1.2.5 holds them in r6/r7/r8/r9. The remainder r29, branch CFG, calls, frame, saved set, relocations, and all later instructions align. Do not retry the recorded owner, signedness, declaration-order, inline-divisor, radius-cache, or register-hint forms without a genuinely new allocator lever or compiler evidence.",
+    "semantic_audit": "The retained expansion is the same unsigned remainder as the baseline, followed by the unchanged triangular glow phase clamp, font state setup, alpha calculation, two draws, glow-extra write, state restore, and text-height update. Full target assembly was reviewed; Xbox BTEXT.OBJ exact-name evidence remains candidate-only.",
+    "verification": "owning object rebuilt; fndiff count/ops/clean and matchtool inspected; 27 exact and 9 report-exact siblings preserved; git diff --check passed; fresh full ninja linked main.dol with checksum OK; report refreshed DrawGlowText to fuzzy 99.42%; project progress 97.74% fuzzy, 57.91% matched, 26.09% linked; no assembly, postprocessor, data, header, or configuration changes"
+  },
+  "commit_hash": "80fd1e9feabf021f9a88f022b233e7388df6ac89",
+  "function": "function:DrawGlowText",
+  "id": "attempt.drawglowtext-portable-remainder-owner-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "OPERAND_DIFF",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
