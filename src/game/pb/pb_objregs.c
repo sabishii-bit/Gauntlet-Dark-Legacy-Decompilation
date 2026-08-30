@@ -758,7 +758,7 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
     f32 colorMax;
 
     lbl_80345080 = *(f64*)(s + 0x60);
-    *(u32*)(st + 0x128) = *(u32*)(st + 0x148);
+    ((PbGfxEnv*)(st + 0x128))->m00 = ((PbGfxEnv*)(st + 0x148))->m00;
     lbl_80345088 = *(f64*)(s + 0x50);
     spec = (*(u32*)(s + 0x78) & 0x80) != 0;
     st[0x14C] = 1;
@@ -835,7 +835,7 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
         SetVertexFormat(0);
     }
     if ((u8)spec || lbl_80345040) {
-        fn_800C7928(*(u32*)(st + 0x168), 1);
+        fn_800C7928(((PbGfxEnv*)(st + 0x168))->m00, 1);
     }
     sSetGFXEnv((PbGfxEnv*)(st + 0x128));
 
@@ -1004,21 +1004,21 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
                 u32 lo = 0;
                 s32 li;
                 for (li = 0; li < lbl_80345048; li++, lo += 0x20) {
-                    u8* L = (u8*)lbl_80345044 + lo;
+                    PbPosLight* L = (PbPosLight*)((u8*)lbl_80345044 + lo);
                     f32 d;
                     f32 dd;
                     f32 att;
-                    vec4Sub__FR4vec4R4vec4R4vec4(diff, (f32*)L, pos);
+                    vec4Sub__FR4vec4R4vec4R4vec4(diff, L->position, pos);
                     d = DotProduct__8Math3D_BFR4vec3R4vec3(diff, nrm);
                     dd = DotProduct__8Math3D_BFR4vec3R4vec3(diff, diff);
-                    att = -(*(f32*)(L + 0xC) * dd - one);
+                    att = -(L->value * dd - one);
                     if (d > zero && att > zero) {
-                        f32 w = *(f32*)(L + 0x1C) * att;
+                        f32 w = L->color[3] * att;
                         w = d * w / dd;
                         if (w > one) {
                             w = one;
                         }
-                        vec4Scale__FR4vec4R4vec4f(sc, (f32*)(L + 0x10), w);
+                        vec4Scale__FR4vec4R4vec4f(sc, L->color, w);
                         sc[3] = zero;
                         vec4Add__FR4vec4R4vec4R4vec4(lit, lit, sc);
                     }
@@ -1028,23 +1028,23 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
             }
             vec4FTOI__FPlR4vec4(iout, lit);
             {
-                u8* out = st + outOff + 0x1A8;
-                out[0] = (u8)iout[0];
+                PbVtx* out = (PbVtx*)(st + outOff + 0x1A8);
+                out->c[0] = (u8)iout[0];
                 flat = flat == 0;
-                out[1] = (u8)iout[1];
+                out->c[1] = (u8)iout[1];
                 posPtr += posStride;
                 colPtr += colStride;
-                out[2] = (u8)iout[2];
-                out[3] = (u8)iout[3];
-                *(f32*)(out + 0x04) = tc[0];
-                *(f32*)(out + 0x08) = tc[1];
-                *(f32*)(out + 0x0C) = tc[2];
-                *(f32*)(out + 0x10) = tc[3];
-                *(f32*)(out + 0x14) = xf[0];
-                *(f32*)(out + 0x18) = xf[1];
-                *(f32*)(out + 0x1C) = -xf[2];
-                out[0x20] = kick;
-                out[0x21] = (u8)flat;
+                out->c[2] = (u8)iout[2];
+                out->c[3] = (u8)iout[3];
+                out->uv[0] = tc[0];
+                out->uv[1] = tc[1];
+                out->uv[2] = tc[2];
+                out->uv[3] = tc[3];
+                out->x = xf[0];
+                out->y = xf[1];
+                out->z = -xf[2];
+                out->pad20 = kick;
+                out->cull = (u8)flat;
             }
             nrmPtr += 2;
             outOff += 0x24;
@@ -1055,7 +1055,7 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
             s32 j;
             u32 off = 0;
             for (j = 0; j < (s32)cnt; j++, off += 0x24) {
-                if (st[off + 0x1C8] != 0 && (j - start) > 1) {
+                if (((PbVtx*)(st + off + 0x1A8))->pad20 != 0 && (j - start) > 1) {
                     pbDrawVerts(j - start, st + start * 0x24 + 0x1A8);
                     start = j - 1;
                 }
@@ -1551,16 +1551,16 @@ s32 fn_800C5DA8(PbDOObj* obj, s32 arg, u8* node, f32* matrix)
         f32 length = pbSqrtAccurate(savedLook[0] * savedLook[0] +
                                     savedLook[2] * savedLook[2]);
 
-        ((f32*)g->scr)[18] = atan(savedLook[1] / length);
+        g->scr->f48 = atan(savedLook[1] / length);
         yaw = savedLook[2];
-        ((f32*)g->scr)[19] = atan2(savedLook[0], yaw);
+        g->scr->f4c = atan2(savedLook[0], yaw);
         if (debugFlags & 0x2000) {
             s32 pitchDegrees;
             s32 yawDegrees;
 
-            yawDegrees = (s32)((180.0 * (f64)((f32*)g->scr)[19]) /
+            yawDegrees = (s32)((180.0 * (f64)g->scr->f4c) /
                                3.14159265358979323846);
-            pitchDegrees = (s32)((180.0 * (f64)((f32*)g->scr)[18]) /
+            pitchDegrees = (s32)((180.0 * (f64)g->scr->f48) /
                                  3.14159265358979323846);
             bulletproof_printf("yaw,pitch= %4d %4d",
                                yawDegrees, pitchDegrees);
@@ -1661,10 +1661,11 @@ void fn_800C64A4(PbDOObj* obj, u32 flags, u8* node)
     }
     obj->f48 = p[1] + (f32)((PbNodeStateView*)node)->m6A + base;
     if (flags & 0x100) {
+        PbNodeStateView* ns = (PbNodeStateView*)node;
         s = (128.0f / 255.0f) * p[0];
-        obj->r = (f32)((((PbNodeStateView*)node)->color >> 16) & 0xFF) * s;
-        obj->g = (f32)((*(u32*)(node + 100) >> 8) & 0xFF) * s;
-        obj->b = (f32)(*(u32*)(node + 100) & 0xFF) * s;
+        obj->r = (f32)((ns->color >> 16) & 0xFF) * s;
+        obj->g = (f32)((ns->color >> 8) & 0xFF) * s;
+        obj->b = (f32)(ns->color & 0xFF) * s;
         obj->flags78 |= 8;
     } else {
         s = 128.0f * p[0];
