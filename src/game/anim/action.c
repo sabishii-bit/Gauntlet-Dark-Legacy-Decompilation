@@ -1594,10 +1594,10 @@ void DoPlayerAction(void* player)
         case 0x50:
         case 0x52:
             p[0x240] |= 1;
-            if (p[0x23E] == 0) {
-                p[0x242] = 0;
-            } else {
+            if (p[0x23E] != 0) {
                 p[0x242] = p[0x242] + 1;
+            } else {
+                p[0x242] = 0;
             }
             p[0x23E] = 0;
             break;
@@ -1858,10 +1858,10 @@ void DoPlayerAction(void* player)
                          atree[6], (s32)*(s16*)((u8*)atree + 0x10));
     }
 
-    if (adv == 0) {
-        p[0x82] = cur;
-    } else {
+    if (adv != 0) {
         p[0x82] = act;
+    } else {
+        p[0x82] = cur;
     }
 }
 
