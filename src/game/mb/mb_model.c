@@ -705,9 +705,11 @@ void MBOX_ResetModels(void) {
 }
 
 typedef struct MboxTextureArchive {
-    u8 _pad00[0x50];
+    u8 _pad00[0x4C];
+    u32 objectCount;
     u32 textureCount;
-    u8 _pad54[0x0C];
+    u8 _pad54[8];
+    void* objectDefs;
     void* textureDefs;
 } MboxTextureArchive;
 
@@ -872,8 +874,8 @@ int MBOX_ReallyFindObject(const char* name, int a, int b, int create) {
     char nm[16];
     const char* strings;
     u8* win;
-    u8* slot;
-    u8* model;
+    MboxModelSlot* slot;
+    MboxTextureArchive* model;
     u8* found;
     int slotIndex;
     int objectIndex;
@@ -896,11 +898,11 @@ int MBOX_ReallyFindObject(const char* name, int a, int b, int create) {
 
     slotIndex = a;
     for (; slotIndex <= b; slotIndex++) {
-        slot = *(u8**)(win + 48) + slotIndex * 16;
-        if (*(s32*)(slot + 16) == 0) {
-            model = *(u8**)(slot + 4);
-            found = bsearch(nm, *(void**)(model + 92),
-                            *(u32*)(model + 76), 24, objcmp);
+        slot = (MboxModelSlot*)(*(u8**)(win + 48) + slotIndex * 16);
+        if (slot->locked == 0) {
+            model = slot->archive;
+            found = bsearch(nm, model->objectDefs,
+                            model->objectCount, 24, objcmp);
             if (found != NULL) {
                 break;
             }
@@ -915,11 +917,11 @@ int MBOX_ReallyFindObject(const char* name, int a, int b, int create) {
         strcpy(nm, strings + 580);
         slotIndex = 0;
         for (; slotIndex < lbl_80344E8C; slotIndex++) {
-            slot = *(u8**)(win + 48) + slotIndex * 16;
-            if (*(s32*)(slot + 16) == 0) {
-                model = *(u8**)(slot + 4);
-                found = bsearch(nm, *(void**)(model + 92),
-                                *(u32*)(model + 76), 24, objcmp);
+            slot = (MboxModelSlot*)(*(u8**)(win + 48) + slotIndex * 16);
+            if (slot->locked == 0) {
+                model = slot->archive;
+                found = bsearch(nm, model->objectDefs,
+                                model->objectCount, 24, objcmp);
                 if (found != NULL) {
                     break;
                 }
@@ -931,10 +933,10 @@ int MBOX_ReallyFindObject(const char* name, int a, int b, int create) {
         FatalErrorf(strings + 592, name, nm);
     }
 
-    slot = *(u8**)(win + 48) + slotIndex * 16;
-    model = *(u8**)(slot + 4);
-    if (*(u32*)(model + 76) == 0) {
-        objectIndex = (found - *(u8**)(model + 92)) / 24;
+    slot = (MboxModelSlot*)(*(u8**)(win + 48) + slotIndex * 16);
+    model = slot->archive;
+    if (model->objectCount == 0) {
+        objectIndex = (found - (u8*)model->objectDefs) / 24;
     } else {
         objectIndex = *(s16*)(found + 20);
     }

@@ -1,0 +1,17 @@
+{
+  "attempted_axis": "TU-scoped replacement of MBOX_ReallyFindObject raw model-slot/archive accesses with target-verified local aggregate members while retaining the original byte-stride pointer walk",
+  "attributes": {
+    "anchors": "src/game/mb/mb_model.c::MBOX_ReallyFindObject; target 0x800B8E94 size 0x1d4; reproduce with ninja -j2 build/GUNE5D/src/game/mb/mb_model.o and tools/gdl/fndiff.py game/mb/mb_model MBOX_ReallyFindObject",
+    "baseline_and_best": "raw-site census 61 -> 55; MBOX_ReallyFindObject target/current 117/117, fuzzy 100%, real 0, frame 0x58; TU report 96.36627% fuzzy and 18/24 exact functions unchanged",
+    "retained": "Extended the existing GC-verified MboxTextureArchive view with objectCount@0x4c and objectDefs@0x5c, then named archive/locked/count/table accesses in all three flagship search regions. Original slotIndex*16 byte-stride addressing was retained to avoid known pointer-walk array-index regressions.",
+    "semantic_audit": "No behavior change: the same model range clamp, default-name fallback, locked-slot filtering, 24-byte object-table binary searches, fallback search, fatal path, and packed slot/object return value remain. No headers, other TUs, or postprocessors changed.",
+    "sites_left_raw": "55 census lines remain in background-loader state records, endian-swapped model fixup walkers, allocation rows, gWinGlobals table roots, and model records without a fully verified shared layout."
+  },
+  "function": "function:MBOX_ReallyFindObject",
+  "id": "attempt.mb-model-defakematch-tu-pass.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}
