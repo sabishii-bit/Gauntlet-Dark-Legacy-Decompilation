@@ -1,0 +1,13 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "scope": "whole TU src/game/sound/sounds_evt.c exclusively; history-backed exact closure of DoAudioTallySFX; parallel fleets must choose other TUs"
+  },
+  "claimed_at": "2026-08-29",
+  "function": "function:DoAudioTallySFX",
+  "id": "work-claim.codex.audio-tally.20260829.v1",
+  "kind": "work_claim",
+  "owner": "codex-audio-tally-worker",
+  "schema_version": 1,
+  "state": "active"
+}
