@@ -71,7 +71,7 @@
  *                                          pbUpdateMatricies/DoShake [dispatcher]
  *   0x8006EC18 CurTransmitterBlink          0xBC  toggle debug-overlay blit
  *                                          (handle lbl_80344A78) [game/world/items]
- *   0x8006ECD4 fn_8006ECD4          0x70  small projection helper
+ *   0x8006ECD4 StdCamReturn          0x70  small projection helper
  *                                          (MBWindowProjection) [bosscam]
  *   0x8006ED44 StdCamFreeze         0xC   set freeze flag -> lbl_80344A90 [bosscam]
  *   0x8006ED50 CalcDist             0x248 camera-fit distance from players+frustum;
@@ -744,12 +744,12 @@ void CurTransmitterBlink(s32 idx) {
 }
 
 /*
- * fn_8006ECD4 -- push the live standard camera into the MB window/projection
+ * StdCamReturn -- push the live standard camera into the MB window/projection
  * layer: update the MB camera from the camera basis, zoom the window by the
  * camera FOV field, and (when the projection distance is positive) set the MB
  * projection to the FOV in degrees and the inverse distance.  [caller: bosscam]
  */
-void fn_8006ECD4(void) {
+void StdCamReturn(void) {
     MBCameraUpdate((f32*)&lbl_80344A6C->position, (f32*)lbl_80344A6C);
     MBWindowZoom(lbl_80344A6C->zoom);
     if (lbl_80344A6C->aspect > 0.0) {

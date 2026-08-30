@@ -1,0 +1,85 @@
+{
+  "attributes": {
+    "scope": "symbol-adoption pass (work_claim.symbol-adoption.20260831.v1) resolving the 2026-08-30 symaudit exact-gap candidates for this TU; verified via fnasm+source read+caller context per AGENTS.md symbol-naming procedure, then adopted through the cross-TU rename law and gated with a full ninja build + fndiff spot-check"
+  },
+  "epistemic_state": "observed",
+  "id": "claim.symnames.game-world-newcam.20260831.v2",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-08-30T23:49:56Z",
+  "schema_version": 1,
+  "subject": "tu:game/world/newcam.c",
+  "supersedes": "claim.symnames.game-world-newcam.20260830.v1",
+  "valid_from": "2026-08-30",
+  "value": {
+    "adopted": [
+      {
+        "adopted_name": "StdCamReturn",
+        "evidence": "Body pushes the live standard camera into MBWindow projection (MBCameraUpdate/MBWindowZoom/MBWindowProjection from lbl_80344A6C). Sole caller is bosscam.c's TriggerCameraEnd-adjacent block, called in an if/else alternative to do_camera() exactly at the point gTriggerCameraState resets to 0 (the boss/trigger camera event ending) -- i.e. it is invoked specifically to hand control back to the standard camera. Cross-TU rename applied to bosscam.c's extern decl + call site (mechanical identifier-only edit; bosscam.c itself is out of scope this pass).",
+        "gc_old": "fn_8006ECD4"
+      }
+    ],
+    "ambiguous_spans": [
+      {
+        "gc_span": [
+          "fn_8006DC2C",
+          "fn_8006DC64",
+          "fn_8006DF34"
+        ],
+        "status": "not attempted this pass (ambiguous span, no exact-gap candidate)",
+        "xbox_candidates": [
+          "StdCamUpdate",
+          "StdCamStartStage",
+          "StdCamStartUpdate",
+          "StdCamInit",
+          "CalcDestination"
+        ]
+      },
+      {
+        "gc_span": [
+          "fn_8006E654"
+        ],
+        "status": "not attempted this pass",
+        "xbox_candidates": [
+          "CamInit",
+          "DebugCamUpdate",
+          "StdCamLimitPlayerDpos",
+          "NewCamLimitPlayerDpos",
+          "TransGetYawPitch",
+          "StdCamMoveAvgArrow",
+          "StdCamAddAvgArrow"
+        ]
+      },
+      {
+        "gc_span": [
+          "fn_8006FBAC",
+          "fn_8006FCDC",
+          "fn_8006FE30",
+          "fn_8006FF1C",
+          "fn_80070144"
+        ],
+        "status": "not attempted this pass",
+        "xbox_candidates": [
+          "CamIsPlayerValid",
+          "CamMinMaxAvgPos",
+          "GetTransmitter",
+          "GetTransmitter3D",
+          "DebugCamExtract",
+          "CamUpdate",
+          "LimitTranslate",
+          "LimitYawPitch",
+          "CalcLookdir"
+        ]
+      }
+    ],
+    "deferred": [],
+    "naming_notes": "Only the single exact-gap candidate was in scope this pass; the ambiguous_spans and no_candidate set from the v1 audit are carried forward unresolved for a future naming session.",
+    "no_candidate": [
+      "fn_8006F16C",
+      "fn_8006F418"
+    ],
+    "orientation": "reversed",
+    "rejected": [],
+    "xbox_module": "NEWCAM.OBJ"
+  }
+}

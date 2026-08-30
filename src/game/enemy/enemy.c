@@ -98,7 +98,7 @@
  *   fn_8004DC2C/fn_8004DF58/fn_8004E448 - move post-processing / FX helpers.
  *   fn_8004F87C - generate_enemy type-resolution support.
  *   plus small state/timer pokes: fn_8004CFAC, fn_8004D030, fn_8004DB3C,
- *   fn_8004E5F8, fn_8004E67C, fn_8004F1DC, check_vacancy.
+ *   adjust_msidx, enemy_update, fn_8004F1DC, check_vacancy.
  *
  * Matching is intentionally not attempted here (high mismatch accepted); this
  * file exists to carry the symbol map and keep the tree green.
@@ -145,8 +145,8 @@ s32 fn_8004CFAC(f32* pos, f32* target);             /* turn direction (route) */
 void fn_8004D030(s32 index, s32 ticks);             /* set dead_end/turn timer */
 void fn_8004DB3C(Enemy* enemy, s32 delta);           /* fade enemy tree alpha */
 void fn_8004E448(Enemy* enemy, s32 arg, f32* pos);   /* missile/audio dispatch */
-void fn_8004E5F8(Enemy* enemy);                     /* update milestone history */
-void fn_8004E67C(void);                             /* update enemy texmods */
+void adjust_msidx(Enemy* enemy);                     /* update milestone history */
+void enemy_update(void);                             /* update enemy texmods */
 s32 check_vacancy(s32 index, f32* pos);             /* validate spawn position */
 void fn_8004F1DC(Enemy* enemy);                     /* garm2 death-direction FX */
 
@@ -1549,7 +1549,7 @@ void update_enemy_milestone(Enemy* enemy)
         *(u32*)&vertical &= 0x7FFFFFFF;
         if ((f64)vertical < lbl_803469F8 &&
             (f64)fqdist(dx, dz) < lbl_80346A00) {
-            fn_8004E5F8(enemy);
+            adjust_msidx(enemy);
             enemy->plr_ms = -1;
             enemy->operation_count = enemy->operation_speed;
             if (enemy->ms_idx > 0) {
@@ -1568,7 +1568,7 @@ void update_enemy_milestone(Enemy* enemy)
 }
 
 /* Track this enemy's target milestone in the player's recent-history ring. */
-void fn_8004E5F8(Enemy* enemy)
+void adjust_msidx(Enemy* enemy)
 {
     s32* player = (s32*)((u8*)gPlayerWords + enemy->closest * 0x335C);
     s32 i;
@@ -1613,7 +1613,7 @@ void fn_8004E5F8(Enemy* enemy)
  *           and no other function in the TU references this slot range.
  *           Left as a raw offset - no name to adopt without inventing one.
  */
-void fn_8004E67C(void)
+void enemy_update(void)
 {
     u8* resources;
     u8* cursor;
@@ -5091,7 +5091,7 @@ extern int sprintf(char* buf, const char* fmt, ...);
 extern int toupper(int c);
 extern char* fn_80057ACC(s32 slot);                 /* current-level tag string */
 extern struct item* PlaceItem(s32 a, s32 b, char* name, s32 c);
-extern void fn_800920E0(f32* pos, struct item* ip, f32 z); /* toss carried item */
+extern void StartBagFX(f32* pos, struct item* ip, f32 z); /* toss carried item */
 extern void AddItemSub(struct item* ip);           /* commit placed item */
 extern void del_target(f32* worldmat);               /* release camera target */
 extern void MBRemoveNode(struct mbnode* n, s32 a);   /* delete scene node */
@@ -5448,7 +5448,7 @@ void kill_enemy(s32 index)
     if (item != 0) {
         if (carried != 0) {
             *((u8*)item + 205) = 10;
-            fn_800920E0(e->objgrp.attn_pos, item, lbl_80346820);
+            StartBagFX(e->objgrp.attn_pos, item, lbl_80346820);
         } else {
             *((u8*)item + 205) = 0;
             MBTreeClearFlags(*(struct mbnode**)((u8*)item + 100), 2, 0);

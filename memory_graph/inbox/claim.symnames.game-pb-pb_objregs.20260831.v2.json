@@ -1,0 +1,71 @@
+{
+  "attributes": {
+    "scope": "symbol-adoption pass (work_claim.symbol-adoption.20260831.v1) resolving the 2026-08-30 symaudit exact-gap/spelling candidates for this TU; verified via fnasm+source read+caller context per AGENTS.md symbol-naming procedure, then adopted through the cross-TU rename law and gated with a full ninja build + fndiff spot-check. All 5 renames were internal to this TU (no cross-TU references)."
+  },
+  "epistemic_state": "observed",
+  "id": "claim.symnames.game-pb-pb_objregs.20260831.v2",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-08-30T23:49:39Z",
+  "schema_version": 1,
+  "subject": "tu:game/pb/pb_objregs.c",
+  "supersedes": "claim.symnames.game-pb-pb_objregs.20260830.v1",
+  "valid_from": "2026-08-30",
+  "value": {
+    "adopted": [
+      {
+        "adopted_name": "setupKeepA",
+        "evidence": "Texture-register setup helper (emits a texture-address packet, resets shared texture regs f188/f190/f194/f19c/f1a1/f1a4); called from the same object-update dispatcher as the other 4 renamed functions in this batch (setChrome/setPrimAlpha/setPrimColor/setTexInfo), all texture/draw-register setters. Moderate confidence: positional evidence plus consistent role in the same functional family; no contradicting evidence found.",
+        "gc_old": "fn_800C5D44"
+      },
+      {
+        "adopted_name": "setChrome",
+        "evidence": "Builds an object-space texture basis from camera right/up/look vectors via g->scr, i.e. a spherical/environment-mapping (chrome reflection) texgen matrix -- a textbook 'chrome mapping' computation. Strong semantic match.",
+        "gc_old": "fn_800C5DA8"
+      },
+      {
+        "adopted_name": "setPrimAlpha",
+        "evidence": "Sets blend-mode value (obj->m40 = 0x3001D/0x5001D by flag) and z-test compare state (obj->q30 = 0x44/0x48) plus an env-block register pair -- alpha/blend-test register family. Supersedes a stale in-source guess comment ('Xbox candidate: setTexInfo') left by an earlier, less rigorous pass; that name was reassigned during this pass to the function that actually performs texture-bank lookup (see pbSetDODrawRegs below). The stale comment was corrected in the source alongside the rename.",
+        "gc_old": "fn_800C6350"
+      },
+      {
+        "adopted_name": "setPrimColor",
+        "evidence": "Sets an object's base color/intensity registers (obj->r/g/b from a light-state color table, obj->f48 alpha-ish scalar) selected by flag bits; already carried a matching in-source guess comment ('Xbox candidate: setPrimColor') from an earlier pass, now confirmed and adopted.",
+        "gc_old": "fn_800C64A4"
+      },
+      {
+        "adopted_name": "setTexInfo",
+        "evidence": "Spelling-mismatch candidate, adopted as airtight: body resolves a texture bank/entry from a handle, checks the loaded flag (FatalError on miss), and configures obj->clamp/obj->m50/obj->lmap from texture-entry flags -- i.e. it IS the texture-info resolution routine. Consistent with the naming family already partially adopted in this TU: setLmapInfo (a sibling function immediately below it, comment 'Xbox candidate: setLmapInfo', already real) sets lightmap info; this one sets texture info. No cross-TU references (internal to pb_objregs.c).",
+        "gc_old": "pbSetDODrawRegs"
+      }
+    ],
+    "ambiguous_spans": [
+      {
+        "gc_span": [
+          "fn_800C6960",
+          "fn_800C697C",
+          "fn_800C698C",
+          "fn_800C69A8",
+          "fn_800C69B8",
+          "fn_800C69D4",
+          "fn_800C69E4",
+          "fn_800C6A00",
+          "fn_800C6AB4"
+        ],
+        "status": "not attempted this pass",
+        "xbox_candidates": [
+          "pbObjectSpAddr",
+          "f32Little2NativeEndian",
+          "_4ByteLittle2NativeEndian",
+          "_2ByteLittle2NativeEndian"
+        ]
+      }
+    ],
+    "deferred": [],
+    "naming_notes": "All 4 exact-gap candidates plus the 1 spelling mismatch were adopted; this TU's batch also surfaced and fixed a stale prior-pass guess comment (see setPrimAlpha evidence).",
+    "no_candidate": [],
+    "orientation": "reversed",
+    "rejected": [],
+    "xbox_module": "pb_objregs.obj"
+  }
+}

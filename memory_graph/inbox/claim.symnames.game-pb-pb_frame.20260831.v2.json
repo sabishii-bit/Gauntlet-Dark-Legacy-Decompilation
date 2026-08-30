@@ -1,0 +1,44 @@
+{
+  "attributes": {
+    "scope": "symbol-adoption pass (work_claim.symbol-adoption.20260831.v1) resolving the 2026-08-30 symaudit exact-gap candidates for this TU; ALL FOUR deferred without an edit attempt -- see reason below"
+  },
+  "epistemic_state": "observed",
+  "id": "claim.symnames.game-pb-pb_frame.20260831.v2",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-08-30T23:49:35Z",
+  "schema_version": 1,
+  "subject": "tu:game/pb/pb_frame.c",
+  "supersedes": "claim.symnames.game-pb-pb_frame.20260830.v1",
+  "valid_from": "2026-08-30",
+  "value": {
+    "adopted": [],
+    "deferred": [
+      {
+        "candidate": "MBOpenDisplay",
+        "gc_old": "fn_800C31C4",
+        "reason": "pb_frame.c carries an explicit, per-function in-source guard comment ('referenced from pb_global.c -- keep fn_') plus a TU-header note ('fn_800C31C4/32D0/33D0/33EC are referenced by name from the Matching pb_global.c ... all must stay fn_'). pb_global.c is a currently 100%-matched (3/3 functions) Matching TU; the guard reads as a previously-tested constraint protecting that Matching status, consistent with this project's documented objdiff/dtk local-symbol pairing hazard (see e.g. the shop.c do_shopping precedent in git history: 'dtk suffixes this local in the target .s, so the suffixed name IS the pairing name'). Given the explicit, repeated, deliberately-worded warning and the high cost of regressing an exact Matching TU, this candidate was NOT empirically probed this pass; deferred for a session that can afford an isolated rename+build+revert experiment specifically testing whether the guard is still load-bearing."
+      },
+      {
+        "candidate": "MBCloseDisplay",
+        "gc_old": "fn_800C32D0",
+        "reason": "Same in-source guard as fn_800C31C4 (identical wording, same pb_global.c Matching-TU protection); deferred for the same reason."
+      },
+      {
+        "candidate": "MBInitFrameMode",
+        "gc_old": "fn_800C33D0",
+        "reason": "Same in-source guard as fn_800C31C4; deferred for the same reason."
+      },
+      {
+        "candidate": "pbCloseFrame",
+        "gc_old": "fn_800C33EC",
+        "reason": "Same in-source guard as fn_800C31C4; deferred for the same reason."
+      }
+    ],
+    "naming_notes": "This TU's four exact-gap candidates were all individually plausible on positional grounds (and pbCloseFrame/MBInitFrameMode are even named in the TU's own Xbox-counterpart header list), but a hard in-source constraint blocks all four this pass. No rename was attempted or reverted; symbols.txt and source for this TU are UNCHANGED from v1.",
+    "no_candidate": [],
+    "orientation": "reversed",
+    "rejected": [],
+    "xbox_module": "PB_FRAME.OBJ"
+  }
+}

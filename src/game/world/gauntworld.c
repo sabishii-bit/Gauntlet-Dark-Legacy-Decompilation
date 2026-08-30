@@ -2886,9 +2886,9 @@ extern void  fn_8009DA78(f32* pos);
 extern void  fn_8009DA28(f32* pos);
 extern void  fn_8009D9D8(f32* pos);
 extern void  fn_8009EF4C(f32* pos);
-extern void  fn_8009C7D8(f32* pos, s32 gen);
-extern void  fn_8009C774(f32* pos, s32 gen);
-extern void  fn_80091AC0(OBJGRP* grp, s32 gen, s32 off);
+extern void  AudioGeneratorDies(f32* pos, s32 gen);
+extern void  AudioGeneratorDamaged(f32* pos, s32 gen);
+extern void  StartGenHitFx(OBJGRP* grp, s32 gen, s32 off);
 extern s32   fn_80094440(f32* pos, u32 flags, s32 destroyed);
 extern void  AddItemWobj(Item* item);
 extern s32   Round(f32 value);
@@ -3263,15 +3263,15 @@ found_gen:
                 item->armor = -1;
             }
             if (state == 0) {
-                fn_80091AC0(&item->objgrp, *generator, 1);
+                StartGenHitFx(&item->objgrp, *generator, 1);
             } else {
-                fn_80091AC0(&item->objgrp, *generator, 0);
+                StartGenHitFx(&item->objgrp, *generator, 0);
             }
         }
         if (state == 0) {
             s32 enemy_count;
 
-            fn_8009C7D8(&v[1], *generator);
+            AudioGeneratorDies(&v[1], *generator);
             enemy_count = gNumEnemies;
             for (k = 0; k < enemy_count; k++) {
                 if (*(Item**)(gEnemies + k * 0x394 + 0x290) == item) {
@@ -3279,7 +3279,7 @@ found_gen:
                 }
             }
         } else {
-            fn_8009C774(&v[1], *generator);
+            AudioGeneratorDamaged(&v[1], *generator);
         }
         break;
 
@@ -3400,7 +3400,7 @@ extern void fn_8009D038(s32 player);
 extern void fn_8009D078(f32* position);
 extern void fn_8009D0A8(f32* position, s32 subtype);
 extern void fn_8009D8CC(f32* position);
-extern void fn_8009F06C(f32* position, s32 subtype);
+extern void AudioDamageTile(f32* position, s32 subtype);
 extern s32 damage_player(s32 player, f32 damage, s32 type, u32 flags,
                          f32* direction);
 extern s32 SumnerAnimate(s32 player);
@@ -3592,7 +3592,7 @@ s32 fn_8005D730(Player* player, Item* item)
                 strcmp(info->item.desc, lbl_80346FD8) == 0) {
                 subtype = 6;
             }
-            fn_8009F06C(playerPos, subtype);
+            AudioDamageTile(playerPos, subtype);
             player->fxhittime =
                 (f32)(lbl_80346FE0 * (f64)(item->activetime + 1) +
                       sMusicFadeBase);
@@ -3732,7 +3732,7 @@ extern void fn_8009D038(s32 player);
 extern s32  heal_player(Player* p, f32 amount);
 extern s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags,
                          f32* direction);
-extern void AudioPlayerSeverePain(s32 player);
+extern void AudioPlayerPoison(s32 player);
 extern void AudioPlayerEatFood(s32 player, s32 kind);
 extern void PlayerAddPowerup(f32 duration, f32 strength, void* p, s32 type,
                              u32 mask);
@@ -3896,7 +3896,7 @@ process_item:
         add_got_it(a->index, it->subtype, (s32)amt);
         if (amt < sZeroDouble) {
             *(s16*)((u8*)a + 0x95C) = 3;
-            AudioPlayerSeverePain(a->index);
+            AudioPlayerPoison(a->index);
         } else {
             s32 kind = 0;
             *(s16*)((u8*)a + 0x95C) = 1;

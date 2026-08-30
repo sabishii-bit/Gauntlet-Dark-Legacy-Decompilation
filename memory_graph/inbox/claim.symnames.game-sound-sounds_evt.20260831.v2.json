@@ -1,0 +1,113 @@
+{
+  "attributes": {
+    "scope": "symbol-adoption pass (work_claim.symbol-adoption.20260831.v1) resolving the 2026-08-30 symaudit exact-gap and spelling-mismatch candidates for this TU; the largest and most contested batch of the pass -- two positional misalignments and two real-name collisions were caught by verification/build gating, see rejected[] and the pass attempt record"
+  },
+  "epistemic_state": "observed",
+  "id": "claim.symnames.game-sound-sounds_evt.20260831.v2",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-08-30T23:49:52Z",
+  "schema_version": 1,
+  "subject": "tu:game/sound/sounds_evt.c",
+  "supersedes": "claim.symnames.game-sound-sounds_evt.20260830.v1",
+  "valid_from": "2026-08-30",
+  "value": {
+    "adopted": [
+      {
+        "adopted_name": "AudioTowerFX",
+        "evidence": "sel-indexed sound-id switch, called extensively across tower.c boss/tower states (sel 1,2,10,11,14,21) plus once from shop.c (sel 2, a shared low-index generic notify entry). Dominant caller-domain is tower.c; broad umbrella name fits the multi-purpose selector role. Moderate-high confidence, no contradicting evidence.",
+        "gc_old": "fn_8009C460"
+      },
+      {
+        "adopted_name": "AudioRuneSpeech",
+        "evidence": "sel-indexed speech dispatcher whose switch cases (0,13,25,26,36) exactly match the 5 distinct 'speech' values tower.c's TowerCheckMessages dispatches to it (lbl_80344C6C>=100 branch, speech=lbl_80344C6C-100, tied to captions at strings+196/208/220/236/252); that branch shares the lbl_80344C6C state variable with the earlier towerSummonWizard/rune-collection sequencing at the same function. Internal case-value consistency plus rune/wizard-summon narrative proximity.",
+        "gc_old": "fn_8009C4F0"
+      },
+      {
+        "adopted_name": "AudioShardSpeech",
+        "evidence": "sel-indexed speech dispatcher whose dispatch table (idx<9 via table, idx==15, idx==16) exactly matches TowerCheckMessages' lbl_80344C6C 0-16 (non-100) branch case structure (0-8 via strings+264, 15 via strings+276, 16 via strings+288). Occupies the earlier/lower state range than AudioRuneSpeech's >=100 range, consistent with a shard storyline preceding the rune/wizard-summon storyline.",
+        "gc_old": "fn_8009C688"
+      },
+      {
+        "adopted_name": "AudioGoodWizard",
+        "evidence": "Sole callers are in auxscreen.c immediately after resetting good_wiz_speech_frame/good_wiz_speech_pause (variables literally named for the good-wizard speech system), at all 3 call sites. Strong direct evidence.",
+        "gc_old": "fn_8009C710"
+      },
+      {
+        "adopted_name": "AudioGeneratorDamaged",
+        "evidence": "gauntworld.c calls this in the item-generator collision handler's state!=0 (non-destroyed/hit) branch, in the same if/else as StartGenHitFx(...,death=0) and paired with armor NOT being cleared to -1 -- i.e. the 'hit but not destroyed' generator path.",
+        "gc_old": "fn_8009C774"
+      },
+      {
+        "adopted_name": "AudioGeneratorDies",
+        "evidence": "gauntworld.c calls this in the SAME item-generator handler's state==0 (destroyed) branch, alongside item->active&=~1, item->armor=-1, and StartGenHitFx(...,death=1); also disconnects the item from any enemy that referenced it (gEnemies[k]+0x290 cleared) -- unambiguously the generator-destruction path, mirroring AudioGeneratorDamaged's hit-only sibling.",
+        "gc_old": "fn_8009C7D8"
+      },
+      {
+        "adopted_name": "AudioWorldHitPlyr",
+        "evidence": "pmotion.c's sole call site is 'damage_player(p->index, 15.0f, 1, 32, dv); fn_8009C850((u8*)p + 0x64);' under case 0x50000 -- directly follows a damage_player() call, i.e. it is the accompanying 'world hazard hit player' cue.",
+        "gc_old": "fn_8009C850"
+      },
+      {
+        "adopted_name": "AudioWorldExplosion",
+        "evidence": "gamemain.c's sole call site follows FX creation (fn_80093BC0), SfxSetDamage and ScaleFX on the new effect, then calls this -- the accompanying explosion sound for a scaled, damage-carrying FX. Uses a sMusicTrackHi-indexed sibling table to AudioWorldHitPlyr's (lbl_801240A4 vs lbl_801240DC), both plausible 'World' category cues.",
+        "gc_old": "fn_8009C8A0"
+      },
+      {
+        "adopted_name": "AudioDamageTile",
+        "evidence": "gauntworld.c's sole call site is inside a WORLDOBJ case-8 (damaging world item) collision handler, directly after damage_player(...), with a subtype 0-6 selector matching the function's idx<7 dispatch table exactly.",
+        "gc_old": "fn_8009F06C"
+      },
+      {
+        "adopted_name": "AudioMapDot",
+        "evidence": "auxscreen.c's sole call site is immediately after MBCreateBlit(...) creates a map-dot blit (map_bg_blit context) and mbBlitCvtCoord positions it -- the accompanying 'map dot placed' sound. Strong direct evidence.",
+        "gc_old": "fn_8009FD38"
+      }
+    ],
+    "deferred": [
+      {
+        "candidate": "AudioGargSpeech",
+        "gc_old": "fn_8009C5B8",
+        "reason": "Ambiguous against fn_8009C620/AudioCrystalSpeech: this function is called from TowerCheckMessages' 3-entry 'levels' threshold loop (lbl_80124CDC[3]={12,20,28}), while fn_8009C620 is called from the 8-entry 'bosses' threshold loop (lbl_80124C70[9], j<8). The TU's own header lists BOTH 'TowerNeedCrystalsMsg' and 'TowerNeedGargItemsMsg' as real Xbox names elsewhere in tower.c, confirming both 'Crystal' and 'Garg Items' are real concepts in this game, but neither TowerNeedCrystalsMsg nor TowerNeedGargItemsMsg's own bodies reference lbl_80124CDC/lbl_80124C70 (they use unrelated lbl_8028C2A8/lbl_8028C288 structures), so there is no independent cross-check for which array size (3 vs 8) corresponds to which item type. Not airtight either direction; deferred rather than guessed."
+      },
+      {
+        "candidate": "AudioCrystalSpeech",
+        "gc_old": "fn_8009C620",
+        "reason": "Same ambiguity as fn_8009C5B8, opposite slot. Deferred."
+      },
+      {
+        "candidate": "AudioPlaySound",
+        "gc_old": "AudioPlay3DSel",
+        "reason": "Plausible (this is the TU's foundational 3D-play-with-attenuation-selector primitive, used pervasively by other functions -- a generic top-level entry-point name fits its role), but not airtight: no direct confirming evidence found, and the current name's '3D'/'Sel' qualifiers encode real branching behavior (sndFxPlay3DAtten vs sndFxPlay3D by a sel flag) that a bare 'PlaySound' name would lose. Deferred per the assignment's 'adopt ONLY airtight cases' bar for spelling mismatches."
+      }
+    ],
+    "naming_notes": "Two independent lessons from this TU's batch, both written up as durable laws this pass: (1) exact-gap 'confidence' from LIS-anchored positional audit can still drift by one slot near clustered same-address-neighborhood functions -- always verify against caller/behavioral evidence per-candidate, never adopt on position alone (3 confirmed instances here: fn_8009C378/fn_8009C3EC swap, fn_8009FCA8 near-neighbor collision, and by extension fn_8009C5B8/fn_8009C620 was left unresolved rather than risk a 4th). (2) A proposed candidate name can already be in use elsewhere in the SAME TU under a different, already-real (non-fn_) name; this is only caught by the post-rename multiply-defined LINK error, not by static verification -- future adoption tooling should check the candidate name against the TU's OWN existing symbol roster before ever surfacing it as a proposal (see the pass-level attempt record and the new claim.law.symaudit-candidate-collision-risk law).",
+    "no_candidate": [
+      "fn_8009F748"
+    ],
+    "orientation": "reversed",
+    "rejected": [
+      {
+        "gc_old": "fn_8009C378",
+        "reason": "Direct contradiction: tower.c's towerRuneNearAudio (doc comment: 'if a rune/shard object ... is near and not yet collected ... play the proximity audio cue') calls THIS function specifically in its sSpecialItem10/shard branch (node[1]==10, PlayerHasShard()==0), and tower.c independently carries an inline comment on the extern decl: 'fn_8009C378(void); /* play shard-near audio cue */'. This is the SHARD-near cue, not rune-related. This was the assignment's own worked verification example, deliberately checked and rejected on caller-context evidence.",
+        "rejected_candidate": "AudioMissedRune"
+      },
+      {
+        "gc_old": "fn_8009C3EC",
+        "reason": "Direct contradiction, same towerRuneNearAudio: this function is called in the sSpecialItem13/rune branch (node[1]==13, found==0 under a 'checkRune:' label) with an independent inline comment 'fn_8009C3EC(void); /* play rune-near audio cue */'. This is the RUNE-near cue -- the audit's 'AudioMissedLegend' name is unsupported by any observed behavior, and the adjacent 'AudioMissedRune' candidate the audit gave to fn_8009C378 instead would have fit THIS function. Read together with the fn_8009C378 rejection, this looks like a one-slot positional drift in the symaudit's LIS anchoring for this address pair; no invented replacement name was substituted (adopting a candidate not actually offered for this slot is out of scope).",
+        "rejected_candidate": "AudioMissedLegend"
+      },
+      {
+        "gc_old": "fn_8009F158",
+        "reason": "Contradiction: pmotion.c's sole call site is gated by 'if (p->speak_done == 0) { fn_8009F158(index); }' immediately after damage_enemy(...) -- a speak_done flag gate implies a spoken voice-line/taunt cue, not a purely visual 'halo' power-up indicator. Body is a single fixed sndFxPlay3D(82, ...) with no complex dispatch, consistent with a one-shot hit-taunt utterance, not a halo effect.",
+        "rejected_candidate": "AudioPlayerHalo"
+      },
+      {
+        "gc_old": "fn_8009FCA8",
+        "reason": "COLLISION, caught by the build gate: 'DoAudioTallySFX' already exists as a genuine, previously-verified, non-fn_ name at a DIFFERENT address (0x8009FB84, a sel(0-10)-indexed tally-sound selector two functions earlier in the same file). Adopting it for fn_8009FCA8 (0x8009FCA8, a flag-gated tracked-sound start/stop toggle) produced a 'multiply-defined' mwld link error. Reverted; likely another one-slot positional drift near an already-named anchor (same failure class as the fn_8009C378/fn_8009C3EC pair above).",
+        "rejected_candidate": "DoAudioTallySFX"
+      }
+    ],
+    "xbox_module": "SOUNDS.OBJ"
+  }
+}

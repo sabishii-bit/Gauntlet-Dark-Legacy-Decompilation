@@ -351,7 +351,7 @@ extern void  MBBlitSetAlpha(void* blit, s32 a);
 extern s32   fn_80093BC0(s32 a, s32 b, s32 c, s32 d, s32 e, s32 f, s32 g, f32 h);
 extern void  SfxSetDamage(s32 a, s32 b, s32 c, f32 d, f32 e, f32 f);
 extern void  ScaleFX(s32 a, f32 b, f32 c, f32 d);
-extern void  fn_8009C8A0(s32 a);
+extern void  AudioWorldExplosion(s32 a);
 
 typedef struct EffectInfoEntry {
     void* f0;
@@ -2042,7 +2042,7 @@ s32 WorldExplosion(s32 arg0)
     result = fn_80093BC0(fxid, arg0, 0, 43, 0, 4, 0, lbl_80346BF0);
     SfxSetDamage(result, dmg, 0, lbl_80346BF4, f31, lbl_80346BF0);
     ScaleFX(result, f30, lbl_80346BE0, f30);
-    fn_8009C8A0(arg0);
+    AudioWorldExplosion(arg0);
     return result;
 }
 
@@ -3815,7 +3815,7 @@ DECL_SECT(".sdata2") extern const char lbl_80346B58[];
 extern void MBRemoveBlit(s32 blit);
 extern void AudioFootstep(s32 n);
 extern void fn_8009FA84(void);
-extern void DoAudioTallySFX(s32 n);
+extern void fn_8009FCA8(s32 n);
 extern void init_got_it(void);
 extern void DrawText(s32 x, s32 y, s32 flags, s32 color, ...);
 
@@ -3843,7 +3843,7 @@ extern void end_all_optmenus(void);
 extern void FireScrollReset(void);
 extern void TowerInit(void);
 extern void fn_800520C8(void);
-extern void fn_8004E67C(void);
+extern void enemy_update(void);
 extern void do_flyby(void);
 extern void do_credits(void);
 extern void do_screen2d(void);
@@ -4030,7 +4030,7 @@ void game_main(void)
                 world_update();
                 fn_8005B988();
                 do_enemies();
-                fn_8004E67C();
+                enemy_update();
                 do_flyby();
             attract_tail:
         if (gGameMode != 0x8009 && gGameMode != 0x400b && lbl_803441FC > 1) {
@@ -4152,7 +4152,7 @@ void game_main(void)
         world_update();
         fn_8005B988();
         do_enemies();
-        fn_8004E67C();
+        enemy_update();
         if (do_players() && !sndFxUpdate(1)) {
             lvl = (lbl_803448D0 << 8) | (lbl_803448CC & 0xFF);
             if (!lbl_80344824) {
@@ -4360,7 +4360,7 @@ void fn_80054E78(void)
                 if (n == 8) {
                     fn_8009FA84();
                 } else if (n <= 5 && lbl_8034481C == 0) {
-                    DoAudioTallySFX(n);
+                    fn_8009FCA8(n);
                 }
             }
         }

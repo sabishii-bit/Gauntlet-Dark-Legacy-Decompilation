@@ -1,0 +1,127 @@
+{
+  "attributes": {
+    "scope": "symbol-adoption pass (work_claim.symbol-adoption.20260831.v1) resolving the 2026-08-30 symaudit exact-gap candidates for this TU; verified via fnasm+source read+caller context per AGENTS.md symbol-naming procedure, then adopted through the cross-TU rename law and gated with a full ninja build + fndiff spot-check"
+  },
+  "epistemic_state": "observed",
+  "id": "claim.symnames.game-enemy-enemy.20260831.v2",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-08-30T23:49:31Z",
+  "schema_version": 1,
+  "subject": "tu:game/enemy/enemy.c",
+  "supersedes": "claim.symnames.game-enemy-enemy.20260830.v1",
+  "valid_from": "2026-08-30",
+  "value": {
+    "adopted": [
+      {
+        "adopted_name": "adjust_msidx",
+        "evidence": "Body ('Track this enemy's target milestone in the player's recent-history ring') searches the player's milestone-history ring for enemy->plr_ms and writes the match index into enemy->ms_idx (and max_msidx). Directly and solely adjusts the ms_idx field; name matches behavior exactly.",
+        "gc_old": "fn_8004E5F8"
+      },
+      {
+        "adopted_name": "enemy_update",
+        "evidence": "Called every frame from gamemain.c immediately after do_enemies() at both attract and normal-gameplay call sites ('world_update(); fn_8005B988(); do_enemies(); fn_8004E67C(); do_flyby();'), i.e. it is the per-frame enemy-pipeline step alongside do_enemies -- consistent with a top-level 'enemy_update' entry point distinct from the AI/movement driver do_enemies. Cross-TU rename applied to gamemain.c's extern decl + 2 call sites (mechanical identifier-only edit; gamemain.c is a HARD SKIP TU this run, not otherwise touched).",
+        "gc_old": "fn_8004E67C"
+      }
+    ],
+    "ambiguous_spans": [
+      {
+        "gc_span": [
+          "fn_80045C30",
+          "fn_80046140",
+          "fn_8004646C",
+          "fn_80046680"
+        ],
+        "status": "not attempted this pass",
+        "xbox_candidates": [
+          "do_enemies",
+          "enemy_ai_control"
+        ]
+      },
+      {
+        "gc_span": [
+          "fn_8004C8CC"
+        ],
+        "status": "not attempted this pass",
+        "xbox_candidates": [
+          "check_vacancy",
+          "trans_enemy",
+          "generate_enemy",
+          "check_enemy_pos",
+          "find_enemy_slot",
+          "GetRightPath",
+          "closest_enemy",
+          "do_enemy_move",
+          "do_enemy_collide",
+          "EnemyCollideFloor",
+          "EnemyCollideWalls",
+          "EnemyWorldDamage",
+          "do_enemy_attack",
+          "EnemyCollideEnemy",
+          "is_tail",
+          "EnemyCollidePlayer",
+          "blocked00",
+          "blocked07",
+          "blocked08",
+          "blocked10"
+        ]
+      },
+      {
+        "gc_span": [
+          "fn_8004CE38",
+          "fn_8004CFAC",
+          "fn_8004D030",
+          "fn_8004D958",
+          "fn_8004DB3C",
+          "fn_8004DC2C",
+          "fn_8004DF58",
+          "fn_8004E448"
+        ],
+        "status": "not attempted this pass",
+        "xbox_candidates": [
+          "is_chest",
+          "get_chest_ang",
+          "get_milestone_ang",
+          "get_face_ang2",
+          "get_face_ang",
+          "get_target_ang",
+          "set_turn_to_ms",
+          "set_turn_dir",
+          "get_turn_dir",
+          "DeadEnd",
+          "FoundSuicideBomber",
+          "enemy_mod_alpha",
+          "enemy_knockback_control",
+          "enemy_attack_control",
+          "shoot_missile"
+        ]
+      },
+      {
+        "gc_span": [
+          "fn_8004F1DC"
+        ],
+        "status": "not attempted this pass",
+        "xbox_candidates": [
+          "enemy_death_fx",
+          "enemy_dies"
+        ]
+      },
+      {
+        "gc_span": [
+          "fn_8004F87C"
+        ],
+        "status": "not attempted this pass",
+        "xbox_candidates": [
+          "set_suicide_bomber_index",
+          "enemy_fix_ai"
+        ]
+      }
+    ],
+    "deferred": [],
+    "naming_notes": "Only the two exact-gap candidates were in scope this pass; the ambiguous_spans set is carried forward unresolved for a future naming session.",
+    "no_candidate": [],
+    "orientation": "reversed",
+    "rejected": [],
+    "xbox_module": "ENEMY.OBJ"
+  }
+}

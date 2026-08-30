@@ -128,7 +128,7 @@ extern void fn_8009FCA8(s32 flag);
 extern s32 sndFxUpdate(s32 mode);
 extern void AudioStopMusicA(void);
 extern void init_panel_blits(s32 player);
-extern void fn_8009C460(s32 mode);
+extern void AudioTowerFX(s32 mode);
 extern s32 draw_inventory_panel(s32 player);
 extern void init_inventory_panel(s32 player);
 extern void end_inventory_panel(s32 player);
@@ -370,7 +370,7 @@ s32 do_shop(void)
                         *(s32*)(pl + 2660) = 100;
                     } else {
                         init_panel_blits(i);
-                        fn_8009C460(2);
+                        AudioTowerFX(2);
                         *(s32*)(pl + 2660) += 1;
                     }
                     break;

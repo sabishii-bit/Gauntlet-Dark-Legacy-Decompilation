@@ -118,7 +118,7 @@ extern void calc_good_wiz_attn(s32 reset, s32 force);
 extern s32 hide_rune_stones(void* p);
 extern void MBTreeSetAlpha(void* p, s32 alpha, s32 a);
 extern void AnimateATree(void* p, s32 a, s32 b);
-extern void fn_8009C710(s32 speech, s32 arg);
+extern void AudioGoodWizard(s32 speech, s32 arg);
 extern s32 CaptionText(s32 a, s32 id, s32 idx, s32 frame, s32 flags);
 extern s32 fn_800629B0(void);
 extern s32 sndFxUpdate(s32 a);
@@ -144,7 +144,7 @@ extern s32 AudioSysUpdate(s32 a);
 extern void* AudioRegisterNameBanks(void* p, s32 a);
 extern s32 sprintf(char* buf, const char* fmt, ...);
 extern s32 MBOX_FindTexture_Sub(char* name, s32* p, s32 a, s32 b, s32 c);
-extern void fn_8009FD38(void);
+extern void AudioMapDot(void);
 extern void* MBCreateBlit(s32 a, s32 b, s32 c, s32 d, s32 e, s32 f);
 extern void mbBlitCvtCoord(void* blit, f32 z);
 extern void MBBlitSetAlpha(void* blit, s32 alpha);
@@ -313,9 +313,9 @@ void DoGoodWizard(void)
         good_wiz_speech_frame = 0;
         good_wiz_speech_pause = 0;
         if (gBossType >= 0x2a) {
-            fn_8009C710(gBossType, all_rune_stones);
+            AudioGoodWizard(gBossType, all_rune_stones);
         } else {
-            fn_8009C710(gBossType, 0);
+            AudioGoodWizard(gBossType, 0);
         }
     case 5:
         c = good_wiz_speech_idx;
@@ -385,7 +385,7 @@ void DoGoodWizard(void)
             good_wiz_speech_frame = 0;
             good_wiz_speech_pause = 0;
             if (gBossType < 0x2a) {
-                fn_8009C710(gBossType, quality + 1);
+                AudioGoodWizard(gBossType, quality + 1);
             }
         }
         AnimateATree(base + 0x5f0, 0, 0);
@@ -461,7 +461,7 @@ void DoGoodWizard(void)
                 } else if ((acc3540 & 0x1FE) == 0x1FE) {
                     sel = 6;
                 }
-                fn_8009C710(boss, sel);
+                AudioGoodWizard(boss, sel);
             }
         }
         AnimateATree(base + 0x5f0, 0, 0);
@@ -996,7 +996,7 @@ s32 do_mapscreen(s32 skip)
                                            (s32)map_bg_blit, 1);
                 row[24] = MBCreateBlit(0, tex, (s32)ent[0], (s32)ent[1], -1, -1);
                 mbBlitCvtCoord(row[24], lbl_80345A98);
-                fn_8009FD38();
+                AudioMapDot();
             }
         }
         if (map_route_blit != 0 && i == 8) {
