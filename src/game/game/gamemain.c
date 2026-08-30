@@ -511,6 +511,7 @@ void format_brain();
 void init_enemy_vars(s32 slot, s32 spew, f32 scale)
 {
     u8* e;
+    Enemy* enemy;
     u8* tbl;
     s32 i4;
     f32 z;
@@ -520,6 +521,9 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
     f32 lo;
     f32 spd;
     f32 ht;
+    f32 t2;
+    f32 hi2;
+    f32 lo2;
     s32 tier;
     s32 ty;
     u8* row;
@@ -527,55 +531,56 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
     s16 sv;
 
     e = (u8*)gEnemies + slot * 916;
+    enemy = (Enemy*)e;
     tbl = (u8*)lbl_8011AF48;
     z = lbl_80346820;
-    *(f32*)(e + 484) = z;
-    *(s32*)(e + 824) = -1;
-    *(s32*)(e + 820) = -1;
-    *(s32*)(e + 204) = 0;
-    *(s32*)(e + 520) = 0;
-    *(s32*)(e + 524) = 0;
-    *(s16*)(e + 630) = -1;
-    *(s16*)(e + 628) = -1;
-    *(f32*)(e + 768) = (f32)(lbl_80346A70 * *(f32*)(gCurLevel + 180));
+    enemy->skinfx.nframes = z;
+    enemy->next_enemy = -1;
+    enemy->prev_enemy = -1;
+    enemy->action = 0;
+    enemy->attack_timer = 0;
+    enemy->stun_timer = 0;
+    enemy->prev_closest = -1;
+    enemy->closest = -1;
+    enemy->sight = (f32)(lbl_80346A70 * *(f32*)(gCurLevel + 180));
     fv = lbl_803468F0;
-    *(f32*)(e + 632) = fv;
-    *(f32*)(e + 636) = fv;
+    enemy->close_dist = fv;
+    enemy->actual_dist = fv;
     row = tbl + *(s32*)e * 4;
-    *(f32*)(e + 572) = (f32)(lbl_80346830 * ((f32*)row)[452]);
+    enemy->hht = (f32)(lbl_80346830 * ((f32*)row)[452]);
     row = tbl + *(s32*)e * 4;
-    *(f32*)(e + 568) = ((f32*)row)[486];
-    *(s16*)(e + 510) = 0;
-    *(s32*)(e + 644) = -1;
-    *(s32*)(e + 648) = -1;
-    *(s32*)(e + 652) = 0;
-    *(s32*)(e + 664) = 0;
-    *(s32*)(e + 860) = 0;
-    *(s16*)(e + 640) = 0;
-    *(s16*)(e + 642) = 0;
-    *(s16*)(e + 716) = -1;
-    *(s16*)(e + 718) = 0;
-    *(s32*)(e + 720) = 0;
-    *(f32*)(e + 672) = z;
-    *(s32*)(e + 676) = 0;
+    enemy->rad = ((f32*)row)[486];
+    enemy->area = 0;
+    enemy->coll_pnum = -1;
+    enemy->coll_enenum = -1;
+    enemy->coll_ip = NULL;
+    enemy->floor_wobj = NULL;
+    enemy->count = 0;
+    enemy->moved = 0;
+    enemy->stopped = 0;
+    enemy->attack_index = -1;
+    enemy->attack_count = 0;
+    enemy->attack_flag = 0;
+    enemy->damage = z;
+    enemy->damagetype = 0;
     for (i4 = 0; i4 < 20; i4 += 4) {
         *(f32*)(e + i4 + 692) = z;
     }
     z2 = lbl_80346820;
-    *(f32*)(e + 680) = z2;
-    *(f32*)(e + 684) = z2;
-    *(f32*)(e + 688) = z2;
-    *(f32*)(e + 604) = z2;
-    *(f32*)(e + 608) = z2;
-    *(f32*)(e + 612) = z2;
-    *(f32*)(e + 616) = z2;
-    *(s32*)(e + 624) = 0;
-    *(s32*)(e + 656) = 0;
-    *(s32*)(e + 912) = -1;
-    *(f32*)(e + 888) = lbl_803468F0;
-    *(f32*)(e + 892) = z2;
-    *(f32*)(e + 896) = z2;
-    *(s16*)(e + 516) = 0;
+    enemy->damagedir[0] = z2;
+    enemy->damagedir[1] = z2;
+    enemy->damagedir[2] = z2;
+    enemy->pushed[0] = z2;
+    enemy->pushed[1] = z2;
+    enemy->pushed[2] = z2;
+    enemy->pushang = z2;
+    enemy->push_cnt = 0;
+    enemy->generator = NULL;
+    enemy->anim_done = -1;
+    enemy->idle_time = lbl_803468F0;
+    enemy->idle_secs = z2;
+    enemy->idle_frac = z2;
+    enemy->damage_count = 0;
     row = tbl + *(s32*)e * 4;
     t = *(f32*)(gCurLevel + 172) * ((f32*)row)[690];
     hi = (f32)(lbl_80346A30 * t);
@@ -588,23 +593,24 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
     } else if (scale > z2) {
         tier = 1;
     }
-    *(s16*)(e + 518) = (s16)tier;
-    *(s16*)(e + 792) = 0;
-    *(s16*)(e + 790) = 0;
-    *(s32*)(e + 800) = 0;
-    *(s32*)(e + 796) = 0;
-    *(s32*)(e + 808) = 0;
-    *(s32*)(e + 804) = 0;
-    *(s16*)(e + 734) = 0;
-    *(s32*)(e + 812) = 0;
-    *(f32*)(e + 780) = lbl_80346A78;
-    *(f32*)(e + 776) = z2;
-    *(f32*)(e + 772) = z2;
-    *(s16*)(e + 730) = 1;
-    *(s16*)(e + 732) = 1;
-    *(s32*)(e + 900) = 0;
-    *(s32*)(e + 480) = -1;
-    *(s32*)(e + 904) = 0;
+    enemy->org_lvl = (s16)tier;
+    enemy->mode2 = 0;
+    enemy->mode1 = 0;
+    enemy->flag2 = 0;
+    enemy->flag1 = 0;
+    enemy->counter2 = 0;
+    enemy->counter1 = 0;
+    enemy->recognized = 0;
+    enemy->skip_itemcol = 0;
+    enemy->prev_dir = lbl_80346A78;
+    fv = lbl_80346820;
+    enemy->zspd = fv;
+    enemy->xspd = fv;
+    enemy->visible = 1;
+    enemy->visactive = 1;
+    enemy->gotitem = NULL;
+    enemy->specialfx = -1;
+    enemy->alpha = 0;
     if (spew == 1) {
         spew = 0;
     }
@@ -613,39 +619,39 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
     }
     if (spew < 0 || spew > 31) {
         row = tbl + *(s32*)e * 4;
-        *(s16*)(e + 784) = (s16)((s32*)row)[894];
+        enemy->algorithm = (s16)((s32*)row)[894];
     } else {
-        *(s16*)(e + 784) = (s16)spew;
+        enemy->algorithm = (s16)spew;
     }
-    sv = *(s16*)(e + 784);
-    *(s16*)(e + 786) = sv;
-    *(s16*)(e + 788) = sv;
+    sv = enemy->algorithm;
+    enemy->old_ai = sv;
+    enemy->prev_ai = sv;
     format_brain();
     row = tbl + *(s32*)e * 4;
-    *(f32*)(e + 184) = (f32)(lbl_80346810 / ((f32*)row)[588]);
+    enemy->atts.invspeed = (f32)(lbl_80346810 / ((f32*)row)[588]);
     ty = *(s32*)e;
     row = tbl + ty * 4;
-    t = *(f32*)(gCurLevel + 172) * ((f32*)row)[690];
-    ht = *(f32*)(e + 512);
-    hi = (f32)(lbl_80346A30 * t);
-    lo = (f32)(lbl_80346A28 * t);
+    t2 = *(f32*)(gCurLevel + 172) * ((f32*)row)[690];
+    ht = enemy->health;
+    hi2 = (f32)(lbl_80346A30 * t2);
+    lo2 = (f32)(lbl_80346A28 * t2);
     spd = *(f32*)(gCurLevel + 188) * ((f32*)row)[622];
-    if (!(ht > hi)) {
+    if (!(ht > hi2)) {
         if (ty != 30) {
-            if (ht > lo) {
+            if (ht > lo2) {
                 spd = (f32)(lbl_80346A30 * spd);
             } else {
                 spd = (f32)(lbl_80346A28 * spd);
             }
         }
     }
-    *(f32*)(e + 188) = spd;
+    enemy->atts.fight = spd;
     row = tbl + *(s32*)e * 4;
-    *(f32*)(e + 192) = ((f32*)row)[656];
+    enemy->atts.armor = ((f32*)row)[656];
     row = tbl + *(s32*)e * 4;
-    *(s32*)(e + 196) = ((s32*)row)[928];
+    enemy->atts.damagetype = ((s32*)row)[928];
     row = tbl + *(s32*)e * 4;
-    *(s32*)(e + 200) = ((s32*)row)[962];
+    enemy->atts.armortype = ((s32*)row)[962];
 }
 
 /* Xbox PDB: format_brain -- initialize a newly allocated enemy's AI state. */
