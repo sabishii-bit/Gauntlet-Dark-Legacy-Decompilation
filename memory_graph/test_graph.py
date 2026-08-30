@@ -66,13 +66,23 @@ def make_root(with_symbols=True) -> Path:
     if with_symbols:
         (root / "config" / "GUNE5D").mkdir(parents=True)
         (root / "config" / "GUNE5D" / "symbols.txt").write_text(
-            "test_fn = .text:0x80001000; // type:function size:0x20 scope:global\n"
+            "test_fn = .text:0x80001000; // type:function size:0x10 scope:global\n"
+            "fn_80001010 = .text:0x80001010; // type:function size:0x10 scope:global\n"
             "other_fn = .text:0x80001020; // type:function size:0x20 scope:global\n",
             encoding="utf-8",
         )
         (root / "config" / "GUNE5D" / "splits.txt").write_text(
             "game/test/foo.c:\n"
             "\t.text start:0x80001000 end:0x80001040\n",
+            encoding="utf-8",
+        )
+        research = root / "research" / "xbox_symbols"
+        research.mkdir(parents=True)
+        (research / "functions_by_module.txt").write_text(
+            "== .\\Release\\foo.obj (foo.c)\n"
+            "[0001:00000000] 10 G test_fn\n"
+            "[0001:00000010] 10 G mystery_one\n"
+            "[0001:00000020] 10 G other_fn\n",
             encoding="utf-8",
         )
     return root
@@ -424,6 +434,22 @@ class GraphSurfaceTests(unittest.TestCase):
             by_id["attempt.sched-residual.v1"]["residual_class"],
             "REGISTER_ONLY/SCHEDULE")
 
+    def test_symbol_naming_audit_alignment(self):
+        from memory_graph.core import symbol_naming_audit
+        result = symbol_naming_audit(root=self.root)
+        self.assertEqual(result["totals"]["placeholders"], 1)
+        module = result["modules"][0]
+        self.assertEqual(module["gc_module"], "game/test/foo.c")
+        self.assertEqual(module["xbox_module"], "foo.obj")
+        self.assertEqual(module["orientation"], "forward")
+        self.assertEqual(module["anchors"], 2)  # test_fn, other_fn
+        self.assertEqual(len(module["proposals"]), 1)
+        proposal = module["proposals"][0]
+        self.assertEqual(proposal["gc"], "fn_80001010")
+        self.assertEqual(proposal["xbox_candidate"], "mystery_one")
+        self.assertEqual(proposal["confidence"], "exact-gap")
+        self.assertEqual(module["no_candidate"], [])
+
     def test_stale_reopen_heuristics(self):
         result = attempt_staleness(self.root)
         reasons = {entry["record"]: entry["reason"]
@@ -486,7 +512,7 @@ class GraphSurfaceTests(unittest.TestCase):
         brief = tu_briefing("game/test/foo", root=self.root)
         self.assertEqual(brief["tu"], ["game/test/foo.c"])
         roster = {row["function"]: row for row in brief["functions"]}
-        self.assertEqual(set(roster), {"test_fn", "other_fn"})
+        self.assertEqual(set(roster), {"test_fn", "fn_80001010", "other_fn"})
         self.assertEqual(roster["test_fn"]["fuzzy"], 95.0)
         attempt_ids = [row["id"] for row in brief["live_attempts"]]
         self.assertIn("attempt.moved.v1", attempt_ids)

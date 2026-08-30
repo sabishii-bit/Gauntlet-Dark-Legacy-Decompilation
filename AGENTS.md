@@ -306,6 +306,23 @@ parks whose score moved since parking, and conversion caps that never
 documented the failing form (re-try those with offsetof-on-raw-pointer
 per `claim.law.offsetof-overturns-typed-alias-caps`).
 
+Symbol naming (fn_*/lbl_* placeholders): `gdlmem.py symaudit [--tu X]`
+aligns each GC TU's function roster against its Xbox PDB module by
+position (LIS-anchored on shared names, both link orientations — some
+TUs link in REVERSE source order) and reports three things:
+`proposals` (exact-gap candidates — one-to-one positional evidence),
+`spelling_mismatches` (a GC invented name sitting where the PDB has a
+different real name, e.g. UpdateCam vs CamUpdate), and `no_candidate`
+(the revisit set). Adopting a candidate is a RENAME: verify the
+candidate against the function's own behavior/asm first (position is
+evidence, not proof), then follow the recorded cross-TU rename
+procedure (grep build/**/*.s, scope:global, regenerate stale objects)
+and gate every affected TU. Per-TU revisit records use claim predicate
+`symbol_naming` (subject `tu:<module>`, value = the no-candidate list +
+ambiguous spans + naming notes) so future sessions can ponder names
+without re-deriving the audit; update them by superseding when symbols
+get named.
+
 Parked-record hygiene (integrator duty): parked/capped records live as
 per-function attempt records under `records/attempts/parked/` — never as
 entries appended to a bulk list (the legacy

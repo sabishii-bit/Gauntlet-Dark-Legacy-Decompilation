@@ -3297,6 +3297,230 @@ def tu_briefing(
     }
 
 
+_GC_ADDR_SUFFIX_RE = re.compile(r"_8[0-9A-Fa-f]{7}$")
+
+
+def _lis_anchors(functions, xbox_names, normalize):
+    """Order-consistent shared-name anchors via longest increasing
+    subsequence over all (gc_index, xbox_index) name-match pairs.
+
+    Greedy first-match anchoring locks in a bad early match and threw away
+    most real anchors on the first field trial; LIS finds the maximal
+    mutually-consistent set.
+    """
+    import bisect
+    positions: dict[str, list[int]] = {}
+    for j, name in enumerate(xbox_names):
+        positions.setdefault(name.lower(), []).append(j)
+    pairs: list[tuple[int, int]] = []
+    for index, (name, _) in enumerate(functions):
+        if name.startswith("fn_"):
+            continue
+        for j in positions.get(normalize(name), []):
+            pairs.append((index, j))
+    # same-i pairs sort by DESCENDING j so one GC function cannot chain
+    # with itself (standard LIS-with-duplicates trick)
+    pairs.sort(key=lambda pair: (pair[0], -pair[1]))
+    tails: list[int] = []
+    tail_refs: list[int] = []
+    back: list[tuple[int, int, int]] = []  # (i, j, predecessor back-index)
+    for i, j in pairs:
+        position = bisect.bisect_left(tails, j)
+        predecessor = tail_refs[position - 1] if position > 0 else -1
+        if position == len(tails):
+            tails.append(j)
+            tail_refs.append(len(back))
+        else:
+            tails[position] = j
+            tail_refs[position] = len(back)
+        back.append((i, j, predecessor))
+    anchors: list[tuple[int, int]] = []
+    cursor = tail_refs[-1] if tail_refs else -1
+    while cursor != -1:
+        i, j, cursor = back[cursor]
+        anchors.append((i, j))
+    anchors.reverse()
+    seen_i: set[int] = set()
+    return [(i, j) for i, j in anchors
+            if not (i in seen_i or seen_i.add(i))]
+
+
+def symbol_naming_audit(
+    tu: str | None = None,
+    *,
+    root: Path = REPO_ROOT,
+    db_path: Path | None = None,
+    limit: int = 60,
+) -> dict[str, Any]:
+    """Audit fn_*/lbl_* placeholders against Xbox PDB names by POSITION.
+
+    Placeholders carry no name to match on, so candidates come from module
+    alignment: the PDB lists each Xbox TU's functions in source order and the
+    GC symbol map lists each GC TU's functions in address order; functions
+    already sharing a name pin the two sequences together, and a gap between
+    consecutive anchors that holds the SAME number of functions on both
+    sides yields one-to-one candidates ("exact-gap"). Unequal gaps are
+    reported as ambiguous candidate pools; placeholders with no candidate at
+    all are the revisit set (record them with predicate `symbol_naming` so a
+    future session can ponder names — see AGENTS.md).
+
+    Candidates are cross-platform EVIDENCE, not authority: adopting one is a
+    rename with the full cross-TU procedure and gates, never automatic.
+    """
+    ensure_database(root, db_path)
+    with closing(open_database(root, db_path)) as connection:
+        gc_rows = connection.execute(
+            "SELECT m.object_name AS module, s.raw_name, s.address"
+            " FROM binary_symbol s JOIN binary_module m ON m.id=s.module_id"
+            " WHERE s.platform='gamecube' AND s.symbol_kind='function'"
+            " ORDER BY m.object_name, s.address"
+        ).fetchall()
+        xbox_rows = connection.execute(
+            "SELECT m.object_name AS module, s.raw_name"
+            " FROM binary_symbol s JOIN binary_module m ON m.id=s.module_id"
+            " WHERE s.platform='xbox' AND s.symbol_kind='function'"
+            " ORDER BY m.object_name, s.source_ordinal"
+        ).fetchall()
+        lbl_rows = connection.execute(
+            "SELECT m.object_name AS module, COUNT(*) AS n"
+            " FROM binary_symbol s JOIN binary_module m ON m.id=s.module_id"
+            " WHERE s.platform='gamecube' AND s.raw_name LIKE 'lbl\\_%' ESCAPE '\\'"
+            " GROUP BY m.object_name"
+        ).fetchall()
+    lbl_counts = {row["module"]: row["n"] for row in lbl_rows}
+
+    gc_modules: dict[str, list[tuple[str, int]]] = {}
+    for row in gc_rows:
+        gc_modules.setdefault(row["module"], []).append(
+            (row["raw_name"], row["address"]))
+    xbox_modules: dict[str, list[str]] = {}
+    for row in xbox_rows:
+        xbox_modules.setdefault(row["module"], []).append(row["raw_name"])
+    xbox_by_stem: dict[str, list[str]] = {}
+    for module in xbox_modules:
+        stem = re.sub(r"\.obj$", "", module, flags=re.I).lower()
+        xbox_by_stem.setdefault(stem, []).append(module)
+
+    def normalize(name: str) -> str:
+        return _GC_ADDR_SUFFIX_RE.sub("", name).lower()
+
+    audited = []
+    totals = {"placeholders": 0, "exact_gap": 0, "ambiguous": 0,
+              "no_candidate": 0}
+    for module in sorted(gc_modules):
+        if tu and tu.lower() not in module.lower():
+            continue
+        functions = gc_modules[module]
+        placeholders = [name for name, _ in functions
+                        if name.startswith("fn_")]
+        if not placeholders:
+            continue
+        totals["placeholders"] += len(placeholders)
+        stem = re.sub(r"\.(c|cpp)$", "", module.rsplit("/", 1)[-1]).lower()
+        xbox_names = None
+        pair_note = None
+        stems = xbox_by_stem.get(stem, [])
+        if not stems:
+            # fallback: unique substring pairing (moviePlayer vs movie etc.)
+            close_stems = [xs for xs in xbox_by_stem
+                           if stem in xs or xs in stem]
+            if len(close_stems) == 1:
+                stems = xbox_by_stem[close_stems[0]]
+                pair_note = f"paired by substring stem {close_stems[0]!r}"
+        if len(stems) == 1:
+            xbox_names = xbox_modules[stems[0]]
+        elif len(stems) > 1:
+            pair_note = f"ambiguous xbox module stem: {stems}"
+        elif pair_note is None:
+            pair_note = "no xbox module with this stem"
+        entry: dict[str, Any] = {
+            "gc_module": module,
+            "xbox_module": stems[0] if len(stems) == 1 else None,
+            "placeholder_functions": len(placeholders),
+            "lbl_data_symbols": lbl_counts.get(module, 0),
+        }
+        if xbox_names is None:
+            entry["note"] = pair_note
+            entry["no_candidate"] = placeholders
+            totals["no_candidate"] += len(placeholders)
+            audited.append(entry)
+            continue
+        # GC link order can be the REVERSE of PDB source order (newcam's
+        # whole roster descends) — align in both orientations, keep the
+        # better chain, and run the gap logic against that orientation.
+        forward = _lis_anchors(functions, xbox_names, normalize)
+        reversed_names = list(reversed(xbox_names))
+        backward = _lis_anchors(functions, reversed_names, normalize)
+        if len(backward) > len(forward):
+            anchors = backward
+            xbox_names = reversed_names
+            entry["orientation"] = "reversed"
+        else:
+            anchors = forward
+            entry["orientation"] = "forward"
+        proposals = []
+        mismatches = []
+        ambiguous = []
+        no_candidate = []
+        bounds = ([(-1, -1)] + anchors
+                  + [(len(functions), len(xbox_names))])
+        for (i1, j1), (i2, j2) in zip(bounds, bounds[1:]):
+            gc_gap = functions[i1 + 1:i2]
+            xbox_gap = xbox_names[j1 + 1:j2]
+            gap_placeholders = [(name, addr) for name, addr in gc_gap
+                                if name.startswith("fn_")]
+            if not gc_gap:
+                continue
+            if len(gc_gap) == len(xbox_gap):
+                # 1:1 positional correspondence: placeholders get candidates;
+                # named GC functions with a DIFFERENT xbox name at the same
+                # slot are probable invented-name spelling mismatches — the
+                # audit's second deliverable (UpdateCam vs CamUpdate class).
+                for (name, addr), candidate in zip(gc_gap, xbox_gap):
+                    if name.startswith("fn_"):
+                        proposals.append({
+                            "gc": name, "address": hex(addr),
+                            "xbox_candidate": candidate,
+                            "confidence": "exact-gap",
+                        })
+                        totals["exact_gap"] += 1
+                    elif normalize(name) != candidate.lower():
+                        mismatches.append({
+                            "gc": name, "xbox": candidate,
+                            "address": hex(addr),
+                        })
+            elif xbox_gap and gap_placeholders:
+                ambiguous.append({
+                    "gc_span": [name for name, _ in gap_placeholders],
+                    "xbox_candidates": xbox_gap[:20],
+                })
+                totals["ambiguous"] += len(gap_placeholders)
+            elif gap_placeholders:
+                no_candidate.extend(name for name, _ in gap_placeholders)
+                totals["no_candidate"] += len(gap_placeholders)
+        entry.update({
+            "anchors": len(anchors),
+            "proposals": proposals,
+            "spelling_mismatches": mismatches,
+            "ambiguous_spans": ambiguous,
+            "no_candidate": no_candidate,
+        })
+        audited.append(entry)
+        if len(audited) >= limit:
+            break
+    return {
+        "modules": audited,
+        "totals": totals,
+        "note": (
+            "exact-gap candidates are positional EVIDENCE from the Xbox PDB"
+            " — adopt only via the recorded cross-TU rename procedure with"
+            " full gates; record no-candidate placeholders per TU as claim"
+            " records with predicate symbol_naming for future revisits;"
+            " lbl_* data alignment is not attempted (inventory only)"
+        ),
+    }
+
+
 def build_surface_ops() -> tuple[SurfaceOp, ...]:
     """The registry every query consumer derives its surface from."""
     return (
@@ -3357,6 +3581,19 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                 SurfaceParam("law", str, default=None,
                              help="law id fragment (structured links + prose)"),
                 SurfaceParam("limit", int, default=25, maximum=100),
+            ),
+        ),
+        SurfaceOp(
+            name="symaudit", mcp_name="symbol_naming_audit",
+            doc=("Audit fn_*/lbl_* placeholders against Xbox PDB names via "
+                 "anchor-based module alignment; reports candidates and the "
+                 "no-candidate revisit set."),
+            call=lambda root, db, **kw: symbol_naming_audit(
+                kw["tu"], root=root, db_path=db, limit=kw["limit"]),
+            params=(
+                SurfaceParam("tu", str, default=None,
+                             help="optional GC module path fragment"),
+                SurfaceParam("limit", int, default=60, maximum=300),
             ),
         ),
         SurfaceOp(
