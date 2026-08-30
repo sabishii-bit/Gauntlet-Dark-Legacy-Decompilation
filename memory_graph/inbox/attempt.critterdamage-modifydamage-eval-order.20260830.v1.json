@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "reorder ModifyDamage call-site sub-expr eval order via block-scoped temps; hoist CRITTER_DIE's per-iteration health constant out of its deathChild loop",
+  "attributes": {
+    "anchors": "src/game/enemy/critter.c::CritterDamage; target .text 0x800383A8 size 2416B; fnasm.py game/enemy/critter CritterDamage; fndiff.py game/enemy/critter.c CritterDamage --count|--ops|--clean",
+    "axis_log": "AXIS1 KEPT: ModifyDamage(*(f32*)(hdr+0xBC),&damage,&flags,*(u32*)(hdr+0xE0)) inlined-at-call read reordered via `{u32 shieldFlags=hdr[0xE0]; f32 armor=hdr[0xBC]; ModifyDamage(armor,&damage,&flags,shieldFlags);}` to match target's shield-before-armor load schedule (target loads the LAST param first even though armor is textually 1st). Call-site opcodes unchanged but the whole-fn register-mapping cascade snapped into alignment (player/hitPosition/direction/source now match target r26-r29; only `c` stays r31 vs r25). real 526->488, fuzzy 91.45->91.64%, insns 604/604 both sides. AXIS2 KEPT (stacked): target's CRITTER_DIE deathChild loop hoists its `health=CONST` store's constant load out of the loop; ours reloaded every iteration. Fix: in the macro's if-block, `f32 deadHealth; deathChild=(victim)->next; deadHealth=lbl_803464A8; for(;deathChild!=NULL;...) deathChild->health=deadHealth;` -- statement order matters (next-ptr init BEFORE const load matched target exactly; const-before-next produced the same 2 loads in the WRONG order). real 488->486, fuzzy ->92.32%, insns unchanged, both loop 'b'-position --ops clusters fully resolved.",
+    "baseline": "insns 604/604 (exact count already), real 526, fuzzy 91.45%; target stmw r21,100(r1) (11 GPRs) vs ours stmw r20,96(r1) (12 GPRs); target params c=r25,player=r26,hitPosition=r27,direction=r28,source=r29 (clean sequence) vs ours badly scrambled c=r30,player=r23,hitPosition=r31,direction=r24,source=r25",
+    "capped_subaxes": "3 variants tried to shed the extra saved-GPR by killing the fn-scope `descriptor` local's live range (raw double-recompute at both use sites; block-scoped descriptor+objectClass cache mirroring target's r21-across-call reuse; mid-block hitDescriptor reassignment to break its cross-store live range) -- all DID drop stmw to r21 (matching target's count) but each added +1 net insn in the sprintf/ReallyFindObject region and made real WORSE (605-606 insns, real 595-612). Reverted; matches the documented point-of-use-single-use-pointer-delay metric-conflict caveat (killing a persistent-register range can net-negative when point-of-use recompute costs more than the saved register upkeep). Not retried; a future pass could try a tighter-scoped cache before ruling out permanently.",
+    "final_state": "insns 604/604, real 486, fuzzy 92.32%, commit ff79b04d3. Remaining --ops clusters (goto-vs-inverted-branch double-check shape at credited_damage_done; AddExp int-to-float region ~246-324; sprintf/MBOX_ReallyFindObject block ~268-296; lbl_80346488 f2-cache-vs-reload between c->health/parent->health checks) all read as symptoms of the still-open `c` register mismatch (r31 vs r25) and the 1-extra-saved-GPR gap (stmw r20 vs r21), not independent bugs -- resume there first.",
+    "verification": "ninja build/GUNE5D/src/game/enemy/critter.o green; full ninja green, build/GUNE5D/main.dol: OK; git diff --check clean; commit ff79b04d3"
+  },
+  "function": "function:CritterDamage",
+  "id": "attempt.critterdamage-modifydamage-eval-order.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "record_state": "proposed",
+  "residual_class": "STRUCTURAL/REGISTER_CASCADE",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}
