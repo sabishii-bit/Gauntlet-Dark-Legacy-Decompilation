@@ -6118,13 +6118,15 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     void *n;
     s32 idx;
     s32 floorHit;
+    f32 atanX;
     u8 unused[8];
 
     atreeFlags = 0;
     header = (u8 *)c->hdr;
     c->mbnode = MBNewNode(lbl_8034473C, gid, 1);
+    atanX = *(f32 *)((u8 *)object + 0x28);
     *(f32 *)((u8 *)c + 0xF8) =
-        atan2(*(f32 *)((u8 *)object + 0x20), *(f32 *)((u8 *)object + 0x28));
+        atan2(*(f32 *)((u8 *)object + 0x20), atanX);
     *(f32 *)((u8 *)c + 0xFC) = *(f32 *)((u8 *)c + 0xF8);
     CopyMat3(gid, &c->mtx[0][0]);
     c->vel[0] = *(f32 *)((u8 *)object + 0x30);
