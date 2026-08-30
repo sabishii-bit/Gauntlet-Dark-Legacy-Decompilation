@@ -1,6 +1,7 @@
 #include "types.h"
 #include "game/worldinfo.h"
 #include "game/worldobj.h"
+#include "game/item.h" /* iteminfo/iteminst/locator full definitions */
 
 #ifndef offsetof
 #define offsetof(type, memb) ((u32) & ((type*)0)->memb)
