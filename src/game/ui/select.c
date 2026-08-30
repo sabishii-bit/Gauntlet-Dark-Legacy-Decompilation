@@ -2501,7 +2501,7 @@ void update_class_spec(s32 player)
     PlayerModel(player);
     setup_player_display(player);
     setup_tex(player, 2, 0, 0, pool + 168,
-              lbl_801200B0[*(s32*)(pl + 12) & 7]);
+              lbl_801200B0[*(s32*)(pl + offsetof(Player, character)) & 7]);
     boff = player * 132;
     eWeap = blitBase;
     eWeap += boff;
@@ -2520,7 +2520,7 @@ void update_class_spec(s32 player)
     mbBlitInit3414(*(void**)(eD += 96), 1);
 
     if (gGameMode == 0x400B) {
-        state = *(s32*)(pl + 232);
+        state = *(s32*)(pl + offsetof(Player, state));
         if (state == 3) {
             return;
         }
@@ -2534,12 +2534,12 @@ void update_class_spec(s32 player)
     return;
 
 substate:
-    switch (*(s32*)(pl + 13112)) {
+    switch (*(s32*)(pl + offsetof(Player, motion_state))) {
     case 2:
         break;
     case 1:
-        cls = *(s32*)(pl + 12);
-        if (cls == 2 && *(u32*)(pl + 240) == lbl_80343D6C) {
+        cls = *(s32*)(pl + offsetof(Player, character));
+        if (cls == 2 && *(u32*)(pl + offsetof(Player, hidden_code)) == lbl_80343D6C) {
             setup_tex(player, 8, 0, 0, pool + 232);
         } else {
             setup_tex(player, 8, 0, 0, lbl_80347F58,
@@ -2553,7 +2553,7 @@ substate:
     case 4:
         tmp = *(StrBlock4*)(pool + 80);
         mbBlitInit3414(*(void**)eWeap, 1);
-        spec = *(s32*)(pl + 16);
+        spec = *(s32*)(pl + offsetof(Player, respawn_char));
         if (spec < 8) {
             known = 1;
         } else {
@@ -2564,7 +2564,7 @@ substate:
         }
         if (known != 0) {
             texName = tmp.s[0];
-            extra = lbl_80120104[*(s32*)(pl + 4)];
+            extra = lbl_80120104[*(s32*)(pl + offsetof(Player, class_id))];
             qfmt = 0;
         } else {
             qfmt = pool + 848;
@@ -2580,7 +2580,7 @@ substate:
         if (texName != 0) {
             (void)pbLoad;
             setup_tex(player, 8, 0, 0, lbl_80347F58,
-                      lbl_801200B0[*(s32*)(pl + 16)]);
+                      lbl_801200B0[*(s32*)(pl + offsetof(Player, respawn_char))]);
         } else {
             mbBlitInit3414(*(void**)eB, 1);
             mbBlitInit3414(*(void**)eC, 1);
