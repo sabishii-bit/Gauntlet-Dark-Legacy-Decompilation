@@ -2020,20 +2020,20 @@ int setup_file_entries(u8* pl, s32 fromLoad)
             e = eb + *(s32*)pl * 324;
             e += entOff;
             *(u32*)e = (u32)(row + nameOff + 8);
-            *(s32*)(e + 4) = k + 1000;
-            *(s32*)(e + 32) = 0;
-            *(s32*)(e + 8) = 4;
+            *(s32*)(e + offsetof(VmuMenuEntry, id)) = k + 1000;
+            *(s32*)(e + offsetof(VmuMenuEntry, state)) = 0;
+            *(s32*)(e + offsetof(VmuMenuEntry, type)) = 4;
             if (fromLoad == 0) {
                 if (strncmp((char*)*(u32*)e, lbl_80348018, 5) == 0) {
-                    *(s32*)(e + 32) = -1;
+                    *(s32*)(e + offsetof(VmuMenuEntry, state)) = -1;
                 } else {
                     ok = 0;
                 }
             }
             if (verify_vmu_file_ok(pl, k) == 0) {
-                *(s32*)(e + 32) = -1;
+                *(s32*)(e + offsetof(VmuMenuEntry, state)) = -1;
             }
-            if (*(volatile s32*)(e + 32) == 0) {
+            if (*(volatile s32*)(e + offsetof(VmuMenuEntry, state)) == 0) {
                 continue;
             }
         }
