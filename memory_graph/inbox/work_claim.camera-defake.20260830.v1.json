@@ -1,0 +1,13 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "scope": "whole TU src/game/world/camera.c exclusively; de-fakematch campaign pass only, not a retry of the parked exact-closure axis; source file only unless integrator approves a shared-header change; parallel fleets pick another TU"
+  },
+  "claimed_at": "2026-08-30",
+  "function": "function:camera_mode_follow",
+  "id": "work_claim.camera-defake.20260830.v1",
+  "kind": "work_claim",
+  "owner": "codex-fleet-worker-camera",
+  "schema_version": 1,
+  "state": "active"
+}
