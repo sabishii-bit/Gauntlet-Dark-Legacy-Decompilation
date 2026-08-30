@@ -1,0 +1,15 @@
+{
+  "attempted_axis": "wave-2 pass over src/game/world/items.c (work_claim.items-defake2.20260830.v1): close wave1's 3 leave-raw sites -- gCurLevel+0xCC..0xDC via include/game/leveldata.h, SetItem's recorded wobj+0x10 boundary write via an offsetof-fused counter-form, InitItemInfoData's unmapped ItemRuntime tail (research only).",
+  "attributes": {
+    "axis_log": "gCurLevel: 6 SetItem sites (gen_max/gen_rate/gen_health x2/trap_damage/trap_rate) -> offsetof(level_data,field) on the UNRETYPED raw gCurLevel (retyping the extern would corrupt out-of-scope +236/240/252/264 byte arithmetic elsewhere in this TU); fnasm confirmed each site is a fresh gCurLevel reload + one plain-immediate lfs, zero codegen-shape risk, fndiff --ops byte-identical before/after. wobj+0x10: offsetof(WorldObj,flags) on raw wobj closed the recorded boundary case (2 prior typed forms regressed 528->739) -- wobj is index-computed ONCE (wobj_index*0x3C, no loop) then touches 3 nearby fields in a straight-line block, confirming claim.law.multifield-alias-defeats-indexed-addressing's scope extends past its recorded per-iteration-loop examples; superseded that claim to v2 with this 3rd confirmation. InitItemInfoData: sItemRuntime .bss symbol is only 0xBB8; the C struct already spans 8 more adjacent bss globals past that (symbols.txt-confirmed chain); wave1's raw tail (+0x7478..0x74C8) continues the SAME chain as lbl_8025EC68/78/88/98/A8+lbl_8025ECB8, and fnasm confirms the target relocates all 6 offsets against @sItemRuntime itself (not the split lbl_ names, per claim.law.walked-base-symbol-identity). Xbox PDB search (game.h/misc.h/xbox_structs.tsv; Item/ItemRuntime/ItemGlobal/SeeThrough) found no name -> left raw per 'never invent names'; hands next worker the exact symbol/size table instead of a bare magic-number gap.",
+    "measurements": "SetItem real 528 unchanged, insns 1306/1306 unchanged, --ops diff byte-identical pre/post for all 7 converted sites. Full ninja green, main.dol OK (sha1 7cba77aa...9635d679). No sibling regression: RegisterItemWobj 74, update_player_milestone 46 both unchanged; WEBFRANK per-fn adjustment counts identical before/after for every other items.c function.",
+    "reproduction": "ninja build/GUNE5D/src/game/world/items.o && python tools/gdl/fndiff.py game/world/items.c SetItem --count --ops"
+  },
+  "function": "function:SetItem",
+  "id": "attempt.items-c-defakematch-tupass.20260830.v2",
+  "kind": "attempt",
+  "outcome": "improved",
+  "schema_version": 1,
+  "supersedes": "attempt.items-c-defakematch-tupass.20260830.v1",
+  "valid_from": "2026-08-30"
+}
