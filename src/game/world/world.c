@@ -681,7 +681,8 @@ s32 LoadWorldDone(char* name) {
     lbl_80344D80 = 0;
     if (name != 0 && FileExists(name, "worlds") != 0) {
         freeBefore = BytesFree();
-        *(modelp = (s32*)(base + 360)) = MBOX_AllocModel(name);
+        *(modelp = (s32*)(base + 228 + offsetof(WorldInfo, model))) = /* gWorldInfo.model */
+            MBOX_AllocModel(name);
         lbl_80344D80 += freeBefore - BytesFree();
         memBase = mlmMemUsed;
         bulletproof_printf(lbl_80115214, name, memBase);
@@ -693,15 +694,16 @@ s32 LoadWorldDone(char* name) {
         world_load_state = -1;
         return -1;
     }
-    *(s32*)(base + 364) = 0;
+    *(s32*)(base + 228 + offsetof(WorldInfo, whitetex)) = 0; /* gWorldInfo.whitetex */
     lbl_80344DA0 = 0;
     strcpy(base, name);
     if (FileExists(name, "anim") != 0) {
         size = FileSize(name, "anim");
-        *(s32*)(base + 356) = (s32)AllocMem(size);
+        *(s32*)(base + 228 + offsetof(WorldInfo, atreelist)) = /* gWorldInfo.atreelist */
+            (s32)AllocMem(size);
         lbl_80344D84 += size;
     } else {
-        *(s32*)(base + 356) = 0;
+        *(s32*)(base + 228 + offsetof(WorldInfo, atreelist)) = 0; /* gWorldInfo.atreelist */
     }
     bulletproof_printf(lbl_80115230, mlmMemUsed,
                        (mlmMemUsed - memBase) >> 10);
