@@ -370,6 +370,11 @@ Cross-fleet concurrency (multiple independent agent fleets sharing `main`):
 - The graph inbox is the cross-fleet mailbox: records land there
   fleet-by-fleet, and each fleet accepts only its own proposals into
   `records/`. Never move, edit, or delete another fleet's inbox files.
+- **Commit with explicit pathspecs in the shared checkout**
+  (`git commit <paths> -m ...`), never a bare `git commit` after `git add`:
+  the index is shared, and a bare commit sweeps in whatever another fleet
+  has staged — this silently reverted a merged TU once (world.c,
+  2026-08-30, repaired) when a stale foreign-staged copy rode along.
 - **Never run `git clean` in the shared main checkout.** Every "mystery
   deletion" incident of 2026-08-30 (downloaded compilers/binutils/objdiff
   under `build/`, the retail `orig/GUNE5D/sys/main.dol`) matches `git
