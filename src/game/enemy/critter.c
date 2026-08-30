@@ -1926,12 +1926,11 @@ void CritterGetTargetPlayers(Critter *c)
             } else {
                 ratio = base / damage;
                 if (ratio < pt01) {
-                    result = pt01;
+                    ratio = pt01;
                 } else if (ratio > lbl_80343BEC) {
-                    result = lbl_80343BEC;
-                } else {
-                    result = ratio;
+                    ratio = lbl_80343BEC;
                 }
+                result = ratio;
             }
             *(f32 *)&record.words10[0] = result;
             record.distance = record.distance * *(f32 *)&record.words10[0];

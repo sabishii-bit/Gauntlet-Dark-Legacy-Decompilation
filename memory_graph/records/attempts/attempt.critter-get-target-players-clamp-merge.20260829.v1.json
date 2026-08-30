@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "exact closure of the damage-ratio clamp through float/double temporary types, direct and nested clamp control flow, ternary selection, declaration and assignment order, numerator seeding, mutable ratio, and distinct-SSA value carriers",
+  "attributes": {
+    "anchors": "src/game/enemy/critter.c::CritterGetTargetPlayers; target .text 0x80036FBC size 0x200; python tools/gdl/fnasm.py game/enemy/critter CritterGetTargetPlayers; python tools/gdl/fndiff.py game/enemy/critter CritterGetTargetPlayers --count|--ops|--clean; ninja build/GUNE5D/src/game/enemy/critter.o; ninja build/GUNE5D/report.json",
+    "baseline": "target/current 128/128 instructions, objdiff fuzzy 97.66%, fndiff real 20, 0x80-byte frame, saves r28-r31/f27-f31; residual class STRUCTURAL",
+    "final_state": "target/current 128/128 instructions, objdiff fuzzy 98.125%, fndiff real 18, 0x80-byte frame, saves r28-r31/f27-f31; calls, loop architecture, relocations, and stack slots unchanged",
+    "negative_axes": "the historical nested f64 clamp temporary reached 129 instructions/real 45; a direct f32 ratio reached 128/real 26; declaration and assignment reordering reproduced the 20-diff baseline; direct f32/f64 ternaries reached 129/real 45; a distinct unbounded/default-maximum SSA carrier reached 129/real 43; seeding ratio from the numerator reached 127/real 63 and emitted fdiv; a double result with one final conversion reached 129/real 45; all were reverted",
+    "policy": "retain the mutable-ratio improvement. Do not retry the listed temporary-type, ternary, declaration/order, numerator-seeding, or distinct-SSA axes unless surrounding code changes or a genuinely new target-backed dependency is found. The residual is structural and is not eligible for register-only WebFrank correction.",
+    "remaining_residual": "ours preserves the unclamped quotient with one extra fmr before the lower-bound branch and omits the target unconditional branch in the upper-bound arm; the damage/base FPR allocation is reversed (ours damage f0/base f1, target damage f1/base f0), which also reverses the upper-bound constant/quotient compare roles",
+    "retained_improvement": "mutate the f64 ratio through the lower and upper clamp arms, then assign the f32 result once after the arms merge; this removes two real diff lines and raises fuzzy matching by 0.465 percentage points without changing semantics, instruction count, frame, calls, or CFG",
+    "semantic_audit": "complete target assembly reviewed: health early exit, four-player eligibility loop, boss-state type gate, position collection, CritterCalcTarget call, particle threshold, fx-hit distance scaling, damage ratio clamp, CritterInsertTarget call, and target-count scratch accumulation all retain target semantics and architecture"
+  },
+  "function": "function:CritterGetTargetPlayers",
+  "id": "attempt.critter-get-target-players-clamp-merge.20260829.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
