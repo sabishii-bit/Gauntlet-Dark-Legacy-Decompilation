@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "portable-C exact closure of the negative-texidx exit edge via positive nested/goto forms, early return, propagation/dead-code/peephole controls, loop/switch break forms, dominated conditions, and a retained complementary-condition CFG",
+  "attributes": {
+    "anchors": "src/game/anim/atree.c::InitTexMods at target 0x80010B4C; python tools/gdl/fnasm.py game/anim/atree InitTexMods; python tools/gdl/fndiff.py game/anim/atree InitTexMods --count --ops --clean; ninja build/GUNE5D/src/game/anim/atree.o; ninja",
+    "attempts": "positive nested and positive-goto forms, early return, opt_propagation off, opt_dead_code off, do/switch break and continue forms compiled identically to the 26-instruction baseline; peephole off worsened to 29 instructions/18 real; while-return worsened to 28/11; dominated seq != NULL worsened to 28/11; equality/repeated-condition forms reached 27/27 and real 2 but retained a conditional exit opcode",
+    "baseline": "target/current 27/26 instructions, fuzzy 95.92593%, real 9, frame 0x20, saves r28-r31; STRUCTURAL cmpwi+bge+b versus cmpwi+blt",
+    "best": "target/current 27/27 instructions, fuzzy 97.77778%, real 2, frame 0x20, saves r28-r31; only target unconditional b versus compiled blt remains",
+    "retained_shape": "test texidx >= 0 and goto the loop label, then test the complementary texidx < 0 and goto the common exit; this is exhaustive for signed int and preserves the target bge plus a second exit-edge instruction",
+    "verification": "owning object and full ninja build passed with main.dol checksum OK; matchtool sibling residuals remained DoAnimateTreeFrame=38, fn_80011BBC=6, fn_80011DCC=42, fn_8001267C=L-10/D1008, AtreeInitSub=38; project fuzzy 97.65791% to 97.65810%, matched code unchanged at 57.787098%; datadiff reported the TU's existing unclaimed .rodata/.data/.sdata2 sections and no source data declarations changed"
+  },
+  "function": "function:InitTexMods",
+  "id": "attempt.inittexmods-portable-branch-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "retained_improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
