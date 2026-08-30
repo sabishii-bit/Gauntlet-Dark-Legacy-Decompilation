@@ -4062,7 +4062,7 @@ s32 PlayerCollidePlayers(Player* p, f32 range, f32 p3, f32* from, f32* to,
         if (op->state != 1 && op->state != 4) {
             continue;
         }
-        if ((PF(op, 0x964, s16) & 0x20) != 0) {
+        if ((op->hud_flags & 0x20) != 0) {
             continue;
         }
         dot = (op->effectpos[0] - from[0]) * (to[0] - from[0]) +
@@ -4071,7 +4071,7 @@ s32 PlayerCollidePlayers(Player* p, f32 range, f32 p3, f32* from, f32* to,
             continue;
         }
         if (LineCylinderCollide(op->effectpos,
-                                range + PF(op, 0x850, f32), p3,
+                                range + op->col_radius, p3,
                                 from, to, hit, 1) == 0) {
             continue;
         }
@@ -4092,7 +4092,7 @@ s32 PlayerCollidePlayers(Player* p, f32 range, f32 p3, f32* from, f32* to,
         f32 dist = fqdist(ex, ez);
 
         if (dist > lbl_80347D68) {
-            f32 scale = (range + PF(cp, 0x850, f32) - dist) / dist;
+            f32 scale = (range + cp->col_radius - dist) / dist;
             out[0] = ex * scale + to[0];
             out[1] = lbl_80347B30 * scale + to[1];
             out[2] = ez * scale + to[2];
