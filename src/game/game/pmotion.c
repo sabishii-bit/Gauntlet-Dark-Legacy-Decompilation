@@ -1438,7 +1438,7 @@ void PlayerMotion(Player* p) {
     goto collision_done;
 
 detach_floor:
-    PF(p, 0x8C4, WorldObj*) = NULL;
+    SV(p)->floor_obj = 0;
     MBNodeSetParent(p->node, lbl_80344B2C);
     p->hud_flags |= 1;
     p->floor_base = lbl_80344880;
