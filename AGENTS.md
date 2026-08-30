@@ -350,6 +350,15 @@ Cross-fleet concurrency (multiple independent agent fleets sharing `main`):
 - The graph inbox is the cross-fleet mailbox: records land there
   fleet-by-fleet, and each fleet accepts only its own proposals into
   `records/`. Never move, edit, or delete another fleet's inbox files.
+- **Never delete anything under `orig/`.** The README's note that "the disc
+  image can be deleted" refers to the user's disc-image file (ISO/RVZ)
+  only — `orig/GUNE5D/sys/main.dol` and the extracted files are shared,
+  load-bearing input for every fleet's build (the file carries a
+  read-only attribute as a guard; do not clear it). It has been deleted
+  by an unidentified fleet process at least twice (2026-08-30). If it is
+  missing, restore it from any verified `build/GUNE5D/main.retail.dol`
+  (SHA-1 `7cba77aa496eb0fc5ffec60efd9680aa9635d679`, byte-identical to
+  retail by construction), verify the hash, and report the incident.
 - Worktree plumbing: the fleets drive this repository with different git
   flavors, whose worktree add/remove churn rewrites the shared registry
   (`.git/worktrees/*/gitdir` and each worktree's `.git` link) in
