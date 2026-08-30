@@ -122,6 +122,36 @@ typedef struct SaveFileBlock {
     u32 w[1293];                   /* one 5172-byte per-file save data block */
 } SaveFileBlock;
 
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
+
+/* one 16-byte directory entry (lbl_80274578 table row) */
+typedef struct DirEntry {
+    u32 size;                      /* +0 */
+    u32 time;                      /* +4 */
+    char name[8];                  /* +8 */
+} DirEntry;
+
+/* one dir-info table block: 8 entries + trailing count/flag word (stride
+ * 132 = 8*16+4, per the lbl_80274578 comment); init_all_dir_info's
+ * post-loop write to base+128 is this trailing word. */
+typedef struct DirTable {
+    DirEntry entries[8];           /* +0 (128 bytes) */
+    u32 count;                     /* +128 */
+} DirTable;
+
+/* the staged save record at lbl_80343C74 (opts@+8, dir@+0xA1C8 per the
+ * existing extern comment; 0xA1C8 == 41416 == offsetof(files)+8*5172, and
+ * 41416+128 == 41544 == sizeof(SaveBlob), confirming the layout). */
+typedef struct SaveRecord {
+    u32 checksum;                  /* +0: byte-sum checksum */
+    u32 okay;                      /* +4: "OKAY" magic 0x4F4B4159 */
+    GameOpts opts;                 /* +8 (32 bytes) */
+    SaveFileBlock files[8];        /* +40 (8*5172 = 41376 bytes) */
+    u8 dir[128];                   /* +41416 */
+} SaveRecord;
+
 #define MEMCARD_STRING_POOL                                                    \
     "Finish save cache transaction......\n\0\0\0\0"                           \
     "Beginning save cache transaction......\n\0"                               \
@@ -248,7 +278,7 @@ int add_vmu_file(int a, int b, int c, const char* name, u32 v0, u32 v1)
     rec = row + c * 16;
     strncpy((char*) (rec + 8), name, 8);
     *(u32*) rec = v0;
-    *(u32*) (rec + 4) = v1;
+    *(u32*) (rec + offsetof(DirEntry, time)) = v1;
     if ((u8) beginSaveCacheTransaction() == 1) {
         result = 1;
     } else {
@@ -529,7 +559,7 @@ int saveSave(int port, int slot, int fileNo, void* src)
     beginSaveTransaction();
     lbl_80344A04 = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x2D44C0);
     loadGauntletSave();
-    *(GameOpts*) ((u8*) lbl_80343C74 + 8) = gameOpts;
+    *(GameOpts*) ((u8*) lbl_80343C74 + offsetof(SaveRecord, opts)) = gameOpts;
     ((SaveFileBlock*) ((u8*) lbl_80343C74 + 40))[fileNo] =
         *(SaveFileBlock*) src;
     memcpy((u8*) lbl_80343C74 + 41416, lbl_80274578, 128);
@@ -598,7 +628,7 @@ void check_prefs_loaded(void)
     }
     prefs_loaded = 1;
     if ((u8) beginSaveCacheTransaction()) {
-        *opts = *(GameOpts*) ((u8*) lbl_80343C74 + 8);
+        *opts = *(GameOpts*) ((u8*) lbl_80343C74 + offsetof(SaveRecord, opts));
     }
     cardExit();
     cardWaitResult();
@@ -631,12 +661,12 @@ void init_all_dir_info(void)
         u8* e = base + off;
 
         *(s32*) e = fill;
-        *(s32*) (e + 4) = fill;
+        *(s32*) (e + offsetof(DirEntry, time)) = fill;
         strcpy((char*) (e + 8), lbl_803472D8);
         i++;
         off += 16;
     } while (i < 8);
-    *(s32*) (base + 128) = zero;
+    *(s32*) (base + offsetof(DirTable, count)) = zero;
     lbl_803449F0 = 0x10000 - 1400;
     cardInit();
     lbl_80344A24 = 0;
@@ -667,7 +697,7 @@ int MemCardCreateGaunt(int port, int slot)
         u8* e = base + i * 16;
 
         *(s32*) e = -1;
-        *(s32*) (e + 4) = -1;
+        *(s32*) (e + offsetof(DirEntry, time)) = -1;
         strcpy((char*) (e + 8), lbl_803472D8);
         i++;
     } while (i < 8);
@@ -683,7 +713,7 @@ int MemCardCreateGaunt(int port, int slot)
     beginSaveTransaction();
     lbl_80344A04 = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x2D44C0);
     loadGauntletSave();
-    *(GameOpts*) ((u8*) lbl_80343C74 + 8) = gameOpts;
+    *(GameOpts*) ((u8*) lbl_80343C74 + offsetof(SaveRecord, opts)) = gameOpts;
     memcpy((u8*) lbl_80343C74 + 41416, lbl_80274578, 128);
     memset((u8*) lbl_80343C74 + 40, 0, 0x10000 - 24160);
     writeGauntletSave();
@@ -900,7 +930,7 @@ int InitPreferences(void)
         lbl_80344A04 = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x2D44C0);
         if ((u8) loadGauntletSave()) {
             ret = 1;
-            gameOpts = *(GameOpts*) ((u8*) lbl_80343C74 + 8);
+            gameOpts = *(GameOpts*) ((u8*) lbl_80343C74 + offsetof(SaveRecord, opts));
         } else {
             ret = 0;
         }
@@ -1277,7 +1307,7 @@ retry:
                 for (n = bigSize - 23992; n != 0; n--) {
                     sum += *q2++;
                 }
-                if (saved == sum && *(u32*)(q + 4) == 0x4F4B4159) {
+                if (saved == sum && *(u32*)(q + offsetof(SaveRecord, okay)) == 0x4F4B4159) {
                 } else {
                     saveMenuPrompt(rpool + 736, lbl_80343C68, 1);
                     switch (CARDDelete(0, dpool + 1904)) {
@@ -1475,7 +1505,7 @@ mount_cont:
                          (const char*) (rpool + 716));
     count = big - 23992;
     sum = 0;
-    *(u32*) (lbl_80343C74 + 4) = okay;                 /* "OKAY" */
+    *(u32*) (lbl_80343C74 + offsetof(SaveRecord, okay)) = okay; /* "OKAY" */
     *(u32*) lbl_80343C74 = sum;
     p = lbl_80343C74;
     q = p;
@@ -1519,6 +1549,18 @@ mount_cont:
     cardWaitResult();
     return 1;
 }
+
+/* one cardLock()-scanned directory entry: fileNo lives at +23104 within a
+ * 23360-byte stride.  Verified two independent ways: loadGauntletSave and
+ * this function both hardcode the same 23360/256 pair, and algebraically
+ * `off - 256 == (off - 23360) + 23104` - i.e. the pre-decrement "off-256"
+ * read below is the SAME address as the post-decrement "entry+23104" read,
+ * just computed one iteration early. */
+typedef struct CardDirEntry {
+    u8 unknown[23104];
+    s32 fileNo;                       /* +23104 */
+    u8 unknown2[23360 - 23104 - 4];   /* +23108: trailing bytes unresolved */
+} CardDirEntry;
 
 /*
  * vmu_exists - mount the card, load its directory, and search for a file
@@ -1564,7 +1606,8 @@ u8 vmu_exists(s32 chan, const char* name, s32* fileNoOut)
         goto initLoop;
 loopBody:
         {
-            s32 fileNo = *(s32*) (buf + off - 256);
+            s32 fileNo = *(s32*) (buf + off -
+                                  (sizeof(CardDirEntry) - offsetof(CardDirEntry, fileNo)));
             volatile u8 _pad0[12];
             char stat[108];
             volatile u8 _pad1[12];
@@ -1575,7 +1618,7 @@ loopBody:
             if (strcmp(stat, name) == 0) {
                 u8* entry = buf + off;
 
-                *fileNoOut = *(s32*) (entry + 23104);
+                *fileNoOut = *(s32*) (entry + offsetof(CardDirEntry, fileNo));
                 found = 1;
                 goto loopEnd;
             }
@@ -1621,6 +1664,40 @@ void cardRemovedCallback(int arg)
 }
 
 /*
+ * buildSaveImage's scratch header, assembled at pool+0x10000-19388 (108
+ * bytes total, matching the whole-struct `memset(..., 0, 108)` at the top
+ * of the function).  Field offsets verified against the target's
+ * -19388/-19356/-19342/-19340/-19336 literal displacements; the pad
+ * regions between them are genuinely unresolved.
+ */
+typedef struct SaveImageHeader {
+    char name[32];      /* +0:  save name */
+    s32 imageSize;       /* +32: total built image byte size */
+    u8 pad1[10];          /* +36: unresolved */
+    u8 bannerFmt;          /* +46: banner CI/RGB5A3 format (1=CI,2=RGB5A3); fmtB ORed in */
+    u8 pad2;                /* +47: unresolved */
+    s32 dataOffset;         /* +48: cursor past name+comment (64) */
+    u16 iconFmt;             /* +52: 2 bits/frame icon texture format */
+    u16 iconSpeed;            /* +54: 2 bits/frame icon animation speed */
+    s32 reserved;              /* +56: zeroed, unresolved */
+    u8 pad3[48];                 /* +60..+107 */
+} SaveImageHeader;
+
+/* buildSaveImage's `hi`/`sizeHi`/`hi2` locals (and `pool+0x10000` directly)
+ * all equal SaveImageHeader's base address PLUS 19388; SIH_OFF folds a
+ * field's negative displacement from that point back to the same literal
+ * MWCC already emits (19388 - offsetof == the original bare-hex constant). */
+#define SIH_OFF(field) (19388 - offsetof(SaveImageHeader, field))
+
+/* mirrors game/sys/texPalette.c's TEXHeader (format @ +4); TEXGet actually
+ * returns a TEXDescriptorPtr {TEXHeaderPtr; CLUTHeaderPtr;}, so `tex[0]` is
+ * the TEXHeaderPtr this views. */
+typedef struct TexHeaderView {
+    u8 pad0[4];
+    u32 format;        /* +4 */
+} TexHeaderView;
+
+/*
  * buildSaveImage - serialize the GCI save image: file name + comment, then
  * the banner (uncompressed/CI) and up to 8 animated icon frames pulled from
  * the texture bank.  Returns the write cursor past the image.
@@ -1651,8 +1728,8 @@ u8* buildSaveImage(const char* name, void* hdr, int bannerTex, int iconTex,
     total = (total + cardGetTotalBytes() - 1) / blockSize;
     bytes = total * cardGetTotalBytes();
     sizeHi = pool + 0x10000;
-    sizePtr = (s32*) (sizeHi - 19356);
-    *(s32*) (sizeHi - 19356) = bytes;
+    sizePtr = (s32*) (sizeHi - SIH_OFF(imageSize));
+    *(s32*) (sizeHi - SIH_OFF(imageSize)) = bytes;
 
     if (lbl_803449F8 == 0) {
         lbl_803449F8 = (u32) OSAllocFromHeap(__OSCurrHeap, *(u32*) sizePtr);
@@ -1662,30 +1739,30 @@ u8* buildSaveImage(const char* name, void* hdr, int bannerTex, int iconTex,
     strncpy((char*) (pool + 0x10000 - 19388), name, 32);
     out = (u8*) lbl_803449F8;
     hi = pool + 0x10000;
-    *(s32*) (hi - 19332) = 0;
+    *(s32*) (hi - SIH_OFF(reserved)) = 0;
     strncpy((char*) out, (char*) hdr + 6176, 32);
     strncpy((char*) (out + 32), comment, 32);
-    *(s32*) (hi - 19340) = (s32) ((out + 64) - (u8*) lbl_803449F8);
+    *(s32*) (hi - SIH_OFF(dataOffset)) = (s32) ((out + 64) - (u8*) lbl_803449F8);
 
     /* banner */
     if ((u32) bannerTex == 0) {
-        *(u8*) (hi - 19342) = 2;
+        *(u8*) (hi - SIH_OFF(bannerFmt)) = 2;
         memcpy(out + 64, (u8*) hdr + 32, 6144);
         out += 6208;
     } else {
         void** tex = (void**) TEXGet(bannerTex, 0);
 
-        switch (*(s32*) ((u8*) tex[0] + 4)) {
+        switch (*(s32*) ((u8*) tex[0] + offsetof(TexHeaderView, format))) {
         case 5:
-            *(u8*) (hi - 19342) = 2;
+            *(u8*) (hi - SIH_OFF(bannerFmt)) = 2;
             break;
         case 9:
-            *(u8*) (hi - 19342) = 1;
+            *(u8*) (hi - SIH_OFF(bannerFmt)) = 1;
             break;
         default:
             OSPanic(rpool + 608, 856, rpool + 920);
         }
-        if ((*(u8*) (pool + 0x10000 - 19342) & 3) == 2) {
+        if ((*(u8*) (pool + 0x10000 - SIH_OFF(bannerFmt)) & 3) == 2) {
             memcpy(out + 64, ((u8**) tex[0])[2], 6144);
             out += 6208;
         } else {
@@ -1697,8 +1774,8 @@ u8* buildSaveImage(const char* name, void* hdr, int bannerTex, int iconTex,
 
     /* icon animation frames */
     if ((u32) iconTex != 0) {
-        u16* fmtW = (u16*) (hi - 19336);
-        u16* animW = (u16*) (hi - 19334);
+        u16* fmtW = (u16*) (hi - SIH_OFF(iconFmt));
+        u16* animW = (u16*) (hi - SIH_OFF(iconSpeed));
         u16* clearAnimW;
         s32 lastFrame;
         s32 j;
@@ -1709,7 +1786,7 @@ u8* buildSaveImage(const char* name, void* hdr, int bannerTex, int iconTex,
              i++, bit += 2) {
             void** tex = (void**) TEXGet(iconTex, i);
 
-            switch (*(s32*) ((u8*) tex[0] + 4)) {
+            switch (*(s32*) ((u8*) tex[0] + offsetof(TexHeaderView, format))) {
             case 5: {
                 u32 mask = 3;
                 u32 oldFmt = *fmtW;
@@ -1740,20 +1817,20 @@ u8* buildSaveImage(const char* name, void* hdr, int bannerTex, int iconTex,
             *animW = (u16) ((*animW & ~(3 << bit)) | (fmtA << bit));
         }
 
-        clearAnimW = (u16*) (pool + 0x10000 - 19334);
+        clearAnimW = (u16*) (pool + 0x10000 - SIH_OFF(iconSpeed));
         for (bit = i << 1; i < 8; i++, bit += 2) {
             *clearAnimW &= ~(3 << bit);
         }
 
         hi2 = pool + 0x10000;
-        *(u8*) (hi2 - 19342) |= fmtB;
+        *(u8*) (hi2 - SIH_OFF(bannerFmt)) |= fmtB;
         lastFrame = -1;
         for (j = 0, bit = 0;
              (u32) j < ((TexAnimHdr*) iconTex)->numFrames && j < 8;
              j++, bit += 2) {
             void** tex = (void**) TEXGet(iconTex, j);
 
-            switch ((*(u16*) (hi2 - 19336) >> bit) & 3) {
+            switch ((*(u16*) (hi2 - SIH_OFF(iconFmt)) >> bit) & 3) {
             case 2:
                 memcpy(out, ((u8**) tex[0])[2], 2048);
                 out += 2048;
@@ -1917,6 +1994,26 @@ void pageSaveCacheOut(void)
 }
 
 /*
+ * Minimal view of *gWinGlobals's `banks` field.  gWinGlobals is one large,
+ * per-TU-polymorphic global (same 0x80344FC0 symbol as game/pb/pb_winglobals.c's
+ * PbWGGlobals): that TU's verified layout places a PbWGBankRef* at +0x30
+ * (48), matching this function's `win+48` displacement exactly.  Only the
+ * one field this function reads (the ref's own `bank` pointer, at +4 in
+ * PbWGBankRef) is modeled; the further `bank+12` read below has no
+ * corroborating field name in either TU (pb_winglobals.c also leaves that
+ * region as opaque padding) and is left raw.
+ */
+typedef struct WinGlobalsBankRef {
+    s32 count;      /* +0 */
+    void* bank;      /* +4, mirrors pb_winglobals.c's PbWGBankRef.bank */
+} WinGlobalsBankRef;
+
+typedef struct WinGlobalsView {
+    u8 pad[0x30];                    /* +0: unmodeled here */
+    WinGlobalsBankRef* banks;        /* +0x30, mirrors PbWGGlobals.banks */
+} WinGlobalsView;
+
+/*
  * drawMemCardMessage - render one frame of a modal memory-card dialog: a
  * multi-line message plus an optional column of `count1` selectable options
  * (item `count2` highlighted).  Uses the game's window / message-blit / text
@@ -1952,8 +2049,9 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
     MBHideMarkedMessages();
     MBLockMessages(gModalRenderDepth - 1);
 
-    if (gWinGlobals != 0 && *(void**) ((u8*) win + 48) != 0) {
-        extra = (u8*) *(void**) ((u8*) win + 48) + 4;
+    if (gWinGlobals != 0 && *(void**) ((u8*) win + offsetof(WinGlobalsView, banks)) != 0) {
+        extra = (u8*) *(void**) ((u8*) win + offsetof(WinGlobalsView, banks)) +
+                offsetof(WinGlobalsBankRef, bank);
     }
     if (extra != 0 && *(s32*) ((u8*) extra + 12) == 0 &&
         strcmp((char*) lbl_802A5D1C, lbl_80347368) == 0) {
