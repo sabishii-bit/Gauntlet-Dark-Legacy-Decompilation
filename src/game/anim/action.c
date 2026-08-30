@@ -1077,11 +1077,14 @@ void DoPlayerAction(void* player)
     case 0x4F:
     case 0x50:
         if (next == 0x4F) {
+            s32 gapAct;
+
             if (cur == 0x4F) {
-                act = 0x50;
+                gapAct = 0x50;
             } else {
-                act = 0x4F;
+                gapAct = 0x4F;
             }
+            act = gapAct;
         } else {
             act = 0x51;
         }
@@ -1143,13 +1146,17 @@ void DoPlayerAction(void* player)
         }
         break;
     case 0x5F:
-    case 0x60:
+    case 0x60: {
+        s32 gapAct;
+
         if (cur == 0x5F) {
-            act = 0x61;
+            gapAct = 0x61;
         } else {
-            act = 0x62;
+            gapAct = 0x62;
         }
+        act = gapAct;
         break;
+    }
     case 0x61:
     case 0x62:
         if (atkNext == 1) {
@@ -1167,11 +1174,14 @@ void DoPlayerAction(void* player)
         } else if (cur == 0x73 || cur == 0x75) {
             mode = 2;
         } else if (cur == 0x65) {
+            s32 gapAct;
+
             if (next == 0x65) {
-                act = 0x66;
+                gapAct = 0x66;
             } else {
-                act = 0x65;
+                gapAct = 0x65;
             }
+            act = gapAct;
         }
         break;
     case 0x6B:
