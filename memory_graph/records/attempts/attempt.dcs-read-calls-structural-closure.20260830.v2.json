@@ -1,0 +1,21 @@
+{
+  "attempted_axis": "target-backed portable-C structural reconstruction plus fakematch-quality audit of bank call-table addressing",
+  "attributes": {
+    "anchors": "src/game/audio/dcs.c::dcsReadCalls; GameCube target 0x800D2CEC size 0x3C8; commits fee11e7e2/1ea967003 (rebased on main as fd39630ac); python tools/gdl/fndiff.py game/audio/dcs dcsReadCalls --count/--ops/--clean",
+    "axis_log": "retained raw dcsBankData base with +0x26080/+0x27080 table views, grouped end-pointer indexing, and a reused instruction counter; count/string declaration hints, no-base-local, typed DcsData pointer casts, and unsigned count did not improve and were restored",
+    "baseline_and_best": "target/current 242/249 -> 242/243 instructions; fuzzy 91.15% -> 98.65703%; real 167 -> 125; frame remains 0x38; saved set improves from r25-r31 to target r24-r31",
+    "reconstruction_debt": "STAGED FAKEMATCH DEBT: u8* data plus numeric +0x26080/+0x27080 casts is codegen-driven raw-offset arithmetic even though DcsData.callStart and callInstr are known. Target symbols also show callInstr begins at a separate symbol boundary. Retain the verified gain, but do not treat this spelling as final reconstructed source.",
+    "remaining_residual": "One prologue address-materialization order difference plus an r26/r27/r28 register cycle; do not retry recorded string/init, declaration-hint, unsigned-count, no-base-local, or typed-pointer-cast axes without a new target-backed dependency.",
+    "semantic_audit": "Both target format branches were audited end-to-end: aligned 16-byte records, optional word swaps, variable u16 call scanning, capacity/EOF checks, counters, diagnostics, result paths, and final size check agree with the target CFG.",
+    "typed_cleanup_path": "Seek a dedicated typed DcsCallTables/aggregate view that preserves grouped indexing and allocation. Also replace header[1]/header[3] with target-verified VagBankHeader size/nCall fields once that PDB type is indexed. gdlmem struct currently returns no DcsData or VagBankHeader row.",
+    "verification": "owning object, sibling audit, data audit, full ninja and DOL checksum passed; post-integration full gate passed at 97.80% fuzzy and 58.15% exact matched"
+  },
+  "function": "function:dcsReadCalls",
+  "id": "attempt.dcs-read-calls-structural-closure.20260830.v2",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.dcs-read-calls-structural-closure.20260829.v1",
+  "valid_from": "2026-08-30"
+}

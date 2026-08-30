@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "portable-C typed slot reconstruction, exact-closure search, and fakematch-quality audit",
+  "attributes": {
+    "anchors": "src/game/ps2/fakelib.c::sceOpen; target 0x800AF02C size 0x18C; commits 314919a3b/2e956a13e (rebased on main as 016752085); python tools/gdl/fndiff.py game/ps2/fakelib.c sceOpen --count/--ops/--clean",
+    "axis_log": "corrected SCEFILE to the target's 88-byte slot stride and used typed 88-byte file-slot and 16416-byte buffer-slot indexing; pointer/integer base, declaration order, direct globals, raw expression association, offset hoist, and direct fileInfo member variants were no-op or worse and restored",
+    "baseline_and_best": "target/current remains 99/99 instructions; fuzzy 93.181816% -> 97.42104%; real 28 -> 24; frame remains 0xD0 with r27-r31 saved",
+    "quality_audit": "PLAUSIBLE STAGED RECONSTRUCTION: 88-byte SCEFILE is target-backed by mulli 88 and the embedded GameCube DVDFileInfo ending at +0x58. The 16416 stride is target-backed and plausibly represents 16384 bytes plus 32-byte alignment slack. Normal typed array indexing is preferred over manual stride arithmetic.",
+    "reconstruction_debt": "SCEBUFFER_SLOT is an inferred view rather than a recovered source name, and the containing BSS aggregate/symbol boundaries remain unrecovered. Eventually model the full file-slot/buffer aggregate and embed or union the known DVDFileInfo shape; this is cleanup debt, not prohibited fakematching.",
+    "remaining_residual": "One prologue scheduling move followed by consistent base/file and fileInfo/alignment register swaps; do not retry the recorded base-type, register-hint, initializer-order, direct-global, raw-association, offset-hoist, or direct-member axes without a new target-backed lever.",
+    "verification": "owning object, section/sibling audit, full ninja and DOL checksum passed; post-integration full gate passed at 97.80% fuzzy and 58.15% exact matched"
+  },
+  "function": "function:sceOpen",
+  "id": "attempt.sceopen-typed-slot-closure.20260830.v2",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "supersedes": "attempt.sceopen-typed-slot-closure.20260829.v1",
+  "valid_from": "2026-08-30"
+}
