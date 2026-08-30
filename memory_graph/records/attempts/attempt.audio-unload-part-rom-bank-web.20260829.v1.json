@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "ROM-bank ID and ROM-bank pointer live-web reconstruction, followed by exact closure of the entry zero-copy residual",
+  "attributes": {
+    "anchors": "src/game/audio/audio.c::AudioUnloadPart; target .text 0x8001799C size 0x17C; python tools/gdl/fnasm.py game/audio/audio AudioUnloadPart; python tools/gdl/fndiff.py game/audio/audio AudioUnloadPart --clean; ninja",
+    "baseline": "target/current 95/95 instructions, fuzzy 98.947365%, real 18, 0x28-byte frame, saves r27-r31",
+    "final_state": "target/current 95/95 instructions, fuzzy 99.36842%, real 2, 0x28-byte frame, saves r27-r31; sole residual at target +0x24 is addi r29,r31,0 while MWCC emits li r29,0",
+    "measurements": "direct scanOffset reuse collapsed the saved-ID copy and worsened to 94 instructions/real 53; pointer scope, register hints, declaration order, typed-pointer access, and a root staging local reproduced real 18; an s32 loaded-ID temporary was real 22; assignment-expression staging through dead partId improved to real 14; changing that load temporary to u32 reduced value propagation and reached real 6; reusing the dead scanOffset as the later s32 ROM-bank ID reached the retained real-2 result. Guard-derived initialization worsened to 94 instructions/real 35, and an unsigned initializer cast reproduced real 2; all unsuccessful probes were reverted",
+    "policy": "retain the signedness boundary and dead-web reuse improvement; exact closure is capped under the source-shape iteration limit. Do not retry guard-derived initialization or initializer signedness without a genuinely new source-level idea; accepted AudioBankLoadName and AudioBankQueueName zero-copy caps remain undisturbed",
+    "retained_improvement": "a block-local u32 loaded-ROM-bank-ID temporary, explicitly converted into the dead s32 scanOffset web after pointer construction, prevents MWCC from forwarding the volatile load through the reuse scan and gives the target r28 ROM-bank pointer/r29 saved-ID allocation; fuzzy improves 98.947365% to 99.36842% and real falls 18 to 2 with unchanged instruction count, frame, calls, CFG, relocations, and ABI",
+    "semantic_audit": "the suspend guard, 292-byte bank-name lookup, not-found suspension path, loaded-part validation, ROM-bank lookup, 0/0xFFFF handle guards, reverse shared-bank scan, diagnostic path, AudioKillByBank and sndCmd18 cleanup, handle clearing, and final part-slot reset align with the complete target assembly. AudioBankLoadName and AudioBankQueueName remain 115/115 real 2 and 75/75 real 2 respectively; TU section sizes and linked DOL checksum remain unchanged"
+  },
+  "function": "function:AudioUnloadPart",
+  "id": "attempt.audio-unload-part-rom-bank-web.20260829.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}

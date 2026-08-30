@@ -1190,7 +1190,6 @@ void AudioUnloadPart(char* bankName)
     s32 scanOffset;
     s32 bankOffset;
     s32 partId;
-    s32 romBankId;
 
     if (sAudioSuspend != 0) {
         return;
@@ -1210,29 +1209,35 @@ void AudioUnloadPart(char* bankName)
     bankOffset = i * 292;
     {
         u8* bankEntry = (u8*)gAudioBankTbl + bankOffset + 20;
+        u8* romBank;
+        u16 handle;
+
         partId = *(s32*)(bankEntry + 284);
         if (partId < 0) {
             return;
         }
         bankEntry += partId * 4;
-        romBankId = *(s32*)(bankEntry + 28);
-    }
-    {
-        u8* romBank = *(u8**)(sAudioBankTable + 16) + romBankId * 44;
-        u16 handle = *(u16*)(romBank + 42);
+        {
+            u32 loadedRomBankId;
+
+            romBank = *(u8**)(sAudioBankTable + 16) + (loadedRomBankId = *(s32*)(bankEntry + 28)) * 44;
+            handle = *(u16*)(romBank + 42);
+            scanOffset = (s32)loadedRomBankId;
+        }
+
         if (handle != 0 && handle != 0xFFFF) {
             s32 j;
             for (j = gAudioBankTbl[4] - 1; j >= 0; j--) {
                 if (j != i) {
                     u8* other = (u8*)gAudioBankTbl + j * 292 + 20;
-                    if (romBankId == *(s32*)(other + *(s32*)(other + 284) * 4 + 28)) {
+                    if (scanOffset == *(s32*)(other + *(s32*)(other + 284) * 4 + 28)) {
                         bulletproof_printf(lbl_8011145C);
                         break;
                     }
                 }
             }
             if (j < 0) {
-                AudioKillByBank(romBankId);
+                AudioKillByBank(scanOffset);
                 sndCmd18(*(s16*)(romBank + 40));
                 *(s16*)(romBank + 40) = 0;
                 *(s16*)(romBank + 42) = 0;
