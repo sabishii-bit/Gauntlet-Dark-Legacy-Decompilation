@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "provenance": "research/xbox_symbols/misc.h:28120; anchors: src/game/world/newcam.c:204 comment, src/game/world/gauntworld.c fn_8005C1DC (95.2% matched region), items.c generator/trap tuning; new anchors 2026-08-30 secondary enemy.c de-fakematch pass (attempt.enemy-c-defakematch-tupass.20260830.v2), fnasm.py displacement checks across fn_80046140/move_logic30 (both byte-exact MATCHED, unchanged after conversion) plus damage_enemy/do_enemies/init_enemy.",
+    "scope": "GC GUNE5D global typing; cross-platform layout adoption per the project authority rule"
+  },
+  "epistemic_state": "verified",
+  "id": "claim.gcurlevel-is-level-data.20260830.v2",
+  "kind": "claim",
+  "predicate": "type_identification",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "supersedes": "claim.gcurlevel-is-level-data.20260830.v1",
+  "valid_from": "2026-08-30",
+  "value": "gCurLevel (0x8034483C) points at struct level_data (Xbox shell3D.pdb misc.h Id=3267, size 0x10C), adopted as include/game/leveldata.h. Seven GC anchors now verified: +0x60 camera_data* (newcam.c), +0x9C plevel (fn_8005C1DC gold ramp; also damage_enemy target-level scale), +0xAC ene_health (enemy.c fight threshold/scale, 3 call sites), +0xB0 ene_speed (do_enemies per-type speed-table refresh), +0xBC ene_damage (enemy.c suicide-explosion scale, 4 call sites across 2 MATCHED functions), +0xC0 ene_mrate (move_logic30 dead-end timer, MATCHED function unchanged), +0xCC..0xDC gen_health/gen_rate/gen_max/trap_rate/trap_damage (items.c). The +0xAC/B0/BC/C0 anchors are each confirmed by fnasm.py target-displacement read (lfs ...,172/176/188/192(rN)) before conversion and byte-gated after (2 of 5 converting functions are byte-exact MATCHED and stayed OK). Unlisted fields still carry unverified Xbox names - check target displacements before matching against them."
+}

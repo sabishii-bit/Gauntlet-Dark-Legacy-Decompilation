@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "Secondary de-fakematch pass, game/enemy/enemy.c (work_claim.enemy-defake2.20260830.v1): convert gCurLevel offsets via claim.gcurlevel-is-level-data; re-attempt wave-1 leave-raws with the 4 laws postdating wave1 + lwzu-idiom-web-retention/pointer-walk-array-index-regression; identify fn_8004E67C's resource table + do_enemies' scratch sub-table.",
+  "attributes": {
+    "anchors": "src/game/enemy/enemy.c; include/game/leveldata.h; fnasm.py+fndiff.py game/enemy/enemy <fn> --count/--ops",
+    "gcurlevel_conversion": "11 raw sites/5 fns retyped via `extern level_data* gCurLevel;`+leveldata.h include. fn_80046140 x2(0xBC,MATCHED,OK), move_logic30 x1(0xC0,MATCHED,OK), damage_enemy x6(0x9C x2 already-verified,0xBC x3,0xAC x1; real151 unchanged), do_enemies x1(0xB0), init_enemy x1(0xAC; real45 unchanged). Each displacement confirmed in TARGET asm via fnasm.py first (lfs...,156/172/176/188/192(rN)). All 4 non-anchor fields (ene_health/speed/damage/mrate @0xAC/B0/BC/C0) now GC-VERIFIED in leveldata.h. Wave1 tally (8 sites) missed 3 decimal-literal/out-of-scope sites; full-file grep found all 11.",
+    "leftover_pl_A24_A28": "do_enemies pl+0xA24/0xA28 (walked pl+=0x335C): inside EnemyPlayerView's own _A22 padding gap, no field name exists - applied offsetof-fused-immediate-counter's raw-base form: `pl+offsetof(EnemyPlayerView,_A22)+2/+6` replacing bare hex, same compile-time constant. do_enemy_collide behavior-chain/gravity (~52-54 sites) stays untouched, off-limits per instruction.",
+    "resource_table_identification": "fn_8004E67C cursor+0x20: no struct found (gdlmem struct probes gen_head/generator/enemy_gen/gen_record/gentable/gen_table/texmod_owner/enemy_texmod all no-match; no other TU reader); left raw, ID attempt commented in source. cursor+0x564: EXACT match to gWadAtreeHeaders-lbl_80250E00=0x564 (prev-dead symbol, first evidence of purpose: per-index void* texmod-owner array). NOT rewritten to the symbol - fnasm.py shows fn base still relocates vs lbl_80250E00 (walked-base-symbol-identity); comment-only, fn stayed OK. do_enemies dst+0x40 (45-entry table): IDENTIFIED as EnemyMovePage05.speed[45] (already used by move_logic05 as page->speed[type]) - address math confirms exact overlap. Converted to `((EnemyMovePage05*)pool)->speed[i]=...` - IMPROVED real394->392 (insns 568/568 unchanged); see new law re: why this array-index form was safe unlike gEnemyPlayers[i].",
+    "score_changes": "fn_80046140/move_logic30/fn_8004E67C: OK before/after (MATCHED unchanged). damage_enemy real151, init_enemy real45 unchanged. do_enemies real394->392 IMPROVED. do_enemy_collide real0, check_enemy_pos OK - sentinels unchanged. Full project: ninja green, main.dol OK, 97.82%/58.15% (fuzzy +0.02pp vs wave1's 97.80%/58.15%)."
+  },
+  "function": "function:damage_enemy",
+  "id": "attempt.enemy-c-defakematch-tupass.20260830.v2",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.enemy-c-defakematch-tupass.20260830.v1",
+  "valid_from": "2026-08-30"
+}

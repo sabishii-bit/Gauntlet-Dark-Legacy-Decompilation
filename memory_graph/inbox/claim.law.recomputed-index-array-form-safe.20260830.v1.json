@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "do_enemies speed-table refresh loop, src/game/enemy/enemy.c; see attempt.enemy-c-defakematch-tupass.20260830.v2",
+    "scope": "MWCC GC 1.2.5 family; boundary refinement of claim.law.pointer-walk-array-index-regression - applies to a loop index used to freshly recompute an element address each iteration, as distinct from that law's accumulator-walked pointer case."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.recomputed-index-array-form-safe.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "claim.law.pointer-walk-array-index-regression found that rewriting an ACCUMULATOR-walked loop pointer (`u8* p = base; ...; p += STRIDE;`) into array-style indexing regressed do_enemies (real 394->606). A second do_enemies loop in the SAME function shows the opposite result is safe, even beneficial, when the base pointer is NOT an accumulator: `for (i=0;i<45;i++) { u8* dst = pool + i*4; *(f32*)(dst+0x40) = ...; }` freshly recomputes `pool + i*4` from the loop counter every iteration (no `+=` carried across iterations) - converting this to `((EnemyMovePage05*)pool)->speed[i] = ...` IMPROVED the function (real 394->392, insns unchanged 568/568), with the --ops diff showing an `add`->`addi` and `stfs`->`stfsx` shift toward the target's own indexed-store shape. Distinguishing test: does the loop carry a pointer variable forward via `+=`/`++` across iterations (accumulator - risk of regression, prefer a cast-at-use-site per the original law), or does it recompute `base + i*stride` fresh from the counter each time (recomputed-index - array form is safe to try first, and may improve matches by exposing indexed-addressing opcodes like stfsx/lfsx that the raw-pointer form obscured)? A/B both forms regardless; this is one verified instance, not yet a guarantee."
+}
